@@ -1,7 +1,7 @@
 // Mission pilotée : étapes lancées depuis l'écran Mission et tâche planifiée (jours ouvrés).
 import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
 import { admin, env, log, quota, requireMember, type Prospect, type Target } from "../_shared/core.ts";
-import { draft, enrich, mxOk, reconcileStuck, sendOne } from "../_shared/agents.ts";
+import { draft, enrich, followups, mxOk, reconcileStuck, sendOne } from "../_shared/agents.ts";
 import { canSend } from "../_shared/mail.ts";
 import { warmup } from "../_shared/growth.ts";
 import { radarToProspect } from "../_shared/radar.ts";
@@ -142,6 +142,11 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
     const { data: list } = await admin.from("workspaces").select("*").eq("autonomy", "auto").eq("onboarded", true);
     for (const ws of list ?? []) {
       try { out[ws.id] = await autopilot(ws, ""); } catch (e) { out[ws.id] = { error: (e as Error).message }; }
+    }
+    // Mode « à valider » : les relances J+5 / J+12 sont préparées aussi, en brouillon (elles ne partent qu'après validation)
+    const { data: manual } = await admin.from("workspaces").select("*").neq("autonomy", "auto").eq("onboarded", true);
+    for (const ws of manual ?? []) {
+      try { const r = await followups(ws); if (r.created) out[`relances_${ws.id}`] = r.created; } catch (e) { out[`relances_${ws.id}`] = { error: (e as Error).message }; }
     }
     return out;
   },
