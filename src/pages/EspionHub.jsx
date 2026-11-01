@@ -35,13 +35,15 @@ const Ico = ({ n, className = "w-5 h-5" }) => <svg viewBox="0 0 24 24" className
 
 /** L'espionne de Bingoo! : son portrait, qui cligne des yeux. Au travail, sa loupe passe sur l'écran et un balayage la traverse. */
 const LIDS = [[573, 399, 56, 34], [755, 403, 45, 32]];
-export function Spy({ working, className = "w-[220px] h-[220px]" }) {
+export function Spy({ working, className = "w-[205px] h-[246px]" }) {
+  const mask = { WebkitMaskImage: "url(/espion.webp)", maskImage: "url(/espion.webp)", WebkitMaskSize: "100% 100%", maskSize: "100% 100%" };
   return (
     <div className={cx("relative shrink-0 select-none", className)}>
-      <div className={cx("absolute -inset-2 rounded-[34px] transition", working ? "bg-accent/25 animate-pulse" : "bg-transparent")} />
-      <div className="relative h-full w-full rounded-[28px] overflow-hidden shadow-[0_18px_40px_-14px_rgba(10,10,10,.45)] ring-1 ring-black/5">
-        <img src="/espion.jpg" alt="L'espionne de Bingoo!" className="absolute inset-0 h-full w-full object-cover" draggable={false} />
-        <svg viewBox="0 0 1254 1254" className="absolute inset-0 h-full w-full" aria-hidden>
+      {/* Halo derrière le personnage */}
+      <div className={cx("absolute left-1/2 top-[18%] -translate-x-1/2 w-[92%] aspect-square rounded-full bg-gradient-to-b from-accent-soft to-[#FFF4EC]", working && "animate-pulse")} />
+      <div className="absolute inset-0">
+        <img src="/espion.webp" alt="L'espionne de Bingoo!" className="absolute inset-0 h-full w-full drop-shadow-[0_14px_18px_rgba(10,10,10,.22)]" draggable={false} />
+        <svg viewBox="105 8 1040 1246" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden>
           <defs><linearGradient id="spy-lid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#B85F2A" /><stop offset="1" stopColor="#DF7B3B" /></linearGradient></defs>
           {LIDS.map(([x, y, rx, ry], i) => (
             <g key={i} className="lid" style={{ transformOrigin: `${x}px ${y - ry}px`, animationDuration: "5.2s", animationDelay: "-1.3s" }}>
@@ -50,11 +52,11 @@ export function Spy({ working, className = "w-[220px] h-[220px]" }) {
             </g>
           ))}
         </svg>
-        {working && <div className="absolute inset-x-0 h-1/3 spy-sweep pointer-events-none" style={{ background: "linear-gradient(180deg, rgba(224,83,31,0) 0%, rgba(224,83,31,.28) 50%, rgba(224,83,31,0) 100%)" }} />}
-        {working && <span className="absolute left-2.5 bottom-2.5 inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur px-2.5 py-1 text-[11px] font-semibold text-white"><span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />En mission</span>}
+        {working && <div className="absolute inset-0 overflow-hidden pointer-events-none" style={mask}><div className="absolute inset-x-0 h-1/3 spy-sweep" style={{ background: "linear-gradient(180deg, rgba(224,83,31,0) 0%, rgba(224,83,31,.35) 50%, rgba(224,83,31,0) 100%)" }} /></div>}
       </div>
+      {working && <span className="absolute left-1/2 -translate-x-1/2 -bottom-3 whitespace-nowrap inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[11.5px] font-semibold text-white shadow"><span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />En mission</span>}
       {/* Loupe */}
-      <svg viewBox="0 0 80 80" className={cx("absolute -right-5 -bottom-4 w-[86px] h-[86px] drop-shadow-lg", working ? "spy-loupe-on" : "spy-loupe")} aria-hidden>
+      <svg viewBox="0 0 80 80" className={cx("absolute -right-4 bottom-6 w-[80px] h-[80px] drop-shadow-lg", working ? "spy-loupe-on" : "spy-loupe")} aria-hidden>
         <line x1="50" y1="50" x2="72" y2="72" stroke="#0A0A0A" strokeWidth="9" strokeLinecap="round" />
         <line x1="50" y1="50" x2="72" y2="72" stroke="#3A3A3A" strokeWidth="3.5" strokeLinecap="round" />
         <circle cx="34" cy="34" r="22" fill="rgba(255,255,255,.35)" stroke="#0A0A0A" strokeWidth="6" />
