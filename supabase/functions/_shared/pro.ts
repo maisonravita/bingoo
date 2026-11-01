@@ -103,6 +103,8 @@ OBJET: Re : ${(input.subject ?? "").replace(/^(re|tr|fwd?)\s*:\s*/i, "")}
     }
     if (classe === "pas_interesse") { patch.status = "refus"; patch.next_action_at = addDays(120); patch.next_action = "Reprendre contact (refus il y a 4 mois)"; }
     if (classe === "stop") { patch.status = "refus"; patch.next_action_at = null; patch.next_action = ""; patch.notes = `${p.notes ? p.notes + "\n" : ""}Opposition à toute sollicitation le ${new Date().toLocaleDateString("fr-FR")}`; }
+    // Opposition : liste d'exclusion globale (plus aucun envoi Bingoo vers cette adresse, quel que soit le client)
+    if (classe === "stop") { const e = (p.email || input.fromEmail || "").trim().toLowerCase(); if (e) await admin.from("suppressions").upsert({ email: e, source: "reponse STOP" }, { onConflict: "email", ignoreDuplicates: true }); }
     if (classe === "plus_tard") { patch.next_action_at = /^\d{4}-\d{2}-\d{2}$/.test(v.rappel_date ?? "") ? v.rappel_date : addDays(30); patch.next_action = "Relancer (a répondu « plus tard »)"; }
     if (["interesse", "question", "prix", "rappel", "objection"].includes(classe)) { patch.next_action_at = addDays(0); patch.next_action = classe === "rappel" ? "Rappeler le prospect" : "Répondre au message reçu"; }
     if (classe === "mauvais_contact" && v.nouveau_contact) patch.notes = `${p.notes ? p.notes + "\n" : ""}Contact indiqué : ${v.nouveau_contact}`;

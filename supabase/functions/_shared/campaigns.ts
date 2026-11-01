@@ -153,6 +153,8 @@ export async function trackEvent(type: string, d: Record<string, unknown>) {
   if (type === "email.complained") {
     await admin.from("prospects").update({ status: "refus", next_action_at: null, next_action: "" }).eq("id", m.prospect_id);
     await admin.from("messages").update({ status: "ignore", error: "Signalé comme indésirable" }).eq("prospect_id", m.prospect_id).eq("status", "brouillon");
+    const { data: pr } = await admin.from("prospects").select("email").eq("id", m.prospect_id).maybeSingle();
+    if (pr?.email) await admin.from("suppressions").upsert({ email: pr.email.toLowerCase(), source: "signalement indésirable" }, { onConflict: "email", ignoreDuplicates: true });
   }
   return { ok: true, type };
 }
