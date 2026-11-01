@@ -1,7 +1,7 @@
 // Mission pilotée : étapes lancées depuis l'écran Mission et tâche planifiée (jours ouvrés).
 import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
 import { admin, env, log, quota, requireMember, type Prospect, type Target } from "../_shared/core.ts";
-import { draft, enrich, mxOk, sendOne } from "../_shared/agents.ts";
+import { draft, enrich, mxOk, reconcileStuck, sendOne } from "../_shared/agents.ts";
 import { canSend } from "../_shared/mail.ts";
 import { warmup } from "../_shared/growth.ts";
 import { radarToProspect } from "../_shared/radar.ts";
@@ -124,6 +124,7 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
   // Contrôle quotidien de la plateforme : incidents envoyés par e-mail si une adresse d'alerte est configurée
   async health(req) {
     if ((req.headers.get("x-cron-key") ?? "") !== (await secret("cron_key"))) throw new HttpError(401, "Clé invalide");
+    await reconcileStuck();
     const { data: incidents } = await admin.rpc("platform_incidents");
     const list = (incidents ?? []) as string[];
     const to = await secret("alert_email");
@@ -137,7 +138,7 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
   // Pilote automatique de l'espace (remplace k/autopilot) : envois, relances, réserve de brouillons, rappels
   async autopilot(req) {
     if ((req.headers.get("x-cron-key") ?? "") !== (await secret("cron_key"))) throw new HttpError(401, "Clé invalide");
-    const out: Record<string, unknown> = {};
+    const out: Record<string, unknown> = { envois_interrompus: await reconcileStuck() };
     const { data: list } = await admin.from("workspaces").select("*").eq("autonomy", "auto").eq("onboarded", true);
     for (const ws of list ?? []) {
       try { out[ws.id] = await autopilot(ws, ""); } catch (e) { out[ws.id] = { error: (e as Error).message }; }

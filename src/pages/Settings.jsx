@@ -156,8 +156,15 @@ export default function Settings() {
           <Field label="Envois maximum par jour" hint="Commence à 20 et augmente de 10 par semaine : c'est ce qui protège ton domaine du spam.">
             <Input type="number" min={1} max={200} value={f.daily_limit} onChange={(e) => setF({ ...f, daily_limit: Number(e.target.value) || 1 })} />
           </Field>
+          <Field label="Relances (jours après le premier e-mail)" hint="Par défaut 5 puis 12 jours. Elles s'arrêtent dès que le prospect répond, se désinscrit ou que l'adresse rebondit.">
+            <div className="flex items-center gap-2">
+              <Input type="number" min={2} max={59} value={(f.followup_days ?? [5, 12])[0]} onChange={(e) => setF({ ...f, followup_days: [Number(e.target.value) || 5, (f.followup_days ?? [5, 12])[1]] })} />
+              <span className="text-sm text-ink-faint">puis</span>
+              <Input type="number" min={3} max={60} value={(f.followup_days ?? [5, 12])[1]} onChange={(e) => setF({ ...f, followup_days: [(f.followup_days ?? [5, 12])[0], Number(e.target.value) || 12] })} />
+            </div>
+          </Field>
         </div>
-        <Button className="mt-5" variant="primary" loading={busy === "save"} onClick={() => save({ sender_name: f.sender_name, sender_email: f.sender_email, signature: f.signature, postal_address: f.postal_address, daily_limit: Math.min(200, Math.max(1, f.daily_limit)) })}>Enregistrer</Button>
+        <Button className="mt-5" variant="primary" loading={busy === "save"} onClick={() => save({ sender_name: f.sender_name, sender_email: f.sender_email, signature: f.signature, postal_address: f.postal_address, daily_limit: Math.min(200, Math.max(1, f.daily_limit)), ...(() => { const d = (f.followup_days ?? [5, 12]).map(Number); return d[0] >= 2 && d[1] <= 60 && d[0] < d[1] ? { followup_days: d } : {}; })() })}>Enregistrer</Button>
       </Section>
 
       <Section id="domaine" title="Domaine d'envoi" sub="Les messages partent de ton propre domaine, authentifié : ils arrivent en boîte de réception, et les réponses arrivent directement dans ta messagerie.">

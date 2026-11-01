@@ -335,14 +335,17 @@ export async function sendOne(ws: Workspace, messageId: string) {
   try {
     const link = ws.app_url && ws.booking_slug && msg.step < 2 ? `${ws.app_url.replace(/\/$/, "")}/#/rdv/${ws.booking_slug}?t=${p.public_token}` : "";
     const body = `${msg.body.trim()}${link ? `\n\nSi c'est plus simple, vous pouvez choisir directement un créneau ici : ${link}` : ""}\n\n${signature(ws)}`;
-    const r = await sendMail(ws, { to: p.email, subject: msg.subject, text: body, replyTo: replyAddress(ws, p.public_token), prospecting: true });
+    const r = await sendMail(ws, { to: p.email, subject: msg.subject, text: body, replyTo: replyAddress(ws, p.public_token), prospecting: true, key: msg.id });
     await admin.from("messages").update({ status: "envoye", sent_at: new Date().toISOString(), provider_id: r.id, sent_via: ws.integrations?.mailbox?.ok ? ws.integrations.mailbox.email : "domaine" }).eq("id", messageId);
     await markWarmup(ws);
     if (["pret", "a_valider", "envoye", "nouveau", "sans_email"].includes(p.status)) await admin.from("prospects").update({ status: "envoye" }).eq("id", p.id);
     return { id: messageId, sent: true };
   } catch (e) {
-    await admin.from("messages").update({ status: "echec", error: String((e as Error).message).slice(0, 300) }).eq("id", messageId);
-    return { id: messageId, error: (e as Error).message };
+    // Délai dépassé ou coupure : l'e-mail a pu partir quand même. On ne renvoie jamais automatiquement.
+    const msgErr = String((e as Error).message);
+    const uncertain = /timeout|timed out|ETIMEDOUT|ECONNRESET|socket|aborted|network/i.test(msgErr);
+    await admin.from("messages").update({ status: "echec", error: (uncertain ? "Envoi incertain (coupure) : vérifie ta boîte d'envoi avant de renvoyer. " : "") + msgErr.slice(0, 260) }).eq("id", messageId);
+    return { id: messageId, error: msgErr };
   }
 }
 
@@ -380,6 +383,12 @@ Format : {"url": "", "personne": "", "fonction": "", "note": "", "message": ""}`
 // ---------------------------------------------------------------- Relances
 // Sans réponse marquée, une relance est préparée à J+4 puis à J+9 ; elle arrive
 // dans la file de validation (l'utilisateur confirme qu'il n'y a pas eu de réponse).
+/** Délais des relances (jours après le premier e-mail), réglables par le client : 2 valeurs croissantes entre 2 et 60. */
+export function followupDays(ws: { followup_days?: number[] | null }): number[] {
+  const d = (ws.followup_days ?? []).map(Number);
+  return d.length === 2 && d.every((x) => Number.isInteger(x) && x >= 2 && x <= 60) && d[0] < d[1] ? d : FOLLOW.map((f) => f.after);
+}
+
 export const FOLLOW = [
   { after: 5, subject: (s: string) => `Re : ${s.replace(/^re\s*:\s*/i, "")}`, body: (hello: string) => `${hello}\n\nUn mot rapide : est-ce un sujet chez vous en ce moment, ou plutôt pas d'actualité ?` },
   { after: 12, subject: (s: string) => `Re : ${s.replace(/^re\s*:\s*/i, "")}`, body: (hello: string) => `${hello}\n\nJe n'insiste pas : si ce n'est pas le moment, aucun souci. Et si quelqu'un d'autre s'occupe de ce sujet chez vous, me diriez-vous qui contacter ?` },
@@ -404,7 +413,7 @@ export async function followups(ws: Workspace) {
     if (busy.has(pid) || m.step >= FOLLOW.length || (m.campaign_id && skipCamp.has(m.campaign_id))) continue;
     const f = FOLLOW[m.step];
     const start = new Date(firstSent.get(pid) ?? m.sent_at).getTime();
-    if (Date.now() - start < f.after * 86400_000) continue;
+    if (Date.now() - start < followupDays(ws)[m.step] * 86400_000) continue;
     const hello = (m.body.split("\n")[0] || "Bonjour,").slice(0, 80);
     rows.push({ workspace_id: ws.id, prospect_id: pid, step: m.step + 1, subject: f.subject(m.subject), body: f.body(hello), status: "brouillon", campaign_id: m.campaign_id, variant: m.variant });
   }
@@ -412,4 +421,14 @@ export async function followups(ws: Workspace) {
   for (const row of rows) { const { error } = await admin.from("messages").insert(row); if (!error) created++; }
   rows.length = created;
   return { created: rows.length };
+}
+
+/** E-mails restés « envoi en cours » plus de 15 min (coupure entre l'envoi et l'enregistrement) :
+ *  statut inconnu, donc jamais renvoyés automatiquement. Ils passent en échec avec une consigne de vérification. */
+export async function reconcileStuck() {
+  const limit = new Date(Date.now() - 15 * 60000).toISOString();
+  const { data } = await admin.from("messages").update({ status: "echec", error: "Envoi interrompu, statut inconnu : vérifie ta boîte d'envoi avant de renvoyer (aucun renvoi automatique)." })
+    .eq("status", "envoi").lt("claimed_at", limit).select("id, workspace_id");
+  for (const m of data ?? []) await log(m.workspace_id, "envoi", "Un envoi interrompu est à vérifier (aucun renvoi automatique)");
+  return (data ?? []).length;
 }

@@ -51,7 +51,7 @@ async function seal(text: string) {
   const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await cryptoKey(), new TextEncoder().encode(text)));
   return btoa(String.fromCharCode(...iv, ...ct));
 }
-async function open(sealed: string) {
+export async function open(sealed: string) {
   const all = Uint8Array.from(atob(sealed), (c) => c.charCodeAt(0));
   const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: all.slice(0, 12) }, await cryptoKey(), all.slice(12));
   return new TextDecoder().decode(pt);
@@ -93,13 +93,14 @@ export async function removeMailbox(ws: Workspace) {
   await admin.from("workspaces").update({ integrations }).eq("id", ws.id);
   return { ok: true };
 }
-export async function smtpSend(ws: Workspace, m: { from: string; to: string; replyTo: string; subject: string; text: string; html: string; headers?: Record<string, string>; attachments?: { filename: string; content: string; contentType: string }[] }) {
+export async function smtpSend(ws: Workspace, m: { from: string; to: string; replyTo: string; subject: string; text: string; html: string; headers?: Record<string, string>; attachments?: { filename: string; content: string; contentType: string }[]; messageId?: string }) {
   const { data } = await admin.from("workspace_secrets").select("smtp").eq("workspace_id", ws.id).maybeSingle();
   const s = data?.smtp as { host?: string; port?: number; user?: string; pass?: string } | undefined;
   if (!s?.host || !s.pass) throw new HttpError(400, "Boîte mail déconnectée : reconnecte-la dans Réglages");
   try {
     const info = await transport(s.host, s.port ?? 465, s.user!, await open(s.pass)).sendMail({
       from: m.from, to: m.to, replyTo: m.replyTo, subject: m.subject, text: m.text, html: m.html, headers: m.headers, attachments: m.attachments,
+      ...(m.messageId ? { messageId: m.messageId } : {}),
     });
     return { id: String(info.messageId ?? "") };
   } catch (e) {
