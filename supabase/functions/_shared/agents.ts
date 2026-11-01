@@ -1,7 +1,7 @@
 // Agents Enquêteur (coordonnées), Rédacteur (premier e-mail) et Facteur (envoi).
 import { learned } from "./intelligence.ts";
 import { HttpError } from "./http.ts";
-import { admin, ask, askJson, knowledgeOf, type Prospect, type Workspace } from "./core.ts";
+import { admin, ask, askJson, knowledgeOf, log, type Prospect, type Workspace } from "./core.ts";
 import { resend, replyAddress, sendMail, signature } from "./mail.ts";
 import { markWarmup } from "./growth.ts";
 import { campaignOf, goalText, pickVariant } from "./campaigns.ts";
