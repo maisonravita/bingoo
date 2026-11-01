@@ -191,14 +191,25 @@ function Report({ items }) {
 }
 
 /* 1. Mes concurrents */
-function Competitors({ rows, onOpen }) {
+function Competitors({ rows, onOpen, ws, onDone }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState({});
+  const analyse = async (e, c) => {
+    e.stopPropagation();
+    setBusy((b) => ({ ...b, [c.id]: true }));
+    try {
+      await fn("competitor-check", { workspace_id: ws.id, competitor_id: c.id, force: true });
+      await fn("r/spy-social", { workspace_id: ws.id, competitor_id: c.id }).catch(() => null);
+      toast(`Rapport de ${nameOf(c)} prêt`, "good"); onDone();
+    } catch (err) { toast(err.message, "bad"); } finally { setBusy((b) => ({ ...b, [c.id]: false })); }
+  };
   if (!rows.length) return <Empty>Choisis ci-dessus les concurrents à suivre : l'espionne fera leur rapport complet cette nuit.</Empty>;
   return (
     <div className="grid md:grid-cols-2 2xl:grid-cols-3 gap-3.5">
       {rows.map((c) => {
         const s = c.summary ?? {};
         return (
-          <button key={c.id} onClick={() => onOpen(c)} className="text-left rounded-2xl border border-line bg-white p-4 hover:border-accent/50 transition group min-w-0">
+          <div key={c.id} role="button" tabIndex={0} onClick={() => onOpen(c)} onKeyDown={(e) => e.key === "Enter" && onOpen(c)} className={cx("cursor-pointer text-left rounded-2xl border bg-white p-4 hover:border-accent/50 transition group min-w-0", busy[c.id] ? "border-accent/60" : "border-line")}>
             <div className="flex items-center gap-3">
               <Fav c={c} />
               <div className="min-w-0 flex-1"><p className="font-bold text-ink truncate">{nameOf(c)}</p><p className="text-[12px] text-ink-faint truncate">{host(c.url)}</p></div>
@@ -212,8 +223,8 @@ function Competitors({ rows, onOpen }) {
               <div className="rounded-lg bg-paper/60 border border-line p-2"><p className="text-ink-faint">Tarifs</p><p className="text-ink line-clamp-2 mt-0.5">{txt(s.prix?.affiches)?.slice(0, 90) || "Inconnu"}</p></div>
               <div className="rounded-lg bg-paper/60 border border-line p-2"><p className="text-ink-faint">Faiblesses repérées</p><p className="text-ink mt-0.5">{(s.faiblesses ?? []).length || "—"}</p></div>
             </div>
-            <p className="mt-3 flex items-center justify-between text-[11.5px] text-ink-faint">{c.spy_due || !c.summary ? <span className="font-semibold text-accent-dark">Rapport complet cette nuit</span> : c.watched_at && new Date(c.watched_at).toDateString() === new Date().toDateString() ? `Contrôlé aujourd'hui · rapport ${ago(c.checked_at)}` : `Rapport ${ago(c.checked_at)}`}<span className="inline-flex items-center gap-1 font-semibold group-hover:translate-x-0.5 transition" style={{ color: TEAL }}>Ouvrir la fiche<Ico n="chev" className="w-3.5 h-3.5" /></span></p>
-          </button>
+            <p className="mt-3 flex items-center justify-between text-[11.5px] text-ink-faint">{busy[c.id] ? <span className="font-semibold text-accent-dark animate-pulse">Enquête en cours… (1 à 2 min)</span> : !c.summary ? <span className="flex items-center gap-2"><span className="font-semibold text-accent-dark">Rapport cette nuit</span><button onClick={(e) => analyse(e, c)} className="rounded-full bg-accent text-white px-2.5 py-1 text-[11.5px] font-semibold hover:bg-accent-dark">Analyser maintenant</button></span> : c.spy_due ? <span className="font-semibold text-accent-dark">Nouveau rapport cette nuit</span> : c.watched_at && new Date(c.watched_at).toDateString() === new Date().toDateString() ? `Contrôlé aujourd'hui · rapport ${ago(c.checked_at)}` : `Rapport ${ago(c.checked_at)}`}<span className="inline-flex items-center gap-1 font-semibold group-hover:translate-x-0.5 transition" style={{ color: TEAL }}>Ouvrir la fiche<Ico n="chev" className="w-3.5 h-3.5" /></span></p>
+          </div>
         );
       })}
     </div>
@@ -449,7 +460,7 @@ export default function EspionHub() {
 
       <div className="mt-5">
         {!rows ? <div className="py-16 text-center text-ink-faint text-sm">Ouverture des dossiers…</div>
-          : space === "concurrents" ? <div className="space-y-5"><Proposed list={proposed} ws={ws} onDone={load} />{!list.length && !proposed.length ? <FirstRun ws={ws} onDone={load} /> : <Competitors rows={list} onOpen={setDesk} />}</div>
+          : space === "concurrents" ? <div className="space-y-5"><Proposed list={proposed} ws={ws} onDone={load} />{!list.length && !proposed.length ? <FirstRun ws={ws} onDone={load} /> : <Competitors rows={list} onOpen={setDesk} ws={ws} onDone={load} />}</div>
           : space === "veille" ? <div className="space-y-4"><Report items={report} /><Watch rows={list} /></div>
           : space === "besoins" ? <Needs rows={list} />
           : space === "strategie" ? <Strategy rows={list} />
