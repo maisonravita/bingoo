@@ -15,7 +15,7 @@ import Agenda from "./pages/Agenda";
 import Quotes from "./pages/Quotes";
 import Calls from "./pages/Calls";
 import Results from "./pages/Results";
-import Agents from "./pages/Agents";
+import Salaries from "./pages/Salaries";
 import Socials from "./pages/Socials";
 import Connexions from "./pages/Connexions";
 import Equipe from "./pages/Equipe";
@@ -29,7 +29,6 @@ import Espion from "./pages/Espion";
 import Mission from "./pages/Mission";
 import Intelligence from "./pages/Intelligence";
 import Abonnement from "./pages/Abonnement";
-import Assistant from "./pages/Assistant";
 import Join, { JOIN_KEY } from "./pages/Join";
 import PublicBooking from "./pages/PublicBooking";
 import PublicQuote from "./pages/PublicQuote";
@@ -76,7 +75,8 @@ function Gate() {
         <Route path="/espion" element={<Espion />} />
         <Route path="/studio" element={<Navigate to="/distribution" replace />} />
         <Route path="/resultats" element={<Results />} />
-        <Route path="/agents" element={<Agents />} />
+        <Route path="/salaries" element={<Salaries />} />
+        <Route path="/agents" element={<Navigate to="/salaries" replace />} />
         <Route path="/reseaux" element={<Socials />} />
         <Route path="/campagnes" element={<Navigate to="/prospection" replace />} />
         <Route path="/connexions" element={<Connexions />} />
@@ -85,7 +85,7 @@ function Gate() {
         <Route path="/radar" element={<Radar />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/aide" element={<Aide />} />
-        <Route path="/assistant" element={<Assistant />} />
+        <Route path="/assistant" element={<Navigate to="/salaries" replace />} />
         <Route path="/prospection" element={<Prospection />} />
         <Route path="/distribution" element={<Distribution />} />
         <Route path="/conversion" element={<Conversion />} />

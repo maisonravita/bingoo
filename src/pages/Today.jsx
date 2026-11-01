@@ -129,7 +129,7 @@ function TeamToday() {
     <Card className="p-4 sm:p-5 mb-8">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-soft">Tes agents IA aujourd'hui</h2>
-        <Link to="/agents" className="text-sm text-ink-soft hover:text-ink">Voir l'équipe ›</Link>
+        <Link to="/salaries" className="text-sm text-ink-soft hover:text-ink">Voir l'équipe ›</Link>
       </div>
       {!busy.length ? <p className="text-sm text-ink-soft mt-2">Ton équipe n'a encore rien fait aujourd'hui.{ws.autonomy === "auto" ? " Le pilote automatique passera dans la journée." : " Lance une action ci-dessous ou passe en pilote automatique dans Réglages."}</p> : (
         <div className="flex flex-wrap gap-2 mt-3">
