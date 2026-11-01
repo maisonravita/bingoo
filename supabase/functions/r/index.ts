@@ -1,7 +1,7 @@
 // Fonction « r » : Kairo Radar, Espion et Studio (modules de croissance), séparée pour des mises à jour légères.
 import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
 import { admin, quota, requireMember } from "../_shared/core.ts";
-import { radarCron, radarToProspect, scanRadar } from "../_shared/radar.ts";
+import { radarCron, radarGetConfig, radarSetConfig, radarToProspect, scanRadar } from "../_shared/radar.ts";
 import { resolveCompetitor, spySocial } from "../_shared/spy.ts";
 import { studioGenerate } from "../_shared/studio.ts";
 import { growthReco } from "../_shared/reco.ts";
@@ -18,6 +18,10 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { ws } = await requireMember(req, b.workspace_id);
     await quota(ws.id, "radar_scan", 4);
     return await scanRadar(ws, { web: b.web === true ? true : undefined });
+  },
+  async "radar-config"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    return b.set ? await radarSetConfig(ws, b) : await radarGetConfig(ws);
   },
   async "radar-add"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);

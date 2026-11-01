@@ -153,21 +153,60 @@ async function radarZone(ws: Workspace): Promise<string[]> {
   return [...new Set([...fromMissions, ...(ws.zone ?? [])])];
 }
 
+type Step = { s: "a_venir" | "en_cours" | "fait" | "saute" | "erreur"; at?: string; n?: number };
+type Progress = { started_at: string; done_at: string | null; added: number | null; steps: Record<"lance" | "marches" | "web" | "registre" | "tri", Step> };
+
 export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opts: { web?: boolean } = {}) {
-  const ws = { ...ws0, zone: await radarZone(ws0) };
-  const cfg = await config(ws);
-  const webDue = opts.web ?? (!cfg.web_at || cfg.web_at < new Date(Date.now() - 6 * 864e5).toISOString());
-  const errors: string[] = [];
-  const [t, w, g] = await Promise.all([
-    tenders(ws, cfg).catch((e) => { console.error("radar boamp", e); errors.push("appels d'offres"); return [] as Opp[]; }),
-    webDue ? webSignals(ws, cfg).catch((e) => { console.error("radar web", e); errors.push("signaux web"); return [] as Opp[]; }) : Promise.resolve([] as Opp[]),
-    registrySignals(ws).catch(() => [] as Opp[]),
-  ]);
-  const added = await save(ws, [...t, ...w, ...g]);
-  const now = new Date().toISOString();
-  await admin.from("workspaces").update({ radar_at: now, ...(webDue ? { radar_cfg: { ...cfg, web_at: now } } : {}) }).eq("id", ws.id);
-  await log(ws.id, "radar_scan", `Radar : ${added} nouvelle${added > 1 ? "s" : ""} opportunité${added > 1 ? "s" : ""} (${t.length} appels d'offres, ${w.length} signaux web)`);
-  return { added, tenders: t.length, web: w.length, registry: g.length, web_scanned: webDue, errors, keywords: cfg.mots_cles };
+  const at = () => new Date().toISOString();
+  // Avancement réel, écrit à chaque étape : l'écran le lit pendant l'analyse
+  const p: Progress = { started_at: at(), done_at: null, added: null, steps: { lance: { s: "en_cours", at: at() }, marches: { s: "a_venir" }, web: { s: "a_venir" }, registre: { s: "a_venir" }, tri: { s: "a_venir" } } };
+  const put = () => admin.from("workspaces").update({ radar_progress: p }).eq("id", ws0.id).then(() => null, () => null);
+  await put();
+  try {
+    const ws = { ...ws0, zone: await radarZone(ws0) };
+    const cfg = await config(ws);
+    const webDue = opts.web ?? (!cfg.web_at || cfg.web_at < new Date(Date.now() - 6 * 864e5).toISOString());
+    const errors: string[] = [];
+    p.steps.lance = { s: "fait", at: p.steps.lance.at };
+    p.steps.marches = cfg.marches && cfg.mots_cles.length ? { s: "en_cours", at: at() } : { s: "saute" };
+    p.steps.web = webDue ? { s: "en_cours", at: at() } : { s: "saute" };
+    p.steps.registre = { s: "en_cours", at: at() };
+    await put();
+    const step = <T,>(k: "marches" | "web" | "registre", job: Promise<T[]>, label: string) => job.then(
+      (r) => { if (p.steps[k].s !== "saute") p.steps[k] = { s: "fait", at: at(), n: r.length }; put(); return r; },
+      (e) => { console.error("radar", k, e); if (label) errors.push(label); p.steps[k] = { s: "erreur", at: at() }; put(); return [] as T[]; });
+    const [t, w, g] = await Promise.all([
+      step("marches", tenders(ws, cfg), "appels d'offres"),
+      step("web", webDue ? webSignals(ws, cfg) : Promise.resolve([] as Opp[]), "signaux web"),
+      step("registre", registrySignals(ws), ""),
+    ]);
+    p.steps.tri = { s: "en_cours", at: at() }; await put();
+    const added = await save(ws, [...t, ...w, ...g]);
+    const now = at();
+    p.steps.tri = { s: "fait", at: now, n: added }; p.done_at = now; p.added = added;
+    await admin.from("workspaces").update({ radar_at: now, radar_progress: p, ...(webDue ? { radar_cfg: { ...cfg, web_at: now } } : {}) }).eq("id", ws.id);
+    await log(ws.id, "radar_scan", `Radar : ${added} nouvelle${added > 1 ? "s" : ""} opportunité${added > 1 ? "s" : ""} (${t.length} appels d'offres, ${w.length} signaux web)`);
+    return { added, tenders: t.length, web: w.length, registry: g.length, web_scanned: webDue, errors, keywords: cfg.mots_cles };
+  } catch (e) {
+    for (const k of Object.keys(p.steps) as (keyof Progress["steps"])[]) if (p.steps[k].s === "en_cours") p.steps[k] = { s: "erreur", at: at() };
+    p.done_at = at(); await put();
+    throw e;
+  }
+}
+
+/** Ce que le Radar cherche, modifiable par le client : postes « signal », mots-clés des marchés publics, marchés oui/non. */
+export async function radarSetConfig(ws: Workspace & { radar_cfg?: Cfg | null }, b: { postes?: unknown; mots_cles?: unknown; marches?: unknown }) {
+  const cur = await config(ws);
+  const clean = (v: unknown, max: number) => Array.isArray(v) ? [...new Set(v.map((x) => String(x).replace(/["\\]/g, "").trim()).filter((x) => x.length > 1 && x.length < 60))].slice(0, max) : undefined;
+  const cfg: Cfg = { ...cur, postes: clean(b.postes, 6) ?? cur.postes, mots_cles: clean(b.mots_cles, 10) ?? cur.mots_cles, marches: typeof b.marches === "boolean" ? b.marches : cur.marches };
+  await admin.from("workspaces").update({ radar_cfg: cfg }).eq("id", ws.id);
+  await log(ws.id, "radar", "Réglages du Radar modifiés");
+  return { radar_cfg: cfg };
+}
+
+/** Lecture de la configuration (calculée à la première demande). */
+export async function radarGetConfig(ws: Workspace & { radar_cfg?: Cfg | null }) {
+  return { radar_cfg: await config(ws), zone: await radarZone(ws) };
 }
 
 /** Transforme une opportunité (entreprise) en prospect, en la retrouvant dans le registre officiel. */
