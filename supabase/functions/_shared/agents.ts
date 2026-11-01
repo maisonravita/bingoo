@@ -406,11 +406,14 @@ export async function followups(ws: Workspace) {
   const skipCamp = new Set((noFollow ?? []).map((x) => x.id));
   const { data: pending } = await admin.from("messages").select("prospect_id").eq("workspace_id", ws.id).eq("status", "brouillon");
   const busy = new Set((pending ?? []).map((x) => x.prospect_id));
+  // Relance déjà tentée (échec, ou envoi interrompu au statut inconnu) : jamais recréée, pour ne pas risquer un double envoi
+  const { data: failed } = await admin.from("messages").select("prospect_id, step").eq("workspace_id", ws.id).eq("status", "echec");
+  const tried = new Set((failed ?? []).map((x) => `${x.prospect_id}:${x.step}`));
   const rows: Record<string, unknown>[] = [];
   const firstSent = new Map<string, string>();
   for (const m of sent ?? []) if (m.step === 0) firstSent.set(m.prospect_id, m.sent_at);
   for (const [pid, m] of last) {
-    if (busy.has(pid) || m.step >= FOLLOW.length || (m.campaign_id && skipCamp.has(m.campaign_id))) continue;
+    if (busy.has(pid) || tried.has(`${pid}:${m.step + 1}`) || m.step >= FOLLOW.length || (m.campaign_id && skipCamp.has(m.campaign_id))) continue;
     const f = FOLLOW[m.step];
     const start = new Date(firstSent.get(pid) ?? m.sent_at).getTime();
     if (Date.now() - start < followupDays(ws)[m.step] * 86400_000) continue;
