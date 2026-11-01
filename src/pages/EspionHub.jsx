@@ -7,7 +7,8 @@ import { cx } from "../lib/utils";
 import { CompetitorDesk } from "./Espion";
 
 // Espion : le centre de renseignement commercial. Cinq espaces, données sourcées uniquement.
-const TEAL = "#2DD4BF";
+const TEAL = "#E0531F"; // accent Bingoo!
+const INK = "#0A0A0A";
 const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u ?? ""; } };
 const txt = (x) => String(typeof x === "string" ? x : x?.texte ?? "").replace(/<\/?cite[^>]*>/g, "").trim();
 const srcOf = (x) => (typeof x === "object" && x?.source ? String(x.source).split(/\s*;\s*/)[0] : "");
@@ -37,32 +38,32 @@ export function Spy({ working, className = "w-[210px] h-[210px]" }) {
   return (
     <svg viewBox="0 0 220 220" className={cx(className, "overflow-visible")} aria-hidden>
       <defs>
-        <radialGradient id="spy-halo"><stop offset="0" stopColor={TEAL} stopOpacity=".28" /><stop offset="1" stopColor={TEAL} stopOpacity="0" /></radialGradient>
+        <radialGradient id="spy-halo"><stop offset="0" stopColor={TEAL} stopOpacity=".16" /><stop offset="1" stopColor={TEAL} stopOpacity="0" /></radialGradient>
         <linearGradient id="spy-rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={TEAL} stopOpacity=".9" /><stop offset="1" stopColor={TEAL} stopOpacity=".15" /></linearGradient>
-        <radialGradient id="spy-glass"><stop offset="0" stopColor="#E9FFFB" stopOpacity=".35" /><stop offset="1" stopColor={TEAL} stopOpacity=".08" /></radialGradient>
+        <radialGradient id="spy-glass"><stop offset="0" stopColor="#FFFFFF" stopOpacity=".9" /><stop offset="1" stopColor="#D9DEE2" stopOpacity=".55" /></radialGradient>
       </defs>
       <circle cx="96" cy="112" r="96" fill="url(#spy-halo)" className={working ? "spy-halo-on" : ""} />
       {/* Dossiers examinés */}
       <g className={working ? "spy-docs-on" : ""} opacity=".9">
         {[[150, 120, -8], [168, 150, 6], [138, 168, -3]].map(([x, y, r], k) => (
           <g key={k} transform={`rotate(${r} ${x} ${y})`}>
-            <rect x={x - 22} y={y - 14} width="44" height="30" rx="4" fill="#16232A" stroke="#2A3B44" />
+            <rect x={x - 22} y={y - 14} width="44" height="30" rx="4" fill="#FFFFFF" stroke="#E2DFD8" />
             <rect x={x - 16} y={y - 8} width="20" height="3" rx="1.5" fill={TEAL} opacity=".7" />
-            <rect x={x - 16} y={y - 1} width="30" height="2.5" rx="1.2" fill="#3A4C55" />
-            <rect x={x - 16} y={y + 5} width="24" height="2.5" rx="1.2" fill="#3A4C55" />
+            <rect x={x - 16} y={y - 1} width="30" height="2.5" rx="1.2" fill="#D6D3CC" />
+            <rect x={x - 16} y={y + 5} width="24" height="2.5" rx="1.2" fill="#D6D3CC" />
           </g>
         ))}
         {working && [[162, 112], [178, 146], [146, 164]].map(([x, y], k) => <circle key={k} cx={x} cy={y} r="3" fill={TEAL} className="spy-ping" style={{ animationDelay: `${k * 0.9}s` }} />)}
       </g>
       {/* Silhouette : manteau à col relevé, chapeau à large bord */}
       <g>
-        <path d="M18 220 Q24 160 62 140 L96 176 L130 140 Q168 160 174 220 Z" fill="#05080A" stroke="url(#spy-rim)" strokeWidth="1.4" />
-        <path d="M62 140 L58 96 Q70 112 96 118 L96 176 Z" fill="#070B0D" stroke="url(#spy-rim)" strokeWidth="1.2" />
-        <path d="M130 140 L134 96 Q122 112 96 118 L96 176 Z" fill="#06090B" stroke="url(#spy-rim)" strokeWidth="1.2" />
-        <ellipse cx="96" cy="94" rx="30" ry="26" fill="#05080A" />
-        <path d="M66 70 Q68 34 96 32 Q124 34 126 70 Z" fill="#05080A" stroke="url(#spy-rim)" strokeWidth="1.2" />
-        <path d="M67 62 Q96 68 125 62 L126 70 Q96 76 66 70 Z" fill="#0D1418" />
-        <ellipse cx="96" cy="72" rx="62" ry="11" fill="#05080A" stroke="url(#spy-rim)" strokeWidth="1.2" />
+        <path d="M18 220 Q24 160 62 140 L96 176 L130 140 Q168 160 174 220 Z" fill={INK} />
+        <path d="M62 140 L58 96 Q70 112 96 118 L96 176 Z" fill="#141414" />
+        <path d="M130 140 L134 96 Q122 112 96 118 L96 176 Z" fill="#111111" />
+        <ellipse cx="96" cy="94" rx="30" ry="26" fill={INK} />
+        <path d="M66 70 Q68 34 96 32 Q124 34 126 70 Z" fill={INK} />
+        <path d="M67 62 Q96 68 125 62 L126 70 Q96 76 66 70 Z" fill="#1E1E1E" />
+        <ellipse cx="96" cy="72" rx="62" ry="11" fill={INK} />
         {/* Regard */}
         <g className={working ? "spy-eyes-on" : ""}>
           <g className="spy-blink" style={{ transformOrigin: "96px 92px" }}>
@@ -73,9 +74,9 @@ export function Spy({ working, className = "w-[210px] h-[210px]" }) {
       </g>
       {/* Loupe */}
       <g className={working ? "spy-loupe-on" : "spy-loupe"}>
-        <line x1="166" y1="146" x2="186" y2="168" stroke="#C9D6DA" strokeWidth="7" strokeLinecap="round" />
-        <line x1="166" y1="146" x2="186" y2="168" stroke="#7E8D93" strokeWidth="3" strokeLinecap="round" />
-        <circle cx="152" cy="132" r="19" fill="url(#spy-glass)" stroke={TEAL} strokeWidth="4.5" />
+        <line x1="166" y1="146" x2="186" y2="168" stroke={INK} strokeWidth="7" strokeLinecap="round" />
+        <line x1="166" y1="146" x2="186" y2="168" stroke="#3A3A3A" strokeWidth="3" strokeLinecap="round" />
+        <circle cx="152" cy="132" r="19" fill="url(#spy-glass)" stroke={INK} strokeWidth="4.5" />
         <path d="M141 125 Q146 118 154 117" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" fill="none" opacity=".7" />
       </g>
     </svg>
@@ -84,21 +85,21 @@ export function Spy({ working, className = "w-[210px] h-[210px]" }) {
 
 function Panel({ title, icon, right, children, className }) {
   return (
-    <section className={cx("rounded-2xl border border-[#1F2C33] bg-[#111A1F] p-4 sm:p-5 min-w-0", className)}>
+    <section className={cx("rounded-2xl border border-line bg-white p-4 sm:p-5 min-w-0", className)}>
       {title && <div className="flex items-center justify-between gap-3 mb-4">
-        <h3 className="flex items-center gap-2.5 text-[13px] font-bold uppercase tracking-[.08em] text-white/90"><span style={{ color: TEAL }}><Ico n={icon} /></span>{title}</h3>{right}
+        <h3 className="flex items-center gap-2.5 text-[13px] font-bold uppercase tracking-[.08em] text-ink"><span style={{ color: TEAL }}><Ico n={icon} /></span>{title}</h3>{right}
       </div>}
       {children}
     </section>
   );
 }
 const Src = ({ href }) => href ? <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[11.5px] hover:underline" style={{ color: TEAL }}>{host(href)}<Ico n="ext" className="w-3 h-3" /></a> : null;
-const Empty = ({ children }) => <p className="text-sm text-white/50 rounded-xl border border-dashed border-[#2A3B44] p-5 text-center">{children}</p>;
+const Empty = ({ children }) => <p className="text-sm text-ink-faint rounded-xl border border-dashed border-line p-5 text-center">{children}</p>;
 const Fav = ({ c, size = "w-10 h-10" }) => <img src={`https://www.google.com/s2/favicons?domain=${host(c.url)}&sz=64`} alt="" className={cx(size, "rounded-xl bg-white p-1.5 shrink-0")} />;
 
 function Threat({ n }) {
   const v = Number(n) || 0;
-  return <span className="inline-flex items-center gap-1" title={`Menace ${v} sur 5`}>{[1, 2, 3, 4, 5].map((k) => <span key={k} className="h-1.5 w-3 rounded-full" style={{ background: k <= v ? (v >= 4 ? "#F87171" : v >= 3 ? "#FBBF24" : TEAL) : "#26343B" }} />)}</span>;
+  return <span className="inline-flex items-center gap-1" title={`Menace ${v} sur 5`}>{[1, 2, 3, 4, 5].map((k) => <span key={k} className="h-1.5 w-3 rounded-full" style={{ background: k <= v ? (v >= 4 ? "#DC2626" : v >= 3 ? "#D97706" : TEAL) : "#E7E5DF" }} />)}</span>;
 }
 
 /* 1. Mes concurrents */
@@ -109,18 +110,18 @@ function Competitors({ rows, onOpen }) {
       {rows.map((c) => {
         const s = c.summary ?? {};
         return (
-          <button key={c.id} onClick={() => onOpen(c)} className="text-left rounded-2xl border border-[#1F2C33] bg-[#111A1F] p-4 hover:border-[#2DD4BF]/50 transition group min-w-0">
+          <button key={c.id} onClick={() => onOpen(c)} className="text-left rounded-2xl border border-line bg-white p-4 hover:border-accent/50 transition group min-w-0">
             <div className="flex items-center gap-3">
               <Fav c={c} />
-              <div className="min-w-0 flex-1"><p className="font-bold text-white truncate">{nameOf(c)}</p><p className="text-[12px] text-white/45 truncate">{host(c.url)}</p></div>
+              <div className="min-w-0 flex-1"><p className="font-bold text-ink truncate">{nameOf(c)}</p><p className="text-[12px] text-ink-faint truncate">{host(c.url)}</p></div>
               {s.menace && <Threat n={s.menace.niveau} />}
             </div>
-            <p className="text-[13px] text-white/70 mt-3 line-clamp-3 leading-snug">{txt(s.resume || s.offre) || "Pas encore analysé."}</p>
+            <p className="text-[13px] text-ink-soft mt-3 line-clamp-3 leading-snug">{txt(s.resume || s.offre) || "Pas encore analysé."}</p>
             <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
-              <div className="rounded-lg bg-[#0C1418] border border-[#1C2930] p-2"><p className="text-white/40">Tarifs</p><p className="text-white/80 line-clamp-2 mt-0.5">{txt(s.prix?.affiches)?.slice(0, 90) || "Inconnu"}</p></div>
-              <div className="rounded-lg bg-[#0C1418] border border-[#1C2930] p-2"><p className="text-white/40">Faiblesses repérées</p><p className="text-white/80 mt-0.5">{(s.faiblesses ?? []).length || "—"}</p></div>
+              <div className="rounded-lg bg-paper/60 border border-line p-2"><p className="text-ink-faint">Tarifs</p><p className="text-ink line-clamp-2 mt-0.5">{txt(s.prix?.affiches)?.slice(0, 90) || "Inconnu"}</p></div>
+              <div className="rounded-lg bg-paper/60 border border-line p-2"><p className="text-ink-faint">Faiblesses repérées</p><p className="text-ink mt-0.5">{(s.faiblesses ?? []).length || "—"}</p></div>
             </div>
-            <p className="mt-3 flex items-center justify-between text-[11.5px] text-white/40">Analysé {ago(c.checked_at)}<span className="inline-flex items-center gap-1 font-semibold group-hover:translate-x-0.5 transition" style={{ color: TEAL }}>Ouvrir la fiche<Ico n="chev" className="w-3.5 h-3.5" /></span></p>
+            <p className="mt-3 flex items-center justify-between text-[11.5px] text-ink-faint">Analysé {ago(c.checked_at)}<span className="inline-flex items-center gap-1 font-semibold group-hover:translate-x-0.5 transition" style={{ color: TEAL }}>Ouvrir la fiche<Ico n="chev" className="w-3.5 h-3.5" /></span></p>
           </button>
         );
       })}
@@ -139,22 +140,22 @@ function Watch({ rows }) {
   const shown = items.filter((x) => who === "all" || x.c.id === who);
   if (!items.length) return <Empty>Aucun mouvement pour l'instant : ils apparaîtront ici dès la première analyse d'un concurrent.</Empty>;
   return (
-    <Panel title="Mouvements détectés" icon="pulse" right={<span className="text-[12px] text-white/45">{items.length} au total</span>}>
+    <Panel title="Mouvements détectés" icon="pulse" right={<span className="text-[12px] text-ink-faint">{items.length} au total</span>}>
       <div className="flex gap-1.5 flex-wrap mb-4">
-        {[["all", "Tous"], ...rows.map((c) => [c.id, nameOf(c)])].map(([k, l]) => <button key={k} onClick={() => setWho(k)} className={cx("rounded-full px-3 py-1 text-[12px] font-medium border transition", who === k ? "border-[#2DD4BF] text-[#2DD4BF] bg-[#2DD4BF]/10" : "border-[#26343B] text-white/60 hover:text-white")}>{l}</button>)}
+        {[["all", "Tous"], ...rows.map((c) => [c.id, nameOf(c)])].map(([k, l]) => <button key={k} onClick={() => setWho(k)} className={cx("rounded-full px-3 py-1 text-[12px] font-medium border transition", who === k ? "border-accent text-accent-dark bg-accent-soft" : "border-line text-ink-soft hover:text-ink")}>{l}</button>)}
       </div>
       <ol className="relative">
         {shown.slice(0, 30).map((x, i) => (
           <li key={i} className="relative pl-7 pb-5 last:pb-0">
             {i < Math.min(shown.length, 30) - 1 && <span className="absolute left-[7px] top-4 bottom-0 w-px bg-[#26343B]" />}
-            <span className="absolute left-0 top-1 h-[15px] w-[15px] rounded-full border-2 bg-[#0B1216]" style={{ borderColor: TEAL }} />
+            <span className="absolute left-0 top-1 h-[15px] w-[15px] rounded-full border-2 bg-white" style={{ borderColor: TEAL }} />
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px]">
-              <span className="font-semibold text-white/85">{dateFr(x.date) || "Date inconnue"}</span>
-              <span className="rounded-full bg-[#1A262C] px-2 py-0.5 text-white/60">{nameOf(x.c)}</span>
-              <span className="text-white/40">{x.kind}</span>
+              <span className="font-semibold text-ink">{dateFr(x.date) || "Date inconnue"}</span>
+              <span className="rounded-full bg-paper px-2 py-0.5 text-ink-soft">{nameOf(x.c)}</span>
+              <span className="text-ink-faint">{x.kind}</span>
             </div>
-            <p className="text-[14px] font-semibold text-white mt-1">{x.title}</p>
-            {x.why && <p className="text-[13px] text-white/65 mt-0.5 leading-snug line-clamp-3"><span style={{ color: TEAL }}>Ce que ça change : </span>{x.why}</p>}
+            <p className="text-[14px] font-semibold text-ink mt-1">{x.title}</p>
+            {x.why && <p className="text-[13px] text-ink-soft mt-0.5 leading-snug line-clamp-3"><span style={{ color: TEAL }}>Ce que ça change : </span>{x.why}</p>}
             {x.src && <div className="mt-1"><Src href={x.src} /></div>}
           </li>
         ))}
@@ -169,13 +170,13 @@ function Needs({ rows }) {
   const reviews = rows.filter((c) => c.summary?.avis?.clients);
   return (
     <div className="grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-4">
-      <Panel title="Insatisfactions chez leurs clients" icon="eye" right={<span className="text-[12px] text-white/45">{weak.length} repérées</span>}>
+      <Panel title="Insatisfactions chez leurs clients" icon="eye" right={<span className="text-[12px] text-ink-faint">{weak.length} repérées</span>}>
         {!weak.length ? <Empty>Rien de repéré pour l'instant.</Empty> : (
           <ul className="space-y-2.5">
             {weak.slice(0, 14).map((w, i) => (
-              <li key={i} className="rounded-xl border border-[#1F2C33] bg-[#0C1418] p-3">
-                <div className="flex items-center gap-2 text-[12px]"><span className="rounded-full bg-[#1A262C] px-2 py-0.5 text-white/70">{nameOf(w.c)}</span><span className={w.fact ? "text-[#2DD4BF]" : "text-[#FBBF24]"}>{w.fact ? "Fait sourcé" : "Hypothèse"}</span></div>
-                <p className="text-[13.5px] text-white/85 mt-1.5 leading-snug">{w.t}</p>
+              <li key={i} className="rounded-xl border border-line bg-paper/60 p-3">
+                <div className="flex items-center gap-2 text-[12px]"><span className="rounded-full bg-paper px-2 py-0.5 text-ink-soft">{nameOf(w.c)}</span><span className={w.fact ? "text-accent" : "text-[#FBBF24]"}>{w.fact ? "Fait sourcé" : "Hypothèse"}</span></div>
+                <p className="text-[13.5px] text-ink mt-1.5 leading-snug">{w.t}</p>
                 {w.src && <div className="mt-1"><Src href={w.src} /></div>}
               </li>
             ))}
@@ -185,12 +186,12 @@ function Needs({ rows }) {
       <div className="space-y-4 min-w-0">
         <Panel title="Ce que disent leurs clients" icon="chat">
           {!reviews.length ? <Empty>Aucun avis analysé.</Empty> : reviews.map((c) => (
-            <div key={c.id} className="mb-3 last:mb-0"><p className="text-[12.5px] font-semibold text-white/85">{nameOf(c)}</p><p className="text-[13px] text-white/60 mt-0.5 line-clamp-4 leading-snug">{txt(c.summary.avis.clients)}</p></div>
+            <div key={c.id} className="mb-3 last:mb-0"><p className="text-[12.5px] font-semibold text-ink">{nameOf(c)}</p><p className="text-[13px] text-ink-soft mt-0.5 line-clamp-4 leading-snug">{txt(c.summary.avis.clients)}</p></div>
           ))}
         </Panel>
         <Panel title="Demandes publiques de prestataires" icon="search">
-          <p className="text-[13px] text-white/65 leading-snug">Bientôt, l'espion repérera les entreprises qui cherchent un prestataire ou une alternative à tes concurrents, sur les sources publiques autorisées, avec la source, la date et la fiabilité de chaque demande.</p>
-          <p className="text-[12px] text-white/40 mt-2">En attendant, le <Link to="/radar" className="underline" style={{ color: TEAL }}>Radar</Link> détecte déjà les entreprises qui recrutent ou grandissent.</p>
+          <p className="text-[13px] text-ink-soft leading-snug">Bientôt, l'espion repérera les entreprises qui cherchent un prestataire ou une alternative à tes concurrents, sur les sources publiques autorisées, avec la source, la date et la fiabilité de chaque demande.</p>
+          <p className="text-[12px] text-ink-faint mt-2">En attendant, le <Link to="/radar" className="underline" style={{ color: TEAL }}>Radar</Link> détecte déjà les entreprises qui recrutent ou grandissent.</p>
         </Panel>
       </div>
     </div>
@@ -204,22 +205,22 @@ function Strategy({ rows }) {
   const opps = rows.flatMap((c) => (c.summary?.opportunites ?? []).map((o) => ({ c, t: txt(o) })));
   const acts = rows.flatMap((c) => (c.summary?.actions ?? []).slice(0, 3).map((a) => ({ c, t: txt(a) })));
   const Row = ({ r, tone }) => (
-    <li className="rounded-xl border border-[#1F2C33] bg-[#0C1418] p-3 text-[13px]">
-      <div className="flex items-center gap-2 text-[12px]"><span className="font-semibold text-white/85">{r.critere}</span><span className="text-white/35">face à {nameOf(r.c)}</span></div>
-      <p className="mt-1 text-white/80"><span style={{ color: tone }}>Toi : </span>{txt(r.nous)}</p>
-      <p className="mt-0.5 text-white/55">Eux : {txt(r.eux)}</p>
+    <li className="rounded-xl border border-line bg-paper/60 p-3 text-[13px]">
+      <div className="flex items-center gap-2 text-[12px]"><span className="font-semibold text-ink">{r.critere}</span><span className="text-ink-faint">face à {nameOf(r.c)}</span></div>
+      <p className="mt-1 text-ink"><span style={{ color: tone }}>Toi : </span>{txt(r.nous)}</p>
+      <p className="mt-0.5 text-ink-faint">Eux : {txt(r.eux)}</p>
     </li>
   );
   return (
     <div className="space-y-4">
       <div className="grid lg:grid-cols-3 gap-4">
         <Panel title="Tes avantages" icon="shield" right={<span className="text-[12px] font-bold" style={{ color: TEAL }}>{ours.length}</span>}>{ours.length ? <ul className="space-y-2">{ours.slice(0, 6).map((r, i) => <Row key={i} r={r} tone={TEAL} />)}</ul> : <Empty>À établir par l'analyse.</Empty>}</Panel>
-        <Panel title="Où ils sont devant" icon="bolt" right={<span className="text-[12px] font-bold text-[#F87171]">{theirs.length}</span>}>{theirs.length ? <ul className="space-y-2">{theirs.slice(0, 6).map((r, i) => <Row key={i} r={r} tone="#F87171" />)}</ul> : <Empty>Rien d'établi.</Empty>}</Panel>
-        <Panel title="À vérifier" icon="search" right={<span className="text-[12px] font-bold text-[#FBBF24]">{unknown.length}</span>}>{unknown.length ? <ul className="space-y-2">{unknown.slice(0, 6).map((r, i) => <Row key={i} r={r} tone="#FBBF24" />)}</ul> : <Empty>Aucun point en suspens.</Empty>}<p className="text-[11.5px] text-white/40 mt-3">Les données inconnues sont signalées, jamais inventées.</p></Panel>
+        <Panel title="Où ils sont devant" icon="bolt" right={<span className="text-[12px] font-bold text-[#F87171]">{theirs.length}</span>}>{theirs.length ? <ul className="space-y-2">{theirs.slice(0, 6).map((r, i) => <Row key={i} r={r} tone="#DC2626" />)}</ul> : <Empty>Rien d'établi.</Empty>}</Panel>
+        <Panel title="À vérifier" icon="search" right={<span className="text-[12px] font-bold text-[#FBBF24]">{unknown.length}</span>}>{unknown.length ? <ul className="space-y-2">{unknown.slice(0, 6).map((r, i) => <Row key={i} r={r} tone="#D97706" />)}</ul> : <Empty>Aucun point en suspens.</Empty>}<p className="text-[11.5px] text-ink-faint mt-3">Les données inconnues sont signalées, jamais inventées.</p></Panel>
       </div>
       <div className="grid lg:grid-cols-2 gap-4">
-        <Panel title="Opportunités de différenciation" icon="eye">{opps.length ? <ul className="space-y-2">{opps.slice(0, 8).map((o, i) => <li key={i} className="text-[13.5px] text-white/80 leading-snug flex gap-2"><span style={{ color: TEAL }}>→</span><span>{o.t}<span className="text-white/35"> · {nameOf(o.c)}</span></span></li>)}</ul> : <Empty>Pas encore d'opportunité identifiée.</Empty>}</Panel>
-        <Panel title="Recommandations de l'espion" icon="bolt">{acts.length ? <ol className="space-y-2.5">{acts.slice(0, 8).map((a, i) => <li key={i} className="flex gap-3 text-[13.5px] text-white/80 leading-snug"><span className="grid place-items-center h-6 w-6 rounded-full text-[12px] font-bold shrink-0 text-[#0B1216]" style={{ background: TEAL }}>{i + 1}</span><span>{a.t}</span></li>)}</ol> : <Empty>Les recommandations arrivent avec l'analyse.</Empty>}</Panel>
+        <Panel title="Opportunités de différenciation" icon="eye">{opps.length ? <ul className="space-y-2">{opps.slice(0, 8).map((o, i) => <li key={i} className="text-[13.5px] text-ink leading-snug flex gap-2"><span style={{ color: TEAL }}>→</span><span>{o.t}<span className="text-ink-faint"> · {nameOf(o.c)}</span></span></li>)}</ul> : <Empty>Pas encore d'opportunité identifiée.</Empty>}</Panel>
+        <Panel title="Recommandations de l'espion" icon="bolt">{acts.length ? <ol className="space-y-2.5">{acts.slice(0, 8).map((a, i) => <li key={i} className="flex gap-3 text-[13.5px] text-ink leading-snug"><span className="grid place-items-center h-6 w-6 rounded-full text-[12px] font-bold shrink-0 text-white" style={{ background: TEAL }}>{i + 1}</span><span>{a.t}</span></li>)}</ol> : <Empty>Les recommandations arrivent avec l'analyse.</Empty>}</Panel>
       </div>
     </div>
   );
@@ -231,22 +232,22 @@ function Dossiers({ rows }) {
   const [open, setOpen] = useState(list[0]?.id ?? null);
   if (!list.length) return <Empty>Les battlecards apparaissent après l'analyse d'un concurrent.</Empty>;
   const c = list.find((x) => x.id === open) ?? list[0], b = c.summary.battlecard;
-  const L = ({ t, items, tone }) => items?.length ? <div><p className="text-[12px] font-bold uppercase tracking-wider mb-2" style={{ color: tone }}>{t}</p><ul className="space-y-1.5">{items.map((x, i) => <li key={i} className="text-[13px] text-white/75 leading-snug flex gap-2"><span style={{ color: tone }}>•</span>{txt(x)}</li>)}</ul></div> : null;
+  const L = ({ t, items, tone }) => items?.length ? <div><p className="text-[12px] font-bold uppercase tracking-wider mb-2" style={{ color: tone }}>{t}</p><ul className="space-y-1.5">{items.map((x, i) => <li key={i} className="text-[13px] text-ink-soft leading-snug flex gap-2"><span style={{ color: tone }}>•</span>{txt(x)}</li>)}</ul></div> : null;
   return (
     <div className="grid lg:grid-cols-[260px_minmax(0,1fr)] gap-4">
       <div className="space-y-2">
-        {list.map((x) => <button key={x.id} onClick={() => setOpen(x.id)} className={cx("w-full text-left rounded-xl border p-3 flex items-center gap-3 transition", x.id === c.id ? "border-[#2DD4BF]/60 bg-[#2DD4BF]/10" : "border-[#1F2C33] bg-[#111A1F] hover:border-[#2A3B44]")}><Fav c={x} size="w-8 h-8" /><span className="min-w-0"><span className="block font-semibold text-white text-[14px] truncate">{nameOf(x)}</span><span className="block text-[11.5px] text-white/45">{(x.summary.battlecard.objections ?? []).length ? `${x.summary.battlecard.objections.length} objections préparées` : "Battlecard prête"}</span></span></button>)}
-        <p className="text-[11.5px] text-white/40 px-1 pt-1">Hugo s'en sert pour écrire les e-mails, Inès pour répondre quand un prospect cite ce concurrent.</p>
+        {list.map((x) => <button key={x.id} onClick={() => setOpen(x.id)} className={cx("w-full text-left rounded-xl border p-3 flex items-center gap-3 transition", x.id === c.id ? "border-accent/50 bg-accent-soft/60" : "border-line bg-white hover:border-line")}><Fav c={x} size="w-8 h-8" /><span className="min-w-0"><span className="block font-semibold text-ink text-[14px] truncate">{nameOf(x)}</span><span className="block text-[11.5px] text-ink-faint">{(x.summary.battlecard.objections ?? []).length ? `${x.summary.battlecard.objections.length} objections préparées` : "Battlecard prête"}</span></span></button>)}
+        <p className="text-[11.5px] text-ink-faint px-1 pt-1">Hugo s'en sert pour écrire les e-mails, Inès pour répondre quand un prospect cite ce concurrent.</p>
       </div>
       <Panel title={`Dossier · ${nameOf(c)}`} icon="file">
-        {b.pitch && <div className="rounded-xl p-4 text-[14px] text-white/90 leading-snug border" style={{ borderColor: `${TEAL}55`, background: `${TEAL}12` }}><p className="text-[11.5px] font-bold uppercase tracking-wider mb-1" style={{ color: TEAL }}>Angle d'approche</p>{txt(b.pitch)}</div>}
-        {!!b.objections?.length && <div className="mt-4"><p className="text-[12px] font-bold uppercase tracking-wider mb-2 text-white/60">Objections et réponses</p>
-          <div className="space-y-2">{b.objections.map((o, i) => <details key={i} className="rounded-xl border border-[#1F2C33] bg-[#0C1418] p-3 group"><summary className="cursor-pointer text-[13.5px] font-semibold text-white/90 list-none flex justify-between gap-2">« {txt(o.objection)} »<Ico n="chev" className="w-4 h-4 text-white/40 group-open:rotate-90 transition" /></summary><p className="text-[13px] text-white/70 mt-2 leading-snug">{txt(o.reponse)}</p></details>)}</div></div>}
+        {b.pitch && <div className="rounded-xl p-4 text-[14px] text-ink leading-snug border" style={{ borderColor: `${TEAL}55`, background: `${TEAL}12` }}><p className="text-[11.5px] font-bold uppercase tracking-wider mb-1" style={{ color: TEAL }}>Angle d'approche</p>{txt(b.pitch)}</div>}
+        {!!b.objections?.length && <div className="mt-4"><p className="text-[12px] font-bold uppercase tracking-wider mb-2 text-ink-soft">Objections et réponses</p>
+          <div className="space-y-2">{b.objections.map((o, i) => <details key={i} className="rounded-xl border border-line bg-paper/60 p-3 group"><summary className="cursor-pointer text-[13.5px] font-semibold text-ink list-none flex justify-between gap-2">« {txt(o.objection)} »<Ico n="chev" className="w-4 h-4 text-ink-faint group-open:rotate-90 transition" /></summary><p className="text-[13px] text-ink-soft mt-2 leading-snug">{txt(o.reponse)}</p></details>)}</div></div>}
         <div className="mt-5 grid md:grid-cols-2 gap-5">
           <L t="Quand on gagne" items={b.quand_on_gagne} tone={TEAL} />
-          <L t="Quand on perd" items={b.quand_on_perd} tone="#F87171" />
-          <L t="Questions à poser" items={b.questions_pieges} tone="#93C5FD" />
-          <L t="À ne pas dire" items={b.a_ne_pas_dire} tone="#FBBF24" />
+          <L t="Quand on perd" items={b.quand_on_perd} tone="#DC2626" />
+          <L t="Questions à poser" items={b.questions_pieges} tone="#2563EB" />
+          <L t="À ne pas dire" items={b.a_ne_pas_dire} tone="#D97706" />
         </div>
       </Panel>
     </div>
@@ -295,47 +296,47 @@ export default function EspionHub() {
   const last = list.map((c) => c.checked_at).filter(Boolean).sort().pop();
 
   return (
-    <div className="-mx-4 md:mx-0 rounded-none md:rounded-[28px] bg-[#0B1216] text-white p-4 sm:p-6 md:p-7 shadow-[0_30px_80px_-30px_rgba(11,18,22,.6)] ring-1 ring-[#1A262C]">
+    <div>
       {/* En-tête : l'espion et son état */}
-      <div className="grid lg:grid-cols-[auto_minmax(0,1fr)_auto] gap-6 items-center">
+      <div className="rounded-3xl bg-white border border-line p-5 sm:p-6 grid lg:grid-cols-[auto_minmax(0,1fr)_auto] gap-6 items-center">
         <div className="mx-auto lg:mx-0"><Spy working={working} /></div>
         <div className="min-w-0">
           <p className="text-[12px] font-bold uppercase tracking-[.2em]" style={{ color: TEAL }}>Centre de renseignement</p>
           <h1 className="font-black text-[44px] sm:text-[52px] leading-none tracking-tight mt-1" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>Espion</h1>
-          <p className="text-white/70 mt-2 text-[16px]">Sachez ce que vos concurrents ignorent.</p>
-          <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-[#22313A] bg-[#0F181C] px-3 py-1.5 text-[13px]">
-            <span className={cx("h-2 w-2 rounded-full", working && "animate-pulse")} style={{ background: working ? TEAL : "#4B5B62" }} />
-            <span className="text-white/80 truncate max-w-[520px]">{busy ?? (recent ? "Oscar enquête en ce moment…" : `En veille · dernière enquête ${ago(last)}`)}</span>
+          <p className="text-ink-soft mt-2 text-[16px]">Sachez ce que vos concurrents ignorent.</p>
+          <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-line bg-paper/60 px-3 py-1.5 text-[13px]">
+            <span className={cx("h-2 w-2 rounded-full", working && "animate-pulse")} style={{ background: working ? TEAL : "#9A9CA3" }} />
+            <span className="text-ink truncate max-w-[520px]">{busy ?? (recent ? "Oscar enquête en ce moment…" : `En veille · dernière enquête ${ago(last)}`)}</span>
           </p>
           <form onSubmit={add} className="mt-4 flex flex-col sm:flex-row gap-2 max-w-xl">
-            <div className="flex-1 flex items-center gap-2 rounded-xl border border-[#22313A] bg-[#0F181C] px-3 focus-within:border-[#2DD4BF]/60">
-              <Ico n="search" className="w-4 h-4 text-white/40" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ajouter un concurrent : nom ou site web…" className="flex-1 bg-transparent py-3 text-[14.5px] outline-none placeholder:text-white/35" />
+            <div className="flex-1 flex items-center gap-2 rounded-xl border border-line bg-paper/60 px-3 focus-within:border-accent/60">
+              <Ico n="search" className="w-4 h-4 text-ink-faint" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ajouter un concurrent : nom ou site web…" className="flex-1 bg-transparent py-3 text-[14.5px] outline-none placeholder:text-ink-faint" />
             </div>
-            <button disabled={!!busy || !q.trim()} className="rounded-xl px-5 py-3 font-semibold text-[#0B1216] disabled:opacity-40 transition hover:brightness-110" style={{ background: TEAL }}>Enquêter</button>
+            <button disabled={!!busy || !q.trim()} className="rounded-xl px-5 py-3 font-semibold text-white disabled:opacity-40 transition hover:brightness-110" style={{ background: TEAL }}>Enquêter</button>
           </form>
-          <Link to="/salaries" className="mt-3 inline-flex items-center gap-2 text-[13px] text-white/60 hover:text-white"><Ico n="chat" className="w-4 h-4" />Parler à Oscar, ton veilleur marché : « Qu'est-ce qui a changé chez mes concurrents cette semaine ? »</Link>
+          <Link to="/salaries" className="mt-3 inline-flex items-center gap-2 text-[13px] text-ink-soft hover:text-ink"><Ico n="chat" className="w-4 h-4" />Parler à Oscar, ton veilleur marché : « Qu'est-ce qui a changé chez mes concurrents cette semaine ? »</Link>
         </div>
         <div className="grid grid-cols-2 gap-2.5 lg:w-[300px]">
           {[[list.length, "concurrents suivis"], [moves, "mouvements repérés"], [weak, "faiblesses à exploiter"], [cards, "dossiers prêts"]].map(([n, l]) => (
-            <div key={l} className="rounded-2xl border border-[#1F2C33] bg-[#111A1F] p-3.5"><p className="font-black text-[30px] leading-none tnum" style={{ color: TEAL, fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{rows ? n : "–"}</p><p className="text-[12px] text-white/55 mt-1.5 leading-tight">{l}</p></div>
+            <div key={l} className="rounded-2xl border border-line bg-white p-3.5"><p className="font-black text-[30px] leading-none tnum" style={{ color: TEAL, fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{rows ? n : "–"}</p><p className="text-[12px] text-ink-faint mt-1.5 leading-tight">{l}</p></div>
           ))}
-          {fresh > 0 && <p className="col-span-2 inline-flex items-center justify-center gap-2 rounded-full py-2 text-[13px] font-semibold text-[#0B1216]" style={{ background: TEAL }}><Ico n="bell" className="w-4 h-4" />{fresh} concurrent{fresh > 1 ? "s ont" : " a"} bougé cette semaine</p>}
+          {fresh > 0 && <p className="col-span-2 inline-flex items-center justify-center gap-2 rounded-full py-2 text-[13px] font-semibold text-white" style={{ background: TEAL }}><Ico n="bell" className="w-4 h-4" />{fresh} concurrent{fresh > 1 ? "s ont" : " a"} bougé cette semaine</p>}
         </div>
       </div>
 
       {/* Les cinq espaces */}
-      <nav className="mt-7 flex gap-1 overflow-x-auto border-b border-[#1F2C33] -mx-1 px-1">
+      <nav className="mt-6 flex gap-1 overflow-x-auto border-b border-line -mx-1 px-1">
         {SPACES.map(([k, l, sub]) => (
-          <button key={k} onClick={() => setSpace(k)} className={cx("relative shrink-0 px-4 pt-2 pb-3 text-left transition", space === k ? "text-white" : "text-white/50 hover:text-white/80")}>
-            <span className="block text-[14.5px] font-semibold">{l}</span><span className="block text-[11.5px] text-white/40">{sub}</span>
-            {space === k && <span className="absolute inset-x-3 -bottom-px h-[3px] rounded-full" style={{ background: TEAL, boxShadow: `0 0 12px ${TEAL}` }} />}
+          <button key={k} onClick={() => setSpace(k)} className={cx("relative shrink-0 px-4 pt-2 pb-3 text-left transition", space === k ? "text-ink" : "text-ink-faint hover:text-ink")}>
+            <span className="block text-[14.5px] font-semibold">{l}</span><span className="block text-[11.5px] text-ink-faint">{sub}</span>
+            {space === k && <span className="absolute inset-x-3 -bottom-px h-[3px] rounded-full" style={{ background: TEAL }} />}
           </button>
         ))}
       </nav>
 
       <div className="mt-5">
-        {!rows ? <div className="py-16 text-center text-white/50 text-sm">Ouverture des dossiers…</div>
+        {!rows ? <div className="py-16 text-center text-ink-faint text-sm">Ouverture des dossiers…</div>
           : space === "concurrents" ? <Competitors rows={list} onOpen={setDesk} />
           : space === "veille" ? <Watch rows={list} />
           : space === "besoins" ? <Needs rows={list} />
@@ -345,7 +346,7 @@ export default function EspionHub() {
 
       {desk && (
         <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal>
-          <button className="absolute inset-0 bg-[#05080A]/70" onClick={() => setDesk(null)} aria-label="Fermer" />
+          <button className="absolute inset-0 bg-ink/40" onClick={() => setDesk(null)} aria-label="Fermer" />
           <div className="relative w-full max-w-[1100px] h-full overflow-y-auto bg-paper text-ink p-4 sm:p-6">
             <div className="flex items-center justify-between gap-3 mb-4">
               <p className="text-[12px] font-bold uppercase tracking-[.15em] text-ink-soft">Fiche concurrent</p>
