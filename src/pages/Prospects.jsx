@@ -116,7 +116,8 @@ function Drawer({ p, onClose, onChange, team = [] }) {
     try { await fn("insight", { workspace_id: ws.id, prospect_id: p.id }); const { data } = await supabase.from("prospects").select("*").eq("id", p.id).single(); onChange(data); }
     catch (e) { toast(e.message, "bad"); } finally { setBusy(null); }
   };
-  const ins = p.insight;
+  const ins = p.insight?.resume || p.insight?.faits ? p.insight : null;
+  const spy = p.insight?.espion;
   const set = async (status) => {
     const extra = status === "client" && !p.won_at ? { won_at: new Date().toISOString() } : {};
     await supabase.from("prospects").update({ status, ...extra }).eq("id", p.id);
@@ -157,6 +158,21 @@ function Drawer({ p, onClose, onChange, team = [] }) {
         {p.signals?.length > 0 && <div className="flex flex-wrap gap-1.5 mt-3">{p.signals.map((s, i) => <Badge key={i} tone={STRONG.includes(s.type) ? "accent" : "muted"}>{s.label}</Badge>)}</div>}
 
         {!p.email && p.enriched_at && <PlanB p={p} ws={ws} busy={busy} setBusy={setBusy} onChange={onChange} act={act} nav={nav} />}
+
+        {spy && (
+          <div className="mt-6 rounded-2xl border border-accent/30 bg-accent-soft/40 p-4 text-sm">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-semibold">Dossier Espion</p>
+              <span className="text-xs text-ink-faint">{spy.concurrent ? `Concurrent probable : ${spy.concurrent}` : "Aucun concurrent identifié"}</span>
+            </div>
+            {spy.angle && <p className="mt-2"><b>Angle : </b>{spy.angle}</p>}
+            {spy.faiblesses?.length > 0 && <div className="mt-2"><p className="text-xs font-semibold uppercase tracking-wider text-ink-soft">Faiblesses vérifiées chez {spy.concurrent}</p>{spy.faiblesses.map((f, i) => <p key={i}>• {typeof f === "string" ? f : f?.texte}</p>)}</div>}
+            {spy.objection && <p className="mt-2"><b>Objection probable : </b>« {typeof spy.objection === "string" ? spy.objection : spy.objection.objection} »{spy.objection.reponse ? <span className="block text-ink-soft mt-0.5">Réponse prévue : {spy.objection.reponse}</span> : null}</p>}
+            {spy.question && <p className="mt-1"><b>Question à poser : </b>{spy.question}</p>}
+            {spy.opportunite && <p className="mt-1"><b>Opportunité : </b>{spy.opportunite}</p>}
+            <p className="text-xs text-ink-faint mt-2">Préparé par Espion pour Hugo, qui s'en sert pour écrire l'e-mail.</p>
+          </div>
+        )}
 
         <div className="mt-6 rounded-2xl border border-line bg-white p-4">
           <div className="flex items-center justify-between gap-2">

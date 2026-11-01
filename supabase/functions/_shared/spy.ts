@@ -225,7 +225,10 @@ export async function spyCron() {
   }
   // 2c. Découverte de nouveaux concurrents (proposés, jamais suivis sans accord)
   const ws = (wss ?? []).find((w) => !w.spy_at || w.spy_at < week) as (Workspace & { spy_at?: string | null }) | undefined;
-  if (ws) { try { out.decouverte = (await spyDiscover(ws)).found; } catch (e) { out.decouverte_erreur = (e as Error).message; } }
+  if (ws) { try { out.decouverte = (await spyDiscover(ws)).found; } catch (e) { out.decouverte_erreur = (e as Error).message; } return out; }
+  // 2d. Besoins publics (une fois par semaine et par espace)
+  const wn = (wss ?? []).find((w) => !(w as { spy_needs_at?: string }).spy_needs_at || (w as { spy_needs_at?: string }).spy_needs_at! < week) as Workspace | undefined;
+  if (wn) { try { out.besoins = (await spyNeeds(wn)).found; } catch (e) { out.besoins_erreur = (e as Error).message; } }
   return out;
 }
 
@@ -251,4 +254,72 @@ export async function spyDiscover(ws: Workspace) {
     await log(ws.id, "espion", `${found.length} nouveau${found.length > 1 ? "x" : ""} concurrent${found.length > 1 ? "s" : ""} repéré${found.length > 1 ? "s" : ""}, à valider`);
   } else await log(ws.id, "espion", "Recherche de nouveaux concurrents : aucun nouveau trouvé");
   return { found: found.length };
+}
+
+/** Besoins exprimés publiquement : entreprises qui cherchent un prestataire ou une alternative à un concurrent.
+ *  Sources publiques uniquement (forums, communautés, sites de demandes de devis, presse, appels à projets) ;
+ *  aucune donnée personnelle conservée : la fonction de l'auteur, jamais son nom. */
+export async function spyNeeds(ws: Workspace) {
+  await admin.from("workspaces").update({ spy_needs_at: new Date().toISOString() }).eq("id", ws.id);
+  const me = ws.profile ?? {};
+  const { data: comps } = await admin.from("competitors").select("name, url").eq("workspace_id", ws.id).eq("status", "suivi").limit(10);
+  const rivals = (comps ?? []).map((c) => String(c.name || "").replace(/\s*[—(].*$/, "")).filter(Boolean).slice(0, 6);
+  type N = { besoin: string; entreprise: string; auteur_fonction: string; source: string; url: string; date: string; ville: string; departement: string; intention: string; pertinence: number; fiabilite: string; statut: string; recommandation: string };
+  const r = await askJson<{ besoins: N[] }>(`Trouve sur le web des entreprises ou des professionnels qui expriment PUBLIQUEMENT, depuis moins de 60 jours, un besoin que cette offre peut couvrir.
+Notre offre : ${me.offre ?? ""} (${me.nom ?? ws.name}) — Cibles : ${(ws.targets ?? []).map((t) => t.label).join(", ")} — Zone : ${(ws.zone ?? []).join(", ") || "France"}
+Nos concurrents : ${rivals.join(", ") || "non renseignés"}
+
+Cherche (6 recherches maximum) : demandes de recommandation (« quelqu'un connaît un bon… »), recherches de prestataire, envies de changer de fournisseur ou d'alternative à nos concurrents, projets annoncés qui nécessitent cette offre. Sources : forums et communautés professionnelles, Reddit, sites de demandes de devis, publications professionnelles publiques, presse et blogs, appels à projets.
+Règles strictes :
+- Analyse le SENS de la publication, pas seulement des mots-clés. N'invente rien : chaque besoin a son URL exacte.
+- RGPD : ne donne jamais le nom d'une personne ; seulement sa fonction si elle est publique (ex. « dirigeant d'une agence »).
+- pertinence de 0 à 100 = correspondance avec notre offre ; fiabilite = haute|moyenne|faible ; intention = recherche|remplacement|recommandation|projet ; statut = ouvert|satisfait|ancien|inconnu.
+- recommandation : l'approche commerciale à tenter, en une phrase.
+- Si tu ne trouves rien de solide, renvoie une liste vide.
+Format : {"besoins": [{"besoin": "", "entreprise": "", "auteur_fonction": "", "source": "nom du site", "url": "", "date": "AAAA-MM-JJ", "ville": "", "departement": "", "intention": "", "pertinence": 0, "fiabilite": "", "statut": "", "recommandation": ""}]}`,
+    { maxTokens: 8000, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] });
+  const rows = (r.besoins ?? []).filter((b) => /^https?:\/\//.test(b.url ?? "") && b.besoin && Number(b.pertinence) >= 40 && b.statut !== "satisfait").slice(0, 12).map((b) => ({
+    workspace_id: ws.id, key: `need:${b.url}`.slice(0, 300), kind: "besoin", title: String(b.besoin).slice(0, 300), company: String(b.entreprise || b.source || "Demande publique").slice(0, 160),
+    summary: String(b.besoin).slice(0, 500), why: String(b.recommandation ?? "").slice(0, 500), city: String(b.ville ?? ""), dept: String(b.departement ?? "").slice(0, 3), url: b.url, source: String(b.source ?? ""),
+    published: /^\d{4}-\d{2}-\d{2}$/.test(b.date ?? "") ? b.date : null, status: "nouveau",
+    raw: { auteur: b.auteur_fonction ?? "", intention: b.intention ?? "", pertinence: Number(b.pertinence) || 0, fiabilite: b.fiabilite ?? "", statut: b.statut ?? "", origine: "espion" },
+  }));
+  let found = 0;
+  if (rows.length) { const { data } = await admin.from("radar_opps").upsert(rows, { onConflict: "workspace_id,key", ignoreDuplicates: true }).select("id"); found = data?.length ?? 0; }
+  await log(ws.id, "espion", found ? `${found} besoin${found > 1 ? "s" : ""} exprimé${found > 1 ? "s" : ""} publiquement détecté${found > 1 ? "s" : ""}` : "Recherche de besoins publics : rien de nouveau cette semaine");
+  if (found) await log(ws.id, "espion_alerte", `${found} entreprise${found > 1 ? "s cherchent" : " cherche"} publiquement une solution comme la tienne — à voir dans Espion, Besoins détectés`);
+  return { found };
+}
+
+/** E-mail d'alerte : chaque matin s'il s'est passé quelque chose d'important, et un résumé chaque lundi. */
+export async function spyDigest() {
+  const { teamAddress, sendSystem } = await import("./mail.ts");
+  const { data: wss } = await admin.from("workspaces").select("*").eq("onboarded", true);
+  const monday = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", weekday: "short" }).format(new Date()) === "Mon";
+  const out: Record<string, unknown> = {};
+  for (const w of (wss ?? []) as (Workspace & { spy_alert_at?: string | null; app_url?: string })[]) {
+    try {
+      const since = w.spy_alert_at ?? new Date(Date.now() - 7 * 864e5).toISOString();
+      const [{ data: alerts }, { count: comps }, { data: week }] = await Promise.all([
+        admin.from("activity").select("summary, created_at").eq("workspace_id", w.id).eq("kind", "espion_alerte").gt("created_at", since).order("created_at", { ascending: false }).limit(15),
+        admin.from("competitors").select("id", { count: "exact", head: true }).eq("workspace_id", w.id).eq("status", "suivi"),
+        monday ? admin.from("activity").select("kind, summary").eq("workspace_id", w.id).in("kind", ["veille", "espion", "espion_alerte"]).gt("created_at", new Date(Date.now() - 7 * 864e5).toISOString()).limit(200) : Promise.resolve({ data: [] as { kind: string; summary: string }[] }),
+      ]);
+      const list = alerts ?? [];
+      if (!list.length && !(monday && comps)) continue;
+      const to = await teamAddress(w);
+      if (!to) continue;
+      const link = `${String(w.app_url || Deno.env.get("APP_URL") || "https://kairo.maisonravita.fr").replace(/\/$/, "")}/#/espion`;
+      const reports = (week ?? []).filter((a) => a.kind === "veille").length;
+      const text = [
+        list.length ? `Ce qui a bougé chez tes concurrents :\n\n${list.map((a) => `• ${a.summary}`).join("\n")}` : "Rien d'important cette semaine chez tes concurrents.",
+        monday ? `\nLa semaine de ton espionne : ${comps} concurrent${(comps ?? 0) > 1 ? "s" : ""} surveillé${(comps ?? 0) > 1 ? "s" : ""}, ${reports} rapport${reports > 1 ? "s" : ""} complet${reports > 1 ? "s" : ""}.` : "",
+        `\nTout le détail, sources à l'appui : ${link}`,
+      ].join("\n");
+      await sendSystem({ to, fromName: "Espion · Bingoo!", subject: list.length ? `Espion : ${list.length} chose${list.length > 1 ? "s ont" : " a"} bougé chez tes concurrents` : "Espion : le résumé de ta semaine", text });
+      await admin.from("workspaces").update({ spy_alert_at: new Date().toISOString() }).eq("id", w.id);
+      out[w.id] = list.length;
+    } catch (e) { out[w.id] = { error: (e as Error).message }; }
+  }
+  return out;
 }

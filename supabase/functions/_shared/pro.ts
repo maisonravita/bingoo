@@ -301,7 +301,7 @@ Format : {"score": 0, "resume": "une phrase", "faits": [{"texte": "", "source": 
     { fast: true, maxTokens: 7000, tools: WEB(4), system: "Tu es analyste commercial B2B en France. Tu ne présentes jamais une hypothèse comme un fait et tu cites tes sources." });
   if (!v || typeof v !== "object" || (v.score === undefined && !v.resume)) throw new HttpError(502, "L'analyse est revenue incomplète, relance-la");
   const score = Math.max(0, Math.min(100, Math.round(Number(v.score) || 0)));
-  await admin.from("prospects").update({ insight: v, insight_at: new Date().toISOString(), score }).eq("id", p.id);
+  await admin.from("prospects").update({ insight: { ...v, ...((p.insight as { espion?: unknown } | null)?.espion ? { espion: (p.insight as { espion?: unknown }).espion } : {}) }, insight_at: new Date().toISOString(), score }).eq("id", p.id);
   return { ...v, score };
 }
 
@@ -439,6 +439,8 @@ Règles d'expert :
 - Chaque fait important porte sa source (URL). Sépare toujours FAIT et HYPOTHÈSE.
 - N'invente aucun chiffre, client, prix ou marge. Si une information n'est pas trouvée, dis « non trouvé ».
 - Sois concret et actionnable pour un commercial qui affronte ce concurrent demain en rendez-vous.
+- Insatisfactions : regroupe par thème les avis négatifs réellement lus, avec leur nombre et leur période. Moins de 3 avis sur un thème = signal faible, à dire. Ne généralise jamais à partir d'un seul avis.
+- Alerte : « haute » seulement pour un changement qui peut nous faire gagner ou perdre des clients (prix, nouvelle offre, levée, rachat, entrée sur nos cibles) ; « aucune » s'il n'y a rien de nouveau ou si c'est la première analyse.
 
 Format :
 {"nom": "",
@@ -456,6 +458,8 @@ Format :
  "reseaux": {"presence": [{"reseau": "linkedin|instagram|facebook|tiktok|youtube|x", "url": "", "abonnes": "nombre ou non trouvé", "rythme": "ex. 3 posts/semaine", "sujets": ""}], "ce_qui_marche": ["formats ou sujets qui génèrent des réactions, avec exemple"], "angles_a_reprendre": ["ce qu'on peut faire mieux qu'eux sur les réseaux"], "a_eviter": [""], "synthese": "2 phrases"},
  "acquisition": {"methode": "comment ils trouvent leurs clients, en 2 phrases", "canaux": [{"canal": "", "preuve": "ce qui le montre", "source": ""}]},
  "clients": {"types": "types de clients servis", "references": [{"nom": "", "source": ""}], "audience": "taille d'audience visible (abonnés, avis, trafic publié), ou non trouvé"},
+ "insatisfactions": [{"theme": "délais, prix, facturation, support, qualité…", "nombre_avis": 0, "periode": "ex. 3 derniers mois", "exemples": ["extrait court d'un vrai avis"], "sources": [""], "notre_reponse": "comment notre offre répond à ce problème, ou « non couvert »"}],
+ "alerte": {"importance": "haute|moyenne|faible|aucune", "titre": "le changement le plus important, en une phrase", "pourquoi": "ce que ça change pour nous, en une phrase"},
  "position": {"verdict": "devant|derriere|egal|inconnu", "pourquoi": ["raisons précises pour lesquelles ils sont devant ou derrière nous sur le marché, chacune avec sa preuve"]},
  "comparatif": [{"critere": "", "eux": "", "nous": "", "avantage": "eux|nous|egal|inconnu"}],
  "battlecard": {"pitch": "notre différence en 2 phrases face à eux", "quand_on_gagne": [""], "quand_on_perd": [""], "objections": [{"objection": "ex. « On travaille déjà avec eux »", "reponse": ""}], "questions_pieges": ["questions à poser au prospect qui mettent en lumière leurs faiblesses, sans les dénigrer"], "a_ne_pas_dire": [""]},
@@ -467,6 +471,10 @@ Format :
   const history = [{ at: now, changes: s.changements ?? "" }, ...(c.history ?? [])].slice(0, 20);
   await admin.from("competitors").update({ name: c.name || s.nom || "", summary: s, text_hash: hash, history, checked_at: now, spy_due: false, changed_at: c.text_hash && c.text_hash !== hash ? now : c.changed_at ?? now }).eq("id", c.id);
   await log(ws.id, "veille", `${c.name || s.nom} : ${c.summary ? s.changements : "analyse complète"}`);
+  const al = (s as { alerte?: { importance?: string; titre?: string; pourquoi?: string } }).alerte;
+  if (c.summary && al && ["haute", "moyenne"].includes(String(al.importance)) && al.titre) {
+    await log(ws.id, "espion_alerte", `${al.importance === "haute" ? "‼ " : ""}${c.name || s.nom} : ${String(al.titre).replace(/<\/?cite[^>]*>/g, "")}${al.pourquoi ? ` — ${String(al.pourquoi).replace(/<\/?cite[^>]*>/g, "")}` : ""}`.slice(0, 600));
+  }
   return { changed: true, summary: s };
 }
 

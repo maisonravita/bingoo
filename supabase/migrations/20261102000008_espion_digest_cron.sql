@@ -1,0 +1,2 @@
+-- Espion : e-mail d'alertes chaque matin (7 h 40 heure de Paris en hiver) + résumé du lundi
+select cron.schedule('kairo-espion-alertes', '40 6 * * *', $$select net.http_post(url:='https://fbsjbnnmzazylmquzryo.supabase.co/functions/v1/r/spy-digest', headers:=jsonb_build_object('content-type','application/json','x-cron-key',(select value from public.app_secrets where name='cron_key')), body:='{}'::jsonb, timeout_milliseconds:=120000)$$);
