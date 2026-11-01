@@ -1,6 +1,6 @@
 {
   "buildCommand": "npm run build:site",
   "outputDirectory": "dist-single",
-  "installCommand": "npm ci",
+  "installCommand": "npm install --no-audit --no-fund",
   "framework": null
 }
