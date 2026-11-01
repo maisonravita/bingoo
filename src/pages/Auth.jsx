@@ -33,12 +33,13 @@ export default function Auth({ invited = false }) {
       <div className="hidden lg:flex flex-col justify-between bg-ink text-white p-12">
         <Logo inverse height={32} />
         <div>
-          <p className="font-serif text-6xl leading-[0.95] tracking-tight">Donne ton site.<br /><span className="italic text-accent">On te ramène des clients.</span></p>
-          <ul className="mt-10 space-y-3 text-white/75 text-[15px] max-w-md">
-            <li>— L'IA comprend ce que tu vends et à qui.</li>
-            <li>— Elle trouve les entreprises dans le registre officiel, avec leurs coordonnées.</li>
-            <li>— Elle écrit à chacune un message qui parle de son métier.</li>
-            <li>— Tu valides d'un geste. Elle relance. Tu signes.</li>
+          <p className="font-serif text-6xl leading-[0.95] tracking-tight">Une longueur d'avance<br /><span className="italic text-accent">sur vos prochains clients.</span></p>
+          <p className="mt-6 text-white/75 text-[15px] max-w-md">Les autres outils vous aident à contacter des prospects. Bingoo vous aide d'abord à savoir qui contacter, pourquoi et quand.</p>
+          <ul className="mt-8 space-y-3 text-[15px] max-w-md">
+            <li><b className="text-white">Radar · Détecter</b><span className="text-white/65"> : les entreprises qui recrutent, grandissent, lancent un appel d'offres ou font de la pub, autour de vous.</span></li>
+            <li><b className="text-white">Espion · Comprendre</b><span className="text-white/65"> : vos concurrents, leurs offres, leurs failles, et l'angle qui vous distingue.</span></li>
+            <li><b className="text-white">Mission · Prospecter</b><span className="text-white/65"> : le bon interlocuteur, un message qui part d'un fait réel, les relances.</span></li>
+            <li><b className="text-white">Réponses · Convertir</b><span className="text-white/65"> : chaque réponse lue et préparée, l'alerte quand c'est chaud, le rendez-vous.</span></li>
           </ul>
         </div>
         <p className="text-white/40 text-sm">Pour toutes les entreprises et startups en France.</p>

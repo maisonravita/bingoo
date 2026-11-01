@@ -5,13 +5,14 @@ import { HttpError } from "./http.ts";
 import { admin, askJson, log, quota, type Target, type Workspace } from "./core.ts";
 import { searchTarget } from "./search.ts";
 import { draft, enrich } from "./agents.ts";
+import { radarToProspect } from "./radar.ts";
 import type { Prospect } from "./core.ts";
 
 export type Mission = {
   id: string; workspace_id: string; objective: string; goal_type: "clients" | "rdv"; goal_count: number;
   deadline: string | null; target_ids: string[]; zone: string[]; plan: Record<string, unknown>; history: Snapshot[]; status: string; created_at: string;
   auto?: boolean; journal?: { at: string; text: string }[]; run_at?: string | null;
-  max_prospects?: number | null; max_budget?: number | null; signal_focus?: string[]; signal_exclude?: string[]; spent?: number; stop_reason?: string | null;
+  max_prospects?: number | null; max_budget?: number | null; signal_focus?: string[]; signal_exclude?: string[]; radar_auto?: boolean; spent?: number; stop_reason?: string | null;
 };
 type Snapshot = { d: string; prospects: number; contactes: number; reponses: number; rdv: number; clients: number };
 
@@ -249,6 +250,22 @@ async function addSpent(m: Mission, eur: number) {
   m.spent = spent;
 }
 
+/** Ajoute à la mission les opportunités du Radar de sa zone (hors appels d'offres), en tête de file. */
+async function radarIntake(ws: Workspace, m: Mission, max: number): Promise<string[]> {
+  const zone = ((m as { zone?: string[] }).zone?.length ? (m as { zone?: string[] }).zone : ws.zone) ?? [];
+  const { data: opps } = await admin.from("radar_opps").select("id, company, dept").eq("workspace_id", ws.id).eq("status", "nouveau").in("kind", ["recrutement", "croissance"]).order("created_at", { ascending: false }).limit(30);
+  const pick = (opps ?? []).filter((o) => !zone.length || zone.includes(o.dept)).slice(0, max);
+  const names: string[] = [];
+  for (const o of pick) {
+    try {
+      const r = await radarToProspect(ws, o.id);
+      await admin.from("prospects").update({ mission_id: m.id, score: 95 }).eq("id", r.prospect_id).is("mission_id", null);
+      names.push(o.company);
+    } catch (e) { console.error("radar → mission", o.id, e); await admin.from("radar_opps").update({ status: "ecarte" }).eq("id", o.id); }
+  }
+  return names;
+}
+
 export async function missionStep(ws: Workspace, m: Mission) {
   if (m.status !== "active") return { phase: "pause", done: true, text: "La mission est en pause." };
   // Conditions d'arrêt : échéance, budget, objectif
@@ -261,9 +278,20 @@ export async function missionStep(ws: Workspace, m: Mission) {
   if (reached) return await stopMission(m, "objectif", "Objectif atteint : la mission est mise en pause. Tu peux la clôturer ou relever l'objectif.");
   if (s.a_valider >= MAX_QUEUE) return { phase: "attente", done: true, waiting: true, text: `En attente de ta validation : ${s.a_valider} e-mails sont prêts. Kairo reprend tout seul dès qu'ils sont envoyés.` };
 
+  const room = m.max_prospects ? Math.max(0, m.max_prospects - s.prospects) : 40;
+
+  // 0. Détecter → Agir : les opportunités du Radar (recrutement, croissance) entrent d'elles-mêmes dans la mission
+  if (m.radar_auto !== false && room > 0) {
+    const added = await radarIntake(ws, m, Math.min(5, room));
+    if (added.length) {
+      const text = `Radar : ${added.length} opportunité${added.length > 1 ? "s" : ""} ajoutée${added.length > 1 ? "s" : ""} en priorité (${added.slice(0, 3).join(", ")}${added.length > 3 ? "…" : ""}).`;
+      await journal(m, text);
+      return { phase: "radar", done: false, text, n: added.length };
+    }
+  }
+
   // 1. Stock trop bas : nouvelles entreprises (une fois par jour au plus)
   const today = paris();
-  const room = m.max_prospects ? Math.max(0, m.max_prospects - s.prospects) : 40;
   if (room > 0 && s.a_enqueter + s.prets < 8 && (m.plan as { searched_on?: string })?.searched_on !== today) {
     await admin.from("missions").update({ plan: { ...m.plan, searched_on: today } }).eq("id", m.id);
     m.plan = { ...m.plan, searched_on: today };
@@ -287,8 +315,9 @@ export async function missionStep(ws: Workspace, m: Mission) {
       // Ciblage par signaux : on écarte les exclus, on passe d'abord ceux qui ont un signal recherché
       const types = (p: Prospect) => new Set((p.signals ?? []).map((x) => x.type));
       const focus = m.signal_focus ?? [], excl = m.signal_exclude ?? [];
+      const weight = (p: Prospect) => focus.filter((t) => types(p).has(t)).length * 10 + (types(p).has("recrutement") || types(p).has("croissance") ? 1 : 0);
       const data = (pool ?? []).filter((p) => !excl.some((t) => types(p as Prospect).has(t)))
-        .sort((a, b) => focus.filter((t) => types(b as Prospect).has(t)).length - focus.filter((t) => types(a as Prospect).has(t)).length).slice(0, n);
+        .sort((a, b) => weight(b as Prospect) - weight(a as Prospect)).slice(0, n);
       const res = await Promise.allSettled(((data ?? []) as Prospect[]).map((p) => draft(ws, p)));
       const ok = res.filter((r) => r.status === "fulfilled").length;
       for (let i = 0; i < ok; i++) await log(ws.id, "redaction", "E-mail rédigé (mission)");

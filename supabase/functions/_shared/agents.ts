@@ -61,7 +61,7 @@ function patternFrom(emails: string[], base: string): string {
   return "";
 }
 
-async function fromSite(site: string, person: string, company = "") {
+async function fromSite(site: string, person: string, company = "", rivals: Rival[] = []) {
   const sc = await siteContacts(site).catch(() => ({ emails: [] as string[], phones: [] as string[], form: "", home: "", origin: "" }));
   const host = hostOf(site), base = host.split(".").slice(-2).join(".");
   const last = (person.split(" ").pop() ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -79,8 +79,26 @@ async function fromSite(site: string, person: string, company = "") {
     const f = plain(parts[0]), l = plain(parts.slice(1).join("-"));
     if (pat && f.length > 1 && l.length > 1) guessed = `${pat.replace("{f}", f).replace("{l}", l)}@${sc.emails.find((e) => e.split("@")[1]?.endsWith(base))!.split("@")[1]}`;
   }
-  const signals: Signal[] = sc.home ? await siteSignals(sc.origin, sc.home).catch(() => []) : [];
+  const signals: Signal[] = sc.home ? await siteSignals(sc.origin, sc.home, rivals).catch(() => []) : [];
   return { email: ok[0] ?? "", guessed, phone: sc.phones[0] ?? "", form: sc.form, signals };
+}
+
+/** Concurrents suivis par Espion : nom propre, domaine, argumentaire (battlecard). Cache par espace. */
+type Rival = { name: string; host: string; pitch: string; objections: { objection: string; reponse: string }[] };
+const RIVALS = new Map<string, Promise<Rival[]>>();
+export function rivalsOf(wsId: string): Promise<Rival[]> {
+  if (!RIVALS.has(wsId)) RIVALS.set(wsId, (async () => {
+    const { data } = await admin.from("competitors").select("name, url, summary").eq("workspace_id", wsId).limit(20);
+    return (data ?? []).map((c) => {
+      const host = hostOf(c.url ?? "");
+      const sum = (c.summary ?? {}) as { nom?: string; battlecard?: { pitch?: string; objections?: { objection: string; reponse: string }[] } };
+      const raw = String(sum.nom || c.name || "");
+      const label = host.split(".")[0] ?? "";
+      const name = raw && raw.length <= 30 && !/[≠(]/.test(raw) ? raw : label.charAt(0).toUpperCase() + label.slice(1);
+      return { name, host, pitch: String(sum.battlecard?.pitch ?? "").slice(0, 500), objections: (sum.battlecard?.objections ?? []).slice(0, 4) };
+    }).filter((r) => r.host);
+  })());
+  return RIVALS.get(wsId)!;
 }
 
 /** Ajoute les signaux du site à ceux du prospect (sans doublon, les plus récents remplacent). */
@@ -92,7 +110,7 @@ export function mergeSignals(old: Signal[] | null | undefined, add: Signal[]) {
 export async function enrich(p: Prospect, interlocuteur: string) {
   // 1. Site déjà connu : on le lit d'abord (gratuit)
   if (p.website) {
-    const r = await fromSite(p.website, p.contact_name ?? "", `${p.name} ${p.org ?? ""}`);
+    const r = await fromSite(p.website, p.contact_name ?? "", `${p.name} ${p.org ?? ""}`, await rivalsOf(p.workspace_id));
     if (r.email && !(await mxOk(r.email))) r.email = "";
     if (r.signals.length) { p.signals = mergeSignals(p.signals as Signal[], r.signals); await admin.from("prospects").update({ signals: p.signals }).eq("id", p.id); }
     if (!r.email && r.guessed && (await mxOk(r.guessed))) {
@@ -131,7 +149,7 @@ Format : {"site": "https://…", "email": "", "telephone": "", "contact": "Prén
   let siteSig: Signal[] = [];
   // 3. L'IA a trouvé le site mais pas d'e-mail : on lit ses pages nous-mêmes (gratuit)
   if (!ok && site && site !== p.website) {
-    const r = await fromSite(site, String(v.contact ?? p.contact_name ?? ""), `${p.name} ${p.org ?? ""}`);
+    const r = await fromSite(site, String(v.contact ?? p.contact_name ?? ""), `${p.name} ${p.org ?? ""}`, await rivalsOf(p.workspace_id));
     if (r.signals.length) siteSig = r.signals;
     if (r.email) { ok = r.email; v.source = `site ${hostOf(site)}`; }
     else if (r.guessed) { ok = r.guessed; v.source = `déduite (format du site ${hostOf(site)})`; v.note = "Adresse déduite du format prénom.nom publié sur le site : non vérifiée, relis avant d'envoyer"; }
@@ -176,6 +194,16 @@ Règles absolues :
 - Pas de formule creuse (« j'espère que vous allez bien », « je me permets de… » en ouverture).${learned(ws)}`;
 }
 
+/** Comprendre → Agir : ce que la veille Espion apporte à l'e-mail. */
+async function rivalBrief(wsId: string, p: Prospect) {
+  const rivals = (await rivalsOf(wsId)).filter((r) => r.pitch);
+  if (!rivals.length) return "";
+  const used = (p.signals ?? []).find((x) => x.type === "concurrent");
+  const r = used ? rivals.find((x) => x.host === (used as Signal).value) : null;
+  if (r) return `Le prospect utilise déjà ${r.name}. Notre positionnement face à ${r.name} (veille Espion ; ne le dénigre jamais) : ${r.pitch}\n`;
+  return `Ce qui nous distingue des alternatives du marché (veille Espion ; utilise-le comme angle si c'est pertinent, sans citer de concurrent) : ${rivals.slice(0, 2).map((x) => x.pitch).join(" / ")}\n`;
+}
+
 export async function draft(ws: Workspace, p: Prospect) {
   const t = (ws.targets ?? []).find((x) => x.id === p.target);
   const camp = await campaignOf((p as Prospect & { campaign_id?: string }).campaign_id);
@@ -189,7 +217,7 @@ Angle à utiliser : ${v ? v.angle : t?.angle ?? ""}
 ${v?.objet ? `Objet à utiliser tel quel ou presque : ${v.objet}\n` : ""}${active ? `Objectif de l'e-mail : ${goalText(active.goal)}.\n` : ""}Bénéficiaires à nommer : ${t?.pour_qui ?? ""}
 ${(() => { const sg = (p.signals ?? []).filter((x) => x.label && x.type !== "taille" && x.type !== "reseau"); return sg.length ? `Faits publics observés sur ce prospect (registre, Radar, son site) :\n${sg.slice(0, 8).map((x) => `- ${x.label}`).join("\n")}\nChoisis LE fait le plus utile pour notre offre et ouvre l'e-mail avec, sans rien y ajouter ni l'interpréter. N'utilise pas les autres.\n` : ""; })()}${(p.insight as { reseaux?: { accroche?: string } } | null)?.reseaux?.accroche ? `Première phrase possible, fondée sur une publication ou une actualité réelle du prospect (à reprendre ou adapter si elle sonne naturelle, sinon ignore-la) : ${(p.insight as { reseaux: { accroche: string } }).reseaux.accroche}
 ` : ""}
-Commence par « Bonjour${p.contact_name ? " Madame/Monsieur <Nom>" : ""}, » (si l'interlocuteur est connu mais que le genre est incertain, écris « Bonjour <Prénom Nom>, »).
+${await rivalBrief(ws.id, p)}Commence par « Bonjour${p.contact_name ? " Madame/Monsieur <Nom>" : ""}, » (si l'interlocuteur est connu mais que le genre est incertain, écris « Bonjour <Prénom Nom>, »).
 Ne mets pas de signature : elle est ajoutée automatiquement.
 
 Format exact :

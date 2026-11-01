@@ -205,7 +205,7 @@ function RadarOpps({ m }) {
 
 // ---------------------------------------------------------------- Limites de la mission (conditions d'arrêt)
 const STOP = { echeance: "Échéance atteinte", budget: "Budget IA atteint", objectif: "Objectif atteint" };
-const SIGNALS = { recrutement: "Recrutent", pub_google: "Font de la pub Google", pub_meta: "Font de la pub Facebook/Instagram", sans_reservation: "N'ont pas de RDV en ligne", site_inactif: "Ont un site à l'abandon", sans_schema: "Ont un référencement faible", ia_bloquee: "Sont invisibles pour les IA", agence: "Ont une agence web", levee: "Ont levé des fonds", accelerateur: "Sont accompagnées par un accélérateur" };
+const SIGNALS = { recrutement: "Recrutent", pub_google: "Font de la pub Google", pub_meta: "Font de la pub Facebook/Instagram", sans_reservation: "N'ont pas de RDV en ligne", site_inactif: "Ont un site à l'abandon", sans_schema: "Ont un référencement faible", ia_bloquee: "Sont invisibles pour les IA", agence: "Ont une agence web", levee: "Ont levé des fonds", accelerateur: "Sont accompagnées par un accélérateur", concurrent: "Utilisent un de mes concurrents" };
 
 function Limits({ m, onChanged }) {
   const toast = useToast();
@@ -250,6 +250,10 @@ function Limits({ m, onChanged }) {
           <div className="sm:col-span-3 flex gap-2"><Button size="sm" variant="primary" onClick={save}>Enregistrer</Button><Button size="sm" variant="ghost" onClick={() => setEdit(false)}>Annuler</Button></div>
         </div>
       )}
+      <label className="mt-3 flex items-start gap-2 text-sm cursor-pointer">
+        <input type="checkbox" className="mt-1 accent-[#E0531F]" checked={m.radar_auto !== false} onChange={async (e) => { const { error } = await supabase.from("missions").update({ radar_auto: e.target.checked }).eq("id", m.id); if (error) toast(error.message, "bad"); else onChanged(); }} />
+        <span><b>Radar → Mission</b> : ajouter automatiquement les entreprises de ma zone repérées par le Radar (qui recrutent ou se développent), en priorité.</span>
+      </label>
       <p className="text-xs text-ink-faint mt-2">La mission se met en pause toute seule à la date de fin, au budget maximum ou quand l'objectif est atteint. Le budget est une estimation du coût IA des recherches et rédactions de la mission.</p>
     </div>
   );

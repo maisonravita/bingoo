@@ -81,13 +81,14 @@ export default function Layout({ children }) {
     const head = (t) => supabase.from(t).select("id", { count: "exact", head: true }).eq("workspace_id", ws.id);
     const load = async () => {
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const [d, l, r, m] = await Promise.all([
+      const [d, l, r, m, o] = await Promise.all([
         head("messages").eq("status", "brouillon"),
         head("prospects").eq("linkedin_status", "a_envoyer"),
         head("replies").eq("handled", false),
         head("meetings").eq("status", "confirme").gte("starts_at", today.toISOString()).lt("starts_at", new Date(today.getTime() + 86400000).toISOString()),
+        head("radar_opps").eq("status", "nouveau"),
       ]);
-      if (alive) setC({ drafts: d.count ?? 0, li: l.count ?? 0, replies: r.count ?? 0, today: m.count ?? 0 });
+      if (alive) setC({ drafts: d.count ?? 0, li: l.count ?? 0, replies: r.count ?? 0, today: m.count ?? 0, radar: o.count ?? 0 });
     };
     load();
     const t = setInterval(load, 20000);
@@ -97,19 +98,26 @@ export default function Layout({ children }) {
 
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => { supabase.rpc("is_admin").then(({ data }) => setIsAdmin(!!data)); }, []);
+  // Les 4 piliers : Détecter (Radar) · Comprendre (Espion) · Agir (Mission) · Convertir (réponses, rendez-vous)
   const groups = [
-    { title: "Ton équipe commerciale IA", items: [
+    { items: [
       { to: "/", label: "Ta journée", short: "Journée", icon: "today", also: ["/agents"] },
+    ] },
+    { title: "Détecter", items: [
+      { to: "/radar", label: "Radar", short: "Radar", icon: "radar", count: c.radar },
+    ] },
+    { title: "Comprendre", items: [
+      { to: "/espion", label: "Espion", icon: "eye" },
+    ] },
+    { title: "Agir", items: [
       { to: "/mission", label: "Mission", short: "Mission", icon: "flag", also: ["/intelligence"] },
       { to: "/valider", label: "À valider", short: "Valider", icon: "check", count: c.drafts },
-      { to: "/reponses", label: "Réponses", short: "Réponses", icon: "inbox", count: c.replies, hot: true },
       { to: "/prospects", label: "Prospects", short: "Prospects", icon: "list", also: ["/prospection", "/linkedin"], count: c.li },
+    ] },
+    { title: "Convertir", items: [
+      { to: "/reponses", label: "Réponses", short: "Réponses", icon: "inbox", count: c.replies, hot: true },
       { to: "/agenda", label: "Agenda", icon: "cal", count: c.today },
       { to: "/devis", label: "Devis", icon: "doc" },
-    ] },
-    { title: "Intelligence commerciale", items: [
-      { to: "/radar", label: "Radar", icon: "radar" },
-      { to: "/espion", label: "Espion", icon: "eye" },
       { to: "/resultats", label: "Résultats", icon: "chart", also: ["/distribution", "/conversion"] },
     ] },
     { items: [
@@ -167,7 +175,7 @@ export default function Layout({ children }) {
       )}
       {fb && <Feedback onClose={() => setFb(false)} />}
       <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-line grid grid-cols-5 pb-[env(safe-area-inset-bottom)] z-40">
-        {all.slice(0, 4).map((n) => (
+        {["/", "/radar", "/mission", "/valider"].map((t) => all.find((n) => n.to === t)).map((n) => (
           <NavLink key={n.to} to={n.to} end className={({ isActive }) => cx("relative flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium", isActive ? "text-ink" : "text-ink-faint")}>
             <Icon name={n.icon} />{n.short}
             {n.count > 0 && <span className="absolute top-1 right-[22%] text-[10px] font-bold bg-accent text-white rounded-full min-w-4 h-4 px-1 grid place-items-center tnum">{n.count}</span>}

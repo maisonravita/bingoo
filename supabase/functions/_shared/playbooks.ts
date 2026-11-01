@@ -23,6 +23,7 @@ Comment utiliser les signaux (un seul par e-mail, le plus pertinent pour notre o
 - Levée de fonds ou accélérateur : parle de la pression que ça crée (objectifs, recrutements, croissance), pas de « félicitations ».
 - Site à l'abandon, référencement faible, invisible pour les IA : un manque concret et vérifiable, à nommer sans jugement.
 - Techno du site : au plus un outil cité, et seulement s'il sert l'argument. Ne récite jamais la liste de ses outils.
+- Utilise un concurrent : ne le dénigre jamais. Pars de ce qu'il fait déjà, puis montre l'angle que l'offre apporte en plus (celui fourni par la veille). Ne cite le concurrent que si c'est naturel.
 - Un fait précis faux est pire qu'un fait général vrai : ne prétends rien qui ne figure pas dans les signaux ou la fiche.`;
 
 /** Analyse des réponses et objections. */

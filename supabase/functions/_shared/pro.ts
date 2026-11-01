@@ -3,7 +3,7 @@ import { HttpError } from "./http.ts";
 import { admin, ask, askJson, log, PLATFORM_DOMAIN, repliesTracked, sendReady, type Prospect, type Workspace } from "./core.ts";
 import { warmup } from "./growth.ts";
 import { brand, buildIcs, canSend, replyAddress, resend, sendMail, sendSystem, signature, teamAddress } from "./mail.ts";
-import { systemFor } from "./agents.ts";
+import { rivalsOf, systemFor } from "./agents.ts";
 import { humanize, PLAYBOOK_REPONSES } from "./playbooks.ts";
 import { freeSlots, frSlot, pickThree } from "./time.ts";
 
@@ -32,6 +32,14 @@ export function stripQuoted(text: string): string {
     out.push(l);
   }
   return out.join("\n").trim().slice(0, 6000);
+}
+
+/** Le prospect cite un concurrent suivi par Espion : on donne au rédacteur l'argumentaire et les réponses prévues. */
+async function rivalReplyBrief(wsId: string, text: string) {
+  const t = text.toLowerCase();
+  const r = (await rivalsOf(wsId)).find((x) => t.includes(x.name.toLowerCase()) || t.includes(x.host.split(".")[0]));
+  if (!r) return "";
+  return `\n\nLe prospect mentionne ${r.name} (concurrent suivi par Espion). Positionnement : ${r.pitch}${r.objections.length ? `\nRéponses prévues : ${r.objections.map((o) => `« ${o.objection} » → ${o.reponse}`).join(" | ")}` : ""}\nNe dénigre jamais ${r.name}.`;
 }
 
 export async function handleReply(ws: Workspace, p: Prospect | null, input: { fromEmail: string; fromName?: string; subject?: string; text: string }, base = "") {
@@ -73,7 +81,7 @@ Consignes :
 Format :
 OBJET: Re : ${(input.subject ?? "").replace(/^(re|tr|fwd?)\s*:\s*/i, "")}
 ---
-<corps>`, { fast: true, system: systemFor(ws) + PLAYBOOK_REPONSES });
+<corps>`, { fast: true, system: systemFor(ws) + PLAYBOOK_REPONSES + (await rivalReplyBrief(ws.id, text)) });
     const m = out.match(/OBJET\s*:\s*(.+)\n-{3,}\n([\s\S]+)/);
     reply = m ? { subject: m[1].trim(), body: humanize(m[2]) } : { subject: `Re : ${input.subject ?? ""}`, body: humanize(out) };
   }

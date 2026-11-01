@@ -42,11 +42,18 @@ const CREDIT = /(?:site\s+(?:internet\s+|web\s+)?)?(?:r[ée]alis[ée]|cr[ée]{1,
 const NOT_AGENCY = /^(wordpress|wix|shopify|webflow|squarespace|prestashop|jimdo|framer|ovh|o2switch|hostinger|google|nous|notre|l['’]équipe|la direction)$/i;
 
 /** Lit la page d'accueil (déjà téléchargée) et, au besoin, 2 ou 3 petites ressources publiques. */
-export async function siteSignals(origin: string, home: string): Promise<Signal[]> {
+export async function siteSignals(origin: string, home: string, rivals: { name: string; host: string }[] = []): Promise<Signal[]> {
   if (!home) return [];
   const out: Signal[] = [];
   const add = (s: Signal) => { if (!out.some((x) => x.type === s.type && x.label === s.label)) out.push(s); };
   const t = text(home);
+
+  // Comprendre → Agir : un concurrent suivi par Espion est relié au site du prospect (lien, script, widget)
+  const own = (() => { try { return new URL(origin).hostname.replace(/^www\./, ""); } catch { return ""; } })();
+  for (const r of rivals) {
+    if (!r.host || own.endsWith(r.host)) continue;
+    if (new RegExp(`[/.@"']${r.host.replace(/\./g, "\\.")}`, "i").test(home)) { add({ type: "concurrent", label: `Utilise ${r.name} (repéré sur son site)`, value: r.host }); break; }
+  }
 
   // Budget d'acquisition visible
   if (has(home, GOOGLE_ADS)) add({ type: "pub_google", label: "Fait de la publicité Google (balise de conversion sur son site)" });
@@ -102,5 +109,5 @@ async function openRoles(kind: string, slug: string): Promise<string[]> {
 export const SIGNAL_LABELS: Record<string, string> = {
   pub_google: "Pub Google", pub_meta: "Pub Facebook/Instagram", pub_linkedin: "Pub LinkedIn", techno: "Techno du site", sans_reservation: "Pas de RDV en ligne",
   sans_schema: "Référencement à améliorer", agence: "A une agence web", accelerateur: "Accélérateur", levee: "Levée de fonds", recrutement: "Recrute",
-  site_inactif: "Site à l'abandon", ia_bloquee: "Invisible pour les IA",
+  site_inactif: "Site à l'abandon", ia_bloquee: "Invisible pour les IA", concurrent: "Utilise un concurrent",
 };

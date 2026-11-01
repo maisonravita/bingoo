@@ -86,6 +86,32 @@ function Opportunities() {
 }
 
 /** Ce que l'équipe IA a réellement fait aujourd'hui (journal d'activité). */
+/** Détecter : les opportunités repérées par le Radar, en tête de journée. */
+function Detected() {
+  const { ws } = useWs();
+  const [rows, setRows] = useState(null);
+  useEffect(() => {
+    supabase.from("radar_opps").select("id, kind, company, summary, city, created_at").eq("workspace_id", ws.id).eq("status", "nouveau").order("created_at", { ascending: false }).limit(4).then(({ data }) => setRows(data ?? []));
+  }, [ws.id]);
+  if (!rows?.length) return null;
+  const KIND = { recrutement: "Recrute", croissance: "Se développe", appel_offres: "Appel d'offres" };
+  return (
+    <Card className="p-4 sm:p-5 mb-6 border-accent/30">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-accent">Détecté pour toi</h2>
+        <Link to="/radar" className="text-sm text-ink-soft hover:text-ink">Tout le Radar ›</Link>
+      </div>
+      <p className="text-sm text-ink-soft mt-1">Des entreprises qui ont une raison concrète d'acheter maintenant. Ta mission en cours prend en priorité celles qui sont dans sa zone.</p>
+      <ul className="mt-3 divide-y divide-line">{rows.map((o) => (
+        <li key={o.id} className="py-2.5 flex items-start gap-3 text-sm">
+          <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide rounded-full bg-accent-soft text-accent-dark px-2 py-0.5 mt-0.5">{KIND[o.kind] ?? o.kind}</span>
+          <span className="min-w-0"><b>{o.company}</b>{o.city ? <span className="text-ink-faint"> · {o.city}</span> : null}<span className="block text-ink-soft truncate">{o.summary}</span></span>
+        </li>
+      ))}</ul>
+    </Card>
+  );
+}
+
 function TeamToday() {
   const { ws } = useWs();
   const [rows, setRows] = useState(null);
@@ -192,6 +218,7 @@ export default function Today() {
         </Card>
       )}
 
+      <Detected />
       <TeamToday />
 
       <div className="grid lg:grid-cols-[1fr_300px] gap-8">
