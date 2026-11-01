@@ -1,0 +1,50 @@
+# Copie de secours et retour arrière de la fonction historique « k ».
+# mode=sauvegarder : télécharge la version EN LIGNE et l'enregistre telle quelle sur la branche secours/k-prod.
+# mode=restaurer   : remet en ligne exactement la version enregistrée sur secours/k-prod.
+name: k secours
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [sauvegarder, restaurer]
+        default: sauvegarder
+
+permissions:
+  contents: write
+
+env:
+  PROJECT_REF: fbsjbnnmzazylmquzryo
+  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}
+
+jobs:
+  secours:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - name: Sauvegarder la version en ligne
+        if: inputs.mode == 'sauvegarder'
+        run: |
+          rm -rf /tmp/w && mkdir -p /tmp/w && cd /tmp/w
+          supabase functions download k --project-ref $PROJECT_REF
+          find /tmp/w -type f | head -50
+          n=$(find /tmp/w -type f -name '*.ts' | wc -l); [ "$n" -gt 0 ] || { echo "Téléchargement vide"; exit 1; }
+          cd $GITHUB_WORKSPACE
+          git config user.name "Bingoo CI"; git config user.email "ci@users.noreply.github.com"
+          git checkout --orphan secours/k-prod
+          git rm -rf . >/dev/null
+          cp -r /tmp/w/supabase .
+          echo "Version de k en production sauvegardée le $(date -u +%FT%TZ) avant l'alignement sur le dépôt." > LISEZMOI.txt
+          git add -A && git commit -m "Copie exacte de k en production ($(date -u +%F))"
+          git push -f origin secours/k-prod
+          echo "Fichiers sauvegardés : $(git ls-files | wc -l), taille : $(du -sh supabase | cut -f1)"
+      - name: Restaurer la version sauvegardée
+        if: inputs.mode == 'restaurer'
+        run: |
+          git checkout secours/k-prod
+          supabase functions deploy k --project-ref $PROJECT_REF --no-verify-jwt
+          echo "k restaurée depuis secours/k-prod"
