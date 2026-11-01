@@ -3,6 +3,7 @@
 // Message-ID <bingoo-{id du message}@domaine> : le rapprochement est exact, sans deviner.
 import { admin, log, type Prospect, type Workspace } from "./core.ts";
 import { open } from "./growth.ts";
+import { gmailRecent } from "./oauth.ts";
 
 export const IMAP_HOSTS: Record<string, string> = {
   gmail: "imap.gmail.com", ovh: "ssl0.ovh.net", ionos: "imap.ionos.fr", zoho: "imap.zoho.eu",
@@ -65,44 +66,55 @@ async function applyBounce(messageId: string) {
 
 type ReplyHandler = (ws: Workspace, p: Prospect, input: { fromEmail: string; fromName?: string; subject?: string; text: string }) => Promise<unknown>;
 
-/** Relève de la boîte depuis le dernier passage (50 messages max par passage). */
+/** Traite un message brut : rebond ou réponse à un e-mail Bingoo. */
+async function handleRaw(ws: Workspace, raw: string, res: { lus: number; rebonds: number; reponses: number }, onReply: ReplyHandler) {
+  res.lus++;
+  if (isBounce(raw)) {
+    for (const id of bingooIds(raw)) if (await applyBounce(id)) res.rebonds++;
+    return;
+  }
+  const id = replyTo(raw);
+  if (!id) return;
+  const { data: m } = await admin.from("messages").select("prospect_id, prospects(*)").eq("id", id).eq("workspace_id", ws.id).maybeSingle();
+  const p = (m as unknown as { prospects: Prospect | null } | null)?.prospects;
+  if (!p) return;
+  const fromRaw = header(raw, "From"), fromEmail = (fromRaw.match(/<([^>]+)>/)?.[1] ?? fromRaw).trim().toLowerCase();
+  // Déjà reçue par l'adresse de réponse Bingoo ? On ne la traite pas deux fois.
+  const { count } = await admin.from("replies").select("id", { count: "exact", head: true }).eq("prospect_id", p.id).eq("from_email", fromEmail).gte("created_at", new Date(Date.now() - 3 * 864e5).toISOString());
+  if (count) return;
+  await onReply(ws, p, { fromEmail, fromName: fromRaw.replace(/<[^>]+>/, "").replace(/"/g, "").trim(), subject: header(raw, "Subject"), text: plainText(raw) });
+  res.reponses++;
+}
+
+/** Relève de la boîte depuis le dernier passage (50 messages max par passage) : API Gmail si connectée par Google, sinon IMAP. */
 export async function pollInbox(ws: Workspace, onReply: ReplyHandler) {
-  const box = ws.integrations?.mailbox;
+  const box = ws.integrations?.mailbox as ({ ok: boolean; provider: string; via?: string; imap_at?: string } | undefined);
+  const res = { lus: 0, rebonds: 0, reponses: 0 };
+  const since = new Date(box?.imap_at ?? Date.now() - 3 * 864e5);
+  const done = async () => {
+    const integrations = { ...(ws.integrations ?? {}), mailbox: { ...box, imap_at: new Date().toISOString() } };
+    await admin.from("workspaces").update({ integrations }).eq("id", ws.id);
+    return res;
+  };
+  if (box?.ok && box.via === "oauth" && box.provider === "google") {
+    for (const raw of await gmailRecent(ws, since)) await handleRaw(ws, raw, res, onReply);
+    return await done();
+  }
   if (!box?.ok || !IMAP_HOSTS[box.provider]) return { skipped: "pas de boîte lisible" };
   const { data: sec } = await admin.from("workspace_secrets").select("smtp").eq("workspace_id", ws.id).maybeSingle();
   const s = sec?.smtp as { user?: string; pass?: string } | undefined;
   if (!s?.user || !s.pass) return { skipped: "identifiants absents" };
   const { ImapFlow } = await import("npm:imapflow@1.0.164");
-  const since = new Date((box as { imap_at?: string }).imap_at ?? Date.now() - 3 * 864e5);
   const client = new ImapFlow({ host: IMAP_HOSTS[box.provider], port: 993, secure: true, auth: { user: s.user, pass: await open(s.pass) }, logger: false });
-  const res = { lus: 0, rebonds: 0, reponses: 0 };
   await client.connect();
   try {
     const lock = await client.getMailboxLock("INBOX");
     try {
       const uids = ((await client.search({ since }, { uid: true })) || []).slice(-50);
       for await (const msg of client.fetch(uids, { source: { maxLength: 200000 } as unknown as boolean, uid: true }, { uid: true })) {
-        const raw = msg.source?.toString("utf8") ?? "";
-        res.lus++;
-        if (isBounce(raw)) {
-          for (const id of bingooIds(raw)) if (await applyBounce(id)) res.rebonds++;
-          continue;
-        }
-        const id = replyTo(raw);
-        if (!id) continue;
-        const { data: m } = await admin.from("messages").select("prospect_id, prospects(*)").eq("id", id).eq("workspace_id", ws.id).maybeSingle();
-        const p = (m as unknown as { prospects: Prospect | null } | null)?.prospects;
-        if (!p) continue;
-        const fromRaw = header(raw, "From"), fromEmail = (fromRaw.match(/<([^>]+)>/)?.[1] ?? fromRaw).trim().toLowerCase();
-        // Déjà reçue par l'adresse de réponse Bingoo ? On ne la traite pas deux fois.
-        const { count } = await admin.from("replies").select("id", { count: "exact", head: true }).eq("prospect_id", p.id).eq("from_email", fromEmail).gte("created_at", new Date(Date.now() - 3 * 864e5).toISOString());
-        if (count) continue;
-        await onReply(ws, p, { fromEmail, fromName: fromRaw.replace(/<[^>]+>/, "").replace(/"/g, "").trim(), subject: header(raw, "Subject"), text: plainText(raw) });
-        res.reponses++;
+        await handleRaw(ws, msg.source?.toString("utf8") ?? "", res, onReply);
       }
     } finally { lock.release(); }
   } finally { await client.logout().catch(() => null); }
-  const integrations = { ...(ws.integrations ?? {}), mailbox: { ...box, imap_at: new Date().toISOString() } };
-  await admin.from("workspaces").update({ integrations }).eq("id", ws.id);
-  return res;
+  return await done();
 }

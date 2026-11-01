@@ -46,7 +46,7 @@ async function cryptoKey() {
   const bytes = new Uint8Array(data!.value.match(/.{2}/g)!.map((h: string) => parseInt(h, 16)));
   return await crypto.subtle.importKey("raw", bytes, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
-async function seal(text: string) {
+export async function seal(text: string) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await cryptoKey(), new TextEncoder().encode(text)));
   return btoa(String.fromCharCode(...iv, ...ct));
@@ -87,6 +87,10 @@ export async function saveMailbox(ws: Workspace, b: Record<string, unknown>) {
   return { ok: true, email, provider };
 }
 export async function removeMailbox(ws: Workspace) {
+  if ((ws.integrations?.mailbox as { via?: string } | undefined)?.via === "oauth") {
+    const { disconnectOauth } = await import("./oauth.ts");
+    await disconnectOauth(ws, "google");
+  }
   await admin.from("workspace_secrets").update({ smtp: {} }).eq("workspace_id", ws.id);
   const integrations = { ...(ws.integrations ?? {}) };
   delete integrations.mailbox;

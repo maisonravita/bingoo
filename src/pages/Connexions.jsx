@@ -39,17 +39,33 @@ function Mailbox() {
     catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
   };
   const remove = async () => { setBusy(true); try { await fn("mailbox-remove", { workspace_id: ws.id }); await reload(); toast("Boîte déconnectée"); } finally { setBusy(false); } };
+  // Connexion officielle Google : Bingoo ne voit jamais le mot de passe
+  const google = async () => { setBusy(true); try { const r = await fn("o/google-url", { workspace_id: ws.id }); window.location.href = r.url; } catch (e) { toast(e.message, "bad"); setBusy(false); } };
+  useEffect(() => {
+    const m = window.location.hash.match(/gmail=([a-z]+)/);
+    if (!m) return;
+    const msg = { ok: ["Gmail connecté par Google : les e-mails partiront de ta boîte", "good"], annule: ["Connexion Gmail annulée", "bad"], droits: ["Coche l'autorisation d'envoi d'e-mails pour connecter Gmail", "bad"], refresh: ["Google n'a pas donné d'accès durable : recommence la connexion", "bad"], email: ["Adresse Gmail introuvable : recommence la connexion", "bad"] }[m[1]];
+    if (msg) toast(msg[0], msg[1]);
+    reload();
+    window.history.replaceState(null, "", window.location.href.replace(/[?&]gmail=[a-z]+/, ""));
+  }, []);
   return (
     <Section title="Ta boîte mail" sub="Kairo envoie depuis ta vraie adresse : les messages apparaissent dans tes « Envoyés » et les prospects te répondent directement."
       status={mb ? <Badge tone={mb.ok ? "good" : "bad"}>{mb.ok ? "Connectée" : "À reconnecter"}</Badge> : <Badge>Non connectée</Badge>}>
       {mb?.ok ? (
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-sm flex-1 min-w-0">Envoi depuis <b className="break-all">{mb.email}</b>. {ws.reply_status === "verified" ? "Les réponses sont aussi lues et classées par Kairo." : "Les réponses arrivent dans ta boîte : colle-les dans « Réponses » pour que Kairo les traite, ou active le domaine de réponse dans Réglages."}</p>
+          <p className="text-sm flex-1 min-w-0">Envoi depuis <b className="break-all">{mb.email}</b>{mb.via === "oauth" ? " (connexion Google officielle)" : ""}. {ws.reply_status === "verified" ? "Les réponses sont aussi lues et classées par Kairo." : "Les réponses arrivent dans ta boîte : colle-les dans « Réponses » pour que Kairo les traite, ou active le domaine de réponse dans Réglages."}</p>
           <Button variant="danger" size="sm" loading={busy} onClick={remove}>Déconnecter</Button>
         </div>
       ) : (
         <div className="space-y-3">
           {mb && !mb.ok && <p className="text-sm text-bad">Le mot de passe de {mb.email} ne fonctionne plus (changé ou révoqué). Reconnecte la boîte.</p>}
+          <div className="rounded-xl border border-line bg-paper p-4">
+            <p className="font-medium text-sm">Gmail ou Google Workspace : connexion officielle (recommandée)</p>
+            <p className="text-sm text-ink-soft mt-1">Tu valides sur la page de Google, sans donner de mot de passe à Bingoo. Bingoo pourra envoyer depuis ta boîte et y repérer les réponses et les rebonds.</p>
+            <Button className="mt-3" variant="primary" loading={busy} onClick={google}>Connecter Gmail avec Google</Button>
+          </div>
+          <p className="text-xs text-ink-faint">Autre fournisseur, ou sans connexion Google : mot de passe d'application ci-dessous.</p>
           <div className="flex flex-wrap gap-1.5">
             {providers.map((p) => <button key={p.key} onClick={() => setF({ ...f, provider: p.key })} className={cx("rounded-full px-3 py-1.5 text-sm border", f.provider === p.key ? "bg-ink text-white border-ink" : "bg-white border-line")}>{p.label}</button>)}
           </div>
