@@ -465,7 +465,7 @@ Format :
     { maxTokens: 16000, tools: WEB(6), system: "Tu es un analyste senior en intelligence concurrentielle. Tu cites tes sources, tu distingues faits et hypothèses, tu ne dénigres jamais et tu n'inventes rien. Réponds en français." });
   if (!s || typeof s !== "object" || (!s.resume && !s.battlecard)) throw new HttpError(502, "L'analyse est revenue incomplète, relance-la");
   const history = [{ at: now, changes: s.changements ?? "" }, ...(c.history ?? [])].slice(0, 20);
-  await admin.from("competitors").update({ name: c.name || s.nom || "", summary: s, text_hash: hash, history, checked_at: now, changed_at: c.text_hash && c.text_hash !== hash ? now : c.changed_at ?? now }).eq("id", c.id);
+  await admin.from("competitors").update({ name: c.name || s.nom || "", summary: s, text_hash: hash, history, checked_at: now, spy_due: false, changed_at: c.text_hash && c.text_hash !== hash ? now : c.changed_at ?? now }).eq("id", c.id);
   await log(ws.id, "veille", `${c.name || s.nom} : ${c.summary ? s.changements : "analyse complète"}`);
   return { changed: true, summary: s };
 }
