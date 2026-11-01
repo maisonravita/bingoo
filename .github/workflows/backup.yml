@@ -23,7 +23,7 @@ jobs:
     env:
       DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       PASS: ${{ secrets.BACKUP_PASSPHRASE }}
-      TABLES: "workspaces members prospects messages replies missions radar_opps competitors meetings quotes suppressions activity"
+      TABLES: "workspaces members prospects messages replies missions radar_opps competitors meetings quotes suppressions"
     steps:
       - name: Vérification des secrets
         run: |
