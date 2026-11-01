@@ -205,12 +205,15 @@ function RadarOpps({ m }) {
 
 // ---------------------------------------------------------------- Limites de la mission (conditions d'arrêt)
 const STOP = { echeance: "Échéance atteinte", budget: "Budget IA atteint", objectif: "Objectif atteint" };
+const SIGNALS = { recrutement: "Recrutent", pub_google: "Font de la pub Google", pub_meta: "Font de la pub Facebook/Instagram", sans_reservation: "N'ont pas de RDV en ligne", site_inactif: "Ont un site à l'abandon", sans_schema: "Ont un référencement faible", ia_bloquee: "Sont invisibles pour les IA", agence: "Ont une agence web", levee: "Ont levé des fonds", accelerateur: "Sont accompagnées par un accélérateur" };
+
 function Limits({ m, onChanged }) {
   const toast = useToast();
   const [edit, setEdit] = useState(false);
-  const [f, setF] = useState({ deadline: m.deadline ?? "", max_prospects: m.max_prospects ?? "", max_budget: m.max_budget ?? "" });
+  const [f, setF] = useState({ deadline: m.deadline ?? "", max_prospects: m.max_prospects ?? "", max_budget: m.max_budget ?? "", signal_focus: m.signal_focus ?? [], signal_exclude: m.signal_exclude ?? [] });
+  const toggle = (key, t) => setF((x) => ({ ...x, [key]: x[key].includes(t) ? x[key].filter((y) => y !== t) : [...x[key], t], [key === "signal_focus" ? "signal_exclude" : "signal_focus"]: x[key === "signal_focus" ? "signal_exclude" : "signal_focus"].filter((y) => y !== t) }));
   const save = async () => {
-    const v = { deadline: f.deadline || null, max_prospects: f.max_prospects === "" ? null : Math.max(1, Math.round(Number(f.max_prospects))), max_budget: f.max_budget === "" ? null : Math.max(1, Number(f.max_budget)) };
+    const v = { deadline: f.deadline || null, max_prospects: f.max_prospects === "" ? null : Math.max(1, Math.round(Number(f.max_prospects))), max_budget: f.max_budget === "" ? null : Math.max(1, Number(f.max_budget)), signal_focus: f.signal_focus, signal_exclude: f.signal_exclude };
     const { error } = await supabase.from("missions").update(v).eq("id", m.id);
     if (error) return toast(error.message, "bad");
     toast("Limites enregistrées", "good"); setEdit(false); onChanged();
@@ -229,12 +232,21 @@ function Limits({ m, onChanged }) {
           <div className="rounded-xl bg-paper/70 border border-line p-3"><p className="text-xs text-ink-soft">Prospects maximum</p><p className="font-semibold">{m.max_prospects ? n(m.max_prospects) : "Sans limite"}</p></div>
           <div className="rounded-xl bg-paper/70 border border-line p-3"><p className="text-xs text-ink-soft">Budget IA de la mission</p><p className="font-semibold">{fmt(spent)} €{m.max_budget ? ` / ${fmt(m.max_budget)} €` : " dépensés (sans limite)"}</p>
             {m.max_budget ? <span className="mt-1.5 block h-1.5 rounded-full bg-white overflow-hidden"><span className="block h-full bg-accent rounded-full" style={{ width: `${Math.min(100, (spent / m.max_budget) * 100)}%` }} /></span> : null}</div>
+          {(m.signal_focus?.length || m.signal_exclude?.length) ? <div className="sm:col-span-3 text-xs text-ink-soft">Ciblage : {m.signal_focus?.length ? <>en priorité <b className="text-good">{m.signal_focus.map((t) => SIGNALS[t] ?? t).join(", ")}</b></> : null}{m.signal_focus?.length && m.signal_exclude?.length ? " · " : ""}{m.signal_exclude?.length ? <>exclus <b className="text-bad">{m.signal_exclude.map((t) => SIGNALS[t] ?? t).join(", ")}</b></> : null}</div> : null}
         </div>
       ) : (
         <div className="grid sm:grid-cols-3 gap-3 mt-2 text-sm">
           <label className="block"><span className="text-xs text-ink-soft">Date de fin</span><Input type="date" value={f.deadline} onChange={(e) => setF({ ...f, deadline: e.target.value })} /></label>
           <label className="block"><span className="text-xs text-ink-soft">Prospects maximum</span><Input type="number" min="1" placeholder="Sans limite" value={f.max_prospects} onChange={(e) => setF({ ...f, max_prospects: e.target.value })} /></label>
           <label className="block"><span className="text-xs text-ink-soft">Budget IA maximum (€)</span><Input type="number" min="1" step="1" placeholder="Sans limite" value={f.max_budget} onChange={(e) => setF({ ...f, max_budget: e.target.value })} /></label>
+          <div className="sm:col-span-3">
+            <p className="text-xs text-ink-soft mb-1.5">Cibler en priorité les entreprises qui… (clic = priorité, re-clic = exclure, 3e clic = neutre)</p>
+            <div className="flex flex-wrap gap-1.5">{Object.entries(SIGNALS).map(([t, l]) => {
+              const st = f.signal_focus.includes(t) ? "focus" : f.signal_exclude.includes(t) ? "excl" : "";
+              return <button key={t} type="button" onClick={() => st === "focus" ? toggle("signal_exclude", t) : st === "excl" ? setF((x) => ({ ...x, signal_exclude: x.signal_exclude.filter((y) => y !== t) })) : toggle("signal_focus", t)}
+                className={cx("rounded-full border px-3 py-1 text-xs", st === "focus" ? "bg-good/10 border-good text-good" : st === "excl" ? "bg-bad/10 border-bad text-bad line-through" : "bg-white border-line text-ink-soft")}>{l}</button>;
+            })}</div>
+          </div>
           <div className="sm:col-span-3 flex gap-2"><Button size="sm" variant="primary" onClick={save}>Enregistrer</Button><Button size="sm" variant="ghost" onClick={() => setEdit(false)}>Annuler</Button></div>
         </div>
       )}

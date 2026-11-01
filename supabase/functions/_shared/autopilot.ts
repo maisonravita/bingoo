@@ -1,7 +1,7 @@
 // Pilote automatique d'un espace (appelé par la tâche planifiée m/autopilot)
 import { admin, log, repliesTracked, sendReady, type Prospect, type Workspace } from "./core.ts";
 import { warmup } from "./growth.ts";
-import { draft, enrich, followups, sendOne } from "./agents.ts";
+import { bounceGuard, draft, enrich, followups, sendOne } from "./agents.ts";
 import { deepEnrich, dropcontactPending } from "./deep.ts";
 import { searchTarget } from "./search.ts";
 // ================================================================ Pilote automatique (appelé par la tâche planifiée)
@@ -19,7 +19,9 @@ export async function autopilot(ws: Workspace, base: string) {
   if (repliesTracked(ws)) report.relances = (await followups(ws)).created;
 
   // 2. Envois (premiers messages + relances), étalés : 3 par passage
-  if (sendReady(ws)) {
+  const guard = await bounceGuard(ws);
+  if (!guard.ok) report.envois_suspendus_rebonds = guard.bounced;
+  if (sendReady(ws) && guard.ok) {
     const since = new Date(); since.setHours(0, 0, 0, 0);
     const { count } = await admin.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "envoye").gte("sent_at", since.toISOString());
     let left = Math.min(3, warmup(ws).cap - (count ?? 0));

@@ -20,7 +20,7 @@ function decode(html: string) {
 /** Lit le site du prospect (accueil, contact, mentions légales) : e-mails, téléphones, formulaire. */
 export async function siteContacts(site: string) {
   const origin = (() => { try { return new URL(site).origin; } catch { return ""; } })();
-  if (!origin) return { emails: [] as string[], phones: [] as string[], form: "" };
+  if (!origin) return { emails: [] as string[], phones: [] as string[], form: "", home: "", origin: "" };
   const home = await fetchHtml(origin);
   const links = [...home.slice(0, 200_000).matchAll(/href=["']([^"'#]{1,200})["']/gi)].map((m) => m[1])
     .map((h) => { try { return new URL(h, origin).href; } catch { return ""; } })
@@ -36,7 +36,7 @@ export async function siteContacts(site: string) {
     for (const m of d.replace(/<[^>]{0,500}>/g, " ").match(PHONE_RE) ?? []) phones.add(m.replace(/[\s.-]/g, " ").trim());
     if (!form && i > 0 && /<form[\s\S]{0,6000}?<textarea/i.test(h)) form = pages[i - 1];
   });
-  return { emails: [...emails], phones: [...phones].slice(0, 3), form };
+  return { emails: [...emails], phones: [...phones].slice(0, 3), form, home, origin };
 }
 
 /** Le domaine reçoit-il du courrier ? */

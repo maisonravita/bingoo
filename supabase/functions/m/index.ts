@@ -6,6 +6,8 @@ import { canSend } from "../_shared/mail.ts";
 import { warmup } from "../_shared/growth.ts";
 import { radarToProspect } from "../_shared/radar.ts";
 import { autopilot } from "../_shared/autopilot.ts";
+import { siteContacts } from "../_shared/deep.ts";
+import { siteSignals } from "../_shared/sitesignals.ts";
 import { missionPilotCron, missionStep, type Mission } from "../_shared/mission.ts";
 
 async function secret(name: string) {
@@ -119,6 +121,12 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
       try { out[ws.id] = await autopilot(ws, ""); } catch (e) { out[ws.id] = { error: (e as Error).message }; }
     }
     return out;
+  },
+  // Diagnostic (clé de tâche) : ce que Bingoo lit sur un site
+  async probe(req, b) {
+    if ((req.headers.get("x-cron-key") ?? "") !== (await secret("cron_key"))) throw new HttpError(401, "Clé invalide");
+    const sc = await siteContacts(String(b.url ?? ""));
+    return { emails: sc.emails, phones: sc.phones, form: sc.form, signals: await siteSignals(sc.origin, sc.home) };
   },
   async cron(req) {
     if ((req.headers.get("x-cron-key") ?? "") !== (await secret("cron_key"))) throw new HttpError(401, "Clé invalide");

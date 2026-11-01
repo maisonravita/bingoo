@@ -11,7 +11,7 @@ export type Mission = {
   id: string; workspace_id: string; objective: string; goal_type: "clients" | "rdv"; goal_count: number;
   deadline: string | null; target_ids: string[]; zone: string[]; plan: Record<string, unknown>; history: Snapshot[]; status: string; created_at: string;
   auto?: boolean; journal?: { at: string; text: string }[]; run_at?: string | null;
-  max_prospects?: number | null; max_budget?: number | null; spent?: number; stop_reason?: string | null;
+  max_prospects?: number | null; max_budget?: number | null; signal_focus?: string[]; signal_exclude?: string[]; spent?: number; stop_reason?: string | null;
 };
 type Snapshot = { d: string; prospects: number; contactes: number; reponses: number; rdv: number; clients: number };
 
@@ -283,7 +283,12 @@ export async function missionStep(ws: Workspace, m: Mission) {
   if (s.prets > 0 && ws.sender_name) {
     const n = await quota(ws.id, "redaction", 80, Math.min(5, MAX_QUEUE - s.a_valider)).catch(() => 0);
     if (n > 0) {
-      const { data } = await admin.from("prospects").select("*").eq("mission_id", m.id).eq("status", "pret").neq("email", "").order("score", { ascending: false, nullsFirst: false }).limit(n);
+      const { data: pool } = await admin.from("prospects").select("*").eq("mission_id", m.id).eq("status", "pret").neq("email", "").order("score", { ascending: false, nullsFirst: false }).limit(80);
+      // Ciblage par signaux : on écarte les exclus, on passe d'abord ceux qui ont un signal recherché
+      const types = (p: Prospect) => new Set((p.signals ?? []).map((x) => x.type));
+      const focus = m.signal_focus ?? [], excl = m.signal_exclude ?? [];
+      const data = (pool ?? []).filter((p) => !excl.some((t) => types(p as Prospect).has(t)))
+        .sort((a, b) => focus.filter((t) => types(b as Prospect).has(t)).length - focus.filter((t) => types(a as Prospect).has(t)).length).slice(0, n);
       const res = await Promise.allSettled(((data ?? []) as Prospect[]).map((p) => draft(ws, p)));
       const ok = res.filter((r) => r.status === "fulfilled").length;
       for (let i = 0; i < ok; i++) await log(ws.id, "redaction", "E-mail rédigé (mission)");
