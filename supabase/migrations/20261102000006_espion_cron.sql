@@ -1,0 +1,2 @@
+-- Espion : passage du pilote toutes les 15 min entre 1 h et 7 h (heure de Paris en hiver)
+select cron.schedule('kairo-espion', '*/15 0-5 * * *', $$select net.http_post(url:='https://fbsjbnnmzazylmquzryo.supabase.co/functions/v1/r/spy-cron', headers:=jsonb_build_object('content-type','application/json','x-cron-key',(select value from public.app_secrets where name='cron_key')), body:='{}'::jsonb, timeout_milliseconds:=150000)$$);
