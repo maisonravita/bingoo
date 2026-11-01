@@ -71,7 +71,7 @@ jobs:
           cp "$live" $GITHUB_WORKSPACE/k-live.ts
           { echo "## Fonction k"; echo "- en ligne : $(wc -c < "$live") octets, dépôt : $(wc -c < $GITHUB_WORKSPACE/bundles/k.js) octets";
             echo "- instructions seulement en ligne : $(comm -23 /tmp/a /tmp/b | wc -l), seulement dans le dépôt : $(comm -13 /tmp/a /tmp/b | wc -l)";
-            echo '```'; comm -13 /tmp/a /tmp/b | grep -oE '"[^"]{20,120}"' | LC_ALL=C sort -u | head -60 || true; echo '```'; } >> $GITHUB_STEP_SUMMARY
+            echo '```'; comm -13 /tmp/a /tmp/b | grep -oE '"[^"]{20,120}"' | LC_ALL=C sort -u | head -60 || true; echo '```'; } | tee -a $GITHUB_STEP_SUMMARY
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: k-live, path: k-live.ts, if-no-files-found: ignore }
