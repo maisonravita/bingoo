@@ -17,3 +17,5 @@ drop trigger if exists replies_hot on public.replies;
 create trigger replies_hot after insert on public.replies for each row execute function public.notify_hot_reply();
 
 -- cron 'kairo-weekly' : lundi 7 h UTC (8 h Paris) → functions/v1/m/weekly
+
+-- 01/11 : webhook Resend des réponses déplacé de k/inbound vers n/inbound (même clé inbound_key)

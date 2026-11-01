@@ -29,7 +29,7 @@ export async function hotAlert(replyId: string, dry = false) {
   ].join("\n");
   if (dry) return { to, subject, text };
   if (!to) return { skipped: "aucune adresse d'équipe" };
-  await sendSystem({ to, subject, text, fromName: "Kairo" });
+  await sendSystem({ to, subject, text: text + "\n\nRépondre directement à cet e-mail écrit au prospect.", fromName: `Kairo · ${who}`, replyTo: r.from_email || undefined });
   await admin.from("replies").update({ notified_at: new Date().toISOString() }).eq("id", replyId);
   return { sent: true, to };
 }

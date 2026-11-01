@@ -4,6 +4,7 @@ import { admin, ask, askJson, log, PLATFORM_DOMAIN, repliesTracked, sendReady, t
 import { warmup } from "./growth.ts";
 import { brand, buildIcs, canSend, replyAddress, resend, sendMail, sendSystem, signature, teamAddress } from "./mail.ts";
 import { systemFor } from "./agents.ts";
+import { humanize, PLAYBOOK_REPONSES } from "./playbooks.ts";
 import { freeSlots, frSlot, pickThree } from "./time.ts";
 
 const WEB = (n: number) => [{ type: "web_search_20250305", name: "web_search", max_uses: n, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }];
@@ -72,9 +73,9 @@ Consignes :
 Format :
 OBJET: Re : ${(input.subject ?? "").replace(/^(re|tr|fwd?)\s*:\s*/i, "")}
 ---
-<corps>`, { fast: true, system: systemFor(ws) });
+<corps>`, { fast: true, system: systemFor(ws) + PLAYBOOK_REPONSES });
     const m = out.match(/OBJET\s*:\s*(.+)\n-{3,}\n([\s\S]+)/);
-    reply = m ? { subject: m[1].trim(), body: m[2].trim() } : { subject: `Re : ${input.subject ?? ""}`, body: out.trim() };
+    reply = m ? { subject: m[1].trim(), body: humanize(m[2]) } : { subject: `Re : ${input.subject ?? ""}`, body: humanize(out) };
   }
 
   const { data: row } = await admin.from("replies").insert({
@@ -132,7 +133,7 @@ export async function inbound(body: Record<string, unknown>) {
   const res = await handleReply(ws as Workspace, p as Prospect, { fromEmail, fromName, subject: String(d.subject ?? ""), text }, baseOf(ws as Workspace));
   // Copie dans la boîte de l'utilisateur, pour qu'il ne rate rien
   try {
-    const to = await teamAddress(ws as Workspace);
+    const to = ["interesse", "question", "prix", "rappel"].includes(res.classe) ? "" : await teamAddress(ws as Workspace); // réponses positives : l'alerte « prospect chaud » s'en charge
     if (to) await sendSystem({
       to, fromName: `Kairo · ${p.name}`, replyTo: fromEmail,
       subject: `[${res.label}] ${String(d.subject ?? "")}`,

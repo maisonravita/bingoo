@@ -4,6 +4,7 @@ import { admin } from "../_shared/core.ts";
 import { meetingReminders, quoteReminders } from "../_shared/convert.ts";
 import { syncCrm } from "../_shared/growth.ts";
 import { hotAlert, weeklyReport } from "../_shared/notify.ts";
+import { inbound } from "../_shared/pro.ts";
 
 async function checkKey(req: Request) {
   const { data } = await admin.from("app_secrets").select("value").eq("name", "cron_key").single();
@@ -41,8 +42,14 @@ const routes: Record<string, (b: Record<string, unknown>) => Promise<unknown>> =
 Deno.serve(wrap(async (req) => {
   const parts = new URL(req.url).pathname.split("/").filter(Boolean);
   const fn = routes[parts[parts.indexOf("n") + 1] ?? ""];
-  if (!fn) throw new HttpError(404, "Action inconnue");
+  if (!fn && parts[parts.indexOf("n") + 1] !== "inbound") throw new HttpError(404, "Action inconnue");
   if (req.method !== "POST") throw new HttpError(405, "POST attendu");
+  if (parts[parts.indexOf("n") + 1] === "inbound") {
+    // Webhook Resend (réponses reçues, rebonds, plaintes) : clé dans l'URL
+    const { data } = await admin.from("app_secrets").select("value").eq("name", "inbound_key").single();
+    if (!data?.value || new URL(req.url).searchParams.get("key") !== data.value) throw new HttpError(401, "Clé invalide");
+    return json(await inbound(await readJson(req)));
+  }
   await checkKey(req);
   return json(await fn(await readJson(req)));
 }));
