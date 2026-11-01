@@ -24,6 +24,9 @@ export const CLASSES: Record<string, string> = {
   pas_interesse: "Pas intéressé", stop: "Opposition", absence: "Absence", autre: "Autre",
 };
 
+/** Formules d'opposition en tête de réponse : désinscription immédiate. */
+export const OPT_OUT = /^\s*(stop\b|d[ée]sinscri|unsubscribe|ne (plus )?me (plus )?contacter|retirez[- ]moi)/i;
+
 export function stripQuoted(text: string): string {
   const out: string[] = [];
   for (const l of (text || "").replace(/\r/g, "").split("\n")) {
@@ -46,7 +49,7 @@ export async function handleReply(ws: Workspace, p: Prospect | null, input: { fr
   const text = stripQuoted(input.text);
   type V = { classe: string; resume: string; besoin_humain: boolean; nouveau_contact?: string; rappel_date?: string };
   // Opposition explicite : traitée sans IA, immédiatement et sans risque d'erreur
-  const optOut = /^\s*(stop|d[ée]sinscri|unsubscribe|ne (plus )?me (plus )?contacter|retirez[- ]moi)/i;
+  const optOut = OPT_OUT;
   const v: V = optOut.test(text.slice(0, 80)) || optOut.test(String(input.subject ?? "").replace(/^(re|tr|fwd?)\s*:\s*/i, ""))
     ? { classe: "stop", resume: "Demande à ne plus être contacté", besoin_humain: false }
     : await askJson<V>(`Classe la réponse d'un prospect à un e-mail de prospection de ${brand(ws)} (${ws.profile?.offre ?? ""}).

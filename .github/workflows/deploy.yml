@@ -1,0 +1,73 @@
+# Contrôle, construction et déploiement des fonctions Supabase à chaque mise à jour de main.
+# Le site est publié par Vercel. La fonction historique « k » n'est PAS déployée ici :
+# l'étape « k-drift » compare seulement la version en ligne avec le dépôt.
+name: Bingoo CI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  PROJECT_REF: fbsjbnnmzazylmquzryo
+  FUNCTIONS: "a i m n r t"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install --no-audit --no-fund
+      - name: Tests automatiques
+        run: node scripts/test.mjs
+      - name: Construction des fonctions
+        run: for f in $FUNCTIONS k; do node scripts/build-fn.mjs $f; done
+      - name: Construction du site
+        run: npm run build:site
+      - uses: actions/upload-artifact@v4
+        with: { name: bundles, path: bundles/ }
+
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: bundles, path: bundles/ }
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - name: Déploiement des fonctions
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then echo "Secret SUPABASE_ACCESS_TOKEN absent : déploiement ignoré" >> $GITHUB_STEP_SUMMARY; exit 0; fi
+          for f in $FUNCTIONS; do
+            cp bundles/$f.js supabase/functions/$f/index.ts
+            supabase functions deploy $f --project-ref $PROJECT_REF --no-verify-jwt
+            echo "- $f déployée ($(wc -c < bundles/$f.js) octets)" >> $GITHUB_STEP_SUMMARY
+          done
+
+  k-drift:
+    needs: check
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: bundles, path: bundles/ }
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - name: Écart entre la fonction k en ligne et le dépôt
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then exit 0; fi
+          mkdir -p /tmp/live && cd /tmp/live && supabase functions download k --project-ref $PROJECT_REF || true
+          live=$(find /tmp/live -name 'index.ts' | head -1)
+          [ -n "$live" ] || { echo "Téléchargement impossible" >> $GITHUB_STEP_SUMMARY; exit 0; }
+          tr ';' '\n' < "$live" | sort -u > /tmp/a; tr ';' '\n' < $GITHUB_WORKSPACE/bundles/k.js | sort -u > /tmp/b
+          { echo "## Fonction k"; echo "- en ligne : $(wc -c < "$live") octets, dépôt : $(wc -c < $GITHUB_WORKSPACE/bundles/k.js) octets";
+            echo "- instructions seulement en ligne : $(comm -23 /tmp/a /tmp/b | wc -l), seulement dans le dépôt : $(comm -13 /tmp/a /tmp/b | wc -l)";
+            echo '```'; comm -13 /tmp/a /tmp/b | grep -oE '"[^"]{20,120}"' | sort -u | head -40; echo '```'; } >> $GITHUB_STEP_SUMMARY

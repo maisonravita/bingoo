@@ -380,7 +380,7 @@ Format : {"url": "", "personne": "", "fonction": "", "note": "", "message": ""}`
 // ---------------------------------------------------------------- Relances
 // Sans réponse marquée, une relance est préparée à J+4 puis à J+9 ; elle arrive
 // dans la file de validation (l'utilisateur confirme qu'il n'y a pas eu de réponse).
-const FOLLOW = [
+export const FOLLOW = [
   { after: 5, subject: (s: string) => `Re : ${s.replace(/^re\s*:\s*/i, "")}`, body: (hello: string) => `${hello}\n\nUn mot rapide : est-ce un sujet chez vous en ce moment, ou plutôt pas d'actualité ?` },
   { after: 12, subject: (s: string) => `Re : ${s.replace(/^re\s*:\s*/i, "")}`, body: (hello: string) => `${hello}\n\nJe n'insiste pas : si ce n'est pas le moment, aucun souci. Et si quelqu'un d'autre s'occupe de ce sujet chez vous, me diriez-vous qui contacter ?` },
 ];
