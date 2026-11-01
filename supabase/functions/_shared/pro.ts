@@ -58,7 +58,8 @@ Classes : ${Object.keys(CLASSES).join(", ")}.
 - plus_tard : pas maintenant ; objection : objection sans refus net ; mauvais_contact : indique une autre personne (mets-la dans nouveau_contact) ;
 - pas_interesse : refus ; stop : demande à ne plus être contacté ; absence : message automatique.
 besoin_humain = true si prix, engagement, plainte, marché public, ou au moindre doute.
-rappel_date : date AAAA-MM-JJ si le prospect indique quand revenir vers lui, sinon "".
+rappel_date : date AAAA-MM-JJ si le prospect indique quand revenir vers lui, sinon "". Nous sommes le ${new Date().toISOString().slice(0, 10)}.
+Traduis les périodes vagues en date future : « au printemps » → 15 mars, « à la rentrée » → 1er septembre, « en juin » → 1er juin, « l'an prochain » → 15 janvier, « dans 3 mois » → aujourd'hui + 3 mois ; si son contrat se termine à une date, vise 2 mois avant cette fin. Toujours une date après aujourd'hui.
 
 Objet : ${input.subject ?? ""}
 Message :
@@ -105,7 +106,7 @@ OBJET: Re : ${(input.subject ?? "").replace(/^(re|tr|fwd?)\s*:\s*/i, "")}
     if (classe === "stop") { patch.status = "refus"; patch.next_action_at = null; patch.next_action = ""; patch.notes = `${p.notes ? p.notes + "\n" : ""}Opposition à toute sollicitation le ${new Date().toLocaleDateString("fr-FR")}`; }
     // Opposition : liste d'exclusion globale (plus aucun envoi Bingoo vers cette adresse, quel que soit le client)
     if (classe === "stop") { const e = (p.email || input.fromEmail || "").trim().toLowerCase(); if (e) await admin.from("suppressions").upsert({ email: e, source: "reponse STOP" }, { onConflict: "email", ignoreDuplicates: true }); }
-    if (classe === "plus_tard") { patch.next_action_at = /^\d{4}-\d{2}-\d{2}$/.test(v.rappel_date ?? "") ? v.rappel_date : addDays(30); patch.next_action = "Relancer (a répondu « plus tard »)"; }
+    if (classe === "plus_tard") { patch.next_action_at = /^\d{4}-\d{2}-\d{2}$/.test(v.rappel_date ?? "") && String(v.rappel_date) > addDays(0) ? v.rappel_date : addDays(30); patch.next_action = "Relancer (a répondu « plus tard »)"; }
     if (["interesse", "question", "prix", "rappel", "objection"].includes(classe)) { patch.next_action_at = addDays(0); patch.next_action = classe === "rappel" ? "Rappeler le prospect" : "Répondre au message reçu"; }
     if (classe === "mauvais_contact" && v.nouveau_contact) patch.notes = `${p.notes ? p.notes + "\n" : ""}Contact indiqué : ${v.nouveau_contact}`;
     if (Object.keys(patch).length) await admin.from("prospects").update(patch).eq("id", p.id);
