@@ -175,3 +175,78 @@ Format : {"nom": "", "site": "https://…"}`, { fast: true, maxTokens: 1500, too
   if (!/^https?:\/\//.test(r.site ?? "")) throw new HttpError(404, `Site officiel de « ${s} » introuvable : colle directement son adresse`);
   return { url: r.site, name: r.nom ?? s };
 }
+
+// ================================================================ Pilote automatique d'Espion (chaque nuit)
+// 1. Contrôle léger et gratuit : le site de chaque concurrent suivi est relu une fois par jour (empreinte du texte).
+// 2. Un seul travail lourd par passage : rapport complet (site changé, au plus tous les 2 jours ; sinon au moins chaque semaine),
+//    puis publicités (chaque semaine), puis découverte de nouveaux concurrents (chaque semaine, à valider par le client).
+export async function spyCron() {
+  const t0 = Date.now();
+  const { checkCompetitor, siteText, sha, suggestCompetitors } = await import("./pro.ts");
+  const { competitorAds } = await import("./campaigns.ts");
+  const { data: wss } = await admin.from("workspaces").select("*").eq("onboarded", true);
+  const byId = new Map((wss ?? []).map((w) => [w.id, w as Workspace & { spy_at?: string | null }]));
+  const ids = [...byId.keys()];
+  if (!ids.length) return { skipped: "aucun espace" };
+  const day = new Date(); day.setUTCHours(0, 0, 0, 0);
+  const out: Record<string, unknown> = { controles: 0 };
+
+  // 1. Contrôle léger
+  const { data: due } = await admin.from("competitors").select("id, workspace_id, url, text_hash, checked_at, summary").in("workspace_id", ids).eq("status", "suivi")
+    .or(`watched_at.is.null,watched_at.lt.${day.toISOString()}`).order("watched_at", { ascending: true, nullsFirst: true }).limit(8);
+  for (const c of due ?? []) {
+    if (Date.now() - t0 > 30000) break;
+    let changed = false;
+    try { const text = await siteText(c.url); changed = text.length > 200 && !!c.text_hash && (await sha(text)) !== c.text_hash; } catch { /* site illisible : on réessaiera */ }
+    const age = c.checked_at ? Date.now() - new Date(c.checked_at).getTime() : Infinity;
+    const needs = !c.summary || age > 7 * 864e5 || (changed && age > 2 * 864e5);
+    await admin.from("competitors").update({ watched_at: new Date().toISOString(), ...(needs ? { spy_due: true } : {}) }).eq("id", c.id);
+    out.controles = Number(out.controles) + 1;
+    if (changed) await log(c.workspace_id, "espion", `${c.summary?.nom ?? new URL(c.url).hostname} : son site a changé${needs ? ", rapport complet programmé" : ""}`);
+  }
+  if (Date.now() - t0 > 45000) return out;
+
+  // 2a. Rapport complet
+  const { data: full } = await admin.from("competitors").select("id, workspace_id, name").in("workspace_id", ids).eq("status", "suivi").eq("spy_due", true).order("checked_at", { ascending: true, nullsFirst: true }).limit(1);
+  if (full?.[0]) {
+    const c = full[0];
+    await admin.from("competitors").update({ spy_due: false }).eq("id", c.id);
+    try { await checkCompetitor(byId.get(c.workspace_id)!, c.id, true); out.rapport = c.name || c.id; }
+    catch (e) { out.rapport_erreur = (e as Error).message; await admin.from("competitors").update({ spy_due: true }).eq("id", c.id); }
+    return out;
+  }
+  // 2b. Publicités
+  const week = new Date(Date.now() - 7 * 864e5).toISOString();
+  const { data: ads } = await admin.from("competitors").select("id, workspace_id, name").in("workspace_id", ids).eq("status", "suivi").not("summary", "is", null)
+    .or(`ads_at.is.null,ads_at.lt.${week}`).order("ads_at", { ascending: true, nullsFirst: true }).limit(1);
+  if (ads?.[0]) {
+    try { await competitorAds(byId.get(ads[0].workspace_id)!, ads[0].id); out.publicites = ads[0].name || ads[0].id; } catch (e) { out.publicites_erreur = (e as Error).message; }
+    return out;
+  }
+  // 2c. Découverte de nouveaux concurrents (proposés, jamais suivis sans accord)
+  const ws = (wss ?? []).find((w) => !w.spy_at || w.spy_at < week) as (Workspace & { spy_at?: string | null }) | undefined;
+  if (ws) {
+    await admin.from("workspaces").update({ spy_at: new Date().toISOString() }).eq("id", ws.id);
+    try {
+      const { data: have } = await admin.from("competitors").select("url").eq("workspace_id", ws.id);
+      const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
+      const known = new Set((have ?? []).map((x) => host(x.url)));
+      const found = (await suggestCompetitors(ws)).filter((x) => !known.has(host(x.site)));
+      if (found.length) {
+        await admin.from("competitors").insert(found.map((x) => ({ workspace_id: ws.id, name: x.nom, url: x.site, status: "propose", proposal: { pourquoi: x.pourquoi, type: x.type, at: new Date().toISOString() } })));
+        await log(ws.id, "espion", `${found.length} nouveau${found.length > 1 ? "x" : ""} concurrent${found.length > 1 ? "s" : ""} repéré${found.length > 1 ? "s" : ""}, à valider`);
+      }
+      out.decouverte = found.length;
+    } catch (e) { out.decouverte_erreur = (e as Error).message; }
+  }
+  return out;
+}
+
+/** Le client suit ou écarte un concurrent proposé par l'espion. */
+export async function spyFollow(ws: Workspace, id: string, follow: boolean) {
+  const { data: c } = await admin.from("competitors").select("id, name").eq("id", id).eq("workspace_id", ws.id).single();
+  if (!c) throw new HttpError(404, "Concurrent introuvable");
+  await admin.from("competitors").update(follow ? { status: "suivi", spy_due: true } : { status: "ecarte" }).eq("id", c.id);
+  await log(ws.id, "espion", `${c.name} ${follow ? "ajouté à la veille : rapport complet la nuit prochaine" : "écarté"}`);
+  return { ok: true };
+}
