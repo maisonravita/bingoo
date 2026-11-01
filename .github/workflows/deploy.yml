@@ -22,6 +22,8 @@ jobs:
       - run: npm install --no-audit --no-fund
       - name: Tests automatiques
         run: node scripts/test.mjs
+      - name: Noms non définis (fonction utilisée sans import)
+        run: bash scripts/check-names.sh
       - name: Construction des fonctions
         run: for f in $FUNCTIONS; do node scripts/build-fn.mjs $f; done
       - name: Construction du site
