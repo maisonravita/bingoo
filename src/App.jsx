@@ -29,6 +29,7 @@ import Espion from "./pages/Espion";
 import Mission from "./pages/Mission";
 import Intelligence from "./pages/Intelligence";
 import Abonnement from "./pages/Abonnement";
+import Assistant from "./pages/Assistant";
 import Join, { JOIN_KEY } from "./pages/Join";
 import PublicBooking from "./pages/PublicBooking";
 import PublicQuote from "./pages/PublicQuote";
@@ -84,6 +85,7 @@ function Gate() {
         <Route path="/radar" element={<Radar />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/aide" element={<Aide />} />
+        <Route path="/assistant" element={<Assistant />} />
         <Route path="/prospection" element={<Prospection />} />
         <Route path="/distribution" element={<Distribution />} />
         <Route path="/conversion" element={<Conversion />} />

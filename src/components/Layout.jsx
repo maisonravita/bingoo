@@ -102,6 +102,7 @@ export default function Layout({ children }) {
   const groups = [
     { items: [
       { to: "/", label: "Ta journée", short: "Journée", icon: "today", also: ["/agents"] },
+      { to: "/assistant", label: "Assistant", short: "Assistant", icon: "spark" },
     ] },
     { title: "Détecter", items: [
       { to: "/radar", label: "Radar", short: "Radar", icon: "radar", count: c.radar },

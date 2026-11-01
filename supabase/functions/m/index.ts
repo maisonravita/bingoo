@@ -76,6 +76,28 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
       message: msg, reason: !p.email ? "no_email" : !ws.sender_name ? "no_sender" : null,
     };
   },
+  // Préparer un prospect déjà en base : enquête si besoin, puis brouillon (jamais d'envoi)
+  async "prospect-prepare"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const load = async () => (await admin.from("prospects").select("*").eq("id", String(b.id ?? "")).eq("workspace_id", ws.id).single()).data as Prospect | null;
+    let p = await load();
+    if (!p) throw new HttpError(404, "Prospect introuvable");
+    if (!p.enriched_at && !p.email) {
+      await quota(ws.id, "enquete", 40);
+      const e = await enrich(p, ((ws.targets ?? []) as Target[]).find((x) => x.id === p!.target)?.interlocuteur ?? "");
+      await log(ws.id, "enquete", `${p.name} : ${e.email ? "e-mail trouvé" : "rien trouvé"} (assistant)`);
+      p = (await load())!;
+    }
+    const last = async () => (await admin.from("messages").select("id, subject, body, status").eq("prospect_id", p!.id).eq("step", 0).order("created_at", { ascending: false }).limit(1)).data?.[0] ?? null;
+    let msg = await last();
+    if (!msg && p.email && ws.sender_name) {
+      await quota(ws.id, "redaction", 80);
+      await draft(ws, p);
+      await log(ws.id, "redaction", `E-mail rédigé pour ${p.name} (assistant)`);
+      msg = await last();
+    }
+    return { prospect: { id: p.id, name: p.name, email: p.email, phone: p.phone, contact_name: p.contact_name }, message: msg, reason: !p.email ? "no_email" : !ws.sender_name ? "no_sender" : null };
+  },
   // Envoi d'un e-mail validé : contrôle du domaine de l'adresse, puis limites du jour
   async send(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
