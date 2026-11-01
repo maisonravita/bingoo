@@ -28,6 +28,7 @@ const Ico = ({ n, className = "w-5 h-5", fill }) => <svg viewBox="0 0 24 24" cla
 const MINUTES = { recherche: 20, enquete: 8, enquete_plus: 12, redaction: 10, envoi: 1, reponse: 5, radar: 5, radar_scan: 20, veille: 30, espion: 15, analyse: 30, linkedin: 6, rdv: 20, brief: 15, devis: 15, script: 10, intelligence: 20 };
 const KIND = { recrutement: "Recrute", croissance: "Se développe", appel_offres: "Appel d'offres" };
 const ago = (d) => { const h = Math.round((Date.now() - new Date(d).getTime()) / 36e5); return h < 1 ? "à l'instant" : h < 24 ? `il y a ${h} h` : `il y a ${Math.round(h / 24)} j`; };
+const short = (d) => { const m = Math.round((Date.now() - new Date(d).getTime()) / 6e4); return m < 60 ? `Actif · ${m} min` : `Actif · ${Math.round(m / 60)} h`; };
 const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
 
 function Sparks({ className }) {
@@ -88,7 +89,7 @@ function Detected({ rows, onPrepared }) {
     } catch (e) { toast(e.message, "bad"); } finally { setBusy(null); }
   };
   return (
-    <section className="bg-white rounded-2xl border border-line p-4 sm:p-5">
+    <section className="min-w-0 bg-white rounded-2xl border border-line p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3 mb-3">
         <h2 className="flex items-center gap-2.5 font-bold text-[16px] uppercase tracking-wide"><Ico n="target" className="w-6 h-6 text-accent" />Détecté pour toi</h2>
         <Link to="/radar" className="text-[13px] text-ink-soft hover:text-ink inline-flex items-center gap-1">Voir toutes les opportunités<Ico n="arrow" className="w-3.5 h-3.5" /></Link>
@@ -101,7 +102,7 @@ function Detected({ rows, onPrepared }) {
               <Logo name={o.company} url={o.url} />
               <Link to="/radar" className="min-w-0 flex-1">
                 <p className="font-semibold truncate">{o.company}</p>
-                <p className="text-[13px] text-ink-soft truncate">{o.summary}</p>
+                <p className="text-[13px] text-ink-soft line-clamp-2 leading-snug">{o.summary}</p>
                 <p className="text-[11.5px] text-ink-faint mt-0.5"><span className="sm:hidden font-semibold text-accent-dark">{KIND[o.kind] ?? o.kind} · </span>{[o.city, ago(o.created_at)].filter(Boolean).join(" · ")}</p>
               </Link>
               {o.kind !== "appel_offres" && (
@@ -124,9 +125,9 @@ function TeamAtWork({ rows }) {
   const ranked = TEAM.map((a) => ({ a, last: lastOf(a) })).sort((x, y) => (y.last ? new Date(y.last.created_at) : 0) - (x.last ? new Date(x.last.created_at) : 0));
   const active = ranked.filter((x) => x.last && new Date(x.last.created_at) >= today).length;
   return (
-    <section className="bg-white rounded-2xl border border-line p-4 sm:p-5">
+    <section className="min-w-0 bg-white rounded-2xl border border-line p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3 mb-3">
-        <h2 className="flex items-center gap-2.5 font-bold text-[15px] xl:text-[16px] uppercase tracking-wide"><Ico n="users" className="w-6 h-6 text-accent" />Ton équipe au travail</h2>
+        <h2 className="flex items-center gap-2.5 font-bold text-[15px] uppercase tracking-wide whitespace-nowrap"><Ico n="users" className="w-6 h-6 text-accent" />Ton équipe au travail</h2>
         <Link to="/salaries" className="text-[13px] text-ink-soft inline-flex items-center gap-1.5 whitespace-nowrap"><span className={cx("w-2 h-2 rounded-full", active ? "bg-good" : "bg-ink-faint")} />{active} actif{active > 1 ? "s" : ""}</Link>
       </div>
       <div className="grid grid-cols-3 gap-2.5">
@@ -140,7 +141,7 @@ function TeamAtWork({ rows }) {
               <p className="text-[12.5px] text-ink-soft">{a.role}</p>
               <span className={cx("mt-2 inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-medium whitespace-nowrap", working ? "bg-accent-soft text-accent-dark" : todayDone ? "bg-good-soft text-good" : "bg-[#EFEEEA] text-ink-soft")}>
                 <span className={cx("w-1.5 h-1.5 rounded-full", working ? "bg-accent pulse-dot" : todayDone ? "bg-good" : "bg-ink-soft")} />
-                {working ? "Au travail" : todayDone ? ago(last.created_at).replace("il y a ", "Actif · ") : "En veille"}
+                {working ? "Au travail" : todayDone ? short(last.created_at) : "En veille"}
               </span>
             </Link>
           );
@@ -253,7 +254,7 @@ export default function Today() {
         <h2 className="flex items-center gap-2.5 font-bold text-[16px] uppercase tracking-wide"><Ico n="star" className="w-6 h-6 text-accent" fill />Tes priorités du jour</h2>
       </div>
       {s ? (
-        <div className="grid md:grid-cols-3 gap-3.5 mb-6">
+        <div className="grid md:grid-cols-3 [&>*]:min-w-0 gap-3.5 mb-6">
           <Priority icon="target" n={s.opps} one="opportunité à examiner" many="opportunités à examiner" empty="Pas de nouvelle opportunité" img="immeuble"
             sub={s.opps ? "Des entreprises montrent des signaux d'intérêt pour ton offre." : "Max surveille le marché et te prévient dès qu'une entreprise bouge."} to="/radar" cta="Voir les opportunités" />
           <Priority icon="chat" n={s.replies} one="réponse à traiter" many="réponses à traiter" empty="Aucune réponse en attente" img="reponses" hot
@@ -261,10 +262,10 @@ export default function Today() {
           <Priority icon="check" n={s.drafts + s.li} one="action à valider" many="actions à valider" empty="Rien à valider" img="valider" hot
             sub={s.drafts + s.li ? [s.drafts && plural(s.drafts, "e-mail prêt", "e-mails prêts"), s.li && plural(s.li, "message LinkedIn", "messages LinkedIn")].filter(Boolean).join(" et ") + " attendent ton feu vert." : "Hugo prépare les prochains e-mails."} to="/valider" cta="Voir les actions" />
         </div>
-      ) : <div className="grid md:grid-cols-3 gap-3.5 mb-6">{[0, 1, 2].map((k) => <div key={k} className="h-[178px] rounded-2xl bg-white border border-line animate-pulse" />)}</div>}
+      ) : <div className="grid md:grid-cols-3 [&>*]:min-w-0 gap-3.5 mb-6">{[0, 1, 2].map((k) => <div key={k} className="h-[178px] rounded-2xl bg-white border border-line animate-pulse" />)}</div>}
 
       {s && (
-        <div className="grid xl:grid-cols-[1.35fr_1fr] gap-3.5 mb-6">
+        <div className="grid xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-3.5 mb-6">
           <Detected rows={s.detected} onPrepared={load} />
           <TeamAtWork rows={s.rows} />
         </div>
