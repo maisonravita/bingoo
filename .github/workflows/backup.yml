@@ -21,8 +21,11 @@ jobs:
       - name: Copie de la base (Postgres 17)
         run: |
           d=$(date -u +%F)
-          docker run --rm -e PGURL="$DB_URL" -v "$PWD:/out" postgres:17 \
-            sh -c 'pg_dump "$PGURL" --no-owner --no-privileges --schema=public --schema=auth --schema=cron -f /out/dump.sql'
+          # L'hôte du pooler peut être aws-0 ou aws-1 selon le projet : on essaie les deux
+          for u in "$DB_URL" "$(echo "$DB_URL" | sed 's/aws-0-/aws-1-/')" "$(echo "$DB_URL" | sed 's/aws-1-/aws-0-/')"; do
+            docker run --rm -e PGURL="$u" -v "$PWD:/out" postgres:17 \
+              sh -c 'pg_dump "$PGURL" --no-owner --no-privileges --schema=public --schema=auth --schema=cron -f /out/dump.sql' && break
+          done
           test -s dump.sql
           echo "$PASS" | gpg --batch --yes --passphrase-fd 0 --symmetric --cipher-algo AES256 -o bingoo-$d.sql.gpg dump.sql
           shred -u dump.sql
