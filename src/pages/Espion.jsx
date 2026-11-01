@@ -228,7 +228,8 @@ function AiPanel({ s, onPlan }) {
   );
 }
 
-export default function Espion() {
+/** Bureau d'analyse d'un concurrent (fiche complète). Utilisé seul ou ouvert depuis le centre Espion. */
+export function CompetitorDesk({ embedded = false, focusId = null, onChanged }) {
   const { ws } = useWs();
   const toast = useToast();
   const [rows, setRows] = useState(null);
@@ -241,7 +242,7 @@ export default function Espion() {
   const load = useCallback(async (keep) => {
     const { data } = await supabase.from("competitors").select("*").eq("workspace_id", ws.id).order("created_at");
     setRows(data ?? []);
-    setSel((cur) => (data ?? []).find((c) => c.id === (keep ?? cur?.id)) ?? (data ?? [])[0] ?? null);
+    setSel((cur) => (data ?? []).find((c) => c.id === (keep ?? cur?.id ?? focusId)) ?? (data ?? [])[0] ?? null);
     return data ?? [];
   }, [ws.id]);
   useEffect(() => { load(); }, [load]);
@@ -250,7 +251,7 @@ export default function Espion() {
     try {
       if (full || !c.summary) { setBusy("analyse"); await fn("competitor-check", { workspace_id: ws.id, competitor_id: c.id, force: !!c.summary }); }
       setBusy("mesure"); await fn("r/spy-social", { workspace_id: ws.id, competitor_id: c.id });
-      await load(c.id); toast("Analyse terminée", "good");
+      await load(c.id); onChanged?.(); toast("Analyse terminée", "good");
     } catch (e) { toast(e.message, "bad"); await load(c.id); } finally { setBusy(null); }
   };
   const analyse = async (e) => {
@@ -264,14 +265,14 @@ export default function Espion() {
       setQ(""); setSel(c); setTab("vue"); await measure(c, !c.summary);
     } catch (e2) { toast(e2.message, "bad"); setBusy(null); }
   };
-  const remove = async (c) => { await supabase.from("competitors").delete().eq("id", c.id); setSel(null); load(); };
+  const remove = async (c) => { await supabase.from("competitors").delete().eq("id", c.id); setSel(null); load(); onChanged?.(true); };
 
   const c = sel; const s = c?.summary; const so = c?.social;
   const running = busy && { resolve: "Recherche de leur site officiel…", analyse: "Lecture du site, du registre, de l'actualité, des avis et des réseaux… (1 à 2 minutes)", mesure: "Mesure des réseaux et du site…" }[busy];
 
   return (
     <div className="space-y-5">
-      <div className="grid lg:grid-cols-[1fr_380px] gap-5 items-start">
+      {!embedded && <div className="grid lg:grid-cols-[1fr_380px] gap-5 items-start">
         <div>
           <h1 className="font-serif text-4xl leading-none">Kairo Espion</h1>
           <p className="text-ink-soft mt-2">Analyse tes concurrents et découvre ce qui marche pour eux, chiffres et sources à l'appui.</p>
@@ -281,9 +282,9 @@ export default function Espion() {
           </form>
         </div>
         <Card className="p-4 bg-accent-soft/50 border-accent-soft flex gap-3"><span className="text-2xl">💡</span><div><p className="font-semibold text-accent text-sm">Astuce</p><p className="text-sm text-ink-soft">Suis plusieurs concurrents pour comparer leurs stratégies et repérer les angles que personne n'occupe.</p></div></Card>
-      </div>
+      </div>}
 
-      {rows?.length > 0 && (
+      {!embedded && rows?.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {rows.map((x) => <button key={x.id} onClick={() => { setSel(x); setTab("vue"); }} className={cx("rounded-full border px-3 py-1.5 text-sm", x.id === c?.id ? "border-accent bg-accent-soft text-accent-dark font-medium" : "border-line bg-white hover:border-ink-faint")}>{x.name || x.summary?.nom || host(x.url)}</button>)}
         </div>
@@ -338,3 +339,5 @@ export default function Espion() {
     </div>
   );
 }
+
+export default CompetitorDesk;

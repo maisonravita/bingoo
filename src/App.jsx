@@ -25,7 +25,7 @@ import Aide from "./pages/Aide";
 import Prospection from "./pages/Prospection";
 import Distribution from "./pages/Distribution";
 import Conversion from "./pages/Conversion";
-import Espion from "./pages/Espion";
+import Espion from "./pages/EspionHub";
 import Mission from "./pages/Mission";
 import Intelligence from "./pages/Intelligence";
 import Abonnement from "./pages/Abonnement";
