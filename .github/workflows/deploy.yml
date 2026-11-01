@@ -69,6 +69,7 @@ jobs:
           [ -n "$live" ] || { echo "Téléchargement impossible" >> $GITHUB_STEP_SUMMARY; exit 0; }
           tr ';' '\n' < "$live" | LC_ALL=C sort -u -T /tmp > /tmp/a || true; tr ';' '\n' < $GITHUB_WORKSPACE/bundles/k.js | LC_ALL=C sort -u -T /tmp > /tmp/b || true
           cp "$live" $GITHUB_WORKSPACE/k-live.ts
+          node $GITHUB_WORKSPACE/scripts/k-drift.mjs "$live" $GITHUB_WORKSPACE/bundles/k.js | tee -a $GITHUB_STEP_SUMMARY
           { echo "## Fonction k"; echo "- en ligne : $(wc -c < "$live") octets, dépôt : $(wc -c < $GITHUB_WORKSPACE/bundles/k.js) octets";
             echo "- instructions seulement en ligne : $(comm -23 /tmp/a /tmp/b | wc -l), seulement dans le dépôt : $(comm -13 /tmp/a /tmp/b | wc -l)";
             echo '```'; comm -13 /tmp/a /tmp/b | grep -oE '"[^"]{20,120}"' | LC_ALL=C sort -u | head -60 || true; echo '```'; } | tee -a $GITHUB_STEP_SUMMARY
