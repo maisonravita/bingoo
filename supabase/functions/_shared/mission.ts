@@ -266,7 +266,33 @@ async function radarIntake(ws: Workspace, m: Mission, max: number): Promise<stri
   return names;
 }
 
+/** État affiché au client, à partir de l'étape jouée. */
+export function stateOf(phase: string): string {
+  return ({ radar: "en_recherche", recherche: "en_recherche", enquete: "en_analyse", redaction: "en_analyse", attente: "attente_validation",
+    limite: "bloquee_limite", reglages: "bloquee_reglages", arret: "arretee", pause: "en_pause", fini: "attente_reponses" } as Record<string, string>)[phase] ?? "en_cours";
+}
+
+/** Politique d'erreur : on réessaie au passage suivant ; après 3 erreurs d'affilée, la mission passe « en erreur » (alerte plateforme). */
+export function errorState(errors: number) { return errors >= 3 ? "erreur" : "reessai"; }
+
+/** Une étape de mission, avec état enregistré et erreurs visibles dans le journal. */
 export async function missionStep(ws: Workspace, m: Mission) {
+  try {
+    const r = await stepOnce(ws, m);
+    await admin.from("missions").update({ state: stateOf(r.phase), state_text: String(r.text ?? "").slice(0, 300), errors: 0, last_error: "", last_step_at: new Date().toISOString() }).eq("id", m.id);
+    return r;
+  } catch (e) {
+    const msg = (e instanceof Error ? e.message : String(e)).slice(0, 300);
+    const { data } = await admin.from("missions").select("errors").eq("id", m.id).single();
+    const errors = Number(data?.errors ?? 0) + 1;
+    const state = errorState(errors);
+    await admin.from("missions").update({ state, state_text: state === "erreur" ? `En erreur : ${msg}` : "Nouvel essai au prochain passage", errors, last_error: msg, last_step_at: new Date().toISOString() }).eq("id", m.id);
+    await journal(m, state === "erreur" ? `Erreur répétée (${errors} fois) : ${msg}. La mission attend une intervention.` : `Erreur : ${msg}. Nouvel essai au prochain passage.`);
+    throw e;
+  }
+}
+
+async function stepOnce(ws: Workspace, m: Mission) {
   if (m.status !== "active") return { phase: "pause", done: true, text: "La mission est en pause." };
   // Conditions d'arrêt : échéance, budget, objectif
   if (m.deadline && new Date(`${m.deadline}T23:59:59`).getTime() < Date.now())

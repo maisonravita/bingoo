@@ -18,6 +18,7 @@ export { warmup, RAMP } from "./${S}/growth.ts";
 export { parisToUtc, parisParts, pickThree } from "./${S}/time.ts";
 export { bingooIds, isBounce, failedRecipients, replyTo, plainText } from "./${S}/inbox.ts";
 export { messageIdFor } from "./${S}/mail.ts";
+export { stateOf, errorState } from "./${S}/mission.ts";
 `;
 const stubs = {
   name: "stubs",
@@ -132,6 +133,20 @@ await test("un e-mail sans lien avec Bingoo est ignoré", () => {
   const other = "From: newsletter@site.fr\r\nSubject: Promo\r\n\r\nBonjour";
   assert.ok(!T.isBounce(other));
   assert.equal(T.replyTo(other), null);
+});
+
+console.log("Mission : états et erreurs");
+await test("chaque étape donne un état lisible ; une étape inconnue reste « en cours »", () => {
+  assert.equal(T.stateOf("recherche"), "en_recherche");
+  assert.equal(T.stateOf("attente"), "attente_validation");
+  assert.equal(T.stateOf("limite"), "bloquee_limite");
+  assert.equal(T.stateOf("arret"), "arretee");
+  assert.equal(T.stateOf("???"), "en_cours");
+});
+await test("une erreur est réessayée ; 3 erreurs d'affilée mettent la mission en erreur", () => {
+  assert.equal(T.errorState(1), "reessai");
+  assert.equal(T.errorState(2), "reessai");
+  assert.equal(T.errorState(3), "erreur");
 });
 
 console.log(`\n${ok} réussi${ok > 1 ? "s" : ""}, ${ko} échec${ko > 1 ? "s" : ""}`);
