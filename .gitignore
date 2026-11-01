@@ -5,3 +5,4 @@ bundles/
 .env
 .env.*
 *.log
+!.env.production
