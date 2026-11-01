@@ -383,6 +383,12 @@ Format : {"url": "", "personne": "", "fonction": "", "note": "", "message": ""}`
 // ---------------------------------------------------------------- Relances
 // Sans réponse marquée, une relance est préparée à J+4 puis à J+9 ; elle arrive
 // dans la file de validation (l'utilisateur confirme qu'il n'y a pas eu de réponse).
+/** Délais des relances (jours après le premier e-mail), réglables par le client : 2 valeurs croissantes entre 2 et 60. */
+export function followupDays(ws: { followup_days?: number[] | null }): number[] {
+  const d = (ws.followup_days ?? []).map(Number);
+  return d.length === 2 && d.every((x) => Number.isInteger(x) && x >= 2 && x <= 60) && d[0] < d[1] ? d : FOLLOW.map((f) => f.after);
+}
+
 export const FOLLOW = [
   { after: 5, subject: (s: string) => `Re : ${s.replace(/^re\s*:\s*/i, "")}`, body: (hello: string) => `${hello}\n\nUn mot rapide : est-ce un sujet chez vous en ce moment, ou plutôt pas d'actualité ?` },
   { after: 12, subject: (s: string) => `Re : ${s.replace(/^re\s*:\s*/i, "")}`, body: (hello: string) => `${hello}\n\nJe n'insiste pas : si ce n'est pas le moment, aucun souci. Et si quelqu'un d'autre s'occupe de ce sujet chez vous, me diriez-vous qui contacter ?` },
@@ -407,7 +413,7 @@ export async function followups(ws: Workspace) {
     if (busy.has(pid) || m.step >= FOLLOW.length || (m.campaign_id && skipCamp.has(m.campaign_id))) continue;
     const f = FOLLOW[m.step];
     const start = new Date(firstSent.get(pid) ?? m.sent_at).getTime();
-    if (Date.now() - start < f.after * 86400_000) continue;
+    if (Date.now() - start < followupDays(ws)[m.step] * 86400_000) continue;
     const hello = (m.body.split("\n")[0] || "Bonjour,").slice(0, 80);
     rows.push({ workspace_id: ws.id, prospect_id: pid, step: m.step + 1, subject: f.subject(m.subject), body: f.body(hello), status: "brouillon", campaign_id: m.campaign_id, variant: m.variant });
   }
