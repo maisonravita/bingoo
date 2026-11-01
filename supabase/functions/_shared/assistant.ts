@@ -129,25 +129,35 @@ async function runTool(ctx: Ctx, name: string, i: any): Promise<unknown> {
   return { erreur: "outil inconnu" };
 }
 
+// Chaque outil est le travail d'un salarié : c'est lui qui « parle » dans la discussion
 const LABELS: Record<string, string> = {
-  etat_espace: "Lecture de ton espace", radar_opportunites: "Lecture du Radar", radar_scanner: "Nouvelle détection Radar",
-  preparer_opportunite: "Préparation d'une opportunité", missions_liste: "Lecture des missions", mission_planifier: "Préparation du plan de mission",
-  mission_creer: "Lancement de la mission", mission_avancer: "Avancée de la mission", prospects_chercher: "Recherche dans tes prospects",
-  prospect_preparer: "Préparation d'un prospect", concurrents: "Lecture d'Espion", reponses_a_traiter: "Lecture des réponses",
+  etat_espace: "Iris a regardé ton espace", radar_opportunites: "Max a regardé le Radar", radar_scanner: "Max a relancé le Radar",
+  preparer_opportunite: "Sam a préparé une opportunité", missions_liste: "Iris a regardé les missions", mission_planifier: "Iris a préparé le plan",
+  mission_creer: "Iris a lancé la mission", mission_avancer: "Iris a fait avancer la mission", prospects_chercher: "Léo a cherché dans tes prospects",
+  prospect_preparer: "Sam et Hugo ont préparé un prospect", concurrents: "Oscar a regardé Espion", reponses_a_traiter: "Inès a regardé les réponses",
 };
 
 function system(ws: Workspace) {
   const today = new Intl.DateTimeFormat("fr-FR", { dateStyle: "full", timeZone: "Europe/Paris" }).format(new Date());
-  return `Tu es l'assistant de Bingoo, l'équipe commerciale IA de ${ws.profile?.nom ?? ws.name} (${cut(ws.profile?.offre, 200)}). Nous sommes le ${today}.
-Bingoo aide à savoir qui contacter, pourquoi et quand : Radar (détecter), Espion (comprendre les concurrents), Mission (prospecter), Réponses (convertir).
+  return `Tu fais parler l'équipe commerciale IA de Bingoo! qui travaille pour ${ws.profile?.nom ?? ws.name} (${cut(ws.profile?.offre, 200)}). Nous sommes le ${today}.
+L'équipe : Iris (stratège : cibles, zone, missions), Léo (chercheur : trouve les entreprises), Sam (enquêteur : e-mails, téléphones, bons contacts), Max (analyste : Radar, bon moment pour contacter), Hugo (campagnes : rédige les e-mails et relances), Inès (relation prospects : réponses reçues), Lina (LinkedIn), Paul (rendez-vous, fiches, devis), Oscar (veille concurrents, Espion).
 Tu agis avec les outils : enchaîne-les toi-même pour accomplir la demande, sans demander la permission pour lire ou préparer.
+
+FORMAT DE RÉPONSE (obligatoire) — une discussion d'équipe, comme sur une messagerie :
+- Chaque message commence sur sa propre ligne par le prénom suivi de deux-points, par exemple « Max : J'ai regardé le Radar ce matin… ».
+- 1 à 3 salariés prennent la parole, uniquement ceux qui ont fait le travail ou sont concernés. Chacun dit 1 à 3 phrases courtes, à l'oral.
+- Ton naturel de collègue : tutoiement, phrases simples, pas de formules d'assistant (« Voici… », « Je te conseille de prioriser… »).
+- Aucune mise en forme : pas de titres, pas de gras, pas d'astérisques, pas de listes ni de tirets, pas de numéros. Cite au plus 3 entreprises, dans la phrase.
+- 90 mots maximum au total, sauf si on te demande le détail.
+- Le dernier message finit par une seule question ou proposition concrète (« Je te prépare les e-mails ? »).
+
 Règles :
-- Tu ne peux PAS envoyer d'e-mail : tu prépares des brouillons, l'utilisateur les valide dans « À valider ». Dis-le quand tu as rédigé.
-- Avant mission_creer, présente le plan (objectif, nombre, échéance, zone, cibles) et attends un oui explicite.
+- L'équipe ne peut PAS envoyer d'e-mail : elle prépare des brouillons, que l'utilisateur valide dans « À valider ». Hugo le dit quand il a rédigé.
+- Avant mission_creer, Iris présente le plan (objectif, nombre, échéance, zone, cibles) et attend un oui explicite.
 - N'invente aucun chiffre ni aucune entreprise : n'affirme que ce que les outils renvoient.
-- Pour préparer plusieurs opportunités ou prospects, 5 au maximum par demande (chacun prend du temps et du budget).
-- Si un outil renvoie une erreur (limite du jour, envoi non configuré…), explique-la simplement et propose la suite.
-- Réponds en français, tutoiement, court et concret : ce que tu as fait, le résultat, la prochaine action. Pas de jargon technique, pas d'identifiants techniques.`;
+- Pour préparer plusieurs opportunités ou prospects, 5 au maximum par demande.
+- Si un outil renvoie une erreur (limite du jour, envoi non configuré…), le salarié concerné l'explique simplement et propose la suite.
+- Pas de jargon technique, pas d'identifiants techniques.`;
 }
 
 // Réglage de réflexion accepté par le modèle : on le retient après le premier refus
@@ -196,7 +206,7 @@ export async function assistantTurn(ws: Workspace, auth: string, history: { role
     const uses = content.filter((c) => c.type === "tool_use");
     reply = content.filter((c) => c.type === "text").map((c) => c.text).join("\n").trim();
     if (!uses.length || res.stop_reason !== "tool_use") break;
-    if (Date.now() - started > 120000) { reply ||= "Je m'arrête là pour cette fois (temps dépassé) : redemande-moi la suite."; break; }
+    if (Date.now() - started > 120000) { reply ||= "Iris : On s'arrête là pour cette fois, ça prenait trop de temps. Redemande-nous la suite ?"; break; }
     const results = [];
     for (const u of uses) {
       ctx.steps.push({ tool: u.name!, label: LABELS[u.name!] ?? u.name! });
@@ -207,5 +217,5 @@ export async function assistantTurn(ws: Workspace, auth: string, history: { role
     msgs.push({ role: "user", content: results });
   }
   await log(ws.id, "assistant", `Assistant : ${cut(history[history.length - 1]?.text, 80)}`);
-  return { reply: reply || "C'est fait.", steps: ctx.steps, links: ctx.links };
+  return { reply: reply || "Iris : C'est fait.", steps: ctx.steps, links: ctx.links };
 }
