@@ -51,10 +51,26 @@ function WsSwitch({ ws, list, select, className }) {
 function TrialBar({ ws }) {
   const left = ws.trial_ends ? Math.ceil((new Date(ws.trial_ends) - new Date()) / 864e5) : 14;
   return (
-    <NavLink to="/abonnement" className={cx("mb-5 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl px-4 py-2.5 text-sm border", left > 3 ? "bg-white border-line" : "bg-bad-soft border-bad/30 text-bad")}>
+    <NavLink to="/abonnement" className={cx("flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full px-5 py-2.5 text-sm border transition", left > 3 ? "bg-gradient-to-r from-accent-soft/70 to-white border-accent/15 hover:border-accent/40" : "bg-bad-soft border-bad/30 text-bad")}>
+      <svg viewBox="0 0 24 24" className="w-5 h-5 text-accent shrink-0" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 15c-1.5 1.5-2 5-2 5s3.5-.5 5-2M9 13l-3-3 4-6c3-2 7-2 10-1 1 3 1 7-1 10l-6 4-3-3M14.5 9.5h.01" /></svg>
       <span className="font-semibold">{left > 0 ? `Essai gratuit : ${left} jour${left > 1 ? "s" : ""} restant${left > 1 ? "s" : ""}` : "Ton essai gratuit est terminé"}</span>
-      <span className="text-ink-soft">Choisis ta formule pour que la machine continue de tourner →</span>
+      <span className="hidden sm:inline text-ink-soft border-l border-line pl-3">Choisis ta formule pour que la machine continue de tourner →</span>
     </NavLink>
+  );
+}
+
+/** Haut de page : essai, cloche des réponses, accès à son compte. */
+function TopBar({ ws, replies }) {
+  const who = (ws.sender_name || ws.profile?.nom || ws.name || "?").trim();
+  return (
+    <div className="hidden md:flex items-center gap-4 mb-6">
+      {ws.plan === "essai" ? <TrialBar ws={ws} /> : <div className="flex-1" />}
+      <NavLink to="/reponses" title={replies ? `${replies} réponse${replies > 1 ? "s" : ""} à traiter` : "Aucune réponse en attente"} className="relative w-10 h-10 rounded-full grid place-items-center text-ink-soft hover:text-ink hover:bg-white transition">
+        <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 21h4" /></svg>
+        {replies > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-accent ring-2 ring-paper" />}
+      </NavLink>
+      <NavLink to="/reglages" title="Réglages" className="w-11 h-11 rounded-full bg-ink text-white grid place-items-center font-bold text-[15px] hover:ring-4 hover:ring-accent-soft transition">{who[0].toUpperCase()}</NavLink>
+    </div>
   );
 }
 
@@ -128,7 +144,7 @@ export default function Layout({ children }) {
   ];
   const all = groups.flatMap((g) => g.items);
   const isOn = (n, isActive) => isActive || (n.also ?? []).some((p) => loc.pathname === p);
-  const link = (n) => ({ isActive }) => cx("flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] font-medium transition", isOn(n, isActive) ? "bg-white text-ink shadow-sm border border-line" : "text-ink-soft hover:text-ink border border-transparent");
+  const link = (n) => ({ isActive }) => cx("flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] font-medium transition", isOn(n, isActive) ? "bg-accent-soft/80 text-accent-dark font-semibold border border-transparent" : "text-ink-soft hover:text-ink hover:bg-white/70 border border-transparent");
   const Count = ({ n, hot }) => n > 0 ? <span className={cx("text-xs font-semibold rounded-full px-2 py-0.5 tnum", hot ? "bg-accent text-white" : "bg-ink/10 text-ink")}>{n}</span> : null;
 
   return (
@@ -146,7 +162,15 @@ export default function Layout({ children }) {
             ))}
           </div>
         ))}
-        <div className="mt-auto pt-6 px-3 text-[13px] text-ink-soft">
+        <NavLink to="/salaries" className="mt-auto mx-1 rounded-2xl bg-gradient-to-br from-accent-soft to-white border border-accent/15 p-4 flex items-end gap-3 hover:border-accent/40 transition">
+          <span className="min-w-0 flex-1">
+            <svg viewBox="0 0 40 40" className="w-6 h-6 mb-1" fill="none" stroke="#E0531F" strokeWidth="4" strokeLinecap="round" aria-hidden><path d="M10 10l3 7M22 6l-3 9M30 16l-7 3" /></svg>
+            <span className="block font-bold text-[14px] text-ink">Besoin d'aide ?</span>
+            <span className="block text-[12px] text-ink-soft leading-snug">Discute avec ton équipe Bingoo!</span>
+          </span>
+          <span className="w-8 h-8 rounded-full bg-accent text-white grid place-items-center shrink-0"><svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
+        </NavLink>
+        <div className="pt-5 px-3 text-[13px] text-ink-soft">
           {list?.length > 1 ? <WsSwitch ws={ws} list={list} select={select} /> : <p className="font-semibold text-ink truncate">{ws.profile?.nom || ws.name || "Mon entreprise"}</p>}
           <NavLink className="block hover:text-ink mt-1" to="/aide">Aide</NavLink>
           <button className="block hover:text-ink mt-1" onClick={() => setFb(true)}>Donner mon avis</button>
@@ -155,7 +179,8 @@ export default function Layout({ children }) {
         </div>
       </aside>
       <main className="flex-1 min-w-0 px-4 pt-5 pb-28 md:px-10 md:pt-10 md:pb-12 max-w-6xl">
-        {ws.plan === "essai" && <TrialBar ws={ws} />}
+        <TopBar ws={ws} replies={c.replies} />
+        {ws.plan === "essai" && <div className="md:hidden mb-4 flex"><TrialBar ws={ws} /></div>}
         <div className="md:hidden flex items-center justify-between gap-3 mb-5"><Logo /><WsSwitch ws={ws} list={list} select={select} className="flex-1 min-w-0 max-w-[60%] ml-auto" />{ws.autonomy === "auto" && <span className="w-2.5 h-2.5 rounded-full bg-good pulse-dot" title="Pilote automatique actif" />}</div>
         {children}
       </main>
