@@ -11,3 +11,27 @@ h1, h2, h3 { text-wrap: balance; }
 @keyframes pulse-dot { 50% { opacity: .35; } }
 .pulse-dot { animation: pulse-dot 1.2s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* Vos salariés : clignement des yeux, regard vers l'écran, frappe au clavier */
+.lid { transform: scaleY(0); animation: blink 5s ease-in-out infinite; }
+.lid-down { animation-name: blink-down; }
+@keyframes blink { 0%, 93%, 100% { transform: scaleY(0); } 95.5%, 96.5% { transform: scaleY(1); } }
+@keyframes blink-down { 0%, 93%, 100% { transform: scaleY(.45); } 95.5%, 96.5% { transform: scaleY(1); } }
+.agent-bob { animation: agent-bob 1.6s ease-in-out infinite; }
+@keyframes agent-bob { 50% { transform: translateY(.8px); } }
+.laptop-in { animation: laptop-in .45s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes laptop-in { from { transform: translateY(40px); opacity: 0; } }
+.key-l { animation: key 0.32s ease-in-out infinite; }
+.key-r { animation: key 0.32s ease-in-out infinite; animation-delay: .16s; }
+@keyframes key { 50% { transform: translateY(2.2px); } }
+.logo-glow { animation: pulse-dot 2.4s ease-in-out infinite; }
+.screen-light { animation: screen 3s ease-in-out infinite; }
+@keyframes screen { 50% { opacity: .08; } }
+.typing circle { animation: typing 1s ease-in-out infinite; }
+.typing circle:nth-of-type(2) { animation-delay: .15s; }
+.typing circle:nth-of-type(3) { animation-delay: .3s; }
+@keyframes typing { 0%, 60%, 100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-2px); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .lid, .agent-bob, .laptop-in, .key-l, .key-r, .logo-glow, .screen-light, .typing circle { animation: none; }
+  .lid-down { transform: scaleY(.45); }
+}

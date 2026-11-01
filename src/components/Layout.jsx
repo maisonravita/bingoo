@@ -101,8 +101,8 @@ export default function Layout({ children }) {
   // Les 4 piliers : Détecter (Radar) · Comprendre (Espion) · Agir (Mission) · Convertir (réponses, rendez-vous)
   const groups = [
     { items: [
-      { to: "/", label: "Ta journée", short: "Journée", icon: "today", also: ["/agents"] },
-      { to: "/assistant", label: "Assistant", short: "Assistant", icon: "spark" },
+      { to: "/", label: "Ta journée", short: "Journée", icon: "today" },
+      { to: "/salaries", label: "Vos salariés", short: "Salariés", icon: "users", also: ["/assistant", "/agents"] },
     ] },
     { title: "Détecter", items: [
       { to: "/radar", label: "Radar", short: "Radar", icon: "radar", count: c.radar },
