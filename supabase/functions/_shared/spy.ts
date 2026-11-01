@@ -182,7 +182,7 @@ Format : {"nom": "", "site": "https://…"}`, { fast: true, maxTokens: 1500, too
 //    puis publicités (chaque semaine), puis découverte de nouveaux concurrents (chaque semaine, à valider par le client).
 export async function spyCron() {
   const t0 = Date.now();
-  const { checkCompetitor, siteText, sha, suggestCompetitors } = await import("./pro.ts");
+  const { checkCompetitor, siteText, sha } = await import("./pro.ts");
   const { competitorAds } = await import("./campaigns.ts");
   const { data: wss } = await admin.from("workspaces").select("*").eq("onboarded", true);
   const byId = new Map((wss ?? []).map((w) => [w.id, w as Workspace & { spy_at?: string | null }]));
@@ -225,20 +225,7 @@ export async function spyCron() {
   }
   // 2c. Découverte de nouveaux concurrents (proposés, jamais suivis sans accord)
   const ws = (wss ?? []).find((w) => !w.spy_at || w.spy_at < week) as (Workspace & { spy_at?: string | null }) | undefined;
-  if (ws) {
-    await admin.from("workspaces").update({ spy_at: new Date().toISOString() }).eq("id", ws.id);
-    try {
-      const { data: have } = await admin.from("competitors").select("url").eq("workspace_id", ws.id);
-      const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
-      const known = new Set((have ?? []).map((x) => host(x.url)));
-      const found = (await suggestCompetitors(ws)).filter((x) => !known.has(host(x.site)));
-      if (found.length) {
-        await admin.from("competitors").insert(found.map((x) => ({ workspace_id: ws.id, name: x.nom, url: x.site, status: "propose", proposal: { pourquoi: x.pourquoi, type: x.type, at: new Date().toISOString() } })));
-        await log(ws.id, "espion", `${found.length} nouveau${found.length > 1 ? "x" : ""} concurrent${found.length > 1 ? "s" : ""} repéré${found.length > 1 ? "s" : ""}, à valider`);
-      }
-      out.decouverte = found.length;
-    } catch (e) { out.decouverte_erreur = (e as Error).message; }
-  }
+  if (ws) { try { out.decouverte = (await spyDiscover(ws)).found; } catch (e) { out.decouverte_erreur = (e as Error).message; } }
   return out;
 }
 
@@ -249,4 +236,19 @@ export async function spyFollow(ws: Workspace, id: string, follow: boolean) {
   await admin.from("competitors").update(follow ? { status: "suivi", spy_due: true } : { status: "ecarte" }).eq("id", c.id);
   await log(ws.id, "espion", `${c.name} ${follow ? "ajouté à la veille : rapport complet la nuit prochaine" : "écarté"}`);
   return { ok: true };
+}
+
+/** Recherche de nouveaux concurrents : ils sont proposés au client, jamais suivis sans son accord. */
+export async function spyDiscover(ws: Workspace) {
+  const { suggestCompetitors } = await import("./pro.ts");
+  await admin.from("workspaces").update({ spy_at: new Date().toISOString() }).eq("id", ws.id);
+  const { data: have } = await admin.from("competitors").select("url").eq("workspace_id", ws.id);
+  const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
+  const known = new Set((have ?? []).map((x) => host(x.url)));
+  const found = (await suggestCompetitors(ws)).filter((x) => !known.has(host(x.site)));
+  if (found.length) {
+    await admin.from("competitors").insert(found.map((x) => ({ workspace_id: ws.id, name: x.nom, url: x.site, status: "propose", proposal: { pourquoi: x.pourquoi, type: x.type, at: new Date().toISOString() } })));
+    await log(ws.id, "espion", `${found.length} nouveau${found.length > 1 ? "x" : ""} concurrent${found.length > 1 ? "s" : ""} repéré${found.length > 1 ? "s" : ""}, à valider`);
+  } else await log(ws.id, "espion", "Recherche de nouveaux concurrents : aucun nouveau trouvé");
+  return { found: found.length };
 }

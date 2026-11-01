@@ -87,6 +87,59 @@ function Threat({ n }) {
 
 const POS = { devant: ["Devant toi", "bg-bad-soft text-bad"], derriere: ["Derrière toi", "bg-good-soft text-good"], egal: ["À égalité", "bg-paper text-ink-soft"], inconnu: ["Position à établir", "bg-paper text-ink-soft"] };
 
+
+/** Mission de la nuit : ce que l'espionne fera entre 1 h et 7 h, d'après l'état réel des fiches. */
+function Tonight({ rows, proposed, ws }) {
+  const day = new Date(); day.setHours(0, 0, 0, 0);
+  const week = Date.now() - 7 * 864e5;
+  const reports = rows.filter((c) => c.spy_due || !c.summary || !c.checked_at || new Date(c.checked_at).getTime() < week).length;
+  const ads = rows.filter((c) => c.summary && (!c.ads_at || new Date(c.ads_at).getTime() < week)).length;
+  const seen = rows.filter((c) => c.watched_at && new Date(c.watched_at) >= day).length;
+  const nextFind = ws.spy_at ? new Date(new Date(ws.spy_at).getTime() + 7 * 864e5) : null;
+  const findTonight = !nextFind || nextFind.getTime() <= Date.now() + 864e5;
+  const Row = ({ icon, children, on = true }) => <li className={cx("flex items-start gap-2.5 text-[13.5px] leading-snug", on ? "text-ink" : "text-ink-faint")}><span className="mt-0.5" style={{ color: on ? TEAL : "#9A9CA3" }}><Ico n={icon} className="w-4 h-4" /></span><span>{children}</span></li>;
+  return (
+    <div className="rounded-2xl border border-line bg-gradient-to-br from-accent-soft/50 to-white p-4">
+      <p className="text-[11.5px] font-bold uppercase tracking-wider text-accent-dark">Sa mission de cette nuit · 1 h – 7 h</p>
+      <ul className="mt-3 space-y-2.5">
+        <Row icon="eye" on={rows.length > 0}>{rows.length ? `Relire le site de ${rows.length} concurrent${rows.length > 1 ? "s" : ""}` : "Aucun site à relire pour l'instant"}{seen ? <span className="text-ink-faint"> · {seen} déjà contrôlé{seen > 1 ? "s" : ""} aujourd'hui</span> : null}</Row>
+        <Row icon="file" on={reports > 0}>{reports ? `${reports} rapport${reports > 1 ? "s" : ""} complet${reports > 1 ? "s" : ""} : offre, prix, clients, pubs, chiffre d'affaires` : "Rapports à jour : rien à refaire"}</Row>
+        <Row icon="bolt" on={ads > 0}>{ads ? `Actualiser les publicités de ${ads} concurrent${ads > 1 ? "s" : ""}` : "Publicités à jour"}</Row>
+        <Row icon="search" on={findTonight}>{findTonight ? "Chercher de nouveaux concurrents" : `Prochaine recherche de concurrents le ${nextFind.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}`}</Row>
+      </ul>
+      {proposed.length > 0 && <p className="mt-3 text-[12.5px] font-semibold text-accent-dark">{proposed.length} concurrent{proposed.length > 1 ? "s" : ""} trouvé{proposed.length > 1 ? "s" : ""} attend{proposed.length > 1 ? "ent" : ""} ta validation ↓</p>}
+    </div>
+  );
+}
+
+/** Premier démarrage : l'espionne trouve elle-même les concurrents. */
+function FirstRun({ ws, onDone }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const go = async () => {
+    setBusy(true);
+    try { const r = await fn("r/spy-discover", { workspace_id: ws.id }); toast(r.found ? `${r.found} concurrent${r.found > 1 ? "s" : ""} trouvé${r.found > 1 ? "s" : ""} : choisis ceux à suivre` : "Aucun concurrent trouvé : ajoute-en un toi-même ci-dessus", r.found ? "good" : "default"); onDone(); }
+    catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
+  };
+  return (
+    <div className="rounded-3xl border border-line bg-white p-6 sm:p-8 grid md:grid-cols-[minmax(0,1fr)_auto] gap-6 items-center">
+      <div>
+        <p className="font-black text-[26px] leading-tight" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>Pas besoin de lui donner tes concurrents : elle les trouve.</p>
+        <p className="text-ink-soft mt-2 max-w-2xl">D'après ton offre, ta zone et tes cibles, l'espionne cherche les leaders, les acteurs de ta taille près de chez toi et les solutions alternatives. Tu choisis ensuite ceux qu'elle surveille ; elle fait leur rapport complet la nuit suivante.</p>
+        <ol className="mt-4 grid sm:grid-cols-3 gap-2.5 text-[13px]">
+          {[["1", "Elle trouve tes concurrents", "en 1 à 2 minutes"], ["2", "Tu choisis qui suivre", "un clic : Suivre ou Écarter"], ["3", "Elle enquête chaque nuit", "rapport complet, publicités, mouvements"]].map(([n, t, sub]) => (
+            <li key={n} className="rounded-xl border border-line bg-paper/60 p-3 flex gap-3"><span className="grid place-items-center h-7 w-7 rounded-full text-white font-bold shrink-0" style={{ background: TEAL }}>{n}</span><span><span className="block font-semibold">{t}</span><span className="block text-ink-faint text-[12px]">{sub}</span></span></li>
+          ))}
+        </ol>
+      </div>
+      <div className="flex flex-col items-center gap-2">
+        <button onClick={go} disabled={busy} className="rounded-2xl px-6 py-4 font-bold text-white text-[15px] shadow-sm hover:brightness-110 disabled:opacity-60" style={{ background: TEAL }}>{busy ? "Elle cherche… (1 à 2 min)" : "Trouver mes concurrents maintenant"}</button>
+        <p className="text-[12px] text-ink-faint text-center max-w-[220px]">Sinon, elle s'en chargera toute seule cette nuit.</p>
+      </div>
+    </div>
+  );
+}
+
 /** Nouveaux concurrents repérés par l'espion : rien n'est suivi sans l'accord du client. */
 function Proposed({ list, ws, onDone }) {
   const toast = useToast();
@@ -138,7 +191,7 @@ function Report({ items }) {
 
 /* 1. Mes concurrents */
 function Competitors({ rows, onOpen }) {
-  if (!rows.length) return <Empty>Ajoute ton premier concurrent ci-dessus (son nom ou son site) : l'espion constitue sa fiche complète, sources à l'appui.</Empty>;
+  if (!rows.length) return <Empty>Choisis ci-dessus les concurrents à suivre : l'espionne fera leur rapport complet cette nuit.</Empty>;
   return (
     <div className="grid md:grid-cols-2 2xl:grid-cols-3 gap-3.5">
       {rows.map((c) => {
@@ -158,7 +211,7 @@ function Competitors({ rows, onOpen }) {
               <div className="rounded-lg bg-paper/60 border border-line p-2"><p className="text-ink-faint">Tarifs</p><p className="text-ink line-clamp-2 mt-0.5">{txt(s.prix?.affiches)?.slice(0, 90) || "Inconnu"}</p></div>
               <div className="rounded-lg bg-paper/60 border border-line p-2"><p className="text-ink-faint">Faiblesses repérées</p><p className="text-ink mt-0.5">{(s.faiblesses ?? []).length || "—"}</p></div>
             </div>
-            <p className="mt-3 flex items-center justify-between text-[11.5px] text-ink-faint">Analysé {ago(c.checked_at)}<span className="inline-flex items-center gap-1 font-semibold group-hover:translate-x-0.5 transition" style={{ color: TEAL }}>Ouvrir la fiche<Ico n="chev" className="w-3.5 h-3.5" /></span></p>
+            <p className="mt-3 flex items-center justify-between text-[11.5px] text-ink-faint">{c.spy_due || !c.summary ? <span className="font-semibold text-accent-dark">Rapport complet cette nuit</span> : c.watched_at && new Date(c.watched_at).toDateString() === new Date().toDateString() ? `Contrôlé aujourd'hui · rapport ${ago(c.checked_at)}` : `Rapport ${ago(c.checked_at)}`}<span className="inline-flex items-center gap-1 font-semibold group-hover:translate-x-0.5 transition" style={{ color: TEAL }}>Ouvrir la fiche<Ico n="chev" className="w-3.5 h-3.5" /></span></p>
           </button>
         );
       })}
@@ -350,34 +403,38 @@ export default function EspionHub() {
 
   return (
     <div>
-      {/* En-tête : l'espion et son état */}
-      <div className="rounded-3xl bg-white border border-line p-5 sm:p-6 grid lg:grid-cols-[auto_minmax(0,1fr)_auto] gap-6 items-center">
+      {/* En-tête : l'espionne, son état et sa mission de la nuit */}
+      <div className="rounded-3xl bg-white border border-line p-5 sm:p-6 grid lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,330px)] gap-6 items-center">
         <div className="mx-auto lg:mx-0"><Spy working={working} /></div>
         <div className="min-w-0">
           <p className="text-[12px] font-bold uppercase tracking-[.2em]" style={{ color: TEAL }}>Centre de renseignement</p>
           <h1 className="font-black text-[44px] sm:text-[52px] leading-none tracking-tight mt-1" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>Espion</h1>
-          <p className="text-ink-soft mt-2 text-[16px]">Sachez ce que vos concurrents ignorent.</p>
+          <p className="text-ink-soft mt-2 text-[16px]">Elle surveille tes concurrents jour et nuit, et te dit comment les battre.</p>
           <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-line bg-paper/60 px-3 py-1.5 text-[13px]">
-            <span className={cx("h-2 w-2 rounded-full", working && "animate-pulse")} style={{ background: working ? TEAL : "#9A9CA3" }} />
-            <span className="text-ink truncate max-w-[520px]">{busy ?? (recent ? "Enquête en cours…" : `En veille · dernière enquête ${ago(last)}`)}</span>
+            <span className={cx("h-2 w-2 rounded-full", working ? "animate-pulse" : "")} style={{ background: working ? TEAL : "#1F7A4D" }} />
+            <span className="text-ink truncate max-w-[520px]">{busy ?? (recent ? "Enquête en cours…" : "Pilote automatique actif")}</span>
           </p>
-          <p className="mt-2 text-[12.5px] text-ink-faint">Pilote automatique : chaque nuit, l'espion relit le site de tes concurrents ; rapport complet dès que l'un d'eux bouge, et au moins chaque semaine.</p>
           <form onSubmit={add} className="mt-4 flex flex-col sm:flex-row gap-2 max-w-xl">
             <div className="flex-1 flex items-center gap-2 rounded-xl border border-line bg-paper/60 px-3 focus-within:border-accent/60">
               <Ico n="search" className="w-4 h-4 text-ink-faint" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ajouter un concurrent : nom ou site web…" className="flex-1 bg-transparent py-3 text-[14.5px] outline-none placeholder:text-ink-faint" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tu en connais un ? Nom ou site web…" className="flex-1 bg-transparent py-3 text-[14.5px] outline-none placeholder:text-ink-faint" />
             </div>
             <button disabled={!!busy || !q.trim()} className="rounded-xl px-5 py-3 font-semibold text-white disabled:opacity-40 transition hover:brightness-110" style={{ background: TEAL }}>Enquêter</button>
           </form>
-          <Link to="/salaries" className="mt-3 inline-flex items-center gap-2 text-[13px] text-ink-soft hover:text-ink"><Ico n="chat" className="w-4 h-4" />Parler à l'équipe : « Qu'est-ce qui a changé chez mes concurrents cette semaine ? »</Link>
+          <Link to="/salaries" className="mt-3 inline-flex items-center gap-2 text-[13px] text-ink-soft hover:text-ink"><Ico n="chat" className="w-4 h-4" />« Qu'est-ce qui a changé chez mes concurrents cette semaine ? » Demande à l'équipe</Link>
         </div>
-        <div className="grid grid-cols-2 gap-2.5 lg:w-[300px]">
-          {[[list.length, "concurrents suivis"], [moves, "mouvements repérés"], [weak, "faiblesses à exploiter"], [cards, "dossiers prêts"]].map(([n, l]) => (
-            <div key={l} className="rounded-2xl border border-line bg-white p-3.5"><p className="font-black text-[30px] leading-none tnum" style={{ color: TEAL, fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{rows ? n : "–"}</p><p className="text-[12px] text-ink-faint mt-1.5 leading-tight">{l}</p></div>
-          ))}
-          {fresh > 0 && <p className="col-span-2 inline-flex items-center justify-center gap-2 rounded-full py-2 text-[13px] font-semibold text-white" style={{ background: TEAL }}><Ico n="bell" className="w-4 h-4" />{fresh} concurrent{fresh > 1 ? "s ont" : " a"} bougé cette semaine</p>}
-        </div>
+        <Tonight rows={list} proposed={proposed} ws={ws} />
       </div>
+
+      {/* Les chiffres du renseignement */}
+      {list.length > 0 && (
+        <div className="mt-4 rounded-2xl bg-white border border-line grid grid-cols-2 md:grid-cols-4 md:divide-x divide-line py-3">
+          {[[list.length, "concurrents suivis"], [moves, "mouvements repérés"], [weak, "faiblesses à exploiter"], [cards, "dossiers commerciaux prêts"]].map(([n, l]) => (
+            <div key={l} className="px-5 py-1.5"><p className="font-black text-[28px] leading-none tnum" style={{ color: TEAL, fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{n}</p><p className="text-[12.5px] text-ink-soft mt-1">{l}</p></div>
+          ))}
+        </div>
+      )}
+      {fresh > 0 && <p className="mt-3 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] font-semibold text-white" style={{ background: TEAL }}><Ico n="bell" className="w-4 h-4" />{fresh} concurrent{fresh > 1 ? "s ont" : " a"} bougé cette semaine</p>}
 
       {/* Les cinq espaces */}
       <nav className="mt-6 flex gap-1 overflow-x-auto border-b border-line -mx-1 px-1">
@@ -391,7 +448,7 @@ export default function EspionHub() {
 
       <div className="mt-5">
         {!rows ? <div className="py-16 text-center text-ink-faint text-sm">Ouverture des dossiers…</div>
-          : space === "concurrents" ? <div className="space-y-5"><Proposed list={proposed} ws={ws} onDone={load} /><Competitors rows={list} onOpen={setDesk} /></div>
+          : space === "concurrents" ? <div className="space-y-5"><Proposed list={proposed} ws={ws} onDone={load} />{!list.length && !proposed.length ? <FirstRun ws={ws} onDone={load} /> : <Competitors rows={list} onOpen={setDesk} />}</div>
           : space === "veille" ? <div className="space-y-4"><Report items={report} /><Watch rows={list} /></div>
           : space === "besoins" ? <Needs rows={list} />
           : space === "strategie" ? <Strategy rows={list} />
