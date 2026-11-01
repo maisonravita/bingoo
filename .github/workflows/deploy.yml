@@ -67,7 +67,11 @@ jobs:
           mkdir -p /tmp/live && cd /tmp/live && supabase functions download k --project-ref $PROJECT_REF || true
           live=$(find /tmp/live -name 'index.ts' | head -1)
           [ -n "$live" ] || { echo "Téléchargement impossible" >> $GITHUB_STEP_SUMMARY; exit 0; }
-          tr ';' '\n' < "$live" | sort -u > /tmp/a; tr ';' '\n' < $GITHUB_WORKSPACE/bundles/k.js | sort -u > /tmp/b
+          tr ';' '\n' < "$live" | LC_ALL=C sort -u -T /tmp > /tmp/a || true; tr ';' '\n' < $GITHUB_WORKSPACE/bundles/k.js | LC_ALL=C sort -u -T /tmp > /tmp/b || true
+          cp "$live" $GITHUB_WORKSPACE/k-live.ts
           { echo "## Fonction k"; echo "- en ligne : $(wc -c < "$live") octets, dépôt : $(wc -c < $GITHUB_WORKSPACE/bundles/k.js) octets";
             echo "- instructions seulement en ligne : $(comm -23 /tmp/a /tmp/b | wc -l), seulement dans le dépôt : $(comm -13 /tmp/a /tmp/b | wc -l)";
-            echo '```'; comm -13 /tmp/a /tmp/b | grep -oE '"[^"]{20,120}"' | sort -u | head -40; echo '```'; } >> $GITHUB_STEP_SUMMARY
+            echo '```'; comm -13 /tmp/a /tmp/b | grep -oE '"[^"]{20,120}"' | LC_ALL=C sort -u | head -60 || true; echo '```'; } >> $GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: k-live, path: k-live.ts, if-no-files-found: ignore }
