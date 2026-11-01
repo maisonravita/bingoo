@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 const dec = (s) => s.replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
 const load = (f) => dec(readFileSync(f, "utf8"));
-const routes = (t) => new Set([...t.matchAll(/async ?["']?([a-z][a-z0-9-]{2,40})["']? ?\((?:req|[a-z]),\s?[a-z]\)/g)].map((m) => m[1]));
+const routes = (t) => new Set([...t.matchAll(/async ?["']?([a-z][a-z0-9-]{2,40})["']? ?\((?:_?req|_?[a-z]),\s?[a-z]\)/g)].map((m) => m[1]));
 const texts = (t) => new Set([...t.matchAll(/["'`]([^"'`\n]{25,160})["'`]/g)].map((m) => m[1]).filter((s) => /[a-zàéèêç] [a-zàéèêç]/i.test(s) && !/[{}=;]|https?:/.test(s)));
 const [live, repo] = [load(process.argv[2]), load(process.argv[3])];
 const diff = (a, b) => [...a].filter((x) => !b.has(x)).sort();
