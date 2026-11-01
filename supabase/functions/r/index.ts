@@ -2,7 +2,7 @@
 import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
 import { admin, quota, requireMember } from "../_shared/core.ts";
 import { radarCron, radarGetConfig, radarSetConfig, radarToProspect, scanRadar } from "../_shared/radar.ts";
-import { resolveCompetitor, spyCron, spyFollow, spySocial } from "../_shared/spy.ts";
+import { resolveCompetitor, spyCron, spyDiscover, spyFollow, spySocial } from "../_shared/spy.ts";
 import { studioGenerate } from "../_shared/studio.ts";
 import { growthReco } from "../_shared/reco.ts";
 
@@ -48,6 +48,11 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   },
   async "radar-cron"(req) { await cron(req); return await radarCron(); },
   async "spy-cron"(req) { await cron(req); return await spyCron(); },
+  async "spy-discover"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    await quota(ws.id, "espion", 20);
+    return await spyDiscover(ws);
+  },
   async "spy-follow"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     return await spyFollow(ws, String(b.competitor_id ?? ""), b.follow === true);
