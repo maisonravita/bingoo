@@ -54,7 +54,7 @@ function Mailbox() {
       status={mb ? <Badge tone={mb.ok ? "good" : "bad"}>{mb.ok ? "Connectée" : "À reconnecter"}</Badge> : <Badge>Non connectée</Badge>}>
       {mb?.ok ? (
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-sm flex-1 min-w-0">Envoi depuis <b className="break-all">{mb.email}</b>{mb.via === "oauth" ? " (connexion Google officielle)" : ""}. {ws.reply_status === "verified" ? "Les réponses sont aussi lues et classées par Kairo." : "Les réponses arrivent dans ta boîte : colle-les dans « Réponses » pour que Kairo les traite, ou active le domaine de réponse dans Réglages."}</p>
+          <p className="text-sm flex-1 min-w-0">Envoi depuis <b className="break-all">{mb.email}</b>{mb.via === "oauth" ? " (connexion Google officielle)" : ""}. Les réponses et les rebonds sont repérés automatiquement et classés dans « Réponses ».</p>
           <Button variant="danger" size="sm" loading={busy} onClick={remove}>Déconnecter</Button>
         </div>
       ) : (
@@ -75,7 +75,7 @@ function Mailbox() {
             <Field label={f.provider === "gmail" ? "Mot de passe d'application (16 lettres)" : "Mot de passe"}><Input type="password" autoComplete="new-password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></Field>
             {f.provider === "autre" && <Field label="Serveur SMTP (SSL, port 465)"><Input value={f.host} onChange={(e) => setF({ ...f, host: e.target.value })} placeholder="smtp.monhebergeur.fr" /></Field>}
           </div>
-          <p className="text-xs text-ink-soft">Le mot de passe est chiffré et ne sert qu'à envoyer tes e-mails. Tu peux le révoquer à tout moment chez ton fournisseur. Outlook / Microsoft 365 : bientôt disponible.</p>
+          <p className="text-xs text-ink-soft">Le mot de passe est chiffré et ne sert qu'à envoyer tes e-mails. Tu peux le révoquer à tout moment chez ton fournisseur. Outlook / Microsoft 365 : connexion officielle bientôt disponible.</p>
           <Button variant="primary" loading={busy} disabled={!f.email || !f.password} onClick={save}>Tester et connecter</Button>
         </div>
       )}
