@@ -381,11 +381,11 @@ export async function signQuote(token: string, name: string, accept: boolean, ip
 }
 
 // ================================================================ Concurrents
-async function siteText(url: string) {
+export async function siteText(url: string) {
   const { readSite } = await import("./analyze.ts");
   return await readSite(url);
 }
-async function sha(s: string) {
+export async function sha(s: string) {
   const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s.replace(/\s+/g, " ").replace(/\d{1,2}[:/]\d{2}/g, "")));
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
 }
@@ -433,7 +433,7 @@ ${c.summary ? `Analyse précédente (pour repérer les changements) : ${JSON.str
 Contenu actuel de son site :
 ${text.slice(0, 9000) || "(site illisible)"}
 
-Fais des recherches web ciblées (5 au maximum) : actualités des 12 derniers mois (acquisitions, levées, nominations, nouveaux contrats, difficultés), marchés publics remportés (BOAMP, avis d'attribution, montants), avis clients et salariés (Google, Glassdoor, Indeed), recrutements en cours (zones, métiers = où ils se développent), indices de prix publics, et leurs réseaux sociaux (LinkedIn, Instagram, Facebook, TikTok, YouTube : abonnés visibles, rythme de publication, sujets et formats qui génèrent le plus de réactions).
+Fais des recherches web ciblées (6 au maximum) : actualités des 12 derniers mois (acquisitions, levées, nominations, nouveaux contrats, difficultés), chiffre d'affaires publié, marchés publics remportés (BOAMP, avis d'attribution, montants), avis clients et salariés (Google, Glassdoor, Indeed), recrutements en cours (zones, métiers = où ils se développent), indices de prix publics, leurs canaux d'acquisition de clients (référencement, publicité, salons, partenariats, prospection, bouche-à-oreille), leurs références clients publiques, et leurs réseaux sociaux (LinkedIn, Instagram, Facebook, TikTok, YouTube : abonnés visibles, rythme de publication, sujets et formats qui génèrent le plus de réactions).
 
 Règles d'expert :
 - Chaque fait important porte sa source (URL). Sépare toujours FAIT et HYPOTHÈSE.
@@ -454,12 +454,15 @@ Format :
  "avis": {"clients": "synthèse + note si trouvée", "salaries": "synthèse + note si trouvée", "sources": [""]},
  "recrutements": "",
  "reseaux": {"presence": [{"reseau": "linkedin|instagram|facebook|tiktok|youtube|x", "url": "", "abonnes": "nombre ou non trouvé", "rythme": "ex. 3 posts/semaine", "sujets": ""}], "ce_qui_marche": ["formats ou sujets qui génèrent des réactions, avec exemple"], "angles_a_reprendre": ["ce qu'on peut faire mieux qu'eux sur les réseaux"], "a_eviter": [""], "synthese": "2 phrases"},
+ "acquisition": {"methode": "comment ils trouvent leurs clients, en 2 phrases", "canaux": [{"canal": "", "preuve": "ce qui le montre", "source": ""}]},
+ "clients": {"types": "types de clients servis", "references": [{"nom": "", "source": ""}], "audience": "taille d'audience visible (abonnés, avis, trafic publié), ou non trouvé"},
+ "position": {"verdict": "devant|derriere|egal|inconnu", "pourquoi": ["raisons précises pour lesquelles ils sont devant ou derrière nous sur le marché, chacune avec sa preuve"]},
  "comparatif": [{"critere": "", "eux": "", "nous": "", "avantage": "eux|nous|egal|inconnu"}],
  "battlecard": {"pitch": "notre différence en 2 phrases face à eux", "quand_on_gagne": [""], "quand_on_perd": [""], "objections": [{"objection": "ex. « On travaille déjà avec eux »", "reponse": ""}], "questions_pieges": ["questions à poser au prospect qui mettent en lumière leurs faiblesses, sans les dénigrer"], "a_ne_pas_dire": [""]},
  "opportunites": ["comptes ou segments où on peut les déloger, et pourquoi"],
  "actions": ["3 à 5 actions concrètes pour nous cette semaine"],
  "changements": "${c.summary ? "ce qui a changé depuis l'analyse précédente, ou « rien de significatif »" : "première analyse"}"}`,
-    { maxTokens: 14000, tools: WEB(5), system: "Tu es un analyste senior en intelligence concurrentielle. Tu cites tes sources, tu distingues faits et hypothèses, tu ne dénigres jamais et tu n'inventes rien. Réponds en français." });
+    { maxTokens: 16000, tools: WEB(6), system: "Tu es un analyste senior en intelligence concurrentielle. Tu cites tes sources, tu distingues faits et hypothèses, tu ne dénigres jamais et tu n'inventes rien. Réponds en français." });
   if (!s || typeof s !== "object" || (!s.resume && !s.battlecard)) throw new HttpError(502, "L'analyse est revenue incomplète, relance-la");
   const history = [{ at: now, changes: s.changements ?? "" }, ...(c.history ?? [])].slice(0, 20);
   await admin.from("competitors").update({ name: c.name || s.nom || "", summary: s, text_hash: hash, history, checked_at: now, changed_at: c.text_hash && c.text_hash !== hash ? now : c.changed_at ?? now }).eq("id", c.id);

@@ -85,6 +85,57 @@ function Threat({ n }) {
   return <span className="inline-flex items-center gap-1" title={`Menace ${v} sur 5`}>{[1, 2, 3, 4, 5].map((k) => <span key={k} className="h-1.5 w-3 rounded-full" style={{ background: k <= v ? (v >= 4 ? "#DC2626" : v >= 3 ? "#D97706" : TEAL) : "#E7E5DF" }} />)}</span>;
 }
 
+const POS = { devant: ["Devant toi", "bg-bad-soft text-bad"], derriere: ["Derrière toi", "bg-good-soft text-good"], egal: ["À égalité", "bg-paper text-ink-soft"], inconnu: ["Position à établir", "bg-paper text-ink-soft"] };
+
+/** Nouveaux concurrents repérés par l'espion : rien n'est suivi sans l'accord du client. */
+function Proposed({ list, ws, onDone }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(null);
+  if (!list.length) return null;
+  const act = async (c, follow) => {
+    setBusy(c.id);
+    try { await fn("r/spy-follow", { workspace_id: ws.id, competitor_id: c.id, follow }); toast(follow ? `${nameOf(c)} est suivi : rapport complet la nuit prochaine` : `${nameOf(c)} écarté`, "good"); onDone(); }
+    catch (e) { toast(e.message, "bad"); } finally { setBusy(null); }
+  };
+  return (
+    <Panel title={`L'espion a repéré ${list.length} nouveau${list.length > 1 ? "x" : ""} concurrent${list.length > 1 ? "s" : ""}`} icon="bell" right={<span className="text-[12px] text-ink-faint">à valider</span>}>
+      <div className="grid md:grid-cols-2 gap-2.5">
+        {list.map((c) => (
+          <div key={c.id} className="rounded-xl border border-line bg-paper/60 p-3 flex gap-3 min-w-0">
+            <Fav c={c} size="w-9 h-9" />
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold truncate">{nameOf(c)} <span className="text-[11.5px] font-normal text-ink-faint">{c.proposal?.type ? `· ${c.proposal.type}` : ""}</span></p>
+              <p className="text-[12.5px] text-ink-soft leading-snug line-clamp-2">{c.proposal?.pourquoi || host(c.url)}</p>
+              <div className="mt-2 flex gap-2">
+                <button disabled={busy === c.id} onClick={() => act(c, true)} className="rounded-full bg-accent text-white px-3 py-1 text-[12px] font-semibold hover:bg-accent-dark disabled:opacity-50">Suivre</button>
+                <button disabled={busy === c.id} onClick={() => act(c, false)} className="rounded-full border border-line px-3 py-1 text-[12px] text-ink-soft hover:text-ink disabled:opacity-50">Écarter</button>
+                <a href={c.url} target="_blank" rel="noreferrer" className="ml-auto self-center text-[11.5px] text-ink-faint hover:underline">{host(c.url)}</a>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+/** Rapport de l'espion : ce qu'il a fait ces 3 derniers jours, en pilote automatique ou à ta demande. */
+function Report({ items }) {
+  if (!items.length) return null;
+  return (
+    <Panel title="Rapport de l'espion" icon="file" right={<span className="text-[12px] text-ink-faint">3 derniers jours</span>}>
+      <ul className="divide-y divide-line">
+        {items.slice(0, 10).map((a, i) => (
+          <li key={i} className="py-2 flex gap-3 text-[13px]">
+            <span className="text-ink-faint shrink-0 w-[92px] tnum">{new Date(a.created_at).toLocaleString("fr-FR", { weekday: "short", hour: "2-digit", minute: "2-digit" })}</span>
+            <span className="text-ink line-clamp-2">{txt(a.summary)}</span>
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  );
+}
+
 /* 1. Mes concurrents */
 function Competitors({ rows, onOpen }) {
   if (!rows.length) return <Empty>Ajoute ton premier concurrent ci-dessus (son nom ou son site) : l'espion constitue sa fiche complète, sources à l'appui.</Empty>;
@@ -99,7 +150,10 @@ function Competitors({ rows, onOpen }) {
               <div className="min-w-0 flex-1"><p className="font-bold text-ink truncate">{nameOf(c)}</p><p className="text-[12px] text-ink-faint truncate">{host(c.url)}</p></div>
               {s.menace && <Threat n={s.menace.niveau} />}
             </div>
-            <p className="text-[13px] text-ink-soft mt-3 line-clamp-3 leading-snug">{txt(s.resume || s.offre) || "Pas encore analysé."}</p>
+            {s.position?.verdict && POS[s.position.verdict] && <span className={cx("mt-3 inline-flex rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold", POS[s.position.verdict][1])}>{POS[s.position.verdict][0]}</span>}
+            <p className="text-[13px] text-ink-soft mt-2 line-clamp-3 leading-snug">{txt(s.resume || s.offre) || "Pas encore analysé : rapport complet la nuit prochaine."}</p>
+            {s.acquisition?.methode && <p className="text-[12px] text-ink-soft mt-2 line-clamp-2"><span className="font-semibold text-ink">Comment ils trouvent leurs clients : </span>{txt(s.acquisition.methode)}</p>}
+            {s.clients?.types && <p className="text-[12px] text-ink-soft mt-1 line-clamp-2"><span className="font-semibold text-ink">Leurs clients : </span>{txt(s.clients.types)}{s.clients.references?.length ? ` (${s.clients.references.slice(0, 3).map((r) => txt(r.nom ?? r)).join(", ")})` : ""}</p>}
             <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
               <div className="rounded-lg bg-paper/60 border border-line p-2"><p className="text-ink-faint">Tarifs</p><p className="text-ink line-clamp-2 mt-0.5">{txt(s.prix?.affiches)?.slice(0, 90) || "Inconnu"}</p></div>
               <div className="rounded-lg bg-paper/60 border border-line p-2"><p className="text-ink-faint">Faiblesses repérées</p><p className="text-ink mt-0.5">{(s.faiblesses ?? []).length || "—"}</p></div>
@@ -194,8 +248,21 @@ function Strategy({ rows }) {
       <p className="mt-0.5 text-ink-faint">Eux : {txt(r.eux)}</p>
     </li>
   );
+  const pos = rows.filter((c) => c.summary?.position?.pourquoi?.length);
   return (
     <div className="space-y-4">
+      {pos.length > 0 && (
+        <Panel title="Pourquoi ils sont devant ou derrière toi" icon="bolt">
+          <div className="grid md:grid-cols-2 gap-3">
+            {pos.map((c) => { const p = c.summary.position; const v = POS[p.verdict] ?? POS.inconnu; return (
+              <div key={c.id} className="rounded-xl border border-line bg-paper/60 p-3.5">
+                <div className="flex items-center gap-2"><Fav c={c} size="w-7 h-7" /><p className="font-semibold flex-1 truncate">{nameOf(c)}</p><span className={cx("rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold", v[1])}>{v[0]}</span></div>
+                <ul className="mt-2 space-y-1">{p.pourquoi.slice(0, 4).map((x, i) => <li key={i} className="text-[13px] text-ink-soft leading-snug flex gap-2"><span style={{ color: TEAL }}>•</span>{txt(x)}</li>)}</ul>
+              </div>
+            ); })}
+          </div>
+        </Panel>
+      )}
       <div className="grid lg:grid-cols-3 gap-4">
         <Panel title="Tes avantages" icon="shield" right={<span className="text-[12px] font-bold" style={{ color: TEAL }}>{ours.length}</span>}>{ours.length ? <ul className="space-y-2">{ours.slice(0, 6).map((r, i) => <Row key={i} r={r} tone={TEAL} />)}</ul> : <Empty>À établir par l'analyse.</Empty>}</Panel>
         <Panel title="Où ils sont devant" icon="bolt" right={<span className="text-[12px] font-bold text-[#F87171]">{theirs.length}</span>}>{theirs.length ? <ul className="space-y-2">{theirs.slice(0, 6).map((r, i) => <Row key={i} r={r} tone="#DC2626" />)}</ul> : <Empty>Rien d'établi.</Empty>}</Panel>
@@ -245,14 +312,17 @@ export default function EspionHub() {
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(null);
   const [recent, setRecent] = useState(false);
+  const [proposed, setProposed] = useState([]);
+  const [report, setReport] = useState([]);
   const [desk, setDesk] = useState(null);
 
   const load = useCallback(async () => {
     const [{ data }, { data: act }] = await Promise.all([
-      supabase.from("competitors").select("*").eq("workspace_id", ws.id).order("created_at"),
-      supabase.from("activity").select("created_at").eq("workspace_id", ws.id).in("kind", ["veille", "espion"]).gte("created_at", new Date(Date.now() - 4 * 60000).toISOString()).limit(1),
+      supabase.from("competitors").select("*").eq("workspace_id", ws.id).neq("status", "ecarte").order("created_at"),
+      supabase.from("activity").select("kind, summary, created_at").eq("workspace_id", ws.id).in("kind", ["veille", "espion"]).gte("created_at", new Date(Date.now() - 3 * 864e5).toISOString()).order("created_at", { ascending: false }).limit(20),
     ]);
-    setRows(data ?? []); setRecent(!!act?.length);
+    setRows((data ?? []).filter((c) => (c.status ?? "suivi") === "suivi")); setProposed((data ?? []).filter((c) => c.status === "propose"));
+    setReport(act ?? []); setRecent(!!(act ?? []).find((a) => Date.now() - new Date(a.created_at).getTime() < 4 * 60000));
   }, [ws.id]);
   useEffect(() => { load(); const t = setInterval(load, 20000); return () => clearInterval(t); }, [load]);
 
@@ -291,6 +361,7 @@ export default function EspionHub() {
             <span className={cx("h-2 w-2 rounded-full", working && "animate-pulse")} style={{ background: working ? TEAL : "#9A9CA3" }} />
             <span className="text-ink truncate max-w-[520px]">{busy ?? (recent ? "Enquête en cours…" : `En veille · dernière enquête ${ago(last)}`)}</span>
           </p>
+          <p className="mt-2 text-[12.5px] text-ink-faint">Pilote automatique : chaque nuit, l'espion relit le site de tes concurrents ; rapport complet dès que l'un d'eux bouge, et au moins chaque semaine.</p>
           <form onSubmit={add} className="mt-4 flex flex-col sm:flex-row gap-2 max-w-xl">
             <div className="flex-1 flex items-center gap-2 rounded-xl border border-line bg-paper/60 px-3 focus-within:border-accent/60">
               <Ico n="search" className="w-4 h-4 text-ink-faint" />
@@ -320,8 +391,8 @@ export default function EspionHub() {
 
       <div className="mt-5">
         {!rows ? <div className="py-16 text-center text-ink-faint text-sm">Ouverture des dossiers…</div>
-          : space === "concurrents" ? <Competitors rows={list} onOpen={setDesk} />
-          : space === "veille" ? <Watch rows={list} />
+          : space === "concurrents" ? <div className="space-y-5"><Proposed list={proposed} ws={ws} onDone={load} /><Competitors rows={list} onOpen={setDesk} /></div>
+          : space === "veille" ? <div className="space-y-4"><Report items={report} /><Watch rows={list} /></div>
           : space === "besoins" ? <Needs rows={list} />
           : space === "strategie" ? <Strategy rows={list} />
           : <Dossiers rows={list} />}
