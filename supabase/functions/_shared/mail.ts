@@ -3,11 +3,11 @@ import { HttpError } from "./http.ts";
 import { admin, env, PLATFORM_DOMAIN, type Workspace } from "./core.ts";
 import { smtpSend } from "./growth.ts";
 
-export async function resend(path: string, method = "GET", body?: unknown) {
+export async function resend(path: string, method = "GET", body?: unknown, extra: Record<string, string> = {}) {
   const key = env("RESEND_API_KEY");
   if (!key) throw new HttpError(500, "Clé RESEND_API_KEY manquante dans les secrets Supabase");
   const res = await fetch(`https://api.resend.com${path}`, {
-    method, headers: { Authorization: `Bearer ${key}`, "content-type": "application/json" },
+    method, headers: { Authorization: `Bearer ${key}`, "content-type": "application/json", ...extra },
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
@@ -42,7 +42,7 @@ export async function sendSystem(m: { to: string; subject: string; text: string;
   const r = await resend("/emails", "POST", {
     from: `${m.fromName ?? "Kairo"} <${from}>`, to: [m.to], reply_to: m.replyTo, subject: m.subject, text: m.text,
     attachments: m.ics ? [{ filename: "invitation.ics", content: b64(m.ics), content_type: "text/calendar; method=REQUEST" }] : undefined,
-  });
+  }, m.key ? { "Idempotency-Key": `bingoo-${m.key}` } : {});
   if (!r.ok) throw new HttpError(502, "Notification : " + (r.data?.message ?? r.status));
   return { id: String(r.data?.id ?? "") };
 }
@@ -58,7 +58,14 @@ export function canSend(ws: Workspace) {
   if (!ws.postal_address) throw new HttpError(400, "Ajoute l'adresse postale de l'entreprise dans Réglages (obligatoire en pied de mail)");
 }
 
-export async function sendMail(ws: Workspace, m: { to: string; subject: string; text: string; replyTo?: string; prospecting?: boolean; ics?: string; fromName?: string }) {
+/** Identifiant de message stable : le même e-mail renvoyé par erreur porte le même identifiant (doublon reconnaissable). */
+export function messageIdFor(key: string, from: string) {
+  return `<bingoo-${key}@${(from.split("@")[1] ?? "bingoo.local").replace(/[>\s]/g, "")}>`;
+}
+
+/** key : identifiant du message en base. Garantit qu'un même e-mail n'est accepté qu'une fois par Resend (24 h)
+ *  et qu'il porte toujours le même Message-ID (rapprochement des réponses et des rebonds dans la boîte). */
+export async function sendMail(ws: Workspace, m: { to: string; subject: string; text: string; replyTo?: string; prospecting?: boolean; ics?: string; fromName?: string; key?: string }) {
   const footer = m.prospecting
     ? `${brand(ws)}${ws.postal_address ? ` · ${ws.postal_address}` : ""}\nPour ne plus recevoir de messages de notre part, répondez simplement « STOP »${ws.app_url ? ` ou rendez-vous sur ${ws.app_url.replace(/\/$/, "")}/#/opposition` : ""}.`
     : "";
@@ -70,6 +77,7 @@ export async function sendMail(ws: Workspace, m: { to: string; subject: string; 
       replyTo: m.replyTo ?? ws.integrations.mailbox.email, subject: m.subject, text, html,
       headers: m.prospecting ? { "List-Unsubscribe": `<mailto:${m.replyTo ?? ws.integrations.mailbox.email}?subject=STOP>` } : undefined,
       attachments: m.ics ? [{ filename: "invitation.ics", content: m.ics, contentType: "text/calendar; method=REQUEST" }] : undefined,
+      messageId: m.key ? messageIdFor(m.key, ws.integrations.mailbox.email) : undefined,
     });
   }
   const r = await resend("/emails", "POST", {
@@ -81,7 +89,7 @@ export async function sendMail(ws: Workspace, m: { to: string; subject: string; 
     html,
     headers: m.prospecting ? { "List-Unsubscribe": `<mailto:${m.replyTo ?? ws.sender_email}?subject=STOP>` } : undefined,
     attachments: m.ics ? [{ filename: "invitation.ics", content: b64(m.ics), content_type: "text/calendar; method=REQUEST" }] : undefined,
-  });
+  }, m.key ? { "Idempotency-Key": `bingoo-${m.key}` } : {});
   if (!r.ok) throw new HttpError(502, "Envoi : " + (r.data?.message ?? r.status));
   return { id: String(r.data?.id ?? "") };
 }

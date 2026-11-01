@@ -5,7 +5,7 @@ name: Bingoo CI
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   workflow_dispatch:
 
 env:
@@ -26,6 +26,13 @@ jobs:
         run: for f in $FUNCTIONS; do node scripts/build-fn.mjs $f; done
       - name: Construction du site
         run: npm run build:site
+      - uses: denoland/setup-deno@v2
+        with: { deno-version: v2.x }
+      - name: Bibliothèque IMAP chargée par Deno (runtime des fonctions)
+        run: |
+          deno eval 'const { ImapFlow } = await import("npm:imapflow@1.0.164"); const c = new ImapFlow({ host: "127.0.0.1", port: 1, secure: true, auth: { user: "x", pass: "y" }, logger: false }); try { await c.connect(); console.log("connexion inattendue"); } catch (e) { console.log("OK : chargée, connexion refusée comme prévu", e.code ?? ""); }'
+      - name: Bundles chargeables par Deno
+        run: for f in $FUNCTIONS; do deno check --no-lock bundles/$f.js >/dev/null 2>&1 || deno eval "await import('./bundles/$f.js'.replace('./','file://$PWD/'))" 2>&1 | grep -iE "error|cannot" && exit 1 || true; done
       - uses: actions/upload-artifact@v4
         with: { name: bundles, path: bundles/ }
 
@@ -53,6 +60,7 @@ jobs:
   k-drift:
     needs: check
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}
     steps:

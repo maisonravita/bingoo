@@ -4,7 +4,8 @@ import { admin } from "../_shared/core.ts";
 import { meetingReminders, quoteReminders } from "../_shared/convert.ts";
 import { syncCrm } from "../_shared/growth.ts";
 import { hotAlert, weeklyReport } from "../_shared/notify.ts";
-import { inbound } from "../_shared/pro.ts";
+import { handleReply, inbound } from "../_shared/pro.ts";
+import { pollInbox } from "../_shared/inbox.ts";
 
 async function checkKey(req: Request) {
   const { data } = await admin.from("app_secrets").select("value").eq("name", "cron_key").single();
@@ -25,6 +26,12 @@ const routes: Record<string, (b: Record<string, unknown>) => Promise<unknown>> =
   // Rappels de RDV pour tous, relance des devis pour les espaces en pilote automatique, synchronisation CRM
   async suivi() {
     const out: Record<string, unknown> = {};
+    // Rebonds et réponses arrivés directement dans la boîte des clients (Gmail, OVH, IONOS, Zoho)
+    const { data: boxes } = await admin.from("workspaces").select("*").eq("onboarded", true).filter("integrations->mailbox->>ok", "eq", "true");
+    for (const ws of boxes ?? []) {
+      const base = ws.app_url ? `${String(ws.app_url).replace(/\/$/, "")}/#` : "";
+      try { out[`boite_${ws.id}`] = await pollInbox(ws, (w, p, input) => handleReply(w, p, input, base)); } catch (e) { out[`boite_${ws.id}`] = { error: (e as Error).message }; }
+    }
     const { data: every } = await admin.from("workspaces").select("*").eq("onboarded", true);
     for (const ws of every ?? []) {
       try {

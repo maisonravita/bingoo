@@ -16,6 +16,8 @@ export { stripQuoted, OPT_OUT } from "./${S}/pro.ts";
 export { FOLLOW } from "./${S}/agents.ts";
 export { warmup, RAMP } from "./${S}/growth.ts";
 export { parisToUtc, parisParts, pickThree } from "./${S}/time.ts";
+export { bingooIds, isBounce, failedRecipients, replyTo, plainText } from "./${S}/inbox.ts";
+export { messageIdFor } from "./${S}/mail.ts";
 `;
 const stubs = {
   name: "stubs",
@@ -98,6 +100,33 @@ await test("publicité Google, concurrent utilisé et agence repérés ; pas de 
   const types = s.map((x) => x.type);
   for (const t of ["pub_google", "concurrent", "agence", "recrutement"]) assert.ok(types.includes(t), `${t} manquant : ${types}`);
   assert.ok(!types.includes("pub_meta") && !types.includes("levee"), `faux signal : ${types}`);
+});
+
+console.log("Anti-double envoi");
+await test("le même e-mail porte toujours le même identifiant (doublon reconnaissable)", () => {
+  const id = "0b6a2c1e-1234-4abc-9def-0123456789ab";
+  assert.equal(T.messageIdFor(id, "jean@maisonravita.fr"), T.messageIdFor(id, "jean@maisonravita.fr"));
+  assert.equal(T.messageIdFor(id, "jean@maisonravita.fr"), `<bingoo-${id}@maisonravita.fr>`);
+});
+
+console.log("Boîte du client : rebonds et réponses");
+const ID = "0b6a2c1e-1234-4abc-9def-0123456789ab";
+const gmailBounce = `From: Mail Delivery Subsystem <mailer-daemon@googlemail.com>\r\nTo: jean@gmail.com\r\nSubject: Delivery Status Notification (Failure)\r\nContent-Type: multipart/report; report-type=delivery-status; boundary="x"\r\nX-Failed-Recipients: inconnu@exemple.fr\r\n\r\n--x\r\nContent-Type: text/plain\r\n\r\nAddress not found\r\n--x\r\nContent-Type: message/delivery-status\r\n\r\nFinal-Recipient: rfc822; inconnu@exemple.fr\r\nAction: failed\r\n--x\r\nContent-Type: text/rfc822-headers\r\n\r\nMessage-ID: <bingoo-${ID}@gmail.com>\r\nSubject: propreté des bureaux\r\n--x--`;
+await test("un avis de non-remise Gmail est reconnu et rattaché au bon e-mail", () => {
+  assert.ok(T.isBounce(gmailBounce));
+  assert.deepEqual(T.bingooIds(gmailBounce), [ID]);
+  assert.deepEqual(T.failedRecipients(gmailBounce), ["inconnu@exemple.fr"]);
+});
+const reply = `From: "Marie Durand" <marie@client.fr>\r\nTo: jean@gmail.com\r\nSubject: Re: propreté des bureaux\r\nIn-Reply-To: <bingoo-${ID}@gmail.com>\r\nReferences: <bingoo-${ID}@gmail.com>\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nOui, appelez-moi jeudi.\r\n`;
+await test("une réponse écrite à l'adresse d'envoi est rattachée au bon e-mail, sans être prise pour un rebond", () => {
+  assert.ok(!T.isBounce(reply));
+  assert.equal(T.replyTo(reply), ID);
+  assert.match(T.plainText(reply), /appelez-moi jeudi/);
+});
+await test("un e-mail sans lien avec Bingoo est ignoré", () => {
+  const other = "From: newsletter@site.fr\r\nSubject: Promo\r\n\r\nBonjour";
+  assert.ok(!T.isBounce(other));
+  assert.equal(T.replyTo(other), null);
 });
 
 console.log(`\n${ok} réussi${ok > 1 ? "s" : ""}, ${ko} échec${ko > 1 ? "s" : ""}`);

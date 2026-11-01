@@ -335,14 +335,17 @@ export async function sendOne(ws: Workspace, messageId: string) {
   try {
     const link = ws.app_url && ws.booking_slug && msg.step < 2 ? `${ws.app_url.replace(/\/$/, "")}/#/rdv/${ws.booking_slug}?t=${p.public_token}` : "";
     const body = `${msg.body.trim()}${link ? `\n\nSi c'est plus simple, vous pouvez choisir directement un créneau ici : ${link}` : ""}\n\n${signature(ws)}`;
-    const r = await sendMail(ws, { to: p.email, subject: msg.subject, text: body, replyTo: replyAddress(ws, p.public_token), prospecting: true });
+    const r = await sendMail(ws, { to: p.email, subject: msg.subject, text: body, replyTo: replyAddress(ws, p.public_token), prospecting: true, key: msg.id });
     await admin.from("messages").update({ status: "envoye", sent_at: new Date().toISOString(), provider_id: r.id, sent_via: ws.integrations?.mailbox?.ok ? ws.integrations.mailbox.email : "domaine" }).eq("id", messageId);
     await markWarmup(ws);
     if (["pret", "a_valider", "envoye", "nouveau", "sans_email"].includes(p.status)) await admin.from("prospects").update({ status: "envoye" }).eq("id", p.id);
     return { id: messageId, sent: true };
   } catch (e) {
-    await admin.from("messages").update({ status: "echec", error: String((e as Error).message).slice(0, 300) }).eq("id", messageId);
-    return { id: messageId, error: (e as Error).message };
+    // Délai dépassé ou coupure : l'e-mail a pu partir quand même. On ne renvoie jamais automatiquement.
+    const msgErr = String((e as Error).message);
+    const uncertain = /timeout|timed out|ETIMEDOUT|ECONNRESET|socket|aborted|network/i.test(msgErr);
+    await admin.from("messages").update({ status: "echec", error: (uncertain ? "Envoi incertain (coupure) : vérifie ta boîte d'envoi avant de renvoyer. " : "") + msgErr.slice(0, 260) }).eq("id", messageId);
+    return { id: messageId, error: msgErr };
   }
 }
 
@@ -412,4 +415,14 @@ export async function followups(ws: Workspace) {
   for (const row of rows) { const { error } = await admin.from("messages").insert(row); if (!error) created++; }
   rows.length = created;
   return { created: rows.length };
+}
+
+/** E-mails restés « envoi en cours » plus de 15 min (coupure entre l'envoi et l'enregistrement) :
+ *  statut inconnu, donc jamais renvoyés automatiquement. Ils passent en échec avec une consigne de vérification. */
+export async function reconcileStuck() {
+  const limit = new Date(Date.now() - 15 * 60000).toISOString();
+  const { data } = await admin.from("messages").update({ status: "echec", error: "Envoi interrompu, statut inconnu : vérifie ta boîte d'envoi avant de renvoyer (aucun renvoi automatique)." })
+    .eq("status", "envoi").lt("claimed_at", limit).select("id, workspace_id");
+  for (const m of data ?? []) await log(m.workspace_id, "envoi", "Un envoi interrompu est à vérifier (aucun renvoi automatique)");
+  return (data ?? []).length;
 }
