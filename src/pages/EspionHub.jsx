@@ -4,7 +4,7 @@ import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { useToast } from "../components/ui";
 import { cx } from "../lib/utils";
-import { CompetitorDesk } from "./Espion";
+import CompetitorDossier from "./CompetitorDossier";
 import CompanyLogo from "../components/CompanyLogo";
 
 // Espion : le centre de renseignement commercial. Cinq espaces, données sourcées uniquement.
@@ -467,18 +467,7 @@ export default function EspionHub() {
           : <Dossiers rows={list} />}
       </div>
 
-      {desk && (
-        <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal>
-          <button className="absolute inset-0 bg-ink/40" onClick={() => setDesk(null)} aria-label="Fermer" />
-          <div className="relative w-full max-w-[1100px] h-full overflow-y-auto bg-paper text-ink p-4 sm:p-6">
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <p className="text-[12px] font-bold uppercase tracking-[.15em] text-ink-soft">Fiche concurrent</p>
-              <button onClick={() => setDesk(null)} className="rounded-full border border-line px-3 py-1 text-sm hover:border-ink/30">Fermer</button>
-            </div>
-            <CompetitorDesk embedded focusId={desk.id} onChanged={(removed) => { load(); if (removed) setDesk(null); }} />
-          </div>
-        </div>
-      )}
+      {desk && <CompetitorDossier id={desk.id} onClose={() => setDesk(null)} onChanged={() => load()} />}
     </div>
   );
 }
