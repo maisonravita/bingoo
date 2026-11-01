@@ -146,6 +146,38 @@ export function AgentCard({ a, d, ws }) {
   );
 }
 
+
+/** Visage rond d'un salarié (portrait recadré sur la tête). */
+function Head({ id, className = "w-9 h-9" }) {
+  return <span aria-hidden className={cx("shrink-0 rounded-full bg-[#eef3f8] bg-no-repeat", className)} style={{ backgroundImage: `url(/salaries/${id}.png)`, backgroundSize: "135% auto", backgroundPosition: "50% 30%" }} />;
+}
+const NAMES = Object.fromEntries(TEAM.map((a) => [a.first.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(), a]));
+/** La réponse de l'équipe, une bulle par salarié (« Max : … »). Nettoie toute mise en forme restante. */
+function splitTeam(text) {
+  const clean = (t) => t.replace(/\*\*|__|^#+\s*/gm, "").replace(/^\s*[-•]\s+/gm, "").trim();
+  const out = [];
+  for (const line of String(text ?? "").split("\n")) {
+    const m = line.match(/^\s*\**([A-Za-zÀ-ÿ]+)\**\s*:\s*(.*)$/);
+    const a = m && NAMES[m[1].normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()];
+    if (a) out.push({ who: a.id, text: m[2] });
+    else if (out.length) out[out.length - 1].text += "\n" + line;
+    else if (line.trim()) out.push({ who: "iris", text: line });
+  }
+  return out.map((b) => ({ ...b, text: clean(b.text) })).filter((b) => b.text);
+}
+function Said({ who, text, error }) {
+  const a = TEAM.find((x) => x.id === who) ?? TEAM[0];
+  return (
+    <div className="flex items-end gap-2.5 max-w-[88%]">
+      <Head id={a.id} />
+      <div className="min-w-0">
+        <p className="text-[11.5px] text-ink-faint mb-1 ml-1"><span className="font-semibold text-ink-soft">{a.first}</span> · {a.role}</p>
+        <div className={cx("rounded-2xl rounded-bl-md border px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap", error ? "border-bad/30 bg-bad-soft text-bad" : "border-line bg-paper")}>{text}</div>
+      </div>
+    </div>
+  );
+}
+
 const IDEAS = ["Que dois-je prioriser aujourd'hui ?", "Trouve-moi des opportunités dans ma région", "Analyse mes concurrents"];
 const KEY = (id) => `bingoo:assistant:${id}`;
 const loadMsgs = (id) => { try { return JSON.parse(sessionStorage.getItem(KEY(id)) || "[]"); } catch { return []; } };
@@ -208,15 +240,23 @@ export default function Salaries() {
         {!!msgs.length && (
           <div className="mb-4 max-h-[420px] overflow-y-auto space-y-3 pr-1">
             {msgs.map((m, i) => m.role === "user" ? (
-              <div key={i} className="flex justify-end"><div className="max-w-[85%] rounded-2xl bg-ink text-white px-4 py-2.5 text-sm whitespace-pre-wrap">{m.text}</div></div>
+              <div key={i} className="flex justify-end"><div className="max-w-[80%] rounded-2xl rounded-br-md bg-ink text-white px-4 py-2.5 text-sm whitespace-pre-wrap">{m.text}</div></div>
+            ) : m.error ? (
+              <Said key={i} who="iris" text={m.text} error />
             ) : (
-              <div key={i} className="max-w-[92%]">
-                {!!m.steps?.length && <div className="mb-1.5 flex flex-wrap gap-1.5">{m.steps.map((s, j) => <span key={j} className="rounded-full bg-paper border border-line px-2.5 py-0.5 text-[11px] text-ink-soft">✓ {s.label}</span>)}</div>}
-                <div className={cx("rounded-2xl border px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap", m.error ? "border-bad/30 bg-bad-soft text-bad" : "border-line bg-paper")}>{m.text}</div>
-                {!!m.links?.length && <div className="mt-2 flex flex-wrap gap-2">{m.links.map((l) => <Link key={l.to} to={l.to} className="rounded-full border border-line bg-white px-3 py-1 text-xs font-medium hover:border-ink/40">{l.label} ›</Link>)}</div>}
+              <div key={i} className="space-y-2.5">
+                {!!m.steps?.length && <p className="text-[11.5px] text-ink-faint pl-12">{[...new Set(m.steps.map((s) => s.label))].join(" · ")}</p>}
+                {splitTeam(m.text).map((b, j) => <Said key={j} who={b.who} text={b.text} />)}
+                {!!m.links?.length && <div className="pl-12 flex flex-wrap gap-2">{m.links.map((l) => <Link key={l.to} to={l.to} className="rounded-full border border-line bg-white px-3 py-1 text-xs font-medium hover:border-ink/40">{l.label} ›</Link>)}</div>}
               </div>
             ))}
-            {busy && <p className="text-sm text-ink-faint animate-pulse">L'équipe travaille… (jusqu'à une minute si des e-mails sont à préparer)</p>}
+            {busy && (
+              <div className="flex items-center gap-2.5">
+                <div className="flex -space-x-2">{["iris", "max", "hugo"].map((id) => <Head key={id} id={id} className="w-8 h-8 ring-2 ring-white" />)}</div>
+                <span className="rounded-2xl rounded-bl-md bg-paper border border-line px-3.5 py-2.5 inline-flex gap-1">{[0, 1, 2].map((k) => <span key={k} className="w-1.5 h-1.5 rounded-full bg-ink-faint typing-dot" style={{ animationDelay: `${k * 0.15}s` }} />)}</span>
+                <span className="text-xs text-ink-faint">L'équipe s'en occupe…</span>
+              </div>
+            )}
             <div ref={end} />
           </div>
         )}

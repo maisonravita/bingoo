@@ -35,3 +35,4 @@ h1, h2, h3 { text-wrap: balance; }
   .lid, .agent-bob, .laptop-in, .key-l, .key-r, .logo-glow, .screen-light, .typing circle { animation: none; }
   .lid-down { transform: scaleY(.45); }
 }
+.typing-dot { animation: typing 1s ease-in-out infinite; }
