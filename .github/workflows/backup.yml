@@ -22,12 +22,15 @@ jobs:
         options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-retries 10
     env:
       DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}
       PASS: ${{ secrets.BACKUP_PASSPHRASE }}
       TABLES: "workspaces members prospects messages replies missions radar_opps competitors meetings quotes suppressions"
     steps:
       - name: Vérification des secrets
         run: |
-          if [ -z "$DB_URL" ] || [ -z "$PASS" ]; then echo "Secrets SUPABASE_DB_URL ou BACKUP_PASSPHRASE absents" | tee -a $GITHUB_STEP_SUMMARY; exit 1; fi
+          if [ -z "$PASS" ]; then echo "Secret BACKUP_PASSPHRASE absent" | tee -a $GITHUB_STEP_SUMMARY; exit 1; fi
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
       - name: Client Postgres 17
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg
@@ -43,8 +46,22 @@ jobs:
           for u in "$DB_URL" "$(echo "$DB_URL" | sed 's/aws-0-/aws-1-/')" "$(echo "$DB_URL" | sed 's/aws-1-/aws-0-/')"; do
             if pg_dump "$u" --no-owner --no-privileges --schema=public --schema=auth -f dump.sql; then ok="$u"; break; fi
           done
-          [ -n "$ok" ] && test -s dump.sql || { echo "Copie impossible (adresse ou mot de passe)" | tee -a $GITHUB_STEP_SUMMARY; exit 1; }
-          for t in $TABLES; do echo "$t $(psql "$ok" -Atc "select count(*) from public.$t")"; done > counts-prod.txt
+          if [ -z "$ok" ]; then
+            # Sans mot de passe de base : outil officiel Supabase avec le jeton d'accès (rôle de connexion temporaire)
+            echo "Adresse directe refusée : copie via l'outil Supabase"
+            supabase link --project-ref fbsjbnnmzazylmquzryo
+            supabase db dump --linked -s public,auth -f schema.sql
+            supabase db dump --linked --data-only -s public,auth -f data.sql
+            cat schema.sql data.sql > dump.sql; rm -f schema.sql data.sql
+            ok="cli"
+          fi
+          test -s dump.sql || { echo "Copie impossible" | tee -a $GITHUB_STEP_SUMMARY; exit 1; }
+          if [ "$ok" = "cli" ]; then
+            for t in $TABLES; do n=$(curl -s -X POST "https://api.supabase.com/v1/projects/fbsjbnnmzazylmquzryo/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "content-type: application/json" -d "{\"query\":\"select count(*)::int as n from public.$t\"}" | grep -oE '"n":[0-9]+' | cut -d: -f2); echo "$t ${n:-?}"; done > counts-prod.txt
+          else
+            for t in $TABLES; do echo "$t $(psql "$ok" -Atc "select count(*) from public.$t")"; done > counts-prod.txt
+          fi
+          cat counts-prod.txt
           echo "- copie : $(du -h dump.sql | cut -f1)" | tee -a $GITHUB_STEP_SUMMARY
       - name: Chiffrement
         run: |
