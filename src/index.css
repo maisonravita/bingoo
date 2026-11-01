@@ -45,9 +45,12 @@ h1, h2, h3 { text-wrap: balance; }
 .spy-loupe { animation: spy-float 4s ease-in-out infinite; }
 @keyframes spy-float { 50% { transform: translate(-2px, -3px) rotate(-3deg); } }
 .spy-loupe-on { animation: spy-scan 3.4s ease-in-out infinite; }
-@keyframes spy-scan { 0%, 100% { transform: translate(0, 0); } 30% { transform: translate(14px, 18px); } 55% { transform: translate(-8px, 34px); } 80% { transform: translate(-14px, 8px); } }
+@keyframes spy-scan { 0%, 100% { transform: translate(0, 0); } 30% { transform: translate(-70px, -70px); } 55% { transform: translate(-125px, -25px); } 80% { transform: translate(-45px, -110px); } }
 .spy-halo-on { animation: spy-halo 2.4s ease-in-out infinite; transform-origin: 96px 112px; }
 @keyframes spy-halo { 50% { transform: scale(1.06); opacity: .7; } }
 .spy-ping { transform-box: fill-box; transform-origin: center; animation: spy-ping 2.7s ease-out infinite; opacity: 0; }
 @keyframes spy-ping { 0% { transform: scale(.4); opacity: 0; } 15% { opacity: 1; } 60% { transform: scale(2.4); opacity: 0; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .spy-blink, .spy-eyes-on, .spy-loupe, .spy-loupe-on, .spy-halo-on, .spy-ping { animation: none; } }
+.spy-sweep { animation: spy-sweep 2.2s ease-in-out infinite; }
+@keyframes spy-sweep { 0% { top: -35%; } 100% { top: 100%; } }
+@media (prefers-reduced-motion: reduce) { .spy-sweep { animation: none; display: none; } }

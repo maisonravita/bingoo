@@ -33,53 +33,34 @@ const I = {
 };
 const Ico = ({ n, className = "w-5 h-5" }) => <svg viewBox="0 0 24 24" className={cx(className, "shrink-0")} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{I[n]}</svg>;
 
-/** L'espion : silhouette (chapeau, col relevé, regard). Au travail, sa loupe passe sur les dossiers et ses yeux la suivent. */
-export function Spy({ working, className = "w-[210px] h-[210px]" }) {
+/** L'espionne de Bingoo! : son portrait, qui cligne des yeux. Au travail, sa loupe passe sur l'écran et un balayage la traverse. */
+const LIDS = [[573, 399, 56, 34], [755, 403, 45, 32]];
+export function Spy({ working, className = "w-[220px] h-[220px]" }) {
   return (
-    <svg viewBox="0 0 220 220" className={cx(className, "overflow-visible")} aria-hidden>
-      <defs>
-        <radialGradient id="spy-halo"><stop offset="0" stopColor={TEAL} stopOpacity=".16" /><stop offset="1" stopColor={TEAL} stopOpacity="0" /></radialGradient>
-        <linearGradient id="spy-rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={TEAL} stopOpacity=".9" /><stop offset="1" stopColor={TEAL} stopOpacity=".15" /></linearGradient>
-        <radialGradient id="spy-glass"><stop offset="0" stopColor="#FFFFFF" stopOpacity=".9" /><stop offset="1" stopColor="#D9DEE2" stopOpacity=".55" /></radialGradient>
-      </defs>
-      <circle cx="96" cy="112" r="96" fill="url(#spy-halo)" className={working ? "spy-halo-on" : ""} />
-      {/* Dossiers examinés */}
-      <g className={working ? "spy-docs-on" : ""} opacity=".9">
-        {[[150, 120, -8], [168, 150, 6], [138, 168, -3]].map(([x, y, r], k) => (
-          <g key={k} transform={`rotate(${r} ${x} ${y})`}>
-            <rect x={x - 22} y={y - 14} width="44" height="30" rx="4" fill="#FFFFFF" stroke="#E2DFD8" />
-            <rect x={x - 16} y={y - 8} width="20" height="3" rx="1.5" fill={TEAL} opacity=".7" />
-            <rect x={x - 16} y={y - 1} width="30" height="2.5" rx="1.2" fill="#D6D3CC" />
-            <rect x={x - 16} y={y + 5} width="24" height="2.5" rx="1.2" fill="#D6D3CC" />
-          </g>
-        ))}
-        {working && [[162, 112], [178, 146], [146, 164]].map(([x, y], k) => <circle key={k} cx={x} cy={y} r="3" fill={TEAL} className="spy-ping" style={{ animationDelay: `${k * 0.9}s` }} />)}
-      </g>
-      {/* Silhouette : manteau à col relevé, chapeau à large bord */}
-      <g>
-        <path d="M18 220 Q24 160 62 140 L96 176 L130 140 Q168 160 174 220 Z" fill={INK} />
-        <path d="M62 140 L58 96 Q70 112 96 118 L96 176 Z" fill="#141414" />
-        <path d="M130 140 L134 96 Q122 112 96 118 L96 176 Z" fill="#111111" />
-        <ellipse cx="96" cy="94" rx="30" ry="26" fill={INK} />
-        <path d="M66 70 Q68 34 96 32 Q124 34 126 70 Z" fill={INK} />
-        <path d="M67 62 Q96 68 125 62 L126 70 Q96 76 66 70 Z" fill="#1E1E1E" />
-        <ellipse cx="96" cy="72" rx="62" ry="11" fill={INK} />
-        {/* Regard */}
-        <g className={working ? "spy-eyes-on" : ""}>
-          <g className="spy-blink" style={{ transformOrigin: "96px 92px" }}>
-            <path d="M80 92 Q86 87.5 92 92 Q86 94.5 80 92 Z" fill="#F4FFFD" />
-            <path d="M100 92 Q106 87.5 112 92 Q106 94.5 100 92 Z" fill="#F4FFFD" />
-          </g>
-        </g>
-      </g>
+    <div className={cx("relative shrink-0 select-none", className)}>
+      <div className={cx("absolute -inset-2 rounded-[34px] transition", working ? "bg-accent/25 animate-pulse" : "bg-transparent")} />
+      <div className="relative h-full w-full rounded-[28px] overflow-hidden shadow-[0_18px_40px_-14px_rgba(10,10,10,.45)] ring-1 ring-black/5">
+        <img src="/espion.jpg" alt="L'espionne de Bingoo!" className="absolute inset-0 h-full w-full object-cover" draggable={false} />
+        <svg viewBox="0 0 1254 1254" className="absolute inset-0 h-full w-full" aria-hidden>
+          <defs><linearGradient id="spy-lid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#B85F2A" /><stop offset="1" stopColor="#DF7B3B" /></linearGradient></defs>
+          {LIDS.map(([x, y, rx, ry], i) => (
+            <g key={i} className="lid" style={{ transformOrigin: `${x}px ${y - ry}px`, animationDuration: "5.2s", animationDelay: "-1.3s" }}>
+              <ellipse cx={x} cy={y} rx={rx + 6} ry={ry + 6} fill="url(#spy-lid)" />
+              <path d={`M${x - rx - 4} ${y + ry * 0.45}Q${x} ${y + ry * 1.15} ${x + rx + 4} ${y + ry * 0.45}`} stroke="#2A160C" strokeWidth="9" fill="none" strokeLinecap="round" />
+            </g>
+          ))}
+        </svg>
+        {working && <div className="absolute inset-x-0 h-1/3 spy-sweep pointer-events-none" style={{ background: "linear-gradient(180deg, rgba(224,83,31,0) 0%, rgba(224,83,31,.28) 50%, rgba(224,83,31,0) 100%)" }} />}
+        {working && <span className="absolute left-2.5 bottom-2.5 inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur px-2.5 py-1 text-[11px] font-semibold text-white"><span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />En mission</span>}
+      </div>
       {/* Loupe */}
-      <g className={working ? "spy-loupe-on" : "spy-loupe"}>
-        <line x1="166" y1="146" x2="186" y2="168" stroke={INK} strokeWidth="7" strokeLinecap="round" />
-        <line x1="166" y1="146" x2="186" y2="168" stroke="#3A3A3A" strokeWidth="3" strokeLinecap="round" />
-        <circle cx="152" cy="132" r="19" fill="url(#spy-glass)" stroke={INK} strokeWidth="4.5" />
-        <path d="M141 125 Q146 118 154 117" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" fill="none" opacity=".7" />
-      </g>
-    </svg>
+      <svg viewBox="0 0 80 80" className={cx("absolute -right-5 -bottom-4 w-[86px] h-[86px] drop-shadow-lg", working ? "spy-loupe-on" : "spy-loupe")} aria-hidden>
+        <line x1="50" y1="50" x2="72" y2="72" stroke="#0A0A0A" strokeWidth="9" strokeLinecap="round" />
+        <line x1="50" y1="50" x2="72" y2="72" stroke="#3A3A3A" strokeWidth="3.5" strokeLinecap="round" />
+        <circle cx="34" cy="34" r="22" fill="rgba(255,255,255,.35)" stroke="#0A0A0A" strokeWidth="6" />
+        <path d="M21 27 Q26 18 36 17" stroke="#fff" strokeWidth="3" strokeLinecap="round" fill="none" opacity=".85" />
+      </svg>
+    </div>
   );
 }
 
@@ -306,7 +287,7 @@ export default function EspionHub() {
           <p className="text-ink-soft mt-2 text-[16px]">Sachez ce que vos concurrents ignorent.</p>
           <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-line bg-paper/60 px-3 py-1.5 text-[13px]">
             <span className={cx("h-2 w-2 rounded-full", working && "animate-pulse")} style={{ background: working ? TEAL : "#9A9CA3" }} />
-            <span className="text-ink truncate max-w-[520px]">{busy ?? (recent ? "Oscar enquête en ce moment…" : `En veille · dernière enquête ${ago(last)}`)}</span>
+            <span className="text-ink truncate max-w-[520px]">{busy ?? (recent ? "Enquête en cours…" : `En veille · dernière enquête ${ago(last)}`)}</span>
           </p>
           <form onSubmit={add} className="mt-4 flex flex-col sm:flex-row gap-2 max-w-xl">
             <div className="flex-1 flex items-center gap-2 rounded-xl border border-line bg-paper/60 px-3 focus-within:border-accent/60">
@@ -315,7 +296,7 @@ export default function EspionHub() {
             </div>
             <button disabled={!!busy || !q.trim()} className="rounded-xl px-5 py-3 font-semibold text-white disabled:opacity-40 transition hover:brightness-110" style={{ background: TEAL }}>Enquêter</button>
           </form>
-          <Link to="/salaries" className="mt-3 inline-flex items-center gap-2 text-[13px] text-ink-soft hover:text-ink"><Ico n="chat" className="w-4 h-4" />Parler à Oscar, ton veilleur marché : « Qu'est-ce qui a changé chez mes concurrents cette semaine ? »</Link>
+          <Link to="/salaries" className="mt-3 inline-flex items-center gap-2 text-[13px] text-ink-soft hover:text-ink"><Ico n="chat" className="w-4 h-4" />Parler à l'équipe : « Qu'est-ce qui a changé chez mes concurrents cette semaine ? »</Link>
         </div>
         <div className="grid grid-cols-2 gap-2.5 lg:w-[300px]">
           {[[list.length, "concurrents suivis"], [moves, "mouvements repérés"], [weak, "faiblesses à exploiter"], [cards, "dossiers prêts"]].map(([n, l]) => (
