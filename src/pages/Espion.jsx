@@ -4,6 +4,7 @@ import { useWs } from "../lib/ws";
 import { Button, Card, Spinner, useToast } from "../components/ui";
 import { cx, fmtTime } from "../lib/utils";
 import { Ads, Analysis } from "./Competitors";
+import CompanyLogo from "../components/CompanyLogo";
 
 const TABS = [["vue", "Vue d'ensemble"], ["reseaux", "Réseaux sociaux"], ["pubs", "Publicités"], ["seo", "Site web & SEO"], ["position", "Positionnement"], ["battlecard", "Battlecard"]];
 const NET = { youtube: "YouTube", tiktok: "TikTok", instagram: "Instagram", linkedin: "LinkedIn", facebook: "Facebook", x: "X (Twitter)" };
@@ -296,7 +297,7 @@ export function CompetitorDesk({ embedded = false, focusId = null, onChanged }) 
         <div className="grid lg:grid-cols-[1fr_340px] gap-5 items-start">
           <div className="space-y-5 min-w-0">
             <Card className="p-5 flex flex-wrap items-center gap-4">
-              <img src={`https://www.google.com/s2/favicons?domain=${host(c.url)}&sz=64`} alt="" className="h-14 w-14 rounded-xl border border-line bg-white p-2" />
+              <CompanyLogo name={c.name || s?.nom} url={c.url} className="h-14 w-14 text-2xl" pad="p-2" />
               <div className="flex-1 min-w-[200px]">
                 <h2 className="text-2xl font-semibold">{c.name || s?.nom || host(c.url)}</h2>
                 <a href={c.url} target="_blank" rel="noreferrer" className="text-sm text-ink-soft hover:underline">{c.url.replace(/^https?:\/\//, "")}</a>

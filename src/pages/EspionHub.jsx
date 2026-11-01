@@ -5,6 +5,7 @@ import { useWs } from "../lib/ws";
 import { useToast } from "../components/ui";
 import { cx } from "../lib/utils";
 import { CompetitorDesk } from "./Espion";
+import CompanyLogo from "../components/CompanyLogo";
 
 // Espion : le centre de renseignement commercial. Cinq espaces, données sourcées uniquement.
 const TEAL = "#E0531F"; // accent Bingoo!
@@ -78,7 +79,7 @@ function Panel({ title, icon, right, children, className }) {
 }
 const Src = ({ href }) => href ? <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[11.5px] hover:underline" style={{ color: TEAL }}>{host(href)}<Ico n="ext" className="w-3 h-3" /></a> : null;
 const Empty = ({ children }) => <p className="text-sm text-ink-faint rounded-xl border border-dashed border-line p-5 text-center">{children}</p>;
-const Fav = ({ c, size = "w-10 h-10" }) => <img src={`https://www.google.com/s2/favicons?domain=${host(c.url)}&sz=64`} alt="" className={cx(size, "rounded-xl bg-white p-1.5 shrink-0")} />;
+const Fav = ({ c, size = "w-10 h-10" }) => <CompanyLogo name={nameOf(c)} url={c.url} className={size} />;
 
 function Threat({ n }) {
   const v = Number(n) || 0;
