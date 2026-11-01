@@ -24,6 +24,13 @@ const routes: Record<string, (b: Record<string, unknown>) => Promise<unknown>> =
     return out;
   },
   // Rappels de RDV pour tous, relance des devis pour les espaces en pilote automatique, synchronisation CRM
+  // Lecture seule de la boîte d'un espace (rebonds, réponses) : n'envoie rien, utile pour les tests contrôlés
+  async inbox(b: Record<string, unknown>) {
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
+    if (!ws) throw new HttpError(404, "Espace introuvable");
+    const base = ws.app_url ? `${String(ws.app_url).replace(/\/$/, "")}/#` : "";
+    return await pollInbox(ws, (w, p, input) => handleReply(w, p, input, base));
+  },
   async suivi() {
     const out: Record<string, unknown> = {};
     // Rebonds et réponses arrivés directement dans la boîte des clients (Gmail, OVH, IONOS, Zoho)
