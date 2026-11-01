@@ -7,6 +7,7 @@ import { Button, useToast } from "../components/ui";
 import { cx, plural } from "../lib/utils";
 import { fmtN } from "../lib/zones";
 import { Avatar, TEAM } from "./Salaries";
+import CompanyLogo from "../components/CompanyLogo";
 
 const I = {
   search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>,
@@ -104,13 +105,7 @@ function Priority({ icon, n, one, many, sub, empty, to, cta, img, hot }) {
   );
 }
 
-function Logo({ name, url }) {
-  const [bad, setBad] = useState(false);
-  const h = host(url);
-  const hue = [...(name || "?")].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
-  if (h && !bad) return <img src={`https://www.google.com/s2/favicons?domain=${h}&sz=64`} alt="" onError={() => setBad(true)} onLoad={(e) => e.currentTarget.naturalWidth < 20 && setBad(true)} className="w-10 h-10 rounded-xl border border-line bg-white p-1.5 object-contain shrink-0" />;
-  return <span className="w-10 h-10 rounded-xl grid place-items-center text-white font-black text-lg shrink-0" style={{ background: `hsl(${hue} 35% 22%)` }}>{(name || "?").trim()[0]?.toUpperCase()}</span>;
-}
+const Logo = ({ name, url }) => <CompanyLogo name={name} url={url} className="w-10 h-10 text-lg" />;
 
 function Detected({ rows, onPrepared }) {
   const { ws } = useWs();
