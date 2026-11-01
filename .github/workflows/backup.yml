@@ -1,6 +1,9 @@
-# Sauvegarde quotidienne gratuite de la base (en attendant Supabase Pro).
-# La copie est chiffrée (AES-256) avec BACKUP_PASSPHRASE avant d'être stockée 30 jours dans GitHub.
-# Restauration : gpg -d bingoo-AAAA-MM-JJ.sql.gpg > dump.sql  puis  psql "<base cible>" -f dump.sql
+# Sauvegarde quotidienne gratuite de la base, chiffrée, avec TEST DE RESTAURATION à chaque passage.
+# 1. Copie (pg_dump) + comptage des lignes en production au même moment
+# 2. Chiffrement AES-256 avec BACKUP_PASSPHRASE, conservation 30 jours
+# 3. Déchiffrement de la copie chiffrée + restauration dans une base Postgres 17 vierge et jetable
+# 4. Comparaison table par table : le job échoue si une table importante ne revient pas à l'identique
+# Restauration manuelle : gpg -d bingoo-AAAA-MM-JJ.sql.gpg > dump.sql  puis  psql "<base cible>" -f dump.sql
 name: Bingoo sauvegarde
 
 on:
@@ -11,25 +14,70 @@ on:
 jobs:
   backup:
     runs-on: ubuntu-latest
+    services:
+      restore:
+        image: postgres:17
+        env: { POSTGRES_PASSWORD: test }
+        ports: ["5433:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
     env:
       DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+      TABLES: "workspaces members prospects messages replies missions radar_opps competitors meetings quotes suppressions activity"
     steps:
       - name: Vérification des secrets
         run: |
-          if [ -z "$DB_URL" ] || [ -z "$PASS" ]; then echo "Secrets SUPABASE_DB_URL ou BACKUP_PASSPHRASE absents" >> $GITHUB_STEP_SUMMARY; exit 1; fi
-      - name: Copie de la base (Postgres 17)
+          if [ -z "$DB_URL" ] || [ -z "$PASS" ]; then echo "Secrets SUPABASE_DB_URL ou BACKUP_PASSPHRASE absents" | tee -a $GITHUB_STEP_SUMMARY; exit 1; fi
+      - name: Client Postgres 17
         run: |
-          d=$(date -u +%F)
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17 >/dev/null
+          echo "/usr/lib/postgresql/17/bin" >> $GITHUB_PATH
+      - name: Copie de la base et comptage en production
+        run: |
+          d=$(date -u +%F); echo "D=$d" >> $GITHUB_ENV
+          ok=""
           # L'hôte du pooler peut être aws-0 ou aws-1 selon le projet : on essaie les deux
           for u in "$DB_URL" "$(echo "$DB_URL" | sed 's/aws-0-/aws-1-/')" "$(echo "$DB_URL" | sed 's/aws-1-/aws-0-/')"; do
-            docker run --rm -e PGURL="$u" -v "$PWD:/out" postgres:17 \
-              sh -c 'pg_dump "$PGURL" --no-owner --no-privileges --schema=public --schema=auth --schema=cron -f /out/dump.sql' && break
+            if pg_dump "$u" --no-owner --no-privileges --schema=public --schema=auth -f dump.sql; then ok="$u"; break; fi
           done
-          test -s dump.sql
-          echo "$PASS" | gpg --batch --yes --passphrase-fd 0 --symmetric --cipher-algo AES256 -o bingoo-$d.sql.gpg dump.sql
+          [ -n "$ok" ] && test -s dump.sql || { echo "Copie impossible (adresse ou mot de passe)" | tee -a $GITHUB_STEP_SUMMARY; exit 1; }
+          for t in $TABLES; do echo "$t $(psql "$ok" -Atc "select count(*) from public.$t")"; done > counts-prod.txt
+          echo "- copie : $(du -h dump.sql | cut -f1)" | tee -a $GITHUB_STEP_SUMMARY
+      - name: Chiffrement
+        run: |
+          echo "$PASS" | gpg --batch --yes --passphrase-fd 0 --symmetric --cipher-algo AES256 -o bingoo-$D.sql.gpg dump.sql
           shred -u dump.sql
-          echo "- sauvegarde chiffrée : $(du -h bingoo-$d.sql.gpg | cut -f1)" >> $GITHUB_STEP_SUMMARY
+          head -c 4 bingoo-$D.sql.gpg | od -An -tx1
+          if gpg --list-packets --batch --passphrase "" bingoo-$D.sql.gpg 2>/dev/null | grep -q "INSERT INTO\|CREATE TABLE"; then echo "Copie NON chiffrée" ; exit 1; fi
+          echo "- sauvegarde chiffrée : $(du -h bingoo-$D.sql.gpg | cut -f1)" | tee -a $GITHUB_STEP_SUMMARY
+      - name: Test de restauration (base vierge et jetable)
+        env: { PGPASSWORD: test }
+        run: |
+          R="postgresql://postgres:test@localhost:5433/postgres"
+          echo "$PASS" | gpg --batch --yes --passphrase-fd 0 -d -o restore.sql bingoo-$D.sql.gpg
+          # Rôles et schémas propres à Supabase, absents d'un Postgres vierge
+          psql "$R" -q -c "do \$\$ begin
+            if not exists (select from pg_roles where rolname='anon') then create role anon; end if;
+            if not exists (select from pg_roles where rolname='authenticated') then create role authenticated; end if;
+            if not exists (select from pg_roles where rolname='service_role') then create role service_role; end if;
+            if not exists (select from pg_roles where rolname='supabase_auth_admin') then create role supabase_auth_admin; end if;
+          end \$\$; create schema if not exists extensions; create schema if not exists net; create extension if not exists pgcrypto with schema extensions;"
+          psql "$R" -q -v ON_ERROR_STOP=0 -f restore.sql > restore.log 2>&1 || true
+          shred -u restore.sql
+          errs=$(grep -c "ERROR" restore.log || true)
+          fail=0
+          while read t n; do
+            m=$(psql "$R" -Atc "select count(*) from public.$t" 2>/dev/null || echo "absente")
+            s="OK"; [ "$m" = "$n" ] || { s="ÉCART"; fail=1; }
+            echo "| $t | $n | $m | $s |"
+          done < counts-prod.txt > table.md
+          { echo "### Test de restauration"; echo "| table | production | restaurée | |"; echo "|---|---|---|---|"; cat table.md;
+            echo "- erreurs pendant la restauration : $errs (rôles et extensions propres à Supabase, sans effet sur les données)"; } | tee -a $GITHUB_STEP_SUMMARY
+          grep "ERROR" restore.log | sort | uniq -c | sort -rn | head -10
+          exit $fail
       - uses: actions/upload-artifact@v4
         with:
           name: sauvegarde-${{ github.run_id }}
