@@ -11,6 +11,7 @@ const KIND = {
   appel_offres: { label: "Appel d'offres", plural: "Appels d'offres", dot: "#F26B2A", chip: "bg-accent-soft text-accent-dark", icon: "doc" },
   croissance: { label: "En croissance", plural: "En croissance", dot: "#22A06B", chip: "bg-good-soft text-good", icon: "up" },
   recrutement: { label: "Recrute en ce moment", plural: "Qui recrutent", dot: "#3B82F6", chip: "bg-[#E3EDFD] text-[#1D5BD6]", icon: "users" },
+  besoin: { label: "Cherche une solution", plural: "Besoins exprimés", dot: "#8B5CF6", chip: "bg-[#EDE9FE] text-[#6D28D9]", icon: "bulb" },
 };
 const SWEEP = 6; // secondes par tour
 
@@ -245,11 +246,21 @@ function Detail({ o, onClose, onChange }) {
           </div>
         </div>
 
-        {o.kind !== "appel_offres" && <ContactReady o={o} onChange={onChange} />}
+        {o.kind === "besoin" && (
+          <div className="mt-6 rounded-2xl border border-[#DDD6FE] bg-[#F5F3FF] p-4 text-sm space-y-1.5">
+            <p className="font-semibold text-[#6D28D9]">Demande publique repérée par Espion</p>
+            {o.raw?.auteur && <p><span className="text-ink-soft">Auteur : </span>{o.raw.auteur}</p>}
+            {o.raw?.intention && <p><span className="text-ink-soft">Intention : </span>{o.raw.intention}</p>}
+            {o.raw?.fiabilite && <p><span className="text-ink-soft">Fiabilité : </span>{o.raw.fiabilite}{o.raw?.pertinence ? ` · pertinence ${o.raw.pertinence}/100` : ""}</p>}
+            <p className="text-ink-faint text-xs pt-1">Réponds directement là où la demande a été publiée, en restant utile plutôt que commercial.</p>
+          </div>
+        )}
+        {o.kind !== "appel_offres" && o.kind !== "besoin" && <ContactReady o={o} onChange={onChange} />}
 
         <div className="mt-8 flex flex-col gap-2">
           {o.kind === "appel_offres"
             ? <a href={o.url} target="_blank" rel="noreferrer"><Button variant="accent" className="w-full">Lire l'avis complet</Button></a>
+            : o.kind === "besoin" ? <a href={o.url} target="_blank" rel="noreferrer"><Button variant="accent" className="w-full">Ouvrir la demande</Button></a>
             : o.prospect_id ? <Button className="w-full" onClick={() => nav("/prospects")}>Voir dans mes prospects</Button> : null}
           {o.status !== "suivi" && o.kind === "appel_offres" && <Button variant="ghost" className="w-full" loading={busy === "suivi"} onClick={() => set("suivi")}>Suivre cet appel d'offres</Button>}
           {o.status !== "ecarte" && <Button variant="ghost" className="w-full" loading={busy === "ecarte"} onClick={() => set("ecarte")}>Écarter</Button>}
@@ -437,7 +448,7 @@ export default function Radar() {
     ? `${closing.length} appel${closing.length > 1 ? "s" : ""} d'offres ferme${closing.length > 1 ? "nt" : ""} dans moins de 10 jours : décide maintenant d'y répondre ou non.`
     : fresh.length ? `${fresh.length} entreprise${fresh.length > 1 ? "s" : ""} en mouvement ne ${fresh.length > 1 ? "sont" : "est"} pas encore dans ta prospection : un message pendant leur changement a plus de chances d'être lu.`
     : list.length ? "Tout est traité. Max relance l'analyse chaque matin de semaine." : "Lance une première analyse : le Radar cherche les appels d'offres de ta zone et les entreprises qui recrutent ou se développent.";
-  const tabs = [["all", `Toutes (${list.length})`], ["recrutement", `Qui recrutent (${count("recrutement")})`], ["croissance", `En croissance (${count("croissance")})`], ["appel_offres", `Appels d'offres (${count("appel_offres")})`]];
+  const tabs = [["all", `Toutes (${list.length})`], ["recrutement", `Qui recrutent (${count("recrutement")})`], ["croissance", `En croissance (${count("croissance")})`], ["appel_offres", `Appels d'offres (${count("appel_offres")})`], ...(count("besoin") ? [["besoin", `Besoins exprimés (${count("besoin")})`]] : [])];
   const active = STEPS.filter(([k]) => prog?.steps?.[k]?.s !== "saute");
   const done = active.filter(([k]) => ["fait", "erreur"].includes(prog?.steps?.[k]?.s)).length;
   const pct = live ? Math.max(6, Math.round((done / Math.max(1, active.length)) * 100)) : 100;

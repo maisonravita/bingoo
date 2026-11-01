@@ -84,18 +84,21 @@ async function fromSite(site: string, person: string, company = "", rivals: Riva
 }
 
 /** Concurrents suivis par Espion : nom propre, domaine, argumentaire (battlecard). Cache par espace. */
-type Rival = { name: string; host: string; pitch: string; objections: { objection: string; reponse: string }[] };
+type Rival = { name: string; host: string; pitch: string; objections: { objection: string; reponse: string }[]; weak?: string[]; questions?: string[]; opps?: string[] };
 const RIVALS = new Map<string, Promise<Rival[]>>();
 export function rivalsOf(wsId: string): Promise<Rival[]> {
   if (!RIVALS.has(wsId)) RIVALS.set(wsId, (async () => {
-    const { data } = await admin.from("competitors").select("name, url, summary").eq("workspace_id", wsId).limit(20);
+    const { data } = await admin.from("competitors").select("name, url, summary, status").eq("workspace_id", wsId).neq("status", "ecarte").neq("status", "propose").limit(20);
     return (data ?? []).map((c) => {
       const host = hostOf(c.url ?? "");
-      const sum = (c.summary ?? {}) as { nom?: string; battlecard?: { pitch?: string; objections?: { objection: string; reponse: string }[] } };
+      const sum = (c.summary ?? {}) as { nom?: string; battlecard?: { pitch?: string; objections?: { objection: string; reponse: string }[]; questions_pieges?: string[] }; faiblesses?: { texte?: string; type?: string }[]; opportunites?: string[] };
       const raw = String(sum.nom || c.name || "");
       const label = host.split(".")[0] ?? "";
       const name = raw && raw.length <= 30 && !/[≠(]/.test(raw) ? raw : label.charAt(0).toUpperCase() + label.slice(1);
-      return { name, host, pitch: String(sum.battlecard?.pitch ?? "").slice(0, 500), objections: (sum.battlecard?.objections ?? []).slice(0, 4) };
+      const clean = (x: unknown) => String(x ?? "").replace(/<\/?cite[^>]*>/g, "").trim();
+      return { name, host, pitch: clean(sum.battlecard?.pitch).slice(0, 500), objections: (sum.battlecard?.objections ?? []).slice(0, 4),
+        weak: (sum.faiblesses ?? []).filter((f) => f.type !== "hypothese").map((f) => clean(f.texte)).filter(Boolean).slice(0, 2),
+        questions: (sum.battlecard?.questions_pieges ?? []).map(clean).slice(0, 2), opps: (sum.opportunites ?? []).map(clean).slice(0, 6) };
     }).filter((r) => r.host);
   })());
   return RIVALS.get(wsId)!;
@@ -195,13 +198,21 @@ Règles absolues :
 }
 
 /** Comprendre → Agir : ce que la veille Espion apporte à l'e-mail. */
+/** Dossier Espion du prospect : concurrent probablement utilisé, ses faiblesses vérifiées, l'objection à prévoir, l'angle à prendre.
+ *  Transmis à Hugo pour l'e-mail, et gardé sur la fiche du prospect. Aucune IA en plus : tout vient des rapports d'Espion. */
 async function rivalBrief(wsId: string, p: Prospect) {
   const rivals = (await rivalsOf(wsId)).filter((r) => r.pitch);
   if (!rivals.length) return "";
   const used = (p.signals ?? []).find((x) => x.type === "concurrent");
   const r = used ? rivals.find((x) => x.host === (used as Signal).value) : null;
-  if (r) return `Le prospect utilise déjà ${r.name}. Notre positionnement face à ${r.name} (veille Espion ; ne le dénigre jamais) : ${r.pitch}\n`;
-  return `Ce qui nous distingue des alternatives du marché (veille Espion ; utilise-le comme angle si c'est pertinent, sans citer de concurrent) : ${rivals.slice(0, 2).map((x) => x.pitch).join(" / ")}\n`;
+  const words = `${p.activity ?? ""} ${p.name ?? ""}`.toLowerCase().split(/[^a-zà-ÿ0-9]+/).filter((w) => w.length > 4);
+  const opp = rivals.flatMap((x) => x.opps ?? []).find((o) => words.some((w) => o.toLowerCase().includes(w))) ?? "";
+  const dossier = r
+    ? { concurrent: r.name, angle: r.pitch, faiblesses: r.weak ?? [], objection: r.objections?.[0] ?? null, question: r.questions?.[0] ?? "", at: new Date().toISOString() }
+    : { concurrent: "", angle: rivals.slice(0, 2).map((x) => x.pitch).join(" / "), faiblesses: [], objection: null, question: "", opportunite: opp, at: new Date().toISOString() };
+  await admin.from("prospects").update({ insight: { ...((p.insight as Record<string, unknown>) ?? {}), espion: dossier } }).eq("id", p.id);
+  if (r) return `DOSSIER ESPION — le prospect utilise déjà ${r.name} (repéré sur son site). Notre positionnement face à ${r.name} : ${r.pitch}${r.weak?.length ? `\nLimites vérifiées de ${r.name} (à évoquer en creux, sans jamais le citer ni le dénigrer) : ${r.weak.join(" ; ")}` : ""}${r.objections?.[0] ? `\nObjection probable : « ${r.objections[0].objection} » — réponse prévue : ${r.objections[0].reponse}` : ""}\n`;
+  return `DOSSIER ESPION — ce qui nous distingue des alternatives du marché (utilise-le comme angle si c'est pertinent, sans citer de concurrent) : ${dossier.angle}${opp ? `\nOpportunité repérée pour ce type d'entreprise : ${opp}` : ""}\n`;
 }
 
 export async function draft(ws: Workspace, p: Prospect) {

@@ -27,7 +27,7 @@ const Ico = ({ n, className = "w-5 h-5", fill }) => <svg viewBox="0 0 24 24" cla
 
 // Temps qu'un commercial passerait sur chaque action faite par l'équipe (estimation affichée comme telle)
 const MINUTES = { recherche: 20, enquete: 8, enquete_plus: 12, redaction: 10, envoi: 1, reponse: 5, radar: 5, radar_scan: 20, veille: 30, espion: 15, analyse: 30, linkedin: 6, rdv: 20, brief: 15, devis: 15, script: 10, intelligence: 20 };
-const KIND = { recrutement: "Recrute", croissance: "Se développe", appel_offres: "Appel d'offres" };
+const KIND = { recrutement: "Recrute", croissance: "Se développe", appel_offres: "Appel d'offres", besoin: "Cherche une solution" };
 const ago = (d) => { const h = Math.round((Date.now() - new Date(d).getTime()) / 36e5); return h < 1 ? "à l'instant" : h < 24 ? `il y a ${h} h` : `il y a ${Math.round(h / 24)} j`; };
 const short = (d) => { const m = Math.round((Date.now() - new Date(d).getTime()) / 6e4); return m < 60 ? `Actif · ${m} min` : `Actif · ${Math.round(m / 60)} h`; };
 const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
@@ -137,7 +137,7 @@ function Detected({ rows, onPrepared }) {
                 <p className="text-[13px] text-ink-soft line-clamp-2 leading-snug">{o.summary}</p>
                 <p className="text-[11.5px] text-ink-faint mt-0.5"><span className="sm:hidden font-semibold text-accent-dark">{KIND[o.kind] ?? o.kind} · </span>{[o.city, ago(o.created_at)].filter(Boolean).join(" · ")}</p>
               </Link>
-              {o.kind !== "appel_offres" && (
+              {o.kind !== "appel_offres" && o.kind !== "besoin" && (
                 <button onClick={() => prepare(o)} disabled={!!busy} title="Sam trouve le contact, Hugo écrit l'e-mail (rien n'est envoyé)"
                   className="shrink-0 rounded-full bg-accent-soft text-accent-dark px-3 py-1.5 text-[12.5px] font-semibold hover:bg-accent hover:text-white transition disabled:opacity-50">
                   {busy === o.id ? "Préparation…" : "Préparer"}

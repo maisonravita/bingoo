@@ -59,16 +59,59 @@ function TrialBar({ ws }) {
   );
 }
 
-/** Haut de page : essai, cloche des réponses, accès à son compte. */
+/** Haut de page : essai, cloche (réponses + alertes Espion), accès à son compte. */
+const SEEN_KEY = (id) => `bingoo:alerts-seen:${id}`;
+const getSeen = (id) => { try { return localStorage.getItem(SEEN_KEY(id)) ?? ""; } catch { return ""; } };
+const setSeen = (id) => { try { localStorage.setItem(SEEN_KEY(id), new Date().toISOString()); } catch { /* navigation privée */ } };
+function Bell({ ws, replies }) {
+  const loc = useLocation();
+  const [open, setOpen] = useState(false);
+  const [alerts, setAlerts] = useState([]);
+  const [seen, setSeenState] = useState(() => getSeen(ws.id));
+  useEffect(() => {
+    let alive = true;
+    const load = () => supabase.from("activity").select("id, summary, created_at").eq("workspace_id", ws.id).eq("kind", "espion_alerte").gte("created_at", new Date(Date.now() - 14 * 864e5).toISOString()).order("created_at", { ascending: false }).limit(8).then(({ data }) => alive && setAlerts(data ?? []));
+    load(); const t = setInterval(load, 60000);
+    return () => { alive = false; clearInterval(t); };
+  }, [ws.id]);
+  useEffect(() => { if (loc.pathname.startsWith("/espion")) { setSeen(ws.id); setSeenState(getSeen(ws.id)); } setOpen(false); }, [loc.pathname, ws.id]);
+  const fresh = alerts.filter((a) => !seen || a.created_at > seen).length;
+  const total = (replies ?? 0) + fresh;
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen((x) => !x)} title={total ? `${total} nouveauté${total > 1 ? "s" : ""}` : "Rien de nouveau"} className="relative w-10 h-10 rounded-full grid place-items-center text-ink-soft hover:text-ink hover:bg-white transition">
+        <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 21h4" /></svg>
+        {total > 0 && <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-accent text-white text-[10.5px] font-bold grid place-items-center ring-2 ring-paper">{total > 9 ? "9+" : total}</span>}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-12 z-40 w-[340px] rounded-2xl border border-line bg-white shadow-xl p-2">
+            <NavLink to="/reponses" className="flex items-center justify-between rounded-xl px-3 py-2.5 hover:bg-paper">
+              <span className="text-[14px] font-semibold">Réponses de prospects</span>
+              <span className={cx("text-[12.5px] font-semibold", replies ? "text-accent" : "text-ink-faint")}>{replies ? `${replies} à traiter` : "aucune"}</span>
+            </NavLink>
+            <div className="border-t border-line my-1" />
+            <p className="px-3 pt-1.5 pb-1 text-[11px] font-bold uppercase tracking-wider text-ink-faint">Alertes Espion</p>
+            {!alerts.length ? <p className="px-3 pb-2.5 text-[13px] text-ink-faint">Aucun changement important ces 14 derniers jours.</p> : alerts.map((a) => (
+              <NavLink key={a.id} to="/espion" className="flex gap-2.5 rounded-xl px-3 py-2 hover:bg-paper">
+                <span className={cx("mt-1.5 h-2 w-2 rounded-full shrink-0", !seen || a.created_at > seen ? "bg-accent" : "bg-line")} />
+                <span className="min-w-0"><span className="block text-[13px] text-ink leading-snug line-clamp-2">{a.summary}</span><span className="block text-[11.5px] text-ink-faint mt-0.5">{new Date(a.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</span></span>
+              </NavLink>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function TopBar({ ws, replies }) {
   const who = (ws.sender_name || ws.profile?.nom || ws.name || "?").trim();
   return (
     <div className="hidden md:flex items-center gap-4 mb-6">
       {ws.plan === "essai" ? <TrialBar ws={ws} /> : <div className="flex-1" />}
-      <NavLink to="/reponses" title={replies ? `${replies} réponse${replies > 1 ? "s" : ""} à traiter` : "Aucune réponse en attente"} className="relative w-10 h-10 rounded-full grid place-items-center text-ink-soft hover:text-ink hover:bg-white transition">
-        <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 21h4" /></svg>
-        {replies > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-accent ring-2 ring-paper" />}
-      </NavLink>
+      <Bell ws={ws} replies={replies} />
       <NavLink to="/reglages" title="Réglages" className="w-11 h-11 rounded-full bg-ink text-white grid place-items-center font-bold text-[15px] hover:ring-4 hover:ring-accent-soft transition">{who[0].toUpperCase()}</NavLink>
     </div>
   );

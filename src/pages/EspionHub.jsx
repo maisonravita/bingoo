@@ -266,42 +266,179 @@ function Watch({ rows }) {
   );
 }
 
-/* 3. Besoins détectés : insatisfactions chez leurs clients (avis) ; demandes publiques à venir */
-function Needs({ rows }) {
-  const weak = rows.flatMap((c) => (c.summary?.faiblesses ?? []).map((f) => ({ c, t: txt(f), src: srcOf(f), fact: f?.type !== "hypothese" })));
-  const reviews = rows.filter((c) => c.summary?.avis?.clients);
+/* 3. Besoins détectés : demandes publiques (sources autorisées, sans nom de personne) + insatisfactions mesurées */
+const FIAB = { haute: "text-good", moyenne: "text-[#B45309]", faible: "text-ink-faint" };
+const INTENT = { recherche: "Cherche un prestataire", remplacement: "Veut changer de fournisseur", recommandation: "Demande une recommandation", projet: "Projet annoncé" };
+function PublicNeeds({ ws }) {
+  const toast = useToast();
+  const [list, setList] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(() => supabase.from("radar_opps").select("*").eq("workspace_id", ws.id).eq("kind", "besoin").neq("status", "ecarte").order("created_at", { ascending: false }).limit(40).then(({ data }) => setList(data ?? [])), [ws.id]);
+  useEffect(() => { load(); }, [load]);
+  const search = async () => {
+    setBusy(true);
+    try { const r = await fn("r/spy-needs", { workspace_id: ws.id }); await load(); toast(r?.found ? `${r.found} besoin${r.found > 1 ? "s" : ""} trouvé${r.found > 1 ? "s" : ""}` : "Rien de solide trouvé cette fois : l'espionne recommencera la semaine prochaine", r?.found ? "good" : undefined); }
+    catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
+  };
+  const drop = async (o) => { await supabase.from("radar_opps").update({ status: "ecarte" }).eq("id", o.id); setList((x) => x.filter((y) => y.id !== o.id)); };
+  const sorted = (list ?? []).slice().sort((a, b) => (b.raw?.pertinence ?? 0) - (a.raw?.pertinence ?? 0));
   return (
-    <div className="grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-4">
-      <Panel title="Insatisfactions chez leurs clients" icon="eye" right={<span className="text-[12px] text-ink-faint">{weak.length} repérées</span>}>
-        {!weak.length ? <Empty>Rien de repéré pour l'instant.</Empty> : (
-          <ul className="space-y-2.5">
-            {weak.slice(0, 14).map((w, i) => (
-              <li key={i} className="rounded-xl border border-line bg-paper/60 p-3">
-                <div className="flex items-center gap-2 text-[12px]"><span className="rounded-full bg-paper px-2 py-0.5 text-ink-soft">{nameOf(w.c)}</span><span className={w.fact ? "text-accent" : "text-[#FBBF24]"}>{w.fact ? "Fait sourcé" : "Hypothèse"}</span></div>
-                <p className="text-[13.5px] text-ink mt-1.5 leading-snug">{w.t}</p>
-                {w.src && <div className="mt-1"><Src href={w.src} /></div>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </Panel>
-      <div className="space-y-4 min-w-0">
-        <Panel title="Ce que disent leurs clients" icon="chat">
-          {!reviews.length ? <Empty>Aucun avis analysé.</Empty> : reviews.map((c) => (
-            <div key={c.id} className="mb-3 last:mb-0"><p className="text-[12.5px] font-semibold text-ink">{nameOf(c)}</p><p className="text-[13px] text-ink-soft mt-0.5 line-clamp-4 leading-snug">{txt(c.summary.avis.clients)}</p></div>
+    <Panel title="Entreprises qui cherchent une solution" icon="search" right={<button onClick={search} disabled={busy} className="rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-white disabled:opacity-50" style={{ background: TEAL }}>{busy ? "Recherche… (1 à 2 min)" : "Chercher maintenant"}</button>}>
+      <p className="text-[12.5px] text-ink-soft -mt-1 mb-3 leading-snug">Demandes publiques de moins de 60 jours : forums, communautés pro, sites de devis, presse. Jamais de nom de personne, seulement sa fonction. Pas de LinkedIn automatisé. Recherche automatique chaque semaine.</p>
+      {!list ? <p className="text-sm text-ink-faint">Chargement…</p> : !sorted.length ? <Empty>Aucune demande publique repérée pour l'instant. Lance une recherche ou attends la prochaine nuit.</Empty> : (
+        <ul className="space-y-2.5">
+          {sorted.map((o) => (
+            <li key={o.id} className="rounded-xl border border-line bg-paper/60 p-3.5">
+              <div className="flex flex-wrap items-center gap-2 text-[12px]">
+                <span className="rounded-full bg-[#EDE9FE] text-[#6D28D9] px-2 py-0.5 font-semibold">{INTENT[o.raw?.intention] ?? "Besoin exprimé"}</span>
+                {o.raw?.pertinence ? <span className="font-bold tnum" style={{ color: TEAL }}>{o.raw.pertinence}/100</span> : null}
+                {o.raw?.fiabilite && <span className={FIAB[o.raw.fiabilite] ?? "text-ink-faint"}>Fiabilité {o.raw.fiabilite}</span>}
+                <span className="text-ink-faint ml-auto">{o.published ? dateFr(o.published) : ago(o.created_at)}</span>
+              </div>
+              <p className="text-[14px] text-ink font-medium mt-1.5 leading-snug">{o.title}</p>
+              <p className="text-[12.5px] text-ink-soft mt-0.5">{[o.company, o.raw?.auteur, o.city].filter(Boolean).join(" · ")}</p>
+              {o.why && <p className="text-[13px] mt-2 leading-snug"><span className="font-semibold" style={{ color: TEAL }}>Comment l'aborder : </span>{o.why}</p>}
+              <div className="mt-2 flex items-center gap-3"><Src href={o.url} /><button onClick={() => drop(o)} className="text-[12px] text-ink-faint hover:text-ink ml-auto">Écarter</button></div>
+            </li>
           ))}
-        </Panel>
-        <Panel title="Demandes publiques de prestataires" icon="search">
-          <p className="text-[13px] text-ink-soft leading-snug">Bientôt, l'espion repérera les entreprises qui cherchent un prestataire ou une alternative à tes concurrents, sur les sources publiques autorisées, avec la source, la date et la fiabilité de chaque demande.</p>
-          <p className="text-[12px] text-ink-faint mt-2">En attendant, le <Link to="/radar" className="underline" style={{ color: TEAL }}>Radar</Link> détecte déjà les entreprises qui recrutent ou grandissent.</p>
-        </Panel>
-      </div>
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
+/** Insatisfaction mesurée : les avis négatifs comptés par thème, avec période et source. */
+function Dissatisfaction({ rows }) {
+  const items = rows.flatMap((c) => (c.summary?.insatisfactions ?? []).map((x) => ({ c, ...x, n: Number(x.nombre_avis) || 0 }))).sort((a, b) => b.n - a.n);
+  const max = Math.max(1, ...items.map((x) => x.n));
+  const weak = rows.flatMap((c) => (c.summary?.faiblesses ?? []).map((f) => ({ c, t: txt(f), src: srcOf(f), fact: f?.type !== "hypothese" })));
+  return (
+    <Panel title="Insatisfaction mesurée chez leurs clients" icon="eye" right={<span className="text-[12px] text-ink-faint">{items.length ? `${items.reduce((n, x) => n + x.n, 0)} avis négatifs comptés` : `${weak.length} faiblesses`}</span>}>
+      {items.length ? (
+        <div className="overflow-x-auto -mx-1"><table className="w-full text-[13px] min-w-[560px]">
+          <thead><tr className="text-left text-[11.5px] uppercase tracking-wider text-ink-faint"><th className="px-1 pb-2 font-semibold">Thème</th><th className="px-1 pb-2 font-semibold">Concurrent</th><th className="px-1 pb-2 font-semibold w-[150px]">Avis</th><th className="px-1 pb-2 font-semibold">Période</th><th className="px-1 pb-2 font-semibold">Ta réponse</th></tr></thead>
+          <tbody>{items.slice(0, 16).map((x, i) => (
+            <tr key={i} className="border-t border-line align-top">
+              <td className="px-1 py-2.5 font-semibold text-ink">{txt(x.theme)}{x.exemples && <p className="font-normal text-[12px] text-ink-faint mt-0.5 line-clamp-2">« {txt(Array.isArray(x.exemples) ? x.exemples[0] : x.exemples)} »</p>}</td>
+              <td className="px-1 py-2.5 text-ink-soft">{nameOf(x.c)}</td>
+              <td className="px-1 py-2.5"><div className="flex items-center gap-2"><span className="h-2 rounded-full" style={{ width: `${Math.max(8, (x.n / max) * 90)}px`, background: x.n >= 3 ? TEAL : "#D6D3CB" }} /><span className="tnum font-semibold">{x.n}</span></div>{x.n < 3 && <p className="text-[11px] text-ink-faint">signal faible</p>}</td>
+              <td className="px-1 py-2.5 text-ink-soft">{txt(x.periode) || "—"}</td>
+              <td className="px-1 py-2.5 text-ink leading-snug">{txt(x.notre_reponse) || "—"}{x.sources && <div className="mt-1"><Src href={String(Array.isArray(x.sources) ? x.sources[0] : x.sources).split(/\s*;\s*/)[0]} /></div>}</td>
+            </tr>
+          ))}</tbody>
+        </table></div>
+      ) : !weak.length ? <Empty>Rien de mesuré pour l'instant. Le comptage des avis arrive avec le prochain rapport complet de chaque concurrent.</Empty> : (
+        <>
+          <p className="text-[12.5px] text-ink-faint mb-3">Le comptage par thème arrive avec le prochain rapport de nuit. En attendant, les faiblesses repérées :</p>
+          <ul className="space-y-2.5">{weak.slice(0, 10).map((w, i) => (
+            <li key={i} className="rounded-xl border border-line bg-paper/60 p-3">
+              <div className="flex items-center gap-2 text-[12px]"><span className="rounded-full bg-paper px-2 py-0.5 text-ink-soft">{nameOf(w.c)}</span><span className={w.fact ? "text-accent" : "text-[#B45309]"}>{w.fact ? "Fait sourcé" : "Hypothèse"}</span></div>
+              <p className="text-[13.5px] text-ink mt-1.5 leading-snug">{w.t}</p>{w.src && <div className="mt-1"><Src href={w.src} /></div>}
+            </li>
+          ))}</ul>
+        </>
+      )}
+    </Panel>
+  );
+}
+
+function Needs({ rows, ws }) {
+  return <div className="space-y-4"><PublicNeeds ws={ws} /><Dissatisfaction rows={rows} /></div>;
+}
+
+/* 4a. Toi contre tous : une ligne par concurrent, les mêmes critères pour tous */
+const short = (x, n = 70) => { const t = txt(x).replace(/\s+/g, " "); return !t || /^non (trouvé|affichés?|visible)/i.test(t) ? "" : t.length > n ? `${t.slice(0, n - 1)}…` : t; };
+function VersusAll({ rows }) {
+  const done = rows.filter((c) => c.summary);
+  if (!done.length) return null;
+  const score = (c) => { const cmp = c.summary.comparatif ?? []; return [cmp.filter((r) => r.avantage === "nous").length, cmp.filter((r) => r.avantage === "eux").length]; };
+  const crit = {};
+  done.forEach((c) => (c.summary.comparatif ?? []).forEach((r) => { const k = String(r.critere ?? "").trim().toLowerCase(); if (!k) return; crit[k] ??= { label: r.critere, nous: 0, eux: 0, egal: 0, who: [] }; const a = ["nous", "eux"].includes(r.avantage) ? r.avantage : "egal"; crit[k][a]++; if (a === "eux") crit[k].who.push(nameOf(c)); }));
+  const crits = Object.values(crit).sort((a, b) => (b.nous + b.eux + b.egal) - (a.nous + a.eux + a.egal)).slice(0, 8);
+  const Cell = ({ v }) => v ? <span className="text-ink">{v}</span> : <span className="text-ink-faint">inconnu</span>;
+  return (
+    <Panel title="Toi contre tous" icon="shield" right={<span className="text-[12px] text-ink-faint">{done.length} concurrent{done.length > 1 ? "s" : ""} comparé{done.length > 1 ? "s" : ""}</span>}>
+      <div className="overflow-x-auto -mx-1"><table className="w-full text-[13px] min-w-[820px]">
+        <thead><tr className="text-left text-[11.5px] uppercase tracking-wider text-ink-faint">
+          {["Concurrent", "Menace", "Position", "Prix", "Taille", "Chiffre d'affaires", "Avis clients", "Comment ils vendent", "Toi / eux"].map((h) => <th key={h} className="px-1.5 pb-2 font-semibold whitespace-nowrap">{h}</th>)}
+        </tr></thead>
+        <tbody>{done.map((c) => { const S = c.summary, v = POS[S.position?.verdict] ?? POS.inconnu, [w, l] = score(c); return (
+          <tr key={c.id} className="border-t border-line align-top">
+            <td className="px-1.5 py-2.5"><div className="flex items-center gap-2"><Fav c={c} size="w-7 h-7" /><span className="font-semibold text-ink whitespace-nowrap">{nameOf(c)}</span></div></td>
+            <td className="px-1.5 py-2.5"><Threat n={S.menace?.niveau} /></td>
+            <td className="px-1.5 py-2.5"><span className={cx("rounded-full px-2 py-0.5 text-[11.5px] font-semibold whitespace-nowrap", v[1])}>{v[0]}</span></td>
+            <td className="px-1.5 py-2.5 max-w-[150px]"><Cell v={short(S.prix?.affiches, 50)} /></td>
+            <td className="px-1.5 py-2.5 max-w-[110px]"><Cell v={short(S.fiche?.effectif, 30)} /></td>
+            <td className="px-1.5 py-2.5 max-w-[140px]"><Cell v={short(S.fiche?.chiffre_affaires, 45)} /></td>
+            <td className="px-1.5 py-2.5 max-w-[170px]"><Cell v={short(S.avis?.clients, 60)} /></td>
+            <td className="px-1.5 py-2.5 max-w-[190px]"><Cell v={short(S.acquisition?.methode, 70)} /></td>
+            <td className="px-1.5 py-2.5 whitespace-nowrap font-bold tnum"><span style={{ color: TEAL }}>{w}</span><span className="text-ink-faint"> / </span><span className="text-bad">{l}</span></td>
+          </tr>
+        ); })}</tbody>
+      </table></div>
+      {crits.length > 0 && (
+        <div className="mt-5">
+          <p className="text-[12px] font-bold uppercase tracking-wider text-ink-soft mb-2.5">Critère par critère, face à tout le marché</p>
+          <div className="grid md:grid-cols-2 gap-x-6 gap-y-2.5">
+            {crits.map((k) => { const n = k.nous + k.eux + k.egal; return (
+              <div key={k.label}>
+                <div className="flex justify-between text-[13px]"><span className="font-medium text-ink truncate">{k.label}</span><span className="text-ink-faint text-[12px] shrink-0 ml-2">tu gagnes {k.nous} sur {n}</span></div>
+                <div className="mt-1 flex h-2 rounded-full overflow-hidden bg-paper"><span style={{ width: `${(k.nous / n) * 100}%`, background: TEAL }} /><span style={{ width: `${(k.egal / n) * 100}%`, background: "#D6D3CB" }} /><span style={{ width: `${(k.eux / n) * 100}%`, background: "#DC2626" }} /></div>
+                {k.who.length > 0 && <p className="text-[11.5px] text-ink-faint mt-0.5">Devant toi : {k.who.join(", ")}</p>}
+              </div>
+            ); })}
+          </div>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+/* 4b. Apprentissage : ce qui marche vraiment, mesuré sur tes envois, réponses et rendez-vous */
+const SENT = ["envoye", "repondu", "refus", "client"];
+function Learning({ ws }) {
+  const [d, setD] = useState(null);
+  useEffect(() => {
+    Promise.all([
+      supabase.from("prospects").select("id, target, status, insight").eq("workspace_id", ws.id).in("status", SENT).limit(2000),
+      supabase.from("replies").select("prospect_id, class").eq("workspace_id", ws.id).limit(2000),
+      supabase.from("meetings").select("prospect_id").eq("workspace_id", ws.id).limit(2000),
+    ]).then(([{ data: p }, { data: r }, { data: m }]) => setD({ p: p ?? [], r: r ?? [], m: m ?? [] }));
+  }, [ws.id]);
+  if (!d) return null;
+  const pos = new Set(d.r.filter((x) => ["interesse", "question", "prix", "rappel"].includes(x.class)).map((x) => x.prospect_id));
+  const any = new Set(d.r.map((x) => x.prospect_id)), rdv = new Set(d.m.map((x) => x.prospect_id));
+  const label = (t) => (ws.targets ?? []).find((x) => x.id === t || x.key === t)?.label ?? t ?? "Sans cible";
+  const group = (keyOf) => {
+    const g = {};
+    d.p.forEach((p) => { const k = keyOf(p); if (!k) return; g[k] ??= { k, n: 0, rep: 0, pos: 0, rdv: 0 }; const x = g[k]; x.n++; if (any.has(p.id) || p.status === "repondu") x.rep++; if (pos.has(p.id)) x.pos++; if (rdv.has(p.id) || p.status === "client") x.rdv++; });
+    return Object.values(g).sort((a, b) => b.n - a.n).slice(0, 8);
+  };
+  const byTarget = group((p) => label(p.target));
+  const byAngle = group((p) => p.insight?.espion ? (p.insight.espion.concurrent ? `Face à ${p.insight.espion.concurrent}` : "Angle général Espion") : "Sans dossier Espion");
+  const pct = (a, n) => n ? `${Math.round((a / n) * 100)} %` : "—";
+  const Table = ({ title, rows }) => (
+    <div className="min-w-0">
+      <p className="text-[12px] font-bold uppercase tracking-wider text-ink-soft mb-2">{title}</p>
+      <table className="w-full text-[13px]"><thead><tr className="text-left text-[11px] uppercase tracking-wider text-ink-faint"><th className="pb-1.5 font-semibold">Groupe</th><th className="pb-1.5 font-semibold text-right">Contactés</th><th className="pb-1.5 font-semibold text-right">Réponses</th><th className="pb-1.5 font-semibold text-right">Positives</th><th className="pb-1.5 font-semibold text-right">RDV</th></tr></thead>
+        <tbody>{rows.map((x) => <tr key={x.k} className="border-t border-line"><td className="py-2 pr-2 text-ink truncate max-w-[180px]">{x.k}{x.n < 20 && <span className="block text-[11px] text-ink-faint">trop tôt pour conclure</span>}</td><td className="py-2 text-right tnum">{x.n}</td><td className="py-2 text-right tnum">{pct(x.rep, x.n)}</td><td className="py-2 text-right tnum font-semibold" style={{ color: TEAL }}>{pct(x.pos, x.n)}</td><td className="py-2 text-right tnum font-semibold">{pct(x.rdv, x.n)}</td></tr>)}</tbody>
+      </table>
     </div>
+  );
+  return (
+    <Panel title="Ce qui marche vraiment" icon="pulse" right={<span className="text-[12px] text-ink-faint">{d.p.length} prospects contactés</span>}>
+      {!d.p.length ? <Empty>Dès les premiers envois, l'espionne mesure ici quelles cibles et quels angles obtiennent des réponses et des rendez-vous.</Empty> : (
+        <>
+          <div className="grid lg:grid-cols-2 gap-6"><Table title="Par cible" rows={byTarget} /><Table title="Par angle d'approche" rows={byAngle} /></div>
+          <p className="text-[11.5px] text-ink-faint mt-3">Mesuré sur tes vrais envois. Une tendance n'est fiable qu'à partir d'une vingtaine de contacts par groupe.</p>
+        </>
+      )}
+    </Panel>
   );
 }
 
 /* 4. Intelligence stratégique : pourquoi toi plutôt qu'eux */
-function Strategy({ rows }) {
+function Strategy({ rows, ws }) {
   const cmp = rows.flatMap((c) => (c.summary?.comparatif ?? []).map((r) => ({ c, ...r })));
   const ours = cmp.filter((r) => r.avantage === "nous"), theirs = cmp.filter((r) => r.avantage === "eux"), unknown = cmp.filter((r) => !["nous", "eux"].includes(r.avantage));
   const opps = rows.flatMap((c) => (c.summary?.opportunites ?? []).map((o) => ({ c, t: txt(o) })));
@@ -316,6 +453,8 @@ function Strategy({ rows }) {
   const pos = rows.filter((c) => c.summary?.position?.pourquoi?.length);
   return (
     <div className="space-y-4">
+      <VersusAll rows={rows} />
+      <Learning ws={ws} />
       {pos.length > 0 && (
         <Panel title="Pourquoi ils sont devant ou derrière toi" icon="bolt">
           <div className="grid md:grid-cols-2 gap-3">
@@ -462,8 +601,8 @@ export default function EspionHub() {
         {!rows ? <div className="py-16 text-center text-ink-faint text-sm">Ouverture des dossiers…</div>
           : space === "concurrents" ? <div className="space-y-5"><Proposed list={proposed} ws={ws} onDone={load} />{!list.length && !proposed.length ? <FirstRun ws={ws} onDone={load} /> : <Competitors rows={list} onOpen={setDesk} ws={ws} onDone={load} />}</div>
           : space === "veille" ? <div className="space-y-4"><Report items={report} /><Watch rows={list} /></div>
-          : space === "besoins" ? <Needs rows={list} />
-          : space === "strategie" ? <Strategy rows={list} />
+          : space === "besoins" ? <Needs rows={list} ws={ws} />
+          : space === "strategie" ? <Strategy rows={list} ws={ws} />
           : <Dossiers rows={list} />}
       </div>
 

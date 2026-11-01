@@ -146,7 +146,7 @@ function RadarOpps({ m }) {
     supabase.from("radar_opps").select("*").eq("workspace_id", ws.id).in("status", ["nouveau", "suivi"]).order("created_at", { ascending: false }).limit(200)
       .then(({ data }) => {
         const now = new Date().toISOString();
-        setRows((data ?? []).filter((o) => (!zone.length || !o.dept || zone.includes(o.dept)) && (o.kind !== "appel_offres" || !o.deadline || o.deadline > now) && !(o.kind !== "appel_offres" && o.prospect_id)).slice(0, 6));
+        setRows((data ?? []).filter((o) => o.kind !== "besoin" && (!zone.length || !o.dept || zone.includes(o.dept)) && (o.kind !== "appel_offres" || !o.deadline || o.deadline > now) && !(o.kind !== "appel_offres" && o.prospect_id)).slice(0, 6));
       });
   }, [ws.id, m.id]);
   if (!rows) return null;
