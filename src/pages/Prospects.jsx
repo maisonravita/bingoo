@@ -11,10 +11,13 @@ import ImportCsv from "../components/ImportCsv";
 import Contacts, { ImportPerson } from "../components/Contacts";
 import { SubNav } from "../components/SubNav";
 
+// Signaux forts : un vrai fait récent qui justifie de contacter (adapté de Harvey)
+const STRONG = ["ouverture", "creation", "recrutement", "croissance", "pub_google", "pub_meta", "pub_linkedin", "levee", "accelerateur"];
+
 const VIEWS = [
   { key: "all", label: "Tous" },
   { key: "hot", label: "Réponses et RDV", st: ["repondu", "rdv", "client"] },
-  { key: "signal", label: "Avec signal", fn: (r) => r.signals?.some((s) => ["ouverture", "creation"].includes(s.type)) },
+  { key: "signal", label: "Avec signal", fn: (r) => r.signals?.some((s) => STRONG.includes(s.type)) },
   { key: "due", label: "À relancer", fn: (r) => r.next_action_at && r.next_action_at <= new Date().toISOString().slice(0, 10) },
   { key: "sent", label: "Contactés", st: ["envoye"] },
   { key: "ready", label: "Joignables", st: ["pret", "a_valider"] },
@@ -151,7 +154,7 @@ function Drawer({ p, onClose, onChange, team = [] }) {
         </dl>
         {p.enrich_note && <p className="text-xs text-ink-soft mt-3">{p.enrich_note}</p>}
         <Contacts p={p} onChange={onChange} />
-        {p.signals?.length > 0 && <div className="flex flex-wrap gap-1.5 mt-3">{p.signals.map((s, i) => <Badge key={i} tone={s.type === "ouverture" || s.type === "creation" ? "accent" : "muted"}>{s.label}</Badge>)}</div>}
+        {p.signals?.length > 0 && <div className="flex flex-wrap gap-1.5 mt-3">{p.signals.map((s, i) => <Badge key={i} tone={STRONG.includes(s.type) ? "accent" : "muted"}>{s.label}</Badge>)}</div>}
 
         {!p.email && p.enriched_at && <PlanB p={p} ws={ws} busy={busy} setBusy={setBusy} onChange={onChange} act={act} nav={nav} />}
 
@@ -324,7 +327,7 @@ export default function Prospects() {
                 <p className="text-[13px] text-ink-soft truncate">{[targetLabel(r.target), [r.postal_code, r.city].filter(Boolean).join(" "), r.email].filter(Boolean).join(" · ")}</p>
               </div>
               {r.score != null && <span className="text-xs font-semibold tnum text-ink-soft">{r.score}</span>}
-              {r.signals?.some((x) => ["ouverture", "creation"].includes(x.type)) && <Badge tone="accent">Signal</Badge>}
+              {r.signals?.some((x) => STRONG.includes(x.type)) && <Badge tone="accent">Signal</Badge>}
               {r.linkedin_status === "a_envoyer" && <Badge tone="li">in</Badge>}
               {!r.email && r.channel && CHANNEL[r.channel] && <Badge>{CHANNEL[r.channel].icon} {CHANNEL[r.channel].label}</Badge>}
               <Badge tone={STATUS[r.status]?.tone}>{STATUS[r.status]?.label}</Badge>
