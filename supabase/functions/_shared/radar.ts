@@ -90,7 +90,7 @@ async function webSignals(ws: Workspace, cfg: Cfg): Promise<Opp[]> {
   const r = await askJson<{ signaux: { entreprise: string; ville: string; departement: string; type: string; fait: string; date: string; url: string; pourquoi: string }[] }>(`Trouve des entreprises qui pourraient avoir besoin de cette offre MAINTENANT, à partir de signaux publics récents (moins de 3 mois).
 Offre : ${ws.profile?.offre ?? ""} (${ws.profile?.nom ?? ws.name})
 Types d'entreprises visées : ${targets}
-Zone (départements) : ${zone}
+Zone (départements, les premiers en priorité) : ${zone}
 
 Signaux à chercher (6 recherches maximum) :
 - "croissance" : levée de fonds, ouverture d'un nouveau site ou d'une agence, rachat, fort développement annoncé dans la presse.
@@ -146,7 +146,15 @@ async function save(ws: Workspace, opps: Opp[]) {
 }
 
 /** Analyse complète. Le web (plus coûteux) n'est relancé qu'une fois par semaine sauf demande explicite. */
-export async function scanRadar(ws: Workspace & { radar_cfg?: Cfg | null }, opts: { web?: boolean } = {}) {
+/** Zone du Radar : d'abord celles des missions actives (pour que Radar → Mission trouve des entreprises qu'elle peut prendre), puis celle de l'espace. */
+async function radarZone(ws: Workspace): Promise<string[]> {
+  const { data } = await admin.from("missions").select("zone").eq("workspace_id", ws.id).eq("status", "active");
+  const fromMissions = ((data ?? []) as { zone: string[] | null }[]).flatMap((m) => m.zone ?? []);
+  return [...new Set([...fromMissions, ...(ws.zone ?? [])])];
+}
+
+export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opts: { web?: boolean } = {}) {
+  const ws = { ...ws0, zone: await radarZone(ws0) };
   const cfg = await config(ws);
   const webDue = opts.web ?? (!cfg.web_at || cfg.web_at < new Date(Date.now() - 6 * 864e5).toISOString());
   const errors: string[] = [];
