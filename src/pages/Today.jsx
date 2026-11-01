@@ -31,6 +31,43 @@ const ago = (d) => { const h = Math.round((Date.now() - new Date(d).getTime()) /
 const short = (d) => { const m = Math.round((Date.now() - new Date(d).getTime()) / 6e4); return m < 60 ? `Actif · ${m} min` : `Actif · ${Math.round(m / 60)} h`; };
 const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
 
+const fmtDur = (m) => { m = Math.round(m); if (m < 60) return [String(m), "min"]; const h = Math.floor(m / 60), r = Math.round((m % 60) / 5) * 5; return r ? [`${h} h ${String(r).padStart(2, "0")}`, ""] : [String(h), "h"]; };
+
+/** Le résultat avant les fonctionnalités : le temps de prospection que l'équipe a fait à ta place, jour par jour. */
+function TimeSaved({ s, trend }) {
+  const days = Array.from({ length: 7 }, (_, k) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (6 - k)); return d; });
+  const per = days.map((d, k) => { const end = k < 6 ? days[k + 1] : new Date(8.64e15); return s.rows.filter((r) => { const t = new Date(r.created_at); return t >= d && t < end; }).reduce((m, r) => m + (MINUTES[r.kind] ?? 0), 0); });
+  const max = Math.max(60, ...per);
+  const [num, unit] = fmtDur(s.minutes);
+  const drafts = s.rows.filter((r) => r.kind === "redaction").length;
+  const made = [[s.found7, "entreprise trouvée", "entreprises trouvées"], [s.oppsWeek, "opportunité repérée", "opportunités repérées"], [drafts, "e-mail rédigé", "e-mails rédigés"]].filter(([n]) => n > 0).slice(0, 2).map(([n, o, m]) => plural(n, o, m));
+  return (
+    <Link to="/resultats" className="group lg:w-[380px] shrink-0 rounded-2xl p-5 bg-gradient-to-br from-accent-soft via-[#FFF1E8] to-white border border-accent/15 hover:border-accent/40 hover:shadow-sm transition">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11.5px] font-bold uppercase tracking-wider text-accent-dark flex items-center gap-1.5"><Ico n="clock" className="w-4 h-4" />Temps gagné cette semaine</p>
+        <span title="Estimation : le temps qu'un commercial passerait à faire les mêmes actions à la main (chercher les entreprises, trouver les contacts, écrire les e-mails, surveiller le marché…)." className="w-5 h-5 rounded-full border border-accent/30 text-accent-dark text-[11px] font-bold grid place-items-center cursor-help">i</span>
+      </div>
+      <div className="mt-2 flex items-end justify-between gap-4">
+        <p className="font-black leading-none text-ink tnum" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>
+          <span className="text-[44px]">{num}</span>{unit && <span className="text-[22px] ml-1 text-ink-soft">{unit}</span>}
+        </p>
+        <div className="flex items-end gap-1.5 h-[52px]" aria-label="Temps gagné par jour sur 7 jours">
+          {per.map((m, k) => (
+            <div key={k} className="flex flex-col items-center gap-1" title={`${days[k].toLocaleDateString("fr-FR", { weekday: "long" })} : ${fmtDur(m).join(" ").trim()}`}>
+              <div className={cx("w-2.5 rounded-full transition-all", k === 6 ? "bg-accent" : m ? "bg-accent/40" : "bg-ink/10")} style={{ height: `${Math.max(4, (m / max) * 40)}px` }} />
+              <span className={cx("text-[9.5px] leading-none", k === 6 ? "text-accent-dark font-bold" : "text-ink-faint")}>{"DLMMJVS"[days[k].getDay()]}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className="mt-3 text-[13px] text-ink-soft leading-snug">
+        {made.length ? <>Ton équipe a fait le travail : <span className="text-ink font-medium">{made.join(" · ")}</span></> : "Ton équipe démarre : le temps gagné s'affichera ici."}
+      </p>
+      {trend != null && trend > 0 && <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-good-soft text-good text-[12px] font-semibold px-2.5 py-0.5">↑ +{trend} % d'opportunités vs semaine dernière</p>}
+    </Link>
+  );
+}
+
 function Sparks({ className }) {
   return <svg viewBox="0 0 40 40" className={className} aria-hidden fill="none" stroke="#E0531F" strokeWidth="4.5" strokeLinecap="round"><path d="M10 6l3 9M24 4l-4 10M30 18l-9 3" /></svg>;
 }
@@ -211,7 +248,6 @@ export default function Today() {
   const hello = hour < 18 ? "Bonjour" : "Bonsoir";
   const first = (ws.sender_name || "").split(" ")[0];
   const trend = s && s.oppsPrev > 0 ? Math.round(((s.oppsWeek - s.oppsPrev) / s.oppsPrev) * 100) : null;
-  const hours = s ? s.minutes / 60 : 0;
 
   return (
     <div>
@@ -223,17 +259,7 @@ export default function Today() {
           <p className="text-ink-soft text-[17px] mt-3">Voici les opportunités et les actions à ne pas manquer aujourd'hui.</p>
         </div>
         {s && (
-          <Link to="/resultats" className="lg:w-[360px] shrink-0 rounded-2xl p-4 pr-5 flex items-center gap-4 bg-gradient-to-br from-accent-soft to-[#FFF4EC] border border-accent/15 hover:border-accent/40 transition">
-            <span className="w-12 h-12 rounded-xl bg-white/70 text-accent grid place-items-center shrink-0"><Ico n="clock" className="w-7 h-7" /></span>
-            <span className="min-w-0 flex-1">
-              <span className="block font-bold text-[15px]">{hours >= 1 ? `≈ ${hours.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} h de prospection faites pour toi` : "Ton équipe démarre la semaine"}</span>
-              <span className="block text-[12.5px] text-ink-soft mt-0.5">
-                {s.actions ? `${plural(s.actions, "action", "actions")} sur 7 jours (estimation)` : "Les actions de ton équipe s'afficheront ici."}
-                {trend != null && trend > 0 ? ` · +${trend} % d'opportunités détectées` : ""}
-              </span>
-            </span>
-            <Ico n="chevron" className="w-5 h-5 text-accent" />
-          </Link>
+          <TimeSaved s={s} trend={trend} />
         )}
       </header>
 
