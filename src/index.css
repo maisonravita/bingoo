@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; }
+body { @apply bg-paper text-ink font-sans antialiased; font-size: 15px; }
+h1, h2, h3 { text-wrap: balance; }
+.tnum { font-variant-numeric: tabular-nums; }
+@keyframes rise { from { transform: translateY(8px); opacity: 0; } }
+.rise { animation: rise .35s ease-out both; }
+@keyframes pulse-dot { 50% { opacity: .35; } }
+.pulse-dot { animation: pulse-dot 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

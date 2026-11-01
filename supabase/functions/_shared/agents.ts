@@ -1,0 +1,334 @@
+// Agents Enquêteur (coordonnées), Rédacteur (premier e-mail) et Facteur (envoi).
+import { learned } from "./intelligence.ts";
+import { HttpError } from "./http.ts";
+import { admin, ask, askJson, knowledgeOf, type Prospect, type Workspace } from "./core.ts";
+import { resend, replyAddress, sendMail, signature } from "./mail.ts";
+import { markWarmup } from "./growth.ts";
+import { campaignOf, goalText, pickVariant } from "./campaigns.ts";
+import { siteContacts } from "./deep.ts";
+
+// ---------------------------------------------------------------- Enquêteur
+const SYSTEM_ENQ = `Tu es un assistant de recherche commerciale B2B en France. Tu cherches sur le web les coordonnées professionnelles publiques d'un établissement.
+Règles strictes :
+- Ne donne une adresse e-mail que si tu l'as vue publiée (site officiel de l'établissement ou de son gestionnaire, annuaire officiel, page de contact). Ne construis jamais une adresse à partir d'un nom.
+- Préfère l'adresse d'un responsable publiée pour sa fonction, sinon une adresse générique de l'établissement (contact@, accueil@, direction@…).
+- Si tu n'es pas sûr qu'une coordonnée appartient bien à cet établissement, laisse le champ vide.`;
+
+const EMAIL_RE = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;
+const BAD = /(example\.|sentry\.|wixpress|domain\.com|email\.com|votre|yourdomain|^(rgpd|dpo|privacy|noreply|no-reply|webmaster|recrutement|jobs|rh)@)/i;
+
+/** Le domaine de l'adresse reçoit-il du courrier ? (évite les rebonds qui abîment la boîte du client) */
+const mxCache = new Map<string, boolean>();
+export async function mxOk(email: string) {
+  const d = (email.split("@")[1] ?? "").toLowerCase();
+  if (!d) return false;
+  if (mxCache.has(d)) return mxCache.get(d)!;
+  let ok = true; // en cas de panne du contrôle, on ne bloque pas
+  try {
+    const r = await (await fetch(`https://dns.google/resolve?name=${encodeURIComponent(d)}&type=MX`, { signal: AbortSignal.timeout(5000) })).json();
+    if (r.Status === 3) ok = false; // domaine inexistant
+    else if (r.Status === 0) {
+      const mx = ((r.Answer ?? []) as { type: number; data: string }[]).filter((x) => x.type === 15);
+      if (mx.some((x) => /^0\s+\.?$/.test(x.data.trim()))) ok = false; // « null MX » : le domaine refuse tout courrier
+      else if (!mx.length) {
+        const a = await (await fetch(`https://dns.google/resolve?name=${encodeURIComponent(d)}&type=A`, { signal: AbortSignal.timeout(5000) })).json();
+        ok = (a.Answer ?? []).length > 0;
+      }
+    }
+  } catch { ok = true; }
+  mxCache.set(d, ok);
+  return ok;
+}
+
+// Lecture gratuite du site (pages Contact, Mentions légales…) : aucun appel à l'IA ni à un fournisseur.
+// On ne garde que les adresses du domaine de l'entreprise ou d'une messagerie grand public :
+// une adresse d'un autre domaine (agence web, hébergeur) n'est pas celle de l'entreprise.
+const FREEMAIL = /@(gmail|googlemail|orange|wanadoo|free|hotmail|outlook|live|msn|yahoo|sfr|neuf|laposte|icloud|me|aol|bbox|numericable)\./i;
+const hostOf = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, "").toLowerCase(); } catch { return ""; } };
+async function fromSite(site: string, person: string, company = "") {
+  const sc = await siteContacts(site).catch(() => ({ emails: [] as string[], phones: [] as string[], form: "" }));
+  const host = hostOf(site), base = host.split(".").slice(-2).join(".");
+  const last = (person.split(" ").pop() ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const score = (e: string) => (e.split("@")[1]?.endsWith(base) ? 10 : 0) + (last.length > 2 && e.includes(last) ? 6 : 0)
+    + (/^(direction|directeur|dir|gerant|gerance|contact|accueil|secretariat|info|bonjour|hello|commercial|achats?)[.@]/i.test(e) ? 3 : 0);
+  // Autre domaine accepté seulement s'il porte le nom de l'entreprise (ex. info@camden.agency sur camdenpublicite.com)
+  const norm = (x: string) => x.toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
+  const brand = (e: string) => { const lab = norm((e.split("@")[1] ?? "").split(".").slice(-2)[0] ?? ""); return lab.length >= 4 && (norm(host).includes(lab) || norm(company).includes(lab)); };
+  const ok = sc.emails.filter((e) => (base && e.split("@")[1]?.endsWith(base)) || FREEMAIL.test(e) || brand(e)).sort((a, b) => score(b) - score(a));
+  return { email: ok[0] ?? "", phone: sc.phones[0] ?? "", form: sc.form };
+}
+
+export async function enrich(p: Prospect, interlocuteur: string) {
+  // 1. Site déjà connu : on le lit d'abord (gratuit)
+  if (p.website) {
+    const r = await fromSite(p.website, p.contact_name ?? "", `${p.name} ${p.org ?? ""}`);
+    if (r.email && !(await mxOk(r.email))) r.email = "";
+    if (r.email) {
+      const patch: Record<string, unknown> = { enriched_at: new Date().toISOString(), enrich_note: `E-mail trouvé sur son site (${hostOf(p.website)})`, status: "pret", enrich_level: 1, channel: "email", email_source: `site ${hostOf(p.website)}`, email: r.email };
+      if (r.phone && !p.phone) patch.phone = r.phone;
+      if (r.form && !p.contact_form) patch.contact_form = r.form;
+      await admin.from("prospects").update(patch).eq("id", p.id);
+      return { id: p.id, email: r.email, phone: r.phone, site: p.website, via: "site" };
+    }
+  }
+  const fiche = [
+    `Nom : ${p.name}`,
+    p.org && `Raison sociale : ${p.org}`,
+    p.activity && `Activité : ${p.activity}`,
+    `Adresse : ${[p.address, p.postal_code, p.city].filter(Boolean).join(" ")}`,
+    p.siret && `SIRET : ${p.siret}`,
+    p.contact_name && `Dirigeant connu : ${p.contact_name}${p.contact_role ? ` (${p.contact_role})` : ""}`,
+    p.website && `Site connu : ${p.website}`,
+    interlocuteur && `Interlocuteur recherché : ${interlocuteur}`,
+  ].filter(Boolean).join("\n");
+  type Found = { site?: string; email?: string; telephone?: string; contact?: string; fonction?: string; source?: string; note?: string };
+  const v = await askJson<Found>(`Trouve les coordonnées professionnelles publiques de cet établissement :
+${fiche}
+
+Cherche son site officiel, puis une adresse e-mail professionnelle publiée, un numéro de téléphone et, si publié, le nom de la personne qui occupe la fonction recherchée.
+Format : {"site": "https://…", "email": "", "telephone": "", "contact": "Prénom Nom ou vide", "fonction": "", "source": "URL où l'e-mail est publié", "note": "une phrase"}`,
+    { fast: true, maxTokens: 6000, system: SYSTEM_ENQ, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 4, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] });
+
+  const email = String(v.email ?? "").trim().toLowerCase().replace(/^mailto:/, "");
+  let ok = EMAIL_RE.test(email) && !BAD.test(email) ? email : "";
+  const site = /^https?:\/\//i.test(String(v.site ?? "")) ? String(v.site).trim().slice(0, 300) : "";
+  // 3. L'IA a trouvé le site mais pas d'e-mail : on lit ses pages nous-mêmes (gratuit)
+  if (!ok && site && site !== p.website) {
+    const r = await fromSite(site, String(v.contact ?? p.contact_name ?? ""), `${p.name} ${p.org ?? ""}`);
+    if (r.email) { ok = r.email; v.source = `site ${hostOf(site)}`; }
+  }
+  if (ok && !(await mxOk(ok))) { v.note = `Adresse trouvée (${ok}) mais son domaine ne reçoit pas de courrier : écartée`; ok = ""; }
+  const phone = String(v.telephone ?? "").replace(/[^\d+ .]/g, "").trim().slice(0, 30);
+  const patch: Record<string, unknown> = {
+    enriched_at: new Date().toISOString(),
+    enrich_note: [ok ? `E-mail trouvé${v.source ? ` sur ${String(v.source).slice(0, 200)}` : ""}` : "Aucun e-mail public trouvé", v.note ? String(v.note).slice(0, 300) : ""].filter(Boolean).join(" · "),
+    status: ok ? "pret" : "sans_email",
+    enrich_level: 1,
+    channel: ok ? "email" : (phone || p.phone) ? "telephone" : "",
+    email_source: ok ? String(v.source ?? "recherche web").slice(0, 200) : "",
+  };
+  if (ok) patch.email = ok;
+  if (site && !p.website) patch.website = site;
+  if (phone && !p.phone) patch.phone = phone;
+  const contact = String(v.contact ?? "").trim();
+  if (ok && contact && contact.length < 60 && /\s/.test(contact)) { patch.contact_name = contact; patch.contact_role = String(v.fonction ?? "").slice(0, 80); }
+  await admin.from("prospects").update(patch).eq("id", p.id);
+  return { id: p.id, email: ok, phone, site };
+}
+
+// ---------------------------------------------------------------- Rédacteur
+export function systemFor(ws: Workspace) {
+  const pr = ws.profile ?? {};
+  return `Tu écris des e-mails de prospection B2B au nom de ${ws.sender_name || "l'équipe"} de ${pr.nom || ws.name}.
+Entreprise : ${pr.resume ?? ""}
+Offre : ${pr.offre ?? ""}
+Ce qui la distingue : ${pr.differenciation ?? ""}
+Faits vérifiables utilisables : ${(pr.preuves ?? []).join(" ; ") || "aucun"}
+Ton de la marque : ${pr.ton || "professionnel et sobre"}${knowledgeOf(ws) ? `\n\nFiche de l'entreprise (informations exactes, à utiliser pour répondre aux questions précises ; rien d'autre) :\n${knowledgeOf(ws)}` : ""}
+
+Règles absolues :
+- Français, vouvoiement, ton professionnel et direct, phrases courtes, aucun jargon marketing, aucun superlatif.
+- 70 à 110 mots. Pas de liste à puces. Pas d'emoji.
+- N'invente rien : aucun client, chiffre, label, prix, délai ou fait qui ne figure pas dans les informations fournies.
+- Dans un premier e-mail, ne parle jamais de prix. Dans une réponse à une question, tu peux citer un prix ou un délai seulement s'il figure dans la fiche.
+- Parle du bénéfice pour les personnes concernées chez le prospect (par exemple ses clients, salariés, résidents, patients).
+- Un seul objectif : obtenir un court échange (15 à 20 minutes). Une seule question claire à la fin.
+- Pas de formule creuse (« j'espère que vous allez bien », « je me permets de… » en ouverture).${learned(ws)}`;
+}
+
+export async function draft(ws: Workspace, p: Prospect) {
+  const t = (ws.targets ?? []).find((x) => x.id === p.target);
+  const camp = await campaignOf((p as Prospect & { campaign_id?: string }).campaign_id);
+  const active = camp && camp.status === "active" ? camp : null;
+  const v = active ? pickVariant(active, p.id) : null;
+  const out = await ask(`Rédige le premier e-mail de prospection pour ce prospect.
+Prospect : ${p.name}${p.org ? ` (${p.org})` : ""}, ${p.activity}, ${p.city}.
+Interlocuteur : ${p.contact_name ? `${p.contact_name}${p.contact_role ? `, ${p.contact_role}` : ""}` : `inconnu (fonction visée : ${t?.interlocuteur || "dirigeant"})`}.
+Pourquoi cette cible a besoin de l'offre : ${t?.pourquoi ?? ""}
+Angle à utiliser : ${v ? v.angle : t?.angle ?? ""}
+${v?.objet ? `Objet à utiliser tel quel ou presque : ${v.objet}\n` : ""}${active ? `Objectif de l'e-mail : ${goalText(active.goal)}.\n` : ""}Bénéficiaires à nommer : ${t?.pour_qui ?? ""}
+${(() => { const sg = (p.signals ?? []).find((x) => ["recrutement", "croissance", "ouverture"].includes(x.type) && x.label); return sg ? `Fait récent et public sur ce prospect (repéré par le Radar) : « ${sg.label} ». Ouvre l'e-mail en le mentionnant simplement, sans rien y ajouter ni l'interpréter, puis fais le lien avec l'offre.\n` : ""; })()}${(p.insight as { reseaux?: { accroche?: string } } | null)?.reseaux?.accroche ? `Première phrase possible, fondée sur une publication ou une actualité réelle du prospect (à reprendre ou adapter si elle sonne naturelle, sinon ignore-la) : ${(p.insight as { reseaux: { accroche: string } }).reseaux.accroche}
+` : ""}
+Commence par « Bonjour${p.contact_name ? " Madame/Monsieur <Nom>" : ""}, » (si l'interlocuteur est connu mais que le genre est incertain, écris « Bonjour <Prénom Nom>, »).
+Ne mets pas de signature : elle est ajoutée automatiquement.
+
+Format exact :
+OBJET: <objet de 3 à 7 mots, sans majuscules partout, sans point d'exclamation>
+---
+<corps>`, { fast: true, system: systemFor(ws), maxTokens: 1500 });
+  const m = out.match(/OBJET\s*:\s*(.+)\n-{3,}\n([\s\S]+)/);
+  const subject = (m ? m[1] : `${ws.profile?.nom || ws.name} – ${p.name}`).trim().slice(0, 140);
+  const body = (m ? m[2] : out).trim();
+  const { data, error } = await admin.from("messages").insert({ workspace_id: ws.id, prospect_id: p.id, step: 0, subject, body, status: "brouillon", campaign_id: active?.id ?? null, variant: v?.key ?? "" }).select("id").single();
+  if (error?.code === "23505") throw new HttpError(409, "Un message est déjà prêt pour ce prospect");
+  if (error) throw new HttpError(500, error.message);
+  await admin.from("prospects").update({ status: "a_valider" }).eq("id", p.id);
+  return { id: data.id, subject };
+}
+
+// ---------------------------------------------------------------- Domaine d'envoi (Resend)
+type DnsRec = { record?: string; name: string; type: string; value: string; priority?: number; status?: string; ttl?: string };
+
+async function txt(name: string): Promise<string[]> {
+  try {
+    const r = await fetch(`https://dns.google/resolve?name=${encodeURIComponent(name)}&type=TXT`);
+    const d = await r.json();
+    return (d.Answer ?? []).map((a: { data: string }) => String(a.data).replace(/^"|"$/g, "").replace(/" "/g, ""));
+  } catch { return []; }
+}
+
+export async function setDomain(ws: Workspace, input: string) {
+  const domain = String(input ?? "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
+  if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(domain)) throw new HttpError(400, "Nom de domaine invalide (ex. monentreprise.fr)");
+  if (/(gmail|outlook|hotmail|yahoo|icloud|orange|free|sfr|laposte|wanadoo)\./.test(domain)) throw new HttpError(400, "Il faut un domaine qui t'appartient (pas une messagerie gratuite)");
+  const { data: taken } = await admin.from("workspaces").select("id").eq("domain", domain).neq("id", ws.id).limit(1);
+  if (taken?.length) throw new HttpError(409, "Ce domaine est déjà utilisé par un autre espace");
+
+  let r = await resend("/domains", "POST", { name: domain, region: "eu-west-1" });
+  let preexisting = false;
+  if (!r.ok) {
+    // Domaine déjà présent sur le compte d'envoi : on le retrouve
+    const list = await resend("/domains");
+    const found = (list.data?.data ?? []).find((d: { name: string }) => d.name === domain);
+    if (!found) throw new HttpError(502, "Service d'envoi : " + (r.data?.message ?? "erreur"));
+    r = await resend(`/domains/${found.id}`);
+    preexisting = true;
+  }
+  const records: DnsRec[] = (r.data?.records ?? []).map((x: DnsRec) => ({ record: x.record, name: x.name, type: x.type, value: x.value, priority: x.priority, status: x.status }));
+  // Domaine déjà connu : il faut prouver qu'il appartient à cet espace
+  if (preexisting) records.unshift({ record: "Propriété", name: `_machine.${domain}`, type: "TXT", value: `machine-verif=${ws.id}`, status: "not_started" });
+  await admin.from("workspaces").update({ domain, domain_id: r.data.id, domain_status: "pending", domain_records: records }).eq("id", ws.id);
+  return { domain, records, status: "pending" };
+}
+
+export async function checkDomain(ws: Workspace) {
+  if (!ws.domain_id) throw new HttpError(400, "Aucun domaine configuré");
+  let records = (ws.domain_records ?? []) as DnsRec[];
+  const proof = records.find((x) => x.record === "Propriété");
+  let proofOk = true;
+  if (proof) {
+    proofOk = (await txt(proof.name)).includes(proof.value);
+    proof.status = proofOk ? "verified" : "pending";
+  }
+  await resend(`/domains/${ws.domain_id}/verify`, "POST");
+  const r = await resend(`/domains/${ws.domain_id}`);
+  const fresh: DnsRec[] = (r.data?.records ?? []).map((x: DnsRec) => ({ record: x.record, name: x.name, type: x.type, value: x.value, priority: x.priority, status: x.status }));
+  if (fresh.length) records = proof ? [proof, ...fresh] : fresh;
+  // L'envoi suffit (SPF + DKIM) ; la réception n'est pas nécessaire : les réponses vont dans la boîte de l'expéditeur
+  const sending = r.data?.capabilities?.sending ?? r.data?.status;
+  // « capabilities.sending = enabled » veut seulement dire que l'envoi est prévu, pas que le DNS est validé
+  const verified = proofOk && r.data?.status === "verified";
+  const status = verified ? "verified" : r.data?.status === "failed" ? "failed" : "pending";
+  await admin.from("workspaces").update({ domain_status: status, domain_records: records }).eq("id", ws.id);
+  // Suivi des ouvertures et des clics, activé une fois le domaine vérifié
+  if (status === "verified" && ws.domain_status !== "verified") await resend(`/domains/${ws.domain_id}`, "PATCH", { open_tracking: true, click_tracking: true }).catch(() => null);
+  return { status, records };
+}
+
+// ---------------------------------------------------------------- Facteur
+export async function sendOne(ws: Workspace, messageId: string) {
+  const { data: msg } = await admin.from("messages").select("*, prospects(*)").eq("id", messageId).eq("workspace_id", ws.id).single();
+  if (!msg) throw new HttpError(404, "Message introuvable");
+  if (msg.status !== "brouillon") return { id: messageId, skipped: msg.status === "envoi" ? "envoi déjà en cours" : "déjà traité" };
+  if (msg.campaign_id) { const c = await campaignOf(msg.campaign_id); if (c && c.status !== "active") return { id: messageId, skipped: "campagne en pause" }; }
+  const p = msg.prospects as Prospect;
+  if (!p?.email) throw new HttpError(400, "Ce prospect n'a pas d'e-mail");
+  if (["repondu", "rdv", "client", "refus", "ignore"].includes(p.status) && msg.step > 0) {
+    await admin.from("messages").update({ status: "ignore", error: "Le prospect a déjà répondu" }).eq("id", messageId);
+    return { id: messageId, skipped: "il a déjà répondu" };
+  }
+  if (!(await mxOk(p.email))) {
+    await admin.from("messages").update({ status: "ignore", error: "Le domaine de l'adresse ne reçoit pas de courrier" }).eq("id", messageId);
+    await admin.from("prospects").update({ email: "", status: "sans_email", channel: "", enrich_note: `Adresse ${p.email} écartée : son domaine ne reçoit pas de courrier` }).eq("id", p.id);
+    return { id: messageId, skipped: "adresse invalide : son domaine ne reçoit pas de courrier. Le prospect repart en enquête." };
+  }
+  const unsub = await admin.from("prospects").select("id").eq("workspace_id", ws.id).eq("email", p.email).eq("status", "refus").limit(1);
+  if (unsub.data?.length) {
+    await admin.from("messages").update({ status: "ignore", error: "Contact désinscrit" }).eq("id", messageId);
+    return { id: messageId, skipped: "désinscrit" };
+  }
+  // Verrou : un seul envoi possible, même si deux demandes arrivent en même temps
+  const { data: claimed } = await admin.from("messages").update({ status: "envoi", claimed_at: new Date().toISOString() })
+    .eq("id", messageId).eq("status", "brouillon").select("id");
+  if (!claimed?.length) return { id: messageId, skipped: "envoi déjà en cours" };
+  try {
+    const link = ws.app_url && ws.booking_slug && msg.step < 2 ? `${ws.app_url.replace(/\/$/, "")}/#/rdv/${ws.booking_slug}?t=${p.public_token}` : "";
+    const body = `${msg.body.trim()}${link ? `\n\nSi c'est plus simple, vous pouvez choisir directement un créneau ici : ${link}` : ""}\n\n${signature(ws)}`;
+    const r = await sendMail(ws, { to: p.email, subject: msg.subject, text: body, replyTo: replyAddress(ws, p.public_token), prospecting: true });
+    await admin.from("messages").update({ status: "envoye", sent_at: new Date().toISOString(), provider_id: r.id, sent_via: ws.integrations?.mailbox?.ok ? ws.integrations.mailbox.email : "domaine" }).eq("id", messageId);
+    await markWarmup(ws);
+    if (["pret", "a_valider", "envoye", "nouveau", "sans_email"].includes(p.status)) await admin.from("prospects").update({ status: "envoye" }).eq("id", p.id);
+    return { id: messageId, sent: true };
+  } catch (e) {
+    await admin.from("messages").update({ status: "echec", error: String((e as Error).message).slice(0, 300) }).eq("id", messageId);
+    return { id: messageId, error: (e as Error).message };
+  }
+}
+
+// ---------------------------------------------------------------- LinkedIn assisté
+// Aucun robot sur le compte LinkedIn de l'utilisateur : on trouve le décideur,
+// on prépare l'invitation et le message, l'utilisateur envoie lui-même en un clic.
+export async function linkedin(ws: Workspace, p: Prospect) {
+  const t = (ws.targets ?? []).find((x) => x.id === p.target);
+  type L = { url?: string; personne?: string; fonction?: string; note?: string; message?: string };
+  const v = await askJson<L>(`Trouve sur le web le profil LinkedIn public du décideur à contacter dans cet établissement, puis prépare une invitation et un message.
+Établissement : ${p.name}${p.org ? ` (${p.org})` : ""}, ${p.activity}, ${[p.postal_code, p.city].filter(Boolean).join(" ")}.
+${p.contact_name ? `Dirigeant connu : ${p.contact_name}${p.contact_role ? ` (${p.contact_role})` : ""}.` : ""}
+Fonction visée : ${t?.interlocuteur || "dirigeant"}.
+Notre offre : ${ws.profile?.offre ?? ""}
+Angle : ${t?.angle ?? ""} (bénéficiaires : ${t?.pour_qui ?? ""})
+
+Règles : ne donne une URL que si tu l'as trouvée dans les résultats (format linkedin.com/in/…) et si la personne travaille bien dans cet établissement ou son organisme. Sinon laisse "url" vide.
+- "note" : note d'invitation, 250 caractères maximum, sans vendre, qui donne une raison crédible de se connecter.
+- "message" : message après acceptation, 60 à 90 mots, vouvoiement, une seule question à la fin pour proposer un échange de 15 minutes. N'invente aucun fait.
+Format : {"url": "", "personne": "", "fonction": "", "note": "", "message": ""}`,
+    { fast: true, maxTokens: 6000, system: systemFor(ws), tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] });
+  const url = String(v.url ?? "").trim();
+  const ok = /^https?:\/\/([a-z]{2,3}\.)?linkedin\.com\/in\/[^\s/?#]+/i.test(url);
+  const patch = {
+    linkedin_url: ok ? url.replace(/[?#].*$/, "").slice(0, 200) : "",
+    linkedin_person: ok ? `${String(v.personne ?? "").slice(0, 60)}${v.fonction ? ` · ${String(v.fonction).slice(0, 60)}` : ""}` : "",
+    linkedin_note: String(v.note ?? "").slice(0, 300),
+    linkedin_msg: String(v.message ?? "").slice(0, 1200),
+    linkedin_status: ok ? "a_envoyer" : "introuvable",
+  };
+  await admin.from("prospects").update(patch).eq("id", p.id);
+  return { id: p.id, ...patch };
+}
+
+// ---------------------------------------------------------------- Relances
+// Sans réponse marquée, une relance est préparée à J+4 puis à J+9 ; elle arrive
+// dans la file de validation (l'utilisateur confirme qu'il n'y a pas eu de réponse).
+const FOLLOW = [
+  { after: 4, subject: (s: string) => `Re : ${s.replace(/^re\s*:\s*/i, "")}`, body: (hello: string) => `${hello}\n\nJe reviens vers vous au sujet de mon message de la semaine dernière. Auriez-vous 15 minutes dans les prochains jours pour en parler ? Je m'adapte à votre agenda.` },
+  { after: 9, subject: (s: string) => `Re : ${s.replace(/^re\s*:\s*/i, "")}`, body: (hello: string) => `${hello}\n\nJe ne voudrais pas encombrer votre boîte : c'est mon dernier message sur ce sujet. Si ce n'est pas vous qui gérez cette question, pourriez-vous m'indiquer la bonne personne ? Merci d'avance.` },
+];
+
+export async function followups(ws: Workspace) {
+  const { data: sent } = await admin.from("messages").select("id, prospect_id, step, subject, body, sent_at, campaign_id, variant, prospects!inner(status)")
+    .eq("workspace_id", ws.id).eq("status", "envoye").eq("prospects.status", "envoye").order("sent_at", { ascending: false }).limit(500);
+  const last = new Map<string, { step: number; subject: string; body: string; sent_at: string; first: string; campaign_id: string | null; variant: string }>();
+  for (const m of sent ?? []) {
+    const cur = last.get(m.prospect_id);
+    if (!cur || m.step > cur.step) last.set(m.prospect_id, { step: m.step, subject: m.subject, body: m.body, sent_at: m.sent_at, first: cur?.first ?? m.subject, campaign_id: m.campaign_id ?? null, variant: m.variant ?? "" });
+  }
+  const { data: noFollow } = await admin.from("campaigns").select("id").eq("workspace_id", ws.id).or("followups.eq.false,status.neq.active");
+  const skipCamp = new Set((noFollow ?? []).map((x) => x.id));
+  const { data: pending } = await admin.from("messages").select("prospect_id").eq("workspace_id", ws.id).eq("status", "brouillon");
+  const busy = new Set((pending ?? []).map((x) => x.prospect_id));
+  const rows: Record<string, unknown>[] = [];
+  const firstSent = new Map<string, string>();
+  for (const m of sent ?? []) if (m.step === 0) firstSent.set(m.prospect_id, m.sent_at);
+  for (const [pid, m] of last) {
+    if (busy.has(pid) || m.step >= FOLLOW.length || (m.campaign_id && skipCamp.has(m.campaign_id))) continue;
+    const f = FOLLOW[m.step];
+    const start = new Date(firstSent.get(pid) ?? m.sent_at).getTime();
+    if (Date.now() - start < f.after * 86400_000) continue;
+    const hello = (m.body.split("\n")[0] || "Bonjour,").slice(0, 80);
+    rows.push({ workspace_id: ws.id, prospect_id: pid, step: m.step + 1, subject: f.subject(m.subject), body: f.body(hello), status: "brouillon", campaign_id: m.campaign_id, variant: m.variant });
+  }
+  let created = 0;
+  for (const row of rows) { const { error } = await admin.from("messages").insert(row); if (!error) created++; }
+  rows.length = created;
+  return { created: rows.length };
+}

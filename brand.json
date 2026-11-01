@@ -1,0 +1,15 @@
+{
+  "name": "Bingoo",
+  "legal": {
+    "company": "",
+    "form": "",
+    "capital": "",
+    "address": "",
+    "siret": "",
+    "director": "",
+    "privacy_email": "",
+    "host": "Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, États-Unis",
+    "data_host": "Supabase Inc. (serveurs dans l'Union européenne)"
+  },
+  "_note": "Nom et informations légales affichés partout. Pour renommer ou compléter : changer ici, puis reconstruire le site et les fonctions. Les pages légales restent cachées tant que company est vide."
+}

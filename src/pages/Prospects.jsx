@@ -1,0 +1,340 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { CALL } from "../lib/labels";
+import { fn, supabase } from "../lib/supabase";
+import { useWs } from "../lib/ws";
+import { Badge, Button, Empty, Input, PageHead, Spinner, Textarea, useToast } from "../components/ui";
+import { STATUS, cx, fmtDate, fmtTime } from "../lib/utils";
+import { useJob } from "../lib/useJob";
+import { download, toCsv } from "../lib/csv";
+import ImportCsv from "../components/ImportCsv";
+import Contacts, { ImportPerson } from "../components/Contacts";
+import { SubNav } from "../components/SubNav";
+
+const VIEWS = [
+  { key: "all", label: "Tous" },
+  { key: "hot", label: "Réponses et RDV", st: ["repondu", "rdv", "client"] },
+  { key: "signal", label: "Avec signal", fn: (r) => r.signals?.some((s) => ["ouverture", "creation"].includes(s.type)) },
+  { key: "due", label: "À relancer", fn: (r) => r.next_action_at && r.next_action_at <= new Date().toISOString().slice(0, 10) },
+  { key: "sent", label: "Contactés", st: ["envoye"] },
+  { key: "ready", label: "Joignables", st: ["pret", "a_valider"] },
+  { key: "todo", label: "À enquêter", st: ["nouveau"] },
+  { key: "none", label: "Sans e-mail", st: ["sans_email"] },
+];
+const MOVES = ["repondu", "rdv", "client", "refus", "ignore"];
+export const CHANNEL = {
+  email: { label: "E-mail", icon: "✉" },
+  telephone: { label: "Téléphone", icon: "☎" },
+  linkedin: { label: "LinkedIn", icon: "in" },
+  formulaire: { label: "Formulaire", icon: "✎" },
+  courrier: { label: "Courrier", icon: "✉︎" },
+};
+
+function printLetter(ws, p, text) {
+  const w = window.open("", "_blank");
+  if (!w) return;
+  const esc = (x) => String(x ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+  const date = new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Lettre ${esc(p.name)}</title><style>body{font:12pt/1.55 Georgia,serif;color:#111;max-width:17cm;margin:2.2cm auto;padding:0 1cm}.from{font-size:10.5pt;color:#444}.to{margin:1.6cm 0 1cm auto;width:8cm}.date{text-align:right;margin-bottom:1cm}p{margin:0 0 .8em;white-space:pre-line}@media print{body{margin:0 auto}}</style></head><body>
+<div class="from"><b>${esc(ws.profile?.nom || ws.name)}</b><br>${esc(ws.sender_name)}<br>${esc(ws.postal_address)}<br>${esc(ws.sender_email)}</div>
+<div class="to">${p.contact_name ? `${esc(p.contact_name)}${p.contact_role ? `<br>${esc(p.contact_role)}` : ""}<br>` : "À l'attention de la direction<br>"}<b>${esc(p.name)}</b><br>${esc(p.address)}</div>
+<div class="date">${esc(ws.profile?.ville || "")}${ws.profile?.ville ? ", le " : "Le "}${date}</div>
+${text.split(/\n{2,}/).map((x) => `<p>${esc(x)}</p>`).join("")}
+<script>setTimeout(()=>print(),300)</script></body></html>`);
+  w.document.close();
+}
+
+function PlanB({ p, ws, busy, setBusy, onChange, act, nav }) {
+  const toast = useToast();
+  const [text, setText] = useState(p.letter || "");
+  const ch = p.channel || (p.phone ? "telephone" : p.linkedin_url ? "linkedin" : p.contact_form ? "formulaire" : "courrier");
+  const write = async (kind) => {
+    setBusy(kind);
+    try { const r = await fn("letter", { workspace_id: ws.id, prospect_id: p.id, kind }); setText(r.text); onChange({ ...p, letter: r.text }); }
+    catch (e) { toast(e.message, "bad"); } finally { setBusy(null); }
+  };
+  const copy = () => navigator.clipboard?.writeText(text).then(() => toast("Copié", "good"), () => toast("Copie impossible", "bad"));
+  return (
+    <div className="mt-6 rounded-2xl border border-line bg-white p-4">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-semibold">Pas d'e-mail : plan B</p>
+        {CHANNEL[ch] && <Badge tone="accent">{CHANNEL[ch].icon} {CHANNEL[ch].label}</Badge>}
+      </div>
+      {(p.enrich_level ?? 0) < 2 ? (
+        <>
+          <p className="text-sm text-ink-soft mt-1">L'enquête rapide n'a rien trouvé. Le Détective peut creuser : son site (contact, mentions légales), les annuaires officiels du secteur, le site du groupe, les documents publics{p.contact_name ? ", puis Dropcontact pour l'adresse nominative du dirigeant" : ""}. Chaque adresse est vérifiée.</p>
+          <Button quota="enquete_plus" size="sm" variant="primary" className="mt-3" loading={busy === "enrich-deep"} onClick={() => act("enrich-deep", "Enquête approfondie terminée")}>Enquête approfondie</Button>
+          {busy === "enrich-deep" && <p className="text-xs text-ink-soft mt-2">1 à 2 minutes…</p>}
+        </>
+      ) : (
+        <p className="text-sm text-ink-soft mt-1">{p.dropcontact_req ? "Dropcontact cherche encore l'adresse du dirigeant : le résultat arrive automatiquement. " : "Aucun e-mail publié n'existe pour cet établissement. "}Voici le meilleur canal pour le joindre quand même.</p>
+      )}
+      <div className="flex flex-wrap gap-2 mt-3">
+        {p.phone && <a href={`tel:${p.phone.replace(/\s/g, "")}`}><Button size="sm" variant={ch === "telephone" ? "accent" : "default"}>☎ Appeler {p.phone}</Button></a>}
+        {p.phone && <Button size="sm" onClick={() => nav("/appels")}>Script d'appel</Button>}
+        {p.linkedin_url && <a href={p.linkedin_url} target="_blank" rel="noreferrer"><Button size="sm" variant="li">Profil LinkedIn</Button></a>}
+        {p.contact_form && <a href={p.contact_form} target="_blank" rel="noreferrer"><Button size="sm" variant={ch === "formulaire" ? "accent" : "default"}>Ouvrir le formulaire ↗</Button></a>}
+        {p.contact_form && <Button quota="lettre" size="sm" loading={busy === "formulaire"} onClick={() => write("formulaire")}>Préparer le message</Button>}
+        {(p.address || p.postal_code) && <Button size="sm" variant={ch === "courrier" ? "accent" : "default"} loading={busy === "courrier"} quota="lettre" onClick={() => write("courrier")}>Préparer une lettre</Button>}
+      </div>
+      {text && (
+        <div className="mt-3">
+          <Textarea rows={9} value={text} onChange={(e) => setText(e.target.value)} className="text-sm" />
+          <div className="flex gap-3 mt-2 text-sm">
+            <button className="font-semibold text-accent hover:underline" onClick={copy}>Copier</button>
+            <button className="font-semibold text-accent hover:underline" onClick={() => printLetter(ws, p, text)}>Imprimer en lettre</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function Drawer({ p, onClose, onChange, team = [] }) {
+  const { ws } = useWs();
+  const toast = useToast();
+  const nav = useNavigate();
+  const [msgs, setMsgs] = useState(null);
+  const [calls, setCalls] = useState([]);
+  const [busy, setBusy] = useState(null);
+  const [next, setNext] = useState({ next_action: p.next_action ?? "", next_action_at: p.next_action_at ?? "", notes: p.notes ?? "", owner_id: p.owner_id ?? "" });
+  useEffect(() => {
+    supabase.from("messages").select("*").eq("prospect_id", p.id).order("created_at").then(({ data }) => setMsgs(data ?? []));
+    supabase.from("calls").select("*").eq("prospect_id", p.id).order("created_at", { ascending: false }).then(({ data }) => setCalls(data ?? []));
+  }, [p.id]);
+  const saveNext = async () => {
+    const patch = { next_action: next.next_action, next_action_at: next.next_action_at || null, notes: next.notes, owner_id: next.owner_id || null };
+    await supabase.from("prospects").update(patch).eq("id", p.id);
+    onChange({ ...p, ...patch }); toast("Enregistré");
+  };
+  const analyse = async () => {
+    setBusy("insight");
+    try { await fn("insight", { workspace_id: ws.id, prospect_id: p.id }); const { data } = await supabase.from("prospects").select("*").eq("id", p.id).single(); onChange(data); }
+    catch (e) { toast(e.message, "bad"); } finally { setBusy(null); }
+  };
+  const ins = p.insight;
+  const set = async (status) => {
+    const extra = status === "client" && !p.won_at ? { won_at: new Date().toISOString() } : {};
+    await supabase.from("prospects").update({ status, ...extra }).eq("id", p.id);
+    if (["repondu", "rdv", "client", "refus", "ignore"].includes(status)) await supabase.from("messages").update({ status: "ignore" }).eq("prospect_id", p.id).eq("status", "brouillon");
+    onChange({ ...p, status });
+    toast(`Statut : ${STATUS[status].label}`);
+  };
+  const act = async (action, label) => {
+    setBusy(action);
+    try {
+      await fn(action, { workspace_id: ws.id, ids: [p.id], count: 1 });
+      const { data } = await supabase.from("prospects").select("*").eq("id", p.id).single();
+      onChange(data);
+      toast(label, "good");
+    } catch (e) { toast(e.message, "bad"); } finally { setBusy(null); }
+  };
+  const target = ws.targets?.find((t) => t.id === p.target);
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal>
+      <button className="absolute inset-0 bg-ink/30" onClick={onClose} aria-label="Fermer" />
+      <div className="relative w-full max-w-lg bg-paper h-full overflow-y-auto p-5 sm:p-7 rise">
+        <button onClick={onClose} className="text-sm text-ink-soft hover:text-ink">✕ Fermer</button>
+        <div className="mt-4 flex flex-wrap gap-2"><Badge tone={STATUS[p.status]?.tone}>{STATUS[p.status]?.label}</Badge><Badge>{target?.label ?? p.activity}</Badge></div>
+        <h2 className="font-serif text-4xl leading-tight mt-3">{p.name}</h2>
+        {p.org && <p className="text-ink-soft">{p.org}</p>}
+        <dl className="mt-5 grid grid-cols-[110px_1fr] gap-y-2 text-sm">
+          <dt className="text-ink-soft">Adresse</dt><dd>{[p.address].filter(Boolean).join(" ") || "—"}</dd>
+          <dt className="text-ink-soft">Dirigeant</dt><dd>{p.contact_name ? `${p.contact_name}${p.contact_role ? ` · ${p.contact_role}` : ""}` : "—"}</dd>
+          <dt className="text-ink-soft">E-mail</dt><dd>{p.email ? <><a className="underline" href={`mailto:${p.email}`}>{p.email}</a>{p.email_source && <span className="block text-xs text-ink-faint">via {p.email_source}</span>}</> : "—"}</dd>
+          <dt className="text-ink-soft">Téléphone</dt><dd>{p.phone ? <a className="underline" href={`tel:${p.phone.replace(/\s/g, "")}`}>{p.phone}</a> : "—"}</dd>
+          <dt className="text-ink-soft">Site</dt><dd className="truncate">{p.website ? <a className="underline" href={p.website} target="_blank" rel="noreferrer">{p.website.replace(/^https?:\/\//, "")}</a> : "—"}</dd>
+          <dt className="text-ink-soft">LinkedIn</dt><dd>{p.linkedin_url ? <a className="underline text-li" href={p.linkedin_url} target="_blank" rel="noreferrer">{p.linkedin_person || "Profil"}</a> : p.linkedin_status === "introuvable" ? "Introuvable" : "—"}</dd>
+          <dt className="text-ink-soft">SIRET</dt><dd className="tnum">{p.siret}</dd>
+        </dl>
+        {p.enrich_note && <p className="text-xs text-ink-soft mt-3">{p.enrich_note}</p>}
+        <Contacts p={p} onChange={onChange} />
+        {p.signals?.length > 0 && <div className="flex flex-wrap gap-1.5 mt-3">{p.signals.map((s, i) => <Badge key={i} tone={s.type === "ouverture" || s.type === "creation" ? "accent" : "muted"}>{s.label}</Badge>)}</div>}
+
+        {!p.email && p.enriched_at && <PlanB p={p} ws={ws} busy={busy} setBusy={setBusy} onChange={onChange} act={act} nav={nav} />}
+
+        <div className="mt-6 rounded-2xl border border-line bg-white p-4">
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-semibold">Pourquoi le contacter maintenant ?</p>
+            {ins && <span className="font-serif text-2xl">{p.score}<span className="text-sm text-ink-faint">/100</span></span>}
+          </div>
+          {!ins ? (
+            <><p className="text-sm text-ink-soft mt-1">L'IA cherche des signaux publics (ouverture, travaux, nomination, recrutement, avis, publications sur les réseaux…) et sépare les faits des hypothèses. Une publication récente sert d'accroche à l'e-mail.</p>
+            <Button quota="analyse_prospect" size="sm" variant="primary" className="mt-3" loading={busy === "insight"} onClick={analyse}>Analyser ce prospect</Button></>
+          ) : (
+            <div className="text-sm mt-2 space-y-3">
+              <p>{ins.resume}</p>
+              {ins.faits?.length > 0 && <div><p className="text-xs font-semibold uppercase tracking-wider text-good">Faits</p>{ins.faits.map((f, i) => <p key={i}>• {f.texte} {f.source && <a href={f.source} target="_blank" rel="noreferrer" className="text-ink-faint underline">source</a>}</p>)}</div>}
+              {ins.hypotheses?.length > 0 && <div><p className="text-xs font-semibold uppercase tracking-wider text-warn">Hypothèses</p>{ins.hypotheses.map((f, i) => <p key={i}>• {f}</p>)}</div>}
+              {ins.inconnues?.length > 0 && <div><p className="text-xs font-semibold uppercase tracking-wider text-ink-soft">Inconnues</p>{ins.inconnues.map((f, i) => <p key={i}>• {f}</p>)}</div>}
+              {(ins.reseaux?.liens?.length > 0 || ins.reseaux?.publications?.length > 0 || ins.reseaux?.accroche) && <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-li">Réseaux sociaux</p>
+                {ins.reseaux.liens?.length > 0 && <div className="flex flex-wrap gap-1.5 mt-1">{ins.reseaux.liens.filter((l) => /^https?:/.test(l.url)).map((l, i) => <a key={i} href={l.url} target="_blank" rel="noreferrer" className="rounded-full border border-line px-2.5 py-0.5 text-xs capitalize hover:border-ink-faint">{l.reseau} ↗</a>)}</div>}
+                {ins.reseaux.publications?.map((x, i) => <p key={i} className="mt-1">• <span className="text-ink-faint">{x.date}</span> {x.sujet} {x.source && /^https?:/.test(x.source) && <a href={x.source} target="_blank" rel="noreferrer" className="text-ink-faint underline">voir</a>}</p>)}
+                {ins.reseaux.accroche && <p className="mt-2 rounded-xl border border-dashed border-line p-3"><span className="text-xs font-semibold text-ink-soft block mb-0.5">Accroche utilisée dans l'e-mail</span>« {ins.reseaux.accroche} »</p>}
+              </div>}
+              {ins.recommandation && <p className="bg-accent-soft rounded-xl p-3"><b>{ins.contacter === false ? "À ne pas contacter pour l'instant. " : "Angle : "}</b>{ins.recommandation}</p>}
+              <button className="text-xs text-ink-soft underline" onClick={analyse}>{busy === "insight" ? "Analyse…" : "Mettre à jour"}</button>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-2 mt-5">
+          {!p.enriched_at && <Button quota="enquete" size="sm" loading={busy === "m/enrich"} onClick={() => act("m/enrich", "Enquête terminée")}>Trouver l'e-mail</Button>}
+          {!p.linkedin_status && <Button quota="linkedin" size="sm" variant="li" loading={busy === "linkedin"} onClick={() => act("linkedin", "Recherche LinkedIn terminée")}>Préparer LinkedIn</Button>}
+          <Button size="sm" onClick={() => nav("/devis", { state: { prospect: p } })}>Créer un devis</Button>
+        </div>
+
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-ink-soft mt-7 mb-2">Où en est-on ?</h3>
+        <div className="flex flex-wrap gap-2">
+          {MOVES.map((m) => (
+            <button key={m} onClick={() => set(m)} className={cx("rounded-full px-3 py-1.5 text-sm border", p.status === m ? "bg-ink text-white border-ink" : "bg-white border-line hover:border-ink-faint")}>{STATUS[m].label}</button>
+          ))}
+        </div>
+
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-ink-soft mt-7 mb-2">Prochaine action</h3>
+        <div className="grid grid-cols-[1fr_150px] gap-2">
+          <Input placeholder="Ex. Rappeler après les vacances" value={next.next_action} onChange={(e) => setNext({ ...next, next_action: e.target.value })} />
+          <Input type="date" value={next.next_action_at ?? ""} onChange={(e) => setNext({ ...next, next_action_at: e.target.value })} />
+        </div>
+        <Textarea rows={3} className="mt-2" placeholder="Notes" value={next.notes} onChange={(e) => setNext({ ...next, notes: e.target.value })} />
+        {team.length > 1 && (
+          <label className="flex items-center gap-2 text-sm mt-2"><span className="text-ink-soft">Responsable</span>
+            <select value={next.owner_id} onChange={(e) => setNext({ ...next, owner_id: e.target.value })} className="flex-1 min-w-0 rounded-lg border border-line bg-white px-2 py-1.5 text-sm">
+              <option value="">Personne</option>{team.map((m) => <option key={m.user_id} value={m.user_id}>{m.email}</option>)}
+            </select>
+          </label>
+        )}
+        <Button size="sm" className="mt-2" onClick={saveNext}>Enregistrer</Button>
+        {calls.length > 0 && <>
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-ink-soft mt-7 mb-2">Appels</h3>
+          {calls.map((c) => <p key={c.id} className="text-sm"><span className="text-ink-faint">{fmtTime(c.created_at)}</span> · {CALL[c.outcome]}{c.notes ? ` — ${c.notes}` : ""}</p>)}
+        </>}
+
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-ink-soft mt-7 mb-2">Messages</h3>
+        {!msgs ? <Spinner /> : msgs.length === 0 ? <p className="text-sm text-ink-soft">Aucun message pour l'instant.</p> : (
+          <div className="space-y-3">
+            {msgs.map((m) => (
+              <div key={m.id} className="bg-white border border-line rounded-2xl p-4 text-sm">
+                <div className="flex justify-between gap-2 text-xs text-ink-soft">
+                  <span>{m.step === 0 ? "Premier message" : `Relance n°${m.step}`}</span>
+                  <span>{m.status === "envoye" ? `Envoyé ${fmtTime(m.sent_at)}` : m.status === "brouillon" ? "À valider" : m.status === "echec" ? `Échec : ${m.error}` : "Non envoyé"}</span>
+                </div>
+                <p className="font-semibold mt-2">{m.subject}</p>
+                <p className="whitespace-pre-line mt-1 text-ink-soft leading-relaxed">{m.body}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function Prospects() {
+  const { ws } = useWs();
+  const [rows, setRows] = useState(null);
+  const [view, setView] = useState("all");
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(null);
+  const [adding, setAdding] = useState(false);
+  const [cr, setCr] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [mine, setMine] = useState(false);
+  const [team, setTeam] = useState([]);
+  const toast = useToast();
+  const { session } = useWs();
+  useEffect(() => { supabase.from("members").select("user_id, email").eq("workspace_id", ws.id).then(({ data }) => setTeam(data ?? [])); }, [ws.id]);
+  const { job, run } = useJob(toast);
+
+  const load = useCallback(async () => {
+    const all = [];
+    for (let from = 0; from < 10000; from += 1000) {
+      const { data } = await supabase.from("prospects").select("*").eq("workspace_id", ws.id).order("updated_at", { ascending: false }).range(from, from + 999);
+      all.push(...(data ?? []));
+      if (!data || data.length < 1000) break;
+    }
+    setRows(all);
+  }, [ws.id]);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { window.addEventListener("kairo:refresh", load); return () => window.removeEventListener("kairo:refresh", load); }, [load]);
+  useEffect(() => { if (view === "none" && !cr) fn("credits", { workspace_id: ws.id }).then(setCr).catch(() => {}); }, [view, cr, ws.id]);
+
+  const counts = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.key, rows?.filter((r) => v.fn ? v.fn(r) : !v.st || v.st.includes(r.status)).length ?? 0])), [rows]);
+  const list = useMemo(() => {
+    const v = VIEWS.find((x) => x.key === view);
+    const n = q.trim().toLowerCase();
+    const me = session?.user?.id;
+    return (rows ?? []).filter((r) => (v.fn ? v.fn(r) : !v.st || v.st.includes(r.status)) && (!mine || r.owner_id === me) && (!n || `${r.name} ${r.org} ${r.city} ${r.email} ${r.contact_name}`.toLowerCase().includes(n)));
+  }, [rows, view, q, mine, session]);
+  const exportCsv = () => {
+    const owner = (id) => team.find((m) => m.user_id === id)?.email ?? "";
+    const head = ["Entreprise", "Raison sociale", "Contact", "Fonction", "E-mail", "Téléphone", "Site web", "Adresse", "Code postal", "Ville", "SIRET", "Activité", "Cible", "Statut", "Score", "LinkedIn", "Prochaine action", "Date prochaine action", "Responsable", "Notes", "Ajouté le"];
+    const data = list.map((r) => [r.name, r.org, r.contact_name, r.contact_role, r.email, r.phone, r.website, r.address, r.postal_code, r.city, r.siret, r.activity, targetLabel(r.target), STATUS[r.status]?.label ?? r.status, r.score ?? "", r.linkedin_url, r.next_action, r.next_action_at ?? "", owner(r.owner_id), r.notes, (r.created_at ?? "").slice(0, 10)]);
+    download(`prospects-kairo-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(head, data));
+    toast(`${data.length} prospects exportés`, "good");
+  };
+  const targetLabel = (id) => ws.targets?.find((t) => t.id === id)?.label ?? "";
+
+  return (
+    <div>
+      <SubNav section="prospects" />
+      <PageHead title="Prospects" sub={rows ? `${rows.length.toLocaleString("fr-FR")} établissements` : ""}>
+        <Input placeholder="Rechercher…" value={q} onChange={(e) => setQ(e.target.value)} className="!w-56" />
+        {team.length > 1 && <Button variant={mine ? "primary" : "default"} onClick={() => setMine((x) => !x)}>Mes prospects</Button>}
+        <Link to="/mission"><Button variant="accent">+ Trouver des prospects</Button></Link>
+        <Button onClick={() => setAdding((x) => !x)}>Ajouter un contact</Button>
+        <Button onClick={() => setImporting((x) => !x)}>Importer</Button>
+        <Button onClick={exportCsv} disabled={!list.length}>Exporter</Button>
+      </PageHead>
+      {adding && (
+        <div className="mb-4 rounded-2xl border border-line bg-white p-4">
+          <p className="font-semibold">Ajouter une personne précise</p>
+          <p className="text-sm text-ink-soft mt-0.5 mb-3">Colle un profil LinkedIn ou écris « Prénom Nom, entreprise » : Kairo identifie la personne et son entreprise, puis cherche son e-mail vérifié.</p>
+          <ImportPerson onDone={async (id) => { setAdding(false); await load(); const { data } = await supabase.from("prospects").select("*").eq("id", id).single(); if (data) setOpen(data); }} />
+        </div>
+      )}
+      {importing && <ImportCsv ws={ws} existing={rows ?? []} toast={toast} onClose={() => setImporting(false)} onDone={() => { setImporting(false); load(); }} />}
+      <div className="flex gap-2 overflow-x-auto pb-1 mb-4 -mx-4 px-4">
+        {VIEWS.map((v) => (
+          <button key={v.key} onClick={() => setView(v.key)} className={cx("shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium border", view === v.key ? "bg-ink text-white border-ink" : "bg-white border-line")}>
+            {v.label} <span className="opacity-60 tnum">{counts[v.key]}</span>
+          </button>
+        ))}
+      </div>
+      {view === "none" && rows && (
+        <div className="mb-4 rounded-2xl border border-line bg-white p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex-1 min-w-0 text-sm">
+            <p className="font-semibold">Plan B pour les prospects sans e-mail</p>
+            <p className="text-ink-soft">Le Détective creuse (site, annuaires, groupe, documents publics{cr?.dropcontact ? ", Dropcontact" : ""}) puis choisit le meilleur canal : téléphone, LinkedIn, formulaire ou courrier.{cr && <> {cr.dropcontact ? `Dropcontact : ${cr.used}/${cr.total} e-mails ce mois.` : "Dropcontact pas encore connecté."}</>}</p>
+          </div>
+          <Button quota="enquete_plus" variant="primary" loading={job?.key === "deep"} disabled={!!job || !list.some((r) => (r.enrich_level ?? 0) < 2)} onClick={() => run({ key: "deep", action: "enrich-deep", body: { workspace_id: ws.id }, rounds: 5, label: "Enquête approfondie", done: (n, f) => `${f} e-mails trouvés sur ${n} prospects, les autres ont un canal recommandé` })}>
+            {job?.key === "deep" ? job.text : "Creuser 5 prospects"}
+          </Button>
+        </div>
+      )}
+      {!rows ? <Spinner /> : list.length === 0 ? <Empty title="Aucun prospect ici." /> : (
+        <div className="bg-white border border-line rounded-2xl overflow-hidden divide-y divide-line">
+          {list.slice(0, 300).map((r) => (
+            <button key={r.id} onClick={() => setOpen(r)} className="w-full text-left px-4 py-3 hover:bg-paper flex items-center gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{r.name}</p>
+                <p className="text-[13px] text-ink-soft truncate">{[targetLabel(r.target), [r.postal_code, r.city].filter(Boolean).join(" "), r.email].filter(Boolean).join(" · ")}</p>
+              </div>
+              {r.score != null && <span className="text-xs font-semibold tnum text-ink-soft">{r.score}</span>}
+              {r.signals?.some((x) => ["ouverture", "creation"].includes(x.type)) && <Badge tone="accent">Signal</Badge>}
+              {r.linkedin_status === "a_envoyer" && <Badge tone="li">in</Badge>}
+              {!r.email && r.channel && CHANNEL[r.channel] && <Badge>{CHANNEL[r.channel].icon} {CHANNEL[r.channel].label}</Badge>}
+              <Badge tone={STATUS[r.status]?.tone}>{STATUS[r.status]?.label}</Badge>
+              <span className="hidden sm:block text-xs text-ink-faint w-14 text-right">{fmtDate(r.updated_at)}</span>
+            </button>
+          ))}
+          {list.length > 300 && <p className="px-4 py-3 text-sm text-ink-soft">+ {list.length - 300} autres : affine ta recherche.</p>}
+        </div>
+      )}
+      {open && <Drawer team={team} p={open} onClose={() => setOpen(null)} onChange={(np) => { setOpen(np); setRows((rs) => rs.map((x) => x.id === np.id ? np : x)); }} />}
+    </div>
+  );
+}
