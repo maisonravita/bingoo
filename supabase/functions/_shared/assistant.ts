@@ -150,15 +150,29 @@ Règles :
 - Réponds en français, tutoiement, court et concret : ce que tu as fait, le résultat, la prochaine action. Pas de jargon technique, pas d'identifiants techniques.`;
 }
 
+// Réglage de réflexion accepté par le modèle : on le retient après le premier refus
+let THINKING: Record<string, unknown> | null = { type: "disabled" };
+
 async function claude(body: Record<string, unknown>) {
   const key = env("ANTHROPIC_API_KEY");
   if (!key) throw new HttpError(500, "Clé ANTHROPIC_API_KEY manquante");
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await r.json().catch(() => ({}));
+  const post = async () => {
+    const b = { ...body };
+    if (THINKING) b.thinking = THINKING; else delete b.thinking;
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify(b),
+    });
+    return { r, data: await r.json().catch(() => ({})) };
+  };
+  let { r, data } = await post();
+  // Selon le modèle, « disabled » est refusé avec des outils : on essaie « between_tools », puis sans réglage
+  for (const next of [{ type: "between_tools" }, null]) {
+    if (r.ok || r.status !== 400 || !/thinking/i.test(data?.error?.message ?? "")) break;
+    THINKING = next;
+    ({ r, data } = await post());
+  }
   if (!r.ok) {
     const msg = data?.error?.message ?? `erreur ${r.status}`;
     if (/credit balance/i.test(msg)) throw new HttpError(402, "Crédit IA épuisé : recharge le compte Anthropic pour continuer");
@@ -176,7 +190,7 @@ export async function assistantTurn(ws: Workspace, auth: string, history: { role
   const started = Date.now();
   let reply = "";
   for (let turn = 0; turn < 8; turn++) {
-    const res = await claude({ model: env("ANTHROPIC_MODEL", "claude-sonnet-5-5"), max_tokens: 2000, system: system(ws), tools: TOOLS, messages: msgs, thinking: { type: "disabled" } });
+    const res = await claude({ model: env("ANTHROPIC_MODEL", "claude-sonnet-5-5"), max_tokens: 2000, system: system(ws), tools: TOOLS, messages: msgs });
     const content = (res.content ?? []) as { type: string; text?: string; id?: string; name?: string; input?: unknown }[];
     msgs.push({ role: "assistant", content });
     const uses = content.filter((c) => c.type === "tool_use");
