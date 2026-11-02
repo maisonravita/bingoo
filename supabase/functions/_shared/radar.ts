@@ -4,7 +4,7 @@
 // Rien n'est inventé : chaque opportunité a une source vérifiable.
 import { HttpError } from "./http.ts";
 import { admin, aiRoom, askJson, log, setAi, type Workspace } from "./core.ts";
-import { findTwins, ftOffers, ftReady, pickTop3, radarPress, siteWatch, whoToCall, zoneEvents } from "./radar-plus.ts";
+import { findTwins, ftOffers, ftReady, lbbCompanies, pickTop3, radarPress, siteWatch, whoToCall, zoneEvents } from "./radar-plus.ts";
 import { learn, nameRenewals, newCompanies, type Opp, type PublicItem, rejected, renewals, rescore, tagProspects, tedTenders, watchProspects } from "./radar-signals.ts";
 
 const BOAMP = "https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records";
@@ -216,7 +216,10 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
       newCompanies(ws, cfg.activites ?? [], zone).catch((e) => { console.error("creations", e); return [] as Opp[]; }),
       step("web", webDue ? webSignals(ws, cfg, ftReady()) : Promise.resolve([] as Opp[]), "signaux web"),
       step("registre", registrySignals(ws), ""),
-      step("emploi", ftReady() && zone.length ? ftOffers(ws, cfg.postes, zone) : Promise.resolve([] as Opp[]), "offres d'emploi France Travail"),
+      step("emploi", ftReady() && zone.length ? Promise.all([
+        ftOffers(ws, cfg.postes, zone).catch((e) => { console.error("offres", e); return [] as Opp[]; }), // accès sur demande chez France Travail
+        lbbCompanies({ ...ws, radar_cfg: cfg as unknown as Record<string, unknown> }, zone).catch((e) => { console.error("lbb", e); errors.push("La Bonne Boîte"); return [] as Opp[]; }),
+      ]).then(([a, b]) => [...a, ...b]) : Promise.resolve([] as Opp[]), ""),
       siteWatch(ws).catch((e) => { console.error("sites", e); return [] as Opp[]; }),
       zoneEvents(ws, cfg.activites ?? [], zone).catch((e) => { console.error("zone", e); return [] as Opp[]; }),
       opts.web === false ? Promise.resolve([] as Opp[]) : radarPress({ ...ws, radar_cfg: cfg as unknown as Record<string, unknown> }, zone).catch((e) => { console.error("presse", e); return [] as Opp[]; }),
@@ -244,7 +247,7 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
     p.steps.tri = { s: "fait", at: now, n: added }; p.done_at = now; p.added = added; p.result = sc;
     // Relit la configuration (presse, jumeaux ont pu y écrire pendant l'analyse) avant de la compléter
     const { data: fresh_ } = await admin.from("workspaces").select("radar_cfg").eq("id", ws.id).single();
-    await admin.from("workspaces").update({ radar_at: now, radar_progress: p, radar_cfg: { ...cfg, press_at: fresh_?.radar_cfg?.press_at ?? cfg.press_at, twins_at: fresh_?.radar_cfg?.twins_at ?? cfg.twins_at, webhook: fresh_?.radar_cfg?.webhook ?? cfg.webhook, ...(webDue ? { web_at: now } : {}), bodacc_at: now.slice(0, 10), poids: brain.poids, appris: brain.by } }).eq("id", ws.id);
+    await admin.from("workspaces").update({ radar_at: now, radar_progress: p, radar_cfg: { ...cfg, press_at: fresh_?.radar_cfg?.press_at ?? cfg.press_at, lbb_at: fresh_?.radar_cfg?.lbb_at, twins_at: fresh_?.radar_cfg?.twins_at ?? cfg.twins_at, webhook: fresh_?.radar_cfg?.webhook ?? cfg.webhook, ...(webDue ? { web_at: now } : {}), bodacc_at: now.slice(0, 10), poids: brain.poids, appris: brain.by } }).eq("id", ws.id);
     await log(ws.id, "radar_scan", `Radar : ${added} nouvelle${added > 1 ? "s" : ""} opportunité${added > 1 ? "s" : ""} (${t.length} appels d'offres, ${r.length} contrats à renouveler, ${legal.length + fresh.length} annonces légales, ${w.length} signaux web)`);
     return { added, tenders: t.length, renewals: r.length, legal: legal.length, creations: fresh.length, jobs: jobs.length, sites: sites.length, web: w.length, registry: g.length, web_scanned: webDue, errors, keywords: cfg.mots_cles, top3, ...sc };
   } catch (e) {

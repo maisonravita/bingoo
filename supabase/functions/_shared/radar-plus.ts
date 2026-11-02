@@ -68,16 +68,62 @@ export async function siteWatch(ws: Workspace): Promise<Opp[]> {
 }
 
 // ---------------------------------------------------------------- France Travail : offres d'emploi officielles
-let ftToken: { v: string; exp: number } | null = null;
+const ftTokens = new Map<string, { v: string; exp: number }>();
 export const ftReady = () => !!env("FT_CLIENT_ID") && !!env("FT_CLIENT_SECRET");
-async function ftAuth() {
-  if (ftToken && ftToken.exp > Date.now() + 60e3) return ftToken.v;
-  const body = new URLSearchParams({ grant_type: "client_credentials", client_id: env("FT_CLIENT_ID").trim().replace(/^["']|["']$/g, ""), client_secret: env("FT_CLIENT_SECRET").trim().replace(/^["']|["']$/g, ""), scope: "api_offresdemploiv2 o2dsoffre" });
-  const r = await fetch("https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=%2Fpartenaire", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body, signal: AbortSignal.timeout(15000) });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok || !j.access_token) throw new Error(`France Travail : connexion refusée (${r.status} ${String(j.error ?? "")} ${String(j.error_description ?? "").slice(0, 120)})`.trim());
-  ftToken = { v: j.access_token, exp: Date.now() + (Number(j.expires_in) || 1200) * 1000 };
-  return ftToken.v;
+/** Jeton France Travail pour un ensemble de droits (scopes) ; essaie les variantes dans l'ordre. */
+async function ftAuth(scopes: string[] = ["api_offresdemploiv2 o2dsoffre"]) {
+  const key = scopes.join("|");
+  const c = ftTokens.get(key);
+  if (c && c.exp > Date.now() + 60e3) return c.v;
+  let last = "";
+  for (const scope of scopes) {
+    const body = new URLSearchParams({ grant_type: "client_credentials", client_id: env("FT_CLIENT_ID").trim().replace(/^["']|["']$/g, ""), client_secret: env("FT_CLIENT_SECRET").trim().replace(/^["']|["']$/g, ""), scope });
+    const r = await fetch("https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=%2Fpartenaire", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body, signal: AbortSignal.timeout(15000) });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && j.access_token) { ftTokens.set(key, { v: j.access_token, exp: Date.now() + (Number(j.expires_in) || 1200) * 1000 }); return j.access_token as string; }
+    last = `${r.status} ${String(j.error ?? "")} ${String(j.error_description ?? "").slice(0, 120)}`.trim();
+  }
+  throw new Error(`France Travail : connexion refusée (${last})`);
+}
+
+/** La Bonne Boîte (France Travail) : entreprises de tes secteurs avec un fort potentiel d'embauche dans les mois à venir, dans ta zone.
+ *  Données officielles mises à jour chaque mois : on les relit une fois par semaine. */
+export async function lbbCompanies(ws: Workspace & { radar_cfg?: Record<string, unknown> | null }, zone: string[], force = false): Promise<Opp[]> {
+  if (!ftReady() || !zone.length) return [];
+  const last = String(ws.radar_cfg?.lbb_at ?? "");
+  if (!force && last && last > new Date(Date.now() - 7 * 864e5).toISOString()) return [];
+  const nafs = [...new Set((ws.targets ?? []).filter((t) => t.actif !== false).flatMap((t) => t.naf ?? []))].slice(0, 6);
+  if (!nafs.length) return [];
+  const token = await ftAuth(["api_labonneboitev2 search office", "api_labonneboitev2"]);
+  const out: Opp[] = [];
+  for (const d of zone.slice(0, 8)) {
+    const u = new URL("https://api.francetravail.io/partenaire/labonneboite/v2/recherche");
+    for (const n of nafs) u.searchParams.append("naf[]", n.replace(/\./g, "").length === 5 ? n : n);
+    u.searchParams.set("department_number", d); u.searchParams.set("page_size", "100");
+    const r = await fetch(u, { headers: { authorization: `Bearer ${token}`, accept: "application/json" }, signal: AbortSignal.timeout(20000) });
+    if (r.status === 204) continue;
+    if (!r.ok) throw new Error(`La Bonne Boîte : recherche refusée (${r.status} ${(await r.text().catch(() => "")).slice(0, 120)})`);
+    const j = await r.json().catch(() => ({}));
+    // deno-lint-ignore no-explicit-any
+    for (const it of (j.items ?? j.results ?? []) as any[]) {
+      const pot = Number(it.hiring_potential ?? it.score ?? 0);
+      if (!(it.is_high_potential || pot >= 60)) continue;
+      const siret = String(it.siret ?? "").replace(/\D/g, "");
+      const name = cap(String(it.name ?? it.company_name ?? it.raison_sociale ?? "").trim());
+      if (!name || siret.length < 9) continue;
+      const loc = it.location ?? {};
+      out.push({
+        key: `lbb:${siret}`, kind: "recrutement", title: name, company: name,
+        summary: `Fort potentiel d'embauche dans les mois à venir (${pot ? `${Math.round(pot)}/100` : "élevé"}, données France Travail)${it.headcount ? ` · effectif : ${it.headcount}` : ""}`,
+        why: "France Travail prévoit qu'elle va recruter : elle grandit, c'est le moment de proposer ton offre, avant même qu'elle publie une annonce.",
+        city: cap(String(loc.city ?? it.city ?? loc.label ?? "")), dept: d, url: `https://labonneboite.francetravail.fr/`, source: "La Bonne Boîte (France Travail)",
+        published: new Date().toISOString().slice(0, 10), siren: siret.slice(0, 9), raw: { lbb: true, siret, potentiel: pot, naf: it.naf ?? "", tranche: "" },
+      });
+    }
+    await new Promise((x) => setTimeout(x, 400));
+  }
+  await admin.from("workspaces").update({ radar_cfg: { ...(ws.radar_cfg ?? {}), lbb_at: new Date().toISOString() } }).eq("id", ws.id);
+  return out.sort((a, b) => Number(b.raw?.potentiel ?? 0) - Number(a.raw?.potentiel ?? 0)).slice(0, 60);
 }
 
 /** Offres d'emploi des 7 derniers jours, dans la zone, pour les postes « signal » ; et toute offre d'un compte surveillé. */
