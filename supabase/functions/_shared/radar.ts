@@ -4,7 +4,7 @@
 // Rien n'est inventé : chaque opportunité a une source vérifiable.
 import { HttpError } from "./http.ts";
 import { admin, aiRoom, askJson, log, setAi, type Workspace } from "./core.ts";
-import { findTwins, ftOffers, ftReady, pickTop3, siteWatch, whoToCall, zoneEvents } from "./radar-plus.ts";
+import { findTwins, ftOffers, ftReady, pickTop3, radarPress, siteWatch, whoToCall, zoneEvents } from "./radar-plus.ts";
 import { learn, nameRenewals, newCompanies, type Opp, type PublicItem, rejected, renewals, rescore, tagProspects, tedTenders, watchProspects } from "./radar-signals.ts";
 
 const BOAMP = "https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records";
@@ -13,7 +13,7 @@ const WEB = (n: number) => [{ type: "web_search_20250305", name: "web_search", m
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 const day = (d: number) => new Date(Date.now() - d * 864e5).toISOString().slice(0, 10);
 
-type Cfg = { v: 1; mots_cles: string[]; postes: string[]; marches: boolean; web_at?: string; activites?: string[]; europe?: boolean; bodacc_at?: string; poids?: Record<string, number>; appris?: unknown };
+type Cfg = { v: 1; mots_cles: string[]; postes: string[]; marches: boolean; web_at?: string; activites?: string[]; europe?: boolean; bodacc_at?: string; poids?: Record<string, number>; appris?: unknown; webhook?: string | null; press_at?: string; twins_at?: string };
 
 /** Mots-clés des marchés publics et postes « signal », déduits une fois de l'offre de l'entreprise. */
 async function config(ws: Workspace & { radar_cfg?: Cfg | null }, force = false): Promise<Cfg> {
@@ -40,7 +40,7 @@ Format : {"mots_cles": [""], "marches": true, "postes": [""]}`, { fast: true, ma
     mots_cles: (r.mots_cles ?? []).map((x) => String(x).replace(/["\\]/g, "").trim()).filter((x) => x.length > 2 && x.length < 40).slice(0, 8),
     postes: (r.postes ?? []).map((x) => String(x).trim()).filter(Boolean).slice(0, 4),
     marches: r.marches !== false,
-    web_at: ws.radar_cfg?.web_at, activites: ws.radar_cfg?.activites, europe: ws.radar_cfg?.europe, bodacc_at: ws.radar_cfg?.bodacc_at,
+    web_at: ws.radar_cfg?.web_at, activites: ws.radar_cfg?.activites, europe: ws.radar_cfg?.europe, bodacc_at: ws.radar_cfg?.bodacc_at, webhook: ws.radar_cfg?.webhook, press_at: ws.radar_cfg?.press_at, twins_at: ws.radar_cfg?.twins_at,
   };
   await admin.from("workspaces").update({ radar_cfg: cfg }).eq("id", ws.id);
   return cfg;
@@ -208,7 +208,7 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
     const step = <T,>(k: Exclude<StepKey, "lance" | "tri">, job: Promise<T[]>, label: string) => job.then(
       (r) => { if (p.steps[k].s !== "saute") p.steps[k] = { s: "fait", at: at(), n: r.length }; put(); return r; },
       (e) => { console.error("radar", k, e); if (label) errors.push(label); p.steps[k] = { s: "erreur", at: at() }; put(); return [] as T[]; });
-    const [boamp, ted, ren, legal, fresh, w, g, jobs, sites, zev] = await Promise.all([
+    const [boamp, ted, ren, legal, fresh, w, g, jobs, sites, zev, press] = await Promise.all([
       pub ? tenders(ws, cfg).catch((e) => { console.error("boamp", e); errors.push("appels d'offres"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
       pub ? tedTenders(cfg.mots_cles, zone, !!cfg.europe).catch((e) => { console.error("ted", e); errors.push("appels d'offres européens"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
       pub && zone.length ? renewals(ws, cfg.mots_cles, zone).catch((e) => { console.error("decp", e); errors.push("renouvellements"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
@@ -219,6 +219,7 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
       step("emploi", ftReady() && zone.length ? ftOffers(ws, cfg.postes, zone) : Promise.resolve([] as Opp[]), "offres d'emploi France Travail"),
       siteWatch(ws).catch((e) => { console.error("sites", e); return [] as Opp[]; }),
       zoneEvents(ws, cfg.activites ?? [], zone).catch((e) => { console.error("zone", e); return [] as Opp[]; }),
+      opts.web === false ? Promise.resolve([] as Opp[]) : radarPress({ ...ws, radar_cfg: cfg as unknown as Record<string, unknown> }, zone).catch((e) => { console.error("presse", e); return [] as Opp[]; }),
     ]);
     p.steps.annonces = { s: "fait", at: at(), n: legal.length + fresh.length + sites.length + zev.length }; await put();
     // Un seul tri par l'IA pour tous les marchés publics
@@ -228,7 +229,7 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
     if (pub) p.steps.marches = { s: "fait", at: at(), n: t.length };
     if (p.steps.renouvellements.s === "en_cours") p.steps.renouvellements = { s: "fait", at: at(), n: r.length };
     p.steps.tri = { s: "en_cours", at: at() }; await put();
-    const all = [...t, ...r, ...legal, ...fresh, ...w, ...g, ...jobs, ...sites, ...zev];
+    const all = [...t, ...r, ...legal, ...fresh, ...w, ...g, ...jobs, ...sites, ...zev, ...press];
     const added = await save(ws, all);
     await tagProspects(legal).catch(() => null);
     // Qui appeler (dirigeant, recruteur, service achats) et entreprises fermées ; jumeaux de tes clients (chaque semaine)
@@ -241,7 +242,9 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
     const top3 = opts.top ? await pickTop3(ws).catch((e) => { console.error("top3", e); return null; }) : null;
     const now = at();
     p.steps.tri = { s: "fait", at: now, n: added }; p.done_at = now; p.added = added; p.result = sc;
-    await admin.from("workspaces").update({ radar_at: now, radar_progress: p, radar_cfg: { ...cfg, ...(webDue ? { web_at: now } : {}), bodacc_at: now.slice(0, 10), poids: brain.poids, appris: brain.by } }).eq("id", ws.id);
+    // Relit la configuration (presse, jumeaux ont pu y écrire pendant l'analyse) avant de la compléter
+    const { data: fresh_ } = await admin.from("workspaces").select("radar_cfg").eq("id", ws.id).single();
+    await admin.from("workspaces").update({ radar_at: now, radar_progress: p, radar_cfg: { ...cfg, press_at: fresh_?.radar_cfg?.press_at ?? cfg.press_at, twins_at: fresh_?.radar_cfg?.twins_at ?? cfg.twins_at, webhook: fresh_?.radar_cfg?.webhook ?? cfg.webhook, ...(webDue ? { web_at: now } : {}), bodacc_at: now.slice(0, 10), poids: brain.poids, appris: brain.by } }).eq("id", ws.id);
     await log(ws.id, "radar_scan", `Radar : ${added} nouvelle${added > 1 ? "s" : ""} opportunité${added > 1 ? "s" : ""} (${t.length} appels d'offres, ${r.length} contrats à renouveler, ${legal.length + fresh.length} annonces légales, ${w.length} signaux web)`);
     return { added, tenders: t.length, renewals: r.length, legal: legal.length, creations: fresh.length, jobs: jobs.length, sites: sites.length, web: w.length, registry: g.length, web_scanned: webDue, errors, keywords: cfg.mots_cles, top3, ...sc };
   } catch (e) {
@@ -252,10 +255,11 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
 }
 
 /** Ce que le Radar cherche, modifiable par le client : postes « signal », mots-clés des marchés publics, marchés oui/non. */
-export async function radarSetConfig(ws: Workspace & { radar_cfg?: Cfg | null }, b: { postes?: unknown; mots_cles?: unknown; marches?: unknown; activites?: unknown; europe?: unknown }) {
+export async function radarSetConfig(ws: Workspace & { radar_cfg?: Cfg | null }, b: { postes?: unknown; mots_cles?: unknown; marches?: unknown; activites?: unknown; europe?: unknown; webhook?: unknown }) {
   const cur = await config(ws);
   const clean = (v: unknown, max: number) => Array.isArray(v) ? [...new Set(v.map((x) => String(x).replace(/["\\]/g, "").trim()).filter((x) => x.length > 1 && x.length < 60))].slice(0, max) : undefined;
-  const cfg: Cfg = { ...cur, postes: clean(b.postes, 6) ?? cur.postes, mots_cles: clean(b.mots_cles, 10) ?? cur.mots_cles, marches: typeof b.marches === "boolean" ? b.marches : cur.marches, activites: clean(b.activites, 10) ?? cur.activites, europe: typeof b.europe === "boolean" ? b.europe : cur.europe };
+  const cfg: Cfg = { ...cur, postes: clean(b.postes, 6) ?? cur.postes, mots_cles: clean(b.mots_cles, 10) ?? cur.mots_cles, marches: typeof b.marches === "boolean" ? b.marches : cur.marches, activites: clean(b.activites, 10) ?? cur.activites, europe: typeof b.europe === "boolean" ? b.europe : cur.europe,
+    webhook: typeof b.webhook === "string" ? (/^https:\/\/\S+$/.test(b.webhook.trim()) ? b.webhook.trim().slice(0, 400) : null) : cur.webhook };
   await admin.from("workspaces").update({ radar_cfg: cfg }).eq("id", ws.id);
   await log(ws.id, "radar", "Réglages du Radar modifiés");
   return { radar_cfg: cfg };

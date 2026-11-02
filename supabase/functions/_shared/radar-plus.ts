@@ -1,6 +1,6 @@
 // Radar, étape 1 : comptes surveillés (site), recrutements France Travail, « tes 3 du jour », préparation d'un contact.
 import { HttpError } from "./http.ts";
-import { admin, aiRoom, env, log, quota, type Prospect, type Target, type Workspace } from "./core.ts";
+import { admin, aiRoom, askJson, env, log, quota, type Prospect, type Target, type Workspace } from "./core.ts";
 import type { Opp } from "./radar-signals.ts";
 import { lookup, norm } from "./radar-signals.ts";
 
@@ -267,4 +267,73 @@ export async function findTwins(ws: Workspace & { radar_cfg?: Record<string, unk
   await admin.from("workspaces").update({ radar_cfg: { ...(ws.radar_cfg ?? {}), twins_at: new Date().toISOString() } }).eq("id", ws.id);
   if (added) await log(ws.id, "radar", `${added} entreprise${added > 1 ? "s" : ""} ressemblant à tes clients ajoutée${added > 1 ? "s" : ""} aux comptes surveillés`);
   return added;
+}
+
+// ---------------------------------------------------------------- Étape 4 : presse et collectivités (une recherche par semaine)
+/** Levées de fonds, aides publiques reçues, projets votés par les collectivités, permis de construire, salons du secteur.
+ *  Une seule recherche web par semaine et par espace, seulement s'il reste de la marge sur le budget IA. Chaque signal a sa source. */
+export async function radarPress(ws: Workspace & { radar_cfg?: Record<string, unknown> | null }, zone: string[]): Promise<Opp[]> {
+  const last = String(ws.radar_cfg?.press_at ?? "");
+  if (last && last > new Date(Date.now() - 7 * 864e5).toISOString()) return [];
+  if (!(await aiRoom(ws.id, 0.6))) return [];
+  await admin.from("workspaces").update({ radar_cfg: { ...(ws.radar_cfg ?? {}), press_at: new Date().toISOString() } }).eq("id", ws.id);
+  const pr = ws.profile ?? {};
+  const targets = (ws.targets ?? []).filter((t) => t.actif !== false).map((t) => t.label).join(" ; ");
+  type S = { type: string; entreprise: string; fait: string; date: string; ville: string; departement: string; url: string; pourquoi: string; montant?: string };
+  const r = await askJson<{ signaux: S[] }>(`Trouve sur le web (moins de 60 jours) des signaux publics qui rendent cette offre utile MAINTENANT.
+Offre : ${pr.offre ?? ""} (${pr.nom ?? ws.name}) — Clients visés : ${targets || "entreprises"} — Zone : ${zone.join(", ") || "France"}
+
+Types (8 recherches maximum, uniquement ceux qui ont du sens pour cette offre) :
+- "levee" : levée de fonds d'une entreprise visée (montant, investisseurs) ;
+- "aide" : aide publique ou subvention importante reçue par une entreprise visée (France 2030, Bpifrance, région…) ;
+- "budget" : projet voté ou annoncé par une collectivité de la zone (délibération, budget, plan d'investissement) qui nécessitera cette offre ;
+- "permis" : permis de construire ou chantier important annoncé dans la zone (nouveau siège, usine, entrepôt, école…) qui nécessitera cette offre ;
+- "salon" : salon ou événement professionnel à venir (moins de 4 mois) où se trouvent les clients visés.
+Règles strictes : chaque signal a l'URL exacte de la page qui le prouve ; n'invente rien ; pas de nom de personne ; 0 à 12 signaux ; liste vide si rien de fiable.
+Format : {"signaux": [{"type": "", "entreprise": "entreprise, collectivité ou nom du salon", "fait": "une phrase", "montant": "", "date": "AAAA-MM-JJ", "ville": "", "departement": "", "url": "", "pourquoi": "une phrase : pourquoi c'est le moment"}]}`,
+    { maxTokens: 6000, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 8, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] });
+  const KINDS = ["levee", "aide", "budget", "permis", "salon"];
+  return (r.signaux ?? []).filter((x) => KINDS.includes(x.type) && /^https?:\/\/[^\s]+\.[a-z]{2,}/i.test(x.url ?? "") && x.entreprise && x.fait).slice(0, 12).map((x) => ({
+    key: `press:${x.type}:${norm(x.entreprise)}:${String(x.date ?? "").slice(0, 7)}`.slice(0, 300), kind: x.type as Opp["kind"],
+    title: String(x.entreprise).slice(0, 160), company: String(x.entreprise).slice(0, 160), summary: `${x.fait}${x.montant ? ` (${x.montant})` : ""}`.slice(0, 300),
+    why: String(x.pourquoi ?? "").slice(0, 300), city: String(x.ville ?? ""), dept: String(x.departement ?? "").replace(/\D/g, "").slice(0, 3), url: x.url,
+    source: (() => { try { return new URL(x.url).hostname.replace(/^www\./, ""); } catch { return "web"; } })(),
+    published: /^\d{4}-\d{2}-\d{2}$/.test(x.date ?? "") ? x.date : null, raw: { presse: true },
+  }));
+}
+
+// ---------------------------------------------------------------- Aide aux appels d'offres
+/** Y aller ou pas, résumé, pièces, critères, concurrents probables, prix comparables, premier jet de réponse technique. */
+export async function tenderAnalysis(ws: Workspace, id: string) {
+  const { data: o } = await admin.from("radar_opps").select("*").eq("id", id).eq("workspace_id", ws.id).single();
+  if (!o || o.kind !== "appel_offres") throw new HttpError(404, "Appel d'offres introuvable");
+  if (o.raw?.analyse) return o.raw.analyse;
+  await quota(ws.id, "analyse", 10);
+  const { siteText } = await import("./pro.ts");
+  const avis = o.url ? await siteText(o.url).catch(() => "") : "";
+  // Marchés comparables déjà attribués (même acheteur, ou objet proche) : prix et titulaires
+  const words = norm(o.title).split(" ").filter((w) => w.length > 5).slice(0, 3);
+  const { data: comp } = await admin.from("public_contracts").select("objet, buyer_name, holder_name, montant, duree_mois, notified").eq("workspace_id", ws.id).eq("relevant", true).limit(1500);
+  const near = ((comp ?? []) as { objet: string; buyer_name: string | null; holder_name: string | null; montant: number | null; duree_mois: number | null; notified: string }[])
+    .filter((c) => norm(c.buyer_name ?? "") === norm(o.company) || words.some((w) => norm(c.objet).includes(w))).slice(0, 25);
+  const pr = ws.profile ?? {};
+  const a = await askJson<Record<string, unknown>>(`Tu aides une PME à décider si elle répond à cet appel d'offres public, puis à préparer sa réponse.
+Entreprise : ${pr.nom ?? ws.name} — ${pr.resume ?? ""} — Offre : ${pr.offre ?? ""} — Différence : ${pr.differenciation ?? ""} — Preuves : ${(pr.preuves ?? []).join(" ; ")}
+Appel d'offres : ${o.title} — Acheteur : ${o.company} — Date limite : ${o.deadline ?? "?"}
+Texte de l'avis (extrait) : ${avis.slice(0, 9000) || "indisponible"}
+Marchés comparables déjà attribués (objet · acheteur · titulaire · montant · durée) :
+${near.map((c) => `- ${c.objet.slice(0, 120)} · ${c.buyer_name ?? "?"} · ${c.holder_name ?? "?"} · ${c.montant ?? "?"} € · ${c.duree_mois ?? "?"} mois`).join("\n") || "aucun"}
+Règles : n'invente rien qui ne soit pas dans l'avis ou les marchés comparables ; si une information manque, écris « à vérifier dans le dossier de consultation ».
+Format : {"score": 0, "decision": "y aller|à étudier|ne pas y aller", "raisons": [""], "resume": ["10 lignes maximum"], "pieces": ["pièces et documents demandés"], "criteres": ["critères de sélection et pondération si indiqués"], "concurrents": ["titulaires probables d'après les marchés comparables"], "prix": "fourchette de prix observée sur les marchés comparables, ou inconnue", "questions": ["questions à poser à l'acheteur"], "reponse_technique": "premier jet de mémoire technique en 6 à 10 courts paragraphes titrés, adapté à l'offre de l'entreprise"}`,
+    { maxTokens: 6000, system: "Tu es un consultant expert des marchés publics français, précis et honnête. Réponds en français." });
+  await admin.from("radar_opps").update({ raw: { ...(o.raw ?? {}), analyse: { ...a, at: new Date().toISOString(), comparables: near.length } } }).eq("id", o.id);
+  await log(ws.id, "analyse", `Appel d'offres analysé : ${String(o.title).slice(0, 80)}`);
+  return { ...a, comparables: near.length };
+}
+
+/** Alerte instantanée vers Slack ou Teams (adresse de webhook fournie par le client dans le Radar). */
+export async function pushWebhook(url: string, text: string) {
+  if (!/^https:\/\/(hooks\.slack\.com|[a-z0-9-]+\.webhook\.office\.com|[a-z0-9.-]+\.logic\.azure\.com|discord\.com\/api\/webhooks)\//i.test(url)) return false;
+  const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, content: text }), signal: AbortSignal.timeout(10000) }).catch(() => null);
+  return !!r?.ok;
 }

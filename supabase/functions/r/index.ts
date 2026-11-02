@@ -23,6 +23,18 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { ws } = await requireMember(req, b.workspace_id);
     return b.set ? await radarSetConfig(ws, b) : await radarGetConfig(ws);
   },
+  async "tender-analyse"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { tenderAnalysis } = await import("../_shared/radar-plus.ts");
+    return await tenderAnalysis(ws, String(b.id ?? ""));
+  },
+  async "radar-crm"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const r = await radarToProspect(ws, String(b.id ?? ""));
+    const { pushOneToCrm } = await import("../_shared/growth.ts");
+    await pushOneToCrm(ws, r.prospect_id);
+    return { ok: true, prospect_id: r.prospect_id };
+  },
   async "watch-add"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const { watchAdd } = await import("../_shared/radar-plus.ts");
@@ -77,7 +89,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
     if (!ws) throw new HttpError(404, "Espace introuvable");
     setAi({ ws: ws.id });
-    return await scanRadar(ws, { web: false, top: b.top === true });
+    return await scanRadar(ws, { web: b.full === true ? undefined : false, top: b.top === true });
   },
   async "spy-cron"(req) { await cron(req); return await spyCron(); },
   async "spy-digest"(req) { await cron(req); return await spyDigest(); },

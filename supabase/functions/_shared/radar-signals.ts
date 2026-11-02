@@ -406,6 +406,12 @@ export async function rescore(ws: Workspace, poids: Record<string, number>) {
     await log(ws.id, "radar_alerte", `${w}${a.company || a.title} : ${KIND_LABEL[a.kind]}${urgent} (score ${a.score})`);
   }
   if (top.length) await admin.from("radar_opps").update({ alerted_at: new Date().toISOString() }).in("id", top.map((a) => a.id));
+  // Alerte instantanée dans Slack ou Teams, si le client a branché un webhook
+  const hook = (ws as Workspace & { radar_cfg?: { webhook?: string | null } }).radar_cfg?.webhook;
+  if (top.length && hook) {
+    const { pushWebhook } = await import("./radar-plus.ts");
+    await pushWebhook(hook, `Bingoo! Radar : ${top.length} opportunité${top.length > 1 ? "s" : ""} à traiter\n${top.map((a) => `• ${a.company || a.title} : ${KIND_LABEL[a.kind]} (score ${a.score})`).join("\n")}`).catch(() => false);
+  }
   return { scored: updates.length, expired: updates.filter((u) => u.status === "expire").length, filtered: updates.filter((u) => u.status === "filtre").length, alerts: top.length };
 }
 
