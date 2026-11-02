@@ -5,6 +5,7 @@ import { Badge, Button, Card, Field, Input, PageHead, Textarea, useToast } from 
 import { PRESETS, fmtN, parseZone, zoneLabel } from "../lib/zones";
 import { cx } from "../lib/utils";
 import { SubNav } from "../components/SubNav";
+import BizType from "../components/BizType";
 
 function Section({ id, title, sub, children }) {
   return (
@@ -95,6 +96,9 @@ export default function Settings() {
           <Field label="En une phrase"><Input value={pr.resume ?? ""} onChange={(e) => setP("resume", e.target.value)} /></Field>
           <Field label="Ce que tu vends"><Textarea rows={3} value={pr.offre ?? ""} onChange={(e) => setP("offre", e.target.value)} /></Field>
           <Field label="Ce qui te distingue"><Textarea rows={2} value={pr.differenciation ?? ""} onChange={(e) => setP("differenciation", e.target.value)} /></Field>
+          <Field label="Type d'entreprise" hint="Le Radar adapte ses signaux à ton métier (un logiciel ne se vend pas comme un service de nettoyage).">
+            <BizType value={pr.type} onChange={(v) => setP("type", v)} publicValue={pr.vend_public} onPublic={(v) => setP("vend_public", v)} />
+          </Field>
           <Field label="Preuves utilisables dans les messages" hint="Une par ligne : années d'expérience, références clients, certifications… Uniquement du vrai.">
             <Textarea rows={3} value={(pr.preuves ?? []).join("\n")} onChange={(e) => setP("preuves", e.target.value.split("\n"))} />
           </Field>

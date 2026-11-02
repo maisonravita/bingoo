@@ -58,6 +58,33 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     await admin.from("radar_partners").update({ status: "ajoute", prospect_id: pid }).eq("id", p.id);
     return { prospect_id: pid, existing: !!ex };
   },
+  // Radar adapté au métier : outils concurrents, obligations, état de la lecture des sites
+  async "saas-info"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { bizType, rivalTools, obligationsFor, OBLIGATIONS, BIZ_LABEL } = await import("../_shared/radar-saas.ts");
+    const { FP } = await import("../_shared/tech-fp.ts");
+    const type = await bizType(ws);
+    const [rivaux, obl, scans] = await Promise.all([rivalTools(ws), obligationsFor(ws), admin.from("company_scan").select("ats, jobs_n, scanned_at").eq("workspace_id", ws.id).limit(5000)]);
+    const rows = (scans.data ?? []) as { ats: string | null; jobs_n: number | null; scanned_at: string | null }[];
+    return { type, type_label: BIZ_LABEL[type], outils_rivaux: rivaux, outils: FP.map((f) => f.name),
+      obligations: obl.map((o) => ({ ...OBLIGATIONS.find((x) => x.id === o.id), angle: o.angle })).filter((o) => o.titre), obligations_all: OBLIGATIONS.map((o) => ({ id: o.id, titre: o.titre })),
+      sites: rows.filter((r) => r.scanned_at).length, carrieres: rows.filter((r) => r.ats).length, offres: rows.reduce((n, r) => n + (r.jobs_n ?? 0), 0) };
+  },
+  async "saas-set"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { OBLIGATIONS } = await import("../_shared/radar-saas.ts");
+    const { FP } = await import("../_shared/tech-fp.ts");
+    const { data } = await admin.from("workspaces").select("radar_cfg").eq("id", ws.id).single();
+    const cfg = { ...((data?.radar_cfg as Record<string, unknown>) ?? {}) };
+    if (Array.isArray(b.outils_rivaux)) cfg.outils_rivaux = (b.outils_rivaux as string[]).filter((x) => FP.some((f) => f.name === x)).slice(0, 15);
+    if (Array.isArray(b.obligations)) {
+      const cur = (cfg.obligations ?? []) as { id: string; angle: string }[];
+      cfg.obligations = (b.obligations as string[]).filter((id) => OBLIGATIONS.some((o) => o.id === id)).slice(0, 6).map((id) => cur.find((c) => c.id === id) ?? { id, angle: "" });
+      delete cfg.oblig_at; // nouvelle recherche au prochain passage
+    }
+    await admin.from("workspaces").update({ radar_cfg: cfg }).eq("id", ws.id);
+    return { ok: true };
+  },
   async "radar-calendar"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const { buyingCalendar } = await import("../_shared/radar-extra.ts");

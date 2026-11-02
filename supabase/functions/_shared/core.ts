@@ -70,7 +70,7 @@ export function sendReady(ws: Workspace) {
 }
 export type Profile = {
   nom?: string; resume?: string; offre?: string; clients_types?: string; preuves?: string[];
-  differenciation?: string; ville?: string; ton?: string;
+  differenciation?: string; ville?: string; ton?: string; type?: "saas" | "services" | "terrain" | "produits"; vend_public?: boolean;
 };
 export type Target = {
   id: string; label: string; pourquoi?: string; naf: string[]; tranches?: string[]; siege_only?: boolean;

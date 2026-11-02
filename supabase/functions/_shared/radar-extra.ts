@@ -1,62 +1,11 @@
 // Radar, compléments : outils et prestataires visibles sur les sites (clients de tes concurrents), valeur estimée,
 // partenaires apporteurs d'affaires et sociétés d'apport d'affaires, calendrier d'achat du secteur, acheteurs qui ont changé de prestataire.
 import { admin, aiRoom, askJson, log, type Workspace } from "./core.ts";
-import type { Opp } from "./radar-signals.ts";
 import { norm } from "./radar-signals.ts";
 
 const cap = (s: string) => String(s ?? "").toLowerCase().replace(/(^|[\s'-])\p{L}/gu, (m) => m.toUpperCase());
-const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
 
-// ---------------------------------------------------------------- 1. Outils et prestataires visibles sur les sites
-/** Outils courants repérables dans le code d'une page (sans IA). */
-const TOOLS: [string, RegExp][] = [
-  ["HubSpot", /js\.hs-scripts\.com|hs-analytics|hubspot/i], ["Salesforce", /salesforce|pardot/i], ["Pipedrive", /pipedrive/i],
-  ["Lemlist", /lemlist/i], ["Waalaxy", /waalaxy/i], ["Calendly", /calendly\.com/i], ["Intercom", /intercom/i], ["Zendesk", /zendesk|zdassets/i],
-  ["Crisp", /crisp\.chat/i], ["Axonaut", /axonaut/i], ["Sellsy", /sellsy/i], ["Brevo", /sendinblue|brevo/i], ["Mailchimp", /mailchimp|list-manage/i],
-  ["Shopify", /cdn\.shopify|myshopify/i], ["WordPress", /wp-content|wp-includes/i], ["Wix", /wix\.com|wixstatic/i], ["Webflow", /webflow/i],
-  ["Google Ads", /googleadservices|gtag\/js\?id=AW-/i], ["Meta Pixel", /connect\.facebook\.net|fbq\(/i], ["LinkedIn Insight", /snap\.licdn\.com/i],
-  ["Doctolib", /doctolib/i], ["Malt", /malt\.fr/i], ["Welcome to the Jungle", /welcometothejungle/i], ["Indeed", /indeed\.com/i],
-];
-
-/** Lit le site des comptes surveillés et des prospects prioritaires : outils installés, concurrents cités (logo, lien, « partenaire de »). */
-export async function techScan(ws: Workspace, max = 15) {
-  const { fetchHtml, textOf } = await import("./analyze.ts");
-  const [{ data: comps }, { data: wl }, { data: ps }] = await Promise.all([
-    admin.from("competitors").select("name, url").eq("workspace_id", ws.id).neq("status", "ecarte"),
-    admin.from("radar_watch").select("id, siren, name, url, tech_at").eq("workspace_id", ws.id).not("url", "is", null).order("tech_at", { ascending: true, nullsFirst: true }).limit(max),
-    admin.from("prospects").select("id, name, siren, website, insight").eq("workspace_id", ws.id).not("website", "is", null).in("status", ["nouveau", "pret", "a_valider"]).order("score", { ascending: false, nullsFirst: false }).limit(200),
-  ]);
-  const rivals = ((comps ?? []) as { name: string; url: string }[]).map((c) => ({ name: c.name.replace(/\s*[—(].*$/, "").trim(), host: host(c.url), word: norm(c.name).split(" ")[0] })).filter((r) => r.host || r.word.length > 3);
-  const todo: { kind: "watch" | "prospect"; id: string; siren: string | null; name: string; url: string }[] = [
-    ...((wl ?? []) as { id: string; siren: string; name: string; url: string }[]).map((w) => ({ kind: "watch" as const, id: w.id, siren: w.siren, name: w.name, url: w.url })),
-    ...((ps ?? []) as { id: string; name: string; siren: string | null; website: string; insight: Record<string, unknown> | null }[]).filter((p) => !(p.insight as { tech_at?: string } | null)?.tech_at).slice(0, Math.max(0, max - (wl ?? []).length)).map((p) => ({ kind: "prospect" as const, id: p.id, siren: p.siren, name: p.name, url: p.website })),
-  ];
-  const out: Opp[] = [];
-  for (const t of todo) {
-    let html = "";
-    try { html = await fetchHtml(/^https?:/.test(t.url) ? t.url : `https://${t.url}`); } catch { /* site illisible */ }
-    const tools = html ? TOOLS.filter(([, re]) => re.test(html)).map(([n]) => n) : [];
-    const text = html ? textOf(html).toLowerCase() : "";
-    const found = rivals.filter((r) => (r.host && html.toLowerCase().includes(r.host)) || (r.word.length > 4 && new RegExp(`\\b${r.word}\\b`, "i").test(text)));
-    const now = new Date().toISOString();
-    if (t.kind === "watch") await admin.from("radar_watch").update({ tech: tools, tech_at: now }).eq("id", t.id);
-    else {
-      const { data: p } = await admin.from("prospects").select("insight").eq("id", t.id).single();
-      await admin.from("prospects").update({ insight: { ...((p?.insight as Record<string, unknown>) ?? {}), tech: tools, tech_at: now, ...(found.length ? { concurrent_site: found.map((f) => f.name) } : {}) } }).eq("id", t.id);
-    }
-    if (found.length) {
-      out.push({
-        key: `tech:${t.siren ?? norm(t.name)}:${found.map((f) => norm(f.name)).join("-")}`.slice(0, 300), kind: "client_concurrent", title: `${t.name} · cliente de ${found[0].name}`, company: t.name,
-        summary: `Son site mentionne ${found.map((f) => f.name).join(", ")} (lien, logo ou « partenaire »)${tools.length ? ` · outils : ${tools.slice(0, 5).join(", ")}` : ""}`,
-        why: `Elle travaille probablement avec ${found[0].name}. Ton dossier Espion sur ce concurrent te donne l'angle pour la convaincre de comparer.`,
-        url: t.url, source: "Site de l'entreprise", published: now.slice(0, 10), siren: t.siren, prospect_id: t.kind === "prospect" ? t.id : null,
-        raw: { tech: tools, concurrents: found.map((f) => f.name), ...(t.kind === "watch" ? { watch: true } : {}) },
-      });
-    }
-    await new Promise((x) => setTimeout(x, 250));
-  }
-  return out;
-}
+// Outils installés et clients de tes concurrents : voir radar-saas.ts (webScan).
 
 // ---------------------------------------------------------------- 5. Valeur estimée de chaque opportunité
 /** Valeur annuelle estimée : montant réel pour un marché public ; sinon panier moyen de tes clients (ou celui que tu as indiqué), ajusté à la taille. */
