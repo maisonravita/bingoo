@@ -171,6 +171,8 @@ await test("un intitulé de poste correspond au poste « signal » attendu", () 
   assert.equal(T.roleMatch("Business Developer H/F - Paris", ["Business developer", "Directeur commercial"]), "Business developer");
   assert.equal(T.roleMatch("Responsable commercial grands comptes", ["Responsable commercial"]), "Responsable commercial");
   assert.equal(T.roleMatch("Développeur backend", ["Business developer", "Commercial"]), null);
+  assert.equal(T.roleMatch("Account Executive, Small Business", ["Commercial B2B"]), "Commercial B2B");
+  assert.equal(T.roleMatch("Talent Acquisition Partner", ["Responsable RH"]), "Responsable RH");
 });
 
 console.log(`\n${ok} réussi${ok > 1 ? "s" : ""}, ${ko} échec${ko > 1 ? "s" : ""}`);

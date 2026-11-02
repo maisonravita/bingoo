@@ -13,6 +13,7 @@ import { type Ats, atsIn, careersLink, catOf, CAT_LABEL, FP, type Job, jobsOf, r
 type W = Workspace & { radar_cfg?: Record<string, unknown> | null };
 const today = () => new Date().toISOString().slice(0, 10);
 const host = (u: string) => { try { return new URL(/^https?:/.test(u) ? u : `https://${u}`).hostname.replace(/^www\./, ""); } catch { return ""; } };
+const base = (h: string) => h.split(".").slice(-2).join(".");
 const full = (u: string) => /^https?:/.test(u) ? u : `https://${u}`;
 const moisFr = (d: string) => new Date(d).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 
@@ -113,7 +114,7 @@ export async function webScan(ws: W, opts: { max?: number; until?: number } = {}
     const tools = toolsIn(html);
     // Page carrières : sur la page d'accueil, sinon sur la page « Carrières / Recrutement » du site
     let ats = atsIn(html);
-    if (!ats && !k?.ats) { const c = careersLink(html, url); if (c && host(c) === host(url)) { const ch = await fetchHtml(c); if (ch) ats = atsIn(ch); } }
+    if (!ats && !k?.ats) { const c = careersLink(html, url); if (c && base(host(c)) === base(host(url))) { const ch = await fetchHtml(c); if (ch) ats = atsIn(ch); } }
     const wasScanned = !!k?.scanned_at && (k.tech ?? []).length > 0;
     const before = new Set((prev.get(t.key) ?? []).filter((x) => x.source === "site" && x.last_seen >= String(k?.scanned_at ?? "").slice(0, 10)).map((x) => x.tool));
     const added = wasScanned ? tools.filter((x) => !before.has(x)) : [];
@@ -130,8 +131,9 @@ export async function webScan(ws: W, opts: { max?: number; until?: number } = {}
     // Cliente d'un concurrent : son domaine dans la page, son nom dans le texte, ou un outil concurrent installé
     const text = textOf(html).toLowerCase();
     const byName = rivals.filter((r) => (r.host && html.toLowerCase().includes(r.host)) || (r.word.length > 4 && new RegExp(`\\b${r.word}\\b`, "i").test(text))).map((r) => r.name);
-    const byTool = tools.filter((x) => rivalT.includes(x));
-    const found = [...new Set([...byName, ...byTool])];
+    const self = (x: string) => norm(x).split(" ")[0] === norm(t.name).split(" ")[0] || host(url).startsWith(norm(x).replace(/ /g, ""));
+    const byTool = tools.filter((x) => rivalT.includes(x) && !self(x));
+    const found = [...new Set([...byName.filter((x) => !self(x)), ...byTool])];
     if (found.length) out.push({ ...base, key: `tech:${t.key}:${found.map(norm).join("-")}`.slice(0, 300), kind: "client_concurrent", title: `${t.name} · utilise ${found[0]}`,
       summary: `${byTool.length ? `Outil installé sur son site : ${byTool.join(", ")}` : `Son site mentionne ${byName.join(", ")}`}${tools.length ? ` · autres outils : ${tools.filter((x) => !found.includes(x)).slice(0, 5).join(", ")}` : ""}`,
       why: `Elle travaille avec ${found[0]}. Ton dossier Espion sur ce concurrent te donne l'angle pour lui proposer de comparer.`, raw: { ...base.raw, concurrents: found } });
@@ -156,7 +158,12 @@ export async function jobsScan(ws: W, postes: string[], opts: { max?: number; un
   const rivalT = await rivalTools(ws).catch(() => [] as string[]);
   const out: Opp[] = [];
   const d0 = today();
-  await pool((data ?? []) as ScanRow[], 5, until, async (c) => {
+  // Une page carrières partagée (groupe) n'est attribuée qu'à l'entreprise dont le nom correspond
+  const { data: same } = await admin.from("company_scan").select("name, ats_slug").eq("workspace_id", ws.id).not("ats_slug", "is", null).limit(5000);
+  const owner = new Map<string, string[]>();
+  for (const r of (same ?? []) as { name: string; ats_slug: string }[]) (owner.get(r.ats_slug) ?? owner.set(r.ats_slug, []).get(r.ats_slug)!).push(r.name);
+  const fits = (name: string, slug: string) => { const a = norm(name).replace(/ /g, ""), b = norm(slug).replace(/ /g, ""); return a.includes(b) || b.includes(a) || b.includes(norm(name).split(" ")[0]); };
+  await pool(((data ?? []) as ScanRow[]).filter((c) => (owner.get(String(c.ats_slug)) ?? []).length < 2 || fits(c.name, String(c.ats_slug))), 5, until, async (c) => {
     const jobs = await jobsOf(c.ats as Ats, String(c.ats_slug));
     await admin.from("company_scan").update({ jobs_at: new Date().toISOString(), ...(jobs ? { jobs_n: jobs.length, jobs: jobs.slice(0, 60).map((j) => ({ title: j.title, url: j.url, date: j.date, place: j.place })) } : {}) }).eq("workspace_id", ws.id).eq("key", c.key);
     if (!jobs?.length) return;
@@ -275,6 +282,8 @@ export const OBLIGATIONS: Obligation[] = [
   { id: "rgpd", titre: "RGPD : protection des données personnelles", qui: "Toutes les entreprises qui traitent des données de clients ou de salariés", tranches: [], date: null, statut: "en_vigueur",
     resume: "Registre des traitements, information des personnes, sécurité des données ; contrôles et sanctions de la CNIL.", source: "https://www.cnil.fr" },
 ];
+/** Obligations trop générales pour être choisies automatiquement (le client peut les cocher lui-même). */
+const GENERIC_OBL = ["rgpd", "duerp"];
 const nextDate = (d: string | null) => {
   if (!d) return null;
   if (/^\d{4}-/.test(d)) return d;
@@ -291,11 +300,11 @@ export async function obligationsFor(ws: W, force = false): Promise<{ id: string
   const pr = ws.profile ?? {};
   const r = await askJson<{ obligations: { id: string; angle: string }[] }>(`Entreprise : ${pr.nom ?? ws.name} — Offre : ${pr.offre ?? ""}
 Parmi ces obligations réglementaires françaises, lesquelles cette offre aide-t-elle DIRECTEMENT ses clients à respecter (un client soumis à l'obligation a une vraie raison d'acheter) ? Sois strict : liste vide si aucune.
-${OBLIGATIONS.map((o) => `- ${o.id} : ${o.titre} — ${o.resume}`).join("\n")}
+${OBLIGATIONS.filter((o) => !GENERIC_OBL.includes(o.id)).map((o) => `- ${o.id} : ${o.titre} — ${o.resume}`).join("\n")}
 Pour chacune retenue : l'angle d'un message en une phrase (concret, sans exagérer les sanctions).
 Format : {"obligations": [{"id": "", "angle": ""}]}`, { fast: true, maxTokens: 600 }).catch(() => ({ obligations: [] }));
   const ids = new Set(OBLIGATIONS.map((o) => o.id));
-  const out = (r.obligations ?? []).filter((o) => ids.has(o.id)).slice(0, 4).map((o) => ({ id: o.id, angle: String(o.angle ?? "").slice(0, 240) }));
+  const out = (r.obligations ?? []).filter((o) => ids.has(o.id) && !GENERIC_OBL.includes(o.id)).slice(0, 4).map((o) => ({ id: o.id, angle: String(o.angle ?? "").slice(0, 240) }));
   const { data } = await admin.from("workspaces").select("radar_cfg").eq("id", ws.id).single();
   await admin.from("workspaces").update({ radar_cfg: { ...((data?.radar_cfg as Record<string, unknown>) ?? {}), obligations: out } }).eq("id", ws.id);
   return out;

@@ -210,10 +210,25 @@ export async function jobsOf(ats: Ats, slug: string): Promise<Job[] | null> {
 const GENERIC = new Set(["responsable", "manager", "charge", "chargee", "senior", "junior", "stagiaire", "stage", "alternance", "alternant", "assistant", "assistante", "directeur", "directrice", "head", "lead", "chef", "global", "france", "paris", "chief", "officer", "specialist", "associate", "executive"]);
 const n = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 
+/** Familles de métiers : un poste « signal » couvre aussi les intitulés équivalents (français et anglais). */
+const FAMILIES: string[][] = [
+  ["commercial", "commerciale", "business developer", "business development", "bizdev", "sales", "account executive", "sdr", "bdr", "sales development", "account manager", "ingenieur commercial", "key account", "charge de prospection", "prospection", "chasseur", "vendeur", "technico commercial", "head of sales", "directeur commercial"],
+  ["marketing", "growth", "demand generation", "acquisition", "traffic manager", "content manager", "brand manager", "product marketing"],
+  ["ressources humaines", "rh", "hr", "people", "talent acquisition", "recruteur", "recruiter", "charge de recrutement", "hrbp", "paie", "payroll"],
+  ["comptable", "accountant", "comptabilite", "finance", "financier", "controleur de gestion", "daf", "cfo", "tresorier", "credit manager"],
+  ["support", "customer success", "service client", "customer care", "relation client", "customer support", "csm"],
+  ["achats", "acheteur", "buyer", "procurement", "purchasing"],
+  ["office manager", "services generaux", "facility manager", "responsable des moyens generaux"],
+  ["developpeur", "developer", "software engineer", "ingenieur logiciel", "devops", "data engineer", "cto"],
+];
+const fam = (p: string) => { const x = ` ${n(p)} `; return FAMILIES.find((f) => f.some((w) => x.includes(` ${w} `))) ?? null; };
+
 /** Le poste correspond-il à un des postes « signal » ? (mots significatifs du poste présents dans l'intitulé) */
 export function roleMatch(title: string, postes: string[]) {
   const t = ` ${n(title)} `;
   return postes.find((p) => {
+    const f = fam(p);
+    if (f && f.some((w) => t.includes(` ${w} `))) return true;
     const w = n(p).split(" ").filter((x) => x.length > 2 && !GENERIC.has(x));
     if (!w.length) return t.includes(` ${n(p)} `);
     return w.every((x) => t.includes(` ${x}`)) || (w.length > 1 && t.includes(` ${w.join(" ")} `));
