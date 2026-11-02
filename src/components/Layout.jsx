@@ -112,11 +112,27 @@ function Bell({ ws, replies }) {
   );
 }
 
+/** Crédits IA, toujours visibles : jauge du mois et accès direct à l'achat. */
+function CreditsChip({ ws }) {
+  const loc = useLocation();
+  const [ai, setAi] = useState(null);
+  useEffect(() => { supabase.rpc("ai_month", { p_ws: ws.id }).then(({ data }) => setAi(data ?? null)); }, [ws.id, loc.pathname]);
+  const pct = ai ? Math.min(100, Math.round((Number(ai.spent) / Math.max(1, Number(ai.budget))) * 100)) : 0;
+  const low = pct >= 80 && Number(ai?.balance ?? 0) <= 0;
+  return (
+    <NavLink to="/abonnement?credits=1" title="Crédits IA du mois : acheter des crédits" className={cx("hidden lg:flex items-center gap-2.5 rounded-full border px-3.5 py-2 text-[13px] font-medium transition hover:border-accent/50", low ? "border-accent bg-accent-soft text-accent-dark" : "border-line bg-white text-ink-soft")}>
+      <span className="w-16 h-1.5 rounded-full bg-paper overflow-hidden"><span className={cx("block h-full rounded-full", pct >= 100 ? "bg-bad" : pct >= 80 ? "bg-warn" : "bg-accent")} style={{ width: `${Math.max(4, pct)}%` }} /></span>
+      <span>{low ? "Ajouter des crédits" : `Crédits IA · ${pct} %`}</span>
+    </NavLink>
+  );
+}
+
 function TopBar({ ws, replies }) {
   const who = (ws.sender_name || ws.profile?.nom || ws.name || "?").trim();
   return (
     <div className="hidden md:flex items-center gap-4 mb-6">
       {ws.plan === "essai" ? <TrialBar ws={ws} /> : <div className="flex-1" />}
+      <CreditsChip ws={ws} />
       <Bell ws={ws} replies={replies} />
       <NavLink to="/reglages" title="Réglages" className="w-11 h-11 rounded-full bg-ink text-white grid place-items-center font-bold text-[15px] hover:ring-4 hover:ring-accent-soft transition">{who[0].toUpperCase()}</NavLink>
     </div>
