@@ -62,6 +62,13 @@ const daysTo = (d) => Math.ceil((new Date(d).getTime() - Date.now()) / 864e5);
 // Décalage stable (pour séparer plusieurs opportunités d'un même département)
 const jitter = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return [((h & 255) / 255) - 0.5, (((h >> 8) & 255) / 255) - 0.5]; };
 
+const SECTIONS = [
+  ["opps", "Opportunités", "Les plus chaudes d'abord"],
+  ["comptes", "Comptes surveillés", "Tes entreprises rêvées"],
+  ["marche", "Marché public", "Renouvellements, prix, concurrents"],
+  ["resultats", "Résultats", "Ce que le Radar t'a rapporté"],
+  ["reglages", "Réglages et activité", "Ce qu'il cherche, dernier scan"],
+];
 const heat = (n) => n >= 80 ? "bg-bad text-white" : n >= 65 ? "bg-accent text-white" : n >= 50 ? "bg-accent-soft text-accent-dark" : "bg-[#EFEEEA] text-ink-soft";
 const Score = ({ n, big }) => n ? <span title="Score : à quel point c'est le bon moment" className={cx("inline-flex items-center justify-center rounded-full font-bold tnum shrink-0 leading-none", big ? "h-12 w-12 text-[17px]" : "h-9 w-9 text-[13px]", heat(n))}>{n}</span> : null;
 
@@ -814,6 +821,8 @@ export default function Radar() {
   const [prog, setProg] = useState(ws.radar_progress ?? null);
   const [tick, setTick] = useState(0);
   const [hidden, setHidden] = useState([]);
+  const [section, setSection] = useState(() => { try { return localStorage.getItem("bingoo:radar-tab") || "opps"; } catch { return "opps"; } });
+  const pickSection = (k) => { setSection(k); try { localStorage.setItem("bingoo:radar-tab", k); } catch { /* navigation privée */ } };
   const [showHidden, setShowHidden] = useState(false);
 
   const load = useCallback(async () => {
@@ -884,9 +893,9 @@ export default function Radar() {
         <Pill on={live}>{live ? "Radar en cours" : lastAt ? `Dernier scan ${ago(lastAt)}` : "Jamais lancé"}</Pill>
       </div>
 
-      <div className="grid xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] gap-5 items-stretch">
-        <Card className="p-4 sm:p-5 grid md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-5 items-center min-w-0">
-          <div className="relative p-5">
+      <div>
+        <Card className="p-4 sm:p-5 grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)] gap-5 items-center min-w-0">
+          <div className="relative p-5 w-full max-w-[440px] mx-auto">
             {["left-0 top-0 border-l-2 border-t-2 rounded-tl-lg", "right-0 top-0 border-r-2 border-t-2 rounded-tr-lg", "left-0 bottom-0 border-l-2 border-b-2 rounded-bl-lg", "right-0 bottom-0 border-r-2 border-b-2 rounded-br-lg"].map((c) => <span key={c} className={cx("absolute w-6 h-6 border-accent", c)} />)}
             <RadarScope round opps={list} zone={ws.zone ?? []} scanning={live} selected={open?.id} onSelect={setOpen} />
             <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1">{Object.entries(KIND).filter(([key]) => list.some((o) => o.kind === key)).map(([key, k]) => <span key={key} className="flex items-center gap-1.5 text-[12px] text-ink-soft"><span className="h-2 w-2 rounded-full" style={{ background: k.dot }} />{k.plural}</span>)}</div>
@@ -913,17 +922,26 @@ export default function Radar() {
             <div className="mt-5 flex flex-wrap gap-2">
               <Button quota="radar_scan" variant="accent" loading={live} disabled={live} onClick={scan}>{live ? "Analyse en cours…" : "Lancer un scan"}</Button>
             </div>
-            <p className="text-[12px] text-ink-faint mt-2">Rien n'est contacté pendant un scan. Le Radar tourne aussi tout seul chaque matin de semaine.</p>
+            <p className="text-[12px] text-ink-faint mt-2">Rien n'est contacté pendant un scan. Le Radar tourne aussi tout seul chaque matin de semaine. <button onClick={() => pickSection("reglages")} className="underline hover:text-ink">Voir l'activité du scan</button></p>
           </div>
         </Card>
-        <ScanActivity p={prog} live={live} />
       </div>
 
+      {/* Les espaces du Radar */}
+      <nav className="flex gap-1 overflow-x-auto border-b border-line -mx-1 px-1">
+        {SECTIONS.filter(([k]) => k !== "marche" || ws.radar_cfg?.marches !== false).map(([k, l, sub]) => (
+          <button key={k} onClick={() => pickSection(k)} className={cx("relative shrink-0 px-4 pt-2 pb-3 text-left transition", section === k ? "text-ink" : "text-ink-faint hover:text-ink")}>
+            <span className="block text-[14.5px] font-semibold">{l}{k === "opps" && list.length ? <span className="ml-1.5 text-[11px] font-bold rounded-full bg-accent-soft text-accent px-1.5 py-0.5 align-middle">{list.length}</span> : null}</span>
+            <span className="hidden sm:block text-[11.5px] text-ink-faint">{sub}</span>
+            {section === k && <span className="absolute inset-x-3 -bottom-px h-[3px] rounded-full bg-accent" />}
+          </button>
+        ))}
+      </nav>
+
+      {section === "opps" && (
       <div className="grid xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] gap-5 items-start">
         <div className="space-y-5 min-w-0">
         <HotCompanies list={list} onOpen={setOpen} />
-        <Roi ws={ws} />
-        <Market ws={ws} />
         <Card className="p-0 overflow-hidden min-w-0">
           <div className="px-5 pt-5 flex items-center justify-between gap-2">
             <h2 className="flex items-center gap-2.5 font-bold text-[19px]"><span className="text-accent"><Ico name="users" className="h-6 w-6" /></span>Opportunités détectées</h2>
@@ -967,14 +985,23 @@ export default function Radar() {
         </Card>
         </div>
         <div className="space-y-5 min-w-0">
-          <Watchlist ws={ws} opps={list} onOpen={setOpen} />
-          <Searching ws={ws} />
           <Card className="p-4 flex items-start gap-3">
             <span className="text-accent mt-0.5"><Ico name="bulb" /></span>
             <div className="flex-1"><p className="font-semibold text-accent text-sm">Conseil de Max</p><p className="text-sm text-ink-soft mt-0.5">{tip}</p></div>
           </Card>
+          <Roi ws={ws} />
         </div>
       </div>
+      )}
+      {section === "comptes" && <div className="max-w-3xl"><Watchlist ws={ws} opps={list} onOpen={setOpen} /></div>}
+      {section === "marche" && <Market ws={ws} />}
+      {section === "resultats" && <Roi ws={ws} />}
+      {section === "reglages" && (
+        <div className="grid xl:grid-cols-2 gap-5 items-start">
+          <Searching ws={ws} />
+          <ScanActivity p={prog} live={live} />
+        </div>
+      )}
       {open && <Detail o={open} onClose={() => setOpen(null)} onChange={(n) => { setOpen(n.status === "ecarte" ? null : n); setRows((rs) => n.status === "ecarte" ? rs.filter((x) => x.id !== n.id) : rs.map((x) => x.id === n.id ? n : x)); }} />}
     </div>
   );
