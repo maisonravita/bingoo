@@ -792,6 +792,8 @@ function Adapted({ ws }) {
       </div>
       {pick && <div className="flex flex-wrap gap-1.5 mt-2 max-h-40 overflow-auto">{d.outils.filter((t) => !d.outils_rivaux.includes(t)).map((t) => <button key={t} onClick={() => toggleTool(t)} className="rounded-full bg-paper px-2.5 py-1 text-[12px] hover:bg-line">{t}</button>)}</div>}
 
+      {d.type === "saas" && <TrialHook ws={ws} />}
+
       <p className="mt-4 text-[13px] font-semibold">Obligations qui poussent tes clients à acheter</p>
       <div className="mt-1.5 space-y-1">
         {d.obligations_all.map((o) => (
@@ -799,6 +801,24 @@ function Adapted({ ws }) {
         ))}
       </div>
     </Card>
+  );
+}
+
+/** Brancher l'essai gratuit : plusieurs inscriptions d'une même entreprise = un achat d'équipe à aller chercher. */
+function TrialHook({ ws }) {
+  const [open, setOpen] = useState(false);
+  const base = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/t`;
+  const js = `<script defer src="${base}/kairo.js" data-k="${ws.track_key ?? ""}"></script>\n<!-- après une inscription à l'essai : -->\n<script>window.bingooTrial && bingooTrial(emailSaisi)</script>`;
+  const api = `curl -X POST ${base}/essai -d '{"k":"${ws.track_key ?? ""}","email":"prenom@entreprise.fr"}'`;
+  return (
+    <div className="mt-4 rounded-xl bg-paper px-3.5 py-3">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between text-left"><span className="text-[13px] font-semibold">Brancher ton essai gratuit</span><span className="text-[12px] text-accent font-semibold">{open ? "Fermer" : "Voir comment"}</span></button>
+      <p className="text-[12px] text-ink-faint">Quand plusieurs personnes d'une même entreprise testent ton produit, le Radar te le signale. Seul le domaine de l'adresse (@entreprise.fr) est gardé, jamais l'adresse.</p>
+      {open && <div className="mt-2 space-y-2 text-[12px]">
+        <p>Sur ta page d'inscription :</p><pre className="whitespace-pre-wrap break-all rounded-lg bg-white border border-line p-2">{js}</pre>
+        <p>Ou depuis ton serveur :</p><pre className="whitespace-pre-wrap break-all rounded-lg bg-white border border-line p-2">{api}</pre>
+      </div>}
+    </div>
   );
 }
 

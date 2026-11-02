@@ -168,6 +168,12 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { partnersRefresh, buyingCalendar } = await import("../_shared/radar-extra.ts");
     return { partenaires: await partnersRefresh(ws).catch((e) => ({ erreur: (e as Error).message })), calendrier: await buyingCalendar(ws, true).catch((e) => ({ erreur: (e as Error).message })) };
   },
+  // Test plateforme : date d'arrivée d'un outil sur un site (archives du web)
+  async "abo-test"(req, b) {
+    await cron(req);
+    const { adoptedAt } = await import("../_shared/radar-saas.ts");
+    return { adopte: await adoptedAt(String(b.url ?? ""), String(b.tool ?? "")) };
+  },
   async "spy-cron"(req) { await cron(req); return await spyCron(); },
   async "spy-digest"(req) { await cron(req); return await spyDigest(); },
   async "spy-needs"(req, b) {

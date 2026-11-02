@@ -12,6 +12,7 @@ var sid=g("_ks");if(!sid){sid=Math.random().toString(36).slice(2)+Date.now().toS
 var f=g("_kr");if(!f){f=JSON.stringify({r:document.referrer,q:location.search});p("_kr",f)}f=JSON.parse(f);
 function send(t){var b=JSON.stringify({k:k,s:sid,t:t,p:location.pathname,ti:(document.title||"").slice(0,150),r:f.r,q:f.q,w:window.innerWidth});try{if(navigator.sendBeacon&&navigator.sendBeacon(E,b))return}catch(e){}try{fetch(E,{method:"POST",body:b,keepalive:true,mode:"no-cors"})}catch(e){}}
 send("view");document.addEventListener("submit",function(){send("lead")},true);window.kairoLead=function(){send("lead")};
+window.bingooTrial=function(m){try{var d=String(m||"").split("@").pop().toLowerCase().trim();if(!d||d.indexOf(".")<0)return;var B=JSON.stringify({k:k,d:d}),U=s.src.replace(/kairo\\.js.*$/,"essai");if(navigator.sendBeacon&&navigator.sendBeacon(U,B))return;fetch(U,{method:"POST",body:B,keepalive:true,mode:"no-cors"})}catch(x){}};
 var last=location.pathname;setInterval(function(){if(location.pathname!==last){last=location.pathname;send("view")}},1000)})();`;
 
 const ws = new Map<string, { id: string; at: number } | null>();
@@ -55,6 +56,17 @@ Deno.serve(async (req) => {
   const path = new URL(req.url).pathname;
   if (req.method === "GET" && path.endsWith("/kairo.js")) {
     return new Response(SCRIPT, { headers: { ...cors, "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=3600" } });
+  }
+  // Essai gratuit : seul le domaine de l'adresse est reçu et gardé (jamais l'adresse complète)
+  if (req.method === "POST" && path.endsWith("/essai")) {
+    try {
+      const b = JSON.parse((await req.text()).slice(0, 1000));
+      const id = typeof b.k === "string" && /^[a-f0-9]{24}$/.test(b.k) ? await workspaceOf(b.k) : null;
+      const d = String(b.d ?? b.email ?? "").split("@").pop()!.toLowerCase().trim().replace(/[^a-z0-9.-]/g, "").slice(0, 120);
+      const FREE = /^(gmail|googlemail|hotmail|outlook|live|msn|yahoo|ymail|icloud|me|mac|aol|gmx|protonmail|proton|orange|wanadoo|free|sfr|neuf|laposte|bbox|numericable|club-internet|aliceadsl|tutanota|zoho|mail|yandex)\./i;
+      if (id && /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(d) && !FREE.test(d)) await admin.rpc("trial_hit", { p_ws: id, p_domain: d });
+    } catch { /* ignoré */ }
+    return new Response(null, { status: 204, headers: cors });
   }
   if (req.method === "POST" && path.endsWith("/e")) {
     try {

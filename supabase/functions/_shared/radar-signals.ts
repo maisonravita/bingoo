@@ -178,7 +178,7 @@ function classify(b: Bodacc): { kind: Kind; title: string; summary: string; why:
   if (b.familleavis === "creation" || b.familleavis === "immatriculation") {
     const cat = String(acte?.creation?.categorieCreation ?? "");
     const second = /secondaire|ouverture/i.test(cat) || /secondaire/i.test(String(etab.qualiteEtablissement ?? ""));
-    return { kind: "creation", title: second ? "Ouvre un nouvel établissement" : "Entreprise créée récemment", summary: [String(etab.activite ?? pers.activite ?? "").slice(0, 180), adr(etab.adresse)].filter(Boolean).join(" · "), why: second ? "Un nouveau site s'équipe et choisit ses prestataires dans les semaines qui suivent l'ouverture." : "Une entreprise qui démarre met en place ses fournisseurs et ses outils : être là dès le début." };
+    return { kind: second ? "etablissement" : "creation", title: second ? "Ouvre un nouvel établissement" : "Entreprise créée récemment", summary: [String(etab.activite ?? pers.activite ?? "").slice(0, 180), adr(etab.adresse)].filter(Boolean).join(" · "), why: second ? "Un nouveau site s'équipe et choisit ses prestataires dans les semaines qui suivent l'ouverture." : "Une entreprise qui démarre met en place ses fournisseurs et ses outils : être là dès le début." };
   }
   if (b.familleavis === "collective") {
     // Santé financière : on prévient, on ne pousse pas à vendre

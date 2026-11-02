@@ -338,7 +338,7 @@ export async function radarPress(ws: Workspace & { radar_cfg?: Record<string, un
   const last = String(ws.radar_cfg?.press_at ?? "");
   if (last && last > new Date(Date.now() - 7 * 864e5).toISOString()) return [];
   if (!(await aiRoom(ws.id, 0.6))) return [];
-  await admin.from("workspaces").update({ radar_cfg: { ...(ws.radar_cfg ?? {}), press_at: new Date().toISOString() } }).eq("id", ws.id);
+  { const { data: cur } = await admin.from("workspaces").select("radar_cfg").eq("id", ws.id).single(); await admin.from("workspaces").update({ radar_cfg: { ...((cur?.radar_cfg as Record<string, unknown>) ?? {}), press_at: new Date().toISOString() } }).eq("id", ws.id); }
   const pr = ws.profile ?? {};
   const targets = (ws.targets ?? []).filter((t) => t.actif !== false).map((t) => t.label).join(" ; ");
   type S = { type: string; entreprise: string; fait: string; date: string; ville: string; departement: string; url: string; pourquoi: string; montant?: string };

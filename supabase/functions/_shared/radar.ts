@@ -5,7 +5,7 @@
 import { HttpError } from "./http.ts";
 import { admin, aiRoom, askJson, log, setAi, type Workspace } from "./core.ts";
 import { estimateValues } from "./radar-extra.ts";
-import { anniversaries, bizType, jobsScan, obligationSignals, webScan } from "./radar-saas.ts";
+import { anniversaries, bizType, championSignals, intentSignals, jobsScan, obligationSignals, trialSignals, webScan } from "./radar-saas.ts";
 import { findTwins, ftOffers, ftReady, lbbCompanies, pickTop3, radarPress, siteWatch, whoToCall, zoneEvents } from "./radar-plus.ts";
 import { learn, nameRenewals, newCompanies, type Opp, type PublicItem, rejected, renewals, rescore, tagProspects, tedTenders, watchProspects } from "./radar-signals.ts";
 
@@ -218,7 +218,7 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
     const step = <T,>(k: Exclude<StepKey, "lance" | "tri">, job: Promise<T[]>, label: string) => job.then(
       (r) => { if (p.steps[k].s !== "saute") p.steps[k] = { s: "fait", at: at(), n: r.length }; put(); return r; },
       (e) => { console.error("radar", k, e); if (label) errors.push(label); p.steps[k] = { s: "erreur", at: at() }; put(); return [] as T[]; });
-    const [boamp, ted, ren, legal, fresh, w, g, jobs, sites, zev, techs, press] = await Promise.all([
+    const [boamp, ted, ren, legal, fresh, w, g, jobs, sites, zev, techs, intent, press] = await Promise.all([
       pub ? tenders(ws, cfg).catch((e) => { console.error("boamp", e); errors.push("appels d'offres"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
       pub ? tedTenders(cfg.mots_cles, zone, !!cfg.europe).catch((e) => { console.error("ted", e); errors.push("appels d'offres européens"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
       pub && zone.length ? renewals(ws, cfg.mots_cles, zone).catch((e) => { console.error("decp", e); errors.push("renouvellements"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
@@ -239,8 +239,11 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
         const b = await jobsScan(wsc, cfg.postes ?? [], { until: t0 + 75_000 }).catch((e) => { console.error("offres", e); return [] as Opp[]; });
         const c = await anniversaries(wsc, { until: t0 + 95_000 }).catch((e) => { console.error("abonnements", e); return [] as Opp[]; });
         const d = await obligationSignals(wsc, zone).catch((e) => { console.error("obligations", e); return [] as Opp[]; });
-        return [...a, ...b, ...c, ...d];
+        const e = await trialSignals(wsc).catch((x) => { console.error("essais", x); return [] as Opp[]; });
+        const f = opts.web === false ? [] : await championSignals(wsc).catch((x) => { console.error("anciens", x); return [] as Opp[]; });
+        return [...a, ...b, ...c, ...d, ...e, ...f];
       })(),
+      opts.web === false ? Promise.resolve([] as Opp[]) : intentSignals({ ...ws, radar_cfg: cfg as unknown as Record<string, unknown> }).catch((e) => { console.error("intentions", e); return [] as Opp[]; }),
       opts.web === false ? Promise.resolve([] as Opp[]) : radarPress({ ...ws, radar_cfg: cfg as unknown as Record<string, unknown> }, zone).catch((e) => { console.error("presse", e); return [] as Opp[]; }),
     ]);
     p.steps.annonces = { s: "fait", at: at(), n: legal.length + fresh.length + sites.length + zev.length }; await put();
@@ -251,7 +254,7 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
     if (pub) p.steps.marches = { s: "fait", at: at(), n: t.length };
     if (p.steps.renouvellements.s === "en_cours") p.steps.renouvellements = { s: "fait", at: at(), n: r.length };
     p.steps.tri = { s: "en_cours", at: at() }; await put();
-    const all = [...t, ...r, ...legal, ...fresh, ...w, ...g, ...jobs, ...sites, ...zev, ...press, ...techs];
+    const all = [...t, ...r, ...legal, ...fresh, ...w, ...g, ...jobs, ...sites, ...zev, ...press, ...techs, ...intent];
     const added = await save(ws, all);
     await tagProspects(legal).catch(() => null);
     // Qui appeler (dirigeant, recruteur, service achats) et entreprises fermées ; jumeaux de tes clients (chaque semaine)
@@ -270,7 +273,7 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
     // Champs écrits par d'autres tâches pendant l'analyse (ou par le client) : on garde la version en base
     const fr = (fresh_?.radar_cfg ?? {}) as Record<string, unknown>;
     const merged: Record<string, unknown> = { ...fr, ...cfg };
-    for (const k of ["press_at", "lbb_at", "partenaires", "partners_at", "calendrier", "twins_at", "webhook", "outils_rivaux", "obligations", "oblig_at"]) if (k in fr) merged[k] = fr[k];
+    for (const k of ["intent_at", "press_at", "lbb_at", "partenaires", "partners_at", "calendrier", "twins_at", "webhook", "outils_rivaux", "obligations", "oblig_at"]) if (k in fr) merged[k] = fr[k];
     await admin.from("workspaces").update({ radar_at: now, radar_progress: p, radar_cfg: { ...merged, ...(webDue ? { web_at: now } : {}), bodacc_at: now.slice(0, 10), poids: brain.poids, appris: brain.by } }).eq("id", ws.id);
     await log(ws.id, "radar_scan", `Radar : ${added} nouvelle${added > 1 ? "s" : ""} opportunité${added > 1 ? "s" : ""} (${t.length} appels d'offres, ${r.length} contrats à renouveler, ${legal.length + fresh.length} annonces légales, ${w.length} signaux web)`);
     return { added, tenders: t.length, renewals: r.length, legal: legal.length, creations: fresh.length, jobs: jobs.length, sites: sites.length, web: w.length, registry: g.length, web_scanned: webDue, errors, keywords: cfg.mots_cles, top3, ...sc };

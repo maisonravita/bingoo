@@ -195,7 +195,7 @@ export async function jobsScan(ws: W, postes: string[], opts: { max?: number; un
 
 // ---------------------------------------------------------------- Date anniversaire de l'abonnement concurrent
 /** Première apparition d'un outil sur le site d'après les archives publiques du web (recherche par dichotomie, au mois près). */
-async function adoptedAt(url: string, tool: string): Promise<string | null> {
+export async function adoptedAt(url: string, tool: string): Promise<string | null> {
   const fp = FP.find((f) => f.name === tool);
   if (!fp) return null;
   const h = host(url);
@@ -246,6 +246,7 @@ export async function anniversaries(ws: W, opts: { max?: number; until?: number 
     if (next.getTime() < now) next.setFullYear(next.getFullYear() + 1);
     const days = (next.getTime() - now) / 864e5;
     const c = co.get(r.key);
+    if (c && norm(c.name).split(" ")[0] === norm(r.tool).split(" ")[0]) continue; // le concurrent lui-même
     if (!c || days < 30 || days > 100 || next.getFullYear() - a.getFullYear() < 1) continue;
     const nd = next.toISOString().slice(0, 10);
     out.push({ key: `abo:${r.key}:${norm(r.tool)}:${nd.slice(0, 4)}`, kind: "abonnement", title: `${c.name} · abonnement ${r.tool} renouvelable vers ${moisFr(nd)}`, company: c.name,
@@ -346,4 +347,82 @@ export async function obligationSignals(ws: W, zone: string[]): Promise<Opp[]> {
     }
   }
   return out.slice(0, 40);
+}
+
+// ---------------------------------------------------------------- Intentions publiques : demandes de recommandation, clients mécontents d'un concurrent
+/** Chaque semaine (recherche web) : des entreprises qui demandent publiquement une solution comme la tienne, ou qui se plaignent d'un concurrent. */
+export async function intentSignals(ws: W): Promise<Opp[]> {
+  const c = ws.radar_cfg ?? {};
+  if (c.intent_at && String(c.intent_at) > new Date(Date.now() - 7 * 864e5).toISOString()) return [];
+  if (!(await aiRoom(ws.id, 0.6))) return [];
+  const { data: cur } = await admin.from("workspaces").select("radar_cfg").eq("id", ws.id).single();
+  await admin.from("workspaces").update({ radar_cfg: { ...((cur?.radar_cfg as Record<string, unknown>) ?? {}), intent_at: new Date().toISOString() } }).eq("id", ws.id);
+  const pr = ws.profile ?? {};
+  const { data: comps } = await admin.from("competitors").select("name").eq("workspace_id", ws.id).neq("status", "ecarte").limit(8);
+  const rivals = [...new Set([...((comps ?? []) as { name: string }[]).map((x) => x.name.replace(/\s*[—(].*$/, "").trim()), ...((c.outils_rivaux as string[] | undefined) ?? [])])].slice(0, 8);
+  type S = { type: "demande" | "avis"; entreprise: string; fait: string; concurrent?: string; date: string; url: string; pourquoi: string };
+  const r = await askJson<{ signaux: S[] }>(`Trouve sur le web (moins de 45 jours, en français, entreprises en France) des signaux d'achat publics pour cette offre.
+Offre : ${pr.offre ?? ""} (${pr.nom ?? ws.name}) — Clients visés : ${(ws.targets ?? []).filter((t) => t.actif !== false).map((t) => t.label).join(" ; ") || "entreprises"}
+${rivals.length ? `Concurrents : ${rivals.join(", ")}` : ""}
+
+Types (6 recherches maximum) :
+- "demande" : une entreprise (ou son dirigeant, au nom de l'entreprise) demande publiquement une recommandation ou cherche un prestataire / un outil comme cette offre (forum, groupe, publication publique, appel à prestataires sur un site) ;
+${rivals.length ? `- "avis" : une entreprise identifiable se plaint publiquement d'un de ces concurrents ou cherche une alternative (avis signé d'une entreprise, publication, fil de discussion « alternative à … »).` : ""}
+Règles strictes : chaque signal a l'URL exacte de la page publique qui le prouve ; l'entreprise doit être identifiable (nom d'entreprise, pas de nom de personne) ; n'invente rien ; 0 à 8 signaux ; liste vide si rien de fiable.
+Format : {"signaux": [{"type": "demande", "entreprise": "", "fait": "une phrase", "concurrent": "", "date": "AAAA-MM-JJ", "url": "", "pourquoi": "une phrase : comment l'aborder"}]}`,
+    { maxTokens: 4000, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] }).catch(() => ({ signaux: [] as S[] }));
+  return (r.signaux ?? []).filter((x) => (x.type === "demande" || (x.type === "avis" && rivals.length)) && /^https?:\/\/[^\s]+\.[a-z]{2,}/i.test(x.url ?? "") && x.entreprise && x.fait).slice(0, 8).map((x) => ({
+    key: `intent:${x.type}:${norm(x.entreprise)}:${String(x.date ?? "").slice(0, 7)}`.slice(0, 300), kind: x.type,
+    title: `${String(x.entreprise).slice(0, 120)} · ${x.type === "avis" ? `mécontente de ${x.concurrent || "son prestataire"}` : "cherche une solution"}`, company: String(x.entreprise).slice(0, 160),
+    summary: String(x.fait).slice(0, 300), why: String(x.pourquoi ?? "").slice(0, 300), url: x.url,
+    source: (() => { try { return new URL(x.url).hostname.replace(/^www\./, ""); } catch { return "web"; } })(),
+    published: /^\d{4}-\d{2}-\d{2}$/.test(x.date ?? "") ? x.date : today(), raw: { presse: true, ...(x.concurrent ? { concurrent: x.concurrent } : {}) },
+  }));
+}
+
+// ---------------------------------------------------------------- Anciens utilisateurs : un contact d'un de tes clients change d'entreprise
+/** Un e-mail à un contact d'un de tes clients revient en erreur : il a probablement changé d'entreprise. On cherche où (pages professionnelles publiques). */
+export async function championSignals(ws: W, opts: { max?: number } = {}): Promise<Opp[]> {
+  const since = new Date(Date.now() - 90 * 864e5).toISOString();
+  const { data: msgs } = await admin.from("messages").select("prospect_id").eq("workspace_id", ws.id).eq("bounced", true).gte("created_at", since).limit(500);
+  const ids = [...new Set(((msgs ?? []) as { prospect_id: string | null }[]).map((m) => m.prospect_id).filter(Boolean))] as string[];
+  if (!ids.length) return [];
+  const { data: ps } = await admin.from("prospects").select("id, name, contact_name, contact_role, insight, won_at, status").in("id", ids.slice(0, 300)).eq("workspace_id", ws.id);
+  const todo = ((ps ?? []) as { id: string; name: string; contact_name: string | null; contact_role: string | null; insight: Record<string, unknown> | null; won_at: string | null; status: string }[])
+    .filter((p) => (p.won_at || p.status === "client") && p.contact_name && !(p.insight as { champion_at?: string } | null)?.champion_at).slice(0, opts.max ?? 3);
+  const out: Opp[] = [];
+  for (const p of todo) {
+    if (!(await aiRoom(ws.id, 0.7))) break;
+    const r = await askJson<{ trouve: boolean; entreprise: string; poste: string; url: string; depuis: string }>(`${p.contact_name}${p.contact_role ? `, ${p.contact_role}` : ""}, travaillait chez ${p.name} (France). Son adresse e-mail professionnelle ne fonctionne plus.
+Cherche sur le web (pages professionnelles publiques : site d'entreprise, annonce de nomination, presse) s'il ou elle a rejoint une autre entreprise. Ne réponds que si c'est clairement la même personne.
+Format : {"trouve": false, "entreprise": "", "poste": "", "url": "", "depuis": "AAAA-MM"}`, { maxTokens: 1200, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] }).catch(() => null);
+    await admin.from("prospects").update({ insight: { ...(p.insight ?? {}), champion_at: new Date().toISOString(), ...(r?.trouve ? { champion: { entreprise: r.entreprise, url: r.url } } : {}) } }).eq("id", p.id);
+    if (r?.trouve && r.entreprise && /^https?:\/\//.test(r.url ?? "") && norm(r.entreprise) !== norm(p.name)) {
+      out.push({ key: `champion:${p.id}:${norm(r.entreprise)}`.slice(0, 300), kind: "champion", title: `${r.entreprise} · ${p.contact_name} y est arrivé(e)`, company: r.entreprise,
+        summary: `${p.contact_name}, qui utilisait ton offre chez ${p.name}, est maintenant ${r.poste || "en poste"} chez ${r.entreprise}${r.depuis ? ` (depuis ${r.depuis})` : ""}.`,
+        why: `Il ou elle connaît déjà ta valeur : c'est le prospect le plus facile à convertir. Félicite-le pour sa prise de poste et propose de mettre en place la même chose chez ${r.entreprise}.`,
+        url: r.url, source: (() => { try { return new URL(r.url).hostname.replace(/^www\./, ""); } catch { return "web"; } })(), published: today(), raw: { ancien_client: p.name, contact: p.contact_name, poste: r.poste } });
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------- Essais gratuits : plusieurs personnes d'une même entreprise s'inscrivent
+export const FREE_MAIL = /^(gmail|googlemail|hotmail|outlook|live|msn|yahoo|ymail|icloud|me|mac|aol|gmx|protonmail|proton|orange|wanadoo|free|sfr|neuf|laposte|bbox|numericable|club-internet|aliceadsl|tutanota|zoho|mail|yandex)\./i;
+
+/** Domaines d'entreprise qui ont plusieurs inscriptions à l'essai gratuit du client (30 derniers jours). */
+export async function trialSignals(ws: W): Promise<Opp[]> {
+  const since = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
+  const { data } = await admin.from("trial_signups").select("domain, n, first_at, last_at").eq("workspace_id", ws.id).gte("last_at", since).gte("n", 2).order("n", { ascending: false }).limit(30);
+  const out: Opp[] = [];
+  const { fetchHtml } = await import("./analyze.ts");
+  for (const t of (data ?? []) as { domain: string; n: number; first_at: string; last_at: string }[]) {
+    const html = await fetchHtml(`https://${t.domain}`).catch(() => "");
+    const name = (html.match(/<title[^>]*>([^<]{2,80})/i)?.[1] ?? t.domain).split(/\s[|–—-]\s/)[0].trim();
+    out.push({ key: `essai:${t.domain}:${String(t.first_at).slice(0, 7)}`, kind: "essai", title: `${name} · ${t.n} personnes à l'essai`, company: name,
+      summary: `${t.n} inscriptions à ton essai gratuit avec une adresse @${t.domain} entre le ${new Date(t.first_at).toLocaleDateString("fr-FR")} et le ${new Date(t.last_at).toLocaleDateString("fr-FR")}.`,
+      why: "Plusieurs personnes de la même entreprise testent ton produit : c'est un achat d'équipe en préparation. Propose une démo à l'équipe et une offre adaptée avant la fin de l'essai.",
+      url: `https://${t.domain}`, source: "Ton essai gratuit", published: String(t.last_at).slice(0, 10), raw: { domaine: t.domain, inscriptions: t.n } });
+  }
+  return out;
 }
