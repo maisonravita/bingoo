@@ -462,6 +462,129 @@ function Searching({ ws }) {
   );
 }
 
+const MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+const euro = (n) => n == null ? "—" : `${Math.round(Number(n)).toLocaleString("fr-FR")} €`;
+const nrm = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+const median = (a) => { const s = a.filter((x) => x > 0).sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : null; };
+
+/** Fiche acheteur : tout ce qu'il achète dans ton secteur, à qui, pour combien, jusqu'à quand. */
+function BuyerFiche({ name, rows, onClose }) {
+  const list = rows.slice().sort((a, b) => String(b.notified).localeCompare(String(a.notified)));
+  const holders = [...new Set(list.map((r) => r.holder_name).filter(Boolean))];
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal>
+      <button className="absolute inset-0 bg-ink/30" onClick={onClose} aria-label="Fermer" />
+      <div className="relative w-full max-w-xl h-full bg-white shadow-2xl overflow-y-auto p-6">
+        <div className="flex items-start justify-between gap-3"><span className="text-xs font-semibold rounded-full px-2.5 py-1 bg-[#FEF3C7] text-[#92400E]">Fiche acheteur</span><button onClick={onClose} className="text-ink-soft hover:text-ink"><Ico name="x" /></button></div>
+        <h2 className="font-serif text-3xl leading-tight mt-4">{name}</h2>
+        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+          {[[list.length, "contrats"], [euro(list.reduce((s, r) => s + Number(r.montant ?? 0), 0)), "montant total"], [holders.length, "titulaires différents"]].map(([v, l]) => <div key={l} className="rounded-xl bg-paper p-3"><p className="font-bold tnum">{v}</p><p className="text-[11.5px] text-ink-soft">{l}</p></div>)}
+        </div>
+        <ul className="mt-5 space-y-2.5">
+          {list.map((r) => { const ends = r.fin && new Date(r.fin) > new Date(); return (
+            <li key={r.id} className="rounded-xl border border-line p-3 text-sm">
+              <p className="font-medium leading-snug">{r.objet}</p>
+              <p className="text-[12.5px] text-ink-soft mt-1">{[r.holder_name ? `Titulaire : ${r.holder_name}` : "Titulaire non publié", euro(r.montant), r.duree_mois ? `${r.duree_mois} mois` : null].filter(Boolean).join(" · ")}</p>
+              <p className={cx("text-[12px] mt-0.5", ends ? "text-accent-dark font-semibold" : "text-ink-faint")}>Notifié le {r.notified ? new Date(r.notified).toLocaleDateString("fr-FR") : "?"}{r.fin ? ` · fin estimée ${new Date(r.fin).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}` : ""}</p>
+            </li>
+          ); })}
+        </ul>
+        <p className="text-[11.5px] text-ink-faint mt-4">Source : données essentielles de la commande publique. Fin estimée = notification + durée déclarée (reconductions possibles).</p>
+      </div>
+    </div>
+  );
+}
+
+/** Le marché public de ton secteur : calendrier des renouvellements, clients de tes concurrents, prix gagnants. */
+function Market({ ws }) {
+  const toast = useToast();
+  const [rows, setRows] = useState(null);
+  const [rivals, setRivals] = useState([]);
+  const [tab, setTab] = useState("calendrier");
+  const [buyer, setBuyer] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => {
+    const [{ data }, { data: c }] = await Promise.all([
+      supabase.from("public_contracts").select("*").eq("workspace_id", ws.id).eq("relevant", true).order("notified", { ascending: false }).limit(1500),
+      supabase.from("competitors").select("name").eq("workspace_id", ws.id).neq("status", "ecarte"),
+    ]);
+    setRows(data ?? []); setRivals((c ?? []).map((x) => nrm(x.name).split(" ")[0]).filter((x) => x.length > 3));
+  }, [ws.id]);
+  useEffect(() => { load(); }, [load]);
+  if (ws.radar_cfg?.marches === false) return null;
+  const refresh = async () => {
+    setBusy(true);
+    try { const r = await fn("r/market-refresh", { workspace_id: ws.id }); await load(); toast(r.skipped ?? `${r.pertinents} contrats de ton secteur dans ta zone`, "good"); } catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
+  };
+  const list = rows ?? [];
+  const now = new Date(), in12 = new Date(now.getFullYear(), now.getMonth() + 12, 1);
+  const coming = list.filter((r) => r.fin && new Date(r.fin) >= now && new Date(r.fin) < in12);
+  const months = Array.from({ length: 12 }, (_, i) => { const d = new Date(now.getFullYear(), now.getMonth() + i, 1); return { key: `${d.getFullYear()}-${d.getMonth()}`, label: `${MOIS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`, rows: coming.filter((r) => { const f = new Date(r.fin); return f.getFullYear() === d.getFullYear() && f.getMonth() === d.getMonth(); }) }; });
+  const isRival = (r) => { const h = nrm(r.holder_name); return !!h && rivals.some((x) => h.includes(x)); };
+  const rivalRows = list.filter(isRival).sort((a, b) => String(a.fin ?? "9").localeCompare(String(b.fin ?? "9")));
+  const byBuyer = (name) => list.filter((r) => (r.buyer_name || r.buyer_id) === name);
+  const annual = list.map((r) => r.montant && r.duree_mois ? (Number(r.montant) / Number(r.duree_mois)) * 12 : null).filter(Boolean);
+  const holders = Object.values(list.reduce((m, r) => { if (!r.holder_name) return m; const k = r.holder_name; m[k] ??= { name: k, n: 0, total: 0 }; m[k].n++; m[k].total += Number(r.montant ?? 0); return m; }, {})).sort((a, b) => b.n - a.n).slice(0, 8);
+  const tabs = [["calendrier", `Renouvellements à 12 mois (${coming.length})`], ["concurrents", `Clients de tes concurrents (${rivalRows.length})`], ["prix", "Prix gagnants"]];
+  const Line = ({ r }) => (
+    <li className="py-2.5 flex items-start gap-3">
+      <span className="min-w-0 flex-1">
+        <button onClick={() => setBuyer(r.buyer_name || r.buyer_id)} className="block font-medium text-[14px] text-left hover:underline truncate max-w-full">{r.buyer_name || "Acheteur public"}</button>
+        <span className="block text-[12.5px] text-ink-soft line-clamp-1">{r.objet}</span>
+        <span className="block text-[12px] text-ink-faint">{[r.holder_name ? `tenu par ${r.holder_name}` : null, euro(r.montant)].filter(Boolean).join(" · ")}</span>
+      </span>
+      {r.fin && <span className="shrink-0 text-right text-[12px]"><span className="block text-ink-faint">fin estimée</span><b>{new Date(r.fin).toLocaleDateString("fr-FR", { month: "short", year: "numeric" })}</b></span>}
+    </li>
+  );
+  return (
+    <Card className="p-0 overflow-hidden min-w-0">
+      <div className="px-5 pt-5 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2.5 font-bold text-[19px]"><span className="text-accent"><Ico name="clock" className="h-6 w-6" /></span>Marché public de ton secteur</h2>
+        <button onClick={refresh} disabled={busy} className="text-[13px] font-semibold text-accent hover:underline disabled:opacity-50">{busy ? "Mise à jour… (1 à 2 min)" : list.length ? "Mettre à jour" : "Charger le marché"}</button>
+      </div>
+      <div className="flex gap-1 overflow-x-auto px-5 py-3 border-b border-line">{tabs.map(([k, l]) => <button key={k} onClick={() => setTab(k)} className={cx("shrink-0 rounded-full px-3 py-1.5 text-xs font-medium", tab === k ? "bg-accent-soft text-accent-dark" : "text-ink-soft hover:text-ink")}>{l}</button>)}</div>
+      <div className="p-5">
+        {!rows ? <div className="py-8 grid place-items-center"><Spinner /></div> : !list.length ? <p className="text-sm text-ink-soft text-center py-6">Pas encore de données. Clique sur « Charger le marché » : le Radar récupère les contrats publics de ton secteur dans ta zone sur 6 ans (mise à jour automatique chaque semaine).</p>
+        : tab === "calendrier" ? (
+          <>
+            <div className="grid grid-cols-6 sm:grid-cols-12 gap-1.5">
+              {months.map((m) => <div key={m.key} className="text-center"><div className="h-16 rounded-lg bg-paper flex items-end overflow-hidden"><div className="w-full rounded-lg bg-[#F59E0B]" style={{ height: `${Math.min(100, m.rows.length * 18)}%` }} /></div><p className="text-[11px] text-ink-soft mt-1">{m.label}</p><p className="text-[11px] font-bold tnum">{m.rows.length}</p></div>)}
+            </div>
+            <ul className="mt-4 divide-y divide-line">{coming.sort((a, b) => String(a.fin).localeCompare(String(b.fin))).slice(0, 25).map((r) => <Line key={r.id} r={r} />)}</ul>
+            <p className="text-[11.5px] text-ink-faint mt-2">Présente-toi aux acheteurs 4 à 6 mois avant la fin : c'est quand ils rédigent le nouveau cahier des charges.</p>
+          </>
+        ) : tab === "concurrents" ? (
+          !rivals.length ? <p className="text-sm text-ink-soft">Ajoute tes concurrents dans Espion : le Radar retrouvera les contrats publics qu'ils détiennent.</p>
+          : !rivalRows.length ? <p className="text-sm text-ink-soft">Aucun contrat public de tes concurrents suivis dans ta zone pour l'instant.</p>
+          : <ul className="divide-y divide-line">{rivalRows.slice(0, 30).map((r) => <Line key={r.id} r={r} />)}</ul>
+        ) : (
+          <div className="grid lg:grid-cols-2 gap-6">
+            <div>
+              <p className="text-[12px] font-bold uppercase tracking-wider text-ink-soft mb-2">Repères de prix ({list.length} contrats)</p>
+              <ul className="space-y-1.5 text-sm">
+                <li className="flex justify-between"><span className="text-ink-soft">Montant médian d'un contrat</span><b className="tnum">{euro(median(list.map((r) => Number(r.montant))))}</b></li>
+                <li className="flex justify-between"><span className="text-ink-soft">Montant médian par an</span><b className="tnum">{euro(median(annual))}</b></li>
+                <li className="flex justify-between"><span className="text-ink-soft">Durée la plus courante</span><b className="tnum">{(() => { const c = list.reduce((m, r) => { if (r.duree_mois) m[r.duree_mois] = (m[r.duree_mois] ?? 0) + 1; return m; }, {}); const k = Object.entries(c).sort((a, b) => b[1] - a[1])[0]; return k ? `${k[0]} mois` : "—"; })()}</b></li>
+              </ul>
+              <p className="text-[12px] font-bold uppercase tracking-wider text-ink-soft mt-5 mb-2">Dernières attributions</p>
+              <ul className="divide-y divide-line">{list.slice(0, 8).map((r) => <Line key={r.id} r={r} />)}</ul>
+            </div>
+            <div>
+              <p className="text-[12px] font-bold uppercase tracking-wider text-ink-soft mb-2">Qui gagne le plus</p>
+              <ul className="space-y-2">{holders.map((h) => (
+                <li key={h.name} className="text-sm"><div className="flex justify-between gap-2"><span className={cx("truncate", rivals.some((x) => nrm(h.name).includes(x)) && "font-semibold text-bad")}>{h.name}</span><span className="tnum text-ink-soft shrink-0">{h.n} contrat{h.n > 1 ? "s" : ""} · {euro(h.total)}</span></div>
+                  <div className="h-1.5 rounded-full bg-paper mt-1 overflow-hidden"><div className="h-full rounded-full bg-accent" style={{ width: `${(h.n / Math.max(1, holders[0].n)) * 100}%` }} /></div></li>
+              ))}</ul>
+              <p className="text-[11.5px] text-ink-faint mt-3">En rouge : tes concurrents suivis par Espion.</p>
+            </div>
+          </div>
+        )}
+      </div>
+      {buyer && <BuyerFiche name={buyer} rows={byBuyer(buyer)} onClose={() => setBuyer(null)} />}
+    </Card>
+  );
+}
+
 /** Ce que le Radar t'a rapporté : du signal au devis signé. */
 function Roi({ ws }) {
   const [d, setD] = useState(null);
@@ -715,6 +838,7 @@ export default function Radar() {
         <div className="space-y-5 min-w-0">
         <HotCompanies list={list} onOpen={setOpen} />
         <Roi ws={ws} />
+        <Market ws={ws} />
         <Card className="p-0 overflow-hidden min-w-0">
           <div className="px-5 pt-5 flex items-center justify-between gap-2">
             <h2 className="flex items-center gap-2.5 font-bold text-[19px]"><span className="text-accent"><Ico name="users" className="h-6 w-6" /></span>Opportunités détectées</h2>

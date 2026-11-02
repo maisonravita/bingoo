@@ -52,6 +52,13 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     return await growthReco(ws, String(b.page ?? ""), b.stats);
   },
   async "radar-cron"(req) { await cron(req); return await radarCron(); },
+  async "market-cron"(req) { await cron(req); const { marketCron } = await import("../_shared/market.ts"); return await marketCron(); },
+  async "market-refresh"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    await quota(ws.id, "radar_scan", 4);
+    const { marketRefresh } = await import("../_shared/market.ts");
+    return await marketRefresh(ws);
+  },
   // Analyse d'un espace précis par la plateforme (tests, pilote) : sans recherche web payante
   async "radar-run"(req, b) {
     await cron(req);
