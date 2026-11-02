@@ -267,7 +267,11 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
     p.steps.tri = { s: "fait", at: now, n: added }; p.done_at = now; p.added = added; p.result = sc;
     // Relit la configuration (presse, jumeaux ont pu y écrire pendant l'analyse) avant de la compléter
     const { data: fresh_ } = await admin.from("workspaces").select("radar_cfg").eq("id", ws.id).single();
-    await admin.from("workspaces").update({ radar_at: now, radar_progress: p, radar_cfg: { ...cfg, press_at: fresh_?.radar_cfg?.press_at ?? cfg.press_at, lbb_at: fresh_?.radar_cfg?.lbb_at, partenaires: fresh_?.radar_cfg?.partenaires, partners_at: fresh_?.radar_cfg?.partners_at, calendrier: fresh_?.radar_cfg?.calendrier, twins_at: fresh_?.radar_cfg?.twins_at ?? cfg.twins_at, webhook: fresh_?.radar_cfg?.webhook ?? cfg.webhook, ...(webDue ? { web_at: now } : {}), bodacc_at: now.slice(0, 10), poids: brain.poids, appris: brain.by } }).eq("id", ws.id);
+    // Champs écrits par d'autres tâches pendant l'analyse (ou par le client) : on garde la version en base
+    const fr = (fresh_?.radar_cfg ?? {}) as Record<string, unknown>;
+    const merged: Record<string, unknown> = { ...fr, ...cfg };
+    for (const k of ["press_at", "lbb_at", "partenaires", "partners_at", "calendrier", "twins_at", "webhook", "outils_rivaux", "obligations", "oblig_at"]) if (k in fr) merged[k] = fr[k];
+    await admin.from("workspaces").update({ radar_at: now, radar_progress: p, radar_cfg: { ...merged, ...(webDue ? { web_at: now } : {}), bodacc_at: now.slice(0, 10), poids: brain.poids, appris: brain.by } }).eq("id", ws.id);
     await log(ws.id, "radar_scan", `Radar : ${added} nouvelle${added > 1 ? "s" : ""} opportunité${added > 1 ? "s" : ""} (${t.length} appels d'offres, ${r.length} contrats à renouveler, ${legal.length + fresh.length} annonces légales, ${w.length} signaux web)`);
     return { added, tenders: t.length, renewals: r.length, legal: legal.length, creations: fresh.length, jobs: jobs.length, sites: sites.length, web: w.length, registry: g.length, web_scanned: webDue, errors, keywords: cfg.mots_cles, top3, ...sc };
   } catch (e) {
