@@ -190,7 +190,9 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
     const cfg = await config(ws);
     const zone = (ws.zone ?? []).filter((d) => /^(\d{2}|2A|2B|97\d)$/.test(d));
     const webDue = opts.web ?? (!cfg.web_at || cfg.web_at < new Date(Date.now() - 6 * 864e5).toISOString());
-    const bodaccSince = (cfg.bodacc_at && cfg.bodacc_at > day(30) ? cfg.bodacc_at : day(30)).slice(0, 10);
+    // Fenêtre BODACC : depuis la dernière lecture moins 7 jours (annonces parfois indexées en retard), au plus 30 jours. Les doublons sont ignorés.
+    const back7 = cfg.bodacc_at ? new Date(new Date(cfg.bodacc_at).getTime() - 7 * 864e5).toISOString().slice(0, 10) : day(30);
+    const bodaccSince = back7 > day(30) ? back7 : day(30);
     const pub = cfg.marches && cfg.mots_cles.length > 0;
     const errors: string[] = [];
     p.steps.lance = { s: "fait", at: p.steps.lance.at };
