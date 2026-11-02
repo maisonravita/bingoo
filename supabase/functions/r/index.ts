@@ -76,6 +76,15 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     try { const o = await ftOffers(ws, ["agent de propreté"], ["92"]); return { secrets: true, forme, connexion: true, offres: o.length, exemple: o.slice(0, 3).map((x) => `${x.company} · ${x.summary}`) }; }
     catch (e) { return { secrets: true, forme, connexion: false, erreur: (e as Error).message }; }
   },
+  // Test de la plateforme (clé de tâche) : analyse d'un appel d'offres d'un espace
+  async "tender-test"(req, b) {
+    await cron(req);
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
+    if (!ws) throw new HttpError(404, "Espace introuvable");
+    setAi({ ws: ws.id });
+    const { tenderAnalysis } = await import("../_shared/radar-plus.ts");
+    return await tenderAnalysis(ws, String(b.id ?? ""));
+  },
   async "market-cron"(req) { await cron(req); const { marketCron } = await import("../_shared/market.ts"); return await marketCron(); },
   async "market-refresh"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
