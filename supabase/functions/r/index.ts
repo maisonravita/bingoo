@@ -73,8 +73,10 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const id = env("FT_CLIENT_ID").trim(), sec = env("FT_CLIENT_SECRET").trim();
     const forme = { identifiant_commence_par_PAR: id.startsWith("PAR_"), longueur_identifiant: id.length, longueur_cle: sec.length, cle_commence_par_PAR: sec.startsWith("PAR_") };
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", "69871493-9885-465b-a597-f560e8656cd8").single();
-    try { const o = await ftOffers(ws, ["agent de propreté"], ["92"]); return { secrets: true, forme, connexion: true, offres: o.length, exemple: o.slice(0, 3).map((x) => `${x.company} · ${x.summary}`) }; }
-    catch (e) { return { secrets: true, forme, connexion: false, erreur: (e as Error).message }; }
+    const { lbbCompanies } = await import("../_shared/radar-plus.ts");
+    const off = await ftOffers(ws, ["agent de propreté"], ["92"]).then((o) => ({ ok: true, n: o.length, ex: o.slice(0, 3).map((x) => `${x.company} · ${x.summary}`) }), (e) => ({ ok: false, erreur: (e as Error).message }));
+    const lbb = await lbbCompanies({ ...ws, targets: [{ id: "t", label: "test", naf: ["81.21Z"], actif: true }] }, ["92"], true).then((o) => ({ ok: true, n: o.length, ex: o.slice(0, 3).map((x) => `${x.company} · ${x.summary}`) }), (e) => ({ ok: false, erreur: (e as Error).message }));
+    return { secrets: true, forme, offres_emploi: off, la_bonne_boite: lbb };
   },
   // Test de la plateforme (clé de tâche) : analyse d'un appel d'offres d'un espace
   async "tender-test"(req, b) {
