@@ -13,7 +13,7 @@ const ko = (m) => { failed++; console.log(`  ✗ ${m}`); };
 console.log("Fonctions serveur");
 for (const fn of readdirSync("supabase/functions").filter((d) => !d.startsWith("_") && statSync(`supabase/functions/${d}`).isDirectory())) {
   try {
-    const r = await build({ entryPoints: [`supabase/functions/${fn}/index.ts`], bundle: true, format: "esm", platform: "neutral", target: "es2022", external: ["npm:*"], minify: true, write: false, logLevel: "silent", plugins: [esbuildBrand] });
+    const r = await build({ entryPoints: [`supabase/functions/${fn}/index.ts`], bundle: true, format: "esm", platform: "neutral", target: "es2022", external: ["npm:*", "node:*"], minify: true, write: false, logLevel: "silent", plugins: [esbuildBrand] });
     const kb = Math.round(r.outputFiles[0].contents.length / 1024);
     ok(`${fn} (${kb} Ko)`);
   } catch (e) { ko(`${fn} : ${e.errors?.[0]?.text ?? e.message}`); }

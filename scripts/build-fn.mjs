@@ -4,6 +4,6 @@ import { esbuildBrand } from "./brand.mjs";
 const fn = process.argv[2];
 await build({
   entryPoints: [`supabase/functions/${fn}/index.ts`], bundle: true, format: "esm", platform: "neutral", target: "es2022",
-  external: ["npm:*"], charset: "utf8", legalComments: "none", minify: true, outfile: `bundles/${fn}.js`, plugins: [esbuildBrand],
+  external: ["npm:*", "node:*"], charset: "utf8", legalComments: "none", minify: true, outfile: `bundles/${fn}.js`, plugins: [esbuildBrand],
 });
 console.log(`bundles/${fn}.js`);

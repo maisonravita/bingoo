@@ -3,7 +3,7 @@
 // TikTok : page publique du profil quand elle est lisible. Instagram et autres : chiffres trouvés sur le web (sourcés).
 // Site : mesures techniques SEO lues directement sur le site. Aucun chiffre n'est estimé.
 import { HttpError } from "./http.ts";
-import { admin, askJson, log, type Workspace } from "./core.ts";
+import { admin, aiRoom, askJson, log, setAi, type Workspace } from "./core.ts";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 async function get(url: string, ms = 12000) {
@@ -178,17 +178,24 @@ Format : {"nom": "", "site": "https://…"}`, { fast: true, maxTokens: 1500, too
 
 // ================================================================ Pilote automatique d'Espion (chaque nuit)
 // 1. Contrôle léger et gratuit : le site de chaque concurrent suivi est relu une fois par jour (empreinte du texte).
-// 2. Un seul travail lourd par passage : rapport complet (site changé, au plus tous les 2 jours ; sinon au moins chaque semaine),
-//    puis publicités (chaque semaine), puis découverte de nouveaux concurrents (chaque semaine, à valider par le client).
+// 2. Un seul travail lourd par passage, et au plus 2 par espace et par nuit : rapport complet (site changé, au plus tous les 5 jours ;
+//    sinon toutes les 2 semaines), puis publicités (toutes les 2 semaines), découverte (chaque semaine), besoins (toutes les 2 semaines).
+//    Mode économe : un espace qui a utilisé 60 % de son budget IA du mois n'a plus de travaux lourds de nuit.
 export async function spyCron() {
   const t0 = Date.now();
   const { checkCompetitor, siteText, sha } = await import("./pro.ts");
   const { competitorAds } = await import("./campaigns.ts");
   const { data: wss } = await admin.from("workspaces").select("*").eq("onboarded", true);
   const byId = new Map((wss ?? []).map((w) => [w.id, w as Workspace & { spy_at?: string | null }]));
-  const ids = [...byId.keys()];
-  if (!ids.length) return { skipped: "aucun espace" };
+  const all = [...byId.keys()];
+  if (!all.length) return { skipped: "aucun espace" };
+  const ids = all;
   const day = new Date(); day.setUTCHours(0, 0, 0, 0);
+  // Espaces qui peuvent encore recevoir un travail lourd cette nuit (budget + 2 travaux maximum)
+  const { data: tonight } = await admin.from("activity").select("workspace_id").in("workspace_id", all).in("kind", ["veille", "espion_lourd"]).gte("created_at", day.toISOString());
+  const done = new Map<string, number>(); for (const a of tonight ?? []) done.set(a.workspace_id, (done.get(a.workspace_id) ?? 0) + 1);
+  const heavy: string[] = [];
+  for (const id of all) if ((done.get(id) ?? 0) < 2 && (await aiRoom(id, 0.6))) heavy.push(id);
   const out: Record<string, unknown> = { controles: 0 };
 
   // 1. Contrôle léger
@@ -199,36 +206,39 @@ export async function spyCron() {
     let changed = false;
     try { const text = await siteText(c.url); changed = text.length > 200 && !!c.text_hash && (await sha(text)) !== c.text_hash; } catch { /* site illisible : on réessaiera */ }
     const age = c.checked_at ? Date.now() - new Date(c.checked_at).getTime() : Infinity;
-    const needs = !c.summary || age > 7 * 864e5 || (changed && age > 2 * 864e5);
+    const needs = !c.summary || age > 14 * 864e5 || (changed && age > 5 * 864e5);
     await admin.from("competitors").update({ watched_at: new Date().toISOString(), ...(needs ? { spy_due: true } : {}) }).eq("id", c.id);
     out.controles = Number(out.controles) + 1;
     if (changed) await log(c.workspace_id, "espion", `${c.summary?.nom ?? new URL(c.url).hostname} : son site a changé${needs ? ", rapport complet programmé" : ""}`);
   }
-  if (Date.now() - t0 > 45000) return out;
+  if (Date.now() - t0 > 45000 || !heavy.length) return { ...out, ...(heavy.length ? {} : { econome: true }) };
 
   // 2a. Rapport complet
-  const { data: full } = await admin.from("competitors").select("id, workspace_id, name").in("workspace_id", ids).eq("status", "suivi").eq("spy_due", true).order("checked_at", { ascending: true, nullsFirst: true }).limit(1);
+  const { data: full } = await admin.from("competitors").select("id, workspace_id, name").in("workspace_id", heavy).eq("status", "suivi").eq("spy_due", true).order("checked_at", { ascending: true, nullsFirst: true }).limit(1);
   if (full?.[0]) {
     const c = full[0];
     await admin.from("competitors").update({ spy_due: false }).eq("id", c.id);
+    setAi({ ws: c.workspace_id, feature: "espion/rapport" });
     try { await checkCompetitor(byId.get(c.workspace_id)!, c.id, true); out.rapport = c.name || c.id; }
     catch (e) { out.rapport_erreur = (e as Error).message; await admin.from("competitors").update({ spy_due: true }).eq("id", c.id); }
     return out;
   }
   // 2b. Publicités
-  const week = new Date(Date.now() - 7 * 864e5).toISOString();
-  const { data: ads } = await admin.from("competitors").select("id, workspace_id, name").in("workspace_id", ids).eq("status", "suivi").not("summary", "is", null)
-    .or(`ads_at.is.null,ads_at.lt.${week}`).order("ads_at", { ascending: true, nullsFirst: true }).limit(1);
+  const week = new Date(Date.now() - 7 * 864e5).toISOString(), twoWeeks = new Date(Date.now() - 14 * 864e5).toISOString();
+  const { data: ads } = await admin.from("competitors").select("id, workspace_id, name").in("workspace_id", heavy).eq("status", "suivi").not("summary", "is", null)
+    .or(`ads_at.is.null,ads_at.lt.${twoWeeks}`).order("ads_at", { ascending: true, nullsFirst: true }).limit(1);
   if (ads?.[0]) {
+    setAi({ ws: ads[0].workspace_id, feature: "espion/publicites" });
+    await log(ads[0].workspace_id, "espion_lourd", `Publicités de ${ads[0].name || "un concurrent"} analysées`);
     try { await competitorAds(byId.get(ads[0].workspace_id)!, ads[0].id); out.publicites = ads[0].name || ads[0].id; } catch (e) { out.publicites_erreur = (e as Error).message; }
     return out;
   }
   // 2c. Découverte de nouveaux concurrents (proposés, jamais suivis sans accord)
-  const ws = (wss ?? []).find((w) => !w.spy_at || w.spy_at < week) as (Workspace & { spy_at?: string | null }) | undefined;
-  if (ws) { try { out.decouverte = (await spyDiscover(ws)).found; } catch (e) { out.decouverte_erreur = (e as Error).message; } return out; }
+  const ws = (wss ?? []).find((w) => heavy.includes(w.id) && (!w.spy_at || w.spy_at < week)) as (Workspace & { spy_at?: string | null }) | undefined;
+  if (ws) { setAi({ ws: ws.id, feature: "espion/decouverte" }); await log(ws.id, "espion_lourd", "Recherche de nouveaux concurrents"); try { out.decouverte = (await spyDiscover(ws)).found; } catch (e) { out.decouverte_erreur = (e as Error).message; } return out; }
   // 2d. Besoins publics (une fois par semaine et par espace)
-  const wn = (wss ?? []).find((w) => !(w as { spy_needs_at?: string }).spy_needs_at || (w as { spy_needs_at?: string }).spy_needs_at! < week) as Workspace | undefined;
-  if (wn) { try { out.besoins = (await spyNeeds(wn)).found; } catch (e) { out.besoins_erreur = (e as Error).message; } }
+  const wn = (wss ?? []).find((w) => heavy.includes(w.id) && (!(w as { spy_needs_at?: string }).spy_needs_at || (w as { spy_needs_at?: string }).spy_needs_at! < twoWeeks)) as Workspace | undefined;
+  if (wn) { setAi({ ws: wn.id, feature: "espion/besoins" }); await log(wn.id, "espion_lourd", "Recherche de besoins publics"); try { out.besoins = (await spyNeeds(wn)).found; } catch (e) { out.besoins_erreur = (e as Error).message; } }
   return out;
 }
 

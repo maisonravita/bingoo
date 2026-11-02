@@ -1,6 +1,6 @@
 // Fonction « r » : Kairo Radar, Espion et Studio (modules de croissance), séparée pour des mises à jour légères.
 import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
-import { admin, quota, requireMember } from "../_shared/core.ts";
+import { admin, quota, requireMember, setAi } from "../_shared/core.ts";
 import { radarCron, radarGetConfig, radarSetConfig, radarToProspect, scanRadar } from "../_shared/radar.ts";
 import { resolveCompetitor, spyCron, spyDigest, spyDiscover, spyFollow, spyNeeds, spySocial } from "../_shared/spy.ts";
 import { studioGenerate } from "../_shared/studio.ts";
@@ -52,6 +52,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     await cron(req);
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
     if (!ws) throw new HttpError(404, "Espace introuvable");
+    setAi({ ws: ws.id });
     return await scanRadar(ws, { web: false });
   },
   async "spy-cron"(req) { await cron(req); return await spyCron(); },

@@ -1,6 +1,6 @@
 // Fonction « i » : Kairo Intelligence (et bientôt Kairo Visibilité), séparée de « k » pour des mises à jour légères.
 import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
-import { admin, quota, requireMember } from "../_shared/core.ts";
+import { admin, quota, requireMember, setAi } from "../_shared/core.ts";
 import { intelligence, segmentStats } from "../_shared/intelligence.ts";
 import { findContacts, importPerson, pollContacts, providers, useContact } from "../_shared/contacts.ts";
 import { askJson } from "../_shared/core.ts";
@@ -98,6 +98,7 @@ Format : {"fiche": "texte"}`, { fast: true, maxTokens: 3000 });
     for (const ws of every ?? []) {
       const { count } = await admin.from("replies").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).gte("created_at", ws.intelligence_at ?? "2000-01-01");
       if ((count ?? 0) < 3) continue;
+      setAi({ ws: ws.id });
       await intelligence(ws);
       return { updated: ws.id };
     }
@@ -119,7 +120,7 @@ routes["contacts-cron"] = async (req) => {
   const { data } = await admin.from("contacts").select("workspace_id").eq("email_status", "en_cours").limit(500);
   const ids = [...new Set((data ?? []).map((x) => x.workspace_id))];
   let found = 0;
-  for (const id of ids) { const { data: ws } = await admin.from("workspaces").select("*").eq("id", id).single(); if (ws) found += await pollContacts(ws); }
+  for (const id of ids) { const { data: ws } = await admin.from("workspaces").select("*").eq("id", id).single(); if (ws) { setAi({ ws: ws.id }); found += await pollContacts(ws); } }
   return { workspaces: ids.length, found };
 };
 

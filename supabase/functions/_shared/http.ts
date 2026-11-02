@@ -1,4 +1,5 @@
 // Réponses HTTP, CORS et gestion d'erreurs communes à toutes les fonctions.
+import { aiCtx } from "./ai-ctx.ts";
 
 export const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -36,7 +37,9 @@ export function wrap(handler: Handler): Handler {
   return async (req) => {
     if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
     try {
-      return await handler(req);
+      // Chaque requête a son propre contexte de coût IA (fonction appelée, puis espace dès qu'il est connu)
+      const feature = new URL(req.url).pathname.split("/").filter(Boolean).slice(-2).join("/");
+      return await aiCtx.run({ feature }, () => handler(req));
     } catch (e) {
       const status = e instanceof HttpError ? e.status : 500;
       const message = e instanceof Error ? e.message : String(e);

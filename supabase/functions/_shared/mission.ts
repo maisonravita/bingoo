@@ -2,7 +2,7 @@
 // Règles : clients signés et RDV obtenus sont toujours comptés séparément ; les projections sont des fourchettes
 // présentées comme des hypothèses, remplacées par les vrais taux dès qu'il y a assez de données. Rien n'est garanti.
 import { HttpError } from "./http.ts";
-import { admin, askJson, log, quota, type Target, type Workspace } from "./core.ts";
+import { admin, askJson, log, quota, setAi, type Target, type Workspace } from "./core.ts";
 import { searchTarget } from "./search.ts";
 import { draft, enrich } from "./agents.ts";
 import { radarToProspect } from "./radar.ts";
@@ -391,6 +391,7 @@ export async function missionPilotCron() {
     await admin.from("missions").update({ run_at: new Date().toISOString() }).eq("id", m.id);
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", m.workspace_id).single();
     if (!ws?.onboarded) continue;
+    setAi({ ws: ws.id });
     for (let i = 0; i < 3 && Date.now() - t0 < 70e3; i++) {
       try { const r = await missionStep(ws as Workspace, m); out.push({ m: m.id, ...r }); if (r.done) break; }
       catch (e) { console.error("mission pilot", m.id, e); break; }
