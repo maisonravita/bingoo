@@ -195,14 +195,15 @@ export async function jobsScan(ws: W, postes: string[], opts: { max?: number; un
 
 // ---------------------------------------------------------------- Date anniversaire de l'abonnement concurrent
 /** Première apparition d'un outil sur le site d'après les archives publiques du web (recherche par dichotomie, au mois près). */
-export async function adoptedAt(url: string, tool: string): Promise<string | null> {
+export async function adoptedAt(url: string, tool: string, trace: string[] = []): Promise<string | null> {
   const fp = FP.find((f) => f.name === tool);
   if (!fp) return null;
   const h = host(url);
   const cdx = await fetch(`https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(h)}&output=json&fl=timestamp&filter=statuscode:200&collapse=timestamp:6&from=2016`, { signal: AbortSignal.timeout(15000) }).then((r) => r.ok ? r.json() : null).catch(() => null) as string[][] | null;
   const ts = (cdx ?? []).slice(1).map((r) => r[0]).filter(Boolean);
+  trace.push(`captures: ${ts.length}${cdx ? "" : " (archive injoignable)"}`);
   if (ts.length < 2) return null;
-  const has = async (t: string) => { const r = await fetch(`https://web.archive.org/web/${t}id_/${full(h)}`, { signal: AbortSignal.timeout(12000) }).catch(() => null); return r?.ok ? fp.re.test((await r.text()).slice(0, 400_000)) : null; };
+  const has = async (t: string) => { const r = await fetch(`https://web.archive.org/web/${t}id_/${full(h)}`, { signal: AbortSignal.timeout(12000) }).catch(() => null); const v = r?.ok ? fp.re.test((await r.text()).slice(0, 400_000)) : null; trace.push(`${t.slice(0, 6)}: ${v === null ? `erreur ${r?.status ?? "réseau"}` : v ? "oui" : "non"}`); return v; };
   // L'outil est-il dans la plus ancienne capture ? Alors on ne connaît que « avant » : pas de date fiable
   if (await has(ts[0])) return null;
   let lo = 0, hi = ts.length - 1;

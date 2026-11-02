@@ -172,7 +172,8 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   async "abo-test"(req, b) {
     await cron(req);
     const { adoptedAt } = await import("../_shared/radar-saas.ts");
-    return { adopte: await adoptedAt(String(b.url ?? ""), String(b.tool ?? "")) };
+    const trace: string[] = [];
+    return { adopte: await adoptedAt(String(b.url ?? ""), String(b.tool ?? ""), trace), trace };
   },
   async "spy-cron"(req) { await cron(req); return await spyCron(); },
   async "spy-digest"(req) { await cron(req); return await spyDigest(); },
