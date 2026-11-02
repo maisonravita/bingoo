@@ -47,6 +47,13 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     return await growthReco(ws, String(b.page ?? ""), b.stats);
   },
   async "radar-cron"(req) { await cron(req); return await radarCron(); },
+  // Analyse d'un espace précis par la plateforme (tests, pilote) : sans recherche web payante
+  async "radar-run"(req, b) {
+    await cron(req);
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
+    if (!ws) throw new HttpError(404, "Espace introuvable");
+    return await scanRadar(ws, { web: false });
+  },
   async "spy-cron"(req) { await cron(req); return await spyCron(); },
   async "spy-digest"(req) { await cron(req); return await spyDigest(); },
   async "spy-needs"(req, b) {

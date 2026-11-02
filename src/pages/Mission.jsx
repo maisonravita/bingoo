@@ -161,7 +161,7 @@ function RadarOpps({ m }) {
   };
   const drop = async (o) => { await supabase.from("radar_opps").update({ status: "ecarte" }).eq("id", o.id); setRows((x) => x.filter((y) => y.id !== o.id)); };
   const follow = async (o) => { await supabase.from("radar_opps").update({ status: "suivi" }).eq("id", o.id); setRows((x) => x.map((y) => (y.id === o.id ? { ...y, status: "suivi" } : y))); };
-  const KIND = { appel_offres: ["Appel d'offres", "accent"], croissance: ["En croissance", "good"], recrutement: ["Recrute en ce moment", "muted"] };
+  const KIND = { appel_offres: ["Appel d'offres", "accent"], croissance: ["En croissance", "good"], recrutement: ["Recrute en ce moment", "muted"], renouvellement: ["Contrat à renouveler", "accent"], dirigeant: ["Nouveau dirigeant", "good"], demenagement: ["Déménage", "good"], creation: ["Création ou ouverture", "good"] };
   return (
     <Card className="p-5 sm:p-6">
       <div className="flex items-center justify-between gap-3">

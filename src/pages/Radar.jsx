@@ -12,7 +12,12 @@ const KIND = {
   croissance: { label: "En croissance", plural: "En croissance", dot: "#22A06B", chip: "bg-good-soft text-good", icon: "up" },
   recrutement: { label: "Recrute en ce moment", plural: "Qui recrutent", dot: "#3B82F6", chip: "bg-[#E3EDFD] text-[#1D5BD6]", icon: "users" },
   besoin: { label: "Cherche une solution", plural: "Besoins exprimés", dot: "#8B5CF6", chip: "bg-[#EDE9FE] text-[#6D28D9]", icon: "bulb" },
+  renouvellement: { label: "Contrat public à renouveler", plural: "Contrats à renouveler", dot: "#B45309", chip: "bg-[#FEF3C7] text-[#92400E]", icon: "clock" },
+  dirigeant: { label: "Nouveau dirigeant", plural: "Nouveaux dirigeants", dot: "#DB2777", chip: "bg-[#FCE7F3] text-[#9D174D]", icon: "user" },
+  demenagement: { label: "Déménage", plural: "Déménagements", dot: "#0891B2", chip: "bg-[#CFFAFE] text-[#155E75]", icon: "truck" },
+  creation: { label: "Création ou ouverture", plural: "Créations et ouvertures", dot: "#65A30D", chip: "bg-[#ECFCCB] text-[#3F6212]", icon: "building" },
 };
+const EVENTS = ["dirigeant", "demenagement", "creation"];
 const SWEEP = 6; // secondes par tour
 
 const Ico = ({ name, className = "h-5 w-5" }) => {
@@ -29,6 +34,10 @@ const Ico = ({ name, className = "h-5 w-5" }) => {
     target: <><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.5" /><circle cx="12" cy="12" r="1" /></>,
     building: <><path d="M4 21V5l8-2v18M12 8h8v13M2 21h20" /><path d="M7 8h2M7 12h2M7 16h2M15 12h2M15 16h2" /></>,
     check: <><circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" /></>,
+    clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+    user: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
+    truck: <><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7" /><circle cx="7" cy="18" r="1.8" /><circle cx="17" cy="18" r="1.8" /></>,
+    flame: <path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1.2-3.6 2.3-4.7.3 1.6 1 2.7 2.2 3.2C11 9 11 6 12 3z" />,
   }[name];
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>{p}</svg>;
 };
@@ -42,6 +51,44 @@ const dayFr = (d) => new Date(d).toLocaleDateString("fr-FR", { day: "numeric", m
 const daysTo = (d) => Math.ceil((new Date(d).getTime() - Date.now()) / 864e5);
 // Décalage stable (pour séparer plusieurs opportunités d'un même département)
 const jitter = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return [((h & 255) / 255) - 0.5, (((h >> 8) & 255) / 255) - 0.5]; };
+
+const heat = (n) => n >= 80 ? "bg-bad text-white" : n >= 65 ? "bg-accent text-white" : n >= 50 ? "bg-accent-soft text-accent-dark" : "bg-[#EFEEEA] text-ink-soft";
+const Score = ({ n, big }) => n ? <span title="Score : à quel point c'est le bon moment" className={cx("inline-flex items-center justify-center rounded-full font-bold tnum shrink-0 leading-none", big ? "h-12 w-12 text-[17px]" : "h-9 w-9 text-[13px]", heat(n))}>{n}</span> : null;
+
+/** Entreprises chaudes : plusieurs signaux sur la même entreprise, ou un signal très fort. Classées par score, avec la raison. */
+function HotCompanies({ list, onOpen }) {
+  const groups = useMemo(() => {
+    const m = new Map();
+    for (const o of list) { const k = o.group_key || o.id; m.set(k, [...(m.get(k) ?? []), o]); }
+    return [...m.values()].map((g) => ({ g, top: g.slice().sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0] }))
+      .filter(({ g, top }) => new Set(g.map((x) => x.kind)).size > 1 || (top.score ?? 0) >= 75)
+      .sort((a, b) => (b.top.score ?? 0) - (a.top.score ?? 0)).slice(0, 5);
+  }, [list]);
+  if (!groups.length) return null;
+  return (
+    <Card className="p-5 sm:p-6">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2.5 font-bold text-[19px]"><span className="text-bad"><Ico name="flame" className="h-6 w-6" /></span>Entreprises chaudes</h2>
+        <span className="text-[12.5px] text-ink-faint">À contacter en premier</span>
+      </div>
+      <ul className="mt-4 space-y-2.5">
+        {groups.map(({ g, top }) => (
+          <li key={top.id}>
+            <button onClick={() => onOpen(top)} className="w-full text-left rounded-2xl border border-line hover:border-accent/40 bg-white p-3.5 flex items-start gap-3.5">
+              <Score n={top.score} big />
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold text-[15px] truncate">{top.company || top.title}</span>
+                <span className="mt-1 flex flex-wrap gap-1.5">{[...new Set(g.map((x) => x.kind))].map((k) => <span key={k} className={cx("rounded-full px-2 py-0.5 text-[11.5px] font-semibold", KIND[k]?.chip)}>{KIND[k]?.label}</span>)}</span>
+                <span className="block text-[12.5px] text-ink-soft mt-1.5 line-clamp-2">{(top.score_why ?? []).slice(1).join(" · ") || top.why}</span>
+              </span>
+              {top.expires_at && <span className="hidden sm:block text-[12px] text-ink-faint shrink-0 text-right">avant le<br /><b className="text-ink">{dayFr(top.expires_at)}</b></span>}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
 
 function RadarScope({ opps, zone, scanning, selected, onSelect, round = false }) {
   const center = centerOf(zone);
@@ -207,13 +254,15 @@ function Detail({ o, onClose, onChange }) {
   const nav = useNavigate();
   const [busy, setBusy] = useState(null);
   const k = KIND[o.kind];
-  const set = async (status) => {
-    setBusy(status);
-    const { error } = await supabase.from("radar_opps").update({ status }).eq("id", o.id);
+  const set = async (status, feedback) => {
+    setBusy(feedback ?? status);
+    const { error } = await supabase.from("radar_opps").update({ status, ...(feedback ? { feedback } : {}) }).eq("id", o.id);
     setBusy(null);
     if (error) return toast(error.message, "bad");
+    if (feedback === "pas_pertinent") toast("Noté. Le Radar écartera les signaux semblables.", "good");
     onChange({ ...o, status }); if (status === "ecarte") onClose();
   };
+  const pub = o.kind === "appel_offres" || o.kind === "renouvellement";
   const add = async () => {
     setBusy("add");
     try {
@@ -230,14 +279,32 @@ function Detail({ o, onClose, onChange }) {
           <span className={cx("text-xs font-semibold rounded-full px-2.5 py-1", k.chip)}>{k.label}</span>
           <button onClick={onClose} className="text-ink-soft hover:text-ink"><Ico name="x" /></button>
         </div>
-        <h2 className="font-serif text-3xl leading-tight mt-4">{o.kind === "appel_offres" ? o.title : o.company}</h2>
-        {o.kind === "appel_offres" && <p className="text-sm text-ink-soft mt-1">Acheteur : {o.company}</p>}
+        <h2 className="font-serif text-3xl leading-tight mt-4">{pub ? o.title : o.company}</h2>
+        {pub && <p className="text-sm text-ink-soft mt-1">Acheteur : {o.company}</p>}
         <p className="flex items-center gap-1.5 text-sm text-ink-soft mt-2"><Ico name="pin" className="h-4 w-4" />{[o.city, o.dept && `(${o.dept})`].filter(Boolean).join(" ") || "Lieu non précisé"}</p>
 
+        {o.score ? (
+          <div className="mt-5 rounded-2xl border border-line p-4 flex gap-3.5">
+            <Score n={o.score} big />
+            <div className="min-w-0 text-sm">
+              <p className="font-semibold">{o.score >= 80 ? "Entreprise très chaude" : o.score >= 65 ? "Bon moment pour la contacter" : o.score >= 50 ? "À surveiller" : "Signal faible"}</p>
+              <ul className="mt-1 space-y-0.5 text-ink-soft">{(o.score_why ?? []).map((w, i) => <li key={i}>• {w}</li>)}</ul>
+            </div>
+          </div>
+        ) : null}
+        {o.expires_at && o.kind !== "appel_offres" && <p className="mt-3 text-sm rounded-xl bg-accent-soft/60 px-3 py-2"><b>À contacter avant le {new Date(o.expires_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</b><span className="text-ink-soft"> · ensuite le signal disparaît du Radar</span></p>}
+
         <div className="mt-6 space-y-4 text-sm">
-          {o.kind !== "appel_offres" && <div><p className="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-1">Signal</p><p>{o.summary}</p></div>}
+          {o.kind === "renouvellement" && (
+            <div className="rounded-xl bg-[#FEF3C7]/60 border border-[#FDE68A] p-3 space-y-0.5">
+              <p className="font-semibold">Fin estimée du contrat : {o.raw?.fin ? new Date(o.raw.fin).toLocaleDateString("fr-FR", { month: "long", year: "numeric" }) : "—"}</p>
+              <p className="text-ink-soft">{o.summary}</p>
+              <p className="text-ink-faint text-xs pt-1">Fin estimée = date de notification + durée déclarée ; un accord-cadre peut avoir été reconduit. À vérifier auprès de l'acheteur.</p>
+            </div>
+          )}
+          {!pub && <div><p className="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-1">Signal</p><p>{o.summary}</p></div>}
           {o.kind === "appel_offres" && o.summary && <div><p className="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-1">Nature</p><p>{o.summary}</p></div>}
-          {o.deadline && <div className="rounded-xl bg-accent-soft/60 p-3"><p className="font-semibold">Réponse avant le {new Date(o.deadline).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p><p className="text-ink-soft">{daysTo(o.deadline)} jour{daysTo(o.deadline) > 1 ? "s" : ""} restant{daysTo(o.deadline) > 1 ? "s" : ""}</p></div>}
+          {o.deadline && o.kind === "appel_offres" && <div className="rounded-xl bg-accent-soft/60 p-3"><p className="font-semibold">Réponse avant le {new Date(o.deadline).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p><p className="text-ink-soft">{daysTo(o.deadline)} jour{daysTo(o.deadline) > 1 ? "s" : ""} restant{daysTo(o.deadline) > 1 ? "s" : ""}</p></div>}
           {o.kind === "recrutement" && <p className="text-sm rounded-xl bg-paper/70 border border-line p-3">{RECRUIT_HINT}</p>}
           {o.why && <div><p className="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-1">Pourquoi c'est pour toi</p><p>{o.why}{o.why.length >= 200 ? "…" : ""}</p></div>}
           <div><p className="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-1">Source</p>
@@ -263,7 +330,11 @@ function Detail({ o, onClose, onChange }) {
             : o.kind === "besoin" ? <a href={o.url} target="_blank" rel="noreferrer"><Button variant="accent" className="w-full">Ouvrir la demande</Button></a>
             : o.prospect_id ? <Button className="w-full" onClick={() => nav("/prospects")}>Voir dans mes prospects</Button> : null}
           {o.status !== "suivi" && o.kind === "appel_offres" && <Button variant="ghost" className="w-full" loading={busy === "suivi"} onClick={() => set("suivi")}>Suivre cet appel d'offres</Button>}
-          {o.status !== "ecarte" && <Button variant="ghost" className="w-full" loading={busy === "ecarte"} onClick={() => set("ecarte")}>Écarter</Button>}
+          {o.status !== "ecarte" && <div className="grid grid-cols-2 gap-2">
+            <Button variant="ghost" className="w-full" loading={busy === "pas_pertinent"} onClick={() => set("ecarte", "pas_pertinent")}>Pas pertinent</Button>
+            <Button variant="ghost" className="w-full" loading={busy === "ecarte"} onClick={() => set("ecarte")}>Masquer</Button>
+          </div>}
+          <p className="text-[11.5px] text-ink-faint text-center">« Pas pertinent » apprend au Radar ce que tu ne veux plus voir.</p>
         </div>
       </div>
     </div>
@@ -272,10 +343,12 @@ function Detail({ o, onClose, onChange }) {
 
 const STEPS = [
   ["lance", "Scan lancé", "Zone et cibles chargées"],
-  ["marches", "Marchés publics", "Appels d'offres ouverts (BOAMP)"],
+  ["marches", "Appels d'offres", "France (BOAMP) et Europe (TED)"],
+  ["renouvellements", "Contrats publics à renouveler", "Marchés attribués qui arrivent à échéance"],
+  ["annonces", "Annonces légales", "Nouveau dirigeant, déménagement, créations (BODACC)"],
   ["web", "Recrutements et croissance", "Offres d'emploi, levées, ouvertures (web)"],
-  ["registre", "Registre des entreprises", "Créations et ouvertures récentes"],
-  ["tri", "Tri et ajout au Radar", "Doublons écartés, nouveautés ajoutées"],
+  ["registre", "Tes prospects", "Signaux déjà repérés sur ta liste"],
+  ["tri", "Score et tri", "Entreprises chaudes, filtre, dates limites"],
 ];
 const hhmm = (d) => d ? new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "";
 const running = (p) => !!p?.started_at && !p.done_at && Date.now() - new Date(p.started_at).getTime() < 6 * 60000;
@@ -332,7 +405,7 @@ function Searching({ ws }) {
     setBusy(true);
     try {
       const split = (t) => t.split(/[,;\n]/).map((x) => x.trim()).filter(Boolean);
-      const r = await fn("r/radar-config", { workspace_id: ws.id, set: true, postes: split(edit.postes), mots_cles: split(edit.mots_cles), marches: edit.marches });
+      const r = await fn("r/radar-config", { workspace_id: ws.id, set: true, postes: split(edit.postes), mots_cles: split(edit.mots_cles), activites: split(edit.activites), marches: edit.marches, europe: edit.europe });
       setC({ ...c, radar_cfg: r.radar_cfg }); setEdit(null); toast("Le Radar cherchera avec ces réglages dès le prochain scan", "good");
     } catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
   };
@@ -348,7 +421,7 @@ function Searching({ ws }) {
     <Card className="p-5 sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2.5 font-bold text-[19px]"><span className="text-accent"><Ico name="target" className="h-6 w-6" /></span>Ce que le Radar cherche</h2>
-        {c && !edit && <button onClick={() => setEdit({ postes: (cfg.postes ?? []).join(", "), mots_cles: (cfg.mots_cles ?? []).join(", "), marches: cfg.marches !== false })} className="text-[13px] font-semibold text-accent hover:underline">Modifier</button>}
+        {c && !edit && <button onClick={() => setEdit({ postes: (cfg.postes ?? []).join(", "), mots_cles: (cfg.mots_cles ?? []).join(", "), activites: (cfg.activites ?? []).join(", "), marches: cfg.marches !== false, europe: !!cfg.europe })} className="text-[13px] font-semibold text-accent hover:underline">Modifier</button>}
       </div>
       {!c ? <div className="py-8 grid place-items-center"><Spinner /></div> : edit ? (
         <div className="mt-4 space-y-3 text-sm">
@@ -357,6 +430,9 @@ function Searching({ ws }) {
           <label className="flex items-center gap-2"><input type="checkbox" checked={edit.marches} onChange={(e) => setEdit({ ...edit, marches: e.target.checked })} /><span className="font-medium">Surveiller les marchés publics</span></label>
           {edit.marches && <label className="block"><span className="font-medium">Mots-clés des appels d'offres</span>
             <textarea rows={2} value={edit.mots_cles} onChange={(e) => setEdit({ ...edit, mots_cles: e.target.value })} className="mt-1 w-full rounded-xl border border-line px-3 py-2" placeholder="nettoyage des locaux, entretien" /></label>}
+          {edit.marches && <label className="flex items-center gap-2"><input type="checkbox" checked={edit.europe} onChange={(e) => setEdit({ ...edit, europe: e.target.checked })} /><span>Inclure les appels d'offres des pays voisins (Belgique, Luxembourg, Allemagne, Espagne, Italie, Pays-Bas, Portugal)</span></label>}
+          <label className="block"><span className="font-medium">Activités de tes cibles, telles qu'écrites au registre</span>
+            <textarea rows={2} value={edit.activites} onChange={(e) => setEdit({ ...edit, activites: e.target.value })} className="mt-1 w-full rounded-xl border border-line px-3 py-2" placeholder="conseil en gestion, agence immobilière" /></label>
           <p className="text-xs text-ink-faint">Sépare par des virgules. La zone et les cibles se règlent dans Réglages.</p>
           <div className="flex gap-2"><Button variant="accent" loading={busy} onClick={save}>Enregistrer</Button><Button variant="ghost" onClick={() => setEdit(null)}>Annuler</Button></div>
         </div>
@@ -366,10 +442,27 @@ function Searching({ ws }) {
           <Row icon="building" title="Entreprises dans ta cible">{(ws.targets ?? []).filter((t) => t.actif !== false).slice(0, 5).map((t) => <Tag key={t.id}>{t.label}</Tag>)}{!(ws.targets ?? []).length && <Tag>À définir dans Réglages</Tag>}</Row>
           <Row icon="users" title="Recrutements qui signalent un besoin">{(cfg.postes ?? []).map((x) => <Tag key={x}>{x}</Tag>)}</Row>
           <Row icon="up" title="Signaux de croissance"><Tag>Levées de fonds</Tag><Tag>Nouveaux sites</Tag><Tag>Rachats</Tag><Tag>Créations</Tag></Row>
-          <Row icon="doc" title="Marchés publics">{cfg.marches === false ? <Tag>Désactivés : pas adaptés à ton offre</Tag> : (cfg.mots_cles ?? []).map((x) => <Tag key={x}>{x}</Tag>)}</Row>
+          <Row icon="doc" title="Marchés publics">{cfg.marches === false ? <Tag>Désactivés : pas adaptés à ton offre</Tag> : <>{(cfg.mots_cles ?? []).map((x) => <Tag key={x}>{x}</Tag>)}<Tag>{cfg.europe ? "France + pays voisins" : "France (BOAMP + TED)"}</Tag><Tag>Renouvellements à venir</Tag></>}</Row>
+          <Row icon="user" title="Annonces légales (BODACC)"><Tag>Nouveau dirigeant</Tag><Tag>Déménagement</Tag><Tag>Rachat</Tag><Tag>Ouverture d'établissement</Tag>{(cfg.activites ?? []).slice(0, 4).map((x) => <Tag key={x}>créations : {x}</Tag>)}</Row>
+          <Learned cfg={cfg} />
         </div>
       )}
     </Card>
+  );
+}
+
+/** Ce que le Radar a appris de tes retours (« pas pertinent », prospects, réponses, RDV). */
+function Learned({ cfg }) {
+  const a = Object.entries(cfg.appris ?? {}).filter(([, x]) => x.pas_pertinent || x.prospects);
+  return (
+    <div className="rounded-xl border border-line p-3.5">
+      <p className="font-medium flex items-center gap-2"><span className="text-accent"><Ico name="bulb" className="h-4 w-4" /></span>Ce que le Radar a appris</p>
+      {!a.length ? <p className="text-[12.5px] text-ink-faint mt-1">Rien encore. Chaque « Pas pertinent », chaque réponse et chaque rendez-vous ajuste le score des prochains signaux.</p> : (
+        <ul className="mt-2 space-y-1 text-[12.5px]">{a.map(([k, x]) => { const w = cfg.poids?.[k] ?? 1; return (
+          <li key={k} className="flex justify-between gap-2"><span className="text-ink">{KIND[k]?.plural ?? k}</span><span className="text-ink-soft tnum">{x.prospects} pris · {x.reponses} réponse{x.reponses > 1 ? "s" : ""} · {x.pas_pertinent} rejet{x.pas_pertinent > 1 ? "s" : ""}{w !== 1 && <b className={cx("ml-1.5", w > 1 ? "text-good" : "text-bad")}>{w > 1 ? "▲" : "▼"}</b>}</span></li>
+        ); })}</ul>
+      )}
+    </div>
   );
 }
 
@@ -407,11 +500,18 @@ export default function Radar() {
   const [more, setMore] = useState(false);
   const [prog, setProg] = useState(ws.radar_progress ?? null);
   const [tick, setTick] = useState(0);
+  const [hidden, setHidden] = useState([]);
+  const [showHidden, setShowHidden] = useState(false);
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("radar_opps").select("*").eq("workspace_id", ws.id).neq("status", "ecarte").order("created_at", { ascending: false }).limit(300);
-    // Les appels d'offres expirés ne sont plus des opportunités
-    setRows((data ?? []).filter((o) => !o.deadline || new Date(o.deadline) > new Date()));
+    const [{ data }, { data: f }] = await Promise.all([
+      supabase.from("radar_opps").select("*").eq("workspace_id", ws.id).in("status", ["nouveau", "suivi", "ajoute"]).order("score", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(400),
+      supabase.from("radar_opps").select("id, company, title, kind, score_why").eq("workspace_id", ws.id).eq("status", "filtre").order("created_at", { ascending: false }).limit(100),
+    ]);
+    // Une opportunité dont la date limite est passée n'en est plus une
+    const now = new Date();
+    setRows((data ?? []).filter((o) => (!o.expires_at || new Date(o.expires_at) > now) && (o.kind !== "appel_offres" || !o.deadline || new Date(o.deadline) > now)));
+    setHidden(f ?? []);
   }, [ws.id]);
   const loadProg = useCallback(async () => {
     const { data } = await supabase.from("workspaces").select("radar_progress, radar_at").eq("id", ws.id).single();
@@ -442,13 +542,15 @@ export default function Radar() {
   const status = useOppStatus(list);
   const count = (k) => list.filter((o) => o.kind === k).length;
   const shown = tab === "all" ? list : list.filter((o) => o.kind === tab);
-  const closing = list.filter((o) => o.deadline && daysTo(o.deadline) <= 10);
+  const closing = list.filter((o) => o.kind === "appel_offres" && o.deadline && daysTo(o.deadline) <= 10);
+  const hotN = list.filter((o) => (o.score ?? 0) >= 75).length;
   const fresh = list.filter((o) => o.status === "nouveau" && o.kind !== "appel_offres" && !o.prospect_id);
-  const tip = closing.length
+  const tip = hotN ? `${hotN} opportunité${hotN > 1 ? "s ont" : " a"} un score de 75 ou plus : commence par celles-là, ce sont celles où le moment est le meilleur.`
+    : closing.length
     ? `${closing.length} appel${closing.length > 1 ? "s" : ""} d'offres ferme${closing.length > 1 ? "nt" : ""} dans moins de 10 jours : décide maintenant d'y répondre ou non.`
     : fresh.length ? `${fresh.length} entreprise${fresh.length > 1 ? "s" : ""} en mouvement ne ${fresh.length > 1 ? "sont" : "est"} pas encore dans ta prospection : un message pendant leur changement a plus de chances d'être lu.`
     : list.length ? "Tout est traité. Max relance l'analyse chaque matin de semaine." : "Lance une première analyse : le Radar cherche les appels d'offres de ta zone et les entreprises qui recrutent ou se développent.";
-  const tabs = [["all", `Toutes (${list.length})`], ["recrutement", `Qui recrutent (${count("recrutement")})`], ["croissance", `En croissance (${count("croissance")})`], ["appel_offres", `Appels d'offres (${count("appel_offres")})`], ...(count("besoin") ? [["besoin", `Besoins exprimés (${count("besoin")})`]] : [])];
+  const tabs = [["all", `Toutes (${list.length})`], ...Object.entries(KIND).filter(([k]) => count(k)).map(([k, v]) => [k, `${v.plural} (${count(k)})`])];
   const active = STEPS.filter(([k]) => prog?.steps?.[k]?.s !== "saute");
   const done = active.filter(([k]) => ["fait", "erreur"].includes(prog?.steps?.[k]?.s)).length;
   const pct = live ? Math.max(6, Math.round((done / Math.max(1, active.length)) * 100)) : 100;
@@ -463,7 +565,7 @@ export default function Radar() {
           <span className="h-16 w-16 rounded-full bg-accent-soft text-accent grid place-items-center"><Ico name="radar" className="h-9 w-9" /></span>
           <div>
             <h1 className="font-black text-[40px] leading-none tracking-tight" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>Radar</h1>
-            <p className="text-ink-soft mt-1.5">Les entreprises qui recrutent, grandissent ou lancent un appel d'offres, au moment où elles ont besoin de toi.</p>
+            <p className="text-ink-soft mt-1.5">Qui va acheter, et pourquoi maintenant : appels d'offres, contrats publics à renouveler, nouveaux dirigeants, déménagements, recrutements.</p>
           </div>
         </div>
         <Pill on={live}>{live ? "Radar en cours" : lastAt ? `Dernier scan ${ago(lastAt)}` : "Jamais lancé"}</Pill>
@@ -491,7 +593,7 @@ export default function Radar() {
               </>
             )}
             <ul className="mt-5 space-y-3">
-              {[["users", count("recrutement"), "entreprises qui recrutent"], ["up", count("croissance"), "entreprises en croissance"], ["doc", count("appel_offres"), "appels d'offres ouverts"], ["check", list.filter((o) => o.prospect_id).length, "déjà dans tes prospects"]].map(([ic, n, l]) => (
+              {[["flame", hotN, "entreprises chaudes (score 75+)"], ["doc", count("appel_offres") + count("renouvellement"), "marchés publics ouverts ou à renouveler"], ["user", EVENTS.reduce((n, k) => n + count(k), 0), "dirigeants, déménagements, créations"], ["users", count("recrutement") + count("croissance") + count("besoin"), "recrutent, grandissent ou cherchent"]].map(([ic, n, l]) => (
                 <li key={l} className="flex items-center gap-3"><span className="text-ink-soft"><Ico name={ic} /></span><span className="font-bold text-[18px] tnum w-10">{rows ? n : "–"}</span><span className="text-[14px] text-ink-soft">{l}</span></li>
               ))}
             </ul>
@@ -505,6 +607,8 @@ export default function Radar() {
       </div>
 
       <div className="grid xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] gap-5 items-start">
+        <div className="space-y-5 min-w-0">
+        <HotCompanies list={list} onOpen={setOpen} />
         <Card className="p-0 overflow-hidden min-w-0">
           <div className="px-5 pt-5 flex items-center justify-between gap-2">
             <h2 className="flex items-center gap-2.5 font-bold text-[19px]"><span className="text-accent"><Ico name="users" className="h-6 w-6" /></span>Opportunités détectées</h2>
@@ -517,7 +621,7 @@ export default function Radar() {
             : !shown.length ? <p className="p-8 text-sm text-ink-soft text-center">{live ? "Analyse en cours…" : "Rien dans cette catégorie pour l'instant."}</p>
             : <ul className="divide-y divide-line">
                 {shown.slice(0, more ? 100 : 6).map((o) => {
-                  const k = KIND[o.kind];
+                  const k = KIND[o.kind] ?? KIND.croissance;
                   const st = o.prospect_id ? status[o.prospect_id] : null;
                   return (
                     <li key={o.id}>
@@ -525,9 +629,10 @@ export default function Radar() {
                         <span className={cx("grid place-items-center h-11 w-11 rounded-xl shrink-0", k.chip)}><Ico name={k.icon} /></span>
                         <span className="flex-1 min-w-0">
                           <span className="block font-semibold truncate">{o.company}</span>
-                          <span className="block text-[13px] text-ink-soft truncate">{o.kind === "appel_offres" ? o.title : o.summary}</span>
-                          <span className="block text-xs text-ink-faint mt-0.5 truncate">{[o.city && `${o.city}${o.dept ? ` (${o.dept})` : ""}`, k.label, o.deadline ? `réponse avant le ${dayFr(o.deadline)}` : ago(o.created_at)].filter(Boolean).join(" · ")}</span>
+                          <span className="block text-[13px] text-ink-soft truncate">{o.kind === "appel_offres" || o.kind === "renouvellement" ? o.title : o.summary}</span>
+                          <span className="block text-xs text-ink-faint mt-0.5 truncate">{[o.city && `${o.city}${o.dept ? ` (${o.dept})` : ""}`, k?.label, o.kind === "appel_offres" && o.deadline ? `réponse avant le ${dayFr(o.deadline)}` : o.kind === "renouvellement" && o.raw?.fin ? `fin estimée ${new Date(o.raw.fin).toLocaleDateString("fr-FR", { month: "short", year: "numeric" })}` : o.expires_at ? `à contacter avant le ${dayFr(o.expires_at)}` : ago(o.created_at)].filter(Boolean).join(" · ")}</span>
                         </span>
+                        <Score n={o.score} />
                         {o.kind === "appel_offres" ? (o.deadline && <span className={cx("hidden sm:inline-flex shrink-0 rounded-full px-2.5 py-1 text-[12px] font-semibold", daysTo(o.deadline) <= 10 ? "bg-bad-soft text-bad" : "bg-accent-soft text-accent-dark")}>J-{daysTo(o.deadline)}</span>)
                           : st ? <span className={cx("hidden sm:inline-flex shrink-0 rounded-full px-2.5 py-1 text-[12px] font-semibold", st[1])}>{st[0]}</span>
                           : <span className="hidden sm:inline-flex shrink-0 rounded-full px-2.5 py-1 text-[12px] font-semibold bg-accent text-white">Nouveau</span>}
@@ -537,8 +642,15 @@ export default function Radar() {
                   );
                 })}
               </ul>}
+          {hidden.length > 0 && (
+            <div className="px-5 pb-4 pt-1 border-t border-line">
+              <button onClick={() => setShowHidden((x) => !x)} className="text-[12.5px] text-ink-faint hover:text-ink mt-3">{hidden.length} signal{hidden.length > 1 ? "s" : ""} retiré{hidden.length > 1 ? "s" : ""} automatiquement (clients, déjà contactés, concurrents, hors cible) · {showHidden ? "masquer" : "voir"}</button>
+              {showHidden && <ul className="mt-2 space-y-1 text-[12.5px] text-ink-soft">{hidden.slice(0, 30).map((h) => <li key={h.id}>• <b className="text-ink">{h.company || h.title}</b> : {(h.score_why?.[0] ?? "").replace("retiré automatiquement : ", "")}</li>)}</ul>}
+            </div>
+          )}
           {shown.length > 6 && <button onClick={() => setMore((m) => !m)} className="w-[calc(100%-2.5rem)] mx-5 my-4 rounded-xl bg-paper border border-line py-3 text-sm font-medium hover:border-ink/20 flex items-center justify-center gap-2">{more ? "Réduire" : `Voir toutes les opportunités (${shown.length})`}<Ico name="chev" className={cx("h-4 w-4", more ? "-rotate-90" : "rotate-90")} /></button>}
         </Card>
+        </div>
         <div className="space-y-5 min-w-0">
           <Searching ws={ws} />
           <Card className="p-4 flex items-start gap-3">

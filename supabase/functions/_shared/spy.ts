@@ -301,24 +301,27 @@ export async function spyDigest() {
     try {
       const since = w.spy_alert_at ?? new Date(Date.now() - 7 * 864e5).toISOString();
       const [{ data: alerts }, { count: comps }, { data: week }] = await Promise.all([
-        admin.from("activity").select("summary, created_at").eq("workspace_id", w.id).eq("kind", "espion_alerte").gt("created_at", since).order("created_at", { ascending: false }).limit(15),
+        admin.from("activity").select("kind, summary, created_at").eq("workspace_id", w.id).in("kind", ["espion_alerte", "radar_alerte"]).gt("created_at", since).order("created_at", { ascending: false }).limit(15),
         admin.from("competitors").select("id", { count: "exact", head: true }).eq("workspace_id", w.id).eq("status", "suivi"),
         monday ? admin.from("activity").select("kind, summary").eq("workspace_id", w.id).in("kind", ["veille", "espion", "espion_alerte"]).gt("created_at", new Date(Date.now() - 7 * 864e5).toISOString()).limit(200) : Promise.resolve({ data: [] as { kind: string; summary: string }[] }),
       ]);
-      const list = alerts ?? [];
-      if (!list.length && !(monday && comps)) continue;
+      const all = (alerts ?? []) as { kind: string; summary: string }[];
+      const list = all.filter((a) => a.kind === "espion_alerte"), hot = all.filter((a) => a.kind === "radar_alerte");
+      if (!list.length && !hot.length && !(monday && comps)) continue;
       const to = await teamAddress(w);
       if (!to) continue;
-      const link = `${String(w.app_url || Deno.env.get("APP_URL") || "https://kairo.maisonravita.fr").replace(/\/$/, "")}/#/espion`;
+      const base = String(w.app_url || Deno.env.get("APP_URL") || "https://kairo.maisonravita.fr").replace(/\/$/, "");
+      const link = `${base}/#/espion`;
       const reports = (week ?? []).filter((a) => a.kind === "veille").length;
       const text = [
-        list.length ? `Ce qui a bougé chez tes concurrents :\n\n${list.map((a) => `• ${a.summary}`).join("\n")}` : "Rien d'important cette semaine chez tes concurrents.",
+        hot.length ? `Radar : à traiter en priorité\n\n${hot.map((a) => `• ${a.summary}`).join("\n")}\n\nVoir les opportunités : ${base}/#/radar\n` : "",
+        list.length ? `Ce qui a bougé chez tes concurrents :\n\n${list.map((a) => `• ${a.summary}`).join("\n")}` : hot.length && !monday ? "" : "Rien d'important cette semaine chez tes concurrents.",
         monday ? `\nLa semaine de ton espionne : ${comps} concurrent${(comps ?? 0) > 1 ? "s" : ""} surveillé${(comps ?? 0) > 1 ? "s" : ""}, ${reports} rapport${reports > 1 ? "s" : ""} complet${reports > 1 ? "s" : ""}.` : "",
         `\nTout le détail, sources à l'appui : ${link}`,
       ].join("\n");
-      await sendSystem({ to, fromName: "Espion · Bingoo!", subject: list.length ? `Espion : ${list.length} chose${list.length > 1 ? "s ont" : " a"} bougé chez tes concurrents` : "Espion : le résumé de ta semaine", text });
+      await sendSystem({ to, fromName: hot.length && !list.length ? "Radar · Bingoo!" : "Espion · Bingoo!", subject: hot.length ? `${hot.length} opportunité${hot.length > 1 ? "s" : ""} urgente${hot.length > 1 ? "s" : ""}${list.length ? ` et ${list.length} mouvement${list.length > 1 ? "s" : ""} chez tes concurrents` : ""}` : list.length ? `Espion : ${list.length} chose${list.length > 1 ? "s ont" : " a"} bougé chez tes concurrents` : "Espion : le résumé de ta semaine", text: text.replace(/^\n+/, "") });
       await admin.from("workspaces").update({ spy_alert_at: new Date().toISOString() }).eq("id", w.id);
-      out[w.id] = list.length;
+      out[w.id] = list.length + hot.length;
     } catch (e) { out[w.id] = { error: (e as Error).message }; }
   }
   return out;
