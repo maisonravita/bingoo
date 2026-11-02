@@ -18,7 +18,7 @@ const addMonths = (d: Date | string, n: number) => { const x = new Date(d); x.se
 const q = (s: string) => `"${String(s).replace(/"/g, "")}"`;
 const cap = (s: string) => String(s ?? "").toLowerCase().replace(/(^|[\s'-])\p{L}/gu, (m) => m.toUpperCase());
 
-export type Kind = "appel_offres" | "croissance" | "recrutement" | "besoin" | "renouvellement" | "dirigeant" | "demenagement" | "creation";
+export type Kind = "appel_offres" | "croissance" | "recrutement" | "besoin" | "renouvellement" | "dirigeant" | "demenagement" | "creation" | "site" | "levee" | "permis" | "aide" | "budget" | "salon" | "difficulte";
 export type Opp = {
   key: string; kind: Kind; title: string; company: string; summary: string; why?: string; city?: string; dept?: string; url: string; source: string;
   published?: string | null; deadline?: string | null; prospect_id?: string | null; raw?: Record<string, unknown>; siren?: string | null; expires_at?: string | null;
@@ -146,7 +146,7 @@ export async function tedTenders(keywords: string[], zone: string[], europe: boo
 }
 
 // ---------------------------------------------------------------- 2b. Événements légaux (BODACC)
-type Bodacc = { id: string; familleavis: string; commercant: string; registre: string[]; dateparution: string; ville: string; cp: string; numerodepartement: string; modificationsgenerales?: string; listepersonnes?: string; listeetablissements?: string; acte?: string };
+type Bodacc = { id: string; familleavis: string; commercant: string; registre: string[]; dateparution: string; ville: string; cp: string; numerodepartement: string; modificationsgenerales?: string; listepersonnes?: string; listeetablissements?: string; acte?: string; jugement?: string };
 const bodaccUrl = (id: string) => `https://www.bodacc.fr/pages/annonces-commerciales-detail/?q.id=id:${id}`;
 const sirenOf = (b: Bodacc) => (b.registre ?? []).map((x) => x.replace(/\D/g, "")).find((x) => x.length === 9) ?? "";
 
@@ -176,6 +176,13 @@ function classify(b: Bodacc): { kind: Kind; title: string; summary: string; why:
     const second = /secondaire|ouverture/i.test(cat) || /secondaire/i.test(String(etab.qualiteEtablissement ?? ""));
     return { kind: "creation", title: second ? "Ouvre un nouvel établissement" : "Entreprise créée récemment", summary: [String(etab.activite ?? pers.activite ?? "").slice(0, 180), adr(etab.adresse)].filter(Boolean).join(" · "), why: second ? "Un nouveau site s'équipe et choisit ses prestataires dans les semaines qui suivent l'ouverture." : "Une entreprise qui démarre met en place ses fournisseurs et ses outils : être là dès le début." };
   }
+  if (b.familleavis === "collective") {
+    // Santé financière : on prévient, on ne pousse pas à vendre
+    const j = parse(b.jugement) ?? {};
+    const nat = String(j.nature ?? j.famille ?? "Procédure collective");
+    if (/cl[ôo]ture|homologation|plan de (sauvegarde|redressement) arr[êe]t[ée]/i.test(nat)) return null;
+    return { kind: "difficulte", title: "Difficultés financières", summary: nat.slice(0, 200), why: "Attention : entreprise en procédure collective. Vérifie sa capacité à payer avant d'investir du temps commercial." };
+  }
   if (b.familleavis === "vente") {
     const act = String(etab.activite ?? "").trim();
     return { kind: "dirigeant", title: "Reprise ou rachat", summary: act ? `Rachat d'un fonds : ${act.slice(0, 160)}` : "Rachat d'un fonds de commerce publié au BODACC", why: "Un nouveau propriétaire réorganise et renégocie ses contrats." };
@@ -183,23 +190,27 @@ function classify(b: Bodacc): { kind: Kind; title: string; summary: string; why:
   return null;
 }
 
-function toOpp(b: Bodacc, c: ReturnType<typeof classify>, prospect?: { id: string; name: string }): Opp {
+function toOpp(b: Bodacc, c: ReturnType<typeof classify>, prospect?: { id?: string | null; name: string; watch?: boolean }): Opp {
   return {
     key: `bodacc:${b.id}`, kind: c!.kind, title: `${prospect?.name || cap(b.commercant)} · ${c!.title}`.slice(0, 240), company: (prospect?.name || cap(b.commercant)).slice(0, 160),
     summary: c!.summary, why: c!.why, city: cap(b.ville ?? ""), dept: String(b.numerodepartement ?? "").slice(0, 3), url: bodaccUrl(b.id), source: "BODACC (annonces légales officielles)",
-    published: b.dateparution, siren: sirenOf(b) || null, prospect_id: prospect?.id ?? null, raw: { bodacc: b.id, evenement: c!.title },
+    published: b.dateparution, siren: sirenOf(b) || null, prospect_id: prospect?.id || null, raw: { bodacc: b.id, evenement: c!.title, ...(prospect?.watch ? { watch: true } : {}) },
   };
 }
 
 /** Signaux légaux sur les entreprises déjà dans tes prospects (pas encore contactées). */
 export async function watchProspects(ws: Workspace, since: string): Promise<Opp[]> {
   const { data } = await admin.from("prospects").select("id, name, siren").eq("workspace_id", ws.id).not("siren", "is", null).in("status", ["nouveau", "pret", "a_valider", "sans_email"]).limit(1200);
-  const ps = ((data ?? []) as { id: string; name: string; siren: string }[]).filter((p) => /^\d{9}$/.test(p.siren ?? ""));
-  const by = new Map(ps.map((p) => [p.siren, p]));
+  const { data: wl } = await admin.from("radar_watch").select("siren, name").eq("workspace_id", ws.id).limit(300);
+  const watched = new Set(((wl ?? []) as { siren: string }[]).map((w) => w.siren));
+  const by = new Map<string, { id?: string | null; name: string; siren: string; watch?: boolean }>();
+  for (const w of (wl ?? []) as { siren: string; name: string }[]) if (/^\d{9}$/.test(w.siren)) by.set(w.siren, { name: w.name, siren: w.siren, watch: true });
+  for (const p of (data ?? []) as { id: string; name: string; siren: string }[]) if (/^\d{9}$/.test(p.siren ?? "")) by.set(p.siren, { id: p.id, name: p.name, siren: p.siren, watch: watched.has(p.siren) });
+  const ps = [...by.values()];
   const out: Opp[] = [];
   for (let i = 0; i < ps.length; i += 80) {
     const part = ps.slice(i, i + 80);
-    const where = `dateparution>=date'${since}' and familleavis in ("modification","creation","vente") and (${part.map((p) => `registre=${q(p.siren)}`).join(" or ")})`;
+    const where = `dateparution>=date'${since}' and familleavis in ("modification","creation","vente","collective") and (${part.map((p) => `registre=${q(p.siren)}`).join(" or ")})`;
     const d = await getJson(ods(BODACC, { where, limit: "100", order_by: "dateparution desc" }));
     for (const b of (d?.results ?? []) as Bodacc[]) {
       const c = classify(b), p = by.get(sirenOf(b));
@@ -238,9 +249,9 @@ export async function newCompanies(ws: Workspace, activites: string[], zone: str
 }
 
 // ---------------------------------------------------------------- 3. Score, date limite, filtre, apprentissage, alertes
-const BASE: Record<Kind, number> = { appel_offres: 70, renouvellement: 66, besoin: 62, dirigeant: 58, demenagement: 54, recrutement: 52, creation: 48, croissance: 48 };
-const TTL: Record<Kind, number> = { appel_offres: 30, renouvellement: 120, besoin: 30, dirigeant: 90, demenagement: 60, recrutement: 45, creation: 60, croissance: 90 };
-export const KIND_LABEL: Record<Kind, string> = { appel_offres: "appel d'offres", renouvellement: "contrat public à renouveler", besoin: "besoin exprimé", dirigeant: "nouveau dirigeant", demenagement: "déménagement", recrutement: "recrutement", creation: "création ou ouverture", croissance: "croissance" };
+const BASE: Record<Kind, number> = { appel_offres: 70, renouvellement: 66, besoin: 62, dirigeant: 58, demenagement: 54, recrutement: 52, creation: 48, croissance: 48, levee: 60, budget: 58, permis: 52, aide: 50, salon: 40, site: 38, difficulte: 10 };
+const TTL: Record<Kind, number> = { appel_offres: 30, renouvellement: 120, besoin: 30, dirigeant: 90, demenagement: 60, recrutement: 45, creation: 60, croissance: 90, levee: 90, budget: 180, permis: 120, aide: 90, salon: 60, site: 30, difficulte: 180 };
+export const KIND_LABEL: Record<Kind, string> = { appel_offres: "appel d'offres", renouvellement: "contrat public à renouveler", besoin: "besoin exprimé", dirigeant: "nouveau dirigeant", demenagement: "déménagement", recrutement: "recrutement", creation: "création ou ouverture", croissance: "croissance", levee: "levée de fonds", budget: "projet voté par une collectivité", permis: "permis de construire", aide: "aide publique reçue", salon: "salon professionnel", site: "site web modifié", difficulte: "difficultés financières" };
 
 type Row = { id: string; kind: Kind; company: string; siren: string | null; status: string; published: string | null; created_at: string; deadline: string | null; expires_at: string | null; prospect_id: string | null; raw: Record<string, unknown> | null; score: number | null; alerted_at: string | null; feedback: string | null; title: string };
 
@@ -290,6 +301,8 @@ export async function rescore(ws: Workspace, poids: Record<string, number>) {
     admin.from("competitors").select("name, url").eq("workspace_id", ws.id).neq("status", "ecarte"),
   ]);
   const rows = (data ?? []) as Row[];
+  const { data: wl } = await admin.from("radar_watch").select("siren").eq("workspace_id", ws.id).limit(300);
+  const watched = new Set(((wl ?? []) as { siren: string }[]).map((w) => w.siren));
   const excl = new Map<string, string>();
   for (const p of (ex ?? []) as { id: string; siren: string | null; name: string; status: string }[]) {
     const why = p.status === "client" ? "déjà client" : p.status === "refus" ? "a déjà refusé" : "déjà contactée";
@@ -334,7 +347,11 @@ export async function rescore(ws: Workspace, poids: Record<string, number>) {
     if (r.kind !== "renouvellement") { if (age <= 7) { s += 10; why.push("signal de moins de 7 jours"); } else if (age <= 30) s += 4; else s -= 6; }
     const left = (new Date(exp).getTime() - now) / 864e5;
     if (left >= 0 && left <= 10) { s += 8; why.push(`à traiter avant le ${new Date(exp).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}`); }
-    const others = [...new Set((groups.get(g) ?? []).filter((x) => x.id !== r.id && x.kind !== r.kind).map((x) => x.kind))];
+    const others = [...new Set((groups.get(g) ?? []).filter((x) => x.id !== r.id && x.kind !== r.kind && x.kind !== "difficulte").map((x) => x.kind))];
+    const trouble = r.kind !== "difficulte" && (groups.get(g) ?? []).some((x) => x.kind === "difficulte");
+    if (trouble) { s -= 35; why.push("attention : entreprise en difficultés financières"); }
+    const watch = !!r.raw?.watch || watched.has(String(r.siren ?? ""));
+    if (watch) { s += 12; why.push("compte que tu surveilles"); }
     if (others.length) { s += Math.min(30, 15 * others.length); why.push(`autre${others.length > 1 ? "s" : ""} signal${others.length > 1 ? "s" : ""} : ${others.map((k) => KIND_LABEL[k]).join(", ")}`); }
     if (r.prospect_id) { s += 4; why.push("déjà dans tes prospects"); }
     if (r.raw?.titulaire_concurrent) { s += 6; why.push("le contrat est tenu par un concurrent"); }
@@ -347,7 +364,8 @@ export async function rescore(ws: Workspace, poids: Record<string, number>) {
     const finalStatus = status ?? r.status;
     // Alerte : un appel d'offres qui ferme bientôt, ou une autre opportunité très chaude
     const urgentTender = r.kind === "appel_offres" && left >= 1 && left <= 10 && s >= 65;
-    if (!r.alerted_at && finalStatus === "nouveau" && (urgentTender || (r.kind !== "appel_offres" && s >= 80))) alerts.push({ ...r, score: s });
+    const watchNews = watch && r.kind !== "site" && age <= 14; // tout vrai mouvement d'un compte surveillé est signalé le jour même
+    if (!r.alerted_at && finalStatus === "nouveau" && (urgentTender || watchNews || (r.kind !== "appel_offres" && r.kind !== "difficulte" && s >= 80))) alerts.push({ ...r, score: s });
   }
   for (let i = 0; i < updates.length; i += 400) await admin.rpc("radar_set_scores", { p: updates.slice(i, i + 400) });
 
@@ -356,7 +374,8 @@ export async function rescore(ws: Workspace, poids: Record<string, number>) {
   const top = alerts.sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).filter((a) => { const k = groupOf(a); if (seenG.has(k)) return false; seenG.add(k); return true; }).slice(0, 5);
   for (const a of top) {
     const urgent = a.kind === "appel_offres" && a.deadline ? ` — réponse attendue avant le ${new Date(a.deadline).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}` : "";
-    await log(ws.id, "radar_alerte", `${a.company || a.title} : ${KIND_LABEL[a.kind]}${urgent} (score ${a.score})`);
+    const w = a.raw?.watch || watched.has(String(a.siren ?? "")) ? "Compte surveillé · " : "";
+    await log(ws.id, "radar_alerte", `${w}${a.company || a.title} : ${KIND_LABEL[a.kind]}${urgent} (score ${a.score})`);
   }
   if (top.length) await admin.from("radar_opps").update({ alerted_at: new Date().toISOString() }).in("id", top.map((a) => a.id));
   return { scored: updates.length, expired: updates.filter((u) => u.status === "expire").length, filtered: updates.filter((u) => u.status === "filtre").length, alerts: top.length };

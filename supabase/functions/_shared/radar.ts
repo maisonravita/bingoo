@@ -4,6 +4,7 @@
 // Rien n'est inventé : chaque opportunité a une source vérifiable.
 import { HttpError } from "./http.ts";
 import { admin, aiRoom, askJson, log, setAi, type Workspace } from "./core.ts";
+import { ftOffers, ftReady, pickTop3, siteWatch } from "./radar-plus.ts";
 import { learn, nameRenewals, newCompanies, type Opp, type PublicItem, rejected, renewals, rescore, tagProspects, tedTenders, watchProspects } from "./radar-signals.ts";
 
 const BOAMP = "https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records";
@@ -104,7 +105,7 @@ Format : {"retenus": [{"i": 0, "pourquoi": ""}]}`, { fast: true, maxTokens: 4000
 }
 
 /** Signaux de croissance et recrutements trouvés sur le web, chacun avec sa source. */
-async function webSignals(ws: Workspace, cfg: Cfg): Promise<Opp[]> {
+async function webSignals(ws: Workspace, cfg: Cfg, noRecruit = false): Promise<Opp[]> {
   const zone = (ws.zone ?? []).join(", ") || "France entière";
   const targets = (ws.targets ?? []).slice(0, 5).map((t) => t.label).join(" ; ");
   const r = await askJson<{ signaux: { entreprise: string; ville: string; departement: string; type: string; fait: string; date: string; url: string; pourquoi: string }[] }>(`Trouve des entreprises qui pourraient avoir besoin de cette offre MAINTENANT, à partir de signaux publics récents (moins de 3 mois).
@@ -114,7 +115,7 @@ Zone (départements, les premiers en priorité) : ${zone}
 
 Signaux à chercher (6 recherches maximum) :
 - "croissance" : levée de fonds, ouverture d'un nouveau site ou d'une agence, rachat, fort développement annoncé dans la presse.
-- "recrutement" : offre d'emploi récente pour un de ces postes : ${cfg.postes.join(", ") || "postes commerciaux"}.
+${noRecruit ? "" : `- "recrutement" : offre d'emploi récente pour un de ces postes : ${cfg.postes.join(", ") || "postes commerciaux"}.`}
 Règles strictes :
 - Uniquement des entreprises réelles des types visés, dans la zone, avec l'URL exacte de la page qui prouve le signal (article, offre d'emploi, communiqué).
 - fait : le fait précis en une phrase (ex. « Lève 3 M€ pour ouvrir 2 agences »), sans rien ajouter qui ne soit pas dans la source.
@@ -176,13 +177,13 @@ async function radarZone(ws: Workspace): Promise<string[]> {
 }
 
 type Step = { s: "a_venir" | "en_cours" | "fait" | "saute" | "erreur"; at?: string; n?: number };
-type StepKey = "lance" | "marches" | "renouvellements" | "annonces" | "web" | "registre" | "tri";
+type StepKey = "lance" | "marches" | "renouvellements" | "annonces" | "emploi" | "web" | "registre" | "tri";
 type Progress = { started_at: string; done_at: string | null; added: number | null; steps: Record<StepKey, Step>; result?: unknown };
 
-export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opts: { web?: boolean } = {}) {
+export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opts: { web?: boolean; top?: boolean } = {}) {
   const at = () => new Date().toISOString();
   // Avancement réel, écrit à chaque étape : l'écran le lit pendant l'analyse
-  const p: Progress = { started_at: at(), done_at: null, added: null, steps: { lance: { s: "en_cours", at: at() }, marches: { s: "a_venir" }, renouvellements: { s: "a_venir" }, annonces: { s: "a_venir" }, web: { s: "a_venir" }, registre: { s: "a_venir" }, tri: { s: "a_venir" } } };
+  const p: Progress = { started_at: at(), done_at: null, added: null, steps: { lance: { s: "en_cours", at: at() }, marches: { s: "a_venir" }, renouvellements: { s: "a_venir" }, annonces: { s: "a_venir" }, emploi: { s: "a_venir" }, web: { s: "a_venir" }, registre: { s: "a_venir" }, tri: { s: "a_venir" } } };
   const put = () => admin.from("workspaces").update({ radar_progress: p }).eq("id", ws0.id).then(() => null, () => null);
   await put();
   try {
@@ -200,22 +201,25 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
     p.steps.marches = pub ? { s: "en_cours", at: at() } : { s: "saute" };
     p.steps.renouvellements = pub && zone.length ? { s: "en_cours", at: at() } : { s: "saute" };
     p.steps.annonces = { s: "en_cours", at: at() };
+    p.steps.emploi = ftReady() && zone.length ? { s: "en_cours", at: at() } : { s: "saute" };
     p.steps.web = webDue ? { s: "en_cours", at: at() } : { s: "saute" };
     p.steps.registre = { s: "en_cours", at: at() };
     await put();
     const step = <T,>(k: Exclude<StepKey, "lance" | "tri">, job: Promise<T[]>, label: string) => job.then(
       (r) => { if (p.steps[k].s !== "saute") p.steps[k] = { s: "fait", at: at(), n: r.length }; put(); return r; },
       (e) => { console.error("radar", k, e); if (label) errors.push(label); p.steps[k] = { s: "erreur", at: at() }; put(); return [] as T[]; });
-    const [boamp, ted, ren, legal, fresh, w, g] = await Promise.all([
+    const [boamp, ted, ren, legal, fresh, w, g, jobs, sites] = await Promise.all([
       pub ? tenders(ws, cfg).catch((e) => { console.error("boamp", e); errors.push("appels d'offres"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
       pub ? tedTenders(cfg.mots_cles, zone, !!cfg.europe).catch((e) => { console.error("ted", e); errors.push("appels d'offres européens"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
       pub && zone.length ? renewals(ws, cfg.mots_cles, zone).catch((e) => { console.error("decp", e); errors.push("renouvellements"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
       watchProspects(ws, bodaccSince).catch((e) => { console.error("bodacc", e); errors.push("annonces légales"); return [] as Opp[]; }),
       newCompanies(ws, cfg.activites ?? [], zone).catch((e) => { console.error("creations", e); return [] as Opp[]; }),
-      step("web", webDue ? webSignals(ws, cfg) : Promise.resolve([] as Opp[]), "signaux web"),
+      step("web", webDue ? webSignals(ws, cfg, ftReady()) : Promise.resolve([] as Opp[]), "signaux web"),
       step("registre", registrySignals(ws), ""),
+      step("emploi", ftReady() && zone.length ? ftOffers(ws, cfg.postes, zone) : Promise.resolve([] as Opp[]), "offres d'emploi France Travail"),
+      siteWatch(ws).catch((e) => { console.error("sites", e); return [] as Opp[]; }),
     ]);
-    p.steps.annonces = { s: "fait", at: at(), n: legal.length + fresh.length }; await put();
+    p.steps.annonces = { s: "fait", at: at(), n: legal.length + fresh.length + sites.length }; await put();
     // Un seul tri par l'IA pour tous les marchés publics
     const pubOk = await relevant(ws, [...boamp, ...ted, ...ren]).catch((e) => { console.error("tri marches", e); errors.push("tri des marchés"); return [] as Opp[]; });
     const t = pubOk.filter((o) => o.kind === "appel_offres"), r = pubOk.filter((o) => o.kind === "renouvellement");
@@ -223,17 +227,19 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
     if (pub) p.steps.marches = { s: "fait", at: at(), n: t.length };
     if (p.steps.renouvellements.s === "en_cours") p.steps.renouvellements = { s: "fait", at: at(), n: r.length };
     p.steps.tri = { s: "en_cours", at: at() }; await put();
-    const all = [...t, ...r, ...legal, ...fresh, ...w, ...g];
+    const all = [...t, ...r, ...legal, ...fresh, ...w, ...g, ...jobs, ...sites];
     const added = await save(ws, all);
     await tagProspects(legal).catch(() => null);
     // Apprentissage + score « entreprise chaude » + date limite + filtre + alertes
     const brain = await learn(ws.id);
     const sc = await rescore(ws, brain.poids);
+    // Chaque matin (tâche planifiée) : les 3 entreprises du jour, contact cherché et message préparé
+    const top3 = opts.top ? await pickTop3(ws).catch((e) => { console.error("top3", e); return null; }) : null;
     const now = at();
     p.steps.tri = { s: "fait", at: now, n: added }; p.done_at = now; p.added = added; p.result = sc;
     await admin.from("workspaces").update({ radar_at: now, radar_progress: p, radar_cfg: { ...cfg, ...(webDue ? { web_at: now } : {}), bodacc_at: now.slice(0, 10), poids: brain.poids, appris: brain.by } }).eq("id", ws.id);
     await log(ws.id, "radar_scan", `Radar : ${added} nouvelle${added > 1 ? "s" : ""} opportunité${added > 1 ? "s" : ""} (${t.length} appels d'offres, ${r.length} contrats à renouveler, ${legal.length + fresh.length} annonces légales, ${w.length} signaux web)`);
-    return { added, tenders: t.length, renewals: r.length, legal: legal.length, creations: fresh.length, web: w.length, registry: g.length, web_scanned: webDue, errors, keywords: cfg.mots_cles, ...sc };
+    return { added, tenders: t.length, renewals: r.length, legal: legal.length, creations: fresh.length, jobs: jobs.length, sites: sites.length, web: w.length, registry: g.length, web_scanned: webDue, errors, keywords: cfg.mots_cles, top3, ...sc };
   } catch (e) {
     for (const k of Object.keys(p.steps) as StepKey[]) if (p.steps[k].s === "en_cours") p.steps[k] = { s: "erreur", at: at() };
     p.done_at = at(); await put();
@@ -304,7 +310,7 @@ export async function radarCron() {
   let n = 0;
   for (const ws of data ?? []) {
     setAi({ ws: ws.id });
-    try { await scanRadar(ws); n++; } catch (e) { console.error("radar cron", ws.id, e); }
+    try { await scanRadar(ws, { top: true }); n++; } catch (e) { console.error("radar cron", ws.id, e); }
   }
   return { workspaces: n };
 }

@@ -27,7 +27,7 @@ const Ico = ({ n, className = "w-5 h-5", fill }) => <svg viewBox="0 0 24 24" cla
 
 // Temps qu'un commercial passerait sur chaque action faite par l'équipe (estimation affichée comme telle)
 const MINUTES = { recherche: 20, enquete: 8, enquete_plus: 12, redaction: 10, envoi: 1, reponse: 5, radar: 5, radar_scan: 20, veille: 30, espion: 15, analyse: 30, linkedin: 6, rdv: 20, brief: 15, devis: 15, script: 10, intelligence: 20 };
-const KIND = { recrutement: "Recrute", croissance: "Se développe", appel_offres: "Appel d'offres", besoin: "Cherche une solution", renouvellement: "Contrat à renouveler", dirigeant: "Nouveau dirigeant", demenagement: "Déménage", creation: "Création ou ouverture" };
+const KIND = { recrutement: "Recrute", croissance: "Se développe", appel_offres: "Appel d'offres", besoin: "Cherche une solution", renouvellement: "Contrat à renouveler", dirigeant: "Nouveau dirigeant", demenagement: "Déménage", creation: "Création ou ouverture", site: "Site modifié", levee: "Levée de fonds", permis: "Permis de construire", aide: "Aide publique", budget: "Projet voté", salon: "Salon", difficulte: "Difficultés" };
 const ago = (d) => { const h = Math.round((Date.now() - new Date(d).getTime()) / 36e5); return h < 1 ? "à l'instant" : h < 24 ? `il y a ${h} h` : `il y a ${Math.round(h / 24)} j`; };
 const short = (d) => { const m = Math.round((Date.now() - new Date(d).getTime()) / 6e4); return m < 60 ? `Actif · ${m} min` : `Actif · ${Math.round(m / 60)} h`; };
 const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
@@ -123,7 +123,7 @@ function Detected({ rows, onPrepared }) {
   return (
     <section className="min-w-0 bg-white rounded-2xl border border-line p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3 mb-3">
-        <h2 className="flex items-center gap-2.5 font-bold text-[16px] uppercase tracking-wide"><Ico n="target" className="w-6 h-6 text-accent" />Détecté pour toi</h2>
+        <h2 className="flex items-center gap-2.5 font-bold text-[16px] uppercase tracking-wide"><Ico n="target" className="w-6 h-6 text-accent" />Tes 3 entreprises à contacter aujourd'hui</h2>
         <Link to="/radar" className="text-[13px] text-ink-soft hover:text-ink inline-flex items-center gap-1">Voir toutes les opportunités<Ico n="arrow" className="w-3.5 h-3.5" /></Link>
       </div>
       {!rows.length ? <p className="text-sm text-ink-soft py-6 text-center">Rien de nouveau pour l'instant : Max relance le Radar chaque matin de semaine.</p> : (
@@ -137,7 +137,9 @@ function Detected({ rows, onPrepared }) {
                 <p className="text-[13px] text-ink-soft line-clamp-2 leading-snug">{o.summary}</p>
                 <p className="text-[11.5px] text-ink-faint mt-0.5"><span className="sm:hidden font-semibold text-accent-dark">{KIND[o.kind] ?? o.kind} · </span>{[o.city, ago(o.created_at)].filter(Boolean).join(" · ")}</p>
               </Link>
-              {o.kind !== "appel_offres" && o.kind !== "besoin" && (
+              {o.prospect_id ? (
+                <Link to="/valider" className="shrink-0 rounded-full bg-good-soft text-good px-3 py-1.5 text-[12.5px] font-semibold hover:brightness-95">Message prêt</Link>
+              ) : o.kind !== "appel_offres" && o.kind !== "besoin" && (
                 <button onClick={() => prepare(o)} disabled={!!busy} title="Sam trouve le contact, Hugo écrit l'e-mail (rien n'est envoyé)"
                   className="shrink-0 rounded-full bg-accent-soft text-accent-dark px-3 py-1.5 text-[12.5px] font-semibold hover:bg-accent hover:text-white transition disabled:opacity-50">
                   {busy === o.id ? "Préparation…" : "Préparer"}
@@ -221,7 +223,7 @@ export default function Today() {
       c(head("replies").eq("handled", false)), c(head("messages").eq("status", "brouillon")), c(P().eq("linkedin_status", "a_envoyer")),
       c(P().eq("status", "nouveau")), c(P().eq("status", "pret")), c(P().eq("status", "sans_email").lt("enrich_level", 2)),
       supabase.from("activity").select("kind, summary, created_at").eq("workspace_id", ws.id).gte("created_at", w1).order("created_at", { ascending: false }).limit(2000),
-      supabase.from("radar_opps").select("id, kind, company, summary, city, url, created_at, score").eq("workspace_id", ws.id).eq("status", "nouveau").order("score", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(3),
+      supabase.from("radar_opps").select("id, kind, company, summary, city, url, created_at, score, prospect_id, raw, status").eq("workspace_id", ws.id).in("status", ["nouveau", "ajoute"]).neq("kind", "difficulte").order("score", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(12),
       supabase.from("prospects").select("id, name, next_action, next_action_at, phone").eq("workspace_id", ws.id).lte("next_action_at", today).not("status", "in", "(ignore,refus)").order("next_action_at").limit(5),
       supabase.from("quotes").select("id, number, sent_at, status, prospects(name)").eq("workspace_id", ws.id).in("status", ["envoye", "vu"]).lt("sent_at", old).limit(3),
       supabase.from("meetings").select("id, company, starts_at").eq("workspace_id", ws.id).eq("status", "confirme").gte("starts_at", t0.toISOString()).lt("starts_at", new Date(t0.getTime() + 864e5).toISOString()).order("starts_at"),
@@ -229,7 +231,7 @@ export default function Today() {
     const rows = act.data ?? [];
     const minutes = rows.reduce((m, r) => m + (MINUTES[r.kind] ?? 0), 0);
     setS({ found, toContact, sent, replied, rdv, client, found7, sent7, replied7, rdv7, opps, oppsWeek, oppsPrev, replies, drafts, li, todo, ready, hard,
-      rows, minutes, actions: rows.filter((r) => MINUTES[r.kind]).length, detected: detected.data ?? [], urgent: { due: due.data ?? [], quotes: quotes.data ?? [], meet: meet.data ?? [] } });
+      rows, minutes, actions: rows.filter((r) => MINUTES[r.kind]).length, detected: (() => { const d = detected.data ?? [], t = new Date().toISOString().slice(0, 10); const top = d.filter((o) => o.raw?.top_day === t); return [...top, ...d.filter((o) => o.raw?.top_day !== t && o.status !== "ajoute" && !o.prospect_id)].slice(0, 3); })(), urgent: { due: due.data ?? [], quotes: quotes.data ?? [], meet: meet.data ?? [] } });
   }, [ws.id]);
 
   useEffect(() => {

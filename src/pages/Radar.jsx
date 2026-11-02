@@ -16,6 +16,13 @@ const KIND = {
   dirigeant: { label: "Nouveau dirigeant", plural: "Nouveaux dirigeants", dot: "#DB2777", chip: "bg-[#FCE7F3] text-[#9D174D]", icon: "user" },
   demenagement: { label: "Déménage", plural: "Déménagements", dot: "#0891B2", chip: "bg-[#CFFAFE] text-[#155E75]", icon: "truck" },
   creation: { label: "Création ou ouverture", plural: "Créations et ouvertures", dot: "#65A30D", chip: "bg-[#ECFCCB] text-[#3F6212]", icon: "building" },
+  site: { label: "Site modifié", plural: "Sites modifiés", dot: "#64748B", chip: "bg-[#F1F5F9] text-[#334155]", icon: "eye" },
+  levee: { label: "Levée de fonds", plural: "Levées de fonds", dot: "#16A34A", chip: "bg-good-soft text-good", icon: "up" },
+  permis: { label: "Permis de construire", plural: "Permis de construire", dot: "#A16207", chip: "bg-[#FEF9C3] text-[#854D0E]", icon: "building" },
+  aide: { label: "Aide publique reçue", plural: "Aides publiques", dot: "#0D9488", chip: "bg-[#CCFBF1] text-[#115E59]", icon: "doc" },
+  budget: { label: "Projet voté", plural: "Projets votés", dot: "#7C3AED", chip: "bg-[#EDE9FE] text-[#5B21B6]", icon: "doc" },
+  salon: { label: "Salon professionnel", plural: "Salons", dot: "#EA580C", chip: "bg-accent-soft text-accent-dark", icon: "users" },
+  difficulte: { label: "Difficultés financières", plural: "Entreprises en difficulté", dot: "#DC2626", chip: "bg-bad-soft text-bad", icon: "x" },
 };
 const EVENTS = ["dirigeant", "demenagement", "creation"];
 const SWEEP = 6; // secondes par tour
@@ -37,6 +44,9 @@ const Ico = ({ name, className = "h-5 w-5" }) => {
     clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
     user: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
     truck: <><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7" /><circle cx="7" cy="18" r="1.8" /><circle cx="17" cy="18" r="1.8" /></>,
+    eye: <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12" /><circle cx="12" cy="12" r="3" /></>,
+    star: <path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />,
+    euro: <><path d="M17 6.5A6.5 6.5 0 1 0 17 17.5" /><path d="M4 10h9M4 14h9" /></>,
     flame: <path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1.2-3.6 2.3-4.7.3 1.6 1 2.7 2.2 3.2C11 9 11 6 12 3z" />,
   }[name];
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>{p}</svg>;
@@ -345,7 +355,8 @@ const STEPS = [
   ["lance", "Scan lancé", "Zone et cibles chargées"],
   ["marches", "Appels d'offres", "France (BOAMP) et Europe (TED)"],
   ["renouvellements", "Contrats publics à renouveler", "Marchés attribués qui arrivent à échéance"],
-  ["annonces", "Annonces légales", "Nouveau dirigeant, déménagement, créations (BODACC)"],
+  ["annonces", "Annonces légales et sites", "Nouveau dirigeant, déménagement, difficultés, créations ; sites des comptes surveillés"],
+  ["emploi", "Offres d'emploi", "France Travail : qui recrute dans ta zone"],
   ["web", "Recrutements et croissance", "Offres d'emploi, levées, ouvertures (web)"],
   ["registre", "Tes prospects", "Signaux déjà repérés sur ta liste"],
   ["tri", "Score et tri", "Entreprises chaudes, filtre, dates limites"],
@@ -447,6 +458,100 @@ function Searching({ ws }) {
           <Learned cfg={cfg} />
         </div>
       )}
+    </Card>
+  );
+}
+
+/** Ce que le Radar t'a rapporté : du signal au devis signé. */
+function Roi({ ws }) {
+  const [d, setD] = useState(null);
+  const [days, setDays] = useState(30);
+  useEffect(() => { supabase.rpc("radar_roi", { p_ws: ws.id, p_since: new Date(Date.now() - days * 864e5).toISOString() }).then(({ data }) => setD(data ?? null)); }, [ws.id, days]);
+  if (!d) return null;
+  const steps = [["Signaux détectés", d.signaux], ["Devenus prospects", d.prospects], ["Contactés", d.contactes], ["Réponses", d.reponses], ["Rendez-vous", d.rdv], ["Devis signés", d.signes]];
+  const max = Math.max(1, d.signaux);
+  return (
+    <Card className="p-5 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2.5 font-bold text-[19px]"><span className="text-accent"><Ico name="euro" className="h-6 w-6" /></span>Ce que le Radar t'a rapporté</h2>
+        <div className="flex rounded-full border border-line p-0.5 text-[12.5px]">{[[30, "30 jours"], [90, "3 mois"], [365, "1 an"]].map(([v, l]) => <button key={v} onClick={() => setDays(v)} className={cx("rounded-full px-3 py-1", days === v ? "bg-ink text-white" : "text-ink-soft")}>{l}</button>)}</div>
+      </div>
+      <div className="mt-4 grid sm:grid-cols-[minmax(0,1fr)_220px] gap-5 items-center">
+        <div className="space-y-2">
+          {steps.map(([l, n]) => (
+            <div key={l} className="flex items-center gap-3 text-[13.5px]">
+              <span className="w-36 shrink-0 text-ink-soft">{l}</span>
+              <span className="flex-1 h-2.5 rounded-full bg-paper overflow-hidden"><span className="block h-full rounded-full bg-accent" style={{ width: `${Math.max(n ? 3 : 0, (n / max) * 100)}%` }} /></span>
+              <span className="w-10 text-right font-semibold tnum">{n}</span>
+            </div>
+          ))}
+        </div>
+        <div className="rounded-2xl bg-accent-soft/60 p-4 text-center">
+          <p className="text-[12.5px] text-accent-dark font-semibold">Chiffre d'affaires signé grâce au Radar</p>
+          <p className="font-black text-[34px] leading-tight tnum mt-1" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{Number(d.ca).toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €</p>
+          <p className="text-[12px] text-ink-soft">{d.rdv} rendez-vous · {d.signes} devis signé{d.signes > 1 ? "s" : ""}</p>
+        </div>
+      </div>
+      {!d.prospects && <p className="text-[12.5px] text-ink-faint mt-3">Le compteur démarre dès que tu transformes un signal en prospect (« Trouver le contact et préparer le message »).</p>}
+    </Card>
+  );
+}
+
+/** Comptes surveillés : les entreprises que tu veux absolument, suivies chaque jour. */
+function Watchlist({ ws, opps, onOpen }) {
+  const toast = useToast();
+  const [rows, setRows] = useState(null);
+  const [txt, setTxt] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [open, setOpenList] = useState(false);
+  const load = useCallback(() => supabase.from("radar_watch").select("*").eq("workspace_id", ws.id).order("created_at", { ascending: false }).then(({ data }) => setRows(data ?? [])), [ws.id]);
+  useEffect(() => { load(); }, [load]);
+  const add = async () => {
+    if (!txt.trim()) return;
+    setBusy(true);
+    try {
+      const r = await fn("r/watch-add", { workspace_id: ws.id, items: txt });
+      setTxt(""); await load();
+      toast(`${r.added.length} entreprise${r.added.length > 1 ? "s" : ""} ajoutée${r.added.length > 1 ? "s" : ""}${r.missed.length ? ` · introuvable${r.missed.length > 1 ? "s" : ""} : ${r.missed.slice(0, 3).join(", ")}` : ""}`, r.added.length ? "good" : "bad");
+    } catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
+  };
+  const remove = async (w) => { await supabase.from("radar_watch").delete().eq("id", w.id); setRows((x) => x.filter((y) => y.id !== w.id)); };
+  const setUrl = async (w) => {
+    const url = window.prompt(`Site web de ${w.name} (pour surveiller ses changements)`, w.url ?? "https://");
+    if (url == null) return;
+    const clean = /^https?:\/\/[^\s]+\.[a-z]{2,}/i.test(url) ? url.trim() : null;
+    await supabase.from("radar_watch").update({ url: clean, site_hash: null }).eq("id", w.id); load();
+  };
+  const last = (w) => opps.filter((o) => o.siren === w.siren).sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0];
+  const list = rows ?? [];
+  return (
+    <Card className="p-5 sm:p-6">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2.5 font-bold text-[19px]"><span className="text-accent"><Ico name="star" className="h-6 w-6" /></span>Comptes surveillés</h2>
+        <span className="text-xs font-semibold rounded-full bg-accent-soft text-accent px-2.5 py-0.5">{list.length}</span>
+      </div>
+      <p className="text-[13px] text-ink-soft mt-1">Tes entreprises rêvées. Le Radar les surveille chaque jour (dirigeant, déménagement, recrutement, difficultés, site) et te prévient le jour même.</p>
+      <div className="mt-3 flex gap-2">
+        <textarea rows={2} value={txt} onChange={(e) => setTxt(e.target.value)} placeholder={"Noms ou SIREN, un par ligne\nex. Cabinet Durand Conseil"} className="flex-1 rounded-xl border border-line px-3 py-2 text-sm" />
+        <Button variant="accent" loading={busy} onClick={add} className="self-stretch">Ajouter</Button>
+      </div>
+      {rows && !list.length && <p className="text-[12.5px] text-ink-faint mt-3">Aucun compte pour l'instant. Tu peux en coller jusqu'à 200 d'un coup.</p>}
+      {list.length > 0 && (
+        <ul className="mt-3 divide-y divide-line">
+          {list.slice(0, open ? 200 : 6).map((w) => { const o = last(w); return (
+            <li key={w.id} className="py-2.5 flex items-center gap-3">
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium text-[14px] truncate">{w.name}</span>
+                <span className="block text-[12px] text-ink-faint truncate">{[w.city, w.naf].filter(Boolean).join(" · ")}{w.url ? " · site suivi" : ""}</span>
+              </span>
+              {o ? <button onClick={() => onOpen(o)} className={cx("shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-semibold", KIND[o.kind]?.chip)}>{KIND[o.kind]?.label}</button> : <span className="shrink-0 text-[11.5px] text-ink-faint">rien de neuf</span>}
+              <button onClick={() => setUrl(w)} title="Site web à surveiller" className="text-ink-faint hover:text-ink"><Ico name="ext" className="h-4 w-4" /></button>
+              <button onClick={() => remove(w)} title="Ne plus surveiller" className="text-ink-faint hover:text-bad"><Ico name="x" className="h-4 w-4" /></button>
+            </li>
+          ); })}
+        </ul>
+      )}
+      {list.length > 6 && <button onClick={() => setOpenList((x) => !x)} className="mt-2 text-[12.5px] font-semibold text-accent">{open ? "Réduire" : `Voir les ${list.length} comptes`}</button>}
     </Card>
   );
 }
@@ -576,7 +681,7 @@ export default function Radar() {
           <div className="relative p-5">
             {["left-0 top-0 border-l-2 border-t-2 rounded-tl-lg", "right-0 top-0 border-r-2 border-t-2 rounded-tr-lg", "left-0 bottom-0 border-l-2 border-b-2 rounded-bl-lg", "right-0 bottom-0 border-r-2 border-b-2 rounded-br-lg"].map((c) => <span key={c} className={cx("absolute w-6 h-6 border-accent", c)} />)}
             <RadarScope round opps={list} zone={ws.zone ?? []} scanning={live} selected={open?.id} onSelect={setOpen} />
-            <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1">{Object.entries(KIND).map(([key, k]) => <span key={key} className="flex items-center gap-1.5 text-[12px] text-ink-soft"><span className="h-2 w-2 rounded-full" style={{ background: k.dot }} />{k.plural}</span>)}</div>
+            <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1">{Object.entries(KIND).filter(([key]) => list.some((o) => o.kind === key)).map(([key, k]) => <span key={key} className="flex items-center gap-1.5 text-[12px] text-ink-soft"><span className="h-2 w-2 rounded-full" style={{ background: k.dot }} />{k.plural}</span>)}</div>
           </div>
           <div className="min-w-0">
             <Pill on={live}>{live ? "Scan en cours" : "Prêt"}</Pill>
@@ -609,6 +714,7 @@ export default function Radar() {
       <div className="grid xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] gap-5 items-start">
         <div className="space-y-5 min-w-0">
         <HotCompanies list={list} onOpen={setOpen} />
+        <Roi ws={ws} />
         <Card className="p-0 overflow-hidden min-w-0">
           <div className="px-5 pt-5 flex items-center justify-between gap-2">
             <h2 className="flex items-center gap-2.5 font-bold text-[19px]"><span className="text-accent"><Ico name="users" className="h-6 w-6" /></span>Opportunités détectées</h2>
@@ -652,6 +758,7 @@ export default function Radar() {
         </Card>
         </div>
         <div className="space-y-5 min-w-0">
+          <Watchlist ws={ws} opps={list} onOpen={setOpen} />
           <Searching ws={ws} />
           <Card className="p-4 flex items-start gap-3">
             <span className="text-accent mt-0.5"><Ico name="bulb" /></span>

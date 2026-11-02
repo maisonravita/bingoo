@@ -5,6 +5,7 @@ import { draft, enrich, followups, mxOk, reconcileStuck, sendOne } from "../_sha
 import { canSend } from "../_shared/mail.ts";
 import { warmup } from "../_shared/growth.ts";
 import { radarToProspect } from "../_shared/radar.ts";
+import { prepareOpp } from "../_shared/radar-plus.ts";
 import { autopilot } from "../_shared/autopilot.ts";
 import { siteContacts } from "../_shared/deep.ts";
 import { siteSignals } from "../_shared/sitesignals.ts";
@@ -46,35 +47,7 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
   // Radar → contact prêt : fiche, coordonnées et e-mail rédigé à partir du signal (brouillon dans « À valider », jamais envoyé ici)
   async prepare(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
-    const { data: o } = await admin.from("radar_opps").select("*").eq("id", String(b.id ?? "")).eq("workspace_id", ws.id).single();
-    if (!o) throw new HttpError(404, "Opportunité introuvable");
-    if (o.kind === "appel_offres") throw new HttpError(400, "Un appel d'offres se traite en répondant à l'avis");
-    const r = await radarToProspect(ws, o.id);
-    const load = async () => (await admin.from("prospects").select("*").eq("id", r.prospect_id).single()).data as Prospect & { mission_id?: string | null };
-    let p = await load();
-    if (!p.mission_id) {
-      const { data: ms } = await admin.from("missions").select("id, zone").eq("workspace_id", ws.id).eq("status", "active").order("created_at", { ascending: false });
-      const m = (ms ?? []).find((x) => !(x.zone ?? []).length || (x.zone ?? []).includes(o.dept));
-      if (m) await admin.from("prospects").update({ mission_id: m.id }).eq("id", p.id);
-    }
-    if (!p.enriched_at) {
-      await quota(ws.id, "enquete", 40);
-      const e = await enrich(p, ((ws.targets ?? []) as Target[]).find((x) => x.id === p.target)?.interlocuteur ?? "");
-      await log(ws.id, "enquete", `${p.name} : ${e.email ? "e-mail trouvé" : "rien trouvé"} (Radar)`);
-      p = await load();
-    }
-    const last = async () => (await admin.from("messages").select("id, subject, body, status").eq("prospect_id", p.id).eq("step", 0).order("created_at", { ascending: false }).limit(1)).data?.[0] ?? null;
-    let msg = await last();
-    if (!msg && p.email && ws.sender_name) {
-      await quota(ws.id, "redaction", 80);
-      await draft(ws, p);
-      await log(ws.id, "redaction", `E-mail rédigé pour ${p.name} (Radar)`);
-      msg = await last();
-    }
-    return {
-      prospect: { id: p.id, name: p.name, contact_name: p.contact_name, contact_role: p.contact_role, email: p.email, phone: p.phone, website: p.website, linkedin_url: (p as { linkedin_url?: string }).linkedin_url ?? "" },
-      message: msg, reason: !p.email ? "no_email" : !ws.sender_name ? "no_sender" : null,
-    };
+    return await prepareOpp(ws, String(b.id ?? ""));
   },
   // Préparer un prospect déjà en base : enquête si besoin, puis brouillon (jamais d'envoi)
   async "prospect-prepare"(req, b) {
