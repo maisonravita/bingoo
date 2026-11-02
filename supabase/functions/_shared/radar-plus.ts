@@ -107,7 +107,9 @@ export async function ftOffers(ws: Workspace, postes: string[], zone: string[]):
       summary: `Recrute : ${String(o.intitule ?? "").slice(0, 120)}${o.typeContratLibelle ? ` (${o.typeContratLibelle})` : ""}`,
       why, city: cap(String(o.lieuTravail?.libelle ?? "").replace(/^\d+\s*-\s*/, "")), dept: /^\d{2}$/.test(dept) ? dept : "",
       url: o.origineOffre?.urlOrigine || `https://candidat.francetravail.fr/offres/recherche/detail/${o.id}`, source: "France Travail (offres d'emploi officielles)",
-      published: String(o.dateCreation ?? "").slice(0, 10) || null, raw: { ft: o.id, secteur: o.secteurActiviteLibelle ?? "", naf: o.secteurActivite ?? "", poste: o.intitule ?? "", ...(watched ? { watch: true } : {}) },
+      published: String(o.dateCreation ?? "").slice(0, 10) || null,
+      raw: { ft: o.id, secteur: o.secteurActiviteLibelle ?? "", naf: o.secteurActivite ?? "", poste: o.intitule ?? "", ...(watched ? { watch: true } : {}),
+        ...(o.contact?.nom ? { contact: { nom: cap(String(o.contact.nom).replace(/^(M\.|Mme|Madame|Monsieur)\s+/i, "")), role: "Recruteur (offre d'emploi)", source: "France Travail" } } : {}) },
     });
   };
   for (const d of zone.slice(0, 8)) {
@@ -178,4 +180,91 @@ export async function pickTop3(ws: Workspace) {
     if (room) { try { await prepareOpp(ws, o.id); prepared++; } catch (e) { console.error("top3", o.id, (e as Error).message); } }
   }
   return { top: pick.length + (already ?? []).length, prepared };
+}
+
+// ---------------------------------------------------------------- Étape 3 : qui appeler, santé, toute la zone, jumeaux
+/** Qui appeler : dirigeant au registre, recruteur de l'offre, ou service achats de l'acheteur public. Signale aussi les entreprises fermées. */
+export async function whoToCall(ws: Workspace, max = 25) {
+  const { data } = await admin.from("radar_opps").select("id, kind, siren, company, raw").eq("workspace_id", ws.id).eq("status", "nouveau").order("score", { ascending: false }).limit(200);
+  const todo = ((data ?? []) as { id: string; kind: string; siren: string | null; company: string; raw: Record<string, unknown> | null }[]).filter((o) => !o.raw?.contact && !o.raw?.contact_checked);
+  let n = 0;
+  for (const o of todo) {
+    let contact: Record<string, string> | null = null, ferme = false;
+    if (o.kind === "appel_offres" || o.kind === "renouvellement" || o.kind === "budget") {
+      contact = { nom: "Service de la commande publique", role: `Acheteur : ${o.company}`, source: "Avis officiel" };
+    } else if (o.siren && n < max) {
+      const c = await lookup(o.siren); n++;
+      if (c?.dirigeant) contact = { nom: c.dirigeant, role: cap(c.role ?? "Dirigeant"), source: "Registre national des entreprises" };
+      ferme = !!c?.ferme;
+      await new Promise((x) => setTimeout(x, 160));
+    } else if (!o.siren && n < max && o.company) {
+      const u = new URL("https://recherche-entreprises.api.gouv.fr/search");
+      u.searchParams.set("q", o.company); u.searchParams.set("per_page", "1"); u.searchParams.set("etat_administratif", "A");
+      const r = await fetch(u, { signal: AbortSignal.timeout(12000) }).then((x) => x.ok ? x.json() : null).catch(() => null); n++;
+      const h = r?.results?.[0];
+      if (h && norm(h.nom_complet ?? "").includes(norm(o.company).split(" ")[0] ?? "")) {
+        // deno-lint-ignore no-explicit-any
+        const b = (h.dirigeants ?? []).find((x: any) => x.type_dirigeant === "personne physique" && x.nom && !/commissaire|suppl[ée]ant/i.test(x.qualite ?? ""));
+        if (b) contact = { nom: cap(`${String(b.prenoms ?? "").split(" ")[0]} ${b.nom}`.trim()), role: cap(b.qualite ?? "Dirigeant"), source: "Registre national des entreprises" };
+        await admin.from("radar_opps").update({ siren: h.siren }).eq("id", o.id);
+      }
+      await new Promise((x) => setTimeout(x, 160));
+    } else continue;
+    await admin.from("radar_opps").update({ raw: { ...(o.raw ?? {}), contact_checked: true, ...(contact ? { contact } : {}), ...(ferme ? { ferme: true } : {}) } }).eq("id", o.id);
+  }
+  return n;
+}
+
+/** Changements de dirigeant et déménagements dans toute la zone, chez les entreprises de tes secteurs (pas seulement tes prospects). */
+export async function zoneEvents(ws: Workspace, activites: string[], zone: string[]): Promise<Opp[]> {
+  if (!activites.length || !zone.length) return [];
+  const { classifyBodacc, bodaccOpp, bodaccFetch } = await import("./radar-signals.ts");
+  const since = new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10);
+  const rows = await bodaccFetch(`dateparution>=date'${since}' and familleavis in ("modification","vente") and (${zone.map((d) => `numerodepartement="${d}"`).join(" or ")}) and (${activites.map((a) => `search(listepersonnes,"${a.replace(/"/g, "")}") or search(listeetablissements,"${a.replace(/"/g, "")}")`).join(" or ")})`);
+  const nafs = (ws.targets ?? []).filter((t) => t.actif !== false).flatMap((t) => t.naf ?? []).map((n) => n.slice(0, 4));
+  const out: Opp[] = [];
+  let looked = 0;
+  for (const b of rows) {
+    const c = classifyBodacc(b);
+    if (!c || !["dirigeant", "demenagement"].includes(c.kind)) continue;
+    const o = bodaccOpp(b, c);
+    if (nafs.length && o.siren && looked < 30) {
+      const r = await lookup(o.siren); looked++;
+      if (!r?.naf || !nafs.includes(r.naf.slice(0, 4))) continue;
+      o.raw = { ...o.raw, naf: r.naf, tranche: r.tranche, zone_entiere: true };
+      await new Promise((x) => setTimeout(x, 160));
+    } else if (nafs.length) continue;
+    out.push(o);
+  }
+  return out.slice(0, 40);
+}
+
+/** Jumeaux de tes clients : même activité, même taille, même département. Ajoutés aux comptes surveillés (au plus 30). */
+export async function findTwins(ws: Workspace & { radar_cfg?: Record<string, unknown> | null }) {
+  const last = String(ws.radar_cfg?.twins_at ?? "");
+  if (last && last > new Date(Date.now() - 7 * 864e5).toISOString()) return 0;
+  const { data: cl } = await admin.from("prospects").select("siren, name").eq("workspace_id", ws.id).eq("status", "client").not("siren", "is", null).limit(10);
+  const { count: have } = await admin.from("radar_watch").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("source", "jumeau");
+  let room = Math.max(0, 30 - (have ?? 0)), added = 0;
+  const { data: known } = await admin.from("prospects").select("siren").eq("workspace_id", ws.id).not("siren", "is", null).limit(5000);
+  const skip = new Set(((known ?? []) as { siren: string }[]).map((k) => k.siren));
+  for (const c of (cl ?? []) as { siren: string; name: string }[]) {
+    if (!room) break;
+    const me = await lookup(c.siren);
+    if (!me?.naf) continue;
+    const u = new URL("https://recherche-entreprises.api.gouv.fr/search");
+    u.searchParams.set("activite_principale", me.naf); u.searchParams.set("etat_administratif", "A"); u.searchParams.set("per_page", "10");
+    if (/^\d{2}/.test(me.cp)) u.searchParams.set("departement", me.cp.slice(0, 2));
+    if (me.tranche && me.tranche !== "NN") u.searchParams.set("tranche_effectif_salarie", me.tranche);
+    const r = await fetch(u, { signal: AbortSignal.timeout(12000) }).then((x) => x.ok ? x.json() : null).catch(() => null);
+    for (const h of (r?.results ?? []) as { siren: string; nom_complet: string; siege?: { libelle_commune?: string; code_postal?: string } }[]) {
+      if (!room || skip.has(h.siren) || h.siren === c.siren) continue;
+      const { error } = await admin.from("radar_watch").upsert({ workspace_id: ws.id, siren: h.siren, name: cap(h.nom_complet), city: cap(h.siege?.libelle_commune ?? ""), dept: String(h.siege?.code_postal ?? "").slice(0, 2), naf: me.naf, source: "jumeau" }, { onConflict: "workspace_id,siren", ignoreDuplicates: true });
+      if (!error) { added++; room--; skip.add(h.siren); }
+    }
+    await new Promise((x) => setTimeout(x, 300));
+  }
+  await admin.from("workspaces").update({ radar_cfg: { ...(ws.radar_cfg ?? {}), twins_at: new Date().toISOString() } }).eq("id", ws.id);
+  if (added) await log(ws.id, "radar", `${added} entreprise${added > 1 ? "s" : ""} ressemblant à tes clients ajoutée${added > 1 ? "s" : ""} aux comptes surveillés`);
+  return added;
 }

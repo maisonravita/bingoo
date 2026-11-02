@@ -302,6 +302,15 @@ function Detail({ o, onClose, onChange }) {
             </div>
           </div>
         ) : null}
+        {o.raw?.contact && (
+          <div className="mt-3 rounded-2xl border border-good/30 bg-good-soft/40 p-4 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-wider text-good">Qui appeler</p>
+            <p className="font-semibold text-[15px] mt-1">{o.raw.contact.nom}</p>
+            <p className="text-ink-soft">{o.raw.contact.role}{o.raw.contact.source ? ` · source : ${o.raw.contact.source}` : ""}</p>
+            {o.kind !== "appel_offres" && o.kind !== "renouvellement" && <p className="text-[12px] text-ink-faint mt-1">E-mail et téléphone : « Trouver le contact » ci-dessous cherche ses coordonnées publiques.</p>}
+          </div>
+        )}
+        {o.kind === "difficulte" && <p className="mt-3 text-sm rounded-xl bg-bad-soft text-bad px-3 py-2 font-medium">Entreprise en procédure collective : vérifie sa capacité à payer avant d'y consacrer du temps.</p>}
         {o.expires_at && o.kind !== "appel_offres" && <p className="mt-3 text-sm rounded-xl bg-accent-soft/60 px-3 py-2"><b>À contacter avant le {new Date(o.expires_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</b><span className="text-ink-soft"> · ensuite le signal disparaît du Radar</span></p>}
 
         <div className="mt-6 space-y-4 text-sm">
@@ -665,7 +674,7 @@ function Watchlist({ ws, opps, onOpen }) {
             <li key={w.id} className="py-2.5 flex items-center gap-3">
               <span className="min-w-0 flex-1">
                 <span className="block font-medium text-[14px] truncate">{w.name}</span>
-                <span className="block text-[12px] text-ink-faint truncate">{[w.city, w.naf].filter(Boolean).join(" · ")}{w.url ? " · site suivi" : ""}</span>
+                <span className="block text-[12px] text-ink-faint truncate">{w.source === "jumeau" ? <b className="text-accent-dark">ressemble à tes clients · </b> : null}{[w.city, w.naf].filter(Boolean).join(" · ")}{w.url ? " · site suivi" : ""}</span>
               </span>
               {o ? <button onClick={() => onOpen(o)} className={cx("shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-semibold", KIND[o.kind]?.chip)}>{KIND[o.kind]?.label}</button> : <span className="shrink-0 text-[11.5px] text-ink-faint">rien de neuf</span>}
               <button onClick={() => setUrl(w)} title="Site web à surveiller" className="text-ink-faint hover:text-ink"><Ico name="ext" className="h-4 w-4" /></button>
