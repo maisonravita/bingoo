@@ -58,7 +58,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
     if (!ws) throw new HttpError(404, "Espace introuvable");
     setAi({ ws: ws.id });
-    return await scanRadar(ws, { web: false });
+    return await scanRadar(ws, { web: false, top: b.top === true });
   },
   async "spy-cron"(req) { await cron(req); return await spyCron(); },
   async "spy-digest"(req) { await cron(req); return await spyDigest(); },
