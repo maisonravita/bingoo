@@ -1,7 +1,7 @@
 // Croissance : préchauffage, boîte mail, équipe, CRM, agenda, abonnements Stripe.
 import nodemailer from "npm:nodemailer@6.9.16";
 import { HttpError } from "./http.ts";
-import { admin, env, log, PLANS, type Prospect, type Workspace } from "./core.ts";
+import { admin, env, log, PACKS, PLANS, type Prospect, type Workspace } from "./core.ts";
 
 const APP = (ws: Workspace) => (ws.app_url || env("APP_URL", "https://kairo.maisonravita.fr")).replace(/\/$/, "");
 const today = () => new Date().toISOString().slice(0, 10);
@@ -389,6 +389,32 @@ export async function checkout(ws: Workspace, userId: string, planKey: string, y
   return { url: s.url };
 }
 
+/** Achat d'une recharge IA (paiement unique). Créditée à la confirmation du paiement par Stripe. */
+export async function recharge(ws: Workspace, userId: string, packKey: string) {
+  const p = PACKS[packKey];
+  if (!p) throw new HttpError(400, "Recharge inconnue");
+  let customer = ws.stripe_customer;
+  if (!customer) {
+    const { data: u } = await admin.auth.admin.getUserById(userId);
+    const c = await stripe("/customers", { email: u?.user?.email ?? "", name: ws.legal_name || ws.profile?.nom || ws.name, "metadata[workspace_id]": ws.id, "preferred_locales[0]": "fr" });
+    customer = c.id;
+    await admin.from("workspaces").update({ stripe_customer: customer }).eq("id", ws.id);
+  }
+  const s = await stripe("/checkout/sessions", {
+    mode: "payment", customer, locale: "fr",
+    "line_items[0][quantity]": "1",
+    "line_items[0][price_data][currency]": "eur",
+    "line_items[0][price_data][unit_amount]": String(p.price * 100),
+    "line_items[0][price_data][product_data][name]": `Bingoo! ${p.label} : ${p.work}`,
+    "line_items[0][price_data][tax_behavior]": "exclusive",
+    "metadata[workspace_id]": ws.id, "metadata[kind]": "recharge", "metadata[pack]": packKey,
+    "invoice_creation[enabled]": "true", billing_address_collection: "required", "tax_id_collection[enabled]": "true",
+    "customer_update[name]": "auto", "customer_update[address]": "auto",
+    success_url: `${APP(ws)}/#/abonnement?recharge=ok`, cancel_url: `${APP(ws)}/#/abonnement?recharge=annule`,
+  });
+  return { url: s.url };
+}
+
 export async function portal(ws: Workspace, userId: string) {
   await requireAdmin(ws.id, userId);
   if (!ws.stripe_customer) throw new HttpError(400, "Aucun abonnement pour l'instant");
@@ -418,6 +444,14 @@ export async function stripeWebhook(req: Request) {
   const byCustomer = async () => (await admin.from("workspaces").select("id").eq("stripe_customer", String(o.customer ?? "")).maybeSingle()).data?.id ?? "";
   const id = wsId || await byCustomer();
   if (!id) return { skipped: "espace inconnu" };
+  if (ev.type === "checkout.session.completed" && o.metadata?.kind === "recharge") {
+    // Recharge IA : créditée une seule fois par paiement, seulement s'il est réglé
+    const p = PACKS[String(o.metadata?.pack ?? "")];
+    if (!p || o.payment_status !== "paid") return { skipped: "recharge non réglée" };
+    const { error } = await admin.from("ai_topups").insert({ workspace_id: id, pack: String(o.metadata.pack), paid_eur: p.price, credit_eur: p.credit, stripe_session: String(o.id) });
+    if (!error) await log(id, "abonnement", `${p.label} achetée : ${p.work}`);
+    return { ok: true };
+  }
   if (ev.type === "checkout.session.completed") {
     await admin.from("workspaces").update({ plan: o.metadata?.plan ?? "solo", plan_status: "active", stripe_subscription: String(o.subscription ?? ""), stripe_customer: String(o.customer ?? ""), trial_ends: null }).eq("id", id);
     await log(id, "abonnement", `Abonnement ${PLANS[o.metadata?.plan]?.label ?? ""} activé`);
@@ -426,10 +460,10 @@ export async function stripeWebhook(req: Request) {
     const end = o.current_period_end ?? o.items?.data?.[0]?.current_period_end;
     await admin.from("workspaces").update({ plan_status: status, ...(o.metadata?.plan && status !== "canceled" ? { plan: o.metadata.plan } : {}), stripe_subscription: String(o.id ?? ""), period_end: end ? new Date(end * 1000).toISOString() : null }).eq("id", id);
     if (status === "canceled") await log(id, "abonnement", "Abonnement arrêté");
-  } else if (ev.type === "invoice.payment_failed") {
+  } else if (ev.type === "invoice.payment_failed" && o.subscription) {
     await admin.from("workspaces").update({ plan_status: "past_due" }).eq("id", id);
     await log(id, "abonnement", "Paiement refusé : carte à mettre à jour");
-  } else if (ev.type === "invoice.paid") {
+  } else if (ev.type === "invoice.paid" && o.subscription) {
     await admin.from("workspaces").update({ plan_status: "active" }).eq("id", id).neq("plan", "fondateur");
   }
   return { ok: true };

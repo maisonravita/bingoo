@@ -1,6 +1,6 @@
 // Point d'entrée unique : https://<ref>.supabase.co/functions/v1/k/<action>
 import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
-import { admin, log, quota, requireMember, setAi, type Prospect, type Target } from "../_shared/core.ts";
+import { admin, log, PACKS, quota, requireMember, setAi, type Prospect, type Target } from "../_shared/core.ts";
 import { analyze, normalizeUrl, readSite } from "../_shared/analyze.ts";
 import { countTarget, searchTarget } from "../_shared/search.ts";
 import { canSend } from "../_shared/mail.ts";
@@ -10,7 +10,7 @@ import { freeSlots } from "../_shared/time.ts";
 import { assertKind, credits, deepEnrich, dropcontactPending, letter } from "../_shared/deep.ts";
 import { analyzeCampaign, competitorAds, createCampaign, suggestVariants } from "../_shared/campaigns.ts";
 import { meetingFollowup, meetingReminders, quoteReminders, sendMeetingFollowup } from "../_shared/convert.ts";
-import { calendarFeed, checkout, connectCrm, distribute, invite, join, MAILBOXES, plans, portal, removeMailbox, revokeInvite, saveMailbox, setMember, stripeWebhook, syncCrm, warmup } from "../_shared/growth.ts";
+import { calendarFeed, checkout, connectCrm, distribute, invite, join, MAILBOXES, plans, portal, recharge, removeMailbox, revokeInvite, saveMailbox, setMember, stripeWebhook, syncCrm, warmup } from "../_shared/growth.ts";
 
 type Body = Record<string, unknown> & { workspace_id?: string };
 
@@ -414,11 +414,15 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
     return await sendMeetingFollowup(ws, String(b.meeting_id ?? ""), String(b.subject ?? ""), String(b.body ?? ""));
   },
   async plans() {
-    return { plans: plans() };
+    return { plans: plans(), packs: Object.entries(PACKS).map(([key, p]) => ({ key, label: p.label, price: p.price, work: p.work })) };
   },
   async "billing-checkout"(req, b) {
     const { ws, userId } = await requireMember(req, b.workspace_id);
     return await checkout(ws, userId, String(b.plan ?? ""), b.yearly === true);
+  },
+  async "billing-recharge"(req, b) {
+    const { ws, userId } = await requireMember(req, b.workspace_id);
+    return await recharge(ws, userId, String(b.pack ?? ""));
   },
   async "billing-portal"(req, b) {
     const { ws, userId } = await requireMember(req, b.workspace_id);
