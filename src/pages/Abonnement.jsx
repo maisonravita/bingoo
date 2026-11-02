@@ -15,14 +15,30 @@ const STATUS = { active: ["Actif", "good"], trialing: ["Essai", "accent"], past_
 
 const FEAT = { "r/spy-cron": "Espion (veille de nuit)", "espion/rapport": "Espion : rapports complets", "espion/publicites": "Espion : publicités", "espion/decouverte": "Espion : nouveaux concurrents", "espion/besoins": "Espion : besoins publics", "m/autopilot": "Mission : rédaction et relances", "m/cron": "Mission : pilote automatique", "r/radar-scan": "Radar", "r/radar-cron": "Radar (chaque matin)", "a/chat": "Vos salariés (questions)", "m/prepare": "Radar : contacts préparés" };
 /** Consommation IA du mois : ce que l'équipe IA a utilisé, et ce qui se passe quand le plafond approche. */
-function AiGauge({ ai }) {
+function AiGauge({ ai, packs, busy, onBuy }) {
   const pct = Math.min(100, Math.round((Number(ai.spent) / Math.max(1, Number(ai.budget))) * 100));
+  const extra = Number(ai.balance ?? 0), paused = pct >= 100 && extra <= 0;
   return (
     <Card className="p-5 sm:p-6 mb-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2"><p className="font-semibold">Travail de ton équipe IA ce mois-ci</p><p className="text-sm text-ink-soft tnum">{pct} % de l'enveloppe incluse</p></div>
       <div className="mt-3 h-2.5 rounded-full bg-paper overflow-hidden"><div className={cx("h-full rounded-full transition-all", pct >= 100 ? "bg-bad" : pct >= 80 ? "bg-warn" : "bg-accent")} style={{ width: `${pct}%` }} /></div>
       {Object.keys(ai.by ?? {}).length > 0 && <p className="text-[12.5px] text-ink-faint mt-2">{Object.entries(ai.by).slice(0, 5).map(([k]) => FEAT[k] ?? k).join(" · ")}</p>}
-      <p className="text-sm text-ink-soft mt-3">{pct >= 100 ? "L'enveloppe du mois est utilisée : les réponses de tes prospects restent traitées, le reste reprend le 1er du mois (ou tout de suite avec l'offre supérieure)." : pct >= 60 ? "Au-delà de 60 %, la veille de nuit passe en mode économe pour garder l'essentiel (missions, réponses) jusqu'à la fin du mois." : "Tout fonctionne à plein régime. Les réponses de tes prospects sont toujours traitées, quoi qu'il arrive."}</p>
+      {extra > 0 && <p className="text-sm mt-3"><b>Recharge disponible :</b> {Math.round((extra / Math.max(0.01, Number(ai.budget))) * 100)} % d'enveloppe en plus, utilisée seulement une fois l'enveloppe du mois finie. Elle ne périme pas.</p>}
+      <p className={cx("text-sm mt-3", paused ? "text-bad font-medium" : "text-ink-soft")}>{paused ? "Ton équipe IA est en pause jusqu'au 1er du mois : l'enveloppe est utilisée. Les réponses de tes prospects restent traitées. Une recharge la relance tout de suite." : pct >= 100 ? "L'enveloppe du mois est utilisée : ton équipe continue grâce à ta recharge." : pct >= 60 ? "Au-delà de 60 %, la veille de nuit passe en mode économe pour garder l'essentiel (missions, réponses) jusqu'à la fin du mois." : "Tout fonctionne à plein régime. Les réponses de tes prospects sont toujours traitées, quoi qu'il arrive."}</p>
+      {packs.length > 0 && (
+        <div className="mt-4 border-t border-line pt-4">
+          <p className="text-sm font-semibold">{paused ? "Relancer ton équipe IA maintenant" : "Besoin de plus ? Ajoute une recharge"}</p>
+          <div className="mt-2.5 grid sm:grid-cols-3 gap-2.5">
+            {packs.map((p) => (
+              <button key={p.key} disabled={!!busy} onClick={() => onBuy(p.key)} className={cx("text-left rounded-xl border p-3 transition hover:border-accent/50 disabled:opacity-50", paused && p.key === "m" ? "border-accent bg-accent-soft/40" : "border-line bg-white")}>
+                <span className="flex items-baseline justify-between"><span className="font-semibold">{p.label}</span><span className="font-bold tnum">{busy === p.key ? "…" : `${p.price} € HT`}</span></span>
+                <span className="block text-[12.5px] text-ink-soft mt-0.5">{p.work}, ou l'équivalent en recherches et analyses</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-[11.5px] text-ink-faint mt-2">Paiement unique, sans abonnement. La recharge ne périme pas et ne sert qu'une fois l'enveloppe du mois utilisée.</p>
+        </div>
+      )}
     </Card>
   );
 }
@@ -32,20 +48,23 @@ export default function Abonnement() {
   const toast = useToast();
   const loc = useLocation();
   const [plans, setPlans] = useState([]);
+  const [packs, setPacks] = useState([]);
   const [busy, setBusy] = useState(null);
   const [ai, setAi] = useState(null);
   const [yearly, setYearly] = useState(false);
   useEffect(() => { supabase.rpc("ai_month", { p_ws: ws.id }).then(({ data }) => setAi(data ?? null)); }, [ws.id]);
-  useEffect(() => { fn("plans").then((r) => setPlans(r.plans)).catch(() => {}); }, []);
+  useEffect(() => { fn("plans").then((r) => { setPlans(r.plans); setPacks(r.packs ?? []); }).catch(() => {}); }, []);
   useEffect(() => {
     const q = new URLSearchParams(loc.search);
     if (q.get("paiement") === "ok") { toast("Paiement confirmé, merci ! Ton abonnement s'active dans quelques secondes.", "good"); setTimeout(reload, 4000); }
     if (q.get("paiement") === "annule") toast("Paiement annulé : rien n'a été prélevé.");
+    if (q.get("recharge") === "ok") { toast("Recharge payée, merci ! Elle est ajoutée dans quelques secondes et ton équipe IA repart.", "good"); setTimeout(() => supabase.rpc("ai_month", { p_ws: ws.id }).then(({ data }) => setAi(data ?? null)), 5000); }
+    if (q.get("recharge") === "annule") toast("Recharge annulée : rien n'a été prélevé.");
   }, [loc.search]);
 
-  const go = async (route, plan) => {
-    setBusy(plan ?? route);
-    try { const r = await fn(route, { workspace_id: ws.id, plan, yearly }); window.location.href = r.url; }
+  const go = async (route, plan, pack) => {
+    setBusy(plan ?? pack ?? route);
+    try { const r = await fn(route, { workspace_id: ws.id, plan, yearly, pack }); window.location.href = r.url; }
     catch (e) { toast(e.message, "bad"); setBusy(null); }
   };
 
@@ -66,7 +85,7 @@ export default function Abonnement() {
         {ws.stripe_customer && <Button loading={busy === "billing-portal"} onClick={() => go("billing-portal")}>Factures, carte, résiliation</Button>}
       </Card>
 
-      {ai && <AiGauge ai={ai} />}
+      {ai && <AiGauge ai={ai} packs={packs} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />}
 
       <div className="mb-4 inline-flex rounded-full border border-line bg-white p-1 text-sm">
         {[[false, "Mensuel"], [true, "Annuel · −20 %"]].map(([v, l]) => <button key={l} onClick={() => setYearly(v)} className={cx("rounded-full px-4 py-1.5 font-medium transition", yearly === v ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}

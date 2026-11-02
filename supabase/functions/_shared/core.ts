@@ -156,10 +156,21 @@ export async function aiBudget(wsId: string) {
   const { data: w } = await admin.from("workspaces").select("plan, ai_budget_eur").eq("id", wsId).single();
   return Number(w?.ai_budget_eur ?? PLANS[w?.plan ?? "essai"]?.ai ?? 4);
 }
+/** Recharges achetées et pas encore consommées (elles ne servent qu'au-delà de l'enveloppe du mois). */
+export async function aiBalance(wsId: string) {
+  const { data } = await admin.rpc("ai_balance", { p_ws: wsId });
+  return Number(data ?? 0);
+}
+/** Recharges IA vendues : prix payé (HT) → travail IA ajouté (coût pour Bingoo!), environ 50 % de marge. */
+export const PACKS: Record<string, { label: string; price: number; credit: number; work: string }> = {
+  s: { label: "Recharge S", price: 10, credit: 5, work: "environ 300 e-mails rédigés de plus" },
+  m: { label: "Recharge M", price: 25, credit: 13, work: "environ 800 e-mails rédigés de plus" },
+  l: { label: "Recharge L", price: 50, credit: 28, work: "environ 1 700 e-mails rédigés de plus" },
+};
 /** Reste-t-il de la marge pour un travail optionnel (veille de nuit, recherches web) ? share = part du budget qu'il peut atteindre. */
 export async function aiRoom(wsId: string, share = 0.6) {
-  const [spent, budget] = await Promise.all([aiSpent(wsId), aiBudget(wsId)]);
-  return spent < budget * share;
+  const [spent, budget, extra] = await Promise.all([aiSpent(wsId), aiBudget(wsId), aiBalance(wsId)]);
+  return spent < (budget + extra) * share;
 }
 /** Garde-fou avant chaque appel : plafond quotidien de toute la plateforme, puis budget mensuel de l'espace. */
 export async function aiGuard() {
@@ -169,10 +180,17 @@ export async function aiGuard() {
   const ws = aiCtx.getStore()?.ws;
   if (!ws) return;
   const [spent, budget] = await Promise.all([aiSpent(ws), aiBudget(ws)]);
-  if (spent >= budget) throw new HttpError(402, "Budget IA du mois atteint pour cet espace. Il se renouvelle le 1er du mois, ou passe à l'offre supérieure.");
+  if (spent >= budget) {
+    // Au-delà de l'enveloppe : on puise dans les recharges achetées, s'il en reste
+    const extra = await aiBalance(ws);
+    if (extra > 0) return;
+    const { count } = await admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("kind", "budget_ia").ilike("summary", "Enveloppe IA du mois utilisée%").gte("created_at", monthStart());
+    if (!count) await admin.from("activity").insert({ workspace_id: ws, kind: "budget_ia", summary: "Enveloppe IA du mois utilisée : ton équipe IA est en pause. Recharge pour continuer tout de suite (réponses des prospects toujours traitées)." });
+    throw new HttpError(402, "L'enveloppe IA du mois est utilisée : ton équipe IA est en pause. Ajoute une recharge dans Abonnement pour continuer tout de suite, ou attends le 1er du mois.");
+  }
   if (spent >= budget * 0.8) {
-    const { count } = await admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("kind", "budget_ia").gte("created_at", monthStart());
-    if (!count) await admin.from("activity").insert({ workspace_id: ws, kind: "budget_ia", summary: `80 % du budget IA du mois utilisé (${spent.toFixed(2)} € sur ${budget} €) : la veille de nuit passe en mode économe` });
+    const { count } = await admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("kind", "budget_ia").ilike("summary", "80 %%").gte("created_at", monthStart());
+    if (!count) await admin.from("activity").insert({ workspace_id: ws, kind: "budget_ia", summary: "80 % de l'enveloppe IA du mois utilisée : la veille de nuit passe en mode économe. Une recharge permet de garder le plein régime." });
   }
 }
 
