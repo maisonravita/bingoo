@@ -258,6 +258,75 @@ function ContactReady({ o, onChange }) {
   );
 }
 
+/** Aide à décider et à répondre à un appel d'offres. */
+function TenderHelp({ o, onChange }) {
+  const { ws } = useWs();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const a = o.raw?.analyse;
+  const run = async () => {
+    setBusy(true);
+    try { const r = await fn("r/tender-analyse", { workspace_id: ws.id, id: o.id }); onChange({ ...o, raw: { ...(o.raw ?? {}), analyse: r } }); }
+    catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
+  };
+  if (!a) return (
+    <div className="mt-6 rounded-2xl border border-line p-4 text-sm">
+      <p className="font-semibold">Faut-il y répondre ?</p>
+      <p className="text-ink-soft mt-1">Le Radar lit l'avis, le compare aux marchés déjà attribués (prix, titulaires) et te donne : un avis « y aller ou pas », un résumé, les pièces à fournir, les critères, les concurrents probables et un premier jet de réponse technique.</p>
+      <Button variant="accent" className="mt-3 w-full" loading={busy} onClick={run}>{busy ? "Analyse en cours (1 minute)…" : "Analyser cet appel d'offres"}</Button>
+    </div>
+  );
+  const tone = a.decision === "y aller" ? "bg-good-soft text-good" : a.decision === "ne pas y aller" ? "bg-bad-soft text-bad" : "bg-accent-soft text-accent-dark";
+  const L = ({ t, items }) => items?.length ? <div className="mt-3"><p className="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-1">{t}</p><ul className="space-y-0.5">{items.map((x, i) => <li key={i}>• {x}</li>)}</ul></div> : null;
+  return (
+    <div className="mt-6 rounded-2xl border border-line p-4 text-sm">
+      <div className="flex items-center gap-3"><Score n={a.score} big /><div><p className="font-semibold">Avis du Radar</p><span className={cx("inline-block mt-0.5 rounded-full px-2.5 py-0.5 text-[12px] font-semibold", tone)}>{a.decision}</span></div></div>
+      <L t="Pourquoi" items={a.raisons} />
+      <L t="Résumé de l'avis" items={a.resume} />
+      <L t="Pièces à fournir" items={a.pieces} />
+      <L t="Critères de sélection" items={a.criteres} />
+      <L t="Concurrents probables" items={a.concurrents} />
+      {a.prix && <div className="mt-3"><p className="text-xs font-semibold uppercase tracking-wider text-ink-soft mb-1">Prix observés ({a.comparables ?? 0} marchés comparables)</p><p>{a.prix}</p></div>}
+      <L t="Questions à poser à l'acheteur" items={a.questions} />
+      {a.reponse_technique && (
+        <details className="mt-3 rounded-xl bg-paper p-3"><summary className="cursor-pointer font-semibold">Premier jet de réponse technique</summary>
+          <p className="whitespace-pre-line mt-2 leading-relaxed">{a.reponse_technique}</p>
+          <button onClick={() => { navigator.clipboard?.writeText(a.reponse_technique); toast("Copié", "good"); }} className="mt-2 text-[12.5px] font-semibold text-accent">Copier le texte</button>
+        </details>
+      )}
+      <p className="text-[11.5px] text-ink-faint mt-3">Analyse faite à partir de l'avis public et des marchés déjà attribués. Le dossier de consultation complet reste à lire avant de répondre.</p>
+    </div>
+  );
+}
+
+/** Attribuer le signal à un membre de l'équipe ; l'envoyer dans le CRM. */
+function TeamActions({ o, onChange }) {
+  const { ws } = useWs();
+  const toast = useToast();
+  const [members, setMembers] = useState([]);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { supabase.from("members").select("user_id, email").eq("workspace_id", ws.id).then(({ data }) => setMembers(data ?? [])); }, [ws.id]);
+  const assign = async (uid) => {
+    const { error } = await supabase.from("radar_opps").update({ assigned_to: uid || null }).eq("id", o.id);
+    if (error) return toast(error.message, "bad");
+    onChange({ ...o, assigned_to: uid || null }); toast(uid ? "Signal attribué" : "Attribution retirée", "good");
+  };
+  const crm = async () => {
+    setBusy(true);
+    try { const r = await fn("r/radar-crm", { workspace_id: ws.id, id: o.id }); onChange({ ...o, prospect_id: r.prospect_id, status: "ajoute" }); toast("Envoyée dans ton CRM", "good"); }
+    catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
+  };
+  const hasCrm = ws.integrations?.hubspot?.ok || ws.integrations?.pipedrive?.ok;
+  if (members.length < 2 && !hasCrm) return null;
+  return (
+    <div className="mt-6 rounded-2xl border border-line p-4 text-sm space-y-3">
+      {members.length > 1 && <label className="block"><span className="text-xs font-semibold uppercase tracking-wider text-ink-soft">Qui s'en occupe</span>
+        <select value={o.assigned_to ?? ""} onChange={(e) => assign(e.target.value)} className="mt-1 w-full rounded-xl border border-line px-3 py-2 bg-white"><option value="">Personne pour l'instant</option>{members.map((m) => <option key={m.user_id} value={m.user_id}>{m.email || "Membre"}</option>)}</select></label>}
+      {hasCrm && o.kind !== "appel_offres" && <Button className="w-full" loading={busy} onClick={crm}>Envoyer dans mon CRM</Button>}
+    </div>
+  );
+}
+
 function Detail({ o, onClose, onChange }) {
   const { ws } = useWs();
   const toast = useToast();
@@ -341,7 +410,9 @@ function Detail({ o, onClose, onChange }) {
             <p className="text-ink-faint text-xs pt-1">Réponds directement là où la demande a été publiée, en restant utile plutôt que commercial.</p>
           </div>
         )}
-        {o.kind !== "appel_offres" && o.kind !== "besoin" && <ContactReady o={o} onChange={onChange} />}
+        {o.kind === "appel_offres" && <TenderHelp o={o} onChange={onChange} />}
+        {o.kind !== "appel_offres" && o.kind !== "besoin" && !["salon", "budget", "difficulte"].includes(o.kind) && <ContactReady o={o} onChange={onChange} />}
+        <TeamActions o={o} onChange={onChange} />
 
         <div className="mt-8 flex flex-col gap-2">
           {o.kind === "appel_offres"
@@ -425,7 +496,7 @@ function Searching({ ws }) {
     setBusy(true);
     try {
       const split = (t) => t.split(/[,;\n]/).map((x) => x.trim()).filter(Boolean);
-      const r = await fn("r/radar-config", { workspace_id: ws.id, set: true, postes: split(edit.postes), mots_cles: split(edit.mots_cles), activites: split(edit.activites), marches: edit.marches, europe: edit.europe });
+      const r = await fn("r/radar-config", { workspace_id: ws.id, set: true, postes: split(edit.postes), mots_cles: split(edit.mots_cles), activites: split(edit.activites), marches: edit.marches, europe: edit.europe, webhook: edit.webhook ?? "" });
       setC({ ...c, radar_cfg: r.radar_cfg }); setEdit(null); toast("Le Radar cherchera avec ces réglages dès le prochain scan", "good");
     } catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
   };
@@ -441,7 +512,7 @@ function Searching({ ws }) {
     <Card className="p-5 sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2.5 font-bold text-[19px]"><span className="text-accent"><Ico name="target" className="h-6 w-6" /></span>Ce que le Radar cherche</h2>
-        {c && !edit && <button onClick={() => setEdit({ postes: (cfg.postes ?? []).join(", "), mots_cles: (cfg.mots_cles ?? []).join(", "), activites: (cfg.activites ?? []).join(", "), marches: cfg.marches !== false, europe: !!cfg.europe })} className="text-[13px] font-semibold text-accent hover:underline">Modifier</button>}
+        {c && !edit && <button onClick={() => setEdit({ postes: (cfg.postes ?? []).join(", "), mots_cles: (cfg.mots_cles ?? []).join(", "), activites: (cfg.activites ?? []).join(", "), marches: cfg.marches !== false, europe: !!cfg.europe, webhook: cfg.webhook ?? "" })} className="text-[13px] font-semibold text-accent hover:underline">Modifier</button>}
       </div>
       {!c ? <div className="py-8 grid place-items-center"><Spinner /></div> : edit ? (
         <div className="mt-4 space-y-3 text-sm">
@@ -453,6 +524,9 @@ function Searching({ ws }) {
           {edit.marches && <label className="flex items-center gap-2"><input type="checkbox" checked={edit.europe} onChange={(e) => setEdit({ ...edit, europe: e.target.checked })} /><span>Inclure les appels d'offres des pays voisins (Belgique, Luxembourg, Allemagne, Espagne, Italie, Pays-Bas, Portugal)</span></label>}
           <label className="block"><span className="font-medium">Activités de tes cibles, telles qu'écrites au registre</span>
             <textarea rows={2} value={edit.activites} onChange={(e) => setEdit({ ...edit, activites: e.target.value })} className="mt-1 w-full rounded-xl border border-line px-3 py-2" placeholder="conseil en gestion, agence immobilière" /></label>
+          <label className="block"><span className="font-medium">Alertes instantanées dans Slack ou Teams (facultatif)</span>
+            <input value={edit.webhook} onChange={(e) => setEdit({ ...edit, webhook: e.target.value })} className="mt-1 w-full rounded-xl border border-line px-3 py-2" placeholder="Adresse de webhook entrant (https://hooks.slack.com/…)" />
+            <span className="text-[11.5px] text-ink-faint">Dans Slack : Applications → « Incoming Webhooks ». Dans Teams : connecteur « Incoming Webhook » du canal.</span></label>
           <p className="text-xs text-ink-faint">Sépare par des virgules. La zone et les cibles se règlent dans Réglages.</p>
           <div className="flex gap-2"><Button variant="accent" loading={busy} onClick={save}>Enregistrer</Button><Button variant="ghost" onClick={() => setEdit(null)}>Annuler</Button></div>
         </div>
@@ -463,6 +537,7 @@ function Searching({ ws }) {
           <Row icon="users" title="Recrutements qui signalent un besoin">{(cfg.postes ?? []).map((x) => <Tag key={x}>{x}</Tag>)}</Row>
           <Row icon="up" title="Signaux de croissance"><Tag>Levées de fonds</Tag><Tag>Nouveaux sites</Tag><Tag>Rachats</Tag><Tag>Créations</Tag></Row>
           <Row icon="doc" title="Marchés publics">{cfg.marches === false ? <Tag>Désactivés : pas adaptés à ton offre</Tag> : <>{(cfg.mots_cles ?? []).map((x) => <Tag key={x}>{x}</Tag>)}<Tag>{cfg.europe ? "France + pays voisins" : "France (BOAMP + TED)"}</Tag><Tag>Renouvellements à venir</Tag></>}</Row>
+          <Row icon="up" title="Presse et collectivités (chaque semaine)"><Tag>Levées de fonds</Tag><Tag>Aides publiques</Tag><Tag>Projets votés</Tag><Tag>Permis et chantiers</Tag><Tag>Salons</Tag>{cfg.webhook ? <Tag>Alertes Slack / Teams actives</Tag> : null}</Row>
           <Row icon="user" title="Annonces légales (BODACC)"><Tag>Nouveau dirigeant</Tag><Tag>Déménagement</Tag><Tag>Rachat</Tag><Tag>Ouverture d'établissement</Tag>{(cfg.activites ?? []).slice(0, 4).map((x) => <Tag key={x}>créations : {x}</Tag>)}</Row>
           <Learned cfg={cfg} />
         </div>

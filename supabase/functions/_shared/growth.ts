@@ -318,6 +318,20 @@ export async function syncCrm(ws: Workspace, max = 25) {
   return { synced: n, errors: errors.slice(0, 3) };
 }
 
+/** Envoie une seule fiche au CRM (ex. depuis le Radar), quel que soit son statut. */
+export async function pushOneToCrm(ws: Workspace, prospectId: string) {
+  if (!ws.integrations?.hubspot?.ok && !ws.integrations?.pipedrive?.ok) throw new HttpError(400, "Aucun CRM connecté : branche HubSpot ou Pipedrive dans Réglages → Connexions");
+  const { data: sec } = await admin.from("workspace_secrets").select("hubspot_token, pipedrive_token").eq("workspace_id", ws.id).maybeSingle();
+  const { data: p } = await admin.from("prospects").select("*").eq("id", prospectId).eq("workspace_id", ws.id).single();
+  if (!p) throw new HttpError(404, "Prospect introuvable");
+  let ids = { ...(p.crm_ids ?? {}) };
+  if (ws.integrations?.hubspot?.ok && sec?.hubspot_token) ids = await pushHubspot(sec.hubspot_token, { ...p, crm_ids: ids });
+  if (ws.integrations?.pipedrive?.ok && sec?.pipedrive_token) ids = await pushPipedrive(sec.pipedrive_token, { ...p, crm_ids: ids });
+  await admin.from("prospects").update({ crm_ids: ids }).eq("id", p.id);
+  await log(ws.id, "crm", `${p.name} envoyée au CRM depuis le Radar`);
+  return { ok: true };
+}
+
 // =====================================================================
 // Agenda : flux iCal à ajouter dans Google Agenda ou Outlook
 // =====================================================================
