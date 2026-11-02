@@ -34,12 +34,13 @@ export function knowledgeOf(ws: { knowledge?: string }) {
 }
 
 // ---------------------------------------------------------------- Abonnements
-// ai : budget IA mensuel en euros (coût réel pour Bingoo!), environ 15 à 20 % du prix de l'abonnement.
+// ai : budget IA mensuel en euros (coût réel pour Bingoo!), environ 19 % du prix de l'abonnement.
+// Prix placés sous les outils de référence (La Growth Machine, lemlist, Waalaxy Business) ; annuel : −20 %.
 export const PLANS: Record<string, { label: string; price: number; factor: number; seats: number; credits: number; ai: number }> = {
   essai: { label: "Essai gratuit", price: 0, factor: 0.5, seats: 1, credits: 30, ai: 4 },
-  solo: { label: "Solo", price: 79, factor: 1, seats: 1, credits: 300, ai: 14 },
-  pro: { label: "Pro", price: 149, factor: 2, seats: 3, credits: 1000, ai: 26 },
-  equipe: { label: "Équipe", price: 299, factor: 4, seats: 10, credits: 3000, ai: 50 },
+  solo: { label: "Solo", price: 59, factor: 1, seats: 1, credits: 300, ai: 11 },
+  pro: { label: "Pro", price: 129, factor: 2, seats: 3, credits: 1000, ai: 24 },
+  equipe: { label: "Équipe", price: 249, factor: 4, seats: 10, credits: 3000, ai: 46 },
   fondateur: { label: "Fondateur", price: 0, factor: 1, seats: 50, credits: 5000, ai: 15 },
 };
 type PlanFields = { plan?: string; plan_status?: string; trial_ends?: string | null };

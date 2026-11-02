@@ -7,7 +7,7 @@ import { cx } from "../lib/utils";
 import { SubNav } from "../components/SubNav";
 
 const FEATURES = {
-  solo: ["1 utilisateur", "Prospection illimitée dans le registre", "Recherche des coordonnées incluse (site et web)", "Veille de 20 concurrents / jour", "Boîte mail, CRM, agenda"],
+  solo: ["1 utilisateur", "Radar : appels d'offres, contrats à renouveler, nouveaux dirigeants", "Espion : veille de tes concurrents", "Mission : prospects trouvés, e-mails rédigés, relances", "Boîte mail, CRM, agenda"],
   pro: ["3 utilisateurs", "Quotas IA doublés", "Répartition des prospects"],
   equipe: ["10 utilisateurs", "Quotas IA ×4", "Tableau de bord par commercial", "Accompagnement au démarrage"],
 };
@@ -34,6 +34,7 @@ export default function Abonnement() {
   const [plans, setPlans] = useState([]);
   const [busy, setBusy] = useState(null);
   const [ai, setAi] = useState(null);
+  const [yearly, setYearly] = useState(false);
   useEffect(() => { supabase.rpc("ai_month", { p_ws: ws.id }).then(({ data }) => setAi(data ?? null)); }, [ws.id]);
   useEffect(() => { fn("plans").then((r) => setPlans(r.plans)).catch(() => {}); }, []);
   useEffect(() => {
@@ -44,7 +45,7 @@ export default function Abonnement() {
 
   const go = async (route, plan) => {
     setBusy(plan ?? route);
-    try { const r = await fn(route, { workspace_id: ws.id, plan }); window.location.href = r.url; }
+    try { const r = await fn(route, { workspace_id: ws.id, plan, yearly }); window.location.href = r.url; }
     catch (e) { toast(e.message, "bad"); setBusy(null); }
   };
 
@@ -67,6 +68,9 @@ export default function Abonnement() {
 
       {ai && <AiGauge ai={ai} />}
 
+      <div className="mb-4 inline-flex rounded-full border border-line bg-white p-1 text-sm">
+        {[[false, "Mensuel"], [true, "Annuel · −20 %"]].map(([v, l]) => <button key={l} onClick={() => setYearly(v)} className={cx("rounded-full px-4 py-1.5 font-medium transition", yearly === v ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
+      </div>
       <div className="grid md:grid-cols-3 gap-4">
         {plans.map((p) => {
           const current = ws.plan === p.key && ["active", "trialing", "past_due"].includes(ws.plan_status);
@@ -74,7 +78,8 @@ export default function Abonnement() {
           return (
             <Card key={p.key} className={cx("p-5 sm:p-6 flex flex-col min-w-0", featured && "!border-ink ring-1 ring-ink")}>
               <div className="flex items-center justify-between gap-2"><p className="font-semibold">{p.label}</p>{featured && <Badge tone="accent">Le plus choisi</Badge>}</div>
-              <p className="mt-3"><span className="font-serif text-5xl tnum">{p.price} €</span><span className="text-ink-soft text-sm"> HT / mois</span></p>
+              <p className="mt-3"><span className="font-serif text-5xl tnum">{yearly ? Math.round(p.price * 0.8) : p.price} €</span><span className="text-ink-soft text-sm"> HT / mois</span></p>
+              <p className="text-xs text-ink-faint mt-1">{yearly ? `soit ${Math.round(p.price * 12 * 0.8)} € HT par an, au lieu de ${p.price * 12} €` : "sans engagement"}</p>
               <ul className="mt-4 space-y-2 text-sm flex-1">{(FEATURES[p.key] ?? []).map((f) => <li key={f} className="flex gap-2"><span className="text-good">✓</span><span>{f}</span></li>)}</ul>
               <Button className="mt-6 w-full" variant={featured ? "primary" : "default"} disabled={current || ws.plan === "fondateur"} loading={busy === p.key} onClick={() => go("billing-checkout", p.key)}>
                 {current ? "Ta formule actuelle" : ws.stripe_subscription ? "Changer pour celle-ci" : "Choisir"}
