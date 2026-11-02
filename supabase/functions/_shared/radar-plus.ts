@@ -75,7 +75,7 @@ async function ftAuth() {
   const body = new URLSearchParams({ grant_type: "client_credentials", client_id: env("FT_CLIENT_ID"), client_secret: env("FT_CLIENT_SECRET"), scope: "api_offresdemploiv2 o2dsoffre" });
   const r = await fetch("https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=%2Fpartenaire", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body, signal: AbortSignal.timeout(15000) });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok || !j.access_token) throw new Error(`France Travail : connexion refusée (${r.status})`);
+  if (!r.ok || !j.access_token) throw new Error(`France Travail : connexion refusée (${r.status} ${String(j.error ?? "")} ${String(j.error_description ?? "").slice(0, 120)})`.trim());
   ftToken = { v: j.access_token, exp: Date.now() + (Number(j.expires_in) || 1200) * 1000 };
   return ftToken.v;
 }
