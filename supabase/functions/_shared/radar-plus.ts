@@ -48,7 +48,10 @@ export async function siteWatch(ws: Workspace): Promise<Opp[]> {
   const day = new Date(Date.now() - 20 * 36e5).toISOString();
   const { data } = await admin.from("radar_watch").select("id, siren, name, url, site_hash, dept, city").eq("workspace_id", ws.id).not("url", "is", null).or(`checked_at.is.null,checked_at.lt.${day}`).order("checked_at", { ascending: true, nullsFirst: true }).limit(15);
   if (!data?.length) return [];
-  const { siteText, sha } = await import("./pro.ts");
+  const { sha } = await import("./pro.ts");
+  const { fetchHtml, textOf } = await import("./analyze.ts");
+  // Lecture simple de la page (sans IA, sans recherche web) : la surveillance quotidienne reste gratuite
+  const siteText = async (u: string) => textOf(await fetchHtml(u));
   const out: Opp[] = [];
   for (const w of data as { id: string; siren: string; name: string; url: string; site_hash: string | null; dept: string; city: string }[]) {
     let text = "", hash = w.site_hash;

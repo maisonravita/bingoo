@@ -6,7 +6,7 @@ import { countTarget } from "./search.ts";
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 
-function textOf(html: string): string {
+export function textOf(html: string): string {
   // Découpe simple (peu coûteuse en calcul) : on retire scripts, styles et SVG puis les balises
   let out = "";
   let i = 0;
