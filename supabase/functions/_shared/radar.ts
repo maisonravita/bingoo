@@ -4,7 +4,7 @@
 // Rien n'est inventé : chaque opportunité a une source vérifiable.
 import { HttpError } from "./http.ts";
 import { admin, aiRoom, askJson, log, setAi, type Workspace } from "./core.ts";
-import { ftOffers, ftReady, pickTop3, siteWatch } from "./radar-plus.ts";
+import { findTwins, ftOffers, ftReady, pickTop3, siteWatch, whoToCall, zoneEvents } from "./radar-plus.ts";
 import { learn, nameRenewals, newCompanies, type Opp, type PublicItem, rejected, renewals, rescore, tagProspects, tedTenders, watchProspects } from "./radar-signals.ts";
 
 const BOAMP = "https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records";
@@ -208,7 +208,7 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
     const step = <T,>(k: Exclude<StepKey, "lance" | "tri">, job: Promise<T[]>, label: string) => job.then(
       (r) => { if (p.steps[k].s !== "saute") p.steps[k] = { s: "fait", at: at(), n: r.length }; put(); return r; },
       (e) => { console.error("radar", k, e); if (label) errors.push(label); p.steps[k] = { s: "erreur", at: at() }; put(); return [] as T[]; });
-    const [boamp, ted, ren, legal, fresh, w, g, jobs, sites] = await Promise.all([
+    const [boamp, ted, ren, legal, fresh, w, g, jobs, sites, zev] = await Promise.all([
       pub ? tenders(ws, cfg).catch((e) => { console.error("boamp", e); errors.push("appels d'offres"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
       pub ? tedTenders(cfg.mots_cles, zone, !!cfg.europe).catch((e) => { console.error("ted", e); errors.push("appels d'offres européens"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
       pub && zone.length ? renewals(ws, cfg.mots_cles, zone).catch((e) => { console.error("decp", e); errors.push("renouvellements"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
@@ -218,8 +218,9 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
       step("registre", registrySignals(ws), ""),
       step("emploi", ftReady() && zone.length ? ftOffers(ws, cfg.postes, zone) : Promise.resolve([] as Opp[]), "offres d'emploi France Travail"),
       siteWatch(ws).catch((e) => { console.error("sites", e); return [] as Opp[]; }),
+      zoneEvents(ws, cfg.activites ?? [], zone).catch((e) => { console.error("zone", e); return [] as Opp[]; }),
     ]);
-    p.steps.annonces = { s: "fait", at: at(), n: legal.length + fresh.length + sites.length }; await put();
+    p.steps.annonces = { s: "fait", at: at(), n: legal.length + fresh.length + sites.length + zev.length }; await put();
     // Un seul tri par l'IA pour tous les marchés publics
     const pubOk = await relevant(ws, [...boamp, ...ted, ...ren]).catch((e) => { console.error("tri marches", e); errors.push("tri des marchés"); return [] as Opp[]; });
     const t = pubOk.filter((o) => o.kind === "appel_offres"), r = pubOk.filter((o) => o.kind === "renouvellement");
@@ -227,9 +228,12 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
     if (pub) p.steps.marches = { s: "fait", at: at(), n: t.length };
     if (p.steps.renouvellements.s === "en_cours") p.steps.renouvellements = { s: "fait", at: at(), n: r.length };
     p.steps.tri = { s: "en_cours", at: at() }; await put();
-    const all = [...t, ...r, ...legal, ...fresh, ...w, ...g, ...jobs, ...sites];
+    const all = [...t, ...r, ...legal, ...fresh, ...w, ...g, ...jobs, ...sites, ...zev];
     const added = await save(ws, all);
     await tagProspects(legal).catch(() => null);
+    // Qui appeler (dirigeant, recruteur, service achats) et entreprises fermées ; jumeaux de tes clients (chaque semaine)
+    await whoToCall(ws).catch((e) => console.error("contacts", e));
+    await findTwins(ws).catch((e) => console.error("jumeaux", e));
     // Apprentissage + score « entreprise chaude » + date limite + filtre + alertes
     const brain = await learn(ws.id);
     const sc = await rescore(ws, brain.poids);

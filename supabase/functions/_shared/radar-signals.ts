@@ -39,7 +39,7 @@ const ods = (base: string, p: Record<string, string>) => { const u = new URL(bas
 const parse = (s: unknown) => { if (!s) return null; if (typeof s === "object") return s as Record<string, unknown>; try { return JSON.parse(String(s)); } catch { return null; } };
 
 /** Fiche registre (nom, activité NAF, effectif, ville) : API publique Recherche d'entreprises, mise en cache pendant l'analyse. */
-type Company = { siren: string; nom: string; naf: string; tranche: string; ville: string; cp: string; dirigeant?: string };
+type Company = { siren: string; nom: string; naf: string; tranche: string; ville: string; cp: string; dirigeant?: string; role?: string; ferme?: boolean };
 const cache = new Map<string, Company | null>();
 export async function lookup(id: string): Promise<Company | null> {
   const k = String(id ?? "").replace(/\D/g, "");
@@ -48,7 +48,11 @@ export async function lookup(id: string): Promise<Company | null> {
   const d = await getJson(`${REGISTRY}?q=${k}&per_page=1`);
   // deno-lint-ignore no-explicit-any
   const r = (d?.results ?? [])[0] as any;
-  const c = r ? { siren: r.siren, nom: cap(r.nom_complet ?? ""), naf: r.activite_principale ?? "", tranche: r.tranche_effectif_salarie ?? "", ville: cap(r.siege?.libelle_commune ?? ""), cp: r.siege?.code_postal ?? "" } : null;
+  // Dirigeant (personne physique, hors commissaires aux comptes) : la personne à appeler
+  // deno-lint-ignore no-explicit-any
+  const boss = (r?.dirigeants ?? []).find((x: any) => x.type_dirigeant === "personne physique" && x.nom && !/commissaire|suppl[ée]ant/i.test(x.qualite ?? ""));
+  const c = r ? { siren: r.siren, nom: cap(r.nom_complet ?? ""), naf: r.activite_principale ?? "", tranche: r.tranche_effectif_salarie ?? "", ville: cap(r.siege?.libelle_commune ?? ""), cp: r.siege?.code_postal ?? "",
+    dirigeant: boss ? cap(`${String(boss.prenoms ?? "").split(" ")[0]} ${boss.nom}`.trim()) : "", role: boss?.qualite ?? "", ferme: r.etat_administratif === "C" } : null;
   cache.set(k, c);
   return c;
 }
@@ -190,11 +194,26 @@ function classify(b: Bodacc): { kind: Kind; title: string; summary: string; why:
   return null;
 }
 
+/** « Nomination du Directeur général : Billiard, Vincent » → « Vincent Billiard, Directeur général ». */
+export function newLeader(text: string) {
+  const parts = String(text ?? "").split(/\s*;\s*/).filter((x) => !/partant|commissaire/i.test(x));
+  const p = parts.find((x) => /nomination|nouveau|nouvelle/i.test(x)) ?? parts.find((x) => /(pr[ée]sident|g[ée]rant|directeur)/i.test(x));
+  const m = p?.match(/(pr[ée]sident[^:]*|g[ée]rant[^:]*|directeur[^:]*)\s*:\s*([^;]+)/i);
+  if (!m) return null;
+  const role = m[1].replace(/^(nomination|modification) d[eu]s?\s*/i, "").trim();
+  const raw = m[2].trim();
+  if (/\b(SAS|SARL|SA|HOLDING|GROUPE|SOCIETE)\b/.test(raw)) return null; // personne morale
+  const [nom, prenoms] = raw.includes(",") ? raw.split(",").map((x) => x.trim()) : [raw, ""];
+  const name = cap(`${(prenoms ?? "").split(" ")[0]} ${nom}`.trim());
+  return name.length > 3 ? { nom: name, role: cap(role).slice(0, 60), source: "BODACC" } : null;
+}
+
 function toOpp(b: Bodacc, c: ReturnType<typeof classify>, prospect?: { id?: string | null; name: string; watch?: boolean }): Opp {
   return {
     key: `bodacc:${b.id}`, kind: c!.kind, title: `${prospect?.name || cap(b.commercant)} · ${c!.title}`.slice(0, 240), company: (prospect?.name || cap(b.commercant)).slice(0, 160),
     summary: c!.summary, why: c!.why, city: cap(b.ville ?? ""), dept: String(b.numerodepartement ?? "").slice(0, 3), url: bodaccUrl(b.id), source: "BODACC (annonces légales officielles)",
-    published: b.dateparution, siren: sirenOf(b) || null, prospect_id: prospect?.id || null, raw: { bodacc: b.id, evenement: c!.title, ...(prospect?.watch ? { watch: true } : {}) },
+    published: b.dateparution, siren: sirenOf(b) || null, prospect_id: prospect?.id || null,
+    raw: { bodacc: b.id, evenement: c!.title, ...(prospect?.watch ? { watch: true } : {}), ...(c!.kind === "dirigeant" && newLeader(c!.summary) ? { contact: newLeader(c!.summary) } : {}) },
   };
 }
 
@@ -318,6 +337,7 @@ export async function rescore(ws: Workspace, poids: Record<string, number>) {
     const hit = (r.siren && excl.get(`s:${r.siren}`)) || (r.prospect_id && excl.get(`p:${r.prospect_id}`)) || (!pub && excl.get(`n:${norm(r.company)}`));
     if (hit) return hit;
     if (!pub && rivals.some((v) => norm(r.company).split(" ").includes(v))) return "c'est un concurrent";
+    if (r.raw?.ferme) return "entreprise fermée";
     const naf = String(r.raw?.naf ?? ""), tr = String(r.raw?.tranche ?? "");
     if (!pub && naf && nafs.length && !nafs.includes(naf.slice(0, 4))) return "hors de tes secteurs";
     if (!pub && r.kind !== "creation" && tr && tr !== "NN" && tranches.size && !tranches.has(tr)) return "taille hors cible";
@@ -389,4 +409,12 @@ export async function tagProspects(opps: Opp[]) {
     if (cur.some((s) => s.url === o.url)) continue;
     await admin.from("prospects").update({ signals: [{ type: o.kind, label: `${o.raw?.evenement ?? KIND_LABEL[o.kind]} : ${o.summary}`.slice(0, 200), url: o.url, date: o.published }, ...cur].slice(0, 12) }).eq("id", o.prospect_id!);
   }
+}
+
+// Accès partagés pour l'étape 3 (toute la zone)
+export const classifyBodacc = (b: Bodacc) => classify(b);
+export const bodaccOpp = (b: Bodacc, c: ReturnType<typeof classify>) => toOpp(b, c);
+export async function bodaccFetch(where: string) {
+  const d = await getJson(ods(BODACC, { where, limit: "100", order_by: "dateparution desc" }));
+  return (d?.results ?? []) as Bodacc[];
 }
