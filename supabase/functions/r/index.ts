@@ -71,7 +71,9 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (!ftReady()) return { secrets: false };
     const { env } = await import("../_shared/core.ts");
     const id = env("FT_CLIENT_ID").trim(), sec = env("FT_CLIENT_SECRET").trim();
-    const forme = { identifiant_commence_par_PAR: id.startsWith("PAR_"), longueur_identifiant: id.length, longueur_cle: sec.length, cle_commence_par_PAR: sec.startsWith("PAR_") };
+    const dg = async (v: string) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(v)))].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 8);
+    const forme = { identifiant_commence_par_PAR: id.startsWith("PAR_"), longueur_identifiant: id.length, longueur_cle: sec.length, cle_commence_par_PAR: sec.startsWith("PAR_"),
+      empreinte_cle: await dg(env("FT_CLIENT_SECRET")), empreinte_id: await dg(env("FT_CLIENT_ID")) };
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", "69871493-9885-465b-a597-f560e8656cd8").single();
     const { lbbCompanies } = await import("../_shared/radar-plus.ts");
     const off = await ftOffers(ws, ["agent de propreté"], ["92"]).then((o) => ({ ok: true, n: o.length, ex: o.slice(0, 3).map((x) => `${x.company} · ${x.summary}`) }), (e) => ({ ok: false, erreur: (e as Error).message }));
