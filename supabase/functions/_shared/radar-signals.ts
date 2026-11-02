@@ -18,7 +18,7 @@ const addMonths = (d: Date | string, n: number) => { const x = new Date(d); x.se
 const q = (s: string) => `"${String(s).replace(/"/g, "")}"`;
 const cap = (s: string) => String(s ?? "").toLowerCase().replace(/(^|[\s'-])\p{L}/gu, (m) => m.toUpperCase());
 
-export type Kind = "appel_offres" | "croissance" | "recrutement" | "besoin" | "renouvellement" | "dirigeant" | "demenagement" | "creation" | "site" | "levee" | "permis" | "aide" | "budget" | "salon" | "difficulte";
+export type Kind = "appel_offres" | "croissance" | "recrutement" | "besoin" | "renouvellement" | "dirigeant" | "demenagement" | "creation" | "site" | "levee" | "permis" | "aide" | "budget" | "salon" | "difficulte" | "client_concurrent";
 export type Opp = {
   key: string; kind: Kind; title: string; company: string; summary: string; why?: string; city?: string; dept?: string; url: string; source: string;
   published?: string | null; deadline?: string | null; prospect_id?: string | null; raw?: Record<string, unknown>; siren?: string | null; expires_at?: string | null;
@@ -276,9 +276,9 @@ export async function newCompanies(ws: Workspace, activites: string[], zone: str
 }
 
 // ---------------------------------------------------------------- 3. Score, date limite, filtre, apprentissage, alertes
-const BASE: Record<Kind, number> = { appel_offres: 70, renouvellement: 66, besoin: 62, dirigeant: 58, demenagement: 54, recrutement: 52, creation: 48, croissance: 48, levee: 60, budget: 58, permis: 52, aide: 50, salon: 40, site: 38, difficulte: 10 };
-const TTL: Record<Kind, number> = { appel_offres: 30, renouvellement: 120, besoin: 30, dirigeant: 90, demenagement: 60, recrutement: 45, creation: 60, croissance: 90, levee: 90, budget: 180, permis: 120, aide: 90, salon: 60, site: 30, difficulte: 180 };
-export const KIND_LABEL: Record<Kind, string> = { appel_offres: "appel d'offres", renouvellement: "contrat public à renouveler", besoin: "besoin exprimé", dirigeant: "nouveau dirigeant", demenagement: "déménagement", recrutement: "recrutement", creation: "création ou ouverture", croissance: "croissance", levee: "levée de fonds", budget: "projet voté par une collectivité", permis: "permis de construire", aide: "aide publique reçue", salon: "salon professionnel", site: "site web modifié", difficulte: "difficultés financières" };
+const BASE: Record<Kind, number> = { appel_offres: 70, renouvellement: 66, besoin: 62, dirigeant: 58, demenagement: 54, recrutement: 52, creation: 48, croissance: 48, levee: 60, budget: 58, permis: 52, aide: 50, salon: 40, site: 38, difficulte: 10, client_concurrent: 60 };
+const TTL: Record<Kind, number> = { appel_offres: 30, renouvellement: 120, besoin: 30, dirigeant: 90, demenagement: 60, recrutement: 45, creation: 60, croissance: 90, levee: 90, budget: 180, permis: 120, aide: 90, salon: 60, site: 30, difficulte: 180, client_concurrent: 120 };
+export const KIND_LABEL: Record<Kind, string> = { appel_offres: "appel d'offres", renouvellement: "contrat public à renouveler", besoin: "besoin exprimé", dirigeant: "nouveau dirigeant", demenagement: "déménagement", recrutement: "recrutement", creation: "création ou ouverture", croissance: "croissance", levee: "levée de fonds", budget: "projet voté par une collectivité", permis: "permis de construire", aide: "aide publique reçue", salon: "salon professionnel", site: "site web modifié", difficulte: "difficultés financières", client_concurrent: "cliente d'un concurrent" };
 
 type Row = { id: string; kind: Kind; company: string; siren: string | null; status: string; published: string | null; created_at: string; deadline: string | null; expires_at: string | null; prospect_id: string | null; raw: Record<string, unknown> | null; score: number | null; alerted_at: string | null; feedback: string | null; title: string };
 

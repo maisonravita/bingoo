@@ -22,6 +22,7 @@ const KIND = {
   aide: { label: "Aide publique reçue", plural: "Aides publiques", dot: "#0D9488", chip: "bg-[#CCFBF1] text-[#115E59]", icon: "doc" },
   budget: { label: "Projet voté", plural: "Projets votés", dot: "#7C3AED", chip: "bg-[#EDE9FE] text-[#5B21B6]", icon: "doc" },
   salon: { label: "Salon professionnel", plural: "Salons", dot: "#EA580C", chip: "bg-accent-soft text-accent-dark", icon: "users" },
+  client_concurrent: { label: "Cliente d'un concurrent", plural: "Clients de tes concurrents", dot: "#BE123C", chip: "bg-[#FFE4E6] text-[#9F1239]", icon: "target" },
   difficulte: { label: "Difficultés financières", plural: "Entreprises en difficulté", dot: "#DC2626", chip: "bg-bad-soft text-bad", icon: "x" },
 };
 const EVENTS = ["dirigeant", "demenagement", "creation"];
@@ -65,10 +66,12 @@ const jitter = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt
 const SECTIONS = [
   ["opps", "Opportunités", "Les plus chaudes d'abord"],
   ["comptes", "Comptes surveillés", "Tes entreprises rêvées"],
+  ["partenaires", "Partenaires", "Apporteurs d'affaires"],
   ["marche", "Marché public", "Renouvellements, prix, concurrents"],
   ["resultats", "Résultats", "Ce que le Radar t'a rapporté"],
   ["reglages", "Réglages et activité", "Ce qu'il cherche, dernier scan"],
 ];
+const euroK = (n) => Number(n) >= 1000 ? `${(Number(n) / 1000).toLocaleString("fr-FR", { maximumFractionDigits: Number(n) >= 10000 ? 0 : 1 })} k€` : `${Math.round(Number(n))} €`;
 const heat = (n) => n >= 80 ? "bg-bad text-white" : n >= 65 ? "bg-accent text-white" : n >= 50 ? "bg-accent-soft text-accent-dark" : "bg-[#EFEEEA] text-ink-soft";
 const Score = ({ n, big }) => n ? <span title="Score : à quel point c'est le bon moment" className={cx("inline-flex items-center justify-center rounded-full font-bold tnum shrink-0 leading-none", big ? "h-12 w-12 text-[17px]" : "h-9 w-9 text-[13px]", heat(n))}>{n}</span> : null;
 
@@ -98,7 +101,7 @@ function HotCompanies({ list, onOpen }) {
                 <span className="mt-1 flex flex-wrap gap-1.5">{[...new Set(g.map((x) => x.kind))].map((k) => <span key={k} className={cx("rounded-full px-2 py-0.5 text-[11.5px] font-semibold", KIND[k]?.chip)}>{KIND[k]?.label}</span>)}</span>
                 <span className="block text-[12.5px] text-ink-soft mt-1.5 line-clamp-2">{(top.score_why ?? []).slice(1).join(" · ") || top.why}</span>
               </span>
-              {top.expires_at && <span className="hidden sm:block text-[12px] text-ink-faint shrink-0 text-right">avant le<br /><b className="text-ink">{dayFr(top.expires_at)}</b></span>}
+              {top.expires_at && <span className="hidden sm:block text-[12px] text-ink-faint shrink-0 text-right">avant le<br /><b className="text-ink">{dayFr(top.expires_at)}</b>{top.raw?.valeur ? <><br /><b className="text-ink">≈ {euroK(top.raw.valeur)}/an</b></> : null}</span>}
             </button>
           </li>
         ))}
@@ -378,6 +381,8 @@ function Detail({ o, onClose, onChange }) {
             </div>
           </div>
         ) : null}
+        {o.raw?.valeur ? <p className="mt-3 text-sm rounded-xl bg-paper px-3 py-2"><b>Valeur estimée : ≈ {euroK(o.raw.valeur)} par an</b><span className="text-ink-soft"> · {o.raw.valeur_how}</span></p> : null}
+        {o.kind === "client_concurrent" && <p className="mt-3 text-sm rounded-xl bg-[#FFE4E6]/60 px-3 py-2">Son site cite <b>{(o.raw?.concurrents ?? []).join(", ")}</b>. Ouvre Espion pour l'angle d'approche face à ce concurrent.</p>}
         {o.raw?.contact && (
           <div className="mt-3 rounded-2xl border border-good/30 bg-good-soft/40 p-4 text-sm">
             <p className="text-xs font-semibold uppercase tracking-wider text-good">Qui appeler</p>
@@ -504,7 +509,7 @@ function Searching({ ws }) {
     setBusy(true);
     try {
       const split = (t) => t.split(/[,;\n]/).map((x) => x.trim()).filter(Boolean);
-      const r = await fn("r/radar-config", { workspace_id: ws.id, set: true, postes: split(edit.postes), mots_cles: split(edit.mots_cles), activites: split(edit.activites), marches: edit.marches, europe: edit.europe, webhook: edit.webhook ?? "" });
+      const r = await fn("r/radar-config", { workspace_id: ws.id, set: true, postes: split(edit.postes), mots_cles: split(edit.mots_cles), activites: split(edit.activites), marches: edit.marches, europe: edit.europe, webhook: edit.webhook ?? "", panier: edit.panier });
       setC({ ...c, radar_cfg: r.radar_cfg }); setEdit(null); toast("Le Radar cherchera avec ces réglages dès le prochain scan", "good");
     } catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
   };
@@ -520,7 +525,7 @@ function Searching({ ws }) {
     <Card className="p-5 sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2.5 font-bold text-[19px]"><span className="text-accent"><Ico name="target" className="h-6 w-6" /></span>Ce que le Radar cherche</h2>
-        {c && !edit && <button onClick={() => setEdit({ postes: (cfg.postes ?? []).join(", "), mots_cles: (cfg.mots_cles ?? []).join(", "), activites: (cfg.activites ?? []).join(", "), marches: cfg.marches !== false, europe: !!cfg.europe, webhook: cfg.webhook ?? "" })} className="text-[13px] font-semibold text-accent hover:underline">Modifier</button>}
+        {c && !edit && <button onClick={() => setEdit({ postes: (cfg.postes ?? []).join(", "), mots_cles: (cfg.mots_cles ?? []).join(", "), activites: (cfg.activites ?? []).join(", "), marches: cfg.marches !== false, europe: !!cfg.europe, webhook: cfg.webhook ?? "", panier: cfg.panier ?? "" })} className="text-[13px] font-semibold text-accent hover:underline">Modifier</button>}
       </div>
       {!c ? <div className="py-8 grid place-items-center"><Spinner /></div> : edit ? (
         <div className="mt-4 space-y-3 text-sm">
@@ -532,6 +537,9 @@ function Searching({ ws }) {
           {edit.marches && <label className="flex items-center gap-2"><input type="checkbox" checked={edit.europe} onChange={(e) => setEdit({ ...edit, europe: e.target.checked })} /><span>Inclure les appels d'offres des pays voisins (Belgique, Luxembourg, Allemagne, Espagne, Italie, Pays-Bas, Portugal)</span></label>}
           <label className="block"><span className="font-medium">Activités de tes cibles, telles qu'écrites au registre</span>
             <textarea rows={2} value={edit.activites} onChange={(e) => setEdit({ ...edit, activites: e.target.value })} className="mt-1 w-full rounded-xl border border-line px-3 py-2" placeholder="conseil en gestion, agence immobilière" /></label>
+          <label className="block"><span className="font-medium">Ce que te rapporte un client moyen par an (€ HT)</span>
+            <input type="number" min="0" value={edit.panier} onChange={(e) => setEdit({ ...edit, panier: e.target.value })} className="mt-1 w-full rounded-xl border border-line px-3 py-2" placeholder="ex. 6000" />
+            <span className="text-[11.5px] text-ink-faint">Sert à estimer la valeur de chaque opportunité. Vide : calculé à partir de tes clients.</span></label>
           <label className="block"><span className="font-medium">Alertes instantanées dans Slack ou Teams (facultatif)</span>
             <input value={edit.webhook} onChange={(e) => setEdit({ ...edit, webhook: e.target.value })} className="mt-1 w-full rounded-xl border border-line px-3 py-2" placeholder="Adresse de webhook entrant (https://hooks.slack.com/…)" />
             <span className="text-[11.5px] text-ink-faint">Dans Slack : Applications → « Incoming Webhooks ». Dans Teams : connecteur « Incoming Webhook » du canal.</span></label>
@@ -617,7 +625,12 @@ function Market({ ws }) {
   const byBuyer = (name) => list.filter((r) => (r.buyer_name || r.buyer_id) === name);
   const annual = list.map((r) => r.montant && r.duree_mois ? (Number(r.montant) / Number(r.duree_mois)) * 12 : null).filter(Boolean);
   const holders = Object.values(list.reduce((m, r) => { if (!r.holder_name) return m; const k = r.holder_name; m[k] ??= { name: k, n: 0, total: 0 }; m[k].n++; m[k].total += Number(r.montant ?? 0); return m; }, {})).sort((a, b) => b.n - a.n).slice(0, 8);
-  const tabs = [["calendrier", `Renouvellements à 12 mois (${coming.length})`], ["concurrents", `Clients de tes concurrents (${rivalRows.length})`], ["prix", "Prix gagnants"]];
+  const switched = (() => {
+    const by = {};
+    for (const r of list.slice().sort((a, b) => String(a.notified).localeCompare(String(b.notified)))) { if (!r.holder_id) continue; (by[r.buyer_id] ??= []).push(r); }
+    return Object.values(by).filter((l) => l.length > 1 && l[l.length - 1].holder_id.slice(0, 9) !== l[l.length - 2].holder_id.slice(0, 9)).map((l) => ({ last: l[l.length - 1], prev: l[l.length - 2] })).sort((a, b) => String(b.last.notified).localeCompare(String(a.last.notified)));
+  })();
+  const tabs = [["calendrier", `Renouvellements à 12 mois (${coming.length})`], ["concurrents", `Clients de tes concurrents (${rivalRows.length})`], ["prix", "Prix gagnants"], ["changes", `Ont changé de prestataire (${switched.length})`]];
   const Line = ({ r }) => (
     <li className="py-2.5 flex items-start gap-3">
       <span className="min-w-0 flex-1">
@@ -645,6 +658,19 @@ function Market({ ws }) {
             <ul className="mt-4 divide-y divide-line">{coming.sort((a, b) => String(a.fin).localeCompare(String(b.fin))).slice(0, 25).map((r) => <Line key={r.id} r={r} />)}</ul>
             <p className="text-[11.5px] text-ink-faint mt-2">Présente-toi aux acheteurs 4 à 6 mois avant la fin : c'est quand ils rédigent le nouveau cahier des charges.</p>
           </>
+        ) : tab === "changes" ? (
+          !switched.length ? <p className="text-sm text-ink-soft">Aucun changement de prestataire repéré pour l'instant.</p> : (
+            <>
+              <p className="text-[12.5px] text-ink-soft mb-2">Ces acheteurs ont changé de prestataire à leur dernier contrat : ils sont ouverts au changement. En rouge, ceux qu'un de tes concurrents a perdus.</p>
+              <ul className="divide-y divide-line">{switched.slice(0, 30).map(({ last, prev }) => { const lost = isRival(prev); return (
+                <li key={last.id} className="py-2.5 text-sm">
+                  <button onClick={() => setBuyer(last.buyer_name || last.buyer_id)} className="font-medium hover:underline text-left">{last.buyer_name || "Acheteur public"}</button>
+                  <p className="text-[12.5px] text-ink-soft line-clamp-1">{last.objet}</p>
+                  <p className="text-[12px]"><span className={cx(lost ? "text-bad font-semibold" : "text-ink-faint")}>{prev.holder_name || "ancien titulaire"}</span><span className="text-ink-faint"> → {last.holder_name || "nouveau titulaire"} · {last.notified ? new Date(last.notified).toLocaleDateString("fr-FR", { month: "short", year: "numeric" }) : ""}{last.fin ? ` · fin estimée ${new Date(last.fin).toLocaleDateString("fr-FR", { month: "short", year: "numeric" })}` : ""}</span></p>
+                </li>
+              ); })}</ul>
+            </>
+          )
         ) : tab === "concurrents" ? (
           !rivals.length ? <p className="text-sm text-ink-soft">Ajoute tes concurrents dans Espion : le Radar retrouvera les contrats publics qu'ils détiennent.</p>
           : !rivalRows.length ? <p className="text-sm text-ink-soft">Aucun contrat public de tes concurrents suivis dans ta zone pour l'instant.</p>
@@ -673,6 +699,75 @@ function Market({ ws }) {
         )}
       </div>
       {buyer && <BuyerFiche name={buyer} rows={byBuyer(buyer)} onClose={() => setBuyer(null)} />}
+    </Card>
+  );
+}
+
+/** Partenaires apporteurs d'affaires : métiers qui servent les mêmes clients, et sociétés d'apport d'affaires de ta zone. */
+function Partners({ ws }) {
+  const toast = useToast();
+  const [rows, setRows] = useState(null);
+  const [busy, setBusy] = useState(null);
+  const load = useCallback(() => supabase.from("radar_partners").select("*").eq("workspace_id", ws.id).neq("status", "ecarte").order("created_at").limit(300).then(({ data }) => setRows(data ?? [])), [ws.id]);
+  useEffect(() => { load(); }, [load]);
+  const refresh = async () => { setBusy("refresh"); try { const r = await fn("r/partners-refresh", { workspace_id: ws.id }); await load(); toast(`${r.partenaires ?? 0} partenaires trouvés`, "good"); } catch (e) { toast(e.message, "bad"); } finally { setBusy(null); } };
+  const add = async (p) => { setBusy(p.id); try { await fn("r/partner-add", { workspace_id: ws.id, id: p.id }); setRows((x) => x.map((y) => y.id === p.id ? { ...y, status: "ajoute" } : y)); toast(`${p.name} ajouté aux prospects`, "good"); } catch (e) { toast(e.message, "bad"); } finally { setBusy(null); } };
+  const drop = async (p) => { await supabase.from("radar_partners").update({ status: "ecarte" }).eq("id", p.id); setRows((x) => x.filter((y) => y.id !== p.id)); };
+  const groups = (rows ?? []).reduce((m, p) => { (m[p.type] ??= []).push(p); return m; }, {});
+  const order = Object.keys(groups).sort((a, b) => (a === "Société d'apport d'affaires" ? -1 : b === "Société d'apport d'affaires" ? 1 : groups[b].length - groups[a].length));
+  return (
+    <Card className="p-5 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2.5 font-bold text-[19px]"><span className="text-accent"><Ico name="users" className="h-6 w-6" /></span>Partenaires apporteurs d'affaires</h2>
+        <button onClick={refresh} disabled={!!busy} className="text-[13px] font-semibold text-accent hover:underline disabled:opacity-50">{busy === "refresh" ? "Recherche… (1 minute)" : rows?.length ? "Mettre à jour" : "Trouver mes partenaires"}</button>
+      </div>
+      <p className="text-[13px] text-ink-soft mt-1">Des entreprises qui servent les mêmes clients que toi sans te concurrencer, et des sociétés dont le métier est l'apport d'affaires. Un bon partenaire t'envoie des clients chaque mois.</p>
+      {!rows ? <div className="py-8 grid place-items-center"><Spinner /></div> : !rows.length ? <p className="text-sm text-ink-faint text-center py-8">Clique sur « Trouver mes partenaires » : le Radar identifie les bons métiers pour ton offre, puis les entreprises de ta zone (mise à jour chaque mois).</p> : (
+        <div className="mt-4 space-y-5">
+          {order.map((t) => (
+            <div key={t}>
+              <p className="text-[12px] font-bold uppercase tracking-wider text-ink-soft">{t} <span className="text-ink-faint font-semibold normal-case">· {groups[t].length}</span></p>
+              <p className="text-[12.5px] text-ink-faint">{groups[t][0].pourquoi}</p>
+              {groups[t][0].message && <p className="text-[12.5px] mt-0.5"><span className="font-semibold text-accent-dark">Angle : </span>{groups[t][0].message}</p>}
+              <ul className="mt-2 divide-y divide-line">
+                {groups[t].slice(0, 8).map((p) => (
+                  <li key={p.id} className="py-2.5 flex items-center gap-3">
+                    <span className="min-w-0 flex-1"><span className="block font-medium text-[14px] truncate">{p.name}</span><span className="block text-[12px] text-ink-faint truncate">{[p.city && `${p.city}${p.dept ? ` (${p.dept})` : ""}`, p.contact].filter(Boolean).join(" · ")}</span></span>
+                    {p.status === "ajoute" ? <span className="text-[12px] font-semibold text-good shrink-0">Dans tes prospects</span> : <>
+                      <Button size="sm" variant="ghost" loading={busy === p.id} onClick={() => add(p)}>Ajouter</Button>
+                      <button onClick={() => drop(p)} title="Pas intéressant" className="text-ink-faint hover:text-bad"><Ico name="x" className="h-4 w-4" /></button>
+                    </>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/** Calendrier d'achat : les moments où tes clients décident, et ce qu'il faut faire avant. */
+function BuyingCalendar({ ws }) {
+  const [cal, setCal] = useState(null);
+  useEffect(() => { fn("r/radar-calendar", { workspace_id: ws.id }).then(setCal).catch(() => setCal({ moments: [] })); }, [ws.id]);
+  if (!cal?.moments?.length) return null;
+  const m0 = new Date().getMonth() + 1;
+  const dist = (mois) => Math.min(...mois.map((m) => (m - m0 + 12) % 12));
+  const next = cal.moments.slice().sort((a, b) => dist(a.mois) - dist(b.mois)).slice(0, 4);
+  return (
+    <Card className="p-4 sm:p-5">
+      <h2 className="flex items-center gap-2.5 font-bold text-[16px]"><span className="text-accent"><Ico name="clock" className="h-5 w-5" /></span>Calendrier d'achat de tes clients</h2>
+      <ul className="mt-3 space-y-3">
+        {next.map((m, i) => { const d = dist(m.mois); return (
+          <li key={i} className="text-[13px]">
+            <div className="flex items-center gap-2"><span className={cx("rounded-full px-2 py-0.5 text-[11px] font-bold", d === 0 ? "bg-accent text-white" : d <= 2 ? "bg-accent-soft text-accent-dark" : "bg-paper text-ink-soft")}>{d === 0 ? "En ce moment" : `Dans ${d} mois`}</span><b className="truncate">{m.titre}</b></div>
+            <p className="text-ink-soft mt-0.5 leading-snug">{m.pourquoi}</p>
+            <p className="mt-0.5 leading-snug"><span className="font-semibold text-accent-dark">À faire : </span>{m.action}</p>
+          </li>
+        ); })}
+      </ul>
     </Card>
   );
 }
@@ -965,6 +1060,7 @@ export default function Radar() {
                           <span className="block text-[13px] text-ink-soft truncate">{o.kind === "appel_offres" || o.kind === "renouvellement" ? o.title : o.summary}</span>
                           <span className="block text-xs text-ink-faint mt-0.5 truncate">{[o.city && `${o.city}${o.dept ? ` (${o.dept})` : ""}`, k?.label, o.kind === "appel_offres" && o.deadline ? `réponse avant le ${dayFr(o.deadline)}` : o.kind === "renouvellement" && o.raw?.fin ? `fin estimée ${new Date(o.raw.fin).toLocaleDateString("fr-FR", { month: "short", year: "numeric" })}` : o.expires_at ? `à contacter avant le ${dayFr(o.expires_at)}` : ago(o.created_at)].filter(Boolean).join(" · ")}</span>
                         </span>
+                        {o.raw?.valeur ? <span className="hidden md:inline text-[12px] font-semibold text-ink-soft tnum shrink-0">≈ {euroK(o.raw.valeur)}/an</span> : null}
                         <Score n={o.score} />
                         {o.kind === "appel_offres" ? (o.deadline && <span className={cx("hidden sm:inline-flex shrink-0 rounded-full px-2.5 py-1 text-[12px] font-semibold", daysTo(o.deadline) <= 10 ? "bg-bad-soft text-bad" : "bg-accent-soft text-accent-dark")}>J-{daysTo(o.deadline)}</span>)
                           : st ? <span className={cx("hidden sm:inline-flex shrink-0 rounded-full px-2.5 py-1 text-[12px] font-semibold", st[1])}>{st[0]}</span>
@@ -989,11 +1085,13 @@ export default function Radar() {
             <span className="text-accent mt-0.5"><Ico name="bulb" /></span>
             <div className="flex-1"><p className="font-semibold text-accent text-sm">Conseil de Max</p><p className="text-sm text-ink-soft mt-0.5">{tip}</p></div>
           </Card>
+          <BuyingCalendar ws={ws} />
           <Roi ws={ws} />
         </div>
       </div>
       )}
       {section === "comptes" && <div className="max-w-3xl"><Watchlist ws={ws} opps={list} onOpen={setOpen} /></div>}
+      {section === "partenaires" && <Partners ws={ws} />}
       {section === "marche" && <Market ws={ws} />}
       {section === "resultats" && <Roi ws={ws} />}
       {section === "reglages" && (

@@ -35,6 +35,34 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     await pushOneToCrm(ws, r.prospect_id);
     return { ok: true, prospect_id: r.prospect_id };
   },
+  async "partners-refresh"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    await quota(ws.id, "radar_scan", 4);
+    const { partnersRefresh } = await import("../_shared/radar-extra.ts");
+    return await partnersRefresh(ws);
+  },
+  async "partner-add"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { data: p } = await admin.from("radar_partners").select("*").eq("id", String(b.id ?? "")).eq("workspace_id", ws.id).single();
+    if (!p) throw new HttpError(404, "Partenaire introuvable");
+    if (p.prospect_id) return { prospect_id: p.prospect_id, existing: true };
+    const { data: ex } = await admin.from("prospects").select("id").eq("workspace_id", ws.id).eq("siren", p.siren).limit(1).maybeSingle();
+    let pid = ex?.id as string | undefined;
+    if (!pid) {
+      const [prenomNom, role] = String(p.contact ?? "").split(/\s*\(/);
+      const { data: np, error } = await admin.from("prospects").insert({ workspace_id: ws.id, target: "", name: p.name, siren: p.siren, activity: `Partenaire : ${p.type}`, city: p.city, postal_code: p.dept, contact_name: prenomNom || "", contact_role: (role ?? "").replace(/\)$/, ""),
+        notes: `Partenaire apporteur d'affaires (${p.type}). Angle : ${p.message ?? ""}`, signals: [{ type: "partenaire", label: `Partenaire potentiel : ${p.pourquoi ?? p.type}` }] }).select("id").single();
+      if (error) throw new HttpError(500, error.message);
+      pid = np.id;
+    }
+    await admin.from("radar_partners").update({ status: "ajoute", prospect_id: pid }).eq("id", p.id);
+    return { prospect_id: pid, existing: !!ex };
+  },
+  async "radar-calendar"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { buyingCalendar } = await import("../_shared/radar-extra.ts");
+    return await buyingCalendar(ws, b.force === true);
+  },
   async "watch-add"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const { watchAdd } = await import("../_shared/radar-plus.ts");

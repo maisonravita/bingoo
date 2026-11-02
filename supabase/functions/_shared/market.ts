@@ -96,7 +96,12 @@ export async function marketCron() {
     const { data: one } = await admin.from("public_contracts").select("workspace_id").eq("relevant", true).is("holder_name", null).not("holder_id", "is", null).limit(1);
     return one?.[0] ? { noms: await marketNames(one[0].workspace_id, 200) } : { rien: true };
   }
-  return { espace: ws.name, ...(await marketRefresh(ws)) };
+  const res = await marketRefresh(ws);
+  // Partenaires apporteurs d'affaires : une fois par mois
+  const pa = String((ws.radar_cfg as Record<string, unknown> | null)?.partners_at ?? "");
+  let partenaires: unknown = null;
+  if (!pa || pa < new Date(Date.now() - 30 * 864e5).toISOString()) { const { partnersRefresh } = await import("./radar-extra.ts"); partenaires = await partnersRefresh(ws).catch((e) => ({ erreur: (e as Error).message })); }
+  return { espace: ws.name, ...res, partenaires };
 }
 
 /** Clients de tes concurrents : contrats publics tenus par un concurrent suivi par Espion, avec la date de fin. */
