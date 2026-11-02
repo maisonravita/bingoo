@@ -4,6 +4,7 @@
 // Rien n'est inventé : chaque opportunité a une source vérifiable.
 import { HttpError } from "./http.ts";
 import { admin, askJson, log, type Workspace } from "./core.ts";
+import { learn, nameRenewals, newCompanies, type Opp, type PublicItem, rejected, renewals, rescore, tagProspects, tedTenders, watchProspects } from "./radar-signals.ts";
 
 const BOAMP = "https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records";
 const REGISTRY = "https://recherche-entreprises.api.gouv.fr/search";
@@ -11,12 +12,20 @@ const WEB = (n: number) => [{ type: "web_search_20250305", name: "web_search", m
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 const day = (d: number) => new Date(Date.now() - d * 864e5).toISOString().slice(0, 10);
 
-type Cfg = { v: 1; mots_cles: string[]; postes: string[]; marches: boolean; web_at?: string };
-type Opp = { key: string; kind: "appel_offres" | "croissance" | "recrutement"; title: string; company: string; summary: string; why?: string; city?: string; dept?: string; url: string; source: string; published?: string | null; deadline?: string | null; prospect_id?: string | null; raw?: unknown };
+type Cfg = { v: 1; mots_cles: string[]; postes: string[]; marches: boolean; web_at?: string; activites?: string[]; europe?: boolean; bodacc_at?: string; poids?: Record<string, number>; appris?: unknown };
 
 /** Mots-clés des marchés publics et postes « signal », déduits une fois de l'offre de l'entreprise. */
 async function config(ws: Workspace & { radar_cfg?: Cfg | null }, force = false): Promise<Cfg> {
-  if (!force && ws.radar_cfg?.v === 1 && ws.radar_cfg.mots_cles?.length) return ws.radar_cfg;
+  if (!force && ws.radar_cfg?.v === 1 && ws.radar_cfg.mots_cles?.length) {
+    if (ws.radar_cfg.activites) return ws.radar_cfg;
+    // Activités des entreprises visées, telles qu'écrites au registre du commerce (pour repérer les créations dans tes secteurs)
+    const a = await askJson<{ activites: string[] }>(`Cibles commerciales : ${(ws.targets ?? []).filter((t) => t.actif !== false).map((t) => t.label).join(" ; ")}
+Donne 4 à 8 mots ou expressions courtes, tels qu'ils apparaissent dans la description d'activité d'une entreprise au registre du commerce français, qui désignent ces cibles (ex. pour « cabinets de conseil » : "conseil en gestion", "conseil aux entreprises" ; pour « agences immobilières » : "agence immobilière", "transaction immobilière").
+Format : {"activites": [""]}`, { fast: true, maxTokens: 400 }).catch(() => ({ activites: [] as string[] }));
+    const cfg = { ...ws.radar_cfg, activites: (a.activites ?? []).map((x) => String(x).replace(/["\\]/g, "").trim()).filter((x) => x.length > 3 && x.length < 40).slice(0, 8) };
+    await admin.from("workspaces").update({ radar_cfg: cfg }).eq("id", ws.id);
+    return cfg;
+  }
   const pr = ws.profile ?? {};
   const r = await askJson<{ mots_cles: string[]; postes: string[]; marches: boolean }>(`Entreprise : ${pr.nom ?? ws.name} — ${pr.resume ?? ""} — Offre : ${pr.offre ?? ""}
 Cibles : ${(ws.targets ?? []).map((t) => t.label).join(" ; ")}
@@ -30,7 +39,7 @@ Format : {"mots_cles": [""], "marches": true, "postes": [""]}`, { fast: true, ma
     mots_cles: (r.mots_cles ?? []).map((x) => String(x).replace(/["\\]/g, "").trim()).filter((x) => x.length > 2 && x.length < 40).slice(0, 8),
     postes: (r.postes ?? []).map((x) => String(x).trim()).filter(Boolean).slice(0, 4),
     marches: r.marches !== false,
-    web_at: ws.radar_cfg?.web_at,
+    web_at: ws.radar_cfg?.web_at, activites: ws.radar_cfg?.activites, europe: ws.radar_cfg?.europe, bodacc_at: ws.radar_cfg?.bodacc_at,
   };
   await admin.from("workspaces").update({ radar_cfg: cfg }).eq("id", ws.id);
   return cfg;
@@ -46,8 +55,8 @@ async function getJson(u: string) {
   return null;
 }
 
-/** Appels d'offres ouverts (BOAMP), publiés depuis 30 jours, dans la zone, triés par pertinence par l'IA. */
-async function tenders(ws: Workspace, cfg: Cfg): Promise<Opp[]> {
+/** Appels d'offres ouverts (BOAMP), publiés depuis 30 jours, dans la zone. Le tri de pertinence se fait ensuite, avec TED et les renouvellements. */
+async function tenders(ws: Workspace, cfg: Cfg): Promise<PublicItem[]> {
   if (!cfg.marches || !cfg.mots_cles.length) return [];
   const q = (s: string) => `"${s}"`;
   const zone = (ws.zone ?? []).filter((d) => /^(\d{2}|2A|2B|97\d)$/.test(d));
@@ -65,22 +74,33 @@ async function tenders(ws: Workspace, cfg: Cfg): Promise<Opp[]> {
   u.searchParams.set("select", "idweb,objet,nomacheteur,code_departement,dateparution,datelimitereponse,type_marche,descripteur_libelle,url_avis");
   const d = await getJson(u.toString());
   const rows = (d?.results ?? []) as { idweb: string; objet: string; nomacheteur: string; code_departement: string[]; dateparution: string; datelimitereponse: string; type_marche: string[]; descripteur_libelle: string[]; url_avis: string }[];
-  if (!rows.length) return [];
-  // Tri de pertinence : un mot-clé peut apparaître dans un marché sans rapport (ex. « nettoyage » d'une station d'épuration).
+  return rows.map((r) => ({
+    text: `[appel d'offres ouvert] ${r.objet.slice(0, 220)} — acheteur : ${r.nomacheteur} — ${(r.descripteur_libelle ?? []).join(", ")}`,
+    opp: {
+      key: `boamp:${r.idweb}`, kind: "appel_offres" as const,
+      title: r.objet.replace(/\s+/g, " ").slice(0, 240), company: (r.nomacheteur ?? "").slice(0, 160),
+      summary: [(r.type_marche ?? []).map((t) => t.toLowerCase()).join(", "), (r.descripteur_libelle ?? []).slice(0, 2).join(", ")].filter(Boolean).join(" · "),
+      dept: (zone.find((z) => r.code_departement?.includes(z)) ?? r.code_departement?.[0] ?? ""),
+      url: r.url_avis, source: "BOAMP (journal officiel des marchés publics)",
+      published: r.dateparution, deadline: r.datelimitereponse, expires_at: r.datelimitereponse, raw: { idweb: r.idweb, depts: r.code_departement },
+    },
+  }));
+}
+
+/** Tri de pertinence unique (BOAMP + TED + renouvellements) : un mot-clé peut apparaître dans un marché sans rapport. Les rejets passés guident l'IA. */
+async function relevant(ws: Workspace, items: PublicItem[]): Promise<Opp[]> {
+  if (!items.length) return [];
+  // Doublons BOAMP / TED : même marché publié aux deux endroits
+  const boamp = items.filter((i) => i.opp.key.startsWith("boamp:")).map((i) => norm(i.opp.title).slice(0, 40));
+  const list = items.filter((i) => !i.opp.key.startsWith("ted:") || !boamp.some((b) => b && norm(i.opp.title).startsWith(b.slice(0, 30)))).slice(0, 140);
   const pr = ws.profile ?? {};
+  const no = await rejected(ws.id);
   const v = await askJson<{ retenus: { i: number; pourquoi: string }[] }>(`Entreprise : ${pr.nom ?? ws.name} — Offre : ${pr.offre ?? ""}
-Voici des appels d'offres publics. Garde UNIQUEMENT ceux auxquels cette entreprise pourrait réellement répondre avec son offre actuelle, et dis pourquoi en une phrase courte.
-${rows.map((r, i) => `${i}. ${r.objet.slice(0, 220)} — acheteur : ${r.nomacheteur} — ${(r.descripteur_libelle ?? []).join(", ")}`).join("\n")}
-Format : {"retenus": [{"i": 0, "pourquoi": ""}]}`, { fast: true, maxTokens: 2500 });
-  const keep = new Map((v.retenus ?? []).filter((x) => Number.isInteger(x.i) && rows[x.i]).map((x) => [x.i, String(x.pourquoi ?? "").slice(0, 200)]));
-  return rows.flatMap((r, i) => keep.has(i) ? [{
-    key: `boamp:${r.idweb}`, kind: "appel_offres" as const,
-    title: r.objet.replace(/\s+/g, " ").slice(0, 240), company: (r.nomacheteur ?? "").slice(0, 160),
-    summary: [(r.type_marche ?? []).map((t) => t.toLowerCase()).join(", "), (r.descripteur_libelle ?? []).slice(0, 2).join(", ")].filter(Boolean).join(" · "),
-    why: keep.get(i) ?? "", dept: (zone.find((z) => r.code_departement?.includes(z)) ?? r.code_departement?.[0] ?? ""),
-    url: r.url_avis, source: "BOAMP (journal officiel des marchés publics)",
-    published: r.dateparution, deadline: r.datelimitereponse, raw: { idweb: r.idweb, depts: r.code_departement },
-  }] : []);
+Voici des marchés publics (appels d'offres ouverts, et contrats en cours qui vont être renouvelés). Garde UNIQUEMENT ceux que cette entreprise pourrait réellement assurer avec son offre actuelle, et dis pourquoi en une phrase courte.${no.length ? `\nLe client a jugé « pas pertinent » ces exemples ; écarte ce qui leur ressemble :\n${no.map((x) => `- ${x}`).join("\n")}` : ""}
+${list.map((r, i) => `${i}. ${r.text.slice(0, 260)}`).join("\n")}
+Format : {"retenus": [{"i": 0, "pourquoi": ""}]}`, { fast: true, maxTokens: 4000 });
+  const keep = new Map((v.retenus ?? []).filter((x) => Number.isInteger(x.i) && list[x.i]).map((x) => [x.i, String(x.pourquoi ?? "").slice(0, 200)]));
+  return list.flatMap((r, i) => keep.has(i) ? [{ ...r.opp, why: r.opp.kind === "renouvellement" ? r.opp.why : keep.get(i) ?? "", raw: { ...(r.opp.raw ?? {}), pertinence: keep.get(i) } }] : []);
 }
 
 /** Signaux de croissance et recrutements trouvés sur le web, chacun avec sa source. */
@@ -134,11 +154,13 @@ async function registrySignals(ws: Workspace): Promise<Opp[]> {
 
 async function save(ws: Workspace, opps: Opp[]) {
   if (!opps.length) return 0;
+  opps = [...new Map(opps.map((o) => [o.key, o])).values()];
   // Toutes les lignes doivent avoir les mêmes colonnes (insertion groupée)
   const rows = opps.map((o) => ({
     workspace_id: ws.id, key: o.key, kind: o.kind, title: o.title ?? "", company: o.company ?? "", summary: o.summary ?? "", why: o.why ?? "",
     city: o.city ?? "", dept: o.dept ?? "", url: o.url ?? "", source: o.source ?? "", published: o.published ?? null, deadline: o.deadline ?? null,
-    prospect_id: o.prospect_id ?? null, status: o.prospect_id ? "ajoute" : "nouveau", raw: o.raw ?? {},
+    prospect_id: o.prospect_id ?? null, status: o.prospect_id && o.key.startsWith("reg:") ? "ajoute" : "nouveau", raw: o.raw ?? {},
+    siren: o.siren ?? null, expires_at: o.expires_at ?? null,
   }));
   const { data, error } = await admin.from("radar_opps").upsert(rows, { onConflict: "workspace_id,key", ignoreDuplicates: true }).select("id");
   if (error) throw new HttpError(500, error.message);
@@ -154,51 +176,73 @@ async function radarZone(ws: Workspace): Promise<string[]> {
 }
 
 type Step = { s: "a_venir" | "en_cours" | "fait" | "saute" | "erreur"; at?: string; n?: number };
-type Progress = { started_at: string; done_at: string | null; added: number | null; steps: Record<"lance" | "marches" | "web" | "registre" | "tri", Step> };
+type StepKey = "lance" | "marches" | "renouvellements" | "annonces" | "web" | "registre" | "tri";
+type Progress = { started_at: string; done_at: string | null; added: number | null; steps: Record<StepKey, Step>; result?: unknown };
 
 export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opts: { web?: boolean } = {}) {
   const at = () => new Date().toISOString();
   // Avancement réel, écrit à chaque étape : l'écran le lit pendant l'analyse
-  const p: Progress = { started_at: at(), done_at: null, added: null, steps: { lance: { s: "en_cours", at: at() }, marches: { s: "a_venir" }, web: { s: "a_venir" }, registre: { s: "a_venir" }, tri: { s: "a_venir" } } };
+  const p: Progress = { started_at: at(), done_at: null, added: null, steps: { lance: { s: "en_cours", at: at() }, marches: { s: "a_venir" }, renouvellements: { s: "a_venir" }, annonces: { s: "a_venir" }, web: { s: "a_venir" }, registre: { s: "a_venir" }, tri: { s: "a_venir" } } };
   const put = () => admin.from("workspaces").update({ radar_progress: p }).eq("id", ws0.id).then(() => null, () => null);
   await put();
   try {
     const ws = { ...ws0, zone: await radarZone(ws0) };
     const cfg = await config(ws);
+    const zone = (ws.zone ?? []).filter((d) => /^(\d{2}|2A|2B|97\d)$/.test(d));
     const webDue = opts.web ?? (!cfg.web_at || cfg.web_at < new Date(Date.now() - 6 * 864e5).toISOString());
+    const bodaccSince = (cfg.bodacc_at && cfg.bodacc_at > day(30) ? cfg.bodacc_at : day(30)).slice(0, 10);
+    const pub = cfg.marches && cfg.mots_cles.length > 0;
     const errors: string[] = [];
     p.steps.lance = { s: "fait", at: p.steps.lance.at };
-    p.steps.marches = cfg.marches && cfg.mots_cles.length ? { s: "en_cours", at: at() } : { s: "saute" };
+    p.steps.marches = pub ? { s: "en_cours", at: at() } : { s: "saute" };
+    p.steps.renouvellements = pub && zone.length ? { s: "en_cours", at: at() } : { s: "saute" };
+    p.steps.annonces = { s: "en_cours", at: at() };
     p.steps.web = webDue ? { s: "en_cours", at: at() } : { s: "saute" };
     p.steps.registre = { s: "en_cours", at: at() };
     await put();
-    const step = <T,>(k: "marches" | "web" | "registre", job: Promise<T[]>, label: string) => job.then(
+    const step = <T,>(k: Exclude<StepKey, "lance" | "tri">, job: Promise<T[]>, label: string) => job.then(
       (r) => { if (p.steps[k].s !== "saute") p.steps[k] = { s: "fait", at: at(), n: r.length }; put(); return r; },
       (e) => { console.error("radar", k, e); if (label) errors.push(label); p.steps[k] = { s: "erreur", at: at() }; put(); return [] as T[]; });
-    const [t, w, g] = await Promise.all([
-      step("marches", tenders(ws, cfg), "appels d'offres"),
+    const [boamp, ted, ren, legal, fresh, w, g] = await Promise.all([
+      pub ? tenders(ws, cfg).catch((e) => { console.error("boamp", e); errors.push("appels d'offres"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
+      pub ? tedTenders(cfg.mots_cles, zone, !!cfg.europe).catch((e) => { console.error("ted", e); errors.push("appels d'offres européens"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
+      pub && zone.length ? renewals(ws, cfg.mots_cles, zone).catch((e) => { console.error("decp", e); errors.push("renouvellements"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
+      watchProspects(ws, bodaccSince).catch((e) => { console.error("bodacc", e); errors.push("annonces légales"); return [] as Opp[]; }),
+      newCompanies(ws, cfg.activites ?? [], zone).catch((e) => { console.error("creations", e); return [] as Opp[]; }),
       step("web", webDue ? webSignals(ws, cfg) : Promise.resolve([] as Opp[]), "signaux web"),
       step("registre", registrySignals(ws), ""),
     ]);
+    p.steps.annonces = { s: "fait", at: at(), n: legal.length + fresh.length }; await put();
+    // Un seul tri par l'IA pour tous les marchés publics
+    const pubOk = await relevant(ws, [...boamp, ...ted, ...ren]).catch((e) => { console.error("tri marches", e); errors.push("tri des marchés"); return [] as Opp[]; });
+    const t = pubOk.filter((o) => o.kind === "appel_offres"), r = pubOk.filter((o) => o.kind === "renouvellement");
+    if (r.length) { const { data: comp } = await admin.from("competitors").select("name").eq("workspace_id", ws.id).neq("status", "ecarte"); await nameRenewals(r, ((comp ?? []) as { name: string }[]).map((c) => norm(c.name).split(" ")[0])); }
+    if (pub) p.steps.marches = { s: "fait", at: at(), n: t.length };
+    if (p.steps.renouvellements.s === "en_cours") p.steps.renouvellements = { s: "fait", at: at(), n: r.length };
     p.steps.tri = { s: "en_cours", at: at() }; await put();
-    const added = await save(ws, [...t, ...w, ...g]);
+    const all = [...t, ...r, ...legal, ...fresh, ...w, ...g];
+    const added = await save(ws, all);
+    await tagProspects(legal).catch(() => null);
+    // Apprentissage + score « entreprise chaude » + date limite + filtre + alertes
+    const brain = await learn(ws.id);
+    const sc = await rescore(ws, brain.poids);
     const now = at();
-    p.steps.tri = { s: "fait", at: now, n: added }; p.done_at = now; p.added = added;
-    await admin.from("workspaces").update({ radar_at: now, radar_progress: p, ...(webDue ? { radar_cfg: { ...cfg, web_at: now } } : {}) }).eq("id", ws.id);
-    await log(ws.id, "radar_scan", `Radar : ${added} nouvelle${added > 1 ? "s" : ""} opportunité${added > 1 ? "s" : ""} (${t.length} appels d'offres, ${w.length} signaux web)`);
-    return { added, tenders: t.length, web: w.length, registry: g.length, web_scanned: webDue, errors, keywords: cfg.mots_cles };
+    p.steps.tri = { s: "fait", at: now, n: added }; p.done_at = now; p.added = added; p.result = sc;
+    await admin.from("workspaces").update({ radar_at: now, radar_progress: p, radar_cfg: { ...cfg, ...(webDue ? { web_at: now } : {}), bodacc_at: now.slice(0, 10), poids: brain.poids, appris: brain.by } }).eq("id", ws.id);
+    await log(ws.id, "radar_scan", `Radar : ${added} nouvelle${added > 1 ? "s" : ""} opportunité${added > 1 ? "s" : ""} (${t.length} appels d'offres, ${r.length} contrats à renouveler, ${legal.length + fresh.length} annonces légales, ${w.length} signaux web)`);
+    return { added, tenders: t.length, renewals: r.length, legal: legal.length, creations: fresh.length, web: w.length, registry: g.length, web_scanned: webDue, errors, keywords: cfg.mots_cles, ...sc };
   } catch (e) {
-    for (const k of Object.keys(p.steps) as (keyof Progress["steps"])[]) if (p.steps[k].s === "en_cours") p.steps[k] = { s: "erreur", at: at() };
+    for (const k of Object.keys(p.steps) as StepKey[]) if (p.steps[k].s === "en_cours") p.steps[k] = { s: "erreur", at: at() };
     p.done_at = at(); await put();
     throw e;
   }
 }
 
 /** Ce que le Radar cherche, modifiable par le client : postes « signal », mots-clés des marchés publics, marchés oui/non. */
-export async function radarSetConfig(ws: Workspace & { radar_cfg?: Cfg | null }, b: { postes?: unknown; mots_cles?: unknown; marches?: unknown }) {
+export async function radarSetConfig(ws: Workspace & { radar_cfg?: Cfg | null }, b: { postes?: unknown; mots_cles?: unknown; marches?: unknown; activites?: unknown; europe?: unknown }) {
   const cur = await config(ws);
   const clean = (v: unknown, max: number) => Array.isArray(v) ? [...new Set(v.map((x) => String(x).replace(/["\\]/g, "").trim()).filter((x) => x.length > 1 && x.length < 60))].slice(0, max) : undefined;
-  const cfg: Cfg = { ...cur, postes: clean(b.postes, 6) ?? cur.postes, mots_cles: clean(b.mots_cles, 10) ?? cur.mots_cles, marches: typeof b.marches === "boolean" ? b.marches : cur.marches };
+  const cfg: Cfg = { ...cur, postes: clean(b.postes, 6) ?? cur.postes, mots_cles: clean(b.mots_cles, 10) ?? cur.mots_cles, marches: typeof b.marches === "boolean" ? b.marches : cur.marches, activites: clean(b.activites, 10) ?? cur.activites, europe: typeof b.europe === "boolean" ? b.europe : cur.europe };
   await admin.from("workspaces").update({ radar_cfg: cfg }).eq("id", ws.id);
   await log(ws.id, "radar", "Réglages du Radar modifiés");
   return { radar_cfg: cfg };
@@ -216,13 +260,13 @@ export async function radarToProspect(ws: Workspace, id: string) {
   if (o.prospect_id) return { prospect_id: o.prospect_id, existing: true };
   if (o.kind === "appel_offres") throw new HttpError(400, "Un appel d'offres se traite en répondant à l'avis, pas en prospection");
   const u = new URL(REGISTRY);
-  u.searchParams.set("q", o.company);
-  if (/^\d{2}$/.test(o.dept)) u.searchParams.set("departement", o.dept);
+  u.searchParams.set("q", o.siren || o.company);
+  if (!o.siren && /^\d{2}$/.test(o.dept)) u.searchParams.set("departement", o.dept);
   u.searchParams.set("etat_administratif", "A");
   u.searchParams.set("per_page", "5");
   const d = await getJson(u.toString());
   // deno-lint-ignore no-explicit-any
-  const hit = ((d?.results ?? []) as any[]).find((r) => norm(r.nom_complet ?? "").includes(norm(o.company).split(" ")[0] ?? ""));
+  const hit = ((d?.results ?? []) as any[]).find((r) => (o.siren && r.siren === o.siren) || norm(r.nom_complet ?? "").includes(norm(o.company).split(" ")[0] ?? ""));
   const naf = (hit?.activite_principale ?? "") as string;
   const target = (ws.targets ?? []).find((t) => t.naf?.includes(naf))?.id ?? "";
   const siege = hit?.siege ?? {};
@@ -233,7 +277,7 @@ export async function radarToProspect(ws: Workspace, id: string) {
     siren: hit?.siren ?? null, siret: siege.siret ?? null, activity: target ? (ws.targets.find((t) => t.id === target)?.label ?? "") : (hit ? "Radar" : "Radar (hors registre)"),
     address: siege.adresse ?? "", postal_code: siege.code_postal ?? "", city: siege.libelle_commune ? cap(siege.libelle_commune) : o.city,
     contact_name: boss ? cap(`${boss.prenoms?.split(" ")[0] ?? ""} ${boss.nom}`.trim()) : "", contact_role: boss?.qualite ?? "",
-    signals: [{ type: o.kind === "recrutement" ? "recrutement" : "croissance", label: o.summary, url: o.url }],
+    signals: [{ type: o.kind === "recrutement" ? "recrutement" : ["dirigeant", "demenagement", "creation", "renouvellement", "besoin"].includes(o.kind) ? o.kind : "croissance", label: o.kind === "renouvellement" ? `Contrat public en fin de période (${o.raw?.fin ?? ""}) : ${o.title}` : o.summary, url: o.url }],
   };
   let pid: string | null = null;
   if (row.siret) {

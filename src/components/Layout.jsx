@@ -60,22 +60,28 @@ function TrialBar({ ws }) {
 }
 
 /** Haut de page : essai, cloche (réponses + alertes Espion), accès à son compte. */
-const SEEN_KEY = (id) => `bingoo:alerts-seen:${id}`;
-const getSeen = (id) => { try { return localStorage.getItem(SEEN_KEY(id)) ?? ""; } catch { return ""; } };
-const setSeen = (id) => { try { localStorage.setItem(SEEN_KEY(id), new Date().toISOString()); } catch { /* navigation privée */ } };
+const SEEN_KEY = (id, k) => `bingoo:alerts-seen:${k}:${id}`;
+const getSeen = (id, k) => { try { return localStorage.getItem(SEEN_KEY(id, k)) ?? ""; } catch { return ""; } };
+const setSeen = (id, k) => { try { localStorage.setItem(SEEN_KEY(id, k), new Date().toISOString()); } catch { /* navigation privée */ } };
+const ALERT = { espion_alerte: ["Espion", "/espion"], radar_alerte: ["Radar", "/radar"] };
 function Bell({ ws, replies }) {
   const loc = useLocation();
   const [open, setOpen] = useState(false);
   const [alerts, setAlerts] = useState([]);
-  const [seen, setSeenState] = useState(() => getSeen(ws.id));
+  const [seen, setSeenState] = useState(() => ({ espion_alerte: getSeen(ws.id, "espion_alerte"), radar_alerte: getSeen(ws.id, "radar_alerte") }));
   useEffect(() => {
     let alive = true;
-    const load = () => supabase.from("activity").select("id, summary, created_at").eq("workspace_id", ws.id).eq("kind", "espion_alerte").gte("created_at", new Date(Date.now() - 14 * 864e5).toISOString()).order("created_at", { ascending: false }).limit(8).then(({ data }) => alive && setAlerts(data ?? []));
+    const load = () => supabase.from("activity").select("id, kind, summary, created_at").eq("workspace_id", ws.id).in("kind", ["espion_alerte", "radar_alerte"]).gte("created_at", new Date(Date.now() - 14 * 864e5).toISOString()).order("created_at", { ascending: false }).limit(8).then(({ data }) => alive && setAlerts(data ?? []));
     load(); const t = setInterval(load, 60000);
     return () => { alive = false; clearInterval(t); };
   }, [ws.id]);
-  useEffect(() => { if (loc.pathname.startsWith("/espion")) { setSeen(ws.id); setSeenState(getSeen(ws.id)); } setOpen(false); }, [loc.pathname, ws.id]);
-  const fresh = alerts.filter((a) => !seen || a.created_at > seen).length;
+  useEffect(() => {
+    const k = loc.pathname.startsWith("/espion") ? "espion_alerte" : loc.pathname.startsWith("/radar") ? "radar_alerte" : null;
+    if (k) { setSeen(ws.id, k); setSeenState((x) => ({ ...x, [k]: getSeen(ws.id, k) })); }
+    setOpen(false);
+  }, [loc.pathname, ws.id]);
+  const isNew = (a) => !seen[a.kind] || a.created_at > seen[a.kind];
+  const fresh = alerts.filter(isNew).length;
   const total = (replies ?? 0) + fresh;
   return (
     <div className="relative">
@@ -92,11 +98,11 @@ function Bell({ ws, replies }) {
               <span className={cx("text-[12.5px] font-semibold", replies ? "text-accent" : "text-ink-faint")}>{replies ? `${replies} à traiter` : "aucune"}</span>
             </NavLink>
             <div className="border-t border-line my-1" />
-            <p className="px-3 pt-1.5 pb-1 text-[11px] font-bold uppercase tracking-wider text-ink-faint">Alertes Espion</p>
-            {!alerts.length ? <p className="px-3 pb-2.5 text-[13px] text-ink-faint">Aucun changement important ces 14 derniers jours.</p> : alerts.map((a) => (
-              <NavLink key={a.id} to="/espion" className="flex gap-2.5 rounded-xl px-3 py-2 hover:bg-paper">
-                <span className={cx("mt-1.5 h-2 w-2 rounded-full shrink-0", !seen || a.created_at > seen ? "bg-accent" : "bg-line")} />
-                <span className="min-w-0"><span className="block text-[13px] text-ink leading-snug line-clamp-2">{a.summary}</span><span className="block text-[11.5px] text-ink-faint mt-0.5">{new Date(a.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</span></span>
+            <p className="px-3 pt-1.5 pb-1 text-[11px] font-bold uppercase tracking-wider text-ink-faint">Alertes Radar et Espion</p>
+            {!alerts.length ? <p className="px-3 pb-2.5 text-[13px] text-ink-faint">Rien d'urgent ces 14 derniers jours.</p> : alerts.map((a) => (
+              <NavLink key={a.id} to={ALERT[a.kind]?.[1] ?? "/"} className="flex gap-2.5 rounded-xl px-3 py-2 hover:bg-paper">
+                <span className={cx("mt-1.5 h-2 w-2 rounded-full shrink-0", isNew(a) ? "bg-accent" : "bg-line")} />
+                <span className="min-w-0"><span className="block text-[13px] text-ink leading-snug line-clamp-2">{a.summary}</span><span className="block text-[11.5px] text-ink-faint mt-0.5">{ALERT[a.kind]?.[0]} · {new Date(a.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</span></span>
               </NavLink>
             ))}
           </div>
