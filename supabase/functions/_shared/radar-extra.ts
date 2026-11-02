@@ -83,6 +83,12 @@ export async function estimateValues(ws: Workspace & { radar_cfg?: Record<string
   return { estimées: ups.length, panier: base };
 }
 
+/** Met à jour quelques champs de la config Radar en relisant la version en base (ne pas écraser les autres réglages). */
+async function cfgPatch(wsId: string, patch: Record<string, unknown>) {
+  const { data } = await admin.from("workspaces").select("radar_cfg").eq("id", wsId).single();
+  await admin.from("workspaces").update({ radar_cfg: { ...((data?.radar_cfg as Record<string, unknown>) ?? {}), ...patch } }).eq("id", wsId);
+}
+
 // ---------------------------------------------------------------- 4. Partenaires apporteurs d'affaires et sociétés d'apport d'affaires
 type Partner = { label: string; naf: string[]; pourquoi: string; message: string };
 /** Les métiers qui servent les mêmes clients que toi sans te concurrencer (déduits une fois de ton offre), puis les vraies entreprises de ta zone. */
@@ -97,7 +103,7 @@ Liste 4 à 6 types d'entreprises qui servent les MÊMES clients sans être concu
 Pour chacun : 1 à 3 codes NAF exacts (format 68.32A), pourquoi en une phrase, et l'angle d'un premier message de partenariat en une phrase.
 Format : {"partenaires": [{"label": "", "naf": ["68.32A"], "pourquoi": "", "message": ""}]}`, { fast: true, maxTokens: 1500 });
     types = (r.partenaires ?? []).map((p) => ({ ...p, naf: (p.naf ?? []).filter((n) => /^\d{2}\.\d{2}[A-Z]$/.test(n)).slice(0, 3) })).filter((p) => p.label && p.naf.length).slice(0, 6);
-    await admin.from("workspaces").update({ radar_cfg: { ...(ws.radar_cfg ?? {}), partenaires: types } }).eq("id", ws.id);
+    await cfgPatch(ws.id, { partenaires: types });
   }
   const found: Record<string, unknown>[] = [];
   const search = async (params: Record<string, string>) => {
@@ -132,7 +138,7 @@ Format : {"partenaires": [{"label": "", "naf": ["68.32A"], "pourquoi": "", "mess
   const uniq = dedup.sort((x, y) => Number(y.type === "Société d'apport d'affaires") - Number(x.type === "Société d'apport d'affaires"))
     .filter((f) => { const n = perType.get(f.type as string) ?? 0; perType.set(f.type as string, n + 1); return n < 20; }).slice(0, 140);
   if (uniq.length) await admin.from("radar_partners").upsert(uniq, { onConflict: "workspace_id,siren", ignoreDuplicates: true });
-  await admin.from("workspaces").update({ radar_cfg: { ...(ws.radar_cfg ?? {}), partenaires: types, partners_at: new Date().toISOString() } }).eq("id", ws.id);
+  await cfgPatch(ws.id, { partenaires: types, partners_at: new Date().toISOString() });
   await log(ws.id, "radar", `${uniq.length} partenaires apporteurs d'affaires repérés dans ta zone`);
   return { types: types.length, partenaires: uniq.length };
 }
@@ -150,7 +156,7 @@ Donne 5 à 8 moments de l'année où ces clients décident ou renouvellent ce ty
 Pour chacun : les mois concernés (1 à 12), un titre court, pourquoi en une phrase, l'action à mener et quand (ex. « se présenter 6 semaines avant »), et la cible concernée. N'invente pas de dates précises d'événements.
 Format : {"moments": [{"mois": [12, 1], "titre": "", "pourquoi": "", "action": "", "cible": ""}]}`, { fast: true, maxTokens: 1800 });
   const cal = { at: new Date().toISOString(), moments: (r.moments ?? []).filter((m) => m.titre && (m.mois ?? []).every((x) => x >= 1 && x <= 12)).slice(0, 8) };
-  await admin.from("workspaces").update({ radar_cfg: { ...(ws.radar_cfg ?? {}), calendrier: cal } }).eq("id", ws.id);
+  await cfgPatch(ws.id, { calendrier: cal });
   return cal;
 }
 
