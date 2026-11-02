@@ -359,7 +359,8 @@ export function plans() {
   return Object.entries(PLANS).filter(([k]) => !["essai", "fondateur"].includes(k)).map(([key, p]) => ({ key, ...p }));
 }
 
-export async function checkout(ws: Workspace, userId: string, planKey: string) {
+export const ANNUAL_OFF = 0.2;
+export async function checkout(ws: Workspace, userId: string, planKey: string, yearly = false) {
   await requireAdmin(ws.id, userId);
   const p = PLANS[planKey];
   if (!p || !p.price) throw new HttpError(400, "Formule inconnue");
@@ -375,11 +376,11 @@ export async function checkout(ws: Workspace, userId: string, planKey: string) {
     mode: "subscription", customer, locale: "fr",
     "line_items[0][quantity]": "1",
     "line_items[0][price_data][currency]": "eur",
-    "line_items[0][price_data][unit_amount]": String(p.price * 100),
-    "line_items[0][price_data][recurring][interval]": "month",
-    "line_items[0][price_data][product_data][name]": `Kairo ${p.label}`,
+    "line_items[0][price_data][unit_amount]": String(yearly ? Math.round(p.price * 12 * (1 - ANNUAL_OFF)) * 100 : p.price * 100),
+    "line_items[0][price_data][recurring][interval]": yearly ? "year" : "month",
+    "line_items[0][price_data][product_data][name]": `Bingoo! ${p.label}${yearly ? " (annuel)" : ""}`,
     "line_items[0][price_data][tax_behavior]": "exclusive",
-    "metadata[workspace_id]": ws.id, "metadata[plan]": planKey,
+    "metadata[workspace_id]": ws.id, "metadata[plan]": planKey, "metadata[periode]": yearly ? "annuel" : "mensuel",
     "subscription_data[metadata][workspace_id]": ws.id, "subscription_data[metadata][plan]": planKey,
     allow_promotion_codes: "true", billing_address_collection: "required",
     "tax_id_collection[enabled]": "true", "customer_update[name]": "auto", "customer_update[address]": "auto",
