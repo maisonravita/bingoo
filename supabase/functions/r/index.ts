@@ -132,6 +132,15 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     setAi({ ws: ws.id });
     return await scanRadar(ws, { web: b.full === true ? undefined : false, top: b.top === true });
   },
+  // Test plateforme : partenaires + calendrier d'achat d'un espace précis
+  async "extra-test"(req, b) {
+    await cron(req);
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
+    if (!ws) throw new HttpError(404, "Espace introuvable");
+    setAi({ ws: ws.id });
+    const { partnersRefresh, buyingCalendar } = await import("../_shared/radar-extra.ts");
+    return { partenaires: await partnersRefresh(ws).catch((e) => ({ erreur: (e as Error).message })), calendrier: await buyingCalendar(ws, true).catch((e) => ({ erreur: (e as Error).message })) };
+  },
   async "spy-cron"(req) { await cron(req); return await spyCron(); },
   async "spy-digest"(req) { await cron(req); return await spyDigest(); },
   async "spy-needs"(req, b) {
