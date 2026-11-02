@@ -13,7 +13,10 @@ type Row = { id: string; objet: string; acheteur_id: string; acheteur_nom: strin
 /** Recharge les contrats du secteur (6 dernières années), trie leur pertinence par l'IA, puis complète les noms au registre. */
 export async function marketRefresh(ws: Workspace & { radar_cfg?: { mots_cles?: string[]; marches?: boolean } | null }) {
   const kw = ws.radar_cfg?.mots_cles ?? [], zone = (ws.zone ?? []).filter((d) => /^\d{2}$/.test(d));
-  if (ws.radar_cfg?.marches === false || !kw.length || !zone.length) return { skipped: "pas de marchés publics pour cet espace" };
+  if (ws.radar_cfg?.marches === false || !kw.length || !zone.length) {
+    await admin.from("workspaces").update({ market_at: new Date().toISOString() }).eq("id", ws.id); // à revoir dans une semaine
+    return { skipped: "Les marchés publics ne sont pas activés pour cet espace (Radar → Ce que le Radar cherche)" };
+  }
   const since = new Date(Date.now() - 6 * 365 * 864e5).toISOString().slice(0, 10);
   const where = [`(${kw.map((k) => `search(objet,${q(k)})`).join(" or ")})`, `datenotification>=date'${since}'`, `(${zone.map((d) => `startswith(lieuexecution_code,${q(d)})`).join(" or ")})`].join(" and ");
   const rows: Row[] = [];
