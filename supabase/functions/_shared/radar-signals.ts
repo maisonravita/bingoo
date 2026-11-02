@@ -208,7 +208,8 @@ export async function watchProspects(ws: Workspace, since: string): Promise<Opp[
   }
   // Une entreprise = un signal par type (le plus récent), pas trois annonces du même changement
   const best = new Map<string, Opp>();
-  for (const o of out.sort((a, b) => String(b.published).localeCompare(String(a.published)))) { const k = `${o.siren}:${o.kind}`; if (!best.has(k)) best.set(k, o); }
+  const rank = (o: Opp) => `${String(o.published)}${/nomination/i.test(o.summary) ? "1" : "0"}`;
+  for (const o of out.sort((a, b) => rank(b).localeCompare(rank(a)))) { const k = `${o.siren}:${o.kind}`; if (!best.has(k)) best.set(k, o); }
   return [...best.values()];
 }
 
@@ -218,7 +219,7 @@ export async function newCompanies(ws: Workspace, activites: string[], zone: str
   const since = iso(addDays(new Date(), -30));
   const where = `dateparution>=date'${since}' and familleavis="creation" and (${zone.map((d) => `numerodepartement=${q(d)}`).join(" or ")}) and (${activites.map((a) => `search(listeetablissements,${q(a)})`).join(" or ")})`;
   const d = await getJson(ods(BODACC, { where, limit: "100", order_by: "dateparution desc" }));
-  const HOLDING = /(holding|prise de participations?|d[ée]tention.{0,40}(parts|actions|participations)|gestion de (titres|participations)|acquisition.{0,30}(parts sociales|actions))/i;
+  const HOLDING = /(holding|participations?|parts sociales|valeurs mobili[eè]res|soci[ée]t[ée] civile immobili[eè]re|\bsci\b)/i;
   const rows = ((d?.results ?? []) as Bodacc[]).filter((b) => {
     const act = String(parse(b.listeetablissements)?.etablissement?.activite ?? parse(b.listepersonnes)?.personne?.activite ?? "");
     return parse(b.listepersonnes)?.personne?.typePersonne === "pm" && sirenOf(b) && !HOLDING.test(`${b.commercant} ${act}`);
@@ -228,7 +229,8 @@ export async function newCompanies(ws: Workspace, activites: string[], zone: str
   return rows.slice(0, 30).flatMap((b) => {
     const c = classify(b); if (!c) return [];
     const r = reg.get(sirenOf(b));
-    if (r?.naf && nafs.length && !nafs.includes(r.naf.slice(0, 4))) return []; // activité réelle hors de tes cibles
+    // Activité vérifiée au registre : hors de tes cibles, ou introuvable alors que tes cibles sont précises → on ne garde pas
+    if (nafs.length && (!r?.naf || !nafs.includes(r.naf.slice(0, 4)))) return [];
     const o = toOpp(b, c);
     o.raw = { ...o.raw, naf: r?.naf ?? "", tranche: r?.tranche ?? "" };
     return [o];
