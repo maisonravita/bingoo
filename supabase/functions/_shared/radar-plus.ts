@@ -190,7 +190,12 @@ export async function whoToCall(ws: Workspace, max = 25) {
   let n = 0;
   for (const o of todo) {
     let contact: Record<string, string> | null = null, ferme = false;
-    if (o.kind === "appel_offres" || o.kind === "renouvellement" || o.kind === "budget") {
+    if (o.kind === "appel_offres" && o.raw?.idweb && n < max) {
+      // Le contact publié dans l'avis officiel (nom, e-mail, téléphone de l'acheteur)
+      const off = await boampAvis(String(o.raw.idweb)).catch(() => null); n++;
+      const c = off?.contact;
+      contact = c?.nom || c?.email ? { nom: c.nom || "Contact de l'acheteur", role: `Acheteur : ${o.company}`, source: "Avis officiel BOAMP", ...(c.email ? { email: c.email } : {}), ...(c.tel ? { tel: c.tel } : {}) } : { nom: "Service de la commande publique", role: `Acheteur : ${o.company}`, source: "Avis officiel" };
+    } else if (o.kind === "appel_offres" || o.kind === "renouvellement" || o.kind === "budget") {
       contact = { nom: "Service de la commande publique", role: `Acheteur : ${o.company}`, source: "Avis officiel" };
     } else if (o.siren && n < max) {
       const c = await lookup(o.siren); n++;
@@ -303,6 +308,27 @@ Format : {"signaux": [{"type": "", "entreprise": "entreprise, collectivité ou n
 }
 
 // ---------------------------------------------------------------- Aide aux appels d'offres
+/** Contenu officiel de l'avis BOAMP (structuré) : texte lisible + contact de l'acheteur. */
+export async function boampAvis(idweb: string) {
+  if (!idweb) return null;
+  const u = new URL("https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records");
+  u.searchParams.set("where", `idweb="${idweb.replace(/"/g, "")}"`); u.searchParams.set("limit", "1"); u.searchParams.set("select", "donnees");
+  const d = await fetch(u, { signal: AbortSignal.timeout(15000) }).then((r) => r.ok ? r.json() : null).catch(() => null);
+  let j: unknown = d?.results?.[0]?.donnees;
+  try { if (typeof j === "string") j = JSON.parse(j); } catch { return null; }
+  if (!j || typeof j !== "object") return null;
+  const lines: string[] = [];
+  const walk = (o: unknown, path: string) => {
+    if (o == null) return;
+    if (typeof o === "object") { for (const [k, v] of Object.entries(o as Record<string, unknown>)) walk(v, path ? `${path}.${k}` : k); return; }
+    const v = String(o).trim();
+    if (v && v.length < 2000) lines.push(`${path.split(".").slice(-2).join(" ")} : ${v}`);
+  };
+  walk(j, "");
+  const find = (re: RegExp) => { let out = ""; const rec = (o: unknown) => { if (out || o == null || typeof o !== "object") return; for (const [k, v] of Object.entries(o as Record<string, unknown>)) { if (re.test(k) && typeof v === "string" && v.trim()) { out = v.trim(); return; } rec(v); } }; rec(j); return out; };
+  return { text: lines.join("\n"), contact: { nom: find(/^nomContact$/i), email: find(/^adresseMailContact$/i), tel: find(/^telContact$/i) } };
+}
+
 /** Y aller ou pas, résumé, pièces, critères, concurrents probables, prix comparables, premier jet de réponse technique. */
 export async function tenderAnalysis(ws: Workspace, id: string) {
   const { data: o } = await admin.from("radar_opps").select("*").eq("id", id).eq("workspace_id", ws.id).single();
@@ -310,7 +336,9 @@ export async function tenderAnalysis(ws: Workspace, id: string) {
   if (o.raw?.analyse) return o.raw.analyse;
   await quota(ws.id, "analyse", 10);
   const { siteText } = await import("./pro.ts");
-  const avis = o.url ? await siteText(o.url).catch(() => "") : "";
+  // Avis officiel structuré (BOAMP) ; sinon la page de l'avis
+  const off = await boampAvis(String(o.raw?.idweb ?? "")).catch(() => null);
+  const avis = off?.text || (o.url ? await siteText(o.url).catch(() => "") : "");
   // Marchés comparables déjà attribués (même acheteur, ou objet proche) : prix et titulaires
   const words = norm(o.title).split(" ").filter((w) => w.length > 5).slice(0, 3);
   const { data: comp } = await admin.from("public_contracts").select("objet, buyer_name, holder_name, montant, duree_mois, notified").eq("workspace_id", ws.id).eq("relevant", true).limit(1500);

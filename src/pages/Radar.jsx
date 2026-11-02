@@ -376,6 +376,7 @@ function Detail({ o, onClose, onChange }) {
             <p className="text-xs font-semibold uppercase tracking-wider text-good">Qui appeler</p>
             <p className="font-semibold text-[15px] mt-1">{o.raw.contact.nom}</p>
             <p className="text-ink-soft">{o.raw.contact.role}{o.raw.contact.source ? ` · source : ${o.raw.contact.source}` : ""}</p>
+            {(o.raw.contact.email || o.raw.contact.tel) && <p className="mt-1">{o.raw.contact.email && <a href={`mailto:${o.raw.contact.email}`} className="text-accent font-medium hover:underline mr-3">{o.raw.contact.email}</a>}{o.raw.contact.tel && <a href={`tel:${o.raw.contact.tel.replace(/\s/g, "")}`} className="font-medium">{o.raw.contact.tel}</a>}</p>}
             {o.kind !== "appel_offres" && o.kind !== "renouvellement" && <p className="text-[12px] text-ink-faint mt-1">E-mail et téléphone : « Trouver le contact » ci-dessous cherche ses coordonnées publiques.</p>}
           </div>
         )}
