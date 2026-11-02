@@ -9,7 +9,7 @@ import { SubNav } from "../components/SubNav";
 const pct = (a, b) => (b ? `${Math.round((a / b) * 100)} %` : "—");
 // Coût IA moyen estimé par action (en euros), pour calculer le coût d'acquisition
 const AI_COST = { analyse: 0.06, recherche: 0, enquete: 0.03, enquete_plus: 0.08, redaction: 0.01, linkedin: 0.03, analyse_prospect: 0.04, brief: 0.04, script: 0.01, veille: 0.25, reponse: 0.01, social: 0.25, lettre: 0.01, campagne: 0.02, credit_email: 0.09 };
-const PLAN_PRICE = { essai: 0, solo: 59, pro: 129, equipe: 249, fondateur: 0 };
+const PLAN_PRICE = { essai: 0, solo: 49, pro: 109, equipe: 159, fondateur: 0 };
 
 async function all(table, cols, ws) {
   const out = [];
