@@ -4,7 +4,8 @@
 // Rien n'est inventé : chaque opportunité a une source vérifiable.
 import { HttpError } from "./http.ts";
 import { admin, aiRoom, askJson, log, setAi, type Workspace } from "./core.ts";
-import { estimateValues, techScan } from "./radar-extra.ts";
+import { estimateValues } from "./radar-extra.ts";
+import { anniversaries, bizType, jobsScan, obligationSignals, webScan } from "./radar-saas.ts";
 import { findTwins, ftOffers, ftReady, lbbCompanies, pickTop3, radarPress, siteWatch, whoToCall, zoneEvents } from "./radar-plus.ts";
 import { learn, nameRenewals, newCompanies, type Opp, type PublicItem, rejected, renewals, rescore, tagProspects, tedTenders, watchProspects } from "./radar-signals.ts";
 
@@ -14,7 +15,7 @@ const WEB = (n: number) => [{ type: "web_search_20250305", name: "web_search", m
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 const day = (d: number) => new Date(Date.now() - d * 864e5).toISOString().slice(0, 10);
 
-type Cfg = { v: 1; mots_cles: string[]; postes: string[]; marches: boolean; panier?: number; web_at?: string; activites?: string[]; europe?: boolean; bodacc_at?: string; poids?: Record<string, number>; appris?: unknown; webhook?: string | null; press_at?: string; twins_at?: string };
+type Cfg = { v: 1; mots_cles: string[]; postes: string[]; marches: boolean; panier?: number; web_at?: string; activites?: string[]; europe?: boolean; bodacc_at?: string; poids?: Record<string, number>; appris?: unknown; webhook?: string | null; press_at?: string; twins_at?: string; type_at?: string };
 
 /** Mots-clés des marchés publics et postes « signal », déduits une fois de l'offre de l'entreprise. */
 async function config(ws: Workspace & { radar_cfg?: Cfg | null }, force = false): Promise<Cfg> {
@@ -191,6 +192,13 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
   try {
     const ws = { ...ws0, zone: await radarZone(ws0) };
     const cfg = await config(ws);
+    // Adapté au métier : un éditeur de logiciel qui ne vend pas au public n'a pas besoin des marchés publics (réglage modifiable)
+    const type = await bizType(ws).catch(() => "services");
+    if (!cfg.type_at) {
+      if (type === "saas" && (ws.profile as { vend_public?: boolean }).vend_public === false) cfg.marches = false;
+      cfg.type_at = at();
+      await admin.from("workspaces").update({ radar_cfg: cfg }).eq("id", ws.id);
+    }
     const zone = (ws.zone ?? []).filter((d) => /^(\d{2}|2A|2B|97\d)$/.test(d));
     // Recherche web (la partie payante) : chaque semaine, et seulement si l'espace a encore de la marge sur son budget IA
     const webDue = opts.web ?? ((!cfg.web_at || cfg.web_at < new Date(Date.now() - 6 * 864e5).toISOString()) && (await aiRoom(ws.id, 0.7)));
@@ -224,7 +232,15 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
       ]).then(([a, b]) => [...a, ...b]) : Promise.resolve([] as Opp[]), ""),
       siteWatch(ws).catch((e) => { console.error("sites", e); return [] as Opp[]; }),
       zoneEvents(ws, cfg.activites ?? [], zone).catch((e) => { console.error("zone", e); return [] as Opp[]; }),
-      techScan(ws).catch((e) => { console.error("outils", e); return [] as Opp[]; }),
+      // Sites (outils, page carrières) puis offres d'emploi publiées, puis dates anniversaires des abonnements concurrents
+      (async () => {
+        const t0 = Date.now(), wsc = { ...ws, radar_cfg: cfg as unknown as Record<string, unknown> };
+        const a = await webScan(wsc, { until: t0 + 45_000 }).catch((e) => { console.error("sites", e); return [] as Opp[]; });
+        const b = await jobsScan(wsc, cfg.postes ?? [], { until: t0 + 75_000 }).catch((e) => { console.error("offres", e); return [] as Opp[]; });
+        const c = await anniversaries(wsc, { until: t0 + 95_000 }).catch((e) => { console.error("abonnements", e); return [] as Opp[]; });
+        const d = await obligationSignals(wsc, zone).catch((e) => { console.error("obligations", e); return [] as Opp[]; });
+        return [...a, ...b, ...c, ...d];
+      })(),
       opts.web === false ? Promise.resolve([] as Opp[]) : radarPress({ ...ws, radar_cfg: cfg as unknown as Record<string, unknown> }, zone).catch((e) => { console.error("presse", e); return [] as Opp[]; }),
     ]);
     p.steps.annonces = { s: "fait", at: at(), n: legal.length + fresh.length + sites.length + zev.length }; await put();
@@ -324,7 +340,9 @@ export async function radarCron() {
   const since = new Date(Date.now() - 20 * 36e5).toISOString();
   const { data } = await admin.from("workspaces").select("*").eq("onboarded", true).or(`radar_at.is.null,radar_at.lt.${since}`).order("radar_at", { ascending: true, nullsFirst: true }).limit(3);
   let n = 0;
+  const t0 = Date.now();
   for (const ws of data ?? []) {
+    if (Date.now() - t0 > 150_000) break; // le reste au prochain passage
     setAi({ ws: ws.id });
     try { await scanRadar(ws, { top: true }); n++; } catch (e) { console.error("radar cron", ws.id, e); }
   }

@@ -140,7 +140,7 @@ Ton travail : comprendre ce qu'elle vend et à QUI elle doit le vendre (clients 
 ${description ? `Description du dirigeant :\n${description}\n\n` : ""}${content ? `Contenu du site :\n${content}` : ""}
 
 Produis :
-1. "profil" : nom commercial, résumé en une phrase, offre (ce qui est vendu, concrètement), clients_types (qui achète), preuves (faits vérifiables trouvés sur le site : années d'existence, références, certifications, chiffres — UNIQUEMENT s'ils figurent dans le contenu), differenciation (ce qui la distingue, d'après le site), ville (siège), ton (comment elle s'exprime : sobre, premium, chaleureux…).
+1. "profil" : nom commercial, résumé en une phrase, offre (ce qui est vendu, concrètement), clients_types (qui achète), preuves (faits vérifiables trouvés sur le site : années d'existence, références, certifications, chiffres — UNIQUEMENT s'ils figurent dans le contenu), differenciation (ce qui la distingue, d'après le site), ville (siège), ton (comment elle s'exprime : sobre, premium, chaleureux…), type ("saas" si elle vend un logiciel, une application ou un abonnement en ligne ; "services" pour des services aux entreprises surtout à distance ou intellectuels ; "terrain" pour des services rendus sur place : nettoyage, sécurité, BTP, maintenance… ; "produits" si elle fabrique ou vend des produits), vend_public (true si elle vend aussi à des acheteurs publics).
 2. "zone" : codes départements français (2 caractères, ex. "75", "92", "2A") où prospecter, déduits de la zone d'intervention indiquée sur le site ; à défaut, le département du siège et ses voisins. Liste vide si l'entreprise travaille dans toute la France.
 3. "cibles" : 3 à 6 types d'établissements clients, du plus prometteur au moins prometteur. Pour chacun :
    - label : nom clair (ex. « EHPAD », « Cabinets d'avocats »)
@@ -155,7 +155,7 @@ Ne vise pas les particuliers. Ne choisis que des cibles qui ont un vrai besoin d
 Si l'entreprise vend un logiciel, un SaaS, une application ou un service à distance : ses clients sont des entreprises (pas des établissements locaux). Choisis alors les secteurs d'activité de ses clients (codes NAF de ces secteurs, pas celui de l'éditeur), des tranches d'effectif cohérentes avec son prix et sa cible, siege_only = true, l'interlocuteur qui achète ce type d'outil (ex. « Directeur commercial », « DAF », « Responsable RH », « Gérant »), et une zone vide (toute la France) sauf si le site indique une limite géographique.
 
 Format :
-{"profil": {"nom": "", "resume": "", "offre": "", "clients_types": "", "preuves": [], "differenciation": "", "ville": "", "ton": ""},
+{"profil": {"nom": "", "resume": "", "offre": "", "clients_types": "", "preuves": [], "differenciation": "", "ville": "", "ton": "", "type": "services", "vend_public": false},
  "zone": ["75"],
  "cibles": [{"label": "", "pourquoi": "", "naf": ["00.00X"], "tranches": [], "siege_only": false, "interlocuteur": "", "pour_qui": "", "angle": ""}]}`, { maxTokens: 4000 });
 
@@ -179,5 +179,8 @@ Format :
   for (const c of cibles) {
     (c as Target).total = await countTarget(c as Target, zone).catch(() => undefined);
   }
-  return { profile: a.profil ?? {}, zone, targets: cibles as Target[] };
+  const profil = { ...(a.profil ?? {}) } as Profile;
+  if (!["saas", "services", "terrain", "produits"].includes(String(profil.type))) delete profil.type;
+  if (typeof profil.vend_public !== "boolean") delete profil.vend_public;
+  return { profile: profil, zone, targets: cibles as Target[] };
 }

@@ -23,6 +23,14 @@ const KIND = {
   budget: { label: "Projet voté", plural: "Projets votés", dot: "#7C3AED", chip: "bg-[#EDE9FE] text-[#5B21B6]", icon: "doc" },
   salon: { label: "Salon professionnel", plural: "Salons", dot: "#EA580C", chip: "bg-accent-soft text-accent-dark", icon: "users" },
   client_concurrent: { label: "Cliente d'un concurrent", plural: "Clients de tes concurrents", dot: "#BE123C", chip: "bg-[#FFE4E6] text-[#9F1239]", icon: "target" },
+  obligation: { label: "Obligation réglementaire", plural: "Obligations réglementaires", dot: "#0F766E", chip: "bg-[#CCFBF1] text-[#115E59]", icon: "shield" },
+  abonnement: { label: "Abonnement concurrent à renouveler", plural: "Abonnements concurrents à renouveler", dot: "#C2410C", chip: "bg-[#FFEDD5] text-[#9A3412]", icon: "clock" },
+  outil: { label: "Changement d'outils", plural: "Changements d'outils", dot: "#6D28D9", chip: "bg-[#EDE9FE] text-[#5B21B6]", icon: "spark" },
+  avis: { label: "Client mécontent d'un concurrent", plural: "Clients mécontents de tes concurrents", dot: "#BE123C", chip: "bg-[#FFE4E6] text-[#9F1239]", icon: "target" },
+  etablissement: { label: "Nouvel établissement", plural: "Nouveaux établissements", dot: "#0369A1", chip: "bg-[#E0F2FE] text-[#075985]", icon: "pin" },
+  demande: { label: "Demande de recommandation", plural: "Demandes de recommandation", dot: "#15803D", chip: "bg-good-soft text-good", icon: "chat" },
+  champion: { label: "Ancien utilisateur, nouvelle entreprise", plural: "Anciens utilisateurs", dot: "#B45309", chip: "bg-[#FEF3C7] text-[#92400E]", icon: "users" },
+  essai: { label: "Équipe à l'essai", plural: "Équipes à l'essai", dot: "#DB2777", chip: "bg-[#FCE7F3] text-[#9D174D]", icon: "up" },
   difficulte: { label: "Difficultés financières", plural: "Entreprises en difficulté", dot: "#DC2626", chip: "bg-bad-soft text-bad", icon: "x" },
 };
 const EVENTS = ["dirigeant", "demenagement", "creation"];
@@ -30,6 +38,9 @@ const SWEEP = 6; // secondes par tour
 
 const Ico = ({ name, className = "h-5 w-5" }) => {
   const p = {
+    shield: <path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z" />,
+    spark: <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6" />,
+    chat: <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" />,
     doc: <><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h4" /></>,
     up: <><path d="M3 17l6-6 4 4 8-8" /><path d="M15 7h6v6" /></>,
     users: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 20a6.5 6.5 0 0 0-3-5.5" /></>,
@@ -382,6 +393,14 @@ function Detail({ o, onClose, onChange }) {
           </div>
         ) : null}
         {o.raw?.valeur ? <p className="mt-3 text-sm rounded-xl bg-paper px-3 py-2"><b>Valeur estimée : ≈ {euroK(o.raw.valeur)} par an</b><span className="text-ink-soft"> · {o.raw.valeur_how}</span></p> : null}
+        {o.raw?.offres?.length ? (
+          <div className="mt-3 rounded-xl bg-paper px-3 py-2 text-sm">
+            <p className="font-semibold">Offres d'emploi ouvertes{o.raw.total ? ` (${o.raw.total} au total)` : ""}</p>
+            <ul className="mt-1 space-y-0.5">{o.raw.offres.map((j, i) => <li key={i}><a href={j.url} target="_blank" rel="noreferrer" className="text-accent hover:underline">{j.title}</a><span className="text-ink-faint text-[12px]">{[j.place, j.date && new Date(j.date).toLocaleDateString("fr-FR")].filter(Boolean).map((x) => ` · ${x}`).join("")}</span></li>)}</ul>
+            {o.raw.outils?.length ? <p className="text-[12px] text-ink-soft mt-1">Outils cités dans ses offres : {o.raw.outils.join(", ")}</p> : null}
+          </div>
+        ) : null}
+        {o.raw?.tech?.length && o.kind !== "recrutement" ? <p className="mt-3 text-[12.5px] text-ink-soft">Outils repérés sur son site : {o.raw.tech.join(", ")}</p> : null}
         {o.kind === "client_concurrent" && <p className="mt-3 text-sm rounded-xl bg-[#FFE4E6]/60 px-3 py-2">Son site cite <b>{(o.raw?.concurrents ?? []).join(", ")}</b>. Ouvre Espion pour l'angle d'approche face à ce concurrent.</p>}
         {o.raw?.contact && (
           <div className="mt-3 rounded-2xl border border-good/30 bg-good-soft/40 p-4 text-sm">
@@ -748,6 +767,64 @@ function Partners({ ws }) {
   );
 }
 
+/** Radar adapté au métier : type d'entreprise, outils concurrents repérés sur les sites, obligations qui font acheter tes clients. */
+function Adapted({ ws }) {
+  const toast = useToast();
+  const nav = useNavigate();
+  const [d, setD] = useState(null);
+  const [pick, setPick] = useState(false);
+  useEffect(() => { fn("r/saas-info", { workspace_id: ws.id }).then(setD).catch(() => setD(null)); }, [ws.id]);
+  if (!d) return null;
+  const save = async (patch) => { try { await fn("r/saas-set", { workspace_id: ws.id, ...patch }); setD(await fn("r/saas-info", { workspace_id: ws.id })); toast("Enregistré : pris en compte à la prochaine analyse", "good"); } catch (e) { toast(e.message, "bad"); } };
+  const toggleTool = (t) => save({ outils_rivaux: d.outils_rivaux.includes(t) ? d.outils_rivaux.filter((x) => x !== t) : [...d.outils_rivaux, t] });
+  const ids = d.obligations.map((o) => o.id);
+  return (
+    <Card className="p-5 sm:p-6">
+      <h2 className="flex items-center gap-2.5 font-bold text-[17px]"><span className="text-accent"><Ico name="spark" className="h-5 w-5" /></span>Adapté à ton métier</h2>
+      <p className="text-sm mt-2">Type d'entreprise : <b>{d.type_label}</b> <button onClick={() => nav("/reglages")} className="text-accent text-[13px] font-semibold hover:underline ml-1">changer</button></p>
+      <p className="text-[12.5px] text-ink-faint mt-0.5">{d.sites} sites lus · {d.carrieres} pages carrières trouvées · {d.offres} offres d'emploi suivies</p>
+
+      <p className="mt-4 text-[13px] font-semibold">Outils concurrents à repérer sur les sites</p>
+      <p className="text-[12px] text-ink-faint">Une entreprise qui les utilise peut passer chez toi : le Radar te prévient, et avant la date anniversaire de son abonnement.</p>
+      <div className="flex flex-wrap gap-1.5 mt-2">
+        {d.outils_rivaux.map((t) => <button key={t} onClick={() => toggleTool(t)} className="rounded-full bg-ink text-white px-2.5 py-1 text-[12px] font-semibold">{t} ×</button>)}
+        <button onClick={() => setPick(!pick)} className="rounded-full border border-line px-2.5 py-1 text-[12px] font-semibold text-ink-soft hover:border-ink-faint">{pick ? "Fermer" : "+ Ajouter"}</button>
+      </div>
+      {pick && <div className="flex flex-wrap gap-1.5 mt-2 max-h-40 overflow-auto">{d.outils.filter((t) => !d.outils_rivaux.includes(t)).map((t) => <button key={t} onClick={() => toggleTool(t)} className="rounded-full bg-paper px-2.5 py-1 text-[12px] hover:bg-line">{t}</button>)}</div>}
+
+      <p className="mt-4 text-[13px] font-semibold">Obligations qui poussent tes clients à acheter</p>
+      <div className="mt-1.5 space-y-1">
+        {d.obligations_all.map((o) => (
+          <label key={o.id} className="flex items-start gap-2 text-[13px]"><input type="checkbox" className="mt-0.5" checked={ids.includes(o.id)} onChange={() => save({ obligations: ids.includes(o.id) ? ids.filter((x) => x !== o.id) : [...ids, o.id] })} /><span>{o.titre}</span></label>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+/** Obligations réglementaires retenues pour l'offre, avec l'échéance. */
+function Obligations({ ws }) {
+  const [d, setD] = useState(null);
+  useEffect(() => { fn("r/saas-info", { workspace_id: ws.id }).then(setD).catch(() => setD(null)); }, [ws.id]);
+  if (!d?.obligations?.length) return null;
+  const when = (o) => o.statut === "en_cours" ? "Loi en cours d'adoption" : !o.date ? "En vigueur" : /^\d{4}/.test(o.date) ? (new Date(o.date) > new Date() ? `Échéance : ${new Date(o.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}` : `En vigueur depuis le ${new Date(o.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`) : `Chaque année avant le ${new Date(`2000-${o.date}`).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}`;
+  return (
+    <Card className="p-4 sm:p-5">
+      <h2 className="flex items-center gap-2.5 font-bold text-[16px]"><span className="text-accent"><Ico name="shield" className="h-5 w-5" /></span>Obligations qui font acheter tes clients</h2>
+      <ul className="mt-3 space-y-3">
+        {d.obligations.map((o) => (
+          <li key={o.id} className="text-[13px]">
+            <b>{o.titre}</b>
+            <p className="text-[12px] font-semibold text-accent-dark">{when(o)} · {o.qui}</p>
+            {o.angle && <p className="text-ink-soft leading-snug mt-0.5">{o.angle}</p>}
+            <a href={o.source} target="_blank" rel="noreferrer" className="text-[12px] text-ink-faint hover:underline">Texte officiel</a>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 /** Calendrier d'achat : les moments où tes clients décident, et ce qu'il faut faire avant. */
 function BuyingCalendar({ ws }) {
   const [cal, setCal] = useState(null);
@@ -1086,6 +1163,7 @@ export default function Radar() {
             <div className="flex-1"><p className="font-semibold text-accent text-sm">Conseil de Max</p><p className="text-sm text-ink-soft mt-0.5">{tip}</p></div>
           </Card>
           <BuyingCalendar ws={ws} />
+          <Obligations ws={ws} />
           <Roi ws={ws} />
         </div>
       </div>
@@ -1097,7 +1175,7 @@ export default function Radar() {
       {section === "reglages" && (
         <div className="grid xl:grid-cols-2 gap-5 items-start">
           <Searching ws={ws} />
-          <ScanActivity p={prog} live={live} />
+          <div className="space-y-5"><Adapted ws={ws} /><ScanActivity p={prog} live={live} /></div>
         </div>
       )}
       {open && <Detail o={open} onClose={() => setOpen(null)} onChange={(n) => { setOpen(n.status === "ecarte" ? null : n); setRows((rs) => n.status === "ecarte" ? rs.filter((x) => x.id !== n.id) : rs.map((x) => x.id === n.id ? n : x)); }} />}

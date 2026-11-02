@@ -19,6 +19,7 @@ export { parisToUtc, parisParts, pickThree } from "./${S}/time.ts";
 export { bingooIds, isBounce, failedRecipients, replyTo, plainText } from "./${S}/inbox.ts";
 export { messageIdFor } from "./${S}/mail.ts";
 export { stateOf, errorState } from "./${S}/mission.ts";
+export { toolsIn, toolsNamed, atsIn, careersLink, roleMatch } from "./${S}/tech-fp.ts";
 `;
 const stubs = {
   name: "stubs",
@@ -147,6 +148,29 @@ await test("une erreur est réessayée ; 3 erreurs d'affilée mettent la mission
   assert.equal(T.errorState(1), "reessai");
   assert.equal(T.errorState(2), "reessai");
   assert.equal(T.errorState(3), "erreur");
+});
+
+console.log("Radar : outils et pages carrières");
+await test("les outils installés sont reconnus dans le code de la page", () => {
+  const h = '<script src="//js.hs-scripts.com/123.js"></script><script src="https://js.stripe.com/v3"></script><link href="/wp-content/themes/x.css">';
+  assert.deepEqual(T.toolsIn(h).sort(), ["HubSpot", "Stripe", "WordPress"]);
+  assert.deepEqual(T.toolsIn("<p>Bonjour</p>"), []);
+});
+await test("les outils cités dans une offre d'emploi sont reconnus (sans faux positif)", () => {
+  assert.deepEqual(T.toolsNamed("Maîtrise de Salesforce et HubSpot exigée").sort(), ["HubSpot", "Salesforce"]);
+  assert.deepEqual(T.toolsNamed("Vous serez au contact de la clientèle"), []);
+});
+await test("la page carrières et son logiciel de recrutement sont trouvés", () => {
+  assert.deepEqual(T.atsIn('<a href="https://jobs.lever.co/acme">Jobs</a>'), { ats: "lever", slug: "acme" });
+  assert.deepEqual(T.atsIn('<iframe src="https://boards.greenhouse.io/embed/job_board?for=acmeco"></iframe>'), { ats: "greenhouse", slug: "acmeco" });
+  assert.deepEqual(T.atsIn('<a href="https://www.welcometothejungle.com/fr/companies/acme/jobs">'), { ats: "wttj", slug: "acme" });
+  assert.equal(T.atsIn("<p>rien</p>"), null);
+  assert.equal(T.careersLink('<a href="/fr/carrieres">Nous rejoindre</a>', "https://acme.fr/"), "https://acme.fr/fr/carrieres");
+});
+await test("un intitulé de poste correspond au poste « signal » attendu", () => {
+  assert.equal(T.roleMatch("Business Developer H/F - Paris", ["Business developer", "Directeur commercial"]), "Business developer");
+  assert.equal(T.roleMatch("Responsable commercial grands comptes", ["Responsable commercial"]), "Responsable commercial");
+  assert.equal(T.roleMatch("Développeur backend", ["Business developer", "Commercial"]), null);
 });
 
 console.log(`\n${ok} réussi${ok > 1 ? "s" : ""}, ${ko} échec${ko > 1 ? "s" : ""}`);

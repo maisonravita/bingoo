@@ -3,6 +3,7 @@ import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { Button, Card, Field, Input, Textarea, useToast } from "../components/ui";
 import Logo from "../components/Logo";
+import BizType from "../components/BizType";
 import { PRESETS, fmtN, parseZone, zoneLabel } from "../lib/zones";
 import { cx } from "../lib/utils";
 
@@ -116,6 +117,10 @@ export default function Onboarding() {
             <Card className="p-5 space-y-3">
               <Field label="Ce que tu vends"><Textarea rows={2} value={draft.profile?.offre ?? ""} onChange={(e) => setDraft({ ...draft, profile: { ...draft.profile, offre: e.target.value } })} /></Field>
               <Field label="Ce qui te distingue"><Textarea rows={2} value={draft.profile?.differenciation ?? ""} onChange={(e) => setDraft({ ...draft, profile: { ...draft.profile, differenciation: e.target.value } })} /></Field>
+              <Field label="Ton type d'entreprise" hint="Bingoo adapte ce qu'il cherche pour toi. Corrige si besoin.">
+                <BizType value={draft.profile?.type} onChange={(v) => setDraft({ ...draft, profile: { ...draft.profile, type: v } })}
+                  publicValue={draft.profile?.vend_public} onPublic={(v) => setDraft({ ...draft, profile: { ...draft.profile, vend_public: v } })} />
+              </Field>
             </Card>
 
             <div>
