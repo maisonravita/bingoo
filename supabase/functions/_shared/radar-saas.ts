@@ -423,7 +423,9 @@ export async function trialSignals(ws: W): Promise<Opp[]> {
   const { fetchHtml } = await import("./analyze.ts");
   for (const t of (data ?? []) as { domain: string; n: number; first_at: string; last_at: string }[]) {
     const html = await fetchHtml(`https://${t.domain}`).catch(() => "");
-    const name = (html.match(/<title[^>]*>([^<]{2,80})/i)?.[1] ?? t.domain).split(/\s[|–—-]\s/)[0].trim();
+    const site = html.match(/property=["']og:site_name["'][^>]*content=["']([^"']{2,60})/i)?.[1] ?? html.match(/content=["']([^"']{2,60})["'][^>]*property=["']og:site_name/i)?.[1];
+    const label = t.domain.split(".").slice(-2)[0];
+    const name = (site ?? label.charAt(0).toUpperCase() + label.slice(1)).replace(/&amp;/g, "&").replace(/&#39;/g, "'").trim();
     out.push({ key: `essai:${t.domain}:${String(t.first_at).slice(0, 7)}`, kind: "essai", title: `${name} · ${t.n} personnes à l'essai`, company: name,
       summary: `${t.n} inscriptions à ton essai gratuit avec une adresse @${t.domain} entre le ${new Date(t.first_at).toLocaleDateString("fr-FR")} et le ${new Date(t.last_at).toLocaleDateString("fr-FR")}.`,
       why: "Plusieurs personnes de la même entreprise testent ton produit : c'est un achat d'équipe en préparation. Propose une démo à l'équipe et une offre adaptée avant la fin de l'essai.",
