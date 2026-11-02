@@ -23,6 +23,11 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { ws } = await requireMember(req, b.workspace_id);
     return b.set ? await radarSetConfig(ws, b) : await radarGetConfig(ws);
   },
+  async "watch-add"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { watchAdd } = await import("../_shared/radar-plus.ts");
+    return await watchAdd(ws, b.items);
+  },
   async "radar-add"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     return await radarToProspect(ws, String(b.id ?? ""));
