@@ -203,8 +203,16 @@ export function newLeader(text: string) {
   const role = m[1].replace(/^(nomination|modification) d[eu]s?\s*/i, "").trim();
   const raw = m[2].trim();
   if (/\b(SAS|SARL|SA|HOLDING|GROUPE|SOCIETE)\b/.test(raw)) return null; // personne morale
-  const [nom, prenoms] = raw.includes(",") ? raw.split(",").map((x) => x.trim()) : [raw, ""];
-  const name = cap(`${(prenoms ?? "").split(" ")[0]} ${nom}`.trim());
+  // Formats : « MOREL, Victor Antoine » ; « LIEGEOIS Baptiste » ; « AZOULAY Samuel, Amos » ; « EIKYO MANAGEMENT » (société : ignorée)
+  const segs = raw.split(",").map((x) => x.trim()).filter(Boolean);
+  const words = (segs[0] ?? "").split(/\s+/);
+  const upper = words.filter((w) => w.length > 1 && w === w.toUpperCase());
+  const lower = words.filter((w) => !(w.length > 1 && w === w.toUpperCase()));
+  let nom = "", prenom = "";
+  if (segs.length > 1 && (!upper.length || !lower.length)) { nom = segs[0]; prenom = segs[1].split(/\s+/)[0]; }
+  else if (lower.length && upper.length) { nom = upper.join(" "); prenom = lower[0]; }
+  else return null; // tout en majuscules sans prénom : c'est une société
+  const name = cap(`${prenom} ${nom}`.trim());
   return name.length > 3 ? { nom: name, role: cap(role).slice(0, 60), source: "BODACC" } : null;
 }
 
