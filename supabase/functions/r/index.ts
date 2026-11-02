@@ -52,6 +52,15 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     return await growthReco(ws, String(b.page ?? ""), b.stats);
   },
   async "radar-cron"(req) { await cron(req); return await radarCron(); },
+  // Diagnostic France Travail (clé de tâche) : présence des secrets et connexion, sans jamais renvoyer leur valeur
+  async "ft-check"(req) {
+    await cron(req);
+    const { ftReady, ftOffers } = await import("../_shared/radar-plus.ts");
+    if (!ftReady()) return { secrets: false };
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", "69871493-9885-465b-a597-f560e8656cd8").single();
+    try { const o = await ftOffers(ws, ["agent de propreté"], ["92"]); return { secrets: true, connexion: true, offres: o.length, exemple: o.slice(0, 3).map((x) => `${x.company} · ${x.summary}`) }; }
+    catch (e) { return { secrets: true, connexion: false, erreur: (e as Error).message }; }
+  },
   async "market-cron"(req) { await cron(req); const { marketCron } = await import("../_shared/market.ts"); return await marketCron(); },
   async "market-refresh"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
