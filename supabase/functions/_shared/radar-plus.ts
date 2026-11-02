@@ -76,12 +76,20 @@ async function ftAuth(scopes: string[] = ["api_offresdemploiv2 o2dsoffre"]) {
   const c = ftTokens.get(key);
   if (c && c.exp > Date.now() + 60e3) return c.v;
   let last = "";
+  const id = env("FT_CLIENT_ID").trim().replace(/^["']|["']$/g, ""), secret = env("FT_CLIENT_SECRET").trim().replace(/^["']|["']$/g, "");
+  const url = "https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=%2Fpartenaire";
   for (const scope of scopes) {
-    const body = new URLSearchParams({ grant_type: "client_credentials", client_id: env("FT_CLIENT_ID").trim().replace(/^["']|["']$/g, ""), client_secret: env("FT_CLIENT_SECRET").trim().replace(/^["']|["']$/g, ""), scope });
-    const r = await fetch("https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=%2Fpartenaire", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body, signal: AbortSignal.timeout(15000) });
-    const j = await r.json().catch(() => ({}));
-    if (r.ok && j.access_token) { ftTokens.set(key, { v: j.access_token, exp: Date.now() + (Number(j.expires_in) || 1200) * 1000 }); return j.access_token as string; }
-    last = `${r.status} ${String(j.error ?? "")} ${String(j.error_description ?? "").slice(0, 120)}`.trim();
+    // Deux façons d'envoyer les identifiants : dans le formulaire, puis en en-tête « Basic » (selon la configuration du compte)
+    for (const mode of ["form", "basic"] as const) {
+      const body = new URLSearchParams({ grant_type: "client_credentials", scope, ...(mode === "form" ? { client_id: id, client_secret: secret } : {}) });
+      const headers: Record<string, string> = { "content-type": "application/x-www-form-urlencoded" };
+      if (mode === "basic") headers.authorization = `Basic ${btoa(`${id}:${secret}`)}`;
+      const r = await fetch(url, { method: "POST", headers, body, signal: AbortSignal.timeout(15000) });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.access_token) { ftTokens.set(key, { v: j.access_token, exp: Date.now() + (Number(j.expires_in) || 1200) * 1000 }); return j.access_token as string; }
+      last = `${r.status} ${String(j.error ?? "")} ${String(j.error_description ?? "").slice(0, 120)} [${mode}]`.trim();
+      if (j.error !== "invalid_client") break; // une autre erreur (droits) ne dépend pas du mode
+    }
   }
   throw new Error(`France Travail : connexion refusée (${last})`);
 }
