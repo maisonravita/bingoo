@@ -57,9 +57,12 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     await cron(req);
     const { ftReady, ftOffers } = await import("../_shared/radar-plus.ts");
     if (!ftReady()) return { secrets: false };
+    const { env } = await import("../_shared/core.ts");
+    const id = env("FT_CLIENT_ID").trim(), sec = env("FT_CLIENT_SECRET").trim();
+    const forme = { identifiant_commence_par_PAR: id.startsWith("PAR_"), longueur_identifiant: id.length, longueur_cle: sec.length, cle_commence_par_PAR: sec.startsWith("PAR_") };
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", "69871493-9885-465b-a597-f560e8656cd8").single();
-    try { const o = await ftOffers(ws, ["agent de propreté"], ["92"]); return { secrets: true, connexion: true, offres: o.length, exemple: o.slice(0, 3).map((x) => `${x.company} · ${x.summary}`) }; }
-    catch (e) { return { secrets: true, connexion: false, erreur: (e as Error).message }; }
+    try { const o = await ftOffers(ws, ["agent de propreté"], ["92"]); return { secrets: true, forme, connexion: true, offres: o.length, exemple: o.slice(0, 3).map((x) => `${x.company} · ${x.summary}`) }; }
+    catch (e) { return { secrets: true, forme, connexion: false, erreur: (e as Error).message }; }
   },
   async "market-cron"(req) { await cron(req); const { marketCron } = await import("../_shared/market.ts"); return await marketCron(); },
   async "market-refresh"(req, b) {
