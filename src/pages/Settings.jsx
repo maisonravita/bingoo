@@ -104,7 +104,7 @@ export default function Settings() {
 
       <Section id="fiche" title="Ce que Kairo peut répondre" sub="Les infos que tes prospects demandent : intégrations, délais, prix publics, sécurité, garanties, références. Kairo s'en sert dans les e-mails, les réponses et les comptes rendus, et n'invente rien d'autre.">
         <Textarea rows={10} value={f.knowledge ?? ""} onChange={(e) => setF({ ...f, knowledge: e.target.value })}
-          placeholder={"OFFRE ET PRIX\nAbonnement Pro : 129 € HT / mois, sans engagement\n\nMISE EN PLACE\nPremiers e-mails envoyés en 48 h\n\nINTÉGRATIONS\nHubSpot, Pipedrive, Google Agenda, Outlook\n\nSÉCURITÉ ET RGPD\nDonnées hébergées en Europe…"} />
+          placeholder={"OFFRE ET PRIX\nAbonnement Pro : 109 € HT / mois, sans engagement\n\nMISE EN PLACE\nPremiers e-mails envoyés en 48 h\n\nINTÉGRATIONS\nHubSpot, Pipedrive, Google Agenda, Outlook\n\nSÉCURITÉ ET RGPD\nDonnées hébergées en Europe…"} />
         {/\[à compléter/i.test(f.knowledge ?? "") && <p className="text-xs text-warn mt-2">Remplace les [à compléter] avant d'enregistrer : Kairo ne les utilisera pas tant qu'ils restent vides.</p>}
         <div className="flex flex-wrap gap-2 mt-3">
           <Button variant="primary" loading={busy === "save"} onClick={() => save({ knowledge: (f.knowledge ?? "").slice(0, 8000) }, "Fiche enregistrée")}>Enregistrer</Button>

@@ -8,7 +8,7 @@ const when = (d) => (d ? new Date(d).toLocaleString("fr-FR", { day: "numeric", m
 const PLAN = { essai: "Essai", demarrage: "Démarrage", solo: "Solo", pro: "Pro", equipe: "Équipe", fondateur: "Fondateur" };
 
 const BUDGET = { essai: 4, solo: 11, pro: 24, equipe: 46, fondateur: 15 };
-const PRICE = { essai: 0, solo: 59, pro: 129, equipe: 249, fondateur: 0 };
+const PRICE = { essai: 0, solo: 49, pro: 109, equipe: 159, fondateur: 0 };
 /** Coût IA réel (mesuré à chaque appel) : par espace, budget, marge, fonctions les plus coûteuses. */
 function AiCosts({ rows }) {
   if (!rows) return null;
