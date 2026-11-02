@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { fn } from "../lib/supabase";
+import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { Badge, Button, Card, PageHead, useToast } from "../components/ui";
 import { cx } from "../lib/utils";
@@ -13,12 +13,28 @@ const FEATURES = {
 };
 const STATUS = { active: ["Actif", "good"], trialing: ["Essai", "accent"], past_due: ["Paiement en retard", "bad"], unpaid: ["Impayé", "bad"], canceled: ["Arrêté", "bad"], incomplete: ["En attente", "warn"] };
 
+const FEAT = { "r/spy-cron": "Espion (veille de nuit)", "espion/rapport": "Espion : rapports complets", "espion/publicites": "Espion : publicités", "espion/decouverte": "Espion : nouveaux concurrents", "espion/besoins": "Espion : besoins publics", "m/autopilot": "Mission : rédaction et relances", "m/cron": "Mission : pilote automatique", "r/radar-scan": "Radar", "r/radar-cron": "Radar (chaque matin)", "a/chat": "Vos salariés (questions)", "m/prepare": "Radar : contacts préparés" };
+/** Consommation IA du mois : ce que l'équipe IA a utilisé, et ce qui se passe quand le plafond approche. */
+function AiGauge({ ai }) {
+  const pct = Math.min(100, Math.round((Number(ai.spent) / Math.max(1, Number(ai.budget))) * 100));
+  return (
+    <Card className="p-5 sm:p-6 mb-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-2"><p className="font-semibold">Travail de ton équipe IA ce mois-ci</p><p className="text-sm text-ink-soft tnum">{pct} % de l'enveloppe incluse</p></div>
+      <div className="mt-3 h-2.5 rounded-full bg-paper overflow-hidden"><div className={cx("h-full rounded-full transition-all", pct >= 100 ? "bg-bad" : pct >= 80 ? "bg-warn" : "bg-accent")} style={{ width: `${pct}%` }} /></div>
+      {Object.keys(ai.by ?? {}).length > 0 && <p className="text-[12.5px] text-ink-faint mt-2">{Object.entries(ai.by).slice(0, 5).map(([k]) => FEAT[k] ?? k).join(" · ")}</p>}
+      <p className="text-sm text-ink-soft mt-3">{pct >= 100 ? "L'enveloppe du mois est utilisée : les réponses de tes prospects restent traitées, le reste reprend le 1er du mois (ou tout de suite avec l'offre supérieure)." : pct >= 60 ? "Au-delà de 60 %, la veille de nuit passe en mode économe pour garder l'essentiel (missions, réponses) jusqu'à la fin du mois." : "Tout fonctionne à plein régime. Les réponses de tes prospects sont toujours traitées, quoi qu'il arrive."}</p>
+    </Card>
+  );
+}
+
 export default function Abonnement() {
   const { ws, reload } = useWs();
   const toast = useToast();
   const loc = useLocation();
   const [plans, setPlans] = useState([]);
   const [busy, setBusy] = useState(null);
+  const [ai, setAi] = useState(null);
+  useEffect(() => { supabase.rpc("ai_month", { p_ws: ws.id }).then(({ data }) => setAi(data ?? null)); }, [ws.id]);
   useEffect(() => { fn("plans").then((r) => setPlans(r.plans)).catch(() => {}); }, []);
   useEffect(() => {
     const q = new URLSearchParams(loc.search);
@@ -48,6 +64,8 @@ export default function Abonnement() {
         <Badge tone={tone}>{label}</Badge>
         {ws.stripe_customer && <Button loading={busy === "billing-portal"} onClick={() => go("billing-portal")}>Factures, carte, résiliation</Button>}
       </Card>
+
+      {ai && <AiGauge ai={ai} />}
 
       <div className="grid md:grid-cols-3 gap-4">
         {plans.map((p) => {

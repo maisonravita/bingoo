@@ -1,6 +1,6 @@
 // V2 / V3 : réponses, rendez-vous, devis, analyses IA, appels, concurrents, pilote automatique.
 import { HttpError } from "./http.ts";
-import { admin, ask, askJson, log, PLATFORM_DOMAIN, repliesTracked, sendReady, type Prospect, type Workspace } from "./core.ts";
+import { admin, ask, askJson, log, PLATFORM_DOMAIN, setAi, repliesTracked, sendReady, type Prospect, type Workspace } from "./core.ts";
 import { warmup } from "./growth.ts";
 import { brand, buildIcs, canSend, replyAddress, resend, sendMail, sendSystem, signature, teamAddress } from "./mail.ts";
 import { rivalsOf, systemFor } from "./agents.ts";
@@ -133,6 +133,7 @@ export async function inbound(body: Record<string, unknown>) {
   const { data: ws } = await admin.from("workspaces").select("*").eq("id", p.workspace_id).single();
   const dom = m[2].toLowerCase();
   if (!ws || (dom !== (ws.reply_domain ?? "").toLowerCase() && dom !== PLATFORM_DOMAIN().toLowerCase())) return { skipped: "domaine" };
+  setAi({ ws: ws.id, essential: true });
   const from = String(d.from ?? "");
   const fm = from.match(/^\s*"?([^"<]*)"?\s*<([^>]+)>/);
   const fromEmail = (fm ? fm[2] : from).trim().toLowerCase();

@@ -2,7 +2,7 @@
 // Les actions passent par les routes existantes avec la session de l'utilisateur : mêmes contrôles d'accès,
 // mêmes limites du jour. Aucun outil n'envoie d'e-mail : tout brouillon attend la validation humaine.
 import { HttpError } from "./http.ts";
-import { admin, env, log, type Workspace } from "./core.ts";
+import { admin, aiGuard, aiRecord, env, log, type Workspace } from "./core.ts";
 
 type Msg = { role: "user" | "assistant"; content: unknown };
 type Ctx = { ws: Workspace; auth: string; steps: { tool: string; label: string }[]; links: { label: string; to: string }[] };
@@ -166,6 +166,7 @@ let THINKING: Record<string, unknown> | null = { type: "disabled" };
 async function claude(body: Record<string, unknown>) {
   const key = env("ANTHROPIC_API_KEY");
   if (!key) throw new HttpError(500, "Clé ANTHROPIC_API_KEY manquante");
+  await aiGuard();
   const post = async () => {
     const b = { ...body };
     if (THINKING) b.thinking = THINKING; else delete b.thinking;
@@ -174,7 +175,9 @@ async function claude(body: Record<string, unknown>) {
       headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify(b),
     });
-    return { r, data: await r.json().catch(() => ({})) };
+    const data = await r.json().catch(() => ({}));
+    if (r.ok && data?.usage) await aiRecord(String(b.model), data.usage);
+    return { r, data };
   };
   let { r, data } = await post();
   // Selon le modèle, « disabled » est refusé avec des outils : on essaie « between_tools », puis sans réglage

@@ -1,6 +1,6 @@
 // Fonction « n » : notifications et suivis (alerte prospect chaud, rapport du lundi, rappels RDV, relances devis, CRM)
 import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
-import { admin } from "../_shared/core.ts";
+import { admin, setAi } from "../_shared/core.ts";
 import { meetingReminders, quoteReminders } from "../_shared/convert.ts";
 import { syncCrm } from "../_shared/growth.ts";
 import { hotAlert, weeklyReport } from "../_shared/notify.ts";
@@ -20,7 +20,7 @@ const routes: Record<string, (b: Record<string, unknown>) => Promise<unknown>> =
     if (b.workspace_id) q = q.eq("id", String(b.workspace_id));
     const { data: list } = await q;
     const out: Record<string, unknown> = {};
-    for (const ws of list ?? []) { try { out[ws.name] = await weeklyReport(ws, b.dry === true); } catch (e) { out[ws.name] = { error: (e as Error).message }; } }
+    for (const ws of list ?? []) { setAi({ ws: ws.id }); try { out[ws.name] = await weeklyReport(ws, b.dry === true); } catch (e) { out[ws.name] = { error: (e as Error).message }; } }
     return out;
   },
   // Rappels de RDV pour tous, relance des devis pour les espaces en pilote automatique, synchronisation CRM
@@ -28,6 +28,7 @@ const routes: Record<string, (b: Record<string, unknown>) => Promise<unknown>> =
   async inbox(b: Record<string, unknown>) {
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
     if (!ws) throw new HttpError(404, "Espace introuvable");
+    setAi({ ws: ws.id, essential: true });
     const base = ws.app_url ? `${String(ws.app_url).replace(/\/$/, "")}/#` : "";
     return await pollInbox(ws, (w, p, input) => handleReply(w, p, input, base));
   },
@@ -37,6 +38,7 @@ const routes: Record<string, (b: Record<string, unknown>) => Promise<unknown>> =
     const { data: boxes } = await admin.from("workspaces").select("*").eq("onboarded", true).filter("integrations->mailbox->>ok", "eq", "true");
     for (const ws of boxes ?? []) {
       const base = ws.app_url ? `${String(ws.app_url).replace(/\/$/, "")}/#` : "";
+      setAi({ ws: ws.id, essential: true });
       try { out[`boite_${ws.id}`] = await pollInbox(ws, (w, p, input) => handleReply(w, p, input, base)); } catch (e) { out[`boite_${ws.id}`] = { error: (e as Error).message }; }
     }
     const { data: every } = await admin.from("workspaces").select("*").eq("onboarded", true);

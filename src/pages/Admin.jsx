@@ -7,16 +7,48 @@ const eur = (x) => `${Number(x ?? 0).toLocaleString("fr-FR", { minimumFractionDi
 const when = (d) => (d ? new Date(d).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "jamais");
 const PLAN = { essai: "Essai", demarrage: "Démarrage", solo: "Solo", pro: "Pro", equipe: "Équipe", fondateur: "Fondateur" };
 
+const BUDGET = { essai: 4, solo: 14, pro: 26, equipe: 50, fondateur: 15 };
+const PRICE = { essai: 0, solo: 79, pro: 149, equipe: 299, fondateur: 0 };
+/** Coût IA réel (mesuré à chaque appel) : par espace, budget, marge, fonctions les plus coûteuses. */
+function AiCosts({ rows }) {
+  if (!rows) return null;
+  const total = rows.reduce((s, r) => s + Number(r.spent), 0);
+  return (
+    <Card className="p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="font-semibold text-lg">Coût IA réel du mois</h2><p className="text-sm text-ink-soft">Total : <b className="text-ink">{eur(total)}</b> · plafond de sécurité 12 € par jour pour toute la plateforme</p></div>
+      {!rows.length ? <p className="text-sm text-ink-soft mt-2">La mesure démarre : les premiers chiffres arrivent avec les prochains appels.</p> : (
+        <div className="mt-3 overflow-x-auto"><table className="w-full text-sm min-w-[720px]">
+          <thead><tr className="text-left text-xs text-ink-soft border-b border-line"><th className="py-2 font-medium">Espace</th><th className="font-medium text-right">Dépensé</th><th className="font-medium text-right">Budget</th><th className="font-medium w-40">Utilisation</th><th className="font-medium text-right">Marge brute</th><th className="font-medium pl-4">Ce qui coûte le plus</th></tr></thead>
+          <tbody className="divide-y divide-line">{rows.map((r) => {
+            const b = Number(r.budget ?? BUDGET[r.plan] ?? 4), pct = Math.min(100, Math.round((Number(r.spent) / b) * 100)), price = PRICE[r.plan] ?? 0;
+            return (
+              <tr key={r.workspace_id ?? "x"}>
+                <td className="py-2.5 font-medium">{r.name}<span className="text-ink-faint font-normal"> · {PLAN[r.plan] ?? "—"}</span></td>
+                <td className="text-right tabular-nums">{eur(r.spent)}</td>
+                <td className="text-right tabular-nums">{r.workspace_id ? eur(b) : "—"}</td>
+                <td>{r.workspace_id && <div className="flex items-center gap-2 pl-3"><div className="h-2 flex-1 rounded-full bg-paper overflow-hidden"><div className={cx("h-full rounded-full", pct >= 100 ? "bg-bad" : pct >= 80 ? "bg-warn" : "bg-good")} style={{ width: `${pct}%` }} /></div><span className="text-xs tabular-nums w-9 text-right">{pct} %</span></div>}</td>
+                <td className="text-right tabular-nums">{price ? eur(price - Number(r.spent)) : "—"}</td>
+                <td className="pl-4 text-xs text-ink-soft">{Object.entries(r.top ?? {}).map(([k, v]) => `${k} ${eur(v)}`).join(" · ")}</td>
+              </tr>
+            );
+          })}</tbody>
+        </table></div>
+      )}
+    </Card>
+  );
+}
+
 /** Tableau de bord de l'administrateur de la plateforme (accès vérifié côté serveur). */
 export default function Admin() {
   const [d, setD] = useState(null);
   const [inc, setInc] = useState(null);
   const [fbk, setFbk] = useState([]);
+  const [ai, setAi] = useState(null);
   const [err, setErr] = useState("");
   const load = async () => {
     setErr("");
-    const [a, b, c] = await Promise.all([supabase.rpc("admin_overview"), supabase.rpc("admin_incidents"), supabase.rpc("admin_feedback")]);
-    setFbk(c.data ?? []);
+    const [a, b, c, u] = await Promise.all([supabase.rpc("admin_overview"), supabase.rpc("admin_incidents"), supabase.rpc("admin_feedback"), supabase.rpc("ai_overview")]);
+    setFbk(c.data ?? []); setAi(u.data ?? []);
     if (a.error) return setErr(a.error.message);
     setD(a.data); setInc(b.data ?? []);
   };
@@ -34,6 +66,8 @@ export default function Admin() {
           <Card key={l} className="p-4"><p className="text-2xl font-semibold tabular-nums">{v}</p><p className="text-xs text-ink-soft mt-1">{l}</p></Card>
         ))}
       </div>
+
+      <AiCosts rows={ai} plans={ws} />
 
       <Card className={cx("p-5", inc?.length ? "border-bad/40" : "")}>
         <h2 className="font-semibold text-lg">Incidents à traiter</h2>

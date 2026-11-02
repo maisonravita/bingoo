@@ -3,7 +3,7 @@
 // - Croissance / recrutements : recherche web sourcée (une URL par signal) + signaux du registre déjà connus.
 // Rien n'est inventé : chaque opportunité a une source vérifiable.
 import { HttpError } from "./http.ts";
-import { admin, askJson, log, type Workspace } from "./core.ts";
+import { admin, aiRoom, askJson, log, setAi, type Workspace } from "./core.ts";
 import { learn, nameRenewals, newCompanies, type Opp, type PublicItem, rejected, renewals, rescore, tagProspects, tedTenders, watchProspects } from "./radar-signals.ts";
 
 const BOAMP = "https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records";
@@ -189,7 +189,8 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
     const ws = { ...ws0, zone: await radarZone(ws0) };
     const cfg = await config(ws);
     const zone = (ws.zone ?? []).filter((d) => /^(\d{2}|2A|2B|97\d)$/.test(d));
-    const webDue = opts.web ?? (!cfg.web_at || cfg.web_at < new Date(Date.now() - 6 * 864e5).toISOString());
+    // Recherche web (la partie payante) : chaque semaine, et seulement si l'espace a encore de la marge sur son budget IA
+    const webDue = opts.web ?? ((!cfg.web_at || cfg.web_at < new Date(Date.now() - 6 * 864e5).toISOString()) && (await aiRoom(ws.id, 0.7)));
     // Fenêtre BODACC : depuis la dernière lecture moins 7 jours (annonces parfois indexées en retard), au plus 30 jours. Les doublons sont ignorés.
     const back7 = cfg.bodacc_at ? new Date(new Date(cfg.bodacc_at).getTime() - 7 * 864e5).toISOString().slice(0, 10) : day(30);
     const bodaccSince = back7 > day(30) ? back7 : day(30);
@@ -302,6 +303,7 @@ export async function radarCron() {
   const { data } = await admin.from("workspaces").select("*").eq("onboarded", true).or(`radar_at.is.null,radar_at.lt.${since}`).order("radar_at", { ascending: true, nullsFirst: true }).limit(3);
   let n = 0;
   for (const ws of data ?? []) {
+    setAi({ ws: ws.id });
     try { await scanRadar(ws); n++; } catch (e) { console.error("radar cron", ws.id, e); }
   }
   return { workspaces: n };

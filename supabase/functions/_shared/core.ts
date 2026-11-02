@@ -1,6 +1,8 @@
 // Accès base (service), contrôle d'accès par espace, appels à Claude.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { HttpError } from "./http.ts";
+import { aiCtx, setAi } from "./ai-ctx.ts";
+export { setAi } from "./ai-ctx.ts";
 
 export const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -32,12 +34,13 @@ export function knowledgeOf(ws: { knowledge?: string }) {
 }
 
 // ---------------------------------------------------------------- Abonnements
-export const PLANS: Record<string, { label: string; price: number; factor: number; seats: number; credits: number }> = {
-  essai: { label: "Essai gratuit", price: 0, factor: 0.5, seats: 1, credits: 30 },
-  solo: { label: "Solo", price: 79, factor: 1, seats: 1, credits: 300 },
-  pro: { label: "Pro", price: 149, factor: 2, seats: 3, credits: 1000 },
-  equipe: { label: "Équipe", price: 299, factor: 4, seats: 10, credits: 3000 },
-  fondateur: { label: "Fondateur", price: 0, factor: 1, seats: 50, credits: 5000 },
+// ai : budget IA mensuel en euros (coût réel pour Bingoo!), environ 15 à 20 % du prix de l'abonnement.
+export const PLANS: Record<string, { label: string; price: number; factor: number; seats: number; credits: number; ai: number }> = {
+  essai: { label: "Essai gratuit", price: 0, factor: 0.5, seats: 1, credits: 30, ai: 4 },
+  solo: { label: "Solo", price: 79, factor: 1, seats: 1, credits: 300, ai: 14 },
+  pro: { label: "Pro", price: 149, factor: 2, seats: 3, credits: 1000, ai: 26 },
+  equipe: { label: "Équipe", price: 299, factor: 4, seats: 10, credits: 3000, ai: 50 },
+  fondateur: { label: "Fondateur", price: 0, factor: 1, seats: 50, credits: 5000, ai: 15 },
 };
 type PlanFields = { plan?: string; plan_status?: string; trial_ends?: string | null };
 /** Bloque les actions payantes quand l'essai est fini ou que l'abonnement n'est plus réglé. */
@@ -90,6 +93,7 @@ export async function requireMember(req: Request, workspaceId: unknown): Promise
   if (typeof workspaceId !== "string" || !/^[0-9a-f-]{36}$/.test(workspaceId)) throw new HttpError(400, "Espace manquant");
   const { data: m } = await admin.from("members").select("role").eq("workspace_id", workspaceId).eq("user_id", data.user.id).maybeSingle();
   if (!m) throw new HttpError(403, "Accès refusé à cet espace");
+  setAi({ ws: workspaceId });
   const { data: ws } = await admin.from("workspaces").select("*").eq("id", workspaceId).single();
   return { userId: data.user.id, ws: ws as Workspace };
 }
@@ -117,18 +121,75 @@ const FAST_MODEL = () => env("ANTHROPIC_FAST_MODEL", "claude-haiku-5-5");
 type Block = { type: string; text?: string };
 export type AskOpts = { fast?: boolean; maxTokens?: number; system?: string; tools?: unknown[] };
 
+// ---------------------------------------------------------------- Coût IA : mesure, budgets, garde-fous
+// Prix en dollars par million de jetons (entrée, sortie), modifiables via le secret AI_PRICES (JSON). Recherche web : par requête.
+const PRICES = (): Record<string, [number, number]> => {
+  try { return { opus: [5, 25], sonnet: [3, 15], haiku: [1, 5], ...JSON.parse(env("AI_PRICES", "{}")) }; } catch { return { opus: [5, 25], sonnet: [3, 15], haiku: [1, 5] }; }
+};
+const USD_EUR = () => Number(env("USD_EUR", "0.92")) || 0.92;
+type Usage = { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number; server_tool_use?: { web_search_requests?: number } };
+export function aiCost(model: string, u: Usage) {
+  const p = PRICES(), fam = Object.keys(p).find((k) => model.includes(k)) ?? "sonnet";
+  const [pin, pout] = p[fam];
+  const input = (u.input_tokens ?? 0) + 1.25 * (u.cache_creation_input_tokens ?? 0) + 0.1 * (u.cache_read_input_tokens ?? 0);
+  const usd = (input * pin + (u.output_tokens ?? 0) * pout) / 1e6 + (u.server_tool_use?.web_search_requests ?? 0) * Number(env("AI_SEARCH_USD", "0.01"));
+  return Math.round(usd * USD_EUR() * 1e5) / 1e5;
+}
+export async function aiRecord(model: string, u: Usage) {
+  const ctx = aiCtx.getStore() ?? {};
+  await admin.from("ai_usage").insert({
+    workspace_id: ctx.ws ?? null, feature: (ctx.feature ?? "autre").slice(0, 80), model,
+    input_tokens: (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0), output_tokens: u.output_tokens ?? 0,
+    searches: u.server_tool_use?.web_search_requests ?? 0, cost_eur: aiCost(model, u),
+  }).then(() => null, (e: unknown) => console.error("ai_usage", e));
+}
+const monthStart = () => { const d = new Date(); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString(); };
+const dayStart = () => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); return d.toISOString(); };
+/** Dépense IA (euros) d'un espace depuis le début du mois, ou de toute la plateforme depuis minuit. */
+export async function aiSpent(wsId: string | null, since = wsId ? monthStart() : dayStart()) {
+  const { data } = await admin.rpc("ai_spent", { p_ws: wsId, p_since: since });
+  return Number(data ?? 0);
+}
+/** Budget IA mensuel d'un espace (réglage propre à l'espace, sinon celui de son offre). */
+export async function aiBudget(wsId: string) {
+  const { data: w } = await admin.from("workspaces").select("plan, ai_budget_eur").eq("id", wsId).single();
+  return Number(w?.ai_budget_eur ?? PLANS[w?.plan ?? "essai"]?.ai ?? 4);
+}
+/** Reste-t-il de la marge pour un travail optionnel (veille de nuit, recherches web) ? share = part du budget qu'il peut atteindre. */
+export async function aiRoom(wsId: string, share = 0.6) {
+  const [spent, budget] = await Promise.all([aiSpent(wsId), aiBudget(wsId)]);
+  return spent < budget * share;
+}
+/** Garde-fou avant chaque appel : plafond quotidien de toute la plateforme, puis budget mensuel de l'espace. */
+export async function aiGuard() {
+  if (aiCtx.getStore()?.essential) return; // réponses de prospects : toujours traitées
+  const cap = Number(env("AI_DAILY_CAP_EUR", "12"));
+  if (cap > 0 && (await aiSpent(null)) >= cap) throw new HttpError(503, "Pause de sécurité : le plafond quotidien d'IA de la plateforme est atteint. Reprise automatique demain.");
+  const ws = aiCtx.getStore()?.ws;
+  if (!ws) return;
+  const [spent, budget] = await Promise.all([aiSpent(ws), aiBudget(ws)]);
+  if (spent >= budget) throw new HttpError(402, "Budget IA du mois atteint pour cet espace. Il se renouvelle le 1er du mois, ou passe à l'offre supérieure.");
+  if (spent >= budget * 0.8) {
+    const { count } = await admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("kind", "budget_ia").gte("created_at", monthStart());
+    if (!count) await admin.from("activity").insert({ workspace_id: ws, kind: "budget_ia", summary: `80 % du budget IA du mois utilisé (${spent.toFixed(2)} € sur ${budget} €) : la veille de nuit passe en mode économe` });
+  }
+}
+
 async function call(body: Record<string, unknown>, key: string) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  return { ok: res.ok, status: res.status, data: await res.json().catch(() => ({})) };
+  const data = await res.json().catch(() => ({}));
+  if (res.ok && data?.usage) await aiRecord(String(body.model), data.usage);
+  return { ok: res.ok, status: res.status, data };
 }
 
 export async function ask(prompt: string, opts: AskOpts = {}): Promise<string> {
   const key = env("ANTHROPIC_API_KEY");
   if (!key) throw new HttpError(500, "Clé ANTHROPIC_API_KEY manquante dans les secrets Supabase");
+  await aiGuard();
   const base: Record<string, unknown> = {
     model: opts.fast ? FAST_MODEL() : WRITE_MODEL(),
     max_tokens: Math.max(opts.maxTokens ?? 1500, 1500),

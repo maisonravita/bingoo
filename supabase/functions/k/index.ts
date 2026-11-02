@@ -1,6 +1,6 @@
 // Point d'entrée unique : https://<ref>.supabase.co/functions/v1/k/<action>
 import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
-import { admin, log, quota, requireMember, type Prospect, type Target } from "../_shared/core.ts";
+import { admin, log, quota, requireMember, setAi, type Prospect, type Target } from "../_shared/core.ts";
 import { analyze, normalizeUrl, readSite } from "../_shared/analyze.ts";
 import { countTarget, searchTarget } from "../_shared/search.ts";
 import { canSend } from "../_shared/mail.ts";
@@ -312,11 +312,13 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
     const { data: list } = await admin.from("workspaces").select("*").eq("autonomy", "auto").eq("onboarded", true);
     const out: Record<string, unknown> = {};
     for (const ws of list ?? []) {
+      setAi({ ws: ws.id });
       try { out[ws.id] = await autopilot(ws, baseOf(ws)); } catch (e) { out[ws.id] = { error: (e as Error).message }; }
     }
     // Rappels de RDV pour tous les espaces ; relance des devis pour ceux en pilote automatique
     const { data: every } = await admin.from("workspaces").select("*").eq("onboarded", true);
     for (const ws of every ?? []) {
+      setAi({ ws: ws.id });
       try {
         const r = await meetingReminders(ws);
         const d = ws.autonomy === "auto" ? await quoteReminders(ws, baseOf(ws)) : 0;
