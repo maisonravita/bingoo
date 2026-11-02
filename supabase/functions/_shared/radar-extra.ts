@@ -126,7 +126,11 @@ Format : {"partenaires": [{"label": "", "naf": ["68.32A"], "pourquoi": "", "mess
       for (const h of await search({ q, departement: d })) found.push(pick(h, "Société d'apport d'affaires", "Son métier est de présenter des clients à des entreprises comme la tienne, contre commission.", "Proposer un partenariat rémunéré à la commission sur les clients apportés."));
     }
   }
-  const uniq = [...new Map(found.map((f) => [f.siren as string, f])).values()].slice(0, 120);
+  // Dédoublonne, puis 20 au plus par type, les sociétés d'apport d'affaires en premier
+  const dedup = [...new Map(found.reverse().map((f) => [f.siren as string, f])).values()];
+  const perType = new Map<string, number>();
+  const uniq = dedup.sort((x, y) => Number(y.type === "Société d'apport d'affaires") - Number(x.type === "Société d'apport d'affaires"))
+    .filter((f) => { const n = perType.get(f.type as string) ?? 0; perType.set(f.type as string, n + 1); return n < 20; }).slice(0, 140);
   if (uniq.length) await admin.from("radar_partners").upsert(uniq, { onConflict: "workspace_id,siren", ignoreDuplicates: true });
   await admin.from("workspaces").update({ radar_cfg: { ...(ws.radar_cfg ?? {}), partenaires: types, partners_at: new Date().toISOString() } }).eq("id", ws.id);
   await log(ws.id, "radar", `${uniq.length} partenaires apporteurs d'affaires repérés dans ta zone`);
