@@ -163,9 +163,9 @@ export async function aiBalance(wsId: string) {
 }
 /** Recharges IA vendues : prix payé (HT) → travail IA ajouté (coût pour Bingoo!), environ 50 % de marge. */
 export const PACKS: Record<string, { label: string; price: number; credit: number; work: string }> = {
-  s: { label: "Recharge S", price: 10, credit: 5, work: "environ 300 e-mails rédigés de plus" },
-  m: { label: "Recharge M", price: 25, credit: 13, work: "environ 800 e-mails rédigés de plus" },
-  l: { label: "Recharge L", price: 50, credit: 28, work: "environ 1 700 e-mails rédigés de plus" },
+  s: { label: "Recharge S", price: 7, credit: 3.5, work: "environ 500 e-mails rédigés de plus" },
+  m: { label: "Recharge M", price: 17, credit: 9, work: "environ 1 300 e-mails rédigés de plus" },
+  l: { label: "Recharge L", price: 35, credit: 19, work: "environ 2 800 e-mails rédigés de plus" },
 };
 /** Reste-t-il de la marge pour un travail optionnel (veille de nuit, recherches web) ? share = part du budget qu'il peut atteindre. */
 export async function aiRoom(wsId: string, share = 0.6) {
