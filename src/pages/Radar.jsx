@@ -92,24 +92,24 @@ const heatLabel = (n) => (HEAT.find(([m]) => (n ?? 0) >= m) ?? HEAT[4])[1];
 /** Intentions : ce que l'entreprise fait vers toi. Signaux : ce qui lui arrive. */
 const INTENT = ["visite", "essai", "demande", "avis", "champion"];
 const APPROACH = {
-  appel_offres: "Réponds à l'avis : lis le cahier des charges et vérifie la date limite. Le contact de l'acheteur est dans l'avis officiel.",
-  renouvellement: "Présente-toi au service achats 3 à 6 mois avant la fin du contrat, avant la publication du nouvel appel d'offres : propose une visite ou un audit.",
-  dirigeant: "Félicite le nouveau dirigeant pour sa prise de poste et propose un échange court : il revoit ses prestataires dans ses premiers mois.",
-  demenagement: "Écris pour l'installation dans les nouveaux locaux : nouveaux besoins, nouveaux contrats, c'est le moment.",
-  creation: "Présente-toi dès maintenant : une entreprise qui démarre choisit ses prestataires dans les premières semaines.",
-  etablissement: "Contacte le responsable du nouveau site : il s'équipe en ce moment.",
-  recrutement: "Rebondis sur l'offre d'emploi : la personne recrutée aura besoin de ce que tu vends pour réussir.",
-  croissance: "Félicite la croissance et montre comment tu absorbes la montée en charge.",
-  levee: "Félicite la levée de fonds : l'argent frais sert à s'équiper dans les 3 à 6 mois.",
-  client_concurrent: "Propose un comparatif sans dénigrer : ton dossier Espion donne les points où tu fais mieux.",
-  abonnement: "Écris 1 à 3 mois avant la date anniversaire : propose de comparer avant qu'elle ne reconduise pour un an.",
-  outil: "Elle change ses outils : présente ton offre comme une partie de cette nouvelle organisation.",
-  obligation: "Parle de l'échéance réglementaire et de ce que ton offre règle concrètement, sans dramatiser.",
-  visite: "Elle étudie ton offre en ce moment : écris au décideur aujourd'hui, avec une proposition concrète (démo, devis, appel).",
-  essai: "Plusieurs personnes testent ton produit : propose une démo à l'équipe avant la fin de l'essai.",
-  demande: "Réponds à sa demande publique avec une proposition simple et un exemple concret.",
-  avis: "Elle est mécontente de son prestataire : propose une solution au problème qu'elle cite, sans critiquer le concurrent.",
-  champion: "Il ou elle connaît déjà ta valeur : félicite-le pour sa prise de poste et propose la même chose dans sa nouvelle entreprise.",
+  appel_offres: "Lis l'avis et réponds avant la date limite.",
+  renouvellement: "Présente-toi aux achats avant le nouvel appel d'offres.",
+  dirigeant: "Félicite-le et propose 15 minutes d'échange.",
+  demenagement: "Propose ton aide pour les nouveaux locaux.",
+  creation: "Présente-toi pendant qu'elle choisit ses prestataires.",
+  etablissement: "Contacte le responsable du nouveau site.",
+  recrutement: "Rebondis sur son recrutement : la recrue aura besoin de toi.",
+  croissance: "Félicite sa croissance, montre que tu suis le rythme.",
+  levee: "Félicite la levée : elle va s'équiper.",
+  client_concurrent: "Propose un comparatif, sans critiquer.",
+  abonnement: "Propose de comparer avant le renouvellement.",
+  outil: "Elle change d'outils : glisse ton offre dans le changement.",
+  obligation: "Montre ce que tu règles avant l'échéance.",
+  visite: "Écris au décideur aujourd'hui, avec une proposition concrète.",
+  essai: "Propose une démo à l'équipe avant la fin de l'essai.",
+  demande: "Réponds à sa demande avec un exemple concret.",
+  avis: "Propose une solution au problème qu'elle cite.",
+  champion: "Félicite-le et propose la même chose chez lui.",
 };
 const heat = (n) => n >= 80 ? "bg-bad text-white" : n >= 65 ? "bg-accent text-white" : n >= 50 ? "bg-accent-soft text-accent-dark" : "bg-[#EFEEEA] text-ink-soft";
 const Score = ({ n, big }) => n ? <span title="Score : à quel point c'est le bon moment" className={cx("inline-flex items-center justify-center rounded-full font-bold tnum shrink-0 leading-none", big ? "h-12 w-12 text-[17px]" : "h-9 w-9 text-[13px]", heat(n))}>{n}</span> : null;
@@ -819,6 +819,7 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
   const [selId, setSelId] = useState(null);
   const [tab, setTab] = useState("entreprise");
   const [busy, setBusy] = useState(null);
+  const [full, setFull] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
   const weekAgo = Date.now() - 7 * 864e5;
   const pool = list.filter((o) => o.status !== "ecarte" && (mode === "tout" || (mode === "intention" ? INTENT.includes(o.kind) : !INTENT.includes(o.kind))));
@@ -870,7 +871,7 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
         <Card className="p-5 sm:p-6 min-w-0">
           <h2 title="Le score mesure si c'est le bon moment (1 à 99), pas une probabilité de vente. Position : distance à ta zone." className="flex items-center gap-2.5 font-bold text-[18px]"><span className="text-accent"><Ico name="radar" className="h-6 w-6" /></span>Radar d'opportunités</h2>
           <div className="mt-4 grid sm:grid-cols-[minmax(0,1fr)_130px] gap-4 items-center">
-            <div className="w-full max-w-[400px] mx-auto"><RadarScope round byHeat opps={pool} zone={ws.zone ?? []} scanning={live} selected={o?.id} onSelect={(x) => { setSelId((groups.find((g) => (g.top.group_key || g.top.company) === (x.group_key || x.company))?.top ?? x).id); setTab("entreprise"); }} /></div>
+            <div className="w-full max-w-[400px] mx-auto"><RadarScope round byHeat opps={pool} zone={ws.zone ?? []} scanning={live} selected={o?.id} onSelect={(x) => { setSelId((groups.find((g) => (g.top.group_key || g.top.company) === (x.group_key || x.company))?.top ?? x).id); setTab("entreprise"); setFull(false); }} /></div>
             <ul className="flex flex-wrap gap-x-4 gap-y-2 sm:block sm:space-y-2.5">
               {HEAT.map(([m, l, col], i) => <li key={l} className="flex items-start gap-2 text-[12.5px]"><span className="mt-1 h-2.5 w-2.5 rounded-full shrink-0" style={{ background: col }} /><span><b className="font-semibold">{l}</b><br /><span className="text-ink-faint">{i === 0 ? `${m} et plus` : `${m} à ${HEAT[i - 1][0] - 1}`}</span></span></li>)}
             </ul>
@@ -893,9 +894,10 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
             <div className="mt-4 flex gap-1 border-b border-line overflow-x-auto">
               {[["entreprise", "Pourquoi cette entreprise ?"], ["moment", "Pourquoi maintenant ?"], ["approche", "Comment l'aborder ?"]].map(([k, l]) => <button key={k} onClick={() => setTab(k)} className={cx("relative shrink-0 px-3 pb-2.5 text-[14px] font-semibold", tab === k ? "text-accent-dark" : "text-ink-soft hover:text-ink")}>{l}{tab === k && <span className="absolute inset-x-2 -bottom-px h-[3px] rounded-full bg-accent" />}</button>)}
             </div>
-            <div className="py-4 text-[14px] leading-relaxed min-h-[96px]">
-              {tab === "entreprise" && <><p>{o.summary || o.title}</p>{(o.score_why ?? []).length > 0 && <p className="text-[12.5px] text-ink-faint mt-2">{o.score_why.filter((w) => !/^retiré/.test(w)).slice(0, 5).join(" · ")}</p>}</>}
-              {tab === "moment" && <><p>{o.why || "Signal récent : c'est le moment où l'entreprise est la plus réceptive."}</p>{deadline && deadline > new Date() && <p className="mt-2 text-[13px] font-semibold text-accent-dark">À traiter avant le {deadline.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>}{o.url && <a href={o.url} target="_blank" rel="noreferrer" className="block mt-2 text-[12.5px] text-ink-faint hover:underline">Source : {o.source || o.url}</a>}</>}
+            <div className="py-3 text-[14px] leading-relaxed min-h-[80px]">
+              {tab === "entreprise" && <><p className={cx(!full && "line-clamp-2")}>{o.summary || o.title}</p>{String(o.summary || "").length > 140 && <button onClick={() => setFull(!full)} className="text-[12px] font-semibold text-ink-soft hover:text-ink">{full ? "Réduire" : "Lire plus"}</button>}
+                {(o.score_why ?? []).length > 1 && <div className="mt-2 flex flex-wrap gap-1.5">{o.score_why.filter((w) => !/^retiré/.test(w)).slice(1, 4).map((w) => <span key={w} className="rounded-full bg-paper px-2.5 py-0.5 text-[11.5px] text-ink-soft">{w.length > 42 ? `${w.slice(0, 40)}…` : w}</span>)}</div>}</>}
+              {tab === "moment" && <><p className={cx(!full && "line-clamp-2")}>{o.why || "Signal récent : c'est le moment où l'entreprise est la plus réceptive."}</p>{String(o.why || "").length > 140 && <button onClick={() => setFull(!full)} className="text-[12px] font-semibold text-ink-soft hover:text-ink">{full ? "Réduire" : "Lire plus"}</button>}<p className="mt-1.5 text-[12.5px] text-ink-faint">{deadline && deadline > new Date() ? <b className="text-accent-dark">Avant le {deadline.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</b> : null}{deadline && deadline > new Date() && o.url ? " · " : ""}{o.url ? <a href={o.url} target="_blank" rel="noreferrer" className="hover:underline">Source</a> : null}</p></>}
               {tab === "approche" && <p>{APPROACH[o.kind] ?? "Présente-toi en partant de ce signal : une phrase sur ce qui se passe chez eux, une sur ce que tu apportes, une question simple."}</p>}
             </div>
             <div className="mt-auto grid sm:grid-cols-2 gap-4 pt-4 border-t border-line">
@@ -933,7 +935,7 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
                 <td className="px-3 py-2.5"><span className={cx("rounded-full px-2.5 py-1 text-[12px] font-semibold whitespace-nowrap", KIND[x.kind]?.chip ?? "bg-paper")}>{KIND[x.kind]?.label ?? x.kind}{kinds.size > 1 ? ` +${kinds.size - 1}` : ""}</span></td>
                 <td className="px-3 py-2.5 text-ink-soft">{INTENT.includes(x.kind) ? "Intention" : "Signal"}</td>
                 <td className="px-3 py-2.5 text-ink-soft whitespace-nowrap">{when(x)}</td>
-                <td className="px-5 py-2.5 text-right"><button onClick={() => { setSelId(x.id); setTab("entreprise"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="rounded-full border border-accent/40 text-accent-dark px-3.5 py-1 text-[12.5px] font-semibold hover:bg-accent-soft">Voir →</button></td>
+                <td className="px-5 py-2.5 text-right"><button onClick={() => { setSelId(x.id); setTab("entreprise"); setFull(false); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="rounded-full border border-accent/40 text-accent-dark px-3.5 py-1 text-[12.5px] font-semibold hover:bg-accent-soft">Voir →</button></td>
               </tr>
             ))}</tbody>
           </table></div>
