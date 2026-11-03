@@ -99,6 +99,17 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { oppContacts } = await import("../_shared/opp-contacts.ts");
     return await oppContacts(ws, String(b.id ?? ""));
   },
+  // Outils gratuits (sans compte) : porte d'entrée de Bingoo!
+  async "free-renewals"(req, b) {
+    const { freeLimit, freeRenewals } = await import("../_shared/free-tools.ts");
+    await freeLimit(req, "renewals", 8, 2000);
+    return await freeRenewals(b);
+  },
+  async "free-competitor"(req, b) {
+    const { freeLimit, freeCompetitor } = await import("../_shared/free-tools.ts");
+    await freeLimit(req, "competitor", 3, 150);
+    return await freeCompetitor(b);
+  },
   async "radar-calendar"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const { buyingCalendar } = await import("../_shared/radar-extra.ts");

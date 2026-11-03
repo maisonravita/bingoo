@@ -32,6 +32,7 @@ import Abonnement from "./pages/Abonnement";
 import Join, { JOIN_KEY } from "./pages/Join";
 import PublicBooking from "./pages/PublicBooking";
 import PublicQuote from "./pages/PublicQuote";
+import FreeTools from "./pages/FreeTools";
 import { Conditions, Confidentialite, legalReady, MentionsLegales, Opposition } from "./pages/Legal";
 import { supabase } from "./lib/supabase";
 
@@ -45,6 +46,7 @@ function Gate() {
   }, [ws?.id, ws?.app_url]);
   if (loc.pathname.startsWith("/rdv/")) return <PublicBooking />;
   if (loc.pathname.startsWith("/devis/")) return <PublicQuote />;
+  if (loc.pathname === "/outils" || loc.pathname.startsWith("/outils/")) return <FreeTools />;
   if (loc.pathname === "/opposition") return <Opposition />;
   if (legalReady && loc.pathname === "/mentions-legales") return <MentionsLegales />;
   if (legalReady && loc.pathname === "/confidentialite") return <Confidentialite />;
