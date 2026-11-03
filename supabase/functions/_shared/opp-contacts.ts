@@ -21,6 +21,23 @@ export function rolesFor(kind: string, interlocuteur: string, raw: Record<string
   return base;
 }
 
+/** Acheteur public : le contact « commande publique » publié dans ses derniers avis officiels (BOAMP), avec e-mail et téléphone. */
+async function publicBuyerContact(buyer: string) {
+  const words = buyer.replace(/\(.*?\)/g, " ").replace(/["\\]/g, " ").split(/\s+/).filter((w) => w.length > 3 && !/^(commune|ville|mairie|communaute|agglomeration|departement|region|syndicat|centre|etablissement)$/i.test(w.normalize("NFD").replace(/[\u0300-\u036f]/g, ""))).slice(0, 3);
+  if (!words.length) return null;
+  const u = new URL("https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records");
+  u.searchParams.set("where", words.map((w) => `search(nomacheteur, "${w}")`).join(" and "));
+  u.searchParams.set("order_by", "dateparution desc"); u.searchParams.set("limit", "5"); u.searchParams.set("select", "idweb,nomacheteur,dateparution");
+  const d = await fetch(u, { signal: AbortSignal.timeout(15000) }).then((r) => r.ok ? r.json() : null).catch(() => null);
+  const { boampAvis } = await import("./radar-plus.ts");
+  for (const r of ((d?.results ?? []) as { idweb: string; nomacheteur: string; dateparution: string }[])) {
+    const a = await boampAvis(r.idweb).catch(() => null);
+    const c = a?.contact;
+    if (c && (c.email || c.tel)) return { nom: c.nom || "Service de la commande publique", email: (c.email ?? "").toLowerCase(), tel: c.tel ?? "", source: `Avis officiel BOAMP du ${new Date(r.dateparution).toLocaleDateString("fr-FR")}`, url: `https://www.boamp.fr/pages/avis/?q=idweb:${r.idweb}` };
+  }
+  return null;
+}
+
 /** Cherche les contacts d'une opportunité et les rattache à sa fiche. */
 export async function oppContacts(ws: Workspace, oppId: string) {
   const { data: o } = await admin.from("radar_opps").select("*").eq("id", oppId).eq("workspace_id", ws.id).single();
@@ -39,9 +56,19 @@ export async function oppContacts(ws: Workspace, oppId: string) {
     const sc = await siteContacts(p.website).catch(() => null);
     if (!phone && sc?.phones?.[0]) { phone = sc.phones[0]; await admin.from("prospects").update({ phone }).eq("id", p.id); }
   }
+  // Acheteur public : son service achats, publié dans ses avis officiels
+  if (PUBLIC.includes(o.kind)) {
+    const c = await publicBuyerContact(o.company).catch(() => null);
+    if (c) {
+      await admin.from("contacts").upsert({ workspace_id: ws.id, prospect_id: p.id, name: c.nom, role: `Commande publique · ${o.company}`, linkedin_url: "", source: c.url, ...(c.email ? { email: c.email, email_status: "publie", email_source: c.source } : {}) }, { onConflict: "prospect_id,name" });
+      if (c.tel && !phone) { phone = c.tel; await admin.from("prospects").update({ phone }).eq("id", p.id); }
+      if (c.email && !p.email) await admin.from("prospects").update({ email: c.email, email_source: c.source, contact_name: c.nom, contact_role: "Commande publique" }).eq("id", p.id);
+    }
+  }
   // Décideurs par fonction (pages publiques, profils LinkedIn publics) + recherche d'e-mails vérifiés
   const r = await findContacts(ws, p.id, roles);
-  const rows = (r.contacts ?? []) as { name: string; role: string; email: string; email_status: string; linkedin_url: string; source?: string }[];
+  const rows = ((r.contacts ?? []) as { name: string; role: string; email: string; email_status: string; linkedin_url: string; source?: string }[])
+    .sort((a, b) => Number(!!b.email) - Number(!!a.email) || Number(!!b.linkedin_url) - Number(!!a.linkedin_url));
   const best = rows.find((c) => c.email) ?? rows.find((c) => c.linkedin_url) ?? rows[0];
   const raw = { ...(o.raw ?? {}), contacts_at: new Date().toISOString(), ...(best ? { contact: { nom: best.name, role: best.role, ...(best.email ? { email: best.email } : {}), ...(phone ? { tel: phone } : {}), ...(best.linkedin_url ? { linkedin: best.linkedin_url } : {}), source: best.source || "recherche publique" } } : {}) };
   await admin.from("radar_opps").update({ raw, prospect_id: p.id }).eq("id", o.id);
