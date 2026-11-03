@@ -20,6 +20,7 @@ export { bingooIds, isBounce, failedRecipients, replyTo, plainText } from "./${S
 export { messageIdFor } from "./${S}/mail.ts";
 export { stateOf, errorState } from "./${S}/mission.ts";
 export { toolsIn, toolsNamed, atsIn, careersLink, roleMatch } from "./${S}/tech-fp.ts";
+export { orgOf } from "./${S}/iporg.ts";
 `;
 const stubs = {
   name: "stubs",
@@ -173,6 +174,17 @@ await test("un intitulé de poste correspond au poste « signal » attendu", () 
   assert.equal(T.roleMatch("Développeur backend", ["Business developer", "Commercial"]), null);
   assert.equal(T.roleMatch("Account Executive, Small Business", ["Commercial B2B"]), "Commercial B2B");
   assert.equal(T.roleMatch("Talent Acquisition Partner", ["Responsable RH"]), "Responsable RH");
+});
+
+console.log("Radar : entreprise d'une adresse IP");
+const rdap = (fn, name, start, end, remarks = "") => ({ name, startAddress: start, endAddress: end, remarks: remarks ? [{ description: [remarks] }] : [], entities: [{ roles: ["registrant"], vcardArray: ["vcard", [["fn", {}, "text", fn]]] }] });
+await test("une plage d'adresses d'entreprise donne le nom de l'entreprise", () => {
+  assert.equal(T.orgOf(rdap("Onet Services SAS", "FR-ONET", "194.5.10.0", "194.5.10.255")).org, "Onet Services SAS");
+});
+await test("un opérateur, un hébergeur ou une très grande plage sont ignorés", () => {
+  assert.equal(T.orgOf(rdap("Orange S.A.", "FR-ORANGE-ADSL", "90.0.0.0", "90.127.255.255")).org, "");
+  assert.equal(T.orgOf(rdap("OVH SAS", "OVH", "51.0.0.0", "51.0.0.255")).org, "");
+  assert.equal(T.orgOf(rdap("Grande Entreprise", "BIG", "80.0.0.0", "80.3.255.255")).org, "");
 });
 
 console.log(`\n${ok} réussi${ok > 1 ? "s" : ""}, ${ko} échec${ko > 1 ? "s" : ""}`);
