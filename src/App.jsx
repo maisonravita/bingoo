@@ -1,9 +1,10 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { WsProvider, useWs } from "./lib/ws";
-import { ToastProvider, Spinner } from "./components/ui";
+import { ToastProvider } from "./components/ui";
 import Layout from "./components/Layout";
 import ErrorBoundary from "./components/ErrorBoundary";
+import Splash from "./components/Splash";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Today from "./pages/Today";
@@ -59,7 +60,7 @@ function Gate() {
   let pendingJoin = jm?.[1] ?? null;
   if (!pendingJoin) { try { pendingJoin = localStorage.getItem(JOIN_KEY); } catch { /* stockage indisponible */ } }
   if (session === undefined || (session && list === null)) {
-    return <div className="h-full grid place-items-center text-ink-soft"><Spinner /></div>;
+    return <Splash />;
   }
   // Visiteur : la page d'accueil ; la connexion et l'inscription sont sur /connexion
   if (!session && loc.pathname === "/" && !pendingJoin) return <Landing />;
