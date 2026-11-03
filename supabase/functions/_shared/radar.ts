@@ -351,7 +351,8 @@ export async function radarCron() {
   // Espaces à jour seulement (essai en cours ou abonnement réglé) ; les autres sont repoussés pour ne pas bloquer la file
   const stale = (data ?? []).filter((w) => !planOk(w));
   if (stale.length) await admin.from("workspaces").update({ radar_at: new Date().toISOString() }).in("id", stale.map((w) => w.id));
-  data = (data ?? []).filter((w) => planOk(w)).slice(0, 3);
+  const bgm = await (await import("./core.ts")).bgMode();
+  data = (data ?? []).filter((w) => planOk(w) && !(bgm === "clients" && w.plan === "fondateur")).slice(0, 3);
   let n = 0;
   const t0 = Date.now();
   for (const ws of data ?? []) {

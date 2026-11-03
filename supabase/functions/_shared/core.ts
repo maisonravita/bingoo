@@ -183,11 +183,15 @@ export async function aiRoom(wsId: string, share = 0.6) {
   return spent < (budget + extra) * share;
 }
 /** Garde-fou avant chaque appel : plafond quotidien de toute la plateforme, puis budget mensuel de l'espace. */
-/** Interrupteur général de l'IA automatique (app_secrets « background_ai » = « off ») : les tâches de nuit ne démarrent pas. */
-export async function backgroundPaused() {
+/** IA automatique (app_secrets « background_ai ») : « on » partout, « clients » = seulement les vrais clients
+ *  (les espaces « fondateur », tes espaces de test, ne consomment plus rien la nuit), « off » = arrêtée partout. */
+export async function bgMode(): Promise<"on" | "off" | "clients"> {
   const { data } = await admin.from("app_secrets").select("value").eq("name", "background_ai").maybeSingle();
-  return data?.value === "off";
+  return data?.value === "off" ? "off" : data?.value === "clients" ? "clients" : "on";
 }
+export async function backgroundPaused() { return (await bgMode()) === "off"; }
+/** Espace de test (formule fondateur) : pas d'IA automatique en mode « clients ». */
+export const isTestSpace = (w: { plan?: string | null }) => w.plan === "fondateur";
 
 export async function aiGuard() {
   const ctx = aiCtx.getStore() ?? {};
@@ -204,7 +208,12 @@ export async function aiGuard() {
   if (!ctx.live) {
     // Interrupteur général de l'IA automatique (nuit, tâches de fond) : app_secrets « background_ai » = « off ».
     // Ce que l'utilisateur lance lui-même et les réponses des prospects continuent.
-    if (await backgroundPaused()) throw new HttpError(503, "IA automatique en pause sur la plateforme.");
+    const mode = await bgMode();
+    if (mode === "off") throw new HttpError(503, "IA automatique en pause sur la plateforme.");
+    if (mode === "clients" && ws) {
+      const { data: w } = await admin.from("workspaces").select("plan").eq("id", ws).maybeSingle();
+      if (w && isTestSpace(w)) throw new HttpError(503, "IA automatique en pause sur les espaces de test.");
+    }
   }
   if (cap > 0) {
     // Les tâches de fond s'arrêtent à 70 % du plafond pour laisser la place aux demandes des utilisateurs connectés
