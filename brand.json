@@ -1,18 +1,18 @@
 {
   "name": "Bingoo",
   "legal": {
-    "company": "",
+    "company": "Jean-Adrien Attrey",
     "form": "",
     "capital": "",
-    "address": "",
+    "address": "78150 Le Chesnay-Rocquencourt",
     "siret": "",
-    "director": "",
-    "privacy_email": "",
+    "director": "Jean-Adrien Attrey",
+    "privacy_email": "bingoo@maisonravita.fr",
     "host": "Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, États-Unis (vercel.com)",
     "data_host": "Supabase Inc. (supabase.com), serveurs situés dans l'Union européenne (Paris)",
     "rcs": "",
     "vat": "",
-    "contact_email": ""
+    "contact_email": "bingoo@maisonravita.fr"
   },
   "_note": "Nom et informations légales affichés partout. Pour renommer ou compléter : changer ici, puis reconstruire le site et les fonctions. Les pages légales restent cachées tant que company est vide."
 }

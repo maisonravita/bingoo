@@ -4,7 +4,9 @@ import brand from "../../brand.json";
 import Logo from "../components/Logo";
 
 const L = brand.legal;
-export const legalReady = !!(L.company && L.address && L.siret && L.privacy_email);
+// Éditeur : une société (SIRET) ou, en attendant sa création, une personne physique (nom, adresse, e-mail)
+export const legalReady = !!(L.company && L.address && L.privacy_email);
+const isPerson = !L.siret;
 
 function Shell({ title, children }) {
   return (
@@ -60,7 +62,7 @@ export function Opposition() {
   );
 }
 
-const editor = () => `${L.company}${L.form ? `, ${L.form}` : ""}${L.capital ? ` au capital de ${L.capital}` : ""}, dont le siège est situé ${L.address}${L.rcs ? `, immatriculée au RCS de ${L.rcs}` : ""}, SIRET ${L.siret}${L.vat ? `, TVA intracommunautaire ${L.vat}` : ""}`;
+const editor = () => isPerson ? `${L.company}, personne physique, ${L.address}` : `${L.company}${L.form ? `, ${L.form}` : ""}${L.capital ? ` au capital de ${L.capital}` : ""}, dont le siège est situé ${L.address}${L.rcs ? `, immatriculée au RCS de ${L.rcs}` : ""}, SIRET ${L.siret}${L.vat ? `, TVA intracommunautaire ${L.vat}` : ""}`;
 const UPDATED = "3 novembre 2026";
 const contact = () => L.contact_email || L.privacy_email;
 
@@ -142,6 +144,7 @@ export function Conditions() {
     <Shell title="Conditions générales d'utilisation et de vente">
       <p className="text-sm text-ink-soft">Dernière mise à jour : {UPDATED}</p>
       <p>Les présentes conditions régissent l'utilisation de {brand.name}, service édité par {editor()} (« nous »), par les entreprises et professionnels qui y souscrivent (« vous »). {brand.name} est réservé aux professionnels : le droit de la consommation ne s'applique pas.</p>
+      {isPerson && <p className="rounded-xl bg-white border border-line p-4 text-sm">{brand.name} est actuellement en phase de lancement : l'accès se fait par l'essai gratuit, et aucun abonnement payant n'est encore proposé. Les articles relatifs au paiement s'appliqueront dès l'ouverture des abonnements, qui sera annoncée au préalable.</p>}
 
       <h2>1. Le service</h2>
       <p>{brand.name} met à disposition, sous forme d'abonnement en ligne, des agents logiciels d'intelligence artificielle qui repèrent des entreprises ayant une raison d'acheter (Radar), analysent vos concurrents (Espion), recherchent les coordonnées professionnelles des décideurs, rédigent et envoient des messages de prospection, suivent les réponses et organisent les rendez-vous (Mission). Ce sont des logiciels : leurs résultats peuvent comporter des erreurs et doivent être relus.</p>
@@ -191,7 +194,7 @@ export function Conditions() {
       <p>Nous pouvons modifier ces conditions ; toute modification importante vous est notifiée au moins 30 jours à l'avance. Si vous la refusez, vous pouvez résilier avant son entrée en vigueur.</p>
 
       <h2>14. Droit applicable et litiges</h2>
-      <p>Les présentes conditions sont soumises au droit français. En cas de litige, les parties recherchent d'abord une solution amiable ; à défaut, compétence exclusive est attribuée aux tribunaux du ressort du siège de {L.company}.</p>
+      <p>Les présentes conditions sont soumises au droit français. En cas de litige, les parties recherchent d'abord une solution amiable ; à défaut, compétence exclusive est attribuée aux tribunaux du ressort du domicile de l'éditeur.</p>
 
       <h2>15. Contact</h2>
       <p>{contact()}</p>
