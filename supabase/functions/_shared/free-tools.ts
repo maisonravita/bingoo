@@ -37,10 +37,10 @@ export async function freeRenewals(input: { secteur?: string; dept?: string }) {
   if (kw.length < 3) throw new HttpError(400, "Indique ton activité (ex. nettoyage, sécurité, informatique)");
   if (!/^(\d{2}|2A|2B|97\d)$/.test(dept)) throw new HttpError(400, "Indique un département (ex. 75, 69, 13)");
   const since = new Date(Date.now() - 6 * 365 * 864e5).toISOString().slice(0, 10);
-  const rows: { objet: string; acheteur_nom: string | null; titulaire_id_1: string | number | null; datenotification: string; dureemois: number | null; montant: number | null }[] = [];
+  const rows: { objet: string; acheteur_id: string | null; acheteur_nom: string | null; titulaire_id_1: string | number | null; datenotification: string; dureemois: number | null; montant: number | null }[] = [];
   for (let off = 0; off < 400; off += 100) {
     const u = new URL(DECP);
-    for (const [k, v] of Object.entries({ where: `search(objet,${q(kw)}) and startswith(lieuexecution_code,${q(dept)}) and datenotification>=date'${since}'`, limit: "100", offset: String(off), order_by: "datenotification desc", select: "objet,acheteur_nom,titulaire_id_1,datenotification,dureemois,montant" })) u.searchParams.set(k, v);
+    for (const [k, v] of Object.entries({ where: `search(objet,${q(kw)}) and startswith(lieuexecution_code,${q(dept)}) and datenotification>=date'${since}'`, limit: "100", offset: String(off), order_by: "datenotification desc", select: "objet,acheteur_id,acheteur_nom,titulaire_id_1,datenotification,dureemois,montant" })) u.searchParams.set(k, v);
     const d = await fetch(u, { signal: AbortSignal.timeout(15000) }).then((r) => r.ok ? r.json() : null).catch(() => null);
     const part = (d?.results ?? []) as typeof rows;
     rows.push(...part);
@@ -59,7 +59,9 @@ export async function freeRenewals(input: { secteur?: string; dept?: string }) {
   for (const r of top) {
     const sir = r.titulaire_id_1 ? String(r.titulaire_id_1).slice(0, 9) : "";
     const t = sir.length === 9 ? await lookup(sir).catch(() => null) : null;
-    out.push({ acheteur: cap(r.acheteur_nom ?? "Acheteur public"), objet: String(r.objet ?? "").replace(/\s+/g, " ").slice(0, 200), montant: r.montant ?? null, fin: r.fin.toISOString().slice(0, 10), titulaire: t?.nom ? cap(t.nom) : null });
+    const bs = r.acheteur_id ? String(r.acheteur_id).slice(0, 9) : "";
+    const b = !r.acheteur_nom && bs.length === 9 ? await lookup(bs).catch(() => null) : null;
+    out.push({ acheteur: cap(r.acheteur_nom || b?.nom || "Acheteur public"), objet: String(r.objet ?? "").replace(/\s+/g, " ").slice(0, 200), montant: r.montant ?? null, fin: r.fin.toISOString().slice(0, 10), titulaire: t?.nom ? cap(t.nom) : null });
   }
   const total = ending.reduce((s, r) => s + (Number(r.montant) || 0), 0);
   return { secteur: kw, dept, total: ending.length, montant_total: Math.round(total), visibles: out, caches: Math.max(0, ending.length - out.length) };
