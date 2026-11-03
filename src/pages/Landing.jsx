@@ -20,14 +20,18 @@ const Check = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className=
 const Arrow = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" /></svg>;
 
 /** Compteur en direct : ce que le Radar a trouvé, tous comptes confondus (relu toutes les 10 secondes). */
+// Une seule lecture toutes les 10 secondes, partagée par tous les blocs de la page
+const live = { v: null, subs: new Set(), timer: null };
+function liveLoad() {
+  return fetch(`${URL_}/rest/v1/rpc/radar_live`, { method: "POST", headers: { "Content-Type": "application/json", apikey: KEY, Authorization: `Bearer ${KEY}` }, body: "{}" })
+    .then((r) => r.ok ? r.json() : null).then((d) => { if (typeof d?.signaux === "number") { live.v = d; live.subs.forEach((f) => f(d)); } }).catch(() => {});
+}
 function useLive() {
-  const [v, setV] = useState(null);
+  const [v, setV] = useState(live.v);
   useEffect(() => {
-    let on = true;
-    const load = () => fetch(`${URL_}/rest/v1/rpc/radar_live`, { method: "POST", headers: { "Content-Type": "application/json", apikey: KEY, Authorization: `Bearer ${KEY}` }, body: "{}" })
-      .then((r) => r.ok ? r.json() : null).then((d) => { if (on && typeof d?.signaux === "number") setV(d); }).catch(() => {});
-    load(); const t = setInterval(() => { if (document.visibilityState === "visible") load(); }, 10000);
-    return () => { on = false; clearInterval(t); };
+    live.subs.add(setV);
+    if (!live.timer) { liveLoad(); live.timer = setInterval(() => { if (document.visibilityState === "visible") liveLoad(); }, 10000); }
+    return () => { live.subs.delete(setV); if (!live.subs.size) { clearInterval(live.timer); live.timer = null; } };
   }, []);
   return v;
 }
@@ -97,10 +101,41 @@ function NetBg() {
   );
 }
 // Bulles autour du titre : les sources que le Radar lit vraiment
-const BUBBLES = [
-  ["BOAMP", "Appels d'offres", "left-[7%] top-[10%]"], ["DECP", "Contrats publics", "left-[3%] top-[33%]"], ["BODACC", "Annonces légales", "left-[9%] top-[56%]"], ["TED", "Marchés européens", "left-[4%] top-[78%]"],
-  ["Sirene", "Registre officiel", "right-[7%] top-[9%]"], ["Emploi", "Offres d'emploi", "right-[3%] top-[32%]"], ["Web", "Sites et outils", "right-[9%] top-[55%]"], ["Ton site", "Visiteurs", "right-[4%] top-[78%]"],
-];
+// Bulles autour du titre : de vrais acheteurs publics dont le Radar a capté un marché qui se termine (données publiques)
+const SPOTS = ["left-[6%] top-[8%]", "left-[2%] top-[31%]", "left-[8%] top-[54%]", "left-[3%] top-[77%]", "right-[6%] top-[7%]", "right-[2%] top-[30%]", "right-[8%] top-[53%]", "right-[3%] top-[76%]"];
+const FALLBACK = [["Ville de Paris", "Marché public"], ["AP-HP", "Maintenance"], ["CNRS", "Nettoyage"], ["AFPA", "Nettoyage"], ["INRIA", "Marché public"], ["CAF 92", "Nettoyage"], ["SDIS", "Sécurité"], ["Ville de Montreuil", "Nettoyage"]].map(([n, c]) => ({ nom: n, cat: c, montant: null }));
+const titleCase = (x) => x.toLowerCase().replace(/(^|[\s'-])\p{L}/gu, (m) => m.toUpperCase());
+function shortBuyer(a) {
+  const par = a.match(/\(([^)]{2,14})\)\s*$/)?.[1];
+  if (par) return par.toUpperCase();
+  const c = a.match(/^commune\s+(?:de\s+|du\s+|d['’ ]\s*)?(.+)$/i)?.[1];
+  if (c) return `Ville de ${titleCase(c)}`.slice(0, 26);
+  const t = titleCase(a).replace(/^(Departement|Département) D[eu']\s*/i, "Département ").trim();
+  return t.length > 26 ? t.slice(0, 24).replace(/\s\S*$/, "") + "…" : t;
+}
+const catOf = (o) => /nettoy|vitrer|propret/i.test(o) ? "Nettoyage" : /gardienn|surveill|s[ée]curit/i.test(o) ? "Sécurité" : /maintenan/i.test(o) ? "Maintenance" : /informat|logiciel|num[ée]rique/i.test(o) ? "Informatique" : /restaur|repas/i.test(o) ? "Restauration" : /travaux|b[âa]timent|r[ée]novation/i.test(o) ? "Travaux" : /formation/i.test(o) ? "Formation" : "Marché public";
+function HeroBubbles() {
+  const v = useLive();
+  const list = (v?.vitrine ?? []).length >= 8 ? v.vitrine.map((x) => ({ nom: shortBuyer(String(x.acheteur)), cat: catOf(String(x.objet ?? "")), montant: Number(x.montant) || null })).filter((x, i, a) => a.findIndex((y) => y.nom === x.nom) === i) : FALLBACK;
+  const [tick, setTick] = useState(0);
+  useEffect(() => { const t = setInterval(() => setTick((n) => n + 1), 3200); return () => clearInterval(t); }, []);
+  // Une bulle change à chaque tour, les autres restent
+  const shown = SPOTS.map((_, i) => { const turns = Math.floor((tick + (8 - i)) / 8); return (i + turns * 8) % list.length; });
+  return (
+    <div aria-hidden className="absolute inset-x-0 top-24 h-[640px] hidden xl:block">
+      {SPOTS.map((pos, i) => { const b = list[shown[i]] ?? FALLBACK[i]; return (
+        <div key={i} className={cx("absolute h-[118px] w-[118px] rounded-full bg-white shadow-[0_14px_34px_-18px_rgba(21,22,26,.35)]", pos)} style={{ animation: `drift ${6 + i % 4}s ease-in-out infinite`, animationDelay: `${i * .4}s` }}>
+          <div key={b.nom} className="land-in h-full w-full flex flex-col items-center justify-center text-center px-2.5">
+            <span className="font-black text-[14.5px] leading-[1.1] text-ink line-clamp-2" style={D}>{b.nom}</span>
+            <span className="mt-1 text-[11.5px] font-bold text-accent leading-tight">{b.cat}</span>
+            {b.montant ? <span className="text-[11px] font-semibold text-ink-faint leading-tight">{euro(b.montant)}</span> : null}
+          </div>
+        </div>
+      ); })}
+    </div>
+  );
+}
+
 
 const Chev = () => <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m6 9 6 6 6-6" /></svg>;
 const MENU = [
@@ -280,14 +315,7 @@ export default function Landing() {
         {/* Titre */}
         <section className="relative overflow-hidden -mt-24 pt-24" style={{ background: "radial-gradient(ellipse at 50% 30%, #FFF4EC 0%, #FDF8F4 45%, #FAF9F6 80%)" }}>
           <div aria-hidden className="absolute inset-x-0 top-0 h-[920px] hidden sm:block"><NetBg /></div>
-          <div aria-hidden className="absolute inset-x-0 top-24 h-[640px] hidden xl:block">
-            {BUBBLES.map(([t, sub, pos], i) => (
-              <div key={t} className={cx("absolute h-[104px] w-[104px] rounded-full bg-white shadow-[0_14px_34px_-18px_rgba(21,22,26,.35)] flex flex-col items-center justify-center text-center", pos)} style={{ animation: `drift ${6 + i % 4}s ease-in-out infinite`, animationDelay: `${i * .4}s` }}>
-                <span className="font-black text-[17px] leading-none text-ink" style={D}>{t}</span>
-                <span className="mt-1 text-[11px] font-semibold text-ink-faint leading-tight px-2">{sub}</span>
-              </div>
-            ))}
-          </div>
+          <HeroBubbles />
           <div className="relative max-w-5xl mx-auto px-4 sm:px-6 pt-14 sm:pt-20 pb-14 text-center">
             <h1 className="font-black text-[50px] sm:text-[88px] leading-[.95] tracking-[-.03em]" style={D}>Sache qui va acheter.<br />Et <span className="text-accent">quand.</span></h1>
             <p className="mt-7 text-[18px] sm:text-[21px] leading-relaxed text-ink-soft max-w-2xl mx-auto">Bingoo! est ton équipe commerciale IA. Elle repère les entreprises qui ont une raison d'acheter maintenant, trouve la bonne personne et prépare le message.</p>
