@@ -85,6 +85,32 @@ const SECTIONS = [
   ["reglages", "Réglages et activité", "Ce qu'il cherche, dernier scan"],
 ];
 const euroK = (n) => Number(n) >= 1000 ? `${(Number(n) / 1000).toLocaleString("fr-FR", { maximumFractionDigits: Number(n) >= 10000 ? 0 : 1 })} k€` : `${Math.round(Number(n))} €`;
+/** Niveaux de chaleur (score de moment, pas une probabilité). */
+const HEAT = [[85, "Très chaude", "#EF4444"], [75, "Chaude", "#F97316"], [60, "Prometteuse", "#22C55E"], [40, "À surveiller", "#3B82F6"], [0, "Faible", "#A8A29E"]];
+const heatDot = (n) => (HEAT.find(([m]) => (n ?? 0) >= m) ?? HEAT[4])[2];
+const heatLabel = (n) => (HEAT.find(([m]) => (n ?? 0) >= m) ?? HEAT[4])[1];
+/** Intentions : ce que l'entreprise fait vers toi. Signaux : ce qui lui arrive. */
+const INTENT = ["visite", "essai", "demande", "avis", "champion"];
+const APPROACH = {
+  appel_offres: "Réponds à l'avis : lis le cahier des charges et vérifie la date limite. Le contact de l'acheteur est dans l'avis officiel.",
+  renouvellement: "Présente-toi au service achats 3 à 6 mois avant la fin du contrat, avant la publication du nouvel appel d'offres : propose une visite ou un audit.",
+  dirigeant: "Félicite le nouveau dirigeant pour sa prise de poste et propose un échange court : il revoit ses prestataires dans ses premiers mois.",
+  demenagement: "Écris pour l'installation dans les nouveaux locaux : nouveaux besoins, nouveaux contrats, c'est le moment.",
+  creation: "Présente-toi dès maintenant : une entreprise qui démarre choisit ses prestataires dans les premières semaines.",
+  etablissement: "Contacte le responsable du nouveau site : il s'équipe en ce moment.",
+  recrutement: "Rebondis sur l'offre d'emploi : la personne recrutée aura besoin de ce que tu vends pour réussir.",
+  croissance: "Félicite la croissance et montre comment tu absorbes la montée en charge.",
+  levee: "Félicite la levée de fonds : l'argent frais sert à s'équiper dans les 3 à 6 mois.",
+  client_concurrent: "Propose un comparatif sans dénigrer : ton dossier Espion donne les points où tu fais mieux.",
+  abonnement: "Écris 1 à 3 mois avant la date anniversaire : propose de comparer avant qu'elle ne reconduise pour un an.",
+  outil: "Elle change ses outils : présente ton offre comme une partie de cette nouvelle organisation.",
+  obligation: "Parle de l'échéance réglementaire et de ce que ton offre règle concrètement, sans dramatiser.",
+  visite: "Elle étudie ton offre en ce moment : écris au décideur aujourd'hui, avec une proposition concrète (démo, devis, appel).",
+  essai: "Plusieurs personnes testent ton produit : propose une démo à l'équipe avant la fin de l'essai.",
+  demande: "Réponds à sa demande publique avec une proposition simple et un exemple concret.",
+  avis: "Elle est mécontente de son prestataire : propose une solution au problème qu'elle cite, sans critiquer le concurrent.",
+  champion: "Il ou elle connaît déjà ta valeur : félicite-le pour sa prise de poste et propose la même chose dans sa nouvelle entreprise.",
+};
 const heat = (n) => n >= 80 ? "bg-bad text-white" : n >= 65 ? "bg-accent text-white" : n >= 50 ? "bg-accent-soft text-accent-dark" : "bg-[#EFEEEA] text-ink-soft";
 const Score = ({ n, big }) => n ? <span title="Score : à quel point c'est le bon moment" className={cx("inline-flex items-center justify-center rounded-full font-bold tnum shrink-0 leading-none", big ? "h-12 w-12 text-[17px]" : "h-9 w-9 text-[13px]", heat(n))}>{n}</span> : null;
 
@@ -123,7 +149,7 @@ function HotCompanies({ list, onOpen }) {
   );
 }
 
-function RadarScope({ opps, zone, scanning, selected, onSelect, round = false }) {
+function RadarScope({ opps, zone, scanning, selected, onSelect, round = false, byHeat = false }) {
   const center = centerOf(zone);
   const pts = useMemo(() => {
     const raw = opps.flatMap((o) => {
@@ -187,7 +213,8 @@ function RadarScope({ opps, zone, scanning, selected, onSelect, round = false })
             <button key={o.id} onClick={() => onSelect(o)} title={`${o.company}${far ? ` · à ${km} km` : ""}`}
               className="absolute -translate-x-1/2 -translate-y-1/2 group"
               style={{ left: `${50 + nx * 46}%`, top: `${50 - ny * 46}%`, animation: `kfade .5s ${Math.min(i * 0.08, 1.6)}s both` }}>
-              <span className="block rounded-full" style={{ opacity: far ? 0.55 : 1, width: on ? 14 : 9, height: on ? 14 : 9, background: k.dot, boxShadow: `0 0 0 3px ${k.dot}33`, animation: `kping ${SWEEP}s ${(angle / 360) * SWEEP}s infinite` }} />
+              <span className="block rounded-full" style={{ opacity: far ? 0.55 : 1, width: on ? 14 : 9, height: on ? 14 : 9, background: byHeat ? heatDot(o.score) : k.dot, boxShadow: `0 0 0 3px ${byHeat ? heatDot(o.score) : k.dot}33`, animation: `kping ${SWEEP}s ${(angle / 360) * SWEEP}s infinite` }} />
+              {on && round && <span className="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 items-center gap-2 whitespace-nowrap rounded-lg bg-[#1E1F24] border border-white/10 px-2.5 py-1.5 pointer-events-none z-10"><span className="text-[12px] font-semibold text-white max-w-[170px] truncate">{o.company}</span>{o.score ? <span className="rounded-full px-1.5 py-0.5 text-[10.5px] font-bold text-white" style={{ background: heatDot(o.score) }}>{o.score}</span> : null}</span>}
               {labelled.has(o.id) && (
                 <span className="hidden sm:block absolute left-3.5 top-1/2 -translate-y-1/2 whitespace-nowrap text-left pointer-events-none">
                   <span className="block text-[12px] font-semibold text-white leading-tight max-w-[150px] truncate">{o.company}</span>
@@ -767,57 +794,138 @@ function Visitors({ ws }) {
   );
 }
 
-/** L'essentiel du Radar : les 3 entreprises à contacter aujourd'hui (choisies chaque matin), avec la raison, le contact et le message. */
-function TopToday({ ws, list, loaded, live, onScan, onOpen, onChange }) {
+/** Vue d'accueil du Radar : radar par chaleur, fiche de l'opportunité choisie (pourquoi, maintenant, comment), qui contacter, prochaine action, classement. */
+function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
   const toast = useToast();
   const nav = useNavigate();
+  const [mode, setMode] = useState("tout");
+  const [selId, setSelId] = useState(null);
+  const [tab, setTab] = useState("entreprise");
   const [busy, setBusy] = useState(null);
   const today = new Date().toISOString().slice(0, 10);
-  const SKIP = ["appel_offres", "difficulte", "salon", "budget", "besoin"];
-  const chosen = list.filter((o) => o.raw?.top_day === today);
-  // Sans sélection du matin (premier jour, scan manuel) : les 3 meilleures, une seule par entreprise
-  const pick = chosen.length ? chosen.slice(0, 3) : (() => { const seen = new Set(); return list.filter((o) => o.status === "nouveau" && !SKIP.includes(o.kind) && (o.score ?? 0) >= 50).filter((o) => { const g = o.group_key || o.company; if (seen.has(g)) return false; seen.add(g); return true; }).slice(0, 3); })();
-  const prepare = async (o) => {
-    setBusy(o.id);
+  const weekAgo = Date.now() - 7 * 864e5;
+  const pool = list.filter((o) => o.status !== "ecarte" && (mode === "tout" || (mode === "intention" ? INTENT.includes(o.kind) : !INTENT.includes(o.kind))));
+  // Une ligne par entreprise : son meilleur signal, avec les autres en étiquettes
+  const groups = useMemo(() => {
+    const m = new Map();
+    for (const o of pool) { const g = o.group_key || o.company; const x = m.get(g); if (!x) m.set(g, { top: o, kinds: new Set([o.kind]) }); else { x.kinds.add(o.kind); if ((o.score ?? 0) > (x.top.score ?? 0)) x.top = o; } }
+    return [...m.values()].sort((a, b) => (Number(b.top.raw?.top_day === today) - Number(a.top.raw?.top_day === today)) || ((b.top.score ?? 0) - (a.top.score ?? 0)));
+  }, [pool, today]);
+  const sel = groups.find((g) => g.top.id === selId) ?? groups[0];
+  const o = sel?.top;
+  const hot = list.filter((x) => (x.score ?? 0) >= 75 && x.status === "nouveau").length;
+  const intents = list.filter((x) => INTENT.includes(x.kind) && new Date(x.created_at).getTime() >= weekAgo).length;
+  const c = o?.raw?.contact;
+  const prepare = async () => {
+    setBusy("prep");
     try { const r = await fn("m/prepare", { workspace_id: ws.id, id: o.id }); toast(r.message ? `${o.company} : contact trouvé et e-mail prêt à valider` : `${o.company} ajouté à tes prospects`, "good"); onChange(); }
     catch (e) { toast(e.message, "bad"); } finally { setBusy(null); }
   };
-  const skip = async (o) => { await supabase.from("radar_opps").update({ status: "ecarte", feedback: "pas_pertinent" }).eq("id", o.id); toast("Écartée : le Radar en tiendra compte", "default"); onChange(); };
+  const follow = async () => { await supabase.from("radar_opps").update({ status: "suivi" }).eq("id", o.id); toast(`${o.company} gardée en suivi`, "good"); onChange(); };
+  const skip = async () => { await supabase.from("radar_opps").update({ status: "ecarte", feedback: "pas_pertinent" }).eq("id", o.id); toast("Écartée : le Radar en tiendra compte", "default"); setSelId(null); onChange(); };
+  const deadline = o && (o.deadline || o.expires_at) ? new Date(o.deadline || o.expires_at) : null;
+  const when = (x) => x.deadline && new Date(x.deadline) > new Date() ? `avant le ${new Date(x.deadline).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}` : x.raw?.top_day === today ? "aujourd'hui" : x.published ? `signal du ${new Date(x.published).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}` : "";
+  const MODES = [["tout", "Vue globale"], ["signal", "Signaux"], ["intention", "Intentions"]];
   return (
-    <Card className="p-5 sm:p-6">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="flex items-center gap-2.5 font-black text-[22px]" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}><span className="text-bad"><Ico name="flame" className="h-7 w-7" /></span>Tes 3 entreprises du jour</h2>
-          <p className="text-[13px] text-ink-soft mt-0.5">Celles où le moment est le meilleur aujourd'hui. Traite-les en 5 minutes : rien ne part sans ta validation.</p>
+        <div className="inline-flex rounded-full bg-white border border-line p-1">
+          {MODES.map(([k, l]) => <button key={k} onClick={() => { setMode(k); setSelId(null); }} className={cx("rounded-full px-4 py-1.5 text-[14px] font-semibold transition", mode === k ? "bg-accent text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
         </div>
-        <Button size="sm" variant="ghost" loading={live} disabled={live} onClick={onScan}>{live ? "Analyse en cours…" : "Relancer l'analyse"}</Button>
+        <div className="flex items-center gap-3">
+          <Button size="sm" variant="ghost" loading={live} disabled={live} onClick={onScan}>Relancer l'analyse</Button>
+        </div>
       </div>
-      {!loaded ? <div className="py-10 grid place-items-center"><Spinner /></div> : !pick.length ? (
-        <p className="text-sm text-ink-soft text-center py-10">{list.length ? "Rien d'assez chaud aujourd'hui : explore le Radar ou reviens demain matin." : "Lance une première analyse : le Radar cherche les entreprises qui ont une raison d'acheter maintenant."}</p>
-      ) : (
-        <div className="mt-4 grid lg:grid-cols-3 gap-3">
-          {pick.map((o, i) => { const k = KIND[o.kind] ?? {}; const c = o.raw?.contact; return (
-            <div key={o.id} className="rounded-2xl border border-line p-4 flex flex-col min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <span className={cx("rounded-full px-2.5 py-0.5 text-[11px] font-bold", k.chip ?? "bg-paper text-ink-soft")}>{k.label ?? o.kind}</span>
-                <span className="flex items-center gap-2"><span className="text-[11px] font-bold text-ink-faint">n°{i + 1}</span><Score n={o.score} /></span>
+
+      <div className="grid sm:grid-cols-2 gap-3">
+        {[["flame", hot, "opportunités chaudes à traiter", "score de 75 ou plus", "text-bad"], ["eye", intents, "intentions cette semaine", "visites de ton site, essais, demandes publiques", "text-accent"]].map(([ic, n, l, sub, col]) => (
+          <Card key={l} className="p-4 sm:p-5 flex items-center gap-4">
+            <span className={col}><Ico name={ic} className="h-8 w-8" /></span>
+            <div><p className="font-black text-[34px] leading-none tnum" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{loaded ? n : "–"}</p><p className="text-[14px] font-semibold mt-1">{l}</p><p className="text-[12px] text-ink-faint">{sub}</p></div>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)] gap-5 items-stretch">
+        <Card className="p-5 sm:p-6 min-w-0">
+          <h2 className="flex items-center gap-2.5 font-bold text-[18px]"><span className="text-accent"><Ico name="radar" className="h-6 w-6" /></span>Radar d'opportunités</h2>
+          <div className="mt-4 grid sm:grid-cols-[minmax(0,1fr)_130px] gap-4 items-center">
+            <div className="w-full max-w-[400px] mx-auto"><RadarScope round byHeat opps={pool} zone={ws.zone ?? []} scanning={live} selected={o?.id} onSelect={(x) => { setSelId((groups.find((g) => (g.top.group_key || g.top.company) === (x.group_key || x.company))?.top ?? x).id); setTab("entreprise"); }} /></div>
+            <ul className="flex flex-wrap gap-x-4 gap-y-2 sm:block sm:space-y-2.5">
+              {HEAT.map(([m, l, col], i) => <li key={l} className="flex items-start gap-2 text-[12.5px]"><span className="mt-1 h-2.5 w-2.5 rounded-full shrink-0" style={{ background: col }} /><span><b className="font-semibold">{l}</b><br /><span className="text-ink-faint">{i === 0 ? `${m} et plus` : `${m} à ${HEAT[i - 1][0] - 1}`}</span></span></li>)}
+            </ul>
+          </div>
+          <p className="text-[11.5px] text-ink-faint mt-3">Le score mesure si c'est le bon moment (1 à 99), pas une probabilité de vente. Position : distance à ta zone.</p>
+        </Card>
+
+        <Card className="p-5 sm:p-6 min-w-0 flex flex-col">
+          {!loaded ? <div className="py-16 grid place-items-center"><Spinner /></div> : !o ? (
+            <p className="text-sm text-ink-soft text-center py-16">{mode === "intention" ? "Aucune intention repérée pour l'instant : installe le suivi de ton site et publie ta page « Alternative à » (Espion)." : "Lance une première analyse : le Radar cherche les entreprises qui ont une raison d'acheter maintenant."}</p>
+          ) : (<>
+            <div className="flex items-start gap-4">
+              <div className="min-w-0 flex-1">
+                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12.5px] font-bold" style={{ background: `${heatDot(o.score)}1A`, color: heatDot(o.score) }}><Ico name="flame" className="h-4 w-4" />Opportunité {heatLabel(o.score).toLowerCase()}{o.raw?.top_day === today ? " · du jour" : ""}</span>
+                <h2 className="mt-2 font-black text-[26px] leading-tight break-words" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{o.company}</h2>
+                <p className="text-[13px] text-ink-soft">{[o.city && `${o.city}${o.dept ? ` (${o.dept})` : ""}`, INTENT.includes(o.kind) ? "Intention" : "Signal"].filter(Boolean).join(" · ")}</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">{[...sel.kinds].map((k) => <span key={k} className={cx("rounded-full px-2.5 py-0.5 text-[12px] font-semibold", KIND[k]?.chip ?? "bg-paper")}>{KIND[k]?.label ?? k}</span>)}{o.raw?.valeur ? <span className="rounded-full px-2.5 py-0.5 text-[12px] font-semibold bg-paper">≈ {euroK(o.raw.valeur)}/an</span> : null}</div>
               </div>
-              <button onClick={() => onOpen(o)} className="mt-2 text-left font-bold text-[16px] leading-snug hover:underline">{o.company}</button>
-              <p className="text-[13px] text-ink-soft mt-1 line-clamp-3">{o.summary || o.title}</p>
-              <p className="text-[13px] mt-2 leading-snug"><span className="font-semibold text-accent-dark">Pourquoi maintenant : </span>{o.why || (o.score_why ?? []).slice(0, 2).join(" · ")}</p>
-              {c?.nom && <p className="text-[12.5px] mt-2 text-ink-soft"><span className="font-semibold text-ink">Qui contacter : </span>{c.nom}{c.role ? `, ${c.role}` : ""}{c.tel ? ` · ${c.tel}` : ""}</p>}
-              {o.raw?.valeur ? <p className="text-[12.5px] mt-1 text-ink-soft">Valeur estimée : <b className="text-ink">≈ {euroK(o.raw.valeur)}/an</b></p> : null}
-              <div className="mt-auto pt-3 flex flex-wrap items-center gap-2">
-                {o.prospect_id ? <button onClick={() => nav("/valider")} className="rounded-full bg-good-soft text-good px-3.5 py-1.5 text-[13px] font-semibold">Message prêt : valider</button>
-                  : <Button size="sm" variant="accent" loading={busy === o.id} disabled={!!busy} onClick={() => prepare(o)}>Préparer le message</Button>}
-                <button onClick={() => onOpen(o)} className="text-[13px] font-semibold text-ink-soft hover:text-ink">Détails</button>
-                <button onClick={() => skip(o)} className="ml-auto text-[12.5px] text-ink-faint hover:text-bad">Pas intéressant</button>
+              <div className="shrink-0 text-center rounded-2xl border-2 px-3 py-2" style={{ borderColor: `${heatDot(o.score)}55` }}><p className="font-black text-[30px] leading-none tnum" style={{ color: heatDot(o.score) }}>{o.score ?? "–"}</p><p className="text-[11px] font-semibold" style={{ color: heatDot(o.score) }}>score</p></div>
+            </div>
+            <div className="mt-4 flex gap-1 border-b border-line overflow-x-auto">
+              {[["entreprise", "Pourquoi cette entreprise ?"], ["moment", "Pourquoi maintenant ?"], ["approche", "Comment l'aborder ?"]].map(([k, l]) => <button key={k} onClick={() => setTab(k)} className={cx("relative shrink-0 px-3 pb-2.5 text-[14px] font-semibold", tab === k ? "text-accent-dark" : "text-ink-soft hover:text-ink")}>{l}{tab === k && <span className="absolute inset-x-2 -bottom-px h-[3px] rounded-full bg-accent" />}</button>)}
+            </div>
+            <div className="py-4 text-[14px] leading-relaxed min-h-[96px]">
+              {tab === "entreprise" && <><p>{o.summary || o.title}</p>{(o.score_why ?? []).length > 0 && <p className="text-[12.5px] text-ink-faint mt-2">{o.score_why.filter((w) => !/^retiré/.test(w)).slice(0, 5).join(" · ")}</p>}</>}
+              {tab === "moment" && <><p>{o.why || "Signal récent : c'est le moment où l'entreprise est la plus réceptive."}</p>{deadline && deadline > new Date() && <p className="mt-2 text-[13px] font-semibold text-accent-dark">À traiter avant le {deadline.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>}{o.url && <a href={o.url} target="_blank" rel="noreferrer" className="block mt-2 text-[12.5px] text-ink-faint hover:underline">Source : {o.source || o.url}</a>}</>}
+              {tab === "approche" && <p>{APPROACH[o.kind] ?? "Présente-toi en partant de ce signal : une phrase sur ce qui se passe chez eux, une sur ce que tu apportes, une question simple."}</p>}
+            </div>
+            <div className="mt-auto grid sm:grid-cols-2 gap-4 pt-4 border-t border-line">
+              <div>
+                <p className="flex items-center gap-2 font-bold text-[14.5px]"><Ico name="user" className="h-5 w-5 text-accent" />Qui contacter ?</p>
+                {c?.nom ? <div className="mt-2 text-[13.5px]"><p className="font-semibold">{c.nom}</p><p className="text-ink-soft">{c.role}</p>{c.email && <p className="text-ink-soft break-all">{c.email}</p>}{c.tel && <p className="text-ink-soft">{c.tel}</p>}<p className="text-[11.5px] text-ink-faint mt-0.5">Source : {c.source ?? "registre"}</p>
+                  {!/^(service|contact de|direction|mairie)/i.test(c.nom) && <a href={`https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(`${c.nom} ${o.company}`)}`} target="_blank" rel="noreferrer" className="inline-block mt-1.5 text-[12.5px] font-semibold text-accent hover:underline">Chercher sur LinkedIn ↗</a>}</div>
+                  : <p className="mt-2 text-[13px] text-ink-soft">Pas encore de contact : « Préparer le message » le cherche pour toi.</p>}
+              </div>
+              <div>
+                <p className="flex items-center gap-2 font-bold text-[14.5px]"><Ico name="up" className="h-5 w-5 text-accent" />Prochaine action</p>
+                <div className="mt-2 space-y-2">
+                  {o.prospect_id ? <Button variant="accent" className="w-full" onClick={() => nav("/valider")}>Message prêt : valider</Button>
+                    : o.kind === "appel_offres" ? <Button variant="accent" className="w-full" onClick={() => onOpen(o)}>Voir l'appel d'offres</Button>
+                    : <Button variant="accent" className="w-full" loading={busy === "prep"} onClick={prepare}>Préparer le message</Button>}
+                  <div className="flex gap-2">
+                    <button onClick={() => nav("/mission")} className="flex-1 rounded-full border border-line px-3 py-2 text-[13px] font-semibold hover:bg-paper">Lancer une Mission</button>
+                    <button onClick={follow} className="flex-1 rounded-full border border-line px-3 py-2 text-[13px] font-semibold hover:bg-paper">{o.status === "suivi" ? "En suivi" : "Garder en suivi"}</button>
+                  </div>
+                  <div className="flex justify-between"><button onClick={() => onOpen(o)} className="text-[12.5px] font-semibold text-ink-soft hover:text-ink">Tous les détails</button><button onClick={skip} className="text-[12.5px] text-ink-faint hover:text-bad">Pas intéressant</button></div>
+                </div>
               </div>
             </div>
-          ); })}
-        </div>
+          </>)}
+        </Card>
+      </div>
+
+      {groups.length > 0 && (
+        <Card className="p-0 overflow-hidden">
+          <div className="px-5 pt-5 pb-3 flex items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2.5 font-bold text-[18px]"><span className="text-accent"><Ico name="star" className="h-6 w-6" /></span>Meilleures opportunités du moment</h2>
+            <span className="text-[12.5px] text-ink-faint">{groups.length} entreprise{groups.length > 1 ? "s" : ""}</span>
+          </div>
+          <div className="overflow-x-auto"><table className="w-full text-[13.5px] min-w-[720px]">
+            <thead><tr className="bg-paper text-left text-[12px] font-semibold text-ink-soft"><th className="px-5 py-2.5">Entreprise</th><th className="px-3 py-2.5">Score</th><th className="px-3 py-2.5">Signal</th><th className="px-3 py-2.5">Type</th><th className="px-3 py-2.5">Quand</th><th className="px-5 py-2.5 text-right">Action</th></tr></thead>
+            <tbody>{groups.slice(0, 8).map(({ top: x, kinds }) => (
+              <tr key={x.id} className={cx("border-t border-line", x.id === o?.id && "bg-accent-soft/40")}>
+                <td className="px-5 py-2.5 font-semibold max-w-[260px]"><span className="block truncate">{x.company}</span>{x.raw?.top_day === today && <span className="text-[11px] font-bold text-bad">Entreprise du jour</span>}</td>
+                <td className="px-3 py-2.5"><span className="rounded-full px-2.5 py-1 text-[12px] font-bold text-white tnum" style={{ background: heatDot(x.score) }}>{x.score ?? "–"}</span></td>
+                <td className="px-3 py-2.5"><span className={cx("rounded-full px-2.5 py-1 text-[12px] font-semibold whitespace-nowrap", KIND[x.kind]?.chip ?? "bg-paper")}>{KIND[x.kind]?.label ?? x.kind}{kinds.size > 1 ? ` +${kinds.size - 1}` : ""}</span></td>
+                <td className="px-3 py-2.5 text-ink-soft">{INTENT.includes(x.kind) ? "Intention" : "Signal"}</td>
+                <td className="px-3 py-2.5 text-ink-soft whitespace-nowrap">{when(x)}</td>
+                <td className="px-5 py-2.5 text-right"><button onClick={() => { setSelId(x.id); setTab("entreprise"); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="rounded-full border border-accent/40 text-accent-dark px-3.5 py-1 text-[12.5px] font-semibold hover:bg-accent-soft">Voir →</button></td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+        </Card>
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -1186,7 +1294,7 @@ export default function Radar() {
         <Pill on={live}>{live ? "Radar en cours" : lastAt ? `Dernier scan ${ago(lastAt)}` : "Jamais lancé"}</Pill>
       </div>
 
-      <TopToday ws={ws} list={list} loaded={!!rows} live={live} onScan={scan} onOpen={setOpen} onChange={load} />
+      <HomeView ws={ws} list={list} loaded={!!rows} live={live} onScan={scan} onOpen={setOpen} onChange={load} />
       <button onClick={() => toggleExplore(!explore)} className="w-full rounded-2xl border border-line bg-white hover:border-ink-faint px-5 py-3.5 flex items-center justify-between gap-3 text-left transition">
         <span><span className="block font-semibold text-[15px]">{explore ? "Masquer le détail du Radar" : "Explorer tout le Radar"}</span><span className="block text-[12.5px] text-ink-faint">{list.length} opportunité{list.length > 1 ? "s" : ""} · comptes surveillés · visiteurs · partenaires · marché public · résultats · réglages</span></span>
         <span className={cx("text-ink-soft transition", explore && "rotate-90")}><Ico name="chev" /></span>
@@ -1312,3 +1420,4 @@ export default function Radar() {
     </div>
   );
 }
+
