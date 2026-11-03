@@ -760,15 +760,13 @@ function Visitors({ ws }) {
 }
 
 /** Vue d'accueil du Radar : radar par chaleur, fiche de l'opportunité choisie (pourquoi, maintenant, comment), qui contacter, prochaine action, classement. */
-function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange, onResults }) {
+function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
   const toast = useToast();
   const nav = useNavigate();
   const [mode, setMode] = useState("tout");
   const [selId, setSelId] = useState(null);
   const [tab, setTab] = useState("entreprise");
   const [busy, setBusy] = useState(null);
-  const [roi, setRoi] = useState(null);
-  useEffect(() => { supabase.rpc("radar_roi", { p_ws: ws.id, p_since: new Date(Date.now() - 30 * 864e5).toISOString() }).then(({ data }) => setRoi(data ?? null), () => setRoi(null)); }, [ws.id]);
   const today = new Date().toISOString().slice(0, 10);
   const weekAgo = Date.now() - 7 * 864e5;
   const pool = list.filter((o) => o.status !== "ecarte" && (mode === "tout" || (mode === "intention" ? INTENT.includes(o.kind) : !INTENT.includes(o.kind))));
@@ -799,43 +797,33 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange, onResults 
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex rounded-full bg-white border border-line p-1">
-          {MODES.map(([k, l]) => <button key={k} onClick={() => { setMode(k); setSelId(null); }} className={cx("rounded-full px-4 py-1.5 text-[14px] font-semibold transition", mode === k ? "bg-accent text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
+          {MODES.map(([k, l]) => <button key={k} title={k === "intention" ? "Entreprises qui te regardent : visites de ton site, essais gratuits, demandes publiques" : k === "signal" ? "Ce qui arrive aux entreprises : contrats, dirigeants, recrutements…" : undefined} onClick={() => { setMode(k); setSelId(null); }} className={cx("rounded-full px-4 py-1.5 text-[14px] font-semibold transition", mode === k ? "bg-accent text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
         </div>
-        {loaded && !nI && <p className="text-[12.5px] text-ink-faint flex-1 min-w-[220px]">Intentions = entreprises qui te regardent (visites de ton site, essais, demandes). Aucune pour l'instant : installe le suivi de ton site et publie ta page « Alternative à » depuis Espion.</p>}
         <div className="flex items-center gap-3">
           <Button size="sm" variant="ghost" loading={live} disabled={live} onClick={onScan}>Relancer l'analyse</Button>
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {[["flame", hot, "opportunités chaudes à traiter", "score de 75 ou plus", "text-bad"], ["eye", intents, "intentions cette semaine", "visites de ton site, essais, demandes publiques", "text-accent"]].map(([ic, n, l, sub, col]) => (
+      <div className="grid sm:grid-cols-2 gap-3">
+        {[["flame", hot, "opportunités chaudes à traiter", "score de 75 ou plus", "text-bad"], ["eye", intents, "intentions cette semaine", "entreprises qui te regardent", "text-accent"]].map(([ic, n, l, sub, col]) => (
           <Card key={l} className="p-4 sm:p-5 flex items-center gap-4">
             <span className={col}><Ico name={ic} className="h-8 w-8" /></span>
             <div><p className="font-black text-[34px] leading-none tnum" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{loaded ? n : "–"}</p><p className="text-[14px] font-semibold mt-1">{l}</p><p className="text-[12px] text-ink-faint">{sub}</p></div>
           </Card>
         ))}
-        <button onClick={onResults} className="text-left sm:col-span-2 lg:col-span-1">
-          <Card className="p-4 sm:p-5 flex items-center gap-4 h-full hover:border-ink-faint transition">
-            <span className="text-good"><Ico name="euro" className="h-8 w-8" /></span>
-            <div className="min-w-0">
-              <p className="font-black text-[34px] leading-none tnum" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{roi ? `${Number(roi.ca ?? 0).toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €` : "–"}</p>
-              <p className="text-[14px] font-semibold mt-1">rapportés par le Radar (30 jours)</p>
-              <p className="text-[12px] text-ink-faint truncate">{roi ? (roi.contactes || roi.prospects ? `${roi.signaux} signaux → ${roi.contactes} contactés → ${roi.reponses} réponses → ${roi.rdv} RDV → ${roi.signes} signé${roi.signes > 1 ? "s" : ""}` : "Démarre dès ton premier message préparé depuis le Radar") : ""}</p>
-            </div>
-          </Card>
-        </button>
       </div>
+
+      <CalendarStrip ws={ws} />
 
       <div className="grid xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)] gap-5 items-stretch">
         <Card className="p-5 sm:p-6 min-w-0">
-          <h2 className="flex items-center gap-2.5 font-bold text-[18px]"><span className="text-accent"><Ico name="radar" className="h-6 w-6" /></span>Radar d'opportunités</h2>
+          <h2 title="Le score mesure si c'est le bon moment (1 à 99), pas une probabilité de vente. Position : distance à ta zone." className="flex items-center gap-2.5 font-bold text-[18px]"><span className="text-accent"><Ico name="radar" className="h-6 w-6" /></span>Radar d'opportunités</h2>
           <div className="mt-4 grid sm:grid-cols-[minmax(0,1fr)_130px] gap-4 items-center">
             <div className="w-full max-w-[400px] mx-auto"><RadarScope round byHeat opps={pool} zone={ws.zone ?? []} scanning={live} selected={o?.id} onSelect={(x) => { setSelId((groups.find((g) => (g.top.group_key || g.top.company) === (x.group_key || x.company))?.top ?? x).id); setTab("entreprise"); }} /></div>
             <ul className="flex flex-wrap gap-x-4 gap-y-2 sm:block sm:space-y-2.5">
               {HEAT.map(([m, l, col], i) => <li key={l} className="flex items-start gap-2 text-[12.5px]"><span className="mt-1 h-2.5 w-2.5 rounded-full shrink-0" style={{ background: col }} /><span><b className="font-semibold">{l}</b><br /><span className="text-ink-faint">{i === 0 ? `${m} et plus` : `${m} à ${HEAT[i - 1][0] - 1}`}</span></span></li>)}
             </ul>
           </div>
-          <p className="text-[11.5px] text-ink-faint mt-3">Le score mesure si c'est le bon moment (1 à 99), pas une probabilité de vente. Position : distance à ta zone.</p>
         </Card>
 
         <Card className="p-5 sm:p-6 min-w-0 flex flex-col">
@@ -1009,49 +997,46 @@ function TrialHook({ ws }) {
   );
 }
 
-/** Obligations réglementaires retenues pour l'offre, avec l'échéance. */
-function Obligations({ ws }) {
-  const [d, setD] = useState(null);
-  useEffect(() => { fn("r/saas-info", { workspace_id: ws.id }).then(setD).catch(() => setD(null)); }, [ws.id]);
-  if (!d?.obligations?.length) return null;
-  const when = (o) => o.statut === "en_cours" ? "Loi en cours d'adoption" : !o.date ? "En vigueur" : /^\d{4}/.test(o.date) ? (new Date(o.date) > new Date() ? `Échéance : ${new Date(o.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}` : `En vigueur depuis le ${new Date(o.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`) : `Chaque année avant le ${new Date(`2000-${o.date}`).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}`;
-  return (
-    <Card className="p-4 sm:p-5">
-      <h2 className="flex items-center gap-2.5 font-bold text-[16px]"><span className="text-accent"><Ico name="shield" className="h-5 w-5" /></span>Obligations qui font acheter tes clients</h2>
-      <ul className="mt-3 space-y-3">
-        {d.obligations.map((o) => (
-          <li key={o.id} className="text-[13px]">
-            <b>{o.titre}</b>
-            <p className="text-[12px] font-semibold text-accent-dark">{when(o)} · {o.qui}</p>
-            {o.angle && <p className="text-ink-soft leading-snug mt-0.5">{o.angle}</p>}
-            <a href={o.source} target="_blank" rel="noreferrer" className="text-[12px] text-ink-faint hover:underline">Texte officiel</a>
-          </li>
-        ))}
-      </ul>
-    </Card>
-  );
-}
-
-/** Calendrier d'achat : les moments où tes clients décident, et ce qu'il faut faire avant. */
-function BuyingCalendar({ ws }) {
+/** Calendrier d'achat : frise des 12 prochains mois. Un mois coloré = un moment où tes clients décident ; clic = quoi faire. */
+function CalendarStrip({ ws }) {
   const [cal, setCal] = useState(null);
-  useEffect(() => { fn("r/radar-calendar", { workspace_id: ws.id }).then(setCal).catch(() => setCal({ moments: [] })); }, [ws.id]);
-  if (!cal?.moments?.length) return null;
-  const m0 = new Date().getMonth() + 1;
-  const dist = (mois) => Math.min(...mois.map((m) => (m - m0 + 12) % 12));
-  const next = cal.moments.slice().sort((a, b) => dist(a.mois) - dist(b.mois)).slice(0, 4);
+  const [obl, setObl] = useState([]);
+  const [pick, setPick] = useState(null);
+  useEffect(() => {
+    fn("r/radar-calendar", { workspace_id: ws.id }).then(setCal).catch(() => setCal({ moments: [] }));
+    fn("r/saas-info", { workspace_id: ws.id }).then((d) => setObl((d?.obligations ?? []).filter((o) => o.date && o.statut !== "en_cours"))).catch(() => setObl([]));
+  }, [ws.id]);
+  const now = new Date();
+  const months = Array.from({ length: 12 }, (_, i) => { const d = new Date(now.getFullYear(), now.getMonth() + i, 1); return { m: d.getMonth() + 1, y: d.getFullYear(), label: d.toLocaleDateString("fr-FR", { month: "short" }).replace(".", "") }; });
+  const oblMonth = (o) => { const d = /^\d{4}/.test(o.date) ? new Date(o.date) : new Date(`2000-${o.date}`); return d.getMonth() + 1; };
+  // « mois » : [début, fin] = une période (ex. [1, 3] = janvier à mars, [11, 2] = novembre à février) ; sinon une liste de mois
+  const span = (mois = []) => { if (mois.length === 2 && mois[0] !== mois[1]) { const out = []; for (let k = mois[0], n = 0; n < 12; k = (k % 12) + 1, n++) { out.push(k); if (k === mois[1]) break; } return out; } return mois; };
+  const of = (m) => ({ moments: (cal?.moments ?? []).filter((x) => span(x.mois).includes(m)), obl: obl.filter((o) => oblMonth(o) === m) });
+  if (!cal || (!cal.moments?.length && !obl.length)) return null;
+  const firstHot = months.find((x) => { const e = of(x.m); return e.moments.length || e.obl.length; });
+  const sel = months.find((x) => x.m === pick) ?? firstHot;
+  const e = sel ? of(sel.m) : { moments: [], obl: [] };
   return (
     <Card className="p-4 sm:p-5">
-      <h2 className="flex items-center gap-2.5 font-bold text-[16px]"><span className="text-accent"><Ico name="clock" className="h-5 w-5" /></span>Calendrier d'achat de tes clients</h2>
-      <ul className="mt-3 space-y-3">
-        {next.map((m, i) => { const d = dist(m.mois); return (
-          <li key={i} className="text-[13px]">
-            <div className="flex items-center gap-2"><span className={cx("rounded-full px-2 py-0.5 text-[11px] font-bold", d === 0 ? "bg-accent text-white" : d <= 2 ? "bg-accent-soft text-accent-dark" : "bg-paper text-ink-soft")}>{d === 0 ? "En ce moment" : `Dans ${d} mois`}</span><b className="truncate">{m.titre}</b></div>
-            <p className="text-ink-soft mt-0.5 leading-snug">{m.pourquoi}</p>
-            <p className="mt-0.5 leading-snug"><span className="font-semibold text-accent-dark">À faire : </span>{m.action}</p>
-          </li>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 font-bold text-[16px]"><span className="text-accent"><Ico name="clock" className="h-5 w-5" /></span>Quand tes clients achètent</h2>
+        <span className="text-[12px] text-ink-faint hidden sm:inline">Clique sur un mois</span>
+      </div>
+      <div className="mt-3 grid grid-cols-6 sm:grid-cols-12 gap-1.5">
+        {months.map((x, i) => { const ev = of(x.m); const on = ev.moments.length || ev.obl.length; const active = sel?.m === x.m; return (
+          <button key={i} onClick={() => setPick(x.m)} title={[...ev.moments.map((m) => m.titre), ...ev.obl.map((o) => o.titre)].join(" · ") || undefined}
+            className={cx("relative rounded-lg py-2 text-center text-[12.5px] font-semibold transition capitalize", active ? "bg-accent text-white" : on ? "bg-accent-soft text-accent-dark hover:bg-accent/20" : "bg-paper text-ink-faint")}>
+            {x.label}{i === 0 && <span className={cx("block text-[10px] font-medium", active ? "text-white/80" : "text-ink-faint")}>maintenant</span>}
+            {ev.obl.length > 0 && <span className={cx("absolute top-1 right-1 h-1.5 w-1.5 rounded-full", active ? "bg-white" : "bg-[#0F766E]")} />}
+          </button>
         ); })}
-      </ul>
+      </div>
+      {sel && (e.moments.length || e.obl.length) ? (
+        <div className="mt-3 space-y-1.5 text-[13.5px]">
+          {e.moments.slice(0, 2).map((m, i) => <p key={i} title={m.pourquoi}><b>{m.titre}</b><span className="text-ink-soft"> — {m.action}</span></p>)}
+          {e.obl.map((o) => <p key={o.id}><b className="text-[#0F766E]">{o.titre}</b><span className="text-ink-soft"> — échéance {/^\d{4}/.test(o.date) ? new Date(o.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : "annuelle"}</span></p>)}
+        </div>
+      ) : <p className="mt-3 text-[13px] text-ink-faint">Pas de moment d'achat repéré ce mois-là.</p>}
     </Card>
   );
 }
@@ -1268,13 +1253,13 @@ export default function Radar() {
           <span className="h-16 w-16 rounded-full bg-accent-soft text-accent grid place-items-center"><Ico name="radar" className="h-9 w-9" /></span>
           <div>
             <h1 className="font-black text-[40px] leading-none tracking-tight" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>Radar</h1>
-            <p className="text-ink-soft mt-1.5">Qui va acheter, et pourquoi maintenant : appels d'offres, contrats publics à renouveler, nouveaux dirigeants, déménagements, recrutements.</p>
+            <p className="text-ink-soft mt-1.5">Les entreprises qui ont une raison d'acheter maintenant.</p>
           </div>
         </div>
         <Pill on={live}>{live ? "Radar en cours" : lastAt ? `Dernier scan ${ago(lastAt)}` : "Jamais lancé"}</Pill>
       </div>
 
-      <HomeView ws={ws} list={list} loaded={!!rows} live={live} onScan={scan} onOpen={setOpen} onChange={load} onResults={() => pickSection("resultats")} />
+      <HomeView ws={ws} list={list} loaded={!!rows} live={live} onScan={scan} onOpen={setOpen} onChange={load} />
       <button onClick={() => toggleExplore(!explore)} className="w-full rounded-2xl border border-line bg-white hover:border-ink-faint px-5 py-3.5 flex items-center justify-between gap-3 text-left transition">
         <span><span className="block font-semibold text-[15px]">{explore ? "Masquer le détail du Radar" : "Explorer tout le Radar"}</span><span className="block text-[12.5px] text-ink-faint">{list.length} opportunité{list.length > 1 ? "s" : ""} · comptes surveillés · visiteurs · partenaires · marché public · résultats · réglages</span></span>
         <span className={cx("text-ink-soft transition", explore && "rotate-90")}><Ico name="chev" /></span>
@@ -1293,7 +1278,7 @@ export default function Radar() {
       </nav>
 
       {section === "opps" && (
-      <div className="grid xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] gap-5 items-start">
+      <div>
         <div className="space-y-5 min-w-0">
         <Card className="p-0 overflow-hidden min-w-0">
           <div className="px-5 pt-5 flex items-center justify-between gap-2">
@@ -1337,14 +1322,6 @@ export default function Radar() {
           )}
           {shown.length > 6 && <button onClick={() => setMore((m) => !m)} className="w-[calc(100%-2.5rem)] mx-5 my-4 rounded-xl bg-paper border border-line py-3 text-sm font-medium hover:border-ink/20 flex items-center justify-center gap-2">{more ? "Réduire" : `Voir toutes les opportunités (${shown.length})`}<Ico name="chev" className={cx("h-4 w-4", more ? "-rotate-90" : "rotate-90")} /></button>}
         </Card>
-        </div>
-        <div className="space-y-5 min-w-0">
-          <Card className="p-4 flex items-start gap-3">
-            <span className="text-accent mt-0.5"><Ico name="bulb" /></span>
-            <div className="flex-1"><p className="font-semibold text-accent text-sm">Conseil de Max</p><p className="text-sm text-ink-soft mt-0.5">{tip}</p></div>
-          </Card>
-          <BuyingCalendar ws={ws} />
-          <Obligations ws={ws} />
         </div>
       </div>
       )}
