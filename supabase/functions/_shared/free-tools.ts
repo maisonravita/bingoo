@@ -125,10 +125,15 @@ export async function freeSignals(input: { cible?: string; dept?: string }) {
   if (!words.length) throw new HttpError(400, "Dis-nous qui sont tes clients (ex. restaurants, cabinets comptables, agences immobilières)");
   if (dept && !/^(\d{2}|2A|2B|97\d)$/.test(dept)) throw new HttpError(400, "Département invalide (ex. 75, 69, 13), ou laisse vide pour toute la France");
   const since = new Date(Date.now() - 45 * 864e5).toISOString().slice(0, 10);
-  const where = [`dateparution>=date'${since}'`, `familleavis in ("creation","vente")`, dept ? `numerodepartement=${q(dept)}` : "", ...words.map((w) => `search(listeetablissements,${q(w)})`)].filter(Boolean).join(" and ");
-  const u = new URL(BODACC_FREE);
-  for (const [k, v] of Object.entries({ where, limit: "100", order_by: "dateparution desc", select: "id,familleavis,commercant,registre,dateparution,ville,numerodepartement,listeetablissements,listepersonnes,acte" })) u.searchParams.set(k, v);
-  const d = await fetch(u, { signal: AbortSignal.timeout(15000) }).then((r) => r.ok ? r.json() : null).catch(() => null);
+  const read = async (ws: string[]) => {
+    const where = [`dateparution>=date'${since}'`, `familleavis in ("creation","vente")`, dept ? `numerodepartement=${q(dept)}` : "", ...ws.map((w) => `search(listeetablissements,${q(w)})`)].filter(Boolean).join(" and ");
+    const u = new URL(BODACC_FREE);
+    for (const [k, v] of Object.entries({ where, limit: "100", order_by: "dateparution desc", select: "id,familleavis,commercant,registre,dateparution,ville,numerodepartement,listeetablissements,listepersonnes,acte" })) u.searchParams.set(k, v);
+    return await fetch(u, { signal: AbortSignal.timeout(15000) }).then((r) => r.ok ? r.json() : null).catch(() => null);
+  };
+  let d = await read(words);
+  // « cabinets comptables » : les annonces disent souvent « expertise comptable » → on réessaie avec le mot le plus parlant
+  if (d && !(d.results ?? []).length && words.length > 1) d = await read([[...words].sort((a, b) => b.length - a.length)[0]]);
   if (!d) throw new HttpError(502, "Les annonces officielles ne répondent pas pour l'instant. Réessaie dans une minute.");
   const HOLDING = /(holding|participations?|valeurs mobili[eè]res|soci[ée]t[ée] civile|\bsci\b)/i;
   const seen = new Set<string>();
