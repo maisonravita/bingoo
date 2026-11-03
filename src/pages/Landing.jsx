@@ -147,6 +147,88 @@ const MENU = [
   ["Ressources", [["Outils gratuits", "Contrats publics, analyse de concurrent", "#/outils"], ["Questions fréquentes", "Tout ce qu'on nous demande", "#faq"]]],
 ];
 
+/** Aperçu du produit sous le titre : la vraie liste du Radar (acheteurs publics réels, relus en direct), la fiche ouverte, le message prêt. */
+const cleanObjet = (o) => { let t = String(o ?? "").replace(/\s+/g, " ").replace(/^.*?\bHT\s*-\s*/i, "").replace(/^lot\s*\d+\s*[-:]?\s*/i, "").replace(/[?]/g, "'").replace(/[\s,;:-]+$/, "").trim(); if (t === t.toUpperCase()) t = t.toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); };
+const MOIS = (d) => new Date(d).toLocaleDateString("fr-FR", { month: "short", year: "numeric" });
+function ProductShot() {
+  const v = useLive();
+  const rows = (v?.vitrine ?? []).filter((x, i, a) => a.findIndex((y) => y.acheteur === x.acheteur) === i).slice(0, 6)
+    .map((x) => ({ nom: shortBuyer(String(x.acheteur)), cat: catOf(String(x.objet ?? "")), objet: cleanObjet(x.objet), montant: Number(x.montant) || null, fin: x.fin }));
+  const [sel, setSel] = useState(0);
+  useEffect(() => { if (!rows.length) return; const t = setInterval(() => setSel((n) => (n + 1) % Math.min(rows.length, 4)), 4200); return () => clearInterval(t); }, [rows.length]);
+  const r = rows[sel];
+  const NAV = [["Radar", true], ["Prospects"], ["Messages"], ["Rendez-vous"], ["Espion"], ["Mission"]];
+  return (
+    <div className="relative mx-auto mt-16 sm:mt-20 max-w-[1180px] text-left">
+      <div className="rounded-2xl bg-[#F1EFED] p-2 sm:p-3 shadow-[0_40px_80px_-50px_rgba(21,22,26,.5)]">
+        <div className="overflow-hidden rounded-xl border border-black/10 bg-white">
+          <div className="flex items-center gap-2 border-b border-black/10 px-4 py-2.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#E5E2DF]" /><span className="h-2.5 w-2.5 rounded-full bg-[#E5E2DF]" /><span className="h-2.5 w-2.5 rounded-full bg-[#E5E2DF]" />
+            <span className="ml-3 rounded-md bg-[#F6F5F3] px-3 py-1 text-[12px] text-ink-soft">app.bingoo · Radar</span>
+            <span className="ml-auto hidden sm:inline-flex items-center gap-1.5 text-[12px] text-ink-soft"><span className="h-1.5 w-1.5 rounded-full bg-good" />Données réelles, mises à jour cette nuit</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-[180px_minmax(0,1fr)_320px] min-h-[420px]">
+            <aside className="hidden md:block border-r border-black/10 bg-[#FBFAF9] p-3 text-[13.5px]">
+              <div className="px-2 pb-3"><Logo height={18} /></div>
+              {NAV.map(([l, on]) => <div key={l} className={cx("rounded-md px-2.5 py-1.5", on ? "bg-white border border-black/10 font-medium text-ink" : "text-ink-soft")}>{l}</div>)}
+              <div className="mt-6 rounded-lg border border-black/10 bg-white p-2.5">
+                <p className="text-[11.5px] text-ink-soft">Trouvées par le Radar</p>
+                <p className="text-[20px] tabular-nums text-ink" style={SERIF}>{v ? (v.total ?? 0).toLocaleString("fr-FR") : "…"}</p>
+              </div>
+            </aside>
+            <div className="min-w-0 border-r border-black/10">
+              <div className="flex items-center justify-between gap-2 border-b border-black/10 px-4 py-3">
+                <p className="text-[15px] text-ink" style={SERIF}>Contrats qui se terminent</p>
+                <div className="hidden sm:flex gap-1.5 text-[12px]">{["Tous", "Nettoyage", "Sécurité", "12 mois"].map((f, i) => <span key={f} className={cx("rounded-md border px-2 py-0.5", i === 0 ? "border-ink text-ink" : "border-black/10 text-ink-soft")}>{f}</span>)}</div>
+              </div>
+              <ul>
+                {(rows.length ? rows : Array.from({ length: 6 }, () => null)).map((x, i) => (
+                  <li key={i} onClick={() => x && setSel(i)} className={cx("grid grid-cols-[minmax(0,1fr)_auto] gap-3 border-b border-black/[.06] px-4 py-3 cursor-default transition-colors", i === sel && x ? "bg-[#FFF5EF]" : "")}>
+                    {x ? <>
+                      <div className="min-w-0"><p className="truncate text-[14px] font-medium text-ink">{x.nom}</p><p className="truncate text-[12.5px] text-ink-soft">{x.objet}</p></div>
+                      <div className="text-right"><p className="text-[13px] tabular-nums text-ink">{x.montant ? euro(x.montant) : "—"}</p><p className="text-[12px] text-accent-dark">fin {MOIS(x.fin)}</p></div>
+                    </> : <><div><div className="h-3 w-40 rounded bg-black/[.06]" /><div className="mt-2 h-2.5 w-64 max-w-full rounded bg-black/[.04]" /></div><div className="h-3 w-12 rounded bg-black/[.06]" /></>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="hidden md:flex flex-col p-4 gap-3">
+              {r ? <div key={sel} className="land-in flex flex-col gap-3">
+                <span className="self-start rounded-md bg-[#FFF1E8] px-2 py-0.5 text-[12px] font-medium text-accent-dark">{r.cat} · fin {MOIS(r.fin)}</span>
+                <p className="text-[19px] leading-tight text-ink" style={SERIF}>{r.nom}</p>
+                <p className="text-[12.5px] text-ink-soft line-clamp-3">{r.objet}</p>
+                <div className="rounded-lg border border-black/10 p-3">
+                  <p className="text-[11.5px] text-ink-soft">Décideur</p>
+                  <div className="mt-1.5 flex items-center gap-2.5"><span className="h-8 w-8 rounded-full bg-ink text-white grid place-items-center text-[12px]">?</span><div><p className="text-[13.5px] text-ink select-none blur-[4px]">Prénom Nom</p><p className="text-[12px] text-ink-soft">Service achats</p></div></div>
+                  <div className="mt-2.5 grid gap-1.5 text-[12px]">{["E-mail", "Téléphone", "LinkedIn"].map((k) => <div key={k} className="flex justify-between rounded-md bg-[#F6F5F3] px-2 py-1"><span className="text-ink-soft">{k}</span><span className="select-none blur-[4px]">xxxxxxxx</span></div>)}</div>
+                </div>
+                <div className="rounded-lg border border-black/10 p-3">
+                  <p className="text-[11.5px] text-ink-soft">Message préparé</p>
+                  <div className="mt-2 space-y-1.5"><div className="h-2 w-full rounded bg-black/[.07]" /><div className="h-2 w-11/12 rounded bg-black/[.07]" /><div className="h-2 w-4/5 rounded bg-black/[.07]" /></div>
+                  <div className="mt-3 flex gap-1.5"><span className="rounded-md bg-ink px-2.5 py-1 text-[12px] text-white">Valider l'envoi</span><span className="rounded-md border border-black/10 px-2.5 py-1 text-[12px] text-ink-soft">Modifier</span></div>
+                </div>
+              </div> : <div className="h-full rounded-lg bg-black/[.03]" />}
+            </div>
+          </div>
+        </div>
+      </div>
+      <p className="mt-4 text-center text-[13px] text-ink-soft">Acheteurs et contrats réels, lus dans les données publiques. Le décideur et ses coordonnées s'affichent une fois inscrit.</p>
+    </div>
+  );
+}
+
+/** Rangée des sources, à la manière d'une rangée de logos clients. */
+function SourcesRow() {
+  return (
+    <div className="mx-auto mt-16 max-w-[1100px]">
+      <p className="text-[15px] text-ink-soft">Bingoo! lit chaque nuit des sources officielles et vérifiables</p>
+      <ul className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-[22px] sm:text-[26px] text-ink/45" style={SERIF}>
+        {["BOAMP", "BODACC", "Sirene", "DECP", "TED Europa", "Sites web"].map((x) => <li key={x}>{x}</li>)}
+      </ul>
+    </div>
+  );
+}
+
 /** Les coordonnées du décideur : ce que Bingoo! trouve pour chaque opportunité. */
 const CONTACT_ROWS = [
   ["mail", "E-mail", "Publié par l'organisation ou retrouvé sur le web"],
@@ -442,6 +524,8 @@ export default function Landing() {
               <button type="submit" className="rounded-lg bg-accent text-white px-7 py-4 text-[18px] sm:text-[19px] hover:bg-accent-dark transition">Créer mon compte</button>
             </form>
             <p className="mt-8 text-[14.5px] text-ink-soft">En m'inscrivant, j'accepte les <a href="#/conditions" className="underline hover:text-ink">Conditions d'utilisation</a> et la <a href="#/confidentialite" className="underline hover:text-ink">Politique de confidentialité</a> de Bingoo!.</p>
+            <ProductShot />
+            <SourcesRow />
           </section>
         </div>
       </div>
