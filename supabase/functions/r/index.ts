@@ -1,6 +1,6 @@
 // Fonction « r » : Kairo Radar, Espion et Studio (modules de croissance), séparée pour des mises à jour légères.
 import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
-import { admin, quota, requireMember, setAi } from "../_shared/core.ts";
+import { admin, log, quota, requireMember, setAi } from "../_shared/core.ts";
 import { radarCron, radarGetConfig, radarSetConfig, radarToProspect, scanRadar } from "../_shared/radar.ts";
 import { resolveCompetitor, spyCron, spyDigest, spyDiscover, spyFollow, spyNeeds, spySocial } from "../_shared/spy.ts";
 import { studioGenerate } from "../_shared/studio.ts";
@@ -96,8 +96,15 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   // Radar : la bonne personne pour une opportunité (e-mail, téléphone, LinkedIn public)
   async "opp-contacts"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
-    await quota(ws.id, "contacts", 60);
     const { oppContacts } = await import("../_shared/opp-contacts.ts");
+    // Recherche automatique à l'ouverture d'une fiche : plafond propre (20 par jour, ajusté à la formule), jamais refaite
+    if (b.auto === true) {
+      const { data: o } = await admin.from("radar_opps").select("raw, prospect_id").eq("id", String(b.id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+      if (o?.raw?.contacts_at) return await oppContacts(ws, String(b.id ?? ""), true);
+      await quota(ws.id, "contacts_auto", 20);
+      await log(ws.id, "contacts_auto", "Recherche automatique du décideur");
+    }
+    await quota(ws.id, "contacts", 60);
     return await oppContacts(ws, String(b.id ?? ""));
   },
   // Outils gratuits (sans compte) : porte d'entrée de Bingoo!

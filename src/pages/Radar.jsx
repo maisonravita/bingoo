@@ -760,49 +760,77 @@ function Visitors({ ws }) {
 }
 
 /** Qui contacter : les bonnes personnes pour ce signal, avec e-mail (publié ou vérifié), téléphone et profil LinkedIn public. */
+const AUTO_TRIED = new Set();
+const initials = (n) => String(n ?? "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
 function ContactsBox({ ws, o, onChange }) {
   const toast = useToast();
   const [rows, setRows] = useState(null);
   const [p, setP] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [auto, setAuto] = useState(false);
   const load = useCallback(async () => {
     if (!o?.prospect_id) { setRows([]); setP(null); return; }
     const [{ data: c }, { data: pr }] = await Promise.all([
-      supabase.from("contacts").select("id, name, role, email, email_status, linkedin_url, source").eq("prospect_id", o.prospect_id).order("created_at").limit(6),
+      supabase.from("contacts").select("id, name, role, email, email_status, linkedin_url, source, profile").eq("prospect_id", o.prospect_id).order("created_at").limit(6),
       supabase.from("prospects").select("phone, email, website").eq("id", o.prospect_id).single(),
     ]);
     setRows(c ?? []); setP(pr ?? null);
   }, [o?.prospect_id]);
   useEffect(() => { load(); }, [load, o?.id]);
-  const find = async () => {
-    setBusy(true);
-    try { const r = await fn("r/opp-contacts", { workspace_id: ws.id, id: o.id }); toast(r.contacts?.length ? `${r.contacts.length} contact${r.contacts.length > 1 ? "s" : ""} trouvé${r.contacts.length > 1 ? "s" : ""}${r.launched ? " · e-mails en cours de vérification" : ""}` : "Personne trouvée pour cette fonction : le standard et le dirigeant restent disponibles", r.contacts?.length ? "good" : "default"); await onChange(); }
-    catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
+  const find = async (isAuto = false) => {
+    setBusy(true); if (isAuto) setAuto(true);
+    try {
+      const r = await fn("r/opp-contacts", { workspace_id: ws.id, id: o.id, auto: isAuto });
+      if (!isAuto) toast(r.contacts?.length ? `${r.contacts.length} contact${r.contacts.length > 1 ? "s" : ""} trouvé${r.contacts.length > 1 ? "s" : ""}${r.launched ? " · e-mails en cours de vérification" : ""}` : "Aucun décideur trouvé en ligne pour l'instant", r.contacts?.length ? "good" : "muted");
+      await onChange?.(); await load();
+    } catch (e) { if (!isAuto) toast(e.message, "bad"); } finally { setBusy(false); setAuto(false); }
   };
+  // Recherche automatique dès l'ouverture d'une opportunité jamais cherchée (une seule fois, plafonnée côté serveur)
+  useEffect(() => {
+    if (!o?.id || o.kind === "appel_offres" || o.raw?.contacts_at || AUTO_TRIED.has(o.id) || rows === null || rows.length) return;
+    AUTO_TRIED.add(o.id); find(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [o?.id, rows]);
   const c0 = o.raw?.contact;
   const li = (name) => `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(`${name} ${o.company}`)}`;
   const person = (n) => n && !/^(service|contact de|direction|mairie)/i.test(n);
   const ST = { verifie: ["vérifié", "text-good"], publie: ["publié", "text-good"], en_cours: ["vérification en cours", "text-ink-faint"], introuvable: ["", ""] };
   const clean = (x) => String(x ?? "").split(/\s[(—]/)[0].trim();
   const usable = (rows ?? []).filter((c) => !/n'est pas (un|le) décideur/i.test(c.role ?? "")).map((c) => ({ ...c, role: clean(c.role) }));
-  const list = usable.length ? usable : c0?.nom ? [{ id: "r", name: c0.nom, role: c0.role, email: c0.email, email_status: c0.email ? "publie" : "", linkedin_url: c0.linkedin, source: c0.source }] : [];
+  const list = usable.length ? usable : c0?.nom ? [{ id: "r", name: c0.nom, role: c0.role, email: c0.email, email_status: c0.email ? "publie" : "", linkedin_url: c0.linkedin, source: c0.source, profile: {} }] : [];
   const phone = p?.phone || c0?.tel;
+  const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
   return (
     <div>
       <p className="flex items-center gap-2 font-bold text-[14.5px]"><Ico name="user" className="h-5 w-5 text-accent" />Qui contacter ?</p>
-      {rows === null ? <div className="py-3"><Spinner /></div> : (
-        <div className="mt-2 space-y-2.5">
-          {list.slice(0, 3).map((c) => (
-            <div key={c.id} className="text-[13.5px] leading-snug">
-              <p><b>{c.name}</b>{c.role ? <span className="text-ink-soft"> · {c.role}</span> : null}</p>
-              {c.email ? <p><a href={`mailto:${c.email}`} className="text-accent hover:underline break-all">{c.email}</a>{ST[c.email_status]?.[0] ? <span className={cx("text-[11.5px] ml-1.5", ST[c.email_status][1])}>{ST[c.email_status][0]}</span> : null}</p>
-                : c.email_status === "en_cours" ? <p className="text-[12px] text-ink-faint">E-mail : vérification en cours…</p> : null}
-              {person(c.name) && <a href={c.linkedin_url || li(c.name)} target="_blank" rel="noreferrer" className="text-[12.5px] font-semibold text-accent hover:underline">{c.linkedin_url ? "Profil LinkedIn ↗" : "Chercher sur LinkedIn ↗"}</a>}
-            </div>
-          ))}
+      {rows === null ? <div className="py-3"><Spinner /></div> : busy && auto && !list.length ? (
+        <p className="mt-2 text-[13px] text-ink-soft flex items-center gap-2"><Spinner />Bingoo! cherche qui décide chez {o.company}… (30 s à 1 min)</p>
+      ) : (
+        <div className="mt-2 space-y-3">
+          {list.slice(0, 3).map((c) => {
+            const pr = c.profile ?? {};
+            return (
+              <div key={c.id} className="rounded-2xl border border-line bg-white p-3 text-[13.5px] leading-snug">
+                <div className="flex items-start gap-3">
+                  {person(c.name) ? <span className="h-10 w-10 shrink-0 rounded-full bg-ink text-white flex items-center justify-center font-bold text-[13px]">{initials(c.name)}</span> : <span className="h-10 w-10 shrink-0 rounded-full bg-accent-soft text-accent flex items-center justify-center"><Ico name="user" className="h-5 w-5" /></span>}
+                  <div className="min-w-0 flex-1">
+                    <p><b>{c.name}</b></p>
+                    {c.role ? <p className="text-ink-soft">{c.role}{pr.depuis ? ` · depuis ${pr.depuis}` : ""}{pr.ville ? ` · ${pr.ville}` : ""}</p> : null}
+                    {pr.parcours ? <p className="mt-1 text-[12.5px] text-ink-soft">{pr.parcours}</p> : null}
+                  </div>
+                </div>
+                <div className="mt-2.5 space-y-1">
+                  {c.email ? <p><a href={`mailto:${c.email}`} className="text-accent hover:underline break-all">{c.email}</a>{ST[c.email_status]?.[0] ? <span className={cx("text-[11.5px] ml-1.5", ST[c.email_status][1])}>{ST[c.email_status][0]}</span> : null}</p>
+                    : c.email_status === "en_cours" ? <p className="text-[12px] text-ink-faint">E-mail : vérification en cours…</p> : null}
+                  {person(c.name) && <a href={c.linkedin_url || li(c.name)} target="_blank" rel="noreferrer" style={{ background: "#0A66C2" }} className="inline-flex items-center gap-1 rounded-full text-white px-3 py-1 text-[12px] font-semibold hover:opacity-90">{c.linkedin_url ? "Voir son profil LinkedIn ↗" : "Le chercher sur LinkedIn ↗"}</a>}
+                  {c.source && /^https?:/.test(c.source) ? <p className="text-[11.5px] text-ink-faint">Source : <a href={c.source} target="_blank" rel="noreferrer" className="hover:underline">{host(c.source)}</a></p> : null}
+                </div>
+              </div>
+            );
+          })}
           {phone && <p className="text-[13.5px]"><span className="text-ink-soft">Téléphone : </span><a href={`tel:${phone.replace(/\s/g, "")}`} className="font-semibold hover:underline">{phone}</a></p>}
           {!usable.length && o.kind !== "appel_offres" && (
-            <button onClick={find} disabled={busy} className="rounded-full border border-accent/40 text-accent-dark px-3.5 py-1.5 text-[12.5px] font-semibold hover:bg-accent-soft disabled:opacity-60">{busy ? "Recherche… (30 s à 1 min)" : list.length ? "Trouver le bon interlocuteur" : "Trouver le contact (e-mail, téléphone, LinkedIn)"}</button>
+            <button onClick={() => find(false)} disabled={busy} className="rounded-full border border-accent/40 text-accent-dark px-3.5 py-1.5 text-[12.5px] font-semibold hover:bg-accent-soft disabled:opacity-60">{busy ? "Recherche… (30 s à 1 min)" : list.length ? "Chercher d'autres décideurs" : "Trouver le décideur"}</button>
           )}
           {!list.length && !phone && !busy && o.kind === "appel_offres" && <p className="text-[13px] text-ink-soft">Le contact de l'acheteur est dans l'avis officiel (Tous les détails).</p>}
         </div>
