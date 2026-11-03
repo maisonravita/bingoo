@@ -10,7 +10,7 @@ on:
 
 env:
   PROJECT_REF: fbsjbnnmzazylmquzryo
-  FUNCTIONS: "a i k m n o r t"
+  FUNCTIONS: "a i k m n o r t x"
 
 jobs:
   check:
