@@ -382,6 +382,7 @@ async function stepOnce(ws: Workspace, m: Mission) {
 
 /** Tâche planifiée : jours ouvrés, 8 h – 18 h, quelques missions par passage, budget de temps limité. */
 export async function missionPilotCron() {
+  if (await (await import("./core.ts")).backgroundPaused()) return { pause: "IA automatique en pause" };
   const h = Number(new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "numeric", hourCycle: "h23" }).format(new Date()));
   const dow = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", weekday: "short" }).format(new Date());
   if (["Sat", "Sun"].includes(dow) || h < 8 || h >= 18) return { skipped: "hors horaires" };

@@ -182,6 +182,7 @@ Format : {"nom": "", "site": "https://…"}`, { fast: true, maxTokens: 1500, too
 //    sinon toutes les 2 semaines), puis publicités (toutes les 2 semaines), découverte (chaque semaine), besoins (toutes les 2 semaines).
 //    Mode économe : un espace qui a utilisé 60 % de son budget IA du mois n'a plus de travaux lourds de nuit.
 export async function spyCron() {
+  if (await (await import("./core.ts")).backgroundPaused()) return { pause: "IA automatique en pause" };
   const t0 = Date.now();
   const { checkCompetitor, siteText, sha } = await import("./pro.ts");
   const { competitorAds } = await import("./campaigns.ts");
@@ -227,7 +228,9 @@ export async function spyCron() {
   const week = new Date(Date.now() - 7 * 864e5).toISOString(), twoWeeks = new Date(Date.now() - 14 * 864e5).toISOString();
   const { data: ads } = await admin.from("competitors").select("id, workspace_id, name").in("workspace_id", heavy).eq("status", "suivi").not("summary", "is", null)
     .or(`ads_at.is.null,ads_at.lt.${twoWeeks}`).order("ads_at", { ascending: true, nullsFirst: true }).limit(1);
-  if (ads?.[0]) {
+  // Publicités et besoins publics : seulement à la demande, sauf si SPY_AUTO_EXTRA=1 (les plus chers, utilité faible la nuit)
+  const extra = Deno.env.get("SPY_AUTO_EXTRA") === "1";
+  if (extra && ads?.[0]) {
     setAi({ ws: ads[0].workspace_id, feature: "espion/publicites" });
     await log(ads[0].workspace_id, "espion_lourd", `Publicités de ${ads[0].name || "un concurrent"} analysées`);
     try { await competitorAds(byId.get(ads[0].workspace_id)!, ads[0].id); out.publicites = ads[0].name || ads[0].id; } catch (e) { out.publicites_erreur = (e as Error).message; }
@@ -238,7 +241,7 @@ export async function spyCron() {
   if (ws) { setAi({ ws: ws.id, feature: "espion/decouverte" }); await log(ws.id, "espion_lourd", "Recherche de nouveaux concurrents"); try { out.decouverte = (await spyDiscover(ws)).found; } catch (e) { out.decouverte_erreur = (e as Error).message; } return out; }
   // 2d. Besoins publics (une fois par semaine et par espace)
   const wn = (wss ?? []).find((w) => heavy.includes(w.id) && (!(w as { spy_needs_at?: string }).spy_needs_at || (w as { spy_needs_at?: string }).spy_needs_at! < twoWeeks)) as Workspace | undefined;
-  if (wn) { setAi({ ws: wn.id, feature: "espion/besoins" }); await log(wn.id, "espion_lourd", "Recherche de besoins publics"); try { out.besoins = (await spyNeeds(wn)).found; } catch (e) { out.besoins_erreur = (e as Error).message; } }
+  if (extra && wn) { setAi({ ws: wn.id, feature: "espion/besoins" }); await log(wn.id, "espion_lourd", "Recherche de besoins publics"); try { out.besoins = (await spyNeeds(wn)).found; } catch (e) { out.besoins_erreur = (e as Error).message; } }
   return out;
 }
 
