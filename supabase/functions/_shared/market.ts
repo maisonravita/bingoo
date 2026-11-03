@@ -88,6 +88,7 @@ export async function marketNames(wsId: string, max = 120) {
 
 /** Tâche planifiée : un espace par passage (le plus ancien), puis les noms manquants. */
 export async function marketCron() {
+  if (await (await import("./core.ts")).backgroundPaused()) return { pause: "IA automatique en pause" };
   const week = new Date(Date.now() - 7 * 864e5).toISOString();
   const { data } = await admin.from("workspaces").select("*").eq("onboarded", true).or(`market_at.is.null,market_at.lt.${week}`).order("market_at", { ascending: true, nullsFirst: true }).limit(20);
   const stale = (data ?? []).filter((w) => !planOk(w));

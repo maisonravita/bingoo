@@ -311,7 +311,7 @@ function PublicNeeds({ ws }) {
   useEffect(() => { load(); }, [load]);
   const search = async () => {
     setBusy(true);
-    try { const r = await fn("r/spy-needs", { workspace_id: ws.id }); await load(); toast(r?.found ? `${r.found} besoin${r.found > 1 ? "s" : ""} trouvé${r.found > 1 ? "s" : ""}` : "Rien de solide trouvé cette fois : l'espionne recommencera la semaine prochaine", r?.found ? "good" : undefined); }
+    try { const r = await fn("r/spy-needs", { workspace_id: ws.id }); await load(); toast(r?.found ? `${r.found} besoin${r.found > 1 ? "s" : ""} trouvé${r.found > 1 ? "s" : ""}` : "Rien de solide trouvé cette fois : relance la recherche quand tu veux", r?.found ? "good" : undefined); }
     catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
   };
   const drop = async (o) => { await supabase.from("radar_opps").update({ status: "ecarte" }).eq("id", o.id); setList((x) => x.filter((y) => y.id !== o.id)); };

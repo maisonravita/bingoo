@@ -183,6 +183,12 @@ export async function aiRoom(wsId: string, share = 0.6) {
   return spent < (budget + extra) * share;
 }
 /** Garde-fou avant chaque appel : plafond quotidien de toute la plateforme, puis budget mensuel de l'espace. */
+/** Interrupteur général de l'IA automatique (app_secrets « background_ai » = « off ») : les tâches de nuit ne démarrent pas. */
+export async function backgroundPaused() {
+  const { data } = await admin.from("app_secrets").select("value").eq("name", "background_ai").maybeSingle();
+  return data?.value === "off";
+}
+
 export async function aiGuard() {
   const ctx = aiCtx.getStore() ?? {};
   if (ctx.essential) return; // réponses de prospects : toujours traitées (plafond par prospect dans pro.ts)
@@ -194,6 +200,11 @@ export async function aiGuard() {
     const { data } = await admin.from("ai_usage").select("cost_eur").is("workspace_id", null).gte("at", dayStart());
     if ((data ?? []).reduce((a, r) => a + Number(r.cost_eur ?? 0), 0) >= freeCap) throw new HttpError(503, "L'outil gratuit est très demandé aujourd'hui : crée ton compte Bingoo! pour y accéder tout de suite.");
     return;
+  }
+  if (!ctx.live) {
+    // Interrupteur général de l'IA automatique (nuit, tâches de fond) : app_secrets « background_ai » = « off ».
+    // Ce que l'utilisateur lance lui-même et les réponses des prospects continuent.
+    if (await backgroundPaused()) throw new HttpError(503, "IA automatique en pause sur la plateforme.");
   }
   if (cap > 0) {
     // Les tâches de fond s'arrêtent à 70 % du plafond pour laisser la place aux demandes des utilisateurs connectés

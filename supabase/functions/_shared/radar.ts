@@ -344,6 +344,7 @@ export async function radarToProspect(ws: Workspace, id: string) {
 }
 
 export async function radarCron() {
+  if (await (await import("./core.ts")).backgroundPaused()) return { pause: "IA automatique en pause" };
   // Quelques espaces par passage (le plus anciennement analysé d'abord) pour rester dans le temps d'exécution
   const since = new Date(Date.now() - 20 * 36e5).toISOString();
   let { data } = await admin.from("workspaces").select("*").eq("onboarded", true).or(`radar_at.is.null,radar_at.lt.${since}`).order("radar_at", { ascending: true, nullsFirst: true }).limit(30);
