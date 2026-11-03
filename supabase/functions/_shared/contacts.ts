@@ -3,7 +3,7 @@
 import { HttpError } from "./http.ts";
 import { admin, askJson, env, log, type Workspace } from "./core.ts";
 
-type Person = { nom: string; fonction: string; linkedin: string; source: string; email?: string };
+type Person = { nom: string; fonction: string; linkedin: string; source: string; email?: string; depuis?: string; parcours?: string; ville?: string };
 export type ContactRow = { id: string; prospect_id: string; name: string; role: string; linkedin_url: string; email: string; email_status: string; email_source: string; provider_req: Record<string, string> };
 
 const EMAIL_RE = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;
@@ -34,8 +34,11 @@ Règles :
 - Seulement des personnes qui travaillent ACTUELLEMENT dans cette entreprise (ou son groupe direct), avec une source (URL) pour chacune.
 - linkedin : uniquement une URL linkedin.com/in/… trouvée dans les résultats, sinon vide.
 - email : uniquement s'il est publié tel quel sur une page (jamais reconstruit), sinon vide.
+- depuis : depuis quand il occupe ce poste (ex. « mars 2023 »), seulement si c'est écrit dans une source, sinon vide.
+- parcours : une phrase sur son parcours professionnel PUBLIC (postes et entreprises précédents), seulement si c'est écrit dans une source, sinon vide. Rien de personnel (âge, famille, opinions, photo).
+- ville : la ville où il travaille si elle est indiquée, sinon vide.
 - 0 à 5 personnes, de la plus pertinente à la moins pertinente pour les fonctions recherchées. Si tu ne trouves personne, renvoie une liste vide.
-Format : {"site": "https://…", "personnes": [{"nom": "Prénom Nom", "fonction": "", "linkedin": "", "email": "", "source": "URL"}]}`,
+Format : {"site": "https://…", "personnes": [{"nom": "Prénom Nom", "fonction": "", "depuis": "", "parcours": "", "ville": "", "linkedin": "", "email": "", "source": "URL"}]}`,
     { fast: true, maxTokens: 6000, tools: WEB(5), system: "Tu es un chercheur commercial B2B rigoureux en France. Tu ne donnes que des personnes réelles, actuelles et sourcées. Tu n'inventes jamais un nom ni une adresse." });
   const people = (r.personnes ?? [])
     .map((x) => ({
@@ -43,6 +46,7 @@ Format : {"site": "https://…", "personnes": [{"nom": "Prénom Nom", "fonction"
       linkedin: /^https?:\/\/([a-z]{2,3}\.)?linkedin\.com\/in\/[^\s/?#]+/i.test(String(x.linkedin ?? "")) ? String(x.linkedin).replace(/[?#].*$/, "").slice(0, 200) : "",
       email: EMAIL_RE.test(String(x.email ?? "").trim()) ? String(x.email).trim().toLowerCase() : "",
       source: String(x.source ?? "").slice(0, 300),
+      depuis: String(x.depuis ?? "").trim().slice(0, 40), parcours: String(x.parcours ?? "").trim().slice(0, 300), ville: String(x.ville ?? "").trim().slice(0, 60),
     }))
     .filter((x) => /\s/.test(x.nom) && x.nom.length < 70)
     .slice(0, 5);
@@ -188,6 +192,7 @@ export async function findContacts(ws: Workspace, prospectId: string, roles: str
     const published = x.email && (!domain || x.email.endsWith(domain));
     const { data: row } = await admin.from("contacts").upsert({
       workspace_id: ws.id, prospect_id: p.id, name: x.nom, role: x.fonction, linkedin_url: x.linkedin, source: x.source,
+      profile: { depuis: x.depuis ?? "", parcours: x.parcours ?? "", ville: x.ville ?? "" },
       ...(published ? { email: x.email, email_status: "publie", email_source: x.source } : {}),
     }, { onConflict: "prospect_id,name" }).select("*").single();
     if (row) out.push(row as ContactRow);

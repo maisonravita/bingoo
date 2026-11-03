@@ -42,10 +42,15 @@ async function publicBuyerContact(buyer: string) {
 }
 
 /** Cherche les contacts d'une opportunité et les rattache à sa fiche. */
-export async function oppContacts(ws: Workspace, oppId: string) {
+export async function oppContacts(ws: Workspace, oppId: string, cached = false) {
   const { data: o } = await admin.from("radar_opps").select("*").eq("id", oppId).eq("workspace_id", ws.id).single();
   if (!o) throw new HttpError(404, "Opportunité introuvable");
   if (o.kind === "appel_offres") return { contacts: [], note: "Pour un appel d'offres, le contact officiel est dans l'avis (acheteur public).", providers: providers() };
+  // Déjà cherché : on renvoie le résultat gardé (une seule recherche payante par opportunité)
+  if (cached && o.raw?.contacts_at && o.prospect_id) {
+    const { data: rows } = await admin.from("contacts").select("*").eq("prospect_id", o.prospect_id).order("created_at");
+    return { prospect_id: o.prospect_id, contacts: rows ?? [], cached: true, providers: providers() };
+  }
   const { radarToProspect } = await import("./radar.ts");
   const { prospect_id } = await radarToProspect(ws, o.id);
   const { data: p } = await admin.from("prospects").select("*").eq("id", prospect_id).single();
