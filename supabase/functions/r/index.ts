@@ -198,6 +198,16 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     }
     return out;
   },
+  // Test plateforme : page « Alternative à » d'un concurrent d'un espace
+  async "alt-test"(req, b) {
+    await cron(req);
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
+    if (!ws) throw new HttpError(404, "Espace introuvable");
+    setAi({ ws: ws.id });
+    const { altPage } = await import("../_shared/altpage.ts");
+    const p = await altPage(ws, String(b.competitor_id ?? ""), true);
+    return { ...p, html: `${String(p.html ?? "").length} caractères` };
+  },
   async "spy-cron"(req) { await cron(req); return await spyCron(); },
   async "spy-digest"(req) { await cron(req); return await spyDigest(); },
   async "spy-needs"(req, b) {
