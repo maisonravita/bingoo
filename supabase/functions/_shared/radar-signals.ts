@@ -384,6 +384,21 @@ export async function rescore(ws: Workspace, poids: Record<string, number>) {
     if (r.prospect_id) { s += 4; why.push("déjà dans tes prospects"); }
     if (r.raw?.titulaire_concurrent) { s += 6; why.push("le contrat est tenu par un concurrent"); }
     if (r.kind === "besoin" && Number(r.raw?.pertinence) >= 75) { s += 6; why.push("demande très proche de ton offre"); }
+    // Qualité propre à chaque signal : ce qui le rend fort ou faible
+    const raw = (r.raw ?? {}) as Record<string, unknown>;
+    if (r.kind === "recrutement") { const n = (raw.offres as unknown[] | undefined)?.length ?? 1; if (n >= 2) { s += Math.min(12, 4 * n); why.push(`${n} postes liés à ton offre`); } }
+    if (r.kind === "croissance" && raw.total && !raw.offres) { s -= 10; why.push("recrute beaucoup, mais pas sur un poste lié à ton offre"); }
+    if (r.kind === "visite") {
+      if (raw.formulaire) { s += 20; why.push("a envoyé un formulaire sur ton site"); }
+      if (raw.alternative) { s += 15; why.push(`compare ${raw.alternative} avec toi`); }
+      else if ((raw.chaud as unknown[] | undefined)?.length) { s += 12; why.push("a regardé tes tarifs, ta démo ou ton contact"); }
+      if (Number(raw.sessions) >= 3) { s += 6; why.push(`${raw.sessions} visites`); }
+    }
+    if (r.kind === "renouvellement" && raw.fin) { const m = (new Date(String(raw.fin)).getTime() - now) / (30 * 864e5); if (m >= 0 && m <= 4) { s += 10; why.push("le contrat se termine dans moins de 4 mois"); } else if (m > 10) s -= 8; }
+    if (r.kind === "obligation") { if (raw.statut === "en_cours") s -= 6; else if (r.deadline) { const d = (new Date(r.deadline).getTime() - now) / 864e5; if (d >= 0 && d <= 180) { s += 8; why.push("échéance dans moins de 6 mois"); } } }
+    if (r.kind === "salon") s -= 8;
+    if (r.kind === "client_concurrent" && (raw.tech as string[] | undefined)?.length) s += 2;
+    if ((raw.contact as { nom?: string } | undefined)?.nom) { s += 4; why.push("contact identifié"); } else if (!r.siren && !r.prospect_id && !["appel_offres", "renouvellement", "budget", "salon"].includes(r.kind)) s -= 4;
     const w = poids[r.kind] ?? 1;
     if (w !== 1) why.push(w > 1 ? "ce type de signal te réussit" : "ce type de signal te réussit moins");
     s = Math.max(1, Math.min(99, Math.round(s * w)));

@@ -767,6 +767,60 @@ function Visitors({ ws }) {
   );
 }
 
+/** L'essentiel du Radar : les 3 entreprises à contacter aujourd'hui (choisies chaque matin), avec la raison, le contact et le message. */
+function TopToday({ ws, list, loaded, live, onScan, onOpen, onChange }) {
+  const toast = useToast();
+  const nav = useNavigate();
+  const [busy, setBusy] = useState(null);
+  const today = new Date().toISOString().slice(0, 10);
+  const SKIP = ["appel_offres", "difficulte", "salon", "budget", "besoin"];
+  const chosen = list.filter((o) => o.raw?.top_day === today);
+  // Sans sélection du matin (premier jour, scan manuel) : les 3 meilleures, une seule par entreprise
+  const pick = chosen.length ? chosen.slice(0, 3) : (() => { const seen = new Set(); return list.filter((o) => o.status === "nouveau" && !SKIP.includes(o.kind) && (o.score ?? 0) >= 50).filter((o) => { const g = o.group_key || o.company; if (seen.has(g)) return false; seen.add(g); return true; }).slice(0, 3); })();
+  const prepare = async (o) => {
+    setBusy(o.id);
+    try { const r = await fn("m/prepare", { workspace_id: ws.id, id: o.id }); toast(r.message ? `${o.company} : contact trouvé et e-mail prêt à valider` : `${o.company} ajouté à tes prospects`, "good"); onChange(); }
+    catch (e) { toast(e.message, "bad"); } finally { setBusy(null); }
+  };
+  const skip = async (o) => { await supabase.from("radar_opps").update({ status: "ecarte", feedback: "pas_pertinent" }).eq("id", o.id); toast("Écartée : le Radar en tiendra compte", "default"); onChange(); };
+  return (
+    <Card className="p-5 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="flex items-center gap-2.5 font-black text-[22px]" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}><span className="text-bad"><Ico name="flame" className="h-7 w-7" /></span>Tes 3 entreprises du jour</h2>
+          <p className="text-[13px] text-ink-soft mt-0.5">Celles où le moment est le meilleur aujourd'hui. Traite-les en 5 minutes : rien ne part sans ta validation.</p>
+        </div>
+        <Button size="sm" variant="ghost" loading={live} disabled={live} onClick={onScan}>{live ? "Analyse en cours…" : "Relancer l'analyse"}</Button>
+      </div>
+      {!loaded ? <div className="py-10 grid place-items-center"><Spinner /></div> : !pick.length ? (
+        <p className="text-sm text-ink-soft text-center py-10">{list.length ? "Rien d'assez chaud aujourd'hui : explore le Radar ou reviens demain matin." : "Lance une première analyse : le Radar cherche les entreprises qui ont une raison d'acheter maintenant."}</p>
+      ) : (
+        <div className="mt-4 grid lg:grid-cols-3 gap-3">
+          {pick.map((o, i) => { const k = KIND[o.kind] ?? {}; const c = o.raw?.contact; return (
+            <div key={o.id} className="rounded-2xl border border-line p-4 flex flex-col min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className={cx("rounded-full px-2.5 py-0.5 text-[11px] font-bold", k.chip ?? "bg-paper text-ink-soft")}>{k.label ?? o.kind}</span>
+                <span className="flex items-center gap-2"><span className="text-[11px] font-bold text-ink-faint">n°{i + 1}</span><Score n={o.score} /></span>
+              </div>
+              <button onClick={() => onOpen(o)} className="mt-2 text-left font-bold text-[16px] leading-snug hover:underline">{o.company}</button>
+              <p className="text-[13px] text-ink-soft mt-1 line-clamp-3">{o.summary || o.title}</p>
+              <p className="text-[13px] mt-2 leading-snug"><span className="font-semibold text-accent-dark">Pourquoi maintenant : </span>{o.why || (o.score_why ?? []).slice(0, 2).join(" · ")}</p>
+              {c?.nom && <p className="text-[12.5px] mt-2 text-ink-soft"><span className="font-semibold text-ink">Qui contacter : </span>{c.nom}{c.role ? `, ${c.role}` : ""}{c.tel ? ` · ${c.tel}` : ""}</p>}
+              {o.raw?.valeur ? <p className="text-[12.5px] mt-1 text-ink-soft">Valeur estimée : <b className="text-ink">≈ {euroK(o.raw.valeur)}/an</b></p> : null}
+              <div className="mt-auto pt-3 flex flex-wrap items-center gap-2">
+                {o.prospect_id ? <button onClick={() => nav("/valider")} className="rounded-full bg-good-soft text-good px-3.5 py-1.5 text-[13px] font-semibold">Message prêt : valider</button>
+                  : <Button size="sm" variant="accent" loading={busy === o.id} disabled={!!busy} onClick={() => prepare(o)}>Préparer le message</Button>}
+                <button onClick={() => onOpen(o)} className="text-[13px] font-semibold text-ink-soft hover:text-ink">Détails</button>
+                <button onClick={() => skip(o)} className="ml-auto text-[12.5px] text-ink-faint hover:text-bad">Pas intéressant</button>
+              </div>
+            </div>
+          ); })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 /** Partenaires apporteurs d'affaires : métiers qui servent les mêmes clients, et sociétés d'apport d'affaires de ta zone. */
 function Partners({ ws }) {
   const toast = useToast();
@@ -1059,7 +1113,9 @@ export default function Radar() {
   const [tick, setTick] = useState(0);
   const [hidden, setHidden] = useState([]);
   const [section, setSection] = useState(() => { try { return localStorage.getItem("bingoo:radar-tab") || "opps"; } catch { return "opps"; } });
-  const pickSection = (k) => { setSection(k); try { localStorage.setItem("bingoo:radar-tab", k); } catch { /* navigation privée */ } };
+  const [explore, setExplore] = useState(() => { try { return localStorage.getItem("bingoo:radar-explore") === "1"; } catch { return false; } });
+  const toggleExplore = (v) => { setExplore(v); try { localStorage.setItem("bingoo:radar-explore", v ? "1" : "0"); } catch { /* navigation privée */ } };
+  const pickSection = (k) => { setSection(k); toggleExplore(true); try { localStorage.setItem("bingoo:radar-tab", k); } catch { /* navigation privée */ } };
   const [showHidden, setShowHidden] = useState(false);
 
   const load = useCallback(async () => {
@@ -1130,6 +1186,13 @@ export default function Radar() {
         <Pill on={live}>{live ? "Radar en cours" : lastAt ? `Dernier scan ${ago(lastAt)}` : "Jamais lancé"}</Pill>
       </div>
 
+      <TopToday ws={ws} list={list} loaded={!!rows} live={live} onScan={scan} onOpen={setOpen} onChange={load} />
+      <button onClick={() => toggleExplore(!explore)} className="w-full rounded-2xl border border-line bg-white hover:border-ink-faint px-5 py-3.5 flex items-center justify-between gap-3 text-left transition">
+        <span><span className="block font-semibold text-[15px]">{explore ? "Masquer le détail du Radar" : "Explorer tout le Radar"}</span><span className="block text-[12.5px] text-ink-faint">{list.length} opportunité{list.length > 1 ? "s" : ""} · comptes surveillés · visiteurs · partenaires · marché public · résultats · réglages</span></span>
+        <span className={cx("text-ink-soft transition", explore && "rotate-90")}><Ico name="chev" /></span>
+      </button>
+
+      {explore && (<>
       <div>
         <Card className="p-4 sm:p-5 grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)] gap-5 items-center min-w-0">
           <div className="relative p-5 w-full max-w-[440px] mx-auto">
@@ -1244,6 +1307,7 @@ export default function Radar() {
           <div className="space-y-5"><Adapted ws={ws} /><ScanActivity p={prog} live={live} /></div>
         </div>
       )}
+      </>)}
       {open && <Detail o={open} onClose={() => setOpen(null)} onChange={(n) => { setOpen(n.status === "ecarte" ? null : n); setRows((rs) => n.status === "ecarte" ? rs.filter((x) => x.id !== n.id) : rs.map((x) => x.id === n.id ? n : x)); }} />}
     </div>
   );

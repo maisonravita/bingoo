@@ -226,9 +226,14 @@ export async function pickTop3(ws: Workspace) {
   const today = new Date().toISOString().slice(0, 10);
   const { data: already } = await admin.from("radar_opps").select("id").eq("workspace_id", ws.id).eq("raw->>top_day", today).limit(3);
   if ((already ?? []).length >= 3) return { top: (already ?? []).length, prepared: 0 };
-  const { data } = await admin.from("radar_opps").select("id, kind, company, score, raw").eq("workspace_id", ws.id).eq("status", "nouveau")
-    .not("kind", "in", "(appel_offres,difficulte,salon,budget,besoin)").gte("score", 50).order("score", { ascending: false }).limit(10);
-  const pick = (data ?? []).slice(0, 3 - (already ?? []).length) as { id: string; kind: string; company: string; score: number; raw: Record<string, unknown> }[];
+  const { data } = await admin.from("radar_opps").select("id, kind, company, score, raw, group_key").eq("workspace_id", ws.id).eq("status", "nouveau")
+    .not("kind", "in", "(appel_offres,difficulte,salon,budget,besoin)").gte("score", 50).order("score", { ascending: false }).limit(30);
+  // Une seule opportunité par entreprise ; à score proche, celle dont on connaît le contact passe devant
+  type O = { id: string; kind: string; company: string; score: number; raw: Record<string, unknown>; group_key: string | null };
+  const seen = new Set<string>();
+  const ranked = ((data ?? []) as O[]).map((o) => ({ o, v: o.score + ((o.raw?.contact as { nom?: string } | undefined)?.nom ? 3 : 0) })).sort((a, b) => b.v - a.v).map((x) => x.o)
+    .filter((o) => { const g = o.group_key || o.company; if (seen.has(g)) return false; seen.add(g); return true; });
+  const pick = ranked.slice(0, 3 - (already ?? []).length);
   let prepared = 0;
   const room = await aiRoom(ws.id, 0.8);
   for (const o of pick) {
