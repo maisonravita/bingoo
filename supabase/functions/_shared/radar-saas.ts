@@ -433,3 +433,37 @@ export async function trialSignals(ws: W): Promise<Opp[]> {
   }
   return out;
 }
+
+// ---------------------------------------------------------------- Entreprises qui visitent ton site
+const HOT = /(tarif|prix|pricing|price|devis|demo|démo|contact|rendez-vous|rdv|essai|trial|inscription|signup|alternative|comparatif|vs-|-vs)/i;
+
+/** Entreprises reconnues parmi les visiteurs du site (14 derniers jours) : pages vues, source, pages « chaudes » (tarifs, démo, page Alternative à…). */
+export async function visitorSignals(ws: W): Promise<Opp[]> {
+  const since = new Date(Date.now() - 14 * 864e5).toISOString();
+  const { data } = await admin.from("site_events").select("org, path, title, source, session_id, type, created_at").eq("workspace_id", ws.id).not("org", "is", null).gte("created_at", since).order("created_at", { ascending: false }).limit(5000);
+  const rows = (data ?? []) as { org: string; path: string; title: string; source: string; session_id: string; type: string; created_at: string }[];
+  if (!rows.length) return [];
+  const self = [ws.profile?.nom, ws.name].filter(Boolean).map((x) => norm(String(x)).split(" ")[0]).filter((x) => x.length > 3);
+  const { data: alts } = await admin.from("competitors").select("name, alt_page").eq("workspace_id", ws.id).not("alt_page", "is", null);
+  const altBySlug = ((alts ?? []) as { name: string; alt_page: { slug?: string } }[]).filter((a) => a.alt_page?.slug).map((a) => ({ slug: String(a.alt_page.slug).replace(/^\/+/, ""), name: a.name.replace(/\s*[—(].*$/, "").trim() }));
+  const by = new Map<string, typeof rows>();
+  for (const r of rows) { const k = norm(r.org); if (!k || self.some((x) => k.includes(x))) continue; (by.get(k) ?? by.set(k, []).get(k)!).push(r); }
+  const out: Opp[] = [];
+  const week = Math.floor(Date.now() / (7 * 864e5)); // un signal par entreprise et par semaine
+  for (const [k, ev] of by) {
+    const pages = [...new Set(ev.map((e) => e.path))];
+    const hot = pages.filter((p) => HOT.test(p));
+    const alt = altBySlug.find((a) => pages.some((p) => p.replace(/^\/+/, "").startsWith(a.slug)));
+    const sessions = new Set(ev.map((e) => e.session_id)).size;
+    const lead = ev.some((e) => e.type === "lead");
+    const sources = [...new Set(ev.map((e) => e.source).filter(Boolean))];
+    if (!hot.length && sessions < 2 && pages.length < 3 && !lead) continue; // une visite rapide de la page d'accueil ne suffit pas
+    const name = ev[0].org.replace(/\s+(SAS|SA|SARL|SASU|EURL|SNC|GIE|S\.A\.S\.?|S\.A\.)$/i, "").trim();
+    out.push({ key: `visite:${k}:${week}`.slice(0, 300), kind: "visite", title: `${name} · ${alt ? `a lu ta page « Alternative à ${alt.name} »` : hot.length ? `a regardé ${hot.some((p) => /tarif|prix|pricing|price/i.test(p)) ? "tes tarifs" : hot.some((p) => /demo|démo|essai|trial/i.test(p)) ? "ta démo" : "ta page contact"}` : "a visité ton site"}`,
+      company: name, summary: `${sessions} visite${sessions > 1 ? "s" : ""}, ${pages.length} page${pages.length > 1 ? "s" : ""} vue${pages.length > 1 ? "s" : ""} (${pages.slice(0, 4).join(", ")})${sources.length ? ` · venu${sessions > 1 ? "s" : ""} de ${sources.join(", ")}` : ""}${lead ? " · a envoyé un formulaire" : ""}`,
+      why: alt ? `Cette entreprise compare ${alt.name} avec toi en ce moment. Écris-lui avec l'angle de ta page : ce qui change concrètement en passant chez toi.` : hot.length ? "Quelqu'un de cette entreprise étudie ton offre en ce moment. Contacte le décideur avant qu'il ne choisisse un concurrent." : "Cette entreprise revient sur ton site : elle s'intéresse à ce que tu fais.",
+      url: "", source: "Visiteurs de ton site (registre public des adresses IP)", published: ev[0].created_at.slice(0, 10),
+      raw: { org: ev[0].org, pages, sessions, sources, chaud: hot, ...(alt ? { alternative: alt.name } : {}), formulaire: lead } });
+  }
+  return out.slice(0, 30);
+}

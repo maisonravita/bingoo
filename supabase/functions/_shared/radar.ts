@@ -5,7 +5,7 @@
 import { HttpError } from "./http.ts";
 import { admin, aiRoom, askJson, log, setAi, type Workspace } from "./core.ts";
 import { estimateValues } from "./radar-extra.ts";
-import { anniversaries, bizType, championSignals, intentSignals, jobsScan, obligationSignals, trialSignals, webScan } from "./radar-saas.ts";
+import { anniversaries, bizType, championSignals, intentSignals, jobsScan, obligationSignals, trialSignals, visitorSignals, webScan } from "./radar-saas.ts";
 import { findTwins, ftOffers, ftReady, lbbCompanies, pickTop3, radarPress, siteWatch, whoToCall, zoneEvents } from "./radar-plus.ts";
 import { learn, nameRenewals, newCompanies, type Opp, type PublicItem, rejected, renewals, rescore, tagProspects, tedTenders, watchProspects } from "./radar-signals.ts";
 
@@ -240,8 +240,9 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
         const c = await anniversaries(wsc, { until: t0 + 95_000 }).catch((e) => { console.error("abonnements", e); return [] as Opp[]; });
         const d = await obligationSignals(wsc, zone).catch((e) => { console.error("obligations", e); return [] as Opp[]; });
         const e = await trialSignals(wsc).catch((x) => { console.error("essais", x); return [] as Opp[]; });
+        const v = await visitorSignals(wsc).catch((x) => { console.error("visiteurs", x); return [] as Opp[]; });
         const f = opts.web === false ? [] : await championSignals(wsc).catch((x) => { console.error("anciens", x); return [] as Opp[]; });
-        return [...a, ...b, ...c, ...d, ...e, ...f];
+        return [...a, ...b, ...c, ...d, ...e, ...f, ...v];
       })(),
       opts.web === false ? Promise.resolve([] as Opp[]) : intentSignals({ ...ws, radar_cfg: cfg as unknown as Record<string, unknown> }).catch((e) => { console.error("intentions", e); return [] as Opp[]; }),
       opts.web === false ? Promise.resolve([] as Opp[]) : radarPress({ ...ws, radar_cfg: cfg as unknown as Record<string, unknown> }, zone).catch((e) => { console.error("presse", e); return [] as Opp[]; }),

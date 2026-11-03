@@ -85,6 +85,13 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     await admin.from("workspaces").update({ radar_cfg: cfg }).eq("id", ws.id);
     return { ok: true };
   },
+  // Espion : page « Alternative à [concurrent] » pour le site du client
+  async "alt-page"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    if (b.force === true) await quota(ws.id, "espion", 20);
+    const { altPage } = await import("../_shared/altpage.ts");
+    return await altPage(ws, String(b.competitor_id ?? ""), b.force === true);
+  },
   async "radar-calendar"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const { buyingCalendar } = await import("../_shared/radar-extra.ts");
