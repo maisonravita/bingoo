@@ -340,7 +340,7 @@ export default function Landing() {
   const w = WHO.find((x) => x[0] === who);
   return (
     <div className="min-h-full bg-[#FAF9F6] text-ink">
-      <style>{`@keyframes kspin{to{transform:rotate(360deg)}}@keyframes land-in{from{opacity:0;transform:translateY(10px)}}.land-in{animation:land-in .45s ease-out both}@keyframes drift{50%{transform:translateY(-8px)}}`}</style>
+      <style>{`@keyframes kspin{to{transform:rotate(360deg)}}@keyframes land-in{from{opacity:0;transform:translateY(10px)}}.land-in{animation:land-in .45s ease-out both}@keyframes drift{50%{transform:translateY(-8px)}}@keyframes marquee{to{transform:translateX(-50%)}}.marquee-track{animation:marquee 32s linear infinite}.marquee:hover .marquee-track{animation-play-state:paused}@media (prefers-reduced-motion: reduce){.marquee-track{animation:none;flex-wrap:wrap;width:auto;justify-content:center}}`}</style>
 
       {/* Barre de navigation flottante */}
       <div className="sticky top-3 z-30 px-3 sm:px-6">
@@ -389,9 +389,13 @@ export default function Landing() {
 
         {/* Sources */}
         <section id="donnees" className="border-y border-line bg-white scroll-mt-24">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-            <p className="text-center text-[14px] text-ink-soft">Bingoo! lit chaque nuit des sources officielles et vérifiables</p>
-            <ul className="mt-4 flex flex-wrap justify-center gap-x-8 gap-y-3">{SOURCES.map((s) => <li key={s} className="font-black text-[17px] sm:text-[19px] text-ink/35" style={D}>{s}</li>)}</ul>
+          <div className="py-8">
+            <p className="text-center text-[14px] text-ink-soft px-4">Bingoo! lit chaque nuit des sources officielles et vérifiables</p>
+            <div className="marquee mt-5 overflow-hidden" style={{ maskImage: "linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)", WebkitMaskImage: "linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)" }}>
+              <ul className="marquee-track flex w-max items-center">
+                {[...SOURCES, ...SOURCES].map((s, i) => <li key={i} aria-hidden={i >= SOURCES.length} className="flex items-center shrink-0 font-black text-[19px] sm:text-[24px] text-ink/40 whitespace-nowrap" style={D}>{s}<span className="mx-8 sm:mx-12 h-2 w-2 rounded-full bg-accent/70" /></li>)}
+              </ul>
+            </div>
           </div>
         </section>
 
