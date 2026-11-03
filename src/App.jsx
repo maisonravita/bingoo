@@ -1,11 +1,11 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { WsProvider, useWs } from "./lib/ws";
 import { ToastProvider } from "./components/ui";
 import Layout from "./components/Layout";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Splash from "./components/Splash";
-import Auth from "./pages/Auth";
+import Auth, { PasswordRecovery } from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Today from "./pages/Today";
 import Review from "./pages/Review";
@@ -108,5 +108,11 @@ function Gate() {
 }
 
 export default function App() {
-  return <ToastProvider><WsProvider><Gate /></WsProvider></ToastProvider>;
+  // Lien « mot de passe oublié » : Supabase ouvre une session de récupération, on demande le nouveau mot de passe
+  const [recovery, setRecovery] = useState(false);
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((e) => { if (e === "PASSWORD_RECOVERY") setRecovery(true); });
+    return () => data.subscription.unsubscribe();
+  }, []);
+  return <ToastProvider><WsProvider><Gate />{recovery && <PasswordRecovery onDone={() => setRecovery(false)} />}</WsProvider></ToastProvider>;
 }
