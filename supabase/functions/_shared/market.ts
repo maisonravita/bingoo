@@ -93,7 +93,8 @@ export async function marketCron() {
   const { data } = await admin.from("workspaces").select("*").eq("onboarded", true).or(`market_at.is.null,market_at.lt.${week}`).order("market_at", { ascending: true, nullsFirst: true }).limit(20);
   const stale = (data ?? []).filter((w) => !planOk(w));
   if (stale.length) await admin.from("workspaces").update({ market_at: new Date().toISOString() }).in("id", stale.map((w) => w.id));
-  const ws = (data ?? []).find((w) => planOk(w));
+  const bgm = await (await import("./core.ts")).bgMode();
+  const ws = (data ?? []).find((w) => planOk(w) && !(bgm === "clients" && w.plan === "fondateur"));
   if (!ws) {
     // Rien à recharger : on complète les noms d'un espace qui en manque
     const { data: one } = await admin.from("public_contracts").select("workspace_id").eq("relevant", true).is("holder_name", null).not("holder_id", "is", null).limit(1);

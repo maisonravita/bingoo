@@ -383,6 +383,7 @@ async function stepOnce(ws: Workspace, m: Mission) {
 /** Tâche planifiée : jours ouvrés, 8 h – 18 h, quelques missions par passage, budget de temps limité. */
 export async function missionPilotCron() {
   if (await (await import("./core.ts")).backgroundPaused()) return { pause: "IA automatique en pause" };
+  const bgm = await (await import("./core.ts")).bgMode();
   const h = Number(new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "numeric", hourCycle: "h23" }).format(new Date()));
   const dow = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", weekday: "short" }).format(new Date());
   if (["Sat", "Sun"].includes(dow) || h < 8 || h >= 18) return { skipped: "hors horaires" };
@@ -391,7 +392,7 @@ export async function missionPilotCron() {
   for (const m of (data ?? []) as Mission[]) {
     await admin.from("missions").update({ run_at: new Date().toISOString() }).eq("id", m.id);
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", m.workspace_id).single();
-    if (!ws?.onboarded || !planOk(ws)) continue;
+    if (!ws?.onboarded || !planOk(ws) || (bgm === "clients" && ws.plan === "fondateur")) continue;
     setAi({ ws: ws.id });
     for (let i = 0; i < 3 && Date.now() - t0 < 70e3; i++) {
       try { const r = await missionStep(ws as Workspace, m); out.push({ m: m.id, ...r }); if (r.done) break; }

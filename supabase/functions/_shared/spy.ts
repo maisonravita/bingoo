@@ -186,7 +186,8 @@ export async function spyCron() {
   const t0 = Date.now();
   const { checkCompetitor, siteText, sha } = await import("./pro.ts");
   const { competitorAds } = await import("./campaigns.ts");
-  const wss = ((await admin.from("workspaces").select("*").eq("onboarded", true)).data ?? []).filter((w) => planOk(w));
+  const bgm = await (await import("./core.ts")).bgMode();
+  const wss = ((await admin.from("workspaces").select("*").eq("onboarded", true)).data ?? []).filter((w) => planOk(w) && !(bgm === "clients" && w.plan === "fondateur"));
   const byId = new Map((wss ?? []).map((w) => [w.id, w as Workspace & { spy_at?: string | null }]));
   const all = [...byId.keys()];
   if (!all.length) return { skipped: "aucun espace" };
@@ -307,7 +308,8 @@ Format : {"besoins": [{"besoin": "", "entreprise": "", "auteur_fonction": "", "s
 /** E-mail d'alerte : chaque matin s'il s'est passé quelque chose d'important, et un résumé chaque lundi. */
 export async function spyDigest() {
   const { teamAddress, sendSystem } = await import("./mail.ts");
-  const wss = ((await admin.from("workspaces").select("*").eq("onboarded", true)).data ?? []).filter((w) => planOk(w));
+  const bgm = await (await import("./core.ts")).bgMode();
+  const wss = ((await admin.from("workspaces").select("*").eq("onboarded", true)).data ?? []).filter((w) => planOk(w) && !(bgm === "clients" && w.plan === "fondateur"));
   const monday = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", weekday: "short" }).format(new Date()) === "Mon";
   const out: Record<string, unknown> = {};
   for (const w of (wss ?? []) as (Workspace & { spy_alert_at?: string | null; app_url?: string })[]) {
