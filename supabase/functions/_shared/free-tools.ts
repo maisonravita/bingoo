@@ -179,12 +179,12 @@ export async function freeSite(input: { url?: string }) {
   if (!html) throw new HttpError(422, "Impossible de lire ce site (protégé ou indisponible). Vérifie l'adresse.");
   const text = textOf(html).slice(0, 7000);
   const a = await askJson<{ nom: string; offre: string; clients: string; mots: string[] }>(`Voici la page d'accueil du site ${host}. Dis ce que vend cette entreprise et à quels types d'entreprises clientes.
-Règles : uniquement ce que dit la page. "mots" = 1 à 3 mots-clés simples qui décrivent l'ACTIVITÉ des entreprises clientes telle qu'elle serait écrite au registre du commerce (ex. "restaurant", "comptable", "immobilier", "boulangerie", "transport", "conseil"), au singulier, sans article. Si elle vend à toutes les entreprises, choisis les 2 activités clientes les plus probables.
+Règles : uniquement ce que dit la page. "mots" = 1 à 3 mots-clés simples qui décrivent l'ACTIVITÉ des entreprises clientes telle qu'elle serait écrite au registre du commerce (ex. "restaurant", "comptable", "immobilier", "boulangerie", "transport", "conseil"), au singulier, sans article. Si elle vend à toutes les entreprises, choisis les 2 activités clientes les plus probables. Si la page ne dit pas ce qui est vendu (site en construction, page vide, page de connexion), renvoie "mots": [] et "offre": "".
 Contenu :
 ${text}
-Format : {"nom": "", "offre": "ce qu'elle vend, en une phrase courte", "clients": "à qui, en quelques mots (ex. aux restaurants et bars)", "mots": [""]}`, { fast: true, maxTokens: 300 });
+Format : {"nom": "", "offre": "ce qu'elle vend, 12 mots maximum", "clients": "à qui, en quelques mots (ex. aux restaurants et bars)", "mots": [""]}`, { fast: true, maxTokens: 300 });
   const mots = (a.mots ?? []).map((m) => String(m).trim()).filter((m) => cibleWords(m).length).slice(0, 2);
-  if (!mots.length) throw new HttpError(422, "On n'a pas compris à qui tu vends en lisant ton site. Crée ton compte : Bingoo! te posera la question.");
+  if (!mots.length || !String(a.offre ?? "").trim()) throw new HttpError(422, "Ton site ne dit pas encore clairement ce que tu vends. Crée ton compte : Bingoo! te posera la question.");
   const parts = await Promise.all(mots.map((m) => freeSignals({ cible: m }).catch(() => null)));
   const seen = new Set<string>();
   // Fusion : 3 visibles et l'aperçu, en alternant les cibles, sans doublon
