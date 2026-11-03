@@ -52,6 +52,11 @@ export async function freeRenewals(input: { secteur?: string; dept?: string }) {
     .filter((r) => r.fin.getTime() > now && r.fin.getTime() < year)
     .filter((r) => { const k = `${r.acheteur_nom}|${r.objet}`; if (seen.has(k)) return false; seen.add(k); return true; })
     .sort((a, b) => a.fin.getTime() - b.fin.getTime());
+  // Compteur public : chaque contrat trouvé n'est compté qu'une fois, quelle que soit la recherche
+  if (ending.length) {
+    const keys = await Promise.all(ending.slice(0, 400).map((r) => sha(`${r.acheteur_id ?? r.acheteur_nom}|${r.objet}|${r.datenotification}`)));
+    await admin.from("radar_found").upsert([...new Set(keys)].map((k) => ({ k: k.slice(0, 32), kind: "contrat" })), { onConflict: "k", ignoreDuplicates: true }).then(() => {}, () => {});
+  }
   const top = ending.slice(0, 3);
   // Nom du titulaire actuel (registre officiel) pour les 3 visibles
   const { lookup } = await import("./radar-signals.ts");
