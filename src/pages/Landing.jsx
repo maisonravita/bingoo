@@ -217,14 +217,17 @@ function ProductShot() {
   );
 }
 
-/** Rangée des sources, à la manière d'une rangée de logos clients. */
+/** Rangée des sources qui défile, à la manière d'une rangée de logos clients. */
+const SRC = ["BOAMP", "BODACC", "Sirene", "DECP", "TED Europa", "Sites web", "Registre national des entreprises", "Données de la commande publique"];
 function SourcesRow() {
   return (
-    <div className="mx-auto mt-16 max-w-[1100px]">
+    <div id="donnees" className="mx-auto mt-16 max-w-[1180px] scroll-mt-24">
       <p className="text-[15px] text-ink-soft">Bingoo! lit chaque nuit des sources officielles et vérifiables</p>
-      <ul className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-[22px] sm:text-[26px] text-ink/45" style={SERIF}>
-        {["BOAMP", "BODACC", "Sirene", "DECP", "TED Europa", "Sites web"].map((x) => <li key={x}>{x}</li>)}
-      </ul>
+      <div className="marquee mt-6 overflow-hidden" style={{ maskImage: "linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent)", WebkitMaskImage: "linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent)" }}>
+        <ul className="marquee-track flex w-max items-center text-[22px] sm:text-[26px] text-ink/45" style={SERIF}>
+          {[...SRC, ...SRC].map((x, i) => <li key={i} aria-hidden={i >= SRC.length} className="shrink-0 whitespace-nowrap px-6 sm:px-9">{x}</li>)}
+        </ul>
+      </div>
     </div>
   );
 }
@@ -424,7 +427,6 @@ function TryIt({ t }) {
   );
 }
 
-const SOURCES = ["Données de la commande publique", "BOAMP", "BODACC", "Registre national des entreprises", "TED (marchés européens)", "Sites des entreprises"];
 const STEPS = [
   ["Il repère", "Chaque nuit, le Radar lit les sources officielles et le web : contrats qui se terminent, nouveaux dirigeants, recrutements, visites de ton site."],
   ["Il trouve la bonne personne", "La fonction qui décide et son nom, avec son e-mail, son téléphone et son profil LinkedIn quand ils sont trouvables."],
@@ -538,18 +540,6 @@ export default function Landing() {
         <section id="compteur" className="reveal relative max-w-6xl mx-auto px-4 sm:px-6 pb-14 scroll-mt-24 text-center"><BigCounter /></section>
 
         <section className="reveal relative max-w-6xl mx-auto px-4 sm:px-6 pb-16"><div id="essai" className="scroll-mt-24"><TryIt t={tryState} /></div></section>
-
-        {/* Sources */}
-        <section id="donnees" className="border-y border-line bg-white scroll-mt-24">
-          <div className="py-8">
-            <p className="text-center text-[14px] text-ink-soft px-4">Bingoo! lit chaque nuit des sources officielles et vérifiables</p>
-            <div className="marquee mt-5 overflow-hidden" style={{ maskImage: "linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)", WebkitMaskImage: "linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)" }}>
-              <ul className="marquee-track flex w-max items-center">
-                {[...SOURCES, ...SOURCES].map((s, i) => <li key={i} aria-hidden={i >= SOURCES.length} className="flex items-center shrink-0 font-black text-[19px] sm:text-[24px] text-ink/40 whitespace-nowrap" style={D}>{s}<span className="mx-8 sm:mx-12 h-2 w-2 rounded-full bg-accent/70" /></li>)}
-              </ul>
-            </div>
-          </div>
-        </section>
 
         {/* Étapes */}
         <section id="produit" className="max-w-6xl mx-auto px-4 sm:px-6 py-20 scroll-mt-24">
