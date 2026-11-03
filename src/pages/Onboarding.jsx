@@ -98,8 +98,11 @@ export default function Onboarding() {
     <div className="min-h-full px-4 py-6 sm:py-10" style={{ background: "radial-gradient(ellipse at 50% 0%, #FFF1E6 0%, #FAF9F6 60%)" }}>
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <Logo height={30} />
-          <span className="text-sm text-ink-soft tnum">Étape {Math.min(step + 1, 3)} sur 3</span>
+          <a href="#/accueil" aria-label="Voir le site Bingoo!"><Logo height={30} /></a>
+          <span className="flex items-center gap-4 text-sm text-ink-soft">
+            <span className="tnum">Étape {Math.min(step + 1, 3)} sur 3</span>
+            <button type="button" onClick={() => supabase.auth.signOut()} className="font-semibold hover:text-ink">Se déconnecter</button>
+          </span>
         </div>
         {/* Progression */}
         <div className="grid grid-cols-3 gap-2 mb-8" aria-hidden>
