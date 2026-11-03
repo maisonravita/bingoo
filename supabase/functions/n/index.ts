@@ -1,15 +1,16 @@
 // Fonction « n » : notifications et suivis (alerte prospect chaud, rapport du lundi, rappels RDV, relances devis, CRM)
 import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
-import { admin, setAi } from "../_shared/core.ts";
+import { admin, planOk, setAi } from "../_shared/core.ts";
 import { meetingReminders, quoteReminders } from "../_shared/convert.ts";
 import { syncCrm } from "../_shared/growth.ts";
 import { hotAlert, weeklyReport } from "../_shared/notify.ts";
 import { handleReply, inbound } from "../_shared/pro.ts";
+import { svixValid } from "../_shared/svix.ts";
 import { pollInbox } from "../_shared/inbox.ts";
 
 async function checkKey(req: Request) {
   const { data } = await admin.from("app_secrets").select("value").eq("name", "cron_key").single();
-  if ((req.headers.get("x-cron-key") ?? "") !== (data?.value ?? "")) throw new HttpError(401, "Clé invalide");
+  if (!data?.value || (req.headers.get("x-cron-key") ?? "") !== data.value) throw new HttpError(401, "Clé invalide");
 }
 const baseOf = (ws: { app_url?: string }) => (ws.app_url ? `${ws.app_url.replace(/\/$/, "")}/#` : "");
 
@@ -20,7 +21,7 @@ const routes: Record<string, (b: Record<string, unknown>) => Promise<unknown>> =
     if (b.workspace_id) q = q.eq("id", String(b.workspace_id));
     const { data: list } = await q;
     const out: Record<string, unknown> = {};
-    for (const ws of list ?? []) { setAi({ ws: ws.id }); try { out[ws.name] = await weeklyReport(ws, b.dry === true); } catch (e) { out[ws.name] = { error: (e as Error).message }; } }
+    for (const ws of (list ?? []).filter((w) => planOk(w))) { setAi({ ws: ws.id }); try { out[ws.name] = await weeklyReport(ws, b.dry === true); } catch (e) { out[ws.name] = { error: (e as Error).message }; } }
     return out;
   },
   // Rappels de RDV pour tous, relance des devis pour les espaces en pilote automatique, synchronisation CRM
@@ -45,7 +46,7 @@ const routes: Record<string, (b: Record<string, unknown>) => Promise<unknown>> =
     for (const ws of every ?? []) {
       try {
         const r = await meetingReminders(ws);
-        const d = ws.autonomy === "auto" ? await quoteReminders(ws, baseOf(ws)) : 0;
+        const d = ws.autonomy === "auto" && planOk(ws) ? await quoteReminders(ws, baseOf(ws)) : 0;
         if (r || d) out[`suivi_${ws.id}`] = { rappels: r, devis: d };
       } catch (e) { out[`suivi_${ws.id}`] = { error: (e as Error).message }; }
     }
@@ -64,7 +65,13 @@ Deno.serve(wrap(async (req) => {
     // Webhook Resend (réponses reçues, rebonds, plaintes) : clé dans l'URL
     const { data } = await admin.from("app_secrets").select("value").eq("name", "inbound_key").single();
     if (!data?.value || new URL(req.url).searchParams.get("key") !== data.value) throw new HttpError(401, "Clé invalide");
-    return json(await inbound(await readJson(req)));
+    // Signature Resend vérifiée dès que le secret de signature est configuré
+    const raw = await req.text();
+    const sig = Deno.env.get("RESEND_WEBHOOK_SECRET") ?? "";
+    if (sig && !(await svixValid(sig, req.headers, raw))) throw new HttpError(401, "Signature invalide");
+    let body: Record<string, unknown> = {};
+    try { body = JSON.parse(raw || "{}"); } catch { throw new HttpError(400, "JSON invalide"); }
+    return json(await inbound(body));
   }
   await checkKey(req);
   return json(await fn(await readJson(req)));

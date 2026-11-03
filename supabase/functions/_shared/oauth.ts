@@ -109,17 +109,25 @@ export async function gmailSend(ws: Workspace, m: { from: string; to: string; re
 }
 
 /** Messages bruts reçus depuis une date (lecture seule), pour la détection des réponses et des rebonds. */
-export async function gmailRecent(ws: Workspace, since: Date, max = 50) {
+export async function gmailRecent(ws: Workspace, since: Date, max = 150): Promise<{ items: { raw: string; at: number }[]; more: boolean }> {
   const { token, read } = await googleAccess(ws);
-  if (!read) return [] as string[];
+  if (!read) return { items: [], more: false };
   const q = `after:${Math.floor(since.getTime() / 1000)} -in:sent`;
-  const list = await (await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${max}&q=${encodeURIComponent(q)}`, { headers: { Authorization: `Bearer ${token}` } })).json().catch(() => ({}));
-  const out: string[] = [];
-  for (const { id } of (list.messages ?? []) as { id: string }[]) {
+  // Toutes les pages (jusqu'à 1 000 messages), puis traitement des plus anciens d'abord : rien n'est sauté
+  const ids: string[] = [];
+  let page = "";
+  do {
+    const list = await (await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=100&q=${encodeURIComponent(q)}${page ? `&pageToken=${page}` : ""}`, { headers: { Authorization: `Bearer ${token}` } })).json().catch(() => ({}));
+    for (const m of (list.messages ?? []) as { id: string }[]) ids.push(m.id);
+    page = list.nextPageToken ?? "";
+  } while (page && ids.length < 1000);
+  ids.reverse();
+  const items: { raw: string; at: number }[] = [];
+  for (const id of ids.slice(0, max)) {
     const d = await (await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=raw`, { headers: { Authorization: `Bearer ${token}` } })).json().catch(() => ({}));
-    if (d.raw) out.push(new TextDecoder().decode(unb64url(d.raw)).slice(0, 200000));
+    if (d.raw) items.push({ raw: new TextDecoder().decode(unb64url(d.raw)).slice(0, 200000), at: Number(d.internalDate) || Date.now() });
   }
-  return out;
+  return { items, more: ids.length > max };
 }
 
 export async function disconnectOauth(ws: Workspace, provider: "google") {

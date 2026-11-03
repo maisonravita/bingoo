@@ -8,7 +8,8 @@ const ISP = /orange|france ?telecom|free ?sas|proxad|iliad|\bsfr\b|societe franc
 const ipCache = new Map<string, { org: string | null; at: number }>();
 
 export function clientIp(req: Request) {
-  const raw = req.headers.get("cf-connecting-ip") ?? req.headers.get("x-real-ip") ?? (req.headers.get("x-forwarded-for") ?? "").split(",")[0];
+  // Seul en-tête fiable : posé par Cloudflare, devant Supabase, qui écrase toute valeur envoyée par le client
+  const raw = req.headers.get("cf-connecting-ip") ?? "";
   const ip = String(raw ?? "").trim();
   return /^[0-9a-f:.]{3,45}$/i.test(ip) && !/^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1|fc|fd|fe80)/i.test(ip) ? ip : null;
 }

@@ -52,8 +52,17 @@ export function assertPlan(ws: PlanFields) {
     if (ws.trial_ends && ws.trial_ends < new Date().toISOString().slice(0, 10)) throw new HttpError(402, "Ton essai gratuit est terminé : choisis une formule dans Réglages → Abonnement pour continuer.");
     return;
   }
-  if (["past_due", "unpaid"].includes(ws.plan_status ?? "")) throw new HttpError(402, "Ton dernier paiement a échoué : mets à jour ta carte dans Réglages → Abonnement.");
-  if (["canceled", "incomplete_expired"].includes(ws.plan_status ?? "")) throw new HttpError(402, "Ton abonnement est arrêté : choisis une formule dans Réglages → Abonnement pour reprendre.");
+  if (!(plan in PLANS)) throw new HttpError(402, "Formule inconnue : choisis une formule dans Réglages → Abonnement.");
+  // Liste blanche : seuls un abonnement réglé ou une période d'essai Stripe donnent accès aux actions payantes
+  const st = ws.plan_status ?? "";
+  if (st === "active" || st === "trialing") return;
+  if (["past_due", "unpaid"].includes(st)) throw new HttpError(402, "Ton dernier paiement a échoué : mets à jour ta carte dans Réglages → Abonnement.");
+  if (["incomplete", "paused"].includes(st)) throw new HttpError(402, "Ton paiement n'est pas encore confirmé : termine-le dans Réglages → Abonnement.");
+  throw new HttpError(402, "Ton abonnement est arrêté : choisis une formule dans Réglages → Abonnement pour reprendre.");
+}
+/** Même règle, sans erreur : sert à écarter les espaces non à jour des tâches planifiées. */
+export function planOk(ws: PlanFields) {
+  try { assertPlan(ws); return true; } catch { return false; }
 }
 
 /** Domaine de la plateforme qui reçoit les réponses de tous les espaces (r-<jeton>@…). */
@@ -86,7 +95,7 @@ export type Prospect = {
 };
 
 /** Utilisateur connecté + vérification qu'il est membre de l'espace demandé. */
-export async function requireMember(req: Request, workspaceId: unknown): Promise<{ userId: string; ws: Workspace }> {
+export async function requireMember(req: Request, workspaceId: unknown): Promise<{ userId: string; ws: Workspace; role: string }> {
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
   if (!token) throw new HttpError(401, "Connexion requise");
   const { data, error } = await admin.auth.getUser(token);
@@ -94,9 +103,9 @@ export async function requireMember(req: Request, workspaceId: unknown): Promise
   if (typeof workspaceId !== "string" || !/^[0-9a-f-]{36}$/.test(workspaceId)) throw new HttpError(400, "Espace manquant");
   const { data: m } = await admin.from("members").select("role").eq("workspace_id", workspaceId).eq("user_id", data.user.id).maybeSingle();
   if (!m) throw new HttpError(403, "Accès refusé à cet espace");
-  setAi({ ws: workspaceId });
+  setAi({ ws: workspaceId, live: true });
   const { data: ws } = await admin.from("workspaces").select("*").eq("id", workspaceId).single();
-  return { userId: data.user.id, ws: ws as Workspace };
+  return { userId: data.user.id, ws: ws as Workspace, role: m.role as string };
 }
 
 export async function log(workspaceId: string, kind: string, summary: string) {
@@ -174,11 +183,22 @@ export async function aiRoom(wsId: string, share = 0.6) {
 }
 /** Garde-fou avant chaque appel : plafond quotidien de toute la plateforme, puis budget mensuel de l'espace. */
 export async function aiGuard() {
-  if (aiCtx.getStore()?.essential) return; // réponses de prospects : toujours traitées
+  const ctx = aiCtx.getStore() ?? {};
+  if (ctx.essential) return; // réponses de prospects : toujours traitées (plafond par prospect dans pro.ts)
   const cap = Number(env("AI_DAILY_CAP_EUR", "12"));
-  if (cap > 0 && (await aiSpent(null)) >= cap) throw new HttpError(503, "Pause de sécurité : le plafond quotidien d'IA de la plateforme est atteint. Reprise automatique demain.");
-  const ws = aiCtx.getStore()?.ws;
-  if (!ws) return;
+  const ws = ctx.ws;
+  if (!ws) {
+    // Outils gratuits et travaux de la plateforme : enveloppe à part, qui ne peut pas priver les clients
+    const freeCap = Number(env("AI_FREE_CAP_EUR", "2"));
+    const { data } = await admin.from("ai_usage").select("cost_eur").is("workspace_id", null).gte("at", dayStart());
+    if ((data ?? []).reduce((a, r) => a + Number(r.cost_eur ?? 0), 0) >= freeCap) throw new HttpError(503, "L'outil gratuit est très demandé aujourd'hui : crée ton compte Bingoo! pour y accéder tout de suite.");
+    return;
+  }
+  if (cap > 0) {
+    // Les tâches de fond s'arrêtent à 70 % du plafond pour laisser la place aux demandes des utilisateurs connectés
+    const spent = await aiSpent(null);
+    if (spent >= cap || (!ctx.live && spent >= cap * 0.7)) throw new HttpError(503, "Pause de sécurité : le plafond quotidien d'IA de la plateforme est atteint. Reprise automatique demain.");
+  }
   const [spent, budget] = await Promise.all([aiSpent(ws), aiBudget(ws)]);
   if (spent >= budget) {
     // Au-delà de l'enveloppe : on puise dans les recharges achetées, s'il en reste

@@ -118,6 +118,14 @@ async function dcResult(id: string) {
 const ORDER = ["bettercontact", "fullenrich", "dropcontact"] as const;
 
 /** Lance l'étape suivante de la cascade pour un contact sans e-mail. */
+/** Crédits de recherche d'e-mails restants ce mois-ci (formule de l'espace). */
+async function creditsLeft(wsId: string) {
+  const { data: ws } = await admin.from("workspaces").select("*").eq("id", wsId).single();
+  if (!ws) return 0;
+  const { credits } = await import("./deep.ts");
+  return (await credits(ws as Workspace)).left;
+}
+
 async function launch(c: ContactRow, company: string, domain: string, skip: string[] = []) {
   const av = providers();
   const { first, last } = split(c.name);
@@ -154,8 +162,10 @@ export async function pollContacts(ws: Workspace) {
       const { data: p } = await admin.from("prospects").select("email").eq("id", c.prospect_id).single();
       if (p && !p.email) await useContact(ws, c.id);
       found++;
-    } else {
+    } else if (await creditsLeft(ws.id) > 0) {
       await launch(c, req.company ?? "", req.domain ?? "", String(req.tried ?? "").split(",").filter(Boolean));
+    } else {
+      await admin.from("contacts").update({ email_status: "introuvable", provider_req: {} }).eq("id", c.id);
     }
   }
   return found;
@@ -185,8 +195,9 @@ export async function findContacts(ws: Workspace, prospectId: string, roles: str
   // Un e-mail publié pour le bon décideur devient tout de suite l'interlocuteur principal
   const first = out.find((c) => c.email);
   if (first && !p.email) await useContact(ws, first.id);
-  let launched = 0;
-  for (const c of out) if (!c.email && c.email_status !== "en_cours" && await launch(c, p.org || p.name, domain)) launched++;
+  // Recherches payantes limitées aux crédits restants de la formule
+  let launched = 0, left = await creditsLeft(ws.id);
+  for (const c of out) { if (left <= 0) break; if (!c.email && c.email_status !== "en_cours" && await launch(c, p.org || p.name, domain)) { launched++; left--; } }
   await log(ws.id, "contacts", `${p.name} : ${out.length} décideur${out.length > 1 ? "s" : ""} trouvé${out.length > 1 ? "s" : ""}`);
   const { data: fresh } = await admin.from("contacts").select("*").eq("prospect_id", p.id).order("created_at");
   return { contacts: fresh ?? [], launched, providers: providers() };
@@ -225,7 +236,7 @@ Format : {"nom": "", "fonction": "", "entreprise": "", "site": "", "ville": "", 
   }).select("*").single();
   if (error) throw new HttpError(500, error.message);
   const { data: c } = await admin.from("contacts").insert({ workspace_id: ws.id, prospect_id: p.id, name: v.nom.slice(0, 80), role: (v.fonction ?? "").slice(0, 100), linkedin_url: linkedin, source: v.source ?? "" }).select("*").single();
-  if (c) await launch(c as ContactRow, p.name, hostOf(p.website));
+  if (c && await creditsLeft(ws.id) > 0) await launch(c as ContactRow, p.name, hostOf(p.website));
   await log(ws.id, "contacts", `${v.nom} (${v.entreprise}) importé`);
   return { prospect_id: p.id, name: v.nom, company: v.entreprise };
 }

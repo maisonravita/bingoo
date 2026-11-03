@@ -66,7 +66,7 @@ export default function Abonnement() {
   const [ai, setAi] = useState(null);
   const [yearly, setYearly] = useState(false);
   useEffect(() => { supabase.rpc("ai_month", { p_ws: ws.id }).then(({ data }) => setAi(data ?? null)); }, [ws.id]);
-  useEffect(() => { fn("plans").then((r) => { setPlans(r.plans); setPacks(r.packs ?? []); }).catch(() => {}); }, []);
+  useEffect(() => { fn("plans").then((r) => { setPlans(r.plans ?? []); setPacks(r.packs ?? []); }).catch(() => {}); }, []);
   useEffect(() => {
     const q = new URLSearchParams(loc.search);
     if (q.get("paiement") === "ok") { toast("Paiement confirmé, merci ! Ton abonnement s'active dans quelques secondes.", "good"); setTimeout(reload, 4000); }

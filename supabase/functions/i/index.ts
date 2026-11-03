@@ -1,6 +1,6 @@
 // Fonction « i » : Kairo Intelligence (et bientôt Kairo Visibilité), séparée de « k » pour des mises à jour légères.
 import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
-import { admin, quota, requireMember, setAi } from "../_shared/core.ts";
+import { admin, planOk, quota, requireMember, setAi } from "../_shared/core.ts";
 import { intelligence, segmentStats } from "../_shared/intelligence.ts";
 import { findContacts, importPerson, pollContacts, providers, useContact } from "../_shared/contacts.ts";
 import { askJson } from "../_shared/core.ts";
@@ -8,7 +8,8 @@ import { createMission, missionSearch, missionView, planMission, snapshot, type 
 
 async function secret(name: string) {
   const { data } = await admin.from("app_secrets").select("value").eq("name", name).single();
-  return data?.value ?? "";
+  // Fermé par défaut : sans secret configuré, aucune requête ne passe (jamais "" === "")
+  return String(data?.value ?? "") || `absent-${crypto.randomUUID()}`;
 }
 
 // deno-lint-ignore no-explicit-any
@@ -95,7 +96,7 @@ Format : {"fiche": "texte"}`, { fast: true, maxTokens: 3000 });
     if ((req.headers.get("x-cron-key") ?? "") !== (await secret("cron_key"))) throw new HttpError(401, "Clé invalide");
     const week = new Date(Date.now() - 6 * 864e5).toISOString();
     const { data: every } = await admin.from("workspaces").select("*").eq("onboarded", true).or(`intelligence_at.is.null,intelligence_at.lt.${week}`);
-    for (const ws of every ?? []) {
+    for (const ws of (every ?? []).filter((w) => planOk(w))) {
       const { count } = await admin.from("replies").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).gte("created_at", ws.intelligence_at ?? "2000-01-01");
       if ((count ?? 0) < 3) continue;
       setAi({ ws: ws.id });

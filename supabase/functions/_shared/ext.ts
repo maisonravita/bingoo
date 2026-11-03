@@ -2,7 +2,10 @@
 import { HttpError } from "./http.ts";
 import { admin, type Workspace } from "./core.ts";
 
-const base = (h: string) => h.toLowerCase().replace(/^www\./, "").split(".").slice(-2).join(".");
+// Domaine enregistrable : « gouv.fr », « co.uk »… comptent comme un seul suffixe (sinon tous les sites publics se confondraient)
+const SUFFIX2 = /\.(gouv|asso|nom|presse|tm|com|net|org|ac|co|ltd|plc|me|sch|gov|edu|or|ne|go|in|qc|ab)\.[a-z]{2}$/i;
+const base = (h: string) => { const x = h.toLowerCase().replace(/^www\./, "").split("."); return x.slice(SUFFIX2.test(h) ? -3 : -2).join("."); };
+const esc = (v: string) => v.replace(/[%_\\]/g, "\\$&");
 const cap = (s: string) => String(s ?? "").toLowerCase().replace(/(^|[\s'-])\p{L}/gu, (m) => m.toUpperCase());
 const LABEL: Record<string, string> = { appel_offres: "Appel d'offres", renouvellement: "Contrat public à renouveler", dirigeant: "Nouveau dirigeant", demenagement: "Déménagement", creation: "Création", etablissement: "Nouvel établissement", recrutement: "Recrutement", croissance: "Croissance", levee: "Levée de fonds", client_concurrent: "Cliente d'un concurrent", abonnement: "Abonnement concurrent à renouveler", outil: "Changement d'outils", obligation: "Obligation réglementaire", visite: "A visité ton site", essai: "Équipe à l'essai", demande: "Cherche une solution", avis: "Mécontente d'un concurrent", champion: "Ancien utilisateur", site: "Site modifié", besoin: "Besoin exprimé", aide: "Aide publique", permis: "Permis de construire", budget: "Projet voté", salon: "Salon", difficulte: "Difficultés financières" };
 
@@ -14,9 +17,9 @@ export async function extLookup(ws: Workspace, url: string) {
   if (/(^|\.)(linkedin\.com|google\.[a-z.]+|facebook\.com|instagram\.com|youtube\.com|x\.com|twitter\.com)$/i.test(host)) return { unsupported: true, message: "Bingoo! lit les sites d'entreprises. LinkedIn et les réseaux sociaux ne sont pas lus automatiquement." };
   const dom = base(host);
   const [{ data: comps }, { data: ps }, { data: scan }] = await Promise.all([
-    admin.from("competitors").select("id, name, url").eq("workspace_id", ws.id).neq("status", "ecarte").ilike("url", `%${dom}%`).limit(1),
-    admin.from("prospects").select("id, name, siren, city, status, contact_name, contact_role, email, phone, website, score").eq("workspace_id", ws.id).ilike("website", `%${dom}%`).limit(1),
-    admin.from("company_scan").select("name, siren, tech, ats, jobs_n").eq("workspace_id", ws.id).ilike("url", `%${dom}%`).limit(1),
+    admin.from("competitors").select("id, name, url").eq("workspace_id", ws.id).neq("status", "ecarte").ilike("url", `%${esc(dom)}%`).limit(1),
+    admin.from("prospects").select("id, name, siren, city, status, contact_name, contact_role, email, phone, website, score").eq("workspace_id", ws.id).ilike("website", `%${esc(dom)}%`).limit(1),
+    admin.from("company_scan").select("name, siren, tech, ats, jobs_n").eq("workspace_id", ws.id).ilike("url", `%${esc(dom)}%`).limit(1),
   ]);
   if (comps?.[0]) return { competitor: { id: comps[0].id, name: comps[0].name }, message: "C'est un de tes concurrents : son dossier complet est dans Espion." };
   const p = ps?.[0] ?? null;
@@ -47,7 +50,8 @@ export async function extLookup(ws: Workspace, url: string) {
   const sir = p?.siren ?? reg?.siren ?? null;
   const name = p?.name ?? reg?.nom ?? siteName;
   let q = admin.from("radar_opps").select("kind, title, summary, why, score, deadline, created_at").eq("workspace_id", ws.id).in("status", ["nouveau", "suivi", "ajoute"]).order("score", { ascending: false }).limit(5);
-  q = sir ? q.eq("siren", sir) : q.ilike("company", `%${name.split(/\s/)[0]}%`);
+  // Sans SIREN : correspondance sur le nom complet (jamais sur un premier mot du type « Le » ou « Groupe »)
+  q = sir ? q.eq("siren", sir) : q.ilike("company", esc(name.trim()));
   const { data: opps } = await q;
   const { data: contacts } = p ? await admin.from("contacts").select("name, role, email, email_status, linkedin_url").eq("prospect_id", p.id).limit(4) : { data: [] };
   const { data: cfg } = await admin.from("workspaces").select("radar_cfg").eq("id", ws.id).single();

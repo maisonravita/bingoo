@@ -31,7 +31,7 @@ function Mailbox() {
   const [providers, setProviders] = useState([]);
   const [f, setF] = useState({ provider: "gmail", email: "", password: "", host: "" });
   const [busy, setBusy] = useState(false);
-  useEffect(() => { fn("mailbox-options").then((r) => setProviders(r.providers)).catch(() => {}); }, []);
+  useEffect(() => { fn("mailbox-options").then((r) => setProviders(r.providers ?? [])).catch(() => {}); }, []);
   const cur = providers.find((p) => p.key === f.provider);
   const save = async () => {
     setBusy(true);
@@ -92,7 +92,7 @@ function Warmup() {
     <Section title="Préchauffage" sub="Les messageries se méfient des adresses qui envoient beaucoup d'un coup. Kairo monte le volume progressivement pour que tes e-mails arrivent en boîte de réception, pas en spam."
       status={<Badge tone={w.done ? "good" : "accent"}>{w.done ? "Terminé" : w.started ? `Semaine ${w.week} sur 4` : "Démarre au 1er envoi"}</Badge>}>
       <div className="grid grid-cols-4 gap-2 mb-3">
-        {w.ramp.map((n, i) => {
+        {(w.ramp ?? []).map((n, i) => {
           const active = !w.done && w.started && w.week === i + 1;
           const past = w.done || (w.started && w.week > i + 1);
           return (

@@ -79,11 +79,9 @@ async function handleRaw(ws: Workspace, raw: string, res: { lus: number; rebonds
   const p = (m as unknown as { prospects: Prospect | null } | null)?.prospects;
   if (!p) return;
   const fromRaw = header(raw, "From"), fromEmail = (fromRaw.match(/<([^>]+)>/)?.[1] ?? fromRaw).trim().toLowerCase();
-  // Déjà reçue par l'adresse de réponse Bingoo ? On ne la traite pas deux fois.
-  const { count } = await admin.from("replies").select("id", { count: "exact", head: true }).eq("prospect_id", p.id).eq("from_email", fromEmail).gte("created_at", new Date(Date.now() - 3 * 864e5).toISOString());
-  if (count) return;
-  await onReply(ws, p, { fromEmail, fromName: fromRaw.replace(/<[^>]+>/, "").replace(/"/g, "").trim(), subject: header(raw, "Subject"), text: plainText(raw) });
-  res.reponses++;
+  // Doublons (même e-mail reçu par l'adresse Bingoo et dans la boîte) écartés par handleReply, message par message
+  const r = await onReply(ws, p, { fromEmail, fromName: fromRaw.replace(/<[^>]+>/, "").replace(/"/g, "").trim(), subject: header(raw, "Subject"), text: plainText(raw) });
+  if (!(r as { duplicate?: boolean } | null)?.duplicate) res.reponses++;
 }
 
 /** Relève de la boîte depuis le dernier passage (50 messages max par passage) : API Gmail si connectée par Google, sinon IMAP. */
@@ -91,13 +89,17 @@ export async function pollInbox(ws: Workspace, onReply: ReplyHandler) {
   const box = ws.integrations?.mailbox as ({ ok: boolean; provider: string; via?: string; imap_at?: string } | undefined);
   const res = { lus: 0, rebonds: 0, reponses: 0 };
   const since = new Date(box?.imap_at ?? Date.now() - 3 * 864e5);
+  // Reprise : si tout n'a pas pu être lu, le prochain passage repart du dernier message traité (rien n'est sauté)
+  let resumeAt: string | null = null;
   const done = async () => {
-    const integrations = { ...(ws.integrations ?? {}), mailbox: { ...box, imap_at: new Date().toISOString() } };
+    const integrations = { ...(ws.integrations ?? {}), mailbox: { ...box, imap_at: resumeAt ?? new Date().toISOString() } };
     await admin.from("workspaces").update({ integrations }).eq("id", ws.id);
     return res;
   };
   if (box?.ok && box.via === "oauth" && box.provider === "google") {
-    for (const raw of await gmailRecent(ws, since)) await handleRaw(ws, raw, res, onReply);
+    const g = await gmailRecent(ws, since, 150);
+    for (const it of g.items) await handleRaw(ws, it.raw, res, onReply);
+    if (g.more && g.items.length) resumeAt = new Date(g.items[g.items.length - 1].at).toISOString();
     return await done();
   }
   if (!box?.ok || !IMAP_HOSTS[box.provider]) return { skipped: "pas de boîte lisible" };
@@ -110,10 +112,15 @@ export async function pollInbox(ws: Workspace, onReply: ReplyHandler) {
   try {
     const lock = await client.getMailboxLock("INBOX");
     try {
-      const uids = ((await client.search({ since }, { uid: true })) || []).slice(-50);
-      for await (const msg of client.fetch(uids, { source: { maxLength: 200000 } as unknown as boolean, uid: true }, { uid: true })) {
+      // Les plus anciens d'abord, 150 par passage ; le reste au passage suivant
+      const all = ((await client.search({ since }, { uid: true })) || []).sort((a: number, b: number) => a - b);
+      const uids = all.slice(0, 150);
+      let lastDate: Date | null = null;
+      if (uids.length) for await (const msg of client.fetch(uids, { source: { maxLength: 200000 } as unknown as boolean, uid: true, internalDate: true }, { uid: true })) {
         await handleRaw(ws, msg.source?.toString("utf8") ?? "", res, onReply);
+        if (msg.internalDate) lastDate = new Date(msg.internalDate as unknown as string);
       }
+      if (all.length > uids.length && lastDate) resumeAt = lastDate.toISOString();
     } finally { lock.release(); }
   } finally { await client.logout().catch(() => null); }
   return await done();

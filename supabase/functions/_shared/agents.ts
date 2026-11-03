@@ -1,9 +1,9 @@
 // Agents Enquêteur (coordonnées), Rédacteur (premier e-mail) et Facteur (envoi).
 import { learned } from "./intelligence.ts";
 import { HttpError } from "./http.ts";
-import { admin, ask, askJson, knowledgeOf, log, type Prospect, type Workspace } from "./core.ts";
+import { admin, ask, assertPlan, askJson, knowledgeOf, log, type Prospect, type Workspace } from "./core.ts";
 import { resend, replyAddress, sendMail, signature } from "./mail.ts";
-import { markWarmup } from "./growth.ts";
+import { markWarmup, warmup } from "./growth.ts";
 import { campaignOf, goalText, pickVariant } from "./campaigns.ts";
 import { siteContacts } from "./deep.ts";
 import { siteSignals, type Signal } from "./sitesignals.ts";
@@ -332,7 +332,20 @@ export async function sendOne(ws: Workspace, messageId: string) {
     await admin.from("prospects").update({ email: "", status: "sans_email", channel: "", enrich_note: `Adresse ${p.email} écartée : son domaine ne reçoit pas de courrier` }).eq("id", p.id);
     return { id: messageId, skipped: "adresse invalide : son domaine ne reçoit pas de courrier. Le prospect repart en enquête." };
   }
-  const unsub = await admin.from("prospects").select("id").eq("workspace_id", ws.id).eq("email", p.email).eq("status", "refus").limit(1);
+  // Abonnement à jour obligatoire (essai en cours, abonnement réglé ou offert)
+  const { data: plan } = await admin.from("workspaces").select("plan, plan_status, trial_ends").eq("id", ws.id).single();
+  assertPlan(plan ?? {});
+  // Opposition : une personne qui a demandé à ne plus être contactée ne reçoit plus rien, quel que soit l'espace
+  const addr = p.email.trim().toLowerCase();
+  const [unsub, sup] = await Promise.all([
+    admin.from("prospects").select("id").eq("workspace_id", ws.id).eq("email", p.email).eq("status", "refus").limit(1),
+    admin.from("suppressions").select("email").eq("email", addr).limit(1),
+  ]);
+  if (sup.data?.length) {
+    await admin.from("messages").update({ status: "ignore", error: "Opposition à toute sollicitation" }).eq("id", messageId);
+    await admin.from("prospects").update({ status: "refus", next_action_at: null, next_action: "" }).eq("id", p.id).neq("status", "client");
+    return { id: messageId, skipped: "cette personne a demandé à ne plus être contactée" };
+  }
   if (unsub.data?.length) {
     await admin.from("messages").update({ status: "ignore", error: "Contact désinscrit" }).eq("id", messageId);
     return { id: messageId, skipped: "désinscrit" };
@@ -343,6 +356,19 @@ export async function sendOne(ws: Workspace, messageId: string) {
   const { data: claimed } = await admin.from("messages").update({ status: "envoi", claimed_at: new Date().toISOString() })
     .eq("id", messageId).eq("status", "brouillon").select("id");
   if (!claimed?.length) return { id: messageId, skipped: "envoi déjà en cours" };
+  // Plafond du jour vérifié après la réservation : des envois simultanés ne peuvent pas le dépasser ensemble
+  {
+    const day0 = new Date(); day0.setHours(0, 0, 0, 0);
+    const [{ count: done }, { count: inflight }] = await Promise.all([
+      admin.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "envoye").gte("sent_at", day0.toISOString()),
+      admin.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "envoi"),
+    ]);
+    const cap = warmup(ws).cap;
+    if ((done ?? 0) + (inflight ?? 0) > cap) {
+      await admin.from("messages").update({ status: "brouillon", claimed_at: null }).eq("id", messageId).eq("status", "envoi");
+      throw new HttpError(429, `Limite de ${cap} envois par jour atteinte : la suite partira demain (ça protège ton domaine)`);
+    }
+  }
   try {
     const link = ws.app_url && ws.booking_slug && msg.step < 2 ? `${ws.app_url.replace(/\/$/, "")}/#/rdv/${ws.booking_slug}?t=${p.public_token}` : "";
     const body = `${msg.body.trim()}${link ? `\n\nSi c'est plus simple, vous pouvez choisir directement un créneau ici : ${link}` : ""}\n\n${signature(ws)}`;

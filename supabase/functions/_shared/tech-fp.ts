@@ -111,7 +111,8 @@ export const toolsIn = (html: string) => html ? FP.filter((f) => f.re.test(html)
 /** Outils cités en toutes lettres dans un texte (offre d'emploi : « maîtrise de Salesforce »). */
 export function toolsNamed(text: string) {
   const t = ` ${text} `;
-  return FP.filter((f) => !["cms", "analytics", "pub", "consentement", "rh"].includes(f.cat) && f.name.length > 3 && new RegExp(`[^\\p{L}]${f.name.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}[^\\p{L}]`, "iu").test(t)).map((f) => f.name);
+  // Seulement les catégories d'outils de travail : une offre qui cite Doctolib, Trustpilot ou Shopify parle souvent d'un client ou d'une référence
+  return FP.filter((f) => ["crm", "marketing", "chat", "support", "prospection", "paiement", "ab", "signature"].includes(f.cat) && f.name.length > 3 && new RegExp(`[^\\p{L}]${f.name.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}[^\\p{L}]`, "iu").test(t)).map((f) => f.name);
 }
 
 export const catOf = (tool: string) => FP.find((f) => f.name === tool)?.cat ?? "";

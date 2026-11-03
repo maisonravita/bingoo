@@ -3,6 +3,7 @@
 import { HttpError } from "./http.ts";
 import { ask, askJson, type Profile, type Target } from "./core.ts";
 import { countTarget } from "./search.ts";
+import { safeFetchText } from "./safefetch.ts";
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 
@@ -34,15 +35,10 @@ export function textOf(html: string): string {
 export async function fetchHtml(url: string): Promise<string> { return await get(url); }
 
 async function get(url: string): Promise<string> {
-  const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), 15000);
-  try {
-    const res = await fetch(url, { headers: { "user-agent": UA, accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "accept-language": "fr-FR,fr;q=0.9,en;q=0.8" }, signal: ctl.signal, redirect: "follow" });
-    if (!res.ok) return "";
-    const type = res.headers.get("content-type") ?? "";
-    if (!type.includes("html")) return "";
-    return (await res.text()).slice(0, 300_000);
-  } catch { return ""; } finally { clearTimeout(t); }
+  // Adresses internes refusées à chaque redirection, taille lue plafonnée (voir safefetch.ts)
+  const r = await safeFetchText(url, { headers: { "user-agent": UA, accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "accept-language": "fr-FR,fr;q=0.9,en;q=0.8" } }, 1_500_000, 15000);
+  if (!r.ok || !r.type.includes("html")) return "";
+  return r.text.slice(0, 300_000);
 }
 
 export function normalizeUrl(input: string): string {

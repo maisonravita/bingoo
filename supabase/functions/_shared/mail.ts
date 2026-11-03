@@ -38,7 +38,7 @@ export async function teamAddress(ws: Workspace) {
 }
 
 /** E-mail de service envoyé par Kairo (notifications, invitations), depuis le domaine de la plateforme. */
-export async function sendSystem(m: { to: string; subject: string; text: string; replyTo?: string; fromName?: string; ics?: string }) {
+export async function sendSystem(m: { to: string; subject: string; text: string; replyTo?: string; fromName?: string; ics?: string; key?: string }) {
   const from = env("SYSTEM_FROM", `notifications@${PLATFORM_DOMAIN()}`);
   const r = await resend("/emails", "POST", {
     from: `${m.fromName ?? "Kairo"} <${from}>`, to: [m.to], reply_to: m.replyTo, subject: m.subject, text: m.text,

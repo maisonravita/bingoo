@@ -127,24 +127,25 @@ export async function webScan(ws: W, opts: { max?: number; until?: number } = {}
       const { data: p } = await admin.from("prospects").select("insight").eq("id", t.prospect_id).single();
       await admin.from("prospects").update({ insight: { ...((p?.insight as Record<string, unknown>) ?? {}), tech: tools, tech_at: now } }).eq("id", t.prospect_id);
     }
-    const base = { company: t.name, url, source: "Site de l'entreprise", published: d0, siren: t.siren, prospect_id: t.prospect_id, raw: { tech: tools, ...(t.watch_id ? { watch: true } : {}) } };
+    // (nom distinct de la fonction base() utilisée plus haut dans ce bloc : l'homonyme provoquait l'erreur « Cannot access before initialization »)
+    const opp0 = { company: t.name, url, source: "Site de l'entreprise", published: d0, siren: t.siren, prospect_id: t.prospect_id, raw: { tech: tools, ...(t.watch_id ? { watch: true } : {}) } };
     // Cliente d'un concurrent : son domaine dans la page, son nom dans le texte, ou un outil concurrent installé
     const text = textOf(html).toLowerCase();
     const byName = rivals.filter((r) => (r.host && html.toLowerCase().includes(r.host)) || (r.word.length > 4 && new RegExp(`\\b${r.word}\\b`, "i").test(text))).map((r) => r.name);
     const self = (x: string) => norm(x).split(" ")[0] === norm(t.name).split(" ")[0] || host(url).startsWith(norm(x).replace(/ /g, ""));
     const byTool = tools.filter((x) => rivalT.includes(x) && !self(x));
     const found = [...new Set([...byName.filter((x) => !self(x)), ...byTool])];
-    if (found.length) out.push({ ...base, key: `tech:${t.key}:${found.map(norm).join("-")}`.slice(0, 300), kind: "client_concurrent", title: `${t.name} · utilise ${found[0]}`,
+    if (found.length) out.push({ ...opp0, key: `tech:${t.key}:${found.map(norm).join("-")}`.slice(0, 300), kind: "client_concurrent", title: `${t.name} · utilise ${found[0]}`,
       summary: `${byTool.length ? `Outil installé sur son site : ${byTool.join(", ")}` : `Son site mentionne ${byName.join(", ")}`}${tools.length ? ` · autres outils : ${tools.filter((x) => !found.includes(x)).slice(0, 5).join(", ")}` : ""}`,
-      why: `Elle travaille avec ${found[0]}. Ton dossier Espion sur ce concurrent te donne l'angle pour lui proposer de comparer.`, raw: { ...base.raw, concurrents: found } });
+      why: `Elle travaille avec ${found[0]}. Ton dossier Espion sur ce concurrent te donne l'angle pour lui proposer de comparer.`, raw: { ...opp0.raw, concurrents: found } });
     // Changement d'outils : l'entreprise est en train de changer sa façon de travailler
     const meaningful = (x: string) => !["cms", "analytics", "pub", "consentement"].includes(catOf(x));
     const a2 = added.filter(meaningful), r2 = removed.filter(meaningful);
-    if (a2.length || r2.length) out.push({ ...base, key: `outil:${t.key}:${d0.slice(0, 7)}:${[...a2, ...r2].map(norm).join("-")}`.slice(0, 300), kind: "outil",
+    if (a2.length || r2.length) out.push({ ...opp0, key: `outil:${t.key}:${d0.slice(0, 7)}:${[...a2, ...r2].map(norm).join("-")}`.slice(0, 300), kind: "outil",
       title: `${t.name} · ${a2.length ? `vient d'installer ${a2.join(", ")}` : `a retiré ${r2.join(", ")}`}`,
       summary: [a2.length ? `Nouveau sur son site : ${a2.map((x) => `${x} (${CAT_LABEL[catOf(x)] ?? ""})`).join(", ")}` : "", r2.length ? `Retiré : ${r2.join(", ")}` : ""].filter(Boolean).join(" · "),
       why: r2.some((x) => rivalT.includes(x)) ? `Elle vient de quitter ${r2.find((x) => rivalT.includes(x))} : elle cherche peut-être une solution de remplacement en ce moment.` : "Une entreprise qui change ses outils revoit sa façon de travailler : c'est le moment où elle écoute des propositions.",
-      raw: { ...base.raw, ajoutes: a2, retires: r2 } });
+      raw: { ...opp0.raw, ajoutes: a2, retires: r2 } });
   });
   return out;
 }
