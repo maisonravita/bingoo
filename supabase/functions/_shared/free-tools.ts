@@ -121,8 +121,9 @@ const parseJ = (s: unknown): any => { if (!s) return null; if (typeof s === "obj
 export async function freeSignals(input: { cible?: string; dept?: string }) {
   const cible = String(input.cible ?? "").trim().slice(0, 60);
   const dept = String(input.dept ?? "").trim().toUpperCase();
-  const words = cibleWords(cible);
-  if (!words.length) throw new HttpError(400, "Dis-nous qui sont tes clients (ex. restaurants, cabinets comptables, agences immobilières)");
+  const all = cible === "*"; // vend à toutes les entreprises : pas de filtre d'activité
+  const words = all ? [] : cibleWords(cible);
+  if (!all && !words.length) throw new HttpError(400, "Dis-nous qui sont tes clients (ex. restaurants, cabinets comptables, agences immobilières)");
   if (dept && !/^(\d{2}|2A|2B|97\d)$/.test(dept)) throw new HttpError(400, "Département invalide (ex. 75, 69, 13), ou laisse vide pour toute la France");
   const since = new Date(Date.now() - 45 * 864e5).toISOString().slice(0, 10);
   const read = async (ws: string[]) => {
@@ -188,8 +189,9 @@ ${text}
 Format : {"nom": "", "offre": "ce qu'elle vend, 12 mots maximum", "clients": "à qui, en quelques mots (ex. aux restaurants et bars)", "mots": [""]}`, { fast: true, maxTokens: 300 });
   const VAGUE = /^(commercial|commerce|service|services|conseil|entreprise|entreprises|vente|gestion|activit[ée]|soci[ée]t[ée]|b2b|pme|professionnel)s?$/i;
   const mots = (a.mots ?? []).map((m) => String(m).trim()).filter((m) => cibleWords(m).length && !VAGUE.test(m)).slice(0, 2);
-  if (!mots.length || !String(a.offre ?? "").trim()) throw new HttpError(422, "Ton site ne dit pas encore clairement ce que tu vends. Crée ton compte : Bingoo! te posera la question.");
-  const parts = await Promise.all(mots.map((m) => freeSignals({ cible: m }).catch(() => null)));
+  if (!String(a.offre ?? "").trim()) throw new HttpError(422, "Ton site ne dit pas encore clairement ce que tu vends. Crée ton compte : Bingoo! te posera la question.");
+  // Aucun secteur précis (elle vend à toutes les entreprises) : toutes les sociétés créées ou reprises récemment
+  const parts = mots.length ? await Promise.all(mots.map((m) => freeSignals({ cible: m }).catch(() => null))) : [await freeSignals({ cible: "*" }).catch(() => null)];
   const seen = new Set<string>();
   // Fusion : 3 visibles et l'aperçu, en alternant les cibles, sans doublon
   const vis: NonNullable<typeof parts[0]>["visibles"] = [];
@@ -200,7 +202,7 @@ Format : {"nom": "", "offre": "ce qu'elle vend, 12 mots maximum", "clients": "à
   const visibles = vis.sort((x, y) => y.date.localeCompare(x.date)).slice(0, 3);
   return {
     site: host, nom: String(a.nom || host).slice(0, 80), offre: String(a.offre ?? "").slice(0, 200), clients: String(a.clients ?? "").slice(0, 120),
-    cible: mots.join(", "), dept: "", jours: 45, total,
+    cible: mots.length ? mots.join(", ") : "toutes les entreprises", dept: "", jours: 45, total,
     visibles, apercu: [...vis.slice(3), ...ap].slice(0, 7).map((r) => ({ signal: r.signal, ville: r.ville, date: r.date })),
     caches: Math.max(0, total - visibles.length),
   };
