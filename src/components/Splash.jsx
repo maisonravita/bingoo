@@ -1,11 +1,11 @@
-import B from "../assets/splash/B.png";
-import i from "../assets/splash/i.png";
-import n from "../assets/splash/n.png";
-import g from "../assets/splash/g.png";
-import o1 from "../assets/splash/o1.png";
-import o2 from "../assets/splash/o2.png";
-import sparks from "../assets/splash/sparks.png";
-import bang from "../assets/splash/bang.png";
+import B from "../assets/splash/B.svg";
+import i from "../assets/splash/i.svg";
+import n from "../assets/splash/n.svg";
+import g from "../assets/splash/g.svg";
+import o1 from "../assets/splash/o1.svg";
+import o2 from "../assets/splash/o2.svg";
+import sparks from "../assets/splash/sparks.svg";
+import bang from "../assets/splash/bang.svg";
 
 // Le vrai logo découpé (mêmes formes, même police) : lettres, 3 traits au-dessus des deux « o », « ! »
 const PIECES = [
