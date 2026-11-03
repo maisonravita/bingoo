@@ -42,6 +42,8 @@
 @keyframes splash-shake{0%,100%{transform:rotate(0)}15%{transform:rotate(-14deg) scale(1.08)}30%{transform:rotate(12deg) scale(1.08)}45%{transform:rotate(-9deg)}60%{transform:rotate(6deg)}75%{transform:rotate(-3deg)}}
 @keyframes splash-wave{0%{transform:scale(.35);opacity:.9}100%{transform:scale(1.9);opacity:0}}
 @keyframes splash-dot{0%,80%,100%{transform:translateY(0);opacity:.55}40%{transform:translateY(-7px);opacity:1}}
+#bingoo-splash{z-index:200}
+.bingoo-splash.out{opacity:0;transition:opacity .55s ease}
 @media (prefers-reduced-motion:reduce){.bingoo-splash *{animation:none!important;opacity:1!important;transform:none!important}}
 .bingoo-splash-played .bingoo-splash-word .bl{animation:none;opacity:1;transform:none}
 .bingoo-splash-played .bingoo-splash-word .bsp{opacity:1;animation:splash-spark-pulse 1.2s ease-in-out infinite}
@@ -49,7 +51,8 @@
     </style>
   </head>
   <body>
-    <div id="root"><div class="bingoo-splash" role="status" aria-label="Chargement"><div class="bingoo-splash-waves" aria-hidden="true"><span></span><span></span><span></span></div><div class="bingoo-splash-word" role="img" aria-label="Bingoo!"><img src="/src/assets/splash/B.png" alt="" class="bl" style="left:0.000%;width:19.286%;animation-delay:0.00s;" /><img src="/src/assets/splash/i.png" alt="" class="bl" style="left:19.286%;width:7.143%;animation-delay:0.15s;" /><img src="/src/assets/splash/n.png" alt="" class="bl" style="left:26.429%;width:16.429%;animation-delay:0.30s;" /><img src="/src/assets/splash/g.png" alt="" class="bl" style="left:42.857%;width:16.905%;animation-delay:0.45s;" /><img src="/src/assets/splash/o1.png" alt="" class="bl" style="left:59.762%;width:15.476%;animation-delay:0.60s;" /><img src="/src/assets/splash/o2.png" alt="" class="bl" style="left:75.238%;width:15.238%;animation-delay:0.75s;" /><img src="/src/assets/splash/sparks.png" alt="" class="bsp" style="left:59.524%;width:26.429%;" /><img src="/src/assets/splash/bang.png" alt="" class="bbg" style="left:90.476%;width:9.524%;" /></div><div class="bingoo-splash-dots" aria-hidden="true"><span></span><span></span><span></span></div></div></div>
+    <div id="bingoo-splash" class="bingoo-splash" role="status" aria-label="Chargement"><div class="bingoo-splash-waves" aria-hidden="true"><span></span><span></span><span></span></div><div class="bingoo-splash-word" role="img" aria-label="Bingoo!"><img src="/src/assets/splash/B.png" alt="" class="bl" style="left:0.000%;width:19.286%;animation-delay:0.00s;" /><img src="/src/assets/splash/i.png" alt="" class="bl" style="left:19.286%;width:7.143%;animation-delay:0.15s;" /><img src="/src/assets/splash/n.png" alt="" class="bl" style="left:26.429%;width:16.429%;animation-delay:0.30s;" /><img src="/src/assets/splash/g.png" alt="" class="bl" style="left:42.857%;width:16.905%;animation-delay:0.45s;" /><img src="/src/assets/splash/o1.png" alt="" class="bl" style="left:59.762%;width:15.476%;animation-delay:0.60s;" /><img src="/src/assets/splash/o2.png" alt="" class="bl" style="left:75.238%;width:15.238%;animation-delay:0.75s;" /><img src="/src/assets/splash/sparks.png" alt="" class="bsp" style="left:59.524%;width:26.429%;" /><img src="/src/assets/splash/bang.png" alt="" class="bbg" style="left:90.476%;width:9.524%;" /></div><div class="bingoo-splash-dots" aria-hidden="true"><span></span><span></span><span></span></div></div>
+    <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

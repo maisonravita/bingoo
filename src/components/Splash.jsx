@@ -23,7 +23,7 @@ const pct = (v) => `${(v / 420) * 100}%`;
 /** Écran de chargement Bingoo! : lettres une par une, les 3 traits sur les « oo », le « ! » qui surgit et vibre. Même rendu que index.html. */
 export default function Splash() {
   // Déjà joué au démarrage : les lettres restent en place, seuls les traits et le « ! » restent animés
-  const played = performance.now() > 5000;
+  const played = performance.now() > 5000 || !!document.getElementById("bingoo-splash");
   return (
     <div className={`bingoo-splash${played ? " bingoo-splash-played" : ""}`} role="status" aria-label="Chargement de Bingoo!">
       <div className="bingoo-splash-waves" aria-hidden><span /><span /><span /></div>
