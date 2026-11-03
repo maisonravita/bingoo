@@ -61,7 +61,7 @@ function Renewals() {
       <form onSubmit={go} className="mt-6 flex flex-col sm:flex-row gap-2 max-w-2xl">
         <Input value={f.secteur} onChange={(e) => setF({ ...f, secteur: e.target.value })} placeholder="Ton activité (ex. nettoyage)" className="flex-1" />
         <Input value={f.dept} onChange={(e) => setF({ ...f, dept: e.target.value })} placeholder="Département (ex. 75)" className="sm:!w-44" maxLength={3} />
-        <Button variant="accent" loading={busy}>Chercher</Button>
+        <Button type="submit" variant="accent" loading={busy}>Chercher</Button>
       </form>
       {err && <p className="mt-3 text-bad text-sm">{err}</p>}
       {r && (
@@ -97,7 +97,7 @@ function Competitor() {
       <p className="text-ink-soft text-[16px] mt-3 max-w-2xl">Donne l'adresse de son site : Bingoo! te dit ce qu'il vend, à qui, à quel prix, et où il est attaquable.</p>
       <form onSubmit={go} className="mt-6 flex flex-col sm:flex-row gap-2 max-w-2xl">
         <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="concurrent.fr" className="flex-1" />
-        <Button variant="accent" loading={busy}>{busy ? "Analyse… (20 s)" : "Analyser"}</Button>
+        <Button type="submit" variant="accent" loading={busy}>{busy ? "Analyse… (20 s)" : "Analyser"}</Button>
       </form>
       {err && <p className="mt-3 text-bad text-sm">{err}</p>}
       {r && (
