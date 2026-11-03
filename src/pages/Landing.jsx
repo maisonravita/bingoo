@@ -139,12 +139,64 @@ function HeroBubbles() {
 
 const Chev = () => <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m6 9 6 6 6-6" /></svg>;
 const MENU = [
-  ["Produit", [["Radar", "Qui va acheter, et quand", "#radar"], ["Comment ça marche", "Quatre étapes jusqu'au rendez-vous", "#produit"], ["Essai en direct", "Teste le Radar sur ton marché", "#essai"]]],
+  ["Produit", [["Radar", "Qui va acheter, et quand", "#radar"], ["Contacts des décideurs", "E-mail, téléphone, LinkedIn", "#contacts"], ["Comment ça marche", "Quatre étapes jusqu'au rendez-vous", "#produit"], ["Essai en direct", "Teste le Radar sur ton marché", "#essai"]]],
   ["Solutions", [["Services sur site", "Nettoyage, sécurité, maintenance, BTP", "#pour-qui"], ["Services aux entreprises", "Agences, conseil, ESN, formation", "#pour-qui"], ["Logiciels / SaaS", "Prends les clients de tes concurrents", "#pour-qui"], ["Indépendants", "Un commercial à temps plein", "#pour-qui"]]],
   ["Nos données", [["Sources officielles", "BOAMP, BODACC, Sirene, DECP, TED", "#donnees"], ["Compteur en direct", "Ce que le Radar a trouvé", "#compteur"]]],
   ["Tarifs", null],
   ["Ressources", [["Outils gratuits", "Contrats publics, analyse de concurrent", "#/outils"], ["Questions fréquentes", "Tout ce qu'on nous demande", "#faq"]]],
 ];
+
+/** Les coordonnées du décideur : ce que Bingoo! trouve pour chaque opportunité. */
+const CONTACT_ROWS = [
+  ["mail", "E-mail", "Publié par l'organisation ou vérifié avant tout envoi"],
+  ["tel", "Téléphone", "Ligne directe ou standard, relevé sur les pages publiques"],
+  ["in", "LinkedIn", "Le profil public du décideur, pour un premier contact"],
+  ["role", "La bonne fonction", "Achats, direction générale, DSI, RH : celle qui signe pour ton offre"],
+];
+const CIcon = ({ k }) => k === "mail" ? <path d="M4 6h16v12H4zM4 7l8 6 8-6" /> : k === "tel" ? <path d="M6 3h3l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 4 5a2 2 0 0 1 2-2z" /> : k === "in" ? <><rect x="3" y="3" width="18" height="18" rx="3" /><path d="M8 10v7M8 7v.01M12 17v-4a2 2 0 0 1 4 0v4M12 10v7" /></> : <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>;
+function ContactShow({ go }) {
+  return (
+    <section id="contacts" className="relative max-w-6xl mx-auto px-4 sm:px-6 pb-14 scroll-mt-24">
+      <div className="grid lg:grid-cols-[1fr_1fr] gap-8 lg:gap-12 items-center">
+        <div>
+          <h2 className="font-black text-[32px] sm:text-[44px] leading-[1.02] tracking-[-.02em]" style={D}>Pas juste l'entreprise. <span className="text-accent">La personne à appeler.</span></h2>
+          <p className="mt-4 text-[17px] sm:text-[19px] text-ink-soft leading-relaxed">Pour chaque opportunité, Bingoo! cherche qui décide et comment le joindre. Tu ouvres la fiche, tu appelles ou tu écris.</p>
+          <ul className="mt-6 space-y-4">
+            {CONTACT_ROWS.map(([k, t, d]) => (
+              <li key={k} className="flex gap-4">
+                <span className="h-11 w-11 shrink-0 rounded-2xl bg-[#FFF1E8] text-accent flex items-center justify-center"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><CIcon k={k} /></svg></span>
+                <span><span className="block font-bold text-[16.5px]">{t}</span><span className="block text-[15px] text-ink-soft">{d}</span></span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-5 text-[13.5px] text-ink-faint">Uniquement des informations professionnelles publiques ou vérifiées. Chaque personne peut s'opposer à tout moment.</p>
+        </div>
+        <div className="relative">
+          <div className="rounded-[28px] bg-white border border-line shadow-[0_30px_70px_-40px_rgba(21,22,26,.45)] p-5 sm:p-7">
+            <div className="flex items-center justify-between gap-3">
+              <span className="rounded-full bg-[#FFF1E8] text-accent text-[13px] font-bold px-3 py-1">Contrat public à renouveler</span>
+              <span className="text-[12px] font-semibold text-ink-faint">Exemple</span>
+            </div>
+            <div className="mt-4 font-black text-[22px] leading-tight" style={D}>Une ville de 40 000 habitants</div>
+            <div className="text-[15px] text-ink-soft">Nettoyage des bâtiments communaux, 420 k€, fin en mars</div>
+            <div className="mt-5 rounded-2xl bg-[#FBF7F3] border border-[#F1E6DC] p-4">
+              <div className="flex items-center gap-3">
+                <span className="h-11 w-11 rounded-full bg-ink text-white flex items-center justify-center font-black" style={D}>CM</span>
+                <div><div className="font-bold text-[16px]">Claire Martin</div><div className="text-[14px] text-ink-soft">Responsable de la commande publique</div></div>
+              </div>
+              <div className="mt-4 grid gap-2 text-[14.5px]">
+                <div className="flex items-center justify-between gap-2 rounded-xl bg-white border border-line px-3 py-2.5"><span className="flex items-center gap-2 min-w-0"><svg viewBox="0 0 24 24" className="h-4 w-4 text-accent shrink-0" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><CIcon k="mail" /></svg><span className="truncate">c.martin@ville-exemple.fr</span></span><span className="text-[12px] font-bold text-good shrink-0">Vérifié</span></div>
+                <div className="flex items-center justify-between gap-2 rounded-xl bg-white border border-line px-3 py-2.5"><span className="flex items-center gap-2"><svg viewBox="0 0 24 24" className="h-4 w-4 text-accent" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><CIcon k="tel" /></svg>01 23 45 67 89</span><span className="text-[12px] font-semibold text-ink-faint">Site officiel</span></div>
+                <div className="flex items-center justify-between gap-2 rounded-xl bg-white border border-line px-3 py-2.5"><span className="flex items-center gap-2"><svg viewBox="0 0 24 24" className="h-4 w-4 text-accent" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><CIcon k="in" /></svg>Profil LinkedIn</span><span className="text-[12px] font-semibold text-ink-faint">Public</span></div>
+              </div>
+            </div>
+            <button onClick={go} className="mt-5 w-full rounded-full bg-accent text-white py-3.5 font-bold hover:bg-accent-dark transition">Trouver mes décideurs</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 /** Le Radar en démonstration : signaux (faits publics) ou intentions (comportements). */
 const MODES = {
@@ -318,16 +370,18 @@ export default function Landing() {
           <HeroBubbles />
           <div className="relative max-w-5xl mx-auto px-4 sm:px-6 pt-14 sm:pt-20 pb-14 text-center">
             <h1 className="font-black text-[50px] sm:text-[88px] leading-[.95] tracking-[-.03em]" style={D}>Sache qui va acheter.<br />Et <span className="text-accent">quand.</span></h1>
-            <p className="mt-7 text-[18px] sm:text-[21px] leading-relaxed text-ink-soft max-w-2xl mx-auto">Bingoo! est ton équipe commerciale IA. Elle repère les entreprises qui ont une raison d'acheter maintenant, trouve la bonne personne et prépare le message.</p>
+            <p className="mt-7 text-[18px] sm:text-[21px] leading-relaxed text-ink-soft max-w-2xl mx-auto">Bingoo! est ton équipe commerciale IA. Elle repère les entreprises qui ont une raison d'acheter maintenant, trouve le décideur avec son e-mail, son téléphone et son LinkedIn, et prépare le message.</p>
             <button onClick={go} className="mt-9 inline-flex items-center gap-3 rounded-full bg-accent text-white px-8 sm:px-11 py-4 sm:py-5 font-bold text-[18px] sm:text-[21px] shadow-[0_22px_44px_-18px_rgba(224,83,31,.85)] hover:bg-accent-dark transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink">Commencer gratuitement<Arrow className="h-5 w-5" /></button>
             <ul className="mt-7 flex flex-wrap justify-center gap-2.5">
-              {["15 signaux d'achat", "Sans carte bancaire", "Conforme RGPD"].map((t) => <li key={t} className="rounded-full bg-white border border-[#EFE5DC] px-4 py-2 text-[14.5px] font-medium flex items-center gap-2 shadow-[0_6px_16px_-12px_rgba(21,22,26,.3)]"><Check className="h-4 w-4 text-good" />{t}</li>)}
+              {["15 signaux d'achat", "E-mail, téléphone, LinkedIn", "Sans carte bancaire", "Conforme RGPD"].map((t) => <li key={t} className="rounded-full bg-white border border-[#EFE5DC] px-4 py-2 text-[14.5px] font-medium flex items-center gap-2 shadow-[0_6px_16px_-12px_rgba(21,22,26,.3)]"><Check className="h-4 w-4 text-good" />{t}</li>)}
             </ul>
             <LivePill />
           </div>
         </section>
 
         <RadarDemo />
+
+        <ContactShow go={go} />
 
         <section id="compteur" className="relative max-w-6xl mx-auto px-4 sm:px-6 pb-14 scroll-mt-24 text-center"><BigCounter /></section>
 
