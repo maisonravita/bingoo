@@ -17,11 +17,7 @@ const euro = (n) => n >= 1e6 ? `${(n / 1e6).toLocaleString("fr-FR", { maximumFra
 const scrollTo = (id) => (e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }); };
 const Check = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>;
 
-// Signaux qui flottent autour du titre : ce que le Radar repère vraiment
-const FLOAT = [
-  ["Contrat public à renouveler", "left-[4%] top-[24%]", "#F97316"], ["Nouveau dirigeant", "left-[9%] top-[52%]", "#EF4444"], ["Recrute 3 commerciaux", "left-[3%] top-[78%]", "#22C55E"],
-  ["A visité ta page tarifs", "right-[4%] top-[20%]", "#EF4444"], ["Déménagement du siège", "right-[8%] top-[48%]", "#3B82F6"], ["Cliente d'un concurrent", "right-[3%] top-[76%]", "#F97316"],
-];
+const Arrow = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" /></svg>;
 
 /** Compteur en direct : ce que le Radar a trouvé, tous comptes confondus (relu toutes les 10 secondes). */
 function useLive() {
@@ -48,21 +44,97 @@ function Rolling({ value }) {
   }, [value]);
   return <span className="tabular-nums">{shown.toLocaleString("fr-FR")}</span>;
 }
-function LiveCounter() {
+function BigCounter() {
   const v = useLive();
-  if (!v) return <div className="mt-8 h-[92px]" aria-hidden />;
-  const total = (v.signaux ?? 0) + (v.prospects ?? 0);
+  const [bump, setBump] = useState(0);
+  const prev = useRef(null);
+  const total = v ? (v.total ?? (v.signaux ?? 0) + (v.prospects ?? 0)) : null;
+  useEffect(() => { if (total == null) return; if (prev.current != null && total > prev.current) { setBump(total - prev.current); const t = setTimeout(() => setBump(0), 2500); prev.current = total; return () => clearTimeout(t); } prev.current = total; }, [total]);
+  const parts = [["Appels d'offres et contrats", v?.marches], ["Prospects qualifiés", v?.prospects], ["Signaux d'achat", v?.signaux]];
   return (
-    <div className="mt-8 inline-flex flex-col items-center rounded-3xl bg-white border border-line px-6 sm:px-8 py-4 shadow-[0_14px_40px_-24px_rgba(21,22,26,.35)]" aria-live="polite">
-      <div className="flex items-center gap-2 text-[13px] font-semibold text-good"><span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full rounded-full bg-good opacity-60 motion-safe:animate-ping" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-good" /></span>En direct</div>
-      <div className="mt-1 text-[34px] sm:text-[42px] font-black leading-none" style={D}><Rolling value={total} /></div>
-      <div className="mt-1 text-[15px] text-ink-soft">opportunités trouvées par le Radar, tous comptes confondus</div>
-      <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[14px]">
-        <span><b className="tabular-nums">{(v.marches ?? 0).toLocaleString("fr-FR")}</b> appels d'offres et contrats</span>
-        <span><b className="tabular-nums">{(v.prospects ?? 0).toLocaleString("fr-FR")}</b> prospects</span>
-        <span><b className="tabular-nums">{(v.signaux ?? 0).toLocaleString("fr-FR")}</b> signaux d'achat</span>
+    <div className="relative mt-12 max-w-3xl mx-auto rounded-[28px] bg-white/90 backdrop-blur border border-[#F3E3D7] shadow-[0_30px_70px_-40px_rgba(224,83,31,.55)] px-5 sm:px-10 pt-7 pb-6" aria-live="polite">
+      <div className="flex items-center justify-center gap-2 text-[14px] font-bold text-good">
+        <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full rounded-full bg-good opacity-60 motion-safe:animate-ping" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-good" /></span>En direct
+      </div>
+      <div className="relative mt-2 font-black leading-none tracking-[-.03em] text-[64px] sm:text-[112px] text-ink" style={D}>
+        {total == null ? <span className="text-ink/15">0</span> : <Rolling value={total} />}
+        {bump > 0 && <span className="absolute -top-1 sm:top-2 ml-2 rounded-full bg-accent text-white text-[14px] sm:text-[16px] px-2.5 py-1 font-bold tracking-normal land-in">+{bump}</span>}
+      </div>
+      <div className="mt-2 text-[16px] sm:text-[18px] text-ink-soft">opportunités trouvées par le Radar, tous comptes confondus</div>
+      <div className="mt-6 grid grid-cols-3 gap-2 sm:gap-3">
+        {parts.map(([l, n]) => (
+          <div key={l} className="rounded-2xl bg-[#FFF6F0] px-2 sm:px-4 py-3">
+            <div className="font-black text-[22px] sm:text-[30px] text-accent tabular-nums leading-none" style={D}>{n == null ? "…" : n.toLocaleString("fr-FR")}</div>
+            <div className="mt-1.5 text-[12px] sm:text-[14px] font-semibold text-ink-soft leading-tight">{l}</div>
+          </div>
+        ))}
       </div>
     </div>
+  );
+}
+
+/** Fond du titre : réseau de points orange reliés. */
+const NODES = [[3,12],[9,30],[4,52],[12,66],[2,80],[18,20],[21,44],[16,88],[27,8],[97,10],[90,26],[96,46],[86,58],[98,70],[82,84],[79,16],[74,40],[93,92],[35,95],[66,93]];
+function NetBg() {
+  const lines = [];
+  NODES.forEach((a, i) => NODES.forEach((b, j) => { if (j > i && Math.hypot(a[0] - b[0], (a[1] - b[1]) * .6) < 17) lines.push([a, b]); }));
+  return (
+    <svg aria-hidden className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 100 100">
+      {lines.map(([a, b], i) => <line key={i} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="#F2B48F" strokeOpacity=".45" strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
+      {NODES.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={i % 3 ? .35 : .5} fill={i % 4 ? "#F59A5C" : "#E0531F"} />)}
+    </svg>
+  );
+}
+// Bulles autour du titre : les sources que le Radar lit vraiment
+const BUBBLES = [
+  ["BOAMP", "Appels d'offres", "left-[7%] top-[10%]"], ["DECP", "Contrats publics", "left-[3%] top-[33%]"], ["BODACC", "Annonces légales", "left-[9%] top-[56%]"], ["TED", "Marchés européens", "left-[4%] top-[78%]"],
+  ["Sirene", "Registre officiel", "right-[7%] top-[9%]"], ["Emploi", "Offres d'emploi", "right-[3%] top-[32%]"], ["Web", "Sites et outils", "right-[9%] top-[55%]"], ["Ton site", "Visiteurs", "right-[4%] top-[78%]"],
+];
+
+/** Le Radar en démonstration : signaux (faits publics) ou intentions (comportements). */
+const MODES = {
+  signal: { label: "Radar Signal", items: ["Contrat public à renouveler", "Nouveau dirigeant", "Déménagement du siège", "Recrutement lié à ton offre"], dots: [[30,38],[62,30],[48,62],[70,58],[38,72],[56,44]] },
+  intention: { label: "Radar Intention", items: ["A visité ta page tarifs", "Équipe à l'essai chez toi", "Cherche une solution en ligne", "Mécontente d'un concurrent"], dots: [[42,34],[66,46],[34,56],[58,70],[50,40]] },
+};
+function RadarDemo() {
+  const v = useLive();
+  const [m, setM] = useState("signal");
+  const mode = MODES[m];
+  return (
+    <section className="relative max-w-6xl mx-auto px-4 sm:px-6 pb-14">
+      <div className="rounded-[32px] bg-white border border-line shadow-[0_24px_60px_-40px_rgba(21,22,26,.35)] p-6 sm:p-10 grid lg:grid-cols-[1fr_1.1fr] gap-8 items-center">
+        <div>
+          <div className="flex items-center gap-4">
+            <svg viewBox="0 0 48 48" className="h-14 w-14 sm:h-16 sm:w-16 shrink-0 text-accent" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" aria-hidden><circle cx="22" cy="26" r="17" /><circle cx="22" cy="26" r="9.5" /><circle cx="22" cy="26" r="2.6" fill="currentColor" /><path d="m22 26 16-16M33 6l5 4 4 5" /></svg>
+            <h2 className="font-black text-[32px] sm:text-[42px] leading-none tracking-[-.02em]" style={D}>Le Radar <span className="text-accent">Bingoo!</span></h2>
+          </div>
+          <p className="mt-4 text-[17px] sm:text-[19px] text-ink-soft leading-relaxed">Il détecte les meilleures opportunités commerciales, au bon moment, et te dit pourquoi les contacter maintenant.</p>
+          <ul className="mt-6 space-y-2.5">
+            {mode.items.map((t) => <li key={t} className="flex items-center gap-3 text-[16px] font-semibold land-in"><span className="h-2.5 w-2.5 rounded-full bg-accent" />{t}</li>)}
+          </ul>
+        </div>
+        <div className="rounded-[28px] bg-[#FBF7F3] border border-[#F1E6DC] p-4 sm:p-6">
+          <div className="flex gap-2 justify-center" role="tablist">
+            {Object.entries(MODES).map(([k, x]) => (
+              <button key={k} role="tab" aria-selected={m === k} onClick={() => setM(k)} className={cx("rounded-full px-4 sm:px-6 py-2.5 text-[14px] sm:text-[15px] font-bold transition", m === k ? "bg-accent text-white shadow-[0_10px_24px_-12px_rgba(224,83,31,.9)]" : "bg-white text-ink-soft border border-line hover:text-ink")}>{x.label}</button>
+            ))}
+          </div>
+          <div className="relative mt-5 grid sm:grid-cols-[1fr_170px] gap-4 items-center">
+            <div className="relative mx-auto aspect-square w-full max-w-[300px]">
+              <div className="absolute inset-0 rounded-full border border-[#EBDCCF] bg-white" />
+              <div className="absolute inset-[17%] rounded-full border border-[#EBDCCF]" />
+              <div className="absolute inset-[34%] rounded-full border border-[#EBDCCF]" />
+              <div className="absolute inset-0 rounded-full motion-safe:animate-[kspin_4s_linear_infinite]" style={{ background: "conic-gradient(from 0deg, rgba(224,83,31,.28), transparent 22%)" }} />
+              {mode.dots.map(([x, y], i) => <span key={m + i} className="absolute h-3 w-3 -ml-1.5 -mt-1.5 rounded-full bg-accent land-in shadow-[0_0_0_5px_rgba(224,83,31,.15)]" style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${i * 80}ms` }} />)}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-1 gap-3">
+              <div className="rounded-2xl bg-white border border-line p-4"><div className="font-black text-[28px] leading-none tabular-nums" style={D}>{v ? (m === "signal" ? v.marches : v.signaux).toLocaleString("fr-FR") : "…"}</div><div className="mt-1.5 text-[13px] text-ink-soft font-semibold">{m === "signal" ? "marchés publics repérés" : "signaux d'achat détectés"}</div></div>
+              <div className="rounded-2xl bg-white border border-line p-4"><div className="font-black text-[22px] leading-none" style={D}>Chaque nuit</div><div className="mt-1.5 text-[13px] text-ink-soft font-semibold">sources relues, résultats le matin</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -165,7 +237,7 @@ export default function Landing() {
 
       {/* Barre de navigation flottante */}
       <div className="sticky top-3 z-30 px-3 sm:px-6">
-        <header className="max-w-6xl mx-auto rounded-2xl bg-ink text-white shadow-[0_14px_34px_-14px_rgba(21,22,26,.55)] h-14 sm:h-16 px-4 sm:px-6 flex items-center justify-between">
+        <header className="max-w-6xl mx-auto rounded-full bg-ink text-white shadow-[0_14px_34px_-14px_rgba(21,22,26,.55)] h-14 sm:h-[68px] px-4 sm:px-6 flex items-center justify-between">
           <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Bingoo!"><Logo inverse height={28} /></button>
           <nav className="flex items-center gap-1 sm:gap-6 text-[14.5px] font-semibold">
             <a href="#produit" onClick={scrollTo("produit")} className="hidden md:inline hover:opacity-80">Produit</a>
@@ -173,34 +245,37 @@ export default function Landing() {
             <a href="#tarifs" onClick={scrollTo("tarifs")} className="hidden md:inline hover:opacity-80">Tarifs</a>
             <a href="#/outils" className="hidden lg:inline hover:opacity-80">Outils gratuits</a>
             <button onClick={() => nav("/connexion?mode=login")} className="px-2 hover:opacity-80">Connexion</button>
-            <button onClick={go} className="rounded-full bg-accent text-white px-4 py-2 font-bold hover:bg-accent-dark transition">S'inscrire</button>
+            <button onClick={go} className="inline-flex items-center gap-1.5 rounded-full bg-accent text-white px-4 sm:px-5 py-2 sm:py-2.5 font-bold hover:bg-accent-dark transition">S'inscrire<Arrow className="h-4 w-4" /></button>
           </nav>
         </header>
       </div>
 
       <main>
         {/* Titre */}
-        <section className="relative overflow-hidden">
-          <div aria-hidden className="absolute inset-x-0 top-0 h-[600px] hidden lg:block">
-            {FLOAT.map(([t, pos, col], i) => (
-              <span key={t} className={cx("absolute rounded-full bg-white border border-line px-3.5 py-2 text-[13px] font-semibold text-ink-soft shadow-[0_8px_20px_-12px_rgba(21,22,26,.35)] flex items-center gap-2", pos)} style={{ animation: `drift ${5 + i}s ease-in-out infinite` }}>
-                <span className="h-2 w-2 rounded-full" style={{ background: col }} />{t}
-              </span>
+        <section className="relative overflow-hidden -mt-24 pt-24" style={{ background: "radial-gradient(ellipse at 50% 30%, #FFF4EC 0%, #FDF8F4 45%, #FAF9F6 80%)" }}>
+          <div aria-hidden className="absolute inset-x-0 top-0 h-[920px]"><NetBg /></div>
+          <div aria-hidden className="absolute inset-x-0 top-24 h-[640px] hidden xl:block">
+            {BUBBLES.map(([t, sub, pos], i) => (
+              <div key={t} className={cx("absolute h-[104px] w-[104px] rounded-full bg-white shadow-[0_14px_34px_-18px_rgba(21,22,26,.35)] flex flex-col items-center justify-center text-center", pos)} style={{ animation: `drift ${6 + i % 4}s ease-in-out infinite`, animationDelay: `${i * .4}s` }}>
+                <span className="font-black text-[17px] leading-none text-ink" style={D}>{t}</span>
+                <span className="mt-1 text-[11px] font-semibold text-ink-faint leading-tight px-2">{sub}</span>
+              </div>
             ))}
-            <div className="absolute left-1/2 top-[46%] -translate-x-1/2 -translate-y-1/2 h-[720px] w-[720px] rounded-full border border-line/70" />
-            <div className="absolute left-1/2 top-[46%] -translate-x-1/2 -translate-y-1/2 h-[520px] w-[520px] rounded-full border border-line/70" />
           </div>
-          <div className="relative max-w-4xl mx-auto px-4 sm:px-6 pt-16 sm:pt-24 pb-12 text-center">
-            <h1 className="font-black text-[46px] sm:text-[76px] leading-[.95] tracking-[-.025em]" style={D}>Sache qui va acheter.<br />Et quand.</h1>
-            <p className="mt-6 text-[18px] sm:text-[20px] leading-relaxed text-ink-soft max-w-2xl mx-auto">Bingoo! est ton équipe commerciale IA. Elle repère les entreprises qui ont une raison d'acheter maintenant, trouve la bonne personne et prépare le message. Tu n'as plus qu'à conclure.</p>
-            <button onClick={go} className="mt-9 rounded-full bg-ink text-white px-8 sm:px-10 py-4 sm:py-5 font-bold text-[17px] sm:text-[19px] shadow-[0_18px_40px_-16px_rgba(21,22,26,.6)] hover:bg-black transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent">Commencer gratuitement</button>
-            <ul className="mt-6 flex flex-wrap justify-center gap-2">
-              {["14 jours offerts", "Sans carte bancaire", "Données publiques et sourcées"].map((t) => <li key={t} className="rounded-full bg-white border border-line px-3.5 py-1.5 text-[14px] font-medium flex items-center gap-1.5"><Check className="h-4 w-4 text-good" />{t}</li>)}
+          <div className="relative max-w-5xl mx-auto px-4 sm:px-6 pt-14 sm:pt-20 pb-14 text-center">
+            <h1 className="font-black text-[50px] sm:text-[88px] leading-[.95] tracking-[-.03em]" style={D}>Sache qui va acheter.<br />Et <span className="text-accent">quand.</span></h1>
+            <p className="mt-7 text-[18px] sm:text-[21px] leading-relaxed text-ink-soft max-w-2xl mx-auto">Bingoo! est ton équipe commerciale IA. Elle repère les entreprises qui ont une raison d'acheter maintenant, trouve la bonne personne et prépare le message.</p>
+            <button onClick={go} className="mt-9 inline-flex items-center gap-3 rounded-full bg-accent text-white px-8 sm:px-11 py-4 sm:py-5 font-bold text-[18px] sm:text-[21px] shadow-[0_22px_44px_-18px_rgba(224,83,31,.85)] hover:bg-accent-dark transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink">Commencer gratuitement<Arrow className="h-5 w-5" /></button>
+            <ul className="mt-7 flex flex-wrap justify-center gap-2.5">
+              {["Plus de 15 signaux d'achat", "Sans carte bancaire", "14 jours offerts"].map((t) => <li key={t} className="rounded-full bg-white border border-[#EFE5DC] px-4 py-2 text-[14.5px] font-medium flex items-center gap-2 shadow-[0_6px_16px_-12px_rgba(21,22,26,.3)]"><Check className="h-4 w-4 text-good" />{t}</li>)}
             </ul>
-            <div><LiveCounter /></div>
+            <BigCounter />
           </div>
-          <div id="essai" className="relative max-w-6xl mx-auto px-4 sm:px-6 pb-16"><TryIt /></div>
         </section>
+
+        <RadarDemo />
+
+        <section className="relative max-w-6xl mx-auto px-4 sm:px-6 pb-16"><div id="essai" className="scroll-mt-24"><TryIt /></div></section>
 
         {/* Sources */}
         <section className="border-y border-line bg-white">
