@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
 import { legalReady } from "./Legal";
@@ -22,6 +22,49 @@ const FLOAT = [
   ["Contrat public à renouveler", "left-[4%] top-[24%]", "#F97316"], ["Nouveau dirigeant", "left-[9%] top-[52%]", "#EF4444"], ["Recrute 3 commerciaux", "left-[3%] top-[78%]", "#22C55E"],
   ["A visité ta page tarifs", "right-[4%] top-[20%]", "#EF4444"], ["Déménagement du siège", "right-[8%] top-[48%]", "#3B82F6"], ["Cliente d'un concurrent", "right-[3%] top-[76%]", "#F97316"],
 ];
+
+/** Compteur en direct : ce que le Radar a trouvé, tous comptes confondus (relu toutes les 10 secondes). */
+function useLive() {
+  const [v, setV] = useState(null);
+  useEffect(() => {
+    let on = true;
+    const load = () => fetch(`${URL_}/rest/v1/rpc/radar_live`, { method: "POST", headers: { "Content-Type": "application/json", apikey: KEY, Authorization: `Bearer ${KEY}` }, body: "{}" })
+      .then((r) => r.ok ? r.json() : null).then((d) => { if (on && typeof d?.signaux === "number") setV(d); }).catch(() => {});
+    load(); const t = setInterval(() => { if (document.visibilityState === "visible") load(); }, 10000);
+    return () => { on = false; clearInterval(t); };
+  }, []);
+  return v;
+}
+function Rolling({ value }) {
+  const [shown, setShown] = useState(0);
+  const from = useRef(0);
+  useEffect(() => {
+    if (value == null) return;
+    const start = from.current, t0 = performance.now(), dur = start ? 900 : 1600;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { from.current = value; setShown(value); return; }
+    let raf; const step = (t) => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); const n = Math.round(start + (value - start) * e); setShown(n); if (k < 1) raf = requestAnimationFrame(step); else from.current = value; };
+    raf = requestAnimationFrame(step); return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return <span className="tabular-nums">{shown.toLocaleString("fr-FR")}</span>;
+}
+function LiveCounter() {
+  const v = useLive();
+  if (!v) return <div className="mt-8 h-[92px]" aria-hidden />;
+  const total = (v.signaux ?? 0) + (v.prospects ?? 0);
+  return (
+    <div className="mt-8 inline-flex flex-col items-center rounded-3xl bg-white border border-line px-6 sm:px-8 py-4 shadow-[0_14px_40px_-24px_rgba(21,22,26,.35)]" aria-live="polite">
+      <div className="flex items-center gap-2 text-[13px] font-semibold text-good"><span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full rounded-full bg-good opacity-60 motion-safe:animate-ping" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-good" /></span>En direct</div>
+      <div className="mt-1 text-[34px] sm:text-[42px] font-black leading-none" style={D}><Rolling value={total} /></div>
+      <div className="mt-1 text-[15px] text-ink-soft">opportunités trouvées par le Radar, tous comptes confondus</div>
+      <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[14px]">
+        <span><b className="tabular-nums">{(v.marches ?? 0).toLocaleString("fr-FR")}</b> appels d'offres et contrats</span>
+        <span><b className="tabular-nums">{(v.prospects ?? 0).toLocaleString("fr-FR")}</b> prospects</span>
+        <span><b className="tabular-nums">{(v.signaux ?? 0).toLocaleString("fr-FR")}</b> signaux d'achat</span>
+      </div>
+    </div>
+  );
+}
 
 /** Essai sans compte : les contrats publics du métier qui se terminent dans les 12 mois. */
 function TryIt() {
@@ -154,6 +197,7 @@ export default function Landing() {
             <ul className="mt-6 flex flex-wrap justify-center gap-2">
               {["14 jours offerts", "Sans carte bancaire", "Données publiques et sourcées"].map((t) => <li key={t} className="rounded-full bg-white border border-line px-3.5 py-1.5 text-[14px] font-medium flex items-center gap-1.5"><Check className="h-4 w-4 text-good" />{t}</li>)}
             </ul>
+            <div><LiveCounter /></div>
           </div>
           <div id="essai" className="relative max-w-6xl mx-auto px-4 sm:px-6 pb-16"><TryIt /></div>
         </section>
