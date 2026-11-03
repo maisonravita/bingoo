@@ -250,14 +250,53 @@ function RadarDemo() {
   );
 }
 
-/** Essai sans compte : les contrats publics du métier qui se terminent dans les 12 mois. */
-function TryIt() {
-  const nav = useNavigate();
+/** Recherche gratuite (sans compte, sans IA) : les contrats publics du métier qui se terminent. État partagé entre le titre et le panneau de résultats. */
+function useTry() {
   const [f, setF] = useState({ secteur: "", dept: "" });
   const [r, setR] = useState(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
-  const go = async (e) => { e.preventDefault(); setBusy(true); setErr(""); setR(null); try { setR(await call("free-renewals", f)); } catch (x) { setErr(x.message); } finally { setBusy(false); } };
+  const search = async (e) => {
+    e?.preventDefault?.();
+    setBusy(true); setErr(""); setR(null);
+    document.getElementById("essai")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    try { setR(await call("free-renewals", f)); } catch (x) { setErr(x.message); } finally { setBusy(false); }
+  };
+  return { f, setF, r, err, busy, search };
+}
+
+/** Barre de recherche du titre : métier + département → vrais résultats juste en dessous. */
+function HeroSearch({ t }) {
+  return (
+    <form onSubmit={t.search} className="mt-9 mx-auto max-w-2xl rounded-[22px] bg-white border border-[#EFE5DC] p-2 shadow-[0_24px_50px_-28px_rgba(224,83,31,.55)] grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_120px_auto] gap-2 text-left">
+      <label className="flex items-center gap-2.5 rounded-2xl px-3.5 focus-within:bg-[#FFF6F0] transition">
+        <svg viewBox="0 0 24 24" className="h-5 w-5 text-accent shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        <span className="sr-only">Ton métier</span>
+        <input value={t.f.secteur} onChange={(e) => t.setF({ ...t.f, secteur: e.target.value })} placeholder="Ton métier (ex. nettoyage)" className="w-full min-w-0 bg-transparent py-3.5 text-[16px] outline-none" />
+      </label>
+      <label className="flex items-center gap-2 rounded-2xl px-3.5 sm:border-l border-line focus-within:bg-[#FFF6F0] transition">
+        <svg viewBox="0 0 24 24" className="h-5 w-5 text-ink-faint shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg>
+        <span className="sr-only">Département</span>
+        <input value={t.f.dept} onChange={(e) => t.setF({ ...t.f, dept: e.target.value })} placeholder="Dép. ex. 75" maxLength={3} className="w-full min-w-0 bg-transparent py-3.5 text-[16px] outline-none" />
+      </label>
+      <button type="submit" disabled={t.busy} className="rounded-2xl bg-accent text-white px-6 py-3.5 text-[16px] font-bold hover:bg-accent-dark active:scale-[0.98] transition disabled:opacity-60 whitespace-nowrap">{t.busy ? "Recherche…" : "Trouve-moi des clients"}</button>
+    </form>
+  );
+}
+
+const Lock = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
+const mois = (d) => new Date(d).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+
+/** Panneau de résultats : 3 contrats en clair, les suivants floutés, le contact verrouillé (on n'affiche jamais de faux numéro). */
+function TryIt({ t }) {
+  const nav = useNavigate();
+  const { f, setF, r, err, busy, search } = t;
+  const LockedContact = () => (
+    <div className="mt-2 flex items-center gap-2 rounded-lg bg-white/[.06] border border-white/10 px-3 py-2 text-[12.5px]">
+      <Lock className="h-3.5 w-3.5 text-[#F6A06B] shrink-0" />
+      <span className="text-white/70">Qui contacter : <span className="select-none blur-[5px] text-white">Responsable des achats</span></span>
+    </div>
+  );
   return (
     <div className="relative overflow-hidden rounded-[28px] bg-[#16171B] text-white p-5 sm:p-8 text-left shadow-[0_40px_80px_-40px_rgba(21,22,26,.7)]">
       <div aria-hidden className="pointer-events-none absolute -right-28 -top-28 h-[440px] w-[440px] rounded-full">
@@ -268,19 +307,21 @@ function TryIt() {
         <div>
           <p className="font-black text-[24px] sm:text-[28px] leading-tight" style={D}>Teste le Radar sur ton marché</p>
           <p className="text-[14.5px] text-white/65 mt-2">Les contrats publics de ton métier qui se terminent dans les 12 mois, dans ton département. Données officielles, résultat en quelques secondes, sans compte.</p>
-          <form onSubmit={go} className="mt-5 grid grid-cols-[minmax(0,1fr)_92px] gap-2">
+          <form onSubmit={search} className="mt-5 grid grid-cols-[minmax(0,1fr)_92px] gap-2">
             <label className="sr-only" htmlFor="tr-secteur">Ton métier</label>
             <input id="tr-secteur" value={f.secteur} onChange={(e) => setF({ ...f, secteur: e.target.value })} placeholder="Ton métier (ex. nettoyage)" className="rounded-xl bg-white/10 border border-white/15 px-3.5 py-3 text-[15px] placeholder:text-white/40 outline-none focus:border-[#F27834]" />
             <label className="sr-only" htmlFor="tr-dept">Département</label>
             <input id="tr-dept" value={f.dept} onChange={(e) => setF({ ...f, dept: e.target.value })} placeholder="Dép." maxLength={3} className="rounded-xl bg-white/10 border border-white/15 px-3.5 py-3 text-[15px] placeholder:text-white/40 outline-none focus:border-[#F27834]" />
-            <button type="submit" disabled={busy} className="col-span-2 rounded-xl bg-accent hover:bg-accent-dark disabled:opacity-60 py-3 font-bold text-[15px] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">{busy ? "Le Radar cherche…" : "Voir les contrats qui se terminent"}</button>
+            <button type="submit" disabled={busy} className="col-span-2 rounded-xl bg-accent hover:bg-accent-dark disabled:opacity-60 py-3 font-bold text-[15px] transition">{busy ? "Recherche dans les données officielles…" : "Voir les contrats qui se terminent"}</button>
           </form>
           {err && <p className="mt-3 text-[13.5px] text-[#FCA5A5]">{err}</p>}
           <p className="mt-4 text-[13px] text-white/50">Tu veux plutôt espionner un concurrent ? <a href="#/outils/analyse-concurrent" className="text-[#F6A06B] font-semibold hover:underline">Analyse-le gratuitement</a></p>
         </div>
         <div className="min-h-[220px]">
-          {!r ? (
-            <ul className="space-y-2 opacity-40" aria-hidden>{[0, 1, 2].map((i) => <li key={i} className="rounded-xl border border-dashed border-white/20 px-4 py-4"><div className="h-2.5 w-28 rounded bg-white/25" /><div className="h-3 w-48 rounded bg-white/30 mt-2.5" /><div className="h-2.5 w-full rounded bg-white/15 mt-2" /></li>)}</ul>
+          {busy ? (
+            <ul className="space-y-2" aria-hidden>{[0, 1, 2].map((i) => <li key={i} className="rounded-xl border border-white/10 bg-white/[.04] px-4 py-4 animate-pulse"><div className="h-2.5 w-28 rounded bg-white/25" /><div className="h-3 w-48 rounded bg-white/20 mt-3" /><div className="h-2.5 w-full rounded bg-white/10 mt-3" /></li>)}</ul>
+          ) : !r ? (
+            <ul className="space-y-2 opacity-40" aria-hidden>{[0, 1, 2].map((i) => <li key={i} className="rounded-xl border border-dashed border-white/20 px-4 py-4"><div className="h-2.5 w-28 rounded bg-white/25" /><div className="h-3 w-48 rounded bg-white/20 mt-3" /><div className="h-2.5 w-full rounded bg-white/10 mt-3" /></li>)}</ul>
           ) : (
             <div>
               <p className="text-[15.5px]"><b className="text-[30px] font-black" style={D}>{r.total}</b> contrat{r.total > 1 ? "s" : ""} « {r.secteur} » à renouveler dans le {r.dept}{r.montant_total ? <>, <b>{euro(r.montant_total)}</b> au total</> : null}.</p>
@@ -288,14 +329,28 @@ function TryIt() {
               <ul className="mt-3 space-y-2">
                 {r.visibles.map((c, i) => (
                   <li key={i} className="rounded-xl bg-white/[.07] border border-white/10 px-4 py-3 land-in" style={{ animationDelay: `${i * 140}ms` }}>
-                    <p className="text-[12.5px] font-semibold text-[#F6A06B]">Fin estimée en {new Date(c.fin).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</p>
+                    <p className="text-[12.5px] font-semibold text-[#F6A06B]">Fin estimée en {mois(c.fin)}</p>
                     <p className="font-semibold text-[15px] mt-0.5">{c.acheteur}</p>
                     <p className="text-[13px] text-white/65 line-clamp-2">{c.objet}</p>
                     {(c.montant || c.titulaire) && <p className="text-[12.5px] text-white/55 mt-1">{c.montant ? euro(c.montant) : ""}{c.montant && c.titulaire ? ", " : ""}{c.titulaire ? `tenu par ${c.titulaire}` : ""}</p>}
+                    <LockedContact />
+                  </li>
+                ))}
+                {(r.apercu ?? []).map((c, i) => (
+                  <li key={`a${i}`} className="relative rounded-xl bg-white/[.05] border border-white/10 px-4 py-3 land-in" style={{ animationDelay: `${(i + 3) * 120}ms` }}>
+                    <p className="text-[12.5px] font-semibold text-[#F6A06B]">Fin estimée en {mois(c.fin)}{c.montant ? ` · ${euro(c.montant)}` : ""}</p>
+                    <div className="select-none blur-[6px]" aria-hidden><p className="font-semibold text-[15px] mt-0.5">Acheteur public masqué</p><p className="text-[13px] text-white/65">Objet du contrat et titulaire actuel</p></div>
+                    <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[11.5px] text-white/80"><Lock className="h-3 w-3" />Compte gratuit</span>
                   </li>
                 ))}
               </ul>
-              {r.caches > 0 && <button onClick={() => nav("/connexion")} className="mt-3 w-full rounded-xl bg-white text-ink py-3 font-bold text-[14.5px] hover:bg-white/90 transition">Voir les {r.caches} autres, avec le contact de chaque acheteur</button>}
+              {r.caches > 0 && (
+                <div className="mt-4 rounded-2xl bg-white text-ink p-4">
+                  <p className="font-bold text-[15.5px]">Débloque les {r.caches} autre{r.caches > 1 ? "s" : ""} et le contact de chaque acheteur</p>
+                  <p className="text-[13.5px] text-ink-soft mt-1">Le décideur, son e-mail et son téléphone quand ils sont publiés. 14 jours gratuits, sans carte bancaire.</p>
+                  <button onClick={() => nav("/connexion")} className="mt-3 w-full rounded-xl bg-accent text-white py-3 font-bold text-[15px] hover:bg-accent-dark transition">Voir tout gratuitement</button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -351,6 +406,7 @@ function useReveal() {
 export default function Landing() {
   const nav = useNavigate();
   useReveal();
+  const tryState = useTry();
   const [who, setWho] = useState("terrain");
   const [yearly, setYearly] = useState(false);
   const go = () => nav("/connexion");
@@ -388,7 +444,7 @@ export default function Landing() {
           <div className="relative max-w-5xl mx-auto px-4 sm:px-6 pt-14 sm:pt-20 pb-14 text-center">
             <h1 className="hero-in font-black text-[50px] sm:text-[88px] leading-[.95] tracking-[-.03em]" style={D}>Sache qui va acheter.<br />Et <span className="text-accent">quand.</span></h1>
             <p className="hero-in mt-7 text-[18px] sm:text-[21px] leading-relaxed text-ink-soft max-w-2xl mx-auto" style={{ animationDelay: ".15s" }}>Bingoo! est ton équipe commerciale IA. Elle repère les entreprises qui ont une raison d'acheter maintenant, trouve le décideur avec son e-mail, son téléphone et son LinkedIn, et prépare le message.</p>
-            <button onClick={go} style={{ animationDelay: ".3s" }} className="hero-in mt-9 inline-flex items-center gap-3 rounded-full bg-accent text-white px-8 sm:px-11 py-4 sm:py-5 font-bold text-[18px] sm:text-[21px] shadow-[0_22px_44px_-18px_rgba(224,83,31,.85)] hover:bg-accent-dark transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink">Commencer gratuitement<Arrow className="h-5 w-5" /></button>
+            <div className="hero-in" style={{ animationDelay: ".3s" }}><HeroSearch t={tryState} /><p className="mt-3 text-[14px] text-ink-soft">Gratuit, sans compte. Ou <button onClick={go} className="font-semibold text-ink underline underline-offset-4 hover:text-accent-dark">crée ton compte</button> directement.</p></div>
             <ul className="hero-in mt-7 flex flex-wrap justify-center gap-2.5" style={{ animationDelay: ".45s" }}>
               {["15 signaux d'achat", "E-mail, téléphone, LinkedIn", "Sans carte bancaire", "Conforme RGPD"].map((t) => <li key={t} className="rounded-full bg-white border border-[#EFE5DC] px-4 py-2 text-[14.5px] font-medium flex items-center gap-2 shadow-[0_6px_16px_-12px_rgba(21,22,26,.3)]"><Check className="h-4 w-4 text-good" />{t}</li>)}
             </ul>
@@ -402,7 +458,7 @@ export default function Landing() {
 
         <section id="compteur" className="reveal relative max-w-6xl mx-auto px-4 sm:px-6 pb-14 scroll-mt-24 text-center"><BigCounter /></section>
 
-        <section className="reveal relative max-w-6xl mx-auto px-4 sm:px-6 pb-16"><div id="essai" className="scroll-mt-24"><TryIt /></div></section>
+        <section className="reveal relative max-w-6xl mx-auto px-4 sm:px-6 pb-16"><div id="essai" className="scroll-mt-24"><TryIt t={tryState} /></div></section>
 
         {/* Sources */}
         <section id="donnees" className="border-y border-line bg-white scroll-mt-24">
