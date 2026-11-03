@@ -9,27 +9,42 @@ import { cx } from "../lib/utils";
 
 const STEPS = ["Je lis ton site", "Je comprends ce que tu vends", "Je cherche qui en a besoin", "Je compte combien il en existe"];
 
-function Thinking() {
+function Thinking({ site }) {
   const [i, setI] = useState(0);
   useEffect(() => { const t = setInterval(() => setI((x) => Math.min(x + 1, STEPS.length - 1)), 6500); return () => clearInterval(t); }, []);
   return (
-    <div className="py-6">
-      {STEPS.map((s, k) => (
-        <div key={s} className={cx("flex items-center gap-3 py-2 text-lg transition", k > i ? "opacity-25" : "")}>
-          <span className={cx("w-2.5 h-2.5 rounded-full", k < i ? "bg-good" : k === i ? "bg-accent pulse-dot" : "bg-line")} />
-          {s}{k === i && "…"}
-        </div>
-      ))}
-      <p className="text-sm text-ink-soft mt-4">Environ 30 secondes.</p>
+    <div className="mt-8 grid sm:grid-cols-[150px_1fr] gap-6 items-center">
+      <div className="relative mx-auto h-[150px] w-[150px]">
+        <div className="absolute inset-0 rounded-full border border-accent/25" />
+        <div className="absolute inset-[22%] rounded-full border border-accent/25" />
+        <div className="absolute inset-0 rounded-full animate-[spin_3s_linear_infinite]" style={{ background: "conic-gradient(from 0deg, rgba(224,83,31,.35), transparent 25%)" }} />
+        <span className="absolute left-1/2 top-1/2 -ml-2 -mt-2 h-4 w-4 rounded-full bg-accent shadow-[0_0_0_6px_rgba(224,83,31,.18)]" />
+      </div>
+      <div>
+        {site && <p className="text-[13px] font-semibold text-accent-dark mb-2 truncate">{site.replace(/^https?:\/\//, "")}</p>}
+        {STEPS.map((st, k) => (
+          <div key={st} className={cx("flex items-center gap-3 py-1.5 text-[16px] transition", k > i ? "opacity-30" : "")}>
+            <span className={cx("h-6 w-6 rounded-full grid place-items-center shrink-0", k < i ? "bg-good text-white" : k === i ? "bg-accent/15" : "bg-line")}>
+              {k < i ? <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path className="check-draw" d="m5 12.5 4.5 4.5L19 7.5" /></svg> : k === i ? <span className="h-2 w-2 rounded-full bg-accent pulse-dot" /> : null}
+            </span>
+            <span className={k === i ? "font-semibold" : ""}>{st}{k === i && "…"}</span>
+          </div>
+        ))}
+        <p className="text-sm text-ink-soft mt-3">Environ 30 secondes.</p>
+      </div>
     </div>
   );
 }
+
+const H = "font-black tracking-[-.02em] leading-[1.02]";
+const HFONT = { fontFamily: "Nunito, Geist, system-ui, sans-serif" };
+const PROGRESS = ["Ton entreprise", "Tes clients", "Ta signature"];
 
 export default function Onboarding() {
   const { ws, create, reload, patch } = useWs();
   const toast = useToast();
   const [step, setStep] = useState(ws?.targets?.length ? 1 : 0);
-  const [site, setSite] = useState(ws?.website ?? "");
+  const [site, setSite] = useState((ws?.website ?? "").replace(/^https?:\/\//i, "").replace(/\/$/, ""));
   const [desc, setDesc] = useState("");
   const [showDesc, setShowDesc] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -80,30 +95,62 @@ export default function Onboarding() {
   const total = active.reduce((s, t) => s + (t.total ?? 0), 0);
 
   return (
-    <div className="min-h-full px-4 py-6 sm:py-12">
+    <div className="min-h-full px-4 py-6 sm:py-10" style={{ background: "radial-gradient(ellipse at 50% 0%, #FFF1E6 0%, #FAF9F6 60%)" }}>
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-10">
-          <Logo />
+        <div className="flex items-center justify-between mb-6">
+          <Logo height={30} />
           <span className="text-sm text-ink-soft tnum">Étape {Math.min(step + 1, 3)} sur 3</span>
+        </div>
+        {/* Progression */}
+        <div className="grid grid-cols-3 gap-2 mb-8" aria-hidden>
+          {PROGRESS.map((l, k) => (
+            <div key={l}>
+              <div className="h-1.5 rounded-full bg-line overflow-hidden"><div className="h-full bg-accent rounded-full transition-all duration-700" style={{ width: Math.min(step, 3) > k ? "100%" : Math.min(step, 2) === k ? "50%" : "0%" }} /></div>
+              <p className={cx("mt-1.5 text-[12px] font-semibold", Math.min(step, 2) >= k ? "text-ink" : "text-ink-faint")}>{l}</p>
+            </div>
+          ))}
         </div>
 
         {step === 0 && (
-          <div className="rise">
-            <h1 className="font-serif text-5xl leading-[1] tracking-tight">Quel est ton site&nbsp;?</h1>
-            <p className="text-ink-soft mt-3 text-lg">Je le lis, je comprends ce que tu vends, et je te montre qui en a besoin.</p>
-            {busy ? <Thinking /> : (
-              <div className="mt-8 space-y-4">
-                <Input autoFocus placeholder="monentreprise.fr" value={site} onChange={(e) => setSite(e.target.value)} onKeyDown={(e) => e.key === "Enter" && analyzeSite()} className="text-lg py-3.5" />
-                {showDesc ? (
-                  <Field label="Décris ton activité en quelques phrases" hint="Ce que tu vends, à qui, où tu interviens, ce qui te distingue.">
-                    <Textarea rows={4} value={desc} onChange={(e) => setDesc(e.target.value)} />
-                  </Field>
-                ) : (
-                  <button className="text-sm text-ink-soft hover:text-ink underline underline-offset-4" onClick={() => setShowDesc(true)}>Pas de site, ou envie de préciser ? Décris ton activité</button>
-                )}
-                <Button variant="accent" size="lg" onClick={analyzeSite}>Analyser mon entreprise →</Button>
+          <div className="rise rounded-3xl bg-white border border-line shadow-[0_24px_60px_-34px_rgba(21,22,26,.35)] p-6 sm:p-9">
+            <span className="inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-dark px-3 py-1 text-[12.5px] font-bold">Bienvenue sur Bingoo!</span>
+            <h1 className={cx(H, "mt-4 text-[34px] sm:text-[44px]")} style={HFONT}>Commençons par ton site.</h1>
+            <p className="text-ink-soft mt-3 text-[17px]">Je le lis, je comprends ce que tu vends, puis je te montre qui en a besoin, près de chez toi.</p>
+            {busy ? <Thinking site={site} /> : (<>
+              <div className="mt-7 grid grid-cols-2 rounded-full bg-paper border border-line p-1 max-w-sm" role="tablist">
+                {[[false, "J'ai un site"], [true, "Pas de site"]].map(([v, l]) => (
+                  <button key={l} type="button" role="tab" aria-selected={showDesc === v} onClick={() => setShowDesc(v)}
+                    className={cx("rounded-full py-2 text-[14px] font-semibold transition", showDesc === v ? "bg-white shadow-sm text-ink" : "text-ink-soft hover:text-ink")}>{l}</button>
+                ))}
               </div>
-            )}
+              <form className="mt-5 space-y-4" onSubmit={(e) => { e.preventDefault(); analyzeSite(); }}>
+                {!showDesc ? (
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <label className="flex-1 min-w-0 flex items-center gap-2 rounded-2xl border border-line bg-white px-4 focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/15 transition">
+                      <svg viewBox="0 0 24 24" className="h-5 w-5 text-ink-faint shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z" /></svg>
+                      <span className="text-ink-faint text-[16px] hidden sm:inline">https://</span>
+                      <input autoFocus aria-label="Adresse de ton site" placeholder="monentreprise.fr" value={site} onChange={(e) => setSite(e.target.value.replace(/^https?:\/\//i, ""))} className="flex-1 min-w-0 bg-transparent py-4 text-[17px] outline-none" />
+                    </label>
+                    <button type="submit" className="rounded-2xl bg-accent text-white px-7 py-4 text-[16px] font-bold hover:bg-accent-dark active:scale-[0.98] transition whitespace-nowrap">Analyser mon site →</button>
+                  </div>
+                ) : (<>
+                  <label className="block">
+                    <span className="block text-[13px] font-semibold mb-1.5">Décris ton activité en quelques phrases</span>
+                    <Textarea autoFocus rows={4} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Ex. Entreprise de nettoyage de bureaux à Lyon, 25 salariés. Nous travaillons pour des PME et des copropriétés, avec des équipes formées et un contrôle qualité chaque semaine." />
+                    <span className="block text-xs text-ink-soft mt-1.5">Ce que tu vends, à qui, où tu interviens, ce qui te distingue.</span>
+                  </label>
+                  <button type="submit" className="w-full sm:w-auto rounded-2xl bg-accent text-white px-7 py-4 text-[16px] font-bold hover:bg-accent-dark active:scale-[0.98] transition">Analyser mon activité →</button>
+                </>)}
+              </form>
+              <div className="mt-8 pt-6 border-t border-line grid sm:grid-cols-3 gap-4">
+                {[["Je lis ton site", "Ton offre, tes clients, ta zone."], ["Je cible", "Les entreprises qui ont besoin de toi."], ["Je compte", "Combien existent près de chez toi."]].map(([t, d], k) => (
+                  <div key={t} className="flex gap-3">
+                    <span className="h-7 w-7 rounded-full bg-ink text-white grid place-items-center text-[12px] font-black shrink-0" style={HFONT}>{k + 1}</span>
+                    <span><span className="block text-[14px] font-bold">{t}</span><span className="block text-[13px] text-ink-soft">{d}</span></span>
+                  </div>
+                ))}
+              </div>
+            </>)}
           </div>
         )}
 
@@ -111,7 +158,7 @@ export default function Onboarding() {
           <div className="rise space-y-6">
             <div>
               <p className="text-sm font-semibold text-accent">Voici ce que j'ai compris</p>
-              <h1 className="font-serif text-4xl sm:text-5xl leading-[1] tracking-tight mt-2">{draft.profile?.nom || "Ton entreprise"}</h1>
+              <h1 className={cx(H, "text-[34px] sm:text-[44px] mt-2")} style={HFONT}>{draft.profile?.nom || "Ton entreprise"}</h1>
               <p className="text-lg mt-3">{draft.profile?.resume}</p>
             </div>
             <Card className="p-5 space-y-3">
@@ -166,7 +213,7 @@ export default function Onboarding() {
 
         {step === 2 && (
           <div className="rise">
-            <h1 className="font-serif text-5xl leading-[1] tracking-tight">Au nom de qui j'écris&nbsp;?</h1>
+            <h1 className={cx(H, "text-[34px] sm:text-[44px]")} style={HFONT}>Au nom de qui j'écris&nbsp;?</h1>
             <p className="text-ink-soft mt-3 text-lg">Les messages partiront signés de ton nom. Tu pourras tout modifier ensuite.</p>
             <Card className="p-5 mt-8 space-y-4">
               <Field label="Ton prénom et ton nom"><Input autoFocus value={sender.sender_name} onChange={(e) => setSender({ ...sender, sender_name: e.target.value })} placeholder="Camille Martin" /></Field>
@@ -183,7 +230,7 @@ export default function Onboarding() {
 
         {step === 3 && (
           <div className="rise">
-            <h1 className="font-serif text-5xl leading-[1] tracking-tight">Je cherche tes prospects…</h1>
+            <h1 className={cx(H, "text-[34px] sm:text-[44px]")} style={HFONT}>Je cherche tes prospects…</h1>
             <p className="text-ink-soft mt-3 text-lg">Je parcours le registre officiel des entreprises pour chacune de tes cibles.</p>
             <div className="mt-8 h-1.5 bg-line rounded-full overflow-hidden"><div className="h-full w-1/3 bg-accent rounded-full animate-pulse" /></div>
           </div>
