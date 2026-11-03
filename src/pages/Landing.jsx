@@ -13,6 +13,7 @@ async function call(action, body) {
   return data;
 }
 const D = { fontFamily: "Nunito, Geist, system-ui, sans-serif" };
+const SERIF = { fontFamily: "'Source Serif 4', Georgia, serif", fontWeight: 400, fontOpticalSizing: "auto" };
 const euro = (n) => n >= 1e6 ? `${(n / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M€` : n >= 1e3 ? `${Math.round(n / 1e3).toLocaleString("fr-FR")} k€` : `${Math.round(n)} €`;
 const scrollTo = (id) => (e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }); };
 const Check = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>;
@@ -397,47 +398,55 @@ export default function Landing() {
     <div className="min-h-full bg-[#FAF9F6] text-ink">
       <style>{`@keyframes kspin{to{transform:rotate(360deg)}}@keyframes land-in{from{opacity:0;transform:translateY(10px)}}.land-in{animation:land-in .45s ease-out both}@keyframes drift{50%{transform:translateY(-8px)}}@keyframes marquee{to{transform:translateX(-50%)}}.marquee-track{animation:marquee 32s linear infinite}.marquee:hover .marquee-track{animation-play-state:paused}@media (prefers-reduced-motion: reduce){.marquee-track{animation:none;flex-wrap:wrap;width:auto;justify-content:center}}`}</style>
 
-      {/* Barre de navigation flottante */}
-      <div className="sticky top-3 z-30 px-3 sm:px-6">
-        <header className="max-w-6xl mx-auto rounded-full bg-ink text-white shadow-[0_14px_34px_-14px_rgba(21,22,26,.55)] h-14 sm:h-[68px] px-4 sm:px-6 flex items-center justify-between">
-          <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Bingoo!"><Logo inverse height={28} /></button>
-          <nav className="flex items-center gap-1 lg:gap-7 text-[15.5px] font-semibold">
-            {MENU.map(([t, items]) => items ? (
-              <div key={t} className="relative group hidden lg:block">
-                <button className="inline-flex items-center gap-1.5 py-3 hover:opacity-80" aria-haspopup="true">{t}<Chev /></button>
-                <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 transition absolute left-1/2 -translate-x-1/2 top-full pt-2 z-40">
-                  <div className="w-64 rounded-2xl bg-white text-ink shadow-[0_20px_50px_-20px_rgba(21,22,26,.5)] border border-line p-2">
-                    {items.map(([l, d, href]) => <a key={l} href={href} onClick={href.startsWith("#/") ? undefined : scrollTo(href.slice(1))} className="block rounded-xl px-3 py-2.5 hover:bg-[#FFF4EC]"><span className="block text-[15px] font-bold">{l}</span><span className="block text-[13px] font-medium text-ink-soft">{d}</span></a>)}
+      {/* Haut de page : cadre gris, menu à plat, panneau blanc */}
+      <div className="bg-[#D6D1CD]">
+        <header className="sticky top-0 z-30 bg-[#D6D1CD]">
+          <div className="mx-auto max-w-[1440px] h-[64px] px-4 sm:px-8 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-10">
+              <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Bingoo!"><Logo height={26} /></button>
+              <nav className="hidden lg:flex items-center gap-8 text-[17px] text-ink">
+                {MENU.map(([t, items]) => items ? (
+                  <div key={t} className="relative group">
+                    <button className="inline-flex items-center gap-1.5 py-4 hover:opacity-70" aria-haspopup="true">{t}<Chev /></button>
+                    <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 transition absolute left-0 top-full z-40">
+                      <div className="w-72 rounded-xl bg-white text-ink shadow-[0_20px_50px_-20px_rgba(21,22,26,.45)] border border-black/10 p-2">
+                        {items.map(([l, d, href]) => <a key={l} href={href} onClick={href.startsWith("#/") ? undefined : scrollTo(href.slice(1))} className="block rounded-lg px-3 py-2.5 hover:bg-black/[.04]"><span className="block text-[15px] font-medium">{l}</span><span className="block text-[13px] text-ink-soft">{d}</span></a>)}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            ) : <a key={t} href="#tarifs" onClick={scrollTo("tarifs")} className="hidden lg:inline hover:opacity-80">{t}</a>)}
-            <button onClick={() => nav("/connexion?mode=login")} className="px-2 lg:ml-6 hover:opacity-80">Connexion</button>
-            <button onClick={go} className="inline-flex items-center gap-1.5 rounded-full bg-accent text-white px-4 sm:px-6 py-2 sm:py-3 font-bold hover:bg-accent-dark transition">S'inscrire<Arrow className="h-4 w-4" /></button>
-          </nav>
+                ) : <a key={t} href="#tarifs" onClick={scrollTo("tarifs")} className="hover:opacity-70">{t}</a>)}
+              </nav>
+            </div>
+            <div className="flex items-center gap-3 sm:gap-5 text-[16px] sm:text-[17px]">
+              <button onClick={() => nav("/connexion?mode=login")} className="hidden sm:inline hover:opacity-70">Se connecter</button>
+              <a href="#essai" onClick={scrollTo("essai")} className="hidden md:inline-flex rounded-lg border border-ink px-5 py-2.5 hover:bg-black/[.04]">Essayer avec mon site</a>
+              <button onClick={go} className="rounded-lg bg-accent text-white px-4 sm:px-5 py-2.5 hover:bg-accent-dark transition">S'inscrire</button>
+            </div>
+          </div>
         </header>
+
+        <div className="px-0 sm:px-8">
+          <section className="mx-auto max-w-[1440px] bg-white px-5 sm:px-10 pt-16 sm:pt-24 pb-16 sm:pb-20 text-center">
+            <h1 className="hero-in mx-auto max-w-[1100px] text-ink text-[46px] sm:text-[72px] lg:text-[96px] leading-[1.02] tracking-[-.035em]" style={SERIF}>Trouve qui va acheter ton offre, et quand</h1>
+            <p className="hero-in mx-auto mt-8 max-w-[690px] text-[18px] sm:text-[21px] leading-[1.45] text-ink" style={{ animationDelay: ".1s" }}>Passe plus de temps à vendre et moins à chercher, grâce à une équipe commerciale IA qui repère les entreprises prêtes à acheter, trouve le décideur et prépare le message.</p>
+            <div className="hero-in mt-10 inline-flex flex-col sm:flex-row gap-1.5 rounded-xl bg-[#F1EFED] p-1.5" style={{ animationDelay: ".2s" }}>
+              <button onClick={go} className="rounded-lg bg-[#1C1C1C] text-white px-10 py-4 text-[18px] sm:text-[19px] hover:bg-black transition">Commencer gratuitement</button>
+              <a href="#essai" onClick={scrollTo("essai")} className="rounded-lg bg-white border border-black/10 px-10 py-4 text-[18px] sm:text-[19px] hover:bg-[#FAFAF9] transition">Essayer avec mon site</a>
+            </div>
+            <div className="hero-in mt-8" style={{ animationDelay: ".25s" }}>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F1EFED] px-3 py-1.5 text-[14.5px] text-ink-soft"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="9" /><path d="m8.5 12.5 2.5 2.5 4.5-5" /></svg>Aucune carte bancaire requise</span>
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); const em = new FormData(e.currentTarget).get("email"); nav(`/connexion?email=${encodeURIComponent(String(em ?? "").trim())}`); }} className="hero-in mx-auto mt-8 max-w-[722px] grid sm:grid-cols-[1fr_auto] gap-3" style={{ animationDelay: ".3s" }}>
+              <label className="sr-only" htmlFor="hero-email">Ton e-mail professionnel</label>
+              <input id="hero-email" name="email" type="email" required autoComplete="email" placeholder="Saisis ton e-mail" className="rounded-lg border border-[#8A8682] bg-white px-4 py-4 text-[18px] outline-none focus:border-ink focus:ring-2 focus:ring-ink/10" />
+              <button type="submit" className="rounded-lg bg-accent text-white px-7 py-4 text-[18px] sm:text-[19px] hover:bg-accent-dark transition">Créer mon compte</button>
+            </form>
+            <p className="mt-8 text-[14.5px] text-ink-soft">En m'inscrivant, j'accepte les <a href="#/conditions" className="underline hover:text-ink">Conditions d'utilisation</a> et la <a href="#/confidentialite" className="underline hover:text-ink">Politique de confidentialité</a> de Bingoo!.</p>
+          </section>
+        </div>
       </div>
 
-      <main>
-        {/* Titre */}
-        <section className="relative overflow-hidden -mt-24 pt-24" style={{ background: "radial-gradient(ellipse at 50% 30%, #FFF4EC 0%, #FDF8F4 45%, #FAF9F6 80%)" }}>
-          <div aria-hidden className="absolute inset-x-0 top-0 h-[920px] hidden sm:block"><NetBg /></div>
-          <HeroBubbles />
-          <div className="relative max-w-5xl mx-auto px-4 sm:px-6 pt-14 sm:pt-20 pb-14 text-center">
-            <h1 className="hero-in font-black text-[50px] sm:text-[88px] leading-[.95] tracking-[-.03em]" style={D}>Sache qui va acheter.<br />Et <span className="text-accent">quand.</span></h1>
-            <p className="hero-in mt-7 text-[18px] sm:text-[21px] leading-relaxed text-ink-soft max-w-2xl mx-auto" style={{ animationDelay: ".15s" }}>Bingoo! est ton équipe commerciale IA. Elle repère les entreprises qui ont une raison d'acheter maintenant, trouve le décideur avec son e-mail, son téléphone et son LinkedIn, et prépare le message.</p>
-            <div className="hero-in mt-9 flex flex-col sm:flex-row items-center justify-center gap-3" style={{ animationDelay: ".3s" }}>
-              <button onClick={go} className="w-full sm:w-auto rounded-full bg-accent text-white px-8 py-4 text-[17px] font-bold shadow-[0_18px_40px_-18px_rgba(224,83,31,.8)] hover:bg-accent-dark active:scale-[0.98] transition">Commencer gratuitement</button>
-              <a href="#essai" onClick={scrollTo("essai")} className="w-full sm:w-auto rounded-full bg-white border border-[#EFE5DC] px-8 py-4 text-[17px] font-bold hover:border-ink/30 transition">Essayer avec mon site</a>
-            </div>
-            <p className="hero-in mt-3 text-[14px] text-ink-soft" style={{ animationDelay: ".35s" }}>14 jours gratuits, sans carte bancaire.</p>
-            <ul className="hero-in mt-7 flex flex-wrap justify-center gap-2.5" style={{ animationDelay: ".45s" }}>
-              {["15 signaux d'achat", "E-mail, téléphone, LinkedIn", "Sans carte bancaire", "Conforme RGPD"].map((t) => <li key={t} className="rounded-full bg-white border border-[#EFE5DC] px-4 py-2 text-[14.5px] font-medium flex items-center gap-2 shadow-[0_6px_16px_-12px_rgba(21,22,26,.3)]"><Check className="h-4 w-4 text-good" />{t}</li>)}
-            </ul>
-            <div className="hero-in" style={{ animationDelay: ".6s" }}><LivePill /></div>
-          </div>
-        </section>
-
+      <main className="pt-14">
         <div className="reveal"><RadarDemo /></div>
 
         <div className="reveal"><ContactShow go={go} /></div>
