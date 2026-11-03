@@ -182,6 +182,22 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const trace: string[] = [];
     return { adopte: await adoptedAt(String(b.url ?? ""), String(b.tool ?? ""), trace), trace };
   },
+  // Test plateforme : entreprise propriétaire d'une adresse IP (ou des serveurs d'un domaine)
+  async "ip-test"(req, b) {
+    await cron(req);
+    const { companyOfIp } = await import("../_shared/iporg.ts");
+    const out: Record<string, unknown> = {};
+    for (const x of ((b.items ?? []) as string[]).slice(0, 15)) {
+      let ips = [x];
+      if (!/^[0-9a-f:.]+$/i.test(x)) {
+        const mx = await Deno.resolveDns(x, "MX").catch(() => []) as { exchange: string }[];
+        ips = (await Promise.all(mx.slice(0, 2).map((m) => Deno.resolveDns(m.exchange.replace(/\.$/, ""), "A").catch(() => [] as string[])))).flat().slice(0, 2);
+        out[`${x} (mx)`] = mx.slice(0, 2).map((m) => m.exchange);
+      }
+      for (const ip of ips) out[`${x} ${ip}`] = await companyOfIp(ip).catch((e) => `erreur ${(e as Error).message}`);
+    }
+    return out;
+  },
   async "spy-cron"(req) { await cron(req); return await spyCron(); },
   async "spy-digest"(req) { await cron(req); return await spyDigest(); },
   async "spy-needs"(req, b) {
