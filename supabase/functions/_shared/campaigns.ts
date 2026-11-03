@@ -196,6 +196,9 @@ Format :
   a.liens_verification = fallback;
   const now = new Date().toISOString();
   await admin.from("competitors").update({ ads: a, ads_at: now }).eq("id", c.id);
+  // Historique : chaque pub vue est gardée, même après son arrêt
+  const { recordAds } = await import("./ads-history.ts");
+  await recordAds(ws.id, c.id, nom, (a.pubs ?? []) as Record<string, unknown>[]).catch((e) => console.error("historique pubs", e));
   await log(ws.id, "veille", `${nom} : campagnes analysées`);
   return { ads: a, at: now };
 }
