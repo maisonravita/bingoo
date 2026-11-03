@@ -622,7 +622,7 @@ const WHY = [
   ["flag", "Fait pour le marché français", "Commande publique, BODACC, registre national, BOAMP : des sources que les outils américains ne lisent pas."],
   ["radar", "Le bon moment, pas une liste", "Bingoo! ne vend pas une base de contacts. Il te dit qui a une raison d'acheter cette semaine, et pourquoi."],
   ["check", "Rien ne part sans toi", "Chaque message attend ta validation, tant que tu n'as pas choisi le pilote automatique et sa limite d'envoi."],
-  ["shield", "Conçu pour le RGPD", "E-mails publiés ou vérifiés, jamais devinés. Opposition en un clic, appliquée tout de suite à tous tes envois."],
+  ["shield", "Conçu pour le RGPD", "Adresses publiées par les entreprises, jamais devinées. Opposition en un clic, appliquée tout de suite à tous tes envois."],
 ];
 function Why() {
   return (
@@ -644,7 +644,7 @@ const FLOW = [
   ["Garde le contrôle", "Tu valides chaque message, tu fixes ta limite d'envoi par jour, tu coupes le pilote automatique quand tu veux."],
   ["Reste conforme", "Chaque message permet de ne plus être contacté. Les données anciennes sont purgées automatiquement."],
 ];
-const BADGES = [["shield", "RGPD"], ["flag", "Sources officielles"], ["mail", "E-mails vérifiés"], ["check", "Validation avant envoi"], ["user", "Opposition en 1 clic"], ["trash", "Purge automatique"]];
+const BADGES = [["shield", "RGPD"], ["flag", "Sources officielles"], ["mail", "E-mails jamais devinés"], ["check", "Validation avant envoi"], ["user", "Opposition en 1 clic"], ["trash", "Purge automatique"]];
 function Workflow() {
   return (
     <section className="px-5 sm:px-10 lg:px-20 py-20 sm:py-28">
@@ -731,7 +731,7 @@ export default function Landing() {
             <div className="hero-in mt-8" style={{ animationDelay: ".25s" }}>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F1EFED] px-3 py-1.5 text-[14.5px] text-ink-soft"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="9" /><path d="m8.5 12.5 2.5 2.5 4.5-5" /></svg>Aucune carte bancaire requise</span>
             </div>
-            <form onSubmit={(e) => { e.preventDefault(); const em = new FormData(e.currentTarget).get("email"); nav(`/connexion?email=${encodeURIComponent(String(em ?? "").trim())}`); }} className="hero-in mx-auto mt-8 max-w-[722px] grid sm:grid-cols-[1fr_auto] gap-3" style={{ animationDelay: ".3s" }}>
+            <form onSubmit={(e) => { e.preventDefault(); const em = new FormData(e.currentTarget).get("email"); try { sessionStorage.setItem("bingoo-email", String(em ?? "").trim()); } catch { /* navigation privée */ } nav("/connexion"); }} className="hero-in mx-auto mt-8 max-w-[722px] grid sm:grid-cols-[1fr_auto] gap-3" style={{ animationDelay: ".3s" }}>
               <label className="sr-only" htmlFor="hero-email">Ton e-mail professionnel</label>
               <input id="hero-email" name="email" type="email" required autoComplete="email" placeholder="Saisis ton e-mail" className="rounded-lg border border-[#8A8682] bg-white px-4 py-4 text-[18px] outline-none focus:border-ink focus:ring-2 focus:ring-ink/10" />
               <button type="submit" className="rounded-lg bg-accent text-white px-7 py-4 text-[18px] sm:text-[19px] hover:bg-accent-dark transition">Créer mon compte</button>

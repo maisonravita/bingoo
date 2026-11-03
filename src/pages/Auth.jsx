@@ -29,7 +29,7 @@ function Password({ value, onChange, autoComplete, id }) {
 
 export default function Auth({ invited = false }) {
   const [mode, setMode] = useState(() => (/mode=login/.test(window.location.hash + window.location.search) ? "login" : "signup"));
-  const [email, setEmail] = useState(() => { try { return decodeURIComponent((window.location.hash.match(/[?&]email=([^&]+)/) ?? [])[1] ?? ""); } catch { return ""; } });
+  const [email, setEmail] = useState(() => { try { const v = sessionStorage.getItem("bingoo-email") ?? ""; sessionStorage.removeItem("bingoo-email"); return v; } catch { return ""; } });
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
