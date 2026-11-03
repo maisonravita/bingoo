@@ -160,7 +160,8 @@ export async function freeSignals(input: { cible?: string; dept?: string }) {
   const out = rows.map((r) => ({ ...r, signal: LBL[r.kind][0], pourquoi: LBL[r.kind][1] }));
   const parType = { creation: out.filter((r) => r.kind === "creation").length, ouverture: out.filter((r) => r.kind === "ouverture").length, reprise: out.filter((r) => r.kind === "reprise").length };
   return {
-    cible, dept, total: out.length, jours: 45, par_type: parType,
+    // Sans filtre d'activité, les 100 dernières annonces couvrent quelques jours seulement : on affiche la vraie période
+    cible, dept, total: out.length, jours: all && out.length ? Math.max(1, Math.ceil((Date.now() - Math.min(...out.map((r) => new Date(r.date).getTime()))) / 864e5)) : 45, par_type: parType,
     visibles: out.slice(0, 3),
     apercu: out.slice(3, 10).map((r) => ({ signal: r.signal, ville: r.ville, date: r.date })),
     caches: Math.max(0, out.length - 3),
@@ -202,7 +203,7 @@ Format : {"nom": "", "offre": "ce qu'elle vend, 12 mots maximum", "clients": "à
   const visibles = vis.sort((x, y) => y.date.localeCompare(x.date)).slice(0, 3);
   return {
     site: host, nom: String(a.nom || host).slice(0, 80), offre: String(a.offre ?? "").slice(0, 200), clients: String(a.clients ?? "").slice(0, 120),
-    cible: mots.length ? mots.join(", ") : "toutes les entreprises", dept: "", jours: 45, total,
+    cible: mots.length ? mots.join(", ") : "toutes les entreprises", dept: "", jours: Math.max(...parts.map((p) => p?.jours ?? 0), 1), total,
     visibles, apercu: [...vis.slice(3), ...ap].slice(0, 7).map((r) => ({ signal: r.signal, ville: r.ville, date: r.date })),
     caches: Math.max(0, total - visibles.length),
   };
