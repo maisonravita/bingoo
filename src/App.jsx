@@ -33,6 +33,7 @@ import Join, { JOIN_KEY } from "./pages/Join";
 import PublicBooking from "./pages/PublicBooking";
 import PublicQuote from "./pages/PublicQuote";
 import FreeTools from "./pages/FreeTools";
+import Landing from "./pages/Landing";
 import { Conditions, Confidentialite, legalReady, MentionsLegales, Opposition } from "./pages/Legal";
 import { supabase } from "./lib/supabase";
 
@@ -47,6 +48,7 @@ function Gate() {
   if (loc.pathname.startsWith("/rdv/")) return <PublicBooking />;
   if (loc.pathname.startsWith("/devis/")) return <PublicQuote />;
   if (loc.pathname === "/outils" || loc.pathname.startsWith("/outils/")) return <FreeTools />;
+  if (loc.pathname === "/accueil") return <Landing />;
   if (loc.pathname === "/opposition") return <Opposition />;
   if (legalReady && loc.pathname === "/mentions-legales") return <MentionsLegales />;
   if (legalReady && loc.pathname === "/confidentialite") return <Confidentialite />;
@@ -58,6 +60,8 @@ function Gate() {
   if (session === undefined || (session && list === null)) {
     return <div className="h-full grid place-items-center text-ink-soft"><Spinner /></div>;
   }
+  // Visiteur : la page d'accueil ; la connexion et l'inscription sont sur /connexion
+  if (!session && loc.pathname === "/" && !pendingJoin) return <Landing />;
   if (!session) return <Auth invited={!!pendingJoin} />;
   if (pendingJoin) return <Join token={pendingJoin} />;
   if (!ws || !ws.onboarded) return <Onboarding />;

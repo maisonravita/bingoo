@@ -5,7 +5,7 @@ import { Button, Field, Input } from "../components/ui";
 import Logo from "../components/Logo";
 
 export default function Auth({ invited = false }) {
-  const [mode, setMode] = useState("signup");
+  const [mode, setMode] = useState(() => (/mode=login/.test(window.location.hash + window.location.search) ? "login" : "signup"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
