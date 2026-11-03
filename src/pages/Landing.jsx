@@ -298,7 +298,7 @@ function TryIt({ t }) {
               <label className="sr-only" htmlFor="tr-dept">Département</label>
               <input id="tr-dept" value={f.dept} onChange={(e) => setF({ ...f, dept: e.target.value })} placeholder="75" maxLength={3} inputMode="text" className="w-[3.2ch] bg-transparent border-b-2 border-[#F27834] px-1 text-center text-[#F6A06B] placeholder:text-white/35 outline-none focus:bg-white/5" />
             </p>
-            <button type="submit" disabled={busy} className="mt-4 w-full rounded-xl bg-accent hover:bg-accent-dark disabled:opacity-60 py-3 font-bold text-[15px] transition">{busy ? "Le Radar fouille les données officielles…" : "Qui va m'acheter ?"}</button>
+            <button type="submit" disabled={busy} className="mt-4 w-full rounded-xl bg-accent hover:bg-accent-dark disabled:opacity-60 py-3 font-bold text-[15px] transition">{busy ? "Le Radar fouille les données officielles…" : "Voir mes prochains clients"}</button>
           </form>
           {err && <p className="mt-3 text-[13.5px] text-[#FCA5A5]">{err}</p>}
           <p className="mt-4 text-[13px] text-white/50">Tu veux plutôt espionner un concurrent ? <a href="#/outils/analyse-concurrent" className="text-[#F6A06B] font-semibold hover:underline">Analyse-le gratuitement</a></p>
@@ -432,7 +432,7 @@ export default function Landing() {
             <p className="hero-in mt-7 text-[18px] sm:text-[21px] leading-relaxed text-ink-soft max-w-2xl mx-auto" style={{ animationDelay: ".15s" }}>Bingoo! est ton équipe commerciale IA. Elle repère les entreprises qui ont une raison d'acheter maintenant, trouve le décideur avec son e-mail, son téléphone et son LinkedIn, et prépare le message.</p>
             <div className="hero-in mt-9 flex flex-col sm:flex-row items-center justify-center gap-3" style={{ animationDelay: ".3s" }}>
               <button onClick={go} className="w-full sm:w-auto rounded-full bg-accent text-white px-8 py-4 text-[17px] font-bold shadow-[0_18px_40px_-18px_rgba(224,83,31,.8)] hover:bg-accent-dark active:scale-[0.98] transition">Commencer gratuitement</button>
-              <a href="#essai" onClick={scrollTo("essai")} className="w-full sm:w-auto rounded-full bg-white border border-[#EFE5DC] px-8 py-4 text-[17px] font-bold hover:border-ink/30 transition">Voir qui achète chez moi</a>
+              <a href="#essai" onClick={scrollTo("essai")} className="w-full sm:w-auto rounded-full bg-white border border-[#EFE5DC] px-8 py-4 text-[17px] font-bold hover:border-ink/30 transition">Essayer sur mon marché</a>
             </div>
             <p className="hero-in mt-3 text-[14px] text-ink-soft" style={{ animationDelay: ".35s" }}>14 jours gratuits, sans carte bancaire.</p>
             <ul className="hero-in mt-7 flex flex-wrap justify-center gap-2.5" style={{ animationDelay: ".45s" }}>
