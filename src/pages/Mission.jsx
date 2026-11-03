@@ -456,7 +456,7 @@ export default function Mission() {
   const [list, setList] = useState(null);
   const [creating, setCreating] = useState(false);
   const load = useCallback(async () => {
-    try { const r = await fn("i/missions", { workspace_id: ws.id }); setList(r.missions); } catch { setList([]); }
+    try { const r = await fn("i/missions", { workspace_id: ws.id }); setList(Array.isArray(r?.missions) ? r.missions : []); } catch { setList([]); }
   }, [ws.id]);
   useEffect(() => { setList(null); load(); }, [load]);
 
