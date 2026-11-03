@@ -825,13 +825,16 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
   const skip = async () => { await supabase.from("radar_opps").update({ status: "ecarte", feedback: "pas_pertinent" }).eq("id", o.id); toast("Écartée : le Radar en tiendra compte", "default"); setSelId(null); onChange(); };
   const deadline = o && (o.deadline || o.expires_at) ? new Date(o.deadline || o.expires_at) : null;
   const when = (x) => x.deadline && new Date(x.deadline) > new Date() ? `avant le ${new Date(x.deadline).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}` : x.raw?.top_day === today ? "aujourd'hui" : x.published ? `signal du ${new Date(x.published).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}` : "";
-  const MODES = [["tout", "Vue globale"], ["signal", "Signaux"], ["intention", "Intentions"]];
+  const live_ = list.filter((x) => x.status !== "ecarte");
+  const nI = live_.filter((x) => INTENT.includes(x.kind)).length, nS = live_.length - nI;
+  const MODES = [["tout", `Tout (${live_.length})`], ["signal", `Signaux (${nS})`], ["intention", `Intentions (${nI})`]];
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex rounded-full bg-white border border-line p-1">
           {MODES.map(([k, l]) => <button key={k} onClick={() => { setMode(k); setSelId(null); }} className={cx("rounded-full px-4 py-1.5 text-[14px] font-semibold transition", mode === k ? "bg-accent text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
         </div>
+        {loaded && !nI && <p className="text-[12.5px] text-ink-faint flex-1 min-w-[220px]">Intentions = entreprises qui te regardent (visites de ton site, essais, demandes). Aucune pour l'instant : installe le suivi de ton site et publie ta page « Alternative à » depuis Espion.</p>}
         <div className="flex items-center gap-3">
           <Button size="sm" variant="ghost" loading={live} disabled={live} onClick={onScan}>Relancer l'analyse</Button>
         </div>
@@ -1301,40 +1304,6 @@ export default function Radar() {
       </button>
 
       {explore && (<>
-      <div>
-        <Card className="p-4 sm:p-5 grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)] gap-5 items-center min-w-0">
-          <div className="relative p-5 w-full max-w-[440px] mx-auto">
-            {["left-0 top-0 border-l-2 border-t-2 rounded-tl-lg", "right-0 top-0 border-r-2 border-t-2 rounded-tr-lg", "left-0 bottom-0 border-l-2 border-b-2 rounded-bl-lg", "right-0 bottom-0 border-r-2 border-b-2 rounded-br-lg"].map((c) => <span key={c} className={cx("absolute w-6 h-6 border-accent", c)} />)}
-            <RadarScope round opps={list} zone={ws.zone ?? []} scanning={live} selected={open?.id} onSelect={setOpen} />
-            <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1">{Object.entries(KIND).filter(([key]) => list.some((o) => o.kind === key)).map(([key, k]) => <span key={key} className="flex items-center gap-1.5 text-[12px] text-ink-soft"><span className="h-2 w-2 rounded-full" style={{ background: k.dot }} />{k.plural}</span>)}</div>
-          </div>
-          <div className="min-w-0">
-            <Pill on={live}>{live ? "Scan en cours" : "Prêt"}</Pill>
-            {live ? (
-              <>
-                <p className="mt-3 font-black text-[48px] leading-none tnum" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{pct} %</p>
-                <div className="mt-3 h-2.5 rounded-full bg-ink/10 overflow-hidden"><div className="h-full rounded-full bg-accent transition-all duration-700" style={{ width: `${pct}%` }} /></div>
-                <p className="text-[12.5px] text-ink-faint mt-2 tnum">{Math.floor(elapsed / 60)} min {String(elapsed % 60).padStart(2, "0")} · en général 1 à 2 minutes</p>
-              </>
-            ) : (
-              <>
-                <p className="mt-3 font-black text-[48px] leading-none tnum" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{rows ? list.length : "–"}</p>
-                <p className="text-ink-soft mt-1">opportunité{list.length > 1 ? "s" : ""} en cours dans ton Radar</p>
-              </>
-            )}
-            <ul className="mt-5 space-y-3">
-              {[["flame", hotN, "entreprises chaudes (score 75+)"], ["doc", count("appel_offres") + count("renouvellement"), "marchés publics ouverts ou à renouveler"], ["user", EVENTS.reduce((n, k) => n + count(k), 0), "dirigeants, déménagements, créations"], ["users", count("recrutement") + count("croissance") + count("besoin"), "recrutent, grandissent ou cherchent"]].map(([ic, n, l]) => (
-                <li key={l} className="flex items-center gap-3"><span className="text-ink-soft"><Ico name={ic} /></span><span className="font-bold text-[18px] tnum w-10">{rows ? n : "–"}</span><span className="text-[14px] text-ink-soft">{l}</span></li>
-              ))}
-            </ul>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <Button quota="radar_scan" variant="accent" loading={live} disabled={live} onClick={scan}>{live ? "Analyse en cours…" : "Lancer un scan"}</Button>
-            </div>
-            <p className="text-[12px] text-ink-faint mt-2">Rien n'est contacté pendant un scan. Le Radar tourne aussi tout seul chaque matin de semaine. <button onClick={() => pickSection("reglages")} className="underline hover:text-ink">Voir l'activité du scan</button></p>
-          </div>
-        </Card>
-      </div>
-
       {/* Les espaces du Radar */}
       <nav className="flex gap-1 overflow-x-auto border-b border-line -mx-1 px-1">
         {SECTIONS.filter(([k]) => k !== "marche" || ws.radar_cfg?.marches !== false).map(([k, l, sub]) => (
