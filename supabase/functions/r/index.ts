@@ -118,6 +118,15 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { env } = await import("../_shared/core.ts");
     return { ads: rankAds((data ?? []) as never[]), meta: !!env("META_ADS_TOKEN") };
   },
+  // Espion : bibliothèque des e-mails des concurrents
+  async "rival-emails"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { watchAddress } = await import("../_shared/rival-mail.ts");
+    let q = admin.from("competitor_emails").select("id, competitor_id, from_email, from_name, subject, kind, offer, summary, confirm_url, received_at").eq("workspace_id", ws.id).order("received_at", { ascending: false }).limit(200);
+    if (b.competitor_id) q = q.eq("competitor_id", String(b.competitor_id));
+    const { data } = await q;
+    return { address: watchAddress(ws), emails: data ?? [] };
+  },
   async "radar-calendar"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const { buyingCalendar } = await import("../_shared/radar-extra.ts");

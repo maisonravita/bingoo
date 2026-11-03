@@ -27,6 +27,7 @@ const SPACES = [
 ];
 
 const I = {
+  mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>,
   plus: <path d="M12 5v14M5 12h14" />, ext: <><path d="M14 4h6v6" /><path d="M20 4l-9 9" /><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" /></>,
   bell: <path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 21h4" />, chev: <path d="m9 6 6 6-6 6" />, eye: <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12" /><circle cx="12" cy="12" r="3" /></>,
   pulse: <path d="M3 12h4l2-6 4 12 2-6h6" />, search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>, chat: <path d="M4 5h16v11H9l-5 4z" />,
@@ -232,6 +233,39 @@ function Competitors({ rows, onOpen, ws, onDone }) {
 }
 
 /* 2. Veille concurrentielle : chaque mouvement daté, sourcé, avec son importance */
+/** Bibliothèque des e-mails des concurrents : l'adresse de veille à inscrire à leurs newsletters, puis tout ce qu'ils envoient, rangé et résumé. */
+function RivalEmails({ ws, rows }) {
+  const toast = useToast();
+  const [d, setD] = useState(null);
+  const [who, setWho] = useState("all");
+  useEffect(() => { fn("r/rival-emails", { workspace_id: ws.id }).then(setD).catch(() => setD({ address: "", emails: [] })); }, [ws.id]);
+  if (!d) return null;
+  const name = (id) => nameOf(rows.find((c) => c.id === id) ?? { name: "" }) || "Expéditeur non rattaché";
+  const list = d.emails.filter((e) => who === "all" || e.competitor_id === who);
+  const KIND = { promotion: "Promotion", lancement: "Lancement", contenu: "Contenu", evenement: "Événement", temoignage: "Témoignage", confirmation: "À confirmer", autre: "Autre" };
+  const copy = async () => { try { await navigator.clipboard.writeText(d.address); toast("Adresse copiée", "good"); } catch { toast(d.address); } };
+  return (
+    <Panel title="Leurs e-mails" icon="mail" right={<span className="text-[12px] text-ink-faint">{d.emails.length} reçu{d.emails.length > 1 ? "s" : ""}</span>}>
+      <div className="rounded-xl bg-paper/70 border border-line p-3.5 flex flex-wrap items-center gap-3">
+        <p className="text-[13.5px] flex-1 min-w-[220px]">Inscris cette adresse aux newsletters de tes concurrents (sur leur site). Espion range et résume tout ce qu'ils envoient.</p>
+        <code className="rounded-lg bg-white border border-line px-2.5 py-1.5 text-[12.5px] break-all">{d.address || "Adresse indisponible"}</code>
+        {d.address && <button onClick={copy} className="rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold text-white" style={{ background: TEAL }}>Copier</button>}
+      </div>
+      {d.emails.length > 0 && <div className="flex flex-wrap gap-1.5 mt-3">{[["all", "Tous"], ...rows.filter((c) => d.emails.some((e) => e.competitor_id === c.id)).map((c) => [c.id, nameOf(c)])].map(([k, l]) => <button key={k} onClick={() => setWho(k)} className={cx("rounded-full px-3 py-1 text-[12.5px] font-semibold", who === k ? "bg-ink text-white" : "bg-paper text-ink-soft")}>{l}</button>)}</div>}
+      {!list.length ? <p className="text-[13px] text-ink-faint mt-3">Aucun e-mail reçu pour l'instant.</p> : (
+        <ul className="mt-3 divide-y divide-line">{list.slice(0, 30).map((e) => (
+          <li key={e.id} className="py-3">
+            <div className="flex items-center gap-2 flex-wrap"><span className="text-[12px] font-bold" style={{ color: TEAL }}>{name(e.competitor_id)}</span><span className={cx("rounded-full px-2 py-0.5 text-[11px] font-semibold", e.kind === "confirmation" ? "bg-accent-soft text-accent-dark" : "bg-paper text-ink-soft")}>{KIND[e.kind] ?? e.kind}</span><span className="text-[11.5px] text-ink-faint ml-auto">{new Date(e.received_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</span></div>
+            <p className="text-[14px] font-semibold mt-1">{e.subject}</p>
+            {e.summary && <p className="text-[13px] text-ink-soft">{e.summary}{e.offer ? <b className="text-ink"> · {e.offer}</b> : null}</p>}
+            {e.confirm_url && <a href={e.confirm_url} target="_blank" rel="noreferrer" className="text-[12.5px] font-semibold text-accent hover:underline">Confirmer l'inscription ↗</a>}
+          </li>
+        ))}</ul>
+      )}
+    </Panel>
+  );
+}
+
 function Watch({ rows }) {
   const [who, setWho] = useState("all");
   const items = useMemo(() => rows.flatMap((c) => [
@@ -600,7 +634,7 @@ export default function EspionHub() {
       <div className="mt-5">
         {!rows ? <div className="py-16 text-center text-ink-faint text-sm">Ouverture des dossiers…</div>
           : space === "concurrents" ? <div className="space-y-5"><Proposed list={proposed} ws={ws} onDone={load} />{!list.length && !proposed.length ? <FirstRun ws={ws} onDone={load} /> : <Competitors rows={list} onOpen={setDesk} ws={ws} onDone={load} />}</div>
-          : space === "veille" ? <div className="space-y-4"><Report items={report} /><Watch rows={list} /></div>
+          : space === "veille" ? <div className="space-y-4"><Report items={report} /><RivalEmails ws={ws} rows={list} /><Watch rows={list} /></div>
           : space === "besoins" ? <Needs rows={list} ws={ws} />
           : space === "strategie" ? <Strategy rows={list} ws={ws} />
           : <Dossiers rows={list} />}

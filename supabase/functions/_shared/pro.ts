@@ -126,6 +126,16 @@ export async function inbound(body: Record<string, unknown>) {
   if (body.type !== "email.received" || !body.data) return { skipped: "type" };
   const d = body.data as Record<string, unknown>;
   const to = ([] as unknown[]).concat(d.to ?? []).map(String).join(" ");
+  // Adresse de veille : e-mails des concurrents (bibliothèque Espion)
+  const vk = to.match(/veille-([a-f0-9]{24})@/i);
+  if (vk) {
+    const { rivalMail } = await import("./rival-mail.ts");
+    return await rivalMail(vk[1], d, async () => {
+      let text = String(d.text ?? ""), html = String(d.html ?? "");
+      if (!text && !html && d.email_id) { const r = await resend(`/emails/receiving/${d.email_id}`); text = String(r.data?.text ?? ""); html = String(r.data?.html ?? ""); }
+      return { text, html };
+    });
+  }
   const m = to.match(/r-([0-9a-f-]{36})@([a-z0-9.-]+)/i);
   if (!m) return { skipped: "adresse non suivie" };
   const { data: p } = await admin.from("prospects").select("*").eq("public_token", m[1]).maybeSingle();
