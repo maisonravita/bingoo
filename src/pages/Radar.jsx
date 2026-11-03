@@ -760,13 +760,15 @@ function Visitors({ ws }) {
 }
 
 /** Vue d'accueil du Radar : radar par chaleur, fiche de l'opportunité choisie (pourquoi, maintenant, comment), qui contacter, prochaine action, classement. */
-function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
+function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange, onResults }) {
   const toast = useToast();
   const nav = useNavigate();
   const [mode, setMode] = useState("tout");
   const [selId, setSelId] = useState(null);
   const [tab, setTab] = useState("entreprise");
   const [busy, setBusy] = useState(null);
+  const [roi, setRoi] = useState(null);
+  useEffect(() => { supabase.rpc("radar_roi", { p_ws: ws.id, p_since: new Date(Date.now() - 30 * 864e5).toISOString() }).then(({ data }) => setRoi(data ?? null), () => setRoi(null)); }, [ws.id]);
   const today = new Date().toISOString().slice(0, 10);
   const weekAgo = Date.now() - 7 * 864e5;
   const pool = list.filter((o) => o.status !== "ecarte" && (mode === "tout" || (mode === "intention" ? INTENT.includes(o.kind) : !INTENT.includes(o.kind))));
@@ -805,13 +807,23 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-3">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {[["flame", hot, "opportunités chaudes à traiter", "score de 75 ou plus", "text-bad"], ["eye", intents, "intentions cette semaine", "visites de ton site, essais, demandes publiques", "text-accent"]].map(([ic, n, l, sub, col]) => (
           <Card key={l} className="p-4 sm:p-5 flex items-center gap-4">
             <span className={col}><Ico name={ic} className="h-8 w-8" /></span>
             <div><p className="font-black text-[34px] leading-none tnum" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{loaded ? n : "–"}</p><p className="text-[14px] font-semibold mt-1">{l}</p><p className="text-[12px] text-ink-faint">{sub}</p></div>
           </Card>
         ))}
+        <button onClick={onResults} className="text-left sm:col-span-2 lg:col-span-1">
+          <Card className="p-4 sm:p-5 flex items-center gap-4 h-full hover:border-ink-faint transition">
+            <span className="text-good"><Ico name="euro" className="h-8 w-8" /></span>
+            <div className="min-w-0">
+              <p className="font-black text-[34px] leading-none tnum" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{roi ? `${Number(roi.ca ?? 0).toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €` : "–"}</p>
+              <p className="text-[14px] font-semibold mt-1">rapportés par le Radar (30 jours)</p>
+              <p className="text-[12px] text-ink-faint truncate">{roi ? (roi.contactes || roi.prospects ? `${roi.signaux} signaux → ${roi.contactes} contactés → ${roi.reponses} réponses → ${roi.rdv} RDV → ${roi.signes} signé${roi.signes > 1 ? "s" : ""}` : "Démarre dès ton premier message préparé depuis le Radar") : ""}</p>
+            </div>
+          </Card>
+        </button>
       </div>
 
       <div className="grid xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)] gap-5 items-stretch">
@@ -1262,7 +1274,7 @@ export default function Radar() {
         <Pill on={live}>{live ? "Radar en cours" : lastAt ? `Dernier scan ${ago(lastAt)}` : "Jamais lancé"}</Pill>
       </div>
 
-      <HomeView ws={ws} list={list} loaded={!!rows} live={live} onScan={scan} onOpen={setOpen} onChange={load} />
+      <HomeView ws={ws} list={list} loaded={!!rows} live={live} onScan={scan} onOpen={setOpen} onChange={load} onResults={() => pickSection("resultats")} />
       <button onClick={() => toggleExplore(!explore)} className="w-full rounded-2xl border border-line bg-white hover:border-ink-faint px-5 py-3.5 flex items-center justify-between gap-3 text-left transition">
         <span><span className="block font-semibold text-[15px]">{explore ? "Masquer le détail du Radar" : "Explorer tout le Radar"}</span><span className="block text-[12.5px] text-ink-faint">{list.length} opportunité{list.length > 1 ? "s" : ""} · comptes surveillés · visiteurs · partenaires · marché public · résultats · réglages</span></span>
         <span className={cx("text-ink-soft transition", explore && "rotate-90")}><Ico name="chev" /></span>
