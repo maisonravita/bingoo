@@ -12,7 +12,7 @@ async function call(action, body) {
   if (!res.ok || data.error) throw new Error(data.error || "Erreur réseau, réessaie");
   return data;
 }
-const D = { fontFamily: "Nunito, Geist, system-ui, sans-serif" };
+const D = { fontFamily: "'Source Serif 4', Georgia, serif", fontWeight: 400, letterSpacing: "-.02em" };
 const SERIF = { fontFamily: "'Source Serif 4', Georgia, serif", fontWeight: 400, fontOpticalSizing: "auto" };
 const euro = (n) => n >= 1e6 ? `${(n / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M€` : n >= 1e3 ? `${Math.round(n / 1e3).toLocaleString("fr-FR")} k€` : `${Math.round(n)} €`;
 const scrollTo = (id) => (e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }); };
@@ -459,6 +459,223 @@ const FAQ = [
   ["Que se passe-t-il après les 14 jours ?", "Tu choisis une formule, ou ton espace s'arrête simplement. Aucune carte bancaire n'est demandée pour l'essai."],
 ];
 
+/* ---------- Sections façon Apollo, adaptées à Bingoo! ---------- */
+const ICONS = {
+  radar: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="4" /><path d="M12 12l5-5" /></>,
+  doc: <><path d="M7 3h7l4 4v14H7z" /><path d="M14 3v4h4M9.5 12h6M9.5 16h6" /></>,
+  eye: <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12" /><circle cx="12" cy="12" r="3" /></>,
+  user: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
+  mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>,
+  link: <><rect x="3" y="3" width="18" height="18" rx="3" /><path d="M8 10v7M8 7v.01M12 17v-4a2 2 0 0 1 4 0v4M12 10v7" /></>,
+  spark: <><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6" /></>,
+  send: <><path d="M4 12 20 4l-6 16-3-7z" /><path d="m11 13 9-9" /></>,
+  cal: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></>,
+  star: <path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />,
+  target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></>,
+  shield: <><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z" /><path d="m9 12 2 2 4-4" /></>,
+  check: <><circle cx="12" cy="12" r="9" /><path d="m8.5 12.5 2.5 2.5 4.5-5" /></>,
+  trash: <><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></>,
+  flag: <><path d="M5 21V4M5 4h11l-2 4 2 4H5" /></>,
+};
+const Ico = ({ k, className = "h-6 w-6" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{ICONS[k]}</svg>;
+
+function Feature({ id, flip, title, text, bullets, cta, visual }) {
+  const nav = useNavigate();
+  const [label, href] = cta;
+  const onCta = (e) => { if (!href) { e.preventDefault(); nav("/connexion"); } else if (href.startsWith("#") && !href.startsWith("#/")) scrollTo(href.slice(1))(e); };
+  return (
+    <section id={id} className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-14 sm:py-20">
+      <div className="mx-auto max-w-[1300px] grid lg:grid-cols-2 gap-10 lg:gap-20 items-center [&>*]:min-w-0">
+        <div className={cx("rounded-2xl bg-[#F1EFED] p-4 sm:p-12 min-h-[420px] flex items-center justify-center", flip && "lg:order-2")}>{visual}</div>
+        <div className={cx("flex flex-col", flip && "lg:order-1")}>
+          <h2 className="text-[38px] sm:text-[54px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>{title}</h2>
+          <p className="mt-6 max-w-[560px] text-[17px] sm:text-[19px] leading-[1.5] text-ink">{text}</p>
+          <ul className="mt-12 space-y-4">
+            {bullets.map(([k, t], i) => <li key={i} className="flex gap-3.5 text-[17px] sm:text-[18px] leading-[1.45] text-ink"><Ico k={k} className="h-6 w-6 shrink-0 mt-0.5 text-ink" /><span>{t}</span></li>)}
+          </ul>
+          <a href={href ?? "#/connexion"} onClick={onCta} className="mt-10 self-start rounded-lg border border-ink px-7 py-3.5 text-[17px] sm:text-[18px] text-ink hover:bg-black/[.04] transition">{label}</a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const Window = ({ children, className = "" }) => (
+  <div className={cx("w-full max-w-[480px] overflow-hidden rounded-xl border border-black/10 bg-white shadow-[0_24px_50px_-30px_rgba(21,22,26,.35)]", className)}>
+    <div className="flex gap-1.5 border-b border-black/[.07] bg-[#F6F5F3] px-3.5 py-2.5"><span className="h-2.5 w-2.5 rounded-full bg-black/15" /><span className="h-2.5 w-2.5 rounded-full bg-black/15" /><span className="h-2.5 w-2.5 rounded-full bg-black/15" /></div>
+    {children}
+  </div>
+);
+
+function RadarVisual() {
+  const v = useLive();
+  const rows = (v?.vitrine ?? []).filter((x, i, a) => a.findIndex((y) => y.acheteur === x.acheteur) === i).slice(0, 3);
+  return (
+    <div className="w-full max-w-[480px]">
+      <Window>
+        <div className="p-4 space-y-2.5">
+          <p className="text-[12px] text-ink-soft">Radar · cette nuit</p>
+          {(rows.length ? rows : [null, null, null]).map((x, i) => (
+            <div key={i} className="rounded-lg border border-black/[.08] p-3">
+              {x ? <>
+                <div className="flex items-center justify-between gap-2"><span className="rounded bg-[#FFF1E8] px-1.5 py-0.5 text-[11px] font-medium text-accent-dark">Contrat qui se termine</span><span className="text-[12px] text-accent-dark">fin {MOIS(x.fin)}</span></div>
+                <p className="mt-1.5 text-[14px] font-medium text-ink truncate">{shortBuyer(String(x.acheteur))}</p>
+                <p className="text-[12px] text-ink-soft truncate">{cleanObjet(x.objet)}{x.montant ? ` · ${euro(Number(x.montant))}` : ""}</p>
+              </> : <><div className="h-3 w-32 rounded bg-black/[.06]" /><div className="mt-2 h-3 w-48 rounded bg-black/[.05]" /></>}
+            </div>
+          ))}
+        </div>
+      </Window>
+      <div className="mx-auto mt-0 h-6 w-px bg-black/20" />
+      <div className="flex flex-wrap items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-[#FFE3D2] via-[#FFF1E8] to-[#FFD9C2] p-2">
+        <span className="px-2 text-[11px] tracking-wide text-ink-soft">SOURCES</span>
+        {["BOAMP", "BODACC", "Sirene", "DECP", "TED"].map((x) => <span key={x} className="rounded-md bg-white px-2.5 py-2 text-[12px] font-medium text-ink shadow-sm">{x}</span>)}
+      </div>
+    </div>
+  );
+}
+
+function ContactVisual() {
+  return (
+    <Window>
+      <div className="p-5">
+        <div className="grid grid-cols-2 rounded-lg border border-black/10 p-1 text-[12.5px]"><span className="rounded-md bg-ink py-1.5 text-center text-white">Personne</span><span className="py-1.5 text-center text-ink-soft">Organisation</span></div>
+        <p className="mt-4 text-[20px] text-ink" style={SERIF}>Claire Martin <span className="ml-1 align-middle text-[11px] text-ink-faint" style={{ fontFamily: "inherit" }}>exemple</span></p>
+        <p className="text-[13px] text-ink-soft">Responsable de la commande publique</p>
+        <p className="text-[13px] text-ink-soft">Ville de 40 000 habitants</p>
+        <div className="mt-4 grid grid-cols-3 rounded-xl border border-black/10 py-3 text-center text-[11.5px] text-ink-soft shadow-sm">
+          {[["Ajouter", "bg-accent text-white"], ["À une Mission", "bg-[#F6F5F3] text-ink"], ["Écrire", "bg-[#F6F5F3] text-ink"]].map(([l, c], i) => <div key={l}><span className={cx("mx-auto mb-1.5 grid h-8 w-8 place-items-center rounded-full", c)}><Ico k={["user", "spark", "send"][i]} className="h-4 w-4" /></span>{l}</div>)}
+        </div>
+        <p className="mt-5 text-[12.5px] font-medium text-ink">Coordonnées</p>
+        <p className="mt-3 text-[10.5px] tracking-wide text-ink-soft">E-MAIL</p>
+        <span className="mt-1 inline-block rounded-md border border-black/15 px-2.5 py-1 text-[12px] text-ink">Voir l'e-mail</span>
+        <p className="mt-3 text-[10.5px] tracking-wide text-ink-soft">TÉLÉPHONE</p>
+        <span className="mt-1 inline-block rounded-md border border-black/15 px-2.5 py-1 text-[12px] text-ink">Voir le numéro</span>
+      </div>
+    </Window>
+  );
+}
+
+function MissionVisual() {
+  return (
+    <div className="relative w-full max-w-[460px]">
+      <div className="h-2 rounded-t-xl bg-gradient-to-r from-[#FFD9C2] via-[#FFF1E8] to-[#F59A5C]" />
+      <div className="rounded-b-xl bg-white px-6 pt-8 pb-6 shadow-[0_24px_50px_-30px_rgba(21,22,26,.35)] text-center">
+        <span className="mx-auto grid h-10 w-10 place-items-center text-accent"><Ico k="spark" className="h-9 w-9" /></span>
+        <p className="mt-3 text-[26px] text-ink" style={SERIF}>Mission terminée</p>
+        <p className="mt-1 text-[14px] text-ink-soft">Cibles choisies, décideurs trouvés, messages prêts.</p>
+        <div className="mt-6 rounded-xl bg-[#1F1F1F] p-4 text-left text-white">
+          <div className="flex items-center gap-2 text-[13.5px]"><Ico k="doc" className="h-4 w-4" /><span className="truncate">Décideurs des contrats de nettoyage à renouveler</span></div>
+          <div className="mt-3 space-y-2">
+            {[["Responsable des achats", 1], ["Directeur général", .7], ["Directrice des services", .4]].map(([r, o]) => <div key={r} className="flex items-center justify-between gap-2 rounded-lg bg-white/[.06] px-3 py-2" style={{ opacity: o }}><span className="select-none text-[13px] blur-[3px]">Prénom Nom</span><span className="rounded-full bg-[#3B5B2E] px-2 py-0.5 text-[11.5px] text-[#CFF5B5]">{r}</span></div>)}
+          </div>
+          <div className="mt-3 flex gap-2 text-[12px]"><span className="rounded-md bg-accent px-2.5 py-1">Valider les messages</span><span className="rounded-md bg-white/10 px-2.5 py-1">Relire</span></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SpyVisual() {
+  return (
+    <div className="w-full max-w-[460px]">
+      <div className="mx-auto flex w-fit max-w-full flex-wrap items-center gap-2 rounded-xl bg-white p-2 shadow-sm">
+        <span className="px-2 text-[11px] tracking-wide text-ink-soft">SUIVI</span>
+        {["Site", "Prix", "Pubs", "Avis", "Offres"].map((x) => <span key={x} className="rounded-md bg-[#F6F5F3] px-2.5 py-2 text-[12px] text-ink">{x}</span>)}
+      </div>
+      <div className="mx-auto h-6 w-px bg-black/20" />
+      <div className="rounded-xl bg-white p-5 shadow-[0_24px_50px_-30px_rgba(21,22,26,.35)]">
+        <p className="text-[11px] tracking-wide text-ink-soft">CONCURRENT SUIVI</p>
+        <div className="mt-3 flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-lg bg-ink text-white" style={SERIF}>C</span><p className="text-[18px] text-ink" style={SERIF}>concurrent.fr</p><span className="rounded bg-[#E8F5E0] px-1.5 py-0.5 text-[10.5px] text-[#3B6B2A]">SUIVI</span></div>
+        <div className="mt-4 divide-y divide-black/[.07] text-[14px]">
+          {[["A changé ses prix", "cette semaine"], ["3 publicités actives", "depuis 12 jours"], ["Avis : délais non tenus", "point faible"], ["Angle pour le battre", "envoyé à Mission"]].map(([a, b]) => <div key={a} className="flex items-center justify-between py-2.5"><span className="text-ink">{a}</span><span className="text-[12px] text-ink-soft">{b}</span></div>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const LAYERS = [
+  ["Détecter", "Le Radar lit chaque nuit les données publiques et repère les entreprises qui ont une raison d'acheter maintenant.", "radar", ["Radar Signal", "Radar Intention", "Contrats publics"]],
+  ["Comprendre", "L'Espion suit tes concurrents et trouve les décideurs, pour savoir à qui parler et quoi leur dire.", "eye", ["Espion", "Décideurs", "Veille"]],
+  ["Agir", "Mission écrit, relance et pose les rendez-vous. Tu valides, tu conclus.", "send", ["Mission", "Salariés IA", "Rendez-vous"]],
+];
+function Layers() {
+  return (
+    <section className="bg-[#F6F5F3] px-5 sm:px-10 py-20 sm:py-28">
+      <div className="mx-auto max-w-[1300px] text-center">
+        <h2 className="mx-auto max-w-[700px] text-[42px] sm:text-[64px] leading-[1.02] tracking-[-.03em] text-ink" style={SERIF}>Un système. Trois étapes.</h2>
+        <p className="mx-auto mt-6 max-w-[600px] text-[17px] sm:text-[19px] leading-[1.5] text-ink">Le Radar trouve. L'Espion éclaire. Mission agit. Chaque réponse apprend au Radar ce qui marche pour toi.</p>
+        <div className="relative mt-16">
+          <div aria-hidden className="pointer-events-none absolute -inset-x-2 sm:-inset-x-6 -top-6 bottom-1/2 hidden md:block rounded-t-[28px] border border-dashed border-black/25" />
+          <div className="relative grid md:grid-cols-3 gap-4">
+            {LAYERS.map(([t, d, k, chips]) => (
+              <div key={t} className="flex flex-col rounded-2xl border border-black/10 bg-white px-6 sm:px-8 pt-10 pb-8">
+                <h3 className="text-[34px] sm:text-[44px] tracking-[-.03em] text-ink" style={SERIF}>{t}</h3>
+                <p className="mx-auto mt-3 max-w-[340px] text-[16px] sm:text-[17px] leading-[1.5] text-ink">{d}</p>
+                <div className="mx-auto my-10 grid h-28 w-28 place-items-center rounded-full bg-[#FFF1E8] text-accent"><Ico k={k} className="h-14 w-14" /></div>
+                <div className="mt-auto flex flex-wrap justify-center gap-2">{chips.map((c) => <span key={c} className="rounded-md bg-[#F1EFED] px-3 py-1.5 text-[15px] text-ink">{c}</span>)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const WHY = [
+  ["flag", "Fait pour le marché français", "Commande publique, BODACC, registre national, BOAMP : des sources que les outils américains ne lisent pas."],
+  ["radar", "Le bon moment, pas une liste", "Bingoo! ne vend pas une base de contacts. Il te dit qui a une raison d'acheter cette semaine, et pourquoi."],
+  ["check", "Rien ne part sans toi", "Chaque message attend ta validation, tant que tu n'as pas choisi le pilote automatique et sa limite d'envoi."],
+  ["shield", "Conçu pour le RGPD", "E-mails publiés ou vérifiés, jamais devinés. Opposition en un clic, appliquée tout de suite à tous tes envois."],
+];
+function Why() {
+  return (
+    <section className="bg-[#F6F5F3] px-5 sm:px-10 py-20 sm:py-24">
+      <div className="mx-auto max-w-[1300px] text-center">
+        <h2 className="mx-auto max-w-[760px] text-[42px] sm:text-[64px] leading-[1.02] tracking-[-.03em] text-ink" style={SERIF}>Une IA qui prospecte vraiment</h2>
+        <p className="mx-auto mt-6 max-w-[640px] text-[17px] sm:text-[19px] leading-[1.5] text-ink">Les autres outils t'aident à contacter des prospects. Bingoo! te dit d'abord qui contacter, pourquoi et quand.</p>
+        <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-left">
+          {WHY.map(([k, t, d]) => <div key={t} className="rounded-xl bg-white p-7 sm:p-8"><Ico k={k} className="h-9 w-9 text-ink" /><h3 className="mt-8 text-[24px] sm:text-[28px] leading-[1.15] tracking-[-.02em] text-ink" style={SERIF}>{t}</h3><p className="mt-4 text-[16px] leading-[1.5] text-ink">{d}</p></div>)}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const FLOW = [
+  ["Ta boîte mail", "Bingoo! lit les réponses à tes messages, les trie et te signale celles qui comptent."],
+  ["Ton agenda", "Les prospects réservent un créneau sur ta page de rendez-vous, sans aller-retour d'e-mails."],
+  ["Garde le contrôle", "Tu valides chaque message, tu fixes ta limite d'envoi par jour, tu coupes le pilote automatique quand tu veux."],
+  ["Reste conforme", "Chaque message permet de ne plus être contacté. Les données anciennes sont purgées automatiquement."],
+];
+const BADGES = [["shield", "RGPD"], ["flag", "Sources officielles"], ["mail", "E-mails vérifiés"], ["check", "Validation avant envoi"], ["user", "Opposition en 1 clic"], ["trash", "Purge automatique"]];
+function Workflow() {
+  return (
+    <section className="px-5 sm:px-10 lg:px-20 py-20 sm:py-28">
+      <div className="mx-auto max-w-[1300px] grid lg:grid-cols-2 gap-12 lg:gap-20">
+        <div>
+          <h2 className="text-[46px] sm:text-[72px] leading-[1.02] tracking-[-.03em] text-ink" style={SERIF}>Ne change rien à ta façon de travailler. Ajoute simplement Bingoo!</h2>
+          <p className="mt-6 max-w-[560px] text-[17px] sm:text-[19px] leading-[1.5] text-ink">Bingoo! se branche sur ta boîte mail et ton agenda. Tu continues comme avant, il prospecte à côté.</p>
+          <a href="#/connexion" className="mt-10 inline-block rounded-lg border border-ink px-7 py-3.5 text-[17px] sm:text-[18px] text-ink hover:bg-black/[.04] transition">Commencer gratuitement</a>
+        </div>
+        <div className="divide-y divide-black/15 border-b border-black/15">
+          {FLOW.map(([t, d], i) => (
+            <details key={t} open={i < 3} className="group py-6">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[24px] sm:text-[30px] tracking-[-.02em] text-ink" style={SERIF}>{t}<span className="text-[28px] leading-none font-light text-ink group-open:hidden">+</span><span className="hidden text-[28px] leading-none font-light text-ink group-open:inline">−</span></summary>
+              <p className="mt-4 text-[16px] sm:text-[17px] leading-[1.5] text-ink-soft">{d}</p>
+            </details>
+          ))}
+        </div>
+      </div>
+      <div className="mx-auto mt-20 max-w-[1300px] grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        {BADGES.map(([k, l]) => <div key={l} className="text-center"><div className="grid aspect-square place-items-center rounded-xl bg-[#F6F5F3]"><span className="grid h-20 w-20 place-items-center rounded-full border border-black/30 text-ink"><Ico k={k} className="h-9 w-9" /></span></div><p className="mt-3 text-[13px] tracking-[.08em] text-ink-soft uppercase">{l}</p></div>)}
+      </div>
+    </section>
+  );
+}
+
 /** Apparition des sections au défilement (une seule fois par section). */
 function useReveal() {
   useEffect(() => {
@@ -532,32 +749,17 @@ export default function Landing() {
         </div>
       </div>
 
-      <main className="pt-14">
-        <div className="reveal"><RadarDemo /></div>
+      <main className="bg-[#D6D1CD] px-0 sm:px-8 pb-8">
+        <div className="mx-auto max-w-[1440px] bg-white">
+        <div id="radar" className="scroll-mt-24" />
+        <Feature id="produit" title="Sache qui va acheter, et quand" text="Chaque nuit, le Radar lit les sources officielles et le web. Il te montre les entreprises qui ont une raison d'acheter maintenant, avec la date, le montant et la source." bullets={[["radar", <><b className="font-medium">Contrats publics</b> qui se terminent, avec le titulaire actuel et l'acheteur</>], ["doc", <><b className="font-medium">Annonces légales</b> : nouveau dirigeant, création, reprise, déménagement</>], ["eye", <><b className="font-medium">Signaux d'intention</b> : visites de ton site, recrutements, clients mécontents d'un concurrent</>]]} cta={["Essayer le Radar sur mon site", "#essai"]} visual={<RadarVisual />} />
+        <Feature id="contacts" flip title="Trouve la personne qui décide" text="Pour chaque opportunité, Bingoo! cherche qui signe et comment le joindre. Tu ouvres la fiche, tu appelles ou tu écris." bullets={[["user", <><b className="font-medium">La bonne fonction</b> : achats, direction générale, DSI ou RH selon ton offre</>], ["mail", <><b className="font-medium">E-mail et téléphone</b> publiés ou vérifiés, jamais devinés</>], ["link", <><b className="font-medium">Profil LinkedIn</b> pour un premier contact</>]]} cta={["Trouver mes décideurs", null]} visual={<ContactVisual />} />
+        <Feature title="Laisse tes salariés IA faire le reste" text="Donne un objectif en une phrase. Mission choisit les cibles, prépare un message qui part du signal, relance et pose les rendez-vous. Tu valides à chaque étape clé." bullets={[["spark", <><b className="font-medium">Mission</b> : de l'objectif au rendez-vous posé</>], ["send", <><b className="font-medium">Messages et relances</b> écrits à partir de la raison d'acheter</>], ["cal", <><b className="font-medium">Réponses triées</b>, rendez-vous dans ton agenda, devis envoyés</>]]} cta={["Lancer ma première Mission", null]} visual={<MissionVisual />} />
+        <Feature flip title="Connais tes concurrents mieux qu'eux" text="L'Espion suit tes concurrents chaque semaine : ce qu'ils vendent, leurs prix, leurs publicités, leurs avis. Il en tire l'angle pour leur prendre des clients." bullets={[["eye", <><b className="font-medium">Veille continue</b> : prix, offres et publicités qui changent</>], ["star", <><b className="font-medium">Avis clients</b> : les mécontents deviennent des opportunités</>], ["target", <><b className="font-medium">Dossiers de combat</b> envoyés à Mission pour tes messages</>]]} cta={["Analyser un concurrent gratuitement", "#/outils/analyse-concurrent"]} visual={<SpyVisual />} />
 
-        <div className="reveal"><ContactShow go={go} /></div>
+        <Layers />
 
-        <section id="compteur" className="reveal relative max-w-6xl mx-auto px-4 sm:px-6 pb-14 scroll-mt-24 text-center"><BigCounter /></section>
-
-        <section className="reveal relative max-w-6xl mx-auto px-4 sm:px-6 pb-16"><div id="essai" className="scroll-mt-24"><TryIt t={tryState} /></div></section>
-
-        {/* Étapes */}
-        <section id="produit" className="max-w-6xl mx-auto px-4 sm:px-6 py-20 scroll-mt-24">
-          <h2 className="text-center font-black text-[34px] sm:text-[50px] leading-[1.02] tracking-[-.02em]" style={D}>Quatre étapes. Un rendez-vous.</h2>
-          <p className="text-center mt-4 text-[17px] text-ink-soft max-w-2xl mx-auto">Les autres outils t'aident à contacter des prospects. Bingoo! te dit d'abord qui, pourquoi et quand.</p>
-          <ol className="mt-14 grid md:grid-cols-4 gap-10 md:gap-6">
-            {STEPS.map(([t, d], i) => (
-              <li key={t} className="reveal relative" style={{ transitionDelay: `${i * 0.12}s` }}>
-                <div className="flex items-center">
-                  <span className="h-14 w-14 rounded-2xl bg-accent text-white grid place-items-center font-black text-[20px] shrink-0" style={D}>{String(i + 1).padStart(2, "0")}</span>
-                  {i < STEPS.length - 1 && <span className="grow-line hidden md:block h-[2px] flex-1 bg-accent/40 ml-3" />}
-                </div>
-                <h3 className="mt-5 font-bold text-[19px]">{t}</h3>
-                <p className="mt-2 text-[15.5px] leading-relaxed text-ink-soft">{d}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
+        <section className="px-5 sm:px-10 py-20"><div id="essai" className="mx-auto max-w-[1180px] scroll-mt-24"><TryIt t={tryState} /></div></section>
 
         {/* Pour qui */}
         <section id="pour-qui" className="bg-white border-y border-line scroll-mt-24">
@@ -580,32 +782,9 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* Confiance */}
-        <section className="max-w-6xl mx-auto px-4 sm:px-6 py-20 grid lg:grid-cols-2 gap-12 items-center">
-          <div>
-            <h2 className="font-black text-[34px] sm:text-[44px] leading-[1.05]" style={D}>Il travaille la nuit. Tu décides le matin.</h2>
-            <ul className="mt-8 space-y-6">
-              {[["Sources publiques uniquement", "Commande publique, annonces légales, registre officiel, sites des entreprises. Chaque signal affiche sa source."], ["E-mails jamais devinés", "Une adresse est publiée telle quelle ou vérifiée par un service spécialisé. Sinon, Bingoo! ne l'invente pas."], ["Rien ne part sans toi", "Chaque message attend ta validation, tant que tu n'as pas choisi le pilote automatique."], ["Opposition en un clic", "Chaque message permet de ne plus être contacté. La demande est appliquée tout de suite."]].map(([t, d]) => (
-                <li key={t} className="flex gap-4"><span className="h-10 w-10 rounded-xl bg-accent-soft text-accent-dark grid place-items-center shrink-0"><Check className="h-5 w-5" /></span><div><p className="font-bold text-[17px]">{t}</p><p className="text-[15.5px] text-ink-soft mt-1 leading-relaxed">{d}</p></div></li>
-              ))}
-            </ul>
-          </div>
-          <div className="rounded-3xl bg-white border border-line shadow-[0_30px_60px_-36px_rgba(21,22,26,.35)] overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-line"><p className="font-bold text-[17px] flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-good pulse-dot" />Une nuit de Bingoo!</p><span className="text-[12.5px] text-ink-faint">Exemple</span></div>
-            <ul className="divide-y divide-line">{NIGHT.map(([h, t, s]) => <li key={h} className="px-6 py-4 flex items-center gap-4"><span className="tnum text-[13px] text-ink-faint w-12 shrink-0">{h}</span><div className="flex-1"><p className="font-semibold text-[16px]">{t}</p><p className="text-[13.5px] text-ink-soft">{s}</p></div><span className="h-6 w-6 rounded-full border-2 border-good text-good grid place-items-center"><Check className="h-3.5 w-3.5" /></span></li>)}</ul>
-          </div>
-        </section>
+        <Why />
 
-        {/* Pilotes */}
-        <section className="px-3 sm:px-6">
-          <div className="max-w-6xl mx-auto rounded-3xl bg-accent text-white px-6 sm:px-12 py-10 grid md:grid-cols-[1fr_auto] gap-6 items-center">
-            <div>
-              <p className="font-black text-[28px] sm:text-[34px] leading-tight" style={D}>Deviens l'une des premières entreprises Bingoo!</p>
-              <p className="mt-2 text-[16px] text-white/85 max-w-2xl">Nous accompagnons personnellement nos premières entreprises : réglage du Radar sur ton marché, premiers messages relus ensemble, et ton avis compte pour la suite.</p>
-            </div>
-            <button onClick={go} className="rounded-full bg-white text-accent-dark px-7 py-3.5 font-bold text-[16px] hover:bg-white/90 transition">Rejoindre les pionniers</button>
-          </div>
-        </section>
+        <Workflow />
 
         {/* Tarifs */}
         <section id="tarifs" className="max-w-6xl mx-auto px-4 sm:px-6 py-20 scroll-mt-24">
@@ -658,6 +837,7 @@ export default function Landing() {
           <p className="font-black text-[34px] sm:text-[52px] leading-[1.02] tracking-[-.02em]" style={D}>Une longueur d'avance sur tes prochains clients.</p>
           <button onClick={go} className="mt-8 rounded-full bg-ink text-white px-9 py-4 font-bold text-[17px] hover:bg-black transition">Commencer gratuitement</button>
         </section>
+        </div>
       </main>
 
       <footer className="border-t border-line bg-white">
