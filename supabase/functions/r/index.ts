@@ -266,6 +266,12 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { data } = await admin.from("competitor_ads").select("*").eq("competitor_id", String(b.competitor_id));
     return { pubs_relevees: ((r.ads as { pubs?: unknown[] }).pubs ?? []).length, historique: rankAds((data ?? []) as never[]).map((a) => ({ body: a.body.slice(0, 90), platform: a.platform, days: a.days, versions: a.versions, works: a.works, active: a.active })) };
   },
+  // Test plateforme : arrivée simulée d'un e-mail de concurrent sur l'adresse de veille (aucun envoi)
+  async "rival-mail-test"(req, b) {
+    await cron(req);
+    const { rivalMail } = await import("../_shared/rival-mail.ts");
+    return await rivalMail(String(b.key ?? ""), { from: String(b.from ?? ""), subject: String(b.subject ?? "") }, async () => ({ text: String(b.text ?? ""), html: String(b.html ?? "") }));
+  },
   async "spy-cron"(req) { await cron(req); return await spyCron(); },
   async "spy-digest"(req) { await cron(req); return await spyDigest(); },
   async "spy-needs"(req, b) {
