@@ -3,12 +3,13 @@
 // puis choisit le meilleur canal si aucun e-mail n'existe (téléphone, LinkedIn, formulaire, courrier).
 import { HttpError } from "./http.ts";
 import { admin, ask, askJson, env, log, PLANS, type Prospect, type Workspace } from "./core.ts";
-import { fetchHtml } from "./analyze.ts";
+import { fetchHtml, textOf } from "./analyze.ts";
 
 const EMAIL_IN = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
 const EMAIL_RE = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;
 const BAD = /(example\.|sentry|wixpress|domain\.com|email\.com|votre|yourdomain|\.(png|jpe?g|gif|svg|webp)$|^(rgpd|dpo|privacy|noreply|no-reply|donotreply|webmaster|recrutement|jobs|rh|candidature|careers)@)/i;
-const PHONE_RE = /(?:\+33\s?|0)[1-9](?:[\s.-]?\d{2}){4}/g;
+// Dans le texte : chiffres groupés par deux avec séparateurs (01 23 45 67 89, +33 1 23 45 67 89), pour ne pas prendre un identifiant pour un numéro
+const PHONE_RE = /(?<![\d])(?:\+33\s?[1-9]|0[1-9])(?:[\s.-]\d{2}){4}(?![\d])/g;
 const WEB = (n: number) => [{ type: "web_search_20250305", name: "web_search", max_uses: n, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }];
 const hostOf = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, "").toLowerCase(); } catch { return ""; } };
 const domOf = (e: string) => e.split("@")[1]?.toLowerCase() ?? "";
@@ -33,7 +34,9 @@ export async function siteContacts(site: string) {
   all.forEach((h, i) => {
     const d = decode(h);
     for (const m of d.match(EMAIL_IN) ?? []) { const e = m.toLowerCase().replace(/^mailto:/, ""); if (EMAIL_RE.test(e) && !BAD.test(e)) emails.add(e); }
-    for (const m of d.replace(/<[^>]{0,500}>/g, " ").match(PHONE_RE) ?? []) phones.add(m.replace(/[\s.-]/g, " ").trim());
+    // Téléphones : liens « tel: » d'abord, puis le texte visible seulement (jamais le code des scripts, qui contient des suites de chiffres)
+    for (const m of d.matchAll(/href=["']tel:([+\d\s().-]{8,20})["']/gi)) { const x = m[1].replace(/[^\d+]/g, ""); if (/^(\+33|0)[1-9]\d{8}$/.test(x.replace(/^\+330?/, "0").replace(/^0033/, "0"))) phones.add(m[1].trim()); }
+    for (const m of textOf(d).match(PHONE_RE) ?? []) phones.add(m.replace(/[\s.-]/g, " ").trim());
     if (!form && i > 0 && /<form[\s\S]{0,6000}?<textarea/i.test(h)) form = pages[i - 1];
   });
   return { emails: [...emails], phones: [...phones].slice(0, 3), form, home, origin };
