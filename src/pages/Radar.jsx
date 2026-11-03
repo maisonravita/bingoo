@@ -1333,7 +1333,6 @@ export default function Radar() {
           </Card>
           <BuyingCalendar ws={ws} />
           <Obligations ws={ws} />
-          <Roi ws={ws} />
         </div>
       </div>
       )}
