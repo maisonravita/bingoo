@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
 import { legalReady } from "./Legal";
 import { cx } from "../lib/utils";
+import { TEAM, Avatar } from "./Salaries";
 
 // Page d'accueil publique de Bingoo! : la promesse, et l'essai immédiat sans compte (contrats publics qui se terminent).
 const URL_ = import.meta.env.VITE_SUPABASE_URL, KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -140,7 +141,7 @@ function HeroBubbles() {
 
 const Chev = () => <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m6 9 6 6 6-6" /></svg>;
 const MENU = [
-  ["Produit", [["Radar", "Qui va acheter, et quand", "#radar"], ["Contacts des décideurs", "E-mail, téléphone, LinkedIn", "#contacts"], ["Comment ça marche", "Quatre étapes jusqu'au rendez-vous", "#produit"], ["Essai en direct", "Teste le Radar sur ton marché", "#essai"]]],
+  ["Produit", [["Radar", "Qui va acheter, et quand", "#radar"], ["Contacts des décideurs", "E-mail, téléphone, LinkedIn", "#contacts"], ["Tes salariés IA", "Neuf métiers, du repérage au rendez-vous", "#equipe"], ["Comment ça marche", "Quatre étapes jusqu'au rendez-vous", "#produit"], ["Essai en direct", "Teste le Radar sur ton marché", "#essai"]]],
   ["Solutions", [["Services sur site", "Nettoyage, sécurité, maintenance, BTP", "#pour-qui"], ["Services aux entreprises", "Agences, conseil, ESN, formation", "#pour-qui"], ["Logiciels / SaaS", "Prends les clients de tes concurrents", "#pour-qui"], ["Indépendants", "Un commercial à temps plein", "#pour-qui"]]],
   ["Nos données", [["Sources officielles", "BOAMP, BODACC, Sirene, DECP, TED", "#donnees"], ["Compteur en direct", "Ce que le Radar a trouvé", "#compteur"]]],
   ["Tarifs", null],
@@ -595,6 +596,35 @@ function SpyVisual() {
   );
 }
 
+/** Les 9 salariés IA, comme dans l'application : chacun son métier ; l'un après l'autre se met au travail. */
+function Team() {
+  const [busy, setBusy] = useState(0);
+  useEffect(() => { const t = setInterval(() => setBusy((n) => (n + 1) % TEAM.length), 2600); return () => clearInterval(t); }, []);
+  return (
+    <section id="equipe" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-20 sm:py-28">
+      <div className="mx-auto max-w-[1300px]">
+        <div className="text-center">
+          <h2 className="mx-auto max-w-[820px] text-[42px] sm:text-[64px] leading-[1.02] tracking-[-.03em] text-ink" style={SERIF}>Neuf salariés IA. Un seul abonnement.</h2>
+          <p className="mx-auto mt-6 max-w-[640px] text-[17px] sm:text-[19px] leading-[1.5] text-ink">Chacun a son métier, du repérage au rendez-vous. Tu les vois travailler, tu valides ce qui part.</p>
+        </div>
+        <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {TEAM.map((a, i) => (
+            <div key={a.id} className={cx("flex gap-4 rounded-2xl border p-5 transition-colors", busy === i ? "border-accent/40 bg-[#FFF8F3]" : "border-black/10 bg-white")}>
+              <Avatar id={a.id} working={busy === i} className="w-[92px] h-[118px]" />
+              <div className="min-w-0">
+                <p className="text-[24px] leading-tight text-ink" style={SERIF}>{a.first}</p>
+                <p className="text-[14.5px] text-ink-soft">{a.role}</p>
+                <p className="mt-2 text-[15px] leading-[1.45] text-ink">{a.desc}</p>
+                {busy === i && <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-0.5 text-[12.5px] text-accent-dark land-in"><span className="h-1.5 w-1.5 rounded-full bg-accent pulse-dot" />Au travail</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 const LAYERS = [
   ["Détecter", "Le Radar lit chaque nuit les données publiques et repère les entreprises qui ont une raison d'acheter maintenant.", "radar", ["Radar Signal", "Radar Intention", "Contrats publics"]],
   ["Comprendre", "L'Espion suit tes concurrents et trouve les décideurs, pour savoir à qui parler et quoi leur dire.", "eye", ["Espion", "Décideurs", "Veille"]],
@@ -758,6 +788,8 @@ export default function Landing() {
         <Feature flip title="Connais tes concurrents mieux qu'eux" text="L'Espion suit tes concurrents chaque semaine : ce qu'ils vendent, leurs prix, leurs publicités, leurs avis. Il en tire l'angle pour leur prendre des clients." bullets={[["eye", <><b className="font-medium">Veille continue</b> : prix, offres et publicités qui changent</>], ["star", <><b className="font-medium">Avis clients</b> : les mécontents deviennent des opportunités</>], ["target", <><b className="font-medium">Dossiers de combat</b> envoyés à Mission pour tes messages</>]]} cta={["Analyser un concurrent gratuitement", "#/outils/analyse-concurrent"]} visual={<SpyVisual />} />
 
         <Layers />
+
+        <Team />
 
         <section className="px-5 sm:px-10 py-20"><div id="essai" className="mx-auto max-w-[1180px] scroll-mt-24"><TryIt t={tryState} /></div></section>
 
