@@ -110,6 +110,14 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     await freeLimit(req, "competitor", 3, 150);
     return await freeCompetitor(b);
   },
+  // Espion : historique des pubs d'un concurrent, classées par performance
+  async "ads-history"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { rankAds } = await import("../_shared/ads-history.ts");
+    const { data } = await admin.from("competitor_ads").select("*").eq("workspace_id", ws.id).eq("competitor_id", String(b.competitor_id ?? "")).limit(500);
+    const { env } = await import("../_shared/core.ts");
+    return { ads: rankAds((data ?? []) as never[]), meta: !!env("META_ADS_TOKEN") };
+  },
   async "radar-calendar"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const { buyingCalendar } = await import("../_shared/radar-extra.ts");

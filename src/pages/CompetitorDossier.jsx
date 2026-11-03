@@ -195,8 +195,7 @@ function PubsReseaux({ c, s }) {
       </Card>}
       <div className="grid lg:grid-cols-2 gap-4">
         <Card title="Leurs publicités" sub={c.ads_at ? `Relevé du ${new Date(c.ads_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}` : "Relevé chaque semaine"}>
-          {pubs.length ? <ul className="space-y-3">{pubs.map((p, i) => <li key={i} className="rounded-xl border border-line p-3.5"><p className="text-[14px] font-semibold">{txt(p.message || p.titre || p.texte || p.offre)}</p><p className="text-[12px] text-ink-faint mt-1">{[p.plateforme, p.format, p.depuis || p.date].map(txt).filter(Boolean).join(" · ")}</p><Src x={p} /></li>)}</ul>
-            : <Nothing>{c.ads ? "Aucune publicité active trouvée." : "Relevé des publicités au prochain passage."}</Nothing>}
+          <AdsHistory c={c} fallback={pubs} />
           {ads.angles?.length > 0 && <><p className="text-[12px] font-bold uppercase tracking-wider text-ink-faint mt-5 mb-2">Leurs arguments marketing</p><ul className="space-y-2">{ads.angles.map((x, i) => <li key={i} className="text-[13.5px] leading-snug flex gap-2"><span style={{ color: ACC }}>•</span>{txt(x)}</li>)}</ul></>}
         </Card>
         <Card title="Leurs actions marketing">
@@ -204,6 +203,38 @@ function PubsReseaux({ c, s }) {
           {r.ce_qui_marche?.length > 0 && <><p className="text-[12px] font-bold uppercase tracking-wider text-ink-faint mt-5 mb-2">Ce qui marche pour eux</p><ul className="space-y-2">{r.ce_qui_marche.map((x, i) => <li key={i} className="text-[13.5px] leading-snug flex gap-2"><span className="text-good">✓</span>{txt(x)}</li>)}</ul></>}
         </Card>
       </div>
+    </div>
+  );
+}
+
+/** Historique des pubs : toutes celles vues (même arrêtées), classées par performance (durée, versions, encore active). */
+function AdsHistory({ c, fallback }) {
+  const { ws } = useWs();
+  const [d, setD] = useState(null);
+  const [view, setView] = useState("marche");
+  useEffect(() => { fn("r/ads-history", { workspace_id: ws.id, competitor_id: c.id }).then(setD).catch(() => setD({ ads: [] })); }, [ws.id, c.id, c.ads_at]);
+  if (!d) return <p className="text-[13px] text-ink-faint">Chargement…</p>;
+  const all = d.ads ?? [];
+  if (!all.length) return fallback?.length ? <ul className="space-y-3">{fallback.map((p, i) => <li key={i} className="rounded-xl border border-line p-3.5"><p className="text-[14px] font-semibold">{txt(p.message || p.titre || p.texte || p.offre)}</p><p className="text-[12px] text-ink-faint mt-1">{[p.plateforme, p.format, p.depuis || p.date].map(txt).filter(Boolean).join(" · ")}</p><Src x={p} /></li>)}</ul>
+    : <Nothing>{c.ads ? "Aucune publicité trouvée pour l'instant." : "Relevé des publicités au prochain passage."}</Nothing>;
+  const lists = { marche: all.filter((a) => a.works), actives: all.filter((a) => a.active), arretees: all.filter((a) => !a.active), toutes: all };
+  const shown = (lists[view].length || view !== "marche" ? lists[view] : all).slice(0, 12);
+  const dfr = (x) => x ? new Date(x).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "";
+  return (
+    <div>
+      <div className="flex flex-wrap gap-1.5 mb-3">{[["marche", "Celles qui marchent"], ["actives", "En cours"], ["arretees", "Arrêtées"], ["toutes", "Toutes"]].map(([k, l]) => <button key={k} onClick={() => setView(k)} className={cx("rounded-full px-3 py-1 text-[12.5px] font-semibold", view === k ? "bg-ink text-white" : "bg-paper text-ink-soft hover:text-ink")}>{l} ({lists[k].length})</button>)}</div>
+      {view === "arretees" && lists.arretees.length > 0 && <p className="text-[12.5px] text-ink-soft mb-2">Des messages qu'il a abandonnés : ils n'ont sans doute pas marché. Évite-les, ou prends l'angle qu'il a lâché.</p>}
+      <ul className="space-y-2.5">{shown.map((a) => (
+        <li key={a.key} className="rounded-xl border border-line p-3.5">
+          <div className="flex items-start gap-2">
+            <p className="text-[14px] font-semibold flex-1 line-clamp-3">{a.body}</p>
+            {a.works && <span className="shrink-0 rounded-full bg-good-soft text-good px-2 py-0.5 text-[11px] font-bold">Elle marche</span>}
+          </div>
+          <p className="text-[12px] text-ink-faint mt-1">{[a.platform, a.format, a.active ? `en cours depuis ${a.days} j` : `a tourné ${a.days} j, arrêtée`, a.versions > 1 ? `${a.versions} versions` : "", a.reach ? `${Number(a.reach).toLocaleString("fr-FR")} personnes touchées` : "", `vue du ${dfr(a.started || a.first_seen)}`].filter(Boolean).join(" · ")}</p>
+          {(a.snapshot_url || a.link) && <a href={a.snapshot_url || a.link} target="_blank" rel="noreferrer" className="text-[12px] text-accent hover:underline">Voir la pub</a>}
+        </li>
+      ))}</ul>
+      <p className="text-[11.5px] text-ink-faint mt-3">{d.meta ? "Source : bibliothèque publicitaire officielle de Meta (dates exactes)." : "Historique construit à partir des relevés hebdomadaires d'Espion. Pour les dates exactes, branche la bibliothèque publicitaire Meta."} « Elle marche » = diffusée 30 jours ou plus, ou déclinée en 3 versions.</p>
     </div>
   );
 }
