@@ -118,6 +118,11 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     await freeLimit(req, "signals", 10, 3000);
     return await freeSignals(b);
   },
+  async "free-site"(req, b) {
+    const { freeLimit, freeSite } = await import("../_shared/free-tools.ts");
+    await freeLimit(req, "site", 3, 300, { visitor: "Tu as fait tes 3 essais du jour. Crée ton compte Bingoo! pour lancer le Radar sans limite." });
+    return await freeSite(b);
+  },
   async "free-competitor"(req, b) {
     const { freeLimit, freeCompetitor } = await import("../_shared/free-tools.ts");
     await freeLimit(req, "competitor", 3, 150);

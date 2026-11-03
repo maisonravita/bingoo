@@ -165,3 +165,39 @@ export async function freeSignals(input: { cible?: string; dept?: string }) {
     caches: Math.max(0, out.length - 3),
   };
 }
+
+/** Essai « ton site et basta » : Bingoo! lit le site, comprend ce que tu vends et à qui (modèle rapide, ~0,1 centime),
+ *  puis lance le Radar sur ces clients (annonces légales officielles, sans IA). */
+export async function freeSite(input: { url?: string }) {
+  let url = String(input.url ?? "").trim();
+  if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+  let host = "";
+  try { host = new URL(url).hostname.replace(/^www\./, ""); } catch { throw new HttpError(400, "Adresse du site invalide (ex. monentreprise.fr)"); }
+  if (!/\.[a-z]{2,}$/i.test(host)) throw new HttpError(400, "Adresse du site invalide (ex. monentreprise.fr)");
+  const { fetchHtml, textOf } = await import("./analyze.ts");
+  const html = await fetchHtml(`https://${host}`);
+  if (!html) throw new HttpError(422, "Impossible de lire ce site (protégé ou indisponible). Vérifie l'adresse.");
+  const text = textOf(html).slice(0, 7000);
+  const a = await askJson<{ nom: string; offre: string; clients: string; mots: string[] }>(`Voici la page d'accueil du site ${host}. Dis ce que vend cette entreprise et à quels types d'entreprises clientes.
+Règles : uniquement ce que dit la page. "mots" = 1 à 3 mots-clés simples qui décrivent l'ACTIVITÉ des entreprises clientes telle qu'elle serait écrite au registre du commerce (ex. "restaurant", "comptable", "immobilier", "boulangerie", "transport", "conseil"), au singulier, sans article. Si elle vend à toutes les entreprises, choisis les 2 activités clientes les plus probables.
+Contenu :
+${text}
+Format : {"nom": "", "offre": "ce qu'elle vend, en une phrase courte", "clients": "à qui, en quelques mots (ex. aux restaurants et bars)", "mots": [""]}`, { fast: true, maxTokens: 300 });
+  const mots = (a.mots ?? []).map((m) => String(m).trim()).filter((m) => cibleWords(m).length).slice(0, 2);
+  if (!mots.length) throw new HttpError(422, "On n'a pas compris à qui tu vends en lisant ton site. Crée ton compte : Bingoo! te posera la question.");
+  const parts = await Promise.all(mots.map((m) => freeSignals({ cible: m }).catch(() => null)));
+  const seen = new Set<string>();
+  // Fusion : 3 visibles et l'aperçu, en alternant les cibles, sans doublon
+  const vis: NonNullable<typeof parts[0]>["visibles"] = [];
+  const ap: NonNullable<typeof parts[0]>["apercu"] = [];
+  for (const p of parts) for (const v of p?.visibles ?? []) if (!seen.has(v.nom)) { seen.add(v.nom); vis.push(v); }
+  for (const p of parts) ap.push(...(p?.apercu ?? []));
+  const total = parts.reduce((s, p) => s + (p?.total ?? 0), 0);
+  const visibles = vis.sort((x, y) => y.date.localeCompare(x.date)).slice(0, 3);
+  return {
+    site: host, nom: String(a.nom || host).slice(0, 80), offre: String(a.offre ?? "").slice(0, 200), clients: String(a.clients ?? "").slice(0, 120),
+    cible: mots.join(", "), dept: "", jours: 45, total,
+    visibles, apercu: [...vis.slice(3), ...ap].slice(0, 7).map((r) => ({ signal: r.signal, ville: r.ville, date: r.date })),
+    caches: Math.max(0, total - visibles.length),
+  };
+}

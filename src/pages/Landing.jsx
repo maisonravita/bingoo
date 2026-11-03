@@ -252,7 +252,7 @@ function RadarDemo() {
 
 /** Recherche gratuite (sans compte, sans IA) : les contrats publics du métier qui se terminent. État partagé entre le titre et le panneau de résultats. */
 function useTry() {
-  const [f, setF] = useState({ cible: "", dept: "" });
+  const [f, setF] = useState({ url: "" });
   const [r, setR] = useState(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -260,7 +260,7 @@ function useTry() {
     e?.preventDefault?.();
     setBusy(true); setErr(""); setR(null);
     document.getElementById("essai")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    try { setR(await call("free-signals", f)); } catch (x) { setErr(x.message); } finally { setBusy(false); }
+    try { setR(await call("free-site", f)); } catch (x) { setErr(x.message); } finally { setBusy(false); }
   };
   return { f, setF, r, err, busy, search };
 }
@@ -282,18 +282,16 @@ function TryIt({ t }) {
       </div>
       <div className="relative grid grid-cols-1 lg:grid-cols-[.85fr_1.15fr] gap-6 lg:gap-10 items-start [&>*]:min-w-0">
         <div>
-          <p className="font-black text-[24px] sm:text-[28px] leading-tight" style={D}>Lance le Radar sur tes clients</p>
-          <p className="text-[14.5px] text-white/65 mt-2">Dis-lui à qui tu vends. Il te montre les entreprises qui viennent de se créer, d'ouvrir un site ou d'être reprises : celles qui choisissent leurs fournisseurs en ce moment. Logiciel, service ou produit, peu importe.</p>
-          <form onSubmit={search} className="mt-5 grid grid-cols-[minmax(0,1fr)_96px] gap-2">
-            <label className="col-span-2 text-[13px] font-semibold text-white/80" htmlFor="tr-cible">Tes clients, ce sont…</label>
-            <input id="tr-cible" value={f.cible} onChange={(e) => setF({ ...f, cible: e.target.value })} placeholder="ex. restaurants, cabinets comptables" className={field} />
-            <label className="sr-only" htmlFor="tr-dept">Département (facultatif)</label>
-            <input id="tr-dept" value={f.dept} onChange={(e) => setF({ ...f, dept: e.target.value })} placeholder="Dép." maxLength={3} className={field} />
-            <button type="submit" disabled={busy} className="col-span-2 rounded-xl bg-accent hover:bg-accent-dark disabled:opacity-60 py-3 font-bold text-[15px] transition">{busy ? "Le Radar lit les annonces officielles…" : "Lancer le Radar"}</button>
+          <p className="font-black text-[24px] sm:text-[28px] leading-tight" style={D}>Lance le Radar sur ton entreprise</p>
+          <p className="text-[14.5px] text-white/65 mt-2">Donne ton site. Bingoo! comprend ce que tu vends et à qui, puis te montre les entreprises qui viennent de se créer ou d'être reprises : celles qui choisissent leurs fournisseurs en ce moment.</p>
+          <form onSubmit={search} className="mt-5 grid gap-2">
+            <label className="text-[13px] font-semibold text-white/80" htmlFor="tr-url">Ton site</label>
+            <div className="flex items-center rounded-xl bg-white/10 border border-white/15 focus-within:border-[#F27834] min-w-0">
+              <span className="pl-3.5 text-white/40 text-[15px] select-none">https://</span>
+              <input id="tr-url" value={f.url} onChange={(e) => setF({ url: e.target.value.replace(/^https?:\/\//i, "") })} placeholder="monentreprise.fr" inputMode="url" autoComplete="url" className="w-full min-w-0 bg-transparent px-1 py-3 text-[15px] placeholder:text-white/40 outline-none" />
+            </div>
+            <button type="submit" disabled={busy || !f.url.trim()} className="rounded-xl bg-accent hover:bg-accent-dark disabled:opacity-60 py-3 font-bold text-[15px] transition">{busy ? "Bingoo! lit ton site et cherche tes clients…" : "Lancer le Radar"}</button>
           </form>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {["Restaurants", "Cabinets comptables", "Agences immobilières", "Logiciel"].map((x) => <button key={x} type="button" onClick={() => setF({ ...f, cible: x })} className="rounded-full border border-white/15 px-3 py-1 text-[12.5px] text-white/70 hover:border-white/40 hover:text-white">{x}</button>)}
-          </div>
           {err && <p className="mt-3 text-[13.5px] text-[#FCA5A5]">{err}</p>}
           <p className="mt-4 text-[13px] text-white/50">Tu vends aux collectivités ? <a href="#/outils/contrats-publics" className="text-[#F6A06B] font-semibold hover:underline">Vois leurs contrats qui se terminent</a>. Un concurrent à espionner ? <a href="#/outils/analyse-concurrent" className="text-[#F6A06B] font-semibold hover:underline">Analyse-le</a>.</p>
         </div>
@@ -304,8 +302,9 @@ function TryIt({ t }) {
             <ul className="space-y-2 opacity-40" aria-hidden>{[0, 1, 2].map((i) => <li key={i} className="rounded-xl border border-dashed border-white/20 px-4 py-4"><div className="h-2.5 w-28 rounded bg-white/25" /><div className="h-3 w-48 rounded bg-white/20 mt-3" /><div className="h-2.5 w-full rounded bg-white/10 mt-3" /></li>)}</ul>
           ) : (
             <div>
-              <p className="text-[15.5px]"><b className="text-[30px] font-black" style={D}>{r.total}</b> entreprise{r.total > 1 ? "s" : ""} « {r.cible} » en moment d'achat{r.dept ? ` dans le ${r.dept}` : " en France"}, ces {r.jours} derniers jours.</p>
-              {!r.total && <p className="text-white/60 text-[13.5px] mt-1">Essaie un mot plus simple (ex. « restaurant ») ou laisse le département vide.</p>}
+              {r.offre && <p className="text-[13.5px] text-white/70 mb-2"><b className="text-white">{r.nom}</b> : {r.offre.replace(/\.$/, "")}{r.clients ? `, ${r.clients.replace(/\.$/, "")}` : ""}.</p>}
+              <p className="text-[15.5px]"><b className="text-[30px] font-black" style={D}>{r.total}</b> client{r.total > 1 ? "s" : ""} potentiel{r.total > 1 ? "s" : ""} en moment d'achat en France, ces {r.jours} derniers jours.</p>
+              {!r.total && <p className="text-white/60 text-[13.5px] mt-1">Rien de neuf ces dernières semaines sur ta cible. Crée ton compte : le Radar suit aussi les changements de dirigeant, les recrutements et les appels d'offres.</p>}
               <ul className="mt-3 space-y-2">
                 {r.visibles.map((c, i) => (
                   <li key={i} className="rounded-xl bg-white/[.07] border border-white/10 px-4 py-3 land-in" style={{ animationDelay: `${i * 140}ms` }}>
@@ -429,7 +428,7 @@ export default function Landing() {
             <p className="hero-in mt-7 text-[18px] sm:text-[21px] leading-relaxed text-ink-soft max-w-2xl mx-auto" style={{ animationDelay: ".15s" }}>Bingoo! est ton équipe commerciale IA. Elle repère les entreprises qui ont une raison d'acheter maintenant, trouve le décideur avec son e-mail, son téléphone et son LinkedIn, et prépare le message.</p>
             <div className="hero-in mt-9 flex flex-col sm:flex-row items-center justify-center gap-3" style={{ animationDelay: ".3s" }}>
               <button onClick={go} className="w-full sm:w-auto rounded-full bg-accent text-white px-8 py-4 text-[17px] font-bold shadow-[0_18px_40px_-18px_rgba(224,83,31,.8)] hover:bg-accent-dark active:scale-[0.98] transition">Commencer gratuitement</button>
-              <a href="#essai" onClick={scrollTo("essai")} className="w-full sm:w-auto rounded-full bg-white border border-[#EFE5DC] px-8 py-4 text-[17px] font-bold hover:border-ink/30 transition">Essayer sur mon marché</a>
+              <a href="#essai" onClick={scrollTo("essai")} className="w-full sm:w-auto rounded-full bg-white border border-[#EFE5DC] px-8 py-4 text-[17px] font-bold hover:border-ink/30 transition">Essayer avec mon site</a>
             </div>
             <p className="hero-in mt-3 text-[14px] text-ink-soft" style={{ animationDelay: ".35s" }}>14 jours gratuits, sans carte bancaire.</p>
             <ul className="hero-in mt-7 flex flex-wrap justify-center gap-2.5" style={{ animationDelay: ".45s" }}>
