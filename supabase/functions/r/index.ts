@@ -8,7 +8,8 @@ import { growthReco } from "../_shared/reco.ts";
 
 async function secret(name: string) {
   const { data } = await admin.from("app_secrets").select("value").eq("name", name).single();
-  return data?.value ?? "";
+  // Fermé par défaut : sans secret configuré, aucune requête ne passe (jamais "" === "")
+  return String(data?.value ?? "") || `absent-${crypto.randomUUID()}`;
 }
 const cron = async (req: Request) => { if ((req.headers.get("x-cron-key") ?? "") !== await secret("cron_key")) throw new HttpError(401, "Clé invalide"); };
 

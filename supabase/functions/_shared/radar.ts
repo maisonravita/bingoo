@@ -3,7 +3,7 @@
 // - Croissance / recrutements : recherche web sourcée (une URL par signal) + signaux du registre déjà connus.
 // Rien n'est inventé : chaque opportunité a une source vérifiable.
 import { HttpError } from "./http.ts";
-import { admin, aiRoom, askJson, log, setAi, type Workspace } from "./core.ts";
+import { admin, aiRoom, askJson, log, planOk, setAi, type Workspace } from "./core.ts";
 import { estimateValues } from "./radar-extra.ts";
 import { anniversaries, bizType, championSignals, intentSignals, jobsScan, obligationSignals, trialSignals, visitorSignals, webScan } from "./radar-saas.ts";
 import { findTwins, ftOffers, ftReady, lbbCompanies, pickTop3, radarPress, siteWatch, whoToCall, zoneEvents } from "./radar-plus.ts";
@@ -346,7 +346,11 @@ export async function radarToProspect(ws: Workspace, id: string) {
 export async function radarCron() {
   // Quelques espaces par passage (le plus anciennement analysé d'abord) pour rester dans le temps d'exécution
   const since = new Date(Date.now() - 20 * 36e5).toISOString();
-  const { data } = await admin.from("workspaces").select("*").eq("onboarded", true).or(`radar_at.is.null,radar_at.lt.${since}`).order("radar_at", { ascending: true, nullsFirst: true }).limit(3);
+  let { data } = await admin.from("workspaces").select("*").eq("onboarded", true).or(`radar_at.is.null,radar_at.lt.${since}`).order("radar_at", { ascending: true, nullsFirst: true }).limit(30);
+  // Espaces à jour seulement (essai en cours ou abonnement réglé) ; les autres sont repoussés pour ne pas bloquer la file
+  const stale = (data ?? []).filter((w) => !planOk(w));
+  if (stale.length) await admin.from("workspaces").update({ radar_at: new Date().toISOString() }).in("id", stale.map((w) => w.id));
+  data = (data ?? []).filter((w) => planOk(w)).slice(0, 3);
   let n = 0;
   const t0 = Date.now();
   for (const ws of data ?? []) {

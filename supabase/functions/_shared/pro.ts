@@ -47,11 +47,24 @@ async function rivalReplyBrief(wsId: string, text: string) {
 
 export async function handleReply(ws: Workspace, p: Prospect | null, input: { fromEmail: string; fromName?: string; subject?: string; text: string }, base = "") {
   const text = stripQuoted(input.text);
+  // Même e-mail reçu deux fois (adresse de réponse Bingoo et boîte du client) : traité une seule fois
+  const norm = text.toLowerCase().replace(/\s+/g, " ").trim().slice(0, 400);
+  const dk = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${input.fromEmail.trim().toLowerCase()}|${norm}`)))).map((x) => x.toString(16).padStart(2, "0")).join("").slice(0, 40);
+  {
+    const { data: dup } = await admin.from("replies").select("id, class, summary, needs_human").eq("workspace_id", ws.id).eq("dedupe_key", dk).maybeSingle();
+    if (dup) return { id: dup.id, classe: dup.class, label: CLASSES[dup.class] ?? dup.class, needs_human: dup.needs_human, summary: dup.summary, duplicate: true };
+  }
   type V = { classe: string; resume: string; besoin_humain: boolean; nouveau_contact?: string; rappel_date?: string };
   // Opposition explicite : traitée sans IA, immédiatement et sans risque d'erreur
   const optOut = OPT_OUT;
-  const v: V = optOut.test(text.slice(0, 80)) || optOut.test(String(input.subject ?? "").replace(/^(re|tr|fwd?)\s*:\s*/i, ""))
+  // Plafond anti-abus : au-delà de 5 messages du même expéditeur dans la journée, classement sans IA (à traiter à la main)
+  const day0 = new Date(); day0.setUTCHours(0, 0, 0, 0);
+  const { count: today } = await admin.from("replies").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).ilike("from_email", input.fromEmail.replace(/[%_\\]/g, "\\$&")).gte("created_at", day0.toISOString());
+  const flood = (today ?? 0) >= 5;
+  const isStop = optOut.test(text.slice(0, 80)) || optOut.test(String(input.subject ?? "").replace(/^(re|tr|fwd?)\s*:\s*/i, ""));
+  const v: V = isStop
     ? { classe: "stop", resume: "Demande à ne plus être contacté", besoin_humain: false }
+    : flood ? { classe: "autre", resume: "Nombreux messages du même expéditeur aujourd'hui : à lire toi-même", besoin_humain: true }
     : await askJson<V>(`Classe la réponse d'un prospect à un e-mail de prospection de ${brand(ws)} (${ws.profile?.offre ?? ""}).
 Classes : ${Object.keys(CLASSES).join(", ")}.
 - interesse : accepte un échange ou veut en savoir plus ; question : question précise ; prix : demande un tarif ou un devis ; rappel : demande à être appelé ;
@@ -70,7 +83,7 @@ Format : {"classe": "", "resume": "une phrase", "besoin_humain": true, "nouveau_
   const needsHuman = !!v.besoin_humain || ["prix", "autre", "mauvais_contact", "objection", "rappel"].includes(classe);
 
   let reply = { subject: "", body: "" };
-  if (p && ["interesse", "question", "prix", "rappel", "objection", "mauvais_contact"].includes(classe)) {
+  if (p && !flood && ["interesse", "question", "prix", "rappel", "objection", "mauvais_contact"].includes(classe)) {
     const slots = pickThree(await freeSlots(ws, 10)).map(frSlot);
     const link = bookingUrl(ws, base, p.public_token);
     const out = await ask(`Un prospect (${p.name}, ${p.activity}) a répondu à notre e-mail. Rédige la réponse.
@@ -93,7 +106,7 @@ OBJET: Re : ${(input.subject ?? "").replace(/^(re|tr|fwd?)\s*:\s*/i, "")}
   const { data: row } = await admin.from("replies").insert({
     workspace_id: ws.id, prospect_id: p?.id ?? null, from_email: input.fromEmail, from_name: input.fromName ?? "",
     subject: input.subject ?? "", body: text, class: classe, summary: v.resume ?? "", needs_human: needsHuman,
-    reply_subject: reply.subject, reply_body: reply.body, handled: ["absence", "stop"].includes(classe),
+    reply_subject: reply.subject, reply_body: reply.body, handled: ["absence", "stop"].includes(classe), dedupe_key: dk,
   }).select("id").single();
 
   if (p) {
@@ -104,12 +117,17 @@ OBJET: Re : ${(input.subject ?? "").replace(/^(re|tr|fwd?)\s*:\s*/i, "")}
     }
     if (classe === "pas_interesse") { patch.status = "refus"; patch.next_action_at = addDays(120); patch.next_action = "Reprendre contact (refus il y a 4 mois)"; }
     if (classe === "stop") { patch.status = "refus"; patch.next_action_at = null; patch.next_action = ""; patch.notes = `${p.notes ? p.notes + "\n" : ""}Opposition à toute sollicitation le ${new Date().toLocaleDateString("fr-FR")}`; }
-    // Opposition : liste d'exclusion globale (plus aucun envoi Bingoo vers cette adresse, quel que soit le client)
-    if (classe === "stop") { const e = (p.email || input.fromEmail || "").trim().toLowerCase(); if (e) await admin.from("suppressions").upsert({ email: e, source: "reponse STOP" }, { onConflict: "email", ignoreDuplicates: true }); }
     if (classe === "plus_tard") { patch.next_action_at = /^\d{4}-\d{2}-\d{2}$/.test(v.rappel_date ?? "") && String(v.rappel_date) > addDays(0) ? v.rappel_date : addDays(30); patch.next_action = "Relancer (a répondu « plus tard »)"; }
     if (["interesse", "question", "prix", "rappel", "objection"].includes(classe)) { patch.next_action_at = addDays(0); patch.next_action = classe === "rappel" ? "Rappeler le prospect" : "Répondre au message reçu"; }
     if (classe === "mauvais_contact" && v.nouveau_contact) patch.notes = `${p.notes ? p.notes + "\n" : ""}Contact indiqué : ${v.nouveau_contact}`;
     if (Object.keys(patch).length) await admin.from("prospects").update(patch).eq("id", p.id);
+  }
+  // Opposition : liste d'exclusion globale et prospects passés en refus dans tous les espaces (même sans prospect reconnu)
+  if (classe === "stop") {
+    for (const e of new Set([p?.email, input.fromEmail].map((x) => String(x ?? "").trim().toLowerCase()).filter((x) => x.includes("@")))) {
+      const { error } = await admin.rpc("opt_out", { p_email: e });
+      if (error) await admin.from("suppressions").upsert({ email: e, source: "reponse STOP" }, { onConflict: "email", ignoreDuplicates: true });
+    }
   }
   await log(ws.id, "reponse", `${p?.name ?? input.fromEmail} : ${CLASSES[classe]}`);
   return { id: row?.id, classe, label: CLASSES[classe], needs_human: needsHuman, summary: v.resume };
@@ -156,6 +174,7 @@ export async function inbound(body: Record<string, unknown>) {
   if (!text.trim()) text = String(d.subject ?? "");
   if (!text.trim()) return { skipped: "vide" };
   const res = await handleReply(ws as Workspace, p as Prospect, { fromEmail, fromName, subject: String(d.subject ?? ""), text }, baseOf(ws as Workspace));
+  if ((res as { duplicate?: boolean }).duplicate) return res;
   // Copie dans la boîte de l'utilisateur, pour qu'il ne rate rien
   try {
     const to = ["interesse", "question", "prix", "rappel"].includes(res.classe) ? "" : await teamAddress(ws as Workspace); // réponses positives : l'alerte « prospect chaud » s'en charge
@@ -232,7 +251,8 @@ export async function book(slug: string, b: Record<string, string>) {
 
   let prospect = p;
   if (!prospect) {
-    const { data } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).ilike("email", email).limit(1);
+    // Correspondance exacte (les caractères % et _ ne servent plus de jokers)
+    const { data } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).ilike("email", email.replace(/[%_\\]/g, "\\$&")).limit(1);
     prospect = (data?.[0] as Prospect) ?? null;
   }
   if (!prospect) {

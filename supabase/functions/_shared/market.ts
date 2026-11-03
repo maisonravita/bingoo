@@ -1,7 +1,7 @@
 // Radar, étape 2 : le marché public de ton secteur, dans ta zone.
 // Source : données essentielles de la commande publique (DECP, data.economie.gouv.fr) — contrats attribués, titulaire, montant, durée.
 // Sert au calendrier des renouvellements, aux fiches acheteurs, aux clients de tes concurrents et aux prix gagnants.
-import { admin, askJson, log, type Workspace } from "./core.ts";
+import { admin, askJson, log, planOk, type Workspace } from "./core.ts";
 import { lookup, norm } from "./radar-signals.ts";
 
 const DECP = "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/decp-v3-marches-valides/records";
@@ -89,8 +89,10 @@ export async function marketNames(wsId: string, max = 120) {
 /** Tâche planifiée : un espace par passage (le plus ancien), puis les noms manquants. */
 export async function marketCron() {
   const week = new Date(Date.now() - 7 * 864e5).toISOString();
-  const { data } = await admin.from("workspaces").select("*").eq("onboarded", true).or(`market_at.is.null,market_at.lt.${week}`).order("market_at", { ascending: true, nullsFirst: true }).limit(1);
-  const ws = data?.[0];
+  const { data } = await admin.from("workspaces").select("*").eq("onboarded", true).or(`market_at.is.null,market_at.lt.${week}`).order("market_at", { ascending: true, nullsFirst: true }).limit(20);
+  const stale = (data ?? []).filter((w) => !planOk(w));
+  if (stale.length) await admin.from("workspaces").update({ market_at: new Date().toISOString() }).in("id", stale.map((w) => w.id));
+  const ws = (data ?? []).find((w) => planOk(w));
   if (!ws) {
     // Rien à recharger : on complète les noms d'un espace qui en manque
     const { data: one } = await admin.from("public_contracts").select("workspace_id").eq("relevant", true).is("holder_name", null).not("holder_id", "is", null).limit(1);

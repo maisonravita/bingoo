@@ -2,7 +2,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
 // essential : traitement des réponses de prospects, jamais bloqué par un budget
-export type AiCtx = { ws?: string | null; feature?: string; essential?: boolean };
+// live : demande faite par un utilisateur connecté (prioritaire sur les tâches de fond quand le plafond approche)
+export type AiCtx = { ws?: string | null; feature?: string; essential?: boolean; live?: boolean };
 export const aiCtx = new AsyncLocalStorage<AiCtx>();
 
 /** Précise l'espace (ou la fonction) pour la suite de la requête. Les boucles des tâches planifiées l'appellent à chaque espace. */

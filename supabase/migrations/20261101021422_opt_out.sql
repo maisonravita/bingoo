@@ -5,10 +5,10 @@ alter table public.suppressions enable row level security;
 create or replace function public.opt_out(p_email text) returns boolean language plpgsql security definer set search_path to 'public' as $$
 declare e text := lower(trim(p_email));
 begin
-  if e !~ '^[^@\\s]+@[^@\\s]+\\.[a-z]{2,}$' or length(e) > 200 then raise exception 'Adresse e-mail invalide'; end if;
+  if e !~ '^[^@\s]+@[^@\s]+\.[a-z]{2,}$' or length(e) > 200 then raise exception 'Adresse e-mail invalide'; end if;
   insert into suppressions(email) values (e) on conflict do nothing;
   update prospects set status = 'refus', next_action_at = null, next_action = '',
-    notes = coalesce(nullif(notes,'') || E'\\n', '') || 'Opposition à toute sollicitation (formulaire public) le ' || to_char(now(), 'DD/MM/YYYY')
+    notes = coalesce(nullif(notes,'') || E'\n', '') || 'Opposition à toute sollicitation (formulaire public) le ' || to_char(now(), 'DD/MM/YYYY')
   where lower(email) = e and status <> 'refus';
   update messages set status = 'ignore', error = 'Opposition du destinataire'
   where status = 'brouillon' and prospect_id in (select id from prospects where lower(email) = e);

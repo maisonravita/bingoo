@@ -1,6 +1,6 @@
 // Mission pilotée : étapes lancées depuis l'écran Mission et tâche planifiée (jours ouvrés).
 import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
-import { admin, env, log, quota, requireMember, setAi, type Prospect, type Target } from "../_shared/core.ts";
+import { admin, env, log, planOk, quota, requireMember, setAi, type Prospect, type Target } from "../_shared/core.ts";
 import { draft, enrich, followups, mxOk, reconcileStuck, sendOne } from "../_shared/agents.ts";
 import { canSend } from "../_shared/mail.ts";
 import { warmup } from "../_shared/growth.ts";
@@ -13,7 +13,8 @@ import { missionPilotCron, missionStep, type Mission } from "../_shared/mission.
 
 async function secret(name: string) {
   const { data } = await admin.from("app_secrets").select("value").eq("name", name).single();
-  return data?.value ?? "";
+  // Fermé par défaut : sans secret configuré, aucune requête ne passe (jamais "" === "")
+  return String(data?.value ?? "") || `absent-${crypto.randomUUID()}`;
 }
 
 const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promise<unknown>> = {
@@ -113,13 +114,13 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
     if ((req.headers.get("x-cron-key") ?? "") !== (await secret("cron_key"))) throw new HttpError(401, "Clé invalide");
     const out: Record<string, unknown> = { envois_interrompus: await reconcileStuck() };
     const { data: list } = await admin.from("workspaces").select("*").eq("autonomy", "auto").eq("onboarded", true);
-    for (const ws of list ?? []) {
+    for (const ws of (list ?? []).filter((w) => planOk(w))) {
       setAi({ ws: ws.id });
       try { out[ws.id] = await autopilot(ws, ""); } catch (e) { out[ws.id] = { error: (e as Error).message }; }
     }
     // Mode « à valider » : les relances J+5 / J+12 sont préparées aussi, en brouillon (elles ne partent qu'après validation)
     const { data: manual } = await admin.from("workspaces").select("*").neq("autonomy", "auto").eq("onboarded", true);
-    for (const ws of manual ?? []) {
+    for (const ws of (manual ?? []).filter((w) => planOk(w))) {
       setAi({ ws: ws.id });
       try { const r = await followups(ws); if (r.created) out[`relances_${ws.id}`] = r.created; } catch (e) { out[`relances_${ws.id}`] = { error: (e as Error).message }; }
     }

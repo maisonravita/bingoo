@@ -82,7 +82,7 @@ export default function Settings() {
       <Section title="Pilote automatique" sub="Choisis jusqu'où la machine agit seule.">
         <div className="grid sm:grid-cols-2 gap-3">
           {[["valider", "Je valide chaque envoi", "La machine trouve, enquête et rédige. Tu valides chaque message d'un geste."], ["auto", "Pilote automatique", "Chaque jour ouvré de 8 h à 18 h, la machine enquête, rédige et envoie seule, dans ta limite quotidienne. Les relances ne partent seules que si le suivi des réponses est actif."]].map(([k, t, d]) => (
-            <button key={k} onClick={() => save({ autonomy: k }, k === "auto" ? "Pilote automatique activé" : "Validation manuelle")} className={cx("text-left rounded-2xl border p-4 transition", ws.autonomy === k ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink-faint")}>
+            <button key={k} onClick={async () => { setBusy("save"); try { await fn("autonomy", { workspace_id: ws.id, mode: k }); await patch({}); toast(k === "auto" ? "Pilote automatique activé" : "Validation manuelle", "good"); } catch (e) { toast(e.message, "bad"); } finally { setBusy(null); } }} className={cx("text-left rounded-2xl border p-4 transition", ws.autonomy === k ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink-faint")}>
               <p className="font-semibold">{t}</p><p className={cx("text-sm mt-1", ws.autonomy === k ? "text-white/70" : "text-ink-soft")}>{d}</p>
             </button>
           ))}

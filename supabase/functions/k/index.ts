@@ -1,11 +1,11 @@
 // Point d'entrée unique : https://<ref>.supabase.co/functions/v1/k/<action>
 import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
-import { admin, log, PACKS, quota, requireMember, setAi, type Prospect, type Target } from "../_shared/core.ts";
+import { admin, log, PACKS, planOk, quota, requireMember, setAi, type Prospect, type Target } from "../_shared/core.ts";
 import { analyze, normalizeUrl, readSite } from "../_shared/analyze.ts";
 import { countTarget, searchTarget } from "../_shared/search.ts";
 import { canSend } from "../_shared/mail.ts";
 import { checkDomain, draft, enrich, followups, linkedin, sendOne, setDomain } from "../_shared/agents.ts";
-import { autopilot, baseOf, book, bookingInfo, brief, callScript, checkCompetitor, suggestCompetitors, socialAudit, checkReplyDomain, handleReply, inbound, insight, publicQuote, quoteTotals, sendQuote, sendReply, setReplyDomain, signQuote } from "../_shared/pro.ts";
+import { autopilot, baseOf, book, bookingInfo, brief, callScript, checkCompetitor, suggestCompetitors, socialAudit, checkReplyDomain, handleReply, insight, publicQuote, quoteTotals, sendQuote, sendReply, setReplyDomain, signQuote } from "../_shared/pro.ts";
 import { freeSlots } from "../_shared/time.ts";
 import { assertKind, credits, deepEnrich, dropcontactPending, letter } from "../_shared/deep.ts";
 import { analyzeCampaign, competitorAds, createCampaign, suggestVariants } from "../_shared/campaigns.ts";
@@ -18,7 +18,8 @@ const LIMITS = { analyse: 6, recherche: 60, enquete: 40, redaction: 80, linkedin
 
 async function secret(name: string) {
   const { data } = await admin.from("app_secrets").select("value").eq("name", name).single();
-  return data?.value ?? "";
+  // Fermé par défaut : sans secret configuré, aucune requête ne passe (jamais "" === "")
+  return String(data?.value ?? "") || `absent-${crypto.randomUUID()}`;
 }
 const prospectOf = async (wsId: string, id: unknown) => {
   const { data } = await admin.from("prospects").select("*").eq("id", String(id)).eq("workspace_id", wsId).single();
@@ -123,8 +124,12 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
     const { data: m } = await admin.from("messages").select("id, prospect_id, status").eq("id", String(b.message_id)).eq("workspace_id", ws.id).single();
     if (!m || m.status !== "brouillon") throw new HttpError(400, "Brouillon introuvable");
     const { data: p } = await admin.from("prospects").select("*").eq("id", m.prospect_id).single();
+    // L'ancien brouillon est mis de côté, et rétabli si la réécriture échoue (rien n'est perdu)
+    await admin.from("messages").update({ status: "ignore", error: "Réécriture en cours" }).eq("id", m.id);
+    let r: { id: string };
+    try { r = await draft(ws, p as Prospect); }
+    catch (e) { await admin.from("messages").update({ status: "brouillon", error: "" }).eq("id", m.id); throw e; }
     await admin.from("messages").delete().eq("id", m.id);
-    const r = await draft(ws, p as Prospect);
     await log(ws.id, "redaction", "E-mail réécrit");
     const { data: fresh } = await admin.from("messages").select("*").eq("id", r.id).single();
     return fresh;
@@ -290,28 +295,30 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
       prefill: p ? { name: p.contact_name, email: p.email, company: p.name, phone: p.phone } : null,
     };
   },
-  async "public-book"(_req, b) {
+  async "public-book"(req, b) {
+    // Anti-abus : 3 réservations par visiteur et 25 par espace et par jour (faux rendez-vous, e-mails envoyés au nom du client)
+    const { freeLimit } = await import("../_shared/free-tools.ts");
+    await freeLimit(req, `rdv:${String(b.slug ?? "").slice(0, 60)}`, 3, 25, { visitor: "Tu as déjà réservé plusieurs créneaux aujourd'hui. Réponds à l'e-mail reçu si tu dois changer d'horaire.", total: "Les réservations en ligne sont momentanément fermées pour cet agenda. Réessaie demain ou réponds à l'e-mail reçu." });
     return await book(String(b.slug ?? ""), b as Record<string, string>);
   },
   async "public-quote"(_req, b) {
     return await publicQuote(String(b.token ?? ""));
   },
   async "public-sign"(req, b) {
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
+    const ip = req.headers.get("cf-connecting-ip")?.trim() ?? "";
     return await signQuote(String(b.token ?? ""), String(b.name ?? ""), b.accept !== false, ip);
   },
 
   // ---------------- Webhook des réponses et tâche planifiée (clé secrète)
-  async inbound(req, b) {
-    const key = new URL(req.url).searchParams.get("key") ?? "";
-    if (!key || key !== (await secret("inbound_key"))) throw new HttpError(401, "Clé invalide");
-    return await inbound(b);
+  // Ancien point d'entrée du webhook : remplacé par n/inbound (signature vérifiée)
+  async inbound() {
+    throw new HttpError(410, "Point d'entrée remplacé par n/inbound");
   },
   async autopilot(req) {
     if ((req.headers.get("x-cron-key") ?? "") !== (await secret("cron_key"))) throw new HttpError(401, "Clé invalide");
     const { data: list } = await admin.from("workspaces").select("*").eq("autonomy", "auto").eq("onboarded", true);
     const out: Record<string, unknown> = {};
-    for (const ws of list ?? []) {
+    for (const ws of (list ?? []).filter((w) => planOk(w))) {
       setAi({ ws: ws.id });
       try { out[ws.id] = await autopilot(ws, baseOf(ws)); } catch (e) { out[ws.id] = { error: (e as Error).message }; }
     }
@@ -321,7 +328,7 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
       setAi({ ws: ws.id });
       try {
         const r = await meetingReminders(ws);
-        const d = ws.autonomy === "auto" ? await quoteReminders(ws, baseOf(ws)) : 0;
+        const d = ws.autonomy === "auto" && planOk(ws) ? await quoteReminders(ws, baseOf(ws)) : 0;
         if (r || d) out[`suivi_${ws.id}`] = { rappels: r, devis: d };
       } catch (e) { out[`suivi_${ws.id}`] = { error: (e as Error).message }; }
     }
@@ -340,6 +347,16 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
   async "domain-check"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     return await checkDomain(ws);
+  },
+
+  // Mode d'envoi (validation ou pilote automatique) : réservé au propriétaire et aux administrateurs de l'espace
+  async autonomy(req, b) {
+    const { ws, role } = await requireMember(req, b.workspace_id);
+    if (!["owner", "admin"].includes(role)) throw new HttpError(403, "Seuls le propriétaire et les administrateurs peuvent changer le mode d'envoi");
+    const mode = b.mode === "auto" ? "auto" : "valider";
+    await admin.from("workspaces").update({ autonomy: mode }).eq("id", ws.id);
+    await log(ws.id, "reglage", mode === "auto" ? "Pilote automatique activé" : "Envoi sur validation");
+    return { autonomy: mode };
   },
 
   // 6. Envoyer un message validé

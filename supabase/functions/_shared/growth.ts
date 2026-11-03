@@ -467,13 +467,27 @@ export async function stripeWebhook(req: Request) {
     return { ok: true };
   }
   if (ev.type === "checkout.session.completed") {
-    await admin.from("workspaces").update({ plan: o.metadata?.plan ?? "solo", plan_status: "active", stripe_subscription: String(o.subscription ?? ""), stripe_customer: String(o.customer ?? ""), trial_ends: null }).eq("id", id);
+    // Paiement différé (prélèvement SEPA…) : l'abonnement n'est activé qu'une fois réglé (invoice.paid ou async_payment_succeeded)
+    const paid = o.payment_status === "paid" || o.payment_status === "no_payment_required";
+    const plan = PLANS[String(o.metadata?.plan ?? "")] && !["essai", "fondateur"].includes(String(o.metadata?.plan)) ? String(o.metadata.plan) : "solo";
+    if (!paid) {
+      await admin.from("workspaces").update({ plan, plan_status: "incomplete", stripe_subscription: String(o.subscription ?? ""), stripe_customer: String(o.customer ?? "") }).eq("id", id).neq("plan", "fondateur");
+      await log(id, "abonnement", "Paiement en cours de validation : l'abonnement démarre dès qu'il est confirmé");
+      return { ok: true, pending: true };
+    }
+    await admin.from("workspaces").update({ plan, plan_status: "active", stripe_subscription: String(o.subscription ?? ""), stripe_customer: String(o.customer ?? ""), trial_ends: null }).eq("id", id);
     await log(id, "abonnement", `Abonnement ${PLANS[o.metadata?.plan]?.label ?? ""} activé`);
   } else if (ev.type.startsWith("customer.subscription.")) {
     const status = ev.type === "customer.subscription.deleted" ? "canceled" : String(o.status ?? "active");
     const end = o.current_period_end ?? o.items?.data?.[0]?.current_period_end;
     await admin.from("workspaces").update({ plan_status: status, ...(o.metadata?.plan && status !== "canceled" ? { plan: o.metadata.plan } : {}), stripe_subscription: String(o.id ?? ""), period_end: end ? new Date(end * 1000).toISOString() : null }).eq("id", id);
     if (status === "canceled") await log(id, "abonnement", "Abonnement arrêté");
+  } else if (ev.type === "checkout.session.async_payment_succeeded") {
+    await admin.from("workspaces").update({ plan_status: "active", trial_ends: null }).eq("id", id).neq("plan", "fondateur");
+    await log(id, "abonnement", "Paiement confirmé : abonnement activé");
+  } else if (ev.type === "checkout.session.async_payment_failed") {
+    await admin.from("workspaces").update({ plan_status: "incomplete_expired" }).eq("id", id).neq("plan", "fondateur");
+    await log(id, "abonnement", "Le paiement n'a pas abouti : choisis à nouveau ta formule");
   } else if (ev.type === "invoice.payment_failed" && o.subscription) {
     await admin.from("workspaces").update({ plan_status: "past_due" }).eq("id", id);
     await log(id, "abonnement", "Paiement refusé : carte à mettre à jour");

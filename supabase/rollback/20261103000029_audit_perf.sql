@@ -1,0 +1,22 @@
+-- Retour : supprime les index ajoutés (les politiques réécrites sont équivalentes et peuvent rester)
+drop index if exists public.calls_created_by_fk;
+drop index if exists public.calls_prospect_id_fk;
+drop index if exists public.company_scan_prospect_id_fk;
+drop index if exists public.company_scan_watch_id_fk;
+drop index if exists public.competitor_emails_competitor_id_fk;
+drop index if exists public.competitors_workspace_id_fk;
+drop index if exists public.feedback_user_id_fk;
+drop index if exists public.feedback_workspace_id_fk;
+drop index if exists public.invites_created_by_fk;
+drop index if exists public.invites_used_by_fk;
+drop index if exists public.invites_workspace_id_fk;
+drop index if exists public.meetings_prospect_id_fk;
+drop index if exists public.prospects_campaign_id_fk;
+drop index if exists public.prospects_owner_id_fk;
+drop index if exists public.quotes_prospect_id_fk;
+drop index if exists public.radar_opps_assigned_to_fk;
+drop index if exists public.radar_opps_prospect_id_fk;
+drop index if exists public.radar_partners_prospect_id_fk;
+drop index if exists public.replies_prospect_id_fk;
+drop index if exists public.usage_user_id_fk;
+drop index if exists public.workspaces_created_by_fk;

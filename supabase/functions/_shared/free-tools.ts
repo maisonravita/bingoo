@@ -14,17 +14,16 @@ async function sha(s: string) {
 }
 
 /** Limite d'usage : par visiteur (empreinte de l'adresse IP, salée et changée chaque jour) et au total sur la plateforme. */
-export async function freeLimit(req: Request, tool: string, perVisitor: number, perDay: number) {
+export async function freeLimit(req: Request, tool: string, perVisitor: number, perDay: number, msgs?: { visitor?: string; total?: string }) {
   const day = new Date().toISOString().slice(0, 10);
-  const ip = (req.headers.get("cf-connecting-ip") ?? req.headers.get("x-real-ip") ?? (req.headers.get("x-forwarded-for") ?? "").split(",")[0]).trim() || "inconnu";
+  const ip = (req.headers.get("cf-connecting-ip") ?? "").trim() || "inconnu"; // posé par Cloudflare, non falsifiable
   const salt = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.slice(-16) ?? "bingoo";
   const who = (await sha(`${salt}:${day}:${ip}`)).slice(0, 32);
   const keys = [`${tool}:${who}`, `${tool}:total`];
-  const { data } = await admin.from("free_hits").select("key, n").eq("day", day).in("key", keys);
-  const n = new Map(((data ?? []) as { key: string; n: number }[]).map((r) => [r.key, r.n]));
-  if ((n.get(keys[0]) ?? 0) >= perVisitor) throw new HttpError(429, "Tu as utilisé tes analyses gratuites du jour. Crée ton compte Bingoo! pour continuer sans limite.");
-  if ((n.get(keys[1]) ?? 0) >= perDay) throw new HttpError(429, "L'outil gratuit est très demandé aujourd'hui. Crée ton compte Bingoo! pour y accéder tout de suite.");
-  await admin.from("free_hits").upsert([{ key: keys[0], day, n: (n.get(keys[0]) ?? 0) + 1 }, { key: keys[1], day, n: (n.get(keys[1]) ?? 0) + 1 }], { onConflict: "key,day" });
+  // Compteurs atomiques : incrémentés d'abord, comparés ensuite (des requêtes simultanées ne passent plus toutes)
+  const [mine, all] = await Promise.all(keys.map(async (k) => Number((await admin.rpc("hit", { p_key: k, p_day: day })).data ?? 0)));
+  if (mine > perVisitor) throw new HttpError(429, msgs?.visitor ?? "Tu as utilisé tes analyses gratuites du jour. Crée ton compte Bingoo! pour continuer sans limite.");
+  if (all > perDay) throw new HttpError(429, msgs?.total ?? "L'outil gratuit est très demandé aujourd'hui. Crée ton compte Bingoo! pour y accéder tout de suite.");
 }
 
 const addMonths = (d: string, m: number) => { const x = new Date(d); x.setMonth(x.getMonth() + m); return x; };
