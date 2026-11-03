@@ -133,7 +133,11 @@ export function AgentCard({ a, d, ws }) {
   const metric = a.metric(d) ?? (last ? last.summary : null);
   return (
     <Link to={a.to} className="group bg-white rounded-2xl border border-line p-3.5 pr-4 flex gap-3.5 hover:border-ink/25 hover:shadow-sm transition" title={last ? `Dernière action : ${last.summary}` : undefined}>
-      <Avatar id={a.id} working={working} />
+      <div className="relative shrink-0 transition-transform duration-300 group-hover:-translate-y-0.5">
+        <Avatar id={a.id} working={working} />
+        {/* Bulle « en train d'écrire » quand le salarié travaille */}
+        {working && <span className="pop absolute -top-1 right-0 rounded-full bg-white border border-line shadow-sm px-2 py-1 inline-flex gap-0.5">{[0, 1, 2].map((k) => <span key={k} className="w-1 h-1 rounded-full bg-accent typing-dot" style={{ animationDelay: `${k * 0.15}s` }} />)}</span>}
+      </div>
       <div className="min-w-0 flex-1 pt-2">
         <p className="text-[19px] font-bold leading-tight">{a.first}</p>
         <p className="text-[14.5px] text-ink-soft mt-0.5">{a.role}</p>
