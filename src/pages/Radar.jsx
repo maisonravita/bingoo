@@ -76,7 +76,7 @@ const daysTo = (d) => Math.ceil((new Date(d).getTime() - Date.now()) / 864e5);
 const jitter = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return [((h & 255) / 255) - 0.5, (((h >> 8) & 255) / 255) - 0.5]; };
 
 const SECTIONS = [
-  ["opps", "Opportunités", "Les plus chaudes d'abord"],
+  ["opps", "Toutes les opportunités", "Liste complète, par type"],
   ["comptes", "Comptes surveillés", "Tes entreprises rêvées"],
   ["visiteurs", "Visiteurs du site", "Qui te regarde"],
   ["partenaires", "Partenaires", "Apporteurs d'affaires"],
@@ -113,41 +113,6 @@ const APPROACH = {
 };
 const heat = (n) => n >= 80 ? "bg-bad text-white" : n >= 65 ? "bg-accent text-white" : n >= 50 ? "bg-accent-soft text-accent-dark" : "bg-[#EFEEEA] text-ink-soft";
 const Score = ({ n, big }) => n ? <span title="Score : à quel point c'est le bon moment" className={cx("inline-flex items-center justify-center rounded-full font-bold tnum shrink-0 leading-none", big ? "h-12 w-12 text-[17px]" : "h-9 w-9 text-[13px]", heat(n))}>{n}</span> : null;
-
-/** Entreprises chaudes : plusieurs signaux sur la même entreprise, ou un signal très fort. Classées par score, avec la raison. */
-function HotCompanies({ list, onOpen }) {
-  const groups = useMemo(() => {
-    const m = new Map();
-    for (const o of list) { const k = o.group_key || o.id; m.set(k, [...(m.get(k) ?? []), o]); }
-    return [...m.values()].map((g) => ({ g, top: g.slice().sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0] }))
-      .filter(({ g, top }) => new Set(g.map((x) => x.kind)).size > 1 || (top.score ?? 0) >= 75)
-      .sort((a, b) => (b.top.score ?? 0) - (a.top.score ?? 0)).slice(0, 5);
-  }, [list]);
-  if (!groups.length) return null;
-  return (
-    <Card className="p-5 sm:p-6">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2.5 font-bold text-[19px]"><span className="text-bad"><Ico name="flame" className="h-6 w-6" /></span>Entreprises chaudes</h2>
-        <span className="text-[12.5px] text-ink-faint">À contacter en premier</span>
-      </div>
-      <ul className="mt-4 space-y-2.5">
-        {groups.map(({ g, top }) => (
-          <li key={top.id}>
-            <button onClick={() => onOpen(top)} className="w-full text-left rounded-2xl border border-line hover:border-accent/40 bg-white p-3.5 flex items-start gap-3.5">
-              <Score n={top.score} big />
-              <span className="min-w-0 flex-1">
-                <span className="block font-semibold text-[15px] truncate">{top.company || top.title}</span>
-                <span className="mt-1 flex flex-wrap gap-1.5">{[...new Set(g.map((x) => x.kind))].map((k) => <span key={k} className={cx("rounded-full px-2 py-0.5 text-[11.5px] font-semibold", KIND[k]?.chip)}>{KIND[k]?.label}</span>)}</span>
-                <span className="block text-[12.5px] text-ink-soft mt-1.5 line-clamp-2">{(top.score_why ?? []).slice(1).join(" · ") || top.why}</span>
-              </span>
-              {top.expires_at && <span className="hidden sm:block text-[12px] text-ink-faint shrink-0 text-right">avant le<br /><b className="text-ink">{dayFr(top.expires_at)}</b>{top.raw?.valeur ? <><br /><b className="text-ink">≈ {euroK(top.raw.valeur)}/an</b></> : null}</span>}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </Card>
-  );
-}
 
 function RadarScope({ opps, zone, scanning, selected, onSelect, round = false, byHeat = false }) {
   const center = centerOf(zone);
@@ -1318,10 +1283,9 @@ export default function Radar() {
       {section === "opps" && (
       <div className="grid xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] gap-5 items-start">
         <div className="space-y-5 min-w-0">
-        <HotCompanies list={list} onOpen={setOpen} />
         <Card className="p-0 overflow-hidden min-w-0">
           <div className="px-5 pt-5 flex items-center justify-between gap-2">
-            <h2 className="flex items-center gap-2.5 font-bold text-[19px]"><span className="text-accent"><Ico name="users" className="h-6 w-6" /></span>Opportunités détectées</h2>
+            <h2 className="flex items-center gap-2.5 font-bold text-[19px]"><span className="text-accent"><Ico name="users" className="h-6 w-6" /></span>Toutes les opportunités</h2>
             <span className="text-xs font-semibold rounded-full bg-accent-soft text-accent px-2.5 py-0.5">{list.length}</span>
           </div>
           <div className="flex gap-1 overflow-x-auto px-5 py-3 border-b border-line">
