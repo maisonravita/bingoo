@@ -244,6 +244,19 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { oppContacts } = await import("../_shared/opp-contacts.ts");
     return await oppContacts(ws, String(b.id));
   },
+  // Test plateforme : relevé des pubs d'un concurrent
+  async "ads-test"(req, b) {
+    await cron(req);
+    const { data: c } = await admin.from("competitors").select("workspace_id").eq("id", String(b.competitor_id ?? "")).single();
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", c?.workspace_id ?? "").single();
+    if (!ws) throw new HttpError(404, "Concurrent introuvable");
+    setAi({ ws: ws.id, feature: "espion/publicites" });
+    const { competitorAds } = await import("../_shared/campaigns.ts");
+    const r = await competitorAds(ws, String(b.competitor_id));
+    const { rankAds } = await import("../_shared/ads-history.ts");
+    const { data } = await admin.from("competitor_ads").select("*").eq("competitor_id", String(b.competitor_id));
+    return { pubs_relevees: ((r.ads as { pubs?: unknown[] }).pubs ?? []).length, historique: rankAds((data ?? []) as never[]).map((a) => ({ body: a.body.slice(0, 90), platform: a.platform, days: a.days, versions: a.versions, works: a.works, active: a.active })) };
+  },
   async "spy-cron"(req) { await cron(req); return await spyCron(); },
   async "spy-digest"(req) { await cron(req); return await spyDigest(); },
   async "spy-needs"(req, b) {
