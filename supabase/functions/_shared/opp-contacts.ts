@@ -27,10 +27,13 @@ async function publicBuyerContact(buyer: string) {
   if (!words.length) return null;
   const u = new URL("https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records");
   u.searchParams.set("where", words.map((w) => `search(nomacheteur, "${w}")`).join(" and "));
-  u.searchParams.set("order_by", "dateparution desc"); u.searchParams.set("limit", "5"); u.searchParams.set("select", "idweb,nomacheteur,dateparution");
+  u.searchParams.set("order_by", "dateparution desc"); u.searchParams.set("limit", "10"); u.searchParams.set("select", "idweb,nomacheteur,dateparution");
   const d = await fetch(u, { signal: AbortSignal.timeout(15000) }).then((r) => r.ok ? r.json() : null).catch(() => null);
   const { boampAvis } = await import("./radar-plus.ts");
-  for (const r of ((d?.results ?? []) as { idweb: string; nomacheteur: string; dateparution: string }[])) {
+  // Même type d'acheteur : une commune n'est pas sa communauté d'agglomération (services achats différents)
+  const kindOf = (n: string) => { const x = n.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); return /communaute|agglomeration|metropole|intercommunal/.test(x) ? "epci" : /\b(commune|ville|mairie)\b/.test(x) ? "commune" : /departement|departemental/.test(x) ? "dept" : /\bregion/.test(x) ? "region" : ""; };
+  const want = kindOf(buyer);
+  for (const r of ((d?.results ?? []) as { idweb: string; nomacheteur: string; dateparution: string }[]).filter((x) => !want || !kindOf(x.nomacheteur) || kindOf(x.nomacheteur) === want).slice(0, 5)) {
     const a = await boampAvis(r.idweb).catch(() => null);
     const c = a?.contact;
     if (c && (c.email || c.tel)) return { nom: c.nom || "Service de la commande publique", email: (c.email ?? "").toLowerCase(), tel: c.tel ?? "", source: `Avis officiel BOAMP du ${new Date(r.dateparution).toLocaleDateString("fr-FR")}`, url: `https://www.boamp.fr/pages/avis/?q=idweb:${r.idweb}` };
@@ -62,7 +65,7 @@ export async function oppContacts(ws: Workspace, oppId: string) {
     if (c) {
       await admin.from("contacts").upsert({ workspace_id: ws.id, prospect_id: p.id, name: c.nom, role: `Commande publique · ${o.company}`, linkedin_url: "", source: c.url, ...(c.email ? { email: c.email, email_status: "publie", email_source: c.source } : {}) }, { onConflict: "prospect_id,name" });
       if (c.tel && !phone) { phone = c.tel; await admin.from("prospects").update({ phone }).eq("id", p.id); }
-      if (c.email && !p.email) await admin.from("prospects").update({ email: c.email, email_source: c.source, contact_name: c.nom, contact_role: "Commande publique" }).eq("id", p.id);
+      if (c.email && !p.email) await admin.from("prospects").update({ email: c.email, email_source: c.source }).eq("id", p.id);
     }
   }
   // Décideurs par fonction (pages publiques, profils LinkedIn publics) + recherche d'e-mails vérifiés
