@@ -5,6 +5,48 @@ import { useToast } from "../components/ui";
 import { cx } from "../lib/utils";
 import CompanyLogo from "../components/CompanyLogo";
 
+/** Page « Alternative à [concurrent] » : rédigée depuis le dossier, à publier sur le site ; ses lecteurs sont repérés par le Radar. */
+function AltPage({ c, ws, onSaved }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [readers, setReaders] = useState(null);
+  const p = c.alt_page;
+  const rival = (c.name || "").replace(/\s*[—(].*$/, "").trim();
+  useEffect(() => {
+    if (!p?.slug) return;
+    supabase.from("site_events").select("org, created_at").eq("workspace_id", ws.id).ilike("path", `%${p.slug}%`).gte("created_at", new Date(Date.now() - 60 * 864e5).toISOString()).limit(2000)
+      .then(({ data }) => { const m = {}; for (const e of data ?? []) { const k = e.org || "—"; m[k] = m[k] ? { n: m[k].n + 1, at: m[k].at > e.created_at ? m[k].at : e.created_at } : { n: 1, at: e.created_at }; } setReaders({ total: (data ?? []).length, orgs: Object.entries(m).filter(([k]) => k !== "—").sort((a, b) => b[1].n - a[1].n) }); });
+  }, [p?.slug, ws.id]);
+  const make = async (force) => { setBusy(true); try { await fn("r/alt-page", { workspace_id: ws.id, competitor_id: c.id, force }); await onSaved(); toast("Page rédigée : relis-la avant de la publier", "good"); } catch (e) { toast(e.message, "bad"); } finally { setBusy(false); } };
+  const copy = async () => { await navigator.clipboard.writeText(p.html); toast("Code de la page copié", "good"); };
+  const download = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${p.titre}</title><meta name="description" content="${p.meta.replace(/"/g, "&quot;")}"></head><body>${p.html}</body></html>`], { type: "text/html" })); a.download = `${p.slug}.html`; a.click(); };
+  return (
+    <section className="rounded-3xl bg-white border border-line p-6 sm:p-7">
+      <h2 className="font-black text-[22px]" style={NUNITO}>Attire ceux qui cherchent une alternative à {rival}</h2>
+      <p className="text-[14px] text-ink-soft mt-1 max-w-3xl">Quand une entreprise tape « alternative à {rival} » ou « {rival} avis » sur Google, elle tombe sur cette page de ton site. Le Radar te dit ensuite quelle entreprise l'a lue, pour la contacter au bon moment. La page n'utilise que les faits sourcés du dossier et respecte les règles de la publicité comparative.</p>
+      {!p ? (
+        <button onClick={() => make(false)} disabled={busy} className="mt-5 rounded-full bg-accent text-white px-5 py-2.5 font-semibold hover:bg-accent-dark disabled:opacity-60">{busy ? "Rédaction… (environ 1 minute)" : "Rédiger ma page « Alternative à " + rival + " »"}</button>
+      ) : (
+        <div className="mt-5 space-y-4">
+          <div className="grid sm:grid-cols-3 gap-2.5 text-[13px]">
+            <div className="rounded-xl bg-paper/70 border border-line p-3"><p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">Adresse conseillée</p><p className="mt-1 font-mono break-all">/{p.slug}</p></div>
+            <div className="rounded-xl bg-paper/70 border border-line p-3"><p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">Titre Google</p><p className="mt-1">{p.titre}</p></div>
+            <div className="rounded-xl bg-paper/70 border border-line p-3"><p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint">Description Google</p><p className="mt-1">{p.meta}</p></div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={copy} className="rounded-full bg-ink text-white px-4 py-2 text-[14px] font-semibold">Copier le code de la page</button>
+            <button onClick={download} className="rounded-full border border-line px-4 py-2 text-[14px] font-semibold hover:bg-paper">Télécharger la page</button>
+            <button onClick={() => make(true)} disabled={busy} className="rounded-full border border-line px-4 py-2 text-[14px] font-semibold text-ink-soft hover:bg-paper disabled:opacity-60">{busy ? "Rédaction…" : "Réécrire avec le dernier dossier"}</button>
+          </div>
+          <p className="text-[12.5px] text-ink-faint">À publier sur ton site à l'adresse conseillée. Relis-la avant : tu es responsable de ce qui est publié. Le code inclut le suivi des visiteurs.</p>
+          {readers && <div className="rounded-xl bg-paper/70 border border-line p-3 text-[13px]"><p className="font-semibold">{readers.total ? `${readers.total} lecture${readers.total > 1 ? "s" : ""} ces 60 derniers jours` : "Pas encore de lecture repérée (page pas encore publiée, ou visiteurs non identifiables)"}</p>{readers.orgs.map(([o, v]) => <p key={o}>{o} <span className="text-ink-faint">· {v.n} vue{v.n > 1 ? "s" : ""}, le {new Date(v.at).toLocaleDateString("fr-FR")}</span></p>)}</div>}
+          <iframe title="Aperçu" sandbox="" srcDoc={`<!doctype html><meta charset="utf-8"><body style="margin:0;background:#fff">${p.html.replace(/<script[\s\S]*?<\/script>/g, "")}</body>`} className="w-full h-[640px] rounded-2xl border border-line bg-white" />
+        </div>
+      )}
+    </section>
+  );
+}
+
 // Dossier complet d'un concurrent, rempli par l'espionne. Tout est sourcé ; l'inconnu est dit, jamais inventé.
 const ACC = "#E0531F";
 const NUNITO = { fontFamily: "Nunito, Geist, system-ui, sans-serif" };
@@ -217,7 +259,7 @@ function Historique({ c, s }) {
   );
 }
 
-const TABS = [["synthese", "Synthèse"], ["offre", "Offre et prix"], ["clients", "Clients et acquisition"], ["pubs", "Publicités et réseaux"], ["ff", "Forces et faiblesses"], ["battle", "Battlecard"], ["histo", "Historique"]];
+const TABS = [["synthese", "Synthèse"], ["offre", "Offre et prix"], ["clients", "Clients et acquisition"], ["pubs", "Publicités et réseaux"], ["ff", "Forces et faiblesses"], ["battle", "Battlecard"], ["page", "Page « Alternative à »"], ["histo", "Historique"]];
 
 /** Le dossier, en pleine page. */
 export default function CompetitorDossier({ id, onClose, onChanged }) {
@@ -298,6 +340,7 @@ export default function CompetitorDossier({ id, onClose, onChanged }) {
             {tab === "pubs" && <PubsReseaux c={c} s={s} />}
             {tab === "ff" && <ForcesFaiblesses s={s} />}
             {tab === "battle" && <Battle s={s} />}
+            {tab === "page" && <AltPage c={c} ws={ws} onSaved={load} />}
             {tab === "histo" && <Historique c={c} s={s} />}
             <p className="text-[12px] text-ink-faint text-center pb-6">Chaque fait est sourcé ; les hypothèses sont signalées comme telles. Rien n'est inventé.</p>
           </>}

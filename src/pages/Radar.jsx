@@ -23,6 +23,7 @@ const KIND = {
   budget: { label: "Projet voté", plural: "Projets votés", dot: "#7C3AED", chip: "bg-[#EDE9FE] text-[#5B21B6]", icon: "doc" },
   salon: { label: "Salon professionnel", plural: "Salons", dot: "#EA580C", chip: "bg-accent-soft text-accent-dark", icon: "users" },
   client_concurrent: { label: "Cliente d'un concurrent", plural: "Clients de tes concurrents", dot: "#BE123C", chip: "bg-[#FFE4E6] text-[#9F1239]", icon: "target" },
+  visite: { label: "Visite de ton site", plural: "Visites de ton site", dot: "#DC2626", chip: "bg-bad-soft text-bad", icon: "eye" },
   obligation: { label: "Obligation réglementaire", plural: "Obligations réglementaires", dot: "#0F766E", chip: "bg-[#CCFBF1] text-[#115E59]", icon: "shield" },
   abonnement: { label: "Abonnement concurrent à renouveler", plural: "Abonnements concurrents à renouveler", dot: "#C2410C", chip: "bg-[#FFEDD5] text-[#9A3412]", icon: "clock" },
   outil: { label: "Changement d'outils", plural: "Changements d'outils", dot: "#6D28D9", chip: "bg-[#EDE9FE] text-[#5B21B6]", icon: "spark" },
@@ -77,6 +78,7 @@ const jitter = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt
 const SECTIONS = [
   ["opps", "Opportunités", "Les plus chaudes d'abord"],
   ["comptes", "Comptes surveillés", "Tes entreprises rêvées"],
+  ["visiteurs", "Visiteurs du site", "Qui te regarde"],
   ["partenaires", "Partenaires", "Apporteurs d'affaires"],
   ["marche", "Marché public", "Renouvellements, prix, concurrents"],
   ["resultats", "Résultats", "Ce que le Radar t'a rapporté"],
@@ -722,6 +724,49 @@ function Market({ ws }) {
   );
 }
 
+/** Entreprises reconnues parmi les visiteurs du site (registre public des adresses IP ; jamais l'adresse elle-même). */
+function Visitors({ ws }) {
+  const nav = useNavigate();
+  const [d, setD] = useState(null);
+  useEffect(() => {
+    const since = new Date(Date.now() - 30 * 864e5).toISOString();
+    Promise.all([
+      supabase.from("site_events").select("org, path, source, session_id, type, created_at").eq("workspace_id", ws.id).not("org", "is", null).gte("created_at", since).order("created_at", { ascending: false }).limit(5000),
+      supabase.from("site_events").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).gte("created_at", since),
+    ]).then(([{ data }, { count }]) => {
+      const m = {};
+      for (const e of data ?? []) {
+        const x = (m[e.org] ??= { org: e.org, pages: new Set(), sessions: new Set(), sources: new Set(), last: e.created_at, lead: false });
+        x.pages.add(e.path); x.sessions.add(e.session_id); if (e.source) x.sources.add(e.source); if (e.type === "lead") x.lead = true;
+      }
+      const hot = (p) => /(tarif|prix|pricing|price|devis|demo|démo|contact|essai|trial|alternative|comparatif)/i.test(p);
+      setD({ total: count ?? 0, rows: Object.values(m).map((x) => ({ ...x, hot: [...x.pages].filter(hot) })).sort((a, b) => (b.hot.length - a.hot.length) || (b.sessions.size - a.sessions.size)) });
+    });
+  }, [ws.id]);
+  return (
+    <Card className="p-5 sm:p-6">
+      <h2 className="flex items-center gap-2.5 font-bold text-[19px]"><span className="text-accent"><Ico name="eye" className="h-6 w-6" /></span>Entreprises qui visitent ton site</h2>
+      <p className="text-[13px] text-ink-soft mt-1">Quand quelqu'un visite ton site depuis le réseau de son entreprise, le registre public des adresses Internet indique à quelle entreprise elle appartient. On ne garde que le nom de l'entreprise, jamais l'adresse ni la personne. Le télétravail et le mobile ne sont pas reconnaissables : compte environ 1 visite professionnelle sur 10.</p>
+      {!d ? <div className="py-8 grid place-items-center"><Spinner /></div> : !d.total ? (
+        <div className="mt-4 rounded-xl bg-paper px-4 py-3 text-sm">Le suivi n'est pas encore installé sur ton site. <button onClick={() => nav("/distribution")} className="text-accent font-semibold hover:underline">Installer le code (2 minutes)</button></div>
+      ) : !d.rows.length ? <p className="text-sm text-ink-faint text-center py-8">{d.total} visites ces 30 derniers jours, aucune entreprise reconnue pour l'instant.</p> : (
+        <ul className="mt-4 divide-y divide-line">
+          {d.rows.slice(0, 60).map((x) => (
+            <li key={x.org} className="py-3 flex items-start gap-3">
+              <span className={cx("mt-1.5 h-2.5 w-2.5 rounded-full shrink-0", x.hot.length || x.lead ? "bg-bad" : "bg-line")} />
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold text-[14.5px]">{x.org}</span>
+                <span className="block text-[12.5px] text-ink-soft">{x.sessions.size} visite{x.sessions.size > 1 ? "s" : ""} · {x.pages.size} page{x.pages.size > 1 ? "s" : ""}{x.sources.size ? ` · via ${[...x.sources].join(", ")}` : ""} · dernière le {new Date(x.last).toLocaleDateString("fr-FR")}</span>
+                {(x.hot.length > 0 || x.lead) && <span className="block text-[12.5px] font-semibold text-bad">{x.lead ? "A envoyé un formulaire · " : ""}{x.hot.length ? `A regardé : ${x.hot.slice(0, 3).join(", ")}` : ""}</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
 /** Partenaires apporteurs d'affaires : métiers qui servent les mêmes clients, et sociétés d'apport d'affaires de ta zone. */
 function Partners({ ws }) {
   const toast = useToast();
@@ -1189,6 +1234,7 @@ export default function Radar() {
       </div>
       )}
       {section === "comptes" && <div className="max-w-3xl"><Watchlist ws={ws} opps={list} onOpen={setOpen} /></div>}
+      {section === "visiteurs" && <Visitors ws={ws} />}
       {section === "partenaires" && <Partners ws={ws} />}
       {section === "marche" && <Market ws={ws} />}
       {section === "resultats" && <Roi ws={ws} />}
