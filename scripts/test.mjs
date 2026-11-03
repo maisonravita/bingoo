@@ -181,6 +181,12 @@ const rdap = (fn, name, start, end, remarks = "") => ({ name, startAddress: star
 await test("une plage d'adresses d'entreprise donne le nom de l'entreprise", () => {
   assert.equal(T.orgOf(rdap("Onet Services SAS", "FR-ONET", "194.5.10.0", "194.5.10.255")).org, "Onet Services SAS");
 });
+await test("sans titulaire, on prend la description du réseau, jamais un identifiant technique ni un contact", () => {
+  const d = { name: "FR-SAFRAN-NET", startAddress: "217.108.170.0", endAddress: "217.108.170.255", remarks: [{ title: "description", description: ["SAFRAN SA"] }],
+    entities: [{ roles: ["administrative"], handle: "JD123-RIPE", vcardArray: ["vcard", [["fn", {}, "text", "Jean Dupont"]]] }, { roles: ["registrant"], handle: "PC80199-MNT", vcardArray: ["vcard", [["fn", {}, "text", "PC80199-MNT"]]] }] };
+  assert.equal(T.orgOf(d).org, "SAFRAN SA");
+  assert.equal(T.orgOf({ ...d, remarks: [] }).org, "SAFRAN");
+});
 await test("un opérateur, un hébergeur ou une très grande plage sont ignorés", () => {
   assert.equal(T.orgOf(rdap("Orange S.A.", "FR-ORANGE-ADSL", "90.0.0.0", "90.127.255.255")).org, "");
   assert.equal(T.orgOf(rdap("OVH SAS", "OVH", "51.0.0.0", "51.0.0.255")).org, "");
