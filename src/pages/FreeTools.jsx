@@ -24,8 +24,8 @@ function Shell({ children }) {
   return (
     <div className="min-h-full bg-paper">
       <header className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-        <button onClick={() => nav("/outils")} aria-label="Outils gratuits Bingoo!"><Logo height={28} /></button>
-        <Button size="sm" variant="accent" onClick={() => nav("/")}>Créer mon compte</Button>
+        <button onClick={() => nav("/accueil")} aria-label="Accueil Bingoo!"><Logo height={28} /></button>
+        <Button size="sm" variant="accent" onClick={() => nav("/connexion")}>Créer mon compte</Button>
       </header>
       <main className="max-w-5xl mx-auto px-4 sm:px-6 pb-16">{children}</main>
     </div>
@@ -41,7 +41,7 @@ function Locked({ items, label }) {
       <div className="absolute inset-0 grid place-items-center bg-white/40">
         <div className="text-center px-4">
           <p className="font-bold text-[16px]">{label}</p>
-          <Button className="mt-3" variant="accent" onClick={() => nav("/")}>Créer mon compte gratuit</Button>
+          <Button className="mt-3" variant="accent" onClick={() => nav("/connexion")}>Créer mon compte gratuit</Button>
         </div>
       </div>
     </div>
