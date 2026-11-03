@@ -21,7 +21,16 @@ export async function freeLimit(req: Request, tool: string, perVisitor: number, 
   const who = (await sha(`${salt}:${day}:${ip}`)).slice(0, 32);
   const keys = [`${tool}:${who}`, `${tool}:total`];
   // Compteurs atomiques : incrémentés d'abord, comparés ensuite (des requêtes simultanées ne passent plus toutes)
-  const [mine, all] = await Promise.all(keys.map(async (k) => Number((await admin.rpc("hit", { p_key: k, p_day: day })).data ?? 0)));
+  const bump = async (k: string) => {
+    const r = await admin.rpc("hit", { p_key: k, p_day: day });
+    if (!r.error && r.data != null) return Number(r.data);
+    // Repli si la fonction n'est pas joignable : lecture puis écriture (jamais « ouvert par défaut »)
+    const { data } = await admin.from("free_hits").select("n").eq("key", k).eq("day", day).maybeSingle();
+    const n = Number(data?.n ?? 0) + 1;
+    await admin.from("free_hits").upsert({ key: k, day, n }, { onConflict: "key,day" });
+    return n;
+  };
+  const [mine, all] = await Promise.all(keys.map(bump));
   if (mine > perVisitor) throw new HttpError(429, msgs?.visitor ?? "Tu as utilisé tes analyses gratuites du jour. Crée ton compte Bingoo! pour continuer sans limite.");
   if (all > perDay) throw new HttpError(429, msgs?.total ?? "L'outil gratuit est très demandé aujourd'hui. Crée ton compte Bingoo! pour y accéder tout de suite.");
 }
