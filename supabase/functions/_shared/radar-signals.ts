@@ -386,7 +386,7 @@ export async function rescore(ws: Workspace, poids: Record<string, number>) {
     if (r.kind === "besoin" && Number(r.raw?.pertinence) >= 75) { s += 6; why.push("demande très proche de ton offre"); }
     // Qualité propre à chaque signal : ce qui le rend fort ou faible
     const raw = (r.raw ?? {}) as Record<string, unknown>;
-    if (r.kind === "recrutement") { const n = (raw.offres as unknown[] | undefined)?.length ?? 1; if (n >= 2) { s += Math.min(12, 4 * n); why.push(`${n} postes liés à ton offre`); } }
+    if (r.kind === "recrutement") { const n = (raw.offres as unknown[] | undefined)?.length ?? 1; if (n >= 2) { s += Math.min(12, 4 * n); why.push(`${n >= 8 ? "8 postes ou plus" : `${n} postes`} liés à ton offre`); } }
     if (r.kind === "croissance" && raw.total && !raw.offres) { s -= 10; why.push("recrute beaucoup, mais pas sur un poste lié à ton offre"); }
     if (r.kind === "visite") {
       if (raw.formulaire) { s += 20; why.push("a envoyé un formulaire sur ton site"); }
