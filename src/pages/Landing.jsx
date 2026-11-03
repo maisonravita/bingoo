@@ -232,7 +232,12 @@ function RadarDemo() {
               <div className="absolute inset-[17%] rounded-full border border-[#EBDCCF]" />
               <div className="absolute inset-[34%] rounded-full border border-[#EBDCCF]" />
               <div className="absolute inset-0 rounded-full motion-safe:animate-[kspin_4s_linear_infinite]" style={{ background: "conic-gradient(from 0deg, rgba(224,83,31,.28), transparent 22%)" }} />
-              {mode.dots.map(([x, y], i) => <span key={m + i} className="absolute h-3 w-3 -ml-1.5 -mt-1.5 rounded-full bg-accent land-in shadow-[0_0_0_5px_rgba(224,83,31,.15)]" style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${i * 80}ms` }} />)}
+              {mode.dots.map(([x, y], i) => (
+                <span key={m + i} className="absolute h-3 w-3 -ml-1.5 -mt-1.5" style={{ left: `${x}%`, top: `${y}%` }}>
+                  <span className="absolute inset-0 rounded-full bg-accent/50 ring-out" style={{ animationDelay: `${0.6 + i * 0.5}s` }} />
+                  <span className="pop absolute inset-0 rounded-full bg-accent shadow-[0_0_0_5px_rgba(224,83,31,.15)]" style={{ animationDelay: `${i * 0.18}s` }} />
+                </span>
+              ))}
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-1 gap-3">
               <div className="rounded-2xl bg-white border border-line p-4 shadow-[0_10px_24px_-18px_rgba(21,22,26,.4)]"><div className="flex items-start justify-between gap-2"><div className="font-black text-[30px] leading-none tabular-nums" style={D}>+{v ? (m === "signal" ? v.signaux : v.marches).toLocaleString("fr-FR") : "…"}</div><svg viewBox="0 0 24 24" className="h-6 w-6 text-accent" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m3 17 6-6 4 4 8-8M15 7h6v6" /></svg></div><div className="mt-2 text-[13px] text-ink-soft font-semibold">{m === "signal" ? "opportunités détectées" : "marchés publics repérés"}</div></div>
@@ -332,8 +337,20 @@ const FAQ = [
   ["Que se passe-t-il après les 14 jours ?", "Tu choisis une formule, ou ton espace s'arrête simplement. Aucune carte bancaire n'est demandée pour l'essai."],
 ];
 
+/** Apparition des sections au défilement (une seule fois par section). */
+function useReveal() {
+  useEffect(() => {
+    const els = [...document.querySelectorAll(".reveal")];
+    if (!("IntersectionObserver" in window)) { els.forEach((e) => e.classList.add("in")); return; }
+    const io = new IntersectionObserver((entries) => entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); } }), { threshold: 0.15, rootMargin: "0px 0px -40px 0px" });
+    els.forEach((e) => io.observe(e));
+    return () => io.disconnect();
+  }, []);
+}
+
 export default function Landing() {
   const nav = useNavigate();
+  useReveal();
   const [who, setWho] = useState("terrain");
   const [yearly, setYearly] = useState(false);
   const go = () => nav("/connexion");
@@ -369,23 +386,23 @@ export default function Landing() {
           <div aria-hidden className="absolute inset-x-0 top-0 h-[920px] hidden sm:block"><NetBg /></div>
           <HeroBubbles />
           <div className="relative max-w-5xl mx-auto px-4 sm:px-6 pt-14 sm:pt-20 pb-14 text-center">
-            <h1 className="font-black text-[50px] sm:text-[88px] leading-[.95] tracking-[-.03em]" style={D}>Sache qui va acheter.<br />Et <span className="text-accent">quand.</span></h1>
-            <p className="mt-7 text-[18px] sm:text-[21px] leading-relaxed text-ink-soft max-w-2xl mx-auto">Bingoo! est ton équipe commerciale IA. Elle repère les entreprises qui ont une raison d'acheter maintenant, trouve le décideur avec son e-mail, son téléphone et son LinkedIn, et prépare le message.</p>
-            <button onClick={go} className="mt-9 inline-flex items-center gap-3 rounded-full bg-accent text-white px-8 sm:px-11 py-4 sm:py-5 font-bold text-[18px] sm:text-[21px] shadow-[0_22px_44px_-18px_rgba(224,83,31,.85)] hover:bg-accent-dark transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink">Commencer gratuitement<Arrow className="h-5 w-5" /></button>
-            <ul className="mt-7 flex flex-wrap justify-center gap-2.5">
+            <h1 className="hero-in font-black text-[50px] sm:text-[88px] leading-[.95] tracking-[-.03em]" style={D}>Sache qui va acheter.<br />Et <span className="text-accent">quand.</span></h1>
+            <p className="hero-in mt-7 text-[18px] sm:text-[21px] leading-relaxed text-ink-soft max-w-2xl mx-auto" style={{ animationDelay: ".15s" }}>Bingoo! est ton équipe commerciale IA. Elle repère les entreprises qui ont une raison d'acheter maintenant, trouve le décideur avec son e-mail, son téléphone et son LinkedIn, et prépare le message.</p>
+            <button onClick={go} style={{ animationDelay: ".3s" }} className="hero-in mt-9 inline-flex items-center gap-3 rounded-full bg-accent text-white px-8 sm:px-11 py-4 sm:py-5 font-bold text-[18px] sm:text-[21px] shadow-[0_22px_44px_-18px_rgba(224,83,31,.85)] hover:bg-accent-dark transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink">Commencer gratuitement<Arrow className="h-5 w-5" /></button>
+            <ul className="hero-in mt-7 flex flex-wrap justify-center gap-2.5" style={{ animationDelay: ".45s" }}>
               {["15 signaux d'achat", "E-mail, téléphone, LinkedIn", "Sans carte bancaire", "Conforme RGPD"].map((t) => <li key={t} className="rounded-full bg-white border border-[#EFE5DC] px-4 py-2 text-[14.5px] font-medium flex items-center gap-2 shadow-[0_6px_16px_-12px_rgba(21,22,26,.3)]"><Check className="h-4 w-4 text-good" />{t}</li>)}
             </ul>
-            <LivePill />
+            <div className="hero-in" style={{ animationDelay: ".6s" }}><LivePill /></div>
           </div>
         </section>
 
-        <RadarDemo />
+        <div className="reveal"><RadarDemo /></div>
 
-        <ContactShow go={go} />
+        <div className="reveal"><ContactShow go={go} /></div>
 
-        <section id="compteur" className="relative max-w-6xl mx-auto px-4 sm:px-6 pb-14 scroll-mt-24 text-center"><BigCounter /></section>
+        <section id="compteur" className="reveal relative max-w-6xl mx-auto px-4 sm:px-6 pb-14 scroll-mt-24 text-center"><BigCounter /></section>
 
-        <section className="relative max-w-6xl mx-auto px-4 sm:px-6 pb-16"><div id="essai" className="scroll-mt-24"><TryIt /></div></section>
+        <section className="reveal relative max-w-6xl mx-auto px-4 sm:px-6 pb-16"><div id="essai" className="scroll-mt-24"><TryIt /></div></section>
 
         {/* Sources */}
         <section id="donnees" className="border-y border-line bg-white scroll-mt-24">
@@ -405,10 +422,10 @@ export default function Landing() {
           <p className="text-center mt-4 text-[17px] text-ink-soft max-w-2xl mx-auto">Les autres outils t'aident à contacter des prospects. Bingoo! te dit d'abord qui, pourquoi et quand.</p>
           <ol className="mt-14 grid md:grid-cols-4 gap-10 md:gap-6">
             {STEPS.map(([t, d], i) => (
-              <li key={t} className="relative">
+              <li key={t} className="reveal relative" style={{ transitionDelay: `${i * 0.12}s` }}>
                 <div className="flex items-center">
                   <span className="h-14 w-14 rounded-2xl bg-accent text-white grid place-items-center font-black text-[20px] shrink-0" style={D}>{String(i + 1).padStart(2, "0")}</span>
-                  {i < STEPS.length - 1 && <span className="hidden md:block h-[2px] flex-1 bg-accent/40 ml-3" />}
+                  {i < STEPS.length - 1 && <span className="grow-line hidden md:block h-[2px] flex-1 bg-accent/40 ml-3" />}
                 </div>
                 <h3 className="mt-5 font-bold text-[19px]">{t}</h3>
                 <p className="mt-2 text-[15.5px] leading-relaxed text-ink-soft">{d}</p>
@@ -482,7 +499,7 @@ export default function Landing() {
               const best = i === 1;
               const price = yearly ? Math.round(p * 0.8) : p;
               return (
-                <div key={n} className={cx("relative rounded-3xl p-7", best ? "bg-[#16171B] text-white md:pb-10 md:pt-10 shadow-[0_30px_60px_-30px_rgba(21,22,26,.6)]" : i === 0 ? "bg-white border border-line" : "bg-accent-soft/60 border border-accent/20")}>
+                <div key={n} style={{ transitionDelay: `${i * 0.12}s` }} className={cx("reveal relative rounded-3xl p-7", best ? "bg-[#16171B] text-white md:pb-10 md:pt-10 shadow-[0_30px_60px_-30px_rgba(21,22,26,.6)]" : i === 0 ? "bg-white border border-line" : "bg-accent-soft/60 border border-accent/20")}>
                   {best && <span className="absolute -top-3.5 left-7 rounded-full bg-accent text-white text-[12.5px] font-bold px-3 py-1">Recommandé</span>}
                   <p className="font-bold text-[19px]">{n}</p>
                   <p className="mt-4"><span className="font-black text-[52px] leading-none" style={D}>{price} €</span><span className={cx("text-[14px] ml-1.5", best ? "text-white/60" : "text-ink-faint")}>/ mois</span></p>

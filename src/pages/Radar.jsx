@@ -179,6 +179,7 @@ function RadarScope({ opps, zone, scanning, selected, onSelect, round = false, b
               className="absolute -translate-x-1/2 -translate-y-1/2 group"
               style={{ left: `${50 + nx * 46}%`, top: `${50 - ny * 46}%`, animation: `kfade .5s ${Math.min(i * 0.08, 1.6)}s both` }}>
               <span className="block rounded-full" style={{ opacity: far ? 0.55 : 1, width: on ? 14 : 9, height: on ? 14 : 9, background: byHeat ? heatDot(o.score) : k.dot, boxShadow: `0 0 0 3px ${byHeat ? heatDot(o.score) : k.dot}33`, animation: `kping ${SWEEP}s ${(angle / 360) * SWEEP}s infinite` }} />
+              {on && <span className="absolute left-1/2 top-1/2 -ml-[7px] -mt-[7px] h-[14px] w-[14px] rounded-full ring-out pointer-events-none" style={{ background: byHeat ? heatDot(o.score) : k.dot }} />}
               {on && round && <span className="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 items-center gap-2 whitespace-nowrap rounded-lg bg-[#1E1F24] border border-white/10 px-2.5 py-1.5 pointer-events-none z-10"><span className="text-[12px] font-semibold text-white max-w-[170px] truncate">{o.company}</span>{o.score ? <span className="rounded-full px-1.5 py-0.5 text-[10.5px] font-bold text-white" style={{ background: heatDot(o.score) }}>{o.score}</span> : null}</span>}
               {labelled.has(o.id) && (
                 <span className="hidden sm:block absolute left-3.5 top-1/2 -translate-y-1/2 whitespace-nowrap text-left pointer-events-none">
@@ -909,7 +910,7 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
         <Card className="p-5 sm:p-6 min-w-0 flex flex-col">
           {!loaded ? <div className="py-16 grid place-items-center"><Spinner /></div> : !o ? (
             <p className="text-sm text-ink-soft text-center py-16">{mode === "intention" ? "Aucune intention repérée pour l'instant : installe le suivi de ton site et publie ta page « Alternative à » (Espion)." : "Lance une première analyse : le Radar cherche les entreprises qui ont une raison d'acheter maintenant."}</p>
-          ) : (<>
+          ) : (<div key={o.id} className="sheet-in flex flex-col flex-1 min-w-0">
             <div className="flex items-start gap-4">
               <div className="min-w-0 flex-1">
                 <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12.5px] font-bold" style={{ background: `${heatDot(o.score)}1A`, color: heatDot(o.score) }}><Ico name="flame" className="h-4 w-4" />Opportunité {heatLabel(o.score).toLowerCase()}{o.raw?.top_day === today ? " · du jour" : ""}</span>
@@ -944,7 +945,7 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
                 </div>
               </div>
             </div>
-          </>)}
+          </div>)}
         </Card>
       </div>
 
