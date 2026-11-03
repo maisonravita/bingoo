@@ -759,6 +759,56 @@ function Visitors({ ws }) {
   );
 }
 
+/** Qui contacter : les bonnes personnes pour ce signal, avec e-mail (publié ou vérifié), téléphone et profil LinkedIn public. */
+function ContactsBox({ ws, o, onChange }) {
+  const toast = useToast();
+  const [rows, setRows] = useState(null);
+  const [p, setP] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => {
+    if (!o?.prospect_id) { setRows([]); setP(null); return; }
+    const [{ data: c }, { data: pr }] = await Promise.all([
+      supabase.from("contacts").select("id, name, role, email, email_status, linkedin_url, source").eq("prospect_id", o.prospect_id).order("created_at").limit(6),
+      supabase.from("prospects").select("phone, email, website").eq("id", o.prospect_id).single(),
+    ]);
+    setRows(c ?? []); setP(pr ?? null);
+  }, [o?.prospect_id]);
+  useEffect(() => { load(); }, [load, o?.id]);
+  const find = async () => {
+    setBusy(true);
+    try { const r = await fn("r/opp-contacts", { workspace_id: ws.id, id: o.id }); toast(r.contacts?.length ? `${r.contacts.length} contact${r.contacts.length > 1 ? "s" : ""} trouvé${r.contacts.length > 1 ? "s" : ""}${r.launched ? " · e-mails en cours de vérification" : ""}` : "Personne trouvée pour cette fonction : le standard et le dirigeant restent disponibles", r.contacts?.length ? "good" : "default"); await onChange(); }
+    catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
+  };
+  const c0 = o.raw?.contact;
+  const li = (name) => `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(`${name} ${o.company}`)}`;
+  const person = (n) => n && !/^(service|contact de|direction|mairie)/i.test(n);
+  const ST = { verifie: ["vérifié", "text-good"], publie: ["publié", "text-good"], en_cours: ["vérification en cours", "text-ink-faint"], introuvable: ["", ""] };
+  const list = rows?.length ? rows : c0?.nom ? [{ id: "r", name: c0.nom, role: c0.role, email: c0.email, email_status: c0.email ? "publie" : "", linkedin_url: c0.linkedin, source: c0.source }] : [];
+  const phone = p?.phone || c0?.tel;
+  return (
+    <div>
+      <p className="flex items-center gap-2 font-bold text-[14.5px]"><Ico name="user" className="h-5 w-5 text-accent" />Qui contacter ?</p>
+      {rows === null ? <div className="py-3"><Spinner /></div> : (
+        <div className="mt-2 space-y-2.5">
+          {list.slice(0, 3).map((c) => (
+            <div key={c.id} className="text-[13.5px] leading-snug">
+              <p><b>{c.name}</b>{c.role ? <span className="text-ink-soft"> · {c.role}</span> : null}</p>
+              {c.email ? <p><a href={`mailto:${c.email}`} className="text-accent hover:underline break-all">{c.email}</a>{ST[c.email_status]?.[0] ? <span className={cx("text-[11.5px] ml-1.5", ST[c.email_status][1])}>{ST[c.email_status][0]}</span> : null}</p>
+                : c.email_status === "en_cours" ? <p className="text-[12px] text-ink-faint">E-mail : vérification en cours…</p> : null}
+              {person(c.name) && <a href={c.linkedin_url || li(c.name)} target="_blank" rel="noreferrer" className="text-[12.5px] font-semibold text-accent hover:underline">{c.linkedin_url ? "Profil LinkedIn ↗" : "Chercher sur LinkedIn ↗"}</a>}
+            </div>
+          ))}
+          {phone && <p className="text-[13.5px]"><span className="text-ink-soft">Téléphone : </span><a href={`tel:${phone.replace(/\s/g, "")}`} className="font-semibold hover:underline">{phone}</a></p>}
+          {!rows?.length && o.kind !== "appel_offres" && (
+            <button onClick={find} disabled={busy} className="rounded-full border border-accent/40 text-accent-dark px-3.5 py-1.5 text-[12.5px] font-semibold hover:bg-accent-soft disabled:opacity-60">{busy ? "Recherche… (30 s à 1 min)" : list.length ? "Trouver le bon interlocuteur" : "Trouver le contact (e-mail, téléphone, LinkedIn)"}</button>
+          )}
+          {!list.length && !phone && !busy && o.kind === "appel_offres" && <p className="text-[13px] text-ink-soft">Le contact de l'acheteur est dans l'avis officiel (Tous les détails).</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Vue d'accueil du Radar : radar par chaleur, fiche de l'opportunité choisie (pourquoi, maintenant, comment), qui contacter, prochaine action, classement. */
 function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
   const toast = useToast();
@@ -780,7 +830,6 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
   const o = sel?.top;
   const hot = list.filter((x) => (x.score ?? 0) >= 75 && x.status === "nouveau").length;
   const intents = list.filter((x) => INTENT.includes(x.kind) && new Date(x.created_at).getTime() >= weekAgo).length;
-  const c = o?.raw?.contact;
   const prepare = async () => {
     setBusy("prep");
     try { const r = await fn("m/prepare", { workspace_id: ws.id, id: o.id }); toast(r.message ? `${o.company} : contact trouvé et e-mail prêt à valider` : `${o.company} ajouté à tes prospects`, "good"); onChange(); }
@@ -848,12 +897,7 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
               {tab === "approche" && <p>{APPROACH[o.kind] ?? "Présente-toi en partant de ce signal : une phrase sur ce qui se passe chez eux, une sur ce que tu apportes, une question simple."}</p>}
             </div>
             <div className="mt-auto grid sm:grid-cols-2 gap-4 pt-4 border-t border-line">
-              <div>
-                <p className="flex items-center gap-2 font-bold text-[14.5px]"><Ico name="user" className="h-5 w-5 text-accent" />Qui contacter ?</p>
-                {c?.nom ? <div className="mt-2 text-[13.5px]"><p className="font-semibold">{c.nom}</p><p className="text-ink-soft">{c.role}</p>{c.email && <p className="text-ink-soft break-all">{c.email}</p>}{c.tel && <p className="text-ink-soft">{c.tel}</p>}<p className="text-[11.5px] text-ink-faint mt-0.5">Source : {c.source ?? "registre"}</p>
-                  {!/^(service|contact de|direction|mairie)/i.test(c.nom) && <a href={`https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(`${c.nom} ${o.company}`)}`} target="_blank" rel="noreferrer" className="inline-block mt-1.5 text-[12.5px] font-semibold text-accent hover:underline">Chercher sur LinkedIn ↗</a>}</div>
-                  : <p className="mt-2 text-[13px] text-ink-soft">Pas encore de contact : « Préparer le message » le cherche pour toi.</p>}
-              </div>
+              <ContactsBox ws={ws} o={o} onChange={onChange} />
               <div>
                 <p className="flex items-center gap-2 font-bold text-[14.5px]"><Ico name="up" className="h-5 w-5 text-accent" />Prochaine action</p>
                 <div className="mt-2 space-y-2">
