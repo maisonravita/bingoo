@@ -61,56 +61,26 @@ export const TEAM = [
 ];
 const WORKING_MS = 4 * 60000; // une action il y a moins de 4 minutes = au travail en ce moment
 
-function Laptop({ id, skin }) {
-  return (
-    <g className="laptop-in">
-      <defs>
-        <linearGradient id={`pc-${id}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#eef0f3" /><stop offset="1" stopColor="#c7cad1" /></linearGradient>
-        <linearGradient id={`hand-${id}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={skin} /><stop offset="1" stopColor={skin} stopOpacity=".85" /></linearGradient>
-        <radialGradient id={`glow-${id}`}><stop offset="0" stopColor="#E0531F" stopOpacity=".55" /><stop offset="1" stopColor="#E0531F" stopOpacity="0" /></radialGradient>
-      </defs>
-      <ellipse cx="60" cy="155" rx="56" ry="5" fill="#000" opacity=".08" />
-      {/* Socle et clavier, mains qui tapent de chaque côté de l'écran */}
-      <path d="M6 147h108l-5 7H11z" fill="#b9bdc5" />
-      <rect className="key-l" x="7" y="139" width="17" height="10" rx="5" fill={`url(#hand-${id})`} />
-      <rect className="key-r" x="96" y="139" width="17" height="10" rx="5" fill={`url(#hand-${id})`} />
-      {/* Dos de l'écran, légèrement incliné */}
-      <path d="M23 104Q23 100 27 100H93Q97 100 97 104L101 145Q101 148 98 148H22Q19 148 19 145Z" fill={`url(#pc-${id})`} stroke="#a9adb5" strokeWidth=".7" />
-      <path d="M27 101.2H93" stroke="#fff" strokeWidth="1.1" opacity=".9" strokeLinecap="round" />
-      <circle cx="60" cy="124" r="13" fill={`url(#glow-${id})`} className="logo-glow" />
-      <text x="60" y="129" textAnchor="middle" fontSize="14" fontWeight="900" fill="#E0531F" fontFamily="Nunito, Geist, sans-serif">B!</text>
-      {/* Bulle « en train d'écrire » */}
-      <g className="typing">
-        <rect x="88" y="8" width="26" height="14" rx="7" fill="#fff" stroke="#e7e5df" />
-        <circle cx="95" cy="15" r="1.7" fill="#E0531F" /><circle cx="101" cy="15" r="1.7" fill="#E0531F" /><circle cx="107" cy="15" r="1.7" fill="#E0531F" />
-      </g>
-    </g>
-  );
-}
-
-/** Portrait qui cligne des yeux ; au travail, il regarde son écran et tape sur son ordinateur. */
 export function Avatar({ id, working, className = "w-[112px] h-[144px]" }) {
   const seed = id.charCodeAt(0) + id.length * 7;
   const period = 4.2 + (seed % 9) * 0.35, delay = -((seed * 37) % 50) / 10;
+  // Au travail : l'illustration du salarié devant son ordinateur. Sinon : le portrait qui cligne des yeux.
   return (
     <div className={cx("relative shrink-0 select-none", className)}>
-      <svg viewBox="0 0 120 154" className="w-full h-full overflow-visible" aria-hidden>
-        <g className={working ? "agent-bob" : ""}>
-          <image href={`/salaries/${id}.png`} x="0" y="0" width="120" height="154" />
-          {working && <ellipse cx="64" cy="78" rx="38" ry="34" fill="#ffd9b8" opacity=".18" className="screen-light" />}
-          <defs>
-            {EYES[id].map((e, i) => (
-              <linearGradient key={i} id={`lid-${id}-${i}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={e[4]} /><stop offset="1" stopColor={e[5]} /></linearGradient>
-            ))}
-          </defs>
-          {EYES[id].map(([x, y, rx, ry], i) => (
-            <g key={i} className={cx("lid", working && "lid-down")} style={{ transformOrigin: `${x}px ${y - ry}px`, animationDuration: `${period}s`, animationDelay: `${delay}s` }}>
-              <ellipse cx={x} cy={y} rx={rx} ry={ry} fill={`url(#lid-${id}-${i})`} />
-              <path d={`M${x - rx + 0.8} ${y + ry * 0.35}Q${x} ${y + ry * 1.05} ${x + rx - 0.8} ${y + ry * 0.35}`} stroke="#3b2418" strokeWidth="1.1" fill="none" strokeLinecap="round" />
-            </g>
+      <img src={`/salaries/${id}-work.png`} alt="" aria-hidden loading="lazy" className={cx("absolute inset-0 h-full w-full object-contain object-bottom origin-bottom scale-[1.2] transition-opacity duration-500", working ? "opacity-100" : "opacity-0")} />
+      <svg viewBox="0 0 120 154" className={cx("w-full h-full overflow-visible transition-opacity duration-500", working ? "opacity-0" : "opacity-100")} aria-hidden>
+        <image href={`/salaries/${id}.png`} x="0" y="0" width="120" height="154" />
+        <defs>
+          {EYES[id].map((e, i) => (
+            <linearGradient key={i} id={`lid-${id}-${i}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={e[4]} /><stop offset="1" stopColor={e[5]} /></linearGradient>
           ))}
-        </g>
-        {working && <Laptop id={id} skin={EYES[id][0][5]} />}
+        </defs>
+        {EYES[id].map(([x, y, rx, ry], i) => (
+          <g key={i} className="lid" style={{ transformOrigin: `${x}px ${y - ry}px`, animationDuration: `${period}s`, animationDelay: `${delay}s` }}>
+            <ellipse cx={x} cy={y} rx={rx} ry={ry} fill={`url(#lid-${id}-${i})`} />
+            <path d={`M${x - rx + 0.8} ${y + ry * 0.35}Q${x} ${y + ry * 1.05} ${x + rx - 0.8} ${y + ry * 0.35}`} stroke="#3b2418" strokeWidth="1.1" fill="none" strokeLinecap="round" />
+          </g>
+        ))}
       </svg>
     </div>
   );
