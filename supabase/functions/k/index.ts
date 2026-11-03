@@ -431,7 +431,7 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
     return await sendMeetingFollowup(ws, String(b.meeting_id ?? ""), String(b.subject ?? ""), String(b.body ?? ""));
   },
   async plans() {
-    return { plans: plans(), packs: Object.entries(PACKS).map(([key, p]) => ({ key, label: p.label, price: p.price, work: p.work })) };
+    return { plans: plans(), packs: Object.entries(PACKS).map(([key, p]) => ({ key, label: p.label, price: p.price, work: p.work })), payments: !!Deno.env.get("STRIPE_SECRET_KEY") };
   },
   async "billing-checkout"(req, b) {
     const { ws, userId } = await requireMember(req, b.workspace_id);

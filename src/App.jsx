@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { WsProvider, useWs } from "./lib/ws";
 import { ToastProvider, Spinner } from "./components/ui";
 import Layout from "./components/Layout";
+import ErrorBoundary from "./components/ErrorBoundary";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Today from "./pages/Today";
@@ -67,6 +68,7 @@ function Gate() {
   if (!ws || !ws.onboarded) return <Onboarding />;
   return (
     <Layout>
+      <ErrorBoundary resetKey={loc.pathname}>
       <Routes>
         <Route path="/" element={<Today />} />
         <Route path="/valider" element={<Review />} />
@@ -99,6 +101,7 @@ function Gate() {
         <Route path="/abonnement" element={<Abonnement />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </ErrorBoundary>
     </Layout>
   );
 }

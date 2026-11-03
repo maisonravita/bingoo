@@ -66,7 +66,8 @@ export default function Abonnement() {
   const [ai, setAi] = useState(null);
   const [yearly, setYearly] = useState(false);
   useEffect(() => { supabase.rpc("ai_month", { p_ws: ws.id }).then(({ data }) => setAi(data ?? null)); }, [ws.id]);
-  useEffect(() => { fn("plans").then((r) => { setPlans(r.plans ?? []); setPacks(r.packs ?? []); }).catch(() => {}); }, []);
+  const [payments, setPayments] = useState(true);
+  useEffect(() => { fn("plans").then((r) => { setPlans(r.plans ?? []); setPacks(r.packs ?? []); setPayments(r.payments !== false); }).catch(() => {}); }, []);
   useEffect(() => {
     const q = new URLSearchParams(loc.search);
     if (q.get("paiement") === "ok") { toast("Paiement confirmé, merci ! Ton abonnement s'active dans quelques secondes.", "good"); setTimeout(reload, 4000); }
@@ -83,12 +84,13 @@ export default function Abonnement() {
   };
 
   const daysLeft = ws.trial_ends ? Math.ceil((new Date(ws.trial_ends) - new Date()) / 864e5) : null;
-  const [label, tone] = ws.plan === "essai" ? [daysLeft > 0 ? `Essai : ${daysLeft} jour${daysLeft > 1 ? "s" : ""} restant${daysLeft > 1 ? "s" : ""}` : "Essai terminé", daysLeft > 0 ? "accent" : "bad"] : STATUS[ws.plan_status] ?? [ws.plan_status, "muted"];
+  const [label, tone] = ws.plan === "essai" ? [daysLeft > 0 ? `Essai : ${daysLeft} jour${daysLeft > 1 ? "s" : ""} restant${daysLeft > 1 ? "s" : ""}` : (payments ? "Essai terminé" : "Accès de lancement"), daysLeft > 0 || !payments ? "accent" : "bad"] : STATUS[ws.plan_status] ?? [ws.plan_status, "muted"];
 
   return (
     <div>
       <SubNav section="reglages" />
       <PageHead title="Abonnement" sub="Sans engagement : tu changes de formule ou tu arrêtes quand tu veux." />
+      {!payments && <Card className="p-4 sm:p-5 mb-6 border-accent/30 bg-accent-soft/40"><p className="font-semibold">Les abonnements ouvrent bientôt</p><p className="text-sm text-ink-soft mt-1">Bingoo! est en phase de lancement : ton accès reste gratuit, même après l'essai. Tu seras prévenu avant l'ouverture des abonnements.</p></Card>}
       <Card className="p-5 sm:p-6 mb-6 flex flex-wrap items-center gap-4">
         <div className="flex-1 min-w-[200px]">
           <p className="text-sm text-ink-soft">Ta formule</p>

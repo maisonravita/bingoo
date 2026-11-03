@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { supabase } from "../lib/supabase";
+import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { cx } from "../lib/utils";
 import { LegalLinks } from "../pages/Legal";
@@ -50,6 +50,15 @@ function WsSwitch({ ws, list, select, className }) {
 
 function TrialBar({ ws }) {
   const left = ws.trial_ends ? Math.ceil((new Date(ws.trial_ends) - new Date()) / 864e5) : 14;
+  // Avant l'ouverture des abonnements, un essai terminé reste actif : on ne demande pas de payer ce qu'on ne peut pas encore acheter
+  const [payments, setPayments] = useState(true);
+  useEffect(() => { fn("plans").then((r) => setPayments(r?.payments !== false)).catch(() => {}); }, []);
+  if (!payments && left <= 3) return (
+    <div className="flex-1 min-w-0 flex items-center gap-3 rounded-full px-5 py-2.5 text-sm border bg-gradient-to-r from-accent-soft/70 to-white border-accent/15">
+      <span className="font-semibold">Accès de lancement</span>
+      <span className="text-ink-soft border-l border-line pl-3">Bingoo! reste gratuit pour toi jusqu'à l'ouverture des abonnements, annoncée à l'avance.</span>
+    </div>
+  );
   return (
     <NavLink to="/abonnement" className={cx("flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full px-5 py-2.5 text-sm border transition", left > 3 ? "bg-gradient-to-r from-accent-soft/70 to-white border-accent/15 hover:border-accent/40" : "bg-bad-soft border-bad/30 text-bad")}>
       <svg viewBox="0 0 24 24" className="w-5 h-5 text-accent shrink-0" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 15c-1.5 1.5-2 5-2 5s3.5-.5 5-2M9 13l-3-3 4-6c3-2 7-2 10-1 1 3 1 7-1 10l-6 4-3-3M14.5 9.5h.01" /></svg>
