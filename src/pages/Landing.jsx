@@ -356,73 +356,65 @@ const Lock = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={
 
 /** Essai universel : « tes clients, c'est qui ? » → les entreprises de cette cible qui vivent un moment d'achat (annonces légales officielles).
  *  Marche pour un logiciel, un service ou un produit. 3 en clair, la suite floutée, le décideur verrouillé (jamais de faux contact). */
-const SIG_TONE = { creation: "#F6A06B", ouverture: "#7DD3B0", reprise: "#A5B4FC" };
+const TRY_STEPS = [["Bingoo! lit ton site", "Ce que tu vends, à qui, dans quelle zone."], ["Le Radar fouille les annonces officielles", "Créations, reprises et ouvertures des 45 derniers jours."], ["Tu vois tes clients potentiels", "Ceux qui choisissent leurs fournisseurs en ce moment."]];
 function TryIt({ t }) {
   const nav = useNavigate();
   const { f, setF, r, err, busy, search } = t;
-  const field = "rounded-xl bg-white/10 border border-white/15 px-3.5 py-3 text-[15px] placeholder:text-white/40 outline-none focus:border-[#F27834] min-w-0";
+  const [step, setStep] = useState(0);
+  useEffect(() => { if (!busy) { setStep(0); return; } setStep(0); const a = setTimeout(() => setStep(1), 2500), b = setTimeout(() => setStep(2), 6000); return () => { clearTimeout(a); clearTimeout(b); }; }, [busy]);
   return (
-    <div className="relative overflow-hidden rounded-[28px] bg-[#16171B] text-white p-5 sm:p-8 text-left shadow-[0_40px_80px_-40px_rgba(21,22,26,.7)]">
-      <div aria-hidden className="pointer-events-none absolute -right-28 -top-28 h-[440px] w-[440px] rounded-full">
-        <div className="absolute inset-0 rounded-full" style={{ background: "conic-gradient(from 0deg, transparent 0 300deg, rgba(242,120,52,.35) 359deg, transparent 360deg)", animation: "kspin 7s linear infinite" }} />
-        {[0, 1, 2, 3].map((k) => <div key={k} className="absolute rounded-full border border-white/10" style={{ inset: `${k * 14}%` }} />)}
+    <div className="grid lg:grid-cols-2 gap-10 lg:gap-20 items-start [&>*]:min-w-0">
+      <div className="lg:pt-6">
+        <h2 className="text-[38px] sm:text-[54px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Essaie le Radar sur ton entreprise</h2>
+        <p className="mt-6 max-w-[560px] text-[17px] sm:text-[19px] leading-[1.5] text-ink">Donne l'adresse de ton site. En une minute, Bingoo! te montre des entreprises qui pourraient devenir tes clients, et pourquoi c'est le moment.</p>
+        <form onSubmit={search} className="mt-10 grid sm:grid-cols-[minmax(0,1fr)_auto] gap-3">
+          <label className="sr-only" htmlFor="tr-url">Ton site</label>
+          <div className="flex items-center rounded-lg border border-[#8A8682] bg-white focus-within:border-ink focus-within:ring-2 focus-within:ring-ink/10 min-w-0">
+            <span className="pl-4 text-[17px] text-ink-faint select-none">https://</span>
+            <input id="tr-url" value={f.url} onChange={(e) => setF({ url: e.target.value.replace(/^https?:\/\//i, "") })} placeholder="tonentreprise.fr" inputMode="url" autoComplete="url" className="w-full min-w-0 bg-transparent px-1 py-4 text-[17px] outline-none" />
+          </div>
+          <button type="submit" disabled={busy || !f.url.trim()} className="rounded-lg bg-accent text-white px-7 py-4 text-[17px] hover:bg-accent-dark disabled:opacity-50 transition">{busy ? "Recherche…" : "Lancer le Radar"}</button>
+        </form>
+        {err && <p className="mt-4 rounded-lg bg-[#FDF0EC] px-4 py-3 text-[15px] text-[#9A3412]">{err}</p>}
+        <p className="mt-6 text-[15px] text-ink-soft">Gratuit, sans compte. Tu vends aux collectivités ? <a href="#/outils/contrats-publics" className="underline hover:text-ink">Vois leurs contrats qui se terminent</a>.</p>
       </div>
-      <div className="relative grid grid-cols-1 lg:grid-cols-[.85fr_1.15fr] gap-6 lg:gap-10 items-start [&>*]:min-w-0">
-        <div>
-          <p className="font-black text-[24px] sm:text-[28px] leading-tight" style={D}>Lance le Radar sur ton entreprise</p>
-          <p className="text-[14.5px] text-white/65 mt-2">Donne ton site. Bingoo! comprend ce que tu vends et à qui, puis te montre les entreprises qui viennent de se créer ou d'être reprises : celles qui choisissent leurs fournisseurs en ce moment.</p>
-          <form onSubmit={search} className="mt-5 grid gap-2">
-            <label className="text-[13px] font-semibold text-white/80" htmlFor="tr-url">Ton site</label>
-            <div className="flex items-center rounded-xl bg-white/10 border border-white/15 focus-within:border-[#F27834] min-w-0">
-              <span className="pl-3.5 text-white/40 text-[15px] select-none">https://</span>
-              <input id="tr-url" value={f.url} onChange={(e) => setF({ url: e.target.value.replace(/^https?:\/\//i, "") })} placeholder="monentreprise.fr" inputMode="url" autoComplete="url" className="w-full min-w-0 bg-transparent px-1 py-3 text-[15px] placeholder:text-white/40 outline-none" />
-            </div>
-            <button type="submit" disabled={busy || !f.url.trim()} className="rounded-xl bg-accent hover:bg-accent-dark disabled:opacity-60 py-3 font-bold text-[15px] transition">{busy ? "Bingoo! lit ton site et cherche tes clients…" : "Lancer le Radar"}</button>
-          </form>
-          {err && <p className="mt-3 text-[13.5px] text-[#FCA5A5]">{err}</p>}
-          <p className="mt-4 text-[13px] text-white/50">Tu vends aux collectivités ? <a href="#/outils/contrats-publics" className="text-[#F6A06B] font-semibold hover:underline">Vois leurs contrats qui se terminent</a>. Un concurrent à espionner ? <a href="#/outils/analyse-concurrent" className="text-[#F6A06B] font-semibold hover:underline">Analyse-le</a>.</p>
-        </div>
-        <div className="min-h-[220px]">
-          {busy ? (
-            <ul className="space-y-2" aria-hidden>{[0, 1, 2].map((i) => <li key={i} className="rounded-xl border border-white/10 bg-white/[.04] px-4 py-4 animate-pulse"><div className="h-2.5 w-28 rounded bg-white/25" /><div className="h-3 w-48 rounded bg-white/20 mt-3" /><div className="h-2.5 w-full rounded bg-white/10 mt-3" /></li>)}</ul>
-          ) : !r ? (
-            <ul className="space-y-2 opacity-40" aria-hidden>{[0, 1, 2].map((i) => <li key={i} className="rounded-xl border border-dashed border-white/20 px-4 py-4"><div className="h-2.5 w-28 rounded bg-white/25" /><div className="h-3 w-48 rounded bg-white/20 mt-3" /><div className="h-2.5 w-full rounded bg-white/10 mt-3" /></li>)}</ul>
-          ) : (
-            <div>
-              {r.offre && <p className="text-[13.5px] text-white/70 mb-2"><b className="text-white">{r.nom}</b> : {r.offre.replace(/\.$/, "")}{r.clients ? `, ${r.clients.replace(/\.$/, "")}` : ""}.</p>}
-              <p className="text-[15.5px]"><b className="text-[30px] font-black" style={D}>{r.total}</b> client{r.total > 1 ? "s" : ""} potentiel{r.total > 1 ? "s" : ""} en moment d'achat en France, ces {r.jours} derniers jours.</p>
-              {!r.total && <p className="text-white/60 text-[13.5px] mt-1">Rien de neuf ces dernières semaines sur ta cible. Crée ton compte : le Radar suit aussi les changements de dirigeant, les recrutements et les appels d'offres.</p>}
-              <ul className="mt-3 space-y-2">
-                {r.visibles.map((c, i) => (
-                  <li key={i} className="rounded-xl bg-white/[.07] border border-white/10 px-4 py-3 land-in" style={{ animationDelay: `${i * 140}ms` }}>
-                    <p className="text-[12.5px] font-semibold" style={{ color: SIG_TONE[c.kind] }}>{c.signal}, le {new Date(c.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</p>
-                    <p className="font-semibold text-[15px] mt-0.5">{c.nom}{c.ville ? <span className="font-normal text-white/55">, {c.ville}</span> : null}</p>
-                    <p className="text-[13px] text-white/65 line-clamp-2">{c.activite}</p>
-                    <p className="text-[12.5px] text-white/55 mt-1">{c.pourquoi}</p>
-                    <div className="mt-2 flex items-center gap-2 rounded-lg bg-white/[.06] border border-white/10 px-3 py-2 text-[12.5px]">
-                      <Lock className="h-3.5 w-3.5 text-[#F6A06B] shrink-0" />
-                      <span className="text-white/70">Le décideur : <span className="select-none blur-[5px] text-white">Prénom Nom, gérant</span></span>
-                    </div>
-                  </li>
-                ))}
-                {(r.apercu ?? []).map((c, i) => (
-                  <li key={`a${i}`} className="relative rounded-xl bg-white/[.05] border border-white/10 px-4 py-3 land-in" style={{ animationDelay: `${(i + 3) * 120}ms` }}>
-                    <p className="text-[12.5px] font-semibold text-white/70">{c.signal}{c.ville ? `, ${c.ville}` : ""}</p>
-                    <div className="select-none blur-[6px]" aria-hidden><p className="font-semibold text-[15px] mt-0.5">Entreprise masquée</p><p className="text-[13px] text-white/65">Activité et décideur</p></div>
-                    <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[11.5px] text-white/80"><Lock className="h-3 w-3" />Compte gratuit</span>
-                  </li>
-                ))}
-              </ul>
-              {r.caches > 0 && (
-                <div className="mt-4 rounded-2xl bg-white text-ink p-4">
-                  <p className="font-bold text-[15.5px]">Débloque les {r.caches} autre{r.caches > 1 ? "s" : ""}, avec le décideur de chacune</p>
-                  <p className="text-[13.5px] text-ink-soft mt-1">Bingoo! trouve la bonne personne, prépare le message et le relance. 14 jours gratuits, sans carte bancaire.</p>
-                  <button onClick={() => nav("/connexion")} className="mt-3 w-full rounded-xl bg-accent text-white py-3 font-bold text-[15px] hover:bg-accent-dark transition">Voir tout gratuitement</button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+
+      <div className="rounded-2xl bg-[#F1EFED] p-4 sm:p-8 min-h-[420px]">
+        {!r ? (
+          <ol className="space-y-3">
+            {TRY_STEPS.map(([h, d], i) => {
+              const on = busy && step === i, done = busy && step > i;
+              return (
+                <li key={h} className={cx("flex gap-4 rounded-xl bg-white p-5 transition", on ? "ring-2 ring-accent/40" : "", !busy || on || done ? "opacity-100" : "opacity-60")}>
+                  <span className={cx("grid h-9 w-9 shrink-0 place-items-center rounded-full text-[15px]", done ? "bg-good text-white" : on ? "bg-accent text-white" : "bg-[#F1EFED] text-ink")}>{done ? <Check className="h-4 w-4" /> : on ? <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" /> : i + 1}</span>
+                  <div><p className="text-[19px] leading-tight text-ink" style={SERIF}>{h}</p><p className="mt-1 text-[14.5px] text-ink-soft">{d}</p></div>
+                </li>
+              );
+            })}
+          </ol>
+        ) : (
+          <div className="space-y-3">
+            {r.offre && <div className="rounded-xl bg-white p-4"><p className="text-[12.5px] text-ink-soft">Bingoo! a compris</p><p className="mt-1 text-[15px] text-ink"><b className="font-medium">{r.nom}</b> : {r.offre.replace(/\.$/, "")}{r.clients ? `, ${r.clients.replace(/\.$/, "")}` : ""}.</p></div>}
+            <p className="px-1 pt-1 text-[16px] text-ink"><span className="text-[34px] leading-none tracking-[-.02em] align-[-4px]" style={SERIF}>{r.total}</span> client{r.total > 1 ? "s" : ""} potentiel{r.total > 1 ? "s" : ""} en France, ces {r.jours} derniers jours</p>
+            {!r.total && <p className="rounded-xl bg-white p-4 text-[14.5px] text-ink-soft">Rien de neuf ces dernières semaines sur ta cible. Avec un compte, le Radar suit aussi les changements de dirigeant, les recrutements et les appels d'offres.</p>}
+            {r.visibles.map((c, i) => (
+              <div key={i} className="rounded-xl bg-white p-4 land-in" style={{ animationDelay: `${i * 120}ms` }}>
+                <div className="flex items-center justify-between gap-2"><span className="rounded bg-[#FFF1E8] px-1.5 py-0.5 text-[11.5px] font-medium text-accent-dark">{c.signal}</span><span className="text-[12.5px] text-ink-soft">{new Date(c.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</span></div>
+                <p className="mt-2 text-[16px] font-medium text-ink">{c.nom}{c.ville ? <span className="font-normal text-ink-soft">, {c.ville}</span> : null}</p>
+                <p className="text-[13.5px] text-ink-soft line-clamp-2">{c.activite}</p>
+                <div className="mt-2.5 flex items-center justify-between gap-2 rounded-md bg-[#F6F5F3] px-2.5 py-1.5 text-[12.5px]"><span className="text-ink-soft">Le décideur</span><span className="flex items-center gap-1.5"><span className="select-none blur-[4px] text-ink">Prénom Nom</span><Lock className="h-3.5 w-3.5 text-ink-soft" /></span></div>
+              </div>
+            ))}
+            {(r.apercu ?? []).slice(0, 3).map((c, i) => (
+              <div key={`a${i}`} className="relative rounded-xl bg-white/70 p-4">
+                <p className="text-[12.5px] text-ink-soft">{c.signal}{c.ville ? `, ${c.ville}` : ""}</p>
+                <p className="select-none blur-[5px] text-[16px] text-ink" aria-hidden>Entreprise masquée</p>
+                <span className="absolute right-3 top-3 inline-flex items-center gap-1 text-[12px] text-ink-soft"><Lock className="h-3 w-3" />Avec un compte</span>
+              </div>
+            ))}
+            {r.caches > 0 && <button onClick={() => nav("/connexion")} className="w-full rounded-lg bg-[#1C1C1C] py-4 text-[16px] text-white hover:bg-black transition">Voir les {r.caches} autres et leurs décideurs</button>}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -761,7 +753,7 @@ export default function Landing() {
 
         <Layers />
 
-        <section className="px-5 sm:px-10 py-20"><div id="essai" className="mx-auto max-w-[1180px] scroll-mt-24"><TryIt t={tryState} /></div></section>
+        <section className="px-5 sm:px-10 lg:px-20 py-20 sm:py-28 border-t border-black/[.07]"><div id="essai" className="mx-auto max-w-[1300px] scroll-mt-24"><TryIt t={tryState} /></div></section>
 
         {/* Pour qui */}
         <section id="pour-qui" className="bg-white border-y border-line scroll-mt-24">

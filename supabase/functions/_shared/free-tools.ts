@@ -177,7 +177,10 @@ export async function freeSite(input: { url?: string }) {
   const { fetchHtml, textOf } = await import("./analyze.ts");
   const html = await fetchHtml(`https://${host}`);
   if (!html) throw new HttpError(422, "Impossible de lire ce site (protégé ou indisponible). Vérifie l'adresse.");
-  const text = textOf(html).slice(0, 7000);
+  // Sites construits en JavaScript (le texte n'est pas dans la page) : on lit aussi le titre et les descriptions
+  const meta = [/<title[^>]*>([^<]{3,300})<\/title>/i, /<meta[^>]+name=["']description["'][^>]+content=["']([^"']{10,500})/i, /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']{3,300})/i, /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']{10,500})/i]
+    .map((r) => html.match(r)?.[1]?.trim()).filter(Boolean).join("\n");
+  const text = `${meta}\n${textOf(html)}`.slice(0, 7000);
   const a = await askJson<{ nom: string; offre: string; clients: string; mots: string[] }>(`Voici la page d'accueil du site ${host}. Dis ce que vend cette entreprise et à quels types d'entreprises clientes.
 Règles : uniquement ce que dit la page. "mots" = 1 à 3 mots-clés simples qui décrivent l'ACTIVITÉ des entreprises clientes telle qu'elle serait écrite au registre du commerce (ex. "restaurant", "comptable", "immobilier", "boulangerie", "transport", "conseil"), au singulier, sans article. Si elle vend à toutes les entreprises, choisis les 2 activités clientes les plus probables. Si la page ne dit pas ce qui est vendu (site en construction, page vide, page de connexion), renvoie "mots": [] et "offre": "".
 Contenu :
