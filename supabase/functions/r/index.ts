@@ -113,6 +113,11 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     await freeLimit(req, "renewals", 8, 2000);
     return await freeRenewals(b);
   },
+  async "free-signals"(req, b) {
+    const { freeLimit, freeSignals } = await import("../_shared/free-tools.ts");
+    await freeLimit(req, "signals", 10, 3000);
+    return await freeSignals(b);
+  },
   async "free-competitor"(req, b) {
     const { freeLimit, freeCompetitor } = await import("../_shared/free-tools.ts");
     await freeLimit(req, "competitor", 3, 150);

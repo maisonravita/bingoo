@@ -252,7 +252,7 @@ function RadarDemo() {
 
 /** Recherche gratuite (sans compte, sans IA) : les contrats publics du métier qui se terminent. État partagé entre le titre et le panneau de résultats. */
 function useTry() {
-  const [f, setF] = useState({ secteur: "", dept: "" });
+  const [f, setF] = useState({ cible: "", dept: "" });
   const [r, setR] = useState(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -260,25 +260,20 @@ function useTry() {
     e?.preventDefault?.();
     setBusy(true); setErr(""); setR(null);
     document.getElementById("essai")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    const secteur = f.secteur.trim().replace(/^(du|des|de la|de l'|de|le|la|les|l'|un|une)\s*/i, "");
-    try { setR(await call("free-renewals", { ...f, secteur })); } catch (x) { setErr(x.message); } finally { setBusy(false); }
+    try { setR(await call("free-signals", f)); } catch (x) { setErr(x.message); } finally { setBusy(false); }
   };
   return { f, setF, r, err, busy, search };
 }
 
 const Lock = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
-const mois = (d) => new Date(d).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 
-/** Panneau de résultats : 3 contrats en clair, les suivants floutés, le contact verrouillé (on n'affiche jamais de faux numéro). */
+/** Essai universel : « tes clients, c'est qui ? » → les entreprises de cette cible qui vivent un moment d'achat (annonces légales officielles).
+ *  Marche pour un logiciel, un service ou un produit. 3 en clair, la suite floutée, le décideur verrouillé (jamais de faux contact). */
+const SIG_TONE = { creation: "#F6A06B", ouverture: "#7DD3B0", reprise: "#A5B4FC" };
 function TryIt({ t }) {
   const nav = useNavigate();
   const { f, setF, r, err, busy, search } = t;
-  const LockedContact = () => (
-    <div className="mt-2 flex items-center gap-2 rounded-lg bg-white/[.06] border border-white/10 px-3 py-2 text-[12.5px]">
-      <Lock className="h-3.5 w-3.5 text-[#F6A06B] shrink-0" />
-      <span className="text-white/70">Qui contacter : <span className="select-none blur-[5px] text-white">Responsable des achats</span></span>
-    </div>
-  );
+  const field = "rounded-xl bg-white/10 border border-white/15 px-3.5 py-3 text-[15px] placeholder:text-white/40 outline-none focus:border-[#F27834] min-w-0";
   return (
     <div className="relative overflow-hidden rounded-[28px] bg-[#16171B] text-white p-5 sm:p-8 text-left shadow-[0_40px_80px_-40px_rgba(21,22,26,.7)]">
       <div aria-hidden className="pointer-events-none absolute -right-28 -top-28 h-[440px] w-[440px] rounded-full">
@@ -287,21 +282,20 @@ function TryIt({ t }) {
       </div>
       <div className="relative grid grid-cols-1 lg:grid-cols-[.85fr_1.15fr] gap-6 lg:gap-10 items-start [&>*]:min-w-0">
         <div>
-          <p className="font-black text-[24px] sm:text-[28px] leading-tight" style={D}>Qui va acheter ce que tu vends ?</p>
-          <p className="text-[14.5px] text-white/65 mt-2">Le Radar cherche les acheteurs dont le contrat se termine dans les 12 mois : ils vont devoir choisir un fournisseur. Données officielles, sans compte.</p>
-          <form onSubmit={search} className="mt-5">
-            <p className="text-[19px] sm:text-[21px] leading-[2.1] font-semibold">
-              Je vends{" "}
-              <label className="sr-only" htmlFor="tr-secteur">Ce que tu vends</label>
-              <input id="tr-secteur" value={f.secteur} onChange={(e) => setF({ ...f, secteur: e.target.value })} placeholder="du nettoyage" className="w-[11ch] min-w-0 bg-transparent border-b-2 border-[#F27834] px-1 text-[#F6A06B] placeholder:text-white/35 outline-none focus:bg-white/5" />
-              {" "}dans le{" "}
-              <label className="sr-only" htmlFor="tr-dept">Département</label>
-              <input id="tr-dept" value={f.dept} onChange={(e) => setF({ ...f, dept: e.target.value })} placeholder="75" maxLength={3} inputMode="text" className="w-[3.2ch] bg-transparent border-b-2 border-[#F27834] px-1 text-center text-[#F6A06B] placeholder:text-white/35 outline-none focus:bg-white/5" />
-            </p>
-            <button type="submit" disabled={busy} className="mt-4 w-full rounded-xl bg-accent hover:bg-accent-dark disabled:opacity-60 py-3 font-bold text-[15px] transition">{busy ? "Le Radar fouille les données officielles…" : "Voir mes prochains clients"}</button>
+          <p className="font-black text-[24px] sm:text-[28px] leading-tight" style={D}>Lance le Radar sur tes clients</p>
+          <p className="text-[14.5px] text-white/65 mt-2">Dis-lui à qui tu vends. Il te montre les entreprises qui viennent de se créer, d'ouvrir un site ou d'être reprises : celles qui choisissent leurs fournisseurs en ce moment. Logiciel, service ou produit, peu importe.</p>
+          <form onSubmit={search} className="mt-5 grid grid-cols-[minmax(0,1fr)_96px] gap-2">
+            <label className="col-span-2 text-[13px] font-semibold text-white/80" htmlFor="tr-cible">Tes clients, ce sont…</label>
+            <input id="tr-cible" value={f.cible} onChange={(e) => setF({ ...f, cible: e.target.value })} placeholder="ex. restaurants, cabinets comptables" className={field} />
+            <label className="sr-only" htmlFor="tr-dept">Département (facultatif)</label>
+            <input id="tr-dept" value={f.dept} onChange={(e) => setF({ ...f, dept: e.target.value })} placeholder="Dép." maxLength={3} className={field} />
+            <button type="submit" disabled={busy} className="col-span-2 rounded-xl bg-accent hover:bg-accent-dark disabled:opacity-60 py-3 font-bold text-[15px] transition">{busy ? "Le Radar lit les annonces officielles…" : "Lancer le Radar"}</button>
           </form>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {["Restaurants", "Cabinets comptables", "Agences immobilières", "Logiciel"].map((x) => <button key={x} type="button" onClick={() => setF({ ...f, cible: x })} className="rounded-full border border-white/15 px-3 py-1 text-[12.5px] text-white/70 hover:border-white/40 hover:text-white">{x}</button>)}
+          </div>
           {err && <p className="mt-3 text-[13.5px] text-[#FCA5A5]">{err}</p>}
-          <p className="mt-4 text-[13px] text-white/50">Tu veux plutôt espionner un concurrent ? <a href="#/outils/analyse-concurrent" className="text-[#F6A06B] font-semibold hover:underline">Analyse-le gratuitement</a></p>
+          <p className="mt-4 text-[13px] text-white/50">Tu vends aux collectivités ? <a href="#/outils/contrats-publics" className="text-[#F6A06B] font-semibold hover:underline">Vois leurs contrats qui se terminent</a>. Un concurrent à espionner ? <a href="#/outils/analyse-concurrent" className="text-[#F6A06B] font-semibold hover:underline">Analyse-le</a>.</p>
         </div>
         <div className="min-h-[220px]">
           {busy ? (
@@ -310,30 +304,33 @@ function TryIt({ t }) {
             <ul className="space-y-2 opacity-40" aria-hidden>{[0, 1, 2].map((i) => <li key={i} className="rounded-xl border border-dashed border-white/20 px-4 py-4"><div className="h-2.5 w-28 rounded bg-white/25" /><div className="h-3 w-48 rounded bg-white/20 mt-3" /><div className="h-2.5 w-full rounded bg-white/10 mt-3" /></li>)}</ul>
           ) : (
             <div>
-              <p className="text-[15.5px]"><b className="text-[30px] font-black" style={D}>{r.total}</b> contrat{r.total > 1 ? "s" : ""} « {r.secteur} » à renouveler dans le {r.dept}{r.montant_total ? <>, <b>{euro(r.montant_total)}</b> au total</> : null}.</p>
-              {!r.total && <p className="text-white/60 text-[13.5px] mt-1">Essaie un mot plus large ou un autre département.</p>}
+              <p className="text-[15.5px]"><b className="text-[30px] font-black" style={D}>{r.total}</b> entreprise{r.total > 1 ? "s" : ""} « {r.cible} » en moment d'achat{r.dept ? ` dans le ${r.dept}` : " en France"}, ces {r.jours} derniers jours.</p>
+              {!r.total && <p className="text-white/60 text-[13.5px] mt-1">Essaie un mot plus simple (ex. « restaurant ») ou laisse le département vide.</p>}
               <ul className="mt-3 space-y-2">
                 {r.visibles.map((c, i) => (
                   <li key={i} className="rounded-xl bg-white/[.07] border border-white/10 px-4 py-3 land-in" style={{ animationDelay: `${i * 140}ms` }}>
-                    <p className="text-[12.5px] font-semibold text-[#F6A06B]">Fin estimée en {mois(c.fin)}</p>
-                    <p className="font-semibold text-[15px] mt-0.5">{c.acheteur}</p>
-                    <p className="text-[13px] text-white/65 line-clamp-2">{c.objet}</p>
-                    {(c.montant || c.titulaire) && <p className="text-[12.5px] text-white/55 mt-1">{c.montant ? euro(c.montant) : ""}{c.montant && c.titulaire ? ", " : ""}{c.titulaire ? `tenu par ${c.titulaire}` : ""}</p>}
-                    <LockedContact />
+                    <p className="text-[12.5px] font-semibold" style={{ color: SIG_TONE[c.kind] }}>{c.signal}, le {new Date(c.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</p>
+                    <p className="font-semibold text-[15px] mt-0.5">{c.nom}{c.ville ? <span className="font-normal text-white/55">, {c.ville}</span> : null}</p>
+                    <p className="text-[13px] text-white/65 line-clamp-2">{c.activite}</p>
+                    <p className="text-[12.5px] text-white/55 mt-1">{c.pourquoi}</p>
+                    <div className="mt-2 flex items-center gap-2 rounded-lg bg-white/[.06] border border-white/10 px-3 py-2 text-[12.5px]">
+                      <Lock className="h-3.5 w-3.5 text-[#F6A06B] shrink-0" />
+                      <span className="text-white/70">Le décideur : <span className="select-none blur-[5px] text-white">Prénom Nom, gérant</span></span>
+                    </div>
                   </li>
                 ))}
                 {(r.apercu ?? []).map((c, i) => (
                   <li key={`a${i}`} className="relative rounded-xl bg-white/[.05] border border-white/10 px-4 py-3 land-in" style={{ animationDelay: `${(i + 3) * 120}ms` }}>
-                    <p className="text-[12.5px] font-semibold text-[#F6A06B]">Fin estimée en {mois(c.fin)}{c.montant ? ` · ${euro(c.montant)}` : ""}</p>
-                    <div className="select-none blur-[6px]" aria-hidden><p className="font-semibold text-[15px] mt-0.5">Acheteur public masqué</p><p className="text-[13px] text-white/65">Objet du contrat et titulaire actuel</p></div>
+                    <p className="text-[12.5px] font-semibold text-white/70">{c.signal}{c.ville ? `, ${c.ville}` : ""}</p>
+                    <div className="select-none blur-[6px]" aria-hidden><p className="font-semibold text-[15px] mt-0.5">Entreprise masquée</p><p className="text-[13px] text-white/65">Activité et décideur</p></div>
                     <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-[11.5px] text-white/80"><Lock className="h-3 w-3" />Compte gratuit</span>
                   </li>
                 ))}
               </ul>
               {r.caches > 0 && (
                 <div className="mt-4 rounded-2xl bg-white text-ink p-4">
-                  <p className="font-bold text-[15.5px]">Débloque les {r.caches} autre{r.caches > 1 ? "s" : ""} et le contact de chaque acheteur</p>
-                  <p className="text-[13.5px] text-ink-soft mt-1">Le décideur, son e-mail et son téléphone quand ils sont publiés. 14 jours gratuits, sans carte bancaire.</p>
+                  <p className="font-bold text-[15.5px]">Débloque les {r.caches} autre{r.caches > 1 ? "s" : ""}, avec le décideur de chacune</p>
+                  <p className="text-[13.5px] text-ink-soft mt-1">Bingoo! trouve la bonne personne, prépare le message et le relance. 14 jours gratuits, sans carte bancaire.</p>
                   <button onClick={() => nav("/connexion")} className="mt-3 w-full rounded-xl bg-accent text-white py-3 font-bold text-[15px] hover:bg-accent-dark transition">Voir tout gratuitement</button>
                 </div>
               )}

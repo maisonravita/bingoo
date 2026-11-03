@@ -105,3 +105,58 @@ Format : {"nom": "", "offre": "ce qu'il vend, en une phrase", "cible": "à qui, 
     caches: [`${(a.arguments ?? []).length} arguments qu'il martèle`, `${(a.faiblesses ?? []).length} points faibles à exploiter`, "L'angle pour lui prendre des clients", "Ses publicités, ses avis clients et ses changements suivis chaque semaine"],
   };
 }
+
+/** Essai universel (sans compte, sans IA) : « tes clients, c'est qui ? » → les entreprises de cette cible qui vivent un moment d'achat,
+ *  lues dans les annonces légales officielles (BODACC) : création, nouvel établissement, reprise. Marche pour tout vendeur B2B (logiciel, services, produits). */
+const BODACC_FREE = "https://bodacc-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/annonces-commerciales/records";
+const STOP = new Set(["de", "des", "du", "la", "le", "les", "l", "d", "et", "en", "a", "au", "aux", "pour", "un", "une", "mes", "nos", "clients", "client", "entreprises", "entreprise", "societes", "societe", "pme", "tpe"]);
+const singular = (w: string) => w.length > 4 ? w.replace(/(aux)$/, "al").replace(/s$/, "") : w;
+export function cibleWords(s: string) {
+  return String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9 ]+/g, " ").split(/\s+/)
+    .filter((w) => w.length > 2 && !STOP.has(w)).map(singular).slice(0, 3);
+}
+// deno-lint-ignore no-explicit-any
+const parseJ = (s: unknown): any => { if (!s) return null; if (typeof s === "object") return s; try { return JSON.parse(String(s)); } catch { return null; } };
+
+export async function freeSignals(input: { cible?: string; dept?: string }) {
+  const cible = String(input.cible ?? "").trim().slice(0, 60);
+  const dept = String(input.dept ?? "").trim().toUpperCase();
+  const words = cibleWords(cible);
+  if (!words.length) throw new HttpError(400, "Dis-nous qui sont tes clients (ex. restaurants, cabinets comptables, agences immobilières)");
+  if (dept && !/^(\d{2}|2A|2B|97\d)$/.test(dept)) throw new HttpError(400, "Département invalide (ex. 75, 69, 13), ou laisse vide pour toute la France");
+  const since = new Date(Date.now() - 45 * 864e5).toISOString().slice(0, 10);
+  const where = [`dateparution>=date'${since}'`, `familleavis in ("creation","vente")`, dept ? `numerodepartement=${q(dept)}` : "", ...words.map((w) => `search(listeetablissements,${q(w)})`)].filter(Boolean).join(" and ");
+  const u = new URL(BODACC_FREE);
+  for (const [k, v] of Object.entries({ where, limit: "100", order_by: "dateparution desc", select: "id,familleavis,commercant,registre,dateparution,ville,numerodepartement,listeetablissements,listepersonnes,acte" })) u.searchParams.set(k, v);
+  const d = await fetch(u, { signal: AbortSignal.timeout(15000) }).then((r) => r.ok ? r.json() : null).catch(() => null);
+  if (!d) throw new HttpError(502, "Les annonces officielles ne répondent pas pour l'instant. Réessaie dans une minute.");
+  const HOLDING = /(holding|participations?|valeurs mobili[eè]res|soci[ée]t[ée] civile|\bsci\b)/i;
+  const seen = new Set<string>();
+  // deno-lint-ignore no-explicit-any
+  const rows = ((d.results ?? []) as any[]).flatMap((b) => {
+    const etab = parseJ(b.listeetablissements)?.etablissement ?? {}, pers = parseJ(b.listepersonnes)?.personne ?? {};
+    const act = String(etab.activite ?? pers.activite ?? "").replace(/\s+/g, " ").trim();
+    const actN = act.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    if (pers.typePersonne !== "pm") return []; // sociétés uniquement : jamais de particulier
+    if (!act || HOLDING.test(`${b.commercant} ${act}`)) return [];
+    if (words.some((w) => new RegExp(`(exclusion|hors|sauf)[^.;]{0,40}${w}`).test(actN))) return [];
+    const nom = cap(String(b.commercant ?? "").split(",")[0]);
+    if (!nom || seen.has(nom)) return []; seen.add(nom);
+    const second = /secondaire/i.test(String(etab.qualiteEtablissement ?? "")) || /secondaire|ouverture/i.test(String(parseJ(b.acte)?.creation?.categorieCreation ?? ""));
+    const kind = b.familleavis === "vente" ? "reprise" : second ? "ouverture" : "creation";
+    return [{ kind, nom, activite: act.slice(0, 160), ville: cap(b.ville ?? ""), dept: String(b.numerodepartement ?? ""), date: String(b.dateparution ?? "").slice(0, 10) }];
+  });
+  const LBL: Record<string, [string, string]> = {
+    creation: ["Vient de se créer", "Elle choisit ses outils et ses fournisseurs maintenant."],
+    ouverture: ["Ouvre un nouveau site", "Un nouveau site s'équipe dans les semaines qui suivent."],
+    reprise: ["Vient d'être reprise", "Un nouveau propriétaire revoit ses contrats."],
+  };
+  const out = rows.map((r) => ({ ...r, signal: LBL[r.kind][0], pourquoi: LBL[r.kind][1] }));
+  const parType = { creation: out.filter((r) => r.kind === "creation").length, ouverture: out.filter((r) => r.kind === "ouverture").length, reprise: out.filter((r) => r.kind === "reprise").length };
+  return {
+    cible, dept, total: out.length, jours: 45, par_type: parType,
+    visibles: out.slice(0, 3),
+    apercu: out.slice(3, 10).map((r) => ({ signal: r.signal, ville: r.ville, date: r.date })),
+    caches: Math.max(0, out.length - 3),
+  };
+}
