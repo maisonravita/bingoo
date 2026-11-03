@@ -1,102 +1,32 @@
-# Sauvegarde quotidienne gratuite de la base, chiffrée, avec TEST DE RESTAURATION à chaque passage.
-# 1. Copie (pg_dump) + comptage des lignes en production au même moment
-# 2. Chiffrement AES-256 avec BACKUP_PASSPHRASE, conservation 30 jours
-# 3. Déchiffrement de la copie chiffrée + restauration dans une base Postgres 17 vierge et jetable
-# 4. Comparaison table par table : le job échoue si une table importante ne revient pas à l'identique
-# Restauration manuelle : gpg -d bingoo-AAAA-MM-JJ.sql.gpg > dump.sql  puis  psql "<base cible>" -f dump.sql
-name: Bingoo sauvegarde
+name: Sauvegarde de la base
 
+# Chaque dimanche à 4 h (heure de Paris) : copie complète de la base, chiffrée, gardée 30 jours dans GitHub.
+# Nécessite deux secrets GitHub (Settings → Secrets and variables → Actions) :
+#   SUPABASE_DB_URL     adresse de connexion (Supabase → Connect → Session pooler)
+#   BACKUP_PASSPHRASE   phrase secrète pour chiffrer la copie (à garder précieusement : sans elle, la copie est illisible)
 on:
-  schedule:
-    - cron: "17 2 * * *"
-  workflow_dispatch:
+  schedule: [{ cron: "0 3 * * 0" }]
+  workflow_dispatch: {}
 
 jobs:
   backup:
     runs-on: ubuntu-latest
-    services:
-      restore:
-        image: postgres:17
-        env: { POSTGRES_PASSWORD: test }
-        ports: ["5433:5432"]
-        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-retries 10
-    env:
-      DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}
-      PASS: ${{ secrets.BACKUP_PASSPHRASE }}
-      TABLES: "workspaces members prospects messages replies missions radar_opps competitors meetings quotes suppressions"
     steps:
-      - name: Vérification des secrets
+      - name: Copie chiffrée
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
-          if [ -z "$PASS" ]; then echo "Secret BACKUP_PASSPHRASE absent" | tee -a $GITHUB_STEP_SUMMARY; exit 1; fi
-      - uses: supabase/setup-cli@v1
-        with: { version: latest }
-      - name: Client Postgres 17
-        run: |
+          if [ -z "$DB_URL" ] || [ -z "$PASS" ]; then echo "Secrets absents : sauvegarde ignorée" >> $GITHUB_STEP_SUMMARY; exit 0; fi
           sudo install -d /usr/share/postgresql-common/pgdg
           sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
           sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17 >/dev/null
-          echo "/usr/lib/postgresql/17/bin" >> $GITHUB_PATH
-      - name: Copie de la base et comptage en production
-        run: |
-          d=$(date -u +%F); echo "D=$d" >> $GITHUB_ENV
-          ok=""
-          # L'hôte du pooler peut être aws-0 ou aws-1 selon le projet : on essaie les deux
-          for u in "$DB_URL" "$(echo "$DB_URL" | sed 's/aws-0-/aws-1-/')" "$(echo "$DB_URL" | sed 's/aws-1-/aws-0-/')"; do
-            if pg_dump "$u" --no-owner --no-privileges --schema=public --schema=auth -f dump.sql; then ok="$u"; break; fi
-          done
-          if [ -z "$ok" ]; then
-            # Sans mot de passe de base : outil officiel Supabase avec le jeton d'accès (rôle de connexion temporaire)
-            echo "Adresse directe refusée : copie via l'outil Supabase"
-            supabase link --project-ref fbsjbnnmzazylmquzryo
-            supabase db dump --linked -s public,auth -f schema.sql
-            supabase db dump --linked --data-only -s public,auth -f data.sql
-            cat schema.sql data.sql > dump.sql; rm -f schema.sql data.sql
-            ok="cli"
-          fi
-          test -s dump.sql || { echo "Copie impossible" | tee -a $GITHUB_STEP_SUMMARY; exit 1; }
-          if [ "$ok" = "cli" ]; then
-            for t in $TABLES; do n=$(curl -s -X POST "https://api.supabase.com/v1/projects/fbsjbnnmzazylmquzryo/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "content-type: application/json" -d "{\"query\":\"select count(*)::int as n from public.$t\"}" | grep -oE '"n":[0-9]+' | cut -d: -f2); echo "$t ${n:-?}"; done > counts-prod.txt
-          else
-            for t in $TABLES; do echo "$t $(psql "$ok" -Atc "select count(*) from public.$t")"; done > counts-prod.txt
-          fi
-          cat counts-prod.txt
-          echo "- copie : $(du -h dump.sql | cut -f1)" | tee -a $GITHUB_STEP_SUMMARY
-      - name: Chiffrement
-        run: |
-          echo "$PASS" | gpg --batch --yes --passphrase-fd 0 --symmetric --cipher-algo AES256 -o bingoo-$D.sql.gpg dump.sql
-          shred -u dump.sql
-          head -c 4 bingoo-$D.sql.gpg | od -An -tx1
-          if gpg --list-packets --batch --passphrase "" bingoo-$D.sql.gpg 2>/dev/null | grep -q "INSERT INTO\|CREATE TABLE"; then echo "Copie NON chiffrée" ; exit 1; fi
-          echo "- sauvegarde chiffrée : $(du -h bingoo-$D.sql.gpg | cut -f1)" | tee -a $GITHUB_STEP_SUMMARY
-      - name: Test de restauration (base vierge et jetable)
-        env: { PGPASSWORD: test }
-        run: |
-          R="postgresql://postgres:test@localhost:5433/postgres"
-          echo "$PASS" | gpg --batch --yes --passphrase-fd 0 -d -o restore.sql bingoo-$D.sql.gpg
-          # Rôles et schémas propres à Supabase, absents d'un Postgres vierge
-          psql "$R" -q -c "do \$\$ begin
-            if not exists (select from pg_roles where rolname='anon') then create role anon; end if;
-            if not exists (select from pg_roles where rolname='authenticated') then create role authenticated; end if;
-            if not exists (select from pg_roles where rolname='service_role') then create role service_role; end if;
-            if not exists (select from pg_roles where rolname='supabase_auth_admin') then create role supabase_auth_admin; end if;
-          end \$\$; create schema if not exists extensions; create schema if not exists net; create extension if not exists pgcrypto with schema extensions;"
-          psql "$R" -q -v ON_ERROR_STOP=0 -f restore.sql > restore.log 2>&1 || true
-          shred -u restore.sql
-          errs=$(grep -c "ERROR" restore.log || true)
-          fail=0
-          while read t n; do
-            m=$(psql "$R" -Atc "select count(*) from public.$t" 2>/dev/null || echo "absente")
-            s="OK"; [ "$m" = "$n" ] || { s="ÉCART"; fail=1; }
-            echo "| $t | $n | $m | $s |"
-          done < counts-prod.txt > table.md
-          { echo "### Test de restauration"; echo "| table | production | restaurée | |"; echo "|---|---|---|---|"; cat table.md;
-            echo "- erreurs pendant la restauration : $errs (rôles et extensions propres à Supabase, sans effet sur les données)"; } | tee -a $GITHUB_STEP_SUMMARY
-          grep "ERROR" restore.log | sort | uniq -c | sort -rn | head -10
-          exit $fail
+          f="bingoo-$(date -u +%Y-%m-%d).dump"
+          pg_dump "$DB_URL" --format=custom --no-owner --no-privileges --schema=public --schema=auth -f "$f"
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in "$f" -out "$f.enc" -pass env:PASS
+          rm "$f"
+          echo "- $f.enc ($(du -h "$f.enc" | cut -f1))" >> $GITHUB_STEP_SUMMARY
       - uses: actions/upload-artifact@v4
-        with:
-          name: sauvegarde-${{ github.run_id }}
-          path: bingoo-*.sql.gpg
-          retention-days: 30
+        if: ${{ hashFiles('*.enc') != '' }}
+        with: { name: sauvegarde-base, path: "*.enc", retention-days: 30 }

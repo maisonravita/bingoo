@@ -176,7 +176,7 @@ export function Conditions() {
       <p>Nous faisons nos meilleurs efforts pour assurer la disponibilité du service, sans garantie de fonctionnement ininterrompu. Des interruptions peuvent survenir pour maintenance, mise à jour ou en raison de prestataires tiers (hébergement, messagerie, sources de données publiques).</p>
 
       <h2>8. Vos données</h2>
-      <p>Vos données restent les vôtres. Vous pouvez les exporter à tout moment. À la fin de l'abonnement, elles restent accessibles 30 jours, puis sont supprimées, sauf obligation légale de conservation.</p>
+      <p>Vos données restent les vôtres. Vous pouvez les exporter à tout moment. À la fin de l'abonnement, ou de l'essai gratuit s'il n'est pas suivi d'un abonnement, elles restent accessibles 30 jours, puis sont supprimées automatiquement, sauf obligation légale de conservation.</p>
 
       <h2>9. Protection des données (article 28 du RGPD)</h2>
       <p>Pour les données des personnes que vous prospectez, vous êtes responsable de traitement et nous agissons comme sous-traitant. À ce titre, nous nous engageons à : traiter ces données uniquement pour fournir le service et selon vos instructions ; en garantir la confidentialité et la sécurité ; n'avoir recours qu'aux sous-traitants listés dans la <a className="underline" href="#/confidentialite">politique de confidentialité</a>, liés par des obligations équivalentes ; vous aider à répondre aux demandes d'exercice de droits ; vous notifier toute violation de données dans les meilleurs délais ; supprimer ou restituer les données à la fin du contrat ; mettre à votre disposition les informations nécessaires pour démontrer le respect de ces obligations.</p>
