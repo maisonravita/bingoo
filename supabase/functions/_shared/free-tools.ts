@@ -77,7 +77,9 @@ export async function freeRenewals(input: { secteur?: string; dept?: string }) {
     out.push({ acheteur: cap(r.acheteur_nom || b?.nom || "Acheteur public"), objet: String(r.objet ?? "").replace(/\s+/g, " ").slice(0, 200), montant: r.montant ?? null, fin: r.fin.toISOString().slice(0, 10), titulaire: t?.nom ? cap(t.nom) : null });
   }
   const total = ending.reduce((s, r) => s + (Number(r.montant) || 0), 0);
-  return { secteur: kw, dept, total: ending.length, montant_total: Math.round(total), visibles: out, caches: Math.max(0, ending.length - out.length) };
+  // Aperçu des contrats suivants, sans nom ni contact (affichés floutés sur la page d'accueil) : montant et date de fin uniquement
+  const apercu = ending.slice(3, 10).map((r) => ({ fin: r.fin.toISOString().slice(0, 10), montant: r.montant ?? null }));
+  return { secteur: kw, dept, total: ending.length, montant_total: Math.round(total), visibles: out, apercu, caches: Math.max(0, ending.length - out.length) };
 }
 
 /** Analyse express d'un concurrent à partir de son site : 3 éléments visibles, le reste réservé aux comptes. */
