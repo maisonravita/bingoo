@@ -148,7 +148,7 @@ const MENU = [
 
 /** Les coordonnées du décideur : ce que Bingoo! trouve pour chaque opportunité. */
 const CONTACT_ROWS = [
-  ["mail", "E-mail", "Publié par l'organisation ou vérifié avant tout envoi"],
+  ["mail", "E-mail", "Publié par l'organisation ou retrouvé sur le web"],
   ["tel", "Téléphone", "Ligne directe ou standard, relevé sur les pages publiques"],
   ["in", "LinkedIn", "Le profil public du décideur, pour un premier contact"],
   ["role", "La bonne fonction", "Achats, direction générale, DSI, RH : celle qui signe pour ton offre"],
@@ -185,7 +185,7 @@ function ContactShow({ go }) {
                 <div><div className="font-bold text-[16px]">Claire Martin</div><div className="text-[14px] text-ink-soft">Responsable de la commande publique</div></div>
               </div>
               <div className="mt-4 grid gap-2 text-[14.5px]">
-                <div className="flex items-center justify-between gap-2 rounded-xl bg-white border border-line px-3 py-2.5"><span className="flex items-center gap-2 min-w-0"><svg viewBox="0 0 24 24" className="h-4 w-4 text-accent shrink-0" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><CIcon k="mail" /></svg><span className="truncate">c.martin@ville-exemple.fr</span></span><span className="text-[12px] font-bold text-good shrink-0">Vérifié</span></div>
+                <div className="flex items-center justify-between gap-2 rounded-xl bg-white border border-line px-3 py-2.5"><span className="flex items-center gap-2 min-w-0"><svg viewBox="0 0 24 24" className="h-4 w-4 text-accent shrink-0" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><CIcon k="mail" /></svg><span className="truncate">c.martin@ville-exemple.fr</span></span><span className="text-[12px] font-semibold text-ink-faint shrink-0">Site officiel</span></div>
                 <div className="flex items-center justify-between gap-2 rounded-xl bg-white border border-line px-3 py-2.5"><span className="flex items-center gap-2"><svg viewBox="0 0 24 24" className="h-4 w-4 text-accent" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><CIcon k="tel" /></svg>01 23 45 67 89</span><span className="text-[12px] font-semibold text-ink-faint">Site officiel</span></div>
                 <div className="flex items-center justify-between gap-2 rounded-xl bg-white border border-line px-3 py-2.5"><span className="flex items-center gap-2"><svg viewBox="0 0 24 24" className="h-4 w-4 text-accent" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><CIcon k="in" /></svg>Profil LinkedIn</span><span className="text-[12px] font-semibold text-ink-faint">Public</span></div>
               </div>
@@ -302,7 +302,7 @@ function TryIt() {
 const SOURCES = ["Données de la commande publique", "BOAMP", "BODACC", "Registre national des entreprises", "TED (marchés européens)", "Sites des entreprises"];
 const STEPS = [
   ["Il repère", "Chaque nuit, le Radar lit les sources officielles et le web : contrats qui se terminent, nouveaux dirigeants, recrutements, visites de ton site."],
-  ["Il trouve la bonne personne", "La fonction qui décide, avec son e-mail publié ou vérifié, le téléphone et son profil LinkedIn public."],
+  ["Il trouve la bonne personne", "La fonction qui décide et son nom, avec son e-mail, son téléphone et son profil LinkedIn quand ils sont trouvables."],
   ["Il écrit", "Un message qui part du signal : pourquoi tu écris maintenant et ce que tu changes pour eux. Tu valides avant tout envoi."],
   ["Tu conclus", "Les réponses sont triées, les rendez-vous se posent dans ton agenda, les devis partent depuis Bingoo!."],
 ];
