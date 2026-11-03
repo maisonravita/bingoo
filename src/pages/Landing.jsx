@@ -557,26 +557,6 @@ function ContactVisual() {
   );
 }
 
-function MissionVisual() {
-  return (
-    <div className="relative w-full max-w-[460px]">
-      <div className="h-2 rounded-t-xl bg-gradient-to-r from-[#FFD9C2] via-[#FFF1E8] to-[#F59A5C]" />
-      <div className="rounded-b-xl bg-white px-6 pt-8 pb-6 shadow-[0_24px_50px_-30px_rgba(21,22,26,.35)] text-center">
-        <span className="mx-auto grid h-10 w-10 place-items-center text-accent"><Ico k="spark" className="h-9 w-9" /></span>
-        <p className="mt-3 text-[26px] text-ink" style={SERIF}>Mission terminée</p>
-        <p className="mt-1 text-[14px] text-ink-soft">Cibles choisies, décideurs trouvés, messages prêts.</p>
-        <div className="mt-6 rounded-xl bg-[#1F1F1F] p-4 text-left text-white">
-          <div className="flex items-center gap-2 text-[13.5px]"><Ico k="doc" className="h-4 w-4" /><span className="truncate">Décideurs des contrats de nettoyage à renouveler</span></div>
-          <div className="mt-3 space-y-2">
-            {[["Responsable des achats", 1], ["Directeur général", .7], ["Directrice des services", .4]].map(([r, o]) => <div key={r} className="flex items-center justify-between gap-2 rounded-lg bg-white/[.06] px-3 py-2" style={{ opacity: o }}><span className="select-none text-[13px] blur-[3px]">Prénom Nom</span><span className="rounded-full bg-[#3B5B2E] px-2 py-0.5 text-[11.5px] text-[#CFF5B5]">{r}</span></div>)}
-          </div>
-          <div className="mt-3 flex gap-2 text-[12px]"><span className="rounded-md bg-accent px-2.5 py-1">Valider les messages</span><span className="rounded-md bg-white/10 px-2.5 py-1">Relire</span></div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function SpyVisual() {
   return (
     <div className="w-full max-w-[460px]">
@@ -596,32 +576,24 @@ function SpyVisual() {
   );
 }
 
-/** Les 9 salariés IA, comme dans l'application : chacun son métier ; l'un après l'autre se met au travail. */
-function Team() {
+/** Aperçu de la page « Vos salariés » : les 9 salariés IA, l'un après l'autre au travail. */
+function TeamVisual() {
   const [busy, setBusy] = useState(0);
   useEffect(() => { const t = setInterval(() => setBusy((n) => (n + 1) % TEAM.length), 2600); return () => clearInterval(t); }, []);
   return (
-    <section id="equipe" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-20 sm:py-28">
-      <div className="mx-auto max-w-[1300px]">
-        <div className="text-center">
-          <h2 className="mx-auto max-w-[820px] text-[42px] sm:text-[64px] leading-[1.02] tracking-[-.03em] text-ink" style={SERIF}>Neuf salariés IA. Un seul abonnement.</h2>
-          <p className="mx-auto mt-6 max-w-[640px] text-[17px] sm:text-[19px] leading-[1.5] text-ink">Chacun a son métier, du repérage au rendez-vous. Tu les vois travailler, tu valides ce qui part.</p>
-        </div>
-        <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {TEAM.map((a, i) => (
-            <div key={a.id} className={cx("flex gap-4 rounded-2xl border p-5 transition-colors", busy === i ? "border-accent/40 bg-[#FFF8F3]" : "border-black/10 bg-white")}>
-              <Avatar id={a.id} working={busy === i} className="w-[92px] h-[118px]" />
-              <div className="min-w-0">
-                <p className="text-[24px] leading-tight text-ink" style={SERIF}>{a.first}</p>
-                <p className="text-[14.5px] text-ink-soft">{a.role}</p>
-                <p className="mt-2 text-[15px] leading-[1.45] text-ink">{a.desc}</p>
-                {busy === i && <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-0.5 text-[12.5px] text-accent-dark land-in"><span className="h-1.5 w-1.5 rounded-full bg-accent pulse-dot" />Au travail</p>}
-              </div>
-            </div>
-          ))}
-        </div>
+    <div className="w-full max-w-[560px] overflow-hidden rounded-xl border border-black/10 bg-[#FAF9F6] shadow-[0_24px_50px_-30px_rgba(21,22,26,.35)]">
+      <div className="flex items-center gap-1.5 border-b border-black/[.07] bg-[#F6F5F3] px-3.5 py-2.5"><span className="h-2.5 w-2.5 rounded-full bg-black/15" /><span className="h-2.5 w-2.5 rounded-full bg-black/15" /><span className="h-2.5 w-2.5 rounded-full bg-black/15" /><span className="ml-3 text-[12px] text-ink-soft">Vos salariés</span></div>
+      <div className="grid grid-cols-3 gap-2 p-2.5 sm:p-3">
+        {TEAM.map((a, i) => (
+          <div key={a.id} className="rounded-lg border border-black/[.08] bg-white px-1.5 pt-2 pb-2.5 text-center">
+            <Avatar id={a.id} working={busy === i} className="mx-auto w-[64px] h-[82px] sm:w-[84px] sm:h-[108px]" />
+            <p className="mt-1 text-[13.5px] sm:text-[15px] font-semibold text-ink leading-tight">{a.first}</p>
+            <p className="text-[11px] sm:text-[12px] text-ink-soft leading-tight truncate">{a.role}</p>
+            <span className={cx("mt-1.5 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] sm:text-[11px]", busy === i ? "bg-accent-soft text-accent-dark" : "bg-[#EFEEEA] text-ink-soft")}><span className={cx("h-1.5 w-1.5 rounded-full", busy === i ? "bg-accent pulse-dot" : "bg-ink-soft")} />{busy === i ? "Au travail" : "En veille"}</span>
+          </div>
+        ))}
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -784,12 +756,10 @@ export default function Landing() {
         <div id="radar" className="scroll-mt-24" />
         <Feature id="produit" title="Sache qui va acheter, et quand" text="Chaque nuit, le Radar lit les sources officielles et le web. Il te montre les entreprises qui ont une raison d'acheter maintenant, avec la date, le montant et la source." bullets={[["radar", <><b className="font-medium">Contrats publics</b> qui se terminent, avec le titulaire actuel et l'acheteur</>], ["doc", <><b className="font-medium">Annonces légales</b> : nouveau dirigeant, création, reprise, déménagement</>], ["eye", <><b className="font-medium">Signaux d'intention</b> : visites de ton site, recrutements, clients mécontents d'un concurrent</>]]} cta={["Essayer le Radar sur mon site", "#essai"]} visual={<RadarVisual />} />
         <Feature id="contacts" flip title="Trouve la personne qui décide" text="Pour chaque opportunité, Bingoo! cherche qui signe et comment le joindre. Tu ouvres la fiche, tu appelles ou tu écris." bullets={[["user", <><b className="font-medium">La bonne fonction</b> : achats, direction générale, DSI ou RH selon ton offre</>], ["mail", <><b className="font-medium">E-mail et téléphone</b> publiés ou vérifiés, jamais devinés</>], ["link", <><b className="font-medium">Profil LinkedIn</b> pour un premier contact</>]]} cta={["Trouver mes décideurs", null]} visual={<ContactVisual />} />
-        <Feature title="Laisse tes salariés IA faire le reste" text="Donne un objectif en une phrase. Mission choisit les cibles, prépare un message qui part du signal, relance et pose les rendez-vous. Tu valides à chaque étape clé." bullets={[["spark", <><b className="font-medium">Mission</b> : de l'objectif au rendez-vous posé</>], ["send", <><b className="font-medium">Messages et relances</b> écrits à partir de la raison d'acheter</>], ["cal", <><b className="font-medium">Réponses triées</b>, rendez-vous dans ton agenda, devis envoyés</>]]} cta={["Lancer ma première Mission", null]} visual={<MissionVisual />} />
+        <Feature id="equipe" title="Laisse tes salariés IA faire le reste" text="Donne un objectif en une phrase. Mission choisit les cibles, prépare un message qui part du signal, relance et pose les rendez-vous. Tu valides à chaque étape clé." bullets={[["spark", <><b className="font-medium">Mission</b> : de l'objectif au rendez-vous posé</>], ["send", <><b className="font-medium">Messages et relances</b> écrits à partir de la raison d'acheter</>], ["cal", <><b className="font-medium">Réponses triées</b>, rendez-vous dans ton agenda, devis envoyés</>]]} cta={["Lancer ma première Mission", null]} visual={<TeamVisual />} />
         <Feature flip title="Connais tes concurrents mieux qu'eux" text="L'Espion suit tes concurrents chaque semaine : ce qu'ils vendent, leurs prix, leurs publicités, leurs avis. Il en tire l'angle pour leur prendre des clients." bullets={[["eye", <><b className="font-medium">Veille continue</b> : prix, offres et publicités qui changent</>], ["star", <><b className="font-medium">Avis clients</b> : les mécontents deviennent des opportunités</>], ["target", <><b className="font-medium">Dossiers de combat</b> envoyés à Mission pour tes messages</>]]} cta={["Analyser un concurrent gratuitement", "#/outils/analyse-concurrent"]} visual={<SpyVisual />} />
 
         <Layers />
-
-        <Team />
 
         <section className="px-5 sm:px-10 py-20"><div id="essai" className="mx-auto max-w-[1180px] scroll-mt-24"><TryIt t={tryState} /></div></section>
 
