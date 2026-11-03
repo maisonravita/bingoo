@@ -49,7 +49,8 @@ export function assertPlan(ws: PlanFields) {
   const plan = ws.plan ?? "essai";
   if (plan === "fondateur") return;
   if (plan === "essai") {
-    if (ws.trial_ends && ws.trial_ends < new Date().toISOString().slice(0, 10)) throw new HttpError(402, "Ton essai gratuit est terminé : choisis une formule dans Réglages → Abonnement pour continuer.");
+    // Tant que le paiement en ligne n'est pas ouvert (pas de clé Stripe), un essai ne bloque jamais : le client ne pourrait pas payer
+    if (ws.trial_ends && ws.trial_ends < new Date().toISOString().slice(0, 10) && env("STRIPE_SECRET_KEY")) throw new HttpError(402, "Ton essai gratuit est terminé : choisis une formule dans Réglages → Abonnement pour continuer.");
     return;
   }
   if (!(plan in PLANS)) throw new HttpError(402, "Formule inconnue : choisis une formule dans Réglages → Abonnement.");
