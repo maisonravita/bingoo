@@ -230,6 +230,13 @@ export async function ask(prompt: string, opts: AskOpts = {}): Promise<string> {
   const key = env("ANTHROPIC_API_KEY");
   if (!key) throw new HttpError(500, "Clé ANTHROPIC_API_KEY manquante dans les secrets Supabase");
   await aiGuard();
+  // Mode économe pour le travail de fond (nuit, tâches automatiques) : les recherches web, de loin le poste le plus cher,
+  // passent au modèle rapide avec 4 recherches au plus. Ce que l'utilisateur lance lui-même garde le modèle complet.
+  // Désactivable avec le secret AI_ECO_BACKGROUND=0.
+  const ctx = aiCtx.getStore() ?? {};
+  const web = (opts.tools ?? []).some((t) => (t as { name?: string }).name === "web_search");
+  const eco = web && !ctx.live && !ctx.essential && env("AI_ECO_BACKGROUND", "1") !== "0";
+  if (eco) opts = { ...opts, fast: true, tools: (opts.tools ?? []).map((t) => (t as { name?: string }).name === "web_search" ? { ...(t as object), max_uses: Math.min(Number((t as { max_uses?: number }).max_uses ?? 4), 4) } : t) };
   const base: Record<string, unknown> = {
     model: opts.fast ? FAST_MODEL() : WRITE_MODEL(),
     max_tokens: Math.max(opts.maxTokens ?? 1500, 1500),
