@@ -154,6 +154,17 @@ export async function inbound(body: Record<string, unknown>) {
       return { text, html };
     });
   }
+  // Adresse de contact publique de Bingoo! (mentions légales, RGPD) : transférée aux administrateurs de la plateforme
+  if (new RegExp(`(^|[\\s<,])bingoo@${PLATFORM_DOMAIN().replace(/\./g, "\\.")}`, "i").test(to)) {
+    const { data: adm } = await admin.from("admins").select("user_id");
+    const dest: string[] = [];
+    for (const a of (adm ?? []) as { user_id: string }[]) { const { data: u } = await admin.auth.admin.getUserById(a.user_id); if (u?.user?.email) dest.push(u.user.email); }
+    let text = String(d.text ?? "");
+    if (!text && d.email_id) { const r = await resend(`/emails/receiving/${d.email_id}`); text = String(r.data?.text ?? "") || String(r.data?.html ?? "").replace(/<[^>]+>/g, " "); }
+    const from = String(d.from ?? "");
+    for (const t of dest) await sendSystem({ to: t, fromName: "Bingoo! contact", replyTo: (from.match(/<([^>]+)>/)?.[1] ?? from).trim() || undefined, subject: `[Contact Bingoo!] ${String(d.subject ?? "")}`, text: `Message reçu sur bingoo@${PLATFORM_DOMAIN()} de ${from}\nRépondre à cet e-mail répond directement à l'expéditeur.\n\n---\n${text.slice(0, 20000)}`, key: d.email_id ? `contact-${d.email_id}-${t}` : undefined });
+    return { forwarded: dest.length };
+  }
   const m = to.match(/r-([0-9a-f-]{36})@([a-z0-9.-]+)/i);
   if (!m) return { skipped: "adresse non suivie" };
   const { data: p } = await admin.from("prospects").select("*").eq("public_token", m[1]).maybeSingle();
