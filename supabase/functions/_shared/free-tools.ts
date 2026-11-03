@@ -135,7 +135,7 @@ export async function freeSignals(input: { cible?: string; dept?: string }) {
   // « cabinets comptables » : les annonces disent souvent « expertise comptable » → on réessaie avec le mot le plus parlant
   if (d && !(d.results ?? []).length && words.length > 1) d = await read([[...words].sort((a, b) => b.length - a.length)[0]]);
   if (!d) throw new HttpError(502, "Les annonces officielles ne répondent pas pour l'instant. Réessaie dans une minute.");
-  const HOLDING = /(holding|participations?|valeurs mobili[eè]res|soci[ée]t[ée] civile|\bsci\b)/i;
+  const HOLDING = /(holding|participations?|valeurs mobili[eè]res|soci[ée]t[ée] civile|\bsci[a-z]?\b|acquisition d['’e]\s*(une?|des|la|le)?\s*(maison|immeuble|terrain|appartement|bien)|location de biens? immobiliers?|gestion de (son|leur) patrimoine)/i;
   const seen = new Set<string>();
   // deno-lint-ignore no-explicit-any
   const rows = ((d.results ?? []) as any[]).flatMap((b) => {
@@ -182,11 +182,12 @@ export async function freeSite(input: { url?: string }) {
     .map((r) => html.match(r)?.[1]?.trim()).filter(Boolean).join("\n");
   const text = `${meta}\n${textOf(html)}`.slice(0, 7000);
   const a = await askJson<{ nom: string; offre: string; clients: string; mots: string[] }>(`Voici la page d'accueil du site ${host}. Dis ce que vend cette entreprise et à quels types d'entreprises clientes.
-Règles : uniquement ce que dit la page. "mots" = 1 à 3 mots-clés simples qui décrivent l'ACTIVITÉ des entreprises clientes telle qu'elle serait écrite au registre du commerce (ex. "restaurant", "comptable", "immobilier", "boulangerie", "transport", "conseil"), au singulier, sans article. Si elle vend à toutes les entreprises, choisis les 2 activités clientes les plus probables. Si la page ne dit pas ce qui est vendu (site en construction, page vide, page de connexion), renvoie "mots": [] et "offre": "".
+Règles : uniquement ce que dit la page. "mots" = 1 à 3 mots-clés simples qui décrivent l'ACTIVITÉ des entreprises clientes telle qu'elle serait écrite au registre du commerce (ex. "restaurant", "comptable", "immobilier", "boulangerie", "transport", "conseil"), au singulier, sans article. Les mots doivent être des secteurs concrets (jamais "commercial", "commerce", "service", "conseil", "entreprise", "vente", "gestion", "activité"). Si elle vend à toutes les entreprises, choisis les 2 secteurs clients concrets les plus probables (ex. "nettoyage", "transport", "informatique"). Si la page ne dit pas ce qui est vendu (site en construction, page vide, page de connexion), renvoie "mots": [] et "offre": "".
 Contenu :
 ${text}
 Format : {"nom": "", "offre": "ce qu'elle vend, 12 mots maximum", "clients": "à qui, en quelques mots (ex. aux restaurants et bars)", "mots": [""]}`, { fast: true, maxTokens: 300 });
-  const mots = (a.mots ?? []).map((m) => String(m).trim()).filter((m) => cibleWords(m).length).slice(0, 2);
+  const VAGUE = /^(commercial|commerce|service|services|conseil|entreprise|entreprises|vente|gestion|activit[ée]|soci[ée]t[ée]|b2b|pme|professionnel)s?$/i;
+  const mots = (a.mots ?? []).map((m) => String(m).trim()).filter((m) => cibleWords(m).length && !VAGUE.test(m)).slice(0, 2);
   if (!mots.length || !String(a.offre ?? "").trim()) throw new HttpError(422, "Ton site ne dit pas encore clairement ce que tu vends. Crée ton compte : Bingoo! te posera la question.");
   const parts = await Promise.all(mots.map((m) => freeSignals({ cible: m }).catch(() => null)));
   const seen = new Set<string>();
