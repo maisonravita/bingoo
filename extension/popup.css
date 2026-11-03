@@ -1,0 +1,21 @@
+:root { --accent: #E0531F; --ink: #1c1917; --soft: #57534e; --faint: #a8a29e; --line: #e7e5e4; --paper: #f5f4f0; --good: #15803d; }
+* { box-sizing: border-box; }
+body { width: 360px; margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: #fff; }
+header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.logo { font-weight: 900; font-size: 18px; letter-spacing: -.02em; } .logo b { color: var(--accent); }
+header button { border: 0; background: none; font-size: 16px; cursor: pointer; color: var(--soft); }
+main { padding: 14px; max-height: 520px; overflow-y: auto; }
+h1 { font-size: 18px; margin: 0; line-height: 1.2; }
+h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--soft); margin: 16px 0 6px; }
+.muted { color: var(--faint); font-size: 12.5px; }
+.chip { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 11.5px; font-weight: 700; background: var(--paper); color: var(--soft); margin: 2px 4px 2px 0; }
+.chip.rival { background: #ffe4e6; color: #9f1239; }
+.chip.ok { background: #dcfce7; color: var(--good); }
+.sig { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin-bottom: 6px; }
+.sig b { font-size: 13px; } .score { float: right; background: var(--accent); color: #fff; border-radius: 999px; padding: 0 7px; font-size: 11.5px; font-weight: 700; }
+.sig p { margin: 3px 0 0; font-size: 12.5px; color: var(--soft); }
+.person { margin-bottom: 6px; font-size: 13px; } .person a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.btn { display: block; width: 100%; border: 0; border-radius: 999px; padding: 10px; font-weight: 700; font-size: 14px; cursor: pointer; background: var(--accent); color: #fff; margin-top: 14px; text-align: center; text-decoration: none; }
+.btn.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); margin-top: 8px; }
+input { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; font: inherit; margin-top: 8px; }
+.err { color: #b91c1c; font-size: 13px; }

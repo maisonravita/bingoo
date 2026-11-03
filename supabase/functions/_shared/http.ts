@@ -3,7 +3,7 @@ import { aiCtx } from "./ai-ctx.ts";
 
 export const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-key",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-key, x-bingoo-key, mcp-protocol-version, mcp-session-id",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 

@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Bingoo!",
+  "version": "1.0.0",
+  "description": "Bingoo! sur chaque site d'entreprise : signaux d'achat, outils utilisés, bon contact, ajout aux prospects en un clic.",
+  "action": { "default_popup": "popup.html", "default_title": "Bingoo!" },
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": ["https://fbsjbnnmzazylmquzryo.supabase.co/*"],
+  "icons": { "16": "icon16.png", "48": "icon48.png", "128": "icon128.png" }
+}

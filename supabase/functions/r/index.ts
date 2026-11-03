@@ -127,6 +127,22 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { data } = await q;
     return { address: watchAddress(ws), emails: data ?? [] };
   },
+  // Clés d'accès personnelles (extension Chrome, assistants IA)
+  async "apikey-create"(req, b) {
+    const { ws, userId } = await requireMember(req, b.workspace_id);
+    const { keyCreate } = await import("../_shared/apikeys.ts");
+    return await keyCreate(ws.id, userId, String(b.name ?? ""));
+  },
+  async "apikey-list"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { keyList } = await import("../_shared/apikeys.ts");
+    return await keyList(ws.id);
+  },
+  async "apikey-revoke"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { keyRevoke } = await import("../_shared/apikeys.ts");
+    return await keyRevoke(ws.id, String(b.id ?? ""));
+  },
   async "radar-calendar"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const { buyingCalendar } = await import("../_shared/radar-extra.ts");

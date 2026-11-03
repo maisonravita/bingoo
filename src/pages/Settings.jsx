@@ -253,6 +253,50 @@ export default function Settings() {
           <Button size="sm" variant="primary" loading={busy === "save"} onClick={() => save({ legal_name: f.legal_name, siret: f.siret, vat_rate: f.vat_rate, catalog: (f.catalog ?? []).filter((c) => c.label.trim()) })}>Enregistrer</Button>
         </div>
       </Section>
+
+      <ExternalAccess ws={ws} />
     </div>
+  );
+}
+
+/** Extension Chrome et assistants IA (Claude, ChatGPT) : clés d'accès personnelles, installation, branchement. */
+function ExternalAccess({ ws }) {
+  const toast = useToast();
+  const [keys, setKeys] = useState(null);
+  const [fresh, setFresh] = useState("");
+  const [busy, setBusy] = useState(false);
+  const load = () => fn("r/apikey-list", { workspace_id: ws.id }).then((r) => setKeys(r.keys)).catch(() => setKeys([]));
+  useEffect(() => { load(); }, [ws.id]);
+  const create = async () => { setBusy(true); try { const r = await fn("r/apikey-create", { workspace_id: ws.id, name: `Clé du ${new Date().toLocaleDateString("fr-FR")}` }); setFresh(r.key); load(); } catch (e) { toast(e.message, "bad"); } finally { setBusy(false); } };
+  const revoke = async (id) => { await fn("r/apikey-revoke", { workspace_id: ws.id, id }); toast("Clé supprimée : elle ne fonctionne plus", "good"); load(); };
+  const copy = async (t) => { try { await navigator.clipboard.writeText(t); toast("Copié", "good"); } catch { toast(t); } };
+  const mcp = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/x/mcp`;
+  return (
+    <Section id="acces" title="Extension et assistants IA" sub="Bingoo! sur chaque site d'entreprise que tu visites, et dans Claude ou ChatGPT.">
+      <div className="grid gap-5">
+        <div>
+          <p className="font-semibold">1. Ta clé d'accès personnelle</p>
+          <p className="text-sm text-ink-soft">Elle relie l'extension et ton assistant IA à cet espace, en lecture et pour ajouter des prospects. Ne la partage pas.</p>
+          {fresh && <div className="mt-3 rounded-xl border border-accent/40 bg-accent-soft/40 p-3"><p className="text-[13px] font-semibold">Ta nouvelle clé (elle ne sera plus affichée) :</p><div className="mt-1.5 flex gap-2 items-center"><code className="flex-1 break-all text-[12.5px] bg-white rounded-lg border border-line px-2 py-1.5">{fresh}</code><Button size="sm" onClick={() => copy(fresh)}>Copier</Button></div></div>}
+          <div className="mt-3 space-y-1.5">{(keys ?? []).map((k) => <div key={k.id} className="flex items-center gap-3 text-[13.5px]"><code className="text-ink-soft">{k.prefix}…</code><span className="text-ink-faint">{k.last_used_at ? `utilisée le ${new Date(k.last_used_at).toLocaleDateString("fr-FR")}` : "jamais utilisée"}</span><button onClick={() => revoke(k.id)} className="ml-auto text-[12.5px] text-bad hover:underline">Supprimer</button></div>)}</div>
+          <Button className="mt-3" size="sm" variant="primary" loading={busy} onClick={create}>Créer une clé</Button>
+        </div>
+        <div>
+          <p className="font-semibold">2. Extension Chrome</p>
+          <ol className="text-sm text-ink-soft list-decimal pl-5 space-y-1 mt-1">
+            <li><a href="./bingoo-extension.zip" download className="text-accent font-semibold hover:underline">Télécharge l'extension</a> et décompresse-la.</li>
+            <li>Dans Chrome, ouvre <code>chrome://extensions</code> et active le « Mode développeur » (en haut à droite).</li>
+            <li>Clique sur « Charger l'extension non empaquetée » et choisis le dossier <code>bingoo-extension</code>.</li>
+            <li>Épingle Bingoo!, ouvre le site d'une entreprise, clique sur l'icône et colle ta clé la première fois.</li>
+          </ol>
+        </div>
+        <div>
+          <p className="font-semibold">3. Claude ou ChatGPT</p>
+          <p className="text-sm text-ink-soft">Ajoute un connecteur personnalisé (MCP) avec cette adresse. Ton assistant pourra lire tes opportunités, tes concurrents, tes prospects et tes résultats.</p>
+          <div className="mt-2 flex gap-2 items-center"><code className="flex-1 break-all text-[12.5px] bg-paper rounded-lg border border-line px-2 py-1.5">{mcp}?k={fresh || "TA_CLÉ"}</code><Button size="sm" onClick={() => copy(`${mcp}?k=${fresh || "TA_CLÉ"}`)}>Copier</Button></div>
+          <p className="text-[12px] text-ink-faint mt-1.5">Ce lien contient ta clé : garde-le privé. Si l'assistant permet un en-tête d'authentification, utilise plutôt l'adresse sans <code>?k=</code> et l'en-tête <code>Authorization: Bearer ta_clé</code>.</p>
+        </div>
+      </div>
+    </Section>
   );
 }
