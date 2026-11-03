@@ -260,28 +260,10 @@ function useTry() {
     e?.preventDefault?.();
     setBusy(true); setErr(""); setR(null);
     document.getElementById("essai")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    try { setR(await call("free-renewals", f)); } catch (x) { setErr(x.message); } finally { setBusy(false); }
+    const secteur = f.secteur.trim().replace(/^(du|des|de la|de l'|de|le|la|les|l'|un|une)\s*/i, "");
+    try { setR(await call("free-renewals", { ...f, secteur })); } catch (x) { setErr(x.message); } finally { setBusy(false); }
   };
   return { f, setF, r, err, busy, search };
-}
-
-/** Barre de recherche du titre : métier + département → vrais résultats juste en dessous. */
-function HeroSearch({ t }) {
-  return (
-    <form onSubmit={t.search} className="mt-9 mx-auto max-w-2xl rounded-[22px] bg-white border border-[#EFE5DC] p-2 shadow-[0_24px_50px_-28px_rgba(224,83,31,.55)] grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_120px_auto] gap-2 text-left">
-      <label className="flex items-center gap-2.5 rounded-2xl px-3.5 focus-within:bg-[#FFF6F0] transition">
-        <svg viewBox="0 0 24 24" className="h-5 w-5 text-accent shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-        <span className="sr-only">Ton métier</span>
-        <input value={t.f.secteur} onChange={(e) => t.setF({ ...t.f, secteur: e.target.value })} placeholder="Ton métier (ex. nettoyage)" className="w-full min-w-0 bg-transparent py-3.5 text-[16px] outline-none" />
-      </label>
-      <label className="flex items-center gap-2 rounded-2xl px-3.5 sm:border-l border-line focus-within:bg-[#FFF6F0] transition">
-        <svg viewBox="0 0 24 24" className="h-5 w-5 text-ink-faint shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg>
-        <span className="sr-only">Département</span>
-        <input value={t.f.dept} onChange={(e) => t.setF({ ...t.f, dept: e.target.value })} placeholder="Dép. ex. 75" maxLength={3} className="w-full min-w-0 bg-transparent py-3.5 text-[16px] outline-none" />
-      </label>
-      <button type="submit" disabled={t.busy} className="rounded-2xl bg-accent text-white px-6 py-3.5 text-[16px] font-bold hover:bg-accent-dark active:scale-[0.98] transition disabled:opacity-60 whitespace-nowrap">{t.busy ? "Recherche…" : "Trouve-moi des clients"}</button>
-    </form>
-  );
 }
 
 const Lock = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
@@ -305,14 +287,18 @@ function TryIt({ t }) {
       </div>
       <div className="relative grid grid-cols-1 lg:grid-cols-[.85fr_1.15fr] gap-6 lg:gap-10 items-start [&>*]:min-w-0">
         <div>
-          <p className="font-black text-[24px] sm:text-[28px] leading-tight" style={D}>Teste le Radar sur ton marché</p>
-          <p className="text-[14.5px] text-white/65 mt-2">Les contrats publics de ton métier qui se terminent dans les 12 mois, dans ton département. Données officielles, résultat en quelques secondes, sans compte.</p>
-          <form onSubmit={search} className="mt-5 grid grid-cols-[minmax(0,1fr)_92px] gap-2">
-            <label className="sr-only" htmlFor="tr-secteur">Ton métier</label>
-            <input id="tr-secteur" value={f.secteur} onChange={(e) => setF({ ...f, secteur: e.target.value })} placeholder="Ton métier (ex. nettoyage)" className="rounded-xl bg-white/10 border border-white/15 px-3.5 py-3 text-[15px] placeholder:text-white/40 outline-none focus:border-[#F27834]" />
-            <label className="sr-only" htmlFor="tr-dept">Département</label>
-            <input id="tr-dept" value={f.dept} onChange={(e) => setF({ ...f, dept: e.target.value })} placeholder="Dép." maxLength={3} className="rounded-xl bg-white/10 border border-white/15 px-3.5 py-3 text-[15px] placeholder:text-white/40 outline-none focus:border-[#F27834]" />
-            <button type="submit" disabled={busy} className="col-span-2 rounded-xl bg-accent hover:bg-accent-dark disabled:opacity-60 py-3 font-bold text-[15px] transition">{busy ? "Recherche dans les données officielles…" : "Voir les contrats qui se terminent"}</button>
+          <p className="font-black text-[24px] sm:text-[28px] leading-tight" style={D}>Qui va acheter ce que tu vends ?</p>
+          <p className="text-[14.5px] text-white/65 mt-2">Le Radar cherche les acheteurs dont le contrat se termine dans les 12 mois : ils vont devoir choisir un fournisseur. Données officielles, sans compte.</p>
+          <form onSubmit={search} className="mt-5">
+            <p className="text-[19px] sm:text-[21px] leading-[2.1] font-semibold">
+              Je vends{" "}
+              <label className="sr-only" htmlFor="tr-secteur">Ce que tu vends</label>
+              <input id="tr-secteur" value={f.secteur} onChange={(e) => setF({ ...f, secteur: e.target.value })} placeholder="du nettoyage" className="w-[11ch] min-w-0 bg-transparent border-b-2 border-[#F27834] px-1 text-[#F6A06B] placeholder:text-white/35 outline-none focus:bg-white/5" />
+              {" "}dans le{" "}
+              <label className="sr-only" htmlFor="tr-dept">Département</label>
+              <input id="tr-dept" value={f.dept} onChange={(e) => setF({ ...f, dept: e.target.value })} placeholder="75" maxLength={3} inputMode="text" className="w-[3.2ch] bg-transparent border-b-2 border-[#F27834] px-1 text-center text-[#F6A06B] placeholder:text-white/35 outline-none focus:bg-white/5" />
+            </p>
+            <button type="submit" disabled={busy} className="mt-4 w-full rounded-xl bg-accent hover:bg-accent-dark disabled:opacity-60 py-3 font-bold text-[15px] transition">{busy ? "Le Radar fouille les données officielles…" : "Qui va m'acheter ?"}</button>
           </form>
           {err && <p className="mt-3 text-[13.5px] text-[#FCA5A5]">{err}</p>}
           <p className="mt-4 text-[13px] text-white/50">Tu veux plutôt espionner un concurrent ? <a href="#/outils/analyse-concurrent" className="text-[#F6A06B] font-semibold hover:underline">Analyse-le gratuitement</a></p>
@@ -444,7 +430,11 @@ export default function Landing() {
           <div className="relative max-w-5xl mx-auto px-4 sm:px-6 pt-14 sm:pt-20 pb-14 text-center">
             <h1 className="hero-in font-black text-[50px] sm:text-[88px] leading-[.95] tracking-[-.03em]" style={D}>Sache qui va acheter.<br />Et <span className="text-accent">quand.</span></h1>
             <p className="hero-in mt-7 text-[18px] sm:text-[21px] leading-relaxed text-ink-soft max-w-2xl mx-auto" style={{ animationDelay: ".15s" }}>Bingoo! est ton équipe commerciale IA. Elle repère les entreprises qui ont une raison d'acheter maintenant, trouve le décideur avec son e-mail, son téléphone et son LinkedIn, et prépare le message.</p>
-            <div className="hero-in" style={{ animationDelay: ".3s" }}><HeroSearch t={tryState} /><p className="mt-3 text-[14px] text-ink-soft">Gratuit, sans compte. Ou <button onClick={go} className="font-semibold text-ink underline underline-offset-4 hover:text-accent-dark">crée ton compte</button> directement.</p></div>
+            <div className="hero-in mt-9 flex flex-col sm:flex-row items-center justify-center gap-3" style={{ animationDelay: ".3s" }}>
+              <button onClick={go} className="w-full sm:w-auto rounded-full bg-accent text-white px-8 py-4 text-[17px] font-bold shadow-[0_18px_40px_-18px_rgba(224,83,31,.8)] hover:bg-accent-dark active:scale-[0.98] transition">Commencer gratuitement</button>
+              <a href="#essai" onClick={scrollTo("essai")} className="w-full sm:w-auto rounded-full bg-white border border-[#EFE5DC] px-8 py-4 text-[17px] font-bold hover:border-ink/30 transition">Voir qui achète chez moi</a>
+            </div>
+            <p className="hero-in mt-3 text-[14px] text-ink-soft" style={{ animationDelay: ".35s" }}>14 jours gratuits, sans carte bancaire.</p>
             <ul className="hero-in mt-7 flex flex-wrap justify-center gap-2.5" style={{ animationDelay: ".45s" }}>
               {["15 signaux d'achat", "E-mail, téléphone, LinkedIn", "Sans carte bancaire", "Conforme RGPD"].map((t) => <li key={t} className="rounded-full bg-white border border-[#EFE5DC] px-4 py-2 text-[14.5px] font-medium flex items-center gap-2 shadow-[0_6px_16px_-12px_rgba(21,22,26,.3)]"><Check className="h-4 w-4 text-good" />{t}</li>)}
             </ul>
