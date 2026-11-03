@@ -783,7 +783,9 @@ function ContactsBox({ ws, o, onChange }) {
   const li = (name) => `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(`${name} ${o.company}`)}`;
   const person = (n) => n && !/^(service|contact de|direction|mairie)/i.test(n);
   const ST = { verifie: ["vérifié", "text-good"], publie: ["publié", "text-good"], en_cours: ["vérification en cours", "text-ink-faint"], introuvable: ["", ""] };
-  const list = rows?.length ? rows : c0?.nom ? [{ id: "r", name: c0.nom, role: c0.role, email: c0.email, email_status: c0.email ? "publie" : "", linkedin_url: c0.linkedin, source: c0.source }] : [];
+  const clean = (x) => String(x ?? "").split(/\s[(—]/)[0].trim();
+  const usable = (rows ?? []).filter((c) => !/n'est pas (un|le) décideur/i.test(c.role ?? "")).map((c) => ({ ...c, role: clean(c.role) }));
+  const list = usable.length ? usable : c0?.nom ? [{ id: "r", name: c0.nom, role: c0.role, email: c0.email, email_status: c0.email ? "publie" : "", linkedin_url: c0.linkedin, source: c0.source }] : [];
   const phone = p?.phone || c0?.tel;
   return (
     <div>
@@ -799,7 +801,7 @@ function ContactsBox({ ws, o, onChange }) {
             </div>
           ))}
           {phone && <p className="text-[13.5px]"><span className="text-ink-soft">Téléphone : </span><a href={`tel:${phone.replace(/\s/g, "")}`} className="font-semibold hover:underline">{phone}</a></p>}
-          {!rows?.length && o.kind !== "appel_offres" && (
+          {!usable.length && o.kind !== "appel_offres" && (
             <button onClick={find} disabled={busy} className="rounded-full border border-accent/40 text-accent-dark px-3.5 py-1.5 text-[12.5px] font-semibold hover:bg-accent-soft disabled:opacity-60">{busy ? "Recherche… (30 s à 1 min)" : list.length ? "Trouver le bon interlocuteur" : "Trouver le contact (e-mail, téléphone, LinkedIn)"}</button>
           )}
           {!list.length && !phone && !busy && o.kind === "appel_offres" && <p className="text-[13px] text-ink-soft">Le contact de l'acheteur est dans l'avis officiel (Tous les détails).</p>}
