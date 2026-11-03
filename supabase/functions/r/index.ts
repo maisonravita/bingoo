@@ -92,6 +92,13 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { altPage } = await import("../_shared/altpage.ts");
     return await altPage(ws, String(b.competitor_id ?? ""), b.force === true);
   },
+  // Radar : la bonne personne pour une opportunité (e-mail, téléphone, LinkedIn public)
+  async "opp-contacts"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    await quota(ws.id, "contacts", 60);
+    const { oppContacts } = await import("../_shared/opp-contacts.ts");
+    return await oppContacts(ws, String(b.id ?? ""));
+  },
   async "radar-calendar"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const { buyingCalendar } = await import("../_shared/radar-extra.ts");

@@ -241,6 +241,11 @@ export async function pickTop3(ws: Workspace) {
     // Le message n'est préparé que s'il reste de la marge sur le budget IA du mois
     if (room) { try { await prepareOpp(ws, o.id); prepared++; } catch (e) { console.error("top3", o.id, (e as Error).message); } }
   }
+  // L'entreprise n°1 du jour : on cherche aussi la bonne personne (e-mail, téléphone, LinkedIn), si le budget IA le permet
+  if (pick[0] && !pick[0].raw?.contacts_at && await aiRoom(ws.id, 0.6)) {
+    const { oppContacts } = await import("./opp-contacts.ts");
+    await oppContacts(ws, pick[0].id).catch((e) => console.error("contacts n°1", (e as Error).message));
+  }
   return { top: pick.length + (already ?? []).length, prepared };
 }
 
