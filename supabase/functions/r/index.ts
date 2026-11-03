@@ -215,6 +215,16 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const p = await altPage(ws, String(b.competitor_id ?? ""), true);
     return { ...p, html: `${String(p.html ?? "").length} caractères` };
   },
+  // Test plateforme : contacts d'une opportunité
+  async "opp-contacts-test"(req, b) {
+    await cron(req);
+    const { data: o } = await admin.from("radar_opps").select("workspace_id").eq("id", String(b.id ?? "")).single();
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", o?.workspace_id ?? "").single();
+    if (!ws) throw new HttpError(404, "Opportunité introuvable");
+    setAi({ ws: ws.id });
+    const { oppContacts } = await import("../_shared/opp-contacts.ts");
+    return await oppContacts(ws, String(b.id));
+  },
   async "spy-cron"(req) { await cron(req); return await spyCron(); },
   async "spy-digest"(req) { await cron(req); return await spyDigest(); },
   async "spy-needs"(req, b) {
