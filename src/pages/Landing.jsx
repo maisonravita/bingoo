@@ -52,7 +52,7 @@ function BigCounter() {
   useEffect(() => { if (total == null) return; if (prev.current != null && total > prev.current) { setBump(total - prev.current); const t = setTimeout(() => setBump(0), 2500); prev.current = total; return () => clearTimeout(t); } prev.current = total; }, [total]);
   const parts = [["Appels d'offres et contrats", v?.marches], ["Prospects qualifiés", v?.prospects], ["Signaux d'achat", v?.signaux]];
   return (
-    <div className="relative mt-12 max-w-3xl mx-auto rounded-[28px] bg-white/90 backdrop-blur border border-[#F3E3D7] shadow-[0_30px_70px_-40px_rgba(224,83,31,.55)] px-5 sm:px-10 pt-7 pb-6" aria-live="polite">
+    <div className="relative max-w-3xl mx-auto rounded-[28px] bg-white/90 backdrop-blur border border-[#F3E3D7] shadow-[0_30px_70px_-40px_rgba(224,83,31,.55)] px-5 sm:px-10 pt-7 pb-6" aria-live="polite">
       <div className="flex items-center justify-center gap-2 text-[14px] font-bold text-good">
         <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full rounded-full bg-good opacity-60 motion-safe:animate-ping" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-good" /></span>En direct
       </div>
@@ -70,6 +70,17 @@ function BigCounter() {
         ))}
       </div>
     </div>
+  );
+}
+
+function LivePill() {
+  const v = useLive();
+  return (
+    <a href="#compteur" onClick={scrollTo("compteur")} className="mt-7 inline-flex items-center gap-3 rounded-full bg-white border border-[#EFE5DC] pl-2 pr-5 py-2 shadow-[0_8px_20px_-14px_rgba(21,22,26,.35)] hover:border-accent/40 transition">
+      <span className="flex -space-x-2">{["B", "D", "T"].map((t, i) => <span key={t} className="h-8 w-8 rounded-full border-2 border-white flex items-center justify-center text-[13px] font-black text-white" style={{ ...D, background: ["#E0531F", "#F2843F", "#15161A"][i] }}>{t}</span>)}</span>
+      <span className="text-[14px] sm:text-[15.5px] font-bold whitespace-nowrap">{v ? <><Rolling value={v.total ?? 0} /> opportunités trouvées</> : "Le Radar tourne en ce moment"}</span>
+      <span className="relative flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full rounded-full bg-good opacity-60 motion-safe:animate-ping" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-good" /></span>
+    </a>
   );
 }
 
@@ -91,6 +102,15 @@ const BUBBLES = [
   ["Sirene", "Registre officiel", "right-[7%] top-[9%]"], ["Emploi", "Offres d'emploi", "right-[3%] top-[32%]"], ["Web", "Sites et outils", "right-[9%] top-[55%]"], ["Ton site", "Visiteurs", "right-[4%] top-[78%]"],
 ];
 
+const Chev = () => <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m6 9 6 6 6-6" /></svg>;
+const MENU = [
+  ["Produit", [["Radar", "Qui va acheter, et quand", "#radar"], ["Comment ça marche", "Quatre étapes jusqu'au rendez-vous", "#produit"], ["Essai en direct", "Teste le Radar sur ton marché", "#essai"]]],
+  ["Solutions", [["Services sur site", "Nettoyage, sécurité, maintenance, BTP", "#pour-qui"], ["Services aux entreprises", "Agences, conseil, ESN, formation", "#pour-qui"], ["Logiciels / SaaS", "Prends les clients de tes concurrents", "#pour-qui"], ["Indépendants", "Un commercial à temps plein", "#pour-qui"]]],
+  ["Nos données", [["Sources officielles", "BOAMP, BODACC, Sirene, DECP, TED", "#donnees"], ["Compteur en direct", "Ce que le Radar a trouvé", "#compteur"]]],
+  ["Tarifs", null],
+  ["Ressources", [["Outils gratuits", "Contrats publics, analyse de concurrent", "#/outils"], ["Questions fréquentes", "Tout ce qu'on nous demande", "#faq"]]],
+];
+
 /** Le Radar en démonstration : signaux (faits publics) ou intentions (comportements). */
 const MODES = {
   signal: { label: "Radar Signal", items: ["Contrat public à renouveler", "Nouveau dirigeant", "Déménagement du siège", "Recrutement lié à ton offre"], dots: [[30,38],[62,30],[48,62],[70,58],[38,72],[56,44]] },
@@ -101,14 +121,14 @@ function RadarDemo() {
   const [m, setM] = useState("signal");
   const mode = MODES[m];
   return (
-    <section className="relative max-w-6xl mx-auto px-4 sm:px-6 pb-14">
+    <section id="radar" className="relative max-w-6xl mx-auto px-4 sm:px-6 pb-14 scroll-mt-24">
       <div className="rounded-[32px] bg-white border border-line shadow-[0_24px_60px_-40px_rgba(21,22,26,.35)] p-6 sm:p-10 grid lg:grid-cols-[1fr_1.1fr] gap-8 items-center">
         <div>
           <div className="flex items-center gap-4">
             <svg viewBox="0 0 48 48" className="h-14 w-14 sm:h-16 sm:w-16 shrink-0 text-accent" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" aria-hidden><circle cx="22" cy="26" r="17" /><circle cx="22" cy="26" r="9.5" /><circle cx="22" cy="26" r="2.6" fill="currentColor" /><path d="m22 26 16-16M33 6l5 4 4 5" /></svg>
             <h2 className="font-black text-[32px] sm:text-[42px] leading-none tracking-[-.02em]" style={D}>Le Radar <span className="text-accent">Bingoo!</span></h2>
           </div>
-          <p className="mt-4 text-[17px] sm:text-[19px] text-ink-soft leading-relaxed">Il détecte les meilleures opportunités commerciales, au bon moment, et te dit pourquoi les contacter maintenant.</p>
+          <p className="mt-4 text-[17px] sm:text-[19px] text-ink-soft leading-relaxed">Détecte les meilleures opportunités commerciales, au bon moment.</p>
           <ul className="mt-6 space-y-2.5">
             {mode.items.map((t) => <li key={t} className="flex items-center gap-3 text-[16px] font-semibold land-in"><span className="h-2.5 w-2.5 rounded-full bg-accent" />{t}</li>)}
           </ul>
@@ -116,7 +136,7 @@ function RadarDemo() {
         <div className="rounded-[28px] bg-[#FBF7F3] border border-[#F1E6DC] p-4 sm:p-6">
           <div className="flex gap-2 justify-center" role="tablist">
             {Object.entries(MODES).map(([k, x]) => (
-              <button key={k} role="tab" aria-selected={m === k} onClick={() => setM(k)} className={cx("rounded-full px-4 sm:px-6 py-2.5 text-[14px] sm:text-[15px] font-bold transition", m === k ? "bg-accent text-white shadow-[0_10px_24px_-12px_rgba(224,83,31,.9)]" : "bg-white text-ink-soft border border-line hover:text-ink")}>{x.label}</button>
+              <button key={k} role="tab" aria-selected={m === k} onClick={() => setM(k)} className={cx("rounded-full px-4 sm:px-6 py-2.5 text-[14px] sm:text-[15px] font-bold transition inline-flex items-center gap-2", m === k ? "bg-accent text-white shadow-[0_10px_24px_-12px_rgba(224,83,31,.9)]" : "bg-white text-ink-soft border border-line hover:text-ink")}>{k === "signal" ? <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 12h4l2-5 4 10 2-5h6" /></svg> : <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3.5" /></svg>}{x.label}</button>
             ))}
           </div>
           <div className="relative mt-5 grid sm:grid-cols-[1fr_170px] gap-4 items-center">
@@ -128,7 +148,7 @@ function RadarDemo() {
               {mode.dots.map(([x, y], i) => <span key={m + i} className="absolute h-3 w-3 -ml-1.5 -mt-1.5 rounded-full bg-accent land-in shadow-[0_0_0_5px_rgba(224,83,31,.15)]" style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${i * 80}ms` }} />)}
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-1 gap-3">
-              <div className="rounded-2xl bg-white border border-line p-4"><div className="font-black text-[28px] leading-none tabular-nums" style={D}>{v ? (m === "signal" ? v.marches : v.signaux).toLocaleString("fr-FR") : "…"}</div><div className="mt-1.5 text-[13px] text-ink-soft font-semibold">{m === "signal" ? "marchés publics repérés" : "signaux d'achat détectés"}</div></div>
+              <div className="rounded-2xl bg-white border border-line p-4 shadow-[0_10px_24px_-18px_rgba(21,22,26,.4)]"><div className="flex items-start justify-between gap-2"><div className="font-black text-[30px] leading-none tabular-nums" style={D}>+{v ? (m === "signal" ? v.signaux : v.marches).toLocaleString("fr-FR") : "…"}</div><svg viewBox="0 0 24 24" className="h-6 w-6 text-accent" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m3 17 6-6 4 4 8-8M15 7h6v6" /></svg></div><div className="mt-2 text-[13px] text-ink-soft font-semibold">{m === "signal" ? "opportunités détectées" : "marchés publics repérés"}</div></div>
               <div className="rounded-2xl bg-white border border-line p-4"><div className="font-black text-[22px] leading-none" style={D}>Chaque nuit</div><div className="mt-1.5 text-[13px] text-ink-soft font-semibold">sources relues, résultats le matin</div></div>
             </div>
           </div>
@@ -239,13 +259,19 @@ export default function Landing() {
       <div className="sticky top-3 z-30 px-3 sm:px-6">
         <header className="max-w-6xl mx-auto rounded-full bg-ink text-white shadow-[0_14px_34px_-14px_rgba(21,22,26,.55)] h-14 sm:h-[68px] px-4 sm:px-6 flex items-center justify-between">
           <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Bingoo!"><Logo inverse height={28} /></button>
-          <nav className="flex items-center gap-1 sm:gap-6 text-[14.5px] font-semibold">
-            <a href="#produit" onClick={scrollTo("produit")} className="hidden md:inline hover:opacity-80">Produit</a>
-            <a href="#pour-qui" onClick={scrollTo("pour-qui")} className="hidden md:inline hover:opacity-80">Pour qui</a>
-            <a href="#tarifs" onClick={scrollTo("tarifs")} className="hidden md:inline hover:opacity-80">Tarifs</a>
-            <a href="#/outils" className="hidden lg:inline hover:opacity-80">Outils gratuits</a>
-            <button onClick={() => nav("/connexion?mode=login")} className="px-2 hover:opacity-80">Connexion</button>
-            <button onClick={go} className="inline-flex items-center gap-1.5 rounded-full bg-accent text-white px-4 sm:px-5 py-2 sm:py-2.5 font-bold hover:bg-accent-dark transition">S'inscrire<Arrow className="h-4 w-4" /></button>
+          <nav className="flex items-center gap-1 lg:gap-7 text-[15.5px] font-semibold">
+            {MENU.map(([t, items]) => items ? (
+              <div key={t} className="relative group hidden lg:block">
+                <button className="inline-flex items-center gap-1.5 py-3 hover:opacity-80" aria-haspopup="true">{t}<Chev /></button>
+                <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 transition absolute left-1/2 -translate-x-1/2 top-full pt-2 z-40">
+                  <div className="w-64 rounded-2xl bg-white text-ink shadow-[0_20px_50px_-20px_rgba(21,22,26,.5)] border border-line p-2">
+                    {items.map(([l, d, href]) => <a key={l} href={href} onClick={href.startsWith("#/") ? undefined : scrollTo(href.slice(1))} className="block rounded-xl px-3 py-2.5 hover:bg-[#FFF4EC]"><span className="block text-[15px] font-bold">{l}</span><span className="block text-[13px] font-medium text-ink-soft">{d}</span></a>)}
+                  </div>
+                </div>
+              </div>
+            ) : <a key={t} href="#tarifs" onClick={scrollTo("tarifs")} className="hidden lg:inline hover:opacity-80">{t}</a>)}
+            <button onClick={() => nav("/connexion?mode=login")} className="px-2 lg:ml-6 hover:opacity-80">Connexion</button>
+            <button onClick={go} className="inline-flex items-center gap-1.5 rounded-full bg-accent text-white px-4 sm:px-6 py-2 sm:py-3 font-bold hover:bg-accent-dark transition">S'inscrire<Arrow className="h-4 w-4" /></button>
           </nav>
         </header>
       </div>
@@ -253,7 +279,7 @@ export default function Landing() {
       <main>
         {/* Titre */}
         <section className="relative overflow-hidden -mt-24 pt-24" style={{ background: "radial-gradient(ellipse at 50% 30%, #FFF4EC 0%, #FDF8F4 45%, #FAF9F6 80%)" }}>
-          <div aria-hidden className="absolute inset-x-0 top-0 h-[920px]"><NetBg /></div>
+          <div aria-hidden className="absolute inset-x-0 top-0 h-[920px] hidden sm:block"><NetBg /></div>
           <div aria-hidden className="absolute inset-x-0 top-24 h-[640px] hidden xl:block">
             {BUBBLES.map(([t, sub, pos], i) => (
               <div key={t} className={cx("absolute h-[104px] w-[104px] rounded-full bg-white shadow-[0_14px_34px_-18px_rgba(21,22,26,.35)] flex flex-col items-center justify-center text-center", pos)} style={{ animation: `drift ${6 + i % 4}s ease-in-out infinite`, animationDelay: `${i * .4}s` }}>
@@ -267,18 +293,20 @@ export default function Landing() {
             <p className="mt-7 text-[18px] sm:text-[21px] leading-relaxed text-ink-soft max-w-2xl mx-auto">Bingoo! est ton équipe commerciale IA. Elle repère les entreprises qui ont une raison d'acheter maintenant, trouve la bonne personne et prépare le message.</p>
             <button onClick={go} className="mt-9 inline-flex items-center gap-3 rounded-full bg-accent text-white px-8 sm:px-11 py-4 sm:py-5 font-bold text-[18px] sm:text-[21px] shadow-[0_22px_44px_-18px_rgba(224,83,31,.85)] hover:bg-accent-dark transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink">Commencer gratuitement<Arrow className="h-5 w-5" /></button>
             <ul className="mt-7 flex flex-wrap justify-center gap-2.5">
-              {["Plus de 15 signaux d'achat", "Sans carte bancaire", "14 jours offerts"].map((t) => <li key={t} className="rounded-full bg-white border border-[#EFE5DC] px-4 py-2 text-[14.5px] font-medium flex items-center gap-2 shadow-[0_6px_16px_-12px_rgba(21,22,26,.3)]"><Check className="h-4 w-4 text-good" />{t}</li>)}
+              {["15 signaux d'achat", "Sans carte bancaire", "Conforme RGPD"].map((t) => <li key={t} className="rounded-full bg-white border border-[#EFE5DC] px-4 py-2 text-[14.5px] font-medium flex items-center gap-2 shadow-[0_6px_16px_-12px_rgba(21,22,26,.3)]"><Check className="h-4 w-4 text-good" />{t}</li>)}
             </ul>
-            <BigCounter />
+            <LivePill />
           </div>
         </section>
 
         <RadarDemo />
 
+        <section id="compteur" className="relative max-w-6xl mx-auto px-4 sm:px-6 pb-14 scroll-mt-24 text-center"><BigCounter /></section>
+
         <section className="relative max-w-6xl mx-auto px-4 sm:px-6 pb-16"><div id="essai" className="scroll-mt-24"><TryIt /></div></section>
 
         {/* Sources */}
-        <section className="border-y border-line bg-white">
+        <section id="donnees" className="border-y border-line bg-white scroll-mt-24">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
             <p className="text-center text-[14px] text-ink-soft">Bingoo! lit chaque nuit des sources officielles et vérifiables</p>
             <ul className="mt-4 flex flex-wrap justify-center gap-x-8 gap-y-3">{SOURCES.map((s) => <li key={s} className="font-black text-[17px] sm:text-[19px] text-ink/35" style={D}>{s}</li>)}</ul>
@@ -384,7 +412,7 @@ export default function Landing() {
         </section>
 
         {/* Questions */}
-        <section className="bg-white border-y border-line">
+        <section id="faq" className="bg-white border-y border-line scroll-mt-24">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-20">
             <h2 className="font-black text-[32px] sm:text-[40px]" style={D}>Questions fréquentes</h2>
             <div className="mt-8 divide-y divide-line border-y border-line">
