@@ -93,7 +93,14 @@
     return danger() ?? { resultat: "ok" };
   }
 
-  async function message(card, text) {
+  /** La personne a-t-elle déjà répondu dans la conversation ouverte ? */
+  function replied(scope, firstName) {
+    if (scope.querySelector(".msg-s-event-listitem--other")) return true;
+    const fn = norm(firstName);
+    return !!fn && [...scope.querySelectorAll(".msg-s-message-group__name, .msg-s-message-group__profile-link")].some((n) => norm(n.textContent).startsWith(fn));
+  }
+
+  async function message(card, text, relance = false, firstName = "") {
     // Jamais d'InMail : on n'écrit qu'aux personnes déjà connectées (1er niveau)
     if (relation(card) !== "connecte") return { resultat: "en_attente", detail: "Pas encore connecté" };
     const btn = find(card, /^message\b|envoyer un message/);
@@ -102,6 +109,12 @@
     const box = await waitFor(() => [...document.querySelectorAll("[contenteditable='true'][role='textbox'], .msg-form__contenteditable, form textarea")].filter(visible).pop(), 8000);
     if (!box) return danger() ?? { resultat: "erreur", detail: "Zone de message absente" };
     const form = box.closest("form") ?? box.closest("[role='dialog']") ?? document;
+    if (relance) {
+      // Relance seulement sans réponse : on lit d'abord la conversation
+      await jitter(1200, 2500);
+      const convo = box.closest(".msg-overlay-conversation-bubble, .msg-convo-wrapper, [role='dialog']") ?? document;
+      if (replied(convo, firstName)) return { resultat: "repondu" };
+    }
     if (norm(box.innerText || box.value)) return { resultat: "erreur", detail: "Un brouillon existe déjà, rien n'a été envoyé" };
     await typeInto(box, text);
     const send = await waitFor(() => buttons(form).find((b) => /^(envoyer|send)$/.test(label(b)) && !b.disabled), 4000);
@@ -122,6 +135,7 @@
       if (action.type === "invitation") return await invitation(card, action.note);
       if (action.type === "verifier") { const r = relation(card); return { resultat: r === "connecte" ? "connecte" : "en_attente" }; }
       if (action.type === "message") return await message(card, action.message);
+      if (action.type === "relance") return await message(card, action.message, true, String(action.personne ?? "").split(/\s+/)[0]);
       return { resultat: "erreur", detail: "Action inconnue" };
     } catch (e) {
       return { resultat: "erreur", detail: String(e?.message ?? e).slice(0, 200) };

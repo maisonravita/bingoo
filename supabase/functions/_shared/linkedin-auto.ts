@@ -7,7 +7,13 @@ import { parisParts } from "./time.ts";
 export type LiAuto = { enabled?: boolean; accepted_at?: string; started_at?: string; paused_reason?: string | null; paused_at?: string | null };
 type Ws = Workspace & { linkedin_auto?: LiAuto | null };
 
-export const LI_LIMITS = { startPerDay: 5, stepPerDay: 3, maxPerDay: 20, maxPerWeek: 100, messagesPerDay: 25 };
+export const LI_LIMITS = { startPerDay: 5, stepPerDay: 3, maxPerDay: 20, maxPerWeek: 100, messagesPerDay: 25, relanceAfterDays: 6 };
+
+/** Relance courte et humaine, une seule fois, s'il n'y a pas eu de réponse. */
+export function relanceText(person: string | null | undefined) {
+  const first = String(person ?? "").trim().split(/\s+/)[0] ?? "";
+  return `${first ? `Bonjour ${first}, ` : "Bonjour, "}petite relance sur mon message de la semaine dernière : est-ce que le sujet vous parle, ou je vous laisse tranquille ?`;
+}
 
 /** Invitations autorisées aujourd'hui : 5 le premier jour, +3 par jour, 20 au plus (montée progressive). */
 export function invitesToday(startedAt: string | undefined, now = new Date()) {
@@ -26,8 +32,8 @@ const parisDayStart = (now = new Date()) => { const p = parisParts(now); return 
 async function counts(wsId: string) {
   const day = parisDayStart(), week = new Date(Date.now() - 7 * 864e5).toISOString();
   const q = (kind: string, since: string) => admin.from("linkedin_actions").select("id", { count: "exact", head: true }).eq("workspace_id", wsId).eq("kind", kind).eq("status", "fait").gte("done_at", since);
-  const [a, b, c] = await Promise.all([q("invitation", day), q("invitation", week), q("message", day)]);
-  return { invitesDay: a.count ?? 0, invitesWeek: b.count ?? 0, messagesDay: c.count ?? 0 };
+  const [a, b, c, d] = await Promise.all([q("invitation", day), q("invitation", week), q("message", day), q("relance", day)]);
+  return { invitesDay: a.count ?? 0, invitesWeek: b.count ?? 0, messagesDay: (c.count ?? 0) + (d.count ?? 0) };
 }
 
 /** Met en file une invitation pour chaque prospect prêt (profil trouvé, note et message rédigés). */
@@ -71,7 +77,7 @@ export async function liNext(ws: Ws) {
   await admin.from("linkedin_actions").update({ status: "a_faire", taken_at: null }).eq("workspace_id", ws.id).eq("status", "en_cours").lt("taken_at", new Date(Date.now() - 15 * 60000).toISOString());
   const c = await counts(ws.id);
   const kinds = ["verifier"];
-  if (c.messagesDay < LI_LIMITS.messagesPerDay) kinds.unshift("message");
+  if (c.messagesDay < LI_LIMITS.messagesPerDay) kinds.unshift("message", "relance");
   if (c.invitesDay < invitesToday(auto.started_at) && c.invitesWeek < LI_LIMITS.maxPerWeek) kinds.push("invitation");
   const { data: a } = await admin.from("linkedin_actions").select("id, kind, prospect_id").eq("workspace_id", ws.id).eq("status", "a_faire").lte("due_at", new Date().toISOString())
     .in("kind", kinds).order("due_at", { ascending: true }).limit(1).maybeSingle();
@@ -80,13 +86,13 @@ export async function liNext(ws: Ws) {
   if (!p?.linkedin_url) { await admin.from("linkedin_actions").update({ status: "annule", result: "profil absent" }).eq("id", a.id); return { attendre: 30, raison: "Profil manquant, action annulée" }; }
   await admin.from("linkedin_actions").update({ status: "en_cours", taken_at: new Date().toISOString() }).eq("id", a.id);
   return {
-    action: { id: a.id, type: a.kind, profil: p.linkedin_url, personne: p.linkedin_person, entreprise: p.name, note: a.kind === "invitation" ? String(p.linkedin_note ?? "").slice(0, 300) : "", message: a.kind === "message" ? p.linkedin_msg : "" },
+    action: { id: a.id, type: a.kind, profil: p.linkedin_url, personne: p.linkedin_person, entreprise: p.name, note: a.kind === "invitation" ? String(p.linkedin_note ?? "").slice(0, 300) : "", message: a.kind === "message" ? p.linkedin_msg : a.kind === "relance" ? relanceText(p.linkedin_person) : "" },
     // Pause humaine après l'action : 1 à 4 minutes
     attendre: rnd(60, 240),
   };
 }
 
-const RESULTS = ["ok", "deja_invite", "deja_connecte", "connecte", "en_attente", "introuvable", "limite", "avertissement", "erreur"] as const;
+const RESULTS = ["ok", "deja_invite", "deja_connecte", "connecte", "en_attente", "repondu", "introuvable", "limite", "avertissement", "erreur"] as const;
 
 /** Compte rendu de l'extension après une action. Un avertissement ou une limite LinkedIn met tout le pilote en pause. */
 export async function liReport(ws: Ws, b: { id?: unknown; resultat?: unknown; detail?: unknown }) {
@@ -123,7 +129,16 @@ export async function liReport(ws: Ws, b: { id?: unknown; resultat?: unknown; de
   } else if (a.kind === "message") {
     if (res !== "ok") { await admin.from("linkedin_actions").update({ status: "a_faire", taken_at: null, due_at: new Date(Date.now() + 24 * 3600_000).toISOString(), result: res }).eq("id", a.id); return { ok: true }; }
     await done(); await prospect("message_envoye");
+    await queue("relance", LI_LIMITS.relanceAfterDays * 24 + rnd(0, 6));
     await log(ws.id, "linkedin", "Premier message LinkedIn envoyé après acceptation");
+  } else if (a.kind === "relance") {
+    if (res === "repondu") {
+      await done("annule");
+      await admin.from("prospects").update({ status: "repondu" }).eq("id", a.prospect_id).in("status", ["nouveau", "pret", "sans_email", "a_valider", "envoye"]);
+      await log(ws.id, "linkedin", "Un prospect a répondu sur LinkedIn : pas de relance");
+    } else if (res === "ok") { await done(); await log(ws.id, "linkedin", "Relance LinkedIn envoyée"); }
+    else if (res === "en_attente") { await done("annule"); }
+    else { await admin.from("linkedin_actions").update({ status: "a_faire", taken_at: null, due_at: new Date(Date.now() + 24 * 3600_000).toISOString(), result: res }).eq("id", a.id); }
   }
   return { ok: true };
 }
