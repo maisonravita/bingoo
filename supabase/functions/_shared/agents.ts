@@ -47,19 +47,6 @@ export async function mxOk(email: string) {
 // une adresse d'un autre domaine (agence web, hébergeur) n'est pas celle de l'entreprise.
 const FREEMAIL = /@(gmail|googlemail|orange|wanadoo|free|hotmail|outlook|live|msn|yahoo|sfr|neuf|laposte|icloud|me|aol|bbox|numericable)\./i;
 const hostOf = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, "").toLowerCase(); } catch { return ""; } };
-const GENERIC_LOCAL = /^(contact|info|infos|bonjour|hello|accueil|direction|commercial|admin|secretariat|compta|comptabilite|rh|recrutement|jobs|support|sav|service|reservation|devis|presse|communication|marketing|ventes?|achats?|noreply|no-reply|webmaster|rgpd|dpo)$/i;
-const plain = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z-]/g, "");
-
-/** Format d'adresse nominatif prouvé par une adresse publiée sur le site (ex. marie.durand@ → prenom.nom). */
-function patternFrom(emails: string[], base: string): string {
-  for (const e of emails) {
-    const [local, dom] = e.split("@");
-    if (!dom?.endsWith(base) || GENERIC_LOCAL.test(local)) continue;
-    const m = local.match(/^([a-z]{2,})([.\-_])([a-z]{2,})$/i);
-    if (m && !GENERIC_LOCAL.test(m[1]) && !GENERIC_LOCAL.test(m[3])) return `{f}${m[2]}{l}`;
-  }
-  return "";
-}
 
 async function fromSite(site: string, person: string, company = "", rivals: Rival[] = []) {
   const sc = await siteContacts(site).catch(() => ({ emails: [] as string[], phones: [] as string[], form: "", home: "", origin: "" }));
@@ -71,16 +58,8 @@ async function fromSite(site: string, person: string, company = "", rivals: Riva
   const norm = (x: string) => x.toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
   const brand = (e: string) => { const lab = norm((e.split("@")[1] ?? "").split(".").slice(-2)[0] ?? ""); return lab.length >= 4 && (norm(host).includes(lab) || norm(company).includes(lab)); };
   const ok = sc.emails.filter((e) => (base && e.split("@")[1]?.endsWith(base)) || FREEMAIL.test(e) || brand(e)).sort((a, b) => score(b) - score(a));
-  // Adresse du dirigeant déduite UNIQUEMENT si le site publie une adresse nominative qui prouve le format
-  let guessed = "";
-  const parts = person.trim().split(/\s+/);
-  if (!ok[0] && parts.length >= 2 && base) {
-    const pat = patternFrom(sc.emails, base);
-    const f = plain(parts[0]), l = plain(parts.slice(1).join("-"));
-    if (pat && f.length > 1 && l.length > 1) guessed = `${pat.replace("{f}", f).replace("{l}", l)}@${sc.emails.find((e) => e.split("@")[1]?.endsWith(base))!.split("@")[1]}`;
-  }
   const signals: Signal[] = sc.home ? await siteSignals(sc.origin, sc.home, rivals).catch(() => []) : [];
-  return { email: ok[0] ?? "", guessed, phone: sc.phones[0] ?? "", form: sc.form, signals };
+  return { email: ok[0] ?? "", phone: sc.phones[0] ?? "", form: sc.form, signals };
 }
 
 /** Concurrents suivis par Espion : nom propre, domaine, argumentaire (battlecard). Cache par espace. */
@@ -116,10 +95,7 @@ export async function enrich(p: Prospect, interlocuteur: string) {
     const r = await fromSite(p.website, p.contact_name ?? "", `${p.name} ${p.org ?? ""}`, await rivalsOf(p.workspace_id));
     if (r.email && !(await mxOk(r.email))) r.email = "";
     if (r.signals.length) { p.signals = mergeSignals(p.signals as Signal[], r.signals); await admin.from("prospects").update({ signals: p.signals }).eq("id", p.id); }
-    if (!r.email && r.guessed && (await mxOk(r.guessed))) {
-      await admin.from("prospects").update({ enriched_at: new Date().toISOString(), enrich_note: `Adresse déduite du format prénom.nom publié sur ${hostOf(p.website)} : non vérifiée, relis avant d'envoyer`, status: "pret", enrich_level: 1, channel: "email", email_source: `déduite (format du site ${hostOf(p.website)})`, email: r.guessed, ...(r.phone && !p.phone ? { phone: r.phone } : {}) }).eq("id", p.id);
-      return { id: p.id, email: r.guessed, phone: r.phone, site: p.website, via: "deduite" };
-    }
+    // Promesse Bingoo! : jamais d'adresse devinée (pas de prénom.nom reconstruit), seulement des adresses publiées ou vérifiées
     if (r.email) {
       const patch: Record<string, unknown> = { enriched_at: new Date().toISOString(), enrich_note: `E-mail trouvé sur son site (${hostOf(p.website)})`, status: "pret", enrich_level: 1, channel: "email", email_source: `site ${hostOf(p.website)}`, email: r.email };
       if (r.phone && !p.phone) patch.phone = r.phone;
@@ -155,7 +131,6 @@ Format : {"site": "https://…", "email": "", "telephone": "", "contact": "Prén
     const r = await fromSite(site, String(v.contact ?? p.contact_name ?? ""), `${p.name} ${p.org ?? ""}`, await rivalsOf(p.workspace_id));
     if (r.signals.length) siteSig = r.signals;
     if (r.email) { ok = r.email; v.source = `site ${hostOf(site)}`; }
-    else if (r.guessed) { ok = r.guessed; v.source = `déduite (format du site ${hostOf(site)})`; v.note = "Adresse déduite du format prénom.nom publié sur le site : non vérifiée, relis avant d'envoyer"; }
   }
   if (ok && !(await mxOk(ok))) { v.note = `Adresse trouvée (${ok}) mais son domaine ne reçoit pas de courrier : écartée`; ok = ""; }
   const phone = String(v.telephone ?? "").replace(/[^\d+ .]/g, "").trim().slice(0, 30);

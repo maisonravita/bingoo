@@ -77,10 +77,12 @@ export async function findSite(p: { name?: string; org?: string; siret?: string 
   // « Luxia (hôtel boutique) », « Hôtel X – Autograph Collection », « Bureaux Y - Sigle Z » : on essaie le nom court et les sigles entre parenthèses
   const variants = (n: string) => [n.replace(/\([^)]*\)/g, " ").split(/\s[-–|,]\s|,/)[0], ...[...n.matchAll(/\(([^)]{3,30})\)/g)].map((m) => m[1]), n.replace(/^(h[oô]tel|restaurant|cabinet|clinique|institut|centre)\s+/i, "")].map((x) => x.trim()).filter((x) => x.length >= 3);
   const names = [...new Set([p.org, p.name].filter(Boolean).flatMap((n) => [n as string, ...variants(n as string)]))];
-  const hosts = [...new Set(names.flatMap((n) => slugs(n, p.city ?? "")).flatMap((sl) => [`${sl}.fr`, `${sl}.com`]))].slice(0, 12);
+  const tlds = [".fr", ".com", ".net", ".eu", ".org", ".io", ".co"];
+  const hosts = [...new Set(names.flatMap((n) => slugs(n, p.city ?? "")).flatMap((sl) => tlds.map((t) => sl + t)))].slice(0, 28);
   const norm = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ");
-  for (const h of hosts) {
-    if (!(await resolves(h))) continue;
+  // Résolution DNS en parallèle (gratuite) : le domaine nu, sinon « www. » (certains sites n'existent qu'avec www)
+  const live = (await Promise.all(hosts.map(async (h) => (await resolves(h)) ? h : (await resolves(`www.${h}`)) ? `www.${h}` : ""))).filter(Boolean);
+  for (const h of live) {
     const origin = `https://${h}`;
     const pages = await Promise.all([origin, `${origin}/mentions-legales`, `${origin}/mentions-legales/`].map((u) => fetchHtml(u).catch(() => "")));
     const txt = norm(pages.map((x) => textOf(x)).join(" ")).replace(/(\d) (?=\d)/g, "$1");
@@ -90,6 +92,33 @@ export async function findSite(p: { name?: string; org?: string; siret?: string 
     if (sirenOk || (nameOk && cpOk)) return origin;
   }
   return "";
+}
+
+/** Passe gratuite, sans IA : retrouve le site par le nom puis lit ses pages (accueil, contact, mentions légales).
+ *  On ne garde qu'un e-mail publié sur le site, dont le domaine reçoit du courrier. Jamais d'adresse devinée. */
+export async function freeEnrich(p: P2, save = true) {
+  let site = p.website || "", foundSite = false;
+  if (!site) { site = await findSite(p).catch(() => ""); foundSite = !!site; }
+  let email = "", phone = "", form = "";
+  if (site) {
+    const sc = await siteContacts(site).catch(() => ({ emails: [] as string[], phones: [] as string[], form: "" }));
+    const cand = pick(sc.emails, hostOf(site));
+    if (cand && await mxOk(domOf(cand))) email = cand;
+    phone = sc.phones[0] ?? ""; form = sc.form ?? "";
+  }
+  if (save) {
+    const day = new Date().toISOString().slice(0, 10);
+    const patch: Record<string, unknown> = {};
+    if (foundSite) patch.website = site;
+    if (phone && !p.phone) patch.phone = phone.slice(0, 30);
+    if (form && !p.contact_form) patch.contact_form = form;
+    if (email) Object.assign(patch, { email, email_source: `site ${hostOf(site)}`, enriched_at: new Date().toISOString(), enrich_level: 1, status: ["sans_email", "nouveau"].includes(p.status) ? "pret" : p.status,
+      enrich_note: `E-mail trouvé sur son site (${hostOf(site)}), recherche gratuite du ${day}` });
+    else patch.enrich_note = `Recherche gratuite du ${day} : ${site ? `site ${hostOf(site)} lu, pas d'e-mail publié` : "site introuvable par son nom"}`;
+    patch.channel = chooseChannel({ ...p, ...patch } as P2);
+    await admin.from("prospects").update(patch).eq("id", p.id);
+  }
+  return { site, foundSite, email, phone };
 }
 
 // ---------------------------------------------------------------- Crédits (e-mails trouvés par Dropcontact)

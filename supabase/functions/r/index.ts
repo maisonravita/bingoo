@@ -278,6 +278,25 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     for (const p of data ?? []) out.push({ nom: p.name, site: await findSite(p).catch(() => "") });
     return { essais: out.length, trouves: out.filter((x) => x.site).length, detail: out };
   },
+  async "free-enrich"(req, b) {
+    // Passe gratuite (aucune IA) : site retrouvé par le nom, e-mail publié sur ce site. dry = mesure sans rien enregistrer.
+    await cron(req);
+    const { freeEnrich } = await import("../_shared/deep.ts");
+    const dry = b.dry === true, n = Math.min(Number(b.n ?? 20), 40);
+    let q = admin.from("prospects").select("*").eq("email", "").in("status", ["nouveau", "sans_email"]).not("enrich_note", "like", "Recherche gratuite%");
+    if (b.workspace_id) q = q.eq("workspace_id", String(b.workspace_id));
+    if (b.sans_site === true) q = q.or("website.is.null,website.eq.");
+    const { data } = await q.order("score", { ascending: false, nullsFirst: false }).limit(n);
+    const rows = data ?? [], out: { nom: string; site: string; nouveau_site: boolean; email: string }[] = [];
+    for (let i = 0; i < rows.length; i += 5) {
+      const part = await Promise.all(rows.slice(i, i + 5).map(async (p) => {
+        const r = await freeEnrich(p, !dry).catch(() => ({ site: "", foundSite: false, email: "" }));
+        return { nom: p.name, site: r.site, nouveau_site: r.foundSite, email: r.email };
+      }));
+      out.push(...part);
+    }
+    return { essais: out.length, sites_trouves: out.filter((x) => x.nouveau_site).length, emails: out.filter((x) => x.email).length, detail: out };
+  },
   async "alt-test"(req, b) {
     await cron(req);
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
