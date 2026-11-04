@@ -63,5 +63,30 @@ async function load() {
   catch (e) { if (/clé/i.test(e.message)) { await setKey(""); setup(e.message); } else app.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
 }
 
+// Pilote LinkedIn : état, dernières actions, pause locale
+async function pilot() {
+  const box = document.getElementById("li");
+  if (!(await getKey())) { box.hidden = true; return; }
+  const v = await new Promise((r) => chrome.storage.local.get(["liPause", "liState", "liNextAt", "liLog"], r));
+  let st = null;
+  try { st = await call("li-status", {}); } catch { /* hors ligne : on affiche l'état local */ }
+  const on = st?.enabled && !st?.paused_reason && !v.liPause;
+  const next = v.liNextAt ? Math.max(0, Math.round((v.liNextAt - Date.now()) / 60000)) : null;
+  box.hidden = false;
+  box.innerHTML = `<div class="li-head"><b>Pilote LinkedIn</b><span class="chip ${on ? "ok" : ""}">${on ? "Actif" : "Arrêté"}</span></div>
+    ${st && !st.enabled ? `<p class="muted">Active-le dans Bingoo!, page LinkedIn.</p>` : ""}
+    ${st?.paused_reason ? `<p class="err">${esc(st.paused_reason)}</p>` : ""}
+    ${st ? `<p class="muted">Aujourd'hui : ${st.invitesDay}/${st.limite_jour} invitations · ${st.messagesDay} messages · ${st.en_file} en file</p>` : ""}
+    <p class="muted">${esc(v.liState || "En attente")}${next !== null && on ? ` · prochaine vérification dans ${next} min` : ""}</p>
+    ${(v.liLog ?? []).slice(0, 3).map((l) => `<p class="log">${esc(l.line)}</p>`).join("")}
+    <button class="btn ghost" id="lip">${v.liPause ? "Reprendre sur cet ordinateur" : "Mettre en pause sur cet ordinateur"}</button>`;
+  document.getElementById("lip").onclick = async () => {
+    await new Promise((r) => chrome.storage.local.set({ liPause: !v.liPause }, r));
+    if (v.liPause) chrome.runtime.sendMessage("li-now");
+    pilot();
+  };
+}
+
 document.getElementById("settings").onclick = () => setup();
 load();
+pilot();

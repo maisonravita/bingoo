@@ -121,6 +121,7 @@ export async function liReport(ws: Ws, b: { id?: unknown; resultat?: unknown; de
     else if (Date.now() - new Date(a.created_at).getTime() > 21 * 864e5) { await done("annule"); }
     else { await admin.from("linkedin_actions").update({ status: "a_faire", taken_at: null, due_at: new Date(Date.now() + 24 * 3600_000).toISOString() }).eq("id", a.id); }
   } else if (a.kind === "message") {
+    if (res !== "ok") { await admin.from("linkedin_actions").update({ status: "a_faire", taken_at: null, due_at: new Date(Date.now() + 24 * 3600_000).toISOString(), result: res }).eq("id", a.id); return { ok: true }; }
     await done(); await prospect("message_envoye");
     await log(ws.id, "linkedin", "Premier message LinkedIn envoyé après acceptation");
   }
