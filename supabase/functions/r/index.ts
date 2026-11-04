@@ -298,6 +298,18 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     }
     return { essais: out.length, sites_trouves: out.filter((x) => x.nouveau_site).length, emails: out.filter((x) => x.email).length, detail: out };
   },
+  async "draft-test"(req, b) {
+    // Contrôle qualité : rédige le premier e-mail de quelques prospects sans rien enregistrer ni envoyer
+    await cron(req);
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
+    if (!ws) throw new HttpError(404, "Espace introuvable");
+    setAi({ ws: ws.id, live: true });
+    const { writeDraft } = await import("../_shared/agents.ts");
+    const ids = Array.isArray(b.ids) ? b.ids.map(String).slice(0, 8) : [];
+    const { data: ps } = await admin.from("prospects").select("*").in("id", ids);
+    const out = await Promise.all((ps ?? []).map(async (p) => { try { const d = await writeDraft(ws, p); return { prospect: p.name, objet: d.subject, corps: d.body }; } catch (e) { return { prospect: p.name, erreur: String((e as Error).message) }; } }));
+    return { messages: out };
+  },
   async "alt-test"(req, b) {
     await cron(req);
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();

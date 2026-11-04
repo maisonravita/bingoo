@@ -191,19 +191,30 @@ async function rivalBrief(wsId: string, p: Prospect) {
 }
 
 export async function draft(ws: Workspace, p: Prospect) {
+  const { subject, body, active, v } = await writeDraft(ws, p);
+  const { data, error } = await admin.from("messages").insert({ workspace_id: ws.id, prospect_id: p.id, step: 0, subject, body, status: "brouillon", campaign_id: active?.id ?? null, variant: v?.key ?? "" }).select("id").single();
+  if (error?.code === "23505") throw new HttpError(409, "Un message est déjà prêt pour ce prospect");
+  if (error) throw new HttpError(500, error.message);
+  await admin.from("prospects").update({ status: "a_valider" }).eq("id", p.id);
+  return { id: data.id, subject };
+}
+
+/** Rédige le premier e-mail sans l'enregistrer (sert aussi aux tests de qualité). */
+export async function writeDraft(ws: Workspace, p: Prospect) {
   const t = (ws.targets ?? []).find((x) => x.id === p.target);
   const camp = await campaignOf((p as Prospect & { campaign_id?: string }).campaign_id);
   const active = camp && camp.status === "active" ? camp : null;
   const v = active ? pickVariant(active, p.id) : null;
   const out = await ask(`Rédige le premier e-mail de prospection pour ce prospect.
 Prospect : ${p.name}${p.org ? ` (${p.org})` : ""}, ${p.activity}, ${p.city}.
-Interlocuteur : ${p.contact_name ? `${p.contact_name}${p.contact_role ? `, ${p.contact_role}` : ""}` : `inconnu (fonction visée : ${t?.interlocuteur || "dirigeant"})`}.
+Interlocuteur : ${p.contact_name ? `${p.contact_name}${p.contact_role ? `, ${String(p.contact_role).replace(/\s*\(.*$/, "").slice(0, 60)}` : ""}` : `inconnu (fonction visée : ${t?.interlocuteur || "dirigeant"}) : n'invente ni nom ni fonction`}.
 Pourquoi cette cible a besoin de l'offre : ${t?.pourquoi ?? ""}
 Angle à utiliser : ${v ? v.angle : t?.angle ?? ""}
 ${v?.objet ? `Objet à utiliser tel quel ou presque : ${v.objet}\n` : ""}${active ? `Objectif de l'e-mail : ${goalText(active.goal)}.\n` : ""}Bénéficiaires à nommer : ${t?.pour_qui ?? ""}
 ${(() => { const sg = (p.signals ?? []).filter((x) => x.label && x.type !== "taille" && x.type !== "reseau"); return sg.length ? `Faits publics observés sur ce prospect (registre, Radar, son site) :\n${sg.slice(0, 8).map((x) => `- ${x.label}`).join("\n")}\nChoisis LE fait le plus utile pour notre offre et ouvre l'e-mail avec, sans rien y ajouter ni l'interpréter. N'utilise pas les autres.\n` : ""; })()}${(p.insight as { reseaux?: { accroche?: string } } | null)?.reseaux?.accroche ? `Première phrase possible, fondée sur une publication ou une actualité réelle du prospect (à reprendre ou adapter si elle sonne naturelle, sinon ignore-la) : ${(p.insight as { reseaux: { accroche: string } }).reseaux.accroche}
 ` : ""}
-${await rivalBrief(ws.id, p)}Commence par « Bonjour${p.contact_name ? " Madame/Monsieur <Nom>" : ""}, » (si l'interlocuteur est connu mais que le genre est incertain, écris « Bonjour <Prénom Nom>, »).
+${await rivalBrief(ws.id, p)}Commence par « Bonjour${p.contact_name ? " Madame/Monsieur <Nom>" : ""}, » (si l'interlocuteur est connu mais que le genre est incertain, écris « Bonjour <Prénom>, », jamais prénom et nom ensemble).
+Longueur : 60 à 90 mots, trois courts paragraphes au plus.
 Ne mets pas de signature : elle est ajoutée automatiquement.
 
 Format exact :
@@ -214,12 +225,11 @@ OBJET: <objet de 2 à 5 mots, en minuscules sauf noms propres, sans point d'excl
   const m = out.match(/OBJET\s*:\s*(.+?)\s*\n\s*-{3,}\s*\n([\s\S]+)/i);
   const loose = out.match(/OBJET\s*:\s*(.+)/i);
   const subject = humanize(m ? m[1] : loose ? loose[1] : `${ws.profile?.nom || ws.name} – ${p.name}`).replace(/^(re|tr|fwd?)\s*:\s*/i, "").slice(0, 140);
-  const body = humanize((m ? m[2] : out).replace(/^\s*OBJET\s*:.*$/gim, "").replace(/^\s*-{3,}\s*$/gm, "").replace(/^\n+/, ""));
-  const { data, error } = await admin.from("messages").insert({ workspace_id: ws.id, prospect_id: p.id, step: 0, subject, body, status: "brouillon", campaign_id: active?.id ?? null, variant: v?.key ?? "" }).select("id").single();
-  if (error?.code === "23505") throw new HttpError(409, "Un message est déjà prêt pour ce prospect");
-  if (error) throw new HttpError(500, error.message);
-  await admin.from("prospects").update({ status: "a_valider" }).eq("id", p.id);
-  return { id: data.id, subject };
+  let body = humanize((m ? m[2] : out).replace(/^\s*OBJET\s*:.*$/gim, "").replace(/^\s*-{3,}\s*$/gm, "").replace(/^\n+/, ""));
+  // « Bonjour Richard Michaud, » → « Bonjour Richard, » (prénom et nom ensemble sonnent comme un publipostage)
+  const full = String(p.contact_name ?? "").trim();
+  if (full.includes(" ")) body = body.replace(new RegExp(`^Bonjour ${full.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")},`), `Bonjour ${full.split(/\s+/)[0]},`);
+  return { subject, body, active, v };
 }
 
 /** Protection de la réputation : trop de rebonds récents → envois suspendus (adapté de Harvey). */

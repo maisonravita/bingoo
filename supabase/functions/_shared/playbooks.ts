@@ -7,8 +7,11 @@ Méthode d'écriture (à appliquer strictement) :
 - Écris comme une vraie personne qui a remarqué quelque chose, pas comme un marketeur ni comme une IA. Relu à voix haute, ça ne doit pas sonner « commercial ».
 - Un seul sujet, une seule idée, une seule question. Le prospect apparaît avant notre offre ; dans le premier e-mail, l'offre se résume en une phrase.
 - Première phrase = le fait observé qui justifie d'écrire aujourd'hui (signal), dit simplement, sans flatterie. Sans signal réel : une observation honnête sur son métier.
-- Question finale facile à répondre (« Est-ce un sujet chez vous en ce moment ? », « Qui s'en occupe chez vous ? ») plutôt qu'une demande lourde. Proposer quelque chose d'utile sans engagement (un diagnostic, un exemple concret) marche mieux que « 30 minutes ? ».
-- Interdits : tiret long (—), « J'espère que vous allez bien », « Je me permets de », « Je reviens vers vous », « N'hésitez pas », « Imaginez », « révolutionnaire », « solution innovante », « dans un monde où », « sans engagement » en argument, les listes, le gras, les parenthèses décoratives, les emojis, plus d'un point d'exclamation (zéro est mieux), plusieurs questions, commencer par « Je » ou « Nous ».
+- Question finale facile à répondre, propre à CE prospect et à CE fait : elle reprend un mot de son métier ou de la situation observée (ex. « Qui gère l'entretien des locaux depuis l'ouverture du site de Bois-d'Arcy ? », « Le sujet revient-il avec la reprise du fonds ? », « Comment gérez-vous les demandes qui arrivent le soir ? »). Une seule question, jamais la même formule passe-partout. Proposer quelque chose d'utile sans engagement (un diagnostic, un exemple concret) marche mieux que « 30 minutes ? ».
+- Le fait observé se dit comme on le dirait à voix haute (« Vous avez repris le fonds de… », « Vous avez déménagé à… »), sans citer d'où vient l'information : jamais « selon le BODACC », « publié au BODACC », « d'après le registre », « attire notre attention ».
+- Si la fonction du destinataire est inconnue, ne la suppose pas (pas de « En tant que responsable… »). Ne cite aucun autre établissement que celui du prospect.
+- Français soigné : élision (« d'Inside », « l'EPS »), accords, pas d'anglicismes inutiles.
+- Interdits : tiret long (—), « J'espère que vous allez bien », « Je me permets de », « Je reviens vers vous », « N'hésitez pas », « Imaginez », « Est-ce un sujet chez vous en ce moment », « Est-ce un sujet pour vous », « révolutionnaire », « solution innovante », « dans un monde où », « sans engagement » en argument, les listes, le gras, les parenthèses décoratives, les emojis, plus d'un point d'exclamation (zéro est mieux), plusieurs questions, commencer par « Je » ou « Nous ».
 - Objet : 2 à 5 mots, en minuscules sauf noms propres, sincère : jamais de faux « Re : » ou « TR : » sur un premier message.
 - Aucun lien dans le premier e-mail (sauf le lien de prise de rendez-vous ajouté automatiquement). Texte simple.
 - Pertinence : le message doit concerner la fonction professionnelle du destinataire. Si le lien avec son métier est tiré par les cheveux, écris quelque chose de plus général mais vrai.`;
@@ -45,6 +48,7 @@ export function humanize(text: string) {
   return text
     .replace(/\s*[—–]\s*/g, ", ")
     .replace(/^(?:J['’]esp[eè]re que vous allez bien[.!]?\s*)/gim, "")
+    .replace(/,?\s*(?:selon|d'après) (?:le )?(?:BODACC|registre(?: du commerce)?|Radar)\s*,?/gi, "")
     .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
     .replace(/!(?=[^!]*!)/g, ".")
     .replace(/,\s*,/g, ",")
