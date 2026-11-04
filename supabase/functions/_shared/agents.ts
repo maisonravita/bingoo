@@ -235,9 +235,11 @@ Format exact :
 OBJET: <objet de 2 à 5 mots, en minuscules sauf noms propres, sans point d'exclamation>
 ---
 <corps>`, { fast: true, system: systemFor(ws) + PLAYBOOK_ECRITURE + PLAYBOOK_SIGNAUX + ((p.signals ?? []).some((x) => ["levee", "accelerateur"].includes(x.type)) ? PLAYBOOK_STARTUPS : ""), maxTokens: 1500 });
-  const m = out.match(/OBJET\s*:\s*(.+)\n-{3,}\n([\s\S]+)/);
-  const subject = humanize(m ? m[1] : `${ws.profile?.nom || ws.name} – ${p.name}`).replace(/^(re|tr|fwd?)\s*:\s*/i, "").slice(0, 140);
-  const body = humanize(m ? m[2] : out);
+  // Tolérant aux lignes vides autour du séparateur ; jamais d'« OBJET: » ni de « --- » laissés dans le corps
+  const m = out.match(/OBJET\s*:\s*(.+?)\s*\n\s*-{3,}\s*\n([\s\S]+)/i);
+  const loose = out.match(/OBJET\s*:\s*(.+)/i);
+  const subject = humanize(m ? m[1] : loose ? loose[1] : `${ws.profile?.nom || ws.name} – ${p.name}`).replace(/^(re|tr|fwd?)\s*:\s*/i, "").slice(0, 140);
+  const body = humanize((m ? m[2] : out).replace(/^\s*OBJET\s*:.*$/gim, "").replace(/^\s*-{3,}\s*$/gm, "").replace(/^\n+/, ""));
   const { data, error } = await admin.from("messages").insert({ workspace_id: ws.id, prospect_id: p.id, step: 0, subject, body, status: "brouillon", campaign_id: active?.id ?? null, variant: v?.key ?? "" }).select("id").single();
   if (error?.code === "23505") throw new HttpError(409, "Un message est déjà prêt pour ce prospect");
   if (error) throw new HttpError(500, error.message);
