@@ -74,8 +74,10 @@ async function resolves(host: string) {
 }
 export async function findSite(p: { name?: string; org?: string; siret?: string | null; postal_code?: string | null; city?: string | null }) {
   const siren = String(p.siret ?? "").replace(/\D/g, "").slice(0, 9);
-  const names = [...new Set([p.org, p.name].filter(Boolean) as string[])];
-  const hosts = [...new Set(names.flatMap((n) => slugs(n, p.city ?? "")).flatMap((sl) => [`${sl}.fr`, `${sl}.com`]))].slice(0, 8);
+  // « Luxia (hôtel boutique) », « Hôtel X – Autograph Collection », « Bureaux Y - Sigle Z » : on essaie le nom court et les sigles entre parenthèses
+  const variants = (n: string) => [n.replace(/\([^)]*\)/g, " ").split(/\s[-–|,]\s|,/)[0], ...[...n.matchAll(/\(([^)]{3,30})\)/g)].map((m) => m[1]), n.replace(/^(h[oô]tel|restaurant|cabinet|clinique|institut|centre)\s+/i, "")].map((x) => x.trim()).filter((x) => x.length >= 3);
+  const names = [...new Set([p.org, p.name].filter(Boolean).flatMap((n) => [n as string, ...variants(n as string)]))];
+  const hosts = [...new Set(names.flatMap((n) => slugs(n, p.city ?? "")).flatMap((sl) => [`${sl}.fr`, `${sl}.com`]))].slice(0, 12);
   const norm = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ");
   for (const h of hosts) {
     if (!(await resolves(h))) continue;
