@@ -909,7 +909,7 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
 
         <Card className="p-5 sm:p-6 min-w-0 flex flex-col">
           {!loaded ? <div className="py-16 grid place-items-center"><Spinner /></div> : !o ? (
-            <p className="text-sm text-ink-soft text-center py-16">{mode === "intention" ? "Aucune intention repérée pour l'instant : installe le suivi de ton site et publie ta page « Alternative à » (Espion)." : "Lance une première analyse : le Radar cherche les entreprises qui ont une raison d'acheter maintenant."}</p>
+            <div className="text-center py-16 px-4"><p className="text-sm text-ink-soft">{mode === "intention" ? "Aucune intention repérée pour l'instant : installe le suivi de ton site et publie ta page « Alternative à » (Espion)." : "Lance une première analyse : le Radar cherche les entreprises qui ont une raison d'acheter maintenant."}</p>{mode !== "intention" && <Button variant="accent" className="mt-4" loading={live} disabled={live} onClick={onScan}>Lancer le Radar maintenant</Button>}</div>
           ) : (<div key={o.id} className="sheet-in flex flex-col flex-1 min-w-0">
             <div className="flex items-start gap-4">
               <div className="min-w-0 flex-1">

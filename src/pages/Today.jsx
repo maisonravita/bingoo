@@ -126,7 +126,7 @@ function Detected({ rows, onPrepared }) {
         <h2 className="flex items-center gap-2.5 font-bold text-[16px] uppercase tracking-wide"><Ico n="target" className="w-6 h-6 text-accent" />Tes 3 entreprises à contacter aujourd'hui</h2>
         <Link to="/radar" className="text-[13px] text-ink-soft hover:text-ink inline-flex items-center gap-1">Voir toutes les opportunités<Ico n="arrow" className="w-3.5 h-3.5" /></Link>
       </div>
-      {!rows.length ? <p className="text-sm text-ink-soft py-6 text-center">Rien de nouveau pour l'instant : Max relance le Radar chaque matin de semaine.</p> : (
+      {!rows.length ? <div className="py-6 text-center"><p className="text-sm text-ink-soft">Rien de nouveau pour l'instant : Max relance le Radar chaque matin de semaine.</p><Link to="/radar" className="mt-3 inline-block text-sm font-semibold text-accent-dark hover:underline">Ouvrir le Radar →</Link></div> : (
         <ul className="space-y-2">
           {rows.map((o) => (
             <li key={o.id} className="rounded-xl border border-line px-3 sm:px-4 py-3 flex items-center gap-3 hover:border-ink/20 transition">
