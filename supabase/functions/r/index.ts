@@ -269,6 +269,15 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     return out;
   },
   // Test plateforme : page « Alternative à » d'un concurrent d'un espace
+  async "site-test"(req, b) {
+    // Mesure du chercheur de site gratuit sur des prospects sans site (aucune IA, rien n'est enregistré)
+    await cron(req);
+    const { findSite } = await import("../_shared/deep.ts");
+    const { data } = await admin.from("prospects").select("name, org, siret, postal_code, city").or("website.is.null,website.eq.").limit(Math.min(Number(b.n ?? 15), 30));
+    const out = [];
+    for (const p of data ?? []) out.push({ nom: p.name, site: await findSite(p).catch(() => "") });
+    return { essais: out.length, trouves: out.filter((x) => x.site).length, detail: out };
+  },
   async "alt-test"(req, b) {
     await cron(req);
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();

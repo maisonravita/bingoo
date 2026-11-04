@@ -21,6 +21,7 @@ export { messageIdFor } from "./${S}/mail.ts";
 export { stateOf, errorState } from "./${S}/mission.ts";
 export { toolsIn, toolsNamed, atsIn, careersLink, roleMatch } from "./${S}/tech-fp.ts";
 export { orgOf } from "./${S}/iporg.ts";
+export { slugs } from "./${S}/deep.ts";
 `;
 const stubs = {
   name: "stubs",
@@ -191,6 +192,12 @@ await test("un opérateur, un hébergeur ou une très grande plage sont ignorés
   assert.equal(T.orgOf(rdap("Orange S.A.", "FR-ORANGE-ADSL", "90.0.0.0", "90.127.255.255")).org, "");
   assert.equal(T.orgOf(rdap("OVH SAS", "OVH", "51.0.0.0", "51.0.0.255")).org, "");
   assert.equal(T.orgOf(rdap("Grande Entreprise", "BIG", "80.0.0.0", "80.3.255.255")).org, "");
+});
+
+await test("les adresses de site essayées viennent du nom, sans forme juridique ni accents", () => {
+  const s = T.slugs("SARL Propreté Lyonnaise", "Lyon");
+  assert.ok(s.includes("propretelyonnaise") && s.includes("proprete-lyonnaise") && s.includes("proprete-lyonnaise-lyon"));
+  assert.deepEqual(T.slugs("SA", "Paris"), []);
 });
 
 console.log(`\n${ok} réussi${ok > 1 ? "s" : ""}, ${ko} échec${ko > 1 ? "s" : ""}`);

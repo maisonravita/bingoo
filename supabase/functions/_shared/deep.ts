@@ -57,6 +57,39 @@ function pick(emails: string[], siteHost: string) {
   return [...emails].sort((a, b) => score(b) - score(a))[0] ?? "";
 }
 
+/** Trouve le site d'une entreprise sans payer de recherche : on essaie les adresses évidentes tirées de son nom
+ *  (nom.fr, nom.com…) et on ne garde un site que s'il porte son SIREN, ou son nom et son code postal. Jamais de devinette non vérifiée. */
+const LEGAL = /\b(sas|sasu|sarl|eurl|sa|sci|snc|selarl|ets|etablissements?|societe|groupe|france)\b/g;
+export function slugs(name: string, city: string) {
+  const base = String(name ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/&/g, " et ").replace(/[^a-z0-9 ]+/g, " ").replace(LEGAL, " ").replace(/\s+/g, " ").trim();
+  if (base.length < 3) return [];
+  const words = base.split(" ").filter(Boolean);
+  const c = String(city ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "");
+  const out = new Set([words.join(""), words.join("-")]);
+  if (c) out.add(`${words.join("-")}-${c}`);
+  return [...out].filter((x) => x.length >= 3 && x.length <= 40);
+}
+async function resolves(host: string) {
+  try { const r = await (await fetch(`https://dns.google/resolve?name=${encodeURIComponent(host)}&type=A`, { signal: AbortSignal.timeout(5000) })).json(); return (r.Answer ?? []).length > 0; } catch { return false; }
+}
+export async function findSite(p: { name?: string; org?: string; siret?: string | null; postal_code?: string | null; city?: string | null }) {
+  const siren = String(p.siret ?? "").replace(/\D/g, "").slice(0, 9);
+  const names = [...new Set([p.org, p.name].filter(Boolean) as string[])];
+  const hosts = [...new Set(names.flatMap((n) => slugs(n, p.city ?? "")).flatMap((sl) => [`${sl}.fr`, `${sl}.com`]))].slice(0, 8);
+  const norm = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ");
+  for (const h of hosts) {
+    if (!(await resolves(h))) continue;
+    const origin = `https://${h}`;
+    const pages = await Promise.all([origin, `${origin}/mentions-legales`, `${origin}/mentions-legales/`].map((u) => fetchHtml(u).catch(() => "")));
+    const txt = norm(pages.map((x) => textOf(x)).join(" ")).replace(/(\d) (?=\d)/g, "$1");
+    const sirenOk = siren.length === 9 && txt.includes(siren);
+    const nameOk = names.some((n) => { const k = norm(n).replace(LEGAL, " ").trim(); return k.length >= 4 && txt.includes(k); });
+    const cpOk = !!p.postal_code && txt.includes(String(p.postal_code));
+    if (sirenOk || (nameOk && cpOk)) return origin;
+  }
+  return "";
+}
+
 // ---------------------------------------------------------------- Crédits (e-mails trouvés par Dropcontact)
 export async function credits(ws: Workspace) {
   const since = new Date(); since.setUTCDate(1); since.setUTCHours(0, 0, 0, 0);
@@ -132,6 +165,12 @@ export async function deepEnrich(ws: Workspace, p: P2, interlocuteur: string, wa
   const steps: string[] = [];
   let email = "", source = "", phone = p.phone || "", form = p.contact_form || "", site = p.website || "";
   let person = p.contact_name || "", role = p.contact_role || "";
+
+  // Palier 1 : site inconnu → on essaie les adresses évidentes, vérifiées par SIREN ou nom + code postal (gratuit)
+  if (!site) {
+    site = await findSite(p).catch(() => "");
+    steps.push(site ? `site trouvé : ${hostOf(site)}` : "site introuvable par son nom");
+  }
 
   // Palier 2 : lecture directe du site
   if (site) {
