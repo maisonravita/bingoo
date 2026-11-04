@@ -288,7 +288,8 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (b.sans_site === true) q = q.or("website.is.null,website.eq.");
     const { data } = await q.order("score", { ascending: false, nullsFirst: false }).limit(n);
     const rows = data ?? [], out: { nom: string; site: string; nouveau_site: boolean; email: string }[] = [];
-    for (let i = 0; i < rows.length; i += 3) {
+    const t0 = Date.now();
+    for (let i = 0; i < rows.length && Date.now() - t0 < 90_000; i += 3) {
       const part = await Promise.all(rows.slice(i, i + 3).map(async (p) => {
         const r = await freeEnrich(p, !dry).catch(() => ({ site: "", foundSite: false, email: "" }));
         return { nom: p.name, site: r.site, nouveau_site: r.foundSite, email: r.email };

@@ -79,14 +79,16 @@ export async function findSite(p: { name?: string; org?: string; siret?: string 
   const names = [...new Set([p.org, p.name].filter(Boolean).flatMap((n) => [n as string, ...variants(n as string)]))];
   const norm = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ");
   const bases = [...new Set(names.flatMap((n) => slugs(n, p.city ?? "")))].slice(0, 6);
+  const until = Date.now() + 30_000; // 30 s au plus par entreprise : un site lent ne bloque pas les autres
   // D'abord .fr et .com (la grande majorité), puis les autres extensions ; requêtes DNS par petits paquets pour ne pas être freiné
   for (const tlds of [[".fr", ".com"], [".net", ".eu", ".org", ".io", ".co"]]) {
     const hosts = bases.flatMap((b) => tlds.map((t) => b + t));
     const live: string[] = [];
-    for (let i = 0; i < hosts.length; i += 6) {
+    for (let i = 0; i < hosts.length && Date.now() < until; i += 6) {
       live.push(...(await Promise.all(hosts.slice(i, i + 6).map(async (h) => (await resolves(h)) ? h : (await resolves(`www.${h}`)) ? `www.${h}` : ""))).filter(Boolean));
     }
     for (const h of live) {
+      if (Date.now() > until) return "";
       const origin = `https://${h}`;
       // Accueil d'abord, puis les pages légales qu'il cite vraiment (/legal, /mentions-legales.html, /cgu…), sinon les adresses habituelles
       const home = await fetchHtml(origin).catch(() => "");
