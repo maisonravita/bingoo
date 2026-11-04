@@ -92,5 +92,12 @@ Deno.serve(wrap(async (req) => {
   if (name === "lookup") return json(await extLookup(ws, String(b.url ?? "")));
   if (name === "add") return json(await extAdd(ws, String(b.url ?? "")));
   if (name === "whoami") return json({ espace: ws.name });
+  // Pilote LinkedIn (extension) : prochaine action, compte rendu, état
+  if (name.startsWith("li-")) {
+    const li = await import("../_shared/linkedin-auto.ts");
+    if (name === "li-next") return json(await li.liNext(ws));
+    if (name === "li-report") return json(await li.liReport(ws, b));
+    if (name === "li-status") return json(await li.liStatus(ws));
+  }
   throw new HttpError(404, "Action inconnue");
 }));
