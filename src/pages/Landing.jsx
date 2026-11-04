@@ -377,6 +377,10 @@ function TryIt({ t }) {
         </form>
         {err && <p className="mt-4 rounded-lg bg-[#FDF0EC] px-4 py-3 text-[15px] text-[#9A3412]">{err}</p>}
         <p className="mt-6 text-[15px] text-ink-soft">Gratuit, sans compte. Tu vends aux collectivités ? <a href="#/outils/contrats-publics" className="underline hover:text-ink">Vois leurs contrats qui se terminent</a>.</p>
+        <figure className="mt-10">
+          <video src="./demo-radar.mp4" poster="./demo-radar.jpg" controls muted playsInline preload="none" className="w-full rounded-xl border border-black/10 bg-[#F1EFED]" aria-label="Démonstration du Radar en 30 secondes" />
+          <figcaption className="mt-2 text-[13.5px] text-ink-soft">Démo réelle en 30 secondes : le Radar lancé sur le site de Bingoo!, résultats du 4 novembre 2026.</figcaption>
+        </figure>
       </div>
 
       <div className="rounded-2xl bg-[#F1EFED] p-4 sm:p-8 min-h-[420px]">
