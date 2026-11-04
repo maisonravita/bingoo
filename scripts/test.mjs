@@ -22,6 +22,7 @@ export { stateOf, errorState } from "./${S}/mission.ts";
 export { toolsIn, toolsNamed, atsIn, careersLink, roleMatch } from "./${S}/tech-fp.ts";
 export { orgOf } from "./${S}/iporg.ts";
 export { slugs } from "./${S}/deep.ts";
+export { invitesToday, officeHours } from "./${S}/linkedin-auto.ts";
 `;
 const stubs = {
   name: "stubs",
@@ -198,6 +199,19 @@ await test("les adresses de site essayées viennent du nom, sans forme juridique
   const s = T.slugs("SARL Propreté Lyonnaise", "Lyon");
   assert.ok(s.includes("propretelyonnaise") && s.includes("proprete-lyonnaise") && s.includes("proprete-lyonnaise-lyon"));
   assert.deepEqual(T.slugs("SA", "Paris"), []);
+});
+
+await test("LinkedIn : 5 invitations le premier jour, +3 par jour, jamais plus de 20", () => {
+  const now = new Date("2026-11-10T10:00:00Z");
+  assert.equal(T.invitesToday(undefined, now), 5);
+  assert.equal(T.invitesToday("2026-11-08T10:00:00Z", now), 11);
+  assert.equal(T.invitesToday("2026-10-01T10:00:00Z", now), 20);
+});
+await test("LinkedIn : seulement en semaine, de 9 h à 18 h 30 heure de Paris", () => {
+  assert.equal(T.officeHours(new Date("2026-11-10T09:00:00Z")), true);   // mardi 10 h à Paris
+  assert.equal(T.officeHours(new Date("2026-11-10T07:30:00Z")), false);  // mardi 8 h 30
+  assert.equal(T.officeHours(new Date("2026-11-10T17:45:00Z")), false);  // mardi 18 h 45
+  assert.equal(T.officeHours(new Date("2026-11-14T10:00:00Z")), false);  // samedi
 });
 
 console.log(`\n${ok} réussi${ok > 1 ? "s" : ""}, ${ko} échec${ko > 1 ? "s" : ""}`);

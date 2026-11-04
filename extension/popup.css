@@ -19,3 +19,7 @@ h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: v
 .btn.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); margin-top: 8px; }
 input { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; font: inherit; margin-top: 8px; }
 .err { color: #b91c1c; font-size: 13px; }
+#li { padding: 12px 14px; border-bottom: 1px solid var(--line); background: #f3f6f8; }
+#li p { margin: 4px 0 0; } #li .btn { margin-top: 10px; padding: 7px; font-size: 13px; }
+.li-head { display: flex; align-items: center; justify-content: space-between; } .li-head b { color: #0a66c2; }
+.log { font-size: 12px; color: var(--soft); }

@@ -159,6 +159,11 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
   },
 
   // ---------------- V2 : réponses
+  async "li-settings"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { liSettings, liStatus } = await import("../_shared/linkedin-auto.ts");
+    return b.set ? await liSettings(ws, b) : await liStatus(ws);
+  },
   async "reply-paste"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     await quota(ws.id, "reponse", LIMITS.reponse);
