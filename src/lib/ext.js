@@ -1,6 +1,6 @@
 // Extension Chrome Bingoo! : identifiants autorisés à recevoir un accès, et page du Chrome Web Store.
 // Ajouter ici l'identifiant attribué par le Chrome Web Store dès la première publication.
-export const EXT_IDS = ["flmpgnmgiohdoogpcdcnpknlgdndfdoh"];
+export const EXT_IDS = ["flmpgnmgiohdoogpcdcnpknlgdndfdoh", "jifppeppkaecacmobfgbeapadmmpcnll"];
 export const STORE_URL = ""; // ex. https://chromewebstore.google.com/detail/bingoo/<id>
 
 /** Demande à l'extension si elle est installée et reliée. null = pas installée (ou pas Chrome). */
