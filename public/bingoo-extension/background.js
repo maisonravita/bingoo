@@ -78,6 +78,28 @@ async function tick() {
 }
 
 chrome.alarms.onAlarm.addListener((al) => { if (al.name === ALARM) tick(); });
-chrome.runtime.onInstalled.addListener(() => plan(60));
+const APP = "https://kairo.maisonravita.fr";
+const linkPage = () => chrome.tabs.create({ url: `${APP}/#/extension?ext=${chrome.runtime.id}` });
+
+// Juste après l'installation : Bingoo! s'ouvre et relie l'extension à l'espace du client, sans clé à copier
+chrome.runtime.onInstalled.addListener(async ({ reason }) => {
+  plan(60);
+  if (reason === "install" && !(await bootKey())) linkPage();
+});
+// Seul le site Bingoo! peut parler à l'extension (externally_connectable), et on revérifie l'origine
+chrome.runtime.onMessageExternal.addListener((m, sender, reply) => {
+  if (sender.origin !== APP) return;
+  (async () => {
+    if (m?.type === "bingoo-ping") return reply({ linked: !!(await bootKey()), version: chrome.runtime.getManifest().version });
+    if (m?.type === "bingoo-key" && /^bgo_[a-f0-9]{40}$/.test(m.key ?? "")) {
+      await chrome.storage.local.set({ key: m.key, cfgTried: true, liPause: false });
+      plan(60);
+      return reply({ ok: true });
+    }
+    reply({ ok: false });
+  })();
+  return true;
+});
+chrome.runtime.onMessage.addListener((m) => { if (m === "li-link") linkPage(); });
 chrome.runtime.onStartup.addListener(() => plan(120));
 chrome.runtime.onMessage.addListener((m) => { if (m === "li-now") plan(60); });

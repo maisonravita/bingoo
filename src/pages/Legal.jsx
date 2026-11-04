@@ -113,7 +113,12 @@ export function Confidentialite() {
       <h2>4. Visiteurs des sites de nos clients</h2>
       <p>Si un client installe le script de suivi {brand.name} sur son site, le script mesure les pages vues sans cookie, avec un identifiant de session aléatoire qui disparaît à la fermeture de l'onglet. Pour reconnaître l'entreprise qui visite, {brand.name} consulte le titulaire public de l'adresse IP (registres RIPE, ARIN) : seul le <b>nom de l'entreprise</b> est conservé, jamais l'adresse IP, et uniquement quand il s'agit d'une entreprise et non d'un particulier ou d'un opérateur. Le client qui installe le script en informe ses visiteurs.</p>
 
-      <h2>5. Destinataires et sous-traitants</h2>
+      <h2>5. L'extension Chrome {brand.name}</h2>
+      <p><b>Fiche entreprise :</b> quand vous cliquez sur l'icône de l'extension, l'adresse du site ouvert est envoyée à {brand.name} pour afficher la fiche de l'entreprise. Rien n'est envoyé tant que vous ne cliquez pas, et l'extension ne lit ni votre historique ni le contenu des autres sites.</p>
+      <p><b>Pilote LinkedIn (si vous l'activez) :</b> l'extension ouvre les profils LinkedIn de vos prospects, envoie les invitations et le premier message que vous avez validés dans {brand.name}, puis transmet uniquement le résultat de chaque action (invitation envoyée, acceptée, message envoyé). Elle agit avec votre propre session LinkedIn : {brand.name} ne voit jamais vos identifiants, vos messages privés ni vos contacts.</p>
+      <p>Les données passées par l'extension servent uniquement à faire fonctionner ces deux fonctions. Elles ne sont jamais vendues, ni utilisées pour de la publicité ou pour évaluer une solvabilité, ni lues par une personne sauf à votre demande pour le support.</p>
+
+      <h2>6. Destinataires et sous-traitants</h2>
       <p>Les données ne sont jamais vendues. Elles sont traitées par les prestataires techniques suivants, liés par contrat :</p>
       <ul className="list-disc pl-5 space-y-1">
         <li>Supabase : base de données et serveurs, hébergés dans l'Union européenne (Paris).</li>
@@ -126,13 +131,13 @@ export function Confidentialite() {
       </ul>
       <p>Les transferts hors de l'Union européenne sont encadrés par le cadre de protection des données UE–États-Unis (Data Privacy Framework) ou par les clauses contractuelles types de la Commission européenne.</p>
 
-      <h2>6. Sécurité</h2>
+      <h2>7. Sécurité</h2>
       <p>Connexions chiffrées, données de chaque entreprise cloisonnées, mots de passe et jetons de messagerie chiffrés, clés d'accès stockées sous forme d'empreinte, accès aux données limité au strict nécessaire.</p>
 
-      <h2>7. Cookies</h2>
+      <h2>8. Cookies</h2>
       <p>{brand.name} n'utilise <b>aucun cookie publicitaire ni de mesure d'audience tierce</b>. L'application utilise uniquement le stockage local du navigateur, strictement nécessaire pour garder votre session ouverte et retenir vos préférences. Aucun consentement n'est donc requis.</p>
 
-      <h2>8. Vos droits</h2>
+      <h2>9. Vos droits</h2>
       <p>Vous pouvez demander l'accès à vos données, leur rectification, leur effacement, la limitation de leur traitement ou leur portabilité, et vous opposer à leur traitement, en écrivant à {L.privacy_email}. Nous répondons sous un mois. Si vous avez été prospecté par un client de {brand.name}, nous transmettons votre demande à l'entreprise concernée et appliquons immédiatement toute opposition.</p>
       <p>Vous pouvez introduire une réclamation auprès de la CNIL : www.cnil.fr, 3 place de Fontenoy, 75007 Paris.</p>
     </Shell>

@@ -12,6 +12,7 @@ import Review from "./pages/Review";
 import Prospects from "./pages/Prospects";
 import LinkedIn from "./pages/LinkedIn";
 import Settings from "./pages/Settings";
+import ExtensionLink from "./pages/ExtensionLink";
 import Replies from "./pages/Replies";
 import Agenda from "./pages/Agenda";
 import Quotes from "./pages/Quotes";
@@ -100,6 +101,7 @@ function Gate() {
         <Route path="/conversion" element={<Conversion />} />
         <Route path="/intelligence" element={<Intelligence />} />
         <Route path="/abonnement" element={<Abonnement />} />
+        <Route path="/extension" element={<ExtensionLink />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       </ErrorBoundary>

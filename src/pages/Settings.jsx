@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { STORE_URL as STORE } from "../lib/ext";
 import { fn } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { Badge, Button, Card, Field, Input, PageHead, Textarea, useToast } from "../components/ui";
@@ -261,6 +262,7 @@ export default function Settings() {
 
 /** Extension Chrome (zip personnel avec la clé déjà dedans) et, en option, assistants IA (Claude, ChatGPT). */
 function ExternalAccess({ ws }) {
+  const STORE_URL = STORE;
   const toast = useToast();
   const [keys, setKeys] = useState(null);
   const [fresh, setFresh] = useState("");
@@ -280,13 +282,18 @@ function ExternalAccess({ ws }) {
   const mcp = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/x/mcp?k=${fresh}`;
   return (
     <Section id="acces" title="Extension Chrome" sub="Bingoo! dans ton navigateur : la fiche de chaque entreprise que tu visites, et le pilote LinkedIn.">
-      <Button variant="primary" loading={busy === "ext"} onClick={download}>Télécharger mon extension</Button>
-      <ol className="text-sm text-ink-soft list-decimal pl-5 space-y-1.5 mt-4">
+      {STORE_URL ? (
+        <>
+          <a href={STORE_URL} target="_blank" rel="noreferrer"><Button variant="primary">Installer l'extension</Button></a>
+          <p className="text-sm text-ink-soft mt-3">Clique sur « Ajouter à Chrome ». Bingoo! s'ouvre tout seul et relie l'extension à ton espace.</p>
+        </>
+      ) : <Button variant="primary" loading={busy === "ext"} onClick={download}>Télécharger mon extension</Button>}
+      {!STORE_URL && <ol className="text-sm text-ink-soft list-decimal pl-5 space-y-1.5 mt-4">
         <li>Décompresse le fichier téléchargé.</li>
         <li>Dans Chrome, ouvre la page <button className="font-mono text-ink underline decoration-dotted" onClick={() => copy("chrome://extensions")} title="Copier l'adresse">chrome://extensions</button> et active « Mode développeur » en haut à droite.</li>
         <li>Clique sur « Charger l'extension non empaquetée » et choisis le dossier <b className="text-ink">bingoo-extension</b>. C'est prêt : l'extension est déjà reliée à ton espace.</li>
-      </ol>
-      <p className="text-[12px] text-ink-faint mt-2">Le dossier contient ton accès personnel : ne le partage pas.</p>
+      </ol>}
+      {!STORE_URL && <p className="text-[12px] text-ink-faint mt-2">Le dossier contient ton accès personnel : ne le partage pas.</p>}
 
       <details className="mt-6 border-t border-line pt-4">
         <summary className="cursor-pointer text-sm font-semibold">Utiliser Bingoo! dans Claude ou ChatGPT</summary>

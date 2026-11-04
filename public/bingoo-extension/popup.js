@@ -24,17 +24,20 @@ async function call(path, body) {
 }
 
 function setup(msg) {
-  app.innerHTML = `<h1>Connecte l'extension</h1>
-    <p class="muted">Le plus simple : dans Bingoo!, Réglages → Extension Chrome, télécharge ton extension (elle est déjà reliée à ton espace) et installe-la à la place de celle-ci. Sinon, colle ici une clé d'accès.</p>
+  app.innerHTML = `<h1>Relie l'extension à Bingoo!</h1>
+    <p class="muted">Un clic : Bingoo! s'ouvre et s'occupe de tout.</p>
     ${msg ? `<p class="err">${esc(msg)}</p>` : ""}
-    <input id="k" placeholder="bgo_…" autocomplete="off">
-    <button class="btn" id="save">Enregistrer</button>
-    <a class="btn ghost" href="${APP}/#/reglages" target="_blank">Ouvrir les réglages Bingoo!</a>`;
+    <button class="btn" id="link">Relier à mon espace Bingoo!</button>
+    <details class="manual"><summary>J'ai une clé d'accès</summary>
+      <input id="k" placeholder="bgo_…" autocomplete="off">
+      <button class="btn ghost" id="save">Enregistrer la clé</button>
+    </details>`;
+  document.getElementById("link").onclick = () => { chrome.runtime.sendMessage("li-link"); window.close(); };
   document.getElementById("save").onclick = async () => {
     const k = document.getElementById("k").value.trim();
     if (!/^bgo_[a-f0-9]{40}$/.test(k)) return setup("Cette clé n'a pas le bon format (elle commence par bgo_).");
     await setKey(k);
-    try { await call("whoami", {}); load(); } catch (e) { await setKey(""); setup(e.message); }
+    try { await call("whoami", {}); load(); pilot(); } catch (e) { await setKey(""); setup(e.message); }
   };
 }
 

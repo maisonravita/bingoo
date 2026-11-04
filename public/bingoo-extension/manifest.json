@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Bingoo!",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Bingoo! sur chaque site d'entreprise (signaux, contacts, ajout en un clic) et pilote LinkedIn : invitations et premier message, avec des quotas prudents.",
   "action": {
     "default_popup": "popup.html",
@@ -25,5 +25,11 @@
   },
   "background": {
     "service_worker": "background.js"
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApaU7Ert0pX0P4v3x/YCzxD22qKc3R4X0YMNLHJXx3gb4ftx4tI5Ctk6lwmynrwUIKYARQ+OwkwYSG3oy75Td69LbmOiwSAn+gZ9SIQcXyQOsX8v243/tpSdj0oBu+AdFersY+pnXSF650KEa2ait+X+LEmeqr+UvNFsn9zdefE2fTSjdjFJ1A202K43FBTt8m4TRdiyuL12Ic0HhitapP+Ro0FVK1GWACKiCjbU5J6tt/djHWKpfvpMYt3XKxYCg8CeqO4I91OgQGWxW/j37gBnraIZCnHW/bGiZRe+doX4hbq/tAILDZAQrsSwR2olImNm57diZOA81XIZ8lu803wIDAQAB",
+  "externally_connectable": {
+    "matches": [
+      "https://kairo.maisonravita.fr/*"
+    ]
   }
 }
