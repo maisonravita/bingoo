@@ -37,6 +37,7 @@ import PublicBooking from "./pages/PublicBooking";
 import PublicQuote from "./pages/PublicQuote";
 import FreeTools from "./pages/FreeTools";
 import Landing from "./pages/Landing";
+import Metier from "./pages/Metier";
 import { Conditions, Confidentialite, legalReady, MentionsLegales, Opposition } from "./pages/Legal";
 import { supabase } from "./lib/supabase";
 
@@ -52,6 +53,7 @@ function Gate() {
   if (loc.pathname.startsWith("/devis/")) return <PublicQuote />;
   if (loc.pathname === "/outils" || loc.pathname.startsWith("/outils/")) return <FreeTools />;
   if (loc.pathname === "/accueil") return <Landing />;
+  if (loc.pathname.startsWith("/metier/")) return <Metier slug={loc.pathname.split("/")[2]} />;
   if (loc.pathname === "/opposition") return <Opposition />;
   if (legalReady && loc.pathname === "/mentions-legales") return <MentionsLegales />;
   if (legalReady && loc.pathname === "/confidentialite") return <Confidentialite />;
