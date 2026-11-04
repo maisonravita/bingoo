@@ -29,7 +29,8 @@ function Mailbox() {
   const toast = useToast();
   const mb = ws.integrations?.mailbox;
   const [providers, setProviders] = useState([]);
-  const [f, setF] = useState({ provider: "gmail", email: "", password: "", host: "" });
+  const [f, setF] = useState({ provider: "ovh", email: "", password: "", host: "" });
+  const [kind, setKind] = useState("google");
   const [busy, setBusy] = useState(false);
   useEffect(() => { fn("mailbox-options").then((r) => setProviders(r.providers ?? [])).catch(() => {}); }, []);
   const cur = providers.find((p) => p.key === f.provider);
@@ -50,7 +51,7 @@ function Mailbox() {
     window.history.replaceState(null, "", window.location.href.replace(/[?&]gmail=[a-z]+/, ""));
   }, []);
   return (
-    <Section title="Ta boîte mail" sub="Kairo envoie depuis ta vraie adresse : les messages apparaissent dans tes « Envoyés » et les prospects te répondent directement."
+    <Section title="Ta boîte mail" sub="Bingoo! envoie depuis ta vraie adresse : les messages apparaissent dans tes « Envoyés » et les prospects te répondent directement. Deux minutes suffisent."
       status={mb ? <Badge tone={mb.ok ? "good" : "bad"}>{mb.ok ? "Connectée" : "À reconnecter"}</Badge> : <Badge>Non connectée</Badge>}>
       {mb?.ok ? (
         <div className="flex flex-wrap items-center gap-3">
@@ -58,25 +59,55 @@ function Mailbox() {
           <Button variant="danger" size="sm" loading={busy} onClick={remove}>Déconnecter</Button>
         </div>
       ) : (
-        <div className="space-y-3">
-          {mb && !mb.ok && <p className="text-sm text-bad">Le mot de passe de {mb.email} ne fonctionne plus (changé ou révoqué). Reconnecte la boîte.</p>}
-          <div className="rounded-xl border border-line bg-paper p-4">
-            <p className="font-medium text-sm">Gmail ou Google Workspace : connexion officielle (recommandée)</p>
-            <p className="text-sm text-ink-soft mt-1">Tu valides sur la page de Google, sans donner de mot de passe à Bingoo. Bingoo pourra envoyer depuis ta boîte et y repérer les réponses et les rebonds.</p>
-            <Button className="mt-3" variant="primary" loading={busy} onClick={google}>Connecter Gmail avec Google</Button>
+        <div className="space-y-4">
+          {mb && !mb.ok && <p className="text-sm text-bad">L'accès à {mb.email} ne fonctionne plus (mot de passe changé ou autorisation retirée). Reconnecte la boîte.</p>}
+          <div>
+            <p className="text-sm font-semibold mb-2">Quelle messagerie utilises-tu ?</p>
+            <div className="grid sm:grid-cols-3 gap-2">
+              {[["google", "Gmail", "ou Google Workspace"], ["microsoft", "Outlook", "ou Microsoft 365"], ["autre", "Autre", "OVH, IONOS, Zoho…"]].map(([k, t, d]) => (
+                <button key={k} onClick={() => setKind(k)} className={cx("rounded-xl border p-3 text-left transition", kind === k ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink/40")}>
+                  <span className="block font-semibold">{t}</span><span className={cx("block text-xs", kind === k ? "text-white/70" : "text-ink-soft")}>{d}</span>
+                </button>
+              ))}
+            </div>
           </div>
-          <p className="text-xs text-ink-faint">Autre fournisseur, ou sans connexion Google : mot de passe d'application ci-dessous.</p>
-          <div className="flex flex-wrap gap-1.5">
-            {providers.map((p) => <button key={p.key} onClick={() => setF({ ...f, provider: p.key })} className={cx("rounded-full px-3 py-1.5 text-sm border", f.provider === p.key ? "bg-ink text-white border-ink" : "bg-white border-line")}>{p.label}</button>)}
-          </div>
-          {cur && <p className="text-sm text-ink-soft">{cur.help}</p>}
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="Adresse e-mail"><Input type="email" autoComplete="off" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="toi@tonentreprise.fr" /></Field>
-            <Field label={f.provider === "gmail" ? "Mot de passe d'application (16 lettres)" : "Mot de passe"}><Input type="password" autoComplete="new-password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></Field>
-            {f.provider === "autre" && <Field label="Serveur SMTP (SSL, port 465)"><Input value={f.host} onChange={(e) => setF({ ...f, host: e.target.value })} placeholder="smtp.monhebergeur.fr" /></Field>}
-          </div>
-          <p className="text-xs text-ink-soft">Le mot de passe est chiffré et ne sert qu'à envoyer tes e-mails. Tu peux le révoquer à tout moment chez ton fournisseur. Outlook / Microsoft 365 : connexion officielle bientôt disponible.</p>
-          <Button variant="primary" loading={busy} disabled={!f.email || !f.password} onClick={save}>Tester et connecter</Button>
+
+          {kind === "google" && (
+            <div className="rounded-xl border border-line bg-paper p-4">
+              <ol className="text-sm space-y-2 list-decimal pl-5">
+                <li>Clique sur <b>Connecter Gmail</b> : la page officielle de Google s'ouvre.</li>
+                <li>Choisis l'adresse qui enverra tes e-mails de prospection.</li>
+                <li>Si Google affiche « Google n'a pas validé cette application », clique sur <b>Paramètres avancés</b> puis <b>Accéder à Bingoo!</b>. Ce message s'affiche tant que Google n'a pas fini de valider Bingoo! : la connexion reste officielle et Bingoo! ne voit jamais ton mot de passe.</li>
+                <li>Coche les autorisations proposées (envoyer des e-mails, repérer les réponses) puis clique sur <b>Continuer</b>. Tu reviens ici, c'est prêt.</li>
+              </ol>
+              <Button className="mt-4" variant="primary" loading={busy} onClick={google}>Connecter Gmail</Button>
+              <p className="text-xs text-ink-faint mt-2">Tu pourras retirer l'accès à tout moment, ici ou dans ton compte Google (Sécurité → Applications tierces).</p>
+            </div>
+          )}
+
+          {kind === "microsoft" && (
+            <div className="rounded-xl border border-line bg-paper p-4 text-sm space-y-2">
+              <p><b>La connexion Outlook arrive bientôt.</b> Microsoft n'accepte plus les mots de passe pour envoyer depuis une autre application : il faut une connexion officielle, en cours de préparation.</p>
+              <p>En attendant, tu peux prospecter depuis <b>ton propre domaine</b> (par exemple prenom@tonentreprise.fr) : Bingoo! envoie pour toi et les réponses arrivent dans ton Outlook comme d'habitude.</p>
+              <a href="#/reglages#domaine"><Button className="mt-2" variant="primary">Configurer mon domaine d'envoi</Button></a>
+            </div>
+          )}
+
+          {kind === "autre" && (
+            <div className="rounded-xl border border-line bg-paper p-4 space-y-3">
+              <div className="flex flex-wrap gap-1.5">
+                {providers.filter((p) => p.key !== "gmail").concat(providers.filter((p) => p.key === "gmail")).map((p) => <button key={p.key} onClick={() => setF({ ...f, provider: p.key })} className={cx("rounded-full px-3 py-1.5 text-sm border", f.provider === p.key ? "bg-ink text-white border-ink" : "bg-white border-line")}>{p.key === "gmail" ? "Gmail sans connexion Google" : p.label}</button>)}
+              </div>
+              {cur && <p className="text-sm text-ink-soft">{cur.help}</p>}
+              <div className="grid sm:grid-cols-2 gap-3">
+                <Field label="Adresse e-mail"><Input type="email" autoComplete="off" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="toi@tonentreprise.fr" /></Field>
+                <Field label={f.provider === "gmail" || f.provider === "zoho" ? "Mot de passe d'application" : "Mot de passe de la boîte"}><Input type="password" autoComplete="new-password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></Field>
+                {f.provider === "autre" && <Field label="Serveur SMTP (SSL, port 465)"><Input value={f.host} onChange={(e) => setF({ ...f, host: e.target.value })} placeholder="smtp.monhebergeur.fr" /></Field>}
+              </div>
+              <p className="text-xs text-ink-soft">Bingoo! teste la connexion avant de l'enregistrer. Le mot de passe est chiffré et ne sert qu'à envoyer tes e-mails.</p>
+              <Button variant="primary" loading={busy} disabled={!f.email || !f.password} onClick={save}>Tester et connecter</Button>
+            </div>
+          )}
         </div>
       )}
     </Section>

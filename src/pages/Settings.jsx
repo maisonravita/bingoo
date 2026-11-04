@@ -34,7 +34,8 @@ export default function Settings() {
   const [domain, setDomain] = useState(ws.domain);
   const [zoneText, setZoneText] = useState("");
   useEffect(() => setF(ws), [ws]);
-  useEffect(() => { if (window.location.hash.includes("domaine")) document.getElementById("domaine")?.scrollIntoView(); }, []);
+  // « #/reglages#domaine », « #/reglages#acces » : on descend jusqu'à la section demandée
+  useEffect(() => { const id = window.location.hash.split("#")[2]; if (id) setTimeout(() => document.getElementById(id)?.scrollIntoView({ block: "start" }), 300); }, []);
 
   const save = async (fields, label = "Enregistré") => {
     setBusy("save");
