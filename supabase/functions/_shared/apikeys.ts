@@ -28,7 +28,7 @@ export async function keyRevoke(wsId: string, id: string) {
 export async function requireKey(req: Request): Promise<Workspace> {
   // En-tête x-bingoo-key, Authorization: Bearer, ou lien privé ?k= (assistants qui n'acceptent qu'une adresse)
   const raw = (req.headers.get("x-bingoo-key") ?? ((req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "") || new URL(req.url).searchParams.get("k") || "")).trim();
-  if (!/^bgo_[a-f0-9]{40}$/.test(raw)) throw new HttpError(401, "Clé d'accès Bingoo! manquante ou invalide (Réglages → Extension et assistants IA)");
+  if (!/^bgo_[a-f0-9]{40}$/.test(raw)) throw new HttpError(401, "Clé d'accès Bingoo! manquante ou invalide (Réglages → Extension Chrome)");
   const { data: k } = await admin.from("api_keys").select("id, workspace_id, last_used_at").eq("key_hash", await sha(raw)).is("revoked_at", null).maybeSingle();
   if (!k) throw new HttpError(401, "Clé d'accès inconnue ou supprimée");
   if (!k.last_used_at || Date.now() - new Date(k.last_used_at).getTime() > 3600_000) await admin.from("api_keys").update({ last_used_at: new Date().toISOString() }).eq("id", k.id);

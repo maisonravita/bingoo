@@ -4,7 +4,16 @@ const APP = "https://kairo.maisonravita.fr";
 const app = document.getElementById("app");
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-const getKey = () => new Promise((r) => chrome.storage.local.get("key", (v) => r(v.key || "")));
+// Clé d'accès : celle enregistrée, sinon celle livrée dans le zip personnel (config.json), lue une seule fois
+async function bootKey() {
+  const v = await chrome.storage.local.get(["key", "cfgTried"]);
+  if (v.key || v.cfgTried) return v.key || "";
+  let key = "";
+  try { const c = await (await fetch(chrome.runtime.getURL("config.json"))).json(); if (/^bgo_[a-f0-9]{40}$/.test(c.key)) key = c.key; } catch { /* zip générique : pas de config */ }
+  await chrome.storage.local.set({ key, cfgTried: true });
+  return key;
+}
+const getKey = bootKey;
 const setKey = (key) => new Promise((r) => chrome.storage.local.set({ key }, r));
 async function call(path, body) {
   const key = await getKey();
@@ -16,7 +25,7 @@ async function call(path, body) {
 
 function setup(msg) {
   app.innerHTML = `<h1>Connecte l'extension</h1>
-    <p class="muted">Dans Bingoo!, va dans Réglages → Extension et assistants IA, crée une clé d'accès et colle-la ici.</p>
+    <p class="muted">Le plus simple : dans Bingoo!, Réglages → Extension Chrome, télécharge ton extension (elle est déjà reliée à ton espace) et installe-la à la place de celle-ci. Sinon, colle ici une clé d'accès.</p>
     ${msg ? `<p class="err">${esc(msg)}</p>` : ""}
     <input id="k" placeholder="bgo_…" autocomplete="off">
     <button class="btn" id="save">Enregistrer</button>

@@ -7,7 +7,7 @@ const store = (o) => chrome.storage.local.set(o);
 const read = (k) => new Promise((r) => chrome.storage.local.get(k, r));
 
 async function call(path, body) {
-  const { key } = await read("key");
+  const key = await bootKey();
   if (!key) throw new Error("Extension non connectée à Bingoo!");
   const res = await fetch(`${API}/${path}`, { method: "POST", headers: { "Content-Type": "application/json", "x-bingoo-key": key }, body: JSON.stringify(body ?? {}) });
   const data = await res.json().catch(() => ({}));
@@ -19,6 +19,16 @@ function plan(seconds) {
   const s = Math.max(60, Math.min(3600, Number(seconds) || 900));
   chrome.alarms.create(ALARM, { delayInMinutes: s / 60 });
   store({ liNextAt: Date.now() + s * 1000 });
+}
+
+// Clé d'accès : celle enregistrée, sinon celle livrée dans le zip personnel (config.json), lue une seule fois
+async function bootKey() {
+  const v = await chrome.storage.local.get(["key", "cfgTried"]);
+  if (v.key || v.cfgTried) return v.key || "";
+  let key = "";
+  try { const c = await (await fetch(chrome.runtime.getURL("config.json"))).json(); if (/^bgo_[a-f0-9]{40}$/.test(c.key)) key = c.key; } catch { /* zip générique : pas de config */ }
+  await chrome.storage.local.set({ key, cfgTried: true });
+  return key;
 }
 
 const LABELS = { invitation: "Invitation", verifier: "Vérification", message: "Message" };

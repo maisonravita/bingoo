@@ -259,44 +259,50 @@ export default function Settings() {
   );
 }
 
-/** Extension Chrome et assistants IA (Claude, ChatGPT) : clés d'accès personnelles, installation, branchement. */
+/** Extension Chrome (zip personnel avec la clé déjà dedans) et, en option, assistants IA (Claude, ChatGPT). */
 function ExternalAccess({ ws }) {
   const toast = useToast();
   const [keys, setKeys] = useState(null);
   const [fresh, setFresh] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState("");
   const load = () => fn("r/apikey-list", { workspace_id: ws.id }).then((r) => setKeys(r.keys)).catch(() => setKeys([]));
   useEffect(() => { load(); }, [ws.id]);
-  const create = async () => { setBusy(true); try { const r = await fn("r/apikey-create", { workspace_id: ws.id, name: `Clé du ${new Date().toLocaleDateString("fr-FR")}` }); setFresh(r.key); load(); } catch (e) { toast(e.message, "bad"); } finally { setBusy(false); } };
-  const revoke = async (id) => { await fn("r/apikey-revoke", { workspace_id: ws.id, id }); toast("Clé supprimée : elle ne fonctionne plus", "good"); load(); };
+  const newKey = async (name) => (await fn("r/apikey-create", { workspace_id: ws.id, name: `${name} du ${new Date().toLocaleDateString("fr-FR")}` })).key;
+  const download = async () => {
+    setBusy("ext");
+    try { const { downloadExtension } = await import("../lib/extzip"); await downloadExtension(await newKey("Extension")); toast("Extension téléchargée, déjà reliée à ton espace", "good"); load(); }
+    catch (e) { toast(e.message || "Téléchargement impossible, réessaie", "bad"); }
+    finally { setBusy(""); }
+  };
+  const createAi = async () => { setBusy("ai"); try { setFresh(await newKey("Assistant IA")); load(); } catch (e) { toast(e.message, "bad"); } finally { setBusy(""); } };
+  const revoke = async (id) => { await fn("r/apikey-revoke", { workspace_id: ws.id, id }); toast("Accès supprimé : il ne fonctionne plus", "good"); load(); };
   const copy = async (t) => { try { await navigator.clipboard.writeText(t); toast("Copié", "good"); } catch { toast(t); } };
-  const mcp = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/x/mcp`;
+  const mcp = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/x/mcp?k=${fresh}`;
   return (
-    <Section id="acces" title="Extension et assistants IA" sub="Bingoo! sur chaque site d'entreprise que tu visites, et dans Claude ou ChatGPT.">
-      <div className="grid gap-5">
-        <div>
-          <p className="font-semibold">1. Ta clé d'accès personnelle</p>
-          <p className="text-sm text-ink-soft">Elle relie l'extension et ton assistant IA à cet espace, en lecture et pour ajouter des prospects. Ne la partage pas.</p>
-          {fresh && <div className="mt-3 rounded-xl border border-accent/40 bg-accent-soft/40 p-3"><p className="text-[13px] font-semibold">Ta nouvelle clé (elle ne sera plus affichée) :</p><div className="mt-1.5 flex gap-2 items-center"><code className="flex-1 break-all text-[12.5px] bg-white rounded-lg border border-line px-2 py-1.5">{fresh}</code><Button size="sm" onClick={() => copy(fresh)}>Copier</Button></div></div>}
-          <div className="mt-3 space-y-1.5">{(keys ?? []).map((k) => <div key={k.id} className="flex items-center gap-3 text-[13.5px]"><code className="text-ink-soft">{k.prefix}…</code><span className="text-ink-faint">{k.last_used_at ? `utilisée le ${new Date(k.last_used_at).toLocaleDateString("fr-FR")}` : "jamais utilisée"}</span><button onClick={() => revoke(k.id)} className="ml-auto text-[12.5px] text-bad hover:underline">Supprimer</button></div>)}</div>
-          <Button className="mt-3" size="sm" variant="primary" loading={busy} onClick={create}>Créer une clé</Button>
-        </div>
-        <div>
-          <p className="font-semibold">2. Extension Chrome</p>
-          <ol className="text-sm text-ink-soft list-decimal pl-5 space-y-1 mt-1">
-            <li><a href="./bingoo-extension.zip" download className="text-accent font-semibold hover:underline">Télécharge l'extension</a> et décompresse-la.</li>
-            <li>Dans Chrome, ouvre <code>chrome://extensions</code> et active le « Mode développeur » (en haut à droite).</li>
-            <li>Clique sur « Charger l'extension non empaquetée » et choisis le dossier <code>bingoo-extension</code>.</li>
-            <li>Épingle Bingoo!, ouvre le site d'une entreprise, clique sur l'icône et colle ta clé la première fois.</li>
-          </ol>
-        </div>
-        <div>
-          <p className="font-semibold">3. Claude ou ChatGPT</p>
-          <p className="text-sm text-ink-soft">Ajoute un connecteur personnalisé (MCP) avec cette adresse. Ton assistant pourra lire tes opportunités, tes concurrents, tes prospects et tes résultats.</p>
-          <div className="mt-2 flex gap-2 items-center"><code className="flex-1 break-all text-[12.5px] bg-paper rounded-lg border border-line px-2 py-1.5">{mcp}?k={fresh || "TA_CLÉ"}</code><Button size="sm" onClick={() => copy(`${mcp}?k=${fresh || "TA_CLÉ"}`)}>Copier</Button></div>
-          <p className="text-[12px] text-ink-faint mt-1.5">Ce lien contient ta clé : garde-le privé. Si l'assistant permet un en-tête d'authentification, utilise plutôt l'adresse sans <code>?k=</code> et l'en-tête <code>Authorization: Bearer ta_clé</code>.</p>
-        </div>
-      </div>
+    <Section id="acces" title="Extension Chrome" sub="Bingoo! dans ton navigateur : la fiche de chaque entreprise que tu visites, et le pilote LinkedIn.">
+      <Button variant="primary" loading={busy === "ext"} onClick={download}>Télécharger mon extension</Button>
+      <ol className="text-sm text-ink-soft list-decimal pl-5 space-y-1.5 mt-4">
+        <li>Décompresse le fichier téléchargé.</li>
+        <li>Dans Chrome, ouvre la page <button className="font-mono text-ink underline decoration-dotted" onClick={() => copy("chrome://extensions")} title="Copier l'adresse">chrome://extensions</button> et active « Mode développeur » en haut à droite.</li>
+        <li>Clique sur « Charger l'extension non empaquetée » et choisis le dossier <b className="text-ink">bingoo-extension</b>. C'est prêt : l'extension est déjà reliée à ton espace.</li>
+      </ol>
+      <p className="text-[12px] text-ink-faint mt-2">Le dossier contient ton accès personnel : ne le partage pas.</p>
+
+      <details className="mt-6 border-t border-line pt-4">
+        <summary className="cursor-pointer text-sm font-semibold">Utiliser Bingoo! dans Claude ou ChatGPT</summary>
+        <p className="text-sm text-ink-soft mt-2">Ton assistant pourra lire tes opportunités, tes concurrents, tes prospects et tes résultats. Crée un lien, puis ajoute-le dans ton assistant comme « connecteur personnalisé ».</p>
+        {fresh ? (
+          <div className="mt-3 flex gap-2 items-center"><code className="flex-1 break-all text-[12.5px] bg-paper rounded-lg border border-line px-2 py-1.5">{mcp}</code><Button size="sm" onClick={() => copy(mcp)}>Copier</Button></div>
+        ) : <Button className="mt-3" size="sm" loading={busy === "ai"} onClick={createAi}>Créer mon lien</Button>}
+        {fresh && <p className="text-[12px] text-ink-faint mt-1.5">Copie-le maintenant, il ne sera plus affiché. Garde-le privé.</p>}
+      </details>
+
+      {keys?.length > 0 && (
+        <details className="mt-4 border-t border-line pt-4">
+          <summary className="cursor-pointer text-sm font-semibold">Accès actifs ({keys.length})</summary>
+          <div className="mt-3 space-y-1.5">{keys.map((k) => <div key={k.id} className="flex items-center gap-3 text-[13.5px]"><span>{k.name}</span><span className="text-ink-faint">{k.last_used_at ? `utilisé le ${new Date(k.last_used_at).toLocaleDateString("fr-FR")}` : "jamais utilisé"}</span><button onClick={() => revoke(k.id)} className="ml-auto text-[12.5px] text-bad hover:underline">Supprimer</button></div>)}</div>
+        </details>
+      )}
     </Section>
   );
 }
