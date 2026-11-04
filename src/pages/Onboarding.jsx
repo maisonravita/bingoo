@@ -86,6 +86,8 @@ export default function Onboarding() {
       setStep(3);
       const r = await fn("search", { workspace_id: ws.id, pages: 1 });
       await supabase.from("workspaces").update({ onboarded: true }).eq("id", ws.id);
+      // Premier Radar tout de suite (sources officielles, sans recherche web) : le client ne découvre jamais un Radar vide
+      fn("r/radar-scan", { workspace_id: ws.id, web: false }).catch(() => {});
       toast(`${r.inserted} prospects trouvés`, "good");
       await reload();
     } catch (e) { toast(e.message, "bad"); setStep(2); } finally { setBusy(false); }
