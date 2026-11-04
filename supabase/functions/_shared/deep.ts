@@ -77,24 +77,29 @@ export async function findSite(p: { name?: string; org?: string; siret?: string 
   // « Luxia (hôtel boutique) », « Hôtel X – Autograph Collection », « Bureaux Y - Sigle Z » : on essaie le nom court et les sigles entre parenthèses
   const variants = (n: string) => [n.replace(/\([^)]*\)/g, " ").split(/\s[-–|,]\s|,/)[0], ...[...n.matchAll(/\(([^)]{3,30})\)/g)].map((m) => m[1]), n.replace(/^(h[oô]tel|restaurant|cabinet|clinique|institut|centre)\s+/i, "")].map((x) => x.trim()).filter((x) => x.length >= 3);
   const names = [...new Set([p.org, p.name].filter(Boolean).flatMap((n) => [n as string, ...variants(n as string)]))];
-  const tlds = [".fr", ".com", ".net", ".eu", ".org", ".io", ".co"];
-  const hosts = [...new Set(names.flatMap((n) => slugs(n, p.city ?? "")).flatMap((sl) => tlds.map((t) => sl + t)))].slice(0, 28);
   const norm = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ");
-  // Résolution DNS en parallèle (gratuite) : le domaine nu, sinon « www. » (certains sites n'existent qu'avec www)
-  const live = (await Promise.all(hosts.map(async (h) => (await resolves(h)) ? h : (await resolves(`www.${h}`)) ? `www.${h}` : ""))).filter(Boolean);
-  for (const h of live) {
-    const origin = `https://${h}`;
-    // Accueil d'abord, puis les pages légales qu'il cite vraiment (/legal, /mentions-legales.html, /cgu…), sinon les adresses habituelles
-    const home = await fetchHtml(origin).catch(() => "");
-    const legal = [...home.slice(0, 300_000).matchAll(/href=["']([^"'#]{1,200})["']/gi)].map((m) => { try { return new URL(m[1], origin).href; } catch { return ""; } })
-      .filter((u) => u && hostOf(u) === hostOf(origin) && /(mentions|legal|l%C3%A9gal|cgu|cgv|imprint|a-propos|qui-sommes)/i.test(u));
-    const more = [...new Set([...legal, `${origin}/mentions-legales`, `${origin}/mentions-legales/`])].slice(0, 3);
-    const pages = [home, ...(await Promise.all(more.map((u) => fetchHtml(u).catch(() => ""))))];
-    const txt = norm(pages.map((x) => textOf(x)).join(" ")).replace(/(\d) (?=\d)/g, "$1");
-    const sirenOk = siren.length === 9 && txt.includes(siren);
-    const nameOk = names.some((n) => { const k = norm(n).replace(LEGAL, " ").trim(); return k.length >= 4 && txt.includes(k); });
-    const cpOk = !!p.postal_code && txt.includes(String(p.postal_code));
-    if (sirenOk || (nameOk && cpOk)) return origin;
+  const bases = [...new Set(names.flatMap((n) => slugs(n, p.city ?? "")))].slice(0, 6);
+  // D'abord .fr et .com (la grande majorité), puis les autres extensions ; requêtes DNS par petits paquets pour ne pas être freiné
+  for (const tlds of [[".fr", ".com"], [".net", ".eu", ".org", ".io", ".co"]]) {
+    const hosts = bases.flatMap((b) => tlds.map((t) => b + t));
+    const live: string[] = [];
+    for (let i = 0; i < hosts.length; i += 6) {
+      live.push(...(await Promise.all(hosts.slice(i, i + 6).map(async (h) => (await resolves(h)) ? h : (await resolves(`www.${h}`)) ? `www.${h}` : ""))).filter(Boolean));
+    }
+    for (const h of live) {
+      const origin = `https://${h}`;
+      // Accueil d'abord, puis les pages légales qu'il cite vraiment (/legal, /mentions-legales.html, /cgu…), sinon les adresses habituelles
+      const home = await fetchHtml(origin).catch(() => "");
+      const legal = [...home.slice(0, 300_000).matchAll(/href=["']([^"'#]{1,200})["']/gi)].map((m) => { try { return new URL(m[1], origin).href; } catch { return ""; } })
+        .filter((u) => u && hostOf(u) === hostOf(origin) && /(mentions|legal|l%C3%A9gal|cgu|cgv|imprint|a-propos|qui-sommes)/i.test(u));
+      const more = [...new Set([...legal, `${origin}/mentions-legales`, `${origin}/mentions-legales/`])].slice(0, 3);
+      const pages = [home, ...(await Promise.all(more.map((u) => fetchHtml(u).catch(() => ""))))];
+      const txt = norm(pages.map((x) => textOf(x)).join(" ")).replace(/(\d) (?=\d)/g, "$1");
+      const sirenOk = siren.length === 9 && txt.includes(siren);
+      const nameOk = names.some((n) => { const k = norm(n).replace(LEGAL, " ").trim(); return k.length >= 4 && txt.includes(k); });
+      const cpOk = !!p.postal_code && txt.includes(String(p.postal_code));
+      if (sirenOk || (nameOk && cpOk)) return origin;
+    }
   }
   return "";
 }
