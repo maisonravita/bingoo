@@ -18,7 +18,8 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   async "radar-scan"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     await quota(ws.id, "radar_scan", 4);
-    return await scanRadar(ws, { web: b.web === true ? true : undefined });
+    // web : true = recherche web forcée, false = sources officielles seulement (premier Radar après la mise en route), absent = selon le calendrier
+    return await scanRadar(ws, { web: b.web === true ? true : b.web === false ? false : undefined });
   },
   async "radar-config"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
