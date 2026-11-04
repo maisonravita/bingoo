@@ -84,7 +84,12 @@ export async function findSite(p: { name?: string; org?: string; siret?: string 
   const live = (await Promise.all(hosts.map(async (h) => (await resolves(h)) ? h : (await resolves(`www.${h}`)) ? `www.${h}` : ""))).filter(Boolean);
   for (const h of live) {
     const origin = `https://${h}`;
-    const pages = await Promise.all([origin, `${origin}/mentions-legales`, `${origin}/mentions-legales/`].map((u) => fetchHtml(u).catch(() => "")));
+    // Accueil d'abord, puis les pages légales qu'il cite vraiment (/legal, /mentions-legales.html, /cgu…), sinon les adresses habituelles
+    const home = await fetchHtml(origin).catch(() => "");
+    const legal = [...home.slice(0, 300_000).matchAll(/href=["']([^"'#]{1,200})["']/gi)].map((m) => { try { return new URL(m[1], origin).href; } catch { return ""; } })
+      .filter((u) => u && hostOf(u) === hostOf(origin) && /(mentions|legal|l%C3%A9gal|cgu|cgv|imprint|a-propos|qui-sommes)/i.test(u));
+    const more = [...new Set([...legal, `${origin}/mentions-legales`, `${origin}/mentions-legales/`])].slice(0, 3);
+    const pages = [home, ...(await Promise.all(more.map((u) => fetchHtml(u).catch(() => ""))))];
     const txt = norm(pages.map((x) => textOf(x)).join(" ")).replace(/(\d) (?=\d)/g, "$1");
     const sirenOk = siren.length === 9 && txt.includes(siren);
     const nameOk = names.some((n) => { const k = norm(n).replace(LEGAL, " ").trim(); return k.length >= 4 && txt.includes(k); });
