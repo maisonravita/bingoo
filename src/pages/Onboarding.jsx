@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
-import { Button, Card, Field, Input, Textarea, useToast } from "../components/ui";
+import { Button, Field, Input, Textarea, useToast } from "../components/ui";
 import Logo from "../components/Logo";
 import BizType from "../components/BizType";
 import { PRESETS, fmtN, parseZone, zoneLabel } from "../lib/zones";
@@ -160,23 +160,23 @@ export default function Onboarding() {
         )}
 
         {step === 1 && draft && (
-          <div className="rise space-y-6">
+          <div className="rise rounded-3xl bg-white border border-line shadow-[0_24px_60px_-34px_rgba(21,22,26,.35)] p-6 sm:p-9 space-y-8">
             <div>
-              <p className="text-sm font-semibold text-accent">Voici ce que j'ai compris</p>
-              <h1 className={cx(H, "text-[34px] sm:text-[44px] mt-2")} style={HFONT}>{draft.profile?.nom || "Ton entreprise"}</h1>
-              <p className="text-lg mt-3">{draft.profile?.resume}</p>
+              <span className="inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-dark px-3 py-1 text-[12.5px] font-bold">Voici ce que j'ai compris</span>
+              <h1 className={cx(H, "text-[34px] sm:text-[44px] mt-4")} style={HFONT}>{draft.profile?.nom || "Ton entreprise"}</h1>
+              <p className="text-ink-soft text-[17px] mt-3">{draft.profile?.resume}</p>
             </div>
-            <Card className="p-5 space-y-3">
+            <div className="rounded-2xl bg-paper border border-line p-5 space-y-3">
               <Field label="Ce que tu vends"><Textarea rows={2} value={draft.profile?.offre ?? ""} onChange={(e) => setDraft({ ...draft, profile: { ...draft.profile, offre: e.target.value } })} /></Field>
               <Field label="Ce qui te distingue"><Textarea rows={2} value={draft.profile?.differenciation ?? ""} onChange={(e) => setDraft({ ...draft, profile: { ...draft.profile, differenciation: e.target.value } })} /></Field>
               <Field label="Ton type d'entreprise" hint="Bingoo adapte ce qu'il cherche pour toi. Corrige si besoin.">
                 <BizType value={draft.profile?.type} onChange={(v) => setDraft({ ...draft, profile: { ...draft.profile, type: v } })}
                   publicValue={draft.profile?.vend_public} onPublic={(v) => setDraft({ ...draft, profile: { ...draft.profile, vend_public: v } })} />
               </Field>
-            </Card>
+            </div>
 
             <div>
-              <h2 className="text-lg font-semibold">Où prospecter</h2>
+              <h2 className="text-[19px] font-bold">Où prospecter</h2>
               <div className="flex flex-wrap gap-2 mt-3">
                 {PRESETS.map((p) => (
                   <button key={p.label} disabled={busy} onClick={() => setZone(p.zone)}
@@ -190,7 +190,7 @@ export default function Onboarding() {
             </div>
 
             <div>
-              <h2 className="text-lg font-semibold">Tes clients idéaux <span className="text-ink-soft font-normal">· {fmtN(total)} établissements</span></h2>
+              <h2 className="text-[19px] font-bold">Tes clients idéaux <span className="text-ink-soft font-normal text-[15px]">· {fmtN(total)} établissements</span></h2>
               <div className="mt-3 space-y-2">
                 {draft.targets.map((t) => (
                   <button key={t.id} onClick={() => toggle(t.id)} className={cx("w-full text-left rounded-2xl border p-4 transition flex gap-4 items-start", t.actif === false ? "bg-transparent border-line opacity-50" : "bg-white border-line hover:border-ink-faint")}>
@@ -209,7 +209,7 @@ export default function Onboarding() {
                 ))}
               </div>
             </div>
-            <div className="flex flex-wrap gap-3 items-center">
+            <div className="flex flex-wrap gap-3 items-center pt-6 border-t border-line">
               <Button variant="accent" size="lg" disabled={!active.length || busy} onClick={() => setStep(2)}>C'est bien ça →</Button>
               <Button variant="ghost" onClick={() => setStep(0)}>Recommencer l'analyse</Button>
             </div>
@@ -217,16 +217,17 @@ export default function Onboarding() {
         )}
 
         {step === 2 && (
-          <div className="rise">
-            <h1 className={cx(H, "text-[34px] sm:text-[44px]")} style={HFONT}>Au nom de qui j'écris&nbsp;?</h1>
-            <p className="text-ink-soft mt-3 text-lg">Les messages partiront signés de ton nom. Tu pourras tout modifier ensuite.</p>
-            <Card className="p-5 mt-8 space-y-4">
+          <div className="rise rounded-3xl bg-white border border-line shadow-[0_24px_60px_-34px_rgba(21,22,26,.35)] p-6 sm:p-9">
+            <span className="inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-dark px-3 py-1 text-[12.5px] font-bold">Dernière étape</span>
+            <h1 className={cx(H, "mt-4 text-[34px] sm:text-[44px]")} style={HFONT}>Au nom de qui j'écris&nbsp;?</h1>
+            <p className="text-ink-soft mt-3 text-[17px]">Les messages partiront signés de ton nom. Chaque message attend ta validation avant de partir, et tu pourras tout modifier ensuite.</p>
+            <div className="mt-7 space-y-4">
               <Field label="Ton prénom et ton nom"><Input autoFocus value={sender.sender_name} onChange={(e) => setSender({ ...sender, sender_name: e.target.value })} placeholder="Camille Martin" /></Field>
               <Field label="Adresse postale de l'entreprise" hint="Obligatoire en bas des e-mails de prospection.">
                 <Input value={sender.postal_address} onChange={(e) => setSender({ ...sender, postal_address: e.target.value })} placeholder="12 rue de la Paix, 75002 Paris" />
               </Field>
-            </Card>
-            <div className="flex gap-3 mt-6">
+            </div>
+            <div className="flex flex-wrap gap-3 mt-8 pt-6 border-t border-line">
               <Button variant="accent" size="lg" loading={busy} onClick={launch}>Trouver mes premiers prospects →</Button>
               <Button variant="ghost" onClick={() => setStep(1)}>Retour</Button>
             </div>
@@ -234,10 +235,16 @@ export default function Onboarding() {
         )}
 
         {step === 3 && (
-          <div className="rise">
-            <h1 className={cx(H, "text-[34px] sm:text-[44px]")} style={HFONT}>Je cherche tes prospects…</h1>
-            <p className="text-ink-soft mt-3 text-lg">Je parcours le registre officiel des entreprises pour chacune de tes cibles.</p>
-            <div className="mt-8 h-1.5 bg-line rounded-full overflow-hidden"><div className="h-full w-1/3 bg-accent rounded-full animate-pulse" /></div>
+          <div className="rise rounded-3xl bg-white border border-line shadow-[0_24px_60px_-34px_rgba(21,22,26,.35)] p-6 sm:p-9">
+            <h1 className={cx(H, "text-[34px] sm:text-[44px]")} style={HFONT}>Je prépare ton espace…</h1>
+            <p className="text-ink-soft mt-3 text-[17px]">Quelques secondes : je trouve tes premiers prospects et je lance ton Radar.</p>
+            <ul className="mt-8 space-y-3">
+              {[["Je parcours le registre officiel des entreprises", 0], ["Je retiens celles qui correspondent à tes cibles", 1.2], ["Je lance ton premier Radar sur les sources officielles", 2.4]].map(([t, d]) => (
+                <li key={t} className="flex items-center gap-3 rounded-2xl bg-paper border border-line px-4 py-3.5 text-[15px] rise" style={{ animationDelay: `${d}s` }}>
+                  <span className="h-5 w-5 shrink-0 rounded-full border-2 border-accent border-t-transparent animate-spin" />{t}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>
