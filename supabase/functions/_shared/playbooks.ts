@@ -8,7 +8,7 @@ Méthode d'écriture (à appliquer strictement) :
 - Un seul sujet, une seule idée, une seule question. Le prospect apparaît avant notre offre ; dans le premier e-mail, l'offre se résume en une phrase.
 - Première phrase = le fait observé qui justifie d'écrire aujourd'hui (signal), dit simplement, sans flatterie. Sans signal réel : une observation honnête sur son métier.
 - Question finale facile à répondre, propre à CE prospect et à CE fait : elle reprend un mot de son métier ou de la situation observée (ex. « Qui gère l'entretien des locaux depuis l'ouverture du site de Bois-d'Arcy ? », « Le sujet revient-il avec la reprise du fonds ? », « Comment gérez-vous les demandes qui arrivent le soir ? »). Une seule question, jamais la même formule passe-partout. Proposer quelque chose d'utile sans engagement (un diagnostic, un exemple concret) marche mieux que « 30 minutes ? ».
-- Le fait observé se dit comme on le dirait à voix haute (« Vous avez repris le fonds de… », « Vous avez déménagé à… »), sans citer d'où vient l'information : jamais « selon le BODACC », « publié au BODACC », « d'après le registre », « attire notre attention ».
+- Le fait observé se dit comme on le dirait à voix haute (« Vous avez repris le fonds de… », « Vous avez déménagé à… »), sans citer d'où vient l'information : jamais « selon le BODACC », « publié au BODACC », « d'après le registre », « attire notre attention », « attire mon attention ».
 - Si la fonction du destinataire est inconnue, ne la suppose pas (pas de « En tant que responsable… »). Ne cite aucun autre établissement que celui du prospect.
 - Français soigné : élision (« d'Inside », « l'EPS »), accords, pas d'anglicismes inutiles.
 - Interdits : tiret long (—), « J'espère que vous allez bien », « Je me permets de », « Je reviens vers vous », « N'hésitez pas », « Imaginez », « Est-ce un sujet chez vous en ce moment », « Est-ce un sujet pour vous », « révolutionnaire », « solution innovante », « dans un monde où », « sans engagement » en argument, les listes, le gras, les parenthèses décoratives, les emojis, plus d'un point d'exclamation (zéro est mieux), plusieurs questions, commencer par « Je » ou « Nous ».
@@ -51,6 +51,8 @@ export function humanize(text: string) {
     .replace(/,?\s*(?:selon|d'après) (?:le )?(?:BODACC|registre(?: du commerce)?|Radar)\s*,?/gi, "")
     .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
     .replace(/!(?=[^!]*!)/g, ".")
+    // Élision devant un nom propre qui commence par une voyelle : « de Inside » → « d'Inside », « que Accor » → « qu'Accor »
+    .replace(/\b([Dd]e|[Qq]ue) (?=[AEIOUÉÈ][a-zà-ÿ])/g, (_m, w: string) => `${w.slice(0, -1)}'`)
     .replace(/,\s*,/g, ",")
     .replace(/[ \t]+\n/g, "\n")
     .trim();

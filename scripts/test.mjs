@@ -201,6 +201,10 @@ await test("les adresses de site essayées viennent du nom, sans forme juridique
   assert.deepEqual(T.slugs("SA", "Paris"), []);
 });
 
+await test("Messages : élision devant un nom propre, source jamais citée", () => {
+  assert.equal(T.humanize("Vous êtes président de Inside Banking, selon le BODACC, depuis peu."), "Vous êtes président d'Inside Banking depuis peu.");
+  assert.equal(T.humanize("Le site de Hugo Boss et le prix de Orange."), "Le site de Hugo Boss et le prix d'Orange.");
+});
 await test("LinkedIn : 5 invitations le premier jour, +3 par jour, jamais plus de 20", () => {
   const now = new Date("2026-11-10T10:00:00Z");
   assert.equal(T.invitesToday(undefined, now), 5);
