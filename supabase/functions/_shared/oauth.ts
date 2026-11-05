@@ -5,7 +5,9 @@ import { admin, env, log, type Workspace } from "./core.ts";
 import { open, seal } from "./growth.ts";
 
 const CALLBACK = (p: string) => `${env("SUPABASE_URL")}/functions/v1/o/${p}/callback`;
-const GOOGLE_SCOPES = ["openid", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/gmail.send", "https://www.googleapis.com/auth/gmail.readonly"];
+// Envoi seul par défaut (autorisation « sensible », validation Google gratuite) ; la lecture de la boîte (« restreinte »,
+// audit de sécurité annuel) ne s'ajoute que si GOOGLE_LECTURE=1. Les réponses arrivent de toute façon par l'adresse de la plateforme.
+const GOOGLE_SCOPES = ["openid", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/gmail.send", ...(Deno.env.get("GOOGLE_LECTURE") === "1" ? ["https://www.googleapis.com/auth/gmail.readonly"] : [])];
 
 const b64url = (b: Uint8Array) => btoa(String.fromCharCode(...b)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const unb64url = (s: string) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), (c) => c.charCodeAt(0));
