@@ -74,14 +74,45 @@ function Mailbox() {
 
           {kind === "google" && (
             <div className="rounded-xl border border-line bg-paper p-4">
-              <ol className="text-sm space-y-2 list-decimal pl-5">
-                <li>Clique sur <b>Connecter Gmail</b> : la page officielle de Google s'ouvre.</li>
-                <li>Choisis l'adresse qui enverra tes e-mails de prospection.</li>
-                <li>Si Google affiche « Google n'a pas validé cette application », clique sur <b>Paramètres avancés</b> puis <b>Accéder à Bingoo!</b>. Ce message s'affiche tant que Google n'a pas fini de valider Bingoo! : la connexion reste officielle et Bingoo! ne voit jamais ton mot de passe.</li>
-                <li>Coche les autorisations proposées (envoyer des e-mails, repérer les réponses) puis clique sur <b>Continuer</b>. Tu reviens ici, c'est prêt.</li>
+              <p className="text-sm font-semibold">Connecte Gmail en 2 minutes, une seule fois.</p>
+              <ol className="mt-3 space-y-4">
+                <li className="flex gap-3">
+                  <span className="grid place-items-center w-7 h-7 shrink-0 rounded-full bg-ink text-white text-sm font-bold">1</span>
+                  <div className="min-w-0 text-sm">
+                    <p>Ouvre la page <b>Mots de passe des applications</b> de ton compte Google.</p>
+                    <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer"><Button className="mt-2" variant="primary" size="sm">Ouvrir la page Google</Button></a>
+                    <p className="mt-2 text-xs text-ink-soft">Google te dit que ce réglage n'est pas disponible ? Active d'abord la <a className="underline" href="https://myaccount.google.com/signinoptions/twosv" target="_blank" rel="noopener noreferrer">validation en deux étapes</a> (un code par SMS, environ 1 minute), puis reviens à cette étape.</p>
+                  </div>
+                </li>
+                <li className="flex gap-3">
+                  <span className="grid place-items-center w-7 h-7 shrink-0 rounded-full bg-ink text-white text-sm font-bold">2</span>
+                  <div className="min-w-0 text-sm">
+                    <p>Dans « Nom de l'application », tape <b>Bingoo</b> puis clique <b>Créer</b>. Google affiche un code de 16 lettres.</p>
+                    <div aria-hidden className="mt-2 max-w-[340px] rounded-lg border border-line bg-white p-3 text-[12.5px] shadow-sm">
+                      <p className="text-ink-soft">Mot de passe d'application généré</p>
+                      <p className="mt-1.5 rounded bg-[#FEF3C7] px-2 py-1 font-mono tracking-[.2em] text-[14px]">abcd efgh ijkl mnop</p>
+                      <p className="mt-1.5 text-ink-faint">Schéma : ton code sera différent.</p>
+                    </div>
+                  </div>
+                </li>
+                <li className="flex gap-3">
+                  <span className="grid place-items-center w-7 h-7 shrink-0 rounded-full bg-ink text-white text-sm font-bold">3</span>
+                  <div className="min-w-0 text-sm flex-1">
+                    <p>Copie ce code et colle-le ici, avec ton adresse Gmail.</p>
+                    <div className="mt-2 grid sm:grid-cols-2 gap-3">
+                      <Field label="Adresse Gmail"><Input type="email" autoComplete="off" value={f.provider === "gmail" ? f.email : ""} onChange={(e) => setF({ ...f, provider: "gmail", email: e.target.value })} placeholder="toi@gmail.com" /></Field>
+                      <Field label="Code de 16 lettres"><Input type="password" autoComplete="new-password" value={f.provider === "gmail" ? f.password : ""} onChange={(e) => setF({ ...f, provider: "gmail", password: e.target.value.replace(/\s+/g, "") })} placeholder="abcdefghijklmnop" /></Field>
+                    </div>
+                    <Button className="mt-3" variant="primary" loading={busy} disabled={f.provider !== "gmail" || !f.email || f.password.length < 16} onClick={save}>Tester et connecter</Button>
+                    <p className="mt-2 text-xs text-ink-soft">Bingoo! teste la connexion avant de l'enregistrer. Le code est chiffré et ne sert qu'à envoyer tes e-mails et repérer les réponses. Tu peux le supprimer à tout moment dans ton compte Google.</p>
+                  </div>
+                </li>
               </ol>
-              <Button className="mt-4" variant="primary" loading={busy} onClick={google}>Connecter Gmail</Button>
-              <p className="text-xs text-ink-faint mt-2">Tu pourras retirer l'accès à tout moment, ici ou dans ton compte Google (Sécurité → Applications tierces).</p>
+              <details className="mt-4 text-xs text-ink-soft">
+                <summary className="cursor-pointer">Connexion Google en un clic (comptes testeurs seulement)</summary>
+                <p className="mt-2">Tant que Google n'a pas validé Bingoo!, ce bouton ne marche que pour les adresses ajoutées comme testeurs.</p>
+                <Button className="mt-2" size="sm" loading={busy} onClick={google}>Se connecter avec Google</Button>
+              </details>
             </div>
           )}
 
