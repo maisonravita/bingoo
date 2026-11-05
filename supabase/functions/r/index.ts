@@ -304,10 +304,10 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
     if (!ws) throw new HttpError(404, "Espace introuvable");
     setAi({ ws: ws.id, live: true });
-    const { writeDraft } = await import("../_shared/agents.ts");
+    const { writeDraft, offerFollowup } = await import("../_shared/agents.ts");
     const ids = Array.isArray(b.ids) ? b.ids.map(String).slice(0, 8) : [];
     const { data: ps } = await admin.from("prospects").select("*").in("id", ids);
-    const out = await Promise.all((ps ?? []).map(async (p) => { try { const d = await writeDraft(ws, p); return { prospect: p.name, objet: d.subject, corps: d.body }; } catch (e) { return { prospect: p.name, erreur: String((e as Error).message) }; } }));
+    const out = await Promise.all((ps ?? []).map(async (p) => { try { const d = await writeDraft(ws, p); const r1 = await offerFollowup(ws, d.body, (d.body.split("\n")[0] || "Bonjour,")).catch((e) => `(relance : ${e.message})`); return { prospect: p.name, objet: d.subject, corps: d.body, relance1: r1 }; } catch (e) { return { prospect: p.name, erreur: String((e as Error).message) }; } }));
     return { messages: out };
   },
   async "alt-test"(req, b) {
