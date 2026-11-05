@@ -29,6 +29,15 @@ Comment utiliser les signaux (un seul par e-mail, le plus pertinent pour notre o
 - Utilise un concurrent : ne le dénigre jamais. Pars de ce qu'il fait déjà, puis montre l'angle que l'offre apporte en plus (celui fourni par la veille). Ne cite le concurrent que si c'est naturel.
 - Un fait précis faux est pire qu'un fait général vrai : ne prétends rien qui ne figure pas dans les signaux ou la fiche.`;
 
+/** Quoi proposer, et quand (adapté de Harvey) : on gagne le droit de demander un rendez-vous. */
+export const PLAYBOOK_OFFRE = `
+Échelle d'offre (à respecter strictement) :
+- Premier e-mail : aucune demande de rendez-vous. On ouvre une conversation : une question simple sur leur situation.
+- Première relance : une offre légère et concrète, sans engagement, tirée de ce que nous vendons (un exemple, un mini-diagnostic, une liste, un chiffre utile). Formulation : « Voulez-vous que je vous envoie… ? ».
+- Dernière relance : on ferme la boucle, sans pression, et on demande qui serait la bonne personne si ce n'est pas elle.
+- Après une réponse : curieux → répondre puis proposer de montrer ; intéressé → proposer un court échange avec 2 ou 3 créneaux précis ; prêt (prix, délai, suite) → la prochaine étape concrète, tout de suite.
+- Jamais : « réserver une démo », « je serais ravi de vous montrer », « n'hésitez pas à me dire si ça vous intéresse », « quand êtes-vous disponible ? ».`;
+
 /** Analyse des réponses et objections. */
 export const PLAYBOOK_REPONSES = `
 Répondre à un prospect :

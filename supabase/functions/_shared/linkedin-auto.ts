@@ -82,7 +82,18 @@ export async function liNext(ws: Ws) {
   const { data: a } = await admin.from("linkedin_actions").select("id, kind, prospect_id").eq("workspace_id", ws.id).eq("status", "a_faire").lte("due_at", new Date().toISOString())
     .in("kind", kinds).order("due_at", { ascending: true }).limit(1).maybeSingle();
   if (!a) return { attendre: 900, raison: c.invitesDay >= invitesToday(auto.started_at, new Date(), auto.max_per_day) ? "Quota d'invitations du jour atteint" : "Rien à faire pour l'instant" };
-  const { data: p } = await admin.from("prospects").select("linkedin_url, linkedin_person, linkedin_note, linkedin_msg, name").eq("id", a.prospect_id).single();
+  const { data: p } = await admin.from("prospects").select("linkedin_url, linkedin_person, linkedin_note, linkedin_msg, name, status").eq("id", a.prospect_id).single();
+  // Un seul parcours e-mail + LinkedIn : s'il a répondu (par e-mail ou ailleurs), LinkedIn s'arrête ; s'il a reçu un e-mail aujourd'hui, LinkedIn attend demain
+  if (p && ["repondu", "rdv", "client", "refus", "ignore"].includes(p.status)) {
+    await admin.from("linkedin_actions").update({ status: "annule", result: `prospect ${p.status}` }).eq("prospect_id", a.prospect_id).eq("status", "a_faire");
+    return { attendre: 30, raison: "Prospect déjà en conversation : action LinkedIn annulée" };
+  }
+  const d0 = parisDayStart();
+  const { count: mailed } = await admin.from("messages").select("id", { count: "exact", head: true }).eq("prospect_id", a.prospect_id).eq("status", "envoye").gte("sent_at", d0);
+  if ((mailed ?? 0) > 0) {
+    await admin.from("linkedin_actions").update({ due_at: new Date(Date.now() + 22 * 3600_000).toISOString() }).eq("id", a.id);
+    return { attendre: 30, raison: "E-mail envoyé aujourd'hui à cette personne : LinkedIn attend demain" };
+  }
   if (!p?.linkedin_url) { await admin.from("linkedin_actions").update({ status: "annule", result: "profil absent" }).eq("id", a.id); return { attendre: 30, raison: "Profil manquant, action annulée" }; }
   await admin.from("linkedin_actions").update({ status: "en_cours", taken_at: new Date().toISOString() }).eq("id", a.id);
   return {

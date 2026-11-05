@@ -7,7 +7,7 @@ import { markWarmup, warmup } from "./growth.ts";
 import { campaignOf, goalText, pickVariant } from "./campaigns.ts";
 import { siteContacts } from "./deep.ts";
 import { siteSignals, type Signal } from "./sitesignals.ts";
-import { humanize, PLAYBOOK_ECRITURE, PLAYBOOK_SIGNAUX, PLAYBOOK_STARTUPS } from "./playbooks.ts";
+import { humanize, PLAYBOOK_ECRITURE, PLAYBOOK_OFFRE, PLAYBOOK_SIGNAUX, PLAYBOOK_STARTUPS } from "./playbooks.ts";
 
 // ---------------------------------------------------------------- Enquêteur
 const SYSTEM_ENQ = `Tu es un assistant de recherche commerciale B2B en France. Tu cherches sur le web les coordonnées professionnelles publiques d'un établissement.
@@ -220,7 +220,7 @@ Ne mets pas de signature : elle est ajoutée automatiquement.
 Format exact :
 OBJET: <objet de 2 à 5 mots, en minuscules sauf noms propres, sans point d'exclamation>
 ---
-<corps>`, { fast: true, system: systemFor(ws) + PLAYBOOK_ECRITURE + PLAYBOOK_SIGNAUX + ((p.signals ?? []).some((x) => ["levee", "accelerateur"].includes(x.type)) ? PLAYBOOK_STARTUPS : ""), maxTokens: 1500 });
+<corps>`, { fast: true, system: systemFor(ws) + PLAYBOOK_ECRITURE + PLAYBOOK_OFFRE + PLAYBOOK_SIGNAUX + ((p.signals ?? []).some((x) => ["levee", "accelerateur"].includes(x.type)) ? PLAYBOOK_STARTUPS : ""), maxTokens: 1500 });
   // Tolérant aux lignes vides autour du séparateur ; jamais d'« OBJET: » ni de « --- » laissés dans le corps
   const m = out.match(/OBJET\s*:\s*(.+?)\s*\n\s*-{3,}\s*\n([\s\S]+)/i);
   const loose = out.match(/OBJET\s*:\s*(.+)/i);
@@ -314,6 +314,10 @@ export async function sendOne(ws: Workspace, messageId: string) {
     await admin.from("messages").update({ status: "ignore", error: "Le prospect a déjà répondu" }).eq("id", messageId);
     return { id: messageId, skipped: "il a déjà répondu" };
   }
+  // Un seul parcours e-mail + LinkedIn : jamais les deux le même jour pour la même personne (le message reste prêt pour demain)
+  const day0 = new Date(); day0.setHours(0, 0, 0, 0);
+  const { count: liToday } = await admin.from("linkedin_actions").select("id", { count: "exact", head: true }).eq("prospect_id", p.id).eq("status", "fait").in("kind", ["invitation", "message", "relance"]).gte("done_at", day0.toISOString());
+  if ((liToday ?? 0) > 0) return { id: messageId, skipped: "il a reçu un message LinkedIn aujourd'hui : l'e-mail partira demain" };
   if (!(await mxOk(p.email))) {
     await admin.from("messages").update({ status: "ignore", error: "Le domaine de l'adresse ne reçoit pas de courrier" }).eq("id", messageId);
     await admin.from("prospects").update({ email: "", status: "sans_email", channel: "", enrich_note: `Adresse ${p.email} écartée : son domaine ne reçoit pas de courrier` }).eq("id", p.id);
@@ -419,7 +423,8 @@ export function followupDays(ws: { followup_days?: number[] | null }): number[] 
 }
 
 export const FOLLOW = [
-  { after: 5, subject: (s: string) => `Re : ${s.replace(/^re\s*:\s*/i, "")}`, body: (hello: string) => `${hello}\n\nUn mot rapide : est-ce un sujet chez vous en ce moment, ou plutôt pas d'actualité ?` },
+  // Première relance : une offre légère et concrète (échelle d'offre). Écrite par l'IA quand c'est possible, sinon ce modèle.
+  { after: 5, subject: (s: string) => `Re : ${s.replace(/^re\s*:\s*/i, "")}`, body: (hello: string) => `${hello}\n\nSi c'est utile, je peux vous envoyer un exemple concret de ce que nous faisons pour des entreprises comme la vôtre, en une page. Voulez-vous que je vous l'envoie ?` },
   { after: 12, subject: (s: string) => `Re : ${s.replace(/^re\s*:\s*/i, "")}`, body: (hello: string) => `${hello}\n\nJe n'insiste pas : si ce n'est pas le moment, aucun souci. Et si quelqu'un d'autre s'occupe de ce sujet chez vous, me diriez-vous qui contacter ?` },
 ];
 
@@ -447,12 +452,54 @@ export async function followups(ws: Workspace) {
     const start = new Date(firstSent.get(pid) ?? m.sent_at).getTime();
     if (Date.now() - start < followupDays(ws)[m.step] * 86400_000) continue;
     const hello = (m.body.split("\n")[0] || "Bonjour,").slice(0, 80);
-    rows.push({ workspace_id: ws.id, prospect_id: pid, step: m.step + 1, subject: f.subject(m.subject), body: f.body(hello), status: "brouillon", campaign_id: m.campaign_id, variant: m.variant });
+    let body = f.body(hello);
+    if (m.step === 0) body = await offerFollowup(ws, m.body, hello).catch(() => body);
+    rows.push({ workspace_id: ws.id, prospect_id: pid, step: m.step + 1, subject: f.subject(m.subject), body, status: "brouillon", campaign_id: m.campaign_id, variant: m.variant });
   }
   let created = 0;
   for (const row of rows) { const { error } = await admin.from("messages").insert(row); if (!error) created++; }
   rows.length = created;
-  return { created: rows.length };
+  const suivants = await nextContacts(ws, last).catch(() => 0);
+  return { created: rows.length, suivants };
+}
+
+/** Première relance avec une offre légère tirée de ce que vend le client (« Voulez-vous que je vous envoie… ? »). */
+async function offerFollowup(ws: Workspace, first: string, hello: string) {
+  const out = await ask(`Écris la première relance d'un e-mail de prospection resté sans réponse. Elle tient en 2 phrases au plus, après la formule d'appel.
+Premier e-mail envoyé :
+${first.slice(0, 1200)}
+
+Ce que nous vendons : ${ws.profile?.offre ?? ""}
+Consigne : propose UNE chose concrète, légère et sans engagement, que nous pouvons vraiment fournir vu notre offre (un exemple, un mini-diagnostic, une liste, un chiffre utile), sous la forme « Voulez-vous que je vous envoie … ? ». Ne répète pas le premier e-mail. Pas de rendez-vous. N'invente aucun chiffre ni aucun client.
+Réponds uniquement par le texte de la relance, sans formule d'appel ni signature.`, { fast: true, maxTokens: 300, system: systemFor(ws) + PLAYBOOK_ECRITURE });
+  const t = humanize(out.replace(/^bonjour[^\n]*\n+/i, "")).trim();
+  if (t.length < 20 || t.length > 500) throw new Error("relance inutilisable");
+  return `${hello}\n\n${t}`;
+}
+
+/** Plusieurs contacts par entreprise (adapté de Harvey) : la séquence est finie sans réponse depuis 10 jours
+ *  → un autre décideur vérifié de la même entreprise devient un nouveau prospect, à valider. Jamais deux personnes en même temps. */
+async function nextContacts(ws: Workspace, last: Map<string, { step: number; sent_at: string }>) {
+  const done = [...last.entries()].filter(([, m]) => m.step >= FOLLOW.length && Date.now() - new Date(m.sent_at).getTime() > 10 * 864e5).map(([pid]) => pid).slice(0, 20);
+  if (!done.length) return 0;
+  const { data: ps } = await admin.from("prospects").select("*").in("id", done).eq("status", "envoye");
+  let n = 0;
+  for (const p of ps ?? []) {
+    if ((p.insight as { suite_contact?: string } | null)?.suite_contact) continue;
+    const { data: cs } = await admin.from("contacts").select("id, name, role, email, linkedin_url").eq("prospect_id", p.id).eq("email_status", "verifie").neq("email", "").limit(5);
+    const c = (cs ?? []).find((x) => x.email.toLowerCase() !== String(p.email ?? "").toLowerCase());
+    if (!c) continue;
+    const { data: dup } = await admin.from("prospects").select("id").eq("workspace_id", ws.id).ilike("email", c.email).limit(1);
+    await admin.from("prospects").update({ insight: { ...((p.insight as Record<string, unknown>) ?? {}), suite_contact: c.id } }).eq("id", p.id);
+    if (dup?.length) continue;
+    const { error } = await admin.from("prospects").insert({
+      workspace_id: ws.id, target: p.target, name: p.name, org: p.org, siren: p.siren, siret: p.siret, activity: p.activity, address: p.address, postal_code: p.postal_code, city: p.city,
+      website: p.website, signals: p.signals, score: p.score, contact_name: c.name, contact_role: c.role, email: c.email, email_source: "contact vérifié", linkedin_url: c.linkedin_url ?? "",
+      status: "pret", channel: "email", source: "deuxieme_contact", notes: `Deuxième interlocuteur : ${p.contact_name || "le premier contact"} n'a pas répondu après les relances.`,
+    });
+    if (!error) { n++; await log(ws.id, "prospect", `${p.name} : deuxième interlocuteur (${c.name}) préparé, le premier n'a pas répondu`); }
+  }
+  return n;
 }
 
 /** E-mails restés « envoi en cours » plus de 15 min (coupure entre l'envoi et l'enregistrement) :
