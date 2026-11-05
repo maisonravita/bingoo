@@ -465,7 +465,7 @@ export async function followups(ws: Workspace) {
 
 /** Première relance avec une offre légère tirée de ce que vend le client (« Voulez-vous que je vous envoie… ? »). */
 export async function offerFollowup(ws: Workspace, first: string, hello: string) {
-  const out = await ask(`Écris la première relance d'un e-mail de prospection resté sans réponse. Elle tient en 2 phrases au plus, après la formule d'appel.
+  const out = await ask(`Écris la première relance d'un e-mail de prospection resté sans réponse. Une seule phrase, après la formule d'appel : la proposition elle-même, sans rappeler le premier message (jamais « je reviens », « je me permets », « suite à mon message »).
 Premier e-mail envoyé :
 ${first.slice(0, 1200)}
 
