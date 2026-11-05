@@ -2,7 +2,7 @@
 // - /x/lookup, /x/add : extension Chrome (fiche de l'entreprise du site visité, ajout aux prospects) ;
 // - /x/mcp : serveur MCP (lecture seule) pour brancher Claude, ChatGPT ou tout assistant compatible sur les données Bingoo!.
 import { cors, HttpError, json, readJson, wrap } from "../_shared/http.ts";
-import { admin, type Workspace } from "../_shared/core.ts";
+import { admin, setAi, type Workspace } from "../_shared/core.ts";
 import { requireKey } from "../_shared/apikeys.ts";
 import { extAdd, extLookup } from "../_shared/ext.ts";
 
@@ -91,6 +91,7 @@ Deno.serve(wrap(async (req) => {
   const ws = await requireKey(req);
   if (name === "lookup") return json(await extLookup(ws, String(b.url ?? "")));
   if (name === "add") return json(await extAdd(ws, String(b.url ?? "")));
+  if (name === "add-li") { setAi({ ws: ws.id, live: true }); return json(await (await import("../_shared/ext.ts")).extAddLinkedin(ws, b)); }
   if (name === "whoami") return json({ espace: ws.name });
   // Pilote LinkedIn (extension) : prochaine action, compte rendu, état
   if (name.startsWith("li-")) {

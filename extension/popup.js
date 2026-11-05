@@ -43,7 +43,7 @@ function setup(msg) {
 
 function render(d, url) {
   if (d.unsupported) { app.innerHTML = `<p>${esc(d.message)}</p>`; return; }
-  if (d.competitor) { app.innerHTML = `<h1>${esc(d.competitor.name)}</h1><p class="chip rival">Ton concurrent</p><p>${esc(d.message)}</p><a class="btn" href="${APP}/#/espion" target="_blank">Ouvrir Espion</a>`; return; }
+  if (d.competitor) { app.innerHTML = `<h1>${esc(d.competitor.name)}</h1><p class="chip rival">Ton concurrent</p><p>${esc(d.message)}</p><a class="btn" href="${APP}/#/espion" target="_blank">Voir dans Concurrents</a>`; return; }
   const c = d.company;
   app.innerHTML = `
     <h1>${esc(c.name)}</h1>
@@ -70,6 +70,7 @@ async function load() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const url = tab?.url || "";
   if (!/^https?:\/\//.test(url)) { app.innerHTML = `<p>Ouvre le site d'une entreprise, puis clique sur Bingoo!.</p>`; return; }
+  if (/^https:\/\/([a-z]{2,3}\.)?linkedin\.com\/in\//i.test(url)) return liProfile(tab, url);
   app.innerHTML = `<p class="muted">Bingoo! analyse ${esc(new URL(url).hostname)}…</p>`;
   try { render(await call("lookup", { url }), url); }
   catch (e) { if (/clé/i.test(e.message)) { await setKey(""); setup(e.message); } else app.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
@@ -96,6 +97,35 @@ async function pilot() {
     await new Promise((r) => chrome.storage.local.set({ liPause: !v.liPause }, r));
     if (v.liPause) chrome.runtime.sendMessage("li-now");
     pilot();
+  };
+}
+
+// Profil LinkedIn ouvert : on lit le nom et le titre affichés, puis on l'ajoute avec la note et le message préparés
+async function liProfile(tab, url) {
+  let who = { personne: "", titre: "" };
+  try {
+    const [r] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: () => {
+      const h1 = [...document.querySelectorAll("main h1")].find((e) => e.getClientRects().length);
+      const box = h1?.closest("section") ?? document;
+      const titre = box.querySelector(".text-body-medium")?.textContent ?? "";
+      return { personne: (h1?.textContent ?? "").trim(), titre: titre.trim() };
+    } });
+    who = r?.result ?? who;
+  } catch { /* page pas encore chargée */ }
+  if (!who.personne) { app.innerHTML = `<p>Laisse le profil LinkedIn se charger, puis rouvre Bingoo!.</p>`; return; }
+  app.innerHTML = `<h1>${esc(who.personne)}</h1><p class="muted">${esc(who.titre)}</p>
+    <p>Bingoo! l'ajoute à tes prospects et prépare la note d'invitation et le premier message.</p>
+    <button class="btn" id="addli">Ajouter et préparer l'invitation</button>`;
+  const b = document.getElementById("addli");
+  b.onclick = async () => {
+    b.disabled = true; b.textContent = "Préparation…";
+    try {
+      const r = await call("add-li", { url, personne: who.personne, titre: who.titre });
+      b.outerHTML = r.existing ? `<p class="chip ok">Déjà dans tes prospects</p>` : r.pret
+        ? `<p class="chip ok">Ajouté : note et message prêts</p><p class="muted">Le pilote l'invitera s'il est actif, sinon retrouve-le dans Prospects → LinkedIn.</p>`
+        : `<p class="chip ok">Ajouté à tes prospects</p>`;
+      app.insertAdjacentHTML("beforeend", `<a class="btn ghost" href="${APP}/#/linkedin" target="_blank">Ouvrir dans Bingoo!</a>`);
+    } catch (e) { b.disabled = false; b.textContent = "Ajouter et préparer l'invitation"; app.insertAdjacentHTML("beforeend", `<p class="err">${esc(e.message)}</p>`); }
   };
 }
 

@@ -379,7 +379,8 @@ export async function sendOne(ws: Workspace, messageId: string) {
 export async function linkedin(ws: Workspace, p: Prospect) {
   const t = (ws.targets ?? []).find((x) => x.id === p.target);
   type L = { url?: string; personne?: string; fonction?: string; note?: string; message?: string };
-  const v = await askJson<L>(`Trouve sur le web le profil LinkedIn public du décideur à contacter dans cet établissement, puis prépare une invitation et un message.
+  const known = /linkedin\.com\/in\//i.test(p.linkedin_url ?? "");
+  const v = await askJson<L>(`${known ? `Le profil LinkedIn de la personne est déjà connu : ${p.linkedin_url} (${p.linkedin_person || p.contact_name}). Ne cherche pas d'autre profil : recopie cette adresse dans "url", puis prépare une invitation et un message pour elle.` : "Trouve sur le web le profil LinkedIn public du décideur à contacter dans cet établissement, puis prépare une invitation et un message."}
 Établissement : ${p.name}${p.org ? ` (${p.org})` : ""}, ${p.activity}, ${[p.postal_code, p.city].filter(Boolean).join(" ")}.
 ${p.contact_name ? `Dirigeant connu : ${p.contact_name}${p.contact_role ? ` (${p.contact_role})` : ""}.` : ""}
 Fonction visée : ${t?.interlocuteur || "dirigeant"}.
@@ -392,12 +393,12 @@ Règles : ne donne une URL que si tu l'as trouvée dans les résultats (format l
 - "message" : premier message après acceptation, 2 à 4 phrases, vouvoiement. Il reprend la référence de la note (continuité), donne d'abord quelque chose d'utile (un chiffre, une info, une idée concrète tirée des faits ci-dessous), puis UNE petite demande (« Un échange de 15 minutes vous serait utile ? »). Pas de lien d'agenda, pas de présentation de l'offre en détail. N'invente aucun fait, aucun contact commun, aucune lecture.
 Interdits : « J'espère que vous allez bien », « Je me permets », « Je reviens vers vous », tiret long, emojis.
 Format : {"url": "", "personne": "", "fonction": "", "note": "", "message": ""}`,
-    { fast: true, maxTokens: 6000, system: systemFor(ws), tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] });
-  const url = String(v.url ?? "").trim();
+    { fast: true, maxTokens: 6000, system: systemFor(ws), ...(known ? {} : { tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] }) });
+  const url = known ? String(p.linkedin_url) : String(v.url ?? "").trim();
   const ok = /^https?:\/\/([a-z]{2,3}\.)?linkedin\.com\/in\/[^\s/?#]+/i.test(url);
   const patch = {
     linkedin_url: ok ? url.replace(/[?#].*$/, "").slice(0, 200) : "",
-    linkedin_person: ok ? `${String(v.personne ?? "").slice(0, 60)}${v.fonction ? ` · ${String(v.fonction).slice(0, 60)}` : ""}` : "",
+    linkedin_person: known && p.linkedin_person ? p.linkedin_person : ok ? `${String(v.personne ?? "").slice(0, 60)}${v.fonction ? ` · ${String(v.fonction).slice(0, 60)}` : ""}` : "",
     // 200 caractères au plus (comptes gratuits), coupé proprement à la fin d'un mot
     linkedin_note: (() => { const n = humanize(String(v.note ?? "")); return n.length <= 200 ? n : n.slice(0, 200).replace(/\s+\S*$/, "").replace(/[,;:]$/, "") + "."; })(),
     linkedin_msg: humanize(String(v.message ?? "")).slice(0, 1200),

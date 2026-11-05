@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Bingoo!",
-  "version": "1.4.0",
-  "description": "Signaux d'achat sur chaque site d'entreprise et pilote LinkedIn prudent : la prospection B2B au bon moment.",
+  "version": "1.5.0",
+  "description": "Signaux d'achat sur chaque site d'entreprise, ajout de profils LinkedIn et pilote LinkedIn prudent.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "Bingoo!"

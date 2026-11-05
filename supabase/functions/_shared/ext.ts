@@ -14,6 +14,7 @@ export async function extLookup(ws: Workspace, url: string) {
   let host = "";
   try { host = new URL(url).hostname; } catch { throw new HttpError(400, "Adresse invalide"); }
   if (!/\./.test(host) || /^(localhost|127\.)/.test(host)) throw new HttpError(400, "Ouvre le site d'une entreprise");
+  if (/(^|\.)linkedin\.com$/i.test(host)) return { unsupported: true, linkedin: true, message: "Ouvre le profil d'une personne pour l'ajouter à tes prospects LinkedIn." };
   if (/(^|\.)(linkedin\.com|google\.[a-z.]+|facebook\.com|instagram\.com|youtube\.com|x\.com|twitter\.com)$/i.test(host)) return { unsupported: true, message: "Bingoo! lit les sites d'entreprises. LinkedIn et les réseaux sociaux ne sont pas lus automatiquement." };
   const dom = base(host);
   const [{ data: comps }, { data: ps }, { data: scan }] = await Promise.all([
@@ -21,7 +22,7 @@ export async function extLookup(ws: Workspace, url: string) {
     admin.from("prospects").select("id, name, siren, city, status, contact_name, contact_role, email, phone, website, score").eq("workspace_id", ws.id).ilike("website", `%${esc(dom)}%`).limit(1),
     admin.from("company_scan").select("name, siren, tech, ats, jobs_n").eq("workspace_id", ws.id).ilike("url", `%${esc(dom)}%`).limit(1),
   ]);
-  if (comps?.[0]) return { competitor: { id: comps[0].id, name: comps[0].name }, message: "C'est un de tes concurrents : son dossier complet est dans Espion." };
+  if (comps?.[0]) return { competitor: { id: comps[0].id, name: comps[0].name }, message: "C'est un de tes concurrents : son dossier complet est dans Concurrents." };
   const p = ps?.[0] ?? null;
   // Outils et nom de l'entreprise lus sur le site
   const { fetchHtml } = await import("./analyze.ts");
@@ -79,4 +80,29 @@ export async function extAdd(ws: Workspace, url: string) {
   if (error) throw new HttpError(500, error.message);
   await admin.from("activity").insert({ workspace_id: ws.id, kind: "prospect", summary: `${f.company.name} ajouté depuis l'extension Chrome` });
   return { prospect_id: data.id, existing: false };
+}
+
+/** Ajoute la personne d'un profil LinkedIn ouvert dans le navigateur : prospect + note d'invitation et premier message préparés. */
+export async function extAddLinkedin(ws: Workspace, b: { url?: unknown; personne?: unknown; titre?: unknown }) {
+  const m = String(b.url ?? "").match(/^https?:\/\/([a-z]{2,3}\.)?linkedin\.com\/in\/([^/?#]{2,100})/i);
+  if (!m) throw new HttpError(400, "Ouvre le profil LinkedIn d'une personne (adresse en linkedin.com/in/…)");
+  const url = `https://www.linkedin.com/in/${m[2]}`;
+  const person = String(b.personne ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
+  const title = String(b.titre ?? "").replace(/\s+/g, " ").trim().slice(0, 160);
+  if (person.length < 3) throw new HttpError(400, "Nom introuvable sur ce profil, recharge la page LinkedIn");
+  const { data: dup } = await admin.from("prospects").select("id, linkedin_status").eq("workspace_id", ws.id).ilike("linkedin_url", `%/in/${esc(m[2])}%`).limit(1);
+  if (dup?.[0]) return { prospect_id: dup[0].id, existing: true };
+  // Entreprise tirée du titre : « Directrice achats chez Acme », « CEO at Acme », « Fondateur | Acme »
+  const company = (title.match(/\b(?:chez|at|@)\s+([^|,·•]{2,60})/i)?.[1] ?? title.split(/\s[|·•]\s/)[1] ?? "").trim();
+  const role = title.split(/\s(?:chez|at|@)\s|\s[|·•]\s/i)[0].trim().slice(0, 80);
+  const { data, error } = await admin.from("prospects").insert({
+    workspace_id: ws.id, target: "", name: company || person, contact_name: person, contact_role: role,
+    linkedin_url: url, linkedin_person: `${person}${role ? ` · ${role}` : ""}`, source: "extension", notes: "Ajouté depuis un profil LinkedIn (extension Chrome Bingoo!)",
+  }).select("*").single();
+  if (error) throw new HttpError(500, error.message);
+  await admin.from("activity").insert({ workspace_id: ws.id, kind: "prospect", summary: `${person} ajouté depuis LinkedIn` });
+  // Note et message écrits tout de suite (profil déjà connu : pas de recherche web)
+  const { linkedin } = await import("./agents.ts");
+  const r = await linkedin(ws, data).catch(() => null);
+  return { prospect_id: data.id, existing: false, pret: r?.linkedin_status === "a_envoyer" };
 }
