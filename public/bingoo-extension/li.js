@@ -125,9 +125,34 @@
     return danger() ?? { resultat: "ok" };
   }
 
+  /** Fiche Sales Navigator : on cherche le lien vers le profil LinkedIn classique, où se font les invitations. */
+  async function salesRedirect() {
+    const direct = () => [...document.querySelectorAll("a[href*='linkedin.com/in/'], a[href^='/in/']")].map((a) => a.href).find((h) => /\/in\/[^/?#]{2,}/.test(h));
+    let href = await waitFor(direct, 4000);
+    if (!href) {
+      const more = buttons(document).find((b) => /plus d'actions|more actions|^\.\.\.$|ouvrir le menu|overflow/i.test(label(b)));
+      if (more) { await click(more); href = await waitFor(direct, 4000); }
+    }
+    return href ? { redirect: href.split("?")[0] } : { resultat: "erreur", detail: "Lien vers le profil LinkedIn introuvable sur la fiche Sales Navigator" };
+  }
+
+  /** Messagerie : nom, extrait du dernier message et qui l'a écrit, pour chaque conversation visible (lecture seule). */
+  window.__bingooInbox = async () => {
+    await jitter(2500, 4500);
+    const items = [...document.querySelectorAll(".msg-conversation-listitem, li.msg-conversations-container__convo-item, [data-view-name*='conversation'] li")].slice(0, 40);
+    return items.map((li) => {
+      const nom = norm(li.querySelector(".msg-conversation-listitem__participant-names, .msg-conversation-card__participant-names, h3")?.textContent ?? "");
+      const snip = (li.querySelector(".msg-conversation-card__message-snippet, .msg-conversation-card__message-snippet-body, p")?.textContent ?? "").replace(/\s+/g, " ").trim();
+      const de_moi = /^(vous|you)\s*:/i.test(snip);
+      const lien = li.querySelector("a[href*='/messaging/thread/']")?.href ?? "";
+      return { nom: (li.querySelector(".msg-conversation-listitem__participant-names, .msg-conversation-card__participant-names, h3")?.textContent ?? "").replace(/\s+/g, " ").trim(), extrait: snip.replace(/^[^:]{1,40}:\s*/, ""), de_moi, lien, _n: nom };
+    }).filter((t) => t.nom && t.extrait).map(({ _n, ...t }) => t);
+  };
+
   window.__bingooLi = async (action) => {
     try {
       await jitter(2000, 4000); // lecture de la page, comme une personne
+      if (/\/sales\//.test(location.pathname)) return await salesRedirect();
       const early = danger(); if (early) return early;
       if (MISSING.test(document.body.innerText.slice(0, 3000))) return { resultat: "introuvable" };
       const ready = await waitFor(() => [...document.querySelectorAll("main h1")].find(visible), 15000);

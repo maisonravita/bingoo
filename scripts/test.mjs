@@ -214,6 +214,11 @@ await test("LinkedIn : 5 invitations le premier jour, +3 par jour, jamais plus d
   assert.equal(T.invitesToday("2026-11-08T10:00:00Z", now), 11);
   assert.equal(T.invitesToday("2026-10-01T10:00:00Z", now), 20);
 });
+await test("LinkedIn : le plafond choisi par le client est respecté (5 à 20)", () => {
+  const now = new Date("2026-11-10T10:00:00Z");
+  assert.equal(T.invitesToday("2026-10-01T10:00:00Z", now, 10), 10);
+  assert.equal(T.invitesToday(undefined, now, 10), 5);
+});
 await test("LinkedIn : seulement en semaine, de 9 h à 18 h 30 heure de Paris", () => {
   assert.equal(T.officeHours(new Date("2026-11-10T09:00:00Z")), true);   // mardi 10 h à Paris
   assert.equal(T.officeHours(new Date("2026-11-10T07:30:00Z")), false);  // mardi 8 h 30

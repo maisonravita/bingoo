@@ -4,7 +4,7 @@ import { HttpError } from "./http.ts";
 import { admin, log, type Workspace } from "./core.ts";
 import { parisParts } from "./time.ts";
 
-export type LiAuto = { enabled?: boolean; accepted_at?: string; started_at?: string; paused_reason?: string | null; paused_at?: string | null };
+export type LiAuto = { enabled?: boolean; accepted_at?: string; started_at?: string; paused_reason?: string | null; paused_at?: string | null; max_per_day?: number };
 type Ws = Workspace & { linkedin_auto?: LiAuto | null };
 
 export const LI_LIMITS = { startPerDay: 5, stepPerDay: 3, maxPerDay: 20, maxPerWeek: 100, messagesPerDay: 25, relanceAfterDays: 8 };
@@ -16,9 +16,9 @@ export function relanceText(person: string | null | undefined) {
 }
 
 /** Invitations autorisées aujourd'hui : 5 le premier jour, +3 par jour, 20 au plus (montée progressive). */
-export function invitesToday(startedAt: string | undefined, now = new Date()) {
+export function invitesToday(startedAt: string | undefined, now = new Date(), max: number = LI_LIMITS.maxPerDay) {
   const days = startedAt ? Math.max(0, Math.floor((now.getTime() - new Date(startedAt).getTime()) / 864e5)) : 0;
-  return Math.min(LI_LIMITS.maxPerDay, LI_LIMITS.startPerDay + LI_LIMITS.stepPerDay * days);
+  return Math.min(Math.max(1, Math.min(LI_LIMITS.maxPerDay, max)), LI_LIMITS.startPerDay + LI_LIMITS.stepPerDay * days);
 }
 /** Heures de bureau à Paris : lundi au vendredi, 9 h – 18 h 30. */
 export function officeHours(now = new Date()) {
@@ -47,7 +47,7 @@ export async function liStatus(ws: Ws) {
   const auto = ws.linkedin_auto ?? {};
   const c = await counts(ws.id);
   const { count: queued } = await admin.from("linkedin_actions").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "a_faire");
-  return { ...auto, limite_jour: invitesToday(auto.started_at), limite_semaine: LI_LIMITS.maxPerWeek, ...c, en_file: queued ?? 0, heures_bureau: officeHours() };
+  return { ...auto, limite_jour: invitesToday(auto.started_at, new Date(), auto.max_per_day), max_par_jour: auto.max_per_day ?? LI_LIMITS.maxPerDay, limite_semaine: LI_LIMITS.maxPerWeek, ...c, en_file: queued ?? 0, heures_bureau: officeHours() };
 }
 
 /** Réglages du pilote, depuis l'application (membre de l'espace). Activer exige d'avoir accepté le risque. */
@@ -78,10 +78,10 @@ export async function liNext(ws: Ws) {
   const c = await counts(ws.id);
   const kinds = ["verifier"];
   if (c.messagesDay < LI_LIMITS.messagesPerDay) kinds.unshift("message", "relance");
-  if (c.invitesDay < invitesToday(auto.started_at) && c.invitesWeek < LI_LIMITS.maxPerWeek) kinds.push("invitation");
+  if (c.invitesDay < invitesToday(auto.started_at, new Date(), auto.max_per_day) && c.invitesWeek < LI_LIMITS.maxPerWeek) kinds.push("invitation");
   const { data: a } = await admin.from("linkedin_actions").select("id, kind, prospect_id").eq("workspace_id", ws.id).eq("status", "a_faire").lte("due_at", new Date().toISOString())
     .in("kind", kinds).order("due_at", { ascending: true }).limit(1).maybeSingle();
-  if (!a) return { attendre: 900, raison: c.invitesDay >= invitesToday(auto.started_at) ? "Quota d'invitations du jour atteint" : "Rien à faire pour l'instant" };
+  if (!a) return { attendre: 900, raison: c.invitesDay >= invitesToday(auto.started_at, new Date(), auto.max_per_day) ? "Quota d'invitations du jour atteint" : "Rien à faire pour l'instant" };
   const { data: p } = await admin.from("prospects").select("linkedin_url, linkedin_person, linkedin_note, linkedin_msg, name").eq("id", a.prospect_id).single();
   if (!p?.linkedin_url) { await admin.from("linkedin_actions").update({ status: "annule", result: "profil absent" }).eq("id", a.id); return { attendre: 30, raison: "Profil manquant, action annulée" }; }
   await admin.from("linkedin_actions").update({ status: "en_cours", taken_at: new Date().toISOString() }).eq("id", a.id);
@@ -95,12 +95,15 @@ export async function liNext(ws: Ws) {
 const RESULTS = ["ok", "deja_invite", "deja_connecte", "connecte", "en_attente", "repondu", "introuvable", "limite", "avertissement", "erreur"] as const;
 
 /** Compte rendu de l'extension après une action. Un avertissement ou une limite LinkedIn met tout le pilote en pause. */
-export async function liReport(ws: Ws, b: { id?: unknown; resultat?: unknown; detail?: unknown }) {
+export async function liReport(ws: Ws, b: { id?: unknown; resultat?: unknown; detail?: unknown; profil?: unknown }) {
   const id = String(b.id ?? ""), res = String(b.resultat ?? "") as typeof RESULTS[number], detail = String(b.detail ?? "").slice(0, 300);
   if (!RESULTS.includes(res)) throw new HttpError(400, "Résultat inconnu");
   const { data: a } = await admin.from("linkedin_actions").select("id, kind, prospect_id, created_at").eq("id", id).eq("workspace_id", ws.id).maybeSingle();
   if (!a) throw new HttpError(404, "Action introuvable");
   const now = new Date().toISOString();
+  // Fiche Sales Navigator : l'extension a trouvé l'adresse du profil LinkedIn classique, on la garde pour la suite
+  const prof = String(b.profil ?? "").match(/^https:\/\/www\.linkedin\.com\/in\/[^/?#]{2,100}/)?.[0];
+  if (prof) await admin.from("prospects").update({ linkedin_url: prof }).eq("id", a.prospect_id).ilike("linkedin_url", "%/sales/%");
   const done = (status = "fait") => admin.from("linkedin_actions").update({ status, done_at: now, result: `${res}${detail ? ` : ${detail}` : ""}` }).eq("id", a.id);
   const prospect = (s: string) => admin.from("prospects").update({ linkedin_status: s }).eq("id", a.prospect_id);
   const queue = (kind: string, hours: number) => admin.from("linkedin_actions").upsert({ workspace_id: ws.id, prospect_id: a.prospect_id, kind, status: "a_faire", due_at: new Date(Date.now() + hours * 3600_000).toISOString(), taken_at: null, done_at: null, result: "" }, { onConflict: "prospect_id,kind" });
@@ -141,4 +144,42 @@ export async function liReport(ws: Ws, b: { id?: unknown; resultat?: unknown; de
     else { await admin.from("linkedin_actions").update({ status: "a_faire", taken_at: null, due_at: new Date(Date.now() + 24 * 3600_000).toISOString(), result: res }).eq("id", a.id); }
   }
   return { ok: true };
+}
+
+/** Pilote réglé depuis l'extension : arrêt ou reprise, et nombre d'invitations par jour (5 à 20).
+ *  L'activation exige que le risque ait été accepté dans Bingoo! au moins une fois. */
+export async function liControl(ws: Ws, b: { enabled?: unknown; par_jour?: unknown }) {
+  const auto: LiAuto = { ...(ws.linkedin_auto ?? {}) };
+  if (b.par_jour != null) auto.max_per_day = Math.max(5, Math.min(LI_LIMITS.maxPerDay, Math.round(Number(b.par_jour) || LI_LIMITS.maxPerDay)));
+  if (b.enabled === true) {
+    if (!auto.accepted_at) throw new HttpError(400, "Active le pilote une première fois dans Bingoo! (page LinkedIn) pour accepter les conditions");
+    auto.enabled = true; auto.paused_reason = null; auto.paused_at = null;
+    if (!auto.started_at) auto.started_at = new Date().toISOString();
+  }
+  if (b.enabled === false) auto.enabled = false;
+  await admin.from("workspaces").update({ linkedin_auto: auto }).eq("id", ws.id);
+  if (b.enabled !== undefined) await log(ws.id, "linkedin", b.enabled ? "Pilote LinkedIn activé depuis l'extension" : "Pilote LinkedIn arrêté depuis l'extension");
+  return await liStatus({ ...ws, linkedin_auto: auto });
+}
+
+/** Réponses lues dans la messagerie LinkedIn : on ne garde que les conversations avec tes prospects, le reste est ignoré. */
+export async function liInbox(ws: Ws, b: { threads?: unknown }) {
+  const threads = (Array.isArray(b.threads) ? b.threads : []).slice(0, 40) as { nom?: string; extrait?: string; de_moi?: boolean; lien?: string }[];
+  const { data: ps } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).in("linkedin_status", ["invite", "connecte", "message_envoye"]).limit(1000);
+  const norm = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z ]+/g, " ").replace(/\s+/g, " ").trim();
+  const { handleReply } = await import("./pro.ts");
+  let nouvelles = 0;
+  for (const t of threads) {
+    const nom = norm(String(t.nom ?? "")), txt = String(t.extrait ?? "").trim();
+    if (t.de_moi || nom.length < 4 || txt.length < 2) continue;
+    const p = (ps ?? []).find((x) => [x.contact_name, String(x.linkedin_person ?? "").split(" · ")[0]].some((n) => n && norm(n) === nom));
+    if (!p) continue;
+    const r = await handleReply(ws, p, { fromEmail: "linkedin", fromName: String(t.nom).slice(0, 80), subject: "Message LinkedIn", text: txt.slice(0, 2000) }).catch(() => null);
+    if (!r || (r as { duplicate?: boolean }).duplicate) continue;
+    nouvelles++;
+    await admin.from("prospects").update({ status: "repondu" }).eq("id", p.id).in("status", ["nouveau", "pret", "sans_email", "a_valider", "envoye"]);
+    await admin.from("linkedin_actions").update({ status: "annule", result: "a répondu sur LinkedIn" }).eq("prospect_id", p.id).in("kind", ["message", "relance"]).eq("status", "a_faire");
+    await log(ws.id, "reponse", `${t.nom} a répondu sur LinkedIn`);
+  }
+  return { nouvelles };
 }

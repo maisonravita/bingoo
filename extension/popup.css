@@ -32,3 +32,8 @@ input { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding
 .pick label { display: flex; gap: 8px; align-items: flex-start; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; cursor: pointer; }
 .pick input { width: auto; flex: none; margin: 3px 0 0; }
 .pick label > span { flex: 1; min-width: 0; }
+.ctl { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; } .ctl .btn { margin-top: 0; }
+.per { font-size: 12.5px; color: var(--soft); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.per select { border: 1px solid var(--line); border-radius: 8px; padding: 3px 6px; font: inherit; }
+.opts { margin-top: 10px; font-size: 12.5px; } .opts summary { cursor: pointer; color: var(--soft); }
+.opts label { display: flex; gap: 8px; align-items: flex-start; margin-top: 8px; } .opts input { width: auto; margin: 2px 0 0; flex: none; }

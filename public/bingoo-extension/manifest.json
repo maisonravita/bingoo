@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Bingoo!",
-  "version": "1.6.0",
-  "description": "Signaux d'achat sur chaque site d'entreprise, ajout de profils LinkedIn et pilote LinkedIn prudent.",
+  "version": "1.7.0",
+  "description": "Signaux d'achat sur chaque site, prospection LinkedIn et Sales Navigator, fiche prospect dans Gmail.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "Bingoo!"
@@ -31,5 +31,16 @@
     "matches": [
       "https://kairo.maisonravita.fr/*"
     ]
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://mail.google.com/*"
+      ],
+      "js": [
+        "gmail.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
 }

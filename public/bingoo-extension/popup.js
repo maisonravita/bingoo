@@ -72,7 +72,8 @@ async function load() {
   if (!/^https?:\/\//.test(url)) { app.innerHTML = `<p>Ouvre le site d'une entreprise, puis clique sur Bingoo!.</p>`; return; }
   if (/^https:\/\/([a-z]{2,3}\.)?linkedin\.com\/in\//i.test(url)) return liProfile(tab, url);
   if (/^https:\/\/([a-z]{2,3}\.)?linkedin\.com\/company\//i.test(url)) return liCompany(tab);
-  if (/^https:\/\/([a-z]{2,3}\.)?linkedin\.com\/search\/results\/people/i.test(url)) return liSearch(tab);
+  if (/^https:\/\/([a-z]{2,3}\.)?linkedin\.com\/(search\/results\/people|sales\/search\/people)/i.test(url)) return liSearch(tab);
+  if (/^https:\/\/([a-z]{2,3}\.)?linkedin\.com\/sales\/lead\//i.test(url)) return liProfile(tab, url, true);
   app.innerHTML = `<p class="muted">Bingoo! analyse ${esc(new URL(url).hostname)}…</p>`;
   try { render(await call("lookup", { url }), url); }
   catch (e) { if (/clé/i.test(e.message)) { await setKey(""); setup(e.message); } else app.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
@@ -82,24 +83,36 @@ async function load() {
 async function pilot() {
   const box = document.getElementById("li");
   if (!(await getKey())) { box.hidden = true; return; }
-  const v = await new Promise((r) => chrome.storage.local.get(["liPause", "liState", "liNextAt", "liLog"], r));
+  const v = await new Promise((r) => chrome.storage.local.get(["liPause", "liState", "liNextAt", "liLog", "liReplies", "badgeOn", "gmailOn"], r));
   let st = null;
   try { st = await call("li-status", {}); } catch { /* hors ligne : on affiche l'état local */ }
   const on = st?.enabled && !st?.paused_reason && !v.liPause;
   const next = v.liNextAt ? Math.max(0, Math.round((v.liNextAt - Date.now()) / 60000)) : null;
+  const perDay = st?.max_par_jour ?? 20;
   box.hidden = false;
   box.innerHTML = `<div class="li-head"><b>Pilote LinkedIn</b><span class="chip ${on ? "ok" : ""}">${on ? "Actif" : "Arrêté"}</span></div>
-    ${st && !st.enabled ? `<p class="muted">Active-le dans Bingoo!, page LinkedIn.</p>` : ""}
     ${st?.paused_reason ? `<p class="err">${esc(st.paused_reason)}</p>` : ""}
     ${st ? `<p class="muted">Aujourd'hui : ${st.invitesDay}/${st.limite_jour} invitations · ${st.messagesDay} message${st.messagesDay > 1 ? "s" : ""} · ${st.en_file} en file</p>` : ""}
     <p class="muted">${esc(v.liState || "En attente")}${next !== null && on ? ` · prochaine vérification dans ${next} min` : ""}</p>
     ${(v.liLog ?? []).slice(0, 3).map((l) => `<p class="log">${esc(l.line)}</p>`).join("")}
-    <button class="btn ghost" id="lip">${v.liPause ? "Reprendre sur cet ordinateur" : "Mettre en pause sur cet ordinateur"}</button>`;
+    ${st ? `<div class="ctl"><button class="btn ${st.enabled && !st.paused_reason ? "ghost" : ""}" id="lion">${st.enabled && !st.paused_reason ? "Arrêter le pilote" : st.paused_reason ? "Relancer le pilote" : "Activer le pilote"}</button>
+      <label class="per">Invitations par jour, au plus <select id="lipd">${[5, 10, 15, 20].map((n) => `<option ${n === perDay ? "selected" : ""}>${n}</option>`).join("")}</select></label></div>` : ""}
+    <button class="btn ghost" id="lip">${v.liPause ? "Reprendre sur cet ordinateur" : "Mettre en pause sur cet ordinateur"}</button>
+    <details class="opts"><summary>Réglages de l'extension</summary>
+      <label><input type="checkbox" id="o-rep" ${v.liReplies !== false ? "checked" : ""}> Repérer les réponses LinkedIn de mes prospects</label>
+      <label><input type="checkbox" id="o-badge" ${v.badgeOn ? "checked" : ""}> Badge sur les sites qui ont des signaux <span class="muted">(l'adresse du site visité est envoyée à Bingoo!)</span></label>
+      <label><input type="checkbox" id="o-gmail" ${v.gmailOn ? "checked" : ""}> Bingoo! dans Gmail <span class="muted">(fiche du prospect à côté de ses e-mails)</span></label>
+    </details>`;
   document.getElementById("lip").onclick = async () => {
     await new Promise((r) => chrome.storage.local.set({ liPause: !v.liPause }, r));
     if (v.liPause) chrome.runtime.sendMessage("li-now");
     pilot();
   };
+  const ctl = async (body) => { try { await call("li-control", body); chrome.runtime.sendMessage("li-now"); } catch (e) { box.insertAdjacentHTML("beforeend", `<p class="err">${esc(e.message)}</p>`); return; } pilot(); };
+  document.getElementById("lion")?.addEventListener("click", () => ctl({ enabled: !(st.enabled && !st.paused_reason) }));
+  document.getElementById("lipd")?.addEventListener("change", (e) => ctl({ par_jour: Number(e.target.value) }));
+  const opt = (id, k) => document.getElementById(id).addEventListener("change", (e) => { chrome.storage.local.set({ [k]: e.target.checked }); if (k === "liReplies" && e.target.checked) chrome.runtime.sendMessage("li-inbox-now"); });
+  opt("o-rep", "liReplies"); opt("o-badge", "badgeOn"); opt("o-gmail", "gmailOn");
 }
 
 // ---------------------------------------------------------------- LinkedIn
@@ -126,8 +139,10 @@ function editor(items, box) {
 }
 
 // Profil d'une personne : son statut s'il est déjà prospect, sinon l'ajout avec la note et le message à relire
-async function liProfile(tab, url) {
+async function liProfile(tab, url, sales = false) {
   const who = await LI_PAGE(() => {
+    const t = (sel) => (document.querySelector(sel)?.textContent ?? "").replace(/\s+/g, " ").trim();
+    if (/\/sales\//.test(location.pathname) || document.querySelector("[data-anonymize='person-name']")) return { personne: t("[data-anonymize='person-name']") || t("h1"), titre: [t("[data-anonymize='headline']") || t("[data-anonymize='job-title']"), t("[data-anonymize='company-name']")].filter(Boolean).join(" chez ") };
     const h1 = [...document.querySelectorAll("main h1")].find((e) => e.getClientRects().length);
     const box = h1?.closest("section") ?? document;
     return { personne: (h1?.textContent ?? "").trim(), titre: (box.querySelector(".text-body-medium")?.textContent ?? "").trim() };
@@ -148,7 +163,7 @@ async function liProfile(tab, url) {
     b.disabled = true; b.textContent = "Bingoo! écrit la note…";
     try {
       const r = await call("add-li", { url, personne: who.personne, titre: who.titre });
-      if (r.existing) return liProfile(tab, url);
+      if (r.existing) return liProfile(tab, url, sales);
       if (!r.pret) { box.innerHTML = `<p class="chip ok">Ajouté à tes prospects</p><p class="muted">La note n'a pas pu être écrite : prépare-la depuis Bingoo!, page LinkedIn.</p>`; return; }
       editor([{ prospect_id: r.prospect_id, note: r.note, message: r.message }], box);
     } catch (e) { b.disabled = false; b.textContent = "Ajouter et préparer l'invitation"; box.insertAdjacentHTML("beforeend", `<p class="err">${esc(e.message)}</p>`); }
@@ -168,38 +183,66 @@ async function liCompany(tab) {
   catch (e) { app.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
 }
 
-// Résultats de recherche : 10 personnes au plus, cochées puis ajoutées d'un coup, chacune avec sa note à relire
+// Résultats de recherche (LinkedIn ou Sales Navigator) : cases à cocher, pages suivantes jusqu'à 30 personnes, chacune avec sa note à relire
+const readResults = () => {
+  const seen = new Set(), out = [];
+  const sales = /\/sales\//.test(location.pathname) || !!document.querySelector("[data-anonymize='person-name']");
+  const links = sales ? document.querySelectorAll("a[href*='/sales/lead/']") : document.querySelectorAll("main a[href*='/in/']");
+  for (const a of links) {
+    const m = sales ? a.href.match(/\/sales\/lead\/([^/?#,]+)/) : a.href.match(/linkedin\.com\/in\/([^/?#]+)/); if (!m || seen.has(m[1])) continue;
+    const li = a.closest("li"); if (!li) continue;
+    const name = ((sales ? li.querySelector("[data-anonymize='person-name']") : a.querySelector("span[aria-hidden='true']"))?.textContent ?? a.textContent ?? "").replace(/\s+/g, " ").trim();
+    if (!name || name.length > 60 || /^(voir|view)\b/i.test(name)) continue;
+    let titre = "";
+    if (sales) titre = [li.querySelector("[data-anonymize='title']")?.textContent, li.querySelector("[data-anonymize='company-name']")?.textContent].filter(Boolean).map((x) => x.trim()).join(" chez ");
+    else titre = li.innerText.split("\n").map((x) => x.trim()).filter((x) => x && x !== name && !/^[•·]|^\d(er|e|st|nd|rd|th)\b|relation|connexion|degree|se connecter|connect|message|suivre|follow|enregistrer|save/i.test(x))[0] ?? "";
+    seen.add(m[1]); out.push({ url: sales ? `https://www.linkedin.com/sales/lead/${m[1]}` : `https://www.linkedin.com/in/${m[1]}`, personne: name, titre });
+    if (out.length >= 25) break;
+  }
+  return out;
+};
+const nextPage = () => {
+  const b = [...document.querySelectorAll("button")].find((x) => /^(suivant|next)$/i.test((x.getAttribute("aria-label") ?? x.textContent ?? "").trim()) && !x.disabled);
+  if (!b) return false; b.click(); return true;
+};
 async function liSearch(tab) {
-  const rows = await LI_PAGE(() => {
-    const seen = new Set(), out = [];
-    for (const a of document.querySelectorAll("main a[href*='/in/']")) {
-      const m = a.href.match(/linkedin\.com\/in\/([^/?#]+)/); if (!m || seen.has(m[1])) continue;
-      const li = a.closest("li"); if (!li) continue;
-      const name = (a.querySelector("span[aria-hidden='true']")?.textContent ?? a.textContent ?? "").replace(/\s+/g, " ").trim();
-      if (!name || name.length > 60 || /^(voir|view)\b/i.test(name)) continue;
-      const lines = li.innerText.split("\n").map((x) => x.trim()).filter((x) => x && x !== name && !/^[•·]|^\d(er|e|st|nd|rd|th)\b|relation|connexion|degree|se connecter|connect|message|suivre|follow/i.test(x));
-      seen.add(m[1]); out.push({ url: `https://www.linkedin.com/in/${m[1]}`, personne: name, titre: lines[0] ?? "" });
-      if (out.length >= 10) break;
-    }
-    return out;
-  }, tab) ?? [];
-  if (!rows.length) { app.innerHTML = `<p>Laisse les résultats se charger, puis rouvre Bingoo!.</p>`; return; }
-  app.innerHTML = `<h1>${rows.length} personne${rows.length > 1 ? "s" : ""} sur cette page</h1><p class="muted">Coche celles à ajouter. Bingoo! écrit une note et un message pour chacune, tu les relis avant tout envoi.</p>
-    <div class="pick">${rows.map((r, i) => `<label><input type="checkbox" id="k${i}" checked><span><b>${esc(r.personne)}</b><br><span class="muted">${esc(r.titre)}</span></span></label>`).join("")}</div>
-    <button class="btn" id="addmany">Ajouter la sélection</button>`;
-  const b = document.getElementById("addmany");
-  b.onclick = async () => {
-    const pick = rows.filter((_, i) => document.getElementById(`k${i}`).checked);
+  const MAX = 30;
+  const picked = new Map();
+  const draw = (rows, page) => {
+    rows.forEach((r) => { if (!picked.has(r.url) && picked.size < MAX) picked.set(r.url, { ...r, on: true }); });
+    const all = [...picked.values()];
+    app.innerHTML = `<h1>${all.length} personne${all.length > 1 ? "s" : ""} trouvée${all.length > 1 ? "s" : ""}</h1><p class="muted">Page ${page}. Coche celles à ajouter (${MAX} au plus). Bingoo! écrit une note et un message pour chacune, tu les relis avant tout envoi.</p>
+      <div class="pick">${all.map((r, i) => `<label><input type="checkbox" data-u="${esc(r.url)}" ${r.on ? "checked" : ""}><span><b>${esc(r.personne)}</b><br><span class="muted">${esc(r.titre)}</span></span></label>`).join("")}</div>
+      ${all.length < MAX ? `<button class="btn ghost" id="more">Ajouter aussi la page suivante</button>` : ""}
+      <button class="btn" id="addmany">Ajouter la sélection</button>`;
+    app.querySelectorAll(".pick input").forEach((c) => { c.onchange = () => { picked.get(c.dataset.u).on = c.checked; }; });
+    document.getElementById("more")?.addEventListener("click", async (e) => {
+      e.currentTarget.disabled = true; e.currentTarget.textContent = "Page suivante…";
+      const ok = await LI_PAGE(nextPage, tab);
+      if (!ok) { e.currentTarget.textContent = "Pas d'autre page"; return; }
+      await new Promise((r) => setTimeout(r, 3500 + Math.random() * 2000)); // le temps que LinkedIn charge, comme une personne
+      draw(await LI_PAGE(readResults, tab) ?? [], page + 1);
+    });
+    document.getElementById("addmany").onclick = add;
+  };
+  const add = async (e) => {
+    const pick = [...picked.values()].filter((r) => r.on).map(({ on, ...r }) => r);
     if (!pick.length) return;
-    b.disabled = true; b.textContent = `Bingoo! écrit ${pick.length} note${pick.length > 1 ? "s" : ""}…`;
+    const b = e.currentTarget; b.disabled = true;
+    const ready = []; let skipped = 0;
     try {
-      const r = await call("add-li-many", { items: pick });
-      const ready = r.resultats.filter((x) => x.pret && !x.existing);
-      const skipped = r.resultats.length - ready.length;
+      for (let i = 0; i < pick.length; i += 10) {
+        b.textContent = `Bingoo! écrit les notes… ${Math.min(i + 10, pick.length)}/${pick.length}`;
+        const r = await call("add-li-many", { items: pick.slice(i, i + 10) });
+        r.resultats.forEach((x) => (x.pret && !x.existing ? ready.push(x) : skipped++));
+      }
       app.innerHTML = `<h1>${ready.length} invitation${ready.length > 1 ? "s" : ""} à relire</h1>${skipped ? `<p class="muted">${skipped} déjà dans tes prospects ou sans note.</p>` : ""}<div id="ed"></div>`;
       if (ready.length) editor(ready, document.getElementById("ed"));
-    } catch (e) { b.disabled = false; b.textContent = "Ajouter la sélection"; app.insertAdjacentHTML("beforeend", `<p class="err">${esc(e.message)}</p>`); }
+    } catch (x) { b.disabled = false; b.textContent = "Ajouter la sélection"; app.insertAdjacentHTML("beforeend", `<p class="err">${esc(x.message)}</p>`); }
   };
+  const rows = await LI_PAGE(readResults, tab) ?? [];
+  if (!rows.length) { app.innerHTML = `<p>Laisse les résultats se charger, puis rouvre Bingoo!.</p>`; return; }
+  draw(rows, 1);
 }
 
 document.getElementById("settings").onclick = () => setup();

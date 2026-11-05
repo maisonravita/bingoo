@@ -93,6 +93,8 @@ Deno.serve(wrap(async (req) => {
   if (name === "add") return json(await extAdd(ws, String(b.url ?? "")));
   if (name === "add-li") { setAi({ ws: ws.id, live: true }); return json(await (await import("../_shared/ext.ts")).extAddLinkedin(ws, b)); }
   if (name === "add-li-many") { setAi({ ws: ws.id, live: true }); return json(await (await import("../_shared/ext.ts")).extAddLinkedinMany(ws, b)); }
+  if (name === "signal-count") return json(await (await import("../_shared/ext.ts")).extSignalCount(ws, String(b.url ?? "")));
+  if (name === "lookup-email") return json(await (await import("../_shared/ext.ts")).extLookupEmail(ws, String(b.email ?? "")));
   if (name === "li-profile") return json(await (await import("../_shared/ext.ts")).extLinkedinStatus(ws, b));
   if (name === "li-validate") return json(await (await import("../_shared/ext.ts")).extLinkedinValidate(ws, b));
   if (name === "whoami") return json({ espace: ws.name });
@@ -102,6 +104,8 @@ Deno.serve(wrap(async (req) => {
     if (name === "li-next") return json(await li.liNext(ws));
     if (name === "li-report") return json(await li.liReport(ws, b));
     if (name === "li-status") return json(await li.liStatus(ws));
+    if (name === "li-control") return json(await li.liControl(ws, b));
+    if (name === "li-inbox") { setAi({ ws: ws.id, live: true }); return json(await li.liInbox(ws, b)); }
   }
   throw new HttpError(404, "Action inconnue");
 }));

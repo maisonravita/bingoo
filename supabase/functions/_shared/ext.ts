@@ -84,13 +84,16 @@ export async function extAdd(ws: Workspace, url: string) {
 
 /** Ajoute la personne d'un profil LinkedIn ouvert dans le navigateur : prospect + note d'invitation et premier message préparés. */
 export async function extAddLinkedin(ws: Workspace, b: { url?: unknown; personne?: unknown; titre?: unknown }) {
-  const m = String(b.url ?? "").match(/^https?:\/\/([a-z]{2,3}\.)?linkedin\.com\/in\/([^/?#]{2,100})/i);
+  // Profil classique (linkedin.com/in/…) ou fiche Sales Navigator (linkedin.com/sales/lead/…)
+  const raw = String(b.url ?? "");
+  const sales = raw.match(/^https?:\/\/([a-z]{2,3}\.)?linkedin\.com\/sales\/(?:lead|people)\/([^/?#,]{6,120})/i);
+  const m = sales ?? raw.match(/^https?:\/\/([a-z]{2,3}\.)?linkedin\.com\/in\/([^/?#]{2,100})/i);
   if (!m) throw new HttpError(400, "Ouvre le profil LinkedIn d'une personne (adresse en linkedin.com/in/…)");
-  const url = `https://www.linkedin.com/in/${m[2]}`;
+  const url = sales ? `https://www.linkedin.com/sales/lead/${m[2]}` : `https://www.linkedin.com/in/${m[2]}`;
   const person = String(b.personne ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
   const title = String(b.titre ?? "").replace(/\s+/g, " ").trim().slice(0, 160);
   if (person.length < 3) throw new HttpError(400, "Nom introuvable sur ce profil, recharge la page LinkedIn");
-  const { data: dup } = await admin.from("prospects").select("id, linkedin_status").eq("workspace_id", ws.id).ilike("linkedin_url", `%/in/${esc(m[2])}%`).limit(1);
+  const { data: dup } = await admin.from("prospects").select("id, linkedin_status").eq("workspace_id", ws.id).ilike("linkedin_url", `%/${sales ? "sales/lead" : "in"}/${esc(m[2])}%`).limit(1);
   if (dup?.[0]) return { prospect_id: dup[0].id, existing: true };
   // Entreprise tirée du titre : « Directrice achats chez Acme », « CEO at Acme », « Fondateur | Acme »
   const company = (title.match(/\b(?:chez|at|@)\s+([^|,·•]{2,60})/i)?.[1] ?? title.split(/\s[|·•]\s/)[1] ?? "").trim();
@@ -112,9 +115,10 @@ const LI_LABEL: Record<string, string> = { "": "Ajouté, invitation à valider",
 
 /** Où en est la personne de ce profil LinkedIn : déjà prospect ? invitée ? a répondu ? */
 export async function extLinkedinStatus(ws: Workspace, b: { url?: unknown }) {
-  const m = String(b.url ?? "").match(/linkedin\.com\/in\/([^/?#]{2,100})/i);
+  const m = String(b.url ?? "").match(/linkedin\.com\/(in|sales\/lead|sales\/people)\/([^/?#,]{2,120})/i);
   if (!m) return { prospect: null };
-  const { data: p } = await admin.from("prospects").select("id, name, status, linkedin_status, linkedin_note, linkedin_msg, created_at").eq("workspace_id", ws.id).ilike("linkedin_url", `%/in/${esc(m[1])}%`).limit(1).maybeSingle();
+  const key = m[1] === "in" ? `/in/${m[2]}` : `/sales/lead/${m[2]}`;
+  const { data: p } = await admin.from("prospects").select("id, name, status, linkedin_status, linkedin_note, linkedin_msg, created_at").eq("workspace_id", ws.id).ilike("linkedin_url", `%${esc(key)}%`).limit(1).maybeSingle();
   if (!p) return { prospect: null };
   const { data: acts } = await admin.from("linkedin_actions").select("kind, status, done_at").eq("prospect_id", p.id).eq("status", "fait").order("done_at", { ascending: false });
   const at = (k: string) => (acts ?? []).find((a) => a.kind === k)?.done_at ?? null;
@@ -152,3 +156,36 @@ export async function extAddLinkedinMany(ws: Workspace, b: { items?: unknown }) 
   return { resultats: out };
 }
 
+
+/** Badge de l'extension (si le client l'a activé) : nombre de signaux connus pour le domaine, sans IA ni lecture du site. */
+export async function extSignalCount(ws: Workspace, url: string) {
+  let host = ""; try { host = new URL(url).hostname; } catch { return { n: 0 }; }
+  const dom = base(host);
+  if (!dom.includes(".") || /(^|\.)(linkedin|google|facebook|instagram|youtube|x|twitter)\./i.test(`.${dom}`)) return { n: 0 };
+  const [{ data: comp }, { data: p }] = await Promise.all([
+    admin.from("competitors").select("id").eq("workspace_id", ws.id).ilike("url", `%${esc(dom)}%`).limit(1),
+    admin.from("prospects").select("siren, name, status").eq("workspace_id", ws.id).ilike("website", `%${esc(dom)}%`).limit(1).maybeSingle(),
+  ]);
+  if (comp?.[0]) return { n: 0, concurrent: true };
+  if (!p?.siren) return { n: 0, prospect: !!p };
+  const { count } = await admin.from("radar_opps").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("siren", p.siren).in("status", ["nouveau", "suivi", "ajoute"]);
+  return { n: count ?? 0, prospect: true };
+}
+
+/** Bingoo! dans Gmail : la fiche du prospect qui t'écrit (ou à qui tu écris). Rien n'est renvoyé si l'adresse n'est pas un prospect. */
+export async function extLookupEmail(ws: Workspace, email: string) {
+  const e = String(email ?? "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return { prospect: null };
+  const { data: p } = await admin.from("prospects").select("id, name, city, status, contact_name, contact_role, signals, next_action, next_action_at, linkedin_status").eq("workspace_id", ws.id).ilike("email", esc(e)).limit(1).maybeSingle();
+  if (!p) return { prospect: null };
+  const [{ data: last }, { data: rep }] = await Promise.all([
+    admin.from("messages").select("subject, sent_at").eq("prospect_id", p.id).eq("status", "envoye").order("sent_at", { ascending: false }).limit(1).maybeSingle(),
+    admin.from("replies").select("class, summary, created_at").eq("prospect_id", p.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  const sig = ((p.signals ?? []) as { label?: string; type?: string }[]).find((x) => x.label && !["taille", "reseau"].includes(x.type ?? ""));
+  const STATUT: Record<string, string> = { nouveau: "Nouveau", sans_email: "Sans e-mail", pret: "Prêt", a_valider: "Message à valider", envoye: "Contacté", repondu: "A répondu", rdv: "Rendez-vous", client: "Client", refus: "Pas intéressé", ignore: "Écarté" };
+  return { prospect: { id: p.id, name: p.name, city: p.city, contact: [p.contact_name, p.contact_role].filter(Boolean).join(", "), statut: STATUT[p.status] ?? p.status,
+    signal: sig?.label ? String(sig.label).replace(/\s*(?:publi[ée]e? )?(?:au|dans le) (?:BODACC|registre[^,.;]*)/gi, "") : "",
+    dernier_envoi: last ? { objet: last.subject, le: last.sent_at } : null, derniere_reponse: rep ? { resume: rep.summary, le: rep.created_at } : null,
+    prochaine: p.next_action ? { quoi: p.next_action, le: p.next_action_at } : null } };
+}

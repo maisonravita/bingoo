@@ -31,20 +31,28 @@ async function bootKey() {
   return key;
 }
 
-const LABELS = { invitation: "Invitation", verifier: "Vérification", message: "Message" };
+const LABELS = { invitation: "Invitation", verifier: "Vérification", message: "Message", relance: "Relance" };
 
+const loaded = (tabId) => new Promise((resolve) => {
+  const t = setTimeout(resolve, 30000);
+  chrome.tabs.onUpdated.addListener(function on(id, info) {
+    if (id === tabId && info.status === "complete") { clearTimeout(t); chrome.tabs.onUpdated.removeListener(on); resolve(); }
+  });
+});
 async function runAction(a) {
   const tab = await chrome.tabs.create({ url: a.profil, active: false });
   try {
-    await new Promise((resolve) => {
-      const t = setTimeout(resolve, 30000);
-      chrome.tabs.onUpdated.addListener(function on(id, info) {
-        if (id === tab.id && info.status === "complete") { clearTimeout(t); chrome.tabs.onUpdated.removeListener(on); resolve(); }
-      });
-    });
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["li.js"] });
-    const [out] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: (x) => window.__bingooLi(x), args: [a] });
-    return out?.result ?? { resultat: "erreur", detail: "Pas de réponse de la page" };
+    await loaded(tab.id);
+    let profil = "";
+    for (let hop = 0; hop < 2; hop++) {
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["li.js"] });
+      const [out] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: (x) => window.__bingooLi(x), args: [a] });
+      const r = out?.result ?? { resultat: "erreur", detail: "Pas de réponse de la page" };
+      // Fiche Sales Navigator : on passe sur le profil LinkedIn classique, puis on refait l'action
+      if (r.redirect && hop === 0) { profil = r.redirect; await chrome.tabs.update(tab.id, { url: r.redirect }); await loaded(tab.id); continue; }
+      return { ...r, profil };
+    }
+    return { resultat: "erreur", detail: "Profil introuvable" };
   } catch (e) {
     return { resultat: "erreur", detail: String(e?.message ?? e).slice(0, 200) };
   } finally {
@@ -64,7 +72,7 @@ async function tick() {
     const a = next.action;
     store({ liState: `${LABELS[a.type] ?? a.type} en cours : ${a.personne || a.entreprise || "profil"}` });
     const r = await runAction(a);
-    const rep = await call("li-report", { id: a.id, resultat: r.resultat, detail: r.detail });
+    const rep = await call("li-report", { id: a.id, resultat: r.resultat, detail: r.detail, profil: r.profil });
     const line = `${LABELS[a.type] ?? a.type} · ${a.personne || a.entreprise || ""} · ${r.resultat}${r.detail ? ` (${r.detail})` : ""}`;
     const { liLog = [] } = await read("liLog");
     store({ liLog: [{ at: Date.now(), line }, ...liLog].slice(0, 20), liState: rep.pause ? "Pause : LinkedIn a envoyé un signal, Bingoo! s'arrête" : "Action terminée" });
@@ -77,7 +85,40 @@ async function tick() {
   }
 }
 
-chrome.alarms.onAlarm.addListener((al) => { if (al.name === ALARM) tick(); });
+// ---------------------------------------------------------------- Réponses LinkedIn
+// Toutes les 2 heures en semaine (9 h – 19 h) : on lit la liste des conversations, seules celles avec tes prospects sont gardées par Bingoo!
+const INBOX = "bingoo-inbox";
+const officeNow = () => { const d = new Date(), h = d.getHours() + d.getMinutes() / 60; return d.getDay() >= 1 && d.getDay() <= 5 && h >= 9 && h <= 19; };
+async function inbox() {
+  const { liReplies = true, liPause, key } = await read(["liReplies", "liPause", "key"]);
+  if (!key || !liReplies || liPause || !officeNow()) return;
+  const tab = await chrome.tabs.create({ url: "https://www.linkedin.com/messaging/", active: false });
+  try {
+    await loaded(tab.id);
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["li.js"] });
+    const [out] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: () => window.__bingooInbox() });
+    const threads = out?.result ?? [];
+    if (threads.length) {
+      const r = await call("li-inbox", { threads });
+      if (r.nouvelles) { const { liLog = [] } = await read("liLog"); store({ liLog: [{ at: Date.now(), line: `${r.nouvelles} réponse${r.nouvelles > 1 ? "s" : ""} LinkedIn repérée${r.nouvelles > 1 ? "s" : ""}` }, ...liLog].slice(0, 20) }); }
+    }
+  } catch { /* LinkedIn indisponible : on réessaiera */ } finally { setTimeout(() => chrome.tabs.remove(tab.id).catch(() => {}), 2000); }
+}
+chrome.alarms.create(INBOX, { periodInMinutes: 120, delayInMinutes: 15 });
+
+// ---------------------------------------------------------------- Badge (si le client l'a activé)
+async function badge(tabId, url) {
+  const { badgeOn, key } = await read(["badgeOn", "key"]);
+  if (!badgeOn || !key || !/^https?:\/\//.test(url ?? "") || /linkedin\.com|google\.|mail\.google/.test(url)) { chrome.action.setBadgeText({ tabId, text: "" }); return; }
+  try {
+    const r = await call("signal-count", { url });
+    chrome.action.setBadgeBackgroundColor({ tabId, color: r.concurrent ? "#9f1239" : "#E0531F" });
+    chrome.action.setBadgeText({ tabId, text: r.concurrent ? "!" : r.n > 0 ? String(Math.min(r.n, 99)) : "" });
+  } catch { chrome.action.setBadgeText({ tabId, text: "" }); }
+}
+chrome.tabs.onUpdated.addListener((tabId, info, tab) => { if (info.status === "complete") badge(tabId, tab.url); });
+
+chrome.alarms.onAlarm.addListener((al) => { if (al.name === ALARM) tick(); if (al.name === INBOX) inbox(); });
 const APP = "https://kairo.maisonravita.fr";
 const linkPage = () => chrome.tabs.create({ url: `${APP}/#/extension?ext=${chrome.runtime.id}` });
 
@@ -102,4 +143,9 @@ chrome.runtime.onMessageExternal.addListener((m, sender, reply) => {
 });
 chrome.runtime.onMessage.addListener((m) => { if (m === "li-link") linkPage(); });
 chrome.runtime.onStartup.addListener(() => plan(120));
-chrome.runtime.onMessage.addListener((m) => { if (m === "li-now") plan(60); });
+chrome.runtime.onMessage.addListener((m, _sender, reply) => {
+  if (m === "li-now") plan(60);
+  if (m === "li-inbox-now") inbox();
+  // Gmail : la fiche du prospect est demandée par le script de la page, la clé ne quitte jamais l'extension
+  if (m?.type === "lookup-email") { call("lookup-email", { email: m.email }).then(reply).catch(() => reply({ prospect: null })); return true; }
+});
