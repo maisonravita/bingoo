@@ -21,14 +21,10 @@ async function cachePut(key, value) {
 
 /* ------------------------------------------------------------------ la ville : immeubles un par un et arbres */
 const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
-async function overpass(q) {
-  for (const u of OVERPASS) {
-    try {
-      const r = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(q), signal: AbortSignal.timeout(50000) });
-      if (r.ok) return await r.json();
-    } catch { /* serveur suivant */ }
-  }
-  throw new Error('overpass');
+async function overpass(q, server = 0, ms = 22000) {
+  const r = await fetch(OVERPASS[server], { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(q), signal: AbortSignal.timeout(ms) });
+  if (!r.ok) throw new Error(`overpass ${r.status}`);
+  return r.json();
 }
 const flat = (geom) => geom.flatMap((p) => [Math.round(p.lon * 1e7) / 1e7, Math.round(p.lat * 1e7) / 1e7]);
 const hauteur = (t) => {
@@ -57,13 +53,18 @@ async function ville(lat, lon, r) {
   const dLat = r / 110540, dLon = r / (Math.cos((lat * Math.PI) / 180) * 111320);
   // quatre quarts plutôt qu'une grosse demande : les serveurs publics refusent souvent les grandes villes d'un coup
   const quarts = [[-1, -1], [-1, 0], [0, -1], [0, 0]].map(([a, b]) => [lat + a * dLat, lon + b * dLon, lat + (a + 1) * dLat, lon + (b + 1) * dLon].map((v) => v.toFixed(4)).join(','));
-  const bat = { elements: [] }, seen = new Set();
-  for (const q of quarts) {
-    const r2 = await overpass(`[out:json][timeout:60][bbox:${q}];way["building"];out tags geom qt;`);
-    for (const e of r2.elements ?? []) if (!seen.has(e.id)) { seen.add(e.id); bat.elements.push(e); }
+  const msg = document.getElementById('loading');
+  if (msg) msg.textContent = 'Première visite de cette ville : téléchargement des immeubles (jusqu’à 45 secondes)…';
+  // les quatre quarts en même temps, 22 s au plus par serveur ; sinon la ville se fera avec les tuiles (plus simple)
+  let parts = null;
+  for (const server of [0, 1]) {
+    try { parts = await Promise.all(quarts.map((q) => overpass(`[out:json][timeout:25][bbox:${q}];way["building"];out tags geom qt;`, server))); break; } catch { /* serveur suivant */ }
   }
+  if (!parts) throw new Error('overpass');
+  const bat = { elements: [] }, seen = new Set();
+  for (const r2 of parts) for (const e of r2.elements ?? []) if (!seen.has(e.id)) { seen.add(e.id); bat.elements.push(e); }
   const bbox = [lat - dLat, lon - dLon, lat + dLat, lon + dLon].map((v) => v.toFixed(4)).join(',');
-  const arb = await overpass(`[out:json][timeout:60][bbox:${bbox}];node["natural"="tree"];out qt;`).catch(() => ({ elements: [] }));
+  const arb = await overpass(`[out:json][timeout:20][bbox:${bbox}];node["natural"="tree"];out qt;`, 0, 15000).catch(() => ({ elements: [] }));
   const batiments = [];
   for (const e of bat.elements ?? []) {
     const t = e.tags ?? {};

@@ -83,7 +83,7 @@ export default function TodayFeed() {
     const head = (t) => supabase.from(t).select("id", { count: "exact", head: true }).eq("workspace_id", ws.id);
     const [rep, meet, dr, nDr, o24, c24, m24] = await Promise.all([
       supabase.from("replies").select("*, prospects(name, activity, phone, email)").eq("workspace_id", ws.id).eq("handled", false).order("created_at", { ascending: false }).limit(3),
-      supabase.from("meetings").select("id, company, starts_at, location").eq("workspace_id", ws.id).eq("status", "confirme").gte("starts_at", t0.toISOString()).lt("starts_at", new Date(t0.getTime() + 864e5).toISOString()).order("starts_at"),
+      supabase.from("meetings").select("id, company, starts_at").eq("workspace_id", ws.id).eq("status", "confirme").gte("starts_at", t0.toISOString()).lt("starts_at", new Date(t0.getTime() + 864e5).toISOString()).order("starts_at"),
       supabase.from("messages").select("id, step, subject, body, prospect_id, prospects(name, city, contact_name, contact_role, email, signals)").eq("workspace_id", ws.id).eq("status", "brouillon").order("step", { ascending: false }).order("created_at").limit(5),
       supabase.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "brouillon"),
       head("radar_opps").gte("created_at", since), head("prospects").gte("enriched_at", since).neq("email", ""), head("messages").gte("created_at", since),

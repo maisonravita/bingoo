@@ -303,6 +303,9 @@ export class City {
     this.roads.forEach((r, i) => { r.bb = bboxOf([r.pts]); put({ minx: r.bb.minx - r.w, miny: r.bb.miny - r.w, maxx: r.bb.maxx + r.w, maxy: r.bb.maxy + r.w }, 'r', i); });
     this.rails.forEach((r, i) => { r.bb = bboxOf([r.pts]); put({ minx: r.bb.minx - 3, miny: r.bb.miny - 3, maxx: r.bb.maxx + 3, maxy: r.bb.maxy + 3 }, 'l', i); });
     this.areas.forEach((a, i) => { a.bb = bboxOf(a.rings); put(a.bb, 'a', i); });
+    // Grille de 2 m qui dit quel immeuble et quelle surface couvrent chaque point : les grands pâtés de maisons
+    // (Paris, tuiles vectorielles) rendaient chaque test « suis-je dans un immeuble ? » très lent.
+    this.rast = rasterCity(this);
     this.trees = plantTrees(this);
     this.trees.forEach((t, i) => put({ minx: t.x - t.r, miny: t.y - t.r * 2.2, maxx: t.x + t.r, maxy: t.y + 1 }, 't', i));
     this.lamps = placeLamps(this);
@@ -322,6 +325,8 @@ export class City {
 
   /** L'immeuble sous un point (ou null). */
   buildingAt(x, y) {
+    const R = this.rast;
+    if (R) { const gx = Math.floor((x - R.x0) / R.k), gy = Math.floor((y - R.y0) / R.k); if (gx >= 0 && gy >= 0 && gx < R.w && gy < R.h) { const v = R.b[gy * R.w + gx]; return v ? this.blist[v - 1] : null; } }
     for (const i of this.query('b', x, y, x, y)) {
       const b = this.blist[i];
       if (x < b.minx || x > b.maxx || y < b.miny || y > b.maxy) continue;
@@ -330,6 +335,8 @@ export class City {
     return null;
   }
   areaAt(x, y) {
+    const R = this.rast;
+    if (R) { const gx = Math.floor((x - R.x0) / R.k), gy = Math.floor((y - R.y0) / R.k); if (gx >= 0 && gy >= 0 && gx < R.w && gy < R.h) return R.a[gy * R.w + gx]; }
     let best = 0;
     for (const i of this.query('a', x, y, x, y)) {
       const a = this.areas[i];
@@ -899,3 +906,34 @@ function shade(c, k) {
   return ((255 << 24) | (Math.min(255, b) << 16) | (Math.min(255, g) << 8) | Math.min(255, r)) >>> 0;
 }
 const lift = shade;
+
+/** Remplit une grille (2 m) avec chaque immeuble et chaque surface, par balayage ligne à ligne (pair-impair). */
+function rasterCity(city) {
+  const k = 2, bd = city.bounds;
+  const x0 = bd.minx - 20, y0 = bd.miny - 20;
+  const w = Math.ceil((bd.maxx - bd.minx + 40) / k), h = Math.ceil((bd.maxy - bd.miny + 40) / k);
+  if (!(w > 0 && h > 0) || w * h > 12e6) return null;
+  const b = new Uint32Array(w * h), a = new Uint8Array(w * h);
+  const fill = (rings, put) => {
+    let miny = Infinity, maxy = -Infinity;
+    for (const r of rings) for (const p of r) { if (p[1] < miny) miny = p[1]; if (p[1] > maxy) maxy = p[1]; }
+    const r0 = Math.max(0, Math.floor((miny - y0) / k)), r1 = Math.min(h - 1, Math.ceil((maxy - y0) / k));
+    const xs = [];
+    for (let row = r0; row <= r1; row++) {
+      const yy = y0 + (row + 0.5) * k;
+      xs.length = 0;
+      for (const r of rings) for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+        const [xi, yi] = r[i], [xj, yj] = r[j];
+        if ((yi > yy) !== (yj > yy)) xs.push(xi + ((yy - yi) * (xj - xi)) / (yj - yi));
+      }
+      xs.sort((p, q) => p - q);
+      for (let i = 0; i + 1 < xs.length; i += 2) {
+        const c0 = Math.max(0, Math.ceil((xs[i] - x0) / k - 0.5)), c1 = Math.min(w - 1, Math.floor((xs[i + 1] - x0) / k - 0.5));
+        for (let c = c0; c <= c1; c++) put(row * w + c);
+      }
+    }
+  };
+  for (const ar of city.areas) fill(ar.rings, (i) => { if (ar.kind > a[i]) a[i] = ar.kind; });
+  city.blist.forEach((bl, n) => { for (const rings of bl.parts) fill(rings, (i) => { b[i] = n + 1; }); });
+  return { k, x0, y0, w, h, b, a };
+}
