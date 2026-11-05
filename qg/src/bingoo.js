@@ -75,13 +75,14 @@ function bilanCard(b, recent) {
     <div class="bq-row">${b.reponses ? '<a class="bq-btn" href="/#/reponses">Lire les réponses</a>' : b.prets ? '<a class="bq-btn" href="/#/valider">Valider les messages</a>' : '<a class="bq-btn" href="/#/">Ouvrir Bingoo!</a>'}<button type="button" class="bq-btn ghost" data-close>Rester sur la carte</button></div></div>`;
 }
 
-export function bingooUi({ night, world, canvas, play }) {
+export function bingooUi({ night, world, canvas, play, jeu }) {
   const root = document.getElementById('qg');
   const bar = document.createElement('div');
   bar.className = 'bq-bar';
   const clusters = night.clusters ?? [];
   bar.innerHTML = `
     ${clusters.length > 1 ? `<label class="bq-ville"><span>Ville</span><select id="bq-ville">${clusters.map((c, i) => `<option value="${i}" ${i === night.zone ? 'selected' : ''}>${esc(c.ville || `Zone ${i + 1}`)} (${c.n})</option>`).join('')}</select></label>` : ''}
+    <button type="button" class="bq-btn jouer" id="bq-jouer">Jouer</button>
     <button type="button" class="bq-btn ghost" id="bq-bilan">Bilan</button>
     <button type="button" class="bq-btn" id="bq-share">Partager ma nuit</button>`;
   root.append(bar);
@@ -120,10 +121,11 @@ export function bingooUi({ night, world, canvas, play }) {
     box.querySelector('[data-close]')?.addEventListener('click', () => { box.hidden = true; });
   };
   bar.querySelector('#bq-bilan').addEventListener('click', showBilan);
+  bar.querySelector('#bq-jouer').addEventListener('click', () => { document.getElementById('bq-modal')?.setAttribute('hidden', ''); jeu?.on(); });
   // à la fin de la nuit rejouée : le bilan (sauf la toute première mission, qui a sa propre fin)
   if (!new URLSearchParams(location.search).has('premiere') && !document.body.classList.contains('cinema')) {
     let shown = false;
-    const later = () => (document.querySelector('.aide-tour, #bq-modal:not([hidden]), body.has-fiche') ? setTimeout(later, 4000) : showBilan());
+    const later = () => (document.querySelector('.aide-tour, #bq-modal:not([hidden]), body.has-fiche, body.jeu') ? setTimeout(later, 4000) : showBilan());
     world()?.on((type) => { if (type === 'end' && !shown) { shown = true; setTimeout(later, 1200); } });
   }
   bar.querySelector('#bq-share').addEventListener('click', async () => {

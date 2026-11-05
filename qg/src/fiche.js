@@ -51,7 +51,7 @@ function icon(state) {
   return c;
 }
 
-export function createFiche(root, { getRunId, onClose }) {
+export function createFiche(root, { getRunId, onClose, onDone }) {
   let cur = null;
   root.className = 'fiche';
   root.hidden = true;
@@ -78,6 +78,7 @@ export function createFiche(root, { getRunId, onClose }) {
         if (r.skipped) { note.textContent = `Non envoyé : ${r.skipped}`; return; }
         cur.state = 'valide'; cur.stateAt = cur.stateAt ?? 0; render();
         root.querySelector('.f-act-note').textContent = `Envoyé à ${cur.to ?? ''}.`;
+        onDone?.('message', cur);
       } catch (err) { if (note) note.textContent = err.message; } finally { b.disabled = false; }
       return;
     }
@@ -148,18 +149,22 @@ export function createFiche(root, { getRunId, onClose }) {
         if (body.trim().length < 5) throw new Error('Écris ta réponse avant de l’envoyer.');
         await fn('reply-send', { workspace_id: d.ws_id, reply_id: live.r.id, subject, body });
         note.textContent = 'Réponse envoyée.';
+        onDone?.('reponse', cur);
       } else if (act === 'x-handled') {
         const { error } = await supabase.from('replies').update({ handled: true }).eq('id', live.r.id); if (error) throw error;
         note.textContent = 'Réponse marquée comme traitée.';
+        onDone?.('traitee', cur);
       } else if (act === 'x-li') {
         const txt = root.querySelector('.f-li-note').value.trim();
         if (!txt) throw new Error('La note est vide.');
         const { error } = await supabase.from('prospects').update({ linkedin_note: txt.slice(0, 200), linkedin_status: 'a_envoyer' }).eq('id', d.prospect_id); if (error) throw error;
         note.textContent = 'Invitation validée : Lina s’en occupe.';
+        onDone?.('linkedin', cur);
       } else if (act === 'x-ignore' || act === 'x-unignore') {
         const to = act === 'x-ignore' ? 'ignore' : 'nouveau';
         const { error } = await supabase.from('prospects').update({ status: to }).eq('id', d.prospect_id); if (error) throw error;
         note.textContent = to === 'ignore' ? 'Prospect écarté. L’équipe ne le contactera plus.' : 'Prospect remis dans la prospection.';
+        if (to === 'ignore') onDone?.('ecarte', cur);
       }
       await loadActions(cur);
     } catch (err) { note.textContent = err.message ?? String(err); b.disabled = false; }

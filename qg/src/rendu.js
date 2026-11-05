@@ -171,8 +171,28 @@ export function drawWorld(g, world, cam, W, H, tod, opts = {}) {
   items.push({ y: q0.y + q0.d / 2, draw: () => drawQG(g, world, scr, z, tod, S) });
   for (const q of world.places.values()) if (q.state !== 'cache') items.push({ y: q.y, draw: () => drawPlace(g, world, q, scr, S, t) });
   for (const a of world.actors.values()) if (a.alpha > 0.01) items.push({ y: a.y + (a.alt > 3 ? 1000 : 0), draw: () => drawActor(g, a, scr, S, t) });
+  // le mode Jouer : ton personnage, un peu plus grand que l'équipe
+  const jeu = opts.jeu;
+  if (jeu?.player) items.push({ y: jeu.player.y, draw: () => drawActor(g, jeu.player, scr, Math.round(S * 1.25) || S, t) });
   items.sort((a, b) => a.y - b.y);
   for (const it of items) it.draw();
+
+  // le mode Jouer : les blocs « ? » au-dessus des entreprises qui attendent quelque chose de toi, et le chemin à suivre
+  if (jeu) {
+    if (jeu.guide && jeu.player) {
+      const [ax, ay] = scr(jeu.player.x, jeu.player.y), [bx, by] = scr(jeu.guide.x, jeu.guide.y);
+      g.save(); g.strokeStyle = 'rgba(224,83,31,0.85)'; g.lineWidth = Math.max(2, S); g.setLineDash([S * 4, S * 3]); g.lineDashOffset = -t * 30;
+      g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke(); g.restore();
+    }
+    const bs = questionBlock();
+    for (const b of jeu.blocks) {
+      const [sx, sy] = scr(b.x, b.y);
+      const up = t - b.bump < 0.25 ? -Math.sin(((t - b.bump) / 0.25) * Math.PI) * 6 : 0;
+      const bob = Math.round(Math.sin(t * 3 + b.x * 0.1) * 1.5);
+      const k = b.near ? S + 1 : S;
+      drawSprite(g, bs, sx, sy - 36 * S + (bob + up) * S, 6, 12, k);
+    }
+  }
 
   // 5. les effets
   for (const f of world.fx) drawFx(g, world, f, scr, S, t, opts);
@@ -274,8 +294,37 @@ function drawActor(g, a, scr, S, t) {
   g.globalAlpha = 1;
 }
 
+/** Le bloc « ? » (12 × 12 pixels), dessiné une fois. */
+let QB = null;
+function questionBlock() {
+  if (QB) return QB;
+  const c = document.createElement('canvas'); c.width = 12; c.height = 12;
+  const q = c.getContext('2d');
+  q.fillStyle = '#1c1917'; q.fillRect(0, 0, 12, 12);
+  q.fillStyle = '#F5A623'; q.fillRect(1, 1, 10, 10);
+  q.fillStyle = '#FFD36B'; q.fillRect(1, 1, 10, 1); q.fillRect(1, 1, 1, 10);
+  q.fillStyle = '#C46A12'; q.fillRect(1, 10, 10, 1); q.fillRect(10, 1, 1, 10);
+  q.fillStyle = '#7a3e0a'; [[2, 2], [9, 2], [2, 9], [9, 9]].forEach(([x, y]) => q.fillRect(x, y, 1, 1));
+  q.fillStyle = '#fff'; // le « ? »
+  [[4, 3], [5, 3], [6, 3], [7, 3], [7, 4], [7, 5], [6, 5], [5, 6], [5, 8]].forEach(([x, y]) => q.fillRect(x, y, 1, 1));
+  QB = c;
+  return c;
+}
+
 function drawFx(g, world, f, scr, S, t, opts) {
   const u = (t - f.t0) / f.dur;
+  if (u < 0) return;
+  if (f.kind === 'coin') {
+    // une pièce qui monte en tournant, puis s'efface
+    const [sx, sy] = scr(f.x, f.y);
+    const y = sy - (30 + u * 26) * S, wd = Math.max(1, Math.abs(Math.cos(u * 14)) * 4 * S);
+    g.globalAlpha = 1 - u * u;
+    g.fillStyle = '#1c1917'; g.fillRect(Math.round(sx - wd - S / 2), Math.round(y - 4 * S - S / 2), Math.round(wd * 2 + S), Math.round(8 * S + S));
+    g.fillStyle = '#F5B82E'; g.fillRect(Math.round(sx - wd), Math.round(y - 4 * S), Math.round(wd * 2), Math.round(8 * S));
+    g.fillStyle = '#FFE08A'; g.fillRect(Math.round(sx - wd / 2), Math.round(y - 3 * S), Math.max(1, Math.round(wd / 2)), Math.round(6 * S));
+    g.globalAlpha = 1;
+    return;
+  }
   const [sx, sy] = scr(f.x, f.y);
   if (f.kind === 'ring') {
     g.strokeStyle = `rgba(255,201,61,${1 - u})`;

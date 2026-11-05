@@ -510,3 +510,58 @@ body.cinema .attrib { color: #57534e; text-shadow: none; }
   .bq-team { display: none !important; }
   .bq-now { bottom: calc(118px + env(safe-area-inset-bottom, 0px)); width: calc(100vw - 20px); min-width: 0; }
 }
+
+/* ---------- mode Jouer */
+.bq-btn.jouer { background: #F5A623; color: #1c1917; border-color: #C46A12; font-weight: 900; }
+body.jeu .party, body.jeu .scorecard, body.jeu .radio, body.jeu .btn-carte { display: none !important; }
+body.jeu #world { cursor: default; }
+.jeu-hud { position: absolute; left: calc(18px + env(safe-area-inset-left, 0px)); top: calc(190px + env(safe-area-inset-top, 0px)); z-index: 5; width: 280px; padding: 12px 14px; background: #fff; border: 2px solid #1c1917; border-radius: 14px; box-shadow: 0 5px 0 #1c1917; color: #1c1917; font: 600 13px/1.4 var(--ui, system-ui); }
+.jeu-hud[hidden] { display: none; }
+.jh-top { display: flex; align-items: center; gap: 6px; font: 900 18px var(--display, 'Nunito', system-ui); }
+.jh-top .jh-l { font-size: 13px; font-weight: 700; color: #57534e; }
+.jh-coin { display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #FFE08A 0 30%, #F5B82E 31% 70%, #C46A12 71%); box-shadow: 0 0 0 2px #1c1917; }
+.jh-fire { margin-left: auto; padding: 2px 8px; border-radius: 99px; background: #fff1e6; color: #E0531F; font: 800 12px var(--display, 'Nunito', system-ui); }
+.jeu-hud h3 { margin: 10px 0 6px; display: flex; justify-content: space-between; font: 900 15px var(--display, 'Nunito', system-ui); }
+.jeu-hud h3 small { font-size: 13px; color: #57534e; }
+.jh-bar { height: 8px; border-radius: 99px; background: #f4ece2; overflow: hidden; margin-bottom: 8px; }
+.jh-bar i { display: block; height: 100%; background: #F5A623; border-radius: inherit; transition: width 0.4s; }
+.jeu-hud ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.jeu-hud li { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 8px; }
+.jeu-hud li b { font: 900 15px var(--display, 'Nunito', system-ui); color: #E0531F; }
+.jeu-hud li.ok { color: #78716c; } .jeu-hud li.ok b { color: #16a34a; }
+.jh-go { grid-column: 1 / -1; justify-self: start; padding: 3px 10px; border-radius: 99px; border: 1px solid #e7ddd1; background: #fff; color: #1c1917; font: 700 12px var(--ui, system-ui); text-decoration: none; cursor: pointer; }
+.jh-go:hover { border-color: #E0531F; }
+.jh-ok { margin: 8px 0 0; color: #16a34a; font-weight: 700; }
+.jh-keys { margin: 10px 0 0; color: #78716c; font-size: 12px; }
+.jh-row { display: flex; gap: 6px; margin-top: 8px; }
+.jh-btn { flex: 1; padding: 6px 8px; border-radius: 99px; border: 1px solid #e7ddd1; background: #fff; font: 700 12px var(--ui, system-ui); cursor: pointer; color: #1c1917; }
+.jeu-tip { position: absolute; left: 0; top: 0; z-index: 4; display: grid; gap: 1px; padding: 6px 10px; background: #1c1917; color: #fff; border-radius: 10px; font: 600 12px/1.35 var(--ui, system-ui); pointer-events: none; white-space: nowrap; }
+.jeu-tip[hidden] { display: none; }
+.jeu-tip b { font: 800 13px var(--display, 'Nunito', system-ui); }
+.jeu-tip span { color: #FFD36B; }
+.jeu-tip em { font-style: normal; color: #F5A623; font-weight: 800; }
+.jeu-pad[hidden] { display: none; }
+.jeu-joy { position: absolute; left: calc(24px + env(safe-area-inset-left, 0px)); bottom: calc(150px + env(safe-area-inset-bottom, 0px)); z-index: 6; width: 112px; height: 112px; border-radius: 50%; background: rgba(28, 25, 23, 0.18); border: 2px solid rgba(28, 25, 23, 0.35); touch-action: none; }
+.jeu-joy i { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%; background: #fff; border: 2px solid #1c1917; box-shadow: 0 3px 0 #1c1917; }
+.jeu-a { position: absolute; right: calc(24px + env(safe-area-inset-right, 0px)); bottom: calc(170px + env(safe-area-inset-bottom, 0px)); z-index: 6; width: 70px; height: 70px; border-radius: 50%; border: 2px solid #1c1917; background: #d6d3d1; color: #1c1917; font: 900 26px var(--display, 'Nunito', system-ui); box-shadow: 0 4px 0 #1c1917; touch-action: manipulation; }
+.jeu-a.on { background: #F5A623; }
+.jeu-card { text-align: center; justify-items: center; }
+.jeu-card .je-k { color: #E0531F; font: 800 13px var(--display, 'Nunito', system-ui); }
+.jeu-card h2 { margin: 0; font: 900 34px var(--display, 'Nunito', system-ui); }
+.je-coins { display: flex; align-items: center; gap: 8px; font: 800 18px var(--display, 'Nunito', system-ui); }
+@media (max-width: 640px) {
+  .jeu-hud { top: calc(96px + env(safe-area-inset-top, 0px)); left: 10px; right: 10px; width: auto; padding: 8px 10px; font-size: 12px; }
+  .jeu-hud .jh-keys { display: none; }
+  body.jeu .bq-now, body.jeu .bq-bar, body.jeu .qg-back { display: none !important; }
+}
+.jh-x { display: none; }
+@media (max-width: 640px) {
+  .jh-x { display: inline-block; margin-left: auto; padding: 3px 10px; border-radius: 99px; border: 1px solid #e7ddd1; background: #fff; font: 700 12px var(--ui, system-ui); color: #1c1917; }
+  .jh-fire { margin-left: 4px; }
+  .jeu-hud h3 { margin: 6px 0 4px; cursor: pointer; }
+  .jeu-hud h3::after { content: '▾'; margin-left: 6px; color: #78716c; }
+  .jeu-hud.open h3::after { content: '▴'; }
+  .jeu-hud:not(.open) ul, .jeu-hud:not(.open) .jh-row, .jeu-hud:not(.open) .jh-ok { display: none; }
+  .jeu-hud .jh-row [data-quit] { display: none; }
+  .jh-bar { margin-bottom: 2px; }
+}

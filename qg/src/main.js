@@ -24,6 +24,7 @@ import { bingooUi } from './bingoo.js';
 import { aideAt, aideHide, ETATS, MEMBRES } from './aide.js';
 import { setLogo } from './sprites.js';
 import { step, done, fail } from './progress.js';
+import { createJeu } from './jeu.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('world');
@@ -31,7 +32,7 @@ const g = canvas.getContext('2d');
 const params = new URLSearchParams(location.search);
 
 const cam = { x: 0, y: 0, z: 2 };
-let city = null, world = null, director = null, hud = null, fiche = null;
+let city = null, world = null, director = null, hud = null, fiche = null, jeu = null;
 let tod = params.get('tod') ?? 'bingoo';
 let speed = Number(params.get('vitesse')) || 1;
 let W = 0, H = 0, DPR = 1;
@@ -93,7 +94,7 @@ function frame(dt) {
     if (cine) { world.update(dt * cine.speedAt(world.time)); }
     else {
       world.update(dt * speed);
-      if (mode === 'ville') director?.update(dt * speed, W, H);
+      if (mode === 'ville') { if (jeu?.active) jeu.update(dt); else director?.update(dt * speed, W, H); }
     }
   }
   if (cine && mode === 'ville') cine.update(W, H, DPR);
@@ -110,8 +111,9 @@ function frame(dt) {
     if (world) {
       const S = spriteScale(cam.z);
       const ib = hud?.inboxPoint();
-      drawWorld(g, world, cam, W, H, tod, { S, inbox: ib ? [ib[0] * DPR, ib[1] * DPR] : null, beacons: cine && world.time > (cine.shots.at(-1)?.from ?? 1e9) });
+      drawWorld(g, world, cam, W, H, tod, { S, inbox: ib ? [ib[0] * DPR, ib[1] * DPR] : null, beacons: cine && world.time > (cine.shots.at(-1)?.from ?? 1e9), jeu: jeu?.scene() });
       hud?.update(cam, W, H, S, DPR);
+      jeu?.place(W, H, DPR);
     }
     // la carte s'efface sur la ville
     if (fade > 0) {
@@ -148,7 +150,7 @@ async function buildCity(centre, rayon) {
   world = new Monde(city);
   director = new Realisateur(world, cam);
   hud = createHud($('hud'), world);
-  fiche = createFiche($('fiche'), { getRunId: () => runId });
+  fiche = createFiche($('fiche'), { getRunId: () => runId, onDone: (k, q) => jeu?.reward(k, q) });
   world.on((type, d) => { if (type === 'place') fiche.refresh(d); if (type === 'mail' || type === 'scored') fiche.refresh(d.q); });
   console.log(`ville : ${city.blist.length} immeubles, ${city.roads.length} rues, ${city.trees.length} arbres, graphe ${world.graph.nodes} nœuds, ${((performance.now() - t0) / 1000).toFixed(1)} s`);
   return world;
@@ -407,7 +409,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') fiche?.close();
   if (e.key === 'Enter' || e.key === ' ') { if (pre?.wait) e.preventDefault(); startCinema(); }
   if (e.key === 'n' || e.key === 'N') tod = TODS[(TODS.indexOf(tod) + 1) % TODS.length];
-  if ((e.key === 'r' || e.key === 'R') && mode === 'ville') play();
+  if ((e.key === 'r' || e.key === 'R') && mode === 'ville' && !jeu?.active) play();
   if ((e.key === 'c' || e.key === 'C') && director) director.manualUntil = 0;
 });
 window.addEventListener('resize', resize);
@@ -443,6 +445,7 @@ async function boot() {
 
 window.__qg = {
   get quality() { return quality; },
+  get jeu() { return jeu; },
   ready: false,
   loaded: false,
   cam,
@@ -471,7 +474,8 @@ window.__qg = {
     const night = await prepare({ zone: Number(params.get('zone')) || 0, premiere: params.has('premiere') });
     step(28, 'Ouverture de la carte…');
     await boot();
-    bingooUi({ night, world: () => world, canvas, play });
+    jeu = createJeu({ root: $('qg'), getWorld: () => world, cam, getDirector: () => director, fiche, ws: night.ws, bilan: night.bilan });
+    bingooUi({ night, world: () => world, canvas, play, jeu });
     // le direct : ce que l'équipe fait pendant que la page est ouverte
     setInterval(async () => {
       if (document.hidden || !world || mode !== 'ville') return;

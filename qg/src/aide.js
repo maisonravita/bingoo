@@ -71,6 +71,7 @@ const REGLES = [
   ['#btn-carte', 'Rejoue la nuit depuis le début. Rien n’est refait en vrai.'],
   ['.qg-back', 'Revenir à Bingoo!.'],
   ['.bq-now', 'En ce moment : ce que ton équipe fait vraiment, en direct (rafraîchi toutes les 20 secondes). Clique pour tout voir.'],
+  ['#bq-jouer', 'Le mode Jouer : marche dans ta ville avec ton personnage. Les blocs « ? » marquent ce qui t’attend ; chaque action rapporte des pièces.'],
   ['#bq-bilan', 'Le bilan chiffré de la nuit : réponses, rendez-vous, travail fait et temps gagné.'],
   ['#bq-aide', 'La légende : chaque repère, chaque membre, chaque geste. Et la visite guidée.'],
   ['.radio', 'La radio : quelqu’un parle hors de l’écran.'],
