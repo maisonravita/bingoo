@@ -1,3 +1,4 @@
+import { MockExtension, MockTelephone } from "../components/Visite";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
@@ -141,7 +142,7 @@ function HeroBubbles() {
 
 const Chev = () => <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m6 9 6 6 6-6" /></svg>;
 const MENU = [
-  ["Produit", [["Radar", "Qui va acheter, et quand", "#radar"], ["Contacts des décideurs", "E-mail, téléphone, LinkedIn", "#contacts"], ["Tes salariés IA", "Neuf métiers, du repérage au rendez-vous", "#equipe"], ["Comment ça marche", "Quatre étapes jusqu'au rendez-vous", "#produit"], ["Essai en direct", "Teste le Radar sur ton marché", "#essai"]]],
+  ["Produit", [["Radar", "Qui va acheter, et quand", "#radar"], ["Contacts des décideurs", "E-mail, téléphone, LinkedIn", "#contacts"], ["Tes salariés IA", "Neuf métiers, du repérage au rendez-vous", "#equipe"], ["Comment ça marche", "Quatre étapes jusqu'au rendez-vous", "#produit"], ["Essai en direct", "Teste le Radar sur ton marché", "#essai"], ["Ta ville interactive", "La carte de ton équipe, à jouer", "#ville"], ["Extension Chrome", "Bingoo! sur chaque site et sur LinkedIn", "#extension"], ["Nouveautés", "Téléphone, séquences, boîtes d'envoi", "#nouveautes"]]],
   ["Solutions", [["Nettoyage", "Les contrats à reprendre avant l'appel d'offres", "#/metier/nettoyage"], ["Sécurité", "Gardiennage et surveillance à renouveler", "#/metier/securite"], ["Agences", "Les entreprises qui choisissent leurs partenaires", "#/metier/agences"], ["Logiciels / SaaS", "Prends les clients de tes concurrents", "#/metier/logiciels"], ["Indépendants", "Un commercial à temps plein", "#pour-qui"]]],
   ["Nos données", [["Sources officielles", "BOAMP, BODACC, Sirene, DECP, TED", "#donnees"], ["Compteur en direct", "Ce que le Radar a trouvé", "#compteur"]]],
   ["Tarifs", null],
@@ -454,6 +455,8 @@ const FAQ = [
   ["D'où viennent les informations ?", "De sources publiques et vérifiables : données de la commande publique, BOAMP, annonces légales (BODACC), registre national des entreprises, sites des entreprises. Chaque signal affiche sa source."],
   ["Et le RGPD ?", "Bingoo! travaille au niveau de l'entreprise et des fonctions qui décident. Les e-mails sont publiés ou vérifiés, jamais devinés, et chaque message permet de ne plus être contacté."],
   ["Ça marche pour mon métier ?", "Bingoo! s'adapte à ton activité à l'inscription : services sur site, services aux entreprises, logiciels ou produits. Il ne cherche pas les mêmes signaux pour une entreprise de nettoyage et pour un éditeur de logiciel."],
+  ["À quoi sert l'extension Chrome ?", "Elle affiche la fiche d'une entreprise sur son propre site, fait sur LinkedIn les invitations et les messages que tu as validés (à un rythme humain, dans des limites prudentes) et reconnaît tes prospects dans Gmail. Elle est facultative : tout le reste marche sans elle."],
+  ["Est-ce que je risque mon compte LinkedIn ?", "Bingoo! ne fait jamais d'envoi en masse ni d'aspiration de profils. Le pilote ne fait que ce que tu as validé, avec des pauses et des limites quotidiennes basses, depuis ton propre navigateur."],
   ["Que se passe-t-il après les 14 jours ?", "Tu choisis une formule, ou ton espace s'arrête simplement. Aucune carte bancaire n'est demandée pour l'essai."],
 ];
 
@@ -474,6 +477,12 @@ const ICONS = {
   check: <><circle cx="12" cy="12" r="9" /><path d="m8.5 12.5 2.5 2.5 4.5-5" /></>,
   trash: <><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></>,
   flag: <><path d="M5 21V4M5 4h11l-2 4 2 4H5" /></>,
+  bell: <><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></>,
+  puzzle: <><path d="M14 4a2 2 0 1 0-4 0v2H6v4h2a2 2 0 1 1 0 4H6v4h4v-2a2 2 0 1 1 4 0v2h4v-4h-2a2 2 0 1 1 0-4h2V6h-4z" /></>,
+  inbox: <><path d="M3 13h5l1.5 2.5h5L16 13h5" /><path d="M5 5h14l2 8v6H3v-6z" /></>,
+  layers: <><path d="m12 3 9 5-9 5-9-5z" /><path d="m3 13 9 5 9-5" /></>,
+  learn: <><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" /></>,
+  import: <><path d="M12 3v12M7 10l5 5 5-5" /><path d="M4 21h16" /></>,
 };
 const Ico = ({ k, className = "h-6 w-6" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{ICONS[k]}</svg>;
 
@@ -686,6 +695,65 @@ function useReveal() {
   }, []);
 }
 
+/** Ta ville : la nuit rejouée, et le mode Jouer (se promener, ouvrir une entreprise, répondre, envoyer). */
+function Ville() {
+  const [v, setV] = useState("jouer");
+  const VIDS = { jouer: ["./demo-carte.mp4", "./demo-carte.jpg", "Le mode Jouer : se promener dans sa ville, ouvrir une entreprise, répondre et envoyer depuis la carte"], nuit: ["./demo-equipe.mp4", "./demo-equipe.jpg", "Une nuit de l'équipe Bingoo! rejouée dans Paris"] };
+  return (
+    <section id="ville" className="scroll-mt-24 px-5 sm:px-10 lg:px-20 py-20 sm:py-28 border-t border-black/[.07]">
+      <div className="mx-auto max-w-[1100px] grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-10 items-center">
+        <div className="min-w-0">
+          <h2 className="text-[36px] sm:text-[50px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ta ville, à conquérir</h2>
+          <p className="mt-6 text-[17px] sm:text-[19px] leading-[1.5] text-ink">Tes entreprises cibles sont placées dans les vraies rues de ta ville. Elle se colore à mesure que tu avances : contactées, en discussion, gagnées. Chaque matin, Bingoo! te rejoue la nuit de ton équipe.</p>
+          <p className="mt-4 text-[17px] leading-[1.5] text-ink">Appuie sur <b className="font-medium">Jouer</b> : tu te promènes, tu entres chez une entreprise, tu lis sa réponse et tu envoies ton message, sans quitter la carte.</p>
+          <div className="mt-6 inline-flex rounded-lg bg-[#F1EFED] p-1" role="tablist">
+            {[["jouer", "Le mode Jouer"], ["nuit", "La nuit rejouée"]].map(([k, l]) => <button key={k} role="tab" aria-selected={v === k} onClick={() => setV(k)} className={cx("rounded-md px-4 py-2 text-[15px] transition", v === k ? "bg-white shadow-sm text-ink" : "text-ink-soft hover:text-ink")}>{l}</button>)}
+          </div>
+        </div>
+        <figure className="min-w-0">
+          <video key={v} src={VIDS[v][0]} poster={VIDS[v][1]} controls muted playsInline preload="none" className="w-full rounded-xl border border-black/10 bg-[#0b0910]" aria-label={VIDS[v][2]} />
+          <figcaption className="mt-2 text-[13.5px] text-ink-soft">Démonstration avec des données d'exemple, dans les vraies rues de Paris. Carte © contributeurs OpenStreetMap.</figcaption>
+        </figure>
+      </div>
+    </section>
+  );
+}
+
+/** Ce qui fait la différence au quotidien : le téléphone qui sonne, les séquences, les boîtes d'envoi, la vérification, l'apprentissage, les imports. */
+function Nouveautes() {
+  const items = [
+    ["layers", "Séquences multicanales", "E-mail, LinkedIn et appel, aux jours que tu choisis. Les relances partent dans le même fil, et tout s'arrête dès que le prospect répond."],
+    ["inbox", "Plusieurs boîtes d'envoi", "Branche plusieurs adresses : les envois tournent entre elles, chacune dans sa limite du jour. Tu envoies plus sans abîmer ta réputation."],
+    ["shield", "Chaque adresse vérifiée", "Avant chaque envoi : adresse mal formée, jetable, domaine qui ne reçoit rien, adresse déjà revenue en erreur. Une adresse douteuse ne part jamais."],
+    ["learn", "Bingoo! apprend ce qui marche", "Il regarde ce qu'ont en commun les entreprises qui t'ont dit oui, et cherche d'abord celles qui leur ressemblent. Sans crédit d'IA en plus."],
+    ["import", "Tes listes LinkedIn importées", "Tes relations LinkedIn, un export Waalaxy, lemlist ou Sales Navigator : les colonnes sont reconnues seules, puis Bingoo! cherche l'e-mail de chacun."],
+    ["link", "HubSpot et Pipedrive", "Chaque prospect qui répond, prend rendez-vous ou signe arrive dans ton CRM, avec l'entreprise, le contact et la vente en cours."],
+  ];
+  return (
+    <section id="nouveautes" className="scroll-mt-24 px-5 sm:px-10 lg:px-20 py-20 sm:py-28 border-t border-black/[.07]">
+      <div className="mx-auto max-w-[1300px]">
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-20 items-center [&>*]:min-w-0">
+          <div>
+            <h2 className="text-[38px] sm:text-[54px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Une réponse chaude ? Ton téléphone sonne.</h2>
+            <p className="mt-6 max-w-[560px] text-[17px] sm:text-[19px] leading-[1.5] text-ink">Dès qu'un prospect est intéressé, demande un prix ou veut être rappelé, tu es prévenu en quelques secondes sur ton téléphone ou ton ordinateur, avec la réponse déjà rédigée. Tu la relis, tu l'envoies. Répondre dans l'heure change tout.</p>
+            <p className="mt-4 text-[15px] text-ink-soft">Bingoo! s'installe comme une appli sur ton téléphone. Le matin, il te dit quoi faire, dans l'ordre, et combien de temps ça prend.</p>
+          </div>
+          <div className="rounded-2xl bg-[#F1EFED] p-4 sm:p-10 min-h-[380px] flex items-center justify-center"><div className="w-full max-w-[460px] h-[340px] rounded-xl overflow-hidden"><MockTelephone /></div></div>
+        </div>
+        <ul className="mt-16 grid sm:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-10">
+          {items.map(([k, t, d]) => (
+            <li key={t} className="min-w-0">
+              <Ico k={k} className="h-7 w-7 text-ink" />
+              <p className="mt-3 text-[19px] font-medium text-ink">{t}</p>
+              <p className="mt-2 text-[16px] leading-[1.5] text-ink-soft">{d}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 export default function Landing() {
   const nav = useNavigate();
   useReveal();
@@ -758,19 +826,11 @@ export default function Landing() {
 
         <Layers />
 
-        <section className="px-5 sm:px-10 lg:px-20 py-20 sm:py-28 border-t border-black/[.07]">
-          <div className="mx-auto max-w-[1100px] grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-10 items-center">
-            <div className="min-w-0">
-              <h2 className="text-[36px] sm:text-[50px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Regarde ton équipe travailler dans ta ville</h2>
-              <p className="mt-6 text-[17px] sm:text-[19px] leading-[1.5] text-ink">Chaque matin, Bingoo! te rejoue sa nuit dans les vraies rues de ta ville : les entreprises repérées, les contacts trouvés, les messages prêts, les réponses, les opportunités du Radar et les concurrents surveillés.</p>
-              <p className="mt-4 text-[15px] text-ink-soft">Tu cliques une entreprise pour voir pourquoi elle est là et ce que l'équipe a fait. Rien ne part sans toi.</p>
-            </div>
-            <figure className="min-w-0">
-              <video src="./demo-equipe.mp4" poster="./demo-equipe.jpg" controls muted playsInline preload="none" className="w-full rounded-xl border border-black/10 bg-[#0b0910]" aria-label="Démonstration : une nuit de l'équipe Bingoo! rejouée dans Paris" />
-              <figcaption className="mt-2 text-[13.5px] text-ink-soft">Démonstration avec des données d'exemple, dans les vraies rues de Paris. Carte © contributeurs OpenStreetMap.</figcaption>
-            </figure>
-          </div>
-        </section>
+        <Ville />
+
+        <Feature id="extension" flip title="Bingoo! partout où tu prospectes" text="L'extension Chrome emmène Bingoo! sur le web : la fiche d'une entreprise sur son propre site, le pilote LinkedIn qui fait tes invitations validées, et tes prospects reconnus dans Gmail." bullets={[["puzzle", <><b className="font-medium">Sur chaque site</b> : dirigeant, taille, signaux, et ajout à tes prospects en un clic</>], ["link", <><b className="font-medium">Pilote LinkedIn</b> : seulement ce que tu as validé, à un rythme humain, dans des limites prudentes</>], ["mail", <><b className="font-medium">Dans Gmail</b> : la fiche du prospect à côté de son message, sa réponse déjà classée</>]]} cta={["Créer mon compte", null]} visual={<div className="w-full max-w-[520px] h-[380px] rounded-xl overflow-hidden"><MockExtension /></div>} />
+
+        <Nouveautes />
 
         <section className="px-5 sm:px-10 lg:px-20 py-20 sm:py-28 border-t border-black/[.07]"><div id="essai" className="mx-auto max-w-[1300px] scroll-mt-24"><TryIt t={tryState} /></div></section>
 

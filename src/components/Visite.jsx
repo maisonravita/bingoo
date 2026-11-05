@@ -41,7 +41,7 @@ function MockValider() {
 }
 
 /** Le téléphone qui sonne : une réponse chaude, la réponse déjà prête. */
-function MockTelephone() {
+export function MockTelephone() {
   return (
     <div className="relative w-full h-full grid place-items-center bg-gradient-to-br from-[#1c1917] to-[#3b1d10] p-5">
       <Exemple />
@@ -61,7 +61,7 @@ function MockTelephone() {
 }
 
 /** L'extension sur le site d'une entreprise : sa fiche, en un clic. */
-function MockExtension() {
+export function MockExtension() {
   return (
     <div className="relative w-full h-full bg-[#EDEAE4] p-4 sm:p-5">
       <Exemple />
@@ -87,7 +87,7 @@ function MockExtension() {
 }
 
 /** Le pilote LinkedIn : les actions validées, faites à un rythme humain. */
-function MockLinkedIn() {
+export function MockLinkedIn() {
   const rows = [["Invitation envoyée", "Sophie Laurent · DRH, Groupe Avéo", "10:12"], ["Invitation acceptée", "Karim Benali · Directeur, Hôtel Lisière", "10:47"], ["Message envoyé", "Karim Benali", "11:03"], ["A répondu", "Julie Martin · Gérante, Lumen", "11:20"]];
   return (
     <div className="relative w-full h-full grid place-items-center bg-[#E8EEF5] p-5">
