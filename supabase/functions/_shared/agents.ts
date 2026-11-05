@@ -17,7 +17,7 @@ Règles strictes :
 - Si tu n'es pas sûr qu'une coordonnée appartient bien à cet établissement, laisse le champ vide.`;
 
 const EMAIL_RE = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;
-const BAD = /(example\.|sentry\.|wixpress|domain\.com|email\.com|votre|yourdomain|^(rgpd|dpo|privacy|noreply|no-reply|webmaster|recrutement|jobs|rh)@)/i;
+const BAD = /(example\.|sentry\.|wixpress|domain\.com|email\.com|votre|yourdomain|^(?:(?:rgpd|gdpr|privacy|dataprotection|data-protection|donnees-?personnelles|cnil)[a-z._-]*|dpo(?:[._-][a-z._-]*)?|noreply|no-reply|webmaster|recrutement|jobs|rh)@)/i;
 
 /** Le domaine de l'adresse reçoit-il du courrier ? (évite les rebonds qui abîment la boîte du client) */
 const mxCache = new Map<string, boolean>();

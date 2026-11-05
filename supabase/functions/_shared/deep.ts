@@ -7,7 +7,7 @@ import { fetchHtml, textOf } from "./analyze.ts";
 
 const EMAIL_IN = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
 const EMAIL_RE = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;
-const BAD = /(example\.|sentry|wixpress|domain\.com|email\.com|votre|yourdomain|\.(png|jpe?g|gif|svg|webp)$|^(rgpd|dpo|privacy|noreply|no-reply|donotreply|webmaster|recrutement|jobs|rh|candidature|careers)@)/i;
+const BAD = /(example\.|sentry|wixpress|domain\.com|email\.com|votre|yourdomain|\.(png|jpe?g|gif|svg|webp)$|^(?:(?:rgpd|gdpr|privacy|dataprotection|data-protection|donnees-?personnelles|cnil)[a-z._-]*|dpo(?:[._-][a-z._-]*)?|noreply|no-reply|donotreply|webmaster|recrutement|jobs|rh|candidature|careers)@)/i;
 // Dans le texte : chiffres groupés par deux avec séparateurs (01 23 45 67 89, +33 1 23 45 67 89), pour ne pas prendre un identifiant pour un numéro
 const PHONE_RE = /(?<![\d])(?:\+33\s?[1-9]|0[1-9])(?:[\s.-]\d{2}){4}(?![\d])/g;
 const WEB = (n: number) => [{ type: "web_search_20250305", name: "web_search", max_uses: n, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }];
