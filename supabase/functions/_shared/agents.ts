@@ -191,6 +191,14 @@ async function rivalBrief(wsId: string, p: Prospect) {
 }
 
 export async function draft(ws: Workspace, p: Prospect) {
+  // Pas de rédaction (ni de crédit IA) pour une adresse qui ne passera pas la vérification d'envoi
+  if (p.email) {
+    const vf = await (await import("./verif.ts")).verifierEmail(p.email, ws.id);
+    if (vf.statut === "invalide") {
+      await admin.from("prospects").update({ email: "", status: "sans_email", channel: "", enrich_note: `Adresse ${p.email} écartée : ${vf.raison}` }).eq("id", p.id);
+      throw new HttpError(400, `Adresse écartée (${vf.raison}) : le prospect repart en enquête`);
+    }
+  }
   const { subject, body, active, v } = await writeDraft(ws, p);
   const { data, error } = await admin.from("messages").insert({ workspace_id: ws.id, prospect_id: p.id, step: 0, subject, body, status: "brouillon", campaign_id: active?.id ?? null, variant: v?.key ?? "" }).select("id").single();
   if (error?.code === "23505") throw new HttpError(409, "Un message est déjà prêt pour ce prospect");
@@ -322,10 +330,12 @@ export async function sendOne(ws: Workspace, messageId: string) {
   const day0 = new Date(); day0.setHours(0, 0, 0, 0);
   const { count: liToday } = await admin.from("linkedin_actions").select("id", { count: "exact", head: true }).eq("prospect_id", p.id).eq("status", "fait").in("kind", ["invitation", "message", "relance"]).gte("done_at", day0.toISOString());
   if ((liToday ?? 0) > 0) return { id: messageId, skipped: "il a reçu un message LinkedIn aujourd'hui : l'e-mail partira demain" };
-  if (!(await mxOk(p.email))) {
-    await admin.from("messages").update({ status: "ignore", error: "Le domaine de l'adresse ne reçoit pas de courrier" }).eq("id", messageId);
-    await admin.from("prospects").update({ email: "", status: "sans_email", channel: "", enrich_note: `Adresse ${p.email} écartée : son domaine ne reçoit pas de courrier` }).eq("id", p.id);
-    return { id: messageId, skipped: "adresse invalide : son domaine ne reçoit pas de courrier. Le prospect repart en enquête." };
+  // Vérification de l'adresse juste avant l'envoi : une adresse douteuse ne part jamais (ça protège la boîte du client)
+  const vf = await (await import("./verif.ts")).verifierEmail(p.email, ws.id);
+  if (vf.statut === "invalide" || (vf.statut === "risque" && vf.via === "historique")) {
+    await admin.from("messages").update({ status: "ignore", error: `Adresse écartée : ${vf.raison}` }).eq("id", messageId);
+    await admin.from("prospects").update({ email: "", status: "sans_email", channel: "", enrich_note: `Adresse ${p.email} écartée avant l'envoi : ${vf.raison}` }).eq("id", p.id);
+    return { id: messageId, skipped: `adresse écartée (${vf.raison}). Le prospect repart en enquête.` };
   }
   // Abonnement à jour obligatoire (essai en cours, abonnement réglé ou offert)
   const { data: plan } = await admin.from("workspaces").select("plan, plan_status, trial_ends").eq("id", ws.id).single();

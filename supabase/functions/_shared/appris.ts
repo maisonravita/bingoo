@@ -8,7 +8,7 @@ const CONTACTE = ["envoye", "repondu", "rdv", "client", "refus"];
 const HOT = ["interesse", "question", "prix", "rappel"];
 const MIN_CONTACTES = 20, MIN_POSITIFS = 3, MIN_PAR_TRAIT = 5, LISSAGE = 6;
 
-type P = { id: string; target: string | null; activity: string | null; postal_code: string | null; city: string | null; contact_name: string | null; phone: string | null; signals: unknown; status: string; channel: string | null };
+type P = { id: string; variante?: string | null; target: string | null; activity: string | null; postal_code: string | null; city: string | null; contact_name: string | null; phone: string | null; signals: unknown; status: string; channel: string | null };
 export type Facteur = { cle: string; label: string; n: number; positifs: number; taux: number; lift: number };
 export type Appris = { calcule_at: string; contactes: number; positifs: number; rdv: number; base: number; assez: boolean; facteurs: Facteur[] };
 
@@ -29,6 +29,7 @@ export function traits(p: Omit<P, "id" | "status">, ws: Workspace) {
   const q = quartier(p);
   if (q) out.push([`zone:${q.cle}`, `zone ${q.nom}`]);
   out.push(p.contact_name ? ["decideur:oui", "décideur nommé dans le message"] : ["decideur:non", "message sans décideur nommé"]);
+  if ((p as { variante?: string | null }).variante) out.push([`version:${(p as { variante?: string }).variante}`, `version ${(p as { variante?: string }).variante} du message (test A/B)`]);
   if (p.channel && ["email", "linkedin", "telephone", "courrier"].includes(p.channel)) out.push([`canal:${p.channel}`, `contacté par ${p.channel === "linkedin" ? "LinkedIn" : p.channel === "email" ? "e-mail" : p.channel === "telephone" ? "téléphone" : "courrier"}`]);
   return [...new Map(out).entries()];
 }
@@ -40,6 +41,10 @@ export async function calculerAppris(ws: Workspace): Promise<Appris> {
     rows.push(...((data ?? []) as P[]));
     if ((data ?? []).length < 1000) break;
   }
+  // Version du premier message (test A/B) de chaque entreprise contactée
+  const { data: vs } = await admin.from("messages").select("prospect_id, variant").eq("workspace_id", ws.id).eq("step", 0).eq("status", "envoye").neq("variant", "").limit(20000);
+  const vmap = new Map((vs ?? []).map((m) => [m.prospect_id, m.variant]));
+  for (const r of rows) r.variante = vmap.get(r.id) ?? null;
   const { data: hot } = await admin.from("replies").select("prospect_id").eq("workspace_id", ws.id).in("class", HOT).not("prospect_id", "is", null).limit(5000);
   const chauds = new Set((hot ?? []).map((r) => r.prospect_id));
   const positif = (p: P) => ["rdv", "client"].includes(p.status) || chauds.has(p.id);
@@ -72,6 +77,6 @@ export function bonus(p: Omit<P, "id" | "status">, ws: Workspace, a: Appris | nu
   if (!a?.assez) return 1;
   const f = new Map(a.facteurs.map((x) => [x.cle, x.lift]));
   // Le canal n'est pas encore connu pour une entreprise à contacter : on l'ignore
-  const m = traits(p, ws).filter(([k]) => !k.startsWith("canal:")).reduce((t, [k]) => t * (f.get(k) ?? 1), 1);
+  const m = traits(p, ws).filter(([k]) => !k.startsWith("canal:") && !k.startsWith("version:")).reduce((t, [k]) => t * (f.get(k) ?? 1), 1);
   return Math.max(0.5, Math.min(3, m));
 }

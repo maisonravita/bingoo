@@ -121,6 +121,11 @@ export function Confidentialite() {
       <p><b>Gmail (option, désactivée par défaut) :</b> si vous l'activez, l'adresse de l'expéditeur de l'e-mail ouvert est comparée à vos prospects pour afficher leur fiche. Le contenu de vos e-mails n'est jamais lu ni envoyé.</p>
       <p>Les données passées par l'extension servent uniquement à faire fonctionner ces deux fonctions. Elles ne sont jamais vendues, ni utilisées pour de la publicité ou pour évaluer une solvabilité, ni lues par une personne sauf à votre demande pour le support.</p>
 
+      <h2>5 bis. Données de votre compte Google</h2>
+      <p>Si vous connectez votre boîte Gmail avec le bouton « Se connecter avec Google », {brand.name} demande seulement les autorisations nécessaires : envoyer les e-mails de prospection que vous avez validés (ou programmés en pilote automatique) depuis votre adresse, et, si vous l'acceptez, lire les e-mails reçus pour repérer les réponses de vos prospects et les e-mails revenus en erreur.</p>
+      <p>Ces données servent uniquement à faire fonctionner ces deux fonctions pour vous. Elles ne sont jamais vendues, jamais utilisées pour de la publicité, jamais utilisées pour entraîner un modèle d'intelligence artificielle, et ne sont lues par une personne qu'avec votre accord explicite (support) ou si la loi l'impose. Les jetons d'accès sont chiffrés. Vous pouvez retirer l'accès à tout moment dans {brand.name} (Connexions) ou dans votre compte Google.</p>
+      <p>L'utilisation et le transfert à toute autre application des informations reçues des API Google respectent les <a className="underline" href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noreferrer">règles des services API Google relatives aux données des utilisateurs</a> (Google API Services User Data Policy), y compris les exigences d'utilisation limitée (Limited Use).</p>
+
       <h2>6. Destinataires et sous-traitants</h2>
       <p>Les données ne sont jamais vendues. Elles sont traitées par les prestataires techniques suivants, liés par contrat :</p>
       <ul className="list-disc pl-5 space-y-1">

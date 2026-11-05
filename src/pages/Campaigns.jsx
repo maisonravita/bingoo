@@ -133,14 +133,14 @@ function CampaignCard({ c, msgs, count, onChange }) {
       </div>
 
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mt-5">
-        {[["Contactés", tot.sent], ["Ouverts", pct(tot.opened, tot.sent)], ["Cliqués", pct(tot.clicked, tot.sent)], ["Réponses", pct(tot.replied, tot.sent)], ["RDV", tot.rdv], ["Clients", tot.clients]].map(([l, v]) => (
+        {[["Contactés", tot.sent], ["Réponses", pct(tot.replied, tot.sent)], ["RDV", tot.rdv], ["Clients", tot.clients]].map(([l, v]) => (
           <div key={l}><p className="text-xs text-ink-soft">{l}</p><p className="font-serif text-2xl tnum leading-tight">{v}</p></div>
         ))}
       </div>
 
       <div className="mt-5 overflow-x-auto">
-        <table className="w-full text-sm min-w-[560px]">
-          <thead><tr className="text-left text-xs text-ink-soft border-b border-line"><th className="py-2">Version</th><th className="text-right">Contactés</th><th className="text-right">Ouverts</th><th className="text-right">Cliqués</th><th className="text-right">Réponses</th><th className="text-right">RDV</th><th className="text-right">Rebonds</th></tr></thead>
+        <table className="w-full text-sm min-w-[420px]">
+          <thead><tr className="text-left text-xs text-ink-soft border-b border-line"><th className="py-2">Version</th><th className="text-right">Contactés</th><th className="text-right">Taux de réponse</th><th className="text-right">RDV</th><th className="text-right">Rebonds</th></tr></thead>
           <tbody className="divide-y divide-line">
             {variants.map((v) => {
               const s = by[v.key] ?? { sent: 0, opened: 0, clicked: 0, replied: 0, rdv: 0, bounced: 0 };
@@ -151,14 +151,14 @@ function CampaignCard({ c, msgs, count, onChange }) {
                     <div className="flex items-center gap-2"><Badge tone={win ? "good" : "accent"}>{v.key}</Badge><span className="font-medium">{v.nom || "Version " + v.key}</span>{win && <span className="text-xs font-semibold text-good">gagnante</span>}</div>
                     {v.objet && <p className="text-xs text-ink-soft mt-0.5">Objet : {v.objet}</p>}
                   </td>
-                  <td className="text-right tnum">{s.sent}</td><td className="text-right tnum">{pct(s.opened, s.sent)}</td><td className="text-right tnum">{pct(s.clicked, s.sent)}</td>
-                  <td className="text-right tnum font-semibold">{pct(s.replied, s.sent)}</td><td className="text-right tnum">{s.rdv}</td><td className="text-right tnum">{s.bounced || "—"}</td>
+                  <td className="text-right tnum">{s.sent}</td>
+                  <td className="text-right tnum font-semibold">{pct(s.replied, s.sent)}{s.sent > 0 && <span className="block text-[11px] font-normal text-ink-faint">{s.replied} réponse{s.replied > 1 ? "s" : ""}</span>}</td><td className="text-right tnum">{s.rdv}</td><td className="text-right tnum">{s.bounced || "—"}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-        {variants.length > 1 && !c.winner && <p className="text-xs text-ink-faint mt-2">La gagnante est désignée automatiquement à partir de 25 envois par version, quand l'écart de réponses est net (et pas dû au hasard).</p>}
+        {variants.length > 1 && !c.winner && <p className="text-xs text-ink-faint mt-2">La gagnante est désignée automatiquement à partir de 25 envois par version, quand l'écart de réponses est net (et pas dû au hasard). Bingoo! compare les réponses, pas les ouvertures : le suivi des ouvertures est coupé, il abîme la délivrabilité et compte de fausses ouvertures.</p>}
       </div>
 
       {(a || busy) && (

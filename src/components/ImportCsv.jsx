@@ -32,6 +32,7 @@ export default function ImportCsv({ ws, existing, onDone, onClose, toast }) {
     const sirets = new Set(existing.map((r) => r.siret).filter(Boolean));
     const lis = new Set(existing.map((r) => String(r.linkedin_url ?? "").toLowerCase().replace(/\/+$/, "")).filter(Boolean));
     const get = (row, k) => (map[k] === undefined || map[k] === "" ? "" : clean(row[map[k]]));
+    const relations = file.headers.some((h) => /^(connected on|connect[ée] le|date de connexion)$/i.test(h.trim()));
     const out = []; let dup = 0, empty = 0;
     for (const row of file.rows.slice(0, 5000)) {
       const email = get(row, "email").toLowerCase().replace(/^mailto:/, "");
@@ -54,6 +55,8 @@ export default function ImportCsv({ ws, existing, onDone, onClose, toast }) {
         postal_code: get(row, "postal_code").slice(0, 10), city: get(row, "city").slice(0, 120), siret: siret?.slice(0, 14) ?? null,
         siren: get(row, "siren").replace(/\s/g, "").slice(0, 9) || (siret ? siret.slice(0, 9) : null), activity: get(row, "activity").slice(0, 160),
         notes: get(row, "notes").slice(0, 2000), source: /linkedin\.com/i.test(li) ? "import LinkedIn" : "import CSV",
+        // Export de tes relations LinkedIn : ce sont déjà des relations (leurs réponses LinkedIn seront reconnues)
+        ...(relations && /linkedin\.com\/in\//i.test(li) ? { linkedin_status: "connecte" } : {}),
         linkedin_person: /linkedin\.com/i.test(li) && contact ? `${contact}${get(row, "contact_role") ? ` · ${get(row, "contact_role")}` : ""}`.slice(0, 120) : "",
         status: okEmail ? "pret" : "nouveau", enriched_at: okEmail ? new Date().toISOString() : null,
         enrich_note: okEmail ? "Importé avec son e-mail" : "", channel: okEmail ? "email" : "", email_source: okEmail ? "import" : "",
