@@ -57,6 +57,7 @@ async function shareImage(canvas, night, world) {
 
 import { initAide } from './aide.js';
 import { maintenant } from './data.js';
+import { fn } from '../../src/lib/supabase.js';
 
 const hm = (m) => (m < 60 ? `${Math.round(m)} min` : `${Math.floor(m / 60)} h${Math.round(m % 60) ? ` ${String(Math.round(m % 60)).padStart(2, '0')}` : ''}`);
 const ago = (d) => { const m = Math.max(0, Math.round((Date.now() - new Date(d).getTime()) / 60000)); return m < 1 ? 'à l’instant' : m < 60 ? `il y a ${m} min` : `il y a ${Math.floor(m / 60)} h`; };
@@ -86,6 +87,38 @@ export function bingooUi({ night, world, canvas, play, jeu }) {
     <button type="button" class="bq-btn ghost" id="bq-bilan">Bilan</button>
     <button type="button" class="bq-btn" id="bq-share">Partager ma nuit</button>`;
   root.append(bar);
+  // Ton terrain : la ville affichée comme un territoire à prendre, et l'objectif de la semaine
+  const T = night.terrain ?? [];
+  if (T.length) {
+    const n = (e) => T.filter((p) => p.etat === e).length;
+    const g = n('gagne'), di = n('discussion'), co = n('contacte'), ap = n('a_prendre');
+    const pris = T.length - ap, pct = Math.round((pris / T.length) * 100);
+    const w = (x) => `${(x / T.length) * 100}%`;
+    const box = document.createElement('section');
+    box.className = 'bq-terrain';
+    box.setAttribute('aria-label', 'Ton terrain');
+    box.innerHTML = `<div class="bt-head"><h3>Ton terrain</h3><button type="button" class="bt-eye" aria-pressed="true">Masquer</button></div>
+      <p class="bt-big"><b>${pct} %</b> de ta ville prise <span>· ${T.length} entreprises</span></p>
+      <div class="bt-bar" aria-hidden="true"><i style="width:${w(g)};background:#22c55e"></i><i style="width:${w(di)};background:#3b82f6"></i><i style="width:${w(co)};background:#facc15"></i></div>
+      <ul class="bt-leg"><li><i style="background:#22c55e"></i>${g} gagnée${g > 1 ? 's' : ''}</li><li><i style="background:#3b82f6"></i>${di} en discussion</li><li><i style="background:#facc15"></i>${co} contactée${co > 1 ? 's' : ''}</li><li><i class="ap"></i>${ap} à prendre</li></ul>
+      <p class="bt-obj" hidden></p>`;
+    root.append(box);
+    // sous le panneau « En attente de ta validation », quelle que soit sa hauteur
+    const place = () => { if (matchMedia('(max-width: 640px)').matches) { box.style.top = ''; return; } const ib = document.querySelector('.inbox'); const r = ib && ib.offsetParent ? ib.getBoundingClientRect() : null; box.style.top = `${Math.round(r && r.height ? r.bottom + 12 : 96)}px`; };
+    place(); setInterval(place, 800);
+    box.querySelector('.bt-eye').addEventListener('click', (e) => {
+      const W = world(); if (!W) return;
+      W.showTerrain = W.showTerrain === false;
+      e.currentTarget.textContent = W.showTerrain ? 'Masquer' : 'Afficher';
+      e.currentTarget.setAttribute('aria-pressed', String(W.showTerrain));
+    });
+    fn('m/pilotage', { workspace_id: night.ws.id }).then((d) => {
+      const o = box.querySelector('.bt-obj');
+      o.innerHTML = `Cette semaine : <b>${d.rdv} rendez-vous sur ${d.objectif}</b>${d.rdv < d.objectif && d.semaine.jour > 1 ? ` · à ce rythme ${d.prevision} vendredi` : ''}`;
+      o.hidden = false;
+    }).catch(() => {});
+  }
+
   // En ce moment : ce que l'équipe fait vraiment, rafraîchi toutes les 20 secondes
   const now = document.createElement('section');
   now.className = 'bq-now';

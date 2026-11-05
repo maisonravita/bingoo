@@ -5,6 +5,7 @@ import { Button, Card, Input, PageHead, Spinner, useToast } from "../components/
 import { eur } from "../lib/labels";
 import { cx } from "../lib/utils";
 import { SubNav } from "../components/SubNav";
+import { PilotageResultats } from "./Pilotage";
 
 const pct = (a, b) => (b ? `${Math.round((a / b) * 100)} %` : "—");
 // Coût IA moyen estimé par action (en euros), pour calculer le coût d'acquisition
@@ -162,6 +163,8 @@ export default function Results() {
       <PageHead title="Résultats" sub="Ce qui marche vraiment, et quels clients te rapportent.">
         <div className="flex gap-1">{[7, 30, 90].map((n) => <button key={n} onClick={() => setPeriod(n)} className={cx("rounded-full px-3 py-1.5 text-sm border", period === n ? "bg-ink text-white border-ink" : "bg-white border-line")}>{n} j</button>)}</div>
       </PageHead>
+
+      <PilotageResultats />
 
       <Week d={d} />
 

@@ -314,6 +314,7 @@ export async function buildNight({ zone = 0, premiere = false } = {}) {
   step(26, `Direction ${centre.ville || 'ta zone'}…`);
   const ville = centre.ville || 'ta zone';
   const { events, placed, seen } = toEvents(d, prospects, ws, centre, { start, end });
+  const terrain = await terrainOf(ws.id, centre);
   if (!events.length) throw new QgError('Rien à montrer dans cette zone pour l’instant.', '/#/');
   const nPlaces = placed.size;
   const total = new Set([...prospects.keys(), ...d.opps.map((o) => o.id), ...d.rivals.map((c) => c.id)]).size;
@@ -343,7 +344,7 @@ export async function buildNight({ zone = 0, premiere = false } = {}) {
   ctx = { ws, centre, placed, seen, prospects, last: Date.now(), recent };
   const run = { id: 'nuit', metier: 'entreprises', ville, lat: centre.lat, lon: centre.lon, rayon: R, nombre: nPlaces, started_at: all[0].t, ended_at: all.at(-1).t, status: 'fini', n: nPlaces };
   const bilan = await resultats(ws.id, start, end, d);
-  return { state: { run, running: false, places: [], config: { recherche: {}, offre: {}, equipe: {}, consignes: '' } }, events: all, clusters, zone: clusters.indexOf(centre), ws, bilan, recent };
+  return { terrain, state: { run, running: false, places: [], config: { recherche: {}, offre: {}, equipe: {}, consignes: '' } }, events: all, clusters, zone: clusters.indexOf(centre), ws, bilan, recent };
 }
 
 /** Le direct : ce que l'équipe a fait depuis la dernière lecture (appelé toutes les 30 secondes). */
@@ -407,4 +408,19 @@ export async function maintenant() {
     out.push({ id, nom: NOMS[id], texte: cut(a.summary, 110), at: a.created_at, encours: false });
   }
   return out.slice(0, 5);
+}
+
+/* ------------------------------------------------------------------ le terrain : tous tes prospects de la ville affichée, et où tu en es avec chacun */
+const CONTACTE = ['envoye', 'repondu', 'rdv', 'client', 'refus'], LI = ['invite', 'connecte', 'message_envoye', 'retire'];
+export const etatTerrain = (p) => (['rdv', 'client'].includes(p.status) ? 'gagne' : p.status === 'repondu' ? 'discussion' : CONTACTE.includes(p.status) || LI.includes(p.linkedin_status ?? '') ? 'contacte' : 'a_prendre');
+async function terrainOf(wsId, c) {
+  const dLat = (R * 1.15) / 110540, dLon = (R * 1.15) / (111320 * Math.cos((c.lat * Math.PI) / 180));
+  const out = [];
+  for (let f = 0; f < 3000; f += 1000) {
+    const { data } = await supabase.from('prospects').select('id, name, status, linkedin_status, geo_lat, geo_lon').eq('workspace_id', wsId).neq('status', 'ignore')
+      .gte('geo_lat', c.lat - dLat).lte('geo_lat', c.lat + dLat).gte('geo_lon', c.lon - dLon).lte('geo_lon', c.lon + dLon).range(f, f + 999);
+    out.push(...(data ?? []));
+    if ((data ?? []).length < 1000) break;
+  }
+  return out.map((p) => ({ id: p.id, lat: p.geo_lat, lon: p.geo_lon, etat: etatTerrain(p) }));
 }

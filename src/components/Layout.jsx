@@ -192,7 +192,6 @@ export default function Layout({ children }) {
   const groups = [
     { items: [
       { to: "/", label: "Aujourd'hui", short: "Aujourd'hui", icon: "today", count: c.drafts + c.replies, hot: true, also: ["/valider", "/reponses"] },
-      { to: "/pilotage", label: "Pilotage", short: "Pilotage", icon: "target" },
       { to: "/radar", label: "Opportunités", short: "Opportunités", icon: "radar", count: c.radar },
       { to: "/prospects", label: "Prospects", short: "Prospects", icon: "list", also: ["/prospection", "/linkedin"] },
       { to: "/espion", label: "Concurrents", short: "Concurrents", icon: "eye" },

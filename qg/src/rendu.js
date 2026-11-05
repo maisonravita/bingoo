@@ -54,6 +54,8 @@ export const toWorld = (cam, W, H, sx, sy) => [(sx - W / 2) / cam.z + cam.x, (sy
 import { ANCHOR_X, ANCHOR_Y, ROLES, robotSprite } from './robots.js';
 import { badgeSprite, hologramSprite, letterSprite, qgSprite, shadowSprite, signSprite } from './sprites.js';
 
+// Le terrain (mode conquête) : des couleurs qui tranchent sur les toits orange de la ville
+export const TERRAIN = { gagne: ['#22c55e', '#15803d', 0.72], discussion: ['#3b82f6', '#1d4ed8', 0.66], contacte: ['#facc15', '#ca8a04', 0.6], a_prendre: ['#ffffff', '#E0531F', 0.42] };
 const ROOF = { retenu: ['#ff8a3d', '#d9622a'], pret: ['#ff8a3d', '#d9622a'], valide: ['#3ddc97', '#239a68'], lecture: ['#4fb3ff', '#2f7fc4'], ecriture: ['#a98bff', '#7a5fd0'] };
 
 /** La taille d'un pixel des robots à l'écran : comme la ville de près, un peu plus gros de loin (des pions de jeu). */
@@ -67,6 +69,36 @@ export function drawWorld(g, world, cam, W, H, tod, opts = {}) {
   const tex = z * LODS[L];
   const S = opts.S ?? spriteScale(z);
   const scr = (x, y) => [Math.round((x - cam.x) * z + W / 2), Math.round((y - cam.y) * z + H / 2)];
+
+  // 0. le terrain : chaque immeuble d'un de tes prospects, coloré selon où tu en es avec lui (gagné, en discussion, contacté, à prendre)
+  if (world.terrain && world.showTerrain !== false) {
+    for (const tp of world.terrain) {
+      const col = TERRAIN[tp.etat];
+      if (!col) continue;
+      if (!tp.bid) {
+        // un repère : un petit losange de la couleur de l'état, avec un liseré
+        const [px, py] = scr(tp.x, tp.y);
+        const halo = Math.max(15, 22 * z), k = Math.max(4, Math.round(Math.max(S, 3) * 1.3));
+        g.globalAlpha = tp.etat === 'a_prendre' ? 0.22 : 0.38;
+        g.fillStyle = tp.etat === 'a_prendre' ? '#E0531F' : col[0];
+        g.beginPath(); g.arc(px, py, halo, 0, Math.PI * 2); g.fill();
+        g.globalAlpha = 1;
+        g.fillStyle = '#1c1917'; g.fillRect(px - k - 2, py - k - 2, 2 * k + 4, 2 * k + 4);
+        g.fillStyle = col[0]; g.fillRect(px - k, py - k, 2 * k, 2 * k);
+        if (tp.etat === 'a_prendre') { g.fillStyle = '#E0531F'; g.fillRect(px - k / 2, py - k / 2, k, k); }
+        continue;
+      }
+      const sil = city.silhouette(tp.bid, L, col[0], col[1]);
+      if (!sil) continue;
+      const [sx, sy] = scr(sil.x0 * LODS[L], sil.y0 * LODS[L]);
+      const dw = Math.round(sil.c.width * tex), dh = Math.round(sil.c.height * tex);
+      g.globalAlpha = col[2];
+      g.drawImage(sil.c, sx, sy, dw, dh);
+      g.globalAlpha = 0.9;
+      g.drawImage(sil.e, sx, sy, dw, dh);
+      g.globalAlpha = 1;
+    }
+  }
 
   // 1. les immeubles des commerces, allumés selon leur état
   for (const q of world.places.values()) {

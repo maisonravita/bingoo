@@ -9,6 +9,7 @@ import { fmtN } from "../lib/zones";
 import { Avatar, TEAM } from "./Salaries";
 import CompanyLogo from "../components/CompanyLogo";
 import TodayFeed from "../components/TodayFeed";
+import { BandeauMatin, usePilotage } from "./Pilotage";
 
 const I = {
   search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>,
@@ -203,21 +204,10 @@ function Urgent({ u }) {
 }
 
 /** Le matin en 2 minutes : ce qui attend le client, dans l'ordre, et quand tout est fait, on le dit. */
-/** Ta semaine en une ligne (objectif, prévision, pipeline) : le détail est dans la salle de pilotage. */
+/** Le bandeau du matin : ton terrain, la chose à faire maintenant, tes anneaux et ta ville. */
 function Semaine() {
-  const { ws } = useWs();
-  const [d, setD] = useState(null);
-  useEffect(() => { fn("m/pilotage", { workspace_id: ws.id }).then(setD).catch(() => {}); }, [ws.id]);
-  if (!d) return null;
-  return (
-    <Link to="/pilotage" className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-2xl border border-line bg-white px-5 py-3 text-sm hover:border-accent/40 transition">
-      <b>Ta semaine</b>
-      <span><b className="tnum">{d.rdv}</b> rendez-vous sur {d.objectif}</span>
-      {d.semaine.jour > 1 && d.rdv < d.objectif && <span className="text-ink-soft">à ce rythme : {d.prevision} vendredi</span>}
-      {d.pipeline && <span>pipeline estimé <b className="tnum">{d.pipeline.montant.toLocaleString("fr-FR")} €</b></span>}
-      <span className="ml-auto text-accent-dark font-semibold">Salle de pilotage</span>
-    </Link>
-  );
+  const { d } = usePilotage();
+  return d ? <BandeauMatin d={d} /> : null;
 }
 
 function Morning({ s, canSend }) {
@@ -294,12 +284,6 @@ export default function Today() {
           {hello}{first ? ` ${first}` : ""} !<Sparks className="w-9 h-9 sm:w-11 sm:h-11 -mt-2" />
         </h1>
         <p className="text-ink-soft text-[17px] mt-3">Ce qui t'attend aujourd'hui. Tu valides, Bingoo! s'occupe du reste.</p>
-        <a href="/qg/" className="mt-4 inline-flex items-center gap-3 rounded-full border border-line bg-white py-1.5 pl-1.5 pr-4 text-[14.5px] font-semibold hover:border-accent/50 hover:shadow-sm transition">
-          <span className="flex -space-x-2" aria-hidden>
-            {["leo", "sam", "hugo"].map((n) => <img key={n} src={`/salaries/${n}.png`} alt="" className="w-8 h-8 rounded-full object-cover object-top bg-accent-soft ring-2 ring-white" />)}
-          </span>
-          Voir ton équipe travailler cette nuit
-        </a>
       </header>
 
       <Semaine />

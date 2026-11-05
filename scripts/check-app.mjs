@@ -16,7 +16,7 @@ const PILOTE = { semaine: { lundi: "2026-11-02T00:00:00Z", jour: 4, ouvres: 4 },
   zones: [{ cle: "75009", nom: "Paris 9e", lat: 48.87, lon: 2.33, cibles: 42, contactees: 10, discussion: 2, gagnees: 1, semaine: 3, pct: 24 }],
   points: [], comptes: [{ id: "p1", nom: "Hays Services", taille: 250, choisi: false, etapes: [1, 1, 1, 0, 0, 0].map((f, i) => ({ label: `Étape ${i + 1}`, fait: !!f })), faites: 3, prochaine: { texte: "Attendre sa réponse", lien: "/prospects" } }],
   priorites: [{ type: "reponse", titre: "Serensia a répondu", detail: "Intéressée, demande une démo", valeur: 990, lien: "/reponses" }], places: 120, total: 140 };
-const ROUTES = ["/", "/pilotage", "/connexions", "/resultats", "/valider", "/reponses", "/prospects", "/radar", "/espion", "/reglages"];
+const ROUTES = ["/", "/connexions", "/resultats", "/valider", "/reponses", "/prospects", "/radar", "/espion", "/reglages"];
 
 let failed = 0;
 const browser = await chromium.launch();

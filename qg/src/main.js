@@ -474,6 +474,22 @@ window.__qg = {
     const night = await prepare({ zone: Number(params.get('zone')) || 0, premiere: params.has('premiere') });
     step(28, 'Ouverture de la carte…');
     await boot();
+    // le terrain : l'immeuble de chaque prospect de la ville affichée
+    // Un immeuble n'est colorié qu'une fois (l'état le plus avancé), et seulement si c'est un vrai immeuble :
+    // dans la ville simplifiée, un « immeuble » est un pâté de maisons entier ; on pose alors un repère à la place.
+    if (night.terrain && world) {
+      const RANG = { gagne: 3, discussion: 2, contacte: 1, a_prendre: 0 };
+      const best = new Map(), points = [];
+      for (const p of night.terrain) {
+        const [x, y] = city.toXY(p.lat, p.lon);
+        let b = city.buildingAt(x, y);
+        for (let r = 2; !b && r <= 10; r += 2) b = city.buildingAt(x + r, y) ?? city.buildingAt(x - r, y) ?? city.buildingAt(x, y + r) ?? city.buildingAt(x, y - r);
+        const petit = b && (b.maxx - b.minx) * (b.maxy - b.miny) < 6000;
+        if (petit) { const cur = best.get(b.id); if (!cur || RANG[p.etat] > RANG[cur.etat]) best.set(b.id, { ...p, x, y, bid: b.id }); }
+        else points.push({ ...p, x, y, bid: null });
+      }
+      world.terrain = [...best.values()].slice(0, 600).concat(points);
+    }
     jeu = createJeu({ root: $('qg'), getWorld: () => world, cam, getDirector: () => director, fiche, ws: night.ws, bilan: night.bilan });
     bingooUi({ night, world: () => world, canvas, play, jeu });
     // le direct : ce que l'équipe fait pendant que la page est ouverte

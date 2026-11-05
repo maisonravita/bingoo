@@ -81,7 +81,7 @@ export async function weeklyReport(ws: Workspace, dry = false) {
     ...(drafts || toHandle ? [`\nCe qui t'attend`, ...(toHandle ? [`- ${n(toHandle, "réponse positive", "réponses positives")} à traiter en priorité`] : []), ...(drafts ? [`- ${n(drafts, "e-mail prêt", "e-mails prêts")} à valider`] : [])] : []),
     ...pilot,
     ...((missions ?? []).length ? [`\nTes missions`, ...(missions ?? []).map((m) => `- ${String(m.objective).slice(0, 160)} : ${m.status === "active" ? "en cours" : `en pause${m.stop_reason ? ` (${STOP[m.stop_reason] ?? m.stop_reason})` : ""}`}`)] : []),
-    appLink(ws, "/pilotage") ? `\nOuvrir ta salle de pilotage : ${appLink(ws, "/pilotage")}` : "",
+    appLink(ws, "/") ? `\nOuvrir Bingoo! : ${appLink(ws, "/")}` : "",
     `\nBonne semaine !`,
   ];
   const to = await teamAddress(ws);

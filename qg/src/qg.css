@@ -565,3 +565,20 @@ body.jeu #world { cursor: default; }
   .jeu-hud .jh-row [data-quit] { display: none; }
   .jh-bar { margin-bottom: 2px; }
 }
+
+/* ---------- ton terrain (la ville comme un territoire à prendre) */
+.bq-terrain { position: absolute; right: calc(16px + env(safe-area-inset-right, 0px)); top: calc(250px + env(safe-area-inset-top, 0px)); z-index: 3; width: 290px; padding: 12px 14px; background: #fff; border: 1px solid var(--b-line, #e7ddd1); border-radius: 14px; box-shadow: var(--b-shadow); color: var(--b-ink, #1c1917); font: 600 12.5px/1.4 var(--ui, system-ui); }
+.bt-head { display: flex; align-items: center; justify-content: space-between; }
+.bq-terrain h3 { margin: 0; font: 900 14px var(--display, 'Nunito', system-ui); }
+.bt-eye { padding: 3px 10px; border-radius: 99px; border: 1px solid #e7ddd1; background: #fff; font: 700 11.5px var(--ui, system-ui); color: #57534e; cursor: pointer; }
+.bt-big { margin: 6px 0; font-size: 13px; color: #57534e; } .bt-big b { font: 900 22px var(--display, 'Nunito', system-ui); color: #1c1917; } .bt-big span { font-weight: 600; }
+.bt-bar { display: flex; height: 10px; border-radius: 99px; overflow: hidden; background: #fde7d6; box-shadow: inset 0 0 0 1px #f3c9ad; }
+.bt-leg { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 8px; font-weight: 700; }
+.bt-leg li { display: flex; align-items: center; gap: 6px; } .bt-leg i { width: 10px; height: 10px; border-radius: 3px; } .bt-leg i.ap { background: #fff; box-shadow: inset 0 0 0 2px #E0531F; }
+.bt-obj { margin: 8px 0 0; padding-top: 8px; border-top: 1px solid #f1ebe3; color: #57534e; } .bt-obj b { color: #E0531F; }
+body.cinema .bq-terrain, body.jeu .bq-terrain, body.has-fiche .bq-terrain { display: none !important; }
+@media (max-width: 640px) {
+  .bq-terrain { top: auto; bottom: calc(196px + env(safe-area-inset-bottom, 0px)); left: 10px; right: 10px; width: auto; padding: 8px 10px; }
+  .bq-terrain .bt-leg, .bq-terrain .bt-obj { display: none; }
+  .bt-big { margin: 4px 0; } .bt-big b { font-size: 18px; }
+}

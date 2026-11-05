@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { Link, Navigate } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
-import { Button, Card, Input, PageHead, Spinner, useToast } from "../components/ui";
+import { Button, Card, Input, Spinner, useToast } from "../components/ui";
 import { eur } from "../lib/labels";
 import { cx } from "../lib/utils";
 
-// La salle de pilotage : objectif de la semaine et prévision, trois anneaux, pipeline estimé (avec les chiffres
-// du client), carte de la part de marché par quartier, priorités du matin, comptes stratégiques. Tout est calculé
-// par le serveur (m/pilotage) à partir des vraies données ; le même calcul nourrit le récap du lundi.
+// Le pilotage, rangé là où on s'en sert : le bandeau du matin dans « Aujourd'hui » (terrain, action à faire, anneaux),
+// les chiffres, les quartiers et les comptes stratégiques dans « Résultats ». La carte, c'est la ville de l'équipe (/qg/).
+// Tout est calculé par le serveur (m/pilotage) à partir des vraies données ; le même calcul nourrit le récap du lundi.
 
 const ETAT = {
   gagne: ["#E0531F", "Rendez-vous ou client"],
@@ -35,78 +35,7 @@ function Anneaux({ a }) {
   );
 }
 
-/** MapLibre, chargé à la demande (il ne pèse rien tant qu'on n'ouvre pas la salle de pilotage). */
-function maplibre() {
-  if (window.maplibregl) return Promise.resolve(window.maplibregl);
-  return new Promise((ok, ko) => {
-    const css = document.createElement("link");
-    css.rel = "stylesheet"; css.href = "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css";
-    document.head.append(css);
-    const s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js";
-    s.onload = () => ok(window.maplibregl); s.onerror = () => ko(new Error("carte indisponible"));
-    document.head.append(s);
-  });
-}
-
-function Carte({ d }) {
-  const box = useRef(null);
-  const [err, setErr] = useState("");
-  useEffect(() => {
-    if (!d?.points?.length || !box.current) return;
-    let map = null, gone = false;
-    maplibre().then((ml) => {
-      if (gone) return;
-      map = new ml.Map({ container: box.current, style: "https://tiles.openfreemap.org/styles/liberty", attributionControl: { compact: true } });
-      map.addControl(new ml.NavigationControl({ showCompass: false }), "top-right");
-      const pts = { type: "FeatureCollection", features: d.points.map((p) => ({ type: "Feature", geometry: { type: "Point", coordinates: [p.lon, p.lat] }, properties: { id: p.id, n: p.n, e: p.e, rang: { gagne: 3, discussion: 2, contacte: 1, a_contacter: 0 }[p.e] } })) };
-      const zones = { type: "FeatureCollection", features: d.zones.filter((z) => z.cibles >= 3).map((z) => ({ type: "Feature", geometry: { type: "Point", coordinates: [z.lon, z.lat] }, properties: { t: `${z.nom}\n${z.pct} %`, pct: z.pct, n: z.cibles } })) };
-      map.on("load", () => {
-        map.addSource("zones", { type: "geojson", data: zones });
-        map.addLayer({ id: "zones", type: "circle", source: "zones", paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, ["*", 3, ["sqrt", ["get", "n"]]], 14, ["*", 12, ["sqrt", ["get", "n"]]]],
-          "circle-color": ["interpolate", ["linear"], ["get", "pct"], 0, "#FDBA74", 25, "#F97316", 60, "#E0531F", 100, "#9a3412"],
-          "circle-opacity": 0.28, "circle-stroke-color": "#E0531F", "circle-stroke-width": 1.5,
-        } });
-        map.addSource("pts", { type: "geojson", data: pts });
-        map.addLayer({ id: "pts", type: "circle", source: "pts", layout: { "circle-sort-key": ["get", "rang"] }, paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 2.5, 15, ["match", ["get", "e"], "gagne", 9, "discussion", 8, 6]],
-          "circle-color": ["match", ["get", "e"], "gagne", ETAT.gagne[0], "discussion", ETAT.discussion[0], "contacte", ETAT.contacte[0], ETAT.a_contacter[0]],
-          "circle-stroke-color": "#fff", "circle-stroke-width": 1.2,
-        } });
-        map.addLayer({ id: "zones-t", type: "symbol", source: "zones", layout: { "text-field": ["get", "t"], "text-font": ["Noto Sans Bold"], "text-size": 13, "text-allow-overlap": false }, paint: { "text-color": "#1c1917", "text-halo-color": "#fff", "text-halo-width": 2 } });
-        const b = new ml.LngLatBounds();
-        for (const p of d.points) b.extend([p.lon, p.lat]);
-        map.fitBounds(b, { padding: 40, maxZoom: 14, duration: 0 });
-        map.on("click", "pts", (e) => {
-          const f = e.features?.[0]; if (!f) return;
-          const el = document.createElement("div");
-          el.innerHTML = `<b style="font-size:13px"></b><br><span style="font-size:12px;color:#57534e"></span><br><a style="font-size:12px;color:#E0531F;font-weight:700">Ouvrir la fiche</a>`;
-          el.querySelector("b").textContent = f.properties.n;
-          el.querySelector("span").textContent = ETAT[f.properties.e]?.[1] ?? "";
-          el.querySelector("a").href = `#/prospects?id=${encodeURIComponent(f.properties.id)}`;
-          new ml.Popup({ closeButton: false }).setLngLat(f.geometry.coordinates).setDOMContent(el).addTo(map);
-        });
-        map.on("mouseenter", "pts", () => { map.getCanvas().style.cursor = "pointer"; });
-        map.on("mouseleave", "pts", () => { map.getCanvas().style.cursor = ""; });
-      });
-    }).catch((e) => setErr(e.message));
-    return () => { gone = true; map?.remove(); };
-  }, [d]);
-  if (!d?.points?.length) return <div className="h-full grid place-items-center text-ink-soft text-sm p-6 text-center">Tes prospects sont placés sur la carte chaque nuit : elle se remplit dès demain matin.</div>;
-  return (
-    <div className="relative h-full">
-      {/* MapLibre impose « position: relative » à son conteneur : il lui faut une hauteur à lui */}
-      <div ref={box} style={{ width: "100%", height: "100%" }} />
-      {err && <p className="absolute inset-0 grid place-items-center text-sm text-ink-soft bg-paper">La carte n'a pas pu se charger. Les chiffres par quartier restent à droite.</p>}
-      <div className="absolute left-3 bottom-3 flex flex-wrap gap-x-3 gap-y-1 rounded-xl bg-white/95 px-3 py-2 text-[12px] font-medium text-ink-soft shadow-sm">
-        {Object.entries(ETAT).map(([k, [c, l]]) => <span key={k} className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />{l}</span>)}
-      </div>
-    </div>
-  );
-}
-
-function Reglages({ r, onSave, compact }) {
+export function Reglages({ r, onSave, compact }) {
   const [obj, setObj] = useState(r.objectif_rdv ?? 5);
   const [val, setVal] = useState(r.valeur_client ?? "");
   const [sur10, setSur10] = useState(r.taux_signature != null ? Math.round(r.taux_signature / 10) : "");
@@ -135,66 +64,79 @@ function Barre({ z }) {
   );
 }
 
-export default function Pilotage() {
+export function usePilotage() {
   const { ws } = useWs();
   const toast = useToast();
   const [d, setD] = useState(null);
-  const [err, setErr] = useState("");
-  const [edit, setEdit] = useState(false);
-  const load = useCallback(() => fn("m/pilotage", { workspace_id: ws.id, carte: true }).then(setD).catch((e) => setErr(e.message)), [ws.id]);
+  const load = useCallback(() => fn("m/pilotage", { workspace_id: ws.id }).then(setD).catch(() => setD(false)), [ws.id]);
   useEffect(() => { load(); }, [load]);
-  const saveReg = async (r) => { await fn("m/pilotage-reglages", { workspace_id: ws.id, ...r }); toast("Réglages enregistrés", "good"); setEdit(false); load(); };
+  const saveReg = async (r) => { await fn("m/pilotage-reglages", { workspace_id: ws.id, ...r }); toast("Réglages enregistrés", "good"); load(); };
   const unmark = async (id, v) => { await supabase.from("prospects").update({ strategique: v }).eq("id", id); load(); };
+  return { d, load, saveReg, unmark };
+}
+const terrainOf = (d) => d.zones.reduce((t, z) => ({ cibles: t.cibles + z.cibles, contactees: t.contactees + z.contactees, discussion: t.discussion + z.discussion, gagnees: t.gagnees + z.gagnees }), { cibles: 0, contactees: 0, discussion: 0, gagnees: 0 });
+const ratio = (v) => (v.total ? `${v.fait} sur ${v.total}` : "—");
 
-  if (err) return <div><PageHead title="Salle de pilotage" /><Card className="p-6 text-bad">{err}</Card></div>;
-  if (!d) return <div className="py-24 grid place-items-center"><Spinner /></div>;
+/** Le bandeau du matin (« Aujourd'hui ») : ton terrain, la chose à faire maintenant, tes anneaux, et ta ville. */
+export function BandeauMatin({ d }) {
   const a = d.anneaux;
-  const lundi = new Date(d.semaine.lundi).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
-  const zones = d.zones.filter((z) => z.cibles >= 3).slice(0, 8);
-  const terrain = d.zones.reduce((t, z) => ({ cibles: t.cibles + z.cibles, contactees: t.contactees + z.contactees, discussion: t.discussion + z.discussion, gagnees: t.gagnees + z.gagnees }), { cibles: 0, contactees: 0, discussion: 0, gagnees: 0 });
-  const partGlobale = terrain.cibles ? Math.round((terrain.contactees / terrain.cibles) * 100) : 0;
-  const top = d.priorites[0];
+  const terrain = terrainOf(d);
+  const part = terrain.cibles ? Math.round((terrain.contactees / terrain.cibles) * 100) : 0;
+  const zones = d.zones.filter((z) => z.cibles >= 3);
   const plusGros = [...zones].sort((x, y) => (y.cibles - y.contactees) - (x.cibles - x.contactees))[0];
-  const ratio = (v) => (v.total ? `${v.fait} sur ${v.total}` : "—");
-
+  const top = d.priorites[0];
   return (
-    <div>
-      <PageHead title="Salle de pilotage" sub={`Semaine du ${lundi}`}>
-        <Button onClick={() => setEdit((x) => !x)}>{edit ? "Fermer" : "Mes chiffres"}</Button>
-      </PageHead>
-      {edit && <Card className="p-5 mb-5"><Reglages r={d.reglages} onSave={saveReg} /><p className="text-xs text-ink-soft mt-3">Ces chiffres servent à fixer ton objectif et à estimer ton pipeline en euros. Ils restent dans ton espace.</p></Card>}
-
-      {/* Le matin : où tu en es, et la seule chose à faire maintenant */}
-      <section className="mb-4 rounded-3xl p-6 sm:p-7 text-white relative overflow-hidden" style={{ background: "linear-gradient(120deg,#1c1917 0%,#3b1d10 55%,#E0531F 130%)" }}>
-        <div className="grid gap-6 lg:grid-cols-[1fr_auto] items-center">
-          <div>
-            <p className="text-[13px] font-semibold text-white/70">Ton terrain</p>
-            <p className="text-[28px] sm:text-[34px] font-semibold leading-tight mt-1">
-              {terrain.cibles ? <>{terrain.cibles.toLocaleString("fr-FR")} entreprises cibles, <span className="text-[#FDBA74]">{partGlobale} % contactées</span>.</> : "Ton terrain se dessine cette nuit."}
-            </p>
-            <p className="text-white/75 mt-2 text-[15px]">
-              {terrain.gagnees ? `${terrain.gagnees} gagnée${terrain.gagnees > 1 ? "s" : ""}, ${terrain.discussion} en discussion. ` : terrain.discussion ? `${terrain.discussion} en discussion. ` : ""}
-              {plusGros && plusGros.cibles - plusGros.contactees > 0 ? `Le plus gros morceau à prendre : ${plusGros.nom} (${plusGros.cibles - plusGros.contactees} entreprises).` : ""}
-            </p>
+    <section className="mb-5 rounded-3xl p-6 sm:p-7 text-white relative overflow-hidden" style={{ background: "linear-gradient(120deg,#1c1917 0%,#3b1d10 55%,#E0531F 130%)" }}>
+      <div className="grid gap-6 lg:grid-cols-[1fr_auto] items-center">
+        <div className="min-w-0">
+          <p className="text-[13px] font-semibold text-white/70">Ton terrain · {d.rdv} rendez-vous sur {d.objectif} cette semaine{d.rdv < d.objectif && d.semaine.jour > 1 ? ` · à ce rythme ${d.prevision} vendredi` : ""}</p>
+          <p className="text-[26px] sm:text-[32px] font-semibold leading-tight mt-1">
+            {terrain.cibles ? <>{terrain.cibles.toLocaleString("fr-FR")} entreprises cibles, <span className="text-[#FDBA74]">{part} % contactées</span>.</> : "Ton terrain se dessine cette nuit."}
+          </p>
+          <p className="text-white/75 mt-2 text-[15px]">
+            {terrain.gagnees ? `${terrain.gagnees} gagnée${terrain.gagnees > 1 ? "s" : ""}, ${terrain.discussion} en discussion. ` : terrain.discussion ? `${terrain.discussion} en discussion. ` : ""}
+            {plusGros && plusGros.cibles - plusGros.contactees > 0 ? `Le plus gros morceau à prendre : ${plusGros.nom} (${plusGros.cibles - plusGros.contactees} entreprises).` : ""}
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
             {top && (
-              <Link to={top.lien} className="mt-5 inline-flex items-center gap-3 rounded-2xl bg-white text-ink px-5 py-3.5 font-semibold hover:bg-[#FFF3EA] transition">
+              <Link to={top.lien} className="inline-flex items-center gap-3 rounded-2xl bg-white text-ink px-5 py-3 font-semibold hover:bg-[#FFF3EA] transition">
                 <span className="w-2.5 h-2.5 rounded-full bg-accent animate-pulse" aria-hidden />
                 <span><span className="block text-[12px] font-semibold text-accent-dark">À faire maintenant</span>{top.titre}{top.valeur ? ` · environ ${eur(top.valeur)}` : ""}</span>
-                <span className="text-accent-dark">→</span>
+                <span className="text-accent-dark" aria-hidden>→</span>
               </Link>
             )}
-          </div>
-          <div className="flex items-center gap-4 rounded-2xl bg-white/10 p-4">
-            <div className="rounded-full bg-white p-1.5"><Anneaux a={a} /></div>
-            <ul className="text-[13px] space-y-1.5">
-              <li><b className="text-[#FDBA74]">Réactivité</b> <span className="text-white/80">{ratio(a.reactivite)}</span></li>
-              <li><b>Régularité</b> <span className="text-white/80">{a.regularite.fait} jour{a.regularite.fait > 1 ? "s" : ""} sur {a.regularite.total}</span></li>
-              <li><b className="text-[#93C5FD]">Résultats</b> <span className="text-white/80">{a.resultats.fait} RDV sur {a.resultats.total}</span></li>
-            </ul>
+            <a href="/qg/" className="inline-flex items-center gap-3 rounded-2xl bg-white/10 hover:bg-white/20 px-4 py-3 font-semibold transition">
+              <span className="flex -space-x-2" aria-hidden>{["leo", "sam", "lina"].map((n) => <img key={n} src={`/salaries/${n}.png`} alt="" className="w-8 h-8 rounded-full object-cover object-top bg-accent-soft ring-2 ring-[#3b1d10]" />)}</span>
+              <span><span className="block text-[12px] font-semibold text-white/70">Ta ville, colorée</span>Voir ce que tu as pris</span>
+            </a>
           </div>
         </div>
-      </section>
+        <div className="flex items-center gap-4 rounded-2xl bg-white/10 p-4">
+          <div className="rounded-full bg-white p-1.5"><Anneaux a={a} /></div>
+          <ul className="text-[13px] space-y-1.5">
+            <li><b className="text-[#FDBA74]">Réactivité</b> <span className="text-white/80">{ratio(a.reactivite)}</span></li>
+            <li><b>Régularité</b> <span className="text-white/80">{a.regularite.fait} jour{a.regularite.fait > 1 ? "s" : ""} sur {a.regularite.total}</span></li>
+            <li><b className="text-[#93C5FD]">Résultats</b> <span className="text-white/80">{a.resultats.fait} RDV sur {a.resultats.total}</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+}
 
+/** Dans « Résultats » : l'objectif, le pipeline, la part de marché par quartier et les comptes stratégiques. */
+export function PilotageResultats() {
+  const { d, saveReg, unmark } = usePilotage();
+  const [edit, setEdit] = useState(false);
+  if (d === null) return <div className="py-10 grid place-items-center"><Spinner /></div>;
+  if (!d) return null;
+  const terrain = terrainOf(d);
+  const part = terrain.cibles ? Math.round((terrain.contactees / terrain.cibles) * 100) : 0;
+  const zones = d.zones.filter((z) => z.cibles >= 3).slice(0, 8);
+  return (
+    <section className="mb-8">
+      <div className="flex items-center justify-between mb-3"><h2 className="font-semibold text-lg">Ta semaine en chiffres</h2><Button size="sm" onClick={() => setEdit((x) => !x)}>{edit ? "Fermer" : "Mes chiffres"}</Button></div>
+      {edit && <Card className="p-5 mb-4"><Reglages r={d.reglages} onSave={async (r) => { await saveReg(r); setEdit(false); }} /><p className="text-xs text-ink-soft mt-3">Ces chiffres servent à fixer ton objectif et à estimer ton pipeline en euros. Ils restent dans ton espace.</p></Card>}
       <div className="grid gap-4 sm:grid-cols-3 mb-4">
         <Card className="p-5">
           <p className="text-[13px] font-semibold text-ink-soft">Rendez-vous cette semaine</p>
@@ -218,16 +160,14 @@ export default function Pilotage() {
         </Card>
         <Card className="p-5">
           <p className="text-[13px] font-semibold text-ink-soft">Part de marché</p>
-          <p className="text-[32px] font-semibold leading-tight tnum">{partGlobale} %</p>
+          <p className="text-[32px] font-semibold leading-tight tnum">{part} %</p>
           <div className="mt-2"><Barre z={{ ...terrain, cibles: Math.max(1, terrain.cibles) }} /></div>
           <p className="text-sm mt-2 text-ink-soft">{terrain.contactees} sur {terrain.cibles} entreprises de ta liste contactées.</p>
         </Card>
       </div>
-
-      <div className="grid gap-4 lg:grid-cols-[1fr_380px] mb-4">
-        <Card className="overflow-hidden h-[480px] !p-0"><Carte d={d} /></Card>
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card className="p-5">
-          <p className="font-semibold">Quartier par quartier</p>
+          <div className="flex items-center justify-between"><p className="font-semibold">Quartier par quartier</p><a href="/qg/" className="text-sm font-semibold text-accent-dark hover:underline">Voir sur ma ville</a></div>
           <p className="text-xs text-ink-soft mb-4">Ce que tu as pris, et ce qui reste à prendre.</p>
           {zones.length ? (
             <ul className="space-y-4">
@@ -239,26 +179,7 @@ export default function Pilotage() {
                 </li>
               ))}
             </ul>
-          ) : <p className="text-sm text-ink-soft">Les quartiers apparaissent dès que tes prospects sont placés sur la carte (chaque nuit).</p>}
-        </Card>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="p-5">
-          <p className="font-semibold mb-3">Tes priorités du matin</p>
-          {d.priorites.length ? (
-            <ul className="divide-y divide-line">
-              {d.priorites.map((p, i) => (
-                <li key={i}>
-                  <Link to={p.lien} className="flex items-center gap-3 py-3 hover:bg-paper -mx-2 px-2 rounded-xl">
-                    <span className={cx("w-1.5 self-stretch rounded-full", p.type === "reponse" ? "bg-accent" : p.type === "compte" ? "bg-ink" : "bg-line")} />
-                    <span className="flex-1 min-w-0"><b className="text-sm block">{p.titre}</b><span className="text-xs text-ink-soft block truncate">{p.detail}{p.valeur ? ` · environ ${eur(p.valeur)}` : ""}</span></span>
-                    <span className="text-sm font-semibold text-accent-dark">Y aller</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : <p className="text-sm text-ink-soft">Rien ne t'attend : ton équipe travaille cette nuit.</p>}
+          ) : <p className="text-sm text-ink-soft">Les quartiers apparaissent dès que tes prospects sont placés (chaque nuit).</p>}
         </Card>
         <Card className="p-5">
           <p className="font-semibold">Comptes stratégiques</p>
@@ -282,7 +203,9 @@ export default function Pilotage() {
           ) : <p className="text-sm text-ink-soft">Aucun compte stratégique pour l'instant. Marque-en un depuis sa fiche prospect.</p>}
         </Card>
       </div>
-      <p className="text-xs text-ink-faint mt-4">{d.places} de tes {d.total} prospects sont placés sur la carte. Les autres le seront dans les prochaines nuits. Chaque lundi, le récap de ta semaine arrive par e-mail.</p>
-    </div>
+    </section>
   );
 }
+
+/** L'ancienne adresse /pilotage (lien du récap du lundi) mène aux résultats. */
+export default function Pilotage() { return <Navigate to="/resultats" replace />; }
