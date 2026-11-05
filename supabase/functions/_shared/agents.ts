@@ -383,12 +383,14 @@ export async function linkedin(ws: Workspace, p: Prospect) {
 Établissement : ${p.name}${p.org ? ` (${p.org})` : ""}, ${p.activity}, ${[p.postal_code, p.city].filter(Boolean).join(" ")}.
 ${p.contact_name ? `Dirigeant connu : ${p.contact_name}${p.contact_role ? ` (${p.contact_role})` : ""}.` : ""}
 Fonction visée : ${t?.interlocuteur || "dirigeant"}.
+${(() => { const sg = (p.signals ?? []).filter((x) => x.label && x.type !== "taille" && x.type !== "reseau"); return sg.length ? `Faits publics observés (utilise le plus pertinent comme référence précise) :\n${sg.slice(0, 4).map((x) => `- ${String(x.label).replace(/\s*(?:publi[ée]e? )?(?:au|dans le|selon le) (?:BODACC|registre[^,.;]*)/gi, "")}`).join("\n")}` : ""; })()}
 Notre offre : ${ws.profile?.offre ?? ""}
 Angle : ${t?.angle ?? ""} (bénéficiaires : ${t?.pour_qui ?? ""})
 
 Règles : ne donne une URL que si tu l'as trouvée dans les résultats (format linkedin.com/in/…) et si la personne travaille bien dans cet établissement ou son organisme. Sinon laisse "url" vide.
-- "note" : note d'invitation, 250 caractères maximum, sans vendre, qui donne une raison crédible de se connecter.
-- "message" : message après acceptation, 60 à 90 mots, vouvoiement, une seule question à la fin pour proposer un échange de 15 minutes. N'invente aucun fait.
+- "note" : note d'invitation de 200 caractères maximum, espaces compris (limite des comptes LinkedIn gratuits). Structure : une référence précise à la personne ou à son entreprise (le fait observé ci-dessous, sinon son métier) + une ligne sur qui nous sommes + aucune demande. Elle ne vend rien : elle rend l'acceptation évidente.
+- "message" : premier message après acceptation, 2 à 4 phrases, vouvoiement. Il reprend la référence de la note (continuité), donne d'abord quelque chose d'utile (un chiffre, une info, une idée concrète tirée des faits ci-dessous), puis UNE petite demande (« Un échange de 15 minutes vous serait utile ? »). Pas de lien d'agenda, pas de présentation de l'offre en détail. N'invente aucun fait, aucun contact commun, aucune lecture.
+Interdits : « J'espère que vous allez bien », « Je me permets », « Je reviens vers vous », tiret long, emojis.
 Format : {"url": "", "personne": "", "fonction": "", "note": "", "message": ""}`,
     { fast: true, maxTokens: 6000, system: systemFor(ws), tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] });
   const url = String(v.url ?? "").trim();
@@ -396,8 +398,9 @@ Format : {"url": "", "personne": "", "fonction": "", "note": "", "message": ""}`
   const patch = {
     linkedin_url: ok ? url.replace(/[?#].*$/, "").slice(0, 200) : "",
     linkedin_person: ok ? `${String(v.personne ?? "").slice(0, 60)}${v.fonction ? ` · ${String(v.fonction).slice(0, 60)}` : ""}` : "",
-    linkedin_note: String(v.note ?? "").slice(0, 300),
-    linkedin_msg: String(v.message ?? "").slice(0, 1200),
+    // 200 caractères au plus (comptes gratuits), coupé proprement à la fin d'un mot
+    linkedin_note: (() => { const n = humanize(String(v.note ?? "")); return n.length <= 200 ? n : n.slice(0, 200).replace(/\s+\S*$/, "").replace(/[,;:]$/, "") + "."; })(),
+    linkedin_msg: humanize(String(v.message ?? "")).slice(0, 1200),
     linkedin_status: ok ? "a_envoyer" : "introuvable",
   };
   await admin.from("prospects").update(patch).eq("id", p.id);

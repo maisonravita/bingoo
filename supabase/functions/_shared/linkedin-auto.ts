@@ -7,12 +7,12 @@ import { parisParts } from "./time.ts";
 export type LiAuto = { enabled?: boolean; accepted_at?: string; started_at?: string; paused_reason?: string | null; paused_at?: string | null };
 type Ws = Workspace & { linkedin_auto?: LiAuto | null };
 
-export const LI_LIMITS = { startPerDay: 5, stepPerDay: 3, maxPerDay: 20, maxPerWeek: 100, messagesPerDay: 25, relanceAfterDays: 6 };
+export const LI_LIMITS = { startPerDay: 5, stepPerDay: 3, maxPerDay: 20, maxPerWeek: 100, messagesPerDay: 25, relanceAfterDays: 8 };
 
-/** Relance courte et humaine, une seule fois, s'il n'y a pas eu de réponse. */
+/** Relance unique qui « ferme la boucle » : on dit qu'on s'arrête, et on s'arrête. C'est souvent elle qui obtient la réponse. */
 export function relanceText(person: string | null | undefined) {
   const first = String(person ?? "").trim().split(/\s+/)[0] ?? "";
-  return `${first ? `Bonjour ${first}, ` : "Bonjour, "}petite relance sur mon message de la semaine dernière : est-ce que le sujet vous parle, ou je vous laisse tranquille ?`;
+  return `${first ? `Bonjour ${first}, ` : "Bonjour, "}je ne vais pas insister davantage : si le sujet revient un jour chez vous, je reste joignable ici. Bonne continuation !`;
 }
 
 /** Invitations autorisées aujourd'hui : 5 le premier jour, +3 par jour, 20 au plus (montée progressive). */
@@ -107,7 +107,7 @@ export async function liReport(ws: Ws, b: { id?: unknown; resultat?: unknown; de
 
   if (res === "limite" || res === "avertissement") {
     await admin.from("linkedin_actions").update({ status: "a_faire", taken_at: null }).eq("id", a.id);
-    const auto = { ...(ws.linkedin_auto ?? {}), paused_reason: res === "limite" ? "LinkedIn a signalé une limite d'invitations" : "LinkedIn a affiché un avertissement", paused_at: now };
+    const auto = { ...(ws.linkedin_auto ?? {}), paused_reason: detail || (res === "limite" ? "LinkedIn a signalé une limite d'invitations" : "LinkedIn a affiché un avertissement"), paused_at: now };
     await admin.from("workspaces").update({ linkedin_auto: auto }).eq("id", ws.id);
     await log(ws.id, "linkedin_alerte", `Pilote LinkedIn mis en pause : ${auto.paused_reason}. Relance-le dans quelques jours depuis la page LinkedIn.`);
     return { pause: true };
@@ -119,11 +119,11 @@ export async function liReport(ws: Ws, b: { id?: unknown; resultat?: unknown; de
   if (res === "introuvable") { await done("echec"); await prospect("introuvable"); return { ok: true }; }
 
   if (a.kind === "invitation") {
-    if (res === "deja_connecte") { await done(); await prospect("connecte"); await queue("message", rnd(1, 3)); }
+    if (res === "deja_connecte") { await done(); await prospect("connecte"); await queue("message", rnd(18, 30)); }
     else { await done(); await prospect("invite"); await queue("verifier", 24); }
     if (res === "ok") await log(ws.id, "linkedin", "Invitation LinkedIn envoyée");
   } else if (a.kind === "verifier") {
-    if (res === "connecte" || res === "deja_connecte") { await done(); await prospect("connecte"); await queue("message", rnd(1, 3)); }
+    if (res === "connecte" || res === "deja_connecte") { await done(); await prospect("connecte"); await queue("message", rnd(18, 30)); }
     else if (Date.now() - new Date(a.created_at).getTime() > 21 * 864e5) { await done("annule"); }
     else { await admin.from("linkedin_actions").update({ status: "a_faire", taken_at: null, due_at: new Date(Date.now() + 24 * 3600_000).toISOString() }).eq("id", a.id); }
   } else if (a.kind === "message") {

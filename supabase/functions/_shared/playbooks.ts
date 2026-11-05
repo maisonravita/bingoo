@@ -46,6 +46,9 @@ Prospect startup : écris au fondateur comme à un pair, très court, concret, s
 /** Nettoie un texte rédigé : supprime les tics d'écriture d'IA qui trahissent un message automatique. */
 export function humanize(text: string) {
   return text
+    // Caractères invisibles (espaces de largeur nulle, marques de direction, césures, balises Unicode) : jamais tapés au clavier
+    .replace(/[\u200B-\u200F\u2060-\u2064\uFEFF\u00AD\u180E\u061C]|[\u{E0000}-\u{E007F}]/gu, "")
+    .replace(/[\u00A0\u202F]/g, " ")
     .replace(/\s*[—–]\s*/g, ", ")
     .replace(/^(?:J['’]esp[eè]re que vous allez bien[.!]?\s*)/gim, "")
     .replace(/,?\s*(?:selon|d'après) (?:le )?(?:BODACC|registre(?: du commerce)?|Radar)\s*,?/gi, "")

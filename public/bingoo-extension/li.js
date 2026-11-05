@@ -80,6 +80,8 @@
       const add = find(dialog, /ajouter une note|add a note/);
       if (add) await click(add);
       const area = await waitFor(() => dialog.querySelector("textarea") ?? document.querySelector("[role='dialog'] textarea"), 4000);
+      // Compte gratuit : LinkedIn limite les notes personnalisées par mois et propose Premium à la place
+      if (!area && /premium|invitations? personnalis[ée]es|personalized invitations?/i.test(alertText())) return { resultat: "limite", detail: "Quota mensuel de notes personnalisées atteint (compte LinkedIn gratuit)" };
       if (!area) return { resultat: "erreur", detail: "Champ de note introuvable, rien n'a été envoyé" };
       await typeInto(area, note.slice(0, 300));
     }
