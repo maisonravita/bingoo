@@ -24,3 +24,17 @@ await Promise.all(Array.from({ length: 6 }, async () => {
 }));
 for (const [z, b] of Object.entries(bundles)) writeFileSync(`${out}/z${z}.json`, JSON.stringify(b));
 console.log(jobs.length, "tuiles");
+
+// Les immeubles un par un et les arbres (même format que villeOSM du QG des agents, licence MIT)
+const rr = Math.round(R * 1.05), dLa = rr / 110540, dLo = rr / (Math.cos(lat * Math.PI / 180) * 111320);
+const bbox = [lat - dLa, lon - dLo, lat + dLa, lon + dLo].map((v) => v.toFixed(4)).join(",");
+const ask = async (q) => { for (const u of ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]) { try { const r = await fetch(u, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "bingoo-qg-maquette/0.1" }, body: "data=" + encodeURIComponent(q), signal: AbortSignal.timeout(240000) }); if (r.ok) return await r.json(); console.log(u, r.status); } catch (e) { console.log(u, e.message); } } throw new Error("overpass"); };
+const bat = await ask(`[out:json][timeout:200][bbox:${bbox}];way["building"];out tags geom qt;`);
+const arb = await ask(`[out:json][timeout:120][bbox:${bbox}];node["natural"="tree"];out qt;`);
+const flat = (g) => g.flatMap((p) => [Math.round(p.lon * 1e7) / 1e7, Math.round(p.lat * 1e7) / 1e7]);
+const haut = (t) => { const h = parseFloat(String(t.height ?? "").replace(",", ".")); if (h > 0) return Math.min(h, 200); const n = parseFloat(t["building:levels"]); return n > 0 ? Math.min(n * 3.2 + (parseFloat(t["roof:levels"]) || 0) * 2 + 1.5, 200) : 0; };
+const batiments = [];
+for (const e of bat.elements ?? []) { const t = e.tags ?? {}; if (t.building === "roof" || t.location === "underground" || !(e.geometry?.length > 3)) continue; batiments.push({ id: `w${e.id}`, h: haut(t), c: t["building:colour"] ?? null, rc: t["roof:colour"] ?? null, k: t.building, rings: [flat(e.geometry)] }); }
+const arbres = (arb.elements ?? []).map((e) => [Math.round(e.lon * 1e7) / 1e7, Math.round(e.lat * 1e7) / 1e7]);
+writeFileSync(`${out}/ville.json`, JSON.stringify({ batiments, arbres }));
+console.log(batiments.length, "immeubles", arbres.length, "arbres");
