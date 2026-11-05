@@ -1,0 +1,22 @@
+name: qg-bake
+on:
+  workflow_dispatch:
+    inputs:
+      lat: { required: true }
+      lon: { required: true }
+      r: { required: true, default: "2200" }
+permissions:
+  contents: write
+jobs:
+  bake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node scripts/qg-bake.mjs "${{ inputs.lat }}" "${{ inputs.lon }}" "${{ inputs.r }}"
+      - name: Publier sur la branche qg-data
+        run: |
+          cd qg-tiles && git init -q && git checkout -q -b qg-data && git add . \
+          && git -c user.name=bot -c user.email=bot@users.noreply.github.com commit -qm "tuiles" \
+          && git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" qg-data
