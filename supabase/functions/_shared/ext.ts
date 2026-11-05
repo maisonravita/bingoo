@@ -184,7 +184,7 @@ export async function extLookupEmail(ws: Workspace, email: string) {
   ]);
   const sig = ((p.signals ?? []) as { label?: string; type?: string }[]).find((x) => x.label && !["taille", "reseau"].includes(x.type ?? ""));
   const STATUT: Record<string, string> = { nouveau: "Nouveau", sans_email: "Sans e-mail", pret: "Prêt", a_valider: "Message à valider", envoye: "Contacté", repondu: "A répondu", rdv: "Rendez-vous", client: "Client", refus: "Pas intéressé", ignore: "Écarté" };
-  return { prospect: { id: p.id, name: p.name, city: p.city, contact: [p.contact_name, p.contact_role].filter(Boolean).join(", "), statut: STATUT[p.status] ?? p.status,
+  return { prospect: { id: p.id, name: p.name, city: p.city, contact: [p.contact_name, String(p.contact_role ?? "").replace(/\s*\(.*$/, "")].filter(Boolean).join(", "), statut: STATUT[p.status] ?? p.status,
     signal: sig?.label ? String(sig.label).replace(/\s*(?:publi[ée]e? )?(?:au|dans le) (?:BODACC|registre[^,.;]*)/gi, "") : "",
     dernier_envoi: last ? { objet: last.subject, le: last.sent_at } : null, derniere_reponse: rep ? { resume: rep.summary, le: rep.created_at } : null,
     prochaine: p.next_action ? { quoi: p.next_action, le: p.next_action_at } : null } };
