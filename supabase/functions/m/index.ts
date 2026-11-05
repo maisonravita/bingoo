@@ -161,6 +161,20 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
     }
     return out;
   },
+  // Diagnostic (clé de tâche) : Stripe est-il branché en réel ? Ne renvoie jamais la clé, seulement le mode.
+  async "stripe-mode"(req) {
+    if ((req.headers.get("x-cron-key") ?? "") !== (await secret("cron_key"))) throw new HttpError(401, "Clé invalide");
+    const k = env("STRIPE_SECRET_KEY") ?? "", w = env("STRIPE_WEBHOOK_SECRET") ?? "";
+    const mode = !k ? "absente" : /^(sk|rk)_live_/.test(k) ? "reel" : /^(sk|rk)_test_/.test(k) ? "test" : "inconnu";
+    let compte: Record<string, unknown> = {};
+    if (k) {
+      const r = await fetch("https://api.stripe.com/v1/account", { headers: { Authorization: `Bearer ${k}` } });
+      const a = await r.json().catch(() => ({}));
+      compte = { ok: r.ok, paiements_actives: a.charges_enabled ?? null, virements_actives: a.payouts_enabled ?? null, pays: a.country ?? null, infos_manquantes: (a.requirements?.currently_due ?? []).length };
+    }
+    const { count: abonnes } = await admin.from("workspaces").select("id", { count: "exact", head: true }).not("stripe_subscription", "is", null);
+    return { mode, webhook: !!w, compte, abonnes };
+  },
   // Diagnostic (clé de tâche) : ce que Bingoo lit sur un site
   async probe(req, b) {
     if ((req.headers.get("x-cron-key") ?? "") !== (await secret("cron_key"))) throw new HttpError(401, "Clé invalide");
