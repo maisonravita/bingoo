@@ -82,17 +82,18 @@ const ToastCtx = createContext(() => {});
 export const useToast = () => useContext(ToastCtx);
 export function ToastProvider({ children }) {
   const [items, setItems] = useState([]);
-  const push = useCallback((text, tone = "default") => {
+  // action facultative : { label: "Annuler", run: () => … } (le toast reste alors 6 s)
+  const push = useCallback((text, tone = "default", action = null) => {
     const id = Math.random();
-    setItems((x) => [...x, { id, text, tone }]);
-    setTimeout(() => setItems((x) => x.filter((i) => i.id !== id)), tone === "bad" ? 6000 : 3200);
+    setItems((x) => [...x, { id, text, tone, action }]);
+    setTimeout(() => setItems((x) => x.filter((i) => i.id !== id)), tone === "bad" || action ? 6000 : 3200);
   }, []);
   return (
     <ToastCtx.Provider value={push}>
       {children}
       <div className="fixed z-50 bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 flex flex-col gap-2 items-center w-[calc(100%-32px)] max-w-md pointer-events-none" aria-live="polite">
         {items.map((t) => (
-          <div key={t.id} className={cx("rise rounded-xl px-4 py-2.5 text-sm font-medium shadow-lg flex items-center gap-2", t.tone === "bad" ? "bg-bad text-white" : t.tone === "good" ? "bg-good text-white" : "bg-ink text-white")}>{t.tone === "good" && <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path className="check-draw" d="m5 12.5 4.5 4.5L19 7.5" /></svg>}<span>{t.text}</span></div>
+          <div key={t.id} className={cx("rise rounded-xl px-4 py-2.5 text-sm font-medium shadow-lg flex items-center gap-2", t.tone === "bad" ? "bg-bad text-white" : t.tone === "good" ? "bg-good text-white" : "bg-ink text-white")}>{t.tone === "good" && <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path className="check-draw" d="m5 12.5 4.5 4.5L19 7.5" /></svg>}<span>{t.text}</span>{t.action && <button type="button" className="pointer-events-auto ml-2 rounded-lg bg-white/15 px-2.5 py-1 font-semibold hover:bg-white/25" onClick={() => { setItems((x) => x.filter((i) => i.id !== t.id)); t.action.run(); }}>{t.action.label}</button>}</div>
         ))}
       </div>
     </ToastCtx.Provider>

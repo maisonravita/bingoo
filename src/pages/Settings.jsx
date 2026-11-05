@@ -143,7 +143,7 @@ export default function Settings() {
               </summary>
               <div className="grid gap-3 mt-4">
                 <Field label="Nom"><Input value={t.label} onChange={(e) => setT(t.id, "label", e.target.value)} /></Field>
-                <Field label="Codes d'activité NAF" hint="Séparés par des virgules, ex. 87.10A, 87.30A"><Input value={t.naf.join(", ")} onChange={(e) => setT(t.id, "naf", e.target.value.toUpperCase().split(/[\s,;]+/).filter((x) => /^\d{2}\.\d{2}[A-Z]$/.test(x)))} /></Field>
+                <Field label="Codes d'activité NAF" hint="Séparés par des virgules, ex. 87.10A, 87.30A"><Input value={(t.naf ?? []).join(", ")} onChange={(e) => setT(t.id, "naf", e.target.value.toUpperCase().split(/[\s,;]+/).filter((x) => /^\d{2}\.\d{2}[A-Z]$/.test(x)))} /></Field>
                 <Field label="À qui écrire"><Input value={t.interlocuteur ?? ""} onChange={(e) => setT(t.id, "interlocuteur", e.target.value)} /></Field>
                 <Field label="Bénéficiaires (dans le message)"><Input value={t.pour_qui ?? ""} onChange={(e) => setT(t.id, "pour_qui", e.target.value)} /></Field>
                 <Field label="Argument principal"><Textarea rows={2} value={t.angle ?? ""} onChange={(e) => setT(t.id, "angle", e.target.value)} /></Field>

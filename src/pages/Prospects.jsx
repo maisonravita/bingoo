@@ -146,7 +146,7 @@ function Drawer({ p, onClose, onChange, team = [] }) {
         {p.org && <p className="text-ink-soft">{p.org}</p>}
         <dl className="mt-5 grid grid-cols-[110px_1fr] gap-y-2 text-sm">
           <dt className="text-ink-soft">Adresse</dt><dd>{[p.address].filter(Boolean).join(" ") || "—"}</dd>
-          <dt className="text-ink-soft">Dirigeant</dt><dd>{p.contact_name ? `${p.contact_name}${p.contact_role ? ` · ${p.contact_role}` : ""}` : "—"}</dd>
+          <dt className="text-ink-soft">Contact</dt><dd>{p.contact_name ? `${p.contact_name}${p.contact_role ? ` · ${p.contact_role}` : ""}` : "—"}</dd>
           <dt className="text-ink-soft">E-mail</dt><dd>{p.email ? <><a className="underline" href={`mailto:${p.email}`}>{p.email}</a>{p.email_source && <span className="block text-xs text-ink-faint">via {p.email_source}</span>}</> : "—"}</dd>
           <dt className="text-ink-soft">Téléphone</dt><dd>{p.phone ? <a className="underline" href={`tel:${p.phone.replace(/\s/g, "")}`}>{p.phone}</a> : "—"}</dd>
           <dt className="text-ink-soft">Site</dt><dd className="truncate">{p.website ? <a className="underline" href={p.website} target="_blank" rel="noreferrer">{p.website.replace(/^https?:\/\//, "")}</a> : "—"}</dd>
@@ -158,6 +158,18 @@ function Drawer({ p, onClose, onChange, team = [] }) {
           Compte stratégique <span className="text-ink-soft font-normal">(suivi étape par étape dans la salle de pilotage)</span>
         </label>
         {p.enrich_note && <p className="text-xs text-ink-soft mt-3">{p.enrich_note}</p>}
+        {!["refus", "ignore", "client"].includes(p.status) && (
+          <Button className="mt-4 w-full sm:w-auto" variant="accent" loading={busy === "ecrire"} onClick={async () => {
+            setBusy("ecrire");
+            try {
+              const r = await fn("m/prospect-prepare", { workspace_id: ws.id, id: p.id });
+              if (r.message?.status === "brouillon") { nav(`/valider?id=${r.message.id}`); return; }
+              if (r.message) toast("Un premier message lui a déjà été envoyé : la relance est préparée automatiquement.");
+              else toast(r.reason === "no_email" ? "Pas d'e-mail trouvé pour lui : appelle-le ou passe par LinkedIn." : r.reason === "no_sender" ? "Indique d'abord ton nom d'expéditeur dans Réglages." : "Rien à préparer pour l'instant.", "bad");
+              const { data } = await supabase.from("prospects").select("*").eq("id", p.id).single(); if (data) onChange(data);
+            } catch (e) { toast(e.message, "bad"); } finally { setBusy(null); }
+          }}>Lui écrire un message</Button>
+        )}
         <Contacts p={p} onChange={onChange} />
         {p.signals?.length > 0 && <div className="flex flex-wrap gap-1.5 mt-3">{p.signals.map((s, i) => <Badge key={i} tone={STRONG.includes(s.type) ? "accent" : "muted"}>{s.label}</Badge>)}</div>}
 
@@ -302,7 +314,7 @@ export default function Prospects() {
     const owner = (id) => team.find((m) => m.user_id === id)?.email ?? "";
     const head = ["Entreprise", "Raison sociale", "Contact", "Fonction", "E-mail", "Téléphone", "Site web", "Adresse", "Code postal", "Ville", "SIRET", "Activité", "Cible", "Statut", "Score", "LinkedIn", "Prochaine action", "Date prochaine action", "Responsable", "Notes", "Ajouté le"];
     const data = list.map((r) => [r.name, r.org, r.contact_name, r.contact_role, r.email, r.phone, r.website, r.address, r.postal_code, r.city, r.siret, r.activity, targetLabel(r.target), STATUS[r.status]?.label ?? r.status, r.score ?? "", r.linkedin_url, r.next_action, r.next_action_at ?? "", owner(r.owner_id), r.notes, (r.created_at ?? "").slice(0, 10)]);
-    download(`prospects-kairo-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(head, data));
+    download(`prospects-bingoo-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(head, data));
     toast(`${data.length} prospects exportés`, "good");
   };
   const targetLabel = (id) => ws.targets?.find((t) => t.id === id)?.label ?? "";

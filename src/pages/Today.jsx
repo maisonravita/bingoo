@@ -214,7 +214,7 @@ function Semaine() {
 // Le matin en 5 minutes : la liste des choses à faire, dans l'ordre où elles rapportent, avec le temps que ça prend.
 // Le point de départ du jour est gardé sur cet appareil pour montrer ce qui est déjà fait.
 const SEC = { reponses: 40, valider: 15, linkedin: 8, rappels: 60, rdv: 0 };
-function Morning({ s, canSend, wsId }) {
+function Morning({ s, canSend, wsId, adresse = true }) {
   const items = [
     ["reponses", s.replies, "réponse à traiter", "réponses à traiter", "Réponse déjà proposée : relis, envoie.", "/reponses", "chat"],
     ["valider", s.drafts, "message à valider", "messages à valider", "Un geste par message.", "#prets", "send"],
@@ -242,6 +242,7 @@ function Morning({ s, canSend, wsId }) {
       </div>
       {total > 0 && <div className="mt-2 h-2 rounded-full bg-paper overflow-hidden" aria-hidden><div className="h-full rounded-full bg-good transition-all" style={{ width: `${Math.round(((total - reste) / total) * 100)}%` }} /></div>}
       {!canSend && <Link to="/connexions" className="mt-3 flex items-center gap-3 rounded-2xl bg-accent-soft px-4 py-3 font-semibold"><Ico n="send" className="w-5 h-5 text-accent" />Dernière étape : connecter ta boîte mail (2 min)</Link>}
+      {canSend && !adresse && <Link to="/reglages" className="mt-3 flex items-center gap-3 rounded-2xl bg-accent-soft px-4 py-3 font-semibold"><Ico n="send" className="w-5 h-5 text-accent" />Ajoute l'adresse postale de ton entreprise : sans elle, rien ne part (30 s)</Link>}
       {!todo.length ? <p className="mt-2 text-[15px] text-ink-soft">Bingoo! continue de chercher pour toi ; les nouveautés arrivent ici, et sur ton téléphone si tu actives les notifications.</p> : (
         <ul className="mt-3 divide-y divide-line">
           {todo.map(([k, n, a, b, aide, to, icon]) => {
@@ -320,7 +321,7 @@ export default function Today() {
       <div className="flex flex-col">
         <div className="order-2 sm:order-1"><Semaine /></div>
         <div className="order-1 sm:order-2">
-          {s && <Morning s={s} wsId={ws.id} canSend={ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok} />}
+          {s && <Morning s={s} wsId={ws.id} canSend={ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok} adresse={!!ws.postal_address} />}
           <PushTel compact />
         </div>
       </div>

@@ -66,7 +66,7 @@ export function messageIdFor(key: string, from: string) {
 
 /** key : identifiant du message en base. Garantit qu'un même e-mail n'est accepté qu'une fois par Resend (24 h)
  *  et qu'il porte toujours le même Message-ID (rapprochement des réponses et des rebonds dans la boîte). */
-export async function sendMail(ws: Workspace, m: { to: string; subject: string; text: string; replyTo?: string; prospecting?: boolean; ics?: string; fromName?: string; key?: string }) {
+export async function sendMail(ws: Workspace, m: { to: string; subject: string; text: string; replyTo?: string; prospecting?: boolean; ics?: string; fromName?: string; key?: string; parentKey?: string }) {
   const footer = m.prospecting
     ? `${brand(ws)}${ws.postal_address ? ` · ${ws.postal_address}` : ""}\nPour ne plus recevoir de messages de notre part, répondez simplement « STOP »${ws.app_url ? ` ou rendez-vous sur ${ws.app_url.replace(/\/$/, "")}/#/opposition` : ""}.`
     : "";
@@ -81,6 +81,8 @@ export async function sendMail(ws: Workspace, m: { to: string; subject: string; 
       headers: m.prospecting ? { "List-Unsubscribe": `<mailto:${m.replyTo ?? ws.integrations.mailbox.email}?subject=STOP>` } : undefined,
       attachments: m.ics ? [{ filename: "invitation.ics", content: m.ics, contentType: "text/calendar; method=REQUEST" }] : undefined,
       messageId: m.key ? messageIdFor(m.key, ws.integrations.mailbox.email) : undefined,
+      // Relance : dans le même fil que le premier message (le prospect et sa messagerie la voient comme une suite)
+      ...(m.parentKey ? { inReplyTo: messageIdFor(m.parentKey, ws.integrations.mailbox.email), references: [messageIdFor(m.parentKey, ws.integrations.mailbox.email)] } : {}),
     });
   }
   const r = await resend("/emails", "POST", {

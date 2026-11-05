@@ -191,7 +191,8 @@ export default function Layout({ children }) {
   // Menu simple : ce que le client fait chaque jour d'abord ; le reste dans « Plus d'outils », jamais supprimé.
   const groups = [
     { items: [
-      { to: "/", label: "Aujourd'hui", short: "Aujourd'hui", icon: "today", count: c.drafts + c.replies, hot: true, also: ["/valider", "/reponses"] },
+      { to: "/", label: "Aujourd'hui", short: "Aujourd'hui", icon: "today", count: c.drafts, hot: true, also: ["/valider"] },
+      { to: "/reponses", label: "Réponses", short: "Réponses", icon: "inbox", count: c.replies },
       { to: "/radar", label: "Opportunités", short: "Opportunités", icon: "radar", count: c.radar },
       { to: "/prospects", label: "Prospects", short: "Prospects", icon: "list", also: ["/prospection", "/linkedin"] },
       { to: "/espion", label: "Concurrents", short: "Concurrents", icon: "eye" },
@@ -199,7 +200,6 @@ export default function Layout({ children }) {
     ] },
     { title: "Plus d'outils", fold: true, items: [
       { to: "/valider", label: "Messages à valider", icon: "check", count: c.drafts },
-      { to: "/reponses", label: "Réponses", icon: "inbox", count: c.replies },
       { to: "/agenda", label: "Agenda", icon: "cal", count: c.today },
       { to: "/mission", label: "Mission", icon: "flag", also: ["/intelligence"] },
       { to: "/salaries", label: "Vos salariés IA", icon: "users", also: ["/assistant", "/agents"] },
@@ -261,7 +261,7 @@ export default function Layout({ children }) {
         <div className="md:hidden fixed inset-0 z-40" onClick={() => setMore(false)}>
           <div className="absolute inset-0 bg-ink/30" />
           <div className="absolute bottom-16 inset-x-3 bg-white rounded-2xl border border-line p-2 grid grid-cols-3 gap-1 rise" onClick={(e) => e.stopPropagation()}>
-            {all.filter((n) => !["/", "/radar", "/prospects", "/resultats"].includes(n.to)).map((n) => (
+            {all.filter((n) => !["/", "/reponses", "/prospects", "/radar"].includes(n.to)).map((n) => (
               <NavLink key={n.to} to={n.to} className={({ isActive }) => cx("relative flex flex-col items-center gap-1 rounded-xl py-3 text-xs font-medium", isActive ? "bg-paper text-ink" : "text-ink-soft")}>
                 <Icon name={n.icon} />{n.label}
                 {n.count > 0 && <span className="absolute top-1.5 right-3 text-[10px] font-bold bg-accent text-white rounded-full min-w-4 h-4 px-1 grid place-items-center">{n.count}</span>}
@@ -274,7 +274,8 @@ export default function Layout({ children }) {
       )}
       {fb && <Feedback onClose={() => setFb(false)} />}
       <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-line grid grid-cols-5 pb-[env(safe-area-inset-bottom)] z-40">
-        {["/", "/radar", "/prospects", "/resultats"].map((t) => all.find((n) => n.to === t)).map((n) => (
+        {/* Sur téléphone : ce qu'on fait chaque jour. Les réponses (là où se gagnent les rendez-vous) ont leur onglet. */}
+        {["/", "/reponses", "/prospects", "/radar"].map((t) => all.find((n) => n.to === t)).map((n) => (
           <NavLink key={n.to} to={n.to} end className={({ isActive }) => cx("relative flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium", isActive ? "text-ink" : "text-ink-faint")}>
             <Icon name={n.icon} />{n.short}
             {n.count > 0 && <span className="absolute top-1 right-[22%] text-[10px] font-bold bg-accent text-white rounded-full min-w-4 h-4 px-1 grid place-items-center tnum">{n.count}</span>}

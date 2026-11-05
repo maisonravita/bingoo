@@ -192,7 +192,7 @@ export function bingooUi({ night, world, canvas, play, jeu }) {
       const connected = w.domain_status === 'verified' || !!w.integrations?.mailbox?.ok;
       const box = Object.assign(document.createElement('div'), { id: 'bq-first', className: 'bq-modal' });
       box.innerHTML = `<div class="bq-card"><p style="font-size:18px;font-weight:700">Ta première mission est terminée.</p>
-        <p>${esc(phrases(b).join(', ') || 'Ton équipe a commencé à travailler')}. Elle continue chaque nuit : demain matin, tout sera prêt dans Aujourd’hui.</p>
+        <p>${esc(phrases(b).join(', ') || 'Ton équipe a commencé à travailler')}. Elle continue : tes premiers messages à valider arrivent dans Aujourd’hui au fil des heures (jours ouvrés), et chaque nuit elle en trouve d’autres.</p>
         ${connected ? '' : '<p><b>Dernière étape :</b> connecte ta boîte mail (2 minutes) pour envoyer ton premier message depuis ta propre adresse.</p>'}
         <div class="bq-row">${connected ? '<a class="bq-btn" href="/#/">Voir mes prospects</a>' : '<a class="bq-btn" href="/#/connexions">Connecter ma boîte mail</a><a class="bq-btn ghost" href="/#/">Voir mes prospects</a>'}<button type="button" class="bq-btn ghost" id="bq-stay">Rester sur la carte</button></div></div>`;
       root.append(box);

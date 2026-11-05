@@ -225,7 +225,7 @@ export default function Onboarding() {
             </details>
             <div className="space-y-4 pt-2">
               <Field label="Les messages partiront signés de"><Input value={sender.sender_name} onChange={(e) => setSender({ ...sender, sender_name: e.target.value })} placeholder="Ton prénom et ton nom" /></Field>
-              <Field label="Adresse postale de l'entreprise" hint="Obligatoire en bas des e-mails de prospection. Tu peux la compléter plus tard dans les réglages.">
+              <Field label="Adresse postale de l'entreprise" hint="Obligatoire en bas des e-mails de prospection : sans elle, aucun message ne peut partir.">
                 <Input value={sender.postal_address} onChange={(e) => setSender({ ...sender, postal_address: e.target.value })} placeholder="12 rue de la Paix, 75002 Paris" />
               </Field>
             </div>

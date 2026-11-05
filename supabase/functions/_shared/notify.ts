@@ -36,7 +36,8 @@ export async function hotAlert(replyId: string, dry = false) {
     url: `/reponses?id=${r.id}`, tag: `reponse-${r.id}`,
   }).catch((e) => { console.error("push", e); return { envoyes: 0 }; });
   if (!to && !push.envoyes) return { skipped: "aucune adresse d'équipe ni téléphone abonné" };
-  if (to) await sendSystem({ to, subject, text: text + "\n\nRépondre directement à cet e-mail écrit au prospect.", fromName: `Bingoo! · ${who}`, replyTo: r.from_email || undefined });
+  // Pas de « répondre à cet e-mail » : la réponse citerait au prospect le texte interne de l'alerte
+  if (to) await sendSystem({ to, subject, text, fromName: `Bingoo! · ${who}` });
   await admin.from("replies").update({ notified_at: new Date().toISOString() }).eq("id", replyId);
   return { sent: true, to, telephones: push.envoyes };
 }

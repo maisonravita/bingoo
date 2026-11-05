@@ -47,7 +47,7 @@ for (const [label, opt] of [["téléphone", devices["iPhone 13"]], ["ordinateur"
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto(`file://${process.cwd()}/dist-single/index.html#${path}`);
-    await page.waitForTimeout(6500); // l'écran d'accueil reste 5 s pour un utilisateur connecté
+    await page.waitForTimeout(3000); // écran d'accueil : 1,2 s pour un utilisateur connecté
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
     const blank = (await page.textContent("body")).trim().length < 40;
     if (errors.length) { failed++; console.log(`  ✗ ${path} (${label}) : ${errors[0]}`); }

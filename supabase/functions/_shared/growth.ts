@@ -97,14 +97,14 @@ export async function removeMailbox(ws: Workspace) {
   await admin.from("workspaces").update({ integrations }).eq("id", ws.id);
   return { ok: true };
 }
-export async function smtpSend(ws: Workspace, m: { from: string; to: string; replyTo: string; subject: string; text: string; html: string; headers?: Record<string, string>; attachments?: { filename: string; content: string; contentType: string }[]; messageId?: string }) {
+export async function smtpSend(ws: Workspace, m: { from: string; to: string; replyTo: string; subject: string; text: string; html: string; headers?: Record<string, string>; attachments?: { filename: string; content: string; contentType: string }[]; messageId?: string; inReplyTo?: string; references?: string[] }) {
   const { data } = await admin.from("workspace_secrets").select("smtp").eq("workspace_id", ws.id).maybeSingle();
   const s = data?.smtp as { host?: string; port?: number; user?: string; pass?: string } | undefined;
   if (!s?.host || !s.pass) throw new HttpError(400, "Boîte mail déconnectée : reconnecte-la dans Réglages");
   try {
     const info = await transport(s.host, s.port ?? 465, s.user!, await open(s.pass)).sendMail({
       from: m.from, to: m.to, replyTo: m.replyTo, subject: m.subject, text: m.text, html: m.html, headers: m.headers, attachments: m.attachments,
-      ...(m.messageId ? { messageId: m.messageId } : {}),
+      ...(m.messageId ? { messageId: m.messageId } : {}), ...(m.inReplyTo ? { inReplyTo: m.inReplyTo, references: m.references } : {}),
     });
     return { id: String(info.messageId ?? "") };
   } catch (e) {

@@ -13,9 +13,11 @@ const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode><ErrorBoundary><Router><App /></Router></ErrorBoundary></React.StrictMode>,
 );
-// Visiteur du site : 1,5 s (il vient découvrir, pas attendre). Client connecté : l'animation complète, 5 s.
+// Écran d'accueil court : 1,5 s pour un visiteur, 1,2 s pour un client connecté à la première ouverture de la session,
+// rien ensuite (un client l'ouvre plusieurs fois par jour sur son téléphone : il ne doit jamais attendre)
 function splashMs() {
-  try { for (let i = 0; i < localStorage.length; i++) if (/^sb-.+-auth-token$/.test(localStorage.key(i) ?? "")) return 5000; } catch { /* stockage indisponible */ }
+  try { if (sessionStorage.getItem("bingoo-vu")) return 0; sessionStorage.setItem("bingoo-vu", "1"); } catch { /* stockage indisponible */ }
+  try { for (let i = 0; i < localStorage.length; i++) if (/^sb-.+-auth-token$/.test(localStorage.key(i) ?? "")) return 1200; } catch { /* stockage indisponible */ }
   return 1500;
 }
 const splash = document.getElementById("bingoo-splash");

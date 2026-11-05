@@ -309,7 +309,11 @@ export async function sendOne(ws: Workspace, messageId: string) {
   if (msg.status !== "brouillon") return { id: messageId, skipped: msg.status === "envoi" ? "envoi déjà en cours" : "déjà traité" };
   if (msg.campaign_id) { const c = await campaignOf(msg.campaign_id); if (c && c.status !== "active") return { id: messageId, skipped: "campagne en pause" }; }
   const p = msg.prospects as Prospect;
-  if (!p?.email) throw new HttpError(400, "Ce prospect n'a pas d'e-mail");
+  if (!p?.email) {
+    // Brouillon devenu inutilisable (adresse retirée depuis) : mis de côté, pour ne jamais bloquer les envois suivants
+    await admin.from("messages").update({ status: "echec", error: "Ce prospect n'a plus d'adresse e-mail : message mis de côté" }).eq("id", messageId).eq("status", "brouillon");
+    return { id: messageId, skipped: "ce prospect n'a plus d'adresse e-mail" };
+  }
   if (["repondu", "rdv", "client", "refus", "ignore"].includes(p.status) && msg.step > 0) {
     await admin.from("messages").update({ status: "ignore", error: "Le prospect a déjà répondu" }).eq("id", messageId);
     return { id: messageId, skipped: "il a déjà répondu" };
@@ -363,7 +367,15 @@ export async function sendOne(ws: Workspace, messageId: string) {
   try {
     const link = ws.app_url && ws.booking_slug && msg.step < 2 ? `${ws.app_url.replace(/\/$/, "")}/#/rdv/${ws.booking_slug}?t=${p.public_token}` : "";
     const body = `${msg.body.trim()}${link ? `\n\nSi c'est plus simple, vous pouvez choisir directement un créneau ici : ${link}` : ""}\n\n${signature(ws)}`;
-    const r = await sendMail(ws, { to: p.email, subject: msg.subject, text: body, replyTo: replyAddress(ws, p.public_token), prospecting: true, key: msg.id });
+    // Relance : on répond dans le fil du premier message envoyé à la même adresse (boîte connectée seulement ;
+    // sans fil possible, l'objet perd son « Re : » pour ne pas faire croire à une réponse)
+    let parentKey = "", subject = msg.subject;
+    if (msg.step > 0) {
+      const { data: first } = await admin.from("messages").select("id").eq("prospect_id", p.id).eq("step", 0).eq("status", "envoye").order("sent_at").limit(1);
+      if (first?.[0] && ws.integrations?.mailbox?.ok) parentKey = first[0].id;
+      else subject = subject.replace(/^re\s*:\s*/i, "");
+    }
+    const r = await sendMail(ws, { to: p.email, subject, text: body, replyTo: replyAddress(ws, p.public_token), prospecting: true, key: msg.id, parentKey: parentKey || undefined });
     await admin.from("messages").update({ status: "envoye", sent_at: new Date().toISOString(), provider_id: r.id, sent_via: ws.integrations?.mailbox?.ok ? ws.integrations.mailbox.email : "domaine" }).eq("id", messageId);
     await markWarmup(ws);
     if (["pret", "a_valider", "envoye", "nouveau", "sans_email"].includes(p.status)) await admin.from("prospects").update({ status: "envoye" }).eq("id", p.id);

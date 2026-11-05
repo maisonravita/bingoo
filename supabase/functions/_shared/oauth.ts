@@ -95,7 +95,7 @@ export async function googleAccess(ws: Workspace) {
 }
 
 /** Envoi par l'API Gmail : message MIME construit comme pour le SMTP (même Message-ID, mêmes en-têtes). */
-export async function gmailSend(ws: Workspace, m: { from: string; to: string; replyTo: string; subject: string; text: string; html: string; headers?: Record<string, string>; attachments?: { filename: string; content: string; contentType: string }[]; messageId?: string }) {
+export async function gmailSend(ws: Workspace, m: { from: string; to: string; replyTo: string; subject: string; text: string; html: string; headers?: Record<string, string>; attachments?: { filename: string; content: string; contentType: string }[]; messageId?: string; inReplyTo?: string; references?: string[] }) {
   const { token } = await googleAccess(ws);
   const { default: MailComposer } = await import("npm:nodemailer@6.9.16/lib/mail-composer/index.js");
   const raw: Uint8Array = await new MailComposer({ ...m, ...(m.messageId ? { messageId: m.messageId } : {}) }).compile().build();
@@ -211,7 +211,7 @@ export async function microsoftAccess(ws: Workspace) {
 }
 
 /** Envoi par Microsoft Graph, au format MIME (mêmes en-têtes et même Message-ID que les autres envois). */
-export async function outlookSend(ws: Workspace, m: { from: string; to: string; replyTo: string; subject: string; text: string; html: string; headers?: Record<string, string>; attachments?: { filename: string; content: string; contentType: string }[]; messageId?: string }) {
+export async function outlookSend(ws: Workspace, m: { from: string; to: string; replyTo: string; subject: string; text: string; html: string; headers?: Record<string, string>; attachments?: { filename: string; content: string; contentType: string }[]; messageId?: string; inReplyTo?: string; references?: string[] }) {
   const { token } = await microsoftAccess(ws);
   const { default: MailComposer } = await import("npm:nodemailer@6.9.16/lib/mail-composer/index.js");
   const raw: Uint8Array = await new MailComposer({ ...m, ...(m.messageId ? { messageId: m.messageId } : {}) }).compile().build();

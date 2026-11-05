@@ -44,6 +44,20 @@ function Paste({ onDone }) {
   );
 }
 
+/** Le message du prospect, lisible tout de suite (replié seulement s'il est long). */
+function Lu({ texte }) {
+  const [ouvert, setOuvert] = useState(false);
+  const t = String(texte ?? "").trim();
+  if (!t) return null;
+  const long = t.length > 420;
+  return (
+    <div className="mt-2 text-sm bg-paper rounded-xl p-3">
+      <p className={cx("whitespace-pre-line", long && !ouvert && "line-clamp-6")}>{t}</p>
+      {long && <button type="button" onClick={() => setOuvert((x) => !x)} className="mt-1 text-[13px] font-semibold text-ink-soft hover:text-ink">{ouvert ? "Réduire" : "Lire tout le message"}</button>}
+    </div>
+  );
+}
+
 export function ReplyCard({ r, onChange }) {
   const { ws } = useWs();
   const toast = useToast();
@@ -58,6 +72,7 @@ export function ReplyCard({ r, onChange }) {
   };
   const done = async () => { await supabase.from("replies").update({ handled: true }).eq("id", r.id); onChange(); };
   const p = r.prospects;
+  const lienRdv = ws.app_url && ws.booking_slug ? `${ws.app_url.replace(/\/$/, "")}/#/rdv/${ws.booking_slug}` : "";
   return (
     <Card className={cx("p-5 sm:p-6", r.needs_human && !r.handled && "border-accent/40")}>
       <div className="flex flex-wrap items-center gap-2">
@@ -68,7 +83,7 @@ export function ReplyCard({ r, onChange }) {
       <h3 className="font-serif text-2xl mt-2">{p?.name ?? r.from_email}</h3>
       <p className="text-sm text-ink-soft">{r.from_name || r.from_email}{p?.activity ? ` · ${p.activity}` : ""}</p>
       <p className="mt-3 font-medium">{r.summary}</p>
-      <details className="mt-2 text-sm"><summary className="cursor-pointer text-ink-soft">Message complet</summary><p className="mt-2 whitespace-pre-line bg-paper rounded-xl p-3">{r.body}</p></details>
+      <Lu texte={r.body} />
       {!r.handled && r.reply_body && (
         <div className="mt-4 pt-4 border-t border-line space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-ink-soft">Réponse proposée</p>
@@ -81,7 +96,9 @@ export function ReplyCard({ r, onChange }) {
           {r.reply_body && (r.from_email === "linkedin"
             ? <Button variant="li" onClick={async () => { try { await navigator.clipboard.writeText(body); toast("Réponse copiée : colle-la dans la conversation LinkedIn", "good"); } catch { toast("Copie impossible, sélectionne le texte", "bad"); } }}>Copier pour LinkedIn</Button>
             : <Button variant="accent" loading={busy === "send"} onClick={send}>Envoyer la réponse</Button>)}
+          {r.reply_body && r.from_email !== "linkedin" && lienRdv && !body.includes(lienRdv) && <Button variant="ghost" onClick={() => setBody((x) => `${x.trim()}\n\nVous pouvez choisir directement le créneau qui vous arrange ici : ${lienRdv}`)}>Ajouter mon agenda</Button>}
           <Button variant="ghost" onClick={done}>Traité</Button>
+          {p && <Button variant="ghost" onClick={async () => { await supabase.from("prospects").update({ status: "refus" }).eq("id", r.prospect_id); await done(); toast("Noté : plus de relance pour lui", "good"); }}>Pas intéressé</Button>}
           {p?.phone && <a href={`tel:${p.phone.replace(/\s/g, "")}`}><Button variant="ghost">Appeler {p.phone}</Button></a>}
         </div>
       )}
@@ -103,7 +120,7 @@ export default function Replies() {
     window.dispatchEvent(new Event("kairo:refresh"));
   }, [ws.id, tab]);
   useEffect(() => { load(); }, [load]);
-  const tracked = ws.reply_status === "verified";
+  const tracked = true; // les réponses reviennent toujours (domaine de la plateforme), comme côté serveur
 
   return (
     <div>

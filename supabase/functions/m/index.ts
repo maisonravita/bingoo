@@ -149,6 +149,15 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
         const { aiRoom } = await import("../_shared/core.ts");
         if (await aiRoom(ws.id, 0.6)) { const rep: Record<string, number> = {}; await (await import("../_shared/autopilot.ts")).rechercheContacts(ws, rep, { reserve: 40, parJour: 30, parPassage: 3, origine: "recherche de jour" }); if (rep.enquetes) out[`contacts_${ws.id}`] = rep.enquetes; }
       } catch (e) { out[`contacts_${ws.id}`] = { error: (e as Error).message }; }
+      // … et une petite réserve de messages rédigés (8), à valider : le client n'ouvre jamais un « Aujourd'hui » vide
+      try {
+        const { aiRoom } = await import("../_shared/core.ts");
+        const { count: brouillons } = await admin.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "brouillon").eq("step", 0);
+        if ((brouillons ?? 0) < 8 && ws.sender_name && await aiRoom(ws.id, 0.6)) {
+          const { data: ready } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("status", "pret").neq("email", "").is("mission_id", null).order("score", { ascending: false, nullsFirst: false }).limit(2);
+          for (const p of ready ?? []) { await draft(ws, p as Prospect); await log(ws.id, "redaction", `${p.name} : message rédigé, à valider`); out[`rediges_${ws.id}`] = ((out[`rediges_${ws.id}`] as number) ?? 0) + 1; }
+        }
+      } catch (e) { out[`rediges_${ws.id}`] = { error: (e as Error).message }; }
     }
     return out;
   },

@@ -18,7 +18,11 @@ export default function Review() {
 
   const load = useCallback(async () => {
     const { data } = await supabase.from("messages").select("*, prospects(*)").eq("workspace_id", ws.id).eq("status", "brouillon").order("step", { ascending: false }).order("created_at").limit(100);
-    setQueue(data ?? []);
+    // Ouvert depuis « Modifier » sur une carte : ce message-là d'abord, en mode édition
+    const id = new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("id");
+    const rows = data ?? [];
+    setQueue(id ? [...rows].sort((a, b) => (b.id === id) - (a.id === id)) : rows);
+    if (id && rows.some((r) => r.id === id)) setEdit(true);
   }, [ws.id]);
   useEffect(() => { load(); }, [load]);
 
@@ -46,10 +50,16 @@ export default function Review() {
   const skip = async () => {
     if (!cur || busy) return;
     setBusy("skip");
-    await supabase.from("messages").update({ status: "ignore" }).eq("id", cur.id);
-    if (cur.step === 0) await supabase.from("prospects").update({ status: "ignore" }).eq("id", cur.prospect_id);
+    const m = cur, avant = cur.prospects?.status;
+    await supabase.from("messages").update({ status: "ignore" }).eq("id", m.id);
+    if (m.step === 0) await supabase.from("prospects").update({ status: "ignore" }).eq("id", m.prospect_id);
     setBusy(null);
     animateOut(-1, next);
+    toast(`${m.prospects?.name || "Prospect"} écarté`, "default", { label: "Annuler", run: async () => {
+      await supabase.from("messages").update({ status: "brouillon" }).eq("id", m.id).eq("status", "ignore");
+      if (m.step === 0 && avant) await supabase.from("prospects").update({ status: avant }).eq("id", m.prospect_id).eq("status", "ignore");
+      load();
+    } });
   };
   const replied = async () => {
     setBusy("replied");
@@ -133,7 +143,10 @@ export default function Review() {
               <>
                 <p className="font-semibold">{cur.subject}</p>
                 <div className="mt-3 whitespace-pre-line leading-relaxed text-[15px]">{cur.body}</div>
-                <p className="mt-4 text-sm text-ink-faint whitespace-pre-line">{ws.signature || `${ws.sender_name}\n${ws.profile?.nom || ws.name}`}</p>
+                {/* Ce que le prospect reçoit vraiment : lien de réservation, signature, pied de page légal */}
+                {ws.app_url && ws.booking_slug && cur.step < 2 && <p className="mt-4 text-[15px] leading-relaxed">Si c'est plus simple, vous pouvez choisir directement un créneau ici : <span className="text-accent-dark underline">ton lien de réservation</span></p>}
+                <p className="mt-4 text-sm text-ink-faint whitespace-pre-line">{ws.signature?.trim() || `${ws.sender_name}\n${ws.profile?.nom || ws.name}`}</p>
+                <p className="mt-4 pt-3 border-t border-line text-[12px] text-ink-faint">{ws.profile?.nom || ws.name}{ws.postal_address ? ` · ${ws.postal_address}` : " · adresse postale à ajouter dans Réglages"}<br />Pour ne plus recevoir de messages de notre part, répondez simplement « STOP ».</p>
               </>
             )}
           </div>

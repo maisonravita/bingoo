@@ -53,7 +53,8 @@ export async function autopilot(ws: Workspace, base: string) {
       const { data: all } = await q.order("step", { ascending: false }).order("created_at").limit(left + 20);
       const todo = (all ?? []).filter((m) => !pausedIds.has((m.prospects as { mission_id?: string } | null)?.mission_id ?? "")).slice(0, left);
       for (const m of todo) {
-        const r = await sendOne(ws, m.id);
+        let r: unknown;
+        try { r = await sendOne(ws, m.id); } catch (e) { console.error("envoi", (e as Error).message); if ((e as { status?: number }).status === 429) break; continue; }
         if ((r as { sent?: boolean }).sent) { report.envoyes = (report.envoyes ?? 0) + 1; await log(ws.id, "envoi", "E-mail envoyé (pilote automatique)"); }
         left--;
       }

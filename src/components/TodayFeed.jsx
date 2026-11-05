@@ -36,7 +36,7 @@ function DraftCard({ m, canSend, onDone }) {
   const reason = why(p);
   const send = async () => {
     if (lock.current) return;
-    if (!canSend) return toast("Connecte d'abord ta boîte mail (Réglages → Connexions) pour envoyer", "bad");
+    if (!canSend) return toast("Pour envoyer : boîte mail connectée et adresse postale de l'entreprise (Réglages)", "bad");
     lock.current = true; setBusy("send");
     try {
       const r = await fn("m/send", { workspace_id: ws.id, message_id: m.id });
@@ -47,9 +47,15 @@ function DraftCard({ m, canSend, onDone }) {
   };
   const skip = async () => {
     setBusy("skip");
+    const avant = p.status;
     await supabase.from("messages").update({ status: "ignore" }).eq("id", m.id);
     if (m.step === 0) await supabase.from("prospects").update({ status: "ignore" }).eq("id", m.prospect_id);
     setBusy(""); onDone(m.id);
+    toast(`${p.name || "Prospect"} écarté`, "default", { label: "Annuler", run: async () => {
+      await supabase.from("messages").update({ status: "brouillon" }).eq("id", m.id).eq("status", "ignore");
+      if (m.step === 0 && avant) await supabase.from("prospects").update({ status: avant }).eq("id", m.prospect_id).eq("status", "ignore");
+      window.dispatchEvent(new Event("kairo:refresh"));
+    } });
   };
   return (
     <article className="rounded-2xl border border-line bg-white p-5">
@@ -66,7 +72,7 @@ function DraftCard({ m, canSend, onDone }) {
       </button>
       <div className="mt-4 grid grid-cols-3 sm:flex sm:flex-wrap gap-2 [&>*]:w-full sm:[&>*]:w-auto [&_button]:w-full sm:[&_button]:w-auto">
         <Button variant="primary" loading={busy === "send"} disabled={!!busy} onClick={send}>Envoyer</Button>
-        <Link to="/valider"><Button variant="ghost" disabled={!!busy}>Modifier</Button></Link>
+        <Link to={`/valider?id=${m.id}`}><Button variant="ghost" disabled={!!busy}>Modifier</Button></Link>
         <Button variant="ghost" loading={busy === "skip"} disabled={!!busy} onClick={skip}>Pas pour moi</Button>
       </div>
     </article>
@@ -86,11 +92,11 @@ function SendAll({ total, onDone }) {
     let sent = 0, skipped = 0;
     for (let i = 0; i < ids.length; i++) {
       setProg(`${i + 1} / ${ids.length}`);
-      try { const r = await fn("m/send", { workspace_id: ws.id, message_id: ids[i] }); if (r?.skipped) skipped++; else sent++; }
+      try { const r = await fn("m/send", { workspace_id: ws.id, message_id: ids[i] }); if (r?.sent) sent++; else skipped++; }
       catch (e) { toast(`Arrêté : ${e.message}`, "bad"); break; }
     }
     setProg(null);
-    toast(`${sent} message${sent > 1 ? "s" : ""} envoyé${sent > 1 ? "s" : ""}${skipped ? `, ${skipped} non envoyé${skipped > 1 ? "s" : ""} (voir Messages à valider)` : ""}`, sent ? "good" : "default");
+    toast(`${sent} message${sent > 1 ? "s" : ""} envoyé${sent > 1 ? "s" : ""}${skipped ? `, ${skipped} non envoyé${skipped > 1 ? "s" : ""} (le détail est sur chaque message)` : ""}`, sent ? "good" : "default");
     onDone();
   };
   if (prog) return <p className="mb-3 text-sm text-ink-soft">Envoi en cours… {prog}</p>;
@@ -107,7 +113,8 @@ function SendAll({ total, onDone }) {
 export default function TodayFeed() {
   const { ws } = useWs();
   const [d, setD] = useState(null);
-  const canSend = ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok;
+  const boite = ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok;
+  const canSend = boite && !!ws.postal_address;
   const load = useCallback(async () => {
     const t0 = new Date(); t0.setHours(0, 0, 0, 0);
     const since = new Date(Date.now() - 24 * 36e5).toISOString();
@@ -115,7 +122,7 @@ export default function TodayFeed() {
     const [rep, meet, dr, nDr, o24, c24, m24] = await Promise.all([
       supabase.from("replies").select("*, prospects(name, activity, phone, email)").eq("workspace_id", ws.id).eq("handled", false).order("created_at", { ascending: false }).limit(3),
       supabase.from("meetings").select("id, company, starts_at").eq("workspace_id", ws.id).eq("status", "confirme").gte("starts_at", t0.toISOString()).lt("starts_at", new Date(t0.getTime() + 864e5).toISOString()).order("starts_at"),
-      supabase.from("messages").select("id, step, subject, body, prospect_id, prospects(name, city, contact_name, contact_role, email, signals)").eq("workspace_id", ws.id).eq("status", "brouillon").order("step", { ascending: false }).order("created_at").limit(5),
+      supabase.from("messages").select("id, step, subject, body, prospect_id, prospects(name, city, contact_name, contact_role, email, signals, status)").eq("workspace_id", ws.id).eq("status", "brouillon").order("step", { ascending: false }).order("created_at").limit(5),
       supabase.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "brouillon"),
       head("radar_opps").gte("created_at", since), head("prospects").gte("enriched_at", since).neq("email", ""), head("messages").gte("created_at", since),
     ]);
@@ -152,7 +159,8 @@ export default function TodayFeed() {
 
       {d.drafts.length > 0 && (
         <Section id="prets" title="Messages prêts à partir" count={d.draftsTotal} to="/valider" more={d.draftsTotal > d.drafts.length ? `Les ${d.draftsTotal} messages` : "Tout voir"}>
-          {!canSend && <p className="mb-3 text-sm text-warn">Pour envoyer, connecte ta boîte mail : <Link className="underline" to="/connexions">Réglages → Connexions</Link>.</p>}
+          {!boite ? <p className="mb-3 text-sm text-warn">Pour envoyer, connecte ta boîte mail : <Link className="underline" to="/connexions">Réglages → Connexions</Link>.</p>
+            : !canSend && <p className="mb-3 text-sm text-warn">Pour envoyer, ajoute l'adresse postale de ton entreprise : elle est obligatoire en bas des e-mails de prospection. <Link className="underline" to="/reglages">Réglages → Expéditeur</Link></p>}
           {canSend && d.draftsTotal > 1 && <SendAll total={d.draftsTotal} onDone={() => { load(); window.dispatchEvent(new Event("kairo:refresh")); }} />}
           <div className="grid gap-4">{d.drafts.map((m) => <DraftCard key={m.id} m={m} canSend={canSend} onDone={gone} />)}</div>
         </Section>
