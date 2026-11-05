@@ -8,6 +8,7 @@ import { cx, plural } from "../lib/utils";
 import { fmtN } from "../lib/zones";
 import { Avatar, TEAM } from "./Salaries";
 import CompanyLogo from "../components/CompanyLogo";
+import TodayFeed from "../components/TodayFeed";
 
 const I = {
   search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>,
@@ -247,64 +248,61 @@ export default function Today() {
   const trend = s && s.oppsPrev > 0 ? Math.round(((s.oppsWeek - s.oppsPrev) / s.oppsPrev) * 100) : null;
 
   return (
-    <div>
-      <header className="flex flex-col lg:flex-row lg:items-start justify-between gap-5 mb-6">
-        <div>
-          <h1 className="font-black text-[44px] sm:text-[60px] leading-none tracking-tight flex items-start gap-1" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>
-            {hello}{first ? ` ${first}` : ""} !<Sparks className="w-10 h-10 sm:w-12 sm:h-12 -mt-2" />
-          </h1>
-          <p className="text-ink-soft text-[17px] mt-3">Voici les opportunités et les actions à ne pas manquer aujourd'hui.</p>
-        </div>
-        {s && (
-          <TimeSaved s={s} trend={trend} />
-        )}
+    <div className="max-w-4xl">
+      <header className="mb-6">
+        <h1 className="font-black text-[40px] sm:text-[52px] leading-none tracking-tight flex items-start gap-1" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>
+          {hello}{first ? ` ${first}` : ""} !<Sparks className="w-9 h-9 sm:w-11 sm:h-11 -mt-2" />
+        </h1>
+        <p className="text-ink-soft text-[17px] mt-3">Ce qui t'attend aujourd'hui. Tu valides, Bingoo! s'occupe du reste.</p>
       </header>
 
-      {s && (
-        <section className="bg-white rounded-2xl border border-line py-4 mb-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-y-4 lg:divide-x divide-line">
-          <Stat icon="search" label="Trouvés" value={s.found} delta={s.found7} />
-          <Stat icon="send" label="À contacter" value={s.toContact} delta={null} />
-          <Stat icon="check" label="Contactés" value={s.sent} delta={s.sent7} />
-          <Stat icon="chat" label="Réponses" value={s.replied} delta={s.replied7} />
-          <Stat icon="cal" label="RDV" value={s.rdv} delta={s.rdv7} accent />
-          <Stat icon="users" label="Clients" value={s.client} delta={null} accent />
+      <TodayFeed />
+
+      {s && s.detected.length > 0 && (
+        <section className="mb-8">
+          <div className="flex items-baseline justify-between gap-3 mb-3">
+            <h2 className="text-[19px] font-semibold">Nouvelles opportunités{s.opps > 0 && <span className="ml-2 text-ink-faint font-normal">{s.opps}</span>}</h2>
+            <Link to="/radar" className="text-sm text-ink-soft hover:text-ink hover:underline underline-offset-4">Toutes les opportunités</Link>
+          </div>
+          <Detected rows={s.detected} onPrepared={load} />
         </section>
       )}
 
       {s && <Urgent u={s.urgent} />}
 
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="flex items-center gap-2.5 font-bold text-[16px] uppercase tracking-wide"><Ico n="star" className="w-6 h-6 text-accent" fill />Tes priorités du jour</h2>
-      </div>
-      {s ? (
-        <div className="grid md:grid-cols-3 [&>*]:min-w-0 gap-3.5 mb-6">
-          <Priority icon="target" n={s.opps} one="opportunité à examiner" many="opportunités à examiner" empty="Pas de nouvelle opportunité" img="immeuble"
-            sub={s.opps ? "Des entreprises montrent des signaux d'intérêt pour ton offre." : "Max surveille le marché et te prévient dès qu'une entreprise bouge."} to="/radar" cta="Voir les opportunités" />
-          <Priority icon="chat" n={s.replies} one="réponse à traiter" many="réponses à traiter" empty="Aucune réponse en attente" img="reponses" hot
-            sub={s.replies ? "Des prospects t'ont répondu : Inès a préparé une réponse pour chacun." : "Inès lit chaque réponse dès qu'elle arrive."} to="/reponses" cta="Voir les réponses" />
-          <Priority icon="check" n={s.drafts + s.li} one="action à valider" many="actions à valider" empty="Rien à valider" img="valider" hot
-            sub={s.drafts + s.li ? [s.drafts && plural(s.drafts, "e-mail prêt", "e-mails prêts"), s.li && plural(s.li, "message LinkedIn", "messages LinkedIn")].filter(Boolean).join(" et ") + " attendent ton feu vert." : "Hugo prépare les prochains e-mails."} to="/valider" cta="Voir les actions" />
-        </div>
-      ) : <div className="grid md:grid-cols-3 [&>*]:min-w-0 gap-3.5 mb-6">{[0, 1, 2].map((k) => <div key={k} className="h-[178px] rounded-2xl bg-white border border-line animate-pulse" />)}</div>}
-
       {s && (
-        <div className="grid xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-3.5 mb-6">
-          <Detected rows={s.detected} onPrepared={load} />
-          <TeamAtWork rows={s.rows} />
-        </div>
-      )}
-
-      {s && (s.ready > 0 || s.todo > 0 || s.hard > 0) && (
-        <section className="rounded-2xl border border-dashed border-line p-4 sm:p-5">
-          <p className="font-semibold">Faire travailler l'équipe maintenant</p>
-          <p className="text-[13px] text-ink-soft mt-0.5">La mission le fait toute seule en semaine ; ces boutons servent à aller plus vite. Rien n'est envoyé sans toi.</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {s.ready > 0 && <Button quota="redaction" loading={job?.key === "draft"} disabled={!!job} onClick={() => run({ key: "draft", action: "draft", body: { workspace_id: ws.id, count: 5 }, rounds: Math.ceil(Math.min(s.ready, 20) / 5), label: "Rédaction", done: (n) => `${plural(n, "message rédigé", "messages rédigés")}, à valider` })}>{job?.key === "draft" ? job.text : `Hugo : rédiger ${fmtN(Math.min(s.ready, 20))} e-mails`}</Button>}
-            {s.todo > 0 && <Button quota="enquete" loading={job?.key === "enrich"} disabled={!!job} onClick={() => run({ key: "enrich", action: "m/enrich", body: { workspace_id: ws.id, count: 4 }, rounds: 3, label: "Enquête", done: (n, f) => `${f} e-mails trouvés sur ${n} prospects` })}>{job?.key === "enrich" ? job.text : `Sam : trouver les contacts (${fmtN(s.todo)} en attente)`}</Button>}
-            {s.hard > 0 && <Button quota="enquete_plus" loading={job?.key === "deep"} disabled={!!job} onClick={() => run({ key: "deep", action: "enrich-deep", body: { workspace_id: ws.id }, rounds: 5, label: "Enquête approfondie", done: (n, f) => `${f} e-mails trouvés sur ${n} prospects` })}>{job?.key === "deep" ? job.text : `Creuser ${fmtN(Math.min(s.hard, 5))} prospects sans e-mail`}</Button>}
-            <Button quota="recherche" loading={job?.key === "search"} disabled={!!job} onClick={() => run({ key: "search", action: "search", body: { workspace_id: ws.id, pages: 2 }, rounds: 1, label: "Recherche", done: (n) => `${plural(n, "nouveau prospect", "nouveaux prospects")}` })}>{job?.key === "search" ? job.text : "Léo : chercher de nouvelles entreprises"}</Button>
+        <details className="group mt-2 rounded-2xl border border-line bg-white">
+          <summary className="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-3">
+            <span className="font-semibold">Ta semaine en chiffres</span>
+            <span className="text-sm text-ink-soft group-open:hidden">Afficher</span><span className="text-sm text-ink-soft hidden group-open:inline">Masquer</span>
+          </summary>
+          <div className="px-4 pb-5">
+            <section className="py-2 mb-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-y-4 lg:divide-x divide-line">
+              <Stat icon="search" label="Trouvés" value={s.found} delta={s.found7} />
+              <Stat icon="send" label="À contacter" value={s.toContact} delta={null} />
+              <Stat icon="check" label="Contactés" value={s.sent} delta={s.sent7} />
+              <Stat icon="chat" label="Réponses" value={s.replied} delta={s.replied7} />
+              <Stat icon="cal" label="RDV" value={s.rdv} delta={s.rdv7} accent />
+              <Stat icon="users" label="Clients" value={s.client} delta={null} accent />
+            </section>
+            <div className="grid lg:grid-cols-[380px_minmax(0,1fr)] gap-3.5">
+              <TimeSaved s={s} trend={trend} />
+              <TeamAtWork rows={s.rows} />
+            </div>
+            {(s.ready > 0 || s.todo > 0 || s.hard > 0) && (
+              <div className="mt-4 rounded-2xl border border-dashed border-line p-4">
+                <p className="font-semibold">Aller plus vite</p>
+                <p className="text-[13px] text-ink-soft mt-0.5">Bingoo! le fait tout seul en semaine ; ces boutons lancent le travail tout de suite. Rien n'est envoyé sans toi.</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {s.ready > 0 && <Button quota="redaction" loading={job?.key === "draft"} disabled={!!job} onClick={() => run({ key: "draft", action: "draft", body: { workspace_id: ws.id, count: 5 }, rounds: Math.ceil(Math.min(s.ready, 20) / 5), label: "Rédaction", done: (n) => `${plural(n, "message rédigé", "messages rédigés")}, à valider` })}>{job?.key === "draft" ? job.text : `Rédiger ${fmtN(Math.min(s.ready, 20))} messages`}</Button>}
+                  {s.todo > 0 && <Button quota="enquete" loading={job?.key === "enrich"} disabled={!!job} onClick={() => run({ key: "enrich", action: "m/enrich", body: { workspace_id: ws.id, count: 4 }, rounds: 3, label: "Enquête", done: (n, f) => `${f} e-mails trouvés sur ${n} prospects` })}>{job?.key === "enrich" ? job.text : `Trouver les contacts (${fmtN(s.todo)})`}</Button>}
+                  {s.hard > 0 && <Button quota="enquete_plus" loading={job?.key === "deep"} disabled={!!job} onClick={() => run({ key: "deep", action: "enrich-deep", body: { workspace_id: ws.id }, rounds: 5, label: "Enquête approfondie", done: (n, f) => `${f} e-mails trouvés sur ${n} prospects` })}>{job?.key === "deep" ? job.text : `Creuser ${fmtN(Math.min(s.hard, 5))} prospects sans e-mail`}</Button>}
+                  <Button quota="recherche" loading={job?.key === "search"} disabled={!!job} onClick={() => run({ key: "search", action: "search", body: { workspace_id: ws.id, pages: 2 }, rounds: 1, label: "Recherche", done: (n) => `${plural(n, "nouveau prospect", "nouveaux prospects")}` })}>{job?.key === "search" ? job.text : "Chercher de nouvelles entreprises"}</Button>
+                </div>
+              </div>
+            )}
           </div>
-        </section>
+        </details>
       )}
     </div>
   );

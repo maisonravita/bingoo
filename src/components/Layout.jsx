@@ -188,28 +188,24 @@ export default function Layout({ children }) {
 
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => { supabase.rpc("is_admin").then(({ data }) => setIsAdmin(!!data)); }, []);
-  // Les 4 piliers : Détecter (Radar) · Comprendre (Espion) · Agir (Mission) · Convertir (réponses, rendez-vous)
+  // Menu simple : ce que le client fait chaque jour d'abord ; le reste dans « Plus d'outils », jamais supprimé.
   const groups = [
     { items: [
-      { to: "/", label: "Ta journée", short: "Journée", icon: "today" },
-      { to: "/salaries", label: "Vos salariés", short: "Salariés", icon: "users", also: ["/assistant", "/agents"] },
+      { to: "/", label: "Aujourd'hui", short: "Aujourd'hui", icon: "today", count: c.drafts + c.replies, hot: true, also: ["/valider", "/reponses"] },
+      { to: "/radar", label: "Opportunités", short: "Opportunités", icon: "radar", count: c.radar },
+      { to: "/prospects", label: "Prospects", short: "Prospects", icon: "list", also: ["/prospection", "/linkedin"] },
+      { to: "/espion", label: "Concurrents", short: "Concurrents", icon: "eye" },
+      { to: "/resultats", label: "Résultats", short: "Résultats", icon: "chart", also: ["/distribution", "/conversion"] },
     ] },
-    { title: "Détecter", items: [
-      { to: "/radar", label: "Radar", short: "Radar", icon: "radar", count: c.radar },
-    ] },
-    { title: "Comprendre", items: [
-      { to: "/espion", label: "Espion", icon: "eye" },
-    ] },
-    { title: "Agir", items: [
-      { to: "/mission", label: "Mission", short: "Mission", icon: "flag", also: ["/intelligence"] },
-      { to: "/valider", label: "À valider", short: "Valider", icon: "check", count: c.drafts },
-      { to: "/prospects", label: "Prospects", short: "Prospects", icon: "list", also: ["/prospection", "/linkedin"], count: c.li },
-    ] },
-    { title: "Convertir", items: [
-      { to: "/reponses", label: "Réponses", short: "Réponses", icon: "inbox", count: c.replies, hot: true },
+    { title: "Plus d'outils", fold: true, items: [
+      { to: "/valider", label: "Messages à valider", icon: "check", count: c.drafts },
+      { to: "/reponses", label: "Réponses", icon: "inbox", count: c.replies },
       { to: "/agenda", label: "Agenda", icon: "cal", count: c.today },
+      { to: "/mission", label: "Mission", icon: "flag", also: ["/intelligence"] },
+      { to: "/salaries", label: "Vos salariés IA", icon: "users", also: ["/assistant", "/agents"] },
       { to: "/devis", label: "Devis", icon: "doc" },
-      { to: "/resultats", label: "Résultats", icon: "chart", also: ["/distribution", "/conversion"] },
+      { to: "/appels", label: "Appels", icon: "list" },
+      { to: "/reseaux", label: "Réseaux sociaux", icon: "eye" },
     ] },
     { items: [
       { to: "/reglages", label: "Réglages", icon: "cog", also: ["/connexions", "/equipe", "/abonnement"] },
@@ -226,16 +222,19 @@ export default function Layout({ children }) {
       <aside className="hidden md:flex md:w-60 shrink-0 flex-col p-4 sticky top-0 h-screen overflow-y-auto">
         <Logo className="ml-3 mt-1 mb-5" />
         {ws.autonomy === "auto" && <p className="mx-3 mb-4 text-xs font-semibold text-good flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-good pulse-dot" />Pilote automatique actif</p>}
-        {groups.map((g, i) => (
-          <div key={i} className={cx("flex flex-col gap-0.5", i > 0 && "mt-4 pt-4 border-t border-line")}>
-            {g.title && <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">{g.title}</p>}
-            {g.items.map((n) => (
-              <NavLink key={n.to} to={n.to} end className={link(n)}>
-                <Icon name={n.icon} /><span className="flex-1">{n.label}</span><Count n={n.count} hot={n.hot || n.to === "/valider"} />
-              </NavLink>
-            ))}
-          </div>
-        ))}
+        {groups.map((g, i) => {
+          const items = g.items.map((n) => (
+            <NavLink key={n.to} to={n.to} end className={link(n)}>
+              <Icon name={n.icon} /><span className="flex-1">{n.label}</span><Count n={n.count} hot={n.hot} />
+            </NavLink>
+          ));
+          return g.fold ? (
+            <details key={i} className="mt-4 pt-4 border-t border-line group" open={g.items.some((n) => loc.pathname === n.to || (n.also ?? []).includes(loc.pathname))}>
+              <summary className="cursor-pointer list-none px-3 pb-1.5 text-[13px] text-ink-soft hover:text-ink flex items-center justify-between">{g.title}<span className="text-[11px] group-open:rotate-90 transition">›</span></summary>
+              <div className="flex flex-col gap-0.5">{items}</div>
+            </details>
+          ) : <div key={i} className={cx("flex flex-col gap-0.5", i > 0 && "mt-4 pt-4 border-t border-line")}>{items}</div>;
+        })}
         <NavLink to="/salaries" className="mt-auto mx-1 rounded-2xl bg-gradient-to-br from-accent-soft to-white border border-accent/15 p-4 flex items-end gap-3 hover:border-accent/40 transition">
           <span className="min-w-0 flex-1">
             <svg viewBox="0 0 40 40" className="w-6 h-6 mb-1" fill="none" stroke="#E0531F" strokeWidth="4" strokeLinecap="round" aria-hidden><path d="M10 10l3 7M22 6l-3 9M30 16l-7 3" /></svg>
@@ -262,7 +261,7 @@ export default function Layout({ children }) {
         <div className="md:hidden fixed inset-0 z-40" onClick={() => setMore(false)}>
           <div className="absolute inset-0 bg-ink/30" />
           <div className="absolute bottom-16 inset-x-3 bg-white rounded-2xl border border-line p-2 grid grid-cols-3 gap-1 rise" onClick={(e) => e.stopPropagation()}>
-            {all.slice(4).map((n) => (
+            {all.filter((n) => !["/", "/radar", "/prospects", "/resultats"].includes(n.to)).map((n) => (
               <NavLink key={n.to} to={n.to} className={({ isActive }) => cx("relative flex flex-col items-center gap-1 rounded-xl py-3 text-xs font-medium", isActive ? "bg-paper text-ink" : "text-ink-soft")}>
                 <Icon name={n.icon} />{n.label}
                 {n.count > 0 && <span className="absolute top-1.5 right-3 text-[10px] font-bold bg-accent text-white rounded-full min-w-4 h-4 px-1 grid place-items-center">{n.count}</span>}
@@ -275,7 +274,7 @@ export default function Layout({ children }) {
       )}
       {fb && <Feedback onClose={() => setFb(false)} />}
       <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-line grid grid-cols-5 pb-[env(safe-area-inset-bottom)] z-40">
-        {["/", "/radar", "/mission", "/valider"].map((t) => all.find((n) => n.to === t)).map((n) => (
+        {["/", "/radar", "/prospects", "/resultats"].map((t) => all.find((n) => n.to === t)).map((n) => (
           <NavLink key={n.to} to={n.to} end className={({ isActive }) => cx("relative flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium", isActive ? "text-ink" : "text-ink-faint")}>
             <Icon name={n.icon} />{n.short}
             {n.count > 0 && <span className="absolute top-1 right-[22%] text-[10px] font-bold bg-accent text-white rounded-full min-w-4 h-4 px-1 grid place-items-center tnum">{n.count}</span>}
@@ -283,7 +282,7 @@ export default function Layout({ children }) {
         ))}
         <button onClick={() => setMore((x) => !x)} className={cx("relative flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium", more ? "text-ink" : "text-ink-faint")}>
           <Icon name="more" />Plus
-          {(c.li + c.today) > 0 && !more && <span className="absolute top-1.5 right-[28%] w-2 h-2 rounded-full bg-accent" />}
+          {(c.today) > 0 && !more && <span className="absolute top-1.5 right-[28%] w-2 h-2 rounded-full bg-accent" />}
         </button>
       </nav>
     </div>

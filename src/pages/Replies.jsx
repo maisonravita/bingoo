@@ -43,7 +43,7 @@ function Paste({ onDone }) {
   );
 }
 
-function ReplyCard({ r, onChange }) {
+export function ReplyCard({ r, onChange }) {
   const { ws } = useWs();
   const toast = useToast();
   const [subject, setSubject] = useState(r.reply_subject);
