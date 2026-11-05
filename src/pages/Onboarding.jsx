@@ -38,7 +38,7 @@ function Thinking({ site }) {
 
 const H = "font-black tracking-[-.02em] leading-[1.02]";
 const HFONT = { fontFamily: "Nunito, Geist, system-ui, sans-serif" };
-const PROGRESS = ["Ton entreprise", "Tes clients", "Ta signature"];
+const PROGRESS = ["Ton site", "C'est parti"];
 
 export default function Onboarding() {
   const { ws, create, reload, patch } = useWs();
@@ -90,7 +90,7 @@ export default function Onboarding() {
       fn("r/radar-scan", { workspace_id: ws.id, web: false }).catch(() => {});
       toast(`${r.inserted} prospects trouvés`, "good");
       await reload();
-    } catch (e) { toast(e.message, "bad"); setStep(2); } finally { setBusy(false); }
+    } catch (e) { toast(e.message, "bad"); setStep(1); } finally { setBusy(false); }
   };
 
   const active = draft?.targets?.filter((t) => t.actif !== false) ?? [];
@@ -102,16 +102,16 @@ export default function Onboarding() {
         <div className="flex items-center justify-between mb-6">
           <a href="#/accueil" aria-label="Voir le site Bingoo!"><Logo height={30} /></a>
           <span className="flex items-center gap-4 text-sm text-ink-soft">
-            <span className="tnum">Étape {Math.min(step + 1, 3)} sur 3</span>
+            <span className="tnum">Étape {Math.min(step + 1, 2)} sur 2</span>
             <button type="button" onClick={() => supabase.auth.signOut()} className="font-semibold hover:text-ink">Se déconnecter</button>
           </span>
         </div>
         {/* Progression */}
-        <div className="grid grid-cols-3 gap-2 mb-8" aria-hidden>
+        <div className="grid grid-cols-2 gap-2 mb-8" aria-hidden>
           {PROGRESS.map((l, k) => (
             <div key={l}>
-              <div className="h-1.5 rounded-full bg-line overflow-hidden"><div className="h-full bg-accent rounded-full transition-all duration-700" style={{ width: Math.min(step, 3) > k ? "100%" : Math.min(step, 2) === k ? "50%" : "0%" }} /></div>
-              <p className={cx("mt-1.5 text-[12px] font-semibold", Math.min(step, 2) >= k ? "text-ink" : "text-ink-faint")}>{l}</p>
+              <div className="h-1.5 rounded-full bg-line overflow-hidden"><div className="h-full bg-accent rounded-full transition-all duration-700" style={{ width: (step >= 3 ? 2 : Math.min(step, 1)) > k ? "100%" : Math.min(step, 1) === k ? "50%" : "0%" }} /></div>
+              <p className={cx("mt-1.5 text-[12px] font-semibold", Math.min(step, 1) >= k ? "text-ink" : "text-ink-faint")}>{l}</p>
             </div>
           ))}
         </div>
@@ -166,6 +166,16 @@ export default function Onboarding() {
               <h1 className={cx(H, "text-[34px] sm:text-[44px] mt-4")} style={HFONT}>{draft.profile?.nom || "Ton entreprise"}</h1>
               <p className="text-ink-soft text-[17px] mt-3">{draft.profile?.resume}</p>
             </div>
+            <div>
+              <p className="text-[15px] font-semibold">Je vais chercher pour toi</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {active.map((t) => <span key={t.id} className="rounded-full bg-paper border border-line px-3 py-1.5 text-[14px]">{t.label}</span>)}
+                <span className="rounded-full bg-paper border border-line px-3 py-1.5 text-[14px] text-ink-soft">{zoneLabel(draft.zone)}</span>
+              </div>
+            </div>
+            <details className="rounded-2xl border border-line group">
+              <summary className="cursor-pointer list-none px-5 py-3.5 text-[15px] flex items-center justify-between">Corriger mon offre, mes cibles ou ma zone<span className="text-ink-soft group-open:rotate-90 transition">›</span></summary>
+              <div className="px-5 pb-5 space-y-8">
             <div className="rounded-2xl bg-paper border border-line p-5 space-y-3">
               <Field label="Ce que tu vends"><Textarea rows={2} value={draft.profile?.offre ?? ""} onChange={(e) => setDraft({ ...draft, profile: { ...draft.profile, offre: e.target.value } })} /></Field>
               <Field label="Ce qui te distingue"><Textarea rows={2} value={draft.profile?.differenciation ?? ""} onChange={(e) => setDraft({ ...draft, profile: { ...draft.profile, differenciation: e.target.value } })} /></Field>
@@ -209,28 +219,19 @@ export default function Onboarding() {
                 ))}
               </div>
             </div>
-            <div className="flex flex-wrap gap-3 items-center pt-6 border-t border-line">
-              <Button variant="accent" size="lg" disabled={!active.length || busy} onClick={() => setStep(2)}>C'est bien ça →</Button>
-              <Button variant="ghost" onClick={() => setStep(0)}>Recommencer l'analyse</Button>
-            </div>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="rise rounded-3xl bg-white border border-line shadow-[0_24px_60px_-34px_rgba(21,22,26,.35)] p-6 sm:p-9">
-            <span className="inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-dark px-3 py-1 text-[12.5px] font-bold">Dernière étape</span>
-            <h1 className={cx(H, "mt-4 text-[34px] sm:text-[44px]")} style={HFONT}>Au nom de qui j'écris&nbsp;?</h1>
-            <p className="text-ink-soft mt-3 text-[17px]">Les messages partiront signés de ton nom. Chaque message attend ta validation avant de partir, et tu pourras tout modifier ensuite.</p>
-            <div className="mt-7 space-y-4">
-              <Field label="Ton prénom et ton nom"><Input autoFocus value={sender.sender_name} onChange={(e) => setSender({ ...sender, sender_name: e.target.value })} placeholder="Camille Martin" /></Field>
-              <Field label="Adresse postale de l'entreprise" hint="Obligatoire en bas des e-mails de prospection.">
+              </div>
+            </details>
+            <div className="space-y-4 pt-2">
+              <Field label="Les messages partiront signés de"><Input value={sender.sender_name} onChange={(e) => setSender({ ...sender, sender_name: e.target.value })} placeholder="Ton prénom et ton nom" /></Field>
+              <Field label="Adresse postale de l'entreprise" hint="Obligatoire en bas des e-mails de prospection. Tu peux la compléter plus tard dans les réglages.">
                 <Input value={sender.postal_address} onChange={(e) => setSender({ ...sender, postal_address: e.target.value })} placeholder="12 rue de la Paix, 75002 Paris" />
               </Field>
             </div>
-            <div className="flex flex-wrap gap-3 mt-8 pt-6 border-t border-line">
-              <Button variant="accent" size="lg" loading={busy} onClick={launch}>Trouver mes premiers prospects →</Button>
-              <Button variant="ghost" onClick={() => setStep(1)}>Retour</Button>
+            <div className="flex flex-wrap gap-3 items-center pt-6 border-t border-line">
+              <Button variant="accent" size="lg" loading={busy} disabled={!active.length} onClick={launch}>Voir mes premières opportunités →</Button>
+              <Button variant="ghost" onClick={() => setStep(0)}>Recommencer l'analyse</Button>
             </div>
+            <p className="text-[13px] text-ink-soft">Rien ne part sans ta validation.</p>
           </div>
         )}
 
