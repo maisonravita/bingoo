@@ -209,3 +209,38 @@ export function PilotageResultats() {
 
 /** L'ancienne adresse /pilotage (lien du récap du lundi) mène aux résultats. */
 export default function Pilotage() { return <Navigate to="/resultats" replace />; }
+
+/** « Ce qui marche chez toi » : les traits qui reviennent chez les entreprises qui ont dit oui, calculés sur tes résultats. */
+export function CeQuiMarche() {
+  const { ws } = useWs();
+  const [a, setA] = useState(null);
+  useEffect(() => { fn("m/appris", { workspace_id: ws.id }).then(setA).catch(() => setA(false)); }, [ws.id]);
+  if (!a) return null;
+  const plus = a.facteurs.filter((f) => f.lift > 1).slice(0, 4), moins = a.facteurs.filter((f) => f.lift < 1).slice(-3).reverse();
+  const pct = (x) => `${Math.round(x * 100)} %`;
+  return (
+    <section className="mb-8">
+      <h2 className="font-semibold text-lg mb-3">Ce qui marche chez toi</h2>
+      <Card className="p-5">
+        {!a.assez ? (
+          <>
+            <p className="font-semibold">Bingoo! apprend de tes résultats, mais il lui en faut encore un peu.</p>
+            <p className="text-sm text-ink-soft mt-1">{a.contactes} entreprise{a.contactes > 1 ? "s" : ""} contactée{a.contactes > 1 ? "s" : ""}, {a.positifs} réponse{a.positifs > 1 ? "s" : ""} positive{a.positifs > 1 ? "s" : ""} ou rendez-vous. Dès 20 contactées et 3 positives, Bingoo! te montre ici ce qu'elles ont en commun et cherche d'abord celles qui leur ressemblent.</p>
+            <div className="mt-3 h-2 rounded-full bg-paper overflow-hidden" aria-hidden><div className="h-full bg-accent rounded-full" style={{ width: `${Math.min(100, Math.round((Math.min(a.contactes / 20, 1) + Math.min(a.positifs / 3, 1)) * 50))}%` }} /></div>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-ink-soft">Sur {a.contactes} entreprises contactées, {pct(a.base)} ont répondu positivement ou pris rendez-vous. Bingoo! cherche et contacte d'abord celles qui ressemblent aux gagnantes.</p>
+            {plus.length > 0 && <ul className="mt-4 space-y-2">{plus.map((f) => (
+              <li key={f.cle} className="flex items-center gap-3"><span className="w-16 shrink-0 text-right font-semibold text-good tnum">×{f.lift.toLocaleString("fr-FR")}</span><span className="min-w-0"><span className="font-semibold">{f.label}</span><span className="block text-xs text-ink-soft">{f.positifs} positive{f.positifs > 1 ? "s" : ""} sur {f.n}</span></span></li>
+            ))}</ul>}
+            {moins.length > 0 && <><p className="text-sm font-semibold mt-5">Moins porteur</p><ul className="mt-2 space-y-2">{moins.map((f) => (
+              <li key={f.cle} className="flex items-center gap-3"><span className="w-16 shrink-0 text-right font-semibold text-ink-soft tnum">×{f.lift.toLocaleString("fr-FR")}</span><span className="min-w-0"><span>{f.label}</span><span className="block text-xs text-ink-soft">{f.positifs} sur {f.n}</span></span></li>
+            ))}</ul></>}
+            {!plus.length && !moins.length && <p className="text-sm mt-3">Aucun trait ne se détache encore nettement : tes résultats sont répartis de façon égale.</p>}
+          </>
+        )}
+      </Card>
+    </section>
+  );
+}

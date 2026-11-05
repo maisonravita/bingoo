@@ -1,3 +1,4 @@
+import PushTel from "../components/PushTel";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
@@ -210,25 +211,54 @@ function Semaine() {
   return d ? <BandeauMatin d={d} /> : null;
 }
 
-function Morning({ s, canSend }) {
+// Le matin en 5 minutes : la liste des choses à faire, dans l'ordre où elles rapportent, avec le temps que ça prend.
+// Le point de départ du jour est gardé sur cet appareil pour montrer ce qui est déjà fait.
+const SEC = { reponses: 40, valider: 15, linkedin: 8, rappels: 60, rdv: 0 };
+function Morning({ s, canSend, wsId }) {
   const items = [
-    [canSend ? 0 : 1, "étape : connecter ta boîte mail (2 min)", "", "/connexions", "send"],
-    [s.replies, "réponse à traiter", "réponses à traiter", "/reponses", "chat"],
-    [s.drafts, "message à valider", "messages à valider", "#prets", "send"],
-    [s.urgent.meet.length, "rendez-vous aujourd'hui", "rendez-vous aujourd'hui", "/agenda", "cal"],
-    [s.urgent.due.length, "rappel prévu", "rappels prévus", "/prospects", "clock"],
+    ["reponses", s.replies, "réponse à traiter", "réponses à traiter", "Réponse déjà proposée : relis, envoie.", "/reponses", "chat"],
+    ["valider", s.drafts, "message à valider", "messages à valider", "Un geste par message.", "#prets", "send"],
+    ["rappels", s.urgent.due.length, "rappel prévu", "rappels prévus", "Le numéro est sur la fiche.", "/prospects", "clock"],
+    ["linkedin", s.li, "invitation LinkedIn à valider", "invitations LinkedIn à valider", "Bingoo! les envoie à ton rythme.", "/linkedin", "send"],
+    ["rdv", s.urgent.meet.length, "rendez-vous aujourd'hui", "rendez-vous aujourd'hui", s.urgent.meet[0] ? `Le premier à ${new Date(s.urgent.meet[0].starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} : ${s.urgent.meet[0].company ?? ""}` : "", "/agenda", "cal"],
   ];
-  const todo = items.filter(([n]) => n > 0);
-  if (!todo.length) return <p className="mb-6 rounded-xl border border-good/30 bg-good/10 px-4 py-3 text-[15px]"><b className="font-semibold">Ton matin est fait.</b> Bingoo! continue de chercher pour toi ; les nouveautés arrivent ici.</p>;
+  const key = `bingoo-matin-${wsId}-${new Date().toISOString().slice(0, 10)}`;
+  let depart = {};
+  try { depart = JSON.parse(localStorage.getItem(key) || "{}"); } catch { /* stockage indisponible */ }
+  for (const [k, n] of items) depart[k] = Math.max(depart[k] ?? 0, n);
+  try { localStorage.setItem(key, JSON.stringify(depart)); } catch { /* rien */ }
+  const total = items.reduce((t, [k]) => t + (k === "rdv" ? 0 : depart[k]), 0);
+  const reste = items.reduce((t, [k, n]) => t + (k === "rdv" ? 0 : n), 0);
+  const secondes = items.reduce((t, [k, n]) => t + SEC[k] * n, 0);
+  const minutes = Math.max(1, Math.round(secondes / 60));
+  const todo = items.filter(([, n]) => n > 0);
+  const go = (to) => (e) => { if (to.startsWith("#")) { e.preventDefault(); document.getElementById(to.slice(1))?.scrollIntoView({ behavior: "smooth", block: "start" }); } };
+
   return (
-    <nav aria-label="Ton matin" className="mb-6 flex flex-wrap gap-2">
-      <span className="self-center mr-1 text-[14px] text-ink-soft">Ce matin :</span>
-      {todo.map(([n, a, b, to, icon]) => {
-        const cls = "inline-flex items-center gap-2 rounded-full border border-line bg-white px-4 py-2 text-[14.5px] font-semibold hover:border-accent/50 transition";
-        const body = a.startsWith("étape") ? <><Ico n={icon} className="w-4 h-4 text-accent" />Dernière étape : connecter ta boîte mail (2 min)</> : <><Ico n={icon} className="w-4 h-4 text-accent" /><span className="tnum">{n}</span> {n > 1 ? b : a}</>;
-        return to.startsWith("#") ? <a key={a} href={to} onClick={(e) => { e.preventDefault(); document.getElementById(to.slice(1))?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={cls}>{body}</a> : <Link key={a} to={to} className={cls}>{body}</Link>;
-      })}
-    </nav>
+    <section aria-label="Ton matin" className="mb-6 rounded-3xl border border-line bg-white p-4 sm:p-5">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-[19px] font-semibold">{reste ? `Ton matin : environ ${minutes} min` : "Ton matin est fait."}</h2>
+        {total > 0 && <span className="text-sm text-ink-soft tnum">{total - reste} sur {total} fait{total - reste > 1 ? "s" : ""}</span>}
+      </div>
+      {total > 0 && <div className="mt-2 h-2 rounded-full bg-paper overflow-hidden" aria-hidden><div className="h-full rounded-full bg-good transition-all" style={{ width: `${Math.round(((total - reste) / total) * 100)}%` }} /></div>}
+      {!canSend && <Link to="/connexions" className="mt-3 flex items-center gap-3 rounded-2xl bg-accent-soft px-4 py-3 font-semibold"><Ico n="send" className="w-5 h-5 text-accent" />Dernière étape : connecter ta boîte mail (2 min)</Link>}
+      {!todo.length ? <p className="mt-2 text-[15px] text-ink-soft">Bingoo! continue de chercher pour toi ; les nouveautés arrivent ici, et sur ton téléphone si tu actives les notifications.</p> : (
+        <ul className="mt-3 divide-y divide-line">
+          {todo.map(([k, n, a, b, aide, to, icon]) => {
+            const inner = (
+              <>
+                <span className="grid place-items-center w-10 h-10 shrink-0 rounded-xl bg-accent-soft"><Ico n={icon} className="w-5 h-5 text-accent" /></span>
+                <span className="min-w-0 flex-1"><span className="block font-semibold text-[15.5px]"><span className="tnum">{n}</span> {n > 1 ? b : a}</span>{aide && <span className="block text-[13px] text-ink-soft truncate">{aide}</span>}</span>
+                {SEC[k] > 0 && <span className="text-[13px] text-ink-faint tnum shrink-0">{Math.max(1, Math.round((SEC[k] * n) / 60))} min</span>}
+                <span className="text-ink-faint" aria-hidden>›</span>
+              </>
+            );
+            const cls = "flex items-center gap-3 py-3 min-h-[56px] -mx-2 px-2 rounded-xl hover:bg-paper transition";
+            return <li key={k}>{to.startsWith("#") ? <a href={to} onClick={go(to)} className={cls}>{inner}</a> : <Link to={to} className={cls}>{inner}</Link>}</li>;
+          })}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -251,7 +281,7 @@ export default function Today() {
       c(P().in("status", ["repondu", "rdv", "client", "refus"])), c(P().in("status", ["rdv", "client"])), c(P().eq("status", "client")),
       c(P().gte("created_at", w1)), c(head("messages").eq("status", "envoye").gte("sent_at", w1)), c(head("replies").gte("created_at", w1)), c(head("meetings").neq("status", "annule").gte("created_at", w1)),
       c(head("radar_opps").eq("status", "nouveau")), c(head("radar_opps").gte("created_at", w1)), c(head("radar_opps").gte("created_at", w2).lt("created_at", w1)),
-      c(head("replies").eq("handled", false)), c(head("messages").eq("status", "brouillon")), c(P().eq("linkedin_status", "a_envoyer")),
+      c(head("replies").eq("handled", false)), c(head("messages").eq("status", "brouillon")), c(P().eq("linkedin_status", "").neq("linkedin_note", "").not("status", "in", "(ignore,refus)")),
       c(P().eq("status", "nouveau")), c(P().eq("status", "pret")), c(P().eq("status", "sans_email").lt("enrich_level", 2)),
       supabase.from("activity").select("kind, summary, created_at").eq("workspace_id", ws.id).gte("created_at", w1).order("created_at", { ascending: false }).limit(2000),
       supabase.from("radar_opps").select("id, kind, company, summary, city, url, created_at, score, prospect_id, raw, status").eq("workspace_id", ws.id).in("status", ["nouveau", "ajoute"]).neq("kind", "difficulte").order("score", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(12),
@@ -286,8 +316,14 @@ export default function Today() {
         <p className="text-ink-soft text-[17px] mt-3">Ce qui t'attend aujourd'hui. Tu valides, Bingoo! s'occupe du reste.</p>
       </header>
 
-      <Semaine />
-      {s && <Morning s={s} canSend={ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok} />}
+      {/* Sur téléphone, le matin passe avant le tableau de la semaine : c'est ce qu'on ouvre en premier */}
+      <div className="flex flex-col">
+        <div className="order-2 sm:order-1"><Semaine /></div>
+        <div className="order-1 sm:order-2">
+          {s && <Morning s={s} wsId={ws.id} canSend={ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok} />}
+          <PushTel compact />
+        </div>
+      </div>
 
       <TodayFeed />
 

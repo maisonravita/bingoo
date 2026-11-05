@@ -5,7 +5,7 @@ import { Button, Card, Input, PageHead, Spinner, useToast } from "../components/
 import { eur } from "../lib/labels";
 import { cx } from "../lib/utils";
 import { SubNav } from "../components/SubNav";
-import { PilotageResultats } from "./Pilotage";
+import { CeQuiMarche, PilotageResultats } from "./Pilotage";
 
 const pct = (a, b) => (b ? `${Math.round((a / b) * 100)} %` : "—");
 // Coût IA moyen estimé par action (en euros), pour calculer le coût d'acquisition
@@ -165,6 +165,7 @@ export default function Results() {
       </PageHead>
 
       <PilotageResultats />
+      <CeQuiMarche />
 
       <Week d={d} />
 

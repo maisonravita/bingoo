@@ -28,10 +28,17 @@ export async function hotAlert(replyId: string, dry = false) {
     `\nRépondre dans l'heure multiplie les chances d'obtenir le rendez-vous.`,
   ].join("\n");
   if (dry) return { to, subject, text };
-  if (!to) return { skipped: "aucune adresse d'équipe" };
-  await sendSystem({ to, subject, text: text + "\n\nRépondre directement à cet e-mail écrit au prospect.", fromName: `Kairo · ${who}`, replyTo: r.from_email || undefined });
+  // Sur le téléphone d'abord (quelques secondes), puis par e-mail
+  const { pushWorkspace } = await import("./push.ts");
+  const push = await pushWorkspace(ws.id, {
+    title: `${who} ${LABEL[r.class]}`,
+    body: r.reply_body ? `${r.summary || String(r.body ?? "").trim().slice(0, 120)}\nTa réponse est prête : touche pour la relire et l'envoyer.` : (r.summary || String(r.body ?? "").trim().slice(0, 160)),
+    url: `/reponses?id=${r.id}`, tag: `reponse-${r.id}`,
+  }).catch((e) => { console.error("push", e); return { envoyes: 0 }; });
+  if (!to && !push.envoyes) return { skipped: "aucune adresse d'équipe ni téléphone abonné" };
+  if (to) await sendSystem({ to, subject, text: text + "\n\nRépondre directement à cet e-mail écrit au prospect.", fromName: `Bingoo! · ${who}`, replyTo: r.from_email || undefined });
   await admin.from("replies").update({ notified_at: new Date().toISOString() }).eq("id", replyId);
-  return { sent: true, to };
+  return { sent: true, to, telephones: push.envoyes };
 }
 
 /** Rapport hebdomadaire (lundi matin) : ce qui a été fait, ce qui en est sorti, ce qui attend. */

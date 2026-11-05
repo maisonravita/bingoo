@@ -1,3 +1,4 @@
+import { useLocation } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
@@ -92,6 +93,8 @@ export default function Replies() {
   const { ws } = useWs();
   const [rows, setRows] = useState(null);
   const [tab, setTab] = useState("todo");
+  // Ouverte depuis une notification : la réponse concernée passe en premier
+  const focus = new URLSearchParams(useLocation().search).get("id");
   const load = useCallback(async () => {
     let q = supabase.from("replies").select("*, prospects(name, activity, phone, email)").eq("workspace_id", ws.id).order("created_at", { ascending: false }).limit(100);
     if (tab === "todo") q = q.eq("handled", false);
@@ -111,7 +114,7 @@ export default function Replies() {
         {[["todo", "À traiter"], ["all", "Toutes"]].map(([k, l]) => <button key={k} onClick={() => setTab(k)} className={cx("rounded-full px-3.5 py-1.5 text-sm font-medium border", tab === k ? "bg-ink text-white border-ink" : "bg-white border-line")}>{l}</button>)}
       </div>
       {!rows ? <Spinner /> : rows.length === 0 ? <Empty title={tab === "todo" ? "Rien à traiter." : "Aucune réponse pour l'instant."}>Les réponses de tes prospects apparaîtront ici.</Empty> : (
-        <div className="grid gap-4 max-w-3xl">{rows.map((r) => <ReplyCard key={r.id} r={r} onChange={load} />)}</div>
+        <div className="grid gap-4 max-w-3xl">{[...rows].sort((a, b) => (b.id === focus) - (a.id === focus)).map((r) => <div key={r.id} className={r.id === focus ? "rounded-3xl ring-2 ring-accent ring-offset-2" : ""}><ReplyCard r={r} onChange={load} /></div>)}</div>
       )}
     </div>
   );

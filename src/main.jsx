@@ -4,6 +4,7 @@ import { BrowserRouter, HashRouter } from "react-router-dom";
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import "./index.css";
+import { enregistrerSW } from "./lib/push";
 
 const Router = import.meta.env.VITE_HASH_ROUTER ? HashRouter : BrowserRouter;
 // Écran de chargement (index.html, au-dessus de la page) : l'appli se prépare derrière, et la page ne s'ouvre
@@ -24,3 +25,6 @@ if (splash) {
     setTimeout(() => splash.remove(), 600);
   }, reduce ? 0 : Math.max(0, splashMs() - performance.now()));
 }
+
+// Notifications sur le téléphone (réponses chaudes) : le service worker ne garde rien en cache
+enregistrerSW();

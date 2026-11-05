@@ -13,8 +13,13 @@ export async function rechercheContacts(ws: Workspace, report: Record<string, nu
   const since = new Date(); since.setUTCHours(0, 0, 0, 0);
   const { count: done } = await admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("kind", "enquete").gte("created_at", since.toISOString());
   if ((done ?? 0) >= o.parJour) return;
-  const { data: todo } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("status", "nouveau").is("enriched_at", null).is("mission_id", null)
-    .order("score", { ascending: false, nullsFirst: false }).limit(Math.min(o.parPassage, o.parJour - (done ?? 0)));
+  // Les mieux notés d'abord, corrigés par ce que tes résultats ont appris (entreprises qui ressemblent à celles qui ont dit oui)
+  const { data: pool } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("status", "nouveau").is("enriched_at", null).is("mission_id", null)
+    .order("score", { ascending: false, nullsFirst: false }).limit(300);
+  const { appris, bonus } = await import("./appris.ts");
+  const a = await appris(ws).catch(() => null);
+  const todo = (pool ?? []).map((p) => ({ p, k: (Number(p.score) || 50) * bonus(p, ws, a) })).sort((x, y) => y.k - x.k).map((x) => x.p)
+    .slice(0, Math.min(o.parPassage, o.parJour - (done ?? 0)));
   for (const p of todo ?? []) {
     const t = (ws.targets ?? []).find((x) => x.id === p.target);
     try { const r = await enrich(p as Prospect, t?.interlocuteur ?? ""); report.enquetes = (report.enquetes ?? 0) + 1; await log(ws.id, "enquete", `${p.name} : ${r.email ? "e-mail trouvé" : "rien trouvé"} (${o.origine})`); }

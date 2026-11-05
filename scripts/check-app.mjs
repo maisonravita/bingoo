@@ -37,6 +37,8 @@ for (const [label, opt] of [["téléphone", devices["iPhone 13"]], ["ordinateur"
     if (u.includes("/rest/v1/rpc/")) return J(false);
     if (u.includes("/rest/v1/")) return J([]);
     if (u.includes("/functions/v1/m/pilotage")) return J(PILOTE);
+    if (u.includes("/functions/v1/m/appris")) return J({ calcule_at: "2026-11-05T08:00:00Z", contactes: 42, positifs: 6, rdv: 3, base: 0.16, assez: true, facteurs: [{ cle: "signal:reseau", label: "réseau de plusieurs établissements", n: 18, positifs: 5, taux: 0.27, lift: 1.7 }, { cle: "decideur:oui", label: "décideur nommé dans le message", n: 20, positifs: 5, taux: 0.24, lift: 1.5 }, { cle: "decideur:non", label: "message sans décideur nommé", n: 22, positifs: 1, taux: 0.1, lift: 0.62 }] });
+    if (u.includes("/functions/v1/m/push-cle")) return J({ cle: "x" });
     if (u.includes("/functions/v1/")) return J({});
     return route.fulfill({ status: 404, body: "" });
   });

@@ -1,3 +1,4 @@
+import PushTel from "../components/PushTel";
 import { useEffect, useState } from "react";
 import { STORE_URL as STORE } from "../lib/ext";
 import { fn } from "../lib/supabase";
@@ -219,6 +220,10 @@ export default function Settings() {
             )}
           </>
         )}
+      </Section>
+
+      <Section title="Notifications sur le téléphone" sub="Les réponses chaudes arrivent en quelques secondes, avec la réponse déjà prête. À activer sur chaque téléphone ou ordinateur.">
+        <PushTel />
       </Section>
 
       <Section title="Rendez-vous" sub="Ta page de réservation propose ces créneaux, sans jamais en proposer un déjà pris.">

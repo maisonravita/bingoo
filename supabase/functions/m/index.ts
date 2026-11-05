@@ -172,6 +172,27 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
     await admin.from("workspaces").update({ pilotage: next }).eq("id", ws.id);
     return { ok: true, reglages: next };
   },
+  // Ce que Bingoo! a appris de tes résultats (statistiques sur tes données, sans IA)
+  async appris(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { appris } = await import("../_shared/appris.ts");
+    return await appris(ws, 1);
+  },
+  // Notifications sur le téléphone : la clé publique du serveur, puis l'abonnement de cet appareil
+  async "push-cle"(req, b) {
+    await requireMember(req, b.workspace_id);
+    return { cle: (await (await import("../_shared/push.ts")).vapid()).publicKey };
+  },
+  async "push-abonner"(req, b) {
+    const { ws, userId } = await requireMember(req, b.workspace_id);
+    const s = (b.sub ?? {}) as { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
+    const endpoint = String(s.endpoint ?? "");
+    if (!/^https:\/\/[^\s]{10,900}$/.test(endpoint) || !s.keys?.p256dh || !s.keys?.auth) throw new HttpError(400, "Abonnement invalide");
+    if (b.retirer) { await admin.from("push_subs").delete().eq("workspace_id", ws.id).eq("endpoint", endpoint); return { ok: true }; }
+    await admin.from("push_subs").upsert({ workspace_id: ws.id, user_id: userId, endpoint, p256dh: String(s.keys.p256dh).slice(0, 200), auth: String(s.keys.auth).slice(0, 100), appareil: String(b.appareil ?? "").slice(0, 80) || null }, { onConflict: "workspace_id,endpoint" });
+    if (b.essai) return { ok: true, ...(await (await import("../_shared/push.ts")).pushWorkspace(ws.id, { title: "Bingoo! est branché", body: "Tu recevras ici les réponses chaudes, avec la réponse déjà prête.", url: "/reponses", tag: "essai" }, endpoint)) };
+    return { ok: true };
+  },
   // Carte de l'équipe : prospects placés, zones calculées, villes téléchargées à l'avance (toutes les 15 minutes)
   async "qg-prepa"(req) {
     if ((req.headers.get("x-cron-key") ?? "") !== (await secret("cron_key"))) throw new HttpError(401, "Clé invalide");
