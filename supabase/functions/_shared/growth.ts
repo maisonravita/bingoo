@@ -203,9 +203,14 @@ async function hub(token: string, path: string, method = "GET", body?: unknown) 
   const r = await fetch(`https://api.hubapi.com${path}`, { method, headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
   return { ok: r.ok, status: r.status, data: await r.json().catch(() => ({})) };
 }
-async function pipe(token: string, path: string, method = "GET", body?: unknown) {
+// Pipedrive : jeton personnel (paramètre api_token) ou connexion en un clic (OAuth : en-tête Bearer, domaine du compte)
+type PdAuth = string | { token: string; base?: string; bearer: boolean };
+async function pipe(auth: PdAuth, path: string, method = "GET", body?: unknown) {
   const sep = path.includes("?") ? "&" : "?";
-  const r = await fetch(`https://api.pipedrive.com/v1${path}${sep}api_token=${encodeURIComponent(token)}`, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  const oauth = typeof auth !== "string" && auth.bearer;
+  const tok = typeof auth === "string" ? auth : auth.token;
+  const url = oauth ? `${(auth as { base?: string }).base ?? "https://api.pipedrive.com"}/api/v1${path}` : `https://api.pipedrive.com/v1${path}${sep}api_token=${encodeURIComponent(tok)}`;
+  const r = await fetch(url, { method, headers: { "content-type": "application/json", ...(oauth ? { Authorization: `Bearer ${tok}` } : {}) }, body: body ? JSON.stringify(body) : undefined });
   return { ok: r.ok, status: r.status, data: await r.json().catch(() => ({})) };
 }
 
@@ -214,8 +219,10 @@ export async function connectCrm(ws: Workspace, b: Record<string, unknown>) {
   const token = String(b.token ?? "").trim();
   const integrations = { ...(ws.integrations ?? {}) } as Workspace["integrations"];
   if (b.remove) {
-    if (crm === "hubspot") { delete integrations.hubspot; await admin.from("workspace_secrets").upsert({ workspace_id: ws.id, hubspot_token: "" }, { onConflict: "workspace_id" }); }
-    if (crm === "pipedrive") { delete integrations.pipedrive; await admin.from("workspace_secrets").upsert({ workspace_id: ws.id, pipedrive_token: "" }, { onConflict: "workspace_id" }); }
+    const { data: sec } = await admin.from("workspace_secrets").select("oauth").eq("workspace_id", ws.id).maybeSingle();
+    const oauth = { ...(sec?.oauth ?? {}) }; delete oauth[crm];
+    if (crm === "hubspot") { delete integrations.hubspot; await admin.from("workspace_secrets").upsert({ workspace_id: ws.id, hubspot_token: "", oauth }, { onConflict: "workspace_id" }); }
+    if (crm === "pipedrive") { delete integrations.pipedrive; await admin.from("workspace_secrets").upsert({ workspace_id: ws.id, pipedrive_token: "", oauth }, { onConflict: "workspace_id" }); }
     await admin.from("workspaces").update({ integrations }).eq("id", ws.id);
     return { ok: true };
   }
@@ -271,7 +278,7 @@ async function pushHubspot(token: string, p: Prospect & { crm_ids: Record<string
   return ids;
 }
 
-async function pushPipedrive(token: string, p: Prospect & { crm_ids: Record<string, string> }) {
+async function pushPipedrive(token: PdAuth, p: Prospect & { crm_ids: Record<string, string> }) {
   const ids = { ...p.crm_ids };
   if (!ids.pd_org) {
     const r = await pipe(token, "/organizations", "POST", { name: p.org || p.name, address: [p.address, p.postal_code, p.city].filter(Boolean).join(" ") });
@@ -296,7 +303,7 @@ async function pushPipedrive(token: string, p: Prospect & { crm_ids: Record<stri
 /** Envoie au CRM les prospects dont le statut a avancé depuis la dernière synchro. */
 export async function syncCrm(ws: Workspace, max = 25) {
   if (!ws.integrations?.hubspot?.ok && !ws.integrations?.pipedrive?.ok) return { synced: 0 };
-  const { data: sec } = await admin.from("workspace_secrets").select("hubspot_token, pipedrive_token").eq("workspace_id", ws.id).maybeSingle();
+  const auth = await (await import("./crm-oauth.ts")).crmAuth(ws);
   const { data } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).in("status", SYNC_STATUSES).order("updated_at", { ascending: false }).limit(300);
   const todo = (data ?? []).filter((p) => (p.crm_ids?.synced_status ?? "") !== p.status).slice(0, max);
   let n = 0;
@@ -304,8 +311,8 @@ export async function syncCrm(ws: Workspace, max = 25) {
   for (const p of todo) {
     let ids = { ...(p.crm_ids ?? {}) };
     try {
-      if (ws.integrations?.hubspot?.ok && sec?.hubspot_token) ids = await pushHubspot(sec.hubspot_token, { ...p, crm_ids: ids });
-      if (ws.integrations?.pipedrive?.ok && sec?.pipedrive_token) ids = await pushPipedrive(sec.pipedrive_token, { ...p, crm_ids: ids });
+      if (auth.hubspot) ids = await pushHubspot(auth.hubspot.token, { ...p, crm_ids: ids });
+      if (auth.pipedrive) ids = await pushPipedrive(auth.pipedrive, { ...p, crm_ids: ids });
       ids.synced_status = p.status;
       await admin.from("prospects").update({ crm_ids: ids }).eq("id", p.id);
       n++;
@@ -318,12 +325,12 @@ export async function syncCrm(ws: Workspace, max = 25) {
 /** Envoie une seule fiche au CRM (ex. depuis le Radar), quel que soit son statut. */
 export async function pushOneToCrm(ws: Workspace, prospectId: string) {
   if (!ws.integrations?.hubspot?.ok && !ws.integrations?.pipedrive?.ok) throw new HttpError(400, "Aucun CRM connecté : branche HubSpot ou Pipedrive dans Réglages → Connexions");
-  const { data: sec } = await admin.from("workspace_secrets").select("hubspot_token, pipedrive_token").eq("workspace_id", ws.id).maybeSingle();
+  const auth = await (await import("./crm-oauth.ts")).crmAuth(ws);
   const { data: p } = await admin.from("prospects").select("*").eq("id", prospectId).eq("workspace_id", ws.id).single();
   if (!p) throw new HttpError(404, "Prospect introuvable");
   let ids = { ...(p.crm_ids ?? {}) };
-  if (ws.integrations?.hubspot?.ok && sec?.hubspot_token) ids = await pushHubspot(sec.hubspot_token, { ...p, crm_ids: ids });
-  if (ws.integrations?.pipedrive?.ok && sec?.pipedrive_token) ids = await pushPipedrive(sec.pipedrive_token, { ...p, crm_ids: ids });
+  if (auth.hubspot) ids = await pushHubspot(auth.hubspot.token, { ...p, crm_ids: ids });
+  if (auth.pipedrive) ids = await pushPipedrive(auth.pipedrive, { ...p, crm_ids: ids });
   await admin.from("prospects").update({ crm_ids: ids }).eq("id", p.id);
   await log(ws.id, "crm", `${p.name} envoyée au CRM depuis le Radar`);
   return { ok: true };

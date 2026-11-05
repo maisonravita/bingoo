@@ -252,6 +252,19 @@ function Crm() {
     { key: "pipedrive", label: "Pipedrive", help: "Dans Pipedrive : clique sur ton profil → Préférences personnelles → API, puis copie ton jeton personnel." },
   ];
   const any = ws.integrations?.hubspot?.ok || ws.integrations?.pipedrive?.ok;
+  // Connexion en un clic (OAuth) quand elle est configurée ; le jeton collé reste possible en secours
+  const [un, setUn] = useState({});
+  useEffect(() => { fn("o/status", {}).then(setUn).catch(() => {}); }, []);
+  const clic = async (crm) => { setBusy(crm); try { const r = await fn(`o/${crm}-url`, { workspace_id: ws.id }); window.location.href = r.url; } catch (e) { toast(e.message, "bad"); setBusy(null); } };
+  useEffect(() => {
+    const m = window.location.hash.match(/crm=(hubspot|pipedrive)-([a-z]+)/);
+    if (!m) return;
+    const nom = m[1] === "hubspot" ? "HubSpot" : "Pipedrive";
+    const msg = { ok: [`${nom} connecté : les prospects qui avancent y sont envoyés automatiquement`, "good"], annule: [`Connexion ${nom} annulée`, "bad"], refresh: [`${nom} n'a pas donné d'accès durable : recommence la connexion`, "bad"] }[m[2]];
+    if (msg) toast(msg[0], msg[1]);
+    reload();
+    window.history.replaceState(null, "", window.location.href.replace(/[?&]crm=[a-z-]+/, ""));
+  }, []);
   return (
     <Section title="CRM" sub="Chaque prospect qui est contacté, répond, prend RDV ou signe est créé et mis à jour dans ton CRM : entreprise, contact, transaction et montant.">
       <div className="grid md:grid-cols-2 gap-4">
@@ -263,10 +276,21 @@ function Crm() {
               {on ? (
                 <div className="flex items-center justify-between gap-2"><p className="text-sm text-ink-soft truncate">{ws.integrations[it.key].company || (ws.integrations[it.key].portal ? `Compte ${ws.integrations[it.key].portal}` : "Synchronisation active")}</p><Button size="sm" variant="danger" loading={busy === it.key} onClick={() => act(it.key, true)}>Déconnecter</Button></div>
               ) : (
-                <>
-                  <p className="text-xs text-ink-soft mb-2">{it.help}</p>
-                  <div className="flex gap-2"><Input type="password" autoComplete="off" placeholder="Jeton d'accès" value={tok[it.key]} onChange={(e) => setTok({ ...tok, [it.key]: e.target.value })} className="min-w-0" /><Button loading={busy === it.key} disabled={!tok[it.key]} onClick={() => act(it.key)}>Connecter</Button></div>
-                </>
+                un[it.key] ? (
+                  <>
+                    <Button variant="primary" loading={busy === it.key} onClick={() => clic(it.key)}>Connecter {it.label}</Button>
+                    <p className="text-xs text-ink-soft mt-2">La page officielle de {it.label} s'ouvre : accepte, tu reviens ici. Bingoo! ne voit jamais ton mot de passe.</p>
+                    <details className="mt-2 text-xs text-ink-soft"><summary className="cursor-pointer">Ou coller un jeton d'accès</summary>
+                      <p className="mt-2 mb-2">{it.help}</p>
+                      <div className="flex gap-2"><Input type="password" autoComplete="off" placeholder="Jeton d'accès" value={tok[it.key]} onChange={(e) => setTok({ ...tok, [it.key]: e.target.value })} className="min-w-0" /><Button loading={busy === it.key} disabled={!tok[it.key]} onClick={() => act(it.key)}>Connecter</Button></div>
+                    </details>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-ink-soft mb-2">{it.help}</p>
+                    <div className="flex gap-2"><Input type="password" autoComplete="off" placeholder="Jeton d'accès" value={tok[it.key]} onChange={(e) => setTok({ ...tok, [it.key]: e.target.value })} className="min-w-0" /><Button loading={busy === it.key} disabled={!tok[it.key]} onClick={() => act(it.key)}>Connecter</Button></div>
+                  </>
+                )
               )}
             </div>
           );

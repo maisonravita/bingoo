@@ -17,6 +17,11 @@ Deno.serve(wrap(async (req) => {
     try { return Response.redirect(await microsoftCallback(url.searchParams), 302); }
     catch (e) { return page(`Connexion Outlook impossible : ${e instanceof Error ? e.message : String(e)}. Ferme cette page et recommence depuis Bingoo.`); }
   }
+  for (const crm of ["hubspot", "pipedrive"] as const) if (action === `${crm}/callback` && req.method === "GET") {
+    const { crmCallback } = await import("../_shared/crm-oauth.ts");
+    try { return Response.redirect(await crmCallback(crm, url.searchParams), 302); }
+    catch (e) { return page(`Connexion ${crm === "hubspot" ? "HubSpot" : "Pipedrive"} impossible : ${e instanceof Error ? e.message : String(e)}. Ferme cette page et recommence depuis Bingoo.`); }
+  }
   if (req.method !== "POST") throw new HttpError(405, "POST attendu");
   // deno-lint-ignore no-explicit-any
   const b = await readJson<any>(req);
@@ -28,6 +33,10 @@ Deno.serve(wrap(async (req) => {
     const { ws, userId } = await requireMember(req, b.workspace_id);
     return json(await microsoftUrl(ws, userId));
   }
-  if (action === "status") return json({ google: !!(Deno.env.get("GOOGLE_CLIENT_ID") || Deno.env.get("GOOGLE_CLIENT_ID_KAIRO")), microsoft: !!(Deno.env.get("MICROSOFT_CLIENT_ID") || Deno.env.get("MICROSOFT_CLIENT_ID_KAIRO")) });
+  if (action === "hubspot-url" || action === "pipedrive-url") {
+    const { ws, userId } = await requireMember(req, b.workspace_id);
+    return json(await (await import("../_shared/crm-oauth.ts")).crmUrl(action === "hubspot-url" ? "hubspot" : "pipedrive", ws, userId));
+  }
+  if (action === "status") return json({ ...(await import("../_shared/crm-oauth.ts")).crmOauthOn(), google: !!(Deno.env.get("GOOGLE_CLIENT_ID") || Deno.env.get("GOOGLE_CLIENT_ID_KAIRO")), microsoft: !!(Deno.env.get("MICROSOFT_CLIENT_ID") || Deno.env.get("MICROSOFT_CLIENT_ID_KAIRO")) });
   throw new HttpError(404, "Action inconnue");
 }));
