@@ -120,7 +120,7 @@ ${fiche}
 
 Cherche son site officiel, puis une adresse e-mail professionnelle publiée, un numéro de téléphone et, si publié, le nom de la personne qui occupe la fonction recherchée.
 Format : {"site": "https://…", "email": "", "telephone": "", "contact": "Prénom Nom ou vide", "fonction": "", "source": "URL où l'e-mail est publié", "note": "une phrase"}`,
-    { fast: true, maxTokens: 6000, system: SYSTEM_ENQ, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 4, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] });
+    { fast: true, maxTokens: 6000, system: SYSTEM_ENQ, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] });
 
   const email = String(v.email ?? "").trim().toLowerCase().replace(/^mailto:/, "");
   let ok = EMAIL_RE.test(email) && !BAD.test(email) ? email : "";

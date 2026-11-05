@@ -144,6 +144,11 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
     for (const ws of (manual ?? []).filter((w) => planOk(w))) {
       setAi({ ws: ws.id });
       try { const r = await followups(ws); if (r.created) out[`relances_${ws.id}`] = r.created; } catch (e) { out[`relances_${ws.id}`] = { error: (e as Error).message }; }
+      // Les contacts des meilleurs prospects sont cherchés aussi en mode « à valider » (rien n'est envoyé), dans l'enveloppe IA du mois
+      try {
+        const { aiRoom } = await import("../_shared/core.ts");
+        if (await aiRoom(ws.id, 0.6)) { const rep: Record<string, number> = {}; await (await import("../_shared/autopilot.ts")).rechercheContacts(ws, rep, { reserve: 40, parJour: 30, parPassage: 3, origine: "recherche de jour" }); if (rep.enquetes) out[`contacts_${ws.id}`] = rep.enquetes; }
+      } catch (e) { out[`contacts_${ws.id}`] = { error: (e as Error).message }; }
     }
     return out;
   },

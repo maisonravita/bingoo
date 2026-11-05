@@ -133,11 +133,34 @@ export async function findSite(p: { name?: string; org?: string; siret?: string 
   return "";
 }
 
+/** Site publié sur OpenStreetMap (gratuit) : un commerce ou un bureau du même nom, à moins de 150 m de l'adresse du prospect. */
+export async function osmSite(p: { name?: string; org?: string; geo_lat?: number | null; geo_lon?: number | null }) {
+  if (p.geo_lat == null || p.geo_lon == null) return "";
+  const norm = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(LEGAL, " ").replace(/[^a-z0-9]+/g, " ").trim();
+  const names = [p.name, p.org].filter(Boolean).map((n) => norm(n as string)).filter((n) => n.length >= 3);
+  if (!names.length) return "";
+  const q = `[out:json][timeout:10];nwr(around:150,${p.geo_lat},${p.geo_lon})["name"]["website"];out tags;`;
+  for (const url of ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"]) {
+    try {
+      const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "Bingoo/1.0" }, body: "data=" + encodeURIComponent(q), signal: AbortSignal.timeout(12000) });
+      if (!r.ok) continue;
+      for (const e of ((await r.json()).elements ?? []) as { tags?: Record<string, string> }[]) {
+        const n = norm(e.tags?.name ?? "");
+        if (n.length < 3 || !names.some((x) => x === n || (x.length >= 5 && (x.includes(n) || n.includes(x))))) continue;
+        const w = String(e.tags?.website ?? e.tags?.["contact:website"] ?? "").trim();
+        if (/^https?:\/\/[^\s/]+\.[a-z]{2,}/i.test(w)) return w.replace(/\/+$/, "");
+      }
+      return "";
+    } catch { /* serveur suivant */ }
+  }
+  return "";
+}
+
 /** Passe gratuite, sans IA : retrouve le site par le nom puis lit ses pages (accueil, contact, mentions légales).
  *  On ne garde qu'un e-mail publié sur le site, dont le domaine reçoit du courrier. Jamais d'adresse devinée. */
 export async function freeEnrich(p: P2, save = true) {
   let site = p.website || "", foundSite = false;
-  if (!site) { site = await findSite(p).catch(() => ""); foundSite = !!site; }
+  if (!site) { site = await osmSite(p as never).catch(() => ""); if (!site) site = await findSite(p).catch(() => ""); foundSite = !!site; }
   let email = "", phone = "", form = "";
   if (site) {
     const sc = await siteContacts(site).catch(() => ({ emails: [] as string[], phones: [] as string[], form: "" }));
@@ -153,7 +176,7 @@ export async function freeEnrich(p: P2, save = true) {
     if (form && !p.contact_form) patch.contact_form = form;
     if (email) Object.assign(patch, { email, email_source: `site ${hostOf(site)}`, enriched_at: new Date().toISOString(), enrich_level: 1, status: ["sans_email", "nouveau"].includes(p.status) ? "pret" : p.status,
       enrich_note: `E-mail trouvé sur son site (${hostOf(site)}), recherche gratuite du ${day}` });
-    else patch.enrich_note = `Recherche gratuite du ${day} : ${site ? `site ${hostOf(site)} lu, pas d'e-mail publié` : "site introuvable par son nom"}`;
+    else patch.enrich_note = `Recherche gratuite du ${day} : ${site ? `site ${hostOf(site)} lu, pas d'e-mail publié` : "site introuvable (nom et OpenStreetMap)"}`;
     patch.channel = chooseChannel({ ...p, ...patch } as P2);
     await admin.from("prospects").update(patch).eq("id", p.id);
   }

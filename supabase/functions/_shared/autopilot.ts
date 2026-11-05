@@ -5,6 +5,23 @@ import { bounceGuard, draft, enrich, followups, sendOne } from "./agents.ts";
 import { deepEnrich, dropcontactPending } from "./deep.ts";
 import { searchTarget } from "./search.ts";
 // ================================================================ Pilote automatique (appelé par la tâche planifiée)
+/** Recherche des contacts (e-mail, téléphone, décideur) des meilleurs prospects, sans rien envoyer : pour tous les espaces,
+ *  y compris ceux qui valident chaque message. Les plus prometteurs d'abord (score), dans l'enveloppe IA du mois de l'espace. */
+export async function rechercheContacts(ws: Workspace, report: Record<string, number>, o: { reserve: number; parJour: number; parPassage: number; origine: string }) {
+  const { count: ready } = await admin.from("prospects").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "pret");
+  if ((ready ?? 0) >= o.reserve) return;
+  const since = new Date(); since.setUTCHours(0, 0, 0, 0);
+  const { count: done } = await admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("kind", "enquete").gte("created_at", since.toISOString());
+  if ((done ?? 0) >= o.parJour) return;
+  const { data: todo } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("status", "nouveau").is("enriched_at", null).is("mission_id", null)
+    .order("score", { ascending: false, nullsFirst: false }).limit(Math.min(o.parPassage, o.parJour - (done ?? 0)));
+  for (const p of todo ?? []) {
+    const t = (ws.targets ?? []).find((x) => x.id === p.target);
+    try { const r = await enrich(p as Prospect, t?.interlocuteur ?? ""); report.enquetes = (report.enquetes ?? 0) + 1; await log(ws.id, "enquete", `${p.name} : ${r.email ? "e-mail trouvé" : "rien trouvé"} (${o.origine})`); }
+    catch (e) { console.error(e); if (/enveloppe|pause|plafond/i.test((e as Error).message)) return; }
+  }
+}
+
 export async function autopilot(ws: Workspace, base: string) {
   const report: Record<string, number> = {};
   const hourParis = Number(new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "numeric", hourCycle: "h23" }).format(new Date()));
@@ -47,18 +64,7 @@ export async function autopilot(ws: Workspace, base: string) {
   }
 
   // 4. Enquête : garder une réserve de 15 prospects joignables
-  const { count: ready } = await admin.from("prospects").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "pret");
-  if ((ready ?? 0) < 15) {
-    const since = new Date(); since.setUTCHours(0, 0, 0, 0);
-    const { count: done } = await admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("kind", "enquete").gte("created_at", since.toISOString());
-    if ((done ?? 0) < 30) {
-      const { data: todo } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("status", "nouveau").is("enriched_at", null).is("mission_id", null).order("score", { ascending: false, nullsFirst: false }).limit(3);
-      for (const p of todo ?? []) {
-        const t = (ws.targets ?? []).find((x) => x.id === p.target);
-        try { const r = await enrich(p as Prospect, t?.interlocuteur ?? ""); report.enquetes = (report.enquetes ?? 0) + 1; await log(ws.id, "enquete", `${p.name} : ${r.email ? "e-mail trouvé" : "rien trouvé"} (pilote automatique)`); } catch (e) { console.error(e); }
-      }
-    }
-  }
+  await rechercheContacts(ws, report, { reserve: 15, parJour: 30, parPassage: 3, origine: "pilote automatique" });
 
   // 4 bis. Détective : résultats Dropcontact en attente, puis 1 enquête approfondie par passage
   try {

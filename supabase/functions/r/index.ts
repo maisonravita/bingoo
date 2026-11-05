@@ -283,7 +283,8 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     await cron(req);
     const { freeEnrich } = await import("../_shared/deep.ts");
     const dry = b.dry === true, n = Math.min(Number(b.n ?? 20), 40);
-    let q = admin.from("prospects").select("*").eq("email", "").in("status", ["nouveau", "sans_email"]).not("enrich_note", "like", "Recherche gratuite%");
+    // Une seule passe par prospect ; ceux passés avant l'ajout d'OpenStreetMap (« site introuvable par son nom ») sont repris une fois
+    let q = admin.from("prospects").select("*").eq("email", "").in("status", ["nouveau", "sans_email"]).not("enrich_note", "like", "Recherche gratuite%lu,%").not("enrich_note", "like", "Recherche gratuite%OpenStreetMap%");
     if (b.workspace_id) q = q.eq("workspace_id", String(b.workspace_id));
     if (b.sans_site === true) q = q.or("website.is.null,website.eq.");
     const { data } = await q.order("score", { ascending: false, nullsFirst: false }).limit(n);
