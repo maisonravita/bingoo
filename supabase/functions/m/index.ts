@@ -153,6 +153,11 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
     const sc = await siteContacts(String(b.url ?? ""));
     return { emails: sc.emails, phones: sc.phones, form: sc.form, signals: await siteSignals(sc.origin, sc.home) };
   },
+  // Carte de l'équipe : prospects placés, zones calculées, villes téléchargées à l'avance (toutes les 15 minutes)
+  async "qg-prepa"(req) {
+    if ((req.headers.get("x-cron-key") ?? "") !== (await secret("cron_key"))) throw new HttpError(401, "Clé invalide");
+    return await (await import("../_shared/qg-prepa.ts")).qgPrepa();
+  },
   async cron(req) {
     if ((req.headers.get("x-cron-key") ?? "") !== (await secret("cron_key"))) throw new HttpError(401, "Clé invalide");
     return await missionPilotCron();

@@ -2,6 +2,7 @@
 // les immeubles et les arbres d'OpenStreetMap (Overpass), gardés dans le navigateur une semaine.
 import { buildNight } from './data.js';
 import { fn } from '../../src/lib/supabase.js';
+import { step, creep } from './progress.js';
 
 let night = null;
 export async function prepare(opts) { night = await buildNight(opts); return night; }
@@ -43,24 +44,27 @@ async function gzipB64(obj) {
 async function ville(lat, lon, r) {
   const key = `ville|${lat.toFixed(3)}|${lon.toFixed(3)}|${r}`;
   const hit = await cacheGet(key);
-  if (hit && Date.now() - hit.at < 7 * 864e5) return hit.v;
+  if (hit && Date.now() - hit.at < 7 * 864e5) { step(58, 'Ta ville est déjà prête'); return hit.v; }
+  step(32, 'Téléchargement de ta ville…');
   // déjà construite par un autre client de la même ville : quelques secondes au lieu d'une minute
   const shared = `v1_${lat.toFixed(2)}_${lon.toFixed(2)}_${r}`;
   try {
     const res = await fetch(SHARED + shared + '.json.gz', { cache: 'no-store' });
-    if (res.ok) { const v = await gunzip(res); cachePut(key, { at: Date.now(), v }); return v; }
+    if (res.ok) { creep(56, 6); const v = await gunzip(res); cachePut(key, { at: Date.now(), v }); step(58, 'Ville téléchargée'); return v; }
   } catch { /* pas encore partagée */ }
   const dLat = r / 110540, dLon = r / (Math.cos((lat * Math.PI) / 180) * 111320);
   // quatre quarts plutôt qu'une grosse demande : les serveurs publics refusent souvent les grandes villes d'un coup
   const quarts = [[-1, -1], [-1, 0], [0, -1], [0, 0]].map(([a, b]) => [lat + a * dLat, lon + b * dLon, lat + (a + 1) * dLat, lon + (b + 1) * dLon].map((v) => v.toFixed(4)).join(','));
-  const msg = document.getElementById('loading');
-  if (msg) msg.textContent = 'Première visite de cette ville : téléchargement des immeubles (jusqu’à 45 secondes)…';
+  step(34, 'Première visite de cette ville : on dessine chaque immeuble', 'Ça peut prendre jusqu’à 45 secondes, une seule fois. Les prochaines visites seront rapides.');
+  creep(54, 30);
   // les quatre quarts en même temps, 22 s au plus par serveur ; sinon la ville se fera avec les tuiles (plus simple)
   let parts = null;
   for (const server of [0, 1]) {
-    try { parts = await Promise.all(quarts.map((q) => overpass(`[out:json][timeout:25][bbox:${q}];way["building"];out tags geom qt;`, server))); break; } catch { /* serveur suivant */ }
+    let fin = 0;
+    try { parts = await Promise.all(quarts.map((q) => overpass(`[out:json][timeout:25][bbox:${q}];way["building"];out tags geom qt;`, server).then((x) => { fin++; step(34 + fin * 5, `Les immeubles : quartier ${fin} sur 4`); creep(34 + (fin + 1) * 5, 15); return x; }))); break; } catch { /* serveur suivant */ }
   }
-  if (!parts) throw new Error('overpass');
+  if (!parts) { step(56, 'Serveurs de cartes occupés : on passe à la version simple de la ville'); throw new Error('overpass'); }
+  step(56, 'Les arbres et les parcs…');
   const bat = { elements: [] }, seen = new Set();
   for (const r2 of parts) for (const e of r2.elements ?? []) if (!seen.has(e.id)) { seen.add(e.id); bat.elements.push(e); }
   const bbox = [lat - dLat, lon - dLon, lat + dLat, lon + dLon].map((v) => v.toFixed(4)).join(',');

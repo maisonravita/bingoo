@@ -1,4 +1,4 @@
-// Bingoo! dans Gmail : quand tu ouvres un e-mail d'un de tes prospects, sa fiche s'affiche dans un petit encart.
+// Bingoo! dans Gmail et Outlook (web) : quand tu ouvres un e-mail d'un de tes prospects, sa fiche s'affiche dans un petit encart.
 // Activé seulement si tu l'as choisi dans l'extension. Seule l'adresse de l'expéditeur est vérifiée, jamais le contenu de l'e-mail.
 (() => {
   let last = "", host = null;
@@ -36,12 +36,28 @@
       <a href="${APP}/#/prospects" target="_blank" rel="noopener">Ouvrir la fiche dans Bingoo!</a>`;
   }
 
+  const OUTLOOK = /(^|\.)outlook\.(live|office|office365)\.com$/.test(location.hostname);
+  const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+  /** Expéditeur de l'e-mail ouvert dans Outlook : lu dans l'en-tête du volet de lecture, jamais dans le corps du message. */
+  function outlookSender() {
+    const pane = document.querySelector("#ReadingPaneContainerId, [aria-label='Volet de lecture'], [aria-label='Reading Pane'], [data-app-section='ConversationContainer']");
+    if (!pane) return "";
+    const body = "[aria-label='Corps du message'], [aria-label='Message body'], [role='document']";
+    for (const el of pane.querySelectorAll("[title*='@'], [aria-label*='@'], span")) {
+      if (el.closest(body)) continue;
+      const t = el.getAttribute("title") || el.getAttribute("aria-label") || (el.children.length === 0 ? el.textContent : "");
+      const m = t && t.length < 200 ? t.match(EMAIL) : null;
+      if (m) return m[0].toLowerCase();
+    }
+    return "";
+  }
+
   async function check() {
     const { gmailOn } = await chrome.storage.local.get("gmailOn");
     if (!gmailOn) { if (host) host.style.display = "none"; return; }
     // Expéditeur de l'e-mail ouvert (Gmail l'indique dans l'attribut « email »)
-    const el = [...document.querySelectorAll("h3 span[email], span.gD[email]")].pop();
-    const email = el?.getAttribute("email")?.toLowerCase() ?? "";
+    const el = OUTLOOK ? null : [...document.querySelectorAll("h3 span[email], span.gD[email]")].pop();
+    const email = OUTLOOK ? outlookSender() : el?.getAttribute("email")?.toLowerCase() ?? "";
     if (!email) { if (host) host.style.display = "none"; last = ""; return; }
     if (email === last) return;
     last = email;

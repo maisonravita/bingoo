@@ -248,7 +248,7 @@ export function createCinema(root, { world, cam, marks, metier, ville, duree, se
     if (s.kind === 'finale') {
       if (!endEl.classList.contains('on')) {
         endEl.classList.add('on');
-        setTod?.('nuit');
+        // la fin reste dans la lumière Bingoo! (plus de passage à la nuit)
       }
       endEl.querySelector('[data-k="trouves"]').textContent = n.trouves;
       endEl.querySelector('[data-k="prets"]').textContent = Math.max(n.prets, M.mails.length);

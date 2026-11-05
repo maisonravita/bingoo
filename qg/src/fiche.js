@@ -93,6 +93,7 @@ export function createFiche(root, { getRunId, onClose }) {
       } catch (err) { note.textContent = err.message; b.disabled = false; b.textContent = 'Chercher son e-mail'; }
       return;
     }
+    if (act.startsWith('x-')) return actions(act, b);
     if (act === 'valide' || act === 'refuse') {
       const run = getRunId();
       const objet = root.querySelector('.f-obj')?.value, mail = root.querySelector('.f-body')?.value;
@@ -105,6 +106,64 @@ export function createFiche(root, { getRunId, onClose }) {
       } finally { b.disabled = false; }
     }
   });
+
+  /* ---------- agir depuis la carte : répondre, valider LinkedIn, écarter, ouvrir la fiche complète (toujours sur l'état réel) */
+  let live = null;
+  async function loadActions(q) {
+    const d = q.data ?? {};
+    const box = root.querySelector('[data-acts]');
+    const [{ data: p }, { data: rs }] = await Promise.all([
+      supabase.from('prospects').select('id, status, linkedin_status, linkedin_note, linkedin_url').eq('id', d.prospect_id).maybeSingle(),
+      supabase.from('replies').select('id, summary, class, reply_subject, reply_body, handled, from_email').eq('prospect_id', d.prospect_id).eq('handled', false).order('created_at', { ascending: false }).limit(1),
+    ]);
+    if (cur !== q || !box) return;
+    live = { p, r: rs?.[0] ?? null };
+    const r = live.r;
+    const liTodo = p && !p.linkedin_status && p.linkedin_note;
+    box.innerHTML = `<h3>Agir</h3>
+      ${r ? `<div class="f-reply"><h4>Ta réponse à ${esc(r.from_email ?? '')}</h4>${r.reply_body ? '' : '<p class="f-note">Pas de brouillon préparé : écris ta réponse.</p>'}
+        <label>Objet</label><input class="f-r-obj" value="${esc(r.reply_subject ?? '')}">
+        <label>Message</label><textarea class="f-r-body" rows="7">${esc(r.reply_body ?? '')}</textarea>
+        <div class="f-dec"><button type="button" class="f-btn" data-act="x-reply-ask">Envoyer la réponse</button><button type="button" class="f-btn ghost" data-act="x-handled">Marquer comme traitée</button></div>
+        <div class="f-confirm" data-c="reply" hidden><p>Envoyer cette réponse maintenant ?</p><div class="f-dec"><button type="button" class="f-btn" data-act="x-reply">Oui, envoyer</button><button type="button" class="f-btn ghost" data-act="x-cancel">Annuler</button></div></div></div>` : ''}
+      ${liTodo ? `<div class="f-li"><h4>Invitation LinkedIn à valider</h4><textarea class="f-li-note" rows="3" maxlength="200">${esc(p.linkedin_note)}</textarea>
+        <div class="f-dec"><button type="button" class="f-btn" data-act="x-li">Valider l’invitation</button>${p.linkedin_url ? `<a class="f-btn ghost" href="${esc(p.linkedin_url)}" target="_blank" rel="noopener">Voir le profil</a>` : ''}</div>
+        <p class="f-note">Le pilote l’enverra aux heures de bureau, avec une visite du profil la veille.</p></div>` : ''}
+      <div class="f-dec">
+        <a class="f-btn ghost" href="/#/prospects?id=${encodeURIComponent(d.prospect_id)}">Ouvrir la fiche complète</a>
+        ${p && p.status !== 'ignore' ? '<button type="button" class="f-btn ghost" data-act="x-ignore-ask">Écarter ce prospect</button>' : p ? '<button type="button" class="f-btn ghost" data-act="x-unignore">Remettre dans la prospection</button>' : ''}
+      </div>
+      <div class="f-confirm" data-c="ignore" hidden><p>Écarter ${esc(q.name)} ? L’équipe ne le contactera plus (tu pourras le remettre).</p><div class="f-dec"><button type="button" class="f-btn" data-act="x-ignore">Oui, écarter</button><button type="button" class="f-btn ghost" data-act="x-cancel">Annuler</button></div></div>`;
+  }
+  async function actions(act, b) {
+    const d = cur.data ?? {}, note = root.querySelector('.f-act-note');
+    const show = (c, on = true) => { const el = root.querySelector(`[data-c="${c}"]`); if (el) el.hidden = !on; };
+    if (act === 'x-cancel') { root.querySelectorAll('[data-acts] .f-confirm').forEach((x) => { x.hidden = true; }); return; }
+    if (act === 'x-reply-ask') return show('reply');
+    if (act === 'x-ignore-ask') return show('ignore');
+    b.disabled = true;
+    try {
+      if (act === 'x-reply') {
+        const subject = root.querySelector('.f-r-obj').value, body = root.querySelector('.f-r-body').value;
+        if (body.trim().length < 5) throw new Error('Écris ta réponse avant de l’envoyer.');
+        await fn('reply-send', { workspace_id: d.ws_id, reply_id: live.r.id, subject, body });
+        note.textContent = 'Réponse envoyée.';
+      } else if (act === 'x-handled') {
+        const { error } = await supabase.from('replies').update({ handled: true }).eq('id', live.r.id); if (error) throw error;
+        note.textContent = 'Réponse marquée comme traitée.';
+      } else if (act === 'x-li') {
+        const txt = root.querySelector('.f-li-note').value.trim();
+        if (!txt) throw new Error('La note est vide.');
+        const { error } = await supabase.from('prospects').update({ linkedin_note: txt.slice(0, 200), linkedin_status: 'a_envoyer' }).eq('id', d.prospect_id); if (error) throw error;
+        note.textContent = 'Invitation validée : Lina s’en occupe.';
+      } else if (act === 'x-ignore' || act === 'x-unignore') {
+        const to = act === 'x-ignore' ? 'ignore' : 'nouveau';
+        const { error } = await supabase.from('prospects').update({ status: to }).eq('id', d.prospect_id); if (error) throw error;
+        note.textContent = to === 'ignore' ? 'Prospect écarté. L’équipe ne le contactera plus.' : 'Prospect remis dans la prospection.';
+      }
+      await loadActions(cur);
+    } catch (err) { note.textContent = err.message ?? String(err); b.disabled = false; }
+  }
 
   async function googleLink(q) {
     const name = `${q.name} ${q.data?.address && q.data.address !== 'Lyon' ? q.data.address : ''}`.trim();
@@ -158,9 +217,11 @@ export function createFiche(root, { getRunId, onClose }) {
         <div class="f-confirm" hidden><p>Envoyer ce message maintenant à ${esc(q.to ?? email ?? '')} ?</p><div class="f-dec"><button type="button" class="f-btn" data-act="send">Oui, envoyer</button><button type="button" class="f-btn ghost" data-act="send-cancel">Annuler</button></div></div>
         <p class="f-note">Rien ne part sans toi.</p>` : q.state === 'pret' ? '<div class="f-dec"><a class="f-btn" href="/#/valider">Valider dans Bingoo!</a></div>' : ''}
       </section>` : ''}
+      ${d.prospect_id ? '<section class="f-actions" data-acts><h3>Agir</h3><p class="f-empty">Chargement…</p></section>' : ''}
       <p class="f-act-note" role="status"></p>
       ${q.journal?.length ? `<section><h3>Ce que l’équipe a fait</h3><ol class="f-log">${q.journal.map((t) => `<li>${esc(t)}</li>`).join('')}</ol></section>` : ''}`;
     root.querySelector('.f-ic').append(icon(q.state));
+    if (d.prospect_id) loadActions(q);
     const g = root.querySelector('[data-g]');
     googleLink(q).then((u) => { if (g) g.href = u; });
   }

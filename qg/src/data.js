@@ -4,6 +4,7 @@
 // Oscar surveille les concurrents (Espion). Rien n'est inventé : sans activité ces dernières 24 heures, on rejoue la
 // dernière nuit de travail et on le dit. La priorité sur 100 est une règle simple, expliquée point par point.
 import { supabase } from '../../src/lib/supabase.js';
+import { step } from './progress.js';
 
 const DAY = 24 * 3600 * 1000;
 const BAD = /^(?:(?:rgpd|gdpr|privacy|dataprotection|data-protection|donnees-?personnelles|cnil)[a-z._-]*|dpo(?:[._-][a-z._-]*)?|noreply|no-reply|donotreply|webmaster)@/i;
@@ -28,9 +29,14 @@ const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } cat
 async function pool(list, n, fn) { let i = 0; await Promise.all(Array.from({ length: n }, async () => { while (i < list.length) await fn(list[i++]); })); }
 
 /** Prospects : Base Adresse Nationale. */
-async function geocode(list) {
+async function geocode(list, onStep) {
   const cache = store('bingoo-qg-geo');
-  await pool(list.filter((p) => !cache[p.id]), 5, async (p) => {
+  // déjà placés la nuit par Bingoo! (Base Adresse Nationale) : rien à demander
+  for (const p of list) if (p.geo_at) cache[p.id] = p.geo_lat != null ? [p.geo_lat, p.geo_lon, 1] : [0, 0, 0];
+  const todo = list.filter((p) => !cache[p.id]);
+  let n = 0;
+  await pool(todo, 5, async (p) => {
+    onStep?.(++n, todo.length);
     const q = [p.address, p.postal_code && !String(p.address ?? '').includes(p.postal_code) ? p.postal_code : '', p.city && !String(p.address ?? '').toLowerCase().includes(String(p.city).toLowerCase()) ? p.city : '']
       .filter(Boolean).join(' ').replace(/^.*?\b(\d+[\d-]*\s+(?:rue|bd|boulevard|avenue|av|place|impasse|chemin|route|allée|allee|quai|cours|square|passage|zac|za|zi|rond-point)\b)/i, '$1');
     if (!q.trim()) { cache[p.id] = [0, 0, 0]; return; }
@@ -73,7 +79,7 @@ function priorite(p, email, opp) {
 }
 
 /* ------------------------------------------------------------------ les données d'une période */
-const PCOLS = 'id, name, address, postal_code, city, activity, contact_name, contact_role, email, website, phone, signals, status, created_at, enriched_at';
+const PCOLS = 'id, name, address, postal_code, city, activity, contact_name, contact_role, email, website, phone, signals, status, created_at, enriched_at, geo_lat, geo_lon, geo_at';
 async function collect(wsId, start, end) {
   const s = new Date(start).toISOString(), e = new Date(end).toISOString();
   const soon = new Date(Date.now() + DAY).toISOString(), now = new Date().toISOString();
@@ -275,12 +281,13 @@ let ctx = null; // pour le direct : l'espace, la ville, les lieux déjà posés,
 export async function buildNight({ zone = 0, premiere = false } = {}) {
   const { data: s } = await supabase.auth.getSession();
   if (!s.session) throw new QgError('Connecte-toi à Bingoo! pour voir ton équipe.', '/');
-  const { data: wss } = await supabase.from('workspaces').select('id, name, integrations, domain_status').order('created_at');
+  const { data: wss } = await supabase.from('workspaces').select('id, name, integrations, domain_status, qg_zones').order('created_at');
   let wsId = null;
   try { wsId = localStorage.getItem('kairo-ws'); } catch { /* stockage indisponible */ }
   const ws = wss?.find((w) => w.id === wsId) ?? wss?.[0];
   if (!ws) throw new QgError('Crée d’abord ton espace Bingoo!.', '/');
 
+  step(6, 'Ton équipe rassemble la nuit…');
   let end = Date.now(), start = end - DAY, recent = true;
   let d = await collect(ws.id, start, end);
   if (!size(d)) {
@@ -292,13 +299,19 @@ export async function buildNight({ zone = 0, premiere = false } = {}) {
     end = t + 1000; start = end - DAY; recent = false;
     d = await collect(ws.id, start, end);
   }
+  step(12, 'Lecture de tout ce que l’équipe a fait…');
   const prospects = await withProspects(d, ws.id, []);
-  await Promise.all([geocode([...prospects.values()]), sirenPlace([...d.opps.filter((o) => !o.prospect_id), ...d.rivals.map((c) => Object.assign(c, { siren: c.summary?.fiche?.siren }))])]);
+  step(16, 'On place tes prospects sur la carte…');
+  await Promise.all([geocode([...prospects.values()], (i, n) => step(16 + Math.round((i / n) * 8), 'On place tes prospects sur la carte…', `${i} sur ${n}`)), sirenPlace([...d.opps.filter((o) => !o.prospect_id), ...d.rivals.map((c) => Object.assign(c, { siren: c.summary?.fiche?.siren }))])]);
   const points = [...[...prospects.values()].filter((p) => p.lat), ...d.opps.filter((o) => o.lat), ...d.rivals.filter((c) => c.lat)];
   if (!points.length) throw new QgError('Impossible de placer ton activité sur la carte (adresses introuvables).', '/#/prospects');
   const { clusters, centre } = pickCentre(points, zone);
   // centre arrondi au centième de degré : les clients d'une même ville partagent la même carte
   centre.lat = Math.round(centre.lat * 100) / 100; centre.lon = Math.round(centre.lon * 100) / 100;
+  // une zone préparée la nuit à moins de 1,5 km : on la prend, sa ville est déjà téléchargée (ouverture en quelques secondes)
+  const prete = (Array.isArray(ws.qg_zones) ? ws.qg_zones : []).map((z) => [z, dist(z, centre)]).filter(([, m]) => m < 1500).sort((a, b) => a[1] - b[1])[0]?.[0];
+  if (prete) { centre.lat = prete.lat; centre.lon = prete.lon; }
+  step(26, `Direction ${centre.ville || 'ta zone'}…`);
   const ville = centre.ville || 'ta zone';
   const { events, placed, seen } = toEvents(d, prospects, ws, centre, { start, end });
   if (!events.length) throw new QgError('Rien à montrer dans cette zone pour l’instant.', '/#/');
@@ -329,7 +342,8 @@ export async function buildNight({ zone = 0, premiere = false } = {}) {
   const all = [...head, ...found, tail[0], ...rest, tail[1]].map((e, i) => ({ ...e, seq: i + 1 }));
   ctx = { ws, centre, placed, seen, prospects, last: Date.now(), recent };
   const run = { id: 'nuit', metier: 'entreprises', ville, lat: centre.lat, lon: centre.lon, rayon: R, nombre: nPlaces, started_at: all[0].t, ended_at: all.at(-1).t, status: 'fini', n: nPlaces };
-  return { state: { run, running: false, places: [], config: { recherche: {}, offre: {}, equipe: {}, consignes: '' } }, events: all, clusters, zone: clusters.indexOf(centre), ws };
+  const bilan = await resultats(ws.id, start, end, d);
+  return { state: { run, running: false, places: [], config: { recherche: {}, offre: {}, equipe: {}, consignes: '' } }, events: all, clusters, zone: clusters.indexOf(centre), ws, bilan, recent };
 }
 
 /** Le direct : ce que l'équipe a fait depuis la dernière lecture (appelé toutes les 30 secondes). */
@@ -345,4 +359,52 @@ export async function poll() {
   const { events, placed } = toEvents(d, prospects, ctx.ws, ctx.centre, { start, end, placed: ctx.placed, seen: ctx.seen, live: true });
   ctx.placed = placed;
   return events.map((e) => ({ ...e, seq: undefined }));
+}
+
+/* ------------------------------------------------------------------ le bilan chiffré de la nuit (toute l'activité, pas seulement la ville affichée) */
+const MINUTES = { recherche: 20, enquete: 8, enquete_plus: 12, redaction: 10, envoi: 1, reponse: 5, radar: 5, radar_scan: 20, veille: 30, espion: 15, analyse: 30, linkedin: 6, rdv: 20, brief: 15, devis: 15, script: 10, intelligence: 20 };
+async function resultats(wsId, start, end, d) {
+  const s = new Date(start).toISOString(), e = new Date(end).toISOString();
+  const [act, rdv] = await Promise.all([
+    supabase.from('activity').select('kind').eq('workspace_id', wsId).gt('created_at', s).lte('created_at', e).limit(3000),
+    supabase.from('meetings').select('id', { count: 'exact', head: true }).eq('workspace_id', wsId).gt('created_at', s).lte('created_at', e),
+  ]);
+  const ok = (r) => ['ok', 'connecte', 'deja_connecte'].includes(String(r ?? '').split(' : ')[0]);
+  return {
+    trouves: d.created.length,
+    emails: d.enriched.filter((p) => p.email).length,
+    prets: d.drafts.length,
+    envoyes: d.sent.length,
+    reponses: d.replies.length,
+    positives: d.replies.filter((r) => ['interesse', 'rdv', 'rappel'].includes(r.class)).length,
+    rdv: rdv.count ?? 0,
+    linkedin: d.li.filter((a) => ok(a.result) && a.kind !== 'trouver').length,
+    profils: d.li.filter((a) => a.kind === 'trouver' && ok(a.result)).length,
+    opps: d.opps.length,
+    minutes: (act.data ?? []).reduce((a, x) => a + (MINUTES[x.kind] ?? 0), 0),
+  };
+}
+
+/* ------------------------------------------------------------------ en ce moment : ce que l'équipe fait (actions en cours, 15 dernières minutes) */
+const QUI = [[/^(recherche|prospect|mission)/, 'leo'], [/^enquete/, 'sam'], [/^(redaction|envoi|relance)/, 'hugo'], [/^reponse/, 'ines'], [/^linkedin/, 'lina'], [/^radar/, 'max'], [/^(espion|veille|analyse)/, 'oscar'], [/^(rdv|agenda)/, 'paul']];
+const NOMS = { iris: 'Iris', leo: 'Léo', sam: 'Sam', max: 'Max', lina: 'Lina', hugo: 'Hugo', ines: 'Inès', paul: 'Paul', oscar: 'Oscar' };
+const LI_EN_COURS = { trouver: 'cherche le profil LinkedIn de', visite: 'visite le profil LinkedIn de', invitation: 'invite sur LinkedIn', verifier: 'regarde si son invitation est acceptée :', message: 'écrit sur LinkedIn à', relance: 'relance sur LinkedIn', retirer: 'retire une vieille invitation :' };
+export async function maintenant() {
+  if (!ctx) return null;
+  const since = new Date(Date.now() - 15 * 60000).toISOString();
+  const [li, act] = await Promise.all([
+    supabase.from('linkedin_actions').select('kind, taken_at, prospects(name, contact_name, linkedin_person)').eq('workspace_id', ctx.ws.id).eq('status', 'en_cours').order('taken_at', { ascending: false }).limit(2),
+    supabase.from('activity').select('kind, summary, created_at').eq('workspace_id', ctx.ws.id).gt('created_at', since).order('created_at', { ascending: false }).limit(5),
+  ]);
+  const out = [];
+  for (const a of li.data ?? []) {
+    const p = a.prospects ?? {};
+    const qui = String(p.linkedin_person ?? '').split(' · ')[0] || p.contact_name || title(p.name);
+    out.push({ id: 'lina', nom: NOMS.lina, texte: `${LI_EN_COURS[a.kind] ?? 'travaille sur LinkedIn pour'} ${qui}`, at: a.taken_at, encours: true });
+  }
+  for (const a of act.data ?? []) {
+    const id = QUI.find(([re]) => re.test(a.kind))?.[1] ?? 'iris';
+    out.push({ id, nom: NOMS[id], texte: cut(a.summary, 110), at: a.created_at, encours: false });
+  }
+  return out.slice(0, 5);
 }

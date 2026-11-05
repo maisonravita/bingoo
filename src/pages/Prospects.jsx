@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { CALL } from "../lib/labels";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
@@ -278,6 +278,12 @@ export default function Prospects() {
     setRows(all);
   }, [ws.id]);
   useEffect(() => { load(); }, [load]);
+  // Lien direct vers une fiche (depuis la carte de l'équipe) : /#/prospects?id=…
+  const loc = useLocation();
+  useEffect(() => {
+    const id = new URLSearchParams(loc.search).get("id");
+    if (id) supabase.from("prospects").select("*").eq("id", id).eq("workspace_id", ws.id).maybeSingle().then(({ data }) => { if (data) setOpen(data); });
+  }, [loc.search, ws.id]);
   useEffect(() => { window.addEventListener("kairo:refresh", load); return () => window.removeEventListener("kairo:refresh", load); }, [load]);
   useEffect(() => { if (view === "none" && !cr) fn("credits", { workspace_id: ws.id }).then(setCr).catch(() => {}); }, [view, cr, ws.id]);
 

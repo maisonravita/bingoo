@@ -56,6 +56,24 @@ async function shareImage(canvas, night, world) {
 }
 
 import { initAide } from './aide.js';
+import { maintenant } from './data.js';
+
+const hm = (m) => (m < 60 ? `${Math.round(m)} min` : `${Math.floor(m / 60)} h${Math.round(m % 60) ? ` ${String(Math.round(m % 60)).padStart(2, '0')}` : ''}`);
+const ago = (d) => { const m = Math.max(0, Math.round((Date.now() - new Date(d).getTime()) / 60000)); return m < 1 ? 'à l’instant' : m < 60 ? `il y a ${m} min` : `il y a ${Math.floor(m / 60)} h`; };
+const PH = { chef: 'iris', eclaireur: 'leo', 'lecteur-1': 'sam', 'lecteur-2': 'max', 'lecteur-3': 'lina', 'redacteur-1': 'hugo', 'redacteur-2': 'ines', paul: 'paul', oscar: 'oscar' };
+
+/** Le bilan chiffré : ce qui compte (réponses, rendez-vous), puis le travail fait, puis le temps gagné. */
+function bilanCard(b, recent) {
+  if (!b) return '';
+  const head = [b.reponses ? `${plural(b.reponses, 'réponse', 'réponses')}${b.positives ? ` dont ${b.positives} positive${b.positives > 1 ? 's' : ''}` : ''}` : '', b.rdv ? plural(b.rdv, 'rendez-vous', 'rendez-vous') : ''].filter(Boolean).join(', ');
+  const cells = [[b.trouves, 'entreprises trouvées'], [b.emails, 'e-mails vérifiés'], [b.prets, 'messages prêts'], [b.envoyes, 'e-mails envoyés'], [b.linkedin, 'actions LinkedIn'], [b.profils, 'profils LinkedIn trouvés'], [b.opps, 'opportunités'], [b.reponses, 'réponses'], [b.rdv, 'rendez-vous']].filter(([n]) => n > 0);
+  return `<div class="bq-card bq-bilan" role="dialog" aria-label="Bilan de la nuit">
+    <p class="bq-k">${recent ? 'Ta nuit en chiffres' : 'Ta dernière nuit de travail en chiffres'}</p>
+    <p class="bq-big">${head ? esc(head) : 'Pas encore de réponse cette nuit'}</p>
+    ${cells.length ? `<div class="bq-grid">${cells.map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join('')}</div>` : '<p>Ton équipe n’a rien fait de visible cette nuit.</p>'}
+    ${b.minutes ? `<p class="bq-time">Temps gagné : environ <b>${hm(b.minutes)}</b> de travail que tu n’as pas eu à faire.</p>` : ''}
+    <div class="bq-row">${b.reponses ? '<a class="bq-btn" href="/#/reponses">Lire les réponses</a>' : b.prets ? '<a class="bq-btn" href="/#/valider">Valider les messages</a>' : '<a class="bq-btn" href="/#/">Ouvrir Bingoo!</a>'}<button type="button" class="bq-btn ghost" data-close>Rester sur la carte</button></div></div>`;
+}
 
 export function bingooUi({ night, world, canvas, play }) {
   const root = document.getElementById('qg');
@@ -64,23 +82,50 @@ export function bingooUi({ night, world, canvas, play }) {
   const clusters = night.clusters ?? [];
   bar.innerHTML = `
     ${clusters.length > 1 ? `<label class="bq-ville"><span>Ville</span><select id="bq-ville">${clusters.map((c, i) => `<option value="${i}" ${i === night.zone ? 'selected' : ''}>${esc(c.ville || `Zone ${i + 1}`)} (${c.n})</option>`).join('')}</select></label>` : ''}
+    <button type="button" class="bq-btn ghost" id="bq-bilan">Bilan</button>
     <button type="button" class="bq-btn" id="bq-share">Partager ma nuit</button>`;
   root.append(bar);
-  const live = document.createElement('p');
-  live.className = 'bq-live';
-  live.innerHTML = '<i></i>En direct : les nouvelles actions arrivent toutes seules';
-  root.append(live);
+  // En ce moment : ce que l'équipe fait vraiment, rafraîchi toutes les 20 secondes
+  const now = document.createElement('section');
+  now.className = 'bq-now';
+  now.setAttribute('aria-live', 'polite');
+  now.innerHTML = '<h3><i></i>En ce moment</h3><ul><li class="bq-quiet">Lecture…</li></ul>';
+  root.append(now);
+  const paint = async () => {
+    if (document.hidden) return;
+    const list = await maintenant().catch(() => null);
+    if (!list) return;
+    const ul = now.querySelector('ul');
+    now.classList.toggle('on', list.some((x) => x.encours || Date.now() - new Date(x.at).getTime() < 5 * 60000));
+    ul.innerHTML = list.length ? list.map((x) => `<li${x.encours ? ' class="run"' : ''}><img src="/salaries/${x.id}.png" alt=""><p><b>${esc(x.nom)}</b> ${esc(x.texte)}<small>${x.encours ? 'en cours' : ago(x.at)}</small></p></li>`).join('')
+      : '<li class="bq-quiet">Ton équipe se repose. Elle se remet au travail cette nuit, et chaque action apparaîtra ici en direct.</li>';
+  };
+  paint(); setInterval(paint, 20000);
+  now.addEventListener('click', (e) => { if (!e.target.closest('a')) now.classList.toggle('open'); });
 
   // sur téléphone : les visages de l'équipe ; celui qui travaille est entouré d'orange
   const team = document.createElement('div');
   team.className = 'bq-team';
-  const PH = { chef: 'iris', eclaireur: 'leo', 'lecteur-1': 'sam', 'lecteur-2': 'max', 'lecteur-3': 'lina', 'redacteur-1': 'hugo', 'redacteur-2': 'ines', paul: 'paul', oscar: 'oscar' };
   team.innerHTML = Object.entries(PH).map(([id, n]) => `<img data-id="${id}" src="/salaries/${n}.png" alt="">`).join('');
   root.append(team);
   setInterval(() => { const w = world(); if (!w) return; for (const img of team.children) { const a = w.actors.get(img.dataset.id); img.classList.toggle('on', Boolean(a && (a.target || a.busy) && a.alpha > 0.5)); } }, 500);
   bar.querySelector('#bq-ville')?.addEventListener('change', (e) => {
     const u = new URL(location.href); u.searchParams.set('zone', e.target.value); u.searchParams.delete('premiere'); location.href = u.toString();
   });
+  const showBilan = () => {
+    const box = document.getElementById('bq-modal') ?? Object.assign(document.createElement('div'), { id: 'bq-modal', className: 'bq-modal' });
+    root.append(box);
+    box.innerHTML = bilanCard(night.bilan, night.recent);
+    box.hidden = false;
+    box.querySelector('[data-close]')?.addEventListener('click', () => { box.hidden = true; });
+  };
+  bar.querySelector('#bq-bilan').addEventListener('click', showBilan);
+  // à la fin de la nuit rejouée : le bilan (sauf la toute première mission, qui a sa propre fin)
+  if (!new URLSearchParams(location.search).has('premiere') && !document.body.classList.contains('cinema')) {
+    let shown = false;
+    const later = () => (document.querySelector('.aide-tour, #bq-modal:not([hidden]), body.has-fiche') ? setTimeout(later, 4000) : showBilan());
+    world()?.on((type) => { if (type === 'end' && !shown) { shown = true; setTimeout(later, 1200); } });
+  }
   bar.querySelector('#bq-share').addEventListener('click', async () => {
     const box = document.getElementById('bq-modal') ?? Object.assign(document.createElement('div'), { id: 'bq-modal', className: 'bq-modal' });
     root.append(box);

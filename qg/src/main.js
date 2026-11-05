@@ -23,6 +23,7 @@ window.addEventListener('unhandledrejection', (ev) => report(ev.reason));
 import { bingooUi } from './bingoo.js';
 import { aideAt, aideHide, ETATS, MEMBRES } from './aide.js';
 import { setLogo } from './sprites.js';
+import { step, done, fail } from './progress.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('world');
@@ -44,8 +45,20 @@ let cine = null, pre = null; // la version cinéma, et son vol d'ouverture au-de
 
 const carte = createCarte({ onPick: (c) => lanc?.setVille(c), getRayon: () => lanc?.state.rayon ?? 2000 });
 
+// Qualité d'image adaptée à l'appareil : sur un téléphone lent, on dessine en moins de pixels plutôt que de saccader
+const PHONE = matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 700;
+let quality = Math.min(1, (PHONE ? 1.5 : 2) / (window.devicePixelRatio || 1)); // jamais plus de 2 pixels par point (1,5 sur téléphone)
+const perf = { n: 0, sum: 0 };
+function adapt(dt) {
+  if (mode !== 'ville' || !dt || document.hidden || window.__CAPTURE) return;
+  perf.n++; perf.sum += dt;
+  if (perf.n < 90) return;
+  const avg = perf.sum / perf.n; perf.n = 0; perf.sum = 0;
+  if (avg > 1 / 26 && quality > 0.45) quality = Math.max(0.45, quality * 0.8);
+  else if (avg < 1 / 50 && quality < Math.min(1, (PHONE ? 1.5 : 2) / (window.devicePixelRatio || 1))) quality = Math.min(Math.min(1, (PHONE ? 1.5 : 2) / (window.devicePixelRatio || 1)), quality * 1.1);
+}
 function resize() {
-  DPR = window.devicePixelRatio || 1;
+  DPR = (window.devicePixelRatio || 1) * quality;
   W = Math.round(canvas.clientWidth * DPR);
   H = Math.round(canvas.clientHeight * DPR);
   if (canvas.width !== W) canvas.width = W;
@@ -84,7 +97,12 @@ function frame(dt) {
     }
   }
   if (cine && mode === 'ville') cine.update(W, H, DPR);
-  if (mode === 'carte' || mode === 'plongee') carte.draw(g, W, H, DPR);
+  if (mode === 'carte' || mode === 'plongee') {
+    // pendant le chargement, la carte de France ne bouge plus : on ne la redessine que si la caméra a bougé
+    const k = `${carte.cam.x}|${carte.cam.y}|${carte.cam.zoom}|${W}|${H}`;
+    if (mode === 'carte' || carte.flying || carte.loading || k !== plongeeKey) carte.draw(g, W, H, DPR);
+    plongeeKey = mode === 'plongee' ? k : '';
+  }
   if (mode === 'ville' && city) {
     g.fillStyle = palette(tod).bg;
     g.fillRect(0, 0, W, H);
@@ -110,10 +128,11 @@ function frame(dt) {
   }
 }
 
-let last = 0;
+let last = 0, plongeeKey = '';
 function loop(ts) {
   const dt = last ? Math.min(0.1, (ts - last) / 1000) : 0;
   last = ts;
+  adapt(dt);
   resize();
   frame(dt);
   requestAnimationFrame(loop);
@@ -121,17 +140,17 @@ function loop(ts) {
 
 /* ------------------------------------------------------------------ la ville d'une mission */
 async function buildCity(centre, rayon) {
-  $('loading').hidden = false;
-  $('loading').textContent = 'Construction de la ville…';
+  step(30, 'Construction de la ville…');
   const t0 = performance.now();
-  city = await loadCity({ lite: true, centre, radius: Math.min(4300, Math.max(1600, rayon + 300)), onProgress: (k) => { $('loading').textContent = `Construction de la ville… ${Math.round(k * 100)} %`; } });
+  city = await loadCity({ lite: true, centre, radius: Math.min(4300, Math.max(1600, rayon + 300)), onProgress: (k) => step(60 + Math.round(k * 30), 'Les rues, les parcs et les commerces…') });
+  step(92, 'L’équipe arrive au QG…');
+  await new Promise((r) => setTimeout(r, 40)); // le temps d'afficher l'étape
   world = new Monde(city);
   director = new Realisateur(world, cam);
   hud = createHud($('hud'), world);
   fiche = createFiche($('fiche'), { getRunId: () => runId });
   world.on((type, d) => { if (type === 'place') fiche.refresh(d); if (type === 'mail' || type === 'scored') fiche.refresh(d.q); });
   console.log(`ville : ${city.blist.length} immeubles, ${city.roads.length} rues, ${city.trees.length} arbres, graphe ${world.graph.nodes} nœuds, ${((performance.now() - t0) / 1000).toFixed(1)} s`);
-  $('loading').hidden = true;
   return world;
 }
 
@@ -159,6 +178,7 @@ async function cinema(id) {
   const centre = run.lat != null ? { lat: run.lat, lon: run.lon } : sd?.centre ?? { lat: 45.764, lon: 4.8357 };
   setMode('plongee');
   await buildCity(centre, run.rayon ?? sd?.rayon ?? 2200);
+  fail(); // le film n'affiche pas l'écran de chargement
   const pushAll = () => { for (const e of events) world.push({ ...e, data: typeof e.data === 'string' ? JSON.parse(e.data) : e.data }); };
   const marks = survey(world, pushAll);
   const ends = events.filter((e) => e.agent === 'chef' && (e.type === 'start' || e.type === 'end')).map((e) => e.t);
@@ -211,6 +231,7 @@ async function replay(id) {
   if (!window.__CAPTURE) await carte.flyTo(centre.lat, centre.lon, 14.4, 2400);
   else { carte.cam.x = carte.selected.x; carte.cam.y = carte.selected.y; carte.cam.zoom = 14.4; }
   await built;
+  await done();
   enterCity();
   if (window.__CAPTURE) play(); else setTimeout(play, 300);
 }
@@ -421,6 +442,7 @@ async function boot() {
 }
 
 window.__qg = {
+  get quality() { return quality; },
   ready: false,
   loaded: false,
   cam,
@@ -442,22 +464,23 @@ window.__qg = {
   render() { resize(); frame(0); },
 };
 (async () => {
-  $('loading').hidden = false;
-  $('loading').textContent = 'Ton équipe rassemble la nuit…';
+  step(2, 'Ton équipe arrive…');
   try {
     const logo = new Image(); logo.src = import.meta.env.BASE_URL + 'logo-white.png';
     await logo.decode().then(() => setLogo(logo)).catch(() => {});
     const night = await prepare({ zone: Number(params.get('zone')) || 0, premiere: params.has('premiere') });
+    step(28, 'Ouverture de la carte…');
     await boot();
     bingooUi({ night, world: () => world, canvas, play });
     // le direct : ce que l'équipe fait pendant que la page est ouverte
     setInterval(async () => {
       if (document.hidden || !world || mode !== 'ville') return;
       try { for (const e of await poll()) world.push(e); } catch (err) { console.warn('direct', err); }
-    }, 30000);
+    }, 20000);
   } catch (e) {
     console.error(e);
     if (!(e instanceof QgError)) report(e);
+    fail();
     $('loading').hidden = true;
     const box = $('qg-empty');
     box.querySelector('p').textContent = e instanceof QgError ? e.message : 'La nuit n’a pas pu être chargée. Réessaie dans un instant.';

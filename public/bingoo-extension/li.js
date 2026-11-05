@@ -125,6 +125,71 @@
     return danger() ?? { resultat: "ok" };
   }
 
+  /** Visite du profil, la veille de l'invitation : on le lit tranquillement, comme une personne (rien n'est envoyé). */
+  async function visite(card) {
+    const rel = relation(card);
+    for (let i = 0; i < 2 + Math.floor(Math.random() * 2); i++) { window.scrollBy(0, 350 + Math.random() * 450); await jitter(1800, 3800); }
+    window.scrollTo(0, 0); await jitter(600, 1200);
+    return danger() ?? { resultat: rel === "connecte" ? "deja_connecte" : rel === "en_attente" ? "deja_invite" : "ok" };
+  }
+
+  /** Retrait d'une invitation restée sans réponse : bouton « En attente » (ou menu « Plus »), puis « Retirer ». */
+  async function retirer(card) {
+    const rel = relation(card);
+    if (rel === "connecte") return { resultat: "connecte" };
+    let btn = find(card, /^(en attente|pending)\b/);
+    if (!btn) {
+      const more = find(card, /^(plus|more)\b|plus d'actions|more actions/);
+      if (more) { await click(more); btn = await waitFor(() => buttons(document).find((b) => /retirer l'invitation|withdraw invitation|^(en attente|pending)\b/.test(label(b))), 4000); }
+    }
+    if (!btn) return rel === "aucune" ? { resultat: "ok", detail: "Plus d'invitation en attente" } : { resultat: "erreur", detail: "Invitation en attente introuvable" };
+    await click(btn);
+    const dialog = await waitFor(() => [...document.querySelectorAll("[role='alertdialog'], [role='dialog'], .artdeco-modal")].find(visible), 6000);
+    if (!dialog) return danger() ?? { resultat: "erreur", detail: "Fenêtre de retrait absente" };
+    const ok = buttons(dialog).find((b) => /^(retirer|withdraw)$/.test(label(b)));
+    if (!ok) return { resultat: "erreur", detail: "Bouton « Retirer » introuvable" };
+    await click(ok);
+    await jitter(1200, 2200);
+    return danger() ?? { resultat: "ok" };
+  }
+
+  /** Recherche du profil d'un décideur (nom + entreprise) : on ne garde un profil que si le nom ET l'entreprise correspondent,
+   *  et s'il n'y en a qu'un. Au moindre doute, rien n'est enregistré. Lecture seule : aucun clic sur un profil. */
+  const plain = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const STOP = new Set(["sas", "sasu", "sarl", "eurl", "sa", "sci", "snc", "selarl", "scop", "groupe", "group", "france", "holding", "societe", "la", "le", "les", "de", "des", "du", "et", "the", "and", "cie", "co"]);
+  async function trouver(action) {
+    const COMMERCIAL = /limite d'utilisation commerciale|commercial use limit/i;
+    const got = await waitFor(() => {
+      const t = document.body.innerText.slice(0, 4000);
+      if (COMMERCIAL.test(t)) return "limite";
+      if (/aucun résultat|no results found/i.test(t)) return "vide";
+      return [...document.querySelectorAll("main a[href*='/in/']")].some(visible) ? "ok" : null;
+    }, 15000);
+    if (got === "limite") return { resultat: "limite", detail: "Limite d'utilisation commerciale des recherches LinkedIn" };
+    if (got !== "ok") return danger() ?? { resultat: "introuvable", detail: got === "vide" ? "Aucun résultat" : "Résultats non chargés" };
+    await jitter(1500, 3000);
+    const want = plain(action.personne).split(" ").filter((w) => w.length > 1);
+    const firm = plain(action.entreprise).split(" ").filter((w) => w.length > 1 && !STOP.has(w));
+    if (want.length < 2 || !firm.length) return { resultat: "introuvable", detail: "Nom ou entreprise trop court pour être sûr" };
+    const key = firm.slice().sort((a, b) => b.length - a.length)[0];
+    const hits = new Map();
+    for (const a of document.querySelectorAll("main a[href*='/in/']")) {
+      const slug = a.href.match(/linkedin\.com\/in\/([^/?#]{2,100})/)?.[1];
+      if (!slug || !visible(a)) continue;
+      const name = plain(a.querySelector("span[aria-hidden='true']")?.textContent || (a.innerText || "").split("\n")[0]);
+      if (!name) continue;
+      const words = name.split(" ");
+      if (!want.every((w) => words.includes(w))) continue;
+      const box = a.closest("li") ?? a.parentElement?.parentElement?.parentElement ?? a;
+      const text = ` ${plain(box.innerText)} `;
+      const compact = text.replace(/ /g, "");
+      if (!(text.includes(` ${key} `) || (firm.join("").length >= 5 && compact.includes(firm.join(""))))) continue;
+      hits.set(slug, name);
+    }
+    if (hits.size === 1) { const [slug] = hits.keys(); return { resultat: "ok", profil: `https://www.linkedin.com/in/${slug}`, detail: "Nom et entreprise vérifiés" }; }
+    return { resultat: "introuvable", detail: hits.size > 1 ? "Plusieurs profils possibles, aucun enregistré" : "Pas de profil avec ce nom dans cette entreprise" };
+  }
+
   /** Fiche Sales Navigator : on cherche le lien vers le profil LinkedIn classique, où se font les invitations. */
   async function salesRedirect() {
     const direct = () => [...document.querySelectorAll("a[href*='linkedin.com/in/'], a[href^='/in/']")].map((a) => a.href).find((h) => /\/in\/[^/?#]{2,}/.test(h));
@@ -154,12 +219,15 @@
       await jitter(2000, 4000); // lecture de la page, comme une personne
       if (/\/sales\//.test(location.pathname)) return await salesRedirect();
       const early = danger(); if (early) return early;
+      if (action.type === "trouver") return await trouver(action);
       if (MISSING.test(document.body.innerText.slice(0, 3000))) return { resultat: "introuvable" };
       const ready = await waitFor(() => [...document.querySelectorAll("main h1")].find(visible), 15000);
       if (!ready) return danger() ?? { resultat: "erreur", detail: "Profil non chargé" };
       window.scrollBy(0, 200 + Math.random() * 300); await jitter(800, 1600); window.scrollTo(0, 0); await jitter(400, 900);
       const card = topCard();
       if (action.type === "invitation") return await invitation(card, action.note);
+      if (action.type === "visite") return await visite(card);
+      if (action.type === "retirer") return await retirer(card);
       if (action.type === "verifier") { const r = relation(card); return { resultat: r === "connecte" ? "connecte" : "en_attente" }; }
       if (action.type === "message") return await message(card, action.message);
       if (action.type === "relance") return await message(card, action.message, true, String(action.personne ?? "").split(/\s+/)[0]);

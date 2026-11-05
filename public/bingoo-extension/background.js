@@ -31,7 +31,7 @@ async function bootKey() {
   return key;
 }
 
-const LABELS = { invitation: "Invitation", verifier: "Vérification", message: "Message", relance: "Relance" };
+const LABELS = { invitation: "Invitation", verifier: "Vérification", message: "Message", relance: "Relance", visite: "Visite du profil", retirer: "Retrait d'invitation", trouver: "Recherche du profil" };
 
 const loaded = (tabId) => new Promise((resolve) => {
   const t = setTimeout(resolve, 30000);
@@ -50,7 +50,7 @@ async function runAction(a) {
       const r = out?.result ?? { resultat: "erreur", detail: "Pas de réponse de la page" };
       // Fiche Sales Navigator : on passe sur le profil LinkedIn classique, puis on refait l'action
       if (r.redirect && hop === 0) { profil = r.redirect; await chrome.tabs.update(tab.id, { url: r.redirect }); await loaded(tab.id); continue; }
-      return { ...r, profil };
+      return { ...r, profil: r.profil || profil };
     }
     return { resultat: "erreur", detail: "Profil introuvable" };
   } catch (e) {

@@ -70,7 +70,8 @@ const REGLES = [
   ['.bq-ville', 'Ton activité est dans plusieurs zones : choisis celle à montrer.'],
   ['#btn-carte', 'Rejoue la nuit depuis le début. Rien n’est refait en vrai.'],
   ['.qg-back', 'Revenir à Bingoo!.'],
-  ['.bq-live', 'Toutes les 30 secondes, la carte ajoute ce que l’équipe vient de faire.'],
+  ['.bq-now', 'En ce moment : ce que ton équipe fait vraiment, en direct (rafraîchi toutes les 20 secondes). Clique pour tout voir.'],
+  ['#bq-bilan', 'Le bilan chiffré de la nuit : réponses, rendez-vous, travail fait et temps gagné.'],
   ['#bq-aide', 'La légende : chaque repère, chaque membre, chaque geste. Et la visite guidée.'],
   ['.radio', 'La radio : quelqu’un parle hors de l’écran.'],
   ['.scorecard', 'La priorité de cette entreprise, et ce qui la fait monter.'],
@@ -137,6 +138,7 @@ const ETAPES = [
   ['#world', 'La carte', 'Chaque repère est un lieu : mallette = entreprise, étoile = opportunité du Radar, drapeau = concurrent. La bulle au-dessus dit où il en est. Clique pour ouvrir sa fiche.'],
   ['#h-party', 'Ton équipe', 'Les neuf membres et ce qu’ils font en ce moment. Survole un nom pour savoir qui fait quoi.'],
   ['.res', 'Le bilan de la nuit', 'Combien d’entreprises, de contacts vérifiés et de messages prêts. Les messages t’attendent : rien ne part sans toi.'],
+  ['.bq-now', 'En ce moment', 'Ce que ton équipe fait vraiment, en direct : « Lina cherche le profil de… ». Le bouton « Bilan » donne les chiffres de la nuit.'],
   ['#bq-aide', 'Besoin d’aide ?', 'Survole n’importe quel élément pour une petite notice. Le bouton « ? » ouvre la légende complète.'],
 ];
 function tour(root) {

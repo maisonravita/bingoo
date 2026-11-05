@@ -152,6 +152,7 @@ export async function loadCity({ centre, radius = 2200, onProgress, fetchTile, l
   const areas = [];
   const names = [];
   const pois = [];
+  const poiSeen = new Set();
   let synth = 1e12;
   const ringsXY = (rings) => rings.map((ring) => ring.map(([lon, lat]) => toXY(lat, lon)));
   const polysOf = (gj) => gj.geometry.type === 'Polygon' ? [gj.geometry.coordinates] : gj.geometry.type === 'MultiPolygon' ? gj.geometry.coordinates : [];
@@ -163,11 +164,15 @@ export async function loadCity({ centre, radius = 2200, onProgress, fetchTile, l
     let buf;
     try { buf = await get(Z, tx, ty); } catch { onProgress?.(++done / tiles.length); return; } // une tuile manquante : un coin vide, pas d'échec
     const vt = new VectorTile(new Protobuf(new Uint8Array(buf)));
-    const each = (name, fn) => {
+    // on rend la main au navigateur entre deux tuiles : la barre de chargement continue d'avancer
+    await new Promise((r) => setTimeout(r, 0));
+    // keep : un premier tri sur les propriétés, avant de décoder la géométrie (le plus coûteux)
+    const each = (name, fn, keep) => {
       const L = vt.layers[name];
       if (!L) return;
       for (let i = 0; i < L.length; i++) {
         const f = L.feature(i);
+        if (keep && !keep(f.properties)) continue;
         fn(f.toGeoJSON(tx, ty, Z), f.properties, f.id);
       }
     };
@@ -204,24 +209,26 @@ export async function loadCity({ centre, radius = 2200, onProgress, fetchTile, l
       if (p.brunnel === 'tunnel') return;
       for (const r of polysOf(gj)) addArea(p.class === 'swimming_pool' ? 'pool' : 'water', r);
     });
-    each('park', (gj, p) => { if (p.class === 'park' || p.class === 'garden') for (const r of polysOf(gj)) addArea('grass', r); });
+    each('park', (gj, p) => { if (p.class === 'park' || p.class === 'garden') for (const r of polysOf(gj)) addArea('grass', r); }, (p) => p.class === 'park' || p.class === 'garden');
     each('landcover', (gj, p) => {
       const k = p.class === 'grass' ? 'grass' : p.class === 'wood' ? 'wood' : p.class === 'sand' ? 'sand' : null;
       if (k) for (const r of polysOf(gj)) addArea(k, r);
-    });
-    each('landuse', (gj, p) => { const k = LANDUSE[p.class]; if (k) for (const r of polysOf(gj)) addArea(k, r); });
+    }, (p) => p.class === 'grass' || p.class === 'wood' || p.class === 'sand');
+    each('landuse', (gj, p) => { const k = LANDUSE[p.class]; if (k) for (const r of polysOf(gj)) addArea(k, r); }, (p) => !!LANDUSE[p.class]);
     each('place', (gj, p) => {
       if (!['suburb', 'quarter', 'neighbourhood'].includes(p.class) || !p.name) return;
       const [lon, lat] = gj.geometry.coordinates;
       const [x, y] = toXY(lat, lon);
       if (!names.some((n) => n.name === p.name)) names.push({ name: p.name, x, y, rank: p.class });
-    });
+    }, (p) => p.name && ['suburb', 'quarter', 'neighbourhood'].includes(p.class));
     each('poi', (gj, p, id) => {
       if (gj.geometry.type !== 'Point' || !p.name || PAS_COMMERCE.has(p.class)) return;
       const [lon, lat] = gj.geometry.coordinates;
       const [x, y] = toXY(lat, lon);
-      if (!pois.some((o) => o.name === p.name && Math.abs(o.x - x) < 2 && Math.abs(o.y - y) < 2)) pois.push({ name: p.name, cls: p.class, sub: p.subclass ?? '', x, y, lat, lon, id });
-    });
+      // un même commerce apparaît dans plusieurs tuiles : une seule fois (même nom, à 2 m près)
+      const k = `${p.name}|${Math.round(x / 2)}|${Math.round(y / 2)}`;
+      if (!poiSeen.has(k)) { poiSeen.add(k); pois.push({ name: p.name, cls: p.class, sub: p.subclass ?? '', x, y, lat, lon, id }); }
+    }, (p) => p.name && !PAS_COMMERCE.has(p.class));
     onProgress?.(++done / tiles.length);
   }));
 
@@ -326,7 +333,8 @@ export class City {
   /** L'immeuble sous un point (ou null). */
   buildingAt(x, y) {
     const R = this.rast;
-    if (R) { const gx = Math.floor((x - R.x0) / R.k), gy = Math.floor((y - R.y0) / R.k); if (gx >= 0 && gy >= 0 && gx < R.w && gy < R.h) { const v = R.b[gy * R.w + gx]; return v ? this.blist[v - 1] : null; } }
+    // hors de la grille, on est hors de la ville affichée (recadrée) : rien à toucher
+    if (R) { const gx = Math.floor((x - R.x0) / R.k), gy = Math.floor((y - R.y0) / R.k); if (gx >= 0 && gy >= 0 && gx < R.w && gy < R.h) { const v = R.b[gy * R.w + gx]; return v ? this.blist[v - 1] : null; } return null; }
     for (const i of this.query('b', x, y, x, y)) {
       const b = this.blist[i];
       if (x < b.minx || x > b.maxx || y < b.miny || y > b.maxy) continue;
@@ -336,7 +344,7 @@ export class City {
   }
   areaAt(x, y) {
     const R = this.rast;
-    if (R) { const gx = Math.floor((x - R.x0) / R.k), gy = Math.floor((y - R.y0) / R.k); if (gx >= 0 && gy >= 0 && gx < R.w && gy < R.h) return R.a[gy * R.w + gx]; }
+    if (R) { const gx = Math.floor((x - R.x0) / R.k), gy = Math.floor((y - R.y0) / R.k); if (gx >= 0 && gy >= 0 && gx < R.w && gy < R.h) return R.a[gy * R.w + gx]; return 0; }
     let best = 0;
     for (const i of this.query('a', x, y, x, y)) {
       const a = this.areas[i];
@@ -745,7 +753,8 @@ function plantTrees(city) {
         if (a.kind === AREA.grass && h < 0.35) continue;
         const jx = x + (hash2(Math.round(y), Math.round(x)) - 0.5) * step * 0.8, jy = y + (h - 0.5) * step * 0.8;
         if (near.has(Math.floor(jx / 6) * 100003 + Math.floor(jy / 6))) continue;
-        if (!inRings(jx, jy, a.rings) || !ok(jx, jy, 1.8)) continue;
+        // dans le parc ? la grille de 2 m le dit tout de suite (sinon, le calcul exact sur le contour)
+        if (!(city.rast ? city.areaAt(jx, jy) === a.kind : inRings(jx, jy, a.rings)) || !ok(jx, jy, 1.8)) continue;
         trees.push({ x: jx, y: jy, r: 2.8 + h * 1.6, k: a.kind === AREA.wood ? 1 : 0 });
       }
     }
