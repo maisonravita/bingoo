@@ -3,7 +3,7 @@
 // Message-ID <bingoo-{id du message}@domaine> : le rapprochement est exact, sans deviner.
 import { admin, log, type Prospect, type Workspace } from "./core.ts";
 import { open } from "./growth.ts";
-import { gmailRecent } from "./oauth.ts";
+import { gmailRecent, outlookRecent } from "./oauth.ts";
 
 export const IMAP_HOSTS: Record<string, string> = {
   gmail: "imap.gmail.com", ovh: "ssl0.ovh.net", ionos: "imap.ionos.fr", zoho: "imap.zoho.eu",
@@ -73,12 +73,22 @@ async function handleRaw(ws: Workspace, raw: string, res: { lus: number; rebonds
     for (const id of bingooIds(raw)) if (await applyBounce(id)) res.rebonds++;
     return;
   }
-  const id = replyTo(raw);
-  if (!id) return;
-  const { data: m } = await admin.from("messages").select("prospect_id, prospects(*)").eq("id", id).eq("workspace_id", ws.id).maybeSingle();
-  const p = (m as unknown as { prospects: Prospect | null } | null)?.prospects;
-  if (!p) return;
   const fromRaw = header(raw, "From"), fromEmail = (fromRaw.match(/<([^>]+)>/)?.[1] ?? fromRaw).trim().toLowerCase();
+  const id = replyTo(raw);
+  let p: Prospect | null = null;
+  if (id) {
+    const { data: m } = await admin.from("messages").select("prospect_id, prospects(*)").eq("id", id).eq("workspace_id", ws.id).maybeSingle();
+    p = (m as unknown as { prospects: Prospect | null } | null)?.prospects ?? null;
+  } else if (fromEmail.includes("@") && /^re\s*:/i.test(header(raw, "Subject"))) {
+    // Certains serveurs (Outlook, Microsoft 365) réécrivent l'identifiant du message : on rapproche alors par l'adresse
+    // exacte de l'expéditeur, seulement si on lui a écrit dans les 90 derniers jours et que c'est bien une réponse (« Re: »).
+    const { data: cand } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("email", fromEmail).limit(2);
+    if (cand?.length === 1) {
+      const { count } = await admin.from("messages").select("id", { count: "exact", head: true }).eq("prospect_id", cand[0].id).eq("status", "envoye").gte("sent_at", new Date(Date.now() - 90 * 864e5).toISOString());
+      if (count) p = cand[0] as Prospect;
+    }
+  }
+  if (!p) return;
   // Doublons (même e-mail reçu par l'adresse Bingoo et dans la boîte) écartés par handleReply, message par message
   const r = await onReply(ws, p, { fromEmail, fromName: fromRaw.replace(/<[^>]+>/, "").replace(/"/g, "").trim(), subject: header(raw, "Subject"), text: plainText(raw) });
   if (!(r as { duplicate?: boolean } | null)?.duplicate) res.reponses++;
@@ -96,8 +106,8 @@ export async function pollInbox(ws: Workspace, onReply: ReplyHandler) {
     await admin.from("workspaces").update({ integrations }).eq("id", ws.id);
     return res;
   };
-  if (box?.ok && box.via === "oauth" && box.provider === "google") {
-    const g = await gmailRecent(ws, since, 150);
+  if (box?.ok && box.via === "oauth" && (box.provider === "google" || box.provider === "microsoft")) {
+    const g = await (box.provider === "microsoft" ? outlookRecent : gmailRecent)(ws, since, 150);
     for (const it of g.items) await handleRaw(ws, it.raw, res, onReply);
     if (g.more && g.items.length) resumeAt = new Date(g.items[g.items.length - 1].at).toISOString();
     return await done();

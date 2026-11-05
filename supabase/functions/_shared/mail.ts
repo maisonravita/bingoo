@@ -2,7 +2,7 @@
 import { HttpError } from "./http.ts";
 import { admin, env, PLATFORM_DOMAIN, type Workspace } from "./core.ts";
 import { smtpSend } from "./growth.ts";
-import { gmailSend } from "./oauth.ts";
+import { gmailSend, outlookSend } from "./oauth.ts";
 
 export async function resend(path: string, method = "GET", body?: unknown, extra: Record<string, string> = {}) {
   const key = env("RESEND_API_KEY");
@@ -73,8 +73,9 @@ export async function sendMail(ws: Workspace, m: { to: string; subject: string; 
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#1a1a1a">${m.text.split(/\n{2,}/).map((x) => `<p style="margin:0 0 14px">${esc(x).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>').replace(/\n/g, "<br>")}</p>`).join("")}${footer ? `<p style="margin:28px 0 0;font-size:12px;color:#888">${esc(footer).replace(/\n/g, "<br>")}</p>` : ""}</div>`;
   const text = footer ? `${m.text}\n\n--\n${footer}` : m.text;
   if (ws.integrations?.mailbox?.ok) {
-    const viaGoogle = (ws.integrations.mailbox as { via?: string }).via === "oauth" && ws.integrations.mailbox.provider === "google";
-    return await (viaGoogle ? gmailSend : smtpSend)(ws, {
+    const viaOauth = (ws.integrations.mailbox as { via?: string }).via === "oauth";
+    const viaGoogle = viaOauth && ws.integrations.mailbox.provider === "google", viaMicrosoft = viaOauth && ws.integrations.mailbox.provider === "microsoft";
+    return await (viaGoogle ? gmailSend : viaMicrosoft ? outlookSend : smtpSend)(ws, {
       from: `${m.fromName ?? ws.sender_name} <${ws.integrations.mailbox.email}>`, to: m.to,
       replyTo: m.replyTo ?? ws.integrations.mailbox.email, subject: m.subject, text, html,
       headers: m.prospecting ? { "List-Unsubscribe": `<mailto:${m.replyTo ?? ws.integrations.mailbox.email}?subject=STOP>` } : undefined,

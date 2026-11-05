@@ -41,6 +41,18 @@ function Mailbox() {
   };
   const remove = async () => { setBusy(true); try { await fn("mailbox-remove", { workspace_id: ws.id }); await reload(); toast("Boîte déconnectée"); } finally { setBusy(false); } };
   // Connexion officielle Google : Bingoo ne voit jamais le mot de passe
+  const [oauthOn, setOauthOn] = useState({});
+  useEffect(() => { fn("o/status", {}).then(setOauthOn).catch(() => {}); }, []);
+  // Connexion officielle Microsoft : Bingoo ne voit jamais le mot de passe
+  const outlook = async () => { setBusy(true); try { const r = await fn("o/microsoft-url", { workspace_id: ws.id }); window.location.href = r.url; } catch (e) { toast(e.message, "bad"); setBusy(false); } };
+  useEffect(() => {
+    const m = window.location.hash.match(/outlook=([a-z]+)/);
+    if (!m) return;
+    const msg = { ok: ["Outlook connecté par Microsoft : les e-mails partiront de ta boîte", "good"], annule: ["Connexion Outlook annulée", "bad"], admin: ["Ton entreprise demande l'accord de son administrateur Microsoft : transmets-lui le lien de connexion", "bad"], droits: ["Accepte l'autorisation d'envoi d'e-mails pour connecter Outlook", "bad"], refresh: ["Microsoft n'a pas donné d'accès durable : recommence la connexion", "bad"], email: ["Adresse Outlook introuvable : recommence la connexion", "bad"] }[m[1]];
+    if (msg) toast(msg[0], msg[1]);
+    reload();
+    window.history.replaceState(null, "", window.location.href.replace(/[?&]outlook=[a-z]+/, ""));
+  }, []);
   const google = async () => { setBusy(true); try { const r = await fn("o/google-url", { workspace_id: ws.id }); window.location.href = r.url; } catch (e) { toast(e.message, "bad"); setBusy(false); } };
   useEffect(() => {
     const m = window.location.hash.match(/gmail=([a-z]+)/);
@@ -55,7 +67,7 @@ function Mailbox() {
       status={mb ? <Badge tone={mb.ok ? "good" : "bad"}>{mb.ok ? "Connectée" : "À reconnecter"}</Badge> : <Badge>Non connectée</Badge>}>
       {mb?.ok ? (
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-sm flex-1 min-w-0">Envoi depuis <b className="break-all">{mb.email}</b>{mb.via === "oauth" ? " (connexion Google officielle)" : ""}. Les réponses et les rebonds sont repérés automatiquement et classés dans « Réponses ».</p>
+          <p className="text-sm flex-1 min-w-0">Envoi depuis <b className="break-all">{mb.email}</b>{mb.via === "oauth" ? (mb.provider === "microsoft" ? " (connexion Microsoft officielle)" : " (connexion Google officielle)") : ""}. Les réponses et les rebonds sont repérés automatiquement et classés dans « Réponses ».</p>
           <Button variant="danger" size="sm" loading={busy} onClick={remove}>Déconnecter</Button>
         </div>
       ) : (
@@ -116,13 +128,23 @@ function Mailbox() {
             </div>
           )}
 
-          {kind === "microsoft" && (
+          {kind === "microsoft" && (oauthOn.microsoft ? (
+            <div className="rounded-xl border border-line bg-paper p-4">
+              <ol className="text-sm space-y-2 list-decimal pl-5">
+                <li>Clique sur <b>Connecter Outlook</b> : la page officielle de Microsoft s'ouvre.</li>
+                <li>Choisis l'adresse qui enverra tes e-mails de prospection (Outlook.com, Hotmail ou Microsoft 365).</li>
+                <li>Accepte les autorisations (envoyer des e-mails, repérer les réponses). Tu reviens ici, c'est prêt.</li>
+              </ol>
+              <Button className="mt-4" variant="primary" loading={busy} onClick={outlook}>Connecter Outlook</Button>
+              <p className="text-xs text-ink-faint mt-2">Bingoo! ne voit jamais ton mot de passe. Si ton entreprise demande l'accord d'un administrateur, Microsoft te le dira : transmets-lui la demande. Tu peux retirer l'accès à tout moment, ici ou dans ton compte Microsoft.</p>
+            </div>
+          ) : (
             <div className="rounded-xl border border-line bg-paper p-4 text-sm space-y-2">
               <p><b>La connexion Outlook arrive bientôt.</b> Microsoft n'accepte plus les mots de passe pour envoyer depuis une autre application : il faut une connexion officielle, en cours de préparation.</p>
               <p>En attendant, tu peux prospecter depuis <b>ton propre domaine</b> (par exemple prenom@tonentreprise.fr) : Bingoo! envoie pour toi et les réponses arrivent dans ton Outlook comme d'habitude.</p>
               <a href="#/reglages#domaine"><Button className="mt-2" variant="primary">Configurer mon domaine d'envoi</Button></a>
             </div>
-          )}
+          ))}
 
           {kind === "autre" && (
             <div className="rounded-xl border border-line bg-paper p-4 space-y-3">

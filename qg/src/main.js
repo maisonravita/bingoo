@@ -15,6 +15,11 @@ import { createLancement } from './lancement.js';
 import { createCinema, survey } from './cinema.js';
 import { qfetch, prepare } from './api.js';
 import { QgError, poll } from './data.js';
+import { supabase } from '../../src/lib/supabase.js';
+// les erreurs de la carte remontent dans l'alerte quotidienne, comme celles de l'application
+const report = (e) => { try { supabase.from('client_errors').insert({ page: '/qg/', message: String(e?.message ?? e).slice(0, 500), stack: String(e?.stack ?? '').slice(0, 4000) }).then(() => {}, () => {}); } catch { /* rien */ } };
+window.addEventListener('error', (ev) => report(ev.error ?? ev.message));
+window.addEventListener('unhandledrejection', (ev) => report(ev.reason));
 import { bingooUi } from './bingoo.js';
 import { aideAt, aideHide, ETATS, MEMBRES } from './aide.js';
 import { setLogo } from './sprites.js';
@@ -452,6 +457,7 @@ window.__qg = {
     }, 30000);
   } catch (e) {
     console.error(e);
+    if (!(e instanceof QgError)) report(e);
     $('loading').hidden = true;
     const box = $('qg-empty');
     box.querySelector('p').textContent = e instanceof QgError ? e.message : 'La nuit n’a pas pu être chargée. Réessaie dans un instant.';

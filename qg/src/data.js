@@ -274,7 +274,7 @@ let ctx = null; // pour le direct : l'espace, la ville, les lieux déjà posés,
 export async function buildNight({ zone = 0, premiere = false } = {}) {
   const { data: s } = await supabase.auth.getSession();
   if (!s.session) throw new QgError('Connecte-toi à Bingoo! pour voir ton équipe.', '/');
-  const { data: wss } = await supabase.from('workspaces').select('id, name').order('created_at');
+  const { data: wss } = await supabase.from('workspaces').select('id, name, integrations, domain_status').order('created_at');
   let wsId = null;
   try { wsId = localStorage.getItem('kairo-ws'); } catch { /* stockage indisponible */ }
   const ws = wss?.find((w) => w.id === wsId) ?? wss?.[0];

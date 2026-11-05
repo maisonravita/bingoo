@@ -42,5 +42,7 @@ for (const [path, expect] of [["/opposition", "Ne plus être contacté"], ["/", 
 }
 await browser.close();
 
+console.log("Parcours connectés (Supabase simulé)");
+try { execSync("node scripts/check-app.mjs", { stdio: "inherit" }); } catch { failed++; }
 console.log(failed ? `\n${failed} problème(s) : ne pas mettre en ligne.` : "\nTout est bon : prêt à mettre en ligne.");
 process.exit(failed ? 1 : 0);

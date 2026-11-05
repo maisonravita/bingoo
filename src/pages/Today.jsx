@@ -203,8 +203,9 @@ function Urgent({ u }) {
 }
 
 /** Le matin en 2 minutes : ce qui attend le client, dans l'ordre, et quand tout est fait, on le dit. */
-function Morning({ s }) {
+function Morning({ s, canSend }) {
   const items = [
+    [canSend ? 0 : 1, "étape : connecter ta boîte mail (2 min)", "", "/connexions", "send"],
     [s.replies, "réponse à traiter", "réponses à traiter", "/reponses", "chat"],
     [s.drafts, "message à valider", "messages à valider", "#prets", "send"],
     [s.urgent.meet.length, "rendez-vous aujourd'hui", "rendez-vous aujourd'hui", "/agenda", "cal"],
@@ -217,7 +218,7 @@ function Morning({ s }) {
       <span className="self-center mr-1 text-[14px] text-ink-soft">Ce matin :</span>
       {todo.map(([n, a, b, to, icon]) => {
         const cls = "inline-flex items-center gap-2 rounded-full border border-line bg-white px-4 py-2 text-[14.5px] font-semibold hover:border-accent/50 transition";
-        const body = <><Ico n={icon} className="w-4 h-4 text-accent" /><span className="tnum">{n}</span> {n > 1 ? b : a}</>;
+        const body = a.startsWith("étape") ? <><Ico n={icon} className="w-4 h-4 text-accent" />Dernière étape : connecter ta boîte mail (2 min)</> : <><Ico n={icon} className="w-4 h-4 text-accent" /><span className="tnum">{n}</span> {n > 1 ? b : a}</>;
         return to.startsWith("#") ? <a key={a} href={to} onClick={(e) => { e.preventDefault(); document.getElementById(to.slice(1))?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={cls}>{body}</a> : <Link key={a} to={to} className={cls}>{body}</Link>;
       })}
     </nav>
@@ -284,7 +285,7 @@ export default function Today() {
         </a>
       </header>
 
-      {s && <Morning s={s} />}
+      {s && <Morning s={s} canSend={ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok} />}
 
       <TodayFeed />
 

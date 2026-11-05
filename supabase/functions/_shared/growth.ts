@@ -89,7 +89,7 @@ export async function saveMailbox(ws: Workspace, b: Record<string, unknown>) {
 export async function removeMailbox(ws: Workspace) {
   if ((ws.integrations?.mailbox as { via?: string } | undefined)?.via === "oauth") {
     const { disconnectOauth } = await import("./oauth.ts");
-    await disconnectOauth(ws, "google");
+    await disconnectOauth(ws, (ws.integrations?.mailbox as { provider?: string } | undefined)?.provider === "microsoft" ? "microsoft" : "google");
   }
   await admin.from("workspace_secrets").update({ smtp: {} }).eq("workspace_id", ws.id);
   const integrations = { ...(ws.integrations ?? {}) };
