@@ -358,7 +358,7 @@ export async function sendOne(ws: Workspace, messageId: string) {
       admin.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "envoye").gte("sent_at", day0.toISOString()),
       admin.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "envoi"),
     ]);
-    const cap = warmup(ws).cap;
+    const cap = warmup(ws).cap * await (await import("./boites.ts")).nbBoites(ws);
     if ((done ?? 0) + (inflight ?? 0) > cap) {
       await admin.from("messages").update({ status: "brouillon", claimed_at: null }).eq("id", messageId).eq("status", "envoi");
       throw new HttpError(429, `Limite de ${cap} envois par jour atteinte : la suite partira demain (ça protège ton domaine)`);
@@ -369,14 +369,22 @@ export async function sendOne(ws: Workspace, messageId: string) {
     const body = `${msg.body.trim()}${link ? `\n\nSi c'est plus simple, vous pouvez choisir directement un créneau ici : ${link}` : ""}\n\n${signature(ws)}`;
     // Relance : on répond dans le fil du premier message envoyé à la même adresse (boîte connectée seulement ;
     // sans fil possible, l'objet perd son « Re : » pour ne pas faire croire à une réponse)
-    let parentKey = "", subject = msg.subject;
+    let parentKey = "", subject = msg.subject, parentVia: string | null = null;
     if (msg.step > 0) {
-      const { data: first } = await admin.from("messages").select("id").eq("prospect_id", p.id).eq("step", 0).eq("status", "envoye").order("sent_at").limit(1);
-      if (first?.[0] && ws.integrations?.mailbox?.ok) parentKey = first[0].id;
-      else subject = subject.replace(/^re\s*:\s*/i, "");
+      const { data: first } = await admin.from("messages").select("id, sent_via").eq("prospect_id", p.id).eq("step", 0).eq("status", "envoye").order("sent_at").limit(1);
+      if (first?.[0]) { parentKey = first[0].id; parentVia = first[0].sent_via ?? null; }
     }
-    const r = await sendMail(ws, { to: p.email, subject, text: body, replyTo: replyAddress(ws, p.public_token), prospecting: true, key: msg.id, parentKey: parentKey || undefined });
-    await admin.from("messages").update({ status: "envoye", sent_at: new Date().toISOString(), provider_id: r.id, sent_via: ws.integrations?.mailbox?.ok ? ws.integrations.mailbox.email : "domaine" }).eq("id", messageId);
+    // Boîte d'envoi : celle du premier message pour une relance, sinon la moins utilisée aujourd'hui
+    const { choisir } = await import("./boites.ts");
+    const pick = await choisir(ws, warmup(ws).cap, parentVia);
+    if (!pick) {
+      await admin.from("messages").update({ status: "brouillon", claimed_at: null }).eq("id", messageId).eq("status", "envoi");
+      throw new HttpError(429, "Toutes tes boîtes ont atteint leur limite du jour : la suite partira demain");
+    }
+    const wsx = pick.ws;
+    if (!(pick.fil && parentKey && wsx.integrations?.mailbox?.ok)) { parentKey = ""; subject = subject.replace(/^re\s*:\s*/i, ""); }
+    const r = await sendMail(wsx, { to: p.email, subject, text: body, replyTo: replyAddress(wsx, p.public_token), prospecting: true, key: msg.id, parentKey: parentKey || undefined });
+    await admin.from("messages").update({ status: "envoye", sent_at: new Date().toISOString(), provider_id: r.id, sent_via: wsx.integrations?.mailbox?.ok ? wsx.integrations.mailbox.email : "domaine" }).eq("id", messageId);
     await markWarmup(ws);
     if (["pret", "a_valider", "envoye", "nouveau", "sans_email"].includes(p.status)) await admin.from("prospects").update({ status: "envoye" }).eq("id", p.id);
     return { id: messageId, sent: true };
@@ -440,13 +448,32 @@ export const FOLLOW = [
   { after: 12, subject: (s: string) => `Re : ${s.replace(/^re\s*:\s*/i, "")}`, body: (hello: string) => `${hello}\n\nJe n'insiste pas : si ce n'est pas le moment, aucun souci. Et si quelqu'un d'autre s'occupe de ce sujet chez vous, me diriez-vous qui contacter ?` },
 ];
 
+/** La séquence de l'espace : étapes après le premier e-mail (jours comptés depuis ce premier e-mail). Par défaut,
+ *  deux relances par e-mail aux délais réglés. Une réponse arrête tout (le prospect quitte le statut « envoyé »). */
+export type Etape = { apres: number; canal: "email" | "linkedin" | "appel"; texte?: string; si?: "toujours" | "linkedin_connu" | "telephone_connu" };
+export function sequence(ws: Workspace): Etape[] {
+  const e = ((ws as { sequence?: { etapes?: Etape[] } }).sequence?.etapes ?? []).filter((x) => x && ["email", "linkedin", "appel"].includes(x.canal) && Number.isInteger(x.apres) && x.apres >= 1 && x.apres <= 90);
+  if (e.length) return e.slice(0, 6);
+  return followupDays(ws).map((d) => ({ apres: d, canal: "email" as const, texte: "", si: "toujours" as const }));
+}
+/** Remplace {prenom}, {nom}, {entreprise}, {ville} ; une variable inconnue disparaît proprement. */
+export function remplir(t: string, p: { contact_name?: string | null; name?: string | null; city?: string | null }) {
+  const parts = String(p.contact_name ?? "").trim().split(/\s+/).filter(Boolean);
+  const v: Record<string, string> = { prenom: parts[0] ?? "", nom: parts.slice(1).join(" "), entreprise: String(p.name ?? ""), ville: String(p.city ?? "") };
+  return t.replace(/ ?\{(prenom|nom|entreprise|ville)\}/gi, (m, k) => (v[k.toLowerCase()] ? `${m.startsWith(" ") ? " " : ""}${v[k.toLowerCase()]}` : "")).replace(/ +,/g, ",");
+}
+
 export async function followups(ws: Workspace) {
-  const { data: sent } = await admin.from("messages").select("id, prospect_id, step, subject, body, sent_at, campaign_id, variant, prospects!inner(status)")
+  const etapes = sequence(ws);
+  const { data: sent } = await admin.from("messages").select("id, prospect_id, step, subject, body, sent_at, campaign_id, variant, prospects!inner(status, name, city, contact_name, phone, linkedin_url, seq_etape, next_action_at)")
     .eq("workspace_id", ws.id).eq("status", "envoye").eq("prospects.status", "envoye").order("sent_at", { ascending: false }).limit(500);
-  const last = new Map<string, { step: number; subject: string; body: string; sent_at: string; first: string; campaign_id: string | null; variant: string }>();
-  for (const m of sent ?? []) {
+  type L = { step: number; subject: string; body: string; sent_at: string; first: string; firstBody: string; campaign_id: string | null; variant: string; p: Record<string, unknown> };
+  const last = new Map<string, L>();
+  for (const m of [...(sent ?? [])].reverse()) {
     const cur = last.get(m.prospect_id);
-    if (!cur || m.step > cur.step) last.set(m.prospect_id, { step: m.step, subject: m.subject, body: m.body, sent_at: m.sent_at, first: cur?.first ?? m.subject, campaign_id: m.campaign_id ?? null, variant: m.variant ?? "" });
+    const base = { step: m.step, subject: m.subject, body: m.body, sent_at: m.sent_at, campaign_id: m.campaign_id ?? null, variant: m.variant ?? "", p: m.prospects as unknown as Record<string, unknown> };
+    if (!cur) last.set(m.prospect_id, { ...base, first: m.subject, firstBody: m.body });
+    else if (m.step > cur.step) last.set(m.prospect_id, { ...base, first: cur.first, firstBody: cur.firstBody });
   }
   const { data: noFollow } = await admin.from("campaigns").select("id").eq("workspace_id", ws.id).or("followups.eq.false,status.neq.active");
   const skipCamp = new Set((noFollow ?? []).map((x) => x.id));
@@ -455,24 +482,40 @@ export async function followups(ws: Workspace) {
   // Relance déjà tentée (échec, ou envoi interrompu au statut inconnu) : jamais recréée, pour ne pas risquer un double envoi
   const { data: failed } = await admin.from("messages").select("prospect_id, step").eq("workspace_id", ws.id).eq("status", "echec");
   const tried = new Set((failed ?? []).map((x) => `${x.prospect_id}:${x.step}`));
-  const rows: Record<string, unknown>[] = [];
   const firstSent = new Map<string, string>();
   for (const m of sent ?? []) if (m.step === 0) firstSent.set(m.prospect_id, m.sent_at);
+  const today = new Date().toISOString().slice(0, 10);
+  const lastEmail = etapes.map((e) => e.canal).lastIndexOf("email");
+  let created = 0, taches = 0;
   for (const [pid, m] of last) {
-    if (busy.has(pid) || tried.has(`${pid}:${m.step + 1}`) || m.step >= FOLLOW.length || (m.campaign_id && skipCamp.has(m.campaign_id))) continue;
-    const f = FOLLOW[m.step];
+    const k = Number.isInteger(m.p.seq_etape) ? Number(m.p.seq_etape) : m.step;
+    if (busy.has(pid) || k >= etapes.length || (m.campaign_id && skipCamp.has(m.campaign_id))) continue;
+    const e = etapes[k];
     const start = new Date(firstSent.get(pid) ?? m.sent_at).getTime();
-    if (Date.now() - start < followupDays(ws)[m.step] * 86400_000) continue;
-    const hello = (m.body.split("\n")[0] || "Bonjour,").slice(0, 80);
-    let body = f.body(hello);
-    if (m.step === 0) body = await offerFollowup(ws, m.body, hello).catch(() => body);
-    rows.push({ workspace_id: ws.id, prospect_id: pid, step: m.step + 1, subject: f.subject(m.subject), body, status: "brouillon", campaign_id: m.campaign_id, variant: m.variant });
+    if (Date.now() - start < e.apres * 86400_000) continue;
+    const avance = async () => { await admin.from("prospects").update({ seq_etape: k + 1 }).eq("id", pid); };
+    // Condition non remplie : étape sautée
+    if ((e.si === "linkedin_connu" && !m.p.linkedin_url) || (e.si === "telephone_connu" && !m.p.phone)) { await avance(); continue; }
+    if (e.canal === "email") {
+      if (tried.has(`${pid}:${k + 1}`)) { await avance(); continue; }
+      const hello = (m.firstBody.split("\n")[0] || "Bonjour,").slice(0, 80);
+      let body: string;
+      if (e.texte?.trim()) { const t = remplir(e.texte.trim(), m.p as never); body = /^(bonjour|madame|monsieur|cher|chère|hello)/i.test(t) ? t : `${hello}\n\n${t}`; }
+      else if (k === lastEmail && k > 0) body = FOLLOW[1].body(hello);
+      else if (!etapes.slice(0, k).some((x) => x.canal === "email")) body = await offerFollowup(ws, m.firstBody, hello).catch(() => FOLLOW[0].body(hello));
+      else body = FOLLOW[0].body(hello);
+      const { error } = await admin.from("messages").insert({ workspace_id: ws.id, prospect_id: pid, step: k + 1, subject: `Re : ${m.first.replace(/^re\s*:\s*/i, "")}`, body, status: "brouillon", campaign_id: m.campaign_id, variant: m.variant });
+      if (!error) { created++; await avance(); }
+    } else {
+      // LinkedIn ou appel : une tâche du jour sur la fiche (elle apparaît dans « Ton matin »)
+      const qui = String(m.p.contact_name || m.p.name || "");
+      const defaut = e.canal === "appel" ? `Appeler ${qui}${m.p.phone ? ` (${m.p.phone})` : ""}` : `LinkedIn : inviter ${qui} et lui écrire`;
+      await admin.from("prospects").update({ seq_etape: k + 1, next_action: (e.texte?.trim() ? remplir(e.texte.trim(), m.p as never) : defaut).slice(0, 300), next_action_at: today }).eq("id", pid);
+      taches++;
+    }
   }
-  let created = 0;
-  for (const row of rows) { const { error } = await admin.from("messages").insert(row); if (!error) created++; }
-  rows.length = created;
-  const suivants = await nextContacts(ws, last).catch(() => 0);
-  return { created: rows.length, suivants };
+  const suivants = await nextContacts(ws, last, etapes.length).catch(() => 0);
+  return { created, taches, suivants };
 }
 
 /** Première relance avec une offre légère tirée de ce que vend le client (« Voulez-vous que je vous envoie… ? »). */
@@ -491,8 +534,8 @@ Réponds uniquement par le texte de la relance, sans formule d'appel ni signatur
 
 /** Plusieurs contacts par entreprise (adapté de Harvey) : la séquence est finie sans réponse depuis 10 jours
  *  → un autre décideur vérifié de la même entreprise devient un nouveau prospect, à valider. Jamais deux personnes en même temps. */
-async function nextContacts(ws: Workspace, last: Map<string, { step: number; sent_at: string }>) {
-  const done = [...last.entries()].filter(([, m]) => m.step >= FOLLOW.length && Date.now() - new Date(m.sent_at).getTime() > 10 * 864e5).map(([pid]) => pid).slice(0, 20);
+async function nextContacts(ws: Workspace, last: Map<string, { step: number; sent_at: string; p?: Record<string, unknown> }>, nEtapes: number) {
+  const done = [...last.entries()].filter(([, m]) => (Number.isInteger(m.p?.seq_etape) ? Number(m.p!.seq_etape) : m.step) >= nEtapes && Date.now() - new Date(m.sent_at).getTime() > 10 * 864e5).map(([pid]) => pid).slice(0, 20);
   if (!done.length) return 0;
   const { data: ps } = await admin.from("prospects").select("*").in("id", done).eq("status", "envoye");
   let n = 0;

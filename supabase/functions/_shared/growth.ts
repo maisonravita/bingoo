@@ -98,8 +98,8 @@ export async function removeMailbox(ws: Workspace) {
   return { ok: true };
 }
 export async function smtpSend(ws: Workspace, m: { from: string; to: string; replyTo: string; subject: string; text: string; html: string; headers?: Record<string, string>; attachments?: { filename: string; content: string; contentType: string }[]; messageId?: string; inReplyTo?: string; references?: string[] }) {
-  const { data } = await admin.from("workspace_secrets").select("smtp").eq("workspace_id", ws.id).maybeSingle();
-  const s = data?.smtp as { host?: string; port?: number; user?: string; pass?: string } | undefined;
+  const { secretsOf } = await import("./boites.ts");
+  const s = (await secretsOf(ws)).smtp as { host?: string; port?: number; user?: string; pass?: string } | undefined;
   if (!s?.host || !s.pass) throw new HttpError(400, "Boîte mail déconnectée : reconnecte-la dans Réglages");
   try {
     const info = await transport(s.host, s.port ?? 465, s.user!, await open(s.pass)).sendMail({
@@ -108,10 +108,7 @@ export async function smtpSend(ws: Workspace, m: { from: string; to: string; rep
     });
     return { id: String(info.messageId ?? "") };
   } catch (e) {
-    if (/auth|535|534/i.test(String((e as Error).message))) {
-      const integrations = { ...(ws.integrations ?? {}), mailbox: { ...(ws.integrations?.mailbox ?? { email: "", provider: "", at: "" }), ok: false } };
-      await admin.from("workspaces").update({ integrations }).eq("id", ws.id);
-    }
+    if (/auth|535|534/i.test(String((e as Error).message))) await (await import("./boites.ts")).saveBox(ws, { integration: { ok: false } });
     throw new HttpError(502, "Envoi par ta boîte : " + smtpError(e));
   }
 }

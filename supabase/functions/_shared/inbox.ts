@@ -102,8 +102,7 @@ export async function pollInbox(ws: Workspace, onReply: ReplyHandler) {
   // Reprise : si tout n'a pas pu être lu, le prochain passage repart du dernier message traité (rien n'est sauté)
   let resumeAt: string | null = null;
   const done = async () => {
-    const integrations = { ...(ws.integrations ?? {}), mailbox: { ...box, imap_at: resumeAt ?? new Date().toISOString() } };
-    await admin.from("workspaces").update({ integrations }).eq("id", ws.id);
+    await (await import("./boites.ts")).saveBox(ws, { integration: { imap_at: resumeAt ?? new Date().toISOString() } });
     return res;
   };
   if (box?.ok && box.via === "oauth" && (box.provider === "google" || box.provider === "microsoft")) {
@@ -113,8 +112,7 @@ export async function pollInbox(ws: Workspace, onReply: ReplyHandler) {
     return await done();
   }
   if (!box?.ok || !IMAP_HOSTS[box.provider]) return { skipped: "pas de boîte lisible" };
-  const { data: sec } = await admin.from("workspace_secrets").select("smtp").eq("workspace_id", ws.id).maybeSingle();
-  const s = sec?.smtp as { user?: string; pass?: string } | undefined;
+  const s = (await (await import("./boites.ts")).secretsOf(ws)).smtp as { user?: string; pass?: string } | undefined;
   if (!s?.user || !s.pass) return { skipped: "identifiants absents" };
   const { ImapFlow } = await import("npm:imapflow@1.0.164");
   const client = new ImapFlow({ host: IMAP_HOSTS[box.provider], port: 993, secure: true, auth: { user: s.user, pass: await open(s.pass) }, logger: false });

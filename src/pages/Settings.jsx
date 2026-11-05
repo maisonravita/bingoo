@@ -8,13 +8,23 @@ import { PRESETS, fmtN, parseZone, zoneLabel } from "../lib/zones";
 import { cx } from "../lib/utils";
 import { SubNav } from "../components/SubNav";
 import BizType from "../components/BizType";
+import Sequence from "../components/Sequence";
 
-function Section({ id, title, sub, children }) {
+// Chaque section se replie : la page tient sur un écran, on ouvre seulement ce qu'on veut changer.
+// Une section visée par un lien (#domaine, #fiche…) s'ouvre toute seule.
+function Section({ id, title, sub, children, open: defaut = false }) {
+  const vise = !!id && typeof window !== "undefined" && window.location.hash.includes(id);
+  const [open, setOpen] = useState(defaut || vise);
   return (
-    <Card id={id} className="p-5 sm:p-6 scroll-mt-6">
-      <h2 className="font-serif text-2xl">{title}</h2>
-      {sub && <p className="text-sm text-ink-soft mt-1">{sub}</p>}
-      <div className="mt-5">{children}</div>
+    <Card id={id} className="scroll-mt-6 overflow-hidden">
+      <button type="button" onClick={() => setOpen((x) => !x)} aria-expanded={open} className="w-full text-left p-5 sm:p-6 flex items-start gap-3 hover:bg-paper/50 transition">
+        <span className="min-w-0 flex-1">
+          <span className="block font-serif text-2xl">{title}</span>
+          {sub && <span className={cx("text-sm text-ink-soft mt-1", open ? "block" : "line-clamp-1")}>{sub}</span>}
+        </span>
+        <span className={cx("mt-2 text-ink-faint transition-transform", open && "rotate-90")} aria-hidden>›</span>
+      </button>
+      {open && <div className="px-5 sm:px-6 pb-5 sm:pb-6">{children}</div>}
     </Card>
   );
 }
@@ -82,7 +92,7 @@ export default function Settings() {
       <SubNav section="reglages" />
       <PageHead title="Réglages" />
 
-      <Section title="Pilote automatique" sub="Choisis jusqu'où la machine agit seule.">
+      <Section open title="Pilote automatique" sub="Choisis jusqu'où la machine agit seule.">
         <div className="grid sm:grid-cols-2 gap-3">
           {[["valider", "Je valide chaque envoi", "La machine trouve, enquête et rédige. Tu valides chaque message d'un geste."], ["auto", "Pilote automatique", "Chaque jour ouvré de 8 h à 18 h, la machine enquête, rédige et envoie seule, dans ta limite quotidienne. Les relances ne partent seules que si le suivi des réponses est actif."]].map(([k, t, d]) => (
             <button key={k} onClick={async () => { setBusy("save"); try { await fn("autonomy", { workspace_id: ws.id, mode: k }); await patch({}); toast(k === "auto" ? "Pilote automatique activé" : "Validation manuelle", "good"); } catch (e) { toast(e.message, "bad"); } finally { setBusy(null); } }} className={cx("text-left rounded-2xl border p-4 transition", ws.autonomy === k ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink-faint")}>
@@ -163,15 +173,12 @@ export default function Settings() {
           <Field label="Envois maximum par jour" hint="Commence à 20 et augmente de 10 par semaine : c'est ce qui protège ton domaine du spam.">
             <Input type="number" min={1} max={200} value={f.daily_limit} onChange={(e) => setF({ ...f, daily_limit: Number(e.target.value) || 1 })} />
           </Field>
-          <Field label="Relances (jours après le premier e-mail)" hint="Par défaut 5 puis 12 jours. Elles s'arrêtent dès que le prospect répond, se désinscrit ou que l'adresse rebondit.">
-            <div className="flex items-center gap-2">
-              <Input type="number" min={2} max={59} value={(f.followup_days ?? [5, 12])[0]} onChange={(e) => setF({ ...f, followup_days: [Number(e.target.value) || 5, (f.followup_days ?? [5, 12])[1]] })} />
-              <span className="text-sm text-ink-faint">puis</span>
-              <Input type="number" min={3} max={60} value={(f.followup_days ?? [5, 12])[1]} onChange={(e) => setF({ ...f, followup_days: [(f.followup_days ?? [5, 12])[0], Number(e.target.value) || 12] })} />
-            </div>
-          </Field>
         </div>
-        <Button className="mt-5" variant="primary" loading={busy === "save"} onClick={() => save({ sender_name: f.sender_name, sender_email: f.sender_email, signature: f.signature, postal_address: f.postal_address, daily_limit: Math.min(200, Math.max(1, f.daily_limit)), ...(() => { const d = (f.followup_days ?? [5, 12]).map(Number); return d[0] >= 2 && d[1] <= 60 && d[0] < d[1] ? { followup_days: d } : {}; })() })}>Enregistrer</Button>
+        <Button className="mt-5" variant="primary" loading={busy === "save"} onClick={() => save({ sender_name: f.sender_name, sender_email: f.sender_email, signature: f.signature, postal_address: f.postal_address, daily_limit: Math.min(200, Math.max(1, f.daily_limit)) })}>Enregistrer</Button>
+      </Section>
+
+      <Section id="sequence" title="Ta séquence" sub="Ce qui se passe après le premier e-mail : relances, LinkedIn, appel. Une réponse du prospect arrête tout.">
+        <Sequence />
       </Section>
 
       <Section id="domaine" title="Domaine d'envoi" sub="Les messages partent de ton propre domaine, authentifié : ils arrivent en boîte de réception, et les réponses arrivent directement dans ta messagerie.">

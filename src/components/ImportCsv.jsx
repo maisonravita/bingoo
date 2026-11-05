@@ -19,13 +19,18 @@ export default function ImportCsv({ ws, existing, onDone, onClose, toast }) {
     const parsed = parseCsv(text);
     if (!parsed.headers.length || !parsed.rows.length) { toast("Fichier vide ou illisible : enregistre-le au format CSV", "bad"); return; }
     setFile({ name: f.name, ...parsed });
-    setMap(guessMapping(parsed.headers));
+    // Colonne d'URL qui contient des profils LinkedIn (export de tes relations, Waalaxy, Sales Navigator…)
+    const m = guessMapping(parsed.headers);
+    const liCol = parsed.headers.findIndex((_, i) => parsed.rows.slice(0, 20).filter((r) => /linkedin\.com\/(in|sales)\//i.test(r[i] ?? "")).length >= 2);
+    if (liCol >= 0) { m.linkedin_url = liCol; if (m.website === liCol) delete m.website; }
+    setMap(m);
   };
 
   const prepared = useMemo(() => {
     if (!file) return null;
     const emails = new Set(existing.map((r) => r.email).filter(Boolean));
     const sirets = new Set(existing.map((r) => r.siret).filter(Boolean));
+    const lis = new Set(existing.map((r) => String(r.linkedin_url ?? "").toLowerCase().replace(/\/+$/, "")).filter(Boolean));
     const get = (row, k) => (map[k] === undefined || map[k] === "" ? "" : clean(row[map[k]]));
     const out = []; let dup = 0, empty = 0;
     for (const row of file.rows.slice(0, 5000)) {
@@ -35,7 +40,9 @@ export default function ImportCsv({ ws, existing, onDone, onClose, toast }) {
       if (!name) { empty++; continue; }
       const siret = get(row, "siret").replace(/\s/g, "") || null;
       const okEmail = EMAIL_RE.test(email) ? email : "";
-      if ((okEmail && emails.has(okEmail)) || (siret && sirets.has(siret))) { dup++; continue; }
+      const liRaw = get(row, "linkedin_url"), liKey = liRaw.toLowerCase().replace(/\/+$/, "");
+      if ((okEmail && emails.has(okEmail)) || (siret && sirets.has(siret)) || (liKey && /linkedin\.com/.test(liKey) && lis.has(liKey))) { dup++; continue; }
+      if (liKey) lis.add(liKey);
       if (okEmail) emails.add(okEmail);
       if (siret) sirets.add(siret);
       let website = get(row, "website");
@@ -46,10 +53,11 @@ export default function ImportCsv({ ws, existing, onDone, onClose, toast }) {
         email: okEmail, phone: get(row, "phone").slice(0, 40), website: website.slice(0, 300), address: get(row, "address").slice(0, 300),
         postal_code: get(row, "postal_code").slice(0, 10), city: get(row, "city").slice(0, 120), siret: siret?.slice(0, 14) ?? null,
         siren: get(row, "siren").replace(/\s/g, "").slice(0, 9) || (siret ? siret.slice(0, 9) : null), activity: get(row, "activity").slice(0, 160),
-        notes: get(row, "notes").slice(0, 2000), source: "import CSV",
+        notes: get(row, "notes").slice(0, 2000), source: /linkedin\.com/i.test(li) ? "import LinkedIn" : "import CSV",
+        linkedin_person: /linkedin\.com/i.test(li) && contact ? `${contact}${get(row, "contact_role") ? ` · ${get(row, "contact_role")}` : ""}`.slice(0, 120) : "",
         status: okEmail ? "pret" : "nouveau", enriched_at: okEmail ? new Date().toISOString() : null,
         enrich_note: okEmail ? "Importé avec son e-mail" : "", channel: okEmail ? "email" : "", email_source: okEmail ? "import" : "",
-        linkedin_url: /linkedin\.com\/in\//i.test(li) ? li.slice(0, 200) : "",
+        linkedin_url: /linkedin\.com\/(in|sales)\//i.test(li) ? li.slice(0, 300) : "",
       });
     }
     return { out, dup, empty, withEmail: out.filter((r) => r.email).length };
@@ -75,7 +83,8 @@ export default function ImportCsv({ ws, existing, onDone, onClose, toast }) {
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="min-w-0">
           <h2 className="font-serif text-2xl">Importer des prospects</h2>
-          <p className="text-sm text-ink-soft mt-1">Un fichier CSV exporté d'Excel, Google Sheets, d'un CRM ou d'un autre outil. Les doublons (même e-mail ou SIRET) sont ignorés.</p>
+          <p className="text-sm text-ink-soft mt-1">Un fichier CSV d'Excel, Google Sheets, d'un CRM, ou une liste LinkedIn : tes relations, un export Waalaxy, lemlist ou Sales Navigator. Les colonnes sont reconnues toutes seules ; les doublons (même e-mail, SIRET ou profil LinkedIn) sont ignorés.</p>
+          <details className="mt-2 text-xs text-ink-soft"><summary className="cursor-pointer font-semibold">Exporter tes relations LinkedIn</summary><p className="mt-1">Sur LinkedIn : Moi → Préférences → Confidentialité des données → Obtenir une copie de vos données → coche « Relations ». LinkedIn t'envoie un lien sous une dizaine de minutes ; importe ici le fichier « Connections.csv ». Bingoo! cherche ensuite l'e-mail professionnel de chacun.</p></details>
         </div>
         <Button variant="ghost" size="sm" onClick={onClose}>Fermer</Button>
       </div>

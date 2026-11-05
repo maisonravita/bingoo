@@ -319,7 +319,8 @@ export default function Today() {
 
       {/* Sur téléphone, le matin passe avant le tableau de la semaine : c'est ce qu'on ouvre en premier */}
       <div className="flex flex-col">
-        <div className="order-2 sm:order-1"><Semaine /></div>
+        {/* Le tableau de la semaine est sur ordinateur et dans Résultats ; sur téléphone, le matin suffit */}
+        <div className="hidden sm:block sm:order-1"><Semaine /></div>
         <div className="order-1 sm:order-2">
           {s && <Morning s={s} wsId={ws.id} canSend={ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok} adresse={!!ws.postal_address} />}
           <PushTel compact />

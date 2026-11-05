@@ -96,7 +96,7 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
   // Envoi d'un e-mail validé : contrôle du domaine de l'adresse, puis limites du jour
   async send(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
-    canSend(ws);
+    await (await import("../_shared/boites.ts")).peutEnvoyer(ws);
     const { data: msg } = await admin.from("messages").select("id, prospect_id, prospects(email, name)").eq("id", String(b.message_id ?? "")).eq("workspace_id", ws.id).single();
     if (!msg) throw new HttpError(404, "Message introuvable");
     const pr = (msg as unknown as { prospects: { email: string; name: string } | null }).prospects;
@@ -108,8 +108,8 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
     }
     const since = new Date(); since.setHours(0, 0, 0, 0);
     const { count } = await admin.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "envoye").gte("sent_at", since.toISOString());
-    const cap = warmup(ws).cap;
-    if ((count ?? 0) >= cap) throw new HttpError(429, cap < ws.daily_limit
+    const cap = warmup(ws).cap * await (await import("../_shared/boites.ts")).nbBoites(ws);
+    if ((count ?? 0) >= cap) throw new HttpError(429, warmup(ws).cap < ws.daily_limit
       ? `Préchauffage en cours : ${cap} envois maximum aujourd'hui. La limite monte chaque semaine pour protéger ta réputation d'expéditeur.`
       : `Limite de ${cap} envois par jour atteinte : la suite partira demain (ça protège ton domaine)`);
     const r = await sendOne(ws, msg.id);
@@ -180,6 +180,19 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
     const next = { ...cur, ...("objectif_rdv" in b ? { objectif_rdv: num(b.objectif_rdv, 1, 200) } : {}), ...("valeur_client" in b ? { valeur_client: num(b.valeur_client, 0, 10_000_000) } : {}), ...("taux_signature" in b ? { taux_signature: num(b.taux_signature, 0, 100) } : {}) };
     await admin.from("workspaces").update({ pilotage: next }).eq("id", ws.id);
     return { ok: true, reglages: next };
+  },
+  // Séquence de relances : étapes, délais, canal, condition, texte (facultatif)
+  async sequence(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const raw = Array.isArray(b.etapes) ? (b.etapes as Record<string, unknown>[]) : [];
+    const etapes = raw.slice(0, 6).map((e) => ({
+      apres: Math.max(1, Math.min(90, Math.round(Number(e.apres) || 0))),
+      canal: ["email", "linkedin", "appel"].includes(String(e.canal)) ? String(e.canal) : "email",
+      si: ["toujours", "linkedin_connu", "telephone_connu"].includes(String(e.si)) ? String(e.si) : "toujours",
+      texte: String(e.texte ?? "").slice(0, 1500),
+    })).sort((x, y) => x.apres - y.apres);
+    await admin.from("workspaces").update({ sequence: etapes.length ? { etapes } : null }).eq("id", ws.id);
+    return { ok: true, etapes };
   },
   // Ce que Bingoo! a appris de tes résultats (statistiques sur tes données, sans IA)
   async appris(req, b) {

@@ -24,6 +24,43 @@ function Copy({ value, label = "Copier" }) {
   return <Button size="sm" onClick={async () => { try { await navigator.clipboard.writeText(value); toast("Copié", "good"); } catch { toast("Copie impossible : sélectionne le texte", "bad"); } }}>{label}</Button>;
 }
 
+/** Plusieurs boîtes d'envoi : les envois tournent entre elles, chacune dans sa propre limite du jour. */
+function Boites({ principale, vide = false }) {
+  const { ws, reload } = useWs();
+  const toast = useToast();
+  const [d, setD] = useState(null);
+  const [busy, setBusy] = useState("");
+  const load = () => fn("boites", { workspace_id: ws.id }).then(setD).catch(() => setD({ boites: [], cap: 0 }));
+  useEffect(() => { load(); }, [ws.id]);
+  if (!d) return null;
+  if (vide && !d.boites.length) return null;
+  const total = d.boites.filter((b) => b.ok && b.actif).length + (principale ? 1 : 0);
+  const ajouter = async () => {
+    setBusy("add");
+    try { const r = await fn("boite-ajouter", { workspace_id: ws.id }); toast(`${r.rangee} est gardée. Connecte maintenant la boîte suivante.`, "good"); await reload(); }
+    catch (e) { toast(e.message, "bad"); } finally { setBusy(""); }
+  };
+  return (
+    <div className="w-full mt-3 rounded-xl border border-line bg-paper p-4">
+      <p className="text-sm font-semibold">{total > 1 ? `${total} boîtes d'envoi : jusqu'à ${total * d.cap} e-mails par jour` : "Envoyer plus, sans abîmer ta boîte"}</p>
+      <p className="text-xs text-ink-soft mt-1">Les premiers messages tournent entre tes boîtes (chacune garde sa limite de {d.cap} par jour) ; une relance part toujours de la boîte du premier message, dans le même fil.</p>
+      {d.boites.length > 0 && (
+        <ul className="mt-3 divide-y divide-line">
+          {d.boites.map((b) => (
+            <li key={b.id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
+              <span className="flex-1 min-w-0 break-all">{b.email}</span>
+              <Badge tone={!b.ok ? "bad" : b.actif ? "good" : "muted"}>{!b.ok ? "À reconnecter" : b.actif ? "Active" : "En pause"}</Badge>
+              {b.ok && <Button size="sm" variant="ghost" onClick={async () => { await fn("boite-pause", { workspace_id: ws.id, id: b.id, actif: !b.actif }); load(); }}>{b.actif ? "Mettre en pause" : "Réactiver"}</Button>}
+              <Button size="sm" variant="ghost" loading={busy === b.id} onClick={async () => { setBusy(b.id); try { await fn("boite-retirer", { workspace_id: ws.id, id: b.id }); load(); toast("Boîte retirée"); } finally { setBusy(""); } }}>Retirer</Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {principale && <Button className="mt-3" size="sm" loading={busy === "add"} onClick={ajouter}>Ajouter une autre boîte</Button>}
+    </div>
+  );
+}
+
 function Mailbox() {
   const { ws, reload } = useWs();
   const toast = useToast();
@@ -69,9 +106,11 @@ function Mailbox() {
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-sm flex-1 min-w-0">Envoi depuis <b className="break-all">{mb.email}</b>{mb.via === "oauth" ? (mb.provider === "microsoft" ? " (connexion Microsoft officielle)" : " (connexion Google officielle)") : ""}. Les réponses et les rebonds sont repérés automatiquement et classés dans « Réponses ».</p>
           <Button variant="danger" size="sm" loading={busy} onClick={remove}>Déconnecter</Button>
+          <Boites principale={mb.email} />
         </div>
       ) : (
         <div className="space-y-4">
+          <Boites vide />
           {mb && !mb.ok && <p className="text-sm text-bad">L'accès à {mb.email} ne fonctionne plus (mot de passe changé ou autorisation retirée). Reconnecte la boîte.</p>}
           <div>
             <p className="text-sm font-semibold mb-2">Quelle messagerie utilises-tu ?</p>

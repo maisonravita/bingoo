@@ -79,17 +79,14 @@ export async function googleCallback(params: URLSearchParams) {
 
 /** Jeton d'accès Gmail (1 h), à partir du jeton de renouvellement chiffré. Boîte marquée « à reconnecter » si Google refuse. */
 export async function googleAccess(ws: Workspace) {
-  const { data: sec } = await admin.from("workspace_secrets").select("oauth").eq("workspace_id", ws.id).maybeSingle();
+  const sec = await (await import("./boites.ts")).secretsOf(ws);
   const g = sec?.oauth?.google;
   if (!g?.refresh) throw new HttpError(400, "Boîte Gmail déconnectée : reconnecte-la dans Réglages");
   try {
     const t = await tokenRequest({ refresh_token: await open(g.refresh), client_id: env("GOOGLE_CLIENT_ID"), client_secret: env("GOOGLE_CLIENT_SECRET"), grant_type: "refresh_token" });
     return { token: t.access_token, email: g.email as string, read: !!g.read };
   } catch (e) {
-    if (/invalid_grant|expired|revoked/i.test(String((e as Error).message))) {
-      const integrations = { ...(ws.integrations ?? {}), mailbox: { ...(ws.integrations?.mailbox ?? {}), ok: false } };
-      await admin.from("workspaces").update({ integrations }).eq("id", ws.id);
-    }
+    if (/invalid_grant|expired|revoked/i.test(String((e as Error).message))) await (await import("./boites.ts")).saveBox(ws, { integration: { ok: false } });
     throw new HttpError(502, "Envoi par Gmail : accès refusé par Google, reconnecte la boîte dans Réglages");
   }
 }
@@ -191,21 +188,18 @@ export async function microsoftCallback(params: URLSearchParams) {
 
 /** Jeton d'accès Microsoft (1 h). Microsoft renvoie un nouveau jeton de renouvellement : on le garde. */
 export async function microsoftAccess(ws: Workspace) {
-  const { data: sec } = await admin.from("workspace_secrets").select("oauth").eq("workspace_id", ws.id).maybeSingle();
+  const sec = await (await import("./boites.ts")).secretsOf(ws);
   const m = sec?.oauth?.microsoft;
   if (!m?.refresh) throw new HttpError(400, "Boîte Outlook déconnectée : reconnecte-la dans Réglages");
   try {
     const t = await msToken({ refresh_token: await open(m.refresh), grant_type: "refresh_token" });
     if (t.refresh_token) {
       const oauth = { ...(sec?.oauth ?? {}), microsoft: { ...m, refresh: await seal(t.refresh_token) } };
-      await admin.from("workspace_secrets").update({ oauth }).eq("workspace_id", ws.id);
+      await (await import("./boites.ts")).saveBox(ws, { oauth });
     }
     return { token: t.access_token, email: m.email as string, read: !!m.read };
   } catch (e) {
-    if (/invalid_grant|expired|revoked|AADSTS70008|AADSTS50173/i.test(String((e as Error).message))) {
-      const integrations = { ...(ws.integrations ?? {}), mailbox: { ...(ws.integrations?.mailbox ?? {}), ok: false } };
-      await admin.from("workspaces").update({ integrations }).eq("id", ws.id);
-    }
+    if (/invalid_grant|expired|revoked|AADSTS70008|AADSTS50173/i.test(String((e as Error).message))) await (await import("./boites.ts")).saveBox(ws, { integration: { ok: false } });
     throw new HttpError(502, "Envoi par Outlook : accès refusé par Microsoft, reconnecte la boîte dans Réglages");
   }
 }

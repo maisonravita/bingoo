@@ -367,11 +367,11 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
   // 6. Envoyer un message validé
   async send(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
-    canSend(ws);
+    await (await import("../_shared/boites.ts")).peutEnvoyer(ws);
     const since = new Date(); since.setHours(0, 0, 0, 0);
     const { count } = await admin.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "envoye").gte("sent_at", since.toISOString());
-    const cap = warmup(ws).cap;
-    if ((count ?? 0) >= cap) throw new HttpError(429, cap < ws.daily_limit
+    const cap = warmup(ws).cap * await (await import("../_shared/boites.ts")).nbBoites(ws);
+    if ((count ?? 0) >= cap) throw new HttpError(429, warmup(ws).cap < ws.daily_limit
       ? `Préchauffage en cours : ${cap} envois maximum aujourd'hui. La limite monte chaque semaine pour protéger ta réputation d'expéditeur.`
       : `Limite de ${cap} envois par jour atteinte : la suite partira demain (ça protège ton domaine)`);
     const r = await sendOne(ws, String(b.message_id));
@@ -393,6 +393,24 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
     const { ws } = await requireMember(req, b.workspace_id);
     await quota(ws.id, "integration", 20);
     return await saveMailbox(ws, b);
+  },
+  // Plusieurs boîtes d'envoi : liste, « ajouter une autre » (la principale est rangée), retrait, pause
+  async "boites"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    return { boites: await (await import("../_shared/boites.ts")).liste(ws), cap: warmup(ws).cap };
+  },
+  async "boite-ajouter"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    return await (await import("../_shared/boites.ts")).ranger(ws);
+  },
+  async "boite-retirer"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    return await (await import("../_shared/boites.ts")).retirer(ws, String(b.id ?? ""));
+  },
+  async "boite-pause"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    await admin.from("mailboxes").update({ actif: b.actif === true }).eq("id", String(b.id ?? "")).eq("workspace_id", ws.id);
+    return { ok: true };
   },
   async "mailbox-remove"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);

@@ -42,6 +42,19 @@ const routes: Record<string, (b: Record<string, unknown>) => Promise<unknown>> =
       setAi({ ws: ws.id, essential: true });
       try { out[`boite_${ws.id}`] = await pollInbox(ws, (w, p, input) => handleReply(w, p, input, base)); } catch (e) { out[`boite_${ws.id}`] = { error: (e as Error).message }; }
     }
+    // Boîtes d'envoi en plus : relevées de la même façon (rebonds, réponses arrivées directement)
+    const { data: plus } = await admin.from("mailboxes").select("*").eq("actif", true).filter("integration->>ok", "eq", "true");
+    if (plus?.length) {
+      const { depuis } = await import("../_shared/boites.ts");
+      const { data: wss } = await admin.from("workspaces").select("*").in("id", [...new Set(plus.map((r) => r.workspace_id))]);
+      for (const r of plus) {
+        const ws = (wss ?? []).find((w) => w.id === r.workspace_id);
+        if (!ws) continue;
+        const base = ws.app_url ? `${String(ws.app_url).replace(/\/$/, "")}/#` : "";
+        setAi({ ws: ws.id, essential: true });
+        try { out[`boite_${r.id}`] = await pollInbox(depuis(ws, r), (w, p, input) => handleReply(w, p, input, base)); } catch (e) { out[`boite_${r.id}`] = { error: (e as Error).message }; }
+      }
+    }
     const { data: every } = await admin.from("workspaces").select("*").eq("onboarded", true);
     for (const ws of every ?? []) {
       try {

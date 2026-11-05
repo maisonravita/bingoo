@@ -43,10 +43,11 @@ export async function autopilot(ws: Workspace, base: string) {
   // 2. Envois (premiers messages + relances), étalés : 3 par passage
   const guard = await bounceGuard(ws);
   if (!guard.ok) report.envois_suspendus_rebonds = guard.bounced;
-  if (sendReady(ws) && guard.ok) {
+  const pret = sendReady(ws) || (!!ws.postal_address && (await (await import("./boites.ts")).boites(ws)).length > 0);
+  if (pret && guard.ok) {
     const since = new Date(); since.setHours(0, 0, 0, 0);
     const { count } = await admin.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "envoye").gte("sent_at", since.toISOString());
-    let left = Math.min(3, warmup(ws).cap - (count ?? 0));
+    let left = Math.min(3, warmup(ws).cap * await (await import("./boites.ts")).nbBoites(ws) - (count ?? 0));
     if (left > 0) {
       let q = admin.from("messages").select("id, step, prospects(mission_id)").eq("workspace_id", ws.id).eq("status", "brouillon");
       if (!repliesTracked(ws)) q = q.eq("step", 0);
