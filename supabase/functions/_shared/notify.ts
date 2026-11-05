@@ -51,6 +51,23 @@ export async function weeklyReport(ws: Workspace, dry = false) {
   const { data: missions } = await admin.from("missions").select("objective, status, stop_reason, journal").eq("workspace_id", ws.id).in("status", ["active", "pause"]).limit(3);
   if (!found && !enquetes && !sent && !replies && !drafts && !toHandle && !(missions ?? []).length) return { skipped: "aucune activité" };
   const STOP: Record<string, string> = { echeance: "échéance atteinte", budget: "budget atteint", objectif: "objectif atteint" };
+  // La salle de pilotage, pour la semaine qui vient de finir (calculée dimanche soir)
+  const { pilotage, debutSemaine } = await import("./pilotage.ts");
+  const pl = await pilotage(ws, { now: new Date(debutSemaine(new Date()).getTime() - 60000) }).catch(() => null);
+  const eur = (x: number) => `${x.toLocaleString("fr-FR")} €`;
+  const pct = (a: { fait: number; total: number }) => (a.total ? `${a.fait} sur ${a.total}` : "rien à mesurer");
+  const top = pl?.zones.filter((z) => z.semaine > 0).sort((a, b) => b.semaine - a.semaine)[0];
+  const tard = pl ? pl.anneaux.reactivite.total - pl.anneaux.reactivite.fait : 0;
+  const pilot = pl ? [
+    `\nTon pilotage`,
+    `- Objectif : ${pl.rdv} rendez-vous sur ${pl.objectif}${pl.rdv >= pl.objectif ? " (objectif atteint)" : ""}`,
+    ...(pl.pipeline ? [`- Pipeline estimé : ${eur(pl.pipeline.montant)} (${pl.pipeline.rdv_ouverts} rendez-vous en cours × ${eur(pl.pipeline.valeur)} × ${pl.pipeline.taux} %)`] : []),
+    ...(top ? [`- ${top.nom} : ${top.pct} % de tes entreprises cibles contactées (+${top.semaine} cette semaine)`] : []),
+    `- Réactivité : ${pct(pl.anneaux.reactivite)} réponses positives traitées le jour même`,
+    `- Régularité : ${pl.anneaux.regularite.fait} jour${pl.anneaux.regularite.fait > 1 ? "s" : ""} actif${pl.anneaux.regularite.fait > 1 ? "s" : ""} sur 5`,
+    ...(pl.record ? [`- Record : ${pl.record} rendez-vous en une semaine`] : []),
+    ...(tard > 0 ? [`\nLe point à travailler : ${tard} réponse${tard > 1 ? "s" : ""} positive${tard > 1 ? "s ont" : " a"} attendu plus d'un jour. Ce sont celles qui se refroidissent le plus vite.`] : []),
+  ] : [];
   const lines = [
     `Bonjour${ws.sender_name ? ` ${ws.sender_name.split(" ")[0].replace(/^./, (c) => c.toUpperCase())}` : ""},`,
     `\nVoici ta semaine de prospection.`,
@@ -62,8 +79,9 @@ export async function weeklyReport(ws: Workspace, dry = false) {
     `- ${n(replies, "réponse")}, dont ${n(hot, "positive")}`,
     `- ${n(meetings, "rendez-vous obtenu", "rendez-vous obtenus")}`,
     ...(drafts || toHandle ? [`\nCe qui t'attend`, ...(toHandle ? [`- ${n(toHandle, "réponse positive", "réponses positives")} à traiter en priorité`] : []), ...(drafts ? [`- ${n(drafts, "e-mail prêt", "e-mails prêts")} à valider`] : [])] : []),
+    ...pilot,
     ...((missions ?? []).length ? [`\nTes missions`, ...(missions ?? []).map((m) => `- ${String(m.objective).slice(0, 160)} : ${m.status === "active" ? "en cours" : `en pause${m.stop_reason ? ` (${STOP[m.stop_reason] ?? m.stop_reason})` : ""}`}`)] : []),
-    appLink(ws, "/") ? `\nOuvrir ton espace : ${appLink(ws, "/")}` : "",
+    appLink(ws, "/pilotage") ? `\nOuvrir ta salle de pilotage : ${appLink(ws, "/pilotage")}` : "",
     `\nBonne semaine !`,
   ];
   const to = await teamAddress(ws);
@@ -71,6 +89,6 @@ export async function weeklyReport(ws: Workspace, dry = false) {
   const text = lines.join("\n");
   if (dry) return { to, subject, text };
   if (!to) return { skipped: "aucune adresse d'équipe" };
-  await sendSystem({ to, subject, text, fromName: "Kairo" });
+  await sendSystem({ to, subject, text, fromName: "Bingoo!" });
   return { sent: true, to };
 }

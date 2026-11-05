@@ -18,6 +18,7 @@ import Agenda from "./pages/Agenda";
 import Quotes from "./pages/Quotes";
 import Calls from "./pages/Calls";
 import Results from "./pages/Results";
+import Pilotage from "./pages/Pilotage";
 import Salaries from "./pages/Salaries";
 import Socials from "./pages/Socials";
 import Connexions from "./pages/Connexions";
@@ -87,6 +88,7 @@ function Gate() {
         <Route path="/espion" element={<Espion />} />
         <Route path="/studio" element={<Navigate to="/distribution" replace />} />
         <Route path="/resultats" element={<Results />} />
+        <Route path="/pilotage" element={<Pilotage />} />
         <Route path="/salaries" element={<Salaries />} />
         <Route path="/agents" element={<Navigate to="/salaries" replace />} />
         <Route path="/reseaux" element={<Socials />} />

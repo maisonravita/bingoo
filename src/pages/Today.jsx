@@ -203,6 +203,23 @@ function Urgent({ u }) {
 }
 
 /** Le matin en 2 minutes : ce qui attend le client, dans l'ordre, et quand tout est fait, on le dit. */
+/** Ta semaine en une ligne (objectif, prévision, pipeline) : le détail est dans la salle de pilotage. */
+function Semaine() {
+  const { ws } = useWs();
+  const [d, setD] = useState(null);
+  useEffect(() => { fn("m/pilotage", { workspace_id: ws.id }).then(setD).catch(() => {}); }, [ws.id]);
+  if (!d) return null;
+  return (
+    <Link to="/pilotage" className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-2xl border border-line bg-white px-5 py-3 text-sm hover:border-accent/40 transition">
+      <b>Ta semaine</b>
+      <span><b className="tnum">{d.rdv}</b> rendez-vous sur {d.objectif}</span>
+      {d.semaine.jour > 1 && d.rdv < d.objectif && <span className="text-ink-soft">à ce rythme : {d.prevision} vendredi</span>}
+      {d.pipeline && <span>pipeline estimé <b className="tnum">{d.pipeline.montant.toLocaleString("fr-FR")} €</b></span>}
+      <span className="ml-auto text-accent-dark font-semibold">Salle de pilotage</span>
+    </Link>
+  );
+}
+
 function Morning({ s, canSend }) {
   const items = [
     [canSend ? 0 : 1, "étape : connecter ta boîte mail (2 min)", "", "/connexions", "send"],
@@ -285,6 +302,7 @@ export default function Today() {
         </a>
       </header>
 
+      <Semaine />
       {s && <Morning s={s} canSend={ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok} />}
 
       <TodayFeed />

@@ -153,6 +153,10 @@ function Drawer({ p, onClose, onChange, team = [] }) {
           <dt className="text-ink-soft">LinkedIn</dt><dd>{p.linkedin_url ? <a className="underline text-li" href={p.linkedin_url} target="_blank" rel="noreferrer">{p.linkedin_person || "Profil"}</a> : p.linkedin_status === "introuvable" ? "Introuvable" : "—"}</dd>
           <dt className="text-ink-soft">SIRET</dt><dd className="tnum">{p.siret}</dd>
         </dl>
+        <label className="mt-4 flex items-center gap-2 text-sm font-medium cursor-pointer">
+          <input type="checkbox" checked={p.strategique === true} onChange={async (e) => { const v = e.target.checked ? true : false; await supabase.from("prospects").update({ strategique: v }).eq("id", p.id); onChange({ ...p, strategique: v }); }} />
+          Compte stratégique <span className="text-ink-soft font-normal">(suivi étape par étape dans la salle de pilotage)</span>
+        </label>
         {p.enrich_note && <p className="text-xs text-ink-soft mt-3">{p.enrich_note}</p>}
         <Contacts p={p} onChange={onChange} />
         {p.signals?.length > 0 && <div className="flex flex-wrap gap-1.5 mt-3">{p.signals.map((s, i) => <Badge key={i} tone={STRONG.includes(s.type) ? "accent" : "muted"}>{s.label}</Badge>)}</div>}

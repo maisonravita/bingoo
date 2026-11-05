@@ -8,7 +8,15 @@ const ws = { id: "w1", name: "Essai", plan: "solo", onboarded: true, targets: [{
 const P = { id: "p1", name: "Snapdesk", city: "Paris", contact_name: "Marc Dupont", contact_role: "Directeur", email: "marc@snapdesk.co", signals: [{ label: "Levée de fonds", type: "levee" }], status: "pret", created_at: ago(500) };
 const msgs = [{ id: "m1", step: 0, subject: "Votre levée", body: "Bonjour Marc,\n\nTexte.", prospect_id: "p1", prospects: P, status: "brouillon", created_at: ago(100) }];
 const replies = [{ id: "r1", prospect_id: "p1", from_email: "marc@snapdesk.co", from_name: "Marc", subject: "Re", body: "Oui", class: "interesse", summary: "Intéressé", reply_body: "Bonjour", handled: false, created_at: ago(200), prospects: P }];
-const ROUTES = ["/", "/connexions", "/resultats", "/valider", "/reponses", "/prospects", "/radar", "/espion", "/reglages"];
+// Une salle de pilotage réaliste (sans carte : la carte se charge depuis Internet)
+const PILOTE = { semaine: { lundi: "2026-11-02T00:00:00Z", jour: 4, ouvres: 4 }, objectif: 8, rdv: 3, prevision: 4, manque: 4,
+  anneaux: { reactivite: { fait: 3, total: 4 }, regularite: { fait: 3, total: 4 }, resultats: { fait: 3, total: 8 } },
+  pipeline: { montant: 3000, semaine: 3000, gagne: 3000, rdv_ouverts: 3, clients: 1, valeur: 3000, taux: 33 }, par_reponse: 990, record: 5,
+  reglages: { objectif_rdv: 8, valeur_client: 3000, taux_signature: 33 },
+  zones: [{ cle: "75009", nom: "Paris 9e", lat: 48.87, lon: 2.33, cibles: 42, contactees: 10, discussion: 2, gagnees: 1, semaine: 3, pct: 24 }],
+  points: [], comptes: [{ id: "p1", nom: "Hays Services", taille: 250, choisi: false, etapes: [1, 1, 1, 0, 0, 0].map((f, i) => ({ label: `Étape ${i + 1}`, fait: !!f })), faites: 3, prochaine: { texte: "Attendre sa réponse", lien: "/prospects" } }],
+  priorites: [{ type: "reponse", titre: "Serensia a répondu", detail: "Intéressée, demande une démo", valeur: 990, lien: "/reponses" }], places: 120, total: 140 };
+const ROUTES = ["/", "/pilotage", "/connexions", "/resultats", "/valider", "/reponses", "/prospects", "/radar", "/espion", "/reglages"];
 
 let failed = 0;
 const browser = await chromium.launch();
@@ -28,6 +36,7 @@ for (const [label, opt] of [["téléphone", devices["iPhone 13"]], ["ordinateur"
     if (u.includes("/rest/v1/members")) return J([{ user_id: "u1", email: "t@t.fr", role: "owner", workspace_id: "w1" }]);
     if (u.includes("/rest/v1/rpc/")) return J(false);
     if (u.includes("/rest/v1/")) return J([]);
+    if (u.includes("/functions/v1/m/pilotage")) return J(PILOTE);
     if (u.includes("/functions/v1/")) return J({});
     return route.fulfill({ status: 404, body: "" });
   });

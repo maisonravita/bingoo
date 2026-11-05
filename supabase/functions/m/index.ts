@@ -153,6 +153,20 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
     const sc = await siteContacts(String(b.url ?? ""));
     return { emails: sc.emails, phones: sc.phones, form: sc.form, signals: await siteSignals(sc.origin, sc.home) };
   },
+  // Salle de pilotage : objectif, anneaux, pipeline estimé, part de marché, comptes stratégiques, priorités du matin
+  async pilotage(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    return await (await import("../_shared/pilotage.ts")).pilotage(ws, { carte: b.carte === true });
+  },
+  // Réglages de la salle de pilotage (objectif de rendez-vous, valeur d'un client, part des rendez-vous qui signent)
+  async "pilotage-reglages"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const num = (v: unknown, lo: number, hi: number) => (v === null || v === "" || v === undefined ? null : Math.max(lo, Math.min(hi, Math.round(Number(v)))));
+    const cur = (ws as { pilotage?: Record<string, unknown> }).pilotage ?? {};
+    const next = { ...cur, ...("objectif_rdv" in b ? { objectif_rdv: num(b.objectif_rdv, 1, 200) } : {}), ...("valeur_client" in b ? { valeur_client: num(b.valeur_client, 0, 10_000_000) } : {}), ...("taux_signature" in b ? { taux_signature: num(b.taux_signature, 0, 100) } : {}) };
+    await admin.from("workspaces").update({ pilotage: next }).eq("id", ws.id);
+    return { ok: true, reglages: next };
+  },
   // Carte de l'équipe : prospects placés, zones calculées, villes téléchargées à l'avance (toutes les 15 minutes)
   async "qg-prepa"(req) {
     if ((req.headers.get("x-cron-key") ?? "") !== (await secret("cron_key"))) throw new HttpError(401, "Clé invalide");
