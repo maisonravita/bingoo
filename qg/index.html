@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#040405">
+  <title>Ton équipe Bingoo!</title>
+  <link rel="preload" href="./fonts/pixelify-sans-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="./fonts/pixelify-sans-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/src/qg.css">
+</head>
+<body>
+  <main id="qg">
+    <canvas id="world"></canvas>
+    <div id="hud"></div>
+    <div id="cine"></div>
+    <button class="cn-play" id="cn-play" type="button" aria-label="Lancer le film" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
+    <aside id="fiche"></aside>
+    <aside id="launch" hidden></aside>
+    <a class="qg-back" href="/#/">← Retour à Bingoo!</a>
+    <div id="qg-empty" class="qg-empty" hidden><img src="./logo-white.png" alt="Bingoo!" width="150"><p></p><a href="/#/">Retour à Bingoo!</a></div>
+    <header id="carte-title" hidden><span class="tag"><i></i>Bingoo!</span><h1>Où cherche-t-on des clients ?</h1><p>Zoome sur la carte : toutes les villes apparaissent. Clique celle de ta mission.</p></header>
+    <button type="button" id="btn-carte" class="btn-carte" hidden>Rejouer la nuit</button>
+    <div id="tip" class="tip" hidden></div>
+    <p class="attrib">Données © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">les contributeurs d’OpenStreetMap</a> · tuiles <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> · moteur <a href="https://github.com/devlikemasta/qg-des-agents" target="_blank" rel="noopener">QG des agents</a> (MIT)</p>
+    <p id="loading" hidden>Construction de ta ville…</p>
+  </main>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

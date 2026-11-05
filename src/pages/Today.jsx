@@ -254,6 +254,12 @@ export default function Today() {
           {hello}{first ? ` ${first}` : ""} !<Sparks className="w-9 h-9 sm:w-11 sm:h-11 -mt-2" />
         </h1>
         <p className="text-ink-soft text-[17px] mt-3">Ce qui t'attend aujourd'hui. Tu valides, Bingoo! s'occupe du reste.</p>
+        <a href="/qg/" className="mt-4 inline-flex items-center gap-3 rounded-full border border-line bg-white py-1.5 pl-1.5 pr-4 text-[14.5px] font-semibold hover:border-accent/50 hover:shadow-sm transition">
+          <span className="flex -space-x-2" aria-hidden>
+            {["leo", "sam", "hugo"].map((n) => <img key={n} src={`/salaries/${n}.png`} alt="" className="w-8 h-8 rounded-full object-cover object-top bg-accent-soft ring-2 ring-white" />)}
+          </span>
+          Voir ton équipe travailler cette nuit
+        </a>
       </header>
 
       <TodayFeed />
