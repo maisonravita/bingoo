@@ -111,14 +111,14 @@ export async function extAddLinkedin(ws: Workspace, b: { url?: unknown; personne
   return { prospect_id: data.id, existing: false, pret: !!(r?.linkedin_note && r?.linkedin_msg), personne: person, note: r?.linkedin_note ?? "", message: r?.linkedin_msg ?? "" };
 }
 
-const LI_LABEL: Record<string, string> = { "": "Ajouté, invitation à valider", a_envoyer: "Invitation prête", envoye: "Invitation envoyée", invite: "Invitation envoyée", connecte: "Connecté", message_envoye: "Message envoyé", introuvable: "Profil introuvable" };
+const LI_LABEL: Record<string, string> = { "": "Ajouté, invitation à valider", a_envoyer: "Invitation prête", envoye: "Invitation envoyée", invite: "Invitation envoyée", connecte: "Connecté", message_envoye: "Message envoyé", introuvable: "Profil introuvable", retire: "Invitation retirée (pas de réponse en 3 semaines)" };
 
 /** Où en est la personne de ce profil LinkedIn : déjà prospect ? invitée ? a répondu ? */
 export async function extLinkedinStatus(ws: Workspace, b: { url?: unknown }) {
   const m = String(b.url ?? "").match(/linkedin\.com\/(in|sales\/lead|sales\/people)\/([^/?#,]{2,120})/i);
   if (!m) return { prospect: null };
   const key = m[1] === "in" ? `/in/${m[2]}` : `/sales/lead/${m[2]}`;
-  const { data: p } = await admin.from("prospects").select("id, name, status, linkedin_status, linkedin_note, linkedin_msg, created_at").eq("workspace_id", ws.id).ilike("linkedin_url", `%${esc(key)}%`).limit(1).maybeSingle();
+  const { data: p } = await admin.from("prospects").select("id, name, status, linkedin_status, linkedin_note, linkedin_msg, created_at, email, enriched_at").eq("workspace_id", ws.id).ilike("linkedin_url", `%${esc(key)}%`).limit(1).maybeSingle();
   if (!p) return { prospect: null };
   const { data: acts } = await admin.from("linkedin_actions").select("kind, status, done_at").eq("prospect_id", p.id).eq("status", "fait").order("done_at", { ascending: false });
   const at = (k: string) => (acts ?? []).find((a) => a.kind === k)?.done_at ?? null;
@@ -128,7 +128,7 @@ export async function extLinkedinStatus(ws: Workspace, b: { url?: unknown }) {
   if (p.linkedin_status === "message_envoye" && at("message")) statut = `Message envoyé le ${fr(at("message"))}`;
   if (at("relance")) statut = `Relancé le ${fr(at("relance"))}`;
   if (["repondu", "rdv", "client"].includes(p.status)) statut = p.status === "rdv" ? "Rendez-vous pris" : p.status === "client" ? "Client" : "A répondu";
-  return { prospect: { id: p.id, name: p.name, statut, brouillon: !p.linkedin_status && !!p.linkedin_note, note: p.linkedin_note, message: p.linkedin_msg, depuis: fr(p.created_at) } };
+  return { prospect: { id: p.id, name: p.name, statut, brouillon: !p.linkedin_status && !!p.linkedin_note, note: p.linkedin_note, message: p.linkedin_msg, depuis: fr(p.created_at), email: p.email ?? "", cherche: !!p.enriched_at } };
 }
 
 /** Le client valide (et a pu corriger) la note et le message : l'invitation entre dans la file du pilote. */
@@ -188,4 +188,19 @@ export async function extLookupEmail(ws: Workspace, email: string) {
     signal: sig?.label ? String(sig.label).replace(/\s*(?:publi[ée]e? )?(?:au|dans le) (?:BODACC|registre[^,.;]*)/gi, "") : "",
     dernier_envoi: last ? { objet: last.subject, le: last.sent_at } : null, derniere_reponse: rep ? { resume: rep.summary, le: rep.created_at } : null,
     prochaine: p.next_action ? { quoi: p.next_action, le: p.next_action_at } : null } };
+}
+
+/** E-mail du prospect ouvert sur LinkedIn, cherché tout de suite (même enquête que la nuit) : adresses publiées ou vérifiées seulement. */
+export async function extLinkedinEmail(ws: Workspace, b: { prospect_id?: unknown }) {
+  const { data: p } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("id", String(b.prospect_id ?? "")).maybeSingle();
+  if (!p) throw new HttpError(404, "Prospect introuvable");
+  if (p.email) return { email: p.email, note: "Déjà connu" };
+  const { quota } = await import("./core.ts");
+  if (!(await quota(ws.id, "enquete", 40, 1))) throw new HttpError(429, "Limite de recherches d'e-mails atteinte pour aujourd'hui, Bingoo! continuera cette nuit");
+  const { enrich } = await import("./agents.ts");
+  const interlocuteur = ((ws.targets ?? []) as { id: string; interlocuteur?: string }[]).find((t) => t.id === p.target)?.interlocuteur ?? "";
+  const r = await enrich(p, interlocuteur).catch((e) => { throw new HttpError(502, `Recherche impossible : ${(e as Error).message}`); });
+  const { data: after } = await admin.from("prospects").select("email, enrich_note, website").eq("id", p.id).single();
+  await admin.from("activity").insert({ workspace_id: ws.id, kind: "enquete", summary: `${p.contact_name || p.name} : ${after?.email ? "e-mail trouvé depuis LinkedIn" : "pas d'e-mail public"}` });
+  return { email: after?.email || (r as { email?: string })?.email || "", note: after?.enrich_note ?? "", site: after?.website ?? "" };
 }

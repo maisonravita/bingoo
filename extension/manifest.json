@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Bingoo!",
-  "version": "1.7.0",
-  "description": "Signaux d'achat sur chaque site, prospection LinkedIn et Sales Navigator, fiche prospect dans Gmail.",
+  "version": "1.8.0",
+  "description": "Signaux d'achat sur chaque site, prospection LinkedIn et Sales Navigator, fiche prospect dans Gmail et Outlook.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "Bingoo!"
@@ -35,7 +35,10 @@
   "content_scripts": [
     {
       "matches": [
-        "https://mail.google.com/*"
+        "https://mail.google.com/*",
+        "https://outlook.live.com/*",
+        "https://outlook.office.com/*",
+        "https://outlook.office365.com/*"
       ],
       "js": [
         "gmail.js"

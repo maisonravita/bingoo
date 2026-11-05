@@ -101,7 +101,7 @@ async function pilot() {
     <details class="opts"><summary>Réglages de l'extension</summary>
       <label><input type="checkbox" id="o-rep" ${v.liReplies !== false ? "checked" : ""}> Repérer les réponses LinkedIn de mes prospects</label>
       <label><input type="checkbox" id="o-badge" ${v.badgeOn ? "checked" : ""}> Badge sur les sites qui ont des signaux <span class="muted">(l'adresse du site visité est envoyée à Bingoo!)</span></label>
-      <label><input type="checkbox" id="o-gmail" ${v.gmailOn ? "checked" : ""}> Bingoo! dans Gmail <span class="muted">(fiche du prospect à côté de ses e-mails)</span></label>
+      <label><input type="checkbox" id="o-gmail" ${v.gmailOn ? "checked" : ""}> Bingoo! dans Gmail et Outlook <span class="muted">(fiche du prospect à côté de ses e-mails)</span></label>
     </details>`;
   document.getElementById("lip").onclick = async () => {
     await new Promise((r) => chrome.storage.local.set({ liPause: !v.liPause }, r));
@@ -138,6 +138,22 @@ function editor(items, box) {
   };
 }
 
+/** E-mail du prospect : affiché s'il est connu, sinon cherché tout de suite (adresses publiées ou vérifiées, jamais devinées). */
+function mailBox(id, email) {
+  const box = document.getElementById("mail");
+  if (!box || !id) return;
+  if (email) { box.innerHTML = `<p class="muted">E-mail : <a href="mailto:${esc(email)}">${esc(email)}</a></p>`; return; }
+  box.innerHTML = `<button class="btn ghost" id="findmail">Chercher son e-mail maintenant</button>`;
+  document.getElementById("findmail").onclick = async (e) => {
+    const b = e.currentTarget; b.disabled = true; b.textContent = "Recherche (jusqu'à 1 minute)…";
+    try {
+      const r = await call("li-email", { prospect_id: id });
+      box.innerHTML = r.email ? `<p class="chip ok">E-mail trouvé</p><p><a href="mailto:${esc(r.email)}">${esc(r.email)}</a></p>`
+        : `<p class="muted">Pas d'e-mail public trouvé pour l'instant${r.site ? ` (site : ${esc(r.site)})` : ""}. Bingoo! ne devine jamais d'adresse : LinkedIn reste le bon canal.</p>`;
+    } catch (x) { b.disabled = false; b.textContent = "Chercher son e-mail maintenant"; box.insertAdjacentHTML("beforeend", `<p class="err">${esc(x.message)}</p>`); }
+  };
+}
+
 // Profil d'une personne : son statut s'il est déjà prospect, sinon l'ajout avec la note et le message à relire
 async function liProfile(tab, url, sales = false) {
   const who = await LI_PAGE(() => {
@@ -148,11 +164,12 @@ async function liProfile(tab, url, sales = false) {
     return { personne: (h1?.textContent ?? "").trim(), titre: (box.querySelector(".text-body-medium")?.textContent ?? "").trim() };
   }, tab) ?? { personne: "", titre: "" };
   if (!who.personne) { app.innerHTML = `<p>Laisse le profil LinkedIn se charger, puis rouvre Bingoo!.</p>`; return; }
-  app.innerHTML = `<h1>${esc(who.personne)}</h1><p class="muted">${esc(who.titre)}</p><div id="lib"><p class="muted">Vérification…</p></div>`;
+  app.innerHTML = `<h1>${esc(who.personne)}</h1><p class="muted">${esc(who.titre)}</p><div id="lib"><p class="muted">Vérification…</p></div><div id="mail"></div>`;
   const box = document.getElementById("lib");
   const st = await call("li-profile", { url }).catch(() => ({ prospect: null }));
   if (st.prospect) {
     const p = st.prospect;
+    mailBox(p.id, p.email);
     if (p.brouillon) { box.innerHTML = `<p class="chip">Ajouté le ${esc(p.depuis)} : invitation à valider</p><div id="ed"></div>`; return editor([{ prospect_id: p.id, note: p.note, message: p.message }], document.getElementById("ed")); }
     box.innerHTML = `<p class="chip ok">${esc(p.statut)}</p><p class="muted">Déjà dans tes prospects depuis le ${esc(p.depuis)}${p.name && p.name !== who.personne ? ` (${esc(p.name)})` : ""}. Inutile de le contacter à nouveau.</p><a class="btn ghost" href="${APP}/#/prospects" target="_blank">Voir sa fiche dans Bingoo!</a>`;
     return;
@@ -164,6 +181,7 @@ async function liProfile(tab, url, sales = false) {
     try {
       const r = await call("add-li", { url, personne: who.personne, titre: who.titre });
       if (r.existing) return liProfile(tab, url, sales);
+      mailBox(r.prospect_id, "");
       if (!r.pret) { box.innerHTML = `<p class="chip ok">Ajouté à tes prospects</p><p class="muted">La note n'a pas pu être écrite : prépare-la depuis Bingoo!, page LinkedIn.</p>`; return; }
       editor([{ prospect_id: r.prospect_id, note: r.note, message: r.message }], box);
     } catch (e) { b.disabled = false; b.textContent = "Ajouter et préparer l'invitation"; box.insertAdjacentHTML("beforeend", `<p class="err">${esc(e.message)}</p>`); }

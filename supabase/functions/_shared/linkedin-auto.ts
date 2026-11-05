@@ -7,7 +7,7 @@ import { parisParts } from "./time.ts";
 export type LiAuto = { enabled?: boolean; accepted_at?: string; started_at?: string; paused_reason?: string | null; paused_at?: string | null; max_per_day?: number };
 type Ws = Workspace & { linkedin_auto?: LiAuto | null };
 
-export const LI_LIMITS = { startPerDay: 5, stepPerDay: 3, maxPerDay: 20, maxPerWeek: 100, messagesPerDay: 25, relanceAfterDays: 8 };
+export const LI_LIMITS = { startPerDay: 5, stepPerDay: 3, maxPerDay: 20, maxPerWeek: 100, messagesPerDay: 25, relanceAfterDays: 8, findsPerDay: 15, withdrawsPerDay: 10, withdrawAfterDays: 21 };
 
 /** Relance unique qui « ferme la boucle » : on dit qu'on s'arrête, et on s'arrête. C'est souvent elle qui obtient la réponse. */
 export function relanceText(person: string | null | undefined) {
@@ -32,16 +32,35 @@ const parisDayStart = (now = new Date()) => { const p = parisParts(now); return 
 async function counts(wsId: string) {
   const day = parisDayStart(), week = new Date(Date.now() - 7 * 864e5).toISOString();
   const q = (kind: string, since: string) => admin.from("linkedin_actions").select("id", { count: "exact", head: true }).eq("workspace_id", wsId).eq("kind", kind).eq("status", "fait").gte("done_at", since);
-  const [a, b, c, d] = await Promise.all([q("invitation", day), q("invitation", week), q("message", day), q("relance", day)]);
-  return { invitesDay: a.count ?? 0, invitesWeek: b.count ?? 0, messagesDay: (c.count ?? 0) + (d.count ?? 0) };
+  const [a, b, c, d, v, f, w] = await Promise.all([q("invitation", day), q("invitation", week), q("message", day), q("relance", day), q("visite", day), q("trouver", day), q("retirer", day)]);
+  return { invitesDay: a.count ?? 0, invitesWeek: b.count ?? 0, messagesDay: (c.count ?? 0) + (d.count ?? 0), visitsDay: v.count ?? 0, findsDay: f.count ?? 0, withdrawsDay: w.count ?? 0 };
 }
 
-/** Met en file une invitation pour chaque prospect prêt (profil trouvé, note et message rédigés). */
+/** Met en file, pour chaque prospect prêt (profil trouvé, note et message validés), une visite de son profil :
+ *  l'invitation suit le lendemain (« X a consulté votre profil », puis l'invitation : elle est plus souvent acceptée).
+ *  Et pour chaque décideur connu sans profil LinkedIn, une recherche de son profil (« trouver »). */
 async function enqueue(ws: Ws) {
   const { data } = await admin.from("prospects").select("id").eq("workspace_id", ws.id).eq("linkedin_status", "a_envoyer").neq("linkedin_url", "").limit(200);
-  const rows = (data ?? []).map((p: { id: string }) => ({ workspace_id: ws.id, prospect_id: p.id, kind: "invitation" }));
-  if (rows.length) await admin.from("linkedin_actions").upsert(rows, { onConflict: "prospect_id,kind", ignoreDuplicates: true });
+  const ids = (data ?? []).map((p: { id: string }) => p.id);
+  if (ids.length) {
+    // Prospects déjà en route (invitation en file ou faite) : pas de visite, rien ne repart en arrière
+    const { data: has } = await admin.from("linkedin_actions").select("prospect_id").in("prospect_id", ids).eq("kind", "invitation");
+    const skip = new Set((has ?? []).map((a: { prospect_id: string }) => a.prospect_id));
+    const rows = ids.filter((id) => !skip.has(id)).map((id) => ({ workspace_id: ws.id, prospect_id: id, kind: "visite" }));
+    if (rows.length) await admin.from("linkedin_actions").upsert(rows, { onConflict: "prospect_id,kind", ignoreDuplicates: true });
+  }
+  const { data: sans } = await admin.from("prospects").select("id").eq("workspace_id", ws.id).eq("linkedin_url", "").neq("contact_name", "").neq("linkedin_status", "introuvable")
+    .not("status", "in", "(ignore,refus,client)").order("created_at", { ascending: false }).limit(60);
+  const finds = (sans ?? []).map((p: { id: string }) => ({ workspace_id: ws.id, prospect_id: p.id, kind: "trouver" }));
+  if (finds.length) await admin.from("linkedin_actions").upsert(finds, { onConflict: "prospect_id,kind", ignoreDuplicates: true });
 }
+
+/** Nom d'entreprise sans forme juridique, pour la recherche LinkedIn : « ACME SAS » → « ACME ». */
+export function companyCore(name: string) {
+  return String(name ?? "").replace(/\(.*?\)/g, " ").replace(/\b(sas|sasu|sarl|eurl|sa|sci|snc|selarl|scop|groupe|group|france|holding|société|societe)\b\.?/gi, " ").replace(/\s+/g, " ").trim();
+}
+/** Recherche LinkedIn d'une personne par son nom et son entreprise. */
+export const searchUrl = (person: string, company: string) => `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(`${person} ${companyCore(company)}`.trim())}`;
 
 export async function liStatus(ws: Ws) {
   const auto = ws.linkedin_auto ?? {};
@@ -77,16 +96,27 @@ export async function liNext(ws: Ws) {
   await admin.from("linkedin_actions").update({ status: "a_faire", taken_at: null }).eq("workspace_id", ws.id).eq("status", "en_cours").lt("taken_at", new Date(Date.now() - 15 * 60000).toISOString());
   const c = await counts(ws.id);
   const kinds = ["verifier"];
+  const canInvite = c.invitesDay < invitesToday(auto.started_at, new Date(), auto.max_per_day) && c.invitesWeek < LI_LIMITS.maxPerWeek;
   if (c.messagesDay < LI_LIMITS.messagesPerDay) kinds.unshift("message", "relance");
-  if (c.invitesDay < invitesToday(auto.started_at, new Date(), auto.max_per_day) && c.invitesWeek < LI_LIMITS.maxPerWeek) kinds.push("invitation");
+  if (c.withdrawsDay < LI_LIMITS.withdrawsPerDay) kinds.push("retirer");
+  if (canInvite) kinds.push("invitation");
+  // Pas plus de visites que d'invitations possibles : chaque visite annonce une invitation le lendemain
+  if (canInvite && c.visitsDay < invitesToday(auto.started_at, new Date(), auto.max_per_day)) kinds.push("visite");
+  if (c.findsDay < LI_LIMITS.findsPerDay) kinds.push("trouver");
   const { data: a } = await admin.from("linkedin_actions").select("id, kind, prospect_id").eq("workspace_id", ws.id).eq("status", "a_faire").lte("due_at", new Date().toISOString())
     .in("kind", kinds).order("due_at", { ascending: true }).limit(1).maybeSingle();
   if (!a) return { attendre: 900, raison: c.invitesDay >= invitesToday(auto.started_at, new Date(), auto.max_per_day) ? "Quota d'invitations du jour atteint" : "Rien à faire pour l'instant" };
-  const { data: p } = await admin.from("prospects").select("linkedin_url, linkedin_person, linkedin_note, linkedin_msg, name, status").eq("id", a.prospect_id).single();
+  const { data: p } = await admin.from("prospects").select("linkedin_url, linkedin_person, linkedin_note, linkedin_msg, name, org, status, contact_name").eq("id", a.prospect_id).single();
   // Un seul parcours e-mail + LinkedIn : s'il a répondu (par e-mail ou ailleurs), LinkedIn s'arrête ; s'il a reçu un e-mail aujourd'hui, LinkedIn attend demain
   if (p && ["repondu", "rdv", "client", "refus", "ignore"].includes(p.status)) {
     await admin.from("linkedin_actions").update({ status: "annule", result: `prospect ${p.status}` }).eq("prospect_id", a.prospect_id).eq("status", "a_faire");
     return { attendre: 30, raison: "Prospect déjà en conversation : action LinkedIn annulée" };
+  }
+  // Recherche du profil d'un décideur : rien n'est envoyé à personne, seule une recherche LinkedIn est faite
+  if (a.kind === "trouver") {
+    if (!p?.contact_name || p.linkedin_url) { await admin.from("linkedin_actions").update({ status: "annule", result: p?.linkedin_url ? "profil déjà connu" : "décideur inconnu" }).eq("id", a.id); return { attendre: 30, raison: "Recherche inutile, annulée" }; }
+    await admin.from("linkedin_actions").update({ status: "en_cours", taken_at: new Date().toISOString() }).eq("id", a.id);
+    return { action: { id: a.id, type: "trouver", profil: searchUrl(p.contact_name, p.name || p.org || ""), personne: p.contact_name, entreprise: p.name || p.org || "" }, attendre: rnd(90, 240) };
   }
   const d0 = parisDayStart();
   const { count: mailed } = await admin.from("messages").select("id", { count: "exact", head: true }).eq("prospect_id", a.prospect_id).eq("status", "envoye").gte("sent_at", d0);
@@ -119,6 +149,21 @@ export async function liReport(ws: Ws, b: { id?: unknown; resultat?: unknown; de
   const prospect = (s: string) => admin.from("prospects").update({ linkedin_status: s }).eq("id", a.prospect_id);
   const queue = (kind: string, hours: number) => admin.from("linkedin_actions").upsert({ workspace_id: ws.id, prospect_id: a.prospect_id, kind, status: "a_faire", due_at: new Date(Date.now() + hours * 3600_000).toISOString(), taken_at: null, done_at: null, result: "" }, { onConflict: "prospect_id,kind" });
 
+  // Limite d'utilisation commerciale des recherches (compte LinkedIn gratuit) : seules les recherches s'arrêtent, une semaine
+  if (a.kind === "trouver" && res === "limite") {
+    await admin.from("linkedin_actions").update({ status: "a_faire", taken_at: null, due_at: new Date(Date.now() + 7 * 864e5).toISOString(), result: `limite : ${detail}` }).eq("workspace_id", ws.id).eq("kind", "trouver").in("status", ["a_faire", "en_cours"]);
+    await log(ws.id, "linkedin", "Recherche des profils LinkedIn en pause une semaine : LinkedIn limite les recherches de ce compte");
+    return { ok: true };
+  }
+  if (a.kind === "trouver" && res !== "avertissement" && res !== "erreur") {
+    const found = String(b.profil ?? "").match(/^https:\/\/www\.linkedin\.com\/in\/[^/?#]{2,100}/)?.[0];
+    if (res === "ok" && found) {
+      const { data: p } = await admin.from("prospects").select("linkedin_url, linkedin_person, contact_name, contact_role").eq("id", a.prospect_id).single();
+      if (p && !p.linkedin_url) await admin.from("prospects").update({ linkedin_url: found, ...(p.linkedin_person ? {} : { linkedin_person: `${p.contact_name}${p.contact_role ? ` · ${p.contact_role}` : ""}` }) }).eq("id", a.prospect_id);
+      await done();
+    } else await done("echec");
+    return { ok: true };
+  }
   if (res === "limite" || res === "avertissement") {
     await admin.from("linkedin_actions").update({ status: "a_faire", taken_at: null }).eq("id", a.id);
     const auto = { ...(ws.linkedin_auto ?? {}), paused_reason: detail || (res === "limite" ? "LinkedIn a signalé une limite d'invitations" : "LinkedIn a affiché un avertissement"), paused_at: now };
@@ -132,13 +177,27 @@ export async function liReport(ws: Ws, b: { id?: unknown; resultat?: unknown; de
   }
   if (res === "introuvable") { await done("echec"); await prospect("introuvable"); return { ok: true }; }
 
-  if (a.kind === "invitation") {
+  if (a.kind === "visite") {
+    await done();
+    if (res === "deja_connecte" || res === "connecte") { await prospect("connecte"); await queue("message", rnd(18, 30)); }
+    else if (res === "deja_invite" || res === "en_attente") { await prospect("invite"); await queue("verifier", 24); }
+    else {
+      // L'invitation suit le lendemain, sauf si elle existe déjà (jamais deux invitations)
+      const { data: inv } = await admin.from("linkedin_actions").select("id").eq("prospect_id", a.prospect_id).eq("kind", "invitation").maybeSingle();
+      if (!inv) await queue("invitation", rnd(16, 28));
+    }
+  } else if (a.kind === "retirer") {
+    if (res === "connecte" || res === "deja_connecte") { await done(); await prospect("connecte"); await queue("message", rnd(18, 30)); }
+    else if (res === "ok") { await done(); await prospect("retire"); await log(ws.id, "linkedin", "Invitation LinkedIn sans réponse depuis 3 semaines retirée"); }
+    else { await admin.from("linkedin_actions").update({ status: "a_faire", taken_at: null, due_at: new Date(Date.now() + 24 * 3600_000).toISOString(), result: res }).eq("id", a.id); }
+  } else if (a.kind === "invitation") {
     if (res === "deja_connecte") { await done(); await prospect("connecte"); await queue("message", rnd(18, 30)); }
     else { await done(); await prospect("invite"); await queue("verifier", 24); }
     if (res === "ok") await log(ws.id, "linkedin", "Invitation LinkedIn envoyée");
   } else if (a.kind === "verifier") {
     if (res === "connecte" || res === "deja_connecte") { await done(); await prospect("connecte"); await queue("message", rnd(18, 30)); }
-    else if (Date.now() - new Date(a.created_at).getTime() > 21 * 864e5) { await done("annule"); }
+    // Toujours en attente après 3 semaines : on retire l'invitation (LinkedIn plafonne les invitations en attente)
+    else if (Date.now() - new Date(a.created_at).getTime() > LI_LIMITS.withdrawAfterDays * 864e5) { await done("annule"); await queue("retirer", rnd(1, 6)); }
     else { await admin.from("linkedin_actions").update({ status: "a_faire", taken_at: null, due_at: new Date(Date.now() + 24 * 3600_000).toISOString() }).eq("id", a.id); }
   } else if (a.kind === "message") {
     if (res !== "ok") { await admin.from("linkedin_actions").update({ status: "a_faire", taken_at: null, due_at: new Date(Date.now() + 24 * 3600_000).toISOString(), result: res }).eq("id", a.id); return { ok: true }; }

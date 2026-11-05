@@ -204,13 +204,14 @@ function toEvents(d, prospects, ws, box, opts = {}) {
   }
 
   // 5. Lina sur LinkedIn
-  const LI = { invitation: 'Invitation LinkedIn envoyée', message: 'Message LinkedIn envoyé', relance: 'Relance LinkedIn envoyée', verifier: 'Invitation vérifiée' };
+  const LI = { invitation: 'Invitation LinkedIn envoyée', message: 'Message LinkedIn envoyé', relance: 'Relance LinkedIn envoyée', verifier: 'Invitation vérifiée', visite: 'Profil LinkedIn visité', retirer: 'Vieille invitation retirée', trouver: 'Profil LinkedIn trouvé' };
   for (const a of d.li) {
     const p = P(a.prospect_id);
-    if (!p || !['ok', 'connecte', 'repondu', 'deja_connecte', 'deja_invite'].includes(a.result ?? '') || !once(`l:${a.id}`)) continue;
+    const res = String(a.result ?? '').split(' : ')[0];
+    if (!p || !['ok', 'connecte', 'repondu', 'deja_connecte', 'deja_invite'].includes(res) || !once(`l:${a.id}`)) continue;
     const at = ts(a.done_at);
     reveal(at - 1, prospectPlace(p, ws));
-    const bulle = a.result === 'connecte' || a.result === 'deja_connecte' ? 'Invitation acceptée !' : a.result === 'repondu' ? 'A répondu sur LinkedIn !' : LI[a.kind] ?? 'LinkedIn';
+    const bulle = res === 'connecte' || res === 'deja_connecte' ? 'Invitation acceptée !' : res === 'repondu' ? 'A répondu sur LinkedIn !' : LI[a.kind] ?? 'LinkedIn';
     T.add(at, 'lecteur-3', 'visit', p.id, { etat: 'li', bulle, prio: /accept|répondu/.test(bulle) ? 3 : 1, statut: `LinkedIn : ${title(p.name)}`, fait: bulle, journal: [`${hm(a.done_at)} · ${bulle}`] });
   }
 
