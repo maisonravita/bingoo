@@ -1,4 +1,5 @@
 import PushTel from "../components/PushTel";
+import Visite from "../components/Visite";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
@@ -303,6 +304,20 @@ export default function Today() {
     return () => { clearInterval(t); window.removeEventListener("kairo:refresh", load); };
   }, [ws.id, load]);
 
+  // Première arrivée : la visite (vidéos de l'équipe, de la carte et du Radar, l'extension…), une seule fois par personne
+  const [visite, setVisite] = useState(false);
+  useEffect(() => {
+    let vu = false;
+    try { vu = localStorage.getItem("bingoo-visite") === "1"; } catch { /* rien */ }
+    if (vu) return;
+    supabase.auth.getUser().then(({ data }) => { if (!data?.user?.user_metadata?.visite_vue) setVisite(true); }).catch(() => {});
+  }, []);
+  const finVisite = () => {
+    setVisite(false);
+    try { localStorage.setItem("bingoo-visite", "1"); } catch { /* rien */ }
+    supabase.auth.updateUser({ data: { visite_vue: new Date().toISOString() } }).catch(() => {});
+  };
+
   const hour = new Date().getHours();
   const hello = hour < 18 ? "Bonjour" : "Bonsoir";
   const first = (ws.sender_name || "").split(" ")[0];
@@ -310,6 +325,7 @@ export default function Today() {
 
   return (
     <div className="max-w-4xl">
+      {visite && <Visite onFin={finVisite} />}
       <header className="mb-6">
         <h1 className="font-black text-[40px] sm:text-[52px] leading-none tracking-tight flex items-start gap-1" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>
           {hello}{first ? ` ${first}` : ""} !<Sparks className="w-9 h-9 sm:w-11 sm:h-11 -mt-2" />

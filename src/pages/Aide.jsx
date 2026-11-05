@@ -1,3 +1,4 @@
+import Visite from "../components/Visite";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, PageHead } from "../components/ui";
@@ -20,6 +21,7 @@ const FAQ = [
 
 export default function Aide() {
   const [open, setOpen] = useState(0);
+  const [visite, setVisite] = useState(false);
   const { ws } = useWs();
   const toast = useToast();
   const [q, setQ] = useState("");
@@ -36,6 +38,11 @@ export default function Aide() {
   return (
     <div>
       <PageHead title="Aide" sub="Les réponses aux questions les plus fréquentes." />
+      {visite && <Visite onFin={() => setVisite(false)} fin="Fermer" />}
+      <button type="button" onClick={() => setVisite(true)} className="mb-5 w-full text-left rounded-2xl border border-line bg-white p-4 flex items-center gap-4 hover:border-ink-faint transition">
+        <img src="./demo-carte.jpg" alt="" className="w-24 h-16 rounded-lg object-cover shrink-0" />
+        <span className="min-w-0"><span className="block font-semibold">Revoir la visite de Bingoo!</span><span className="block text-sm text-ink-soft">L'équipe, la carte interactive, le Radar, l'extension : en vidéo, en 2 minutes.</span></span>
+      </button>
       <Card className="divide-y divide-line">
         {FAQ.map(([q, a], i) => (
           <div key={i}>
