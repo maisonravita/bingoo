@@ -443,10 +443,11 @@ const NIGHT = [
   ["06:30", "3 messages préparés", "En attente de ta validation"],
   ["07:45", "Récap envoyé", "Tes 3 entreprises du jour"],
 ];
+// Volumes par jour = les limites réelles du serveur (QUOTA_BASE × formule : Solo ×1, Pro ×2, Équipe ×4)
 const PLANS = [
-  ["Solo", 49, "Pour un indépendant ou un dirigeant qui prospecte seul.", ["Radar, Espion et Mission inclus", "1 utilisateur", "Volume d'actions standard", "Budget IA de 11 € inclus"]],
-  ["Pro", 109, "Pour une PME qui veut un flux régulier de rendez-vous.", ["Radar, Espion et Mission inclus", "3 utilisateurs", "Volume d'actions doublé", "Budget IA de 24 € inclus"]],
-  ["Équipe", 159, "Pour plusieurs commerciaux sur le même marché.", ["Radar, Espion et Mission inclus", "10 utilisateurs", "Volume d'actions quadruplé", "Budget IA de 46 € inclus"]],
+  ["Solo", 49, "Pour un indépendant ou un dirigeant qui prospecte seul.", ["1 utilisateur", "60 entreprises cherchées par jour", "40 recherches de contact par jour", "80 messages rédigés par jour", "Radar, Concurrents et LinkedIn inclus", "Budget IA de 11 € inclus"]],
+  ["Pro", 109, "Pour une PME qui veut un flux régulier de rendez-vous.", ["3 utilisateurs", "120 entreprises cherchées par jour", "80 recherches de contact par jour", "160 messages rédigés par jour", "Radar, Concurrents et LinkedIn inclus", "Budget IA de 24 € inclus"]],
+  ["Équipe", 159, "Pour plusieurs commerciaux sur le même marché.", ["10 utilisateurs", "240 entreprises cherchées par jour", "160 recherches de contact par jour", "320 messages rédigés par jour", "Radar, Concurrents et LinkedIn inclus", "Budget IA de 46 € inclus"]],
 ];
 const FAQ = [
   ["Bingoo! envoie-t-il des messages sans mon accord ?", "Non. Par défaut, chaque message attend ta validation. Tu peux ensuite activer le pilote automatique, dans la limite d'envoi que tu fixes."],
@@ -827,7 +828,7 @@ export default function Landing() {
               );
             })}
           </div>
-          <p className="mt-6 text-center text-[14px] text-ink-soft">Besoin de plus ? Des crédits IA s'achètent à tout moment depuis l'application, dès 7 €.</p>
+          <p className="mt-6 text-center text-[14px] text-ink-soft">Sans engagement : tu changes de formule ou tu arrêtes quand tu veux. Besoin de plus ? Des crédits IA s'achètent depuis l'application, dès 7 €.</p>
         </section>
 
         {/* Questions */}

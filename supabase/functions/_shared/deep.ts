@@ -15,7 +15,33 @@ const hostOf = (u: string) => { try { return new URL(u).hostname.replace(/^www\.
 const domOf = (e: string) => e.split("@")[1]?.toLowerCase() ?? "";
 
 function decode(html: string) {
-  return html.replace(/\s*(?:&#64;|&#x40;|\[at\]|\(at\)|arobase)\s*/gi, "@").replace(/&#46;|\[dot\]|\(dot\)/gi, ".").replace(/%40/g, "@");
+  return html
+    // entités numériques (&#64; &#x40; …) : souvent utilisées pour cacher une adresse aux robots
+    .replace(/&#(\d{2,5});/g, (_m, n) => String.fromCodePoint(+n)).replace(/&#x([0-9a-f]{2,4});/gi, (_m, n) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&commat;/gi, "@").replace(/&period;/gi, ".")
+    .replace(/\s*(?:\[at\]|\(at\)|\{at\}|\s+arobase\s+)\s*/gi, "@").replace(/\s*(?:\[dot\]|\(dot\)|\{dot\}|\s+point\s+)\s*/gi, ".").replace(/%40/g, "@");
+}
+/** Adresses protégées par Cloudflare (data-cfemail / email-protection#…) : décodées comme le ferait le navigateur. */
+export function cloudflareEmails(html: string) {
+  const out: string[] = [];
+  for (const m of html.matchAll(/(?:data-cfemail=["']|email-protection#)([0-9a-f]{8,})/gi)) {
+    const hex = m[1], key = parseInt(hex.slice(0, 2), 16);
+    let e = "";
+    for (let i = 2; i + 1 < hex.length; i += 2) e += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16) ^ key);
+    if (EMAIL_RE.test(e)) out.push(e.toLowerCase());
+  }
+  return out;
+}
+/** L'adresse de l'agence qui a fait le site (« réalisé par », « création », « hébergé par »…) n'est pas celle du prospect. */
+const AGENCY_CTX = /(r[ée]alis[ée]e?|con[çc]u|d[ée]velopp[ée]|cr[ée]ation|cr[ée][ée]\s+par|design|webdesign|agence\s+web|h[ée]berg|propuls[ée]|powered|made\s+by|site\s+(?:web\s+)?par)/i;
+export function agencyEmail(html: string, email: string) {
+  const t = html.toLowerCase();
+  let i = t.indexOf(email);
+  while (i >= 0) {
+    if (AGENCY_CTX.test(t.slice(Math.max(0, i - 160), i))) return true;
+    i = t.indexOf(email, i + 1);
+  }
+  return false;
 }
 
 /** Lit le site du prospect (accueil, contact, mentions légales) : e-mails, téléphones, formulaire. */
@@ -33,7 +59,7 @@ export async function siteContacts(site: string) {
   const emails = new Set<string>(); const phones = new Set<string>(); let form = "";
   all.forEach((h, i) => {
     const d = decode(h);
-    for (const m of d.match(EMAIL_IN) ?? []) { const e = m.toLowerCase().replace(/^mailto:/, ""); if (EMAIL_RE.test(e) && !BAD.test(e)) emails.add(e); }
+    for (const m of [...(d.match(EMAIL_IN) ?? []), ...cloudflareEmails(h)]) { const e = m.toLowerCase().replace(/^mailto:/, ""); if (EMAIL_RE.test(e) && !BAD.test(e) && !agencyEmail(d, e)) emails.add(e); }
     // Téléphones : liens « tel: » d'abord, puis le texte visible seulement (jamais le code des scripts, qui contient des suites de chiffres)
     for (const m of d.matchAll(/href=["']tel:([+\d\s().-]{8,20})["']/gi)) { const x = m[1].replace(/[^\d+]/g, ""); if (/^(\+33|0)[1-9]\d{8}$/.test(x.replace(/^\+330?/, "0").replace(/^0033/, "0"))) phones.add(m[1].trim()); }
     for (const m of textOf(d).match(PHONE_RE) ?? []) phones.add(m.replace(/[\s.-]/g, " ").trim());
@@ -49,8 +75,9 @@ async function mxOk(domain: string) {
 /** L'adresse figure-t-elle vraiment sur la page citée ? (évite les adresses inventées) */
 async function sourceHas(url: string, email: string) {
   if (!/^https?:\/\//.test(url)) return false;
-  const h = decode((await fetchHtml(url)).toLowerCase());
-  return h.includes(email.toLowerCase());
+  const raw = await fetchHtml(url);
+  const h = decode(raw.toLowerCase());
+  return h.includes(email.toLowerCase()) || cloudflareEmails(raw).includes(email.toLowerCase());
 }
 function pick(emails: string[], siteHost: string) {
   const score = (e: string) => (siteHost && domOf(e).endsWith(siteHost) ? 10 : 0) + (/^(direction|directeur|dir|contact|accueil|secretariat|info|bonjour|hello|commercial|achats?)[.@]/i.test(e) ? 3 : 0) + (/^[a-z]+\.[a-z]+@/i.test(e) ? 2 : 0);

@@ -13,9 +13,9 @@ const why = (p) => {
   return s ? String(s.label).replace(/^[^:]{0,40}:\s*/, "").replace(/\s*(?:publi[ée]e? )?(?:au|dans le) (?:BODACC|registre[^,.;]*)/gi, "") : "";
 };
 
-function Section({ title, count, to, more, children }) {
+function Section({ id, title, count, to, more, children }) {
   return (
-    <section className="mb-8">
+    <section id={id} className="mb-8 scroll-mt-24">
       <div className="flex items-baseline justify-between gap-3 mb-3">
         <h2 className="text-[19px] font-semibold">{title}{count > 0 && <span className="ml-2 text-ink-faint font-normal">{count}</span>}</h2>
         {to && <Link to={to} className="text-sm text-ink-soft hover:text-ink underline-offset-4 hover:underline">{more}</Link>}
@@ -64,13 +64,44 @@ function DraftCard({ m, canSend, onDone }) {
         <p className={cx("mt-1 text-[14px] text-ink-soft whitespace-pre-line", !open && "line-clamp-3")}>{m.body}</p>
         {!open && <span className="mt-1 inline-block text-[12.5px] text-ink-faint">Lire tout le message</span>}
       </button>
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-4 grid grid-cols-3 sm:flex sm:flex-wrap gap-2 [&>*]:w-full sm:[&>*]:w-auto [&_button]:w-full sm:[&_button]:w-auto">
         <Button variant="primary" loading={busy === "send"} disabled={!!busy} onClick={send}>Envoyer</Button>
         <Link to="/valider"><Button variant="ghost" disabled={!!busy}>Modifier</Button></Link>
         <Button variant="ghost" loading={busy === "skip"} disabled={!!busy} onClick={skip}>Pas pour moi</Button>
       </div>
     </article>
   );
+}
+
+/** Tout envoyer d'un coup, après une confirmation claire : chaque message part depuis la boîte connectée, un par un. */
+function SendAll({ total, onDone }) {
+  const { ws } = useWs();
+  const toast = useToast();
+  const [ask, setAsk] = useState(false);
+  const [prog, setProg] = useState(null);
+  const go = async () => {
+    setAsk(false);
+    const { data } = await supabase.from("messages").select("id").eq("workspace_id", ws.id).eq("status", "brouillon").order("step", { ascending: false }).order("created_at").limit(50);
+    const ids = (data ?? []).map((m) => m.id);
+    let sent = 0, skipped = 0;
+    for (let i = 0; i < ids.length; i++) {
+      setProg(`${i + 1} / ${ids.length}`);
+      try { const r = await fn("m/send", { workspace_id: ws.id, message_id: ids[i] }); if (r?.skipped) skipped++; else sent++; }
+      catch (e) { toast(`Arrêté : ${e.message}`, "bad"); break; }
+    }
+    setProg(null);
+    toast(`${sent} message${sent > 1 ? "s" : ""} envoyé${sent > 1 ? "s" : ""}${skipped ? `, ${skipped} non envoyé${skipped > 1 ? "s" : ""} (voir Messages à valider)` : ""}`, sent ? "good" : "default");
+    onDone();
+  };
+  if (prog) return <p className="mb-3 text-sm text-ink-soft">Envoi en cours… {prog}</p>;
+  if (ask) return (
+    <div className="mb-3 rounded-xl border border-accent/40 bg-accent-soft/50 p-4">
+      <p className="text-[15px] font-semibold">Envoyer les {total > 50 ? 50 : total} messages maintenant ?</p>
+      <p className="mt-1 text-[13.5px] text-ink-soft">Ils partent depuis ta boîte connectée, un par un. Relis-les d'abord si tu as un doute.</p>
+      <div className="mt-3 flex gap-2"><Button variant="primary" onClick={go}>Oui, tout envoyer</Button><Button variant="ghost" onClick={() => setAsk(false)}>Annuler</Button></div>
+    </div>
+  );
+  return <div className="mb-3"><Button variant="ghost" onClick={() => setAsk(true)}>Tout envoyer ({total > 50 ? 50 : total})</Button></div>;
 }
 
 export default function TodayFeed() {
@@ -120,8 +151,9 @@ export default function TodayFeed() {
       )}
 
       {d.drafts.length > 0 && (
-        <Section title="Messages prêts à partir" count={d.draftsTotal} to="/valider" more={d.draftsTotal > d.drafts.length ? `Les ${d.draftsTotal} messages` : "Tout voir"}>
+        <Section id="prets" title="Messages prêts à partir" count={d.draftsTotal} to="/valider" more={d.draftsTotal > d.drafts.length ? `Les ${d.draftsTotal} messages` : "Tout voir"}>
           {!canSend && <p className="mb-3 text-sm text-warn">Pour envoyer, connecte ta boîte mail : <Link className="underline" to="/connexions">Réglages → Connexions</Link>.</p>}
+          {canSend && d.draftsTotal > 1 && <SendAll total={d.draftsTotal} onDone={() => { load(); window.dispatchEvent(new Event("kairo:refresh")); }} />}
           <div className="grid gap-4">{d.drafts.map((m) => <DraftCard key={m.id} m={m} canSend={canSend} onDone={gone} />)}</div>
         </Section>
       )}

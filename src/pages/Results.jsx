@@ -42,6 +42,38 @@ function money(d, since, period, ws) {
   return { signedHt, signedN: signed.length, pipeline, ai, sub, cost, cac: won ? cost / won : null, roi: cost ? signedHt / cost : null, owners: Object.values(owners), minutes };
 }
 
+// Temps qu'un commercial passerait sur chaque action (même estimation que sur Aujourd'hui)
+const MINUTES = { recherche: 20, enquete: 8, enquete_plus: 12, redaction: 10, envoi: 1, reponse: 5, radar: 5, radar_scan: 20, veille: 30, espion: 15, analyse: 30, linkedin: 6, rdv: 20, brief: 15, devis: 15, script: 10, intelligence: 20 };
+const hm = (m) => (m < 60 ? `${Math.round(m)} min` : `${Math.floor(m / 60)} h${Math.round(m % 60) ? ` ${String(Math.round(m % 60)).padStart(2, "0")}` : ""}`);
+
+/** La semaine en une phrase, puis 4 chiffres comparés à la semaine d'avant. */
+function Week({ d }) {
+  const now = Date.now(), W = 7 * 864e5;
+  const inW = (t, k) => { const x = new Date(t ?? 0).getTime(); return x >= now - (k + 1) * W && x < now - k * W; };
+  const m = (k) => ({
+    sent: d.messages.filter((x) => x.status === "envoye" && inW(x.sent_at, k)).length,
+    rep: d.replies.filter((x) => inW(x.created_at, k)).length,
+    pos: d.replies.filter((x) => inW(x.created_at, k) && ["interesse", "rdv", "rappel"].includes(x.class)).length,
+    rdv: d.meetings.filter((x) => inW(x.created_at ?? x.starts_at, k) && x.status !== "annule").length,
+    min: d.activity.filter((x) => inW(x.created_at, k)).reduce((a, x) => a + (MINUTES[x.kind] ?? 0), 0),
+  });
+  const a = m(0), b = m(1);
+  const diff = (x, y) => (y ? `${x >= y ? "+" : ""}${Math.round(((x - y) / y) * 100)} % vs semaine d'avant` : x ? "nouveau cette semaine" : "—");
+  const parts = [a.sent && `${a.sent} e-mail${a.sent > 1 ? "s" : ""} envoyé${a.sent > 1 ? "s" : ""}`, a.rep && `${a.rep} réponse${a.rep > 1 ? "s" : ""}${a.pos ? ` dont ${a.pos} positive${a.pos > 1 ? "s" : ""}` : ""}`, a.rdv && `${a.rdv} rendez-vous`].filter(Boolean);
+  return (
+    <Card className="p-5 sm:p-6 mb-8">
+      <p className="text-[13px] font-semibold text-accent-dark">Ta semaine</p>
+      <p className="mt-1 text-[22px] sm:text-[26px] font-semibold leading-tight">{parts.length ? parts.join(", ") : "Pas encore d'envoi cette semaine"}. {a.min ? <span className="text-ink-soft font-normal">Bingoo! t'a fait gagner environ {hm(a.min)}.</span> : null}</p>
+      <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[["E-mails envoyés", a.sent, b.sent], ["Réponses", a.rep, b.rep], ["Rendez-vous", a.rdv, b.rdv], ["Temps gagné", a.min, b.min, hm]].map(([l, x, y, f]) => (
+          <div key={l} className="rounded-xl bg-paper/70 p-3 min-w-0"><p className="text-[12px] text-ink-soft">{l}</p><p className="text-2xl font-semibold tnum mt-0.5">{f ? f(x) : x}</p><p className="text-[11.5px] text-ink-faint mt-0.5">{diff(x, y)}</p></div>
+        ))}
+      </div>
+      <p className="mt-3 text-[11.5px] text-ink-faint">Temps gagné : estimation du temps qu'un commercial passerait à faire les mêmes actions à la main. Taux de réponse cette semaine : {a.sent ? `${Math.round((a.rep / a.sent) * 100)} %` : "—"}.</p>
+    </Card>
+  );
+}
+
 function Funnel({ steps }) {
   const max = Math.max(1, steps[0][1]);
   return (
@@ -63,17 +95,18 @@ export default function Results() {
   const [d, setD] = useState(null);
   const [period, setPeriod] = useState(30);
   const load = useCallback(async () => {
-    const [prospects, messages, meetings, calls, quotes, activity, members, usage] = await Promise.all([
+    const [prospects, messages, meetings, calls, quotes, activity, members, usage, replies] = await Promise.all([
       all("prospects", "id, name, target, status, deal_value, margin_pct, won_at, churned_at, owner_id", ws.id),
       all("messages", "prospect_id, status, sent_at, step", ws.id),
-      all("meetings", "prospect_id, status, starts_at", ws.id),
+      all("meetings", "prospect_id, status, starts_at, created_at", ws.id),
       all("calls", "prospect_id, outcome, created_at", ws.id),
       all("quotes", "prospect_id, status, total_ht, sent_at, signed_at, recurring", ws.id),
       all("activity", "kind, created_at", ws.id),
       all("members", "user_id, email, role", ws.id),
       all("usage", "day, minutes", ws.id),
+      all("replies", "created_at, class", ws.id),
     ]);
-    setD({ prospects, messages, meetings, calls, quotes, activity, members, usage });
+    setD({ prospects, messages, meetings, calls, quotes, activity, members, usage, replies });
   }, [ws.id]);
   useEffect(() => { load(); }, [load]);
 
@@ -129,6 +162,8 @@ export default function Results() {
       <PageHead title="Résultats" sub="Ce qui marche vraiment, et quels clients te rapportent.">
         <div className="flex gap-1">{[7, 30, 90].map((n) => <button key={n} onClick={() => setPeriod(n)} className={cx("rounded-full px-3 py-1.5 text-sm border", period === n ? "bg-ink text-white border-ink" : "bg-white border-line")}>{n} j</button>)}</div>
       </PageHead>
+
+      <Week d={d} />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
         {[["E-mails envoyés", stats.sent], ["Prospects contactés", stats.contacted], ["Réponses", stats.replies], ["RDV pris", stats.meetings], ["RDV tenus", stats.held], ["RDV qualifiés", stats.qualified], ["Clients gagnés", stats.won]].map(([l, v]) => (

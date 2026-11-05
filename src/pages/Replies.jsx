@@ -76,7 +76,7 @@ export function ReplyCard({ r, onChange }) {
         </div>
       )}
       {!r.handled && (
-        <div className="flex flex-wrap gap-2 mt-4">
+        <div className="flex flex-wrap gap-2 mt-4 [&>*]:flex-1 sm:[&>*]:flex-none [&_button]:w-full sm:[&_button]:w-auto">
           {r.reply_body && (r.from_email === "linkedin"
             ? <Button variant="li" onClick={async () => { try { await navigator.clipboard.writeText(body); toast("Réponse copiée : colle-la dans la conversation LinkedIn", "good"); } catch { toast("Copie impossible, sélectionne le texte", "bad"); } }}>Copier pour LinkedIn</Button>
             : <Button variant="accent" loading={busy === "send"} onClick={send}>Envoyer la réponse</Button>)}

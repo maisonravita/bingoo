@@ -202,6 +202,28 @@ function Urgent({ u }) {
   );
 }
 
+/** Le matin en 2 minutes : ce qui attend le client, dans l'ordre, et quand tout est fait, on le dit. */
+function Morning({ s }) {
+  const items = [
+    [s.replies, "réponse à traiter", "réponses à traiter", "/reponses", "chat"],
+    [s.drafts, "message à valider", "messages à valider", "#prets", "send"],
+    [s.urgent.meet.length, "rendez-vous aujourd'hui", "rendez-vous aujourd'hui", "/agenda", "cal"],
+    [s.urgent.due.length, "rappel prévu", "rappels prévus", "/prospects", "clock"],
+  ];
+  const todo = items.filter(([n]) => n > 0);
+  if (!todo.length) return <p className="mb-6 rounded-xl border border-good/30 bg-good/10 px-4 py-3 text-[15px]"><b className="font-semibold">Ton matin est fait.</b> Bingoo! continue de chercher pour toi ; les nouveautés arrivent ici.</p>;
+  return (
+    <nav aria-label="Ton matin" className="mb-6 flex flex-wrap gap-2">
+      <span className="self-center mr-1 text-[14px] text-ink-soft">Ce matin :</span>
+      {todo.map(([n, a, b, to, icon]) => {
+        const cls = "inline-flex items-center gap-2 rounded-full border border-line bg-white px-4 py-2 text-[14.5px] font-semibold hover:border-accent/50 transition";
+        const body = <><Ico n={icon} className="w-4 h-4 text-accent" /><span className="tnum">{n}</span> {n > 1 ? b : a}</>;
+        return to.startsWith("#") ? <a key={a} href={to} onClick={(e) => { e.preventDefault(); document.getElementById(to.slice(1))?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={cls}>{body}</a> : <Link key={a} to={to} className={cls}>{body}</Link>;
+      })}
+    </nav>
+  );
+}
+
 export default function Today() {
   const { ws } = useWs();
   const toast = useToast();
@@ -261,6 +283,8 @@ export default function Today() {
           Voir ton équipe travailler cette nuit
         </a>
       </header>
+
+      {s && <Morning s={s} />}
 
       <TodayFeed />
 
