@@ -63,7 +63,7 @@ export async function weeklyReport(ws: Workspace, dry = false) {
     `- Objectif : ${pl.rdv} rendez-vous sur ${pl.objectif}${pl.rdv >= pl.objectif ? " (objectif atteint)" : ""}`,
     ...(pl.pipeline ? [`- Pipeline estimé : ${eur(pl.pipeline.montant)} (${pl.pipeline.rdv_ouverts} rendez-vous en cours × ${eur(pl.pipeline.valeur)} × ${pl.pipeline.taux} %)`] : []),
     ...(top ? [`- ${top.nom} : ${top.pct} % de tes entreprises cibles contactées (+${top.semaine} cette semaine)`] : []),
-    `- Réactivité : ${pct(pl.anneaux.reactivite)} réponses positives traitées le jour même`,
+    pl.anneaux.reactivite.total ? `- Réactivité : ${pct(pl.anneaux.reactivite)} réponses positives traitées le jour même` : `- Réactivité : aucune réponse positive à traiter`,
     `- Régularité : ${pl.anneaux.regularite.fait} jour${pl.anneaux.regularite.fait > 1 ? "s" : ""} actif${pl.anneaux.regularite.fait > 1 ? "s" : ""} sur 5`,
     ...(pl.record ? [`- Record : ${pl.record} rendez-vous en une semaine`] : []),
     ...(tard > 0 ? [`\nLe point à travailler : ${tard} réponse${tard > 1 ? "s" : ""} positive${tard > 1 ? "s ont" : " a"} attendu plus d'un jour. Ce sont celles qui se refroidissent le plus vite.`] : []),

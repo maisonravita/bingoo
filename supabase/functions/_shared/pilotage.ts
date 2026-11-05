@@ -80,7 +80,7 @@ export async function pilotage(ws: Workspace & { pilotage?: Reglages | null; aut
   // Record : la meilleure semaine des 12 dernières
   const parSemaine = new Map<number, number>();
   for (const m of rdv12.data ?? []) { const k = Math.floor((new Date(m.created_at).getTime() - debutSemaine(now, 12).getTime()) / (7 * 864e5)); parSemaine.set(k, (parSemaine.get(k) ?? 0) + 1); }
-  const record = Math.max(0, ...[...parSemaine.entries()].filter(([k]) => k < 12).map(([, v]) => v));
+  const record = Math.max(0, ...[...parSemaine.entries()].filter(([k]) => k <= 12).map(([, v]) => v));
 
   // Pipeline estimé : les rendez-vous obtenus pas encore signés × valeur d'un client × part qui signe
   const ouverts = prospects.filter((p) => p.status === "rdv").length, clients = prospects.filter((p) => p.status === "client").length;
