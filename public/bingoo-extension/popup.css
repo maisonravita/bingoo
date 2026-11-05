@@ -24,3 +24,11 @@ input { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding
 .li-head { display: flex; align-items: center; justify-content: space-between; } .li-head b { color: #0a66c2; }
 .log { font-size: 12px; color: var(--soft); }
 .manual { margin-top: 12px; font-size: 12.5px; color: var(--soft); } .manual summary { cursor: pointer; }
+.draft { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
+.draft label { font-size: 12px; font-weight: 700; color: var(--soft); display: flex; justify-content: space-between; }
+.draft textarea { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 8px; font: inherit; font-size: 13px; margin-top: 4px; resize: vertical; }
+.draft details { margin-top: 6px; font-size: 12.5px; color: var(--soft); } .draft summary { cursor: pointer; }
+.who { font-weight: 700; margin: 0 0 4px; } .cnt { font-weight: 400; }
+.pick label { display: flex; gap: 8px; align-items: flex-start; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; cursor: pointer; }
+.pick input { width: auto; flex: none; margin: 3px 0 0; }
+.pick label > span { flex: 1; min-width: 0; }

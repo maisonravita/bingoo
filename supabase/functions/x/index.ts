@@ -92,6 +92,9 @@ Deno.serve(wrap(async (req) => {
   if (name === "lookup") return json(await extLookup(ws, String(b.url ?? "")));
   if (name === "add") return json(await extAdd(ws, String(b.url ?? "")));
   if (name === "add-li") { setAi({ ws: ws.id, live: true }); return json(await (await import("../_shared/ext.ts")).extAddLinkedin(ws, b)); }
+  if (name === "add-li-many") { setAi({ ws: ws.id, live: true }); return json(await (await import("../_shared/ext.ts")).extAddLinkedinMany(ws, b)); }
+  if (name === "li-profile") return json(await (await import("../_shared/ext.ts")).extLinkedinStatus(ws, b));
+  if (name === "li-validate") return json(await (await import("../_shared/ext.ts")).extLinkedinValidate(ws, b));
   if (name === "whoami") return json({ espace: ws.name });
   // Pilote LinkedIn (extension) : prochaine action, compte rendu, état
   if (name.startsWith("li-")) {

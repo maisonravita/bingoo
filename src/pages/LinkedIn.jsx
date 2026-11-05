@@ -84,11 +84,17 @@ export default function LinkedIn() {
   const { job, run } = useJob(toast);
   const [rows, setRows] = useState(null);
   const load = useCallback(async () => {
-    const { data } = await supabase.from("prospects").select("*").eq("workspace_id", ws.id).eq("linkedin_status", "a_envoyer").order("updated_at", { ascending: false }).limit(50);
+    const { data } = await supabase.from("prospects").select("*").eq("workspace_id", ws.id).or("linkedin_status.eq.a_envoyer,and(linkedin_status.eq.,linkedin_note.neq.)").not("status", "in", "(ignore,refus)").order("updated_at", { ascending: false }).limit(50);
     setRows(data ?? []);
   }, [ws.id]);
   useEffect(() => { load(); window.addEventListener("kairo:refresh", load); return () => window.removeEventListener("kairo:refresh", load); }, [load]);
 
+  // Ajouté depuis l'extension : la note attend l'accord du client avant d'entrer dans la file du pilote
+  const validate = async (p) => {
+    await supabase.from("prospects").update({ linkedin_status: "a_envoyer" }).eq("id", p.id);
+    setRows((r) => r.map((x) => x.id === p.id ? { ...x, linkedin_status: "a_envoyer" } : x));
+    toast("Invitation validée : le pilote l'enverra", "good");
+  };
   const done = async (p) => {
     await supabase.from("prospects").update({ linkedin_status: "envoye" }).eq("id", p.id);
     setRows((r) => r.filter((x) => x.id !== p.id));
@@ -112,7 +118,7 @@ export default function LinkedIn() {
         <div className="grid gap-4 md:grid-cols-2">
           {rows.map((p) => (
             <Card key={p.id} className="p-5 flex flex-col">
-              <p className="text-xs font-semibold text-li">{p.name}</p>
+              <p className="text-xs font-semibold text-li flex items-center justify-between gap-2">{p.name}{!p.linkedin_status && <Badge tone="warn">À valider</Badge>}</p>
               <h3 className="font-serif text-2xl leading-tight mt-1">{p.linkedin_person}</h3>
               <div className="mt-4 rounded-xl bg-paper p-3 text-sm">
                 <p className="text-xs font-semibold text-ink-soft mb-1">Note d'invitation · {p.linkedin_note.length}/300</p>
@@ -126,7 +132,7 @@ export default function LinkedIn() {
               <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-line">
                 <Copy text={p.linkedin_note} label="Copier la note" />
                 <a href={p.linkedin_url} target="_blank" rel="noreferrer"><Button size="sm" variant="li">Ouvrir le profil ↗</Button></a>
-                <Button size="sm" variant="ghost" onClick={() => done(p)}>C'est envoyé ✓</Button>
+                {!p.linkedin_status ? <Button size="sm" variant="li" onClick={() => validate(p)}>Valider pour le pilote</Button> : <Button size="sm" variant="ghost" onClick={() => done(p)}>C'est envoyé ✓</Button>}
               </div>
             </Card>
           ))}

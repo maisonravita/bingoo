@@ -101,8 +101,54 @@ export async function extAddLinkedin(ws: Workspace, b: { url?: unknown; personne
   }).select("*").single();
   if (error) throw new HttpError(500, error.message);
   await admin.from("activity").insert({ workspace_id: ws.id, kind: "prospect", summary: `${person} ajouté depuis LinkedIn` });
-  // Note et message écrits tout de suite (profil déjà connu : pas de recherche web)
+  // Note et message écrits tout de suite (profil déjà connu : pas de recherche web), en brouillon : le client relit et valide
   const { linkedin } = await import("./agents.ts");
   const r = await linkedin(ws, data).catch(() => null);
-  return { prospect_id: data.id, existing: false, pret: r?.linkedin_status === "a_envoyer" };
+  if (r?.linkedin_status === "a_envoyer") await admin.from("prospects").update({ linkedin_status: "" }).eq("id", data.id);
+  return { prospect_id: data.id, existing: false, pret: !!(r?.linkedin_note && r?.linkedin_msg), personne: person, note: r?.linkedin_note ?? "", message: r?.linkedin_msg ?? "" };
 }
+
+const LI_LABEL: Record<string, string> = { "": "Ajouté, invitation à valider", a_envoyer: "Invitation prête", envoye: "Invitation envoyée", invite: "Invitation envoyée", connecte: "Connecté", message_envoye: "Message envoyé", introuvable: "Profil introuvable" };
+
+/** Où en est la personne de ce profil LinkedIn : déjà prospect ? invitée ? a répondu ? */
+export async function extLinkedinStatus(ws: Workspace, b: { url?: unknown }) {
+  const m = String(b.url ?? "").match(/linkedin\.com\/in\/([^/?#]{2,100})/i);
+  if (!m) return { prospect: null };
+  const { data: p } = await admin.from("prospects").select("id, name, status, linkedin_status, linkedin_note, linkedin_msg, created_at").eq("workspace_id", ws.id).ilike("linkedin_url", `%/in/${esc(m[1])}%`).limit(1).maybeSingle();
+  if (!p) return { prospect: null };
+  const { data: acts } = await admin.from("linkedin_actions").select("kind, status, done_at").eq("prospect_id", p.id).eq("status", "fait").order("done_at", { ascending: false });
+  const at = (k: string) => (acts ?? []).find((a) => a.kind === k)?.done_at ?? null;
+  const fr = (d: string | null) => d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: "Europe/Paris" }) : "";
+  let statut = LI_LABEL[p.linkedin_status ?? ""] ?? "Dans tes prospects";
+  if (p.linkedin_status === "invite" && at("invitation")) statut = `Invité le ${fr(at("invitation"))}`;
+  if (p.linkedin_status === "message_envoye" && at("message")) statut = `Message envoyé le ${fr(at("message"))}`;
+  if (at("relance")) statut = `Relancé le ${fr(at("relance"))}`;
+  if (["repondu", "rdv", "client"].includes(p.status)) statut = p.status === "rdv" ? "Rendez-vous pris" : p.status === "client" ? "Client" : "A répondu";
+  return { prospect: { id: p.id, name: p.name, statut, brouillon: !p.linkedin_status && !!p.linkedin_note, note: p.linkedin_note, message: p.linkedin_msg, depuis: fr(p.created_at) } };
+}
+
+/** Le client valide (et a pu corriger) la note et le message : l'invitation entre dans la file du pilote. */
+export async function extLinkedinValidate(ws: Workspace, b: { items?: unknown }) {
+  const { humanize } = await import("./playbooks.ts");
+  const items = (Array.isArray(b.items) ? b.items : []).slice(0, 10) as { prospect_id?: string; note?: string; message?: string }[];
+  let ok = 0;
+  for (const it of items) {
+    const note = humanize(String(it.note ?? "")).slice(0, 200), message = humanize(String(it.message ?? "")).slice(0, 1200);
+    if (!it.prospect_id || !note || !message) continue;
+    const { data } = await admin.from("prospects").update({ linkedin_note: note, linkedin_msg: message, linkedin_status: "a_envoyer" })
+      .eq("id", String(it.prospect_id)).eq("workspace_id", ws.id).in("linkedin_status", ["", "a_envoyer"]).select("id");
+    ok += (data ?? []).length;
+  }
+  return { valides: ok };
+}
+
+/** Ajout groupé depuis une page de résultats de recherche LinkedIn : 10 profils au plus, chacun en brouillon. */
+export async function extAddLinkedinMany(ws: Workspace, b: { items?: unknown }) {
+  const items = (Array.isArray(b.items) ? b.items : []).slice(0, 10) as { url?: string; personne?: string; titre?: string }[];
+  const out: unknown[] = [];
+  for (let i = 0; i < items.length; i += 4) {
+    out.push(...await Promise.all(items.slice(i, i + 4).map((it) => extAddLinkedin(ws, it).catch((e) => ({ erreur: String((e as Error).message), personne: it.personne })))));
+  }
+  return { resultats: out };
+}
+
