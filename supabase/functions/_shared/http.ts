@@ -43,10 +43,20 @@ export function wrap(handler: Handler): Handler {
     } catch (e) {
       const status = e instanceof HttpError ? e.status : 500;
       const message = e instanceof Error ? e.message : String(e);
-      if (status >= 500) console.error(e);
+      if (status >= 500) { console.error(e); await noteError(req, message); }
       return json({ error: message }, status);
     }
   };
+}
+
+/** Garde la trace d'une erreur serveur (contrôle quotidien de la plateforme). Ne fait jamais échouer la requête. */
+async function noteError(req: Request, message: string) {
+  try {
+    const url = Deno.env.get("SUPABASE_URL"), key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !key) return;
+    const fonction = new URL(req.url).pathname.split("/").filter(Boolean).slice(-2).join("/").slice(0, 80);
+    await fetch(`${url}/rest/v1/server_errors`, { method: "POST", headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify({ fonction, message: message.slice(0, 500) }), signal: AbortSignal.timeout(3000) });
+  } catch { /* rien */ }
 }
 
 export async function readJson<T = Record<string, unknown>>(req: Request): Promise<T> {

@@ -159,11 +159,31 @@ export async function osmSite(p: { name?: string; org?: string; geo_lat?: number
   return answered ? "" : null;
 }
 
+/** Même entreprise (même SIREN) déjà trouvée pour un autre établissement : son site sert pour tous. */
+async function siblingSite(p: { id?: string; siret?: string | null }) {
+  const siren = String(p.siret ?? "").replace(/\D/g, "").slice(0, 9);
+  if (siren.length !== 9) return "";
+  const { data } = await admin.from("prospects").select("website").like("siret", `${siren}%`).neq("website", "").not("website", "is", null).neq("id", p.id ?? "").limit(1);
+  return String(data?.[0]?.website ?? "");
+}
+
+/** Site officiel déclaré sur Wikidata pour ce SIREN (grandes entreprises, groupes, associations connues). Gratuit. */
+export async function wikidataSite(p: { siret?: string | null }) {
+  const siren = String(p.siret ?? "").replace(/\D/g, "").slice(0, 9);
+  if (siren.length !== 9) return "";
+  const q = `SELECT ?w WHERE { ?i wdt:P1616 "${siren}"; wdt:P856 ?w } LIMIT 1`;
+  const r = await fetch(`https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(q)}`, { headers: { Accept: "application/sparql-results+json", "User-Agent": "Bingoo/1.0 (prospection B2B ; contact: alertes@maisonravita.fr)" }, signal: AbortSignal.timeout(8000) });
+  if (!r.ok) return "";
+  const w = String((await r.json())?.results?.bindings?.[0]?.w?.value ?? "");
+  return /^https?:\/\/[^\s/]+\.[a-z]{2,}/i.test(w) ? w.replace(/\/+$/, "") : "";
+}
+
 /** Passe gratuite, sans IA : retrouve le site par le nom puis lit ses pages (accueil, contact, mentions légales).
  *  On ne garde qu'un e-mail publié sur le site, dont le domaine reçoit du courrier. Jamais d'adresse devinée. */
 export async function freeEnrich(p: P2, save = true) {
   let site = p.website || "", foundSite = false;
   let osmDown = false;
+  if (!site) { site = await siblingSite(p).catch(() => "") || await wikidataSite(p).catch(() => ""); foundSite = !!site; }
   if (!site) { const o = await osmSite(p as never).catch(() => null); osmDown = o === null && (p as { geo_lat?: number | null }).geo_lat != null; site = o || await findSite(p).catch(() => ""); foundSite = !!site; }
   let email = "", phone = "", form = "";
   if (site) {
