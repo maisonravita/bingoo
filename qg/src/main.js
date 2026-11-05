@@ -16,6 +16,7 @@ import { createCinema, survey } from './cinema.js';
 import { qfetch, prepare } from './api.js';
 import { QgError, poll } from './data.js';
 import { bingooUi } from './bingoo.js';
+import { aideAt, aideHide, ETATS, MEMBRES } from './aide.js';
 import { setLogo } from './sprites.js';
 
 const $ = (id) => document.getElementById(id);
@@ -25,7 +26,7 @@ const params = new URLSearchParams(location.search);
 
 const cam = { x: 0, y: 0, z: 2 };
 let city = null, world = null, director = null, hud = null, fiche = null;
-let tod = params.get('tod') ?? 'soir';
+let tod = params.get('tod') ?? 'bingoo';
 let speed = Number(params.get('vitesse')) || 1;
 let W = 0, H = 0, DPR = 1;
 let mode = 'carte'; // carte | plongee | ville
@@ -278,6 +279,17 @@ function pick(clientX, clientY) {
   }
   return null;
 }
+/** Un membre de l'équipe sous la souris. */
+function pickActor(clientX, clientY) {
+  if (!world) return null;
+  const sx = clientX * DPR, sy = clientY * DPR, S = spriteScale(cam.z);
+  for (const a of world.actors.values()) {
+    if (a.alpha < 0.3) continue;
+    const px = (a.x - cam.x) * cam.z + W / 2, py = (a.y - cam.y) * cam.z + H / 2 - a.alt * S;
+    if (Math.abs(sx - px) < 9 * S && sy < py + 2 * S && sy > py - 24 * S) return a;
+  }
+  return null;
+}
 /** Un commerce de la carte (calque des points d'intérêt) sous le clic : le plus proche à quelques mètres. */
 function pickPoi(clientX, clientY) {
   if (!city?.pois?.length || cam.z < 1.2) return null;
@@ -309,10 +321,17 @@ canvas.addEventListener('pointermove', (e) => {
     else if (mode === 'ville') {
       const q = pick(e.clientX, e.clientY);
       const poi = q ? null : pickPoi(e.clientX, e.clientY);
+      const who = q || poi ? null : pickActor(e.clientX, e.clientY);
       canvas.classList.toggle('can-pick', Boolean(q || poi));
-      const tip = $('tip');
-      if (poi) { tip.textContent = poi.name; tip.style.transform = `translate(${e.clientX + 14}px, ${e.clientY + 12}px)`; tip.hidden = false; }
-      else tip.hidden = true;
+      $('tip').hidden = true;
+      // la petite notice de ce qui est sous la souris
+      const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+      const [wx, wy] = toWorld(cam, W, H, e.clientX * DPR, e.clientY * DPR);
+      if (q) { const [t, d] = ETATS[q.state] ?? ['', '']; aideAt(e.clientX + 14, e.clientY + 18, `<b>${esc(q.name)}</b>${t ? `<br><span class="aide-s">${esc(t)}</span> · ${esc(d)}` : ''}<br><i>Clique pour ouvrir sa fiche.</i>`); }
+      else if (who) aideAt(e.clientX + 14, e.clientY + 18, `<b>${esc(who.name)}</b> · ${esc(MEMBRES[who.name] ?? '')}<br><i>${esc(who.status ?? '')}</i>`);
+      else if (poi) aideAt(e.clientX + 14, e.clientY + 18, `<b>${esc(poi.name)}</b><br>Un commerce de la ville, pas encore dans ta prospection. Clique pour son lien Google Maps.`);
+      else if (world && Math.hypot(wx - world.qg.x, wy - world.qg.y) < 28) aideAt(e.clientX + 14, e.clientY + 18, '<b>Le QG Bingoo!</b><br>Ton équipe part d’ici chaque nuit et y revient.');
+      else aideHide();
     }
     return;
   }
@@ -324,6 +343,7 @@ canvas.addEventListener('pointermove', (e) => {
   cam.y = drag.cy - ((e.clientY - drag.y) * DPR) / cam.z;
   if (director) director.manualUntil = world.time + (params.has('libre') ? 1e9 : 6);
 });
+canvas.addEventListener('pointerleave', () => aideHide());
 canvas.addEventListener('pointerup', (e) => {
   const click = drag && !drag.moved;
   drag = null;

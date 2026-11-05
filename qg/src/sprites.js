@@ -19,18 +19,20 @@ export function qgSprite(tod, lit = 1) {
     const c = makeCanvas(w + 2, d + h + 14);
     const g = g2d(c);
     const top = 12; // la place des enseignes au-dessus du toit
-    const night = tod !== 'jour';
+    const night = tod === 'soir' || tod === 'nuit';
     // le toit
-    rect(g, 1, top, w, d, '#2b2838');
-    rect(g, 1, top, w, 1, '#4a4560');
-    rect(g, 1, top + d - 1, w, 1, '#56506e');
-    rect(g, 2, top + 1, w - 2, 1, '#38344a');
+    rect(g, 1, top, w, d, night ? '#2b2838' : '#3a3431');
+    rect(g, 1, top, w, 1, night ? '#4a4560' : '#57504b');
+    rect(g, 1, top + d - 1, w, 1, night ? '#56506e' : '#E0531F');
+    rect(g, 2, top + 1, w - 2, 1, night ? '#38344a' : '#453f3b');
+    // un grand « ! » orange peint sur le toit, vu d'avion
+    if (!night) { rect(g, 30, top + 14, 4, 12, '#F2652A'); rect(g, 30, top + 28, 4, 4, '#F2652A'); }
     // la piste de l'éclaireur (à droite)
     const hx = w - 18, hy = top + 8;
     for (let y = -9; y <= 9; y++) for (let x = -9; x <= 9; x++) {
       const r = Math.hypot(x, y);
       if (r <= 9.4 && r >= 8.2) px(g, hx + x, hy + y + 6, P.orange);
-      else if (r < 8.2) px(g, hx + x, hy + y + 6, '#34304a');
+      else if (r < 8.2) px(g, hx + x, hy + y + 6, night ? '#34304a' : '#4c4642');
     }
     // un H en pixels au milieu de la piste
     rect(g, hx - 3, hy + 2, 1, 7, P.orangeHi); rect(g, hx + 2, hy + 2, 1, 7, P.orangeHi); rect(g, hx - 3, hy + 5, 6, 1, P.orangeHi);
@@ -54,10 +56,10 @@ export function qgSprite(tod, lit = 1) {
     }
     // la façade : du verre sombre, un néon orange, la porte allumée
     const fy = top + d;
-    rect(g, 1, fy, w, h, '#1f2234');
+    rect(g, 1, fy, w, h, night ? '#1f2234' : '#fff1e6');
     for (let x = 3; x < w - 1; x += 6) {
-      rect(g, x, fy + 3, 4, h - 8, night ? '#2d3456' : '#3c4a74');
-      rect(g, x, fy + 3, 1, h - 8, night ? '#3d4670' : '#5a6c9c');
+      rect(g, x, fy + 3, 4, h - 8, night ? '#2d3456' : '#5d6b80');
+      rect(g, x, fy + 3, 1, h - 8, night ? '#3d4670' : '#8a9bb3');
       if (night && (x * 7) % 5 < 3) rect(g, x + 1, fy + 5, 2, 3, '#ffcf6b');
     }
     rect(g, 1, fy, w, 2, P.orange);

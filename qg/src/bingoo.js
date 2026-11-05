@@ -55,6 +55,8 @@ async function shareImage(canvas, night, world) {
   return new Promise((res) => c.toBlob(res, 'image/png'));
 }
 
+import { initAide } from './aide.js';
+
 export function bingooUi({ night, world, canvas, play }) {
   const root = document.getElementById('qg');
   const bar = document.createElement('div');
@@ -100,6 +102,7 @@ export function bingooUi({ night, world, canvas, play }) {
     box.querySelector('#bq-copy').onclick = async (e) => { try { await navigator.clipboard.writeText(box.querySelector('#bq-text').value); e.target.textContent = 'Texte copié'; } catch { box.querySelector('#bq-text').select(); } };
     box.querySelector('#bq-close').onclick = () => { box.hidden = true; URL.revokeObjectURL(url); };
   });
+  initAide();
   // la toute première mission : à la fin, un pas vers la suite
   if (new URLSearchParams(location.search).has('premiere')) {
     world()?.on((type) => {

@@ -35,8 +35,24 @@ function tileXY(lat, lon) {
 
 /* ------------------------------------------------------------------ les heures de la journée */
 // Le soir est la lumière du Bureau : ombres violettes, façades dorées par le soleil couchant, premières fenêtres allumées.
-export const TODS = ['jour', 'soir', 'nuit'];
+export const TODS = ['bingoo', 'soir', 'nuit'];
 const PAL = {
+  // Bingoo! : la ville aux couleurs de la marque — papier crème, façades pêche et orange, toits orange et anthracite,
+  // marquages orange au sol, verdure douce, eau claire.
+  bingoo: {
+    hull: '#3a3431', deckWood: '#b07a52', stone: '#e9dfd2',
+    bg: '#efe7dc', pave: '#f6f0e8', paveDot: '#eee6db', curb: '#ffffff', paving: '#efe5d8', pavingDot: '#e6dbcc',
+    asphalt: ['#57504c', '#635b56', '#5a524e', '#544d49', '#504945', '#4c4642', '#48423e', '#453f3b', '#423c39', '#3f3936'],
+    marking: '#F2652A', deck: '#a59a92', parapet: '#fff7ef',
+    grass: '#a8d48a', grassDot: '#9bc97c', grassHi: '#c3e3a6', wood: '#7fbf6a', woodDot: '#73b25f', sand: '#f3d9a8', pitch: '#9fd184', pitchLine: '#ffffff',
+    playground: '#f6c89a', school: '#f3e3d1', railway: '#b9aca2', cemetery: '#94c27f', track: '#E0531F',
+    water: '#8fd0ee', waterDot: '#a6dbf2', ripple: '#d7f0fb', quay: '#efe5d8', pool: '#9fe3f5', pier: '#d9b48e',
+    facades: ['#fff1e6', '#fde3cf', '#f9d2b5', '#ffe9d9', '#ffffff', '#f6e7d8', '#fbd9c0', '#ffd8bf', '#f3e2d2'],
+    roofs: ['#E0531F', '#57504b', '#3a3431', '#d9cfc4', '#F08A5D', '#6b625c', '#c9bdb1'],
+    glass: '#5d6b80', glassHi: '#c9dcef', lit: '#ffd08a', shop: '#e0531f', shopLit: '#ffe2c4', outline: '#3a2a22', seam: '#cdbfb2',
+    leafDeep: '#3f8a4a', leafDark: '#5aa95a', leaf: '#7cc46c', leafHi: '#a8dd8c', trunk: '#8a5a3c',
+    shadowK: 0.84, shadowLen: 2, litRate: 0.02,
+  },
   jour: {
     hull: '#3d4a6b', deckWood: '#a07a52', stone: '#cfc5b3',
     bg: '#2a2735', pave: '#b9b3c2', paveDot: '#b0aab9', curb: '#d6d1de', paving: '#cbc2b4', pavingDot: '#c1b8a9',
