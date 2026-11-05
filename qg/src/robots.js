@@ -9,6 +9,7 @@ export const ROLES = {
   eclaireur: { label: 'Chercheur', color: '#FFC93D' },
   lecteur: { label: 'Enquêteur', color: '#4FB3FF' },
   redacteur: { label: 'Campagnes', color: '#A98BFF' },
+  agent: { label: 'Équipe', color: '#3DDC97' },
 };
 
 /** Taille d'un sprite ; les pieds (le bas du contour) sont au point d'ancrage. */
@@ -27,6 +28,8 @@ export const LOOKS = {
   'lecteur-3': { role: 'lecteur', skin: '#e9b993', hair: '#2a1a14', style: 'long', glasses: true, body: '#7a5236', pants: '#2f2a28' }, // Lina
   'redacteur-1': { role: 'redacteur', skin: '#d9a07a', hair: '#1c1410', style: 'short', beard: '#1c1410', body: '#2c3854', pants: '#24242c' }, // Hugo
   'redacteur-2': { role: 'redacteur', skin: '#f3cba8', hair: '#a8774a', style: 'long', body: '#4a4e5c', pants: '#2c2c35' }, // Inès
+  paul: { role: 'agent', skin: '#c98c64', hair: '#1a1210', style: 'short', beard: '#1a1210', body: '#2e3a5a', pants: '#24242c' }, // Paul
+  oscar: { role: 'agent', skin: '#f0c4a0', hair: '#6a4a30', style: 'short', glasses: true, body: '#5a4636', pants: '#2c2a28' }, // Oscar
 };
 
 function lookOf(id) {
@@ -235,7 +238,7 @@ export function robotSprite(role, pose, dir, frame, eyes = 'open') {
   return c;
 }
 
-const PHOTOS = { chef: 'iris', eclaireur: 'leo', 'lecteur-1': 'sam', 'lecteur-2': 'max', 'lecteur-3': 'lina', 'redacteur-1': 'hugo', 'redacteur-2': 'ines' };
+const PHOTOS = { chef: 'iris', eclaireur: 'leo', 'lecteur-1': 'sam', 'lecteur-2': 'max', 'lecteur-3': 'lina', 'redacteur-1': 'hugo', 'redacteur-2': 'ines', paul: 'paul', oscar: 'oscar' };
 /** Le portrait d'un membre de l'équipe : la même photo que dans « Ton équipe » sur Bingoo!. */
 export function portrait(id) {
   const img = document.createElement('img');

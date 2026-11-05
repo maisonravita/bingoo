@@ -144,7 +144,9 @@ export async function loadCity({ centre, radius = 2200, onProgress, fetchTile, l
 
   let done = 0;
   await Promise.all(tiles.map(async ([tx, ty]) => {
-    const vt = new VectorTile(new Protobuf(new Uint8Array(await get(Z, tx, ty))));
+    let buf;
+    try { buf = await get(Z, tx, ty); } catch { onProgress?.(++done / tiles.length); return; } // une tuile manquante : un coin vide, pas d'échec
+    const vt = new VectorTile(new Protobuf(new Uint8Array(buf)));
     const each = (name, fn) => {
       const L = vt.layers[name];
       if (!L) return;

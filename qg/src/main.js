@@ -14,7 +14,8 @@ import { createCarte } from './carte.js';
 import { createLancement } from './lancement.js';
 import { createCinema, survey } from './cinema.js';
 import { qfetch, prepare } from './api.js';
-import { QgError } from './data.js';
+import { QgError, poll } from './data.js';
+import { bingooUi } from './bingoo.js';
 import { setLogo } from './sprites.js';
 
 const $ = (id) => document.getElementById(id);
@@ -421,8 +422,14 @@ window.__qg = {
   try {
     const logo = new Image(); logo.src = import.meta.env.BASE_URL + 'logo-white.png';
     await logo.decode().then(() => setLogo(logo)).catch(() => {});
-    await prepare();
+    const night = await prepare({ zone: Number(params.get('zone')) || 0, premiere: params.has('premiere') });
     await boot();
+    bingooUi({ night, world: () => world, canvas, play });
+    // le direct : ce que l'équipe fait pendant que la page est ouverte
+    setInterval(async () => {
+      if (document.hidden || !world || mode !== 'ville') return;
+      try { for (const e of await poll()) world.push(e); } catch (err) { console.warn('direct', err); }
+    }, 30000);
   } catch (e) {
     console.error(e);
     $('loading').hidden = true;

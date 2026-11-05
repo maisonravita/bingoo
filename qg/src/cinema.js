@@ -41,12 +41,12 @@ export function createCinema(root, { world, cam, marks, metier, ville, duree, se
     <div class="cn-title" id="cn-title"><span class="cn-kicker">Mission</span><h1>Bingoo<b style="color:#E0531F">!</b> cette nuit</h1><p></p></div>
     <div class="cn-chapter" id="cn-chapter"><b></b><span></span></div>
     <div class="cn-count" id="cn-count">
-      <div data-k="trouves"><b>0</b><span>salles repérées</span></div>
+      <div data-k="trouves"><b>0</b><span>entreprises repérées</span></div>
       <div data-k="retenus"><b>0</b><span>clients potentiels</span></div>
-      <div data-k="prets" class="hot"><b>0</b><span>mails prêts</span></div>
+      <div data-k="prets" class="hot"><b>0</b><span>messages prêts</span></div>
     </div>
     <div class="cn-mail" id="cn-mail"><div class="cm-bar"><i></i><i></i><i></i><span>Nouveau message</span></div><p class="cm-to"></p><p class="cm-obj"></p><p class="cm-body"></p><div class="cm-foot"><span>En attente de ta validation</span><b>Rien ne part sans toi</b></div></div>
-    <div class="cn-end" id="cn-end"><div class="ce-row"><b data-k="trouves">0</b><span>salles repérées</span></div><div class="ce-row hot"><b data-k="prets">0</b><span>mails prêts</span></div><div class="ce-row"><b data-k="duree">0</b><span>secondes</span></div><p>Rien ne part sans toi.</p></div>`;
+    <div class="cn-end" id="cn-end"><div class="ce-row"><b data-k="trouves">0</b><span>entreprises repérées</span></div><div class="ce-row hot"><b data-k="prets">0</b><span>messages prêts</span></div><p>Rien ne part sans toi.</p></div>`;
   const $ = (id) => root.querySelector('#' + id);
   $('cn-title').querySelector('p').textContent = `${ville} · ${metier}`;
 
@@ -172,7 +172,7 @@ export function createCinema(root, { world, cam, marks, metier, ville, duree, se
 
   /* ------------------------------------------------------------------ chaque image */
   let cur = null, prev = null, trans = null, chapterShown = new Set(), lastCount = {}, openFrom = null;
-  const CHAPTERS = { scan: ['1', "L'éclaireur scanne la ville"], departs: ['2', 'Les lecteurs vont voir chaque salle'], writers: ['3', 'Les rédacteurs écrivent les mails'], rush: ['4', 'Tout attend ta validation'] };
+  const CHAPTERS = { scan: ['1', 'Léo repère les entreprises'], departs: ['2', "L'équipe va voir chacune"], writers: ['3', 'Hugo et Inès écrivent les messages'], rush: ['4', 'Tout attend ta validation'] };
   function chapter(kind) {
     if (!CHAPTERS[kind] || chapterShown.has(kind)) return;
     chapterShown.add(kind);
@@ -248,7 +248,6 @@ export function createCinema(root, { world, cam, marks, metier, ville, duree, se
     if (s.kind === 'finale') {
       if (!endEl.classList.contains('on')) {
         endEl.classList.add('on');
-        endEl.querySelector('[data-k="duree"]').textContent = Math.round(duree ?? 39);
         setTod?.('nuit');
       }
       endEl.querySelector('[data-k="trouves"]').textContent = n.trouves;

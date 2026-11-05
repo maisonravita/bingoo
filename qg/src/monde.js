@@ -13,6 +13,8 @@ export const TEAM = {
   'lecteur-3': { name: 'Lina', role: 'lecteur', label: 'réseaux professionnels' },
   'redacteur-1': { name: 'Hugo', role: 'redacteur', label: 'campagnes' },
   'redacteur-2': { name: 'Inès', role: 'redacteur', label: 'relation prospects' },
+  paul: { name: 'Paul', role: 'agent', label: 'assistant commercial' },
+  oscar: { name: 'Oscar', role: 'agent', label: 'veilleur marché' },
 };
 
 const ease = (t) => (t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t));
@@ -114,7 +116,7 @@ export class Monde {
     this.fx = [];
     const q = this.qg;
     const spot = (k) => [q.x + k * 4.8, q.door[1] + 11 + Math.abs(k) * 0.5];
-    const homes = { chef: spot(0), 'redacteur-1': spot(-1.6), 'redacteur-2': spot(1.6), 'lecteur-1': spot(-3), 'lecteur-2': spot(3), 'lecteur-3': spot(-4.4), eclaireur: [q.pad[0], q.pad[1]] };
+    const homes = { chef: spot(0), 'redacteur-1': spot(-1.6), 'redacteur-2': spot(1.6), 'lecteur-1': spot(-3), 'lecteur-2': spot(3), 'lecteur-3': spot(-4.4), paul: spot(4.4), oscar: spot(-5.8), eclaireur: [q.pad[0], q.pad[1]] };
     for (const id of Object.keys(TEAM)) {
       const [x, y] = homes[id];
       const a = new Actor(id, x, y);
@@ -290,6 +292,30 @@ export class Monde {
           this.later(0.9, () => { this.teamSent = true; this.emit('team', null); });
         });
       }
+      return;
+    }
+    // Bingoo! : une visite (réponse lue, invitation LinkedIn, relance, rendez-vous, opportunité, concurrent).
+    // L'agent va sur place, note ce qu'il fait dans la fiche, change le repère et le dit.
+    if (e.type === 'visit' && q) {
+      a.do({ t: 'until', fn: () => q.revealed && this.teamSent });
+      if (a.inside && a.inside !== q.id) a.do({ t: 'exit' });
+      a.do({ t: 'call', fn: () => { a.status = d.statut ?? `Va chez ${q.name}`; a.target = q.id; W.emit('go', { a, q }); } },
+        { t: 'go', to: [q.x, q.y], target: q.id },
+        { t: 'wait', ms: 120, dir: q.face },
+        { t: 'enter', place: q.id },
+        { t: 'call', fn: () => { for (const s of d.journal ?? []) (q.journal ??= []).push(s); Object.assign(q, d.patch ?? {}); W.emit('step', { a, q, texte: (d.journal ?? [])[0] ?? '' }); } },
+        { t: 'wait', ms: 700 },
+        { t: 'exit', place: q.id },
+        { t: 'call', fn: () => {
+          if (d.etat) W.setState(q, d.etat);
+          q.read = true; q.doneAt = W.time;
+          if (d.bulle) a.say(d.bulle, 1900, d.ton ?? 'good', d.prio ?? 1);
+          if (d.ton !== 'bad') a.cheerUntil = W.time + 0.8;
+          a.status = d.fait ?? a.status;
+          a.target = null;
+          W.emit('visited', { a, q, d });
+        } },
+        { t: 'wait', ms: 800, dir: 'down' });
       return;
     }
     if (a.role === 'lecteur' && q) {

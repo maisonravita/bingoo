@@ -91,6 +91,13 @@ const BADGE = {
   valide: { bg: '#3DDC97', ink: '#06261a', glyph: 'check' },
   refuse: { bg: '#8a8598', ink: '#2a2733', glyph: 'x' },
   saute: { bg: '#4a4558', ink: '#c9c3d6', glyph: 'pause' },
+  // Bingoo! : opportunité du Radar, concurrent (Espion), réponse reçue, rendez-vous, LinkedIn, e-mail envoyé
+  opp: { bg: '#FFC93D', ink: '#3a2600', glyph: 'star' },
+  rival: { bg: '#E5484D', ink: '#ffffff', glyph: 'flag' },
+  repondu: { bg: '#3DDC97', ink: '#06261a', glyph: 'mail' },
+  rdv: { bg: '#A98BFF', ink: '#1a1033', glyph: 'check' },
+  li: { bg: '#0A66C2', ink: '#ffffff', glyph: 'in' },
+  envoye: { bg: '#4FB3FF', ink: '#0b1830', glyph: 'mail' },
 };
 export function badgeSprite(state, frame = 0) {
   const b = BADGE[state] ?? BADGE.trouve;
@@ -117,6 +124,9 @@ export function badgeSprite(state, frame = 0) {
       case 'check': for (const [x, y] of [[3, 6], [4, 7], [5, 8], [6, 7], [7, 6], [8, 5], [9, 4]]) { px(g, x, y, ink); px(g, x, y + 1, ink); } break;
       case 'mail': rect(g, 3, 4, 8, 6, '#fff7ef'); for (let i = 0; i < 4; i++) { px(g, 3 + i, 4 + i, ink); px(g, 10 - i, 4 + i, ink); } rect(g, 3, 9, 8, 1, darken('#fff7ef', 0.2)); break;
       case 'pause': rect(g, cx - 3, 4, 2, 6, ink); rect(g, cx + 1, 4, 2, 6, ink); break;
+      case 'star': for (const [x, y, w] of [[6, 3, 2], [5, 5, 4], [3, 6, 8], [4, 7, 6], [5, 8, 4], [4, 9, 2], [8, 9, 2]]) rect(g, x, y, w, 1, ink); break;
+      case 'flag': rect(g, 4, 3, 1, 7, ink); rect(g, 5, 3, 5, 4, ink); rect(g, 6, 4, 3, 2, '#ffd0d2'); break;
+      case 'in': rect(g, 3, 6, 2, 4, ink); rect(g, 3, 3, 2, 2, ink); rect(g, 6, 6, 2, 4, ink); rect(g, 8, 6, 2, 1, ink); rect(g, 9, 7, 2, 3, ink); break;
       case 'pen': for (let i = 0; i < 6; i++) { rect(g, 3 + i, 9 - i, 2, 1, '#ffd166'); } px(g, 3, 10, ink); px(g, 9, 3, '#ff8fb1'); px(g, 10, 3, '#ff8fb1'); break;
     }
     outline(c, '#15121d');
@@ -126,17 +136,16 @@ export function badgeSprite(state, frame = 0) {
 }
 
 /** Le petit écriteau du commerce (son métier), posé sur le trottoir devant la porte. */
-export function signSprite(kind = 'sport') {
+export function signSprite(kind = 'prospect') {
   return memo(`sign|${kind}`, () => {
     const c = makeCanvas(13, 14);
     const g = g2d(c);
     rect(g, 6, 8, 1, 5, '#3a3547');
-    rect(g, 1, 1, 11, 8, '#1d1a26');
-    rect(g, 2, 2, 9, 6, '#2b2838');
-    // une mallette (une entreprise)
-    rect(g, 5, 3, 3, 1, '#e8e5f1');
-    rect(g, 3, 4, 7, 4, '#E0531F'); rect(g, 3, 5, 7, 1, '#f08a5d');
-    rect(g, 6, 5, 1, 2, '#fff7ef');
+    rect(g, 1, 1, 11, 8, kind === 'rival' ? '#3a1518' : kind === 'opp' ? '#3a2c0c' : '#1d1a26');
+    rect(g, 2, 2, 9, 6, kind === 'rival' ? '#5a1d22' : kind === 'opp' ? '#5a4410' : '#2b2838');
+    if (kind === 'opp') { for (const [x, y, w] of [[6, 3, 1], [5, 4, 3], [3, 5, 7], [4, 6, 5], [4, 7, 2], [7, 7, 2]]) rect(g, x, y, w, 1, '#FFC93D'); }
+    else if (kind === 'rival') { rect(g, 4, 3, 1, 5, '#e8e5f1'); rect(g, 5, 3, 4, 3, '#E5484D'); }
+    else { rect(g, 5, 3, 3, 1, '#e8e5f1'); rect(g, 3, 4, 7, 4, '#E0531F'); rect(g, 3, 5, 7, 1, '#f08a5d'); rect(g, 6, 5, 1, 2, '#fff7ef'); } // une mallette (une entreprise)
     rect(g, 4, 12, 5, 1, '#15121d');
     outline(c, '#15121d');
     return { c, ax: 6, ay: 12 };

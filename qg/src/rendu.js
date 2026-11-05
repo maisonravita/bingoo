@@ -215,13 +215,13 @@ function drawQG(g, world, scr, z, tod, S) {
 function drawPlace(g, world, q, scr, S, t) {
   const [sx, sy] = scr(q.x, q.y);
   const age = t - q.stateAt;
-  const sign = signSprite();
+  const sign = signSprite(q.data?.kind ?? 'prospect');
   drawSprite(g, sign.c, sx, sy, sign.ax, sign.ay, S);
   const b = badgeSprite(q.state, Math.floor(t * 6));
   // la bulle saute quand elle change d'état, et le « ! » rebondit
   let lift = 15;
   const pop = age < 0.3 ? Math.sin((age / 0.3) * Math.PI) * 5 : 0;
-  if (q.state === 'retenu' || q.state === 'pret') lift += Math.abs(Math.sin(t * 3.2)) * 2.5;
+  if (['retenu', 'pret', 'opp', 'repondu', 'rdv'].includes(q.state)) lift += Math.abs(Math.sin(t * 3.2)) * 2.5;
   const scale = age < 0.18 ? 0.4 + (age / 0.18) * 0.75 : age < 0.3 ? 1.15 - ((age - 0.18) / 0.12) * 0.15 : 1;
   const small = b.small ? 0.8 : 1;
   const Sx = S * scale * small;

@@ -29,7 +29,13 @@ console.log(jobs.length, "tuiles");
 const rr = Math.round(R * 1.05), dLa = rr / 110540, dLo = rr / (Math.cos(lat * Math.PI / 180) * 111320);
 const bbox = [lat - dLa, lon - dLo, lat + dLa, lon + dLo].map((v) => v.toFixed(4)).join(",");
 const ask = async (q) => { for (const u of ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]) { try { const r = await fetch(u, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "bingoo-qg-maquette/0.1" }, body: "data=" + encodeURIComponent(q), signal: AbortSignal.timeout(240000) }); if (r.ok) return await r.json(); console.log(u, r.status); } catch (e) { console.log(u, e.message); } } throw new Error("overpass"); };
-const bat = await ask(`[out:json][timeout:200][bbox:${bbox}];way["building"];out tags geom qt;`);
+const bat = { elements: [] };
+for (const [a, b] of [[-1, -1], [-1, 0], [0, -1], [0, 0]]) {
+  const q = [lat + a * dLa, lon + b * dLo, lat + (a + 1) * dLa, lon + (b + 1) * dLo].map((v) => v.toFixed(4)).join(",");
+  const r2 = await ask(`[out:json][timeout:90][bbox:${q}];way["building"];out tags geom qt;`);
+  const ids = new Set(bat.elements.map((e) => e.id));
+  for (const e of r2.elements ?? []) if (!ids.has(e.id)) bat.elements.push(e);
+}
 const arb = await ask(`[out:json][timeout:120][bbox:${bbox}];node["natural"="tree"];out qt;`);
 const flat = (g) => g.flatMap((p) => [Math.round(p.lon * 1e7) / 1e7, Math.round(p.lat * 1e7) / 1e7]);
 const haut = (t) => { const h = parseFloat(String(t.height ?? "").replace(",", ".")); if (h > 0) return Math.min(h, 200); const n = parseFloat(t["building:levels"]); return n > 0 ? Math.min(n * 3.2 + (parseFloat(t["roof:levels"]) || 0) * 2 + 1.5, 200) : 0; };

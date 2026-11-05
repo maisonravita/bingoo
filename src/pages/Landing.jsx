@@ -757,6 +757,20 @@ export default function Landing() {
 
         <Layers />
 
+        <section className="px-5 sm:px-10 lg:px-20 py-20 sm:py-28 border-t border-black/[.07]">
+          <div className="mx-auto max-w-[1100px] grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-10 items-center">
+            <div className="min-w-0">
+              <h2 className="text-[36px] sm:text-[50px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Regarde ton équipe travailler dans ta ville</h2>
+              <p className="mt-6 text-[17px] sm:text-[19px] leading-[1.5] text-ink">Chaque matin, Bingoo! te rejoue sa nuit dans les vraies rues de ta ville : les entreprises repérées, les contacts trouvés, les messages prêts, les réponses, les opportunités du Radar et les concurrents surveillés.</p>
+              <p className="mt-4 text-[15px] text-ink-soft">Tu cliques une entreprise pour voir pourquoi elle est là et ce que l'équipe a fait. Rien ne part sans toi.</p>
+            </div>
+            <figure className="min-w-0">
+              <video src="./demo-equipe.mp4" poster="./demo-equipe.jpg" controls muted playsInline preload="none" className="w-full rounded-xl border border-black/10 bg-[#0b0910]" aria-label="Démonstration : une nuit de l'équipe Bingoo! rejouée dans Paris" />
+              <figcaption className="mt-2 text-[13.5px] text-ink-soft">Démonstration avec des données d'exemple, dans les vraies rues de Paris. Carte © contributeurs OpenStreetMap.</figcaption>
+            </figure>
+          </div>
+        </section>
+
         <section className="px-5 sm:px-10 lg:px-20 py-20 sm:py-28 border-t border-black/[.07]"><div id="essai" className="mx-auto max-w-[1300px] scroll-mt-24"><TryIt t={tryState} /></div></section>
 
         {/* Pour qui */}

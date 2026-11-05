@@ -18,6 +18,27 @@ async function secret(name: string) {
 }
 
 const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promise<unknown>> = {
+  // « Ton équipe cette nuit » : une ville construite par un client (OpenStreetMap), vérifiée puis gardée pour tous
+  async "qg-ville"(req, b) {
+    await requireMember(req, b.workspace_id);
+    const key = String(b.key ?? "");
+    if (!/^v1_-?\d{1,3}\.\d{2}_-?\d{1,3}\.\d{2}_\d{3,4}$/.test(key)) throw new HttpError(400, "Clé de ville invalide");
+    const gz = Uint8Array.from(atob(String(b.gz ?? "")), (c) => c.charCodeAt(0));
+    if (gz.length < 100 || gz.length > 12_000_000) throw new HttpError(400, "Ville trop grande");
+    const path = `${key}.json.gz`;
+    const { data: had } = await admin.storage.from("qg-villes").list("", { search: path, limit: 1 });
+    if (had?.some((f) => f.name === path)) return { ok: true, deja: true };
+    const text = await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
+    const v = JSON.parse(text);
+    const num = (x: unknown) => typeof x === "number" && Number.isFinite(x);
+    const okB = Array.isArray(v?.batiments) && v.batiments.length <= 200_000 && v.batiments.every((x: { id?: unknown; h?: unknown; rings?: unknown }) =>
+      typeof x?.id === "string" && num(x.h) && Array.isArray(x.rings) && (x.rings as unknown[]).every((r) => Array.isArray(r) && (r as unknown[]).length <= 4000 && (r as unknown[]).every(num)));
+    const okA = Array.isArray(v?.arbres) && v.arbres.length <= 200_000 && v.arbres.every((t: unknown) => Array.isArray(t) && t.length === 2 && t.every(num));
+    if (!okB || !okA) throw new HttpError(400, "Ville illisible");
+    const { error } = await admin.storage.from("qg-villes").upload(path, gz, { contentType: "application/gzip", upsert: false });
+    if (error && !/exists/i.test(error.message)) throw new HttpError(500, error.message);
+    return { ok: true };
+  },
   async step(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const { data: m } = await admin.from("missions").select("*").eq("id", String(b.mission_id ?? "")).eq("workspace_id", ws.id).single();

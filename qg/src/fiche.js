@@ -2,13 +2,16 @@
 // (qu'on peut corriger, valider ou refuser : rien ne part sans toi) et sa fiche Google Maps.
 import { badgeSprite } from './sprites.js';
 import { qfetch } from './api.js';
+import { fn, supabase } from '../../src/lib/supabase.js';
 
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const host = (url) => { try { return new URL(url).host.replace(/^www\./, ''); } catch { return ''; } };
 const STATE = {
   trouve: 'Repéré, pas encore lu', lecture: 'En lecture…', retenu: 'Client potentiel', ecarte: 'À compléter : pas encore d’e-mail vérifié', ecriture: 'Mail en cours…',
-  pret: 'Message prêt · en attente de ta validation', valide: 'Validé', refuse: 'Refusé', saute: 'Pas lu : l’objectif de mails était atteint',
+  pret: 'Message prêt · en attente de ta validation', valide: 'Envoyé', refuse: 'Refusé', saute: 'Pas lu : l’objectif de mails était atteint',
+  opp: 'Opportunité du Radar', rival: 'Concurrent surveillé (Espion)', repondu: 'A répondu', rdv: 'Rendez-vous à venir', li: 'LinkedIn en cours', envoye: 'E-mail envoyé',
 };
+const LINKS = { opp: ['/#/radar', 'Voir dans le Radar'], rival: ['/#/espion', 'Voir dans Concurrents'], repondu: ['/#/reponses', 'Lire et répondre'], rdv: ['/#/agenda', 'Ouvrir l’agenda'], li: ['/#/linkedin', 'Voir LinkedIn'] };
 
 const TYPES = {
   restaurant: 'Restaurant', cafe: 'Café', bar: 'Bar', pub: 'Bar', fast_food: 'Restauration rapide', bakery: 'Boulangerie', hairdresser: 'Coiffeur',
@@ -57,6 +60,39 @@ export function createFiche(root, { getRunId, onClose }) {
     if (!b || !cur) return;
     const act = b.dataset.act;
     if (act === 'close') return close();
+    const d = cur.data ?? {};
+    if (act === 'save' || act === 'send-ask' || act === 'send') {
+      const id = d.message_id;
+      const objet = root.querySelector('.f-obj')?.value ?? '', mail = root.querySelector('.f-body')?.value ?? '';
+      const note = root.querySelector('.f-act-note');
+      b.disabled = true;
+      try {
+        if (act === 'send-ask') { root.querySelector('.f-confirm').hidden = false; return; }
+        if (objet !== cur.objet || mail !== cur.mail) {
+          const { error } = await supabase.from('messages').update({ subject: objet, body: mail }).eq('id', id).eq('status', 'brouillon');
+          if (error) throw new Error(error.message);
+          cur.objet = objet; cur.mail = mail;
+        }
+        if (act === 'save') { note.textContent = 'Modifications enregistrées.'; return; }
+        const r = await fn('m/send', { workspace_id: d.ws_id, message_id: id });
+        if (r.skipped) { note.textContent = `Non envoyé : ${r.skipped}`; return; }
+        cur.state = 'valide'; cur.stateAt = cur.stateAt ?? 0; render();
+        root.querySelector('.f-act-note').textContent = `Envoyé à ${cur.to ?? ''}.`;
+      } catch (err) { if (note) note.textContent = err.message; } finally { b.disabled = false; }
+      return;
+    }
+    if (act === 'send-cancel') { root.querySelector('.f-confirm').hidden = true; return; }
+    if (act === 'enrich') {
+      const note = root.querySelector('.f-act-note');
+      b.disabled = true; b.textContent = 'Sam cherche…';
+      try {
+        const r = await fn('m/enrich', { workspace_id: d.ws_id, count: 1, ids: [d.prospect_id] });
+        const { data: p } = await supabase.from('prospects').select('email, phone, contact_name, contact_role').eq('id', d.prospect_id).single();
+        if (p?.email) { cur.email = p.email; cur.state = 'retenu'; (cur.journal ??= []).push(`E-mail vérifié : ${p.email}`); render(); root.querySelector('.f-act-note').textContent = 'Sam a trouvé un e-mail vérifié.'; }
+        else { (cur.journal ??= []).push('Recherche faite : pas d’e-mail vérifiable pour l’instant'); render(); root.querySelector('.f-act-note').textContent = r?.done ? 'Sam n’a pas trouvé d’e-mail vérifiable pour l’instant.' : 'Cette entreprise a déjà été recherchée.'; }
+      } catch (err) { note.textContent = err.message; b.disabled = false; b.textContent = 'Chercher son e-mail'; }
+      return;
+    }
     if (act === 'valide' || act === 'refuse') {
       const run = getRunId();
       const objet = root.querySelector('.f-obj')?.value, mail = root.querySelector('.f-body')?.value;
@@ -99,6 +135,9 @@ export function createFiche(root, { getRunId, onClose }) {
         <button type="button" class="f-x" data-act="close" aria-label="Fermer">×</button>
       </div>
       <div class="f-state" data-s="${esc(q.state)}"><span>${esc(STATE[q.state] ?? '')}</span>${q.score != null ? `<b>${q.score}<i>/100</i></b>` : ''}</div>
+      ${q.score != null && q.raisons?.length ? `<details class="f-prio"><summary>Pourquoi cette priorité ?</summary><ul>${q.raisons.map((r) => `<li><b>${r.pts > 0 ? '+' : ''}${r.pts}</b> ${esc(r.texte)}</li>`).join('')}</ul><p>Départ à 30 points. Une règle simple, la même pour tous tes prospects.</p></details>` : ''}
+      ${q.reponse ? `<section><h3>Sa réponse</h3><p class="f-quote">${esc(q.reponse.resume || 'Réponse reçue')}</p></section>` : ''}
+      ${q.opp ? `<section><h3>L’opportunité</h3><p class="f-quote">${esc(q.opp.titre ?? '')}</p>${q.opp.url ? `<p><a href="${esc(q.opp.url)}" target="_blank" rel="noopener">Voir la source</a></p>` : ''}</section>` : ''}
       ${lu ? `<section><h3>${q.signals?.bingoo ? 'Pourquoi lui, maintenant' : 'Ce qui lui manque'}</h3>
         ${manque.length ? `<ul class="f-list">${manque.map(([, t]) => `<li class="${q.signals?.bingoo ? 'ok hot' : 'no'}"><i></i>${esc(t)}</li>`).join('')}</ul>` : ''}
         ${deja.length ? `<h4>${q.signals?.bingoo ? 'Ce que l’équipe a relevé' : 'Ce qu’il a déjà'}</h4><ul class="f-list">${deja.map(([, t]) => `<li class="ok"><i></i>${esc(t)}</li>`).join('')}</ul>` : ''}
@@ -110,13 +149,16 @@ export function createFiche(root, { getRunId, onClose }) {
         <dt>Téléphone</dt><dd>${phones.length ? phones.map(esc).join('<br>') : '<em>aucun</em>'}</dd>
         ${d.horaires ? `<dt>Horaires</dt><dd>${esc(d.horaires)}</dd>` : ''}
       </dl>
-      <div class="f-links"><a class="f-btn" href="/#/prospects">Ouvrir dans Bingoo!</a><a class="f-btn ghost" data-g href="#" target="_blank" rel="noopener">Google Maps</a></div></section>
+      <div class="f-links">${LINKS[q.state] ? `<a class="f-btn" href="${LINKS[q.state][0]}">${LINKS[q.state][1]}</a>` : (d.kind ?? 'prospect') === 'prospect' ? '<a class="f-btn" href="/#/prospects">Ouvrir dans Bingoo!</a>' : ''}${!email && (d.kind ?? 'prospect') === 'prospect' && d.prospect_id && lu ? '<button type="button" class="f-btn" data-act="enrich">Chercher son e-mail</button>' : ''}<a class="f-btn ghost" data-g href="#" target="_blank" rel="noopener">Google Maps</a></div></section>
       ${q.mail ? `<section class="f-mail"><h3>Le message préparé</h3>
-        <label>Objet</label><input class="f-obj" readonly value="${esc(q.objet ?? '')}">
-        <label>Message</label><textarea class="f-body" rows="9" readonly>${esc(q.mail)}</textarea>
+        <label>Objet</label><input class="f-obj" ${q.state === 'pret' && d.message_id ? '' : 'readonly'} value="${esc(q.objet ?? '')}">
+        <label>Message</label><textarea class="f-body" rows="9" ${q.state === 'pret' && d.message_id ? '' : 'readonly'}>${esc(q.mail)}</textarea>
         <p class="f-to">À : ${esc(q.to ?? email ?? '')}</p>
-        ${q.state === 'pret' ? '<div class="f-dec"><a class="f-btn" href="/#/valider">Valider dans Bingoo!</a></div><p class="f-note">Rien ne part sans toi.</p>' : ''}
+        ${q.state === 'pret' && d.message_id ? `<div class="f-dec"><button type="button" class="f-btn" data-act="send-ask">Envoyer</button><button type="button" class="f-btn ghost" data-act="save">Enregistrer</button></div>
+        <div class="f-confirm" hidden><p>Envoyer ce message maintenant à ${esc(q.to ?? email ?? '')} ?</p><div class="f-dec"><button type="button" class="f-btn" data-act="send">Oui, envoyer</button><button type="button" class="f-btn ghost" data-act="send-cancel">Annuler</button></div></div>
+        <p class="f-note">Rien ne part sans toi.</p>` : q.state === 'pret' ? '<div class="f-dec"><a class="f-btn" href="/#/valider">Valider dans Bingoo!</a></div>' : ''}
       </section>` : ''}
+      <p class="f-act-note" role="status"></p>
       ${q.journal?.length ? `<section><h3>Ce que l’équipe a fait</h3><ol class="f-log">${q.journal.map((t) => `<li>${esc(t)}</li>`).join('')}</ol></section>` : ''}`;
     root.querySelector('.f-ic').append(icon(q.state));
     const g = root.querySelector('[data-g]');

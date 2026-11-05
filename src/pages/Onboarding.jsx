@@ -90,6 +90,8 @@ export default function Onboarding() {
       fn("r/radar-scan", { workspace_id: ws.id, web: false }).catch(() => {});
       toast(`${r.inserted} prospects trouvés`, "good");
       await reload();
+      // Le premier « waouh » : l'équipe part dans la ville du client et lui montre ses premières entreprises
+      if (r.inserted > 0) window.location.href = "/qg/?premiere=1";
     } catch (e) { toast(e.message, "bad"); setStep(1); } finally { setBusy(false); }
   };
 
