@@ -435,6 +435,14 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { draft } = await import("../_shared/agents.ts");
     return await draft(ws, p);
   },
+  // Test interne : ce que Bingoo! comprend d'un site ou d'une description (aucun espace modifié)
+  async "analyze-test"(req, b) {
+    await cron(req);
+    const { analyze, normalizeUrl, readSite } = await import("../_shared/analyze.ts");
+    const site = b.url ? await readSite(normalizeUrl(String(b.url))) : "";
+    const r = await analyze(site as string, String(b.description ?? ""));
+    return { profil: r.profile, cibles: r.targets.map((x) => ({ label: x.label, confiance: x.confiance, moment: x.moment, interlocuteur: x.interlocuteur, total: x.total })) };
+  },
   async "alt-test"(req, b) {
     await cron(req);
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
