@@ -19,8 +19,9 @@ async function setFit(ws: Workspace, r: Row, fit: "oui" | "non" | "doute", reaso
 /** Relit jusqu'à `max` fiches pas encore vérifiées de l'espace. dry = rien n'est enregistré. */
 export async function fitCheck(ws: Workspace, opts: { max?: number; dry?: boolean } = {}) {
   const max = Math.min(opts.max ?? 60, 200);
-  const { data } = await admin.from("prospects").select("id, name, org, siren, activity, website, city, target, status, source")
+  const { data, error } = await admin.from("prospects").select("id, name, org, siren, activity, website, city, target, status, source")
     .eq("workspace_id", ws.id).eq("fit", "").in("status", OPEN).order("score", { ascending: false, nullsFirst: false }).limit(max);
+  if (error) throw new Error(`fit : ${error.message}`);
   const rows = (data ?? []) as Row[];
   if (!rows.length) return { relues: 0, hors_cible: 0, doutes: 0, detail: [] as { nom: string; fit: string; raison: string }[] };
   const targets = new Map((ws.targets ?? []).map((t) => [t.id, t]));
