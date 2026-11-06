@@ -147,13 +147,16 @@ Produis :
    - interlocuteur : la fonction à qui écrire (ex. « Directeur d'établissement », « Office manager »)
    - pour_qui : les bénéficiaires finaux, comme on en parle dans un e-mail (ex. « vos résidents », « vos collaborateurs », « vos clients »)
    - angle : l'argument principal pour cette cible, en une phrase
+   - confiance : "forte" si le site ou la description cite clairement ce type de client, "moyenne" si c'est très probable vu l'offre, "a_tester" si c'est une piste plausible que seul un test dira
+   - moment : le moment où ce type de client a le plus besoin de l'offre (ex. « quand il recrute ses premiers commerciaux », « juste après sa création », « quand il ouvre un deuxième site »), une phrase
+Classe les cibles de la plus sûre à la plus incertaine. Si le dirigeant ne cite aucun client précis (cas fréquent des startups et des SaaS), propose quand même 4 à 6 cibles concrètes et variées, dont au moins 2 « a_tester » : Bingoo! les testera en parallèle et gardera celles qui répondent.
 Ne vise pas les particuliers. Ne choisis que des cibles qui ont un vrai besoin de cette offre.
 Si l'entreprise vend un logiciel, un SaaS, une application ou un service à distance : ses clients sont des entreprises (pas des établissements locaux). Choisis alors les secteurs d'activité de ses clients (codes NAF de ces secteurs, pas celui de l'éditeur), des tranches d'effectif cohérentes avec son prix et sa cible, siege_only = true, l'interlocuteur qui achète ce type d'outil (ex. « Directeur commercial », « DAF », « Responsable RH », « Gérant »), et une zone vide (toute la France) sauf si le site indique une limite géographique.
 
 Format :
 {"profil": {"nom": "", "resume": "", "offre": "", "clients_types": "", "preuves": [], "differenciation": "", "ville": "", "ton": "", "type": "services", "vend_public": false},
  "zone": ["75"],
- "cibles": [{"label": "", "pourquoi": "", "naf": ["00.00X"], "tranches": [], "siege_only": false, "interlocuteur": "", "pour_qui": "", "angle": ""}]}`, { maxTokens: 4000 });
+ "cibles": [{"label": "", "pourquoi": "", "naf": ["00.00X"], "tranches": [], "siege_only": false, "interlocuteur": "", "pour_qui": "", "angle": "", "confiance": "forte", "moment": ""}]}`, { maxTokens: 4000 });
 
   const zone = (Array.isArray(a.zone) ? a.zone : []).map((d) => String(d).toUpperCase().trim()).filter((d) => /^(\d{2}|2A|2B|97\d)$/.test(d)).slice(0, 20);
   const cibles = (Array.isArray(a.cibles) ? a.cibles : []).slice(0, 6).map((c, i) => ({
@@ -166,6 +169,8 @@ Format :
     interlocuteur: String(c.interlocuteur ?? "").slice(0, 80),
     pour_qui: String(c.pour_qui ?? "").slice(0, 80),
     angle: String(c.angle ?? "").slice(0, 300),
+    confiance: ["forte", "moyenne", "a_tester"].includes(String((c as { confiance?: string }).confiance)) ? String((c as { confiance?: string }).confiance) : "moyenne",
+    moment: String((c as { moment?: string }).moment ?? "").slice(0, 200),
     actif: true,
     next_page: 1,
   })).filter((c) => c.label && c.naf.length);

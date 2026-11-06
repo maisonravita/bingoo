@@ -87,6 +87,7 @@ export type Profile = {
 export type Target = {
   id: string; label: string; pourquoi?: string; naf: string[]; tranches?: string[]; siege_only?: boolean;
   interlocuteur?: string; angle?: string; pour_qui?: string; actif?: boolean; total?: number; next_page?: number | null;
+  confiance?: "forte" | "moyenne" | "a_tester"; moment?: string;
 };
 export type Prospect = {
   id: string; workspace_id: string; target: string; name: string; org: string; siren: string | null; siret: string | null;

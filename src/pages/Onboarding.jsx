@@ -122,7 +122,7 @@ export default function Onboarding() {
           <div className="rise rounded-3xl bg-white border border-line shadow-[0_24px_60px_-34px_rgba(21,22,26,.35)] p-6 sm:p-9">
             <span className="inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-dark px-3 py-1 text-[12.5px] font-bold">Bienvenue sur Bingoo!</span>
             <h1 className={cx(H, "mt-4 text-[34px] sm:text-[44px]")} style={HFONT}>Commençons par ton site.</h1>
-            <p className="text-ink-soft mt-3 text-[17px]">Je le lis, je comprends ce que tu vends, puis je te montre qui en a besoin, près de chez toi.</p>
+            <p className="text-ink-soft mt-3 text-[17px]">Je le lis, je comprends ce que tu vends, puis je te montre qui en a besoin. Tu ne sais pas encore qui sont tes clients ? C'est mon travail : je te propose plusieurs pistes et je garde celles qui répondent.</p>
             {busy ? <Thinking site={site} /> : (<>
               <div className="mt-7 grid grid-cols-2 rounded-full bg-paper border border-line p-1 max-w-sm" role="tablist">
                 {[[false, "J'ai un site"], [true, "Pas de site"]].map(([v, l]) => (
@@ -143,14 +143,14 @@ export default function Onboarding() {
                 ) : (<>
                   <label className="block">
                     <span className="block text-[13px] font-semibold mb-1.5">Décris ton activité en quelques phrases</span>
-                    <Textarea autoFocus rows={4} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Ex. Entreprise de nettoyage de bureaux à Lyon, 25 salariés. Nous travaillons pour des PME et des copropriétés, avec des équipes formées et un contrôle qualité chaque semaine." />
-                    <span className="block text-xs text-ink-soft mt-1.5">Ce que tu vends, à qui, où tu interviens, ce qui te distingue.</span>
+                    <Textarea autoFocus rows={4} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Ex. Une application qui automatise les notes de frais : photo du ticket, catégorie, export comptable. Pour l'instant quelques utilisateurs, je ne sais pas encore quel type d'entreprise viser." />
+                    <span className="block text-xs text-ink-soft mt-1.5">Ce que tu vends et le problème que ça règle. Si tu ne sais pas à qui le vendre, dis-le simplement.</span>
                   </label>
                   <button type="submit" className="w-full sm:w-auto rounded-2xl bg-accent text-white px-7 py-4 text-[16px] font-bold hover:bg-accent-dark active:scale-[0.98] transition">Analyser mon activité →</button>
                 </>)}
               </form>
               <div className="mt-8 pt-6 border-t border-line grid sm:grid-cols-3 gap-4">
-                {[["Je lis ton site", "Ton offre, tes clients, ta zone."], ["Je cible", "Les entreprises qui ont besoin de toi."], ["Je compte", "Combien existent près de chez toi."]].map(([t, d], k) => (
+                {[["Je lis ton site", "Ton offre, le problème que tu règles."], ["Je trouve ton public", "Les types d'entreprises qui en ont besoin, et quand."], ["Je compte", "Combien existent, et je teste les pistes."]].map(([t, d], k) => (
                   <div key={t} className="flex gap-3">
                     <span className="h-7 w-7 rounded-full bg-ink text-white grid place-items-center text-[12px] font-black shrink-0" style={HFONT}>{k + 1}</span>
                     <span><span className="block text-[14px] font-bold">{t}</span><span className="block text-[13px] text-ink-soft">{d}</span></span>
@@ -171,10 +171,13 @@ export default function Onboarding() {
             <div>
               <p className="text-[15px] font-semibold">Je vais chercher pour toi</p>
               <div className="mt-2 flex flex-wrap gap-2">
-                {active.map((t) => <span key={t.id} className="rounded-full bg-paper border border-line px-3 py-1.5 text-[14px]">{t.label}</span>)}
+                {active.map((t) => <span key={t.id} className="rounded-full bg-paper border border-line px-3 py-1.5 text-[14px]">{t.label}{t.confiance === "a_tester" ? " · à tester" : ""}</span>)}
                 <span className="rounded-full bg-paper border border-line px-3 py-1.5 text-[14px] text-ink-soft">{zoneLabel(draft.zone)}</span>
               </div>
             </div>
+            {active.some((t) => t.confiance === "a_tester") && (
+              <p className="rounded-2xl bg-accent-soft/50 border border-accent/20 px-4 py-3 text-[14.5px]">Tu n'as pas besoin de savoir qui viser : je contacte un petit nombre d'entreprises de chaque piste, puis je garde celles qui répondent. Tu verras chaque semaine laquelle marche le mieux.</p>
+            )}
             <details className="rounded-2xl border border-line group">
               <summary className="cursor-pointer list-none px-5 py-3.5 text-[15px] flex items-center justify-between">Corriger mon offre, mes cibles ou ma zone<span className="text-ink-soft group-open:rotate-90 transition">›</span></summary>
               <div className="px-5 pb-5 space-y-8">
@@ -215,6 +218,8 @@ export default function Onboarding() {
                         <span className="text-sm text-ink-soft tnum">{busy ? "…" : `${fmtN(t.total)} trouvables`}</span>
                       </span>
                       <span className="block text-sm text-ink-soft mt-1">{t.pourquoi}</span>
+                      {t.moment && <span className="block text-xs text-ink-soft mt-1">Le bon moment : {t.moment}</span>}
+                      {t.confiance === "a_tester" && <span className="inline-block mt-1.5 rounded-full bg-accent-soft text-accent-dark px-2 py-0.5 text-[11.5px] font-semibold">Piste à tester</span>}
                       {t.interlocuteur && <span className="block text-xs text-ink-faint mt-1.5">J'écrirai à : {t.interlocuteur}</span>}
                     </span>
                   </button>

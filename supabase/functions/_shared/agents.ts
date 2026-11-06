@@ -217,7 +217,8 @@ export async function writeDraft(ws: Workspace, p: Prospect) {
   const out = await ask(`Rédige le premier e-mail de prospection pour ce prospect.
 Prospect : ${p.name}${p.org ? ` (${p.org})` : ""}, ${p.activity}, ${p.city}.
 Interlocuteur : ${p.contact_name ? `${p.contact_name}${p.contact_role ? `, ${String(p.contact_role).replace(/\s*\(.*$/, "").slice(0, 60)}` : ""}` : `inconnu (fonction visée : ${t?.interlocuteur || "dirigeant"}) : n'invente ni nom ni fonction`}.
-Pourquoi cette cible a besoin de l'offre : ${t?.pourquoi ?? ""}
+Pourquoi cette cible a besoin de l'offre : ${t?.pourquoi ?? ""}${t?.moment ? `
+Moment où ce type de client en a le plus besoin : ${t.moment}` : ""}
 Angle à utiliser : ${v ? v.angle : t?.angle ?? ""}
 ${v?.objet ? `Objet à utiliser tel quel ou presque : ${v.objet}\n` : ""}${active ? `Objectif de l'e-mail : ${goalText(active.goal)}.\n` : ""}Bénéficiaires à nommer : ${t?.pour_qui ?? ""}
 ${(() => { const sg = (p.signals ?? []).filter((x) => x.label && x.type !== "taille" && x.type !== "reseau"); return sg.length ? `Faits publics observés sur ce prospect (registre, Radar, son site) :\n${sg.slice(0, 8).map((x) => `- ${String(x.label).replace(/\s*(?:publi[ée]e? )?(?:au|dans le|selon le) (?:BODACC|registre[^,.;]*)/gi, "")}`).join("\n")}\nChoisis LE fait le plus utile pour notre offre et ouvre l'e-mail avec, sans rien y ajouter ni l'interpréter. N'utilise pas les autres.\n` : ""; })()}${(p.insight as { reseaux?: { accroche?: string } } | null)?.reseaux?.accroche ? `Première phrase possible, fondée sur une publication ou une actualité réelle du prospect (à reprendre ou adapter si elle sonne naturelle, sinon ignore-la) : ${(p.insight as { reseaux: { accroche: string } }).reseaux.accroche}
