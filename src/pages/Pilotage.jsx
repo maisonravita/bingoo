@@ -215,7 +215,7 @@ export function CeQuiMarche() {
   const { ws } = useWs();
   const [a, setA] = useState(null);
   useEffect(() => { fn("m/appris", { workspace_id: ws.id }).then(setA).catch(() => setA(false)); }, [ws.id]);
-  if (!a) return null;
+  if (!a?.facteurs) return null;
   const plus = a.facteurs.filter((f) => f.lift > 1).slice(0, 4), moins = a.facteurs.filter((f) => f.lift < 1).slice(-3).reverse();
   const pct = (x) => `${Math.round(x * 100)} %`;
   return (

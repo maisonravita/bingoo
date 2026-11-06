@@ -205,6 +205,22 @@ function Urgent({ u }) {
   );
 }
 
+
+/** Tes contacts : décideurs trouvés, e-mails, téléphones, réponses et rendez-vous (chiffres réels, jamais d'exemple). */
+function Contacts({ s }) {
+  const T = [["Décideurs trouvés", s.dec, "/prospects"], ["E-mails", s.mail, "/prospects"], ["Téléphones", s.tel, "/prospects"], ["Réponses", s.replied, "/reponses"], ["Rendez-vous", s.rdv, "/agenda"]];
+  return (
+    <section aria-label="Tes contacts" className="mb-6 grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+      {T.map(([l, v, to], i) => (
+        <Link key={l} to={to} className={cx("rounded-2xl border p-4 transition hover:border-ink-faint", i === 4 ? "bg-accent-soft/60 border-accent/20" : "bg-white border-line", i === 4 && "col-span-2 sm:col-span-1")}>
+          <p className="text-[13px] text-ink-soft">{l}</p>
+          <p className={cx("font-black text-[30px] leading-tight tnum", i === 4 && "text-accent-dark")} style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{(v ?? 0).toLocaleString("fr-FR")}</p>
+        </Link>
+      ))}
+    </section>
+  );
+}
+
 /** Le matin en 2 minutes : ce qui attend le client, dans l'ordre, et quand tout est fait, on le dit. */
 /** Le bandeau du matin : ton terrain, la chose à faire maintenant, tes anneaux et ta ville. */
 function Semaine() {
@@ -277,7 +293,7 @@ export default function Today() {
     const t0 = new Date(); t0.setHours(0, 0, 0, 0);
     const w1 = new Date(Date.now() - 7 * 864e5).toISOString(), w2 = new Date(Date.now() - 14 * 864e5).toISOString();
     const today = new Date().toISOString().slice(0, 10), old = new Date(Date.now() - 4 * 864e5).toISOString();
-    const [found, toContact, sent, replied, rdv, client, found7, sent7, replied7, rdv7, opps, oppsWeek, oppsPrev, replies, drafts, li, todo, ready, hard, act, detected, due, quotes, meet] = await Promise.all([
+    const [found, toContact, sent, replied, rdv, client, found7, sent7, replied7, rdv7, opps, oppsWeek, oppsPrev, replies, drafts, li, todo, ready, hard, act, detected, due, quotes, meet, dec, mail, tel] = await Promise.all([
       c(P()), c(P().in("status", ["pret", "a_valider"])),
       c(P().in("status", ["envoye", "repondu", "rdv", "client", "refus"]).not("email", "eq", "")),
       c(P().in("status", ["repondu", "rdv", "client", "refus"])), c(P().in("status", ["rdv", "client"])), c(P().eq("status", "client")),
@@ -290,10 +306,11 @@ export default function Today() {
       supabase.from("prospects").select("id, name, next_action, next_action_at, phone").eq("workspace_id", ws.id).lte("next_action_at", today).not("status", "in", "(ignore,refus)").order("next_action_at").limit(5),
       supabase.from("quotes").select("id, number, sent_at, status, prospects(name)").eq("workspace_id", ws.id).in("status", ["envoye", "vu"]).lt("sent_at", old).limit(3),
       supabase.from("meetings").select("id, company, starts_at").eq("workspace_id", ws.id).eq("status", "confirme").gte("starts_at", t0.toISOString()).lt("starts_at", new Date(t0.getTime() + 864e5).toISOString()).order("starts_at"),
+      c(P().neq("contact_name", "").neq("status", "ignore")), c(P().neq("email", "").neq("status", "ignore")), c(P().neq("phone", "").neq("status", "ignore")),
     ]);
     const rows = act.data ?? [];
     const minutes = rows.reduce((m, r) => m + (MINUTES[r.kind] ?? 0), 0);
-    setS({ found, toContact, sent, replied, rdv, client, found7, sent7, replied7, rdv7, opps, oppsWeek, oppsPrev, replies, drafts, li, todo, ready, hard,
+    setS({ dec, mail, tel, found, toContact, sent, replied, rdv, client, found7, sent7, replied7, rdv7, opps, oppsWeek, oppsPrev, replies, drafts, li, todo, ready, hard,
       rows, minutes, actions: rows.filter((r) => MINUTES[r.kind]).length, detected: (() => { const d = detected.data ?? [], t = new Date().toISOString().slice(0, 10); const top = d.filter((o) => o.raw?.top_day === t); return [...top, ...d.filter((o) => o.raw?.top_day !== t && o.status !== "ajoute" && !o.prospect_id)].slice(0, 3); })(), urgent: { due: due.data ?? [], quotes: quotes.data ?? [], meet: meet.data ?? [] } });
   }, [ws.id]);
 
@@ -333,11 +350,10 @@ export default function Today() {
         <p className="text-ink-soft text-[17px] mt-3">Ce qui t'attend aujourd'hui. Tu valides, Bingoo! s'occupe du reste.</p>
       </header>
 
-      {/* Sur téléphone, le matin passe avant le tableau de la semaine : c'est ce qu'on ouvre en premier */}
+      {/* La promesse en chiffres réels : les décideurs trouvés, comment les joindre, et ce que ça donne */}
+      {s && <Contacts s={s} />}
       <div className="flex flex-col">
-        {/* Le tableau de la semaine est sur ordinateur et dans Résultats ; sur téléphone, le matin suffit */}
-        <div className="hidden sm:block sm:order-1"><Semaine /></div>
-        <div className="order-1 sm:order-2">
+        <div>
           {s && <Morning s={s} wsId={ws.id} canSend={ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok} adresse={!!ws.postal_address} />}
           <PushTel compact />
         </div>
@@ -372,10 +388,6 @@ export default function Today() {
               <Stat icon="cal" label="RDV" value={s.rdv} delta={s.rdv7} accent />
               <Stat icon="users" label="Clients" value={s.client} delta={null} accent />
             </section>
-            <div className="grid lg:grid-cols-[380px_minmax(0,1fr)] gap-3.5">
-              <TimeSaved s={s} trend={trend} />
-              <TeamAtWork rows={s.rows} />
-            </div>
             {(s.ready > 0 || s.todo > 0 || s.hard > 0) && (
               <div className="mt-4 rounded-2xl border border-dashed border-line p-4">
                 <p className="font-semibold">Aller plus vite</p>

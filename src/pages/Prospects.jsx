@@ -16,6 +16,8 @@ const STRONG = ["ouverture", "creation", "recrutement", "croissance", "pub_googl
 
 const VIEWS = [
   { key: "all", label: "Tous" },
+  { key: "mail", label: "Avec e-mail", fn: (r) => !!r.email },
+  { key: "tel", label: "Avec téléphone", fn: (r) => !!r.phone },
   { key: "hot", label: "Réponses et RDV", st: ["repondu", "rdv", "client"] },
   { key: "signal", label: "Avec signal", fn: (r) => r.signals?.some((s) => STRONG.includes(s.type)) },
   { key: "due", label: "À relancer", fn: (r) => r.next_action_at && r.next_action_at <= new Date().toISOString().slice(0, 10) },
@@ -145,12 +147,12 @@ function Drawer({ p, onClose, onChange, team = [] }) {
         <h2 className="font-serif text-4xl leading-tight mt-3">{p.name}</h2>
         {p.org && <p className="text-ink-soft">{p.org}</p>}
         <dl className="mt-5 grid grid-cols-[110px_1fr] gap-y-2 text-sm">
-          <dt className="text-ink-soft">Adresse</dt><dd>{[p.address].filter(Boolean).join(" ") || "—"}</dd>
-          <dt className="text-ink-soft">Contact</dt><dd>{p.contact_name ? `${p.contact_name}${p.contact_role ? ` · ${p.contact_role}` : ""}` : "—"}</dd>
+          <dt className="text-ink-soft">Décideur</dt><dd>{p.contact_name ? `${p.contact_name}${p.contact_role ? ` · ${p.contact_role}` : ""}` : "—"}</dd>
           <dt className="text-ink-soft">E-mail</dt><dd>{p.email ? <><a className="underline" href={`mailto:${p.email}`}>{p.email}</a>{p.email_source && <span className="block text-xs text-ink-faint">via {p.email_source}</span>}</> : "—"}</dd>
           <dt className="text-ink-soft">Téléphone</dt><dd>{p.phone ? <a className="underline" href={`tel:${p.phone.replace(/\s/g, "")}`}>{p.phone}</a> : "—"}</dd>
-          <dt className="text-ink-soft">Site</dt><dd className="truncate">{p.website ? <a className="underline" href={p.website} target="_blank" rel="noreferrer">{p.website.replace(/^https?:\/\//, "")}</a> : "—"}</dd>
           <dt className="text-ink-soft">LinkedIn</dt><dd>{p.linkedin_url ? <a className="underline text-li" href={p.linkedin_url} target="_blank" rel="noreferrer">{p.linkedin_person || "Profil"}</a> : p.linkedin_status === "introuvable" ? "Introuvable" : "—"}</dd>
+          <dt className="text-ink-soft">Site</dt><dd className="truncate">{p.website ? <a className="underline" href={p.website} target="_blank" rel="noreferrer">{p.website.replace(/^https?:\/\//, "")}</a> : "—"}</dd>
+          <dt className="text-ink-soft">Adresse</dt><dd>{[p.address].filter(Boolean).join(" ") || "—"}</dd>
           <dt className="text-ink-soft">SIRET</dt><dd className="tnum">{p.siret}</dd>
         </dl>
         <label className="mt-4 flex items-center gap-2 text-sm font-medium cursor-pointer">
@@ -322,10 +324,10 @@ export default function Prospects() {
   return (
     <div>
       <SubNav section="prospects" />
-      <PageHead title="Prospects" sub={rows ? `${rows.length.toLocaleString("fr-FR")} établissements` : ""}>
+      <PageHead title="Contacts" sub={rows ? `${rows.length.toLocaleString("fr-FR")} entreprises · ${rows.filter((r) => r.contact_name).length.toLocaleString("fr-FR")} décideurs · ${rows.filter((r) => r.email).length.toLocaleString("fr-FR")} e-mails · ${rows.filter((r) => r.phone).length.toLocaleString("fr-FR")} téléphones` : ""}>
         <Input placeholder="Rechercher…" value={q} onChange={(e) => setQ(e.target.value)} className="!w-56" />
-        {team.length > 1 && <Button variant={mine ? "primary" : "default"} onClick={() => setMine((x) => !x)}>Mes prospects</Button>}
-        <Link to="/mission"><Button variant="accent">+ Trouver des prospects</Button></Link>
+        {team.length > 1 && <Button variant={mine ? "primary" : "default"} onClick={() => setMine((x) => !x)}>Mes contacts</Button>}
+        <Link to="/mission"><Button variant="accent">+ Trouver des contacts</Button></Link>
         <Button onClick={() => setAdding((x) => !x)}>Ajouter un contact</Button>
         <Button onClick={() => setImporting((x) => !x)}>Importer</Button>
         <Button onClick={exportCsv} disabled={!list.length}>Exporter</Button>
@@ -356,13 +358,17 @@ export default function Prospects() {
           </Button>
         </div>
       )}
-      {!rows ? <Spinner /> : list.length === 0 ? <Empty title="Aucun prospect ici." /> : (
+      {!rows ? <Spinner /> : list.length === 0 ? <Empty title="Aucun contact ici." /> : (
         <div className="bg-white border border-line rounded-2xl overflow-hidden divide-y divide-line">
           {list.slice(0, 300).map((r) => (
             <button key={r.id} onClick={() => setOpen(r)} className="w-full text-left px-4 py-3 hover:bg-paper flex items-center gap-4">
               <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{r.name}</p>
-                <p className="text-[13px] text-ink-soft truncate">{[targetLabel(r.target), [r.postal_code, r.city].filter(Boolean).join(" "), r.email].filter(Boolean).join(" · ")}</p>
+                <p className="truncate"><span className="font-medium">{r.name}</span>{r.contact_name && <span className="text-ink-soft"> · {r.contact_name}{r.contact_role ? `, ${r.contact_role}` : ""}</span>}</p>
+                <p className="text-[13px] truncate flex flex-wrap gap-x-3">
+                  {r.email ? <span className="text-ink">✉ {r.email}</span> : <span className="text-ink-faint">E-mail à trouver</span>}
+                  {r.phone && <span className="text-ink">☎ {r.phone}</span>}
+                  <span className="text-ink-soft">{[targetLabel(r.target), [r.postal_code, r.city].filter(Boolean).join(" ")].filter(Boolean).join(" · ")}</span>
+                </p>
               </div>
               {r.score != null && <span className="text-xs font-semibold tnum text-ink-soft">{r.score}</span>}
               {r.signals?.some((x) => STRONG.includes(x.type)) && <Badge tone="accent">Signal</Badge>}

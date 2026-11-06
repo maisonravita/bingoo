@@ -24,7 +24,7 @@ const Arrow = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className=
 
 const Chev = () => <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m6 9 6 6 6-6" /></svg>;
 const MENU = [
-  ["Produit", [["Radar", "Qui va acheter, et quand", "#produit"], ["Contacts des décideurs", "E-mail, téléphone, LinkedIn", "#contacts"], ["Tes salariés IA", "Neuf métiers, du repérage au rendez-vous", "#equipe"], ["Essai en direct", "Teste le Radar sur ton marché", "#essai"], ["Ta ville interactive", "La carte de ton équipe, à jouer", "#ville"], ["Extension Chrome", "Bingoo! sur chaque site et sur LinkedIn", "#extension"], ["Nouveautés", "Téléphone, séquences, boîtes d'envoi", "#nouveautes"]]],
+  ["Produit", [["Contacts des décideurs", "E-mail vérifié, téléphone, LinkedIn", "#contacts"], ["Prise de contact", "Messages et relances, tu valides", "#equipe"], ["Rendez-vous", "Les réponses deviennent des rendez-vous", "#rendez-vous"], ["Radar", "Qui va acheter, et quand", "#produit"], ["Espion", "Ce que font tes concurrents", "#espion"], ["LinkedIn et extension Chrome", "Plus de contacts, sur chaque site", "#extension"], ["Essai en direct", "Teste sur ton marché", "#essai"]]],
   ["Solutions", [["Nettoyage", "Les contrats à reprendre avant l'appel d'offres", "#/metier/nettoyage"], ["Sécurité", "Gardiennage et surveillance à renouveler", "#/metier/securite"], ["Agences", "Les entreprises qui choisissent leurs partenaires", "#/metier/agences"], ["Logiciels / SaaS", "Prends les clients de tes concurrents", "#/metier/logiciels"], ["Indépendants", "Un commercial à temps plein", "#pour-qui"]]],
   ["Nos données", [["Sources officielles", "BOAMP, BODACC, Sirene, DECP, TED", "#donnees"]]],
   ["Tarifs", null],
@@ -265,36 +265,6 @@ function Extension() {
 }
 
 /** Ce qui fait la différence au quotidien : le téléphone qui sonne, les séquences, les boîtes d'envoi, la vérification, l'apprentissage, les imports. */
-function Nouveautes() {
-  const items = [
-    ["bell", "Les réponses chaudes sur ton téléphone", "Dès qu'une réponse intéressée arrive, ton téléphone ou ton ordinateur te prévient, avec la réponse déjà rédigée. Tu la relis, tu l'envoies."],
-    ["layers", "Séquences multicanales", "E-mail, LinkedIn et appel, aux jours que tu choisis. Les relances partent dans le même fil, et tout s'arrête dès que le prospect répond."],
-    ["inbox", "Plusieurs boîtes d'envoi", "Branche plusieurs adresses : les envois tournent entre elles, chacune dans sa limite du jour. Tu envoies plus sans abîmer ta réputation."],
-    ["shield", "Chaque adresse vérifiée", "Avant chaque envoi : adresse mal formée, jetable, domaine qui ne reçoit rien, adresse déjà revenue en erreur. Une adresse douteuse ne part jamais."],
-    ["learn", "Bingoo! apprend ce qui marche", "Il regarde ce qu'ont en commun les entreprises qui t'ont dit oui, et cherche d'abord celles qui leur ressemblent."],
-    ["import", "Tes listes et ton CRM", "Importe tes relations LinkedIn ou un export Waalaxy, lemlist, Sales Navigator. Les prospects qui avancent arrivent dans HubSpot ou Pipedrive."],
-  ];
-  return (
-    <section id="nouveautes" className="scroll-mt-24 px-5 sm:px-10 lg:px-20 py-20 sm:py-28 border-t border-black/[.07]">
-      <div className="mx-auto max-w-[1300px]">
-        <div className="max-w-[820px]">
-          <h2 className="text-[38px] sm:text-[54px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>De la réponse au rendez-vous, sans rien laisser filer</h2>
-          <p className="mt-6 max-w-[620px] text-[17px] sm:text-[19px] leading-[1.5] text-ink">Le matin, Bingoo! te dit quoi faire, dans l'ordre, et combien de temps ça prend. Le reste de la journée, il te prévient quand ça compte.</p>
-        </div>
-        <ul className="mt-14 grid sm:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-10">
-          {items.map(([k, t, d]) => (
-            <li key={t} className="min-w-0">
-              <Ico k={k} className="h-7 w-7 text-ink" />
-              <p className="mt-3 text-[19px] font-medium text-ink">{t}</p>
-              <p className="mt-2 text-[16px] leading-[1.5] text-ink-soft">{d}</p>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
-  );
-}
-
 export default function Landing() {
   const nav = useNavigate();
   useReveal();
@@ -336,8 +306,8 @@ export default function Landing() {
 
         <div className="px-0 sm:px-8">
           <section className="mx-auto max-w-[1440px] bg-white px-5 sm:px-10 pt-16 sm:pt-24 pb-16 sm:pb-20 text-center">
-            <h1 className="hero-in mx-auto max-w-[1100px] text-ink text-[46px] sm:text-[72px] lg:text-[96px] leading-[1.02] tracking-[-.035em]" style={SERIF}>Trouve qui va acheter ton offre, et quand</h1>
-            <p className="hero-in mx-auto mt-8 max-w-[690px] text-[18px] sm:text-[21px] leading-[1.45] text-ink" style={{ animationDelay: ".1s" }}>Passe plus de temps à vendre et moins à chercher, grâce à une équipe commerciale IA qui repère les entreprises prêtes à acheter, trouve le décideur et prépare le message.</p>
+            <h1 className="hero-in mx-auto max-w-[1100px] text-ink text-[46px] sm:text-[72px] lg:text-[96px] leading-[1.02] tracking-[-.035em]" style={SERIF}>Des rendez-vous avec les décideurs qui ont besoin de toi</h1>
+            <p className="hero-in mx-auto mt-8 max-w-[690px] text-[18px] sm:text-[21px] leading-[1.45] text-ink" style={{ animationDelay: ".1s" }}>Bingoo! trouve les décideurs de ton marché, leurs e-mails vérifiés et leurs téléphones, puis les contacte pour toi. Tu valides, tu prends les rendez-vous. Pour les startups, les SaaS et toutes les entreprises B2B.</p>
             <div className="hero-in mt-10 inline-flex flex-col sm:flex-row gap-1.5 rounded-xl bg-[#F1EFED] p-1.5" style={{ animationDelay: ".2s" }}>
               <button onClick={go} className="rounded-lg bg-[#1C1C1C] text-white px-10 py-4 text-[18px] sm:text-[19px] hover:bg-black transition">Créer mon compte</button>
               <a href="#essai" onClick={scrollTo("essai")} className="rounded-lg bg-white border border-black/10 px-10 py-4 text-[18px] sm:text-[19px] hover:bg-[#FAFAF9] transition">Essayer avec mon site</a>
@@ -356,17 +326,16 @@ export default function Landing() {
       <main className="bg-[#D6D1CD] px-0 sm:px-8 pb-8">
         <div className="mx-auto max-w-[1440px] bg-white">
 
-        <Feature id="produit" title="Sache qui va acheter, et quand" text="Chaque nuit, le Radar lit les sources officielles et le web. Il te montre les entreprises qui ont une raison d'acheter maintenant, avec la date, le montant et la source." bullets={[["radar", <><b className="font-medium">Contrats publics</b> qui se terminent, avec le titulaire actuel et l'acheteur</>], ["doc", <><b className="font-medium">Annonces légales</b> : nouveau dirigeant, création, reprise, déménagement</>], ["eye", <><b className="font-medium">Signaux d'intention</b> : visites de ton site, recrutements, clients mécontents d'un concurrent</>]]} />
-        <Feature id="contacts" title="Trouve la personne qui décide" text="Pour chaque opportunité, Bingoo! cherche qui signe et comment le joindre. Tu ouvres la fiche, tu appelles ou tu écris." bullets={[["user", <><b className="font-medium">La bonne fonction</b> : achats, direction générale, DSI ou RH selon ton offre</>], ["mail", <><b className="font-medium">E-mail et téléphone</b> publiés ou vérifiés, jamais devinés</>], ["link", <><b className="font-medium">Profil LinkedIn</b> pour un premier contact</>]]} />
-        <Feature id="equipe" title="Laisse tes salariés IA faire le reste" text="Donne un objectif en une phrase. Mission choisit les cibles, prépare un message qui part du signal, relance et pose les rendez-vous. Tu valides à chaque étape clé." bullets={[["spark", <><b className="font-medium">Mission</b> : de l'objectif au rendez-vous posé</>], ["send", <><b className="font-medium">Messages et relances</b> écrits à partir de la raison d'acheter</>], ["cal", <><b className="font-medium">Réponses triées</b>, rendez-vous dans ton agenda, devis envoyés</>]]} />
-        <Feature id="espion" title="Connais tes concurrents mieux qu'eux" text="L'Espion suit tes concurrents chaque semaine : ce qu'ils vendent, leurs prix, leurs publicités, leurs avis. Il en tire l'angle pour leur prendre des clients." bullets={[["eye", <><b className="font-medium">Veille continue</b> : prix, offres et publicités qui changent</>], ["star", <><b className="font-medium">Avis clients</b> : les mécontents deviennent des opportunités</>], ["target", <><b className="font-medium">Dossiers de combat</b> envoyés à Mission pour tes messages</>]]} />
-
-
-        <Ville />
+        <Feature id="contacts" title="Les décideurs, leurs e-mails et leurs téléphones" text="Bingoo! trouve les entreprises de ton marché et, dans chacune, la personne qui signe : son e-mail vérifié, son téléphone, son profil LinkedIn." bullets={[["user", <><b className="font-medium">La bonne fonction</b> : achats, direction générale, DSI ou RH selon ton offre</>], ["mail", <><b className="font-medium">E-mail et téléphone</b> publiés ou vérifiés, jamais devinés</>], ["link", <><b className="font-medium">Profil LinkedIn</b> pour un premier contact</>]]} />
+        <Feature id="equipe" title="Il les contacte pour toi. Tu valides." text="Pour chaque décideur, un message écrit à partir de ce qui se passe chez lui. Tu le relis et tu l'envoies d'un geste, ou tu laisses le pilote automatique envoyer et relancer." bullets={[["send", <><b className="font-medium">Messages et relances</b> écrits pour chaque entreprise, jamais un modèle</>], ["shield", <><b className="font-medium">Chaque adresse vérifiée</b> avant l'envoi, pour protéger ta réputation</>], ["layers", <><b className="font-medium">E-mail, LinkedIn et appel</b>, aux jours que tu choisis</>]]} />
+        <Feature id="rendez-vous" title="Les réponses deviennent des rendez-vous" text="Les réponses arrivent triées, avec la tienne déjà prête. Ton téléphone te prévient dès qu'un décideur est intéressé." bullets={[["bell", <><b className="font-medium">Une alerte</b> sur ton téléphone pour chaque réponse intéressée</>], ["cal", <><b className="font-medium">Les rendez-vous</b> dans ton agenda</>], ["import", <><b className="font-medium">Ton CRM</b> : les contacts qui avancent arrivent dans HubSpot ou Pipedrive</>]]} />
+        <section className="px-5 sm:px-10 lg:px-20 pt-16 sm:pt-20 border-t border-black/[.07]"><div className="mx-auto max-w-[1300px]"><p className="text-[15px] font-semibold text-accent-dark">Encore plus de contacts</p><h2 className="mt-2 text-[34px] sm:text-[46px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Le Radar, l'Espion, LinkedIn</h2></div></section>
+        <Feature id="produit" title="Le Radar : qui va acheter, et quand" text="Chaque nuit, le Radar lit les sources officielles et le web. Il te montre les entreprises qui ont une raison d'acheter maintenant, avec la date, le montant et la source." bullets={[["radar", <><b className="font-medium">Contrats publics</b> qui se terminent, avec le titulaire actuel et l'acheteur</>], ["doc", <><b className="font-medium">Annonces légales</b> : nouveau dirigeant, création, reprise, déménagement</>], ["eye", <><b className="font-medium">Signaux d'intention</b> : visites de ton site, recrutements, clients mécontents d'un concurrent</>]]} />
+        <Feature id="espion" title="L'Espion : fais comme tes concurrents, en mieux" text="L'Espion suit tes concurrents chaque semaine : ce qu'ils vendent, leurs prix, leurs publicités, leurs avis. Il en tire l'angle pour leur prendre des clients." bullets={[["eye", <><b className="font-medium">Veille continue</b> : prix, offres et publicités qui changent</>], ["star", <><b className="font-medium">Avis clients</b> : les mécontents deviennent des opportunités</>], ["target", <><b className="font-medium">Dossiers de combat</b> envoyés à Mission pour tes messages</>]]} />
 
         <Extension />
 
-        <Nouveautes />
+        <Ville />
 
 
         {/* Pour qui */}
@@ -449,7 +418,7 @@ export default function Landing() {
 
       <footer className="border-t border-line bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid grid-cols-2 md:grid-cols-4 gap-8 text-[15px]">
-          <div><p className="font-bold">Produit</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="#produit" onClick={scrollTo("produit")} className="hover:text-ink">Radar</a></li><li><a href="#espion" onClick={scrollTo("espion")} className="hover:text-ink">Espion</a></li><li><a href="#equipe" onClick={scrollTo("equipe")} className="hover:text-ink">Mission</a></li><li><a href="#tarifs" onClick={scrollTo("tarifs")} className="hover:text-ink">Tarifs</a></li></ul></div>
+          <div><p className="font-bold">Produit</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="#contacts" onClick={scrollTo("contacts")} className="hover:text-ink">Contacts des décideurs</a></li><li><a href="#rendez-vous" onClick={scrollTo("rendez-vous")} className="hover:text-ink">Rendez-vous</a></li><li><a href="#produit" onClick={scrollTo("produit")} className="hover:text-ink">Radar</a></li><li><a href="#espion" onClick={scrollTo("espion")} className="hover:text-ink">Espion</a></li><li><a href="#tarifs" onClick={scrollTo("tarifs")} className="hover:text-ink">Tarifs</a></li></ul></div>
           <div><p className="font-bold">Outils gratuits</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="#/outils/contrats-publics" className="hover:text-ink">Contrats publics qui se terminent</a></li><li><a href="#/outils/analyse-concurrent" className="hover:text-ink">Analyse d'un concurrent</a></li></ul></div>
           <div><p className="font-bold">Par métier</p><ul className="mt-4 space-y-2.5 text-ink-soft">{[["nettoyage", "Nettoyage"], ["securite", "Sécurité"], ["agences", "Agences"], ["logiciels", "Logiciels / SaaS"]].map(([k, l]) => <li key={k}><a href={`#/metier/${k}`} className="hover:text-ink">{l}</a></li>)}</ul></div>
           <div><p className="font-bold">Compte et légal</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><button onClick={() => nav("/connexion?mode=login")} className="hover:text-ink">Connexion</button></li><li><button onClick={go} className="hover:text-ink">Créer un compte</button></li>{legalReady && <><li><a href="#/mentions-legales" className="hover:text-ink">Mentions légales</a></li><li><a href="#/confidentialite" className="hover:text-ink">Confidentialité</a></li><li><a href="#/conditions" className="hover:text-ink">Conditions</a></li></>}<li><a href="#/opposition" className="hover:text-ink">Ne plus être contacté</a></li></ul></div>

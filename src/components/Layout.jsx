@@ -31,6 +31,7 @@ const ICONS = {
   mega: <path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1zM15 9a3 3 0 0 1 0 6" />,
   funnel: <path d="M3 4h18l-7 8v6l-4 2v-8z" />,
   radar: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><path d="M12 12l6-6" /></>,
+  li: <><rect x="3.5" y="3.5" width="17" height="17" rx="3.5" /><path d="M8 10.5V16M8 7.6v.1M11.5 16v-5.5M11.5 13c0-1.6 1-2.6 2.4-2.6s2.1 1 2.1 2.6V16" /></>,
   more: <><circle cx="5" cy="12" r="1.3" /><circle cx="12" cy="12" r="1.3" /><circle cx="19" cy="12" r="1.3" /></>,
 };
 export const Icon = ({ name, className = "w-5 h-5" }) => <svg viewBox="0 0 24 24" className={cx(className, "shrink-0")} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{ICONS[name]}</svg>;
@@ -188,26 +189,22 @@ export default function Layout({ children }) {
 
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => { supabase.rpc("is_admin").then(({ data }) => setIsAdmin(!!data)); }, []);
-  // Menu simple : ce que le client fait chaque jour d'abord ; le reste dans « Plus d'outils », jamais supprimé.
+  // Menu centré sur la promesse : trouver les décideurs et leurs coordonnées, les contacter, obtenir des rendez-vous.
+  // Radar, LinkedIn et Concurrents nourrissent ce chemin. Les autres pages existent toujours (par leur adresse), hors du menu.
   const groups = [
     { items: [
       { to: "/", label: "Aujourd'hui", short: "Aujourd'hui", icon: "today", count: c.drafts, hot: true, also: ["/valider"] },
+      { to: "/prospects", label: "Contacts", short: "Contacts", icon: "list", also: ["/prospection"] },
       { to: "/reponses", label: "Réponses", short: "Réponses", icon: "inbox", count: c.replies },
-      { to: "/radar", label: "Opportunités", short: "Opportunités", icon: "radar", count: c.radar },
-      { to: "/prospects", label: "Prospects", short: "Prospects", icon: "list", also: ["/prospection", "/linkedin"] },
-      { to: "/espion", label: "Concurrents", short: "Concurrents", icon: "eye" },
-      { to: "/resultats", label: "Résultats", short: "Résultats", icon: "chart", also: ["/distribution", "/conversion"] },
+      { to: "/agenda", label: "Rendez-vous", short: "RDV", icon: "cal", count: c.today },
     ] },
-    { title: "Plus d'outils", fold: true, items: [
-      { to: "/valider", label: "Messages à valider", icon: "check", count: c.drafts },
-      { to: "/agenda", label: "Agenda", icon: "cal", count: c.today },
-      { to: "/mission", label: "Mission", icon: "flag", also: ["/intelligence"] },
-      { to: "/salaries", label: "Vos salariés IA", icon: "users", also: ["/assistant", "/agents"] },
-      { to: "/devis", label: "Devis", icon: "doc" },
-      { to: "/appels", label: "Appels", icon: "list" },
-      { to: "/reseaux", label: "Réseaux sociaux", icon: "eye" },
+    { title: "Plus de contacts", items: [
+      { to: "/radar", label: "Radar", short: "Radar", icon: "radar", count: c.radar },
+      { to: "/linkedin", label: "LinkedIn", short: "LinkedIn", icon: "li", count: c.li },
+      { to: "/espion", label: "Concurrents", short: "Concurrents", icon: "eye" },
     ] },
     { items: [
+      { to: "/resultats", label: "Résultats", short: "Résultats", icon: "chart", also: ["/distribution", "/conversion", "/pilotage"] },
       { to: "/reglages", label: "Réglages", icon: "cog", also: ["/connexions", "/equipe", "/abonnement"] },
       ...(isAdmin ? [{ to: "/admin", label: "Administration", icon: "chart" }] : []),
     ] },
@@ -228,6 +225,7 @@ export default function Layout({ children }) {
               <Icon name={n.icon} /><span className="flex-1">{n.label}</span><Count n={n.count} hot={n.hot} />
             </NavLink>
           ));
+          if (g.title && !g.fold) return <div key={i} className="mt-4 pt-4 border-t border-line flex flex-col gap-0.5"><p className="px-3 pb-1 text-[12px] font-semibold text-ink-faint">{g.title}</p>{items}</div>;
           return g.fold ? (
             <details key={i} className="mt-4 pt-4 border-t border-line group" open={g.items.some((n) => loc.pathname === n.to || (n.also ?? []).includes(loc.pathname))}>
               <summary className="cursor-pointer list-none px-3 pb-1.5 text-[13px] text-ink-soft hover:text-ink flex items-center justify-between">{g.title}<span className="text-[11px] group-open:rotate-90 transition">›</span></summary>
@@ -261,7 +259,7 @@ export default function Layout({ children }) {
         <div className="md:hidden fixed inset-0 z-40" onClick={() => setMore(false)}>
           <div className="absolute inset-0 bg-ink/30" />
           <div className="absolute bottom-16 inset-x-3 bg-white rounded-2xl border border-line p-2 grid grid-cols-3 gap-1 rise" onClick={(e) => e.stopPropagation()}>
-            {all.filter((n) => !["/", "/reponses", "/prospects", "/radar"].includes(n.to)).map((n) => (
+            {all.filter((n) => !["/", "/reponses", "/prospects", "/agenda"].includes(n.to)).map((n) => (
               <NavLink key={n.to} to={n.to} className={({ isActive }) => cx("relative flex flex-col items-center gap-1 rounded-xl py-3 text-xs font-medium", isActive ? "bg-paper text-ink" : "text-ink-soft")}>
                 <Icon name={n.icon} />{n.label}
                 {n.count > 0 && <span className="absolute top-1.5 right-3 text-[10px] font-bold bg-accent text-white rounded-full min-w-4 h-4 px-1 grid place-items-center">{n.count}</span>}
@@ -275,7 +273,7 @@ export default function Layout({ children }) {
       {fb && <Feedback onClose={() => setFb(false)} />}
       <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-line grid grid-cols-5 pb-[env(safe-area-inset-bottom)] z-40">
         {/* Sur téléphone : ce qu'on fait chaque jour. Les réponses (là où se gagnent les rendez-vous) ont leur onglet. */}
-        {["/", "/reponses", "/prospects", "/radar"].map((t) => all.find((n) => n.to === t)).map((n) => (
+        {["/", "/prospects", "/reponses", "/agenda"].map((t) => all.find((n) => n.to === t)).map((n) => (
           <NavLink key={n.to} to={n.to} end className={({ isActive }) => cx("relative flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium", isActive ? "text-ink" : "text-ink-faint")}>
             <Icon name={n.icon} />{n.short}
             {n.count > 0 && <span className="absolute top-1 right-[22%] text-[10px] font-bold bg-accent text-white rounded-full min-w-4 h-4 px-1 grid place-items-center tnum">{n.count}</span>}
@@ -283,7 +281,7 @@ export default function Layout({ children }) {
         ))}
         <button onClick={() => setMore((x) => !x)} className={cx("relative flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium", more ? "text-ink" : "text-ink-faint")}>
           <Icon name="more" />Plus
-          {(c.today) > 0 && !more && <span className="absolute top-1.5 right-[28%] w-2 h-2 rounded-full bg-accent" />}
+          {(c.radar + c.li) > 0 && !more && <span className="absolute top-1.5 right-[28%] w-2 h-2 rounded-full bg-accent" />}
         </button>
       </nav>
     </div>

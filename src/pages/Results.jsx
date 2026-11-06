@@ -90,6 +90,24 @@ function Funnel({ steps }) {
   );
 }
 
+/** La base de contacts : ce que Bingoo! a trouvé pour toi (décideurs, e-mails, téléphones). */
+function ContactBase({ p }) {
+  const live = p.filter((x) => !["ignore"].includes(x.status));
+  const n = live.length, dec = live.filter((x) => x.contact_name).length, mail = live.filter((x) => x.email).length, tel = live.filter((x) => x.phone).length;
+  const joint = live.filter((x) => x.email || x.phone).length;
+  return (
+    <Card className="p-5 sm:p-6 mb-8">
+      <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-soft">Tes contacts</h2>
+      <p className="text-sm text-ink-soft mt-1">Les décideurs trouvés pour toi, et comment les joindre.</p>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-4">
+        {[["Entreprises", n, ""], ["Décideurs trouvés", dec, pct(dec, n)], ["E-mails", mail, pct(mail, n)], ["Téléphones", tel, pct(tel, n)], ["Joignables", joint, pct(joint, n)]].map(([l, v, sub]) => (
+          <div key={l} className="rounded-xl bg-paper p-4"><p className="text-[12px] text-ink-soft">{l}</p><p className="font-serif text-3xl mt-1 tnum">{v.toLocaleString("fr-FR")}</p>{sub && <p className="text-xs text-ink-faint mt-0.5">{sub} des entreprises</p>}</div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 export default function Results() {
   const { ws, patch } = useWs();
   const toast = useToast();
@@ -97,7 +115,7 @@ export default function Results() {
   const [period, setPeriod] = useState(30);
   const load = useCallback(async () => {
     const [prospects, messages, meetings, calls, quotes, activity, members, usage, replies] = await Promise.all([
-      all("prospects", "id, name, target, status, deal_value, margin_pct, won_at, churned_at, owner_id", ws.id),
+      all("prospects", "id, name, target, status, deal_value, margin_pct, won_at, churned_at, owner_id, contact_name, email, phone", ws.id),
       all("messages", "prospect_id, status, sent_at, step", ws.id),
       all("meetings", "prospect_id, status, starts_at, created_at", ws.id),
       all("calls", "prospect_id, outcome, created_at", ws.id),
@@ -164,13 +182,14 @@ export default function Results() {
         <div className="flex gap-1">{[7, 30, 90].map((n) => <button key={n} onClick={() => setPeriod(n)} className={cx("rounded-full px-3 py-1.5 text-sm border", period === n ? "bg-ink text-white border-ink" : "bg-white border-line")}>{n} j</button>)}</div>
       </PageHead>
 
+      <ContactBase p={d.prospects} />
       <PilotageResultats />
       <CeQuiMarche />
 
       <Week d={d} />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
-        {[["E-mails envoyés", stats.sent], ["Prospects contactés", stats.contacted], ["Réponses", stats.replies], ["RDV pris", stats.meetings], ["RDV tenus", stats.held], ["RDV qualifiés", stats.qualified], ["Clients gagnés", stats.won]].map(([l, v]) => (
+        {[["E-mails envoyés", stats.sent], ["Contacts joints", stats.contacted], ["Réponses", stats.replies], ["RDV pris", stats.meetings], ["RDV tenus", stats.held], ["RDV qualifiés", stats.qualified], ["Clients gagnés", stats.won]].map(([l, v]) => (
           <Card key={l} className="p-4"><p className="text-[12px] text-ink-soft leading-tight">{l}</p><p className="font-serif text-3xl mt-1 tnum">{v}</p></Card>
         ))}
       </div>
