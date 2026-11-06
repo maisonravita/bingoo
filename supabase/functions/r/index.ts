@@ -250,6 +250,24 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { styleSet } = await import("../_shared/style.ts");
     return await styleSet(ws, b.regles);
   },
+  // Ton public : état de chaque cible (marche, en test, en pause) et journal de ce que Bingoo! a changé tout seul
+  async ciblage(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { cibleStats, autoCiblage } = await import("../_shared/ciblage.ts");
+    if (b.run === true) { setAi({ ws: ws.id, live: true }); const r = await autoCiblage(ws, { force: true }); const { data: w } = await admin.from("workspaces").select("profile").eq("id", ws.id).single(); return { ...r, journal: (w?.profile as { ciblage?: { journal?: unknown[] } })?.ciblage?.journal ?? [] }; }
+    return { stats: await cibleStats(ws), journal: (ws.profile as { ciblage?: { journal?: unknown[] } })?.ciblage?.journal ?? [] };
+  },
+  async "ciblage-cron"(req, b) {
+    await cron(req);
+    const { autoCiblage } = await import("../_shared/ciblage.ts");
+    const { planOk } = await import("../_shared/core.ts");
+    let q = admin.from("workspaces").select("*").eq("onboarded", true).neq("plan", "fondateur");
+    if (b.workspace_id) q = admin.from("workspaces").select("*").eq("id", String(b.workspace_id));
+    const { data } = await q;
+    const out: Record<string, unknown> = {};
+    for (const ws of (data ?? []).filter((w) => b.workspace_id || planOk(w))) { setAi({ ws: ws.id, live: !!b.workspace_id }); out[ws.name] = await autoCiblage(ws, { dry: b.dry === true, force: b.force === true }).then((r) => ({ actions: r.actions, applique: r.applique, stats: r.stats.map((x) => `${x.label} : ${x.etat} (${x.positifs}/${x.contactes})`) })).catch((e) => ({ erreur: (e as Error).message })); }
+    return out;
+  },
   // Appel de démarrage offert (30 min) : le client propose ses créneaux, l'équipe Bingoo! (admins) reçoit la demande et répond directement
   async "onboarding-call"(req, b) {
     const { ws, userId } = await requireMember(req, b.workspace_id);

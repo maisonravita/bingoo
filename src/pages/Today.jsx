@@ -241,6 +241,42 @@ function Decris() {
   );
 }
 
+/** Ton public : Bingoo! teste plusieurs types de clients, garde ceux qui répondent, met en pause les autres et ajoute de nouvelles pistes. */
+const ETAT = { marche: ["Ça marche", "bg-good-soft text-good"], en_test: ["En test", "bg-accent-soft text-accent-dark"], a_lancer: ["Bientôt contactée", "bg-paper text-ink-soft"], pause: ["En pause", "bg-[#EFEEEA] text-ink-soft"] };
+function Public() {
+  const { ws } = useWs();
+  const toast = useToast();
+  const [d, setD] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { fn("r/ciblage", { workspace_id: ws.id }).then(setD).catch(() => setD(null)); }, [ws.id]);
+  if (!d?.stats?.length) return null;
+  const run = async () => {
+    setBusy(true);
+    try { const r = await fn("r/ciblage", { workspace_id: ws.id, run: true }); setD(r); toast(r.actions?.length ? `${r.actions.length} changement${r.actions.length > 1 ? "s" : ""} dans ton ciblage` : "Rien à changer pour l'instant", "good"); }
+    catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
+  };
+  const order = { marche: 0, en_test: 1, a_lancer: 2, pause: 3 };
+  return (
+    <section aria-label="Ton public" className="mb-6 rounded-2xl border border-line bg-white p-4 sm:p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="font-semibold">Ton public</p>
+        <button onClick={run} disabled={busy} className="text-[13px] text-ink-soft underline hover:text-ink disabled:opacity-50">{busy ? "Analyse…" : "Revoir maintenant"}</button>
+      </div>
+      <p className="text-[13px] text-ink-soft mt-0.5">Bingoo! teste plusieurs types de clients, garde ceux qui répondent et en essaie de nouveaux chaque semaine. Tu n'as rien à faire.</p>
+      <ul className="mt-3 divide-y divide-line">
+        {[...d.stats].sort((a, b) => order[a.etat] - order[b.etat] || b.taux - a.taux).map((t) => (
+          <li key={t.id} className="py-2 flex items-center gap-3 text-[14px]">
+            <span className={cx("shrink-0 rounded-full px-2 py-0.5 text-[11.5px] font-semibold", ETAT[t.etat][1])}>{ETAT[t.etat][0]}</span>
+            <span className="flex-1 min-w-0 truncate">{t.label}</span>
+            <span className="shrink-0 text-[12.5px] text-ink-soft tnum">{t.etat === "pause" ? t.note : t.contactes ? `${t.positifs} réponse${t.positifs > 1 ? "s" : ""} positive${t.positifs > 1 ? "s" : ""} sur ${t.contactes}` : ""}</span>
+          </li>
+        ))}
+      </ul>
+      {d.journal?.length > 0 && <p className="mt-2 text-[12.5px] text-ink-faint">Dernier changement : {d.journal[0].texte}</p>}
+    </section>
+  );
+}
+
 /** Appel de démarrage offert : 30 minutes pour régler la cible, les messages et viser le premier rendez-vous. Proposé le premier mois. */
 function Demarrage() {
   const { ws, reload } = useWs();
@@ -415,6 +451,7 @@ export default function Today() {
 
       {/* La promesse en chiffres réels : les décideurs trouvés, comment les joindre, et ce que ça donne */}
       <Decris />
+      <Public />
       {s && <Contacts s={s} />}
       <Demarrage />
       {/* Sur téléphone, le matin passe avant le tableau de la semaine (la ville) : c'est ce qu'on ouvre en premier */}
