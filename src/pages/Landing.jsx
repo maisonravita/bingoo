@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
 import { legalReady } from "./Legal";
 import { cx } from "../lib/utils";
+import { STORE_URL } from "../lib/ext";
 import { TEAM, Avatar } from "./Salaries";
 
 // Page d'accueil publique de Bingoo! : la promesse, et l'essai immédiat sans compte (contrats publics qui se terminent).
@@ -243,7 +244,11 @@ function Extension() {
       <div className="mx-auto max-w-[1300px]">
         <div className="max-w-[820px]">
           <h2 className="text-[38px] sm:text-[54px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Bingoo! partout où tu prospectes</h2>
-          <p className="mt-6 max-w-[620px] text-[17px] sm:text-[19px] leading-[1.5] text-ink">L'extension Chrome emmène Bingoo! sur le web. Elle est facultative : tout le reste marche sans elle.</p>
+          <p className="mt-6 max-w-[620px] text-[17px] sm:text-[19px] leading-[1.5] text-ink">L'extension Chrome emmène Bingoo! sur le web. Elle est gratuite pour les clients et facultative : tout le reste marche sans elle.</p>
+          <a href={STORE_URL} target="_blank" rel="noopener noreferrer" className="mt-8 inline-flex items-center gap-2.5 rounded-lg bg-ink text-white px-6 py-3.5 text-[17px] hover:bg-black transition">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.5" /><path d="M12 8.5h8.5M8.97 13.75 4.7 6.35M15.03 13.75l-4.25 7.37" /></svg>
+            Ajouter à Chrome
+          </a>
         </div>
         <ul className="mt-14 grid sm:grid-cols-3 gap-x-10 gap-y-10">
           {items.map(([k, t, d]) => (
