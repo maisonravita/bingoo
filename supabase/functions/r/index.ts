@@ -197,7 +197,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (b.workspace_id) q = admin.from("workspaces").select("*").eq("id", String(b.workspace_id));
     const { data } = await q;
     const out: Record<string, unknown> = {};
-    for (const ws of (data ?? []).filter((w) => b.workspace_id || planOk(w))) { setAi({ ws: ws.id }); out[ws.name] = await fitCheck(ws, { max: Number(b.max ?? 60), dry: b.dry === true }).catch((e) => ({ erreur: (e as Error).message })); }
+    for (const ws of (data ?? []).filter((w) => b.workspace_id || planOk(w))) { setAi({ ws: ws.id, live: !!b.workspace_id }); out[ws.name] = await fitCheck(ws, { max: Number(b.max ?? 60), dry: b.dry === true }).catch((e) => ({ erreur: (e as Error).message })); }
     return out;
   },
   async "fit-restore"(req, b) {
