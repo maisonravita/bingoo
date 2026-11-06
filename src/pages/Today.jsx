@@ -353,7 +353,7 @@ function Morning({ s, canSend, wsId, adresse = true }) {
   return (
     <section aria-label="Ton matin" className="mb-6 rounded-3xl border border-line bg-white p-4 sm:p-5">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-[19px] font-semibold">{reste ? `Ton matin : environ ${minutes} min` : "Ton matin est fait."}</h2>
+        <h2 className="text-[19px] font-semibold">{reste ? `À faire maintenant · environ ${minutes} min` : "Tout est fait pour aujourd'hui."}</h2>
         {total > 0 && <span className="text-sm text-ink-soft tnum">{total - reste} sur {total} fait{total - reste > 1 ? "s" : ""}</span>}
       </div>
       {total > 0 && <div className="mt-2 h-2 rounded-full bg-paper overflow-hidden" aria-hidden><div className="h-full rounded-full bg-good transition-all" style={{ width: `${Math.round(((total - reste) / total) * 100)}%` }} /></div>}
@@ -377,6 +377,13 @@ function Morning({ s, canSend, wsId, adresse = true }) {
       )}
     </section>
   );
+}
+
+/** Une phrase qui dit où on en est, sans jargon. */
+function resume(s) {
+  const n = [s.replies, s.drafts, s.li, s.urgent?.due?.length, s.urgent?.meet?.length].filter((x) => x > 0).length;
+  if (n) return `${n} chose${n > 1 ? "s" : ""} t'attend${n > 1 ? "ent" : ""} ci-dessous. Bingoo! s'occupe du reste.`;
+  return "Rien à faire pour l'instant : Bingoo! cherche, écrit et relance pour toi.";
 }
 
 export default function Today() {
@@ -446,36 +453,42 @@ export default function Today() {
         <h1 className="font-black text-[40px] sm:text-[52px] leading-none tracking-tight flex items-start gap-1" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>
           {hello}{first ? ` ${first}` : ""} !<Sparks className="w-9 h-9 sm:w-11 sm:h-11 -mt-2" />
         </h1>
-        <p className="text-ink-soft text-[17px] mt-3">Ce qui t'attend aujourd'hui. Tu valides, Bingoo! s'occupe du reste.</p>
+        <p className="text-ink-soft text-[17px] mt-3">{s ? resume(s) : "Ce qui t'attend aujourd'hui."}</p>
       </header>
 
-      {/* La promesse en chiffres réels : les décideurs trouvés, comment les joindre, et ce que ça donne */}
+      {/* Une page simple, dans l'ordre où on s'en sert : 1. ce qu'il y a à faire, 2. ce que ça donne, 3. trouver plus de clients.
+          Tout le reste (ta ville, l'activité de la nuit, les opportunités, les chiffres détaillés) est replié plus bas. */}
+      {s && <Morning s={s} wsId={ws.id} canSend={ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok} adresse={!!ws.postal_address} />}
+
+      <h2 className="text-[19px] font-semibold mb-3 mt-2">Tes résultats</h2>
+      {s && <Contacts s={s} />}
+
+      <h2 className="text-[19px] font-semibold mb-3">Trouver d'autres clients</h2>
       <Decris />
       <Public />
-      {s && <Contacts s={s} />}
       <Demarrage />
-      {/* Sur téléphone, le matin passe avant le tableau de la semaine (la ville) : c'est ce qu'on ouvre en premier */}
-      <div className="flex flex-col">
-        <div className="hidden sm:block sm:order-1"><Semaine /></div>
-        <div className="order-1 sm:order-2">
-          {s && <Morning s={s} wsId={ws.id} canSend={ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok} adresse={!!ws.postal_address} />}
-          <PushTel compact />
+      <PushTel compact />
+      <div className="hidden sm:block"><Semaine /></div>
+
+      <details className="group mb-6 rounded-2xl border border-line bg-white">
+        <summary className="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-3">
+          <span className="font-semibold">Le détail : réponses, messages prêts, opportunités, activité de la nuit</span>
+          <span className="text-sm text-ink-soft group-open:hidden">Afficher</span><span className="text-sm text-ink-soft hidden group-open:inline">Masquer</span>
+        </summary>
+        <div className="px-4 pb-4 pt-1">
+          <TodayFeed />
+          {s && s.detected.length > 0 && (
+            <section className="mb-8">
+              <div className="flex items-baseline justify-between gap-3 mb-3">
+                <h2 className="text-[19px] font-semibold">Nouvelles opportunités{s.opps > 0 && <span className="ml-2 text-ink-faint font-normal">{s.opps}</span>}</h2>
+                <Link to="/radar" className="text-sm text-ink-soft hover:text-ink hover:underline underline-offset-4">Toutes les opportunités</Link>
+              </div>
+              <Detected rows={s.detected} onPrepared={load} />
+            </section>
+          )}
+          {s && <Urgent u={s.urgent} />}
         </div>
-      </div>
-
-      <TodayFeed />
-
-      {s && s.detected.length > 0 && (
-        <section className="mb-8">
-          <div className="flex items-baseline justify-between gap-3 mb-3">
-            <h2 className="text-[19px] font-semibold">Nouvelles opportunités{s.opps > 0 && <span className="ml-2 text-ink-faint font-normal">{s.opps}</span>}</h2>
-            <Link to="/radar" className="text-sm text-ink-soft hover:text-ink hover:underline underline-offset-4">Toutes les opportunités</Link>
-          </div>
-          <Detected rows={s.detected} onPrepared={load} />
-        </section>
-      )}
-
-      {s && <Urgent u={s.urgent} />}
+      </details>
 
       {s && (
         <details className="group mt-2 rounded-2xl border border-line bg-white">
