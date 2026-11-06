@@ -221,6 +221,49 @@ function Contacts({ s }) {
   );
 }
 
+/** Appel de démarrage offert : 30 minutes pour régler la cible, les messages et viser le premier rendez-vous. Proposé le premier mois. */
+function Demarrage() {
+  const { ws, reload } = useWs();
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({ dispo: "", tel: "" });
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(!!ws.onboarding_call_at);
+  const key = `bingoo-demarrage-masque-${ws.id}`;
+  const [hidden, setHidden] = useState(() => { try { return localStorage.getItem(key) === "1"; } catch { return false; } });
+  const age = ws.created_at ? (Date.now() - new Date(ws.created_at).getTime()) / 864e5 : 0;
+  if (hidden || age > 30) return null;
+  if (done) return <p className="mb-6 rounded-2xl border border-line bg-white px-4 py-3 text-[14.5px] text-ink-soft">Ton appel de démarrage est demandé. On t'écrit pour fixer le créneau.</p>;
+  const send = async (e) => {
+    e.preventDefault(); setBusy(true);
+    try { await fn("r/onboarding-call", { workspace_id: ws.id, ...f }); setDone(true); reload?.(); toast("Demande envoyée", "good"); }
+    catch (x) { toast(x.message, "bad"); } finally { setBusy(false); }
+  };
+  return (
+    <section aria-label="Appel de démarrage" className="mb-6 rounded-2xl border border-accent/25 bg-accent-soft/40 p-4 sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="max-w-[560px]">
+          <p className="text-[17px] font-semibold text-ink">30 minutes offertes pour bien démarrer</p>
+          <p className="mt-1 text-[14.5px] text-ink-soft">Un appel avec l'équipe Bingoo! : on règle ta cible et tes messages ensemble, pour viser ton premier rendez-vous.</p>
+        </div>
+        <div className="flex gap-2">
+          {!open && <Button onClick={() => setOpen(true)}>Réserver mon appel</Button>}
+          <button onClick={() => { try { localStorage.setItem(key, "1"); } catch { /* stockage indisponible */ } setHidden(true); }} className="rounded-lg px-3 py-2 text-[14px] text-ink-soft hover:text-ink">Plus tard</button>
+        </div>
+      </div>
+      {open && (
+        <form onSubmit={send} className="mt-4 grid gap-2.5 sm:grid-cols-[1fr_200px_auto]">
+          <label className="sr-only" htmlFor="dm-dispo">Tes disponibilités</label>
+          <input id="dm-dispo" value={f.dispo} onChange={(e) => setF({ ...f, dispo: e.target.value })} placeholder="Tes disponibilités (ex. mardi ou jeudi matin)" className="rounded-lg border border-line bg-white px-3 py-2.5 text-[15px]" />
+          <label className="sr-only" htmlFor="dm-tel">Ton téléphone (facultatif)</label>
+          <input id="dm-tel" value={f.tel} onChange={(e) => setF({ ...f, tel: e.target.value })} placeholder="Téléphone (facultatif)" inputMode="tel" className="rounded-lg border border-line bg-white px-3 py-2.5 text-[15px]" />
+          <Button type="submit" disabled={busy}>{busy ? "Envoi…" : "Envoyer ma demande"}</Button>
+        </form>
+      )}
+    </section>
+  );
+}
+
 /** Le matin en 2 minutes : ce qui attend le client, dans l'ordre, et quand tout est fait, on le dit. */
 /** Le bandeau du matin : ton terrain, la chose à faire maintenant, tes anneaux et ta ville. */
 function Semaine() {
@@ -352,6 +395,7 @@ export default function Today() {
 
       {/* La promesse en chiffres réels : les décideurs trouvés, comment les joindre, et ce que ça donne */}
       {s && <Contacts s={s} />}
+      <Demarrage />
       {/* Sur téléphone, le matin passe avant le tableau de la semaine (la ville) : c'est ce qu'on ouvre en premier */}
       <div className="flex flex-col">
         <div className="hidden sm:block sm:order-1"><Semaine /></div>

@@ -162,6 +162,23 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { keyRevoke } = await import("../_shared/apikeys.ts");
     return await keyRevoke(ws.id, String(b.id ?? ""));
   },
+  // Appel de démarrage offert (30 min) : le client propose ses créneaux, l'équipe Bingoo! (admins) reçoit la demande et répond directement
+  async "onboarding-call"(req, b) {
+    const { ws, userId } = await requireMember(req, b.workspace_id);
+    if (ws.onboarding_call_at) return { deja: true, at: ws.onboarding_call_at };
+    const { data: u } = await admin.auth.admin.getUserById(userId);
+    const email = u?.user?.email ?? "";
+    const { data: adm } = await admin.from("admins").select("user_id");
+    const tos = (await Promise.all((adm ?? []).map(async (a) => (await admin.auth.admin.getUserById(a.user_id)).data?.user?.email ?? ""))).filter(Boolean);
+    const { sendSystem } = await import("../_shared/mail.ts");
+    const dispo = String(b.dispo ?? "").trim().slice(0, 300), tel = String(b.tel ?? "").trim().slice(0, 30);
+    const text = [`${ws.sender_name || email} demande son appel de démarrage (30 min).`, `\nEspace : ${ws.name ?? ""} (formule ${ws.plan ?? "essai"})`, `E-mail : ${email}`, tel ? `Téléphone : ${tel}` : "", dispo ? `Disponibilités : ${dispo}` : "Disponibilités : non précisées", `\nRéponds à cet e-mail pour fixer le créneau.`].filter(Boolean).join("\n");
+    for (const to of tos) await sendSystem({ to, subject: `Appel de démarrage : ${ws.name ?? email}`, text, replyTo: email || undefined, fromName: "Bingoo! · démarrage" }).catch((e) => console.error("onboarding-call", e));
+    const at = new Date().toISOString();
+    await admin.from("workspaces").update({ onboarding_call_at: at }).eq("id", ws.id);
+    await log(ws.id, "onboarding_call", `Appel de démarrage demandé${dispo ? ` (${dispo.slice(0, 80)})` : ""}`).catch(() => {});
+    return { ok: true, at, prevenus: tos.length };
+  },
   async "radar-calendar"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const { buyingCalendar } = await import("../_shared/radar-extra.ts");
@@ -284,11 +301,19 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { freeEnrich } = await import("../_shared/deep.ts");
     const dry = b.dry === true, n = Math.min(Number(b.n ?? 20), 40);
     // Une seule passe par prospect ; ceux passés avant l'ajout d'OpenStreetMap (« site introuvable par son nom ») sont repris une fois
-    let q = admin.from("prospects").select("*").eq("email", "").in("status", ["nouveau", "sans_email"]).not("enrich_note", "like", "Recherche gratuite%lu,%").not("enrich_note", "like", "Recherche gratuite%OpenStreetMap%");
-    if (b.workspace_id) q = q.eq("workspace_id", String(b.workspace_id));
-    if (b.sans_site === true) q = q.or("website.is.null,website.eq.");
-    const { data } = await q.order("score", { ascending: false, nullsFirst: false }).limit(n);
-    const rows = data ?? [], out: { nom: string; site: string; nouveau_site: boolean; email: string }[] = [];
+    // Jamais deux fois le même prospect en 3 jours (avant : Overpass saturé → rien d'enregistré → les 15 mêmes repassaient toute la nuit)
+    // Les fiches avec un décideur nommé passent d'abord : ce sont elles qui donnent des rendez-vous.
+    const since = new Date(Date.now() - 3 * 864e5).toISOString();
+    const base = () => {
+      let q = admin.from("prospects").select("*").eq("email", "").in("status", ["nouveau", "sans_email"]).not("enrich_note", "like", "Recherche gratuite%lu,%").not("enrich_note", "like", "Recherche gratuite%(nom et OpenStreetMap)%").or(`free_tried_at.is.null,free_tried_at.lt.${since}`);
+      if (b.workspace_id) q = q.eq("workspace_id", String(b.workspace_id));
+      if (b.sans_site === true) q = q.or("website.is.null,website.eq.");
+      return q;
+    };
+    const { data: d1 } = await base().not("contact_name", "is", null).neq("contact_name", "").order("free_tried_at", { ascending: true, nullsFirst: true }).order("score", { ascending: false, nullsFirst: false }).limit(n);
+    let data = d1 ?? [];
+    if (data.length < n) { const { data: d2 } = await base().or("contact_name.is.null,contact_name.eq.").order("free_tried_at", { ascending: true, nullsFirst: true }).order("score", { ascending: false, nullsFirst: false }).limit(n - data.length); data = data.concat(d2 ?? []); }
+    const rows = data, out: { nom: string; site: string; nouveau_site: boolean; email: string }[] = [];
     const t0 = Date.now();
     for (let i = 0; i < rows.length && Date.now() - t0 < 90_000; i += 3) {
       const part = await Promise.all(rows.slice(i, i + 3).map(async (p) => {

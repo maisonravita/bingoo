@@ -194,13 +194,14 @@ export async function freeEnrich(p: P2, save = true) {
   }
   if (save) {
     const day = new Date().toISOString().slice(0, 10);
-    const patch: Record<string, unknown> = {};
+    const patch: Record<string, unknown> = { free_tried_at: new Date().toISOString() };
     if (foundSite) patch.website = site;
-    if (phone && !p.phone) patch.phone = phone.slice(0, 30);
+    if (phone && !p.phone) Object.assign(patch, { phone: phone.slice(0, 30), phone_source: `site ${hostOf(site)}`, phone_checked_at: new Date().toISOString() });
     if (form && !p.contact_form) patch.contact_form = form;
     if (email) Object.assign(patch, { email, email_source: `site ${hostOf(site)}`, enriched_at: new Date().toISOString(), enrich_level: 1, status: ["sans_email", "nouveau"].includes(p.status) ? "pret" : p.status,
       enrich_note: `E-mail trouvé sur son site (${hostOf(site)}), recherche gratuite du ${day}` });
-    else if (site || !osmDown) patch.enrich_note = `Recherche gratuite du ${day} : ${site ? `site ${hostOf(site)} lu, pas d'e-mail publié` : "site introuvable (nom et OpenStreetMap)"}`;
+    else if (osmDown) patch.enrich_note = `Recherche gratuite du ${day} : site introuvable par son nom (OpenStreetMap à revoir)`;
+    else patch.enrich_note = `Recherche gratuite du ${day} : ${site ? `site ${hostOf(site)} lu, pas d'e-mail publié` : "site introuvable (nom et OpenStreetMap)"}`;
     patch.channel = chooseChannel({ ...p, ...patch } as P2);
     await admin.from("prospects").update(patch).eq("id", p.id);
   }

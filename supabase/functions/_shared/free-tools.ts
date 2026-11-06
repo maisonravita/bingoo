@@ -150,7 +150,9 @@ export async function freeSignals(input: { cible?: string; dept?: string }) {
     if (!nom || seen.has(nom)) return []; seen.add(nom);
     const second = /secondaire/i.test(String(etab.qualiteEtablissement ?? "")) || /secondaire|ouverture/i.test(String(parseJ(b.acte)?.creation?.categorieCreation ?? ""));
     const kind = b.familleavis === "vente" ? "reprise" : second ? "ouverture" : "creation";
-    return [{ kind, nom, activite: act.slice(0, 160), ville: cap(b.ville ?? ""), dept: String(b.numerodepartement ?? ""), date: String(b.dateparution ?? "").slice(0, 10) }];
+    // Dirigeants publiés dans l'annonce : on compte et on donne la fonction, jamais le nom (débloqué avec un compte)
+    const roles = String(pers.administration ?? "").split(/\.\s+|\n/).map((x) => x.match(/^\s*([A-Za-zÀ-ÿ' -]{3,40}?)\s*:\s*\S/)?.[1]?.trim() ?? "").filter((x) => x && !/commissaire|aux comptes|suppl[ée]ant/i.test(x));
+    return [{ kind, nom, activite: act.slice(0, 160), ville: cap(b.ville ?? ""), dept: String(b.numerodepartement ?? ""), date: String(b.dateparution ?? "").slice(0, 10), decideur: roles[0] ?? "", nb_dec: roles.length }];
   });
   const LBL: Record<string, [string, string]> = {
     creation: ["Vient de se créer", "Elle choisit ses outils et ses fournisseurs maintenant."],
@@ -161,9 +163,9 @@ export async function freeSignals(input: { cible?: string; dept?: string }) {
   const parType = { creation: out.filter((r) => r.kind === "creation").length, ouverture: out.filter((r) => r.kind === "ouverture").length, reprise: out.filter((r) => r.kind === "reprise").length };
   return {
     // Sans filtre d'activité, les 100 dernières annonces couvrent quelques jours seulement : on affiche la vraie période
-    cible, dept, total: out.length, jours: all && out.length ? Math.max(1, Math.ceil((Date.now() - Math.min(...out.map((r) => new Date(r.date).getTime()))) / 864e5)) : 45, par_type: parType,
+    cible, dept, total: out.length, decideurs: out.reduce((n, r) => n + r.nb_dec, 0), jours: all && out.length ? Math.max(1, Math.ceil((Date.now() - Math.min(...out.map((r) => new Date(r.date).getTime()))) / 864e5)) : 45, par_type: parType,
     visibles: out.slice(0, 3),
-    apercu: out.slice(3, 10).map((r) => ({ signal: r.signal, ville: r.ville, date: r.date })),
+    apercu: out.slice(3, 10).map((r) => ({ signal: r.signal, ville: r.ville, date: r.date, decideur: r.decideur })),
     caches: Math.max(0, out.length - 3),
   };
 }
@@ -204,7 +206,8 @@ Format : {"nom": "", "offre": "ce qu'elle vend, 12 mots maximum", "clients": "à
   return {
     site: host, nom: String(a.nom || host).slice(0, 80), offre: String(a.offre ?? "").slice(0, 200), clients: String(a.clients ?? "").slice(0, 120),
     cible: mots.length ? mots.join(", ") : "toutes les entreprises", dept: "", jours: Math.max(...parts.map((p) => p?.jours ?? 0), 1), total,
-    visibles, apercu: [...vis.slice(3), ...ap].slice(0, 7).map((r) => ({ signal: r.signal, ville: r.ville, date: r.date })),
+    decideurs: parts.reduce((s, p) => s + (p?.decideurs ?? 0), 0),
+    visibles, apercu: [...vis.slice(3), ...ap].slice(0, 7).map((r) => ({ signal: r.signal, ville: r.ville, date: r.date, decideur: r.decideur })),
     caches: Math.max(0, total - visibles.length),
   };
 }

@@ -56,8 +56,14 @@ export async function weeklyReport(ws: Workspace, dry = false) {
     count(admin.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "brouillon")),
     count(admin.from("replies").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("handled", false).in("class", HOT)),
   ]);
+  // La promesse en chiffres : décideurs trouvés et comment les joindre (toute la base active, et l'évolution sur 7 jours)
+  const P = () => admin.from("prospects").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).neq("status", "ignore");
+  const [dec, mails, tels, joign, decNew, mailsNew, telsNew] = await Promise.all([
+    count(P().neq("contact_name", "")), count(P().neq("email", "")), count(P().neq("phone", "")), count(P().or("email.neq.,phone.neq.")),
+    count(P().neq("contact_name", "").gte("created_at", since)), count(P().neq("email", "").gte("enriched_at", since)), count(P().neq("phone", "").gte("phone_checked_at", since)),
+  ]);
   const { data: missions } = await admin.from("missions").select("objective, status, stop_reason, journal").eq("workspace_id", ws.id).in("status", ["active", "pause"]).limit(3);
-  if (!found && !enquetes && !sent && !replies && !drafts && !toHandle && !(missions ?? []).length) return { skipped: "aucune activité" };
+  if (!dec && !found && !enquetes && !sent && !replies && !drafts && !toHandle && !(missions ?? []).length) return { skipped: "aucune activité" };
   const STOP: Record<string, string> = { echeance: "échéance atteinte", budget: "budget atteint", objectif: "objectif atteint" };
   // La salle de pilotage, pour la semaine qui vient de finir (calculée dimanche soir)
   const { pilotage, debutSemaine } = await import("./pilotage.ts");
@@ -79,6 +85,10 @@ export async function weeklyReport(ws: Workspace, dry = false) {
   const lines = [
     `Bonjour${ws.sender_name ? ` ${ws.sender_name.split(" ")[0].replace(/^./, (c) => c.toUpperCase())}` : ""},`,
     `\nVoici ta semaine de prospection.`,
+    `\nTes contacts`,
+    `- ${n(dec, "décideur trouvé", "décideurs trouvés")}${decNew ? ` (+${decNew} cette semaine)` : ""}`,
+    `- ${n(mails, "e-mail vérifié", "e-mails vérifiés")}${mailsNew ? ` (+${mailsNew})` : ""}, ${n(tels, "téléphone")}${telsNew ? ` (+${telsNew})` : ""}`,
+    `- ${n(joign, "entreprise joignable", "entreprises joignables")} par e-mail ou téléphone`,
     `\nCe que tes agents ont fait (7 derniers jours)`,
     `- ${n(found, "entreprise trouvée", "entreprises trouvées")}`,
     `- ${n(enquetes, "enquête menée", "enquêtes menées")} pour trouver le bon contact`,
@@ -93,7 +103,7 @@ export async function weeklyReport(ws: Workspace, dry = false) {
     `\nBonne semaine !`,
   ];
   const to = await teamAddress(ws);
-  const subject = `Ta semaine : ${n(sent, "e-mail envoyé", "e-mails envoyés")}, ${n(replies, "réponse")}, ${n(meetings, "rendez-vous", "rendez-vous")}`;
+  const subject = `Ta semaine : ${n(dec, "décideur", "décideurs")}, ${n(joign, "joignable", "joignables")}, ${n(replies, "réponse")}, ${n(meetings, "rendez-vous", "rendez-vous")}`;
   const text = lines.join("\n");
   if (dry) return { to, subject, text };
   if (!to) return { skipped: "aucune adresse d'équipe" };

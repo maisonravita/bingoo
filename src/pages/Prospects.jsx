@@ -148,8 +148,8 @@ function Drawer({ p, onClose, onChange, team = [] }) {
         {p.org && <p className="text-ink-soft">{p.org}</p>}
         <dl className="mt-5 grid grid-cols-[110px_1fr] gap-y-2 text-sm">
           <dt className="text-ink-soft">Décideur</dt><dd>{p.contact_name ? `${p.contact_name}${p.contact_role ? ` · ${p.contact_role}` : ""}` : "—"}</dd>
-          <dt className="text-ink-soft">E-mail</dt><dd>{p.email ? <><a className="underline" href={`mailto:${p.email}`}>{p.email}</a>{p.email_source && <span className="block text-xs text-ink-faint">via {p.email_source}</span>}</> : "—"}</dd>
-          <dt className="text-ink-soft">Téléphone</dt><dd>{p.phone ? <a className="underline" href={`tel:${p.phone.replace(/\s/g, "")}`}>{p.phone}</a> : "—"}</dd>
+          <dt className="text-ink-soft">E-mail</dt><dd>{p.email ? <><a className="underline" href={`mailto:${p.email}`}>{p.email}</a><Provenance src={p.email_source} at={p.enriched_at} /></> : "—"}</dd>
+          <dt className="text-ink-soft">Téléphone</dt><dd>{p.phone ? <><a className="underline" href={`tel:${p.phone.replace(/\s/g, "")}`}>{p.phone}</a><Provenance src={p.phone_source || (p.siret ? "fiche entreprise" : "")} at={p.phone_checked_at} /></> : "—"}</dd>
           <dt className="text-ink-soft">LinkedIn</dt><dd>{p.linkedin_url ? <a className="underline text-li" href={p.linkedin_url} target="_blank" rel="noreferrer">{p.linkedin_person || "Profil"}</a> : p.linkedin_status === "introuvable" ? "Introuvable" : "—"}</dd>
           <dt className="text-ink-soft">Site</dt><dd className="truncate">{p.website ? <a className="underline" href={p.website} target="_blank" rel="noreferrer">{p.website.replace(/^https?:\/\//, "")}</a> : "—"}</dd>
           <dt className="text-ink-soft">Adresse</dt><dd>{[p.address].filter(Boolean).join(" ") || "—"}</dd>
@@ -384,4 +384,11 @@ export default function Prospects() {
       {open && <Drawer team={team} p={open} onClose={() => setOpen(null)} onChange={(np) => { setOpen(np); setRows((rs) => rs.map((x) => x.id === np.id ? np : x)); }} />}
     </div>
   );
+}
+
+// D'où vient le contact et quand il a été vérifié : on ne montre jamais d'e-mail deviné
+function Provenance({ src, at }) {
+  if (!src && !at) return null;
+  const d = at ? new Date(at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "";
+  return <span className="block text-xs text-ink-faint">{src ? `Source : ${src}` : ""}{src && d ? " · " : ""}{d ? `vérifié le ${d}` : ""}</span>;
 }

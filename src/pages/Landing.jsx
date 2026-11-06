@@ -109,23 +109,25 @@ function TryIt({ t }) {
           <div className="space-y-3">
             {r.offre && <div className="rounded-xl bg-white p-4"><p className="text-[12.5px] text-ink-soft">Bingoo! a compris</p><p className="mt-1 text-[15px] text-ink"><b className="font-medium">{r.nom}</b> : {r.offre.replace(/\.$/, "")}{r.clients ? `, ${r.clients.replace(/\.$/, "")}` : ""}.</p></div>}
             <p className="px-1 pt-1 text-[16px] text-ink"><span className="text-[34px] leading-none tracking-[-.02em] align-[-4px]" style={SERIF}>{r.total}</span> client{r.total > 1 ? "s" : ""} potentiel{r.total > 1 ? "s" : ""} en France, {r.jours > 1 ? `ces ${r.jours} derniers jours` : "ces dernières 24 heures"}</p>
+            {r.decideurs > 0 && <p className="px-1 -mt-1 text-[15px] text-ink-soft"><b className="font-medium text-ink">{r.decideurs} décideur{r.decideurs > 1 ? "s" : ""}</b> nommé{r.decideurs > 1 ? "s" : ""} dans les annonces officielles. Crée ton compte pour voir leurs noms, puis Bingoo! cherche leur e-mail et leur téléphone.</p>}
             {!r.total && <p className="rounded-xl bg-white p-4 text-[14.5px] text-ink-soft">Rien de neuf ces dernières semaines sur ta cible. Avec un compte, le Radar suit aussi les changements de dirigeant, les recrutements et les appels d'offres.</p>}
             {r.visibles.map((c, i) => (
               <div key={i} className="rounded-xl bg-white p-4 land-in" style={{ animationDelay: `${i * 120}ms` }}>
                 <div className="flex items-center justify-between gap-2"><span className="rounded bg-[#FFF1E8] px-1.5 py-0.5 text-[11.5px] font-medium text-accent-dark">{c.signal}</span><span className="text-[12.5px] text-ink-soft">{new Date(c.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</span></div>
                 <p className="mt-2 text-[16px] font-medium text-ink">{c.nom}{c.ville ? <span className="font-normal text-ink-soft">, {c.ville}</span> : null}</p>
                 <p className="text-[13.5px] text-ink-soft line-clamp-2">{c.activite}</p>
-                <div className="mt-2.5 flex items-center justify-between gap-2 rounded-md bg-[#F6F5F3] px-2.5 py-1.5 text-[12.5px]"><span className="text-ink-soft">Le décideur</span><span className="flex items-center gap-1.5"><span className="select-none blur-[4px] text-ink">Prénom Nom</span><Lock className="h-3.5 w-3.5 text-ink-soft" /></span></div>
+                <div className="mt-2.5 flex items-center justify-between gap-2 rounded-md bg-[#F6F5F3] px-2.5 py-1.5 text-[12.5px]"><span className="text-ink-soft">{c.decideur || "Le décideur"}</span><span className="flex items-center gap-1.5"><span className="select-none blur-[4px] text-ink" aria-hidden>Prénom Nom</span><Lock className="h-3.5 w-3.5 text-ink-soft" /></span></div>
+                <div className="mt-1 flex items-center justify-between gap-2 rounded-md bg-[#F6F5F3] px-2.5 py-1.5 text-[12.5px]"><span className="text-ink-soft">E-mail et téléphone</span><span className="flex items-center gap-1.5 text-ink-soft">Cherchés avec ton compte<Lock className="h-3.5 w-3.5" /></span></div>
               </div>
             ))}
             {(r.apercu ?? []).slice(0, 3).map((c, i) => (
               <div key={`a${i}`} className="relative rounded-xl bg-white/70 p-4">
-                <p className="text-[12.5px] text-ink-soft">{c.signal}{c.ville ? `, ${c.ville}` : ""}</p>
+                <p className="text-[12.5px] text-ink-soft">{c.signal}{c.ville ? `, ${c.ville}` : ""}{c.decideur ? ` · ${c.decideur} identifié` : ""}</p>
                 <p className="select-none blur-[5px] text-[16px] text-ink" aria-hidden>Entreprise masquée</p>
                 <span className="absolute right-3 top-3 inline-flex items-center gap-1 text-[12px] text-ink-soft"><Lock className="h-3 w-3" />Avec un compte</span>
               </div>
             ))}
-            {r.caches > 0 && <button onClick={() => nav("/connexion")} className="w-full rounded-lg bg-[#1C1C1C] py-4 text-[16px] text-white hover:bg-black transition">Voir les {r.caches} autres et leurs décideurs</button>}
+            {r.caches > 0 && <button onClick={() => nav("/connexion")} className="w-full rounded-lg bg-[#1C1C1C] py-4 text-[16px] text-white hover:bg-black transition">Débloquer les {r.caches} autres et leurs décideurs, gratuitement</button>}
           </div>
         )}
       </div>
