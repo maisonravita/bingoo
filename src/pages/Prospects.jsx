@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Guide from "../components/Guide";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import {Link, useLocation } from "react-router-dom";
 import { CALL } from "../lib/labels";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
@@ -11,6 +11,7 @@ import { download, toCsv } from "../lib/csv";
 import ImportCsv from "../components/ImportCsv";
 import Contacts, { ImportPerson } from "../components/Contacts";
 import { SubNav } from "../components/SubNav";
+import { useAller } from "../lib/lieu";
 
 // Signaux forts : un vrai fait récent qui justifie de contacter (adapté de Harvey)
 const STRONG = ["ouverture", "creation", "recrutement", "croissance", "pub_google", "pub_meta", "pub_linkedin", "levee", "accelerateur"];
@@ -104,7 +105,7 @@ function PlanB({ p, ws, busy, setBusy, onChange, act, nav }) {
 function Drawer({ p, onClose, onChange, team = [] }) {
   const { ws } = useWs();
   const toast = useToast();
-  const nav = useNavigate();
+  const nav = useAller();
   const [msgs, setMsgs] = useState(null);
   const [calls, setCalls] = useState([]);
   const [busy, setBusy] = useState(null);

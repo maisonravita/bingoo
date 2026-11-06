@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { cx } from "../lib/utils";
 import IsoVille from "../components/IsoVille";
+import { LieuContext } from "../lib/lieu";
 import Review from "./Review";
 import Prospects from "./Prospects";
 import LinkedIn from "./LinkedIn";
@@ -162,7 +163,8 @@ export default function Village() {
       c(head("replies")), c(head("replies").in("class", ["interesse", "question", "prix", "rappel"])), c(head("meetings").neq("status", "annule")),
       c(head("prospects").neq("phone", "").neq("status", "ignore")), c(head("radar_opps").gte("created_at", w1)),
       c(head("messages").eq("status", "envoye").gte("sent_at", w1)), c(head("messages").eq("status", "envoye").eq("step", 0)),
-    ]).then(([rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal]) => setD({ rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal })).catch(() => setD({}));
+      c(head("radar_opps").eq("status", "nouveau").gte("score", 75)),
+    ]).then(([rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal, chaudes]) => setD({ rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal, chaudes })).catch(() => setD({}));
   }, [ws.id]);
 
   const boite = ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok;
@@ -185,7 +187,7 @@ export default function Village() {
     atelier: [["Messages à valider", n(v.drafts)], ["Envoyés cette semaine", n(v.sent7)]],
     rdv: [["À venir", n(v.rdv)], ["Obtenus au total", n(v.rdvTotal)]],
     annuaire: [["Décideurs", n(v.dec)], ["E-mails", n(v.mails)], ["Téléphones", n(v.tels)]],
-    radar: [["Nouvelles entreprises", n(v.opps)], ["Repérées cette semaine", n(v.opps7)]],
+    radar: [["À contacter", n(v.opps)], ["Dont chaudes (75+)", n(v.chaudes)], ["Repérées cette semaine", n(v.opps7)]],
     espion: [["Concurrents surveillés", n(v.rivals)]],
     linkedin: [["Invitations à valider", n(v.li)]],
     observatoire: [["Entreprises contactées", n(v.sentTotal)], ["Taux de réponse", v.sentTotal ? `${Math.round(((v.repTotal ?? 0) / v.sentTotal) * 100)} %` : "–"], ["Rendez-vous", n(v.rdvTotal)]],
@@ -198,7 +200,7 @@ export default function Village() {
     Iris: reglage ? (!boite ? "Connecte ta boîte mail à la Mairie !" : "Ajoute ton adresse à la Mairie !") : "Ta cible est prête, on travaille.",
     ...(v.dec ? { Léo: `J'ai trouvé ${pl(v.dec, "décideur", "décideurs")}` } : {}),
     ...(v.mails ? { Sam: `${pl(v.mails, "e-mail trouvé", "e-mails trouvés")}` } : {}),
-    ...(v.opps ? { Max: `${pl(v.opps, "entreprise prête à acheter", "entreprises prêtes à acheter")}` } : {}),
+    ...(v.opps ? { Max: `${pl(v.opps, "entreprise à contacter au bon moment", "entreprises à contacter au bon moment")}` } : {}),
     ...(v.drafts ? { Hugo: `${pl(v.drafts, "message prêt", "messages prêts")} à valider à l'Atelier` } : {}),
     ...(v.rep ? { Inès: `${pl(v.rep, "réponse", "réponses")} à lire à la Poste !` } : {}),
     ...(v.li ? { Lina: `${pl(v.li, "invitation LinkedIn", "invitations LinkedIn")} à valider` } : {}),
@@ -209,7 +211,7 @@ export default function Village() {
   const next = reglage ? { b: B[8], t: !boite ? "Va à la Mairie : connecte ta boîte mail pour que tes messages puissent partir." : "Va à la Mairie : ajoute l'adresse de ton entreprise (obligatoire en bas des e-mails)." }
     : v.rep ? { b: B[0], t: `Va à la Poste : ${v.rep} prospect${v.rep > 1 ? "s t'ont" : " t'a"} répondu, une réponse est prête.` }
     : v.drafts ? { b: B[1], t: `Va à l'Atelier : ${v.drafts} message${v.drafts > 1 ? "s" : ""} à valider, un clic chacun.` }
-    : v.opps ? { b: B[4], t: `Passe à la Tour Radar : ${v.opps} entreprise${v.opps > 1 ? "s" : ""} prête${v.opps > 1 ? "s" : ""} à acheter.` }
+    : v.opps ? { b: B.find((b) => b.art === "radar"), t: `Passe à la Tour Radar : ${v.opps} entreprise${v.opps > 1 ? "s" : ""} à contacter au bon moment${v.chaudes ? `, dont ${v.chaudes} chaude${v.chaudes > 1 ? "s" : ""}` : ""}.` }
     : null;
   const first = (ws.sender_name || "").split(" ")[0];
   // Le bâtiment ouvert (?lieu=radar) : le bouton « retour » du navigateur ressort dans la ville
@@ -331,7 +333,7 @@ export default function Village() {
                 <span className="hidden sm:inline">Retour au village</span><span className="sm:hidden">Village</span>
               </button>
             </header>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6"><Page /></div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6"><LieuContext.Provider value={(to) => { const b = B.find((x) => x.to === to.split("?")[0]); if (!b || !INTERIEUR[b.to]) return false; setSp({ lieu: b.art }, { replace: true }); return true; }}><Page key={lieu.art} /></LieuContext.Provider></div>
           </section>
         </>
       )}

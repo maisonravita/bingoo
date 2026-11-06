@@ -339,7 +339,7 @@ function Morning({ s, canSend, wsId, adresse = true }) {
     ["valider", s.drafts, "message à valider", "messages à valider", "Un geste par message.", "#prets", "send"],
     ["rappels", s.urgent.due.length, "rappel prévu", "rappels prévus", "Le numéro est sur la fiche.", "/prospects", "clock"],
     ["linkedin", s.li, "invitation LinkedIn à valider", "invitations LinkedIn à valider", "Bingoo! les envoie à ton rythme.", "/linkedin", "send"],
-    ["radar", s.opps, "entreprise prête à acheter repérée", "entreprises prêtes à acheter repérées", "Ajoute celles qui t'intéressent : Bingoo! trouve le décideur et écrit.", "/radar", "search"],
+    ["radar", s.opps, "entreprise à contacter au bon moment", "entreprises à contacter au bon moment", "Ajoute celles qui t'intéressent : Bingoo! trouve le décideur et écrit.", "/radar", "search"],
     ["rdv", s.urgent.meet.length, "rendez-vous aujourd'hui", "rendez-vous aujourd'hui", s.urgent.meet[0] ? `Le premier à ${new Date(s.urgent.meet[0].starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} : ${s.urgent.meet[0].company ?? ""}` : "", "/agenda", "cal"],
   ];
   const key = `bingoo-matin-${wsId}-${new Date().toISOString().slice(0, 10)}`;
@@ -431,7 +431,7 @@ function Travail({ s }) {
     [nb(["enquete", "enquete_plus", "credit_email"]), "recherche de contact", "recherches de contact"],
     [nb(["credit_email"]) + nb(["enquete"], /e-mail trouvé/i), "e-mail trouvé", "e-mails trouvés"],
     [nb(["redaction"]), "message écrit pour toi", "messages écrits pour toi"],
-    [s.oppsWeek, "entreprise prête à acheter repérée", "entreprises prêtes à acheter repérées"],
+    [s.oppsWeek, "entreprise à contacter au bon moment", "entreprises à contacter au bon moment"],
   ].filter(([n]) => n > 0);
   const last = rows.find((r) => FAIT[r.kind]);
   const ago = last ? (() => { const m = Math.round((Date.now() - new Date(last.created_at).getTime()) / 6e4); return m < 60 ? `il y a ${Math.max(1, m)} min` : m < 1440 ? `il y a ${Math.round(m / 60)} h` : `il y a ${Math.round(m / 1440)} j`; })() : "";

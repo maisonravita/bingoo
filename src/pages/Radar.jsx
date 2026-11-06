@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Guide from "../components/Guide";
-import { useNavigate } from "react-router-dom";
+
 import { fn, quotaLeft, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { Button, Card, Spinner, useToast } from "../components/ui";
 import { cx } from "../lib/utils";
 import { DEPTS, centerOf, offsetKm } from "../lib/geo";
+import { useAller } from "../lib/lieu";
 
 export const RECRUIT_HINT = "Cette entreprise recrute pour un poste lié à ce que tu vends. C'est souvent le signe d'un besoin actuel et d'un budget : c'est le bon moment pour lui proposer ton service, en complément ou à la place d'une embauche.";
 const KIND = {
@@ -86,6 +87,13 @@ const SECTIONS = [
   ["reglages", "Réglages et activité", "Ce qu'il cherche, dernier scan"],
 ];
 const euroK = (n) => Number(n) >= 1000 ? `${(Number(n) / 1000).toLocaleString("fr-FR", { maximumFractionDigits: Number(n) >= 10000 ? 0 : 1 })} k€` : `${Math.round(Number(n))} €`;
+/** La raison d'en parler maintenant, en une ligne (le signal, pas une promesse d'achat). */
+const raison = (o) => {
+  const t = String(o.title || "").replace(new RegExp(`^${String(o.company || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*·\\s*`), "").trim();
+  const r = t && t !== o.company ? t : String(o.why || "").split(/(?<=[.!?:])\s/)[0].trim();
+  return r.length > 110 ? `${r.slice(0, 108)}…` : r;
+};
+
 /** Niveaux de chaleur (score de moment, pas une probabilité). */
 const HEAT = [[85, "Très chaude", "#EF4444"], [75, "Chaude", "#F97316"], [60, "Prometteuse", "#22C55E"], [40, "À surveiller", "#3B82F6"], [0, "Faible", "#A8A29E"]];
 const heatDot = (n) => (HEAT.find(([m]) => (n ?? 0) >= m) ?? HEAT[4])[2];
@@ -208,7 +216,7 @@ function RadarScope({ opps, zone, scanning, selected, onSelect, round = false, b
 function ContactReady({ o, onChange }) {
   const { ws } = useWs();
   const toast = useToast();
-  const nav = useNavigate();
+  const nav = useAller();
   const [d, setD] = useState(null);
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState(null);
@@ -347,7 +355,7 @@ function TeamActions({ o, onChange }) {
 function Detail({ o, onClose, onChange }) {
   const { ws } = useWs();
   const toast = useToast();
-  const nav = useNavigate();
+  const nav = useAller();
   const [busy, setBusy] = useState(null);
   const k = KIND[o.kind];
   const set = async (status, feedback) => {
@@ -720,7 +728,7 @@ function Market({ ws }) {
 
 /** Entreprises reconnues parmi les visiteurs du site (registre public des adresses IP ; jamais l'adresse elle-même). */
 function Visitors({ ws }) {
-  const nav = useNavigate();
+  const nav = useAller();
   const [d, setD] = useState(null);
   useEffect(() => {
     const since = new Date(Date.now() - 30 * 864e5).toISOString();
@@ -844,10 +852,10 @@ function ContactsBox({ ws, o, onChange }) {
 /** Vue d'accueil du Radar : radar par chaleur, fiche de l'opportunité choisie (pourquoi, maintenant, comment), qui contacter, prochaine action, classement. */
 function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
   const toast = useToast();
-  const nav = useNavigate();
+  const nav = useAller();
   const [mode, setMode] = useState("tout");
   const [selId, setSelId] = useState(null);
-  const [tab, setTab] = useState("entreprise");
+  const [tab, setTab] = useState("moment");
   const [busy, setBusy] = useState(null);
   const [full, setFull] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
@@ -916,6 +924,7 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
               <div className="min-w-0 flex-1">
                 <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12.5px] font-bold" style={{ background: `${heatDot(o.score)}1A`, color: heatDot(o.score) }}><Ico name="flame" className="h-4 w-4" />Opportunité {heatLabel(o.score).toLowerCase()}{o.raw?.top_day === today ? " · du jour" : ""}</span>
                 <h2 className="mt-2 font-black text-[26px] leading-tight break-words" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{o.company}</h2>
+                {raison(o) && <p className="mt-1 text-[15px] font-semibold text-ink">{raison(o)}</p>}
                 <p className="text-[13px] text-ink-soft">{[o.city && `${o.city}${o.dept ? ` (${o.dept})` : ""}`, INTENT.includes(o.kind) ? "Intention" : "Signal"].filter(Boolean).join(" · ")}</p>
                 <div className="mt-2 flex flex-wrap gap-1.5">{[...sel.kinds].map((k) => <span key={k} className={cx("rounded-full px-2.5 py-0.5 text-[12px] font-semibold", KIND[k]?.chip ?? "bg-paper")}>{KIND[k]?.label ?? k}</span>)}{o.raw?.valeur ? <span className="rounded-full px-2.5 py-0.5 text-[12px] font-semibold bg-paper">≈ {euroK(o.raw.valeur)}/an</span> : null}</div>
               </div>
@@ -1023,7 +1032,7 @@ function Partners({ ws }) {
 /** Radar adapté au métier : type d'entreprise, outils concurrents repérés sur les sites, obligations qui font acheter tes clients. */
 function Adapted({ ws }) {
   const toast = useToast();
-  const nav = useNavigate();
+  const nav = useAller();
   const [d, setD] = useState(null);
   const [pick, setPick] = useState(false);
   useEffect(() => { fn("r/saas-info", { workspace_id: ws.id }).then(setD).catch(() => setD(null)); }, [ws.id]);
