@@ -133,6 +133,43 @@ export async function findSite(p: { name?: string; org?: string; siret?: string 
   return "";
 }
 
+/** Cohérence d'un e-mail trouvé (trouvé!, Dropcontact, enquête web) avec l'entreprise de la fiche :
+ *  même domaine que son site, domaine tiré de son nom, ou site du domaine qui porte son SIREN (ou nom + code postal).
+ *  Un site qui affiche un AUTRE SIREN = e-mail d'une autre société. Aucune IA. */
+const PERSO = /@(gmail|googlemail|yahoo|hotmail|outlook|live|msn|icloud|me|orange|wanadoo|free|sfr|neuf|laposte|bbox|aol|gmx|proton|protonmail)\./i;
+export async function emailCoherence(p: { name?: string; org?: string | null; siren?: string | null; siret?: string | null; website?: string | null; postal_code?: string | null; city?: string | null }, email: string) {
+  const dom = domOf(email).replace(/^www\./, "");
+  if (PERSO.test(email)) return { ok: false, raison: "adresse personnelle (messagerie grand public)" };
+  const site = p.website ? hostOf(p.website).replace(/^www\./, "") : "";
+  if (site && (dom === site || dom.endsWith(`.${site}`) || site.endsWith(`.${dom}`))) return { ok: true, raison: "même domaine que son site" };
+  const label = dom.split(".").slice(-2, -1)[0] ?? "";
+  const mine = [p.org, p.name].filter(Boolean).flatMap((n) => slugs(String(n), p.city ?? "")).map((x) => x.replace(/-/g, ""));
+  if (label.length >= 4 && mine.some((x) => x === label.replace(/-/g, "") || (x.length >= 5 && label.replace(/-/g, "").includes(x)))) return { ok: true, raison: "domaine au nom de l'entreprise" };
+  // Le site du domaine dit-il à qui il appartient ?
+  const siren = String(p.siren || p.siret || "").replace(/\D/g, "").slice(0, 9);
+  const origin = `https://${dom}`;
+  const home = await fetchHtml(origin).catch(() => "");
+  if (!home) return { ok: null, raison: `domaine ${dom} sans site lisible, lien avec l'entreprise non prouvé` };
+  const legal = [...home.slice(0, 300_000).matchAll(/href=["']([^"'#]{1,200})["']/gi)].map((m) => { try { return new URL(m[1], origin).href; } catch { return ""; } })
+    .filter((u) => u && hostOf(u) === hostOf(origin) && /(mentions|legal|l%C3%A9gal|cgu|cgv|imprint)/i.test(u));
+  const pages = [home, ...(await Promise.all([...new Set([...legal, `${origin}/mentions-legales`])].slice(0, 2).map((u) => fetchHtml(u).catch(() => ""))))];
+  const raw = pages.map((x) => textOf(x)).join(" ");
+  const txt = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").replace(/(\d) (?=\d)/g, "$1");
+  if (siren.length === 9 && txt.includes(siren)) return { ok: true, raison: `le site ${dom} porte son SIREN`, site: origin };
+  const nameOk = [p.org, p.name].filter(Boolean).some((n) => { const k = String(n).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").replace(LEGAL, " ").trim(); return k.length >= 4 && txt.includes(k); });
+  if (nameOk && p.postal_code && txt.includes(String(p.postal_code))) return { ok: true, raison: `le site ${dom} porte son nom et son code postal`, site: origin };
+  const autre = [...raw.matchAll(/(?:siren|siret|rcs)[^0-9]{0,40}((?:\d[\s.]?){9})/gi)].map((m) => m[1].replace(/\D/g, "")).find((x) => x.length === 9 && x !== siren);
+  if (autre) return { ok: false, raison: `e-mail d'une autre société (le site ${dom} porte le SIREN ${autre})` };
+  return { ok: null, raison: `domaine ${dom} différent de l'entreprise, lien non prouvé` };
+}
+
+/** Ce qu'on enregistre pour un e-mail trouvé : sur la fiche s'il est cohérent, sinon mis de côté « à vérifier » (jamais envoyé tel quel). */
+export async function emailPatch(p: Parameters<typeof emailCoherence>[0] & { status?: string }, email: string, source: string) {
+  const c = await emailCoherence(p, email).catch(() => ({ ok: null as boolean | null, raison: "vérification du domaine impossible" }));
+  if (c.ok) return { ok: true, patch: { email, email_source: source, enriched_at: new Date().toISOString(), channel: "email", email_candidate: "", email_candidate_note: "", status: ["sans_email", "nouveau"].includes(String(p.status)) ? "pret" : p.status, ...("site" in c && c.site && !p.website ? { website: c.site } : {}) } as Record<string, unknown>, raison: c.raison };
+  return { ok: false, patch: { email_candidate: email, email_candidate_note: `${source} : ${c.raison}`.slice(0, 300) } as Record<string, unknown>, raison: c.raison };
+}
+
 /** Site publié sur OpenStreetMap (gratuit) : un commerce ou un bureau du même nom, à moins de 150 m de l'adresse du prospect.
  *  "" = rien sur la carte ; null = serveurs indisponibles (on réessaiera, on ne conclut rien). */
 export async function osmSite(p: { name?: string; org?: string; geo_lat?: number | null; geo_lon?: number | null }) {
@@ -245,8 +282,9 @@ async function dcResult(reqId: string): Promise<{ ready: boolean; email: string;
 async function applyDropcontact(ws: Workspace, p: Prospect, res: { email: string; phone: string }) {
   const patch: Record<string, unknown> = { dropcontact_req: null };
   if (res.email && EMAIL_RE.test(res.email) && !BAD.test(res.email)) {
-    Object.assign(patch, { email: res.email, status: ["sans_email", "nouveau"].includes(p.status) ? "pret" : p.status, channel: "email", email_source: "Dropcontact (adresse vérifiée)", enriched_at: new Date().toISOString() });
-    await log(ws.id, "credit_email", `${p.name} : e-mail trouvé par Dropcontact`);
+    const ep = await emailPatch(p as never, res.email, "Dropcontact (adresse vérifiée)");
+    Object.assign(patch, ep.patch);
+    await log(ws.id, "credit_email", `${p.name} : e-mail trouvé par Dropcontact${ep.ok ? "" : " (à vérifier : " + ep.raison + ")"}`);
   } else {
     patch.channel = chooseChannel({ ...p, ...patch } as Prospect);
   }
@@ -430,7 +468,12 @@ Format : {"email": "", "source": "URL exacte où l'e-mail apparaît", "site": ""
   if (phone && !p.phone) patch.phone = phone;
   if (person && person !== p.contact_name) { patch.contact_name = person; patch.contact_role = role; }
   if ((p as P2).linkedin_url && !(await admin.from("prospects").select("linkedin_url").eq("id", p.id).single()).data?.linkedin_url) patch.linkedin_url = (p as P2).linkedin_url;
-  if (email) Object.assign(patch, { email, email_source: source, status: ["sans_email", "nouveau"].includes(p.status) ? "pret" : p.status });
+  if (email && /dropcontact|recherche web|^https?:/i.test(source)) {
+    // E-mail venu d'ailleurs que le site de l'entreprise : on vérifie qu'il est bien à elle
+    const ep = await emailPatch({ ...p, website: (patch.website as string) || p.website } as never, email, source);
+    Object.assign(patch, ep.patch);
+    if (!ep.ok) { steps.push(`e-mail ${email} mis de côté : ${ep.raison}`); email = ""; patch.enrich_note = steps.join(" · ").slice(0, 600); }
+  } else if (email) Object.assign(patch, { email, email_source: source, status: ["sans_email", "nouveau"].includes(p.status) ? "pret" : p.status });
   patch.channel = chooseChannel({ ...p, ...patch } as P2);
   await admin.from("prospects").update(patch).eq("id", p.id);
   return { id: p.id, email, channel: patch.channel as string, pending: !!dcReq, steps };

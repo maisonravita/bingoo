@@ -97,12 +97,16 @@ export async function trouveEmail(ws: Workspace, p: Prospect, dry = false) {
   const autre = !!p.contact_name && norm(p.contact_name) !== norm(officer.name);
   if (!p.contact_name || (u.value && autre)) Object.assign(patch, { contact_name: officer.name, contact_role: officer.role });
   if (u.value && autre) patch.notes = `${p.notes ? `${p.notes}\n` : ""}Ancien contact : ${p.contact_name}${p.contact_role ? ` (${p.contact_role})` : ""}`.slice(0, 2000);
+  let ok = false, raison = "";
   if (u.value) {
-    Object.assign(patch, { email: u.value, email_source: "trouvé! (e-mail pro vérifié)", enriched_at: now, channel: "email", status: ["sans_email", "nouveau"].includes(p.status) ? "pret" : p.status });
-    await log(ws.id, "credit_email", `${p.name} : e-mail de ${officer.name} trouvé par trouvé!`);
+    // L'e-mail est-il bien chez CETTE entreprise ? (un dirigeant peut avoir une autre société)
+    const { emailPatch } = await import("./deep.ts");
+    const ep = await emailPatch(p as never, u.value, "trouvé! (e-mail pro vérifié)");
+    Object.assign(patch, ep.patch); ok = ep.ok; raison = ep.raison;
+    await log(ws.id, "credit_email", `${p.name} : e-mail de ${officer.name} trouvé par trouvé!${ok ? "" : ` (à vérifier : ${raison})`}`);
   } else patch.enrich_note = `trouvé! : ${officer.name} identifié, pas d'e-mail professionnel connu`;
   await admin.from("prospects").update(patch).eq("id", p.id);
-  return { email: u.value, decideur: `${officer.name}, ${officer.role}`, note: u.value ? "e-mail professionnel vérifié" : "pas d'e-mail professionnel connu", keys: u.keys };
+  return { email: ok ? u.value : "", a_verifier: !ok && u.value ? u.value : "", decideur: `${officer.name}, ${officer.role}`, note: !u.value ? "pas d'e-mail professionnel connu" : ok ? `e-mail professionnel vérifié (${raison})` : `e-mail mis de côté : ${raison}`, keys: u.keys };
 }
 
 /** Téléphone du décideur : à la demande seulement (3 clés). */

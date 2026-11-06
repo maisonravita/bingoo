@@ -25,6 +25,7 @@ const VIEWS = [
   { key: "ready", label: "Joignables", st: ["pret", "a_valider"] },
   { key: "todo", label: "À enquêter", st: ["nouveau"] },
   { key: "none", label: "Sans e-mail", st: ["sans_email"] },
+  { key: "check", label: "E-mail à vérifier", fn: (r) => !r.email && !!r.email_candidate },
   { key: "off", label: "Hors cible", fn: (r) => r.fit === "non" },
 ];
 const MOVES = ["repondu", "rdv", "client", "refus", "ignore"];
@@ -151,7 +152,7 @@ function Drawer({ p, onClose, onChange, team = [] }) {
         <FitNote p={p} onChange={onChange} />
         <dl className="mt-5 grid grid-cols-[110px_1fr] gap-y-2 text-sm">
           <dt className="text-ink-soft">Décideur</dt><dd>{p.contact_name ? `${p.contact_name}${p.contact_role ? ` · ${p.contact_role}` : ""}` : "—"}</dd>
-          <dt className="text-ink-soft">E-mail</dt><dd>{p.email ? <><a className="underline" href={`mailto:${p.email}`}>{p.email}</a><Provenance src={p.email_source} at={p.enriched_at} /></> : <FindEmail p={p} onChange={onChange} />}</dd>
+          <dt className="text-ink-soft">E-mail</dt><dd>{p.email ? <><a className="underline" href={`mailto:${p.email}`}>{p.email}</a><Provenance src={p.email_source} at={p.enriched_at} /></> : p.email_candidate ? <Candidate p={p} onChange={onChange} /> : <FindEmail p={p} onChange={onChange} />}</dd>
           <dt className="text-ink-soft">Téléphone</dt><dd>{p.phone ? <><a className="underline" href={`tel:${p.phone.replace(/\s/g, "")}`}>{p.phone}</a><Provenance src={p.phone_source || (p.siret ? "fiche entreprise" : "")} at={p.phone_checked_at} /></> : <FindPhone p={p} onChange={onChange} />}</dd>
           <dt className="text-ink-soft">LinkedIn</dt><dd>{p.linkedin_url ? <a className="underline text-li" href={p.linkedin_url} target="_blank" rel="noreferrer">{p.linkedin_person || "Profil"}</a> : p.linkedin_status === "introuvable" ? "Introuvable" : "—"}</dd>
           <dt className="text-ink-soft">Site</dt><dd className="truncate">{p.website ? <a className="underline" href={p.website} target="_blank" rel="noreferrer">{p.website.replace(/^https?:\/\//, "")}</a> : "—"}</dd>
@@ -479,6 +480,29 @@ function FindPhone({ p, onChange }) {
     <span className="block">
       <Button size="sm" loading={busy} onClick={go}>{busy ? "Recherche…" : "Trouver le téléphone"}</Button>
       <span className="block text-xs text-ink-faint mt-1">{note ? `${note.replace(/^./, (c) => c.toUpperCase())}. ` : ""}Un dirigeant installé à son domicile est un particulier : l'appeler demande son accord préalable.</span>
+    </span>
+  );
+}
+
+// E-mail trouvé mais pas relié avec certitude à cette entreprise (autre domaine, autre société) : le client tranche
+function Candidate({ p, onChange }) {
+  const toast = useToast();
+  const use = async () => {
+    const patch = { email: p.email_candidate, email_source: p.email_candidate_note.split(" : ")[0] + " · validé par toi", enriched_at: new Date().toISOString(), channel: "email", email_candidate: "", email_candidate_note: "", status: ["sans_email", "nouveau"].includes(p.status) ? "pret" : p.status };
+    const { error } = await supabase.from("prospects").update(patch).eq("id", p.id);
+    if (error) return toast(error.message, "bad");
+    onChange({ ...p, ...patch }); toast("E-mail retenu", "good");
+  };
+  const drop = async () => {
+    const patch = { email_candidate: "", email_candidate_note: "" };
+    await supabase.from("prospects").update(patch).eq("id", p.id);
+    onChange({ ...p, ...patch });
+  };
+  return (
+    <span className="block rounded-lg bg-warn-soft px-2.5 py-2">
+      <span className="block font-medium">{p.email_candidate}</span>
+      <span className="block text-xs text-warn mt-0.5">À vérifier : {p.email_candidate_note.split(" : ").slice(1).join(" : ") || p.email_candidate_note}</span>
+      <span className="mt-2 flex gap-2"><Button size="sm" onClick={use}>Utiliser cet e-mail</Button><Button size="sm" variant="ghost" onClick={drop}>Écarter</Button></span>
     </span>
   );
 }
