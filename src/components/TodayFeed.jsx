@@ -136,7 +136,7 @@ export default function TodayFeed() {
 
   return (
     <div>
-      {d.night.length > 0 && <p className="mb-6 rounded-xl bg-accent-soft/60 px-4 py-3 text-[15px]"><b className="font-semibold">Ces dernières 24 heures</b> : {d.night.join(", ")}.</p>}
+      {d.night.length > 0 && <p className="mb-6 rounded-xl bg-accent-soft/60 px-4 py-3 text-[15px]"><b className="font-semibold">Ces dernières 24 heures</b> : {d.night.join(", ")}. <a href="/qg/" className="font-semibold text-accent-dark underline underline-offset-4 whitespace-nowrap">Revoir la nuit dans ta ville</a></p>}
 
       {d.replies.length > 0 && (
         <Section title="Ils t'ont répondu" count={d.replies.length} to="/reponses" more="Toutes les réponses">

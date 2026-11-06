@@ -31,7 +31,7 @@ const ICONS = {
   mega: <path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1zM15 9a3 3 0 0 1 0 6" />,
   funnel: <path d="M3 4h18l-7 8v6l-4 2v-8z" />,
   radar: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><path d="M12 12l6-6" /></>,
-  li: <><rect x="3.5" y="3.5" width="17" height="17" rx="3.5" /><path d="M8 10.5V16M8 7.6v.1M11.5 16v-5.5M11.5 13c0-1.6 1-2.6 2.4-2.6s2.1 1 2.1 2.6V16" /></>,
+  town: <><path d="M3 21h18" /><path d="M5 21V10l4-3 4 3v11" /><path d="M13 21V6l3-2 3 2v15" /><path d="M8 13h2M8 17h2M15.5 10h1M15.5 14h1" /></>,
   more: <><circle cx="5" cy="12" r="1.3" /><circle cx="12" cy="12" r="1.3" /><circle cx="19" cy="12" r="1.3" /></>,
 };
 export const Icon = ({ name, className = "w-5 h-5" }) => <svg viewBox="0 0 24 24" className={cx(className, "shrink-0")} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{ICONS[name]}</svg>;
@@ -204,6 +204,7 @@ export default function Layout({ children }) {
       { to: "/espion", label: "Concurrents", short: "Concurrents", icon: "eye" },
     ] },
     { items: [
+      { to: "/qg/", ext: true, label: "Ma ville · la nuit", short: "Ma ville", icon: "town" },
       { to: "/resultats", label: "Résultats", short: "Résultats", icon: "chart", also: ["/distribution", "/conversion", "/pilotage"] },
       { to: "/reglages", label: "Réglages", icon: "cog", also: ["/connexions", "/equipe", "/abonnement"] },
       ...(isAdmin ? [{ to: "/admin", label: "Administration", icon: "chart" }] : []),
@@ -220,7 +221,11 @@ export default function Layout({ children }) {
         <Logo className="ml-3 mt-1 mb-5" />
         {ws.autonomy === "auto" && <p className="mx-3 mb-4 text-xs font-semibold text-good flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-good pulse-dot" />Pilote automatique actif</p>}
         {groups.map((g, i) => {
-          const items = g.items.map((n) => (
+          const items = g.items.map((n) => n.ext ? (
+            <a key={n.to} href={n.to} className={link(n)({ isActive: false })}>
+              <Icon name={n.icon} /><span className="flex-1">{n.label}</span>
+            </a>
+          ) : (
             <NavLink key={n.to} to={n.to} end className={link(n)}>
               <Icon name={n.icon} /><span className="flex-1">{n.label}</span><Count n={n.count} hot={n.hot} />
             </NavLink>
@@ -259,7 +264,9 @@ export default function Layout({ children }) {
         <div className="md:hidden fixed inset-0 z-40" onClick={() => setMore(false)}>
           <div className="absolute inset-0 bg-ink/30" />
           <div className="absolute bottom-16 inset-x-3 bg-white rounded-2xl border border-line p-2 grid grid-cols-3 gap-1 rise" onClick={(e) => e.stopPropagation()}>
-            {all.filter((n) => !["/", "/reponses", "/prospects", "/agenda"].includes(n.to)).map((n) => (
+            {all.filter((n) => !["/", "/reponses", "/prospects", "/agenda"].includes(n.to)).map((n) => n.ext ? (
+              <a key={n.to} href={n.to} className="relative flex flex-col items-center gap-1 rounded-xl py-3 text-xs font-medium text-ink-soft"><Icon name={n.icon} />{n.short}</a>
+            ) : (
               <NavLink key={n.to} to={n.to} className={({ isActive }) => cx("relative flex flex-col items-center gap-1 rounded-xl py-3 text-xs font-medium", isActive ? "bg-paper text-ink" : "text-ink-soft")}>
                 <Icon name={n.icon} />{n.label}
                 {n.count > 0 && <span className="absolute top-1.5 right-3 text-[10px] font-bold bg-accent text-white rounded-full min-w-4 h-4 px-1 grid place-items-center">{n.count}</span>}
