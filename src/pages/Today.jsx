@@ -392,7 +392,7 @@ function Travail({ s }) {
   const lignes = [
     [trouves, "entreprise trouvée dans ta cible", "entreprises trouvées dans ta cible"],
     [nb(["enquete", "enquete_plus", "credit_email"]), "recherche de contact", "recherches de contact"],
-    [nb(["credit_email"]) + nb(["enquete"], /e-mail trouvé/i), "e-mail de décideur trouvé", "e-mails de décideurs trouvés"],
+    [nb(["credit_email"]) + nb(["enquete"], /e-mail trouvé/i), "e-mail trouvé", "e-mails trouvés"],
     [nb(["redaction"]), "message écrit pour toi", "messages écrits pour toi"],
     [s.oppsWeek, "entreprise prête à acheter repérée", "entreprises prêtes à acheter repérées"],
   ].filter(([n]) => n > 0);
