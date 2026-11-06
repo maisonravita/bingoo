@@ -463,7 +463,7 @@ const STEPS = [
   ["marches", "Appels d'offres", "France (BOAMP) et Europe (TED)"],
   ["renouvellements", "Contrats publics à renouveler", "Marchés attribués qui arrivent à échéance"],
   ["annonces", "Annonces légales et sites", "Nouveau dirigeant, déménagement, difficultés, créations ; sites des comptes surveillés"],
-  ["emploi", "Offres d'emploi", "France Travail : qui recrute dans ta zone"],
+  ["emploi", "Offres d'emploi", "Pages carrières des entreprises : qui recrute"],
   ["web", "Recrutements et croissance", "Offres d'emploi, levées, ouvertures (web)"],
   ["registre", "Tes prospects", "Signaux déjà repérés sur ta liste"],
   ["tri", "Score et tri", "Entreprises chaudes, filtre, dates limites"],
