@@ -193,7 +193,7 @@ export default function Layout({ children }) {
   // Radar, LinkedIn et Concurrents nourrissent ce chemin. Les autres pages existent toujours (par leur adresse), hors du menu.
   const groups = [
     { items: [
-      { to: "/", label: "Aujourd'hui", short: "Aujourd'hui", icon: "today", count: c.drafts, hot: true, also: ["/valider"] },
+      { to: "/", label: "Accueil", short: "Accueil", icon: "today", count: c.drafts, hot: true, also: ["/valider", "/liste", "/village"] },
       { to: "/prospects", label: "Contacts", short: "Contacts", icon: "list", also: ["/prospection"] },
       { to: "/reponses", label: "Réponses", short: "Réponses", icon: "inbox", count: c.replies },
       { to: "/agenda", label: "Rendez-vous", short: "RDV", icon: "cal", count: c.today },

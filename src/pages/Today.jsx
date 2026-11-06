@@ -460,6 +460,7 @@ function resume(s) {
 
 export default function Today() {
   const { ws } = useWs();
+  const nav = useNavigate();
   const toast = useToast();
   const { job, run } = useJob(toast);
   const [s, setS] = useState(null);
@@ -522,7 +523,8 @@ export default function Today() {
   return (
     <div className="max-w-4xl">
       {visite && <Visite onFin={finVisite} />}
-      <header className="mb-6">
+      <header className="mb-6 relative">
+        <button onClick={() => { try { localStorage.setItem("bingoo-vue", "village"); } catch { /* rien */ } nav("/village"); }} className="absolute right-0 top-1 rounded-full border border-line bg-white px-4 py-2 text-[14px] font-semibold hover:border-ink-faint">Vue village</button>
         <h1 className="font-black text-[40px] sm:text-[52px] leading-none tracking-tight flex items-start gap-1" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>
           {hello}{first ? ` ${first}` : ""} !<Sparks className="w-9 h-9 sm:w-11 sm:h-11 -mt-2" />
         </h1>

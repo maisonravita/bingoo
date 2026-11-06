@@ -8,6 +8,9 @@ import Splash from "./components/Splash";
 import Auth, { PasswordRecovery } from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Today from "./pages/Today";
+import Village from "./pages/Village";
+// Accueil : la carte-village par défaut, ou la vue liste si la personne l'a choisie
+function Accueil() { let v = ""; try { v = localStorage.getItem("bingoo-vue") ?? ""; } catch { /* rien */ } return v === "liste" ? <Today /> : <Village />; }
 import Review from "./pages/Review";
 import Prospects from "./pages/Prospects";
 import LinkedIn from "./pages/LinkedIn";
@@ -75,7 +78,9 @@ function Gate() {
     <Layout>
       <ErrorBoundary resetKey={loc.pathname}>
       <Routes>
-        <Route path="/" element={<Today />} />
+        <Route path="/" element={<Accueil />} />
+        <Route path="/liste" element={<Today />} />
+        <Route path="/village" element={<Village />} />
         <Route path="/valider" element={<Review />} />
         <Route path="/prospects" element={<Prospects />} />
         <Route path="/linkedin" element={<LinkedIn />} />
