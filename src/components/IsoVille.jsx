@@ -269,7 +269,7 @@ export default function IsoVille({ batiments, paroles = {}, full = false }) {
       {/* La carte « en direct » du bâtiment survolé */}
       {act && (
         <div className="pointer-events-none absolute z-10 w-[260px] rounded-2xl border border-line bg-white p-4 shadow-[0_18px_40px_-18px_rgba(21,22,26,.35)]"
-          style={(() => { const vx = minX + (VW - VW / vue.z) / 2 - vue.dx, vy = minY + (VH - VH / vue.z) / 2 - vue.dy, w = VW / vue.z, h = VH / vue.z; return { left: `${Math.min(76, Math.max(2, ((anchor[0] - vx) / w) * 100 + 4))}%`, top: `${Math.min(70, Math.max(0, ((anchor[1] - vy) / h) * 100 - 30))}%` }; })()}>
+          style={(() => { const vx = minX + (VW - VW / vue.z) / 2 - vue.dx, vy = minY + (VH - VH / vue.z) / 2 - vue.dy, w = VW / vue.z, h = VH / vue.z; return { left: `${Math.min(76, Math.max(2, ((anchor[0] - vx) / w) * 100 + 4))}%`, top: `${Math.min(70, Math.max(full ? 14 : 0, ((anchor[1] - vy) / h) * 100 - 30))}%` }; })()}>
           <p className="text-[17px] font-black text-ink" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{act.nom}</p>
           <p className="flex items-center gap-1.5 text-[11px] font-semibold text-accent-dark"><span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />En direct · {act.quoi}</p>
           <dl className="mt-2.5 space-y-1.5">
