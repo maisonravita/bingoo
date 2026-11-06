@@ -64,7 +64,13 @@ export async function trouveOfficer(p: Prospect) {
 }
 
 async function unlock(ids: number[], field: "work_email" | "phone") {
-  const r = await call<{ unlocked?: Record<string, unknown>[]; keys_charged?: number }>("/people/unlock", { contact_ids: ids.slice(0, 50), field });
+  let r: { unlocked?: Record<string, unknown>[]; keys_charged?: number };
+  try { r = await call("/people/unlock", { contact_ids: ids.slice(0, 50), field }); }
+  catch (e) {
+    // « Aucune donnée à débloquer » : la fiche n'a pas cette coordonnée, rien n'est débité
+    if (e instanceof TrouveError && (/aucune donn/i.test(e.message) || /nothing|no_data|empty|not_found/i.test(e.code))) return { value: "", keys: 0 };
+    throw e;
+  }
   const vals = (r.unlocked ?? []).flatMap((u) => Object.entries(u).filter(([k]) => k !== "id").map(([, v]) => String(v ?? "")));
   const value = field === "phone" ? vals.find((v) => /\d{6,}/.test(v.replace(/\D/g, ""))) ?? "" : vals.find((v) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v.trim()))?.trim().toLowerCase() ?? "";
   return { value, keys: Number(r.keys_charged ?? 0) };
