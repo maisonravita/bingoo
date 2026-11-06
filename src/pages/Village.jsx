@@ -170,6 +170,19 @@ export default function Village() {
     mairie: [["Boîte mail", boite ? "connectée" : "à connecter"], ["Adresse légale", ws.postal_address ? "renseignée" : "à ajouter"]],
   };
   B.forEach((b) => { b.stats = STATS[b.art]; });
+  // Ce que disent les agents : leurs vrais chiffres, rien d'inventé
+  const pl = (x, a, b) => `${n(x)} ${x > 1 ? b : a}`;
+  const paroles = {
+    Iris: reglage ? (!boite ? "Connecte ta boîte mail à la Mairie !" : "Ajoute ton adresse à la Mairie !") : "Ta cible est prête, on travaille.",
+    ...(v.dec ? { Léo: `J'ai trouvé ${pl(v.dec, "décideur", "décideurs")}` } : {}),
+    ...(v.mails ? { Sam: `${pl(v.mails, "e-mail trouvé", "e-mails trouvés")}` } : {}),
+    ...(v.opps ? { Max: `${pl(v.opps, "entreprise prête à acheter", "entreprises prêtes à acheter")}` } : {}),
+    ...(v.drafts ? { Hugo: `${pl(v.drafts, "message prêt", "messages prêts")} à valider à l'Atelier` } : {}),
+    ...(v.rep ? { Inès: `${pl(v.rep, "réponse", "réponses")} à lire à la Poste !` } : {}),
+    ...(v.li ? { Lina: `${pl(v.li, "invitation LinkedIn", "invitations LinkedIn")} à valider` } : {}),
+    ...(v.rdv ? { Paul: `${pl(v.rdv, "rendez-vous", "rendez-vous")} à venir` } : {}),
+    ...(v.rivals ? { Oscar: `${pl(v.rivals, "concurrent surveillé", "concurrents surveillés")}` } : {}),
+  };
   // Le panneau : un seul endroit où aller d'abord
   const next = reglage ? { b: B[8], t: !boite ? "Va à la Mairie : connecte ta boîte mail pour que tes messages puissent partir." : "Va à la Mairie : ajoute l'adresse de ton entreprise (obligatoire en bas des e-mails)." }
     : v.rep ? { b: B[0], t: `Va à la Poste : ${v.rep} prospect${v.rep > 1 ? "s t'ont" : " t'a"} répondu, une réponse est prête.` }
@@ -178,32 +191,58 @@ export default function Village() {
     : null;
   const first = (ws.sender_name || "").split(" ")[0];
 
+  // Arrivée : on descend du ciel à travers les nuages jusqu'à sa ville (une fois par visite, et jamais si l'on préfère moins d'animations)
+  const [intro, setIntro] = useState(() => {
+    try { if (sessionStorage.getItem("bingoo-intro") || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return false; } catch { return false; }
+    return true;
+  });
+  useEffect(() => {
+    if (!intro) return;
+    try { sessionStorage.setItem("bingoo-intro", "1"); } catch { /* rien */ }
+    const t = setTimeout(() => setIntro(false), 3400);
+    return () => clearTimeout(t);
+  }, [intro]);
+
   return (
-    <div className="max-w-6xl">
-      <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
-        <div>
-          <h1 className="font-black text-[34px] sm:text-[46px] leading-none tracking-tight" style={H}>Bienvenue à Bingoo!-ville{first ? `, ${first}` : ""}</h1>
-          <p className="text-ink-soft text-[16px] mt-2">Chaque bâtiment est une partie de Bingoo! : clique pour y entrer. Un badge orange : quelque chose t'y attend.</p>
-        </div>
-        <button onClick={() => { try { localStorage.setItem("bingoo-vue", "liste"); } catch { /* rien */ } nav("/liste"); }} className="rounded-full border border-line bg-white px-4 py-2 text-[14px] font-semibold hover:border-ink-faint">Vue liste</button>
+    <div className="fixed inset-0 overflow-hidden" style={{ background: "radial-gradient(ellipse at 50% 40%, #FBFAF6 0%, #EFECE4 70%)" }}>
+      <style>{`
+        @keyframes bv-descente { 0% { transform: scale(.35) translateY(-8%); opacity: 0; filter: blur(6px) } 45% { opacity: 1; filter: blur(2px) } 100% { transform: none; opacity: 1; filter: none } }
+        @keyframes bv-ciel { 0% { opacity: 1 } 70% { opacity: 1 } 100% { opacity: 0; visibility: hidden } }
+        @keyframes bv-nuage { 0% { transform: translate(var(--x), 40vh) scale(.6); opacity: 0 } 20% { opacity: .95 } 100% { transform: translate(calc(var(--x) * 2.4), -70vh) scale(2.6); opacity: 0 } }
+        @keyframes bv-ui { 0%, 75% { opacity: 0; transform: translateY(-8px) } 100% { opacity: 1; transform: none } }
+      `}</style>
+
+      {/* La ville, plein écran */}
+      <div style={intro ? { animation: "bv-descente 3.2s cubic-bezier(.2,.7,.2,1) both" } : undefined}>
+        <IsoVille batiments={B} paroles={d ? paroles : {}} full />
       </div>
 
-      {/* Le panneau de la place */}
-      <button onClick={() => next && nav(next.b.to)} disabled={!next} className={cx("mb-5 flex w-full items-center gap-4 rounded-2xl border-2 px-4 py-3 text-left transition", next ? "border-accent bg-accent-soft/60 hover:bg-accent-soft" : "border-line bg-white")}>
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-accent text-white text-[22px] font-black" style={H}>{next ? "→" : "✓"}</span>
-        <span className="flex-1 min-w-0">
-          <span className="block text-[12.5px] font-semibold text-accent-dark">{next ? "Prochaine étape" : "Tout est fait"}</span>
-          <span className="block text-[16px] font-semibold text-ink">{next ? next.t : "Rien ne t'attend : Bingoo! cherche, écrit et relance pour toi. Reviens demain matin."}</span>
-        </span>
-      </button>
-
-      {/* La carte : terrain, rues, bâtiments */}
-      <div className="relative overflow-hidden rounded-[28px] border border-line p-3 sm:p-6" style={{ background: "linear-gradient(#F7F5F0, #EFECE4)" }}>
-        <div className="hidden md:block"><IsoVille batiments={B} /></div>
-        <div className="relative grid grid-cols-2 gap-x-2 gap-y-4 md:hidden">
-          {B.map((b) => <Batiment key={b.art} b={b} />)}
+      {/* Le ciel et les nuages qu'on traverse */}
+      {intro && (
+        <div aria-hidden className="pointer-events-none fixed inset-0 z-40" style={{ animation: "bv-ciel 3.2s ease-in both", background: "linear-gradient(#8EC5FF 0%, #CFE6FF 55%, rgba(239,236,228,0) 100%)" }}>
+          {Array.from({ length: 14 }, (_, k) => (
+            <span key={k} className="absolute left-1/2 top-1/2 rounded-full bg-white" style={{ "--x": `${((k * 37) % 100) - 50}vw`, width: `${30 + (k % 5) * 12}vw`, height: `${12 + (k % 4) * 6}vw`, marginLeft: "-15vw", filter: "blur(18px)", animation: `bv-nuage ${1.6 + (k % 4) * 0.35}s ${(k % 7) * 0.12}s ease-in both` }} />
+          ))}
+          <p className="absolute inset-x-0 top-[38%] text-center text-[34px] sm:text-[52px] font-black text-white drop-shadow-[0_4px_18px_rgba(47,74,110,.5)]" style={H}>Bingoo!-ville{first ? `, ${first}` : ""}</p>
+          <button onClick={() => setIntro(false)} className="pointer-events-auto absolute bottom-8 left-1/2 -translate-x-1/2 rounded-full bg-white/80 px-4 py-2 text-[13px] font-semibold text-ink">Passer</button>
         </div>
-        <a href="/qg/" className="relative mt-4 flex items-center justify-center gap-2 rounded-2xl bg-[#15161A] px-4 py-3 text-[14.5px] font-semibold text-white hover:bg-black">La nuit en vrai : revois ce que ton équipe a fait cette nuit dans ta ville</a>
+      )}
+
+      {/* Par-dessus la ville : le prochain geste, en haut */}
+      <div className="pointer-events-none fixed inset-x-0 top-4 z-20 flex justify-center pl-[76px] pr-4 sm:px-20" style={intro ? { animation: "bv-ui 3.6s both" } : undefined}>
+        <button onClick={() => next && nav(next.b.to)} disabled={!next} className={cx("pointer-events-auto flex max-w-[720px] items-center gap-3 rounded-2xl border-2 px-4 py-2.5 text-left shadow-[0_12px_30px_-16px_rgba(21,22,26,.4)] backdrop-blur transition", next ? "border-accent bg-white/95 hover:bg-white" : "border-line bg-white/90")}>
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent text-white text-[18px] font-black" style={H}>{next ? "→" : "✓"}</span>
+          <span className="min-w-0">
+            <span className="block text-[12px] font-semibold text-accent-dark">{next ? "Prochaine étape" : `Tout est fait${first ? `, ${first}` : ""}`}</span>
+            <span className="block text-[13px] sm:text-[14.5px] font-semibold text-ink leading-snug">{next ? next.t : "Bingoo! cherche, écrit et relance pour toi. Reviens demain matin."}</span>
+          </span>
+        </button>
+      </div>
+
+      {/* En bas : comment ça marche, et la nuit rejouée */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-5 z-20 flex flex-wrap items-center justify-center gap-2 px-20" style={intro ? { animation: "bv-ui 3.6s both" } : undefined}>
+        <p className="hidden sm:block rounded-full bg-white/90 px-3.5 py-1.5 text-[12.5px] text-ink-soft shadow-sm backdrop-blur">Survole un bâtiment pour ses chiffres · clique pour entrer · glisse pour te déplacer</p>
+        <a href="/qg/" className="pointer-events-auto rounded-full bg-[#15161A] px-3.5 py-1.5 text-[12.5px] font-semibold text-white hover:bg-black">La nuit de ton équipe</a>
       </div>
     </div>
   );

@@ -204,7 +204,7 @@ export default function Layout({ children }) {
       { to: "/espion", label: "Concurrents", short: "Concurrents", icon: "eye" },
     ] },
     { items: [
-      { to: "/qg/", ext: true, label: "Ma ville · la nuit", short: "Ma ville", icon: "town" },
+      { to: "/qg/", ext: true, label: "La nuit de ton équipe", short: "La nuit", icon: "town" },
       { to: "/resultats", label: "Résultats", short: "Résultats", icon: "chart", also: ["/distribution", "/conversion", "/pilotage"] },
       { to: "/reglages", label: "Réglages", icon: "cog", also: ["/connexions", "/equipe", "/abonnement"] },
       ...(isAdmin ? [{ to: "/admin", label: "Administration", icon: "chart" }] : []),
@@ -215,82 +215,69 @@ export default function Layout({ children }) {
   const link = (n) => ({ isActive }) => cx("flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] font-medium transition", isOn(n, isActive) ? "bg-accent-soft/80 text-accent-dark font-semibold border border-transparent" : "text-ink-soft hover:text-ink hover:bg-white/70 border border-transparent");
   const Count = ({ n, hot }) => n > 0 ? <span className={cx("text-xs font-semibold rounded-full px-2 py-0.5 tnum", hot ? "bg-accent text-white" : "bg-ink/10 text-ink")}>{n}</span> : null;
 
-  return (
-    <div className="min-h-full md:flex">
-      <aside className="hidden md:flex md:w-60 shrink-0 flex-col p-4 sticky top-0 h-screen overflow-y-auto">
-        <Logo className="ml-3 mt-1 mb-5" />
-        {ws.autonomy === "auto" && <p className="mx-3 mb-4 text-xs font-semibold text-good flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-good pulse-dot" />Pilote automatique actif</p>}
-        {groups.map((g, i) => {
-          const items = g.items.map((n) => n.ext ? (
-            <a key={n.to} href={n.to} className={link(n)({ isActive: false })}>
-              <Icon name={n.icon} /><span className="flex-1">{n.label}</span>
-            </a>
-          ) : (
-            <NavLink key={n.to} to={n.to} end className={link(n)}>
-              <Icon name={n.icon} /><span className="flex-1">{n.label}</span><Count n={n.count} hot={n.hot} />
-            </NavLink>
-          ));
-          if (g.title && !g.fold) return <div key={i} className="mt-4 pt-4 border-t border-line flex flex-col gap-0.5"><p className="px-3 pb-1 text-[12px] font-semibold text-ink-faint">{g.title}</p>{items}</div>;
-          return g.fold ? (
-            <details key={i} className="mt-4 pt-4 border-t border-line group" open={g.items.some((n) => loc.pathname === n.to || (n.also ?? []).includes(loc.pathname))}>
-              <summary className="cursor-pointer list-none px-3 pb-1.5 text-[13px] text-ink-soft hover:text-ink flex items-center justify-between">{g.title}<span className="text-[11px] group-open:rotate-90 transition">›</span></summary>
-              <div className="flex flex-col gap-0.5">{items}</div>
-            </details>
-          ) : <div key={i} className={cx("flex flex-col gap-0.5", i > 0 && "mt-4 pt-4 border-t border-line")}>{items}</div>;
-        })}
-        <NavLink to="/salaries" className="mt-auto mx-1 rounded-2xl bg-gradient-to-br from-accent-soft to-white border border-accent/15 p-4 flex items-end gap-3 hover:border-accent/40 transition">
-          <span className="min-w-0 flex-1">
-            <svg viewBox="0 0 40 40" className="w-6 h-6 mb-1" fill="none" stroke="#E0531F" strokeWidth="4" strokeLinecap="round" aria-hidden><path d="M10 10l3 7M22 6l-3 9M30 16l-7 3" /></svg>
-            <span className="block font-bold text-[14px] text-ink">Besoin d'aide ?</span>
-            <span className="block text-[12px] text-ink-soft leading-snug">Discute avec ton équipe Bingoo!</span>
-          </span>
-          <span className="w-8 h-8 rounded-full bg-accent text-white grid place-items-center shrink-0"><svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
-        </NavLink>
-        <div className="pt-5 px-3 text-[13px] text-ink-soft">
-          {list?.length > 1 ? <WsSwitch ws={ws} list={list} select={select} /> : <p className="font-semibold text-ink truncate">{ws.profile?.nom || ws.name || "Mon entreprise"}</p>}
-          <NavLink className="block hover:text-ink mt-1" to="/aide">Aide</NavLink>
-          <button className="block hover:text-ink mt-1" onClick={() => setFb(true)}>Donner mon avis</button>
-          <LegalLinks className="mt-3" />
-          <button className="block hover:text-ink mt-1" onClick={() => supabase.auth.signOut()}>Se déconnecter</button>
-        </div>
-      </aside>
-      <main className="flex-1 min-w-0 px-4 pt-5 pb-28 md:px-10 md:pt-10 md:pb-12 max-w-6xl">
-        <TopBar ws={ws} replies={c.replies} />
-        {ws.plan === "essai" && <div className="md:hidden mb-4 flex"><TrialBar ws={ws} /></div>}
-        <div className="md:hidden flex items-center justify-between gap-3 mb-5"><Logo /><WsSwitch ws={ws} list={list} select={select} className="flex-1 min-w-0 max-w-[60%] ml-auto" />{ws.autonomy === "auto" && <span className="w-2.5 h-2.5 rounded-full bg-good pulse-dot" title="Pilote automatique actif" />}</div>
-        {children}
-      </main>
+  // Accueil en ville : plein écran, sans menu. Partout : un seul bouton « 3 traits » qui ouvre le menu.
+  let vue = ""; try { vue = localStorage.getItem("bingoo-vue") ?? ""; } catch { /* rien */ }
+  const full = loc.pathname === "/village" || (loc.pathname === "/" && vue !== "liste");
+  const menu = (
+    <>
+      <button onClick={() => setMore(true)} aria-label="Ouvrir le menu" className={cx("relative z-30 grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-line bg-white/95 shadow-[0_8px_24px_-12px_rgba(21,22,26,.35)] backdrop-blur hover:border-ink-faint", full ? "!fixed left-4 top-4" : "")}>
+        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+        {(c.replies + c.drafts) > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-[11px] font-bold text-white">{c.replies + c.drafts}</span>}
+      </button>
       {more && (
-        <div className="md:hidden fixed inset-0 z-40" onClick={() => setMore(false)}>
-          <div className="absolute inset-0 bg-ink/30" />
-          <div className="absolute bottom-16 inset-x-3 bg-white rounded-2xl border border-line p-2 grid grid-cols-3 gap-1 rise" onClick={(e) => e.stopPropagation()}>
-            {all.filter((n) => !["/", "/reponses", "/prospects", "/agenda"].includes(n.to)).map((n) => n.ext ? (
-              <a key={n.to} href={n.to} className="relative flex flex-col items-center gap-1 rounded-xl py-3 text-xs font-medium text-ink-soft"><Icon name={n.icon} />{n.short}</a>
-            ) : (
-              <NavLink key={n.to} to={n.to} className={({ isActive }) => cx("relative flex flex-col items-center gap-1 rounded-xl py-3 text-xs font-medium", isActive ? "bg-paper text-ink" : "text-ink-soft")}>
-                <Icon name={n.icon} />{n.label}
-                {n.count > 0 && <span className="absolute top-1.5 right-3 text-[10px] font-bold bg-accent text-white rounded-full min-w-4 h-4 px-1 grid place-items-center">{n.count}</span>}
-              </NavLink>
+        <div className="fixed inset-0 z-50" onClick={() => setMore(false)}>
+          <div className="absolute inset-0 bg-ink/35" />
+          <aside className="absolute left-0 top-0 h-full w-[300px] max-w-[85vw] overflow-y-auto bg-paper p-4 shadow-2xl rise" onClick={(e) => e.stopPropagation()} aria-label="Menu">
+            <div className="flex items-center justify-between mb-4"><Logo className="ml-2" /><button onClick={() => setMore(false)} aria-label="Fermer le menu" className="grid h-10 w-10 place-items-center rounded-xl hover:bg-white text-[20px]">✕</button></div>
+            <NavLink to="/village" onClick={() => { try { localStorage.setItem("bingoo-vue", "village"); } catch { /* rien */ } setMore(false); }} className="mb-1 flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] font-semibold text-accent-dark bg-accent-soft/70"><Icon name="town" /><span className="flex-1">Ma ville</span></NavLink>
+            <NavLink to="/liste" onClick={() => { try { localStorage.setItem("bingoo-vue", "liste"); } catch { /* rien */ } setMore(false); }} className={link({ to: "/liste" })}><Icon name="today" /><span className="flex-1">Aujourd'hui (vue liste)</span><Count n={c.drafts} hot /></NavLink>
+            {groups.map((g, i) => (
+              <div key={i} className="mt-3 pt-3 border-t border-line flex flex-col gap-0.5">
+                {g.title && <p className="px-3 pb-1 text-[12px] font-semibold text-ink-faint">{g.title}</p>}
+                {g.items.filter((n) => n.to !== "/").map((n) => n.ext ? (
+                  <a key={n.to} href={n.to} className={link(n)({ isActive: false })}><Icon name={n.icon} /><span className="flex-1">{n.label}</span></a>
+                ) : (
+                  <NavLink key={n.to} to={n.to} end onClick={() => setMore(false)} className={link(n)}><Icon name={n.icon} /><span className="flex-1">{n.label}</span><Count n={n.count} hot={n.hot} /></NavLink>
+                ))}
+              </div>
             ))}
-            <button className="flex flex-col items-center gap-1 rounded-xl py-3 text-xs font-medium text-ink-soft" onClick={() => { setMore(false); setFb(true); }}><Icon name="inbox" />Mon avis</button>
-            <button className="flex flex-col items-center gap-1 rounded-xl py-3 text-xs font-medium text-ink-soft" onClick={() => supabase.auth.signOut()}><Icon name="more" />Déconnexion</button>
-          </div>
+            <div className="mt-4 pt-4 border-t border-line px-3 text-[14px] text-ink-soft flex flex-col gap-1.5">
+              {list?.length > 1 ? <WsSwitch ws={ws} list={list} select={select} /> : <p className="font-semibold text-ink truncate">{ws.profile?.nom || ws.name || "Mon entreprise"}</p>}
+              <NavLink className="hover:text-ink" to="/salaries" onClick={() => setMore(false)}>Besoin d'aide ? Ton équipe Bingoo!</NavLink>
+              <NavLink className="hover:text-ink" to="/aide" onClick={() => setMore(false)}>Aide</NavLink>
+              <button className="text-left hover:text-ink" onClick={() => { setMore(false); setFb(true); }}>Donner mon avis</button>
+              <button className="text-left font-semibold text-ink hover:text-accent-dark" onClick={() => supabase.auth.signOut()}>Se déconnecter</button>
+              <LegalLinks className="mt-2" />
+            </div>
+          </aside>
         </div>
       )}
+    </>
+  );
+
+  if (full) return (
+    <div className="min-h-full">
+      {menu}
+      {children}
       {fb && <Feedback onClose={() => setFb(false)} />}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-line grid grid-cols-5 pb-[env(safe-area-inset-bottom)] z-40">
-        {/* Sur téléphone : ce qu'on fait chaque jour. Les réponses (là où se gagnent les rendez-vous) ont leur onglet. */}
-        {["/", "/prospects", "/reponses", "/agenda"].map((t) => all.find((n) => n.to === t)).map((n) => (
-          <NavLink key={n.to} to={n.to} end className={({ isActive }) => cx("relative flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium", isActive ? "text-ink" : "text-ink-faint")}>
-            <Icon name={n.icon} />{n.short}
-            {n.count > 0 && <span className="absolute top-1 right-[22%] text-[10px] font-bold bg-accent text-white rounded-full min-w-4 h-4 px-1 grid place-items-center tnum">{n.count}</span>}
-          </NavLink>
-        ))}
-        <button onClick={() => setMore((x) => !x)} className={cx("relative flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium", more ? "text-ink" : "text-ink-faint")}>
-          <Icon name="more" />Plus
-          {(c.radar + c.li) > 0 && !more && <span className="absolute top-1.5 right-[28%] w-2 h-2 rounded-full bg-accent" />}
-        </button>
-      </nav>
+    </div>
+  );
+
+  return (
+    <div className="min-h-full">
+      <main className="min-w-0 px-4 pt-4 pb-16 md:px-10 md:pt-6 max-w-6xl mx-auto">
+        <div className="flex items-center gap-3 mb-4">
+          {menu}
+          <NavLink to="/village" onClick={() => { try { localStorage.setItem("bingoo-vue", "village"); } catch { /* rien */ } }} className="hidden sm:flex items-center gap-2 rounded-2xl border border-line bg-white px-3.5 py-2.5 text-[14px] font-semibold hover:border-ink-faint"><Icon name="town" />Retour à ma ville</NavLink>
+          <Logo className="sm:hidden" />
+          <div className="flex-1" />
+          {ws.autonomy === "auto" && <span className="w-2.5 h-2.5 rounded-full bg-good pulse-dot" title="Pilote automatique actif" />}
+        </div>
+        <TopBar ws={ws} replies={c.replies} />
+        {ws.plan === "essai" && <div className="md:hidden mb-4 flex"><TrialBar ws={ws} /></div>}
+        {children}
+      </main>
+      {fb && <Feedback onClose={() => setFb(false)} />}
     </div>
   );
 }
