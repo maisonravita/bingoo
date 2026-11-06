@@ -104,6 +104,7 @@ function Drawer({ p, onClose, onChange, team = [] }) {
   const [msgs, setMsgs] = useState(null);
   const [calls, setCalls] = useState([]);
   const [busy, setBusy] = useState(null);
+  const [why, setWhy] = useState(false);
   const [next, setNext] = useState({ next_action: p.next_action ?? "", next_action_at: p.next_action_at ?? "", notes: p.notes ?? "", owner_id: p.owner_id ?? "" });
   useEffect(() => {
     supabase.from("messages").select("*").eq("prospect_id", p.id).order("created_at").then(({ data }) => setMsgs(data ?? []));
@@ -221,7 +222,7 @@ function Drawer({ p, onClose, onChange, team = [] }) {
         </div>
 
         <div className="flex flex-wrap gap-2 mt-5">
-          {!p.enriched_at && <Button quota="enquete" size="sm" loading={busy === "m/enrich"} onClick={() => act("m/enrich", "Enquête terminée")}>Trouver l'e-mail</Button>}
+          {!p.enriched_at && <Button quota="enquete" size="sm" loading={busy === "m/enrich"} onClick={() => act("m/enrich", "Enquête terminée")}>Enquête approfondie</Button>}
           {!p.linkedin_status && <Button quota="linkedin" size="sm" variant="li" loading={busy === "linkedin"} onClick={() => act("linkedin", "Recherche LinkedIn terminée")}>Préparer LinkedIn</Button>}
           <Button size="sm" onClick={() => nav("/devis", { state: { prospect: p } })}>Créer un devis</Button>
         </div>
@@ -229,9 +230,20 @@ function Drawer({ p, onClose, onChange, team = [] }) {
         <h3 className="text-sm font-semibold uppercase tracking-wider text-ink-soft mt-7 mb-2">Où en est-on ?</h3>
         <div className="flex flex-wrap gap-2">
           {MOVES.map((m) => (
-            <button key={m} onClick={() => set(m)} className={cx("rounded-full px-3 py-1.5 text-sm border", p.status === m ? "bg-ink text-white border-ink" : "bg-white border-line hover:border-ink-faint")}>{STATUS[m].label}</button>
+            <button key={m} onClick={() => m === "ignore" && p.status !== "ignore" ? setWhy(true) : set(m)} className={cx("rounded-full px-3 py-1.5 text-sm border", p.status === m ? "bg-ink text-white border-ink" : "bg-white border-line hover:border-ink-faint")}>{STATUS[m].label}</button>
           ))}
         </div>
+        {why && (
+          <div className="mt-3 rounded-xl bg-paper p-3 text-sm">
+            <p className="text-ink-soft mb-2">Pourquoi tu l'écartes ? Bingoo! s'en servira pour trier les suivantes.</p>
+            <div className="flex flex-wrap gap-1.5">
+              {["Pas ma cible", "Trop petite", "Trop grande", "Déjà client", "Concurrent", "Mauvaise zone"].map((r) => (
+                <button key={r} onClick={async () => { try { await fn("r/refus", { workspace_id: ws.id, id: p.id, raison: r }); onChange({ ...p, status: "ignore", fit: "non", fit_reason: `Écarté par toi : ${r}` }); setWhy(false); toast("Écartée. Bingoo! s'en souviendra."); } catch (e) { toast(e.message, "bad"); } }} className="rounded-full border border-line bg-white px-3 py-1 hover:border-ink-faint">{r}</button>
+              ))}
+              <button onClick={() => { setWhy(false); set("ignore"); }} className="rounded-full px-3 py-1 text-ink-soft underline">Sans raison</button>
+            </div>
+          </div>
+        )}
 
         <h3 className="text-sm font-semibold uppercase tracking-wider text-ink-soft mt-7 mb-2">Prochaine action</h3>
         <div className="grid grid-cols-[1fr_150px] gap-2">

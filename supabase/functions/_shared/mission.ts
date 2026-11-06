@@ -143,13 +143,27 @@ export async function missionSearch(ws: Workspace, m: Mission, wanted = 50) {
 }
 
 /** Plan proposé à partir de l'objectif écrit en langage naturel. Rien n'est lancé tant que l'utilisateur ne valide pas. */
+// Cible absente des réglages, décrite dans la phrase : proposée dans le plan, créée seulement au lancement
+const NAF_RE = /^\d{2}\.\d{2}[A-Z]$/;
+const TR = ["00", "01", "02", "03", "11", "12", "21", "22", "31", "32", "41", "42", "51", "52", "53"];
+function newTarget(c: unknown, manquante: unknown) {
+  const x = (c ?? {}) as Record<string, unknown>;
+  if (!String(manquante ?? "").trim() || !x.label) return null;
+  const naf = (Array.isArray(x.naf) ? x.naf : []).map((n) => String(n).trim().toUpperCase()).filter((n) => NAF_RE.test(n)).slice(0, 4);
+  if (!naf.length) return null;
+  return {
+    label: String(x.label).slice(0, 80), pourquoi: String(x.pourquoi ?? "").slice(0, 300), naf,
+    tranches: (Array.isArray(x.tranches) ? x.tranches : []).map(String).filter((t) => TR.includes(t)), siege_only: !!x.siege_only,
+    interlocuteur: String(x.interlocuteur ?? "").slice(0, 80), pour_qui: String(x.pour_qui ?? "").slice(0, 80), angle: String(x.angle ?? "").slice(0, 300),
+  };
+}
 const SIG = ["recrutement", "levee", "creation", "croissance", "dirigeant", "demenagement", "outil", "renouvellement", "appel_offres"];
 export async function planMission(ws: Workspace, objective: string) {
   const text = objective.trim().slice(0, 600);
   if (text.length < 8) throw new HttpError(400, "Décris ton objectif en une phrase, par exemple : « Trouver 15 nouveaux clients à Lyon d'ici fin janvier »");
   const targets = (ws.targets ?? []).map((t) => ({ id: t.id, label: t.label, interlocuteur: t.interlocuteur }));
   const today = new Date().toISOString().slice(0, 10);
-  const r = await askJson<{ type: string; nombre: number; echeance: string; departements: string[]; cibles: string[]; cibles_manquantes: string; reformulation: string; conseils: string[]; signaux: string[] }>(
+  const r = await askJson<{ type: string; nombre: number; echeance: string; departements: string[]; cibles: string[]; cibles_manquantes: string; reformulation: string; conseils: string[]; signaux: string[]; nouvelle_cible?: { label: string; pourquoi: string; naf: string[]; tranches: string[]; siege_only: boolean; interlocuteur: string; pour_qui: string; angle: string } | null }>(
     `Un dirigeant fixe un objectif commercial à son outil de prospection. Interprète-le précisément, sans rien inventer.
 Entreprise : ${ws.profile?.nom ?? ws.name} — ${ws.profile?.offre ?? ""}
 Zone habituelle : ${(ws.zone ?? []).join(", ") || "toute la France"}
@@ -164,10 +178,11 @@ Règles :
 - departements : codes à 2 caractères si une ville ou une région est citée (Lyon → 69 ; Île-de-France → 75, 77, 78, 91, 92, 93, 94, 95), sinon liste vide.
 - cibles : identifiants des cibles existantes qui correspondent (toutes si l'objectif ne précise pas de type de client).
 - cibles_manquantes : si l'objectif vise un type de client absent des cibles, décris-le en une phrase, sinon "".
+- nouvelle_cible : seulement si cibles_manquantes n'est pas vide, la cible à créer pour ce type de client : label (nom clair, ex. « Cabinets d'avocats »), pourquoi (une phrase), naf (1 à 4 codes NAF rév. 2 de l'INSEE au format "69.10Z" qui correspondent EXACTEMENT à ces entreprises), tranches (codes d'effectif INSEE parmi 01,02,03,11,12,21,22,31,32,41,42,51,52,53 ; liste vide = toutes tailles), siege_only (true pour des entreprises de bureaux), interlocuteur (la fonction à qui écrire), pour_qui (les bénéficiaires, ex. « vos clients »), angle (l'argument principal en une phrase). Sinon null.
 - reformulation : l'objectif reformulé clairement en une phrase.
 - signaux : les moments d'achat cités, parmi "recrutement" (qui recrutent), "levee" (qui lèvent des fonds), "creation" (nouvelles entreprises), "croissance" (qui grandissent, ouvrent des postes), "dirigeant" (nouveau dirigeant), "demenagement" (qui déménagent ou ouvrent un site), "outil" (qui utilisent un outil précis), "renouvellement" (contrat qui se termine), "appel_offres". Liste vide si aucun n'est cité.
 - conseils : 2 ou 3 conseils concrets et prudents pour cette mission (pas de promesse de résultat). Désigne les cibles par leur nom, jamais par leur identifiant.
-Format : {"type": "clients", "nombre": 10, "echeance": "", "departements": [], "cibles": [], "cibles_manquantes": "", "reformulation": "", "conseils": [""], "signaux": []}`,
+Format : {"type": "clients", "nombre": 10, "echeance": "", "departements": [], "cibles": [], "cibles_manquantes": "", "reformulation": "", "conseils": [""], "signaux": [], "nouvelle_cible": null}`,
     { fast: true, maxTokens: 1500 });
   const goal_type = r.type === "rdv" ? "rdv" : "clients";
   const goal_count = Math.min(Math.max(Math.round(Number(r.nombre) || 10), 1), 10000);
@@ -185,6 +200,7 @@ Format : {"type": "clients", "nombre": 10, "echeance": "", "departements": [], "
   const available = (avail ?? []).filter((p) => inZone(p.postal_code, zoneList)).length;
   return {
     objective: r.reformulation || text, goal_type, goal_count, deadline, target_ids: target_ids.length ? target_ids : targets.map((t) => t.id), zone,
+    new_target: newTarget(r.nouvelle_cible, r.cibles_manquantes),
     signal_focus: (r.signaux ?? []).map(String).filter((x) => SIG.includes(x)).slice(0, 4),
     missing_target: String(r.cibles_manquantes ?? ""), conseils: (r.conseils ?? []).slice(0, 3), projection: proj, available,
   };
@@ -194,6 +210,16 @@ export async function createMission(ws: Workspace, userId: string, b: Record<str
   const goal_type = b.goal_type === "rdv" ? "rdv" : "clients";
   const goal_count = Math.min(Math.max(Math.round(Number(b.goal_count) || 10), 1), 10000);
   const target_ids = (Array.isArray(b.target_ids) ? b.target_ids : []).map(String).filter((id) => (ws.targets ?? []).some((t) => t.id === id));
+  // Nouvelle cible proposée par le plan et gardée par l'utilisateur : ajoutée à ses cibles, puis visée par la mission
+  const nt = b.add_target === true ? newTarget(b.new_target, "oui") : null;
+  if (nt) {
+    const n = Math.max(0, ...(ws.targets ?? []).map((t) => Number(String(t.id).replace(/\D/g, "")) || 0)) + 1;
+    const t = { id: `c${n}`, ...nt, actif: true, next_page: 1 } as Target;
+    ws.targets = [...(ws.targets ?? []), t];
+    await admin.from("workspaces").update({ targets: ws.targets }).eq("id", ws.id);
+    target_ids.push(t.id);
+    await log(ws.id, "mission", `Nouvelle cible ajoutée : ${t.label}`);
+  }
   if (!target_ids.length) throw new HttpError(400, "Choisis au moins une cible");
   const zone = (Array.isArray(b.zone) ? b.zone : []).map((d) => String(d).toUpperCase()).filter((d) => /^(\d{2}|2A|2B|97\d)$/.test(d)).slice(0, 20);
   const deadline = /^\d{4}-\d{2}-\d{2}$/.test(String(b.deadline ?? "")) ? String(b.deadline) : null;

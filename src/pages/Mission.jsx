@@ -35,7 +35,7 @@ function NewMission({ onCreated, onCancel, initial = "" }) {
   const launch = async () => {
     setBusy("go");
     try {
-      const r = await fn("i/mission-create", { workspace_id: ws.id, ...plan });
+      const r = await fn("i/mission-create", { workspace_id: ws.id, ...plan, add_target: !!plan.new_target && plan.add_target !== false });
       toast(`Mission lancée : ${n(r.linked)} entreprises rattachées${r.inserted ? `, dont ${n(r.inserted)} nouvelles` : ""}`, "good");
       onCreated(r.id);
     } catch (e) { toast(e.message, "bad"); } finally { setBusy(null); }
@@ -89,7 +89,12 @@ function NewMission({ onCreated, onCancel, initial = "" }) {
               className={cx("rounded-full border px-3 py-1.5 text-sm", on ? "bg-ink text-white border-ink" : "bg-white border-line text-ink-soft")}>{t.label}</button>;
           })}
         </div>
-        {plan.missing_target && <p className="text-sm text-warn mt-2">Ton objectif vise aussi : {plan.missing_target}. Ajoute cette cible dans Réglages → Zone et cibles pour l'inclure.</p>}
+        {plan.new_target ? (
+          <label className="mt-3 flex items-start gap-2.5 rounded-xl border border-accent/30 bg-accent-soft/40 p-3 text-sm cursor-pointer">
+            <input type="checkbox" className="mt-1" checked={plan.add_target !== false} onChange={(e) => set("add_target", e.target.checked)} />
+            <span><b>Nouvelle cible : {plan.new_target.label}</b>{plan.new_target.interlocuteur ? `, à qui écrire : ${plan.new_target.interlocuteur}` : ""}. <span className="text-ink-soft">{plan.new_target.pourquoi} Elle sera ajoutée à tes cibles au lancement.</span></span>
+          </label>
+        ) : plan.missing_target && <p className="text-sm text-warn mt-2">Ton objectif vise aussi : {plan.missing_target}. Ajoute cette cible dans Réglages → Zone et cibles pour l'inclure.</p>}
         {plan.signal_focus?.length > 0 && <p className="text-sm mt-3">En priorité, les entreprises {plan.signal_focus.map((k) => SIGNAL_LABEL[k] ?? k).join(", ")}.</p>}
         <p className="text-sm text-ink-soft mt-3">Zone : {plan.zone?.length ? plan.zone.join(", ") : (ws.zone?.length ? `${ws.zone.join(", ")} (zone habituelle)` : "toute la France")}</p>
       </div>
@@ -107,7 +112,7 @@ function NewMission({ onCreated, onCancel, initial = "" }) {
       {plan.conseils?.length > 0 && <ul className="mt-5 space-y-1.5 text-sm">{plan.conseils.map((c) => <li key={c} className="flex gap-2"><span className="text-accent">→</span><span>{c}</span></li>)}</ul>}
 
       <div className="flex flex-wrap gap-2 mt-7">
-        <Button variant="accent" size="lg" loading={busy === "go"} disabled={!plan.target_ids.length} onClick={launch}>Lancer la mission</Button>
+        <Button variant="accent" size="lg" loading={busy === "go"} disabled={!plan.target_ids.length && !(plan.new_target && plan.add_target !== false)} onClick={launch}>Lancer la mission</Button>
         <Button variant="ghost" size="lg" onClick={() => setPlan(null)}>Modifier l'objectif</Button>
       </div>
     </Card>
