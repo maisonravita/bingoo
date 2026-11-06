@@ -171,6 +171,27 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const r = await findEmail(ws, p);
     return { ...r, credits: await credits(ws) };
   },
+  // Téléphone du décideur via trouvé! : à la demande seulement (3 clés), jamais en automatique
+  async "find-phone"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { data: p } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("id", String(b.id ?? "")).single();
+    if (!p) throw new HttpError(404, "Fiche introuvable");
+    const { trouveReady, trouvePhone, trouveMsg } = await import("../_shared/trouve.ts");
+    if (!trouveReady()) throw new HttpError(400, "La recherche de téléphone n'est pas encore activée");
+    try { return await trouvePhone(ws, p); } catch (e) { throw new HttpError(502, trouveMsg(e)); }
+  },
+  // Test de trouvé! sur quelques fiches (clé cron) : dry = dirigeants seulement, aucune clé dépensée
+  async "trouve-test"(req, b) {
+    await cron(req);
+    const { trouveEmail, trouveMsg } = await import("../_shared/trouve.ts");
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
+    if (!ws) throw new HttpError(404, "Espace introuvable");
+    const ids = (Array.isArray(b.ids) ? b.ids : []).map(String).slice(0, 5);
+    const { data: ps } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).in("id", ids);
+    const out = [];
+    for (const p of ps ?? []) { try { out.push({ nom: p.name, ...(await trouveEmail(ws, p, b.dry !== false)) }); } catch (e) { out.push({ nom: p.name, erreur: trouveMsg(e) }); } }
+    return { resultats: out };
+  },
   // Nuit : résultats Dropcontact en attente + nouvelles recherches vérifiées (espaces clients ; jamais les espaces fondateur)
   async "dc-cron"(req, b) {
     await cron(req);

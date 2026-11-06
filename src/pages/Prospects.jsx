@@ -152,7 +152,7 @@ function Drawer({ p, onClose, onChange, team = [] }) {
         <dl className="mt-5 grid grid-cols-[110px_1fr] gap-y-2 text-sm">
           <dt className="text-ink-soft">Décideur</dt><dd>{p.contact_name ? `${p.contact_name}${p.contact_role ? ` · ${p.contact_role}` : ""}` : "—"}</dd>
           <dt className="text-ink-soft">E-mail</dt><dd>{p.email ? <><a className="underline" href={`mailto:${p.email}`}>{p.email}</a><Provenance src={p.email_source} at={p.enriched_at} /></> : <FindEmail p={p} onChange={onChange} />}</dd>
-          <dt className="text-ink-soft">Téléphone</dt><dd>{p.phone ? <><a className="underline" href={`tel:${p.phone.replace(/\s/g, "")}`}>{p.phone}</a><Provenance src={p.phone_source || (p.siret ? "fiche entreprise" : "")} at={p.phone_checked_at} /></> : "—"}</dd>
+          <dt className="text-ink-soft">Téléphone</dt><dd>{p.phone ? <><a className="underline" href={`tel:${p.phone.replace(/\s/g, "")}`}>{p.phone}</a><Provenance src={p.phone_source || (p.siret ? "fiche entreprise" : "")} at={p.phone_checked_at} /></> : <FindPhone p={p} onChange={onChange} />}</dd>
           <dt className="text-ink-soft">LinkedIn</dt><dd>{p.linkedin_url ? <a className="underline text-li" href={p.linkedin_url} target="_blank" rel="noreferrer">{p.linkedin_person || "Profil"}</a> : p.linkedin_status === "introuvable" ? "Introuvable" : "—"}</dd>
           <dt className="text-ink-soft">Site</dt><dd className="truncate">{p.website ? <a className="underline" href={p.website} target="_blank" rel="noreferrer">{p.website.replace(/^https?:\/\//, "")}</a> : "—"}</dd>
           <dt className="text-ink-soft">Adresse</dt><dd>{[p.address].filter(Boolean).join(" ") || "—"}</dd>
@@ -455,6 +455,30 @@ function FindEmail({ p, onChange }) {
     <span className="block">
       <Button size="sm" loading={busy} onClick={go}>{busy ? "Recherche…" : "Trouver l'e-mail"}</Button>
       {note && <span className="block text-xs text-ink-soft mt-1">{note.replace(/^./, (c) => c.toUpperCase())}.</span>}
+    </span>
+  );
+}
+
+// Téléphone du décideur à la demande (3 clés trouvé!) ; rappel : appeler un particulier exige son accord préalable
+function FindPhone({ p, onChange }) {
+  const { ws } = useWs();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+  const go = async () => {
+    setBusy(true); setNote("");
+    try {
+      const r = await fn("r/find-phone", { workspace_id: ws.id, id: p.id });
+      const { data } = await supabase.from("prospects").select("*").eq("id", p.id).single();
+      if (data) onChange(data);
+      setNote(r.note ?? "");
+      if (r.phone) toast("Téléphone trouvé", "good");
+    } catch (e) { setNote(e.message); } finally { setBusy(false); }
+  };
+  return (
+    <span className="block">
+      <Button size="sm" loading={busy} onClick={go}>{busy ? "Recherche…" : "Trouver le téléphone"}</Button>
+      <span className="block text-xs text-ink-faint mt-1">{note ? `${note.replace(/^./, (c) => c.toUpperCase())}. ` : ""}Un dirigeant installé à son domicile est un particulier : l'appeler demande son accord préalable.</span>
     </span>
   );
 }

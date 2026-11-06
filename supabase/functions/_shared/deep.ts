@@ -263,6 +263,16 @@ export async function findEmail(ws: Workspace, p: P2) {
   const free = await freeEnrich(p, true).catch(() => ({ site: "", foundSite: false, email: "", phone: "" }));
   if (free.email) return { email: free.email, source: `site ${hostOf(free.site)}`, pending: false, steps: ["e-mail publié sur son site"] };
   steps.push(free.site ? `site ${hostOf(free.site)} lu, pas d'e-mail publié` : "site introuvable");
+  // trouvé! d'abord (part du SIREN : pas besoin d'un décideur déjà nommé)
+  const { trouveReady, trouveEmail, trouveMsg } = await import("./trouve.ts");
+  if (trouveReady()) {
+    const c = await credits(ws);
+    if (c.left <= 0) return { email: "", source: "", pending: false, steps: [...steps, "crédits d'e-mails du mois épuisés"] };
+    try {
+      const r = await trouveEmail(ws, p as Prospect);
+      return { email: r.email, source: r.email ? "trouvé! (e-mail pro vérifié)" : "", pending: false, steps: [...steps, r.decideur ? `${r.decideur} : ${r.note}` : r.note] };
+    } catch (e) { return { email: "", source: "", pending: false, steps: [...steps, trouveMsg(e)] }; }
+  }
   const person = String(p.contact_name ?? "").trim();
   if (!person || person.split(/\s+/).length < 2) return { email: "", source: "", pending: false, steps: [...steps, "aucun décideur nommé : ajoute son nom pour lancer la recherche vérifiée"] };
   if (!env("DROPCONTACT_API_KEY")) return { email: "", source: "", pending: false, steps: [...steps, "recherche vérifiée pas encore activée"] };
@@ -283,6 +293,22 @@ export async function findEmail(ws: Workspace, p: P2) {
 /** Passe de nuit : récupère les résultats en attente, puis lance la recherche vérifiée sur les meilleurs décideurs
  *  sans e-mail (déjà passés par la recherche gratuite, dans la cible), dans la limite des crédits du mois. */
 export async function dropcontactNight(ws: Workspace, n = 10) {
+  const { trouveReady, trouveEmail, trouveMsg, trouveStop } = await import("./trouve.ts");
+  if (trouveReady()) {
+    // trouvé! : meilleures fiches sans e-mail, déjà passées par la recherche gratuite, dans la cible, avec un SIREN
+    const c = await credits(ws);
+    const lots = Math.min(n, c.left);
+    if (lots <= 0) return { source: "trouvé!", lances: 0, credits_restants: c.left };
+    const { data } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("email", "").in("status", ["nouveau", "sans_email", "pret"])
+      .neq("fit", "non").is("dc_tried_at", null).not("free_tried_at", "is", null).not("siren", "is", null).neq("siren", "")
+      .order("score", { ascending: false, nullsFirst: false }).limit(lots);
+    let essais = 0, trouves = 0, arret = "";
+    for (const p of data ?? []) {
+      try { const r = await trouveEmail(ws, p as Prospect); essais++; if (r.email) trouves++; }
+      catch (e) { arret = trouveMsg(e); if (trouveStop(e)) break; }
+    }
+    return { source: "trouvé!", essais, trouves, arret, credits_restants: c.left - trouves };
+  }
   if (!env("DROPCONTACT_API_KEY")) return { actif: false };
   const recus = await dropcontactPending(ws);
   const c = await credits(ws);
