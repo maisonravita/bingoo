@@ -52,6 +52,7 @@ const Flower = ({ x, y }) => { const [px, py] = P(x, y, 0); return <g><circle cx
 const GlassL = ({ x, y, z, w, h, n = 3 }) => <g>{Array.from({ length: n }, (_, k) => <FaceL key={k} x={x + (w / n) * k + 0.15} y={y} z={z} w={w / n - 0.3} h={h} c="#FFD08A" />)}</g>;
 const GlassR = ({ x, y, z, d, h, n = 3 }) => <g>{Array.from({ length: n }, (_, k) => <FaceR key={k} x={x} y={y + (d / n) * k + 0.15} z={z} d={d / n - 0.3} h={h} c="#FFC979" />)}</g>;
 
+const Gear = ({ cx, cy, r = 9, c = "#4A4E57" }) => <g><circle cx={cx} cy={cy} r={r} fill="none" stroke={c} strokeWidth={r * 0.45} strokeDasharray={`${r * 0.5} ${r * 0.42}`} /><circle cx={cx} cy={cy} r={r * 0.62} fill="none" stroke={c} strokeWidth={r * 0.32} /></g>;
 // Les bâtiments, chacun sur sa parcelle 10 × 10 (origine = coin arrière de la parcelle). Dessins originaux, palette chaude.
 const ART = {
   poste: (x, y) => <>
@@ -59,25 +60,30 @@ const ART = {
     <Box x={x + 4} y={y + 7.6} w={2.2} d={1.2} h={5} c="#F6E7D3" /><Roof x={x + 3.8} y={y + 7.4} z={5} w={2.6} d={1.6} h={1.4} c="#E8692B" />
     <FaceL x={x + 4.4} y={y + 8.8} z={0} w={1.4} h={2.6} c="#9A5A2C" /><FaceL x={x + 4.5} y={y + 8.8} z={3} w={1.2} h={0.9} c="#FFFFFF" />
     <GlassL x={x + 1.8} y={y + 8} z={1.4} w={2} h={1.8} n={2} /><GlassL x={x + 6.4} y={y + 8} z={1.4} w={1.9} h={1.8} n={2} /><GlassR x={x + 8.5} y={y + 2.5} z={1.4} d={5} h={1.8} />
+    {[0, 1, 2, 3, 4, 5].map((k) => <polygon key={`aw${k}`} points={pts([[x + 1.8 + k * 0.42, y + 8, 3.3], [x + 2.22 + k * 0.42, y + 8, 3.3], [x + 2.22 + k * 0.42, y + 9.1, 2.5], [x + 1.8 + k * 0.42, y + 9.1, 2.5]])} fill={k % 2 ? "#FFFFFF" : "#F26A21"} />)}
+    {[0, 1, 2, 3, 4].map((k) => <polygon key={`aw2${k}`} points={pts([[x + 6.3 + k * 0.42, y + 8, 3.3], [x + 6.72 + k * 0.42, y + 8, 3.3], [x + 6.72 + k * 0.42, y + 9.1, 2.5], [x + 6.3 + k * 0.42, y + 9.1, 2.5]])} fill={k % 2 ? "#FFFFFF" : "#F26A21"} />)}
+    {(() => { const [ex, ey] = P(x + 5.1, y + 9, 5.6); return <g><rect x={ex - 8} y={ey - 6} width="16" height="11" rx="2" fill="#FFD08A" stroke="#E8692B" strokeWidth="1.4" /><path d={`M${ex - 8} ${ey - 5}l8 6 8 -6`} fill="none" stroke="#E8692B" strokeWidth="1.4" /></g>; })()}
     <Box x={x + 8.9} y={y + 8.8} w={0.8} d={0.8} h={1.8} c="#D93A2B" /><Bush x={x + 1.4} y={y + 9.2} r={4} /><Flower x={x + 3.2} y={y + 9.4} />
   </>,
   atelier: (x, y) => <>
     <Box x={x + 1} y={y + 2} w={8} d={6} h={4.6} c="#F2EEE8" top="#4A4E57" />
     {[0, 1, 2].map((k) => <polygon key={k} points={pts([[x + 2 + k * 2.2, y + 3, 4.62], [x + 3.8 + k * 2.2, y + 3, 4.62], [x + 3.8 + k * 2.2, y + 5, 4.62], [x + 2 + k * 2.2, y + 5, 4.62]])} fill="#8FB5DA" />)}
-    <GlassL x={x + 1.4} y={y + 8} z={0.5} w={7.2} h={3.2} n={4} /><GlassR x={x + 9} y={y + 2.4} z={0.5} d={5.2} h={3.2} n={3} />
+    <GlassL x={x + 1.4} y={y + 8} z={0.5} w={7.2} h={3.2} n={4} /><GlassR x={x + 9} y={y + 2.4} z={0.5} d={1.6} h={3.2} n={1} /><GlassR x={x + 9} y={y + 6.4} z={0.5} d={1.4} h={3.2} n={1} />
+    {(() => { const [gx, gy] = P(x + 9, y + 5, 2.4); return <Gear cx={gx} cy={gy} r={8} />; })()}
     <Bush x={x + 9.6} y={y + 8.8} r={4} /><Bush x={x + 0.6} y={y + 8.6} r={3.5} c="#6DAA45" />
   </>,
   rdv: (x, y) => <>
-    <Box x={x + 2} y={y + 2} w={6} d={6} h={12} c="#E6E3DE" top="#5B6270" />
+    <Box x={x + 2} y={y + 2} w={6} d={6} h={12} c="#EEEBE6" top="#3E5BA6" />
     {[1.2, 4.6, 8].map((z) => <GlassL key={`l${z}`} x={x + 2.4} y={y + 8} z={z} w={5.2} h={2.6} n={3} />)}{[1.2, 4.6, 8].map((z) => <GlassR key={`r${z}`} x={x + 8} y={y + 2.4} z={z} d={5.2} h={2.6} n={3} />)}
-    <Box x={x + 2.6} y={y + 8} w={4.8} d={1} z={2.6} h={0.4} c="#E8692B" />
-    {(() => { const [cx, cy] = P(x + 8, y + 4.6, 9.6); return <g><rect x={cx - 9} y={cy - 9} width="18" height="18" rx="4" fill="#fff" stroke="#E8692B" strokeWidth="1.5" /><rect x={cx - 9} y={cy - 9} width="18" height="5" rx="2" fill="#E8692B" /><path d={`M${cx - 5} ${cy}h2m3 0h2m3 0h2M${cx - 5} ${cy + 4}h2m3 0h2`} stroke="#E8692B" strokeWidth="1.6" /></g>; })()}
+    <Box x={x + 2.6} y={y + 8} w={4.8} d={1.2} z={2.6} h={0.4} c="#D9D4CC" />
+    {(() => { const [cx, cy] = P(x + 8, y + 4.6, 9.6); return <g><rect x={cx - 11} y={cy - 11} width="22" height="22" rx="4" fill="#3E5BA6" /><rect x={cx - 8} y={cy - 5} width="16" height="13" rx="2" fill="#fff" /><path d={`M${cx - 5} ${cy}h2m3 0h2m3 0h2M${cx - 5} ${cy + 4}h2m3 0h2`} stroke="#3E5BA6" strokeWidth="1.8" /></g>; })()}
     <Bush x={x + 1.2} y={y + 8.8} r={4} /><Bush x={x + 8.8} y={y + 9} r={4} c="#6DAA45" />
   </>,
   annuaire: (x, y) => <>
     <Box x={x + 1.4} y={y + 2.5} w={7.2} d={5.5} h={4.4} c="#F3E9DC" /><Roof x={x + 1.1} y={y + 2.2} z={4.4} w={7.8} d={6.1} h={2.8} c="#8A5B3E" />
     {[0, 1].map((k) => <polygon key={k} points={pts([[x + 2.4 + k * 3, y + 2.8, 5.6], [x + 4.4 + k * 3, y + 2.8, 5.6], [x + 4.4 + k * 3, y + 4.2, 6.6], [x + 2.4 + k * 3, y + 4.2, 6.6]])} fill="#9EC3E6" />)}
-    <GlassL x={x + 1.8} y={y + 8} z={0.5} w={6.4} h={3} n={3} /><GlassR x={x + 8.6} y={y + 3} z={0.6} d={4.6} h={2.6} n={2} />
+    <GlassL x={x + 1.8} y={y + 8} z={0.5} w={6.4} h={3} n={3} /><GlassR x={x + 8.6} y={y + 3} z={0.6} d={1.6} h={2.6} n={1} />
+    {(() => { const [ax, ay] = P(x + 8.6, y + 6.2, 2.4); return <g transform={`translate(${ax} ${ay}) skewY(-30)`}><rect x="-11" y="-9" width="22" height="17" rx="2.5" fill="#5C3A26" /><circle cx="-5" cy="-2.5" r="2.8" fill="#F3E9DC" /><path d="M-9.5 5a4.5 4 0 0 1 9 0z" fill="#F3E9DC" /><path d="M2 -4h6M2 0h6M2 4h4" stroke="#F3E9DC" strokeWidth="1.6" /></g>; })()}
     <Bush x={x + 9.4} y={y + 8.8} r={4} /><Flower x={x + 1.2} y={y + 9.2} /><Flower x={x + 2.4} y={y + 9.4} />
   </>,
   radar: (x, y) => { const [cx, cy] = P(x + 5, y + 5, 16.6); return <>
@@ -93,13 +99,13 @@ const ART = {
     <FaceR x={x + 8.4} y={y + 5} z={0} d={1.6} h={2.8} c="#FFC979" /><path d={(() => { const [a1, b1] = P(x + 8.4, y + 3, 2.2), [a2, b2] = P(x + 8.4, y + 4.6, 2.2); return `M${a1} ${b1}L${a2} ${b2}`; })()} stroke="#FF8A3D" strokeWidth="2" />
     <Bush x={x + 9.4} y={y + 9} r={4} /><Bush x={x + 1} y={y + 9} r={3.5} c="#6DAA45" />
   </>; },
-  linkedin: (x, y) => { const [lx, ly] = P(x + 5, y + 8.2, 5.2); return <>
+  linkedin: (x, y) => { return <>
     <Box x={x + 1.5} y={y + 2} w={7} d={6} h={4.2} c="#F6F1EA" top="#E2DAD0" /><GlassL x={x + 1.9} y={y + 8} z={0.4} w={6.2} h={2.6} n={3} /><GlassR x={x + 8.5} y={y + 2.4} z={0.4} d={5.2} h={2.6} n={2} />
-    <polygon points={pts([[x + 1.2, y + 8, 4], [x + 8.8, y + 8, 4], [x + 8.8, y + 9.6, 2.9], [x + 1.2, y + 9.6, 2.9]])} fill="#1F6FC5" />
+    {Array.from({ length: 10 }, (_, k) => <polygon key={`st${k}`} points={pts([[x + 1.2 + k * 0.76, y + 8, 4], [x + 1.96 + k * 0.76, y + 8, 4], [x + 1.96 + k * 0.76, y + 9.6, 2.9], [x + 1.2 + k * 0.76, y + 9.6, 2.9]])} fill={k % 2 ? "#FFFFFF" : "#2B7FD6"} />)}
     <polygon points={pts([[x + 8.5, y + 1.8, 4], [x + 8.5, y + 8, 4], [x + 10, y + 8, 2.9], [x + 10, y + 1.8, 2.9]])} fill="#2B7FD6" />
-    <text x={lx} y={ly + 10} textAnchor="middle" fontSize="13" fontWeight="900" fontStyle="italic" fill="#fff" fontFamily="Nunito, sans-serif">in</text>
+    {(() => { const [qx, qy] = P(x + 9.25, y + 4.9, 3.4); return <g><path d={`M${qx - 5} ${qy - 4}h9v6a4.5 4.5 0 0 1-9 0z`} fill="#fff" /><path d={`M${qx + 4} ${qy - 2}a2.4 2.4 0 0 1 0 4.4`} fill="none" stroke="#fff" strokeWidth="1.5" /><path d={`M${qx - 2} ${qy - 7}q-1 -2 0 -3M${qx + 1} ${qy - 7}q-1 -2 0 -3`} fill="none" stroke="#fff" strokeWidth="1.2" /></g>; })()}
     {(() => { const [ux, uy] = P(x + 2.5, y + 10.6, 0); return <g><rect x={ux - 0.8} y={uy - 18} width="1.6" height="18" fill="#8A6142" /><path d={`M${ux - 11} ${uy - 16}q11 -9 22 0z`} fill="#F7E7D2" stroke="#E2C9A8" /></g>; })()}
-    <Bench x={x + 6.5} y={y + 10.2} />
+    {[[x + 5.4, y + 10.3], [x + 7.8, y + 10.3]].map(([tx, ty], k) => <g key={`t${k}`}><Box x={tx} y={ty} w={0.9} d={0.9} h={1.1} c="#C98B55" top="#E0A86E" /><Box x={tx - 0.6} y={ty + 0.2} w={0.4} d={0.4} h={0.6} c="#B07A4E" /><Box x={tx + 1.2} y={ty + 0.2} w={0.4} d={0.4} h={0.6} c="#B07A4E" /></g>)}
   </>; },
   observatoire: (x, y) => { const [dx, dy] = P(x + 5, y + 5, 3.4); return <>
     <Box x={x + 2} y={y + 2} w={6} d={6} h={3.4} c="#F5F3EF" /><GlassL x={x + 2.4} y={y + 8} z={0.5} w={5.2} h={1.8} n={3} />
@@ -112,7 +118,7 @@ const ART = {
     <polygon points={pts([[x + 3.4, y + 8.4, 4.6], [x + 6.6, y + 8.4, 4.6], [x + 5, y + 8.4, 6.4]])} fill="#FBF4EA" stroke="#E7D8C4" />
     {[3.5, 4.4, 5.3, 6.2].map((d) => <FaceL key={d} x={x + d} y={y + 8.4} z={0} w={0.35} h={4.6} c="#E7D8C4" />)}
     <FaceL x={x + 4.6} y={y + 8.4} z={0} w={0.8} h={2.4} c="#9A5A2C" /><GlassL x={x + 1.2} y={y + 8} z={1.4} w={2} h={2} n={2} /><GlassL x={x + 6.8} y={y + 8} z={1.4} w={2} h={2} n={2} /><GlassR x={x + 9.2} y={y + 3} z={1.4} d={4.6} h={2} n={3} />
-    <circle cx={fx} cy={fy} r="4.5" fill="#fff" stroke="#9A5A2C" strokeWidth="1.2" /><path d={`M${fx} ${fy - 2.6}v2.6l1.8 1`} stroke="#3B3F48" strokeWidth="1" fill="none" />
+    <Gear cx={fx} cy={fy + 1} r={5} c="#C2531E" />
     {(() => { const [ax, ay] = P(x + 4.4, y + 8.6, 3), [bx, by] = P(x + 5.6, y + 8.6, 3); return <g><rect x={ax - 3} y={ay - 6} width="2" height="6" fill="#1F4FB4" /><rect x={ax - 1} y={ay - 6} width="2" height="6" fill="#fff" /><rect x={ax + 1} y={ay - 6} width="2" height="6" fill="#D93A2B" /><rect x={bx - 3} y={by - 6} width="2" height="6" fill="#1F4FB4" /><rect x={bx - 1} y={by - 6} width="2" height="6" fill="#fff" /><rect x={bx + 1} y={by - 6} width="2" height="6" fill="#D93A2B" /></g>; })()}
     <Bush x={x + 0.6} y={y + 9.2} r={4} /><Bush x={x + 9.6} y={y + 9.2} r={4} c="#6DAA45" /><Flower x={x + 2.4} y={y + 9.6} /><Flower x={x + 7.6} y={y + 9.6} />
   </>; },
@@ -173,12 +179,10 @@ function Agent({ a, bulle }) {
   return (
     <g transform="scale(1.35)">
       <ellipse cx="0" cy="0" rx="6" ry="3" fill="rgba(0,0,0,.15)" />
-      <rect x="-3.5" y="-7" width="2.6" height="7" rx="1.2" fill="#3B3F48" /><rect x="0.9" y="-7" width="2.6" height="7" rx="1.2" fill="#3B3F48" />
-      <rect x="-5" y="-17" width="10" height="11" rx="4" fill={a.c} />
+      <rect x="-3.5" y="-7" width="2.6" height="7" rx="1.2" fill="#2F4A6E" /><rect x="0.9" y="-7" width="2.6" height="7" rx="1.2" fill="#2F4A6E" />
+      <rect x="-5" y="-17" width="10" height="11" rx="4" fill="#F26A21" />
       <circle cx="0" cy="-21.5" r="5.2" fill="#F2C9A5" />
-      <path d="M-5.4 -22.5a5.4 5.4 0 0 1 10.8 0z" fill="#E0531F" /><rect x="0" y="-23.4" width="7.5" height="1.8" rx=".9" fill="#E0531F" />
-      <rect x={-a.nom.length * 3.4 - 7} y="-44" width={a.nom.length * 6.8 + 14} height="15" rx="7.5" fill="#fff" stroke={a.c} strokeWidth="1.2" />
-      <text x="0" y="-33" textAnchor="middle" fontSize="10" fontWeight="800" fill="#1E1E24" fontFamily="Nunito, Geist, system-ui, sans-serif">{a.nom}</text>
+      <path d="M-5.4 -22.5a5.4 5.4 0 0 1 10.8 0z" fill="#6B4430" />
       {bulle && <g><rect x={-w / 2} y="-68" width={w} height="22" rx="8" fill="#15161A" /><path d="M-4 -46.5h8l-4 5z" fill="#15161A" /><text x="0" y="-53" textAnchor="middle" fontSize="10" fontWeight="700" fill="#fff" fontFamily="Nunito, Geist, system-ui, sans-serif">{bulle}</text></g>}
     </g>
   );
@@ -194,7 +198,7 @@ function Slot({ k, uses, nav, toOf }) {
   );
 }
 
-export default function IsoVille({ batiments, paroles = {}, full = false }) {
+export default function IsoVille({ batiments, paroles = {}, full = false, cible = null, onCible }) {
   const nav = useNavigate();
   const [on, setOn] = useState(null);
   const uses = useRef({}); // uses.current[`${slot}-${objet}`] = <use>
@@ -283,6 +287,21 @@ export default function IsoVille({ batiments, paroles = {}, full = false }) {
   }
   const trees = [[1.2, 6, 0], [1.4, 12, 1], [1.4, 20, 0], [1.3, 27, 0], [1.3, 34, 1], [6, 1.2, 0], [12, 1.3, 1], [20, 1.4, 0], [27, 1.3, 0], [34, 1.3, 1], [T - 1.3, 8, 0], [T - 1.3, 15, 0], [T - 1.4, 26, 1], [T - 1.3, 34, 0], [9, T - 1.3, 0], [16, T - 1.3, 1], [27, T - 1.3, 0], [34, T - 1.3, 0]];
   const act = on != null ? pos[on] : null;
+  // Position à l'écran de l'enseigne visée (pour la flèche du panneau « Prochaine étape »)
+  useEffect(() => {
+    if (!onCible) return;
+    const c = pos.find((b) => b.art === cible), el = box.current;
+    if (!c || !el) { onCible(null); return; }
+    const calc = () => {
+      const [sx, sy] = c.art === "rdv" ? P(lot(c.gx) + 3, lot(c.gy) + 8, 12.5) : P(lot(c.gx) + 6, lot(c.gy) + 6, c.art === "radar" ? 18 : 8.6);
+      const vbx = minX + (VW - VW / vue.z) / 2 - vue.dx, vby = minY + (VH - VH / vue.z) / 2 - vue.dy, vw = VW / vue.z, vh = VH / vue.z;
+      const r = el.getBoundingClientRect(), k = Math.min(r.width / vw, r.height / vh);
+      const ox = r.left + (r.width - vw * k) / 2, oy = r.top + (r.height - vh * k) / 2;
+      onCible({ x: ox + (sx - vbx) * k, y: oy + (sy - 26 - vby) * k });
+    };
+    calc(); window.addEventListener("resize", calc);
+    return () => window.removeEventListener("resize", calc);
+  }, [cible, vue.z, vue.dx, vue.dy, pos.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const anchor = act ? P(lot(act.gx) + 5, lot(act.gy) + 5, 9) : null;
 
   return (
@@ -296,11 +315,14 @@ export default function IsoVille({ batiments, paroles = {}, full = false }) {
         onClickCapture={(e) => { if (moved.current) { e.stopPropagation(); e.preventDefault(); moved.current = false; } }}>
         {/* Plateau */}
         <defs>
+          <linearGradient id="iso-orange" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#FF8A3D" /><stop offset="1" stopColor="#EC5A1C" /></linearGradient>
+          <filter id="iso-lueur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" /></filter>
           <filter id="iso-ombre" x="-30%" y="-30%" width="160%" height="180%"><feDropShadow dx="0" dy="3" stdDeviation="3.5" floodColor="#7A4A2A" floodOpacity=".18" /></filter>
         </defs>
-        <polygon points={pts([[0, T, 0], [T, T, 0], [T, T, -2.6], [0, T, -2.6]])} fill="#E9D6C2" />
-        <polygon points={pts([[T, 0, 0], [T, T, 0], [T, T, -2.6], [T, 0, -2.6]])} fill="#F1E2D2" />
-        <polygon points={pts([[0, 0, 0], [T, 0, 0], [T, T, 0], [0, T, 0]])} fill="#F7EEE4" />
+        {/* Plateau à bords arrondis : une dalle épaisse */}
+        <polygon points={pts([[0, 0, -2.6], [T, 0, -2.6], [T, T, -2.6], [0, T, -2.6]])} fill="#E7D3BF" stroke="#E7D3BF" strokeWidth="34" strokeLinejoin="round" filter="url(#iso-ombre)" />
+        {[-2, -1.4, -0.7].map((z) => <polygon key={z} points={pts([[0, 0, z], [T, 0, z], [T, T, z], [0, T, z]])} fill="#EEDDCB" stroke="#EEDDCB" strokeWidth="34" strokeLinejoin="round" />)}
+        <polygon points={pts([[0, 0, 0], [T, 0, 0], [T, T, 0], [0, T, 0]])} fill="#F8EFE6" stroke="#F8EFE6" strokeWidth="34" strokeLinejoin="round" />
         {/* Pelouses des parcelles et bordures fleuries */}
         {[0, 1, 2].flatMap((gx) => [0, 1, 2].map((gy) => <polygon key={`g${gx}${gy}`} points={pts([[lot(gx) - 0.6, lot(gy) - 0.6, 0.01], [lot(gx) + LOT + 0.6, lot(gy) - 0.6, 0.01], [lot(gx) + LOT + 0.6, lot(gy) + LOT + 0.6, 0.01], [lot(gx) - 0.6, lot(gy) + LOT + 0.6, 0.01]])} fill="#DDEBC6" />))}
         {/* Rues */}
@@ -308,6 +330,10 @@ export default function IsoVille({ batiments, paroles = {}, full = false }) {
         {roads.map((r, i) => { const vert = r[0][1] === 0 && r[3][1] === T; const m = vert ? (r[0][0] + r[1][0]) / 2 : (r[0][1] + r[2][1]) / 2; return Array.from({ length: 12 }, (_, k) => { const t = 1.5 + k * 3.5; const a = vert ? P(m, t, 0.05) : P(t, m, 0.05), b = vert ? P(m, t + 1.6, 0.05) : P(t + 1.6, m, 0.05); return <line key={`${i}-${k}`} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="#fff" strokeWidth="2" />; }); })}
         {/* Passages piétons aux carrefours */}
         {ROADX.flatMap((vx) => [ROADY(0), ROADY(1)].map((ry) => [vx, ry])).map(([vx, ry], k) => <g key={`pp${k}`}>{[-0.9, -0.3, 0.3, 0.9].map((o) => { const a = P(vx - 2.6, ry + o, 0.06), b = P(vx - 3.6, ry + o, 0.06); return <line key={o} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="#fff" strokeWidth="2.6" />; })}</g>)}
+        {(() => { const c = pos.find((b) => b.art === cible); if (!c) return null; const [cxl, cyl] = [lot(c.gx) + 5, lot(c.gy) + 5];
+          const vx = ROADX.reduce((p, q) => (Math.abs(q - cxl) < Math.abs(p - cxl) ? q : p)), ry = ROADY(c.gy);
+          const d = [[vx, c.gy < 2 ? ROADY(Math.min(1, c.gy + 1)) : ROADY(1)], [vx, ry], [cxl, ry], [cxl, cyl + (c.gy < 2 ? 4 : -4)]].map((q, k) => `${k ? "L" : "M"}${P(q[0], q[1], 0.08).join(" ")}`).join("");
+          return <g pointerEvents="none"><path d={d} fill="none" stroke="#FF8A3D" strokeWidth="7" opacity=".25" strokeLinecap="round" strokeLinejoin="round" /><path d={d} fill="none" stroke="#F26A21" strokeWidth="3.2" strokeDasharray="9 7" strokeLinecap="round" strokeLinejoin="round"><animate attributeName="stroke-dashoffset" values="32;0" dur="1.2s" repeatCount="indefinite" /></path></g>; })()}
         {trees.map(([x, y, k], i) => <Tree key={i} x={x} y={y} kind={k} s={1.1} />)}
         {LAMPES.map(([x, y], i) => <Lamp key={`l${i}`} x={x} y={y} />)}
         {BANCS.map(([x, y], i) => <Bench key={`b${i}`} x={x} y={y} />)}
@@ -324,6 +350,10 @@ export default function IsoVille({ batiments, paroles = {}, full = false }) {
             <a key={b.art} href={`#${b.to}`} onClick={(e) => { e.preventDefault(); nav(b.to); }} onMouseEnter={() => setOn(i)} onMouseLeave={() => setOn(null)} onFocus={() => setOn(i)} onBlur={() => setOn(null)} aria-label={`${b.nom} : ${b.quoi}`} className="cursor-pointer focus:outline-none">
               <polygon points={pts([[x, y, 0.03], [x + LOT, y, 0.03], [x + LOT, y + LOT, 0.03], [x, y + LOT, 0.03]])} fill={hot ? "rgba(232,105,43,.12)" : "rgba(0,0,0,0)"} stroke={hot ? "#E8692B" : "none"} strokeWidth="2" />
               {hot && <ellipse cx={lx} cy={ly} rx="62" ry="31" fill="none" stroke="#E0531F" strokeWidth="1.5" opacity=".6" />}
+              {b.art === cible && <g pointerEvents="none">
+                <ellipse cx={lx} cy={ly} rx="46" ry="23" fill="rgba(255,138,61,.28)" stroke="#FF8A3D" strokeWidth="3" filter="url(#iso-lueur)" />
+                <ellipse cx={lx} cy={ly} rx="46" ry="23" fill="none" stroke="#FF8A3D" strokeWidth="2"><animate attributeName="rx" values="46;74" dur="2s" repeatCount="indefinite" /><animate attributeName="ry" values="23;37" dur="2s" repeatCount="indefinite" /><animate attributeName="opacity" values=".9;0" dur="2s" repeatCount="indefinite" /></ellipse>
+              </g>}
               <g style={{ transition: "transform .2s", transform: hot ? "translateY(-4px)" : "none" }}>{ART[b.art](x, y)}</g>
             </a>,
             <Slot key={`slot${oi + 1}`} k={oi + 1} uses={uses} nav={nav} toOf={toOf} />,
@@ -332,27 +362,28 @@ export default function IsoVille({ batiments, paroles = {}, full = false }) {
         {/* Enseignes : le nom en gros, au-dessus de chaque bâtiment */}
         {pos.map((b, i) => {
           const [sx, sy] = b.art === "rdv" ? P(lot(b.gx) + 3, lot(b.gy) + 8, 12.5) : P(lot(b.gx) + 6, lot(b.gy) + 6, b.art === "radar" ? 18 : 8.6);
+          const top = b.art === cible, k = top ? 1.22 : 1;
           const w = b.nom.length * 9.6 + 58, x0 = sx - w / 2;
           return (
-            <g key={`s${b.art}`} pointerEvents="none">
-              <rect x={x0} y={sy - 21} width={w} height="34" rx="17" fill="#FFFFFF" stroke={on === i ? "#E8692B" : "#F1E2D2"} strokeWidth={on === i ? 2.5 : 1.5} filter="url(#iso-ombre)" />
+            <g key={`s${b.art}`} pointerEvents="none" transform={top ? `translate(${sx} ${sy}) scale(${k}) translate(${-sx} ${-sy})` : undefined}>
+              {top && <rect x={x0 - 4} y={sy - 25} width={w + 8} height="42" rx="21" fill="#FF8A3D" opacity=".35" filter="url(#iso-lueur)" />}
+              <rect x={x0} y={sy - 21} width={w} height="34" rx={top ? 12 : 17} fill={top ? "url(#iso-orange)" : "#FFFFFF"} stroke={top ? "#fff" : on === i ? "#E8692B" : "#F1E2D2"} strokeWidth={top ? 2 : on === i ? 2.5 : 1.5} filter="url(#iso-ombre)" />
               {b.art === "linkedin"
                 ? <g><rect x={x0 + 14} y={sy - 13} width="18" height="18" rx="4" fill="#0A66C2" /><text x={x0 + 23} y={sy + 1} textAnchor="middle" fontSize="12" fontWeight="900" fill="#fff" fontFamily="Nunito, sans-serif">in</text></g>
-                : <g transform={`translate(${x0 + 12} ${sy - 15}) scale(0.92)`}><path d={ICONE[b.art]} fill="none" stroke="#E8692B" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></g>}
-              <text x={x0 + 40} y={sy + 2} fontSize="18" fontWeight="800" fill="#1E1E24" fontFamily="Nunito, Geist, system-ui, sans-serif">{b.nom}</text>
-              {(b.badge > 0 || b.alerte) && <g><circle cx={sx + w / 2 - 4} cy={sy - 20} r="13" fill="#F26A21" stroke="#fff" strokeWidth="2.5" /><text x={sx + w / 2 - 4} y={sy - 15.5} textAnchor="middle" fontSize="13" fontWeight="900" fill="#fff" fontFamily="Nunito, sans-serif">{b.alerte ? "!" : b.badge > 99 ? "99+" : b.badge}</text></g>}
+                : <g transform={`translate(${x0 + 12} ${sy - 15}) scale(0.92)`}><path d={ICONE[b.art]} fill="none" stroke={top ? "#fff" : "#E8692B"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></g>}
+              <text x={x0 + 40} y={sy + 2} fontSize="18" fontWeight="800" fill={top ? "#fff" : "#1E1E24"} fontFamily="Nunito, Geist, system-ui, sans-serif">{b.nom}</text>
+              {top && (b.badge > 0 || b.alerte) && <g><circle cx={sx + w / 2 - 4} cy={sy - 20} r="13" fill="#F26A21" stroke="#fff" strokeWidth="2.5" /><text x={sx + w / 2 - 4} y={sy - 15.5} textAnchor="middle" fontSize="13" fontWeight="900" fill="#fff" fontFamily="Nunito, sans-serif">{b.alerte ? "!" : b.badge > 99 ? "99+" : b.badge}</text></g>}
             </g>
           );
         })}
         {/* Ce que dit l'agent, au-dessus de tout */}
         <g ref={bulleRef} pointerEvents="none">
-          {bulle && (() => { const w = Math.min(260, bulle.t.length * 6.6 + 20); const a = AGENTS[bulle.i]; return <g><rect x={-w / 2} y="-92" width={w} height="26" rx="9" fill="#15161A" /><path d="M-5 -66.5h10l-5 6z" fill="#15161A" /><text x="0" y="-74.5" textAnchor="middle" fontSize="11.5" fontWeight="700" fill="#fff" fontFamily="Nunito, Geist, system-ui, sans-serif"><tspan fill="#FDBA74">{a.nom} : </tspan>{bulle.t}</text></g>; })()}
+          {bulle && (() => { const w = Math.min(280, bulle.t.length * 7 + 28); return <g filter="url(#iso-ombre)"><rect x={-w / 2} y="-78" width={w} height="30" rx="15" fill="#fff" stroke="#2A2C31" strokeWidth="1.4" /><path d="M-6 -48.6h12l-6 8z" fill="#fff" stroke="#2A2C31" strokeWidth="1.4" strokeLinejoin="round" /><path d="M-5.2 -49.4h10.4" stroke="#fff" strokeWidth="2.4" /><text x="0" y="-58" textAnchor="middle" fontSize="13" fontWeight="700" fill="#1E1E24" fontFamily="Nunito, Geist, system-ui, sans-serif">{bulle.t}</text></g>; })()}
         </g>
       </svg>
-      {/* Zoom et déplacement */}
-      <div className={cx2("absolute flex flex-col gap-2 sm:gap-3", full ? "right-4 bottom-24 sm:right-5" : "right-3 top-3")}>
-        {[["+", 1.25], ["−", 0.8]].map(([l, f]) => <button key={l} onClick={() => setVue((v) => ({ ...v, z: Math.min(3, Math.max(0.8, v.z * f)) }))} className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-white text-[20px] sm:text-[24px] font-semibold text-ink shadow-[0_8px_20px_-10px_rgba(122,74,42,.45)] hover:bg-[#FFF7F0]" aria-label={l === "+" ? "Zoomer" : "Dézoomer"}>{l}</button>)}
-        <button onClick={() => setVue({ z: z0, dx: 0, dy: dy0 })} className="grid h-10 w-10 sm:h-12 sm:w-12 place-items-center rounded-xl sm:rounded-2xl bg-white shadow-[0_8px_20px_-10px_rgba(122,74,42,.45)] hover:bg-[#FFF7F0]" aria-label="Recentrer" title="Recentrer"><svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="12" cy="12" r="6.5" /><circle cx="12" cy="12" r="1.6" fill="currentColor" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg></button>
+      {/* Zoom */}
+      <div className={cx2("absolute flex flex-col overflow-hidden rounded-2xl bg-white shadow-[0_10px_24px_-12px_rgba(122,74,42,.5)]", full ? "right-4 bottom-24 sm:right-6 sm:bottom-14" : "right-3 top-3")}>
+        {[["+", 1.25], ["−", 0.8]].map(([l, f], k) => <button key={l} onClick={() => setVue((v) => ({ ...v, z: Math.min(3, Math.max(0.8, v.z * f)) }))} onDoubleClick={() => setVue({ z: z0, dx: 0, dy: dy0 })} className={cx2("h-11 w-11 sm:h-12 sm:w-12 text-[22px] sm:text-[26px] font-semibold text-ink hover:bg-[#FFF7F0]", k && "border-t border-[#F1E2D2]")} aria-label={l === "+" ? "Zoomer" : "Dézoomer"} title="Double-clic : recentrer">{l}</button>)}
       </div>
       {/* La carte « en direct » du bâtiment survolé */}
       {act && (

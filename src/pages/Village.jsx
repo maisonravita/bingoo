@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
@@ -190,6 +190,21 @@ export default function Village() {
     : v.opps ? { b: B[4], t: `Passe à la Tour Radar : ${v.opps} entreprise${v.opps > 1 ? "s" : ""} prête${v.opps > 1 ? "s" : ""} à acheter.` }
     : null;
   const first = (ws.sender_name || "").split(" ")[0];
+  // La flèche qui relie le panneau au bâtiment visé
+  const [pin, setPin] = useState(null);
+  const panneau = useRef(null);
+  const [fl, setFl] = useState(null);
+  useEffect(() => {
+    const el = panneau.current;
+    if (!pin || !el || window.innerWidth < 900) { setFl(null); return; }
+    const r = el.getBoundingClientRect(), x0 = r.right, y0 = r.top + r.height / 2;
+    if (pin.y < r.bottom + 30) { setFl(null); return; }
+    const x1 = pin.x, y1 = pin.y - 6;
+    // Seulement quand le bâtiment est sur le côté : la flèche contourne le panneau sans traverser la ville
+    if (x1 > r.right - 40) setFl(`M${x0 + 4} ${y0} H${Math.max(x0 + 8, x1 - 34)} Q${x1} ${y0} ${x1} ${y0 + 34} V${y1}`);
+    else if (x1 < r.left + 40) setFl(`M${r.left - 4} ${y0} H${Math.min(r.left - 8, x1 + 34)} Q${x1} ${y0} ${x1} ${y0 + 34} V${y1}`);
+    else setFl(null);
+  }, [pin]);
 
   // Arrivée : on descend du ciel à travers les nuages jusqu'à sa ville (une fois par visite, et jamais si l'on préfère moins d'animations)
   const [intro, setIntro] = useState(() => {
@@ -218,7 +233,7 @@ export default function Village() {
 
       {/* La ville, plein écran */}
       <div style={intro ? { animation: "bv-descente 3.2s cubic-bezier(.2,.7,.2,1) both" } : undefined}>
-        <IsoVille batiments={B} paroles={d ? paroles : {}} full />
+        <IsoVille batiments={B} paroles={d ? paroles : {}} full cible={next?.b.art} onCible={setPin} />
       </div>
 
       {/* Le ciel et les nuages qu'on traverse */}
@@ -232,16 +247,22 @@ export default function Village() {
         </div>
       )}
 
+      {fl && <svg aria-hidden className="pointer-events-none fixed inset-0 z-10 h-full w-full" style={intro ? { animation: "bv-ui 3.6s both" } : undefined}>
+        <path d={fl} fill="none" stroke="#F26A21" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        {(() => { const m = fl.match(/(-?[\d.]+)\s*$/), x = pin.x, y = Number(m?.[1] ?? pin.y); return <><path d={`M${x - 8} ${y - 10} L${x} ${y} L${x + 8} ${y - 10}`} fill="none" stroke="#F26A21" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" /><path d={`M${x - 34} ${y - 22} l-6 -7 M${x - 24} ${y - 30} l-2 -9`} stroke="#F26A21" strokeWidth="2.6" strokeLinecap="round" /></>; })()}
+      </svg>}
+
+      {/* Le logo, à côté du menu */}
+      <p className="pointer-events-none fixed left-[76px] top-[22px] sm:left-[100px] sm:top-[30px] z-20 hidden sm:block text-[30px] font-black tracking-tight text-[#3A2416]" style={{ ...H, animation: intro ? "bv-ui 3.6s both" : undefined }}>Bingoo<span className="italic text-[#F26A21]">!</span></p>
+
       {/* Par-dessus la ville : le prochain geste, en haut */}
-      <div className="pointer-events-none fixed inset-x-0 top-4 z-20 flex justify-center pl-[84px] pr-4 sm:px-24" style={intro ? { animation: "bv-ui 3.6s both" } : undefined}>
-        <button onClick={() => next && nav(next.b.to)} disabled={!next} className={cx("pointer-events-auto relative flex max-w-[820px] items-center gap-2.5 sm:gap-4 rounded-[22px] sm:rounded-[28px] border-2 bg-white py-2 pl-2 pr-3 sm:py-3 sm:pl-3 sm:pr-5 text-left shadow-[0_14px_34px_-18px_rgba(232,105,43,.55)] transition hover:bg-white", next ? "border-[#F5A06A]" : "border-[#F1E2D2]")}>
+      <div className="pointer-events-none fixed inset-x-0 top-4 sm:top-6 z-20 flex justify-center pl-[84px] pr-4 sm:pl-[230px] sm:pr-[110px]" style={intro ? { animation: "bv-ui 3.6s both" } : undefined}>
+        <button ref={panneau} onClick={() => next && nav(next.b.to)} disabled={!next} className={cx("pointer-events-auto relative flex max-w-[820px] items-center gap-2.5 sm:gap-4 rounded-[22px] sm:rounded-[28px] border-2 bg-white py-2 pl-2 pr-3 sm:py-3 sm:pl-3 sm:pr-5 text-left shadow-[0_14px_34px_-18px_rgba(232,105,43,.55)] transition hover:bg-white", next ? "border-[#F5A06A]" : "border-[#F1E2D2]")}>
           <span className="grid h-9 w-9 sm:h-12 sm:w-12 shrink-0 place-items-center rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#FF8A3D] to-[#E8571C] text-white shadow-[0_6px_14px_-6px_rgba(232,87,28,.8)]"><svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{next ? <path d="M5 12h14M13 6l6 6-6 6" /> : <path d="m5 12.5 4.5 4.5L19 7.5" />}</svg></span>
           <span className="hidden sm:block h-9 w-px bg-[#F1E2D2]" aria-hidden />
-          {next && <svg viewBox="0 0 24 24" className="order-last h-5 w-5 shrink-0 text-ink" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="m9 6 6 6-6 6" /></svg>}
-          <svg viewBox="0 0 30 24" className="absolute -right-7 -top-4 hidden sm:block h-6 w-8 text-[#F26A21]" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden><path d="M6 14l-3-8M14 10l1-8M21 14l6-5" /></svg>
           <span className="min-w-0 flex-1">
             <span className="block text-[11.5px] sm:text-[13px] font-bold text-[#F26A21]">{next ? "Prochaine étape" : `Tout est fait${first ? `, ${first}` : ""}`}</span>
-            <span className="block text-[13px] sm:text-[17px] font-bold text-ink leading-snug">{next ? next.t : "Bingoo! cherche, écrit et relance pour toi. Reviens demain matin."}</span>
+            <span className="block text-[13px] sm:text-[19px] font-bold text-ink leading-snug">{next ? next.t : "Bingoo! cherche, écrit et relance pour toi. Reviens demain matin."}</span>
           </span>
         </button>
       </div>
@@ -249,8 +270,8 @@ export default function Village() {
       {/* En bas : comment ça marche, et la nuit rejouée */}
       <div className="pointer-events-none fixed inset-x-0 bottom-5 z-20 flex justify-center px-4" style={intro ? { animation: "bv-ui 3.6s both" } : undefined}>
         <div className="pointer-events-auto flex items-center gap-3 rounded-[24px] bg-white p-2 sm:pl-5 shadow-[0_12px_30px_-16px_rgba(122,74,42,.5)]">
-          <svg viewBox="0 0 24 24" className="hidden sm:block h-5 w-5 text-ink-soft" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden><rect x="7" y="3" width="10" height="18" rx="5" /><path d="M12 7v3" /></svg>
-          <p className="hidden sm:block text-[14px] italic text-ink-soft">Survole un bâtiment pour ses chiffres · clique pour entrer · glisse pour te déplacer</p>
+          <svg viewBox="0 0 24 24" className="hidden sm:block h-6 w-6 text-[#F26A21]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="9.5" /><path d="m15.5 8.5-2 5-5 2 2-5z" /></svg>
+          <p className="hidden sm:block text-[14px] text-ink">Survole un bâtiment pour voir son utilité <span className="mx-1 text-ink-soft">•</span> Clique pour y entrer <span className="mx-1 text-ink-soft">•</span> Explore le village à ton rythme.</p>
           <span className="hidden sm:block h-7 w-px bg-[#F1E2D2]" aria-hidden />
           <a href="/qg/" className="flex items-center gap-2 rounded-[18px] bg-[#1E1E24] px-5 py-3 text-[14.5px] font-semibold text-white hover:bg-black"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /><path d="M17 3v3M15.5 4.5h3" /></svg>La nuit de ton équipe</a>
         </div>
