@@ -187,15 +187,15 @@ function chemin(a, b) {
 }
 // Les 9 agents de Bingoo! : où ils travaillent (bâtiments visités à tour de rôle)
 export const AGENTS = [
-  { nom: "Iris", c: "#7C5CFF", tour: ["mairie", "observatoire"] },
-  { nom: "Léo", c: "#2F80ED", tour: ["annuaire", "radar"] },
-  { nom: "Sam", c: "#1F7A4D", tour: ["annuaire", "poste"] },
-  { nom: "Max", c: "#3B3F48", tour: ["radar", "observatoire"] },
-  { nom: "Hugo", c: "#E0531F", tour: ["atelier", "poste"] },
-  { nom: "Inès", c: "#D6336C", tour: ["poste", "atelier"] },
-  { nom: "Lina", c: "#0A66C2", tour: ["linkedin", "annuaire"] },
-  { nom: "Paul", c: "#B7791F", tour: ["rdv", "poste"] },
-  { nom: "Oscar", c: "#15161A", tour: ["espion", "radar"] },
+  { nom: "Iris", c: "#7C5CFF", tour: ["mairie", "observatoire"], lieu: "mairie", metier: "Je m'occupe de tes réglages" },
+  { nom: "Léo", c: "#2F80ED", tour: ["annuaire", "radar"], lieu: "annuaire", metier: "Je cherche les décideurs" },
+  { nom: "Sam", c: "#1F7A4D", tour: ["annuaire", "poste"], lieu: "annuaire", metier: "Je trouve les e-mails vérifiés" },
+  { nom: "Max", c: "#3B3F48", tour: ["radar", "observatoire"], lieu: "radar", metier: "Je surveille les entreprises au bon moment" },
+  { nom: "Hugo", c: "#E0531F", tour: ["atelier", "poste"], lieu: "atelier", metier: "J'écris tes messages" },
+  { nom: "Inès", c: "#D6336C", tour: ["poste", "atelier"], lieu: "poste", metier: "Je trie tes réponses" },
+  { nom: "Lina", c: "#0A66C2", tour: ["linkedin", "annuaire"], lieu: "linkedin", metier: "Je prépare tes invitations LinkedIn" },
+  { nom: "Paul", c: "#B7791F", tour: ["rdv", "poste"], lieu: "rdv", metier: "Je gère tes rendez-vous" },
+  { nom: "Oscar", c: "#15161A", tour: ["espion", "radar"], lieu: "espion", metier: "J'espionne tes concurrents" },
 ];
 const CARS = [
   { axe: "x", m: ROADY(0) - 0.9, v: 5, c: "#FFFFFF", d: 0 }, { axe: "x", m: ROADY(0) + 0.9, v: -4, c: "#F2C94C", d: 18 },
@@ -213,6 +213,7 @@ function Agent({ a, bulle }) {
   const w = bulle ? Math.min(220, bulle.length * 6.3 + 16) : 0;
   return (
     <g transform="scale(1.35)">
+      <rect x="-11" y="-32" width="22" height="36" fill="transparent" />
       <ellipse cx="0" cy="0" rx="6" ry="3" fill="rgba(0,0,0,.15)" />
       <rect x="-3.5" y="-7" width="2.6" height="7" rx="1.2" fill="#2F4A6E" /><rect x="0.9" y="-7" width="2.6" height="7" rx="1.2" fill="#2F4A6E" />
       <rect x="-5" y="-17" width="10" height="11" rx="4" fill="#F26A21" />
@@ -224,11 +225,12 @@ function Agent({ a, bulle }) {
 }
 
 /** Un emplacement de profondeur : une copie (<use>) de chaque voiture et de chaque agent, une seule visible à la fois. */
-function Slot({ k, uses, nav, toOf }) {
+function Slot({ k, uses, nav, toOf, survol }) {
   return (
     <g>
       {CARS.map((c, i) => <use key={`c${i}`} href={`#iso-car${i}`} style={{ display: "none" }} pointerEvents="none" ref={(el) => { uses.current[`${k}-car${i}`] = el; }} />)}
-      {AGENTS.map((a, i) => <use key={`a${i}`} href={`#iso-ag${i}`} style={{ display: "none", cursor: "pointer" }} ref={(el) => { uses.current[`${k}-ag${i}`] = el; }} onClick={() => nav(toOf(a.tour[0]))}><title>{`${a.nom} : clique pour aller à son bâtiment`}</title></use>)}
+      {AGENTS.map((a, i) => <use key={`a${i}`} href={`#iso-ag${i}`} style={{ display: "none", cursor: "pointer" }} ref={(el) => { uses.current[`${k}-ag${i}`] = el; }}
+        onMouseEnter={() => survol(i)} onMouseLeave={() => survol(null)} onClick={(e) => { e.stopPropagation(); nav(toOf(a.lieu)); }} aria-label={`${a.nom} : ${a.metier}`} />)}
     </g>
   );
 }
@@ -245,6 +247,15 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
   const vueRef = useRef(vue); vueRef.current = vue;
   const drag = useRef(null), moved = useRef(false), box = useRef(null);
   const [bulle, setBulle] = useState(null);
+  // Agent survolé : il s'arrête, dit ce qu'il fait, et un clic ouvre son bâtiment
+  const arret = useRef(null), quitte = useRef(0);
+  const survol = (i) => {
+    clearTimeout(quitte.current);
+    if (i == null) { quitte.current = setTimeout(() => { arret.current = null; setBulle((b) => (b?.survol ? null : b)); }, 350); return; }
+    const a = AGENTS[i];
+    arret.current = i; bulleI.current = i;
+    setBulle({ i, t: paroles[a.nom] || a.metier, survol: true });
+  };
   const N = 3, T = 2 * MARGE + N * LOT + (N - 1) * ROAD; // taille du plateau
   // Bornes de l'image
   const corners = [P(0, 0, 0), P(T, 0, 0), P(0, T, 0), P(T, T, -2)];
@@ -304,7 +315,8 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
       st.forEach((s, i) => {
         const a = AGENTS[i];
-        if (s.pause > 0) { s.pause -= dt; }
+        if (arret.current === i) { /* survolé : il attend */ }
+        else if (s.pause > 0) { s.pause -= dt; }
         else {
           const [p0, p1] = [s.path[s.seg], s.path[s.seg + 1]];
           const len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) || 1;
@@ -337,7 +349,7 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
     // Bulles : un agent dit ce qu'il a vraiment fait
     const lignes = AGENTS.map((a, i) => [i, paroles[a.nom]]).filter(([, t]) => t);
     let n = 0;
-    const iv = lignes.length && !reduce ? setInterval(() => { const [i, t] = lignes[n++ % lignes.length]; bulleI.current = i; setBulle({ i, t }); }, 4500) : 0;
+    const iv = lignes.length && !reduce ? setInterval(() => { if (arret.current != null) return; const [i, t] = lignes[n++ % lignes.length]; bulleI.current = i; setBulle({ i, t }); }, 4500) : 0;
     if (lignes.length) { bulleI.current = lignes[0][0]; setBulle({ i: lignes[0][0], t: lignes[0][1] }); n = 1; }
     return () => { cancelAnimationFrame(raf); if (iv) clearInterval(iv); };
   }, [batiments.length, JSON.stringify(paroles)]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -403,7 +415,7 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
           {AGENTS.map((a, i) => <g key={`d-ag${i}`} id={`iso-ag${i}`}><Agent a={a} bulle="" /></g>)}
         </defs>
         {/* Parcelles et bâtiments (de l'arrière vers l'avant), avec entre eux les emplacements des objets qui bougent */}
-        <Slot k={0} uses={uses} nav={go} toOf={toOf} />
+        <Slot k={0} uses={uses} nav={go} toOf={toOf} survol={survol} />
         {order.map((b, oi) => {
           const i = pos.indexOf(b), x = lot(b.gx), y = lot(b.gy), hot = on === i || b.art === focus;
           const [lx, ly] = P(x + 5, y + 5, 0);
@@ -417,7 +429,7 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
               </g>}
               <g style={{ transition: "transform .2s", transform: hot ? "translateY(-4px)" : "none" }}>{ART[b.art](x, y)}</g>
             </a>,
-            <Slot key={`slot${oi + 1}`} k={oi + 1} uses={uses} nav={go} toOf={toOf} />,
+            <Slot key={`slot${oi + 1}`} k={oi + 1} uses={uses} nav={go} toOf={toOf} survol={survol} />,
           ];
         })}
         {/* Enseignes : le nom en gros, au-dessus de chaque bâtiment */}
@@ -438,8 +450,19 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
           );
         })}
         {/* Ce que dit l'agent, au-dessus de tout */}
-        <g ref={bulleRef} pointerEvents="none">
-          {bulle && (() => { const w = Math.min(280, bulle.t.length * 7 + 28); return <g filter="url(#iso-ombre)"><rect x={-w / 2} y="-78" width={w} height="30" rx="15" fill="#fff" stroke="#2A2C31" strokeWidth="1.4" /><path d="M-6 -48.6h12l-6 8z" fill="#fff" stroke="#2A2C31" strokeWidth="1.4" strokeLinejoin="round" /><path d="M-5.2 -49.4h10.4" stroke="#fff" strokeWidth="2.4" /><text x="0" y="-58" textAnchor="middle" fontSize="13" fontWeight="700" fill="#1E1E24" fontFamily="Nunito, Geist, system-ui, sans-serif">{bulle.t}</text></g>; })()}
+        <g ref={bulleRef}>
+          {bulle && (() => {
+            const a = AGENTS[bulle.i], nomW = bulle.survol ? a.nom.length * 7.6 + 12 : 0, w = Math.min(340, bulle.t.length * 7 + 46 + nomW);
+            return (
+              <g filter="url(#iso-ombre)" style={{ cursor: "pointer" }} role="button" aria-label={`${a.nom} : ${bulle.t}. Ouvrir`}
+                onMouseEnter={() => survol(bulle.i)} onMouseLeave={() => survol(null)} onClick={(e) => { e.stopPropagation(); go(toOf(a.lieu)); }}>
+                <rect x={-w / 2} y="-78" width={w} height="30" rx="15" fill="#fff" stroke={bulle.survol ? "#F26A21" : "#2A2C31"} strokeWidth={bulle.survol ? 2 : 1.4} />
+                <path d="M-6 -48.6h12l-6 8z" fill="#fff" stroke={bulle.survol ? "#F26A21" : "#2A2C31"} strokeWidth={bulle.survol ? 2 : 1.4} strokeLinejoin="round" /><path d="M-5.2 -49.6h10.4" stroke="#fff" strokeWidth="2.6" />
+                <text x={-w / 2 + 14} y="-58" fontSize="13" fontWeight="700" fill="#1E1E24" fontFamily="Nunito, Geist, system-ui, sans-serif">{bulle.survol && <tspan fill="#E8571C" fontWeight="900">{a.nom}  </tspan>}{bulle.t}</text>
+                <circle cx={w / 2 - 15} cy="-63" r="9" fill="#F26A21" /><path d={`M${w / 2 - 18.5} -63h7m-3 -3.2 3.2 3.2-3.2 3.2`} stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </g>
+            );
+          })()}
         </g>
       </svg>
       {/* Zoom */}
