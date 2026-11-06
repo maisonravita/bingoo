@@ -31,6 +31,17 @@ function Roof({ x, y, z, w, d, h, c }) {
     </g>
   );
 }
+/** Toit à deux pans, faîtage parallèle à y (pignon sur la face avant gauche). */
+function RoofY({ x, y, z, w, d, h, c }) {
+  const m = x + w / 2;
+  return (
+    <g>
+      <polygon points={pts([[x, y, z], [x, y + d, z], [m, y + d, z + h], [m, y, z + h]])} fill={shade(c, 1.15)} />
+      <polygon points={pts([[x + w, y, z], [x + w, y + d, z], [m, y + d, z + h], [m, y, z + h]])} fill={shade(c, 0.9)} />
+      <polygon points={pts([[x, y + d, z], [x + w, y + d, z], [m, y + d, z + h]])} fill={shade(c, 1.25)} />
+    </g>
+  );
+}
 /** Fenêtre ou porte sur la face avant gauche (plan y = y0+d) ou droite (plan x = x0+w). */
 const FaceL = ({ x, y, z, w, h, c }) => <polygon points={pts([[x, y, z], [x + w, y, z], [x + w, y, z + h], [x, y, z + h]])} fill={c} />;
 const FaceR = ({ x, y, z, d, h, c }) => <polygon points={pts([[x, y, z], [x, y + d, z], [x, y + d, z + h], [x, y, z + h]])} fill={c} />;
@@ -93,11 +104,35 @@ const ART = {
     <path d={`M${cx + 18} ${cy - 24}a12 12 0 0 1 8 10M${cx + 22} ${cy - 32}a20 20 0 0 1 12 18`} fill="none" stroke="#E8692B" strokeWidth="2.6" strokeLinecap="round" />
     <Bush x={x + 1.2} y={y + 8.6} r={5} /><Tree x={x + 9} y={y + 2} /><Bush x={x + 8.8} y={y + 9} r={4} c="#6DAA45" />
   </>; },
-  espion: (x, y) => { const [ex, ey] = P(x + 5, y + 8.05, 2.4); return <>
-    <Box x={x + 1.8} y={y + 2.4} w={6.6} d={5.6} h={4.4} c="#2A2C31" top="#1F2125" />
-    <ellipse cx={ex} cy={ey} rx="13" ry="7.5" fill="none" stroke="#FF8A3D" strokeWidth="2.4" /><circle cx={ex} cy={ey} r="4.2" fill="#FF8A3D" /><circle cx={ex} cy={ey} r="1.8" fill="#2A2C31" />
-    <FaceR x={x + 8.4} y={y + 5} z={0} d={1.6} h={2.8} c="#FFC979" /><path d={(() => { const [a1, b1] = P(x + 8.4, y + 3, 2.2), [a2, b2] = P(x + 8.4, y + 4.6, 2.2); return `M${a1} ${b1}L${a2} ${b2}`; })()} stroke="#FF8A3D" strokeWidth="2" />
-    <Bush x={x + 9.4} y={y + 9} r={4} /><Bush x={x + 1} y={y + 9} r={3.5} c="#6DAA45" />
+  espion: (x, y) => {
+    const [ex, ey] = P(x + 4.2, y + 8.2, 3.7), [bx, by] = P(x + 5.1, y + 5.6, 8.4);
+    return <>
+    {/* Allée et marche */}
+    <polygon points={pts([[x + 3.5, y + 9, 0.04], [x + 5.1, y + 9, 0.04], [x + 5.1, y + 10.6, 0.04], [x + 3.5, y + 10.6, 0.04]])} fill="#F3E6D6" />
+    <Box x={x + 3.3} y={y + 8.2} w={2} d={0.8} h={0.18} c="#F6EADB" />
+    {/* Maison sombre, pignon vers l'avant */}
+    <Box x={x + 2} y={y + 2.2} w={6.2} d={6} h={4.6} c="#4A4245" />
+    <Box x={x + 1.95} y={y + 2.15} w={6.3} d={6.1} h={0.25} c="#3A3336" />
+    <RoofY x={x + 1.7} y={y + 1.9} z={4.6} w={6.8} d={6.6} h={2.6} c="#3B3437" />
+    {/* Œil sur la façade */}
+    <g transform={`translate(${ex} ${ey}) skewY(30) scale(1.35)`}><path d="M-11 0q11 -10 22 0q-11 10 -22 0z" fill="#F6E7CF" /><circle r="4.2" fill="#2A2427" /><circle cx="-1.2" cy="-1.2" r="1.2" fill="#F6E7CF" /></g>
+    {/* Porte, auvent, poignée lumineuse */}
+    <FaceL x={x + 3.5} y={y + 8.2} z={0.18} w={1.6} h={2.5} c="#5E4339" />
+    <FaceL x={x + 4.75} y={y + 8.21} z={0.9} w={0.12} h={1} c="#FF9A3D" />
+    <Box x={x + 3.2} y={y + 8.2} z={2.7} w={2.2} d={0.8} h={0.25} c="#5A4E4E" />
+    {/* Trois fenêtres éclairées sur le côté */}
+    {[3.2, 4.7, 6.2].map((k) => <g key={k}><FaceR x={x + 8.2} y={y + k - 0.1} z={1.1} d={1.3} h={1.7} c="#3A3134" /><FaceR x={x + 8.21} y={y + k} z={1.2} d={1.1} h={1.5} c="#FFC56A" /></g>)}
+    {/* Plateforme et jumelles sur le toit */}
+    <Box x={x + 3.7} y={y + 3.9} z={6.5} w={2.8} d={2.8} h={0.5} c="#5A4E4E" top="#4A4043" />
+    <polyline points={pts([[x + 3.7, y + 6.7, 6.8], [x + 6.5, y + 6.7, 6.8], [x + 6.5, y + 3.9, 6.8]])} fill="none" stroke="#FF9A3D" strokeWidth="1.8" strokeLinejoin="round" />
+    <path d={`M${bx - 4} ${by + 6}l10 -2 0 -10 -10 2z`} fill="#3A3236" />
+    {[0, 1].map((k) => { const lx = bx - 12 + k * 17, ly = by - 4 + k * 9.8; return <g key={k}>
+      <line x1={lx} y1={ly} x2={lx + 22} y2={ly - 13} stroke="#2E282B" strokeWidth="19" strokeLinecap="round" />
+      <line x1={lx} y1={ly} x2={lx + 22} y2={ly - 13} stroke="#4A4245" strokeWidth="13" strokeLinecap="round" />
+      <ellipse cx={lx} cy={ly} rx="10" ry="10.5" fill="#2A2427" /><ellipse cx={lx} cy={ly} rx="7" ry="7.5" fill="#FF8A2A" /><ellipse cx={lx + 1.2} cy={ly + 1.2} rx="4.3" ry="4.6" fill="#FFC56A" />
+    </g>; })}
+    {/* Décor */}
+    <Lamp x={x + 1.4} y={y + 8.4} /><Bush x={x + 2.4} y={y + 9.2} r={4.5} c="#5F9C3C" /><Bush x={x + 8.4} y={y + 9.2} r={5} c="#5F9C3C" />
   </>; },
   linkedin: (x, y) => { return <>
     <Box x={x + 1.5} y={y + 2} w={7} d={6} h={4.2} c="#F6F1EA" top="#E2DAD0" /><GlassL x={x + 1.9} y={y + 8} z={0.4} w={6.2} h={2.6} n={3} /><GlassR x={x + 8.5} y={y + 2.4} z={0.4} d={5.2} h={2.6} n={2} />
@@ -293,7 +328,7 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
     const c = pos.find((b) => b.art === cible), el = box.current;
     if (!c || !el) { onCible(null); return; }
     const calc = () => {
-      const [sx, sy] = c.art === "rdv" ? P(lot(c.gx) + 3, lot(c.gy) + 8, 12.5) : P(lot(c.gx) + 6, lot(c.gy) + 6, c.art === "radar" ? 18 : 8.6);
+      const [sx, sy] = c.art === "rdv" ? P(lot(c.gx) + 3, lot(c.gy) + 8, 12.5) : P(lot(c.gx) + 6, lot(c.gy) + 6, c.art === "radar" ? 18 : c.art === "espion" ? 12.5 : 8.6);
       const vbx = minX + (VW - VW / vue.z) / 2 - vue.dx, vby = minY + (VH - VH / vue.z) / 2 - vue.dy, vw = VW / vue.z, vh = VH / vue.z;
       const r = el.getBoundingClientRect(), k = Math.min(r.width / vw, r.height / vh);
       const ox = r.left + (r.width - vw * k) / 2, oy = r.top + (r.height - vh * k) / 2;
@@ -361,7 +396,7 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
         })}
         {/* Enseignes : le nom en gros, au-dessus de chaque bâtiment */}
         {pos.map((b, i) => {
-          const [sx, sy] = b.art === "rdv" ? P(lot(b.gx) + 3, lot(b.gy) + 8, 12.5) : P(lot(b.gx) + 6, lot(b.gy) + 6, b.art === "radar" ? 18 : 8.6);
+          const [sx, sy] = b.art === "rdv" ? P(lot(b.gx) + 3, lot(b.gy) + 8, 12.5) : P(lot(b.gx) + 6, lot(b.gy) + 6, b.art === "radar" ? 18 : b.art === "espion" ? 12.5 : 8.6);
           const top = b.art === cible, k = top ? 1.22 : 1;
           const w = b.nom.length * 9.6 + 58, x0 = sx - w / 2;
           return (
