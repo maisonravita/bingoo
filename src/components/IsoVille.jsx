@@ -233,7 +233,7 @@ function Slot({ k, uses, nav, toOf }) {
   );
 }
 
-export default function IsoVille({ batiments, paroles = {}, full = false, cible = null, onCible }) {
+export default function IsoVille({ batiments, paroles = {}, full = false, cible = null, onCible, onOuvre, focus = null }) {
   const nav = useNavigate();
   const [on, setOn] = useState(null);
   const uses = useRef({}); // uses.current[`${slot}-${objet}`] = <use>
@@ -242,6 +242,7 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
   const mobile = typeof window !== "undefined" && window.innerWidth < 700;
   const z0 = full ? (mobile ? 1.45 : 0.95) : 1.15, dy0 = full ? 30 : 0;
   const [vue, setVue] = useState({ z: z0, dx: 0, dy: dy0 });
+  const vueRef = useRef(vue); vueRef.current = vue;
   const drag = useRef(null), moved = useRef(false), box = useRef(null);
   const [bulle, setBulle] = useState(null);
   const N = 3, T = 2 * MARGE + N * LOT + (N - 1) * ROAD; // taille du plateau
@@ -255,6 +256,31 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
   const order = [...pos].sort((a, b) => a.gx + a.gy - (b.gx + b.gy));
   const lotOf = (art) => { const b = pos.find((x) => x.art === art); return b ? [b.gx, b.gy] : [1, 1]; };
   const toOf = (art) => pos.find((x) => x.art === art)?.to ?? "/";
+  const go = (to) => { const b = pos.find((x) => x.to === to); if (onOuvre && b) onOuvre(b); else nav(to); };
+
+  // Caméra : quand on entre dans un bâtiment, la vue glisse et zoome dessus (puis revient en sortant)
+  const avant = useRef(null), anim = useRef(0);
+  const glisse = (cible2) => {
+    cancelAnimationFrame(anim.current);
+    const de = { ...vueRef.current }, t0 = performance.now(), D = 650;
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / D), e = 1 - Math.pow(1 - k, 3);
+      setVue({ z: de.z + (cible2.z - de.z) * e, dx: de.dx + (cible2.dx - de.dx) * e, dy: de.dy + (cible2.dy - de.dy) * e });
+      if (k < 1) anim.current = requestAnimationFrame(step);
+    };
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) setVue(cible2); else anim.current = requestAnimationFrame(step);
+  };
+  useEffect(() => {
+    const b = pos.find((x) => x.art === focus);
+    if (!b) { if (avant.current) { glisse(avant.current); avant.current = null; } return; }
+    if (!avant.current) avant.current = { ...vueRef.current };
+    const z = mobile ? 1.9 : 1.45, [px, py] = P(lot(b.gx) + 5, lot(b.gy) + 5, 4);
+    const w0 = VW / z, h0 = VH / z, r = box.current?.getBoundingClientRect() ?? { width: window.innerWidth, height: window.innerHeight };
+    const kk = Math.min(r.width / w0, r.height / h0), w = r.width / kk, h = r.height / kk; // ce qui est vraiment visible à l'écran
+    // Ordinateur : le bâtiment à gauche (le panneau s'ouvre à droite). Téléphone : en haut (le panneau monte du bas).
+    const cxv = mobile ? px : px + w * 0.3, cyv = mobile ? py + h * 0.33 : py;
+    glisse({ z, dx: minX + VW / 2 - cxv, dy: minY + VH / 2 - cyv });
+  }, [focus]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Animation : agents qui marchent d'un bâtiment à l'autre par les rues, voitures qui roulent
   useEffect(() => {
@@ -321,7 +347,7 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
     roads.push([[r, 0], [r + ROAD, 0], [r + ROAD, T], [r, T]], [[0, r], [T, r], [T, r + ROAD], [0, r + ROAD]]);
   }
   const trees = [[1.2, 6, 0], [1.4, 12, 1], [1.4, 20, 0], [1.3, 27, 0], [1.3, 34, 1], [6, 1.2, 0], [12, 1.3, 1], [20, 1.4, 0], [27, 1.3, 0], [34, 1.3, 1], [T - 1.3, 8, 0], [T - 1.3, 15, 0], [T - 1.4, 26, 1], [T - 1.3, 34, 0], [9, T - 1.3, 0], [16, T - 1.3, 1], [27, T - 1.3, 0], [34, T - 1.3, 0]];
-  const act = on != null ? pos[on] : null;
+  const act = on != null && !focus ? pos[on] : null;
   // Position à l'écran de l'enseigne visée (pour la flèche du panneau « Prochaine étape »)
   useEffect(() => {
     if (!onCible) return;
@@ -377,12 +403,12 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
           {AGENTS.map((a, i) => <g key={`d-ag${i}`} id={`iso-ag${i}`}><Agent a={a} bulle="" /></g>)}
         </defs>
         {/* Parcelles et bâtiments (de l'arrière vers l'avant), avec entre eux les emplacements des objets qui bougent */}
-        <Slot k={0} uses={uses} nav={nav} toOf={toOf} />
+        <Slot k={0} uses={uses} nav={go} toOf={toOf} />
         {order.map((b, oi) => {
-          const i = pos.indexOf(b), x = lot(b.gx), y = lot(b.gy), hot = on === i;
+          const i = pos.indexOf(b), x = lot(b.gx), y = lot(b.gy), hot = on === i || b.art === focus;
           const [lx, ly] = P(x + 5, y + 5, 0);
           return [
-            <a key={b.art} href={`#${b.to}`} onClick={(e) => { e.preventDefault(); nav(b.to); }} onMouseEnter={() => setOn(i)} onMouseLeave={() => setOn(null)} onFocus={() => setOn(i)} onBlur={() => setOn(null)} aria-label={`${b.nom} : ${b.quoi}`} className="cursor-pointer focus:outline-none">
+            <a key={b.art} href={`#${b.to}`} onClick={(e) => { e.preventDefault(); if (onOuvre) onOuvre(b); else nav(b.to); }} onMouseEnter={() => setOn(i)} onMouseLeave={() => setOn(null)} onFocus={() => setOn(i)} onBlur={() => setOn(null)} aria-label={`${b.nom} : ${b.quoi}`} className="cursor-pointer focus:outline-none">
               <polygon points={pts([[x, y, 0.03], [x + LOT, y, 0.03], [x + LOT, y + LOT, 0.03], [x, y + LOT, 0.03]])} fill={hot ? "rgba(232,105,43,.12)" : "rgba(0,0,0,0)"} stroke={hot ? "#E8692B" : "none"} strokeWidth="2" />
               {hot && <ellipse cx={lx} cy={ly} rx="62" ry="31" fill="none" stroke="#E0531F" strokeWidth="1.5" opacity=".6" />}
               {b.art === cible && <g pointerEvents="none">
@@ -391,7 +417,7 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
               </g>}
               <g style={{ transition: "transform .2s", transform: hot ? "translateY(-4px)" : "none" }}>{ART[b.art](x, y)}</g>
             </a>,
-            <Slot key={`slot${oi + 1}`} k={oi + 1} uses={uses} nav={nav} toOf={toOf} />,
+            <Slot key={`slot${oi + 1}`} k={oi + 1} uses={uses} nav={go} toOf={toOf} />,
           ];
         })}
         {/* Enseignes : le nom en gros, au-dessus de chaque bâtiment */}
