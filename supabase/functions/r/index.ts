@@ -424,6 +424,17 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const out = await Promise.all((ps ?? []).map(async (p) => { try { const d = await writeDraft(ws, p); const r1 = await offerFollowup(ws, d.body, (d.body.split("\n")[0] || "Bonjour,")).catch((e) => `(relance : ${e.message})`); return { prospect: p.name, objet: d.subject, corps: d.body, relance1: r1 }; } catch (e) { return { prospect: p.name, erreur: String((e as Error).message) }; } }));
     return { messages: out };
   },
+  // Test interne : rédige et enregistre le premier message d'UNE fiche (brouillon à valider, rien n'est envoyé)
+  async "draft-one"(req, b) {
+    await cron(req);
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
+    if (!ws) throw new HttpError(404, "Espace introuvable");
+    const { data: p } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("id", String(b.prospect_id ?? "")).single();
+    if (!p) throw new HttpError(404, "Fiche introuvable");
+    setAi({ ws: ws.id, live: true });
+    const { draft } = await import("../_shared/agents.ts");
+    return await draft(ws, p);
+  },
   async "alt-test"(req, b) {
     await cron(req);
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
