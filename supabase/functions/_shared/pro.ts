@@ -318,8 +318,12 @@ CE QU'IL FAUT DÉCOUVRIR (5 questions à poser)
 OBJECTIONS PROBABLES ET RÉPONSES
 OBJECTIF DU RENDEZ-VOUS ET PROCHAINE ÉTAPE À OBTENIR
 Sois concret et court. N'invente rien.`, { fast: true, maxTokens: 6000, tools: WEB(3), system: "Tu es un directeur commercial B2B français expérimenté. Tu distingues toujours les faits, les hypothèses et les inconnues." });
-  await admin.from("meetings").update({ brief: out.slice(0, 8000) }).eq("id", m.id);
-  return { brief: out };
+  // Le modèle « pense tout haut » pendant ses recherches web (« Je vais rechercher… ») : on ne garde que la fiche
+  const raw = String(out ?? "");
+  const start = raw.search(/(^|\n)\s*(\*\*|#+\s*)?(FICHE|CE QU.ON SAIT)/);
+  const fiche = (start > 0 ? raw.slice(start) : raw).trim();
+  await admin.from("meetings").update({ brief: fiche.slice(0, 8000) }).eq("id", m.id);
+  return { brief: fiche };
 }
 
 // ================================================================ « Pourquoi maintenant »
