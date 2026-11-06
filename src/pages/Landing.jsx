@@ -341,11 +341,8 @@ export default function Landing() {
               <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F1EFED] px-3 py-1.5 text-[14.5px] text-ink-soft"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="9" /><path d="m8.5 12.5 2.5 2.5 4.5-5" /></svg>14 jours gratuits, sans carte bancaire</span>
             </div>
             <p className="mt-8 text-[14.5px] text-ink-soft">En m'inscrivant, j'accepte les <a href="#/conditions" className="underline hover:text-ink">Conditions d'utilisation</a> et la <a href="#/confidentialite" className="underline hover:text-ink">Politique de confidentialité</a> de Bingoo!.</p>
-            {/* La vraie application : ta ville, l'équipe au travail, puis le mode Jouer */}
-            <figure className="hero-in mx-auto mt-14 max-w-[1100px]" style={{ animationDelay: ".3s" }}>
-              <video src="./demo-carte.mp4" poster="./demo-carte.jpg" autoPlay muted loop playsInline className="w-full rounded-2xl border border-black/10 bg-[#0b0910] shadow-[0_40px_80px_-40px_rgba(21,22,26,.45)]" aria-label="Bingoo! en action : la ville de l'équipe, puis une entreprise ouverte depuis la carte" />
-              <figcaption className="mt-3 text-[13.5px] text-ink-soft">L'application, avec des données d'exemple, dans les vraies rues de Paris.</figcaption>
-            </figure>
+            {/* L'essai en direct, juste sous le titre : le visiteur voit ses propres clients potentiels, sans compte */}
+            <div id="essai" className="mx-auto mt-16 max-w-[1300px] text-left scroll-mt-24"><TryIt t={tryState} /></div>
             <SourcesRow />
           </section>
         </div>
@@ -353,7 +350,6 @@ export default function Landing() {
 
       <main className="bg-[#D6D1CD] px-0 sm:px-8 pb-8">
         <div className="mx-auto max-w-[1440px] bg-white">
-                <section className="px-5 sm:px-10 lg:px-20 py-20 sm:py-28"><div id="essai" className="mx-auto max-w-[1300px] scroll-mt-24"><TryIt t={tryState} /></div></section>
 
         <Feature id="produit" title="Sache qui va acheter, et quand" text="Chaque nuit, le Radar lit les sources officielles et le web. Il te montre les entreprises qui ont une raison d'acheter maintenant, avec la date, le montant et la source." bullets={[["radar", <><b className="font-medium">Contrats publics</b> qui se terminent, avec le titulaire actuel et l'acheteur</>], ["doc", <><b className="font-medium">Annonces légales</b> : nouveau dirigeant, création, reprise, déménagement</>], ["eye", <><b className="font-medium">Signaux d'intention</b> : visites de ton site, recrutements, clients mécontents d'un concurrent</>]]} />
         <Feature id="contacts" title="Trouve la personne qui décide" text="Pour chaque opportunité, Bingoo! cherche qui signe et comment le joindre. Tu ouvres la fiche, tu appelles ou tu écris." bullets={[["user", <><b className="font-medium">La bonne fonction</b> : achats, direction générale, DSI ou RH selon ton offre</>], ["mail", <><b className="font-medium">E-mail et téléphone</b> publiés ou vérifiés, jamais devinés</>], ["link", <><b className="font-medium">Profil LinkedIn</b> pour un premier contact</>]]} />
