@@ -30,15 +30,16 @@ export async function fitCheck(ws: Workspace, opts: { max?: number; dry?: boolea
 
   // 1) Règles
   const { data: known } = await admin.from("prospects").select("id, siren, name").eq("workspace_id", ws.id).neq("fit", "").neq("status", "ignore").limit(5000);
-  const seen = new Set((known ?? []).map((k) => k.siren || norm(k.name ?? "")).filter(Boolean));
+  // Doublon = même SIREN ou même nom (plusieurs établissements d'une même enseigne : un seul interlocuteur)
+  const seen = new Set((known ?? []).flatMap((k) => [k.siren, norm(k.name ?? "")]).filter(Boolean) as string[]);
   const rest: Row[] = [];
   for (const r of rows) {
-    const key = r.siren || norm(r.name);
+    const keys = [r.siren, norm(r.name)].filter(Boolean) as string[];
     const t = targets.get(r.target ?? "");
     const label = norm(`${t?.label ?? ""} ${t?.pourquoi ?? ""}`);
     const txt = norm(`${r.name} ${r.org ?? ""}`);
-    if (key && seen.has(key)) { await out(r, "non", "Doublon : cette entreprise est déjà dans ta liste"); continue; }
-    if (key) seen.add(key);
+    if (keys.some((k) => seen.has(k))) { await out(r, "non", "Doublon : cette entreprise est déjà dans ta liste"); continue; }
+    keys.forEach((k) => seen.add(k));
     if (PUBLIC.test(txt) && !/public|collectivit|mairie|hopita|commune/.test(label)) { await out(r, "non", "Établissement public, alors que ta cible est privée"); continue; }
     if (CIVIL.test(`${r.name} ${r.org ?? ""}`) && !/immobili|patrimoine|holding/.test(label)) { await out(r, "non", "Société civile ou holding, sans activité commerciale"); continue; }
     rest.push(r);
