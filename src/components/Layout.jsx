@@ -220,8 +220,8 @@ export default function Layout({ children }) {
   const full = loc.pathname === "/village" || (loc.pathname === "/" && vue !== "liste");
   const menu = (
     <>
-      <button onClick={() => setMore(true)} aria-label="Ouvrir le menu" className={cx("relative z-30 grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-line bg-white/95 shadow-[0_8px_24px_-12px_rgba(21,22,26,.35)] backdrop-blur hover:border-ink-faint", full ? "!fixed left-4 top-4" : "")}>
-        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+      <button onClick={() => setMore(true)} aria-label="Ouvrir le menu" className={cx("relative z-30 grid h-12 w-12 sm:h-14 sm:w-14 shrink-0 place-items-center rounded-2xl bg-white shadow-[0_10px_24px_-12px_rgba(122,74,42,.5)] hover:bg-[#FFF7F0]", full ? "!fixed left-4 top-4 sm:left-6 sm:top-6" : "border border-line")}>
+        <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="M4 7h16M4 12h16M4 17h16" /></svg>
         {(c.replies + c.drafts) > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-[11px] font-bold text-white">{c.replies + c.drafts}</span>}
       </button>
       {more && (

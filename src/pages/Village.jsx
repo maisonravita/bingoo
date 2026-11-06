@@ -204,7 +204,11 @@ export default function Village() {
   }, [intro]);
 
   return (
-    <div className="fixed inset-0 overflow-hidden" style={{ background: "radial-gradient(ellipse at 50% 40%, #FBFAF6 0%, #EFECE4 70%)" }}>
+    <div className="fixed inset-0 overflow-hidden" style={{ background: "radial-gradient(ellipse at 50% 45%, #FFF8F1 0%, #FBEFE4 55%, #F6E6D8 100%)" }}>
+      {/* Nuages du décor */}
+      {[["8%", "14%", 1], ["78%", "11%", 0.9], ["58%", "4%", 0.6]].map(([l, t, k], n) => (
+        <svg key={n} aria-hidden viewBox="0 0 120 50" className="pointer-events-none absolute opacity-90" style={{ left: l, top: t, width: `${160 * k}px` }}><path d="M18 44h86a14 14 0 0 0 0-28 22 22 0 0 0-41-6 16 16 0 0 0-29 8A13 13 0 0 0 18 44z" fill="#fff" /></svg>
+      ))}
       <style>{`
         @keyframes bv-descente { 0% { transform: scale(.35) translateY(-8%); opacity: 0; filter: blur(6px) } 45% { opacity: 1; filter: blur(2px) } 100% { transform: none; opacity: 1; filter: none } }
         @keyframes bv-ciel { 0% { opacity: 1 } 70% { opacity: 1 } 100% { opacity: 0; visibility: hidden } }
@@ -229,20 +233,27 @@ export default function Village() {
       )}
 
       {/* Par-dessus la ville : le prochain geste, en haut */}
-      <div className="pointer-events-none fixed inset-x-0 top-4 z-20 flex justify-center pl-[76px] pr-4 sm:px-20" style={intro ? { animation: "bv-ui 3.6s both" } : undefined}>
-        <button onClick={() => next && nav(next.b.to)} disabled={!next} className={cx("pointer-events-auto flex max-w-[720px] items-center gap-3 rounded-2xl border-2 px-4 py-2.5 text-left shadow-[0_12px_30px_-16px_rgba(21,22,26,.4)] backdrop-blur transition", next ? "border-accent bg-white/95 hover:bg-white" : "border-line bg-white/90")}>
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent text-white text-[18px] font-black" style={H}>{next ? "→" : "✓"}</span>
-          <span className="min-w-0">
-            <span className="block text-[12px] font-semibold text-accent-dark">{next ? "Prochaine étape" : `Tout est fait${first ? `, ${first}` : ""}`}</span>
-            <span className="block text-[13px] sm:text-[14.5px] font-semibold text-ink leading-snug">{next ? next.t : "Bingoo! cherche, écrit et relance pour toi. Reviens demain matin."}</span>
+      <div className="pointer-events-none fixed inset-x-0 top-4 z-20 flex justify-center pl-[84px] pr-4 sm:px-24" style={intro ? { animation: "bv-ui 3.6s both" } : undefined}>
+        <button onClick={() => next && nav(next.b.to)} disabled={!next} className={cx("pointer-events-auto relative flex max-w-[820px] items-center gap-2.5 sm:gap-4 rounded-[22px] sm:rounded-[28px] border-2 bg-white py-2 pl-2 pr-3 sm:py-3 sm:pl-3 sm:pr-5 text-left shadow-[0_14px_34px_-18px_rgba(232,105,43,.55)] transition hover:bg-white", next ? "border-[#F5A06A]" : "border-[#F1E2D2]")}>
+          <span className="grid h-9 w-9 sm:h-12 sm:w-12 shrink-0 place-items-center rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#FF8A3D] to-[#E8571C] text-white shadow-[0_6px_14px_-6px_rgba(232,87,28,.8)]"><svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{next ? <path d="M5 12h14M13 6l6 6-6 6" /> : <path d="m5 12.5 4.5 4.5L19 7.5" />}</svg></span>
+          <span className="hidden sm:block h-9 w-px bg-[#F1E2D2]" aria-hidden />
+          {next && <svg viewBox="0 0 24 24" className="order-last h-5 w-5 shrink-0 text-ink" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="m9 6 6 6-6 6" /></svg>}
+          <svg viewBox="0 0 30 24" className="absolute -right-7 -top-4 hidden sm:block h-6 w-8 text-[#F26A21]" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden><path d="M6 14l-3-8M14 10l1-8M21 14l6-5" /></svg>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[11.5px] sm:text-[13px] font-bold text-[#F26A21]">{next ? "Prochaine étape" : `Tout est fait${first ? `, ${first}` : ""}`}</span>
+            <span className="block text-[13px] sm:text-[17px] font-bold text-ink leading-snug">{next ? next.t : "Bingoo! cherche, écrit et relance pour toi. Reviens demain matin."}</span>
           </span>
         </button>
       </div>
 
       {/* En bas : comment ça marche, et la nuit rejouée */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-5 z-20 flex flex-wrap items-center justify-center gap-2 px-20" style={intro ? { animation: "bv-ui 3.6s both" } : undefined}>
-        <p className="hidden sm:block rounded-full bg-white/90 px-3.5 py-1.5 text-[12.5px] text-ink-soft shadow-sm backdrop-blur">Survole un bâtiment pour ses chiffres · clique pour entrer · glisse pour te déplacer</p>
-        <a href="/qg/" className="pointer-events-auto rounded-full bg-[#15161A] px-3.5 py-1.5 text-[12.5px] font-semibold text-white hover:bg-black">La nuit de ton équipe</a>
+      <div className="pointer-events-none fixed inset-x-0 bottom-5 z-20 flex justify-center px-4" style={intro ? { animation: "bv-ui 3.6s both" } : undefined}>
+        <div className="pointer-events-auto flex items-center gap-3 rounded-[24px] bg-white p-2 sm:pl-5 shadow-[0_12px_30px_-16px_rgba(122,74,42,.5)]">
+          <svg viewBox="0 0 24 24" className="hidden sm:block h-5 w-5 text-ink-soft" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden><rect x="7" y="3" width="10" height="18" rx="5" /><path d="M12 7v3" /></svg>
+          <p className="hidden sm:block text-[14px] italic text-ink-soft">Survole un bâtiment pour ses chiffres · clique pour entrer · glisse pour te déplacer</p>
+          <span className="hidden sm:block h-7 w-px bg-[#F1E2D2]" aria-hidden />
+          <a href="/qg/" className="flex items-center gap-2 rounded-[18px] bg-[#1E1E24] px-5 py-3 text-[14.5px] font-semibold text-white hover:bg-black"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /><path d="M17 3v3M15.5 4.5h3" /></svg>La nuit de ton équipe</a>
+        </div>
       </div>
     </div>
   );
