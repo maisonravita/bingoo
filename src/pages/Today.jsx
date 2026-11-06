@@ -352,8 +352,10 @@ export default function Today() {
 
       {/* La promesse en chiffres réels : les décideurs trouvés, comment les joindre, et ce que ça donne */}
       {s && <Contacts s={s} />}
+      {/* Sur téléphone, le matin passe avant le tableau de la semaine (la ville) : c'est ce qu'on ouvre en premier */}
       <div className="flex flex-col">
-        <div>
+        <div className="hidden sm:block sm:order-1"><Semaine /></div>
+        <div className="order-1 sm:order-2">
           {s && <Morning s={s} wsId={ws.id} canSend={ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok} adresse={!!ws.postal_address} />}
           <PushTel compact />
         </div>
