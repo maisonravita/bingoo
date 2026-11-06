@@ -245,14 +245,59 @@ async function dcResult(reqId: string): Promise<{ ready: boolean; email: string;
 async function applyDropcontact(ws: Workspace, p: Prospect, res: { email: string; phone: string }) {
   const patch: Record<string, unknown> = { dropcontact_req: null };
   if (res.email && EMAIL_RE.test(res.email) && !BAD.test(res.email)) {
-    Object.assign(patch, { email: res.email, status: p.status === "sans_email" ? "pret" : p.status, channel: "email", email_source: "Dropcontact (adresse vérifiée)" });
+    Object.assign(patch, { email: res.email, status: ["sans_email", "nouveau"].includes(p.status) ? "pret" : p.status, channel: "email", email_source: "Dropcontact (adresse vérifiée)", enriched_at: new Date().toISOString() });
     await log(ws.id, "credit_email", `${p.name} : e-mail trouvé par Dropcontact`);
   } else {
     patch.channel = chooseChannel({ ...p, ...patch } as Prospect);
   }
-  if (res.phone && !p.phone) patch.phone = res.phone.slice(0, 30);
+  if (res.phone && !p.phone) Object.assign(patch, { phone: res.phone.slice(0, 30), phone_source: "Dropcontact", phone_checked_at: new Date().toISOString() });
   await admin.from("prospects").update(patch).eq("id", p.id);
   return patch;
+}
+
+/** E-mail à la demande (bouton « Trouver l'e-mail ») : site d'abord (gratuit), puis Dropcontact si un décideur est nommé
+ *  et qu'il reste des crédits. Pas d'IA. Un crédit n'est compté que si l'e-mail est trouvé. */
+export async function findEmail(ws: Workspace, p: P2) {
+  if (p.email) return { email: p.email, source: String((p as { email_source?: string }).email_source ?? ""), pending: false, steps: ["e-mail déjà connu"] };
+  const steps: string[] = [];
+  const free = await freeEnrich(p, true).catch(() => ({ site: "", foundSite: false, email: "", phone: "" }));
+  if (free.email) return { email: free.email, source: `site ${hostOf(free.site)}`, pending: false, steps: ["e-mail publié sur son site"] };
+  steps.push(free.site ? `site ${hostOf(free.site)} lu, pas d'e-mail publié` : "site introuvable");
+  const person = String(p.contact_name ?? "").trim();
+  if (!person || person.split(/\s+/).length < 2) return { email: "", source: "", pending: false, steps: [...steps, "aucun décideur nommé : ajoute son nom pour lancer la recherche vérifiée"] };
+  if (!env("DROPCONTACT_API_KEY")) return { email: "", source: "", pending: false, steps: [...steps, "recherche vérifiée pas encore activée"] };
+  const c = await credits(ws);
+  if (c.left <= 0) return { email: "", source: "", pending: false, steps: [...steps, "crédits d'e-mails du mois épuisés"] };
+  const site = free.site || p.website || "";
+  const req = await dcSubmit({ ...p, website: site } as Prospect, person);
+  await admin.from("prospects").update({ dc_tried_at: new Date().toISOString(), dropcontact_req: req }).eq("id", p.id);
+  if (!req) return { email: "", source: "", pending: false, steps: [...steps, "recherche vérifiée indisponible pour l'instant"] };
+  for (let i = 0; i < 4; i++) {
+    await new Promise((r) => setTimeout(r, 9000));
+    const r = await dcResult(req).catch(() => ({ ready: false, email: "", phone: "" }));
+    if (r.ready) { const patch = await applyDropcontact(ws, p as Prospect, r); return { email: String(patch.email ?? ""), source: patch.email ? "Dropcontact (adresse vérifiée)" : "", pending: false, steps: [...steps, patch.email ? "e-mail nominatif vérifié" : "aucun e-mail vérifié pour cette personne"] }; }
+  }
+  return { email: "", source: "", pending: true, steps: [...steps, "recherche vérifiée en cours : le résultat arrive dans quelques minutes"] };
+}
+
+/** Passe de nuit : récupère les résultats en attente, puis lance la recherche vérifiée sur les meilleurs décideurs
+ *  sans e-mail (déjà passés par la recherche gratuite, dans la cible), dans la limite des crédits du mois. */
+export async function dropcontactNight(ws: Workspace, n = 10) {
+  if (!env("DROPCONTACT_API_KEY")) return { actif: false };
+  const recus = await dropcontactPending(ws);
+  const c = await credits(ws);
+  const lots = Math.min(n, c.left);
+  if (lots <= 0) return { actif: true, recus, lances: 0, credits_restants: c.left };
+  const { data } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("email", "").in("status", ["nouveau", "sans_email", "pret"])
+    .neq("fit", "non").is("dropcontact_req", null).is("dc_tried_at", null).not("free_tried_at", "is", null).like("contact_name", "% %")
+    .order("score", { ascending: false, nullsFirst: false }).limit(lots);
+  let lances = 0;
+  for (const p of data ?? []) {
+    const req = await dcSubmit(p as Prospect, String(p.contact_name)).catch(() => null);
+    await admin.from("prospects").update({ dc_tried_at: new Date().toISOString(), dropcontact_req: req }).eq("id", p.id);
+    if (req) lances++;
+  }
+  return { actif: true, recus, lances, credits_restants: c.left };
 }
 
 /** Récupère les résultats Dropcontact en attente. */

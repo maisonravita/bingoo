@@ -143,12 +143,13 @@ export async function missionSearch(ws: Workspace, m: Mission, wanted = 50) {
 }
 
 /** Plan proposé à partir de l'objectif écrit en langage naturel. Rien n'est lancé tant que l'utilisateur ne valide pas. */
+const SIG = ["recrutement", "levee", "creation", "croissance", "dirigeant", "demenagement", "outil", "renouvellement", "appel_offres"];
 export async function planMission(ws: Workspace, objective: string) {
   const text = objective.trim().slice(0, 600);
   if (text.length < 8) throw new HttpError(400, "Décris ton objectif en une phrase, par exemple : « Trouver 15 nouveaux clients à Lyon d'ici fin janvier »");
   const targets = (ws.targets ?? []).map((t) => ({ id: t.id, label: t.label, interlocuteur: t.interlocuteur }));
   const today = new Date().toISOString().slice(0, 10);
-  const r = await askJson<{ type: string; nombre: number; echeance: string; departements: string[]; cibles: string[]; cibles_manquantes: string; reformulation: string; conseils: string[] }>(
+  const r = await askJson<{ type: string; nombre: number; echeance: string; departements: string[]; cibles: string[]; cibles_manquantes: string; reformulation: string; conseils: string[]; signaux: string[] }>(
     `Un dirigeant fixe un objectif commercial à son outil de prospection. Interprète-le précisément, sans rien inventer.
 Entreprise : ${ws.profile?.nom ?? ws.name} — ${ws.profile?.offre ?? ""}
 Zone habituelle : ${(ws.zone ?? []).join(", ") || "toute la France"}
@@ -164,8 +165,9 @@ Règles :
 - cibles : identifiants des cibles existantes qui correspondent (toutes si l'objectif ne précise pas de type de client).
 - cibles_manquantes : si l'objectif vise un type de client absent des cibles, décris-le en une phrase, sinon "".
 - reformulation : l'objectif reformulé clairement en une phrase.
+- signaux : les moments d'achat cités, parmi "recrutement" (qui recrutent), "levee" (qui lèvent des fonds), "creation" (nouvelles entreprises), "croissance" (qui grandissent, ouvrent des postes), "dirigeant" (nouveau dirigeant), "demenagement" (qui déménagent ou ouvrent un site), "outil" (qui utilisent un outil précis), "renouvellement" (contrat qui se termine), "appel_offres". Liste vide si aucun n'est cité.
 - conseils : 2 ou 3 conseils concrets et prudents pour cette mission (pas de promesse de résultat). Désigne les cibles par leur nom, jamais par leur identifiant.
-Format : {"type": "clients", "nombre": 10, "echeance": "", "departements": [], "cibles": [], "cibles_manquantes": "", "reformulation": "", "conseils": [""]}`,
+Format : {"type": "clients", "nombre": 10, "echeance": "", "departements": [], "cibles": [], "cibles_manquantes": "", "reformulation": "", "conseils": [""], "signaux": []}`,
     { fast: true, maxTokens: 1500 });
   const goal_type = r.type === "rdv" ? "rdv" : "clients";
   const goal_count = Math.min(Math.max(Math.round(Number(r.nombre) || 10), 1), 10000);
@@ -183,6 +185,7 @@ Format : {"type": "clients", "nombre": 10, "echeance": "", "departements": [], "
   const available = (avail ?? []).filter((p) => inZone(p.postal_code, zoneList)).length;
   return {
     objective: r.reformulation || text, goal_type, goal_count, deadline, target_ids: target_ids.length ? target_ids : targets.map((t) => t.id), zone,
+    signal_focus: (r.signaux ?? []).map(String).filter((x) => SIG.includes(x)).slice(0, 4),
     missing_target: String(r.cibles_manquantes ?? ""), conseils: (r.conseils ?? []).slice(0, 3), projection: proj, available,
   };
 }
@@ -197,6 +200,7 @@ export async function createMission(ws: Workspace, userId: string, b: Record<str
   const { data: m, error } = await admin.from("missions").insert({
     workspace_id: ws.id, objective: String(b.objective ?? "").slice(0, 300), goal_type, goal_count, deadline, target_ids, zone,
     plan: { projection: b.projection ?? null, conseils: b.conseils ?? [] }, created_by: userId,
+    signal_focus: (Array.isArray(b.signal_focus) ? b.signal_focus : []).map(String).filter((x) => SIG.includes(x)).slice(0, 4),
   }).select("*").single();
   if (error) throw new HttpError(500, error.message);
   const proj = projection(goal_type, goal_count);

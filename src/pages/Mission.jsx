@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { fn, quotaLeft, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { Badge, Button, Card, Input, PageHead, Spinner, Textarea, useToast } from "../components/ui";
@@ -15,18 +15,23 @@ const EXAMPLES = [
 const goalLabel = (t, c = 2) => (t === "rdv" ? (c > 1 ? "rendez-vous obtenus" : "rendez-vous obtenu") : (c > 1 ? "clients signés" : "client signé"));
 
 // ---------------------------------------------------------------- Création : objectif → plan → lancement
-function NewMission({ onCreated, onCancel }) {
+const SIGNAL_LABEL = { recrutement: "qui recrutent", levee: "qui lèvent des fonds", creation: "qui viennent de se créer", croissance: "qui grandissent", dirigeant: "qui changent de dirigeant", demenagement: "qui déménagent ou ouvrent un site", outil: "qui utilisent un outil précis", renouvellement: "dont le contrat se termine", appel_offres: "qui lancent un appel d'offres" };
+
+function NewMission({ onCreated, onCancel, initial = "" }) {
   const { ws } = useWs();
   const toast = useToast();
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initial);
   const [plan, setPlan] = useState(null);
   const [busy, setBusy] = useState(null);
 
-  const prepare = async () => {
+  const prepare = async (t = text) => {
     setBusy("plan");
-    try { setPlan(await fn("i/mission-plan", { workspace_id: ws.id, objective: text })); }
+    try { setPlan(await fn("i/mission-plan", { workspace_id: ws.id, objective: t })); }
     catch (e) { toast(e.message, "bad"); } finally { setBusy(null); }
   };
+  // Arrivée depuis « Décris les clients que tu veux » (page Aujourd'hui) : le plan se prépare tout seul
+  const auto = useRef(false);
+  useEffect(() => { if (initial.trim().length >= 8 && !auto.current) { auto.current = true; prepare(initial); } }, [initial]); // eslint-disable-line react-hooks/exhaustive-deps
   const launch = async () => {
     setBusy("go");
     try {
@@ -47,7 +52,7 @@ function NewMission({ onCreated, onCancel }) {
         {EXAMPLES.map((x) => <button key={x} onClick={() => setText(x)} className="text-left text-[13px] rounded-full border border-line bg-paper px-3 py-1.5 hover:border-ink-faint">{x}</button>)}
       </div>
       <div className="flex flex-wrap gap-2 mt-6">
-        <Button quota="mission" variant="accent" size="lg" loading={busy === "plan"} disabled={text.trim().length < 8} onClick={prepare}>Préparer le plan</Button>
+        <Button quota="mission" variant="accent" size="lg" loading={busy === "plan"} disabled={text.trim().length < 8} onClick={() => prepare()}>Préparer le plan</Button>
         {onCancel && <Button variant="ghost" size="lg" onClick={onCancel}>Annuler</Button>}
       </div>
     </Card>
@@ -85,6 +90,7 @@ function NewMission({ onCreated, onCancel }) {
           })}
         </div>
         {plan.missing_target && <p className="text-sm text-warn mt-2">Ton objectif vise aussi : {plan.missing_target}. Ajoute cette cible dans Réglages → Zone et cibles pour l'inclure.</p>}
+        {plan.signal_focus?.length > 0 && <p className="text-sm mt-3">En priorité, les entreprises {plan.signal_focus.map((k) => SIGNAL_LABEL[k] ?? k).join(", ")}.</p>}
         <p className="text-sm text-ink-soft mt-3">Zone : {plan.zone?.length ? plan.zone.join(", ") : (ws.zone?.length ? `${ws.zone.join(", ")} (zone habituelle)` : "toute la France")}</p>
       </div>
 
@@ -454,7 +460,9 @@ export default function Mission() {
   const { ws } = useWs();
   const go = useNavigate();
   const [list, setList] = useState(null);
-  const [creating, setCreating] = useState(false);
+  const [params] = useSearchParams();
+  const q = params.get("q") ?? "";
+  const [creating, setCreating] = useState(!!q);
   const load = useCallback(async () => {
     try { const r = await fn("i/missions", { workspace_id: ws.id }); setList(Array.isArray(r?.missions) ? r.missions : []); } catch { setList([]); }
   }, [ws.id]);
@@ -467,7 +475,7 @@ export default function Mission() {
         {list?.length > 0 && !creating && <Button onClick={() => setCreating(true)}>Nouvelle mission</Button>}
       </PageHead>
       {list === null ? <div className="py-20 grid place-items-center"><Spinner /></div>
-        : creating || !list.length ? <NewMission onCancel={list.length ? () => setCreating(false) : null} onCreated={async () => { setCreating(false); await load(); }} />
+        : creating || !list.length ? <NewMission initial={q} onCancel={list.length ? () => setCreating(false) : null} onCreated={async () => { setCreating(false); await load(); }} />
         : <div className="space-y-10">{list.map((v) => <MissionView key={v.mission.id} v={v} onChanged={load} />)}</div>}
     </div>
   );

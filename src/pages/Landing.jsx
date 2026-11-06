@@ -318,6 +318,16 @@ export default function Landing() {
               <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F1EFED] px-3 py-1.5 text-[14.5px] text-ink-soft"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="9" /><path d="m8.5 12.5 2.5 2.5 4.5-5" /></svg>14 jours gratuits, sans carte bancaire</span>
             </div>
             <p className="mt-8 text-[14.5px] text-ink-soft">En m'inscrivant, j'accepte les <a href="#/conditions" className="underline hover:text-ink">Conditions d'utilisation</a> et la <a href="#/confidentialite" className="underline hover:text-ink">Politique de confidentialité</a> de Bingoo!.</p>
+            {/* Le produit en 4 étapes : c'est une vraie séquence, d'où les numéros */}
+            <ol className="mx-auto mt-14 grid max-w-[1100px] gap-3 text-left sm:grid-cols-2 lg:grid-cols-4">
+              {[["Tu décris tes clients", "En une phrase : « les agences immobilières de Lyon qui recrutent »."], ["Bingoo! trouve les décideurs", "Il écarte ce qui n'est pas dans ta cible, puis trouve l'e-mail vérifié et le téléphone."], ["Il leur écrit, tu valides", "Un message pour chaque entreprise, puis les relances. Rien ne part sans toi."], ["Tu prends les rendez-vous", "Les réponses arrivent triées, le rendez-vous va dans ton agenda."]].map(([h, d], i) => (
+                <li key={h} className="rounded-2xl bg-[#F6F5F3] p-5">
+                  <span className="text-[15px] text-accent-dark tnum">{i + 1}</span>
+                  <p className="mt-1 text-[19px] leading-tight text-ink" style={SERIF}>{h}</p>
+                  <p className="mt-1.5 text-[14.5px] leading-snug text-ink-soft">{d}</p>
+                </li>
+              ))}
+            </ol>
             {/* L'essai en direct, juste sous le titre : le visiteur voit ses propres clients potentiels, sans compte */}
             <div id="essai" className="mx-auto mt-16 max-w-[1300px] text-left scroll-mt-24"><TryIt t={tryState} /></div>
             <SourcesRow />

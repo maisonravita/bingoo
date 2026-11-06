@@ -15,7 +15,7 @@ import { SubNav } from "../components/SubNav";
 const STRONG = ["ouverture", "creation", "recrutement", "croissance", "pub_google", "pub_meta", "pub_linkedin", "levee", "accelerateur"];
 
 const VIEWS = [
-  { key: "all", label: "Tous" },
+  { key: "all", label: "Tous", fn: (r) => r.fit !== "non" },
   { key: "mail", label: "Avec e-mail", fn: (r) => !!r.email },
   { key: "tel", label: "Avec téléphone", fn: (r) => !!r.phone },
   { key: "hot", label: "Réponses et RDV", st: ["repondu", "rdv", "client"] },
@@ -25,6 +25,7 @@ const VIEWS = [
   { key: "ready", label: "Joignables", st: ["pret", "a_valider"] },
   { key: "todo", label: "À enquêter", st: ["nouveau"] },
   { key: "none", label: "Sans e-mail", st: ["sans_email"] },
+  { key: "off", label: "Hors cible", fn: (r) => r.fit === "non" },
 ];
 const MOVES = ["repondu", "rdv", "client", "refus", "ignore"];
 export const CHANNEL = {
@@ -146,9 +147,10 @@ function Drawer({ p, onClose, onChange, team = [] }) {
         <div className="mt-4 flex flex-wrap gap-2"><Badge tone={STATUS[p.status]?.tone}>{STATUS[p.status]?.label}</Badge><Badge>{target?.label ?? p.activity}</Badge></div>
         <h2 className="font-serif text-4xl leading-tight mt-3">{p.name}</h2>
         {p.org && <p className="text-ink-soft">{p.org}</p>}
+        <FitNote p={p} onChange={onChange} />
         <dl className="mt-5 grid grid-cols-[110px_1fr] gap-y-2 text-sm">
           <dt className="text-ink-soft">Décideur</dt><dd>{p.contact_name ? `${p.contact_name}${p.contact_role ? ` · ${p.contact_role}` : ""}` : "—"}</dd>
-          <dt className="text-ink-soft">E-mail</dt><dd>{p.email ? <><a className="underline" href={`mailto:${p.email}`}>{p.email}</a><Provenance src={p.email_source} at={p.enriched_at} /></> : "—"}</dd>
+          <dt className="text-ink-soft">E-mail</dt><dd>{p.email ? <><a className="underline" href={`mailto:${p.email}`}>{p.email}</a><Provenance src={p.email_source} at={p.enriched_at} /></> : <FindEmail p={p} onChange={onChange} />}</dd>
           <dt className="text-ink-soft">Téléphone</dt><dd>{p.phone ? <><a className="underline" href={`tel:${p.phone.replace(/\s/g, "")}`}>{p.phone}</a><Provenance src={p.phone_source || (p.siret ? "fiche entreprise" : "")} at={p.phone_checked_at} /></> : "—"}</dd>
           <dt className="text-ink-soft">LinkedIn</dt><dd>{p.linkedin_url ? <a className="underline text-li" href={p.linkedin_url} target="_blank" rel="noreferrer">{p.linkedin_person || "Profil"}</a> : p.linkedin_status === "introuvable" ? "Introuvable" : "—"}</dd>
           <dt className="text-ink-soft">Site</dt><dd className="truncate">{p.website ? <a className="underline" href={p.website} target="_blank" rel="noreferrer">{p.website.replace(/^https?:\/\//, "")}</a> : "—"}</dd>
@@ -347,6 +349,15 @@ export default function Prospects() {
           </button>
         ))}
       </div>
+      {view === "off" && rows && (
+        <div className="mb-4 rounded-2xl border border-line bg-white p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex-1 min-w-0 text-sm">
+            <p className="font-semibold">Les fiches écartées parce qu'elles ne sont pas dans ta cible</p>
+            <p className="text-ink-soft">Bingoo! relit chaque nouvelle fiche avant de te la montrer : doublons, établissements publics, sociétés civiles, autre métier. Rien n'est supprimé : ouvre une fiche pour la remettre dans ta liste.</p>
+          </div>
+          <Button variant="primary" loading={job?.key === "fit"} disabled={!!job} onClick={() => run({ key: "fit", action: "r/fit-check", body: { workspace_id: ws.id, max: 100 }, rounds: 1, label: "Tri de ta liste", done: (n, f) => n ? `${n} fiches relues, ${f} écartées` : "Toutes tes fiches sont déjà triées" })}>Trier ma liste</Button>
+        </div>
+      )}
       {view === "none" && rows && (
         <div className="mb-4 rounded-2xl border border-line bg-white p-4 flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex-1 min-w-0 text-sm">
@@ -367,7 +378,7 @@ export default function Prospects() {
                 <p className="text-[13px] truncate flex flex-wrap gap-x-3">
                   {r.email ? <span className="text-ink">✉ {r.email}</span> : <span className="text-ink-faint">E-mail à trouver</span>}
                   {r.phone && <span className="text-ink">☎ {r.phone}</span>}
-                  <span className="text-ink-soft">{[targetLabel(r.target), [r.postal_code, r.city].filter(Boolean).join(" ")].filter(Boolean).join(" · ")}</span>
+                  <span className="text-ink-soft">{view === "off" && r.fit_reason ? `Écarté : ${r.fit_reason}` : [targetLabel(r.target), [r.postal_code, r.city].filter(Boolean).join(" ")].filter(Boolean).join(" · ")}</span>
                 </p>
               </div>
               {r.score != null && <span className="text-xs font-semibold tnum text-ink-soft">{r.score}</span>}
@@ -391,4 +402,47 @@ function Provenance({ src, at }) {
   if (!src && !at) return null;
   const d = at ? new Date(at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "";
   return <span className="block text-xs text-ink-faint">{src ? `Source : ${src}` : ""}{src && d ? " · " : ""}{d ? `vérifié le ${d}` : ""}</span>;
+}
+
+// Filtre de cible : pourquoi la fiche a été écartée (ou mise en doute), et le geste pour la remettre
+function FitNote({ p, onChange }) {
+  const { ws } = useWs();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  if (p.fit !== "non" && p.fit !== "doute") return null;
+  const restore = async () => {
+    setBusy(true);
+    try { await fn("r/fit-restore", { workspace_id: ws.id, id: p.id }); onChange({ ...p, fit: "oui", fit_reason: "Remise dans la liste par toi", status: "nouveau" }); toast("Fiche remise dans ta liste", "good"); }
+    catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
+  };
+  return (
+    <div className={cx("mt-3 rounded-xl px-3 py-2.5 text-sm flex items-center gap-3", p.fit === "non" ? "bg-[#FDF0EC] text-[#9A3412]" : "bg-paper text-ink-soft")}>
+      <p className="flex-1">{p.fit === "non" ? "Écartée, hors cible" : "À vérifier"}{p.fit_reason ? ` : ${p.fit_reason}` : ""}</p>
+      {p.fit === "non" && <Button size="sm" loading={busy} onClick={restore}>Remettre dans ma liste</Button>}
+    </div>
+  );
+}
+
+// E-mail à la demande : site d'abord (gratuit), puis recherche vérifiée sur le décideur. Jamais d'adresse devinée.
+function FindEmail({ p, onChange }) {
+  const { ws } = useWs();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+  const go = async () => {
+    setBusy(true); setNote("");
+    try {
+      const r = await fn("r/find-email", { workspace_id: ws.id, id: p.id });
+      const { data } = await supabase.from("prospects").select("*").eq("id", p.id).single();
+      if (data) onChange(data);
+      if (r.email) toast("E-mail trouvé", "good");
+      setNote(r.steps?.at(-1) ?? "");
+    } catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
+  };
+  return (
+    <span className="block">
+      <Button size="sm" loading={busy} onClick={go}>{busy ? "Recherche…" : "Trouver l'e-mail"}</Button>
+      {note && <span className="block text-xs text-ink-soft mt-1">{note.replace(/^./, (c) => c.toUpperCase())}.</span>}
+    </span>
+  );
 }

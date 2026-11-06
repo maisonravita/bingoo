@@ -162,6 +162,49 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { keyRevoke } = await import("../_shared/apikeys.ts");
     return await keyRevoke(ws.id, String(b.id ?? ""));
   },
+  // E-mail à la demande sur une fiche : site (gratuit) puis Dropcontact, compté seulement si trouvé
+  async "find-email"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { data: p } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("id", String(b.id ?? "")).single();
+    if (!p) throw new HttpError(404, "Fiche introuvable");
+    const { findEmail, credits } = await import("../_shared/deep.ts");
+    const r = await findEmail(ws, p);
+    return { ...r, credits: await credits(ws) };
+  },
+  // Nuit : résultats Dropcontact en attente + nouvelles recherches vérifiées (espaces clients ; jamais les espaces fondateur)
+  async "dc-cron"(req, b) {
+    await cron(req);
+    const { dropcontactNight } = await import("../_shared/deep.ts");
+    const { planOk } = await import("../_shared/core.ts");
+    const { data } = await admin.from("workspaces").select("*").eq("onboarded", true).neq("plan", "fondateur");
+    const out: Record<string, unknown> = {};
+    for (const ws of (data ?? []).filter((w) => planOk(w))) out[ws.name] = await dropcontactNight(ws, Math.min(Number(b.n ?? 10), 25)).catch((e) => ({ erreur: (e as Error).message }));
+    return out;
+  },
+  // Filtre de cible : à la demande (bouton « Trier ma liste ») ou chaque demi-heure sur les nouvelles fiches des espaces clients
+  async "fit-check"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    setAi({ ws: ws.id, live: true });
+    const { fitCheck } = await import("../_shared/fit.ts");
+    const r = await fitCheck(ws, { max: Math.min(Number(b.max ?? 100), 200) });
+    return { ...r, done: r.relues, found: r.hors_cible };
+  },
+  async "fit-cron"(req, b) {
+    await cron(req);
+    const { fitCheck } = await import("../_shared/fit.ts");
+    const { planOk } = await import("../_shared/core.ts");
+    let q = admin.from("workspaces").select("*").eq("onboarded", true).neq("plan", "fondateur");
+    if (b.workspace_id) q = admin.from("workspaces").select("*").eq("id", String(b.workspace_id));
+    const { data } = await q;
+    const out: Record<string, unknown> = {};
+    for (const ws of (data ?? []).filter((w) => b.workspace_id || planOk(w))) { setAi({ ws: ws.id }); out[ws.name] = await fitCheck(ws, { max: Number(b.max ?? 60), dry: b.dry === true }).catch((e) => ({ erreur: (e as Error).message })); }
+    return out;
+  },
+  async "fit-restore"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { fitRestore } = await import("../_shared/fit.ts");
+    return await fitRestore(ws.id, String(b.id ?? ""));
+  },
   // Appel de démarrage offert (30 min) : le client propose ses créneaux, l'équipe Bingoo! (admins) reçoit la demande et répond directement
   async "onboarding-call"(req, b) {
     const { ws, userId } = await requireMember(req, b.workspace_id);

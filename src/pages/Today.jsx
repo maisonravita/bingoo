@@ -1,7 +1,7 @@
 import PushTel from "../components/PushTel";
 import Visite from "../components/Visite";
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { useJob } from "../lib/useJob";
@@ -221,6 +221,26 @@ function Contacts({ s }) {
   );
 }
 
+/** Le point d'entrée unique : décrire en une phrase les clients voulus. Bingoo! en fait une mission (cible, zone, moments d'achat). */
+const IDEES = ["Les cabinets comptables d'Île-de-France qui recrutent", "Les startups SaaS qui viennent de lever des fonds", "20 rendez-vous avec des agences immobilières à Lyon"];
+function Decris() {
+  const nav = useNavigate();
+  const [t, setT] = useState("");
+  const go = (x) => { const v = (x ?? t).trim(); if (v.length >= 8) nav(`/mission?q=${encodeURIComponent(v)}`); };
+  return (
+    <section aria-label="Trouver de nouveaux clients" className="mb-6 rounded-2xl border border-line bg-white p-4 sm:p-5">
+      <form onSubmit={(e) => { e.preventDefault(); go(); }} className="flex flex-col sm:flex-row gap-2">
+        <label className="sr-only" htmlFor="decris">Décris les clients que tu veux</label>
+        <input id="decris" value={t} onChange={(e) => setT(e.target.value)} placeholder="Décris les clients que tu veux, en une phrase" className="flex-1 min-w-0 rounded-xl border border-line bg-paper px-4 py-3 text-[16px] outline-none focus:border-ink-faint" />
+        <Button type="submit" variant="accent" disabled={t.trim().length < 8}>Trouver ces clients</Button>
+      </form>
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
+        {IDEES.map((x) => <button key={x} type="button" onClick={() => setT(x)} className="rounded-full border border-line px-3 py-1 text-[13px] text-ink-soft hover:text-ink hover:border-ink-faint">{x}</button>)}
+      </div>
+    </section>
+  );
+}
+
 /** Appel de démarrage offert : 30 minutes pour régler la cible, les messages et viser le premier rendez-vous. Proposé le premier mois. */
 function Demarrage() {
   const { ws, reload } = useWs();
@@ -394,6 +414,7 @@ export default function Today() {
       </header>
 
       {/* La promesse en chiffres réels : les décideurs trouvés, comment les joindre, et ce que ça donne */}
+      <Decris />
       {s && <Contacts s={s} />}
       <Demarrage />
       {/* Sur téléphone, le matin passe avant le tableau de la semaine (la ville) : c'est ce qu'on ouvre en premier */}
