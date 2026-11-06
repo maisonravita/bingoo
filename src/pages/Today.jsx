@@ -361,7 +361,7 @@ function Morning({ s, canSend, wsId, adresse = true }) {
         {total > 0 && <span className="text-sm text-ink-soft tnum">{total - reste} sur {total} fait{total - reste > 1 ? "s" : ""}</span>}
       </div>
       {total > 0 && <div className="mt-2 h-2 rounded-full bg-paper overflow-hidden" aria-hidden><div className="h-full rounded-full bg-good transition-all" style={{ width: `${Math.round(((total - reste) / total) * 100)}%` }} /></div>}
-      {!canSend && <Link to="/connexions" className="mt-3 flex items-center gap-3 rounded-2xl bg-accent-soft px-4 py-3 font-semibold"><Ico n="send" className="w-5 h-5 text-accent" />Dernière étape : connecter ta boîte mail (2 min)</Link>}
+      {/* La connexion de la boîte mail est dans « Pour avoir tes premiers rendez-vous », en haut de la page */}
       {canSend && !adresse && <Link to="/reglages" className="mt-3 flex items-center gap-3 rounded-2xl bg-accent-soft px-4 py-3 font-semibold"><Ico n="send" className="w-5 h-5 text-accent" />Ajoute l'adresse postale de ton entreprise : sans elle, rien ne part (30 s)</Link>}
       {!todo.length ? <p className="mt-2 text-[15px] text-ink-soft">Bingoo! continue de chercher pour toi ; les nouveautés arrivent ici, et sur ton téléphone si tu actives les notifications.</p> : (
         <ul className="mt-3 divide-y divide-line">
@@ -379,6 +379,43 @@ function Morning({ s, canSend, wsId, adresse = true }) {
           })}
         </ul>
       )}
+    </section>
+  );
+}
+
+/** Bien démarrer : les 4 gestes, dans l'ordre, avec UN bouton pour le prochain. Disparaît quand tout est fait. */
+function Demarrer({ s }) {
+  const { ws } = useWs();
+  const nav = useNavigate();
+  const boite = ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok;
+  const E = [
+    { ok: (ws.targets ?? []).some((t) => t.actif !== false), titre: "Dis à Bingoo! quels clients tu veux", pourquoi: "C'est fait à l'inscription. Tu peux en ajouter en une phrase plus bas.", to: "/mission", bouton: "Décrire mes clients" },
+    { ok: boite, titre: "Connecte ta boîte mail", pourquoi: "Les messages partent de ton adresse, et les réponses reviennent chez toi. 2 minutes.", to: "/connexions", bouton: "Connecter ma boîte mail" },
+    { ok: !!ws.postal_address, titre: "Ajoute l'adresse de ton entreprise", pourquoi: "Obligatoire en bas de chaque e-mail de prospection (la loi).", to: "/reglages", bouton: "Ajouter l'adresse" },
+    { ok: (s.sent ?? 0) > 0, titre: "Valide tes premiers messages", pourquoi: "Bingoo! les a écrits. Tu lis, tu cliques « Envoyer ». Rien ne part sans toi.", to: "/valider", bouton: "Voir mes messages" },
+  ];
+  const faits = E.filter((e) => e.ok).length;
+  if (faits === E.length) return null;
+  const next = E.find((e) => !e.ok);
+  return (
+    <section aria-label="Bien démarrer" className="mb-6 rounded-3xl border-2 border-accent/40 bg-white p-4 sm:p-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-[19px] font-semibold">Pour avoir tes premiers rendez-vous</p>
+        <p className="text-[13px] text-ink-soft tnum">{faits} sur {E.length} fait{faits > 1 ? "s" : ""}</p>
+      </div>
+      <ol className="mt-3 space-y-2">
+        {E.map((e, i) => (
+          <li key={e.titre} className={cx("flex items-start gap-3 rounded-2xl px-3 py-2.5", e === next ? "bg-accent-soft/60" : "")}>
+            <span className={cx("mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold", e.ok ? "bg-good text-white" : e === next ? "bg-accent text-white" : "bg-paper text-ink-soft")}>{e.ok ? "✓" : i + 1}</span>
+            <span className="flex-1 min-w-0">
+              <span className={cx("block text-[15px]", e.ok ? "text-ink-soft line-through" : "font-semibold")}>{e.titre}</span>
+              {e === next && <span className="block text-[13.5px] text-ink-soft mt-0.5">{e.pourquoi}</span>}
+            </span>
+            {e === next && <Button variant="accent" size="sm" onClick={() => nav(e.to)}>{e.bouton}</Button>}
+          </li>
+        ))}
+      </ol>
+      <p className="mt-3 text-[13px] text-ink-soft">Ensuite, tu n'as plus qu'à passer ici chaque matin : Bingoo! cherche, écrit et relance, tu valides et tu prends les rendez-vous.</p>
     </section>
   );
 }
@@ -494,6 +531,7 @@ export default function Today() {
 
       {/* Une page simple, dans l'ordre où on s'en sert : 1. ce qu'il y a à faire, 2. ce que ça donne, 3. trouver plus de clients.
           Tout le reste (ta ville, l'activité de la nuit, les opportunités, les chiffres détaillés) est replié plus bas. */}
+      {s && <Demarrer s={s} />}
       {s && <Travail s={s} />}
       {s && <Morning s={s} wsId={ws.id} canSend={ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok} adresse={!!ws.postal_address} />}
 

@@ -1,4 +1,5 @@
 import { useLocation } from "react-router-dom";
+import Guide from "../components/Guide";
 import { useCallback, useEffect, useState } from "react";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
@@ -127,6 +128,7 @@ export default function Replies() {
       <PageHead title="Réponses" sub={tracked ? "Les réponses arrivent ici automatiquement, triées, avec une réponse proposée. Les relances s'arrêtent seules." : "Active le suivi des réponses dans Réglages pour qu'elles arrivent ici toutes seules."}>
         <Paste onDone={load} />
       </PageHead>
+      <Guide id="reponses" titre="Ici : les prospects qui t'ont répondu, déjà triés." etapes={["Commence par ceux marqués « Intéressé » : une réponse est déjà prête.", "Relis-la, corrige si besoin, puis clique « Envoyer la réponse ».", "Il propose un rendez-vous ? Il arrive tout seul dans « Rendez-vous »."]} />
       <div className="flex gap-2 mb-5">
         {[["todo", "À traiter"], ["all", "Toutes"]].map(([k, l]) => <button key={k} onClick={() => setTab(k)} className={cx("rounded-full px-3.5 py-1.5 text-sm font-medium border", tab === k ? "bg-ink text-white border-ink" : "bg-white border-line")}>{l}</button>)}
       </div>

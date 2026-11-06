@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import Guide from "../components/Guide";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { Badge, Button, Card, Empty, Field, Input, PageHead, Spinner, Textarea, useToast } from "../components/ui";
@@ -154,10 +155,11 @@ export default function Agenda() {
 
   return (
     <div>
-      <PageHead title="Agenda" sub="Tes prospects réservent eux-mêmes, et chaque RDV reçoit une fiche de préparation.">
+      <PageHead title="Rendez-vous" sub="Tes prospects réservent eux-mêmes, et chaque rendez-vous reçoit une fiche de préparation.">
         <Button onClick={async () => { try { await navigator.clipboard.writeText(link); toast("Lien de réservation copié"); } catch { toast(link); } }}>Copier mon lien de réservation</Button>
         <Button variant="primary" onClick={() => setAdd((x) => !x)}>Ajouter un RDV</Button>
       </PageHead>
+      <Guide id="rdv" titre="Ici : tes rendez-vous avec des prospects." etapes={["Ils arrivent tout seuls quand un prospect réserve un créneau depuis tes e-mails.", "Avant chaque rendez-vous, ouvre-le : Bingoo! a préparé une fiche (ce qu'on sait, les questions à poser).", "Après le rendez-vous, note comment ça s'est passé : Bingoo! prépare le suivi."]} />
       {add && <div className="max-w-xl mb-6"><AddMeeting onDone={() => { setAdd(false); load(); }} /></div>}
       <div className="flex gap-2 mb-5">
         {[[false, "À venir"], [true, "Passés"]].map(([k, l]) => <button key={l} onClick={() => setPast(k)} className={cx("rounded-full px-3.5 py-1.5 text-sm font-medium border", past === k ? "bg-ink text-white border-ink" : "bg-white border-line")}>{l}</button>)}

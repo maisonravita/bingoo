@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Guide from "../components/Guide";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { CALL } from "../lib/labels";
 import { fn, supabase } from "../lib/supabase";
@@ -349,6 +350,7 @@ export default function Prospects() {
         <Button onClick={() => setImporting((x) => !x)}>Importer</Button>
         <Button onClick={exportCsv} disabled={!list.length}>Exporter</Button>
       </PageHead>
+      <Guide id="contacts" titre="Ici : toutes les entreprises que Bingoo! a trouvées pour toi, et comment joindre leur décideur." etapes={["« Joignables » : Bingoo! a l'e-mail ou le téléphone du décideur. Il leur écrit, tu valides dans « À faire ».", "« À trouver » : ouvre une fiche et clique « Trouver l'e-mail ». Bingoo! le cherche pour toi.", "Une fiche ne te convient pas ? Ouvre-la, clique « Écarté » et dis pourquoi : Bingoo! en tiendra compte."]} />
       {adding && (
         <div className="mb-4 rounded-2xl border border-line bg-white p-4">
           <p className="font-semibold">Ajouter une personne précise</p>

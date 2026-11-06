@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Guide from "../components/Guide";
 import { useNavigate } from "react-router-dom";
 import { fn, quotaLeft, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
@@ -1336,6 +1337,7 @@ export default function Radar() {
         <Pill on={live}>{live ? "Radar en cours" : lastAt ? `Dernier scan ${ago(lastAt)}` : "Jamais lancé"}</Pill>
       </div>
 
+<Guide id="radar" titre="Ici : les entreprises qui ont une raison d'acheter en ce moment (création, recrutement, nouveau dirigeant, contrat qui se termine…)." etapes={["Parcours la liste : chaque entreprise dit pourquoi c'est le bon moment.", "Clique « Ajouter » sur celles qui t'intéressent.", "Bingoo! trouve le décideur, écrit le message, et te le propose dans « À faire »."]} />
       <HomeView ws={ws} list={list} loaded={!!rows} live={live} onScan={scan} onOpen={setOpen} onChange={load} />
       <button onClick={() => toggleExplore(!explore)} className="w-full rounded-2xl border border-line bg-white hover:border-ink-faint px-5 py-3.5 flex items-center justify-between gap-3 text-left transition">
         <span><span className="block font-semibold text-[15px]">{explore ? "Masquer le détail du Radar" : "Explorer tout le Radar"}</span><span className="block text-[12.5px] text-ink-faint">{list.length} opportunité{list.length > 1 ? "s" : ""} · comptes surveillés · visiteurs · partenaires · marché public · résultats · réglages</span></span>
