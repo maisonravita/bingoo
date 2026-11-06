@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { cx } from "../lib/utils";
+import IsoVille from "../components/IsoVille";
 
 /* Bingoo!-ville : l'accueil en carte. Chaque bâtiment = une partie de Bingoo!, son nom écrit en gros,
    ce qu'on y fait en trois mots, et un badge quand quelque chose t'y attend. Un panneau dit où aller d'abord. */
@@ -130,13 +131,16 @@ export default function Village() {
   useEffect(() => {
     const c = (q) => q.then((r) => r.count ?? 0);
     const head = (t) => supabase.from(t).select("id", { count: "exact", head: true }).eq("workspace_id", ws.id);
-    const now = new Date().toISOString();
+    const now = new Date().toISOString(), w1 = new Date(Date.now() - 7 * 864e5).toISOString();
     Promise.all([
       c(head("replies").eq("handled", false)), c(head("messages").eq("status", "brouillon")),
       c(head("meetings").eq("status", "confirme").gte("starts_at", now)), c(head("radar_opps").eq("status", "nouveau")),
       c(head("prospects").eq("linkedin_status", "a_envoyer")), c(head("prospects").neq("contact_name", "").neq("status", "ignore")),
       c(head("prospects").neq("email", "").neq("status", "ignore")), c(head("competitors")),
-    ]).then(([rep, drafts, rdv, opps, li, dec, mails, rivals]) => setD({ rep, drafts, rdv, opps, li, dec, mails, rivals })).catch(() => setD({}));
+      c(head("replies")), c(head("replies").in("class", ["interesse", "question", "prix", "rappel"])), c(head("meetings").neq("status", "annule")),
+      c(head("prospects").neq("phone", "").neq("status", "ignore")), c(head("radar_opps").gte("created_at", w1)),
+      c(head("messages").eq("status", "envoye").gte("sent_at", w1)), c(head("messages").eq("status", "envoye").eq("step", 0)),
+    ]).then(([rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal]) => setD({ rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal })).catch(() => setD({}));
   }, [ws.id]);
 
   const boite = ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok;
@@ -153,6 +157,19 @@ export default function Village() {
     { art: "observatoire", nom: "L'Observatoire", quoi: "Tes résultats", to: "/resultats" },
     { art: "mairie", nom: "La Mairie", quoi: "Tes réglages", to: reglage ? (boite ? "/reglages" : "/connexions") : "/reglages", alerte: reglage, detail: reglage ? (!boite ? "Connecte ta boîte mail" : "Ajoute ton adresse") : "" },
   ];
+  const n = (x) => (x ?? 0).toLocaleString("fr-FR");
+  const STATS = {
+    poste: [["À traiter", n(v.rep)], ["Réponses reçues", n(v.repTotal)], ["Intéressés", n(v.hot)]],
+    atelier: [["Messages à valider", n(v.drafts)], ["Envoyés cette semaine", n(v.sent7)]],
+    rdv: [["À venir", n(v.rdv)], ["Obtenus au total", n(v.rdvTotal)]],
+    annuaire: [["Décideurs", n(v.dec)], ["E-mails", n(v.mails)], ["Téléphones", n(v.tels)]],
+    radar: [["Nouvelles entreprises", n(v.opps)], ["Repérées cette semaine", n(v.opps7)]],
+    espion: [["Concurrents surveillés", n(v.rivals)]],
+    linkedin: [["Invitations à valider", n(v.li)]],
+    observatoire: [["Entreprises contactées", n(v.sentTotal)], ["Taux de réponse", v.sentTotal ? `${Math.round(((v.repTotal ?? 0) / v.sentTotal) * 100)} %` : "–"], ["Rendez-vous", n(v.rdvTotal)]],
+    mairie: [["Boîte mail", boite ? "connectée" : "à connecter"], ["Adresse légale", ws.postal_address ? "renseignée" : "à ajouter"]],
+  };
+  B.forEach((b) => { b.stats = STATS[b.art]; });
   // Le panneau : un seul endroit où aller d'abord
   const next = reglage ? { b: B[8], t: !boite ? "Va à la Mairie : connecte ta boîte mail pour que tes messages puissent partir." : "Va à la Mairie : ajoute l'adresse de ton entreprise (obligatoire en bas des e-mails)." }
     : v.rep ? { b: B[0], t: `Va à la Poste : ${v.rep} prospect${v.rep > 1 ? "s t'ont" : " t'a"} répondu, une réponse est prête.` }
@@ -181,8 +198,9 @@ export default function Village() {
       </button>
 
       {/* La carte : terrain, rues, bâtiments */}
-      <div className="relative overflow-hidden rounded-[28px] border border-line p-3 sm:p-6" style={{ background: "linear-gradient(#EAF2DF, #DDEACB)" }}>
-        <div className="relative grid grid-cols-2 sm:grid-cols-3 gap-x-2 gap-y-4 sm:gap-x-6 sm:gap-y-6">
+      <div className="relative overflow-hidden rounded-[28px] border border-line p-3 sm:p-6" style={{ background: "linear-gradient(#F7F5F0, #EFECE4)" }}>
+        <div className="hidden md:block"><IsoVille batiments={B} /></div>
+        <div className="relative grid grid-cols-2 gap-x-2 gap-y-4 md:hidden">
           {B.map((b) => <Batiment key={b.art} b={b} />)}
         </div>
         <a href="/qg/" className="relative mt-4 flex items-center justify-center gap-2 rounded-2xl bg-[#15161A] px-4 py-3 text-[14.5px] font-semibold text-white hover:bg-black">La nuit en vrai : revois ce que ton équipe a fait cette nuit dans ta ville</a>
