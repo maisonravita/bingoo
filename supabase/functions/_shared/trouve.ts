@@ -123,3 +123,18 @@ export async function trouvePhone(ws: Workspace, p: Prospect) {
   if (u.value) await log(ws.id, "credit_phone", `${p.name} : téléphone de ${officer.name} trouvé par trouvé!`).catch(() => {});
   return { phone: u.value, note: u.value ? `téléphone de ${officer.name}` : "pas de téléphone connu", keys: u.keys };
 }
+
+/** Un AUTRE dirigeant déclaré que celui de la fiche, avec son e-mail pro (pour un deuxième interlocuteur). */
+export async function trouveOtherEmail(p: Prospect) {
+  const siren = String(p.siren || p.siret || "").replace(/\D/g, "").slice(0, 9);
+  if (siren.length !== 9) return null;
+  const r = await call<{ company?: { status?: string; identity_withheld?: boolean }; officers?: Officer[] }>("/companies/officers", { siren, match: true });
+  if (r.company?.status === "ceased" || r.company?.identity_withheld) return null;
+  const deja = norm(String(p.contact_name ?? "")).split(" ").filter((w) => w.length > 1);
+  const autres = (r.officers ?? []).filter((o) => o.match?.found && (o.match.contact_ids ?? []).length && !deja.some((w) => norm(o.last_name ?? "").split(" ").includes(w)));
+  const o = autres.find((x) => DECIDEUR.test(x.role ?? "")) ?? autres[0];
+  if (!o) return null;
+  const u = await unlock((o.match?.contact_ids ?? []).map((x) => Number(x)).filter(Number.isFinite), "work_email");
+  if (!u.value) return null;
+  return { email: u.value, name: `${cap(String(o.first_names ?? "").split(/\s+/)[0] ?? "")} ${cap(String(o.last_name ?? ""))}`.trim(), role: cap(String(o.role ?? "Dirigeant")).slice(0, 80) };
+}

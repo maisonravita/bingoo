@@ -271,7 +271,7 @@ function Drawer({ p, onClose, onChange, team = [] }) {
             {msgs.map((m) => (
               <div key={m.id} className="bg-white border border-line rounded-2xl p-4 text-sm">
                 <div className="flex justify-between gap-2 text-xs text-ink-soft">
-                  <span>{m.step === 0 ? "Premier message" : `Relance n°${m.step}`}</span>
+                  <span>{m.step === 0 ? "Premier message" : m.step >= 100 ? "Reprise de contact" : `Relance n°${m.step}`}</span>
                   <span>{m.status === "envoye" ? `Envoyé ${fmtTime(m.sent_at)}` : m.status === "brouillon" ? "À valider" : m.status === "echec" ? `Échec : ${m.error}` : "Non envoyé"}</span>
                 </div>
                 <p className="font-semibold mt-2">{m.subject}</p>

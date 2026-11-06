@@ -532,7 +532,8 @@ export async function followups(ws: Workspace) {
     }
   }
   const suivants = await nextContacts(ws, last, etapes.length).catch(() => 0);
-  return { created, taches, suivants };
+  const reprises = await reactivate(ws, busy).catch((e) => { console.error("reprise", e); return 0; });
+  return { created, taches, suivants, reprises };
 }
 
 /** Première relance avec une offre légère tirée de ce que vend le client (« Voulez-vous que je vous envoie… ? »). */
@@ -559,17 +560,80 @@ async function nextContacts(ws: Workspace, last: Map<string, { step: number; sen
   for (const p of ps ?? []) {
     if ((p.insight as { suite_contact?: string } | null)?.suite_contact) continue;
     const { data: cs } = await admin.from("contacts").select("id, name, role, email, linkedin_url").eq("prospect_id", p.id).eq("email_status", "verifie").neq("email", "").limit(5);
-    const c = (cs ?? []).find((x) => x.email.toLowerCase() !== String(p.email ?? "").toLowerCase());
-    if (!c) continue;
+    let c = (cs ?? []).find((x) => x.email.toLowerCase() !== String(p.email ?? "").toLowerCase()) as { id?: string; name: string; role: string; email: string; linkedin_url?: string } | undefined;
+    // Pas d'autre contact connu : trouvé! cherche un AUTRE dirigeant déclaré de la même entreprise, avec un e-mail pro relié à elle
+    if (!c) c = await otherOfficer(ws, p as Prospect).catch(() => undefined);
+    if (!c) { await admin.from("prospects").update({ insight: { ...((p.insight as Record<string, unknown>) ?? {}), suite_contact: "aucun" } }).eq("id", p.id); continue; }
     const { data: dup } = await admin.from("prospects").select("id").eq("workspace_id", ws.id).ilike("email", c.email).limit(1);
-    await admin.from("prospects").update({ insight: { ...((p.insight as Record<string, unknown>) ?? {}), suite_contact: c.id } }).eq("id", p.id);
+    await admin.from("prospects").update({ insight: { ...((p.insight as Record<string, unknown>) ?? {}), suite_contact: c.id ?? c.email } }).eq("id", p.id);
     if (dup?.length) continue;
     const { error } = await admin.from("prospects").insert({
       workspace_id: ws.id, target: p.target, name: p.name, org: p.org, siren: p.siren, siret: p.siret, activity: p.activity, address: p.address, postal_code: p.postal_code, city: p.city,
-      website: p.website, signals: p.signals, score: p.score, contact_name: c.name, contact_role: c.role, email: c.email, email_source: "contact vérifié", linkedin_url: c.linkedin_url ?? "",
+      website: p.website, signals: p.signals, score: p.score, contact_name: c.name, contact_role: c.role, email: c.email, email_source: c.id ? "contact vérifié" : "trouvé! (e-mail pro vérifié, autre dirigeant)", linkedin_url: c.linkedin_url ?? "",
       status: "pret", channel: "email", source: "deuxieme_contact", notes: `Deuxième interlocuteur : ${p.contact_name || "le premier contact"} n'a pas répondu après les relances.`,
     });
     if (!error) { n++; await log(ws.id, "prospect", `${p.name} : deuxième interlocuteur (${c.name}) préparé, le premier n'a pas répondu`); }
+  }
+  return n;
+}
+
+/** Un autre dirigeant déclaré (trouvé!) que celui déjà contacté, avec un e-mail pro relié à l'entreprise. 1 clé seulement si trouvé. */
+async function otherOfficer(ws: Workspace, p: Prospect) {
+  const t = await import("./trouve.ts");
+  if (!t.trouveReady()) return undefined;
+  const { credits, emailPatch } = await import("./deep.ts");
+  if ((await credits(ws)).left <= 0) return undefined;
+  const o = await t.trouveOtherEmail(p);
+  if (!o?.email) return undefined;
+  const ep = await emailPatch(p as never, o.email, "trouvé!");
+  if (!ep.ok) return undefined;
+  await log(ws.id, "credit_email", `${p.name} : e-mail d'un autre dirigeant (${o.name}) trouvé par trouvé!`);
+  return { name: o.name, role: o.role, email: o.email };
+}
+
+/** Réactivation : un prospect contacté sans aucune réponse n'est pas enterré. 90 jours après le dernier envoi (ou dès qu'un
+ *  nouveau signal du Radar le concerne), Bingoo! prépare UN nouvel e-mail, sous un autre angle, à valider. Une fois tous les 6 mois
+ *  au plus. Jamais pour ceux qui ont répondu, refusé, demandé STOP ou été écartés (leur statut n'est plus « envoye »). */
+async function reactivate(ws: Workspace, busy: Set<string>) {
+  const { data: ps } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("status", "envoye").neq("email", "").limit(400);
+  if (!ps?.length) return 0;
+  const ids = ps.map((p) => p.id);
+  const [{ data: ms }, { data: reps }, { data: opps }] = await Promise.all([
+    admin.from("messages").select("prospect_id, step, sent_at").in("prospect_id", ids).eq("status", "envoye"),
+    admin.from("replies").select("prospect_id").in("prospect_id", ids),
+    admin.from("radar_opps").select("prospect_id, title, kind, created_at").in("prospect_id", ids).order("created_at", { ascending: false }),
+  ]);
+  const replied = new Set((reps ?? []).map((r) => r.prospect_id));
+  const lastSent = new Map<string, { at: number; step: number }>();
+  for (const m of ms ?? []) { const cur = lastSent.get(m.prospect_id); const at = new Date(m.sent_at).getTime(); if (!cur || at > cur.at) lastSent.set(m.prospect_id, { at, step: Math.max(cur?.step ?? 0, m.step) }); else cur.step = Math.max(cur.step, m.step); }
+  const now = Date.now(), J = 864e5;
+  let n = 0;
+  for (const p of ps) {
+    if (n >= 10) break;
+    const l = lastSent.get(p.id);
+    const ins = (p.insight ?? {}) as Record<string, unknown>;
+    if (!l || busy.has(p.id) || replied.has(p.id)) continue;
+    if (ins.reactive_at && now - new Date(String(ins.reactive_at)).getTime() < 180 * J) continue;
+    const signal = (opps ?? []).find((o) => o.prospect_id === p.id && new Date(o.created_at).getTime() > l.at);
+    if (!signal && now - l.at < 90 * J) continue;
+    const t = (ws.targets ?? []).find((x) => x.id === p.target);
+    const out = await ask(`Rédige un e-mail de reprise de contact pour un prospect B2B qui n'a pas répondu à nos messages il y a ${Math.round((now - l.at) / (30 * J))} mois.
+Prospect : ${p.name}, ${p.activity ?? ""}, ${p.city ?? ""}. Interlocuteur : ${p.contact_name || "inconnu (n'invente ni nom ni fonction)"}.
+${signal ? `Fait nouveau et public le concernant : ${signal.title}. Ouvre l'e-mail avec ce fait, sans l'interpréter.` : "Aucun fait nouveau : prends un angle différent du premier message, centré sur un bénéfice concret."}
+Angle habituel pour cette cible (à NE PAS reprendre tel quel) : ${t?.angle ?? ""}
+Règles : 50 à 80 mots, ne mentionne pas l'absence de réponse, aucun reproche, une seule question simple à la fin. Pas de signature.
+Commence par « Bonjour${p.contact_name ? ` ${String(p.contact_name).split(/\s+/)[0]}` : ""}, ».
+Format exact :
+OBJET: <2 à 5 mots, en minuscules sauf noms propres>
+---
+<corps>`, { fast: true, system: systemFor(ws) + PLAYBOOK_ECRITURE, maxTokens: 700 });
+    const m = out.match(/OBJET\s*:\s*(.+?)\s*\n\s*-{3,}\s*\n([\s\S]+)/i);
+    if (!m) continue;
+    const { error } = await admin.from("messages").insert({ workspace_id: ws.id, prospect_id: p.id, step: Math.max(100, l.step + 1), subject: humanize(m[1]).slice(0, 140), body: humanize(m[2].trim()), status: "brouillon" });
+    if (error) continue;
+    await admin.from("prospects").update({ insight: { ...ins, reactive_at: new Date().toISOString() } }).eq("id", p.id);
+    await log(ws.id, "redaction", `${p.name} : reprise de contact préparée${signal ? ` (nouveau signal : ${String(signal.title).slice(0, 80)})` : " (3 mois sans réponse)"}`);
+    n++;
   }
   return n;
 }

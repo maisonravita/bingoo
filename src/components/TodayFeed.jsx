@@ -61,7 +61,7 @@ function DraftCard({ m, canSend, onDone }) {
     <article className="rounded-2xl border border-line bg-white p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="text-[17px] font-semibold">{p.name}{p.city ? <span className="font-normal text-ink-soft">, {p.city}</span> : null}</p>
-        <p className="text-[13px] text-ink-soft">{m.step > 0 ? `Relance n° ${m.step}` : "Premier message"}</p>
+        <p className="text-[13px] text-ink-soft">{m.step >= 100 ? "Reprise de contact" : m.step > 0 ? `Relance n° ${m.step}` : "Premier message"}</p>
       </div>
       {reason && <p className="mt-1 text-[14.5px] text-accent-dark">{reason}</p>}
       <p className="mt-1 text-[13.5px] text-ink-soft">À {p.contact_name || "l'entreprise"}{p.contact_role ? `, ${String(p.contact_role).replace(/\s*\(.*$/, "")}` : ""}{p.email ? ` · ${p.email}` : ""}</p>

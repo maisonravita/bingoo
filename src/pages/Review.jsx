@@ -132,7 +132,7 @@ export default function Review() {
           className={cx("relative bg-white border rounded-3xl p-5 sm:p-7 shadow-sm select-none", hint === "send" ? "border-good" : hint === "skip" ? "border-bad" : "border-line")}>
           {hint && <span className={cx("absolute top-5 right-5 rounded-full px-3 py-1 text-sm font-bold", hint === "send" ? "bg-good text-white" : "bg-bad text-white")}>{hint === "send" ? "Envoyer" : "Passer"}</span>}
           <div className="flex flex-wrap items-center gap-2">
-            {cur.step > 0 ? <Badge tone="warn">Relance n°{cur.step}</Badge> : <Badge tone="accent">Premier message</Badge>}
+            {cur.step >= 100 ? <Badge tone="accent">Reprise de contact</Badge> : cur.step > 0 ? <Badge tone="warn">Relance n°{cur.step}</Badge> : <Badge tone="accent">Premier message</Badge>}
             <Badge>{p.activity}</Badge>
           </div>
           <h2 className="font-serif text-3xl leading-tight mt-3">{p.name}</h2>
