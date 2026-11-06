@@ -7,10 +7,27 @@ import { cx } from "../lib/utils";
 import { SubNav } from "../components/SubNav";
 
 const FEATURES = {
-  solo: ["1 utilisateur", "Radar : appels d'offres, contrats à renouveler, nouveaux dirigeants", "Espion : veille de tes concurrents", "Mission : prospects trouvés, e-mails rédigés, relances", "Boîte mail, CRM, agenda"],
-  pro: ["3 utilisateurs", "Quotas IA doublés", "Répartition des prospects"],
-  equipe: ["10 utilisateurs", "Quotas IA ×4", "Tableau de bord par commercial", "Accompagnement au démarrage"],
+  solo: ["1 utilisateur", "150 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Relances, Radar, Espion et LinkedIn inclus", "Prospects non utilisés reportés au mois suivant"],
+  pro: ["3 utilisateurs", "500 prospects contactés par mois", "Répartition des prospects entre commerciaux", "Tout ce qu'il y a dans Solo"],
+  equipe: ["10 utilisateurs", "1 000 prospects contactés par mois", "Tableau de bord par commercial", "Accompagnement au démarrage"],
 };
+
+/** Prospects contactés ce mois-ci : le quota de la formule, le report, les recharges, et le bouton +100. */
+function Quota({ q, pack, payments, busy, onBuy }) {
+  if (!q) return null;
+  const pct = Math.min(100, Math.round((q.used / Math.max(1, q.total)) * 100));
+  return (
+    <Card id="quota" className={cx("p-5 sm:p-6 mb-6 scroll-mt-6", q.left <= 0 && "!border-accent ring-1 ring-accent")}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2"><p className="font-semibold">Prospects contactés ce mois-ci</p><p className="text-sm tnum"><b>{q.used.toLocaleString("fr-FR")}</b> <span className="text-ink-soft">sur {q.total.toLocaleString("fr-FR")}</span></p></div>
+      <div className="mt-3 h-2.5 rounded-full bg-paper overflow-hidden"><div className={cx("h-full rounded-full transition-all", pct >= 100 ? "bg-bad" : pct >= 80 ? "bg-warn" : "bg-accent")} style={{ width: `${pct}%` }} /></div>
+      <p className="text-[13px] text-ink-soft mt-2">{q.base.toLocaleString("fr-FR")} inclus dans ta formule{q.report ? `, ${q.report} reportés du mois dernier` : ""}{q.recharge ? `, ${q.recharge} rechargés` : ""}. Un prospect contacté = un premier e-mail parti ; les relances ne comptent pas. Remise à zéro le {new Date(q.reset).toLocaleDateString("fr-FR")}.</p>
+      {pack && <div className="mt-4 flex flex-wrap items-center gap-3">
+        <Button variant={q.left <= 0 ? "accent" : "default"} disabled={!payments || !!busy} loading={busy === pack.key} onClick={() => onBuy(pack.key)}>+100 prospects pour {pack.price} € HT</Button>
+        <span className="text-[12.5px] text-ink-faint">{payments ? "Paiement unique, valable ce mois-ci." : "Les recharges ouvrent avec les abonnements."}</span>
+      </div>}
+    </Card>
+  );
+}
 const STATUS = { active: ["Actif", "good"], trialing: ["Essai", "accent"], past_due: ["Paiement en retard", "bad"], unpaid: ["Impayé", "bad"], canceled: ["Arrêté", "bad"], incomplete: ["En attente", "warn"] };
 
 const FEAT = { "r/spy-cron": "Espion (veille de nuit)", "espion/rapport": "Espion : rapports complets", "espion/publicites": "Espion : publicités", "espion/decouverte": "Espion : nouveaux concurrents", "espion/besoins": "Espion : besoins publics", "m/autopilot": "Mission : rédaction et relances", "m/cron": "Mission : pilote automatique", "r/radar-scan": "Radar", "r/radar-cron": "Radar (chaque matin)", "a/chat": "Vos salariés (questions)", "m/prepare": "Radar : contacts préparés", "k/draft": "Rédaction des e-mails", "k/linkedin": "LinkedIn", "r/radar-run": "Radar", "m/step": "Mission", "a/turn": "Vos salariés (questions)" };
@@ -62,17 +79,21 @@ export default function Abonnement() {
   const loc = useLocation();
   const [plans, setPlans] = useState([]);
   const [packs, setPacks] = useState([]);
+  const [pPack, setPPack] = useState(null);
+  const [quota, setQuota] = useState(null);
+  useEffect(() => { fn("quota", { workspace_id: ws.id }).then(setQuota).catch(() => {}); }, [ws.id]);
   const [busy, setBusy] = useState(null);
   const [ai, setAi] = useState(null);
   const [yearly, setYearly] = useState(false);
   useEffect(() => { supabase.rpc("ai_month", { p_ws: ws.id }).then(({ data }) => setAi(data ?? null)); }, [ws.id]);
   const [payments, setPayments] = useState(true);
-  useEffect(() => { fn("plans").then((r) => { setPlans(r.plans ?? []); setPacks(r.packs ?? []); setPayments(r.payments !== false); }).catch(() => {}); }, []);
+  useEffect(() => { fn("plans").then((r) => { setPlans(r.plans ?? []); setPacks(r.packs ?? []); setPPack(r.prospect_pack ?? null); setPayments(r.payments !== false); }).catch(() => {}); }, []);
   useEffect(() => {
     const q = new URLSearchParams(loc.search);
     if (q.get("paiement") === "ok") { toast("Paiement confirmé, merci ! Ton abonnement s'active dans quelques secondes.", "good"); setTimeout(reload, 4000); }
     if (q.get("paiement") === "annule") toast("Paiement annulé : rien n'a été prélevé.");
     if (q.get("recharge") === "ok") { toast("Crédits payés, merci ! Ils sont ajoutés dans quelques secondes et ton équipe IA repart.", "good"); setTimeout(() => supabase.rpc("ai_month", { p_ws: ws.id }).then(({ data }) => setAi(data ?? null)), 5000); }
+    if (q.get("recharge") === "prospects") { toast("Recharge payée, merci ! 100 prospects de plus ce mois-ci.", "good"); setTimeout(() => fn("quota", { workspace_id: ws.id }).then(setQuota).catch(() => {}), 5000); }
     if (q.get("recharge") === "annule") toast("Achat annulé : rien n'a été prélevé.");
     if (loc.hash.includes("credits") || q.get("credits")) setTimeout(() => document.getElementById("credits")?.scrollIntoView({ behavior: "smooth" }), 400);
   }, [loc.search]);
@@ -101,6 +122,7 @@ export default function Abonnement() {
         {ws.stripe_customer && <Button loading={busy === "billing-portal"} onClick={() => go("billing-portal")}>Factures, carte, résiliation</Button>}
       </Card>
 
+      <Quota q={quota} pack={pPack} payments={payments} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />
       {ai && <AiGauge ai={ai} />}
       <Credits ai={ai} packs={packs} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />
 

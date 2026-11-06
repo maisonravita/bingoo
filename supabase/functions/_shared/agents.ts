@@ -341,6 +341,12 @@ export async function sendOne(ws: Workspace, messageId: string) {
   // Abonnement à jour obligatoire (essai en cours, abonnement réglé ou offert)
   const { data: plan } = await admin.from("workspaces").select("plan, plan_status, trial_ends").eq("id", ws.id).single();
   assertPlan(plan ?? {});
+  // Quota de prospects contactés du mois (premier e-mail seulement ; les relances passent toujours)
+  if (msg.step === 0) {
+    const { prospectQuota } = await import("./quota.ts");
+    const q = await prospectQuota(ws);
+    if (q.left <= 0) return { id: messageId, skipped: `quota du mois atteint (${q.used}/${q.total} prospects contactés). Recharge +100 pour 19 € dans Abonnement, ou attends le ${new Date(q.reset).toLocaleDateString("fr-FR")}` };
+  }
   // Opposition : une personne qui a demandé à ne plus être contactée ne reçoit plus rien, quel que soit l'espace
   const addr = p.email.trim().toLowerCase();
   const [unsub, sup] = await Promise.all([

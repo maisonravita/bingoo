@@ -142,9 +142,9 @@ const WHO = [
   ["solo", "Indépendants", "Un commercial à temps plein, pour 49 € par mois", "Tu n'as pas le temps de prospecter : chaque matin, Bingoo! te donne 3 entreprises à contacter, avec la raison, le contact et le message prêt.", ["3 entreprises par jour", "Message prêt à valider", "Relances automatiques", "Rendez-vous dans ton agenda"]],
 ];
 const PLANS = [
-  ["Solo", 49, "Pour un indépendant ou un dirigeant qui prospecte seul.", ["1 utilisateur", "60 entreprises cherchées par jour", "40 recherches de contact par jour", "80 messages rédigés par jour", "Radar, Espion et LinkedIn inclus", "Budget IA de 11 € inclus"]],
-  ["Pro", 109, "Pour une PME qui veut un flux régulier de rendez-vous.", ["3 utilisateurs", "120 entreprises cherchées par jour", "80 recherches de contact par jour", "160 messages rédigés par jour", "Radar, Espion et LinkedIn inclus", "Budget IA de 24 € inclus"]],
-  ["Équipe", 159, "Pour plusieurs commerciaux sur le même marché.", ["10 utilisateurs", "240 entreprises cherchées par jour", "160 recherches de contact par jour", "320 messages rédigés par jour", "Radar, Espion et LinkedIn inclus", "Budget IA de 46 € inclus"]],
+  ["Solo", 49, "Pour un indépendant ou un dirigeant qui prospecte seul.", ["1 utilisateur", "150 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Relances, Radar, Espion et LinkedIn inclus", "Prospects non utilisés reportés au mois suivant"]],
+  ["Pro", 119, "Pour une PME qui veut un flux régulier de rendez-vous.", ["3 utilisateurs", "500 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Relances, Radar, Espion et LinkedIn inclus", "Répartition des prospects entre commerciaux"]],
+  ["Équipe", 229, "Pour plusieurs commerciaux sur le même marché.", ["10 utilisateurs", "1 000 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Relances, Radar, Espion et LinkedIn inclus", "Accompagnement au démarrage"]],
 ];
 const FAQ = [
   ["Bingoo! envoie-t-il des messages sans mon accord ?", "Non. Par défaut, chaque message attend ta validation. Tu peux ensuite activer le pilote automatique, dans la limite d'envoi que tu fixes."],
@@ -403,7 +403,7 @@ export default function Landing() {
               );
             })}
           </div>
-          <p className="mt-6 text-center text-[14px] text-ink-soft">Sans engagement : tu changes de formule ou tu arrêtes quand tu veux. Besoin de plus ? Des crédits IA s'achètent depuis l'application, dès 7 €.</p>
+          <p className="mt-6 text-center text-[14px] text-ink-soft">Sans engagement : tu changes de formule ou tu arrêtes quand tu veux. Besoin de plus ? +100 prospects contactés pour 19 €, quand tu veux. Un prospect contacté = une entreprise qui reçoit un premier e-mail, avec son décideur trouvé et vérifié ; les relances ne comptent pas.</p>
         </section>
 
         {/* Questions */}

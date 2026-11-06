@@ -36,12 +36,14 @@ export function knowledgeOf(ws: { knowledge?: string }) {
 // ---------------------------------------------------------------- Abonnements
 // ai : budget IA mensuel en euros (coût réel pour Bingoo!), plafond du coût IA par client.
 // Prix placés sous les outils de référence (La Growth Machine, lemlist, Waalaxy Business) ; annuel : −20 %.
-export const PLANS: Record<string, { label: string; price: number; factor: number; seats: number; credits: number; ai: number }> = {
-  essai: { label: "Essai gratuit", price: 0, factor: 0.5, seats: 1, credits: 30, ai: 4 },
-  solo: { label: "Solo", price: 49, factor: 1, seats: 1, credits: 300, ai: 11 },
-  pro: { label: "Pro", price: 109, factor: 2, seats: 3, credits: 1000, ai: 24 },
-  equipe: { label: "Équipe", price: 159, factor: 4, seats: 10, credits: 3000, ai: 46 },
-  fondateur: { label: "Fondateur", price: 0, factor: 1, seats: 50, credits: 5000, ai: 15 },
+// Grille par quota (business plan du 6 nov. 2026) : quota = prospects contactés par mois (premier e-mail parti, contact trouvé et vérifié).
+// Relances, Radar et Espion restent compris dans la limite IA. credits = recherches vérifiées d'e-mails (comptées seulement si trouvé).
+export const PLANS: Record<string, { label: string; price: number; factor: number; seats: number; credits: number; ai: number; quota: number }> = {
+  essai: { label: "Essai gratuit", price: 0, factor: 0.5, seats: 1, credits: 40, ai: 4, quota: 30 },
+  solo: { label: "Solo", price: 49, factor: 1, seats: 1, credits: 200, ai: 11, quota: 150 },
+  pro: { label: "Pro", price: 119, factor: 2, seats: 3, credits: 650, ai: 24, quota: 500 },
+  equipe: { label: "Équipe", price: 229, factor: 4, seats: 10, credits: 1300, ai: 46, quota: 1000 },
+  fondateur: { label: "Fondateur", price: 0, factor: 1, seats: 50, credits: 5000, ai: 15, quota: 5000 },
 };
 type PlanFields = { plan?: string; plan_status?: string; trial_ends?: string | null };
 /** Bloque les actions payantes quand l'essai est fini ou que l'abonnement n'est plus réglé. */
@@ -172,10 +174,11 @@ export async function aiBalance(wsId: string) {
   return Number(data ?? 0);
 }
 /** Recharges IA vendues : prix payé (HT) → travail IA ajouté (coût pour Bingoo!), environ 50 % de marge. */
-export const PACKS: Record<string, { label: string; price: number; credit: number; work: string }> = {
+export const PACKS: Record<string, { label: string; price: number; credit: number; work: string; prospects?: number }> = {
   s: { label: "Recharge S", price: 7, credit: 3.5, work: "environ 500 e-mails rédigés de plus" },
   m: { label: "Recharge M", price: 17, credit: 9, work: "environ 1 300 e-mails rédigés de plus" },
   l: { label: "Recharge L", price: 35, credit: 19, work: "environ 2 800 e-mails rédigés de plus" },
+  p100: { label: "Recharge 100 prospects", price: 19, credit: 0, work: "100 prospects contactés de plus ce mois-ci", prospects: 100 },
 };
 /** Reste-t-il de la marge pour un travail optionnel (veille de nuit, recherches web) ? share = part du budget qu'il peut atteindre. */
 export async function aiRoom(wsId: string, share = 0.6) {

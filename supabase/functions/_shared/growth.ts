@@ -428,7 +428,7 @@ export async function recharge(ws: Workspace, userId: string, packKey: string) {
     "metadata[workspace_id]": ws.id, "metadata[kind]": "recharge", "metadata[pack]": packKey,
     "invoice_creation[enabled]": "true", billing_address_collection: "required", "tax_id_collection[enabled]": "true",
     "customer_update[name]": "auto", "customer_update[address]": "auto",
-    success_url: `${APP(ws)}/#/abonnement?recharge=ok`, cancel_url: `${APP(ws)}/#/abonnement?recharge=annule`,
+    success_url: `${APP(ws)}/#/abonnement?recharge=${p.prospects ? "prospects" : "ok"}`, cancel_url: `${APP(ws)}/#/abonnement?recharge=annule`,
   });
   return { url: s.url };
 }
@@ -466,7 +466,10 @@ export async function stripeWebhook(req: Request) {
     // Recharge IA : créditée une seule fois par paiement, seulement s'il est réglé
     const p = PACKS[String(o.metadata?.pack ?? "")];
     if (!p || o.payment_status !== "paid") return { skipped: "recharge non réglée" };
-    const { error } = await admin.from("ai_topups").insert({ workspace_id: id, pack: String(o.metadata.pack), paid_eur: p.price, credit_eur: p.credit, stripe_session: String(o.id) });
+    // Recharge de prospects : compteur du mois ; recharge IA : enveloppe
+    const { error } = p.prospects
+      ? await admin.from("prospect_topups").insert({ workspace_id: id, prospects: p.prospects, paid_eur: p.price, stripe_session: String(o.id) })
+      : await admin.from("ai_topups").insert({ workspace_id: id, pack: String(o.metadata.pack), paid_eur: p.price, credit_eur: p.credit, stripe_session: String(o.id) });
     if (!error) await log(id, "abonnement", `${p.label} achetée : ${p.work}`);
     return { ok: true };
   }
