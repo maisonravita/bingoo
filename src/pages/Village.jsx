@@ -27,7 +27,7 @@ const Icone = ({ art }) => <svg viewBox="0 0 24 24" className="h-6 w-6" fill="no
 
 // Ce qu'on fait dans chaque bâtiment, en une phrase simple
 const AIDE = {
-  poste: "Les réponses de tes prospects, avec une réponse déjà prête", atelier: "Les messages écrits pour toi : relis, puis envoie",
+  poste: "Tes messages envoyés et les réponses de tes prospects", atelier: "Les messages écrits pour toi : relis, puis envoie",
   rdv: "Tes rendez-vous et la fiche pour les préparer", annuaire: "Toutes les entreprises trouvées et leurs décideurs",
   radar: "Les entreprises à contacter au bon moment, et pourquoi", espion: "Ce que font tes concurrents, et comment les battre",
   linkedin: "Les invitations LinkedIn à envoyer toi-même", observatoire: "Ce qui marche : réponses, rendez-vous, cibles",
@@ -172,15 +172,15 @@ export default function Village() {
       c(head("replies")), c(head("replies").in("class", ["interesse", "question", "prix", "rappel"])), c(head("meetings").neq("status", "annule")),
       c(head("prospects").neq("phone", "").neq("status", "ignore")), c(head("radar_opps").gte("created_at", w1)),
       c(head("messages").eq("status", "envoye").gte("sent_at", w1)), c(head("messages").eq("status", "envoye").eq("step", 0)),
-      c(head("radar_opps").eq("status", "nouveau").gte("score", 75)),
-    ]).then(([rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal, chaudes]) => setD({ rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal, chaudes })).catch(() => setD({}));
+      c(head("radar_opps").eq("status", "nouveau").gte("score", 75)), c(head("messages").eq("status", "envoye")),
+    ]).then(([rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal, chaudes, sentAll]) => setD({ rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal, chaudes, sentAll })).catch(() => setD({}));
   }, [ws.id]);
 
   const boite = ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok;
   const reglage = !boite || !ws.postal_address;
   const v = d ?? {};
   const B = [
-    { art: "poste", nom: "La Poste", quoi: "Tes réponses", to: "/reponses", badge: v.rep, detail: v.rep ? `${v.rep} prospect${v.rep > 1 ? "s" : ""} t'${v.rep > 1 ? "ont" : "a"} répondu` : "" },
+    { art: "poste", nom: "La Poste", quoi: "Envoyés et réponses", to: "/reponses", badge: v.rep, detail: v.rep ? `${v.rep} prospect${v.rep > 1 ? "s" : ""} t'${v.rep > 1 ? "ont" : "a"} répondu` : "" },
     { art: "atelier", nom: "L'Atelier", quoi: "Messages à valider", to: "/valider", badge: v.drafts, detail: v.drafts ? "Bingoo! les a écrits pour toi" : "" },
     { art: "rdv", nom: "Les Rendez-vous", quoi: "Tes rendez-vous", to: "/agenda", badge: v.rdv, detail: v.rdv ? `${v.rdv} à venir` : "" },
     { art: "annuaire", nom: "L'Annuaire", quoi: "Tes contacts", to: "/prospects", detail: d ? `${v.dec ?? 0} décideur${v.dec > 1 ? "s" : ""} · ${v.mails ?? 0} e-mail${v.mails > 1 ? "s" : ""}` : "" },
@@ -192,7 +192,7 @@ export default function Village() {
   ];
   const n = (x) => (x ?? 0).toLocaleString("fr-FR");
   const STATS = {
-    poste: [["À traiter", n(v.rep)], ["Réponses reçues", n(v.repTotal)], ["Intéressés", n(v.hot)]],
+    poste: [["Réponses à traiter", n(v.rep)], ["Messages envoyés", n(v.sentAll)], ["Réponses reçues", n(v.repTotal)], ["Intéressés", n(v.hot)]],
     atelier: [["Messages à valider", n(v.drafts)], ["Envoyés cette semaine", n(v.sent7)]],
     rdv: [["À venir", n(v.rdv)], ["Obtenus au total", n(v.rdvTotal)]],
     annuaire: [["Décideurs", n(v.dec)], ["E-mails", n(v.mails)], ["Téléphones", n(v.tels)]],
