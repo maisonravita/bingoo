@@ -189,7 +189,8 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const ids = (Array.isArray(b.ids) ? b.ids : []).map(String).slice(0, 5);
     const { data: ps } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).in("id", ids);
     const out = [];
-    for (const p of ps ?? []) { try { out.push({ nom: p.name, ...(await trouveEmail(ws, p, b.dry !== false)) }); } catch (e) { out.push({ nom: p.name, erreur: trouveMsg(e) }); } }
+    const mod = await import("../_shared/trouve.ts");
+    for (const p of ps ?? []) { try { out.push({ nom: p.name, ...(await trouveEmail(ws, p, b.dry !== false)), ...(b.debug ? { brut: mod.lastRaw } : {}) }); } catch (e) { out.push({ nom: p.name, erreur: trouveMsg(e) }); } }
     return { resultats: out };
   },
   // Nuit : résultats Dropcontact en attente + nouvelles recherches vérifiées (espaces clients ; jamais les espaces fondateur)

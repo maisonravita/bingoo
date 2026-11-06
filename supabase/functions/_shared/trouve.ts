@@ -63,6 +63,7 @@ export async function trouveOfficer(p: Prospect) {
   return { officer: { name, role: cap(String(o.role ?? "Dirigeant")).slice(0, 80), ids: (o.match?.contact_ids ?? []).map((x) => Number(x)).filter(Number.isFinite) }, note: "" };
 }
 
+export let lastRaw = "";
 async function unlock(ids: number[], field: "work_email" | "phone") {
   let r: { unlocked?: Record<string, unknown>[]; keys_charged?: number };
   try { r = await call("/people/unlock", { contact_ids: ids.slice(0, 50), field }); }
@@ -71,7 +72,10 @@ async function unlock(ids: number[], field: "work_email" | "phone") {
     if (e instanceof TrouveError && (/aucune donn/i.test(e.message) || /nothing|no_data|empty|not_found/i.test(e.code))) return { value: "", keys: 0 };
     throw e;
   }
-  const vals = (r.unlocked ?? []).flatMap((u) => Object.entries(u).filter(([k]) => k !== "id").map(([, v]) => String(v ?? "")));
+  // Valeurs à plat, quel que soit le nom du champ ou sa forme (chaîne, liste, objet)
+  const flat = (v: unknown): string[] => v == null ? [] : Array.isArray(v) ? v.flatMap(flat) : typeof v === "object" ? Object.values(v as Record<string, unknown>).flatMap(flat) : [String(v)];
+  const vals = (r.unlocked ?? []).flatMap((u) => Object.entries(u).filter(([k]) => k !== "id").flatMap(([, v]) => flat(v)));
+  lastRaw = JSON.stringify(r).slice(0, 1500);
   const value = field === "phone" ? vals.find((v) => /\d{6,}/.test(v.replace(/\D/g, ""))) ?? "" : vals.find((v) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v.trim()))?.trim().toLowerCase() ?? "";
   return { value, keys: Number(r.keys_charged ?? 0) };
 }
