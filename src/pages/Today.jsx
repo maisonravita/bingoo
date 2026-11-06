@@ -383,6 +383,37 @@ function Morning({ s, canSend, wsId, adresse = true }) {
   );
 }
 
+/** La preuve que Bingoo! travaille : ce qu'il a fait ces 7 derniers jours, en chiffres réels, et quand il a cherché pour la dernière fois. */
+const FAIT = { recherche: "search", enquete: "user", enquete_plus: "user", credit_email: "user", redaction: "send", envoi: "send", radar: "search", radar_scan: "search", fit: "check", ciblage: "check" };
+function Travail({ s }) {
+  const rows = s.rows ?? [];
+  const nb = (kinds, re) => rows.filter((r) => kinds.includes(r.kind) && (!re || re.test(r.summary ?? ""))).length;
+  const trouves = rows.filter((r) => r.kind === "recherche").reduce((n, r) => n + (Number(String(r.summary ?? "").match(/(\d+)\s+nouve/)?.[1]) || 0), 0) || s.found7;
+  const lignes = [
+    [trouves, "entreprise trouvée dans ta cible", "entreprises trouvées dans ta cible"],
+    [nb(["enquete", "enquete_plus", "credit_email"]), "recherche de contact", "recherches de contact"],
+    [nb(["credit_email"]) + nb(["enquete"], /e-mail trouvé/i), "e-mail de décideur trouvé", "e-mails de décideurs trouvés"],
+    [nb(["redaction"]), "message écrit pour toi", "messages écrits pour toi"],
+    [s.oppsWeek, "entreprise prête à acheter repérée", "entreprises prêtes à acheter repérées"],
+  ].filter(([n]) => n > 0);
+  const last = rows.find((r) => FAIT[r.kind]);
+  const ago = last ? (() => { const m = Math.round((Date.now() - new Date(last.created_at).getTime()) / 6e4); return m < 60 ? `il y a ${Math.max(1, m)} min` : m < 1440 ? `il y a ${Math.round(m / 60)} h` : `il y a ${Math.round(m / 1440)} j`; })() : "";
+  return (
+    <section aria-label="Ce que Bingoo! a fait" className="mb-6 rounded-2xl border border-line bg-white p-4 sm:p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="font-semibold">Ce que Bingoo! a fait pour toi cette semaine</p>
+        <Link to="/salaries" className="text-[13px] text-ink-soft underline hover:text-ink">Voir le détail</Link>
+      </div>
+      {lignes.length ? (
+        <ul className="mt-2 grid sm:grid-cols-2 gap-x-6 gap-y-1 text-[14.5px]">
+          {lignes.map(([n, a, b]) => <li key={a} className="flex gap-2"><span className="text-good">✓</span><span><b className="tnum">{n.toLocaleString("fr-FR")}</b> {n > 1 ? b : a}</span></li>)}
+        </ul>
+      ) : <p className="mt-1 text-[14px] text-ink-soft">Bingoo! démarre : les premières recherches arrivent cette nuit.</p>}
+      {last && <p className="mt-2 text-[12.5px] text-ink-faint">Dernière action : {last.summary} · {ago}</p>}
+    </section>
+  );
+}
+
 /** Une phrase qui dit où on en est, sans jargon. */
 function resume(s) {
   const n = [s.replies, s.drafts, s.li, s.opps, s.urgent?.due?.length, s.urgent?.meet?.length].filter((x) => x > 0).length;
@@ -463,6 +494,7 @@ export default function Today() {
 
       {/* Une page simple, dans l'ordre où on s'en sert : 1. ce qu'il y a à faire, 2. ce que ça donne, 3. trouver plus de clients.
           Tout le reste (ta ville, l'activité de la nuit, les opportunités, les chiffres détaillés) est replié plus bas. */}
+      {s && <Travail s={s} />}
       {s && <Morning s={s} wsId={ws.id} canSend={ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok} adresse={!!ws.postal_address} />}
 
       <h2 className="text-[19px] font-semibold mb-3 mt-2">Tes résultats</h2>
