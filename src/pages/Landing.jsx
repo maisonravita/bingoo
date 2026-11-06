@@ -1,4 +1,3 @@
-import { MockExtension, MockTelephone } from "../components/Visite";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
@@ -719,6 +718,34 @@ function Ville() {
   );
 }
 
+/** L'extension Chrome : ce qu'elle fait, en trois points (sans écran dessiné). */
+function Extension() {
+  const items = [
+    ["puzzle", "Sur chaque site", "Ouvre le site d'une entreprise : sa fiche s'affiche en un clic, avec le dirigeant, la taille et ce qui bouge chez elle. Tu l'ajoutes à tes prospects sans copier-coller."],
+    ["link", "Le pilote LinkedIn", "Tu valides les invitations et les messages dans Bingoo!, l'extension les fait pour toi, avec des pauses et des limites prudentes, depuis ton propre navigateur."],
+    ["mail", "Dans Gmail", "Quand un prospect t'écrit, sa fiche s'affiche à côté de son message : ce qu'il a reçu, où il en est, et sa réponse déjà classée."],
+  ];
+  return (
+    <section id="extension" className="scroll-mt-24 px-5 sm:px-10 lg:px-20 py-20 sm:py-28 border-t border-black/[.07]">
+      <div className="mx-auto max-w-[1300px]">
+        <div className="max-w-[820px]">
+          <h2 className="text-[38px] sm:text-[54px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Bingoo! partout où tu prospectes</h2>
+          <p className="mt-6 max-w-[620px] text-[17px] sm:text-[19px] leading-[1.5] text-ink">L'extension Chrome emmène Bingoo! sur le web. Elle est facultative : tout le reste marche sans elle.</p>
+        </div>
+        <ul className="mt-14 grid sm:grid-cols-3 gap-x-10 gap-y-10">
+          {items.map(([k, t, d]) => (
+            <li key={t} className="min-w-0">
+              <Ico k={k} className="h-7 w-7 text-ink" />
+              <p className="mt-3 text-[19px] font-medium text-ink">{t}</p>
+              <p className="mt-2 text-[16px] leading-[1.5] text-ink-soft">{d}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 /** Ce qui fait la différence au quotidien : le téléphone qui sonne, les séquences, les boîtes d'envoi, la vérification, l'apprentissage, les imports. */
 function Nouveautes() {
   const items = [
@@ -732,13 +759,12 @@ function Nouveautes() {
   return (
     <section id="nouveautes" className="scroll-mt-24 px-5 sm:px-10 lg:px-20 py-20 sm:py-28 border-t border-black/[.07]">
       <div className="mx-auto max-w-[1300px]">
-        <div className="grid lg:grid-cols-2 gap-10 lg:gap-20 items-center [&>*]:min-w-0">
+        <div className="max-w-[820px]">
           <div>
             <h2 className="text-[38px] sm:text-[54px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Une réponse chaude ? Ton téléphone sonne.</h2>
             <p className="mt-6 max-w-[560px] text-[17px] sm:text-[19px] leading-[1.5] text-ink">Dès qu'un prospect est intéressé, demande un prix ou veut être rappelé, tu es prévenu en quelques secondes sur ton téléphone ou ton ordinateur, avec la réponse déjà rédigée. Tu la relis, tu l'envoies. Répondre dans l'heure change tout.</p>
             <p className="mt-4 text-[15px] text-ink-soft">Bingoo! s'installe comme une appli sur ton téléphone. Le matin, il te dit quoi faire, dans l'ordre, et combien de temps ça prend.</p>
           </div>
-          <div className="rounded-2xl bg-[#F1EFED] p-4 sm:p-10 min-h-[380px] flex items-center justify-center"><div className="w-full max-w-[460px] h-[340px] rounded-xl overflow-hidden"><MockTelephone /></div></div>
         </div>
         <ul className="mt-16 grid sm:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-10">
           {items.map(([k, t, d]) => (
@@ -828,7 +854,7 @@ export default function Landing() {
 
         <Ville />
 
-        <Feature id="extension" flip title="Bingoo! partout où tu prospectes" text="L'extension Chrome emmène Bingoo! sur le web : la fiche d'une entreprise sur son propre site, le pilote LinkedIn qui fait tes invitations validées, et tes prospects reconnus dans Gmail." bullets={[["puzzle", <><b className="font-medium">Sur chaque site</b> : dirigeant, taille, signaux, et ajout à tes prospects en un clic</>], ["link", <><b className="font-medium">Pilote LinkedIn</b> : seulement ce que tu as validé, à un rythme humain, dans des limites prudentes</>], ["mail", <><b className="font-medium">Dans Gmail</b> : la fiche du prospect à côté de son message, sa réponse déjà classée</>]]} cta={["Créer mon compte", null]} visual={<div className="w-full max-w-[520px] h-[380px] rounded-xl overflow-hidden"><MockExtension /></div>} />
+        <Extension />
 
         <Nouveautes />
 
