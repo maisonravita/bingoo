@@ -44,7 +44,7 @@ export const TEAM = [
     metric: (d) => d.newProspects ? plural(d.newProspects, "nouvel établissement", "nouveaux établissements") : null },
   { id: "sam", first: "Sam", role: "Enquêteur contacts", desc: "Trouve et vérifie les e-mails, téléphones et bons interlocuteurs ; explore d'autres canaux si nécessaire.", kinds: ["enquete", "enquete_plus", "credit_email"], icon: "user", to: "/prospects",
     metric: (d) => { const n = count(d.rows, ["enquete", "enquete_plus"], d.today); const f = d.rows.filter((r) => r.kind === "enquete" && new Date(r.created_at) >= d.today && /e-mail trouvé/i.test(r.summary)).length; return n ? `${plural(n, "enquête")}, ${plural(f, "e-mail trouvé", "e-mails trouvés")}` : null; } },
-  { id: "max", first: "Max", role: "Analyste", desc: "Évalue chaque prospect et repère le bon moment pour le contacter.", kinds: ["radar", "radar_scan", "analyse_prospect"], icon: "bars", to: "/radar",
+  { id: "max", first: "Max", role: "Analyste", desc: "Évalue chaque prospect, écarte ce qui n'est pas dans ta cible et repère le bon moment pour le contacter.", kinds: ["radar", "radar_scan", "analyse_prospect", "fit", "refus"], icon: "bars", to: "/radar",
     metric: (d) => d.opps ? plural(d.opps, "opportunité à saisir", "opportunités à saisir") : null },
   { id: "hugo", first: "Hugo", role: "Responsable campagnes", desc: "Rédige les messages personnalisés, prépare les envois et les relances.", kinds: ["redaction", "envoi", "campagne"], icon: "send", to: "/valider",
     mode: (ws) => ws.autonomy === "auto" ? "Envoi automatique" : "Envoi sur validation",

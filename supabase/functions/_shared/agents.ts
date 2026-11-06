@@ -1,5 +1,6 @@
 // Agents Enquêteur (coordonnées), Rédacteur (premier e-mail) et Facteur (envoi).
 import { learned } from "./intelligence.ts";
+import { styleOf } from "./style.ts";
 import { HttpError } from "./http.ts";
 import { admin, ask, assertPlan, askJson, knowledgeOf, log, type Prospect, type Workspace } from "./core.ts";
 import { resend, replyAddress, sendMail, signature } from "./mail.ts";
@@ -169,7 +170,7 @@ Règles absolues :
 - Dans un premier e-mail, ne parle jamais de prix. Dans une réponse à une question, tu peux citer un prix ou un délai seulement s'il figure dans la fiche.
 - Parle du bénéfice pour les personnes concernées chez le prospect (par exemple ses clients, salariés, résidents, patients).
 - Un seul objectif : obtenir un court échange (15 à 20 minutes). Une seule question claire à la fin.
-- Pas de formule creuse (« j'espère que vous allez bien », « je me permets de… » en ouverture).${learned(ws)}`;
+- Pas de formule creuse (« j'espère que vous allez bien », « je me permets de… » en ouverture).${learned(ws)}${styleOf(ws)}`;
 }
 
 /** Comprendre → Agir : ce que la veille Espion apporte à l'e-mail. */

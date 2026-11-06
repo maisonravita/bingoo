@@ -119,6 +119,12 @@ export default function Settings() {
         </div>
       </Section>
 
+      <Section id="style" title="Bingoo! écrit comme toi" sub="Chaque fois que tu corriges un message avant de l'envoyer, Bingoo! en tire des règles de style. Elles passent avant le ton par défaut. Corrige-les ou ajoute les tiennes, une par ligne.">
+        {(pr.style ?? []).length === 0 && <p className="text-sm text-ink-soft mb-3">Rien d'appris pour l'instant : corrige 1 à 3 messages dans « À valider », Bingoo! remplira cette liste.</p>}
+        <Textarea rows={5} value={(pr.style ?? []).join("\n")} onChange={(e) => setP("style", e.target.value.split("\n"))} placeholder={"Tutoie toujours\nSigne avec ton seul prénom\nPas plus de 4 phrases"} />
+        <div className="mt-3"><Button variant="primary" loading={busy === "save"} onClick={() => save({ profile: { ...pr, style: (pr.style ?? []).map((x) => x.trim()).filter(Boolean).slice(0, 8) } }, "Style enregistré")}>Enregistrer</Button></div>
+      </Section>
+
       <Section id="fiche" title="Ce que Kairo peut répondre" sub="Les infos que tes prospects demandent : intégrations, délais, prix publics, sécurité, garanties, références. Kairo s'en sert dans les e-mails, les réponses et les comptes rendus, et n'invente rien d'autre.">
         <Textarea rows={10} value={f.knowledge ?? ""} onChange={(e) => setF({ ...f, knowledge: e.target.value })}
           placeholder={"OFFRE ET PRIX\nAbonnement Pro : 109 € HT / mois, sans engagement\n\nMISE EN PLACE\nPremiers e-mails envoyés en 48 h\n\nINTÉGRATIONS\nHubSpot, Pipedrive, Google Agenda, Outlook\n\nSÉCURITÉ ET RGPD\nDonnées hébergées en Europe…"} />

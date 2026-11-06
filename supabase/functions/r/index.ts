@@ -205,6 +205,29 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { fitRestore } = await import("../_shared/fit.ts");
     return await fitRestore(ws.id, String(b.id ?? ""));
   },
+  // Le client écarte une fiche en disant pourquoi : le filtre de cible s'en sert pour les suivantes
+  async refus(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const RAISONS = ["Pas ma cible", "Trop petite", "Trop grande", "Déjà client", "Concurrent", "Mauvaise zone"];
+    const raison = RAISONS.includes(String(b.raison)) ? String(b.raison) : String(b.raison ?? "").trim().slice(0, 60) || "Pas ma cible";
+    const { data: p } = await admin.from("prospects").update({ status: "ignore", fit: "non", fit_reason: `Écarté par toi : ${raison}` }).eq("workspace_id", ws.id).eq("id", String(b.id ?? "")).select("name").single();
+    if (!p) throw new HttpError(404, "Fiche introuvable");
+    await admin.from("messages").update({ status: "ignore" }).eq("prospect_id", String(b.id)).eq("status", "brouillon");
+    await log(ws.id, "refus", `${p.name} écarté : ${raison}`).catch(() => {});
+    return { ok: true };
+  },
+  // Bingoo! écrit comme toi : corrections des brouillons → règles de style
+  async "style-learn"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    setAi({ ws: ws.id, live: true });
+    const { styleLearn } = await import("../_shared/style.ts");
+    return await styleLearn(ws, b.before, b.after);
+  },
+  async "style-set"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { styleSet } = await import("../_shared/style.ts");
+    return await styleSet(ws, b.regles);
+  },
   // Appel de démarrage offert (30 min) : le client propose ses créneaux, l'équipe Bingoo! (admins) reçoit la demande et répond directement
   async "onboarding-call"(req, b) {
     const { ws, userId } = await requireMember(req, b.workspace_id);

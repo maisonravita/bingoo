@@ -45,7 +45,9 @@ export async function fitCheck(ws: Workspace, opts: { max?: number; dry?: boolea
     rest.push(r);
   }
 
-  // 2) Relecture par le modèle rapide, par lots de 20
+  // 2) Relecture par le modèle rapide, par lots de 20, avec les fiches que le client a lui-même écartées (il apprend de ses choix)
+  const { data: refus } = await admin.from("prospects").select("name, fit_reason").eq("workspace_id", ws.id).like("fit_reason", "Écarté par toi%").order("updated_at", { ascending: false }).limit(15);
+  const exemples = (refus ?? []).map((x) => `${x.name} (${String(x.fit_reason).replace(/^Écarté par toi : /, "")})`).join(" ; ");
   const offre = `${ws.profile?.nom ?? ws.name} : ${ws.profile?.offre ?? ""}`.slice(0, 400);
   for (let i = 0; i < rest.length; i += 20) {
     const lot = rest.slice(i, i + 20);
@@ -54,7 +56,7 @@ export async function fitCheck(ws: Workspace, opts: { max?: number; dry?: boolea
     try {
       v = await askJson(`Tu tries une liste de prospects B2B avant qu'un commercial les contacte.
 Ce que vend le client : ${offre}
-Pour chaque entreprise, dis si elle correspond vraiment à la cible où elle est rangée et peut acheter cette offre.
+${exemples ? `Le client a lui-même écarté ces entreprises, avec sa raison : ${exemples}. Écarte aussi celles qui leur ressemblent pour la même raison.\n` : ""}Pour chaque entreprise, dis si elle correspond vraiment à la cible où elle est rangée et peut acheter cette offre.
 "non" seulement si c'est clair (autre métier que la cible, filiale d'un grand groupe sans décision locale quand la cible vise des PME, particulier, association sans budget, concurrent direct du client). "doute" si tu ne sais pas. Sinon "oui".
 Raison : 10 mots maximum, en français simple, sans inventer de fait.
 ${lines}

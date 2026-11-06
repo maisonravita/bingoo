@@ -31,8 +31,20 @@ export default function Review() {
   const next = () => { setEdit(false); setDx(0); setLeaving(0); setQueue((q) => q.slice(1)); window.dispatchEvent(new Event("kairo:refresh")); };
   const animateOut = (dir, after) => { setLeaving(dir); setTimeout(after, 220); };
 
+  // Version rédigée par Bingoo!, gardée pour apprendre des corrections (« Bingoo! écrit comme toi »)
+  const orig = useRef({});
+  if (cur && orig.current[cur.id] === undefined) orig.current[cur.id] = cur.body;
   const save = async () => {
     await supabase.from("messages").update({ subject: cur.subject, body: cur.body }).eq("id", cur.id);
+    const avant = orig.current[cur.id];
+    if (avant && avant.trim() !== (cur.body ?? "").trim()) { orig.current[cur.id] = cur.body; fn("r/style-learn", { workspace_id: ws.id, before: avant, after: cur.body }).catch(() => {}); }
+  };
+  // Écarter en disant pourquoi : le tri des prochaines fiches en tient compte
+  const refuse = async (raison) => {
+    if (!cur || busy) return;
+    setBusy("refus");
+    try { await fn("r/refus", { workspace_id: ws.id, id: cur.prospect_id, raison }); toast(`${cur.prospects?.name || "Fiche"} écartée. Bingoo! s'en souviendra.`); animateOut(-1, next); }
+    catch (e) { toast(e.message, "bad"); } finally { setBusy(null); }
   };
   const send = async () => {
     if (!cur || busy || lock.current) return;
@@ -162,6 +174,14 @@ export default function Review() {
           )}
           <Button size="lg" variant="accent" onClick={send} loading={busy === "send"} disabled={!domainOk}>Envoyer →</Button>
         </div>
+        {cur.step === 0 && (
+          <div className="relative z-10 mt-4 flex flex-wrap items-center justify-center gap-1.5 text-[13px]">
+            <span className="text-ink-soft mr-1">Pas pour toi ?</span>
+            {["Pas ma cible", "Trop petite", "Trop grande", "Déjà client", "Concurrent"].map((r) => (
+              <button key={r} disabled={!!busy} onClick={() => refuse(r)} className="rounded-full border border-line bg-white px-3 py-1 text-ink-soft hover:text-ink hover:border-ink-faint disabled:opacity-50">{r}</button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
