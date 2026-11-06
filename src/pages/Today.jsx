@@ -207,14 +207,17 @@ function Urgent({ u }) {
 
 
 /** Tes contacts : décideurs trouvés, e-mails, téléphones, réponses et rendez-vous (chiffres réels, jamais d'exemple). */
+// Adresses génériques (contact@, info@, sales@…) : utiles, mais ce ne sont pas des décideurs
+const GENERIQUE = "^(contact|info|infos|sales|vente|ventes|hello|bonjour|accueil|commercial|marketing|support|admin|office|secretariat|direction|reclamation[a-z.-]*|service[a-z.-]*|rh|recrutement|jobs|team|equipe)@";
 function Contacts({ s }) {
-  const T = [["Décideurs trouvés", s.dec, "/prospects"], ["E-mails", s.mail, "/prospects"], ["Téléphones", s.tel, "/prospects"], ["Réponses", s.replied, "/reponses"], ["Rendez-vous", s.rdv, "/agenda"]];
+  const T = [["Décideurs trouvés", s.dec, "/prospects"], ["E-mails directs", s.mailDirect ?? s.mail, "/prospects", s.mail > (s.mailDirect ?? s.mail) ? `+ ${s.mail - s.mailDirect} adresse${s.mail - s.mailDirect > 1 ? "s" : ""} générique${s.mail - s.mailDirect > 1 ? "s" : ""}` : ""], ["Téléphones", s.tel, "/prospects"], ["Réponses", s.replied, "/reponses"], ["Rendez-vous", s.rdv, "/agenda"]];
   return (
     <section aria-label="Tes contacts" className="mb-6 grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-      {T.map(([l, v, to], i) => (
+      {T.map(([l, v, to, sub], i) => (
         <Link key={l} to={to} className={cx("rounded-2xl border p-4 transition hover:border-ink-faint", i === 4 ? "bg-accent-soft/60 border-accent/20" : "bg-white border-line", i === 4 && "col-span-2 sm:col-span-1")}>
           <p className="text-[13px] text-ink-soft">{l}</p>
           <p className={cx("font-black text-[30px] leading-tight tnum", i === 4 && "text-accent-dark")} style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{(v ?? 0).toLocaleString("fr-FR")}</p>
+          {sub && <p className="text-[11.5px] text-ink-faint mt-0.5">{sub}</p>}
         </Link>
       ))}
     </section>
@@ -329,13 +332,14 @@ function Semaine() {
 
 // Le matin en 5 minutes : la liste des choses à faire, dans l'ordre où elles rapportent, avec le temps que ça prend.
 // Le point de départ du jour est gardé sur cet appareil pour montrer ce qui est déjà fait.
-const SEC = { reponses: 40, valider: 15, linkedin: 8, rappels: 60, rdv: 0 };
+const SEC = { reponses: 40, valider: 15, linkedin: 8, rappels: 60, rdv: 0, radar: 20 };
 function Morning({ s, canSend, wsId, adresse = true }) {
   const items = [
     ["reponses", s.replies, "réponse à traiter", "réponses à traiter", "Réponse déjà proposée : relis, envoie.", "/reponses", "chat"],
     ["valider", s.drafts, "message à valider", "messages à valider", "Un geste par message.", "#prets", "send"],
     ["rappels", s.urgent.due.length, "rappel prévu", "rappels prévus", "Le numéro est sur la fiche.", "/prospects", "clock"],
     ["linkedin", s.li, "invitation LinkedIn à valider", "invitations LinkedIn à valider", "Bingoo! les envoie à ton rythme.", "/linkedin", "send"],
+    ["radar", s.opps, "entreprise prête à acheter repérée", "entreprises prêtes à acheter repérées", "Ajoute celles qui t'intéressent : Bingoo! trouve le décideur et écrit.", "/radar", "search"],
     ["rdv", s.urgent.meet.length, "rendez-vous aujourd'hui", "rendez-vous aujourd'hui", s.urgent.meet[0] ? `Le premier à ${new Date(s.urgent.meet[0].starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} : ${s.urgent.meet[0].company ?? ""}` : "", "/agenda", "cal"],
   ];
   const key = `bingoo-matin-${wsId}-${new Date().toISOString().slice(0, 10)}`;
@@ -366,7 +370,7 @@ function Morning({ s, canSend, wsId, adresse = true }) {
               <>
                 <span className="grid place-items-center w-10 h-10 shrink-0 rounded-xl bg-accent-soft"><Ico n={icon} className="w-5 h-5 text-accent" /></span>
                 <span className="min-w-0 flex-1"><span className="block font-semibold text-[15.5px]"><span className="tnum">{n}</span> {n > 1 ? b : a}</span>{aide && <span className="block text-[13px] text-ink-soft truncate">{aide}</span>}</span>
-                {SEC[k] > 0 && <span className="text-[13px] text-ink-faint tnum shrink-0">{Math.max(1, Math.round((SEC[k] * n) / 60))} min</span>}
+                {SEC[k] > 0 && <span className="text-[13px] text-ink-faint tnum shrink-0">{SEC[k] * n < 60 ? `${SEC[k] * n} s` : `${Math.round((SEC[k] * n) / 60)} min`}</span>}
                 <span className="text-ink-faint" aria-hidden>›</span>
               </>
             );
@@ -381,7 +385,7 @@ function Morning({ s, canSend, wsId, adresse = true }) {
 
 /** Une phrase qui dit où on en est, sans jargon. */
 function resume(s) {
-  const n = [s.replies, s.drafts, s.li, s.urgent?.due?.length, s.urgent?.meet?.length].filter((x) => x > 0).length;
+  const n = [s.replies, s.drafts, s.li, s.opps, s.urgent?.due?.length, s.urgent?.meet?.length].filter((x) => x > 0).length;
   if (n) return `${n} chose${n > 1 ? "s" : ""} t'attend${n > 1 ? "ent" : ""} ci-dessous. Bingoo! s'occupe du reste.`;
   return "Rien à faire pour l'instant : Bingoo! cherche, écrit et relance pour toi.";
 }
@@ -399,7 +403,7 @@ export default function Today() {
     const t0 = new Date(); t0.setHours(0, 0, 0, 0);
     const w1 = new Date(Date.now() - 7 * 864e5).toISOString(), w2 = new Date(Date.now() - 14 * 864e5).toISOString();
     const today = new Date().toISOString().slice(0, 10), old = new Date(Date.now() - 4 * 864e5).toISOString();
-    const [found, toContact, sent, replied, rdv, client, found7, sent7, replied7, rdv7, opps, oppsWeek, oppsPrev, replies, drafts, li, todo, ready, hard, act, detected, due, quotes, meet, dec, mail, tel] = await Promise.all([
+    const [found, toContact, sent, replied, rdv, client, found7, sent7, replied7, rdv7, opps, oppsWeek, oppsPrev, replies, drafts, li, todo, ready, hard, act, detected, due, quotes, meet, dec, mail, tel, mailDirect] = await Promise.all([
       c(P()), c(P().in("status", ["pret", "a_valider"])),
       c(P().in("status", ["envoye", "repondu", "rdv", "client", "refus"]).not("email", "eq", "")),
       c(P().in("status", ["repondu", "rdv", "client", "refus"])), c(P().in("status", ["rdv", "client"])), c(P().eq("status", "client")),
@@ -413,10 +417,11 @@ export default function Today() {
       supabase.from("quotes").select("id, number, sent_at, status, prospects(name)").eq("workspace_id", ws.id).in("status", ["envoye", "vu"]).lt("sent_at", old).limit(3),
       supabase.from("meetings").select("id, company, starts_at").eq("workspace_id", ws.id).eq("status", "confirme").gte("starts_at", t0.toISOString()).lt("starts_at", new Date(t0.getTime() + 864e5).toISOString()).order("starts_at"),
       c(P().neq("contact_name", "").neq("status", "ignore")), c(P().neq("email", "").neq("status", "ignore")), c(P().neq("phone", "").neq("status", "ignore")),
+      c(P().neq("email", "").neq("status", "ignore").not("email", "imatch", GENERIQUE)),
     ]);
     const rows = act.data ?? [];
     const minutes = rows.reduce((m, r) => m + (MINUTES[r.kind] ?? 0), 0);
-    setS({ dec, mail, tel, found, toContact, sent, replied, rdv, client, found7, sent7, replied7, rdv7, opps, oppsWeek, oppsPrev, replies, drafts, li, todo, ready, hard,
+    setS({ dec, mail, tel, mailDirect, found, toContact, sent, replied, rdv, client, found7, sent7, replied7, rdv7, opps, oppsWeek, oppsPrev, replies, drafts, li, todo, ready, hard,
       rows, minutes, actions: rows.filter((r) => MINUTES[r.kind]).length, detected: (() => { const d = detected.data ?? [], t = new Date().toISOString().slice(0, 10); const top = d.filter((o) => o.raw?.top_day === t); return [...top, ...d.filter((o) => o.raw?.top_day !== t && o.status !== "ajoute" && !o.prospect_id)].slice(0, 3); })(), urgent: { due: due.data ?? [], quotes: quotes.data ?? [], meet: meet.data ?? [] } });
   }, [ws.id]);
 
@@ -468,7 +473,8 @@ export default function Today() {
       <Public />
       <Demarrage />
       <PushTel compact />
-      <div className="hidden sm:block"><Semaine /></div>
+      {/* Le bandeau de la semaine (et ta ville) n'apparaît qu'avec assez d'envois pour vouloir dire quelque chose */}
+      {s && s.sent >= 20 && <div className="hidden sm:block"><Semaine /></div>}
 
       <details className="group mb-6 rounded-2xl border border-line bg-white">
         <summary className="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-3">

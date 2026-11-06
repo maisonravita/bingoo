@@ -24,10 +24,12 @@ const VIEWS = [
   { key: "sent", label: "Contactés", st: ["envoye"] },
   { key: "ready", label: "Joignables", st: ["pret", "a_valider"] },
   { key: "todo", label: "À enquêter", st: ["nouveau"] },
-  { key: "none", label: "Sans e-mail", st: ["sans_email"] },
+  { key: "none", label: "Sans e-mail", fn: (r) => !r.email && r.fit !== "non" && !["ignore", "refus", "client", "rdv", "repondu"].includes(r.status) },
   { key: "check", label: "E-mail à vérifier", fn: (r) => !r.email && !!r.email_candidate },
   { key: "off", label: "Hors cible", fn: (r) => r.fit === "non" },
 ];
+const MAIN = ["all", "ready", "none", "sent"];
+const LABEL = { ready: "Joignables", none: "À trouver", sent: "Contactés" };
 const MOVES = ["repondu", "rdv", "client", "refus", "ignore"];
 export const CHANNEL = {
   email: { label: "E-mail", icon: "✉" },
@@ -339,7 +341,7 @@ export default function Prospects() {
   return (
     <div>
       <SubNav section="prospects" />
-      <PageHead title="Contacts" sub={rows ? `${rows.length.toLocaleString("fr-FR")} entreprises · ${rows.filter((r) => r.contact_name).length.toLocaleString("fr-FR")} décideurs · ${rows.filter((r) => r.email).length.toLocaleString("fr-FR")} e-mails · ${rows.filter((r) => r.phone).length.toLocaleString("fr-FR")} téléphones` : ""}>
+      <PageHead title="Contacts" sub={rows ? [[rows.length, "entreprise"], [rows.filter((r) => r.contact_name).length, "décideur"], [rows.filter((r) => r.email).length, "e-mail"], [rows.filter((r) => r.phone).length, "téléphone"]].map(([n, l]) => `${n.toLocaleString("fr-FR")} ${l}${n > 1 ? "s" : ""}`).join(" · ") : ""}>
         <Input placeholder="Rechercher…" value={q} onChange={(e) => setQ(e.target.value)} className="!w-56" />
         {team.length > 1 && <Button variant={mine ? "primary" : "default"} onClick={() => setMine((x) => !x)}>Mes contacts</Button>}
         <Link to="/mission"><Button variant="accent">+ Trouver des contacts</Button></Link>
@@ -356,11 +358,17 @@ export default function Prospects() {
       )}
       {importing && <ImportCsv ws={ws} existing={rows ?? []} toast={toast} onClose={() => setImporting(false)} onDone={() => { setImporting(false); load(); }} />}
       <div className="flex gap-2 overflow-x-auto pb-1 mb-4 -mx-4 px-4">
-        {VIEWS.map((v) => (
+        {/* 4 filtres qui suffisent au quotidien ; les autres dans « Plus de filtres » */}
+        {MAIN.map((k) => VIEWS.find((v) => v.key === k)).map((v) => (
           <button key={v.key} onClick={() => setView(v.key)} className={cx("shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium border", view === v.key ? "bg-ink text-white border-ink" : "bg-white border-line")}>
-            {v.label} <span className="opacity-60 tnum">{counts[v.key]}</span>
+            {LABEL[v.key] ?? v.label} <span className="opacity-60 tnum">{counts[v.key]}</span>
           </button>
         ))}
+        <label className="sr-only" htmlFor="more-views">Plus de filtres</label>
+        <select id="more-views" value={MAIN.includes(view) ? "" : view} onChange={(e) => e.target.value && setView(e.target.value)} className={cx("shrink-0 rounded-full px-3 py-1.5 text-sm font-medium border bg-white", !MAIN.includes(view) ? "border-ink" : "border-line text-ink-soft")}>
+          <option value="">Plus de filtres</option>
+          {VIEWS.filter((v) => !MAIN.includes(v.key)).map((v) => <option key={v.key} value={v.key}>{v.label} ({counts[v.key]})</option>)}
+        </select>
       </div>
       {view === "off" && rows && (
         <div className="mb-4 rounded-2xl border border-line bg-white p-4 flex flex-col sm:flex-row sm:items-center gap-3">

@@ -89,9 +89,9 @@ export function BandeauMatin({ d }) {
     <section className="mb-5 rounded-3xl p-6 sm:p-7 text-white relative overflow-hidden" style={{ background: "linear-gradient(120deg,#1c1917 0%,#3b1d10 55%,#E0531F 130%)" }}>
       <div className="grid gap-6 lg:grid-cols-[1fr_auto] items-center">
         <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-white/70">Ton terrain · {d.rdv} rendez-vous sur {d.objectif} cette semaine{d.rdv < d.objectif && d.semaine.jour > 1 ? ` · à ce rythme ${d.prevision} vendredi` : ""}</p>
+          <p className="text-[13px] font-semibold text-white/70">Cette semaine · {d.rdv} rendez-vous sur {d.objectif} visés{d.rdv < d.objectif && d.semaine.jour > 1 ? ` · à ce rythme ${d.prevision} vendredi` : ""}</p>
           <p className="text-[26px] sm:text-[32px] font-semibold leading-tight mt-1">
-            {terrain.cibles ? <>{terrain.cibles.toLocaleString("fr-FR")} entreprises cibles, <span className="text-[#FDBA74]">{part} % contactées</span>.</> : "Ton terrain se dessine cette nuit."}
+            {terrain.cibles ? <>{terrain.cibles.toLocaleString("fr-FR")} entreprise{terrain.cibles > 1 ? "s" : ""} dans ta cible, <span className="text-[#FDBA74]">{part} % déjà contactée{terrain.cibles > 1 ? "s" : ""}</span>.</> : "Ton terrain se dessine cette nuit."}
           </p>
           <p className="text-white/75 mt-2 text-[15px]">
             {terrain.gagnees ? `${terrain.gagnees} gagnée${terrain.gagnees > 1 ? "s" : ""}, ${terrain.discussion} en discussion. ` : terrain.discussion ? `${terrain.discussion} en discussion. ` : ""}
@@ -114,9 +114,9 @@ export function BandeauMatin({ d }) {
         <div className="flex items-center gap-4 rounded-2xl bg-white/10 p-4">
           <div className="rounded-full bg-white p-1.5"><Anneaux a={a} /></div>
           <ul className="text-[13px] space-y-1.5">
-            <li><b className="text-[#FDBA74]">Réactivité</b> <span className="text-white/80">{ratio(a.reactivite)}</span></li>
-            <li><b>Régularité</b> <span className="text-white/80">{a.regularite.fait} jour{a.regularite.fait > 1 ? "s" : ""} sur {a.regularite.total}</span></li>
-            <li><b className="text-[#93C5FD]">Résultats</b> <span className="text-white/80">{a.resultats.fait} RDV sur {a.resultats.total}</span></li>
+            <li><b className="text-[#FDBA74]">Réponses traitées le jour même</b> <span className="text-white/80">{ratio(a.reactivite)}</span></li>
+            <li><b>Jours où tu as validé</b> <span className="text-white/80">{a.regularite.fait} jour{a.regularite.fait > 1 ? "s" : ""} sur {a.regularite.total}</span></li>
+            <li><b className="text-[#93C5FD]">Rendez-vous</b> <span className="text-white/80">{a.resultats.fait} sur {a.resultats.total} visés</span></li>
           </ul>
         </div>
       </div>
