@@ -7,6 +7,7 @@ import { Button, Card, Spinner, useToast } from "../components/ui";
 import { cx } from "../lib/utils";
 import { DEPTS, centerOf, offsetKm } from "../lib/geo";
 import { useAller } from "../lib/lieu";
+import { useDansLieu } from "../lib/lieu";
 
 export const RECRUIT_HINT = "Cette entreprise recrute pour un poste lié à ce que tu vends. C'est souvent le signe d'un besoin actuel et d'un budget : c'est le bon moment pour lui proposer ton service, en complément ou à la place d'une embauche.";
 const KIND = {
@@ -918,7 +919,7 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
 
         <Card className="p-5 sm:p-6 min-w-0 flex flex-col">
           {!loaded ? <div className="py-16 grid place-items-center"><Spinner /></div> : !o ? (
-            <div className="text-center py-16 px-4"><p className="text-sm text-ink-soft">{mode === "intention" ? "Aucune intention repérée pour l'instant : installe le suivi de ton site et publie ta page « Alternative à » (Espion)." : "Lance une première analyse : le Radar cherche les entreprises qui ont une raison d'acheter maintenant."}</p>{mode !== "intention" && <Button variant="accent" className="mt-4" loading={live} disabled={live} onClick={onScan}>Lancer le Radar maintenant</Button>}</div>
+            <div className="text-center py-16 px-4"><p className="text-sm text-ink-soft">{mode === "intention" ? "Aucune intention repérée pour l'instant : installe le suivi de ton site et publie ta page « Alternative à » (Espion)." : "Lance une première analyse : le Radar cherche les entreprises à contacter au bon moment."}</p>{mode !== "intention" && <Button variant="accent" className="mt-4" loading={live} disabled={live} onClick={onScan}>Lancer le Radar maintenant</Button>}</div>
           ) : (<div key={o.id} className="sheet-in flex flex-col flex-1 min-w-0">
             <div className="flex items-start gap-4">
               <div className="min-w-0 flex-1">
@@ -1262,6 +1263,7 @@ function useOppStatus(list) {
 }
 
 export default function Radar() {
+  const dansLieu = useDansLieu();
   const { ws } = useWs();
   const toast = useToast();
   const [rows, setRows] = useState(null);
@@ -1336,17 +1338,17 @@ export default function Radar() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+        <div className={cx("flex items-center gap-4", dansLieu && "hidden")}>
           <span className="h-16 w-16 rounded-full bg-accent-soft text-accent grid place-items-center"><Ico name="radar" className="h-9 w-9" /></span>
           <div>
             <h1 className="font-black text-[40px] leading-none tracking-tight" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>Opportunités</h1>
-            <p className="text-ink-soft mt-1.5">Les entreprises qui ont une raison d'acheter maintenant.</p>
+            <p className="text-ink-soft mt-1.5">Les entreprises à contacter au bon moment.</p>
           </div>
         </div>
         <Pill on={live}>{live ? "Radar en cours" : lastAt ? `Dernier scan ${ago(lastAt)}` : "Jamais lancé"}</Pill>
       </div>
 
-<Guide id="radar" titre="Ici : les entreprises qui ont une raison d'acheter en ce moment (création, recrutement, nouveau dirigeant, contrat qui se termine…)." etapes={["Parcours la liste : chaque entreprise dit pourquoi c'est le bon moment.", "Clique « Ajouter » sur celles qui t'intéressent.", "Bingoo! trouve le décideur, écrit le message, et te le propose dans « À faire »."]} />
+<Guide id="radar" titre="Ici : les entreprises à contacter au bon moment (création, recrutement, nouveau dirigeant, contrat qui se termine…)." etapes={["Parcours la liste : chaque entreprise dit pourquoi c'est le bon moment.", "Clique « Ajouter » sur celles qui t'intéressent.", "Bingoo! trouve le décideur, écrit le message, et te le propose dans « À faire »."]} />
       <HomeView ws={ws} list={list} loaded={!!rows} live={live} onScan={scan} onOpen={setOpen} onChange={load} />
       <button onClick={() => toggleExplore(!explore)} className="w-full rounded-2xl border border-line bg-white hover:border-ink-faint px-5 py-3.5 flex items-center justify-between gap-3 text-left transition">
         <span><span className="block font-semibold text-[15px]">{explore ? "Masquer le détail du Radar" : "Explorer tout le Radar"}</span><span className="block text-[12.5px] text-ink-faint">{list.length} opportunité{list.length > 1 ? "s" : ""} · comptes surveillés · visiteurs · partenaires · marché public · résultats · réglages</span></span>

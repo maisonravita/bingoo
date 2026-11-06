@@ -10,3 +10,6 @@ export function useAller() {
   const ouvre = useContext(LieuContext);
   return (to, opts) => { if (typeof to === "string" && ouvre?.(to)) return; nav(to, opts); };
 }
+
+/** Vrai quand la page est affichée dans le panneau d'un bâtiment (le titre est déjà dans l'en-tête du panneau). */
+export const useDansLieu = () => !!useContext(LieuContext);

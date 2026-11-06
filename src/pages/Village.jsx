@@ -25,6 +25,15 @@ const PICTO = {
 };
 const Icone = ({ art }) => <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={PICTO[art] ?? ""} /></svg>;
 
+// Ce qu'on fait dans chaque bâtiment, en une phrase simple
+const AIDE = {
+  poste: "Les réponses de tes prospects, avec une réponse déjà prête", atelier: "Les messages écrits pour toi : relis, puis envoie",
+  rdv: "Tes rendez-vous et la fiche pour les préparer", annuaire: "Toutes les entreprises trouvées et leurs décideurs",
+  radar: "Les entreprises à contacter au bon moment, et pourquoi", espion: "Ce que font tes concurrents, et comment les battre",
+  linkedin: "Les invitations LinkedIn à envoyer toi-même", observatoire: "Ce qui marche : réponses, rendez-vous, cibles",
+  mairie: "Ta boîte mail, ton entreprise et tes réglages",
+};
+
 // Ce qu'on voit en entrant dans un bâtiment : la vraie page, dans un panneau par-dessus la ville
 const INTERIEUR = { "/reponses": Replies, "/valider": Review, "/agenda": Agenda, "/prospects": Prospects, "/radar": Radar, "/espion": Espion, "/linkedin": LinkedIn, "/resultats": Results, "/reglages": Settings, "/connexions": Connexions };
 
@@ -218,6 +227,7 @@ export default function Village() {
   const [sp, setSp] = useSearchParams();
   const lieu = B.find((b) => b.art === sp.get("lieu")) ?? null;
   const Page = lieu ? INTERIEUR[lieu.to] : null;
+  const [grand, setGrand] = useState(false);
   const ouvre = (b) => { if (!INTERIEUR[b.to]) { nav(b.to); return; } setSp({ lieu: b.art }); };
   const ferme = () => { if (window.history.state?.idx > 0) window.history.back(); else setSp({}, { replace: true }); };
   useEffect(() => {
@@ -316,24 +326,62 @@ export default function Village() {
       <style>{`
         @keyframes bv-entre { from { transform: translateX(40px); opacity: 0 } to { transform: none; opacity: 1 } }
         @keyframes bv-monte { from { transform: translateY(60px); opacity: 0 } to { transform: none; opacity: 1 } }
+        @keyframes bv-fondu { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
       `}</style>
       {lieu && Page && (
         <>
-          <button aria-label="Retour au village" onClick={ferme} className="fixed inset-0 z-30 cursor-zoom-out bg-[#3A2416]/5" />
+          <button aria-label="Retour au village" onClick={ferme} className="fixed inset-0 z-30 cursor-zoom-out bg-[#3A2416]/[.06]" />
           <section role="dialog" aria-modal="true" aria-label={lieu.nom}
-            className="fixed z-40 flex flex-col overflow-hidden bg-[#FFFCF8] shadow-[0_30px_80px_-30px_rgba(122,74,42,.55)] inset-x-0 bottom-0 top-[22vh] rounded-t-[28px] animate-[bv-monte_.35s_cubic-bezier(.2,.8,.2,1)_both] md:inset-auto md:right-4 md:top-4 md:bottom-4 md:w-[min(760px,calc(100vw-440px))] md:min-w-[520px] md:rounded-[28px] md:animate-[bv-entre_.35s_cubic-bezier(.2,.8,.2,1)_both]">
-            <header className="flex shrink-0 items-center gap-3 border-b border-[#F1E2D2] bg-white px-4 py-3 sm:px-6 sm:py-4">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#FF8A3D] to-[#E8571C] text-white shadow-[0_6px_14px_-6px_rgba(232,87,28,.8)]"><Icone art={lieu.art} /></span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[20px] sm:text-[22px] font-black text-ink" style={H}>{lieu.nom}</span>
-                <span className="block truncate text-[13px] text-ink-soft">{lieu.quoi}{lieu.detail ? ` · ${lieu.detail}` : ""}</span>
-              </span>
-              <button onClick={ferme} className="flex items-center gap-2 rounded-2xl bg-[#1E1E24] px-3.5 py-2.5 text-[13.5px] font-semibold text-white hover:bg-black">
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M15 6l-6 6 6 6" /></svg>
-                <span className="hidden sm:inline">Retour au village</span><span className="sm:hidden">Village</span>
-              </button>
+            className={cx("fixed z-40 flex flex-col overflow-hidden bg-[#FFFCF8] shadow-[0_30px_80px_-30px_rgba(122,74,42,.55)] transition-[top,width] duration-300",
+              "inset-x-0 bottom-0 rounded-t-[28px] animate-[bv-monte_.35s_cubic-bezier(.2,.8,.2,1)_both]", grand ? "top-3" : "top-[22vh]",
+              "md:inset-auto md:right-4 md:top-4 md:bottom-4 md:rounded-[28px] md:animate-[bv-entre_.35s_cubic-bezier(.2,.8,.2,1)_both]", grand ? "md:w-[calc(100vw-32px)]" : "md:w-[min(760px,calc(100vw-440px))] md:min-w-[520px]")}>
+            {/* Poignée (téléphone) : agrandir ou réduire */}
+            <div className="md:hidden shrink-0 bg-white pt-2"><button onClick={() => setGrand((g) => !g)} aria-label={grand ? "Réduire le panneau" : "Agrandir le panneau"} className="mx-auto block h-1.5 w-12 rounded-full bg-[#E3D3C2]" /></div>
+            <header className="shrink-0 bg-white px-4 pt-3 sm:px-6 sm:pt-4">
+              <div className="flex items-center gap-3">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#FF8A3D] to-[#E8571C] text-white shadow-[0_6px_14px_-6px_rgba(232,87,28,.8)]"><Icone art={lieu.art} /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[21px] sm:text-[24px] font-black leading-tight text-ink" style={H}>{lieu.nom}</span>
+                  <span className="block truncate text-[13.5px] text-ink-soft">{AIDE[lieu.art] ?? lieu.quoi}</span>
+                </span>
+                <button onClick={() => setGrand((g) => !g)} title={grand ? "Réduire" : "Agrandir"} aria-label={grand ? "Réduire le panneau" : "Agrandir le panneau"} className="hidden md:grid h-10 w-10 place-items-center rounded-xl text-ink-soft hover:bg-[#FFF3E8] hover:text-ink">
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{grand ? <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /> : <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />}</svg>
+                </button>
+                <button onClick={ferme} className="flex items-center gap-2 rounded-2xl bg-[#1E1E24] px-3.5 py-2.5 text-[13.5px] font-semibold text-white hover:bg-black">
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M15 6l-6 6 6 6" /></svg>
+                  <span className="hidden sm:inline">Retour au village</span><span className="sm:hidden">Village</span>
+                </button>
+              </div>
+              {/* Les chiffres du bâtiment, en direct */}
+              {(lieu.stats ?? []).length > 0 && (
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                  {lieu.stats.map(([l, val]) => (
+                    <span key={l} className="shrink-0 rounded-2xl border border-[#F1E2D2] bg-[#FFF8F1] px-3 py-1.5">
+                      <span className="block text-[17px] font-black leading-tight text-ink tnum" style={H}>{val}</span>
+                      <span className="block text-[11.5px] text-ink-soft whitespace-nowrap">{l}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+              {/* Passer d'un bâtiment à l'autre sans revenir au village */}
+              <nav aria-label="Les bâtiments" className="-mx-4 mt-2 flex gap-1 overflow-x-auto border-b border-[#F1E2D2] px-3 sm:-mx-6 sm:px-5">
+                {B.filter((b) => INTERIEUR[b.to]).map((b) => {
+                  const ici = b.art === lieu.art;
+                  return (
+                    <button key={b.art} onClick={() => setSp({ lieu: b.art }, { replace: true })} aria-current={ici ? "page" : undefined} title={b.nom}
+                      className={cx("relative flex shrink-0 items-center gap-1.5 rounded-t-xl px-2.5 pb-2.5 pt-2 text-[13px] font-semibold transition", ici ? "text-[#E8571C]" : "text-ink-soft hover:text-ink")}>
+                      <span className="[&>svg]:h-[18px] [&>svg]:w-[18px]"><Icone art={b.art} /></span>
+                      <span className={cx(!ici && "hidden lg:inline")}>{b.nom.replace(/^(La |Le |Les |L')/, "")}</span>
+                      {(b.badge > 0 || b.alerte) && <span className="grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[#F26A21] px-1 text-[10.5px] font-black text-white">{b.alerte ? "!" : b.badge > 99 ? "99+" : b.badge}</span>}
+                      {ici && <span className="absolute inset-x-2 -bottom-px h-[3px] rounded-full bg-[#F26A21]" />}
+                    </button>
+                  );
+                })}
+              </nav>
             </header>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6"><LieuContext.Provider value={(to) => { const b = B.find((x) => x.to === to.split("?")[0]); if (!b || !INTERIEUR[b.to]) return false; setSp({ lieu: b.art }, { replace: true }); return true; }}><Page key={lieu.art} /></LieuContext.Provider></div>
+            <div key={lieu.art} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6 animate-[bv-fondu_.25s_ease-out_both]">
+              <LieuContext.Provider value={(to) => { const b = B.find((x) => x.to === to.split("?")[0]); if (!b || !INTERIEUR[b.to]) return false; setSp({ lieu: b.art }, { replace: true }); return true; }}><Page /></LieuContext.Provider>
+            </div>
           </section>
         </>
       )}

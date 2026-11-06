@@ -93,7 +93,7 @@ function Essai({ e }) {
     return (
       <div className="rounded-2xl bg-[#F1EFED] p-6 sm:p-10">
         <h2 className="text-[30px] sm:text-[40px] leading-[1.08] tracking-[-.02em]" style={SERIF}>{e.titre}</h2>
-        <p className="mt-4 text-[17px] text-ink-soft max-w-xl">Bingoo! lit ton site, comprend ce que tu vends et à qui, puis cherche dans les sources officielles les entreprises qui ont une raison d'acheter maintenant.</p>
+        <p className="mt-4 text-[17px] text-ink-soft max-w-xl">Bingoo! lit ton site, comprend ce que tu vends et à qui, puis cherche dans les sources officielles les entreprises à contacter au bon moment.</p>
         <button onClick={() => { nav("/accueil"); setTimeout(() => document.getElementById("essai")?.scrollIntoView({ behavior: "smooth" }), 400); }} className="mt-8 rounded-lg bg-accent text-white px-7 py-4 text-[17px] hover:bg-accent-dark transition">Essayer avec mon site</button>
       </div>
     );

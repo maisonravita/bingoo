@@ -6,6 +6,7 @@ import { useToast } from "../components/ui";
 import { cx } from "../lib/utils";
 import CompetitorDossier from "./CompetitorDossier";
 import CompanyLogo from "../components/CompanyLogo";
+import { useDansLieu } from "../lib/lieu";
 
 // Espion : le centre de renseignement commercial. Cinq espaces, données sourcées uniquement.
 const TEAL = "#E0531F"; // accent Bingoo!
@@ -543,6 +544,7 @@ function Dossiers({ rows }) {
 }
 
 export default function EspionHub() {
+  const dansLieu = useDansLieu();
   const { ws } = useWs();
   const toast = useToast();
   const [rows, setRows] = useState(null);
@@ -593,7 +595,7 @@ export default function EspionHub() {
         <div className="mx-auto lg:mx-0"><Spy working={working} /></div>
         <div className="min-w-0">
           <p className="text-[12px] font-bold uppercase tracking-[.2em]" style={{ color: TEAL }}>Centre de renseignement</p>
-          <h1 className="font-black text-[44px] sm:text-[52px] leading-none tracking-tight mt-1" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>Concurrents</h1>
+          <h1 className={cx("font-black text-[44px] sm:text-[52px] leading-none tracking-tight mt-1", dansLieu && "sr-only")} style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>Concurrents</h1>
           <p className="text-ink-soft mt-2 text-[16px]">Elle surveille tes concurrents jour et nuit, et te dit comment les battre.</p>
           <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-line bg-paper/60 px-3 py-1.5 text-[13px]">
             <span className={cx("h-2 w-2 rounded-full", working ? "animate-pulse" : "")} style={{ background: working ? TEAL : "#1F7A4D" }} />

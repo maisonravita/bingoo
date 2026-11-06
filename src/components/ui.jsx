@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useState } from "react";
 import { cx } from "../lib/utils";
 import { useWs } from "../lib/ws";
 import { useQuota } from "../lib/quota";
+import { useDansLieu } from "../lib/lieu";
 
 /** Compteur « restant / maximum » des actions IA du jour, affiché dans le bouton. */
 function QuotaChip({ kind }) {
@@ -58,11 +59,12 @@ export const Input = ({ className, ...p }) => <input className={cx(inputCls, cla
 export const Textarea = ({ className, ...p }) => <textarea className={cx(inputCls, "resize-y leading-relaxed", className)} {...p} />;
 
 export function PageHead({ title, sub, children }) {
+  const dans = useDansLieu();
   return (
-    <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
+    <header className={dans ? "flex flex-wrap items-center justify-between gap-3 mb-4" : "flex flex-wrap items-end justify-between gap-3 mb-6"}>
       <div className="min-w-0">
-        <h1 className="font-serif text-[40px] leading-none tracking-tight">{title}</h1>
-        {sub && <p className="text-ink-soft mt-2">{sub}</p>}
+        {!dans && <h1 className="font-serif text-[40px] leading-none tracking-tight">{title}</h1>}
+        {sub && <p className={dans ? "text-ink-soft text-[14px]" : "text-ink-soft mt-2"}>{sub}</p>}
       </div>
       {children && <div className="flex flex-wrap gap-2">{children}</div>}
     </header>
