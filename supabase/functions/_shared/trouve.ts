@@ -82,7 +82,10 @@ export async function trouveEmail(ws: Workspace, p: Prospect, dry = false) {
   if (dry) return { email: "", decideur: `${officer.name}, ${officer.role}`, note: "dirigeant rapproché d'une fiche trouvé! (test sans clé)", keys: 0 };
   const u = await unlock(officer.ids, "work_email");
   const patch: Record<string, unknown> = { ...base };
-  if (!p.contact_name) Object.assign(patch, { contact_name: officer.name, contact_role: officer.role });
+  // L'e-mail appartient au dirigeant rapproché : la fiche prend son nom, même si un autre contact y figurait (jamais un e-mail sous le mauvais nom)
+  const autre = !!p.contact_name && norm(p.contact_name) !== norm(officer.name);
+  if (!p.contact_name || (u.value && autre)) Object.assign(patch, { contact_name: officer.name, contact_role: officer.role });
+  if (u.value && autre) patch.notes = `${p.notes ? `${p.notes}\n` : ""}Ancien contact : ${p.contact_name}${p.contact_role ? ` (${p.contact_role})` : ""}`.slice(0, 2000);
   if (u.value) {
     Object.assign(patch, { email: u.value, email_source: "trouvé! (e-mail pro vérifié)", enriched_at: now, channel: "email", status: ["sans_email", "nouveau"].includes(p.status) ? "pret" : p.status });
     await log(ws.id, "credit_email", `${p.name} : e-mail de ${officer.name} trouvé par trouvé!`);
@@ -98,7 +101,8 @@ export async function trouvePhone(ws: Workspace, p: Prospect) {
   const u = await unlock(officer.ids, "phone");
   const now = new Date().toISOString();
   const patch: Record<string, unknown> = {};
-  if (!p.contact_name) Object.assign(patch, { contact_name: officer.name, contact_role: officer.role });
+  const autre = !!p.contact_name && norm(p.contact_name) !== norm(officer.name);
+  if (!p.contact_name || (u.value && autre)) Object.assign(patch, { contact_name: officer.name, contact_role: officer.role });
   if (u.value) Object.assign(patch, { phone: u.value.slice(0, 30), phone_source: `trouvé! (${officer.name})`, phone_checked_at: now });
   if (Object.keys(patch).length) await admin.from("prospects").update(patch).eq("id", p.id);
   if (u.value) await log(ws.id, "credit_phone", `${p.name} : téléphone de ${officer.name} trouvé par trouvé!`).catch(() => {});
