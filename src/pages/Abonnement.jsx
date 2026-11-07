@@ -14,7 +14,7 @@ const FEATURES = {
 
 /** Prospects contactés ce mois-ci : le quota de la formule, le report, les recharges, et le bouton +100. */
 function Quota({ q, pack, payments, busy, onBuy }) {
-  if (!q) return null;
+  if (!q || q.total == null) return null;
   const pct = Math.min(100, Math.round((q.used / Math.max(1, q.total)) * 100));
   return (
     <Card id="quota" className={cx("p-5 sm:p-6 mb-6 scroll-mt-6", q.left <= 0 && "!border-accent ring-1 ring-accent")}>
@@ -31,8 +31,8 @@ function Quota({ q, pack, payments, busy, onBuy }) {
 /** Garantie premier rendez-vous, mois offerts, et lien de parrainage. */
 function Garantie({ g }) {
   const toast = useToast();
-  if (!g) return null;
-  const G = g.garantie ?? {}, lien = g.code ? `${window.location.origin}/?parrain=${g.code}` : "";
+  if (!g?.garantie) return null;
+  const G = g.garantie, lien = g.code ? `${window.location.origin}/?parrain=${g.code}` : "";
   const pct = G.requis ? Math.min(100, Math.round(((G.envoyes ?? 0) / G.requis) * 100)) : 0;
   const offerts = (g.perks ?? []).filter((p) => p.type === "mois_offert");
   return (
