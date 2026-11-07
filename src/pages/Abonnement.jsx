@@ -7,10 +7,11 @@ import { cx } from "../lib/utils";
 import { SubNav } from "../components/SubNav";
 
 const FEATURES = {
-  solo: ["1 utilisateur", "150 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Relances, Radar, Espion et LinkedIn inclus", "Prospects non utilisés reportés au mois suivant"],
-  pro: ["3 utilisateurs", "500 prospects contactés par mois", "Répartition des prospects entre commerciaux", "Tout ce qu'il y a dans Solo"],
-  equipe: ["10 utilisateurs", "1 000 prospects contactés par mois", "Tableau de bord par commercial", "Accompagnement au démarrage"],
+  solo: ["1 utilisateur", "100 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Demandes publiques avec réponse prête, chaque jour", "Radar et relances", "Prospects non utilisés reportés au mois suivant"],
+  pro: ["2 utilisateurs", "300 prospects contactés par mois", "Tout ce qu'il y a dans Solo", "Espion : tes concurrents surveillés", "LinkedIn par l'extension"],
+  equipe: ["5 utilisateurs", "700 prospects contactés par mois", "Tout ce qu'il y a dans Pro", "Répartition des prospects entre commerciaux", "Tableau de bord par commercial"],
 };
+const CONTACT = "bingoo@maisonravita.fr";
 
 /** Prospects contactés ce mois-ci : le quota de la formule, le report, les recharges, et le bouton +100. */
 function Quota({ q, pack, payments, busy, onBuy }) {
@@ -118,7 +119,8 @@ export default function Abonnement() {
   const [yearly, setYearly] = useState(false);
   useEffect(() => { supabase.rpc("ai_month", { p_ws: ws.id }).then(({ data }) => setAi(data ?? null)); }, [ws.id]);
   const [payments, setPayments] = useState(true);
-  useEffect(() => { fn("plans").then((r) => { setPlans(r.plans ?? []); setPacks(r.packs ?? []); setPPack(r.prospect_pack ?? null); setPayments(r.payments !== false); }).catch(() => {}); }, []);
+  const [fond, setFond] = useState(null);
+  useEffect(() => { fn("plans").then((r) => { setFond(r.fondateur ?? null); setPlans(r.plans ?? []); setPacks(r.packs ?? []); setPPack(r.prospect_pack ?? null); setPayments(r.payments !== false); }).catch(() => {}); }, []);
   useEffect(() => {
     const q = new URLSearchParams(loc.search);
     if (q.get("paiement") === "ok") { toast("Paiement confirmé, merci ! Ton abonnement s'active dans quelques secondes.", "good"); setTimeout(reload, 4000); }
@@ -161,15 +163,23 @@ export default function Abonnement() {
       <div className="mb-4 inline-flex rounded-full border border-line bg-white p-1 text-sm">
         {[[false, "Mensuel"], [true, "Annuel · −20 %"]].map(([v, l]) => <button key={l} onClick={() => setYearly(v)} className={cx("rounded-full px-4 py-1.5 font-medium transition", yearly === v ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
       </div>
-      <div className="grid md:grid-cols-3 gap-4">
+      {fond && (fond.left > 0 || ws.founder_price) && (
+        <Card className="p-4 sm:p-5 mb-4 border-accent/40 bg-accent-soft/40">
+          <p className="font-semibold">{ws.founder_price ? "Tu as le prix fondateur : Solo à 29 € à vie" : `Prix fondateur : Solo à ${fond.price} € à vie pour les ${fond.places} premiers`}</p>
+          {!ws.founder_price && <p className="text-sm text-ink-soft mt-1 tnum">{fond.taken} place{fond.taken > 1 ? "s" : ""} prise{fond.taken > 1 ? "s" : ""} sur {fond.places}. Ensuite, Solo passe à 39 €. Ceux qui sont entrés gardent leur prix tant que l'abonnement continue.</p>}
+        </Card>
+      )}
+      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
         {plans.map((p) => {
+          const fondateur = p.key === "solo" && fond && (ws.founder_price || fond.left > 0);
+          const prix = fondateur ? fond.price : p.price;
           const current = ws.plan === p.key && ["active", "trialing", "past_due"].includes(ws.plan_status);
           const featured = p.key === "pro";
           return (
             <Card key={p.key} className={cx("p-5 sm:p-6 flex flex-col min-w-0", featured && "!border-ink ring-1 ring-ink")}>
               <div className="flex items-center justify-between gap-2"><p className="font-semibold">{p.label}</p>{featured && <Badge tone="accent">Le plus choisi</Badge>}</div>
-              <p className="mt-3"><span className="font-serif text-5xl tnum">{yearly ? Math.round(p.price * 0.8) : p.price} €</span><span className="text-ink-soft text-sm"> HT / mois</span></p>
-              <p className="text-xs text-ink-faint mt-1">{yearly ? `soit ${Math.round(p.price * 12 * 0.8)} € HT par an, au lieu de ${p.price * 12} €` : "sans engagement"}</p>
+              <p className="mt-3">{fondateur && <span className="mr-2 text-ink-faint line-through text-2xl tnum">{yearly ? Math.round(p.price * 0.8) : p.price} €</span>}<span className="font-serif text-5xl tnum">{yearly ? Math.round(prix * 0.8) : prix} €</span><span className="text-ink-soft text-sm"> HT / mois</span></p>
+              <p className="text-xs text-ink-faint mt-1">{fondateur ? "prix fondateur, à vie" : ""}{fondateur && " · "}{yearly ? `soit ${Math.round(prix * 12 * 0.8)} € HT par an, au lieu de ${prix * 12} €` : "sans engagement"}</p>
               <ul className="mt-4 space-y-2 text-sm flex-1">{(FEATURES[p.key] ?? []).map((f) => <li key={f} className="flex gap-2"><span className="text-good">✓</span><span>{f}</span></li>)}</ul>
               <Button className="mt-6 w-full" variant={featured ? "primary" : "default"} disabled={current || ws.plan === "fondateur"} loading={busy === p.key} onClick={() => go("billing-checkout", p.key)}>
                 {current ? "Ta formule actuelle" : ws.stripe_subscription ? "Changer pour celle-ci" : "Choisir"}
@@ -177,6 +187,13 @@ export default function Abonnement() {
             </Card>
           );
         })}
+        <Card className="p-5 sm:p-6 flex flex-col min-w-0 bg-paper/50">
+          <p className="font-semibold">Entreprise</p>
+          <p className="mt-3"><span className="font-serif text-4xl">Sur devis</span></p>
+          <p className="text-xs text-ink-faint mt-1">au-delà de 5 commerciaux</p>
+          <ul className="mt-4 space-y-2 text-sm flex-1">{["Utilisateurs et volume sur mesure", "Tout ce qu'il y a dans Équipe", "Accompagnement au démarrage", "Facturation annuelle possible"].map((f) => <li key={f} className="flex gap-2"><span className="text-good">✓</span><span>{f}</span></li>)}</ul>
+          <a href={`mailto:${CONTACT}?subject=${encodeURIComponent("Bingoo! Entreprise : demande de devis")}`} className="mt-6 inline-flex justify-center rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold hover:border-ink-faint">Parler à l'équipe</a>
+        </Card>
       </div>
       <p className="text-xs text-ink-soft mt-4">Paiement sécurisé par Stripe. Facture avec TVA envoyée chaque mois. Code promo accepté à l'étape de paiement.</p>
     </div>

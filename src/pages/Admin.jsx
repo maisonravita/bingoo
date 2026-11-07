@@ -7,8 +7,8 @@ const eur = (x) => `${Number(x ?? 0).toLocaleString("fr-FR", { minimumFractionDi
 const when = (d) => (d ? new Date(d).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "jamais");
 const PLAN = { essai: "Essai", demarrage: "Démarrage", solo: "Solo", pro: "Pro", equipe: "Équipe", fondateur: "Fondateur" };
 
-const BUDGET = { essai: 4, solo: 11, pro: 24, equipe: 46, fondateur: 15 };
-const PRICE = { essai: 0, solo: 49, pro: 109, equipe: 159, fondateur: 0 };
+const BUDGET = { essai: 4, solo: 6, pro: 14, equipe: 24, fondateur: 15 };
+const PRICE = { essai: 0, solo: 39, pro: 69, equipe: 109, fondateur: 0 };
 /** Coût IA réel (mesuré à chaque appel) : par espace, budget, marge, fonctions les plus coûteuses. */
 function AiCosts({ rows }) {
   if (!rows) return null;

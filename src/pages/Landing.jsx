@@ -164,12 +164,12 @@ function SourcesRow() {
 
 /* ---------- Tarifs et questions ---------- */
 const PLANS = [
-  ["Solo", 49, "Pour un fondateur qui prospecte seul, 15 minutes par jour.", ["1 utilisateur", "150 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Demandes publiques avec réponse prête, chaque jour", "Relances, Radar, Espion et LinkedIn inclus"]],
-  ["Pro", 109, "Pour une startup ou une PME qui veut un flux régulier de rendez-vous.", ["3 utilisateurs", "500 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Demandes publiques avec réponse prête, chaque jour", "Répartition des prospects entre commerciaux"]],
-  ["Équipe", 159, "Pour plusieurs commerciaux sur le même marché.", ["10 utilisateurs", "1 000 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Relances, Radar, Espion et LinkedIn inclus", "Accompagnement au démarrage"]],
+  ["Solo", 39, "Pour un solo founder ou un petit SaaS qui démarre, 15 minutes par jour.", ["1 utilisateur", "100 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Demandes publiques avec réponse prête, chaque jour", "Radar et relances"]],
+  ["Pro", 69, "Pour le fondateur dont ça commence à marcher.", ["2 utilisateurs", "300 prospects contactés par mois", "Tout ce qu'il y a dans Solo", "Espion : tes concurrents surveillés", "LinkedIn par l'extension"]],
+  ["Équipe", 109, "Pour une startup ou une PME avec quelques commerciaux.", ["5 utilisateurs", "700 prospects contactés par mois", "Tout ce qu'il y a dans Pro", "Répartition des prospects entre commerciaux", "Tableau de bord par commercial"]],
 ];
 const FAQ = [
-  ["Et si je n'obtiens aucun résultat ?", "Pendant ton premier mois payant, si tu as laissé partir au moins 60 % des premiers messages de ta formule (90 sur Solo, 300 sur Pro, 600 sur Équipe) et que tu n'as obtenu ni rendez-vous ni réponse positive, ton premier mois t'est remboursé. Tu n'as rien à demander : Bingoo! le calcule et te prévient."],
+  ["Et si je n'obtiens aucun résultat ?", "Pendant ton premier mois payant, si tu as laissé partir au moins 60 % des premiers messages de ta formule (60 sur Solo, 180 sur Pro, 420 sur Équipe) et que tu n'as obtenu ni rendez-vous ni réponse positive, ton premier mois t'est remboursé. Tu n'as rien à demander : Bingoo! le calcule et te prévient."],
   ["Bingoo! envoie-t-il des messages sans mon accord ?", "Non. Par défaut, chaque message attend ta validation. Tu peux ensuite activer le pilote automatique, dans la limite d'envoi que tu fixes."],
   ["D'où viennent les informations ?", "De sources publiques et vérifiables : données de la commande publique, BOAMP, annonces légales (BODACC), registre national des entreprises, sites des entreprises. Chaque signal affiche sa source."],
   ["Et le RGPD ?", "Bingoo! travaille au niveau de l'entreprise et des fonctions qui décident. Les e-mails sont publiés ou vérifiés, jamais devinés, et chaque message permet de ne plus être contacté."],
@@ -186,6 +186,8 @@ export default function Landing() {
   useReveal();
   const tryState = useTry();
   const [yearly, setYearly] = useState(false);
+  const [fond, setFond] = useState(null);
+  useEffect(() => { call("founder-slots", {}).then(setFond).catch(() => setFond(null)); }, []);
   const go = () => nav("/connexion");
   return (
     <div className="min-h-full bg-[#FAF9F6] text-ink">
@@ -320,7 +322,7 @@ export default function Landing() {
         </section>
 
         {/* Tarifs */}
-        <section id="tarifs" className="max-w-6xl mx-auto px-4 sm:px-6 py-20 scroll-mt-24 border-t border-black/[.07]">
+        <section id="tarifs" className="max-w-[1280px] mx-auto px-4 sm:px-6 py-20 scroll-mt-24 border-t border-black/[.07]">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
             <div>
               <h2 className="text-[38px] sm:text-[54px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Moins cher qu'une journée de commercial.</h2>
@@ -331,27 +333,46 @@ export default function Landing() {
               <span className="absolute -top-3 -right-2 rounded-full bg-good text-white text-[11.5px] font-bold px-2 py-0.5">-20 %</span>
             </div>
           </div>
-          <div className="mt-12 grid md:grid-cols-3 gap-4 items-end">
-            {PLANS.map(([n, p, d, items], i) => {
+          {fond && fond.left > 0 && (
+            <div className="mt-8 rounded-2xl border-2 border-accent/40 bg-accent-soft/50 px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+              <p className="flex-1 text-[16px] text-ink"><b className="font-bold">Prix fondateur : Solo à {fond.price} € à vie</b> pour les {fond.places} premiers abonnés. Ensuite, Solo passe à 39 €.</p>
+              <div className="sm:w-56">
+                <p className="text-[13px] text-ink-soft tnum">{fond.taken} place{fond.taken > 1 ? "s" : ""} prise{fond.taken > 1 ? "s" : ""} sur {fond.places}</p>
+                <div className="mt-1 h-2 rounded-full bg-white overflow-hidden"><div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(3, (fond.taken / fond.places) * 100)}%` }} /></div>
+              </div>
+            </div>
+          )}
+          <div className="mt-8 grid md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+            {PLANS.map(([n, p0, d, items], i) => {
               const best = i === 1;
+              const fondateur = i === 0 && fond && fond.left > 0;
+              const p = fondateur ? fond.price : p0;
               const annuel = Math.round(p * 12 * 0.8); // même calcul que la facturation Stripe
               const price = yearly ? Math.round(annuel / 12) : p;
               return (
                 <div key={n} style={{ transitionDelay: `${i * 0.12}s` }} className={cx("reveal relative rounded-3xl p-7", best ? "bg-[#16171B] text-white md:pb-10 md:pt-10 shadow-[0_30px_60px_-30px_rgba(21,22,26,.6)]" : i === 0 ? "bg-white border border-line" : "bg-accent-soft/60 border border-accent/20")}>
                   {best && <span className="absolute -top-3.5 left-7 rounded-full bg-accent text-white text-[12.5px] font-bold px-3 py-1">Recommandé</span>}
                   <p className="font-bold text-[19px]">{n}</p>
-                  <p className="mt-4"><span className="font-black text-[52px] leading-none" style={SERIF}>{price} €</span><span className={cx("text-[14px] ml-1.5", best ? "text-white/60" : "text-ink-faint")}>/ mois</span></p>
-                  {yearly && <p className={cx("text-[13px] mt-1", best ? "text-white/60" : "text-ink-faint")}>facturé {annuel} € par an</p>}
+                  <p className="mt-4">{fondateur && <span className="mr-2 text-[22px] text-ink-faint line-through tnum">{yearly ? Math.round(p0 * 0.8) : p0} €</span>}<span className="font-black text-[52px] leading-none" style={SERIF}>{price} €</span><span className={cx("text-[14px] ml-1.5", best ? "text-white/60" : "text-ink-faint")}>/ mois</span></p>
+                  {(yearly || fondateur) && <p className={cx("text-[13px] mt-1", best ? "text-white/60" : "text-accent-dark font-semibold")}>{fondateur ? "prix fondateur, à vie" : ""}{fondateur && yearly ? " · " : ""}{yearly ? `facturé ${annuel} € par an` : ""}</p>}
                   <p className={cx("mt-4 text-[15px]", best ? "text-white/75" : "text-ink-soft")}>{d}</p>
                   <ul className="mt-5 space-y-2.5">{items.map((x) => <li key={x} className="flex items-center gap-2.5 text-[15px]"><Check className={cx("h-4 w-4 shrink-0", best ? "text-[#F6A06B]" : "text-accent")} />{x}</li>)}</ul>
                   <button onClick={go} className={cx("mt-7 w-full rounded-lg py-3.5 text-[16px] transition", best ? "bg-accent hover:bg-accent-dark text-white" : "bg-ink text-white hover:bg-black")}>Créer mon compte</button>
                 </div>
               );
             })}
+            <div className="reveal relative rounded-3xl p-7 bg-[#F6F5F3] border border-line" style={{ transitionDelay: ".36s" }}>
+              <p className="font-bold text-[19px]">Entreprise</p>
+              <p className="mt-4"><span className="font-black text-[40px] leading-none" style={SERIF}>Sur devis</span></p>
+              <p className="mt-4 text-[15px] text-ink-soft">Au-delà de 5 commerciaux, ou pour de gros volumes.</p>
+              <ul className="mt-5 space-y-2.5">{["Utilisateurs et volume sur mesure", "Tout ce qu'il y a dans Équipe", "Accompagnement au démarrage", "Facturation annuelle possible"].map((x) => <li key={x} className="flex items-center gap-2.5 text-[15px]"><Check className="h-4 w-4 shrink-0 text-accent" />{x}</li>)}</ul>
+              <a href={`mailto:bingoo@maisonravita.fr?subject=${encodeURIComponent("Bingoo! Entreprise : demande de devis")}`} className="mt-7 block w-full rounded-lg py-3.5 text-center text-[16px] border border-ink/80 hover:bg-black/[.04] transition">Parler à l'équipe</a>
+            </div>
           </div>
-          <div className="mt-8 mx-auto max-w-3xl rounded-3xl border-2 border-accent/30 bg-white px-6 py-5 text-center">
-            <p className="font-bold text-[18px] text-ink">Premier mois remboursé</p>
-            <p className="mt-1.5 text-[15px] text-ink-soft">Ni rendez-vous ni réponse positive pendant ton premier mois payant, alors que tu as laissé partir au moins 60 % des premiers messages de ta formule ? Ton premier mois t'est remboursé.</p>
+          {/* La garantie, juste sous les prix : c'est elle qui rend le prix sans risque */}
+          <div className="mt-5 rounded-2xl bg-white border border-line px-5 py-4 flex items-start gap-3">
+            <Check className="h-5 w-5 mt-0.5 shrink-0 text-good" />
+            <p className="text-[15.5px] text-ink"><b className="font-bold">Premier mois remboursé.</b> <span className="text-ink-soft">Ni rendez-vous ni réponse positive pendant ton premier mois payant, alors que tu as laissé partir au moins 60 % des premiers messages de ta formule ? Ton premier mois t'est remboursé, sans rien demander.</span></p>
           </div>
           <p className="mt-6 text-center text-[14px] text-ink-soft">Sans engagement : tu changes de formule ou tu arrêtes quand tu veux. Besoin de plus ? +100 prospects contactés pour 19 €, quand tu veux. Un prospect contacté = une entreprise qui reçoit un premier e-mail, avec son décideur trouvé et vérifié ; les relances ne comptent pas.</p>
         </section>

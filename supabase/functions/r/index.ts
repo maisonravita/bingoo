@@ -119,6 +119,8 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     await freeLimit(req, "signals", 10, 3000);
     return await freeSignals(b);
   },
+  // Accueil : places restantes au prix fondateur (compteur réel, sans connexion)
+  async "founder-slots"() { const { founderSlots } = await import("../_shared/growth.ts"); return await founderSlots(); },
   async "free-site"(req, b) {
     const { freeLimit, freeSite } = await import("../_shared/free-tools.ts");
     await freeLimit(req, "site", 3, 300, { visitor: "Tu as fait tes 3 essais du jour. Crée ton compte Bingoo! pour lancer le Radar sans limite." });

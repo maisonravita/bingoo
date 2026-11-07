@@ -474,7 +474,8 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
     return await sendMeetingFollowup(ws, String(b.meeting_id ?? ""), String(b.subject ?? ""), String(b.body ?? ""));
   },
   async plans() {
-    return { plans: plans(), packs: Object.entries(PACKS).filter(([, p]) => !p.prospects).map(([key, p]) => ({ key, label: p.label, price: p.price, work: p.work })), prospect_pack: { key: "p100", ...PACKS.p100 }, payments: !!Deno.env.get("STRIPE_SECRET_KEY") };
+    const { founderSlots } = await import("../_shared/growth.ts");
+    return { fondateur: await founderSlots().catch(() => null), plans: plans(), packs: Object.entries(PACKS).filter(([, p]) => !p.prospects).map(([key, p]) => ({ key, label: p.label, price: p.price, work: p.work })), prospect_pack: { key: "p100", ...PACKS.p100 }, payments: !!Deno.env.get("STRIPE_SECRET_KEY") };
   },
   async quota(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);

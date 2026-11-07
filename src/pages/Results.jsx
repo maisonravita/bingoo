@@ -11,7 +11,7 @@ import { KIND } from "./Radar";
 const pct = (a, b) => (b ? `${Math.round((a / b) * 100)} %` : "—");
 // Coût IA moyen estimé par action (en euros), pour calculer le coût d'acquisition
 const AI_COST = { analyse: 0.06, recherche: 0, enquete: 0.03, enquete_plus: 0.08, redaction: 0.01, linkedin: 0.03, analyse_prospect: 0.04, brief: 0.04, script: 0.01, veille: 0.25, reponse: 0.01, social: 0.25, lettre: 0.01, campagne: 0.02, credit_email: 0.09 };
-const PLAN_PRICE = { essai: 0, solo: 49, pro: 109, equipe: 159, fondateur: 0 };
+const PLAN_PRICE = { essai: 0, solo: 39, pro: 69, equipe: 109, fondateur: 0 };
 
 async function all(table, cols, ws) {
   const out = [];
@@ -29,7 +29,7 @@ function money(d, since, period, ws) {
   const signedHt = signed.reduce((s, q) => s + Number(q.total_ht || 0), 0);
   const pipeline = d.quotes.filter((q) => ["envoye", "vu"].includes(q.status)).reduce((s, q) => s + Number(q.total_ht || 0), 0);
   const ai = d.activity.filter((a) => inP(a.created_at)).reduce((s, a) => s + (AI_COST[a.kind] ?? 0), 0);
-  const sub = (PLAN_PRICE[ws.plan] ?? 0) * period / 30;
+  const sub = (ws.plan === "solo" && ws.founder_price ? 29 : PLAN_PRICE[ws.plan] ?? 0) * period / 30;
   const won = d.prospects.filter((p) => inP(p.won_at)).length;
   const minutes = (d.usage ?? []).filter((u) => inP(u.day)).reduce((s, u) => s + u.minutes, 0);
   const cost = ai + sub;

@@ -35,16 +35,19 @@ export function knowledgeOf(ws: { knowledge?: string }) {
 
 // ---------------------------------------------------------------- Abonnements
 // ai : budget IA mensuel en euros (coût réel pour Bingoo!), plafond du coût IA par client.
-// Prix placés sous les outils de référence (La Growth Machine, lemlist, Waalaxy Business) ; annuel : −20 %.
+// Grille du 8 nov. 2026 : Solo 39 € (29 € à vie pour les 50 premiers, voir FOUNDER), Pro 69 €, Équipe 109 €, Entreprise sur devis ; annuel : −20 %.
+// Plafonds IA réglés pour garder au moins ~50 % de marge brute même quand le client consomme tout son quota.
 // Grille par quota (business plan du 6 nov. 2026) : quota = prospects contactés par mois (premier e-mail parti, contact trouvé et vérifié).
 // Relances, Radar et Espion restent compris dans la limite IA. credits = recherches vérifiées d'e-mails (comptées seulement si trouvé).
 export const PLANS: Record<string, { label: string; price: number; factor: number; seats: number; credits: number; ai: number; quota: number }> = {
   essai: { label: "Aperçu gratuit", price: 0, factor: 0.5, seats: 1, credits: 15, ai: 2, quota: 20 },
-  solo: { label: "Solo", price: 49, factor: 1, seats: 1, credits: 200, ai: 11, quota: 150 },
-  pro: { label: "Pro", price: 109, factor: 2, seats: 3, credits: 650, ai: 24, quota: 500 },
-  equipe: { label: "Équipe", price: 159, factor: 4, seats: 10, credits: 1300, ai: 46, quota: 1000 },
+  solo: { label: "Solo", price: 39, factor: 1, seats: 1, credits: 140, ai: 6, quota: 100 },
+  pro: { label: "Pro", price: 69, factor: 2, seats: 2, credits: 420, ai: 14, quota: 300 },
+  equipe: { label: "Équipe", price: 109, factor: 4, seats: 5, credits: 1000, ai: 24, quota: 700 },
   fondateur: { label: "Fondateur", price: 0, factor: 1, seats: 50, credits: 5000, ai: 15, quota: 5000 },
 };
+/** Prix fondateur : les 50 premiers abonnés Solo paient 29 € à vie. */
+export const FOUNDER = { plan: "solo", price: 29, places: 50 };
 type PlanFields = { plan?: string; plan_status?: string; trial_ends?: string | null };
 /** Bloque les actions payantes quand l'essai est fini ou que l'abonnement n'est plus réglé. */
 export function assertPlan(ws: PlanFields) {

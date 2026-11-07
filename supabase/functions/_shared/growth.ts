@@ -380,6 +380,13 @@ export function plans() {
 }
 
 export const ANNUAL_OFF = 0.2;
+/** Places au prix fondateur déjà prises (abonnements Solo activés à ce prix). */
+export async function founderSlots() {
+  const { FOUNDER } = await import("./core.ts");
+  const { count } = await admin.from("workspaces").select("id", { count: "exact", head: true }).eq("founder_price", true);
+  const taken = count ?? 0;
+  return { price: FOUNDER.price, places: FOUNDER.places, taken, left: Math.max(0, FOUNDER.places - taken) };
+}
 export async function checkout(ws: Workspace, userId: string, planKey: string, yearly = false) {
   await requireAdmin(ws.id, userId);
   const p = PLANS[planKey];
@@ -392,15 +399,19 @@ export async function checkout(ws: Workspace, userId: string, planKey: string, y
     await admin.from("workspaces").update({ stripe_customer: customer }).eq("id", ws.id);
   }
   if (ws.stripe_subscription && ["active", "trialing", "past_due"].includes(ws.plan_status)) return await portal(ws, userId);
+  // Prix fondateur : Solo à 29 € à vie tant qu'il reste des places (vérifié au paiement, pas seulement à l'affichage)
+  const { FOUNDER } = await import("./core.ts");
+  const fondateur = planKey === FOUNDER.plan && ((ws as { founder_price?: boolean }).founder_price || (await founderSlots()).left > 0);
+  const mensuel = fondateur ? FOUNDER.price : p.price;
   const s = await stripe("/checkout/sessions", {
     mode: "subscription", customer, locale: "fr",
     "line_items[0][quantity]": "1",
     "line_items[0][price_data][currency]": "eur",
-    "line_items[0][price_data][unit_amount]": String(yearly ? Math.round(p.price * 12 * (1 - ANNUAL_OFF)) * 100 : p.price * 100),
+    "line_items[0][price_data][unit_amount]": String(yearly ? Math.round(mensuel * 12 * (1 - ANNUAL_OFF)) * 100 : mensuel * 100),
     "line_items[0][price_data][recurring][interval]": yearly ? "year" : "month",
-    "line_items[0][price_data][product_data][name]": `Bingoo! ${p.label}${yearly ? " (annuel)" : ""}`,
+    "line_items[0][price_data][product_data][name]": `Bingoo! ${p.label}${fondateur ? " (prix fondateur, à vie)" : ""}${yearly ? " (annuel)" : ""}`,
     "line_items[0][price_data][tax_behavior]": "exclusive",
-    "metadata[workspace_id]": ws.id, "metadata[plan]": planKey, "metadata[periode]": yearly ? "annuel" : "mensuel",
+    "metadata[workspace_id]": ws.id, "metadata[plan]": planKey, "metadata[periode]": yearly ? "annuel" : "mensuel", "metadata[fondateur]": fondateur ? "1" : "0",
     "subscription_data[metadata][workspace_id]": ws.id, "subscription_data[metadata][plan]": planKey,
     allow_promotion_codes: "true", billing_address_collection: "required",
     "tax_id_collection[enabled]": "true", "customer_update[name]": "auto", "customer_update[address]": "auto",
@@ -480,11 +491,11 @@ export async function stripeWebhook(req: Request) {
     const paid = o.payment_status === "paid" || o.payment_status === "no_payment_required";
     const plan = PLANS[String(o.metadata?.plan ?? "")] && !["essai", "fondateur"].includes(String(o.metadata?.plan)) ? String(o.metadata.plan) : "solo";
     if (!paid) {
-      await admin.from("workspaces").update({ plan, plan_status: "incomplete", stripe_subscription: String(o.subscription ?? ""), stripe_customer: String(o.customer ?? "") }).eq("id", id).neq("plan", "fondateur");
+      await admin.from("workspaces").update({ plan, plan_status: "incomplete", stripe_subscription: String(o.subscription ?? ""), stripe_customer: String(o.customer ?? ""), ...(o.metadata?.fondateur === "1" ? { founder_price: true } : {}) }).eq("id", id).neq("plan", "fondateur");
       await log(id, "abonnement", "Paiement en cours de validation : l'abonnement démarre dès qu'il est confirmé");
       return { ok: true, pending: true };
     }
-    await admin.from("workspaces").update({ plan, plan_status: "active", stripe_subscription: String(o.subscription ?? ""), stripe_customer: String(o.customer ?? ""), trial_ends: null }).eq("id", id);
+    await admin.from("workspaces").update({ plan, plan_status: "active", stripe_subscription: String(o.subscription ?? ""), stripe_customer: String(o.customer ?? ""), trial_ends: null, ...(o.metadata?.fondateur === "1" ? { founder_price: true } : {}) }).eq("id", id);
     await log(id, "abonnement", `Abonnement ${PLANS[o.metadata?.plan]?.label ?? ""} activé`);
   } else if (ev.type.startsWith("customer.subscription.")) {
     const status = ev.type === "customer.subscription.deleted" ? "canceled" : String(o.status ?? "active");
