@@ -1,4 +1,4 @@
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import Guide from "../components/Guide";
 import { useCallback, useEffect, useState } from "react";
 import { fn, supabase } from "../lib/supabase";
@@ -193,7 +193,7 @@ export default function Replies() {
       <div className="flex gap-2 mb-5 overflow-x-auto -mx-1 px-1">
         {[["todo", "À traiter"], ["all", "Toutes"], ["sent", "Envoyés"]].map(([k, l]) => <button key={k} onClick={() => setTab(k)} className={cx("shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium border whitespace-nowrap", tab === k ? "bg-ink text-white border-ink" : "bg-white border-line")}>{l}</button>)}
       </div>
-      {tab === "sent" ? <Envoyes /> : !rows ? <Spinner /> : rows.length === 0 ? <Empty title={tab === "todo" ? "Rien à traiter." : "Aucune réponse pour l'instant."}>Les réponses de tes prospects apparaîtront ici.</Empty> : (
+      {tab === "sent" ? <Envoyes /> : !rows ? <Spinner /> : rows.length === 0 ? <Empty title={tab === "todo" ? "Rien à traiter." : "Aucune réponse pour l'instant."}>Les réponses de tes prospects apparaîtront ici, en général 1 à 3 jours après l'envoi.<div className="mt-4"><Link to="/valider"><Button variant="accent">Messages à envoyer</Button></Link></div></Empty> : (
         <div className="grid gap-4 max-w-3xl">{[...rows].sort((a, b) => (b.id === focus) - (a.id === focus)).map((r) => <div key={r.id} className={r.id === focus ? "rounded-3xl ring-2 ring-accent ring-offset-2" : ""}><ReplyCard r={r} onChange={load} /></div>)}</div>
       )}
       {/* Une réponse arrivée ailleurs (autre boîte, téléphone) : on peut la coller ici, en bas de page */}

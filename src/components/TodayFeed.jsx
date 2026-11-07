@@ -46,11 +46,14 @@ function DraftCard({ m, canSend, onDone }) {
     } catch (e) { toast(e.message, "bad"); lock.current = false; } finally { setBusy(""); }
   };
   const skip = async () => {
+    if (busy) return;
     setBusy("skip");
     const avant = p.status;
-    await supabase.from("messages").update({ status: "ignore" }).eq("id", m.id);
-    if (m.step === 0) await supabase.from("prospects").update({ status: "ignore" }).eq("id", m.prospect_id);
-    setBusy(""); onDone(m.id);
+    const { error } = await supabase.from("messages").update({ status: "ignore" }).eq("id", m.id);
+    if (!error && m.step === 0) await supabase.from("prospects").update({ status: "ignore" }).eq("id", m.prospect_id);
+    setBusy("");
+    if (error) return toast("Échec, réessaie", "bad");
+    onDone(m.id);
     toast(`${p.name || "Prospect"} écarté`, "default", { label: "Annuler", run: async () => {
       await supabase.from("messages").update({ status: "brouillon" }).eq("id", m.id).eq("status", "ignore");
       if (m.step === 0 && avant) await supabase.from("prospects").update({ status: avant }).eq("id", m.prospect_id).eq("status", "ignore");
@@ -70,7 +73,7 @@ function DraftCard({ m, canSend, onDone }) {
         <p className={cx("mt-1 text-[14px] text-ink-soft whitespace-pre-line", !open && "line-clamp-3")}>{m.body}</p>
         {!open && <span className="mt-1 inline-block text-[12.5px] text-ink-faint">Lire tout le message</span>}
       </button>
-      <div className="mt-4 grid grid-cols-3 sm:flex sm:flex-wrap gap-2 [&>*]:w-full sm:[&>*]:w-auto [&_button]:w-full sm:[&_button]:w-auto">
+      <div className="mt-4 grid grid-cols-1 min-[420px]:grid-cols-3 sm:flex sm:flex-wrap gap-2 [&>*]:w-full sm:[&>*]:w-auto [&_button]:w-full sm:[&_button]:w-auto">
         <Button variant="primary" loading={busy === "send"} disabled={!!busy} onClick={send}>Envoyer</Button>
         <Link to={`/valider?id=${m.id}`}><Button variant="ghost" disabled={!!busy}>Modifier</Button></Link>
         <Button variant="ghost" loading={busy === "skip"} disabled={!!busy} onClick={skip}>Pas pour moi</Button>
@@ -121,7 +124,7 @@ export default function TodayFeed() {
     const head = (t) => supabase.from(t).select("id", { count: "exact", head: true }).eq("workspace_id", ws.id);
     const [rep, meet, dr, nDr, o24, c24, m24] = await Promise.all([
       supabase.from("replies").select("*, prospects(name, activity, phone, email)").eq("workspace_id", ws.id).eq("handled", false).order("created_at", { ascending: false }).limit(1),
-      supabase.from("meetings").select("id, company, starts_at").eq("workspace_id", ws.id).eq("status", "confirme").gte("starts_at", t0.toISOString()).lt("starts_at", new Date(t0.getTime() + 864e5).toISOString()).order("starts_at"),
+      supabase.from("meetings").select("id, company, starts_at, brief").eq("workspace_id", ws.id).eq("status", "confirme").gte("starts_at", t0.toISOString()).lt("starts_at", new Date(t0.getTime() + 864e5).toISOString()).order("starts_at"),
       supabase.from("messages").select("id, step, subject, body, prospect_id, prospects(name, city, contact_name, contact_role, email, signals, status)").eq("workspace_id", ws.id).eq("status", "brouillon").order("step", { ascending: false }).order("created_at").limit(3),
       supabase.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "brouillon"),
       head("radar_opps").gte("created_at", since), head("prospects").gte("enriched_at", since).neq("email", ""), head("messages").gte("created_at", since),
@@ -145,12 +148,12 @@ export default function TodayFeed() {
       )}
 
       {d.meetings.length > 0 && (
-        <Section title="Tes rendez-vous du jour" count={d.meetings.length} to="/agenda" more="Agenda">
+        <Section title="Tes rendez-vous du jour" count={d.meetings.length} to="/agenda" more="Rendez-vous">
           <div className="grid gap-2">
             {d.meetings.map((m) => (
               <Link key={m.id} to="/agenda" className="flex items-center gap-4 rounded-2xl border border-line bg-white px-5 py-4 hover:border-ink/30 transition">
                 <span className="text-[20px] font-semibold tnum">{new Date(m.starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
-                <span className="min-w-0"><span className="block font-medium truncate">{m.company}</span><span className="block text-[13px] text-ink-soft">Fiche de préparation prête</span></span>
+                <span className="min-w-0"><span className="block font-medium truncate">{m.company}</span><span className="block text-[13px] text-ink-soft">{m.brief ? "Fiche de préparation prête" : "Préparer la fiche avant le rendez-vous"}</span></span>
               </Link>
             ))}
           </div>

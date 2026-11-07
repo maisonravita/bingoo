@@ -44,7 +44,9 @@ export default function Review() {
     const avant = orig.current[cur.id];
     const change = avant && avant.trim() !== (cur.body ?? "").trim();
     // Message relu et corrigé par le client : le doute sur les faits est levé (c'est lui qui valide)
-    await supabase.from("messages").update({ subject: cur.subject, body: cur.body, ...(change ? { check_note: "", edited: true } : {}) }).eq("id", cur.id);
+    const { error } = await supabase.from("messages").update({ subject: cur.subject, body: cur.body, ...(change ? { check_note: "", edited: true } : {}) }).eq("id", cur.id);
+    // Jamais d'envoi de l'ancienne version si l'enregistrement de la correction a échoué
+    if (error) throw new Error("Ta modification n'a pas pu être enregistrée. Réessaie.");
     if (change && cur.check_note) setQueue((q) => [{ ...q[0], check_note: "" }, ...q.slice(1)]);
     if (avant && avant.trim() !== (cur.body ?? "").trim()) { orig.current[cur.id] = cur.body; fn("r/style-learn", { workspace_id: ws.id, before: avant, after: cur.body }).catch(() => {}); }
   };
@@ -57,8 +59,8 @@ export default function Review() {
   };
   const send = async () => {
     if (!cur || busy || lock.current) return;
-    lock.current = true;
     if (!domainOk) return toast("Connecte d'abord ta boîte mail (Connexions) ou ton domaine d'envoi (Réglages)", "bad");
+    lock.current = true;
     setBusy("send");
     try {
       if (edit) await save();
@@ -72,9 +74,10 @@ export default function Review() {
     if (!cur || busy) return;
     setBusy("skip");
     const m = cur, avant = cur.prospects?.status;
-    await supabase.from("messages").update({ status: "ignore" }).eq("id", m.id);
-    if (m.step === 0) await supabase.from("prospects").update({ status: "ignore" }).eq("id", m.prospect_id);
+    const { error } = await supabase.from("messages").update({ status: "ignore" }).eq("id", m.id);
+    if (!error && m.step === 0) await supabase.from("prospects").update({ status: "ignore" }).eq("id", m.prospect_id);
     setBusy(null);
+    if (error) { setDx(0); return toast("Échec, réessaie", "bad"); }
     animateOut(-1, next);
     toast(`${m.prospects?.name || "Prospect"} écarté`, "default", { label: "Annuler", run: async () => {
       await supabase.from("messages").update({ status: "brouillon" }).eq("id", m.id).eq("status", "ignore");
@@ -83,10 +86,12 @@ export default function Review() {
     } });
   };
   const replied = async () => {
+    if (!cur || busy) return;
     setBusy("replied");
-    await supabase.from("messages").update({ status: "ignore" }).eq("id", cur.id);
-    await supabase.from("prospects").update({ status: "repondu" }).eq("id", cur.prospect_id);
+    const { error } = await supabase.from("messages").update({ status: "ignore" }).eq("id", cur.id);
+    const { error: e2 } = error ? { error } : await supabase.from("prospects").update({ status: "repondu" }).eq("id", cur.prospect_id);
     setBusy(null);
+    if (error || e2) return toast("Échec, réessaie", "bad");
     toast("Noté : il a répondu. Pas de relance.", "good");
     animateOut(-1, next);
   };
@@ -104,7 +109,7 @@ export default function Review() {
       if (!cur || e.metaKey && !edit || e.altKey) return;
       if (edit) {
         if (e.key === "Escape") { e.preventDefault(); setEdit(false); }
-        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); save().then(() => { setEdit(false); toast("Modifications enregistrées"); }); }
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); save().then(() => { setEdit(false); toast("Modifications enregistrées"); }, (err) => toast(err.message, "bad")); }
         return;
       }
       if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName) || e.ctrlKey || e.repeat || busy) return;
@@ -131,7 +136,8 @@ export default function Review() {
   if (!cur) return (
     <>
       <PageHead title="Messages à envoyer" />
-      <Empty title="Aucune opportunité à traiter.">Bingoo! n'écrit que lorsqu'une entreprise a un fait récent et vérifié. Les prochaines arrivent ici d'elles-mêmes.</Empty>
+      <Empty title="Aucun message à envoyer pour l'instant.">Bingoo! n'écrit que lorsqu'une entreprise a un fait récent et une adresse vérifiée. Les prochains arrivent ici d'eux-mêmes.
+        <div className="mt-4 flex flex-wrap justify-center gap-2"><Link to="/radar"><Button variant="accent">Voir les opportunités</Button></Link><Link to="/reponses"><Button variant="ghost">Mes réponses</Button></Link></div></Empty>
     </>
   );
   const p = cur.prospects ?? {};
@@ -176,7 +182,7 @@ export default function Review() {
                 <Input value={cur.subject} onChange={(e) => setQueue((q) => [{ ...cur, subject: e.target.value }, ...q.slice(1)])} />
                 <Textarea rows={11} value={cur.body} onChange={(e) => setQueue((q) => [{ ...cur, body: e.target.value }, ...q.slice(1)])} />
                 <div className="flex gap-2">
-                  <Button size="sm" variant="primary" onClick={async () => { await save(); setEdit(false); toast("Modifications enregistrées"); }}>Enregistrer</Button>
+                  <Button size="sm" variant="primary" onClick={async () => { try { await save(); setEdit(false); toast("Modifications enregistrées"); } catch (err) { toast(err.message, "bad"); } }}>Enregistrer</Button>
                   <Button size="sm" variant="ghost" onClick={() => setEdit(false)}>Fermer</Button>
                 </div>
               </div>

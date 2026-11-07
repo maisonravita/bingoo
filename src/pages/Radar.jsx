@@ -274,7 +274,7 @@ function ContactReady({ o, onChange }) {
             <p className="whitespace-pre-line mt-2">{m.body}</p>
           </div>
           <div className="flex flex-wrap gap-2 mt-3">
-            {m.status === "brouillon" && <Button size="sm" variant="accent" onClick={() => nav("/valider")}>Relire et envoyer</Button>}
+            {m.status === "brouillon" && <Button size="sm" variant="accent" onClick={() => nav(`/valider?voir=${m.id}`)}>Relire et envoyer</Button>}
             {m.status !== "brouillon" && <span className="text-xs text-white/70 self-center">Message {m.status === "envoye" ? "déjà envoyé" : m.status}</span>}
             <Button size="sm" onClick={() => copy(`${m.subject}\n\n${m.body}`)}>Copier le message</Button>
           </div>
@@ -457,7 +457,7 @@ function Detail({ o, onClose, onChange }) {
           {o.kind === "appel_offres"
             ? <a href={o.url} target="_blank" rel="noreferrer"><Button variant="accent" className="w-full">Lire l'avis complet</Button></a>
             : o.kind === "besoin" ? <a href={o.url} target="_blank" rel="noreferrer"><Button variant="accent" className="w-full">Ouvrir la demande</Button></a>
-            : o.prospect_id ? <Button className="w-full" onClick={() => nav("/prospects")}>Voir dans mes prospects</Button> : null}
+            : o.prospect_id ? <Button className="w-full" onClick={() => nav(`/prospects?id=${o.prospect_id}`)}>Voir dans mes entreprises</Button> : null}
           {o.status !== "suivi" && o.kind === "appel_offres" && <Button variant="ghost" className="w-full" loading={busy === "suivi"} onClick={() => set("suivi")}>Suivre cet appel d'offres</Button>}
           {o.status !== "ecarte" && <div className="grid grid-cols-2 gap-2">
             <Button variant="ghost" className="w-full" loading={busy === "pas_pertinent"} onClick={() => set("ecarte", "pas_pertinent")}>Pas pertinent</Button>
@@ -1461,7 +1461,7 @@ export default function Radar() {
         <Pill on={live}>{live ? "Radar en cours" : lastAt ? `Dernier scan ${ago(lastAt)}` : "Jamais lancé"}</Pill>
       </div>
 
-<Guide id="radar" titre="Ici : les entreprises à contacter au bon moment (création, recrutement, nouveau dirigeant, contrat qui se termine…)." etapes={["Parcours la liste : chaque entreprise dit pourquoi c'est le bon moment.", "Clique « Ajouter » sur celles qui t'intéressent.", "Bingoo! trouve le décideur, écrit le message, et te le propose dans « À faire »."]} />
+<Guide id="radar" titre="Ici : les entreprises à contacter au bon moment (création, recrutement, nouveau dirigeant, contrat qui se termine…)." etapes={["Parcours la liste : chaque entreprise dit pourquoi c'est le bon moment.", "Clique « Préparer le message » sur celles qui t'intéressent.", "Bingoo! trouve le décideur, écrit le message, et te le propose dans « Messages à envoyer »."]} />
       <HomeView ws={ws} list={list} loaded={!!rows} live={live} onScan={scan} onOpen={setOpen} onChange={load} />
       <button onClick={() => toggleExplore(!explore)} className="w-full rounded-2xl border border-line bg-white hover:border-ink-faint px-5 py-3.5 flex items-center justify-between gap-3 text-left transition">
         <span><span className="block font-semibold text-[15px]">{explore ? "Masquer les options" : "Plus d'options"}</span><span className="block text-[12.5px] text-ink-faint">Toutes les opportunités, comptes surveillés, partenaires, réglages du Radar</span></span>

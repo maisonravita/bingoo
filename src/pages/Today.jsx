@@ -78,7 +78,7 @@ function Detected({ rows, onPrepared }) {
         <h2 className="flex items-center gap-2.5 font-bold text-[16px] uppercase tracking-wide"><Ico n="target" className="w-6 h-6 text-accent" />Tes 3 entreprises à contacter aujourd'hui</h2>
         <Link to="/radar" className="text-[13px] text-ink-soft hover:text-ink inline-flex items-center gap-1">Voir toutes les opportunités<Ico n="arrow" className="w-3.5 h-3.5" /></Link>
       </div>
-      {!rows.length ? <div className="py-6 text-center"><p className="text-sm text-ink-soft">Rien de nouveau pour l'instant : Max relance le Radar chaque matin de semaine.</p><Link to="/radar" className="mt-3 inline-block text-sm font-semibold text-accent-dark hover:underline">Ouvrir le Radar →</Link></div> : (
+      {!rows.length ? <div className="py-6 text-center"><p className="text-sm text-ink-soft">Rien de nouveau pour l'instant : Max cherche de nouvelles opportunités chaque matin de semaine.</p><Link to="/radar" className="mt-3 inline-block text-sm font-semibold text-accent-dark hover:underline">Voir les opportunités →</Link></div> : (
         <ul className="space-y-2">
           {rows.map((o) => (
             <li key={o.id} className="rounded-xl border border-line px-3 sm:px-4 py-3 flex items-center gap-3 hover:border-ink/20 transition">
@@ -118,7 +118,7 @@ function Urgent({ u }) {
     <section className="mb-6 rounded-2xl bg-ink text-white p-4 sm:p-5">
       <p className="font-bold flex items-center gap-2"><Ico n="bolt" className="w-5 h-5 text-accent" fill />À ne pas laisser filer aujourd'hui</p>
       <ul className="mt-2 divide-y divide-white/10 text-[14px]">
-        {u.meet.map((m) => <li key={m.id} className="py-2 flex gap-3"><span className="flex-1"><b>RDV à {new Date(m.starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</b> · {m.company}, Paul a préparé la fiche</span><Link to="/agenda" className="text-accent font-semibold">Préparer</Link></li>)}
+        {u.meet.map((m) => <li key={m.id} className="py-2 flex gap-3"><span className="flex-1"><b>RDV à {new Date(m.starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</b> · {m.company}{m.brief ? ", Paul a préparé la fiche" : ""}</span><Link to="/agenda" className="text-accent font-semibold">Préparer</Link></li>)}
         {u.quotes.map((q) => <li key={q.id} className="py-2 flex gap-3"><span className="flex-1"><b>{q.prospects?.name}</b> · devis {q.number} {q.status === "vu" ? "ouvert" : "envoyé"} il y a {late(q.sent_at)} jours, sans signature</span><Link to="/devis" className="text-accent font-semibold">Relancer</Link></li>)}
         {u.due.map((p) => <li key={p.id} className="py-2 flex gap-3"><span className="flex-1"><b>{p.name}</b> · {p.next_action || "À suivre"}{late(p.next_action_at) > 0 ? <span className="text-white/60"> · en retard de {late(p.next_action_at)} j</span> : ""}</span>{p.phone ? <a href={`tel:${p.phone.replace(/\s/g, "")}`} className="text-accent font-semibold">Appeler</a> : <Link to="/prospects" className="text-accent font-semibold">Ouvrir</Link>}</li>)}
       </ul>
@@ -130,7 +130,7 @@ function Urgent({ u }) {
 /** Tes contacts : décideurs trouvés, e-mails, téléphones, réponses et rendez-vous (chiffres réels, jamais d'exemple). */
 // Adresses génériques (contact@, info@, sales@…) : utiles, mais ce ne sont pas des décideurs
 function Contacts({ s }) {
-  const T = [["Décideurs trouvés", s.dec, "/prospects"], ["E-mails directs", s.mailDirect ?? s.mail, "/prospects", s.mail > (s.mailDirect ?? s.mail) ? `+ ${s.mail - s.mailDirect} adresse${s.mail - s.mailDirect > 1 ? "s" : ""} générique${s.mail - s.mailDirect > 1 ? "s" : ""}` : ""], ["Téléphones", s.tel, "/prospects"], ["Réponses", s.replied, "/reponses"], ["Rendez-vous", s.rdv, "/agenda"]];
+  const T = [["Décideurs trouvés", s.dec, "/prospects"], ["E-mails directs", s.mailDirect ?? s.mail, "/prospects", s.mail > (s.mailDirect ?? s.mail) ? `+ ${s.mail - s.mailDirect} adresse${s.mail - s.mailDirect > 1 ? "s" : ""} générique${s.mail - s.mailDirect > 1 ? "s" : ""}` : ""], ["Téléphones", s.tel, "/prospects"], ["Ont répondu", s.replied, "/reponses"], ["Rendez-vous obtenus", s.rdv, "/agenda"]];
   return (
     <section aria-label="Tes contacts" className="mb-6 grid grid-cols-2 sm:grid-cols-5 gap-2.5">
       {T.map(([l, v, to, sub], i) => (
@@ -328,7 +328,7 @@ function Prochaine({ n }) {
       <h2 className="mt-1 text-[24px] font-black leading-tight" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{m.prospects.name}</h2>
       <div className="mt-3"><Opportunite p={m.prospects} /></div>
       {debut && <p className="mt-3 text-[14.5px] text-ink-soft line-clamp-2"><span className="font-semibold text-ink">Le message : </span>{debut}</p>}
-      <Link to="/valider" className="mt-4 flex items-center justify-center rounded-2xl bg-accent px-5 py-3 text-[16px] font-bold text-white hover:brightness-105">Lire et envoyer</Link>
+      <Link to={`/valider?voir=${m.id}`} className="mt-4 flex items-center justify-center rounded-2xl bg-accent px-5 py-3 text-[16px] font-bold text-white hover:brightness-105">Lire et envoyer</Link>
     </section>
   );
 }
@@ -428,7 +428,7 @@ export default function Today() {
       supabase.from("radar_opps").select("id, kind, company, summary, city, url, created_at, score, prospect_id, raw, status").eq("workspace_id", ws.id).in("status", ["nouveau", "ajoute"]).neq("kind", "difficulte").order("score", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(12),
       supabase.from("prospects").select("id, name, next_action, next_action_at, phone").eq("workspace_id", ws.id).lte("next_action_at", today).not("status", "in", "(ignore,refus)").order("next_action_at").limit(5),
       supabase.from("quotes").select("id, number, sent_at, status, prospects(name)").eq("workspace_id", ws.id).in("status", ["envoye", "vu"]).lt("sent_at", old).limit(3),
-      supabase.from("meetings").select("id, company, starts_at").eq("workspace_id", ws.id).eq("status", "confirme").gte("starts_at", t0.toISOString()).lt("starts_at", new Date(t0.getTime() + 864e5).toISOString()).order("starts_at"),
+      supabase.from("meetings").select("id, company, starts_at, brief").eq("workspace_id", ws.id).eq("status", "confirme").gte("starts_at", t0.toISOString()).lt("starts_at", new Date(t0.getTime() + 864e5).toISOString()).order("starts_at"),
       // Appels prévus : sans réponse après les relances, ou rappels notés après un appel
       supabase.from("prospects").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).lte("next_action_at", today).ilike("next_action", "%appeler%").not("status", "in", "(ignore,refus,client,rdv)"),
     ]);

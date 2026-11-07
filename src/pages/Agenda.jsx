@@ -70,7 +70,10 @@ function Meeting({ m, onChange }) {
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
   const setStatus = async (status) => {
-    await supabase.from("meetings").update({ status }).eq("id", m.id);
+    // Annuler un rendez-vous à venir : confirmation, c'est le résultat le plus précieux de tout le parcours
+    if (status === "annule" && !window.confirm(`Annuler le rendez-vous avec ${m.company} ?`)) return;
+    const { error } = await supabase.from("meetings").update({ status }).eq("id", m.id);
+    if (error) return toast("Échec, réessaie", "bad");
     if (m.prospect_id && status === "qualifie") await supabase.from("prospects").update({ next_action: "Envoyer le devis", next_action_at: new Date().toISOString().slice(0, 10) }).eq("id", m.prospect_id);
     onChange();
   };
@@ -118,21 +121,24 @@ function AddMeeting({ onDone }) {
   const [date, setDate] = useState("");
   const [time, setTime] = useState("10:00");
   const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
   const save = async () => {
+    if (busy) return;
     if (!p || !date) return toast("Choisis un prospect et une date", "bad");
+    setBusy(true);
     const start = new Date(`${date}T${time}`);
     const { error } = await supabase.from("meetings").insert({ workspace_id: ws.id, prospect_id: p.id, starts_at: start.toISOString(), ends_at: new Date(start.getTime() + ws.meeting_minutes * 60000).toISOString(), company: p.name, contact_name: p.contact_name, contact_email: p.email, contact_phone: p.phone, notes, booked_by: "manuel" });
-    if (error) return toast(error.code === "23P01" ? "Tu as déjà un RDV sur ce créneau" : error.message, "bad");
+    if (error) { setBusy(false); return toast(error.code === "23P01" ? "Tu as déjà un rendez-vous sur ce créneau" : "Le rendez-vous n'a pas pu être ajouté. Réessaie.", "bad"); }
     await supabase.from("prospects").update({ status: p.status === "client" ? "client" : "rdv" }).eq("id", p.id);
     await supabase.from("messages").update({ status: "ignore" }).eq("prospect_id", p.id).eq("status", "brouillon");
-    toast("Rendez-vous ajouté", "good"); onDone();
+    setBusy(false); toast("Rendez-vous ajouté", "good"); onDone();
   };
   return (
     <Card className="p-5 space-y-3 rise">
       <ProspectPicker value={p} onChange={setP} />
       <div className="grid grid-cols-2 gap-3"><Field label="Date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field><Field label="Heure"><Input type="time" value={time} onChange={(e) => setTime(e.target.value)} /></Field></div>
       <Field label="Notes"><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
-      <Button variant="primary" onClick={save}>Ajouter</Button>
+      <Button variant="primary" loading={busy} disabled={busy} onClick={save}>Ajouter</Button>
     </Card>
   );
 }

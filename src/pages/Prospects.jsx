@@ -192,7 +192,8 @@ function Drawer({ p, onClose, onChange, team = [] }) {
   }, [p.id]);
   const saveNext = async () => {
     const patch = { next_action: next.next_action, next_action_at: next.next_action_at || null, notes: next.notes, owner_id: next.owner_id || null };
-    await supabase.from("prospects").update(patch).eq("id", p.id);
+    const { error } = await supabase.from("prospects").update(patch).eq("id", p.id);
+    if (error) return toast("Échec de l'enregistrement, réessaie", "bad");
     onChange({ ...p, ...patch }); toast("Enregistré");
   };
   const analyse = async () => {
@@ -204,7 +205,8 @@ function Drawer({ p, onClose, onChange, team = [] }) {
   const spy = p.insight?.espion;
   const set = async (status) => {
     const extra = status === "client" && !p.won_at ? { won_at: new Date().toISOString() } : {};
-    await supabase.from("prospects").update({ status, ...extra }).eq("id", p.id);
+    const { error } = await supabase.from("prospects").update({ status, ...extra }).eq("id", p.id);
+    if (error) return toast("Échec, le statut n'a pas changé. Réessaie.", "bad");
     if (["repondu", "rdv", "client", "refus", "ignore"].includes(status)) await supabase.from("messages").update({ status: "ignore" }).eq("prospect_id", p.id).eq("status", "brouillon");
     onChange({ ...p, status });
     toast(`Statut : ${STATUS[status].label}`);
@@ -414,7 +416,7 @@ export default function Prospects() {
           </div>
         </details>
       </PageHead>
-      <Guide id="contacts" titre="Ici : toutes les entreprises que Bingoo! a trouvées pour toi, et comment joindre leur décideur." etapes={["« Joignables » : Bingoo! a l'e-mail ou le téléphone du décideur. Il leur écrit, tu valides dans « À faire ».", "« À trouver » : ouvre une fiche et clique « Trouver l'e-mail ». Bingoo! le cherche pour toi.", "Une fiche ne te convient pas ? Ouvre-la, clique « Écarté » et dis pourquoi : Bingoo! en tiendra compte."]} />
+      <Guide id="contacts" titre="Ici : toutes les entreprises que Bingoo! a trouvées pour toi, et comment joindre leur décideur." etapes={["« Joignables » : Bingoo! a l'e-mail ou le téléphone du décideur. Il leur écrit, tu valides dans « Messages à envoyer ».", "« À trouver » : ouvre une fiche et clique « Trouver l'e-mail ». Bingoo! le cherche pour toi.", "Une fiche ne te convient pas ? Ouvre-la, clique « Écarté » et dis pourquoi : Bingoo! en tiendra compte."]} />
       {adding && (
         <div className="mb-4 rounded-2xl border border-line bg-white p-4">
           <p className="font-semibold">Ajouter une personne précise</p>
