@@ -398,6 +398,13 @@ export async function radarCron() {
     setAi({ ws: ws.id });
     try { await scanRadar(ws, { top: true }); n++; } catch (e) { console.error("radar cron", ws.id, e); }
     try { await radarAuto(ws); } catch (e) { console.error("radar auto", ws.id, e); }
+    // Demandes publiques du jour (« quelqu'un connaît un outil pour… », « alternative à… ») : une passe par jour et par espace,
+    // seulement s'il reste de la marge sur l'enveloppe IA du mois
+    const vu = (ws as { spy_needs_at?: string | null }).spy_needs_at;
+    if (Date.now() - t0 < 120_000 && (!vu || Date.now() - Date.parse(vu) > 20 * 36e5) && await aiRoom(ws.id, 0.85)) {
+      setAi({ ws: ws.id, feature: "radar/demandes" });
+      try { const { spyNeeds } = await import("./spy.ts"); await spyNeeds(ws); } catch (e) { console.error("demandes", ws.id, e); }
+    }
   }
   return { workspaces: n };
 }

@@ -22,7 +22,7 @@ export const QUOTA_OF = {
   linkedin: "linkedin", "reply-paste": "reponse", brief: "brief", "meeting-followup": "brief", insight: "analyse_prospect", "call-script": "script",
   "competitor-check": "veille", "competitor-ads": "veille", "competitor-suggest": "veille", "enrich-deep": "enquete_plus", letter: "lettre",
   "social-audit": "social", intelligence: "intelligence", "knowledge-draft": "intelligence", "mission-plan": "mission", "mission-create": "mission",
-  "contacts-find": "contacts", "contacts-import": "contacts", "radar-scan": "radar_scan", "spy-social": "espion", "growth-reco": "reco",
+  "contacts-find": "contacts", "contacts-import": "contacts", "radar-scan": "radar_scan", "spy-social": "espion", "spy-needs": "espion", "growth-reco": "reco",
 };
 
 let state = { ws: null, counts: null, at: 0 };

@@ -270,38 +270,56 @@ export async function spyDiscover(ws: Workspace) {
   return { found: found.length };
 }
 
-/** Besoins exprimés publiquement : entreprises qui cherchent un prestataire ou une alternative à un concurrent.
- *  Sources publiques uniquement (forums, communautés, sites de demandes de devis, presse, appels à projets) ;
- *  aucune donnée personnelle conservée : la fonction de l'auteur, jamais son nom. */
+/** Demandes publiques (chaque jour) : des entreprises ou des professionnels qui demandent, en ce moment et en public,
+ *  un outil ou un prestataire comme celui du client (« quelqu'un connaît un outil pour… », « alternative à… »),
+ *  sur Reddit, X, LinkedIn, les forums et communautés (Indie Hackers, Product Hunt…), les sites de demandes de devis.
+ *  Pour chacune : une réponse proposée, utile d'abord et transparente, que le client publie LUI-MÊME (jamais de publication
+ *  automatique : c'est le meilleur moyen de faire bannir ses comptes). Rien d'inventé : chaque demande a son lien exact.
+ *  RGPD : aucun nom de personne conservé, seulement sa fonction si elle est publique. */
 export async function spyNeeds(ws: Workspace) {
   await admin.from("workspaces").update({ spy_needs_at: new Date().toISOString() }).eq("id", ws.id);
   const me = ws.profile ?? {};
-  const { data: comps } = await admin.from("competitors").select("name, url").eq("workspace_id", ws.id).eq("status", "suivi").limit(10);
+  const [{ data: comps }, { data: deja }] = await Promise.all([
+    admin.from("competitors").select("name, url").eq("workspace_id", ws.id).in("status", ["suivi", "propose"]).limit(10),
+    admin.from("radar_opps").select("url").eq("workspace_id", ws.id).eq("kind", "besoin").order("created_at", { ascending: false }).limit(40),
+  ]);
   const rivals = (comps ?? []).map((c) => String(c.name || "").replace(/\s*[—(].*$/, "")).filter(Boolean).slice(0, 6);
-  type N = { besoin: string; entreprise: string; auteur_fonction: string; source: string; url: string; date: string; ville: string; departement: string; intention: string; pertinence: number; fiabilite: string; statut: string; recommandation: string };
-  const r = await askJson<{ besoins: N[] }>(`Trouve sur le web des entreprises ou des professionnels qui expriment PUBLIQUEMENT, depuis moins de 60 jours, un besoin que cette offre peut couvrir.
-Notre offre : ${me.offre ?? ""} (${me.nom ?? ws.name}) — Cibles : ${(ws.targets ?? []).map((t) => t.label).join(", ")} — Zone : ${(ws.zone ?? []).join(", ") || "France"}
+  const vus = (deja ?? []).map((x: { url: string }) => x.url).filter(Boolean).slice(0, 25);
+  const logiciel = /(saas|logiciel|plateforme|application|appli|outil|software|api|crm|erp)/i.test(`${me.offre ?? ""} ${me.resume ?? ""} ${(me as { type?: string }).type ?? ""}`);
+  type N = { besoin: string; entreprise: string; auteur_fonction: string; plateforme: string; source: string; url: string; date: string; langue: string; ville: string; departement: string; intention: string; pertinence: number; fiabilite: string; statut: string; recommandation: string; reponse: string };
+  const r = await askJson<{ besoins: N[] }>(`Trouve sur le web des entreprises, des fondateurs ou des professionnels qui demandent PUBLIQUEMENT, depuis moins de 30 jours, un outil, un service ou un prestataire que cette offre peut leur apporter.
+Notre offre : ${me.offre ?? ""} (${me.nom ?? ws.name})${me.resume ? ` — ${me.resume}` : ""}
+Ce qui la distingue : ${me.differenciation ?? "non renseigné"}
+Nos clients : ${(ws.targets ?? []).map((t) => t.label).join(", ") || "entreprises B2B"} — Zone : ${(ws.zone ?? []).join(", ") || "France"}
 Nos concurrents : ${rivals.join(", ") || "non renseignés"}
+${vus.length ? `Déjà trouvées (ne les redonne pas) :\n${vus.map((u) => `- ${u}`).join("\n")}` : ""}
 
-Cherche (6 recherches maximum) : demandes de recommandation (« quelqu'un connaît un bon… »), recherches de prestataire, envies de changer de fournisseur ou d'alternative à nos concurrents, projets annoncés qui nécessitent cette offre. Sources : forums et communautés professionnelles, Reddit, sites de demandes de devis, publications professionnelles publiques, presse et blogs, appels à projets.
+Cherche (5 recherches maximum), en français${logiciel ? " ET en anglais (un logiciel se vend aussi hors de France)" : ""} :
+- demandes de recommandation : « quelqu'un connaît un outil / un logiciel / une agence pour… », « vous utilisez quoi pour… », « any tool for… », « what do you use for… » ;
+- envies de changer : « alternative à ${rivals[0] ?? "<concurrent>"} », « je cherche à remplacer… », plaintes publiques contre un concurrent ;
+- projets annoncés qui nécessitent cette offre.
+Sources à privilégier : Reddit (r/SaaS, r/startups, r/Entrepreneur, r/smallbusiness, subreddits du métier), X, publications LinkedIn publiques, Indie Hackers, Product Hunt, forums et communautés professionnelles, sites de demandes de devis.
 Règles strictes :
-- Analyse le SENS de la publication, pas seulement des mots-clés. N'invente rien : chaque besoin a son URL exacte.
-- RGPD : ne donne jamais le nom d'une personne ; seulement sa fonction si elle est publique (ex. « dirigeant d'une agence »).
-- pertinence de 0 à 100 = correspondance avec notre offre ; fiabilite = haute|moyenne|faible ; intention = recherche|remplacement|recommandation|projet ; statut = ouvert|satisfait|ancien|inconnu.
-- recommandation : l'approche commerciale à tenter, en une phrase.
+- Analyse le SENS : la personne doit chercher une solution, pas en vendre une. Écarte les articles « top 10 », les publicités et les posts d'éditeurs.
+- N'invente rien : chaque demande a son URL exacte, qui mène à la publication elle-même.
+- RGPD : jamais le nom d'une personne ; seulement sa fonction si elle est publique (ex. « fondateur d'un SaaS RH »).
+- pertinence de 0 à 100 = à quel point notre offre répond exactement à la demande ; fiabilite = haute|moyenne|faible ; intention = recherche|remplacement|recommandation|projet ; statut = ouvert|satisfait|ancien|inconnu.
+- recommandation : comment l'aborder, en une phrase.
+- reponse : la réponse à publier sous la demande, dans SA langue et au ton de la plateforme. 2 à 4 phrases : d'abord une aide concrète et honnête (un conseil, une méthode, ce qu'il faut regarder), ensuite seulement une phrase transparente sur notre outil (« je suis le fondateur de ${me.nom ?? ws.name}, ça fait exactement ça si ça peut aider »). Pas de lien, pas d'emoji, pas de superlatif, pas de « Bonjour, je me permets ». Sur Reddit, plus discret encore.
 - Si tu ne trouves rien de solide, renvoie une liste vide.
-Format : {"besoins": [{"besoin": "", "entreprise": "", "auteur_fonction": "", "source": "nom du site", "url": "", "date": "AAAA-MM-JJ", "ville": "", "departement": "", "intention": "", "pertinence": 0, "fiabilite": "", "statut": "", "recommandation": ""}]}`,
-    { maxTokens: 8000, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] });
-  const rows = (r.besoins ?? []).filter((b) => /^https?:\/\//.test(b.url ?? "") && b.besoin && Number(b.pertinence) >= 40 && b.statut !== "satisfait").slice(0, 12).map((b) => ({
+Format : {"besoins": [{"besoin": "", "entreprise": "", "auteur_fonction": "", "plateforme": "Reddit|X|LinkedIn|Forum|Indie Hackers|Product Hunt|Devis|Autre", "source": "nom du site ou de la communauté", "url": "", "date": "AAAA-MM-JJ", "langue": "fr|en", "ville": "", "departement": "", "intention": "", "pertinence": 0, "fiabilite": "", "statut": "", "recommandation": "", "reponse": ""}]}`,
+    { maxTokens: 9000, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] });
+  const deja30 = new Set(vus);
+  const rows = (r.besoins ?? []).filter((b) => /^https?:\/\//.test(b.url ?? "") && !deja30.has(b.url) && b.besoin && Number(b.pertinence) >= 50 && b.statut !== "satisfait" && b.statut !== "ancien").slice(0, 10).map((b) => ({
     workspace_id: ws.id, key: `need:${b.url}`.slice(0, 300), kind: "besoin", title: String(b.besoin).slice(0, 300), company: String(b.entreprise || b.source || "Demande publique").slice(0, 160),
     summary: String(b.besoin).slice(0, 500), why: String(b.recommandation ?? "").slice(0, 500), city: String(b.ville ?? ""), dept: String(b.departement ?? "").slice(0, 3), url: b.url, source: String(b.source ?? ""),
-    published: /^\d{4}-\d{2}-\d{2}$/.test(b.date ?? "") ? b.date : null, status: "nouveau",
-    raw: { auteur: b.auteur_fonction ?? "", intention: b.intention ?? "", pertinence: Number(b.pertinence) || 0, fiabilite: b.fiabilite ?? "", statut: b.statut ?? "", origine: "espion" },
+    published: /^\d{4}-\d{2}-\d{2}$/.test(b.date ?? "") ? b.date : null, status: "nouveau", score: Math.max(50, Math.min(95, Number(b.pertinence) || 0)),
+    raw: { auteur: b.auteur_fonction ?? "", plateforme: b.plateforme ?? "", langue: b.langue ?? "fr", intention: b.intention ?? "", pertinence: Number(b.pertinence) || 0, fiabilite: b.fiabilite ?? "", statut: b.statut ?? "", reponse: String(b.reponse ?? "").slice(0, 1200), origine: "demandes" },
   }));
   let found = 0;
   if (rows.length) { const { data } = await admin.from("radar_opps").upsert(rows, { onConflict: "workspace_id,key", ignoreDuplicates: true }).select("id"); found = data?.length ?? 0; }
-  await log(ws.id, "espion", found ? `${found} besoin${found > 1 ? "s" : ""} exprimé${found > 1 ? "s" : ""} publiquement détecté${found > 1 ? "s" : ""}` : "Recherche de besoins publics : rien de nouveau cette semaine");
-  if (found) await log(ws.id, "espion_alerte", `${found} entreprise${found > 1 ? "s cherchent" : " cherche"} publiquement une solution comme la tienne — à voir dans Espion, Besoins détectés`);
+  await log(ws.id, "espion", found ? `${found} demande${found > 1 ? "s" : ""} publique${found > 1 ? "s" : ""} repérée${found > 1 ? "s" : ""}, réponse prête` : "Demandes publiques : rien de nouveau aujourd'hui");
+  if (found) await log(ws.id, "radar_alerte", `${found} personne${found > 1 ? "s cherchent" : " cherche"} publiquement une solution comme la tienne : ta réponse est prête`);
   return { found };
 }
 

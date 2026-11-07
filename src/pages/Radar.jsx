@@ -8,6 +8,7 @@ import { cx } from "../lib/utils";
 import { DEPTS, centerOf, offsetKm } from "../lib/geo";
 import { estSimple, useAller } from "../lib/lieu";
 import { EXT_IDS, STORE_URL, pingExtension } from "../lib/ext";
+import Demande from "../components/Demande";
 import { useDansLieu } from "../lib/lieu";
 
 export const RECRUIT_HINT = "Cette entreprise recrute pour un poste lié à ce que tu vends. C'est souvent le signe d'un besoin actuel et d'un budget : c'est le bon moment pour lui proposer ton service, en complément ou à la place d'une embauche.";
@@ -440,15 +441,7 @@ function Detail({ o, onClose, onChange }) {
           </div>
         </div>
 
-        {o.kind === "besoin" && (
-          <div className="mt-6 rounded-2xl border border-[#DDD6FE] bg-[#F5F3FF] p-4 text-sm space-y-1.5">
-            <p className="font-semibold text-[#6D28D9]">Demande publique repérée par Espion</p>
-            {o.raw?.auteur && <p><span className="text-ink-soft">Auteur : </span>{o.raw.auteur}</p>}
-            {o.raw?.intention && <p><span className="text-ink-soft">Intention : </span>{o.raw.intention}</p>}
-            {o.raw?.fiabilite && <p><span className="text-ink-soft">Fiabilité : </span>{o.raw.fiabilite}{o.raw?.pertinence ? ` · pertinence ${o.raw.pertinence}/100` : ""}</p>}
-            <p className="text-ink-faint text-xs pt-1">Réponds directement là où la demande a été publiée, en restant utile plutôt que commercial.</p>
-          </div>
-        )}
+        {o.kind === "besoin" && <div className="mt-6"><Demande o={o} onDone={(_, patch) => onChange({ ...o, ...patch })} /></div>}
         {o.kind === "appel_offres" && <TenderHelp o={o} onChange={onChange} />}
         {o.kind !== "appel_offres" && o.kind !== "besoin" && !["salon", "budget", "difficulte"].includes(o.kind) && <ContactReady o={o} onChange={onChange} />}
         <TeamActions o={o} onChange={onChange} />
@@ -935,6 +928,40 @@ function ContactsBox({ ws, o, onChange }) {
         </div>
       )}
     </div>
+  );
+}
+
+/** Demandes publiques : des gens qui demandent en ce moment, en public, une solution comme la tienne (Reddit, X, LinkedIn, forums).
+ *  Bingoo! les cherche chaque matin de semaine et prépare une réponse ; le client la publie lui-même. */
+function Demandes({ ws, list, onChange }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [all, setAll] = useState(false);
+  const [gone, setGone] = useState([]);
+  const rows = list.filter((o) => o.kind === "besoin" && o.status === "nouveau" && !gone.includes(o.id));
+  const repondues = list.filter((o) => o.kind === "besoin" && o.raw?.repondu_at).length;
+  useEffect(() => { if (/vue=demandes/.test(window.location.hash + window.location.search)) document.getElementById("demandes")?.scrollIntoView({ behavior: "smooth", block: "start" }); }, []);
+  const chercher = async () => {
+    setBusy(true);
+    try { const r = await fn("r/spy-needs", { workspace_id: ws.id }); toast(r.found ? `${r.found} nouvelle${r.found > 1 ? "s" : ""} demande${r.found > 1 ? "s" : ""}, réponse prête` : "Rien de nouveau pour l'instant : Bingoo! recherche chaque matin", r.found ? "good" : "default"); await onChange(); }
+    catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
+  };
+  return (
+    <Card id="demandes" className="p-5 sm:p-6 scroll-mt-24">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="max-w-xl">
+          <h2 className="flex items-center gap-2.5 font-bold text-[18px]"><span className="text-accent"><Ico name="chat" className="h-6 w-6" /></span>Ils cherchent une solution comme la tienne</h2>
+          <p className="mt-1 text-[13.5px] text-ink-soft">Chaque matin, Bingoo! lit Reddit, LinkedIn, X et les forums : « quelqu'un connaît un outil pour… », « une alternative à… ». Ta réponse est prête, tu la publies toi-même.{repondues ? ` ${repondues} réponse${repondues > 1 ? "s" : ""} publiée${repondues > 1 ? "s" : ""} jusqu'ici.` : ""}</p>
+        </div>
+        <Button size="sm" variant="ghost" quota="espion" loading={busy} disabled={busy} onClick={chercher}>{busy ? "Recherche… (1 min)" : "Chercher maintenant"}</Button>
+      </div>
+      {!rows.length ? <p className="mt-4 rounded-xl bg-paper px-4 py-3 text-[13.5px] text-ink-soft">Aucune demande ouverte pour l'instant. Les prochaines arrivent demain matin, ou lance une recherche maintenant.</p> : (
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          {(all ? rows : rows.slice(0, 4)).map((o) => <Demande key={o.id} o={o} compact onDone={(id) => setGone((g) => [...g, id])} />)}
+        </div>
+      )}
+      {rows.length > 4 && <button onClick={() => setAll((x) => !x)} className="mt-3 text-[13px] font-semibold text-ink-soft hover:text-ink">{all ? "Voir moins" : `Voir les ${rows.length} demandes`}</button>}
+    </Card>
   );
 }
 
@@ -1462,7 +1489,8 @@ export default function Radar() {
       </div>
 
 <Guide id="radar" titre="Ici : les entreprises à contacter au bon moment (création, recrutement, nouveau dirigeant, contrat qui se termine…)." etapes={["Parcours la liste : chaque entreprise dit pourquoi c'est le bon moment.", "Clique « Préparer le message » sur celles qui t'intéressent.", "Bingoo! trouve le décideur, écrit le message, et te le propose dans « Messages à envoyer »."]} />
-      <HomeView ws={ws} list={list} loaded={!!rows} live={live} onScan={scan} onOpen={setOpen} onChange={load} />
+      <HomeView ws={ws} list={list.filter((o) => o.kind !== "besoin")} loaded={!!rows} live={live} onScan={scan} onOpen={setOpen} onChange={load} />
+      <Demandes ws={ws} list={list} onChange={load} />
       <button onClick={() => toggleExplore(!explore)} className="w-full rounded-2xl border border-line bg-white hover:border-ink-faint px-5 py-3.5 flex items-center justify-between gap-3 text-left transition">
         <span><span className="block font-semibold text-[15px]">{explore ? "Masquer les options" : "Plus d'options"}</span><span className="block text-[12.5px] text-ink-faint">Toutes les opportunités, comptes surveillés, partenaires, réglages du Radar</span></span>
         <span className={cx("text-ink-soft transition", explore && "rotate-90")}><Ico name="chev" /></span>

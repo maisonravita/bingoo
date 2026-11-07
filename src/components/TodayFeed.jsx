@@ -5,6 +5,7 @@ import { useWs } from "../lib/ws";
 import { Button, useToast } from "./ui";
 import { cx, plural } from "../lib/utils";
 import { ReplyCard } from "../pages/Replies";
+import Demande from "./Demande";
 
 // Le fil « Aujourd'hui » : tout ce qui demande le client, dans l'ordre où ça rapporte.
 // 1. les réponses (un prospect attend), 2. les rendez-vous du jour, 3. les messages prêts à envoyer (une carte, deux boutons).
@@ -122,20 +123,23 @@ export default function TodayFeed() {
     const t0 = new Date(); t0.setHours(0, 0, 0, 0);
     const since = new Date(Date.now() - 24 * 36e5).toISOString();
     const head = (t) => supabase.from(t).select("id", { count: "exact", head: true }).eq("workspace_id", ws.id);
-    const [rep, meet, dr, nDr, o24, c24, m24] = await Promise.all([
+    const [rep, meet, dr, nDr, o24, c24, m24, dem] = await Promise.all([
       supabase.from("replies").select("*, prospects(name, activity, phone, email)").eq("workspace_id", ws.id).eq("handled", false).order("created_at", { ascending: false }).limit(1),
       supabase.from("meetings").select("id, company, starts_at, brief").eq("workspace_id", ws.id).eq("status", "confirme").gte("starts_at", t0.toISOString()).lt("starts_at", new Date(t0.getTime() + 864e5).toISOString()).order("starts_at"),
       supabase.from("messages").select("id, step, subject, body, prospect_id, prospects(name, city, contact_name, contact_role, email, signals, status)").eq("workspace_id", ws.id).eq("status", "brouillon").order("step", { ascending: false }).order("created_at").limit(3),
       supabase.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "brouillon"),
       head("radar_opps").gte("created_at", since), head("prospects").gte("enriched_at", since).neq("email", ""), head("messages").gte("created_at", since),
+      // Demandes publiques encore ouvertes (moins de 10 jours) : quelqu'un cherche en ce moment une solution comme la tienne
+      supabase.from("radar_opps").select("id, title, summary, why, url, source, published, created_at, raw, status").eq("workspace_id", ws.id).eq("kind", "besoin").eq("status", "nouveau").gte("created_at", new Date(Date.now() - 10 * 864e5).toISOString()).order("score", { ascending: false, nullsFirst: false }).limit(3),
     ]);
     const night = [[o24.count, "opportunité repérée", "opportunités repérées"], [c24.count, "contact trouvé", "contacts trouvés"], [m24.count, "message préparé", "messages préparés"]].filter(([k]) => k > 0).map(([k, a, b]) => plural(k, a, b));
-    setD({ replies: rep.data ?? [], meetings: meet.data ?? [], drafts: dr.data ?? [], draftsTotal: nDr.count ?? 0, night });
+    setD({ replies: rep.data ?? [], meetings: meet.data ?? [], drafts: dr.data ?? [], draftsTotal: nDr.count ?? 0, demandes: dem.data ?? [], night });
   }, [ws.id]);
   useEffect(() => { load(); window.addEventListener("kairo:refresh", load); return () => window.removeEventListener("kairo:refresh", load); }, [load]);
   if (!d) return <div className="h-40 rounded-2xl bg-white border border-line animate-pulse mb-8" />;
   const gone = (id) => { setD((x) => ({ ...x, drafts: x.drafts.filter((m) => m.id !== id), draftsTotal: x.draftsTotal - 1 })); window.dispatchEvent(new Event("kairo:refresh")); };
-  const nothing = !d.replies.length && !d.meetings.length && !d.drafts.length;
+  const nothing = !d.replies.length && !d.meetings.length && !d.drafts.length && !d.demandes.length;
+  const demandeFaite = (id) => setD((x) => ({ ...x, demandes: x.demandes.filter((o) => o.id !== id) }));
 
   return (
     <div>
@@ -166,6 +170,13 @@ export default function TodayFeed() {
             : !canSend && <p className="mb-3 text-sm text-warn">Pour envoyer, ajoute l'adresse postale de ton entreprise : elle est obligatoire en bas des e-mails de prospection. <Link className="underline" to="/reglages">Réglages → Expéditeur</Link></p>}
           {canSend && d.draftsTotal > 1 && <SendAll total={d.draftsTotal} onDone={() => { load(); window.dispatchEvent(new Event("kairo:refresh")); }} />}
           <div className="grid gap-4">{d.drafts.map((m) => <DraftCard key={m.id} m={m} canSend={canSend} onDone={gone} />)}</div>
+        </Section>
+      )}
+
+      {d.demandes.length > 0 && (
+        <Section id="demandes" title="Ils cherchent une solution comme la tienne" count={d.demandes.length} to="/radar?vue=demandes" more="Toutes les demandes">
+          <p className="-mt-1 mb-3 text-[14px] text-ink-soft">Publié en ce moment sur Reddit, LinkedIn, X ou les forums. Ta réponse est prête : tu la copies, tu la publies.</p>
+          <div className="grid gap-4">{d.demandes.map((o) => <Demande key={o.id} o={o} compact onDone={demandeFaite} />)}</div>
         </Section>
       )}
 
