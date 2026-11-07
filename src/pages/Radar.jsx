@@ -921,7 +921,7 @@ function ContactsBox({ ws, o, onChange }) {
                   {c.email ? <p><a href={`mailto:${c.email}`} className="text-accent hover:underline break-all">{c.email}</a>{ST[c.email_status]?.[0] ? <span className={cx("text-[11.5px] ml-1.5", ST[c.email_status][1])}>{ST[c.email_status][0]}</span> : null}</p>
                     : c.email_status === "en_cours" ? <p className="text-[12px] text-ink-faint">E-mail : vérification en cours…</p> : null}
                   {person(c.name) && <a href={c.linkedin_url || li(c.name)} target="_blank" rel="noreferrer" style={{ background: "#0A66C2" }} className="inline-flex items-center gap-1 rounded-full text-white px-3 py-1 text-[12px] font-semibold hover:opacity-90">{c.linkedin_url ? "Voir son profil LinkedIn ↗" : "Le chercher sur LinkedIn ↗"}</a>}
-                  {c.source && /^https?:/.test(c.source) ? <p className="text-[11.5px] text-ink-faint">Source : <a href={c.source} target="_blank" rel="noreferrer" className="hover:underline">{host(c.source)}</a></p> : null}
+                  {c.source && /^https?:/.test(c.source) ? <p className="text-[11.5px] text-ink-faint">Source : <a href={c.source} target="_blank" rel="noreferrer" className="hover:underline">{host(c.source)}</a></p> : c.source ? <p className="text-[11.5px] text-ink-faint">Source : {c.source}</p> : null}
                 </div>
               </div>
             );
