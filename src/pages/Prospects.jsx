@@ -401,7 +401,7 @@ export default function Prospects() {
   return (
     <div>
       <SubNav section="prospects" />
-      <PageHead title="Contacts" resume sub={rows ? [[rows.length, "entreprise"], [rows.filter((r) => r.contact_name).length, "décideur"], [rows.filter((r) => r.email).length, "e-mail"], [rows.filter((r) => r.phone).length, "téléphone"]].map(([n, l]) => `${n.toLocaleString("fr-FR")} ${l}${n > 1 ? "s" : ""}`).join(" · ") : ""}>
+      <PageHead title="Annuaire" resume sub={rows ? [[rows.length, "entreprise"], [rows.filter((r) => r.contact_name).length, "décideur"], [rows.filter((r) => r.email).length, "e-mail"], [rows.filter((r) => r.phone).length, "téléphone"]].map(([n, l]) => `${n.toLocaleString("fr-FR")} ${l}${n > 1 ? "s" : ""}`).join(" · ") : ""}>
         <Input placeholder="Rechercher…" value={q} onChange={(e) => setQ(e.target.value)} className="!w-56" />
         {team.length > 1 && <Button variant={mine ? "primary" : "default"} onClick={() => setMine((x) => !x)}>Mes contacts</Button>}
         <Link to="/mission"><Button variant="accent">+ Trouver des contacts</Button></Link>

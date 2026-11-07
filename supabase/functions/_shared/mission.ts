@@ -372,8 +372,10 @@ async function stepOnce(ws: Workspace, m: Mission) {
       const types = (p: Prospect) => new Set((p.signals ?? []).map((x) => x.type));
       const focus = m.signal_focus ?? [], excl = m.signal_exclude ?? [];
       const weight = (p: Prospect) => focus.filter((t) => types(p).has(t)).length * 10 + (types(p).has("recrutement") || types(p).has("croissance") ? 1 : 0);
-      const data = (pool ?? []).filter((p) => !excl.some((t) => types(p as Prospect).has(t)))
-        .sort((a, b) => weight(b as Prospect) - weight(a as Prospect)).slice(0, n);
+      const { declencheur, emailGenerique } = await import("./agents.ts");
+      // Pas de déclencheur, pas de message ; adresses nominatives d'abord
+      const data = (pool ?? []).filter((p) => !excl.some((t) => types(p as Prospect).has(t)) && declencheur(p as Prospect))
+        .sort((a, b) => (weight(b as Prospect) - weight(a as Prospect)) || (Number(emailGenerique(a.email)) - Number(emailGenerique(b.email)))).slice(0, n);
       const res = await Promise.allSettled(((data ?? []) as Prospect[]).map((p) => draft(ws, p)));
       const ok = res.filter((r) => r.status === "fulfilled").length;
       for (let i = 0; i < ok; i++) await log(ws.id, "redaction", "E-mail rédigé (mission)");

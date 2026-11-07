@@ -280,8 +280,8 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
       const { draft } = await import("../_shared/agents.ts");
       const { dejaContacte } = await import("../_shared/deja.ts");
       let n = await prets();
-      const { data: cands } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).in("status", ["nouveau", "pret"]).neq("email", "")
-        .order("score", { ascending: false, nullsFirst: false }).limit(8);
+      const { aEcrire } = await import("../_shared/agents.ts");
+      const cands = await aEcrire(ws.id, 8);
       const t0 = Date.now();
       for (const p of cands ?? []) {
         if (n >= 3 || Date.now() - t0 > 100_000) break;
@@ -293,9 +293,11 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { freeEnrich } = await import("../_shared/deep.ts");
     const since = new Date(Date.now() - 3 * 864e5).toISOString();
     const base = () => admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("email", "").in("status", ["nouveau", "sans_email"]).or(`free_tried_at.is.null,free_tried_at.lt.${since}`);
-    const { data: d1 } = await base().not("contact_name", "is", null).neq("contact_name", "").order("score", { ascending: false, nullsFirst: false }).limit(6);
-    let rows = d1 ?? [];
-    if (rows.length < 6) rows = rows.concat((await base().order("score", { ascending: false, nullsFirst: false }).limit(6 - rows.length)).data ?? []);
+    // Les fiches avec un fait récent à citer d'abord (sans lui, aucun message ne sera écrit), puis celles avec un décideur nommé
+    const { declencheur } = await import("../_shared/agents.ts");
+    const { data: pool } = await base().order("score", { ascending: false, nullsFirst: false }).limit(60);
+    const rang = (p: any) => (declencheur(p) ? 2 : 0) + (p.contact_name ? 1 : 0);
+    const rows = (pool ?? []).sort((a: any, b: any) => rang(b) - rang(a)).slice(0, 6);
     let sites = 0, emails = 0;
     const t0 = Date.now();
     for (let i = 0; i < rows.length && Date.now() - t0 < 45_000; i += 3) {

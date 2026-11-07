@@ -36,7 +36,7 @@ async function dansLaBoite(ws: Workspace, p: Prospect): Promise<string | null> {
   if (!s?.user || !s.pass) return null;
   const { open } = await import("./growth.ts");
   const { ImapFlow } = await import("npm:imapflow@1.0.164");
-  const client = new ImapFlow({ host: IMAP_HOSTS[box.provider], port: 993, secure: true, auth: { user: s.user, pass: await open(s.pass) }, logger: false });
+  const client = new ImapFlow({ host: IMAP_HOSTS[box.provider], port: 993, secure: true, auth: { user: s.user, pass: await open(s.pass) }, logger: false, connectionTimeout: 6000, greetingTimeout: 4000, socketTimeout: 8000 });
   await client.connect();
   try {
     const lock = await client.getMailboxLock("INBOX");

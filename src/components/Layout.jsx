@@ -7,7 +7,7 @@ import { LegalLinks } from "../pages/Legal";
 import Logo from "./Logo";
 import Feedback from "./Feedback";
 import { estSimple } from "../lib/lieu";
-import { accueilVille } from "../lib/lieu";
+import { accueilVille, LIEUX } from "../lib/lieu";
 
 const ICONS = {
   today: <path d="M4 12h3l3-7 4 14 3-7h3" />,
@@ -191,28 +191,17 @@ export default function Layout({ children }) {
 
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => { supabase.rpc("is_admin").then(({ data }) => setIsAdmin(!!data)); }, []);
-  // Menu centré sur la promesse : trouver les décideurs et leurs coordonnées, les contacter, obtenir des rendez-vous.
-  // Radar, LinkedIn et Concurrents nourrissent ce chemin. Les autres pages existent toujours (par leur adresse), hors du menu.
+  // Le menu : un raccourci vers les bâtiments de la ville, avec les mêmes noms, dans l'ordre du travail.
+  // Mode simple : Espion et Café LinkedIn n'apparaissent que si les outils avancés sont activés.
+  const compte = { atelier: c.drafts, poste: c.replies, rdv: c.today, radar: c.radar, linkedin: c.li };
+  const also = { annuaire: ["/prospection"], observatoire: ["/distribution", "/conversion", "/pilotage"], mairie: ["/connexions", "/equipe", "/abonnement"] };
+  const visibles = LIEUX.filter((l) => !(l.avance && estSimple(ws)));
+  const item = (l) => ({ to: l.to, label: l.nom, short: l.court, icon: l.icon, count: compte[l.art], hot: l.art === "atelier", also: also[l.art] });
+  const QUARTIERS_MENU = [["Trouver", ["radar", "annuaire", "espion"]], ["Contacter", ["atelier", "poste", "linkedin"]], ["Conclure", ["rdv", "observatoire"]]];
   const groups = [
-    { items: [
-      { to: "/", label: "Accueil", short: "Accueil", icon: "today", count: c.drafts, hot: true, also: ["/valider", "/liste", "/village"] },
-      { to: "/prospects", label: "Contacts", short: "Contacts", icon: "list", also: ["/prospection"] },
-      { to: "/reponses", label: "Réponses", short: "Réponses", icon: "inbox", count: c.replies },
-      { to: "/agenda", label: "Rendez-vous", short: "RDV", icon: "cal", count: c.today },
-    ] },
-    { title: "Plus de contacts", items: [
-      { to: "/radar", label: "Radar", short: "Radar", icon: "radar", count: c.radar },
-      { to: "/linkedin", label: "LinkedIn", short: "LinkedIn", icon: "li", count: c.li },
-      { to: "/espion", label: "Concurrents", short: "Concurrents", icon: "eye" },
-    ] },
-    { items: [
-      { to: "/qg/", ext: true, label: "La nuit de ton équipe", short: "La nuit", icon: "town" },
-      { to: "/resultats", label: "Résultats", short: "Résultats", icon: "chart", also: ["/distribution", "/conversion", "/pilotage"] },
-      { to: "/reglages", label: "Réglages", icon: "cog", also: ["/connexions", "/equipe", "/abonnement"] },
-      ...(isAdmin ? [{ to: "/admin", label: "Administration", icon: "chart" }] : []),
-    ] },
+    ...QUARTIERS_MENU.map(([title, arts]) => ({ title, items: visibles.filter((l) => arts.includes(l.art)).map(item) })).filter((g) => g.items.length),
+    { items: [item(LIEUX.find((l) => l.art === "mairie")), ...(isAdmin ? [{ to: "/admin", label: "Administration", icon: "chart" }] : [])] },
   ];
-  const all = groups.flatMap((g) => g.items);
   const isOn = (n, isActive) => isActive || (n.also ?? []).some((p) => loc.pathname === p);
   const link = (n) => ({ isActive }) => cx("flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] font-medium transition", isOn(n, isActive) ? "bg-accent-soft/80 text-accent-dark font-semibold border border-transparent" : "text-ink-soft hover:text-ink hover:bg-white/70 border border-transparent");
   const Count = ({ n, hot }) => n > 0 ? <span className={cx("text-xs font-semibold rounded-full px-2 py-0.5 tnum", hot ? "bg-accent text-white" : "bg-ink/10 text-ink")}>{n}</span> : null;
@@ -282,7 +271,7 @@ export default function Layout({ children }) {
       {/* Téléphone : les 4 endroits du quotidien, toujours sous le pouce */}
       <nav aria-label="Navigation principale" className="md:hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
         <div className="grid grid-cols-4">
-          {[["/", "Aujourd'hui", "today", c.drafts], ["/prospects", "Contacts", "list", 0], ["/reponses", "Réponses", "inbox", c.replies], ["/agenda", "RDV", "cal", c.today]].map(([to, l, ic, n]) => (
+          {[["/", "Aujourd'hui", "today", c.drafts], ["/prospects", "Annuaire", "list", 0], ["/reponses", "Poste", "inbox", c.replies], ["/agenda", "RDV", "cal", c.today]].map(([to, l, ic, n]) => (
             <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => cx("relative flex flex-col items-center gap-0.5 py-2.5 text-[11.5px] font-semibold", isActive ? "text-[#E8571C]" : "text-ink-soft")}>
               <Icon name={ic} />{l}
               {n > 0 && <span className="absolute right-[22%] top-1.5 min-w-[17px] rounded-full bg-[#F26A21] px-1 text-[10px] font-black leading-[17px] text-white">{n > 9 ? "9+" : n}</span>}

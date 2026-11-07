@@ -83,7 +83,7 @@ export default function Onboarding() {
     if (!sender.sender_name.trim()) return toast("Indique ton prénom et ton nom", "bad");
     setBusy(true);
     try {
-      await patch({ targets: draft.targets, profile: draft.profile, sender_name: sender.sender_name.trim(), postal_address: sender.postal_address.trim(), name: draft.profile?.nom || ws.name });
+      await patch({ targets: draft.targets, profile: draft.profile, sender_name: sender.sender_name.trim(), name: draft.profile?.nom || ws.name });
       setStep(3);
       setExpress({ phase: "chercher" });
       const r = await fn("search", { workspace_id: ws.id, pages: 1 });
@@ -245,9 +245,6 @@ export default function Onboarding() {
             </details>
             <div className="space-y-4 pt-2">
               <Field label="Les messages partiront signés de"><Input value={sender.sender_name} onChange={(e) => setSender({ ...sender, sender_name: e.target.value })} placeholder="Ton prénom et ton nom" /></Field>
-              <Field label="Adresse postale de l'entreprise" hint="Obligatoire en bas des e-mails de prospection : sans elle, aucun message ne peut partir.">
-                <Input value={sender.postal_address} onChange={(e) => setSender({ ...sender, postal_address: e.target.value })} placeholder="12 rue de la Paix, 75002 Paris" />
-              </Field>
             </div>
             <div className="flex flex-wrap gap-3 items-center pt-6 border-t border-line">
               <Button variant="accent" size="lg" loading={busy} disabled={!active.length} onClick={launch}>Voir mes premières opportunités →</Button>
@@ -257,7 +254,7 @@ export default function Onboarding() {
           </div>
         )}
 
-        {step === 3 && <Express e={express} />}
+        {step === 3 && <Express e={express} ws={ws} />}
       </div>
     </div>
   );
@@ -269,7 +266,7 @@ const PHASES = [
   ["rediger", "J'écris tes premiers messages, chacun sur un fait vérifié"],
 ];
 
-function Express({ e }) {
+function Express({ e, ws }) {
   const ordre = ["chercher", "enqueter", "rediger", "fini"];
   const k = ordre.indexOf(e?.phase ?? "chercher");
   if (e?.phase === "fini") {
@@ -277,10 +274,10 @@ function Express({ e }) {
     return (
       <div className="rise rounded-3xl bg-white border border-line shadow-[0_24px_60px_-34px_rgba(21,22,26,.35)] p-6 sm:p-9">
         <h1 className={cx(H, "text-[34px] sm:text-[44px]")} style={HFONT}>
-          {ok ? `${e.prets} message${e.prets > 1 ? "s" : ""} prêt${e.prets > 1 ? "s" : ""} à relire` : `${fmtN(e.trouves)} entreprises dans ton espace`}
+          {ok ? `${e.prets} message${e.prets > 1 ? "s" : ""} prêt${e.prets > 1 ? "s" : ""} à relire` : e.trouves > 0 ? `${fmtN(e.trouves)} entreprises dans ton espace` : "Ton espace est prêt"}
         </h1>
         <p className="text-ink-soft mt-3 text-[17px]">
-          {ok ? "Relis-les, corrige ce que tu veux, et valide. Rien n'est parti : c'est toi qui décides." : "Je n'ai pas encore trouvé assez d'e-mails publiés. Je continue cette nuit et tes premiers messages t'attendront demain matin."}
+          {ok ? "Chacun s'appuie sur un fait récent et vérifiable. Rien n'est parti : c'est toi qui valides." : "Je n'écris que lorsqu'une entreprise a un fait récent à citer et une adresse vérifiée. Je continue cette nuit : tes premiers messages t'attendront demain matin."}
         </p>
         <dl className="mt-7 grid grid-cols-3 gap-3 text-center">
           {[[e.trouves, "entreprises trouvées"], [e.emails, "e-mails vérifiés"], [e.prets, "messages prêts"]].map(([n, l]) => (
@@ -291,6 +288,7 @@ function Express({ e }) {
             </div>
           ))}
         </dl>
+        {ok && <Debloquer ws={ws} />}
         <div className="mt-7 flex flex-wrap gap-3">
           {ok ? <Button variant="accent" size="lg" onClick={() => { window.location.href = "/valider"; }}>Relire mes messages</Button>
             : <Button variant="accent" size="lg" onClick={() => { window.location.href = "/"; }}>Ouvrir mon espace</Button>}
@@ -314,6 +312,46 @@ function Express({ e }) {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/** Sur l'écran des messages prêts : ce qui manque pour qu'ils puissent partir (adresse, boîte mail), à faire ici même. */
+function Debloquer({ ws }) {
+  const toast = useToast();
+  const [adresse, setAdresse] = useState(ws?.postal_address ?? "");
+  const [okAdresse, setOkAdresse] = useState(!!ws?.postal_address);
+  const [busy, setBusy] = useState("");
+  const boite = ws?.domain_status === "verified" || !!ws?.integrations?.mailbox?.ok;
+  if (okAdresse && boite) return null;
+  const retour = () => { try { localStorage.setItem("bingoo-apres-boite", "/valider"); } catch { /* rien */ } };
+  const outlook = async () => { setBusy("outlook"); retour(); try { const r = await fn("o/microsoft-url", { workspace_id: ws.id }); window.location.href = r.url; } catch (x) { toast(x.message, "bad"); setBusy(""); } };
+  const sauver = async () => {
+    if (adresse.trim().length < 8) return toast("Indique l'adresse complète (rue, code postal, ville)", "bad");
+    setBusy("adresse");
+    // Mise à jour directe, sans recharger l'espace (sinon l'écran de fin disparaît : l'espace est déjà marqué « prêt »)
+    try { const { error } = await supabase.from("workspaces").update({ postal_address: adresse.trim() }).eq("id", ws.id); if (error) throw new Error(error.message); setOkAdresse(true); } catch (x) { toast(x.message, "bad"); } finally { setBusy(""); }
+  };
+  return (
+    <div className="mt-6 rounded-2xl bg-[#FFF1E6] p-4">
+      <p className="font-semibold text-[15px]">Pour qu'ils puissent partir</p>
+      <div className="mt-3 space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={cx("grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-black", okAdresse ? "bg-good text-white" : "bg-white text-ink-faint border border-line")}>{okAdresse ? "✓" : "1"}</span>
+          {okAdresse ? <span className="text-[14px]">Adresse de l'entreprise ajoutée</span> : (<>
+            <Input className="!w-auto min-w-0 flex-1" value={adresse} onChange={(x) => setAdresse(x.target.value)} placeholder="Adresse de l'entreprise (obligatoire en bas des e-mails)" />
+            <Button loading={busy === "adresse"} onClick={sauver}>Enregistrer</Button>
+          </>)}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={cx("grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-black", boite ? "bg-good text-white" : "bg-white text-ink-faint border border-line")}>{boite ? "✓" : "2"}</span>
+          {boite ? <span className="text-[14px]">Boîte mail connectée</span> : (<>
+            <span className="flex-1 text-[14px]">Ta boîte mail, pour envoyer de ton adresse</span>
+            <Button loading={busy === "outlook"} onClick={outlook}>Outlook</Button>
+            <Button onClick={() => { retour(); window.location.href = "/connexions"; }}>Gmail ou autre (2 min)</Button>
+          </>)}
+        </div>
+      </div>
     </div>
   );
 }

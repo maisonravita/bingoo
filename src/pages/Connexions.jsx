@@ -5,6 +5,12 @@ import { Badge, Button, Card, Field, Input, PageHead, useToast } from "../compon
 import { cx } from "../lib/utils";
 import { SubNav } from "../components/SubNav";
 
+/** Connexion lancée depuis l'écran « messages prêts » : on y retourne (l'Atelier) une fois la boîte connectée. */
+function allerApresBoite() {
+  let to = ""; try { to = localStorage.getItem("bingoo-apres-boite") ?? ""; localStorage.removeItem("bingoo-apres-boite"); } catch { /* rien */ }
+  if (to) setTimeout(() => { window.location.href = to; }, 1200);
+}
+
 const FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/k`;
 
 function Section({ title, sub, status, children }) {
@@ -73,7 +79,7 @@ function Mailbox() {
   const cur = providers.find((p) => p.key === f.provider);
   const save = async () => {
     setBusy(true);
-    try { await fn("mailbox-save", { workspace_id: ws.id, ...f }); toast("Boîte connectée : les e-mails partiront de ton adresse", "good"); setF({ ...f, password: "" }); await reload(); }
+    try { await fn("mailbox-save", { workspace_id: ws.id, ...f }); toast("Boîte connectée : les e-mails partiront de ton adresse", "good"); setF({ ...f, password: "" }); await reload(); allerApresBoite(); }
     catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
   };
   const remove = async () => { setBusy(true); try { await fn("mailbox-remove", { workspace_id: ws.id }); await reload(); toast("Boîte déconnectée"); } finally { setBusy(false); } };
@@ -89,6 +95,7 @@ function Mailbox() {
     if (msg) toast(msg[0], msg[1]);
     reload();
     window.history.replaceState(null, "", window.location.href.replace(/[?&]outlook=[a-z]+/, ""));
+    if (m[1] === "ok") allerApresBoite();
   }, []);
   const google = async () => { setBusy(true); try { const r = await fn("o/google-url", { workspace_id: ws.id }); window.location.href = r.url; } catch (e) { toast(e.message, "bad"); setBusy(false); } };
   useEffect(() => {
@@ -98,6 +105,7 @@ function Mailbox() {
     if (msg) toast(msg[0], msg[1]);
     reload();
     window.history.replaceState(null, "", window.location.href.replace(/[?&]gmail=[a-z]+/, ""));
+    if (m[1] === "ok") allerApresBoite();
   }, []);
   return (
     <Section title="Ta boîte mail" sub="Bingoo! envoie depuis ta vraie adresse : les messages apparaissent dans tes « Envoyés » et les prospects te répondent directement. Deux minutes suffisent."

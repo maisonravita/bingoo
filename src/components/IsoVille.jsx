@@ -456,7 +456,7 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
         {pos.map((b, i) => {
           const [sx, sy] = b.art === "rdv" ? P(lot(b.gx) + 3, lot(b.gy) + 8, 12.5) : P(lot(b.gx) + 6, lot(b.gy) + 6, b.art === "radar" ? 18 : b.art === "espion" ? 12.5 : 8.6);
           const top = b.art === cible, k = top ? 1.22 : 1;
-          const sous = SOUS[b.art] ?? "", q = QUARTIERS[QUARTIER[b.art] ?? 0];
+          const sous = b.ferme ? "à activer" : SOUS[b.art] ?? "", q = QUARTIERS[QUARTIER[b.art] ?? 0];
           const w = Math.max(b.nom.length * 9.6, sous.length * 6.6) + 58, x0 = sx - w / 2;
           return (
             <g key={`s${b.art}`} pointerEvents="none" transform={top ? `translate(${sx} ${sy}) scale(${k}) translate(${-sx} ${-sy})` : undefined}>

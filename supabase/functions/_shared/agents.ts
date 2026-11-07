@@ -222,6 +222,49 @@ export async function rediger(ws: Workspace, p: Prospect) {
   return { subject, body, active, v, check_note };
 }
 
+
+// ---------------------------------------------------------------- Déclencheur et qualité de l'adresse
+// Pas de déclencheur, pas de message : un premier e-mail s'ouvre toujours sur un fait concret et récent.
+const MOMENTS = new Set(["ouverture", "dirigeant", "croissance", "recrutement", "creation", "renouvellement", "demenagement", "levee", "accelerateur", "sans_reservation", "sans_schema", "techno", "marche", "radar"]);
+const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+const RECENT_MOIS = 18;
+/** Âge en mois d'un signal (date fournie, sinon mois et année lus dans le libellé). null si inconnu. */
+function ageMois(s: { date?: string | null; label?: string | null }): number | null {
+  let d: Date | null = s.date ? new Date(s.date) : null;
+  if (!d || isNaN(+d)) {
+    const l = String(s.label ?? "").toLowerCase();
+    const m = l.match(new RegExp(`(${MOIS.join("|")}|fevrier|aout|decembre)\\s+(20\\d\\d)`));
+    if (m) { const i = MOIS.findIndex((x) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "") === m[1].normalize("NFD").replace(/[\u0300-\u036f]/g, "")); d = new Date(Number(m[2]), Math.max(0, i), 15); }
+    else { const y = l.match(/\b(20\d\d)\b/); if (y) d = new Date(Number(y[1]), 6, 1); }
+  }
+  if (!d || isNaN(+d)) return null;
+  return (Date.now() - d.getTime()) / (30.4 * 864e5);
+}
+type Sig = { type?: string; label?: string | null; date?: string | null };
+/** Le fait concret et récent sur lequel ouvrir le message, ou null (la fiche attend un signal). */
+export function declencheur(p: Prospect): Sig | null {
+  const sg = ((p.signals ?? []) as Sig[]).filter((x) => x.label && MOMENTS.has(String(x.type)));
+  const frais = sg.map((x) => ({ x, a: ageMois(x) })).filter(({ a }) => a == null || a <= RECENT_MOIS);
+  // Les moments datés et récents d'abord, puis les constats sans date
+  frais.sort((u, v) => (u.a ?? 99) - (v.a ?? 99));
+  return frais[0]?.x ?? null;
+}
+const GENERIQUE = /^(contact|info|infos|sales|vente|ventes|hello|bonjour|accueil|commercial|marketing|support|admin|office|secretariat|direction|reclamation[a-z.-]*|service[a-z.-]*|rh|recrutement|jobs|team|equipe|agence|cabinet|mail|courrier)@/i;
+/** Adresse générique (standard, accueil) plutôt que celle d'une personne. */
+export const emailGenerique = (e?: string | null) => GENERIQUE.test(String(e ?? "").trim());
+
+/** Les prochains prospects à écrire : seulement ceux qui ont un déclencheur, les adresses nominatives d'abord. */
+export async function aEcrire(wsId: string, n: number, filtre: (q: any) => any = (q) => q): Promise<Prospect[]> {
+  if (n <= 0) return [];
+  const { data } = await filtre(admin.from("prospects").select("*").eq("workspace_id", wsId).eq("status", "pret").neq("email", ""))
+    .order("score", { ascending: false, nullsFirst: false }).limit(200);
+  const avecRadar = new Set(((await admin.from("radar_opps").select("prospect_id").eq("workspace_id", wsId).not("prospect_id", "is", null).limit(1000)).data ?? []).map((x) => x.prospect_id));
+  return ((data ?? []) as Prospect[])
+    .filter((p) => declencheur(p) || avecRadar.has(p.id))
+    .sort((a, b) => Number(emailGenerique(a.email)) - Number(emailGenerique(b.email)))
+    .slice(0, n);
+}
+
 /** Rédige le premier e-mail sans l'enregistrer (sert aussi aux tests de qualité). */
 export async function writeDraft(ws: Workspace, p: Prospect) {
   const t = (ws.targets ?? []).find((x) => x.id === p.target);
@@ -235,10 +278,11 @@ Pourquoi cette cible a besoin de l'offre : ${t?.pourquoi ?? ""}${t?.moment ? `
 Moment où ce type de client en a le plus besoin : ${t.moment}` : ""}
 Angle à utiliser : ${v ? v.angle : t?.angle ?? ""}
 ${v?.objet ? `Objet à utiliser tel quel ou presque : ${v.objet}\n` : ""}${active ? `Objectif de l'e-mail : ${goalText(active.goal)}.\n` : ""}Bénéficiaires à nommer : ${t?.pour_qui ?? ""}
-${(() => { const sg = (p.signals ?? []).filter((x) => x.label && x.type !== "taille" && x.type !== "reseau"); return sg.length ? `Faits publics observés sur ce prospect (registre, Radar, son site) :\n${sg.slice(0, 8).map((x) => `- ${String(x.label).replace(/\s*(?:publi[ée]e? )?(?:au|dans le|selon le) (?:BODACC|registre[^,.;]*)/gi, "")}`).join("\n")}\nChoisis LE fait le plus utile pour notre offre et ouvre l'e-mail avec, sans rien y ajouter ni l'interpréter. N'utilise pas les autres.\n` : ""; })()}${(p.insight as { reseaux?: { accroche?: string } } | null)?.reseaux?.accroche ? `Première phrase possible, fondée sur une publication ou une actualité réelle du prospect (à reprendre ou adapter si elle sonne naturelle, sinon ignore-la) : ${(p.insight as { reseaux: { accroche: string } }).reseaux.accroche}
+${(() => { const sg = (p.signals ?? []).filter((x) => x.label && x.type !== "taille" && x.type !== "reseau"); return sg.length ? `Faits publics observés sur ce prospect (registre, Radar, son site) :\n${sg.slice(0, 8).map((x) => `- ${String(x.label).replace(/\s*(?:publi[ée]e? )?(?:au|dans le|selon le) (?:BODACC|registre[^,.;]*)/gi, "")}`).join("\n")}\nChoisis LE fait le plus utile pour notre offre et ouvre l'e-mail avec, sans rien y ajouter ni l'interpréter. N'utilise pas les autres.\n` : ""; })()}${(() => { const d = declencheur(p); return d ? `Fait déclencheur à privilégier : ${d.label}\n` : ""; })()}${emailGenerique(p.email) ? `L'adresse ${p.email} est celle de l'accueil, pas d'une personne : la dernière phrase demande simplement à qui transmettre (la personne qui s'occupe de ${t?.interlocuteur || "ce sujet"}), sans question de fond.\n` : ""}${(p.insight as { reseaux?: { accroche?: string } } | null)?.reseaux?.accroche ? `Première phrase possible, fondée sur une publication ou une actualité réelle du prospect (à reprendre ou adapter si elle sonne naturelle, sinon ignore-la) : ${(p.insight as { reseaux: { accroche: string } }).reseaux.accroche}
 ` : ""}
 ${await rivalBrief(ws.id, p)}Commence par « Bonjour${p.contact_name ? " Madame/Monsieur <Nom>" : ""}, » (si l'interlocuteur est connu mais que le genre est incertain, écris « Bonjour <Prénom>, », jamais prénom et nom ensemble).
 Longueur : 40 à 70 mots, trois phrases courtes (le fait vrai, ce que l'offre change, une question). Rien sur la situation du prospect qui ne soit dans les faits ci-dessus.
+La première phrase parle du fait, précis et daté si la date est connue (« Vous avez ouvert un établissement à Lyon en août »), jamais de l'activité générale du prospect (« X vend des formations », « X est spécialisé dans… »).
 Ne mets pas de signature : elle est ajoutée automatiquement.
 
 Format exact :

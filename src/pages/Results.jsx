@@ -258,7 +258,7 @@ export default function Results() {
   return (
     <div>
       <SubNav section="resultats" />
-      <PageHead title="Résultats" sub="Ce qui marche vraiment, et quels clients te rapportent.">
+      <PageHead title="Observatoire" sub="Ce qui marche vraiment, et quels clients te rapportent.">
         <div className="flex gap-1">{[7, 30, 90].map((n) => <button key={n} onClick={() => setPeriod(n)} className={cx("rounded-full px-3 py-1.5 text-sm border", period === n ? "bg-ink text-white border-ink" : "bg-white border-line")}>{n} j</button>)}</div>
       </PageHead>
 

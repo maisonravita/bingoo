@@ -25,3 +25,17 @@ export function accueilVille() {
   const mobile = typeof window !== "undefined" && !!window.matchMedia?.("(max-width: 767px)").matches;
   return mobile ? vm === "village" : v !== "liste";
 }
+
+/** Un seul nom par lieu, partout (ville, menu, titres, barre du téléphone). Dans l'ordre du travail. */
+export const LIEUX = [
+  { art: "radar", to: "/radar", nom: "Tour Radar", court: "Radar", icon: "radar", avance: false },
+  { art: "annuaire", to: "/prospects", nom: "Annuaire", court: "Annuaire", icon: "list" },
+  { art: "espion", to: "/espion", nom: "Espion", court: "Espion", icon: "eye", avance: true },
+  { art: "atelier", to: "/valider", nom: "Atelier", court: "Atelier", icon: "send" },
+  { art: "poste", to: "/reponses", nom: "Poste", court: "Poste", icon: "inbox" },
+  { art: "linkedin", to: "/linkedin", nom: "Café LinkedIn", court: "LinkedIn", icon: "li", avance: true },
+  { art: "rdv", to: "/agenda", nom: "Rendez-vous", court: "RDV", icon: "cal" },
+  { art: "observatoire", to: "/resultats", nom: "Observatoire", court: "Résultats", icon: "chart" },
+  { art: "mairie", to: "/reglages", nom: "Mairie", court: "Réglages", icon: "cog" },
+];
+export const nomDe = (to) => LIEUX.find((l) => l.to === to)?.nom ?? "";

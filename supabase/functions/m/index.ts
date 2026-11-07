@@ -153,9 +153,10 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
       try {
         const { aiRoom } = await import("../_shared/core.ts");
         const { count: brouillons } = await admin.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "brouillon").eq("step", 0);
-        if ((brouillons ?? 0) < 8 && ws.sender_name && await aiRoom(ws.id, 0.6)) {
-          const { data: ready } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("status", "pret").neq("email", "").is("mission_id", null).order("score", { ascending: false, nullsFirst: false }).limit(2);
-          for (const p of ready ?? []) { await draft(ws, p as Prospect); await log(ws.id, "redaction", `${p.name} : message rédigé, à valider`); out[`rediges_${ws.id}`] = ((out[`rediges_${ws.id}`] as number) ?? 0) + 1; }
+        if ((brouillons ?? 0) < 5 && ws.sender_name && await aiRoom(ws.id, 0.6)) {
+          const { aEcrire } = await import("../_shared/agents.ts");
+          const ready = await aEcrire(ws.id, 2, (q) => q.is("mission_id", null));
+          for (const p of ready) { try { await draft(ws, p as Prospect); } catch { continue; } await log(ws.id, "redaction", `${p.name} : message rédigé, à valider`); out[`rediges_${ws.id}`] = ((out[`rediges_${ws.id}`] as number) ?? 0) + 1; }
         }
       } catch (e) { out[`rediges_${ws.id}`] = { error: (e as Error).message }; }
     }

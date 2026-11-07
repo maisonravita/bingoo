@@ -90,7 +90,7 @@ export default function Settings() {
   return (
     <div className="space-y-6 max-w-3xl">
       <SubNav section="reglages" />
-      <PageHead title="Réglages" />
+      <PageHead title="Mairie" sub="Tes réglages" />
 
       <Section open title="Pilote automatique" sub="Choisis jusqu'où la machine agit seule.">
         <div className="grid sm:grid-cols-2 gap-3">
@@ -162,7 +162,7 @@ export default function Settings() {
         <div className="mt-3"><Button variant="primary" loading={busy === "save"} onClick={() => save({ profile: { ...pr, exclusions: (Array.isArray(pr.exclusions) ? pr.exclusions : String(pr.exclusions ?? "").split("\n")).map((x) => x.trim()).filter((x) => x.length >= 3).slice(0, 2000) } }, "Liste enregistrée")}>Enregistrer</Button></div>
       </Section>
 
-      <Section id="avance" title="Outils avancés" sub="Par défaut, Bingoo! ne montre que ce qui mène à un rendez-vous. Active les outils avancés pour voir aussi le trafic et la conversion de ton site, les réseaux sociaux, le studio vidéo, l'équipe IA en conversation et l'analyse de ce que disent tes prospects.">
+      <Section id="avance" title="Outils avancés" sub="Par défaut, Bingoo! ne montre que ce qui mène à un rendez-vous. Active les outils avancés pour ouvrir aussi l'Espion (tes concurrents), le Café LinkedIn, les devis, le trafic et la conversion de ton site, les réseaux sociaux, le studio vidéo, l'équipe IA en conversation et l'analyse de ce que disent tes prospects.">
         <label className="flex items-center gap-3 text-sm font-medium cursor-pointer">
           <input type="checkbox" checked={pr.avance === true} onChange={(e) => save({ profile: { ...pr, avance: e.target.checked } }, e.target.checked ? "Outils avancés affichés" : "Mode simple")} />
           Afficher les outils avancés
@@ -220,7 +220,7 @@ export default function Settings() {
           <Field label="Adresse d'expédition" hint={ws.domain ? `Doit se terminer par @${ws.domain}` : "Sur ton propre domaine"}><Input type="email" value={f.sender_email} onChange={(e) => setF({ ...f, sender_email: e.target.value.trim() })} placeholder={ws.domain ? `prenom@${ws.domain}` : "prenom@monentreprise.fr"} /></Field>
           <Field label="Signature" className="sm:col-span-2"><Textarea rows={4} value={f.signature} onChange={(e) => setF({ ...f, signature: e.target.value })} placeholder={`${f.sender_name || "Prénom Nom"}\nFonction · ${pr.nom || "Entreprise"}\n06 00 00 00 00`} /></Field>
           <Field label="Adresse postale de l'entreprise" className="sm:col-span-2" hint="Obligatoire en bas des e-mails de prospection."><Input value={f.postal_address} onChange={(e) => setF({ ...f, postal_address: e.target.value })} /></Field>
-          <Field label="Envois maximum par jour" hint="Commence à 20 et augmente de 10 par semaine : c'est ce qui protège ton domaine du spam.">
+          <Field label="Envois maximum par jour" hint="10 par défaut : peu de messages, chacun sur un fait précis. Monte doucement si les réponses suivent.">
             <Input type="number" min={1} max={200} value={f.daily_limit} onChange={(e) => setF({ ...f, daily_limit: Number(e.target.value) || 1 })} />
           </Field>
         </div>
@@ -295,6 +295,7 @@ export default function Settings() {
         <Button className="mt-4" variant="primary" loading={busy === "save"} onClick={() => save({ meeting_minutes: Math.min(180, Math.max(10, f.meeting_minutes)), meeting_location: f.meeting_location, availability: f.availability })}>Enregistrer</Button>
       </Section>
 
+      {pr.avance === true && (<>
       <Section title="Devis" sub="Tes prestations habituelles et les mentions légales qui apparaissent sur les devis.">
         <div className="grid sm:grid-cols-3 gap-4">
           <Field label="Raison sociale"><Input value={f.legal_name} onChange={(e) => setF({ ...f, legal_name: e.target.value })} /></Field>
@@ -317,6 +318,7 @@ export default function Settings() {
           <Button size="sm" variant="primary" loading={busy === "save"} onClick={() => save({ legal_name: f.legal_name, siret: f.siret, vat_rate: f.vat_rate, catalog: (f.catalog ?? []).filter((c) => c.label.trim()) })}>Enregistrer</Button>
         </div>
       </Section>
+      </>)}
 
       <ExternalAccess ws={ws} />
     </div>

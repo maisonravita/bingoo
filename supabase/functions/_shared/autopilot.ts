@@ -64,10 +64,11 @@ export async function autopilot(ws: Workspace, base: string) {
   }
 
 
-  // 3. Rédaction : garder une réserve de 10 messages prêts (priorité aux prospects des campagnes)
+  // 3. Rédaction : une petite réserve de 5 messages forts (déclencheur obligatoire, adresses nominatives d'abord)
   const { count: drafts } = await admin.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "brouillon").eq("step", 0);
-  if ((drafts ?? 0) < 10 && ws.sender_name) {
-    const { data: ready } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("status", "pret").neq("email", "").is("mission_id", null).order("campaign_id", { ascending: true, nullsFirst: false }).limit(3);
+  if ((drafts ?? 0) < 5 && ws.sender_name) {
+    const { aEcrire } = await import("./agents.ts");
+    const ready = await aEcrire(ws.id, Math.min(3, 5 - (drafts ?? 0)), (q) => q.is("mission_id", null));
     for (const p of ready ?? []) { try { await draft(ws, p as Prospect); report.rediges = (report.rediges ?? 0) + 1; await log(ws.id, "redaction", "E-mail rédigé (pilote automatique)"); } catch (e) { console.error(e); } }
   }
 

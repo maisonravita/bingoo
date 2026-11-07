@@ -188,7 +188,7 @@ export default function Replies() {
 
   return (
     <div>
-      <PageHead title="Réponses" resume sub={tracked ? "Les réponses arrivent ici automatiquement, triées, avec une réponse proposée. Les relances s'arrêtent seules." : "Active le suivi des réponses dans Réglages pour qu'elles arrivent ici toutes seules."}>
+      <PageHead title="Poste" resume sub={tracked ? "Triées, avec une réponse déjà proposée." : "Active le suivi des réponses à la Mairie pour qu'elles arrivent ici."}>
         <Paste onDone={load} />
       </PageHead>
       <Guide id="reponses" titre="Ici : les prospects qui t'ont répondu, déjà triés." etapes={["Commence par ceux marqués « Intéressé » : une réponse est déjà prête.", "Relis-la, corrige si besoin, puis clique « Envoyer la réponse ».", "Il propose un rendez-vous ? Il arrive tout seul dans « Rendez-vous »."]} />

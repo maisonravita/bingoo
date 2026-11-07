@@ -51,7 +51,7 @@ function FollowUp({ m, onChange }) {
               <Textarea rows={8} value={mail.body} onChange={(e) => setMail({ ...mail, body: e.target.value })} />
               <div className="flex flex-wrap gap-2">
                 <Button variant="accent" loading={busy === "send"} onClick={send}>Envoyer à {m.contact_name || m.contact_email}</Button>
-                <Link to="/devis"><Button>{quote ? "Voir la proposition" : "Aller aux devis"}</Button></Link>
+                {(quote || ws.profile?.avance === true) && <Link to="/devis"><Button>{quote ? "Voir la proposition" : "Aller aux devis"}</Button></Link>}
               </div>
             </div>
           )}

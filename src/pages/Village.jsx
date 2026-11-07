@@ -1,3 +1,4 @@
+import { estSimple } from "../lib/lieu";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
@@ -210,27 +211,13 @@ export default function Village() {
       .then(({ data }) => setRdvJour(data ?? []));
   }, [ws.id]);
 
+  // Tous les compteurs en une seule requête (fonction « compteurs » côté base)
   useEffect(() => {
-    const c = (q) => q.then((r) => r.count ?? 0);
-    const head = (t) => supabase.from(t).select("id", { count: "exact", head: true }).eq("workspace_id", ws.id);
-    const now = new Date().toISOString(), w1 = new Date(Date.now() - 7 * 864e5).toISOString(), w2 = new Date(Date.now() - 14 * 864e5).toISOString();
-    Promise.all([
-      c(head("replies").eq("handled", false)), c(head("messages").eq("status", "brouillon")),
-      c(head("meetings").eq("status", "confirme").gte("starts_at", now)), c(head("radar_opps").eq("status", "nouveau")),
-      c(head("prospects").eq("linkedin_status", "a_envoyer")), c(head("prospects").neq("contact_name", "").neq("status", "ignore")),
-      c(head("prospects").neq("email", "").neq("status", "ignore")), c(head("competitors")),
-      c(head("replies")), c(head("replies").in("class", ["interesse", "question", "prix", "rappel"])), c(head("meetings").neq("status", "annule")),
-      c(head("prospects").neq("phone", "").neq("status", "ignore")), c(head("radar_opps").gte("created_at", w1)),
-      c(head("messages").eq("status", "envoye").gte("sent_at", w1)), c(head("messages").eq("status", "envoye").eq("step", 0)),
-      c(head("radar_opps").eq("status", "nouveau").gte("score", 75)), c(head("messages").eq("status", "envoye")), c(head("prospects").eq("status", "client")),
-      // Semaine dernière, pour comparer
-      c(head("messages").eq("status", "envoye").gte("sent_at", w2).lt("sent_at", w1)),
-      c(head("replies").gte("created_at", w1)), c(head("replies").gte("created_at", w2).lt("created_at", w1)),
-      c(head("meetings").neq("status", "annule").gte("created_at", w1)), c(head("meetings").neq("status", "annule").gte("created_at", w2).lt("created_at", w1)),
-    ]).then(([rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal, chaudes, sentAll, clients, sentPrev, rep7, repPrev, rdv7, rdvPrev]) => setD({ rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal, chaudes, sentAll, clients, sentPrev, rep7, repPrev, rdv7, rdvPrev })).catch(() => setD({}));
+    supabase.rpc("compteurs", { p_ws: ws.id }).then(({ data, error }) => setD(error || !data ? {} : data), () => setD({}));
   }, [ws.id]);
 
   const boite = ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok;
+  const simple = estSimple(ws);
   const reglage = !boite || !ws.postal_address;
   const v = d ?? {};
   const B = [
@@ -239,8 +226,11 @@ export default function Village() {
     { art: "rdv", nom: "Les Rendez-vous", quoi: "Tes rendez-vous", to: "/agenda", badge: v.rdv, detail: v.rdv ? `${v.rdv} à venir` : "" },
     { art: "annuaire", nom: "L'Annuaire", quoi: "Tes contacts", to: "/prospects", detail: d ? `${v.dec ?? 0} décideur${v.dec > 1 ? "s" : ""} · ${v.mails ?? 0} e-mail${v.mails > 1 ? "s" : ""}` : "" },
     { art: "radar", nom: "La Tour Radar", quoi: "Le bon moment", to: "/radar", badge: v.opps, detail: v.opps ? "Entreprises repérées" : "" },
-    { art: "espion", nom: "L'Espion", quoi: "Tes concurrents", to: "/espion", detail: d ? (v.rivals ? `${v.rivals} surveillé${v.rivals > 1 ? "s" : ""}` : "Aucun suivi pour l'instant") : "" },
-    { art: "linkedin", nom: "Le Café LinkedIn", quoi: "Plus de contacts", to: "/linkedin", badge: v.li, detail: v.li ? "Invitations à valider" : "" },
+    // Mode simple : Espion et Café LinkedIn restent dans le décor, fermés ; on les ouvre à la Mairie (outils avancés)
+    simple ? { art: "espion", nom: "L'Espion", quoi: "Outil avancé", to: "/espion", ferme: true, detail: "À activer à la Mairie" }
+      : { art: "espion", nom: "L'Espion", quoi: "Tes concurrents", to: "/espion", detail: d ? (v.rivals ? `${v.rivals} surveillé${v.rivals > 1 ? "s" : ""}` : "Aucun suivi pour l'instant") : "" },
+    simple ? { art: "linkedin", nom: "Le Café LinkedIn", quoi: "Outil avancé", to: "/linkedin", ferme: true, detail: "À activer à la Mairie" }
+      : { art: "linkedin", nom: "Le Café LinkedIn", quoi: "Plus de contacts", to: "/linkedin", badge: v.li, detail: v.li ? "Invitations à valider" : "" },
     { art: "observatoire", nom: "L'Observatoire", quoi: "Tes résultats", to: "/resultats" },
     { art: "mairie", nom: "La Mairie", quoi: "Tes réglages", to: reglage ? (boite ? "/reglages" : "/connexions") : "/reglages", alerte: reglage, detail: reglage ? (!boite ? "Connecte ta boîte mail" : "Ajoute ton adresse") : "" },
   ];
@@ -282,7 +272,7 @@ export default function Village() {
   const lieu = B.find((b) => b.art === sp.get("lieu")) ?? null;
   const Page = lieu ? INTERIEUR[lieu.to] : null;
   const [grand, setGrand] = useState(false);
-  const ouvre = (b) => { if (!INTERIEUR[b.to]) { nav(b.to); return; } setSp({ lieu: b.art }); };
+  const ouvre = (b) => { if (b.ferme) { setSp({ lieu: "mairie" }); return; } if (!INTERIEUR[b.to]) { nav(b.to); return; } setSp({ lieu: b.art }); };
   // Mesure : vue, bâtiment ouvert, et hésitation (un bâtiment quitté en moins de 5 s pour un autre)
   useEffect(() => { trace(ws.id, "vue", `village${estMobile() ? " mobile" : ""}`); }, [ws.id]);
   const ouvertA = useRef({ art: null, t: 0 });
@@ -464,12 +454,9 @@ export default function Village() {
         </button>
       </div>
 
-      {/* En bas : comment ça marche, et la nuit rejouée */}
+      {/* En bas : la nuit rejouée */}
       <div className="pointer-events-none fixed inset-x-0 bottom-5 z-20 flex justify-center px-4" style={lieu || nuit || serie || (d && travaux.length > 0 && !matinVu) ? { display: "none" } : intro ? { animation: "bv-ui 3.6s both" } : undefined}>
-        <div className="pointer-events-auto flex items-center gap-3 rounded-[24px] bg-white p-2 sm:pl-5 shadow-[0_12px_30px_-16px_rgba(122,74,42,.5)]">
-          <svg viewBox="0 0 24 24" className="hidden sm:block h-6 w-6 text-[#F26A21]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="9.5" /><path d="m15.5 8.5-2 5-5 2 2-5z" /></svg>
-          <p className="hidden sm:block text-[14px] text-ink">Survole un bâtiment pour voir son utilité <span className="mx-1 text-ink-soft">•</span> Clique pour y entrer <span className="mx-1 text-ink-soft">•</span> Explore le village à ton rythme.</p>
-          <span className="hidden sm:block h-7 w-px bg-[#F1E2D2]" aria-hidden />
+        <div className="pointer-events-auto flex items-center gap-3 rounded-[24px] bg-white p-2 shadow-[0_12px_30px_-16px_rgba(122,74,42,.5)]">
           <button onClick={rejouer} className="flex items-center gap-2 rounded-[18px] bg-[#1E1E24] px-5 py-3 text-[14.5px] font-semibold text-white hover:bg-black"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /><path d="M17 3v3M15.5 4.5h3" /></svg>La nuit de ton équipe</button>
         </div>
       </div>
@@ -593,7 +580,7 @@ export default function Village() {
               })()}
               {/* Passer d'un bâtiment à l'autre sans revenir au village */}
               <nav aria-label="Les bâtiments" className="-mx-4 mt-2 flex gap-1 overflow-x-auto border-b border-[#F1E2D2] px-3 sm:-mx-6 sm:px-5">
-                {B.filter((b) => INTERIEUR[b.to]).map((b) => {
+                {B.filter((b) => INTERIEUR[b.to] && !b.ferme).map((b) => {
                   const ici = b.art === lieu.art;
                   return (
                     <button key={b.art} onClick={() => setSp({ lieu: b.art }, { replace: true })} aria-current={ici ? "page" : undefined} title={b.nom}

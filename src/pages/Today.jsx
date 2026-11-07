@@ -213,7 +213,6 @@ function Urgent({ u }) {
 
 /** Tes contacts : décideurs trouvés, e-mails, téléphones, réponses et rendez-vous (chiffres réels, jamais d'exemple). */
 // Adresses génériques (contact@, info@, sales@…) : utiles, mais ce ne sont pas des décideurs
-const GENERIQUE = "^(contact|info|infos|sales|vente|ventes|hello|bonjour|accueil|commercial|marketing|support|admin|office|secretariat|direction|reclamation[a-z.-]*|service[a-z.-]*|rh|recrutement|jobs|team|equipe)@";
 function Contacts({ s }) {
   const T = [["Décideurs trouvés", s.dec, "/prospects"], ["E-mails directs", s.mailDirect ?? s.mail, "/prospects", s.mail > (s.mailDirect ?? s.mail) ? `+ ${s.mail - s.mailDirect} adresse${s.mail - s.mailDirect > 1 ? "s" : ""} générique${s.mail - s.mailDirect > 1 ? "s" : ""}` : ""], ["Téléphones", s.tel, "/prospects"], ["Réponses", s.replied, "/reponses"], ["Rendez-vous", s.rdv, "/agenda"]];
   return (
@@ -375,7 +374,7 @@ function Morning({ s, canSend, wsId, adresse = true }) {
             const inner = (
               <>
                 <span className="grid place-items-center w-10 h-10 shrink-0 rounded-xl bg-accent-soft"><Ico n={icon} className="w-5 h-5 text-accent" /></span>
-                <span className="min-w-0 flex-1"><span className="block font-semibold text-[15.5px]"><span className="tnum">{n}</span> {n > 1 ? b : a}</span>{aide && <span className="block text-[13px] text-ink-soft truncate">{aide}</span>}</span>
+                <span className="min-w-0 flex-1"><span className="block font-semibold text-[15.5px]"><span className="tnum">{n}</span> {n > 1 ? b : a}</span>{aide && k === "rdv" && <span className="block text-[13px] text-ink-soft truncate">{aide}</span>}</span>
                 {SEC[k] > 0 && <span className="text-[13px] text-ink-faint tnum shrink-0">{SEC[k] * n < 60 ? `${SEC[k] * n} s` : `${Math.round((SEC[k] * n) / 60)} min`}</span>}
                 <span className="text-ink-faint" aria-hidden>›</span>
               </>
@@ -474,29 +473,22 @@ export default function Today() {
   const [s, setS] = useState(null);
 
   const load = useCallback(async () => {
-    const c = (q) => q.then((r) => r.count ?? 0);
-    const head = (t) => supabase.from(t).select("id", { count: "exact", head: true }).eq("workspace_id", ws.id);
-    const P = () => head("prospects");
     const t0 = new Date(); t0.setHours(0, 0, 0, 0);
-    const w1 = new Date(Date.now() - 7 * 864e5).toISOString(), w2 = new Date(Date.now() - 14 * 864e5).toISOString();
+    const w1 = new Date(Date.now() - 7 * 864e5).toISOString();
     const today = new Date().toISOString().slice(0, 10), old = new Date(Date.now() - 4 * 864e5).toISOString();
-    const [found, toContact, sent, replied, rdv, client, found7, sent7, replied7, rdv7, opps, oppsWeek, oppsPrev, replies, drafts, li, todo, ready, hard, act, detected, due, quotes, meet, dec, mail, tel, mailDirect, sentPrev, repPrev, rdvPrev] = await Promise.all([
-      c(P()), c(P().in("status", ["pret", "a_valider"])),
-      c(P().in("status", ["envoye", "repondu", "rdv", "client", "refus"]).not("email", "eq", "")),
-      c(P().in("status", ["repondu", "rdv", "client", "refus"])), c(P().in("status", ["rdv", "client"])), c(P().eq("status", "client")),
-      c(P().gte("created_at", w1)), c(head("messages").eq("status", "envoye").gte("sent_at", w1)), c(head("replies").gte("created_at", w1)), c(head("meetings").neq("status", "annule").gte("created_at", w1)),
-      c(head("radar_opps").eq("status", "nouveau")), c(head("radar_opps").gte("created_at", w1)), c(head("radar_opps").gte("created_at", w2).lt("created_at", w1)),
-      c(head("replies").eq("handled", false)), c(head("messages").eq("status", "brouillon")), c(P().eq("linkedin_status", "").neq("linkedin_note", "").not("status", "in", "(ignore,refus)")),
-      c(P().eq("status", "nouveau")), c(P().eq("status", "pret")), c(P().eq("status", "sans_email").lt("enrich_level", 2)),
+    // Les compteurs en une seule requête ; les listes à afficher à part
+    const [{ data: k }, act, detected, due, quotes, meet] = await Promise.all([
+      supabase.rpc("compteurs", { p_ws: ws.id }),
       supabase.from("activity").select("kind, summary, created_at").eq("workspace_id", ws.id).gte("created_at", w1).order("created_at", { ascending: false }).limit(2000),
       supabase.from("radar_opps").select("id, kind, company, summary, city, url, created_at, score, prospect_id, raw, status").eq("workspace_id", ws.id).in("status", ["nouveau", "ajoute"]).neq("kind", "difficulte").order("score", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(12),
       supabase.from("prospects").select("id, name, next_action, next_action_at, phone").eq("workspace_id", ws.id).lte("next_action_at", today).not("status", "in", "(ignore,refus)").order("next_action_at").limit(5),
       supabase.from("quotes").select("id, number, sent_at, status, prospects(name)").eq("workspace_id", ws.id).in("status", ["envoye", "vu"]).lt("sent_at", old).limit(3),
       supabase.from("meetings").select("id, company, starts_at").eq("workspace_id", ws.id).eq("status", "confirme").gte("starts_at", t0.toISOString()).lt("starts_at", new Date(t0.getTime() + 864e5).toISOString()).order("starts_at"),
-      c(P().neq("contact_name", "").neq("status", "ignore")), c(P().neq("email", "").neq("status", "ignore")), c(P().neq("phone", "").neq("status", "ignore")),
-      c(P().neq("email", "").neq("status", "ignore").not("email", "imatch", GENERIQUE)),
-      c(head("messages").eq("status", "envoye").gte("sent_at", w2).lt("sent_at", w1)), c(head("replies").gte("created_at", w2).lt("created_at", w1)), c(head("meetings").neq("status", "annule").gte("created_at", w2).lt("created_at", w1)),
     ]);
+    const K = k ?? {};
+    const { found = 0, toContact = 0, found7 = 0, sent7 = 0, rdv7 = 0, opps = 0, todo = 0, ready = 0, hard = 0, dec = 0, tels: tel = 0, mails: mail = 0, mailDirect = 0, sentPrev = 0, repPrev = 0, rdvPrev = 0 } = K;
+    const sent = K.sentProspects ?? 0, replied = K.replied ?? 0, rdv = K.rdvProspects ?? 0, client = K.clients ?? 0, replied7 = K.rep7 ?? 0;
+    const oppsWeek = K.opps7 ?? 0, oppsPrev = K.oppsPrev ?? 0, replies = K.rep ?? 0, drafts = K.drafts ?? 0, li = K.liTodo ?? 0;
     const rows = act.data ?? [];
     const minutes = rows.reduce((m, r) => m + (MINUTES[r.kind] ?? 0), 0);
     setS({ dec, mail, tel, mailDirect, found, toContact, sent, replied, rdv, client, found7, sent7, replied7, rdv7, opps, oppsWeek, oppsPrev, replies, drafts, li, todo, ready, hard, sentPrev, repPrev, rdvPrev,

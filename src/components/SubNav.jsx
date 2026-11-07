@@ -7,7 +7,7 @@ import { estSimple } from "../lib/lieu";
 export const SECTIONS = {
   reglages: [["/reglages", "Mon entreprise"], ["/connexions", "Connexions"], ["/equipe", "Équipe"], ["/abonnement", "Abonnement"]],
   resultats: [["/resultats", "Prospection"], ["/distribution", "Trafic du site"], ["/conversion", "Conversion du site"]],
-  prospects: [["/prospects", "Liste"], ["/prospection", "Vue d'ensemble"], ["/linkedin", "LinkedIn"]],
+  prospects: [["/prospects", "Liste"], ["/prospection", "Vue d'ensemble"]],
 };
 
 const AVANCES = ["/distribution", "/conversion", "/prospection"];

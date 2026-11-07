@@ -106,15 +106,15 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
     const { ws } = await requireMember(req, b.workspace_id);
     if (!ws.sender_name) throw new HttpError(400, "Indique d'abord le nom de l'expéditeur dans Réglages");
     const n = await quota(ws.id, "redaction", LIMITS.redaction, Math.min(Math.max(Number(b.count) || 5, 1), 6));
-    const { data } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("status", "pret").neq("email", "").order("created_at").limit(n);
-    const batch = (data ?? []) as Prospect[];
-    if (!batch.length) return { done: 0, remaining: 0 };
+    // Seulement les prospects avec un déclencheur (fait concret et récent), adresses nominatives d'abord
+    const { aEcrire } = await import("../_shared/agents.ts");
+    const batch = await aEcrire(ws.id, n);
+    if (!batch.length) return { done: 0, remaining: 0, attente: "Aucun prospect avec un fait récent à citer : Bingoo! attend un signal avant d'écrire." };
     const res = await Promise.allSettled(batch.map((p) => draft(ws, p)));
     const ok = res.filter((r) => r.status === "fulfilled").length;
     if (!ok) throw (res[0] as PromiseRejectedResult).reason;
     for (let i = 0; i < ok; i++) await log(ws.id, "redaction", "E-mail rédigé");
-    const { count } = await admin.from("prospects").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "pret");
-    return { done: ok, remaining: count ?? 0 };
+    return { done: ok, remaining: (await aEcrire(ws.id, 200)).length };
   },
 
   // Régénérer un brouillon
