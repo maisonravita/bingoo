@@ -308,7 +308,7 @@ export async function rivauxDe(ws: Workspace): Promise<string[]> {
 }
 
 /** Adresse de service (juridique, données personnelles, recrutement, sans réponse…) : on n'y prospecte pas. */
-export const adresseDeService = (e?: string | null) => /^(legal|juridique|dpo|rgpd|gdpr|privacy|abuse|noreply|no-reply|donotreply|jobs|job|recrutement|candidature|careers|rh|hr|compta|comptabilite|facturation|billing|invoice|webmaster|postmaster)[@.+]/i.test(String(e ?? "").trim());
+export const adresseDeService = (e?: string | null) => /^(legal|juridique|dpo|rgpd|gdpr|privacy|abuse|noreply|no-reply|donotreply|jobs|job|recrutement|candidature|careers|rh|hr|compta|comptabilite|facturation|billing|invoice|webmaster|postmaster|reclamations?[a-z-]*|sav|litiges?|presse|press|investors?|investisseurs)[@.+-]/i.test(String(e ?? "").trim());
 
 /** Adresse d'accueil dont le domaine ne ressemble ni au nom de l'entreprise ni à son site : probablement le site d'une autre entreprise. */
 export function adresseDouteuse(p: Prospect) {
