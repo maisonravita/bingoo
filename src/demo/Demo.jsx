@@ -16,6 +16,7 @@ import { cadence } from "../lib/cadence";
 import { Badge } from "../components/ui";
 import { cx } from "../lib/utils";
 import EspionHub from "../pages/EspionHub";
+import Village from "../pages/Village";
 
 const WS = { id: "demo", name: "Démo", sender_name: "Jean", postal_address: "Paris", domain_status: "verified", integrations: { mailbox: { ok: true } }, profile: { nom: "Ton SaaS" } };
 const jours = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
@@ -310,5 +311,5 @@ function Cadence() {
 }
 
 const v = new URLSearchParams(location.search).get("v");
-function App() { useEffect(() => { try { sessionStorage.clear(); } catch { /* rien */ } }, []); return v === "journee" ? <Journee /> : v === "cadence" ? <Cadence /> : v === "radar" ? <Radar /> : v === "contacts" ? <Contacts /> : v === "valider" ? <Valider /> : v === "espion" ? <Cadre titre="Concurrents · données d'exemple"><div className="max-w-6xl mx-auto px-6 py-8"><EspionHub /></div></Cadre> : <Inscription />; }
+function App() { useEffect(() => { try { sessionStorage.clear(); } catch { /* rien */ } }, []); return v === "journee" ? <Journee /> : v === "cadence" ? <Cadence /> : v === "radar" ? <Radar /> : v === "contacts" ? <Contacts /> : v === "valider" ? <Valider /> : v === "village" ? <WsCtx.Provider value={{ ws: { ...WS, profile: { ...WS.profile, avance: true } } }}><Village /></WsCtx.Provider> : v === "espion" ? <Cadre titre="Concurrents · données d'exemple"><div className="max-w-6xl mx-auto px-6 py-8"><EspionHub /></div></Cadre> : <Inscription />; }
 ReactDOM.createRoot(document.getElementById("root")).render(<MemoryRouter><WsCtx.Provider value={{ ws: WS }}><ToastProvider><App /></ToastProvider></WsCtx.Provider></MemoryRouter>);

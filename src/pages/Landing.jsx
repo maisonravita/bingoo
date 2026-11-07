@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
 import { legalReady } from "./Legal";
 import { cx } from "../lib/utils";
+import { STORE_URL } from "../lib/ext";
 
 // Page d'accueil publique de Bingoo! : épurée, et chaque promesse adossée à une preuve.
 // Deux preuves seulement : l'application filmée sur un vrai compte, et l'essai en direct sur le site du visiteur.
@@ -20,7 +21,7 @@ const Check = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className=
 const Arrow = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" /></svg>;
 const Lock = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
 
-const MENU = [["La preuve", "#preuve"], ["Essai en direct", "#essai"], ["Tarifs", "#tarifs"], ["Questions", "#faq"]];
+const MENU = [["La preuve", "#preuve"], ["Essai en direct", "#essai"], ["Extension", "#extension"], ["Tarifs", "#tarifs"], ["Questions", "#faq"]];
 
 function useReveal() {
   useEffect(() => {
@@ -38,6 +39,7 @@ const PREUVES = [
   ["contacts", "Le décideur et son e-mail", "Le dirigeant déclaré au registre officiel, son e-mail professionnel vérifié, son LinkedIn. Jamais une adresse devinée.", "preuve-contacts", "L'écran Contacts de la vraie application. Données d'exemple."],
   ["canaux", "Il écrit. Tu valides.", "Un message par entreprise, qui part de ce qui se passe chez elle. Relances à J+3 et J+7, appel, clôture. Rien ne part sans toi.", "preuve-canaux", "L'écran « À valider » de la vraie application. Données d'exemple."],
   ["espion", "Tes concurrents, surveillés", "Prix, publicités, avis, clients mécontents : l'Espion mesure tout, et ton angle se retrouve dans chaque message.", "preuve-espion", "La page Concurrents de la vraie application. Concurrents d'exemple."],
+  ["village", "Ton village", "Toute ta prospection sur une carte : chaque bâtiment est une partie de Bingoo!, avec ce qui t'attend. Le matin, « La nuit de ton équipe » rejoue ce qui a été fait pendant que tu dormais.", "demo-village", "La page Village de la vraie application. Données d'exemple."],
 ];
 function Preuve() {
   const [on, setOn] = useState("radar");
@@ -278,6 +280,27 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* L'extension Chrome, en une bande */}
+        <section id="extension" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-20 border-t border-black/[.07]">
+          <div className="mx-auto max-w-[1180px]">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+              <div className="max-w-[640px]">
+                <h2 className="text-[36px] sm:text-[50px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Bingoo! partout où tu prospectes</h2>
+                <p className="mt-4 text-[17px] sm:text-[19px] leading-[1.5] text-ink-soft">L'extension Chrome, gratuite pour les clients et facultative.</p>
+              </div>
+              <a href={STORE_URL} target="_blank" rel="noopener noreferrer" className="self-start md:self-auto inline-flex items-center gap-2.5 rounded-lg bg-ink text-white px-6 py-3.5 text-[16px] hover:bg-black transition">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.5" /><path d="M12 8.5h8.5M8.97 13.75 4.7 6.35M15.03 13.75l-4.25 7.37" /></svg>
+                Ajouter à Chrome
+              </a>
+            </div>
+            <ul className="mt-10 grid sm:grid-cols-3 gap-3">
+              {[["Sur le site d'une entreprise", "Sa fiche en un clic : le dirigeant, la taille, ce qui bouge chez elle. Tu l'ajoutes à tes prospects sans copier-coller."], ["Sur LinkedIn", "Les invitations et messages que tu as validés partent depuis ton compte, à un rythme humain, avec des limites prudentes."], ["Dans Gmail", "Quand un prospect t'écrit, sa fiche s'affiche à côté : ce qu'il a reçu, où il en est, sa réponse déjà classée."]].map(([t, d]) => (
+                <li key={t} className="rounded-2xl bg-[#F6F5F3] p-5"><p className="text-[18px] leading-tight text-ink" style={SERIF}>{t}</p><p className="mt-2 text-[15px] leading-[1.5] text-ink-soft">{d}</p></li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
         {/* Tarifs */}
         <section id="tarifs" className="max-w-6xl mx-auto px-4 sm:px-6 py-20 scroll-mt-24 border-t border-black/[.07]">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
@@ -343,7 +366,7 @@ export default function Landing() {
 
       <footer className="border-t border-line bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid grid-cols-2 md:grid-cols-4 gap-8 text-[15px]">
-          <div><p className="font-bold">Produit</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="#preuve" onClick={scrollTo("preuve")} className="hover:text-ink">La preuve en vidéo</a></li><li><a href="#essai" onClick={scrollTo("essai")} className="hover:text-ink">Essai en direct</a></li><li><a href="#demandes" onClick={scrollTo("demandes")} className="hover:text-ink">Demandes publiques</a></li><li><a href="#tarifs" onClick={scrollTo("tarifs")} className="hover:text-ink">Tarifs</a></li></ul></div>
+          <div><p className="font-bold">Produit</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="#preuve" onClick={scrollTo("preuve")} className="hover:text-ink">La preuve en vidéo</a></li><li><a href="#essai" onClick={scrollTo("essai")} className="hover:text-ink">Essai en direct</a></li><li><a href="#demandes" onClick={scrollTo("demandes")} className="hover:text-ink">Demandes publiques</a></li><li><a href="#extension" onClick={scrollTo("extension")} className="hover:text-ink">Extension Chrome</a></li><li><a href="#tarifs" onClick={scrollTo("tarifs")} className="hover:text-ink">Tarifs</a></li></ul></div>
           <div><p className="font-bold">Outils gratuits</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="#/outils/contrats-publics" className="hover:text-ink">Contrats publics qui se terminent</a></li><li><a href="#/outils/analyse-concurrent" className="hover:text-ink">Analyse d'un concurrent</a></li></ul></div>
           <div><p className="font-bold">Pour qui</p><ul className="mt-4 space-y-2.5 text-ink-soft">{[["logiciels", "Fondateurs de SaaS"], ["agences", "Agences et cabinets"], ["nettoyage", "Nettoyage"], ["securite", "Sécurité"]].map(([k, l]) => <li key={k}><a href={`#/metier/${k}`} className="hover:text-ink">{l}</a></li>)}</ul></div>
           <div><p className="font-bold">Compte et légal</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><button onClick={() => nav("/connexion?mode=login")} className="hover:text-ink">Connexion</button></li><li><button onClick={go} className="hover:text-ink">Créer un compte</button></li>{legalReady && <><li><a href="#/mentions-legales" className="hover:text-ink">Mentions légales</a></li><li><a href="#/confidentialite" className="hover:text-ink">Confidentialité</a></li><li><a href="#/conditions" className="hover:text-ink">Conditions</a></li></>}<li><a href="#/opposition" className="hover:text-ink">Ne plus être contacté</a></li></ul></div>
