@@ -262,7 +262,9 @@ export async function newCompanies(ws: Workspace, activites: string[], zone: str
     const act = String(parse(b.listeetablissements)?.etablissement?.activite ?? parse(b.listepersonnes)?.personne?.activite ?? "");
     return parse(b.listepersonnes)?.personne?.typePersonne === "pm" && sirenOf(b) && !HOLDING.test(`${b.commercant} ${act}`);
   });
-  const nafs = (ws.targets ?? []).filter((t) => t.actif !== false).flatMap((t) => t.naf ?? []).map((n) => n.slice(0, 4));
+  // Codes NAF comparés sans point : « 70.22Z » (registre) et « 7022Z » (France Travail) désignent la même activité
+  const sansPoint = (n: string) => String(n ?? "").replace(/\./g, "").toUpperCase();
+  const nafs = (ws.targets ?? []).filter((t) => t.actif !== false).flatMap((t) => t.naf ?? []).map((n) => sansPoint(n).slice(0, 4));
   const reg = await lookupMany(rows.slice(0, 30).map(sirenOf));
   return rows.slice(0, 30).flatMap((b) => {
     const c = classify(b); if (!c) return [];
@@ -337,7 +339,9 @@ export async function rescore(ws: Workspace, poids: Record<string, number>) {
   }
   const rivals = ((comp ?? []) as { name: string; url: string }[]).flatMap((c) => [norm(c.name).split(" ")[0], (() => { try { return new URL(c.url).hostname.replace(/^www\./, "").split(".")[0]; } catch { return ""; } })()]).filter((x) => x && x.length > 3);
   const tranches = new Set((ws.targets ?? []).filter((t) => t.actif !== false).flatMap((t) => (t as { tranches?: string[] }).tranches ?? []));
-  const nafs = (ws.targets ?? []).filter((t) => t.actif !== false).flatMap((t) => t.naf ?? []).map((n) => n.slice(0, 4));
+  // Codes NAF comparés sans point : « 70.22Z » (registre) et « 7022Z » (France Travail) désignent la même activité
+  const sansPoint = (n: string) => String(n ?? "").replace(/\./g, "").toUpperCase();
+  const nafs = (ws.targets ?? []).filter((t) => t.actif !== false).flatMap((t) => t.naf ?? []).map((n) => sansPoint(n).slice(0, 4));
   const groupOf = (r: Row) => r.siren ? `s:${r.siren}` : `n:${norm(r.company).split(" ").slice(0, 3).join(" ")}`;
   const filterWhy = (r: Row) => {
     if (r.feedback === "pas_pertinent") return null;
@@ -347,7 +351,7 @@ export async function rescore(ws: Workspace, poids: Record<string, number>) {
     if (!pub && rivals.some((v) => norm(r.company).split(" ").includes(v))) return "c'est un concurrent";
     if (r.raw?.ferme) return "entreprise fermée";
     const naf = String(r.raw?.naf ?? ""), tr = String(r.raw?.tranche ?? "");
-    if (!pub && naf && nafs.length && !nafs.includes(naf.slice(0, 4))) return "hors de tes secteurs";
+    if (!pub && naf && nafs.length && !nafs.includes(sansPoint(naf).slice(0, 4))) return "hors de tes secteurs";
     if (!pub && r.kind !== "creation" && tr && tr !== "NN" && tranches.size && !tranches.has(tr)) return "taille hors cible";
     return null;
   };
