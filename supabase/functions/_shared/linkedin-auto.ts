@@ -159,7 +159,15 @@ export async function liReport(ws: Ws, b: { id?: unknown; resultat?: unknown; de
     const found = String(b.profil ?? "").match(/^https:\/\/www\.linkedin\.com\/in\/[^/?#]{2,100}/)?.[0];
     if (res === "ok" && found) {
       const { data: p } = await admin.from("prospects").select("linkedin_url, linkedin_person, contact_name, contact_role").eq("id", a.prospect_id).single();
-      if (p && !p.linkedin_url) await admin.from("prospects").update({ linkedin_url: found, ...(p.linkedin_person ? {} : { linkedin_person: `${p.contact_name}${p.contact_role ? ` · ${p.contact_role}` : ""}` }) }).eq("id", a.prospect_id);
+      if (p && !p.linkedin_url) {
+        await admin.from("prospects").update({ linkedin_url: found, ...(p.linkedin_person ? {} : { linkedin_person: `${p.contact_name}${p.contact_role ? ` · ${p.contact_role}` : ""}` }) }).eq("id", a.prospect_id);
+        // Profil trouvé : l'invitation et le premier message sont écrits tout de suite, et attendent la validation du client
+        const { data: full } = await admin.from("prospects").select("*").eq("id", a.prospect_id).single();
+        if (full && !["ignore", "refus", "client"].includes(full.status)) {
+          const { linkedin } = await import("./agents.ts");
+          await linkedin(ws as never, full as never, { hold: true }).catch((e) => console.error("note linkedin", (e as Error).message));
+        }
+      }
       await done();
     } else await done("echec");
     return { ok: true };
