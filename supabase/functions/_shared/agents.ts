@@ -271,11 +271,16 @@ export async function aEcrire(wsId: string, n: number, filtre: (q: any) => any =
   const { data: ws } = await admin.from("workspaces").select("*").eq("id", wsId).single();
   const { appris, bonus } = await import("./appris.ts");
   const a = ws ? await appris(ws as Workspace).catch(() => null) : null;
+  // Concurrents connus (Espion et outils concurrents du Radar) : jamais prospectés
+  const { data: comp } = await admin.from("competitors").select("name").eq("workspace_id", wsId).limit(200);
+  const rivaux = [...((comp ?? []) as { name: string }[]).map((c) => c.name), ...((((ws?.radar_cfg ?? {}) as { outils_rivaux?: string[] }).outils_rivaux) ?? [])]
+    .map((x) => String(x).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "")).filter((x) => x.length >= 4);
+  const concurrent = (p: Prospect) => { const n = `${p.name ?? ""}${p.org ?? ""}${String(p.email ?? "").split("@")[1] ?? ""}`.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, ""); return rivaux.some((r) => n.includes(r)); };
   const poids = new Map(((data ?? []) as Prospect[]).map((p) => [p.id, ws ? bonus(p as never, ws as Workspace, a) : 1]));
   const tries = ((data ?? []) as Prospect[])
     .filter((p) => declencheur(p)) // les faits du Radar sont recopiés sur la fiche (radarToProspect)
     .filter((p) => { const e = (p.insight as { redaction_echec?: { at?: string } } | null)?.redaction_echec?.at; return !e || Date.now() - new Date(e).getTime() > 30 * 864e5; })
-    .filter((p) => !adresseDouteuse(p))
+    .filter((p) => !adresseDouteuse(p) && !adresseDeService(p.email) && !concurrent(p))
     .sort((a, b) => (Number(emailGenerique(a.email)) - Number(emailGenerique(b.email))) || (poids.get(b.id)! - poids.get(a.id)!));
   // Variété : on alterne les types de faits (recrutement, nouveau dirigeant, ouverture…) plutôt que cinq fois le même
   const parType = new Map<string, Prospect[]>();
@@ -284,6 +289,9 @@ export async function aEcrire(wsId: string, n: number, filtre: (q: any) => any =
   while (out.length < n && [...parType.values()].some((l) => l.length)) for (const l of parType.values()) { const p = l.shift(); if (p && out.length < n) out.push(p); }
   return out;
 }
+
+/** Adresse de service (juridique, données personnelles, recrutement, sans réponse…) : on n'y prospecte pas. */
+export const adresseDeService = (e?: string | null) => /^(legal|juridique|dpo|rgpd|gdpr|privacy|abuse|noreply|no-reply|donotreply|jobs|job|recrutement|candidature|careers|rh|hr|compta|comptabilite|facturation|billing|invoice|webmaster|postmaster)[@.+]/i.test(String(e ?? "").trim());
 
 /** Adresse d'accueil dont le domaine ne ressemble ni au nom de l'entreprise ni à son site : probablement le site d'une autre entreprise. */
 export function adresseDouteuse(p: Prospect) {
@@ -336,8 +344,11 @@ OBJET: <objet de 2 à 5 mots, en minuscules sauf noms propres, sans point d'excl
   let body = humanize((m ? m[2] : out).replace(/^\s*OBJET\s*:.*$/gim, "").replace(/^\s*-{3,}\s*$/gm, "").replace(/^\n+/, ""));
   // « Bonjour Richard Michaud, » → « Bonjour Richard, » (prénom et nom ensemble sonnent comme un publipostage)
   const full = String(p.contact_name ?? "").trim();
-  // Adresse d'accueil : on salue l'accueil, pas la personne à qui on demande de transmettre
-  if (emailGenerique(p.email) && full) body = body.replace(/^Bonjour [^,\n]+,/, "Bonjour,");
+  // Salutation : jamais de gabarit laissé tel quel (« Madame/Monsieur X ») ; le nom seulement si l'adresse est bien la sienne
+  body = body.replace(/^Bonjour (?:Madame|Monsieur)\s*\/\s*(?:Madame|Monsieur)[^,\n]*,/i, "Bonjour,");
+  const nomFamille = full.split(/\s+/).slice(-1)[0]?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") ?? "";
+  const adresseDeLui = !!nomFamille && String(p.email ?? "").toLowerCase().split("@")[0].normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(nomFamille.slice(0, 5));
+  if ((emailGenerique(p.email) || !adresseDeLui) && full) body = body.replace(/^Bonjour [^,\n]+,/, "Bonjour,");
   else if (full.includes(" ")) body = body.replace(new RegExp(`^Bonjour ${full.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")},`), `Bonjour ${full.split(/\s+/)[0]},`);
   return { subject, body, active, v };
 }
