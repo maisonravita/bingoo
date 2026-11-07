@@ -140,6 +140,78 @@ function Radar() {
   );
 }
 
+// Le décideur et son e-mail : l'écran Contacts, la fiche s'ouvre et Bingoo! trouve le dirigeant puis son e-mail vérifié.
+// Données d'exemple ; les étapes sont celles de la vraie cascade (registre → dirigeant rapproché → e-mail pro → vérification).
+const FICHES = [
+  { id: "f1", nom: "Atelier Verne", ville: "Nantes", activite: "Éditeur de logiciel RH · 8 salariés", siret: "912 345 678 00014", site: "atelierverne.fr", signal: "A levé 1,2 M€" },
+  { id: "f2", nom: "Studio Kelio", ville: "Bordeaux", activite: "Agence produit et design · 15 salariés", siret: "897 654 321 00027", site: "studiokelio.fr", signal: "Nouveau dirigeant", fait: ["Anna Sèze", "Directrice générale", "anna.seze@studiokelio.fr"] },
+  { id: "f3", nom: "Nova Conseil", ville: "Lyon", activite: "Cabinet de conseil B2B · 12 salariés", siret: "883 112 450 00019", site: "nova-conseil.fr", signal: "Recrute 2 commerciaux", fait: ["Claire Martin", "Présidente", "claire.martin@nova-conseil.fr"] },
+];
+const ETAPES = [
+  ["Registre officiel", "SIREN 912 345 678 lu au registre national des entreprises"],
+  ["Dirigeant déclaré", "Paul Riva, Président, rapproché sans homonyme"],
+  ["E-mail professionnel", "paul.riva@atelierverne.fr trouvé"],
+  ["Vérification", "Le serveur de atelierverne.fr accepte cette adresse"],
+];
+function Contacts() {
+  const [ouvert, setOuvert] = useState(null);
+  const [k, setK] = useState(-1);
+  const go = () => { setK(0); [1, 2, 3, 4].forEach((n) => setTimeout(() => setK(n), n * 1100)); };
+  const f = FICHES.find((x) => x.id === ouvert);
+  const fini = k >= 4;
+  return (
+    <Cadre titre="Contacts · données d'exemple">
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        <h1 className="font-black text-[40px] leading-none" style={{ fontFamily: "var(--font-titre)" }}>Contacts</h1>
+        <p className="text-ink-soft text-[16px] mt-2">Le bon décideur dans chaque entreprise, et son e-mail vérifié. Jamais une adresse devinée.</p>
+        <div className="mt-7 grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-5 items-start">
+          <div className="bg-white border border-line rounded-2xl overflow-hidden divide-y divide-line">
+            {FICHES.map((x) => {
+              const mail = x.fait?.[2] || (x.id === "f1" && fini ? "paul.riva@atelierverne.fr" : "");
+              return (
+                <button key={x.id} data-fiche={x.id} onClick={() => setOuvert(x.id)} className={cx("w-full text-left px-4 py-3.5 transition", ouvert === x.id ? "bg-paper" : "hover:bg-paper")}>
+                  <p className="font-semibold text-[16px]">{x.nom} <span className="font-normal text-ink-soft">· {x.ville}</span></p>
+                  <p className={cx("text-[13.5px]", mail ? "text-ink" : "text-ink-faint")}>{mail ? `✉ ${mail}` : "E-mail à trouver"}</p>
+                  <span className="mt-1.5 inline-block rounded bg-accent-soft px-2 py-0.5 text-[11.5px] font-semibold text-accent-dark">{x.signal}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="rounded-2xl border border-line bg-white p-5 min-h-[430px]">
+            {!f ? <p className="text-[15px] text-ink-soft">Ouvre une fiche.</p> : (
+              <div className="rise">
+                <h2 className="text-[26px] font-black leading-tight" style={{ fontFamily: "var(--font-titre)" }}>{f.nom}</h2>
+                <p className="text-[14px] text-ink-soft">{f.activite} · {f.ville}</p>
+                <dl className="mt-4 grid grid-cols-[120px_1fr] gap-y-2.5 text-[14.5px]">
+                  <dt className="text-ink-soft">Décideur</dt>
+                  <dd>{k >= 2 ? <span className="rise inline-block"><b className="font-semibold">Paul Riva</b> · Président<span className="block text-[12px] text-ink-faint">Source : registre national des entreprises</span></span> : <span className="text-ink-faint">—</span>}</dd>
+                  <dt className="text-ink-soft">E-mail</dt>
+                  <dd>{fini ? <span className="rise inline-block"><span className="underline">paul.riva@atelierverne.fr</span> <span className="ml-1 rounded-full bg-good-soft text-good px-2 py-0.5 text-[11.5px] font-bold">Vérifié</span><span className="block text-[12px] text-ink-faint">Source : trouvé! (e-mail pro vérifié) · aujourd'hui</span></span> : k < 0 ? <button data-trouver onClick={go} className="rounded-lg bg-accent text-white px-4 py-2 text-[14px] font-bold hover:bg-accent-dark">Trouver l'e-mail</button> : <span className="text-ink-soft">Recherche en cours…</span>}</dd>
+                  <dt className="text-ink-soft">Site</dt><dd className="underline">{f.site}</dd>
+                  <dt className="text-ink-soft">SIRET</dt><dd className="tnum">{f.siret}</dd>
+                </dl>
+                {k >= 0 && (
+                  <ol className="mt-5 space-y-2">
+                    {ETAPES.map(([t, d], i) => {
+                      const done = k > i, on = k === i;
+                      return (
+                        <li key={t} className={cx("flex gap-3 rounded-xl border px-3.5 py-2.5 transition", done ? "border-good/30 bg-good-soft/40" : on ? "border-accent/40 bg-accent-soft/40" : "border-line opacity-50")}>
+                          <span className={cx("grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold", done ? "bg-good text-white" : on ? "bg-accent text-white" : "bg-paper text-ink-soft")}>{done ? "✓" : i + 1}</span>
+                          <span><span className="block text-[14px] font-semibold">{t}</span><span className="block text-[12.5px] text-ink-soft">{d}</span></span>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </Cadre>
+  );
+}
+
 // La cadence : la séquence par défaut (vrai composant de Réglages) et le badge « Touche x/y » des fiches
 const CONTACTES = [
   { name: "Nova Conseil", contact: "Claire Martin, Présidente", status: "envoye", seq_etape: 0 },
@@ -168,5 +240,5 @@ function Cadence() {
 }
 
 const v = new URLSearchParams(location.search).get("v");
-function App() { useEffect(() => { try { sessionStorage.clear(); } catch { /* rien */ } }, []); return v === "journee" ? <Journee /> : v === "cadence" ? <Cadence /> : v === "radar" ? <Radar /> : <Inscription />; }
+function App() { useEffect(() => { try { sessionStorage.clear(); } catch { /* rien */ } }, []); return v === "journee" ? <Journee /> : v === "cadence" ? <Cadence /> : v === "radar" ? <Radar /> : v === "contacts" ? <Contacts /> : <Inscription />; }
 ReactDOM.createRoot(document.getElementById("root")).render(<MemoryRouter><WsCtx.Provider value={{ ws: WS }}><ToastProvider><App /></ToastProvider></WsCtx.Provider></MemoryRouter>);
