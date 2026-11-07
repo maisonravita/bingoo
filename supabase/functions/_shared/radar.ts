@@ -306,7 +306,12 @@ export async function radarGetConfig(ws: Workspace & { radar_cfg?: Cfg | null })
 export async function radarToProspect(ws: Workspace, id: string) {
   const { data: o } = await admin.from("radar_opps").select("*").eq("id", id).eq("workspace_id", ws.id).single();
   if (!o) throw new HttpError(404, "Opportunité introuvable");
-  if (o.prospect_id) return { prospect_id: o.prospect_id, existing: true };
+  if (o.prospect_id) {
+    // Fiche déjà là : on lui ajoute le fait du Radar (sinon le message ne peut pas le citer)
+    await ajouterSignal(o.prospect_id, signalDe(o));
+    await admin.from("radar_opps").update({ status: "ajoute" }).eq("id", o.id);
+    return { prospect_id: o.prospect_id, existing: true };
+  }
   if (o.kind === "appel_offres") throw new HttpError(400, "Un appel d'offres se traite en répondant à l'avis, pas en prospection");
   const u = new URL(REGISTRY);
   u.searchParams.set("q", o.siren || o.company);
@@ -326,13 +331,14 @@ export async function radarToProspect(ws: Workspace, id: string) {
     siren: hit?.siren ?? null, siret: siege.siret ?? null, activity: target ? (ws.targets.find((t) => t.id === target)?.label ?? "") : (hit ? "Radar" : "Radar (hors registre)"),
     address: siege.adresse ?? "", postal_code: siege.code_postal ?? "", city: siege.libelle_commune ? cap(siege.libelle_commune) : o.city,
     contact_name: boss ? cap(`${boss.prenoms?.split(" ")[0] ?? ""} ${boss.nom}`.trim()) : "", contact_source: boss ? "registre des dirigeants (INSEE)" : "", contact_role: boss?.qualite ?? "",
-    signals: [{ type: o.kind === "recrutement" ? "recrutement" : ["dirigeant", "demenagement", "creation", "renouvellement", "besoin"].includes(o.kind) ? o.kind : "croissance", label: o.kind === "renouvellement" ? `Contrat public en fin de période (${o.raw?.fin ?? ""}) : ${o.title}` : o.summary, url: o.url }],
+    signals: [signalDe(o)],
   };
   let pid: string | null = null;
   if (row.siret) {
     const { data: ex } = await admin.from("prospects").select("id").eq("workspace_id", ws.id).eq("siret", row.siret).maybeSingle();
     pid = ex?.id ?? null;
   }
+  if (pid) await ajouterSignal(pid, signalDe(o));
   if (!pid) {
     const { data: p, error } = await admin.from("prospects").insert(row).select("id").single();
     if (error) throw new HttpError(500, error.message);
@@ -341,6 +347,33 @@ export async function radarToProspect(ws: Workspace, id: string) {
   await admin.from("radar_opps").update({ prospect_id: pid, status: "ajoute" }).eq("id", o.id);
   await log(ws.id, "radar", `${o.company} ajoutée aux prospects depuis le Radar`);
   return { prospect_id: pid, existing: false, registry: !!hit };
+}
+
+
+// deno-lint-ignore no-explicit-any
+function signalDe(o: any) {
+  const type = o.kind === "recrutement" ? "recrutement" : ["dirigeant", "demenagement", "creation", "renouvellement", "besoin", "levee"].includes(o.kind) ? o.kind : "croissance";
+  const label = o.kind === "renouvellement" ? `Contrat public en fin de période (${o.raw?.fin ?? ""}) : ${o.title}` : o.summary;
+  // Date de publication seulement (la date de détection ferait passer pour récent un fait ancien)
+  return { type, label, url: o.url ?? "", date: o.published ?? null, source: o.source ?? "Radar" };
+}
+async function ajouterSignal(prospectId: string, sg: { label: string }) {
+  const { data: p } = await admin.from("prospects").select("signals").eq("id", prospectId).single();
+  const cur = ((p?.signals ?? []) as { label?: string }[]);
+  if (cur.some((x) => x.label === sg.label)) return;
+  await admin.from("prospects").update({ signals: [sg, ...cur].slice(0, 12) }).eq("id", prospectId);
+}
+
+/** Radar d'abord : chaque jour, les entreprises au bon moment les mieux notées entrent d'elles-mêmes dans la prospection
+ *  (fiche créée depuis le registre, fait du Radar joint). Gratuit : registre officiel, aucune IA. */
+const KINDS_AUTO = ["recrutement", "croissance", "dirigeant", "demenagement", "creation", "levee"];
+export async function radarAuto(ws: Workspace, max = 10) {
+  const { data } = await admin.from("radar_opps").select("id").eq("workspace_id", ws.id).eq("status", "nouveau")
+    .in("kind", KINDS_AUTO).gte("score", 55).order("score", { ascending: false }).limit(max);
+  let n = 0;
+  for (const o of data ?? []) { try { await radarToProspect(ws, o.id); n++; } catch (e) { console.error("radar auto", o.id, e); } }
+  if (n) await log(ws.id, "radar", `${n} entreprise${n > 1 ? "s" : ""} au bon moment ajoutée${n > 1 ? "s" : ""} à la prospection`);
+  return n;
 }
 
 export async function radarCron() {
@@ -359,6 +392,7 @@ export async function radarCron() {
     if (Date.now() - t0 > 150_000) break; // le reste au prochain passage
     setAi({ ws: ws.id });
     try { await scanRadar(ws, { top: true }); n++; } catch (e) { console.error("radar cron", ws.id, e); }
+    try { await radarAuto(ws); } catch (e) { console.error("radar auto", ws.id, e); }
   }
   return { workspaces: n };
 }

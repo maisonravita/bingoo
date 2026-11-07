@@ -39,7 +39,7 @@ export function knowledgeOf(ws: { knowledge?: string }) {
 // Grille par quota (business plan du 6 nov. 2026) : quota = prospects contactés par mois (premier e-mail parti, contact trouvé et vérifié).
 // Relances, Radar et Espion restent compris dans la limite IA. credits = recherches vérifiées d'e-mails (comptées seulement si trouvé).
 export const PLANS: Record<string, { label: string; price: number; factor: number; seats: number; credits: number; ai: number; quota: number }> = {
-  essai: { label: "Essai gratuit", price: 0, factor: 0.5, seats: 1, credits: 40, ai: 4, quota: 30 },
+  essai: { label: "Essai gratuit", price: 0, factor: 0.5, seats: 1, credits: 60, ai: 6, quota: 60 },
   solo: { label: "Solo", price: 49, factor: 1, seats: 1, credits: 200, ai: 11, quota: 150 },
   pro: { label: "Pro", price: 119, factor: 2, seats: 3, credits: 650, ai: 24, quota: 500 },
   equipe: { label: "Équipe", price: 229, factor: 4, seats: 10, credits: 1300, ai: 46, quota: 1000 },

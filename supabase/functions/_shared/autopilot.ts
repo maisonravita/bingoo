@@ -18,7 +18,8 @@ export async function rechercheContacts(ws: Workspace, report: Record<string, nu
     .order("score", { ascending: false, nullsFirst: false }).limit(300);
   const { appris, bonus } = await import("./appris.ts");
   const a = await appris(ws).catch(() => null);
-  const todo = (pool ?? []).map((p) => ({ p, k: (Number(p.score) || 50) * bonus(p, ws, a) })).sort((x, y) => y.k - x.k).map((x) => x.p)
+  const { declencheur } = await import("./agents.ts");
+  const todo = (pool ?? []).map((p) => ({ p, k: (Number(p.score) || 50) * bonus(p, ws, a) * (declencheur(p as Prospect) ? 3 : 1) })).sort((x, y) => y.k - x.k).map((x) => x.p)
     .slice(0, Math.min(o.parPassage, o.parJour - (done ?? 0)));
   for (const p of todo ?? []) {
     const t = (ws.targets ?? []).find((x) => x.id === p.target);

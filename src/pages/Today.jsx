@@ -343,7 +343,7 @@ function Morning({ s, canSend, wsId, adresse = true }) {
     ["valider", s.drafts, "message à valider", "messages à valider", "Un geste par message.", "#prets", "send"],
     ["rappels", s.urgent.due.length, "rappel prévu", "rappels prévus", "Le numéro est sur la fiche.", "/prospects", "clock"],
     ["linkedin", s.li, "invitation LinkedIn à valider", "invitations LinkedIn à valider", "Bingoo! les envoie à ton rythme.", "/linkedin", "send"],
-    ["radar", s.opps, "entreprise à contacter au bon moment", "entreprises à contacter au bon moment", "Ajoute celles qui t'intéressent : Bingoo! trouve le décideur et écrit.", "/radar", "search"],
+    ["radar", s.opps, "entreprise à contacter au bon moment", "entreprises à contacter au bon moment", "Les meilleures entrent seules dans ta prospection chaque jour.", "/radar", "search"],
     ["rdv", s.urgent.meet.length, "rendez-vous aujourd'hui", "rendez-vous aujourd'hui", s.urgent.meet[0] ? `Le premier à ${new Date(s.urgent.meet[0].starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} : ${s.urgent.meet[0].company ?? ""}` : "", "/agenda", "cal"],
   ];
   const key = `bingoo-matin-${wsId}-${new Date().toISOString().slice(0, 10)}`;

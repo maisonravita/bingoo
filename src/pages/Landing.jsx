@@ -154,7 +154,7 @@ const FAQ = [
   ["Ça marche pour mon métier ?", "Bingoo! s'adapte à ton activité à l'inscription : services sur site, services aux entreprises, logiciels ou produits. Il ne cherche pas les mêmes signaux pour une entreprise de nettoyage et pour un éditeur de logiciel."],
   ["À quoi sert l'extension Chrome ?", "Elle affiche la fiche d'une entreprise sur son propre site, fait sur LinkedIn les invitations et les messages que tu as validés (à un rythme humain, dans des limites prudentes) et reconnaît tes prospects dans Gmail. Elle est facultative : tout le reste marche sans elle."],
   ["Est-ce que je risque mon compte LinkedIn ?", "Bingoo! ne fait jamais d'envoi en masse ni d'aspiration de profils. Le pilote ne fait que ce que tu as validé, avec des pauses et des limites quotidiennes basses, depuis ton propre navigateur."],
-  ["Que se passe-t-il après les 14 jours ?", "Tu choisis une formule, ou ton espace s'arrête simplement. Aucune carte bancaire n'est demandée pour l'essai."],
+  ["Combien de temps dure l'essai ?", "Jusqu'à ton premier rendez-vous obtenu, plus 7 jours pour décider (45 jours au plus). Ensuite tu choisis une formule, ou ton espace s'arrête simplement. Aucune carte bancaire n'est demandée."],
 ];
 
 /* ---------- Sections façon Apollo, adaptées à Bingoo! ---------- */
@@ -316,7 +316,7 @@ export default function Landing() {
               <a href="#essai" onClick={scrollTo("essai")} className="rounded-lg bg-white border border-black/10 px-10 py-4 text-[18px] sm:text-[19px] hover:bg-[#FAFAF9] transition">Essayer avec mon site</a>
             </div>
             <div className="hero-in mt-8" style={{ animationDelay: ".25s" }}>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F1EFED] px-3 py-1.5 text-[14.5px] text-ink-soft"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="9" /><path d="m8.5 12.5 2.5 2.5 4.5-5" /></svg>14 jours gratuits, sans carte bancaire</span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F1EFED] px-3 py-1.5 text-[14.5px] text-ink-soft"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="9" /><path d="m8.5 12.5 2.5 2.5 4.5-5" /></svg>Gratuit jusqu'à ton premier rendez-vous, sans carte bancaire</span>
             </div>
             <p className="mt-8 text-[14.5px] text-ink-soft">En m'inscrivant, j'accepte les <a href="#/conditions" className="underline hover:text-ink">Conditions d'utilisation</a> et la <a href="#/confidentialite" className="underline hover:text-ink">Politique de confidentialité</a> de Bingoo!.</p>
             {/* Le produit en 4 étapes : c'est une vraie séquence, d'où les numéros */}
@@ -379,7 +379,7 @@ export default function Landing() {
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
             <div>
               <h2 className="text-[38px] sm:text-[54px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Moins cher qu'une journée de commercial.</h2>
-              <p className="mt-3 text-[17px] text-ink-soft">14 jours gratuits, sans carte bancaire. Ensuite, prix hors taxes par mois, sans engagement.</p>
+              <p className="mt-3 text-[17px] text-ink-soft">Gratuit jusqu'à ton premier rendez-vous (45 jours au plus), sans carte bancaire. Ensuite, prix hors taxes par mois, sans engagement.</p>
             </div>
             <div className="relative inline-flex rounded-full bg-white border border-line p-1 self-start md:self-auto">
               {[[false, "Mensuel"], [true, "Annuel"]].map(([v, l]) => <button key={l} onClick={() => setYearly(v)} className={cx("rounded-full px-5 py-2 text-[14.5px] font-bold transition", yearly === v ? "bg-ink text-white" : "text-ink-soft")}>{l}</button>)}

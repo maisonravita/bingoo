@@ -136,7 +136,7 @@ export default function Abonnement() {
   };
 
   const daysLeft = ws.trial_ends ? Math.ceil((new Date(ws.trial_ends) - new Date()) / 864e5) : null;
-  const [label, tone] = ws.plan === "essai" ? [daysLeft > 0 ? `Essai : ${daysLeft} jour${daysLeft > 1 ? "s" : ""} restant${daysLeft > 1 ? "s" : ""}` : (payments ? "Essai terminé" : "Accès de lancement"), daysLeft > 0 || !payments ? "accent" : "bad"] : STATUS[ws.plan_status] ?? [ws.plan_status, "muted"];
+  const [label, tone] = ws.plan === "essai" ? [daysLeft > 7 ? "Essai : jusqu'à ton premier rendez-vous" : daysLeft > 0 ? `Essai : ${daysLeft} jour${daysLeft > 1 ? "s" : ""} restant${daysLeft > 1 ? "s" : ""}` : (payments ? "Essai terminé" : "Accès de lancement"), daysLeft > 0 || !payments ? "accent" : "bad"] : STATUS[ws.plan_status] ?? [ws.plan_status, "muted"];
 
   return (
     <div>
