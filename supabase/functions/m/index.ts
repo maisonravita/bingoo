@@ -107,6 +107,17 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
     if (r.etat !== "ok") return { etat: r.etat };
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", r.l.workspace_id).single();
     if (!ws) throw new HttpError(404, "Espace introuvable");
+    // Réponse préparée à un prospect qui a répondu (alerte « prospect chaud »)
+    if (r.r) {
+      const pr = (r.r.prospects ?? {}) as Prospect;
+      if (b.confirmer !== true) return { etat: "ok", type: "reponse", espace: ws.profile?.nom || ws.name, recu: { de: r.r.from_name || r.r.from_email, texte: r.r.body, resume: r.r.summary }, message: { subject: r.r.reply_subject, body: r.r.reply_body }, prospect: { name: pr.name || r.r.from_email, contact_name: pr.contact_name, email: r.r.from_email, city: pr.city, signals: pr.signals } };
+      const subject = String(b.subject ?? r.r.reply_subject).slice(0, 200).trim() || r.r.reply_subject;
+      const body = String(b.body ?? r.r.reply_body).slice(0, 8000).trim() || r.r.reply_body;
+      await marquerUtilise(t);
+      const { sendReply } = await import("../_shared/pro.ts");
+      await sendReply(ws, r.r.id, subject, body);
+      return { etat: "envoye", type: "reponse" };
+    }
     const p = (r.m!.prospects ?? {}) as Prospect;
     if (b.confirmer !== true) return { etat: "ok", espace: ws.profile?.nom || ws.name, message: { subject: r.m!.subject, body: r.m!.body }, prospect: { name: p.name, contact_name: p.contact_name, contact_role: p.contact_role, contact_source: p.contact_source, email: p.email, city: p.city, signals: p.signals } };
     await marquerUtilise(t);

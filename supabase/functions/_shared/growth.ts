@@ -11,7 +11,9 @@ const today = () => new Date().toISOString().slice(0, 10);
 // =====================================================================
 export const RAMP = [10, 20, 35, 50];
 export function warmup(ws: Workspace) {
-  const limit = ws.daily_limit || 10;
+  // Santé de l'envoi : sans SPF ni DKIM (ou trop de rebonds), 5 par jour au plus tant que ce n'est pas corrigé
+  const s = (ws as Workspace & { sante_envoi?: { limite?: number | null } }).sante_envoi;
+  const limit = Math.min(ws.daily_limit || 10, typeof s?.limite === "number" ? s.limite : Infinity);
   if (!ws.warmup_started) return { week: 1, day: 0, cap: Math.min(RAMP[0], limit), done: false, ramp: RAMP };
   const days = Math.max(0, Math.floor((Date.now() - new Date(`${ws.warmup_started}T00:00:00Z`).getTime()) / 864e5));
   const week = Math.floor(days / 7);

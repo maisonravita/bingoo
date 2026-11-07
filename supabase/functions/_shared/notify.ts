@@ -19,12 +19,15 @@ export async function hotAlert(replyId: string, dry = false) {
   const who = p.name || r.from_name || r.from_email;
   const subject = `Prospect chaud : ${who} ${LABEL[r.class]}`;
   const link = appLink(ws as Workspace, "/reponses");
+  // Réponse déjà rédigée (avec créneaux et lien de rendez-vous) : un bouton pour la relire et l'envoyer, sans ouvrir l'app
+  const envoyer = r.reply_body && !dry ? await (await import("./matin.ts")).lienReponse(ws as Workspace, r.id).catch(() => "") : r.reply_body ? "(lien)" : "";
+  const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
   const text = [
     `${who}${p.city ? ` (${p.city})` : ""} vient de répondre : ${LABEL[r.class]}.`,
     r.summary ? `\nEn bref : ${r.summary}` : "",
     `\nSon message :\n« ${String(r.body ?? "").trim().slice(0, 600)}${String(r.body ?? "").length > 600 ? "…" : ""} »`,
     `\nContact : ${[p.contact_name && `${p.contact_name}${p.contact_role ? `, ${p.contact_role}` : ""}`, r.from_email, p.phone].filter(Boolean).join(" · ")}`,
-    r.reply_body ? `\nUne réponse est déjà prête : relis-la et envoie-la${link ? ` ici : ${link}` : " dans Réponses"}.` : link ? `\nRéponds-lui ici : ${link}` : "",
+    r.reply_body ? `\nTa réponse est prête (avec des créneaux pour le rendez-vous) :\n\n${String(r.reply_body).trim()}\n\n${envoyer ? `Relire et envoyer : ${envoyer}` : `Relis-la et envoie-la${link ? ` ici : ${link}` : " dans Réponses"}`}` : link ? `\nRéponds-lui ici : ${link}` : "",
     `\nRépondre dans l'heure multiplie les chances d'obtenir le rendez-vous.`,
   ].join("\n");
   if (dry) return { to, subject, text };
@@ -37,7 +40,17 @@ export async function hotAlert(replyId: string, dry = false) {
   }).catch((e) => { console.error("push", e); return { envoyes: 0 }; });
   if (!to && !push.envoyes) return { skipped: "aucune adresse d'équipe ni téléphone abonné" };
   // Pas de « répondre à cet e-mail » : la réponse citerait au prospect le texte interne de l'alerte
-  if (to) await sendSystem({ to, subject, text, fromName: `Bingoo! · ${who}` });
+  const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:600px;margin:0 auto;color:#15161A">
+<p style="font-size:20px;font-weight:800;margin:0">${esc(who)} ${esc(LABEL[r.class])}</p>
+${r.summary ? `<p style="font-size:15px;color:#55575F;margin:6px 0 0">${esc(r.summary)}</p>` : ""}
+<div style="margin:16px 0;border-left:3px solid #F1E2D2;padding:4px 0 4px 12px;font-size:14px;line-height:1.55;white-space:pre-line;color:#55575F">${esc(String(r.body ?? "").trim().slice(0, 900))}</div>
+${r.reply_body ? `<div style="border:1px solid #F1E2D2;border-radius:16px;padding:16px;margin:16px 0">
+<p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#C2410C">Ta réponse est prête</p>
+<p style="margin:0;font-size:14px;line-height:1.55;white-space:pre-line">${esc(String(r.reply_body).trim())}</p>
+${envoyer ? `<p style="margin:16px 0 0"><a href="${esc(envoyer)}" style="display:inline-block;background:#E8571C;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:12px">Relire et envoyer</a></p>` : ""}
+</div>` : link ? `<p><a href="${esc(link)}">Lui répondre</a></p>` : ""}
+<p style="font-size:13px;color:#8A8C93">Contact : ${esc([p.contact_name, r.from_email, p.phone].filter(Boolean).join(" · "))}<br>Répondre dans l'heure multiplie les chances d'obtenir le rendez-vous. Rien ne part sans ta confirmation.</p></div>`;
+  if (to) await sendSystem({ to, subject, text, html, fromName: `Bingoo! · ${who}` });
   await admin.from("replies").update({ notified_at: new Date().toISOString() }).eq("id", replyId);
   return { sent: true, to, telephones: push.envoyes };
 }

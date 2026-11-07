@@ -352,11 +352,16 @@ export async function dropcontactNight(ws: Workspace, n = 10) {
   const c = await credits(ws);
   const lots = Math.min(n, c.left);
   if (lots <= 0) return { actif: true, recus, lances: 0, credits_restants: c.left };
-  const { data } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("email", "").in("status", ["nouveau", "sans_email", "pret"])
+  // Sans e-mail, ou seulement l'adresse d'accueil (contact@, info@…) alors que le dirigeant est nommé : on cherche SON adresse.
+  // Les entreprises qui ont un fait récent (déclencheur) passent en premier : ce sont elles qu'on écrira.
+  const { data: cand } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).in("status", ["nouveau", "sans_email", "pret"])
+    .or(`email.eq."",email.imatch.^(contact|info|infos|hello|bonjour|accueil|secretariat|direction|office|admin|commercial|agence|cabinet)@`)
     .neq("fit", "non").is("dropcontact_req", null).is("dc_tried_at", null).not("free_tried_at", "is", null).like("contact_name", "% %")
-    .order("score", { ascending: false, nullsFirst: false }).limit(lots);
+    .order("score", { ascending: false, nullsFirst: false }).limit(lots * 5);
+  const { declencheur } = await import("./agents.ts");
+  const data = ((cand ?? []) as Prospect[]).sort((a, b) => Number(!!declencheur(b)) - Number(!!declencheur(a)) || Number(!a.email) - Number(!b.email)).slice(0, lots);
   let lances = 0;
-  for (const p of data ?? []) {
+  for (const p of data) {
     const req = await dcSubmit(p as Prospect, String(p.contact_name)).catch(() => null);
     await admin.from("prospects").update({ dc_tried_at: new Date().toISOString(), dropcontact_req: req }).eq("id", p.id);
     if (req) lances++;

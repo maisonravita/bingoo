@@ -16,6 +16,13 @@ export async function lienEnvoi(ws: Workspace, messageId: string) {
   return `${origine(ws)}/#/envoyer?t=${t}`;
 }
 
+/** Lien « Envoyer cette réponse » (alerte prospect chaud) : même règles, 48 h, usage unique, confirmation obligatoire. */
+export async function lienReponse(ws: Workspace, replyId: string) {
+  const t = [...crypto.getRandomValues(new Uint8Array(24))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  await admin.from("liens_envoi").insert({ token_hash: await sha(t), reply_id: replyId, workspace_id: ws.id, expires_at: new Date(Date.now() + H48).toISOString() });
+  return `${origine(ws)}/#/envoyer?t=${t}`;
+}
+
 /** Retrouve un lien valide (non utilisé, non expiré) et son message encore en attente. */
 export async function lireLien(t: string) {
   if (!/^[0-9a-f]{48}$/.test(t)) return null;
@@ -23,6 +30,11 @@ export async function lireLien(t: string) {
   if (!l) return null;
   if (l.used_at) return { l, etat: "utilise" as const };
   if (new Date(l.expires_at).getTime() < Date.now()) return { l, etat: "expire" as const };
+  if (l.reply_id) {
+    const { data: r } = await admin.from("replies").select("id, subject, body, summary, class, from_email, from_name, handled, reply_subject, reply_body, prospects(*)").eq("id", l.reply_id).single();
+    if (!r || r.handled || !r.reply_body) return { l, etat: "traite" as const };
+    return { l, etat: "ok" as const, r };
+  }
   const { data: m } = await admin.from("messages").select("id, subject, body, status, step, prospects(*)").eq("id", l.message_id).single();
   if (!m || m.status !== "brouillon") return { l, etat: "traite" as const };
   return { l, etat: "ok" as const, m };

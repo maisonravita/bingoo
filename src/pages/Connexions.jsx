@@ -214,6 +214,46 @@ function Mailbox() {
   );
 }
 
+/** Tes e-mails arrivent-ils en boîte de réception ? Contrôle gratuit du domaine d'envoi et des rebonds. */
+function Sante() {
+  const { ws } = useWs();
+  const [s, setS] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const charger = () => { setBusy(true); fn("sante-envoi", { workspace_id: ws.id }).then(setS).catch(() => {}).finally(() => setBusy(false)); };
+  useEffect(charger, [ws.id]);
+  if (!s) return null;
+  const TON = { bon: ["good", "Tout est en ordre"], moyen: ["accent", "À améliorer"], risque: ["bad", "Risque de spam"] };
+  const ok = (v) => <span className={cx("grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-black", v === true ? "bg-good text-white" : v === null ? "bg-paper text-ink-soft border border-line" : "bg-bad text-white")}>{v === true ? "✓" : v === null ? "?" : "!"}</span>;
+  return (
+    <Section title="Tes e-mails arrivent-ils bien ?" sub="Un très bon message en spam ne sert à rien. Bingoo! contrôle chaque jour ton domaine d'envoi et tes rebonds, et vérifie chaque adresse juste avant l'envoi."
+      status={<Badge tone={TON[s.note][0]}>{TON[s.note][1]}</Badge>}>
+      {s.domaines.map((d) => (
+        <div key={d.domaine} className="rounded-xl border border-line p-4 mb-3">
+          <p className="font-semibold break-all">{d.adresses.join(", ")}</p>
+          {d.perso ? <p className="text-sm text-ink-soft mt-1">Adresse personnelle (Gmail, Outlook…).</p> : (
+            <ul className="mt-2 grid sm:grid-cols-2 gap-2 text-[14px]">
+              <li className="flex items-center gap-2">{ok(d.spf)} SPF (qui a le droit d'envoyer)</li>
+              <li className="flex items-center gap-2">{ok(d.dkim)} DKIM (signature){d.dkim === null ? <span className="text-ink-soft">, non trouvée</span> : null}</li>
+              <li className="flex items-center gap-2">{ok(d.dmarc)} DMARC (exigé par Gmail)</li>
+              <li className="flex items-center gap-2">{ok(!d.principal)} {d.principal ? "Domaine principal de l'entreprise" : "Domaine séparé"}</li>
+            </ul>
+          )}
+        </div>
+      ))}
+      <p className="text-sm">Rebonds sur 30 jours : <b className="tnum">{s.rebonds.taux} %</b> <span className="text-ink-soft">({s.rebonds.rebonds} sur {s.rebonds.envoyes} envois, à garder sous 3 %)</span></p>
+      {s.limite ? <p className="mt-2 rounded-xl bg-bad/10 px-3 py-2 text-sm font-semibold">Par sécurité, {s.limite} envois par jour au plus tant que ce n'est pas corrigé.</p> : null}
+      {s.conseils.length > 0 && (
+        <ul className="mt-4 space-y-2">
+          {s.conseils.map((c, i) => (
+            <li key={i} className={cx("rounded-xl px-3 py-2.5 text-[14px]", c.gravite === "bloquant" ? "bg-bad/10" : c.gravite === "important" ? "bg-accent-soft/60" : "bg-paper")}>{c.texte}</li>
+          ))}
+        </ul>
+      )}
+      <Button className="mt-4" size="sm" loading={busy} onClick={charger}>Revérifier</Button>
+    </Section>
+  );
+}
+
 function Warmup() {
   const { ws } = useWs();
   const [w, setW] = useState(null);
@@ -358,6 +398,7 @@ export default function Connexions() {
       <PageHead title="Connexions" sub="Ta boîte mail, ton CRM et ton agenda branchés sur Bingoo!" />
       <div className="space-y-4">
         <Mailbox />
+        <Sante />
         <Warmup />
         <Finders />
         <Crm />

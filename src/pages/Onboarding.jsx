@@ -1,4 +1,5 @@
 import Opportunite from "../components/Opportunite";
+import { declencheur, quandTexte, typeDe } from "../lib/opportunite";
 import { trace } from "../lib/usage";
 import { useEffect, useState } from "react";
 import { fn, supabase } from "../lib/supabase";
@@ -49,6 +50,8 @@ export default function Onboarding() {
   const [site, setSite] = useState((ws?.website ?? "").replace(/^https?:\/\//i, "").replace(/\/$/, ""));
   const [desc, setDesc] = useState("");
   const [showDesc, setShowDesc] = useState(false);
+  const [clientEx, setClientEx] = useState("");
+  const [rivaux, setRivaux] = useState("");
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState(ws ?? null);
   const [zoneText, setZoneText] = useState("");
@@ -61,7 +64,7 @@ export default function Onboarding() {
     setBusy(true);
     try {
       const id = ws?.id ?? (await create("", site));
-      const r = await fn("analyze", { workspace_id: id, website: site.trim(), description: desc.trim() });
+      const r = await fn("analyze", { workspace_id: id, website: site.trim(), description: desc.trim(), client_exemple: clientEx.trim(), concurrents: rivaux.trim() });
       await reload();
       setDraft((d) => ({ ...(d ?? {}), id, profile: r.profile, targets: r.targets, zone: r.zone }));
       setStep(1);
@@ -165,6 +168,18 @@ export default function Onboarding() {
                   </label>
                   <button type="submit" className="w-full sm:w-auto rounded-2xl bg-accent text-white px-7 py-4 text-[16px] font-bold hover:bg-accent-dark active:scale-[0.98] transition">Analyser mon activité →</button>
                 </>)}
+                <div className="grid sm:grid-cols-2 gap-3 pt-1">
+                  <label className="block">
+                    <span className="block text-[13px] font-semibold mb-1.5">Un client que tu as déjà <span className="font-normal text-ink-soft">(facultatif)</span></span>
+                    <Input value={clientEx} onChange={(e) => setClientEx(e.target.value)} placeholder="Ex. un cabinet comptable de 15 personnes" />
+                    <span className="block text-xs text-ink-soft mt-1">Je cherche d'abord des entreprises qui lui ressemblent.</span>
+                  </label>
+                  <label className="block">
+                    <span className="block text-[13px] font-semibold mb-1.5">Tes concurrents <span className="font-normal text-ink-soft">(facultatif)</span></span>
+                    <Input value={rivaux} onChange={(e) => setRivaux(e.target.value)} placeholder="Ex. Lemlist, Kaspr" />
+                    <span className="block text-xs text-ink-soft mt-1">Je ne leur écrirai jamais.</span>
+                  </label>
+                </div>
               </form>
               <div className="mt-8 pt-6 border-t border-line grid sm:grid-cols-3 gap-4">
                 {[["Je lis ton site", "Ton offre, le problème que tu règles."], ["Je trouve ton public", "Les types d'entreprises qui en ont besoin, et quand."], ["Je compte", "Combien existent, et je teste les pistes."]].map(([t, d], k) => (
@@ -185,6 +200,16 @@ export default function Onboarding() {
               <h1 className={cx(H, "text-[34px] sm:text-[44px] mt-4")} style={HFONT}>{draft.profile?.nom || "Ton entreprise"}</h1>
               <p className="text-ink-soft text-[17px] mt-3">{draft.profile?.resume}</p>
             </div>
+            <div className="rounded-2xl bg-paper border border-line p-5 space-y-4">
+              <p className="text-[15px] font-bold">C'est juste ? Corrige directement si besoin.</p>
+              <Field label="Tu vends"><Textarea rows={2} value={draft.profile?.offre ?? ""} onChange={(e) => setDraft({ ...draft, profile: { ...draft.profile, offre: e.target.value } })} /></Field>
+              <div>
+                <p className="text-[13px] font-semibold mb-1.5">J'écrirai à</p>
+                <ul className="space-y-1 text-[14.5px]">
+                  {active.slice(0, 4).map((t) => <li key={t.id}><b>{t.interlocuteur || "Dirigeant"}</b> <span className="text-ink-soft">· {t.label}{t.moment ? `, ${t.moment.charAt(0).toLowerCase()}${t.moment.slice(1)}` : ""}</span></li>)}
+                </ul>
+              </div>
+            </div>
             <div>
               <p className="text-[15px] font-semibold">Je vais chercher pour toi</p>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -196,10 +221,9 @@ export default function Onboarding() {
               <p className="rounded-2xl bg-accent-soft/50 border border-accent/20 px-4 py-3 text-[14.5px]">Tu n'as pas besoin de savoir qui viser : je contacte un petit nombre d'entreprises de chaque piste, puis je garde celles qui répondent. Tu verras chaque semaine laquelle marche le mieux.</p>
             )}
             <details className="rounded-2xl border border-line group">
-              <summary className="cursor-pointer list-none px-5 py-3.5 text-[15px] flex items-center justify-between">Corriger mon offre, mes cibles ou ma zone<span className="text-ink-soft group-open:rotate-90 transition">›</span></summary>
+              <summary className="cursor-pointer list-none px-5 py-3.5 text-[15px] flex items-center justify-between">Corriger mes cibles, ma zone ou ce qui me distingue<span className="text-ink-soft group-open:rotate-90 transition">›</span></summary>
               <div className="px-5 pb-5 space-y-8">
             <div className="rounded-2xl bg-paper border border-line p-5 space-y-3">
-              <Field label="Ce que tu vends"><Textarea rows={2} value={draft.profile?.offre ?? ""} onChange={(e) => setDraft({ ...draft, profile: { ...draft.profile, offre: e.target.value } })} /></Field>
               <Field label="Ce qui te distingue"><Textarea rows={2} value={draft.profile?.differenciation ?? ""} onChange={(e) => setDraft({ ...draft, profile: { ...draft.profile, differenciation: e.target.value } })} /></Field>
               <Field label="Ton type d'entreprise" hint="Bingoo adapte ce qu'il cherche pour toi. Corrige si besoin.">
                 <BizType value={draft.profile?.type} onChange={(v) => setDraft({ ...draft, profile: { ...draft.profile, type: v } })}
@@ -279,9 +303,9 @@ function Express({ e, ws }) {
           {ok ? `${e.prets === 1 ? "Une entreprise a" : `${e.prets} entreprises ont`} besoin de toi cette semaine` : e.trouves > 0 ? `${fmtN(e.trouves)} entreprises dans ton espace` : "Ton espace est prêt"}
         </h1>
         <p className="text-ink-soft mt-3 text-[17px]">
-          {ok ? "Voici pourquoi c'est le bon moment, à qui écrire, et le message prêt. Tu l'enverrais ?" : "Je n'écris que lorsqu'une entreprise a un fait récent à citer et une adresse vérifiée. Je continue cette nuit : tes premières opportunités t'attendront demain matin."}
+          {ok ? "Voici pourquoi c'est le bon moment, à qui écrire, et le message prêt. Tu l'enverrais ?" : e.trouves > 0 ? "Voici les premières, avec la raison de leur écrire maintenant. Je cherche l'adresse vérifiée de leur dirigeant : tes messages t'attendront dès qu'elle est trouvée." : "Je n'écris que lorsqu'une entreprise a un fait récent à citer et une adresse vérifiée. Je continue cette nuit : tes premières opportunités t'attendront demain matin."}
         </p>
-        {ok ? <Cartes ws={ws} /> : (
+        {ok ? <Cartes ws={ws} /> : e.trouves > 0 ? <Apercus ws={ws} /> : (
           <dl className="mt-7 grid grid-cols-2 gap-3 text-center">
             {[[e.trouves, "entreprises trouvées"], [e.emails, "e-mails vérifiés"]].map(([n, l]) => (
               <div key={l} className="rounded-2xl bg-paper border border-line px-3 py-4">
@@ -356,6 +380,30 @@ function Debloquer({ ws }) {
           </>)}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Pas encore d'adresse vérifiée : on montre quand même 3 vraies entreprises et la raison de leur écrire maintenant. */
+function Apercus({ ws }) {
+  const [rows, setRows] = useState(null);
+  useEffect(() => {
+    supabase.from("prospects").select("id, name, city, activity, contact_name, contact_role, signals").eq("workspace_id", ws.id).neq("status", "ignore").order("score", { ascending: false, nullsFirst: false }).limit(60)
+      .then(({ data }) => setRows((data ?? []).map((p) => ({ p, d: declencheur(p) })).sort((a, b) => Number(!!b.d) - Number(!!a.d) || Number(!!b.p.contact_name) - Number(!!a.p.contact_name)).slice(0, 3)));
+  }, [ws.id]);
+  if (!rows) return <div className="mt-6 h-40 rounded-2xl bg-paper animate-pulse" />;
+  return (
+    <div className="mt-6 space-y-3">
+      {rows.map(({ p, d }) => (
+        <article key={p.id} className="rounded-2xl border border-line p-4">
+          <p className="text-[18px] font-black leading-tight" style={HFONT}>{p.name}</p>
+          <p className="text-[13px] text-ink-soft">{[p.activity, p.city].filter(Boolean).join(" · ")}</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <p className="rounded-xl bg-[#FFF1E6] px-3 py-2 text-[13.5px]"><b className="text-[#C2410C]">Pourquoi maintenant</b><br />{d ? <>{typeDe(d.type)}{d.quand ? ` · ${quandTexte(d.quand)}` : ""}<span className="block text-ink-soft line-clamp-2">{d.label}</span></> : "Correspond à ta cible"}</p>
+            <p className="rounded-xl bg-paper px-3 py-2 text-[13.5px]"><b className="text-ink-soft">À qui</b><br />{p.contact_name || "Dirigeant à confirmer"}{p.contact_role ? <span className="text-ink-soft">, {String(p.contact_role).replace(/\s*\(.*$/, "")}</span> : null}<span className="block text-ink-soft">Je cherche son adresse vérifiée</span></p>
+          </div>
+        </article>
+      ))}
     </div>
   );
 }

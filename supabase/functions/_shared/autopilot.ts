@@ -42,6 +42,12 @@ export async function autopilot(ws: Workspace, base: string) {
   if (repliesTracked(ws)) report.relances = (await followups(ws)).created;
 
   // 2. Envois (premiers messages + relances), étalés : 3 par passage
+  // Santé de l'envoi (DNS du domaine, rebonds) revue une fois par jour : elle fixe le plafond de sécurité
+  const sa = (ws as Workspace & { sante_envoi?: { at?: string } }).sante_envoi;
+  if (!sa?.at || Date.now() - Date.parse(sa.at) > 20 * 36e5) {
+    const s = await (await import("./sante.ts")).santeEnvoi(ws).catch(() => null);
+    if (s) (ws as Workspace & { sante_envoi?: unknown }).sante_envoi = s;
+  }
   const guard = await bounceGuard(ws);
   if (!guard.ok) report.envois_suspendus_rebonds = guard.bounced;
   const pret = sendReady(ws) || (!!ws.postal_address && (await (await import("./boites.ts")).boites(ws)).length > 0);

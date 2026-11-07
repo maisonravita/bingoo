@@ -213,6 +213,8 @@ export async function draft(ws: Workspace, p: Prospect) {
 export async function rediger(ws: Workspace, p: Prospect, o: { test?: boolean } = {}) {
   let { subject, body, active, v } = await writeDraft(ws, p);
   const { verifierFaits, corrigerFaits } = await import("./faits.ts");
+  const { nettoyer, controler, resume } = await import("./controle.ts");
+  ({ subject, body } = nettoyer(body, subject, ws.sender_name));
   let check_note = await verifierFaits(ws, p, subject, body);
   for (let essai = 0; check_note && essai < 2; essai++) {
     const c = await corrigerFaits(ws, p, subject, body, check_note).catch(() => null);
@@ -220,6 +222,14 @@ export async function rediger(ws: Workspace, p: Prospect, o: { test?: boolean } 
     subject = c.subject; body = c.body;
     check_note = await verifierFaits(ws, p, subject, body);
   }
+  // Relecture finale sans IA (gabarit oublié, mauvais nom, longueur, mots spam…) : une réécriture au plus, sinon pas de message
+  const rivaux = await rivauxDe(ws);
+  let pb = controler(p, subject, body, rivaux);
+  if (pb.length && !pb.some((x) => x.texte.includes("concurrent"))) {
+    const c = await corrigerFaits(ws, p, subject, body, `Défauts de forme à corriger (garde le reste tel quel) : ${resume(pb)}`).catch(() => null);
+    if (c) { ({ subject, body } = nettoyer(c.body, c.subject, ws.sender_name)); pb = controler(p, subject, body, rivaux); }
+  }
+  if (pb.length) check_note = [check_note, `Relecture : ${resume(pb)}`].filter(Boolean).join(" ; ");
   if (check_note && o.test) return { subject, body, active, v, check_note };
   if (check_note) {
     const ins = (p.insight ?? {}) as Record<string, unknown>;
@@ -290,6 +300,13 @@ export async function aEcrire(wsId: string, n: number, filtre: (q: any) => any =
   return out;
 }
 
+/** Concurrents connus de l'espace (Espion et outils concurrents du Radar). */
+export async function rivauxDe(ws: Workspace): Promise<string[]> {
+  const { data } = await admin.from("competitors").select("name").eq("workspace_id", ws.id).limit(200);
+  const cfg = ((ws as Workspace & { radar_cfg?: { outils_rivaux?: string[] } }).radar_cfg ?? {}) as { outils_rivaux?: string[] };
+  return [...((data ?? []) as { name: string }[]).map((c) => c.name.replace(/\s*[—(].*$/, "").trim()), ...(cfg.outils_rivaux ?? [])].filter(Boolean);
+}
+
 /** Adresse de service (juridique, données personnelles, recrutement, sans réponse…) : on n'y prospecte pas. */
 export const adresseDeService = (e?: string | null) => /^(legal|juridique|dpo|rgpd|gdpr|privacy|abuse|noreply|no-reply|donotreply|jobs|job|recrutement|candidature|careers|rh|hr|compta|comptabilite|facturation|billing|invoice|webmaster|postmaster)[@.+]/i.test(String(e ?? "").trim());
 
@@ -306,6 +323,7 @@ export function adresseDouteuse(p: Prospect) {
 }
 
 /** Rédige le premier e-mail sans l'enregistrer (sert aussi aux tests de qualité). */
+const sansAcc = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 export async function writeDraft(ws: Workspace, p: Prospect) {
   const t = (ws.targets ?? []).find((x) => x.id === p.target);
   const camp = await campaignOf((p as Prospect & { campaign_id?: string }).campaign_id);
@@ -320,7 +338,7 @@ Angle à utiliser : ${v ? v.angle : t?.angle ?? ""}
 ${v?.objet ? `Objet à utiliser tel quel ou presque : ${v.objet}\n` : ""}${active ? `Objectif de l'e-mail : ${goalText(active.goal)}.\n` : ""}Bénéficiaires à nommer : ${t?.pour_qui ?? ""}
 ${(() => { const sg = (p.signals ?? []).filter((x) => x.label && x.type !== "taille" && x.type !== "reseau"); return sg.length ? `Faits publics observés sur ce prospect (registre, Radar, son site) :\n${sg.slice(0, 8).map((x) => `- ${String(x.label).replace(/\s*(?:publi[ée]e? )?(?:au|dans le|selon le) (?:BODACC|registre[^,.;]*)/gi, "")}`).join("\n")}\nChoisis LE fait le plus utile pour notre offre et ouvre l'e-mail avec, sans rien y ajouter ni l'interpréter. N'utilise pas les autres.\n` : ""; })()}${(() => { const d = declencheur(p); return d ? `Fait déclencheur à privilégier : ${d.label}\n` : ""; })()}${emailGenerique(p.email) ? `L'adresse ${p.email} est celle de l'accueil, pas d'une personne : la dernière phrase est exactement « Pourriez-vous transmettre ce message à ${p.contact_name ? String(p.contact_name).trim() : `la personne concernée (${String(t?.interlocuteur || "direction").toLowerCase().replace(/\s*\/\s*/g, " ou ")})`} ? », sans autre question.\n` : ""}${(p.insight as { reseaux?: { accroche?: string } } | null)?.reseaux?.accroche ? `Première phrase possible, fondée sur une publication ou une actualité réelle du prospect (à reprendre ou adapter si elle sonne naturelle, sinon ignore-la) : ${(p.insight as { reseaux: { accroche: string } }).reseaux.accroche}
 ` : ""}
-${await rivalBrief(ws.id, p)}Commence par « Bonjour${p.contact_name && !emailGenerique(p.email) ? " Madame/Monsieur <Nom>" : ""}, » (si l'interlocuteur est connu mais que le genre est incertain, écris « Bonjour <Prénom>, », jamais prénom et nom ensemble).
+${await rivalBrief(ws.id, p)}${(() => { const full = String(p.contact_name ?? "").trim(); const nf = sansAcc(full.split(/\s+/).slice(-1)[0] ?? ""); const sienne = !!nf && sansAcc(String(p.email ?? "").split("@")[0]).includes(nf.slice(0, 5)); return full.includes(" ") && sienne && !emailGenerique(p.email) ? `Commence exactement par « Bonjour ${full.split(/\s+/)[0]}, ».` : "Commence exactement par « Bonjour, »."; })()}
 Longueur : 40 à 70 mots, trois phrases courtes (le fait vrai, ce que l'offre change, une question). Rien sur la situation du prospect qui ne soit dans les faits ci-dessus.
 La deuxième phrase fait le pont entre ce fait et l'offre : ce que ce type d'événement entraîne en général (formulé comme une généralité, avec « souvent » ou « en général »), puis en quoi l'offre aide précisément à ce moment-là. Ponts possibles selon le fait :
 - recrutement : une entreprise qui recrute se développe, et a souvent besoin de plus de clients ou de soutien pour suivre ;
@@ -449,6 +467,15 @@ export async function sendOne(ws: Workspace, messageId: string) {
     await admin.from("messages").update({ status: "ignore", error: `Adresse écartée : ${vf.raison}` }).eq("id", messageId);
     await admin.from("prospects").update({ email: "", status: "sans_email", channel: "", enrich_note: `Adresse ${p.email} écartée avant l'envoi : ${vf.raison}` }).eq("id", p.id);
     return { id: messageId, skipped: `adresse écartée (${vf.raison}). Le prospect repart en enquête.` };
+  }
+  // Relecture finale : un gabarit oublié, un mauvais nom ou un concurrent ne partent jamais (même un message modifié à la main)
+  {
+    const { controler, resume } = await import("./controle.ts");
+    const bl = controler(p, String(msg.subject ?? ""), String(msg.body ?? ""), msg.step === 0 ? await rivauxDe(ws) : []).filter((x) => x.gravite === "bloquant");
+    if (bl.length) {
+      await admin.from("messages").update({ check_note: `À corriger avant l'envoi : ${resume(bl)}` }).eq("id", messageId);
+      throw new HttpError(422, `Message non envoyé, à corriger : ${resume(bl)}.`);
+    }
   }
   // Déjà en contact avec cette entreprise (autre fiche, client, refus, liste « ne jamais contacter ») : on n'ouvre pas un 2e fil
   if (msg.step === 0) {

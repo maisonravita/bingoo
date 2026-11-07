@@ -32,7 +32,10 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
   async analyze(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     await quota(ws.id, "analyse", LIMITS.analyse);
-    const description = String(b.description ?? "").slice(0, 3000);
+    // Deux questions facultatives de l'inscription : un client déjà signé (pour viser juste) et les concurrents (jamais prospectés)
+    const clientEx = String(b.client_exemple ?? "").trim().slice(0, 300);
+    const concurrents = String(b.concurrents ?? "").split(/[,;\n]+/).map((x) => x.trim()).filter((x) => x.length >= 2).slice(0, 15);
+    const description = [String(b.description ?? "").slice(0, 3000), clientEx ? `Exemple de client déjà signé : ${clientEx}. Vise d'abord ce type d'entreprise et ses semblables.` : "", concurrents.length ? `Concurrents (à ne jamais viser) : ${concurrents.join(", ")}.` : ""].filter(Boolean).join("\n");
     let website = "";
     let content = "";
     if (b.website) {
@@ -41,9 +44,11 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
     }
     if (!content && !description) throw new HttpError(400, "Donne l'adresse de ton site ou décris ton activité");
     const r = await analyze(content, description);
+    const cfg = ((ws as unknown as { radar_cfg?: Record<string, unknown> }).radar_cfg ?? {}) as { outils_rivaux?: string[] };
     await admin.from("workspaces").update({
-      website, profile: r.profile, targets: r.targets, zone: r.zone,
+      website, profile: { ...r.profile, ...(clientEx ? { client_exemple: clientEx } : {}) }, targets: r.targets, zone: r.zone,
       name: ws.name || r.profile.nom || "",
+      ...(concurrents.length ? { radar_cfg: { ...cfg, outils_rivaux: [...new Set([...(cfg.outils_rivaux ?? []), ...concurrents])] } } : {}),
     }).eq("id", ws.id);
     await log(ws.id, "analyse", `Analyse de ${website || "la description"} : ${r.targets.length} cibles définies`);
     return r;
@@ -395,6 +400,11 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
     const since = new Date(); since.setHours(0, 0, 0, 0);
     const { count } = await admin.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "envoye").gte("sent_at", since.toISOString());
     return { ...warmup(ws), sent_today: count ?? 0, limit: ws.daily_limit, started: ws.warmup_started };
+  },
+  // Santé de l'envoi : DNS du domaine (SPF, DKIM, DMARC), domaine séparé, rebonds. Gratuit, sans IA.
+  async "sante-envoi"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    return await (await import("../_shared/sante.ts")).santeEnvoi(ws);
   },
   async "mailbox-options"() {
     return { providers: Object.entries(MAILBOXES).map(([key, v]) => ({ key, ...v })) };
