@@ -19,7 +19,8 @@ export async function verifierFaits(ws: Workspace, p: Prospect, subject: string,
   ].filter(Boolean).join("\n");
   try {
     const r = await askJson<{ doutes: ({ citation?: string; pourquoi?: string; certain?: boolean } | string)[] }>(`Tu relis un e-mail de prospection avant envoi. Liste les affirmations FACTUELLES de l'e-mail qui ne sont PAS soutenues par les sources ci-dessous : chiffres, dates, noms de clients, résultats promis, faits sur le prospect (recrutement, levée, déménagement, projet, outil utilisé…), certifications.
-Ne juge QUE les phrases qui disent quelque chose sur le prospect (son entreprise, sa situation, ses équipes, ses projets, ses outils, ses difficultés, ses besoins).
+Signale aussi, avec certain = true, toute faute d'orthographe ou de grammaire (citation de la faute — « faute : » et la forme correcte).
+Pour le reste, ne juge QUE les phrases qui disent quelque chose sur le prospect (son entreprise, sa situation, ses équipes, ses projets, ses outils, ses difficultés, ses besoins).
 Ignore entièrement : les phrases qui décrivent l'expéditeur ou ce que fait son offre, les généralités prudentes sur ce type d'événement (« une entreprise qui recrute a souvent… », « un nouveau dirigeant revoit en général… »), les formules de politesse, les questions, les propositions (« seriez-vous disponible »), les demandes de transmission, et les déductions évidentes de l'activité ou de la ville du prospect.
 
 SOURCES

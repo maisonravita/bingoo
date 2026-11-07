@@ -272,11 +272,29 @@ export async function aEcrire(wsId: string, n: number, filtre: (q: any) => any =
   const { appris, bonus } = await import("./appris.ts");
   const a = ws ? await appris(ws as Workspace).catch(() => null) : null;
   const poids = new Map(((data ?? []) as Prospect[]).map((p) => [p.id, ws ? bonus(p as never, ws as Workspace, a) : 1]));
-  return ((data ?? []) as Prospect[])
+  const tries = ((data ?? []) as Prospect[])
     .filter((p) => declencheur(p)) // les faits du Radar sont recopiés sur la fiche (radarToProspect)
     .filter((p) => { const e = (p.insight as { redaction_echec?: { at?: string } } | null)?.redaction_echec?.at; return !e || Date.now() - new Date(e).getTime() > 30 * 864e5; })
-    .sort((a, b) => (Number(emailGenerique(a.email)) - Number(emailGenerique(b.email))) || (poids.get(b.id)! - poids.get(a.id)!))
-    .slice(0, n);
+    .filter((p) => !adresseDouteuse(p))
+    .sort((a, b) => (Number(emailGenerique(a.email)) - Number(emailGenerique(b.email))) || (poids.get(b.id)! - poids.get(a.id)!));
+  // Variété : on alterne les types de faits (recrutement, nouveau dirigeant, ouverture…) plutôt que cinq fois le même
+  const parType = new Map<string, Prospect[]>();
+  for (const p of tries) { const k = String(declencheur(p)?.type ?? "autre"); parType.set(k, [...(parType.get(k) ?? []), p]); }
+  const out: Prospect[] = [];
+  while (out.length < n && [...parType.values()].some((l) => l.length)) for (const l of parType.values()) { const p = l.shift(); if (p && out.length < n) out.push(p); }
+  return out;
+}
+
+/** Adresse d'accueil dont le domaine ne ressemble ni au nom de l'entreprise ni à son site : probablement le site d'une autre entreprise. */
+export function adresseDouteuse(p: Prospect) {
+  const e = String(p.email ?? "").toLowerCase();
+  if (!e.includes("@") || !emailGenerique(e)) return false;
+  const dom = e.split("@")[1].split(".").slice(0, -1).join("").replace(/[^a-z0-9]/g, "");
+  const site = String(p.website ?? "").toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0];
+  if (site && site.replace(/[^a-z0-9]/g, "").includes(dom)) return false;
+  const mots = `${p.name ?? ""} ${p.org ?? ""}`.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((m) => m.length >= 4 && !["sarl", "sasu", "groupe", "france", "societe", "agence", "conseil", "services"].includes(m));
+  if (!mots.length) return false;
+  return !mots.some((m) => dom.includes(m) || m.includes(dom));
 }
 
 /** Rédige le premier e-mail sans l'enregistrer (sert aussi aux tests de qualité). */
