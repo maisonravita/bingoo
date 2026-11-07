@@ -106,33 +106,35 @@ export async function lbbCompanies(ws: Workspace & { radar_cfg?: Record<string, 
   const nafs = [...new Set((ws.targets ?? []).filter((t) => t.actif !== false).flatMap((t) => t.naf ?? []))].slice(0, 6);
   if (!nafs.length) return [];
   const token = await ftAuth(["api_labonneboitev2 search office", "api_labonneboitev2"]);
+  // Un seul code NAF par requête (plusieurs codes à la fois sont ignorés par l'API), un département à la fois, dans un budget de temps
   const out: Opp[] = [];
-  for (const d of zone.slice(0, 8)) {
+  const vus = new Set<string>();
+  const t0 = Date.now();
+  for (const n of nafs) for (const d of zone.slice(0, 8)) {
+    if (Date.now() - t0 > 55_000) break;
     const u = new URL("https://api.francetravail.io/partenaire/labonneboite/v2/recherche");
-    // Codes NAF sans point (« 70.22Z » → « 7022Z »), paramètre répété « naf » (doc La Bonne Boîte v2)
-    for (const n of nafs) u.searchParams.append("naf", String(n).replace(/\./g, "").toUpperCase());
-    u.searchParams.set("department_number", d); u.searchParams.set("page_size", "100");
-    const r = await fetch(u, { headers: { authorization: `Bearer ${token}`, accept: "application/json" }, signal: AbortSignal.timeout(20000) });
-    if (r.status === 204) continue;
-    if (!r.ok) throw new Error(`La Bonne Boîte : recherche refusée (${r.status} ${(await r.text().catch(() => "")).slice(0, 120)})`);
+    u.searchParams.set("naf", String(n).replace(/\./g, "").toUpperCase());
+    u.searchParams.set("department_number", d); u.searchParams.set("page_size", "50");
+    const r = await fetch(u, { headers: { authorization: `Bearer ${token}`, accept: "application/json" }, signal: AbortSignal.timeout(15000) }).catch(() => null);
+    await new Promise((x) => setTimeout(x, 550)); // 2 appels par seconde au plus
+    if (!r || r.status === 204) continue;
+    if (!r.ok) { console.error("lbb", n, d, r.status, (await r.text().catch(() => "")).slice(0, 160)); continue; }
     const j = await r.json().catch(() => ({}));
     // deno-lint-ignore no-explicit-any
     for (const it of (j.items ?? j.results ?? []) as any[]) {
-      const pot = Number(it.hiring_potential ?? it.score ?? 0);
       if (!it.is_high_potential) continue; // seulement les entreprises que France Travail classe « à fort potentiel d'embauche »
       const siret = String(it.siret ?? "").replace(/\D/g, "");
-      const name = cap(String(it.name ?? it.company_name ?? it.raison_sociale ?? "").trim());
-      if (!name || siret.length < 9) continue;
-      const loc = it.location ?? {};
+      const name = cap(String(it.company_name ?? it.name ?? it.raison_sociale ?? "").trim());
+      if (!name || siret.length < 9 || vus.has(siret)) continue;
+      vus.add(siret);
       out.push({
         key: `lbb:${siret}`, kind: "recrutement", title: name, company: name,
         summary: `Classée « fort potentiel d'embauche » pour les 6 prochains mois par France Travail${it.headcount_max ? ` (effectif : ${it.headcount_min ?? "?"} à ${it.headcount_max})` : ""}`,
         why: "France Travail prévoit qu'elle va recruter : elle grandit, c'est le moment de proposer ton offre, avant même qu'elle publie une annonce.",
-        city: cap(String(loc.city ?? it.city ?? loc.label ?? "")), dept: d, url: `https://labonneboite.francetravail.fr/`, source: "La Bonne Boîte (France Travail)",
-        published: new Date().toISOString().slice(0, 10), siren: siret.slice(0, 9), raw: { lbb: true, siret, potentiel: pot, naf: it.naf ?? "", tranche: "" },
+        city: cap(String(it.city ?? "")), dept: d, url: `https://labonneboite.francetravail.fr/`, source: "La Bonne Boîte (France Travail)",
+        published: new Date().toISOString().slice(0, 10), siren: siret.slice(0, 9), raw: { lbb: true, siret, potentiel: Number(it.hiring_potential ?? 0), naf: it.naf ?? "", tranche: "" },
       });
     }
-    await new Promise((x) => setTimeout(x, 400));
   }
   await admin.from("workspaces").update({ radar_cfg: { ...(ws.radar_cfg ?? {}), lbb_at: new Date().toISOString() } }).eq("id", ws.id);
   return out.sort((a, b) => Number(b.raw?.potentiel ?? 0) - Number(a.raw?.potentiel ?? 0)).slice(0, 60);
