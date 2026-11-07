@@ -218,22 +218,27 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
     const step = <T,>(k: Exclude<StepKey, "lance" | "tri">, job: Promise<T[]>, label: string) => job.then(
       (r) => { if (p.steps[k].s !== "saute") p.steps[k] = { s: "fait", at: at(), n: r.length }; put(); return r; },
       (e) => { console.error("radar", k, e); if (label) errors.push(label); p.steps[k] = { s: "erreur", at: at() }; put(); return [] as T[]; });
+    // Chaque source a un budget de temps : une source lente est sautée pour ce passage, les autres sont enregistrées
+    // (avant, une seule source bloquée faisait dépasser la limite de 150 s et rien n'était enregistré)
+    const borne = <T,>(job: Promise<T[]>, label: string, ms = 75_000): Promise<T[]> => Promise.race([
+      job, new Promise<T[]>((r) => setTimeout(() => { console.error("radar : source trop lente", label); r([] as T[]); }, ms)),
+    ]);
     const [boamp, ted, ren, legal, fresh, w, g, jobs, sites, zev, techs, intent, press] = await Promise.all([
-      pub ? tenders(ws, cfg).catch((e) => { console.error("boamp", e); errors.push("appels d'offres"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
-      pub ? tedTenders(cfg.mots_cles, zone, !!cfg.europe).catch((e) => { console.error("ted", e); errors.push("appels d'offres européens"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
-      pub && zone.length ? renewals(ws, cfg.mots_cles, zone).catch((e) => { console.error("decp", e); errors.push("renouvellements"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
-      watchProspects(ws, bodaccSince).catch((e) => { console.error("bodacc", e); errors.push("annonces légales"); return [] as Opp[]; }),
-      newCompanies(ws, cfg.activites ?? [], zone).catch((e) => { console.error("creations", e); return [] as Opp[]; }),
-      step("web", webDue ? webSignals(ws, cfg, ftReady()) : Promise.resolve([] as Opp[]), "signaux web"),
+      pub ? borne(tenders(ws, cfg), "boamp").catch((e) => { console.error("boamp", e); errors.push("appels d'offres"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
+      pub ? borne(tedTenders(cfg.mots_cles, zone, !!cfg.europe), "ted").catch((e) => { console.error("ted", e); errors.push("appels d'offres européens"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
+      pub && zone.length ? borne(renewals(ws, cfg.mots_cles, zone), "decp").catch((e) => { console.error("decp", e); errors.push("renouvellements"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
+      borne(watchProspects(ws, bodaccSince).catch((e) => { console.error("bodacc", e); errors.push("annonces légales"); return [] as Opp[]; }), "bodacc"),
+      borne(newCompanies(ws, cfg.activites ?? [], zone).catch((e) => { console.error("creations", e); return [] as Opp[]; }), "créations"),
+      step("web", webDue ? borne(webSignals(ws, cfg, ftReady()), "web") : Promise.resolve([] as Opp[]), "signaux web"),
       step("registre", registrySignals(ws), ""),
       step("emploi", ftReady() && zone.length ? Promise.all([
         ftOffers(ws, cfg.postes, zone).catch((e) => { console.error("offres", e); return [] as Opp[]; }), // accès sur demande chez France Travail
         lbbCompanies({ ...ws, radar_cfg: cfg as unknown as Record<string, unknown> }, zone).catch((e) => { console.error("lbb", e); errors.push("La Bonne Boîte"); return [] as Opp[]; }),
       ]).then(([a, b]) => [...a, ...b]) : Promise.resolve([] as Opp[]), ""),
-      siteWatch(ws).catch((e) => { console.error("sites", e); return [] as Opp[]; }),
-      zoneEvents(ws, cfg.activites ?? [], zone).catch((e) => { console.error("zone", e); return [] as Opp[]; }),
+      borne(siteWatch(ws).catch((e) => { console.error("sites", e); return [] as Opp[]; }), "sites"),
+      borne(zoneEvents(ws, cfg.activites ?? [], zone).catch((e) => { console.error("zone", e); return [] as Opp[]; }), "zone"),
       // Sites (outils, page carrières) puis offres d'emploi publiées, puis dates anniversaires des abonnements concurrents
-      (async () => {
+      borne((async () => {
         const t0 = Date.now(), wsc = { ...ws, radar_cfg: cfg as unknown as Record<string, unknown> };
         const a = await webScan(wsc, { until: t0 + 45_000 }).catch((e) => { console.error("sites", e); return [] as Opp[]; });
         const b = await jobsScan(wsc, cfg.postes ?? [], { until: t0 + 75_000 }).catch((e) => { console.error("offres", e); return [] as Opp[]; });
@@ -243,7 +248,7 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
         const v = await visitorSignals(wsc).catch((x) => { console.error("visiteurs", x); return [] as Opp[]; });
         const f = opts.web === false ? [] : await championSignals(wsc).catch((x) => { console.error("anciens", x); return [] as Opp[]; });
         return [...a, ...b, ...c, ...d, ...e, ...f, ...v];
-      })(),
+      })(), "sites et offres", 90_000),
       opts.web === false ? Promise.resolve([] as Opp[]) : intentSignals({ ...ws, radar_cfg: cfg as unknown as Record<string, unknown> }).catch((e) => { console.error("intentions", e); return [] as Opp[]; }),
       opts.web === false ? Promise.resolve([] as Opp[]) : radarPress({ ...ws, radar_cfg: cfg as unknown as Record<string, unknown> }, zone).catch((e) => { console.error("presse", e); return [] as Opp[]; }),
     ]);
