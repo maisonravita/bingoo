@@ -596,6 +596,22 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     }
     return { traites: Object.keys(out).length, detail: out };
   },
+  // Test des fournisseurs d'e-mails : présence des clés (jamais leur valeur), puis recherche sur quelques fiches à déclencheur
+  async "email-test"(req, b) {
+    await cron(req);
+    const { providers } = await import("../_shared/contacts.ts");
+    const { findEmail, dropcontactPending } = await import("../_shared/deep.ts");
+    const { declencheur } = await import("../_shared/agents.ts");
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
+    if (!ws) throw new HttpError(404, "Espace introuvable");
+    if (b.poll === true) return { fournisseurs: providers(), resultats: await dropcontactPending(ws) };
+    const { data: pool } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("email", "").neq("contact_name", "").is("dropcontact_req", null)
+      .not("status", "in", "(ignore,refus,client)").limit(300);
+    const cibles = (pool ?? []).filter((p) => declencheur(p) && String(p.contact_name).trim().includes(" ")).slice(0, Math.min(Number(b.n ?? 5), 10));
+    const out: Record<string, unknown> = {};
+    for (const p of cibles) out[p.name] = await findEmail(ws, p).catch((e) => ({ erreur: (e as Error).message }));
+    return { fournisseurs: providers(), essais: cibles.length, detail: out };
+  },
   async "draft-test"(req, b) {
     // Contrôle qualité : rédige le premier e-mail de quelques prospects sans rien enregistrer ni envoyer
     await cron(req);
