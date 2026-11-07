@@ -350,9 +350,9 @@ export default function Landing() {
 
         <div className="px-0 sm:px-8">
           <section className="mx-auto max-w-[1440px] bg-white px-5 sm:px-10 pt-14 sm:pt-24 pb-16 sm:pb-20 text-center">
-            <h1 className="hero-in relative mx-auto max-w-[1180px] tracking-[-.035em]" style={JK}>
-              <span className="block text-[34px] sm:text-[54px] lg:text-[72px] leading-[1.08] font-medium text-[#3A3F55]">Vous avez le business parfait.</span>
-              <span className="mt-1 block text-[40px] sm:text-[64px] lg:text-[84px] leading-[1.04] font-extrabold text-[#15172A]">Il vous manque des clients ?</span>
+            <h1 className="hero-in relative mx-auto max-w-[1180px]" style={JK}>
+              <span className="block text-[34px] sm:text-[54px] lg:text-[72px] leading-[1.1] text-[#3A3F55]" style={{ fontWeight: 500, letterSpacing: "-.01em" }}>Vous avez le business parfait.</span>
+              <span className="mt-1 block text-[40px] sm:text-[64px] lg:text-[84px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>Il vous manque des clients ?</span>
               <span className="mt-4 sm:mt-6 flex justify-center"><span className="sr-only">Bingoo!</span><Logo height="clamp(64px, 9vw, 112px)" className="!self-center" /></span>
               <span aria-hidden className="pointer-events-none absolute right-0 xl:-right-6 -top-10 hidden lg:flex flex-col items-end text-[24px] text-[#3A3F55] rotate-[-4deg]" style={{ fontFamily: "Caveat, cursive", fontWeight: 500, letterSpacing: 0 }}>
                 (oui, ils n'apparaissent pas comme par magie)
