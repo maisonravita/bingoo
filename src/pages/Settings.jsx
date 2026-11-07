@@ -1,3 +1,4 @@
+import { estSimple } from "../lib/lieu";
 import PushTel from "../components/PushTel";
 import { useEffect, useState } from "react";
 import { STORE_URL as STORE } from "../lib/ext";
@@ -195,7 +196,7 @@ export default function Settings() {
         <div className="mt-3"><Button variant="primary" loading={busy === "save"} onClick={() => save({ profile: { ...pr, style: (pr.style ?? []).map((x) => x.trim()).filter(Boolean).slice(0, 8) } }, "Style enregistré")}>Enregistrer</Button></div>
       </Section>
 
-      <Section id="avance" title="Outils avancés" sub="Par défaut, Bingoo! ne montre que ce qui mène à un rendez-vous. Active les outils avancés pour ouvrir aussi l'Espion (tes concurrents), le Café LinkedIn et les devis.">
+      <Section id="avance" title="Outils avancés" sub="Par défaut, Bingoo! ne montre que ce qui mène à un rendez-vous. Active les outils avancés pour ouvrir aussi les Concurrents, LinkedIn, les devis et l'extension Chrome.">
         <label className="flex items-center gap-3 text-sm font-medium cursor-pointer">
           <input type="checkbox" checked={pr.avance === true} onChange={(e) => save({ profile: { ...pr, avance: e.target.checked } }, e.target.checked ? "Outils avancés affichés" : "Mode simple")} />
           Afficher les outils avancés
@@ -339,7 +340,8 @@ export default function Settings() {
         </div>
       </details>
 
-      <ExternalAccess ws={ws} />
+      {/* L'extension Chrome est un outil avancé : visible seulement quand les outils avancés sont activés */}
+      {!estSimple(ws) && <ExternalAccess ws={ws} />}
     </div>
   );
 }

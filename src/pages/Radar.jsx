@@ -6,7 +6,7 @@ import { useWs } from "../lib/ws";
 import { Button, Card, Spinner, useToast } from "../components/ui";
 import { cx } from "../lib/utils";
 import { DEPTS, centerOf, offsetKm } from "../lib/geo";
-import { useAller } from "../lib/lieu";
+import { estSimple, useAller } from "../lib/lieu";
 import { useDansLieu } from "../lib/lieu";
 
 export const RECRUIT_HINT = "Cette entreprise recrute pour un poste lié à ce que tu vends. C'est souvent le signe d'un besoin actuel et d'un budget : c'est le bon moment pour lui proposer ton service, en complément ou à la place d'une embauche.";
@@ -884,8 +884,16 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
   const live_ = list.filter((x) => x.status !== "ecarte");
   const nI = live_.filter((x) => INTENT.includes(x.kind)).length, nS = live_.length - nI;
   const MODES = [["tout", `Tout (${live_.length})`], ["signal", `Signaux (${nS})`], ["intention", `Intentions (${nI})`]];
+  // Mode simple : la liste des entreprises à contacter et une fiche, sans cadran, calendrier ni onglets
+  const simple = estSimple(ws);
   return (
     <div className="space-y-5">
+      {simple ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-[15px]"><b className="tnum">{live_.length}</b> entreprise{live_.length > 1 ? "s" : ""} à contacter au bon moment{hot ? <>, dont <b className="tnum text-bad">{hot}</b> chaude{hot > 1 ? "s" : ""}</> : null}.</p>
+          <Button size="sm" variant="ghost" loading={live} disabled={live} onClick={onScan}>Relancer l'analyse</Button>
+        </div>
+      ) : (<>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex rounded-full bg-white border border-line p-1">
           {MODES.map(([k, l]) => <button key={k} title={k === "intention" ? "Entreprises qui te regardent : visites de ton site, essais gratuits, demandes publiques" : k === "signal" ? "Ce qui arrive aux entreprises : contrats, dirigeants, recrutements…" : undefined} onClick={() => { setMode(k); setSelId(null); }} className={cx("rounded-full px-4 py-1.5 text-[14px] font-semibold transition", mode === k ? "bg-accent text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
@@ -905,9 +913,10 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
       </div>
 
       <CalendarStrip ws={ws} />
+      </>)}
 
-      <div className="grid xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)] gap-5 items-stretch">
-        <Card className="p-5 sm:p-6 min-w-0">
+      <div className={cx("grid gap-5 items-stretch", !simple && "xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]")}>
+        {!simple && <Card className="p-5 sm:p-6 min-w-0">
           <h2 title="Le score mesure si c'est le bon moment (1 à 99), pas une probabilité de vente. Position : distance à ta zone." className="flex items-center gap-2.5 font-bold text-[18px]"><span className="text-accent"><Ico name="radar" className="h-6 w-6" /></span>Radar d'opportunités</h2>
           <div className="mt-4 grid sm:grid-cols-[minmax(0,1fr)_130px] gap-4 items-center">
             <div className="w-full max-w-[400px] mx-auto"><RadarScope round byHeat opps={pool} zone={ws.zone ?? []} scanning={live} selected={o?.id} onSelect={(x) => { setSelId((groups.find((g) => (g.top.group_key || g.top.company) === (x.group_key || x.company))?.top ?? x).id); setTab("entreprise"); setFull(false); }} /></div>
@@ -915,7 +924,7 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
               {HEAT.map(([m, l, col], i) => <li key={l} className="flex items-start gap-2 text-[12.5px]"><span className="mt-1 h-2.5 w-2.5 rounded-full shrink-0" style={{ background: col }} /><span><b className="font-semibold">{l}</b><br /><span className="text-ink-faint">{i === 0 ? `${m} et plus` : `${m} à ${HEAT[i - 1][0] - 1}`}</span></span></li>)}
             </ul>
           </div>
-        </Card>
+        </Card>}
 
         <Card className="p-5 sm:p-6 min-w-0 flex flex-col">
           {!loaded ? <div className="py-16 grid place-items-center"><Spinner /></div> : !o ? (
@@ -949,7 +958,7 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
                     : o.kind === "appel_offres" ? <Button variant="accent" className="w-full" onClick={() => onOpen(o)}>Voir l'appel d'offres</Button>
                     : <Button variant="accent" className="w-full" loading={busy === "prep"} onClick={prepare}>Préparer le message</Button>}
                   <div className="flex gap-2">
-                    <button onClick={() => nav("/mission")} className="flex-1 rounded-full border border-line px-3 py-2 text-[13px] font-semibold hover:bg-paper">Lancer une Mission</button>
+                    {!simple && <button onClick={() => nav("/mission")} className="flex-1 rounded-full border border-line px-3 py-2 text-[13px] font-semibold hover:bg-paper">Lancer une Mission</button>}
                     <button onClick={follow} className="flex-1 rounded-full border border-line px-3 py-2 text-[13px] font-semibold hover:bg-paper">{o.status === "suivi" ? "En suivi" : "Garder en suivi"}</button>
                   </div>
                   <div className="flex justify-between"><button onClick={() => onOpen(o)} className="text-[12.5px] font-semibold text-ink-soft hover:text-ink">Tous les détails</button><button onClick={skip} className="text-[12.5px] text-ink-faint hover:text-bad">Pas intéressant</button></div>
@@ -1351,7 +1360,7 @@ export default function Radar() {
 <Guide id="radar" titre="Ici : les entreprises à contacter au bon moment (création, recrutement, nouveau dirigeant, contrat qui se termine…)." etapes={["Parcours la liste : chaque entreprise dit pourquoi c'est le bon moment.", "Clique « Ajouter » sur celles qui t'intéressent.", "Bingoo! trouve le décideur, écrit le message, et te le propose dans « À faire »."]} />
       <HomeView ws={ws} list={list} loaded={!!rows} live={live} onScan={scan} onOpen={setOpen} onChange={load} />
       <button onClick={() => toggleExplore(!explore)} className="w-full rounded-2xl border border-line bg-white hover:border-ink-faint px-5 py-3.5 flex items-center justify-between gap-3 text-left transition">
-        <span><span className="block font-semibold text-[15px]">{explore ? "Masquer le détail du Radar" : "Explorer tout le Radar"}</span><span className="block text-[12.5px] text-ink-faint">{list.length} opportunité{list.length > 1 ? "s" : ""} · comptes surveillés · visiteurs · partenaires · marché public · résultats · réglages</span></span>
+        <span><span className="block font-semibold text-[15px]">{explore ? "Masquer les options" : "Plus d'options"}</span><span className="block text-[12.5px] text-ink-faint">Toutes les opportunités, comptes surveillés, partenaires, réglages du Radar</span></span>
         <span className={cx("text-ink-soft transition", explore && "rotate-90")}><Ico name="chev" /></span>
       </button>
 

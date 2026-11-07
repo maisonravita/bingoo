@@ -221,18 +221,18 @@ export default function Village() {
   const reglage = !boite || !ws.postal_address;
   const v = d ?? {};
   const B = [
-    { art: "poste", nom: "La Poste", quoi: "Envoyés et réponses", to: "/reponses", badge: v.rep, detail: v.rep ? `${v.rep} prospect${v.rep > 1 ? "s" : ""} t'${v.rep > 1 ? "ont" : "a"} répondu` : "" },
-    { art: "atelier", nom: "L'Atelier", quoi: "Tes opportunités", to: "/valider", badge: v.drafts, detail: v.drafts ? "Pourquoi maintenant, à qui, message prêt" : "" },
-    { art: "rdv", nom: "Les Rendez-vous", quoi: "Tes rendez-vous", to: "/agenda", badge: v.rdv, detail: v.rdv ? `${v.rdv} à venir` : "" },
-    { art: "annuaire", nom: "L'Annuaire", quoi: "Tes contacts", to: "/prospects", detail: d ? `${v.dec ?? 0} décideur${v.dec > 1 ? "s" : ""} · ${v.mails ?? 0} e-mail${v.mails > 1 ? "s" : ""}` : "" },
-    { art: "radar", nom: "La Tour Radar", quoi: "Le bon moment", to: "/radar", badge: v.opps, detail: v.opps ? "Entreprises repérées" : "" },
+    { art: "poste", nom: "Réponses", quoi: "Envoyés et réponses", to: "/reponses", badge: v.rep, detail: v.rep ? `${v.rep} prospect${v.rep > 1 ? "s" : ""} t'${v.rep > 1 ? "ont" : "a"} répondu` : "" },
+    { art: "atelier", nom: "Messages à envoyer", quoi: "Prêts, un clic chacun", to: "/valider", badge: v.drafts, detail: v.drafts ? "Pourquoi maintenant, à qui, message prêt" : "" },
+    { art: "rdv", nom: "Rendez-vous", quoi: "Tes rendez-vous", to: "/agenda", badge: v.rdv, detail: v.rdv ? `${v.rdv} à venir` : "" },
+    { art: "annuaire", nom: "Entreprises", quoi: "Tes contacts", to: "/prospects", detail: d ? `${v.dec ?? 0} décideur${v.dec > 1 ? "s" : ""} · ${v.mails ?? 0} e-mail${v.mails > 1 ? "s" : ""}` : "" },
+    { art: "radar", nom: "Opportunités", quoi: "Le bon moment", to: "/radar", badge: v.opps, detail: v.opps ? "Entreprises repérées" : "" },
     // Mode simple : Espion et Café LinkedIn restent dans le décor, fermés ; on les ouvre à la Mairie (outils avancés)
-    simple ? { art: "espion", nom: "L'Espion", quoi: "Outil avancé", to: "/espion", ferme: true, detail: "À activer à la Mairie" }
-      : { art: "espion", nom: "L'Espion", quoi: "Tes concurrents", to: "/espion", detail: d ? (v.rivals ? `${v.rivals} surveillé${v.rivals > 1 ? "s" : ""}` : "Aucun suivi pour l'instant") : "" },
-    simple ? { art: "linkedin", nom: "Le Café LinkedIn", quoi: "Outil avancé", to: "/linkedin", ferme: true, detail: "À activer à la Mairie" }
-      : { art: "linkedin", nom: "Le Café LinkedIn", quoi: "Plus de contacts", to: "/linkedin", badge: v.li, detail: v.li ? "Invitations à valider" : "" },
-    { art: "observatoire", nom: "L'Observatoire", quoi: "Tes résultats", to: "/resultats" },
-    { art: "mairie", nom: "La Mairie", quoi: "Tes réglages", to: reglage ? (boite ? "/reglages" : "/connexions") : "/reglages", alerte: reglage, detail: reglage ? (!boite ? "Connecte ta boîte mail" : "Ajoute ton adresse") : "" },
+    simple ? { art: "espion", nom: "Concurrents", quoi: "Outil avancé", to: "/espion", ferme: true, detail: "À activer dans Réglages" }
+      : { art: "espion", nom: "Concurrents", quoi: "Tes concurrents", to: "/espion", detail: d ? (v.rivals ? `${v.rivals} surveillé${v.rivals > 1 ? "s" : ""}` : "Aucun suivi pour l'instant") : "" },
+    simple ? { art: "linkedin", nom: "LinkedIn", quoi: "Outil avancé", to: "/linkedin", ferme: true, detail: "À activer dans Réglages" }
+      : { art: "linkedin", nom: "LinkedIn", quoi: "Plus de contacts", to: "/linkedin", badge: v.li, detail: v.li ? "Invitations à valider" : "" },
+    { art: "observatoire", nom: "Résultats", quoi: "Tes résultats", to: "/resultats" },
+    { art: "mairie", nom: "Réglages", quoi: "Tes réglages", to: reglage ? (boite ? "/reglages" : "/connexions") : "/reglages", alerte: reglage, detail: reglage ? (!boite ? "Connecte ta boîte mail" : "Ajoute ton adresse") : "" },
   ];
   const n = (x) => (x ?? 0).toLocaleString("fr-FR");
   const STATS = {
@@ -250,21 +250,21 @@ export default function Village() {
   // Ce que disent les agents : leurs vrais chiffres, rien d'inventé
   const pl = (x, a, b) => `${n(x)} ${x > 1 ? b : a}`;
   const paroles = {
-    Iris: reglage ? (!boite ? "Connecte ta boîte mail à la Mairie !" : "Ajoute ton adresse à la Mairie !") : "Ta cible est prête, on travaille.",
+    Iris: reglage ? (!boite ? "Connecte ta boîte mail dans Réglages !" : "Ajoute ton adresse dans Réglages !") : "Ta cible est prête, on travaille.",
     ...(v.dec ? { Léo: `J'ai trouvé ${pl(v.dec, "décideur", "décideurs")}` } : {}),
     ...(v.mails ? { Sam: `${pl(v.mails, "e-mail trouvé", "e-mails trouvés")}` } : {}),
     ...(v.opps ? { Max: `${pl(v.opps, "entreprise à contacter au bon moment", "entreprises à contacter au bon moment")}` } : {}),
-    ...(v.drafts ? { Hugo: `${pl(v.drafts, "opportunité prête", "opportunités prêtes")} à l'Atelier` } : {}),
-    ...(v.rep ? { Inès: `${pl(v.rep, "réponse", "réponses")} à lire à la Poste !` } : {}),
+    ...(v.drafts ? { Hugo: `${pl(v.drafts, "opportunité prête", "opportunités prêtes")} à envoyer` } : {}),
+    ...(v.rep ? { Inès: `${pl(v.rep, "réponse", "réponses")} à lire !` } : {}),
     ...(v.li ? { Lina: `${pl(v.li, "invitation LinkedIn", "invitations LinkedIn")} à valider` } : {}),
     ...(v.rdv ? { Paul: `${pl(v.rdv, "rendez-vous", "rendez-vous")} à venir` } : {}),
     ...(v.rivals ? { Oscar: `${pl(v.rivals, "concurrent surveillé", "concurrents surveillés")}` } : {}),
   };
   // Le panneau : un seul endroit où aller d'abord
-  const next = reglage ? { b: B[8], t: !boite ? "Va à la Mairie : connecte ta boîte mail pour que tes messages puissent partir." : "Va à la Mairie : ajoute l'adresse de ton entreprise (obligatoire en bas des e-mails)." }
-    : v.rep ? { b: B[0], t: `Va à la Poste : ${v.rep} prospect${v.rep > 1 ? "s t'ont" : " t'a"} répondu, une réponse est prête.` }
-    : v.drafts ? { b: B[1], t: `Va à l'Atelier : ${v.drafts} opportunité${v.drafts > 1 ? "s" : ""} prête${v.drafts > 1 ? "s" : ""}, un clic chacune.` }
-    : v.opps ? { b: B.find((b) => b.art === "radar"), t: `Passe à la Tour Radar : ${v.opps} entreprise${v.opps > 1 ? "s" : ""} à contacter au bon moment${v.chaudes ? `, dont ${v.chaudes} chaude${v.chaudes > 1 ? "s" : ""}` : ""}.` }
+  const next = reglage ? { b: B[8], t: !boite ? "Va dans Réglages : connecte ta boîte mail pour que tes messages puissent partir." : "Va dans Réglages : ajoute l'adresse de ton entreprise (obligatoire en bas des e-mails)." }
+    : v.rep ? { b: B[0], t: `Va dans Réponses : ${v.rep} prospect${v.rep > 1 ? "s t'ont" : " t'a"} répondu, une réponse est prête.` }
+    : v.drafts ? { b: B[1], t: `Va dans Messages à envoyer : ${v.drafts} opportunité${v.drafts > 1 ? "s" : ""} prête${v.drafts > 1 ? "s" : ""}, un clic chacune.` }
+    : v.opps ? { b: B.find((b) => b.art === "radar"), t: `Passe dans Opportunités : ${v.opps} entreprise${v.opps > 1 ? "s" : ""} à contacter au bon moment${v.chaudes ? `, dont ${v.chaudes} chaude${v.chaudes > 1 ? "s" : ""}` : ""}.` }
     : null;
   const first = (ws.sender_name || "").split(" ")[0];
   // Le bâtiment ouvert (?lieu=radar) : le bouton « retour » du navigateur ressort dans la ville
@@ -340,14 +340,14 @@ export default function Village() {
   // La ville grandit avec les vrais résultats
   // Paliers : les grands (qui changent la ville) et les intermédiaires (pour voir avancer chaque semaine)
   const PALIERS = [
-    ["envoye", "Premier message envoyé", "un drapeau sur la Poste", v.sentAll, 1, "message envoyé", "messages envoyés"],
+    ["envoye", "Premier message envoyé", "un drapeau sur Réponses", v.sentAll, 1, "message envoyé", "messages envoyés"],
     ["envoye25", "25 messages envoyés", "", v.sentAll, 25, "message envoyé", "messages envoyés"],
-    ["reponse", "Première réponse", "des ballons devant la Poste", v.repTotal, 1, "réponse", "réponses"],
+    ["reponse", "Première réponse", "des ballons devant Réponses", v.repTotal, 1, "réponse", "réponses"],
     ["reponse5", "5 réponses", "", v.repTotal, 5, "réponse", "réponses"],
     ["rdv", "Premier rendez-vous", "une étoile sur les Rendez-vous", v.rdvTotal, 1, "rendez-vous", "rendez-vous"],
     ["rdv3", "3 rendez-vous", "", v.rdvTotal, 3, "rendez-vous", "rendez-vous"],
-    ["client", "Premier client signé", "une fontaine à la Mairie", v.clients, 1, "client", "clients"],
-    ["rdv10", "10 rendez-vous", "un trophée à l'Observatoire", v.rdvTotal, 10, "rendez-vous", "rendez-vous"],
+    ["client", "Premier client signé", "une fontaine devant Réglages", v.clients, 1, "client", "clients"],
+    ["rdv10", "10 rendez-vous", "un trophée sur Résultats", v.rdvTotal, 10, "rendez-vous", "rendez-vous"],
   ];
   const progres = Object.fromEntries(PALIERS.map(([k, , , n, seuil]) => [k, (n ?? 0) >= seuil]));
   const prochain = PALIERS.find(([k]) => !progres[k]);
@@ -435,7 +435,7 @@ export default function Village() {
                 </li>
               ))}
               <li className="mt-2 border-t border-[#F1E2D2] pt-2 text-[12px] text-ink-soft">Les quartiers, dans l'ordre du travail :
-                {[1, 2, 3].map((k) => <span key={k} className="mt-1 flex items-center gap-2 font-semibold text-ink"><span className="grid h-4 w-4 place-items-center rounded-full text-[10px] font-black text-white" style={{ background: QUARTIERS[k].c }}>{k}</span>{QUARTIERS[k].nom}<span className="font-normal text-ink-faint">{k === 1 ? "Radar, Annuaire, Espion" : k === 2 ? "Atelier, Poste, LinkedIn" : "Rendez-vous, Résultats"}</span></span>)}
+                {[1, 2, 3].map((k) => <span key={k} className="mt-1 flex items-center gap-2 font-semibold text-ink"><span className="grid h-4 w-4 place-items-center rounded-full text-[10px] font-black text-white" style={{ background: QUARTIERS[k].c }}>{k}</span>{QUARTIERS[k].nom}<span className="font-normal text-ink-faint">{k === 1 ? "Opportunités, Entreprises, Concurrents" : k === 2 ? "Messages, Réponses, LinkedIn" : "Rendez-vous, Résultats"}</span></span>)}
               </li>
             </ul>
           )}

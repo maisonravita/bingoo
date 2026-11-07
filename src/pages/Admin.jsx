@@ -117,7 +117,7 @@ function Acceptation() {
 }
 
 /** Comment les pilotes utilisent Bingoo! (14 jours) : ville ou liste, téléphone, bâtiments, hésitations, aide. */
-const NOMS = { poste: "Poste", atelier: "Atelier", rdv: "Rendez-vous", annuaire: "Annuaire", radar: "Radar", espion: "Espion", linkedin: "LinkedIn", observatoire: "Observatoire", mairie: "Mairie" };
+const NOMS = { poste: "Réponses", atelier: "Messages à envoyer", rdv: "Rendez-vous", annuaire: "Entreprises", radar: "Opportunités", espion: "Concurrents", linkedin: "LinkedIn", observatoire: "Résultats", mairie: "Réglages" };
 function Usage() {
   const [rows, setRows] = useState(null);
   useEffect(() => { supabase.rpc("admin_usage", { p_jours: 14 }).then(({ data }) => setRows(data ?? [])); }, []);

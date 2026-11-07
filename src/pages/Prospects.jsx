@@ -12,7 +12,7 @@ import { download, toCsv } from "../lib/csv";
 import ImportCsv from "../components/ImportCsv";
 import Contacts, { ImportPerson } from "../components/Contacts";
 import { SubNav } from "../components/SubNav";
-import { useAller } from "../lib/lieu";
+import { estSimple, useAller } from "../lib/lieu";
 
 // Signaux forts : un vrai fait récent qui justifie de contacter (adapté de Harvey)
 const STRONG = ["ouverture", "creation", "recrutement", "croissance", "pub_google", "pub_meta", "pub_linkedin", "levee", "accelerateur"];
@@ -304,8 +304,8 @@ function Drawer({ p, onClose, onChange, team = [] }) {
 
         <div className="flex flex-wrap gap-2 mt-5">
           {!p.enriched_at && <Button quota="enquete" size="sm" loading={busy === "m/enrich"} onClick={() => act("m/enrich", "Enquête terminée")}>Enquête approfondie</Button>}
-          {!p.linkedin_status && <Button quota="linkedin" size="sm" variant="li" loading={busy === "linkedin"} onClick={() => act("linkedin", "Recherche LinkedIn terminée")}>Préparer LinkedIn</Button>}
-          <Button size="sm" onClick={() => nav("/devis", { state: { prospect: p } })}>Créer un devis</Button>
+          {!estSimple(ws) && !p.linkedin_status && <Button quota="linkedin" size="sm" variant="li" loading={busy === "linkedin"} onClick={() => act("linkedin", "Recherche LinkedIn terminée")}>Préparer LinkedIn</Button>}
+          {!estSimple(ws) && <Button size="sm" onClick={() => nav("/devis", { state: { prospect: p } })}>Créer un devis</Button>}
         </div>
 
         <h3 className="text-sm font-semibold uppercase tracking-wider text-ink-soft mt-7 mb-2">Où en est-on ?</h3>
@@ -405,19 +405,14 @@ export default function Prospects() {
         <Input placeholder="Rechercher…" value={q} onChange={(e) => setQ(e.target.value)} className="!w-56" />
         {team.length > 1 && <Button variant={mine ? "primary" : "default"} onClick={() => setMine((x) => !x)}>Mes contacts</Button>}
         <Link to="/mission"><Button variant="accent">+ Trouver des contacts</Button></Link>
-        <Button onClick={() => setAdding((x) => !x)}>Ajouter un contact</Button>
-        {dansLieu ? (
-          <details className="relative">
-            <summary className="list-none cursor-pointer rounded-full border border-line bg-white px-4 py-2 text-[14px] font-semibold hover:border-ink-faint">Plus</summary>
-            <div className="absolute right-0 z-10 mt-2 flex w-44 flex-col rounded-2xl border border-line bg-white p-1.5 shadow-lg">
-              <button className="rounded-xl px-3 py-2 text-left text-[14px] hover:bg-paper" onClick={() => setImporting((x) => !x)}>Importer un fichier</button>
-              <button className="rounded-xl px-3 py-2 text-left text-[14px] hover:bg-paper disabled:opacity-40" onClick={exportCsv} disabled={!list.length}>Exporter la liste</button>
-            </div>
-          </details>
-        ) : (<>
-          <Button onClick={() => setImporting((x) => !x)}>Importer</Button>
-          <Button onClick={exportCsv} disabled={!list.length}>Exporter</Button>
-        </>)}
+        <details className="relative">
+          <summary className="list-none cursor-pointer rounded-full border border-line bg-white px-4 py-2 text-[14px] font-semibold hover:border-ink-faint">Plus</summary>
+          <div className="absolute right-0 z-10 mt-2 flex w-48 flex-col rounded-2xl border border-line bg-white p-1.5 shadow-lg">
+            <button className="rounded-xl px-3 py-2 text-left text-[14px] hover:bg-paper" onClick={() => setAdding((x) => !x)}>Ajouter un contact</button>
+            <button className="rounded-xl px-3 py-2 text-left text-[14px] hover:bg-paper" onClick={() => setImporting((x) => !x)}>Importer un fichier</button>
+            <button className="rounded-xl px-3 py-2 text-left text-[14px] hover:bg-paper disabled:opacity-40" onClick={exportCsv} disabled={!list.length}>Exporter la liste</button>
+          </div>
+        </details>
       </PageHead>
       <Guide id="contacts" titre="Ici : toutes les entreprises que Bingoo! a trouvées pour toi, et comment joindre leur décideur." etapes={["« Joignables » : Bingoo! a l'e-mail ou le téléphone du décideur. Il leur écrit, tu valides dans « À faire ».", "« À trouver » : ouvre une fiche et clique « Trouver l'e-mail ». Bingoo! le cherche pour toi.", "Une fiche ne te convient pas ? Ouvre-la, clique « Écarté » et dis pourquoi : Bingoo! en tiendra compte."]} />
       {adding && (

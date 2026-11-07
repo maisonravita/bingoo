@@ -288,7 +288,7 @@ function CeQuiMarche({ s }) {
           );
         })}
       </div>
-      {s.sent > 0 ? <Appris className="mt-4" /> : <p className="mt-3 text-[13.5px] text-ink-soft">Dès tes premiers envois, Bingoo! te montre ici ce qui fait répondre (types d'entreprises, faits, tailles).</p>}
+      <Appris className="mt-4" />
     </section>
   );
 }

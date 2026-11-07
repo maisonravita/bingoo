@@ -141,7 +141,7 @@ export default function Review() {
       <Guide id="valider" titre="Ici : les messages que Bingoo! a écrits pour toi. Rien ne part sans ton accord." etapes={["Lis le message. S'il te va, clique « Envoyer » (ou glisse vers la droite).", "Tu veux changer un mot ? « Modifier ». Bingoo! apprend ton style.", "L'entreprise ne te correspond pas ? Clique sur la raison (« Pas ma cible »…) : Bingoo! s'en souviendra."]} />
       {!domainOk && <p className="mb-4 text-sm bg-warn-soft text-warn rounded-xl px-4 py-3">Pour envoyer, connecte ta boîte mail (2 minutes) ou vérifie ton domaine d'envoi. En attendant, tu peux relire et modifier. <Link to="/connexions" className="underline font-semibold">Connecter ma boîte</Link> · <Link to="/reglages#domaine" className="underline font-semibold">Domaine</Link></p>}
 
-      <Appris className="mb-4 max-w-2xl" />
+      <Appris className="mb-4 max-w-2xl" seulementSiAssez />
       <div className="relative max-w-2xl">
         {queue[1] && <div className="absolute inset-x-4 top-3 bottom-24 bg-white/60 border border-line rounded-3xl pointer-events-none" aria-hidden />}
         <article

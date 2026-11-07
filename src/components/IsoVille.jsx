@@ -59,7 +59,7 @@ function Lamp({ x, y }) { const [px, py] = P(x, y, 0); return <g><ellipse cx={px
 function Bench({ x, y }) { return <><Box x={x} y={y} w={1.8} d={0.5} h={0.5} c="#B07A4E" /><Box x={x} y={y} w={1.8} d={0.15} h={1.1} c="#9A6740" /></>; }
 const Bush = ({ x, y, c = "#7CBB52", r = 5 }) => { const [px, py] = P(x, y, 0); return <g><ellipse cx={px} cy={py} rx={r} ry={r / 2} fill="rgba(0,0,0,.08)" /><circle cx={px} cy={py - r * 0.7} r={r} fill={c} /><circle cx={px - r * 0.4} cy={py - r} r={r * 0.4} fill="#9BD06C" /></g>; };
 /* Ce que fait chaque bâtiment, écrit sous son nom, et le quartier (l'ordre du travail) auquel il appartient */
-export const SOUS = { poste: "tes réponses", atelier: "tes opportunités", rdv: "tes rendez-vous", annuaire: "tes contacts", radar: "le bon moment", espion: "tes concurrents", linkedin: "tes invitations", observatoire: "tes résultats", mairie: "tes réglages" };
+export const SOUS = { poste: "à lire", atelier: "prêts, un clic chacun", rdv: "à venir", annuaire: "et leurs décideurs", radar: "le bon moment", espion: "sous surveillance", linkedin: "tes invitations", observatoire: "ce qui marche", mairie: "ta boîte, ton offre" };
 export const QUARTIER = { radar: 1, annuaire: 1, espion: 1, atelier: 2, poste: 2, linkedin: 2, rdv: 3, observatoire: 3, mairie: 0 };
 export const QUARTIERS = [null, { nom: "Trouver", c: "#2F80ED", sol: "#DCE9F8" }, { nom: "Contacter", c: "#E8692B", sol: "#F9E4D3" }, { nom: "Conclure", c: "#1F9D60", sol: "#D9EDCB" }];
 

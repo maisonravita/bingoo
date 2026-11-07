@@ -327,8 +327,8 @@ function Express({ e, ws }) {
   }
   return (
     <div className="rise rounded-3xl bg-white border border-line shadow-[0_24px_60px_-34px_rgba(21,22,26,.35)] p-6 sm:p-9">
-      <h1 className={cx(H, "text-[34px] sm:text-[44px]")} style={HFONT}>Je prépare tes premiers messages…</h1>
-      <p className="text-ink-soft mt-3 text-[17px]">Deux à cinq minutes. Tu peux laisser cette page ouverte.</p>
+      <h1 className={cx(H, "text-[34px] sm:text-[44px]")} style={HFONT}>{e?.trouves > 0 ? `${fmtN(e.trouves)} entreprises trouvées. J'écris tes premiers messages…` : "Je cherche tes premières entreprises…"}</h1>
+      <p className="text-ink-soft mt-3 text-[17px]">{e?.trouves > 0 ? "Voici déjà les premières, avec la raison de leur écrire maintenant. Les messages arrivent dans une à trois minutes." : "Quelques secondes."}</p>
       <ul className="mt-8 space-y-3">
         {PHASES.map(([cle, t], i) => (
           <li key={cle} className={cx("flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-[15px] transition", i < k ? "bg-good/5 border-good/30" : i === k ? "bg-paper border-line" : "bg-paper border-line opacity-40")}>
@@ -340,6 +340,8 @@ function Express({ e, ws }) {
           </li>
         ))}
       </ul>
+      {/* Du concret tout de suite : les vraies entreprises trouvées, pendant que les messages s'écrivent */}
+      {e?.trouves > 0 && <Apercus ws={ws} />}
     </div>
   );
 }
