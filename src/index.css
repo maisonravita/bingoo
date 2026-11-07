@@ -106,3 +106,6 @@ h1, h2, h3 { text-wrap: balance; }
 .bv-int .divide-line > :not([hidden]) ~ :not([hidden]) { border-color: #F1E2D2; }
 .bv-int .bg-paper { background-color: #FFF8F1; }
 .bv-int .rounded-2xl.bg-white, .bv-int .rounded-3xl.bg-white { box-shadow: 0 12px 26px -20px rgba(122, 74, 42, .5); }
+
+/* Titres et grands chiffres : partout la même écriture que l'accueil (Nunito très grasse, lettres resserrées) */
+.font-serif { font-weight: 800; letter-spacing: -0.02em; }

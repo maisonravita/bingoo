@@ -14,8 +14,8 @@ async function call(action, body) {
   if (!res.ok || data.error) throw new Error(data.error || "Erreur réseau, réessaie");
   return data;
 }
-const D = { fontFamily: "'Source Serif 4', Georgia, serif", fontWeight: 400, letterSpacing: "-.02em" };
-const SERIF = { fontFamily: "'Source Serif 4', Georgia, serif", fontWeight: 400, fontOpticalSizing: "auto" };
+const D = { fontFamily: "Nunito, Geist, system-ui, sans-serif", fontWeight: 900, letterSpacing: "-.02em" };
+const SERIF = { fontFamily: "Nunito, Geist, system-ui, sans-serif", fontWeight: 800, letterSpacing: "-.02em" };
 const euro = (n) => n >= 1e6 ? `${(n / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M€` : n >= 1e3 ? `${Math.round(n / 1e3).toLocaleString("fr-FR")} k€` : `${Math.round(n)} €`;
 const scrollTo = (id) => (e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }); };
 const Check = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>;

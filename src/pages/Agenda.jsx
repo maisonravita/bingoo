@@ -82,8 +82,8 @@ function Meeting({ m, onChange }) {
   return (
     <Card className="p-5">
       <div className="flex flex-wrap items-start gap-4">
-        <div className="w-16 shrink-0 text-center">
-          <p className="font-serif text-3xl leading-none tnum">{fmtHour(m.starts_at)}</p>
+        <div className="w-20 shrink-0 text-center">
+          <p className="font-serif text-[26px] leading-none tnum">{fmtHour(m.starts_at)}</p>
           {m.ends_at && <p className="text-xs text-ink-soft mt-1">{Math.round((new Date(m.ends_at) - new Date(m.starts_at)) / 60000)} min</p>}
         </div>
         <div className="flex-1 min-w-0">

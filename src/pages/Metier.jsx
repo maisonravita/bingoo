@@ -13,7 +13,7 @@ async function call(action, body) {
   if (!res.ok || data.error) throw new Error(data.error || "Erreur réseau, réessaie");
   return data;
 }
-const SERIF = { fontFamily: "'Source Serif 4', Georgia, serif", fontWeight: 400, fontOpticalSizing: "auto" };
+const SERIF = { fontFamily: "Nunito, Geist, system-ui, sans-serif", fontWeight: 800, letterSpacing: "-.02em" };
 const euro = (n) => n >= 1e6 ? `${(n / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M€` : n >= 1e3 ? `${Math.round(n / 1e3).toLocaleString("fr-FR")} k€` : `${Math.round(n)} €`;
 
 export const METIERS = {
