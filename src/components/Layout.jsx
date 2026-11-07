@@ -52,7 +52,7 @@ function WsSwitch({ ws, list, select, className }) {
 }
 
 function TrialBar({ ws }) {
-  const left = ws.trial_ends ? Math.ceil((new Date(ws.trial_ends) - new Date()) / 864e5) : 45;
+  const left = ws.trial_ends ? Math.ceil((new Date(ws.trial_ends) - new Date()) / 864e5) : 7;
   // Avant l'ouverture des abonnements, un essai terminé reste actif : on ne demande pas de payer ce qu'on ne peut pas encore acheter
   const [payments, setPayments] = useState(true);
   useEffect(() => { fn("plans").then((r) => setPayments(r?.payments !== false)).catch(() => {}); }, []);
@@ -63,10 +63,10 @@ function TrialBar({ ws }) {
     </div>
   );
   return (
-    <NavLink to="/abonnement" className={cx("flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full px-5 py-2.5 text-sm border transition", left > 3 ? "bg-gradient-to-r from-accent-soft/70 to-white border-accent/15 hover:border-accent/40" : "bg-bad-soft border-bad/30 text-bad")}>
+    <NavLink to="/abonnement" className={cx("flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full px-5 py-2.5 text-sm border transition", left > 2 ? "bg-gradient-to-r from-accent-soft/70 to-white border-accent/15 hover:border-accent/40" : "bg-bad-soft border-bad/30 text-bad")}>
       <svg viewBox="0 0 24 24" className="w-5 h-5 text-accent shrink-0" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 15c-1.5 1.5-2 5-2 5s3.5-.5 5-2M9 13l-3-3 4-6c3-2 7-2 10-1 1 3 1 7-1 10l-6 4-3-3M14.5 9.5h.01" /></svg>
-      <span className="font-semibold">{left > 7 ? "Gratuit jusqu'à ton premier rendez-vous" : left > 0 ? `Essai gratuit : ${left} jour${left > 1 ? "s" : ""} restant${left > 1 ? "s" : ""}` : "Ton essai gratuit est terminé"}</span>
-      <span className="hidden sm:inline text-ink-soft border-l border-line pl-3">{left > 7 ? `Puis 7 jours pour décider (au plus tard dans ${left} jours)` : "Choisis ta formule pour que la machine continue de tourner →"}</span>
+      <span className="font-semibold">{left > 0 ? `Aperçu gratuit : ${left} jour${left > 1 ? "s" : ""} restant${left > 1 ? "s" : ""}` : "Ton aperçu gratuit est terminé"}</span>
+      <span className="hidden sm:inline text-ink-soft border-l border-line pl-3">Abonne-toi pour envoyer : premier mois remboursé sans rendez-vous ni réponse →</span>
     </NavLink>
   );
 }

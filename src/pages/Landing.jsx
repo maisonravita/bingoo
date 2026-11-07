@@ -147,14 +147,14 @@ const PLANS = [
   ["Équipe", 229, "Pour plusieurs commerciaux sur le même marché.", ["10 utilisateurs", "1 000 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Relances, Radar, Espion et LinkedIn inclus", "Accompagnement au démarrage"]],
 ];
 const FAQ = [
-  ["Et si je n'obtiens aucun rendez-vous ?", "Pendant ton premier mois payant, si tu as laissé partir au moins 60 % des premiers messages de ta formule (90 sur Solo, 300 sur Pro, 600 sur Équipe) et que tu n'as obtenu aucun rendez-vous, ton deuxième mois est offert. Tu n'as rien à demander : Bingoo! le calcule et te prévient."],
+  ["Et si je n'obtiens aucun résultat ?", "Pendant ton premier mois payant, si tu as laissé partir au moins 60 % des premiers messages de ta formule (90 sur Solo, 300 sur Pro, 600 sur Équipe) et que tu n'as obtenu ni rendez-vous ni réponse positive, ton premier mois t'est remboursé. Tu n'as rien à demander : Bingoo! le calcule et te prévient."],
   ["Bingoo! envoie-t-il des messages sans mon accord ?", "Non. Par défaut, chaque message attend ta validation. Tu peux ensuite activer le pilote automatique, dans la limite d'envoi que tu fixes."],
   ["D'où viennent les informations ?", "De sources publiques et vérifiables : données de la commande publique, BOAMP, annonces légales (BODACC), registre national des entreprises, sites des entreprises. Chaque signal affiche sa source."],
   ["Et le RGPD ?", "Bingoo! travaille au niveau de l'entreprise et des fonctions qui décident. Les e-mails sont publiés ou vérifiés, jamais devinés, et chaque message permet de ne plus être contacté."],
   ["Ça marche pour mon métier ?", "Bingoo! s'adapte à ton activité à l'inscription : services sur site, services aux entreprises, logiciels ou produits. Il ne cherche pas les mêmes signaux pour une entreprise de nettoyage et pour un éditeur de logiciel."],
   ["À quoi sert l'extension Chrome ?", "Elle affiche la fiche d'une entreprise sur son propre site, fait sur LinkedIn les invitations et les messages que tu as validés (à un rythme humain, dans des limites prudentes) et reconnaît tes prospects dans Gmail. Elle est facultative : tout le reste marche sans elle."],
   ["Est-ce que je risque mon compte LinkedIn ?", "Bingoo! ne fait jamais d'envoi en masse ni d'aspiration de profils. Le pilote ne fait que ce que tu as validé, avec des pauses et des limites quotidiennes basses, depuis ton propre navigateur."],
-  ["Combien de temps dure l'essai ?", "Jusqu'à ton premier rendez-vous obtenu, plus 7 jours pour décider (45 jours au plus). Ensuite tu choisis une formule, ou ton espace s'arrête simplement. Aucune carte bancaire n'est demandée."],
+  ["Je peux essayer avant de payer ?", "Oui : pendant 7 jours, sans carte bancaire, Bingoo! trouve tes premières entreprises et écrit tes premiers messages. Tu les lis, tu juges. L'envoi démarre avec ton abonnement, et ton premier mois est remboursé si tu n'obtiens ni rendez-vous ni réponse positive."],
 ];
 
 /* ---------- Sections façon Apollo, adaptées à Bingoo! ---------- */
@@ -316,7 +316,7 @@ export default function Landing() {
               <a href="#essai" onClick={scrollTo("essai")} className="rounded-lg bg-white border border-black/10 px-10 py-4 text-[18px] sm:text-[19px] hover:bg-[#FAFAF9] transition">Essayer avec mon site</a>
             </div>
             <div className="hero-in mt-8" style={{ animationDelay: ".25s" }}>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F1EFED] px-3 py-1.5 text-[14.5px] text-ink-soft"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="9" /><path d="m8.5 12.5 2.5 2.5 4.5-5" /></svg>Gratuit jusqu'à ton premier rendez-vous, sans carte bancaire</span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F1EFED] px-3 py-1.5 text-[14.5px] text-ink-soft"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="9" /><path d="m8.5 12.5 2.5 2.5 4.5-5" /></svg>Premier mois remboursé sans rendez-vous ni réponse</span>
             </div>
             <p className="mt-8 text-[14.5px] text-ink-soft">En m'inscrivant, j'accepte les <a href="#/conditions" className="underline hover:text-ink">Conditions d'utilisation</a> et la <a href="#/confidentialite" className="underline hover:text-ink">Politique de confidentialité</a> de Bingoo!.</p>
             {/* Le produit en 4 étapes : c'est une vraie séquence, d'où les numéros */}
@@ -379,7 +379,7 @@ export default function Landing() {
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
             <div>
               <h2 className="text-[38px] sm:text-[54px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Moins cher qu'une journée de commercial.</h2>
-              <p className="mt-3 text-[17px] text-ink-soft">Gratuit jusqu'à ton premier rendez-vous (45 jours au plus), sans carte bancaire. Ensuite, prix hors taxes par mois, sans engagement.</p>
+              <p className="mt-3 text-[17px] text-ink-soft">Aperçu gratuit de 7 jours pour voir tes premiers messages, sans carte bancaire. Prix hors taxes par mois, sans engagement.</p>
             </div>
             <div className="relative inline-flex rounded-full bg-white border border-line p-1 self-start md:self-auto">
               {[[false, "Mensuel"], [true, "Annuel"]].map(([v, l]) => <button key={l} onClick={() => setYearly(v)} className={cx("rounded-full px-5 py-2 text-[14.5px] font-bold transition", yearly === v ? "bg-ink text-white" : "text-ink-soft")}>{l}</button>)}
@@ -405,8 +405,8 @@ export default function Landing() {
             })}
           </div>
           <div className="mt-8 mx-auto max-w-3xl rounded-3xl border-2 border-accent/30 bg-white px-6 py-5 text-center">
-            <p className="font-bold text-[18px] text-ink">Garantie premier rendez-vous</p>
-            <p className="mt-1.5 text-[15px] text-ink-soft">Pas un seul rendez-vous pendant ton premier mois payant, alors que tu as laissé partir au moins 60 % des premiers messages de ta formule ? Ton deuxième mois est offert.</p>
+            <p className="font-bold text-[18px] text-ink">Premier mois remboursé</p>
+            <p className="mt-1.5 text-[15px] text-ink-soft">Ni rendez-vous ni réponse positive pendant ton premier mois payant, alors que tu as laissé partir au moins 60 % des premiers messages de ta formule ? Ton premier mois t'est remboursé.</p>
           </div>
           <p className="mt-6 text-center text-[14px] text-ink-soft">Sans engagement : tu changes de formule ou tu arrêtes quand tu veux. Besoin de plus ? +100 prospects contactés pour 19 €, quand tu veux. Un prospect contacté = une entreprise qui reçoit un premier e-mail, avec son décideur trouvé et vérifié ; les relances ne comptent pas.</p>
         </section>

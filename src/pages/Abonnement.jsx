@@ -28,23 +28,23 @@ function Quota({ q, pack, payments, busy, onBuy }) {
     </Card>
   );
 }
-/** Garantie premier rendez-vous, mois offerts, et lien de parrainage. */
+/** Garantie premier mois remboursé, mois offerts, et lien de parrainage. */
 function Garantie({ g }) {
   const toast = useToast();
   if (!g?.garantie) return null;
   const G = g.garantie, lien = g.code ? `${window.location.origin}/?parrain=${g.code}` : "";
   const pct = G.requis ? Math.min(100, Math.round(((G.envoyes ?? 0) / G.requis) * 100)) : 0;
-  const offerts = (g.perks ?? []).filter((p) => p.type === "mois_offert");
+  const offerts = (g.perks ?? []).filter((p) => p.type === "mois_offert" || p.type === "remboursement");
   return (
     <div className="grid md:grid-cols-2 gap-4 mb-6">
       <Card className="p-5 sm:p-6">
-        <p className="font-semibold">Garantie premier rendez-vous</p>
+        <p className="font-semibold">Premier mois remboursé</p>
         <p className="text-sm text-ink-soft mt-1">{G.message}</p>
         {G.etat === "en_cours" && <>
           <div className="mt-3 h-2 rounded-full bg-paper overflow-hidden"><div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} /></div>
-          <p className="text-[12.5px] text-ink-faint mt-1.5 tnum">{G.envoyes} / {G.requis} premiers messages · {G.rdv} rendez-vous</p>
+          <p className="text-[12.5px] text-ink-faint mt-1.5 tnum">{G.envoyes} / {G.requis} premiers messages · {G.rdv} rendez-vous · {G.positives ?? 0} réponse{(G.positives ?? 0) > 1 ? "s" : ""} positive{(G.positives ?? 0) > 1 ? "s" : ""}</p>
         </>}
-        {offerts.length > 0 && <ul className="mt-3 space-y-1 text-sm">{offerts.map((p) => <li key={p.at + p.raison}><b>1 mois offert</b> <span className="text-ink-soft">· {p.detail}{p.applique ? " · appliqué" : " · sera déduit de ta prochaine facture"}</span></li>)}</ul>}
+        {offerts.length > 0 && <ul className="mt-3 space-y-1 text-sm">{offerts.map((p) => <li key={p.at + p.raison}><b>{p.type === "remboursement" ? "Premier mois remboursé" : "1 mois offert"}</b> <span className="text-ink-soft">· {p.detail}{p.applique ? (p.type === "remboursement" ? " · remboursé" : " · appliqué") : p.type === "remboursement" ? " · remboursement en cours" : " · sera déduit de ta prochaine facture"}</span></li>)}</ul>}
       </Card>
       <Card className="p-5 sm:p-6">
         <p className="font-semibold">Parraine un dirigeant</p>
@@ -136,7 +136,7 @@ export default function Abonnement() {
   };
 
   const daysLeft = ws.trial_ends ? Math.ceil((new Date(ws.trial_ends) - new Date()) / 864e5) : null;
-  const [label, tone] = ws.plan === "essai" ? [daysLeft > 7 ? "Essai : jusqu'à ton premier rendez-vous" : daysLeft > 0 ? `Essai : ${daysLeft} jour${daysLeft > 1 ? "s" : ""} restant${daysLeft > 1 ? "s" : ""}` : (payments ? "Essai terminé" : "Accès de lancement"), daysLeft > 0 || !payments ? "accent" : "bad"] : STATUS[ws.plan_status] ?? [ws.plan_status, "muted"];
+  const [label, tone] = ws.plan === "essai" ? [daysLeft > 0 ? `Aperçu : ${daysLeft} jour${daysLeft > 1 ? "s" : ""} restant${daysLeft > 1 ? "s" : ""}` : (payments ? "Essai terminé" : "Accès de lancement"), daysLeft > 0 || !payments ? "accent" : "bad"] : STATUS[ws.plan_status] ?? [ws.plan_status, "muted"];
 
   return (
     <div>
@@ -146,7 +146,7 @@ export default function Abonnement() {
       <Card className="p-5 sm:p-6 mb-6 flex flex-wrap items-center gap-4">
         <div className="flex-1 min-w-[200px]">
           <p className="text-sm text-ink-soft">Ta formule</p>
-          <p className="font-serif text-3xl">{ws.plan === "fondateur" ? "Fondateur (offerte)" : plans.find((p) => p.key === ws.plan)?.label ?? "Essai gratuit"}</p>
+          <p className="font-serif text-3xl">{ws.plan === "fondateur" ? "Fondateur (offerte)" : plans.find((p) => p.key === ws.plan)?.label ?? "Aperçu gratuit"}</p>
           {ws.period_end && ws.plan !== "essai" && <p className="text-sm text-ink-soft mt-1">Prochaine échéance le {new Date(ws.period_end).toLocaleDateString("fr-FR")}</p>}
         </div>
         <Badge tone={tone}>{label}</Badge>

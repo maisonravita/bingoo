@@ -58,7 +58,7 @@ export default function Auth({ invited = false }) {
 
   const title = invited ? "Rejoins ton équipe" : mode === "signup" ? "Crée ton compte" : mode === "reset" ? "Mot de passe oublié" : "Connecte-toi";
   const sub = invited ? "Crée ton compte ou connecte-toi pour rejoindre l'espace auquel tu as été invité."
-    : mode === "signup" ? "Gratuit jusqu'à ton premier rendez-vous, sans carte bancaire." : mode === "reset" ? "Indique ton e-mail : on t'envoie un lien pour en choisir un nouveau." : "Content de te revoir.";
+    : mode === "signup" ? "Vois tes premiers messages gratuitement, sans carte bancaire." : mode === "reset" ? "Indique ton e-mail : on t'envoie un lien pour en choisir un nouveau." : "Content de te revoir.";
 
   return (
     <div className="min-h-full flex flex-col" style={{ background: "radial-gradient(ellipse at 50% 0%, #FFF1E6 0%, #FAF9F6 60%)" }}>

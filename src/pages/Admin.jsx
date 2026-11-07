@@ -77,9 +77,9 @@ function Pilotes() {
       </div>
       {aAppliquer.length > 0 && (
         <div className="mt-4 rounded-xl bg-accent-soft/50 p-3">
-          <p className="text-sm font-semibold">Mois offerts à appliquer dans Stripe</p>
+          <p className="text-sm font-semibold">Remboursements et mois offerts à appliquer dans Stripe</p>
           <ul className="mt-1 space-y-1 text-sm">{aAppliquer.map((p) => (
-            <li key={p.ws + p.at} className="flex flex-wrap items-center gap-2">{p.name} : {p.raison} ({p.detail})
+            <li key={p.ws + p.at} className="flex flex-wrap items-center gap-2">{p.name} : {p.type === "remboursement" ? "rembourser le premier mois" : "1 mois offert"} · {p.raison} ({p.detail})
               <button className="underline text-ink-soft" onClick={async () => { await supabase.rpc("admin_perk_applique", { p_ws: p.ws, p_at: p.at }); load(); }}>Marquer appliqué</button></li>
           ))}</ul>
         </div>

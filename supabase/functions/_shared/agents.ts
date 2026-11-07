@@ -412,6 +412,8 @@ export async function sendOne(ws: Workspace, messageId: string) {
   // Abonnement à jour obligatoire (essai en cours, abonnement réglé ou offert)
   const { data: plan } = await admin.from("workspaces").select("plan, plan_status, trial_ends").eq("id", ws.id).single();
   assertPlan(plan ?? {});
+  // Aperçu gratuit : on voit ses messages, l'envoi démarre avec l'abonnement (dès que le paiement en ligne est ouvert)
+  if ((plan?.plan ?? "essai") === "essai" && Deno.env.get("STRIPE_SECRET_KEY")) throw new HttpError(402, "L'envoi démarre avec ton abonnement. Premier mois remboursé si tu n'obtiens ni rendez-vous ni réponse positive.");
   // Quota de prospects contactés du mois (premier e-mail seulement ; les relances passent toujours)
   if (msg.step === 0) {
     const { prospectQuota } = await import("./quota.ts");
