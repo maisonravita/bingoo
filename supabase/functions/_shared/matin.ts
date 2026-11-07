@@ -36,7 +36,7 @@ export async function emailMatin(ws: Workspace, dry = false) {
   if (!rows?.length) return { skipped: "aucune opportunité prête" };
   const to = await teamAddress(ws);
   if (!to) return { skipped: "aucune adresse" };
-  const prenom = (ws.sender_name || "").split(" ")[0];
+  const prenom = (ws.sender_name || "").split(" ")[0].replace(/^./, (c) => c.toUpperCase());
   const cartes = await Promise.all(rows.map(async (m) => {
     const p = (m.prospects ?? {}) as Prospect;
     const d = declencheur(p);
