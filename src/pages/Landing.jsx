@@ -145,8 +145,8 @@ const WHO = [
 ];
 const PLANS = [
   ["Solo", 49, "Pour un fondateur qui prospecte seul, 15 minutes par jour.", ["1 utilisateur", "150 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Demandes publiques avec réponse prête, chaque jour", "Relances, Radar, Espion et LinkedIn inclus"]],
-  ["Pro", 119, "Pour une startup ou une PME qui veut un flux régulier de rendez-vous.", ["3 utilisateurs", "500 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Demandes publiques avec réponse prête, chaque jour", "Répartition des prospects entre commerciaux"]],
-  ["Équipe", 229, "Pour plusieurs commerciaux sur le même marché.", ["10 utilisateurs", "1 000 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Relances, Radar, Espion et LinkedIn inclus", "Accompagnement au démarrage"]],
+  ["Pro", 109, "Pour une startup ou une PME qui veut un flux régulier de rendez-vous.", ["3 utilisateurs", "500 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Demandes publiques avec réponse prête, chaque jour", "Répartition des prospects entre commerciaux"]],
+  ["Équipe", 159, "Pour plusieurs commerciaux sur le même marché.", ["10 utilisateurs", "1 000 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Relances, Radar, Espion et LinkedIn inclus", "Accompagnement au démarrage"]],
 ];
 const FAQ = [
   ["Et si je n'obtiens aucun résultat ?", "Pendant ton premier mois payant, si tu as laissé partir au moins 60 % des premiers messages de ta formule (90 sur Solo, 300 sur Pro, 600 sur Équipe) et que tu n'as obtenu ni rendez-vous ni réponse positive, ton premier mois t'est remboursé. Tu n'as rien à demander : Bingoo! le calcule et te prévient."],
@@ -375,19 +375,19 @@ export default function Landing() {
         <div className="px-0 sm:px-8">
           <section className="mx-auto max-w-[1440px] bg-white px-5 sm:px-10 pt-14 sm:pt-24 pb-16 sm:pb-20 text-center">
             <h1 className="hero-in relative mx-auto max-w-[1180px]" style={JK}>
-              <span className="block text-[34px] sm:text-[54px] lg:text-[72px] leading-[1.1] text-[#3A3F55]" style={{ fontWeight: 500, letterSpacing: "-.01em" }}>Vous avez le business parfait.</span>
-              <span className="mt-1 block text-[40px] sm:text-[64px] lg:text-[84px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>Il vous manque des clients ?</span>
+              <span className="block text-[34px] sm:text-[54px] lg:text-[72px] leading-[1.1] text-[#3A3F55]" style={{ fontWeight: 500, letterSpacing: "-.01em" }}>Tu as le business parfait.</span>
+              <span className="mt-1 block text-[40px] sm:text-[64px] lg:text-[84px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>Il te manque des clients ?</span>
               <span className="mt-4 sm:mt-6 flex justify-center"><span className="sr-only">Bingoo!</span><Logo height="clamp(64px, 9vw, 112px)" className="!self-center" /></span>
               <span aria-hidden className="pointer-events-none absolute right-0 xl:-right-6 -top-10 hidden lg:flex flex-col items-end text-[24px] text-[#3A3F55] rotate-[-4deg]" style={{ fontFamily: "Caveat, cursive", fontWeight: 500, letterSpacing: 0 }}>
                 (oui, ils n'apparaissent pas comme par magie)
                 <svg viewBox="0 0 40 60" className="mr-16 mt-1 h-12 w-8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 2c10 14 8 34-10 52M12 54l-2-12M12 54l11-6" /></svg>
               </span>
             </h1>
-            <p className="hero-in mx-auto mt-7 max-w-[760px] text-[18px] sm:text-[22px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Bingoo! trouve les entreprises qui ont besoin de vous aujourd'hui, le bon décideur, et décroche le rendez-vous. <span className="font-semibold text-accent-dark">Votre chiffre décolle.</span></p>
+            <p className="hero-in mx-auto mt-7 max-w-[760px] text-[18px] sm:text-[22px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Bingoo! trouve les entreprises qui ont besoin de toi aujourd'hui, le bon décideur, et décroche le rendez-vous. <span className="font-semibold text-accent-dark">Ton chiffre décolle.</span></p>
             <form onSubmit={(e) => { e.preventDefault(); try { sessionStorage.setItem("bingoo-email", e.currentTarget.email.value.trim()); } catch { /* navigation privée */ } go(); }}
               className="hero-in mx-auto mt-9 flex max-w-[680px] flex-col sm:flex-row items-stretch gap-2 rounded-[28px] sm:rounded-full border border-black/[.08] bg-white p-2 shadow-[0_10px_40px_-20px_rgba(21,23,42,.35)]" style={{ ...JK, animationDelay: ".2s" }}>
-              <label className="sr-only" htmlFor="hero-email">Votre e-mail</label>
-              <input id="hero-email" name="email" type="email" autoComplete="email" placeholder="votre@email.com" className="min-w-0 flex-1 bg-transparent px-5 py-3.5 text-[17px] outline-none placeholder:text-[#8A8FA3]" />
+              <label className="sr-only" htmlFor="hero-email">Ton e-mail</label>
+              <input id="hero-email" name="email" type="email" autoComplete="email" placeholder="ton@email.com" className="min-w-0 flex-1 bg-transparent px-5 py-3.5 text-[17px] outline-none placeholder:text-[#8A8FA3]" />
               <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-full bg-[#1B1D2A] px-8 py-3.5 text-[17px] font-semibold text-white hover:bg-black transition">Commencer <Arrow className="h-4 w-4" /></button>
             </form>
             <div className="hero-in mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[15px] text-[#5B6075]" style={{ ...JK, animationDelay: ".25s" }}>

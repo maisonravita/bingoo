@@ -287,18 +287,23 @@ export async function spyNeeds(ws: Workspace) {
   const vus = (deja ?? []).map((x: { url: string }) => x.url).filter(Boolean).slice(0, 25);
   const logiciel = /(saas|logiciel|plateforme|application|appli|outil|software|api|crm|erp)/i.test(`${me.offre ?? ""} ${me.resume ?? ""} ${(me as { type?: string }).type ?? ""}`);
   type N = { besoin: string; entreprise: string; auteur_fonction: string; plateforme: string; source: string; url: string; date: string; langue: string; ville: string; departement: string; intention: string; pertinence: number; fiabilite: string; statut: string; recommandation: string; reponse: string };
-  const r = await askJson<{ besoins: N[] }>(`Trouve sur le web des entreprises, des fondateurs ou des professionnels qui demandent PUBLIQUEMENT, depuis moins de 30 jours, un outil, un service ou un prestataire que cette offre peut leur apporter.
+  const r = await askJson<{ besoins: N[] }>(`Trouve sur le web des entreprises, des fondateurs ou des professionnels qui demandent PUBLIQUEMENT, depuis moins de 45 jours, un outil, un service ou un prestataire que cette offre peut leur apporter.
 Notre offre : ${me.offre ?? ""} (${me.nom ?? ws.name})${me.resume ? ` — ${me.resume}` : ""}
 Ce qui la distingue : ${me.differenciation ?? "non renseigné"}
 Nos clients : ${(ws.targets ?? []).map((t) => t.label).join(", ") || "entreprises B2B"} — Zone : ${(ws.zone ?? []).join(", ") || "France"}
 Nos concurrents : ${rivals.join(", ") || "non renseignés"}
 ${vus.length ? `Déjà trouvées (ne les redonne pas) :\n${vus.map((u) => `- ${u}`).join("\n")}` : ""}
 
-Cherche (5 recherches maximum), en français${logiciel ? " ET en anglais (un logiciel se vend aussi hors de France)" : ""} :
-- demandes de recommandation : « quelqu'un connaît un outil / un logiciel / une agence pour… », « vous utilisez quoi pour… », « any tool for… », « what do you use for… » ;
-- envies de changer : « alternative à ${rivals[0] ?? "<concurrent>"} », « je cherche à remplacer… », plaintes publiques contre un concurrent ;
+Cherche (5 recherches maximum, varie-les vraiment), en français${logiciel ? " ET en anglais (un logiciel se vend aussi hors de France)" : ""} :
+- demandes de recommandation : « quelqu'un connaît un outil / un logiciel / une agence pour… », « vous utilisez quoi pour… », « any tool for… », « what do you use for… », « recommend a tool for… », « looking for a tool to… » ;
+- envies de changer : « alternative à ${rivals[0] ?? "<concurrent>"} »${rivals[1] ? `, « ${rivals[1]} alternative »` : ""}, « je cherche à remplacer… », « switching from… », plaintes publiques contre un concurrent ;
 - projets annoncés qui nécessitent cette offre.
-Sources à privilégier : Reddit (r/SaaS, r/startups, r/Entrepreneur, r/smallbusiness, subreddits du métier), X, publications LinkedIn publiques, Indie Hackers, Product Hunt, forums et communautés professionnelles, sites de demandes de devis.
+Exemples de requêtes efficaces (adapte les mots à NOTRE offre, ne les copie pas telles quelles) :
+- site:reddit.com "${(me.offre ?? "").split(/[,.]/)[0].trim().slice(0, 50) || "ce que fait l'offre"}" recommend OR tool OR alternative
+- "vous utilisez quoi" OU "quel outil" + le problème que notre offre résout
+- "${rivals[0] ?? "<concurrent>"} alternative" reddit
+Sources à privilégier : Reddit (r/SaaS, r/startups, r/Entrepreneur, r/smallbusiness, r/indiehackers, subreddits du métier), X, publications LinkedIn publiques, Indie Hackers, Product Hunt (launch comments), Hacker News (Ask HN), forums et communautés professionnelles (Slack/Discord publics indexés, growthhackingfr…), sites de demandes de devis.
+Une demande encore ouverte d'il y a 3 à 6 semaines vaut mieux qu'une liste vide : si les demandes toutes fraîches manquent, remonte dans le temps plutôt que de ne rien renvoyer.
 Règles strictes :
 - Analyse le SENS : la personne doit chercher une solution, pas en vendre une. Écarte les articles « top 10 », les publicités et les posts d'éditeurs.
 - N'invente rien : chaque demande a son URL exacte, qui mène à la publication elle-même.
@@ -310,10 +315,10 @@ Règles strictes :
 Format : {"besoins": [{"besoin": "", "entreprise": "", "auteur_fonction": "", "plateforme": "Reddit|X|LinkedIn|Forum|Indie Hackers|Product Hunt|Devis|Autre", "source": "nom du site ou de la communauté", "url": "", "date": "AAAA-MM-JJ", "langue": "fr|en", "ville": "", "departement": "", "intention": "", "pertinence": 0, "fiabilite": "", "statut": "", "recommandation": "", "reponse": ""}]}`,
     { maxTokens: 9000, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] });
   const deja30 = new Set(vus);
-  const rows = (r.besoins ?? []).filter((b) => /^https?:\/\//.test(b.url ?? "") && !deja30.has(b.url) && b.besoin && Number(b.pertinence) >= 50 && b.statut !== "satisfait" && b.statut !== "ancien").slice(0, 10).map((b) => ({
+  const rows = (r.besoins ?? []).filter((b) => /^https?:\/\//.test(b.url ?? "") && !deja30.has(b.url) && b.besoin && Number(b.pertinence) >= 40 && b.statut !== "satisfait" && b.statut !== "ancien").slice(0, 10).map((b) => ({
     workspace_id: ws.id, key: `need:${b.url}`.slice(0, 300), kind: "besoin", title: String(b.besoin).slice(0, 300), company: String(b.entreprise || b.source || "Demande publique").slice(0, 160),
     summary: String(b.besoin).slice(0, 500), why: String(b.recommandation ?? "").slice(0, 500), city: String(b.ville ?? ""), dept: String(b.departement ?? "").slice(0, 3), url: b.url, source: String(b.source ?? ""),
-    published: /^\d{4}-\d{2}-\d{2}$/.test(b.date ?? "") ? b.date : null, status: "nouveau", score: Math.max(50, Math.min(95, Number(b.pertinence) || 0)),
+    published: /^\d{4}-\d{2}-\d{2}$/.test(b.date ?? "") ? b.date : null, status: "nouveau", score: Math.max(40, Math.min(95, Number(b.pertinence) || 0)),
     raw: { auteur: b.auteur_fonction ?? "", plateforme: b.plateforme ?? "", langue: b.langue ?? "fr", intention: b.intention ?? "", pertinence: Number(b.pertinence) || 0, fiabilite: b.fiabilite ?? "", statut: b.statut ?? "", reponse: String(b.reponse ?? "").slice(0, 1200), origine: "demandes" },
   }));
   let found = 0;

@@ -41,8 +41,8 @@ export function knowledgeOf(ws: { knowledge?: string }) {
 export const PLANS: Record<string, { label: string; price: number; factor: number; seats: number; credits: number; ai: number; quota: number }> = {
   essai: { label: "Aperçu gratuit", price: 0, factor: 0.5, seats: 1, credits: 15, ai: 2, quota: 20 },
   solo: { label: "Solo", price: 49, factor: 1, seats: 1, credits: 200, ai: 11, quota: 150 },
-  pro: { label: "Pro", price: 119, factor: 2, seats: 3, credits: 650, ai: 24, quota: 500 },
-  equipe: { label: "Équipe", price: 229, factor: 4, seats: 10, credits: 1300, ai: 46, quota: 1000 },
+  pro: { label: "Pro", price: 109, factor: 2, seats: 3, credits: 650, ai: 24, quota: 500 },
+  equipe: { label: "Équipe", price: 159, factor: 4, seats: 10, credits: 1300, ai: 46, quota: 1000 },
   fondateur: { label: "Fondateur", price: 0, factor: 1, seats: 50, credits: 5000, ai: 15, quota: 5000 },
 };
 type PlanFields = { plan?: string; plan_status?: string; trial_ends?: string | null };
