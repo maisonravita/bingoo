@@ -102,18 +102,63 @@ function PlanB({ p, ws, busy, setBusy, onChange, act, nav }) {
 }
 
 
+/** Le fil unique de la relation : tout ce qui s'est passé avec cette entreprise, dans l'ordre, au même endroit. */
+const CLASSE = { interesse: "Intéressé", question: "Question", prix: "Demande de prix", rappel: "À rappeler", refus: "Pas intéressé", absent: "Absent", autre: "Réponse" };
+function Fil({ msgs, calls, fil }) {
+  const [ouvert, setOuvert] = useState(null);
+  if (!msgs || !fil) return <><h3 className="text-sm font-semibold uppercase tracking-wider text-ink-soft mt-7 mb-2">Le fil</h3><Spinner /></>;
+  const ev = [
+    ...msgs.map((m) => ({ id: `m${m.id}`, at: m.sent_at || m.created_at, qui: "toi", titre: `${m.step === 0 ? "Premier message" : m.step >= 100 ? "Reprise de contact" : `Relance n°${m.step}`} · ${m.status === "envoye" ? "envoyé" : m.status === "brouillon" ? "à valider" : m.status === "echec" ? "échec" : "non envoyé"}`, sous: m.subject, texte: m.body, note: m.status === "echec" || m.status === "ignore" ? m.error : "" })),
+    ...fil.replies.map((r) => ({ id: `r${r.id}`, at: r.created_at, qui: "lui", titre: `Réponse · ${CLASSE[r.class] ?? "Réponse"}`, sous: r.summary, texte: r.body })),
+    ...fil.meetings.map((x) => ({ id: `v${x.id}`, at: x.created_at, qui: "rdv", titre: `Rendez-vous ${x.status === "annule" ? "annulé" : x.status === "tenu" ? "tenu" : "pris"}`, sous: x.starts_at ? `le ${new Date(x.starts_at).toLocaleString("fr-FR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}` : "" })),
+    ...calls.map((c) => ({ id: `c${c.id}`, at: c.created_at, qui: "toi", titre: `Appel · ${CALL[c.outcome] ?? c.outcome}`, sous: c.notes })),
+    ...fil.li.map((l) => ({ id: `l${l.id}`, at: l.done_at || l.created_at, qui: "toi", titre: `LinkedIn · ${l.kind === "invitation" ? "invitation envoyée" : "message envoyé"}` })),
+  ].filter((e) => e.at).sort((a, b) => new Date(b.at) - new Date(a.at));
+  return (
+    <>
+      <h3 className="text-sm font-semibold uppercase tracking-wider text-ink-soft mt-7 mb-2">Le fil</h3>
+      {fil.autres.length > 0 && <p className="mb-3 text-[13px] text-ink-soft">Autres interlocuteurs de cette entreprise : {fil.autres.map((o) => `${o.contact_name || "fiche sans nom"}${o.contact_role ? ` (${o.contact_role})` : ""}`).join(", ")}.</p>}
+      {ev.length === 0 ? <p className="text-sm text-ink-soft">Rien encore : le premier échange apparaîtra ici.</p> : (
+        <ol className="relative border-l border-line ml-2 space-y-4">
+          {ev.map((e) => (
+            <li key={e.id} className="pl-4">
+              <span className={cx("absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full", e.qui === "lui" ? "bg-good" : e.qui === "rdv" ? "bg-accent" : "bg-ink-faint")} />
+              <p className="text-[12px] text-ink-faint">{fmtTime(e.at)}</p>
+              <p className="text-sm font-semibold">{e.titre}</p>
+              {e.sous && <p className="text-sm text-ink-soft">{e.sous}</p>}
+              {e.note && <p className="text-[12.5px] text-bad">{e.note}</p>}
+              {e.texte && <>
+                {ouvert === e.id && <p className="whitespace-pre-line mt-1 text-sm text-ink-soft leading-relaxed bg-white border border-line rounded-xl p-3">{e.texte}</p>}
+                <button className="text-[12.5px] font-semibold text-ink-soft hover:text-ink" onClick={() => setOuvert(ouvert === e.id ? null : e.id)}>{ouvert === e.id ? "Réduire" : "Lire"}</button>
+              </>}
+            </li>
+          ))}
+        </ol>
+      )}
+    </>
+  );
+}
+
 function Drawer({ p, onClose, onChange, team = [] }) {
   const { ws } = useWs();
   const toast = useToast();
   const nav = useAller();
   const [msgs, setMsgs] = useState(null);
   const [calls, setCalls] = useState([]);
+  const [fil, setFil] = useState(null);
   const [busy, setBusy] = useState(null);
   const [why, setWhy] = useState(false);
   const [next, setNext] = useState({ next_action: p.next_action ?? "", next_action_at: p.next_action_at ?? "", notes: p.notes ?? "", owner_id: p.owner_id ?? "" });
   useEffect(() => {
     supabase.from("messages").select("*").eq("prospect_id", p.id).order("created_at").then(({ data }) => setMsgs(data ?? []));
     supabase.from("calls").select("*").eq("prospect_id", p.id).order("created_at", { ascending: false }).then(({ data }) => setCalls(data ?? []));
+    // Le fil de la relation : réponses, rendez-vous, LinkedIn, et les autres interlocuteurs de la même entreprise
+    Promise.all([
+      supabase.from("replies").select("id, created_at, class, summary, body, from_name").eq("prospect_id", p.id),
+      supabase.from("meetings").select("id, created_at, starts_at, status, contact_name").eq("prospect_id", p.id),
+      supabase.from("linkedin_actions").select("id, kind, status, done_at, created_at").eq("prospect_id", p.id).eq("status", "fait"),
+      p.siren ? supabase.from("prospects").select("id, contact_name, contact_role, status").eq("workspace_id", p.workspace_id).eq("siren", p.siren).neq("id", p.id).limit(10) : Promise.resolve({ data: [] }),
+    ]).then(([r, m, l, o]) => setFil({ replies: r.data ?? [], meetings: m.data ?? [], li: l.data ?? [], autres: o.data ?? [] }));
   }, [p.id]);
   const saveNext = async () => {
     const patch = { next_action: next.next_action, next_action_at: next.next_action_at || null, notes: next.notes, owner_id: next.owner_id || null };
@@ -155,13 +200,13 @@ function Drawer({ p, onClose, onChange, team = [] }) {
         {p.org && <p className="text-ink-soft">{p.org}</p>}
         <FitNote p={p} onChange={onChange} />
         <dl className="mt-5 grid grid-cols-[110px_1fr] gap-y-2 text-sm">
-          <dt className="text-ink-soft">Décideur</dt><dd>{p.contact_name ? `${p.contact_name}${p.contact_role ? ` · ${p.contact_role}` : ""}` : "—"}</dd>
+          <dt className="text-ink-soft">Décideur</dt><dd>{p.contact_name ? <>{p.contact_name}{p.contact_role ? ` · ${p.contact_role}` : ""}<Provenance src={p.contact_source} at={p.contact_source ? p.created_at : null} verbe="relevé" /></> : "—"}</dd>
           <dt className="text-ink-soft">E-mail</dt><dd>{p.email ? <><a className="underline" href={`mailto:${p.email}`}>{p.email}</a><Provenance src={p.email_source} at={p.enriched_at} /></> : p.email_candidate ? <Candidate p={p} onChange={onChange} /> : <FindEmail p={p} onChange={onChange} />}</dd>
           <dt className="text-ink-soft">Téléphone</dt><dd>{p.phone ? <><a className="underline" href={`tel:${p.phone.replace(/\s/g, "")}`}>{p.phone}</a><Provenance src={p.phone_source || (p.siret ? "fiche entreprise" : "")} at={p.phone_checked_at} /></> : <FindPhone p={p} onChange={onChange} />}</dd>
           <dt className="text-ink-soft">LinkedIn</dt><dd>{p.linkedin_url ? <a className="underline text-li" href={p.linkedin_url} target="_blank" rel="noreferrer">{p.linkedin_person || "Profil"}</a> : p.linkedin_status === "introuvable" ? "Introuvable" : "—"}</dd>
-          <dt className="text-ink-soft">Site</dt><dd className="truncate">{p.website ? <a className="underline" href={p.website} target="_blank" rel="noreferrer">{p.website.replace(/^https?:\/\//, "")}</a> : "—"}</dd>
+          <dt className="text-ink-soft">Site</dt><dd className="truncate">{p.website ? <><a className="underline" href={p.website} target="_blank" rel="noreferrer">{p.website.replace(/^https?:\/\//, "")}</a>{p.free_tried_at && <Provenance src={null} at={p.free_tried_at} verbe="consulté" />}</> : "—"}</dd>
           <dt className="text-ink-soft">Adresse</dt><dd>{[p.address].filter(Boolean).join(" ") || "—"}</dd>
-          <dt className="text-ink-soft">SIRET</dt><dd className="tnum">{p.siret}</dd>
+          <dt className="text-ink-soft">SIRET</dt><dd className="tnum">{p.siret}{p.siret && <Provenance src={p.source === "registre" ? "registre SIRENE (INSEE)" : p.source} at={p.created_at} verbe="relevé" />}</dd>
         </dl>
         <label className="mt-4 flex items-center gap-2 text-sm font-medium cursor-pointer">
           <input type="checkbox" checked={p.strategique === true} onChange={async (e) => { const v = e.target.checked ? true : false; await supabase.from("prospects").update({ strategique: v }).eq("id", p.id); onChange({ ...p, strategique: v }); }} />
@@ -181,7 +226,7 @@ function Drawer({ p, onClose, onChange, team = [] }) {
           }}>Lui écrire un message</Button>
         )}
         <Contacts p={p} onChange={onChange} />
-        {p.signals?.length > 0 && <div className="flex flex-wrap gap-1.5 mt-3">{p.signals.map((s, i) => <Badge key={i} tone={STRONG.includes(s.type) ? "accent" : "muted"}>{s.label}</Badge>)}</div>}
+        {p.signals?.length > 0 && <div className="flex flex-wrap gap-1.5 mt-3">{p.signals.map((s, i) => <span key={i} title={[s.source && `Source : ${s.source}`, (s.date || s.at) && `Date : ${new Date(s.date || s.at).toLocaleDateString("fr-FR")}`].filter(Boolean).join(" · ") || "Source : registre public ou site de l'entreprise"}><Badge tone={STRONG.includes(s.type) ? "accent" : "muted"}>{s.label}{(s.date || s.at) ? ` · ${new Date(s.date || s.at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}` : ""}</Badge></span>)}</div>}
 
         {!p.email && p.enriched_at && <PlanB p={p} ws={ws} busy={busy} setBusy={setBusy} onChange={onChange} act={act} nav={nav} />}
 
@@ -264,26 +309,7 @@ function Drawer({ p, onClose, onChange, team = [] }) {
           </label>
         )}
         <Button size="sm" className="mt-2" onClick={saveNext}>Enregistrer</Button>
-        {calls.length > 0 && <>
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-ink-soft mt-7 mb-2">Appels</h3>
-          {calls.map((c) => <p key={c.id} className="text-sm"><span className="text-ink-faint">{fmtTime(c.created_at)}</span> · {CALL[c.outcome]}{c.notes ? ` — ${c.notes}` : ""}</p>)}
-        </>}
-
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-ink-soft mt-7 mb-2">Messages</h3>
-        {!msgs ? <Spinner /> : msgs.length === 0 ? <p className="text-sm text-ink-soft">Aucun message pour l'instant.</p> : (
-          <div className="space-y-3">
-            {msgs.map((m) => (
-              <div key={m.id} className="bg-white border border-line rounded-2xl p-4 text-sm">
-                <div className="flex justify-between gap-2 text-xs text-ink-soft">
-                  <span>{m.step === 0 ? "Premier message" : m.step >= 100 ? "Reprise de contact" : `Relance n°${m.step}`}</span>
-                  <span>{m.status === "envoye" ? `Envoyé ${fmtTime(m.sent_at)}` : m.status === "brouillon" ? "À valider" : m.status === "echec" ? `Échec : ${m.error}` : "Non envoyé"}</span>
-                </div>
-                <p className="font-semibold mt-2">{m.subject}</p>
-                <p className="whitespace-pre-line mt-1 text-ink-soft leading-relaxed">{m.body}</p>
-              </div>
-            ))}
-          </div>
-        )}
+        <Fil msgs={msgs} calls={calls} fil={fil} />
       </div>
     </div>
   );
@@ -422,10 +448,10 @@ export default function Prospects() {
 }
 
 // D'où vient le contact et quand il a été vérifié : on ne montre jamais d'e-mail deviné
-function Provenance({ src, at }) {
+function Provenance({ src, at, verbe = "vérifié" }) {
   if (!src && !at) return null;
   const d = at ? new Date(at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "";
-  return <span className="block text-xs text-ink-faint">{src ? `Source : ${src}` : ""}{src && d ? " · " : ""}{d ? `vérifié le ${d}` : ""}</span>;
+  return <span className="block text-xs text-ink-faint">{src ? `Source : ${src}` : ""}{src && d ? " · " : ""}{d ? `${verbe} le ${d}` : ""}</span>;
 }
 
 // Filtre de cible : pourquoi la fiche a été écartée (ou mise en doute), et le geste pour la remettre

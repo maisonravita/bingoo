@@ -325,7 +325,7 @@ export async function radarToProspect(ws: Workspace, id: string) {
     workspace_id: ws.id, target, name: o.company, org: hit ? cap(hit.nom_complet ?? "") : "",
     siren: hit?.siren ?? null, siret: siege.siret ?? null, activity: target ? (ws.targets.find((t) => t.id === target)?.label ?? "") : (hit ? "Radar" : "Radar (hors registre)"),
     address: siege.adresse ?? "", postal_code: siege.code_postal ?? "", city: siege.libelle_commune ? cap(siege.libelle_commune) : o.city,
-    contact_name: boss ? cap(`${boss.prenoms?.split(" ")[0] ?? ""} ${boss.nom}`.trim()) : "", contact_role: boss?.qualite ?? "",
+    contact_name: boss ? cap(`${boss.prenoms?.split(" ")[0] ?? ""} ${boss.nom}`.trim()) : "", contact_source: boss ? "registre des dirigeants (INSEE)" : "", contact_role: boss?.qualite ?? "",
     signals: [{ type: o.kind === "recrutement" ? "recrutement" : ["dirigeant", "demenagement", "creation", "renouvellement", "besoin"].includes(o.kind) ? o.kind : "croissance", label: o.kind === "renouvellement" ? `Contrat public en fin de période (${o.raw?.fin ?? ""}) : ${o.title}` : o.summary, url: o.url }],
   };
   let pid: string | null = null;

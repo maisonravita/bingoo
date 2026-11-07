@@ -58,6 +58,19 @@ function Tree({ x, y, kind, s = 1 }) {
 function Lamp({ x, y }) { const [px, py] = P(x, y, 0); return <g><ellipse cx={px} cy={py} rx="3" ry="1.5" fill="rgba(0,0,0,.12)" /><rect x={px - 0.9} y={py - 24} width="1.8" height="24" fill="#3B3F48" /><rect x={px - 2.6} y={py - 28} width="5.2" height="5" rx="1.5" fill="#3B3F48" /><rect x={px - 1.8} y={py - 27} width="3.6" height="3" rx="1" fill="#FFD27A" /></g>; }
 function Bench({ x, y }) { return <><Box x={x} y={y} w={1.8} d={0.5} h={0.5} c="#B07A4E" /><Box x={x} y={y} w={1.8} d={0.15} h={1.1} c="#9A6740" /></>; }
 const Bush = ({ x, y, c = "#7CBB52", r = 5 }) => { const [px, py] = P(x, y, 0); return <g><ellipse cx={px} cy={py} rx={r} ry={r / 2} fill="rgba(0,0,0,.08)" /><circle cx={px} cy={py - r * 0.7} r={r} fill={c} /><circle cx={px - r * 0.4} cy={py - r} r={r * 0.4} fill="#9BD06C" /></g>; };
+/* Progression : le village gagne un détail à chaque vrai résultat (aucun point, aucune récompense inventée) */
+const etoile = (cx, cy, r) => Array.from({ length: 10 }, (_, k) => { const a = -Math.PI / 2 + (k * Math.PI) / 5, rr = k % 2 ? r * 0.45 : r; return `${(cx + rr * Math.cos(a)).toFixed(1)},${(cy + rr * Math.sin(a)).toFixed(1)}`; }).join(" ");
+function Trophees({ art, x, y, progres: g }) {
+  if (!g) return null;
+  if (art === "poste") return <g pointerEvents="none">
+    {g.envoye && (() => { const [a, b] = P(x + 9.4, y + 1.4, 0); return <g><rect x={a - 0.8} y={b - 64} width="1.6" height="64" fill="#5A4E4E" /><path d={`M${a + 0.8} ${b - 63}l18 5 -18 6z`} fill="#F26A21"><animate attributeName="d" values={`M${a + 0.8} ${b - 63}l18 5 -18 6z;M${a + 0.8} ${b - 63}l17 6.5 -17 4.5z;M${a + 0.8} ${b - 63}l18 5 -18 6z`} dur="2.4s" repeatCount="indefinite" /></path><title>Premier message envoyé</title></g>; })()}
+    {g.reponse && (() => { const [a, b] = P(x + 0.8, y + 9.2, 0); return <g>{[["#F26A21", -6, -46], ["#FFD08A", 1, -54], ["#7CBB52", 7, -44]].map(([c, dx, dy], k) => <g key={k}><path d={`M${a} ${b}Q${a + dx / 2} ${b + dy / 2} ${a + dx} ${b + dy + 8}`} stroke="#B9A79A" strokeWidth=".8" fill="none" /><ellipse cx={a + dx} cy={b + dy} rx="5" ry="6.2" fill={c} /></g>)}<title>Première réponse reçue</title></g>; })()}
+  </g>;
+  if (art === "rdv" && g.rdv) { const [a, b] = P(x + 5, y + 5, 14.2); return <g pointerEvents="none"><polygon points={etoile(a, b, 9)} fill="#F6C344" stroke="#E09B1A" strokeWidth="1.2" /><title>Premier rendez-vous obtenu</title></g>; }
+  if (art === "mairie" && g.client) { const [a, b] = P(x + 1.6, y + 9.1, 0); return <g pointerEvents="none"><ellipse cx={a} cy={b} rx="11" ry="5.5" fill="#CFC6BC" /><ellipse cx={a} cy={b - 1} rx="9" ry="4.4" fill="#7FC4E8" /><rect x={a - 1.5} y={b - 11} width="3" height="10" fill="#E6DED5" /><path d={`M${a} ${b - 11}q-6 -5 -8 4M${a} ${b - 11}q6 -5 8 4`} stroke="#9FD6F2" strokeWidth="1.6" fill="none" /><title>Premier client signé</title></g>; }
+  if (art === "observatoire" && g.rdv10) { const [a, b] = P(x + 1.4, y + 8.6, 0); return <g pointerEvents="none"><rect x={a - 5} y={b - 6} width="10" height="6" fill="#D9D0C6" /><path d={`M${a - 4} ${b - 16}h8l-1.5 6h-5z`} fill="#F6C344" /><rect x={a - 1} y={b - 10} width="2" height="4" fill="#E09B1A" /><title>10 rendez-vous obtenus</title></g>; }
+  return null;
+}
 const Flower = ({ x, y }) => { const [px, py] = P(x, y, 0); return <g><circle cx={px} cy={py - 3} r="3.2" fill="#7CBB52" />{[[-2, -5, "#F49AC1"], [2, -4, "#FFF"], [0, -6.5, "#F6C344"]].map(([dx, dy, c], k) => <circle key={k} cx={px + dx} cy={py + dy} r="1.4" fill={c} />)}</g>; };
 /** Vitres éclairées (lueur chaude) sur une face. */
 const GlassL = ({ x, y, z, w, h, n = 3 }) => <g>{Array.from({ length: n }, (_, k) => <FaceL key={k} x={x + (w / n) * k + 0.15} y={y} z={z} w={w / n - 0.3} h={h} c="#FFD08A" />)}</g>;
@@ -235,7 +248,7 @@ function Slot({ k, uses, nav, toOf, survol }) {
   );
 }
 
-export default function IsoVille({ batiments, paroles = {}, full = false, cible = null, onCible, onOuvre, focus = null }) {
+export default function IsoVille({ batiments, paroles = {}, full = false, cible = null, onCible, onOuvre, focus = null, progres = null }) {
   const nav = useNavigate();
   const [on, setOn] = useState(null);
   const uses = useRef({}); // uses.current[`${slot}-${objet}`] = <use>
@@ -427,7 +440,7 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
                 <ellipse cx={lx} cy={ly} rx="46" ry="23" fill="rgba(255,138,61,.28)" stroke="#FF8A3D" strokeWidth="3" filter="url(#iso-lueur)" />
                 <ellipse cx={lx} cy={ly} rx="46" ry="23" fill="none" stroke="#FF8A3D" strokeWidth="2"><animate attributeName="rx" values="46;74" dur="2s" repeatCount="indefinite" /><animate attributeName="ry" values="23;37" dur="2s" repeatCount="indefinite" /><animate attributeName="opacity" values=".9;0" dur="2s" repeatCount="indefinite" /></ellipse>
               </g>}
-              <g style={{ transition: "transform .2s", transform: hot ? "translateY(-4px)" : "none" }}>{ART[b.art](x, y)}</g>
+              <g style={{ transition: "transform .2s", transform: hot ? "translateY(-4px)" : "none" }}>{ART[b.art](x, y)}<Trophees art={b.art} x={x} y={y} progres={progres} /></g>
             </a>,
             <Slot key={`slot${oi + 1}`} k={oi + 1} uses={uses} nav={go} toOf={toOf} survol={survol} />,
           ];

@@ -75,7 +75,7 @@ export async function extAdd(ws: Workspace, url: string) {
   const c0 = (f.contacts as { name: string; role: string | null }[])[0];
   const { data, error } = await admin.from("prospects").insert({
     workspace_id: ws.id, target: "", name: f.company.name, siren: f.company.siren, city: f.company.city, website: `https://${f.company.site}`,
-    contact_name: c0?.name ?? "", contact_role: c0?.role ?? "", source: "extension", notes: "Ajouté depuis l'extension Chrome Bingoo!",
+    contact_name: c0?.name ?? "", contact_role: c0?.role ?? "", contact_source: c0?.name ? "LinkedIn (extension)" : "", source: "extension", notes: "Ajouté depuis l'extension Chrome Bingoo!",
   }).select("id").single();
   if (error) throw new HttpError(500, error.message);
   await admin.from("activity").insert({ workspace_id: ws.id, kind: "prospect", summary: `${f.company.name} ajouté depuis l'extension Chrome` });
@@ -99,7 +99,7 @@ export async function extAddLinkedin(ws: Workspace, b: { url?: unknown; personne
   const company = (title.match(/\b(?:chez|at|@)\s+([^|,·•]{2,60})/i)?.[1] ?? title.split(/\s[|·•]\s/)[1] ?? "").trim();
   const role = title.split(/\s(?:chez|at|@)\s|\s[|·•]\s/i)[0].trim().slice(0, 80);
   const { data, error } = await admin.from("prospects").insert({
-    workspace_id: ws.id, target: "", name: company || person, contact_name: person, contact_role: role,
+    workspace_id: ws.id, target: "", name: company || person, contact_name: person, contact_role: role, contact_source: "LinkedIn (extension)",
     linkedin_url: url, linkedin_person: `${person}${role ? ` · ${role}` : ""}`, source: "extension", notes: "Ajouté depuis un profil LinkedIn (extension Chrome Bingoo!)",
   }).select("*").single();
   if (error) throw new HttpError(500, error.message);

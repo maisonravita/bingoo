@@ -25,6 +25,18 @@ const PICTO = {
 };
 const Icone = ({ art }) => <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={PICTO[art] ?? ""} /></svg>;
 
+// « La nuit de ton équipe » rejouée : uniquement le journal réel des actions (table activity), regroupé par métier
+const NUIT = {
+  recherche: ["annuaire", "Léo", "recherches d'entreprises"], prospect: ["annuaire", "Léo", "fiches ajoutées"],
+  enquete: ["annuaire", "Sam", "enquêtes sur des entreprises"], enquete_plus: ["annuaire", "Sam", "e-mails cherchés"], contacts: ["annuaire", "Sam", "recherches de décideurs"], contacts_auto: ["annuaire", "Sam", "recherches de décideurs"], credit_email: ["annuaire", "Sam", "e-mails débloqués"],
+  radar_scan: ["radar", "Max", "passages du Radar"], radar: ["radar", "Max", "entreprises ajoutées depuis le Radar"], radar_alerte: ["radar", "Max", "alertes du Radar"],
+  redaction: ["atelier", "Hugo", "e-mails rédigés"], envoi: ["poste", "Inès", "envois"], reponse: ["poste", "Inès", "réponses triées"],
+  rdv: ["rdv", "Paul", "rendez-vous"], linkedin: ["linkedin", "Lina", "actions LinkedIn préparées"],
+  espion: ["espion", "Oscar", "mises à jour de l'Espion"], veille: ["espion", "Oscar", "rapports de veille"], espion_lourd: ["espion", "Oscar", "recherches de concurrents"], espion_alerte: ["espion", "Oscar", "alertes de l'Espion"],
+  ciblage: ["observatoire", "Iris", "ajustements de tes cibles"],
+};
+const heure = (d) => new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+
 // Ce qu'on fait dans chaque bâtiment, en une phrase simple
 const AIDE = {
   poste: "Tes messages envoyés et les réponses de tes prospects", atelier: "Les messages écrits pour toi : relis, puis envoie",
@@ -172,8 +184,8 @@ export default function Village() {
       c(head("replies")), c(head("replies").in("class", ["interesse", "question", "prix", "rappel"])), c(head("meetings").neq("status", "annule")),
       c(head("prospects").neq("phone", "").neq("status", "ignore")), c(head("radar_opps").gte("created_at", w1)),
       c(head("messages").eq("status", "envoye").gte("sent_at", w1)), c(head("messages").eq("status", "envoye").eq("step", 0)),
-      c(head("radar_opps").eq("status", "nouveau").gte("score", 75)), c(head("messages").eq("status", "envoye")),
-    ]).then(([rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal, chaudes, sentAll]) => setD({ rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal, chaudes, sentAll })).catch(() => setD({}));
+      c(head("radar_opps").eq("status", "nouveau").gte("score", 75)), c(head("messages").eq("status", "envoye")), c(head("prospects").eq("status", "client")),
+    ]).then(([rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal, chaudes, sentAll, clients]) => setD({ rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal, chaudes, sentAll, clients })).catch(() => setD({}));
   }, [ws.id]);
 
   const boite = ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok;
@@ -238,6 +250,31 @@ export default function Village() {
   }, [lieu?.art]); // eslint-disable-line react-hooks/exhaustive-deps
   // La flèche qui relie le panneau au bâtiment visé
   const [pin, setPin] = useState(null);
+  // La nuit rejouée (20 secondes) : étapes construites depuis le journal, la caméra va de bâtiment en bâtiment
+  const [nuit, setNuit] = useState(null);
+  const rejouer = async () => {
+    const depuis = new Date(); depuis.setHours(depuis.getHours() < 12 ? -5 : 19, 0, 0, 0); // depuis 19 h la veille (ou ce soir)
+    if (depuis > new Date()) depuis.setDate(depuis.getDate() - 1);
+    const { data } = await supabase.from("activity").select("kind, summary, created_at").eq("workspace_id", ws.id).gte("created_at", depuis.toISOString()).order("created_at").limit(500);
+    const groupes = [];
+    for (const a of data ?? []) {
+      const m = NUIT[a.kind]; if (!m) continue;
+      const g = groupes.find((x) => x.kind === a.kind);
+      if (g) { g.n++; g.fin = a.created_at; } else groupes.push({ kind: a.kind, art: m[0], agent: m[1], lib: m[2], n: 1, ex: a.summary, debut: a.created_at, fin: a.created_at });
+    }
+    const steps = groupes.slice(0, 8).map((g) => ({ ...g, texte: g.n === 1 ? g.ex : `${g.n} ${g.lib}`, detail: g.n === 1 ? "" : g.ex }));
+    setNuit({ steps, i: 0, total: (data ?? []).length, depuis: depuis.toISOString() });
+  };
+  useEffect(() => {
+    if (!nuit || nuit.i >= nuit.steps.length) return;
+    const t = setTimeout(() => setNuit((x) => x && { ...x, i: x.i + 1 }), 2500);
+    return () => clearTimeout(t);
+  }, [nuit?.i, nuit?.steps.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  const etape = nuit?.steps[nuit.i] ?? null;
+  // La ville grandit avec les vrais résultats
+  const progres = { envoye: (v.sentAll ?? 0) > 0, reponse: (v.repTotal ?? 0) > 0, rdv: (v.rdvTotal ?? 0) > 0, client: (v.clients ?? 0) > 0, rdv10: (v.rdvTotal ?? 0) >= 10 };
+  const PALIERS = [["envoye", "Premier message envoyé", "un drapeau sur la Poste"], ["reponse", "Première réponse", "des ballons devant la Poste"], ["rdv", "Premier rendez-vous", "une étoile sur les Rendez-vous"], ["client", "Premier client signé", "une fontaine à la Mairie"], ["rdv10", "10 rendez-vous", "un trophée à l'Observatoire"]];
+  const [voirPaliers, setVoirPaliers] = useState(false);
   const panneau = useRef(null);
   const [fl, setFl] = useState(null);
   useEffect(() => {
@@ -279,7 +316,7 @@ export default function Village() {
 
       {/* La ville, plein écran */}
       <div style={intro ? { animation: "bv-descente 3.2s cubic-bezier(.2,.7,.2,1) both" } : undefined}>
-        <IsoVille batiments={B} paroles={d ? paroles : {}} full cible={lieu ? null : next?.b.art} onCible={setPin} onOuvre={ouvre} focus={lieu?.art ?? null} />
+        <IsoVille batiments={B} paroles={d ? paroles : {}} full cible={lieu ? null : next?.b.art} onCible={setPin} onOuvre={ouvre} focus={lieu?.art ?? etape?.art ?? null} progres={d ? progres : null} />
       </div>
 
       {/* Le ciel et les nuages qu'on traverse */}
@@ -301,8 +338,28 @@ export default function Village() {
       {/* Le logo, à côté du menu */}
       {!lieu && <p className="pointer-events-none fixed left-[76px] top-[22px] sm:left-[100px] sm:top-[30px] z-20 hidden sm:block text-[30px] font-black tracking-tight text-[#3A2416]" style={{ ...H, animation: intro ? "bv-ui 3.6s both" : undefined }}>Bingoo<span className="italic text-[#F26A21]">!</span></p>}
 
+      {/* Ta ville grandit : les paliers atteints, avec ce qui est apparu dans la ville */}
+      {d && !lieu && !nuit && (
+        <div className="fixed left-4 top-[84px] sm:left-6 sm:top-[96px] z-20" style={intro ? { animation: "bv-ui 3.6s both" } : undefined}>
+          <button onClick={() => setVoirPaliers((x) => !x)} aria-expanded={voirPaliers} className="flex items-center gap-2 rounded-2xl bg-white/95 px-3 py-2 text-[13px] font-semibold text-ink shadow-[0_8px_20px_-12px_rgba(122,74,42,.5)] hover:bg-white">
+            <span className="flex gap-0.5">{PALIERS.map(([k]) => <span key={k} className={cx("h-2 w-2 rounded-full", progres[k] ? "bg-[#F26A21]" : "bg-[#EADCCD]")} />)}</span>
+            Ta ville grandit
+          </button>
+          {voirPaliers && (
+            <ul className="mt-2 w-[260px] rounded-2xl bg-white p-3 text-[13px] shadow-[0_14px_30px_-16px_rgba(122,74,42,.55)]">
+              {PALIERS.map(([k, t, quoi]) => (
+                <li key={k} className="flex gap-2 py-1">
+                  <span className={cx("mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full text-[10px] font-black", progres[k] ? "bg-[#F26A21] text-white" : "border border-[#EADCCD] text-transparent")}>✓</span>
+                  <span><span className={progres[k] ? "font-semibold text-ink" : "text-ink-soft"}>{t}</span><span className="block text-[12px] text-ink-faint">{progres[k] ? `Dans ta ville : ${quoi}` : `À venir : ${quoi}`}</span></span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       {/* Par-dessus la ville : le prochain geste, en haut */}
-      <div className="pointer-events-none fixed inset-x-0 top-4 sm:top-6 z-20 flex justify-center pl-[84px] pr-4 sm:pl-[230px] sm:pr-[110px]" style={lieu ? { display: "none" } : intro ? { animation: "bv-ui 3.6s both" } : undefined}>
+      <div className="pointer-events-none fixed inset-x-0 top-4 sm:top-6 z-20 flex justify-center pl-[84px] pr-4 sm:pl-[230px] sm:pr-[110px]" style={lieu || nuit ? { display: "none" } : intro ? { animation: "bv-ui 3.6s both" } : undefined}>
         <button ref={panneau} onClick={() => next && ouvre(next.b)} disabled={!next} className={cx("pointer-events-auto relative flex max-w-[820px] items-center gap-2.5 sm:gap-4 rounded-[22px] sm:rounded-[28px] border-2 bg-white py-2 pl-2 pr-3 sm:py-3 sm:pl-3 sm:pr-5 text-left shadow-[0_14px_34px_-18px_rgba(232,105,43,.55)] transition hover:bg-white", next ? "border-[#F5A06A]" : "border-[#F1E2D2]")}>
           <span className="grid h-9 w-9 sm:h-12 sm:w-12 shrink-0 place-items-center rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#FF8A3D] to-[#E8571C] text-white shadow-[0_6px_14px_-6px_rgba(232,87,28,.8)]"><svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{next ? <path d="M5 12h14M13 6l6 6-6 6" /> : <path d="m5 12.5 4.5 4.5L19 7.5" />}</svg></span>
           <span className="hidden sm:block h-9 w-px bg-[#F1E2D2]" aria-hidden />
@@ -314,14 +371,44 @@ export default function Village() {
       </div>
 
       {/* En bas : comment ça marche, et la nuit rejouée */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-5 z-20 flex justify-center px-4" style={lieu ? { display: "none" } : intro ? { animation: "bv-ui 3.6s both" } : undefined}>
+      <div className="pointer-events-none fixed inset-x-0 bottom-5 z-20 flex justify-center px-4" style={lieu || nuit ? { display: "none" } : intro ? { animation: "bv-ui 3.6s both" } : undefined}>
         <div className="pointer-events-auto flex items-center gap-3 rounded-[24px] bg-white p-2 sm:pl-5 shadow-[0_12px_30px_-16px_rgba(122,74,42,.5)]">
           <svg viewBox="0 0 24 24" className="hidden sm:block h-6 w-6 text-[#F26A21]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="9.5" /><path d="m15.5 8.5-2 5-5 2 2-5z" /></svg>
           <p className="hidden sm:block text-[14px] text-ink">Survole un bâtiment pour voir son utilité <span className="mx-1 text-ink-soft">•</span> Clique pour y entrer <span className="mx-1 text-ink-soft">•</span> Explore le village à ton rythme.</p>
           <span className="hidden sm:block h-7 w-px bg-[#F1E2D2]" aria-hidden />
-          <a href="/qg/" className="flex items-center gap-2 rounded-[18px] bg-[#1E1E24] px-5 py-3 text-[14.5px] font-semibold text-white hover:bg-black"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /><path d="M17 3v3M15.5 4.5h3" /></svg>La nuit de ton équipe</a>
+          <button onClick={rejouer} className="flex items-center gap-2 rounded-[18px] bg-[#1E1E24] px-5 py-3 text-[14.5px] font-semibold text-white hover:bg-black"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /><path d="M17 3v3M15.5 4.5h3" /></svg>La nuit de ton équipe</button>
         </div>
       </div>
+      {/* La nuit rejouée : une carte par métier, seulement ce qui s'est vraiment passé */}
+      {nuit && (
+        <div className="fixed inset-x-0 bottom-5 z-30 flex justify-center px-4" role="status" aria-live="polite">
+          <div className="w-full max-w-[560px] rounded-[24px] bg-[#1E1E24] p-4 sm:p-5 text-white shadow-[0_20px_50px_-20px_rgba(0,0,0,.6)]">
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white/10"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /></svg></span>
+              <p className="flex-1 text-[13px] text-white/60">{etape ? `La nuit de ton équipe · ${nuit.i + 1}/${nuit.steps.length}` : "La nuit de ton équipe"}</p>
+              <button onClick={() => setNuit(null)} className="rounded-xl px-3 py-1.5 text-[13px] font-semibold text-white/80 hover:bg-white/10">{etape ? "Passer" : "Fermer"}</button>
+            </div>
+            {etape ? (
+              <div key={nuit.i} className="mt-3 animate-[bv-fondu_.3s_ease-out_both]">
+                <p className="text-[12.5px] text-[#FDBA74]">{heure(etape.debut)}{etape.fin !== etape.debut ? ` – ${heure(etape.fin)}` : ""} · {etape.agent}</p>
+                <p className="mt-0.5 text-[18px] font-bold leading-snug" style={H}>{etape.texte}</p>
+                {etape.detail && <p className="mt-1 truncate text-[13px] text-white/60">Par exemple : {etape.detail}</p>}
+                <div className="mt-3 flex gap-1">{nuit.steps.map((_, k) => <span key={k} className={cx("h-1 flex-1 rounded-full", k <= nuit.i ? "bg-[#F26A21]" : "bg-white/15")} />)}</div>
+              </div>
+            ) : (
+              <div className="mt-3">
+                <p className="text-[18px] font-bold" style={H}>{nuit.total ? `Depuis ${new Date(nuit.depuis).toDateString() === new Date().toDateString() ? "" : "hier "}${heure(nuit.depuis)}, ton équipe a fait ${nuit.total} action${nuit.total > 1 ? "s" : ""}.` : "Rien cette nuit : aucune action enregistrée depuis hier soir."}</p>
+                <p className="mt-1 text-[13px] text-white/60">{nuit.total ? "Tout vient du journal réel de ton équipe : rien n'est inventé." : "Ton équipe travaille la nuit une fois tes cibles et ta boîte mail en place."}</p>
+                <div className="mt-3 flex gap-2">
+                  {nuit.steps.length > 0 && <button onClick={() => setNuit((x) => ({ ...x, i: 0 }))} className="rounded-xl bg-white/10 px-3.5 py-2 text-[13.5px] font-semibold hover:bg-white/20">Revoir</button>}
+                  <a href="/qg/" className="rounded-xl bg-white/10 px-3.5 py-2 text-[13.5px] font-semibold hover:bg-white/20">Le détail heure par heure</a>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* L'intérieur du bâtiment : la ville reste derrière, la vue a glissé dessus */}
       <style>{`
         @keyframes bv-entre { from { transform: translateX(40px); opacity: 0 } to { transform: none; opacity: 1 } }

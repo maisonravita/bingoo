@@ -213,7 +213,7 @@ export async function useContact(ws: Workspace, contactId: string) {
   const { data: c } = await admin.from("contacts").select("*").eq("id", contactId).eq("workspace_id", ws.id).single();
   if (!c) throw new HttpError(404, "Contact introuvable");
   const { data: p } = await admin.from("prospects").select("status").eq("id", c.prospect_id).single();
-  const patch: Record<string, unknown> = { contact_name: c.name, contact_role: c.role };
+  const patch: Record<string, unknown> = { contact_name: c.name, contact_role: c.role, contact_source: String(c.source || "recherche de décideurs").slice(0, 120) };
   if (c.linkedin_url) patch.linkedin_url = c.linkedin_url;
   if (c.email) {
     Object.assign(patch, { email: c.email, email_source: c.email_source || c.source, channel: "email" });

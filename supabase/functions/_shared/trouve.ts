@@ -95,7 +95,7 @@ export async function trouveEmail(ws: Workspace, p: Prospect, dry = false) {
   const patch: Record<string, unknown> = { ...base };
   // L'e-mail appartient au dirigeant rapproché : la fiche prend son nom, même si un autre contact y figurait (jamais un e-mail sous le mauvais nom)
   const autre = !!p.contact_name && norm(p.contact_name) !== norm(officer.name);
-  if (!p.contact_name || (u.value && autre)) Object.assign(patch, { contact_name: officer.name, contact_role: officer.role });
+  if (!p.contact_name || (u.value && autre)) Object.assign(patch, { contact_name: officer.name, contact_role: officer.role, contact_source: "trouvé! (dirigeant déclaré)" });
   if (u.value && autre) patch.notes = `${p.notes ? `${p.notes}\n` : ""}Ancien contact : ${p.contact_name}${p.contact_role ? ` (${p.contact_role})` : ""}`.slice(0, 2000);
   let ok = false, raison = "";
   if (u.value) {

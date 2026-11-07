@@ -89,7 +89,7 @@ export async function searchTarget(workspaceId: string, t: Target, zone: string[
           address: e.adresse ?? "",
           postal_code: e.code_postal ?? "",
           city: e.libelle_commune ? title(e.libelle_commune) : "",
-          contact_name: boss ? title(`${boss.prenoms?.split(" ")[0] ?? ""} ${boss.nom}`.trim()) : "",
+          contact_name: boss ? title(`${boss.prenoms?.split(" ")[0] ?? ""} ${boss.nom}`.trim()) : "", contact_source: boss ? "registre des dirigeants (INSEE)" : "",
           contact_role: boss?.qualite ?? "",
           signals: signalsOf(r, e),
         });
