@@ -667,6 +667,16 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     return out;
   },
   // Test des fournisseurs d'e-mails : présence des clés (jamais leur valeur), puis recherche sur quelques fiches à déclencheur
+  // Diagnostic (clé cron) : santé de l'envoi d'un espace, ou d'un domaine quelconque ; relecture d'un texte
+  async "sante-test"(req, b) {
+    await cron(req);
+    const s = await import("../_shared/sante.ts");
+    if (b.domaine) return await s.controleDomaine(String(b.domaine), String(b.site ?? ""));
+    if (b.texte !== undefined) { const c = await import("../_shared/controle.ts"); return c.controler({ name: String(b.nom ?? ""), contact_name: String(b.contact ?? ""), email: String(b.email ?? "") } as never, String(b.objet ?? ""), String(b.texte)); }
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
+    if (!ws) throw new HttpError(404, "Espace introuvable");
+    return await s.santeEnvoi(ws, b.sauver === true);
+  },
   async "email-test"(req, b) {
     await cron(req);
     const { providers } = await import("../_shared/contacts.ts");
