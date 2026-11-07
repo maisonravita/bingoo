@@ -36,7 +36,7 @@ function useReveal() {
 const PREUVES = [
   ["radar", "Qui a besoin de toi", "Chaque nuit, le Radar repère les entreprises qui viennent de bouger : recrutement, levée, nouveau dirigeant, outil concurrent installé. Chaque signal affiche sa source.", "preuve-radar", "L'écran Opportunités de la vraie application. Données d'exemple."],
   ["contacts", "Le décideur et son e-mail", "Le dirigeant déclaré au registre officiel, son e-mail professionnel vérifié, son LinkedIn. Jamais une adresse devinée.", "preuve-contacts", "L'écran Contacts de la vraie application. Données d'exemple."],
-  ["canaux", "Il écrit. Tu valides.", "Un message par entreprise, qui part de ce qui se passe chez elle. Relances à J+3 et J+7, appel, clôture. Rien ne part sans toi.", "preuve-canaux", "Filmé sur un vrai compte Bingoo!, le 7 novembre 2026. Les noms et coordonnées des personnes sont floutés."],
+  ["canaux", "Il écrit. Tu valides.", "Un message par entreprise, qui part de ce qui se passe chez elle. Relances à J+3 et J+7, appel, clôture. Rien ne part sans toi.", "preuve-canaux", "L'écran « À valider » de la vraie application. Données d'exemple."],
   ["espion", "Tes concurrents, surveillés", "Prix, publicités, avis, clients mécontents : l'Espion mesure tout, et ton angle se retrouve dans chaque message.", "preuve-espion", "Filmé sur un vrai compte Bingoo!, le 7 novembre 2026. Les noms et coordonnées des personnes sont floutés."],
 ];
 function Preuve() {

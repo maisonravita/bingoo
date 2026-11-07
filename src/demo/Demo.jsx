@@ -212,6 +212,75 @@ function Contacts() {
   );
 }
 
+// Il écrit. Tu valides. : l'écran « À valider », données d'exemple. On relit, on corrige un mot, on voit l'invitation
+// LinkedIn et la suite prévue (J+3, J+7, appel J+10, clôture J+14), on valide : le message suivant arrive.
+const A_VALIDER = [
+  { id: "v1", nom: "Atelier Verne", qui: "Paul Riva, Président", email: "paul.riva@atelierverne.fr", fait: "A levé 1,2 M€ · presse spécialisée, cette semaine", objet: "votre levée de 1,2 M€",
+    corps: "Bonjour Paul,\n\nAtelier Verne vient de lever 1,2 M€. Le trimestre qui suit une levée est celui où l'on recrute et où l'on choisit ses outils.\n\nBingoo! repère chaque matin les entreprises qui ont besoin de vous, avec le bon décideur et le message prêt.\n\nUn échange de 15 minutes jeudi ?",
+    note: "Bonjour Paul, bravo pour la levée d'Atelier Verne. Je suis le fondateur de Bingoo!, ravi d'échanger si l'acquisition client est sur votre liste ce trimestre." },
+  { id: "v2", nom: "Studio Kelio", qui: "Anna Sèze, Directrice générale", email: "anna.seze@studiokelio.fr", fait: "Nouveau dirigeant · BODACC, il y a 5 jours", objet: "vos premiers mois chez Studio Kelio",
+    corps: "Bonjour Anna,\n\nVous avez pris la direction de Studio Kelio ce mois-ci. Les premiers mois sont souvent ceux où l'on revoit ses priorités commerciales.\n\nBingoo! trouve chaque matin les entreprises au bon moment, avec le décideur et le message prêt.\n\nUn échange de 15 minutes la semaine prochaine ?",
+    note: "Bonjour Anna, félicitations pour votre arrivée à la tête de Studio Kelio. Ravi d'échanger si le développement commercial fait partie de vos chantiers." },
+];
+const SUITE = [["J+0", "Ce message", true], ["J+3", "Relance"], ["J+7", "Relance"], ["J+10", "Appel avec script"], ["J+14", "E-mail de clôture"]];
+function Valider() {
+  const [i, setI] = useState(0);
+  const [canal, setCanal] = useState("email");
+  const [corps, setCorps] = useState(A_VALIDER[0].corps);
+  const [ok, setOk] = useState(false);
+  const m = A_VALIDER[i];
+  const valider = () => { setOk(true); setTimeout(() => { setOk(false); setI(1); setCorps(A_VALIDER[1].corps); setCanal("email"); }, 2200); };
+  return (
+    <Cadre titre="À valider · données d'exemple">
+      <div className="max-w-5xl mx-auto px-6 py-7">
+        <div className="flex items-end justify-between gap-4">
+          <div><h1 className="font-black text-[38px] leading-none" style={{ fontFamily: "var(--font-titre)" }}>À valider</h1><p className="text-ink-soft text-[15.5px] mt-2">Bingoo! a écrit. Tu relis, tu corriges si tu veux, tu valides. Rien ne part sans toi.</p></div>
+          <span className="rounded-full bg-paper border border-line px-3 py-1 text-[13px] font-semibold text-ink-soft tnum">{i + 1} / {A_VALIDER.length}</span>
+        </div>
+        <div key={m.id} className="mt-6 grid md:grid-cols-[minmax(0,7fr)_minmax(0,4fr)] gap-5 items-start rise">
+          <div className="rounded-2xl border border-line bg-white p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div><p className="font-semibold text-[17px]">{m.nom}</p><p className="text-[13.5px] text-ink-soft">{m.qui} · {m.email}</p></div>
+              <div className="flex rounded-lg border border-line overflow-hidden text-[13.5px] font-semibold">
+                <button data-canal="email" onClick={() => setCanal("email")} className={cx("px-3 py-1.5", canal === "email" ? "bg-ink text-white" : "text-ink-soft")}>E-mail</button>
+                <button data-canal="li" onClick={() => setCanal("li")} className={cx("px-3 py-1.5", canal === "li" ? "bg-li text-white" : "text-ink-soft")}>LinkedIn</button>
+              </div>
+            </div>
+            <p className="mt-3 rounded-lg bg-accent-soft/60 px-3 py-2 text-[13px] text-accent-dark"><b className="font-semibold">Le fait :</b> {m.fait}</p>
+            {canal === "email" ? (<>
+              <p className="mt-3 text-[13.5px] text-ink-soft">Objet : <span className="text-ink font-medium">{m.objet}</span></p>
+              <textarea data-corps value={corps} onChange={(e) => setCorps(e.target.value)} rows={9} className="mt-2 w-full rounded-xl border border-line bg-paper/40 p-3.5 text-[15px] leading-relaxed outline-none focus:border-ink" />
+              <p className="mt-1 text-[12px] text-ink-faint tnum">{corps.split(/\s+/).filter(Boolean).length} mots · 75 au plus</p>
+            </>) : (
+              <div className="mt-3 rise">
+                <p className="text-[13.5px] text-ink-soft">Invitation LinkedIn avec note (envoyée par l'extension, depuis ton compte)</p>
+                <p className="mt-2 rounded-xl border border-li/30 bg-[#EEF4FB] p-3.5 text-[15px] leading-relaxed">{m.note}</p>
+                <p className="mt-1 text-[12px] text-ink-faint">S'il répond par e-mail, LinkedIn s'arrête tout seul.</p>
+              </div>
+            )}
+            <div className="mt-4 flex items-center gap-2">
+              <button data-valider onClick={valider} className={cx("flex-1 rounded-xl py-3.5 text-[16px] font-bold text-white transition", ok ? "bg-good" : "bg-accent hover:bg-accent-dark")}>{ok ? "✓ Validé : envoi à 9 h 40, relance J+3 prête" : "Valider et envoyer"}</button>
+              <button className="rounded-xl border border-line px-4 py-3.5 text-[15px] text-ink-soft">Passer</button>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-line bg-white p-5">
+            <p className="text-[13px] font-bold text-accent-dark uppercase tracking-wide">La suite, déjà prévue</p>
+            <ol className="mt-3 space-y-2.5">
+              {SUITE.map(([j, t, now]) => (
+                <li key={j} className="flex items-center gap-3">
+                  <span className={cx("w-12 shrink-0 rounded-md px-1.5 py-0.5 text-center text-[12px] font-bold tnum", now ? "bg-ink text-white" : "bg-paper text-ink-soft")}>{j}</span>
+                  <span className={cx("text-[14.5px]", now ? "font-semibold" : "text-ink-soft")}>{t}</span>
+                </li>
+              ))}
+            </ol>
+            <p className="mt-4 text-[12.5px] text-ink-faint">Une réponse arrête tout. Chaque relance repasse par toi.</p>
+          </div>
+        </div>
+      </div>
+    </Cadre>
+  );
+}
+
 // La cadence : la séquence par défaut (vrai composant de Réglages) et le badge « Touche x/y » des fiches
 const CONTACTES = [
   { name: "Nova Conseil", contact: "Claire Martin, Présidente", status: "envoye", seq_etape: 0 },
@@ -240,5 +309,5 @@ function Cadence() {
 }
 
 const v = new URLSearchParams(location.search).get("v");
-function App() { useEffect(() => { try { sessionStorage.clear(); } catch { /* rien */ } }, []); return v === "journee" ? <Journee /> : v === "cadence" ? <Cadence /> : v === "radar" ? <Radar /> : v === "contacts" ? <Contacts /> : <Inscription />; }
+function App() { useEffect(() => { try { sessionStorage.clear(); } catch { /* rien */ } }, []); return v === "journee" ? <Journee /> : v === "cadence" ? <Cadence /> : v === "radar" ? <Radar /> : v === "contacts" ? <Contacts /> : v === "valider" ? <Valider /> : <Inscription />; }
 ReactDOM.createRoot(document.getElementById("root")).render(<MemoryRouter><WsCtx.Provider value={{ ws: WS }}><ToastProvider><App /></ToastProvider></WsCtx.Provider></MemoryRouter>);
