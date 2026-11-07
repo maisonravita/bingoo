@@ -10,7 +10,7 @@ import { useAller } from "../lib/lieu";
 import { useDansLieu } from "../lib/lieu";
 
 export const RECRUIT_HINT = "Cette entreprise recrute pour un poste lié à ce que tu vends. C'est souvent le signe d'un besoin actuel et d'un budget : c'est le bon moment pour lui proposer ton service, en complément ou à la place d'une embauche.";
-const KIND = {
+export const KIND = {
   appel_offres: { label: "Appel d'offres", plural: "Appels d'offres", dot: "#F26B2A", chip: "bg-accent-soft text-accent-dark", icon: "doc" },
   croissance: { label: "En croissance", plural: "En croissance", dot: "#22A06B", chip: "bg-good-soft text-good", icon: "up" },
   recrutement: { label: "Recrute en ce moment", plural: "Qui recrutent", dot: "#3B82F6", chip: "bg-[#E3EDFD] text-[#1D5BD6]", icon: "users" },

@@ -197,6 +197,16 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
     await log(ws.id, "brief", "Fiche de rendez-vous préparée");
     return await brief(ws, String(b.meeting_id));
   },
+  // Compte stratégique : interlocuteurs, angle par personne, plan sur 6 semaines
+  async "plan-compte"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    await quota(ws.id, "analyse_prospect", LIMITS.analyse_prospect);
+    setAi({ ws: ws.id, live: true });
+    const { planCompte } = await import("../_shared/compte.ts");
+    const plan = await planCompte(ws, await prospectOf(ws.id, String(b.prospect_id ?? "")));
+    await log(ws.id, "analyse_prospect", "Plan de compte préparé");
+    return plan;
+  },
   async insight(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const ids = (Array.isArray(b.ids) ? b.ids : [b.prospect_id]).filter(Boolean).slice(0, 3);

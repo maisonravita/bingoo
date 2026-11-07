@@ -139,6 +139,35 @@ function Fil({ msgs, calls, fil }) {
   );
 }
 
+/** Plan de compte (comptes stratégiques) : qui viser, avec quel angle, et quoi faire chaque semaine pendant 6 semaines. */
+function PlanCompte({ p, onChange }) {
+  const { ws } = useWs();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const plan = p.insight?.plan_compte;
+  const go = async () => {
+    setBusy(true);
+    try { const r = await fn("plan-compte", { workspace_id: ws.id, prospect_id: p.id }); onChange({ ...p, insight: { ...(p.insight ?? {}), plan_compte: r } }); }
+    catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
+  };
+  return (
+    <div className="mt-4 rounded-2xl border border-line bg-white p-4">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-semibold text-sm">Plan de compte · 6 semaines</p>
+        <Button size="sm" loading={busy} onClick={go}>{plan ? "Refaire" : "Préparer le plan"}</Button>
+      </div>
+      {!plan ? <p className="text-[13px] text-ink-soft mt-1">Qui viser dans l'entreprise, avec quel angle pour chacun, et une action par semaine. Seuls les noms réellement trouvés sont utilisés.</p> : (
+        <div className="mt-2 space-y-3 text-[13.5px]">
+          {plan.pourquoi && <p className="text-ink-soft">{plan.pourquoi}</p>}
+          <ul className="space-y-1.5">{plan.interlocuteurs.map((i, k) => <li key={k}><b>{i.connu ? i.qui : <span className="text-ink-soft">{i.role} (à trouver)</span>}</b>{i.connu && i.role ? ` · ${i.role}` : ""}<span className="block text-ink-soft">{i.angle}</span></li>)}</ul>
+          <ol className="space-y-1">{plan.semaines.map((s) => <li key={s.semaine} className="flex gap-2"><span className="shrink-0 rounded-md bg-paper px-1.5 text-[12px] font-semibold tnum">S{s.semaine}</span><span>{s.action}<span className="text-ink-faint"> · {s.canal}{s.pour ? ` · ${s.pour}` : ""}</span></span></li>)}</ol>
+          {plan.risque && <p className="text-[12.5px] text-warn">Risque : {plan.risque}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Drawer({ p, onClose, onChange, team = [] }) {
   const { ws } = useWs();
   const toast = useToast();
@@ -212,6 +241,7 @@ function Drawer({ p, onClose, onChange, team = [] }) {
           <input type="checkbox" checked={p.strategique === true} onChange={async (e) => { const v = e.target.checked ? true : false; await supabase.from("prospects").update({ strategique: v }).eq("id", p.id); onChange({ ...p, strategique: v }); }} />
           Compte stratégique <span className="text-ink-soft font-normal">(suivi étape par étape dans la salle de pilotage)</span>
         </label>
+        {p.strategique === true && <PlanCompte p={p} onChange={onChange} />}
         {p.enrich_note && <p className="text-xs text-ink-soft mt-3">{p.enrich_note}</p>}
         {!["refus", "ignore", "client"].includes(p.status) && (
           <Button className="mt-4 w-full sm:w-auto" variant="accent" loading={busy === "ecrire"} onClick={async () => {

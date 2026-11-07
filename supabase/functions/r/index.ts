@@ -500,7 +500,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { writeDraft, offerFollowup } = await import("../_shared/agents.ts");
     const ids = Array.isArray(b.ids) ? b.ids.map(String).slice(0, 8) : [];
     const { data: ps } = await admin.from("prospects").select("*").in("id", ids);
-    const out = await Promise.all((ps ?? []).map(async (p) => { try { const d = await writeDraft(ws, p); const r1 = await offerFollowup(ws, d.body, (d.body.split("\n")[0] || "Bonjour,")).catch((e) => `(relance : ${e.message})`); return { prospect: p.name, objet: d.subject, corps: d.body, relance1: r1 }; } catch (e) { return { prospect: p.name, erreur: String((e as Error).message) }; } }));
+    const out = await Promise.all((ps ?? []).map(async (p) => { try { const d = await writeDraft(ws, p); const { verifierFaits } = await import("../_shared/faits.ts"); const doutes = await verifierFaits(ws, p, d.subject, d.body); const r1 = b.relance === false ? "" : await offerFollowup(ws, d.body, (d.body.split("\n")[0] || "Bonjour,")).catch((e) => `(relance : ${e.message})`); return { prospect: p.name, objet: d.subject, corps: d.body, doutes, relance1: r1 }; } catch (e) { return { prospect: p.name, erreur: String((e as Error).message) }; } }));
     return { messages: out };
   },
   // Test interne : rédige et enregistre le premier message d'UNE fiche (brouillon à valider, rien n'est envoyé)

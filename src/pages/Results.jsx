@@ -6,6 +6,7 @@ import { eur } from "../lib/labels";
 import { cx } from "../lib/utils";
 import { SubNav } from "../components/SubNav";
 import { CeQuiMarche, PilotageResultats } from "./Pilotage";
+import { KIND } from "./Radar";
 
 const pct = (a, b) => (b ? `${Math.round((a / b) * 100)} %` : "—");
 // Coût IA moyen estimé par action (en euros), pour calculer le coût d'acquisition
@@ -108,6 +109,85 @@ function ContactBase({ p }) {
   );
 }
 
+/** Comparaison anonyme avec les autres clients : quels signaux donnent des réponses, chez toi et en moyenne. */
+function Comparaison({ ws }) {
+  const [rows, setRows] = useState(null);
+  useEffect(() => { supabase.rpc("bench_signaux", { p_ws: ws.id }).then(({ data }) => setRows(data ?? [])); }, [ws.id]);
+  if (!rows) return null;
+  const nom = (k) => (k === "aucun" ? "Sans signal particulier" : KIND[k]?.label ?? k);
+  const assez = rows.filter((r) => r.assez);
+  const miens = rows.filter((r) => Number(r.mes_envois) > 0);
+  return (
+    <Card className="p-5 sm:p-6 mb-8">
+      <h2 className="font-semibold">Quel moment fait répondre ?</h2>
+      <p className="text-[13px] text-ink-soft mt-1">Réponses positives selon la raison de contacter l'entreprise, chez toi{assez.length ? " et chez l'ensemble des clients Bingoo! (données anonymes)" : ""}.</p>
+      {!miens.length && !assez.length ? <p className="text-sm text-ink-soft mt-3">Pas encore de premier message envoyé : les chiffres apparaissent dès les premiers envois.</p> : (
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-[12px] text-ink-soft">{["Raison du contact", "Toi", ...(assez.length ? ["Tous les clients"] : [])].map((h) => <th key={h} className="py-1.5 pr-3 font-medium">{h}</th>)}</tr></thead>
+            <tbody className="divide-y divide-line">
+              {rows.filter((r) => r.assez || Number(r.mes_envois) > 0).map((r) => (
+                <tr key={r.signal}>
+                  <td className="py-1.5 pr-3">{nom(r.signal)}</td>
+                  <td className="py-1.5 pr-3 tnum">{Number(r.mes_envois) ? `${r.mon_taux ?? 0} % sur ${r.mes_envois}` : "—"}</td>
+                  {assez.length > 0 && <td className="py-1.5 pr-3 tnum">{r.assez ? `${r.taux} % sur ${r.envois}` : "pas assez de données"}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {!assez.length && <p className="text-[12.5px] text-ink-faint mt-3">La comparaison avec les autres clients s'affiche dès qu'un type de signal compte au moins 100 envois chez 3 clients différents. Aucun client n'est jamais identifiable.</p>}
+    </Card>
+  );
+}
+
+/** Ce que Bingoo! t'a rapporté : chaque client signé relié à son signal, son premier message et son rendez-vous. */
+function Rapporte({ d, ws }) {
+  const premier = {}, rdv = {};
+  for (const m of d.messages) if (m.status === "envoye" && m.step === 0 && m.sent_at && (!premier[m.prospect_id] || m.sent_at < premier[m.prospect_id])) premier[m.prospect_id] = m.sent_at;
+  for (const x of d.meetings) if (x.status !== "annule" && (!rdv[x.prospect_id] || x.created_at < rdv[x.prospect_id])) rdv[x.prospect_id] = x.created_at;
+  const gagnes = d.prospects.filter((p) => p.status === "client" && (premier[p.id] || rdv[p.id]));
+  const total = gagnes.reduce((t, p) => t + Number(p.deal_value || 0), 0);
+  const cible = (id) => ws.targets?.find((t) => t.id === id)?.label ?? "autre";
+  const signal = (p) => (p.signals ?? []).find((x) => x.label && !["taille", "reseau"].includes(x.type))?.label ?? "";
+  const parCible = {};
+  for (const p of gagnes) { const k = cible(p.target); parCible[k] = (parCible[k] ?? 0) + Number(p.deal_value || 0); }
+  const jour = (x) => x ? new Date(x).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : "—";
+  return (
+    <Card className="p-5 sm:p-6 mb-8">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-semibold">Ce que Bingoo! t'a rapporté</h2>
+        <p className="font-serif text-3xl tnum">{eur(total)}<span className="text-sm text-ink-soft font-sans"> / mois, {gagnes.length} client{gagnes.length > 1 ? "s" : ""}</span></p>
+      </div>
+      {gagnes.length === 0 ? (
+        <p className="text-sm text-ink-soft mt-2">Quand tu signes avec une entreprise contactée par Bingoo!, passe-la en « Client » et indique le montant : elle apparaît ici avec tout son parcours (signal, premier message, rendez-vous, signature).</p>
+      ) : (
+        <>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-[12px] text-ink-soft">{["Client", "Ce qui a déclenché", "1er message", "Rendez-vous", "Signé", "€ / mois"].map((h) => <th key={h} className="py-1.5 pr-3 font-medium whitespace-nowrap">{h}</th>)}</tr></thead>
+              <tbody className="divide-y divide-line">
+                {gagnes.sort((a, b) => Number(b.deal_value || 0) - Number(a.deal_value || 0)).map((p) => (
+                  <tr key={p.id}>
+                    <td className="py-1.5 pr-3 font-medium">{p.name}</td>
+                    <td className="py-1.5 pr-3 text-ink-soft">{signal(p) || cible(p.target)}</td>
+                    <td className="py-1.5 pr-3 tnum">{jour(premier[p.id])}</td>
+                    <td className="py-1.5 pr-3 tnum">{jour(rdv[p.id])}</td>
+                    <td className="py-1.5 pr-3 tnum">{jour(p.won_at)}</td>
+                    <td className="py-1.5 pr-3 tnum font-semibold">{p.deal_value ? eur(p.deal_value) : <span className="text-ink-faint font-normal">à indiquer</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {Object.keys(parCible).length > 1 && <p className="text-[13px] text-ink-soft mt-3">Par cible : {Object.entries(parCible).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${eur(v)}`).join(" · ")}</p>}
+        </>
+      )}
+    </Card>
+  );
+}
+
 export default function Results() {
   const { ws, patch } = useWs();
   const toast = useToast();
@@ -115,7 +195,7 @@ export default function Results() {
   const [period, setPeriod] = useState(30);
   const load = useCallback(async () => {
     const [prospects, messages, meetings, calls, quotes, activity, members, usage, replies] = await Promise.all([
-      all("prospects", "id, name, target, status, deal_value, margin_pct, won_at, churned_at, owner_id, contact_name, email, phone", ws.id),
+      all("prospects", "id, name, target, status, deal_value, margin_pct, won_at, churned_at, owner_id, contact_name, email, phone, signals, source", ws.id),
       all("messages", "prospect_id, status, sent_at, step", ws.id),
       all("meetings", "prospect_id, status, starts_at, created_at", ws.id),
       all("calls", "prospect_id, outcome, created_at", ws.id),
@@ -182,6 +262,8 @@ export default function Results() {
         <div className="flex gap-1">{[7, 30, 90].map((n) => <button key={n} onClick={() => setPeriod(n)} className={cx("rounded-full px-3 py-1.5 text-sm border", period === n ? "bg-ink text-white border-ink" : "bg-white border-line")}>{n} j</button>)}</div>
       </PageHead>
 
+      <Rapporte d={d} ws={ws} />
+      <Comparaison ws={ws} />
       <ContactBase p={d.prospects} />
       <PilotageResultats />
       <CeQuiMarche />
