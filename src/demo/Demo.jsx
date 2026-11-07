@@ -11,6 +11,9 @@ import { PlanAction } from "../pages/Onboarding";
 import { ToastProvider } from "../components/ui";
 import { WsCtx } from "../lib/ws";
 import Logo from "../components/Logo";
+import Sequence from "../components/Sequence";
+import { cadence } from "../lib/cadence";
+import { Badge } from "../components/ui";
 
 const WS = { id: "demo", name: "Démo", sender_name: "Jean", postal_address: "Paris", domain_status: "verified", integrations: { mailbox: { ok: true } }, profile: { nom: "Ton SaaS" } };
 const jours = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
@@ -64,6 +67,33 @@ function Journee() {
   );
 }
 
+// La cadence : la séquence par défaut (vrai composant de Réglages) et le badge « Touche x/y » des fiches
+const CONTACTES = [
+  { name: "Nova Conseil", contact: "Claire Martin, Présidente", status: "envoye", seq_etape: 0 },
+  { name: "Atelier Verne", contact: "Paul Riva, Gérant", status: "envoye", seq_etape: 1 },
+  { name: "Studio Kelio", contact: "Anna Sèze, Directrice générale", status: "envoye", seq_etape: 3 },
+];
+function Cadence() {
+  return (
+    <Cadre titre="Réglages · séquence de relances">
+      <div className="max-w-3xl mx-auto px-6 py-8">
+        <h1 className="font-black text-[34px] leading-tight" style={{ fontFamily: "var(--font-titre)" }}>Ta séquence</h1>
+        <p className="text-ink-soft text-[15px] mt-1 mb-6">Relance à J+3 puis J+7, appel à J+10, e-mail de clôture à J+14. Une réponse arrête tout.</p>
+        <Sequence />
+        <h2 className="text-[19px] font-semibold mt-10 mb-3">Et sur chaque fiche contactée</h2>
+        <div className="bg-white border border-line rounded-2xl overflow-hidden divide-y divide-line">
+          {CONTACTES.map((r) => { const c = cadence(WS, r); return (
+            <div key={r.name} className="px-4 py-3 flex items-center gap-4">
+              <div className="flex-1 min-w-0"><p className="font-medium">{r.name}</p><p className="text-[13px] text-ink-soft">{r.contact}</p></div>
+              <Badge tone="accent">Touche {c.touche}/{c.total} · prochaine : {c.prochaine}</Badge>
+            </div>
+          ); })}
+        </div>
+      </div>
+    </Cadre>
+  );
+}
+
 const v = new URLSearchParams(location.search).get("v");
-function App() { useEffect(() => { try { sessionStorage.clear(); } catch { /* rien */ } }, []); return v === "journee" ? <Journee /> : <Inscription />; }
+function App() { useEffect(() => { try { sessionStorage.clear(); } catch { /* rien */ } }, []); return v === "journee" ? <Journee /> : v === "cadence" ? <Cadence /> : <Inscription />; }
 ReactDOM.createRoot(document.getElementById("root")).render(<MemoryRouter><WsCtx.Provider value={{ ws: WS }}><ToastProvider><App /></ToastProvider></WsCtx.Provider></MemoryRouter>);
