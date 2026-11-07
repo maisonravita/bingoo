@@ -351,8 +351,8 @@ export default function Landing() {
 
         <div className="px-0 sm:px-8">
           <section className="mx-auto max-w-[1440px] bg-white px-5 sm:px-10 pt-16 sm:pt-24 pb-16 sm:pb-20 text-center">
-            <h1 className="hero-in mx-auto max-w-[1100px] text-ink text-[46px] sm:text-[72px] lg:text-[96px] leading-[1.02] tracking-[-.035em]" style={SERIF}>Bingoo! te trouve des clients.<br />Toi, tu encaisses.</h1>
-            <p className="hero-in mx-auto mt-8 max-w-[690px] text-[18px] sm:text-[21px] leading-[1.45] text-ink" style={{ animationDelay: ".1s" }}>Il repère les entreprises qui ont besoin de toi maintenant et les gens qui demandent en public une solution comme la tienne, trouve le décideur, écrit le message. Tu valides, tu prends les rendez-vous. Pour les fondateurs de SaaS, les startups et les PME B2B.</p>
+            <h1 className="hero-in mx-auto max-w-[1100px] text-ink text-[46px] sm:text-[72px] lg:text-[96px] leading-[1.02] tracking-[-.035em]" style={SERIF}>Plus de clients. Plus de revenus.<br />Sans y passer tes journées.</h1>
+            <p className="hero-in mx-auto mt-8 max-w-[690px] text-[18px] sm:text-[21px] leading-[1.45] text-ink" style={{ animationDelay: ".1s" }}>Bingoo! repère les entreprises qui ont besoin de toi maintenant et les gens qui demandent en public une solution comme la tienne, trouve le décideur, écrit le message. Tu valides, tu prends les rendez-vous. Pour les fondateurs de SaaS, les startups et les PME B2B.</p>
             <p className="hero-in mx-auto mt-5 text-[19px] sm:text-[22px] font-semibold text-ink" style={{ animationDelay: ".15s" }}>15 minutes par jour. Bingoo! s'occupe du reste.</p>
             <div className="hero-in mt-10 inline-flex flex-col sm:flex-row gap-1.5 rounded-xl bg-[#F1EFED] p-1.5" style={{ animationDelay: ".2s" }}>
               <button onClick={go} className="rounded-lg bg-[#1C1C1C] text-white px-10 py-4 text-[18px] sm:text-[19px] hover:bg-black transition">Créer mon compte</button>
