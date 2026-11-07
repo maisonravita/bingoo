@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
 import { legalReady } from "./Legal";
 import { cx } from "../lib/utils";
-import { STORE_URL } from "../lib/ext";
 
 // Page d'accueil publique de Bingoo! : épurée, et chaque promesse adossée à une preuve.
 // Deux preuves seulement : l'application filmée sur un vrai compte, et l'essai en direct sur le site du visiteur.
@@ -306,12 +305,9 @@ export default function Landing() {
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
               <div className="max-w-[640px]">
                 <h2 className="text-[36px] sm:text-[50px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Bingoo! partout où tu prospectes</h2>
-                <p className="mt-4 text-[17px] sm:text-[19px] leading-[1.5] text-ink-soft">L'extension Chrome, gratuite pour les clients et facultative.</p>
+                <p className="mt-4 text-[17px] sm:text-[19px] leading-[1.5] text-ink-soft">L'extension Chrome est incluse dans toutes les formules. Elle s'active avec ton compte Bingoo! : sans compte, elle ne fait rien.</p>
               </div>
-              <a href={STORE_URL} target="_blank" rel="noopener noreferrer" className="self-start md:self-auto inline-flex items-center gap-2.5 rounded-lg bg-ink text-white px-6 py-3.5 text-[16px] hover:bg-black transition">
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.5" /><path d="M12 8.5h8.5M8.97 13.75 4.7 6.35M15.03 13.75l-4.25 7.37" /></svg>
-                Ajouter à Chrome
-              </a>
+              <button onClick={go} className="self-start md:self-auto inline-flex items-center gap-2.5 rounded-lg bg-ink text-white px-6 py-3.5 text-[16px] hover:bg-black transition">Créer mon compte</button>
             </div>
             <ul className="mt-10 grid sm:grid-cols-3 gap-3">
               {[["Sur le site d'une entreprise", "Sa fiche en un clic : le dirigeant, la taille, ce qui bouge chez elle. Tu l'ajoutes à tes prospects sans copier-coller."], ["Sur LinkedIn", "Les invitations et messages que tu as validés partent depuis ton compte, à un rythme humain, avec des limites prudentes."], ["Dans Gmail", "Quand un prospect t'écrit, sa fiche s'affiche à côté : ce qu'il a reçu, où il en est, sa réponse déjà classée."]].map(([t, d]) => (
@@ -333,15 +329,6 @@ export default function Landing() {
               <span className="absolute -top-3 -right-2 rounded-full bg-good text-white text-[11.5px] font-bold px-2 py-0.5">-20 %</span>
             </div>
           </div>
-          {fond && fond.left > 0 && (
-            <div className="mt-8 rounded-2xl border-2 border-accent/40 bg-accent-soft/50 px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
-              <p className="flex-1 text-[16px] text-ink"><b className="font-bold">Prix fondateur : Solo à {fond.price} € à vie</b> pour les {fond.places} premiers abonnés. Ensuite, Solo passe à 39 €.</p>
-              <div className="sm:w-56">
-                <p className="text-[13px] text-ink-soft tnum">{fond.taken} place{fond.taken > 1 ? "s" : ""} prise{fond.taken > 1 ? "s" : ""} sur {fond.places}</p>
-                <div className="mt-1 h-2 rounded-full bg-white overflow-hidden"><div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(3, (fond.taken / fond.places) * 100)}%` }} /></div>
-              </div>
-            </div>
-          )}
           <div className="mt-8 grid md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
             {PLANS.map(([n, p0, d, items], i) => {
               const best = i === 1;

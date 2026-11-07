@@ -1,7 +1,7 @@
 // Clés d'accès personnelles : extension Chrome et assistants IA (Claude, ChatGPT) branchés sur Bingoo!.
 // La clé n'est montrée qu'une fois ; seule son empreinte (SHA-256) est gardée.
 import { HttpError } from "./http.ts";
-import { admin, setAi, type Workspace } from "./core.ts";
+import { admin, assertPlan, setAi, type Workspace } from "./core.ts";
 
 async function sha(s: string) {
   const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
@@ -34,6 +34,8 @@ export async function requireKey(req: Request): Promise<Workspace> {
   if (!k.last_used_at || Date.now() - new Date(k.last_used_at).getTime() > 3600_000) await admin.from("api_keys").update({ last_used_at: new Date().toISOString() }).eq("id", k.id);
   const { data: ws } = await admin.from("workspaces").select("*").eq("id", k.workspace_id).single();
   if (!ws) throw new HttpError(401, "Espace introuvable");
+  // L'extension est réservée aux comptes à jour : essai en cours ou abonnement réglé (même règle que dans l'application)
+  assertPlan(ws);
   setAi({ ws: ws.id, feature: "acces-externe" });
   return ws as Workspace;
 }

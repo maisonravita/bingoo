@@ -166,7 +166,7 @@ export default function Abonnement() {
       {fond && (fond.left > 0 || ws.founder_price) && (
         <Card className="p-4 sm:p-5 mb-4 border-accent/40 bg-accent-soft/40">
           <p className="font-semibold">{ws.founder_price ? "Tu as le prix fondateur : Solo à 29 € à vie" : `Prix fondateur : Solo à ${fond.price} € à vie pour les ${fond.places} premiers`}</p>
-          {!ws.founder_price && <p className="text-sm text-ink-soft mt-1 tnum">{fond.taken} place{fond.taken > 1 ? "s" : ""} prise{fond.taken > 1 ? "s" : ""} sur {fond.places}. Ensuite, Solo passe à 39 €. Ceux qui sont entrés gardent leur prix tant que l'abonnement continue.</p>}
+          {!ws.founder_price && <p className="text-sm text-ink-soft mt-1">Ensuite, Solo passe à 39 €. Ceux qui sont entrés gardent leur prix tant que l'abonnement continue.</p>}
         </Card>
       )}
       <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
