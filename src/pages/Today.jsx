@@ -80,7 +80,7 @@ function Sparks({ className }) {
   return <svg viewBox="0 0 40 40" className={className} aria-hidden fill="none" stroke="#E0531F" strokeWidth="4.5" strokeLinecap="round"><path d="M10 6l3 9M24 4l-4 10M30 18l-9 3" /></svg>;
 }
 
-function Stat({ icon, label, value, delta, accent }) {
+function Stat({ icon, label, value, delta, avant, accent }) {
   return (
     <div className="flex items-start gap-3 px-4 py-1">
       <span className="w-10 h-10 rounded-full bg-accent-soft text-accent grid place-items-center"><Ico n={icon} /></span>
@@ -88,6 +88,7 @@ function Stat({ icon, label, value, delta, accent }) {
         <p className="text-[14px] text-ink-soft">{label}</p>
         <p className={cx("text-[28px] font-bold leading-tight tnum", accent && value > 0 && "text-accent")}>{fmtN(value)}</p>
         <p className={cx("text-[12px] mt-0.5 tnum", delta > 0 ? "text-good font-medium" : "text-ink-faint")}>{delta == null ? " " : delta > 0 ? `↑ +${fmtN(delta)} en 7 jours` : "→ 0 en 7 jours"}</p>
+        {avant != null && delta != null && (delta > 0 || avant > 0) && <p className="text-[11.5px] text-ink-faint tnum">{delta > avant ? `mieux que la semaine d'avant (${fmtN(avant)})` : delta < avant ? `semaine d'avant : ${fmtN(avant)}` : "comme la semaine d'avant"}</p>}
       </div>
     </div>
   );
@@ -365,6 +366,7 @@ function Morning({ s, canSend, wsId, adresse = true }) {
         {total > 0 && <span className="text-sm text-ink-soft tnum">{total - reste} sur {total} fait{total - reste > 1 ? "s" : ""}</span>}
       </div>
       {total > 0 && <div className="mt-2 h-2 rounded-full bg-paper overflow-hidden" aria-hidden><div className="h-full rounded-full bg-good transition-all" style={{ width: `${Math.round(((total - reste) / total) * 100)}%` }} /></div>}
+      {todo.length > 1 && <Link to="/village?serie=1" className="mt-3 flex items-center justify-center gap-2 rounded-2xl bg-accent px-5 py-3.5 text-[16px] font-bold text-white hover:brightness-105">Tout traiter, une étape après l'autre<span className="font-semibold text-white/80 tnum">~{minutes} min</span></Link>}
       {/* La connexion de la boîte mail est dans « Pour avoir tes premiers rendez-vous », en haut de la page */}
       {canSend && !adresse && <Link to="/reglages" className="mt-3 flex items-center gap-3 rounded-2xl bg-accent-soft px-4 py-3 font-semibold"><Ico n="send" className="w-5 h-5 text-accent" />Ajoute l'adresse postale de ton entreprise : sans elle, rien ne part (30 s)</Link>}
       {!todo.length ? <p className="mt-2 text-[15px] text-ink-soft">Bingoo! continue de chercher pour toi ; les nouveautés arrivent ici, et sur ton téléphone si tu actives les notifications.</p> : (
@@ -478,7 +480,7 @@ export default function Today() {
     const t0 = new Date(); t0.setHours(0, 0, 0, 0);
     const w1 = new Date(Date.now() - 7 * 864e5).toISOString(), w2 = new Date(Date.now() - 14 * 864e5).toISOString();
     const today = new Date().toISOString().slice(0, 10), old = new Date(Date.now() - 4 * 864e5).toISOString();
-    const [found, toContact, sent, replied, rdv, client, found7, sent7, replied7, rdv7, opps, oppsWeek, oppsPrev, replies, drafts, li, todo, ready, hard, act, detected, due, quotes, meet, dec, mail, tel, mailDirect] = await Promise.all([
+    const [found, toContact, sent, replied, rdv, client, found7, sent7, replied7, rdv7, opps, oppsWeek, oppsPrev, replies, drafts, li, todo, ready, hard, act, detected, due, quotes, meet, dec, mail, tel, mailDirect, sentPrev, repPrev, rdvPrev] = await Promise.all([
       c(P()), c(P().in("status", ["pret", "a_valider"])),
       c(P().in("status", ["envoye", "repondu", "rdv", "client", "refus"]).not("email", "eq", "")),
       c(P().in("status", ["repondu", "rdv", "client", "refus"])), c(P().in("status", ["rdv", "client"])), c(P().eq("status", "client")),
@@ -493,10 +495,11 @@ export default function Today() {
       supabase.from("meetings").select("id, company, starts_at").eq("workspace_id", ws.id).eq("status", "confirme").gte("starts_at", t0.toISOString()).lt("starts_at", new Date(t0.getTime() + 864e5).toISOString()).order("starts_at"),
       c(P().neq("contact_name", "").neq("status", "ignore")), c(P().neq("email", "").neq("status", "ignore")), c(P().neq("phone", "").neq("status", "ignore")),
       c(P().neq("email", "").neq("status", "ignore").not("email", "imatch", GENERIQUE)),
+      c(head("messages").eq("status", "envoye").gte("sent_at", w2).lt("sent_at", w1)), c(head("replies").gte("created_at", w2).lt("created_at", w1)), c(head("meetings").neq("status", "annule").gte("created_at", w2).lt("created_at", w1)),
     ]);
     const rows = act.data ?? [];
     const minutes = rows.reduce((m, r) => m + (MINUTES[r.kind] ?? 0), 0);
-    setS({ dec, mail, tel, mailDirect, found, toContact, sent, replied, rdv, client, found7, sent7, replied7, rdv7, opps, oppsWeek, oppsPrev, replies, drafts, li, todo, ready, hard,
+    setS({ dec, mail, tel, mailDirect, found, toContact, sent, replied, rdv, client, found7, sent7, replied7, rdv7, opps, oppsWeek, oppsPrev, replies, drafts, li, todo, ready, hard, sentPrev, repPrev, rdvPrev,
       rows, minutes, actions: rows.filter((r) => MINUTES[r.kind]).length, detected: (() => { const d = detected.data ?? [], t = new Date().toISOString().slice(0, 10); const top = d.filter((o) => o.raw?.top_day === t); return [...top, ...d.filter((o) => o.raw?.top_day !== t && o.status !== "ajoute" && !o.prospect_id)].slice(0, 3); })(), urgent: { due: due.data ?? [], quotes: quotes.data ?? [], meet: meet.data ?? [] } });
   }, [ws.id]);
 
@@ -596,9 +599,9 @@ export default function Today() {
             <section className="py-2 mb-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-y-4 lg:divide-x divide-line">
               <Stat icon="search" label="Trouvés" value={s.found} delta={s.found7} />
               <Stat icon="send" label="À contacter" value={s.toContact} delta={null} />
-              <Stat icon="check" label="Contactés" value={s.sent} delta={s.sent7} />
-              <Stat icon="chat" label="Réponses" value={s.replied} delta={s.replied7} />
-              <Stat icon="cal" label="RDV" value={s.rdv} delta={s.rdv7} accent />
+              <Stat icon="check" label="Contactés" value={s.sent} delta={s.sent7} avant={s.sentPrev} />
+              <Stat icon="chat" label="Réponses" value={s.replied} delta={s.replied7} avant={s.repPrev} />
+              <Stat icon="cal" label="RDV" value={s.rdv} delta={s.rdv7} avant={s.rdvPrev} accent />
               <Stat icon="users" label="Clients" value={s.client} delta={null} accent />
             </section>
             {(s.ready > 0 || s.todo > 0 || s.hard > 0) && (

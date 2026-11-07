@@ -2,6 +2,7 @@
 // réelle (fiche, signaux, site, offre, preuves, fiche « ce que Bingoo! peut répondre »). Ce qui n'a pas de source est
 // signalé au client à la validation, et le message ne part jamais seul en pilote automatique.
 import { askJson, type Prospect, type Workspace } from "./core.ts";
+import { humanize } from "./playbooks.ts";
 
 export async function verifierFaits(ws: Workspace, p: Prospect, subject: string, body: string): Promise<string> {
   const prof = (ws.profile ?? {}) as Record<string, unknown>;
@@ -31,4 +32,19 @@ ${body}
 Réponds en JSON : {"doutes": ["citation courte de l'affirmation non soutenue — pourquoi"]}. Liste vide si tout est soutenu. Trois éléments au plus.`, { fast: true, maxTokens: 400 });
     return (r.doutes ?? []).map((x) => String(x).trim()).filter(Boolean).slice(0, 3).join("\n").slice(0, 600);
   } catch { return ""; }
+}
+
+/** Réécrit le message en retirant (ou en transformant en question) les affirmations sans source. Même ton, plus court. */
+export async function corrigerFaits(_ws: Workspace, p: Prospect, subject: string, body: string, doutes: string) {
+  const r = await askJson<{ objet: string; corps: string }>(`Corrige cet e-mail de prospection : retire chaque affirmation listée ci-dessous (ou transforme-la en question neutre), sans rien inventer d'autre. Garde le même ton, la même salutation, la même question finale si elle reste juste. 40 à 70 mots. Pas de tiret long.
+Prospect : ${p.name}
+Affirmations sans source :
+${doutes}
+
+Objet : ${subject}
+${body}
+
+JSON : {"objet": "", "corps": ""}`, { fast: true, maxTokens: 600 });
+  const corps = humanize(String(r.corps ?? "").trim()), objet = humanize(String(r.objet ?? subject).trim()).slice(0, 140);
+  return corps.length > 40 ? { subject: objet || subject, body: corps } : null;
 }

@@ -1,3 +1,4 @@
+import { useDansLieu } from "../lib/lieu";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Guide from "../components/Guide";
 import {Link, useLocation } from "react-router-dom";
@@ -347,6 +348,7 @@ function Drawer({ p, onClose, onChange, team = [] }) {
 
 export default function Prospects() {
   const { ws } = useWs();
+  const dansLieu = useDansLieu();
   const [rows, setRows] = useState(null);
   const [view, setView] = useState("all");
   const [q, setQ] = useState("");
@@ -399,13 +401,23 @@ export default function Prospects() {
   return (
     <div>
       <SubNav section="prospects" />
-      <PageHead title="Contacts" sub={rows ? [[rows.length, "entreprise"], [rows.filter((r) => r.contact_name).length, "décideur"], [rows.filter((r) => r.email).length, "e-mail"], [rows.filter((r) => r.phone).length, "téléphone"]].map(([n, l]) => `${n.toLocaleString("fr-FR")} ${l}${n > 1 ? "s" : ""}`).join(" · ") : ""}>
+      <PageHead title="Contacts" resume sub={rows ? [[rows.length, "entreprise"], [rows.filter((r) => r.contact_name).length, "décideur"], [rows.filter((r) => r.email).length, "e-mail"], [rows.filter((r) => r.phone).length, "téléphone"]].map(([n, l]) => `${n.toLocaleString("fr-FR")} ${l}${n > 1 ? "s" : ""}`).join(" · ") : ""}>
         <Input placeholder="Rechercher…" value={q} onChange={(e) => setQ(e.target.value)} className="!w-56" />
         {team.length > 1 && <Button variant={mine ? "primary" : "default"} onClick={() => setMine((x) => !x)}>Mes contacts</Button>}
         <Link to="/mission"><Button variant="accent">+ Trouver des contacts</Button></Link>
         <Button onClick={() => setAdding((x) => !x)}>Ajouter un contact</Button>
-        <Button onClick={() => setImporting((x) => !x)}>Importer</Button>
-        <Button onClick={exportCsv} disabled={!list.length}>Exporter</Button>
+        {dansLieu ? (
+          <details className="relative">
+            <summary className="list-none cursor-pointer rounded-full border border-line bg-white px-4 py-2 text-[14px] font-semibold hover:border-ink-faint">Plus</summary>
+            <div className="absolute right-0 z-10 mt-2 flex w-44 flex-col rounded-2xl border border-line bg-white p-1.5 shadow-lg">
+              <button className="rounded-xl px-3 py-2 text-left text-[14px] hover:bg-paper" onClick={() => setImporting((x) => !x)}>Importer un fichier</button>
+              <button className="rounded-xl px-3 py-2 text-left text-[14px] hover:bg-paper disabled:opacity-40" onClick={exportCsv} disabled={!list.length}>Exporter la liste</button>
+            </div>
+          </details>
+        ) : (<>
+          <Button onClick={() => setImporting((x) => !x)}>Importer</Button>
+          <Button onClick={exportCsv} disabled={!list.length}>Exporter</Button>
+        </>)}
       </PageHead>
       <Guide id="contacts" titre="Ici : toutes les entreprises que Bingoo! a trouvées pour toi, et comment joindre leur décideur." etapes={["« Joignables » : Bingoo! a l'e-mail ou le téléphone du décideur. Il leur écrit, tu valides dans « À faire ».", "« À trouver » : ouvre une fiche et clique « Trouver l'e-mail ». Bingoo! le cherche pour toi.", "Une fiche ne te convient pas ? Ouvre-la, clique « Écarté » et dis pourquoi : Bingoo! en tiendra compte."]} />
       {adding && (

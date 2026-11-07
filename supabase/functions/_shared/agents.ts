@@ -200,14 +200,26 @@ export async function draft(ws: Workspace, p: Prospect) {
       throw new HttpError(400, `Adresse écartée (${vf.raison}) : le prospect repart en enquête`);
     }
   }
-  const { subject, body, active, v } = await writeDraft(ws, p);
-  // Contrôle des faits : ce qui n'a pas de source est signalé à la validation (et bloque le pilote automatique)
-  const check_note = await (await import("./faits.ts")).verifierFaits(ws, p, subject, body);
+  const { subject, body, active, v, check_note } = await rediger(ws, p);
   const { data, error } = await admin.from("messages").insert({ workspace_id: ws.id, prospect_id: p.id, step: 0, subject, body, status: "brouillon", campaign_id: active?.id ?? null, variant: v?.key ?? "", check_note }).select("id").single();
   if (error?.code === "23505") throw new HttpError(409, "Un message est déjà prêt pour ce prospect");
   if (error) throw new HttpError(500, error.message);
   await admin.from("prospects").update({ status: "a_valider" }).eq("id", p.id);
   return { id: data.id, subject };
+}
+
+/** Rédaction + contrôle des faits (+ une réécriture automatique si un fait n'a pas de source). */
+export async function rediger(ws: Workspace, p: Prospect) {
+  let { subject, body, active, v } = await writeDraft(ws, p);
+  // Contrôle des faits : en cas de doute, une réécriture automatique sans les phrases fautives ; s'il en reste, c'est signalé
+  // à la validation (et le pilote automatique n'envoie pas)
+  const { verifierFaits, corrigerFaits } = await import("./faits.ts");
+  let check_note = await verifierFaits(ws, p, subject, body);
+  if (check_note) {
+    const c = await corrigerFaits(ws, p, subject, body, check_note).catch(() => null);
+    if (c) { const reste = await verifierFaits(ws, p, c.subject, c.body); if (!reste || reste.split("\n").length < check_note.split("\n").length) { subject = c.subject; body = c.body; check_note = reste; } }
+  }
+  return { subject, body, active, v, check_note };
 }
 
 /** Rédige le premier e-mail sans l'enregistrer (sert aussi aux tests de qualité). */
@@ -226,7 +238,7 @@ ${v?.objet ? `Objet à utiliser tel quel ou presque : ${v.objet}\n` : ""}${activ
 ${(() => { const sg = (p.signals ?? []).filter((x) => x.label && x.type !== "taille" && x.type !== "reseau"); return sg.length ? `Faits publics observés sur ce prospect (registre, Radar, son site) :\n${sg.slice(0, 8).map((x) => `- ${String(x.label).replace(/\s*(?:publi[ée]e? )?(?:au|dans le|selon le) (?:BODACC|registre[^,.;]*)/gi, "")}`).join("\n")}\nChoisis LE fait le plus utile pour notre offre et ouvre l'e-mail avec, sans rien y ajouter ni l'interpréter. N'utilise pas les autres.\n` : ""; })()}${(p.insight as { reseaux?: { accroche?: string } } | null)?.reseaux?.accroche ? `Première phrase possible, fondée sur une publication ou une actualité réelle du prospect (à reprendre ou adapter si elle sonne naturelle, sinon ignore-la) : ${(p.insight as { reseaux: { accroche: string } }).reseaux.accroche}
 ` : ""}
 ${await rivalBrief(ws.id, p)}Commence par « Bonjour${p.contact_name ? " Madame/Monsieur <Nom>" : ""}, » (si l'interlocuteur est connu mais que le genre est incertain, écris « Bonjour <Prénom>, », jamais prénom et nom ensemble).
-Longueur : 60 à 90 mots, trois courts paragraphes au plus.
+Longueur : 40 à 70 mots, trois phrases courtes (le fait vrai, ce que l'offre change, une question). Rien sur la situation du prospect qui ne soit dans les faits ci-dessus.
 Ne mets pas de signature : elle est ajoutée automatiquement.
 
 Format exact :

@@ -58,13 +58,13 @@ const inputCls = "w-full rounded-xl border border-line bg-white px-3 py-2.5 text
 export const Input = ({ className, ...p }) => <input className={cx(inputCls, className)} {...p} />;
 export const Textarea = ({ className, ...p }) => <textarea className={cx(inputCls, "resize-y leading-relaxed", className)} {...p} />;
 
-export function PageHead({ title, sub, children }) {
+export function PageHead({ title, sub, resume = false, children }) {
   const dans = useDansLieu();
   return (
     <header className={dans ? "flex flex-wrap items-center justify-between gap-3 mb-4" : "flex flex-wrap items-end justify-between gap-3 mb-6"}>
       <div className="min-w-0">
         {!dans && <h1 className="font-serif text-[40px] leading-none tracking-tight">{title}</h1>}
-        {sub && <p className={dans ? "text-ink-soft text-[14px]" : "text-ink-soft mt-2"}>{sub}</p>}
+        {sub && !(dans && resume) && <p className={dans ? "text-ink-soft text-[14px]" : "text-ink-soft mt-2"}>{sub}</p>}
       </div>
       {children && <div className="flex flex-wrap gap-2">{children}</div>}
     </header>

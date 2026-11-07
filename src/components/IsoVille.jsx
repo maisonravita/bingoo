@@ -253,7 +253,7 @@ function Slot({ k, uses, nav, toOf, survol }) {
   );
 }
 
-export default function IsoVille({ batiments, paroles = {}, full = false, cible = null, onCible, onOuvre, focus = null, progres = null }) {
+export default function IsoVille({ batiments, paroles = {}, full = false, cible = null, onCible, onOuvre, focus = null, progres = null, rythme = 0.5 }) {
   const nav = useNavigate();
   const [on, setOn] = useState(null);
   const uses = useRef({}); // uses.current[`${slot}-${objet}`] = <use>
@@ -311,6 +311,8 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
     glisse({ z, dx: minX + VW / 2 - cxv, dy: minY + VH / 2 - cyv });
   }, [focus]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Le rythme des agents suit l'activité de la semaine (calme au début, affairés quand ça tourne)
+  const rythmeRef = useRef(rythme); rythmeRef.current = rythme;
   // Animation : agents qui marchent d'un bâtiment à l'autre par les rues, voitures qui roulent
   useEffect(() => {
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -338,12 +340,12 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
         else {
           const [p0, p1] = [s.path[s.seg], s.path[s.seg + 1]];
           const len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) || 1;
-          s.t += (2.2 * dt) / len;
+          s.t += (2.2 * (0.7 + 0.7 * rythmeRef.current) * dt) / len;
           if (s.t >= 1) {
             s.t = 0; s.seg++;
             if (s.seg >= s.path.length - 1) { // arrivé : pause, puis bâtiment suivant
               const from = lotOf(a.tour[s.k]); s.k = (s.k + 1) % a.tour.length;
-              s.path = chemin(from, lotOf(a.tour[s.k])); s.seg = 0; s.pause = 2.5 + Math.random() * 3;
+              s.path = chemin(from, lotOf(a.tour[s.k])); s.seg = 0; s.pause = (2.5 + Math.random() * 3) * (1.5 - rythmeRef.current);
             }
           }
         }

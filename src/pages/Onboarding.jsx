@@ -78,20 +78,35 @@ export default function Onboarding() {
 
   const toggle = (id) => setDraft((d) => ({ ...d, targets: d.targets.map((t) => t.id === id ? { ...t, actif: t.actif === false } : t) }));
 
+  const [express, setExpress] = useState(null);
   const launch = async () => {
     if (!sender.sender_name.trim()) return toast("Indique ton prénom et ton nom", "bad");
     setBusy(true);
     try {
       await patch({ targets: draft.targets, profile: draft.profile, sender_name: sender.sender_name.trim(), postal_address: sender.postal_address.trim(), name: draft.profile?.nom || ws.name });
       setStep(3);
+      setExpress({ phase: "chercher" });
       const r = await fn("search", { workspace_id: ws.id, pages: 1 });
       await supabase.from("workspaces").update({ onboarded: true }).eq("id", ws.id);
       // Premier Radar tout de suite (sources officielles, sans recherche web) : le client ne découvre jamais un Radar vide
       fn("r/radar-scan", { workspace_id: ws.id, web: false }).catch(() => {});
-      toast(`${r.inserted} prospects trouvés`, "good");
-      await reload();
-      // Le premier « waouh » : l'équipe part dans la ville du client et lui montre ses premières entreprises
-      if (r.inserted > 0) window.location.href = "/qg/?premiere=1";
+      // Démarrage express : on cherche les e-mails publiés de quelques entreprises, puis on rédige 3 premiers messages
+      let e = { phase: "enqueter", trouves: r.inserted ?? 0, sites: 0, emails: 0, prets: 0 };
+      setExpress({ ...e });
+      for (let tour = 0; tour < 5 && r.inserted > 0; tour++) {
+        const x = await fn("r/demarrage", { workspace_id: ws.id, etape: "chercher" }).catch(() => null);
+        if (!x) break;
+        e = { ...e, sites: e.sites + x.sites, emails: x.avec_email };
+        setExpress({ ...e });
+        if (x.avec_email >= 3 || !x.reste) break;
+      }
+      if (e.emails > 0) {
+        setExpress({ ...e, phase: "rediger" });
+        const d = await fn("r/demarrage", { workspace_id: ws.id, etape: "rediger" }).catch(() => ({ prets: 0 }));
+        e = { ...e, prets: d.prets };
+      }
+      // Pas de rechargement ici : l'écran de fin reste affiché, ses boutons ouvrent l'espace à jour
+      setExpress({ ...e, phase: "fini" });
     } catch (e) { toast(e.message, "bad"); setStep(1); } finally { setBusy(false); }
   };
 
@@ -242,20 +257,63 @@ export default function Onboarding() {
           </div>
         )}
 
-        {step === 3 && (
-          <div className="rise rounded-3xl bg-white border border-line shadow-[0_24px_60px_-34px_rgba(21,22,26,.35)] p-6 sm:p-9">
-            <h1 className={cx(H, "text-[34px] sm:text-[44px]")} style={HFONT}>Je prépare ton espace…</h1>
-            <p className="text-ink-soft mt-3 text-[17px]">Quelques secondes : je trouve tes premiers prospects et je lance ton Radar.</p>
-            <ul className="mt-8 space-y-3">
-              {[["Je parcours le registre officiel des entreprises", 0], ["Je retiens celles qui correspondent à tes cibles", 1.2], ["Je lance ton premier Radar sur les sources officielles", 2.4]].map(([t, d]) => (
-                <li key={t} className="flex items-center gap-3 rounded-2xl bg-paper border border-line px-4 py-3.5 text-[15px] rise" style={{ animationDelay: `${d}s` }}>
-                  <span className="h-5 w-5 shrink-0 rounded-full border-2 border-accent border-t-transparent animate-spin" />{t}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {step === 3 && <Express e={express} />}
       </div>
+    </div>
+  );
+}
+
+const PHASES = [
+  ["chercher", "Je parcours le registre officiel des entreprises"],
+  ["enqueter", "Je trouve leur site et l'e-mail qu'elles publient"],
+  ["rediger", "J'écris tes premiers messages, chacun sur un fait vérifié"],
+];
+
+function Express({ e }) {
+  const ordre = ["chercher", "enqueter", "rediger", "fini"];
+  const k = ordre.indexOf(e?.phase ?? "chercher");
+  if (e?.phase === "fini") {
+    const ok = e.prets > 0;
+    return (
+      <div className="rise rounded-3xl bg-white border border-line shadow-[0_24px_60px_-34px_rgba(21,22,26,.35)] p-6 sm:p-9">
+        <h1 className={cx(H, "text-[34px] sm:text-[44px]")} style={HFONT}>
+          {ok ? `${e.prets} message${e.prets > 1 ? "s" : ""} prêt${e.prets > 1 ? "s" : ""} à relire` : `${fmtN(e.trouves)} entreprises dans ton espace`}
+        </h1>
+        <p className="text-ink-soft mt-3 text-[17px]">
+          {ok ? "Relis-les, corrige ce que tu veux, et valide. Rien n'est parti : c'est toi qui décides." : "Je n'ai pas encore trouvé assez d'e-mails publiés. Je continue cette nuit et tes premiers messages t'attendront demain matin."}
+        </p>
+        <dl className="mt-7 grid grid-cols-3 gap-3 text-center">
+          {[[e.trouves, "entreprises trouvées"], [e.emails, "e-mails vérifiés"], [e.prets, "messages prêts"]].map(([n, l]) => (
+            <div key={l} className="rounded-2xl bg-paper border border-line px-3 py-4">
+              <dt className="sr-only">{l}</dt>
+              <dd className="text-[28px] font-bold tabular-nums" style={HFONT}>{fmtN(n ?? 0)}</dd>
+              <dd className="text-[13px] text-ink-soft">{l}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="mt-7 flex flex-wrap gap-3">
+          {ok ? <Button variant="accent" size="lg" onClick={() => { window.location.href = "/valider"; }}>Relire mes messages</Button>
+            : <Button variant="accent" size="lg" onClick={() => { window.location.href = "/"; }}>Ouvrir mon espace</Button>}
+          <button className="text-[15px] font-semibold text-ink-soft hover:text-ink px-3" onClick={() => { window.location.href = "/qg/?premiere=1"; }}>Voir mon équipe partir dans ma ville</button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="rise rounded-3xl bg-white border border-line shadow-[0_24px_60px_-34px_rgba(21,22,26,.35)] p-6 sm:p-9">
+      <h1 className={cx(H, "text-[34px] sm:text-[44px]")} style={HFONT}>Je prépare tes premiers messages…</h1>
+      <p className="text-ink-soft mt-3 text-[17px]">Deux à cinq minutes. Tu peux laisser cette page ouverte.</p>
+      <ul className="mt-8 space-y-3">
+        {PHASES.map(([cle, t], i) => (
+          <li key={cle} className={cx("flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-[15px] transition", i < k ? "bg-good/5 border-good/30" : i === k ? "bg-paper border-line" : "bg-paper border-line opacity-40")}>
+            {i < k ? <span className="h-5 w-5 shrink-0 rounded-full bg-good text-white grid place-items-center text-[11px]">✓</span>
+              : <span className={cx("h-5 w-5 shrink-0 rounded-full border-2", i === k ? "border-accent border-t-transparent animate-spin" : "border-line")} />}
+            <span className="flex-1">{t}</span>
+            {cle === "chercher" && e?.trouves > 0 && <span className="text-[13px] font-semibold tabular-nums">{fmtN(e.trouves)} trouvées</span>}
+            {cle === "enqueter" && k >= 1 && <span className="text-[13px] font-semibold tabular-nums">{e.sites} sites · {e.emails} e-mails</span>}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

@@ -168,6 +168,36 @@ function Batiment({ b }) {
   );
 }
 
+/** Cette semaine contre la semaine dernière, et la barre vers le prochain palier. */
+function Semaine({ semaine, prochain }) {
+  const ecart = (a = 0, b = 0) => (a === b ? "=" : a > b ? `+${a - b}` : `${a - b}`);
+  const pl = (n, a, b) => (n > 1 ? b : a);
+  return (
+    <div className="mt-2 w-[260px] rounded-2xl bg-white px-3 py-2.5 text-[12.5px] shadow-[0_8px_20px_-12px_rgba(122,74,42,.5)]">
+      <p className="font-bold text-ink">Cette semaine</p>
+      <ul className="mt-1 space-y-0.5">
+        {semaine.map(([l, a, b]) => (
+          <li key={l} className="flex items-baseline gap-2 tnum">
+            <span className="w-7 text-right text-[15px] font-black text-ink">{a ?? 0}</span><span className="flex-1 text-ink-soft">{l}</span>
+            <span className={cx("text-[11.5px] font-bold", (a ?? 0) > (b ?? 0) ? "text-good" : (a ?? 0) < (b ?? 0) ? "text-[#C2410C]" : "text-ink-faint")} title="par rapport à la semaine dernière">{ecart(a, b)}</span>
+          </li>
+        ))}
+      </ul>
+      {prochain && (() => {
+        const [, t, , n = 0, seuil, un, plusieurs] = prochain, depart = seuil >= 10 ? Math.floor(seuil / 2) : seuil > 1 ? 1 : 0;
+        const pct = Math.max(4, Math.min(100, Math.round(((n - depart) / Math.max(1, seuil - depart)) * 100)));
+        return (
+          <div className="mt-2 border-t border-[#F1E2D2] pt-2">
+            <p className="text-ink-soft">Prochain palier : <span className="font-semibold text-ink">{t}</span></p>
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[#F3E7DA]"><div className="h-full rounded-full bg-[#F26A21]" style={{ width: `${pct}%` }} /></div>
+            <p className="mt-0.5 text-[11.5px] text-ink-faint tnum">encore {seuil - n} {pl(seuil - n, un, plusieurs)}</p>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
 export default function Village() {
   const { ws } = useWs();
   const nav = useNavigate();
@@ -183,7 +213,7 @@ export default function Village() {
   useEffect(() => {
     const c = (q) => q.then((r) => r.count ?? 0);
     const head = (t) => supabase.from(t).select("id", { count: "exact", head: true }).eq("workspace_id", ws.id);
-    const now = new Date().toISOString(), w1 = new Date(Date.now() - 7 * 864e5).toISOString();
+    const now = new Date().toISOString(), w1 = new Date(Date.now() - 7 * 864e5).toISOString(), w2 = new Date(Date.now() - 14 * 864e5).toISOString();
     Promise.all([
       c(head("replies").eq("handled", false)), c(head("messages").eq("status", "brouillon")),
       c(head("meetings").eq("status", "confirme").gte("starts_at", now)), c(head("radar_opps").eq("status", "nouveau")),
@@ -193,7 +223,11 @@ export default function Village() {
       c(head("prospects").neq("phone", "").neq("status", "ignore")), c(head("radar_opps").gte("created_at", w1)),
       c(head("messages").eq("status", "envoye").gte("sent_at", w1)), c(head("messages").eq("status", "envoye").eq("step", 0)),
       c(head("radar_opps").eq("status", "nouveau").gte("score", 75)), c(head("messages").eq("status", "envoye")), c(head("prospects").eq("status", "client")),
-    ]).then(([rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal, chaudes, sentAll, clients]) => setD({ rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal, chaudes, sentAll, clients })).catch(() => setD({}));
+      // Semaine dernière, pour comparer
+      c(head("messages").eq("status", "envoye").gte("sent_at", w2).lt("sent_at", w1)),
+      c(head("replies").gte("created_at", w1)), c(head("replies").gte("created_at", w2).lt("created_at", w1)),
+      c(head("meetings").neq("status", "annule").gte("created_at", w1)), c(head("meetings").neq("status", "annule").gte("created_at", w2).lt("created_at", w1)),
+    ]).then(([rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal, chaudes, sentAll, clients, sentPrev, rep7, repPrev, rdv7, rdvPrev]) => setD({ rep, drafts, rdv, opps, li, dec, mails, rivals, repTotal, hot, rdvTotal, tels, opps7, sent7, sentTotal, chaudes, sentAll, clients, sentPrev, rep7, repPrev, rdv7, rdvPrev })).catch(() => setD({}));
   }, [ws.id]);
 
   const boite = ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok;
@@ -303,6 +337,10 @@ export default function Village() {
   const minutes = travaux.reduce((t, x) => t + x.min, 0);
   const [serie, setSerie] = useState(null); // { i, fin: bool }
   const lancerSerie = () => { trace(ws.id, "serie", "debut"); finirMatin(); setSerie({ i: 0 }); setSp({ lieu: travaux[0].art }); };
+  // « Tout traiter » est le chemin principal : lancé depuis la liste, le téléphone ou l'e-mail du matin (?serie=1)
+  useEffect(() => {
+    if (sp.get("serie") === "1" && d && !serie) { if (travaux.length) lancerSerie(); else setSp({}, { replace: true }); }
+  }, [d, sp.get("serie")]); // eslint-disable-line react-hooks/exhaustive-deps
   const suivante = () => {
     if (!serie) return;
     const i = serie.i + 1;
@@ -310,8 +348,22 @@ export default function Village() {
     setSerie({ i }); setSp({ lieu: travaux[i].art }, { replace: true });
   };
   // La ville grandit avec les vrais résultats
-  const progres = { envoye: (v.sentAll ?? 0) > 0, reponse: (v.repTotal ?? 0) > 0, rdv: (v.rdvTotal ?? 0) > 0, client: (v.clients ?? 0) > 0, rdv10: (v.rdvTotal ?? 0) >= 10 };
-  const PALIERS = [["envoye", "Premier message envoyé", "un drapeau sur la Poste"], ["reponse", "Première réponse", "des ballons devant la Poste"], ["rdv", "Premier rendez-vous", "une étoile sur les Rendez-vous"], ["client", "Premier client signé", "une fontaine à la Mairie"], ["rdv10", "10 rendez-vous", "un trophée à l'Observatoire"]];
+  // Paliers : les grands (qui changent la ville) et les intermédiaires (pour voir avancer chaque semaine)
+  const PALIERS = [
+    ["envoye", "Premier message envoyé", "un drapeau sur la Poste", v.sentAll, 1, "message envoyé", "messages envoyés"],
+    ["envoye25", "25 messages envoyés", "", v.sentAll, 25, "message envoyé", "messages envoyés"],
+    ["reponse", "Première réponse", "des ballons devant la Poste", v.repTotal, 1, "réponse", "réponses"],
+    ["reponse5", "5 réponses", "", v.repTotal, 5, "réponse", "réponses"],
+    ["rdv", "Premier rendez-vous", "une étoile sur les Rendez-vous", v.rdvTotal, 1, "rendez-vous", "rendez-vous"],
+    ["rdv3", "3 rendez-vous", "", v.rdvTotal, 3, "rendez-vous", "rendez-vous"],
+    ["client", "Premier client signé", "une fontaine à la Mairie", v.clients, 1, "client", "clients"],
+    ["rdv10", "10 rendez-vous", "un trophée à l'Observatoire", v.rdvTotal, 10, "rendez-vous", "rendez-vous"],
+  ];
+  const progres = Object.fromEntries(PALIERS.map(([k, , , n, seuil]) => [k, (n ?? 0) >= seuil]));
+  const prochain = PALIERS.find(([k]) => !progres[k]);
+  // Cette semaine contre la semaine dernière ; le rythme des agents suit l'activité réelle
+  const semaine = [["envoyés", v.sent7, v.sentPrev], ["réponses", v.rep7, v.repPrev], ["rendez-vous", v.rdv7, v.rdvPrev]];
+  const rythme = Math.min(1, ((v.sent7 ?? 0) + 5 * (v.rep7 ?? 0) + 20 * (v.rdv7 ?? 0)) / 60);
   const [voirPaliers, setVoirPaliers] = useState(false);
   const panneau = useRef(null);
   const [fl, setFl] = useState(null);
@@ -354,7 +406,7 @@ export default function Village() {
 
       {/* La ville, plein écran */}
       <div style={intro ? { animation: "bv-descente 3.2s cubic-bezier(.2,.7,.2,1) both" } : undefined}>
-        <IsoVille batiments={B} paroles={d ? paroles : {}} full cible={lieu ? null : next?.b.art} onCible={setPin} onOuvre={ouvre} focus={lieu?.art ?? etape?.art ?? null} progres={d ? progres : null} />
+        <IsoVille batiments={B} paroles={d ? paroles : {}} full cible={lieu ? null : next?.b.art} onCible={setPin} onOuvre={ouvre} focus={lieu?.art ?? etape?.art ?? null} progres={d ? progres : null} rythme={rythme} />
       </div>
 
       {/* Le ciel et les nuages qu'on traverse */}
@@ -381,19 +433,20 @@ export default function Village() {
         <div className="fixed left-4 top-[84px] sm:left-6 sm:top-[96px] z-20" style={intro ? { animation: "bv-ui 3.6s both" } : undefined}>
           <button onClick={() => setVoirPaliers((x) => !x)} aria-expanded={voirPaliers} className="flex items-center gap-2 rounded-2xl bg-white/95 px-3 py-2 text-[13px] font-semibold text-ink shadow-[0_8px_20px_-12px_rgba(122,74,42,.5)] hover:bg-white">
             <span className="flex gap-0.5">{PALIERS.map(([k]) => <span key={k} className={cx("h-2 w-2 rounded-full", progres[k] ? "bg-[#F26A21]" : "bg-[#EADCCD]")} />)}</span>
-            Ta ville grandit
+            <span className="text-left leading-tight">Ta ville grandit<span className="block text-[11.5px] font-normal text-ink-soft tnum">cette semaine : {v.sent7 ?? 0} envoyés{(v.sent7 ?? 0) !== (v.sentPrev ?? 0) && <span className={(v.sent7 ?? 0) > (v.sentPrev ?? 0) ? "text-good font-bold" : "text-[#C2410C] font-bold"}> ({(v.sent7 ?? 0) > (v.sentPrev ?? 0) ? "+" : ""}{(v.sent7 ?? 0) - (v.sentPrev ?? 0)})</span>}, {v.rep7 ?? 0} réponses</span></span>
           </button>
-          <div className="mt-2 hidden sm:flex flex-col gap-1 rounded-2xl bg-white/90 px-3 py-2 text-[12.5px] shadow-[0_8px_20px_-12px_rgba(122,74,42,.5)]" aria-label="Les quartiers, dans l'ordre du travail">
-            {[1, 2, 3].map((k) => <span key={k} className="flex items-center gap-2 font-semibold text-ink"><span className="grid h-4 w-4 place-items-center rounded-full text-[10px] font-black text-white" style={{ background: QUARTIERS[k].c }}>{k}</span>{QUARTIERS[k].nom}<span className="font-normal text-ink-faint">{k === 1 ? "Radar, Annuaire, Espion" : k === 2 ? "Atelier, Poste, LinkedIn" : "Rendez-vous, Résultats"}</span></span>)}
-          </div>
+          {voirPaliers && <Semaine semaine={semaine} prochain={prochain} />}
           {voirPaliers && (
             <ul className="mt-2 w-[260px] rounded-2xl bg-white p-3 text-[13px] shadow-[0_14px_30px_-16px_rgba(122,74,42,.55)]">
-              {PALIERS.map(([k, t, quoi]) => (
+              {PALIERS.map(([k, t, quoi, n, seuil]) => (
                 <li key={k} className="flex gap-2 py-1">
                   <span className={cx("mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full text-[10px] font-black", progres[k] ? "bg-[#F26A21] text-white" : "border border-[#EADCCD] text-transparent")}>✓</span>
-                  <span><span className={progres[k] ? "font-semibold text-ink" : "text-ink-soft"}>{t}</span><span className="block text-[12px] text-ink-faint">{progres[k] ? `Dans ta ville : ${quoi}` : `À venir : ${quoi}`}</span></span>
+                  <span><span className={progres[k] ? "font-semibold text-ink" : "text-ink-soft"}>{t}</span>{quoi ? <span className="block text-[12px] text-ink-faint">{progres[k] ? `Dans ta ville : ${quoi}` : `À venir : ${quoi}`}</span> : !progres[k] && <span className="block text-[12px] text-ink-faint tnum">{n ?? 0} sur {seuil}</span>}</span>
                 </li>
               ))}
+              <li className="mt-2 border-t border-[#F1E2D2] pt-2 text-[12px] text-ink-soft">Les quartiers, dans l'ordre du travail :
+                {[1, 2, 3].map((k) => <span key={k} className="mt-1 flex items-center gap-2 font-semibold text-ink"><span className="grid h-4 w-4 place-items-center rounded-full text-[10px] font-black text-white" style={{ background: QUARTIERS[k].c }}>{k}</span>{QUARTIERS[k].nom}<span className="font-normal text-ink-faint">{k === 1 ? "Radar, Annuaire, Espion" : k === 2 ? "Atelier, Poste, LinkedIn" : "Rendez-vous, Résultats"}</span></span>)}
+              </li>
             </ul>
           )}
         </div>
@@ -401,12 +454,12 @@ export default function Village() {
 
       {/* Par-dessus la ville : le prochain geste, en haut */}
       <div className="pointer-events-none fixed inset-x-0 top-4 sm:top-6 z-20 flex justify-center pl-[84px] pr-4 sm:pl-[230px] sm:pr-[110px]" style={lieu || nuit ? { display: "none" } : intro ? { animation: "bv-ui 3.6s both" } : undefined}>
-        <button ref={panneau} onClick={() => next && ouvre(next.b)} disabled={!next} className={cx("pointer-events-auto relative flex max-w-[820px] items-center gap-2.5 sm:gap-4 rounded-[22px] sm:rounded-[28px] border-2 bg-white py-2 pl-2 pr-3 sm:py-3 sm:pl-3 sm:pr-5 text-left shadow-[0_14px_34px_-18px_rgba(232,105,43,.55)] transition hover:bg-white", next ? "border-[#F5A06A]" : "border-[#F1E2D2]")}>
+        <button ref={panneau} onClick={() => (!reglage && travaux.length > 1 ? lancerSerie() : next && ouvre(next.b))} disabled={!next} className={cx("pointer-events-auto relative flex max-w-[820px] items-center gap-2.5 sm:gap-4 rounded-[22px] sm:rounded-[28px] border-2 bg-white py-2 pl-2 pr-3 sm:py-3 sm:pl-3 sm:pr-5 text-left shadow-[0_14px_34px_-18px_rgba(232,105,43,.55)] transition hover:bg-white", next ? "border-[#F5A06A]" : "border-[#F1E2D2]")}>
           <span className="grid h-9 w-9 sm:h-12 sm:w-12 shrink-0 place-items-center rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#FF8A3D] to-[#E8571C] text-white shadow-[0_6px_14px_-6px_rgba(232,87,28,.8)]"><svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{next ? <path d="M5 12h14M13 6l6 6-6 6" /> : <path d="m5 12.5 4.5 4.5L19 7.5" />}</svg></span>
           <span className="hidden sm:block h-9 w-px bg-[#F1E2D2]" aria-hidden />
           <span className="min-w-0 flex-1">
-            <span className="block text-[11.5px] sm:text-[13px] font-bold text-[#F26A21]">{next ? "Prochaine étape" : `Tout est fait${first ? `, ${first}` : ""}`}</span>
-            <span className="block text-[13px] sm:text-[19px] font-bold text-ink leading-snug">{next ? next.t : "Bingoo! cherche, écrit et relance pour toi. Reviens demain matin."}</span>
+            <span className="block text-[11.5px] sm:text-[13px] font-bold text-[#F26A21]">{!reglage && travaux.length > 1 ? `Tout traiter · environ ${Math.max(2, minutes)} min` : next ? "Prochaine étape" : `Tout est fait${first ? `, ${first}` : ""}`}</span>
+            <span className="block text-[13px] sm:text-[19px] font-bold text-ink leading-snug">{!reglage && travaux.length > 1 ? `${travaux.length} étapes : ${travaux.map((t) => B.find((x) => x.art === t.art)?.nom ?? t.art).join(", ")}. Je t'emmène de l'une à l'autre.` : next ? next.t : "Bingoo! cherche, écrit et relance pour toi. Reviens demain matin."}</span>
           </span>
         </button>
       </div>
@@ -554,7 +607,7 @@ export default function Village() {
                 })}
               </nav>
             </header>
-            <div key={lieu.art} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6 animate-[bv-fondu_.25s_ease-out_both]">
+            <div key={lieu.art} className="bv-int min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6 animate-[bv-fondu_.25s_ease-out_both]">
               <LieuContext.Provider value={(to) => { const b = B.find((x) => x.to === to.split("?")[0]); if (!b || !INTERIEUR[b.to]) return false; setSp({ lieu: b.art }, { replace: true }); return true; }}><Page /></LieuContext.Provider>
             </div>
           </section>

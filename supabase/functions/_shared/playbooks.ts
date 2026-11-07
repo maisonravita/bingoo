@@ -14,7 +14,9 @@ Méthode d'écriture (à appliquer strictement) :
 - Interdits : tiret long (—), « J'espère que vous allez bien », « Je me permets de », « Je reviens vers vous », « Je reviens à la charge », « ma question précédente », « suite à mon précédent message », « Je me permettais », « N'hésitez pas », « Imaginez », « Est-ce un sujet chez vous en ce moment », « Est-ce un sujet pour vous », « révolutionnaire », « solution innovante », « dans un monde où », « sans engagement » en argument, les listes, le gras, les parenthèses décoratives, les emojis, plus d'un point d'exclamation (zéro est mieux), plusieurs questions, commencer par « Je » ou « Nous ».
 - Objet : 2 à 5 mots, en minuscules sauf noms propres, sincère : jamais de faux « Re : » ou « TR : » sur un premier message.
 - Aucun lien dans le premier e-mail (sauf le lien de prise de rendez-vous ajouté automatiquement). Texte simple.
-- Pertinence : le message doit concerner la fonction professionnelle du destinataire. Si le lien avec son métier est tiré par les cheveux, écris quelque chose de plus général mais vrai.`;
+- Pertinence : le message doit concerner la fonction professionnelle du destinataire. Si le lien avec son métier est tiré par les cheveux, écris quelque chose de plus général mais vrai.
+- RÈGLE DE VÉRITÉ (la plus importante) : n'affirme RIEN sur la situation du prospect qui ne soit écrit dans les faits fournis. Interdit d'inventer ou de supposer sa charge de travail, son planning, ses difficultés, ses équipes, son organisation, ses clients, ses outils, ses projets ou ses priorités (« un planning déjà chargé », « vos équipes débordées », « vous cherchez sans doute… »). Ce que tu ne sais pas, pose-le en question ou ne le dis pas.
+- Format du premier e-mail : 40 à 70 mots, trois phrases courtes : (1) le fait vrai, (2) ce que l'offre change, en une phrase, (3) une question.`;
 
 /** Utiliser un signal sans en dire plus que ce qu'il prouve. */
 export const PLAYBOOK_SIGNAUX = `

@@ -269,6 +269,41 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     return await perksCron(b.dry === true);
   },
   // « Ne jamais contacter » : clients actuels, partenaires, concurrents (domaines, SIREN, e-mails ou noms, un par ligne)
+  // Démarrage express (fin d'inscription) : par tranches courtes pour afficher la progression.
+  // etape "chercher" : une tranche de recherche gratuite (site + e-mail publié) sur les fiches avec un décideur nommé ;
+  // etape "rediger" : jusqu'à 3 premiers messages prêts à valider. Rien ne part sans validation.
+  async demarrage(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const prets = async () => (await admin.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "brouillon")).count ?? 0;
+    const avecEmail = async () => (await admin.from("prospects").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).in("status", ["nouveau", "pret"]).neq("email", "")).count ?? 0;
+    if (b.etape === "rediger") {
+      const { draft } = await import("../_shared/agents.ts");
+      const { dejaContacte } = await import("../_shared/deja.ts");
+      let n = await prets();
+      const { data: cands } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).in("status", ["nouveau", "pret"]).neq("email", "")
+        .order("score", { ascending: false, nullsFirst: false }).limit(8);
+      const t0 = Date.now();
+      for (const p of cands ?? []) {
+        if (n >= 3 || Date.now() - t0 > 100_000) break;
+        if (await dejaContacte(ws, p).catch(() => null)) continue;
+        try { await draft(ws, p); n++; } catch { /* adresse écartée ou déjà prête : on passe à la suivante */ }
+      }
+      return { prets: n };
+    }
+    const { freeEnrich } = await import("../_shared/deep.ts");
+    const since = new Date(Date.now() - 3 * 864e5).toISOString();
+    const base = () => admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("email", "").in("status", ["nouveau", "sans_email"]).or(`free_tried_at.is.null,free_tried_at.lt.${since}`);
+    const { data: d1 } = await base().not("contact_name", "is", null).neq("contact_name", "").order("score", { ascending: false, nullsFirst: false }).limit(6);
+    let rows = d1 ?? [];
+    if (rows.length < 6) rows = rows.concat((await base().order("score", { ascending: false, nullsFirst: false }).limit(6 - rows.length)).data ?? []);
+    let sites = 0, emails = 0;
+    const t0 = Date.now();
+    for (let i = 0; i < rows.length && Date.now() - t0 < 45_000; i += 3) {
+      const part = await Promise.all(rows.slice(i, i + 3).map((p) => freeEnrich(p, true).catch(() => ({ site: "", foundSite: false, email: "" }))));
+      sites += part.filter((x) => x.site).length; emails += part.filter((x) => x.email).length;
+    }
+    return { essais: rows.length, sites, emails, avec_email: await avecEmail(), reste: rows.length > 0 };
+  },
   async exclusions(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const { exclusionsDe } = await import("../_shared/deja.ts");
@@ -532,7 +567,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { writeDraft, offerFollowup } = await import("../_shared/agents.ts");
     const ids = Array.isArray(b.ids) ? b.ids.map(String).slice(0, 8) : [];
     const { data: ps } = await admin.from("prospects").select("*").in("id", ids);
-    const out = await Promise.all((ps ?? []).map(async (p) => { try { const d = await writeDraft(ws, p); const { verifierFaits } = await import("../_shared/faits.ts"); const doutes = await verifierFaits(ws, p, d.subject, d.body); const r1 = b.relance === false ? "" : await offerFollowup(ws, d.body, (d.body.split("\n")[0] || "Bonjour,")).catch((e) => `(relance : ${e.message})`); return { prospect: p.name, objet: d.subject, corps: d.body, doutes, relance1: r1 }; } catch (e) { return { prospect: p.name, erreur: String((e as Error).message) }; } }));
+    const out = await Promise.all((ps ?? []).map(async (p) => { try { const { rediger } = await import("../_shared/agents.ts"); const d = await rediger(ws, p); const doutes = d.check_note; const r1 = b.relance === false ? "" : await offerFollowup(ws, d.body, (d.body.split("\n")[0] || "Bonjour,")).catch((e) => `(relance : ${e.message})`); return { prospect: p.name, objet: d.subject, corps: d.body, doutes, relance1: r1 }; } catch (e) { return { prospect: p.name, erreur: String((e as Error).message) }; } }));
     return { messages: out };
   },
   // Test interne : rédige et enregistre le premier message d'UNE fiche (brouillon à valider, rien n'est envoyé)

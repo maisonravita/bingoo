@@ -99,3 +99,10 @@ h1, h2, h3 { text-wrap: balance; }
 .bingoo-splash-played .bingoo-splash-word .bl{animation:none;opacity:1;transform:none}
 .bingoo-splash-played .bingoo-splash-word .bsp{opacity:1;animation:splash-spark-pulse 1.2s ease-in-out infinite}
 .bingoo-splash-played .bingoo-splash-word .bbg{opacity:1;animation:splash-shake .55s ease-in-out infinite}
+
+/* L'intérieur des bâtiments (panneau du village) : même famille visuelle que la ville */
+.bv-int .font-serif { font-family: Nunito, Geist, system-ui, sans-serif; font-weight: 900; letter-spacing: -.02em; }
+.bv-int .border-line { border-color: #F1E2D2; }
+.bv-int .divide-line > :not([hidden]) ~ :not([hidden]) { border-color: #F1E2D2; }
+.bv-int .bg-paper { background-color: #FFF8F1; }
+.bv-int .rounded-2xl.bg-white, .bv-int .rounded-3xl.bg-white { box-shadow: 0 12px 26px -20px rgba(122, 74, 42, .5); }
