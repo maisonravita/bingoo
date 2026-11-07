@@ -75,7 +75,20 @@ export async function oppContacts(ws: Workspace, oppId: string, cached = false) 
   }
   // Décideurs par fonction (pages publiques, profils LinkedIn publics) + recherche d'e-mails vérifiés
   const r = await findContacts(ws, p.id, roles);
-  const rows = ((r.contacts ?? []) as { name: string; role: string; email: string; email_status: string; linkedin_url: string; source?: string }[])
+  type C = { name: string; role: string; email: string; email_status: string; linkedin_url: string; source?: string };
+  let found = (r.contacts ?? []) as C[];
+  // Aucun e-mail nominatif trouvé : trouvé! donne l'e-mail pro vérifié du dirigeant déclaré (SIREN), une seule fois par fiche
+  if (!found.some((c) => c.email) && !PUBLIC.includes(o.kind)) {
+    const { trouveLive } = await import("./trouve.ts");
+    const { data: fresh } = await admin.from("prospects").select("*").eq("id", p.id).single();
+    const t = fresh ? await trouveLive(ws, fresh) : null;
+    if (t?.email && t.nom) {
+      const c: C = { name: t.nom, role: t.fonction || "Dirigeant", email: t.email, email_status: "verifie", linkedin_url: found.find((x) => x.name.toLowerCase() === t.nom!.toLowerCase())?.linkedin_url ?? "", source: "trouvé! (dirigeant déclaré, e-mail pro vérifié)" };
+      await admin.from("contacts").upsert({ workspace_id: ws.id, prospect_id: p.id, ...c, email_source: c.source }, { onConflict: "prospect_id,name" });
+      found = [c, ...found.filter((x) => x.name.toLowerCase() !== t.nom!.toLowerCase())];
+    }
+  }
+  const rows = found
     .sort((a, b) => Number(!!b.email) - Number(!!a.email) || Number(!!b.linkedin_url) - Number(!!a.linkedin_url));
   const best = rows.find((c) => c.email) ?? rows.find((c) => c.linkedin_url) ?? rows[0];
   const raw = { ...(o.raw ?? {}), contacts_at: new Date().toISOString(), ...(best ? { contact: { nom: best.name, role: best.role, ...(best.email ? { email: best.email } : {}), ...(phone ? { tel: phone } : {}), ...(best.linkedin_url ? { linkedin: best.linkedin_url } : {}), source: best.source || "recherche publique" } } : {}) };

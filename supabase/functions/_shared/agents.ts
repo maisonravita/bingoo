@@ -105,6 +105,16 @@ export async function enrich(p: Prospect, interlocuteur: string) {
       return { id: p.id, email: r.email, phone: r.phone, site: p.website, via: "site" };
     }
   }
+  // 2. trouvé! : l'e-mail professionnel VÉRIFIÉ du dirigeant déclaré, à partir du SIREN (une clé seulement s'il existe).
+  //    Avant la recherche web par l'IA : plus fiable (nominatif, vérifié) et moins cher qu'une adresse d'accueil.
+  {
+    const { trouveLive } = await import("./trouve.ts");
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", p.workspace_id).single();
+    const t = ws ? await trouveLive(ws as Workspace, p) : null;
+    if (t?.email) return { id: p.id, email: t.email, phone: p.phone ?? "", site: p.website ?? "", via: "trouvé!" };
+    // Dirigeant identifié sans e-mail : la recherche web part de son nom
+    if (t?.nom && !p.contact_name) { p.contact_name = t.nom; p.contact_role = t.fonction ?? ""; }
+  }
   const fiche = [
     `Nom : ${p.name}`,
     p.org && `Raison sociale : ${p.org}`,

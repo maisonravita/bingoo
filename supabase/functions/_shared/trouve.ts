@@ -106,7 +106,19 @@ export async function trouveEmail(ws: Workspace, p: Prospect, dry = false) {
     await log(ws.id, "credit_email", `${p.name} : e-mail de ${officer.name} trouvé par trouvé!${ok ? "" : ` (à vérifier : ${raison})`}`);
   } else patch.enrich_note = `trouvé! : ${officer.name} identifié, pas d'e-mail professionnel connu`;
   await admin.from("prospects").update(patch).eq("id", p.id);
-  return { email: ok ? u.value : "", a_verifier: !ok && u.value ? u.value : "", decideur: `${officer.name}, ${officer.role}`, note: !u.value ? "pas d'e-mail professionnel connu" : ok ? `e-mail professionnel vérifié (${raison})` : `e-mail mis de côté : ${raison}`, keys: u.keys };
+  return { email: ok ? u.value : "", a_verifier: !ok && u.value ? u.value : "", decideur: `${officer.name}, ${officer.role}`, nom: officer.name, fonction: officer.role, note: !u.value ? "pas d'e-mail professionnel connu" : ok ? `e-mail professionnel vérifié (${raison})` : `e-mail mis de côté : ${raison}`, keys: u.keys };
+}
+
+/** trouvé! en direct (préparation d'une opportunité, « Qui contacter ? », enquête du pilote) : une seule tentative par fiche,
+ *  seulement avec un SIREN et dans les crédits d'e-mails du mois. Une clé n'est débitée que si l'e-mail existe.
+ *  null = pas tenté (pas prêt, déjà tenté, pas de SIREN, crédits épuisés, trouvé! indisponible). */
+export async function trouveLive(ws: Workspace, p: Prospect & { dc_tried_at?: string | null }) {
+  if (!trouveReady() || p.email || p.dc_tried_at) return null;
+  if (String(p.siren || p.siret || "").replace(/\D/g, "").length < 9) return null;
+  const { credits } = await import("./deep.ts");
+  if ((await credits(ws)).left <= 0) return null;
+  try { return await trouveEmail(ws, p); }
+  catch (e) { console.error("trouvé! direct", p.id, trouveMsg(e)); return null; }
 }
 
 /** Téléphone du décideur : à la demande seulement (3 clés). */

@@ -333,13 +333,23 @@ export async function findEmail(ws: Workspace, p: P2) {
 export async function dropcontactNight(ws: Workspace, n = 10) {
   const { trouveReady, trouveEmail, trouveMsg, trouveStop } = await import("./trouve.ts");
   if (trouveReady()) {
-    // trouvé! : meilleures fiches sans e-mail, déjà passées par la recherche gratuite, dans la cible, avec un SIREN
+    // trouvé! : meilleures fiches sans e-mail, dans la cible, avec un SIREN. Pas besoin d'attendre la recherche gratuite
+    // (trouvé! part du SIREN, pas du site) : avant, la file restait bloquée derrière elle et presque rien n'était cherché.
+    // Les entreprises qui ont un fait récent (déclencheur, opportunité du Radar) passent en premier : ce sont elles qu'on écrira.
     const c = await credits(ws);
     const lots = Math.min(n, c.left);
     if (lots <= 0) return { source: "trouvé!", lances: 0, credits_restants: c.left };
-    const { data } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("email", "").in("status", ["nouveau", "sans_email", "pret"])
-      .neq("fit", "non").is("dc_tried_at", null).not("free_tried_at", "is", null).not("siren", "is", null).neq("siren", "")
-      .order("score", { ascending: false, nullsFirst: false }).limit(lots);
+    const { data: cand } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("email", "").in("status", ["nouveau", "sans_email", "pret"])
+      .neq("fit", "non").is("dc_tried_at", null).not("siren", "is", null).neq("siren", "")
+      .order("score", { ascending: false, nullsFirst: false }).limit(lots * 5);
+    const { declencheur } = await import("./agents.ts");
+    const ids = ((cand ?? []) as Prospect[]).map((p) => p.id);
+    const { data: chauds } = ids.length ? await admin.from("radar_opps").select("prospect_id, score").in("prospect_id", ids).neq("status", "ecarte") : { data: [] };
+    const radar = new Map<string, number>();
+    for (const x of (chauds ?? []) as { prospect_id: string; score: number | null }[]) radar.set(x.prospect_id, Math.max(radar.get(x.prospect_id) ?? 0, Number(x.score) || 0));
+    const data = ((cand ?? []) as Prospect[])
+      .sort((a, b) => (radar.get(b.id) ?? -1) - (radar.get(a.id) ?? -1) || Number(!!declencheur(b)) - Number(!!declencheur(a)))
+      .slice(0, lots);
     let essais = 0, trouves = 0, arret = "";
     for (const p of data ?? []) {
       try { const r = await trouveEmail(ws, p as Prospect); essais++; if (r.email) trouves++; }
