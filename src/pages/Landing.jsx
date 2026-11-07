@@ -21,7 +21,7 @@ const Check = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className=
 const Arrow = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" /></svg>;
 const Lock = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
 
-const MENU = [["La preuve", "#preuve"], ["Essai en direct", "#essai"], ["Extension", "#extension"], ["Tarifs", "#tarifs"], ["Questions", "#faq"]];
+const MENU = [["La preuve", "#preuve"], ["Essai en direct", "#essai"], ["Ton village", "#village"], ["Extension", "#extension"], ["Tarifs", "#tarifs"], ["Questions", "#faq"]];
 
 function useReveal() {
   useEffect(() => {
@@ -39,7 +39,6 @@ const PREUVES = [
   ["contacts", "Le décideur et son e-mail", "Le dirigeant déclaré au registre officiel, son e-mail professionnel vérifié, son LinkedIn. Jamais une adresse devinée.", "preuve-contacts", "L'écran Contacts de la vraie application. Données d'exemple."],
   ["canaux", "Il écrit. Tu valides.", "Un message par entreprise, qui part de ce qui se passe chez elle. Relances à J+3 et J+7, appel, clôture. Rien ne part sans toi.", "preuve-canaux", "L'écran « À valider » de la vraie application. Données d'exemple."],
   ["espion", "Tes concurrents, surveillés", "Prix, publicités, avis, clients mécontents : l'Espion mesure tout, et ton angle se retrouve dans chaque message.", "preuve-espion", "La page Concurrents de la vraie application. Concurrents d'exemple."],
-  ["village", "Ton village", "Toute ta prospection sur une carte : chaque bâtiment est une partie de Bingoo!, avec ce qui t'attend. Le matin, « La nuit de ton équipe » rejoue ce qui a été fait pendant que tu dormais.", "demo-village", "La page Village de la vraie application. Données d'exemple."],
 ];
 function Preuve() {
   const [on, setOn] = useState("radar");
@@ -280,6 +279,25 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* Ton village : à part, en grand */}
+        <section id="village" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07] bg-[#FBF6F1]">
+          <div className="mx-auto max-w-[1180px]">
+            <div className="grid lg:grid-cols-[minmax(0,6fr)_minmax(0,5fr)] gap-6 lg:gap-16 items-end">
+              <h2 className="text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ta prospection devient une ville.</h2>
+              <p className="text-[17px] sm:text-[19px] leading-[1.5] text-ink-soft">Chaque bâtiment est une partie de Bingoo!, avec ce qui t'attend. Un panneau te dit toujours quoi faire ensuite. Et chaque matin, « La nuit de ton équipe » rejoue ce qui a été fait pendant que tu dormais.</p>
+            </div>
+            <figure className="mt-10">
+              <video src="./demo-village.mp4" poster="./demo-village.jpg" autoPlay loop muted playsInline className="w-full rounded-2xl border border-black/10 bg-[#F1EFED] shadow-[0_30px_70px_-40px_rgba(122,74,42,.55)]" aria-label="Le village Bingoo! et la nuit de ton équipe" />
+              <figcaption className="mt-2 text-[13.5px] text-ink-soft">La page Village de la vraie application. Données d'exemple.</figcaption>
+            </figure>
+            <ul className="mt-8 grid sm:grid-cols-3 gap-3">
+              {[["Un coup d'œil", "Ce qui t'attend, bâtiment par bâtiment : réponses, messages prêts, rendez-vous, opportunités."], ["Ton matin", "Le travail du jour en une carte, et « Tout traiter » qui t'emmène d'un bâtiment à l'autre."], ["La nuit de ton équipe", "Le journal réel de ce qui a été fait cette nuit, rejoué en 20 secondes."]].map(([t, d]) => (
+                <li key={t} className="rounded-2xl bg-white p-5 border border-black/[.05]"><p className="text-[18px] leading-tight text-ink" style={SERIF}>{t}</p><p className="mt-2 text-[15px] leading-[1.5] text-ink-soft">{d}</p></li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
         {/* L'extension Chrome, en une bande */}
         <section id="extension" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-20 border-t border-black/[.07]">
           <div className="mx-auto max-w-[1180px]">
@@ -366,7 +384,7 @@ export default function Landing() {
 
       <footer className="border-t border-line bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid grid-cols-2 md:grid-cols-4 gap-8 text-[15px]">
-          <div><p className="font-bold">Produit</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="#preuve" onClick={scrollTo("preuve")} className="hover:text-ink">La preuve en vidéo</a></li><li><a href="#essai" onClick={scrollTo("essai")} className="hover:text-ink">Essai en direct</a></li><li><a href="#demandes" onClick={scrollTo("demandes")} className="hover:text-ink">Demandes publiques</a></li><li><a href="#extension" onClick={scrollTo("extension")} className="hover:text-ink">Extension Chrome</a></li><li><a href="#tarifs" onClick={scrollTo("tarifs")} className="hover:text-ink">Tarifs</a></li></ul></div>
+          <div><p className="font-bold">Produit</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="#preuve" onClick={scrollTo("preuve")} className="hover:text-ink">La preuve en vidéo</a></li><li><a href="#essai" onClick={scrollTo("essai")} className="hover:text-ink">Essai en direct</a></li><li><a href="#demandes" onClick={scrollTo("demandes")} className="hover:text-ink">Demandes publiques</a></li><li><a href="#village" onClick={scrollTo("village")} className="hover:text-ink">Ton village</a></li><li><a href="#extension" onClick={scrollTo("extension")} className="hover:text-ink">Extension Chrome</a></li><li><a href="#tarifs" onClick={scrollTo("tarifs")} className="hover:text-ink">Tarifs</a></li></ul></div>
           <div><p className="font-bold">Outils gratuits</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="#/outils/contrats-publics" className="hover:text-ink">Contrats publics qui se terminent</a></li><li><a href="#/outils/analyse-concurrent" className="hover:text-ink">Analyse d'un concurrent</a></li></ul></div>
           <div><p className="font-bold">Pour qui</p><ul className="mt-4 space-y-2.5 text-ink-soft">{[["logiciels", "Fondateurs de SaaS"], ["agences", "Agences et cabinets"], ["nettoyage", "Nettoyage"], ["securite", "Sécurité"]].map(([k, l]) => <li key={k}><a href={`#/metier/${k}`} className="hover:text-ink">{l}</a></li>)}</ul></div>
           <div><p className="font-bold">Compte et légal</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><button onClick={() => nav("/connexion?mode=login")} className="hover:text-ink">Connexion</button></li><li><button onClick={go} className="hover:text-ink">Créer un compte</button></li>{legalReady && <><li><a href="#/mentions-legales" className="hover:text-ink">Mentions légales</a></li><li><a href="#/confidentialite" className="hover:text-ink">Confidentialité</a></li><li><a href="#/conditions" className="hover:text-ink">Conditions</a></li></>}<li><a href="#/opposition" className="hover:text-ink">Ne plus être contacté</a></li></ul></div>
