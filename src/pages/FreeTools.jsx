@@ -133,7 +133,7 @@ export default function FreeTools() {
           </button>
         ))}
       </div>
-      <p className="mt-10 text-[13px] text-ink-faint">Bingoo! — ton équipe commerciale IA : elle détecte qui va acheter, trouve le bon interlocuteur et prospecte jusqu'au rendez-vous.</p>
+      <p className="mt-10 text-[13px] text-ink-faint">Bingoo! — une longueur d'avance sur tes prochains clients : il repère qui a besoin de toi maintenant, trouve le décideur et prospecte jusqu'au rendez-vous. 15 minutes par jour.</p>
     </Shell>
   );
 }

@@ -4,6 +4,7 @@ import Logo from "../components/Logo";
 import { legalReady } from "./Legal";
 import { cx } from "../lib/utils";
 import { STORE_URL } from "../lib/ext";
+import { DELAIS, TYPES, VALEURS, arrondi, estimer, euros, mensuel } from "../lib/estimation";
 import { TEAM, Avatar } from "./Salaries";
 
 // Page d'accueil publique de Bingoo! : la promesse, et l'essai immédiat sans compte (contrats publics qui se terminent).
@@ -14,7 +15,7 @@ async function call(action, body) {
   if (!res.ok || data.error) throw new Error(data.error || "Erreur réseau, réessaie");
   return data;
 }
-const D = { fontFamily: "var(--font-titre)", fontWeight: 900, letterSpacing: "-.02em" };
+const D = { fontFamily: "var(--font-titre)", fontWeight: 400, letterSpacing: "-.02em" };
 const SERIF = { fontFamily: "var(--font-titre)", fontWeight: 400, letterSpacing: "-.02em" };
 const euro = (n) => n >= 1e6 ? `${(n / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M€` : n >= 1e3 ? `${Math.round(n / 1e3).toLocaleString("fr-FR")} k€` : `${Math.round(n)} €`;
 const scrollTo = (id) => (e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }); };
@@ -24,19 +25,19 @@ const Arrow = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className=
 
 const Chev = () => <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m6 9 6 6 6-6" /></svg>;
 const MENU = [
-  ["Produit", [["Contacts des décideurs", "E-mail vérifié, téléphone, LinkedIn", "#contacts"], ["Prise de contact", "Messages et relances, tu valides", "#equipe"], ["Rendez-vous", "Les réponses deviennent des rendez-vous", "#rendez-vous"], ["Radar", "Qui va acheter, et quand", "#produit"], ["Espion", "Ce que font tes concurrents", "#espion"], ["LinkedIn et extension Chrome", "Plus de contacts, sur chaque site", "#extension"], ["Essai en direct", "Teste sur ton marché", "#essai"]]],
-  ["Solutions", [["Nettoyage", "Les contrats à reprendre avant l'appel d'offres", "#/metier/nettoyage"], ["Sécurité", "Gardiennage et surveillance à renouveler", "#/metier/securite"], ["Agences", "Les entreprises qui choisissent leurs partenaires", "#/metier/agences"], ["Logiciels / SaaS", "Prends les clients de tes concurrents", "#/metier/logiciels"], ["Indépendants", "Un commercial à temps plein", "#pour-qui"]]],
-  ["Nos données", [["Sources officielles", "BOAMP, BODACC, Sirene, DECP, TED", "#donnees"]]],
+  ["Produit", [["Le bon moment", "Qui a besoin de toi, maintenant", "#produit"], ["Demandes publiques", "Ceux qui demandent déjà ta solution", "#demandes"], ["Décideurs et e-mails", "E-mail vérifié, téléphone, LinkedIn", "#contacts"], ["Tous les canaux", "E-mail, LinkedIn, appel : tu valides", "#equipe"], ["Plan d'action", "Ton objectif, chiffré honnêtement", "#plan"], ["Espion", "Ce que font tes concurrents", "#espion"], ["Essai en direct", "Teste sur ton marché", "#essai"]]],
+  ["Solutions", [["Fondateurs de SaaS", "Prends les clients de tes concurrents", "#/metier/logiciels"], ["Startups B2B", "Tes premiers clients, au bon moment", "#pour-qui"], ["PME et TPE", "Un flux régulier de rendez-vous", "#pour-qui"], ["Agences et cabinets", "Les entreprises qui choisissent leurs partenaires", "#/metier/agences"], ["Services sur site", "Nettoyage, sécurité : les contrats à reprendre", "#/metier/nettoyage"]]],
+  ["Nos données", [["Sources vérifiables", "Registres officiels, offres d'emploi, web public", "#donnees"]]],
   ["Tarifs", null],
   ["Ressources", [["Outils gratuits", "Contrats publics, analyse de concurrent", "#/outils"], ["Questions fréquentes", "Tout ce qu'on nous demande", "#faq"]]],
 ];
 
 /** Aperçu du produit sous le titre : la vraie liste du Radar (acheteurs publics réels, relus en direct), la fiche ouverte, le message prêt. */
-const SRC = ["BOAMP", "BODACC", "Sirene", "DECP", "TED Europa", "Sites web", "Registre national des entreprises", "Données de la commande publique"];
+const SRC = ["BODACC", "Sirene", "France Travail", "Reddit", "LinkedIn public", "BOAMP", "Sites web", "Forums et communautés", "Registre national des entreprises", "TED Europa"];
 function SourcesRow() {
   return (
     <div id="donnees" className="mx-auto mt-16 max-w-[1180px] scroll-mt-24">
-      <p className="text-[15px] text-ink-soft">Bingoo! lit chaque nuit des sources officielles et vérifiables</p>
+      <p className="text-[15px] text-ink-soft">Chaque nuit, Bingoo! lit des sources publiques et vérifiables. Chaque signal affiche la sienne.</p>
       <div className="marquee mt-6 overflow-hidden" style={{ maskImage: "linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent)", WebkitMaskImage: "linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent)" }}>
         <ul className="marquee-track flex w-max items-center text-[22px] sm:text-[26px] text-ink/45" style={SERIF}>
           {[...SRC, ...SRC].map((x, i) => <li key={i} aria-hidden={i >= SRC.length} className="shrink-0 whitespace-nowrap px-6 sm:px-9">{x}</li>)}
@@ -136,14 +137,15 @@ function TryIt({ t }) {
 }
 
 const WHO = [
+  ["saas", "Fondateurs de SaaS", "Prends les clients de tes concurrents", "Tu codes, tu n'as pas le temps de prospecter. Bingoo! trouve qui utilise l'outil d'un concurrent, quand son abonnement arrive à échéance, qui recrute l'équipe qui utilisera ton produit, et qui demande en public une alternative. 15 minutes par jour suffisent.", ["Outils concurrents installés", "Demandes « alternative à… » sur Reddit et LinkedIn", "Recrutements et levées de fonds", "Visiteurs de ton site"]],
+  ["startup", "Startups B2B", "Tes premiers clients, au bon moment", "Avant d'avoir une équipe commerciale, Bingoo! te sert de premier commercial : il teste plusieurs cibles, garde celles qui répondent, et te montre chaque semaine ce qui marche.", ["Plusieurs cibles testées en parallèle", "Entreprises qui viennent de lever ou de recruter", "Demandes publiques de ta solution", "Ce qui répond, chaque semaine"]],
+  ["pme", "PME et TPE", "Un flux régulier de rendez-vous", "Chaque matin, les entreprises à contacter, la raison, le décideur et le message prêt. Tu valides, Bingoo! relance, et les rendez-vous arrivent dans ton agenda.", ["Nouveaux dirigeants et créations", "Recrutements liés à ton offre", "Déménagements et nouveaux sites", "Relances et appels avec script"]],
+  ["services", "Agences et cabinets", "Arrive au moment où ils changent", "Agences, conseil, ESN, formation : Bingoo! repère les entreprises en mouvement, celles qui changent de dirigeant, recrutent ou ouvrent un site, et prépare le premier message.", ["Nouveaux dirigeants", "Recrutements liés à ton offre", "Levées de fonds", "Demandes de recommandation en public"]],
   ["terrain", "Services sur site", "Remporte les contrats avant l'appel d'offres", "Nettoyage, sécurité, maintenance, BTP : Bingoo! te montre les contrats publics qui se terminent, qui les tient aujourd'hui et qui contacter aux achats, des mois avant le nouvel appel d'offres.", ["Contrats publics à renouveler", "Appels d'offres de ta zone", "Déménagements et nouveaux sites", "Nouveaux dirigeants"]],
-  ["services", "Services aux entreprises", "Arrive au moment où ils changent", "Agences, conseil, ESN, formation : Bingoo! repère les entreprises en mouvement, celles qui changent de dirigeant, recrutent ou ouvrent un site, et prépare le premier message.", ["Nouveaux dirigeants", "Créations d'entreprises", "Recrutements liés à ton offre", "Levées de fonds"]],
-  ["saas", "Logiciels / SaaS", "Prends les clients de tes concurrents", "Bingoo! lit les sites et les offres d'emploi : qui utilise un outil concurrent, quand son abonnement arrive probablement à échéance, qui recrute l'équipe qui va utiliser ton produit, qui visite ton site.", ["Outils concurrents installés", "Renouvellements d'abonnement probables", "Recrutements", "Visiteurs de ton site et équipes à l'essai"]],
-  ["solo", "Indépendants", "Un commercial à temps plein, pour 49 € par mois", "Tu n'as pas le temps de prospecter : chaque matin, Bingoo! te donne 3 entreprises à contacter, avec la raison, le contact et le message prêt.", ["3 entreprises par jour", "Message prêt à valider", "Relances automatiques", "Rendez-vous dans ton agenda"]],
 ];
 const PLANS = [
-  ["Solo", 49, "Pour un indépendant ou un dirigeant qui prospecte seul.", ["1 utilisateur", "150 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Relances, Radar, Espion et LinkedIn inclus", "Prospects non utilisés reportés au mois suivant"]],
-  ["Pro", 119, "Pour une PME qui veut un flux régulier de rendez-vous.", ["3 utilisateurs", "500 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Relances, Radar, Espion et LinkedIn inclus", "Répartition des prospects entre commerciaux"]],
+  ["Solo", 49, "Pour un fondateur qui prospecte seul, 15 minutes par jour.", ["1 utilisateur", "150 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Demandes publiques avec réponse prête, chaque jour", "Relances, Radar, Espion et LinkedIn inclus"]],
+  ["Pro", 119, "Pour une startup ou une PME qui veut un flux régulier de rendez-vous.", ["3 utilisateurs", "500 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Demandes publiques avec réponse prête, chaque jour", "Répartition des prospects entre commerciaux"]],
   ["Équipe", 229, "Pour plusieurs commerciaux sur le même marché.", ["10 utilisateurs", "1 000 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Relances, Radar, Espion et LinkedIn inclus", "Accompagnement au démarrage"]],
 ];
 const FAQ = [
@@ -151,7 +153,9 @@ const FAQ = [
   ["Bingoo! envoie-t-il des messages sans mon accord ?", "Non. Par défaut, chaque message attend ta validation. Tu peux ensuite activer le pilote automatique, dans la limite d'envoi que tu fixes."],
   ["D'où viennent les informations ?", "De sources publiques et vérifiables : données de la commande publique, BOAMP, annonces légales (BODACC), registre national des entreprises, sites des entreprises. Chaque signal affiche sa source."],
   ["Et le RGPD ?", "Bingoo! travaille au niveau de l'entreprise et des fonctions qui décident. Les e-mails sont publiés ou vérifiés, jamais devinés, et chaque message permet de ne plus être contacté."],
-  ["Ça marche pour mon métier ?", "Bingoo! s'adapte à ton activité à l'inscription : services sur site, services aux entreprises, logiciels ou produits. Il ne cherche pas les mêmes signaux pour une entreprise de nettoyage et pour un éditeur de logiciel."],
+  ["Ça marche pour mon entreprise ?", "Bingoo! est fait pour les entreprises qui vendent à d'autres entreprises : fondateurs de SaaS, startups B2B, PME et TPE, agences, cabinets, services sur site. À l'inscription, tu dis ce que tu es : Bingoo! ne cherche pas les mêmes signaux pour un éditeur de logiciel et pour une entreprise de nettoyage. Il n'est pas fait pour vendre à des particuliers."],
+  ["Combien de clients puis-je espérer ?", "À la fin de l'inscription, Bingoo! te montre une fourchette, prudente et probable, calculée à partir de ce que vaut un client pour toi, de ton objectif et de taux de prospection prudents. Les hypothèses sont affichées : ce n'est pas une promesse. Dès tes premiers envois, tes vrais taux remplacent les hypothèses."],
+  ["Bingoo! publie-t-il sur Reddit ou LinkedIn à ma place ?", "Non pour les demandes publiques : Bingoo! te prépare la réponse, tu la publies toi-même. Sur LinkedIn, l'extension n'envoie que les invitations et les messages que tu as validés, avec des limites prudentes."],
   ["À quoi sert l'extension Chrome ?", "Elle affiche la fiche d'une entreprise sur son propre site, fait sur LinkedIn les invitations et les messages que tu as validés (à un rythme humain, dans des limites prudentes) et reconnaît tes prospects dans Gmail. Elle est facultative : tout le reste marche sans elle."],
   ["Est-ce que je risque mon compte LinkedIn ?", "Bingoo! ne fait jamais d'envoi en masse ni d'aspiration de profils. Le pilote ne fait que ce que tu as validé, avec des pauses et des limites quotidiennes basses, depuis ton propre navigateur."],
   ["Je peux essayer avant de payer ?", "Oui : pendant 7 jours, sans carte bancaire, Bingoo! trouve tes premières entreprises et écrit tes premiers messages. Tu les lis, tu juges. L'envoi démarre avec ton abonnement, et ton premier mois est remboursé si tu n'obtiens ni rendez-vous ni réponse positive."],
@@ -267,12 +271,50 @@ function Extension() {
   );
 }
 
+/** Le plan d'action, comme à la fin de l'inscription : le visiteur règle 3 curseurs et voit une fourchette, hypothèses à l'appui. */
+function PlanSection({ go }) {
+  const [type, setType] = useState("saas");
+  const [valeur, setValeur] = useState(120);
+  const [h, setH] = useState(3);
+  const e = estimer({ type, valeur, horizon: h });
+  const [c0, c1] = e.clients.map(arrondi);
+  const m = mensuel(type);
+  return (
+    <section id="plan" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-14 sm:py-20 border-t border-black/[.07]">
+      <div className="mx-auto max-w-[1300px] grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] gap-10 lg:gap-20 [&>*]:min-w-0">
+        <div>
+          <h2 className="text-[36px] sm:text-[50px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ton objectif, chiffré honnêtement</h2>
+          <p className="mt-6 max-w-[520px] text-[17px] sm:text-[19px] leading-[1.5] text-ink">À l'inscription, tu dis ce que tu es, ce que vaut un client et ce que tu vises. Bingoo! te donne un plan d'action : les canaux, le rythme, et une fourchette de ce que ça peut rapporter. Pas de projection inventée : les hypothèses sont affichées, et tes vrais taux les remplacent dès les premiers envois.</p>
+          <button onClick={go} className="mt-8 rounded-lg bg-ink text-white px-6 py-3.5 text-[16px] hover:bg-black transition">Obtenir mon plan d'action</button>
+        </div>
+        <div className="rounded-2xl border border-line bg-[#FAF9F6] p-5 sm:p-7">
+          <div className="grid grid-cols-2 gap-3 text-[14px]">
+            <label className="block"><span className="block text-ink-soft mb-1">Tu es</span>
+              <select value={type} onChange={(x) => { setType(x.target.value); setValeur(mensuel(x.target.value) ? 120 : 5000); }} className="w-full rounded-lg border border-line bg-white px-3 py-2.5">{TYPES.map(([k]) => <option key={k} value={k}>{{ saas: "SaaS ou logiciel", app: "Application", startup: "Startup", pme: "PME", tpe: "TPE, indépendant", agence: "Agence, cabinet" }[k]}</option>)}</select></label>
+            <label className="block col-span-2 order-last"><span className="block text-ink-soft mb-1">Un client rapporte</span>
+              <select value={valeur} onChange={(x) => setValeur(Number(x.target.value))} className="w-full rounded-lg border border-line bg-white px-3 py-2.5">{VALEURS[m ? "mois" : "an"].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+            <label className="block"><span className="block text-ink-soft mb-1">Horizon</span>
+              <select value={h} onChange={(x) => setH(Number(x.target.value))} className="w-full rounded-lg border border-line bg-white px-3 py-2.5">{DELAIS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+          </div>
+          <p className="mt-7 text-[13px] font-semibold text-accent-dark">Ton plan d'action</p>
+          <p className="mt-1 text-[34px] sm:text-[42px] leading-[1.05] text-ink" style={SERIF}>{c0} à {c1} nouveaux clients</p>
+          <p className="mt-2 text-[16px] text-ink-soft">soit {euros(e.revenu[0])} à {euros(e.revenu[1])} {m ? "de revenu récurrent en plus chaque mois" : "de chiffre d'affaires signé"}, {DELAIS.find(([v]) => Number(v) === h)?.[1].toLowerCase()}.</p>
+          <ul className="mt-6 space-y-2 text-[15px] text-ink">
+            {["15 e-mails et 10 invitations LinkedIn par jour, écrits par Bingoo!, validés par toi", "Les demandes publiques du jour, avec ta réponse prête", "Un appel avec script après deux relances sans réponse"].map((x) => <li key={x} className="flex gap-2.5"><Check className="h-4 w-4 mt-1 shrink-0 text-accent" />{x}</li>)}
+          </ul>
+          <details className="mt-5 text-[13.5px] text-ink-soft"><summary className="cursor-pointer font-medium text-ink">Comment on calcule</summary><ul className="mt-2 list-disc pl-5 space-y-1">{e.hypotheses.map((x) => <li key={x}>{x}</li>)}</ul></details>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /** Ce qui fait la différence au quotidien : le téléphone qui sonne, les séquences, les boîtes d'envoi, la vérification, l'apprentissage, les imports. */
 export default function Landing() {
   const nav = useNavigate();
   useReveal();
   const tryState = useTry();
-  const [who, setWho] = useState("terrain");
+  const [who, setWho] = useState("saas");
   const [yearly, setYearly] = useState(false);
   const go = () => nav("/connexion");
   const w = WHO.find((x) => x[0] === who);
@@ -322,7 +364,7 @@ export default function Landing() {
             <p className="mt-8 text-[14.5px] text-ink-soft">En m'inscrivant, j'accepte les <a href="#/conditions" className="underline hover:text-ink">Conditions d'utilisation</a> et la <a href="#/confidentialite" className="underline hover:text-ink">Politique de confidentialité</a> de Bingoo!.</p>
             {/* Le produit en 4 étapes : c'est une vraie séquence, d'où les numéros */}
             <ol className="mx-auto mt-14 grid max-w-[1100px] gap-3 text-left sm:grid-cols-2 lg:grid-cols-4">
-              {[["Tu décris tes clients", "En une phrase : « les agences immobilières de Lyon qui recrutent »."], ["Bingoo! trouve les décideurs", "Il écarte ce qui n'est pas dans ta cible, puis trouve l'e-mail vérifié et le téléphone."], ["Il leur écrit, tu valides", "Un message pour chaque entreprise, puis les relances. Rien ne part sans toi."], ["Tu prends les rendez-vous", "Les réponses arrivent triées, le rendez-vous va dans ton agenda."]].map(([h, d], i) => (
+              {[["Tu réponds à 6 questions", "Ton type d'entreprise, ce que vaut un client, ton objectif. Puis le lien de ton produit."], ["Bingoo! trouve qui a besoin de toi", "Les entreprises au bon moment, leur décideur vérifié, et ceux qui demandent ta solution en public."], ["Il écrit sur tous les canaux", "E-mail, LinkedIn, réponses aux demandes, appels. Tu valides en 15 minutes par jour."], ["Tu prends les rendez-vous", "Les réponses arrivent triées, avec la tienne déjà prête. Le rendez-vous va dans ton agenda."]].map(([h, d], i) => (
                 <li key={h} className="rounded-2xl bg-[#F6F5F3] p-5">
                   <span className="text-[15px] text-accent-dark tnum">{i + 1}</span>
                   <p className="mt-1 text-[19px] leading-tight text-ink" style={SERIF}>{h}</p>
@@ -340,12 +382,13 @@ export default function Landing() {
       <main className="bg-[#D6D1CD] px-0 sm:px-8 pb-8">
         <div className="mx-auto max-w-[1440px] bg-white">
 
-        <Feature id="contacts" title="Les décideurs, leurs e-mails et leurs téléphones" text="Bingoo! trouve les entreprises de ton marché et, dans chacune, la personne qui signe : son e-mail vérifié, son téléphone, son profil LinkedIn." bullets={[["user", <><b className="font-medium">La bonne fonction</b> : achats, direction générale, DSI ou RH selon ton offre</>], ["mail", <><b className="font-medium">E-mail et téléphone</b> publiés ou vérifiés, jamais devinés</>], ["link", <><b className="font-medium">Profil LinkedIn</b> pour un premier contact</>]]} />
-        <Feature id="equipe" title="Il les contacte pour toi. Tu valides." text="Pour chaque décideur, un message écrit à partir de ce qui se passe chez lui. Tu le relis et tu l'envoies d'un geste, ou tu laisses le pilote automatique envoyer et relancer." bullets={[["send", <><b className="font-medium">Messages et relances</b> écrits pour chaque entreprise, jamais un modèle</>], ["shield", <><b className="font-medium">Chaque adresse vérifiée</b> avant l'envoi, pour protéger ta réputation</>], ["layers", <><b className="font-medium">E-mail, LinkedIn et appel</b>, aux jours que tu choisis</>]]} />
-        <Feature id="rendez-vous" title="Les réponses deviennent des rendez-vous" text="Les réponses arrivent triées, avec la tienne déjà prête. Ton téléphone te prévient dès qu'un décideur est intéressé." bullets={[["bell", <><b className="font-medium">Une alerte</b> sur ton téléphone pour chaque réponse intéressée</>], ["cal", <><b className="font-medium">Les rendez-vous</b> dans ton agenda</>], ["import", <><b className="font-medium">Ton CRM</b> : les contacts qui avancent arrivent dans HubSpot ou Pipedrive</>]]} />
-        <section className="px-5 sm:px-10 lg:px-20 pt-16 sm:pt-20 border-t border-black/[.07]"><div className="mx-auto max-w-[1300px]"><p className="text-[15px] font-semibold text-accent-dark">Encore plus de contacts</p><h2 className="mt-2 text-[34px] sm:text-[46px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Le Radar, l'Espion, LinkedIn</h2></div></section>
-        <Feature id="produit" title="Le Radar : qui va acheter, et quand" text="Chaque nuit, le Radar lit les sources officielles et le web. Il te montre les entreprises à contacter au bon moment, avec la date, le montant et la source." bullets={[["radar", <><b className="font-medium">Contrats publics</b> qui se terminent, avec le titulaire actuel et l'acheteur</>], ["doc", <><b className="font-medium">Annonces légales</b> : nouveau dirigeant, création, reprise, déménagement</>], ["eye", <><b className="font-medium">Signaux d'intention</b> : visites de ton site, recrutements, clients mécontents d'un concurrent</>]]} />
-        <Feature id="espion" title="L'Espion : fais comme tes concurrents, en mieux" text="L'Espion suit tes concurrents chaque semaine : ce qu'ils vendent, leurs prix, leurs publicités, leurs avis. Il en tire l'angle pour leur prendre des clients." bullets={[["eye", <><b className="font-medium">Veille continue</b> : prix, offres et publicités qui changent</>], ["star", <><b className="font-medium">Avis clients</b> : les mécontents deviennent des opportunités</>], ["target", <><b className="font-medium">Dossiers de combat</b> envoyés à Mission pour tes messages</>]]} />
+        <Feature id="produit" title="Qui a besoin de toi, maintenant" text="Chaque nuit, le Radar repère les entreprises qui viennent de bouger : elles recrutent, lèvent des fonds, changent de dirigeant, utilisent l'outil de ton concurrent ou voient leur contrat se terminer. C'est là qu'elles choisissent un fournisseur." bullets={[["radar", <><b className="font-medium">Signaux SaaS</b> : outils concurrents installés, abonnements qui arrivent à échéance, recrutements de l'équipe qui utilisera ton produit</>], ["doc", <><b className="font-medium">Annonces légales</b> : nouveau dirigeant, création, levée, déménagement</>], ["eye", <><b className="font-medium">Intention</b> : visites de ton site, clients mécontents d'un concurrent, contrats publics à renouveler</>]]} />
+        <Feature id="demandes" title="Ils demandent déjà ta solution" text="Chaque matin, Bingoo! lit Reddit, LinkedIn, X et les forums : « quelqu'un connaît un outil pour… », « une alternative à… ». Il te prépare une réponse utile et honnête. Tu la relis, tu la publies toi-même." bullets={[["inbox", <><b className="font-medium">Les demandes du jour</b>, en français et en anglais, avec le lien exact</>], ["send", <><b className="font-medium">Ta réponse prête</b> : un vrai conseil d'abord, ton produit ensuite</>], ["shield", <><b className="font-medium">Jamais de publication automatique</b> : ton compte et ton ton restent à toi</>]]} />
+        <Feature id="contacts" title="Le bon décideur, son e-mail vérifié" text="Dans chaque entreprise, Bingoo! trouve la personne qui signe : son e-mail professionnel vérifié, son téléphone, son profil LinkedIn. Jamais une adresse devinée." bullets={[["user", <><b className="font-medium">La bonne fonction</b> : fondateur, direction générale, commercial, DSI ou RH selon ton offre</>], ["mail", <><b className="font-medium">E-mail et téléphone</b> publiés ou vérifiés, avec leur source</>], ["link", <><b className="font-medium">Profil LinkedIn</b> pour une invitation en parallèle</>]]} />
+        <Feature id="equipe" title="Il écrit sur tous les canaux. Tu valides." text="Pour chaque décideur, un message qui part de ce qui se passe chez lui. E-mail, invitation LinkedIn, relances, puis un appel avec son script si personne ne répond. Rien ne part sans toi." bullets={[["send", <><b className="font-medium">Messages et relances</b> écrits pour chaque entreprise, jamais un modèle</>], ["link", <><b className="font-medium">LinkedIn</b> : invitation et message envoyés par l'extension, depuis ton compte</>], ["layers", <><b className="font-medium">Un seul parcours</b> : s'il répond par e-mail, LinkedIn s'arrête</>]]} />
+        <Feature id="rendez-vous" title="Les réponses deviennent des rendez-vous" text="Les réponses arrivent triées, avec la tienne déjà écrite. Ton téléphone te prévient dès qu'un décideur est intéressé." bullets={[["bell", <><b className="font-medium">Une alerte</b> sur ton téléphone pour chaque réponse intéressée</>], ["cal", <><b className="font-medium">Les rendez-vous</b> dans ton agenda, avec une fiche de préparation</>], ["import", <><b className="font-medium">Ton CRM</b> : les contacts qui avancent arrivent dans HubSpot ou Pipedrive</>]]} />
+        <PlanSection go={go} />
+        <Feature id="espion" title="L'Espion : fais comme tes concurrents, en mieux" text="L'Espion suit tes concurrents chaque semaine : ce qu'ils vendent, leurs prix, leurs publicités, leurs avis. Il en tire l'angle pour leur prendre des clients." bullets={[["eye", <><b className="font-medium">Veille continue</b> : prix, offres et publicités qui changent</>], ["star", <><b className="font-medium">Avis clients</b> : les mécontents deviennent des opportunités</>], ["target", <><b className="font-medium">Ton angle</b> repris dans chaque message</>]]} />
 
         <Extension />
 
@@ -356,14 +399,14 @@ export default function Landing() {
         <section id="pour-qui" className="bg-white border-y border-line scroll-mt-24">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-20">
             <h2 className="text-center text-[38px] sm:text-[54px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>À qui s'adresse Bingoo! ?</h2>
-            <div className="mt-10 grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3" role="tablist">
+            <div className="mt-10 grid grid-cols-2 md:grid-cols-5 gap-2 sm:gap-3" role="tablist">
               {WHO.map(([k, l]) => <button key={k} role="tab" aria-selected={who === k} onClick={() => setWho(k)} className={cx("rounded-2xl border px-4 py-4 text-left font-bold text-[15.5px] transition", who === k ? "bg-accent border-accent text-white" : "bg-[#FAF9F6] border-line hover:border-ink-faint")}>{l}</button>)}
             </div>
             <div className="mt-10 grid lg:grid-cols-[1.1fr_.9fr] gap-10 items-center" role="tabpanel">
               <div>
                 <h3 className="font-black text-[30px] sm:text-[38px] leading-[1.05]" style={D}>{w[2]}</h3>
                 <p className="mt-4 text-[17px] leading-relaxed text-ink-soft max-w-xl">{w[3]}</p>
-                <button onClick={go} className="mt-7 rounded-full bg-ink text-white px-6 py-3 font-bold hover:bg-black transition">Créer mon compte</button>
+                <button onClick={go} className="mt-7 rounded-lg bg-ink text-white px-6 py-3.5 text-[16px] hover:bg-black transition">Créer mon compte</button>
               </div>
               <ul className="rounded-2xl bg-[#FAF9F6] border border-line p-6 space-y-3.5">
                 <li className="text-[14px] text-ink-soft">Les signaux que Bingoo! surveille pour toi</li>
@@ -400,7 +443,7 @@ export default function Landing() {
                   {yearly && <p className={cx("text-[13px] mt-1", best ? "text-white/60" : "text-ink-faint")}>facturé {annuel} € par an</p>}
                   <p className={cx("mt-4 text-[15px]", best ? "text-white/75" : "text-ink-soft")}>{d}</p>
                   <ul className="mt-5 space-y-2.5">{items.map((x) => <li key={x} className="flex items-center gap-2.5 text-[15px]"><Check className={cx("h-4 w-4 shrink-0", best ? "text-[#F6A06B]" : "text-accent")} />{x}</li>)}</ul>
-                  <button onClick={go} className={cx("mt-7 w-full rounded-full py-3.5 font-bold transition", best ? "bg-accent hover:bg-accent-dark text-white" : "bg-ink text-white hover:bg-black")}>Créer mon compte</button>
+                  <button onClick={go} className={cx("mt-7 w-full rounded-lg py-3.5 text-[16px] transition", best ? "bg-accent hover:bg-accent-dark text-white" : "bg-ink text-white hover:bg-black")}>Créer mon compte</button>
                 </div>
               );
             })}
@@ -429,21 +472,25 @@ export default function Landing() {
 
         <section className="max-w-4xl mx-auto px-4 sm:px-6 py-20 text-center">
           <p className="text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Une longueur d'avance sur tes prochains clients.</p>
-          <button onClick={go} className="mt-8 rounded-full bg-ink text-white px-9 py-4 font-bold text-[17px] hover:bg-black transition">Créer mon compte</button>
+          <p className="mt-4 text-[18px] text-ink-soft">15 minutes par jour. Bingoo! s'occupe du reste.</p>
+          <div className="mt-8 inline-flex flex-col sm:flex-row gap-1.5 rounded-xl bg-[#F1EFED] p-1.5">
+            <button onClick={go} className="rounded-lg bg-[#1C1C1C] text-white px-9 py-4 text-[17px] hover:bg-black transition">Créer mon compte</button>
+            <a href="#essai" onClick={scrollTo("essai")} className="rounded-lg bg-white border border-black/10 px-9 py-4 text-[17px] hover:bg-[#FAFAF9] transition">Essayer avec mon produit</a>
+          </div>
         </section>
         </div>
       </main>
 
       <footer className="border-t border-line bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid grid-cols-2 md:grid-cols-4 gap-8 text-[15px]">
-          <div><p className="font-bold">Produit</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="#contacts" onClick={scrollTo("contacts")} className="hover:text-ink">Contacts des décideurs</a></li><li><a href="#rendez-vous" onClick={scrollTo("rendez-vous")} className="hover:text-ink">Rendez-vous</a></li><li><a href="#produit" onClick={scrollTo("produit")} className="hover:text-ink">Radar</a></li><li><a href="#espion" onClick={scrollTo("espion")} className="hover:text-ink">Espion</a></li><li><a href="#tarifs" onClick={scrollTo("tarifs")} className="hover:text-ink">Tarifs</a></li></ul></div>
+          <div><p className="font-bold">Produit</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="#produit" onClick={scrollTo("produit")} className="hover:text-ink">Le bon moment</a></li><li><a href="#demandes" onClick={scrollTo("demandes")} className="hover:text-ink">Demandes publiques</a></li><li><a href="#contacts" onClick={scrollTo("contacts")} className="hover:text-ink">Décideurs et e-mails</a></li><li><a href="#plan" onClick={scrollTo("plan")} className="hover:text-ink">Plan d'action</a></li><li><a href="#espion" onClick={scrollTo("espion")} className="hover:text-ink">Espion</a></li><li><a href="#tarifs" onClick={scrollTo("tarifs")} className="hover:text-ink">Tarifs</a></li></ul></div>
           <div><p className="font-bold">Outils gratuits</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="#/outils/contrats-publics" className="hover:text-ink">Contrats publics qui se terminent</a></li><li><a href="#/outils/analyse-concurrent" className="hover:text-ink">Analyse d'un concurrent</a></li></ul></div>
-          <div><p className="font-bold">Par métier</p><ul className="mt-4 space-y-2.5 text-ink-soft">{[["nettoyage", "Nettoyage"], ["securite", "Sécurité"], ["agences", "Agences"], ["logiciels", "Logiciels / SaaS"]].map(([k, l]) => <li key={k}><a href={`#/metier/${k}`} className="hover:text-ink">{l}</a></li>)}</ul></div>
+          <div><p className="font-bold">Pour qui</p><ul className="mt-4 space-y-2.5 text-ink-soft">{[["logiciels", "Fondateurs de SaaS"], ["agences", "Agences et cabinets"], ["nettoyage", "Nettoyage"], ["securite", "Sécurité"]].map(([k, l]) => <li key={k}><a href={`#/metier/${k}`} className="hover:text-ink">{l}</a></li>)}</ul></div>
           <div><p className="font-bold">Compte et légal</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><button onClick={() => nav("/connexion?mode=login")} className="hover:text-ink">Connexion</button></li><li><button onClick={go} className="hover:text-ink">Créer un compte</button></li>{legalReady && <><li><a href="#/mentions-legales" className="hover:text-ink">Mentions légales</a></li><li><a href="#/confidentialite" className="hover:text-ink">Confidentialité</a></li><li><a href="#/conditions" className="hover:text-ink">Conditions</a></li></>}<li><a href="#/opposition" className="hover:text-ink">Ne plus être contacté</a></li></ul></div>
         </div>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-10 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-8">
           <Logo height={34} />
-          <p className="text-[13.5px] text-ink-faint">© {new Date().getFullYear()} Bingoo! · Ton équipe commerciale IA</p>
+          <p className="text-[13.5px] text-ink-faint">© {new Date().getFullYear()} Bingoo! · Une longueur d'avance sur tes prochains clients</p>
         </div>
       </footer>
     </div>
