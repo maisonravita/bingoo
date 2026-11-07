@@ -32,7 +32,7 @@ function FollowUp({ m, onChange }) {
       <p className="font-semibold">Compte rendu et suite</p>
       {!f ? (
         <>
-          <p className="text-sm text-ink-soft mt-1">Note en vrac ce qui s'est dit (besoin, budget, délai, qui décide, objections). Kairo rédige le compte rendu, l'e-mail de suite et une proposition chiffrée à partir de ton catalogue.</p>
+          <p className="text-sm text-ink-soft mt-1">Note en vrac ce qui s'est dit (besoin, budget, délai, qui décide, objections). Bingoo! rédige le compte rendu, l'e-mail de suite et une proposition chiffrée à partir de ton catalogue.</p>
           <Textarea rows={5} className="mt-3" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ex. 3 sites à Paris, nettoyage actuel insatisfaisant, budget ~2 000 €/mois, décision avec le DAF fin novembre, inquiet sur la continuité pendant les congés…" />
           <Button quota="brief" className="mt-3" variant="primary" loading={busy === "prep"} disabled={notes.trim().length < 15} onClick={prepare}>Préparer la suite</Button>
         </>

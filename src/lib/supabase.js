@@ -21,7 +21,7 @@ export async function fn(name, body) {
     if (/non-2xx|Failed to fetch|FunctionsFetchError/i.test(message)) message = "Le serveur n'a pas pu terminer (délai ou surcharge). Réessaie dans un instant.";
     if (/^Limite du jour atteinte/i.test(message)) {
       const label = QUOTA_LABEL[QUOTA_OF[name.split("/").pop()]];
-      message = `Tu as utilisé toutes les ${label ?? "actions de ce type"} prévues par ta formule aujourd'hui. Kairo reprendra demain matin ; pour aller plus loin, passe à la formule supérieure (Réglages → Abonnement).`;
+      message = `Tu as utilisé toutes les ${label ?? "actions de ce type"} prévues par ta formule aujourd'hui. Bingoo! reprendra demain matin ; pour aller plus loin, passe à la formule supérieure (Réglages → Abonnement).`;
     }
     throw new Error(message);
   }

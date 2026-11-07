@@ -28,7 +28,7 @@ export type Workspace = {
   intelligence?: any; intelligence_at?: string | null; knowledge?: string;
 };
 
-/** Fiche « Ce que Kairo peut répondre » sans les lignes encore à compléter. */
+/** Fiche « Ce que Bingoo! peut répondre » sans les lignes encore à compléter. */
 export function knowledgeOf(ws: { knowledge?: string }) {
   return (ws.knowledge ?? "").split("\n").filter((l) => !/\[à compléter/i.test(l)).join("\n").trim().slice(0, 4000);
 }
@@ -70,7 +70,7 @@ export function planOk(ws: PlanFields) {
 
 /** Domaine de la plateforme qui reçoit les réponses de tous les espaces (r-<jeton>@…). */
 export const PLATFORM_DOMAIN = () => env("PLATFORM_REPLY_DOMAIN", "maisonravita.fr");
-/** Les réponses des prospects reviennent-elles bien dans Kairo ? (sinon pas de relance automatique) */
+/** Les réponses des prospects reviennent-elles bien dans Bingoo! ? (sinon pas de relance automatique) */
 export function repliesTracked(ws: Workspace) {
   return (ws.reply_status === "verified" && !!ws.reply_domain) || !!PLATFORM_DOMAIN();
 }

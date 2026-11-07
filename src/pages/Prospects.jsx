@@ -423,7 +423,7 @@ export default function Prospects() {
       {adding && (
         <div className="mb-4 rounded-2xl border border-line bg-white p-4">
           <p className="font-semibold">Ajouter une personne précise</p>
-          <p className="text-sm text-ink-soft mt-0.5 mb-3">Colle un profil LinkedIn ou écris « Prénom Nom, entreprise » : Kairo identifie la personne et son entreprise, puis cherche son e-mail vérifié.</p>
+          <p className="text-sm text-ink-soft mt-0.5 mb-3">Colle un profil LinkedIn ou écris « Prénom Nom, entreprise » : Bingoo! identifie la personne et son entreprise, puis cherche son e-mail vérifié.</p>
           <ImportPerson onDone={async (id) => { setAdding(false); await load(); const { data } = await supabase.from("prospects").select("*").eq("id", id).single(); if (data) setOpen(data); }} />
         </div>
       )}

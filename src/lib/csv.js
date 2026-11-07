@@ -44,7 +44,7 @@ export function download(name, content, type = "text/csv;charset=utf-8") {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-// Champs Kairo et noms de colonnes reconnus automatiquement
+// Champs Bingoo! et noms de colonnes reconnus automatiquement
 export const FIELDS = [
   { key: "name", label: "Entreprise", syn: ["entreprise", "societe", "société", "company", "nom entreprise", "raison sociale", "organisation", "organization", "account", "nom", "company name", "companyname", "current company", "organization name", "entreprise actuelle"] },
   { key: "contact_name", label: "Contact (prénom nom)", syn: ["contact", "nom complet", "full name", "name", "personne", "interlocuteur", "decideur", "décideur"] },

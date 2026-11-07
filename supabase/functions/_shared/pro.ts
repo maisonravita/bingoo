@@ -190,7 +190,7 @@ export async function inbound(body: Record<string, unknown>) {
   try {
     const to = ["interesse", "question", "prix", "rappel"].includes(res.classe) ? "" : await teamAddress(ws as Workspace); // réponses positives : l'alerte « prospect chaud » s'en charge
     if (to) await sendSystem({
-      to, fromName: `Kairo · ${p.name}`, replyTo: fromEmail,
+      to, fromName: `Bingoo! · ${p.name}`, replyTo: fromEmail,
       subject: `[${res.label}] ${String(d.subject ?? "")}`,
       text: `${fromName || fromEmail} (${p.name}) a répondu — ${res.summary}\n\nRépondre directement à cet e-mail lui écrit.\n\n---\n${stripQuoted(text)}`,
     });

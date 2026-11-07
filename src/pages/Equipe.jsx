@@ -104,7 +104,7 @@ export default function Equipe() {
           </Card>
           <Card className="p-5 sm:p-6 min-w-0">
             <h2 className="font-serif text-2xl">Répartir les prospects</h2>
-            <p className="text-sm text-ink-soft mt-1">{d.free.toLocaleString("fr-FR")} prospects n'ont pas encore de responsable. Kairo les partage à tour de rôle, les meilleurs scores d'abord.</p>
+            <p className="text-sm text-ink-soft mt-1">{d.free.toLocaleString("fr-FR")} prospects n'ont pas encore de responsable. Bingoo! les partage à tour de rôle, les meilleurs scores d'abord.</p>
             <Button className="mt-4" disabled={!d.free || d.members.length < 2} loading={busy === "team-distribute"} onClick={() => act("team-distribute", { count: 1000 }, (r) => `${r.assigned} prospects répartis`)}>Répartir entre {d.members.length} personne{d.members.length > 1 ? "s" : ""}</Button>
             {d.members.length < 2 && <p className="text-xs text-ink-soft mt-2">Invite d'abord un commercial.</p>}
             <p className="text-xs text-ink-soft mt-3">Chacun retrouve les siens avec le bouton « Mes prospects ». Tu peux changer le responsable dans chaque fiche.</p>

@@ -88,6 +88,34 @@ function Pilotes() {
   );
 }
 
+/** La question produit qui compte : sur les opportunités proposées, combien partent telles quelles ? (objectif : 70 %) */
+function Acceptation() {
+  const [rows, setRows] = useState(null);
+  useEffect(() => { supabase.rpc("admin_acceptation", { p_jours: 30 }).then(({ data }) => setRows(data ?? [])); }, []);
+  if (!rows?.length) return null;
+  return (
+    <Card className="p-5">
+      <p className="font-semibold">Les opportunités partent-elles telles quelles ? <span className="font-normal text-ink-soft">(30 jours · objectif 70 %)</span></p>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead><tr className="text-left text-ink-soft text-[12px]">{["Espace", "Proposées", "Envoyées telles quelles", "Envoyées modifiées", "Écartées", "En attente", "Tel quel", "« Tu l'enverrais ? »"].map((h) => <th key={h} className="py-1.5 pr-3 font-medium whitespace-nowrap">{h}</th>)}</tr></thead>
+          <tbody className="divide-y divide-line">
+            {rows.map((r) => (
+              <tr key={r.workspace_id}>
+                <td className="py-1.5 pr-3 font-medium">{r.name}</td>
+                <td className="py-1.5 pr-3 tnum">{r.proposees}</td><td className="py-1.5 pr-3 tnum">{r.envoyees_telles}</td><td className="py-1.5 pr-3 tnum">{r.envoyees_modifiees}</td>
+                <td className="py-1.5 pr-3 tnum">{r.ecartees}</td><td className="py-1.5 pr-3 tnum">{r.en_attente}</td>
+                <td className={`py-1.5 pr-3 tnum font-semibold ${r.taux_tel_quel == null ? "text-ink-faint" : Number(r.taux_tel_quel) >= 70 ? "text-good" : "text-warn"}`}>{r.taux_tel_quel == null ? "–" : `${r.taux_tel_quel} %`}</td>
+                <td className="py-1.5 pr-3 tnum">{r.magique_oui + r.magique_non ? `${r.magique_oui} oui · ${r.magique_non} non` : "–"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
 /** Comment les pilotes utilisent Bingoo! (14 jours) : ville ou liste, téléphone, bâtiments, hésitations, aide. */
 const NOMS = { poste: "Poste", atelier: "Atelier", rdv: "Rendez-vous", annuaire: "Annuaire", radar: "Radar", espion: "Espion", linkedin: "LinkedIn", observatoire: "Observatoire", mairie: "Mairie" };
 function Usage() {
@@ -153,6 +181,7 @@ export default function Admin() {
         ))}
       </div>
 
+      <Acceptation />
       <Pilotes />
       <Usage />
 

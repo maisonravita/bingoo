@@ -1,4 +1,4 @@
-// Kairo Mission : un objectif commercial suivi dans le temps.
+// Bingoo! Mission : un objectif commercial suivi dans le temps.
 // Règles : clients signés et RDV obtenus sont toujours comptés séparément ; les projections sont des fourchettes
 // présentées comme des hypothèses, remplacées par les vrais taux dès qu'il y a assez de données. Rien n'est garanti.
 import { HttpError } from "./http.ts";
@@ -93,14 +93,14 @@ export function nextActions(m: Mission, s: Stats, ws: Workspace) {
   const acts: { key: string; title: string; detail: string; to?: string; action?: string; n?: number }[] = [];
   if (reached) acts.push({ key: "atteint", title: "Objectif atteint", detail: "Tu peux clôturer la mission ou relever l'objectif.", action: "close" });
   if (s.reponses_a_traiter) acts.push({ key: "reponses", title: `Répondre ${s.reponses_a_traiter > 1 ? `aux ${s.reponses_a_traiter} prospects intéressés` : "au prospect intéressé"}`, detail: "Les réponses sont prêtes, avec des créneaux : chaque heure compte pour transformer un intérêt en rendez-vous.", to: "/reponses" });
-  if (s.rdv_sans_suite) acts.push({ key: "suite", title: `Faire la suite de ${s.rdv_sans_suite} rendez-vous`, detail: "Note quelques lignes : Kairo prépare le compte rendu, l'e-mail de suite et le devis.", to: "/agenda" });
+  if (s.rdv_sans_suite) acts.push({ key: "suite", title: `Faire la suite de ${s.rdv_sans_suite} rendez-vous`, detail: "Note quelques lignes : Bingoo! prépare le compte rendu, l'e-mail de suite et le devis.", to: "/agenda" });
   if (s.devis_ouverts) acts.push({ key: "devis", title: `Suivre ${s.devis_ouverts} devis en attente`, detail: "Un devis sans réponse se relance après 4 jours.", to: "/devis" });
   if (s.a_valider) acts.push({ key: "valider", title: `Valider ${s.a_valider} e-mail${s.a_valider > 1 ? "s" : ""} prêt${s.a_valider > 1 ? "s" : ""}`, detail: "Relis et envoie d'un geste.", to: "/valider" });
   if (!reached && stock < Math.min(toContact, 60)) acts.push({ key: "chercher", title: `Rechercher ${Math.min(Math.max(toContact - stock, 25), 100)} nouvelles entreprises`, detail: `Il reste environ ${toContact.toLocaleString("fr-FR")} entreprises à contacter (hypothèse basse) et ${stock} en réserve.`, action: "search", n: Math.min(Math.max(toContact - stock, 25), 100) });
-  if (s.a_enqueter && s.prets < 10) acts.push({ key: "enquete", title: `Trouver les coordonnées de ${Math.min(s.a_enqueter, 20)} entreprises`, detail: "Kairo cherche l'e-mail et le décideur de chaque entreprise.", action: "enrich" });
-  if (s.prets && !s.a_valider) acts.push({ key: "rediger", title: `Rédiger ${Math.min(s.prets, 20)} e-mail${s.prets > 1 ? "s" : ""}`, detail: "Ces prospects ont un e-mail : Kairo prépare des messages personnalisés.", action: "draft" });
+  if (s.a_enqueter && s.prets < 10) acts.push({ key: "enquete", title: `Trouver les coordonnées de ${Math.min(s.a_enqueter, 20)} entreprises`, detail: "Bingoo! cherche l'e-mail et le décideur de chaque entreprise.", action: "enrich" });
+  if (s.prets && !s.a_valider) acts.push({ key: "rediger", title: `Rédiger ${Math.min(s.prets, 20)} e-mail${s.prets > 1 ? "s" : ""}`, detail: "Ces prospects ont un e-mail : Bingoo! prépare des messages personnalisés.", action: "draft" });
   if (s.sans_email > 5) acts.push({ key: "decideurs", title: `Trouver les décideurs de ${s.sans_email} entreprises sans e-mail`, detail: "Par fonction, avec e-mail vérifié quand c'est possible.", to: "/prospects" });
-  if (ws.autonomy !== "auto" && !reached) acts.push({ key: "auto", title: "Activer le pilote automatique", detail: "Kairo enchaîne recherche, enquête, rédaction et relances chaque jour ouvré, dans tes limites.", to: "/reglages" });
+  if (ws.autonomy !== "auto" && !reached) acts.push({ key: "auto", title: "Activer le pilote automatique", detail: "Bingoo! enchaîne recherche, enquête, rédaction et relances chaque jour ouvré, dans tes limites.", to: "/reglages" });
   return acts.slice(0, 5);
 }
 
@@ -255,7 +255,7 @@ export async function missionView(ws: Workspace, m: Mission) {
 }
 
 // ================================================================ Mission pilotée
-// Kairo enchaîne recherche → enquête → rédaction pour la mission. Les e-mails restent en brouillon dans « À valider » :
+// Bingoo! enchaîne recherche → enquête → rédaction pour la mission. Les e-mails restent en brouillon dans « À valider » :
 // la mission n'envoie jamais rien elle-même.
 const MAX_QUEUE = 15; // au-delà, on attend que le client valide avant de préparer davantage
 const paris = () => new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(new Date());
@@ -332,7 +332,7 @@ async function stepOnce(ws: Workspace, m: Mission) {
   const s = await missionStats(m);
   const reached = (m.goal_type === "rdv" ? s.rdv : s.clients) >= m.goal_count;
   if (reached) return await stopMission(m, "objectif", "Objectif atteint : la mission est mise en pause. Tu peux la clôturer ou relever l'objectif.");
-  if (s.a_valider >= MAX_QUEUE) return { phase: "attente", done: true, waiting: true, text: `En attente de ta validation : ${s.a_valider} e-mails sont prêts. Kairo reprend tout seul dès qu'ils sont envoyés.` };
+  if (s.a_valider >= MAX_QUEUE) return { phase: "attente", done: true, waiting: true, text: `En attente de ta validation : ${s.a_valider} e-mails sont prêts. Bingoo! reprend tout seul dès qu'ils sont envoyés.` };
 
   const room = m.max_prospects ? Math.max(0, m.max_prospects - s.prospects) : 40;
 
@@ -406,9 +406,9 @@ async function stepOnce(ws: Workspace, m: Mission) {
       await journal(m, text);
       return { phase: "enquete", done: false, text, n: batch.length };
     }
-    return { phase: "limite", done: true, text: "Limite du jour atteinte pour les enquêtes : Kairo reprend demain." };
+    return { phase: "limite", done: true, text: "Limite du jour atteinte pour les enquêtes : Bingoo! reprend demain." };
   }
-  if (s.prets > 0 && !ws.sender_name) return { phase: "reglages", done: true, text: "Indique le nom de l'expéditeur dans Réglages pour que Kairo puisse rédiger." };
+  if (s.prets > 0 && !ws.sender_name) return { phase: "reglages", done: true, text: "Indique le nom de l'expéditeur dans Réglages pour que Bingoo! puisse rédiger." };
   return { phase: "fini", done: true, text: s.a_valider ? `${s.a_valider} e-mail${s.a_valider > 1 ? "s" : ""} prêt${s.a_valider > 1 ? "s" : ""} à valider.` : "Rien de plus à préparer pour l'instant." };
 }
 

@@ -295,7 +295,14 @@ ${(() => { const sg = (p.signals ?? []).filter((x) => x.label && x.type !== "tai
 ` : ""}
 ${await rivalBrief(ws.id, p)}Commence par « Bonjour${p.contact_name && !emailGenerique(p.email) ? " Madame/Monsieur <Nom>" : ""}, » (si l'interlocuteur est connu mais que le genre est incertain, écris « Bonjour <Prénom>, », jamais prénom et nom ensemble).
 Longueur : 40 à 70 mots, trois phrases courtes (le fait vrai, ce que l'offre change, une question). Rien sur la situation du prospect qui ne soit dans les faits ci-dessus.
-La deuxième phrase dit ce que fait l'expéditeur, sans rien supposer de la situation du prospect (jamais « vos équipes », « votre carnet de commandes », « vos difficultés », « vous cherchez à… »).
+La deuxième phrase fait le pont entre ce fait et l'offre : ce que ce type d'événement entraîne en général (formulé comme une généralité, avec « souvent » ou « en général »), puis en quoi l'offre aide précisément à ce moment-là. Ponts possibles selon le fait :
+- recrutement : une entreprise qui recrute se développe, et a souvent besoin de plus de clients ou de soutien pour suivre ;
+- nouveau dirigeant : un nouveau dirigeant revoit souvent ses priorités et ses prestataires dans ses premiers mois ;
+- nouvel établissement ou création : une structure qui démarre s'équipe et choisit ses prestataires ;
+- déménagement : un déménagement remet souvent à plat l'organisation et les contrats ;
+- levée de fonds : après une levée, une entreprise accélère et recrute ;
+- contrat public en fin de période : il est en général remis en concurrence.
+Ne présente jamais cette généralité comme un fait sur ce prospect (jamais « vos équipes sont débordées », « votre carnet de commandes », « vos difficultés », « vous cherchez à… »).
 La première phrase parle du fait, précis et daté si la date est connue (« Vous avez ouvert un établissement à Lyon en août »), jamais de l'activité générale du prospect (« X vend des formations », « X est spécialisé dans… »).
 Ne mets pas de signature : elle est ajoutée automatiquement.
 

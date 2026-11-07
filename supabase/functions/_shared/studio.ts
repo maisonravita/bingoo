@@ -1,4 +1,4 @@
-// Kairo Studio : contenus marketing prêts à publier, fondés sur ce que l'entreprise sait vraiment d'elle-même.
+// Bingoo! Studio : contenus marketing prêts à publier, fondés sur ce que l'entreprise sait vraiment d'elle-même.
 import { HttpError } from "./http.ts";
 import { admin, askJson, knowledgeOf, log, type Workspace } from "./core.ts";
 

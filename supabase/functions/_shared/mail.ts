@@ -37,7 +37,7 @@ export async function teamAddress(ws: Workspace) {
   return data?.email ?? "";
 }
 
-/** E-mail de service envoyé par Kairo (notifications, invitations), depuis le domaine de la plateforme. */
+/** E-mail de service envoyé par Bingoo! (notifications, invitations), depuis le domaine de la plateforme. */
 export async function sendSystem(m: { to: string; subject: string; text: string; html?: string; replyTo?: string; fromName?: string; ics?: string; key?: string }) {
   const from = env("SYSTEM_FROM", `notifications@${PLATFORM_DOMAIN()}`);
   const r = await resend("/emails", "POST", {
@@ -102,7 +102,7 @@ export async function sendMail(ws: Workspace, m: { to: string; subject: string; 
 export function buildIcs(o: { uid: string; start: Date; end: Date; summary: string; description: string; location: string; organizerName: string; organizerEmail: string; attendeeName: string; attendeeEmail: string }) {
   const f = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const c = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
-  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Kairo//FR", "METHOD:REQUEST", "BEGIN:VEVENT",
+  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Bingoo//FR", "METHOD:REQUEST", "BEGIN:VEVENT",
     `UID:${o.uid}@kairo`, `DTSTAMP:${f(new Date())}`, `DTSTART:${f(o.start)}`, `DTEND:${f(o.end)}`,
     `SUMMARY:${c(o.summary)}`, `DESCRIPTION:${c(o.description)}`, `LOCATION:${c(o.location)}`,
     `ORGANIZER;CN=${c(o.organizerName)}:mailto:${o.organizerEmail}`,

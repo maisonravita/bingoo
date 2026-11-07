@@ -1,4 +1,4 @@
-// Kairo Espion : mesures réelles sur la présence d'un concurrent.
+// Bingoo! Espion : mesures réelles sur la présence d'un concurrent.
 // YouTube : page publique de la chaîne + flux RSS officiel (vues, dates, miniatures).
 // TikTok : page publique du profil quand elle est lisible. Instagram et autres : chiffres trouvés sur le web (sourcés).
 // Site : mesures techniques SEO lues directement sur le site. Aucun chiffre n'est estimé.

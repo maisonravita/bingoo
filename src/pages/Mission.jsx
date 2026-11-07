@@ -45,9 +45,9 @@ function NewMission({ onCreated, onCancel, initial = "" }) {
 
   if (!plan) return (
     <Card className="p-5 sm:p-8">
-      <p className="text-xs font-semibold uppercase tracking-wider text-accent">Kairo Mission</p>
+      <p className="text-xs font-semibold uppercase tracking-wider text-accent">Bingoo! Mission</p>
       <h2 className="font-serif text-3xl sm:text-4xl leading-tight mt-2">Quel est ton objectif ?</h2>
-      <p className="text-ink-soft mt-2 max-w-2xl">Écris-le simplement. Kairo prépare un plan chiffré, tu le valides, puis il travaille chaque jour et te montre où tu en es : entreprises contactées, réponses, rendez-vous et clients signés.</p>
+      <p className="text-ink-soft mt-2 max-w-2xl">Écris-le simplement. Bingoo! prépare un plan chiffré, tu le valides, puis il travaille chaque jour et te montre où tu en es : entreprises contactées, réponses, rendez-vous et clients signés.</p>
       <Textarea rows={3} className="mt-5 text-[16px]" value={text} onChange={(e) => setText(e.target.value)} placeholder="Ex. Trouver 15 nouveaux clients à Lyon d'ici fin janvier" />
       <div className="flex flex-wrap gap-2 mt-3">
         {EXAMPLES.map((x) => <button key={x} onClick={() => setText(x)} className="text-left text-[13px] rounded-full border border-line bg-paper px-3 py-1.5 hover:border-ink-faint">{x}</button>)}
@@ -73,7 +73,7 @@ function NewMission({ onCreated, onCancel, initial = "" }) {
               <button key={k} onClick={() => set("goal_type", k)} className={cx("rounded-full px-4 py-1.5 text-sm font-medium", plan.goal_type === k ? "bg-white shadow-sm border border-line" : "text-ink-soft")}>{l}</button>
             ))}
           </div>
-          <p className="text-xs text-ink-faint mt-1.5">Un rendez-vous n'est pas un client : Kairo suit les deux séparément.</p>
+          <p className="text-xs text-ink-faint mt-1.5">Un rendez-vous n'est pas un client : Bingoo! suit les deux séparément.</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <label><span className="block text-[13px] font-semibold mb-1.5">Nombre</span><Input type="number" min={1} value={plan.goal_count} onChange={(e) => set("goal_count", Math.max(1, Number(e.target.value) || 1))} /></label>
@@ -106,8 +106,8 @@ function NewMission({ onCreated, onCancel, initial = "" }) {
           Pour viser <b>{n(plan.goal_count)} {goalLabel(plan.goal_type, plan.goal_count)}</b>, il faut en général contacter <b>{range(p.contacts)} entreprises</b>
           {plan.goal_type === "clients" && <> et obtenir <b>{range(p.rdv)} rendez-vous</b></>}.
         </p>
-        <p className="text-xs text-ink-soft mt-2">Repères utilisés : {p.taux.rdv[0]} à {p.taux.rdv[1]} % des entreprises contactées acceptent un rendez-vous{plan.goal_type === "clients" && <>, puis {p.taux.signature[0]} à {p.taux.signature[1]} % des rendez-vous deviennent clients</>}. Source : {p.source}. Ce sont des ordres de grandeur, pas une promesse : Kairo les remplace par tes vrais chiffres dès qu'il en a assez.</p>
-        <p className="text-sm mt-3"><b>{n(plan.available)}</b> entreprises correspondantes sont déjà dans tes prospects ; Kairo en cherchera d'autres si besoin.</p>
+        <p className="text-xs text-ink-soft mt-2">Repères utilisés : {p.taux.rdv[0]} à {p.taux.rdv[1]} % des entreprises contactées acceptent un rendez-vous{plan.goal_type === "clients" && <>, puis {p.taux.signature[0]} à {p.taux.signature[1]} % des rendez-vous deviennent clients</>}. Source : {p.source}. Ce sont des ordres de grandeur, pas une promesse : Bingoo! les remplace par tes vrais chiffres dès qu'il en a assez.</p>
+        <p className="text-sm mt-3"><b>{n(plan.available)}</b> entreprises correspondantes sont déjà dans tes prospects ; Bingoo! en cherchera d'autres si besoin.</p>
       </div>
 
       {plan.conseils?.length > 0 && <ul className="mt-5 space-y-1.5 text-sm">{plan.conseils.map((c) => <li key={c} className="flex gap-2"><span className="text-accent">→</span><span>{c}</span></li>)}</ul>}
@@ -196,7 +196,7 @@ function RadarOpps({ m }) {
                 <div className="flex gap-1.5 shrink-0">
                   {o.kind === "appel_offres"
                     ? <Button size="sm" onClick={() => { setOpen(open === o.id ? null : o.id); if (o.status !== "suivi") follow(o); }}>{open === o.id ? "Masquer" : "Préparer ma réponse"}</Button>
-                    : <Button quota="enquete" size="sm" variant="accent" loading={busy === o.id} onClick={() => add(o)}>{busy === o.id ? "Kairo prépare le contact…" : "Contacter cette entreprise"}</Button>}
+                    : <Button quota="enquete" size="sm" variant="accent" loading={busy === o.id} onClick={() => add(o)}>{busy === o.id ? "Bingoo! prépare le contact…" : "Contacter cette entreprise"}</Button>}
                   <Button size="sm" variant="ghost" onClick={() => drop(o)}>Écarter</Button>
                 </div>
               </div>
@@ -204,7 +204,7 @@ function RadarOpps({ m }) {
                 <div className="mt-3 rounded-xl bg-paper/70 border border-line p-3 text-sm">
                   <p className="font-medium">Pour candidater (points habituels, vérifie les exigences exactes dans l'avis) :</p>
                   <ol className="mt-1.5 space-y-1 list-decimal list-inside">{AO_STEPS.map((x) => <li key={x}>{x}</li>)}</ol>
-                  <p className="text-xs text-ink-faint mt-2">Un appel d'offres se gagne en répondant à l'avis : Kairo n'envoie pas d'e-mail de prospection à l'acheteur.</p>
+                  <p className="text-xs text-ink-faint mt-2">Un appel d'offres se gagne en répondant à l'avis : Bingoo! n'envoie pas d'e-mail de prospection à l'acheteur.</p>
                 </div>
               )}
             </li>
@@ -271,7 +271,7 @@ function Limits({ m, onChanged }) {
   );
 }
 
-// ---------------------------------------------------------------- Pilotage : Kairo fait avancer la mission tout seul
+// ---------------------------------------------------------------- Pilotage : Bingoo! fait avancer la mission tout seul
 function Pilot({ m, s, onChanged }) {
   const { ws } = useWs();
   const toast = useToast();
@@ -301,11 +301,11 @@ function Pilot({ m, s, onChanged }) {
         <div className="min-w-0 flex-1">
           <p className="font-semibold flex items-center gap-2">
             <span className={cx("w-2.5 h-2.5 rounded-full", !active ? "bg-ink/20" : s.a_valider >= 15 ? "bg-warn" : m.auto ? "bg-good pulse-dot" : "bg-ink/20")} />
-            {!active ? (STOP[m.stop_reason] ? `Mission en pause : ${STOP[m.stop_reason].toLowerCase()}` : "Mission en pause") : s.a_valider >= 15 ? "En attente de ta validation" : m.auto ? "Kairo travaille sur cette mission" : "Pilotage en pause"}
+            {!active ? (STOP[m.stop_reason] ? `Mission en pause : ${STOP[m.stop_reason].toLowerCase()}` : "Mission en pause") : s.a_valider >= 15 ? "En attente de ta validation" : m.auto ? "Bingoo! travaille sur cette mission" : "Pilotage en pause"}
           </p>
-          <p className="text-sm text-ink-soft mt-1 max-w-xl">{active && s.a_valider >= 15 ? `${n(s.a_valider)} e-mails sont prêts. Kairo reprend tout seul dès qu'ils sont validés et envoyés.` : !active ? (m.stop_reason === "echeance" ? "Prolonge la date de fin dans les limites ci-dessous, puis clique sur « Reprendre »." : m.stop_reason === "budget" ? "Augmente le budget dans les limites ci-dessous, puis clique sur « Reprendre »." : m.stop_reason === "objectif" ? "Bravo. Tu peux clôturer la mission ou relever l'objectif." : "Clique sur « Reprendre » en haut de la mission pour la relancer.") : m.auto && active
-            ? "Chaque jour ouvré, Kairo cherche des entreprises, trouve leurs coordonnées et rédige les e-mails. Rien ne part sans toi : tout arrive dans « À valider »."
-            : "Kairo ne prépare plus rien tout seul pour cette mission. Tu peux toujours la faire avancer à la main."}</p>
+          <p className="text-sm text-ink-soft mt-1 max-w-xl">{active && s.a_valider >= 15 ? `${n(s.a_valider)} e-mails sont prêts. Bingoo! reprend tout seul dès qu'ils sont validés et envoyés.` : !active ? (m.stop_reason === "echeance" ? "Prolonge la date de fin dans les limites ci-dessous, puis clique sur « Reprendre »." : m.stop_reason === "budget" ? "Augmente le budget dans les limites ci-dessous, puis clique sur « Reprendre »." : m.stop_reason === "objectif" ? "Bravo. Tu peux clôturer la mission ou relever l'objectif." : "Clique sur « Reprendre » en haut de la mission pour la relancer.") : m.auto && active
+            ? "Chaque jour ouvré, Bingoo! cherche des entreprises, trouve leurs coordonnées et rédige les e-mails. Rien ne part sans toi : tout arrive dans « À valider »."
+            : "Bingoo! ne prépare plus rien tout seul pour cette mission. Tu peux toujours la faire avancer à la main."}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {active && <Button size="sm" variant="ghost" onClick={toggle}>{m.auto ? "Mettre le pilotage en pause" : "Réactiver le pilotage"}</Button>}
@@ -317,7 +317,7 @@ function Pilot({ m, s, onChanged }) {
       {steps.length > 0 && (
         <ul className="mt-4 rounded-xl bg-paper/70 border border-line p-3 space-y-1.5 text-sm">
           {steps.map((t, i) => <li key={i} className="flex gap-2"><span className="text-good">✓</span><span>{t}</span></li>)}
-          {running && <li className="flex gap-2 text-ink-soft"><span className="animate-pulse">…</span><span>Kairo continue (une étape prend 20 à 60 secondes)</span></li>}
+          {running && <li className="flex gap-2 text-ink-soft"><span className="animate-pulse">…</span><span>Bingoo! continue (une étape prend 20 à 60 secondes)</span></li>}
         </ul>
       )}
       {!running && s.a_valider > 0 && <Link to="/valider" className="inline-block mt-4"><Button size="sm">Valider les {n(s.a_valider)} e-mail{s.a_valider > 1 ? "s" : ""} prêt{s.a_valider > 1 ? "s" : ""} →</Button></Link>}
@@ -424,7 +424,7 @@ function MissionView({ v, onChanged }) {
       {first && (
         <div className="rounded-2xl bg-ink text-white p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-white/60">Prochaine action proposée par Kairo</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-white/60">Prochaine action proposée par Bingoo!</p>
             <p className="font-serif text-2xl leading-snug mt-1">{first.title}</p>
             <p className="text-sm text-white/70 mt-1">{busy === first.key && prog ? prog : first.detail}</p>
           </div>
@@ -477,7 +477,6 @@ export default function Mission() {
   return (
     <div>
       <PageHead title="Mission" sub="Ton objectif commercial, suivi chaque jour : ce qui est fait, ce qui reste, et la prochaine action." >
-        {!estSimple(ws) && <Button onClick={() => go("/intelligence")}>Ce que disent tes prospects</Button>}
         {list?.length > 0 && !creating && <Button onClick={() => setCreating(true)}>Nouvelle mission</Button>}
       </PageHead>
       {list === null ? <div className="py-20 grid place-items-center"><Spinner /></div>

@@ -60,7 +60,7 @@ export default function Contacts({ p, onChange }) {
         <Button quota="contacts" loading={busy === "find"} onClick={find}>{list?.length ? "Chercher encore" : "Trouver les décideurs"}</Button>
       </div>
       {busy === "find" && <p className="text-xs text-ink-soft mt-2">Recherche sur le site, LinkedIn public, la presse et le registre… (30 à 60 secondes)</p>}
-      {noProvider && <p className="text-xs text-warn mt-2">Aucun fournisseur d'e-mails vérifiés n'est encore branché : Kairo ne garde que les e-mails publiés. Ajoute une clé Dropcontact, FullEnrich ou BetterContact pour trouver les autres.</p>}
+      {noProvider && <p className="text-xs text-warn mt-2">Aucun fournisseur d'e-mails vérifiés n'est encore branché : Bingoo! ne garde que les e-mails publiés. Ajoute une clé Dropcontact, FullEnrich ou BetterContact pour trouver les autres.</p>}
       <ul className="mt-3 space-y-2">
         {(list ?? []).map((c) => {
           const main = p.contact_name === c.name;

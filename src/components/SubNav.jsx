@@ -6,11 +6,11 @@ import { estSimple } from "../lib/lieu";
 /** Onglets qui regroupent plusieurs pages sous une seule entrée du menu. */
 export const SECTIONS = {
   reglages: [["/reglages", "Mon entreprise"], ["/connexions", "Connexions"], ["/equipe", "Équipe"], ["/abonnement", "Abonnement"]],
-  resultats: [["/resultats", "Prospection"], ["/distribution", "Trafic du site"], ["/conversion", "Conversion du site"]],
-  prospects: [["/prospects", "Liste"], ["/prospection", "Vue d'ensemble"]],
+  resultats: [["/resultats", "Prospection"]],
+  prospects: [["/prospects", "Liste"]],
 };
 
-const AVANCES = ["/distribution", "/conversion", "/prospection"];
+const AVANCES = [];
 
 export function SubNav({ section }) {
   const loc = useLocation();

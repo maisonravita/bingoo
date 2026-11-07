@@ -290,7 +290,7 @@ export default function Results() {
             <div><dt className="text-xs text-ink-soft">Coût de la prospection</dt><dd className="font-serif text-3xl tnum">{eur(Math.round(stats.cost))}</dd><dd className="text-xs text-ink-soft">IA ≈ {eur(Math.round(stats.ai))}{stats.sub ? ` + abonnement ${eur(Math.round(stats.sub))}` : ""}</dd></div>
             <div><dt className="text-xs text-ink-soft">Coût par client signé</dt><dd className="font-serif text-3xl tnum">{stats.cac == null ? "—" : eur(Math.round(stats.cac))}</dd><dd className="text-xs text-ink-soft">{stats.roi ? `${stats.roi.toFixed(1).replace(".", ",")} € signés pour 1 € dépensé` : "pas encore de client sur la période"}</dd></div>
           </dl>
-          <p className="text-sm mt-4 pt-4 border-t border-line">Temps passé dans Kairo : <b className="tnum">{stats.minutes >= 60 ? `${Math.floor(stats.minutes / 60)} h ${String(stats.minutes % 60).padStart(2, "0")}` : `${stats.minutes} min`}</b>{stats.won ? <span className="text-ink-soft"> · {Math.round(stats.minutes / stats.won)} min par client signé</span> : null}</p>
+          <p className="text-sm mt-4 pt-4 border-t border-line">Temps passé dans Bingoo! : <b className="tnum">{stats.minutes >= 60 ? `${Math.floor(stats.minutes / 60)} h ${String(stats.minutes % 60).padStart(2, "0")}` : `${stats.minutes} min`}</b>{stats.won ? <span className="text-ink-soft"> · {Math.round(stats.minutes / stats.won)} min par client signé</span> : null}</p>
           <p className="text-[11px] text-ink-faint mt-2">Coût IA estimé d'après le nombre d'actions réalisées.</p>
         </Card>
       </div>

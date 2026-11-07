@@ -751,7 +751,7 @@ function Visitors({ ws }) {
       <h2 className="flex items-center gap-2.5 font-bold text-[19px]"><span className="text-accent"><Ico name="eye" className="h-6 w-6" /></span>Entreprises qui visitent ton site</h2>
       <p className="text-[13px] text-ink-soft mt-1">Quand quelqu'un visite ton site depuis le réseau de son entreprise, le registre public des adresses Internet indique à quelle entreprise elle appartient. On ne garde que le nom de l'entreprise, jamais l'adresse ni la personne. Le télétravail et le mobile ne sont pas reconnaissables : compte environ 1 visite professionnelle sur 10.</p>
       {!d ? <div className="py-8 grid place-items-center"><Spinner /></div> : !d.total ? (
-        <div className="mt-4 rounded-xl bg-paper px-4 py-3 text-sm">Le suivi n'est pas encore installé sur ton site. <button onClick={() => nav("/distribution")} className="text-accent font-semibold hover:underline">Installer le code (2 minutes)</button></div>
+        <div className="mt-4 rounded-xl bg-paper px-4 py-3 text-sm">Le suivi n'est pas encore installé sur ton site.</div>
       ) : !d.rows.length ? <p className="text-sm text-ink-faint text-center py-8">{d.total} visites ces 30 derniers jours, aucune entreprise reconnue pour l'instant.</p> : (
         <ul className="mt-4 divide-y divide-line">
           {d.rows.slice(0, 60).map((x) => (

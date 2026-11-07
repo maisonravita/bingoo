@@ -1,4 +1,4 @@
-// Kairo Radar : opportunités commerciales réelles et sourcées.
+// Bingoo! Radar : opportunités commerciales réelles et sourcées.
 // - Appels d'offres : API officielle du BOAMP (DILA), filtrés par la zone puis par l'IA (pertinence pour l'offre).
 // - Croissance / recrutements : recherche web sourcée (une URL par signal) + signaux du registre déjà connus.
 // Rien n'est inventé : chaque opportunité a une source vérifiable.
@@ -367,9 +367,9 @@ async function ajouterSignal(prospectId: string, sg: { label: string }) {
 /** Radar d'abord : chaque jour, les entreprises au bon moment les mieux notées entrent d'elles-mêmes dans la prospection
  *  (fiche créée depuis le registre, fait du Radar joint). Gratuit : registre officiel, aucune IA. */
 const KINDS_AUTO = ["recrutement", "croissance", "dirigeant", "demenagement", "creation", "levee"];
-export async function radarAuto(ws: Workspace, max = 10) {
+export async function radarAuto(ws: Workspace, max = 20) {
   const { data } = await admin.from("radar_opps").select("id").eq("workspace_id", ws.id).eq("status", "nouveau")
-    .in("kind", KINDS_AUTO).gte("score", 55).order("score", { ascending: false }).limit(max);
+    .in("kind", KINDS_AUTO).gte("score", 50).order("score", { ascending: false }).limit(max);
   let n = 0;
   for (const o of data ?? []) { try { await radarToProspect(ws, o.id); n++; } catch (e) { console.error("radar auto", o.id, e); } }
   if (n) await log(ws.id, "radar", `${n} entreprise${n > 1 ? "s" : ""} au bon moment ajoutée${n > 1 ? "s" : ""} à la prospection`);

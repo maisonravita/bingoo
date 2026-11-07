@@ -1,4 +1,4 @@
-// Fonction « t » : mesure d'audience du site du client (Kairo Distribution / Conversion).
+// Fonction « t » : mesure d'audience du site du client (Bingoo! Distribution / Conversion).
 // Sans cookie ni donnée personnelle : un identifiant de session aléatoire, la page, la source de la visite.
 // Les contenus des formulaires ne sont jamais lus : seul le fait qu'un formulaire a été envoyé est compté.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";

@@ -173,14 +173,14 @@ function TeamAtWork({ rows }) {
     <section className="min-w-0 bg-white rounded-2xl border border-line p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3 mb-3">
         <h2 className="flex items-center gap-2.5 font-bold text-[15px] uppercase tracking-wide whitespace-nowrap"><Ico n="users" className="w-6 h-6 text-accent" />Ton équipe au travail</h2>
-        <Link to={estSimple(ws) ? "/" : "/salaries"} className="text-[13px] text-ink-soft inline-flex items-center gap-1.5 whitespace-nowrap"><span className={cx("w-2 h-2 rounded-full", active ? "bg-good" : "bg-ink-faint")} />{active} actif{active > 1 ? "s" : ""}</Link>
+        <Link to="/" className="text-[13px] text-ink-soft inline-flex items-center gap-1.5 whitespace-nowrap"><span className={cx("w-2 h-2 rounded-full", active ? "bg-good" : "bg-ink-faint")} />{active} actif{active > 1 ? "s" : ""}</Link>
       </div>
       <div className="grid grid-cols-3 gap-2.5">
         {ranked.slice(0, 3).map(({ a, last }) => {
           const working = !!last && Date.now() - new Date(last.created_at).getTime() < 4 * 60000;
           const todayDone = !!last && new Date(last.created_at) >= today;
           return (
-            <Link key={a.id} to={estSimple(ws) ? "/" : "/salaries"} title={last ? `Dernière action : ${last.summary}` : undefined} className="min-w-0 rounded-xl border border-line pt-2 pb-3 px-1.5 flex flex-col items-center text-center hover:border-ink/25 transition">
+            <Link key={a.id} to="/" title={last ? `Dernière action : ${last.summary}` : undefined} className="min-w-0 rounded-xl border border-line pt-2 pb-3 px-1.5 flex flex-col items-center text-center hover:border-ink/25 transition">
               <Avatar id={a.id} working={working} className="w-[92px] h-[118px]" />
               <p className="font-bold mt-1">{a.first}</p>
               <p className="text-[12.5px] text-ink-soft">{a.role}</p>
@@ -471,7 +471,7 @@ function Travail({ s }) {
     <section aria-label="Ce que Bingoo! a fait" className="mb-6 rounded-2xl border border-line bg-white p-4 sm:p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="font-semibold">Ce que Bingoo! a fait pour toi cette semaine</p>
-        <Link to={estSimple(ws) ? "/resultats" : "/salaries"} className="text-[13px] text-ink-soft underline hover:text-ink">Voir le détail</Link>
+        <Link to="/resultats" className="text-[13px] text-ink-soft underline hover:text-ink">Voir le détail</Link>
       </div>
       {lignes.length ? (
         <ul className="mt-2 grid sm:grid-cols-2 gap-x-6 gap-y-1 text-[14.5px]">

@@ -81,7 +81,7 @@ async function bcResult(id: string) {
 async function feSubmit(rows: { first: string; last: string; company: string; domain: string; linkedin: string; id: string }[]) {
   const r = await fetch("https://app.fullenrich.com/api/v2/contact/enrich/bulk?silentFail=true", {
     method: "POST", headers: { Authorization: `Bearer ${env("FULLENRICH_API_KEY")}`, "content-type": "application/json" },
-    body: JSON.stringify({ name: "Kairo", data: rows.map((x) => ({ first_name: x.first, last_name: x.last, ...(x.domain ? { domain: x.domain } : { company_name: x.company }), ...(x.linkedin ? { linkedin_url: x.linkedin } : {}), enrich_fields: ["contact.work_emails"], custom: { kairo_id: x.id } })) }),
+    body: JSON.stringify({ name: "Bingoo!", data: rows.map((x) => ({ first_name: x.first, last_name: x.last, ...(x.domain ? { domain: x.domain } : { company_name: x.company }), ...(x.linkedin ? { linkedin_url: x.linkedin } : {}), enrich_fields: ["contact.work_emails"], custom: { kairo_id: x.id } })) }),
   });
   const d = await r.json().catch(() => ({}));
   if (!r.ok || !d.enrichment_id) { console.error("fullenrich", r.status, JSON.stringify(d).slice(0, 300)); return null; }

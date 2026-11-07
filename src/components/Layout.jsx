@@ -194,7 +194,7 @@ export default function Layout({ children }) {
   // Le menu : un raccourci vers les bâtiments de la ville, avec les mêmes noms, dans l'ordre du travail.
   // Mode simple : Espion et Café LinkedIn n'apparaissent que si les outils avancés sont activés.
   const compte = { atelier: c.drafts, poste: c.replies, rdv: c.today, radar: c.radar, linkedin: c.li };
-  const also = { annuaire: ["/prospection"], observatoire: ["/distribution", "/conversion", "/pilotage"], mairie: ["/connexions", "/equipe", "/abonnement"] };
+  const also = { annuaire: ["/mission"], mairie: ["/connexions", "/equipe", "/abonnement"] };
   const visibles = LIEUX.filter((l) => !(l.avance && estSimple(ws)));
   const item = (l) => ({ to: l.to, label: l.nom, short: l.court, icon: l.icon, count: compte[l.art], hot: l.art === "atelier", also: also[l.art] });
   const QUARTIERS_MENU = [["Trouver", ["radar", "annuaire", "espion"]], ["Contacter", ["atelier", "poste", "linkedin"]], ["Conclure", ["rdv", "observatoire"]]];
@@ -234,7 +234,6 @@ export default function Layout({ children }) {
             ))}
             <div className="mt-4 pt-4 border-t border-line px-3 text-[14px] text-ink-soft flex flex-col gap-1.5">
               {list?.length > 1 ? <WsSwitch ws={ws} list={list} select={select} /> : <p className="font-semibold text-ink truncate">{ws.profile?.nom || ws.name || "Mon entreprise"}</p>}
-              {!estSimple(ws) && <NavLink className="hover:text-ink" to="/salaries" onClick={() => setMore(false)}>Besoin d'aide ? Ton équipe Bingoo!</NavLink>}
               <NavLink className="hover:text-ink" to="/aide" onClick={() => setMore(false)}>Aide</NavLink>
               <button className="text-left hover:text-ink" onClick={() => { setMore(false); setFb(true); }}>Donner mon avis</button>
               <button className="text-left font-semibold text-ink hover:text-accent-dark" onClick={() => supabase.auth.signOut()}>Se déconnecter</button>

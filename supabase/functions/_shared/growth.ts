@@ -140,7 +140,7 @@ export async function invite(ws: Workspace, userId: string, b: Record<string, un
     try {
       const { sendSystem } = await import("./mail.ts");
       const { data: u } = await admin.auth.admin.getUserById(userId);
-      await sendSystem({ to: email, replyTo: u?.user?.email ?? undefined, subject: `Invitation à rejoindre ${ws.profile?.nom || ws.name} sur Kairo`, text: `Bonjour,\n\n${u?.user?.email ?? "Ton équipe"} t'invite à rejoindre l'espace « ${ws.profile?.nom || ws.name} » sur Kairo, l'outil qui trouve et contacte les prospects.\n\nRejoindre l'équipe (lien valable 7 jours) :\n${link}\n\nÀ bientôt,\nKairo` });
+      await sendSystem({ to: email, replyTo: u?.user?.email ?? undefined, subject: `Invitation à rejoindre ${ws.profile?.nom || ws.name} sur Bingoo!`, text: `Bonjour,\n\n${u?.user?.email ?? "Ton équipe"} t'invite à rejoindre l'espace « ${ws.profile?.nom || ws.name} » sur Bingoo!, l'outil qui trouve et contacte les prospects.\n\nRejoindre l'équipe (lien valable 7 jours) :\n${link}\n\nÀ bientôt,\nBingoo!` });
       emailed = true;
     } catch (e) { console.error("invitation", e); }
   }
@@ -265,7 +265,7 @@ async function pushHubspot(token: string, p: Prospect & { crm_ids: Record<string
     } else await hub(token, `/crm/v3/objects/contacts/${ids.hs_contact}`, "PATCH", { properties: { hs_lead_status: props.hs_lead_status } });
   }
   if (["rdv", "client"].includes(p.status)) {
-    const props = { dealname: `${p.name} – Kairo`, pipeline: "default", dealstage: p.status === "client" ? "closedwon" : "appointmentscheduled", ...(p.deal_value ? { amount: String(p.deal_value) } : {}) };
+    const props = { dealname: `${p.name} – Bingoo!`, pipeline: "default", dealstage: p.status === "client" ? "closedwon" : "appointmentscheduled", ...(p.deal_value ? { amount: String(p.deal_value) } : {}) };
     if (!ids.hs_deal) {
       const assoc = [
         ...(ids.hs_contact ? [{ to: { id: ids.hs_contact }, types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 3 }] }] : []),
@@ -289,12 +289,12 @@ async function pushPipedrive(token: PdAuth, p: Prospect & { crm_ids: Record<stri
     if (r.data?.success) ids.pd_person = String(r.data.data.id);
   }
   if (["rdv", "client"].includes(p.status)) {
-    const body = { title: `${p.name} – Kairo`, org_id: ids.pd_org ? Number(ids.pd_org) : undefined, person_id: ids.pd_person ? Number(ids.pd_person) : undefined, value: p.deal_value ?? undefined, currency: "EUR", status: p.status === "client" ? "won" : "open" };
+    const body = { title: `${p.name} – Bingoo!`, org_id: ids.pd_org ? Number(ids.pd_org) : undefined, person_id: ids.pd_person ? Number(ids.pd_person) : undefined, value: p.deal_value ?? undefined, currency: "EUR", status: p.status === "client" ? "won" : "open" };
     if (!ids.pd_deal) { const r = await pipe(token, "/deals", "POST", body); if (r.data?.success) ids.pd_deal = String(r.data.data.id); }
     else await pipe(token, `/deals/${ids.pd_deal}`, "PUT", { status: body.status, value: body.value });
   }
   if (p.status === "repondu" && ids.pd_person && !ids.pd_note) {
-    const r = await pipe(token, "/notes", "POST", { content: `A répondu à la prospection Kairo (${p.activity}, ${p.city}).`, person_id: Number(ids.pd_person), org_id: ids.pd_org ? Number(ids.pd_org) : undefined });
+    const r = await pipe(token, "/notes", "POST", { content: `A répondu à la prospection Bingoo! (${p.activity}, ${p.city}).`, person_id: Number(ids.pd_person), org_id: ids.pd_org ? Number(ids.pd_org) : undefined });
     if (r.data?.success) ids.pd_note = String(r.data.data.id);
   }
   return ids;
@@ -349,7 +349,7 @@ export async function calendarFeed(token: string) {
   const f = (d: string) => new Date(d).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const c = (s: string) => String(s ?? "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
   const fold = (line: string) => line.length <= 74 ? line : line.match(/.{1,73}/g)!.join("\r\n ");
-  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Kairo//FR", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", `X-WR-CALNAME:${c(`Kairo · ${ws.profile?.nom || ws.name}`)}`, "X-WR-TIMEZONE:Europe/Paris", "REFRESH-INTERVAL;VALUE=DURATION:PT30M"];
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Bingoo//FR", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", `X-WR-CALNAME:${c(`Bingoo! · ${ws.profile?.nom || ws.name}`)}`, "X-WR-TIMEZONE:Europe/Paris", "REFRESH-INTERVAL;VALUE=DURATION:PT30M"];
   for (const m of ms ?? []) {
     lines.push("BEGIN:VEVENT", `UID:${m.id}@kairo`, `DTSTAMP:${f(m.updated_at)}`, `DTSTART:${f(m.starts_at)}`, `DTEND:${f(m.ends_at)}`,
       fold(`SUMMARY:${c(`RDV ${m.company} · ${m.contact_name}`)}`),
@@ -365,7 +365,7 @@ export async function calendarFeed(token: string) {
 // =====================================================================
 async function stripe(path: string, params?: Record<string, string>, method = "POST") {
   const key = env("STRIPE_SECRET_KEY");
-  if (!key) throw new HttpError(503, "Le paiement en ligne n'est pas encore activé : contacte le support Kairo.");
+  if (!key) throw new HttpError(503, "Le paiement en ligne n'est pas encore activé : contacte le support Bingoo!");
   const body = params ? new URLSearchParams(params).toString() : undefined;
   const r = await fetch(`https://api.stripe.com/v1${path}`, { method, headers: { Authorization: `Bearer ${key}`, "content-type": "application/x-www-form-urlencoded" }, body: method === "GET" ? undefined : body });
   const data = await r.json().catch(() => ({}));

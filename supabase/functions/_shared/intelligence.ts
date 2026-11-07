@@ -1,4 +1,4 @@
-// Kairo Intelligence : ce que la prospection apprend, transformé en actions (FAQ, corrections du site, segments à viser).
+// Bingoo! Intelligence : ce que la prospection apprend, transformé en actions (FAQ, corrections du site, segments à viser).
 import { HttpError } from "./http.ts";
 import { admin, askJson, log, type Workspace } from "./core.ts";
 
@@ -9,7 +9,7 @@ const POSITIVE = ["interesse", "question", "prix", "rappel"];
 async function siteText(url: string) {
   const get = async (u: string) => {
     try {
-      const r = await fetch(u, { headers: { "user-agent": "Mozilla/5.0 (compatible; Kairo/1.0)", "accept-language": "fr-FR,fr" }, signal: AbortSignal.timeout(12000) });
+      const r = await fetch(u, { headers: { "user-agent": "Mozilla/5.0 (compatible; Bingoo!/1.0)", "accept-language": "fr-FR,fr" }, signal: AbortSignal.timeout(12000) });
       return r.ok && (r.headers.get("content-type") ?? "").includes("html") ? (await r.text()).slice(0, 300000) : "";
     } catch { return ""; }
   };
@@ -123,7 +123,7 @@ Format :
   return { intelligence: out, at: now };
 }
 
-/** Ce que Kairo a appris, réinjecté dans la rédaction des e-mails et des réponses. */
+/** Ce que Bingoo! a appris, réinjecté dans la rédaction des e-mails et des réponses. */
 export function learned(ws: Workspace & { intelligence?: Intel & { real?: boolean } }) {
   const i = ws.intelligence;
   if (!i?.real) return "";

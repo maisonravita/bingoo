@@ -220,7 +220,7 @@ function Warmup() {
   useEffect(() => { fn("warmup", { workspace_id: ws.id }).then(setW).catch(() => {}); }, [ws.id]);
   if (!w) return null;
   return (
-    <Section title="Préchauffage" sub="Les messageries se méfient des adresses qui envoient beaucoup d'un coup. Kairo monte le volume progressivement pour que tes e-mails arrivent en boîte de réception, pas en spam."
+    <Section title="Préchauffage" sub="Les messageries se méfient des adresses qui envoient beaucoup d'un coup. Bingoo! monte le volume progressivement pour que tes e-mails arrivent en boîte de réception, pas en spam."
       status={<Badge tone={w.done ? "good" : "accent"}>{w.done ? "Terminé" : w.started ? `Semaine ${w.week} sur 4` : "Démarre au 1er envoi"}</Badge>}>
       <div className="grid grid-cols-4 gap-2 mb-3">
         {(w.ramp ?? []).map((n, i) => {
@@ -314,14 +314,14 @@ function Calendar() {
   const url = `${FN_URL}/calendar?t=${ws.calendar_token}`;
   const webcal = url.replace(/^https:/, "webcal:");
   return (
-    <Section title="Agenda" sub="Tes rendez-vous Kairo apparaissent automatiquement dans Google Agenda, Outlook ou l'agenda de ton téléphone.">
+    <Section title="Agenda" sub="Tes rendez-vous Bingoo! apparaissent automatiquement dans Google Agenda, Outlook ou l'agenda de ton téléphone.">
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <code className="flex-1 min-w-0 text-xs bg-paper rounded-lg px-3 py-2 break-all">{url}</code>
         <Copy value={url} label="Copier le lien" />
       </div>
       <div className="grid sm:grid-cols-3 gap-3 text-sm">
         <div className="rounded-xl border border-line p-3"><p className="font-semibold mb-1">Google Agenda</p><p className="text-ink-soft text-xs">Autres agendas → « + » → À partir de l'URL → colle le lien.</p><a className="text-xs font-semibold underline mt-2 inline-block" href={`https://calendar.google.com/calendar/r/settings/addbyurl?cid=${encodeURIComponent(webcal)}`} target="_blank" rel="noreferrer">Ouvrir Google Agenda</a></div>
-        <div className="rounded-xl border border-line p-3"><p className="font-semibold mb-1">Outlook</p><p className="text-ink-soft text-xs">Ajouter un calendrier → S'abonner à partir du web → colle le lien.</p><a className="text-xs font-semibold underline mt-2 inline-block" href={`https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(url)}&name=${encodeURIComponent("Kairo")}`} target="_blank" rel="noreferrer">Ouvrir Outlook</a></div>
+        <div className="rounded-xl border border-line p-3"><p className="font-semibold mb-1">Outlook</p><p className="text-ink-soft text-xs">Ajouter un calendrier → S'abonner à partir du web → colle le lien.</p><a className="text-xs font-semibold underline mt-2 inline-block" href={`https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(url)}&name=${encodeURIComponent("Bingoo!")}`} target="_blank" rel="noreferrer">Ouvrir Outlook</a></div>
         <div className="rounded-xl border border-line p-3"><p className="font-semibold mb-1">iPhone / Mac</p><p className="text-ink-soft text-xs">Ouvre ce lien sur l'appareil pour t'abonner.</p><a className="text-xs font-semibold underline mt-2 inline-block" href={webcal}>S'abonner</a></div>
       </div>
       <p className="text-xs text-ink-soft mt-3">Ce lien est privé : ne le partage qu'avec ton équipe. Google met à jour les agendas abonnés toutes les quelques heures.</p>
@@ -336,7 +336,7 @@ function Finders() {
   useEffect(() => { fn("i/contacts-providers", { workspace_id: ws.id }).then((r) => setP(r.providers)).catch(() => setP({})); }, [ws.id]);
   const n = p ? FINDERS.filter(([k]) => p[k]).length : 0;
   return (
-    <Section title="Recherche d'e-mails" sub="Quand un décideur n'a pas d'e-mail publié, Kairo interroge ces fournisseurs l'un après l'autre jusqu'à trouver une adresse vérifiée. Un crédit n'est compté que si un e-mail est trouvé."
+    <Section title="Recherche d'e-mails" sub="Quand un décideur n'a pas d'e-mail publié, Bingoo! interroge ces fournisseurs l'un après l'autre jusqu'à trouver une adresse vérifiée. Un crédit n'est compté que si un e-mail est trouvé."
       status={p && <Badge tone={n ? "good" : "warn"}>{n ? `${n} fournisseur${n > 1 ? "s" : ""} actif${n > 1 ? "s" : ""}` : "Aucun fournisseur actif"}</Badge>}>
       <ul className="space-y-2 text-sm">
         {FINDERS.map(([k, label, sub]) => (
@@ -346,7 +346,7 @@ function Finders() {
           </li>
         ))}
       </ul>
-      {p && !n && <p className="text-xs text-ink-soft mt-3">Sans fournisseur, Kairo ne garde que les e-mails publiés sur les sites et annuaires (jamais d'adresse devinée).</p>}
+      {p && !n && <p className="text-xs text-ink-soft mt-3">Sans fournisseur, Bingoo! ne garde que les e-mails publiés sur les sites et annuaires (jamais d'adresse devinée).</p>}
     </Section>
   );
 }
@@ -355,7 +355,7 @@ export default function Connexions() {
   return (
     <div>
       <SubNav section="reglages" />
-      <PageHead title="Connexions" sub="Ta boîte mail, ton CRM et ton agenda branchés sur Kairo." />
+      <PageHead title="Connexions" sub="Ta boîte mail, ton CRM et ton agenda branchés sur Bingoo!" />
       <div className="space-y-4">
         <Mailbox />
         <Warmup />

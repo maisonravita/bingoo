@@ -1,4 +1,4 @@
-// Fonction « i » : Kairo Intelligence (et bientôt Kairo Visibilité), séparée de « k » pour des mises à jour légères.
+// Fonction « i » : Bingoo! Intelligence (et bientôt Bingoo! Visibilité), séparée de « k » pour des mises à jour légères.
 import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
 import { admin, planOk, quota, requireMember, setAi } from "../_shared/core.ts";
 import { intelligence, segmentStats } from "../_shared/intelligence.ts";
@@ -23,7 +23,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { ws } = await requireMember(req, b.workspace_id);
     return { segments: await segmentStats(ws) };
   },
-  // ---- Kairo Mission
+  // ---- Bingoo! Mission
   async "mission-plan"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     await quota(ws.id, "mission", 20);
@@ -74,14 +74,14 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     await requireMember(req, b.workspace_id);
     return { providers: providers() };
   },
-  // ---- Fiche « Ce que Kairo peut répondre » : brouillon à partir du site et des vraies questions
+  // ---- Fiche « Ce que Bingoo! peut répondre » : brouillon à partir du site et des vraies questions
   async "knowledge-draft"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     await quota(ws.id, "intelligence", 6);
     const pr = ws.profile ?? {};
     const asked = [...(ws.intelligence?.faq ?? []).map((f: { question: string }) => f.question), ...(ws.intelligence?.objections ?? []).map((o: { objection: string }) => o.objection)].slice(0, 12);
     const { data: reps } = await admin.from("replies").select("body").eq("workspace_id", ws.id).in("class", ["question", "prix", "interesse", "objection"]).order("created_at", { ascending: false }).limit(20);
-    const r = await askJson<{ fiche: string }>(`Prépare la fiche « Ce que Kairo peut répondre » de cette entreprise : les informations factuelles qu'un commercial doit connaître pour répondre aux prospects.
+    const r = await askJson<{ fiche: string }>(`Prépare la fiche « Ce que Bingoo! peut répondre » de cette entreprise : les informations factuelles qu'un commercial doit connaître pour répondre aux prospects.
 Entreprise : ${pr.nom ?? ws.name} — ${pr.resume ?? ""} — Offre : ${pr.offre ?? ""} — Preuves : ${(pr.preuves ?? []).join(" ; ") || "aucune"}
 Catalogue : ${JSON.stringify(ws.catalog ?? []).slice(0, 1500)}
 Questions et objections déjà reçues : ${asked.join(" | ") || "aucune"} ${(reps ?? []).map((x) => String(x.body).slice(0, 200)).join(" | ")}

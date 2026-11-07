@@ -21,20 +21,13 @@ import Agenda from "./pages/Agenda";
 import Quotes from "./pages/Quotes";
 import Calls from "./pages/Calls";
 import Results from "./pages/Results";
-import Pilotage from "./pages/Pilotage";
-import Salaries from "./pages/Salaries";
-import Socials from "./pages/Socials";
 import Connexions from "./pages/Connexions";
 import Equipe from "./pages/Equipe";
 import Radar from "./pages/Radar";
 import Admin from "./pages/Admin";
 import Aide from "./pages/Aide";
-import Prospection from "./pages/Prospection";
-import Distribution from "./pages/Distribution";
-import Conversion from "./pages/Conversion";
 import Espion from "./pages/EspionHub";
 import Mission from "./pages/Mission";
-import Intelligence from "./pages/Intelligence";
 import Abonnement from "./pages/Abonnement";
 import Join, { JOIN_KEY } from "./pages/Join";
 import PublicBooking from "./pages/PublicBooking";
@@ -95,26 +88,16 @@ function Gate() {
         <Route path="/appels" element={<Calls />} />
         <Route path="/concurrents" element={<Navigate to="/espion" replace />} />
         <Route path="/espion" element={<Espion />} />
-        <Route path="/studio" element={<Navigate to="/distribution" replace />} />
         <Route path="/resultats" element={<Results />} />
-        <Route path="/pilotage" element={<Pilotage />} />
-        <Route path="/salaries" element={<Salaries />} />
-        <Route path="/agents" element={<Navigate to="/salaries" replace />} />
-        <Route path="/reseaux" element={<Socials />} />
-        <Route path="/campagnes" element={<Navigate to="/prospection" replace />} />
         <Route path="/connexions" element={<Connexions />} />
         <Route path="/equipe" element={<Equipe />} />
         <Route path="/mission" element={<Mission />} />
         <Route path="/radar" element={<Radar />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/aide" element={<Aide />} />
-        <Route path="/assistant" element={<Navigate to="/salaries" replace />} />
-        <Route path="/prospection" element={<Prospection />} />
-        <Route path="/distribution" element={<Distribution />} />
-        <Route path="/conversion" element={<Conversion />} />
-        <Route path="/intelligence" element={<Intelligence />} />
         <Route path="/abonnement" element={<Abonnement />} />
         <Route path="/extension" element={<ExtensionLink />} />
+        {/* Anciennes pages retirées (pilotage, salariés IA, réseaux, studio, campagnes, trafic, conversion, intelligence) : renvoyées vers l'accueil */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       </ErrorBoundary>

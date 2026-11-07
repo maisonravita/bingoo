@@ -195,17 +195,17 @@ export default function Settings() {
         <div className="mt-3"><Button variant="primary" loading={busy === "save"} onClick={() => save({ profile: { ...pr, style: (pr.style ?? []).map((x) => x.trim()).filter(Boolean).slice(0, 8) } }, "Style enregistré")}>Enregistrer</Button></div>
       </Section>
 
-      <Section id="avance" title="Outils avancés" sub="Par défaut, Bingoo! ne montre que ce qui mène à un rendez-vous. Active les outils avancés pour ouvrir aussi l'Espion (tes concurrents), le Café LinkedIn, les devis, le trafic et la conversion de ton site, les réseaux sociaux, le studio vidéo, l'équipe IA en conversation et l'analyse de ce que disent tes prospects.">
+      <Section id="avance" title="Outils avancés" sub="Par défaut, Bingoo! ne montre que ce qui mène à un rendez-vous. Active les outils avancés pour ouvrir aussi l'Espion (tes concurrents), le Café LinkedIn et les devis.">
         <label className="flex items-center gap-3 text-sm font-medium cursor-pointer">
           <input type="checkbox" checked={pr.avance === true} onChange={(e) => save({ profile: { ...pr, avance: e.target.checked } }, e.target.checked ? "Outils avancés affichés" : "Mode simple")} />
           Afficher les outils avancés
         </label>
       </Section>
 
-      <Section id="fiche" title="Ce que Kairo peut répondre" sub="Les infos que tes prospects demandent : intégrations, délais, prix publics, sécurité, garanties, références. Kairo s'en sert dans les e-mails, les réponses et les comptes rendus, et n'invente rien d'autre.">
+      <Section id="fiche" title="Ce que Bingoo! peut répondre" sub="Les infos que tes prospects demandent : intégrations, délais, prix publics, sécurité, garanties, références. Bingoo! s'en sert dans les e-mails, les réponses et les comptes rendus, et n'invente rien d'autre.">
         <Textarea rows={10} value={f.knowledge ?? ""} onChange={(e) => setF({ ...f, knowledge: e.target.value })}
           placeholder={"OFFRE ET PRIX\nAbonnement Pro : 109 € HT / mois, sans engagement\n\nMISE EN PLACE\nPremiers e-mails envoyés en 48 h\n\nINTÉGRATIONS\nHubSpot, Pipedrive, Google Agenda, Outlook\n\nSÉCURITÉ ET RGPD\nDonnées hébergées en Europe…"} />
-        {/\[à compléter/i.test(f.knowledge ?? "") && <p className="text-xs text-warn mt-2">Remplace les [à compléter] avant d'enregistrer : Kairo ne les utilisera pas tant qu'ils restent vides.</p>}
+        {/\[à compléter/i.test(f.knowledge ?? "") && <p className="text-xs text-warn mt-2">Remplace les [à compléter] avant d'enregistrer : Bingoo! ne les utilisera pas tant qu'ils restent vides.</p>}
         <div className="flex flex-wrap gap-2 mt-3">
           <Button variant="primary" loading={busy === "save"} onClick={() => save({ knowledge: (f.knowledge ?? "").slice(0, 8000) }, "Fiche enregistrée")}>Enregistrer</Button>
           <Button quota="intelligence" loading={busy === "draft"} onClick={async () => {
@@ -280,7 +280,7 @@ export default function Settings() {
         )}
       </Section>
 
-      <Section title="Suivi des réponses" sub="Les réponses de tes prospects arrivent dans Kairo (et une copie dans ta boîte), sont triées par l'IA, et arrêtent les relances. Ça utilise un sous-domaine dédié : ta messagerie actuelle n'est pas touchée.">
+      <Section title="Suivi des réponses" sub="Les réponses de tes prospects arrivent dans Bingoo! (et une copie dans ta boîte), sont triées par l'IA, et arrêtent les relances. Ça utilise un sous-domaine dédié : ta messagerie actuelle n'est pas touchée.">
         {ws.domain_status !== "verified" ? <p className="text-sm text-ink-soft">Vérifie d'abord ton domaine d'envoi.</p> : !ws.reply_domain ? (
           <Button variant="primary" loading={busy === "reply-domain"} onClick={() => replyRec("reply-domain")}>Activer le suivi des réponses</Button>
         ) : (

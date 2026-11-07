@@ -41,7 +41,7 @@ export default function Review() {
     const avant = orig.current[cur.id];
     const change = avant && avant.trim() !== (cur.body ?? "").trim();
     // Message relu et corrigé par le client : le doute sur les faits est levé (c'est lui qui valide)
-    await supabase.from("messages").update({ subject: cur.subject, body: cur.body, ...(change ? { check_note: "" } : {}) }).eq("id", cur.id);
+    await supabase.from("messages").update({ subject: cur.subject, body: cur.body, ...(change ? { check_note: "", edited: true } : {}) }).eq("id", cur.id);
     if (change && cur.check_note) setQueue((q) => [{ ...q[0], check_note: "" }, ...q.slice(1)]);
     if (avant && avant.trim() !== (cur.body ?? "").trim()) { orig.current[cur.id] = cur.body; fn("r/style-learn", { workspace_id: ws.id, before: avant, after: cur.body }).catch(() => {}); }
   };

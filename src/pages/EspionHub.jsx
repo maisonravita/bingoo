@@ -609,7 +609,6 @@ export default function EspionHub() {
             </div>
             <button disabled={!!busy || !q.trim()} className="rounded-xl px-5 py-3 font-semibold text-white disabled:opacity-40 transition hover:brightness-110" style={{ background: TEAL }}>Enquêter</button>
           </form>
-          {!estSimple(ws) && <Link to="/salaries" className="mt-3 inline-flex items-center gap-2 text-[13px] text-ink-soft hover:text-ink"><Ico n="chat" className="w-4 h-4" />« Qu'est-ce qui a changé chez mes concurrents cette semaine ? » Demande à l'équipe</Link>}
         </div>
         <Tonight rows={list} proposed={proposed} ws={ws} />
       </div>

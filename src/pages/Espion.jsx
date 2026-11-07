@@ -54,7 +54,7 @@ function Stats({ so, s }) {
         <div key={i} className="flex items-center gap-3 px-2">
           {it.net ? <span className="grid place-items-center h-9 w-9 rounded-xl text-white text-xs font-bold shrink-0" style={{ background: NETC[it.net] }}>{NET[it.net][0]}</span>
             : <span className="grid place-items-center h-9 w-9 rounded-xl bg-accent-soft text-accent shrink-0">{it.icon === "heart" ? "♥" : "▮▮"}</span>}
-          <div className="min-w-0"><p className="text-xl font-semibold leading-none truncate">{it.src === "mesuré" ? it.v : short(it.v)}</p><p className="text-[11px] text-ink-soft mt-1 leading-tight">{it.l}</p><p className="text-[10px] text-ink-faint">{it.src === "mesuré" ? "mesuré par Kairo" : "trouvé sur le web"}</p></div>
+          <div className="min-w-0"><p className="text-xl font-semibold leading-none truncate">{it.src === "mesuré" ? it.v : short(it.v)}</p><p className="text-[11px] text-ink-soft mt-1 leading-tight">{it.l}</p><p className="text-[10px] text-ink-faint">{it.src === "mesuré" ? "mesuré par Bingoo!" : "trouvé sur le web"}</p></div>
         </div>
       ))}
     </Card>
@@ -159,7 +159,7 @@ function Socials({ so, s }) {
               return (
                 <div key={i} className="rounded-xl border border-line p-4">
                   <div className="flex items-center gap-2"><Dot net={x.reseau} /><p className="font-semibold">{NET[x.reseau] ?? x.reseau}</p>{/^https?:/.test(x.url ?? "") && <a href={x.url} target="_blank" rel="noreferrer" className="ml-auto text-xs text-ink-faint underline">voir ↗</a>}</div>
-                  <p className="text-sm mt-2"><b>{measured ?? (found(x.abonnes) ? x.abonnes : "—")}</b> <span className="text-ink-soft">abonnés</span> <span className="text-[11px] text-ink-faint">({measured ? "mesuré par Kairo" : "trouvé sur le web"})</span></p>
+                  <p className="text-sm mt-2"><b>{measured ?? (found(x.abonnes) ? x.abonnes : "—")}</b> <span className="text-ink-soft">abonnés</span> <span className="text-[11px] text-ink-faint">({measured ? "mesuré par Bingoo!" : "trouvé sur le web"})</span></p>
                   {x.rythme && !/^non trouv/i.test(x.rythme) && <p className="text-sm text-ink-soft">Rythme : {clean(x.rythme)}</p>}
                   {x.sujets && !/^non trouv/i.test(x.sujets) && <p className="text-sm mt-1">{clean(x.sujets)}</p>}
                 </div>
@@ -292,7 +292,7 @@ export function CompetitorDesk({ embedded = false, focusId = null, onChanged }) 
       )}
 
       {!rows ? <Spinner /> : !c ? (
-        <Card className="p-10 text-center"><p className="font-serif text-2xl">Quel concurrent veux-tu analyser ?</p><p className="text-ink-soft mt-2 text-sm">Écris son nom ou colle son site : Kairo lit son site, ses réseaux, ses publicités et son positionnement.</p></Card>
+        <Card className="p-10 text-center"><p className="font-serif text-2xl">Quel concurrent veux-tu analyser ?</p><p className="text-ink-soft mt-2 text-sm">Écris son nom ou colle son site : Bingoo! lit son site, ses réseaux, ses publicités et son positionnement.</p></Card>
       ) : (
         <div className="grid lg:grid-cols-[1fr_340px] gap-5 items-start">
           <div className="space-y-5 min-w-0">

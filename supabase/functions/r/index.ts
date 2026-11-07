@@ -1,6 +1,6 @@
-// Fonction « r » : Kairo Radar, Espion et Studio (modules de croissance), séparée pour des mises à jour légères.
+// Fonction « r » : Bingoo! Radar, Espion et Studio (modules de croissance), séparée pour des mises à jour légères.
 import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
-import { admin, log, quota, requireMember, setAi } from "../_shared/core.ts";
+import { admin, log, quota, requireMember, setAi, type Prospect } from "../_shared/core.ts";
 import { radarCron, radarGetConfig, radarSetConfig, radarToProspect, scanRadar } from "../_shared/radar.ts";
 import { resolveCompetitor, spyCron, spyDigest, spyDiscover, spyFollow, spyNeeds, spySocial } from "../_shared/spy.ts";
 import { studioGenerate } from "../_shared/studio.ts";
@@ -546,9 +546,11 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
       if (b.sans_site === true) q = q.or("website.is.null,website.eq.");
       return q;
     };
-    const { data: d1 } = await base().not("contact_name", "is", null).neq("contact_name", "").order("free_tried_at", { ascending: true, nullsFirst: true }).order("score", { ascending: false, nullsFirst: false }).limit(n);
-    let data = d1 ?? [];
-    if (data.length < n) { const { data: d2 } = await base().or("contact_name.is.null,contact_name.eq.").order("free_tried_at", { ascending: true, nullsFirst: true }).order("score", { ascending: false, nullsFirst: false }).limit(n - data.length); data = data.concat(d2 ?? []); }
+    // Les fiches qui ont un fait récent passent d'abord (sans e-mail, elles ne peuvent pas devenir des opportunités), puis un décideur nommé
+    const { declencheur } = await import("../_shared/agents.ts");
+    const { data: pool } = await base().order("free_tried_at", { ascending: true, nullsFirst: true }).order("score", { ascending: false, nullsFirst: false }).limit(Math.max(n * 6, 120));
+    const rang = (p: any) => (declencheur(p) ? 2 : 0) + (p.contact_name ? 1 : 0);
+    const data = (pool ?? []).sort((a: any, b: any) => rang(b) - rang(a)).slice(0, n);
     const rows = data, out: { nom: string; site: string; nouveau_site: boolean; email: string }[] = [];
     const t0 = Date.now();
     for (let i = 0; i < rows.length && Date.now() - t0 < 90_000; i += 3) {
@@ -559,6 +561,33 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
       out.push(...part);
     }
     return { essais: out.length, sites_trouves: out.filter((x) => x.nouveau_site).length, emails: out.filter((x) => x.email).length, detail: out };
+  },
+  // Réécrit les opportunités en attente avec les règles actuelles (fait daté, pont vers l'offre, contrôle des faits).
+  // Ce qui reste douteux est retiré de l'Atelier (la fiche attend un fait plus solide). Rien n'est envoyé.
+  async "reecrire-brouillons"(req, b) {
+    await cron(req);
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
+    if (!ws) throw new HttpError(404, "Espace introuvable");
+    setAi({ ws: ws.id, live: true });
+    const { rediger } = await import("../_shared/agents.ts");
+    const { data: ms } = await admin.from("messages").select("id, prospect_id, prospects(*)").eq("workspace_id", ws.id).eq("status", "brouillon").eq("step", 0)
+      .lt("created_at", String(b.avant ?? new Date().toISOString())).order("created_at").limit(Math.min(Number(b.n ?? 10), 15));
+    const out: Record<string, string> = {};
+    const t0 = Date.now();
+    for (const m of ms ?? []) {
+      if (Date.now() - t0 > 110_000) break;
+      const p = (m as { prospects: Prospect }).prospects;
+      try {
+        const d = await rediger(ws, p);
+        await admin.from("messages").update({ subject: d.subject, body: d.body, check_note: "", created_at: new Date().toISOString() }).eq("id", m.id);
+        out[p.name] = "réécrit";
+      } catch (e) {
+        await admin.from("messages").update({ status: "ignore", error: "Retiré : pas assez de faits sûrs pour un message dont on est certain" }).eq("id", m.id);
+        await admin.from("prospects").update({ status: "pret" }).eq("id", m.prospect_id).eq("status", "a_valider");
+        out[p.name] = `retiré (${(e as Error).message.slice(0, 60)})`;
+      }
+    }
+    return { traites: Object.keys(out).length, detail: out };
   },
   async "draft-test"(req, b) {
     // Contrôle qualité : rédige le premier e-mail de quelques prospects sans rien enregistrer ni envoyer
