@@ -8,7 +8,8 @@ import { useDansLieu } from "../lib/lieu";
 function QuotaChip({ kind }) {
   const ws = useWs()?.ws;
   const q = useQuota(ws, kind);
-  if (!q) return null;
+  // Affiché seulement quand il en reste peu : le reste du temps, ce n'est qu'un détail technique
+  if (!q || q.left > Math.max(2, Math.floor(q.max * 0.2))) return null;
   return <span title={`${q.left} ${q.label} restantes aujourd'hui sur ${q.max} (le compteur repart à zéro chaque nuit)`} className={cx("text-[11px] font-medium tabular-nums rounded-full px-1.5 py-px", q.left === 0 ? "bg-bad-soft text-bad" : "bg-black/10 opacity-80")}>{q.left}/{q.max}</span>;
 }
 

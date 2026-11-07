@@ -164,7 +164,17 @@ function Rapporte({ d, ws }) {
         <p className="text-sm text-ink-soft mt-2">Quand tu signes avec une entreprise contactée par Bingoo!, passe-la en « Client » et indique le montant : elle apparaît ici avec tout son parcours (signal, premier message, rendez-vous, signature).</p>
       ) : (
         <>
-          <div className="mt-4 overflow-x-auto">
+          {/* Téléphone : une ligne lisible par client ; ordinateur : le tableau */}
+          <ul className="mt-4 divide-y divide-line sm:hidden">
+            {[...gagnes].sort((a, b) => Number(b.deal_value || 0) - Number(a.deal_value || 0)).map((p) => (
+              <li key={p.id} className="py-2.5 text-sm">
+                <p className="flex justify-between gap-3"><b>{p.name}</b><span className="tnum font-semibold">{p.deal_value ? `${eur(p.deal_value)}/mois` : <span className="text-ink-faint font-normal">à indiquer</span>}</span></p>
+                <p className="text-ink-soft">{signal(p) || cible(p.target)}</p>
+                <p className="text-[12.5px] text-ink-faint tnum">1er message {jour(premier[p.id])} · rendez-vous {jour(rdv[p.id])} · signé {jour(p.won_at)}</p>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-4 overflow-x-auto hidden sm:block">
             <table className="w-full text-sm">
               <thead><tr className="text-left text-[12px] text-ink-soft">{["Client", "Ce qui a déclenché", "1er message", "Rendez-vous", "Signé", "€ / mois"].map((h) => <th key={h} className="py-1.5 pr-3 font-medium whitespace-nowrap">{h}</th>)}</tr></thead>
               <tbody className="divide-y divide-line">
@@ -264,18 +274,7 @@ export default function Results() {
 
       <Rapporte d={d} ws={ws} />
       <Comparaison ws={ws} />
-      <ContactBase p={d.prospects} />
-      <PilotageResultats />
       <CeQuiMarche />
-
-      <Week d={d} />
-
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
-        {[["E-mails envoyés", stats.sent], ["Contacts joints", stats.contacted], ["Réponses", stats.replies], ["RDV pris", stats.meetings], ["RDV tenus", stats.held], ["RDV qualifiés", stats.qualified], ["Clients gagnés", stats.won]].map(([l, v]) => (
-          <Card key={l} className="p-4"><p className="text-[12px] text-ink-soft leading-tight">{l}</p><p className="font-serif text-3xl mt-1 tnum">{v}</p></Card>
-        ))}
-      </div>
-
       <div className="grid lg:grid-cols-[1.4fr_1fr] gap-4 mb-8">
         <Card className="p-5 sm:p-6 min-w-0">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-soft mb-4">Entonnoir sur {period} jours</h2>
@@ -295,6 +294,31 @@ export default function Results() {
         </Card>
       </div>
 
+      {stats.best && (
+        <Card className="p-5 sm:p-6 mb-8 !bg-ink text-white !border-ink">
+          <p className="text-sm text-white/60">Recommandation</p>
+          <p className="font-serif text-3xl mt-1">Concentre-toi sur « {stats.best.t.label} ».</p>
+          <p className="text-white/75 mt-2 text-sm">{pct(stats.best.replied, stats.best.contacted)} de réponses, {pct(stats.best.qualified, stats.best.contacted)} de RDV qualifiés{stats.best.mrr ? `, ${eur(stats.best.mrr)}/mois signés` : ""} sur {stats.best.contacted} contactés.{stats.worst && stats.worst.t.id !== stats.best.t.id ? ` À l'inverse, « ${stats.worst.t.label} » rapporte le moins pour le même effort.` : ""}</p>
+          <p className="text-white/50 text-xs mt-2">Observation sur tes données, pas une certitude : une vente après un message n'est pas forcément causée par ce message.</p>
+          {ws.targets[0]?.id !== stats.best.t.id && <Button className="mt-4" variant="accent" onClick={() => prioritize(stats.best.t.id)}>Mettre cette cible en priorité</Button>}
+        </Card>
+      )}
+
+      <details className="group mb-8 rounded-2xl border border-line bg-white">
+        <summary className="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-3">
+          <span className="font-semibold">Plus de détails</span>
+          <span className="text-sm text-ink-soft"><span className="hidden sm:inline group-open:hidden">Tous les chiffres, tes contacts, ta semaine, par cible, tes clients</span><span className="hidden group-open:inline">Masquer</span></span>
+        </summary>
+        <div className="px-4 sm:px-5 pb-5 pt-1">
+      <Week d={d} />
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
+        {[["E-mails envoyés", stats.sent], ["Contacts joints", stats.contacted], ["Réponses", stats.replies], ["RDV pris", stats.meetings], ["RDV tenus", stats.held], ["RDV qualifiés", stats.qualified], ["Clients gagnés", stats.won]].map(([l, v]) => (
+          <Card key={l} className="p-4"><p className="text-[12px] text-ink-soft leading-tight">{l}</p><p className="font-serif text-3xl mt-1 tnum">{v}</p></Card>
+        ))}
+      </div>
+
+      <ContactBase p={d.prospects} />
+      <PilotageResultats />
       {stats.owners.length > 1 && (
         <>
           <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-soft mb-3">Par commercial</h2>
@@ -307,16 +331,6 @@ export default function Results() {
             </table>
           </div>
         </>
-      )}
-
-      {stats.best && (
-        <Card className="p-5 sm:p-6 mb-8 !bg-ink text-white !border-ink">
-          <p className="text-sm text-white/60">Recommandation</p>
-          <p className="font-serif text-3xl mt-1">Concentre-toi sur « {stats.best.t.label} ».</p>
-          <p className="text-white/75 mt-2 text-sm">{pct(stats.best.replied, stats.best.contacted)} de réponses, {pct(stats.best.qualified, stats.best.contacted)} de RDV qualifiés{stats.best.mrr ? `, ${eur(stats.best.mrr)}/mois signés` : ""} sur {stats.best.contacted} contactés.{stats.worst && stats.worst.t.id !== stats.best.t.id ? ` À l'inverse, « ${stats.worst.t.label} » rapporte le moins pour le même effort.` : ""}</p>
-          <p className="text-white/50 text-xs mt-2">Observation sur tes données, pas une certitude : une vente après un message n'est pas forcément causée par ce message.</p>
-          {ws.targets[0]?.id !== stats.best.t.id && <Button className="mt-4" variant="accent" onClick={() => prioritize(stats.best.t.id)}>Mettre cette cible en priorité</Button>}
-        </Card>
       )}
 
       <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-soft mb-3">Par cible (depuis le début)</h2>
@@ -350,6 +364,8 @@ export default function Results() {
           ))}
         </div>
       )}
+        </div>
+      </details>
     </div>
   );
 }

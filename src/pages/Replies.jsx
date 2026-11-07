@@ -29,7 +29,7 @@ function Paste({ onDone }) {
     try { const r = await fn("reply-paste", { workspace_id: ws.id, prospect_id: p?.id, text }); toast(`Classée : ${r.label}`, "good"); setOpen(false); setText(""); setP(null); setQ(""); onDone(); }
     catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
   };
-  if (!open) return <Button onClick={() => setOpen(true)}>Coller une réponse reçue</Button>;
+  if (!open) return <button onClick={() => setOpen(true)} className="text-[14px] text-ink-soft underline hover:text-ink">Une réponse est arrivée ailleurs ? Colle-la ici</button>;
   return (
     <Card className="p-5 w-full space-y-3 rise">
       <p className="font-semibold">Une réponse reçue dans ta messagerie ? Colle-la ici.</p>
@@ -93,7 +93,7 @@ export function ReplyCard({ r, onChange }) {
         </div>
       )}
       {!r.handled && (
-        <div className="flex flex-wrap gap-2 mt-4 [&>*]:flex-1 sm:[&>*]:flex-none [&_button]:w-full sm:[&_button]:w-auto">
+        <div className="flex flex-wrap gap-2 mt-4 [&>*:first-child]:basis-full sm:[&>*:first-child]:basis-auto [&>button:first-child]:w-full sm:[&>button:first-child]:w-auto">
           {r.reply_body && (r.from_email === "linkedin"
             ? <Button variant="li" onClick={async () => { try { await navigator.clipboard.writeText(body); toast("Réponse copiée : colle-la dans la conversation LinkedIn", "good"); } catch { toast("Copie impossible, sélectionne le texte", "bad"); } }}>Copier pour LinkedIn</Button>
             : <Button variant="accent" loading={busy === "send"} onClick={send}>Envoyer la réponse</Button>)}
@@ -188,16 +188,16 @@ export default function Replies() {
 
   return (
     <div>
-      <PageHead title="Réponses" resume sub={tracked ? "Triées, avec une réponse déjà proposée." : "Active le suivi des réponses dans Réglages pour qu'elles arrivent ici."}>
-        <Paste onDone={load} />
-      </PageHead>
+      <PageHead title="Réponses" resume sub={tracked ? "Triées, avec une réponse déjà proposée." : "Active le suivi des réponses dans Réglages pour qu'elles arrivent ici."} />
       <Guide id="reponses" titre="Ici : les prospects qui t'ont répondu, déjà triés." etapes={["Commence par ceux marqués « Intéressé » : une réponse est déjà prête.", "Relis-la, corrige si besoin, puis clique « Envoyer la réponse ».", "Il propose un rendez-vous ? Il arrive tout seul dans « Rendez-vous »."]} />
-      <div className="flex flex-wrap gap-2 mb-5">
-        {[["todo", "À traiter"], ["all", "Toutes les réponses"], ["sent", "Messages envoyés"]].map(([k, l]) => <button key={k} onClick={() => setTab(k)} className={cx("rounded-full px-3.5 py-1.5 text-sm font-medium border", tab === k ? "bg-ink text-white border-ink" : "bg-white border-line")}>{l}</button>)}
+      <div className="flex gap-2 mb-5 overflow-x-auto -mx-1 px-1">
+        {[["todo", "À traiter"], ["all", "Toutes"], ["sent", "Envoyés"]].map(([k, l]) => <button key={k} onClick={() => setTab(k)} className={cx("shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium border whitespace-nowrap", tab === k ? "bg-ink text-white border-ink" : "bg-white border-line")}>{l}</button>)}
       </div>
       {tab === "sent" ? <Envoyes /> : !rows ? <Spinner /> : rows.length === 0 ? <Empty title={tab === "todo" ? "Rien à traiter." : "Aucune réponse pour l'instant."}>Les réponses de tes prospects apparaîtront ici.</Empty> : (
         <div className="grid gap-4 max-w-3xl">{[...rows].sort((a, b) => (b.id === focus) - (a.id === focus)).map((r) => <div key={r.id} className={r.id === focus ? "rounded-3xl ring-2 ring-accent ring-offset-2" : ""}><ReplyCard r={r} onChange={load} /></div>)}</div>
       )}
+      {/* Une réponse arrivée ailleurs (autre boîte, téléphone) : on peut la coller ici, en bas de page */}
+      {tab !== "sent" && <div className="mt-6 max-w-3xl"><Paste onDone={load} /></div>}
     </div>
   );
 }

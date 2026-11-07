@@ -84,17 +84,19 @@ function Meeting({ m, onChange }) {
       <div className="flex flex-wrap items-start gap-4">
         <div className="w-16 shrink-0 text-center">
           <p className="font-serif text-3xl leading-none tnum">{fmtHour(m.starts_at)}</p>
-          <p className="text-xs text-ink-soft mt-1">{Math.round((new Date(m.ends_at) - new Date(m.starts_at)) / 60000)} min</p>
+          {m.ends_at && <p className="text-xs text-ink-soft mt-1">{Math.round((new Date(m.ends_at) - new Date(m.starts_at)) / 60000)} min</p>}
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-lg">{m.company}</p>
-          <p className="text-sm text-ink-soft">{m.contact_name} · <a className="underline" href={`mailto:${m.contact_email}`}>{m.contact_email}</a>{m.contact_phone && <> · <a className="underline" href={`tel:${m.contact_phone}`}>{m.contact_phone}</a></>}</p>
+          {m.contact_name && <p className="text-sm text-ink-soft">{m.contact_name}</p>}
+          {m.contact_email && <a className="block truncate text-sm text-ink-soft underline" href={`mailto:${m.contact_email}`}>{m.contact_email}</a>}
+          {m.contact_phone && <a className="block text-sm text-ink-soft underline" href={`tel:${m.contact_phone}`}>{m.contact_phone}</a>}
           {m.notes && <p className="text-sm mt-1">« {m.notes} »</p>}
         </div>
         <Badge tone={m.status === "qualifie" ? "good" : m.status === "annule" || m.status === "absent" ? "bad" : m.status === "tenu" ? "accent" : "muted"}>{MEETING[m.status]}</Badge>
       </div>
       <div className="flex flex-wrap gap-2 mt-4">
-        {m.brief ? <Button size="sm" onClick={() => setOpen((x) => !x)}>{open ? "Masquer la fiche" : "Fiche de préparation"}</Button> : <Button quota="brief" size="sm" variant="primary" loading={busy} onClick={brief}>Préparer le RDV avec l'IA</Button>}
+        {m.brief ? <Button size="sm" onClick={() => setOpen((x) => !x)}>{open ? "Masquer la fiche" : "Fiche de préparation"}</Button> : <Button quota="brief" size="sm" variant="primary" loading={busy} onClick={brief}>Préparer le rendez-vous</Button>}
         {past && m.status === "confirme" && <>
           <Button size="sm" variant="ghost" onClick={() => setStatus("tenu")}>Tenu</Button>
           <Button size="sm" variant="ghost" onClick={() => setStatus("qualifie")}>Qualifié (besoin réel)</Button>
@@ -156,14 +158,16 @@ export default function Agenda() {
   return (
     <div>
       <PageHead title="Rendez-vous" sub="Tes prospects réservent eux-mêmes, et chaque rendez-vous reçoit une fiche de préparation.">
-        <Button onClick={async () => { try { await navigator.clipboard.writeText(link); toast("Lien de réservation copié"); } catch { toast(link); } }}>Copier mon lien de réservation</Button>
-        <Button variant="primary" onClick={() => setAdd((x) => !x)}>Ajouter un RDV</Button>
+        <Button onClick={() => setAdd((x) => !x)}>Ajouter un rendez-vous</Button>
       </PageHead>
       <Guide id="rdv" titre="Ici : tes rendez-vous avec des prospects." etapes={["Ils arrivent tout seuls quand un prospect réserve un créneau depuis tes e-mails.", "Avant chaque rendez-vous, ouvre-le : Bingoo! a préparé une fiche (ce qu'on sait, les questions à poser).", "Après le rendez-vous, note comment ça s'est passé : Bingoo! prépare le suivi."]} />
       {add && <div className="max-w-xl mb-6"><AddMeeting onDone={() => { setAdd(false); load(); }} /></div>}
-      <div className="flex gap-2 mb-5">
-        {[[false, "À venir"], [true, "Passés"]].map(([k, l]) => <button key={l} onClick={() => setPast(k)} className={cx("rounded-full px-3.5 py-1.5 text-sm font-medium border", past === k ? "bg-ink text-white border-ink" : "bg-white border-line")}>{l}</button>)}
-        <a href={link} target="_blank" rel="noreferrer" className="ml-auto text-sm text-ink-soft underline self-center">Voir ma page de réservation ↗</a>
+      <div className="flex flex-wrap items-center gap-2 mb-5">
+        {[[false, "À venir"], [true, "Passés"]].map(([k, l]) => <button key={l} onClick={() => setPast(k)} className={cx("shrink-0 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium border", past === k ? "bg-ink text-white border-ink" : "bg-white border-line")}>{l}</button>)}
+        <span className="ml-auto flex items-center gap-3 text-sm text-ink-soft">
+          <button className="underline hover:text-ink" onClick={async () => { try { await navigator.clipboard.writeText(link); toast("Lien de réservation copié"); } catch { toast(link); } }}>Copier mon lien</button>
+          <a href={link} target="_blank" rel="noreferrer" className="underline hover:text-ink">Voir ma page</a>
+        </span>
       </div>
       {!rows ? <Spinner /> : rows.length === 0 ? <Empty title={past ? "Aucun rendez-vous passé." : "Aucun rendez-vous à venir."}>Le lien de réservation est ajouté automatiquement à tes e-mails de prospection.</Empty> : (
         <div className="space-y-8 max-w-3xl">
