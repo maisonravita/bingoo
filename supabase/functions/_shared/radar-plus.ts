@@ -109,7 +109,8 @@ export async function lbbCompanies(ws: Workspace & { radar_cfg?: Record<string, 
   const out: Opp[] = [];
   for (const d of zone.slice(0, 8)) {
     const u = new URL("https://api.francetravail.io/partenaire/labonneboite/v2/recherche");
-    for (const n of nafs) u.searchParams.append("naf[]", n.replace(/\./g, "").length === 5 ? n : n);
+    // Codes NAF sans point (« 70.22Z » → « 7022Z »), paramètre répété « naf » (doc La Bonne Boîte v2)
+    for (const n of nafs) u.searchParams.append("naf", String(n).replace(/\./g, "").toUpperCase());
     u.searchParams.set("department_number", d); u.searchParams.set("page_size", "100");
     const r = await fetch(u, { headers: { authorization: `Bearer ${token}`, accept: "application/json" }, signal: AbortSignal.timeout(20000) });
     if (r.status === 204) continue;
@@ -118,14 +119,14 @@ export async function lbbCompanies(ws: Workspace & { radar_cfg?: Record<string, 
     // deno-lint-ignore no-explicit-any
     for (const it of (j.items ?? j.results ?? []) as any[]) {
       const pot = Number(it.hiring_potential ?? it.score ?? 0);
-      if (!(it.is_high_potential || pot >= 60)) continue;
+      if (!it.is_high_potential) continue; // seulement les entreprises que France Travail classe « à fort potentiel d'embauche »
       const siret = String(it.siret ?? "").replace(/\D/g, "");
       const name = cap(String(it.name ?? it.company_name ?? it.raison_sociale ?? "").trim());
       if (!name || siret.length < 9) continue;
       const loc = it.location ?? {};
       out.push({
         key: `lbb:${siret}`, kind: "recrutement", title: name, company: name,
-        summary: `Fort potentiel d'embauche dans les mois à venir (${pot ? `${Math.round(pot)}/100` : "élevé"}, données France Travail)${it.headcount ? ` · effectif : ${it.headcount}` : ""}`,
+        summary: `Classée « fort potentiel d'embauche » pour les 6 prochains mois par France Travail${it.headcount_max ? ` (effectif : ${it.headcount_min ?? "?"} à ${it.headcount_max})` : ""}`,
         why: "France Travail prévoit qu'elle va recruter : elle grandit, c'est le moment de proposer ton offre, avant même qu'elle publie une annonce.",
         city: cap(String(loc.city ?? it.city ?? loc.label ?? "")), dept: d, url: `https://labonneboite.francetravail.fr/`, source: "La Bonne Boîte (France Travail)",
         published: new Date().toISOString().slice(0, 10), siren: siret.slice(0, 9), raw: { lbb: true, siret, potentiel: pot, naf: it.naf ?? "", tranche: "" },
