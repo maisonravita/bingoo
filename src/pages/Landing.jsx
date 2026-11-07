@@ -16,6 +16,7 @@ async function call(action, body) {
   return data;
 }
 const D = { fontFamily: "var(--font-titre)", fontWeight: 400, letterSpacing: "-.02em" };
+const JK = { fontFamily: "'Plus Jakarta Sans', Geist, system-ui, sans-serif" };
 const SERIF = { fontFamily: "var(--font-titre)", fontWeight: 400, letterSpacing: "-.02em" };
 const euro = (n) => n >= 1e6 ? `${(n / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M€` : n >= 1e3 ? `${Math.round(n / 1e3).toLocaleString("fr-FR")} k€` : `${Math.round(n)} €`;
 const scrollTo = (id) => (e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }); };
@@ -27,9 +28,8 @@ const Chev = () => <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stro
 const MENU = [
   ["Produit", [["Le bon moment", "Qui a besoin de toi, maintenant", "#produit"], ["Demandes publiques", "Ceux qui demandent déjà ta solution", "#demandes"], ["Décideurs et e-mails", "E-mail vérifié, téléphone, LinkedIn", "#contacts"], ["Tous les canaux", "E-mail, LinkedIn, appel : tu valides", "#equipe"], ["Plan d'action", "Ton objectif, chiffré honnêtement", "#plan"], ["Espion", "Ce que font tes concurrents", "#espion"], ["Essai en direct", "Teste sur ton marché", "#essai"]]],
   ["Solutions", [["Fondateurs de SaaS", "Prends les clients de tes concurrents", "#/metier/logiciels"], ["Startups B2B", "Tes premiers clients, au bon moment", "#pour-qui"], ["PME et TPE", "Un flux régulier de rendez-vous", "#pour-qui"], ["Agences et cabinets", "Les entreprises qui choisissent leurs partenaires", "#/metier/agences"], ["Services sur site", "Nettoyage, sécurité : les contrats à reprendre", "#/metier/nettoyage"]]],
-  ["Nos données", [["Sources vérifiables", "Registres officiels, offres d'emploi, web public", "#donnees"]]],
-  ["Tarifs", null],
-  ["Ressources", [["Outils gratuits", "Contrats publics, analyse de concurrent", "#/outils"], ["Questions fréquentes", "Tout ce qu'on nous demande", "#faq"]]],
+    ["Cas d'usage", "#pour-qui"],
+  ["Ressources", [["Tarifs", "Sans engagement, premier mois remboursé", "#tarifs"], ["Plan d'action", "Ton objectif, chiffré honnêtement", "#plan"], ["Outils gratuits", "Contrats publics, analyse de concurrent", "#/outils"], ["Questions fréquentes", "Tout ce qu'on nous demande", "#faq"]]],
 ];
 
 /** Aperçu du produit sous le titre : la vraie liste du Radar (acheteurs publics réels, relus en direct), la fiche ouverte, le message prêt. */
@@ -322,14 +322,14 @@ export default function Landing() {
     <div className="min-h-full bg-[#FAF9F6] text-ink">
       <style>{`@keyframes kspin{to{transform:rotate(360deg)}}@keyframes land-in{from{opacity:0;transform:translateY(10px)}}.land-in{animation:land-in .45s ease-out both}@keyframes drift{50%{transform:translateY(-8px)}}@keyframes marquee{to{transform:translateX(-50%)}}.marquee-track{animation:marquee 32s linear infinite}.marquee:hover .marquee-track{animation-play-state:paused}@media (prefers-reduced-motion: reduce){.marquee-track{animation:none;flex-wrap:wrap;width:auto;justify-content:center}}`}</style>
 
-      {/* Haut de page : cadre gris, menu à plat, panneau blanc */}
-      <div className="bg-[#D6D1CD]">
-        <header className="sticky top-0 z-30 bg-[#D6D1CD]">
-          <div className="mx-auto max-w-[1440px] h-[64px] px-4 sm:px-8 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-10">
-              <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Bingoo!"><Logo height={26} /></button>
-              <nav className="hidden lg:flex items-center gap-6 xl:gap-8 text-[16px] xl:text-[17px] text-ink whitespace-nowrap">
-                {MENU.map(([t, items]) => items ? (
+      {/* Haut de page : fond clair, menu blanc */}
+      <div className="bg-white">
+        <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-black/[.04]">
+          <div className="mx-auto max-w-[1280px] h-[72px] px-4 sm:px-8 flex items-center justify-between gap-4" style={JK}>
+            <div className="flex items-center gap-12">
+              <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Bingoo!"><Logo height={34} /></button>
+              <nav className="hidden lg:flex items-center gap-9 text-[16px] font-medium text-ink whitespace-nowrap">
+                {MENU.map(([t, items]) => Array.isArray(items) ? (
                   <div key={t} className="relative group">
                     <button className="inline-flex items-center gap-1.5 py-4 hover:opacity-70" aria-haspopup="true">{t}<Chev /></button>
                     <div className="invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 transition absolute left-0 top-full z-40">
@@ -338,30 +338,38 @@ export default function Landing() {
                       </div>
                     </div>
                   </div>
-                ) : <a key={t} href="#tarifs" onClick={scrollTo("tarifs")} className="hover:opacity-70">{t}</a>)}
+                ) : <a key={t} href={items} onClick={scrollTo(items.slice(1))} className="py-4 hover:opacity-70">{t}</a>)}
               </nav>
             </div>
-            <div className="flex items-center gap-3 sm:gap-5 text-[16px] sm:text-[17px] whitespace-nowrap">
-              <button onClick={() => nav("/connexion?mode=login")} className="hover:opacity-70 text-[15px] sm:text-[17px]">Se connecter</button>
-              <a href="#essai" onClick={scrollTo("essai")} className="hidden xl:inline-flex rounded-lg border border-ink px-5 py-2.5 hover:bg-black/[.04]">Essayer avec mon produit</a>
-              <button onClick={go} className="rounded-lg bg-accent text-white px-4 sm:px-5 py-2.5 hover:bg-accent-dark transition">S'inscrire</button>
+            <div className="flex items-center gap-2.5 sm:gap-4 text-[15px] sm:text-[16px] font-medium whitespace-nowrap">
+              <button onClick={() => nav("/connexion?mode=login")} className="rounded-full border border-ink/80 px-4 sm:px-6 py-2 sm:py-2.5 hover:bg-black/[.04] transition">Se connecter</button>
+              <button onClick={go} className="rounded-full bg-[#1B1D2A] text-white px-4 sm:px-6 py-2 sm:py-2.5 hover:bg-black transition">Commencer</button>
             </div>
           </div>
         </header>
 
         <div className="px-0 sm:px-8">
-          <section className="mx-auto max-w-[1440px] bg-white px-5 sm:px-10 pt-16 sm:pt-24 pb-16 sm:pb-20 text-center">
-            <h1 className="hero-in mx-auto max-w-[1100px] text-ink text-[46px] sm:text-[72px] lg:text-[96px] leading-[1.02] tracking-[-.035em]" style={SERIF}>Besoin de clients ?<span className="mt-3 sm:mt-5 flex justify-center"><span className="sr-only">Bingoo!</span><Logo height="1.35em" className="!self-center" /></span></h1>
-            <p className="hero-in mx-auto mt-8 max-w-[760px] text-[22px] sm:text-[28px] leading-[1.3] text-ink font-medium" style={{ animationDelay: ".1s" }}>Il trouve qui a besoin de toi aujourd'hui.<br className="hidden sm:block" /> Il décroche le rendez-vous. <span className="text-accent-dark">Ton chiffre décolle.</span></p>
-            <p className="hero-in mx-auto mt-4 text-[17px] sm:text-[19px] text-ink-soft" style={{ animationDelay: ".15s" }}>15 minutes par jour. Pour les fondateurs de SaaS, les startups et les PME B2B.</p>
-            <div className="hero-in mt-10 inline-flex flex-col sm:flex-row gap-1.5 rounded-xl bg-[#F1EFED] p-1.5" style={{ animationDelay: ".2s" }}>
-              <button onClick={go} className="rounded-lg bg-[#1C1C1C] text-white px-10 py-4 text-[18px] sm:text-[19px] hover:bg-black transition">Créer mon compte</button>
-              <a href="#essai" onClick={scrollTo("essai")} className="rounded-lg bg-white border border-black/10 px-10 py-4 text-[18px] sm:text-[19px] hover:bg-[#FAFAF9] transition">Essayer avec mon produit</a>
+          <section className="mx-auto max-w-[1440px] bg-white px-5 sm:px-10 pt-14 sm:pt-24 pb-16 sm:pb-20 text-center">
+            <h1 className="hero-in relative mx-auto max-w-[1180px] tracking-[-.035em]" style={JK}>
+              <span className="block text-[34px] sm:text-[54px] lg:text-[72px] leading-[1.08] font-medium text-[#3A3F55]">Vous avez le business parfait.</span>
+              <span className="mt-1 block text-[40px] sm:text-[64px] lg:text-[84px] leading-[1.04] font-extrabold text-[#15172A]">Il vous manque des clients ?</span>
+              <span className="mt-4 sm:mt-6 flex justify-center"><span className="sr-only">Bingoo!</span><Logo height="clamp(64px, 9vw, 112px)" className="!self-center" /></span>
+              <span aria-hidden className="pointer-events-none absolute right-0 xl:-right-6 -top-10 hidden lg:flex flex-col items-end text-[24px] text-[#3A3F55] rotate-[-4deg]" style={{ fontFamily: "Caveat, cursive", fontWeight: 500, letterSpacing: 0 }}>
+                (oui, ils n'apparaissent pas comme par magie)
+                <svg viewBox="0 0 40 60" className="mr-16 mt-1 h-12 w-8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 2c10 14 8 34-10 52M12 54l-2-12M12 54l11-6" /></svg>
+              </span>
+            </h1>
+            <p className="hero-in mx-auto mt-7 max-w-[760px] text-[18px] sm:text-[22px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Bingoo! trouve les entreprises qui ont besoin de vous aujourd'hui, le bon décideur, et décroche le rendez-vous. <span className="font-semibold text-accent-dark">Votre chiffre décolle.</span></p>
+            <form onSubmit={(e) => { e.preventDefault(); try { sessionStorage.setItem("bingoo-email", e.currentTarget.email.value.trim()); } catch { /* navigation privée */ } go(); }}
+              className="hero-in mx-auto mt-9 flex max-w-[680px] flex-col sm:flex-row items-stretch gap-2 rounded-[28px] sm:rounded-full border border-black/[.08] bg-white p-2 shadow-[0_10px_40px_-20px_rgba(21,23,42,.35)]" style={{ ...JK, animationDelay: ".2s" }}>
+              <label className="sr-only" htmlFor="hero-email">Votre e-mail</label>
+              <input id="hero-email" name="email" type="email" autoComplete="email" placeholder="votre@email.com" className="min-w-0 flex-1 bg-transparent px-5 py-3.5 text-[17px] outline-none placeholder:text-[#8A8FA3]" />
+              <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-full bg-[#1B1D2A] px-8 py-3.5 text-[17px] font-semibold text-white hover:bg-black transition">Commencer <Arrow className="h-4 w-4" /></button>
+            </form>
+            <div className="hero-in mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[15px] text-[#5B6075]" style={{ ...JK, animationDelay: ".25s" }}>
+              {["15 minutes par jour", "Premier mois remboursé sans rendez-vous ni réponse", "Pour les SaaS, startups et PME B2B"].map((x) => <span key={x} className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-accent" />{x}</span>)}
             </div>
-            <div className="hero-in mt-8" style={{ animationDelay: ".25s" }}>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F1EFED] px-3 py-1.5 text-[14.5px] text-ink-soft"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="9" /><path d="m8.5 12.5 2.5 2.5 4.5-5" /></svg>Premier mois remboursé sans rendez-vous ni réponse</span>
-            </div>
-            <p className="mt-8 text-[14.5px] text-ink-soft">En m'inscrivant, j'accepte les <a href="#/conditions" className="underline hover:text-ink">Conditions d'utilisation</a> et la <a href="#/confidentialite" className="underline hover:text-ink">Politique de confidentialité</a> de Bingoo!.</p>
+            <p className="mt-6 text-[13.5px] text-ink-faint">En continuant, j'accepte les <a href="#/conditions" className="underline hover:text-ink">Conditions d'utilisation</a> et la <a href="#/confidentialite" className="underline hover:text-ink">Politique de confidentialité</a> de Bingoo!.</p>
             {/* Le produit en 4 étapes : c'est une vraie séquence, d'où les numéros */}
             <ol className="mx-auto mt-14 grid max-w-[1100px] gap-3 text-left sm:grid-cols-2 lg:grid-cols-4">
               {[["Tu réponds à 6 questions", "Ton type d'entreprise, ce que vaut un client, ton objectif. Puis le lien de ton produit."], ["Bingoo! trouve qui a besoin de toi", "Les entreprises au bon moment, leur décideur vérifié, et ceux qui demandent ta solution en public."], ["Il écrit sur tous les canaux", "E-mail, LinkedIn, réponses aux demandes, appels. Tu valides en 15 minutes par jour."], ["Tu prends les rendez-vous", "Les réponses arrivent triées, avec la tienne déjà prête. Le rendez-vous va dans ton agenda."]].map(([h, d], i) => (
@@ -379,7 +387,7 @@ export default function Landing() {
         </div>
       </div>
 
-      <main className="bg-[#D6D1CD] px-0 sm:px-8 pb-8">
+      <main className="bg-white">
         <div className="mx-auto max-w-[1440px] bg-white">
 
         <Feature id="produit" title="Qui a besoin de toi, maintenant" text="Chaque nuit, le Radar repère les entreprises qui viennent de bouger : elles recrutent, lèvent des fonds, changent de dirigeant, utilisent l'outil de ton concurrent ou voient leur contrat se terminer. C'est là qu'elles choisissent un fournisseur." bullets={[["radar", <><b className="font-medium">Signaux SaaS</b> : outils concurrents installés, abonnements qui arrivent à échéance, recrutements de l'équipe qui utilisera ton produit</>], ["doc", <><b className="font-medium">Annonces légales</b> : nouveau dirigeant, création, levée, déménagement</>], ["eye", <><b className="font-medium">Intention</b> : visites de ton site, clients mécontents d'un concurrent, contrats publics à renouveler</>]]} />
