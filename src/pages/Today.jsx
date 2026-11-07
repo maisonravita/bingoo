@@ -10,11 +10,9 @@ import { useJob } from "../lib/useJob";
 import { Button, useToast } from "../components/ui";
 import { cx, plural } from "../lib/utils";
 import { fmtN } from "../lib/zones";
-import { Avatar, TEAM } from "./Salaries";
 import CompanyLogo from "../components/CompanyLogo";
 import TodayFeed from "../components/TodayFeed";
 import { BandeauMatin, usePilotage } from "./Pilotage";
-import { estSimple } from "../lib/lieu";
 import { estMobile, trace } from "../lib/usage";
 const useMesureVue = (v) => { const { ws } = useWs(); useEffect(() => { trace(ws.id, "vue", `${v}${estMobile() ? " mobile" : ""}`); }, [ws.id]); }; // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -38,82 +36,15 @@ const Ico = ({ n, className = "w-5 h-5", fill }) => <svg viewBox="0 0 24 24" cla
 const MINUTES = { recherche: 20, enquete: 8, enquete_plus: 12, redaction: 10, envoi: 1, reponse: 5, radar: 5, radar_scan: 20, veille: 30, espion: 15, analyse: 30, linkedin: 6, rdv: 20, brief: 15, devis: 15, script: 10, intelligence: 20 };
 const KIND = { recrutement: "Recrute", croissance: "Se développe", appel_offres: "Appel d'offres", besoin: "Cherche une solution", renouvellement: "Contrat à renouveler", dirigeant: "Nouveau dirigeant", demenagement: "Déménage", creation: "Création ou ouverture", site: "Site modifié", levee: "Levée de fonds", permis: "Permis de construire", aide: "Aide publique", budget: "Projet voté", salon: "Salon", difficulte: "Difficultés" };
 const ago = (d) => { const h = Math.round((Date.now() - new Date(d).getTime()) / 36e5); return h < 1 ? "à l'instant" : h < 24 ? `il y a ${h} h` : `il y a ${Math.round(h / 24)} j`; };
-const short = (d) => { const m = Math.round((Date.now() - new Date(d).getTime()) / 6e4); return m < 60 ? `Actif · ${m} min` : `Actif · ${Math.round(m / 60)} h`; };
 const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
 
-const fmtDur = (m) => { m = Math.round(m); if (m < 60) return [String(m), "min"]; const h = Math.floor(m / 60), r = Math.round((m % 60) / 5) * 5; return r ? [`${h} h ${String(r).padStart(2, "0")}`, ""] : [String(h), "h"]; };
 
-/** Le résultat avant les fonctionnalités : le temps de prospection que l'équipe a fait à ta place, jour par jour. */
-function TimeSaved({ s, trend }) {
-  const days = Array.from({ length: 7 }, (_, k) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (6 - k)); return d; });
-  const per = days.map((d, k) => { const end = k < 6 ? days[k + 1] : new Date(8.64e15); return s.rows.filter((r) => { const t = new Date(r.created_at); return t >= d && t < end; }).reduce((m, r) => m + (MINUTES[r.kind] ?? 0), 0); });
-  const max = Math.max(60, ...per);
-  const [num, unit] = fmtDur(s.minutes);
-  const drafts = s.rows.filter((r) => r.kind === "redaction").length;
-  const made = [[s.found7, "entreprise trouvée", "entreprises trouvées"], [s.oppsWeek, "opportunité repérée", "opportunités repérées"], [drafts, "e-mail rédigé", "e-mails rédigés"]].filter(([n]) => n > 0).slice(0, 2).map(([n, o, m]) => plural(n, o, m));
-  return (
-    <Link to="/resultats" className="group lg:w-[380px] shrink-0 rounded-2xl p-5 bg-gradient-to-br from-accent-soft via-[#FFF1E8] to-white border border-accent/15 hover:border-accent/40 hover:shadow-sm transition">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[11.5px] font-bold uppercase tracking-wider text-accent-dark flex items-center gap-1.5"><Ico n="clock" className="w-4 h-4" />Temps gagné cette semaine</p>
-        <span title="Estimation : le temps qu'un commercial passerait à faire les mêmes actions à la main (chercher les entreprises, trouver les contacts, écrire les e-mails, surveiller le marché…)." className="w-5 h-5 rounded-full border border-accent/30 text-accent-dark text-[11px] font-bold grid place-items-center cursor-help">i</span>
-      </div>
-      <div className="mt-2 flex items-end justify-between gap-4">
-        <p className="font-black leading-none text-ink tnum" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>
-          <span className="text-[44px]">{num}</span>{unit && <span className="text-[22px] ml-1 text-ink-soft">{unit}</span>}
-        </p>
-        <div className="flex items-end gap-1.5 h-[52px]" aria-label="Temps gagné par jour sur 7 jours">
-          {per.map((m, k) => (
-            <div key={k} className="flex flex-col items-center gap-1" title={`${days[k].toLocaleDateString("fr-FR", { weekday: "long" })} : ${fmtDur(m).join(" ").trim()}`}>
-              <div className={cx("w-2.5 rounded-full transition-all", k === 6 ? "bg-accent" : m ? "bg-accent/40" : "bg-ink/10")} style={{ height: `${Math.max(4, (m / max) * 40)}px` }} />
-              <span className={cx("text-[9.5px] leading-none", k === 6 ? "text-accent-dark font-bold" : "text-ink-faint")}>{"DLMMJVS"[days[k].getDay()]}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <p className="mt-3 text-[13px] text-ink-soft leading-snug">
-        {made.length ? <>Ton équipe a fait le travail : <span className="text-ink font-medium">{made.join(" · ")}</span></> : "Ton équipe démarre : le temps gagné s'affichera ici."}
-      </p>
-      {trend != null && trend > 0 && <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-good-soft text-good text-[12px] font-semibold px-2.5 py-0.5">↑ +{trend} % d'opportunités vs semaine dernière</p>}
-    </Link>
-  );
-}
 
 function Sparks({ className }) {
   return <svg viewBox="0 0 40 40" className={className} aria-hidden fill="none" stroke="#E0531F" strokeWidth="4.5" strokeLinecap="round"><path d="M10 6l3 9M24 4l-4 10M30 18l-9 3" /></svg>;
 }
 
-function Stat({ icon, label, value, delta, avant, accent }) {
-  return (
-    <div className="flex items-start gap-3 px-4 py-1">
-      <span className="w-10 h-10 rounded-full bg-accent-soft text-accent grid place-items-center"><Ico n={icon} /></span>
-      <div className="min-w-0">
-        <p className="text-[14px] text-ink-soft">{label}</p>
-        <p className={cx("text-[28px] font-bold leading-tight tnum", accent && value > 0 && "text-accent")}>{fmtN(value)}</p>
-        <p className={cx("text-[12px] mt-0.5 tnum", delta > 0 ? "text-good font-medium" : "text-ink-faint")}>{delta == null ? " " : delta > 0 ? `↑ +${fmtN(delta)} en 7 jours` : "→ 0 en 7 jours"}</p>
-        {avant != null && delta != null && (delta > 0 || avant > 0) && <p className="text-[11.5px] text-ink-faint tnum">{delta > avant ? `mieux que la semaine d'avant (${fmtN(avant)})` : delta < avant ? `semaine d'avant : ${fmtN(avant)}` : "comme la semaine d'avant"}</p>}
-      </div>
-    </div>
-  );
-}
 
-function Priority({ icon, n, one, many, sub, empty, to, cta, img, hot }) {
-  const on = n > 0;
-  return (
-    <div className={cx("relative overflow-hidden rounded-2xl border bg-white p-5 min-h-[178px] flex flex-col", on && hot ? "border-accent/40" : "border-line")}>
-      <img src={`/illus/${img}.png`} alt="" aria-hidden className={cx("absolute right-2 bottom-2 w-[112px] pointer-events-none select-none transition", !on && "opacity-40 grayscale")} />
-      <div className="flex items-start gap-3 pr-16">
-        <span className="w-11 h-11 rounded-full bg-accent-soft text-accent grid place-items-center shrink-0"><Ico n={icon} /></span>
-        <div>
-          <p className="font-bold text-[16.5px] leading-snug">{on ? plural(n, one, many) : empty}</p>
-          <p className="text-[13.5px] text-ink-soft mt-1 leading-snug pr-8">{sub}</p>
-        </div>
-      </div>
-      <div className="mt-auto pt-4">
-        <Link to={to} className={cx("inline-flex items-center gap-2 rounded-full px-4 py-2 text-[13.5px] font-semibold transition", on ? "bg-accent text-white hover:bg-accent-dark" : "bg-paper text-ink-soft border border-line hover:text-ink")}>{cta}<Ico n="arrow" className="w-4 h-4" /></Link>
-      </div>
-    </div>
-  );
-}
 
 const Logo = ({ name, url }) => <CompanyLogo name={name} url={url} className="w-10 h-10 text-lg" />;
 
@@ -163,38 +94,6 @@ function Detected({ rows, onPrepared }) {
   );
 }
 
-function TeamAtWork({ rows }) {
-  const { ws } = useWs();
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const lastOf = (a) => rows.find((r) => a.kinds.includes(r.kind));
-  const ranked = TEAM.map((a) => ({ a, last: lastOf(a) })).sort((x, y) => (y.last ? new Date(y.last.created_at) : 0) - (x.last ? new Date(x.last.created_at) : 0));
-  const active = ranked.filter((x) => x.last && new Date(x.last.created_at) >= today).length;
-  return (
-    <section className="min-w-0 bg-white rounded-2xl border border-line p-4 sm:p-5">
-      <div className="flex items-center justify-between gap-3 mb-3">
-        <h2 className="flex items-center gap-2.5 font-bold text-[15px] uppercase tracking-wide whitespace-nowrap"><Ico n="users" className="w-6 h-6 text-accent" />Ton équipe au travail</h2>
-        <Link to="/" className="text-[13px] text-ink-soft inline-flex items-center gap-1.5 whitespace-nowrap"><span className={cx("w-2 h-2 rounded-full", active ? "bg-good" : "bg-ink-faint")} />{active} actif{active > 1 ? "s" : ""}</Link>
-      </div>
-      <div className="grid grid-cols-3 gap-2.5">
-        {ranked.slice(0, 3).map(({ a, last }) => {
-          const working = !!last && Date.now() - new Date(last.created_at).getTime() < 4 * 60000;
-          const todayDone = !!last && new Date(last.created_at) >= today;
-          return (
-            <Link key={a.id} to="/" title={last ? `Dernière action : ${last.summary}` : undefined} className="min-w-0 rounded-xl border border-line pt-2 pb-3 px-1.5 flex flex-col items-center text-center hover:border-ink/25 transition">
-              <Avatar id={a.id} working={working} className="w-[92px] h-[118px]" />
-              <p className="font-bold mt-1">{a.first}</p>
-              <p className="text-[12.5px] text-ink-soft">{a.role}</p>
-              <span className={cx("mt-2 inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-medium whitespace-nowrap", working ? "bg-accent-soft text-accent-dark" : todayDone ? "bg-good-soft text-good" : "bg-[#EFEEEA] text-ink-soft")}>
-                <span className={cx("w-1.5 h-1.5 rounded-full", working ? "bg-accent pulse-dot" : todayDone ? "bg-good" : "bg-ink-soft")} />
-                {working ? "Au travail" : todayDone ? short(last.created_at) : "En veille"}
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
 
 /** Rendez-vous du jour, relances dues et devis sans réponse : ce qui ne doit pas attendre. */
 function Urgent({ u }) {
@@ -336,56 +235,60 @@ function Semaine() {
   return d ? <BandeauMatin d={d} /> : null;
 }
 
-// Le matin en 5 minutes : la liste des choses à faire, dans l'ordre où elles rapportent, avec le temps que ça prend.
-// Le point de départ du jour est gardé sur cet appareil pour montrer ce qui est déjà fait.
-const SEC = { reponses: 40, valider: 15, linkedin: 8, rappels: 60, rdv: 0, radar: 20 };
-function Morning({ s, canSend, wsId, adresse = true }) {
-  const items = [
-    ["reponses", s.replies, "réponse à traiter", "réponses à traiter", "Réponse déjà proposée : relis, envoie.", "/reponses", "chat"],
-    ["valider", s.drafts, "opportunité prête", "opportunités prêtes", "Un geste chacune.", "#prets", "send"],
-    ["rappels", s.urgent.due.length, "rappel prévu", "rappels prévus", "Le numéro est sur la fiche.", "/prospects", "clock"],
-    ["linkedin", s.li, "invitation LinkedIn à valider", "invitations LinkedIn à valider", "Bingoo! les envoie à ton rythme.", "/linkedin", "send"],
-    ["radar", s.opps, "entreprise à contacter au bon moment", "entreprises à contacter au bon moment", "Les meilleures entrent seules dans ta prospection chaque jour.", "/radar", "search"],
-    ["rdv", s.urgent.meet.length, "rendez-vous aujourd'hui", "rendez-vous aujourd'hui", s.urgent.meet[0] ? `Le premier à ${new Date(s.urgent.meet[0].starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} : ${s.urgent.meet[0].company ?? ""}` : "", "/agenda", "cal"],
-  ];
-  const key = `bingoo-matin-${wsId}-${new Date().toISOString().slice(0, 10)}`;
-  let depart = {};
-  try { depart = JSON.parse(localStorage.getItem(key) || "{}"); } catch { /* stockage indisponible */ }
-  for (const [k, n] of items) depart[k] = Math.max(depart[k] ?? 0, n);
-  try { localStorage.setItem(key, JSON.stringify(depart)); } catch { /* rien */ }
-  const total = items.reduce((t, [k]) => t + (k === "rdv" ? 0 : depart[k]), 0);
-  const reste = items.reduce((t, [k, n]) => t + (k === "rdv" ? 0 : n), 0);
-  const secondes = items.reduce((t, [k, n]) => t + SEC[k] * n, 0);
-  const minutes = Math.max(1, Math.round(secondes / 60));
-  const todo = items.filter(([, n]) => n > 0);
-  const go = (to) => (e) => { if (to.startsWith("#")) { e.preventDefault(); document.getElementById(to.slice(1))?.scrollIntoView({ behavior: "smooth", block: "start" }); } };
 
+/** Aujourd'hui : les trois choses qui comptent, chacune avec son nombre et un seul bouton. */
+function AFaire({ s, canSend, adresse }) {
+  const prochainRdv = s.urgent.meet[0];
+  const C = [
+    { n: s.drafts, titre: "Messages à envoyer", vide: "Aucun pour l'instant : Bingoo! en prépare.", aide: "Tu relis, tu envoies.", to: "/valider", cta: "Lire et envoyer", icon: "send", fort: true },
+    { n: s.replies, titre: "Réponses qui attendent", vide: "Aucune réponse à traiter.", aide: "Une réponse est déjà proposée.", to: "/reponses", cta: "Répondre", icon: "chat", fort: s.replies > 0 },
+    { n: s.urgent.meet.length, titre: "Rendez-vous aujourd'hui", vide: "Aucun rendez-vous aujourd'hui.", aide: prochainRdv ? [`À ${new Date(prochainRdv.starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`, prochainRdv.company].filter(Boolean).join(" · ") : "", to: "/agenda", cta: "Voir", icon: "cal" },
+  ];
   return (
-    <section aria-label="Ton matin" className="mb-6 rounded-3xl border border-line bg-white p-4 sm:p-5">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-[19px] font-semibold">{reste ? `À faire maintenant · environ ${minutes} min` : "Tout est fait pour aujourd'hui."}</h2>
-        {total > 0 && <span className="text-sm text-ink-soft tnum">{total - reste} sur {total} fait{total - reste > 1 ? "s" : ""}</span>}
+    <section aria-label="À faire aujourd'hui" className="mb-6">
+      <h2 className="text-[19px] font-semibold mb-3">À faire aujourd'hui</h2>
+      {canSend && !adresse && <Link to="/reglages" className="mb-3 flex items-center gap-3 rounded-2xl bg-accent-soft px-4 py-3 font-semibold"><Ico n="send" className="w-5 h-5 text-accent" />Ajoute l'adresse postale de ton entreprise : sans elle, rien ne part (30 s)</Link>}
+      <div className="grid gap-3 sm:grid-cols-3">
+        {C.map((c) => (
+          <Link key={c.to} to={c.to} className={cx("group flex items-center gap-4 sm:block rounded-3xl border p-4 sm:p-5 transition hover:border-ink-faint", c.n > 0 && c.fort ? "border-accent/30 bg-[#FFF7F0]" : "border-line bg-white")}>
+            <p className={cx("order-2 sm:order-none sm:hidden font-black text-[34px] leading-none tnum", c.n > 0 ? "text-ink" : "text-ink-faint")} style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{c.n}</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 text-[14px] font-semibold text-ink-soft"><Ico n={c.icon} className={cx("w-5 h-5", c.n > 0 ? "text-accent" : "text-ink-faint")} />{c.titre}</div>
+              <p className={cx("hidden sm:block mt-1 font-black text-[40px] leading-none tnum", c.n > 0 ? "text-ink" : "text-ink-faint")} style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{c.n}</p>
+              <p className="mt-1 sm:mt-2 text-[13.5px] text-ink-soft sm:min-h-[20px]">{c.n > 0 ? c.aide : c.vide}</p>
+              {c.n > 0 && <span className={cx("hidden sm:inline-flex mt-3 rounded-xl px-3.5 py-2 text-[14px] font-bold", c.fort ? "bg-accent text-white" : "bg-ink text-white")}>{c.cta}</span>}
+            </div>
+            <span className="order-3 sm:hidden text-[22px] text-ink-faint" aria-hidden>›</span>
+          </Link>
+        ))}
       </div>
-      {total > 0 && <div className="mt-2 h-2 rounded-full bg-paper overflow-hidden" aria-hidden><div className="h-full rounded-full bg-good transition-all" style={{ width: `${Math.round(((total - reste) / total) * 100)}%` }} /></div>}
-      {todo.length > 1 && <Link to="/village?serie=1" className="mt-3 flex items-center justify-center gap-2 rounded-2xl bg-accent px-5 py-3.5 text-[16px] font-bold text-white hover:brightness-105">Tout traiter, une étape après l'autre<span className="font-semibold text-white/80 tnum">~{minutes} min</span></Link>}
-      {/* La connexion de la boîte mail est dans « Pour avoir tes premiers rendez-vous », en haut de la page */}
-      {canSend && !adresse && <Link to="/reglages" className="mt-3 flex items-center gap-3 rounded-2xl bg-accent-soft px-4 py-3 font-semibold"><Ico n="send" className="w-5 h-5 text-accent" />Ajoute l'adresse postale de ton entreprise : sans elle, rien ne part (30 s)</Link>}
-      {!todo.length ? <p className="mt-2 text-[15px] text-ink-soft">Bingoo! continue de chercher pour toi ; les nouveautés arrivent ici, et sur ton téléphone si tu actives les notifications.</p> : (
-        <ul className="mt-3 divide-y divide-line">
-          {todo.map(([k, n, a, b, aide, to, icon]) => {
-            const inner = (
-              <>
-                <span className="grid place-items-center w-10 h-10 shrink-0 rounded-xl bg-accent-soft"><Ico n={icon} className="w-5 h-5 text-accent" /></span>
-                <span className="min-w-0 flex-1"><span className="block font-semibold text-[15.5px]"><span className="tnum">{n}</span> {n > 1 ? b : a}</span>{aide && k === "rdv" && <span className="block text-[13px] text-ink-soft truncate">{aide}</span>}</span>
-                {SEC[k] > 0 && <span className="text-[13px] text-ink-faint tnum shrink-0">{SEC[k] * n < 60 ? `${SEC[k] * n} s` : `${Math.round((SEC[k] * n) / 60)} min`}</span>}
-                <span className="text-ink-faint" aria-hidden>›</span>
-              </>
-            );
-            const cls = "flex items-center gap-3 py-3 min-h-[56px] -mx-2 px-2 rounded-xl hover:bg-paper transition";
-            return <li key={k}>{to.startsWith("#") ? <a href={to} onClick={go(to)} className={cls}>{inner}</a> : <Link to={to} className={cls}>{inner}</Link>}</li>;
-          })}
-        </ul>
-      )}
+      {s.urgent.due.length > 0 && <Link to="/prospects" className="mt-3 flex items-center gap-2 text-[14px] text-ink-soft hover:text-ink"><Ico n="clock" className="w-4 h-4" /><span><b className="text-ink tnum">{s.urgent.due.length}</b> rappel{s.urgent.due.length > 1 ? "s" : ""} prévu{s.urgent.due.length > 1 ? "s" : ""} aujourd'hui</span><span aria-hidden>›</span></Link>}
+    </section>
+  );
+}
+
+/** Ce qui marche, en un coup d'œil : la semaine comparée à la précédente, puis ce que Bingoo! a appris. */
+function CeQuiMarche({ s }) {
+  const T = [["Envoyés", s.sent7, s.sentPrev], ["Réponses", s.replied7, s.repPrev], ["Rendez-vous", s.rdv7, s.rdvPrev], ["Clients", s.client, null]];
+  return (
+    <section aria-label="Ce qui marche" className="mb-6 rounded-3xl border border-line bg-white p-4 sm:p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-[19px] font-semibold">Ce qui marche</h2>
+        <Link to="/resultats" className="text-[13px] text-ink-soft underline hover:text-ink">Tous les résultats</Link>
+      </div>
+      <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        {T.map(([l, v, avant], i) => {
+          const d = avant == null ? null : (v ?? 0) - (avant ?? 0);
+          return (
+            <div key={l} className={cx("rounded-2xl px-4 py-3", i === 2 ? "bg-accent-soft/60" : "bg-paper")}>
+              <p className="text-[13px] text-ink-soft">{l}{avant != null ? " · 7 jours" : " · au total"}</p>
+              <p className={cx("font-black text-[30px] leading-tight tnum", i === 2 && "text-accent-dark")} style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{(v ?? 0).toLocaleString("fr-FR")}</p>
+              {d != null && <p className={cx("text-[12px] tnum", d > 0 ? "text-good" : "text-ink-faint")}>{d > 0 ? `+${d}` : d < 0 ? `${d}` : "="} vs semaine d'avant</p>}
+            </div>
+          );
+        })}
+      </div>
+      {s.sent > 0 ? <Appris className="mt-4" /> : <p className="mt-3 text-[13.5px] text-ink-soft">Dès tes premiers envois, Bingoo! te montre ici ce qui fait répondre (types d'entreprises, faits, tailles).</p>}
     </section>
   );
 }
@@ -551,98 +454,56 @@ export default function Today() {
     <div className="max-w-4xl">
       {visite && <Visite onFin={finVisite} />}
       <header className="mb-6 relative">
-        <button onClick={() => { try { localStorage.setItem("bingoo-vue", "village"); } catch { /* rien */ } nav("/village"); }} className="hidden md:block absolute right-0 top-1 rounded-full border border-line bg-white px-4 py-2 text-[14px] font-semibold hover:border-ink-faint">Vue village</button>
         <h1 className="font-black text-[40px] sm:text-[52px] leading-none tracking-tight flex items-start gap-1" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>
           {hello}{first ? ` ${first}` : ""} !<Sparks className="w-9 h-9 sm:w-11 sm:h-11 -mt-2" />
         </h1>
         <p className="text-ink-soft text-[17px] mt-3">{s ? resume(s) : "Ce qui t'attend aujourd'hui."}</p>
       </header>
 
-      {/* Une page simple, dans l'ordre où on s'en sert : 1. ce qu'il y a à faire, 2. ce que ça donne, 3. trouver plus de clients.
-          Tout le reste (ta ville, l'activité de la nuit, les opportunités, les chiffres détaillés) est replié plus bas. */}
-      {/* Téléphone : ta ville en vignette, un appui l'ouvre en grand */}
-      <button onClick={() => nav("/village")} className="md:hidden mb-5 flex w-full items-center gap-4 overflow-hidden rounded-3xl bg-gradient-to-br from-[#FFF3E6] to-[#F9E4D3] p-4 text-left shadow-[0_10px_24px_-16px_rgba(122,74,42,.6)]">
-        <svg viewBox="0 0 120 80" className="h-16 w-24 shrink-0" aria-hidden>
-          <polygon points="60,10 110,35 60,60 10,35" fill="#F8EFE6" stroke="#EBD9C6" />
-          <polygon points="38,30 52,23 52,8 38,15" fill="#EC5A1C" /><polygon points="38,30 24,23 24,8 38,15" fill="#C2531E" /><polygon points="38,15 52,8 38,1 24,8" fill="#FF8A3D" />
-          <polygon points="74,40 88,33 88,22 74,29" fill="#E6DED5" /><polygon points="74,40 60,33 60,22 74,29" fill="#CFC6BC" /><polygon points="74,29 88,22 74,15 60,22" fill="#3E5BA6" />
-          <polygon points="86,26 94,22 94,2 86,6" fill="#3A3236" /><polygon points="86,26 78,22 78,2 86,6" fill="#2A2427" /><rect x="80" y="0" width="12" height="5" fill="#F26A21" />
-          <circle cx="58" cy="44" r="3" fill="#F26A21" /><circle cx="46" cy="40" r="3" fill="#F26A21" />
-        </svg>
-        <span className="min-w-0 flex-1"><span className="block font-black text-[18px] text-ink" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>Ta ville</span><span className="block text-[13px] text-ink-soft">Ton équipe au travail, et ce qu'elle a fait cette nuit</span></span>
-        <span className="text-[22px] text-[#E8571C]" aria-hidden>›</span>
-      </button>
+      {/* Un seul écran : 1. ce qu'il y a à faire aujourd'hui, 2. ce qui marche. Tout le reste est dans « Plus ». */}
       {s && <Demarrer s={s} />}
-      {s && <Travail s={s} />}
+      {s && <AFaire s={s} adresse={!!ws.postal_address} canSend={ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok} />}
       {s && s.drafts > 0 && <Prochaine n={s.drafts} />}
-      {s && s.sent > 0 && <Appris className="mb-6" />}
-      {s && <Morning s={s} wsId={ws.id} canSend={ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok} adresse={!!ws.postal_address} />}
-
-      <h2 className="text-[19px] font-semibold mb-3 mt-2">Tes résultats</h2>
-      {s && <Contacts s={s} />}
-
+      {s && <CeQuiMarche s={s} />}
       <PushTel compact />
-      {/* Les outils pour élargir la recherche : repliés, l'écran principal reste les opportunités */}
-      <details className="group mb-6 rounded-2xl border border-line bg-white">
-        <summary className="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-3">
-          <span className="font-semibold">Trouver d'autres clients</span>
-          <span className="text-sm text-ink-soft group-open:hidden">Afficher</span><span className="text-sm text-ink-soft hidden group-open:inline">Masquer</span>
-        </summary>
-        <div className="px-4 pb-4 pt-1"><Decris /><Public /><Demarrage /></div>
-      </details>
-      {/* Le bandeau de la semaine (et ta ville) n'apparaît qu'avec assez d'envois pour vouloir dire quelque chose */}
-      {s && s.sent >= 20 && <div className="hidden sm:block"><Semaine /></div>}
 
-      <details className="group mb-6 rounded-2xl border border-line bg-white">
+      <details className="group mt-2 mb-6 rounded-2xl border border-line bg-white">
         <summary className="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-3">
-          <span className="font-semibold">Le détail : réponses, messages prêts, opportunités, activité de la nuit</span>
-          <span className="text-sm text-ink-soft group-open:hidden">Afficher</span><span className="text-sm text-ink-soft hidden group-open:inline">Masquer</span>
+          <span className="font-semibold">Plus</span>
+          <span className="text-sm text-ink-soft"><span className="hidden sm:inline group-open:hidden">Ce que Bingoo! a fait, trouver d'autres clients, le détail</span><span className="hidden group-open:inline">Masquer</span></span>
         </summary>
-        <div className="px-4 pb-4 pt-1">
+        <div className="px-4 pb-5 pt-1">
+          {s && <Travail s={s} />}
+          <h3 className="text-[17px] font-semibold mb-2 mt-2">Trouver d'autres clients</h3>
+          <Decris /><Public /><Demarrage />
+          {s && s.sent >= 20 && <div className="hidden sm:block"><Semaine /></div>}
           <TodayFeed />
           {s && s.detected.length > 0 && (
             <section className="mb-8">
               <div className="flex items-baseline justify-between gap-3 mb-3">
-                <h2 className="text-[19px] font-semibold">Nouvelles opportunités{s.opps > 0 && <span className="ml-2 text-ink-faint font-normal">{s.opps}</span>}</h2>
+                <h3 className="text-[17px] font-semibold">Nouvelles opportunités{s.opps > 0 && <span className="ml-2 text-ink-faint font-normal">{s.opps}</span>}</h3>
                 <Link to="/radar" className="text-sm text-ink-soft hover:text-ink hover:underline underline-offset-4">Toutes les opportunités</Link>
               </div>
               <Detected rows={s.detected} onPrepared={load} />
             </section>
           )}
           {s && <Urgent u={s.urgent} />}
+          {s && <Contacts s={s} />}
+          {s && (s.ready > 0 || s.todo > 0 || s.hard > 0) && (
+            <div className="mt-4 rounded-2xl border border-dashed border-line p-4">
+              <p className="font-semibold">Aller plus vite</p>
+              <p className="text-[13px] text-ink-soft mt-0.5">Bingoo! le fait tout seul en semaine ; ces boutons lancent le travail tout de suite. Rien n'est envoyé sans toi.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {s.ready > 0 && <Button quota="redaction" loading={job?.key === "draft"} disabled={!!job} onClick={() => run({ key: "draft", action: "draft", body: { workspace_id: ws.id, count: 5 }, rounds: Math.ceil(Math.min(s.ready, 20) / 5), label: "Rédaction", done: (n) => `${plural(n, "message rédigé", "messages rédigés")}, à valider` })}>{job?.key === "draft" ? job.text : `Rédiger ${fmtN(Math.min(s.ready, 20))} messages`}</Button>}
+                {s.todo > 0 && <Button quota="enquete" loading={job?.key === "enrich"} disabled={!!job} onClick={() => run({ key: "enrich", action: "m/enrich", body: { workspace_id: ws.id, count: 4 }, rounds: 3, label: "Enquête", done: (n, f) => `${f} e-mails trouvés sur ${n} prospects` })}>{job?.key === "enrich" ? job.text : `Trouver les contacts (${fmtN(s.todo)})`}</Button>}
+                {s.hard > 0 && <Button quota="enquete_plus" loading={job?.key === "deep"} disabled={!!job} onClick={() => run({ key: "deep", action: "enrich-deep", body: { workspace_id: ws.id }, rounds: 5, label: "Enquête approfondie", done: (n, f) => `${f} e-mails trouvés sur ${n} prospects` })}>{job?.key === "deep" ? job.text : `Creuser ${fmtN(Math.min(s.hard, 5))} prospects sans e-mail`}</Button>}
+                <Button quota="recherche" loading={job?.key === "search"} disabled={!!job} onClick={() => run({ key: "search", action: "search", body: { workspace_id: ws.id, pages: 2 }, rounds: 1, label: "Recherche", done: (n) => `${plural(n, "nouveau prospect", "nouveaux prospects")}` })}>{job?.key === "search" ? job.text : "Chercher de nouvelles entreprises"}</Button>
+              </div>
+            </div>
+          )}
+          <button onClick={() => nav("/village")} className="mt-5 text-[14px] font-semibold text-ink-soft underline hover:text-ink">Voir ma ville (ton équipe au travail)</button>
         </div>
       </details>
-
-      {s && (
-        <details className="group mt-2 rounded-2xl border border-line bg-white">
-          <summary className="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-3">
-            <span className="font-semibold">Ta semaine en chiffres</span>
-            <span className="text-sm text-ink-soft group-open:hidden">Afficher</span><span className="text-sm text-ink-soft hidden group-open:inline">Masquer</span>
-          </summary>
-          <div className="px-4 pb-5">
-            <section className="py-2 mb-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-y-4 lg:divide-x divide-line">
-              <Stat icon="search" label="Trouvés" value={s.found} delta={s.found7} />
-              <Stat icon="send" label="À contacter" value={s.toContact} delta={null} />
-              <Stat icon="check" label="Contactés" value={s.sent} delta={s.sent7} avant={s.sentPrev} />
-              <Stat icon="chat" label="Réponses" value={s.replied} delta={s.replied7} avant={s.repPrev} />
-              <Stat icon="cal" label="RDV" value={s.rdv} delta={s.rdv7} avant={s.rdvPrev} accent />
-              <Stat icon="users" label="Clients" value={s.client} delta={null} accent />
-            </section>
-            {(s.ready > 0 || s.todo > 0 || s.hard > 0) && (
-              <div className="mt-4 rounded-2xl border border-dashed border-line p-4">
-                <p className="font-semibold">Aller plus vite</p>
-                <p className="text-[13px] text-ink-soft mt-0.5">Bingoo! le fait tout seul en semaine ; ces boutons lancent le travail tout de suite. Rien n'est envoyé sans toi.</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {s.ready > 0 && <Button quota="redaction" loading={job?.key === "draft"} disabled={!!job} onClick={() => run({ key: "draft", action: "draft", body: { workspace_id: ws.id, count: 5 }, rounds: Math.ceil(Math.min(s.ready, 20) / 5), label: "Rédaction", done: (n) => `${plural(n, "message rédigé", "messages rédigés")}, à valider` })}>{job?.key === "draft" ? job.text : `Rédiger ${fmtN(Math.min(s.ready, 20))} messages`}</Button>}
-                  {s.todo > 0 && <Button quota="enquete" loading={job?.key === "enrich"} disabled={!!job} onClick={() => run({ key: "enrich", action: "m/enrich", body: { workspace_id: ws.id, count: 4 }, rounds: 3, label: "Enquête", done: (n, f) => `${f} e-mails trouvés sur ${n} prospects` })}>{job?.key === "enrich" ? job.text : `Trouver les contacts (${fmtN(s.todo)})`}</Button>}
-                  {s.hard > 0 && <Button quota="enquete_plus" loading={job?.key === "deep"} disabled={!!job} onClick={() => run({ key: "deep", action: "enrich-deep", body: { workspace_id: ws.id }, rounds: 5, label: "Enquête approfondie", done: (n, f) => `${f} e-mails trouvés sur ${n} prospects` })}>{job?.key === "deep" ? job.text : `Creuser ${fmtN(Math.min(s.hard, 5))} prospects sans e-mail`}</Button>}
-                  <Button quota="recherche" loading={job?.key === "search"} disabled={!!job} onClick={() => run({ key: "search", action: "search", body: { workspace_id: ws.id, pages: 2 }, rounds: 1, label: "Recherche", done: (n) => `${plural(n, "nouveau prospect", "nouveaux prospects")}` })}>{job?.key === "search" ? job.text : "Chercher de nouvelles entreprises"}</Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </details>
-      )}
     </div>
   );
 }

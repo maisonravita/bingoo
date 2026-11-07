@@ -103,7 +103,7 @@ export default function LinkedIn() {
 
   return (
     <div>
-      <PageHead title="Café LinkedIn" sub="La machine trouve le décideur et écrit pour toi. Tu envoies toi-même (aucun risque pour ton compte), ou tu laisses le pilote le faire.">
+      <PageHead title="LinkedIn" sub="La machine trouve le décideur et écrit pour toi. Tu envoies toi-même (aucun risque pour ton compte), ou tu laisses le pilote le faire.">
         <Button quota="linkedin" variant="li" loading={job?.key === "li"} disabled={!!job} onClick={() => run({ key: "li", action: "linkedin", body: { workspace_id: ws.id, count: 4 }, rounds: 2, label: "Recherche des décideurs", done: (n, f) => `${f} profils trouvés sur ${n} prospects` })}>
           {job?.key === "li" ? job.text : "Préparer 8 invitations"}
         </Button>

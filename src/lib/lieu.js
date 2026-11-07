@@ -18,24 +18,19 @@ export const useDansLieu = () => !!useContext(LieuContext);
  *  (trafic du site, réseaux sociaux, studio, salariés IA, intelligence…) restent accessibles en les activant dans Réglages. */
 export const estSimple = (ws) => !(ws?.profile && ws.profile.avance === true);
 
-/** L'accueil montre-t-il la ville ? Ordinateur : oui sauf choix « liste ». Téléphone : non (liste d'abord), sauf choix « ville ». */
-export function accueilVille() {
-  let v = "", vm = "";
-  try { v = localStorage.getItem("bingoo-vue") ?? ""; vm = localStorage.getItem("bingoo-vue-mobile") ?? ""; } catch { /* rien */ }
-  const mobile = typeof window !== "undefined" && !!window.matchMedia?.("(max-width: 767px)").matches;
-  return mobile ? vm === "village" : v !== "liste";
-}
+/** L'accueil est toujours « Aujourd'hui » : la ville est une vue en option (menu « Plus » → « Ma ville »). */
+export function accueilVille() { return false; }
 
 /** Un seul nom par lieu, partout (ville, menu, titres, barre du téléphone). Dans l'ordre du travail. */
 export const LIEUX = [
-  { art: "radar", to: "/radar", nom: "Tour Radar", court: "Radar", icon: "radar", avance: false },
-  { art: "annuaire", to: "/prospects", nom: "Annuaire", court: "Annuaire", icon: "list" },
-  { art: "espion", to: "/espion", nom: "Espion", court: "Espion", icon: "eye", avance: true },
-  { art: "atelier", to: "/valider", nom: "Atelier", court: "Atelier", icon: "send" },
-  { art: "poste", to: "/reponses", nom: "Poste", court: "Poste", icon: "inbox" },
-  { art: "linkedin", to: "/linkedin", nom: "Café LinkedIn", court: "LinkedIn", icon: "li", avance: true },
+  { art: "radar", to: "/radar", nom: "Opportunités", court: "Opportunités", icon: "radar", avance: false },
+  { art: "annuaire", to: "/prospects", nom: "Entreprises", court: "Entreprises", icon: "list" },
+  { art: "espion", to: "/espion", nom: "Concurrents", court: "Concurrents", icon: "eye", avance: true },
+  { art: "atelier", to: "/valider", nom: "Messages à envoyer", court: "Messages", icon: "send" },
+  { art: "poste", to: "/reponses", nom: "Réponses", court: "Réponses", icon: "inbox" },
+  { art: "linkedin", to: "/linkedin", nom: "LinkedIn", court: "LinkedIn", icon: "li", avance: true },
   { art: "rdv", to: "/agenda", nom: "Rendez-vous", court: "RDV", icon: "cal" },
-  { art: "observatoire", to: "/resultats", nom: "Observatoire", court: "Résultats", icon: "chart" },
-  { art: "mairie", to: "/reglages", nom: "Mairie", court: "Réglages", icon: "cog" },
+  { art: "observatoire", to: "/resultats", nom: "Résultats", court: "Résultats", icon: "chart" },
+  { art: "mairie", to: "/reglages", nom: "Réglages", court: "Réglages", icon: "cog" },
 ];
 export const nomDe = (to) => LIEUX.find((l) => l.to === to)?.nom ?? "";

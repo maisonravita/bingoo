@@ -1341,7 +1341,7 @@ export default function Radar() {
         <div className={cx("flex items-center gap-4", dansLieu && "hidden")}>
           <span className="h-16 w-16 rounded-full bg-accent-soft text-accent grid place-items-center"><Ico name="radar" className="h-9 w-9" /></span>
           <div>
-            <h1 className="font-black text-[40px] leading-none tracking-tight" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>Tour Radar</h1>
+            <h1 className="font-black text-[40px] leading-none tracking-tight" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>Opportunités</h1>
             <p className="text-ink-soft mt-1.5">Les entreprises à contacter au bon moment.</p>
           </div>
         </div>

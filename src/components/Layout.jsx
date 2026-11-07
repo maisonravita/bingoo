@@ -191,23 +191,26 @@ export default function Layout({ children }) {
 
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => { supabase.rpc("is_admin").then(({ data }) => setIsAdmin(!!data)); }, []);
-  // Le menu : un raccourci vers les bâtiments de la ville, avec les mêmes noms, dans l'ordre du travail.
-  // Mode simple : Espion et Café LinkedIn n'apparaissent que si les outils avancés sont activés.
+  // Le menu : l'essentiel en haut, avec des noms simples ; tout le reste derrière « Plus ».
+  // Les outils avancés (Concurrents, LinkedIn, Devis, Extension) n'apparaissent que s'ils sont activés dans Réglages.
   const compte = { atelier: c.drafts, poste: c.replies, rdv: c.today, radar: c.radar, linkedin: c.li };
   const also = { annuaire: ["/mission"], mairie: ["/connexions", "/equipe", "/abonnement"] };
-  const visibles = LIEUX.filter((l) => !(l.avance && estSimple(ws)));
+  const lieu = (art) => LIEUX.find((l) => l.art === art);
   const item = (l) => ({ to: l.to, label: l.nom, short: l.court, icon: l.icon, count: compte[l.art], hot: l.art === "atelier", also: also[l.art] });
-  const QUARTIERS_MENU = [["Trouver", ["radar", "annuaire", "espion"]], ["Contacter", ["atelier", "poste", "linkedin"]], ["Conclure", ["rdv", "observatoire"]]];
-  const groups = [
-    ...QUARTIERS_MENU.map(([title, arts]) => ({ title, items: visibles.filter((l) => arts.includes(l.art)).map(item) })).filter((g) => g.items.length),
-    { items: [item(LIEUX.find((l) => l.art === "mairie")), ...(isAdmin ? [{ to: "/admin", label: "Administration", icon: "chart" }] : [])] },
+  const avance = !estSimple(ws);
+  const essentiel = ["atelier", "poste", "rdv", "radar", "observatoire"].map((a) => item(lieu(a)));
+  const plus = [
+    item(lieu("annuaire")),
+    { to: "/village", label: "Ma ville", icon: "town" },
+    ...(avance ? [item(lieu("espion")), item(lieu("linkedin")), { to: "/devis", label: "Devis", icon: "doc" }, { to: "/extension", label: "Extension LinkedIn", icon: "plug" }] : []),
+    item(lieu("mairie")),
+    ...(isAdmin ? [{ to: "/admin", label: "Administration", icon: "chart" }] : []),
   ];
   const isOn = (n, isActive) => isActive || (n.also ?? []).some((p) => loc.pathname === p);
   const link = (n) => ({ isActive }) => cx("flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] font-medium transition", isOn(n, isActive) ? "bg-accent-soft/80 text-accent-dark font-semibold border border-transparent" : "text-ink-soft hover:text-ink hover:bg-white/70 border border-transparent");
   const Count = ({ n, hot }) => n > 0 ? <span className={cx("text-xs font-semibold rounded-full px-2 py-0.5 tnum", hot ? "bg-accent text-white" : "bg-ink/10 text-ink")}>{n}</span> : null;
 
   // Accueil en ville : plein écran, sans menu. Partout : un seul bouton « 3 traits » qui ouvre le menu.
-  let vue = ""; try { vue = localStorage.getItem("bingoo-vue") ?? ""; } catch { /* rien */ }
   const full = loc.pathname === "/village" || (loc.pathname === "/" && accueilVille());
   const menu = (
     <>
@@ -220,18 +223,16 @@ export default function Layout({ children }) {
           <div className="absolute inset-0 bg-ink/35" />
           <aside className="absolute left-0 top-0 h-full w-[300px] max-w-[85vw] overflow-y-auto bg-paper p-4 shadow-2xl rise" onClick={(e) => e.stopPropagation()} aria-label="Menu">
             <div className="flex items-center justify-between mb-4"><Logo className="ml-2" /><button onClick={() => setMore(false)} aria-label="Fermer le menu" className="grid h-10 w-10 place-items-center rounded-xl hover:bg-white text-[20px]">✕</button></div>
-            <NavLink to="/village" onClick={() => { try { localStorage.setItem("bingoo-vue", "village"); } catch { /* rien */ } setMore(false); }} className="mb-1 flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] font-semibold text-accent-dark bg-accent-soft/70"><Icon name="town" /><span className="flex-1">Ma ville</span></NavLink>
-            <NavLink to="/liste" onClick={() => { try { localStorage.setItem("bingoo-vue", "liste"); } catch { /* rien */ } setMore(false); }} className={link({ to: "/liste" })}><Icon name="today" /><span className="flex-1">Aujourd'hui (vue liste)</span><Count n={c.drafts} hot /></NavLink>
-            {groups.map((g, i) => (
-              <div key={i} className="mt-3 pt-3 border-t border-line flex flex-col gap-0.5">
-                {g.title && <p className="px-3 pb-1 text-[12px] font-semibold text-ink-faint">{g.title}</p>}
-                {g.items.filter((n) => n.to !== "/").map((n) => n.ext ? (
-                  <a key={n.to} href={n.to} className={link(n)({ isActive: false })}><Icon name={n.icon} /><span className="flex-1">{n.label}</span></a>
-                ) : (
-                  <NavLink key={n.to} to={n.to} end onClick={() => setMore(false)} className={link(n)}><Icon name={n.icon} /><span className="flex-1">{n.label}</span><Count n={n.count} hot={n.hot} /></NavLink>
-                ))}
+            <div className="flex flex-col gap-0.5">
+              <NavLink to="/" end onClick={() => setMore(false)} className={link({ to: "/" })}><Icon name="today" /><span className="flex-1">Aujourd'hui</span></NavLink>
+              {essentiel.map((n) => <NavLink key={n.to} to={n.to} end onClick={() => setMore(false)} className={link(n)}><Icon name={n.icon} /><span className="flex-1">{n.label}</span><Count n={n.count} hot={n.hot} /></NavLink>)}
+            </div>
+            <details className="group mt-3 pt-3 border-t border-line" open={plus.some((n) => loc.pathname === n.to || (n.also ?? []).includes(loc.pathname))}>
+              <summary className="cursor-pointer list-none flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] font-medium text-ink-soft hover:text-ink hover:bg-white/70"><Icon name="more" /><span className="flex-1">Plus</span><span className="transition group-open:rotate-90" aria-hidden>›</span></summary>
+              <div className="mt-0.5 flex flex-col gap-0.5">
+                {plus.map((n) => <NavLink key={n.to} to={n.to} end onClick={() => setMore(false)} className={link(n)}><Icon name={n.icon} /><span className="flex-1">{n.label}</span><Count n={n.count} hot={n.hot} /></NavLink>)}
               </div>
-            ))}
+            </details>
             <div className="mt-4 pt-4 border-t border-line px-3 text-[14px] text-ink-soft flex flex-col gap-1.5">
               {list?.length > 1 ? <WsSwitch ws={ws} list={list} select={select} /> : <p className="font-semibold text-ink truncate">{ws.profile?.nom || ws.name || "Mon entreprise"}</p>}
               <NavLink className="hover:text-ink" to="/aide" onClick={() => setMore(false)}>Aide</NavLink>
@@ -258,8 +259,7 @@ export default function Layout({ children }) {
       <main className="min-w-0 px-4 pt-4 pb-28 md:pb-16 md:px-10 md:pt-6 max-w-6xl mx-auto">
         <div className="flex items-center gap-3 mb-4">
           {menu}
-          <NavLink to="/village" onClick={() => { try { localStorage.setItem("bingoo-vue", "village"); } catch { /* rien */ } }} className="hidden sm:flex items-center gap-2 rounded-2xl border border-line bg-white px-3.5 py-2.5 text-[14px] font-semibold hover:border-ink-faint"><Icon name="town" />Retour à ma ville</NavLink>
-          <Logo className="sm:hidden" />
+          <Logo />
           <div className="flex-1" />
           {ws.autonomy === "auto" && <span className="w-2.5 h-2.5 rounded-full bg-good pulse-dot" title="Pilote automatique actif" />}
         </div>
@@ -270,7 +270,7 @@ export default function Layout({ children }) {
       {/* Téléphone : les 4 endroits du quotidien, toujours sous le pouce */}
       <nav aria-label="Navigation principale" className="md:hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
         <div className="grid grid-cols-4">
-          {[["/", "Aujourd'hui", "today", c.drafts], ["/prospects", "Annuaire", "list", 0], ["/reponses", "Poste", "inbox", c.replies], ["/agenda", "RDV", "cal", c.today]].map(([to, l, ic, n]) => (
+          {[["/", "Aujourd'hui", "today", 0], ["/valider", "Messages", "send", c.drafts], ["/reponses", "Réponses", "inbox", c.replies], ["/agenda", "RDV", "cal", c.today]].map(([to, l, ic, n]) => (
             <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => cx("relative flex flex-col items-center gap-0.5 py-2.5 text-[11.5px] font-semibold", isActive ? "text-[#E8571C]" : "text-ink-soft")}>
               <Icon name={ic} />{l}
               {n > 0 && <span className="absolute right-[22%] top-1.5 min-w-[17px] rounded-full bg-[#F26A21] px-1 text-[10px] font-black leading-[17px] text-white">{n > 9 ? "9+" : n}</span>}

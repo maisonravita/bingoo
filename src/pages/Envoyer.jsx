@@ -16,7 +16,7 @@ export default function Envoyer() {
     try { setD(await fn("m/lien-envoi", { t, confirmer: true, ...(d?.type === "reponse" ? { subject: d.message.subject, body: d.message.body } : {}) })); } catch (e) { setErr(e.message); } finally { setBusy(false); }
   };
   const FIN = {
-    envoye: ["Envoyé.", d?.type === "reponse" ? "Ta réponse est partie de ta boîte. S'il choisit un créneau, le rendez-vous s'ajoute tout seul à ton agenda Bingoo!." : "Le message est parti de ta boîte. La réponse arrivera à la Poste de Bingoo!."],
+    envoye: ["Envoyé.", d?.type === "reponse" ? "Ta réponse est partie de ta boîte. S'il choisit un créneau, le rendez-vous s'ajoute tout seul à ton agenda Bingoo!." : "Le message est parti de ta boîte. Sa réponse arrivera dans Réponses, sur Bingoo!."],
     utilise: ["Déjà traité.", "Ce lien a déjà servi."],
     traite: ["Déjà traité.", "Ce message a été envoyé ou écarté depuis l'application."],
     expire: ["Lien expiré.", "Les liens du matin durent 48 heures. Ouvre Bingoo! pour retrouver tes opportunités."],

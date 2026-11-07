@@ -90,7 +90,7 @@ export default function Settings() {
   return (
     <div className="space-y-6 max-w-3xl">
       <SubNav section="reglages" />
-      <PageHead title="Mairie" sub="Tes réglages" />
+      <PageHead title="Réglages" sub="Tes réglages" />
 
       <Section title="Ton entreprise" sub="Ce que la machine sait de toi. Elle n'invente rien en dehors de ces informations.">
         <div className="grid gap-4">

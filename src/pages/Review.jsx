@@ -127,7 +127,7 @@ export default function Review() {
   if (!queue) return <div className="text-ink-soft"><Spinner /></div>;
   if (!cur) return (
     <>
-      <PageHead title="Atelier" />
+      <PageHead title="Messages à envoyer" />
       <Empty title="Aucune opportunité à traiter.">Bingoo! n'écrit que lorsqu'une entreprise a un fait récent et vérifié. Les prochaines arrivent ici d'elles-mêmes.</Empty>
     </>
   );
@@ -137,7 +137,7 @@ export default function Review() {
 
   return (
     <div>
-      <PageHead title="Atelier" resume sub={<>{queue.length} opportunité{queue.length > 1 ? "s" : ""} prête{queue.length > 1 ? "s" : ""}</>} />
+      <PageHead title="Messages à envoyer" resume sub={<>{queue.length} opportunité{queue.length > 1 ? "s" : ""} prête{queue.length > 1 ? "s" : ""}</>} />
       <Guide id="valider" titre="Ici : les messages que Bingoo! a écrits pour toi. Rien ne part sans ton accord." etapes={["Lis le message. S'il te va, clique « Envoyer » (ou glisse vers la droite).", "Tu veux changer un mot ? « Modifier ». Bingoo! apprend ton style.", "L'entreprise ne te correspond pas ? Clique sur la raison (« Pas ma cible »…) : Bingoo! s'en souviendra."]} />
       {!domainOk && <p className="mb-4 text-sm bg-warn-soft text-warn rounded-xl px-4 py-3">Pour envoyer, connecte ta boîte mail (2 minutes) ou vérifie ton domaine d'envoi. En attendant, tu peux relire et modifier. <Link to="/connexions" className="underline font-semibold">Connecter ma boîte</Link> · <Link to="/reglages#domaine" className="underline font-semibold">Domaine</Link></p>}
 

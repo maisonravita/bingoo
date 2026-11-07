@@ -430,7 +430,7 @@ function Cartes({ ws }) {
           </details>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-[14px]">
             <span className="font-semibold">Tu l'enverrais ?</span>
-            {avis[m.id] ? <span className="text-ink-soft">{avis[m.id] === "oui" ? "Noté : il t'attend dans l'Atelier." : "Noté : tu pourras le modifier ou l'écarter dans l'Atelier."}</span> : (<>
+            {avis[m.id] ? <span className="text-ink-soft">{avis[m.id] === "oui" ? "Noté : il t'attend dans « Messages à envoyer »." : "Noté : tu pourras le modifier ou l'écarter dans « Messages à envoyer »."}</span> : (<>
               <button onClick={() => repondre(m.id, "oui")} className="rounded-full bg-good/10 px-3 py-1 font-semibold text-good hover:bg-good/20">Oui</button>
               <button onClick={() => repondre(m.id, "non")} className="rounded-full bg-paper px-3 py-1 font-semibold text-ink-soft hover:text-ink">Pas tel quel</button>
             </>)}

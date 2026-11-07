@@ -119,7 +119,7 @@ function Envoyes() {
       .then(({ data }) => setRows(data ?? []));
   }, [ws.id]);
   if (!rows) return <Spinner />;
-  if (!rows.length) return <Empty title="Aucun message envoyé pour l'instant.">Dès que tu valides un message à l'Atelier, il part et apparaît ici.</Empty>;
+  if (!rows.length) return <Empty title="Aucun message envoyé pour l'instant.">Dès que tu valides un message dans « Messages à envoyer », il part et apparaît ici.</Empty>;
   const etape = (n) => (n >= 100 ? "Reprise de contact" : n === 0 ? "Premier message" : `Relance ${n}`);
   const suite = (m) => {
     const st = m.prospects?.status;
@@ -188,7 +188,7 @@ export default function Replies() {
 
   return (
     <div>
-      <PageHead title="Poste" resume sub={tracked ? "Triées, avec une réponse déjà proposée." : "Active le suivi des réponses à la Mairie pour qu'elles arrivent ici."}>
+      <PageHead title="Réponses" resume sub={tracked ? "Triées, avec une réponse déjà proposée." : "Active le suivi des réponses dans Réglages pour qu'elles arrivent ici."}>
         <Paste onDone={load} />
       </PageHead>
       <Guide id="reponses" titre="Ici : les prospects qui t'ont répondu, déjà triés." etapes={["Commence par ceux marqués « Intéressé » : une réponse est déjà prête.", "Relis-la, corrige si besoin, puis clique « Envoyer la réponse ».", "Il propose un rendez-vous ? Il arrive tout seul dans « Rendez-vous »."]} />
