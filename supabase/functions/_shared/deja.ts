@@ -42,7 +42,8 @@ export async function dejaContacte(ws: Workspace, p: Prospect): Promise<Deja> {
   }
 
   // 2) Une autre fiche de la même entreprise, dans le même espace
-  const ors = [siren ? `siren.eq.${siren}` : "", dom ? `email.ilike.%@${dom}` : "", dom ? `website.ilike.%${dom}%` : ""].filter(Boolean);
+  const nomExact = String(p.name ?? "").trim().replace(/[,()*%\\"]/g, " ").trim();
+  const ors = [siren ? `siren.eq.${siren}` : "", dom ? `email.ilike.%@${dom}` : "", dom ? `website.ilike.%${dom}%` : "", nomExact.length >= 4 ? `name.ilike."${nomExact}"` : ""].filter(Boolean);
   if (!ors.length) return null;
   const { data: autres } = await admin.from("prospects").select("id, name, contact_name, status")
     .eq("workspace_id", ws.id).neq("id", p.id).or(ors.join(",")).in("status", ["envoye", "repondu", "rdv", "client", "refus"]).limit(20);
