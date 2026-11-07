@@ -18,7 +18,7 @@ export async function verifierFaits(ws: Workspace, p: Prospect, subject: string,
     ws.knowledge ? `Fiche de l'expéditeur : ${String(ws.knowledge).slice(0, 2500)}` : "",
   ].filter(Boolean).join("\n");
   try {
-    const r = await askJson<{ doutes: string[] }>(`Tu relis un e-mail de prospection avant envoi. Liste les affirmations FACTUELLES de l'e-mail qui ne sont PAS soutenues par les sources ci-dessous : chiffres, dates, noms de clients, résultats promis, faits sur le prospect (recrutement, levée, déménagement, projet, outil utilisé…), certifications.
+    const r = await askJson<{ doutes: ({ citation?: string; pourquoi?: string; certain?: boolean } | string)[] }>(`Tu relis un e-mail de prospection avant envoi. Liste les affirmations FACTUELLES de l'e-mail qui ne sont PAS soutenues par les sources ci-dessous : chiffres, dates, noms de clients, résultats promis, faits sur le prospect (recrutement, levée, déménagement, projet, outil utilisé…), certifications.
 Ne juge QUE les phrases qui disent quelque chose sur le prospect (son entreprise, sa situation, ses équipes, ses projets, ses outils, ses difficultés, ses besoins).
 Ignore entièrement : les phrases qui décrivent l'expéditeur ou ce que fait son offre, les généralités prudentes sur ce type d'événement (« une entreprise qui recrute a souvent… », « un nouveau dirigeant revoit en général… »), les formules de politesse, les questions, les propositions (« seriez-vous disponible »), les demandes de transmission, et les déductions évidentes de l'activité ou de la ville du prospect.
 
@@ -29,8 +29,11 @@ E-MAIL
 Objet : ${subject}
 ${body}
 
-Réponds en JSON : {"doutes": ["citation courte de l'affirmation non soutenue — pourquoi"]}. Liste vide si tout est soutenu. Trois éléments au plus.`, { fast: true, maxTokens: 400 });
-    return (r.doutes ?? []).map((x) => String(x).trim()).filter(Boolean).slice(0, 3).join("\n").slice(0, 600);
+N'inclus un élément QUE si tu es certain qu'il affirme sur le prospect quelque chose que les sources ne disent pas. Si, en y réfléchissant, l'élément est soutenu, acceptable, une déduction évidente ou une généralité, ne l'inclus pas du tout.
+Réponds en JSON : {"doutes": [{"citation": "citation courte", "pourquoi": "raison en une phrase", "certain": true}]}. Liste vide si tout est soutenu. Trois éléments au plus.`, { fast: true, maxTokens: 400 });
+    // On ne garde que les doutes certains (le modèle signale parfois un point avant de conclure qu'il est acceptable)
+    const garder = (x: unknown) => typeof x === "string" ? !/acceptable|pas vraiment un doute|donc soutenu|donc ignoré|aucun doute|pas un doute/i.test(x) : (x as { certain?: boolean }).certain !== false && !/acceptable|pas vraiment un doute|donc soutenu|donc ignoré|aucun doute|pas un doute/i.test(String((x as { pourquoi?: string }).pourquoi ?? ""));
+    return (r.doutes ?? []).filter(garder).map((x) => typeof x === "string" ? x : `« ${String(x.citation ?? "").replace(/^«\s*|\s*»$/g, "")} » — ${x.pourquoi ?? ""}`).map((x) => x.trim()).filter((x) => x.length > 6).slice(0, 3).join("\n").slice(0, 600);
   } catch { return ""; }
 }
 
