@@ -18,7 +18,8 @@ export async function verifierFaits(ws: Workspace, p: Prospect, subject: string,
   ].filter(Boolean).join("\n");
   try {
     const r = await askJson<{ doutes: string[] }>(`Tu relis un e-mail de prospection avant envoi. Liste les affirmations FACTUELLES de l'e-mail qui ne sont PAS soutenues par les sources ci-dessous : chiffres, dates, noms de clients, résultats promis, faits sur le prospect (recrutement, levée, déménagement, projet, outil utilisé…), certifications.
-Ne signale pas : les formules de politesse, les questions, les propositions (« seriez-vous disponible »), les généralités prudentes (« beaucoup d'entreprises comme la vôtre »), ce qui découle directement de l'offre.
+Ne signale pas : les formules de politesse, les questions, les propositions (« seriez-vous disponible »), les généralités prudentes (« beaucoup d'entreprises comme la vôtre »), la description de ce que l'offre de l'expéditeur sait faire, ni les déductions évidentes de l'activité du prospect.
+Signale en priorité : ce qui est présenté comme un fait propre à CE prospect sans source (sa situation, ses difficultés, ses équipes, ses projets, ses outils).
 
 SOURCES
 ${sources}
