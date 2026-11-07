@@ -6,6 +6,7 @@ import { cx } from "../lib/utils";
 import { LegalLinks } from "../pages/Legal";
 import Logo from "./Logo";
 import Feedback from "./Feedback";
+import { estSimple } from "../lib/lieu";
 
 const ICONS = {
   today: <path d="M4 12h3l3-7 4 14 3-7h3" />,
@@ -243,7 +244,7 @@ export default function Layout({ children }) {
             ))}
             <div className="mt-4 pt-4 border-t border-line px-3 text-[14px] text-ink-soft flex flex-col gap-1.5">
               {list?.length > 1 ? <WsSwitch ws={ws} list={list} select={select} /> : <p className="font-semibold text-ink truncate">{ws.profile?.nom || ws.name || "Mon entreprise"}</p>}
-              <NavLink className="hover:text-ink" to="/salaries" onClick={() => setMore(false)}>Besoin d'aide ? Ton équipe Bingoo!</NavLink>
+              {!estSimple(ws) && <NavLink className="hover:text-ink" to="/salaries" onClick={() => setMore(false)}>Besoin d'aide ? Ton équipe Bingoo!</NavLink>}
               <NavLink className="hover:text-ink" to="/aide" onClick={() => setMore(false)}>Aide</NavLink>
               <button className="text-left hover:text-ink" onClick={() => { setMore(false); setFb(true); }}>Donner mon avis</button>
               <button className="text-left font-semibold text-ink hover:text-accent-dark" onClick={() => supabase.auth.signOut()}>Se déconnecter</button>

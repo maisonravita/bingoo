@@ -280,6 +280,38 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     }
     return { liste: exclusionsDe(ws), n: exclusionsDe(ws).length };
   },
+  // Import des clients actuels depuis le CRM vers « Ne jamais contacter » (HubSpot : sociétés clientes ; Pipedrive : affaires gagnées)
+  async "exclusions-crm"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { crmAuth } = await import("../_shared/crm-oauth.ts");
+    const { hub, pipe } = await import("../_shared/growth.ts");
+    const { exclusionsDe } = await import("../_shared/deja.ts");
+    const auth = await crmAuth(ws);
+    if (!auth.hubspot && !auth.pipedrive) throw new HttpError(400, "Connecte HubSpot ou Pipedrive dans Connexions pour importer tes clients");
+    const ajout: string[] = [];
+    if (auth.hubspot) {
+      let after: string | undefined;
+      for (let page = 0; page < 5; page++) {
+        const r = await hub(auth.hubspot.token, "/crm/v3/objects/companies/search", "POST", { filterGroups: [{ filters: [{ propertyName: "lifecyclestage", operator: "EQ", value: "customer" }] }], properties: ["name", "domain"], limit: 100, ...(after ? { after } : {}) });
+        for (const c of (r.data?.results ?? []) as { properties?: { name?: string; domain?: string } }[]) ajout.push(c.properties?.domain || c.properties?.name || "");
+        after = r.data?.paging?.next?.after; if (!after) break;
+      }
+    }
+    if (auth.pipedrive) {
+      for (let start = 0; start < 500; start += 100) {
+        const r = await pipe(auth.pipedrive as never, `/deals?status=won&limit=100&start=${start}`);
+        const rows = (r.data?.data ?? []) as { org_name?: string; org_id?: { name?: string } }[];
+        for (const d of rows) ajout.push(d.org_name || d.org_id?.name || "");
+        if (!r.data?.additional_data?.pagination?.more_items_in_collection) break;
+      }
+    }
+    const avant = exclusionsDe(ws);
+    const set = new Set(avant);
+    const nouveaux = [...new Set(ajout.map((x) => String(x).trim()).filter((x) => x.length >= 3))].filter((x) => !set.has(x.toLowerCase()));
+    const liste = [...avant, ...nouveaux].slice(0, 2000);
+    await admin.from("workspaces").update({ profile: { ...((ws.profile ?? {}) as Record<string, unknown>), exclusions: liste } }).eq("id", ws.id);
+    return { ajoutes: nouveaux.length, total: liste.length, liste };
+  },
   // Test du détecteur (clé cron) : pour chaque fiche prête, dit si elle serait bloquée et pourquoi, sans rien changer
   async "deja-test"(req, b) {
     await cron(req);

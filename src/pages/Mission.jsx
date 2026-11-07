@@ -4,6 +4,7 @@ import { fn, quotaLeft, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { Badge, Button, Card, Input, PageHead, Spinner, Textarea, useToast } from "../components/ui";
 import { cx } from "../lib/utils";
+import { estSimple } from "../lib/lieu";
 
 const n = (x) => Number(x ?? 0).toLocaleString("fr-FR");
 const range = ([a, b]) => (a === b ? n(a) : `${n(a)} à ${n(b)}`);
@@ -476,7 +477,7 @@ export default function Mission() {
   return (
     <div>
       <PageHead title="Mission" sub="Ton objectif commercial, suivi chaque jour : ce qui est fait, ce qui reste, et la prochaine action." >
-        <Button onClick={() => go("/intelligence")}>Ce que disent tes prospects</Button>
+        {!estSimple(ws) && <Button onClick={() => go("/intelligence")}>Ce que disent tes prospects</Button>}
         {list?.length > 0 && !creating && <Button onClick={() => setCreating(true)}>Nouvelle mission</Button>}
       </PageHead>
       {list === null ? <div className="py-20 grid place-items-center"><Spinner /></div>

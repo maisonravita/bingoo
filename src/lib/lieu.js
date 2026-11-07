@@ -13,3 +13,7 @@ export function useAller() {
 
 /** Vrai quand la page est affichée dans le panneau d'un bâtiment (le titre est déjà dans l'en-tête du panneau). */
 export const useDansLieu = () => !!useContext(LieuContext);
+
+/** Mode simple (par défaut) : seuls les outils qui mènent à un rendez-vous sont visibles. Les outils avancés
+ *  (trafic du site, réseaux sociaux, studio, salariés IA, intelligence…) restent accessibles en les activant dans Réglages. */
+export const estSimple = (ws) => !(ws?.profile && ws.profile.avance === true);

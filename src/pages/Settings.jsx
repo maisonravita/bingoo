@@ -129,7 +129,44 @@ export default function Settings() {
         <Textarea rows={5} value={Array.isArray(pr.exclusions) ? pr.exclusions.join("\n") : (pr.exclusions ?? "")} onChange={(e) => setP("exclusions", e.target.value.split("\n"))}
           placeholder={"Un par ligne : site, e-mail, SIREN ou nom\nacme.fr\n552100554\nDupont Conseil"} />
         <p className="text-xs text-ink-soft mt-2">Quand tu écartes une fiche avec « Déjà client », l'entreprise est ajoutée ici automatiquement.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <label className="inline-flex cursor-pointer items-center rounded-full border border-line bg-white px-4 py-2 text-sm font-medium hover:border-ink-faint">
+            Importer un fichier (CSV, Excel en CSV)
+            <input type="file" accept=".csv,.txt" className="sr-only" onChange={async (e) => {
+              const f = e.target.files?.[0]; if (!f) return;
+              const texte = await f.text();
+              // Une valeur utile par ligne : e-mail → son domaine, site, SIREN, sinon le nom de l'entreprise (1re colonne)
+              const vus = texte.split(/\r?\n/).slice(0, 5000).map((l) => {
+                const cells = l.split(/[;,\t]/).map((c) => c.replace(/^"|"$/g, "").trim());
+                const mail = cells.find((c) => /@[\w.-]+\.[a-z]{2,}$/i.test(c));
+                if (mail) { const d = mail.split("@")[1].toLowerCase(); return /^(gmail|yahoo|hotmail|outlook|orange|free|sfr|wanadoo|icloud|live|laposte)\./.test(d) ? mail.toLowerCase() : d; }
+                const site = cells.find((c) => /^(https?:\/\/)?(www\.)?[\w-]+(\.[\w-]+)+(\/.*)?$/i.test(c) && c.includes("."));
+                if (site) return site.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
+                const siren = cells.map((c) => c.replace(/\s/g, "")).find((c) => /^\d{9}(\d{5})?$/.test(c));
+                if (siren) return siren.slice(0, 9);
+                return cells[0] ?? "";
+              }).filter((x) => x.length >= 3 && !/^(nom|name|entreprise|société|societe|email|e-mail|site)$/i.test(x));
+              const cur = Array.isArray(pr.exclusions) ? pr.exclusions : String(pr.exclusions ?? "").split("\n");
+              const tout = [...new Set([...cur.map((x) => x.trim()).filter(Boolean), ...vus])].slice(0, 2000);
+              setP("exclusions", tout);
+              toast(`${tout.length - cur.filter((x) => x.trim()).length} entrées ajoutées : vérifie puis enregistre`, "good");
+              e.target.value = "";
+            }} />
+          </label>
+          {(ws.integrations?.hubspot?.ok || ws.integrations?.pipedrive?.ok) && <Button loading={busy === "crm-excl"} onClick={async () => {
+            setBusy("crm-excl");
+            try { const r = await fn("r/exclusions-crm", { workspace_id: ws.id }); await patch({}); setP("exclusions", r.liste); toast(`${r.ajoutes} clients importés depuis ton CRM`, "good"); }
+            catch (e) { toast(e.message, "bad"); } finally { setBusy(null); }
+          }}>Importer mes clients depuis {ws.integrations?.hubspot?.ok ? "HubSpot" : "Pipedrive"}</Button>}
+        </div>
         <div className="mt-3"><Button variant="primary" loading={busy === "save"} onClick={() => save({ profile: { ...pr, exclusions: (Array.isArray(pr.exclusions) ? pr.exclusions : String(pr.exclusions ?? "").split("\n")).map((x) => x.trim()).filter((x) => x.length >= 3).slice(0, 2000) } }, "Liste enregistrée")}>Enregistrer</Button></div>
+      </Section>
+
+      <Section id="avance" title="Outils avancés" sub="Par défaut, Bingoo! ne montre que ce qui mène à un rendez-vous. Active les outils avancés pour voir aussi le trafic et la conversion de ton site, les réseaux sociaux, le studio vidéo, l'équipe IA en conversation et l'analyse de ce que disent tes prospects.">
+        <label className="flex items-center gap-3 text-sm font-medium cursor-pointer">
+          <input type="checkbox" checked={pr.avance === true} onChange={(e) => save({ profile: { ...pr, avance: e.target.checked } }, e.target.checked ? "Outils avancés affichés" : "Mode simple")} />
+          Afficher les outils avancés
+        </label>
       </Section>
 
       <Section id="fiche" title="Ce que Kairo peut répondre" sub="Les infos que tes prospects demandent : intégrations, délais, prix publics, sécurité, garanties, références. Kairo s'en sert dans les e-mails, les réponses et les comptes rendus, et n'invente rien d'autre.">
