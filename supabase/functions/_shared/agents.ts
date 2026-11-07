@@ -201,7 +201,9 @@ export async function draft(ws: Workspace, p: Prospect) {
     }
   }
   const { subject, body, active, v } = await writeDraft(ws, p);
-  const { data, error } = await admin.from("messages").insert({ workspace_id: ws.id, prospect_id: p.id, step: 0, subject, body, status: "brouillon", campaign_id: active?.id ?? null, variant: v?.key ?? "" }).select("id").single();
+  // Contrôle des faits : ce qui n'a pas de source est signalé à la validation (et bloque le pilote automatique)
+  const check_note = await (await import("./faits.ts")).verifierFaits(ws, p, subject, body);
+  const { data, error } = await admin.from("messages").insert({ workspace_id: ws.id, prospect_id: p.id, step: 0, subject, body, status: "brouillon", campaign_id: active?.id ?? null, variant: v?.key ?? "", check_note }).select("id").single();
   if (error?.code === "23505") throw new HttpError(409, "Un message est déjà prêt pour ce prospect");
   if (error) throw new HttpError(500, error.message);
   await admin.from("prospects").update({ status: "a_valider" }).eq("id", p.id);
@@ -640,7 +642,9 @@ OBJET: <2 à 5 mots, en minuscules sauf noms propres>
 <corps>`, { fast: true, system: systemFor(ws) + PLAYBOOK_ECRITURE, maxTokens: 700 });
     const m = out.match(/OBJET\s*:\s*(.+?)\s*\n\s*-{3,}\s*\n([\s\S]+)/i);
     if (!m) continue;
-    const { error } = await admin.from("messages").insert({ workspace_id: ws.id, prospect_id: p.id, step: Math.max(100, l.step + 1), subject: humanize(m[1]).slice(0, 140), body: humanize(m[2].trim()), status: "brouillon" });
+    const sj = humanize(m[1]).slice(0, 140), bd = humanize(m[2].trim());
+    const check_note = await (await import("./faits.ts")).verifierFaits(ws, p as Prospect, sj, bd);
+    const { error } = await admin.from("messages").insert({ workspace_id: ws.id, prospect_id: p.id, step: Math.max(100, l.step + 1), subject: sj, body: bd, status: "brouillon", check_note });
     if (error) continue;
     await admin.from("prospects").update({ insight: { ...ins, reactive_at: new Date().toISOString() } }).eq("id", p.id);
     await log(ws.id, "redaction", `${p.name} : reprise de contact préparée${signal ? ` (nouveau signal : ${String(signal.title).slice(0, 80)})` : " (3 mois sans réponse)"}`);

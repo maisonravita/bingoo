@@ -36,8 +36,11 @@ export default function Review() {
   const orig = useRef({});
   if (cur && orig.current[cur.id] === undefined) orig.current[cur.id] = cur.body;
   const save = async () => {
-    await supabase.from("messages").update({ subject: cur.subject, body: cur.body }).eq("id", cur.id);
     const avant = orig.current[cur.id];
+    const change = avant && avant.trim() !== (cur.body ?? "").trim();
+    // Message relu et corrigé par le client : le doute sur les faits est levé (c'est lui qui valide)
+    await supabase.from("messages").update({ subject: cur.subject, body: cur.body, ...(change ? { check_note: "" } : {}) }).eq("id", cur.id);
+    if (change && cur.check_note) setQueue((q) => [{ ...q[0], check_note: "" }, ...q.slice(1)]);
     if (avant && avant.trim() !== (cur.body ?? "").trim()) { orig.current[cur.id] = cur.body; fn("r/style-learn", { workspace_id: ws.id, before: avant, after: cur.body }).catch(() => {}); }
   };
   // Écarter en disant pourquoi : le tri des prochaines fiches en tient compte
@@ -153,6 +156,13 @@ export default function Review() {
           </p>
           <p className="text-sm mt-1"><span className="text-ink-soft">À :</span> <span className="font-medium">{p.email}</span>{p.website && <> · <a href={p.website} target="_blank" rel="noreferrer" className="text-ink-soft underline">site</a></>}</p>
 
+          {cur.check_note && !edit && (
+            <div className="mt-4 rounded-2xl border border-warn/40 bg-warn-soft px-4 py-3 text-[13.5px] text-warn">
+              <p className="font-semibold">À vérifier avant d'envoyer : Bingoo! n'a pas trouvé de source pour</p>
+              <ul className="mt-1 list-disc pl-5">{cur.check_note.split("\n").map((l) => <li key={l}>{l}</li>)}</ul>
+              <p className="mt-1 text-[12.5px]">Corrige ou retire la phrase (« Modifier »), ou envoie si tu sais que c'est vrai.</p>
+            </div>
+          )}
           <div className="mt-5 pt-5 border-t border-line">
             {edit ? (
               <div className="space-y-3">

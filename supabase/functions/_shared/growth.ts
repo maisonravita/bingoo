@@ -199,13 +199,13 @@ export async function distribute(ws: Workspace, userId: string, b: Record<string
 // =====================================================================
 // CRM : HubSpot et Pipedrive (clé fournie par le client)
 // =====================================================================
-async function hub(token: string, path: string, method = "GET", body?: unknown) {
+export async function hub(token: string, path: string, method = "GET", body?: unknown) {
   const r = await fetch(`https://api.hubapi.com${path}`, { method, headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
   return { ok: r.ok, status: r.status, data: await r.json().catch(() => ({})) };
 }
 // Pipedrive : jeton personnel (paramètre api_token) ou connexion en un clic (OAuth : en-tête Bearer, domaine du compte)
-type PdAuth = string | { token: string; base?: string; bearer: boolean };
-async function pipe(auth: PdAuth, path: string, method = "GET", body?: unknown) {
+export type PdAuth = string | { token: string; base?: string; bearer: boolean };
+export async function pipe(auth: PdAuth, path: string, method = "GET", body?: unknown) {
   const sep = path.includes("?") ? "&" : "?";
   const oauth = typeof auth !== "string" && auth.bearer;
   const tok = typeof auth === "string" ? auth : auth.token;

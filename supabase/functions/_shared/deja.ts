@@ -24,8 +24,16 @@ export function exclusionsDe(ws: Workspace): string[] {
 
 export type Deja = { raison: string; prospect_id?: string } | null;
 
-/** Renvoie la raison de ne pas écrire à ce prospect, ou null si la voie est libre. */
+/** Renvoie la raison de ne pas écrire à ce prospect, ou null si la voie est libre (Bingoo!, puis boîte mail et CRM du client). */
 export async function dejaContacte(ws: Workspace, p: Prospect): Promise<Deja> {
+  const d = await dansBingoo(ws, p);
+  if (d) return d;
+  const { relationExistante } = await import("./relations.ts");
+  const r = await relationExistante(ws, p);
+  return r ? { raison: r } : null;
+}
+
+async function dansBingoo(ws: Workspace, p: Prospect): Promise<Deja> {
   const dom = domaineDe(p.email) || siteDomaine(p.website);
   const siren = String(p.siren ?? "").replace(/\D/g, "");
   const cle = nomCle(p.name);

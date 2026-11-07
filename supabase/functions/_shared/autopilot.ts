@@ -49,7 +49,8 @@ export async function autopilot(ws: Workspace, base: string) {
     const { count } = await admin.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "envoye").gte("sent_at", since.toISOString());
     let left = Math.min(3, warmup(ws).cap * await (await import("./boites.ts")).nbBoites(ws) - (count ?? 0));
     if (left > 0) {
-      let q = admin.from("messages").select("id, step, prospects(mission_id)").eq("workspace_id", ws.id).eq("status", "brouillon");
+      // Un message dont un fait n'a pas de source attend la validation humaine : jamais d'envoi automatique
+      let q = admin.from("messages").select("id, step, prospects(mission_id)").eq("workspace_id", ws.id).eq("status", "brouillon").eq("check_note", "");
       if (!repliesTracked(ws)) q = q.eq("step", 0);
       const { data: all } = await q.order("step", { ascending: false }).order("created_at").limit(left + 20);
       const todo = (all ?? []).filter((m) => !pausedIds.has((m.prospects as { mission_id?: string } | null)?.mission_id ?? "")).slice(0, left);
