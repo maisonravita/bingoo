@@ -7,6 +7,7 @@ import { Button, Card, Spinner, useToast } from "../components/ui";
 import { cx } from "../lib/utils";
 import { DEPTS, centerOf, offsetKm } from "../lib/geo";
 import { estSimple, useAller } from "../lib/lieu";
+import { EXT_IDS, STORE_URL, pingExtension } from "../lib/ext";
 import { useDansLieu } from "../lib/lieu";
 
 export const RECRUIT_HINT = "Cette entreprise recrute pour un poste lié à ce que tu vends. C'est souvent le signe d'un besoin actuel et d'un budget : c'est le bon moment pour lui proposer ton service, en complément ou à la place d'une embauche.";
@@ -64,6 +65,7 @@ const Ico = ({ name, className = "h-5 w-5" }) => {
     star: <path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />,
     euro: <><path d="M17 6.5A6.5 6.5 0 1 0 17 17.5" /><path d="M4 10h9M4 14h9" /></>,
     flame: <path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1.2-3.6 2.3-4.7.3 1.6 1 2.7 2.2 3.2C11 9 11 6 12 3z" />,
+    li: <><rect x="3" y="3" width="18" height="18" rx="3" /><path d="M8 10v7M8 7v.01M12 17v-4a2 2 0 0 1 4 0v4M12 10v7" /></>,
   }[name];
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>{p}</svg>;
 };
@@ -770,6 +772,91 @@ function Visitors({ ws }) {
   );
 }
 
+/** Extension installée ? (une seule question par session) et état du pilote LinkedIn (une fois par espace). */
+let EXT_PING = null;
+const extInstalled = () => (EXT_PING ??= Promise.all(EXT_IDS.map(pingExtension)).then((r) => r.some(Boolean)));
+const PILOT = {};
+const pilotState = (wsId) => (PILOT[wsId] ??= fn("li-settings", { workspace_id: wsId }).catch(() => null));
+
+/** Recommandation LinkedIn sur la fiche : la note et le message écrits par Bingoo!, validés en un clic,
+ *  puis envoyés par l'extension depuis le compte LinkedIn du client (invitation, puis message quand il accepte). */
+function LinkedInReco({ ws, o, c, p, onDone }) {
+  const toast = useToast();
+  const nav = useAller();
+  const [busy, setBusy] = useState(null);
+  const [ext, setExt] = useState(null);
+  const [pilot, setPilot] = useState(null);
+  useEffect(() => { extInstalled().then(setExt); pilotState(ws.id).then(setPilot); }, [ws.id]);
+  const first = String(c.name ?? "").split(/\s+/)[0];
+  const st = p?.linkedin_status ?? "";
+  const draftReady = !st && !!p?.linkedin_note;
+  const queued = st === "a_envoyer" || st === "envoye";
+  // Prépare la note d'invitation et le premier message (rien ne part : ils attendent la validation)
+  const prepare = async () => {
+    setBusy("prep");
+    try {
+      let pid = o.prospect_id;
+      if (!pid) { const r = await fn("r/radar-crm", { workspace_id: ws.id, id: o.id }); pid = r.prospect_id; }
+      // Le profil déjà trouvé sur la fiche sert de cible : Bingoo! écrit sans chercher à nouveau
+      const known = /linkedin\.com\/in\//i.test(c.linkedin_url ?? "");
+      await supabase.from("prospects").update({
+        linkedin_status: "",
+        ...(known ? { linkedin_url: c.linkedin_url.replace(/[?#].*$/, ""), linkedin_person: [c.name, c.role].filter(Boolean).join(" · ").slice(0, 120) } : {}),
+        ...(!p?.contact_name ? { contact_name: c.name, contact_role: c.role ?? "" } : {}),
+      }).eq("id", pid);
+      const r = await fn("linkedin", { workspace_id: ws.id, ids: [pid], count: 1, hold: true });
+      const res = r.results?.[0];
+      if (res?.linkedin_status === "introuvable") toast(`Profil LinkedIn de ${c.name} introuvable. Ouvre-le avec « Le chercher sur LinkedIn ».`, "default");
+      else toast(`Invitation et message prêts pour ${first || c.name} : relis, puis valide`, "good");
+      await onDone?.();
+    } catch (e) { toast(e.message, "bad"); } finally { setBusy(null); }
+  };
+  const validate = async () => {
+    setBusy("ok");
+    await supabase.from("prospects").update({ linkedin_status: "a_envoyer" }).eq("id", o.prospect_id);
+    toast(pilot?.enabled ? "Validé : l'extension enverra l'invitation, puis le message dès qu'il accepte" : "Validé. Active le pilote LinkedIn pour que l'extension l'envoie.", "good");
+    setBusy(null); await onDone?.();
+  };
+  const copy = (t) => navigator.clipboard?.writeText(t).then(() => toast("Copié", "good"), () => toast("Copie impossible", "bad"));
+  // Ce qui manque pour que l'envoi soit automatique (extension, puis pilote)
+  const setup = ext === false ? (
+    <p className="text-[12px] text-ink-soft">Pour l'envoi automatique : <a href={STORE_URL} target="_blank" rel="noreferrer" className="font-semibold text-li hover:underline">installe l'extension Bingoo!</a> (1 minute), puis <button onClick={() => nav("/linkedin")} className="font-semibold text-li hover:underline">active le pilote</button>.</p>
+  ) : pilot && !pilot.enabled ? (
+    <p className="text-[12px] text-ink-soft">L'envoi automatique est arrêté : <button onClick={() => nav("/linkedin")} className="font-semibold text-li hover:underline">active le pilote LinkedIn</button>.</p>
+  ) : pilot?.paused_reason ? <p className="text-[12px] text-warn">Pilote en pause : {pilot.paused_reason}.</p> : null;
+
+  return (
+    <div className="rounded-2xl border border-li/25 bg-li/5 p-3 text-[13px] leading-snug">
+      <p className="flex items-center gap-1.5 font-bold text-li"><Ico name="li" className="h-4 w-4" />Recommandé : écris-lui aussi sur LinkedIn</p>
+      {queued ? (
+        <>
+          <p className="mt-1 text-ink-soft">{st === "envoye" ? `Invitation envoyée à ${first || c.name}.` : `Dans la file : l'extension Bingoo! envoie l'invitation à ${first || c.name}, puis le message dès qu'il accepte.`} Bingoo! s'arrête s'il répond par e-mail.</p>
+          {st === "a_envoyer" && <div className="mt-1.5">{setup}</div>}
+        </>
+      ) : draftReady ? (
+        <>
+          <div className="mt-2 rounded-xl bg-white border border-line p-2.5">
+            <p className="text-[11.5px] font-semibold text-ink-soft">Note d'invitation · {p.linkedin_note.length}/200</p>
+            <p className="mt-0.5">{p.linkedin_note}</p>
+            {p.linkedin_msg && <details className="mt-1.5"><summary className="cursor-pointer text-[12px] text-ink-soft">Message après acceptation</summary><p className="mt-1 whitespace-pre-line">{p.linkedin_msg}</p></details>}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <button onClick={validate} disabled={!!busy} style={{ background: "#0A66C2" }} className="rounded-full text-white px-3 py-1.5 text-[12.5px] font-semibold hover:opacity-90 disabled:opacity-60">{busy === "ok" ? "…" : "Valider : l'extension l'envoie"}</button>
+            <button onClick={() => copy(p.linkedin_note)} className="rounded-full border border-line bg-white px-3 py-1.5 text-[12.5px] font-semibold hover:bg-paper">Copier la note</button>
+          </div>
+          <div className="mt-1.5">{setup}</div>
+        </>
+      ) : (
+        <>
+          <p className="mt-1 text-ink-soft">Bingoo! écrit l'invitation et le premier message à partir de ce signal. Avec l'extension Bingoo!, ils partent tout seuls depuis ton compte LinkedIn : l'invitation, puis le message quand {first || "la personne"} accepte.{!p?.email && !c.email ? " Ici, c'est le meilleur canal : pas encore d'e-mail vérifié." : ""}</p>
+          <button onClick={prepare} disabled={!!busy} style={{ background: "#0A66C2" }} className="mt-2 rounded-full text-white px-3.5 py-1.5 text-[12.5px] font-semibold hover:opacity-90 disabled:opacity-60">{busy === "prep" ? "Bingoo! écrit… (15 à 30 s)" : "Préparer l'invitation LinkedIn"}</button>
+          <div className="mt-1.5">{setup}</div>
+        </>
+      )}
+    </div>
+  );
+}
+
 /** Qui contacter : les bonnes personnes pour ce signal, avec e-mail (publié ou vérifié), téléphone et profil LinkedIn public. */
 const AUTO_TRIED = new Set();
 const initials = (n) => String(n ?? "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
@@ -783,7 +870,7 @@ function ContactsBox({ ws, o, onChange }) {
     if (!o?.prospect_id) { setRows([]); setP(null); return; }
     const [{ data: c }, { data: pr }] = await Promise.all([
       supabase.from("contacts").select("id, name, role, email, email_status, linkedin_url, source, profile").eq("prospect_id", o.prospect_id).order("created_at").limit(6),
-      supabase.from("prospects").select("phone, email, website").eq("id", o.prospect_id).single(),
+      supabase.from("prospects").select("phone, email, website, contact_name, linkedin_url, linkedin_status, linkedin_note, linkedin_msg").eq("id", o.prospect_id).single(),
     ]);
     setRows(c ?? []); setP(pr ?? null);
   }, [o?.prospect_id]);
@@ -839,6 +926,7 @@ function ContactsBox({ ws, o, onChange }) {
               </div>
             );
           })}
+          {(() => { const lead = list.find((c) => person(c.name)); return lead && o.kind !== "appel_offres" ? <LinkedInReco ws={ws} o={o} c={lead} p={p} onDone={async () => { await onChange?.(); await load(); }} /> : null; })()}
           {phone && <p className="text-[13.5px]"><span className="text-ink-soft">Téléphone : </span><a href={`tel:${phone.replace(/\s/g, "")}`} className="font-semibold hover:underline">{phone}</a></p>}
           {!usable.length && o.kind !== "appel_offres" && (
             <button onClick={() => find(false)} disabled={busy} className="rounded-full border border-accent/40 text-accent-dark px-3.5 py-1.5 text-[12.5px] font-semibold hover:bg-accent-soft disabled:opacity-60">{busy ? "Recherche… (30 s à 1 min)" : list.length ? "Chercher d'autres décideurs" : "Trouver le décideur"}</button>
@@ -872,9 +960,23 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
   const o = sel?.top;
   const hot = list.filter((x) => (x.score ?? 0) >= 75 && x.status === "nouveau").length;
   const intents = list.filter((x) => INTENT.includes(x.kind) && new Date(x.created_at).getTime() >= weekAgo).length;
+  // Le vrai état du premier message : « Message prêt » seulement s'il existe un brouillon à valider
+  const [msg, setMsg] = useState(undefined);
+  const loadMsg = useCallback(async () => {
+    if (!o?.prospect_id) return setMsg(null);
+    const { data } = await supabase.from("messages").select("id, status").eq("prospect_id", o.prospect_id).eq("step", 0).order("created_at", { ascending: false }).limit(1);
+    setMsg(data?.[0] ?? null);
+  }, [o?.prospect_id]);
+  useEffect(() => { setMsg(undefined); loadMsg(); }, [loadMsg, o?.id]);
   const prepare = async () => {
     setBusy("prep");
-    try { const r = await fn("m/prepare", { workspace_id: ws.id, id: o.id }); toast(r.message ? `${o.company} : contact trouvé et e-mail prêt à valider` : `${o.company} ajouté à tes prospects`, "good"); onChange(); }
+    try {
+      // Entreprise déjà dans les prospects : on prépare son message ; sinon on part de l'opportunité
+      const r = o.prospect_id ? await fn("m/prospect-prepare", { workspace_id: ws.id, id: o.prospect_id }) : await fn("m/prepare", { workspace_id: ws.id, id: o.id });
+      const ok = r.message?.status === "brouillon";
+      toast(ok ? `${o.company} : e-mail prêt à valider` : r.reason === "no_email" || (!r.message && !r.prospect?.email) ? `${o.company} : pas encore d'e-mail vérifié. Écris-lui sur LinkedIn (à gauche).` : r.reason === "no_sender" ? "Ajoute ton nom d'expéditeur dans Réglages pour que Bingoo! rédige" : `${o.company} ajouté à tes prospects`, ok ? "good" : "default");
+      await onChange(); await loadMsg();
+    }
     catch (e) { toast(e.message, "bad"); } finally { setBusy(null); }
   };
   const follow = async () => { await supabase.from("radar_opps").update({ status: "suivi" }).eq("id", o.id); toast(`${o.company} gardée en suivi`, "good"); onChange(); };
@@ -954,9 +1056,11 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
               <div>
                 <p className="flex items-center gap-2 font-bold text-[14.5px]"><Ico name="up" className="h-5 w-5 text-accent" />Prochaine action</p>
                 <div className="mt-2 space-y-2">
-                  {o.prospect_id ? <Button variant="accent" className="w-full" onClick={() => nav("/valider")}>Message prêt : valider</Button>
-                    : o.kind === "appel_offres" ? <Button variant="accent" className="w-full" onClick={() => onOpen(o)}>Voir l'appel d'offres</Button>
-                    : <Button variant="accent" className="w-full" loading={busy === "prep"} onClick={prepare}>Préparer le message</Button>}
+                  {msg === undefined && o.prospect_id ? <div className="py-2 grid place-items-center"><Spinner /></div>
+                    : msg?.status === "brouillon" ? <Button variant="accent" className="w-full" onClick={() => nav(`/valider?voir=${msg.id}`)}>Message prêt : valider</Button>
+                    : msg?.status === "envoye" ? <Button variant="default" className="w-full" onClick={() => nav("/reponses")}>Message envoyé : voir les réponses</Button>
+                    : o.kind === "appel_offres" && !o.prospect_id ? <Button variant="accent" className="w-full" onClick={() => onOpen(o)}>Voir l'appel d'offres</Button>
+                    : <Button variant="accent" className="w-full" loading={busy === "prep"} onClick={prepare}>{busy === "prep" ? "Bingoo! prépare… (20 à 40 s)" : "Préparer le message"}</Button>}
                   <div className="flex gap-2">
                     {!simple && <button onClick={() => nav("/mission")} className="flex-1 rounded-full border border-line px-3 py-2 text-[13px] font-semibold hover:bg-paper">Lancer une Mission</button>}
                     <button onClick={follow} className="flex-1 rounded-full border border-line px-3 py-2 text-[13px] font-semibold hover:bg-paper">{o.status === "suivi" ? "En suivi" : "Garder en suivi"}</button>

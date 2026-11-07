@@ -150,11 +150,11 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
     const { data } = await q.order("updated_at", { ascending: false }).limit(n);
     const batch = (data ?? []) as Prospect[];
     if (!batch.length) return { done: 0, found: 0 };
-    const res = await Promise.allSettled(batch.map((p) => linkedin(ws, p)));
+    const res = await Promise.allSettled(batch.map((p) => linkedin(ws, p, { hold: b.hold === true })));
     const ok = res.filter((r) => r.status === "fulfilled") as PromiseFulfilledResult<{ linkedin_status: string }>[];
     if (!ok.length) throw (res[0] as PromiseRejectedResult).reason;
     for (const _ of ok) await log(ws.id, "linkedin", "Profil LinkedIn recherché");
-    return { done: ok.length, found: ok.filter((r) => r.value.linkedin_status === "a_envoyer").length };
+    return { done: ok.length, found: ok.filter((r) => r.value.linkedin_status === "a_envoyer" || (b.hold === true && r.value.linkedin_status === "")).length, results: ok.map((r) => r.value) };
   },
 
   // Relances à préparer (appelé à l'ouverture de « Ta journée »)

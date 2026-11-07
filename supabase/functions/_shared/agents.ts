@@ -568,7 +568,8 @@ export async function sendOne(ws: Workspace, messageId: string) {
 // ---------------------------------------------------------------- LinkedIn assisté
 // Aucun robot sur le compte LinkedIn de l'utilisateur : on trouve le décideur,
 // on prépare l'invitation et le message, l'utilisateur envoie lui-même en un clic.
-export async function linkedin(ws: Workspace, p: Prospect) {
+/** hold : la note et le message restent en brouillon (statut vide) jusqu'à la validation du client ; rien n'entre dans la file du pilote. */
+export async function linkedin(ws: Workspace, p: Prospect, opts: { hold?: boolean } = {}) {
   const t = (ws.targets ?? []).find((x) => x.id === p.target);
   type L = { url?: string; personne?: string; fonction?: string; note?: string; message?: string };
   const known = /linkedin\.com\/in\//i.test(p.linkedin_url ?? "");
@@ -595,7 +596,7 @@ Format : {"url": "", "personne": "", "fonction": "", "note": "", "message": ""}`
     linkedin_note: (() => { const n = humanize(String(v.note ?? "")); return n.length <= 200 ? n : n.slice(0, 200).replace(/\s+\S*$/, "").replace(/[,;:]$/, "") + "."; })(),
     linkedin_msg: humanize(String(v.message ?? "")).slice(0, 1200),
     // Prêt seulement si la note et le message sont écrits : jamais d'invitation vide
-    linkedin_status: !ok ? "introuvable" : String(v.note ?? "").trim() && String(v.message ?? "").trim() ? "a_envoyer" : "",
+    linkedin_status: !ok ? "introuvable" : !opts.hold && String(v.note ?? "").trim() && String(v.message ?? "").trim() ? "a_envoyer" : "",
   };
   await admin.from("prospects").update(patch).eq("id", p.id);
   return { id: p.id, ...patch };

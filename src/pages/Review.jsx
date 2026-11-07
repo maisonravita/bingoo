@@ -22,9 +22,12 @@ export default function Review() {
   const load = useCallback(async () => {
     const { data } = await supabase.from("messages").select("*, prospects(*)").eq("workspace_id", ws.id).eq("status", "brouillon").order("step", { ascending: false }).order("created_at").limit(100);
     // Ouvert depuis « Modifier » sur une carte : ce message-là d'abord, en mode édition
-    const id = new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("id");
+    const qs = new URLSearchParams(window.location.hash.split("?")[1] ?? window.location.search);
+    const id = qs.get("id");
+    // Ouvert depuis le Radar (« Message prêt : valider ») : ce message-là d'abord, en lecture
+    const first = id || qs.get("voir");
     const rows = data ?? [];
-    setQueue(id ? [...rows].sort((a, b) => (b.id === id) - (a.id === id)) : rows);
+    setQueue(first ? [...rows].sort((a, b) => (b.id === first) - (a.id === first)) : rows);
     if (id && rows.some((r) => r.id === id)) setEdit(true);
   }, [ws.id]);
   useEffect(() => { load(); }, [load]);
