@@ -461,6 +461,13 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
     const { prospectQuota } = await import("../_shared/quota.ts");
     return await prospectQuota(ws);
   },
+  // Garantie premier rendez-vous + mois offerts + lien de parrainage
+  async garantie(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { garantie } = await import("../_shared/garantie.ts");
+    const { count: filleuls } = await admin.from("workspaces").select("id", { count: "exact", head: true }).eq("referred_by", ws.id);
+    return { garantie: await garantie(ws as never), perks: (ws as { perks?: unknown[] }).perks ?? [], code: (ws as { referral_code?: string }).referral_code ?? "", filleuls: filleuls ?? 0 };
+  },
   async "billing-checkout"(req, b) {
     const { ws, userId } = await requireMember(req, b.workspace_id);
     return await checkout(ws, userId, String(b.plan ?? ""), b.yearly === true);

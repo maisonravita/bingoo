@@ -125,6 +125,13 @@ export default function Settings() {
         <div className="mt-3"><Button variant="primary" loading={busy === "save"} onClick={() => save({ profile: { ...pr, style: (pr.style ?? []).map((x) => x.trim()).filter(Boolean).slice(0, 8) } }, "Style enregistré")}>Enregistrer</Button></div>
       </Section>
 
+      <Section id="exclusions" title="Ne jamais contacter" sub="Tes clients actuels, partenaires et concurrents. Avant chaque premier message, Bingoo! vérifie aussi qu'il n'est pas déjà en contact avec l'entreprise (autre interlocuteur, rendez-vous, refus).">
+        <Textarea rows={5} value={Array.isArray(pr.exclusions) ? pr.exclusions.join("\n") : (pr.exclusions ?? "")} onChange={(e) => setP("exclusions", e.target.value.split("\n"))}
+          placeholder={"Un par ligne : site, e-mail, SIREN ou nom\nacme.fr\n552100554\nDupont Conseil"} />
+        <p className="text-xs text-ink-soft mt-2">Quand tu écartes une fiche avec « Déjà client », l'entreprise est ajoutée ici automatiquement.</p>
+        <div className="mt-3"><Button variant="primary" loading={busy === "save"} onClick={() => save({ profile: { ...pr, exclusions: (Array.isArray(pr.exclusions) ? pr.exclusions : String(pr.exclusions ?? "").split("\n")).map((x) => x.trim()).filter((x) => x.length >= 3).slice(0, 2000) } }, "Liste enregistrée")}>Enregistrer</Button></div>
+      </Section>
+
       <Section id="fiche" title="Ce que Kairo peut répondre" sub="Les infos que tes prospects demandent : intégrations, délais, prix publics, sécurité, garanties, références. Kairo s'en sert dans les e-mails, les réponses et les comptes rendus, et n'invente rien d'autre.">
         <Textarea rows={10} value={f.knowledge ?? ""} onChange={(e) => setF({ ...f, knowledge: e.target.value })}
           placeholder={"OFFRE ET PRIX\nAbonnement Pro : 109 € HT / mois, sans engagement\n\nMISE EN PLACE\nPremiers e-mails envoyés en 48 h\n\nINTÉGRATIONS\nHubSpot, Pipedrive, Google Agenda, Outlook\n\nSÉCURITÉ ET RGPD\nDonnées hébergées en Europe…"} />

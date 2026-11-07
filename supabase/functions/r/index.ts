@@ -232,7 +232,14 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { ws } = await requireMember(req, b.workspace_id);
     const RAISONS = ["Pas ma cible", "Trop petite", "Trop grande", "Déjà client", "Concurrent", "Mauvaise zone"];
     const raison = RAISONS.includes(String(b.raison)) ? String(b.raison) : String(b.raison ?? "").trim().slice(0, 60) || "Pas ma cible";
-    const { data: p } = await admin.from("prospects").update({ status: "ignore", fit: "non", fit_reason: `Écarté par toi : ${raison}` }).eq("workspace_id", ws.id).eq("id", String(b.id ?? "")).select("name").single();
+    const { data: p } = await admin.from("prospects").update({ status: "ignore", fit: "non", fit_reason: `Écarté par toi : ${raison}` }).eq("workspace_id", ws.id).eq("id", String(b.id ?? "")).select("name, siren, email, website").single();
+    // « Déjà client » : l'entreprise rejoint la liste « ne jamais contacter » (plus jamais d'autre fiche ni d'autre interlocuteur)
+    if (raison === "Déjà client" && p) {
+      const { exclusionsDe, domaineDe } = await import("../_shared/deja.ts");
+      const cle = (p.siren && String(p.siren).replace(/\D/g, "").length === 9 ? String(p.siren).replace(/\D/g, "") : "") || domaineDe(p.email) || String(p.name ?? "");
+      const liste = exclusionsDe(ws);
+      if (cle && !liste.includes(cle.toLowerCase())) await admin.from("workspaces").update({ profile: { ...((ws.profile ?? {}) as Record<string, unknown>), exclusions: [...liste, cle] } }).eq("id", ws.id);
+    }
     if (!p) throw new HttpError(404, "Fiche introuvable");
     await admin.from("messages").update({ status: "ignore" }).eq("prospect_id", String(b.id)).eq("status", "brouillon");
     await log(ws.id, "refus", `${p.name} écarté : ${raison}`).catch(() => {});
@@ -244,6 +251,44 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     setAi({ ws: ws.id, live: true });
     const { styleLearn } = await import("../_shared/style.ts");
     return await styleLearn(ws, b.before, b.after);
+  },
+  // Parrainage : posé une seule fois, juste après l'inscription, avec le code reçu dans le lien (?parrain=…)
+  async parrain(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const code = String(b.code ?? "").trim().toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16);
+    const w = ws as { referred_by?: string | null; paid_since?: string | null; created_at: string };
+    if (!code || w.referred_by || w.paid_since || Date.now() - new Date(w.created_at).getTime() > 14 * 864e5) return { ok: false };
+    const { data: p } = await admin.from("workspaces").select("id, name, created_by").eq("referral_code", code).maybeSingle();
+    if (!p || p.id === ws.id || p.created_by === (ws as { created_by?: string }).created_by) return { ok: false };
+    await admin.from("workspaces").update({ referred_by: p.id }).eq("id", ws.id).is("referred_by", null);
+    return { ok: true, parrain: p.name };
+  },
+  async "perks-cron"(req, b) {
+    await cron(req);
+    const { perksCron } = await import("../_shared/garantie.ts");
+    return await perksCron(b.dry === true);
+  },
+  // « Ne jamais contacter » : clients actuels, partenaires, concurrents (domaines, SIREN, e-mails ou noms, un par ligne)
+  async exclusions(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { exclusionsDe } = await import("../_shared/deja.ts");
+    if (b.liste !== undefined) {
+      const liste = String(b.liste ?? "").split(/[\n,;]+/).map((x) => x.trim()).filter((x) => x.length >= 3).slice(0, 2000);
+      const prof = (ws.profile ?? {}) as Record<string, unknown>;
+      await admin.from("workspaces").update({ profile: { ...prof, exclusions: liste } }).eq("id", ws.id);
+      return { liste, n: liste.length };
+    }
+    return { liste: exclusionsDe(ws), n: exclusionsDe(ws).length };
+  },
+  // Test du détecteur (clé cron) : pour chaque fiche prête, dit si elle serait bloquée et pourquoi, sans rien changer
+  async "deja-test"(req, b) {
+    await cron(req);
+    const { dejaContacte } = await import("../_shared/deja.ts");
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id)).single();
+    const { data: ps } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).in("status", ["pret", "a_valider", "nouveau"]).limit(Number(b.n ?? 30));
+    const out = [];
+    for (const p of ps ?? []) { const d = await dejaContacte(ws, p); if (d) out.push({ name: p.name, raison: d.raison }); }
+    return { testees: ps?.length ?? 0, bloquees: out };
   },
   async "style-set"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
@@ -400,6 +445,22 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const out = [];
     for (const p of data ?? []) out.push({ nom: p.name, site: await findSite(p).catch(() => "") });
     return { essais: out.length, trouves: out.filter((x) => x.site).length, detail: out };
+  },
+  // Recherche d'entreprises (gratuit, base SIRENE) pour un espace donné, par l'administration (clé cron)
+  async "search-ws"(req, b) {
+    await cron(req);
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
+    if (!ws) throw new HttpError(404, "Espace introuvable");
+    const { searchTarget } = await import("../_shared/search.ts");
+    const targets = (ws.targets ?? []) as { id: string; label: string; actif?: boolean; next_page?: number | null }[];
+    let inserted = 0;
+    const detail: Record<string, number> = {};
+    for (const t of targets.filter((x) => x.actif !== false && x.next_page !== null && (!b.target_id || x.id === b.target_id))) {
+      const r = await searchTarget(ws.id, t as never, ws.zone ?? [], Math.min(Number(b.pages ?? 1), 3));
+      t.next_page = r.nextPage; inserted += r.inserted; detail[t.label] = r.inserted;
+    }
+    await admin.from("workspaces").update({ targets }).eq("id", ws.id);
+    return { inserted, detail };
   },
   async "free-enrich"(req, b) {
     // Passe gratuite (aucune IA) : site retrouvé par le nom, e-mail publié sur ce site. dry = mesure sans rien enregistrer.

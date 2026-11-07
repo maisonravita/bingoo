@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { supabase } from "./supabase";
+import { fn, supabase } from "./supabase";
 
 const Ctx = createContext(null);
 export const useWs = () => useContext(Ctx);
@@ -30,6 +30,8 @@ export function WsProvider({ children }) {
   const create = async (name, website) => {
     const { data, error } = await supabase.rpc("create_workspace", { p_name: name ?? "", p_website: website ?? "" });
     if (error) throw new Error(error.message);
+    // Arrivé par un lien de parrainage : on le rattache au parrain (une seule fois, vérifié côté serveur)
+    try { const code = localStorage.getItem("bingoo-parrain"); if (code) { await fn("r/parrain", { workspace_id: data, code }); localStorage.removeItem("bingoo-parrain"); } } catch { /* sans effet sur l'inscription */ }
     select(data);
     await reload();
     return data;

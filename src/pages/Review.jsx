@@ -91,11 +91,21 @@ export default function Review() {
   };
 
   useEffect(() => {
+    // Raccourcis : traiter 50 messages au clavier sans toucher la souris
     const onKey = (e) => {
-      if (edit || ["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
-      if (e.key === "ArrowRight") send();
-      if (e.key === "ArrowLeft") skip();
-      if (e.key.toLowerCase() === "e") { e.preventDefault(); setEdit(true); }
+      if (!cur || e.metaKey && !edit || e.altKey) return;
+      if (edit) {
+        if (e.key === "Escape") { e.preventDefault(); setEdit(false); }
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); save().then(() => { setEdit(false); toast("Modifications enregistrées"); }); }
+        return;
+      }
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName) || e.ctrlKey || e.repeat || busy) return;
+      const k = e.key.toLowerCase();
+      if (e.key === "ArrowRight" || k === "v") { e.preventDefault(); if (domainOk) send(); }
+      else if (e.key === "ArrowLeft" || k === "p") { e.preventDefault(); skip(); }
+      else if (k === "e") { e.preventDefault(); setEdit(true); }
+      else if (k === "r" && cur.step === 0) { e.preventDefault(); rewrite(); }
+      else if (cur.step === 0 && /^[1-5]$/.test(e.key)) { e.preventDefault(); refuse(["Pas ma cible", "Trop petite", "Trop grande", "Déjà client", "Concurrent"].at(Number(e.key) - 1)); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -122,7 +132,7 @@ export default function Review() {
 
   return (
     <div>
-      <PageHead title="À valider" sub={<>{queue.length} en attente<span className="hidden md:inline"> · → envoyer · ← passer · E modifier</span></>} />
+      <PageHead title="À valider" sub={<>{queue.length} en attente</>} />
       <Guide id="valider" titre="Ici : les messages que Bingoo! a écrits pour toi. Rien ne part sans ton accord." etapes={["Lis le message. S'il te va, clique « Envoyer » (ou glisse vers la droite).", "Tu veux changer un mot ? « Modifier ». Bingoo! apprend ton style.", "L'entreprise ne te correspond pas ? Clique sur la raison (« Pas ma cible »…) : Bingoo! s'en souviendra."]} />
       {!domainOk && <p className="mb-4 text-sm bg-warn-soft text-warn rounded-xl px-4 py-3">Pour envoyer, connecte ta boîte mail (2 minutes) ou vérifie ton domaine d'envoi. En attendant, tu peux relire et modifier. <Link to="/connexions" className="underline font-semibold">Connecter ma boîte</Link> · <Link to="/reglages#domaine" className="underline font-semibold">Domaine</Link></p>}
 
@@ -179,11 +189,17 @@ export default function Review() {
         {cur.step === 0 && (
           <div className="relative z-10 mt-4 flex flex-wrap items-center justify-center gap-1.5 text-[13px]">
             <span className="text-ink-soft mr-1">Pas pour toi ?</span>
-            {["Pas ma cible", "Trop petite", "Trop grande", "Déjà client", "Concurrent"].map((r) => (
-              <button key={r} disabled={!!busy} onClick={() => refuse(r)} className="rounded-full border border-line bg-white px-3 py-1 text-ink-soft hover:text-ink hover:border-ink-faint disabled:opacity-50">{r}</button>
+            {["Pas ma cible", "Trop petite", "Trop grande", "Déjà client", "Concurrent"].map((r, i) => (
+              <button key={r} disabled={!!busy} onClick={() => refuse(r)} className="rounded-full border border-line bg-white px-3 py-1 text-ink-soft hover:text-ink hover:border-ink-faint disabled:opacity-50"><kbd className="hidden md:inline mr-1 font-sans text-[11px] text-ink-faint">{i + 1}</kbd>{r}</button>
             ))}
           </div>
         )}
+        {/* Les raccourcis, visibles sur ordinateur */}
+        <p className="hidden md:flex relative z-10 mt-5 flex-wrap justify-center gap-x-4 gap-y-1 text-[12.5px] text-ink-soft">
+          {(edit ? [["Ctrl + Entrée", "enregistrer"], ["Échap", "fermer"]] : [["V ou →", "envoyer"], ["P ou ←", "passer"], ["E", "modifier"], ...(cur.step === 0 ? [["R", "réécrire"], ["1 à 5", "écarter"]] : [])]).map(([k, l]) => (
+            <span key={k}><kbd className="rounded-md border border-line bg-white px-1.5 py-0.5 font-sans text-[11.5px] font-semibold text-ink">{k}</kbd> {l}</span>
+          ))}
+        </p>
       </div>
     </div>
   );

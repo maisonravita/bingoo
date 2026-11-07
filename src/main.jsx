@@ -7,6 +7,8 @@ import "./index.css";
 import { enregistrerSW } from "./lib/push";
 
 const Router = import.meta.env.VITE_HASH_ROUTER ? HashRouter : BrowserRouter;
+// Lien de parrainage (?parrain=code) : gardé jusqu'à la création du compte
+try { const c = new URLSearchParams(window.location.search).get("parrain") || new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("parrain"); if (c && /^[a-z0-9]{4,16}$/i.test(c)) localStorage.setItem("bingoo-parrain", c.toLowerCase()); } catch { /* stockage indisponible */ }
 // Écran de chargement (index.html, au-dessus de la page) : l'appli se prépare derrière, et la page ne s'ouvre
 // après 1,5 s pour un visiteur ou 5 s pour un client connecté, puis l'écran s'efface en fondu
 const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;

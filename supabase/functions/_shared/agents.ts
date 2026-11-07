@@ -339,6 +339,16 @@ export async function sendOne(ws: Workspace, messageId: string) {
     await admin.from("prospects").update({ email: "", status: "sans_email", channel: "", enrich_note: `Adresse ${p.email} écartée avant l'envoi : ${vf.raison}` }).eq("id", p.id);
     return { id: messageId, skipped: `adresse écartée (${vf.raison}). Le prospect repart en enquête.` };
   }
+  // Déjà en contact avec cette entreprise (autre fiche, client, refus, liste « ne jamais contacter ») : on n'ouvre pas un 2e fil
+  if (msg.step === 0) {
+    const { dejaContacte } = await import("./deja.ts");
+    const d = await dejaContacte(ws, p);
+    if (d) {
+      await admin.from("messages").update({ status: "ignore", error: `Pas envoyé : ${d.raison}` }).eq("id", messageId).eq("status", "brouillon");
+      await admin.from("prospects").update({ status: "ignore", next_action_at: null, next_action: "", enrich_note: `Mis de côté avant l'envoi : ${d.raison}` }).eq("id", p.id).in("status", ["pret", "a_valider", "nouveau", "sans_email"]);
+      return { id: messageId, skipped: `déjà en contact : ${d.raison}` };
+    }
+  }
   // Abonnement à jour obligatoire (essai en cours, abonnement réglé ou offert)
   const { data: plan } = await admin.from("workspaces").select("plan, plan_status, trial_ends").eq("id", ws.id).single();
   assertPlan(plan ?? {});

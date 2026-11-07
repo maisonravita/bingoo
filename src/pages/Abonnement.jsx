@@ -28,6 +28,35 @@ function Quota({ q, pack, payments, busy, onBuy }) {
     </Card>
   );
 }
+/** Garantie premier rendez-vous, mois offerts, et lien de parrainage. */
+function Garantie({ g }) {
+  const toast = useToast();
+  if (!g) return null;
+  const G = g.garantie ?? {}, lien = g.code ? `${window.location.origin}/?parrain=${g.code}` : "";
+  const pct = G.requis ? Math.min(100, Math.round(((G.envoyes ?? 0) / G.requis) * 100)) : 0;
+  const offerts = (g.perks ?? []).filter((p) => p.type === "mois_offert");
+  return (
+    <div className="grid md:grid-cols-2 gap-4 mb-6">
+      <Card className="p-5 sm:p-6">
+        <p className="font-semibold">Garantie premier rendez-vous</p>
+        <p className="text-sm text-ink-soft mt-1">{G.message}</p>
+        {G.etat === "en_cours" && <>
+          <div className="mt-3 h-2 rounded-full bg-paper overflow-hidden"><div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} /></div>
+          <p className="text-[12.5px] text-ink-faint mt-1.5 tnum">{G.envoyes} / {G.requis} premiers messages · {G.rdv} rendez-vous</p>
+        </>}
+        {offerts.length > 0 && <ul className="mt-3 space-y-1 text-sm">{offerts.map((p) => <li key={p.at + p.raison}><b>1 mois offert</b> <span className="text-ink-soft">· {p.detail}{p.applique ? " · appliqué" : " · sera déduit de ta prochaine facture"}</span></li>)}</ul>}
+      </Card>
+      <Card className="p-5 sm:p-6">
+        <p className="font-semibold">Parraine un dirigeant</p>
+        <p className="text-sm text-ink-soft mt-1">Quand il s'abonne, vous gagnez chacun un mois offert.{g.filleuls ? ` ${g.filleuls} inscrit${g.filleuls > 1 ? "s" : ""} grâce à toi.` : ""}</p>
+        {lien && <div className="mt-3 flex gap-2">
+          <input readOnly value={lien} onFocus={(e) => e.target.select()} className="min-w-0 flex-1 rounded-xl border border-line bg-paper px-3 py-2 text-sm" aria-label="Ton lien de parrainage" />
+          <Button onClick={async () => { try { await navigator.clipboard.writeText(lien); toast("Lien copié", "good"); } catch { toast("Sélectionne le lien pour le copier"); } }}>Copier</Button>
+        </div>}
+      </Card>
+    </div>
+  );
+}
 const STATUS = { active: ["Actif", "good"], trialing: ["Essai", "accent"], past_due: ["Paiement en retard", "bad"], unpaid: ["Impayé", "bad"], canceled: ["Arrêté", "bad"], incomplete: ["En attente", "warn"] };
 
 const FEAT = { "r/spy-cron": "Espion (veille de nuit)", "espion/rapport": "Espion : rapports complets", "espion/publicites": "Espion : publicités", "espion/decouverte": "Espion : nouveaux concurrents", "espion/besoins": "Espion : besoins publics", "m/autopilot": "Mission : rédaction et relances", "m/cron": "Mission : pilote automatique", "r/radar-scan": "Radar", "r/radar-cron": "Radar (chaque matin)", "a/chat": "Vos salariés (questions)", "m/prepare": "Radar : contacts préparés", "k/draft": "Rédaction des e-mails", "k/linkedin": "LinkedIn", "r/radar-run": "Radar", "m/step": "Mission", "a/turn": "Vos salariés (questions)" };
@@ -82,6 +111,8 @@ export default function Abonnement() {
   const [pPack, setPPack] = useState(null);
   const [quota, setQuota] = useState(null);
   useEffect(() => { fn("quota", { workspace_id: ws.id }).then(setQuota).catch(() => {}); }, [ws.id]);
+  const [gar, setGar] = useState(null);
+  useEffect(() => { fn("garantie", { workspace_id: ws.id }).then(setGar).catch(() => {}); }, [ws.id]);
   const [busy, setBusy] = useState(null);
   const [ai, setAi] = useState(null);
   const [yearly, setYearly] = useState(false);
@@ -123,6 +154,7 @@ export default function Abonnement() {
       </Card>
 
       <Quota q={quota} pack={pPack} payments={payments} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />
+      <Garantie g={gar} />
       {ai && <AiGauge ai={ai} />}
       <Credits ai={ai} packs={packs} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />
 

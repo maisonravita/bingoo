@@ -147,6 +147,7 @@ const PLANS = [
   ["Équipe", 229, "Pour plusieurs commerciaux sur le même marché.", ["10 utilisateurs", "1 000 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Relances, Radar, Espion et LinkedIn inclus", "Accompagnement au démarrage"]],
 ];
 const FAQ = [
+  ["Et si je n'obtiens aucun rendez-vous ?", "Pendant ton premier mois payant, si tu as laissé partir au moins 60 % des premiers messages de ta formule (90 sur Solo, 300 sur Pro, 600 sur Équipe) et que tu n'as obtenu aucun rendez-vous, ton deuxième mois est offert. Tu n'as rien à demander : Bingoo! le calcule et te prévient."],
   ["Bingoo! envoie-t-il des messages sans mon accord ?", "Non. Par défaut, chaque message attend ta validation. Tu peux ensuite activer le pilote automatique, dans la limite d'envoi que tu fixes."],
   ["D'où viennent les informations ?", "De sources publiques et vérifiables : données de la commande publique, BOAMP, annonces légales (BODACC), registre national des entreprises, sites des entreprises. Chaque signal affiche sa source."],
   ["Et le RGPD ?", "Bingoo! travaille au niveau de l'entreprise et des fonctions qui décident. Les e-mails sont publiés ou vérifiés, jamais devinés, et chaque message permet de ne plus être contacté."],
@@ -402,6 +403,10 @@ export default function Landing() {
                 </div>
               );
             })}
+          </div>
+          <div className="mt-8 mx-auto max-w-3xl rounded-3xl border-2 border-accent/30 bg-white px-6 py-5 text-center">
+            <p className="font-bold text-[18px] text-ink">Garantie premier rendez-vous</p>
+            <p className="mt-1.5 text-[15px] text-ink-soft">Pas un seul rendez-vous pendant ton premier mois payant, alors que tu as laissé partir au moins 60 % des premiers messages de ta formule ? Ton deuxième mois est offert.</p>
           </div>
           <p className="mt-6 text-center text-[14px] text-ink-soft">Sans engagement : tu changes de formule ou tu arrêtes quand tu veux. Besoin de plus ? +100 prospects contactés pour 19 €, quand tu veux. Un prospect contacté = une entreprise qui reçoit un premier e-mail, avec son décideur trouvé et vérifié ; les relances ne comptent pas.</p>
         </section>

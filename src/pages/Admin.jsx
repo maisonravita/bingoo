@@ -39,6 +39,55 @@ function AiCosts({ rows }) {
 }
 
 /** Tableau de bord de l'administrateur de la plateforme (accès vérifié côté serveur). */
+/** Phase 1 du plan : 10 clients payants, dont 6 avec au moins 2 rendez-vous dans leurs 30 premiers jours. */
+function Pilotes() {
+  const [rows, setRows] = useState(null);
+  const load = () => supabase.rpc("admin_pilotes").then(({ data }) => setRows(data ?? []));
+  useEffect(() => { load(); }, []);
+  if (!rows) return null;
+  const payants = rows.filter((r) => !["essai"].includes(r.plan) && r.plan_status === "active");
+  const reussis = rows.filter((r) => Number(r.rdv_30j) >= 2);
+  const aAppliquer = rows.flatMap((r) => (r.mois_offerts ?? []).map((p) => ({ ...p, ws: r.workspace_id, name: r.name })));
+  return (
+    <Card className="p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="font-semibold">Clients pilotes : objectif des 90 jours</p>
+        <p className="text-sm tnum"><b>{payants.length}</b>/10 payants · <b>{reussis.length}</b>/6 avec 2 RDV en 30 jours</p>
+      </div>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead><tr className="text-left text-ink-soft text-[12px]">{["Client", "Formule", "Jour", "Contactées", "Réponses +", "RDV (30 j)", "Rebonds", "E-mails payants", "IA / contact"].map((h) => <th key={h} className="py-1.5 pr-3 font-medium whitespace-nowrap">{h}</th>)}</tr></thead>
+          <tbody className="divide-y divide-line">
+            {rows.map((r) => (
+              <tr key={r.workspace_id} className={Number(r.rdv_30j) >= 2 ? "bg-good-soft/40" : ""}>
+                <td className="py-1.5 pr-3 font-medium">{r.name}{r.parrain ? <span className="text-ink-faint font-normal"> · parrain {r.parrain}</span> : null}</td>
+                <td className="py-1.5 pr-3">{r.plan}{r.plan_status && r.plan !== "essai" ? ` (${r.plan_status})` : ""}</td>
+                <td className="py-1.5 pr-3 tnum">J+{r.jours}</td>
+                <td className="py-1.5 pr-3 tnum">{r.contactes}</td>
+                <td className="py-1.5 pr-3 tnum">{r.positifs}</td>
+                <td className="py-1.5 pr-3 tnum font-semibold">{r.rdv_30j}<span className="font-normal text-ink-faint"> / {r.rdv}</span></td>
+                <td className={cx("py-1.5 pr-3 tnum", Number(r.rebonds) > 0 && "text-bad")}>{r.rebonds}</td>
+                <td className="py-1.5 pr-3 tnum">{r.emails_payants}</td>
+                <td className="py-1.5 pr-3 tnum">{r.cout_par_contact != null ? `${Number(r.cout_par_contact).toFixed(3)} €` : "–"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!rows.length && <p className="text-sm text-ink-soft py-3">Aucun client pour l'instant (les espaces fondateur ne sont pas comptés).</p>}
+      </div>
+      {aAppliquer.length > 0 && (
+        <div className="mt-4 rounded-xl bg-accent-soft/50 p-3">
+          <p className="text-sm font-semibold">Mois offerts à appliquer dans Stripe</p>
+          <ul className="mt-1 space-y-1 text-sm">{aAppliquer.map((p) => (
+            <li key={p.ws + p.at} className="flex flex-wrap items-center gap-2">{p.name} : {p.raison} ({p.detail})
+              <button className="underline text-ink-soft" onClick={async () => { await supabase.rpc("admin_perk_applique", { p_ws: p.ws, p_at: p.at }); load(); }}>Marquer appliqué</button></li>
+          ))}</ul>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function Admin() {
   const [d, setD] = useState(null);
   const [inc, setInc] = useState(null);
@@ -66,6 +115,8 @@ export default function Admin() {
           <Card key={l} className="p-4"><p className="text-2xl font-semibold tabular-nums">{v}</p><p className="text-xs text-ink-soft mt-1">{l}</p></Card>
         ))}
       </div>
+
+      <Pilotes />
 
       <AiCosts rows={ai} plans={ws} />
 
