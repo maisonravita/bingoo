@@ -27,7 +27,7 @@ function Section({ id, title, count, to, more, children }) {
 }
 
 /** Un message prêt : pourquoi maintenant, à qui, le texte, et deux décisions. */
-function DraftCard({ m, canSend, onDone }) {
+export function DraftCard({ m, canSend, onDone }) {
   const { ws } = useWs();
   const toast = useToast();
   const [open, setOpen] = useState(false);

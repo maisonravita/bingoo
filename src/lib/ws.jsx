@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { fn, supabase } from "./supabase";
 
-const Ctx = createContext(null);
+export const WsCtx = createContext(null);
+const Ctx = WsCtx;
 export const useWs = () => useContext(Ctx);
 const KEY = "kairo-ws";
 const read = () => { try { return localStorage.getItem(KEY); } catch { return null; } };

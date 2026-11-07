@@ -88,8 +88,8 @@ function TryIt({ t }) {
         {err && <p className="mt-4 rounded-lg bg-[#FDF0EC] px-4 py-3 text-[15px] text-[#9A3412]">{err}</p>}
         <p className="mt-6 text-[15px] text-ink-soft">Gratuit, sans compte. Tu vends aux collectivités ? <a href="#/outils/contrats-publics" className="underline hover:text-ink">Vois leurs contrats qui se terminent</a>.</p>
         <figure className="mt-10">
-          <video src="./demo-radar.mp4" poster="./demo-radar.jpg" controls muted playsInline preload="none" className="w-full rounded-xl border border-black/10 bg-[#F1EFED]" aria-label="Démonstration du Radar en 30 secondes" />
-          <figcaption className="mt-2 text-[13.5px] text-ink-soft">Démo réelle en 30 secondes : le Radar lancé sur notre propre site, résultats du 4 novembre 2026.</figcaption>
+          <video src="./demo-inscription.mp4" poster="./demo-inscription.jpg" controls muted playsInline preload="none" className="w-full rounded-xl border border-black/10 bg-[#F1EFED]" aria-label="L'inscription Bingoo! : 6 questions, puis le plan d'action chiffré" />
+          <figcaption className="mt-2 text-[13.5px] text-ink-soft">L'inscription dans la vraie application : 6 questions, puis ton plan d'action chiffré. Données d'exemple.</figcaption>
         </figure>
       </div>
 
@@ -215,24 +215,21 @@ function useReveal() {
   }, []);
 }
 
-/** Ta ville : la nuit rejouée, et le mode Jouer (se promener, ouvrir une entreprise, répondre, envoyer). */
-function Ville() {
-  const [v, setV] = useState("jouer");
-  const VIDS = { jouer: ["./demo-carte.mp4", "./demo-carte.jpg", "Le mode Jouer : se promener dans sa ville, ouvrir une entreprise, répondre et envoyer depuis la carte"], nuit: ["./demo-equipe.mp4", "./demo-equipe.jpg", "Une nuit de l'équipe Bingoo! rejouée dans Paris"] };
+/** Ta journée dans Bingoo! : les demandes publiques avec ta réponse prête, les messages à valider. Vidéo de la vraie application. */
+function Journee() {
   return (
-    <section id="ville" className="scroll-mt-24 px-5 sm:px-10 lg:px-20 py-20 sm:py-28 border-t border-black/[.07]">
-      <div className="mx-auto max-w-[1100px] grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-10 items-center">
+    <section id="journee" className="scroll-mt-24 px-5 sm:px-10 lg:px-20 py-20 sm:py-28 border-t border-black/[.07]">
+      <div className="mx-auto max-w-[1180px] grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-10 items-center">
         <div className="min-w-0">
-          <h2 className="text-[36px] sm:text-[50px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ta ville, à conquérir</h2>
-          <p className="mt-6 text-[17px] sm:text-[19px] leading-[1.5] text-ink">Tes entreprises cibles sont placées dans les vraies rues de ta ville. Elle se colore à mesure que tu avances : contactées, en discussion, gagnées. Chaque matin, Bingoo! te rejoue la nuit de ton équipe.</p>
-          <p className="mt-4 text-[17px] leading-[1.5] text-ink">Appuie sur <b className="font-medium">Jouer</b> : tu te promènes, tu entres chez une entreprise, tu lis sa réponse et tu envoies ton message, sans quitter la carte.</p>
-          <div className="mt-6 inline-flex rounded-lg bg-[#F1EFED] p-1" role="tablist">
-            {[["jouer", "Le mode Jouer"], ["nuit", "La nuit rejouée"]].map(([k, l]) => <button key={k} role="tab" aria-selected={v === k} onClick={() => setV(k)} className={cx("rounded-md px-4 py-2 text-[15px] transition", v === k ? "bg-white shadow-sm text-ink" : "text-ink-soft hover:text-ink")}>{l}</button>)}
-          </div>
+          <h2 className="text-[36px] sm:text-[50px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ta journée, en 15 minutes</h2>
+          <p className="mt-6 text-[17px] sm:text-[19px] leading-[1.5] text-ink">Chaque matin, un seul écran : les gens qui cherchent ta solution en public, avec ta réponse prête, et les messages écrits pour les entreprises au bon moment.</p>
+          <ul className="mt-6 space-y-3 text-[16px] text-ink">
+            {["Tu relis, tu corriges un mot si tu veux", "Tu copies ta réponse, tu la publies toi-même", "Tu envoies le message d'un clic. Bingoo! relance pour toi"].map((x) => <li key={x} className="flex gap-2.5"><Check className="h-4 w-4 mt-1 shrink-0 text-accent" />{x}</li>)}
+          </ul>
         </div>
         <figure className="min-w-0">
-          <video key={v} src={VIDS[v][0]} poster={VIDS[v][1]} controls muted playsInline preload="none" className="w-full rounded-xl border border-black/10 bg-[#0b0910]" aria-label={VIDS[v][2]} />
-          <figcaption className="mt-2 text-[13.5px] text-ink-soft">Démonstration avec des données d'exemple, dans les vraies rues de Paris. Carte © contributeurs OpenStreetMap.</figcaption>
+          <video src="./demo-journee.mp4" poster="./demo-journee.jpg" controls muted playsInline preload="none" className="w-full rounded-xl border border-black/10 bg-[#F1EFED]" aria-label="L'écran Aujourd'hui de Bingoo! : demandes publiques et messages à valider" />
+          <figcaption className="mt-2 text-[13.5px] text-ink-soft">L'écran « Aujourd'hui » de la vraie application. Données d'exemple.</figcaption>
         </figure>
       </div>
     </section>
@@ -400,7 +397,7 @@ export default function Landing() {
 
         <Extension />
 
-        <Ville />
+        <Journee />
 
 
         {/* Pour qui */}
