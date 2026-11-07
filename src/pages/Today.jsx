@@ -476,6 +476,7 @@ export default function Today() {
           {hello}{first ? ` ${first}` : ""} !<Sparks className="w-9 h-9 sm:w-11 sm:h-11 -mt-2" />
         </h1>
         <p className="text-ink-soft text-[17px] mt-3">{s ? resume(s) : "Ce qui t'attend aujourd'hui."}</p>
+        <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-paper border border-line px-3 py-1 text-[13px] font-semibold text-ink-soft"><Ico n="clock" className="w-4 h-4" />Ton plan du jour : environ 15 minutes. Bingoo! s'occupe du reste.</p>
       </header>
 
       {/* Un seul écran : 1. ce qu'il y a à faire aujourd'hui, 2. ce qui marche. Tout le reste est dans « Plus ». */}

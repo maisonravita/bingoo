@@ -1,4 +1,5 @@
 import Opportunite from "../components/Opportunite";
+import Demande from "../components/Demande";
 import { declencheur, quandTexte, typeDe } from "../lib/opportunite";
 import { trace } from "../lib/usage";
 import { useEffect, useState } from "react";
@@ -41,7 +42,7 @@ function Thinking({ site }) {
 
 const H = "font-black tracking-[-.02em] leading-[1.02]";
 const HFONT = { fontFamily: "Nunito, Geist, system-ui, sans-serif" };
-const PROGRESS = ["Ton site", "C'est parti"];
+const PROGRESS = ["Ton produit", "Ton plan du jour"];
 
 export default function Onboarding() {
   const { ws, create, reload, patch } = useWs();
@@ -93,6 +94,8 @@ export default function Onboarding() {
       setExpress({ phase: "chercher" });
       const r = await fn("search", { workspace_id: ws.id, pages: 1 });
       await supabase.from("workspaces").update({ onboarded: true }).eq("id", ws.id);
+      // En parallèle : les gens qui demandent en public une solution comme la sienne (Reddit, LinkedIn, X, forums)
+      const demandes = fn("r/spy-needs", { workspace_id: ws.id }).catch(() => ({ found: 0 }));
       // Premier Radar tout de suite (sources officielles, sans recherche web) : le client ne découvre jamais un Radar vide
       fn("r/radar-scan", { workspace_id: ws.id, web: false }).catch(() => {});
       // Démarrage express : on cherche les e-mails publiés de quelques entreprises, puis on rédige 3 premiers messages
@@ -110,6 +113,10 @@ export default function Onboarding() {
         const d = await fn("r/demarrage", { workspace_id: ws.id, etape: "rediger" }).catch(() => ({ prets: 0 }));
         e = { ...e, prets: d.prets };
       }
+      // Les demandes publiques : on attend au plus 40 s de plus, sinon elles arriveront dans l'espace
+      setExpress({ ...e, phase: "demandes" });
+      const dm = await Promise.race([demandes, new Promise((ok) => setTimeout(() => ok(null), 40000))]);
+      e = { ...e, demandes: dm ? dm.found ?? 0 : null };
       // Pas de rechargement ici : l'écran de fin reste affiché, ses boutons ouvrent l'espace à jour
       setExpress({ ...e, phase: "fini" });
     } catch (e) { toast(e.message, "bad"); setStep(1); } finally { setBusy(false); }
@@ -141,11 +148,11 @@ export default function Onboarding() {
         {step === 0 && (
           <div className="rise rounded-3xl bg-white border border-line shadow-[0_24px_60px_-34px_rgba(21,22,26,.35)] p-6 sm:p-9">
             <span className="inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-dark px-3 py-1 text-[12.5px] font-bold">Bienvenue sur Bingoo!</span>
-            <h1 className={cx(H, "mt-4 text-[34px] sm:text-[44px]")} style={HFONT}>Commençons par ton site.</h1>
-            <p className="text-ink-soft mt-3 text-[17px]">Je le lis, je comprends ce que tu vends, puis je te montre qui en a besoin. Tu ne sais pas encore qui sont tes clients ? C'est mon travail : je te propose plusieurs pistes et je garde celles qui répondent.</p>
+            <h1 className={cx(H, "mt-4 text-[34px] sm:text-[44px]")} style={HFONT}>Colle le lien de ton produit.</h1>
+            <p className="text-ink-soft mt-3 text-[17px]">En moins d'une minute, je te montre de vraies entreprises qui en ont besoin maintenant, et les gens qui le demandent en public. Puis ton plan du jour : 15 minutes, et je m'occupe du reste.</p>
             {busy ? <Thinking site={site} /> : (<>
               <div className="mt-7 grid grid-cols-2 rounded-full bg-paper border border-line p-1 max-w-sm" role="tablist">
-                {[[false, "J'ai un site"], [true, "Pas de site"]].map(([v, l]) => (
+                {[[false, "J'ai un lien"], [true, "Pas encore de site"]].map(([v, l]) => (
                   <button key={l} type="button" role="tab" aria-selected={showDesc === v} onClick={() => setShowDesc(v)}
                     className={cx("rounded-full py-2 text-[14px] font-semibold transition", showDesc === v ? "bg-white shadow-sm text-ink" : "text-ink-soft hover:text-ink")}>{l}</button>
                 ))}
@@ -156,9 +163,9 @@ export default function Onboarding() {
                     <label className="flex-1 min-w-0 flex items-center gap-2 rounded-2xl border border-line bg-white px-4 focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/15 transition">
                       <svg viewBox="0 0 24 24" className="h-5 w-5 text-ink-faint shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z" /></svg>
                       <span className="text-ink-faint text-[16px] hidden sm:inline">https://</span>
-                      <input autoFocus aria-label="Adresse de ton site" placeholder="monentreprise.fr" value={site} onChange={(e) => setSite(e.target.value.replace(/^https?:\/\//i, ""))} className="flex-1 min-w-0 bg-transparent py-4 text-[17px] outline-none" />
+                      <input autoFocus aria-label="Lien de ton produit" placeholder="monproduit.com" value={site} onChange={(e) => setSite(e.target.value.replace(/^https?:\/\//i, ""))} className="flex-1 min-w-0 bg-transparent py-4 text-[17px] outline-none" />
                     </label>
-                    <button type="submit" className="rounded-2xl bg-accent text-white px-7 py-4 text-[16px] font-bold hover:bg-accent-dark active:scale-[0.98] transition whitespace-nowrap">Analyser mon site →</button>
+                    <button type="submit" className="rounded-2xl bg-accent text-white px-7 py-4 text-[16px] font-bold hover:bg-accent-dark active:scale-[0.98] transition whitespace-nowrap">Voir qui en a besoin →</button>
                   </div>
                 ) : (<>
                   <label className="block">
@@ -290,35 +297,25 @@ const PHASES = [
   ["chercher", "Je parcours le registre officiel des entreprises"],
   ["enqueter", "Je trouve leur site et l'e-mail qu'elles publient"],
   ["rediger", "J'écris tes premiers messages, chacun sur un fait vérifié"],
+  ["demandes", "Je cherche qui demande une solution comme la tienne, en public"],
 ];
 
 function Express({ e, ws }) {
-  const ordre = ["chercher", "enqueter", "rediger", "fini"];
+  const ordre = ["chercher", "enqueter", "rediger", "demandes", "fini"];
   const k = ordre.indexOf(e?.phase ?? "chercher");
   if (e?.phase === "fini") {
     const ok = e.prets > 0;
     return (
       <div className="rise rounded-3xl bg-white border border-line shadow-[0_24px_60px_-34px_rgba(21,22,26,.35)] p-6 sm:p-9">
-        <h1 className={cx(H, "text-[34px] sm:text-[44px]")} style={HFONT}>
-          {ok ? `${e.prets === 1 ? "Une entreprise a" : `${e.prets} entreprises ont`} besoin de toi cette semaine` : e.trouves > 0 ? `${fmtN(e.trouves)} entreprises dans ton espace` : "Ton espace est prêt"}
-        </h1>
-        <p className="text-ink-soft mt-3 text-[17px]">
-          {ok ? "Voici pourquoi c'est le bon moment, à qui écrire, et le message prêt. Tu l'enverrais ?" : e.trouves > 0 ? "Voici les premières, avec la raison de leur écrire maintenant. Je cherche l'adresse vérifiée de leur dirigeant : tes messages t'attendront dès qu'elle est trouvée." : "Je n'écris que lorsqu'une entreprise a un fait récent à citer et une adresse vérifiée. Je continue cette nuit : tes premières opportunités t'attendront demain matin."}
-        </p>
-        {ok ? <Cartes ws={ws} /> : e.trouves > 0 ? <Apercus ws={ws} /> : (
-          <dl className="mt-7 grid grid-cols-2 gap-3 text-center">
-            {[[e.trouves, "entreprises trouvées"], [e.emails, "e-mails vérifiés"]].map(([n, l]) => (
-              <div key={l} className="rounded-2xl bg-paper border border-line px-3 py-4">
-                <dt className="sr-only">{l}</dt>
-                <dd className="text-[28px] font-bold tabular-nums" style={HFONT}>{fmtN(n ?? 0)}</dd>
-                <dd className="text-[13px] text-ink-soft">{l}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
+        <span className="inline-flex items-center gap-2 rounded-full bg-good-soft text-good px-3 py-1 text-[12.5px] font-bold">Fait à l'instant, sur de vraies données</span>
+        <h1 className={cx(H, "mt-4 text-[34px] sm:text-[44px]")} style={HFONT}>Ton plan du jour est prêt.</h1>
+        <p className="text-ink-soft mt-3 text-[17px]">Rien d'inventé : chaque entreprise et chaque demande a sa source. Toi, tu valides. Moi, je m'occupe du reste.</p>
+        <Plan ws={ws} e={e} />
+        {ok ? <Cartes ws={ws} /> : e.trouves > 0 ? <Apercus ws={ws} /> : null}
+        <DemandesApercu ws={ws} />
         {ok && <Debloquer ws={ws} />}
         <div className="mt-7 flex flex-wrap gap-3">
-          {ok ? <Button variant="accent" size="lg" onClick={() => { window.location.href = "/#/valider"; }}>Ouvrir mes opportunités</Button>
+          {ok ? <Button variant="accent" size="lg" onClick={() => { window.location.href = "/#/valider"; }}>Commencer mon plan</Button>
             : <Button variant="accent" size="lg" onClick={() => { window.location.href = "/#/"; }}>Ouvrir mon espace</Button>}
           <button className="text-[15px] font-semibold text-ink-soft hover:text-ink px-3" onClick={() => { window.location.href = "/qg/?premiere=1"; }}>Voir mon équipe partir dans ma ville</button>
         </div>
@@ -342,6 +339,62 @@ function Express({ e, ws }) {
       </ul>
       {/* Du concret tout de suite : les vraies entreprises trouvées, pendant que les messages s'écrivent */}
       {e?.trouves > 0 && <Apercus ws={ws} />}
+    </div>
+  );
+}
+
+/** Le plan du jour : ce qu'il y a à faire aujourd'hui, compté sur les vraies données de l'espace, avec le temps que ça prend. */
+function Plan({ ws, e }) {
+  const [k, setK] = useState(null);
+  useEffect(() => {
+    const head = (q) => q.then((x) => x.count ?? 0);
+    Promise.all([
+      head(supabase.from("messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "brouillon")),
+      head(supabase.from("radar_opps").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("kind", "besoin").eq("status", "nouveau")),
+      head(supabase.from("radar_opps").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("status", "nouveau").neq("kind", "besoin")),
+      head(supabase.from("prospects").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).neq("status", "ignore")),
+    ]).then(([msgs, dem, opps, ent]) => setK({ msgs, dem, opps, ent }));
+  }, [ws.id, e?.demandes]);
+  if (!k) return <div className="mt-7 h-32 rounded-2xl bg-paper animate-pulse" />;
+  const lignes = [
+    k.msgs > 0 && { n: k.msgs, t: `message${k.msgs > 1 ? "s" : ""} prêt${k.msgs > 1 ? "s" : ""} à relire et envoyer`, d: "Chacun part d'un fait récent et vérifié chez l'entreprise.", min: Math.min(6, k.msgs * 2) },
+    k.dem > 0 && { n: k.dem, t: `personne${k.dem > 1 ? "s demandent" : " demande"} en public une solution comme la tienne`, d: "Sur Reddit, LinkedIn, X ou un forum. Ta réponse est écrite, tu la publies.", min: Math.min(6, k.dem * 2) },
+    e?.demandes === null && { n: "…", t: "demandes publiques en cours de recherche", d: "Elles t'attendront dans ton espace dans quelques minutes.", min: 0 },
+    (k.opps > 0 || k.ent > 0) && { n: k.opps || k.ent, t: k.opps ? `entreprise${k.opps > 1 ? "s" : ""} au bon moment, repérée${k.opps > 1 ? "s" : ""}` : `entreprise${k.ent > 1 ? "s" : ""} qui correspondent à ta cible`, d: "Je cherche leur décideur et son e-mail vérifié cette nuit. Rien à faire pour toi.", min: 0 },
+  ].filter(Boolean);
+  if (!lignes.length) return <p className="mt-7 rounded-2xl bg-paper px-4 py-3 text-[15px]">Je n'écris que lorsqu'une entreprise a un fait récent à citer et une adresse vérifiée. Je continue cette nuit : ton premier plan t'attendra demain matin.</p>;
+  const total = Math.max(5, Math.min(15, lignes.reduce((s, l) => s + l.min, 0)));
+  return (
+    <div className="mt-7 rounded-2xl border border-line overflow-hidden">
+      <div className="flex items-center justify-between gap-3 bg-ink text-white px-4 py-3">
+        <p className="font-bold text-[15px]">Aujourd'hui</p>
+        <p className="text-[14px] font-semibold tnum">≈ {total} minutes</p>
+      </div>
+      <ol className="divide-y divide-line">
+        {lignes.map((l, i) => (
+          <li key={i} className="flex gap-4 px-4 py-3.5">
+            <span className="w-12 shrink-0 text-[26px] font-black leading-none tnum text-accent-dark" style={HFONT}>{l.n}</span>
+            <span className="min-w-0"><span className="block text-[15px] font-semibold">{l.t}</span><span className="block text-[13.5px] text-ink-soft">{l.d}</span></span>
+            {l.min > 0 && <span className="ml-auto shrink-0 text-[12.5px] text-ink-faint tnum">{l.min} min</span>}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+/** Les deux meilleures demandes publiques trouvées pendant l'inscription, avec leur réponse prête. */
+function DemandesApercu({ ws }) {
+  const [rows, setRows] = useState([]);
+  useEffect(() => {
+    supabase.from("radar_opps").select("id, title, summary, why, url, source, published, created_at, raw, status").eq("workspace_id", ws.id).eq("kind", "besoin").eq("status", "nouveau").order("score", { ascending: false, nullsFirst: false }).limit(2)
+      .then(({ data }) => setRows(data ?? []));
+  }, [ws.id]);
+  if (!rows.length) return null;
+  return (
+    <div className="mt-6">
+      <p className="text-[15px] font-bold">Ils cherchent une solution comme la tienne</p>
+      <div className="mt-3 space-y-3">{rows.map((o) => <Demande key={o.id} o={o} compact onDone={(id) => setRows((x) => x.filter((r) => r.id !== id))} />)}</div>
     </div>
   );
 }
