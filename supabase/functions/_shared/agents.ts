@@ -280,7 +280,7 @@ Angle à utiliser : ${v ? v.angle : t?.angle ?? ""}
 ${v?.objet ? `Objet à utiliser tel quel ou presque : ${v.objet}\n` : ""}${active ? `Objectif de l'e-mail : ${goalText(active.goal)}.\n` : ""}Bénéficiaires à nommer : ${t?.pour_qui ?? ""}
 ${(() => { const sg = (p.signals ?? []).filter((x) => x.label && x.type !== "taille" && x.type !== "reseau"); return sg.length ? `Faits publics observés sur ce prospect (registre, Radar, son site) :\n${sg.slice(0, 8).map((x) => `- ${String(x.label).replace(/\s*(?:publi[ée]e? )?(?:au|dans le|selon le) (?:BODACC|registre[^,.;]*)/gi, "")}`).join("\n")}\nChoisis LE fait le plus utile pour notre offre et ouvre l'e-mail avec, sans rien y ajouter ni l'interpréter. N'utilise pas les autres.\n` : ""; })()}${(() => { const d = declencheur(p); return d ? `Fait déclencheur à privilégier : ${d.label}\n` : ""; })()}${emailGenerique(p.email) ? `L'adresse ${p.email} est celle de l'accueil, pas d'une personne : la dernière phrase est exactement « Pourriez-vous transmettre ce message à ${p.contact_name ? String(p.contact_name).trim() : `la personne qui s'occupe de ${String(t?.interlocuteur || "la prospection").toLowerCase()}`} ? », sans autre question.\n` : ""}${(p.insight as { reseaux?: { accroche?: string } } | null)?.reseaux?.accroche ? `Première phrase possible, fondée sur une publication ou une actualité réelle du prospect (à reprendre ou adapter si elle sonne naturelle, sinon ignore-la) : ${(p.insight as { reseaux: { accroche: string } }).reseaux.accroche}
 ` : ""}
-${await rivalBrief(ws.id, p)}Commence par « Bonjour${p.contact_name ? " Madame/Monsieur <Nom>" : ""}, » (si l'interlocuteur est connu mais que le genre est incertain, écris « Bonjour <Prénom>, », jamais prénom et nom ensemble).
+${await rivalBrief(ws.id, p)}Commence par « Bonjour${p.contact_name && !emailGenerique(p.email) ? " Madame/Monsieur <Nom>" : ""}, » (si l'interlocuteur est connu mais que le genre est incertain, écris « Bonjour <Prénom>, », jamais prénom et nom ensemble).
 Longueur : 40 à 70 mots, trois phrases courtes (le fait vrai, ce que l'offre change, une question). Rien sur la situation du prospect qui ne soit dans les faits ci-dessus.
 La première phrase parle du fait, précis et daté si la date est connue (« Vous avez ouvert un établissement à Lyon en août »), jamais de l'activité générale du prospect (« X vend des formations », « X est spécialisé dans… »).
 Ne mets pas de signature : elle est ajoutée automatiquement.
@@ -296,7 +296,9 @@ OBJET: <objet de 2 à 5 mots, en minuscules sauf noms propres, sans point d'excl
   let body = humanize((m ? m[2] : out).replace(/^\s*OBJET\s*:.*$/gim, "").replace(/^\s*-{3,}\s*$/gm, "").replace(/^\n+/, ""));
   // « Bonjour Richard Michaud, » → « Bonjour Richard, » (prénom et nom ensemble sonnent comme un publipostage)
   const full = String(p.contact_name ?? "").trim();
-  if (full.includes(" ")) body = body.replace(new RegExp(`^Bonjour ${full.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")},`), `Bonjour ${full.split(/\s+/)[0]},`);
+  // Adresse d'accueil : on salue l'accueil, pas la personne à qui on demande de transmettre
+  if (emailGenerique(p.email) && full) body = body.replace(/^Bonjour [^,\n]+,/, "Bonjour,");
+  else if (full.includes(" ")) body = body.replace(new RegExp(`^Bonjour ${full.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")},`), `Bonjour ${full.split(/\s+/)[0]},`);
   return { subject, body, active, v };
 }
 
