@@ -1,11 +1,14 @@
 import { useState } from "react";
+import { useWs } from "../lib/ws";
+import { trace } from "../lib/usage";
 
 /** En haut de chaque page : à quoi elle sert et quoi faire, en 2 ou 3 gestes. Se replie d'un clic (mémorisé sur cet appareil). */
 export default function Guide({ id, titre, etapes }) {
   const key = `bingoo-guide-${id}`;
+  const { ws } = useWs();
   const [ferme, setFerme] = useState(() => { try { return localStorage.getItem(key) === "1"; } catch { return false; } });
   const toggle = (v) => { setFerme(v); try { localStorage.setItem(key, v ? "1" : "0"); } catch { /* stockage indisponible */ } };
-  if (ferme) return <button onClick={() => toggle(false)} className="mb-4 text-[13px] text-ink-soft underline hover:text-ink">Comment utiliser cette page ?</button>;
+  if (ferme) return <button onClick={() => { toggle(false); trace(ws?.id, "aide", id); }} className="mb-4 text-[13px] text-ink-soft underline hover:text-ink">Comment utiliser cette page ?</button>;
   return (
     <section aria-label="Comment utiliser cette page" className="mb-5 rounded-2xl border border-accent/25 bg-accent-soft/40 p-4">
       <div className="flex items-start justify-between gap-3">

@@ -17,3 +17,11 @@ export const useDansLieu = () => !!useContext(LieuContext);
 /** Mode simple (par défaut) : seuls les outils qui mènent à un rendez-vous sont visibles. Les outils avancés
  *  (trafic du site, réseaux sociaux, studio, salariés IA, intelligence…) restent accessibles en les activant dans Réglages. */
 export const estSimple = (ws) => !(ws?.profile && ws.profile.avance === true);
+
+/** L'accueil montre-t-il la ville ? Ordinateur : oui sauf choix « liste ». Téléphone : non (liste d'abord), sauf choix « ville ». */
+export function accueilVille() {
+  let v = "", vm = "";
+  try { v = localStorage.getItem("bingoo-vue") ?? ""; vm = localStorage.getItem("bingoo-vue-mobile") ?? ""; } catch { /* rien */ }
+  const mobile = typeof window !== "undefined" && !!window.matchMedia?.("(max-width: 767px)").matches;
+  return mobile ? vm === "village" : v !== "liste";
+}

@@ -88,6 +88,43 @@ function Pilotes() {
   );
 }
 
+/** Comment les pilotes utilisent Bingoo! (14 jours) : ville ou liste, téléphone, bâtiments, hésitations, aide. */
+const NOMS = { poste: "Poste", atelier: "Atelier", rdv: "Rendez-vous", annuaire: "Annuaire", radar: "Radar", espion: "Espion", linkedin: "LinkedIn", observatoire: "Observatoire", mairie: "Mairie" };
+function Usage() {
+  const [rows, setRows] = useState(null);
+  useEffect(() => { supabase.rpc("admin_usage", { p_jours: 14 }).then(({ data }) => setRows(data ?? [])); }, []);
+  if (!rows) return null;
+  const top = (o, f = (k) => k) => Object.entries(o ?? {}).map(([k, n]) => `${f(k)} ${n}`).join(" · ") || "—";
+  return (
+    <Card className="p-5">
+      <p className="font-semibold">Comment ils utilisent Bingoo! <span className="font-normal text-ink-soft">· 14 derniers jours</span></p>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead><tr className="text-left text-ink-soft text-[12px]">{["Client", "Ville / liste", "Sur téléphone", "Bâtiments ouverts", "Hésitations", "Aide demandée", "« Tout traiter »"].map((h) => <th key={h} className="py-1.5 pr-3 font-medium whitespace-nowrap">{h}</th>)}</tr></thead>
+          <tbody className="divide-y divide-line">
+            {rows.map((r) => {
+              const tot = Number(r.vues_village) + Number(r.vues_liste);
+              return (
+                <tr key={r.workspace_id}>
+                  <td className="py-1.5 pr-3 font-medium">{r.name}</td>
+                  <td className="py-1.5 pr-3 tnum">{tot ? `${Math.round((Number(r.vues_village) / tot) * 100)} % ville` : "—"}<span className="text-ink-faint"> ({r.vues_village}/{r.vues_liste})</span></td>
+                  <td className="py-1.5 pr-3 tnum">{tot ? `${Math.round((Number(r.vues_mobile) / tot) * 100)} %` : "—"}</td>
+                  <td className="py-1.5 pr-3 text-[12.5px]">{top(r.lieux, (k) => NOMS[k] ?? k)}</td>
+                  <td className={cx("py-1.5 pr-3 text-[12.5px]", r.hesitations && "text-warn")}>{top(r.hesitations, (k) => k.split(">").map((x) => NOMS[x] ?? x).join(" → "))}</td>
+                  <td className="py-1.5 pr-3 text-[12.5px]">{top(r.aides)}</td>
+                  <td className="py-1.5 pr-3 tnum">{r.series_fin}/{r.series_debut} finies</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {!rows.length && <p className="text-sm text-ink-soft py-3">Pas encore de données : elles arrivent dès que les pilotes se connectent.</p>}
+      </div>
+      <p className="text-[12px] text-ink-faint mt-2">Une hésitation = un bâtiment quitté en moins de 5 secondes pour un autre. Si un même couple revient souvent, ces deux bâtiments sont à fusionner ou à rapprocher.</p>
+    </Card>
+  );
+}
+
 export default function Admin() {
   const [d, setD] = useState(null);
   const [inc, setInc] = useState(null);
@@ -117,6 +154,7 @@ export default function Admin() {
       </div>
 
       <Pilotes />
+      <Usage />
 
       <AiCosts rows={ai} plans={ws} />
 

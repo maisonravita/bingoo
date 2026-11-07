@@ -13,6 +13,8 @@ import CompanyLogo from "../components/CompanyLogo";
 import TodayFeed from "../components/TodayFeed";
 import { BandeauMatin, usePilotage } from "./Pilotage";
 import { estSimple } from "../lib/lieu";
+import { estMobile, trace } from "../lib/usage";
+const useMesureVue = (v) => { const { ws } = useWs(); useEffect(() => { trace(ws.id, "vue", `${v}${estMobile() ? " mobile" : ""}`); }, [ws.id]); }; // eslint-disable-line react-hooks/exhaustive-deps
 
 const I = {
   search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>,
@@ -462,6 +464,7 @@ function resume(s) {
 }
 
 export default function Today() {
+  useMesureVue("liste");
   const { ws } = useWs();
   const nav = useNavigate();
   const toast = useToast();
@@ -527,7 +530,7 @@ export default function Today() {
     <div className="max-w-4xl">
       {visite && <Visite onFin={finVisite} />}
       <header className="mb-6 relative">
-        <button onClick={() => { try { localStorage.setItem("bingoo-vue", "village"); } catch { /* rien */ } nav("/village"); }} className="absolute right-0 top-1 rounded-full border border-line bg-white px-4 py-2 text-[14px] font-semibold hover:border-ink-faint">Vue village</button>
+        <button onClick={() => { try { localStorage.setItem("bingoo-vue", "village"); } catch { /* rien */ } nav("/village"); }} className="hidden md:block absolute right-0 top-1 rounded-full border border-line bg-white px-4 py-2 text-[14px] font-semibold hover:border-ink-faint">Vue village</button>
         <h1 className="font-black text-[40px] sm:text-[52px] leading-none tracking-tight flex items-start gap-1" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>
           {hello}{first ? ` ${first}` : ""} !<Sparks className="w-9 h-9 sm:w-11 sm:h-11 -mt-2" />
         </h1>
@@ -536,6 +539,18 @@ export default function Today() {
 
       {/* Une page simple, dans l'ordre où on s'en sert : 1. ce qu'il y a à faire, 2. ce que ça donne, 3. trouver plus de clients.
           Tout le reste (ta ville, l'activité de la nuit, les opportunités, les chiffres détaillés) est replié plus bas. */}
+      {/* Téléphone : ta ville en vignette, un appui l'ouvre en grand */}
+      <button onClick={() => nav("/village")} className="md:hidden mb-5 flex w-full items-center gap-4 overflow-hidden rounded-3xl bg-gradient-to-br from-[#FFF3E6] to-[#F9E4D3] p-4 text-left shadow-[0_10px_24px_-16px_rgba(122,74,42,.6)]">
+        <svg viewBox="0 0 120 80" className="h-16 w-24 shrink-0" aria-hidden>
+          <polygon points="60,10 110,35 60,60 10,35" fill="#F8EFE6" stroke="#EBD9C6" />
+          <polygon points="38,30 52,23 52,8 38,15" fill="#EC5A1C" /><polygon points="38,30 24,23 24,8 38,15" fill="#C2531E" /><polygon points="38,15 52,8 38,1 24,8" fill="#FF8A3D" />
+          <polygon points="74,40 88,33 88,22 74,29" fill="#E6DED5" /><polygon points="74,40 60,33 60,22 74,29" fill="#CFC6BC" /><polygon points="74,29 88,22 74,15 60,22" fill="#3E5BA6" />
+          <polygon points="86,26 94,22 94,2 86,6" fill="#3A3236" /><polygon points="86,26 78,22 78,2 86,6" fill="#2A2427" /><rect x="80" y="0" width="12" height="5" fill="#F26A21" />
+          <circle cx="58" cy="44" r="3" fill="#F26A21" /><circle cx="46" cy="40" r="3" fill="#F26A21" />
+        </svg>
+        <span className="min-w-0 flex-1"><span className="block font-black text-[18px] text-ink" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>Ta ville</span><span className="block text-[13px] text-ink-soft">Ton équipe au travail, et ce qu'elle a fait cette nuit</span></span>
+        <span className="text-[22px] text-[#E8571C]" aria-hidden>›</span>
+      </button>
       {s && <Demarrer s={s} />}
       {s && <Travail s={s} />}
       {s && <Morning s={s} wsId={ws.id} canSend={ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok} adresse={!!ws.postal_address} />}

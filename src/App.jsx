@@ -10,7 +10,7 @@ import Onboarding from "./pages/Onboarding";
 import Today from "./pages/Today";
 import Village from "./pages/Village";
 // Accueil : la carte-village par défaut, ou la vue liste si la personne l'a choisie
-function Accueil() { let v = ""; try { v = localStorage.getItem("bingoo-vue") ?? ""; } catch { /* rien */ } return v === "liste" ? <Today /> : <Village />; }
+function Accueil() { return accueilVille() ? <Village /> : <Today />; }
 import Review from "./pages/Review";
 import Prospects from "./pages/Prospects";
 import LinkedIn from "./pages/LinkedIn";
@@ -44,6 +44,7 @@ import Landing from "./pages/Landing";
 import Metier from "./pages/Metier";
 import { Conditions, Confidentialite, legalReady, MentionsLegales, Opposition } from "./pages/Legal";
 import { supabase } from "./lib/supabase";
+import { accueilVille } from "./lib/lieu";
 
 function Gate() {
   const { session, list, ws } = useWs();

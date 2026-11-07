@@ -58,6 +58,11 @@ function Tree({ x, y, kind, s = 1 }) {
 function Lamp({ x, y }) { const [px, py] = P(x, y, 0); return <g><ellipse cx={px} cy={py} rx="3" ry="1.5" fill="rgba(0,0,0,.12)" /><rect x={px - 0.9} y={py - 24} width="1.8" height="24" fill="#3B3F48" /><rect x={px - 2.6} y={py - 28} width="5.2" height="5" rx="1.5" fill="#3B3F48" /><rect x={px - 1.8} y={py - 27} width="3.6" height="3" rx="1" fill="#FFD27A" /></g>; }
 function Bench({ x, y }) { return <><Box x={x} y={y} w={1.8} d={0.5} h={0.5} c="#B07A4E" /><Box x={x} y={y} w={1.8} d={0.15} h={1.1} c="#9A6740" /></>; }
 const Bush = ({ x, y, c = "#7CBB52", r = 5 }) => { const [px, py] = P(x, y, 0); return <g><ellipse cx={px} cy={py} rx={r} ry={r / 2} fill="rgba(0,0,0,.08)" /><circle cx={px} cy={py - r * 0.7} r={r} fill={c} /><circle cx={px - r * 0.4} cy={py - r} r={r * 0.4} fill="#9BD06C" /></g>; };
+/* Ce que fait chaque bâtiment, écrit sous son nom, et le quartier (l'ordre du travail) auquel il appartient */
+export const SOUS = { poste: "tes réponses", atelier: "messages à valider", rdv: "tes rendez-vous", annuaire: "tes contacts", radar: "le bon moment", espion: "tes concurrents", linkedin: "tes invitations", observatoire: "tes résultats", mairie: "tes réglages" };
+export const QUARTIER = { radar: 1, annuaire: 1, espion: 1, atelier: 2, poste: 2, linkedin: 2, rdv: 3, observatoire: 3, mairie: 0 };
+export const QUARTIERS = [null, { nom: "Trouver", c: "#2F80ED", sol: "#DCE9F8" }, { nom: "Contacter", c: "#E8692B", sol: "#F9E4D3" }, { nom: "Conclure", c: "#1F9D60", sol: "#D9EDCB" }];
+
 /* Progression : le village gagne un détail à chaque vrai résultat (aucun point, aucune récompense inventée) */
 const etoile = (cx, cy, r) => Array.from({ length: 10 }, (_, k) => { const a = -Math.PI / 2 + (k * Math.PI) / 5, rr = k % 2 ? r * 0.45 : r; return `${(cx + rr * Math.cos(a)).toFixed(1)},${(cy + rr * Math.sin(a)).toFixed(1)}`; }).join(" ");
 function Trophees({ art, x, y, progres: g }) {
@@ -383,7 +388,7 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
       const vbx = minX + (VW - VW / vue.z) / 2 - vue.dx, vby = minY + (VH - VH / vue.z) / 2 - vue.dy, vw = VW / vue.z, vh = VH / vue.z;
       const r = el.getBoundingClientRect(), k = Math.min(r.width / vw, r.height / vh);
       const ox = r.left + (r.width - vw * k) / 2, oy = r.top + (r.height - vh * k) / 2;
-      onCible({ x: ox + (sx - vbx) * k, y: oy + (sy - 26 - vby) * k });
+      onCible({ x: ox + (sx - vbx) * k, y: oy + (sy - 32 - vby) * k });
     };
     calc(); window.addEventListener("resize", calc);
     return () => window.removeEventListener("resize", calc);
@@ -410,7 +415,7 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
         {[-2, -1.4, -0.7].map((z) => <polygon key={z} points={pts([[0, 0, z], [T, 0, z], [T, T, z], [0, T, z]])} fill="#EEDDCB" stroke="#EEDDCB" strokeWidth="34" strokeLinejoin="round" />)}
         <polygon points={pts([[0, 0, 0], [T, 0, 0], [T, T, 0], [0, T, 0]])} fill="#F8EFE6" stroke="#F8EFE6" strokeWidth="34" strokeLinejoin="round" />
         {/* Pelouses des parcelles et bordures fleuries */}
-        {[0, 1, 2].flatMap((gx) => [0, 1, 2].map((gy) => <polygon key={`g${gx}${gy}`} points={pts([[lot(gx) - 0.6, lot(gy) - 0.6, 0.01], [lot(gx) + LOT + 0.6, lot(gy) - 0.6, 0.01], [lot(gx) + LOT + 0.6, lot(gy) + LOT + 0.6, 0.01], [lot(gx) - 0.6, lot(gy) + LOT + 0.6, 0.01]])} fill="#DDEBC6" />))}
+        {[0, 1, 2].flatMap((gx) => [0, 1, 2].map((gy) => { const b = pos.find((x) => x.gx === gx && x.gy === gy); const q = QUARTIERS[QUARTIER[b?.art] ?? 0]; return <polygon key={`g${gx}${gy}`} points={pts([[lot(gx) - 0.6, lot(gy) - 0.6, 0.01], [lot(gx) + LOT + 0.6, lot(gy) - 0.6, 0.01], [lot(gx) + LOT + 0.6, lot(gy) + LOT + 0.6, 0.01], [lot(gx) - 0.6, lot(gy) + LOT + 0.6, 0.01]])} fill={q?.sol ?? "#E9E4DA"} />; }))}
         {/* Rues */}
         {roads.map((r, i) => <polygon key={i} points={pts(r.map(([x, y]) => [x, y, 0.02]))} fill="#ECE6DF" />)}
         {roads.map((r, i) => { const vert = r[0][1] === 0 && r[3][1] === T; const m = vert ? (r[0][0] + r[1][0]) / 2 : (r[0][1] + r[2][1]) / 2; return Array.from({ length: 12 }, (_, k) => { const t = 1.5 + k * 3.5; const a = vert ? P(m, t, 0.05) : P(t, m, 0.05), b = vert ? P(m, t + 1.6, 0.05) : P(t + 1.6, m, 0.05); return <line key={`${i}-${k}`} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="#fff" strokeWidth="2" />; }); })}
@@ -449,16 +454,19 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
         {pos.map((b, i) => {
           const [sx, sy] = b.art === "rdv" ? P(lot(b.gx) + 3, lot(b.gy) + 8, 12.5) : P(lot(b.gx) + 6, lot(b.gy) + 6, b.art === "radar" ? 18 : b.art === "espion" ? 12.5 : 8.6);
           const top = b.art === cible, k = top ? 1.22 : 1;
-          const w = b.nom.length * 9.6 + 58, x0 = sx - w / 2;
+          const sous = SOUS[b.art] ?? "", q = QUARTIERS[QUARTIER[b.art] ?? 0];
+          const w = Math.max(b.nom.length * 9.6, sous.length * 6.6) + 58, x0 = sx - w / 2;
           return (
             <g key={`s${b.art}`} pointerEvents="none" transform={top ? `translate(${sx} ${sy}) scale(${k}) translate(${-sx} ${-sy})` : undefined}>
-              {top && <rect x={x0 - 4} y={sy - 25} width={w + 8} height="42" rx="21" fill="#FF8A3D" opacity=".35" filter="url(#iso-lueur)" />}
-              <rect x={x0} y={sy - 21} width={w} height="34" rx={top ? 12 : 17} fill={top ? "url(#iso-orange)" : "#FFFFFF"} stroke={top ? "#fff" : on === i ? "#E8692B" : "#F1E2D2"} strokeWidth={top ? 2 : on === i ? 2.5 : 1.5} filter="url(#iso-ombre)" />
+              {top && <rect x={x0 - 4} y={sy - 29} width={w + 8} height="54" rx="22" fill="#FF8A3D" opacity=".35" filter="url(#iso-lueur)" />}
+              <rect x={x0} y={sy - 25} width={w} height="46" rx={top ? 14 : 20} fill={top ? "url(#iso-orange)" : "#FFFFFF"} stroke={top ? "#fff" : on === i ? "#E8692B" : "#F1E2D2"} strokeWidth={top ? 2 : on === i ? 2.5 : 1.5} filter="url(#iso-ombre)" />
+              {q && <g><circle cx={x0 + 4} cy={sy - 23} r="9" fill={q.c} stroke="#fff" strokeWidth="2" /><text x={x0 + 4} y={sy - 19.2} textAnchor="middle" fontSize="11" fontWeight="900" fill="#fff" fontFamily="Nunito, sans-serif">{QUARTIER[b.art]}</text></g>}
+              <text x={x0 + 40} y={sy + 13} fontSize="12" fontWeight="700" fill={top ? "rgba(255,255,255,.85)" : "#8A7F78"} fontFamily="Nunito, Geist, system-ui, sans-serif">{sous}</text>
               {b.art === "linkedin"
-                ? <g><rect x={x0 + 14} y={sy - 13} width="18" height="18" rx="4" fill="#0A66C2" /><text x={x0 + 23} y={sy + 1} textAnchor="middle" fontSize="12" fontWeight="900" fill="#fff" fontFamily="Nunito, sans-serif">in</text></g>
-                : <g transform={`translate(${x0 + 12} ${sy - 15}) scale(0.92)`}><path d={ICONE[b.art]} fill="none" stroke={top ? "#fff" : "#E8692B"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></g>}
-              <text x={x0 + 40} y={sy + 2} fontSize="18" fontWeight="800" fill={top ? "#fff" : "#1E1E24"} fontFamily="Nunito, Geist, system-ui, sans-serif">{b.nom}</text>
-              {top && (b.badge > 0 || b.alerte) && <g><circle cx={sx + w / 2 - 4} cy={sy - 20} r="13" fill="#F26A21" stroke="#fff" strokeWidth="2.5" /><text x={sx + w / 2 - 4} y={sy - 15.5} textAnchor="middle" fontSize="13" fontWeight="900" fill="#fff" fontFamily="Nunito, sans-serif">{b.alerte ? "!" : b.badge > 99 ? "99+" : b.badge}</text></g>}
+                ? <g><rect x={x0 + 14} y={sy - 17} width="18" height="18" rx="4" fill="#0A66C2" /><text x={x0 + 23} y={sy - 3} textAnchor="middle" fontSize="12" fontWeight="900" fill="#fff" fontFamily="Nunito, sans-serif">in</text></g>
+                : <g transform={`translate(${x0 + 12} ${sy - 19}) scale(0.92)`}><path d={ICONE[b.art]} fill="none" stroke={top ? "#fff" : "#E8692B"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></g>}
+              <text x={x0 + 40} y={sy - 2} fontSize="18" fontWeight="800" fill={top ? "#fff" : "#1E1E24"} fontFamily="Nunito, Geist, system-ui, sans-serif">{b.nom}</text>
+              {top && (b.badge > 0 || b.alerte) && <g><circle cx={sx + w / 2 - 4} cy={sy - 24} r="13" fill="#F26A21" stroke="#fff" strokeWidth="2.5" /><text x={sx + w / 2 - 4} y={sy - 19.5} textAnchor="middle" fontSize="13" fontWeight="900" fill="#fff" fontFamily="Nunito, sans-serif">{b.alerte ? "!" : b.badge > 99 ? "99+" : b.badge}</text></g>}
             </g>
           );
         })}

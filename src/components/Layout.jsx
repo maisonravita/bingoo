@@ -7,6 +7,7 @@ import { LegalLinks } from "../pages/Legal";
 import Logo from "./Logo";
 import Feedback from "./Feedback";
 import { estSimple } from "../lib/lieu";
+import { accueilVille } from "../lib/lieu";
 
 const ICONS = {
   today: <path d="M4 12h3l3-7 4 14 3-7h3" />,
@@ -218,7 +219,7 @@ export default function Layout({ children }) {
 
   // Accueil en ville : plein écran, sans menu. Partout : un seul bouton « 3 traits » qui ouvre le menu.
   let vue = ""; try { vue = localStorage.getItem("bingoo-vue") ?? ""; } catch { /* rien */ }
-  const full = loc.pathname === "/village" || (loc.pathname === "/" && vue !== "liste");
+  const full = loc.pathname === "/village" || (loc.pathname === "/" && accueilVille());
   const menu = (
     <>
       <button onClick={() => setMore(true)} aria-label="Ouvrir le menu" className={cx("relative z-30 grid h-12 w-12 sm:h-14 sm:w-14 shrink-0 place-items-center rounded-2xl bg-white shadow-[0_10px_24px_-12px_rgba(122,74,42,.5)] hover:bg-[#FFF7F0]", full ? "!fixed left-4 top-4 sm:left-6 sm:top-6" : "border border-line")}>
@@ -266,7 +267,7 @@ export default function Layout({ children }) {
 
   return (
     <div className="min-h-full">
-      <main className="min-w-0 px-4 pt-4 pb-16 md:px-10 md:pt-6 max-w-6xl mx-auto">
+      <main className="min-w-0 px-4 pt-4 pb-28 md:pb-16 md:px-10 md:pt-6 max-w-6xl mx-auto">
         <div className="flex items-center gap-3 mb-4">
           {menu}
           <NavLink to="/village" onClick={() => { try { localStorage.setItem("bingoo-vue", "village"); } catch { /* rien */ } }} className="hidden sm:flex items-center gap-2 rounded-2xl border border-line bg-white px-3.5 py-2.5 text-[14px] font-semibold hover:border-ink-faint"><Icon name="town" />Retour à ma ville</NavLink>
@@ -278,6 +279,17 @@ export default function Layout({ children }) {
         {ws.plan === "essai" && <div className="md:hidden mb-4 flex"><TrialBar ws={ws} /></div>}
         {children}
       </main>
+      {/* Téléphone : les 4 endroits du quotidien, toujours sous le pouce */}
+      <nav aria-label="Navigation principale" className="md:hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
+        <div className="grid grid-cols-4">
+          {[["/", "Aujourd'hui", "today", c.drafts], ["/prospects", "Contacts", "list", 0], ["/reponses", "Réponses", "inbox", c.replies], ["/agenda", "RDV", "cal", c.today]].map(([to, l, ic, n]) => (
+            <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => cx("relative flex flex-col items-center gap-0.5 py-2.5 text-[11.5px] font-semibold", isActive ? "text-[#E8571C]" : "text-ink-soft")}>
+              <Icon name={ic} />{l}
+              {n > 0 && <span className="absolute right-[22%] top-1.5 min-w-[17px] rounded-full bg-[#F26A21] px-1 text-[10px] font-black leading-[17px] text-white">{n > 9 ? "9+" : n}</span>}
+            </NavLink>
+          ))}
+        </div>
+      </nav>
       {fb && <Feedback onClose={() => setFb(false)} />}
     </div>
   );
