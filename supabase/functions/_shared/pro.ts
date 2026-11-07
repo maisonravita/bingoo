@@ -354,8 +354,16 @@ Format : {"score": 0, "resume": "une phrase", "faits": [{"texte": "", "source": 
 // ================================================================ Appels
 export async function callScript(ws: Workspace, p: Prospect) {
   const t = (ws.targets ?? []).find((x) => x.id === p.target);
+  // L'appel suit des e-mails restés sans réponse : le script s'appuie sur le même fait, et le rappelle
+  const { declencheur } = await import("./agents.ts");
+  const d = declencheur(p);
+  const { data: env } = await admin.from("messages").select("subject, body, sent_at").eq("prospect_id", p.id).eq("status", "envoye").eq("step", 0).limit(1).maybeSingle();
   return { script: await ask(`Écris un script d'appel téléphonique court pour ${ws.sender_name} (${brand(ws)}) qui appelle ${p.name} (${p.activity}, ${p.city})${p.contact_name ? `, en demandant ${p.contact_name}` : `, en demandant : ${t?.interlocuteur ?? "le responsable"}`}.
 Angle : ${t?.angle ?? ""}. Bénéficiaires : ${t?.pour_qui ?? ""}.
+${d ? `Fait récent qui justifie l'appel (vrai, à citer tel quel) : ${d.label}
+` : ""}${env ? `Un e-mail lui a été envoyé le ${new Date(env.sent_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}, resté sans réponse. Objet : « ${env.subject} ». L'accroche commence par : « Je vous ai écrit le ${new Date(env.sent_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} au sujet de… », en une phrase, puis la raison de l'appel.
+E-mail envoyé : ${String(env.body).slice(0, 700)}
+` : ""}N'invente rien sur l'entreprise en dehors de ces faits.
 ${p.insight ? `Ce qu'on sait : ${JSON.stringify(p.insight).slice(0, 800)}` : ""}
 Structure en texte simple, titres en MAJUSCULES : ACCUEIL / STANDARD (passer le barrage), ACCROCHE (15 secondes), QUESTIONS DE QUALIFICATION (besoin, rôle dans la décision, échéance, prestataire actuel), OBJECTIONS (3 avec réponses), CONCLUSION (obtenir un rendez-vous de ${ws.meeting_minutes} minutes), MESSAGE VOCAL (20 secondes).
 Ton naturel et poli, vouvoiement, aucune promesse ni prix.`, { fast: true, system: systemFor(ws) }) };

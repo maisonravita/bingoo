@@ -5,7 +5,6 @@ import { Badge, Button, Card, Empty, PageHead, Spinner, Textarea, useToast } fro
 import { CALL } from "../lib/labels";
 import { STATUS, cx } from "../lib/utils";
 
-const GOAL = 20;
 const addDays = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 
 export default function Calls() {
@@ -22,7 +21,8 @@ export default function Calls() {
     const t = new Date(); t.setHours(0, 0, 0, 0);
     const d = new Date().toISOString().slice(0, 10);
     const [due, fresh, c] = await Promise.all([
-      supabase.from("prospects").select("*").eq("workspace_id", ws.id).neq("phone", "").lte("next_action_at", d).not("status", "in", "(client,refus,ignore)").order("next_action_at").limit(30),
+      // D'abord les appels prévus (sans réponse après les relances, rappels notés), avec ou sans numéro
+      supabase.from("prospects").select("*").eq("workspace_id", ws.id).lte("next_action_at", d).or(`phone.neq."",next_action.ilike.%appeler%`).not("status", "in", "(client,refus,ignore,rdv)").order("next_action_at").limit(30),
       supabase.from("prospects").select("*").eq("workspace_id", ws.id).neq("phone", "").is("next_action_at", null).in("status", ["sans_email", "envoye", "pret"]).order("score", { ascending: false, nullsFirst: false }).limit(60),
       supabase.from("calls").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).gte("created_at", t.toISOString()),
     ]);
@@ -34,6 +34,16 @@ export default function Calls() {
   useEffect(() => { load(); }, [load]);
 
   const p = queue?.[i];
+  const [numero, setNumero] = useState("");
+  const trouverNumero = async () => {
+    setBusy("numero"); setNumero("");
+    try {
+      const r = await fn("r/find-phone", { workspace_id: ws.id, id: p.id });
+      const { data } = await supabase.from("prospects").select("*").eq("id", p.id).single();
+      if (data) setQueue((q) => q.map((x) => x.id === p.id ? data : x));
+      setNumero(r.phone ? "" : (r.note || "Aucun numéro trouvé"));
+    } catch (e) { setNumero(e.message); } finally { setBusy(null); }
+  };
   const getScript = async () => {
     setBusy("script");
     try { const r = await fn("call-script", { workspace_id: ws.id, prospect_id: p.id }); setScript((s) => ({ ...s, [p.id]: r.script })); } catch (e) { toast(e.message, "bad"); } finally { setBusy(null); }
@@ -59,13 +69,9 @@ export default function Calls() {
 
   return (
     <div>
-      <PageHead title="Appels" sub="Les prospects à appeler, dans le bon ordre, avec un script préparé par l'IA.">
-        <div className="text-right">
-          <p className="text-sm text-ink-soft">Aujourd'hui</p>
-          <p className="font-serif text-3xl tnum">{today}<span className="text-ink-faint text-xl">/{GOAL}</span></p>
-        </div>
+      <PageHead title="Appels" sub="Les entreprises qui n'ont pas répondu par e-mail : un appel, avec un script qui reprend ton message.">
+        <p className="text-sm text-ink-soft tnum">{today} appel{today > 1 ? "s" : ""} aujourd'hui</p>
       </PageHead>
-      <div className="h-1.5 bg-line rounded-full overflow-hidden mb-6 max-w-3xl"><div className="h-full bg-accent rounded-full transition-all" style={{ width: `${Math.min(100, (today / GOAL) * 100)}%` }} /></div>
       {!queue ? <Spinner /> : !p ? <Empty title="Plus personne à appeler.">Les prospects avec un numéro de téléphone apparaissent ici, en commençant par les rappels prévus.</Empty> : (
         <div className="grid lg:grid-cols-[1fr_1fr] gap-6 max-w-5xl">
           <Card className="p-5 sm:p-6">
@@ -77,7 +83,16 @@ export default function Calls() {
             <h2 className="font-serif text-3xl leading-tight mt-3">{p.name}</h2>
             <p className="text-sm text-ink-soft">{p.activity} · {[p.postal_code, p.city].filter(Boolean).join(" ")}</p>
             {p.contact_name && <p className="text-sm mt-1">Demander : <b>{p.contact_name}</b>{p.contact_role ? ` (${p.contact_role})` : ""}</p>}
-            <a href={`tel:${p.phone.replace(/\s/g, "")}`} className="mt-5 flex items-center justify-center gap-2 rounded-2xl bg-ink text-white py-4 text-xl font-semibold hover:bg-black">📞 {p.phone}</a>
+            {p.phone ? <>
+              <a href={`tel:${p.phone.replace(/\s/g, "")}`} className="mt-5 flex items-center justify-center gap-2 rounded-2xl bg-ink text-white py-4 text-xl font-semibold hover:bg-black">📞 {p.phone}</a>
+              {p.phone_source && <p className="mt-1.5 text-center text-xs text-ink-faint">Source : {p.phone_source}</p>}
+            </> : (
+              <div className="mt-5 rounded-2xl border border-dashed border-line p-4 text-center">
+                <p className="text-sm text-ink-soft">Pas encore de numéro pour cette entreprise.</p>
+                <Button className="mt-2" variant="primary" loading={busy === "numero"} onClick={trouverNumero}>Trouver le numéro du dirigeant</Button>
+                <p className="mt-1.5 text-xs text-ink-faint">Recherche vérifiée : utilise des crédits. {numero}</p>
+              </div>
+            )}
             {(p.signals?.length > 0 || p.insight) && (
               <div className="mt-4 text-sm space-y-1">
                 {p.signals?.map((s, k) => <p key={k}>• {s.label}</p>)}
@@ -97,7 +112,7 @@ export default function Calls() {
             <h3 className="font-semibold">Script</h3>
             {script[p.id] ? <div className="mt-3 whitespace-pre-line text-sm leading-relaxed">{script[p.id]}</div> : (
               <div className="mt-3">
-                <p className="text-sm text-ink-soft">L'IA écrit un script adapté à ce prospect : passer le standard, accroche, questions, objections, message vocal.</p>
+                <p className="text-sm text-ink-soft">Un script pour cette entreprise : il rappelle ton e-mail et le fait récent, puis comment passer le standard, les questions, les objections et le message vocal.</p>
                 <Button className="mt-3" variant="primary" loading={busy === "script"} onClick={getScript}>Préparer le script</Button>
               </div>
             )}

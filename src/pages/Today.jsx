@@ -17,6 +17,7 @@ import { estMobile, trace } from "../lib/usage";
 const useMesureVue = (v) => { const { ws } = useWs(); useEffect(() => { trace(ws.id, "vue", `${v}${estMobile() ? " mobile" : ""}`); }, [ws.id]); }; // eslint-disable-line react-hooks/exhaustive-deps
 
 const I = {
+  phone: <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2" />,
   search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>,
   send: <path d="M22 2 11 13M22 2l-7 20-4-9-9-4z" />,
   check: <><circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" /></>,
@@ -242,13 +243,14 @@ function AFaire({ s, canSend, adresse }) {
   const C = [
     { n: s.drafts, titre: "Messages à envoyer", vide: "Aucun pour l'instant : Bingoo! en prépare.", aide: "Tu relis, tu envoies.", to: "/valider", cta: "Lire et envoyer", icon: "send", fort: true },
     { n: s.replies, titre: "Réponses qui attendent", vide: "Aucune réponse à traiter.", aide: "Une réponse est déjà proposée.", to: "/reponses", cta: "Répondre", icon: "chat", fort: s.replies > 0 },
+    { n: s.appels, titre: "À appeler", vide: "Personne à appeler aujourd'hui.", aide: "Sans réponse par e-mail : un appel, script prêt.", to: "/appels", cta: "Appeler", icon: "phone", fort: s.appels > 0 },
     { n: s.urgent.meet.length, titre: "Rendez-vous aujourd'hui", vide: "Aucun rendez-vous aujourd'hui.", aide: prochainRdv ? [`À ${new Date(prochainRdv.starts_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`, prochainRdv.company].filter(Boolean).join(" · ") : "", to: "/agenda", cta: "Voir", icon: "cal" },
   ];
   return (
     <section aria-label="À faire aujourd'hui" className="mb-6">
       <h2 className="text-[19px] font-semibold mb-3">À faire aujourd'hui</h2>
       {canSend && !adresse && <Link to="/reglages" className="mb-3 flex items-center gap-3 rounded-2xl bg-accent-soft px-4 py-3 font-semibold"><Ico n="send" className="w-5 h-5 text-accent" />Ajoute l'adresse postale de ton entreprise : sans elle, rien ne part (30 s)</Link>}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {C.map((c) => (
           <Link key={c.to} to={c.to} className={cx("group flex items-center gap-4 sm:block rounded-3xl border p-4 sm:p-5 transition hover:border-ink-faint", c.n > 0 && c.fort ? "border-accent/30 bg-[#FFF7F0]" : "border-line bg-white")}>
             <p className={cx("order-2 sm:order-none sm:hidden font-black text-[34px] leading-none tnum", c.n > 0 ? "text-ink" : "text-ink-faint")} style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{c.n}</p>
@@ -262,7 +264,7 @@ function AFaire({ s, canSend, adresse }) {
           </Link>
         ))}
       </div>
-      {s.urgent.due.length > 0 && <Link to="/prospects" className="mt-3 flex items-center gap-2 text-[14px] text-ink-soft hover:text-ink"><Ico n="clock" className="w-4 h-4" /><span><b className="text-ink tnum">{s.urgent.due.length}</b> rappel{s.urgent.due.length > 1 ? "s" : ""} prévu{s.urgent.due.length > 1 ? "s" : ""} aujourd'hui</span><span aria-hidden>›</span></Link>}
+      {s.urgent.due.filter((p) => !/appeler/i.test(p.next_action ?? "")).length > 0 && <Link to="/prospects" className="mt-3 flex items-center gap-2 text-[14px] text-ink-soft hover:text-ink"><Ico n="clock" className="w-4 h-4" /><span><b className="text-ink tnum">{s.urgent.due.filter((p) => !/appeler/i.test(p.next_action ?? "")).length}</b> autre{s.urgent.due.filter((p) => !/appeler/i.test(p.next_action ?? "")).length > 1 ? "s" : ""} chose{s.urgent.due.filter((p) => !/appeler/i.test(p.next_action ?? "")).length > 1 ? "s" : ""} prévue{s.urgent.due.filter((p) => !/appeler/i.test(p.next_action ?? "")).length > 1 ? "s" : ""} aujourd'hui</span><span aria-hidden>›</span></Link>}
     </section>
   );
 }
@@ -406,13 +408,15 @@ export default function Today() {
     const w1 = new Date(Date.now() - 7 * 864e5).toISOString();
     const today = new Date().toISOString().slice(0, 10), old = new Date(Date.now() - 4 * 864e5).toISOString();
     // Les compteurs en une seule requête ; les listes à afficher à part
-    const [{ data: k }, act, detected, due, quotes, meet] = await Promise.all([
+    const [{ data: k }, act, detected, due, quotes, meet, appels] = await Promise.all([
       supabase.rpc("compteurs", { p_ws: ws.id }),
       supabase.from("activity").select("kind, summary, created_at").eq("workspace_id", ws.id).gte("created_at", w1).order("created_at", { ascending: false }).limit(2000),
       supabase.from("radar_opps").select("id, kind, company, summary, city, url, created_at, score, prospect_id, raw, status").eq("workspace_id", ws.id).in("status", ["nouveau", "ajoute"]).neq("kind", "difficulte").order("score", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(12),
       supabase.from("prospects").select("id, name, next_action, next_action_at, phone").eq("workspace_id", ws.id).lte("next_action_at", today).not("status", "in", "(ignore,refus)").order("next_action_at").limit(5),
       supabase.from("quotes").select("id, number, sent_at, status, prospects(name)").eq("workspace_id", ws.id).in("status", ["envoye", "vu"]).lt("sent_at", old).limit(3),
       supabase.from("meetings").select("id, company, starts_at").eq("workspace_id", ws.id).eq("status", "confirme").gte("starts_at", t0.toISOString()).lt("starts_at", new Date(t0.getTime() + 864e5).toISOString()).order("starts_at"),
+      // Appels prévus : sans réponse après les relances, ou rappels notés après un appel
+      supabase.from("prospects").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).lte("next_action_at", today).ilike("next_action", "%appeler%").not("status", "in", "(ignore,refus,client,rdv)"),
     ]);
     const K = k ?? {};
     const { found = 0, toContact = 0, found7 = 0, sent7 = 0, rdv7 = 0, opps = 0, todo = 0, ready = 0, hard = 0, dec = 0, tels: tel = 0, mails: mail = 0, mailDirect = 0, sentPrev = 0, repPrev = 0, rdvPrev = 0 } = K;
@@ -421,7 +425,7 @@ export default function Today() {
     const rows = act.data ?? [];
     const minutes = rows.reduce((m, r) => m + (MINUTES[r.kind] ?? 0), 0);
     setS({ dec, mail, tel, mailDirect, found, toContact, sent, replied, rdv, client, found7, sent7, replied7, rdv7, opps, oppsWeek, oppsPrev, replies, drafts, li, todo, ready, hard, sentPrev, repPrev, rdvPrev,
-      rows, minutes, actions: rows.filter((r) => MINUTES[r.kind]).length, detected: (() => { const d = detected.data ?? [], t = new Date().toISOString().slice(0, 10); const top = d.filter((o) => o.raw?.top_day === t); return [...top, ...d.filter((o) => o.raw?.top_day !== t && o.status !== "ajoute" && !o.prospect_id)].slice(0, 3); })(), urgent: { due: due.data ?? [], quotes: quotes.data ?? [], meet: meet.data ?? [] } });
+      appels: appels.count ?? 0, rows, minutes, actions: rows.filter((r) => MINUTES[r.kind]).length, detected: (() => { const d = detected.data ?? [], t = new Date().toISOString().slice(0, 10); const top = d.filter((o) => o.raw?.top_day === t); return [...top, ...d.filter((o) => o.raw?.top_day !== t && o.status !== "ajoute" && !o.prospect_id)].slice(0, 3); })(), urgent: { due: due.data ?? [], quotes: quotes.data ?? [], meet: meet.data ?? [] } });
   }, [ws.id]);
 
   useEffect(() => {

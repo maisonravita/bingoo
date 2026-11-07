@@ -175,14 +175,15 @@ export default function Layout({ children }) {
     const head = (t) => supabase.from(t).select("id", { count: "exact", head: true }).eq("workspace_id", ws.id);
     const load = async () => {
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const [d, l, r, m, o] = await Promise.all([
+      const [d, l, r, m, o, ap] = await Promise.all([
         head("messages").eq("status", "brouillon"),
         head("prospects").eq("linkedin_status", "a_envoyer"),
         head("replies").eq("handled", false),
         head("meetings").eq("status", "confirme").gte("starts_at", today.toISOString()).lt("starts_at", new Date(today.getTime() + 86400000).toISOString()),
         head("radar_opps").eq("status", "nouveau"),
+        head("prospects").lte("next_action_at", new Date().toISOString().slice(0, 10)).ilike("next_action", "%appeler%").not("status", "in", "(ignore,refus,client,rdv)"),
       ]);
-      if (alive) setC({ drafts: d.count ?? 0, li: l.count ?? 0, replies: r.count ?? 0, today: m.count ?? 0, radar: o.count ?? 0 });
+      if (alive) setC({ drafts: d.count ?? 0, li: l.count ?? 0, replies: r.count ?? 0, today: m.count ?? 0, radar: o.count ?? 0, calls: ap.count ?? 0 });
     };
     load();
     const t = setInterval(load, 20000);
@@ -199,7 +200,7 @@ export default function Layout({ children }) {
   const lieu = (art) => LIEUX.find((l) => l.art === art);
   const item = (l) => ({ to: l.to, label: l.nom, short: l.court, icon: l.icon, count: compte[l.art], hot: l.art === "atelier", also: also[l.art] });
   const avance = !estSimple(ws);
-  const essentiel = ["atelier", "poste", "rdv", "radar", "observatoire"].map((a) => item(lieu(a)));
+  const essentiel = [item(lieu("atelier")), item(lieu("poste")), { to: "/appels", label: "Appels", icon: "phone", count: c.calls }, ...["rdv", "radar", "observatoire"].map((a) => item(lieu(a)))];
   const plus = [
     item(lieu("annuaire")),
     { to: "/village", label: "Ma ville", icon: "town" },

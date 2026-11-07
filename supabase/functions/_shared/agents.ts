@@ -622,7 +622,9 @@ export type Etape = { apres: number; canal: "email" | "linkedin" | "appel"; text
 export function sequence(ws: Workspace): Etape[] {
   const e = ((ws as { sequence?: { etapes?: Etape[] } }).sequence?.etapes ?? []).filter((x) => x && ["email", "linkedin", "appel"].includes(x.canal) && Number.isInteger(x.apres) && x.apres >= 1 && x.apres <= 90);
   if (e.length) return e.slice(0, 6);
-  return followupDays(ws).map((d) => ({ apres: d, canal: "email" as const, texte: "", si: "toujours" as const }));
+  const d = followupDays(ws);
+  // Sans réponse après les relances : un appel, 3 jours après la dernière (l'interlocuteur a déjà vu le nom de l'expéditeur)
+  return [...d.map((x) => ({ apres: x, canal: "email" as const, texte: "", si: "toujours" as const })), { apres: d[d.length - 1] + 3, canal: "appel" as const, texte: "", si: "toujours" as const }];
 }
 /** Remplace {prenom}, {nom}, {entreprise}, {ville} ; une variable inconnue disparaît proprement. */
 export function remplir(t: string, p: { contact_name?: string | null; name?: string | null; city?: string | null }) {
@@ -633,7 +635,7 @@ export function remplir(t: string, p: { contact_name?: string | null; name?: str
 
 export async function followups(ws: Workspace) {
   const etapes = sequence(ws);
-  const { data: sent } = await admin.from("messages").select("id, prospect_id, step, subject, body, sent_at, campaign_id, variant, prospects!inner(status, name, city, contact_name, phone, linkedin_url, seq_etape, next_action_at)")
+  const { data: sent } = await admin.from("messages").select("id, prospect_id, step, subject, body, sent_at, campaign_id, variant, prospects!inner(status, name, city, contact_name, phone, website, linkedin_url, seq_etape, next_action_at)")
     .eq("workspace_id", ws.id).eq("status", "envoye").eq("prospects.status", "envoye").order("sent_at", { ascending: false }).limit(500);
   type L = { step: number; subject: string; body: string; sent_at: string; first: string; firstBody: string; campaign_id: string | null; variant: string; p: Record<string, unknown> };
   const last = new Map<string, L>();
@@ -654,7 +656,7 @@ export async function followups(ws: Workspace) {
   for (const m of sent ?? []) if (m.step === 0) firstSent.set(m.prospect_id, m.sent_at);
   const today = new Date().toISOString().slice(0, 10);
   const lastEmail = etapes.map((e) => e.canal).lastIndexOf("email");
-  let created = 0, taches = 0;
+  let created = 0, taches = 0, numeros = 0;
   for (const [pid, m] of last) {
     const k = Number.isInteger(m.p.seq_etape) ? Number(m.p.seq_etape) : m.step;
     if (busy.has(pid) || k >= etapes.length || (m.campaign_id && skipCamp.has(m.campaign_id))) continue;
@@ -677,7 +679,15 @@ export async function followups(ws: Workspace) {
     } else {
       // LinkedIn ou appel : une tâche du jour sur la fiche (elle apparaît dans « Ton matin »)
       const qui = String(m.p.contact_name || m.p.name || "");
-      const defaut = e.canal === "appel" ? `Appeler ${qui}${m.p.phone ? ` (${m.p.phone})` : ""}` : `LinkedIn : inviter ${qui} et lui écrire`;
+      // Appel sans numéro : celui du standard, lu gratuitement sur le site (5 sites au plus par passage)
+      if (e.canal === "appel" && !m.p.phone && m.p.website && numeros < 5) {
+        numeros++;
+        const { siteContacts } = await import("./deep.ts");
+        const sc = await siteContacts(String(m.p.website)).catch(() => null);
+        const tel = sc?.phones?.[0];
+        if (tel) { m.p.phone = tel; await admin.from("prospects").update({ phone: tel.slice(0, 30), phone_source: `standard, site ${String(m.p.website).replace(/^https?:\/\/(www\.)?/, "").replace(/\/.*$/, "")}`, phone_checked_at: new Date().toISOString() }).eq("id", pid); }
+      }
+      const defaut = e.canal === "appel" ? `Appeler ${qui}${m.p.phone ? ` (${m.p.phone})` : " (numéro à trouver)"}` : `LinkedIn : inviter ${qui} et lui écrire`;
       await admin.from("prospects").update({ seq_etape: k + 1, next_action: (e.texte?.trim() ? remplir(e.texte.trim(), m.p as never) : defaut).slice(0, 300), next_action_at: today }).eq("id", pid);
       taches++;
     }
