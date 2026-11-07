@@ -20,7 +20,7 @@ const Check = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className=
 const Arrow = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" /></svg>;
 const Lock = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
 
-const MENU = [["La preuve", "#preuve"], ["Essai en direct", "#essai"], ["Ton village", "#village"], ["Extension", "#extension"], ["Tarifs", "#tarifs"], ["Questions", "#faq"]];
+const MENU = [["La preuve", "#preuve"], ["Essai en direct", "#essai"], ["Pourquoi Bingoo!", "#pourquoi"], ["Tarifs", "#tarifs"], ["Questions", "#faq"]];
 
 function useReveal() {
   useEffect(() => {
@@ -227,10 +227,15 @@ export default function Landing() {
               <input id="hero-email" name="email" type="email" autoComplete="email" placeholder="ton@email.com" className="min-w-0 flex-1 bg-transparent px-5 py-3.5 text-[17px] outline-none placeholder:text-[#8A8FA3]" />
               <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-full bg-[#1B1D2A] px-8 py-3.5 text-[17px] font-semibold text-white hover:bg-black transition">Commencer <Arrow className="h-4 w-4" /></button>
             </form>
+            <a href="#essai" onClick={scrollTo("essai")} className="hero-in mt-4 inline-flex items-center gap-1.5 text-[15.5px] font-semibold text-ink underline decoration-accent/50 decoration-2 underline-offset-4 hover:decoration-accent" style={{ ...JK, animationDelay: ".22s" }}>Ou vois d'abord tes clients potentiels, sans compte <Arrow className="h-4 w-4" /></a>
             <div className="hero-in mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[15px] text-[#5B6075]" style={{ ...JK, animationDelay: ".25s" }}>
               {["15 minutes par jour", "Premier mois remboursé sans rendez-vous ni réponse", "Pour les SaaS, startups et PME B2B"].map((x) => <span key={x} className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-accent" />{x}</span>)}
             </div>
             <p className="mt-6 text-[13.5px] text-ink-faint">En continuant, j'accepte les <a href="#/conditions" className="underline hover:text-ink">Conditions d'utilisation</a> et la <a href="#/confidentialite" className="underline hover:text-ink">Politique de confidentialité</a> de Bingoo!.</p>
+            <figure className="hero-in mx-auto mt-12 max-w-[1100px]" style={{ animationDelay: ".35s" }}>
+              <video src="./preuve-radar.mp4" poster="./preuve-radar.jpg" autoPlay loop muted playsInline className="w-full rounded-2xl border border-black/10 bg-[#F1EFED] shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]" aria-label="Le Radar de Bingoo! : une opportunité, son décideur et le message prêt" />
+              <figcaption className="mt-2.5 text-[13px] text-ink-faint">Le Radar dans la vraie application : le fait, le décideur, le message prêt. Données d'exemple.</figcaption>
+            </figure>
           </section>
         </div>
       </div>
@@ -260,6 +265,36 @@ export default function Landing() {
                 </li>
               ))}
             </ol>
+          </div>
+        </section>
+
+        {/* Pourquoi Bingoo! : face à la pile d'outils habituelle */}
+        <section id="pourquoi" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
+          <div className="mx-auto max-w-[1180px]">
+            <h2 className="max-w-[820px] text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Un seul outil, au lieu d'une pile.</h2>
+            <p className="mt-5 max-w-[680px] text-[17px] sm:text-[19px] leading-[1.5] text-ink-soft">D'habitude, pour prospecter, on assemble une base de contacts, un outil d'enrichissement, un outil d'envoi et un outil LinkedIn. Et il reste à savoir qui contacter, et quoi lui écrire.</p>
+            <div className="mt-10 overflow-hidden rounded-2xl border border-line">
+              <div className="grid grid-cols-[minmax(0,.8fr)_minmax(0,1fr)_minmax(0,1fr)] bg-[#F6F5F3] text-[13px] font-bold uppercase tracking-wide">
+                <span className="px-4 sm:px-5 py-3 text-ink-faint" />
+                <span className="px-4 sm:px-5 py-3 text-ink-soft">La pile d'outils</span>
+                <span className="px-4 sm:px-5 py-3 text-accent-dark">Bingoo!</span>
+              </div>
+              {[
+                ["Les outils", "4 à 5 abonnements à relier entre eux", "Un seul, en français"],
+                ["Qui contacter", "Une liste à construire toi-même", "Les entreprises qui ont un besoin aujourd'hui, avec la raison et la source"],
+                ["Le décideur", "À chercher, e-mail souvent deviné", "Nommé, e-mail vérifié, jamais deviné"],
+                ["Les messages", "À écrire, ou un modèle pour tout le monde", "Écrits pour chaque entreprise, à partir de ce qui se passe chez elle"],
+                ["Ceux qui te cherchent", "À repérer à la main sur Reddit et LinkedIn", "Chaque jour, avec ta réponse prête"],
+                ["Le contrôle", "Souvent des envois en masse", "Rien ne part sans toi"],
+                ["Le prix", "Plusieurs centaines d'euros par mois, cumulés", "Dès 29 € par mois"],
+              ].map(([k, a, b]) => (
+                <div key={k} className="grid grid-cols-[minmax(0,.8fr)_minmax(0,1fr)_minmax(0,1fr)] border-t border-line text-[14.5px] sm:text-[15.5px] leading-snug">
+                  <span className="px-4 sm:px-5 py-3.5 font-semibold text-ink">{k}</span>
+                  <span className="px-4 sm:px-5 py-3.5 text-ink-soft">{a}</span>
+                  <span className="px-4 sm:px-5 py-3.5 text-ink bg-accent-soft/30 flex gap-2"><Check className="h-4 w-4 mt-0.5 shrink-0 text-accent" />{b}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
