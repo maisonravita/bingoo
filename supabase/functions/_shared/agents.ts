@@ -272,9 +272,8 @@ export async function aEcrire(wsId: string, n: number, filtre: (q: any) => any =
   const { appris, bonus } = await import("./appris.ts");
   const a = ws ? await appris(ws as Workspace).catch(() => null) : null;
   const poids = new Map(((data ?? []) as Prospect[]).map((p) => [p.id, ws ? bonus(p as never, ws as Workspace, a) : 1]));
-  const avecRadar = new Set(((await admin.from("radar_opps").select("prospect_id").eq("workspace_id", wsId).not("prospect_id", "is", null).limit(1000)).data ?? []).map((x) => x.prospect_id));
   return ((data ?? []) as Prospect[])
-    .filter((p) => declencheur(p) || avecRadar.has(p.id))
+    .filter((p) => declencheur(p)) // les faits du Radar sont recopiés sur la fiche (radarToProspect)
     .filter((p) => { const e = (p.insight as { redaction_echec?: { at?: string } } | null)?.redaction_echec?.at; return !e || Date.now() - new Date(e).getTime() > 30 * 864e5; })
     .sort((a, b) => (Number(emailGenerique(a.email)) - Number(emailGenerique(b.email))) || (poids.get(b.id)! - poids.get(a.id)!))
     .slice(0, n);

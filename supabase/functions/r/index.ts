@@ -578,8 +578,8 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
       if (Date.now() - t0 > 110_000) break;
       const p = (m as { prospects: Prospect }).prospects;
       // Pas de fait récent : pas de message (règle de base), la fiche attend un signal
-      const { count: radar } = await admin.from("radar_opps").select("id", { count: "exact", head: true }).eq("prospect_id", p.id);
-      if (!declencheur(p) && !radar) {
+      // (les faits du Radar sont recopiés sur la fiche : le lien seul ne suffit plus)
+      if (!declencheur(p)) {
         await admin.from("messages").update({ status: "ignore", error: "Retiré : aucun fait récent à citer" }).eq("id", m.id);
         await admin.from("prospects").update({ status: "pret" }).eq("id", m.prospect_id).eq("status", "a_valider");
         out[p.name] = "retiré (aucun fait récent)"; continue;
