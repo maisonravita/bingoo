@@ -1,5 +1,7 @@
 import Opportunite from "../components/Opportunite";
 import Demande from "../components/Demande";
+import Quiz from "../components/Quiz";
+import { CANAUX, DELAIS, arrondi, estimer, euros, pourObjectif } from "../lib/estimation";
 import { declencheur, quandTexte, typeDe } from "../lib/opportunite";
 import { trace } from "../lib/usage";
 import { useEffect, useState } from "react";
@@ -47,7 +49,9 @@ const PROGRESS = ["Ton produit", "Ton plan du jour"];
 export default function Onboarding() {
   const { ws, create, reload, patch } = useWs();
   const toast = useToast();
-  const [step, setStep] = useState(ws?.targets?.length ? 1 : 0);
+  // -1 : les questions (type d'entreprise, valeur d'un client, objectif) ; 0 : le lien du produit ; 1 : « C'est juste ? »
+  const [quiz, setQuiz] = useState(ws?.profile?.questionnaire ?? null);
+  const [step, setStep] = useState(ws?.targets?.length ? 1 : ws?.profile?.questionnaire ? 0 : -1);
   const [site, setSite] = useState((ws?.website ?? "").replace(/^https?:\/\//i, "").replace(/\/$/, ""));
   const [desc, setDesc] = useState("");
   const [showDesc, setShowDesc] = useState(false);
@@ -67,7 +71,11 @@ export default function Onboarding() {
       const id = ws?.id ?? (await create("", site));
       const r = await fn("analyze", { workspace_id: id, website: site.trim(), description: desc.trim(), client_exemple: clientEx.trim(), concurrents: rivaux.trim() });
       await reload();
-      setDraft((d) => ({ ...(d ?? {}), id, profile: r.profile, targets: r.targets, zone: r.zone }));
+      // Les réponses aux questions restent dans le profil ; le type déclaré corrige celui déduit du site
+      const BIZ = { saas: "saas", app: "saas", agence: "services" };
+      const profile = { ...r.profile, ...(quiz ? { questionnaire: quiz, ...(BIZ[quiz.type] ? { type: BIZ[quiz.type] } : {}) } : {}) };
+      setDraft((d) => ({ ...(d ?? {}), id, profile, targets: r.targets, zone: r.zone }));
+      if (quiz) await patch({ profile }).catch(() => {});
       setStep(1);
     } catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
   };
@@ -131,19 +139,20 @@ export default function Onboarding() {
         <div className="flex items-center justify-between mb-6">
           <a href="#/accueil" aria-label="Voir le site Bingoo!"><Logo height={30} /></a>
           <span className="flex items-center gap-4 text-sm text-ink-soft">
-            <span className="tnum">Étape {Math.min(step + 1, 2)} sur 2</span>
+            {step >= 0 && <span className="tnum">Étape {Math.min(step + 1, 2)} sur 2</span>}
             <button type="button" onClick={() => supabase.auth.signOut()} className="font-semibold hover:text-ink">Se déconnecter</button>
           </span>
         </div>
+        {step === -1 && <Quiz onDone={(q) => { setQuiz(q); setStep(0); }} />}
         {/* Progression */}
-        <div className="grid grid-cols-2 gap-2 mb-8" aria-hidden>
+        {step >= 0 && <div className="grid grid-cols-2 gap-2 mb-8" aria-hidden>
           {PROGRESS.map((l, k) => (
             <div key={l}>
               <div className="h-1.5 rounded-full bg-line overflow-hidden"><div className="h-full bg-accent rounded-full transition-all duration-700" style={{ width: (step >= 3 ? 2 : Math.min(step, 1)) > k ? "100%" : Math.min(step, 1) === k ? "50%" : "0%" }} /></div>
               <p className={cx("mt-1.5 text-[12px] font-semibold", Math.min(step, 1) >= k ? "text-ink" : "text-ink-faint")}>{l}</p>
             </div>
           ))}
-        </div>
+        </div>}
 
         {step === 0 && (
           <div className="rise rounded-3xl bg-white border border-line shadow-[0_24px_60px_-34px_rgba(21,22,26,.35)] p-6 sm:p-9">
@@ -287,7 +296,7 @@ export default function Onboarding() {
           </div>
         )}
 
-        {step === 3 && <Express e={express} ws={ws} />}
+        {step === 3 && <Express e={express} ws={ws} quiz={quiz ?? draft?.profile?.questionnaire} />}
       </div>
     </div>
   );
@@ -300,7 +309,7 @@ const PHASES = [
   ["demandes", "Je cherche qui demande une solution comme la tienne, en public"],
 ];
 
-function Express({ e, ws }) {
+function Express({ e, ws, quiz }) {
   const ordre = ["chercher", "enqueter", "rediger", "demandes", "fini"];
   const k = ordre.indexOf(e?.phase ?? "chercher");
   if (e?.phase === "fini") {
@@ -310,6 +319,7 @@ function Express({ e, ws }) {
         <span className="inline-flex items-center gap-2 rounded-full bg-good-soft text-good px-3 py-1 text-[12.5px] font-bold">Fait à l'instant, sur de vraies données</span>
         <h1 className={cx(H, "mt-4 text-[34px] sm:text-[44px]")} style={HFONT}>Ton plan du jour est prêt.</h1>
         <p className="text-ink-soft mt-3 text-[17px]">Rien d'inventé : chaque entreprise et chaque demande a sa source. Toi, tu valides. Moi, je m'occupe du reste.</p>
+        {quiz?.type && quiz?.valeur && <PlanAction q={quiz} />}
         <Plan ws={ws} e={e} />
         {ok ? <Cartes ws={ws} /> : e.trouves > 0 ? <Apercus ws={ws} /> : null}
         <DemandesApercu ws={ws} />
@@ -339,6 +349,61 @@ function Express({ e, ws }) {
       </ul>
       {/* Du concret tout de suite : les vraies entreprises trouvées, pendant que les messages s'écrivent */}
       {e?.trouves > 0 && <Apercus ws={ws} />}
+    </div>
+  );
+}
+
+/** Le plan d'action : les canaux, le rythme, et ce que ça peut rapporter (fourchette, hypothèses visibles, jamais une promesse). */
+export function PlanAction({ q }) {
+  const e = estimer(q);
+  const h = e.horizon;
+  const quand = DELAIS.find(([v]) => Number(v) === h)?.[1]?.toLowerCase() ?? `d'ici ${h} mois`;
+  const [c0, c1] = e.clients.map(arrondi);
+  const objectifTotal = (q.objectif ?? 5) * Math.max(0.5, h - 0.5);
+  const besoin = pourObjectif(q.objectif ?? 5, e);
+  const atteint = e.clients[1] >= objectifTotal;
+  const type = { saas: "un SaaS", app: "une application", startup: "une startup", pme: "une PME", tpe: "une TPE", agence: "une agence" }[q.type];
+  const deja = (q.canaux ?? []).filter((c) => c !== "rien").map((c) => CANAUX.find(([k]) => k === c)?.[1]).filter(Boolean);
+  // Courbe : clients cumulés mois par mois (prudent et probable)
+  const mois = Array.from({ length: Math.min(h, 12) }, (_, k) => k + 1);
+  const cum = (lvl) => mois.map((m) => e.parMois.clients[lvl] * Math.max(0.5, m - 0.5));
+  const max = Math.max(...cum(1), objectifTotal, 1);
+  return (
+    <div className="mt-7 rounded-2xl border border-line overflow-hidden">
+      <div className="bg-[#FFF1E6] px-5 py-5">
+        <p className="text-[13px] font-bold text-[#C2410C]">Ton plan d'action</p>
+        <p className="mt-1 text-[26px] sm:text-[30px] font-black leading-tight" style={HFONT}>{c0} à {c1} nouveaux clients {quand}</p>
+        <p className="mt-1 text-[15px] text-ink-soft">soit {euros(e.revenu[0])} à {euros(e.revenu[1])} {e.recurrent ? "de revenu récurrent en plus chaque mois" : "de chiffre d'affaires signé"}, pour {type ?? "ton activité"}, avec un client à {euros(Number(q.valeur))}{e.recurrent ? " par mois" : " par an"}.</p>
+        <div className="mt-4 flex items-end gap-1.5 h-24" aria-hidden>
+          {mois.map((m, k) => (
+            <div key={m} className="flex-1 h-full flex flex-col justify-end items-center gap-1">
+              <div className="w-full rounded-t-md bg-accent/25 relative" style={{ height: `${Math.max(4, (cum(1)[k] / max) * 85)}%` }}>
+                <div className="absolute inset-x-0 bottom-0 rounded-t-md bg-accent" style={{ height: `${(cum(0)[k] / Math.max(cum(1)[k], 0.01)) * 100}%` }} />
+              </div>
+              <span className="text-[10.5px] text-ink-faint tnum">M{m}</span>
+            </div>
+          ))}
+        </div>
+        <p className="mt-1.5 text-[11.5px] text-ink-faint"><span className="inline-block h-2 w-2 rounded-sm bg-accent mr-1" />prudent <span className="inline-block h-2 w-2 rounded-sm bg-accent/25 ml-2 mr-1" />probable · clients cumulés</p>
+      </div>
+      <div className="px-5 py-4">
+        <p className="text-[14px] font-bold">Chaque jour, Bingoo! s'occupe de :</p>
+        <ul className="mt-2 space-y-2 text-[14.5px]">
+          {[["✉️", "15 e-mails aux décideurs d'entreprises au bon moment", "Il écrit, tu valides en un clic"], ["💼", "10 invitations LinkedIn, puis le message quand elles sont acceptées", "Envoyées par l'extension, depuis ton compte"], ["🗣️", "Les demandes publiques du jour, avec ta réponse prête", "Reddit, LinkedIn, X, forums : tu publies"], ["📞", "Les appels à passer après deux relances sans réponse", "Numéro et script qui reprend ton e-mail"]].map(([i, t, d]) => (
+            <li key={t} className="flex gap-3"><span className="text-[18px] leading-6" aria-hidden>{i}</span><span><span className="block font-semibold">{t}</span><span className="block text-[13px] text-ink-soft">{d}</span></span></li>
+          ))}
+        </ul>
+        {deja.length > 0 && <p className="mt-3 text-[13px] text-ink-soft">Tu gardes ce qui marche déjà ({deja.join(", ")}) : Bingoo! s'ajoute, il ne remplace rien.</p>}
+        <p className={cx("mt-4 rounded-xl px-4 py-3 text-[14px]", atteint ? "bg-good-soft text-good" : "bg-paper")}>
+          {atteint ? `Ton objectif de ${q.objectif} client${q.objectif > 1 ? "s" : ""} par mois est dans la fourchette probable de ce plan.`
+            : `Ton objectif : ${q.objectif} client${q.objectif > 1 ? "s" : ""} par mois. Pour l'atteindre, il faut environ ${besoin} contacts par jour : on y monte progressivement, en ajoutant des boîtes d'envoi, et en gardant les cibles qui répondent le mieux.`}
+        </p>
+        <details className="mt-3 text-[13px] text-ink-soft">
+          <summary className="cursor-pointer font-semibold">Comment on calcule</summary>
+          <ul className="mt-2 list-disc pl-5 space-y-1">{e.hypotheses.map((x) => <li key={x}>{x}</li>)}</ul>
+          <p className="mt-2">C'est une estimation, pas une promesse. Dès tes premiers envois, tes vrais taux s'affichent dans Résultats.</p>
+        </details>
+      </div>
     </div>
   );
 }
