@@ -175,7 +175,7 @@ Ton de la marque : ${pr.ton || "professionnel et sobre"}${knowledgeOf(ws) ? `\n\
 
 Règles absolues :
 - Français, vouvoiement, ton professionnel et direct, phrases courtes, aucun jargon marketing, aucun superlatif.
-- Premier e-mail : 50 à 90 mots. Relances : 40 mots maximum. Pas de liste à puces. Pas d'emoji.
+- Premier e-mail : 40 à 75 mots. Relances : 40 mots maximum. Pas de liste à puces. Pas d'emoji.
 - N'invente rien : aucun client, chiffre, label, prix, délai ou fait qui ne figure pas dans les informations fournies.
 - Dans un premier e-mail, ne parle jamais de prix. Dans une réponse à une question, tu peux citer un prix ou un délai seulement s'il figure dans la fiche.
 - Parle du bénéfice pour les personnes concernées chez le prospect (par exemple ses clients, salariés, résidents, patients).
@@ -359,6 +359,7 @@ La deuxième phrase fait le pont entre ce fait et l'offre : ce que ce type d'év
 - contrat public en fin de période : il est en général remis en concurrence.
 Ne présente jamais cette généralité comme un fait sur ce prospect (jamais « vos équipes sont débordées », « votre carnet de commandes », « vos difficultés », « vous cherchez à… »).
 La première phrase parle du fait, précis et daté si la date est connue (« Vous avez ouvert un établissement à Lyon en août »), jamais de l'activité générale du prospect (« X vend des formations », « X est spécialisé dans… »).
+Si l'événement ouvre une fenêtre d'action, nomme cette échéance dans la deuxième phrase (les premiers mois d'un nouveau dirigeant, les semaines où l'on s'installe après un déménagement, le trimestre qui suit une levée, la date de fin d'un contrat) : un message rattaché à une échéance obtient bien plus de réponses qu'un message rattaché à un problème.
 Ne mets pas de signature : elle est ajoutée automatiquement.
 
 Format exact :
@@ -613,8 +614,8 @@ Format : {"url": "", "personne": "", "fonction": "", "note": "", "message": ""}`
 }
 
 // ---------------------------------------------------------------- Relances
-// Sans réponse marquée, une relance est préparée à J+4 puis à J+9 ; elle arrive
-// dans la file de validation (l'utilisateur confirme qu'il n'y a pas eu de réponse).
+// Sans réponse marquée, une relance est préparée à J+3 puis à J+7, un appel à J+10, et un e-mail de clôture à J+14 ;
+// chaque e-mail arrive dans la file de validation (l'utilisateur confirme qu'il n'y a pas eu de réponse).
 /** Délais des relances (jours après le premier e-mail), réglables par le client : 2 valeurs croissantes entre 2 et 60. */
 export function followupDays(ws: { followup_days?: number[] | null }): number[] {
   const d = (ws.followup_days ?? []).map(Number);
@@ -623,8 +624,9 @@ export function followupDays(ws: { followup_days?: number[] | null }): number[] 
 
 export const FOLLOW = [
   // Première relance : une offre légère et concrète (échelle d'offre). Écrite par l'IA quand c'est possible, sinon ce modèle.
-  { after: 5, subject: (s: string) => `Re : ${s.replace(/^re\s*:\s*/i, "")}`, body: (hello: string) => `${hello}\n\nSi c'est utile, je peux vous envoyer un exemple concret de ce que nous faisons pour des entreprises comme la vôtre, en une page. Voulez-vous que je vous l'envoie ?` },
-  { after: 12, subject: (s: string) => `Re : ${s.replace(/^re\s*:\s*/i, "")}`, body: (hello: string) => `${hello}\n\nJe n'insiste pas : si ce n'est pas le moment, aucun souci. Et si quelqu'un d'autre s'occupe de ce sujet chez vous, me diriez-vous qui contacter ?` },
+  // Délais par défaut alignés sur ce qui marche (étude Regie, 1,4 M de contacts : 42 % des réponses viennent des relances, 93 % avant le 10e jour).
+  { after: 3, subject: (s: string) => `Re : ${s.replace(/^re\s*:\s*/i, "")}`, body: (hello: string) => `${hello}\n\nSi c'est utile, je peux vous envoyer un exemple concret de ce que nous faisons pour des entreprises comme la vôtre, en une page. Voulez-vous que je vous l'envoie ?` },
+  { after: 7, subject: (s: string) => `Re : ${s.replace(/^re\s*:\s*/i, "")}`, body: (hello: string) => `${hello}\n\nJe range le dossier : je ne vous solliciterai plus à ce sujet. Si le besoin revient, vous savez où me trouver. Et si quelqu'un d'autre s'en occupe chez vous, me diriez-vous qui contacter ?` },
 ];
 
 /** La séquence de l'espace : étapes après le premier e-mail (jours comptés depuis ce premier e-mail). Par défaut,
@@ -634,8 +636,13 @@ export function sequence(ws: Workspace): Etape[] {
   const e = ((ws as { sequence?: { etapes?: Etape[] } }).sequence?.etapes ?? []).filter((x) => x && ["email", "linkedin", "appel"].includes(x.canal) && Number.isInteger(x.apres) && x.apres >= 1 && x.apres <= 90);
   if (e.length) return e.slice(0, 6);
   const d = followupDays(ws);
-  // Sans réponse après les relances : un appel, 3 jours après la dernière (l'interlocuteur a déjà vu le nom de l'expéditeur)
-  return [...d.map((x) => ({ apres: x, canal: "email" as const, texte: "", si: "toujours" as const })), { apres: d[d.length - 1] + 3, canal: "appel" as const, texte: "", si: "toujours" as const }];
+  // Sans réponse après les relances : un appel 3 jours après la dernière (l'interlocuteur a déjà vu le nom de l'expéditeur),
+  // puis un dernier e-mail de clôture (« breakup ») : poli, définitif, avec la question du bon interlocuteur — souvent le meilleur taux de réponse de la séquence.
+  return [
+    ...d.map((x) => ({ apres: x, canal: "email" as const, texte: "", si: "toujours" as const })),
+    { apres: d[d.length - 1] + 3, canal: "appel" as const, texte: "", si: "toujours" as const },
+    { apres: d[d.length - 1] + 7, canal: "email" as const, texte: "", si: "toujours" as const },
+  ];
 }
 /** Remplace {prenom}, {nom}, {entreprise}, {ville} ; une variable inconnue disparaît proprement. */
 export function remplir(t: string, p: { contact_name?: string | null; name?: string | null; city?: string | null }) {

@@ -7,6 +7,7 @@ import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { Badge, Button, Empty, Input, PageHead, Spinner, Textarea, useToast } from "../components/ui";
 import { STATUS, cx, fmtDate, fmtTime } from "../lib/utils";
+import { cadence } from "../lib/cadence";
 import { useJob } from "../lib/useJob";
 import { download, toCsv } from "../lib/csv";
 import ImportCsv from "../components/ImportCsv";
@@ -227,7 +228,7 @@ function Drawer({ p, onClose, onChange, team = [] }) {
       <button className="absolute inset-0 bg-ink/30" onClick={onClose} aria-label="Fermer" />
       <div className="relative w-full max-w-lg bg-paper h-full overflow-y-auto p-5 sm:p-7 rise">
         <button onClick={onClose} className="text-sm text-ink-soft hover:text-ink">✕ Fermer</button>
-        <div className="mt-4 flex flex-wrap gap-2"><Badge tone={STATUS[p.status]?.tone}>{STATUS[p.status]?.label}</Badge><Badge>{target?.label ?? p.activity}</Badge></div>
+        <div className="mt-4 flex flex-wrap gap-2"><Badge tone={STATUS[p.status]?.tone}>{STATUS[p.status]?.label}</Badge><Badge>{target?.label ?? p.activity}</Badge>{(() => { const c = cadence(ws, p); return c ? <Badge tone="accent">Touche {c.touche}/{c.total} · prochaine : {c.prochaine}</Badge> : null; })()}</div>
         <h2 className="font-serif text-4xl leading-tight mt-3">{p.name}</h2>
         {p.org && <p className="text-ink-soft">{p.org}</p>}
         <FitNote p={p} onChange={onChange} />
@@ -473,6 +474,7 @@ export default function Prospects() {
               {r.score != null && <span className="text-xs font-semibold tnum text-ink-soft">{r.score}</span>}
               {r.signals?.some((x) => STRONG.includes(x.type)) && <Badge tone="accent">Signal</Badge>}
               {r.linkedin_status === "a_envoyer" && <Badge tone="li">in</Badge>}
+              {(() => { const c = cadence(ws, r); return c ? <Badge>Touche {c.touche}/{c.total}</Badge> : null; })()}
               {!r.email && r.channel && CHANNEL[r.channel] && <Badge>{CHANNEL[r.channel].icon} {CHANNEL[r.channel].label}</Badge>}
               <Badge tone={STATUS[r.status]?.tone}>{STATUS[r.status]?.label}</Badge>
               <span className="hidden sm:block text-xs text-ink-faint w-14 text-right">{fmtDate(r.updated_at)}</span>

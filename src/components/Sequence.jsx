@@ -9,13 +9,16 @@ import { cx } from "../lib/utils";
 // LinkedIn et appel : une tâche du jour sur la fiche, qui apparaît dans « Ton matin ».
 const CANAUX = [["email", "E-mail"], ["linkedin", "LinkedIn"], ["appel", "Appel"]];
 const SI = { email: [["toujours", "Toujours"]], linkedin: [["toujours", "Toujours"], ["linkedin_connu", "Si son profil LinkedIn est connu"]], appel: [["toujours", "Toujours"], ["telephone_connu", "Si son numéro est connu"]] };
-const DEFAUT = [{ apres: 5, canal: "email", si: "toujours", texte: "" }, { apres: 12, canal: "email", si: "toujours", texte: "" }];
+const DEFAUT = [{ apres: 3, canal: "email", si: "toujours", texte: "" }, { apres: 7, canal: "email", si: "toujours", texte: "" }, { apres: 10, canal: "appel", si: "toujours", texte: "" }, { apres: 14, canal: "email", si: "toujours", texte: "" }];
 const AIDE = { email: "Laisse vide : Bingoo! écrit une relance adaptée au premier message. Variables : {prenom}, {entreprise}, {ville}.", linkedin: "Laisse vide : « LinkedIn : inviter … et lui écrire ».", appel: "Laisse vide : « Appeler … (numéro) »." };
 
 export default function Sequence() {
   const { ws, reload } = useWs();
   const toast = useToast();
-  const init = ws.sequence?.etapes?.length ? ws.sequence.etapes : (ws.followup_days?.length === 2 ? ws.followup_days.map((d) => ({ apres: d, canal: "email", si: "toujours", texte: "" })) : DEFAUT);
+  // Sans séquence personnalisée, on montre exactement ce que le serveur fait : relances aux délais réglés, appel 3 jours après la dernière, e-mail de clôture 7 jours après
+  const init = ws.sequence?.etapes?.length ? ws.sequence.etapes : (ws.followup_days?.length === 2
+    ? [...ws.followup_days.map((d) => ({ apres: d, canal: "email", si: "toujours", texte: "" })), { apres: ws.followup_days[1] + 3, canal: "appel", si: "toujours", texte: "" }, { apres: ws.followup_days[1] + 7, canal: "email", si: "toujours", texte: "" }]
+    : DEFAUT);
   const [etapes, setEtapes] = useState(init);
   const [busy, setBusy] = useState(false);
   const [ouvert, setOuvert] = useState(null);

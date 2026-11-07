@@ -41,7 +41,7 @@ export function controler(p: Pick<Prospect, "name" | "contact_name" | "email">, 
   }
   // Longueur et forme d'un premier message de prospection
   const mots = body.split(/\s+/).filter(Boolean).length;
-  if (mots > 110) out.push({ gravite: "defaut", texte: `trop long (${mots} mots, 90 au plus)` });
+  if (mots > 85) out.push({ gravite: "defaut", texte: `trop long (${mots} mots, 75 au plus)` });
   if (mots < 20) out.push({ gravite: "defaut", texte: "trop court pour être compris" });
   if ((body.match(/https?:\/\/|www\./gi) ?? []).length > 1) out.push({ gravite: "defaut", texte: "plusieurs liens (les messageries s'en méfient)" });
   if (SPAM.test(tout)) out.push({ gravite: "defaut", texte: `mot qui fait classer en spam : « ${tout.match(SPAM)![0]} »` });

@@ -13,7 +13,7 @@ const entry = `
 export { humanize } from "./${S}/playbooks.ts";
 export { siteSignals } from "./${S}/sitesignals.ts";
 export { stripQuoted, OPT_OUT } from "./${S}/pro.ts";
-export { FOLLOW, followupDays } from "./${S}/agents.ts";
+export { FOLLOW, followupDays, sequence } from "./${S}/agents.ts";
 export { warmup, RAMP } from "./${S}/growth.ts";
 export { parisToUtc, parisParts, pickThree } from "./${S}/time.ts";
 export { bingooIds, isBounce, failedRecipients, replyTo, plainText } from "./${S}/inbox.ts";
@@ -68,16 +68,19 @@ await test("l'historique cité est retiré de la réponse", () => {
 });
 
 console.log("Relances");
-await test("deux relances seulement, à J+5 puis J+12", () => {
-  assert.deepEqual(T.FOLLOW.map((f) => f.after), [5, 12]);
+await test("deux relances seulement, à J+3 puis J+7 (42 % des réponses viennent des relances, 93 % avant le 10e jour)", () => {
+  assert.deepEqual(T.FOLLOW.map((f) => f.after), [3, 7]);
+});
+await test("séquence par défaut : relance, relance, appel à J+10, e-mail de clôture à J+14", () => {
+  assert.deepEqual(T.sequence({}).map((e) => [e.apres, e.canal]), [[3, "email"], [7, "email"], [10, "appel"], [14, "email"]]);
 });
 await test("l'objet de relance ne cumule pas les « Re : »", () => {
   assert.equal(T.FOLLOW[0].subject("Re : propreté des bureaux"), "Re : propreté des bureaux");
 });
 
-await test("délais de relance réglables, valeurs absurdes refusées (retour à 5 et 12)", () => {
+await test("délais de relance réglables, valeurs absurdes refusées (retour à 3 et 7)", () => {
   assert.deepEqual(T.followupDays({ followup_days: [3, 10] }), [3, 10]);
-  for (const bad of [null, [], [12, 5], [1, 10], [5, 90], [5.5, 12], [5, 5]]) assert.deepEqual(T.followupDays({ followup_days: bad }), [5, 12], JSON.stringify(bad));
+  for (const bad of [null, [], [12, 5], [1, 10], [5, 90], [5.5, 12], [5, 5]]) assert.deepEqual(T.followupDays({ followup_days: bad }), [3, 7], JSON.stringify(bad));
 });
 
 console.log("Préchauffage des envois");
