@@ -595,7 +595,7 @@ export default function Village() {
               </nav>
             </header>
             <div key={lieu.art} className="bv-int min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6 animate-[bv-fondu_.25s_ease-out_both]">
-              <LieuContext.Provider value={(to) => { const b = B.find((x) => x.to === to.split("?")[0]); if (!b || !INTERIEUR[b.to]) return false; setSp({ lieu: b.art }, { replace: true }); return true; }}><Page /></LieuContext.Provider>
+              <LieuContext.Provider value={(to) => { const b = B.find((x) => x.to === to.split("?")[0]); if (!b || !INTERIEUR[b.to]) return false; setSp({ ...Object.fromEntries(new URLSearchParams(to.split("?")[1] ?? "")), lieu: b.art }, { replace: true }); return true; }}><Page /></LieuContext.Provider>
             </div>
           </section>
         </>

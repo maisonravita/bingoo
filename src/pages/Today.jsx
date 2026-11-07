@@ -53,6 +53,16 @@ function Detected({ rows, onPrepared }) {
   const { ws } = useWs();
   const toast = useToast();
   const [busy, setBusy] = useState(null);
+  // État réel du premier message de chaque entreprise déjà ajoutée : « Message prêt » seulement s'il y a un brouillon
+  const [msgs, setMsgs] = useState({});
+  const pids = rows.map((o) => o.prospect_id).filter(Boolean);
+  const key = pids.join(",");
+  useEffect(() => {
+    if (!pids.length) return setMsgs({});
+    supabase.from("messages").select("id, prospect_id, status, created_at").in("prospect_id", pids).eq("step", 0).order("created_at", { ascending: false })
+      .then(({ data }) => { const m = {}; for (const x of data ?? []) m[x.prospect_id] ??= x; setMsgs(m); });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
   const prepare = async (o) => {
     setBusy(o.id);
     try {
@@ -79,8 +89,12 @@ function Detected({ rows, onPrepared }) {
                 <p className="text-[13px] text-ink-soft line-clamp-2 leading-snug">{o.summary}</p>
                 <p className="text-[11.5px] text-ink-faint mt-0.5"><span className="sm:hidden font-semibold text-accent-dark">{KIND[o.kind] ?? o.kind} · </span>{[o.city, ago(o.created_at)].filter(Boolean).join(" · ")}</p>
               </Link>
-              {o.prospect_id ? (
-                <Link to="/valider" className="shrink-0 rounded-full bg-good-soft text-good px-3 py-1.5 text-[12.5px] font-semibold hover:brightness-95">Message prêt</Link>
+              {o.prospect_id && msgs[o.prospect_id]?.status === "brouillon" ? (
+                <Link to={`/valider?voir=${msgs[o.prospect_id].id}`} className="shrink-0 rounded-full bg-good-soft text-good px-3 py-1.5 text-[12.5px] font-semibold hover:brightness-95">Message prêt</Link>
+              ) : o.prospect_id && msgs[o.prospect_id]?.status === "envoye" ? (
+                <span className="shrink-0 rounded-full bg-paper text-ink-soft px-3 py-1.5 text-[12.5px] font-semibold">Envoyé</span>
+              ) : o.prospect_id ? (
+                <Link to="/radar" className="shrink-0 rounded-full bg-accent-soft text-accent-dark px-3 py-1.5 text-[12.5px] font-semibold hover:bg-accent hover:text-white transition">À contacter</Link>
               ) : o.kind !== "appel_offres" && o.kind !== "besoin" && (
                 <button onClick={() => prepare(o)} disabled={!!busy} title="Sam trouve le contact, Hugo écrit l'e-mail (rien n'est envoyé)"
                   className="shrink-0 rounded-full bg-accent-soft text-accent-dark px-3 py-1.5 text-[12.5px] font-semibold hover:bg-accent hover:text-white transition disabled:opacity-50">
