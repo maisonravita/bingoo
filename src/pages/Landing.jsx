@@ -215,6 +215,27 @@ function useReveal() {
   }, []);
 }
 
+/** Ton village : la vraie interface de l'application, filmée sur un vrai compte (informations personnelles floutées). */
+function Village() {
+  return (
+    <section id="village" className="scroll-mt-24 px-5 sm:px-10 lg:px-20 py-20 sm:py-28 border-t border-black/[.07]">
+      <div className="mx-auto max-w-[1180px] grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-10 items-center">
+        <div className="min-w-0">
+          <h2 className="text-[36px] sm:text-[50px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ton village, ton équipe au travail</h2>
+          <p className="mt-6 text-[17px] sm:text-[19px] leading-[1.5] text-ink">Chaque bâtiment est une partie de ta prospection : Opportunités, Entreprises, Messages, Réponses, Rendez-vous, Concurrents. Les petits personnages, c'est ton équipe qui travaille. Un panneau te dit toujours quoi faire ensuite.</p>
+          <ul className="mt-6 space-y-3 text-[16px] text-ink">
+            {["Un coup d'œil : ce qui t'attend, bâtiment par bâtiment", "Un clic sur un bâtiment pour l'ouvrir", "« La nuit de ton équipe » : ce qui a été fait pendant que tu dormais"].map((x) => <li key={x} className="flex gap-2.5"><Check className="h-4 w-4 mt-1 shrink-0 text-accent" />{x}</li>)}
+          </ul>
+        </div>
+        <figure className="min-w-0">
+          <video src="./demo-village.mp4" poster="./demo-village.jpg" controls muted playsInline preload="none" className="w-full rounded-xl border border-black/10 bg-[#F1EFED]" aria-label="Le village Bingoo! et le bâtiment Opportunités" />
+          <figcaption className="mt-2 text-[13.5px] text-ink-soft">Filmé sur un vrai compte Bingoo!. Les noms et coordonnées des personnes sont floutés.</figcaption>
+        </figure>
+      </div>
+    </section>
+  );
+}
+
 /** Ta journée dans Bingoo! : les demandes publiques avec ta réponse prête, les messages à valider. Vidéo de la vraie application. */
 function Journee() {
   return (
@@ -396,6 +417,8 @@ export default function Landing() {
         <Feature id="espion" title="L'Espion : fais comme tes concurrents, en mieux" text="L'Espion suit tes concurrents chaque semaine : ce qu'ils vendent, leurs prix, leurs publicités, leurs avis. Il en tire l'angle pour leur prendre des clients." bullets={[["eye", <><b className="font-medium">Veille continue</b> : prix, offres et publicités qui changent</>], ["star", <><b className="font-medium">Avis clients</b> : les mécontents deviennent des opportunités</>], ["target", <><b className="font-medium">Ton angle</b> repris dans chaque message</>]]} />
 
         <Extension />
+
+        <Village />
 
         <Journee />
 

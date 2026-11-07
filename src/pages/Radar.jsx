@@ -967,6 +967,8 @@ function Demandes({ ws, list, onChange }) {
 
 /** Vue d'accueil du Radar : radar par chaleur, fiche de l'opportunité choisie (pourquoi, maintenant, comment), qui contacter, prochaine action, classement. */
 function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
+  // Dans le panneau d'un bâtiment du village, la place est étroite : une seule colonne
+  const etroit = useDansLieu();
   const toast = useToast();
   const nav = useAller();
   const [mode, setMode] = useState("tout");
@@ -1044,7 +1046,7 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
       <CalendarStrip ws={ws} />
       </>)}
 
-      <div className={cx("grid gap-5 items-stretch", !simple && "xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]")}>
+      <div className={cx("grid gap-5 items-stretch", !simple && !etroit && "xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]")}>
         {!simple && <Card className="p-5 sm:p-6 min-w-0">
           <h2 title="Le score mesure si c'est le bon moment (1 à 99), pas une probabilité de vente. Position : distance à ta zone." className="flex items-center gap-2.5 font-bold text-[18px]"><span className="text-accent"><Ico name="radar" className="h-6 w-6" /></span>Radar d'opportunités</h2>
           <div className="mt-4 grid sm:grid-cols-[minmax(0,1fr)_130px] gap-4 items-center">
@@ -1078,7 +1080,7 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
               {tab === "moment" && <><p className={cx(!full && "line-clamp-2")}>{o.why || "Signal récent : c'est le moment où l'entreprise est la plus réceptive."}</p>{String(o.why || "").length > 140 && <button onClick={() => setFull(!full)} className="text-[12px] font-semibold text-ink-soft hover:text-ink">{full ? "Réduire" : "Lire plus"}</button>}<p className="mt-1.5 text-[12.5px] text-ink-faint">{deadline && deadline > new Date() ? <b className="text-accent-dark">Avant le {deadline.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</b> : null}{deadline && deadline > new Date() && o.url ? " · " : ""}{o.url ? <a href={o.url} target="_blank" rel="noreferrer" className="hover:underline">Source</a> : null}</p></>}
               {tab === "approche" && <p>{APPROACH[o.kind] ?? "Présente-toi en partant de ce signal : une phrase sur ce qui se passe chez eux, une sur ce que tu apportes, une question simple."}</p>}
             </div>
-            <div className="mt-auto grid sm:grid-cols-2 gap-4 pt-4 border-t border-line">
+            <div className={cx("mt-auto grid gap-4 pt-4 border-t border-line", !etroit && "sm:grid-cols-2")}>
               <ContactsBox ws={ws} o={o} onChange={onChange} />
               <div>
                 <p className="flex items-center gap-2 font-bold text-[14.5px]"><Ico name="up" className="h-5 w-5 text-accent" />Prochaine action</p>
