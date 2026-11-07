@@ -162,7 +162,7 @@ export default function Review() {
             {cur.step >= 100 ? <Badge tone="accent">Reprise de contact</Badge> : cur.step > 0 ? <Badge tone="warn">Relance n°{cur.step}</Badge> : <Badge tone="accent">Opportunité</Badge>}
             <Badge>{p.activity}</Badge>
           </div>
-          <h2 className="mt-3 text-[30px] font-black leading-tight tracking-tight" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{p.name}</h2>
+          <h2 className="mt-3 text-[30px] font-black leading-tight tracking-tight" style={{ fontFamily: "var(--font-titre)" }}>{p.name}</h2>
           <p className="text-sm text-ink-soft mt-0.5">{[[p.postal_code, p.city].filter(Boolean).join(" "), p.website && "site"].filter(Boolean).length ? <>{[p.postal_code, p.city].filter(Boolean).join(" ")}{p.website && <> · <a href={p.website} target="_blank" rel="noreferrer" className="underline">site</a></>}</> : null}</p>
           {/* L'opportunité : pourquoi maintenant, et à qui */}
           {cur.step === 0 ? <div className="mt-4"><Opportunite p={p} /></div> : (

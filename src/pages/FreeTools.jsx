@@ -12,7 +12,7 @@ async function call(action, body) {
   if (!res.ok || data.error) throw new Error(data.error || "Erreur réseau, réessaie");
   return data;
 }
-const NUNITO = { fontFamily: "Nunito, Geist, system-ui, sans-serif" };
+const NUNITO = { fontFamily: "var(--font-titre)" };
 const euro = (n) => n >= 1e6 ? `${(n / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M€` : n >= 1e3 ? `${Math.round(n / 1e3).toLocaleString("fr-FR")} k€` : `${Math.round(n)} €`;
 const TOOLS = [
   ["/outils/contrats-publics", "Contrats publics qui se terminent", "Les marchés de ton secteur à renouveler dans les 12 mois, avec le titulaire actuel."],

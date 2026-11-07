@@ -54,7 +54,7 @@ const INTERIEUR = { "/reponses": Replies, "/valider": Review, "/agenda": Agenda,
 /* Bingoo!-ville : l'accueil en carte. Chaque bâtiment = une partie de Bingoo!, son nom écrit en gros,
    ce qu'on y fait en trois mots, et un badge quand quelque chose t'y attend. Un panneau dit où aller d'abord. */
 
-const H = { fontFamily: "Nunito, Geist, system-ui, sans-serif" };
+const H = { fontFamily: "var(--font-titre)" };
 
 // Dessins originaux (formes simples, couleurs de la marque) : viewBox 0 0 160 130, sol à y = 124
 const ART = {

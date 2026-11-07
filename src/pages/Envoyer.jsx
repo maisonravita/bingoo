@@ -30,14 +30,14 @@ export default function Envoyer() {
           : !d ? <div className="mt-8 h-64 rounded-3xl bg-white animate-pulse" />
           : fin ? (
             <div className="mt-8 rounded-3xl bg-white border border-line p-6 sm:p-8">
-              <h1 className="text-[32px] font-black" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{fin[0]}</h1>
+              <h1 className="text-[32px] font-black" style={{ fontFamily: "var(--font-titre)" }}>{fin[0]}</h1>
               <p className="mt-2 text-ink-soft text-[16px]">{d.skipped ? `Non envoyé : ${d.skipped}` : fin[1]}</p>
               <a href="/" className="mt-5 inline-block underline">Ouvrir Bingoo!</a>
             </div>
           ) : d.type === "reponse" ? (
             <article className="mt-8 rounded-3xl bg-white border border-line p-5 sm:p-7">
               <p className="text-[13px] font-bold text-[#C2410C]">Prospect qui a répondu · {d.espace}</p>
-              <h1 className="mt-1 text-[30px] font-black leading-tight" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{d.prospect.name}</h1>
+              <h1 className="mt-1 text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-titre)" }}>{d.prospect.name}</h1>
               {d.recu.resume && <p className="mt-2 text-[16px]">{d.recu.resume}</p>}
               <div className="mt-4 rounded-2xl bg-paper px-4 py-3">
                 <p className="text-[12.5px] font-bold text-ink-soft">Son message</p>
@@ -56,7 +56,7 @@ export default function Envoyer() {
           ) : (
             <article className="mt-8 rounded-3xl bg-white border border-line p-5 sm:p-7">
               <p className="text-[13px] font-bold text-[#C2410C]">Opportunité · {d.espace}</p>
-              <h1 className="mt-1 text-[30px] font-black leading-tight" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{d.prospect.name}</h1>
+              <h1 className="mt-1 text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-titre)" }}>{d.prospect.name}</h1>
               <div className="mt-4"><Opportunite p={d.prospect} /></div>
               <div className="mt-5 border-t border-line pt-5">
                 <p className="text-[12.5px] font-bold text-ink-soft">Le message</p>

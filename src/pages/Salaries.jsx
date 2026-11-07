@@ -200,7 +200,7 @@ export default function Salaries() {
     <div>
       <header className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
-          <h1 style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }} className="font-black text-[40px] leading-none tracking-tight">Vos salariés</h1>
+          <h1 style={{ fontFamily: "var(--font-titre)" }} className="font-black text-[40px] leading-none tracking-tight">Vos salariés</h1>
           <p className="text-ink-soft mt-2.5 text-[16px]">Une équipe qui travaille avec toi pour trouver et convertir de nouvelles opportunités.</p>
         </div>
         <button onClick={talk} className="inline-flex items-center gap-2 rounded-full bg-accent hover:bg-accent-dark text-white px-6 py-3 font-medium shadow-sm transition"><Ico n="chat" />Parler à l'équipe</button>

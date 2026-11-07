@@ -43,7 +43,7 @@ function Thinking({ site }) {
 }
 
 const H = "font-black tracking-[-.02em] leading-[1.02]";
-const HFONT = { fontFamily: "Nunito, Geist, system-ui, sans-serif" };
+const HFONT = { fontFamily: "var(--font-titre)" };
 const PROGRESS = ["Ton produit", "Ton plan du jour"];
 
 export default function Onboarding() {

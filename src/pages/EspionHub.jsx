@@ -128,7 +128,7 @@ function FirstRun({ ws, onDone }) {
   return (
     <div className="rounded-3xl border border-line bg-white p-6 sm:p-8 grid md:grid-cols-[minmax(0,1fr)_auto] gap-6 items-center">
       <div>
-        <p className="font-black text-[26px] leading-tight" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>Pas besoin de lui donner tes concurrents : elle les trouve.</p>
+        <p className="font-black text-[26px] leading-tight" style={{ fontFamily: "var(--font-titre)" }}>Pas besoin de lui donner tes concurrents : elle les trouve.</p>
         <p className="text-ink-soft mt-2 max-w-2xl">D'après ton offre, ta zone et tes cibles, l'espionne cherche les leaders, les acteurs de ta taille près de chez toi et les solutions alternatives. Tu choisis ensuite ceux qu'elle surveille ; elle fait leur rapport complet la nuit suivante.</p>
         <ol className="mt-4 grid sm:grid-cols-3 gap-2.5 text-[13px]">
           {[["1", "Elle trouve tes concurrents", "en 1 à 2 minutes"], ["2", "Tu choisis qui suivre", "un clic : Suivre ou Écarter"], ["3", "Elle enquête chaque nuit", "rapport complet, publicités, mouvements"]].map(([n, t, sub]) => (
@@ -596,7 +596,7 @@ export default function EspionHub() {
         <div className="mx-auto lg:mx-0"><Spy working={working} /></div>
         <div className="min-w-0">
           <p className="text-[12px] font-bold uppercase tracking-[.2em]" style={{ color: TEAL }}>Centre de renseignement</p>
-          <h1 className={cx("font-black text-[44px] sm:text-[52px] leading-none tracking-tight mt-1", dansLieu && "sr-only")} style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>Concurrents</h1>
+          <h1 className={cx("font-black text-[44px] sm:text-[52px] leading-none tracking-tight mt-1", dansLieu && "sr-only")} style={{ fontFamily: "var(--font-titre)" }}>Concurrents</h1>
           <p className="text-ink-soft mt-2 text-[16px]">Elle surveille tes concurrents jour et nuit, et te dit comment les battre.</p>
           <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-line bg-paper/60 px-3 py-1.5 text-[13px]">
             <span className={cx("h-2 w-2 rounded-full", working ? "animate-pulse" : "")} style={{ background: working ? TEAL : "#1F7A4D" }} />
@@ -617,7 +617,7 @@ export default function EspionHub() {
       {list.length > 0 && (
         <div className="mt-4 rounded-2xl bg-white border border-line grid grid-cols-2 md:grid-cols-4 md:divide-x divide-line py-3">
           {[[list.length, "concurrents suivis"], [moves, "mouvements repérés"], [weak, "faiblesses à exploiter"], [cards, "dossiers commerciaux prêts"]].map(([n, l]) => (
-            <div key={l} className="px-5 py-1.5"><p className="font-black text-[28px] leading-none tnum" style={{ color: TEAL, fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{n}</p><p className="text-[12.5px] text-ink-soft mt-1">{l}</p></div>
+            <div key={l} className="px-5 py-1.5"><p className="font-black text-[28px] leading-none tnum" style={{ color: TEAL, fontFamily: "var(--font-titre)" }}>{n}</p><p className="text-[12.5px] text-ink-soft mt-1">{l}</p></div>
           ))}
         </div>
       )}

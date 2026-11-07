@@ -15,8 +15,8 @@ export default {
       },
       fontFamily: {
         sans: ["Geist", "system-ui", "-apple-system", "sans-serif"],
-        // Une seule police de titres dans toute l'app (la même que l'accueil) : Nunito, très grasse
-        serif: ["Nunito", "Geist", "system-ui", "sans-serif"],
+        // Une seule police de titres partout : Source Serif 4 (voir --font-titre dans index.css)
+        serif: ['"Source Serif 4"', "Georgia", "serif"],
       },
     },
   },

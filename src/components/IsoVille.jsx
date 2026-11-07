@@ -237,7 +237,7 @@ function Agent({ a, bulle }) {
       <rect x="-5" y="-17" width="10" height="11" rx="4" fill="#F26A21" />
       <circle cx="0" cy="-21.5" r="5.2" fill="#F2C9A5" />
       <path d="M-5.4 -22.5a5.4 5.4 0 0 1 10.8 0z" fill="#6B4430" />
-      {bulle && <g><rect x={-w / 2} y="-68" width={w} height="22" rx="8" fill="#15161A" /><path d="M-4 -46.5h8l-4 5z" fill="#15161A" /><text x="0" y="-53" textAnchor="middle" fontSize="10" fontWeight="700" fill="#fff" fontFamily="Nunito, Geist, system-ui, sans-serif">{bulle}</text></g>}
+      {bulle && <g><rect x={-w / 2} y="-68" width={w} height="22" rx="8" fill="#15161A" /><path d="M-4 -46.5h8l-4 5z" fill="#15161A" /><text x="0" y="-53" textAnchor="middle" fontSize="10" fontWeight="700" fill="#fff" fontFamily="'Source Serif 4', Georgia, serif">{bulle}</text></g>}
     </g>
   );
 }
@@ -462,13 +462,13 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
             <g key={`s${b.art}`} pointerEvents="none" transform={top ? `translate(${sx} ${sy}) scale(${k}) translate(${-sx} ${-sy})` : undefined}>
               {top && <rect x={x0 - 4} y={sy - 29} width={w + 8} height="54" rx="22" fill="#FF8A3D" opacity=".35" filter="url(#iso-lueur)" />}
               <rect x={x0} y={sy - 25} width={w} height="46" rx={top ? 14 : 20} fill={top ? "url(#iso-orange)" : "#FFFFFF"} stroke={top ? "#fff" : on === i ? "#E8692B" : "#F1E2D2"} strokeWidth={top ? 2 : on === i ? 2.5 : 1.5} filter="url(#iso-ombre)" />
-              {q && <g><circle cx={x0 + 4} cy={sy - 23} r="9" fill={q.c} stroke="#fff" strokeWidth="2" /><text x={x0 + 4} y={sy - 19.2} textAnchor="middle" fontSize="11" fontWeight="900" fill="#fff" fontFamily="Nunito, sans-serif">{QUARTIER[b.art]}</text></g>}
-              <text x={x0 + 40} y={sy + 13} fontSize="12" fontWeight="700" fill={top ? "rgba(255,255,255,.85)" : "#8A7F78"} fontFamily="Nunito, Geist, system-ui, sans-serif">{sous}</text>
+              {q && <g><circle cx={x0 + 4} cy={sy - 23} r="9" fill={q.c} stroke="#fff" strokeWidth="2" /><text x={x0 + 4} y={sy - 19.2} textAnchor="middle" fontSize="11" fontWeight="900" fill="#fff" fontFamily="Geist, system-ui, sans-serif">{QUARTIER[b.art]}</text></g>}
+              <text x={x0 + 40} y={sy + 13} fontSize="12" fontWeight="700" fill={top ? "rgba(255,255,255,.85)" : "#8A7F78"} fontFamily="'Source Serif 4', Georgia, serif">{sous}</text>
               {b.art === "linkedin"
-                ? <g><rect x={x0 + 14} y={sy - 17} width="18" height="18" rx="4" fill="#0A66C2" /><text x={x0 + 23} y={sy - 3} textAnchor="middle" fontSize="12" fontWeight="900" fill="#fff" fontFamily="Nunito, sans-serif">in</text></g>
+                ? <g><rect x={x0 + 14} y={sy - 17} width="18" height="18" rx="4" fill="#0A66C2" /><text x={x0 + 23} y={sy - 3} textAnchor="middle" fontSize="12" fontWeight="900" fill="#fff" fontFamily="Geist, system-ui, sans-serif">in</text></g>
                 : <g transform={`translate(${x0 + 12} ${sy - 19}) scale(0.92)`}><path d={ICONE[b.art]} fill="none" stroke={top ? "#fff" : "#E8692B"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></g>}
-              <text x={x0 + 40} y={sy - 2} fontSize="18" fontWeight="800" fill={top ? "#fff" : "#1E1E24"} fontFamily="Nunito, Geist, system-ui, sans-serif">{b.nom}</text>
-              {top && (b.badge > 0 || b.alerte) && <g><circle cx={sx + w / 2 - 4} cy={sy - 24} r="13" fill="#F26A21" stroke="#fff" strokeWidth="2.5" /><text x={sx + w / 2 - 4} y={sy - 19.5} textAnchor="middle" fontSize="13" fontWeight="900" fill="#fff" fontFamily="Nunito, sans-serif">{b.alerte ? "!" : b.badge > 99 ? "99+" : b.badge}</text></g>}
+              <text x={x0 + 40} y={sy - 2} fontSize="19" fontWeight="600" fill={top ? "#fff" : "#1E1E24"} fontFamily="'Source Serif 4', Georgia, serif">{b.nom}</text>
+              {top && (b.badge > 0 || b.alerte) && <g><circle cx={sx + w / 2 - 4} cy={sy - 24} r="13" fill="#F26A21" stroke="#fff" strokeWidth="2.5" /><text x={sx + w / 2 - 4} y={sy - 19.5} textAnchor="middle" fontSize="13" fontWeight="900" fill="#fff" fontFamily="Geist, system-ui, sans-serif">{b.alerte ? "!" : b.badge > 99 ? "99+" : b.badge}</text></g>}
             </g>
           );
         })}
@@ -481,7 +481,7 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
                 onMouseEnter={() => survol(bulle.i)} onMouseLeave={() => survol(null)} onClick={(e) => { e.stopPropagation(); go(toOf(a.lieu)); }}>
                 <rect x={-w / 2} y="-78" width={w} height="30" rx="15" fill="#fff" stroke={bulle.survol ? "#F26A21" : "#2A2C31"} strokeWidth={bulle.survol ? 2 : 1.4} />
                 <path d="M-6 -48.6h12l-6 8z" fill="#fff" stroke={bulle.survol ? "#F26A21" : "#2A2C31"} strokeWidth={bulle.survol ? 2 : 1.4} strokeLinejoin="round" /><path d="M-5.2 -49.6h10.4" stroke="#fff" strokeWidth="2.6" />
-                <text x={-w / 2 + 14} y="-58" fontSize="13" fontWeight="700" fill="#1E1E24" fontFamily="Nunito, Geist, system-ui, sans-serif">{bulle.survol && <tspan fill="#E8571C" fontWeight="900">{a.nom}  </tspan>}{bulle.t}</text>
+                <text x={-w / 2 + 14} y="-58" fontSize="13" fontWeight="700" fill="#1E1E24" fontFamily="'Source Serif 4', Georgia, serif">{bulle.survol && <tspan fill="#E8571C" fontWeight="900">{a.nom}  </tspan>}{bulle.t}</text>
                 <circle cx={w / 2 - 15} cy="-63" r="9" fill="#F26A21" /><path d={`M${w / 2 - 18.5} -63h7m-3 -3.2 3.2 3.2-3.2 3.2`} stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
               </g>
             );
@@ -496,7 +496,7 @@ export default function IsoVille({ batiments, paroles = {}, full = false, cible 
       {act && (
         <div className="pointer-events-none absolute z-10 w-[260px] rounded-2xl border border-line bg-white p-4 shadow-[0_18px_40px_-18px_rgba(21,22,26,.35)]"
           style={(() => { const vx = minX + (VW - VW / vue.z) / 2 - vue.dx, vy = minY + (VH - VH / vue.z) / 2 - vue.dy, w = VW / vue.z, h = VH / vue.z; return { left: `${Math.min(76, Math.max(2, ((anchor[0] - vx) / w) * 100 + 4))}%`, top: `${Math.min(70, Math.max(full ? 14 : 0, ((anchor[1] - vy) / h) * 100 - 30))}%` }; })()}>
-          <p className="text-[17px] font-black text-ink" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{act.nom}</p>
+          <p className="text-[17px] font-black text-ink" style={{ fontFamily: "var(--font-titre)" }}>{act.nom}</p>
           <p className="flex items-center gap-1.5 text-[11px] font-semibold text-accent-dark"><span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />En direct · {act.quoi}</p>
           <dl className="mt-2.5 space-y-1.5">
             {(act.stats ?? []).map(([l, v]) => <div key={l} className="flex items-baseline justify-between gap-3 text-[13.5px]"><dt className="text-ink-soft">{l}</dt><dd className="font-bold tnum text-ink">{v}</dd></div>)}

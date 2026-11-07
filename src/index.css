@@ -101,11 +101,14 @@ h1, h2, h3 { text-wrap: balance; }
 .bingoo-splash-played .bingoo-splash-word .bbg{opacity:1;animation:splash-shake .55s ease-in-out infinite}
 
 /* L'intérieur des bâtiments (panneau du village) : même famille visuelle que la ville */
-.bv-int .font-serif { font-family: Nunito, Geist, system-ui, sans-serif; font-weight: 900; letter-spacing: -.02em; }
 .bv-int .border-line { border-color: #F1E2D2; }
 .bv-int .divide-line > :not([hidden]) ~ :not([hidden]) { border-color: #F1E2D2; }
 .bv-int .bg-paper { background-color: #FFF8F1; }
 .bv-int .rounded-2xl.bg-white, .bv-int .rounded-3xl.bg-white { box-shadow: 0 12px 26px -20px rgba(122, 74, 42, .5); }
 
-/* Titres et grands chiffres : partout la même écriture que l'accueil (Nunito très grasse, lettres resserrées) */
-.font-serif { font-weight: 800; letter-spacing: -0.02em; }
+/* Une seule écriture de titres dans tout Bingoo! (site, inscription, application, ville) : Source Serif 4, regular.
+   Elle se change ici et seulement ici. Les textes courants restent en Geist. */
+:root { --font-titre: "Source Serif 4", Georgia, "Times New Roman", serif; }
+/* Tous les titres (h1, h2, h3) prennent aussi cette écriture, en demi-gras pour rester lisibles en petit */
+h1, h2, h3 { font-family: var(--font-titre); font-weight: 500 !important; letter-spacing: -0.01em; }
+.font-serif, [style*="--font-titre"] { font-family: var(--font-titre) !important; font-weight: 400 !important; letter-spacing: -0.015em; font-optical-sizing: auto; }

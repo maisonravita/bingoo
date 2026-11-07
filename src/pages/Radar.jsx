@@ -1036,7 +1036,7 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
         {[["flame", hot, "opportunités chaudes à traiter", "score de 75 ou plus", "text-bad"], ["eye", intents, "intentions cette semaine", "entreprises qui te regardent", "text-accent"]].map(([ic, n, l, sub, col]) => (
           <Card key={l} className="p-4 sm:p-5 flex items-center gap-4">
             <span className={col}><Ico name={ic} className="h-8 w-8" /></span>
-            <div><p className="font-black text-[34px] leading-none tnum" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{loaded ? n : "–"}</p><p className="text-[14px] font-semibold mt-1">{l}</p><p className="text-[12px] text-ink-faint">{sub}</p></div>
+            <div><p className="font-black text-[34px] leading-none tnum" style={{ fontFamily: "var(--font-titre)" }}>{loaded ? n : "–"}</p><p className="text-[14px] font-semibold mt-1">{l}</p><p className="text-[12px] text-ink-faint">{sub}</p></div>
           </Card>
         ))}
       </div>
@@ -1062,7 +1062,7 @@ function HomeView({ ws, list, loaded, live, onScan, onOpen, onChange }) {
             <div className="flex items-start gap-4">
               <div className="min-w-0 flex-1">
                 <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12.5px] font-bold" style={{ background: `${heatDot(o.score)}1A`, color: heatDot(o.score) }}><Ico name="flame" className="h-4 w-4" />Opportunité {heatLabel(o.score).toLowerCase()}{o.raw?.top_day === today ? " · du jour" : ""}</span>
-                <h2 className="mt-2 font-black text-[26px] leading-tight break-words" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{o.company}</h2>
+                <h2 className="mt-2 font-black text-[26px] leading-tight break-words" style={{ fontFamily: "var(--font-titre)" }}>{o.company}</h2>
                 {raison(o) && <p className="mt-1 text-[15px] font-semibold text-ink">{raison(o)}</p>}
                 <p className="text-[13px] text-ink-soft">{[o.city && `${o.city}${o.dept ? ` (${o.dept})` : ""}`, INTENT.includes(o.kind) ? "Intention" : "Signal"].filter(Boolean).join(" · ")}</p>
                 <div className="mt-2 flex flex-wrap gap-1.5">{[...sel.kinds].map((k) => <span key={k} className={cx("rounded-full px-2.5 py-0.5 text-[12px] font-semibold", KIND[k]?.chip ?? "bg-paper")}>{KIND[k]?.label ?? k}</span>)}{o.raw?.valeur ? <span className="rounded-full px-2.5 py-0.5 text-[12px] font-semibold bg-paper">≈ {euroK(o.raw.valeur)}/an</span> : null}</div>
@@ -1295,7 +1295,7 @@ function Roi({ ws }) {
         </div>
         <div className="rounded-2xl bg-accent-soft/60 p-4 text-center">
           <p className="text-[12.5px] text-accent-dark font-semibold">Chiffre d'affaires signé grâce au Radar</p>
-          <p className="font-black text-[34px] leading-tight tnum mt-1" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{Number(d.ca).toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €</p>
+          <p className="font-black text-[34px] leading-tight tnum mt-1" style={{ fontFamily: "var(--font-titre)" }}>{Number(d.ca).toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €</p>
           <p className="text-[12px] text-ink-soft">{d.rdv} rendez-vous · {d.signes} devis signé{d.signes > 1 ? "s" : ""}</p>
         </div>
       </div>
@@ -1481,7 +1481,7 @@ export default function Radar() {
         <div className={cx("flex items-center gap-4", dansLieu && "hidden")}>
           <span className="h-16 w-16 rounded-full bg-accent-soft text-accent grid place-items-center"><Ico name="radar" className="h-9 w-9" /></span>
           <div>
-            <h1 className="font-black text-[40px] leading-none tracking-tight" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>Opportunités</h1>
+            <h1 className="font-black text-[40px] leading-none tracking-tight" style={{ fontFamily: "var(--font-titre)" }}>Opportunités</h1>
             <p className="text-ink-soft mt-1.5">Les entreprises à contacter au bon moment.</p>
           </div>
         </div>

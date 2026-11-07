@@ -64,7 +64,7 @@ export function PageHead({ title, sub, resume = false, children }) {
   return (
     <header className={dans ? "flex flex-wrap items-center justify-between gap-3 mb-4" : "flex flex-wrap items-end justify-between gap-3 mb-6"}>
       <div className="min-w-0">
-        {!dans && <h1 className="font-black text-[40px] leading-none tracking-tight" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{title}</h1>}
+        {!dans && <h1 className="font-black text-[40px] leading-none tracking-tight" style={{ fontFamily: "var(--font-titre)" }}>{title}</h1>}
         {sub && !(dans && resume) && <p className={dans ? "text-ink-soft text-[14px]" : "text-ink-soft mt-2"}>{sub}</p>}
       </div>
       {children && <div className="flex flex-wrap gap-2">{children}</div>}

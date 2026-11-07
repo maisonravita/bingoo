@@ -49,7 +49,7 @@ function AltPage({ c, ws, onSaved }) {
 
 // Dossier complet d'un concurrent, rempli par l'espionne. Tout est sourcé ; l'inconnu est dit, jamais inventé.
 const ACC = "#E0531F";
-const NUNITO = { fontFamily: "Nunito, Geist, system-ui, sans-serif" };
+const NUNITO = { fontFamily: "var(--font-titre)" };
 const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u ?? ""; } };
 const txt = (x) => String(typeof x === "string" ? x : x?.texte ?? x?.text ?? "").replace(/<\/?cite[^>]*>/g, "").replace(/\s+/g, " ").trim();
 const unknown = (v) => !v || /^non trouv|^inconnu|^non pr[ée]cis/i.test(v);

@@ -4,7 +4,7 @@ import { CANAUX, DELAIS, STADES, TYPES, VALEURS, mensuel } from "../lib/estimati
 
 // Inscription en questions : une question par écran, de grandes réponses, des écrans qui expliquent entre les questions.
 // Les réponses servent au plan d'action final (fourchette honnête, hypothèses visibles) et à l'analyse du produit.
-const HF = { fontFamily: "Nunito, Geist, system-ui, sans-serif" };
+const HF = { fontFamily: "var(--font-titre)" };
 const KEY = "bingoo-quiz";
 
 const ECRANS = [

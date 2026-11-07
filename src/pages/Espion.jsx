@@ -275,7 +275,7 @@ export function CompetitorDesk({ embedded = false, focusId = null, onChanged }) 
     <div className="space-y-5">
       {!embedded && <div className="grid lg:grid-cols-[1fr_380px] gap-5 items-start">
         <div>
-          <h1 className="font-black text-[40px] leading-none tracking-tight" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>Espion</h1>
+          <h1 className="font-black text-[40px] leading-none tracking-tight" style={{ fontFamily: "var(--font-titre)" }}>Espion</h1>
           <p className="text-ink-soft mt-2">Analyse tes concurrents et découvre ce qui marche pour eux, chiffres et sources à l'appui.</p>
           <form onSubmit={analyse} className="mt-5 flex flex-col sm:flex-row gap-2">
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nom du concurrent ou site web…" className="flex-1 rounded-xl border border-line bg-white px-4 py-3 text-[15px] outline-none focus:border-accent" />

@@ -136,7 +136,7 @@ function Contacts({ s }) {
       {T.map(([l, v, to, sub], i) => (
         <Link key={l} to={to} className={cx("rounded-2xl border p-4 transition hover:border-ink-faint", i === 4 ? "bg-accent-soft/60 border-accent/20" : "bg-white border-line", i === 4 && "col-span-2 sm:col-span-1")}>
           <p className="text-[13px] text-ink-soft">{l}</p>
-          <p className={cx("font-black text-[30px] leading-tight tnum", i === 4 && "text-accent-dark")} style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{(v ?? 0).toLocaleString("fr-FR")}</p>
+          <p className={cx("font-black text-[30px] leading-tight tnum", i === 4 && "text-accent-dark")} style={{ fontFamily: "var(--font-titre)" }}>{(v ?? 0).toLocaleString("fr-FR")}</p>
           {sub && <p className="text-[11.5px] text-ink-faint mt-0.5">{sub}</p>}
         </Link>
       ))}
@@ -267,10 +267,10 @@ function AFaire({ s, canSend, adresse }) {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {C.map((c) => (
           <Link key={c.to} to={c.to} className={cx("group flex items-center gap-4 sm:block rounded-3xl border p-4 sm:p-5 transition hover:border-ink-faint", c.n > 0 && c.fort ? "border-accent/30 bg-[#FFF7F0]" : "border-line bg-white")}>
-            <p className={cx("order-2 sm:order-none sm:hidden font-black text-[34px] leading-none tnum", c.n > 0 ? "text-ink" : "text-ink-faint")} style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{c.n}</p>
+            <p className={cx("order-2 sm:order-none sm:hidden font-black text-[34px] leading-none tnum", c.n > 0 ? "text-ink" : "text-ink-faint")} style={{ fontFamily: "var(--font-titre)" }}>{c.n}</p>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 text-[14px] font-semibold text-ink-soft"><Ico n={c.icon} className={cx("w-5 h-5", c.n > 0 ? "text-accent" : "text-ink-faint")} />{c.titre}</div>
-              <p className={cx("hidden sm:block mt-1 font-black text-[40px] leading-none tnum", c.n > 0 ? "text-ink" : "text-ink-faint")} style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{c.n}</p>
+              <p className={cx("hidden sm:block mt-1 font-black text-[40px] leading-none tnum", c.n > 0 ? "text-ink" : "text-ink-faint")} style={{ fontFamily: "var(--font-titre)" }}>{c.n}</p>
               <p className="mt-1 sm:mt-2 text-[13.5px] text-ink-soft sm:min-h-[20px]">{c.n > 0 ? c.aide : c.vide}</p>
               {c.n > 0 && <span className={cx("hidden sm:inline-flex mt-3 rounded-xl px-3.5 py-2 text-[14px] font-bold", c.fort ? "bg-accent text-white" : "bg-ink text-white")}>{c.cta}</span>}
             </div>
@@ -298,7 +298,7 @@ function CeQuiMarche({ s }) {
           return (
             <div key={l} className={cx("rounded-2xl px-4 py-3", i === 2 ? "bg-accent-soft/60" : "bg-paper")}>
               <p className="text-[13px] text-ink-soft">{l}{avant != null ? " · 7 jours" : " · au total"}</p>
-              <p className={cx("font-black text-[30px] leading-tight tnum", i === 2 && "text-accent-dark")} style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{(v ?? 0).toLocaleString("fr-FR")}</p>
+              <p className={cx("font-black text-[30px] leading-tight tnum", i === 2 && "text-accent-dark")} style={{ fontFamily: "var(--font-titre)" }}>{(v ?? 0).toLocaleString("fr-FR")}</p>
               {d != null && <p className={cx("text-[12px] tnum", d > 0 ? "text-good" : "text-ink-faint")}>{d > 0 ? `+${d}` : d < 0 ? `${d}` : "="} vs semaine d'avant</p>}
             </div>
           );
@@ -325,7 +325,7 @@ function Prochaine({ n }) {
         <p className="text-[13px] font-bold text-[#C2410C]">Prochaine opportunité</p>
         <span className="text-[13px] text-ink-soft tnum">{n} prête{n > 1 ? "s" : ""}</span>
       </div>
-      <h2 className="mt-1 text-[24px] font-black leading-tight" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{m.prospects.name}</h2>
+      <h2 className="mt-1 text-[24px] font-black leading-tight" style={{ fontFamily: "var(--font-titre)" }}>{m.prospects.name}</h2>
       <div className="mt-3"><Opportunite p={m.prospects} /></div>
       {debut && <p className="mt-3 text-[14.5px] text-ink-soft line-clamp-2"><span className="font-semibold text-ink">Le message : </span>{debut}</p>}
       <Link to={`/valider?voir=${m.id}`} className="mt-4 flex items-center justify-center rounded-2xl bg-accent px-5 py-3 text-[16px] font-bold text-white hover:brightness-105">Lire et envoyer</Link>
@@ -472,7 +472,7 @@ export default function Today() {
     <div className="max-w-4xl">
       {visite && <Visite onFin={finVisite} />}
       <header className="mb-6 relative">
-        <h1 className="font-black text-[40px] sm:text-[52px] leading-none tracking-tight flex items-start gap-1" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>
+        <h1 className="font-black text-[40px] sm:text-[52px] leading-none tracking-tight flex items-start gap-1" style={{ fontFamily: "var(--font-titre)" }}>
           {hello}{first ? ` ${first}` : ""} !<Sparks className="w-9 h-9 sm:w-11 sm:h-11 -mt-2" />
         </h1>
         <p className="text-ink-soft text-[17px] mt-3">{s ? resume(s) : "Ce qui t'attend aujourd'hui."}</p>

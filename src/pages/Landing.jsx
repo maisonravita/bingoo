@@ -14,8 +14,8 @@ async function call(action, body) {
   if (!res.ok || data.error) throw new Error(data.error || "Erreur réseau, réessaie");
   return data;
 }
-const D = { fontFamily: "Nunito, Geist, system-ui, sans-serif", fontWeight: 900, letterSpacing: "-.02em" };
-const SERIF = { fontFamily: "Nunito, Geist, system-ui, sans-serif", fontWeight: 800, letterSpacing: "-.02em" };
+const D = { fontFamily: "var(--font-titre)", fontWeight: 900, letterSpacing: "-.02em" };
+const SERIF = { fontFamily: "var(--font-titre)", fontWeight: 400, letterSpacing: "-.02em" };
 const euro = (n) => n >= 1e6 ? `${(n / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M€` : n >= 1e3 ? `${Math.round(n / 1e3).toLocaleString("fr-FR")} k€` : `${Math.round(n)} €`;
 const scrollTo = (id) => (e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }); };
 const Check = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>;
@@ -286,7 +286,7 @@ export default function Landing() {
           <div className="mx-auto max-w-[1440px] h-[64px] px-4 sm:px-8 flex items-center justify-between gap-4">
             <div className="flex items-center gap-10">
               <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Bingoo!"><Logo height={26} /></button>
-              <nav className="hidden lg:flex items-center gap-8 text-[17px] text-ink">
+              <nav className="hidden lg:flex items-center gap-6 xl:gap-8 text-[16px] xl:text-[17px] text-ink whitespace-nowrap">
                 {MENU.map(([t, items]) => items ? (
                   <div key={t} className="relative group">
                     <button className="inline-flex items-center gap-1.5 py-4 hover:opacity-70" aria-haspopup="true">{t}<Chev /></button>
@@ -299,9 +299,9 @@ export default function Landing() {
                 ) : <a key={t} href="#tarifs" onClick={scrollTo("tarifs")} className="hover:opacity-70">{t}</a>)}
               </nav>
             </div>
-            <div className="flex items-center gap-3 sm:gap-5 text-[16px] sm:text-[17px]">
+            <div className="flex items-center gap-3 sm:gap-5 text-[16px] sm:text-[17px] whitespace-nowrap">
               <button onClick={() => nav("/connexion?mode=login")} className="hover:opacity-70 text-[15px] sm:text-[17px]">Se connecter</button>
-              <a href="#essai" onClick={scrollTo("essai")} className="hidden md:inline-flex rounded-lg border border-ink px-5 py-2.5 hover:bg-black/[.04]">Essayer avec mon produit</a>
+              <a href="#essai" onClick={scrollTo("essai")} className="hidden xl:inline-flex rounded-lg border border-ink px-5 py-2.5 hover:bg-black/[.04]">Essayer avec mon produit</a>
               <button onClick={go} className="rounded-lg bg-accent text-white px-4 sm:px-5 py-2.5 hover:bg-accent-dark transition">S'inscrire</button>
             </div>
           </div>
