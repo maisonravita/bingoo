@@ -208,18 +208,25 @@ export async function draft(ws: Workspace, p: Prospect) {
   return { id: data.id, subject };
 }
 
-/** Rédaction + contrôle des faits (+ une réécriture automatique si un fait n'a pas de source). */
-export async function rediger(ws: Workspace, p: Prospect) {
+/** Rédaction + contrôle des faits. On ne montre jamais un message auquel on ne croit pas : en cas de doute, deux réécritures
+ *  au plus ; s'il reste une affirmation sans source, aucun message n'est proposé (la fiche attend un fait plus solide). */
+export async function rediger(ws: Workspace, p: Prospect, o: { test?: boolean } = {}) {
   let { subject, body, active, v } = await writeDraft(ws, p);
-  // Contrôle des faits : en cas de doute, une réécriture automatique sans les phrases fautives ; s'il en reste, c'est signalé
-  // à la validation (et le pilote automatique n'envoie pas)
   const { verifierFaits, corrigerFaits } = await import("./faits.ts");
   let check_note = await verifierFaits(ws, p, subject, body);
-  if (check_note) {
+  for (let essai = 0; check_note && essai < 2; essai++) {
     const c = await corrigerFaits(ws, p, subject, body, check_note).catch(() => null);
-    if (c) { const reste = await verifierFaits(ws, p, c.subject, c.body); if (!reste || reste.split("\n").length < check_note.split("\n").length) { subject = c.subject; body = c.body; check_note = reste; } }
+    if (!c) break;
+    subject = c.subject; body = c.body;
+    check_note = await verifierFaits(ws, p, subject, body);
   }
-  return { subject, body, active, v, check_note };
+  if (check_note && o.test) return { subject, body, active, v, check_note };
+  if (check_note) {
+    const ins = (p.insight ?? {}) as Record<string, unknown>;
+    await admin.from("prospects").update({ insight: { ...ins, redaction_echec: { at: new Date().toISOString(), doutes: check_note } } }).eq("id", p.id);
+    throw new HttpError(422, "Pas assez de faits sûrs sur cette entreprise pour lui écrire un message dont on est certain : Bingoo! attend un fait plus solide.");
+  }
+  return { subject, body, active, v, check_note: "" };
 }
 
 
@@ -258,10 +265,16 @@ export async function aEcrire(wsId: string, n: number, filtre: (q: any) => any =
   if (n <= 0) return [];
   const { data } = await filtre(admin.from("prospects").select("*").eq("workspace_id", wsId).eq("status", "pret").neq("email", ""))
     .order("score", { ascending: false, nullsFirst: false }).limit(200);
+  // Ce que les résultats ont appris (secteurs, signaux, tailles qui répondent le mieux) : ces entreprises sont écrites d'abord
+  const { data: ws } = await admin.from("workspaces").select("*").eq("id", wsId).single();
+  const { appris, bonus } = await import("./appris.ts");
+  const a = ws ? await appris(ws as Workspace).catch(() => null) : null;
+  const poids = new Map(((data ?? []) as Prospect[]).map((p) => [p.id, ws ? bonus(p as never, ws as Workspace, a) : 1]));
   const avecRadar = new Set(((await admin.from("radar_opps").select("prospect_id").eq("workspace_id", wsId).not("prospect_id", "is", null).limit(1000)).data ?? []).map((x) => x.prospect_id));
   return ((data ?? []) as Prospect[])
     .filter((p) => declencheur(p) || avecRadar.has(p.id))
-    .sort((a, b) => Number(emailGenerique(a.email)) - Number(emailGenerique(b.email)))
+    .filter((p) => { const e = (p.insight as { redaction_echec?: { at?: string } } | null)?.redaction_echec?.at; return !e || Date.now() - new Date(e).getTime() > 30 * 864e5; })
+    .sort((a, b) => (Number(emailGenerique(a.email)) - Number(emailGenerique(b.email))) || (poids.get(b.id)! - poids.get(a.id)!))
     .slice(0, n);
 }
 
@@ -282,6 +295,7 @@ ${(() => { const sg = (p.signals ?? []).filter((x) => x.label && x.type !== "tai
 ` : ""}
 ${await rivalBrief(ws.id, p)}Commence par « Bonjour${p.contact_name && !emailGenerique(p.email) ? " Madame/Monsieur <Nom>" : ""}, » (si l'interlocuteur est connu mais que le genre est incertain, écris « Bonjour <Prénom>, », jamais prénom et nom ensemble).
 Longueur : 40 à 70 mots, trois phrases courtes (le fait vrai, ce que l'offre change, une question). Rien sur la situation du prospect qui ne soit dans les faits ci-dessus.
+La deuxième phrase dit ce que fait l'expéditeur, sans rien supposer de la situation du prospect (jamais « vos équipes », « votre carnet de commandes », « vos difficultés », « vous cherchez à… »).
 La première phrase parle du fait, précis et daté si la date est connue (« Vous avez ouvert un établissement à Lyon en août »), jamais de l'activité générale du prospect (« X vend des formations », « X est spécialisé dans… »).
 Ne mets pas de signature : elle est ajoutée automatiquement.
 

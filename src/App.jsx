@@ -39,6 +39,7 @@ import Abonnement from "./pages/Abonnement";
 import Join, { JOIN_KEY } from "./pages/Join";
 import PublicBooking from "./pages/PublicBooking";
 import PublicQuote from "./pages/PublicQuote";
+import Envoyer from "./pages/Envoyer";
 import FreeTools from "./pages/FreeTools";
 import Landing from "./pages/Landing";
 import Metier from "./pages/Metier";
@@ -56,6 +57,8 @@ function Gate() {
   }, [ws?.id, ws?.app_url]);
   if (loc.pathname.startsWith("/rdv/")) return <PublicBooking />;
   if (loc.pathname.startsWith("/devis/")) return <PublicQuote />;
+  // Lien de l'e-mail du matin : la page fonctionne sans être connecté (le lien à usage unique fait office de clé)
+  if (loc.pathname === "/envoyer") return <Envoyer />;
   if (loc.pathname === "/outils" || loc.pathname.startsWith("/outils/")) return <FreeTools />;
   if (loc.pathname === "/accueil") return <Landing />;
   if (loc.pathname.startsWith("/metier/")) return <Metier slug={loc.pathname.split("/")[2]} />;

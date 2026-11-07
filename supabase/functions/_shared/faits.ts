@@ -19,8 +19,8 @@ export async function verifierFaits(ws: Workspace, p: Prospect, subject: string,
   ].filter(Boolean).join("\n");
   try {
     const r = await askJson<{ doutes: string[] }>(`Tu relis un e-mail de prospection avant envoi. Liste les affirmations FACTUELLES de l'e-mail qui ne sont PAS soutenues par les sources ci-dessous : chiffres, dates, noms de clients, résultats promis, faits sur le prospect (recrutement, levée, déménagement, projet, outil utilisé…), certifications.
-Ne signale pas : les formules de politesse, les questions, les propositions (« seriez-vous disponible »), les généralités prudentes (« beaucoup d'entreprises comme la vôtre »), la description de ce que l'offre de l'expéditeur sait faire, ni les déductions évidentes de l'activité du prospect.
-Signale en priorité : ce qui est présenté comme un fait propre à CE prospect sans source (sa situation, ses difficultés, ses équipes, ses projets, ses outils).
+Ne juge QUE les phrases qui disent quelque chose sur le prospect (son entreprise, sa situation, ses équipes, ses projets, ses outils, ses difficultés, ses besoins).
+Ignore entièrement : les phrases qui décrivent l'expéditeur ou ce que fait son offre, les formules de politesse, les questions, les propositions (« seriez-vous disponible »), les demandes de transmission, et les déductions évidentes de l'activité ou de la ville du prospect.
 
 SOURCES
 ${sources}
@@ -36,7 +36,7 @@ Réponds en JSON : {"doutes": ["citation courte de l'affirmation non soutenue �
 
 /** Réécrit le message en retirant (ou en transformant en question) les affirmations sans source. Même ton, plus court. */
 export async function corrigerFaits(_ws: Workspace, p: Prospect, subject: string, body: string, doutes: string) {
-  const r = await askJson<{ objet: string; corps: string }>(`Corrige cet e-mail de prospection : retire chaque affirmation listée ci-dessous (ou transforme-la en question neutre), sans rien inventer d'autre. Garde le même ton, la même salutation, la même question finale si elle reste juste. 40 à 70 mots. Pas de tiret long.
+  const r = await askJson<{ objet: string; corps: string }>(`Corrige cet e-mail de prospection : retire chaque affirmation listée ci-dessous (ou transforme-la en question neutre), sans rien inventer d'autre, et sans rien supposer de nouveau sur le prospect. Garde le même ton, la même salutation, la même question finale si elle reste juste. 40 à 70 mots. Pas de tiret long.
 Prospect : ${p.name}
 Affirmations sans source :
 ${doutes}

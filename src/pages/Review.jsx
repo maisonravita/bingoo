@@ -5,6 +5,8 @@ import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { Badge, Button, Empty, Input, PageHead, Spinner, Textarea, useToast } from "../components/ui";
 import { cx } from "../lib/utils";
+import Opportunite from "../components/Opportunite";
+import Appris from "../components/Appris";
 
 export default function Review() {
   const { ws } = useWs();
@@ -126,7 +128,7 @@ export default function Review() {
   if (!cur) return (
     <>
       <PageHead title="Atelier" />
-      <Empty title="Tout est validé.">Lance la rédaction de nouveaux messages depuis <Link to="/" className="underline">Ta journée</Link>.</Empty>
+      <Empty title="Aucune opportunité à traiter.">Bingoo! n'écrit que lorsqu'une entreprise a un fait récent et vérifié. Les prochaines arrivent ici d'elles-mêmes.</Empty>
     </>
   );
   const p = cur.prospects ?? {};
@@ -135,10 +137,11 @@ export default function Review() {
 
   return (
     <div>
-      <PageHead title="Atelier" resume sub={<>{queue.length} en attente</>} />
+      <PageHead title="Atelier" resume sub={<>{queue.length} opportunité{queue.length > 1 ? "s" : ""} prête{queue.length > 1 ? "s" : ""}</>} />
       <Guide id="valider" titre="Ici : les messages que Bingoo! a écrits pour toi. Rien ne part sans ton accord." etapes={["Lis le message. S'il te va, clique « Envoyer » (ou glisse vers la droite).", "Tu veux changer un mot ? « Modifier ». Bingoo! apprend ton style.", "L'entreprise ne te correspond pas ? Clique sur la raison (« Pas ma cible »…) : Bingoo! s'en souviendra."]} />
       {!domainOk && <p className="mb-4 text-sm bg-warn-soft text-warn rounded-xl px-4 py-3">Pour envoyer, connecte ta boîte mail (2 minutes) ou vérifie ton domaine d'envoi. En attendant, tu peux relire et modifier. <Link to="/connexions" className="underline font-semibold">Connecter ma boîte</Link> · <Link to="/reglages#domaine" className="underline font-semibold">Domaine</Link></p>}
 
+      <Appris className="mb-4 max-w-2xl" />
       <div className="relative max-w-2xl">
         {queue[1] && <div className="absolute inset-x-4 top-3 bottom-24 bg-white/60 border border-line rounded-3xl pointer-events-none" aria-hidden />}
         <article
@@ -147,14 +150,15 @@ export default function Review() {
           className={cx("relative bg-white border rounded-3xl p-5 sm:p-7 shadow-sm select-none", hint === "send" ? "border-good" : hint === "skip" ? "border-bad" : "border-line")}>
           {hint && <span className={cx("absolute top-5 right-5 rounded-full px-3 py-1 text-sm font-bold", hint === "send" ? "bg-good text-white" : "bg-bad text-white")}>{hint === "send" ? "Envoyer" : "Passer"}</span>}
           <div className="flex flex-wrap items-center gap-2">
-            {cur.step >= 100 ? <Badge tone="accent">Reprise de contact</Badge> : cur.step > 0 ? <Badge tone="warn">Relance n°{cur.step}</Badge> : <Badge tone="accent">Premier message</Badge>}
+            {cur.step >= 100 ? <Badge tone="accent">Reprise de contact</Badge> : cur.step > 0 ? <Badge tone="warn">Relance n°{cur.step}</Badge> : <Badge tone="accent">Opportunité</Badge>}
             <Badge>{p.activity}</Badge>
           </div>
-          <h2 className="font-serif text-3xl leading-tight mt-3">{p.name}</h2>
-          <p className="text-sm text-ink-soft mt-1">
-            {[p.contact_name && `${p.contact_name}${p.contact_role ? `, ${p.contact_role}` : ""}`, [p.postal_code, p.city].filter(Boolean).join(" ")].filter(Boolean).join(" · ")}
-          </p>
-          <p className="text-sm mt-1"><span className="text-ink-soft">À :</span> <span className="font-medium">{p.email}</span>{p.website && <> · <a href={p.website} target="_blank" rel="noreferrer" className="text-ink-soft underline">site</a></>}</p>
+          <h2 className="mt-3 text-[30px] font-black leading-tight tracking-tight" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{p.name}</h2>
+          <p className="text-sm text-ink-soft mt-0.5">{[[p.postal_code, p.city].filter(Boolean).join(" "), p.website && "site"].filter(Boolean).length ? <>{[p.postal_code, p.city].filter(Boolean).join(" ")}{p.website && <> · <a href={p.website} target="_blank" rel="noreferrer" className="underline">site</a></>}</> : null}</p>
+          {/* L'opportunité : pourquoi maintenant, et à qui */}
+          {cur.step === 0 ? <div className="mt-4"><Opportunite p={p} /></div> : (
+            <p className="text-sm mt-2"><span className="text-ink-soft">À :</span> <span className="font-medium">{p.contact_name ? `${p.contact_name} · ` : ""}{p.email}</span></p>
+          )}
 
           {cur.check_note && !edit && (
             <div className="mt-4 rounded-2xl border border-warn/40 bg-warn-soft px-4 py-3 text-[13.5px] text-warn">
@@ -175,7 +179,8 @@ export default function Review() {
               </div>
             ) : (
               <>
-                <p className="font-semibold">{cur.subject}</p>
+                <p className="text-[12.5px] font-bold text-ink-soft">Le message</p>
+                <p className="mt-1 font-semibold">{cur.subject}</p>
                 <div className="mt-3 whitespace-pre-line leading-relaxed text-[15px]">{cur.body}</div>
                 {/* Ce que le prospect reçoit vraiment : lien de réservation, signature, pied de page légal */}
                 {ws.app_url && ws.booking_slug && cur.step < 2 && <p className="mt-4 text-[15px] leading-relaxed">Si c'est plus simple, vous pouvez choisir directement un créneau ici : <span className="text-accent-dark underline">ton lien de réservation</span></p>}

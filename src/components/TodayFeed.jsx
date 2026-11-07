@@ -169,7 +169,7 @@ export default function TodayFeed() {
       {nothing && (
         <div className="mb-8 rounded-2xl border border-line bg-white p-6">
           <p className="text-[17px] font-semibold">Tout est à jour.</p>
-          <p className="mt-1 text-[15px] text-ink-soft">Aucune réponse en attente, aucun message à valider. Les nouvelles opportunités arrivent chaque nuit.</p>
+          <p className="mt-1 text-[15px] text-ink-soft">Aucune réponse en attente, aucune opportunité à traiter. Les nouvelles opportunités arrivent chaque nuit.</p>
         </div>
       )}
     </div>

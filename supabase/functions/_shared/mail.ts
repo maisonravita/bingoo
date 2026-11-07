@@ -38,10 +38,10 @@ export async function teamAddress(ws: Workspace) {
 }
 
 /** E-mail de service envoyé par Kairo (notifications, invitations), depuis le domaine de la plateforme. */
-export async function sendSystem(m: { to: string; subject: string; text: string; replyTo?: string; fromName?: string; ics?: string; key?: string }) {
+export async function sendSystem(m: { to: string; subject: string; text: string; html?: string; replyTo?: string; fromName?: string; ics?: string; key?: string }) {
   const from = env("SYSTEM_FROM", `notifications@${PLATFORM_DOMAIN()}`);
   const r = await resend("/emails", "POST", {
-    from: `${m.fromName ?? "Kairo"} <${from}>`, to: [m.to], reply_to: m.replyTo, subject: m.subject, text: m.text,
+    from: `${m.fromName ?? "Bingoo!"} <${from}>`, to: [m.to], reply_to: m.replyTo, subject: m.subject, text: m.text, ...(m.html ? { html: m.html } : {}),
     attachments: m.ics ? [{ filename: "invitation.ics", content: b64(m.ics), content_type: "text/calendar; method=REQUEST" }] : undefined,
   }, m.key ? { "Idempotency-Key": `bingoo-${m.key}` } : {});
   if (!r.ok) throw new HttpError(502, "Notification : " + (r.data?.message ?? r.status));

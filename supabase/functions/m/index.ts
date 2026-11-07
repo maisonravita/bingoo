@@ -96,8 +96,35 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
   // Envoi d'un e-mail validé : contrôle du domaine de l'adresse, puis limites du jour
   async send(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
+    return await envoyerValide(ws, String(b.message_id ?? ""));
+  },
+  // Lien de l'e-mail du matin : lecture (sans rien envoyer), puis envoi seulement sur confirmation explicite dans la page
+  async "lien-envoi"(_req, b) {
+    const { lireLien, marquerUtilise } = await import("../_shared/matin.ts");
+    const t = String(b.t ?? "");
+    const r = await lireLien(t);
+    if (!r) throw new HttpError(404, "Ce lien n'est pas valide.");
+    if (r.etat !== "ok") return { etat: r.etat };
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", r.l.workspace_id).single();
+    if (!ws) throw new HttpError(404, "Espace introuvable");
+    const p = (r.m!.prospects ?? {}) as Prospect;
+    if (b.confirmer !== true) return { etat: "ok", espace: ws.profile?.nom || ws.name, message: { subject: r.m!.subject, body: r.m!.body }, prospect: { name: p.name, contact_name: p.contact_name, contact_role: p.contact_role, contact_source: p.contact_source, email: p.email, city: p.city, signals: p.signals } };
+    await marquerUtilise(t);
+    const res = await envoyerValide(ws, r.m!.id);
+    return { etat: "envoye", ...res as Record<string, unknown> };
+  },
+  async "matin-cron"(req, b) {
+    if ((req.headers.get("x-cron-key") ?? "") !== (await secret("cron_key"))) throw new HttpError(401, "Clé invalide");
+    const { matinCron, emailMatin } = await import("../_shared/matin.ts");
+    if (b.workspace_id) { const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id)).single(); return await emailMatin(ws, b.dry === true); }
+    return await matinCron(b.dry === true);
+  },
+};
+
+/** Envoi d'un message validé par le client (bouton « Envoyer » de l'app ou confirmation depuis l'e-mail du matin). */
+async function envoyerValide(ws: any, messageId: string) {
     await (await import("../_shared/boites.ts")).peutEnvoyer(ws);
-    const { data: msg } = await admin.from("messages").select("id, prospect_id, prospects(email, name)").eq("id", String(b.message_id ?? "")).eq("workspace_id", ws.id).single();
+    const { data: msg } = await admin.from("messages").select("id, prospect_id, prospects(email, name)").eq("id", messageId).eq("workspace_id", ws.id).single();
     if (!msg) throw new HttpError(404, "Message introuvable");
     const pr = (msg as unknown as { prospects: { email: string; name: string } | null }).prospects;
     if (pr?.email && !(await mxOk(pr.email))) {
@@ -115,7 +142,9 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
     const r = await sendOne(ws, msg.id);
     if ((r as { sent?: boolean }).sent) await log(ws.id, "envoi", "E-mail envoyé");
     return { ...r, sent_today: (count ?? 0) + ((r as { sent?: boolean }).sent ? 1 : 0), limit: cap };
-  },
+}
+
+const routes2: Record<string, (req: Request, b: Record<string, unknown>) => Promise<unknown>> = {
   // Contrôle quotidien de la plateforme : incidents envoyés par e-mail si une adresse d'alerte est configurée
   async health(req) {
     if ((req.headers.get("x-cron-key") ?? "") !== (await secret("cron_key"))) throw new HttpError(401, "Clé invalide");
@@ -243,7 +272,8 @@ const routes: Record<string, (req: Request, b: Record<string, unknown>) => Promi
 
 Deno.serve(wrap(async (req) => {
   const parts = new URL(req.url).pathname.split("/").filter(Boolean);
-  const h = routes[parts[parts.indexOf("m") + 1] ?? ""];
+  const nom = parts[parts.indexOf("m") + 1] ?? "";
+  const h = routes[nom] ?? routes2[nom];
   if (!h) throw new HttpError(404, "Action inconnue");
   if (req.method !== "POST") throw new HttpError(405, "POST attendu");
   return json(await h(req, await readJson(req)));

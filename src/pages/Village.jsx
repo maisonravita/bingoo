@@ -41,7 +41,7 @@ const heure = (d) => new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", 
 
 // Ce qu'on fait dans chaque bâtiment, en une phrase simple
 const AIDE = {
-  poste: "Tes messages envoyés et les réponses de tes prospects", atelier: "Les messages écrits pour toi : relis, puis envoie",
+  poste: "Tes messages envoyés et les réponses de tes prospects", atelier: "Tes opportunités : pourquoi maintenant, à qui, et le message prêt",
   rdv: "Tes rendez-vous et la fiche pour les préparer", annuaire: "Toutes les entreprises trouvées et leurs décideurs",
   radar: "Les entreprises à contacter au bon moment, et pourquoi", espion: "Ce que font tes concurrents, et comment les battre",
   linkedin: "Les invitations LinkedIn à envoyer toi-même", observatoire: "Ce qui marche : réponses, rendez-vous, cibles",
@@ -222,7 +222,7 @@ export default function Village() {
   const v = d ?? {};
   const B = [
     { art: "poste", nom: "La Poste", quoi: "Envoyés et réponses", to: "/reponses", badge: v.rep, detail: v.rep ? `${v.rep} prospect${v.rep > 1 ? "s" : ""} t'${v.rep > 1 ? "ont" : "a"} répondu` : "" },
-    { art: "atelier", nom: "L'Atelier", quoi: "Messages à valider", to: "/valider", badge: v.drafts, detail: v.drafts ? "Bingoo! les a écrits pour toi" : "" },
+    { art: "atelier", nom: "L'Atelier", quoi: "Tes opportunités", to: "/valider", badge: v.drafts, detail: v.drafts ? "Pourquoi maintenant, à qui, message prêt" : "" },
     { art: "rdv", nom: "Les Rendez-vous", quoi: "Tes rendez-vous", to: "/agenda", badge: v.rdv, detail: v.rdv ? `${v.rdv} à venir` : "" },
     { art: "annuaire", nom: "L'Annuaire", quoi: "Tes contacts", to: "/prospects", detail: d ? `${v.dec ?? 0} décideur${v.dec > 1 ? "s" : ""} · ${v.mails ?? 0} e-mail${v.mails > 1 ? "s" : ""}` : "" },
     { art: "radar", nom: "La Tour Radar", quoi: "Le bon moment", to: "/radar", badge: v.opps, detail: v.opps ? "Entreprises repérées" : "" },
@@ -237,7 +237,7 @@ export default function Village() {
   const n = (x) => (x ?? 0).toLocaleString("fr-FR");
   const STATS = {
     poste: [["Réponses à traiter", n(v.rep)], ["Messages envoyés", n(v.sentAll)], ["Réponses reçues", n(v.repTotal)], ["Intéressés", n(v.hot)]],
-    atelier: [["Messages à valider", n(v.drafts)], ["Envoyés cette semaine", n(v.sent7)]],
+    atelier: [["Opportunités prêtes", n(v.drafts)], ["Envoyés cette semaine", n(v.sent7)]],
     rdv: [["À venir", n(v.rdv)], ["Obtenus au total", n(v.rdvTotal)]],
     annuaire: [["Décideurs", n(v.dec)], ["E-mails", n(v.mails)], ["Téléphones", n(v.tels)]],
     radar: [["À contacter", n(v.opps)], ["Dont chaudes (75+)", n(v.chaudes)], ["Repérées cette semaine", n(v.opps7)]],
@@ -254,7 +254,7 @@ export default function Village() {
     ...(v.dec ? { Léo: `J'ai trouvé ${pl(v.dec, "décideur", "décideurs")}` } : {}),
     ...(v.mails ? { Sam: `${pl(v.mails, "e-mail trouvé", "e-mails trouvés")}` } : {}),
     ...(v.opps ? { Max: `${pl(v.opps, "entreprise à contacter au bon moment", "entreprises à contacter au bon moment")}` } : {}),
-    ...(v.drafts ? { Hugo: `${pl(v.drafts, "message prêt", "messages prêts")} à valider à l'Atelier` } : {}),
+    ...(v.drafts ? { Hugo: `${pl(v.drafts, "opportunité prête", "opportunités prêtes")} à l'Atelier` } : {}),
     ...(v.rep ? { Inès: `${pl(v.rep, "réponse", "réponses")} à lire à la Poste !` } : {}),
     ...(v.li ? { Lina: `${pl(v.li, "invitation LinkedIn", "invitations LinkedIn")} à valider` } : {}),
     ...(v.rdv ? { Paul: `${pl(v.rdv, "rendez-vous", "rendez-vous")} à venir` } : {}),
@@ -263,7 +263,7 @@ export default function Village() {
   // Le panneau : un seul endroit où aller d'abord
   const next = reglage ? { b: B[8], t: !boite ? "Va à la Mairie : connecte ta boîte mail pour que tes messages puissent partir." : "Va à la Mairie : ajoute l'adresse de ton entreprise (obligatoire en bas des e-mails)." }
     : v.rep ? { b: B[0], t: `Va à la Poste : ${v.rep} prospect${v.rep > 1 ? "s t'ont" : " t'a"} répondu, une réponse est prête.` }
-    : v.drafts ? { b: B[1], t: `Va à l'Atelier : ${v.drafts} message${v.drafts > 1 ? "s" : ""} à valider, un clic chacun.` }
+    : v.drafts ? { b: B[1], t: `Va à l'Atelier : ${v.drafts} opportunité${v.drafts > 1 ? "s" : ""} prête${v.drafts > 1 ? "s" : ""}, un clic chacune.` }
     : v.opps ? { b: B.find((b) => b.art === "radar"), t: `Passe à la Tour Radar : ${v.opps} entreprise${v.opps > 1 ? "s" : ""} à contacter au bon moment${v.chaudes ? `, dont ${v.chaudes} chaude${v.chaudes > 1 ? "s" : ""}` : ""}.` }
     : null;
   const first = (ws.sender_name || "").split(" ")[0];
@@ -319,7 +319,7 @@ export default function Village() {
   const [matinVu, setMatinVu] = useState(() => { try { return localStorage.getItem(cleMatin) === auj; } catch { return false; } });
   const finirMatin = () => { try { localStorage.setItem(cleMatin, auj); } catch { /* rien */ } setMatinVu(true); };
   const travaux = d ? [
-    v.drafts > 0 && { art: "atelier", texte: `${v.drafts} message${v.drafts > 1 ? "s" : ""} à valider`, faire: "Relis et envoie (V pour valider, P pour passer)", min: Math.ceil(v.drafts * 0.4) },
+    v.drafts > 0 && { art: "atelier", texte: `${v.drafts} opportunité${v.drafts > 1 ? "s" : ""} prête${v.drafts > 1 ? "s" : ""}`, faire: "Lis pourquoi maintenant, puis envoie (V) ou passe (P)", min: Math.ceil(v.drafts * 0.4) },
     v.rep > 0 && { art: "poste", texte: `${v.rep} réponse${v.rep > 1 ? "s" : ""} à lire`, faire: "Une réponse est déjà prête : relis-la et envoie", min: v.rep },
     rdvJour.length > 0 && { art: "rdv", texte: `${rdvJour.length} rendez-vous aujourd'hui, dès ${heure(rdvJour[0].starts_at)}`, faire: "Lis la fiche de préparation", min: rdvJour.length },
     (v.chaudes ?? 0) > 0 && { art: "radar", texte: `${v.chaudes} entreprise${v.chaudes > 1 ? "s" : ""} chaude${v.chaudes > 1 ? "s" : ""} au Radar`, faire: "Prépare un message pour les plus chaudes", min: 2 },

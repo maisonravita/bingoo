@@ -1,3 +1,5 @@
+import Appris from "../components/Appris";
+import Opportunite from "../components/Opportunite";
 import PushTel from "../components/PushTel";
 import Visite from "../components/Visite";
 import { useCallback, useEffect, useState } from "react";
@@ -340,7 +342,7 @@ const SEC = { reponses: 40, valider: 15, linkedin: 8, rappels: 60, rdv: 0, radar
 function Morning({ s, canSend, wsId, adresse = true }) {
   const items = [
     ["reponses", s.replies, "réponse à traiter", "réponses à traiter", "Réponse déjà proposée : relis, envoie.", "/reponses", "chat"],
-    ["valider", s.drafts, "message à valider", "messages à valider", "Un geste par message.", "#prets", "send"],
+    ["valider", s.drafts, "opportunité prête", "opportunités prêtes", "Un geste chacune.", "#prets", "send"],
     ["rappels", s.urgent.due.length, "rappel prévu", "rappels prévus", "Le numéro est sur la fiche.", "/prospects", "clock"],
     ["linkedin", s.li, "invitation LinkedIn à valider", "invitations LinkedIn à valider", "Bingoo! les envoie à ton rythme.", "/linkedin", "send"],
     ["radar", s.opps, "entreprise à contacter au bon moment", "entreprises à contacter au bon moment", "Les meilleures entrent seules dans ta prospection chaque jour.", "/radar", "search"],
@@ -384,6 +386,30 @@ function Morning({ s, canSend, wsId, adresse = true }) {
           })}
         </ul>
       )}
+    </section>
+  );
+}
+
+/** L'écran principal : la prochaine opportunité (pourquoi maintenant, à qui, le début du message), et un bouton pour les traiter. */
+function Prochaine({ n }) {
+  const { ws } = useWs();
+  const [m, setM] = useState(null);
+  useEffect(() => {
+    supabase.from("messages").select("id, subject, body, prospects(*)").eq("workspace_id", ws.id).eq("status", "brouillon").eq("step", 0).order("created_at").limit(1)
+      .then(({ data }) => setM(data?.[0] ?? null));
+  }, [ws.id, n]);
+  if (!m?.prospects) return null;
+  const debut = String(m.body ?? "").split("\n").filter((l) => l.trim() && !/^bonjour/i.test(l.trim()))[0] ?? "";
+  return (
+    <section aria-label="Prochaine opportunité" className="mb-6 rounded-3xl border border-line bg-white p-4 sm:p-5">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-[13px] font-bold text-[#C2410C]">Prochaine opportunité</p>
+        <span className="text-[13px] text-ink-soft tnum">{n} prête{n > 1 ? "s" : ""}</span>
+      </div>
+      <h2 className="mt-1 text-[24px] font-black leading-tight" style={{ fontFamily: "Nunito, Geist, system-ui, sans-serif" }}>{m.prospects.name}</h2>
+      <div className="mt-3"><Opportunite p={m.prospects} /></div>
+      {debut && <p className="mt-3 text-[14.5px] text-ink-soft line-clamp-2"><span className="font-semibold text-ink">Le message : </span>{debut}</p>}
+      <Link to="/valider" className="mt-4 flex items-center justify-center rounded-2xl bg-accent px-5 py-3 text-[16px] font-bold text-white hover:brightness-105">Lire et envoyer</Link>
     </section>
   );
 }
@@ -548,16 +574,22 @@ export default function Today() {
       </button>
       {s && <Demarrer s={s} />}
       {s && <Travail s={s} />}
+      {s && s.drafts > 0 && <Prochaine n={s.drafts} />}
+      {s && s.sent > 0 && <Appris className="mb-6" />}
       {s && <Morning s={s} wsId={ws.id} canSend={ws.domain_status === "verified" || !!ws.integrations?.mailbox?.ok} adresse={!!ws.postal_address} />}
 
       <h2 className="text-[19px] font-semibold mb-3 mt-2">Tes résultats</h2>
       {s && <Contacts s={s} />}
 
-      <h2 className="text-[19px] font-semibold mb-3">Trouver d'autres clients</h2>
-      <Decris />
-      <Public />
-      <Demarrage />
       <PushTel compact />
+      {/* Les outils pour élargir la recherche : repliés, l'écran principal reste les opportunités */}
+      <details className="group mb-6 rounded-2xl border border-line bg-white">
+        <summary className="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-3">
+          <span className="font-semibold">Trouver d'autres clients</span>
+          <span className="text-sm text-ink-soft group-open:hidden">Afficher</span><span className="text-sm text-ink-soft hidden group-open:inline">Masquer</span>
+        </summary>
+        <div className="px-4 pb-4 pt-1"><Decris /><Public /><Demarrage /></div>
+      </details>
       {/* Le bandeau de la semaine (et ta ville) n'apparaît qu'avec assez d'envois pour vouloir dire quelque chose */}
       {s && s.sent >= 20 && <div className="hidden sm:block"><Semaine /></div>}
 

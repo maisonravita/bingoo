@@ -92,17 +92,6 @@ export default function Settings() {
       <SubNav section="reglages" />
       <PageHead title="Mairie" sub="Tes réglages" />
 
-      <Section open title="Pilote automatique" sub="Choisis jusqu'où la machine agit seule.">
-        <div className="grid sm:grid-cols-2 gap-3">
-          {[["valider", "Je valide chaque envoi", "La machine trouve, enquête et rédige. Tu valides chaque message d'un geste."], ["auto", "Pilote automatique", "Chaque jour ouvré de 8 h à 18 h, la machine enquête, rédige et envoie seule, dans ta limite quotidienne. Les relances ne partent seules que si le suivi des réponses est actif."]].map(([k, t, d]) => (
-            <button key={k} onClick={async () => { setBusy("save"); try { await fn("autonomy", { workspace_id: ws.id, mode: k }); await patch({}); toast(k === "auto" ? "Pilote automatique activé" : "Validation manuelle", "good"); } catch (e) { toast(e.message, "bad"); } finally { setBusy(null); } }} className={cx("text-left rounded-2xl border p-4 transition", ws.autonomy === k ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink-faint")}>
-              <p className="font-semibold">{t}</p><p className={cx("text-sm mt-1", ws.autonomy === k ? "text-white/70" : "text-ink-soft")}>{d}</p>
-            </button>
-          ))}
-        </div>
-        {ws.autonomy === "auto" && ws.domain_status !== "verified" && <p className="text-sm text-warn mt-3">Le pilote ne pourra rien envoyer tant que ton domaine n'est pas vérifié.</p>}
-      </Section>
-
       <Section title="Ton entreprise" sub="Ce que la machine sait de toi. Elle n'invente rien en dehors de ces informations.">
         <div className="grid gap-4">
           <Field label="Nom commercial"><Input value={pr.nom ?? ""} onChange={(e) => setP("nom", e.target.value)} /></Field>
@@ -119,10 +108,14 @@ export default function Settings() {
         </div>
       </Section>
 
-      <Section id="style" title="Bingoo! écrit comme toi" sub="Chaque fois que tu corriges un message avant de l'envoyer, Bingoo! en tire des règles de style. Elles passent avant le ton par défaut. Corrige-les ou ajoute les tiennes, une par ligne.">
-        {(pr.style ?? []).length === 0 && <p className="text-sm text-ink-soft mb-3">Rien d'appris pour l'instant : corrige 1 à 3 messages dans « À valider », Bingoo! remplira cette liste.</p>}
-        <Textarea rows={5} value={(pr.style ?? []).join("\n")} onChange={(e) => setP("style", e.target.value.split("\n"))} placeholder={"Tutoie toujours\nSigne avec ton seul prénom\nPas plus de 4 phrases"} />
-        <div className="mt-3"><Button variant="primary" loading={busy === "save"} onClick={() => save({ profile: { ...pr, style: (pr.style ?? []).map((x) => x.trim()).filter(Boolean).slice(0, 8) } }, "Style enregistré")}>Enregistrer</Button></div>
+      <Section title="Expéditeur" sub="Qui signe les messages.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Prénom et nom"><Input value={f.sender_name} onChange={(e) => setF({ ...f, sender_name: e.target.value })} /></Field>
+          <Field label="Adresse d'expédition" hint={ws.domain ? `Doit se terminer par @${ws.domain}` : "Sur ton propre domaine"}><Input type="email" value={f.sender_email} onChange={(e) => setF({ ...f, sender_email: e.target.value.trim() })} placeholder={ws.domain ? `prenom@${ws.domain}` : "prenom@monentreprise.fr"} /></Field>
+          <Field label="Signature" className="sm:col-span-2"><Textarea rows={4} value={f.signature} onChange={(e) => setF({ ...f, signature: e.target.value })} placeholder={`${f.sender_name || "Prénom Nom"}\nFonction · ${pr.nom || "Entreprise"}\n06 00 00 00 00`} /></Field>
+          <Field label="Adresse postale de l'entreprise" className="sm:col-span-2" hint="Obligatoire en bas des e-mails de prospection."><Input value={f.postal_address} onChange={(e) => setF({ ...f, postal_address: e.target.value })} /></Field>
+        </div>
+        <Button className="mt-5" variant="primary" loading={busy === "save"} onClick={() => save({ sender_name: f.sender_name, sender_email: f.sender_email, signature: f.signature, postal_address: f.postal_address, daily_limit: Math.min(200, Math.max(1, f.daily_limit)) })}>Enregistrer</Button>
       </Section>
 
       <Section id="exclusions" title="Ne jamais contacter" sub="Tes clients actuels, partenaires et concurrents. Avant chaque premier message, Bingoo! vérifie aussi qu'il n'est pas déjà en contact avec l'entreprise (autre interlocuteur, rendez-vous, refus).">
@@ -160,6 +153,46 @@ export default function Settings() {
           }}>Importer mes clients depuis {ws.integrations?.hubspot?.ok ? "HubSpot" : "Pipedrive"}</Button>}
         </div>
         <div className="mt-3"><Button variant="primary" loading={busy === "save"} onClick={() => save({ profile: { ...pr, exclusions: (Array.isArray(pr.exclusions) ? pr.exclusions : String(pr.exclusions ?? "").split("\n")).map((x) => x.trim()).filter((x) => x.length >= 3).slice(0, 2000) } }, "Liste enregistrée")}>Enregistrer</Button></div>
+      </Section>
+
+      <Section title="Rendez-vous" sub="Ta page de réservation propose ces créneaux, sans jamais en proposer un déjà pris.">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Field label="Durée (minutes)"><Input type="number" value={f.meeting_minutes} onChange={(e) => setF({ ...f, meeting_minutes: Number(e.target.value) || 30 })} /></Field>
+          <Field label="Lieu"><Input value={f.meeting_location} onChange={(e) => setF({ ...f, meeting_location: e.target.value })} /></Field>
+        </div>
+        <p className="text-[13px] font-semibold mt-5 mb-2">Disponibilités <span className="font-normal text-ink-soft">(ex. 9:00-12:00, 14:00-18:00 · vide = indisponible)</span></p>
+        <div className="space-y-2">
+          {DAYS.map(([d, l]) => <div key={d} className="grid grid-cols-[90px_1fr] items-center gap-3"><span className="text-sm">{l}</span><Input defaultValue={winText(d)} onBlur={(e) => setWin(d, e.target.value)} className="py-2 text-sm" /></div>)}
+        </div>
+        <Button className="mt-4" variant="primary" loading={busy === "save"} onClick={() => save({ meeting_minutes: Math.min(180, Math.max(10, f.meeting_minutes)), meeting_location: f.meeting_location, availability: f.availability })}>Enregistrer</Button>
+      </Section>
+
+      <Section title="E-mail du matin" sub="Chaque matin de semaine, tes opportunités du jour dans ta boîte, avec un bouton « Envoyer » pour chacune.">
+        <label className="flex items-center gap-3 text-[15px]"><input type="checkbox" checked={pr.matin !== false && !(ws.plan === "fondateur" && pr.matin !== true)} onChange={(e) => save({ profile: { ...pr, matin: e.target.checked } }, e.target.checked ? "E-mail du matin activé" : "E-mail du matin désactivé")} /> Recevoir mes opportunités chaque matin</label>
+      </Section>
+
+      {/* Le reste : Bingoo! a déjà fait les bons choix ; on les change rarement */}
+      <details className="group" open={/#.*(domaine|avance|fiche|sequence|style)/.test(window.location.hash) || undefined}>
+        <summary className="cursor-pointer list-none rounded-2xl border border-line bg-white px-5 py-4 flex items-center justify-between gap-3">
+          <span><span className="block font-semibold">Plus de réglages</span><span className="block text-sm text-ink-soft">Bingoo! a déjà fait les bons choix : pilote, zone et cibles, volume, séquence, domaine, notifications, outils avancés.</span></span>
+          <span className="text-sm text-ink-soft group-open:hidden">Afficher</span><span className="text-sm text-ink-soft hidden group-open:inline">Masquer</span>
+        </summary>
+        <div className="mt-6 space-y-6">
+      <Section open title="Pilote automatique" sub="Choisis jusqu'où la machine agit seule.">
+        <div className="grid sm:grid-cols-2 gap-3">
+          {[["valider", "Je valide chaque envoi", "La machine trouve, enquête et rédige. Tu valides chaque message d'un geste."], ["auto", "Pilote automatique", "Chaque jour ouvré de 8 h à 18 h, la machine enquête, rédige et envoie seule, dans ta limite quotidienne. Les relances ne partent seules que si le suivi des réponses est actif."]].map(([k, t, d]) => (
+            <button key={k} onClick={async () => { setBusy("save"); try { await fn("autonomy", { workspace_id: ws.id, mode: k }); await patch({}); toast(k === "auto" ? "Pilote automatique activé" : "Validation manuelle", "good"); } catch (e) { toast(e.message, "bad"); } finally { setBusy(null); } }} className={cx("text-left rounded-2xl border p-4 transition", ws.autonomy === k ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink-faint")}>
+              <p className="font-semibold">{t}</p><p className={cx("text-sm mt-1", ws.autonomy === k ? "text-white/70" : "text-ink-soft")}>{d}</p>
+            </button>
+          ))}
+        </div>
+        {ws.autonomy === "auto" && ws.domain_status !== "verified" && <p className="text-sm text-warn mt-3">Le pilote ne pourra rien envoyer tant que ton domaine n'est pas vérifié.</p>}
+      </Section>
+
+      <Section id="style" title="Bingoo! écrit comme toi" sub="Chaque fois que tu corriges un message avant de l'envoyer, Bingoo! en tire des règles de style. Elles passent avant le ton par défaut. Corrige-les ou ajoute les tiennes, une par ligne.">
+        {(pr.style ?? []).length === 0 && <p className="text-sm text-ink-soft mb-3">Rien d'appris pour l'instant : corrige 1 à 3 messages dans « À valider », Bingoo! remplira cette liste.</p>}
+        <Textarea rows={5} value={(pr.style ?? []).join("\n")} onChange={(e) => setP("style", e.target.value.split("\n"))} placeholder={"Tutoie toujours\nSigne avec ton seul prénom\nPas plus de 4 phrases"} />
+        <div className="mt-3"><Button variant="primary" loading={busy === "save"} onClick={() => save({ profile: { ...pr, style: (pr.style ?? []).map((x) => x.trim()).filter(Boolean).slice(0, 8) } }, "Style enregistré")}>Enregistrer</Button></div>
       </Section>
 
       <Section id="avance" title="Outils avancés" sub="Par défaut, Bingoo! ne montre que ce qui mène à un rendez-vous. Active les outils avancés pour ouvrir aussi l'Espion (tes concurrents), le Café LinkedIn, les devis, le trafic et la conversion de ton site, les réseaux sociaux, le studio vidéo, l'équipe IA en conversation et l'analyse de ce que disent tes prospects.">
@@ -212,19 +245,6 @@ export default function Settings() {
           ))}
         </div>
         <Button className="mt-4" variant="primary" loading={busy === "count"} onClick={() => recount({ targets: f.targets.map((t) => ({ ...t, next_page: t.next_page === null ? null : t.next_page ?? 1 })) })}>Enregistrer et recompter</Button>
-      </Section>
-
-      <Section title="Expéditeur" sub="Qui signe les messages, et combien en envoyer par jour.">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Prénom et nom"><Input value={f.sender_name} onChange={(e) => setF({ ...f, sender_name: e.target.value })} /></Field>
-          <Field label="Adresse d'expédition" hint={ws.domain ? `Doit se terminer par @${ws.domain}` : "Sur ton propre domaine"}><Input type="email" value={f.sender_email} onChange={(e) => setF({ ...f, sender_email: e.target.value.trim() })} placeholder={ws.domain ? `prenom@${ws.domain}` : "prenom@monentreprise.fr"} /></Field>
-          <Field label="Signature" className="sm:col-span-2"><Textarea rows={4} value={f.signature} onChange={(e) => setF({ ...f, signature: e.target.value })} placeholder={`${f.sender_name || "Prénom Nom"}\nFonction · ${pr.nom || "Entreprise"}\n06 00 00 00 00`} /></Field>
-          <Field label="Adresse postale de l'entreprise" className="sm:col-span-2" hint="Obligatoire en bas des e-mails de prospection."><Input value={f.postal_address} onChange={(e) => setF({ ...f, postal_address: e.target.value })} /></Field>
-          <Field label="Envois maximum par jour" hint="10 par défaut : peu de messages, chacun sur un fait précis. Monte doucement si les réponses suivent.">
-            <Input type="number" min={1} max={200} value={f.daily_limit} onChange={(e) => setF({ ...f, daily_limit: Number(e.target.value) || 1 })} />
-          </Field>
-        </div>
-        <Button className="mt-5" variant="primary" loading={busy === "save"} onClick={() => save({ sender_name: f.sender_name, sender_email: f.sender_email, signature: f.signature, postal_address: f.postal_address, daily_limit: Math.min(200, Math.max(1, f.daily_limit)) })}>Enregistrer</Button>
       </Section>
 
       <Section id="sequence" title="Ta séquence" sub="Ce qui se passe après le premier e-mail : relances, LinkedIn, appel. Une réponse du prospect arrête tout.">
@@ -283,18 +303,6 @@ export default function Settings() {
         <PushTel />
       </Section>
 
-      <Section title="Rendez-vous" sub="Ta page de réservation propose ces créneaux, sans jamais en proposer un déjà pris.">
-        <div className="grid sm:grid-cols-2 gap-4">
-          <Field label="Durée (minutes)"><Input type="number" value={f.meeting_minutes} onChange={(e) => setF({ ...f, meeting_minutes: Number(e.target.value) || 30 })} /></Field>
-          <Field label="Lieu"><Input value={f.meeting_location} onChange={(e) => setF({ ...f, meeting_location: e.target.value })} /></Field>
-        </div>
-        <p className="text-[13px] font-semibold mt-5 mb-2">Disponibilités <span className="font-normal text-ink-soft">(ex. 9:00-12:00, 14:00-18:00 · vide = indisponible)</span></p>
-        <div className="space-y-2">
-          {DAYS.map(([d, l]) => <div key={d} className="grid grid-cols-[90px_1fr] items-center gap-3"><span className="text-sm">{l}</span><Input defaultValue={winText(d)} onBlur={(e) => setWin(d, e.target.value)} className="py-2 text-sm" /></div>)}
-        </div>
-        <Button className="mt-4" variant="primary" loading={busy === "save"} onClick={() => save({ meeting_minutes: Math.min(180, Math.max(10, f.meeting_minutes)), meeting_location: f.meeting_location, availability: f.availability })}>Enregistrer</Button>
-      </Section>
-
       {pr.avance === true && (<>
       <Section title="Devis" sub="Tes prestations habituelles et les mentions légales qui apparaissent sur les devis.">
         <div className="grid sm:grid-cols-3 gap-4">
@@ -319,6 +327,17 @@ export default function Settings() {
         </div>
       </Section>
       </>)}
+
+      <Section title="Volume d'envoi" sub="10 premiers messages par jour par défaut : peu, mais chacun sur un fait précis.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Envois maximum par jour" hint="10 par défaut : peu de messages, chacun sur un fait précis. Monte doucement si les réponses suivent.">
+            <Input type="number" min={1} max={200} value={f.daily_limit} onChange={(e) => setF({ ...f, daily_limit: Number(e.target.value) || 1 })} />
+          </Field>
+        </div>
+        <Button className="mt-5" variant="primary" loading={busy === "save"} onClick={() => save({ daily_limit: Math.min(200, Math.max(1, f.daily_limit)) })}>Enregistrer</Button>
+      </Section>
+        </div>
+      </details>
 
       <ExternalAccess ws={ws} />
     </div>

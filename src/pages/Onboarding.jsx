@@ -1,3 +1,5 @@
+import Opportunite from "../components/Opportunite";
+import { trace } from "../lib/usage";
 import { useEffect, useState } from "react";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
@@ -274,24 +276,26 @@ function Express({ e, ws }) {
     return (
       <div className="rise rounded-3xl bg-white border border-line shadow-[0_24px_60px_-34px_rgba(21,22,26,.35)] p-6 sm:p-9">
         <h1 className={cx(H, "text-[34px] sm:text-[44px]")} style={HFONT}>
-          {ok ? `${e.prets} message${e.prets > 1 ? "s" : ""} prêt${e.prets > 1 ? "s" : ""} à relire` : e.trouves > 0 ? `${fmtN(e.trouves)} entreprises dans ton espace` : "Ton espace est prêt"}
+          {ok ? `${e.prets === 1 ? "Une entreprise a" : `${e.prets} entreprises ont`} besoin de toi cette semaine` : e.trouves > 0 ? `${fmtN(e.trouves)} entreprises dans ton espace` : "Ton espace est prêt"}
         </h1>
         <p className="text-ink-soft mt-3 text-[17px]">
-          {ok ? "Chacun s'appuie sur un fait récent et vérifiable. Rien n'est parti : c'est toi qui valides." : "Je n'écris que lorsqu'une entreprise a un fait récent à citer et une adresse vérifiée. Je continue cette nuit : tes premiers messages t'attendront demain matin."}
+          {ok ? "Voici pourquoi c'est le bon moment, à qui écrire, et le message prêt. Tu l'enverrais ?" : "Je n'écris que lorsqu'une entreprise a un fait récent à citer et une adresse vérifiée. Je continue cette nuit : tes premières opportunités t'attendront demain matin."}
         </p>
-        <dl className="mt-7 grid grid-cols-3 gap-3 text-center">
-          {[[e.trouves, "entreprises trouvées"], [e.emails, "e-mails vérifiés"], [e.prets, "messages prêts"]].map(([n, l]) => (
-            <div key={l} className="rounded-2xl bg-paper border border-line px-3 py-4">
-              <dt className="sr-only">{l}</dt>
-              <dd className="text-[28px] font-bold tabular-nums" style={HFONT}>{fmtN(n ?? 0)}</dd>
-              <dd className="text-[13px] text-ink-soft">{l}</dd>
-            </div>
-          ))}
-        </dl>
+        {ok ? <Cartes ws={ws} /> : (
+          <dl className="mt-7 grid grid-cols-2 gap-3 text-center">
+            {[[e.trouves, "entreprises trouvées"], [e.emails, "e-mails vérifiés"]].map(([n, l]) => (
+              <div key={l} className="rounded-2xl bg-paper border border-line px-3 py-4">
+                <dt className="sr-only">{l}</dt>
+                <dd className="text-[28px] font-bold tabular-nums" style={HFONT}>{fmtN(n ?? 0)}</dd>
+                <dd className="text-[13px] text-ink-soft">{l}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
         {ok && <Debloquer ws={ws} />}
         <div className="mt-7 flex flex-wrap gap-3">
-          {ok ? <Button variant="accent" size="lg" onClick={() => { window.location.href = "/valider"; }}>Relire mes messages</Button>
-            : <Button variant="accent" size="lg" onClick={() => { window.location.href = "/"; }}>Ouvrir mon espace</Button>}
+          {ok ? <Button variant="accent" size="lg" onClick={() => { window.location.href = "/#/valider"; }}>Ouvrir mes opportunités</Button>
+            : <Button variant="accent" size="lg" onClick={() => { window.location.href = "/#/"; }}>Ouvrir mon espace</Button>}
           <button className="text-[15px] font-semibold text-ink-soft hover:text-ink px-3" onClick={() => { window.location.href = "/qg/?premiere=1"; }}>Voir mon équipe partir dans ma ville</button>
         </div>
       </div>
@@ -324,7 +328,7 @@ function Debloquer({ ws }) {
   const [busy, setBusy] = useState("");
   const boite = ws?.domain_status === "verified" || !!ws?.integrations?.mailbox?.ok;
   if (okAdresse && boite) return null;
-  const retour = () => { try { localStorage.setItem("bingoo-apres-boite", "/valider"); } catch { /* rien */ } };
+  const retour = () => { try { localStorage.setItem("bingoo-apres-boite", "/#/valider"); } catch { /* rien */ } };
   const outlook = async () => { setBusy("outlook"); retour(); try { const r = await fn("o/microsoft-url", { workspace_id: ws.id }); window.location.href = r.url; } catch (x) { toast(x.message, "bad"); setBusy(""); } };
   const sauver = async () => {
     if (adresse.trim().length < 8) return toast("Indique l'adresse complète (rue, code postal, ville)", "bad");
@@ -348,10 +352,43 @@ function Debloquer({ ws }) {
           {boite ? <span className="text-[14px]">Boîte mail connectée</span> : (<>
             <span className="flex-1 text-[14px]">Ta boîte mail, pour envoyer de ton adresse</span>
             <Button loading={busy === "outlook"} onClick={outlook}>Outlook</Button>
-            <Button onClick={() => { retour(); window.location.href = "/connexions"; }}>Gmail ou autre (2 min)</Button>
+            <Button onClick={() => { retour(); window.location.href = "/#/connexions"; }}>Gmail ou autre (2 min)</Button>
           </>)}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Le moment magique : les opportunités elles-mêmes, et une question. La réponse est mesurée (activation). */
+function Cartes({ ws }) {
+  const [rows, setRows] = useState(null);
+  const [avis, setAvis] = useState({});
+  useEffect(() => {
+    supabase.from("messages").select("id, subject, body, prospects(*)").eq("workspace_id", ws.id).eq("status", "brouillon").eq("step", 0).order("created_at").limit(3)
+      .then(({ data }) => setRows(data ?? []));
+  }, [ws.id]);
+  if (!rows) return <div className="mt-6 h-40 rounded-2xl bg-paper animate-pulse" />;
+  const repondre = (id, v) => { setAvis((a) => ({ ...a, [id]: v })); trace(ws.id, "moment_magique", v); };
+  return (
+    <div className="mt-6 space-y-4">
+      {rows.map((m) => (
+        <article key={m.id} className="rounded-2xl border border-line p-4">
+          <p className="text-[19px] font-black leading-tight" style={HFONT}>{m.prospects?.name}</p>
+          <div className="mt-3"><Opportunite p={m.prospects ?? {}} /></div>
+          <details className="mt-3 group">
+            <summary className="cursor-pointer list-none text-[14px]"><span className="font-semibold">Le message :</span> <span className="text-ink-soft">{m.subject}</span> <span className="text-accent-dark underline group-open:hidden">lire</span></summary>
+            <p className="mt-2 whitespace-pre-line text-[14.5px] leading-relaxed">{m.body}</p>
+          </details>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-[14px]">
+            <span className="font-semibold">Tu l'enverrais ?</span>
+            {avis[m.id] ? <span className="text-ink-soft">{avis[m.id] === "oui" ? "Noté : il t'attend dans l'Atelier." : "Noté : tu pourras le modifier ou l'écarter dans l'Atelier."}</span> : (<>
+              <button onClick={() => repondre(m.id, "oui")} className="rounded-full bg-good/10 px-3 py-1 font-semibold text-good hover:bg-good/20">Oui</button>
+              <button onClick={() => repondre(m.id, "non")} className="rounded-full bg-paper px-3 py-1 font-semibold text-ink-soft hover:text-ink">Pas tel quel</button>
+            </>)}
+          </div>
+        </article>
+      ))}
     </div>
   );
 }
