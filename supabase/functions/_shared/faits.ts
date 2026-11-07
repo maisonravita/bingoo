@@ -39,7 +39,7 @@ Réponds en JSON : {"doutes": [{"citation": "citation courte", "pourquoi": "rais
 
 /** Réécrit le message en retirant (ou en transformant en question) les affirmations sans source. Même ton, plus court. */
 export async function corrigerFaits(_ws: Workspace, p: Prospect, subject: string, body: string, doutes: string) {
-  const r = await askJson<{ objet: string; corps: string }>(`Corrige cet e-mail de prospection : retire chaque affirmation listée ci-dessous (ou transforme-la en question neutre), sans rien inventer d'autre, et sans rien supposer de nouveau sur le prospect. Garde le même ton, la même salutation, la même question finale si elle reste juste. 40 à 70 mots. Pas de tiret long.
+  const r = await askJson<{ objet: string; corps: string }>(`Corrige cet e-mail de prospection : retire chaque affirmation listée ci-dessous (ou transforme-la en question neutre), sans rien inventer d'autre, et sans rien supposer de nouveau sur le prospect. Jamais d'excuse ni de doute exprimé au prospect (« si nous avons mal compris », « veuillez nous excuser ») : on retire la phrase, on ne s'en excuse pas. Garde le même ton, la même salutation, la même question finale si elle reste juste. 40 à 70 mots. Pas de tiret long.
 Prospect : ${p.name}
 Affirmations sans source :
 ${doutes}

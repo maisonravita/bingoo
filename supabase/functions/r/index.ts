@@ -569,7 +569,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
     if (!ws) throw new HttpError(404, "Espace introuvable");
     setAi({ ws: ws.id, live: true });
-    const { rediger } = await import("../_shared/agents.ts");
+    const { rediger, declencheur } = await import("../_shared/agents.ts");
     const { data: ms } = await admin.from("messages").select("id, prospect_id, prospects(*)").eq("workspace_id", ws.id).eq("status", "brouillon").eq("step", 0)
       .lt("created_at", String(b.avant ?? new Date().toISOString())).order("created_at").limit(Math.min(Number(b.n ?? 10), 15));
     const out: Record<string, string> = {};
@@ -577,6 +577,13 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     for (const m of ms ?? []) {
       if (Date.now() - t0 > 110_000) break;
       const p = (m as { prospects: Prospect }).prospects;
+      // Pas de fait récent : pas de message (règle de base), la fiche attend un signal
+      const { count: radar } = await admin.from("radar_opps").select("id", { count: "exact", head: true }).eq("prospect_id", p.id);
+      if (!declencheur(p) && !radar) {
+        await admin.from("messages").update({ status: "ignore", error: "Retiré : aucun fait récent à citer" }).eq("id", m.id);
+        await admin.from("prospects").update({ status: "pret" }).eq("id", m.prospect_id).eq("status", "a_valider");
+        out[p.name] = "retiré (aucun fait récent)"; continue;
+      }
       try {
         const d = await rediger(ws, p);
         await admin.from("messages").update({ subject: d.subject, body: d.body, check_note: "", created_at: new Date().toISOString() }).eq("id", m.id);

@@ -15,7 +15,8 @@ function dateDe(s) {
 
 /** Le fait récent sur lequel s'ouvre le message (ou null). */
 export function declencheur(p) {
-  const sg = (p?.signals ?? []).filter((x) => x?.label && MOMENTS.has(String(x.type)));
+  const sg = (p?.signals ?? []).filter((x) => x?.label && MOMENTS.has(String(x.type))
+    && (x.type !== "dirigeant" || /changement|nouveau|nouvelle|nomm|reprise|rachat|partant|arriv|succ[eè]d|cession/i.test(String(x.label))));
   const frais = sg.map((x) => ({ x, d: dateDe(x) })).filter(({ d }) => !d || (Date.now() - d) / (30.4 * 864e5) <= 18);
   frais.sort((u, v) => (v.d ? +v.d : 0) - (u.d ? +u.d : 0));
   return frais[0] ? { ...frais[0].x, quand: frais[0].d } : null;
