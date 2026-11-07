@@ -106,9 +106,10 @@ h1, h2, h3 { text-wrap: balance; }
 .bv-int .bg-paper { background-color: #FFF8F1; }
 .bv-int .rounded-2xl.bg-white, .bv-int .rounded-3xl.bg-white { box-shadow: 0 12px 26px -20px rgba(122, 74, 42, .5); }
 
-/* Une seule écriture de titres dans tout Bingoo! (site, inscription, application, ville) : Source Serif 4, regular.
-   Elle se change ici et seulement ici. Les textes courants restent en Geist. */
-:root { --font-titre: "Source Serif 4", Georgia, "Times New Roman", serif; }
+/* Une seule écriture dans tout Bingoo! (site, inscription, application, ville) : Plus Jakarta Sans, celle de la maquette.
+   Titres en très gras, textes en regular. Elle se change ici et seulement ici. */
+:root { --font-titre: "Plus Jakarta Sans", Geist, system-ui, sans-serif; }
+body { font-family: "Plus Jakarta Sans", Geist, system-ui, -apple-system, sans-serif; }
 /* Tous les titres (h1, h2, h3) prennent aussi cette écriture, en demi-gras pour rester lisibles en petit */
-h1, h2, h3 { font-family: var(--font-titre); font-weight: 500 !important; letter-spacing: -0.01em; }
-.font-serif, [style*="--font-titre"] { font-family: var(--font-titre) !important; font-weight: 400 !important; letter-spacing: -0.015em; font-optical-sizing: auto; }
+h1, h2, h3 { font-family: var(--font-titre); font-weight: 700; letter-spacing: -0.02em; }
+.font-serif, [style*="--font-titre"] { font-family: var(--font-titre) !important; font-weight: 800 !important; letter-spacing: -0.03em; }

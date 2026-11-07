@@ -14,9 +14,9 @@ export default {
         li: "#0A66C2",
       },
       fontFamily: {
-        sans: ["Geist", "system-ui", "-apple-system", "sans-serif"],
-        // Une seule police de titres partout : Source Serif 4 (voir --font-titre dans index.css)
-        serif: ['"Source Serif 4"', "Georgia", "serif"],
+        sans: ['"Plus Jakarta Sans"', "Geist", "system-ui", "-apple-system", "sans-serif"],
+        // Une seule police partout : Plus Jakarta Sans (voir --font-titre dans index.css)
+        serif: ['"Plus Jakarta Sans"', "Geist", "system-ui", "sans-serif"],
       },
     },
   },
