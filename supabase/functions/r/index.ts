@@ -596,6 +596,57 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     }
     return { traites: Object.keys(out).length, detail: out };
   },
+  // Remplir l'Atelier tout de suite (sans attendre la nuit) : plus d'entreprises du registre, Radar sur les sources officielles,
+  // entrées automatiques des entreprises au bon moment, e-mails publiés (fiches à fait récent d'abord), puis rédaction.
+  async remplir(req, b) {
+    await cron(req);
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
+    if (!ws) throw new HttpError(404, "Espace introuvable");
+    setAi({ ws: ws.id, live: true });
+    const out: Record<string, unknown> = {};
+    const t0 = Date.now(), reste = () => 140_000 - (Date.now() - t0);
+    if (b.etape === "chercher" || !b.etape) {
+      const { searchTarget } = await import("../_shared/search.ts");
+      const targets = (ws.targets ?? []) as { id: string; actif?: boolean; next_page?: number | null }[];
+      let n = 0;
+      for (const t of targets.filter((x) => x.actif !== false && x.next_page !== null)) {
+        if (reste() < 60_000) break;
+        const r = await searchTarget(ws.id, t as never, ws.zone ?? [], Math.min(Number(b.pages ?? 2), 3)).catch(() => null);
+        if (r) { t.next_page = r.nextPage; n += r.inserted; }
+      }
+      await admin.from("workspaces").update({ targets }).eq("id", ws.id);
+      out.entreprises_ajoutees = n;
+    }
+    if (b.etape === "radar" || !b.etape) {
+      const { scanRadar, radarAuto } = await import("../_shared/radar.ts");
+      const sr = await scanRadar(ws, { web: false }).catch((e) => ({ erreur: (e as Error).message }));
+      out.radar = sr;
+      out.entrees_radar = await radarAuto(ws).catch(() => 0);
+    }
+    if (b.etape === "emails") {
+      const { freeEnrich } = await import("../_shared/deep.ts");
+      const { declencheur } = await import("../_shared/agents.ts");
+      const { data: pool } = await admin.from("prospects").select("*").eq("workspace_id", ws.id).eq("email", "").in("status", ["nouveau", "sans_email"]).is("free_tried_at", null).limit(400);
+      const cibles = (pool ?? []).filter((p) => declencheur(p)).slice(0, 18);
+      let emails = 0;
+      for (let i = 0; i < cibles.length && reste() > 15_000; i += 3) {
+        const r = await Promise.all(cibles.slice(i, i + 3).map((p) => freeEnrich(p, true).catch(() => ({ email: "" }))));
+        emails += r.filter((x) => x.email).length;
+      }
+      out.essais = cibles.length; out.emails = emails;
+    }
+    if (b.etape === "rediger") {
+      const { aEcrire, draft } = await import("../_shared/agents.ts");
+      const cands = await aEcrire(ws.id, 8);
+      let n = 0, retires = 0;
+      for (const p of cands) {
+        if (n >= Number(b.n ?? 5) || reste() < 20_000) break;
+        try { await draft(ws, p); n++; } catch { retires++; }
+      }
+      out.opportunites = n; out.non_retenues = retires;
+    }
+    return out;
+  },
   // Test des fournisseurs d'e-mails : présence des clés (jamais leur valeur), puis recherche sur quelques fiches à déclencheur
   async "email-test"(req, b) {
     await cron(req);
