@@ -37,39 +37,6 @@ const I = {
 };
 const Ico = ({ n, className = "w-5 h-5" }) => <svg viewBox="0 0 24 24" className={cx(className, "shrink-0")} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{I[n]}</svg>;
 
-/** L'espionne de Bingoo! : son portrait, qui cligne des yeux. Au travail, sa loupe passe sur l'écran et un balayage la traverse. */
-const LIDS = [[573, 399, 56, 34], [755, 403, 45, 32]];
-export function Spy({ working, className = "w-[205px] h-[246px]" }) {
-  const mask = { WebkitMaskImage: "url(/espion.webp)", maskImage: "url(/espion.webp)", WebkitMaskSize: "100% 100%", maskSize: "100% 100%" };
-  return (
-    <div className={cx("relative shrink-0 select-none", className)}>
-      {/* Halo derrière le personnage */}
-      <div className={cx("absolute left-1/2 top-[18%] -translate-x-1/2 w-[92%] aspect-square rounded-full bg-gradient-to-b from-accent-soft to-[#FFF4EC]", working && "animate-pulse")} />
-      <div className="absolute inset-0">
-        <img src="/espion.webp" alt="L'espionne de Bingoo!" className="absolute inset-0 h-full w-full drop-shadow-[0_14px_18px_rgba(10,10,10,.22)]" draggable={false} />
-        <svg viewBox="105 8 1040 1246" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden>
-          <defs><linearGradient id="spy-lid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#B85F2A" /><stop offset="1" stopColor="#DF7B3B" /></linearGradient></defs>
-          {LIDS.map(([x, y, rx, ry], i) => (
-            <g key={i} className="lid" style={{ transformOrigin: `${x}px ${y - ry}px`, animationDuration: "5.2s", animationDelay: "-1.3s" }}>
-              <ellipse cx={x} cy={y} rx={rx + 6} ry={ry + 6} fill="url(#spy-lid)" />
-              <path d={`M${x - rx - 4} ${y + ry * 0.45}Q${x} ${y + ry * 1.15} ${x + rx + 4} ${y + ry * 0.45}`} stroke="#2A160C" strokeWidth="9" fill="none" strokeLinecap="round" />
-            </g>
-          ))}
-        </svg>
-        {working && <div className="absolute inset-0 overflow-hidden pointer-events-none" style={mask}><div className="absolute inset-x-0 h-1/3 spy-sweep" style={{ background: "linear-gradient(180deg, rgba(224,83,31,0) 0%, rgba(224,83,31,.35) 50%, rgba(224,83,31,0) 100%)" }} /></div>}
-      </div>
-      {working && <span className="absolute left-1/2 -translate-x-1/2 -bottom-3 whitespace-nowrap inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[11.5px] font-semibold text-white shadow"><span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />En mission</span>}
-      {/* Loupe */}
-      <svg viewBox="0 0 80 80" className={cx("absolute -right-4 bottom-6 w-[80px] h-[80px] drop-shadow-lg", working ? "spy-loupe-on" : "spy-loupe")} aria-hidden>
-        <line x1="50" y1="50" x2="72" y2="72" stroke="#0A0A0A" strokeWidth="9" strokeLinecap="round" />
-        <line x1="50" y1="50" x2="72" y2="72" stroke="#3A3A3A" strokeWidth="3.5" strokeLinecap="round" />
-        <circle cx="34" cy="34" r="22" fill="rgba(255,255,255,.35)" stroke="#0A0A0A" strokeWidth="6" />
-        <path d="M21 27 Q26 18 36 17" stroke="#fff" strokeWidth="3" strokeLinecap="round" fill="none" opacity=".85" />
-      </svg>
-    </div>
-  );
-}
-
 function Panel({ title, icon, right, children, className }) {
   return (
     <section className={cx("rounded-2xl border border-line bg-white p-4 sm:p-5 min-w-0", className)}>
@@ -591,36 +558,36 @@ export default function EspionHub() {
 
   return (
     <div>
-      {/* En-tête : l'espionne, son état et sa mission de la nuit */}
-      <div className="rounded-3xl bg-white border border-line p-5 sm:p-6 grid lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,330px)] gap-6 items-center">
-        <div className="mx-auto lg:mx-0"><Spy working={working} /></div>
+      {/* En-tête : le titre, l'état du pilote, la recherche et les chiffres ; à droite, la mission de la nuit */}
+      <div className="rounded-3xl bg-white border border-line p-5 sm:p-7 grid lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] gap-6 lg:gap-10 items-start">
         <div className="min-w-0">
-          <p className="text-[12px] font-bold uppercase tracking-[.2em]" style={{ color: TEAL }}>Centre de renseignement</p>
-          <h1 className={cx("font-black text-[44px] sm:text-[52px] leading-none tracking-tight mt-1", dansLieu && "sr-only")} style={{ fontFamily: "var(--font-titre)" }}>Concurrents</h1>
-          <p className="text-ink-soft mt-2 text-[16px]">Elle surveille tes concurrents jour et nuit, et te dit comment les battre.</p>
-          <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-line bg-paper/60 px-3 py-1.5 text-[13px]">
-            <span className={cx("h-2 w-2 rounded-full", working ? "animate-pulse" : "")} style={{ background: working ? TEAL : "#1F7A4D" }} />
-            <span className="text-ink truncate max-w-[520px]">{busy ?? (recent ? "Enquête en cours…" : "Pilote automatique actif")}</span>
-          </p>
-          <form onSubmit={add} className="mt-4 flex flex-col sm:flex-row gap-2 max-w-xl">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[12px] font-bold uppercase tracking-[.2em]" style={{ color: TEAL }}>Centre de renseignement</p>
+            <p className="inline-flex items-center gap-2 rounded-full border border-line bg-paper/60 px-3 py-1 text-[12.5px]">
+              <span className={cx("h-2 w-2 rounded-full", working ? "animate-pulse" : "")} style={{ background: working ? TEAL : "#1F7A4D" }} />
+              <span className="text-ink truncate max-w-[420px]">{busy ?? (recent ? "Enquête en cours…" : "Pilote automatique actif")}</span>
+            </p>
+          </div>
+          <h1 className={cx("font-black text-[40px] sm:text-[48px] leading-none tracking-tight mt-2", dansLieu && "sr-only")} style={{ fontFamily: "var(--font-titre)" }}>Concurrents</h1>
+          <p className="text-ink-soft mt-2 text-[16px]">Surveillés jour et nuit : ce qu'ils vendent, ce qui bouge chez eux, et comment les battre.</p>
+          <form onSubmit={add} className="mt-5 flex flex-col sm:flex-row gap-2 max-w-xl">
             <div className="flex-1 flex items-center gap-2 rounded-xl border border-line bg-paper/60 px-3 focus-within:border-accent/60">
               <Ico n="search" className="w-4 h-4 text-ink-faint" />
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tu en connais un ? Nom ou site web…" className="flex-1 bg-transparent py-3 text-[14.5px] outline-none placeholder:text-ink-faint" />
             </div>
             <button disabled={!!busy || !q.trim()} className="rounded-xl px-5 py-3 font-semibold text-white disabled:opacity-40 transition hover:brightness-110" style={{ background: TEAL }}>Enquêter</button>
           </form>
+          {list.length > 0 && (
+            <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              {[[list.length, "concurrents suivis"], [moves, "mouvements repérés"], [weak, "faiblesses à exploiter"], [cards, "dossiers commerciaux prêts"]].map(([n, l]) => (
+                <div key={l} className="rounded-xl bg-paper/60 border border-line px-3.5 py-3"><p className="font-black text-[26px] leading-none tnum" style={{ color: TEAL, fontFamily: "var(--font-titre)" }}>{n}</p><p className="text-[12px] text-ink-soft mt-1 leading-snug">{l}</p></div>
+              ))}
+            </div>
+          )}
         </div>
         <Tonight rows={list} proposed={proposed} ws={ws} />
       </div>
 
-      {/* Les chiffres du renseignement */}
-      {list.length > 0 && (
-        <div className="mt-4 rounded-2xl bg-white border border-line grid grid-cols-2 md:grid-cols-4 md:divide-x divide-line py-3">
-          {[[list.length, "concurrents suivis"], [moves, "mouvements repérés"], [weak, "faiblesses à exploiter"], [cards, "dossiers commerciaux prêts"]].map(([n, l]) => (
-            <div key={l} className="px-5 py-1.5"><p className="font-black text-[28px] leading-none tnum" style={{ color: TEAL, fontFamily: "var(--font-titre)" }}>{n}</p><p className="text-[12.5px] text-ink-soft mt-1">{l}</p></div>
-          ))}
-        </div>
-      )}
       {fresh > 0 && <p className="mt-3 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] font-semibold text-white" style={{ background: TEAL }}><Ico n="bell" className="w-4 h-4" />{fresh} concurrent{fresh > 1 ? "s ont" : " a"} bougé cette semaine</p>}
 
       {/* Les cinq espaces */}
