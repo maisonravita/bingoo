@@ -34,10 +34,10 @@ function useReveal() {
 
 /* ---------- La preuve : l'application filmée sur un vrai compte, en 4 onglets ---------- */
 const PREUVES = [
-  ["radar", "Qui a besoin de toi", "Chaque nuit, le Radar repère les entreprises qui viennent de bouger : recrutement, levée, nouveau dirigeant, outil concurrent installé. Chaque signal affiche sa source.", "preuve-radar"],
-  ["contacts", "Le décideur et son e-mail", "Le dirigeant déclaré au registre officiel, son e-mail professionnel vérifié, son LinkedIn. Jamais une adresse devinée.", "preuve-contacts"],
-  ["canaux", "Il écrit. Tu valides.", "Un message par entreprise, qui part de ce qui se passe chez elle. Relances à J+3 et J+7, appel, clôture. Rien ne part sans toi.", "preuve-canaux"],
-  ["espion", "Tes concurrents, surveillés", "Prix, publicités, avis, clients mécontents : l'Espion mesure tout, et ton angle se retrouve dans chaque message.", "preuve-espion"],
+  ["radar", "Qui a besoin de toi", "Chaque nuit, le Radar repère les entreprises qui viennent de bouger : recrutement, levée, nouveau dirigeant, outil concurrent installé. Chaque signal affiche sa source.", "preuve-radar", "L'écran Opportunités de la vraie application. Données d'exemple."],
+  ["contacts", "Le décideur et son e-mail", "Le dirigeant déclaré au registre officiel, son e-mail professionnel vérifié, son LinkedIn. Jamais une adresse devinée.", "preuve-contacts", "Filmé sur un vrai compte Bingoo!, le 7 novembre 2026. Les noms et coordonnées des personnes sont floutés."],
+  ["canaux", "Il écrit. Tu valides.", "Un message par entreprise, qui part de ce qui se passe chez elle. Relances à J+3 et J+7, appel, clôture. Rien ne part sans toi.", "preuve-canaux", "Filmé sur un vrai compte Bingoo!, le 7 novembre 2026. Les noms et coordonnées des personnes sont floutés."],
+  ["espion", "Tes concurrents, surveillés", "Prix, publicités, avis, clients mécontents : l'Espion mesure tout, et ton angle se retrouve dans chaque message.", "preuve-espion", "Filmé sur un vrai compte Bingoo!, le 7 novembre 2026. Les noms et coordonnées des personnes sont floutés."],
 ];
 function Preuve() {
   const [on, setOn] = useState("radar");
@@ -46,7 +46,7 @@ function Preuve() {
     <section id="preuve" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24">
       <div className="mx-auto max-w-[1180px]">
         <h2 className="text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>On ne te promet rien.<br />On te montre.</h2>
-        <p className="mt-5 max-w-[680px] text-[17px] sm:text-[19px] leading-[1.5] text-ink-soft">Pas de maquette, pas de chiffres inventés : l'application telle qu'elle tourne, filmée sur un vrai compte le 7 novembre 2026. Seuls les noms et coordonnées des personnes sont floutés.</p>
+        <p className="mt-5 max-w-[680px] text-[17px] sm:text-[19px] leading-[1.5] text-ink-soft">Pas de maquette, pas de chiffres inventés : l'application telle qu'elle tourne, en vidéo. Chaque légende dit ce que tu regardes.</p>
         <div className="mt-10 flex flex-wrap gap-2" role="tablist" aria-label="La preuve en vidéo">
           {PREUVES.map(([k, t]) => (
             <button key={k} role="tab" aria-selected={on === k} onClick={() => setOn(k)}
@@ -57,7 +57,7 @@ function Preuve() {
           <p className="max-w-[720px] text-[16.5px] leading-[1.5] text-ink">{p[2]}</p>
           <figure className="mt-5">
             <video key={p[3]} src={`./${p[3]}.mp4`} poster={`./${p[3]}.jpg`} autoPlay loop muted playsInline className="w-full rounded-xl border border-black/10 bg-[#F1EFED]" aria-label={p[1]} />
-            <figcaption className="mt-2 text-[13.5px] text-ink-soft">Filmé sur un vrai compte Bingoo!, le 7 novembre 2026.</figcaption>
+            <figcaption className="mt-2 text-[13.5px] text-ink-soft">{p[4]}</figcaption>
           </figure>
         </div>
       </div>

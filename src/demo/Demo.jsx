@@ -14,6 +14,7 @@ import Logo from "../components/Logo";
 import Sequence from "../components/Sequence";
 import { cadence } from "../lib/cadence";
 import { Badge } from "../components/ui";
+import { cx } from "../lib/utils";
 
 const WS = { id: "demo", name: "Démo", sender_name: "Jean", postal_address: "Paris", domain_status: "verified", integrations: { mailbox: { ok: true } }, profile: { nom: "Ton SaaS" } };
 const jours = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
@@ -67,6 +68,78 @@ function Journee() {
   );
 }
 
+// Le Radar : l'écran Opportunités, données d'exemple — filmé par scripts/demos.cjs (vraie vidéo, pas un diaporama)
+const OPPS = [
+  { id: "o1", nom: "Nova Conseil", ville: "Lyon", activite: "Cabinet de conseil B2B, 12 salariés", score: 86, signal: "Recrute 2 commerciaux B2B", src: "France Travail", quand: "il y a 2 jours",
+    pourquoi: "Une entreprise qui recrute des commerciaux se développe : c'est le moment où elle s'équipe pour trouver plus de clients.",
+    decideur: ["Claire Martin", "Présidente", "claire.martin@nova-conseil.fr", "registre SIRENE · e-mail vérifié"] },
+  { id: "o2", nom: "Atelier Verne", ville: "Nantes", activite: "Éditeur de logiciel RH, 8 salariés", score: 81, signal: "A levé 1,2 M€", src: "presse spécialisée", quand: "cette semaine",
+    pourquoi: "Après une levée, une entreprise accélère et choisit ses outils dans le trimestre qui suit.",
+    decideur: ["Paul Riva", "Fondateur", "paul@atelierverne.fr", "site officiel · e-mail vérifié"] },
+  { id: "o3", nom: "Studio Kelio", ville: "Bordeaux", activite: "Agence produit et design, 15 salariés", score: 77, signal: "Nouveau dirigeant", src: "BODACC", quand: "il y a 5 jours",
+    pourquoi: "Un nouveau dirigeant revoit ses priorités et ses prestataires dans ses premiers mois.",
+    decideur: ["Anna Sèze", "Directrice générale", "anna.seze@studiokelio.fr", "registre SIRENE · e-mail vérifié"] },
+];
+const RADAR_MSG = { id: "m2", step: 0, prospect_id: "o1", subject: "Votre recrutement de 2 commerciaux", body: "Bonjour Claire,\n\nNova Conseil recrute deux commerciaux B2B depuis mardi. Les premières semaines d'une équipe commerciale se jouent sur la liste : qui contacter, et pourquoi maintenant.\n\nBingoo! repère chaque matin les entreprises en mouvement, avec le bon décideur et le message prêt.\n\nUn échange de 15 minutes la semaine prochaine ?",
+  prospects: { name: "Nova Conseil", city: "Lyon", contact_name: "Claire Martin", contact_role: "Présidente", email: "claire.martin@nova-conseil.fr", status: "pret", signals: [{ type: "recrutement", label: "Recrute 2 commerciaux B2B (France Travail, il y a 2 jours)" }] } };
+
+function Radar() {
+  const [ouvert, setOuvert] = useState(null);
+  const [msg, setMsg] = useState(false);
+  const o = OPPS.find((x) => x.id === ouvert);
+  return (
+    <Cadre titre="Radar · données d'exemple">
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        <h1 className="font-black text-[40px] leading-none" style={{ fontFamily: "var(--font-titre)" }}>Opportunités</h1>
+        <p className="text-ink-soft text-[16px] mt-2">Les entreprises qui viennent de bouger. Chaque signal affiche sa source.</p>
+        <div className="mt-7 grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-5 items-start">
+          <div className="space-y-3">
+            <p className="text-[13px] font-bold text-accent-dark uppercase tracking-wide">Top 3 du jour</p>
+            {OPPS.map((x) => (
+              <button key={x.id} data-opp={x.id} onClick={() => { setOuvert(x.id); setMsg(false); }}
+                className={cx("w-full text-left rounded-2xl border bg-white p-4 transition shadow-[0_10px_30px_-26px_rgba(21,22,26,.5)]", ouvert === x.id ? "border-ink ring-1 ring-ink" : "border-line hover:border-ink-faint")}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="rounded bg-accent-soft px-2 py-0.5 text-[12px] font-semibold text-accent-dark">{x.signal}</span>
+                  <span className="text-[13px] font-bold tnum text-ink-soft">{x.score}</span>
+                </div>
+                <p className="mt-2 text-[17px] font-semibold">{x.nom} <span className="font-normal text-ink-soft">· {x.ville}</span></p>
+                <p className="text-[13px] text-ink-soft">{x.activite}</p>
+                <p className="mt-1.5 text-[12.5px] text-ink-faint">{x.src} · {x.quand}</p>
+              </button>
+            ))}
+          </div>
+          <div className="rounded-2xl border border-line bg-white p-5 min-h-[380px]">
+            {!o ? <p className="text-[15px] text-ink-soft">Ouvre une opportunité pour voir le détail : le fait, sa source, le décideur, et le message prêt.</p> : (
+              <div className="rise">
+                <div className="flex items-start justify-between gap-3">
+                  <div><h2 className="text-[26px] font-black leading-tight" style={{ fontFamily: "var(--font-titre)" }}>{o.nom}</h2><p className="text-[14px] text-ink-soft">{o.activite} · {o.ville}</p></div>
+                  <span className="rounded-full bg-good-soft text-good px-3 py-1 text-[13px] font-bold tnum">Score {o.score}</span>
+                </div>
+                <div className="mt-4 rounded-xl bg-paper border border-line p-4">
+                  <p className="text-[12.5px] font-bold text-accent-dark uppercase tracking-wide">Le fait</p>
+                  <p className="mt-1 text-[15.5px] font-medium">{o.signal} <span className="font-normal text-ink-soft">— {o.src}, {o.quand}</span></p>
+                  <p className="mt-2 text-[14px] text-ink-soft">{o.pourquoi}</p>
+                </div>
+                <div className="mt-3 rounded-xl bg-paper border border-line p-4">
+                  <p className="text-[12.5px] font-bold text-accent-dark uppercase tracking-wide">Le décideur</p>
+                  <p className="mt-1 text-[15.5px] font-medium">{o.decideur[0]} <span className="font-normal text-ink-soft">· {o.decideur[1]}</span></p>
+                  <p className="text-[14px]">{o.decideur[2]}</p>
+                  <p className="mt-1 text-[12.5px] text-ink-faint">Source : {o.decideur[3]}</p>
+                </div>
+                {!msg ? (
+                  <button data-prep onClick={() => setMsg(true)} className="mt-4 w-full rounded-xl bg-accent text-white py-3.5 text-[16px] font-bold hover:bg-accent-dark transition">Préparer le message</button>
+                ) : (
+                  <div className="mt-4 rise"><DraftCard m={RADAR_MSG} canSend onDone={() => {}} /></div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </Cadre>
+  );
+}
+
 // La cadence : la séquence par défaut (vrai composant de Réglages) et le badge « Touche x/y » des fiches
 const CONTACTES = [
   { name: "Nova Conseil", contact: "Claire Martin, Présidente", status: "envoye", seq_etape: 0 },
@@ -95,5 +168,5 @@ function Cadence() {
 }
 
 const v = new URLSearchParams(location.search).get("v");
-function App() { useEffect(() => { try { sessionStorage.clear(); } catch { /* rien */ } }, []); return v === "journee" ? <Journee /> : v === "cadence" ? <Cadence /> : <Inscription />; }
+function App() { useEffect(() => { try { sessionStorage.clear(); } catch { /* rien */ } }, []); return v === "journee" ? <Journee /> : v === "cadence" ? <Cadence /> : v === "radar" ? <Radar /> : <Inscription />; }
 ReactDOM.createRoot(document.getElementById("root")).render(<MemoryRouter><WsCtx.Provider value={{ ws: WS }}><ToastProvider><App /></ToastProvider></WsCtx.Provider></MemoryRouter>);
