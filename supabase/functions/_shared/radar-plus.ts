@@ -74,7 +74,7 @@ export async function siteWatch(ws: Workspace): Promise<Opp[]> {
 const ftTokens = new Map<string, { v: string; exp: number }>();
 export const ftReady = () => !!env("FT_CLIENT_ID") && !!env("FT_CLIENT_SECRET");
 /** Jeton France Travail pour un ensemble de droits (scopes) ; essaie les variantes dans l'ordre. */
-async function ftAuth(scopes: string[] = ["api_offresdemploiv2 o2dsoffre"]) {
+export async function ftAuth(scopes: string[] = ["api_offresdemploiv2 o2dsoffre"]) {
   const key = scopes.join("|");
   const c = ftTokens.get(key);
   if (c && c.exp > Date.now() + 60e3) return c.v;

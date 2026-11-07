@@ -647,6 +647,25 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     }
     return out;
   },
+  // Diagnostic La Bonne Boîte : quelles formes du filtre d'activité sont prises en compte (aucune donnée enregistrée)
+  async "lbb-test"(req, b) {
+    await cron(req);
+    const { ftAuth } = await import("../_shared/radar-plus.ts");
+    const token = await ftAuth(["api_labonneboitev2 search office", "api_labonneboitev2"]);
+    const essais: Record<string, string>[] = (b.essais as Record<string, string>[]) ?? [{ naf: "7022Z" }, { naf: "70" }, { naf: "70.22Z" }, { job: "conseil en gestion" }];
+    const out: unknown[] = [];
+    for (const e of essais) {
+      const u = new URL("https://api.francetravail.io/partenaire/labonneboite/v2/recherche");
+      for (const [k, v] of Object.entries(e)) u.searchParams.append(k, v);
+      u.searchParams.set("department_number", String(b.dep ?? "75")); u.searchParams.set("page_size", "20");
+      const r = await fetch(u, { headers: { authorization: `Bearer ${token}`, accept: "application/json" }, signal: AbortSignal.timeout(20000) });
+      const j = await r.json().catch(() => ({}));
+      const items = (j.items ?? []) as { naf?: string; is_high_potential?: boolean }[];
+      out.push({ essai: e, statut: r.status, hits: j.hits, nafs: [...new Set(items.map((x) => x.naf))].slice(0, 8), fort: items.filter((x) => x.is_high_potential).length, erreur: r.ok ? undefined : JSON.stringify(j).slice(0, 200) });
+      await new Promise((x) => setTimeout(x, 600));
+    }
+    return out;
+  },
   // Test des fournisseurs d'e-mails : présence des clés (jamais leur valeur), puis recherche sur quelques fiches à déclencheur
   async "email-test"(req, b) {
     await cron(req);
