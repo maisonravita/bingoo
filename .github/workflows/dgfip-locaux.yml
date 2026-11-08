@@ -15,9 +15,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: { name: sci-idf, path: sci_idf.csv, retention-days: 7 }
       - name: Chargement dans la base (table dgfip_sci)
-        env: { DB_URL: "${{ secrets.SUPABASE_DB_URL }}" }
-        run: |
-          sudo apt-get install -y -qq postgresql-client >/dev/null
-          psql "$DB_URL" -v ON_ERROR_STOP=1 -c "create table if not exists public.dgfip_sci (siren text primary key, denomination text, forme text, dep text, nb_locaux int, nb_niveau_porte int, communes text, adresse text, maj timestamptz default now()); alter table public.dgfip_sci enable row level security; create temp table x (like public.dgfip_sci excluding defaults);" \
-            -c "\copy x (siren, denomination, forme, dep, nb_locaux, nb_niveau_porte, communes, adresse) from 'sci_idf.csv' csv header" \
-            -c "insert into public.dgfip_sci (siren, denomination, forme, dep, nb_locaux, nb_niveau_porte, communes, adresse) select siren, denomination, forme, dep, nb_locaux, nb_niveau_porte, communes, adresse from x on conflict (siren) do update set denomination=excluded.denomination, nb_locaux=excluded.nb_locaux, nb_niveau_porte=excluded.nb_niveau_porte, communes=excluded.communes, adresse=excluded.adresse, maj=now(); select count(*) from public.dgfip_sci;"
+        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}" }
+        run: python3 scripts/dgfip/charge.py
