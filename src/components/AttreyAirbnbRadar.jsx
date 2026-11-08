@@ -13,6 +13,7 @@ export default function AttreyAirbnbRadar({workspaceId,refresh=0,favoriteUrls=ne
   const [busy,setBusy]=useState(false);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
+  const [showReviewForm,setShowReviewForm]=useState(false);
   const [form,setForm]=useState({listing_url:"",property_name:"",location:"Paris",
     quality_rating:"",listing_rating:"",review_count:"",reviews_input:""});
   const reload=()=>{
@@ -49,8 +50,8 @@ export default function AttreyAirbnbRadar({workspaceId,refresh=0,favoriteUrls=ne
   const auditCount=audits.filter(x=>x.evidence_count>0).length;
   return <section className="rounded-2xl border border-line bg-white p-4 space-y-4">
     <div>
-      <h3 className="text-sm font-semibold">Radar Airbnb · Qualité & avis voyageurs</h3>
-      <p className="mt-1 text-xs text-ink-soft">Repérer des logements parisiens attractifs dont les avis signalent des problèmes de ménage, d'accueil, de communication ou d'entretien. Ce sont des hypothèses commerciales, pas des demandes explicites de conciergerie.</p>
+      <h3 className="text-sm font-semibold">Radar Airbnb · Repérer les logements à améliorer</h3>
+      <p className="mt-1 text-xs text-ink-soft">Retrouve les annonces Airbnb repérées à Paris, garde celles qui te plaisent en favoris et examine leurs avis pour identifier de vrais problèmes d’accueil, de propreté ou d’entretien.</p>
     </div>
     <div className="grid grid-cols-3 gap-2 text-center">
       <div className="rounded-xl bg-slate-50 p-3"><p className="font-semibold text-xl">{unique.length}</p><p className="text-[11px] text-ink-soft">Annonces repérées</p></div>
@@ -65,10 +66,15 @@ export default function AttreyAirbnbRadar({workspaceId,refresh=0,favoriteUrls=ne
           return <div key={x.source_url} className="rounded-xl border border-line p-3 flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-xs font-semibold">Airbnb · annonce n° {url.split("/").pop()}</p>
-              <p className="text-[11px] text-ink-soft">Avis et qualité non encore évalués</p>
+              <p className="text-[11px] text-ink-soft">Annonce trouvée · avis négatifs non encore vérifiés</p>
             </div>
             <div className="flex gap-2 items-center">
               <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">Ouvrir</a>
+              <button type="button" onClick={()=>{
+                setForm(f=>({...f,listing_url:url}));setShowReviewForm(true);
+              }} className="rounded-lg border border-line px-2 py-1 text-xs hover:bg-slate-50">
+                Examiner les avis
+              </button>
               <button type="button" disabled={favoriteBusy}
                 aria-pressed={saved}
                 onClick={()=>onToggleFavorite({url,title:"Airbnb · annonce n° "+url.split("/").pop(),kind:"airbnb"})}
@@ -81,9 +87,18 @@ export default function AttreyAirbnbRadar({workspaceId,refresh=0,favoriteUrls=ne
       </div>
     </div>}
     <div className="rounded-xl border border-line p-3 space-y-3">
-      <h4 className="text-sm font-semibold">Analyser les avis d'un beau logement</h4>
-      <p className="text-xs text-ink-soft">Sélectionne une annonce déjà repérée ou colle son lien. Consulte les avis normalement sur Airbnb puis ajoute les passages utiles. Attrey n'aspire pas automatiquement les avis d'Airbnb.</p>
-      <form onSubmit={submit} className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h4 className="text-sm font-semibold">Comprendre les mauvais avis d'un logement</h4>
+          <p className="text-xs text-ink-soft mt-1">Optionnel : seuls les avis dont tu disposes pourront être analysés. Pas besoin de remplir tous les champs.</p>
+        </div>
+        <button type="button" onClick={()=>setShowReviewForm(v=>!v)}
+          className="rounded-xl border border-line px-3 py-2 text-xs font-semibold hover:bg-slate-50">
+          {showReviewForm?"Masquer l'analyse":"+ Analyser des avis"}
+        </button>
+      </div>
+      {showReviewForm&&<form onSubmit={submit} className="space-y-3">
+        <p className="text-xs text-ink-soft">1. Choisis un logement parmi ceux trouvés, ou colle son lien. 2. Ouvre Airbnb et lis ses avis. 3. Copie les commentaires sur le ménage, l'accueil ou la communication dans la zone ci-dessous. Attrey identifiera les problèmes et les extraits qui les prouvent.</p>
         {unique.length>0&&<label className="block text-xs font-semibold">Annonces déjà repérées
           <select className="mt-1 block w-full rounded-xl border border-line p-2.5 text-sm bg-white"
             value={unique.some(x=>canonical(x.source_url)===form.listing_url)?form.listing_url:""}
@@ -99,7 +114,9 @@ export default function AttreyAirbnbRadar({workspaceId,refresh=0,favoriteUrls=ne
             onChange={e=>setForm(f=>({...f,listing_url:e.target.value}))}
             className="mt-1 block w-full rounded-xl border border-line p-2.5 text-sm" />
         </label>
-        <div className="grid grid-cols-2 gap-2">
+        <details className="rounded-xl border border-line p-3 text-xs">
+          <summary className="cursor-pointer font-medium">Informations facultatives : qualité, note, nombre d'avis</summary>
+          <div className="mt-3 grid grid-cols-2 gap-2">
           <label className="text-xs font-semibold">Nom du logement
             <input value={form.property_name} placeholder="Ex. Appartement lumineux" maxLength={160}
               onChange={e=>setForm(f=>({...f,property_name:e.target.value}))}
@@ -127,18 +144,19 @@ export default function AttreyAirbnbRadar({workspaceId,refresh=0,favoriteUrls=ne
               onChange={e=>setForm(f=>({...f,review_count:e.target.value}))}
               className="mt-1 block w-full rounded-xl border border-line p-2.5 text-sm"/>
           </label>
-        </div>
-        <label className="block text-xs font-semibold">Extraits des avis à analyser
+          </div>
+        </details>
+        <label className="block text-xs font-semibold">Commentaires négatifs repérés (copier les extraits des avis)
           <textarea required rows={6} minLength={35} maxLength={12000}
-            placeholder={"Un avis par paragraphe, avec les commentaires portant sur le ménage, l'arrivée, la communication, les équipements…"}
+            placeholder={"Ex. « La salle de bain était sale » ; « Il a été difficile de récupérer les clés ». Un avis par paragraphe."}
             value={form.reviews_input} onChange={e=>setForm(f=>({...f,reviews_input:e.target.value}))}
             className="mt-1 block w-full rounded-xl border border-line p-2.5 text-sm"/>
         </label>
         <button type="submit" disabled={busy||!canonical(form.listing_url)||form.reviews_input.trim().length<35}
           className="rounded-xl bg-ink text-white font-semibold px-4 py-2.5 text-sm disabled:opacity-50">
-          {busy?"Analyse des commentaires…":"Analyser les problèmes et calculer le potentiel"}
+          {busy?"Analyse des commentaires…":"Analyser ces commentaires"}
         </button>
-      </form>
+      </form>}
     </div>
     {error&&<p role="status" className="text-xs text-ink-soft">{error}</p>}
     <div className="space-y-3">
@@ -176,7 +194,7 @@ export default function AttreyAirbnbRadar({workspaceId,refresh=0,favoriteUrls=ne
               className="text-xs underline text-ink-soft disabled:opacity-50">
               {favoriteUrls.has(a.listing_url)?"★ En favoris":"☆ Ajouter aux favoris"}
             </button>
-            <button type="button" onClick={()=>{setForm({listing_url:a.listing_url,property_name:a.property_name||"",
+            <button type="button" onClick={()=>{setShowReviewForm(true);setForm({listing_url:a.listing_url,property_name:a.property_name||"",
                 location:a.location||"Paris",quality_rating:a.quality_rating==null?"":String(a.quality_rating),
                 listing_rating:a.listing_rating==null?"":String(a.listing_rating),
                 review_count:a.review_count==null?"":String(a.review_count),
