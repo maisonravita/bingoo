@@ -267,12 +267,17 @@ export async function newCompanies(ws: Workspace, activites: string[], zone: str
   // Codes NAF comparés sans point : « 70.22Z » (registre) et « 7022Z » (France Travail) désignent la même activité
   const sansPoint = (n: string) => String(n ?? "").replace(/\./g, "").toUpperCase();
   const nafs = (ws.targets ?? []).filter((t) => t.actif !== false).flatMap((t) => t.naf ?? []).map((n) => sansPoint(n).slice(0, 4));
-  const reg = await lookupMany(rows.slice(0, 30).map(sirenOf));
-  return rows.slice(0, 30).flatMap((b) => {
+  const lot = rows.slice(0, garderSci ? 60 : 30);
+  const reg = await lookupMany(lot.map(sirenOf));
+  return lot.flatMap((b) => {
     const c = classify(b); if (!c) return [];
     const r = reg.get(sirenOf(b));
-    // Activité vérifiée au registre : hors de tes cibles, ou introuvable alors que tes cibles sont précises → on ne garde pas
-    if (nafs.length && (!r?.naf || !nafs.includes(r.naf.slice(0, 4)))) return [];
+    // Activité vérifiée au registre : hors de tes cibles, ou introuvable alors que tes cibles sont précises → on ne garde pas.
+    // Exception (espaces qui ciblent les SCI) : une société créée il y a quelques jours n'a souvent pas encore son code au registre ;
+    // on la garde si son objet déclaré parle bien de location ou d'immobilier.
+    const actDecl = String(parse(b.listeetablissements)?.etablissement?.activite ?? parse(b.listepersonnes)?.personne?.activite ?? "");
+    const jeuneSansCode = garderSci && !r?.naf && /(location|immobili|meubl|h[ée]bergement)/i.test(actDecl);
+    if (nafs.length && !jeuneSansCode && (!r?.naf || !nafs.includes(r.naf.slice(0, 4)))) return [];
     const o = toOpp(b, c);
     o.raw = { ...o.raw, naf: r?.naf ?? "", tranche: r?.tranche ?? "" };
     return [o];
