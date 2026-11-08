@@ -31,6 +31,7 @@ import Mission from "./pages/Mission";
 import Abonnement from "./pages/Abonnement";
 import Join, { JOIN_KEY } from "./pages/Join";
 import PublicBooking from "./pages/PublicBooking";
+import PublicEstimation from "./pages/PublicEstimation";
 import PublicQuote from "./pages/PublicQuote";
 import Envoyer from "./pages/Envoyer";
 import FreeTools from "./pages/FreeTools";
@@ -49,6 +50,7 @@ function Gate() {
     if (ws.app_url !== url && /^https:/.test(url)) supabase.from("workspaces").update({ app_url: url }).eq("id", ws.id).then(() => {});
   }, [ws?.id, ws?.app_url]);
   if (loc.pathname.startsWith("/rdv/")) return <PublicBooking />;
+  if (loc.pathname.startsWith("/estimation/")) return <PublicEstimation />;
   if (loc.pathname.startsWith("/devis/")) return <PublicQuote />;
   // Lien de l'e-mail du matin : la page fonctionne sans être connecté (le lien à usage unique fait office de clé)
   if (loc.pathname === "/envoyer") return <Envoyer />;

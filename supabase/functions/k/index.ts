@@ -321,6 +321,17 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
     await freeLimit(req, `rdv:${String(b.slug ?? "").slice(0, 60)}`, 3, 25, { visitor: "Tu as déjà réservé plusieurs créneaux aujourd'hui. Réponds à l'e-mail reçu si tu dois changer d'horaire.", total: "Les réservations en ligne sont momentanément fermées pour cet agenda. Réessaie demain ou réponds à l'e-mail reçu." });
     return await book(String(b.slug ?? ""), b as Record<string, string>);
   },
+  // Estimation de revenus en location courte durée (page publique d'un espace) : le propriétaire se qualifie lui-même
+  async "public-estimation-info"(_req, b) {
+    const { estimationInfo } = await import("../_shared/estimation-lcd.ts");
+    return await estimationInfo(String(b.slug ?? ""));
+  },
+  async "public-estimation"(req, b) {
+    const { freeLimit } = await import("../_shared/free-tools.ts");
+    await freeLimit(req, `estim:${String(b.slug ?? "").slice(0, 60)}`, 3, 60, { visitor: "Tu as déjà fait plusieurs estimations aujourd'hui. On te recontacte très vite.", total: "Les estimations en ligne sont momentanément fermées. Réessaie demain." });
+    const { estimationSubmit } = await import("../_shared/estimation-lcd.ts");
+    return await estimationSubmit(String(b.slug ?? ""), b as Record<string, unknown>);
+  },
   async "public-quote"(_req, b) {
     return await publicQuote(String(b.token ?? ""));
   },
