@@ -26,7 +26,7 @@ const FILTERS=[
   ["veille","Veille / partenaires"]
 ];
 // Boîte de réception séparée : aucun lien IA ne devient automatiquement prospect qualifié.
-export default function AttreyCandidates({workspaceId,refresh=0}) {
+export default function AttreyCandidates({workspaceId,refresh=0,favoriteUrls=new Set(),onToggleFavorite=()=>{},favoriteBusy=false}) {
   const [data,setData]=useState([]);
   const [filter,setFilter]=useState("tous");
   const [loading,setLoading]=useState(true);
@@ -88,7 +88,15 @@ export default function AttreyCandidates({workspaceId,refresh=0}) {
       {filtered.map(({item:x,info})=><article key={x.id} className="rounded-xl border border-line p-3 space-y-2">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <h4 className="font-semibold text-sm flex-1 min-w-[180px] break-words">{info.headline}</h4>
-          <span className="shrink-0 rounded-full border border-line px-2 py-1 text-[11px] text-ink-soft">{info.label}</span>
+          <div className="shrink-0 flex flex-wrap gap-2 items-center">
+            <span className="rounded-full border border-line px-2 py-1 text-[11px] text-ink-soft">{info.label}</span>
+            <button type="button" disabled={favoriteBusy}
+              onClick={()=>onToggleFavorite({url:x.source_url,title:info.headline,kind:"piste"})}
+              aria-pressed={favoriteUrls.has(x.source_url)}
+              className="rounded-lg border border-line px-2 py-1 text-xs hover:bg-slate-50 disabled:opacity-50">
+              {favoriteUrls.has(x.source_url)?"★ En favoris":"☆ Ajouter aux favoris"}
+            </button>
+          </div>
         </div>
         <p className="text-[11px] text-ink-faint">{info.source} · {info.firstSeenLabel} · {info.publishedLabel}</p>
         <div className="rounded-lg bg-slate-50 p-2.5 text-xs space-y-1">
