@@ -1,7 +1,7 @@
 // Estimation de revenus en location courte durée + qualification du propriétaire (page publique /estimation/<slug>).
 // Le propriétaire répond à quelques questions et donne son accord pour être recontacté : la fiche arrive dans l'espace,
 // notée (chaud / tiède / froid), avec une fourchette honnête (hypothèses et sources visibles) et un lien de rendez-vous.
-import { admin, askJson, log, setAi, type Workspace } from "./core.ts";
+import { admin, ask, askJson, log, setAi, type Workspace } from "./core.ts";
 import { HttpError } from "./http.ts";
 
 const TYPES: Record<string, { label: string; voyageurs: number }> = {
@@ -44,14 +44,18 @@ export async function estimationSubmit(slug: string, b: Record<string, unknown>)
   // 1. Prix par nuit et taux d'occupation observés pour ce type de bien et cette ville (recherche web, sources gardées)
   setAi({ ws: ws.id, feature: "estimation-lcd" });
   const t = TYPES[type];
-  const m = await askJson<{ nuit_basse: number; nuit_haute: number; occ_basse: number; occ_haute: number; hypotheses: string[]; sources: { titre: string; url: string }[] }>(
-    `Estime, pour une location de courte durée (type Airbnb) d'un logement « ${t.label} » (${chambres || "?"} chambre(s), jusqu'à ${t.voyageurs} voyageurs) à ${ville} (${cp}), le prix moyen par nuit et le taux d'occupation annuel moyen.
-Cherche des données publiques récentes (études de marché, statistiques de location courte durée, annonces comparables) : 2 recherches au plus.
-Donne une fourchette prudente : nuit_basse et nuit_haute en euros, occ_basse et occ_haute en pourcentage (0 à 100). N'invente aucune source : uniquement des pages que tu as réellement consultées.
-hypotheses : 2 à 4 phrases courtes sur ce que tu as supposé (saisonnalité, quartier, standing moyen…).
-Format : {"nuit_basse": 0, "nuit_haute": 0, "occ_basse": 0, "occ_haute": 0, "hypotheses": [""], "sources": [{"titre": "", "url": ""}]}`,
-    { maxTokens: 1500, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] },
-  ).catch(() => null);
+  // Deux temps : la recherche en texte libre (avec ses sources), puis l'extraction des chiffres par un modèle léger.
+  // (Demander le JSON directement après une recherche web faisait recopier l'exemple de format, rempli de zéros.)
+  const etude = await ask(`Pour une location de courte durée (type Airbnb) d'un logement « ${t.label} » (${chambres || "?"} chambre(s), jusqu'à ${t.voyageurs} voyageurs) à ${ville} (${cp}) :
+quel est le prix moyen par nuit et le taux d'occupation annuel moyen ? Cherche des données publiques récentes (études de marché, statistiques de location courte durée, annonces comparables), 2 recherches au plus.
+Réponds en quelques lignes : une fourchette de prix par nuit en euros, une fourchette de taux d'occupation en pourcentage, ce que tu as supposé (saisonnalité, quartier, standing), et la liste des pages consultées avec leur adresse. N'invente aucune source.`,
+    { maxTokens: 1500, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] }).catch(() => "");
+  const m = etude ? await askJson<{ nuit_basse: number; nuit_haute: number; occ_basse: number; occ_haute: number; hypotheses: string[]; sources: { titre: string; url: string }[] }>(
+    `Voici une étude de marché. Extrais-en les chiffres, sans rien inventer : si un chiffre manque, mets 0.
+Étude :
+${etude.slice(0, 6000)}
+Clés attendues : nuit_basse et nuit_haute (prix par nuit en euros, nombres), occ_basse et occ_haute (taux d'occupation en pourcentage de 0 à 100, nombres), hypotheses (2 à 4 phrases courtes reprises de l'étude), sources (liste d'objets titre et url, uniquement les adresses présentes dans l'étude).`,
+    { fast: true, maxTokens: 700 }).catch(() => null) : null;
   // Lecture souple : nombres écrits en texte (« 120 € », « 65 % »), taux donnés en fraction (0,65), bornes inversées
   const num = (v: unknown) => { const x = Number(String(v ?? "").replace(",", ".").replace(/[^\d.]/g, "")); return Number.isFinite(x) ? x : 0; };
   const pct = (v: unknown) => { const x = num(v); return x > 0 && x <= 1 ? x * 100 : x; };
