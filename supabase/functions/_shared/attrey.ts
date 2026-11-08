@@ -3,6 +3,7 @@
 // Aucune prise de contact automatique et aucune collecte de coordonnées privées.
 import { HttpError } from "./http.ts";
 import { admin, ask, askJson, log, setAi, type Workspace } from "./core.ts";
+import { publicLinks, saveCandidates } from "./attrey-candidates.ts";
 
 const WS_ID = "4e9c20f1-84bb-4854-aca7-adcdc2bc8bfd";
 type Row = {
@@ -134,12 +135,22 @@ Réponds en texte : pour chaque publication retenue, une ligne avec le sens (off
    tools:[{type:"web_search_20250305",name:"web_search",max_uses:5,
      user_location:{type:"approximate",country:"FR",timezone:"Europe/Paris"}}]
  }).catch((e)=>{ console.error("attrey recherche", e); return ""; });
+  // Toujours archiver les liens visibles dans le résultat web, même si l'extraction IA échoue.
+  // Ces liens restent des CANDIDATS NON VÉRIFIÉS : aucun contact ni disponibilité présumés.
+  const discovered = publicLinks(etude, SOURCES[v]?.host || undefined);
+  const archived = await saveCandidates(ws.id,"web",v,discovered);
   const scan = etude && !/^\s*aucune\b/i.test(etude) ? await askJson<{opportunities:Row[]}>(`Voici le résultat d'une recherche web. Transforme chaque publication en objet, sans rien inventer : une information absente vaut null, et une publication sans adresse de page ou sans date est ignorée.
 Résultat :
 ${etude.slice(0, 9000)}
 Clé attendue : opportunities, liste d'objets avec direction (offre|demande), segment (proprietaire_location|proprietaire_gestion|vendeur|logement_disponible|partenaire|voyageur|locataire|acheteur|entreprise_mobilite|investisseur), intent (location_courte|location_moyenne|location_longue|vente|achat|gestion|partenariat|hebergement|investissement|autre), title, description, city, country_origin, source_name, source_url, source_published_at (AAAA-MM-JJ), budget_min, budget_max, budget_period (total|nuit|mois|achat), date_start, date_end.`,
    { fast:true, maxTokens:3000 }).catch(()=>null) : null;
  const candidates=Array.isArray(scan?.opportunities)?scan.opportunities:[];
+ // Conserver aussi les résultats structurés sans date ou ville : ils ne deviennent pas prospects.
+ await saveCandidates(ws.id,"web",v,candidates.map((x)=>({
+   source_url:x.source_url,title:x.title,excerpt:x.description,source_name:x.source_name,
+   source_published_at:x.source_published_at,city:x.city
+ })).filter((x)=>!SOURCES[v]?.host || publicLinks(x.source_url,SOURCES[v].host).length>0));
+
  const urls=new Set(seen);
  const rows=candidates.map(normalize).filter((r):r is NonNullable<typeof r>=>!!r)
    .filter(r=>{const host=SOURCES[v]?.host;if(!host)return true;try{const h=new URL(r.source_url).hostname.toLowerCase();return h===host||h.endsWith('.'+host);}catch{return false;}})
@@ -161,7 +172,7 @@ Clé attendue : opportunities, liste d'objets avec direction (offre|demande), se
  },{onConflict:"workspace_id"});
  if(stateError) throw new HttpError(500,stateError.message);
  await log(ws.id,"radar",`Attrey : ${added} nouvelle(s) piste(s) web à vérifier (${V.label}), lancement ${source}`);
- return {ok:true,scanned:candidates.length,eligible:rows.length,added,source,variante:V.label,cout_eur:Math.round(cout*1000)/1000};
+ return {ok:true,scanned:candidates.length,liens_detectes:discovered.length,liens_archives:archived,eligible:rows.length,added,source,variante:V.label,cout_eur:Math.round(cout*1000)/1000};
 }
 
 // ---------------------------------------------------------------- Forums d'expatriés (lecture directe, sans recherche web payante)
@@ -194,12 +205,15 @@ export async function attreyForums(ws: Workspace, source: "manuel"|"cron" = "man
       sujets.set(m[2], { url: m[1], titre: m[3].replace(/-/g, " ").trim(), forum: f.nom });
     }
   }
-  // 2. Seulement les sujets jamais vus
+  // 2. Ne pas marquer les sujets "vus" avant leur analyse : auparavant 80 titres ont été perdus.
+  // Les sujets plausibles restent réexaminables ; le cache unique évite de les dupliquer.
   const tous = [...sujets.values()];
-  const { data: vus } = await admin.from("attrey_vus").select("url").eq("workspace_id", ws.id).in("url", tous.map((s) => s.url));
-  const deja = new Set(((vus ?? []) as { url: string }[]).map((x) => x.url));
-  const nouveaux = tous.filter((s) => !deja.has(s.url)).slice(0, 80);
-  if (nouveaux.length) await admin.from("attrey_vus").upsert(nouveaux.map((s) => ({ workspace_id: ws.id, url: s.url })), { onConflict: "workspace_id,url", ignoreDuplicates: true });
+  const plausible = /apartment|appartement|housing|logement|location|rent|rental|louer|buy|buying|acheter|achat|property|immobilier|relocat|demenag|moving|flat|meuble|conciergerie|airbnb/i;
+  const nouveaux = tous.filter((x)=>plausible.test(x.titre)).slice(0, 50);
+  const archivedForums = await saveCandidates(ws.id,"forums","expat.com",nouveaux.map((x)=>({
+    source_url:x.url,title:x.titre,source_name:x.forum,
+    excerpt:"Titre de forum potentiellement immobilier, contenu et date à vérifier"
+  })));
   // 3. Tri des titres (français et anglais) : besoin de logement, déménagement, achat, gestion
   const tri = nouveaux.length ? await askJson<{ garder: number[] }>(`Voici des titres de sujets de forums d'expatriés en France. Garde uniquement ceux où l'auteur exprime probablement un besoin immobilier personnel ou professionnel :
 - chercher un logement à louer à Paris ou en Île-de-France (meublé, moyenne durée, colocation exclue sauf logement entier), « looking for an apartment », « housing », « accommodation », « flat », « rent » ;
@@ -233,5 +247,5 @@ Clé attendue : pistes, liste d'objets avec direction (offre si un propriétaire
   }
   const cout = await coutDepuis(ws.id, "attrey/forums", t0);
   await admin.from("attrey_runs").insert({ workspace_id: ws.id, canal: "forums", variante: "expat.com", declenchement: source, recherches: 1, candidats: nouveaux.length, ajoutes: added, cout_eur: cout });
-  return { ok: true, sujets: tous.length, nouveaux: nouveaux.length, retenus: retenus.length, recents: recents.length, added, cout_eur: Math.round(cout * 1000) / 1000 };
+  return { ok: true, sujets: tous.length, nouveaux: nouveaux.length, liens_archives:archivedForums, retenus: retenus.length, recents: recents.length, added, cout_eur: Math.round(cout * 1000) / 1000 };
 }
