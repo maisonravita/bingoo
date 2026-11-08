@@ -133,6 +133,11 @@ export default function AttreyPipeline({ workspaceId }) {
         await fn("r/attrey-classify",{workspace_id:workspaceId}).catch(e=>
           console.warn("Attrey: classification différée possible",e));
       }
+      if(result.mode==="recherche_interrompue"){
+        setStatsTick(x=>x+1);
+        toast(result.note||"La recherche IA n'a pas fourni de réponse exploitable. Aucun avis ajouté.","bad");
+        return;
+      }
       await load();
       setScanState({last_scan_at:new Date().toISOString(),last_added:result.added||0});
       setStatsTick((x) => x + 1);

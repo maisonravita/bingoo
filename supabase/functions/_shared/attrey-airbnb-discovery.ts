@@ -51,12 +51,10 @@ export async function attreyAirbnbIndexedSearch(ws:Workspace,source:"manuel"|"cr
  if(ws.id!==W)throw new HttpError(403,"Espace Attrey uniquement");
  setAi({ws:ws.id,feature:"attrey/airbnb-index"});
  const prompt=[
-  "Recherche publiquement dans les résultats web INDEXÉS (sans scraper Airbnb) des avis négatifs",
-  "sur des logements Airbnb situés à Paris intra-muros. Au maximum 4 recherches ciblées:",
-  'site:airbnb.fr/rooms Paris "propreté" "sale" avis',
-  'site:airbnb.fr/rooms Paris "check-in" "clés" avis',
-  'site:airbnb.fr/rooms Paris "communication" "hôte" avis',
-  'site:airbnb.com/rooms Paris "cleanliness" "dirty" review',
+  "Recherche dans les résultats web INDEXÉS (sans scraper Airbnb) des avis négatifs",
+  "sur des logements Airbnb situés à Paris intra-muros. Deux recherches web maximum:",
+  'site:airbnb.fr/rooms Paris "sale" "propreté" avis',
+  'site:airbnb.com/rooms Paris "dirty" "check-in" "host" review',
   "Conditions strictes : lien DIRECT réel /rooms/NUMERO, Paris explicite dans la source,",
   "et EXTRAIT TEXTUEL d'un avis négatif de voyageur visible dans les résultats indexés,",
   "relié sans ambiguïté à CETTE annonce. Ne jamais inférer la présence d'avis",
@@ -65,7 +63,7 @@ export async function attreyAirbnbIndexedSearch(ws:Workspace,source:"manuel"|"cr
   "N'utilise pas de messages privés ni de connexion. N'essaie pas de parcourir tout Airbnb.",
   "Si un extrait n'est pas montré explicitement, ignore le logement.",
   "Format exact, jusqu'à 8 blocs séparés par une ligne --- :",
-  "ANNONCE: https://www.airbnb.fr/rooms/123456789",
+  "ANNONCE: URL Airbnb exacte réellement retrouvée (ne jamais inventer de numéro)",
   "VILLE: Paris (uniquement si confirmé explicitement)",
   "CATEGORIE: menage OU accueil_cles OU communication OU entretien",
   "AVIS: citation exacte d'un commentaire négatif indexé, sans reformulation",
@@ -73,8 +71,25 @@ export async function attreyAirbnbIndexedSearch(ws:Workspace,source:"manuel"|"cr
   "Si aucun extrait solide, réponds uniquement AUCUN. Ne fournis aucun exemple fictif."
  ].join("\n");
  const t0=new Date().toISOString();
- const raw=await ask(prompt,{maxTokens:2700,tools:[{type:"web_search_20250305",
-  name:"web_search",max_uses:4,user_location:{type:"approximate",country:"FR",timezone:"Europe/Paris"}}]});
+ // Avec 4 recherches et 2700 jetons, Anthropic renvoyait max_tokens sans aucun texte,
+ // malgré une facturation d'environ 0,20 € par tentative. Deux recherches et une
+ // fenêtre de sortie plus large évitent ce blocage, sans multiplier les appels.
+ let raw="";
+ try {
+  raw=await ask(prompt,{fast:true,maxTokens:6500,tools:[{type:"web_search_20250305",
+   name:"web_search",max_uses:2,user_location:{type:"approximate",country:"FR",timezone:"Europe/Paris"}}]});
+ } catch(e) {
+  if(!(e instanceof HttpError) || !/aucun texte \(max_tokens\)/i.test(e.message))throw e;
+  console.warn("Attrey Airbnb: Anthropic a atteint max_tokens avant réponse exploitable");
+  await admin.from("attrey_runs").insert({
+   workspace_id:ws.id,canal:"web",variante:"airbnb",declenchement:source,
+   recherches:1,candidats:0,ajoutes:0,scan_status:"erreur",
+   scan_detail:"L'IA a épuisé son budget de génération sans fournir de résultats"
+  });
+  return {ok:false,liens_detectes:0,signals_found:0,added:0,
+   mode:"recherche_interrompue",reason:"max_tokens",
+   note:"Claude a effectué une recherche mais n'a pas fourni de résultat exploitable. Aucun avis n'a été inventé. Une nouvelle tentative peut être facturée."};
+ }
  const found=parseIndexedSignals(raw);
  if(found.length){
   const {error}=await admin.from("attrey_airbnb_signals").upsert(
