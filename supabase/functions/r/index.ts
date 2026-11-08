@@ -5,6 +5,7 @@ import { radarCron, radarGetConfig, radarSetConfig, radarToProspect, scanRadar }
 import { attreyForums, attreySearch } from "../_shared/attrey.ts";
 import { attreyMultiScan } from "../_shared/attrey-multicanal.ts";
 import { attreyAirbnbAudit } from "../_shared/attrey-airbnb-audit.ts";
+import { attreyAirbnbIndexedSearch } from "../_shared/attrey-airbnb-discovery.ts";
 import { classifyAttreyCandidates } from "../_shared/attrey-classify.ts";
 import { resolveCompetitor, spyCron, spyDigest, spyDiscover, spyFollow, spyNeeds, spySocial } from "../_shared/spy.ts";
 import { studioGenerate } from "../_shared/studio.ts";
@@ -32,6 +33,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     // Par défaut : interroger les 10 domaines publics en deux lots bornés.
     // Une plateforme explicitement choisie conserve l'ancien mode mono-source.
     if (!b.variante || b.variante === "toutes") return await attreyMultiScan(ws,"manuel");
+    if (b.variante === "airbnb") return await attreyAirbnbIndexedSearch(ws);
     // La recherche Airbnb ciblée ne doit pas scanner les forums en supplément.
     const forums = b.variante === "airbnb" ? {added:0} : await attreyForums(ws, "manuel").catch((e) => { console.error("attrey forums", e); return { added: 0 }; });
     const web = await attreySearch(ws, "manuel", typeof b.variante === "string" ? b.variante : undefined);
