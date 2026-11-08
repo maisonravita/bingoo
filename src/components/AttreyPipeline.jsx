@@ -3,6 +3,7 @@ import { fn, supabase } from "../lib/supabase";
 import { useToast } from "./ui";
 import AttreyStats from "./AttreyStats";
 import AttreySourceCoverage, { SEARCH_SOURCES } from "./AttreySourceCoverage";
+import AttreyCandidates from "./AttreyCandidates";
 
 const MVJ_WORKSPACE = "4e9c20f1-84bb-4854-aca7-adcdc2bc8bfd";
 const CATEGORIES = {
@@ -181,6 +182,7 @@ export default function AttreyPipeline({ workspaceId }) {
         <p className="text-xs text-ink-faint max-w-[310px]">Recherche de publications publiques indexées. L'accès direct à chaque plateforme n'est pas garanti.</p>
       </div>
       <AttreySourceCoverage workspaceId={workspaceId} refresh={statsTick}/>
+      <AttreyCandidates workspaceId={workspaceId} refresh={statsTick}/>
       <AttreyStats workspaceId={workspaceId} refresh={statsTick} />
       <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Type de prospection Attrey">
         {[
