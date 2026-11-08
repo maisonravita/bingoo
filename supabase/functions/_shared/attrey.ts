@@ -79,6 +79,21 @@ const VARIANTES: Record<string, { label: string; axe: string; termes: string }> 
   fr_demenagement: { label: "Français · mutation et meublé à Paris", axe: "DEMANDE : personnes et entreprises qui cherchent un logement meublé à Paris ou en Île-de-France pour une mutation, une mission, des travaux ou une formation (bail mobilité, moyenne durée).",
     termes: `"cherche appartement meublé Paris bail mobilité", "mutation Paris logement temporaire", "cherche logement pour stagiaire Paris", "logement pour salariés en mission Île-de-France"` },
 };
+
+// Variantes de RECHERCHE INDEXÉE : aucune connexion directe aux comptes ou APIs des plateformes.
+const SOURCES: Record<string,{label:string;host:string;axe:string;termes:string}> = {
+  allovoisins: {"label":"AlloVoisins · demandes de gestion","host":"allovoisins.com","axe":"OFFRE : demandes explicites de propriétaires cherchant conciergerie, gestion Airbnb, ménage ou remise de clés à Paris et proche banlieue. Pas de prestataires qui se présentent.","termes":"site:allovoisins.com cherche conciergerie Paris; site:allovoisins.com cherche gestion Airbnb"},
+  reddit: {"label":"Reddit · voyageurs et acheteurs","host":"reddit.com","axe":"DEMANDE : voyageurs cherchant un meublé à Paris, acheteurs en France et propriétaires cherchant un gestionnaire.","termes":"site:reddit.com/r/ParisTravelGuide looking for apartment; site:reddit.com moving to Paris rent"},
+  leboncoin: {"label":"Leboncoin · annonces publiques","host":"leboncoin.fr","axe":"OFFRE : annonces de propriétaires de logements à vendre ou à louer, sans supposer qu'ils cherchent une conciergerie. Ne jamais contacter par la messagerie.","termes":"site:leboncoin.fr/ad/ventes_immobilieres particulier Paris; site:leboncoin.fr/ad/locations particulier Paris"},
+  pap: {"label":"PAP · annonces de particuliers","host":"pap.fr","axe":"OFFRE : annonces datées de particuliers proposant un bien à louer ou vendre en Île-de-France ou sur la Côte d'Azur. Aucune sollicitation via messagerie.","termes":"site:pap.fr/annonces location appartement Paris; site:pap.fr/annonces vente appartement Nice"},
+  seloger: {"label":"SeLoger · annonces publiques","host":"seloger.com","axe":"OFFRE : annonces datées de biens en location ou vente en France. Ne pas confondre les annonces avec une demande de gestion.","termes":"site:seloger.com/annonces location meublé Paris; site:seloger.com/annonces achat appartement Cannes"},
+  facebook: {"label":"Facebook · posts publics","host":"facebook.com","axe":"DEMANDE : publications publiques accessibles sans connexion ni groupe privé, recherchant logement, achat ou conciergerie.","termes":"site:facebook.com/posts looking for apartment Paris; site:facebook.com cherche conciergerie Paris"},
+  linkedin: {"label":"LinkedIn · partenaires B2B","host":"linkedin.com","axe":"DEMANDE : entreprises cherchant logement pour leurs salariés, investisseurs en acquisition, agences cherchant partenaires. Publications publiques seulement.","termes":"site:linkedin.com/posts relocation Paris housing; site:linkedin.com/posts corporate accommodation Paris"},
+  airbnb: {"label":"Airbnb · annonces publiques","host":"airbnb.fr","axe":"OFFRE : annonces publiques de logements, ne jamais inventer une demande de gestion ni contacter les hôtes par messagerie. Rejeter si date de publication non vérifiée.","termes":"site:airbnb.fr/rooms Paris logement entier; site:airbnb.fr/rooms Nice logement entier"},
+  abritel: {"label":"Abritel · annonces publiques","host":"abritel.fr","axe":"OFFRE : annonces publiques de logement saisonnier, pas de prospection par messagerie ni de besoin de gestion supposé. Date de publication vérifiable obligatoire.","termes":"site:abritel.fr/location-vacances Paris appartement; site:abritel.fr/location-vacances Cannes appartement"},
+  forums: {"label":"Forums publics · expatriés et voyage","host":"","axe":"DEMANDE : publications de forums publics francophones et internationaux où quelqu'un recherche un logement ou une acquisition, date visible indispensable.","termes":"looking for apartment Paris expat forum 2026; cherche un appartement Paris forum; buying property Nice forum"},
+};
+
 async function choisirVariante(wsId: string) {
   const { data } = await admin.from("attrey_runs").select("variante, ajoutes").eq("workspace_id", wsId).eq("canal", "web").gte("at", new Date(Date.now() - 60 * 864e5).toISOString());
   const st = new Map<string, { n: number; a: number }>(Object.keys(VARIANTES).map((k) => [k, { n: 0, a: 0 }]));
@@ -97,8 +112,8 @@ async function coutDepuis(wsId: string, feature: string, t0: string) {
 export async function attreySearch(ws: Workspace, source: "manuel"|"cron" = "manuel", variante?: string) {
   if (ws.id !== WS_ID) throw new HttpError(403,"Recherche réservée à l'espace Attrey");
   const t0 = new Date().toISOString();
-  const v = variante && VARIANTES[variante] ? variante : await choisirVariante(ws.id);
-  const V = VARIANTES[v];
+  const v = variante && (VARIANTES[variante] || SOURCES[variante]) ? variante : await choisirVariante(ws.id);
+  const V = VARIANTES[v] ?? SOURCES[v];
   setAi({ws:ws.id,feature:"attrey/recherche"});
   const {data:previous}=await admin.from("attrey_leads").select("source_url")
     .eq("workspace_id",ws.id).order("created_at",{ascending:false}).limit(60);
@@ -109,8 +124,8 @@ export async function attreySearch(ws: Workspace, source: "manuel"|"cron" = "man
   const etude = await ask(`Tu es un analyste immobilier chargé de trouver des DEMANDES RÉELLES déjà exprimées publiquement en ligne, pour Attrey Real Estate (Paris et Île-de-France).
 Cherche activement sur le web, 5 recherches au plus, sur un seul axe :
 ${V.axe}
-Formulations à essayer (adapte-les, garde la langue) : ${V.termes}.
-Sources : Reddit public, forums d'expatriés et de voyage, forums immobiliers, Quora, sites de petites annonces publics. Ne contourne aucune connexion ni restriction et ne recherche pas de coordonnées privées.
+Formulations à essayer (adapte-les, garde la langue) : ${V.termes}. \nAttention : si la date du post n'est pas VÉRIFIABLE sur la source, ne renvoie pas la piste.
+Sources : ${SOURCES[v]?.host ? `EXCLUSIVEMENT des liens directs sur site:${SOURCES[v].host}. N'utilise aucune autre plateforme pour cette recherche.` : `Reddit public, forums d'expatriés et de voyage, forums immobiliers, Quora, sites de petites annonces publics.`} Ne contourne aucune connexion ni restriction et ne recherche pas de coordonnées privées.
 Une publication retenue est écrite par une personne qui exprime SON besoin (« je cherche », « we are moving », « I'm looking to buy ») : pas une publicité, un comparatif, un article ou un guide.
 Ne retiens QUE les publications entre ${cutoff} et aujourd'hui avec une DATE DE PUBLICATION visible et l'adresse exacte de la page. N'invente jamais ni liens ni budgets ni dates.
 Liens déjà enregistrés, à ignorer : ${seen.join(" | ") || "aucun"}.
@@ -127,6 +142,7 @@ Clé attendue : opportunities, liste d'objets avec direction (offre|demande), se
  const candidates=Array.isArray(scan?.opportunities)?scan.opportunities:[];
  const urls=new Set(seen);
  const rows=candidates.map(normalize).filter((r):r is NonNullable<typeof r>=>!!r)
+   .filter(r=>{const host=SOURCES[v]?.host;if(!host)return true;try{const h=new URL(r.source_url).hostname.toLowerCase();return h===host||h.endsWith('.'+host);}catch{return false;}})
    .filter(r=>{if(urls.has(r.source_url))return false;urls.add(r.source_url);return true;})
    .slice(0,10).map(r=>({...r,workspace_id:ws.id,canal:"web",variante:v}));
  let added=0;
