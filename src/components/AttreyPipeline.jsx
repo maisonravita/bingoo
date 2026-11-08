@@ -129,7 +129,7 @@ export default function AttreyPipeline({ workspaceId }) {
       const result=await fn("r/attrey-search",{workspace_id:workspaceId,variante:sourceChoice});
       // Après la collecte, qualifier automatiquement quelques liens réellement accessibles.
       // Un échec de lecture n'empêche pas de montrer les autres pistes récoltées.
-      if(result.liens_detectes>0){
+      if(sourceChoice!=="airbnb" && result.liens_detectes>0){
         await fn("r/attrey-classify",{workspace_id:workspaceId}).catch(e=>
           console.warn("Attrey: classification différée possible",e));
       }
@@ -137,7 +137,7 @@ export default function AttreyPipeline({ workspaceId }) {
       setScanState({last_scan_at:new Date().toISOString(),last_added:result.added||0});
       setStatsTick((x) => x + 1);
       toast(sourceChoice==="airbnb"
-        ? `${result.liens_detectes||0} lien(s) Airbnb repéré(s). Consulte les annonces en dessous ; les mauvais avis ne sont pas encore vérifiés.`
+        ? `${result.signals_found||0} indice(s) de mauvais avis trouvés dans les résultats indexés. Chaque avis reste à confirmer sur Airbnb.`
         : result.multicanal
         ? `10 sources ciblées · ${result.liens_detectes || 0} lien(s) détecté(s) · ${result.added || 0} prospect(s) à vérifier. Voir le bilan par plateforme.`
         : (result.added ? `${result.added} prospect(s) à vérifier · ${result.passages || 1} passage(s) web`
@@ -208,12 +208,12 @@ export default function AttreyPipeline({ workspaceId }) {
         </div>
         <div className="flex gap-2 flex-wrap">
           <button type="button" disabled={scanning} onClick={scanWeb} className="rounded-xl bg-ink text-white text-sm font-semibold px-4 py-2.5 disabled:opacity-50">
-            {scanning ? "Recherche en cours…" : sourceChoice==="airbnb" ? "Chercher des logements Airbnb à Paris" : "Rechercher des pistes sur Internet"}
+            {scanning ? "Recherche en cours…" : sourceChoice==="airbnb" ? "Chercher des avis négatifs Airbnb à Paris" : "Rechercher des pistes sur Internet"}
           </button>
           <button type="button" onClick={() => setShowForm((s) => !s)} className="rounded-xl border border-line bg-white text-sm font-semibold px-4 py-2.5">{showForm ? "Fermer" : "+ Ajouter une opportunité"}</button>
         </div>
       </div>
-      <p className="text-xs text-ink-soft">Airbnb est prioritaire : Attrey repère des fiches de logements publiques à Paris. L'intérêt commercial dépend ensuite de l'analyse d'avis réellement disponibles. Les autres sources restent accessibles depuis le sélecteur. Aucun contact automatique. {scanState?.last_scan_at && `Dernière recherche : ${new Date(scanState.last_scan_at).toLocaleString("fr-FR")} · ${scanState.last_added} piste(s) ajoutée(s).`}</p>
+      <p className="text-xs text-ink-soft">Airbnb est prioritaire : recherche ciblée des commentaires négatifs publics indexés, rattachés à des annonces parisiennes. Ce n’est pas une lecture exhaustive des avis Airbnb ; les citations restent à vérifier. Les autres sources restent disponibles. Aucun contact automatique. {scanState?.last_scan_at && `Dernière recherche : ${new Date(scanState.last_scan_at).toLocaleString("fr-FR")} · ${scanState.last_added} piste(s) ajoutée(s).`}</p>
       <div className="flex flex-wrap gap-2 items-end">
         <label className="text-xs font-semibold flex-1 min-w-[230px]">Plateforme à interroger
           <select value={sourceChoice} onChange={(e)=>setSourceChoice(e.target.value)} disabled={scanning}

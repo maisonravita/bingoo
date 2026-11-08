@@ -5,6 +5,7 @@ import { radarCron, radarGetConfig, radarSetConfig, radarToProspect, scanRadar }
 import { attreyForums, attreySearch } from "../_shared/attrey.ts";
 import { attreyMultiScan } from "../_shared/attrey-multicanal.ts";
 import { attreyAirbnbAudit } from "../_shared/attrey-airbnb-audit.ts";
+import { attreyAirbnbIndexedSearch } from "../_shared/attrey-airbnb-discovery.ts";
 import { classifyAttreyCandidates } from "../_shared/attrey-classify.ts";
 import { resolveCompetitor, spyCron, spyDigest, spyDiscover, spyFollow, spyNeeds, spySocial } from "../_shared/spy.ts";
 import { studioGenerate } from "../_shared/studio.ts";
@@ -32,6 +33,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     // Par défaut : interroger les 10 domaines publics en deux lots bornés.
     // Une plateforme explicitement choisie conserve l'ancien mode mono-source.
     if (!b.variante || b.variante === "toutes") return await attreyMultiScan(ws,"manuel");
+    if (b.variante === "airbnb") return await attreyAirbnbIndexedSearch(ws);
     // La recherche Airbnb ciblée ne doit pas scanner les forums en supplément.
     const forums = b.variante === "airbnb" ? {added:0} : await attreyForums(ws, "manuel").catch((e) => { console.error("attrey forums", e); return { added: 0 }; });
     const web = await attreySearch(ws, "manuel", typeof b.variante === "string" ? b.variante : undefined);
@@ -803,8 +805,9 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { aiRoom, backgroundPaused } = await import("../_shared/core.ts");
     if (!ws || (await backgroundPaused()) || !(await aiRoom(wid, 0.6))) return { skipped: "budget_ou_pause" };
     try {
-      const forums = await attreyForums(ws, "cron").catch((e) => { console.error("attrey forums", e); return { added: 0 }; });
-      return { multicanal: await attreyMultiScan(ws, "cron"), forums };
+      // Priorité Attrey : un passage borné chaque jour sur les avis Airbnb publics indexés.
+      // Les autres canaux restent accessibles en recherche manuelle.
+      return { airbnb: await attreyAirbnbIndexedSearch(ws, "cron") };
     }
     catch (e) {
       await admin.from("attrey_scan_state").upsert({ workspace_id: wid, last_error: (e as Error).message.slice(0, 300), updated_at: new Date().toISOString() }, { onConflict: "workspace_id" });
