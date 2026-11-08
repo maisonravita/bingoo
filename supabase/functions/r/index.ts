@@ -4,6 +4,7 @@ import { admin, log, quota, requireMember, setAi, type Prospect } from "../_shar
 import { radarCron, radarGetConfig, radarSetConfig, radarToProspect, scanRadar } from "../_shared/radar.ts";
 import { attreyForums, attreySearch } from "../_shared/attrey.ts";
 import { attreyMultiScan } from "../_shared/attrey-multicanal.ts";
+import { attreyAirbnbAudit } from "../_shared/attrey-airbnb-audit.ts";
 import { classifyAttreyCandidates } from "../_shared/attrey-classify.ts";
 import { resolveCompetitor, spyCron, spyDigest, spyDiscover, spyFollow, spyNeeds, spySocial } from "../_shared/spy.ts";
 import { studioGenerate } from "../_shared/studio.ts";
@@ -39,6 +40,11 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const {ws}=await requireMember(req,b.workspace_id);
     await quota(ws.id,"espion",20);
     return await classifyAttreyCandidates(ws,Array.isArray(b.ids)?b.ids:undefined);
+  },
+  async "attrey-airbnb-audit"(req,b) {
+    const {ws}=await requireMember(req,b.workspace_id);
+    await quota(ws.id,"espion",20);
+    return await attreyAirbnbAudit(ws,b);
   },
   async "radar-config"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
