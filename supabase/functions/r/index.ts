@@ -805,8 +805,9 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { aiRoom, backgroundPaused } = await import("../_shared/core.ts");
     if (!ws || (await backgroundPaused()) || !(await aiRoom(wid, 0.6))) return { skipped: "budget_ou_pause" };
     try {
-      const forums = await attreyForums(ws, "cron").catch((e) => { console.error("attrey forums", e); return { added: 0 }; });
-      return { multicanal: await attreyMultiScan(ws, "cron"), forums };
+      // Priorité Attrey : un passage borné chaque jour sur les avis Airbnb publics indexés.
+      // Les autres canaux restent accessibles en recherche manuelle.
+      return { airbnb: await attreyAirbnbIndexedSearch(ws, "cron") };
     }
     catch (e) {
       await admin.from("attrey_scan_state").upsert({ workspace_id: wid, last_error: (e as Error).message.slice(0, 300), updated_at: new Date().toISOString() }, { onConflict: "workspace_id" });
