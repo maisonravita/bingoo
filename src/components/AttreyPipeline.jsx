@@ -69,7 +69,7 @@ export default function AttreyPipeline({ workspaceId }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [sourceChoice,setSourceChoice] = useState("auto");
+  const [sourceChoice,setSourceChoice] = useState("toutes");
   const [scanState, setScanState] = useState(null);
   const [statsTick, setStatsTick] = useState(0);
   const [showForm, setShowForm] = useState(false);
@@ -96,11 +96,15 @@ export default function AttreyPipeline({ workspaceId }) {
   const scanWeb = async () => {
     setScanning(true);
     try {
-      const result=await fn("r/attrey-search",{workspace_id:workspaceId,...(sourceChoice === "auto" ? {} : {variante:sourceChoice})});
+      const result=await fn("r/attrey-search",{workspace_id:workspaceId,variante:sourceChoice});
       await load();
       setScanState({last_scan_at:new Date().toISOString(),last_added:result.added||0});
       setStatsTick((x) => x + 1);
-      toast(result.added ? `${result.added} prospect(s) à vérifier · ${result.passages || 1} passage(s) web` : `${result.liens_detectes || 0} lien(s) public(s) détecté(s) · ${result.passages || 1} passage(s) web. Consulte « Pistes publiques à vérifier ».`,result.added?"good":"default");
+      toast(result.multicanal
+        ? `10 sources ciblées · ${result.liens_detectes || 0} lien(s) détecté(s) · ${result.added || 0} prospect(s) à vérifier. Voir le bilan par plateforme.`
+        : (result.added ? `${result.added} prospect(s) à vérifier · ${result.passages || 1} passage(s) web`
+          : `${result.liens_detectes || 0} lien(s) public(s) détecté(s) · ${result.passages || 1} passage(s) web. Consulte « Pistes publiques à vérifier ».`),
+        result.added?"good":"default");
     } catch(e) {
       toast(e.message || "Recherche web indisponible", "bad");
     } finally {setScanning(false);}
