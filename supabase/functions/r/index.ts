@@ -794,6 +794,36 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   },
   async "spy-digest"(req) { await cron(req); return await spyDigest(); },
   // Administration : recherche de demandes publiques sur un espace précis (clé cron)
+  // Administration (clé cron) : fiches prospects depuis les opportunités du Radar, puis e-mail pro et, si demandé, téléphone du dirigeant via trouvé!
+  // Une clé trouvé! n'est débitée que si la coordonnée existe. Aucun message n'est envoyé.
+  async "contacts-run"(req, b) {
+    await cron(req);
+    const { data: w } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
+    if (!w) throw new HttpError(404, "Espace introuvable");
+    const ws = w as Parameters<typeof radarToProspect>[0];
+    const max = Math.max(1, Math.min(40, Number(b.max) || 15));
+    const t0 = Date.now(), reste = () => 120_000 - (Date.now() - t0);
+    const kinds = Array.isArray(b.kinds) && b.kinds.length ? b.kinds.map(String) : ["patrimoine", "creation"];
+    const { data: opps } = await admin.from("radar_opps").select("id").eq("workspace_id", ws.id).in("kind", kinds).is("prospect_id", null).neq("status", "ecarte").order("created_at").limit(max);
+    let fiches = 0;
+    for (const o of opps ?? []) { if (reste() < 60_000) break; try { await radarToProspect(ws, o.id); fiches++; } catch (e) { console.error("contacts-run fiche", o.id, e); } }
+    const { trouveReady, trouveEmail, trouvePhone, trouveMsg, trouveStop } = await import("../_shared/trouve.ts");
+    if (!trouveReady()) return { fiches, emails: 0, telephones: 0, note: "trouvé! non configuré" };
+    const { data: ids } = await admin.from("radar_opps").select("prospect_id").eq("workspace_id", ws.id).in("kind", kinds).not("prospect_id", "is", null);
+    const pids = [...new Set(((ids ?? []) as { prospect_id: string }[]).map((x) => x.prospect_id))];
+    const { data: ps } = await admin.from("prospects").select("*").in("id", pids.length ? pids : ["00000000-0000-0000-0000-000000000000"]).is("dc_tried_at", null).not("siren", "is", null).limit(max);
+    let emails = 0, telephones = 0, essais = 0; const erreurs: string[] = [];
+    for (const p of (ps ?? []) as Prospect[]) {
+      if (reste() < 15_000) break;
+      essais++;
+      try {
+        const r = await trouveEmail(ws, p);
+        if (r.email) emails++;
+        if (b.phone === true && !p.phone) { const t = await trouvePhone(ws, p); if (t.phone) telephones++; }
+      } catch (e) { erreurs.push(trouveMsg(e)); if (trouveStop(e)) break; }
+    }
+    return { fiches, essais, emails, telephones, erreurs: [...new Set(erreurs)] };
+  },
   async "spy-needs-run"(req, b) {
     await cron(req);
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
