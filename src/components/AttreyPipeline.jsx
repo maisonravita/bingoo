@@ -66,7 +66,7 @@ export default function AttreyPipeline({ workspaceId }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({segment:"proprietaire_location",title:"",city:"",description:"",source_url:"",source_name:"",budget_max:"",budget_period:"total",country_origin:""});
+  const [form, setForm] = useState({segment:"proprietaire_location",title:"",city:"",description:"",source_url:"",source_name:"",budget_max:"",budget_period:"total",country_origin:"",date_start:"",date_end:""});
   const active = workspaceId === MVJ_WORKSPACE;
 
   const load = useCallback(async () => {
@@ -95,18 +95,20 @@ export default function AttreyPipeline({ workspaceId }) {
   const selectDirection = (next) => {
     setDirection(next);
     setShowForm(false);
-    setForm({segment:CATEGORIES[next][0][0],title:"",city:"",description:"",source_url:"",source_name:"",budget_max:"",budget_period:"total",country_origin:""});
+    setForm({segment:CATEGORIES[next][0][0],title:"",city:"",description:"",source_url:"",source_name:"",budget_max:"",budget_period:"total",country_origin:"",date_start:"",date_end:""});
   };
   const save = async (e) => {
     e.preventDefault();
     if (!form.title.trim()) return toast("Indique le besoin exprimé.", "bad");
     if (!/^https:\/\//i.test(form.source_url.trim())) return toast("Ajoute le lien HTTPS exact de la source avant d'enregistrer.", "bad");
+    if (form.date_start && form.date_end && form.date_start > form.date_end) return toast("La date de fin doit suivre la date de début.", "bad");
     const option = CATEGORIES[direction].find(([s]) => s === form.segment);
     setSaving(true);
     const payload = {
       workspace_id:workspaceId, direction, segment:form.segment, intent:option[2],
       title:form.title.trim(), description:form.description.trim() || null,
       city:form.city.trim() || null, country_origin:form.country_origin.trim() || null,
+      date_start:form.date_start || null, date_end:form.date_end || null,
       source_url:form.source_url.trim(), source_name:form.source_name.trim() || null,
       budget_max:form.budget_max ? Number(form.budget_max) : null, budget_period:form.budget_max ? form.budget_period : null,
       evidence_level:"a_verifier",contact_route:"a_verifier",status:"a_verifier"
@@ -119,7 +121,7 @@ export default function AttreyPipeline({ workspaceId }) {
     }
     toast("Opportunité ajoutée à qualifier", "good");
     setShowForm(false);
-    setForm({segment:CATEGORIES[direction][0][0],title:"",city:"",description:"",source_url:"",source_name:"",budget_max:"",budget_period:"total",country_origin:""});
+    setForm({segment:CATEGORIES[direction][0][0],title:"",city:"",description:"",source_url:"",source_name:"",budget_max:"",budget_period:"total",country_origin:"",date_start:"",date_end:""});
     load();
   };
   const changeStatus = async (item, status) => {
@@ -169,6 +171,12 @@ export default function AttreyPipeline({ workspaceId }) {
           <select value={form.budget_period} onChange={(e)=>setForm({...form,budget_period:e.target.value})} className="mt-1 w-full border border-line rounded-lg px-3 py-2 bg-white font-normal">
             <option value="total">Total</option><option value="mois">Par mois</option><option value="nuit">Par nuit</option><option value="achat">Budget d'achat</option>
           </select>
+        </label>
+        <label className="font-semibold">Date de début (si indiquée)
+          <input type="date" value={form.date_start} onChange={(e)=>setForm({...form,date_start:e.target.value})} className="mt-1 w-full border border-line rounded-lg px-3 py-2 bg-white font-normal"/>
+        </label>
+        <label className="font-semibold">Date de fin (si indiquée)
+          <input type="date" value={form.date_end} onChange={(e)=>setForm({...form,date_end:e.target.value})} className="mt-1 w-full border border-line rounded-lg px-3 py-2 bg-white font-normal"/>
         </label>
         <label className="font-semibold">Plateforme (si connue)
           <input value={form.source_name} onChange={(e)=>setForm({...form,source_name:e.target.value})} placeholder="Reddit, forum…" className="mt-1 w-full border border-line rounded-lg px-3 py-2 bg-white font-normal"/>
