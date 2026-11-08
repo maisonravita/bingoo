@@ -778,8 +778,11 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   async "attrey-cron"(req) {
     await cron(req);
     const wid = "4e9c20f1-84bb-4854-aca7-adcdc2bc8bfd";
-    const { data: state } = await admin.from("attrey_scan_state").select("last_scan_at").eq("workspace_id", wid).maybeSingle();
-    if (state?.last_scan_at && Date.now() - new Date(state.last_scan_at).getTime() < 23 * 3600000) return { skipped: "deja_fait" };
+    // Le scan MANUEL ne doit pas bloquer le passage programmé du lendemain.
+    const { data: lastCron } = await admin.from("attrey_runs").select("at")
+      .eq("workspace_id", wid).eq("canal","web").eq("declenchement","cron")
+      .order("at",{ascending:false}).limit(1).maybeSingle();
+    if (lastCron?.at && Date.now() - new Date(lastCron.at).getTime() < 23 * 3600000) return { skipped: "deja_fait" };
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", wid).single();
     const { aiRoom, backgroundPaused } = await import("../_shared/core.ts");
     if (!ws || (await backgroundPaused()) || !(await aiRoom(wid, 0.6))) return { skipped: "budget_ou_pause" };
