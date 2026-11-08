@@ -122,7 +122,7 @@ export async function attreySearch(ws: Workspace, source: "manuel"|"cron" = "man
   const cutoff=new Date(Date.now()-75*86400000).toISOString().slice(0,10);
   // Deux temps (comme l'estimation) : la recherche web en texte libre avec ses sources, puis l'extraction en JSON par un modèle léger.
   // Demander directement le JSON après une recherche web faisait recopier le modèle de format, vide.
-  const etude = await ask(`Tu es un analyste immobilier chargé de trouver des DEMANDES RÉELLES déjà exprimées publiquement en ligne, pour Attrey Real Estate (Paris et Île-de-France).
+  let etude = await ask(`Tu es un analyste immobilier chargé de trouver des DEMANDES RÉELLES déjà exprimées publiquement en ligne, pour Attrey Real Estate (Paris et Île-de-France).
 Cherche activement sur le web, 5 recherches au plus, sur un seul axe :
 ${V.axe}
 Formulations à essayer (adapte-les, garde la langue) : ${V.termes}. \nAttention : si la date du post n'est pas VÉRIFIABLE sur la source, ne renvoie pas la piste.
@@ -135,6 +135,35 @@ Réponds en texte : pour chaque publication retenue, une ligne avec le sens (off
    tools:[{type:"web_search_20250305",name:"web_search",max_uses:5,
      user_location:{type:"approximate",country:"FR",timezone:"Europe/Paris"}}]
  }).catch((e)=>{ console.error("attrey recherche", e); return ""; });
+  // Second passage limité : seulement quand aucune URL publique directe n'a été trouvée.
+  // Une recherche manuelle ciblée reste sur son domaine ; aucun compte privé n'est consulté.
+  let passages = 1;
+  let repli = "non_necessaire";
+  const firstLinks = publicLinks(etude, SOURCES[v]?.host || undefined);
+  const spent = await coutDepuis(ws.id,"attrey/recherche",t0);
+  if (!firstLinks.length && spent < 0.20) {
+    passages = 2;
+    const scope = SOURCES[v]?.host
+      ? `N'utilise QUE les pages publiques indexées de site:${SOURCES[v].host}.`
+      : "Cherche des discussions publiques sur Reddit, les forums d'expatriés et les annonces.";
+    const second = await ask(`Recherche immobilière Attrey en France : la première approche n'a pas trouvé de lien direct.
+Reformule véritablement tes requêtes avec des synonymes français et anglais.
+Axe : ${V.axe}
+${scope}
+Exemples de mots-clés à combiner selon le besoin : "need accommodation", "Paris apartment wanted", "relocation housing France", "cherche gestionnaire Airbnb", "appartement meublé recherché", "owner property management".
+Essaie 3 recherches ciblées. Renvoie jusqu'à 8 liens HTTPS directs, chacun avec titre, extrait et site.
+Les informations inconnues restent inconnues, en particulier les dates ; n'invente rien.
+Liens déjà connus : ${seen.slice(0,20).join(" | ") || "aucun"}.
+Si aucune publication pertinente, réponds « aucune ».`,{
+      maxTokens:2300,
+      tools:[{type:"web_search_20250305",name:"web_search",max_uses:3,
+        user_location:{type:"approximate",country:"FR",timezone:"Europe/Paris"}}]
+    }).catch((e)=>{console.error("attrey repli",e);return "";});
+    if(second && !/^\\s*aucune\\b/i.test(second)){
+      etude = [etude,second].filter(Boolean).join("\\n");
+      repli = "resultats_supplementaires";
+    }else repli = "sans_resultat";
+  }
   // Toujours archiver les liens visibles dans le résultat web, même si l'extraction IA échoue.
   // Ces liens restent des CANDIDATS NON VÉRIFIÉS : aucun contact ni disponibilité présumés.
   const discovered = publicLinks(etude, SOURCES[v]?.host || undefined);
@@ -165,14 +194,14 @@ Clé attendue : opportunities, liste d'objets avec direction (offre|demande), se
    added=data?.length??0;
  }
  const cout = await coutDepuis(ws.id, "attrey/recherche", t0);
- await admin.from("attrey_runs").insert({ workspace_id: ws.id, canal: "web", variante: v, declenchement: source, recherches: 1, candidats: Math.max(candidates.length,discovered.length), ajoutes: added, cout_eur: cout });
+ await admin.from("attrey_runs").insert({ workspace_id: ws.id, canal: "web", variante: v, declenchement: source, recherches: passages, candidats: Math.max(candidates.length,discovered.length), ajoutes: added, cout_eur: cout });
  const {error:stateError}=await admin.from("attrey_scan_state").upsert({
    workspace_id:ws.id,last_scan_at:new Date().toISOString(),last_added:added,
    last_error:null,updated_at:new Date().toISOString()
  },{onConflict:"workspace_id"});
  if(stateError) throw new HttpError(500,stateError.message);
  await log(ws.id,"radar",`Attrey : ${added} nouvelle(s) piste(s) web à vérifier (${V.label}), lancement ${source}`);
- return {ok:true,scanned:candidates.length,liens_detectes:discovered.length,liens_archives:archived,eligible:rows.length,added,source,variante:V.label,cout_eur:Math.round(cout*1000)/1000};
+ return {ok:true,passages,repli,scanned:candidates.length,liens_detectes:discovered.length,liens_archives:archived,eligible:rows.length,added,source,variante:V.label,cout_eur:Math.round(cout*1000)/1000};
 }
 
 // ---------------------------------------------------------------- Forums d'expatriés (lecture directe, sans recherche web payante)
