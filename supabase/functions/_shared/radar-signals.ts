@@ -299,14 +299,15 @@ export async function sciProprietaires(ws: Workspace): Promise<Opp[]> {
   const reg = await lookupMany(rows.map((r) => r.siren));
   return rows.filter((r) => reg.get(r.siren) && !reg.get(r.siren)!.ferme).slice(0, cfg.par_nuit ?? 20).map((r) => {
     const c = reg.get(r.siren)!;
+    const gerant = (c.dirigeant ?? "").replace(/\s*\(.*?\)\s*/g, " ").trim(); // sans le nom de naissance entre parenthèses
     const communes = r.communes.replace(/\s*\(\d+\)/g, "").split(" | ").map(cap).join(", ");
     return {
       key: `sci:${r.siren}`, kind: "patrimoine" as const, title: cap(r.denomination), company: cap(r.denomination), siren: r.siren,
-      summary: `Propriétaire de ${r.nb_locaux} local${r.nb_locaux > 1 ? "aux" : ""} (dont ${r.nb_etage} en étage) : ${communes}.${c.dirigeant ? ` Gérant : ${c.dirigeant}.` : ""}`,
+      summary: `Propriétaire de ${r.nb_locaux} ${r.nb_locaux > 1 ? "locaux" : "local"} (dont ${r.nb_etage} en étage) : ${communes}.${gerant ? ` Gérant : ${gerant}.` : ""}`,
       why: "Une société qui détient des appartements dans une commune très demandée : une gestion en courte durée peut augmenter ses revenus.",
       city: cap(r.adresse.split(", ").pop() ?? ""), dept: r.dep, url: `https://annuaire-entreprises.data.gouv.fr/entreprise/${r.siren}`,
       source: "DGFiP, fichier des locaux des personnes morales (2026)", published: null,
-      raw: { adresse_bien: cap(r.adresse), nb_locaux: r.nb_locaux, nb_etage: r.nb_etage, communes, dirigeant: c.dirigeant ?? "", role: c.role ?? "", siege: `${c.cp} ${c.ville}`.trim() },
+      raw: { adresse_bien: cap(r.adresse), nb_locaux: r.nb_locaux, nb_etage: r.nb_etage, communes, dirigeant: gerant, role: c.role ?? "", siege: `${c.cp} ${c.ville}`.trim() },
     };
   });
 }

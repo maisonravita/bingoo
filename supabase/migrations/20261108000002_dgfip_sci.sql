@@ -10,7 +10,7 @@ returns setof public.dgfip_sci language sql stable security definer set search_p
   where d.communes ~* motifs[1] and d.nb_locaux between 1 and maxl and d.nb_etage > 0
     and not exists (select 1 from radar_opps o where o.workspace_id = ws and o.key = 'sci:' || d.siren)
     and not exists (select 1 from prospects p where p.workspace_id = ws and p.siren = d.siren)
-  order by d.nb_etage desc, md5(d.siren || current_date::text)
+  order by md5(d.siren || current_date::text)
   limit n
 $$;
 revoke all on function public.sci_a_prospecter(uuid, text[], int, int) from public, anon, authenticated;
