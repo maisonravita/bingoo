@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { fn, supabase } from "../lib/supabase";
 import { useToast } from "./ui";
 
 const MVJ_WORKSPACE = "4e9c20f1-84bb-4854-aca7-adcdc2bc8bfd";
@@ -65,6 +65,8 @@ export default function AttreyPipeline({ workspaceId }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanState, setScanState] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({segment:"proprietaire_location",title:"",city:"",description:"",source_url:"",source_name:"",budget_max:"",budget_period:"total",country_origin:"",date_start:"",date_end:""});
   const active = workspaceId === MVJ_WORKSPACE;
@@ -80,6 +82,24 @@ export default function AttreyPipeline({ workspaceId }) {
   }, [workspaceId, active, toast]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (!active) return;
+    supabase.from("attrey_scan_state").select("last_scan_at,last_added")
+      .eq("workspace_id",workspaceId).maybeSingle()
+      .then(({data})=>setScanState(data || null));
+  },[active,workspaceId]);
+  const scanWeb = async () => {
+    setScanning(true);
+    try {
+      const result=await fn("r/attrey-search",{workspace_id:workspaceId});
+      await load();
+      setScanState({last_scan_at:new Date().toISOString(),last_added:result.added||0});
+      toast(result.added ? `${result.added} nouvelle(s) piste(s) publique(s) à vérifier` : "Aucune nouvelle piste vérifiable dans cette recherche.",result.added?"good":"default");
+    } catch(e) {
+      toast(e.message || "Recherche web indisponible", "bad");
+    } finally {setScanning(false);}
+  };
+
 
   const shown = useMemo(() => items.filter((x) => x.direction === direction), [items,direction]);
   const suggestions = useMemo(() => {
@@ -138,8 +158,14 @@ export default function AttreyPipeline({ workspaceId }) {
           <h2 className="text-xl font-bold mt-1">Acquisition immobilière</h2>
           <p className="text-xs text-ink-soft mt-1">Deux flux distincts : propriétaires et biens d'un côté, voyageurs et acheteurs de l'autre.</p>
         </div>
-        <button type="button" onClick={() => setShowForm((s) => !s)} className="rounded-xl bg-ink text-white text-sm font-semibold px-4 py-2.5">{showForm ? "Fermer" : "+ Ajouter une opportunité"}</button>
+        <div className="flex gap-2 flex-wrap">
+          <button type="button" disabled={scanning} onClick={scanWeb} className="rounded-xl bg-ink text-white text-sm font-semibold px-4 py-2.5 disabled:opacity-50">
+            {scanning ? "Recherche web en cours…" : "Rechercher des clients sur Internet"}
+          </button>
+          <button type="button" onClick={() => setShowForm((s) => !s)} className="rounded-xl border border-line bg-white text-sm font-semibold px-4 py-2.5">{showForm ? "Fermer" : "+ Ajouter une opportunité"}</button>
+        </div>
       </div>
+      <p className="text-xs text-ink-soft">Recherche sur les publications publiques récentes en français et en anglais · doublons écartés · aucune prise de contact automatique. {scanState?.last_scan_at && `Dernière recherche : ${new Date(scanState.last_scan_at).toLocaleString("fr-FR")} · ${scanState.last_added} piste(s) ajoutée(s).`}</p>
       <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Type de prospection Attrey">
         {[
           ["offre","Biens & propriétaires"],
@@ -191,7 +217,7 @@ export default function AttreyPipeline({ workspaceId }) {
       </form>}
       <div className="space-y-2">
         {loading ? <p className="text-xs text-ink-soft py-6">Chargement des opportunités…</p>
-          : !shown.length ? <p className="text-sm text-ink-soft py-6 text-center">Aucune opportunité dans ce flux pour l'instant. Les recherches automatiques ne sont pas encore connectées à cette vue.</p>
+          : !shown.length ? <p className="text-sm text-ink-soft py-6 text-center">Aucune opportunité dans ce flux pour l'instant. Lance une recherche web pour trouver des pistes publiques.</p>
           : shown.map((item) => <div key={item.id} className="border border-line rounded-xl p-3 flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-[190px]"><p className="text-sm font-semibold">{item.title}</p>
               <p className="text-xs text-ink-soft mt-1">{matchText(item)} · {CATEGORIES[direction].find(([v])=>v===item.segment)?.[1] || item.segment}</p>
