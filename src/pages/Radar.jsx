@@ -9,6 +9,7 @@ import { DEPTS, centerOf, offsetKm } from "../lib/geo";
 import { estSimple, useAller } from "../lib/lieu";
 import { EXT_IDS, STORE_URL, pingExtension } from "../lib/ext";
 import Demande from "../components/Demande";
+import AttreyOutreach from "../components/AttreyOutreach";
 import { useDansLieu } from "../lib/lieu";
 
 export const RECRUIT_HINT = "Cette entreprise recrute pour un poste lié à ce que tu vends. C'est souvent le signe d'un besoin actuel et d'un budget : c'est le bon moment pour lui proposer ton service, en complément ou à la place d'une embauche.";
@@ -443,6 +444,7 @@ function Detail({ o, onClose, onChange }) {
           </div>
         </div>
 
+        <AttreyOutreach opportunity={o} workspaceId={ws.id} onChange={onChange} />
         {o.kind === "besoin" && <div className="mt-6"><Demande o={o} onDone={(_, patch) => onChange({ ...o, ...patch })} /></div>}
         {o.kind === "appel_offres" && <TenderHelp o={o} onChange={onChange} />}
         {o.kind !== "appel_offres" && o.kind !== "besoin" && !["salon", "budget", "difficulte"].includes(o.kind) && <ContactReady o={o} onChange={onChange} />}
