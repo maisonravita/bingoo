@@ -1,5 +1,6 @@
 import { useEffect,useMemo,useState } from "react";
 import { fn,supabase } from "../lib/supabase";
+import AttreyAirbnbSignals from "./AttreyAirbnbSignals";
 const CATEGORIES={menage:"Ménage / propreté",accueil_cles:"Accueil / remise de clés",
   communication:"Communication hôte",entretien:"Entretien / équipements",autre:"Autre critique"};
 const canonical=(url)=>{
@@ -58,6 +59,8 @@ export default function AttreyAirbnbRadar({workspaceId,refresh=0,favoriteUrls=ne
       <div className="rounded-xl bg-slate-50 p-3"><p className="font-semibold text-xl">{audits.length}</p><p className="text-[11px] text-ink-soft">Annonces étudiées</p></div>
       <div className="rounded-xl bg-slate-50 p-3"><p className="font-semibold text-xl">{auditCount}</p><p className="text-[11px] text-ink-soft">Avec signalements vérifiés</p></div>
     </div>
+    <AttreyAirbnbSignals workspaceId={workspaceId} refresh={refresh} favoriteUrls={favoriteUrls}
+      onToggleFavorite={onToggleFavorite} favoriteBusy={favoriteBusy}/>
     {unique.length>0&&<div className="space-y-2">
       <h4 className="text-sm font-semibold">Annonces Airbnb repérées · à consulter ou sauvegarder</h4>
       <div className="max-h-[245px] overflow-y-auto space-y-2">
