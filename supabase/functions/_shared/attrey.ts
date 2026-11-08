@@ -159,8 +159,8 @@ Si aucune publication pertinente, réponds « aucune ».`,{
       tools:[{type:"web_search_20250305",name:"web_search",max_uses:3,
         user_location:{type:"approximate",country:"FR",timezone:"Europe/Paris"}}]
     }).catch((e)=>{console.error("attrey repli",e);return "";});
-    if(second && !/^\\s*aucune\\b/i.test(second)){
-      etude = [etude,second].filter(Boolean).join("\\n");
+    if(second && !/^\s*aucune\b/i.test(second)){
+      etude = [etude,second].filter(Boolean).join("\n");
       repli = "resultats_supplementaires";
     }else repli = "sans_resultat";
   }
