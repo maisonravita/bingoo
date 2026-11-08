@@ -97,6 +97,12 @@ export default function AttreyPipeline({ workspaceId }) {
     setScanning(true);
     try {
       const result=await fn("r/attrey-search",{workspace_id:workspaceId,variante:sourceChoice});
+      // Après la collecte, qualifier automatiquement quelques liens réellement accessibles.
+      // Un échec de lecture n'empêche pas de montrer les autres pistes récoltées.
+      if(result.multicanal && result.liens_detectes>0){
+        await fn("r/attrey-classify",{workspace_id:workspaceId}).catch(e=>
+          console.warn("Attrey: classification différée possible",e));
+      }
       await load();
       setScanState({last_scan_at:new Date().toISOString(),last_added:result.added||0});
       setStatsTick((x) => x + 1);
