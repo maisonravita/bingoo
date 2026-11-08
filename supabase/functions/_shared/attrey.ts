@@ -172,10 +172,10 @@ export async function attreyForums(ws: Workspace, source: "manuel"|"cron" = "man
   const sujets = new Map<string, { url: string; titre: string; forum: string }>();
   const pages = await Promise.all(FORUMS.map(async (f) => ({ f, html: await page(f.url) })));
   for (const { f, html } of pages) {
-    for (const m of html.matchAll(/<a[^>]+href="(https:\/\/www\.expat\.com\/(?:en|fr)\/forum\/europe\/france\/(?:[a-z-]+\/)?(\d+)-([a-z0-9-]+)\.html)"[^>]*>([\s\S]{0,300}?)<\/a>/g)) {
+    for (const m of html.matchAll(/href="(https:\/\/www\.expat\.com\/(?:en|fr)\/forum\/europe\/france\/(?:[a-z-]+\/)?(\d+)-([a-z0-9-]+)\.html)"/g)) {
       if (sujets.has(m[2])) continue;
-      const texte = decode(m[4].replace(/<[^>]+>/g, " "));
-      sujets.set(m[2], { url: m[1], titre: texte.length > 8 ? texte : m[3].replace(/-/g, " "), forum: f.nom });
+      // Titre tiré de l'adresse (« buying-an-apartment-in-paris ») : le texte du premier lien est souvent « 3 réponses » ou un avatar
+      sujets.set(m[2], { url: m[1], titre: m[3].replace(/-/g, " ").trim(), forum: f.nom });
     }
   }
   // 2. Seulement les sujets jamais vus
