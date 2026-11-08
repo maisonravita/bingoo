@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { fn, supabase } from "../lib/supabase";
 import { useToast } from "./ui";
 import AttreyStats from "./AttreyStats";
+import AttreySourceCoverage, { SEARCH_SOURCES } from "./AttreySourceCoverage";
 
 const MVJ_WORKSPACE = "4e9c20f1-84bb-4854-aca7-adcdc2bc8bfd";
 const CATEGORIES = {
@@ -67,6 +68,7 @@ export default function AttreyPipeline({ workspaceId }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [sourceChoice,setSourceChoice] = useState("auto");
   const [scanState, setScanState] = useState(null);
   const [statsTick, setStatsTick] = useState(0);
   const [showForm, setShowForm] = useState(false);
@@ -93,7 +95,7 @@ export default function AttreyPipeline({ workspaceId }) {
   const scanWeb = async () => {
     setScanning(true);
     try {
-      const result=await fn("r/attrey-search",{workspace_id:workspaceId});
+      const result=await fn("r/attrey-search",{workspace_id:workspaceId,...(sourceChoice === "auto" ? {} : {variante:sourceChoice})});
       await load();
       setScanState({last_scan_at:new Date().toISOString(),last_added:result.added||0});
       setStatsTick((x) => x + 1);
@@ -169,6 +171,16 @@ export default function AttreyPipeline({ workspaceId }) {
         </div>
       </div>
       <p className="text-xs text-ink-soft">Chaque recherche lit les forums d'expatriés puis teste une formulation web (français ou anglais) ; les formulations qui ramènent des pistes reviennent plus souvent · doublons écartés · aucune prise de contact automatique. {scanState?.last_scan_at && `Dernière recherche : ${new Date(scanState.last_scan_at).toLocaleString("fr-FR")} · ${scanState.last_added} piste(s) ajoutée(s).`}</p>
+      <div className="flex flex-wrap gap-2 items-end">
+        <label className="text-xs font-semibold flex-1 min-w-[230px]">Plateforme à interroger
+          <select value={sourceChoice} onChange={(e)=>setSourceChoice(e.target.value)} disabled={scanning}
+            className="block mt-1 w-full border border-line rounded-xl p-2.5 bg-white text-sm font-normal">
+            {SEARCH_SOURCES.map(([id,label])=><option key={id} value={id}>{label}</option>)}
+          </select>
+        </label>
+        <p className="text-xs text-ink-faint max-w-[310px]">Recherche de publications publiques indexées. L'accès direct à chaque plateforme n'est pas garanti.</p>
+      </div>
+      <AttreySourceCoverage workspaceId={workspaceId} refresh={statsTick}/>
       <AttreyStats workspaceId={workspaceId} refresh={statsTick} />
       <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Type de prospection Attrey">
         {[
