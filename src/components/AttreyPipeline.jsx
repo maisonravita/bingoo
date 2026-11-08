@@ -31,6 +31,29 @@ const matchText = (r) => {
   return city + budget;
 };
 
+
+const cleanPlace = (value) => (value || "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const compatibleSegments = (offer, request) => {
+  if (offer.segment === "vendeur") return ["acheteur", "investisseur"].includes(request.segment);
+  if (offer.segment === "logement_disponible") return ["voyageur", "locataire", "entreprise_mobilite"].includes(request.segment);
+  return false;
+};
+const potentialMatch = (a, b) => {
+  const offer = a.direction === "offre" ? a : b;
+  const request = a.direction === "demande" ? a : b;
+  if (offer.id === request.id || offer.direction !== "offre" || request.direction !== "demande") return false;
+  if (!compatibleSegments(offer, request)) return false;
+  // Écarter les localisations floues et éviter de confondre deux villes distinctes.
+  if (!cleanPlace(offer.city) || cleanPlace(offer.city) !== cleanPlace(request.city)) return false;
+  if (["ecarte", "converti"].includes(offer.status) || ["ecarte", "converti"].includes(request.status)) return false;
+  if (offer.budget_max != null && request.budget_max != null
+    && offer.budget_period === request.budget_period && offer.currency === request.currency
+    && Number(offer.budget_max) > Number(request.budget_max)) return false;
+  if (offer.date_start && request.date_end && offer.date_start > request.date_end) return false;
+  if (offer.date_end && request.date_start && offer.date_end < request.date_start) return false;
+  return true;
+};
+
 /**
  * Première brique CRM dédiée à Attrey : deux circuits indépendants,
  * qualification humaine et traçabilité des sources.
@@ -59,6 +82,14 @@ export default function AttreyPipeline({ workspaceId }) {
   useEffect(() => { load(); }, [load]);
 
   const shown = useMemo(() => items.filter((x) => x.direction === direction), [items,direction]);
+  const suggestions = useMemo(() => {
+    const lookup = new Map();
+    for (const item of items) {
+      const candidates = items.filter((other) => potentialMatch(item, other)).slice(0, 3);
+      if (candidates.length) lookup.set(item.id, candidates);
+    }
+    return lookup;
+  }, [items]);
   if (!active) return null;
 
   const selectDirection = (next) => {
@@ -157,6 +188,16 @@ export default function AttreyPipeline({ workspaceId }) {
             <div className="flex-1 min-w-[190px]"><p className="text-sm font-semibold">{item.title}</p>
               <p className="text-xs text-ink-soft mt-1">{matchText(item)} · {CATEGORIES[direction].find(([v])=>v===item.segment)?.[1] || item.segment}</p>
               {item.source_url && <a href={item.source_url} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">Vérifier la source</a>}
+              {!!suggestions.get(item.id)?.length && <div className="mt-2 rounded-lg bg-paper p-2">
+                <p className="text-xs font-semibold">Pistes de rapprochement à vérifier ({suggestions.get(item.id).length})</p>
+                <ul className="mt-1 space-y-1">
+                  {suggestions.get(item.id).map((other) => <li key={other.id} className="text-xs text-ink-soft">
+                    {other.title} · {other.city}
+                    {other.source_url && <a href={other.source_url} target="_blank" rel="noopener noreferrer" className="ml-2 underline text-accent">Source</a>}
+                  </li>)}
+                </ul>
+                <p className="mt-1 text-[11px] text-ink-faint">Compatibilité indicative par ville, catégorie et critères renseignés. Disponibilité, mandat, prix et dates à confirmer.</p>
+              </div>}
             </div>
             <select aria-label="Statut commercial" value={item.status} onChange={(e)=>changeStatus(item,e.target.value)} className="rounded-lg border border-line bg-white px-2 py-2 text-xs">
               {STATES.map(([k,v])=><option key={k} value={k}>{v}</option>)}
