@@ -30,10 +30,10 @@ export function parseIndexedSignals(raw:string):Signal[]{
  for(const block of raw.split(/(?:^|\n)---(?:\n|$)/)){
   const fields:Record<string,string>={};
   for(const line of block.split("\n")){
-   const m=line.trim().match(/^(ANNONCE|VILLE|CATEGORIE|AVIS|CONTEXTE)\s*:\s*(.*)$/i);
+   const m=line.trim().match(/^(LOGEMENT|ANNONCE|VILLE|CATEGORIE|AVIS|CONTEXTE)\s*:\s*(.*)$/i);
    if(m)fields[m[1].toUpperCase()]=m[2].trim();
   }
-  const url=listing(fields.ANNONCE);
+  const url=listing(fields.LOGEMENT||fields.ANNONCE);
   const quote=trim(fields.AVIS||"",220).replace(/^["«]|["»]$/g,"").trim();
   const category=fields.CATEGORIE as Cat,city=trim(fields.VILLE||"",90);
   if(!url||!Object.hasOwn(cats,category)||!/\bparis\b/i.test(city)||
@@ -118,7 +118,7 @@ export async function attreyAirbnbIndexedSearch(ws:Workspace,source:"manuel"|"cr
    recherches:1,candidats:0,ajoutes:0,scan_status:"erreur",
    scan_detail:"L'IA a épuisé son budget de génération sans fournir de résultats"
   });
-  return {ok:false,liens_detectes:0,signals_found:0,added:0,
+  return {ok:false,liens_detectes:0,listings_found:0,signals_found:0,added:0,
    mode:"recherche_interrompue",reason:"max_tokens",
    note:"Claude a effectué une recherche mais n'a pas fourni de résultat exploitable. Aucun avis n'a été inventé. Une nouvelle tentative peut être facturée."};
  }
