@@ -144,7 +144,7 @@ export default function AttreyPipeline({ workspaceId }) {
       setScanState({last_scan_at:new Date().toISOString(),last_added:result.added||0});
       setStatsTick((x) => x + 1);
       toast(sourceChoice==="airbnb"
-        ? `${result.listings_found||0}/10 logements Airbnb trouvés dans cette recherche · ${result.signals_found||0} indice(s) de mauvais avis à confirmer. ${result.listings_found<10?"Objectif non atteint : seuls les liens réels sont conservés.":""}`
+        ? `${result.listings_found||0}/20 logements Airbnb trouvés dans cette recherche · ${result.signals_found||0} indice(s) de mauvais avis à confirmer. ${result.listings_found<20?"Objectif non atteint : seuls les liens réels sont conservés.":""}`
         : result.multicanal
         ? `10 sources ciblées · ${result.liens_detectes || 0} lien(s) détecté(s) · ${result.added || 0} prospect(s) à vérifier. Voir le bilan par plateforme.`
         : (result.added ? `${result.added} prospect(s) à vérifier · ${result.passages || 1} passage(s) web`
