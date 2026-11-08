@@ -5,6 +5,7 @@ import AttreyStats from "./AttreyStats";
 import AttreySourceCoverage, { SEARCH_SOURCES } from "./AttreySourceCoverage";
 import AttreyCandidates from "./AttreyCandidates";
 import AttreyAirbnbRadar from "./AttreyAirbnbRadar";
+import AttreyFavorites from "./AttreyFavorites";
 
 const MVJ_WORKSPACE = "4e9c20f1-84bb-4854-aca7-adcdc2bc8bfd";
 const CATEGORIES = {
@@ -73,9 +74,37 @@ export default function AttreyPipeline({ workspaceId }) {
   const [sourceChoice,setSourceChoice] = useState("toutes");
   const [scanState, setScanState] = useState(null);
   const [statsTick, setStatsTick] = useState(0);
+  const active = workspaceId === MVJ_WORKSPACE;
+  const [favorites,setFavorites]=useState([]);
+  const [favoritesLoading,setFavoritesLoading]=useState(true);
+  const [favoriteBusy,setFavoriteBusy]=useState(false);
+  const [favoriteError,setFavoriteError]=useState("");
+  const favoriteUrls=useMemo(()=>new Set(favorites.map(x=>x.source_url)),[favorites]);
+  const loadFavorites=useCallback(async()=>{
+    if(!active)return;
+    setFavoritesLoading(true);
+    const {data,error}=await supabase.from("attrey_favorites").select("id,source_url,title,kind,created_at")
+      .eq("workspace_id",workspaceId).order("created_at",{ascending:false}).limit(500);
+    if(error)setFavoriteError(error.message);
+    else {setFavorites(data||[]);setFavoriteError("");}
+    setFavoritesLoading(false);
+  },[workspaceId,active]);
+  useEffect(()=>{loadFavorites();},[loadFavorites]);
+  const toggleFavorite=async({url,title,kind="piste"})=>{
+    if(favoriteBusy)return;
+    setFavoriteBusy(true);setFavoriteError("");
+    const isSaved=favoriteUrls.has(url);
+    const response=isSaved
+      ?await supabase.from("attrey_favorites").delete().eq("workspace_id",workspaceId).eq("source_url",url)
+      :await supabase.from("attrey_favorites").insert({workspace_id:workspaceId,source_url:url,
+        title:(title||"Lien Attrey").slice(0,240),kind});
+    if(response.error){setFavoriteError(response.error.message);toast("Impossible de modifier les favoris : "+response.error.message,"bad");}
+    else await loadFavorites();
+    setFavoriteBusy(false);
+  };
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({segment:"proprietaire_location",title:"",city:"",description:"",source_url:"",source_name:"",budget_max:"",budget_period:"total",country_origin:"",date_start:"",date_end:""});
-  const active = workspaceId === MVJ_WORKSPACE;
+
 
   const load = useCallback(async () => {
     if (!active) return;
@@ -193,8 +222,13 @@ export default function AttreyPipeline({ workspaceId }) {
         <p className="text-xs text-ink-faint max-w-[310px]">Recherche de publications publiques indexées. L'accès direct à chaque plateforme n'est pas garanti.</p>
       </div>
       <AttreySourceCoverage workspaceId={workspaceId} refresh={statsTick}/>
-      <AttreyAirbnbRadar workspaceId={workspaceId} refresh={statsTick}/>
-      <AttreyCandidates workspaceId={workspaceId} refresh={statsTick}/>
+      <AttreyFavorites items={favorites} loading={favoritesLoading}
+        onRemove={url=>toggleFavorite({url})}/>
+      {favoriteError&&<p role="alert" className="text-xs text-red-700">Favoris : {favoriteError}</p>}
+      <AttreyAirbnbRadar workspaceId={workspaceId} refresh={statsTick}
+        favoriteUrls={favoriteUrls} onToggleFavorite={toggleFavorite} favoriteBusy={favoriteBusy}/>
+      <AttreyCandidates workspaceId={workspaceId} refresh={statsTick}
+        favoriteUrls={favoriteUrls} onToggleFavorite={toggleFavorite} favoriteBusy={favoriteBusy}/>
       <AttreyStats workspaceId={workspaceId} refresh={statsTick} />
       <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Type de prospection Attrey">
         {[
