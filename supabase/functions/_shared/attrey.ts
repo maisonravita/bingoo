@@ -160,7 +160,7 @@ Si aucune publication pertinente, réponds « aucune ».`,{
         user_location:{type:"approximate",country:"FR",timezone:"Europe/Paris"}}]
     }).catch((e)=>{console.error("attrey repli",e);return "";});
     if(second && !/^\s*aucune\b/i.test(second)){
-      etude = [etude,second].filter(Boolean).join("\n");
+      etude = /^\s*aucune\b/i.test(etude) ? second : [etude,second].filter(Boolean).join("\n");
       repli = "resultats_supplementaires";
     }else repli = "sans_resultat";
   }
