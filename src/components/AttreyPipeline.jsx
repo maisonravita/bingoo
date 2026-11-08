@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fn, supabase } from "../lib/supabase";
 import { useToast } from "./ui";
+import AttreyStats from "./AttreyStats";
 
 const MVJ_WORKSPACE = "4e9c20f1-84bb-4854-aca7-adcdc2bc8bfd";
 const CATEGORIES = {
@@ -67,6 +68,7 @@ export default function AttreyPipeline({ workspaceId }) {
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanState, setScanState] = useState(null);
+  const [statsTick, setStatsTick] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({segment:"proprietaire_location",title:"",city:"",description:"",source_url:"",source_name:"",budget_max:"",budget_period:"total",country_origin:"",date_start:"",date_end:""});
   const active = workspaceId === MVJ_WORKSPACE;
@@ -94,6 +96,7 @@ export default function AttreyPipeline({ workspaceId }) {
       const result=await fn("r/attrey-search",{workspace_id:workspaceId});
       await load();
       setScanState({last_scan_at:new Date().toISOString(),last_added:result.added||0});
+      setStatsTick((x) => x + 1);
       toast(result.added ? `${result.added} nouvelle(s) piste(s) publique(s) à vérifier` : "Aucune nouvelle piste vérifiable dans cette recherche.",result.added?"good":"default");
     } catch(e) {
       toast(e.message || "Recherche web indisponible", "bad");
@@ -165,7 +168,8 @@ export default function AttreyPipeline({ workspaceId }) {
           <button type="button" onClick={() => setShowForm((s) => !s)} className="rounded-xl border border-line bg-white text-sm font-semibold px-4 py-2.5">{showForm ? "Fermer" : "+ Ajouter une opportunité"}</button>
         </div>
       </div>
-      <p className="text-xs text-ink-soft">Recherche sur les publications publiques récentes en français et en anglais · doublons écartés · aucune prise de contact automatique. {scanState?.last_scan_at && `Dernière recherche : ${new Date(scanState.last_scan_at).toLocaleString("fr-FR")} · ${scanState.last_added} piste(s) ajoutée(s).`}</p>
+      <p className="text-xs text-ink-soft">Chaque recherche lit les forums d'expatriés puis teste une formulation web (français ou anglais) ; les formulations qui ramènent des pistes reviennent plus souvent · doublons écartés · aucune prise de contact automatique. {scanState?.last_scan_at && `Dernière recherche : ${new Date(scanState.last_scan_at).toLocaleString("fr-FR")} · ${scanState.last_added} piste(s) ajoutée(s).`}</p>
+      <AttreyStats workspaceId={workspaceId} refresh={statsTick} />
       <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Type de prospection Attrey">
         {[
           ["offre","Biens & propriétaires"],

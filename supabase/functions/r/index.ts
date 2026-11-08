@@ -2,7 +2,7 @@
 import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
 import { admin, log, quota, requireMember, setAi, type Prospect } from "../_shared/core.ts";
 import { radarCron, radarGetConfig, radarSetConfig, radarToProspect, scanRadar } from "../_shared/radar.ts";
-import { attreySearch } from "../_shared/attrey.ts";
+import { attreyForums, attreySearch } from "../_shared/attrey.ts";
 import { resolveCompetitor, spyCron, spyDigest, spyDiscover, spyFollow, spyNeeds, spySocial } from "../_shared/spy.ts";
 import { studioGenerate } from "../_shared/studio.ts";
 import { growthReco } from "../_shared/reco.ts";
@@ -26,7 +26,10 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { ws } = await requireMember(req, b.workspace_id);
     if (ws.id !== "4e9c20f1-84bb-4854-aca7-adcdc2bc8bfd") throw new HttpError(403, "Espace Attrey uniquement");
     await quota(ws.id, "espion", 20);
-    return await attreySearch(ws, "manuel");
+    // Les forums d'abord (lecture directe, quelques centimes), puis une recherche web sur une formulation
+    const forums = await attreyForums(ws, "manuel").catch((e) => { console.error("attrey forums", e); return { added: 0 }; });
+    const web = await attreySearch(ws, "manuel", typeof b.variante === "string" ? b.variante : undefined);
+    return { ...web, added: (web.added ?? 0) + (forums.added ?? 0), forums };
   },
   async "radar-config"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
@@ -780,7 +783,10 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { data: ws } = await admin.from("workspaces").select("*").eq("id", wid).single();
     const { aiRoom, backgroundPaused } = await import("../_shared/core.ts");
     if (!ws || (await backgroundPaused()) || !(await aiRoom(wid, 0.6))) return { skipped: "budget_ou_pause" };
-    try { return await attreySearch(ws, "cron"); }
+    try {
+      const forums = await attreyForums(ws, "cron").catch((e) => { console.error("attrey forums", e); return { added: 0 }; });
+      return { web: await attreySearch(ws, "cron"), forums };
+    }
     catch (e) {
       await admin.from("attrey_scan_state").upsert({ workspace_id: wid, last_error: (e as Error).message.slice(0, 300), updated_at: new Date().toISOString() }, { onConflict: "workspace_id" });
       throw e;
