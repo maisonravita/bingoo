@@ -47,7 +47,7 @@ export function parseIndexedSignals(raw:string):Signal[]{
  }
  return found;
 }
-export async function attreyAirbnbIndexedSearch(ws:Workspace){
+export async function attreyAirbnbIndexedSearch(ws:Workspace,source:"manuel"|"cron"="manuel"){
  if(ws.id!==W)throw new HttpError(403,"Espace Attrey uniquement");
  setAi({ws:ws.id,feature:"attrey/airbnb-index"});
  const prompt=[
@@ -88,7 +88,7 @@ export async function attreyAirbnbIndexedSearch(ws:Workspace){
   })));
  }
  await admin.from("attrey_runs").insert({
-  workspace_id:ws.id,canal:"web",variante:"airbnb",declenchement:"manuel",
+  workspace_id:ws.id,canal:"web",variante:"airbnb",declenchement:source,
   recherches:1,candidats:found.length,ajoutes:0,
   scan_status:found.length?"liens_trouves":"aucun_lien",
   scan_detail:found.length?String(found.length)+" indice(s) indexés non vérifiés":
