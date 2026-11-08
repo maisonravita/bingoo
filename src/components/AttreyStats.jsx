@@ -34,7 +34,7 @@ export default function AttreyStats({ workspaceId, refresh = 0 }) {
             {rows.map((r) => (
               <tr key={r.canal} className="border-t border-line">
                 <td className="py-2 pr-3 font-medium">{r.libelle}</td>
-                <td className="py-2 px-2 text-right text-ink-soft">{["web", "forums"].includes(r.canal) ? r.recherches : "chaque nuit"}</td>
+                <td className="py-2 px-2 text-right text-ink-soft">{["web", "forums"].includes(r.canal) ? r.recherches : r.canal === "estimation" ? "en continu" : "chaque nuit"}</td>
                 <td className="py-2 px-2 text-right">{r.pistes}</td>
                 <td className="py-2 px-2 text-right">{r.qualifiees}</td>
                 <td className="py-2 px-2 text-right font-semibold">{r.rdv}</td>
