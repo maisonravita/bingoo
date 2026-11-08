@@ -7,7 +7,7 @@ const canonical=(url)=>{
   return m?"https://www.airbnb.fr/rooms/"+m[1]:null;
 };
 const fmt=(v)=>v==null?"Non renseigné":Number(v).toLocaleString("fr-FR");
-export default function AttreyAirbnbRadar({workspaceId,refresh=0}){
+export default function AttreyAirbnbRadar({workspaceId,refresh=0,favoriteUrls=new Set(),onToggleFavorite=()=>{},favoriteBusy=false}){
   const [audits,setAudits]=useState([]);
   const [candidates,setCandidates]=useState([]);
   const [busy,setBusy]=useState(false);
@@ -57,6 +57,29 @@ export default function AttreyAirbnbRadar({workspaceId,refresh=0}){
       <div className="rounded-xl bg-slate-50 p-3"><p className="font-semibold text-xl">{audits.length}</p><p className="text-[11px] text-ink-soft">Annonces étudiées</p></div>
       <div className="rounded-xl bg-slate-50 p-3"><p className="font-semibold text-xl">{auditCount}</p><p className="text-[11px] text-ink-soft">Avec signalements vérifiés</p></div>
     </div>
+    {unique.length>0&&<div className="space-y-2">
+      <h4 className="text-sm font-semibold">Annonces Airbnb repérées · à consulter ou sauvegarder</h4>
+      <div className="max-h-[245px] overflow-y-auto space-y-2">
+        {unique.map(x=>{
+          const url=canonical(x.source_url),saved=favoriteUrls.has(url)||favoriteUrls.has(x.source_url);
+          return <div key={x.source_url} className="rounded-xl border border-line p-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold">Airbnb · annonce n° {url.split("/").pop()}</p>
+              <p className="text-[11px] text-ink-soft">Avis et qualité non encore évalués</p>
+            </div>
+            <div className="flex gap-2 items-center">
+              <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">Ouvrir</a>
+              <button type="button" disabled={favoriteBusy}
+                aria-pressed={saved}
+                onClick={()=>onToggleFavorite({url,title:"Airbnb · annonce n° "+url.split("/").pop(),kind:"airbnb"})}
+                className="rounded-lg border border-line px-2 py-1 text-xs disabled:opacity-50">
+                {saved?"★ En favoris":"☆ Favoris"}
+              </button>
+            </div>
+          </div>;
+        })}
+      </div>
+    </div>}
     <div className="rounded-xl border border-line p-3 space-y-3">
       <h4 className="text-sm font-semibold">Analyser les avis d'un beau logement</h4>
       <p className="text-xs text-ink-soft">Sélectionne une annonce déjà repérée ou colle son lien. Consulte les avis normalement sur Airbnb puis ajoute les passages utiles. Attrey n'aspire pas automatiquement les avis d'Airbnb.</p>
@@ -146,6 +169,13 @@ export default function AttreyAirbnbRadar({workspaceId,refresh=0}){
           <p className="text-[11px] text-ink-soft">Analyse de passages fournis manuellement. Le propriétaire n'a pas nécessairement exprimé de besoin de conciergerie.</p>
           <div className="flex flex-wrap gap-3 items-center">
             <a href={a.listing_url} target="_blank" rel="noopener noreferrer" className="text-xs text-accent hover:underline">Voir l'annonce originale</a>
+            <button type="button" disabled={favoriteBusy}
+              aria-pressed={favoriteUrls.has(a.listing_url)}
+              onClick={()=>onToggleFavorite({url:a.listing_url,
+                title:a.property_name||"Airbnb · annonce n° "+a.listing_url.split("/").pop(),kind:"airbnb"})}
+              className="text-xs underline text-ink-soft disabled:opacity-50">
+              {favoriteUrls.has(a.listing_url)?"★ En favoris":"☆ Ajouter aux favoris"}
+            </button>
             <button type="button" onClick={()=>{setForm({listing_url:a.listing_url,property_name:a.property_name||"",
                 location:a.location||"Paris",quality_rating:a.quality_rating==null?"":String(a.quality_rating),
                 listing_rating:a.listing_rating==null?"":String(a.listing_rating),
