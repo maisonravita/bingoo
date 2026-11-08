@@ -4,6 +4,7 @@ import { admin, log, quota, requireMember, setAi, type Prospect } from "../_shar
 import { radarCron, radarGetConfig, radarSetConfig, radarToProspect, scanRadar } from "../_shared/radar.ts";
 import { attreyForums, attreySearch } from "../_shared/attrey.ts";
 import { attreyMultiScan } from "../_shared/attrey-multicanal.ts";
+import { classifyAttreyCandidates } from "../_shared/attrey-classify.ts";
 import { resolveCompetitor, spyCron, spyDigest, spyDiscover, spyFollow, spyNeeds, spySocial } from "../_shared/spy.ts";
 import { studioGenerate } from "../_shared/studio.ts";
 import { growthReco } from "../_shared/reco.ts";
@@ -33,6 +34,11 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const forums = await attreyForums(ws, "manuel").catch((e) => { console.error("attrey forums", e); return { added: 0 }; });
     const web = await attreySearch(ws, "manuel", typeof b.variante === "string" ? b.variante : undefined);
     return { ...web, added: (web.added ?? 0) + (forums.added ?? 0), forums };
+  },
+  async "attrey-classify"(req,b) {
+    const {ws}=await requireMember(req,b.workspace_id);
+    await quota(ws.id,"espion",20);
+    return await classifyAttreyCandidates(ws,Array.isArray(b.ids)?b.ids:undefined);
   },
   async "radar-config"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
