@@ -22,7 +22,7 @@ def lire(z, chemin=""):
                 for i, x in enumerate(h):
                     if k in x: return i
             return None
-        c = dict(dep=col("departement"), com=col("nomcommune"), cp=col("codecommune"), niv=col("niveau"), porte=col("porte"),
+        c = dict(dep=col("departement"), com=col("nomdelacommune", "nomcommune"), cp=col("codecommune"), niv=col("niveau"), porte=col("porte"),
                  num=col("nvoirie","numerovoirie"), nat=col("naturevoie"), voie=col("nomvoie"), droit=col("codedroit"),
                  siren=col("siren"), fj=col("formejuridiqueabregee"), den=col("denomination"))
         print(chemin + n, enc, {k: v for k, v in c.items()}, file=sys.stderr)
@@ -35,18 +35,18 @@ def lire(z, chemin=""):
         if idf: print("  entête", h, file=sys.stderr)
         for row in r:
             lus += 1
-            if idf and lus <= 3: print("  ex", row, file=sys.stderr)
+            if idf and lus <= 1: print("  ex", row, file=sys.stderr)
             dep = g(row, "dep").zfill(2)[:2]
             if dep not in DEPTS: continue
             fj = g(row, "fj").upper()
             if not (fj.startswith("SCI") or g(row, "fjc") == "6540" or re.match(r"(SCI|SOCIETE CIVILE IMMOBILIERE)\b", g(row, "den").upper())): continue
-            if c["droit"] is not None and g(row, "droit") not in ("P", ""): continue
+            if c["droit"] is not None and not (g(row, "droit").startswith("P") or g(row, "droit") == ""): continue
             s = g(row, "siren")
             if not re.fullmatch(r"\d{9}", s): continue
             gard += 1
             a = agg.setdefault(s, dict(den=g(row, "den"), fj=fj, n=0, appart=0, communes=collections.Counter(), dep=dep, adresse=""))
             a["n"] += 1
-            if g(row, "niv") not in ("", "00", "0") or g(row, "porte") not in ("", "00000", "0"): a["appart"] += 1
+            if g(row, "niv") not in ("", "00", "0"): a["appart"] += 1
             a["communes"][g(row, "com")] += 1
             if not a["adresse"]: a["adresse"] = " ".join(x for x in [g(row, "num").lstrip("0"), g(row, "nat"), g(row, "voie")] if x) + ", " + g(row, "com")
         print("  lignes", lus, "gardées", gard, file=sys.stderr)
