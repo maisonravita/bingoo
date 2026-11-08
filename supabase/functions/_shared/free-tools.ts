@@ -118,7 +118,7 @@ export function cibleWords(s: string) {
 // deno-lint-ignore no-explicit-any
 const parseJ = (s: unknown): any => { if (!s) return null; if (typeof s === "object") return s; try { return JSON.parse(String(s)); } catch { return null; } };
 
-export async function freeSignals(input: { cible?: string; dept?: string }) {
+export async function freeSignals(input: { cible?: string; dept?: string; full?: boolean }) {
   const cible = String(input.cible ?? "").trim().slice(0, 60);
   const dept = String(input.dept ?? "").trim().toUpperCase();
   const all = cible === "*"; // vend à toutes les entreprises : pas de filtre d'activité
@@ -152,7 +152,9 @@ export async function freeSignals(input: { cible?: string; dept?: string }) {
     const kind = b.familleavis === "vente" ? "reprise" : second ? "ouverture" : "creation";
     // Dirigeants publiés dans l'annonce : on compte et on donne la fonction, jamais le nom (débloqué avec un compte)
     const roles = String(pers.administration ?? "").split(/\.\s+|\n/).map((x) => x.match(/^\s*([A-Za-zÀ-ÿ' -]{3,40}?)\s*:\s*\S/)?.[1]?.trim() ?? "").filter((x) => x && !/commissaire|aux comptes|suppl[ée]ant/i.test(x));
-    return [{ kind, nom, activite: act.slice(0, 160), ville: cap(b.ville ?? ""), dept: String(b.numerodepartement ?? ""), date: String(b.dateparution ?? "").slice(0, 10), decideur: roles[0] ?? "", nb_dec: roles.length }];
+    // Où le mot-clé apparaît-il ? Au début = activité principale ; loin dans une liste d'objets = simple mention
+    const pos = words.length ? Math.min(...words.map((w) => { const i = actN.indexOf(w.slice(0, Math.max(4, w.length - 1))); return i < 0 ? 9999 : i; })) : 0;
+    return [{ kind, nom, activite: act.slice(0, 160), activite_long: act.slice(0, 400), pos, ville: cap(b.ville ?? ""), dept: String(b.numerodepartement ?? ""), date: String(b.dateparution ?? "").slice(0, 10), decideur: roles[0] ?? "", nb_dec: roles.length }];
   });
   const LBL: Record<string, [string, string]> = {
     creation: ["Vient de se créer", "Elle choisit ses outils et ses fournisseurs maintenant."],
@@ -167,6 +169,7 @@ export async function freeSignals(input: { cible?: string; dept?: string }) {
     visibles: out.slice(0, 3),
     apercu: out.slice(3, 10).map((r) => ({ signal: r.signal, ville: r.ville, date: r.date, decideur: r.decideur })),
     caches: Math.max(0, out.length - 3),
+    ...(input.full ? { rows: out } : {}),
   };
 }
 
@@ -194,20 +197,30 @@ Format : {"nom": "", "offre": "ce qu'elle vend, 12 mots maximum", "clients": "à
   const mots = (a.mots ?? []).map((m) => String(m).trim()).filter((m) => cibleWords(m).length && !VAGUE.test(m)).slice(0, 2);
   if (!String(a.offre ?? "").trim()) throw new HttpError(422, "Ton site ne dit pas encore clairement ce que tu vends. Crée ton compte : Bingoo! te posera la question.");
   // Aucun secteur précis (elle vend à toutes les entreprises) : toutes les sociétés créées ou reprises récemment
-  const parts = mots.length ? await Promise.all(mots.map((m) => freeSignals({ cible: m }).catch(() => null))) : [await freeSignals({ cible: "*" }).catch(() => null)];
+  const parts = mots.length ? await Promise.all(mots.map((m) => freeSignals({ cible: m, full: true }).catch(() => null))) : [await freeSignals({ cible: "*", full: true }).catch(() => null)];
+  // Candidats sans doublon ; le mot-clé doit décrire l'activité principale (dans les 120 premiers caractères), pas une mention noyée dans l'objet social
   const seen = new Set<string>();
-  // Fusion : 3 visibles et l'aperçu, en alternant les cibles, sans doublon
-  const vis: NonNullable<typeof parts[0]>["visibles"] = [];
-  const ap: NonNullable<typeof parts[0]>["apercu"] = [];
-  for (const p of parts) for (const v of p?.visibles ?? []) if (!seen.has(v.nom)) { seen.add(v.nom); vis.push(v); }
-  for (const p of parts) ap.push(...(p?.apercu ?? []));
-  const total = parts.reduce((s, p) => s + (p?.total ?? 0), 0);
-  const visibles = vis.sort((x, y) => y.date.localeCompare(x.date)).slice(0, 3);
+  type Row = NonNullable<NonNullable<typeof parts[0]>["rows"]>[number];
+  const cand: Row[] = [];
+  for (const p of parts) for (const r of p?.rows ?? []) if (!seen.has(r.nom) && (!mots.length || r.pos <= 120)) { seen.add(r.nom); cand.push(r); }
+  cand.sort((x, y) => y.date.localeCompare(x.date));
+  // Relecture rapide (modèle léger) : ne garder que les entreprises qui sont vraiment des clients possibles de cette offre
+  const lot = cand.slice(0, 60);
+  let gardes: Row[] = lot;
+  if (lot.length) {
+    const j = await askJson<{ oui: number[] }>(`Offre : ${String(a.offre ?? "")}. Clients visés : ${String(a.clients ?? "")}.
+Voici des entreprises qui viennent de se créer, avec leur activité déclarée. Garde UNIQUEMENT celles dont l'activité principale en fait un client plausible de cette offre (même métier que les clients visés). Écarte celles qui ne font que mentionner le mot en passant, ou dont le métier est différent.
+${lot.map((r, i) => `${i}. ${r.activite_long}`).join("\n")}
+Format : {"oui": [numéros gardés]}`, { fast: true, maxTokens: 400 }).catch(() => null);
+    if (j && Array.isArray(j.oui)) gardes = j.oui.map((i) => lot[Number(i)]).filter(Boolean);
+  }
+  const total = gardes.length;
+  const visibles = gardes.slice(0, 3);
   return {
     site: host, nom: String(a.nom || host).slice(0, 80), offre: String(a.offre ?? "").slice(0, 200), clients: String(a.clients ?? "").slice(0, 120),
     cible: mots.length ? mots.join(", ") : "toutes les entreprises", dept: "", jours: Math.max(...parts.map((p) => p?.jours ?? 0), 1), total,
-    decideurs: parts.reduce((s, p) => s + (p?.decideurs ?? 0), 0),
-    visibles, apercu: [...vis.slice(3), ...ap].slice(0, 7).map((r) => ({ signal: r.signal, ville: r.ville, date: r.date, decideur: r.decideur })),
+    decideurs: gardes.reduce((n, r) => n + r.nb_dec, 0),
+    visibles: visibles.map(({ activite_long: _l, pos: _p, ...r }) => r), apercu: gardes.slice(3, 10).map((r) => ({ signal: r.signal, ville: r.ville, date: r.date, decideur: r.decideur })),
     caches: Math.max(0, total - visibles.length),
   };
 }
