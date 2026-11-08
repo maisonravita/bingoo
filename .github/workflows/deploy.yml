@@ -57,6 +57,32 @@ jobs:
             echo "- $f déployée ($(wc -c < bundles/$f.js) octets)" >> $GITHUB_STEP_SUMMARY
           done
 
+      - name: Vérification réelle des preflights CORS du Radar
+        run: |
+          set -euo pipefail
+          for action in radar-calendar saas-info attrey-search; do
+            url="https://${PROJECT_REF}.supabase.co/functions/v1/r/${action}"
+            ok=0
+            for attempt in 1 2 3; do
+              status=$(curl --silent --show-error --max-time 15 -D /tmp/attrey-preflight-headers -o /tmp/attrey-preflight-body -w '%{http_code}' \
+                --request OPTIONS "$url" \
+                -H "Origin: https://kairo.maisonravita.fr" \
+                -H "Access-Control-Request-Method: POST" \
+                -H "Access-Control-Request-Headers: authorization,apikey,content-type,x-client-info") || status=000
+              if [ "$status" = "200" ] && grep -qi '^access-control-allow-origin: ' /tmp/attrey-preflight-headers; then
+                echo "✓ ${action}: OPTIONS 200 + CORS" | tee -a "$GITHUB_STEP_SUMMARY"
+                ok=1
+                break
+              fi
+              echo "${action} tentative ${attempt}: HTTP ${status} (attendu 200 + en-tête CORS)"
+              sleep 3
+            done
+            if [ "$ok" != "1" ]; then
+              echo "✗ ${action}: preflight CORS en échec après déploiement" | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+          done
+
   k-drift:
     needs: check
     runs-on: ubuntu-latest
