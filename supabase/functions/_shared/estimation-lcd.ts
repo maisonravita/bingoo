@@ -52,7 +52,16 @@ hypotheses : 2 à 4 phrases courtes sur ce que tu as supposé (saisonnalité, qu
 Format : {"nuit_basse": 0, "nuit_haute": 0, "occ_basse": 0, "occ_haute": 0, "hypotheses": [""], "sources": [{"titre": "", "url": ""}]}`,
     { maxTokens: 1500, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] },
   ).catch(() => null);
+  // Lecture souple : nombres écrits en texte (« 120 € », « 65 % »), taux donnés en fraction (0,65), bornes inversées
+  const num = (v: unknown) => { const x = Number(String(v ?? "").replace(",", ".").replace(/[^\d.]/g, "")); return Number.isFinite(x) ? x : 0; };
+  const pct = (v: unknown) => { const x = num(v); return x > 0 && x <= 1 ? x * 100 : x; };
+  if (m) {
+    const [nb, nh] = [num(m.nuit_basse), num(m.nuit_haute)].sort((a, b) => a - b);
+    const [ob, oh] = [pct(m.occ_basse), pct(m.occ_haute)].sort((a, b) => a - b);
+    Object.assign(m, { nuit_basse: nb, nuit_haute: nh || nb, occ_basse: ob, occ_haute: oh || ob });
+  }
   const ok = m && m.nuit_basse > 0 && m.nuit_haute >= m.nuit_basse && m.occ_basse > 0 && m.occ_haute >= m.occ_basse && m.occ_haute <= 100;
+  if (m && !ok) console.error("estimation : réponse inexploitable", JSON.stringify(m).slice(0, 400));
   // Résidence principale : 120 nuits par an au plus (90 si la commune l'a décidé)
   const plafond = usage === "principale" ? 120 : 365;
   const nuits = (occ: number) => Math.min(365 * occ / 100, plafond);
