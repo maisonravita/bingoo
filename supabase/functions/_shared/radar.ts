@@ -7,7 +7,7 @@ import { admin, aiRoom, askJson, log, planOk, setAi, type Workspace } from "./co
 import { estimateValues } from "./radar-extra.ts";
 import { anniversaries, bizType, championSignals, intentSignals, jobsScan, obligationSignals, trialSignals, visitorSignals, webScan } from "./radar-saas.ts";
 import { findTwins, ftOffers, ftReady, lbbCompanies, pickTop3, radarPress, siteWatch, whoToCall, zoneEvents } from "./radar-plus.ts";
-import { learn, nameRenewals, newCompanies, type Opp, type PublicItem, rejected, renewals, rescore, tagProspects, tedTenders, watchProspects } from "./radar-signals.ts";
+import { learn, nameRenewals, newCompanies, sciProprietaires, type Opp, type PublicItem, rejected, renewals, rescore, tagProspects, tedTenders, watchProspects } from "./radar-signals.ts";
 
 const BOAMP = "https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records";
 const REGISTRY = "https://recherche-entreprises.api.gouv.fr/search";
@@ -228,7 +228,10 @@ export async function scanRadar(ws0: Workspace & { radar_cfg?: Cfg | null }, opt
       pub ? borne(tedTenders(cfg.mots_cles, zone, !!cfg.europe), "ted").catch((e) => { console.error("ted", e); errors.push("appels d'offres européens"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
       pub && zone.length ? borne(renewals(ws, cfg.mots_cles, zone), "decp").catch((e) => { console.error("decp", e); errors.push("renouvellements"); return [] as PublicItem[]; }) : Promise.resolve([] as PublicItem[]),
       borne(watchProspects(ws, bodaccSince).catch((e) => { console.error("bodacc", e); errors.push("annonces légales"); return [] as Opp[]; }), "bodacc"),
-      borne(newCompanies(ws, cfg.activites ?? [], zone).catch((e) => { console.error("creations", e); return [] as Opp[]; }), "créations"),
+      borne(Promise.all([
+        newCompanies(ws, cfg.activites ?? [], zone).catch((e) => { console.error("creations", e); return [] as Opp[]; }),
+        sciProprietaires(ws).catch((e) => { console.error("patrimoine", e); return [] as Opp[]; }),
+      ]).then(([a, b]) => [...a, ...b]), "créations"),
       step("web", webDue ? borne(webSignals(ws, cfg, ftReady()), "web") : Promise.resolve([] as Opp[]), "signaux web"),
       step("registre", registrySignals(ws), ""),
       step("emploi", ftReady() && zone.length ? Promise.all([

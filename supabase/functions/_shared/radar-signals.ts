@@ -18,7 +18,7 @@ const addMonths = (d: Date | string, n: number) => { const x = new Date(d); x.se
 const q = (s: string) => `"${String(s).replace(/"/g, "")}"`;
 const cap = (s: string) => String(s ?? "").toLowerCase().replace(/(^|[\s'-])\p{L}/gu, (m) => m.toUpperCase());
 
-export type Kind = "appel_offres" | "croissance" | "recrutement" | "besoin" | "renouvellement" | "dirigeant" | "demenagement" | "creation" | "site" | "levee" | "permis" | "aide" | "budget" | "salon" | "difficulte" | "client_concurrent" | "obligation" | "abonnement" | "outil" | "avis" | "etablissement" | "demande" | "champion" | "essai" | "visite";
+export type Kind = "appel_offres" | "croissance" | "recrutement" | "besoin" | "renouvellement" | "dirigeant" | "demenagement" | "creation" | "site" | "levee" | "permis" | "aide" | "budget" | "salon" | "difficulte" | "client_concurrent" | "obligation" | "abonnement" | "outil" | "avis" | "etablissement" | "demande" | "champion" | "essai" | "visite" | "patrimoine";
 export type Opp = {
   key: string; kind: Kind; title: string; company: string; summary: string; why?: string; city?: string; dept?: string; url: string; source: string;
   published?: string | null; deadline?: string | null; prospect_id?: string | null; raw?: Record<string, unknown>; siren?: string | null; expires_at?: string | null;
@@ -285,10 +285,36 @@ export async function newCompanies(ws: Workspace, activites: string[], zone: str
   });
 }
 
+/** SCI propriétaires d'appartements dans les communes choisies (fichier DGFiP des locaux des personnes morales, table dgfip_sci).
+ *  Pour un espace qui gère des logements (conciergerie) : chaque nuit, quelques SCI encore jamais proposées, vérifiées au registre
+ *  (société en activité, gérant). Réglage : radar_cfg.patrimoine = { communes: ["VERSAILLES", "PARIS 07", …], par_nuit, max_locaux }. */
+export async function sciProprietaires(ws: Workspace): Promise<Opp[]> {
+  const cfg = (ws.radar_cfg as { patrimoine?: { communes?: string[]; par_nuit?: number; max_locaux?: number } } | null)?.patrimoine;
+  if (!cfg?.communes?.length) return [];
+  // Expression régulière sur le début du nom de commune : « SAINT-GERMAIN » ou « SAINT GERMAIN » ; « PARIS 0 » = Paris 1er à 9e
+  const motifs = [cfg.communes.map((c) => String(c).toUpperCase().replace(/[^A-Z0-9\s'-]/g, "").trim().split(/[\s'-]+/).join("[ '-]+")).filter(Boolean).map((c) => `(^|\\| )${c}`).join("|")];
+  const { data, error } = await admin.rpc("sci_a_prospecter", { ws: ws.id, motifs, maxl: cfg.max_locaux ?? 8, n: Math.min(40, (cfg.par_nuit ?? 20) + 10) });
+  if (error) { console.error("patrimoine", error.message); return []; }
+  const rows = (data ?? []) as { siren: string; denomination: string; nb_locaux: number; nb_etage: number; communes: string; adresse: string; dep: string }[];
+  const reg = await lookupMany(rows.map((r) => r.siren));
+  return rows.filter((r) => reg.get(r.siren) && !reg.get(r.siren)!.ferme).slice(0, cfg.par_nuit ?? 20).map((r) => {
+    const c = reg.get(r.siren)!;
+    const communes = r.communes.replace(/\s*\(\d+\)/g, "").split(" | ").map(cap).join(", ");
+    return {
+      key: `sci:${r.siren}`, kind: "patrimoine" as const, title: cap(r.denomination), company: cap(r.denomination), siren: r.siren,
+      summary: `Propriétaire de ${r.nb_locaux} local${r.nb_locaux > 1 ? "aux" : ""} (dont ${r.nb_etage} en étage) : ${communes}.${c.dirigeant ? ` Gérant : ${c.dirigeant}.` : ""}`,
+      why: "Une société qui détient des appartements dans une commune très demandée : une gestion en courte durée peut augmenter ses revenus.",
+      city: cap(r.adresse.split(", ").pop() ?? ""), dept: r.dep, url: `https://annuaire-entreprises.data.gouv.fr/entreprise/${r.siren}`,
+      source: "DGFiP, fichier des locaux des personnes morales (2026)", published: null,
+      raw: { adresse_bien: cap(r.adresse), nb_locaux: r.nb_locaux, nb_etage: r.nb_etage, communes, dirigeant: c.dirigeant ?? "", role: c.role ?? "", siege: `${c.cp} ${c.ville}`.trim() },
+    };
+  });
+}
+
 // ---------------------------------------------------------------- 3. Score, date limite, filtre, apprentissage, alertes
-const BASE: Record<Kind, number> = { appel_offres: 70, renouvellement: 66, besoin: 62, dirigeant: 58, demenagement: 54, recrutement: 52, creation: 48, croissance: 48, levee: 60, budget: 58, permis: 52, aide: 50, salon: 40, site: 38, difficulte: 10, client_concurrent: 60, obligation: 50, abonnement: 68, outil: 56, avis: 64, etablissement: 54, demande: 66, champion: 72, essai: 74, visite: 70 };
-const TTL: Record<Kind, number> = { appel_offres: 30, renouvellement: 120, besoin: 30, dirigeant: 90, demenagement: 60, recrutement: 45, creation: 60, croissance: 90, levee: 90, budget: 180, permis: 120, aide: 90, salon: 60, site: 30, difficulte: 180, client_concurrent: 120, obligation: 120, abonnement: 100, outil: 60, avis: 60, etablissement: 90, demande: 30, champion: 120, essai: 30, visite: 21 };
-export const KIND_LABEL: Record<Kind, string> = { appel_offres: "appel d'offres", renouvellement: "contrat public à renouveler", besoin: "besoin exprimé", dirigeant: "nouveau dirigeant", demenagement: "déménagement", recrutement: "recrutement", creation: "création ou ouverture", croissance: "croissance", levee: "levée de fonds", budget: "projet voté par une collectivité", permis: "permis de construire", aide: "aide publique reçue", salon: "salon professionnel", site: "site web modifié", difficulte: "difficultés financières", client_concurrent: "cliente d'un concurrent", obligation: "obligation réglementaire", abonnement: "abonnement concurrent à renouveler", outil: "changement d'outils", avis: "client mécontent d'un concurrent", etablissement: "nouvel établissement", demande: "demande de recommandation", champion: "ancien utilisateur dans une nouvelle entreprise", essai: "équipe à l'essai", visite: "visite de ton site" };
+const BASE: Record<Kind, number> = { appel_offres: 70, renouvellement: 66, besoin: 62, dirigeant: 58, demenagement: 54, recrutement: 52, creation: 48, croissance: 48, levee: 60, budget: 58, permis: 52, aide: 50, salon: 40, site: 38, difficulte: 10, client_concurrent: 60, obligation: 50, abonnement: 68, outil: 56, avis: 64, etablissement: 54, demande: 66, champion: 72, essai: 74, visite: 70, patrimoine: 46 };
+const TTL: Record<Kind, number> = { appel_offres: 30, renouvellement: 120, besoin: 30, dirigeant: 90, demenagement: 60, recrutement: 45, creation: 60, croissance: 90, levee: 90, budget: 180, permis: 120, aide: 90, salon: 60, site: 30, difficulte: 180, client_concurrent: 120, obligation: 120, abonnement: 100, outil: 60, avis: 60, etablissement: 90, demande: 30, champion: 120, essai: 30, visite: 21, patrimoine: 365 };
+export const KIND_LABEL: Record<Kind, string> = { appel_offres: "appel d'offres", renouvellement: "contrat public à renouveler", besoin: "besoin exprimé", dirigeant: "nouveau dirigeant", demenagement: "déménagement", recrutement: "recrutement", creation: "création ou ouverture", croissance: "croissance", levee: "levée de fonds", budget: "projet voté par une collectivité", permis: "permis de construire", aide: "aide publique reçue", salon: "salon professionnel", site: "site web modifié", difficulte: "difficultés financières", client_concurrent: "cliente d'un concurrent", obligation: "obligation réglementaire", abonnement: "abonnement concurrent à renouveler", outil: "changement d'outils", avis: "client mécontent d'un concurrent", etablissement: "nouvel établissement", demande: "demande de recommandation", champion: "ancien utilisateur dans une nouvelle entreprise", essai: "équipe à l'essai", visite: "visite de ton site", patrimoine: "propriétaire d'appartements" };
 
 type Row = { id: string; kind: Kind; company: string; siren: string | null; status: string; published: string | null; created_at: string; deadline: string | null; expires_at: string | null; prospect_id: string | null; raw: Record<string, unknown> | null; score: number | null; alerted_at: string | null; feedback: string | null; title: string };
 
