@@ -2,6 +2,7 @@
 import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
 import { admin, log, quota, requireMember, setAi, type Prospect } from "../_shared/core.ts";
 import { radarCron, radarGetConfig, radarSetConfig, radarToProspect, scanRadar } from "../_shared/radar.ts";
+import { attreySearch } from "../_shared/attrey.ts";
 import { resolveCompetitor, spyCron, spyDigest, spyDiscover, spyFollow, spyNeeds, spySocial } from "../_shared/spy.ts";
 import { studioGenerate } from "../_shared/studio.ts";
 import { growthReco } from "../_shared/reco.ts";
@@ -20,6 +21,12 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     await quota(ws.id, "radar_scan", 4);
     // web : true = recherche web forcée, false = sources officielles seulement (premier Radar après la mise en route), absent = selon le calendrier
     return await scanRadar(ws, { web: b.web === true ? true : b.web === false ? false : undefined });
+  },
+  async "attrey-search"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    if (ws.id !== "4e9c20f1-84bb-4854-aca7-adcdc2bc8bfd") throw new HttpError(403, "Espace Attrey uniquement");
+    await quota(ws.id, "espion", 20);
+    return await attreySearch(ws, "manuel");
   },
   async "radar-config"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
@@ -763,7 +770,30 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { rivalMail } = await import("../_shared/rival-mail.ts");
     return await rivalMail(String(b.key ?? ""), { from: String(b.from ?? ""), subject: String(b.subject ?? "") }, async () => ({ text: String(b.text ?? ""), html: String(b.html ?? "") }));
   },
-  async "spy-cron"(req) { await cron(req); return await spyCron(); },
+  async "spy-cron"(req) {
+    await cron(req);
+    const report = await spyCron();
+    // Un passage par jour au plus, dans le cycle cron déjà existant.
+    // Ne jamais arrêter la veille générale si le scan Attrey échoue.
+    try {
+      const wid = "4e9c20f1-84bb-4854-aca7-adcdc2bc8bfd";
+      const { data: state } = await admin.from("attrey_scan_state").select("last_scan_at").eq("workspace_id", wid).maybeSingle();
+      const hours = state?.last_scan_at ? (Date.now() - new Date(state.last_scan_at).getTime()) / 3600000 : Infinity;
+      if (hours >= 23) {
+        const { data: ws } = await admin.from("workspaces").select("*").eq("id",wid).single();
+        if (ws?.onboarded) {
+          const { aiRoom, backgroundPaused } = await import("../_shared/core.ts");
+          if (!(await backgroundPaused()) && await aiRoom(wid,0.6)) {
+            const attrey = await attreySearch(ws,"cron");
+            return { ...report, attrey };
+          }
+        }
+      }
+    } catch(e) {
+      await log("4e9c20f1-84bb-4854-aca7-adcdc2bc8bfd","radar","Attrey scan automatique : " + (e as Error).message);
+    }
+    return report;
+  },
   async "spy-digest"(req) { await cron(req); return await spyDigest(); },
   // Administration : recherche de demandes publiques sur un espace précis (clé cron)
   async "spy-needs-run"(req, b) {
