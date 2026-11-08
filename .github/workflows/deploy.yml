@@ -25,7 +25,7 @@ jobs:
       - name: Noms non définis (fonction utilisée sans import)
         run: bash scripts/check-names.sh
       - name: Construction des fonctions
-        run: for f in $FUNCTIONS; do node scripts/build-fn.mjs $f; done
+        run: for f in $FUNCTIONS; do node scripts/build-fn.mjs $f; node --check bundles/$f.js; done
       - name: Construction du site
         run: npm run build:site
       - uses: denoland/setup-deno@v2
