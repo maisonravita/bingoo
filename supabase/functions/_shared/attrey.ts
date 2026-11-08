@@ -96,11 +96,11 @@ const SOURCES: Record<string,{label:string;host:string;axe:string;termes:string}
 
 async function choisirVariante(wsId: string) {
   const { data } = await admin.from("attrey_runs").select("variante, ajoutes").eq("workspace_id", wsId).eq("canal", "web").gte("at", new Date(Date.now() - 60 * 864e5).toISOString());
-  const st = new Map<string, { n: number; a: number }>(Object.keys(VARIANTES).map((k) => [k, { n: 0, a: 0 }]));
+  const st = new Map<string, { n: number; a: number }>([...Object.keys(VARIANTES),...Object.keys(SOURCES)].map((k) => [k, { n: 0, a: 0 }]));
   for (const r of (data ?? []) as { variante: string; ajoutes: number }[]) { const x = st.get(r.variante); if (x) { x.n++; x.a += r.ajoutes ?? 0; } }
   const peu = [...st].filter(([, v]) => v.n < 3).sort((a, b) => a[1].n - b[1].n);
   if (peu.length) return peu[0][0];
-  if (Math.random() < 0.2) return Object.keys(VARIANTES)[Math.floor(Math.random() * Object.keys(VARIANTES).length)];
+  if (Math.random() < 0.2) return [...Object.keys(VARIANTES),...Object.keys(SOURCES)][Math.floor(Math.random() * (Object.keys(VARIANTES).length + Object.keys(SOURCES).length))];
   return [...st].sort((a, b) => b[1].a / b[1].n - a[1].a / a[1].n)[0][0];
 }
 /** Coût IA réel d'un passage (somme du journal ai_usage depuis son début). */
