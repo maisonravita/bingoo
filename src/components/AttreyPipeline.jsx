@@ -129,7 +129,7 @@ export default function AttreyPipeline({ workspaceId }) {
       const result=await fn("r/attrey-search",{workspace_id:workspaceId,variante:sourceChoice});
       // Après la collecte, qualifier automatiquement quelques liens réellement accessibles.
       // Un échec de lecture n'empêche pas de montrer les autres pistes récoltées.
-      if(result.liens_detectes>0){
+      if(sourceChoice!=="airbnb" && result.liens_detectes>0){
         await fn("r/attrey-classify",{workspace_id:workspaceId}).catch(e=>
           console.warn("Attrey: classification différée possible",e));
       }
