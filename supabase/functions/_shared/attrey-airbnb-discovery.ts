@@ -48,8 +48,8 @@ export function parseIndexedSignals(raw:string):Signal[]{
  return found;
 }
 // Les annonces sont distinctes des avis négatifs : elles ne deviennent pas des pistes
-// « mauvais avis » sans extrait pertinent. La cible est 10 liens différents PAR
-// RECHERCHE, jamais dix résultats inventés pour remplir un quota.
+// « mauvais avis » sans extrait pertinent. La cible est 20 liens différents PAR
+// RECHERCHE, jamais vingt résultats inventés pour remplir un quota.
 type Listing={source_url:string;title:string;city:string;source_name:string;excerpt:string};
 export function parseParisListings(raw:string):Listing[]{
  const found:Listing[]=[],seen=new Set<string>();
@@ -71,7 +71,7 @@ export function parseParisListings(raw:string):Listing[]{
    title:trim(f.TITRE||"Logement Airbnb n° "+id,220),
    city:trim(f.VILLE||"Paris",100),
    excerpt:trim(f.CONTEXTE||"Annonce Airbnb indexée à Paris, avis à examiner.",600)});
-  if(found.length>=25)break;
+  if(found.length>=45)break;
  }
  return found;
 }
@@ -80,7 +80,7 @@ export async function attreyAirbnbIndexedSearch(ws:Workspace,source:"manuel"|"cr
  setAi({ws:ws.id,feature:"attrey/airbnb-index"});
  const prompt=[
   "Attrey recherche des annonces de logements Airbnb indexées situées à Paris intra-muros.",
-  "OBJECTIF : trouver 15 à 20 annonces Airbnb DISTINCTES, pour obtenir au moins 10 logements",
+  "OBJECTIF : trouver 25 à 35 annonces Airbnb DISTINCTES, pour obtenir au moins 20 logements",
   "réels à examiner. Faire au plus deux recherches web ciblées :",
   'site:airbnb.fr/rooms/ appartement Paris location entière',
   'site:airbnb.com/rooms/ Paris apartment Airbnb rental',
@@ -98,7 +98,7 @@ export async function attreyAirbnbIndexedSearch(ws:Workspace,source:"manuel"|"cr
   "AVIS: (vide si aucune citation d'avis négatif accessible)",
   "CATEGORIE: menage | accueil_cles | communication | entretien (uniquement si AVIS rempli)",
   "CONTEXTE: phrase prudente sur la source indexée",
-  "Donne autant de logements distincts que les résultats web permettent, maximum 20.",
+  "Donne autant de logements distincts que les résultats web permettent, maximum 35.",
   "Si seulement 3 liens fiables sont trouvés, donne 3 : JAMAIS de liens imaginés.",
   "N'accède à aucun compte privé et n'essaie pas de parcourir l'intégralité d'Airbnb."
  ].join("\n");
@@ -124,13 +124,13 @@ export async function attreyAirbnbIndexedSearch(ws:Workspace,source:"manuel"|"cr
  }
  let listings=parseParisListings(raw);
  // Une tentative complémentaire au maximum, et uniquement si l'index a trouvé moins
- // de dix logements distincts. Aucun résultat synthétique, aucun scan en boucle.
- if(listings.length<10){
+ // de vingt logements distincts. Aucun résultat synthétique, aucun scan en boucle.
+ if(listings.length<20){
   try{
    const already=listings.map(x=>x.source_url).join(" | ");
    const extra=await ask([
     "Recherche ciblée de logements Airbnb PUBLICS indexés dans Paris intra-muros.",
-    "Une seule recherche web maximum. Trouve jusqu'à 15 nouvelles annonces distinctes",
+    "Une seule recherche web maximum. Trouve jusqu'à 25 nouvelles annonces distinctes",
     "dans Paris 3e, 4e, 9e, 10e, 11e, 15e et 18e, sans recopier ces liens : "+(already||"aucun"),
     'Requête proposée : site:airbnb.fr/rooms/ "Paris" "Appartement"',
     "Ne donne que des URL /rooms/ réelles présentes dans les résultats de recherche.",
@@ -168,5 +168,5 @@ export async function attreyAirbnbIndexedSearch(ws:Workspace,source:"manuel"|"cr
  const cost=(usage||[]).reduce((n,r)=>n+Number(r.cost_eur||0),0);
  return {ok:true,liens_detectes:listings.length,listings_found:listings.length,signals_found:found.length,added:0,
   mode:"avis_indexes_a_confirmer",cout_eur:Math.round(cost*1000)/1000,
-  note:"Objectif de 10 annonces par recherche, sans garantie si l’index fournit moins de liens vérifiables. Les commentaires restent à confirmer."};
+  note:"Objectif de 20 annonces par recherche, sans garantie si l’index fournit moins de liens vérifiables. Les commentaires restent à confirmer."};
 }

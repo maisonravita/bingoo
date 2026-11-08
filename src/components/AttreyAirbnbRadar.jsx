@@ -60,11 +60,11 @@ export default function AttreyAirbnbRadar({workspaceId,refresh=0,lastScan=null,f
       <div className="rounded-xl bg-slate-50 p-3"><p className="font-semibold text-xl">{auditCount}</p><p className="text-[11px] text-ink-soft">Avec signalements vérifiés</p></div>
     </div>
     <div className="rounded-xl bg-slate-50 p-3 space-y-1">
-      <p className="text-xs font-semibold">Objectif : au moins 10 annonces Airbnb parisiennes par recherche</p>
+      <p className="text-xs font-semibold">Objectif : au moins 20 annonces Airbnb parisiennes par recherche</p>
       <p className="text-xs text-ink-soft">Les annonces sont des liens indexés à vérifier, pas forcément des logements avec de mauvais avis. Attrey ne crée jamais de faux logements pour atteindre le quota.</p>
       {lastScan&&<p role="status" className="text-sm font-semibold">
-        Dernière recherche : {lastScan.listings}/10 logement(s) trouvé(s) · {lastScan.signals} indice(s) de critique
-        {lastScan.listings<10?" · Objectif non atteint":""}
+        Dernière recherche : {lastScan.listings}/20 logement(s) trouvé(s) · {lastScan.signals} indice(s) de critique
+        {lastScan.listings<20?" · Objectif non atteint":""}
       </p>}
     </div>
     <AttreyAirbnbSignals workspaceId={workspaceId} refresh={refresh} favoriteUrls={favoriteUrls}
