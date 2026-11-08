@@ -73,6 +73,7 @@ export default function AttreyPipeline({ workspaceId }) {
   const [scanning, setScanning] = useState(false);
   const [sourceChoice,setSourceChoice] = useState("airbnb");
   const [scanState, setScanState] = useState(null);
+  const [airbnbLastScan,setAirbnbLastScan]=useState(null);
   const [statsTick, setStatsTick] = useState(0);
   const active = workspaceId === MVJ_WORKSPACE;
   const [favorites,setFavorites]=useState([]);
@@ -139,10 +140,11 @@ export default function AttreyPipeline({ workspaceId }) {
         return;
       }
       await load();
+      if(sourceChoice==="airbnb")setAirbnbLastScan({listings:result.listings_found||0,signals:result.signals_found||0});
       setScanState({last_scan_at:new Date().toISOString(),last_added:result.added||0});
       setStatsTick((x) => x + 1);
       toast(sourceChoice==="airbnb"
-        ? `${result.signals_found||0} indice(s) de mauvais avis trouvés dans les résultats indexés. Chaque avis reste à confirmer sur Airbnb.`
+        ? `${result.listings_found||0}/10 logements Airbnb trouvés dans cette recherche · ${result.signals_found||0} indice(s) de mauvais avis à confirmer. ${result.listings_found<10?"Objectif non atteint : seuls les liens réels sont conservés.":""}`
         : result.multicanal
         ? `10 sources ciblées · ${result.liens_detectes || 0} lien(s) détecté(s) · ${result.added || 0} prospect(s) à vérifier. Voir le bilan par plateforme.`
         : (result.added ? `${result.added} prospect(s) à vérifier · ${result.passages || 1} passage(s) web`
@@ -232,7 +234,7 @@ export default function AttreyPipeline({ workspaceId }) {
       <AttreyFavorites items={favorites} loading={favoritesLoading}
         onRemove={url=>toggleFavorite({url})}/>
       {favoriteError&&<p role="alert" className="text-xs text-red-700">Favoris : {favoriteError}</p>}
-      <AttreyAirbnbRadar workspaceId={workspaceId} refresh={statsTick}
+      <AttreyAirbnbRadar workspaceId={workspaceId} refresh={statsTick} lastScan={airbnbLastScan}
         favoriteUrls={favoriteUrls} onToggleFavorite={toggleFavorite} favoriteBusy={favoriteBusy}/>
       <AttreyCandidates workspaceId={workspaceId} refresh={statsTick}
         favoriteUrls={favoriteUrls} onToggleFavorite={toggleFavorite} favoriteBusy={favoriteBusy}/>
