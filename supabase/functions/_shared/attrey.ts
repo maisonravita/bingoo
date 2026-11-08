@@ -104,10 +104,11 @@ N'ajoute aucun commentaire hors JSON.`,{
    if(error)throw new HttpError(500,error.message);
    added=data?.length??0;
  }
- await admin.from("workspaces").update({
-   radar_cfg:{...((ws as Workspace & {radar_cfg?:Record<string,unknown>}).radar_cfg??{}),
-     attrey_last_scan_at:new Date().toISOString(),attrey_last_scan_count:added}
- }).eq("id",ws.id);
+ const {error:stateError}=await admin.from("attrey_scan_state").upsert({
+   workspace_id:ws.id,last_scan_at:new Date().toISOString(),last_added:added,
+   last_error:null,updated_at:new Date().toISOString()
+ },{onConflict:"workspace_id"});
+ if(stateError) throw new HttpError(500,stateError.message);
  await log(ws.id,"radar",`Attrey : ${added} nouvelle(s) piste(s) web à vérifier, lancement ${source}`);
  return {ok:true,scanned:candidates.length,eligible:rows.length,added,source};
 }
