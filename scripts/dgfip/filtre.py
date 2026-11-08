@@ -27,14 +27,19 @@ def lire(z, chemin=""):
                  siren=col("siren"), fj=col("formejuridiqueabregee"), den=col("denomination"))
         print(chemin + n, enc, {k: v for k, v in c.items()}, file=sys.stderr)
         if c["siren"] is None or c["dep"] is None: continue
+        c["com"] = col("nomcommune", "commune") if c["com"] is None else c["com"]
+        c["fjc"] = col("formejuridique")
         g = lambda row, k: (row[c[k]].strip() if c[k] is not None and c[k] < len(row) else "")
         lus = gard = 0
+        idf = re.search(r"_(75|77|78|91|92|93|94|95)0\.", n)
+        if idf: print("  entête", h, file=sys.stderr)
         for row in r:
             lus += 1
+            if idf and lus <= 3: print("  ex", row, file=sys.stderr)
             dep = g(row, "dep").zfill(2)[:2]
             if dep not in DEPTS: continue
             fj = g(row, "fj").upper()
-            if not fj.startswith("SCI"): continue
+            if not (fj.startswith("SCI") or g(row, "fjc") == "6540" or re.match(r"(SCI|SOCIETE CIVILE IMMOBILIERE)\b", g(row, "den").upper())): continue
             if c["droit"] is not None and g(row, "droit") not in ("P", ""): continue
             s = g(row, "siren")
             if not re.fullmatch(r"\d{9}", s): continue
