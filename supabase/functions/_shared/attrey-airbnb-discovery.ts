@@ -122,8 +122,32 @@ export async function attreyAirbnbIndexedSearch(ws:Workspace,source:"manuel"|"cr
    mode:"recherche_interrompue",reason:"max_tokens",
    note:"Claude a effectué une recherche mais n'a pas fourni de résultat exploitable. Aucun avis n'a été inventé. Une nouvelle tentative peut être facturée."};
  }
+ let listings=parseParisListings(raw);
+ // Une tentative complémentaire au maximum, et uniquement si l'index a trouvé moins
+ // de dix logements distincts. Aucun résultat synthétique, aucun scan en boucle.
+ if(listings.length<10){
+  try{
+   const already=listings.map(x=>x.source_url).join(" | ");
+   const extra=await ask([
+    "Recherche ciblée de logements Airbnb PUBLICS indexés dans Paris intra-muros.",
+    "Une seule recherche web maximum. Trouve jusqu'à 15 nouvelles annonces distinctes",
+    "dans Paris 3e, 4e, 9e, 10e, 11e, 15e et 18e, sans recopier ces liens : "+(already||"aucun"),
+    'Requête proposée : site:airbnb.fr/rooms/ "Paris" "Appartement"',
+    "Ne donne que des URL /rooms/ réelles présentes dans les résultats de recherche.",
+    "La localisation Paris doit être mentionnée dans la source; ne l'invente jamais.",
+    "Format : blocs séparés par --- ; chaque bloc contient LOGEMENT: URL exacte,",
+    "VILLE: Paris, TITRE: titre public si disponible, CONTEXTE: source indexée.",
+    "Si tu ne peux pas vérifier un lien, ne le donne pas. Aucun avis négatif supposé."
+   ].join("\n"),{fast:true,maxTokens:5500,tools:[{type:"web_search_20250305",
+    name:"web_search",max_uses:1,user_location:{type:"approximate",country:"FR",timezone:"Europe/Paris"}}]});
+   const present=new Set(listings.map(x=>x.source_url));
+   for(const candidate of parseParisListings(extra)){
+    if(!present.has(candidate.source_url)){listings.push(candidate);present.add(candidate.source_url);}
+   }
+  }catch(e){console.warn("Attrey: recherche complémentaire Airbnb indisponible",
+   e instanceof Error?e.message:String(e));}
+ }
  const found=parseIndexedSignals(raw);
- const listings=parseParisListings(raw);
  if(listings.length)await saveCandidates(ws.id,"web","airbnb",listings);
  if(found.length){
   const {error}=await admin.from("attrey_airbnb_signals").upsert(
