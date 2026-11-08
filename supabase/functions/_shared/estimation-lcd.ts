@@ -75,7 +75,7 @@ Format : {"nuit_basse": 0, "nuit_haute": 0, "occ_basse": 0, "occ_haute": 0, "hyp
     `Accord pour être recontacté donné sur la page d'estimation (${new Date().toISOString()}).`].join("\n");
   const { data: exist } = await admin.from("prospects").select("id, public_token").eq("workspace_id", ws.id).ilike("email", email.replace(/[%_\\]/g, "\\$&")).limit(1);
   let p = exist?.[0] as { id: string; public_token: string } | undefined;
-  const champs = { contact_name: `${prenom} ${nom}`.trim(), contact_role: "Propriétaire", phone: tel || null, city: ville, postal_code: cp, activity: `Propriétaire · ${t.label}`,
+  const champs = { contact_name: `${prenom} ${nom}`.trim(), contact_role: "Propriétaire", phone: tel, city: ville, postal_code: cp, activity: `Propriétaire · ${t.label}`,
     source: "Estimation en ligne", channel: "inbound", fit: niveau, fit_reason: resume, notes, next_action: niveau === "chaud" ? "Rappeler aujourd'hui : estimation demandée" : "Rappeler : estimation demandée", next_action_at: new Date().toISOString().slice(0, 10), score: Math.min(100, points * 10) };
   if (p) await admin.from("prospects").update(champs).eq("id", p.id);
   else {
