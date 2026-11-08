@@ -8,7 +8,10 @@ const SEGMENTS = [
   ["demande_gestion", "Recherche une conciergerie"],
   ["airbnb_existant", "Location courte durée déjà active"],
   ["partenaire_prescripteur", "Partenaire immobilier"],
+  ["sci_proprietaire", "SCI propriétaire de logements"],
 ];
+// Par défaut : le type qui correspond au signal (une SCI du fichier des impôts n'a pas « annoncé » vouloir louer)
+const parDefaut = (o) => o.outreach_segment || (o.kind === "patrimoine" || o.kind === "creation" ? "sci_proprietaire" : "proprietaire_mise_en_location");
 
 /**
  * Prépare un brouillon commercial pour les opportunités sourcées de l'espace MVJ.
@@ -16,7 +19,7 @@ const SEGMENTS = [
  */
 export default function AttreyOutreach({ opportunity, workspaceId, onChange }) {
   const toast = useToast();
-  const [segment, setSegment] = useState("proprietaire_mise_en_location");
+  const [segment, setSegment] = useState(parDefaut(opportunity));
   const [need, setNeed] = useState("");
   const [draft, setDraft] = useState(opportunity.outreach_draft || "");
   const [status, setStatus] = useState(opportunity.outreach_review_status || "non_prepare");
@@ -26,7 +29,7 @@ export default function AttreyOutreach({ opportunity, workspaceId, onChange }) {
   const canPrepare = !!source && !!opportunity.city;
 
   useEffect(() => {
-    setSegment(opportunity.outreach_segment || "proprietaire_mise_en_location");
+    setSegment(parDefaut(opportunity));
     setDraft(opportunity.outreach_draft || "");
     setStatus(opportunity.outreach_review_status || "non_prepare");
     setNeed("");
