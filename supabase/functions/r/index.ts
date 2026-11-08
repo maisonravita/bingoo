@@ -32,7 +32,8 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     // Par défaut : interroger les 10 domaines publics en deux lots bornés.
     // Une plateforme explicitement choisie conserve l'ancien mode mono-source.
     if (!b.variante || b.variante === "toutes") return await attreyMultiScan(ws,"manuel");
-    const forums = await attreyForums(ws, "manuel").catch((e) => { console.error("attrey forums", e); return { added: 0 }; });
+    // La recherche Airbnb ciblée ne doit pas scanner les forums en supplément.
+    const forums = b.variante === "airbnb" ? {added:0} : await attreyForums(ws, "manuel").catch((e) => { console.error("attrey forums", e); return { added: 0 }; });
     const web = await attreySearch(ws, "manuel", typeof b.variante === "string" ? b.variante : undefined);
     return { ...web, added: (web.added ?? 0) + (forums.added ?? 0), forums };
   },
