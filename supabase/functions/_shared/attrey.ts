@@ -165,7 +165,7 @@ Clé attendue : opportunities, liste d'objets avec direction (offre|demande), se
    added=data?.length??0;
  }
  const cout = await coutDepuis(ws.id, "attrey/recherche", t0);
- await admin.from("attrey_runs").insert({ workspace_id: ws.id, canal: "web", variante: v, declenchement: source, recherches: 1, candidats: candidates.length, ajoutes: added, cout_eur: cout });
+ await admin.from("attrey_runs").insert({ workspace_id: ws.id, canal: "web", variante: v, declenchement: source, recherches: 1, candidats: Math.max(candidates.length,discovered.length), ajoutes: added, cout_eur: cout });
  const {error:stateError}=await admin.from("attrey_scan_state").upsert({
    workspace_id:ws.id,last_scan_at:new Date().toISOString(),last_added:added,
    last_error:null,updated_at:new Date().toISOString()
@@ -209,7 +209,10 @@ export async function attreyForums(ws: Workspace, source: "manuel"|"cron" = "man
   // Les sujets plausibles restent réexaminables ; le cache unique évite de les dupliquer.
   const tous = [...sujets.values()];
   const plausible = /apartment|appartement|housing|logement|location|rent|rental|louer|buy|buying|acheter|achat|property|immobilier|relocat|demenag|moving|flat|meuble|conciergerie|airbnb/i;
-  const nouveaux = tous.filter((x)=>plausible.test(x.titre)).slice(0, 50);
+  const plausibles = tous.filter((x)=>plausible.test(x.titre));
+// Répartir l'examen sur plusieurs passages pour ne pas relire toujours les 50 mêmes titres.
+const start = plausibles.length ? (new Date().getUTCDate()*37)%plausibles.length : 0;
+const nouveaux = [...plausibles.slice(start),...plausibles.slice(0,start)].slice(0,50);
   const archivedForums = await saveCandidates(ws.id,"forums","expat.com",nouveaux.map((x)=>({
     source_url:x.url,title:x.titre,source_name:x.forum,
     excerpt:"Titre de forum potentiellement immobilier, contenu et date à vérifier"
