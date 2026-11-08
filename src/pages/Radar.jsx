@@ -10,6 +10,7 @@ import { estSimple, useAller } from "../lib/lieu";
 import { EXT_IDS, STORE_URL, pingExtension } from "../lib/ext";
 import Demande from "../components/Demande";
 import AttreyOutreach from "../components/AttreyOutreach";
+import AttreyPipeline from "../components/AttreyPipeline";
 import { useDansLieu } from "../lib/lieu";
 
 export const RECRUIT_HINT = "Cette entreprise recrute pour un poste lié à ce que tu vends. C'est souvent le signe d'un besoin actuel et d'un budget : c'est le bon moment pour lui proposer ton service, en complément ou à la place d'une embauche.";
@@ -1497,6 +1498,7 @@ export default function Radar() {
 <Guide id="radar" titre="Ici : les entreprises à contacter au bon moment (création, recrutement, nouveau dirigeant, contrat qui se termine…)." etapes={["Parcours la liste : chaque entreprise dit pourquoi c'est le bon moment.", "Clique « Préparer le message » sur celles qui t'intéressent.", "Bingoo! trouve le décideur, écrit le message, et te le propose dans « Messages à envoyer »."]} />
       <HomeView ws={ws} list={list.filter((o) => o.kind !== "besoin")} loaded={!!rows} live={live} onScan={scan} onOpen={setOpen} onChange={load} />
       <Demandes ws={ws} list={list} onChange={load} />
+      {ws.id === "4e9c20f1-84bb-4854-aca7-adcdc2bc8bfd" && <AttreyPipeline workspaceId={ws.id} />}
       <button onClick={() => toggleExplore(!explore)} className="w-full rounded-2xl border border-line bg-white hover:border-ink-faint px-5 py-3.5 flex items-center justify-between gap-3 text-left transition">
         <span><span className="block font-semibold text-[15px]">{explore ? "Masquer les options" : "Plus d'options"}</span><span className="block text-[12.5px] text-ink-faint">Toutes les opportunités, comptes surveillés, partenaires, réglages du Radar</span></span>
         <span className={cx("text-ink-soft transition", explore && "rotate-90")}><Ico name="chev" /></span>
