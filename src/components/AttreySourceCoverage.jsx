@@ -3,7 +3,8 @@ import { supabase } from "../lib/supabase";
 
 // Recherche de pages PUBLIQUES indexées, pas une intégration privée avec les plateformes.
 export const SEARCH_SOURCES = [
-  ["auto","Automatique · meilleure formule"],
+  ["toutes","Toutes les plateformes · scan multicanal"],
+  ["auto","Automatique · une seule formule"],
   ["allovoisins","AlloVoisins · gestion locative"],
   ["reddit","Reddit · voyageurs et acheteurs"],
   ["leboncoin","Leboncoin · annonces immobilières"],
@@ -22,7 +23,7 @@ export default function AttreySourceCoverage({ workspaceId, refresh=0 }) {
   useEffect(()=>{
     let mounted=true;
     setLoading(true);
-    supabase.from("attrey_runs").select("at,canal,variante,ajoutes,candidats,cout_eur")
+    supabase.from("attrey_runs").select("at,canal,variante,ajoutes,candidats,cout_eur,scan_status,scan_detail")
       .eq("workspace_id",workspaceId).in("canal",["web","forums"])
       .order("at",{ascending:false}).limit(250)
       .then(({data,error})=>{
@@ -32,7 +33,7 @@ export default function AttreySourceCoverage({ workspaceId, refresh=0 }) {
       });
     return ()=>{mounted=false;};
   },[workspaceId,refresh]);
-  const sourceIds=SEARCH_SOURCES.slice(1);
+  const sourceIds=SEARCH_SOURCES.slice(2);
   const rollup=(id)=>{
     const relevant=runs.filter((r)=>
       id==="forums" ? (r.canal==="forums" || (r.canal==="web" && r.variante==="forums")) :
@@ -42,7 +43,9 @@ export default function AttreySourceCoverage({ workspaceId, refresh=0 }) {
       count:relevant.length,
       found:relevant.reduce((sum,r)=>sum+Number(r.ajoutes||0),0),
       cost:relevant.reduce((sum,r)=>sum+Number(r.cout_eur||0),0),
-      last:relevant[0]?.at||null
+      last:relevant[0]?.at||null,
+      status:relevant[0]?.scan_status||null,
+      detail:relevant[0]?.scan_detail||null
     };
   };
   return <section className="rounded-2xl border border-line p-4 bg-white">
@@ -53,7 +56,7 @@ export default function AttreySourceCoverage({ workspaceId, refresh=0 }) {
         <thead><tr className="border-b border-line text-ink-soft text-left">
           <th className="py-2">Plateforme</th><th className="py-2 text-right">Passages</th>
           <th className="py-2 text-right">Pistes</th><th className="py-2 text-right">Coût IA</th>
-          <th className="py-2 text-right">Dernier contrôle</th></tr></thead>
+          <th className="py-2 text-right">Dernière tentative</th><th className="py-2 text-right">Résultat</th></tr></thead>
         <tbody>
           {sourceIds.map(([id,name])=>{
             const x=rollup(id);
@@ -63,6 +66,7 @@ export default function AttreySourceCoverage({ workspaceId, refresh=0 }) {
               <td className="py-2 text-right">{loading?"…":x.found}</td>
               <td className="py-2 text-right">{loading?"…":x.cost.toLocaleString("fr-FR",{style:"currency",currency:"EUR"})}</td>
               <td className="py-2 text-right text-ink-soft">{loading?"…":dateLabel(x.last)}</td>
+              <td className="py-2 text-right text-ink-soft">{loading?"…":!x.last?"Jamais tentée":x.status==="erreur"?"Erreur":x.status==="liens_trouves"?"Liens détectés":x.status==="aucun_lien"?"Aucun lien":"Historique ancien"}</td>
             </tr>;
           })}
         </tbody>
