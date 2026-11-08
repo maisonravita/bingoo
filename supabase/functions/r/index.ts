@@ -765,6 +765,14 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   },
   async "spy-cron"(req) { await cron(req); return await spyCron(); },
   async "spy-digest"(req) { await cron(req); return await spyDigest(); },
+  // Administration : recherche de demandes publiques sur un espace précis (clé cron)
+  async "spy-needs-run"(req, b) {
+    await cron(req);
+    const { data: ws } = await admin.from("workspaces").select("*").eq("id", String(b.workspace_id ?? "")).single();
+    if (!ws) throw new HttpError(404, "Espace introuvable");
+    setAi({ ws: ws.id, feature: "radar/demandes" });
+    return await spyNeeds(ws);
+  },
   async "spy-needs"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     await quota(ws.id, "espion", 20);

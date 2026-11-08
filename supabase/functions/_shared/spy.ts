@@ -286,15 +286,16 @@ export async function spyNeeds(ws: Workspace) {
   const rivals = (comps ?? []).map((c) => String(c.name || "").replace(/\s*[—(].*$/, "")).filter(Boolean).slice(0, 6);
   const vus = (deja ?? []).map((x: { url: string }) => x.url).filter(Boolean).slice(0, 25);
   const logiciel = /(saas|logiciel|plateforme|application|appli|outil|software|api|crm|erp)/i.test(`${me.offre ?? ""} ${me.resume ?? ""} ${(me as { type?: string }).type ?? ""}`);
+  // Écoute sur mesure (réglée par espace) : quoi chercher, où, avec quelles requêtes, et les règles propres au métier
+  const ec = ((ws as { radar_cfg?: Record<string, unknown> }).radar_cfg?.ecoute ?? null) as { objectif?: string; sources?: string; requetes?: string[]; regles?: string; plateformes?: string } | null;
+  const ecBloc = ec ? `Cherche (6 recherches maximum, varie-les vraiment), en français.
+Exemples de requêtes (adapte-les, varie les villes et les mots) :
+${(ec.requetes ?? []).map((q) => `- ${q}`).join("\n")}
+Sources à privilégier : ${ec.sources ?? ""}
+${ec.regles ?? ""}
+` : "";
   type N = { besoin: string; entreprise: string; auteur_fonction: string; plateforme: string; source: string; url: string; date: string; langue: string; ville: string; departement: string; intention: string; pertinence: number; fiabilite: string; statut: string; recommandation: string; reponse: string };
-  const r = await askJson<{ besoins: N[] }>(`Trouve sur le web des entreprises, des fondateurs ou des professionnels qui demandent PUBLIQUEMENT, depuis moins de 45 jours, un outil, un service ou un prestataire que cette offre peut leur apporter.
-Notre offre : ${me.offre ?? ""} (${me.nom ?? ws.name})${me.resume ? ` — ${me.resume}` : ""}
-Ce qui la distingue : ${me.differenciation ?? "non renseigné"}
-Nos clients : ${(ws.targets ?? []).map((t) => t.label).join(", ") || "entreprises B2B"} — Zone : ${(ws.zone ?? []).join(", ") || "France"}
-Nos concurrents : ${rivals.join(", ") || "non renseignés"}
-${vus.length ? `Déjà trouvées (ne les redonne pas) :\n${vus.map((u) => `- ${u}`).join("\n")}` : ""}
-
-Cherche (5 recherches maximum, varie-les vraiment), en français${logiciel ? " ET en anglais (un logiciel se vend aussi hors de France)" : ""} :
+  const GEN = `Cherche (5 recherches maximum, varie-les vraiment), en français${logiciel ? " ET en anglais (un logiciel se vend aussi hors de France)" : ""} :
 - demandes de recommandation : « quelqu'un connaît un outil / un logiciel / une agence pour… », « vous utilisez quoi pour… », « any tool for… », « what do you use for… », « recommend a tool for… », « looking for a tool to… » ;
 - envies de changer : « alternative à ${rivals[0] ?? "<concurrent>"} »${rivals[1] ? `, « ${rivals[1]} alternative »` : ""}, « je cherche à remplacer… », « switching from… », plaintes publiques contre un concurrent ;
 - projets annoncés qui nécessitent cette offre.
@@ -303,7 +304,15 @@ Exemples de requêtes efficaces (adapte les mots à NOTRE offre, ne les copie pa
 - "vous utilisez quoi" OU "quel outil" + le problème que notre offre résout
 - "${rivals[0] ?? "<concurrent>"} alternative" reddit
 Sources à privilégier : Reddit (r/SaaS, r/startups, r/Entrepreneur, r/smallbusiness, r/indiehackers, subreddits du métier), X, publications LinkedIn publiques, Indie Hackers, Product Hunt (launch comments), Hacker News (Ask HN), forums et communautés professionnelles (Slack/Discord publics indexés, growthhackingfr…), sites de demandes de devis.
-Une demande encore ouverte d'il y a 3 à 6 semaines vaut mieux qu'une liste vide : si les demandes toutes fraîches manquent, remonte dans le temps plutôt que de ne rien renvoyer.
+`;
+  const r = await askJson<{ besoins: N[] }>(`${ec?.objectif ?? "Trouve sur le web des entreprises, des fondateurs ou des professionnels qui demandent PUBLIQUEMENT, depuis moins de 45 jours, un outil, un service ou un prestataire que cette offre peut leur apporter."}
+Notre offre : ${me.offre ?? ""} (${me.nom ?? ws.name})${me.resume ? ` — ${me.resume}` : ""}
+Ce qui la distingue : ${me.differenciation ?? "non renseigné"}
+Nos clients : ${(ws.targets ?? []).map((t) => t.label).join(", ") || "entreprises B2B"} — Zone : ${(ws.zone ?? []).join(", ") || "France"}
+Nos concurrents : ${rivals.join(", ") || "non renseignés"}
+${vus.length ? `Déjà trouvées (ne les redonne pas) :\n${vus.map((u) => `- ${u}`).join("\n")}` : ""}
+
+${ecBloc || GEN}Une demande encore ouverte d'il y a 3 à 6 semaines vaut mieux qu'une liste vide : si les demandes toutes fraîches manquent, remonte dans le temps plutôt que de ne rien renvoyer.
 Règles strictes :
 - Analyse le SENS : la personne doit chercher une solution, pas en vendre une. Écarte les articles « top 10 », les publicités et les posts d'éditeurs.
 - N'invente rien : chaque demande a son URL exacte, qui mène à la publication elle-même.
@@ -312,7 +321,7 @@ Règles strictes :
 - recommandation : comment l'aborder, en une phrase.
 - reponse : la réponse à publier sous la demande, dans SA langue et au ton de la plateforme. 2 à 4 phrases : d'abord une aide concrète et honnête (un conseil, une méthode, ce qu'il faut regarder), ensuite seulement une phrase transparente sur notre outil (« je suis le fondateur de ${me.nom ?? ws.name}, ça fait exactement ça si ça peut aider »). Pas de lien, pas d'emoji, pas de superlatif, pas de « Bonjour, je me permets ». Sur Reddit, plus discret encore.
 - Si tu ne trouves rien de solide, renvoie une liste vide.
-Format : {"besoins": [{"besoin": "", "entreprise": "", "auteur_fonction": "", "plateforme": "Reddit|X|LinkedIn|Forum|Indie Hackers|Product Hunt|Devis|Autre", "source": "nom du site ou de la communauté", "url": "", "date": "AAAA-MM-JJ", "langue": "fr|en", "ville": "", "departement": "", "intention": "", "pertinence": 0, "fiabilite": "", "statut": "", "recommandation": "", "reponse": ""}]}`,
+Format : {"besoins": [{"besoin": "", "entreprise": "", "auteur_fonction": "", "plateforme": "${ec?.plateformes ?? "Reddit|X|LinkedIn|Forum|Indie Hackers|Product Hunt|Devis|Autre"}", "source": "nom du site ou de la communauté", "url": "", "date": "AAAA-MM-JJ", "langue": "fr|en", "ville": "", "departement": "", "intention": "", "pertinence": 0, "fiabilite": "", "statut": "", "recommandation": "", "reponse": ""}]}`,
     { maxTokens: 9000, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] });
   const deja30 = new Set(vus);
   const rows = (r.besoins ?? []).filter((b) => /^https?:\/\//.test(b.url ?? "") && !deja30.has(b.url) && b.besoin && Number(b.pertinence) >= 40 && b.statut !== "satisfait" && b.statut !== "ancien").slice(0, 10).map((b) => ({
