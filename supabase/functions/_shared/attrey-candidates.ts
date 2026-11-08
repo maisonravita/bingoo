@@ -26,7 +26,11 @@ export function publicLinks(text:string,host?:string):Candidate[] {
       const url=candidateUrl(link,host);
       if(!url||seen.has(url))continue;
       seen.add(url);
-      result.push({source_url:url,title:line.replace(link,"").replace(/^[\s\-*#\d.)]+/,"").slice(0,240)||"Publication publique à vérifier",
+      const foundTitle=line.replace(link,"").replace(/^[\\s\\-*#\\d.)]+/,"").replace(/\\*+/g,"").trim();
+      // Éviter les fiches intitulées « Lien : » lorsqu'aucun titre de publication n'est disponible.
+      const title=/^(?:lien|url|source)\\s*:?$/i.test(foundTitle)||!foundTitle
+        ? "Page publique à examiner" : foundTitle.slice(0,240);
+      result.push({source_url:url,title,
         excerpt:line.slice(0,700),source_name:new URL(url).hostname});
       if(result.length>=25)return result;
     }
