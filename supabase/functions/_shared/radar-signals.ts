@@ -277,7 +277,8 @@ export async function newCompanies(ws: Workspace, activites: string[], zone: str
     // on la garde si son objet déclaré parle bien de location ou d'immobilier.
     const actDecl = String(parse(b.listeetablissements)?.etablissement?.activite ?? parse(b.listepersonnes)?.personne?.activite ?? "");
     const jeuneSansCode = garderSci && !r?.naf && /(location|immobili|meubl|h[ée]bergement)/i.test(actDecl);
-    if (nafs.length && !jeuneSansCode && (!r?.naf || !nafs.includes(r.naf.slice(0, 4)))) return [];
+    // Le registre écrit « 68.20B » : comparé sans le point, comme les cibles (avant ce correctif, aucune création ne passait)
+    if (nafs.length && !jeuneSansCode && (!r?.naf || !nafs.includes(sansPoint(r.naf).slice(0, 4)))) return [];
     const o = toOpp(b, c);
     o.raw = { ...o.raw, naf: r?.naf ?? "", tranche: r?.tranche ?? "" };
     return [o];
