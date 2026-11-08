@@ -100,7 +100,7 @@ export default function AttreyPipeline({ workspaceId }) {
       await load();
       setScanState({last_scan_at:new Date().toISOString(),last_added:result.added||0});
       setStatsTick((x) => x + 1);
-      toast(result.added ? `${result.added} nouvelle(s) piste(s) publique(s) à vérifier` : "Aucune nouvelle piste vérifiable dans cette recherche.",result.added?"good":"default");
+      toast(result.added ? `${result.added} prospect(s) à vérifier · ${result.passages || 1} passage(s) web` : `${result.liens_detectes || 0} lien(s) public(s) détecté(s) · ${result.passages || 1} passage(s) web. Consulte « Pistes publiques à vérifier ».`,result.added?"good":"default");
     } catch(e) {
       toast(e.message || "Recherche web indisponible", "bad");
     } finally {setScanning(false);}
