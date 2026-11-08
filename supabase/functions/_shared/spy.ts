@@ -334,7 +334,8 @@ Format : {"besoins": [{"besoin": "", "entreprise": "", "auteur_fonction": "", "p
   if (rows.length) { const { data } = await admin.from("radar_opps").upsert(rows, { onConflict: "workspace_id,key", ignoreDuplicates: true }).select("id"); found = data?.length ?? 0; }
   await log(ws.id, "espion", found ? `${found} demande${found > 1 ? "s" : ""} publique${found > 1 ? "s" : ""} repérée${found > 1 ? "s" : ""}, réponse prête` : "Demandes publiques : rien de nouveau aujourd'hui");
   if (found) await log(ws.id, "radar_alerte", `${found} personne${found > 1 ? "s cherchent" : " cherche"} publiquement une solution comme la tienne : ta réponse est prête`);
-  return { found };
+  // Diagnostic : combien de pistes l'IA a proposées avant les filtres (URL, doublons, pertinence, statut)
+  return { found, candidats: (r.besoins ?? []).length };
 }
 
 /** E-mail d'alerte : chaque matin s'il s'est passé quelque chose d'important, et un résumé chaque lundi. */

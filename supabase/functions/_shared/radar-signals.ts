@@ -257,7 +257,9 @@ export async function newCompanies(ws: Workspace, activites: string[], zone: str
   const since = iso(addDays(new Date(), -30));
   const where = `dateparution>=date'${since}' and familleavis="creation" and (${zone.map((d) => `numerodepartement=${q(d)}`).join(" or ")}) and (${activites.map((a) => `search(listeetablissements,${q(a)})`).join(" or ")})`;
   const d = await getJson(ods(BODACC, { where, limit: "100", order_by: "dateparution desc" }));
-  const HOLDING = /(holding|participations?|parts sociales|valeurs mobili[eè]res|soci[ée]t[ée] civile immobili[eè]re|\bsci\b)/i;
+  // Les SCI sont écartées par défaut (sociétés de patrimoine) ; un espace dont elles SONT la cible (conciergerie, gestion locative) les garde
+  const garderSci = !!(ws.radar_cfg as { garder_sci?: boolean } | null)?.garder_sci;
+  const HOLDING = garderSci ? /(holding|participations?|parts sociales|valeurs mobili[eè]res)/i : /(holding|participations?|parts sociales|valeurs mobili[eè]res|soci[ée]t[ée] civile immobili[eè]re|\bsci\b)/i;
   const rows = ((d?.results ?? []) as Bodacc[]).filter((b) => {
     const act = String(parse(b.listeetablissements)?.etablissement?.activite ?? parse(b.listepersonnes)?.personne?.activite ?? "");
     return parse(b.listepersonnes)?.personne?.typePersonne === "pm" && sirenOf(b) && !HOLDING.test(`${b.commercant} ${act}`);
