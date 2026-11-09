@@ -26,6 +26,32 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     // web : true = recherche web forcée, false = sources officielles seulement (premier Radar après la mise en route), absent = selon le calendrier
     return await scanRadar(ws, { web: b.web === true ? true : b.web === false ? false : undefined });
   },
+  // Explorer : ajouter un SaaS à la base et le lire tout de suite (membre connecté)
+  async "saas-add"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    await quota(ws.id, "espion", 30);
+    const { saasAdd, saasLire, domaineDe } = await import("../_shared/saas-base.ts");
+    const d = domaineDe(String(b.url ?? ""));
+    if (!d) throw new HttpError(400, "Adresse du site invalide (ex. monsaas.com)");
+    await saasAdd([d], `ajout:${ws.id}`);
+    const { data: s } = await admin.from("saas").select("id, statut").eq("domaine", d).single();
+    const r = s.statut === "ok" ? { statut: "ok" } : await saasLire(s.id);
+    return { id: s.id, domaine: d, statut: r?.statut ?? "erreur" };
+  },
+  // Explorer (clé cron) : relevés de nuit et amorçage de la base
+  async "saas-cron"(req) { await cron(req); const { saasCron } = await import("../_shared/saas-base.ts"); return await saasCron(); },
+  async "saas-seed"(req, b) {
+    await cron(req);
+    const { saasSeed, CATEGORIES } = await import("../_shared/saas-base.ts");
+    const cats = Array.isArray(b.categories) && b.categories.length ? b.categories.map(String) : CATEGORIES.filter((c) => c !== "Autre");
+    const regions = Array.isArray(b.regions) && b.regions.length ? b.regions.map(String) : ["France"];
+    const t0 = Date.now(); let ajoutes = 0, faits = 0;
+    for (const c of cats) for (const r of regions) {
+      if (Date.now() - t0 > 100_000) break;
+      ajoutes += await saasSeed(c, r); faits++;
+    }
+    return { faits, ajoutes };
+  },
   async "attrey-search"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     if (ws.id !== "4e9c20f1-84bb-4854-aca7-adcdc2bc8bfd") throw new HttpError(403, "Espace Attrey uniquement");

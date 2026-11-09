@@ -33,13 +33,13 @@ function lien(html: string, base: string, re: RegExp) {
 
 const ATS = /(welcometothejungle\.com|jobs\.lever\.co|ashbyhq\.com|greenhouse\.io|teamtailor\.com|workable\.com|recruitee\.com|smartrecruiters\.com|jobs\.personio|join\.com|breezy\.hr|flatchr|taleez)/i;
 
-type Fiche = {
+export type Fiche = {
   nom: string; site: string; host: string; outils: string[];
   prix_url: string; prix_texte: string; recrute: { oui: boolean; postes: number | null; url: string } ;
   nouveaute: { date: string | null; url: string }; lisible: boolean;
 };
 
-async function lireSite(site: string, nom: string): Promise<Fiche> {
+export async function lireSite(site: string, nom: string): Promise<Fiche> {
   const html = await fetchHtml(site).catch(() => "");
   const base = site;
   const f: Fiche = { nom, site, host: hostOf(site), outils: toolsIn(html).slice(0, 10), prix_url: "", prix_texte: "", recrute: { oui: false, postes: null, url: "" }, nouveaute: { date: null, url: "" }, lisible: !!html };
@@ -84,6 +84,8 @@ ${etude.slice(0, 5000)}
 Clé : concurrents, liste d'objets nom et site (adresse https du site officiel).`, { fast: true, maxTokens: 600 }).catch(() => ({ concurrents: [] })) : { concurrents: [] };
   const vus = new Set([host]);
   const concurrents = (ext.concurrents ?? []).filter((c) => /^https?:\/\//.test(c.site ?? "")).filter((c) => { const h = hostOf(c.site); if (!h || vus.has(h)) return false; vus.add(h); return true; }).slice(0, 6);
+  // Les concurrents trouvés entrent dans la base Explorer (lus la nuit suivante)
+  import("./saas-base.ts").then(({ saasAdd }) => saasAdd([`https://${host}`, ...concurrents.map((c) => c.site)], "rapport-marche")).catch(() => {});
   if (!concurrents.length) throw new HttpError(422, "Aucun concurrent fiable trouvé pour ce logiciel. Réessaie, ou crée ton compte pour les ajouter toi-même.");
 
   // 3. Lecture des sites (en parallèle), puis lecture des prix en une seule fois
