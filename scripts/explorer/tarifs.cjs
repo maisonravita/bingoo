@@ -24,7 +24,6 @@ const lit = (v) => "'" + String(v).replace(/'/g, "''") + "'";
         const res = await p.goto(u, { waitUntil: "domcontentloaded", timeout: 25000 });
         if (res && res.ok()) {
           await p.waitForTimeout(3500);
-          // Refuser poliment les bannières de cookies quand un bouton évident existe (sans rien accepter)
           texte = (await p.evaluate(() => document.body ? document.body.innerText : "")).replace(/\s+\n/g, "\n").replace(/[ \t]+/g, " ").slice(0, 7000);
         }
       } catch { /* page suivante */ }
