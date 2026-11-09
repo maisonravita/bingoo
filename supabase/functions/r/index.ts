@@ -154,6 +154,13 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     await freeLimit(req, "site", 3, 300, { visitor: "Tu as fait tes 3 essais du jour. Crée ton compte Bingoo! pour lancer le Radar sans limite." });
     return await freeSite(b);
   },
+  // « Ton marché SaaS » : concurrents, prix, recrutement, nouveautés (essai gratuit sans compte)
+  async "free-marche"(req, b) {
+    const { freeLimit } = await import("../_shared/free-tools.ts");
+    await freeLimit(req, "marche", 2, 120, { visitor: "Tu as fait tes 2 rapports gratuits du jour. Crée ton compte Bingoo! pour suivre ton marché chaque semaine." });
+    const { marcheSaas } = await import("../_shared/marche-saas.ts");
+    return await marcheSaas(b);
+  },
   async "free-competitor"(req, b) {
     const { freeLimit, freeCompetitor } = await import("../_shared/free-tools.ts");
     await freeLimit(req, "competitor", 3, 150);

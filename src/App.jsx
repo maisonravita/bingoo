@@ -31,6 +31,7 @@ import Mission from "./pages/Mission";
 import Abonnement from "./pages/Abonnement";
 import Join, { JOIN_KEY } from "./pages/Join";
 import PublicBooking from "./pages/PublicBooking";
+import PublicMarche from "./pages/PublicMarche";
 import PublicEstimation from "./pages/PublicEstimation";
 import PublicQuote from "./pages/PublicQuote";
 import Envoyer from "./pages/Envoyer";
@@ -51,6 +52,7 @@ function Gate() {
   }, [ws?.id, ws?.app_url]);
   if (loc.pathname.startsWith("/rdv/")) return <PublicBooking />;
   if (loc.pathname.startsWith("/estimation/")) return <PublicEstimation />;
+  if (loc.pathname === "/marche") return <PublicMarche />;
   if (loc.pathname.startsWith("/devis/")) return <PublicQuote />;
   // Lien de l'e-mail du matin : la page fonctionne sans être connecté (le lien à usage unique fait office de clé)
   if (loc.pathname === "/envoyer") return <Envoyer />;
