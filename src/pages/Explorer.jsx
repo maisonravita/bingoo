@@ -17,9 +17,10 @@ const date = (d) => d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric"
 const TRIS = [["score_croissance", "En croissance"], ["postes", "Qui recrutent le plus"], ["nouveaute", "Nouveautés récentes"], ["prix_entree_eur", "Prix d'entrée"], ["created_at", "Ajoutés récemment"]];
 const PAGE = 48;
 
-export default function Explorer() {
+export default function Explorer({ domaine: fixe }) {
   const { domaine } = useParams();
-  return domaine ? <Fiche domaine={domaine} /> : <Liste />;
+  const d = fixe ?? domaine;
+  return d ? <Fiche domaine={d} /> : <Liste />;
 }
 
 function Chip({ on, children, onClick }) {
