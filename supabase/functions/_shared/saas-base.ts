@@ -105,8 +105,10 @@ gratuit (formule gratuite), essai (durée de l'essai gratuit ou null), prix_entr
 export async function saasCron(maxMs = 110_000) {
   const t0 = Date.now();
   const semaine = new Date(Date.now() - 7 * 864e5).toISOString();
-  const { data } = await admin.from("saas").select("id").or(`statut.eq.a_lire,and(statut.eq.ok,lu_at.is.null),and(statut.eq.ok,lu_at.lt.${semaine})`).lt("essais", 3).order("lu_at", { ascending: true, nullsFirst: true }).limit(15);
-  const ids = (data ?? []).map((x) => x.id);
+  // D'abord les fiches à relire tout de suite (tarifs rendus par le navigateur), puis les nouvelles, puis les plus anciennes
+  const { data: urgent } = await admin.from("saas").select("id").eq("statut", "ok").is("lu_at", null).limit(15);
+  const { data } = await admin.from("saas").select("id").or(`statut.eq.a_lire,and(statut.eq.ok,lu_at.lt.${semaine})`).lt("essais", 3).order("lu_at", { ascending: true, nullsFirst: true }).limit(15);
+  const ids = [...new Set([...(urgent ?? []), ...(data ?? [])].map((x) => x.id))].slice(0, 15);
   const out = { lus: 0, ok: 0, illisibles: 0, pas_saas: 0 };
   for (let i = 0; i < ids.length; i += 3) {
     if (Date.now() - t0 > maxMs - 35_000) break;
