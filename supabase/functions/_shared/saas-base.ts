@@ -55,7 +55,12 @@ export async function saasLire(id: string) {
     return { id, statut: "illisible" };
   }
   const home = await fetchHtml(site).catch(() => "");
-  const accueil = textOf(home).slice(0, 3000);
+  const texteHome = textOf(home);
+  // Début de l'accueil (l'offre) et fin (pied de page : adresse, mentions légales, pour le pays)
+  const accueil = texteHome.slice(0, 2600) + (texteHome.length > 3400 ? `\n[…]\n${texteHome.slice(-900)}` : "");
+  // Pages de tarifs affichées par JavaScript : texte rendu par un vrai navigateur (workflow « Explorer – tarifs »), s'il a moins de 8 jours
+  const rendu = s.prix_rendu && s.prix_rendu_at && Date.now() - Date.parse(s.prix_rendu_at) < 8 * 864e5 ? String(s.prix_rendu) : "";
+  const tarifs = rendu.length > f.prix_texte.length ? rendu : f.prix_texte;
   setAi({ feature: "explorer/lecture" });
   const a = await askJson<{ est_saas: boolean; nom: string; categorie: string; description: string; cible: string; pays: string | null; langue: string | null;
     gratuit: boolean; essai: string | null; prix_entree: number | null; devise: string | null; periode: string | null; sur_devis: boolean; formules: { nom: string; prix: string }[] }>(
@@ -63,7 +68,7 @@ export async function saasLire(id: string) {
 ACCUEIL :
 ${accueil}
 TARIFS :
-${f.prix_texte.slice(0, 3000)}
+${tarifs.slice(0, 3500)}
 Clés : est_saas (true si c'est un logiciel vendu en ligne, par abonnement ou à l'usage ; false pour une agence, un média, un site vitrine), nom, categorie (exactement une de : ${CATEGORIES.join(" | ")}),
 description (une phrase en français : ce qu'il fait), cible (une phrase en français : pour qui), pays (code à 2 lettres du pays du siège s'il est écrit ou évident : adresse, mentions légales, devise ; sinon null), langue (code de la langue du site),
 gratuit (formule gratuite), essai (durée de l'essai gratuit ou null), prix_entree (prix mensuel le plus bas d'une formule payante, nombre), devise (€ $ £), periode (mois ou an), sur_devis, formules (au plus 4 : nom et prix tel qu'affiché).`,
@@ -89,6 +94,8 @@ gratuit (formule gratuite), essai (durée de l'essai gratuit ou null), prix_entr
     liens: { prix: f.prix_url || null, carrieres: f.recrute.url || null, nouveautes: f.nouveaute.url || null },
     methode: methode(home, site), score_croissance: score, statut: "ok", essais: 0, lu_at: new Date().toISOString(),
   };
+  const { data: meme } = await admin.from("saas").select("id").eq("statut", "ok").ilike("nom", champs.nom.replace(/[%_\\]/g, "\\$&")).neq("id", id).limit(1);
+  if (meme?.length) { await admin.from("saas").update({ statut: "doublon", nom: champs.nom, lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "doublon" }; }
   await admin.from("saas").update(champs).eq("id", id);
   await admin.from("saas_releves").insert({ saas_id: id, prix_entree_eur: prix, formules: champs.formules, gratuit: champs.gratuit, essai: champs.essai, recrute: champs.recrute, postes: champs.postes, nouveaute: champs.nouveaute, outils: champs.outils });
   return { id, statut: "ok", nom: champs.nom };
@@ -98,7 +105,7 @@ gratuit (formule gratuite), essai (durée de l'essai gratuit ou null), prix_entr
 export async function saasCron(maxMs = 110_000) {
   const t0 = Date.now();
   const semaine = new Date(Date.now() - 7 * 864e5).toISOString();
-  const { data } = await admin.from("saas").select("id").or(`statut.eq.a_lire,and(statut.eq.ok,lu_at.lt.${semaine})`).lt("essais", 3).order("lu_at", { ascending: true, nullsFirst: true }).limit(36);
+  const { data } = await admin.from("saas").select("id").or(`statut.eq.a_lire,and(statut.eq.ok,lu_at.is.null),and(statut.eq.ok,lu_at.lt.${semaine})`).lt("essais", 3).order("lu_at", { ascending: true, nullsFirst: true }).limit(36);
   const ids = (data ?? []).map((x) => x.id);
   const out = { lus: 0, ok: 0, illisibles: 0, pas_saas: 0 };
   for (let i = 0; i < ids.length; i += 6) {

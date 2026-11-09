@@ -1,0 +1,16 @@
+name: Explorer – tarifs
+on:
+  workflow_dispatch:
+  schedule: [{ cron: "40 1 * * *" }]
+jobs:
+  rendu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm i --no-save playwright@1.48.2 && npx playwright install --with-deps chromium
+      - name: Rendu des pages de tarifs
+        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}", MAX: "200" }
+        run: node scripts/explorer/tarifs.cjs
