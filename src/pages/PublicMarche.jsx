@@ -75,10 +75,10 @@ export default function PublicMarche({ embedded = false, initial = null }) {
                     <tr key={l.site} className={cx("border-b border-line last:border-0 align-top", l.moi && "bg-[#FFF7F3]")}>
                       <td className="px-4 py-3"><a href={l.site} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline">{l.nom}</a>{l.moi && <span className="ml-2 rounded-md bg-accent text-white px-1.5 py-0.5 text-[11px] font-bold">TOI</span>}<p className="text-[12px] text-ink-faint">{l.site.replace(/^https:\/\//, "")}</p></td>
                       <td className="px-3 py-3 tnum">{l.prix_url ? <a href={l.prix_url} target="_blank" rel="noopener noreferrer" className="hover:underline">{prixTxt(l)}</a> : prixTxt(l)}{l.formules.length > 1 && <p className="text-[12px] text-ink-faint">{l.formules.length} formules</p>}</td>
-                      <td className="px-3 py-3">{l.gratuit ? "Version gratuite" : l.essai ? `Essai ${l.essai}` : <span className="text-ink-faint">Non</span>}</td>
+                      <td className="px-3 py-3">{l.gratuit ? "Version gratuite" : l.essai ? (/\d/.test(l.essai) ? `Essai ${l.essai}` : "Essai gratuit") : <span className="text-ink-faint">Non</span>}</td>
                       <td className="px-3 py-3">{l.recrute.oui ? <a href={l.recrute.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#15803D] hover:underline">Oui{l.recrute.postes ? ` · ${l.recrute.postes} poste${l.recrute.postes > 1 ? "s" : ""}` : ""}</a> : l.recrute.url ? <span className="text-ink-faint">Pas d'offre lue</span> : <span className="text-ink-faint">Page introuvable</span>}</td>
                       <td className="px-3 py-3">{l.nouveaute.date ? <a href={l.nouveaute.url} target="_blank" rel="noopener noreferrer" className="hover:underline">{date(l.nouveaute.date)}</a> : <span className="text-ink-faint">Non trouvée</span>}</td>
-                      <td className="px-3 py-3 text-[12.5px] text-ink-soft">{l.outils.length ? l.outils.slice(0, 5).join(", ") : <span className="text-ink-faint">—</span>}</td>
+                      <td className="px-3 py-3 text-[12.5px] text-ink-soft">{l.outils.filter((o) => o.toLowerCase() !== l.nom.toLowerCase()).length ? l.outils.filter((o) => o.toLowerCase() !== l.nom.toLowerCase()).slice(0, 5).join(", ") : <span className="text-ink-faint">—</span>}</td>
                     </tr>
                   ))}
                 </tbody>
