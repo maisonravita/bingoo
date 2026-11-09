@@ -40,14 +40,15 @@ export type Fiche = {
 };
 
 export async function lireSite(site: string, nom: string): Promise<Fiche> {
-  const html = await fetchHtml(site).catch(() => "");
+  const html = (await fetchHtml(site).catch(() => "")).slice(0, 400_000); // au-delà, le calcul dépasse les limites de la fonction
   const base = site;
   const f: Fiche = { nom, site, host: hostOf(site), outils: toolsIn(html).slice(0, 10), prix_url: "", prix_texte: "", recrute: { oui: false, postes: null, url: "" }, nouveaute: { date: null, url: "" }, lisible: !!html };
   if (!html) return f;
   const prix = lien(html, base, /(pricing|tarif|prix|plans|abonnement)/i);
   const jobs = lien(html, base, /(careers?|jobs?|recrut|carri[eè]res?|join-?us|nous-rejoindre|rejoignez|hiring)/i) || (html.match(ATS) ? (html.match(new RegExp(`https?://[^"'\\s]*${ATS.source}[^"'\\s]*`, "i"))?.[0] ?? "") : "");
   const news = lien(html, base, /(changelog|release|nouveaut|what'?s-?new|updates?|product-?news|blog|actualit)/i);
-  const [hp, hj, hn] = await Promise.all([prix ? fetchHtml(prix).catch(() => "") : "", jobs ? fetchHtml(jobs).catch(() => "") : "", news ? fetchHtml(news).catch(() => "") : ""]);
+  const coupe = (h: string) => h.slice(0, 400_000);
+  const [hp, hj, hn] = (await Promise.all([prix ? fetchHtml(prix).catch(() => "") : "", jobs ? fetchHtml(jobs).catch(() => "") : "", news ? fetchHtml(news).catch(() => "") : ""])).map(coupe);
   f.prix_url = hp ? prix : "";
   f.prix_texte = textOf(hp || html).slice(0, 3500);
   if (jobs) {
