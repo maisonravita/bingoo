@@ -31,6 +31,13 @@ function lien(html: string, base: string, re: RegExp) {
   return "";
 }
 
+function lienStrict(html: string, base: string, chemin: RegExp, texte: RegExp) {
+  const liens = [...html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]{0,200}?)<\/a>/gi)].map((m) => {
+    try { const u = new URL(m[1], base); return { u, txt: m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() }; } catch { return null; }
+  }).filter((x): x is { u: URL; txt: string } => !!x && x.u.hostname.replace(/^www\./, "") === new URL(base).hostname.replace(/^www\./, ""));
+  return (liens.find((l) => chemin.test(l.u.pathname)) ?? liens.find((l) => texte.test(l.txt)))?.u.href ?? "";
+}
+
 const ATS = /(welcometothejungle\.com|jobs\.lever\.co|ashbyhq\.com|greenhouse\.io|teamtailor\.com|workable\.com|recruitee\.com|smartrecruiters\.com|jobs\.personio|join\.com|breezy\.hr|flatchr|taleez)/i;
 
 export type Fiche = {
@@ -44,7 +51,8 @@ export async function lireSite(site: string, nom: string): Promise<Fiche> {
   const base = site;
   const f: Fiche = { nom, site, host: hostOf(site), outils: toolsIn(html).slice(0, 10), prix_url: "", prix_texte: "", recrute: { oui: false, postes: null, url: "" }, nouveaute: { date: null, url: "" }, lisible: !!html };
   if (!html) return f;
-  const prix = lien(html, base, /(pricing|tarif|prix|plans|abonnement)/i);
+  // Page des tarifs : d'abord une adresse qui se termine par pricing / tarifs / prix / plans, sinon un lien dont le texte est exactement « Tarifs »
+  const prix = lienStrict(html, base, /\/(pricing|tarifs?|prix|plans|nos-offres|offres|abonnements?)\/?(\?|$)/i, /^\s*(tarifs?|prix|pricing|plans|tarification|nos offres|offres)\s*$/i);
   const jobs = lien(html, base, /(careers?|jobs?|recrut|carri[eè]res?|join-?us|nous-rejoindre|rejoignez|hiring)/i) || (html.match(ATS) ? (html.match(new RegExp(`https?://[^"'\\s]*${ATS.source}[^"'\\s]*`, "i"))?.[0] ?? "") : "");
   const news = lien(html, base, /(changelog|release|nouveaut|what'?s-?new|updates?|product-?news|blog|actualit)/i);
   const coupe = (h: string) => h.slice(0, 400_000);

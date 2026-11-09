@@ -28,7 +28,7 @@ const lit = (v) => "'" + String(v).replace(/'/g, "''") + "'";
         }
       } catch { /* page suivante */ }
       await p.close();
-      if (/(€|\$|£)\s?\d|\d\s?(€|\$|£)|\/\s?mois|per month|\/mo\b|gratuit|free/i.test(texte)) break;
+      if (/(€|\$|£)\s?\d|\d[\d,.]*\s?(€|\$|£)|\/\s?mois|per month|\/mo\b|par mois|HT\s*\/|\/user/i.test(texte)) break;
       texte = "";
     }
     if (texte) { await q(`update public.saas set prix_rendu = ${lit(texte)}, prix_rendu_at = now(), lu_at = null where id = ${lit(r.id)}`); ok++; }
