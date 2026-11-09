@@ -51,7 +51,7 @@ export default function PublicMarche({ embedded = false, initial = null }) {
             <p className="text-[14px] text-ink-soft">{r.moi.nom} · {r.moi.categorie} · rapport du {date(r.date)}</p>
             <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
-                [s.prix_median != null ? `${s.prix_median} €` : "—", "Prix d'entrée médian de tes concurrents", ecart != null ? `Toi : ${s.ton_prix} € (${ecart > 0 ? "+" : ""}${ecart} %)` : s.ton_prix == null ? "Ton prix n'est pas affiché" : ""],
+                [s.prix_median != null ? `${s.environ ? "≈ " : ""}${s.prix_median} €` : "—", "Prix d'entrée médian de tes concurrents", ecart != null ? `Toi : ${s.ton_prix} € par mois (${ecart > 0 ? "+" : ""}${ecart} %) · ${s.prix_lus} prix lus` : s.ton_prix == null ? "Ton prix n'est pas affiché" : `${s.prix_lus} prix lus`],
                 [`${s.gratuits} / ${s.concurrents}`, "Ont une version gratuite", ""],
                 [`${s.recrutent} / ${s.concurrents}`, "Recrutent en ce moment", "Signe qu'ils grossissent"],
                 [`${s.actifs_30j} / ${s.concurrents}`, "Ont publié une nouveauté ce mois-ci", "Changelog ou blog"],

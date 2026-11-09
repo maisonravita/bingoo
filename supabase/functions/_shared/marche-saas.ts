@@ -105,11 +105,14 @@ Clé : sites, liste d'objets avec i (le numéro), gratuit (true si une formule g
 
   // 4. Position (calculée, pas devinée)
   const autres = lignes.filter((l) => !l.moi);
-  const prixAutres = autres.map((l) => l.prix_entree).filter((x): x is number => x != null).sort((a, b) => a - b);
+  // Prix ramenés en euros pour comparer (dollar converti à 0,92 €, affiché « environ ») ; un prix annuel est ramené au mois
+  const enEuros = (l: typeof lignes[number]) => l.prix_entree == null ? null : Math.round(l.prix_entree * (l.devise === "$" ? 0.92 : 1) / (l.periode === "an" ? 12 : 1));
+  const converti = lignes.some((l) => l.prix_entree != null && (l.devise === "$" || l.periode === "an"));
+  const prixAutres = autres.map(enEuros).filter((x): x is number => x != null).sort((a, b) => a - b);
   const median = prixAutres.length ? prixAutres[Math.floor((prixAutres.length - 1) / 2)] : null;
   const il30 = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
   const synthese = {
-    concurrents: autres.length, prix_median: median, ton_prix: lignes[0].prix_entree,
+    concurrents: autres.length, prix_median: median, ton_prix: enEuros(lignes[0]), environ: converti, prix_lus: prixAutres.length,
     gratuits: autres.filter((l) => l.gratuit).length, recrutent: autres.filter((l) => l.recrute.oui).length,
     actifs_30j: autres.filter((l) => l.nouveaute.date && l.nouveaute.date >= il30).length,
   };
