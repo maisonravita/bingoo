@@ -31,6 +31,7 @@ import Mission from "./pages/Mission";
 import Abonnement from "./pages/Abonnement";
 import Join, { JOIN_KEY } from "./pages/Join";
 import PublicBooking from "./pages/PublicBooking";
+import Explorer from "./pages/Explorer";
 import PublicMarche from "./pages/PublicMarche";
 import PublicEstimation from "./pages/PublicEstimation";
 import PublicQuote from "./pages/PublicQuote";
@@ -97,6 +98,8 @@ function Gate() {
         <Route path="/equipe" element={<Equipe />} />
         <Route path="/mission" element={<Mission />} />
         <Route path="/radar" element={<Radar />} />
+        <Route path="/explorer" element={<Explorer />} />
+        <Route path="/explorer/:domaine" element={<Explorer />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/aide" element={<Aide />} />
         <Route path="/abonnement" element={<Abonnement />} />

@@ -200,7 +200,7 @@ export default function Layout({ children }) {
   const lieu = (art) => LIEUX.find((l) => l.art === art);
   const item = (l) => ({ to: l.to, label: l.nom, short: l.court, icon: l.icon, count: compte[l.art], hot: l.art === "atelier", also: also[l.art] });
   const avance = !estSimple(ws);
-  const essentiel = [item(lieu("atelier")), item(lieu("poste")), { to: "/appels", label: "Appels", icon: "phone", count: c.calls }, ...["rdv", "radar", "observatoire"].map((a) => item(lieu(a)))];
+  const essentiel = [{ to: "/explorer", label: "Explorer", icon: "eye" }, item(lieu("atelier")), item(lieu("poste")), { to: "/appels", label: "Appels", icon: "phone", count: c.calls }, ...["rdv", "radar", "observatoire"].map((a) => item(lieu(a)))];
   const plus = [
     item(lieu("annuaire")),
     { to: "/village", label: "Ma ville", icon: "town" },
