@@ -1,0 +1,1 @@
+-- Appliquée via MCP : colonnes pays_essai et modele_prix, vue saas_liste (+ modele_prix, prix_usage), cron bingoo-explorer-pays

@@ -16,6 +16,9 @@ const drapeau = (c) => c && /^[A-Z]{2}$/.test(c) ? String.fromCodePoint(...[...c
 const date = (d) => d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : null;
 const TRIS = [["score_croissance", "En croissance"], ["postes", "Qui recrutent le plus"], ["nouveaute", "Nouveautés récentes"], ["prix_entree_eur", "Prix d'entrée"], ["created_at", "Ajoutés récemment"]];
 const PAGE = 48;
+// Prix d'entrée lisible : abonnement en €/mois, sinon prix à l'usage tel qu'affiché, sinon sur devis
+const usage = (s) => s.prix_usage ?? (["usage", "commission"].includes(s.modele_prix) ? s.prix_affiche : null);
+const prixCourt = (s) => s.prix_entree_eur != null ? `dès ${s.prix_entree_eur} €/mois` : usage(s) ? `à l'usage` : s.sur_devis ? "sur devis" : "prix non affiché";
 
 export default function Explorer({ domaine: fixe }) {
   const { domaine } = useParams();
@@ -82,7 +85,7 @@ function Liste() {
   const set = (k, v) => { setPage(0); setF((x) => ({ ...x, [k]: v })); };
 
   useEffect(() => {
-    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags", { count: "exact" });
+    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags", { count: "exact" });
     if (f.tag) q = q.contains("tags", [f.tag]);
     if (f.q.trim()) q = q.or(`nom.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,domaine.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,description.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%`);
     if (f.categorie) q = q.eq("categorie", f.categorie);
@@ -185,7 +188,7 @@ function Liste() {
               </div>
               <p className="mt-2 text-[13.5px] text-ink-soft line-clamp-2 min-h-[38px]">{s.description}</p>
               <div className="mt-3 flex flex-wrap gap-1.5 text-[12px]">
-                <span className="rounded-md bg-paper px-2 py-1 tnum">{s.prix_entree_eur != null ? `dès ${s.prix_entree_eur} €/mois` : s.sur_devis ? "Sur devis" : "Prix non affiché"}</span>
+                <span className="rounded-md bg-paper px-2 py-1 tnum">{prixCourt(s).replace(/^./, (c) => c.toUpperCase())}</span>
                 {s.gratuit && <span className="rounded-md bg-paper px-2 py-1">Gratuit</span>}
                 {!s.gratuit && s.essai && <span className="rounded-md bg-paper px-2 py-1">Essai</span>}
                 {s.recrute && <span className="rounded-md bg-[#DCFCE7] text-[#166534] px-2 py-1">Recrute{s.postes ? ` · ${s.postes}` : ""}</span>}
@@ -233,7 +236,7 @@ function Fiche({ domaine }) {
       if (error || !data) { setS(null); return; }
       if (data.limite) { setLimite(data); setS(null); return; }
       setS(data.saas); setRel(data.releves ?? []); setEv(data.evenements ?? []); setQuota(data.max ? { vues: data.vues, max: data.max } : null); setHist(data.histoire ?? null);
-      const { data: o } = await supabase.from("saas_liste").select("id, domaine, nom, pays, prix_entree_eur, score_croissance").eq("categorie", data.saas.categorie).neq("id", data.saas.id).order("score_croissance", { ascending: false, nullsFirst: false }).limit(6);
+      const { data: o } = await supabase.from("saas_liste").select("id, domaine, nom, pays, prix_entree_eur, prix_usage, sur_devis, score_croissance").eq("categorie", data.saas.categorie).neq("id", data.saas.id).order("score_croissance", { ascending: false, nullsFirst: false }).limit(6);
       setSim(o ?? []);
     });
   }, [domaine, ws.id]);
@@ -274,7 +277,7 @@ function Fiche({ domaine }) {
 
       <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          ["Prix d'entrée", s.prix_entree_eur != null ? `${s.prix_entree_eur} €/mois` : s.sur_devis ? "Sur devis" : "Non affiché", s.prix_affiche && s.devise !== "€" ? `affiché ${s.prix_affiche}` : "", s.liens?.prix],
+          ["Prix d'entrée", s.prix_entree_eur != null ? `${s.prix_entree_eur} €/mois` : usage(s) ? "À l'usage" : s.sur_devis ? "Sur devis" : "Non affiché", usage(s) ?? (s.prix_affiche && s.devise !== "€" ? `affiché ${s.prix_affiche}` : ""), s.liens?.prix],
           ["Gratuit / essai", s.gratuit ? "Version gratuite" : s.essai ? (/\d/.test(s.essai) ? `Essai ${s.essai}` : "Essai gratuit") : "Non", "", s.liens?.prix],
           ["Recrute", s.recrute ? `Oui${s.postes ? ` · ${s.postes} poste${s.postes > 1 ? "s" : ""}` : ""}` : "Pas d'offre lue", "", s.liens?.carrieres],
           ["Dernière nouveauté", date(s.nouveaute) ?? "Non trouvée", "changelog ou blog", s.liens?.nouveautes],
@@ -324,7 +327,7 @@ function Fiche({ domaine }) {
             {sim.map((o) => (
               <button key={o.id} onClick={() => nav(`/explorer/${o.domaine}`)} className="flex items-center gap-3 rounded-xl border border-line px-3 py-2.5 text-left hover:border-ink-faint">
                 <CompanyLogo name={o.nom} url={`https://${o.domaine}`} className="w-9 h-9" />
-                <div className="min-w-0 flex-1"><p className="font-semibold text-[14px] truncate">{o.nom} {drapeau(o.pays)}</p><p className="text-[12.5px] text-ink-faint">{o.prix_entree_eur != null ? `dès ${o.prix_entree_eur} €/mois` : "prix non affiché"}</p></div>
+                <div className="min-w-0 flex-1"><p className="font-semibold text-[14px] truncate">{o.nom} {drapeau(o.pays)}</p><p className="text-[12.5px] text-ink-faint">{prixCourt(o)}</p></div>
                 {o.score_croissance > 0 && <span className="text-[12px] font-bold tnum text-ink-soft">{o.score_croissance}</span>}
               </button>
             ))}
@@ -598,7 +601,7 @@ function Comparer() {
   const bloques = l.filter((x) => x?.limite);
   const lignes = [
     ["Catégorie", (s) => s.categorie], ["Pays", (s) => s.pays ? `${drapeau(s.pays)} ${PAYS[s.pays] ?? s.pays}` : "—"],
-    ["Prix d'entrée", (s) => s.prix_entree_eur != null ? `${s.prix_entree_eur} €/mois` : s.sur_devis ? "Sur devis" : "Non affiché"],
+    ["Prix d'entrée", (s) => s.prix_entree_eur != null ? `${s.prix_entree_eur} €/mois` : usage(s) ? `À l'usage : ${usage(s)}` : s.sur_devis ? "Sur devis" : "Non affiché"],
     ["Version gratuite", (s) => s.gratuit ? "Oui" : "Non"], ["Essai", (s) => s.essai ?? "—"],
     ["Formules", (s) => (s.formules ?? []).map((f) => `${f.nom} : ${f.prix}`).join(" · ") || "—"],
     ["Recrute", (s) => s.recrute ? `Oui${s.postes ? ` · ${s.postes} postes` : ""}` : "Non"], ["Dernière nouveauté", (s) => date(s.nouveaute) ?? "—"],
@@ -692,7 +695,7 @@ function Suivis() {
               <ul className="mt-3 space-y-2">{r.saas.map((s) => (
                 <li key={s.id} onClick={() => nav(`/explorer/${s.domaine}`)} className="flex items-center gap-3 cursor-pointer rounded-xl border border-line px-3 py-2 hover:border-ink-faint">
                   <CompanyLogo name={s.nom} url={`https://${s.domaine}`} className="w-8 h-8" />
-                  <div className="min-w-0 flex-1"><p className="font-semibold text-[14px] truncate">{s.nom} {drapeau(s.pays)}</p><p className="text-[12px] text-ink-faint">{s.prix_entree_eur != null ? `dès ${s.prix_entree_eur} €/mois` : s.sur_devis ? "sur devis" : "prix non affiché"}{s.recrute ? ` · recrute${s.postes ? ` ${s.postes}` : ""}` : ""}</p></div>
+                  <div className="min-w-0 flex-1"><p className="font-semibold text-[14px] truncate">{s.nom} {drapeau(s.pays)}</p><p className="text-[12px] text-ink-faint">{prixCourt(s)}{s.recrute ? ` · recrute${s.postes ? ` ${s.postes}` : ""}` : ""}</p></div>
                   {s.changements > 0 && <span className="rounded-md bg-accent-soft text-accent-dark px-2 py-0.5 text-[12px] font-bold">{s.changements}</span>}
                 </li>
               ))}{!r.saas.length && <li className="text-[13.5px] text-ink-faint">Aucun SaaS suivi.</li>}</ul>

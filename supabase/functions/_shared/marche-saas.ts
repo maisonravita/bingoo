@@ -31,7 +31,7 @@ function lien(html: string, base: string, re: RegExp) {
   return "";
 }
 
-function lienStrict(html: string, base: string, chemin: RegExp, texte: RegExp) {
+export function lienStrict(html: string, base: string, chemin: RegExp, texte: RegExp) {
   const liens = [...html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]{0,200}?)<\/a>/gi)].map((m) => {
     try { const u = new URL(m[1], base); return { u, txt: m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() }; } catch { return null; }
   }).filter((x): x is { u: URL; txt: string } => !!x && x.u.hostname.replace(/^www\./, "") === new URL(base).hostname.replace(/^www\./, ""));
@@ -47,7 +47,7 @@ export type Fiche = {
 };
 
 /** Règles robots.txt du site pour tous les robots (« User-agent: * ») : chemins interdits. Lecture courte, en cas d'échec rien n'est interdit. */
-async function robots(site: string) {
+export async function robots(site: string) {
   try {
     const r = await fetch(new URL("/robots.txt", site).href, { signal: AbortSignal.timeout(6000), headers: { "user-agent": "BingooBot/1.0 (+https://kairo.maisonravita.fr/#/retrait)" } });
     if (!r.ok) return [] as string[];
@@ -62,7 +62,7 @@ async function robots(site: string) {
     return interdit;
   } catch { return [] as string[]; }
 }
-const autorise = (interdit: string[], u: string) => { try { const p = new URL(u).pathname; return !interdit.some((x) => p.startsWith(x.replace(/\*.*$/, ""))); } catch { return false; } };
+export const autorise = (interdit: string[], u: string) => { try { const p = new URL(u).pathname; return !interdit.some((x) => p.startsWith(x.replace(/\*.*$/, ""))); } catch { return false; } };
 
 export async function lireSite(site: string, nom: string): Promise<Fiche> {
   const interdit = await robots(site);

@@ -75,6 +75,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     return await saasRecherche(q, b.categorie ? String(b.categorie) : null);
   },
   async "saas-histoires"(req, b) { await cron(req); const { saasHistoires } = await import("../_shared/saas-base.ts"); return await saasHistoires(Math.min(5, Number(b.n ?? 3))); },
+  async "saas-pays"(req, b) { await cron(req); const { saasPays } = await import("../_shared/saas-base.ts"); return await saasPays(Math.min(40, Number(b.n ?? 24))); },
   async "saas-tags"(req) { await cron(req); const { saasTags } = await import("../_shared/saas-base.ts"); return await saasTags(); },
   // Explorer (clé cron) : relevés de nuit et amorçage de la base
   async "saas-cron"(req) { await cron(req); const { saasCron } = await import("../_shared/saas-base.ts"); return await saasCron(); },

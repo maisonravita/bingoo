@@ -3,7 +3,7 @@
 // L'IA sert seulement à classer le logiciel et à lire les prix affichés ; tout le reste est lu tel quel, avec l'adresse de la page.
 import { admin, ask, askJson, setAi, type Workspace } from "./core.ts";
 import { fetchHtml, textOf } from "./analyze.ts";
-import { lireSite } from "./marche-saas.ts";
+import { autorise, lienStrict, lireSite, robots } from "./marche-saas.ts";
 
 export const CATEGORIES = [
   "CRM et ventes", "Prospection et emailing", "Marketing et SEO", "Réseaux sociaux et contenu", "Facturation et comptabilité",
@@ -67,7 +67,7 @@ export async function saasLire(id: string) {
   const tarifs = rendu.length > f.prix_texte.length ? rendu : f.prix_texte;
   setAi({ feature: "explorer/lecture" });
   const a = await askJson<{ est_saas: boolean; nom: string; categorie: string; description: string; cible: string; pays: string | null; langue: string | null;
-    gratuit: boolean; essai: string | null; prix_entree: number | null; devise: string | null; periode: string | null; sur_devis: boolean; formules: { nom: string; prix: string }[]; tags: string[] }>(
+    gratuit: boolean; essai: string | null; modele: string | null; prix_usage: string | null; prix_entree: number | null; devise: string | null; periode: string | null; sur_devis: boolean; formules: { nom: string; prix: string }[]; tags: string[] }>(
     `Voici le site ${s.domaine}. Classe ce logiciel et lis ses prix, sans rien inventer (null si absent).
 ACCUEIL :
 ${accueil}
@@ -75,14 +75,18 @@ TARIFS :
 ${tarifs.slice(0, 3500)}
 Clés : est_saas (true si c'est un logiciel vendu en ligne, par abonnement ou à l'usage ; false pour une agence, un média, un site vitrine), nom, categorie (exactement une de : ${CATEGORIES.join(" | ")}),
 description (une phrase en français : ce qu'il fait), cible (une phrase en français : pour qui), tags (${TAGS_REGLE}), pays (code à 2 lettres du pays du siège s'il est écrit ou évident : adresse, mentions légales, devise ; sinon null), langue (code de la langue du site),
-gratuit (formule gratuite), essai (durée de l'essai gratuit ou null), prix_entree (prix mensuel le plus bas d'une formule payante, nombre), devise (€ $ £), periode (mois ou an), sur_devis, formules (au plus 4 : nom et prix tel qu'affiché).`,
+gratuit (formule gratuite), essai (durée de l'essai gratuit ou null), modele (abonnement : prix fixe par mois, an ou semaine ; usage : prix par ticket, résolution, crédit, unité, boîte mail… ; commission : pourcentage ou frais par transaction ou par billet),
+prix_entree (prix le plus bas d'une formule d'ABONNEMENT payante, nombre ; null si le seul prix affiché est à l'usage ou une commission), devise (€ $ £), periode (mois, an ou semaine), prix_usage (si usage ou commission : le prix tel qu'affiché en quelques mots, ex. « 0,99 $ par résolution » ; sinon null), sur_devis, formules (au plus 4 : nom et prix tel qu'affiché).`,
     { fast: true, maxTokens: 900 }).catch(() => null);
   if (!a) { await admin.from("saas").update({ essais: (s.essais ?? 0) + 1, lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "erreur" }; }
   if (a.est_saas === false) { await admin.from("saas").update({ statut: "pas_saas", nom: a.nom || s.nom, lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "pas_saas" }; }
   const tld = s.domaine.split(".").pop() ?? "";
-  const pays = (a.pays && /^[A-Z]{2}$/.test(a.pays.toUpperCase()) ? a.pays.toUpperCase() : null) ?? (TLD_PAYS[tld] || null);
+  const pays = (a.pays && /^[A-Z]{2}$/.test(a.pays.toUpperCase()) ? a.pays.toUpperCase() : null) ?? (TLD_PAYS[tld] || null) ?? s.pays ?? (await paysDe(site, home).catch(() => null))?.pays ?? null;
   const taux = a.devise === "$" ? 0.92 : a.devise === "£" ? 1.16 : 1;
-  const prix = a.prix_entree && a.prix_entree > 0 ? Math.round(a.prix_entree * taux / (a.periode === "an" ? 12 : 1)) : null;
+  const brut = a.prix_entree && a.prix_entree > 0 ? a.prix_entree * taux * (a.periode === "an" ? 1 / 12 : a.periode === "semaine" ? 52 / 12 : 1) : null;
+  // Moins de 2 € par mois : c'est presque toujours un prix à l'usage lu comme un abonnement
+  const prix = brut != null && brut >= 2 ? Math.round(brut) : null;
+  const modele = ["abonnement", "usage", "commission"].includes(a.modele ?? "") ? a.modele : null;
   const il30 = Date.now() - 30 * 864e5;
   const actif = f.nouveaute.date ? Date.parse(f.nouveaute.date) >= il30 : false;
   // Score de croissance (0 à 100), à partir de faits relevés : postes ouverts, nouveauté récente, hausse de postes depuis le relevé précédent
@@ -92,7 +96,7 @@ gratuit (formule gratuite), essai (durée de l'essai gratuit ou null), prix_entr
   const champs = {
     nom: (a.nom || s.domaine).slice(0, 80), categorie: CATEGORIES.includes(a.categorie) ? a.categorie : "Autre",
     description: (a.description ?? "").slice(0, 300), cible: (a.cible ?? "").slice(0, 200), tags: nettoieTags(a.tags), pays, langue: (a.langue ?? "").slice(0, 5) || null, est_saas: true,
-    prix_entree_eur: prix, devise: a.devise ?? null, prix_affiche: a.prix_entree ? `${a.prix_entree} ${a.devise ?? ""}/${a.periode === "an" ? "an" : "mois"}` : null,
+    prix_entree_eur: prix, devise: a.devise ?? null, prix_affiche: prix != null ? `${a.prix_entree} ${a.devise ?? ""}/${a.periode === "an" ? "an" : a.periode === "semaine" ? "semaine" : "mois"}` : a.prix_usage ? String(a.prix_usage).slice(0, 80) : null, modele_prix: modele,
     gratuit: !!a.gratuit, essai: a.essai ?? null, sur_devis: !!a.sur_devis, formules: (a.formules ?? []).slice(0, 4),
     recrute: f.recrute.oui, postes: f.recrute.postes, nouveaute: f.nouveaute.date, outils: f.outils,
     liens: { prix: f.prix_url || null, carrieres: f.recrute.url || null, nouveautes: f.nouveaute.url || null },
@@ -308,4 +312,52 @@ export async function saasHistoires(n = 3) {
   const ids = (data ?? []).map((r) => r.id).filter((i) => !vus.has(i)).slice(0, n);
   const r = await Promise.all(ids.map((i) => saasHistoire(i).catch(() => null)));
   return { faits: r.filter(Boolean).length, ok: r.filter((x) => x?.statut === "ok").length };
+}
+
+// ---------------------------------------------------------------- Pays du siège, lu dans les mentions légales
+// Pied de page de l'accueil + page « mentions légales / imprint / legal », dans le respect du robots.txt.
+// L'IA doit citer mot pour mot le passage qui donne le pays ; une citation absente du texte est rejetée.
+const ADRESSE = /(si[eè]ge|registered (office|address)|headquarter|head office|incorporated|immatricul|RCS|SIRE[NT]|Handelsregister|Sitz|company number|VAT|TVA|\b(SAS|SARL|SA|GmbH|Ltd|Limited|Inc\.?|LLC|B\.V\.|S\.L\.|S\.r\.l\.|AB|ApS|Oy)\b|\b\d{5}\b)/i;
+function passages(t: string, max = 2500) {
+  const out: string[] = []; let n = 0;
+  for (const m of t.matchAll(new RegExp(ADRESSE.source, "gi"))) {
+    const i = m.index ?? 0; out.push(t.slice(Math.max(0, i - 200), i + 250)); n += 450;
+    if (n > max) break;
+  }
+  return out.join("\n…\n");
+}
+export async function paysDe(site: string, homeHtml?: string) {
+  const home = homeHtml ?? (await fetchHtml(site).catch(() => "")).slice(0, 400_000);
+  if (!home) return null;
+  const interdit = await robots(site);
+  const legal = lienStrict(home, site, /(mentions-?legales|legal-?notice|legal-?info|imprint|impressum|aviso-?legal|note-?legali|colofon|\/legal\/?$|\/legal\/?\?|company-?info)/i, /^\s*(mentions légales|legal notice|legal|imprint|impressum|aviso legal|note legali|colofon|legal information)\s*$/i);
+  const pages = [legal].filter((u) => u && autorise(interdit, u));
+  const textes = [textOf(home).slice(-1500)];
+  for (const u of pages) textes.push(passages(textOf((await fetchHtml(u).catch(() => "")).slice(0, 400_000))));
+  const texte = textes.join("\n---\n").slice(0, 5000);
+  if (!ADRESSE.test(texte)) return { pays: null };
+  setAi({ feature: "explorer/pays" });
+  const r = await askJson<{ pays: string | null; preuve: string | null }>(`Voici le pied de page et les mentions légales du site ${site}. Dans quel pays est le siège de l'entreprise ?
+${texte}
+Clés : pays (code à 2 lettres, ou null si le texte ne le dit pas clairement : adresse, registre du commerce, forme de société d'un pays précis), preuve (le passage exact du texte, copié mot pour mot, 3 à 15 mots, qui le montre ; null sinon).`, { fast: true, maxTokens: 150 }).catch(() => null);
+  const norm = (x: string) => x.replace(/\s+/g, " ").trim().toLowerCase();
+  const p = r?.pays && /^[A-Z]{2}$/i.test(r.pays) ? r.pays.toUpperCase() : null;
+  if (!p || !r?.preuve || !norm(texte).includes(norm(r.preuve))) return { pays: null };
+  return { pays: p, preuve: r.preuve };
+}
+
+/** Rattrapage : pays des fiches déjà lues qui n'en ont pas (une tentative par fiche tous les 30 jours). */
+export async function saasPays(max = 24) {
+  const mois = new Date(Date.now() - 30 * 864e5).toISOString();
+  const { data } = await admin.from("saas").select("id, domaine").eq("statut", "ok").is("pays", null).or(`pays_essai.is.null,pays_essai.lt.${mois}`).limit(max);
+  const rows = (data ?? []) as { id: string; domaine: string }[];
+  let trouves = 0;
+  for (let i = 0; i < rows.length; i += 4) {
+    await Promise.all(rows.slice(i, i + 4).map(async (x) => {
+      const r = await paysDe(`https://${x.domaine}`).catch(() => null);
+      await admin.from("saas").update({ pays_essai: new Date().toISOString(), ...(r?.pays ? { pays: r.pays } : {}) }).eq("id", x.id);
+      if (r?.pays) trouves++;
+    }));
+  }
+  return { essayes: rows.length, trouves };
 }
