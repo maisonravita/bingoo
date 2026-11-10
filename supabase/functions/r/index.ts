@@ -64,6 +64,8 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const ok = (fin ?? []).filter((r) => r.statut === "ok");
     for (const r of ok) await admin.from("saas_suivis").insert({ workspace_id: ws.id, saas_id: r.id }).then(() => null, () => null);
     await admin.from("saas_suivis").insert({ workspace_id: ws.id, categorie: moi.categorie }).then(() => null, () => null);
+    // Son propre SaaS aussi : l'alerte du lundi lui montre ce que voient ses concurrents
+    await admin.from("saas_suivis").insert({ workspace_id: ws.id, saas_id: moi.id }).then(() => null, () => null);
     return { moi: { domaine: moi.domaine, nom: moi.nom, categorie: moi.categorie }, concurrents: ok.map((r) => ({ domaine: r.domaine, nom: r.nom, prix_entree_eur: r.prix_entree_eur })) };
   },
   async "saas-clients"(req, b) {

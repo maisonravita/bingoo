@@ -8,6 +8,7 @@ import Logo from "./Logo";
 import Feedback from "./Feedback";
 import { estSimple } from "../lib/lieu";
 import { accueilVille, LIEUX } from "../lib/lieu";
+import { modeExplorer } from "../lib/mode";
 
 const ICONS = {
   today: <path d="M4 12h3l3-7 4 14 3-7h3" />,
@@ -200,8 +201,16 @@ export default function Layout({ children }) {
   const lieu = (art) => LIEUX.find((l) => l.art === art);
   const item = (l) => ({ to: l.to, label: l.nom, short: l.court, icon: l.icon, count: compte[l.art], hot: l.art === "atelier", also: also[l.art] });
   const avance = !estSimple(ws);
-  const essentiel = [{ to: "/explorer", label: "Explorer", icon: "eye" }, item(lieu("atelier")), item(lieu("poste")), { to: "/appels", label: "Appels", icon: "phone", count: c.calls }, ...["rdv", "radar", "observatoire"].map((a) => item(lieu(a)))];
-  const plus = [
+  const veille = modeExplorer(ws);
+  const essentiel = veille ? [
+    { to: "/explorer", label: "Tous les SaaS", icon: "eye" }, { to: "/explorer/suivis", label: "Mes suivis", icon: "today" },
+    { to: "/explorer/bouge", label: "Ce qui a bougé", icon: "chart" }, { to: "/explorer/pubs", label: "Pubs et e-mails", icon: "doc" },
+    { to: "/explorer/idees", label: "Idées et réussites", icon: "town" }, { to: "/explorer/marche", label: "Pays et tendances", icon: "chart" },
+  ] : [{ to: "/explorer", label: "Explorer", icon: "eye" }, item(lieu("atelier")), item(lieu("poste")), { to: "/appels", label: "Appels", icon: "phone", count: c.calls }, ...["rdv", "radar", "observatoire"].map((a) => item(lieu(a)))];
+  const plus = veille ? [
+    { to: "/abonnement", label: "Abonnement", icon: "doc" }, { to: "/equipe", label: "Équipe", icon: "phone" }, { to: "/reglages", label: "Réglages", icon: "plug" },
+    ...(isAdmin ? [{ to: "/admin", label: "Administration", icon: "chart" }] : []),
+  ] : [
     item(lieu("annuaire")),
     { to: "/village", label: "Ma ville", icon: "town" },
     ...(avance ? [item(lieu("espion")), item(lieu("linkedin")), { to: "/devis", label: "Devis", icon: "doc" }, { to: "/extension", label: "Extension LinkedIn", icon: "plug" }] : []),
@@ -226,7 +235,7 @@ export default function Layout({ children }) {
           <aside className="absolute left-0 top-0 h-full w-[300px] max-w-[85vw] overflow-y-auto bg-paper p-4 shadow-2xl rise" onClick={(e) => e.stopPropagation()} aria-label="Menu">
             <div className="flex items-center justify-between mb-4"><Logo className="ml-2" /><button onClick={() => setMore(false)} aria-label="Fermer le menu" className="grid h-10 w-10 place-items-center rounded-xl hover:bg-white text-[20px]">✕</button></div>
             <div className="flex flex-col gap-0.5">
-              <NavLink to="/" end onClick={() => setMore(false)} className={link({ to: "/" })}><Icon name="today" /><span className="flex-1">Aujourd'hui</span></NavLink>
+              {!veille && <NavLink to="/" end onClick={() => setMore(false)} className={link({ to: "/" })}><Icon name="today" /><span className="flex-1">Aujourd'hui</span></NavLink>}
               {essentiel.map((n) => <NavLink key={n.to} to={n.to} end onClick={() => setMore(false)} className={link(n)}><Icon name={n.icon} /><span className="flex-1">{n.label}</span><Count n={n.count} hot={n.hot} /></NavLink>)}
             </div>
             <details className="group mt-3 pt-3 border-t border-line" open={plus.some((n) => loc.pathname === n.to || (n.also ?? []).includes(loc.pathname))}>

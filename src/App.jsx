@@ -39,6 +39,8 @@ import PublicQuote from "./pages/PublicQuote";
 import Envoyer from "./pages/Envoyer";
 import FreeTools from "./pages/FreeTools";
 import Landing from "./pages/Landing";
+import OnboardingExplorer from "./pages/OnboardingExplorer";
+import { modeExplorer } from "./lib/mode";
 import Metier from "./pages/Metier";
 import { Conditions, Confidentialite, legalReady, MentionsLegales, Opposition } from "./pages/Legal";
 import { supabase } from "./lib/supabase";
@@ -77,12 +79,13 @@ function Gate() {
   if (!session && loc.pathname === "/" && !pendingJoin) return <Landing />;
   if (!session) return <Auth invited={!!pendingJoin} />;
   if (pendingJoin) return <Join token={pendingJoin} />;
-  if (!ws || !ws.onboarded) return <Onboarding />;
+  // Nouvelle inscription : le TrendTrack des SaaS (une question, l'adresse du SaaS)
+  if (!ws || !ws.onboarded) return <OnboardingExplorer />;
   return (
     <Layout>
       <ErrorBoundary resetKey={loc.pathname}>
       <Routes>
-        <Route path="/" element={<Accueil />} />
+        <Route path="/" element={modeExplorer(ws) ? <Navigate to="/explorer" replace /> : <Accueil />} />
         <Route path="/liste" element={<Today />} />
         <Route path="/village" element={<Village />} />
         <Route path="/valider" element={<Review />} />
