@@ -89,6 +89,19 @@ export async function lireSite(site: string, nom: string): Promise<Fiche> {
   return f;
 }
 
+/** Concurrents directs d'un SaaS : recherche web en texte libre, puis extraction (le JSON direct après une recherche revenait vide). */
+export async function concurrentsDe(host: string, moi: { nom: string; categorie: string; offre: string; cible: string }) {
+  const etude = await ask(`Trouve les 6 concurrents les plus directs de ${moi.nom} (${host}) : ${moi.categorie}. ${moi.offre} Cible : ${moi.cible}
+Des logiciels réels qui vendent la même chose à la même cible (en priorité ceux présents en France ou en Europe), avec leur site officiel. 3 recherches au plus.
+Réponds en texte : une ligne par concurrent, « nom — adresse du site officiel ».`, { maxTokens: 1500, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] }).catch(() => "");
+  const ext = etude ? await askJson<{ concurrents: { nom: string; site: string }[] }>(`Extrais la liste des concurrents de ce texte, sans en ajouter.
+${etude.slice(0, 5000)}
+Clé : concurrents, liste d'objets nom et site (adresse https du site officiel).`, { fast: true, maxTokens: 600 }).catch(() => ({ concurrents: [] })) : { concurrents: [] };
+  const vus = new Set([host]);
+  const concurrents = (ext.concurrents ?? []).filter((c) => /^https?:\/\//.test(c.site ?? "")).filter((c) => { const h = hostOf(c.site); if (!h || vus.has(h)) return false; vus.add(h); return true; }).slice(0, 6);
+  return concurrents;
+}
+
 export async function marcheSaas(input: { url?: string }) {
   let url = String(input.url ?? "").trim();
   if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
@@ -104,15 +117,8 @@ ${textOf(home).slice(0, 6000)}
 Clés : nom, categorie (la catégorie de logiciel en 3 à 6 mots, ex. « logiciel de facturation pour indépendants »), offre (une phrase), cible (une phrase), saas (true si c'est un logiciel vendu en ligne).`, { fast: true, maxTokens: 400 });
   if (moi.saas === false) throw new HttpError(422, "Ce site ne ressemble pas à un logiciel en ligne. Ce rapport est fait pour les SaaS : essaie avec l'adresse de ton logiciel.");
 
-  // 2. Concurrents directs : recherche web en texte libre, puis extraction (le JSON direct après une recherche revenait vide)
-  const etude = await ask(`Trouve les 6 concurrents les plus directs de ${moi.nom} (${host}) : ${moi.categorie}. ${moi.offre} Cible : ${moi.cible}
-Des logiciels réels qui vendent la même chose à la même cible (en priorité ceux présents en France ou en Europe), avec leur site officiel. 3 recherches au plus.
-Réponds en texte : une ligne par concurrent, « nom — adresse du site officiel ».`, { maxTokens: 1500, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3, user_location: { type: "approximate", country: "FR", timezone: "Europe/Paris" } }] }).catch(() => "");
-  const ext = etude ? await askJson<{ concurrents: { nom: string; site: string }[] }>(`Extrais la liste des concurrents de ce texte, sans en ajouter.
-${etude.slice(0, 5000)}
-Clé : concurrents, liste d'objets nom et site (adresse https du site officiel).`, { fast: true, maxTokens: 600 }).catch(() => ({ concurrents: [] })) : { concurrents: [] };
-  const vus = new Set([host]);
-  const concurrents = (ext.concurrents ?? []).filter((c) => /^https?:\/\//.test(c.site ?? "")).filter((c) => { const h = hostOf(c.site); if (!h || vus.has(h)) return false; vus.add(h); return true; }).slice(0, 6);
+  // 2. Concurrents directs
+  const concurrents = await concurrentsDe(host, moi);
   // Les concurrents trouvés entrent dans la base Explorer (lus la nuit suivante)
   import("./saas-base.ts").then(({ saasAdd }) => saasAdd([`https://${host}`, ...concurrents.map((c) => c.site)], "rapport-marche")).catch(() => {});
   if (!concurrents.length) throw new HttpError(422, "Aucun concurrent fiable trouvé pour ce logiciel. Réessaie, ou crée ton compte pour les ajouter toi-même.");

@@ -41,6 +41,31 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   async "saas-tendances"(req, b) { await requireMember(req, b.workspace_id); const { saasTendances } = await import("../_shared/saas-base.ts"); return await saasTendances(); },
   // Alerte du lundi (clé cron ; workspace_id pour envoyer à un seul espace, pour essai)
   async "saas-alertes"(req, b) { await cron(req); const { saasAlertes } = await import("../_shared/saas-base.ts"); return await saasAlertes(b.workspace_id ? String(b.workspace_id) : undefined); },
+  // Explorer : démarrage d'un fondateur de SaaS. Son logiciel et ses concurrents directs entrent dans la base, sont lus,
+  // et sont suivis (avec sa catégorie) : l'onglet « Mes suivis » et l'alerte du lundi sont prêts d'un coup.
+  async "saas-demarrer"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    await quota(ws.id, "espion", 10);
+    const { saasAdd, saasLire, domaineDe } = await import("../_shared/saas-base.ts");
+    const { concurrentsDe } = await import("../_shared/marche-saas.ts");
+    const d = domaineDe(String(b.url ?? ""));
+    if (!d) throw new HttpError(400, "Adresse du site invalide (ex. monsaas.com)");
+    await saasAdd([d], `demarrage:${ws.id}`);
+    let { data: moi } = await admin.from("saas").select("*").eq("domaine", d).single();
+    if (moi.statut !== "ok") { await saasLire(moi.id); ({ data: moi } = await admin.from("saas").select("*").eq("domaine", d).single()); }
+    if (moi.statut !== "ok") throw new HttpError(422, moi.statut === "pas_saas" ? "Ce site ne ressemble pas à un logiciel en ligne." : "Ton site n'a pas pu être lu pour l'instant. Réessaie dans un moment.");
+    const conc = await concurrentsDe(d, { nom: moi.nom, categorie: moi.categorie, offre: moi.description ?? "", cible: moi.cible ?? "" });
+    await saasAdd(conc.map((c) => c.site), `demarrage:${ws.id}`);
+    const doms = conc.map((c) => domaineDe(c.site)).filter(Boolean);
+    const { data: rows } = await admin.from("saas").select("id, domaine, statut").in("domaine", doms.length ? doms : ["-"]);
+    const aLire = (rows ?? []).filter((r) => r.statut === "a_lire");
+    for (let i = 0; i < aLire.length; i += 3) await Promise.all(aLire.slice(i, i + 3).map((r) => saasLire(r.id).catch(() => null)));
+    const { data: fin } = await admin.from("saas").select("id, domaine, nom, statut, categorie, prix_entree_eur").in("domaine", doms.length ? doms : ["-"]);
+    const ok = (fin ?? []).filter((r) => r.statut === "ok");
+    for (const r of ok) await admin.from("saas_suivis").insert({ workspace_id: ws.id, saas_id: r.id }).then(() => null, () => null);
+    await admin.from("saas_suivis").insert({ workspace_id: ws.id, categorie: moi.categorie }).then(() => null, () => null);
+    return { moi: { domaine: moi.domaine, nom: moi.nom, categorie: moi.categorie }, concurrents: ok.map((r) => ({ domaine: r.domaine, nom: r.nom, prix_entree_eur: r.prix_entree_eur })) };
+  },
   // Explorer (clé cron) : relevés de nuit et amorçage de la base
   async "saas-cron"(req) { await cron(req); const { saasCron } = await import("../_shared/saas-base.ts"); return await saasCron(); },
   async "saas-seed"(req, b) {
