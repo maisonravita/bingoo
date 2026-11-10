@@ -7,9 +7,9 @@ import { cx } from "../lib/utils";
 import { SubNav } from "../components/SubNav";
 
 const FEATURES = {
-  solo: ["1 utilisateur", "100 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Demandes publiques avec réponse prête, chaque jour", "Radar et relances", "Prospects non utilisés reportés au mois suivant"],
-  pro: ["2 utilisateurs", "300 prospects contactés par mois", "Tout ce qu'il y a dans Solo", "Espion : tes concurrents surveillés", "LinkedIn par l'extension"],
-  equipe: ["5 utilisateurs", "700 prospects contactés par mois", "Tout ce qu'il y a dans Pro", "Répartition des prospects entre commerciaux", "Tableau de bord par commercial"],
+  solo: ["1 utilisateur", "Explorer : 25 fiches SaaS par semaine, liste et filtres illimités", "100 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Demandes publiques avec réponse prête, chaque jour", "Radar et relances", "Prospects non utilisés reportés au mois suivant"],
+  pro: ["2 utilisateurs", "Explorer : 150 fiches SaaS par semaine et comparaisons", "300 prospects contactés par mois", "Tout ce qu'il y a dans Solo", "Espion : tes concurrents surveillés", "LinkedIn par l'extension"],
+  equipe: ["5 utilisateurs", "Explorer illimité", "700 prospects contactés par mois", "Tout ce qu'il y a dans Pro", "Répartition des prospects entre commerciaux", "Tableau de bord par commercial"],
 };
 const CONTACT = "bingoo@maisonravita.fr";
 

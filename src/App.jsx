@@ -32,6 +32,7 @@ import Abonnement from "./pages/Abonnement";
 import Join, { JOIN_KEY } from "./pages/Join";
 import PublicBooking from "./pages/PublicBooking";
 import Explorer from "./pages/Explorer";
+import PublicRetrait from "./pages/PublicRetrait";
 import PublicMarche from "./pages/PublicMarche";
 import PublicEstimation from "./pages/PublicEstimation";
 import PublicQuote from "./pages/PublicQuote";
@@ -54,6 +55,7 @@ function Gate() {
   if (loc.pathname.startsWith("/rdv/")) return <PublicBooking />;
   if (loc.pathname.startsWith("/estimation/")) return <PublicEstimation />;
   if (loc.pathname === "/marche") return <PublicMarche />;
+  if (loc.pathname === "/retrait") return <PublicRetrait />;
   if (loc.pathname.startsWith("/devis/")) return <PublicQuote />;
   // Lien de l'e-mail du matin : la page fonctionne sans être connecté (le lien à usage unique fait office de clé)
   if (loc.pathname === "/envoyer") return <Envoyer />;
