@@ -351,7 +351,10 @@ export async function paysWikidata(domaines: string[]) {
   const variantes = domaines.flatMap((d) => [`https://${d}`, `https://${d}/`, `https://www.${d}`, `https://www.${d}/`, `http://${d}/`, `http://www.${d}/`]);
   const q = `SELECT ?site ?code WHERE { VALUES ?site { ${variantes.map((v) => `<${v}>`).join(" ")} } ?item wdt:P856 ?site .
   OPTIONAL { ?item wdt:P159/wdt:P17 ?hq . } OPTIONAL { ?item wdt:P17 ?c . } BIND(COALESCE(?hq, ?c) AS ?pays) ?pays wdt:P297 ?code . }`;
-  const r = await fetch(`https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(q)}`, { headers: { "user-agent": "BingooBot/1.0 (+https://kairo.maisonravita.fr/#/retrait)", accept: "application/sparql-results+json" }, signal: AbortSignal.timeout(25000) }).then((x) => x.json()).catch(() => null);
+  // POST : la liste des adresses dépasse la longueur permise dans une adresse GET
+  const r = await fetch("https://query.wikidata.org/sparql", { method: "POST", body: new URLSearchParams({ query: q, format: "json" }),
+    headers: { "user-agent": "BingooBot/1.0 (+https://kairo.maisonravita.fr/#/retrait; bingoo@maisonravita.fr)", accept: "application/sparql-results+json", "content-type": "application/x-www-form-urlencoded" }, signal: AbortSignal.timeout(30000) })
+    .then(async (x) => { if (!x.ok) { console.error("wikidata", x.status, (await x.text()).slice(0, 300)); return null; } return x.json(); }).catch((e) => { console.error("wikidata", String(e)); return null; });
   const out = new Map<string, string>();
   for (const b of (r?.results?.bindings ?? []) as { site: { value: string }; code: { value: string } }[]) {
     const d = domaineDe(b.site.value);
