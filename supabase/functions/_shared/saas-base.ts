@@ -568,7 +568,11 @@ acquisition (4 à 6 objets canal + comment, concrets pour les 6 premiers mois),
 risques (3 objets risque + parade),
 hypotheses (prudentes : clients_mois_1 nombre de clients payants le premier mois, croissance_mensuelle_pct, churn_mensuel_pct, conversion_essai_pct).`, { maxTokens: 3500 });
   // Plan d'affaires sur 12 mois, calculé à partir des hypothèses (prix moyen = moyenne des formules)
-  const H = p.hypotheses ?? { clients_mois_1: 3, croissance_mensuelle_pct: 25, churn_mensuel_pct: 4, conversion_essai_pct: 15 };
+  // Garde-fous : un premier SaaS démarre lentement, quoi que propose l'IA
+  const h0 = p.hypotheses ?? {} as Projet["hypotheses"];
+  const H = { clients_mois_1: Math.min(5, Math.max(1, Number(h0.clients_mois_1) || 2)), croissance_mensuelle_pct: Math.min(20, Math.max(5, Number(h0.croissance_mensuelle_pct) || 12)),
+    churn_mensuel_pct: Math.min(10, Math.max(3, Number(h0.churn_mensuel_pct) || 5)), conversion_essai_pct: Math.min(25, Math.max(5, Number(h0.conversion_essai_pct) || 12)) };
+  p.hypotheses = H;
   const prixMoyen = Math.round(((p.formules ?? []).reduce((a, f) => a + Number(f.prix || 0), 0) / Math.max(1, (p.formules ?? []).length)) * 100) / 100;
   const couts = Math.round((p.stack ?? []).reduce((a, x) => a + Number(x.cout_mois || 0), 0));
   const mois = []; let clients = 0, nouveaux = Math.max(1, Number(H.clients_mois_1) || 1), cumul = 0;

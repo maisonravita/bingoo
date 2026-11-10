@@ -838,7 +838,7 @@ function Lancer() {
           <h1 className="mt-2 text-[32px] sm:text-[42px] font-black leading-[1.05]" style={HF}>{nomInspi} marche. Lance ta version, en mieux.</h1>
           <p className="mt-3 max-w-2xl text-white/75 text-[16px]">Bingoo! part de ce qui prouve que le besoin existe ({nomInspi}, ses prix, ses concurrents, ses chiffres publics) et te prépare un SaaS différent : un nom à toi, ce qui le rend meilleur, le MVP à coder semaine par semaine, les outils et leur coût, tes prix, comment trouver tes premiers clients, et le plan d'affaires sur 12 mois.</p>
           <p className="mt-3 text-[13px] text-white/55">Inspiré, pas copié : ni le nom, ni les textes, ni le design de {nomInspi}. Copier une marque ou un site expose à des poursuites ; s'inspirer d'un besoin qui marche, non.</p>
-          <button onClick={generer} disabled={busy} className="mt-6 rounded-xl bg-accent px-7 py-3.5 font-bold hover:bg-accent-dark disabled:opacity-60">{busy ? "Préparation de ton projet… (30 secondes)" : niv(ws) < 2 ? "Disponible avec la formule Pro" : "Préparer mon projet"}</button>
+          <button onClick={generer} disabled={busy} className="mt-6 rounded-xl bg-accent px-7 py-3.5 font-bold hover:bg-accent-dark disabled:opacity-60">{busy ? "Préparation de ton projet… (environ une minute)" : niv(ws) < 2 ? "Disponible avec la formule Pro" : "Préparer mon projet"}</button>
         </div>
       ) : (
         <>
