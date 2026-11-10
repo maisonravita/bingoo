@@ -496,7 +496,21 @@ Texte : ${body.slice(0, 5000)}
 Classe-le et résume-le pour une veille concurrentielle, sans rien inventer.
 Clés : type (promotion | lancement | contenu | evenement | temoignage | relance | bienvenue | autre), offre (l'offre ou le prix mis en avant, sinon vide), resume (une phrase en français).`, { fast: true, maxTokens: 250 }).catch(() => null) : null;
   await admin.from("saas_emails").insert({ saas_id: s?.id ?? null, from_email: fromEmail.slice(0, 200), from_name: fromName.slice(0, 120), subject: sujet.slice(0, 300),
-    kind: String(v?.type ?? "autre").slice(0, 20), offre: String(v?.offre ?? "").slice(0, 200), resume: String(v?.resume ?? "").slice(0, 300), body });
+    kind: v ? String(v.type ?? "autre").slice(0, 20) : "a_classer", offre: String(v?.offre ?? "").slice(0, 200), resume: String(v?.resume ?? "").slice(0, 300), body });
   if (s) await admin.from("saas").update({ newsletter_statut: "inscrit" }).eq("id", s.id);
   return { ok: true, saas: s?.nom ?? null };
+}
+
+/** E-mails reçus quand l'enveloppe IA était épuisée : classés au passage suivant (appelé par la tâche des niches). */
+export async function saasEmailsAClasser(max = 10) {
+  const { data } = await admin.from("saas_emails").select("id, from_name, from_email, subject, body").eq("kind", "a_classer").limit(max);
+  for (const e of (data ?? []) as { id: string; from_name: string; from_email: string; subject: string; body: string }[]) {
+    setAi({ feature: "explorer/emails" });
+    const v = await askJson<{ type: string; offre: string; resume: string }>(`E-mail marketing reçu de ${e.from_name || e.from_email}. Objet : ${e.subject}
+Texte : ${String(e.body ?? "").slice(0, 5000)}
+Classe-le et résume-le pour une veille concurrentielle, sans rien inventer.
+Clés : type (promotion | lancement | contenu | evenement | temoignage | relance | bienvenue | autre), offre (l'offre ou le prix mis en avant, sinon vide), resume (une phrase en français).`, { fast: true, maxTokens: 250 }).catch(() => null);
+    if (!v) break;
+    await admin.from("saas_emails").update({ kind: String(v.type ?? "autre").slice(0, 20), offre: String(v.offre ?? "").slice(0, 200), resume: String(v.resume ?? "").slice(0, 300) }).eq("id", e.id);
+  }
 }
