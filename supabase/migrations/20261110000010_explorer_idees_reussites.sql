@@ -1,0 +1,1 @@
+-- Appliquée via MCP : table saas_histoires, RPC saas_reussites, saas_idees, saas_tags_fusion, saas_fiche (+ histoire), crons bingoo-explorer-histoires et bingoo-explorer-fusion

@@ -23,17 +23,18 @@ export default function Explorer({ domaine: fixe }) {
   if (d === "bouge") return <><Onglets actif="bouge" /><Fil /></>;
   if (d === "suivis") return <><Onglets actif="suivis" /><Suivis /></>;
   if (d === "marche") return <><Onglets actif="marche" /><Marche /></>;
+  if (d === "idees") return <><Onglets actif="idees" /><Idees /></>;
   if (d === "comparer") return <Comparer />;
   return d ? <Fiche domaine={d} /> : <><Onglets actif="liste" /><Liste /></>;
 }
 
 function Onglets({ actif }) {
   const nav = useNavigate();
-  const T = [["liste", "SaaS", "/explorer"], ["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"], ["marche", "Pays et tendances", "/explorer/marche"]];
+  const T = [["liste", "SaaS", "/explorer"], ["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"], ["marche", "Pays et tendances", "/explorer/marche"], ["idees", "Idées et réussites", "/explorer/idees"]];
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
-      <div className="inline-flex rounded-xl bg-white border border-line p-1">
-        {T.map(([k, l, to]) => <button key={k} onClick={() => nav(to)} className={cx("rounded-lg px-4 py-2 text-[14px] font-semibold transition", actif === k ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
+      <div className="inline-flex max-w-full overflow-x-auto rounded-xl bg-white border border-line p-1">
+        {T.map(([k, l, to]) => <button key={k} onClick={() => nav(to)} className={cx("shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-[14px] font-semibold transition", actif === k ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
       </div>
     </div>
   );
@@ -58,7 +59,8 @@ function Liste() {
   const nav = useNavigate();
   const { ws } = useWs();
   const toast = useToast();
-  const [f, setF] = useState({ q: "", categorie: "", pays: "", prixMax: "", gratuit: false, recrute: false, actif: false, tri: "score_croissance", tag: "" });
+  const loc = useLocation();
+  const [f, setF] = useState(() => { const p = new URLSearchParams(loc.search); return { q: "", categorie: p.get("categorie") ?? "", pays: "", prixMax: "", gratuit: false, recrute: false, actif: false, tri: "score_croissance", tag: p.get("tag") ?? "" }; });
   const [ia, setIa] = useState(null); // recherche par le sens : { q, termes, resultats }
   const [iaBusy, setIaBusy] = useState(false);
   const [niches, setNiches] = useState([]);
@@ -224,12 +226,13 @@ function Fiche({ domaine }) {
   const [sim, setSim] = useState([]);
   const [limite, setLimite] = useState(null);
   const [quota, setQuota] = useState(null);
+  const [hist, setHist] = useState(null);
   useEffect(() => {
     setS(undefined); setLimite(null);
     supabase.rpc("saas_fiche", { ws: ws.id, d: domaine }).then(async ({ data, error }) => {
       if (error || !data) { setS(null); return; }
       if (data.limite) { setLimite(data); setS(null); return; }
-      setS(data.saas); setRel(data.releves ?? []); setEv(data.evenements ?? []); setQuota(data.max ? { vues: data.vues, max: data.max } : null);
+      setS(data.saas); setRel(data.releves ?? []); setEv(data.evenements ?? []); setQuota(data.max ? { vues: data.vues, max: data.max } : null); setHist(data.histoire ?? null);
       const { data: o } = await supabase.from("saas_liste").select("id, domaine, nom, pays, prix_entree_eur, score_croissance").eq("categorie", data.saas.categorie).neq("id", data.saas.id).order("score_croissance", { ascending: false, nullsFirst: false }).limit(6);
       setSim(o ?? []);
     });
@@ -304,6 +307,8 @@ function Fiche({ domaine }) {
           <p className="mt-6 text-[12px] text-ink-faint">Relevé du {date(s.lu_at)}. Informations lues sur le site du logiciel.</p>
         </section>
       </div>
+
+      {hist && <section className="mt-4"><Histoire h={hist} /></section>}
 
       <section className="mt-4 rounded-2xl bg-white border border-line p-5">
         <h2 className="font-bold">Ce qui a bougé</h2>
@@ -464,6 +469,117 @@ function Marche() {
             ))}
           </div>
         </section>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- Idées et réussites
+const CHIFFRE = { ca: "Chiffre d'affaires", arr: "Revenu annuel récurrent", mrr: "Revenu mensuel récurrent", levee: "Levée de fonds", salaries: "Salariés", clients: "Clients" };
+const montant = (v) => v >= 1e9 ? `${(v / 1e9).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Md€` : v >= 1e6 ? `${(v / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M€` : v >= 1e3 ? `${Math.round(v / 1e3)} k€` : `${v} €`;
+const hote = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return "source"; } };
+
+function Histoire({ h, saas, onOuvrir }) {
+  const ch = [...(h.chiffres ?? [])].sort((a, b) => (b.valeur_eur ?? 0) - (a.valeur_eur ?? 0));
+  const tete = ch.find((c) => ["ca", "arr", "mrr"].includes(c.type)) ?? ch.find((c) => c.type === "levee") ?? ch[0];
+  return (
+    <article className="rounded-2xl bg-white border border-line p-5">
+      <div className="flex flex-wrap items-start gap-3">
+        {saas && <button onClick={onOuvrir} className="shrink-0"><CompanyLogo name={saas.nom} url={`https://${saas.domaine}`} className="w-11 h-11" /></button>}
+        <div className="flex-1 min-w-[200px]">
+          {saas ? <button onClick={onOuvrir} className="text-left"><h3 className="font-bold text-[17px] hover:underline">{saas.nom} {drapeau(saas.pays)}</h3></button> : <h2 className="font-bold">Son histoire</h2>}
+          <p className="text-[13px] text-ink-faint">{[saas?.categorie, h.annee_creation && `créé en ${h.annee_creation}`, h.fondateurs?.length && `par ${h.fondateurs.join(", ")}`].filter(Boolean).join(" · ")}</p>
+        </div>
+        {tete && <div className="text-right"><p className="text-[24px] font-black leading-none tnum" style={HF}>{tete.valeur_eur != null ? montant(tete.valeur_eur) : tete.valeur.toLocaleString("fr-FR")}</p><p className="mt-1 text-[12px] text-ink-faint">{CHIFFRE[tete.type]}{tete.annee ? ` · ${tete.annee}` : ""}</p></div>}
+      </div>
+      {h.histoire && <p className="mt-3 text-[14.5px] leading-relaxed">{h.histoire}</p>}
+      {h.lecons?.length > 0 && (
+        <div className="mt-3 rounded-xl bg-[#FFF7F3] px-4 py-3">
+          <p className="text-[12px] font-bold uppercase tracking-wide text-accent-dark">Comment il a grandi</p>
+          <ul className="mt-1 space-y-1 text-[14px]">{h.lecons.map((l, i) => <li key={i} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />{l}</li>)}</ul>
+        </div>
+      )}
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {ch.map((c, i) => <a key={i} href={c.source} target="_blank" rel="noopener noreferrer" title={c.source} className="rounded-full border border-line px-2.5 py-1 text-[12.5px] hover:border-ink-faint">{c.texte} <span className="text-ink-faint">· {hote(c.source)}</span></a>)}
+      </div>
+    </article>
+  );
+}
+
+const IDEE = {
+  importer: ["À lancer en France", "#1D4ED8"],
+  gratuit: ["Place pour une offre gratuite", "#15803D"],
+  chauffe: ["Marché qui accélère", "#E0531F"],
+};
+function idees(d) {
+  const out = [];
+  for (const n of [...(d?.niches ?? []), ...(d?.categories ?? [])]) {
+    const x = { ...n, n: Number(n.n), fr: Number(n.fr), etranger: Number(n.etranger), recrutent: Number(n.recrutent), postes: Number(n.postes), gratuits: Number(n.gratuits), actifs: Number(n.actifs), prix: n.prix_median != null ? Math.round(n.prix_median) : null };
+    const tag = x.genre === "tag";
+    if (x.etranger >= 3 && (tag ? x.fr === 0 : x.etranger >= 4 * Math.max(1, x.fr)))
+      out.push({ k: "importer", x, poids: x.etranger * 2 + x.recrutent * 3, texte: `${x.etranger} SaaS étrangers dans la base, ${x.fr === 0 ? "aucun français" : `${x.fr} seulement en France`}.${x.recrutent ? ` ${x.recrutent} d'entre eux recrutent, signe que la demande existe.` : ""}` });
+    if (x.n >= 4 && x.gratuits === 0 && x.prix != null && x.prix >= 15)
+      out.push({ k: "gratuit", x, poids: x.n + x.prix / 10, texte: `Aucun des ${x.n} SaaS n'a de version gratuite, et l'entrée coûte ${x.prix} € par mois en médiane. Une offre gratuite ou moins chère se remarquerait.` });
+    if (x.n >= 3 && (x.recrutent / x.n >= 0.4 || x.actifs / x.n >= 0.5))
+      out.push({ k: "chauffe", x, poids: x.recrutent * 3 + x.actifs * 2 + x.postes / 10, texte: `${x.recrutent} sur ${x.n} recrutent (${x.postes} postes ouverts)${x.actifs ? ` et ${x.actifs} ont sorti une nouveauté ce mois-ci` : ""}. L'argent et les équipes arrivent sur ce sujet.` });
+  }
+  return out.sort((a, b) => b.poids - a.poids);
+}
+
+function Idees() {
+  const nav = useNavigate();
+  const { ws } = useWs();
+  const [vue, setVue] = useState("reussites");
+  const [cat, setCat] = useState("");
+  const [r, setR] = useState(null);
+  const [d, setD] = useState(null);
+  const [type, setType] = useState("");
+  useEffect(() => { setR(null); supabase.rpc("saas_reussites", { ws: ws.id, cat: cat || null, lim: 60 }).then(({ data }) => setR(data ?? [])); }, [ws.id, cat]);
+  useEffect(() => { supabase.rpc("saas_idees", { ws: ws.id }).then(({ data }) => setD(data ?? {})); }, [ws.id]);
+  const liste = useMemo(() => idees(d).filter((i) => !type || i.k === type), [d, type]);
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      <h1 className="text-[30px] font-black tracking-tight" style={HF}>Idées et réussites</h1>
+      <p className="text-ink-soft">Les SaaS qui chiffrent le plus et comment ils ont grandi, puis les idées que la base fait ressortir.</p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Chip on={vue === "reussites"} onClick={() => setVue("reussites")}>Ceux qui chiffrent le plus</Chip>
+        <Chip on={vue === "idees"} onClick={() => setVue("idees")}>Idées à prendre</Chip>
+      </div>
+
+      {vue === "reussites" && (
+        <>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[12.5px] text-ink-faint max-w-2xl">Chiffres publiés par la presse ou par l'entreprise elle-même, chacun avec sa source. Classés par chiffre d'affaires ou revenu annuel connu.</p>
+            <select value={cat} onChange={(e) => setCat(e.target.value)} className="rounded-xl border border-line bg-white px-3 py-2 text-[14px]"><option value="">Toutes les catégories</option>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select>
+          </div>
+          {!r ? <div className="py-16 grid place-items-center"><Spinner /></div> : r.length ? (
+            <div className="mt-3 grid lg:grid-cols-2 gap-3">{r.map((h) => <Histoire key={h.domaine} h={h} saas={h} onOuvrir={() => nav(`/explorer/${h.domaine}`)} />)}</div>
+          ) : <p className="mt-6 text-ink-faint">Aucune réussite chiffrée pour l'instant dans cette catégorie. La base en ajoute plusieurs par heure.</p>}
+        </>
+      )}
+
+      {vue === "idees" && (
+        <>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Chip on={!type} onClick={() => setType("")}>Toutes</Chip>
+            {Object.entries(IDEE).map(([k, [l]]) => <Chip key={k} on={type === k} onClick={() => setType(k)}>{l}</Chip>)}
+          </div>
+          <p className="mt-2 text-[12.5px] text-ink-faint">Calculé sur les {d?.total ?? "…"} SaaS lus de la base (pays, prix, recrutement, nouveautés). Plus la base grandit, plus les idées sont fiables.</p>
+          {!d ? <div className="py-16 grid place-items-center"><Spinner /></div> : liste.length ? (
+            <div className="mt-3 grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {liste.map((i) => (
+                <article key={i.k + i.x.niche} className="rounded-2xl bg-white border border-line p-5 flex flex-col">
+                  <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: IDEE[i.k][1] }}>{IDEE[i.k][0]}</p>
+                  <h3 className="mt-1 text-[19px] font-black leading-tight first-letter:uppercase" style={HF}>{i.x.niche}</h3>
+                  <p className="text-[12px] text-ink-faint">{i.x.genre === "tag" ? "niche" : "catégorie"} · {i.x.n} SaaS{i.x.prix != null ? ` · ${i.x.prix} €/mois en médiane` : ""}</p>
+                  <p className="mt-2 text-[14px] text-ink-soft flex-1">{i.texte}</p>
+                  <div className="mt-3 flex flex-wrap gap-1.5">{(i.x.exemples ?? []).map((e) => <button key={e.domaine} onClick={() => nav(`/explorer/${e.domaine}`)} className="rounded-full bg-paper px-2.5 py-1 text-[12.5px] hover:bg-line">{e.nom} {drapeau(e.pays)}</button>)}</div>
+                  <button onClick={() => nav(i.x.genre === "tag" ? `/explorer?tag=${encodeURIComponent(i.x.niche)}` : `/explorer?categorie=${encodeURIComponent(i.x.niche)}`)} className="mt-3 self-start text-[13.5px] font-semibold underline">Voir les {i.x.n} SaaS</button>
+                </article>
+              ))}
+            </div>
+          ) : <p className="mt-6 text-ink-faint">Pas encore assez de SaaS lus pour faire ressortir des idées.</p>}
+        </>
       )}
     </div>
   );

@@ -1,7 +1,7 @@
 // Explorer : la base de SaaS de Bingoo!. Chaque logiciel est relu régulièrement sur son propre site (accueil, tarifs,
 // page carrières, changelog ou blog) ; chaque relevé est gardé pour l'historique (prix, recrutement, nouveautés).
 // L'IA sert seulement à classer le logiciel et à lire les prix affichés ; tout le reste est lu tel quel, avec l'adresse de la page.
-import { admin, askJson, setAi, type Workspace } from "./core.ts";
+import { admin, ask, askJson, setAi, type Workspace } from "./core.ts";
 import { fetchHtml, textOf } from "./analyze.ts";
 import { lireSite } from "./marche-saas.ts";
 
@@ -264,4 +264,47 @@ Clés : termes, categorie.`, { fast: true, maxTokens: 300 }).catch(() => ({ term
   const { data, error } = await admin.rpc("saas_recherche", { termes, cat: categorie || null, lim: 60 });
   if (error) throw new Error(error.message);
   return { termes, categorie_suggeree: CATEGORIES.includes(r.categorie ?? "") ? r.categorie : null, resultats: data ?? [] };
+}
+
+// ---------------------------------------------------------------- Réussites : chiffres publics, chacun avec sa source
+// Recherche web (articles, interviews, communiqués de levée, pages « à propos »), puis extraction stricte : un chiffre
+// sans adresse de page lue pendant la recherche est écarté. Aucun chiffre public : la fiche est marquée « rien ».
+const TAUX: Record<string, number> = { "€": 1, EUR: 1, "$": 0.92, USD: 0.92, "£": 1.16, GBP: 1.16 };
+export async function saasHistoire(id: string) {
+  const { data: s } = await admin.from("saas").select("id, nom, domaine, categorie, description").eq("id", id).single();
+  if (!s) return null;
+  setAi({ feature: "explorer/histoire" });
+  const etude = await ask(`Cherche les chiffres publics du logiciel ${s.nom} (${s.domaine}) : ${s.description ?? s.categorie}.
+Ce que je veux, seulement s'il est publié quelque part (article de presse, interview du fondateur, communiqué de levée de fonds, page « à propos », registre officiel) :
+année de création, fondateurs, chiffre d'affaires ou ARR ou MRR (avec l'année), montant total levé, nombre de salariés, nombre de clients,
+et comment il a trouvé ses premiers clients ou ce qui l'a fait grandir (si une source le raconte). 3 recherches au plus.
+Réponds en texte. Après CHAQUE chiffre ou fait, écris l'adresse exacte de la page où tu l'as lu. Si rien n'est publié, dis-le ; n'estime rien.`,
+    { maxTokens: 1800, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }] }).catch(() => "");
+  if (!etude) return { id, statut: "erreur" };
+  const x = await askJson<{ annee_creation: number | null; fondateurs: string[]; chiffres: { type: string; valeur: number; devise: string | null; annee: number | null; texte: string; source: string }[]; histoire: string | null; lecons: string[] }>(
+    `Extrais de ce texte, sans rien ajouter ni estimer :
+${etude.slice(0, 7000)}
+Clés : annee_creation (nombre ou null), fondateurs (noms), chiffres (liste : type parmi ca | arr | mrr | levee | salaries | clients, valeur (nombre entier, ex. 12000000 pour 12 M), devise (€ $ £ ou null), annee (année du chiffre ou null), texte (le chiffre tel qu'écrit en français court, ex. « 12 M€ de chiffre d'affaires en 2023 »), source (adresse https de la page citée pour ce chiffre)),
+histoire (2 à 4 phrases en français qui racontent son parcours avec ces faits ; null si le texte n'a rien), lecons (0 à 3 phrases courtes : comment il a trouvé ses clients ou grandi, seulement si le texte le dit).`,
+    { fast: true, maxTokens: 1200 }).catch(() => null);
+  if (!x) return { id, statut: "erreur" };
+  const chiffres = (x.chiffres ?? []).filter((c) => /^https?:\/\//.test(c.source ?? "") && etude.includes(c.source.replace(/\/$/, "")) && Number(c.valeur) > 0 && ["ca", "arr", "mrr", "levee", "salaries", "clients"].includes(c.type))
+    .map((c) => ({ ...c, valeur: Math.round(Number(c.valeur)), valeur_eur: ["salaries", "clients"].includes(c.type) ? null : Math.round(Number(c.valeur) * (TAUX[c.devise ?? "€"] ?? 1)) })).slice(0, 8);
+  const rev = Math.max(0, ...chiffres.map((c) => c.type === "mrr" ? (c.valeur_eur ?? 0) * 12 : ["ca", "arr"].includes(c.type) ? c.valeur_eur ?? 0 : 0));
+  const sources = [...new Set(chiffres.map((c) => c.source))];
+  const ok = chiffres.length > 0;
+  const annee = Number(x.annee_creation) >= 1980 && Number(x.annee_creation) <= new Date().getFullYear() ? Number(x.annee_creation) : null;
+  await admin.from("saas_histoires").upsert({ saas_id: id, statut: ok ? "ok" : "rien", annee_creation: annee, fondateurs: (x.fondateurs ?? []).slice(0, 4).map(String),
+    chiffres, histoire: ok ? (x.histoire ?? null) : null, lecons: ok ? (x.lecons ?? []).slice(0, 3).map(String) : [], sources, revenu_eur: rev || null, at: new Date().toISOString() });
+  return { id, statut: ok ? "ok" : "rien", chiffres: chiffres.length };
+}
+
+/** Réussites en tâche de fond : les SaaS qui recrutent le plus d'abord (les plus susceptibles d'avoir des chiffres publiés). */
+export async function saasHistoires(n = 3) {
+  const { data: faits } = await admin.from("saas_histoires").select("saas_id");
+  const vus = new Set((faits ?? []).map((f) => f.saas_id));
+  const { data } = await admin.from("saas").select("id").eq("statut", "ok").order("postes", { ascending: false, nullsFirst: false }).order("score_croissance", { ascending: false }).limit(vus.size + 40);
+  const ids = (data ?? []).map((r) => r.id).filter((i) => !vus.has(i)).slice(0, n);
+  const r = await Promise.all(ids.map((i) => saasHistoire(i).catch(() => null)));
+  return { faits: r.filter(Boolean).length, ok: r.filter((x) => x?.statut === "ok").length };
 }
