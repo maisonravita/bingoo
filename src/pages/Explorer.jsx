@@ -326,6 +326,7 @@ function Fiche({ domaine }) {
       </div>
 
       {hist && <section className="mt-4"><Histoire h={hist} /></section>}
+      <div className="mt-4"><Clients domaine={s.domaine} titre={`Les clients de ${s.nom}, tes prospects`} /></div>
       {(pubs.length > 0 || s.pubs_at) && (
         <section className="mt-4 rounded-2xl bg-white border border-line p-5">
           <h2 className="font-bold">Ses publicités</h2>
@@ -499,6 +500,49 @@ function Marche() {
   );
 }
 
+// ---------------------------------------------------------------- Clients à démarcher (niche ou SaaS → cibles Bingoo!)
+function Clients({ domaine, categorie, tag, titre = "Qui démarcher dans cette niche" }) {
+  const nav = useNavigate();
+  const toast = useToast();
+  const { ws, reload } = useWs();
+  const [r, setR] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [ajout, setAjout] = useState("");
+  const voir = async () => {
+    setBusy(true);
+    try { setR(await fn("r/saas-clients", { workspace_id: ws.id, domaine: domaine ?? null, categorie: categorie ?? null, tag: tag ?? null })); }
+    catch (x) { toast(x.message, "bad"); } finally { setBusy(false); }
+  };
+  const ajouter = async (sg) => {
+    setAjout(sg.label);
+    try { const x = await fn("r/saas-cible-ajouter", { workspace_id: ws.id, segment: sg }); await reload?.(); toast(x.deja ? "Déjà dans tes cibles" : "Ajouté à tes cibles : Bingoo! commence à chercher ces entreprises", "good"); }
+    catch (x) { toast(x.message, "bad"); } finally { setAjout(""); }
+  };
+  const mes = new Set((ws.targets ?? []).map((t) => String(t.label).toLowerCase()));
+  return (
+    <section className="rounded-2xl bg-ink text-white p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><h2 className="font-bold text-[17px]">{titre}</h2><p className="text-[13px] text-white/70">Les entreprises qui achètent ce genre de logiciel, comptées dans le registre officiel. Ajoute-les à tes cibles : Bingoo! trouve le décideur et prépare les messages.</p></div>
+        {!r && <button onClick={voir} disabled={busy} className="shrink-0 rounded-xl bg-accent px-5 py-3 font-bold hover:bg-accent-dark disabled:opacity-60">{busy ? "Recherche…" : "Voir qui démarcher"}</button>}
+      </div>
+      {r && (r.segments?.length ? (
+        <div className="mt-4 grid md:grid-cols-2 gap-3">
+          {r.segments.map((sg) => (
+            <div key={sg.label} className="rounded-xl bg-white/[.07] p-4 flex flex-col">
+              <div className="flex items-start justify-between gap-3"><p className="font-bold">{sg.label}</p>{sg.total != null && <p className="shrink-0 text-right"><span className="text-[20px] font-black tnum" style={HF}>{Number(sg.total).toLocaleString("fr-FR")}</span><br /><span className="text-[11.5px] text-white/60">entreprises</span></p>}</div>
+              <p className="mt-1 text-[13.5px] text-white/80 flex-1">{sg.pourquoi}</p>
+              <p className="mt-2 text-[12.5px] text-white/60">À qui écrire : {sg.interlocuteur || "dirigeant"} · NAF {sg.naf.join(", ")}</p>
+              {mes.has(sg.label.toLowerCase()) ? <button onClick={() => nav("/radar")} className="mt-3 self-start rounded-lg bg-white/15 px-3 py-2 text-[13px] font-semibold">Dans tes cibles · voir le Radar</button>
+                : <button onClick={() => ajouter(sg)} disabled={!!ajout} className="mt-3 self-start rounded-lg bg-white text-ink px-3 py-2 text-[13px] font-bold hover:bg-white/90 disabled:opacity-60">{ajout === sg.label ? "Ajout…" : "Ajouter à mes cibles"}</button>}
+            </div>
+          ))}
+          <p className="md:col-span-2 text-[11.5px] text-white/50">Segments proposés par une IA à partir de ce que ces logiciels vendent et à qui ; nombres : {r.source}.</p>
+        </div>
+      ) : <p className="mt-3 text-white/70 text-[14px]">Pas assez d'informations sur ces logiciels pour proposer des clients.</p>)}
+    </section>
+  );
+}
+
 // ---------------------------------------------------------------- Pubs (bibliothèque Meta)
 const PLATEFORME = { facebook: "Facebook", instagram: "Instagram", messenger: "Messenger", audience_network: "Audience Network", threads: "Threads" };
 function CartePub({ p, saas }) {
@@ -632,6 +676,7 @@ function Idees() {
   const [r, setR] = useState(null);
   const [d, setD] = useState(null);
   const [type, setType] = useState("");
+  const [cli, setCli] = useState(null);
   useEffect(() => { setR(null); supabase.rpc("saas_reussites", { ws: ws.id, cat: cat || null, lim: 60 }).then(({ data }) => setR(data ?? [])); }, [ws.id, cat]);
   useEffect(() => { supabase.rpc("saas_idees", { ws: ws.id }).then(({ data }) => setD(data ?? {})); }, [ws.id]);
   const liste = useMemo(() => idees(d).filter((i) => !type || i.k === type), [d, type]);
@@ -672,11 +717,15 @@ function Idees() {
                   <p className="text-[12px] text-ink-faint">{i.x.genre === "tag" ? "niche" : "catégorie"} · {i.x.n} SaaS{i.x.prix != null ? ` · ${i.x.prix} €/mois en médiane` : ""}</p>
                   <p className="mt-2 text-[14px] text-ink-soft flex-1">{i.texte}</p>
                   <div className="mt-3 flex flex-wrap gap-1.5">{(i.x.exemples ?? []).map((e) => <button key={e.domaine} onClick={() => nav(`/explorer/${e.domaine}`)} className="rounded-full bg-paper px-2.5 py-1 text-[12.5px] hover:bg-line">{e.nom} {drapeau(e.pays)}</button>)}</div>
-                  <button onClick={() => nav(i.x.genre === "tag" ? `/explorer?tag=${encodeURIComponent(i.x.niche)}` : `/explorer?categorie=${encodeURIComponent(i.x.niche)}`)} className="mt-3 self-start text-[13.5px] font-semibold underline">Voir les {i.x.n} SaaS</button>
+                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
+                    <button onClick={() => nav(i.x.genre === "tag" ? `/explorer?tag=${encodeURIComponent(i.x.niche)}` : `/explorer?categorie=${encodeURIComponent(i.x.niche)}`)} className="text-[13.5px] font-semibold underline">Voir les {i.x.n} SaaS</button>
+                    <button onClick={() => { setCli(i.x); setTimeout(() => document.getElementById("clients-niche")?.scrollIntoView({ behavior: "smooth" }), 50); }} className="text-[13.5px] font-semibold text-accent-dark underline">Qui démarcher</button>
+                  </div>
                 </article>
               ))}
             </div>
           ) : <p className="mt-6 text-ink-faint">Pas encore assez de SaaS lus pour faire ressortir des idées.</p>}
+          {cli && <div id="clients-niche" className="mt-4"><Clients key={cli.genre + cli.niche} categorie={cli.genre === "categorie" ? cli.niche : null} tag={cli.genre === "tag" ? cli.niche : null} titre={`Qui démarcher : ${cli.niche}`} /></div>}
         </>
       )}
     </div>

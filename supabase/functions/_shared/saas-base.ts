@@ -422,3 +422,42 @@ export async function saasPubs(n = 6) {
   }
   return out;
 }
+
+// ---------------------------------------------------------------- Clients à démarcher (pour une niche ou un SaaS)
+// À partir de ce que vendent les SaaS de la niche et à qui (lu sur leurs sites), les types d'entreprises qui achètent,
+// en codes d'activité NAF ; chaque type est compté dans le registre officiel des entreprises (France entière).
+// Ces types peuvent devenir des cibles Bingoo! en un clic (Radar et Mission les prospectent ensuite).
+const NAF_OK = /^\d{2}\.\d{2}[A-Z]$/;
+const TRANCHES_OK = ["00", "01", "02", "03", "11", "12", "21", "22", "31", "32", "41", "42", "51", "52", "53"];
+export async function saasClients(o: { domaine?: string | null; categorie?: string | null; tag?: string | null }) {
+  const cle = `clients:${o.domaine ?? ""}:${o.categorie ?? ""}:${o.tag ?? ""}`.toLowerCase();
+  const { data: c } = await admin.from("explorer_cache").select("v, at").eq("k", cle).maybeSingle();
+  if (c && Date.now() - Date.parse(c.at) < 7 * 864e5) return c.v;
+  let q = admin.from("saas").select("nom, categorie, description, cible, prix_entree_eur").eq("statut", "ok");
+  if (o.domaine) q = q.eq("domaine", o.domaine.toLowerCase());
+  else { if (o.categorie) q = q.eq("categorie", o.categorie); if (o.tag) q = q.contains("tags", [o.tag]); }
+  const { data } = await q.order("score_croissance", { ascending: false }).limit(12);
+  const rows = (data ?? []) as { nom: string; categorie: string; description: string | null; cible: string | null; prix_entree_eur: number | null }[];
+  if (!rows.length) return { segments: [] };
+  setAi({ feature: "explorer/clients" });
+  const r = await askJson<{ segments: { label: string; pourquoi: string; naf: string[]; tranches: string[]; interlocuteur: string; angle: string }[] }>(
+    `Voici des logiciels SaaS ${o.domaine ? "" : "d'une même niche "}avec ce qu'ils vendent et à qui (lu sur leurs sites) :
+${rows.map((x) => `- ${x.nom} (${x.categorie}${x.prix_entree_eur ? `, dès ${x.prix_entree_eur} €/mois` : ""}) : ${x.description ?? ""} Pour : ${x.cible ?? ""}`).join("\n")}
+Quels types d'entreprises françaises achètent ce genre de logiciel ? Donne 3 à 5 segments concrets, du plus évident au plus original, uniquement des entreprises (pas de particuliers).
+Pour chacun : label (ex. « Agences immobilières de 3 à 20 salariés »), pourquoi (une phrase : leur besoin), naf (1 à 4 codes NAF rév. 2 de CES CLIENTS au format 00.00A, pas celui de l'éditeur), tranches (codes de tranche d'effectif INSEE parmi ${TRANCHES_OK.join(", ")}, cohérents avec le prix), interlocuteur (le poste qui achète, ex. « Gérant », « DAF »), angle (une phrase : l'argument qui le fera répondre).
+Clé : segments.`, { fast: true, maxTokens: 1500 }).catch(() => ({ segments: [] }));
+  const { countTarget } = await import("./search.ts");
+  const segments = [];
+  for (const [i, x] of (r.segments ?? []).slice(0, 5).entries()) {
+    const naf = (x.naf ?? []).map((n) => String(n).trim().toUpperCase()).filter((n) => NAF_OK.test(n)).slice(0, 4);
+    if (!x.label || !naf.length) continue;
+    const t = { id: `x${i}`, label: String(x.label).slice(0, 80), pourquoi: String(x.pourquoi ?? "").slice(0, 300), naf, tranches: (x.tranches ?? []).map(String).filter((v) => TRANCHES_OK.includes(v)),
+      siege_only: true, interlocuteur: String(x.interlocuteur ?? "").slice(0, 80), angle: String(x.angle ?? "").slice(0, 300) };
+    // deno-lint-ignore no-explicit-any
+    const total = await countTarget(t as any, []).catch(() => null);
+    segments.push({ ...t, total });
+  }
+  const v = { segments, source: "Registre national des entreprises (recherche-entreprises.api.gouv.fr), France entière, sièges seulement" };
+  if (segments.length) await admin.from("explorer_cache").upsert({ k: cle, v, at: new Date().toISOString() });
+  return v;
+}

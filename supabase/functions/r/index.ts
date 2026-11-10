@@ -66,6 +66,27 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     await admin.from("saas_suivis").insert({ workspace_id: ws.id, categorie: moi.categorie }).then(() => null, () => null);
     return { moi: { domaine: moi.domaine, nom: moi.nom, categorie: moi.categorie }, concurrents: ok.map((r) => ({ domaine: r.domaine, nom: r.nom, prix_entree_eur: r.prix_entree_eur })) };
   },
+  async "saas-clients"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    await quota(ws.id, "recherche", 200);
+    const { saasClients } = await import("../_shared/saas-base.ts");
+    return await saasClients({ domaine: b.domaine ? String(b.domaine) : null, categorie: b.categorie ? String(b.categorie) : null, tag: b.tag ? String(b.tag) : null });
+  },
+  // Explorer → prospection : un segment de clients devient une cible de l'espace (Radar et Mission la prospectent ensuite)
+  async "saas-cible-ajouter"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const x = (b.segment ?? {}) as Record<string, unknown>;
+    const naf = (Array.isArray(x.naf) ? x.naf : []).map(String).filter((n) => /^\d{2}\.\d{2}[A-Z]$/.test(n)).slice(0, 4);
+    if (!x.label || !naf.length) throw new HttpError(400, "Segment incomplet");
+    const targets = ((ws.targets ?? []) as Record<string, unknown>[]).slice();
+    if (targets.length >= 10) throw new HttpError(400, "Tu as déjà 10 cibles : désactive ou supprime-en une dans Réglages avant d'en ajouter.");
+    if (targets.some((t) => String(t.label).toLowerCase() === String(x.label).toLowerCase())) return { ok: true, deja: true };
+    const t = { id: `e${Date.now().toString(36)}`, label: String(x.label).slice(0, 80), pourquoi: String(x.pourquoi ?? "").slice(0, 300), naf,
+      tranches: (Array.isArray(x.tranches) ? x.tranches : []).map(String).slice(0, 8), siege_only: true, interlocuteur: String(x.interlocuteur ?? "").slice(0, 80),
+      pour_qui: "", angle: String(x.angle ?? "").slice(0, 300), confiance: "a_tester", moment: "", actif: true, next_page: 1, total: Number(x.total) || undefined, source: "explorer" };
+    await admin.from("workspaces").update({ targets: [...targets, t] }).eq("id", ws.id);
+    return { ok: true, id: t.id };
+  },
   async "saas-recherche"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     await quota(ws.id, "recherche", 200);
