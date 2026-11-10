@@ -526,3 +526,62 @@ Clés : type (promotion | lancement | contenu | evenement | temoignage | relance
     await admin.from("saas_emails").update({ kind: String(v.type ?? "autre").slice(0, 20), offre: String(v.offre ?? "").slice(0, 200), resume: String(v.resume ?? "").slice(0, 300) }).eq("id", e.id);
   }
 }
+
+// ---------------------------------------------------------------- « Lancer le mien » : un SaaS inspiré d'un SaaS qui marche
+// On ne copie ni le nom, ni les textes, ni le design (droit d'auteur, marques, parasitisme) : on reprend le besoin prouvé
+// et on construit une offre différenciée, à partir des données de la base (prix du marché, concurrents, chiffres publics).
+// Le plan d'affaires est calculé ici, à partir d'hypothèses affichées, jamais inventé par l'IA.
+type Projet = {
+  nom: string; pitch: string; cible: string; probleme: string;
+  differences: { angle: string; pourquoi: string }[];
+  mvp: { fonction: string; pourquoi: string; semaines: number }[]; plus_tard: string[];
+  stack: { brique: string; outil: string; cout_mois: number }[];
+  formules: { nom: string; prix: number; pour: string; inclus: string[] }[];
+  acquisition: { canal: string; comment: string }[];
+  risques: { risque: string; parade: string }[];
+  hypotheses: { clients_mois_1: number; croissance_mensuelle_pct: number; churn_mensuel_pct: number; conversion_essai_pct: number };
+};
+export async function saasLancer(wsId: string, domaine: string) {
+  const { data: s } = await admin.from("saas").select("id, nom, domaine, categorie, description, cible, pays, prix_entree_eur, gratuit, essai, formules, recrute, postes, tags, methode").eq("domaine", domaine.toLowerCase()).eq("statut", "ok").single();
+  if (!s) throw new Error("SaaS introuvable");
+  const { data: h } = await admin.from("saas_histoires").select("annee_creation, chiffres, histoire, lecons").eq("saas_id", s.id).eq("statut", "ok").maybeSingle();
+  const { data: conc } = await admin.from("saas").select("nom, pays, prix_entree_eur, gratuit, description").eq("statut", "ok").eq("categorie", s.categorie).neq("id", s.id).order("rang_web", { ascending: true, nullsFirst: false }).limit(12);
+  const prixMarche = (conc ?? []).map((c) => c.prix_entree_eur).filter((v) => v != null && v > 0).sort((a, b) => a - b);
+  const mediane = prixMarche.length ? prixMarche[Math.floor(prixMarche.length / 2)] : null;
+  setAi({ ws: wsId, feature: "explorer/lancer", live: true });
+  const p = await askJson<Projet>(`Tu aides un entrepreneur français à lancer un SaaS en s'inspirant d'un SaaS qui marche, SANS le copier : ni son nom, ni ses textes, ni son design, ni sa marque.
+Le SaaS qui marche : ${s.nom} (${s.domaine}), catégorie ${s.categorie}, pays ${s.pays ?? "inconnu"}.
+Ce qu'il fait : ${s.description ?? ""}. Pour : ${s.cible ?? ""}.
+Prix d'entrée : ${s.prix_entree_eur != null ? `${s.prix_entree_eur} €/mois` : "non affiché"}${s.gratuit ? ", version gratuite" : ""}${s.essai ? `, essai ${s.essai}` : ""}. Formules : ${JSON.stringify(s.formules ?? []).slice(0, 600)}.
+${s.recrute ? `Il recrute (${s.postes ?? "?"} postes).` : ""} Canaux visibles sur son site : ${JSON.stringify(s.methode ?? {}).slice(0, 300)}.
+${h ? `Chiffres publics : ${(h.chiffres ?? []).map((c: { texte: string }) => c.texte).join(" ; ").slice(0, 600)}. Ce qui l'a fait grandir : ${(h.lecons ?? []).join(" ; ")}` : ""}
+Ses concurrents dans la base : ${(conc ?? []).map((c) => `${c.nom} (${c.pays ?? "?"}, ${c.prix_entree_eur != null ? `${c.prix_entree_eur} €` : "prix ?"}${c.gratuit ? ", gratuit" : ""})`).join(", ")}. Prix d'entrée médian du marché : ${mediane ?? "inconnu"} €/mois.
+
+Propose un SaaS à lancer en France par une petite équipe (1 à 3 personnes), différent et meilleur sur un point précis.
+Clés JSON :
+nom (un nom ORIGINAL, sans ressemblance avec ${s.nom} ni avec un concurrent), pitch (une phrase), cible (qui exactement, en France), probleme (le besoin prouvé par le succès de ${s.nom}),
+differences (3 objets angle + pourquoi : ce qui le rend meilleur ou différent, ex. niche plus précise, prix, simplicité, français, intégrations locales),
+mvp (5 à 8 objets fonction + pourquoi + semaines de développement estimées), plus_tard (3 à 5 fonctions pour après),
+stack (5 à 8 objets brique + outil + cout_mois en euros, outils réels et courants : hébergement, base de données, paiement, e-mails, analytics, IA si utile),
+formules (2 ou 3 objets nom + prix en euros par mois + pour + inclus : 3 à 5 éléments ; cohérents avec le prix médian du marché),
+acquisition (4 à 6 objets canal + comment, concrets pour les 6 premiers mois),
+risques (3 objets risque + parade),
+hypotheses (prudentes : clients_mois_1 nombre de clients payants le premier mois, croissance_mensuelle_pct, churn_mensuel_pct, conversion_essai_pct).`, { maxTokens: 3500 });
+  // Plan d'affaires sur 12 mois, calculé à partir des hypothèses (prix moyen = moyenne des formules)
+  const H = p.hypotheses ?? { clients_mois_1: 3, croissance_mensuelle_pct: 25, churn_mensuel_pct: 4, conversion_essai_pct: 15 };
+  const prixMoyen = Math.round(((p.formules ?? []).reduce((a, f) => a + Number(f.prix || 0), 0) / Math.max(1, (p.formules ?? []).length)) * 100) / 100;
+  const couts = Math.round((p.stack ?? []).reduce((a, x) => a + Number(x.cout_mois || 0), 0));
+  const mois = []; let clients = 0, nouveaux = Math.max(1, Number(H.clients_mois_1) || 1), cumul = 0;
+  for (let m = 1; m <= 12; m++) {
+    clients = Math.max(0, Math.round(clients * (1 - Number(H.churn_mensuel_pct || 0) / 100) + nouveaux));
+    const mrr = Math.round(clients * prixMoyen);
+    const charges = couts + Math.round(mrr * 0.03); // + frais de paiement ≈ 3 %
+    cumul += mrr - charges;
+    mois.push({ mois: m, nouveaux: Math.round(nouveaux), clients, mrr, charges, resultat: mrr - charges, cumul });
+    nouveaux = nouveaux * (1 + Number(H.croissance_mensuelle_pct || 0) / 100);
+  }
+  const data = { ...p, inspire: { nom: s.nom, domaine: s.domaine, categorie: s.categorie, prix: s.prix_entree_eur }, marche: { mediane, prix: prixMarche, concurrents: (conc ?? []).length },
+    plan: { prix_moyen: prixMoyen, couts_fixes: couts, mois, equilibre: mois.find((x) => x.resultat > 0)?.mois ?? null } };
+  const { data: row } = await admin.from("saas_projets").insert({ workspace_id: wsId, saas_id: s.id, data }).select("id").single();
+  return { id: row?.id, ...data };
+}

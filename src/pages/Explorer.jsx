@@ -39,6 +39,7 @@ export default function Explorer({ domaine: fixe }) {
   if (d === "bouge") return <><Onglets actif="bouge" /><Fil /></>;
   if (d === "suivis") return <><Onglets actif="suivis" /><Suivis /></>;
   if (d === "marche") return <><Onglets actif="marche" /><Marche /></>;
+  if (d === "lancer") return <Lancer />;
   if (d === "carte") return <><Onglets actif="carte" /><Carte /></>;
   if (d === "pubs") return <><Onglets actif="pubs" /><Pubs /></>;
   if (d === "idees") return <><Onglets actif="idees" /><Idees /></>;
@@ -297,7 +298,8 @@ function Fiche({ domaine }) {
           {s.cible && <p className="mt-1 text-[14px] text-ink-soft">Pour : {s.cible}</p>}
           {(s.tags ?? []).length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{s.tags.map((t) => <span key={t} className="rounded-full bg-paper px-2.5 py-1 text-[12.5px]">{t}</span>)}</div>}
         </div>
-        <BoutonSuivre saasId={s.id} />
+        <div className="flex flex-col gap-2"><BoutonSuivre saasId={s.id} />
+          <button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className="rounded-xl bg-accent text-white px-4 py-2.5 text-[14px] font-bold hover:bg-accent-dark">Lancer le mien</button></div>
         <div className="rounded-2xl bg-white border border-line px-5 py-3 text-center">
           <p className="text-[12px] text-ink-faint">Score de croissance</p>
           <p className="text-[34px] font-black tnum leading-none mt-1" style={HF}>{s.score_croissance ?? "—"}</p>
@@ -713,6 +715,7 @@ function Histoire({ h, saas, onOuvrir }) {
         </div>
       )}
       <div className="mt-3 flex flex-wrap gap-1.5">
+        {saas && <button onClick={(e) => { e.stopPropagation(); window.location.hash = `#/explorer/lancer?d=${saas.domaine}`; }} className="rounded-full bg-accent text-white px-3 py-1 text-[12.5px] font-bold hover:bg-accent-dark">Lancer le mien</button>}
         {ch.map((c, i) => <a key={i} href={c.source} target="_blank" rel="noopener noreferrer" title={c.source} className="rounded-full border border-line px-2.5 py-1 text-[12.5px] hover:border-ink-faint">{c.texte} <span className="text-ink-faint">· {hote(c.source)}</span></a>)}
       </div>
     </article>
@@ -797,6 +800,102 @@ function Idees() {
             </div>
           ) : <p className="mt-6 text-ink-faint">Pas encore assez de SaaS lus pour faire ressortir des idées.</p>}
           {cli && <div id="clients-niche" className="mt-4"><Clients key={cli.genre + cli.niche} categorie={cli.genre === "categorie" ? cli.niche : null} tag={cli.genre === "tag" ? cli.niche : null} titre={`Qui démarcher : ${cli.niche}`} /></div>}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- Lancer le mien : un SaaS inspiré d'un SaaS qui marche
+const eurs = (n) => `${Number(n).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €`;
+function Lancer() {
+  const nav = useNavigate();
+  const loc = useLocation();
+  const { ws } = useWs();
+  const toast = useToast();
+  const d = new URLSearchParams(loc.search).get("d") ?? "";
+  const [saas, setSaas] = useState(null);
+  const [p, setP] = useState(undefined);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    supabase.from("saas_liste").select("nom, domaine, categorie, description, pays, prix_entree_eur").eq("domaine", d).maybeSingle().then(({ data }) => setSaas(data ?? null));
+    supabase.from("saas_projets").select("id, data, at").eq("workspace_id", ws.id).eq("data->inspire->>domaine", d).order("at", { ascending: false }).limit(1).then(({ data }) => setP(data?.[0] ? { id: data[0].id, ...data[0].data } : null));
+  }, [d, ws.id]);
+  const generer = async () => {
+    if (niv(ws) < 2) { nav("/abonnement"); return; }
+    setBusy(true);
+    try { setP(await fn("r/saas-lancer", { workspace_id: ws.id, domaine: d })); } catch (x) { toast(x.message, "bad"); } finally { setBusy(false); }
+  };
+  const Bloc = ({ titre, sous, children, className }) => <section className={cx("rounded-2xl bg-white border border-line p-5 break-inside-avoid", className)}><h2 className="font-bold text-[17px]">{titre}</h2>{sous && <p className="text-[12.5px] text-ink-faint">{sous}</p>}<div className="mt-3">{children}</div></section>;
+  if (p === undefined) return <div className="py-24 grid place-items-center"><Spinner /></div>;
+  const nomInspi = saas?.nom ?? p?.inspire?.nom ?? d;
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 print:py-0">
+      <button onClick={() => nav(`/explorer/${d}`)} className="text-[13px] text-ink-soft hover:text-ink print:hidden">← {nomInspi}</button>
+      {!p ? (
+        <div className="mt-4 rounded-3xl bg-ink text-white p-8">
+          <p className="text-[13px] font-bold uppercase tracking-wide text-[#F6A06B]">Lancer le mien</p>
+          <h1 className="mt-2 text-[32px] sm:text-[42px] font-black leading-[1.05]" style={HF}>{nomInspi} marche. Lance ta version, en mieux.</h1>
+          <p className="mt-3 max-w-2xl text-white/75 text-[16px]">Bingoo! part de ce qui prouve que le besoin existe ({nomInspi}, ses prix, ses concurrents, ses chiffres publics) et te prépare un SaaS différent : un nom à toi, ce qui le rend meilleur, le MVP à coder semaine par semaine, les outils et leur coût, tes prix, comment trouver tes premiers clients, et le plan d'affaires sur 12 mois.</p>
+          <p className="mt-3 text-[13px] text-white/55">Inspiré, pas copié : ni le nom, ni les textes, ni le design de {nomInspi}. Copier une marque ou un site expose à des poursuites ; s'inspirer d'un besoin qui marche, non.</p>
+          <button onClick={generer} disabled={busy} className="mt-6 rounded-xl bg-accent px-7 py-3.5 font-bold hover:bg-accent-dark disabled:opacity-60">{busy ? "Préparation de ton projet… (30 secondes)" : niv(ws) < 2 ? "Disponible avec la formule Pro" : "Préparer mon projet"}</button>
+        </div>
+      ) : (
+        <>
+          <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-[13px] font-bold uppercase tracking-wide text-accent-dark">Ton projet, inspiré de {nomInspi}</p>
+              <h1 className="mt-1 text-[36px] sm:text-[46px] font-black leading-[1.02]" style={HF}>{p.nom}</h1>
+              <p className="mt-1 text-[18px] text-ink-soft max-w-3xl">{p.pitch}</p>
+            </div>
+            <div className="flex gap-2 print:hidden">
+              <button onClick={() => window.print()} className="rounded-xl border border-line bg-white px-4 py-2.5 text-[14px] font-semibold hover:border-ink-faint">Imprimer ou PDF</button>
+              <button onClick={generer} disabled={busy} className="rounded-xl border border-line bg-white px-4 py-2.5 text-[14px] font-semibold hover:border-ink-faint disabled:opacity-60">{busy ? "Nouvelle version…" : "Autre version"}</button>
+            </div>
+          </div>
+
+          <div className="mt-5 grid md:grid-cols-2 gap-4">
+            <Bloc titre="Le besoin">{<><p className="text-[14.5px]">{p.probleme}</p><p className="mt-2 text-[14px] text-ink-soft"><b className="text-ink">Pour qui :</b> {p.cible}</p></>}</Bloc>
+            <Bloc titre="Le marché" sous="Relevé dans la base Explorer">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                {[[p.inspire?.prix != null ? `${p.inspire.prix} €` : "—", `prix d'entrée de ${nomInspi}`], [p.marche?.mediane != null ? `${p.marche.mediane} €` : "—", "prix médian du marché"], [p.marche?.concurrents ?? "—", "concurrents suivis"]].map(([v, l]) => <div key={l} className="rounded-xl bg-paper py-3"><p className="text-[22px] font-black tnum" style={HF}>{v}</p><p className="text-[11.5px] text-ink-faint px-1">{l}</p></div>)}
+              </div>
+            </Bloc>
+          </div>
+
+          <h2 className="mt-6 font-bold text-[20px]">Ce qui le rend meilleur</h2>
+          <div className="mt-2 grid md:grid-cols-3 gap-3">{(p.differences ?? []).map((x, i) => <div key={i} className="rounded-2xl bg-accent-soft/60 border border-accent/20 p-4 break-inside-avoid"><p className="font-bold">{x.angle}</p><p className="mt-1 text-[14px] text-ink-soft">{x.pourquoi}</p></div>)}</div>
+
+          <div className="mt-4 grid lg:grid-cols-2 gap-4">
+            <Bloc titre="Le MVP à coder" sous={`${(p.mvp ?? []).reduce((a, x) => a + Number(x.semaines || 0), 0)} semaines au total, estimées pour une personne`}>
+              <ol className="space-y-2">{(p.mvp ?? []).map((x, i) => <li key={i} className="flex gap-3"><span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-ink text-white text-[12px] font-bold">{i + 1}</span><div className="flex-1"><p className="font-semibold text-[14.5px]">{x.fonction} <span className="font-normal text-ink-faint text-[12.5px]">· {x.semaines} sem.</span></p><p className="text-[13.5px] text-ink-soft">{x.pourquoi}</p></div></li>)}</ol>
+              {p.plus_tard?.length > 0 && <div className="mt-3"><p className="text-[12px] font-bold uppercase tracking-wide text-ink-faint">Plus tard</p><div className="mt-1 flex flex-wrap gap-1.5">{p.plus_tard.map((x) => <span key={x} className="rounded-full bg-paper px-2.5 py-1 text-[12.5px]">{x}</span>)}</div></div>}
+            </Bloc>
+            <Bloc titre="Les outils" sous={`Environ ${eurs(p.plan?.couts_fixes ?? 0)} par mois au démarrage`}>
+              <table className="w-full text-[14px]"><tbody>{(p.stack ?? []).map((x, i) => <tr key={i} className="border-t border-line first:border-0"><td className="py-2 text-ink-soft">{x.brique}</td><td className="py-2 font-semibold">{x.outil}</td><td className="py-2 text-right tnum">{x.cout_mois ? eurs(x.cout_mois) : "gratuit"}</td></tr>)}</tbody></table>
+            </Bloc>
+          </div>
+
+          <h2 className="mt-6 font-bold text-[20px]">Tes prix</h2>
+          <div className="mt-2 grid md:grid-cols-3 gap-3">{(p.formules ?? []).map((f, i) => <div key={i} className={cx("rounded-2xl border p-5 break-inside-avoid", i === 1 ? "bg-ink text-white border-ink" : "bg-white border-line")}><p className="font-bold">{f.nom}</p><p className="mt-1 text-[32px] font-black tnum" style={HF}>{eurs(f.prix)}<span className={cx("text-[13px] font-medium", i === 1 ? "text-white/60" : "text-ink-faint")}> / mois</span></p><p className={cx("text-[13.5px]", i === 1 ? "text-white/75" : "text-ink-soft")}>{f.pour}</p><ul className="mt-2 space-y-1 text-[13.5px]">{(f.inclus ?? []).map((x) => <li key={x}>✓ {x}</li>)}</ul></div>)}</div>
+
+          <Bloc className="mt-4" titre="Le plan d'affaires sur 12 mois" sous={`Calculé à partir des hypothèses ci-dessous, prix moyen ${eurs(p.plan?.prix_moyen ?? 0)} par mois et par client, frais de paiement 3 %. Ce sont des hypothèses prudentes, pas une promesse.`}>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {[[p.hypotheses?.clients_mois_1, "clients le 1er mois"], [`${p.hypotheses?.croissance_mensuelle_pct} %`, "croissance par mois"], [`${p.hypotheses?.churn_mensuel_pct} %`, "clients perdus par mois"], [p.plan?.equilibre ? `mois ${p.plan.equilibre}` : "après 12 mois", "rentable à partir de"]].map(([v, l]) => <div key={l} className="rounded-xl bg-paper p-3"><p className="text-[20px] font-black tnum" style={HF}>{v}</p><p className="text-[12px] text-ink-faint">{l}</p></div>)}
+            </div>
+            <div className="mt-4"><LineChart points={(p.plan?.mois ?? []).map((m) => ({ v: m.mrr, label: `M${m.mois}` }))} height={160} unit=" €" /></div>
+            <div className="mt-3 overflow-x-auto"><table className="w-full min-w-[620px] text-[13.5px] tnum">
+              <thead><tr className="text-left text-[12px] text-ink-faint"><th className="py-1.5 font-medium">Mois</th><th className="font-medium">Nouveaux</th><th className="font-medium">Clients</th><th className="font-medium">Revenu mensuel</th><th className="font-medium">Charges</th><th className="font-medium">Résultat</th><th className="font-medium">Cumul</th></tr></thead>
+              <tbody>{(p.plan?.mois ?? []).map((m) => <tr key={m.mois} className="border-t border-line"><td className="py-1.5">{m.mois}</td><td>{m.nouveaux}</td><td>{m.clients}</td><td className="font-semibold">{eurs(m.mrr)}</td><td>{eurs(m.charges)}</td><td className={m.resultat >= 0 ? "text-[#15803D]" : "text-[#B91C1C]"}>{eurs(m.resultat)}</td><td className={m.cumul >= 0 ? "text-[#15803D]" : "text-[#B91C1C]"}>{eurs(m.cumul)}</td></tr>)}</tbody>
+            </table></div>
+            <p className="mt-2 text-[12px] text-ink-faint">Sans salaire ni marketing payant : à ajouter selon ta situation. Je ne suis pas un conseiller financier ; vérifie ces chiffres avant d'investir.</p>
+          </Bloc>
+
+          <div className="mt-4 grid lg:grid-cols-2 gap-4">
+            <Bloc titre="Trouver tes premiers clients">{<ul className="space-y-2">{(p.acquisition ?? []).map((x, i) => <li key={i}><p className="font-semibold text-[14.5px]">{x.canal}</p><p className="text-[13.5px] text-ink-soft">{x.comment}</p></li>)}</ul>}</Bloc>
+            <Bloc titre="Les risques et la parade">{<ul className="space-y-2">{(p.risques ?? []).map((x, i) => <li key={i}><p className="font-semibold text-[14.5px]">{x.risque}</p><p className="text-[13.5px] text-ink-soft">{x.parade}</p></li>)}</ul>}</Bloc>
+          </div>
+          <p className="mt-4 text-[12px] text-ink-faint">Projet préparé par une IA à partir des données de la base Explorer. Inspiré de {nomInspi}, sans en reprendre le nom, les textes ni le design. Vérifie la disponibilité du nom (INPI, nom de domaine) avant de le déposer.</p>
         </>
       )}
     </div>

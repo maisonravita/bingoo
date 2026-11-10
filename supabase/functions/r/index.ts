@@ -68,6 +68,15 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     await admin.from("saas_suivis").insert({ workspace_id: ws.id, saas_id: moi.id }).then(() => null, () => null);
     return { moi: { domaine: moi.domaine, nom: moi.nom, categorie: moi.categorie }, concurrents: ok.map((r) => ({ domaine: r.domaine, nom: r.nom, prix_entree_eur: r.prix_entree_eur })) };
   },
+  async "saas-lancer"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    if (ws.plan === "explorer") throw new HttpError(402, "« Lancer le mien » est dans la formule Pro.");
+    await quota(ws.id, "lancer", 10);
+    const { saasLancer } = await import("../_shared/saas-base.ts");
+    const r = await saasLancer(ws.id, String(b.domaine ?? ""));
+    await log(ws.id, "lancer", `Projet de SaaS inspiré de ${r.inspire.nom}`);
+    return r;
+  },
   async "saas-clients"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     if (ws.plan === "explorer") throw new HttpError(402, "« Qui démarcher » est dans la formule Pro.");
