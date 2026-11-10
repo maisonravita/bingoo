@@ -52,7 +52,7 @@ const ANALYSE = (adresse) => {
 
 (async () => {
   const max = Number(process.env.MAX || 30);
-  const rows = await q(`select id, domaine from public.saas where statut = 'ok' and newsletter_at is null order by rang_web asc nulls last, score_croissance desc nulls last limit ${max}`);
+  const rows = await q(`select id, domaine from public.saas where statut = 'ok' and newsletter_at is null order by (rang_web between 2000 and 800000) desc, score_croissance desc nulls last, random() limit ${max}`);
   console.log("à essayer :", rows.length);
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ locale: "fr-FR", userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36 BingooBot/1.0 (+https://kairo.maisonravita.fr/#/retrait)" });
@@ -71,7 +71,13 @@ const ANALYSE = (adresse) => {
         // Sinon, la page newsletter ou blog liée depuis l'accueil (même site)
         if (!a.ok) {
           const lien = await page.evaluate((dom) => [...document.querySelectorAll("a[href]")].map((x) => x.href).find((h) => { try { const u = new URL(h); return u.hostname.replace(/^www\./, "").endsWith(dom) && /(newsletter|subscribe|blog)\/?$/i.test(u.pathname); } catch { return false; } }) ?? "", r.domaine);
-          if (lien && ok(lien)) { await page.goto(lien, { waitUntil: "domcontentloaded", timeout: 25000 }); await page.waitForTimeout(2500); a = await page.evaluate(ANALYSE, ADRESSE); }
+          // Puis les adresses habituelles d'une page newsletter ou blog
+          for (const u of [lien, `https://${r.domaine}/newsletter`, `https://${r.domaine}/blog`].filter((x, k, t) => x && t.indexOf(x) === k)) {
+            if (a.ok || !ok(u)) continue;
+            const rep = await page.goto(u, { waitUntil: "domcontentloaded", timeout: 25000 }).catch(() => null);
+            if (!rep || !rep.ok()) continue;
+            await page.waitForTimeout(2500); a = await page.evaluate(ANALYSE, ADRESSE);
+          }
         }
         if (a.ok) {
           const form = page.locator('form[data-bingoo="1"]').first();
