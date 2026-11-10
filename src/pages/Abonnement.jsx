@@ -181,7 +181,7 @@ export default function Abonnement() {
           return (
             <Card key={p.key} className={cx("p-5 sm:p-6 flex flex-col min-w-0", featured && "!border-ink ring-1 ring-ink")}>
               <div className="flex items-center justify-between gap-2"><p className="font-semibold">{p.label}</p>{featured && <Badge tone="accent">Le plus choisi</Badge>}</div>
-              <p className="mt-3">{fondateur && <span className="mr-2 text-ink-faint line-through text-2xl tnum">{yearly ? Math.round(p.price * 12 * 0.8 / 12) : eur(p.price)} €</span>}<span className="font-serif text-5xl tnum">{yearly ? Math.round(prix * 12 * 0.8 / 12) : eur(prix)} €</span><span className="text-ink-soft text-sm"> HT / mois</span></p>
+              <p className="mt-3">{fondateur && <span className="mr-2 text-ink-faint line-through text-xl tnum whitespace-nowrap">{yearly ? Math.round(p.price * 12 * 0.8 / 12) : eur(p.price)} €</span>}<span className="font-serif text-4xl tnum whitespace-nowrap">{yearly ? Math.round(prix * 12 * 0.8 / 12) : eur(prix)} €</span><span className="text-ink-soft text-sm"> HT / mois</span></p>
               <p className="text-xs text-ink-faint mt-1">{fondateur ? "prix fondateur, à vie" : ""}{fondateur && " · "}{yearly ? `soit ${Math.round(prix * 12 * 0.8)} € HT par an, au lieu de ${eur(Math.round(prix * 12 * 100) / 100)} €` : "sans engagement"}</p>
               <ul className="mt-4 space-y-2 text-sm flex-1">{(FEATURES[p.key] ?? []).map((f) => <li key={f} className="flex gap-2"><span className="text-good">✓</span><span>{f}</span></li>)}</ul>
               <Button className="mt-6 w-full" variant={featured ? "primary" : "default"} disabled={current || ws.plan === "fondateur"} loading={busy === p.key} onClick={() => go("billing-checkout", p.key)}>
