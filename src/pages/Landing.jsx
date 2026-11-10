@@ -34,8 +34,10 @@ function useNbSaas() {
 
 const EXPLORER = [
   ["apercu-explorer.jpg", "Tous les SaaS, au même endroit", "Filtre par catégorie, pays, prix, version gratuite, recrutement ou nouveauté du mois. Trie par croissance.", "La liste Explorer dans la vraie application."],
-  ["apercu-explorer-fiche.jpg", "La fiche complète d'un concurrent", "Prix et historique, formules, essai, postes ouverts, dernière nouveauté, outils du site et méthode d'acquisition. Chaque information a son lien.", "La fiche de lemlist, relevée sur son site."],
+  ["apercu-explorer-fiche.jpg", "La fiche complète d'un concurrent", "Prix et historique, formules, postes ouverts, dernière nouveauté, méthode d'acquisition, notoriété web, et son histoire chiffrée quand la presse l'a publiée. Chaque information a son lien.", "La fiche de lemlist, relevée sur son site."],
   ["apercu-tendances.jpg", "Ce qui monte, mois après mois", "Les créations officielles d'éditeurs de logiciels en France par thème, les SaaS par pays et les catégories fortes ailleurs mais rares en France.", "Pays et tendances : annonces légales officielles (BODACC)."],
+  ["apercu-idees.jpg", "Les idées que le marché laisse ouvertes", "Ce qui marche ailleurs et manque en France, les niches sans offre gratuite, celles où tout le monde recrute. Et les SaaS qui chiffrent le plus, avec leurs vrais chiffres et comment ils ont grandi.", "Idées et réussites, calculées sur la base."],
+  ["apercu-qui-demarcher.jpg", "Puis, qui démarcher", "Pour une niche ou un concurrent : les types d'entreprises qui achètent, comptés au registre officiel. Un clic, et Bingoo! va chercher leurs décideurs.", "Les clients de Sellsy, en France."],
   ["apercu-mes-suivis.jpg", "Suis tes concurrents, sans y penser", "Tu suis des SaaS ou une catégorie entière. Chaque lundi, un e-mail : changements de prix, recrutements, nouveautés, nouveaux entrants.", "Mes suivis, avec quatre SaaS de prospection."],
 ];
 function Explorer({ n }) {
@@ -213,7 +215,7 @@ const PLANS = [
   ["Équipe", 109, "Pour une startup ou une PME avec quelques commerciaux.", ["5 utilisateurs", "Explorer illimité", "700 prospects contactés par mois", "Tout ce qu'il y a dans Pro", "Répartition des prospects entre commerciaux", "Tableau de bord par commercial"]],
 ];
 const FAQ = [
-  ["D'où viennent les informations sur les SaaS ?", "De leurs propres sites, relus chaque semaine : page d'accueil, tarifs, page carrières, changelog ou blog. Pour les tendances, des annonces légales officielles (BODACC). Rien n'est estimé : une information introuvable est affichée comme telle, et chaque chiffre a son lien."],
+  ["D'où viennent les informations sur les SaaS ?", "De leurs propres sites, relus chaque semaine : page d'accueil, tarifs, page carrières, changelog ou blog. Les chiffres d'entreprise (chiffre d'affaires, levées) viennent de la presse ou de documents officiels, la notoriété du Majestic Million, les tendances des annonces légales officielles (BODACC). Rien n'est estimé : une information introuvable est affichée comme telle, et chaque chiffre a son lien."],
   ["Quels SaaS sont dans Explorer ?", "Des logiciels français, européens et américains, dans 25 catégories. Tu peux ajouter n'importe quel SaaS par son adresse : il est lu tout de suite. La base grandit chaque jour."],
   ["J'édite un SaaS, puis-je corriger ou retirer sa fiche ?", "Oui. Notre robot (BingooBot) respecte le fichier robots.txt et ne lit que des pages publiques. Écris-nous depuis une adresse de ton domaine pour une correction ou un retrait, traité sous 72 heures."],
   ["Et si je n'obtiens aucun résultat ?", "Pendant ton premier mois payant, si tu as laissé partir au moins 60 % des premiers messages de ta formule (60 sur Solo, 180 sur Pro, 420 sur Équipe) et que tu n'as obtenu ni rendez-vous ni réponse positive, ton premier mois t'est remboursé. Tu n'as rien à demander : Bingoo! le calcule et te prévient."],
