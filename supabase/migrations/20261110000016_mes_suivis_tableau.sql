@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_mes_suivis enrichi (moi, gratuit, essai, notoriété, relevés pour les courbes)

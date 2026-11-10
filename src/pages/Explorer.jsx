@@ -870,15 +870,55 @@ function Suivis() {
   const nav = useNavigate();
   const { ws } = useWs();
   const [r, setR] = useState(null);
+  const [tri, setTri] = useState({ k: "prix", sens: 1 });
   const charger = () => supabase.rpc("saas_mes_suivis", { ws: ws.id, jours: 30 }).then(({ data }) => setR(data ?? { saas: [], categories: [], fil: [] }));
   useEffect(() => { charger(); }, [ws.id]);
   const retirerCat = async (c) => { await supabase.from("saas_suivis").delete().eq("workspace_id", ws.id).eq("categorie", c); charger(); };
   if (!r) return <div className="py-24 grid place-items-center"><Spinner /></div>;
   const vide = !r.saas.length && !r.categories.length;
+  const estMoi = (x) => r.moi && (x.domaine === r.moi || r.moi.endsWith("." + x.domaine));
+  const moi = r.saas.find(estMoi);
+  const autres = r.saas.filter((x) => !estMoi(x));
+  // Chiffres du tableau de bord, calculés sur les concurrents (sans ton propre SaaS)
+  const prix = autres.map((x) => x.prix_entree_eur).filter((v) => v != null).sort((a, b) => a - b);
+  const mediane = prix.length ? (prix.length % 2 ? prix[(prix.length - 1) / 2] : Math.round((prix[prix.length / 2 - 1] + prix[prix.length / 2]) / 2)) : null;
+  const recrutent = autres.filter((x) => x.recrute), postes = autres.reduce((n, x) => n + (x.postes ?? 0), 0);
+  const mois = Date.now() - 30 * 864e5;
+  const nouveaux = autres.filter((x) => x.nouveaute && Date.parse(x.nouveaute) > mois).length;
+  const changements = r.fil.length;
+  const ecart = moi?.prix_entree_eur != null && mediane ? Math.round(((moi.prix_entree_eur - mediane) / mediane) * 100) : null;
+  // Courbe : postes ouverts chez les concurrents suivis, semaine par semaine
+  const sem = new Map();
+  for (const x of autres) for (const p of x.releves ?? []) { const d = new Date(p.at); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); const k = d.toISOString().slice(0, 10); const v = sem.get(k) ?? {}; v[x.id] = p.postes ?? 0; sem.set(k, v); }
+  const courbe = [...sem.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => ({ v: Object.values(v).reduce((a, b) => a + b, 0), label: new Date(k).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) }));
+  const COL = {
+    nom: (x) => x.nom.toLowerCase(), prix: (x) => x.prix_entree_eur ?? 1e9, postes: (x) => -(x.postes ?? 0),
+    nouveaute: (x) => -(x.nouveaute ? Date.parse(x.nouveaute) : 0), rang: (x) => x.rang_web ?? 1e9, chg: (x) => -(x.changements ?? 0),
+  };
+  const lignes = [...autres].sort((a, b) => { const va = COL[tri.k](a), vb = COL[tri.k](b); return (va > vb ? 1 : va < vb ? -1 : 0) * tri.sens; });
+  const Th = ({ k, children, className }) => <th className={cx("px-3 py-2.5 font-medium cursor-pointer select-none hover:text-ink whitespace-nowrap", className)} onClick={() => setTri((t) => ({ k, sens: t.k === k ? -t.sens : 1 }))}>{children}{tri.k === k ? (tri.sens > 0 ? " ↓" : " ↑") : ""}</th>;
+  const Ligne = ({ x, toi }) => {
+    const pts = (x.releves ?? []).map((p) => ({ n: p.postes ?? 0 }));
+    const prixAvant = (x.releves ?? []).filter((p) => p.prix != null).slice(-2, -1)[0]?.prix;
+    return (
+      <tr onClick={() => nav(`/explorer/${x.domaine}`)} className={cx("border-t border-line cursor-pointer hover:bg-paper/60 align-middle", toi && "bg-[#FFF7F3]")}>
+        <td className="px-3 py-2.5"><div className="flex items-center gap-2.5 min-w-[180px]"><CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="w-8 h-8" /><span className="min-w-0"><span className="font-semibold">{x.nom}</span> {drapeau(x.pays)}{toi && <span className="ml-1.5 rounded bg-accent text-white px-1.5 py-0.5 text-[10.5px] font-bold">TOI</span>}<span className="block text-[12px] text-ink-faint truncate">{x.domaine}</span></span></div></td>
+        <td className="px-3 py-2.5 tnum whitespace-nowrap">{x.prix_entree_eur != null ? <>{x.prix_entree_eur} €{prixAvant != null && prixAvant !== x.prix_entree_eur && <span className={cx("ml-1 text-[12px] font-bold", x.prix_entree_eur > prixAvant ? "text-[#B91C1C]" : "text-[#15803D]")}>{x.prix_entree_eur > prixAvant ? "▲" : "▼"}</span>}</> : <span className="text-ink-faint">{usage(x) ? "à l'usage" : x.sur_devis ? "sur devis" : "—"}</span>}</td>
+        <td className="px-3 py-2.5 text-[13px] whitespace-nowrap">{x.gratuit ? "Gratuit" : x.essai ? "Essai" : <span className="text-ink-faint">Non</span>}</td>
+        <td className="px-3 py-2.5"><div className="flex items-center gap-2"><span className={cx("tnum w-7 text-right", x.recrute ? "font-semibold text-[#15803D]" : "text-ink-faint")}>{x.postes ?? (x.recrute ? "oui" : 0)}</span><div className="w-20">{pts.length > 1 && <Sparkline pts={pts} h={24} />}</div></div></td>
+        <td className="px-3 py-2.5 text-[13px] whitespace-nowrap">{x.nouveaute ? date(x.nouveaute) : <span className="text-ink-faint">—</span>}</td>
+        <td className="px-3 py-2.5 text-[13px] tnum whitespace-nowrap">{x.rang_web ? <>N° {Number(x.rang_web).toLocaleString("fr-FR")}{x.rang_web_avant && x.rang_web_avant !== x.rang_web && <span className={cx("ml-1 font-bold", x.rang_web < x.rang_web_avant ? "text-[#15803D]" : "text-[#B91C1C]")}>{x.rang_web < x.rang_web_avant ? "▲" : "▼"}</span>}</> : <span className="text-ink-faint">—</span>}</td>
+        <td className="px-3 py-2.5 text-center">{x.changements > 0 ? <span className="rounded-md bg-accent-soft text-accent-dark px-2 py-0.5 text-[12px] font-bold">{x.changements}</span> : <span className="text-ink-faint">0</span>}</td>
+      </tr>
+    );
+  };
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-      <h1 className="text-[30px] font-black tracking-tight" style={HF}>Mes suivis</h1>
-      <p className="text-ink-soft">Les SaaS et les catégories que tu suis. Chaque lundi matin, un e-mail résume ce qui a bougé.</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div><h1 className="text-[30px] font-black tracking-tight" style={HF}>Mes suivis</h1>
+          <p className="text-ink-soft">Tes concurrents côte à côte, relus chaque semaine. Chaque lundi matin, un e-mail résume ce qui a bougé.</p></div>
+        <button onClick={() => nav("/explorer")} className="rounded-xl border border-line bg-white px-4 py-2.5 text-[14px] font-semibold hover:border-ink-faint">+ Suivre un SaaS</button>
+      </div>
       {vide ? (
         <div className="mt-6 rounded-2xl bg-white border border-line p-6">
           <p className="font-semibold">Tu ne suis encore rien.</p>
@@ -886,40 +926,64 @@ function Suivis() {
           <button onClick={() => nav("/explorer")} className="mt-4 rounded-xl bg-ink text-white px-4 py-2.5 text-[14px] font-semibold">Parcourir les SaaS</button>
         </div>
       ) : (
-        <div className="mt-5 grid lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2 space-y-4">
-            <section className="rounded-2xl bg-white border border-line p-5">
-              <h2 className="font-bold">Ce qui a bougé ces 30 derniers jours</h2>
-              {r.fil.length ? (
-                <ul className="mt-3 divide-y divide-line">{r.fil.map((e, i) => (
-                  <li key={i} onClick={() => nav(`/explorer/${e.domaine}`)} className="py-2.5 flex items-center gap-3 cursor-pointer hover:bg-paper/60 -mx-2 px-2 rounded-lg">
-                    <span className="text-ink-faint tnum text-[13px] w-20 shrink-0">{date(e.at)}</span>
-                    <CompanyLogo name={e.nom} url={`https://${e.domaine}`} className="w-8 h-8" />
-                    <span className="text-[14px]"><b>{e.nom}</b> · {evTexte(e)}</span>
-                  </li>
-                ))}</ul>
-              ) : <p className="mt-2 text-[14px] text-ink-faint">Rien pour l'instant. Chaque SaaS est relu une fois par semaine : les changements apparaissent dès le deuxième relevé.</p>}
-            </section>
+        <>
+          <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              [mediane != null ? `${mediane} €` : "—", "Prix d'entrée médian", ecart != null ? `Toi : ${moi.prix_entree_eur} € (${ecart > 0 ? "+" : ""}${ecart} %)` : `${prix.length} prix affichés sur ${autres.length}`],
+              [`${recrutent.length} / ${autres.length}`, "Recrutent en ce moment", postes ? `${postes} postes ouverts au total` : "Aucun poste publié"],
+              [String(nouveaux), "Ont sorti une nouveauté", "ces 30 derniers jours"],
+              [String(changements), "Changements repérés", "prix, offres, recrutement, en 30 jours"],
+            ].map(([v, t, sub]) => (
+              <div key={t} className="rounded-2xl bg-white border border-line p-4">
+                <p className="text-[28px] font-black leading-none tnum" style={HF}>{v}</p>
+                <p className="mt-2 text-[13.5px] font-semibold">{t}</p>
+                <p className="mt-0.5 text-[12.5px] text-ink-faint">{sub}</p>
+              </div>
+            ))}
           </div>
-          <div className="space-y-4">
-            <section className="rounded-2xl bg-white border border-line p-5">
-              <h2 className="font-bold">SaaS suivis ({r.saas.length})</h2>
-              <ul className="mt-3 space-y-2">{r.saas.map((s) => (
-                <li key={s.id} onClick={() => nav(`/explorer/${s.domaine}`)} className="flex items-center gap-3 cursor-pointer rounded-xl border border-line px-3 py-2 hover:border-ink-faint">
-                  <CompanyLogo name={s.nom} url={`https://${s.domaine}`} className="w-8 h-8" />
-                  <div className="min-w-0 flex-1"><p className="font-semibold text-[14px] truncate">{s.nom} {drapeau(s.pays)}</p><p className="text-[12px] text-ink-faint">{prixCourt(s)}{s.recrute ? ` · recrute${s.postes ? ` ${s.postes}` : ""}` : ""}</p></div>
-                  {s.changements > 0 && <span className="rounded-md bg-accent-soft text-accent-dark px-2 py-0.5 text-[12px] font-bold">{s.changements}</span>}
-                </li>
-              ))}{!r.saas.length && <li className="text-[13.5px] text-ink-faint">Aucun SaaS suivi.</li>}</ul>
+
+          {r.saas.length > 0 && (
+            <section className="mt-4 rounded-2xl bg-white border border-line overflow-x-auto">
+              <div className="px-4 pt-4 flex items-baseline justify-between gap-2"><h2 className="font-bold">Ton marché, côte à côte</h2><span className="text-[12px] text-ink-faint">Clique sur un titre pour trier</span></div>
+              <table className="mt-2 w-full text-[14px] min-w-[860px]">
+                <thead><tr className="text-left text-[12px] text-ink-faint">
+                  <Th k="nom">SaaS</Th><Th k="prix">Prix d'entrée</Th><th className="px-3 py-2.5 font-medium">Gratuit / essai</th><Th k="postes">Postes ouverts</Th><Th k="nouveaute">Dernière nouveauté</Th><Th k="rang">Notoriété</Th><Th k="chg" className="text-center">Changements</Th>
+                </tr></thead>
+                <tbody>{moi && <Ligne x={moi} toi />}{lignes.map((x) => <Ligne key={x.id} x={x} />)}</tbody>
+              </table>
             </section>
-            <section className="rounded-2xl bg-white border border-line p-5">
-              <h2 className="font-bold">Catégories suivies</h2>
-              <div className="mt-3 flex flex-wrap gap-2">{r.categories.map((c) => (
-                <span key={c} className="inline-flex items-center gap-2 rounded-full bg-paper px-3 py-1.5 text-[13px]">{c}<button onClick={() => retirerCat(c)} title="Ne plus suivre" className="text-ink-faint hover:text-ink">✕</button></span>
-              ))}{!r.categories.length && <span className="text-[13.5px] text-ink-faint">Aucune catégorie suivie.</span>}</div>
-            </section>
+          )}
+
+          <div className="mt-4 grid lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2 space-y-4">
+              <section className="rounded-2xl bg-white border border-line p-5">
+                <h2 className="font-bold">Ce qui a bougé ces 30 derniers jours</h2>
+                {r.fil.length ? (
+                  <ul className="mt-3 divide-y divide-line">{r.fil.slice(0, 40).map((e, i) => (
+                    <li key={i} onClick={() => nav(`/explorer/${e.domaine}`)} className="py-2.5 flex items-center gap-3 cursor-pointer hover:bg-paper/60 -mx-2 px-2 rounded-lg">
+                      <span className="text-ink-faint tnum text-[13px] w-20 shrink-0">{date(e.at)}</span>
+                      <CompanyLogo name={e.nom} url={`https://${e.domaine}`} className="w-8 h-8" />
+                      <span className="text-[14px]"><b>{e.nom}</b> · {evTexte(e)}</span>
+                    </li>
+                  ))}</ul>
+                ) : <p className="mt-2 text-[14px] text-ink-faint">Rien pour l'instant. Chaque SaaS est relu une fois par semaine : les changements apparaissent dès le deuxième relevé.</p>}
+              </section>
+            </div>
+            <div className="space-y-4">
+              <section className="rounded-2xl bg-white border border-line p-5">
+                <h2 className="font-bold">Postes ouverts chez tes concurrents</h2>
+                <p className="text-[12.5px] text-ink-faint">Total semaine par semaine : quand ça monte, ils investissent.</p>
+                <div className="mt-2">{courbe.length > 1 ? <LineChart points={courbe} height={120} unit=" postes" /> : <p className="text-[13.5px] text-ink-faint">La courbe apparaît dès le deuxième relevé hebdomadaire.</p>}</div>
+              </section>
+              <section className="rounded-2xl bg-white border border-line p-5">
+                <h2 className="font-bold">Catégories suivies</h2>
+                <div className="mt-3 flex flex-wrap gap-2">{r.categories.map((c) => (
+                  <span key={c} className="inline-flex items-center gap-2 rounded-full bg-paper px-3 py-1.5 text-[13px]">{c}<button onClick={() => retirerCat(c)} title="Ne plus suivre" className="text-ink-faint hover:text-ink">✕</button></span>
+                ))}{!r.categories.length && <span className="text-[13.5px] text-ink-faint">Aucune catégorie suivie.</span>}</div>
+              </section>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
