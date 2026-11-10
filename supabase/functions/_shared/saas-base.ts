@@ -461,3 +461,42 @@ Clé : segments.`, { fast: true, maxTokens: 1500 }).catch(() => ({ segments: [] 
   if (segments.length) await admin.from("explorer_cache").upsert({ k: cle, v, at: new Date().toISOString() });
   return v;
 }
+
+// ---------------------------------------------------------------- Bibliothèque d'e-mails (newsletters des SaaS)
+// L'adresse explorer-veille@ est inscrite aux newsletters publiques des SaaS (robot de nuit « Explorer – newsletters »).
+// Chaque e-mail reçu est rattaché au SaaS par le domaine de l'expéditeur, classé et résumé.
+// Confirmation d'inscription (double opt-in) : le lien n'est suivi que s'il mène au domaine du SaaS ou à un service d'envoi connu.
+const ESP = /(list-manage\.com|mailchimp\.com|sendinblue\.com|brevo\.com|sibforms\.com|substack\.com|beehiiv\.com|convertkit\.com|kit\.com|mailerlite\.com|hubspot\.com|hs-sites\.com|hsforms\.com|klaviyo\.com|customer\.io|mailjet\.com|activehosted\.com|createsend\.com|getresponse\.com|systeme\.io|plezi\.co|sendgrid\.net|loops\.so|buttondown\.email)/i;
+const racine = (h: string) => h.toLowerCase().replace(/^www\./, "").split(".").slice(-2).join(".");
+export async function explorerMail(d: Record<string, unknown>, text: string, html: string) {
+  const from = String(d.from ?? "");
+  const fm = from.match(/^\s*"?([^"<]*)"?\s*<([^>]+)>/);
+  const fromEmail = (fm ? fm[2] : from).trim().toLowerCase();
+  const fromName = fm ? fm[1].trim() : "";
+  const dom = racine(fromEmail.split("@")[1] ?? "");
+  // SaaS : domaine de l'expéditeur, sinon nom de l'expéditeur
+  const { data: parDom } = await admin.from("saas").select("id, nom, domaine").or(`domaine.eq.${dom},domaine.like.%.${dom}`).limit(1);
+  let s = parDom?.[0] as { id: string; nom: string; domaine: string } | undefined;
+  if (!s && fromName) { const { data: parNom } = await admin.from("saas").select("id, nom, domaine").eq("statut", "ok").ilike("nom", fromName.split(/\s+(from|de|chez|@|\||-)\s+/i)[0].replace(/[%_\\]/g, "").slice(0, 60)).limit(1); s = parNom?.[0] as typeof s; }
+  const body = (text || html.replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim().slice(0, 20000);
+  const sujet = String(d.subject ?? "");
+  const estConfirmation = /(confirm|valid|v[ée]rifi|activate|activ|double opt|opt-in|subscribe)/i.test(sujet) && body.length < 4000;
+  if (estConfirmation) {
+    const liens = [...html.matchAll(/href=["'](https?:\/\/[^"']+)["']/gi)].map((m) => m[1].replace(/&amp;/g, "&"));
+    const lien = liens.find((u) => /(confirm|valid|verif|activ|subscribe|optin|opt-in)/i.test(u) && (() => { try { const h = new URL(u).hostname; return (s && racine(h) === racine(s.domaine)) || ESP.test(h); } catch { return false; } })());
+    let suivi = false;
+    if (lien) suivi = await fetch(lien, { redirect: "follow", signal: AbortSignal.timeout(15000), headers: { "user-agent": "BingooBot/1.0 (+https://kairo.maisonravita.fr/#/retrait)" } }).then((r) => r.ok).catch(() => false);
+    await admin.from("saas_emails").insert({ saas_id: s?.id ?? null, from_email: fromEmail.slice(0, 200), from_name: fromName.slice(0, 120), subject: sujet.slice(0, 300), kind: "confirmation", resume: suivi ? "Inscription confirmée" : "Lien de confirmation non suivi", body: "" });
+    if (s && suivi) await admin.from("saas").update({ newsletter_statut: "inscrit" }).eq("id", s.id);
+    return { confirmation: true, suivi, saas: s?.nom ?? null };
+  }
+  setAi({ feature: "explorer/emails" });
+  const v = body.length > 40 ? await askJson<{ type: string; offre: string; resume: string }>(`E-mail marketing reçu de ${fromName || fromEmail}${s ? ` (logiciel ${s.nom})` : ""}. Objet : ${sujet}
+Texte : ${body.slice(0, 5000)}
+Classe-le et résume-le pour une veille concurrentielle, sans rien inventer.
+Clés : type (promotion | lancement | contenu | evenement | temoignage | relance | bienvenue | autre), offre (l'offre ou le prix mis en avant, sinon vide), resume (une phrase en français).`, { fast: true, maxTokens: 250 }).catch(() => null) : null;
+  await admin.from("saas_emails").insert({ saas_id: s?.id ?? null, from_email: fromEmail.slice(0, 200), from_name: fromName.slice(0, 120), subject: sujet.slice(0, 300),
+    kind: String(v?.type ?? "autre").slice(0, 20), offre: String(v?.offre ?? "").slice(0, 200), resume: String(v?.resume ?? "").slice(0, 300), body });
+  if (s) await admin.from("saas").update({ newsletter_statut: "inscrit" }).eq("id", s.id);
+  return { ok: true, saas: s?.nom ?? null };
+}

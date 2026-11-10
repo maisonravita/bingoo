@@ -34,7 +34,7 @@ export default function Explorer({ domaine: fixe }) {
 
 function Onglets({ actif }) {
   const nav = useNavigate();
-  const T = [["liste", "SaaS", "/explorer"], ["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"], ["marche", "Pays et tendances", "/explorer/marche"], ["pubs", "Pubs", "/explorer/pubs"], ["idees", "Idées et réussites", "/explorer/idees"]];
+  const T = [["liste", "SaaS", "/explorer"], ["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"], ["marche", "Pays et tendances", "/explorer/marche"], ["pubs", "Pubs et e-mails", "/explorer/pubs"], ["idees", "Idées et réussites", "/explorer/idees"]];
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
       <div className="inline-flex max-w-full overflow-x-auto rounded-xl bg-white border border-line p-1">
@@ -233,6 +233,7 @@ function Fiche({ domaine }) {
   const [hist, setHist] = useState(null);
   const [pubs, setPubs] = useState([]);
   const [noto, setNoto] = useState([]);
+  const [mails, setMails] = useState([]);
   useEffect(() => {
     setS(undefined); setLimite(null);
     supabase.rpc("saas_fiche", { ws: ws.id, d: domaine }).then(async ({ data, error }) => {
@@ -241,6 +242,7 @@ function Fiche({ domaine }) {
       setS(data.saas); setRel(data.releves ?? []); setEv(data.evenements ?? []); setQuota(data.max ? { vues: data.vues, max: data.max } : null); setHist(data.histoire ?? null);
       supabase.rpc("saas_pubs_de", { ws: ws.id, d: domaine }).then(({ data: p }) => setPubs(p ?? []));
       supabase.rpc("saas_notoriete_de", { ws: ws.id, d: domaine }).then(({ data: n }) => setNoto(n ?? []));
+      supabase.rpc("saas_emails_de", { ws: ws.id, d: domaine }).then(({ data: e }) => setMails(e ?? []));
       const { data: o } = await supabase.from("saas_liste").select("id, domaine, nom, pays, prix_entree_eur, prix_usage, sur_devis, score_croissance").eq("categorie", data.saas.categorie).neq("id", data.saas.id).order("score_croissance", { ascending: false, nullsFirst: false }).limit(6);
       setSim(o ?? []);
     });
@@ -326,6 +328,13 @@ function Fiche({ domaine }) {
       </div>
 
       {hist && <section className="mt-4"><Histoire h={hist} /></section>}
+      {mails.length > 0 && (
+        <section className="mt-4 rounded-2xl bg-white border border-line p-5">
+          <h2 className="font-bold">Ses e-mails</h2>
+          <p className="text-[12.5px] text-ink-faint">Sa newsletter et ses e-mails marketing, reçus par Bingoo! depuis l'inscription publique</p>
+          <div className="mt-3 space-y-2">{mails.slice(0, 10).map((m) => <CarteMail key={m.id} m={m} />)}</div>
+        </section>
+      )}
       <div className="mt-4"><Clients domaine={s.domaine} titre={`Les clients de ${s.nom}, tes prospects`} /></div>
       {(pubs.length > 0 || s.pubs_at) && (
         <section className="mt-4 rounded-2xl bg-white border border-line p-5">
@@ -543,6 +552,29 @@ function Clients({ domaine, categorie, tag, titre = "Qui démarcher dans cette n
   );
 }
 
+// ---------------------------------------------------------------- E-mails (bibliothèque)
+const TYPE_MAIL = { promotion: ["Promotion", "#B91C1C"], lancement: ["Lancement", "#E0531F"], contenu: ["Contenu", "#1D4ED8"], evenement: ["Événement", "#7C3AED"], temoignage: ["Témoignage", "#15803D"], relance: ["Relance", "#92400E"], bienvenue: ["Bienvenue", "#0E7490"], autre: ["Autre", "#5B5D66"] };
+function CarteMail({ m, saas }) {
+  const { ws } = useWs();
+  const [corps, setCorps] = useState(null);
+  const [l, c] = TYPE_MAIL[m.kind] ?? TYPE_MAIL.autre;
+  const lire = async () => { if (corps != null) { setCorps(null); return; } const { data } = await supabase.rpc("saas_email_body", { ws: ws.id, id: m.id }); setCorps(data ?? ""); };
+  return (
+    <article className="rounded-xl border border-line p-3.5">
+      <div className="flex flex-wrap items-center gap-2 text-[12px]">
+        {saas && <span className="font-bold text-[13.5px]">{saas.nom} {drapeau(saas.pays)}</span>}
+        <span className="rounded-md px-1.5 py-0.5 font-bold text-white" style={{ background: c }}>{l}</span>
+        <span className="text-ink-faint">{date(m.recu_at)}</span>
+      </div>
+      <p className="mt-1.5 font-semibold text-[14px]">{m.subject}</p>
+      {m.resume && <p className="text-[13.5px] text-ink-soft">{m.resume}</p>}
+      {m.offre && <p className="mt-1 text-[13px]"><span className="font-semibold">Offre : </span>{m.offre}</p>}
+      <button onClick={lire} className="mt-1.5 text-[12.5px] font-semibold underline">{corps != null ? "Fermer" : "Lire l'e-mail"}</button>
+      {corps != null && <p className="mt-2 max-h-72 overflow-y-auto whitespace-pre-line rounded-lg bg-paper p-3 text-[13px] text-ink-soft">{corps || "Texte indisponible."}</p>}
+    </article>
+  );
+}
+
 // ---------------------------------------------------------------- Pubs (bibliothèque Meta)
 const PLATEFORME = { facebook: "Facebook", instagram: "Instagram", messenger: "Messenger", audience_network: "Audience Network", threads: "Threads" };
 function CartePub({ p, saas }) {
@@ -573,13 +605,15 @@ function Pubs() {
   const [niches, setNiches] = useState([]);
   const [d, setD] = useState(null);
   const [seulMarche, setSeulMarche] = useState(true);
+  const [em, setEm] = useState(null);
+  useEffect(() => { setEm(null); supabase.rpc("saas_emails_niche", { ws: ws.id, cat: cat || null, tag: tag || null }).then(({ data }) => setEm(data ?? { emails: [], types: {}, inscrits: 0 })); }, [ws.id, cat, tag]);
   useEffect(() => { supabase.rpc("saas_niches", { cat: cat || null }).then(({ data }) => setNiches(data ?? [])); }, [cat]);
   useEffect(() => { setD(null); supabase.rpc("saas_pubs_niche", { ws: ws.id, cat: cat || null, tag: tag || null }).then(({ data }) => setD(data ?? { pubs: [], courbe: [], annonceurs: [], total: 0 })); }, [ws.id, cat, tag]);
   const pubs = (d?.pubs ?? []).filter((p) => !seulMarche || Number(p.jours) >= 30);
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-      <h1 className="text-[30px] font-black tracking-tight" style={HF}>Les pubs qui marchent</h1>
-      <p className="text-ink-soft">Les publicités Facebook et Instagram des SaaS de la base, par niche. Celles qui tournent depuis des semaines sont celles qui rapportent.</p>
+      <h1 className="text-[30px] font-black tracking-tight" style={HF}>Pubs et e-mails</h1>
+      <p className="text-ink-soft">Comment les SaaS de ta niche vont chercher leurs clients : leurs publicités Facebook et Instagram, et les e-mails qu'ils envoient à leurs abonnés.</p>
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <select value={cat} onChange={(e) => { setCat(e.target.value); setTag(""); }} className="rounded-xl border border-line bg-white px-3 py-2 text-[14px]"><option value="">Toutes les catégories</option>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select>
         {niches.slice(0, 12).map((n) => <Chip key={n.tag} on={tag === n.tag} onClick={() => setTag(tag === n.tag ? "" : n.tag)}>{n.tag}</Chip>)}
@@ -612,6 +646,13 @@ function Pubs() {
           <p className="mt-4 text-[12px] text-ink-faint">Source : bibliothèque publicitaire de Meta (pubs diffusées dans l'Union européenne). Seules les pubs publiées par la page du logiciel lui-même sont gardées.</p>
         </>
       )}
+      <section className="mt-8">
+        <h2 className="font-bold text-[20px]">Leurs derniers e-mails</h2>
+        <p className="text-[13px] text-ink-faint">Bingoo! est abonné à la newsletter publique de {em?.inscrits ?? "…"} SaaS. Chaque e-mail reçu est classé et résumé.</p>
+        {em && Object.keys(em.types ?? {}).length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{Object.entries(em.types).sort((a, b) => b[1] - a[1]).map(([k, n]) => <span key={k} className="rounded-full bg-white border border-line px-2.5 py-1 text-[12.5px]">{(TYPE_MAIL[k] ?? TYPE_MAIL.autre)[0]} <span className="tnum text-ink-faint">{n}</span></span>)}<span className="text-[12px] text-ink-faint self-center">sur 90 jours</span></div>}
+        {!em ? <div className="py-10 grid place-items-center"><Spinner /></div> : em.emails?.length ? <div className="mt-3 grid md:grid-cols-2 gap-3">{em.emails.map((m) => <CarteMail key={m.id} m={m} saas={m} />)}</div>
+          : <p className="mt-3 rounded-2xl bg-white border border-line p-5 text-ink-soft">Les premiers e-mails arrivent : les inscriptions aux newsletters se font chaque nuit, et les SaaS envoient en général leur premier e-mail dans la semaine.</p>}
+      </section>
     </div>
   );
 }

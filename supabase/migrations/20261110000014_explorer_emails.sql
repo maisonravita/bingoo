@@ -1,0 +1,1 @@
+-- Appliquée via MCP : table saas_emails, colonnes saas.newsletter_at et newsletter_statut, RPC saas_emails_de, saas_emails_niche, saas_email_body

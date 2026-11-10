@@ -154,6 +154,13 @@ export async function inbound(body: Record<string, unknown>) {
       return { text, html };
     });
   }
+  // Explorer : bibliothèque d'e-mails des SaaS (adresse d'inscription de la plateforme)
+  if (new RegExp(`(^|[\\s<,])explorer-veille@${PLATFORM_DOMAIN().replace(/\./g, "\\.")}`, "i").test(to)) {
+    const { explorerMail } = await import("./saas-base.ts");
+    let text = String(d.text ?? ""), html = String(d.html ?? "");
+    if (!text && !html && d.email_id) { const r = await resend(`/emails/receiving/${d.email_id}`); text = String(r.data?.text ?? ""); html = String(r.data?.html ?? ""); }
+    return await explorerMail(d, text, html);
+  }
   // Adresse de contact publique de Bingoo! (mentions légales, RGPD) : transférée aux administrateurs de la plateforme
   if (new RegExp(`(^|[\\s<,])bingoo@${PLATFORM_DOMAIN().replace(/\./g, "\\.")}`, "i").test(to)) {
     const { data: adm } = await admin.from("admins").select("user_id");
