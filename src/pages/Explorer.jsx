@@ -16,6 +16,17 @@ const drapeau = (c) => c && /^[A-Z]{2}$/.test(c) ? String.fromCodePoint(...[...c
 const date = (d) => d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : null;
 const TRIS = [["score_croissance", "En croissance"], ["postes", "Qui recrutent le plus"], ["nouveaute", "Nouveautés récentes"], ["rang_web", "Les plus connus"], ["prix_entree_eur", "Prix d'entrée"], ["created_at", "Ajoutés récemment"]];
 const PAGE = 48;
+// Niveau de formule pour Explorer : 1 = Starter, 2 = Pro, 3 = Business (et anciennes formules, aperçu, fondateur)
+const niv = (ws) => (ws?.plan === "explorer" ? 1 : ws?.plan === "explorer_pro" ? 2 : 3);
+function Verrou({ titre, texte, formule = "Pro", sombre = false }) {
+  const nav = useNavigate();
+  return (
+    <section className={cx("rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3", sombre ? "bg-ink text-white" : "bg-white border border-line")}>
+      <div><p className="font-bold">{titre}</p><p className={cx("text-[13.5px]", sombre ? "text-white/70" : "text-ink-soft")}>{texte}</p></div>
+      <button onClick={() => nav("/abonnement")} className="shrink-0 rounded-xl bg-accent text-white px-5 py-2.5 font-bold hover:bg-accent-dark">Passer à {formule}</button>
+    </section>
+  );
+}
 // Prix d'entrée lisible : abonnement en €/mois, sinon prix à l'usage tel qu'affiché, sinon sur devis
 const usage = (s) => s.prix_usage ?? (["usage", "commission"].includes(s.modele_prix) ? s.prix_affiche : null);
 const prixCourt = (s) => s.prix_entree_eur != null ? `dès ${s.prix_entree_eur} €/mois` : usage(s) ? `à l'usage` : s.sur_devis ? "sur devis" : "prix non affiché";
@@ -66,6 +77,14 @@ function Liste() {
   const loc = useLocation();
   const [f, setF] = useState(() => { const p = new URLSearchParams(loc.search); return { q: "", categorie: p.get("categorie") ?? "", pays: "", prixMax: "", gratuit: false, recrute: false, actif: false, tri: "score_croissance", tag: p.get("tag") ?? "" }; });
   const [ia, setIa] = useState(null); // recherche par le sens : { q, termes, resultats }
+  // Export CSV de la liste affichée (formule Business)
+  const exporter = (liste) => {
+    if (niv(ws) < 3) { toast("L'export est dans la formule Business", "bad"); nav("/abonnement"); return; }
+    const col = ["nom", "domaine", "categorie", "pays", "prix_entree_eur", "gratuit", "recrute", "postes", "nouveaute", "rang_web", "tags", "description"];
+    const cel = (v) => { const t = Array.isArray(v) ? v.join(" | ") : v == null ? "" : String(v); return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+    const csv = "\ufeff" + [col.join(";"), ...liste.map((r) => col.map((c) => cel(r[c])).join(";"))].join("\n");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); a.download = `bingoo-saas-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+  };
   const [iaBusy, setIaBusy] = useState(false);
   const [niches, setNiches] = useState([]);
   useEffect(() => { supabase.rpc("saas_niches", { cat: f.categorie || null }).then(({ data }) => setNiches(data ?? [])); }, [f.categorie]);
@@ -86,7 +105,7 @@ function Liste() {
   const set = (k, v) => { setPage(0); setF((x) => ({ ...x, [k]: v })); };
 
   useEffect(() => {
-    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags", { count: "exact" });
+    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web", { count: "exact" });
     if (f.tag) q = q.contains("tags", [f.tag]);
     if (f.q.trim()) q = q.or(`nom.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,domaine.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,description.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%`);
     if (f.categorie) q = q.eq("categorie", f.categorie);
@@ -171,7 +190,8 @@ function Liste() {
           {ia.categorie_suggeree && !f.categorie && <button onClick={() => { set("categorie", ia.categorie_suggeree); setIa(null); }} className="rounded-md border border-line bg-white px-2 py-0.5 hover:border-ink">Voir toute la catégorie {ia.categorie_suggeree}</button>}
           <button onClick={() => setIa(null)} className="underline text-ink-soft">Effacer</button>
         </div>
-      ) : <p className="mt-4 text-[13px] text-ink-faint">{rows ? `${total.toLocaleString("fr-FR")} résultat${total > 1 ? "s" : ""}` : ""}{f.tag ? ` · niche « ${f.tag} »` : ""}</p>}
+      ) : <div className="mt-4 flex items-center justify-between gap-2"><p className="text-[13px] text-ink-faint">{rows ? `${total.toLocaleString("fr-FR")} résultat${total > 1 ? "s" : ""}` : ""}{f.tag ? ` · niche « ${f.tag} »` : ""}</p>
+        {rows?.length > 0 && <button onClick={() => exporter(rows)} className="text-[13px] font-semibold underline">Exporter (CSV)</button>}</div>}
       {(() => { const liste = ia ? ia.resultats : rows; return !liste ? <div className="py-20 grid place-items-center"><Spinner /></div> : !liste.length ? (
         <p className="py-16 text-center text-ink-soft">Aucun SaaS ne correspond. Élargis les filtres, ou ajoute le logiciel que tu cherches.</p>
       ) : (
@@ -204,7 +224,7 @@ function Liste() {
       {sel.length > 0 && (
         <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-30 rounded-2xl bg-ink text-white shadow-xl px-4 py-3 flex items-center gap-3">
           <span className="text-[14px]">{sel.length} SaaS sélectionné{sel.length > 1 ? "s" : ""} (4 au plus)</span>
-          <button disabled={sel.length < 2} onClick={() => nav(`/explorer/comparer?d=${sel.join(",")}`)} className="rounded-lg bg-accent px-4 py-2 text-[14px] font-bold disabled:opacity-50">Comparer</button>
+          <button disabled={sel.length < 2} onClick={() => niv(ws) < 2 ? (toast("Comparer est dans la formule Pro", "bad"), nav("/abonnement")) : nav(`/explorer/comparer?d=${sel.join(",")}`)} className="rounded-lg bg-accent px-4 py-2 text-[14px] font-bold disabled:opacity-50">Comparer</button>
           <button onClick={() => setSel([])} className="text-[13px] text-white/70 hover:text-white">Effacer</button>
         </div>
       )}
@@ -335,7 +355,8 @@ function Fiche({ domaine }) {
           <div className="mt-3 space-y-2">{mails.slice(0, 10).map((m) => <CarteMail key={m.id} m={m} />)}</div>
         </section>
       )}
-      <div className="mt-4"><Clients domaine={s.domaine} titre={`Les clients de ${s.nom}, tes prospects`} /></div>
+      {niv(ws) < 2 ? <div className="mt-4"><Verrou sombre titre={`Ses pubs, ses e-mails et ses clients`} texte={`Avec la formule Pro : les publicités et les e-mails de ${s.nom}, et les types d'entreprises qui achètent ce genre de logiciel.`} /></div>
+        : <div className="mt-4"><Clients domaine={s.domaine} titre={`Les clients de ${s.nom}, tes prospects`} /></div>}
       {(pubs.length > 0 || s.pubs_at) && (
         <section className="mt-4 rounded-2xl bg-white border border-line p-5">
           <h2 className="font-bold">Ses publicités</h2>
@@ -531,7 +552,7 @@ function Clients({ domaine, categorie, tag, titre = "Qui démarcher dans cette n
   return (
     <section className="rounded-2xl bg-ink text-white p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h2 className="font-bold text-[17px]">{titre}</h2><p className="text-[13px] text-white/70">Les entreprises qui achètent ce genre de logiciel, comptées dans le registre officiel. Ajoute-les à tes cibles : Bingoo! trouve le décideur et prépare les messages.</p></div>
+        <div><h2 className="font-bold text-[17px]">{titre}</h2><p className="text-[13px] text-white/70">Les entreprises qui achètent ce genre de logiciel, comptées dans le registre officiel.{["explorer", "explorer_pro", "business"].includes(ws.plan) ? " Leurs codes d'activité te servent à les trouver dans ton outil de prospection." : " Ajoute-les à tes cibles : Bingoo! trouve le décideur et prépare les messages."}</p></div>
         {!r && <button onClick={voir} disabled={busy} className="shrink-0 rounded-xl bg-accent px-5 py-3 font-bold hover:bg-accent-dark disabled:opacity-60">{busy ? "Recherche…" : "Voir qui démarcher"}</button>}
       </div>
       {r && (r.segments?.length ? (
@@ -541,7 +562,7 @@ function Clients({ domaine, categorie, tag, titre = "Qui démarcher dans cette n
               <div className="flex items-start justify-between gap-3"><p className="font-bold">{sg.label}</p>{sg.total != null && <p className="shrink-0 text-right"><span className="text-[20px] font-black tnum" style={HF}>{Number(sg.total) >= 10000 ? "10 000+" : Number(sg.total).toLocaleString("fr-FR")}</span><br /><span className="text-[11.5px] text-white/60">entreprises</span></p>}</div>
               <p className="mt-1 text-[13.5px] text-white/80 flex-1">{sg.pourquoi}</p>
               <p className="mt-2 text-[12.5px] text-white/60">À qui écrire : {sg.interlocuteur || "dirigeant"} · NAF {sg.naf.join(", ")}</p>
-              {ws.plan === "explorer" ? <button onClick={() => nav("/abonnement")} className="mt-3 self-start rounded-lg bg-accent px-3 py-2 text-[13px] font-bold hover:bg-accent-dark">Les démarcher avec Solo</button>
+              {["explorer", "explorer_pro", "business"].includes(ws.plan) ? null
                 : mes.has(sg.label.toLowerCase()) ? <button onClick={() => nav("/radar")} className="mt-3 self-start rounded-lg bg-white/15 px-3 py-2 text-[13px] font-semibold">Dans tes cibles · voir le Radar</button>
                 : <button onClick={() => ajouter(sg)} disabled={!!ajout} className="mt-3 self-start rounded-lg bg-white text-ink px-3 py-2 text-[13px] font-bold hover:bg-white/90 disabled:opacity-60">{ajout === sg.label ? "Ajout…" : "Ajouter à mes cibles"}</button>}
             </div>
@@ -599,6 +620,11 @@ function CartePub({ p, saas }) {
 }
 
 function Pubs() {
+  const { ws } = useWs();
+  if (niv(ws) < 2) return <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6"><h1 className="text-[30px] font-black tracking-tight" style={HF}>Pubs et e-mails</h1><div className="mt-4"><Verrou titre="Comment ils vont chercher leurs clients" texte="Les publicités Facebook et Instagram et les e-mails des SaaS de ta niche, dans la formule Pro." /></div></div>;
+  return <PubsContenu />;
+}
+function PubsContenu() {
   const nav = useNavigate();
   const { ws } = useWs();
   const [cat, setCat] = useState("");
@@ -761,7 +787,7 @@ function Idees() {
                   <div className="mt-3 flex flex-wrap gap-1.5">{(i.x.exemples ?? []).map((e) => <button key={e.domaine} onClick={() => nav(`/explorer/${e.domaine}`)} className="rounded-full bg-paper px-2.5 py-1 text-[12.5px] hover:bg-line">{e.nom} {drapeau(e.pays)}</button>)}</div>
                   <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
                     <button onClick={() => nav(i.x.genre === "tag" ? `/explorer?tag=${encodeURIComponent(i.x.niche)}` : `/explorer?categorie=${encodeURIComponent(i.x.niche)}`)} className="text-[13.5px] font-semibold underline">Voir les {i.x.n} SaaS</button>
-                    <button onClick={() => { setCli(i.x); setTimeout(() => document.getElementById("clients-niche")?.scrollIntoView({ behavior: "smooth" }), 50); }} className="text-[13.5px] font-semibold text-accent-dark underline">Qui démarcher</button>
+                    <button onClick={() => { if (niv(ws) < 2) { nav("/abonnement"); return; } setCli(i.x); setTimeout(() => document.getElementById("clients-niche")?.scrollIntoView({ behavior: "smooth" }), 50); }} className="text-[13.5px] font-semibold text-accent-dark underline">Qui démarcher</button>
                   </div>
                 </article>
               ))}
@@ -829,7 +855,7 @@ function BoutonSuivre({ saasId, categorie, petit }) {
   const basculer = async () => {
     if (on) { await supabase.from("saas_suivis").delete().eq("id", on); setOn(false); toast(categorie ? `Tu ne suis plus « ${categorie} »` : "Tu ne suis plus ce SaaS"); return; }
     const { data, error } = await supabase.from("saas_suivis").insert({ workspace_id: ws.id, ...(saasId ? { saas_id: saasId } : { categorie }) }).select("id").single();
-    if (error) { toast("Impossible pour l'instant, réessaie", "bad"); return; }
+    if (error) { toast(/Starter/.test(error.message) ? error.message : "Impossible pour l'instant, réessaie", "bad"); return; }
     setOn(data.id); toast(categorie ? `Tu suis « ${categorie} » : chaque lundi, ce qui a bougé` : "Suivi : chaque lundi, ce qui a bougé");
   };
   if (on === null) return null;

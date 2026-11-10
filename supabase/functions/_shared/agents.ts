@@ -503,7 +503,7 @@ export async function sendOne(ws: Workspace, messageId: string) {
   assertPlan(plan ?? {});
   // Aperçu gratuit : on voit ses messages, l'envoi démarre avec l'abonnement (dès que le paiement en ligne est ouvert)
   if ((plan?.plan ?? "essai") === "essai" && Deno.env.get("STRIPE_SECRET_KEY")) throw new HttpError(402, "L'envoi démarre avec ton abonnement. Premier mois remboursé si tu n'obtiens ni rendez-vous ni réponse positive.");
-  if (plan?.plan === "explorer") throw new HttpError(402, "La formule Explorer ne comprend pas la prospection : passe à Solo pour envoyer tes messages.");
+  if (["explorer", "explorer_pro", "business"].includes(String(plan?.plan))) throw new HttpError(402, "Ta formule est la veille du marché : l'envoi de messages n'en fait pas partie.");
   // Quota de prospects contactés du mois (premier e-mail seulement ; les relances passent toujours)
   if (msg.step === 0) {
     const { prospectQuota } = await import("./quota.ts");

@@ -35,21 +35,29 @@ export function knowledgeOf(ws: { knowledge?: string }) {
 
 // ---------------------------------------------------------------- Abonnements
 // ai : budget IA mensuel en euros (coût réel pour Bingoo!), plafond du coût IA par client.
-// Grille du 10 nov. 2026 : Explorer 19,99 € (veille seule), Solo 39,99 € (29 € à vie pour les 50 premiers, voir FOUNDER), Pro 69,99 €, Équipe 109 €, Entreprise sur devis ; annuel : −20 %.
+// Grille du 10 nov. 2026 (le TrendTrack des SaaS) : Starter 19,99 €, Pro 39,99 € (29 € à vie pour les 50 premiers, voir FOUNDER),
+// Business 69,99 €, Entreprise sur devis ; annuel : −20 %. Ces trois formules sont la veille du marché, sans prospection.
+// Solo, Pro (ancien) et Équipe ne sont plus vendues : les abonnés existants les gardent, avec la prospection.
 // Plafonds IA réglés pour garder au moins ~50 % de marge brute même quand le client consomme tout son quota.
 // Grille par quota (business plan du 6 nov. 2026) : quota = prospects contactés par mois (premier e-mail parti, contact trouvé et vérifié).
 // Relances, Radar et Espion restent compris dans la limite IA. credits = recherches vérifiées d'e-mails (comptées seulement si trouvé).
 export const PLANS: Record<string, { label: string; price: number; factor: number; seats: number; credits: number; ai: number; quota: number }> = {
   essai: { label: "Aperçu gratuit", price: 0, factor: 0.5, seats: 1, credits: 15, ai: 2, quota: 20 },
-  // Explorer seul : la veille du marché SaaS, sans prospection (pas d'envoi, pas de tâches de prospection de nuit)
-  explorer: { label: "Explorer", price: 19.99, factor: 0.5, seats: 1, credits: 0, ai: 1.5, quota: 0 },
+  // Veille du marché SaaS, sans prospection (pas d'envoi, pas de tâches de prospection de nuit)
+  explorer: { label: "Starter", price: 19.99, factor: 0.5, seats: 1, credits: 0, ai: 1.5, quota: 0 },
+  explorer_pro: { label: "Pro", price: 39.99, factor: 0.5, seats: 1, credits: 0, ai: 3, quota: 0 },
+  business: { label: "Business", price: 69.99, factor: 1, seats: 3, credits: 0, ai: 6, quota: 0 },
+  // Anciennes formules (prospection), plus vendues
   solo: { label: "Solo", price: 39.99, factor: 1, seats: 1, credits: 140, ai: 6, quota: 100 },
-  pro: { label: "Pro", price: 69.99, factor: 2, seats: 2, credits: 420, ai: 14, quota: 300 },
+  pro: { label: "Pro (prospection)", price: 69.99, factor: 2, seats: 2, credits: 420, ai: 14, quota: 300 },
   equipe: { label: "Équipe", price: 109, factor: 4, seats: 5, credits: 1000, ai: 24, quota: 700 },
   fondateur: { label: "Fondateur", price: 0, factor: 1, seats: 50, credits: 5000, ai: 15, quota: 5000 },
 };
 /** Prix fondateur : les 50 premiers abonnés Solo paient 29 € à vie. */
-export const FOUNDER = { plan: "solo", price: 29, places: 50 };
+export const FOUNDER = { plan: "explorer_pro", price: 29, places: 50 };
+/** Formules en vente (page Abonnement, paiement) et formules de veille seule (sans prospection). */
+export const VENTE = ["explorer", "explorer_pro", "business"];
+export const VEILLE_SEULE = ["explorer", "explorer_pro", "business"];
 type PlanFields = { plan?: string; plan_status?: string; trial_ends?: string | null };
 /** Bloque les actions payantes quand l'essai est fini ou que l'abonnement n'est plus réglé. */
 export function assertPlan(ws: PlanFields) {
@@ -74,7 +82,7 @@ export function planOk(ws: PlanFields) {
 }
 /** Abonnement à jour ET formule qui comprend la prospection (Explorer seul n'en a pas) : pour les tâches de prospection. */
 export function prospectionOk(ws: PlanFields) {
-  return planOk(ws) && ws.plan !== "explorer";
+  return planOk(ws) && !VEILLE_SEULE.includes(ws.plan ?? "");
 }
 
 /** Domaine de la plateforme qui reçoit les réponses de tous les espaces (r-<jeton>@…). */

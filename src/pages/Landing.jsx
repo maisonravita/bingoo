@@ -211,16 +211,14 @@ function SourcesRow() {
 /* ---------- Tarifs et questions ---------- */
 const eur = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ","));
 const PLANS = [
-  ["Explorer", 19.99, "Pour voir tout ton marché SaaS.", ["Toute la base SaaS, fiches illimitées", "Recherche intelligente et niches", "Concurrents suivis, alerte chaque lundi", "Idées et réussites chiffrées", "Leurs pubs et leurs e-mails", "Qui démarcher dans chaque niche"]],
-  ["Solo", 39.99, "Pour transformer ce que tu vois en clients.", ["Tout Explorer", "100 prospects par mois dans ta niche", "Décideur trouvé, message écrit pour lui", "Clients d'une niche ajoutés en un clic", "Les entreprises prêtes à acheter, chaque jour"]],
-  ["Pro", 69.99, "Pour le fondateur dont ça commence à marcher.", ["Tout Solo", "300 prospects par mois", "2 utilisateurs", "Tes concurrents surveillés au quotidien"]],
-  ["Équipe", 109, "Pour une équipe commerciale.", ["Tout Pro", "700 prospects par mois", "5 utilisateurs", "Prospects répartis entre commerciaux", "Tableau de bord par commercial"]],
+  ["Starter", 19.99, "Pour garder un œil sur ton marché.", ["Toute la base SaaS, fiches illimitées", "Recherche intelligente et niches", "10 SaaS suivis, alerte chaque lundi", "Idées et réussites chiffrées", "Notoriété web de chaque SaaS"]],
+  ["Pro", 39.99, "Pour comprendre comment tes concurrents gagnent leurs clients.", ["Tout Starter", "SaaS et catégories suivis sans limite", "Leurs pubs et leurs e-mails", "Comparer jusqu'à 4 SaaS", "Qui démarcher dans chaque niche"]],
+  ["Business", 69.99, "Pour une équipe qui suit le marché ensemble.", ["Tout Pro", "3 utilisateurs", "Export CSV des listes", "Support prioritaire"]],
 ];
 const FAQ = [
   ["D'où viennent les informations sur les SaaS ?", "De leurs propres sites, relus chaque semaine : page d'accueil, tarifs, page carrières, changelog ou blog. Les chiffres d'entreprise (chiffre d'affaires, levées) viennent de la presse ou de documents officiels, la notoriété du Majestic Million, les tendances des annonces légales officielles (BODACC). Rien n'est estimé : une information introuvable est affichée comme telle, et chaque chiffre a son lien."],
   ["Quels SaaS sont dans Explorer ?", "Des logiciels français, européens et américains, dans 25 catégories. Tu peux ajouter n'importe quel SaaS par son adresse : il est lu tout de suite. La base grandit chaque jour."],
   ["J'édite un SaaS, puis-je corriger ou retirer sa fiche ?", "Oui. Notre robot (BingooBot) respecte le fichier robots.txt et ne lit que des pages publiques. Écris-nous depuis une adresse de ton domaine pour une correction ou un retrait, traité sous 72 heures."],
-  ["Et si je n'obtiens aucun résultat ?", "Pendant ton premier mois payant, si tu as laissé partir au moins 60 % des premiers messages de ta formule (60 sur Solo, 180 sur Pro, 420 sur Équipe) et que tu n'as obtenu ni rendez-vous ni réponse positive, ton premier mois t'est remboursé. Tu n'as rien à demander : Bingoo! le calcule et te prévient."],
   ["Bingoo! envoie-t-il des messages sans mon accord ?", "Non. Par défaut, chaque message attend ta validation. Tu peux ensuite activer le pilote automatique, dans la limite d'envoi que tu fixes."],
   ["D'où viennent les informations ?", "De sources publiques et vérifiables : données de la commande publique, BOAMP, annonces légales (BODACC), registre national des entreprises, sites des entreprises. Chaque signal affiche sa source."],
   ["Et le RGPD ?", "Bingoo! travaille au niveau de l'entreprise et des fonctions qui décident. Les e-mails sont publiés ou vérifiés, jamais devinés, et chaque message permet de ne plus être contacté."],
@@ -229,7 +227,7 @@ const FAQ = [
   ["Bingoo! publie-t-il sur Reddit ou LinkedIn à ma place ?", "Non pour les demandes publiques : Bingoo! te prépare la réponse, tu la publies toi-même. Sur LinkedIn, l'extension n'envoie que les invitations et les messages que tu as validés, avec des limites prudentes."],
   ["À quoi sert l'extension Chrome ?", "Elle affiche la fiche d'une entreprise sur son propre site, fait sur LinkedIn les invitations et les messages que tu as validés (à un rythme humain, dans des limites prudentes) et reconnaît tes prospects dans Gmail. Elle est facultative : tout le reste marche sans elle."],
   ["Est-ce que je risque mon compte LinkedIn ?", "Bingoo! ne fait jamais d'envoi en masse ni d'aspiration de profils. Le pilote ne fait que ce que tu as validé, avec des pauses et des limites quotidiennes basses, depuis ton propre navigateur."],
-  ["Je peux essayer avant de payer ?", "Oui : pendant 7 jours, sans carte bancaire, Bingoo! trouve tes premières entreprises et écrit tes premiers messages. Tu les lis, tu juges. L'envoi démarre avec ton abonnement, et ton premier mois est remboursé si tu n'obtiens ni rendez-vous ni réponse positive."],
+  ["Je peux essayer avant de payer ?", "Oui, sans carte bancaire : 10 fiches par semaine, la recherche et le rapport « Ton marché ». Tu passes à une formule quand tu veux, sans engagement."],
 ];
 
 export default function Landing() {
@@ -409,22 +407,22 @@ export default function Landing() {
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
             <div>
               <h2 className="text-[38px] sm:text-[54px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ton marché SaaS, dès 19,99 €.</h2>
-              <p className="mt-3 text-[17px] text-ink-soft">Aperçu gratuit sans carte bancaire : 10 fiches par semaine, ton rapport de marché et tes premiers messages. Prix hors taxes par mois, sans engagement.</p>
+              <p className="mt-3 text-[17px] text-ink-soft">Aperçu gratuit sans carte bancaire : 10 fiches par semaine et ton rapport de marché. Prix hors taxes par mois, sans engagement.</p>
             </div>
             <div className="relative inline-flex rounded-full bg-white border border-line p-1 self-start md:self-auto">
               {[[false, "Mensuel"], [true, "Annuel"]].map(([v, l]) => <button key={l} onClick={() => setYearly(v)} className={cx("rounded-full px-5 py-2 text-[14.5px] font-bold transition", yearly === v ? "bg-ink text-white" : "text-ink-soft")}>{l}</button>)}
               <span className="absolute -top-3 -right-2 rounded-full bg-good text-white text-[11.5px] font-bold px-2 py-0.5">-20 %</span>
             </div>
           </div>
-          <div className="mt-8 grid md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+          <div className="mt-8 grid md:grid-cols-3 gap-4 items-end">
             {PLANS.map(([n, p0, d, items], i) => {
-              const best = i === 2;
+              const best = i === 1;
               const fondateur = i === 1 && fond && fond.left > 0;
               const p = fondateur ? fond.price : p0;
               const annuel = Math.round(p * 12 * 0.8); // même calcul que la facturation Stripe
               const price = yearly ? Math.round(annuel / 12) : p;
               return (
-                <div key={n} style={{ transitionDelay: `${i * 0.12}s` }} className={cx("reveal relative rounded-3xl p-6", best ? "bg-[#16171B] text-white md:pb-10 md:pt-10 shadow-[0_30px_60px_-30px_rgba(21,22,26,.6)]" : i <= 1 ? "bg-white border border-line" : "bg-accent-soft/60 border border-accent/20")}>
+                <div key={n} style={{ transitionDelay: `${i * 0.12}s` }} className={cx("reveal relative rounded-3xl p-6", best ? "bg-[#16171B] text-white md:pb-10 md:pt-10 shadow-[0_30px_60px_-30px_rgba(21,22,26,.6)]" : i === 0 ? "bg-white border border-line" : "bg-accent-soft/60 border border-accent/20")}>
                   {best && <span className="absolute -top-3.5 left-7 rounded-full bg-accent text-white text-[12.5px] font-bold px-3 py-1">Recommandé</span>}
                   <p className="font-bold text-[19px]">{n}</p>
                   <p className="mt-4">{fondateur && <span className="mr-2 text-[22px] text-ink-faint line-through tnum">{yearly ? Math.round(p0 * 12 * 0.8 / 12) : eur(p0)} €</span>}<span className="font-black text-[46px] leading-none" style={SERIF}>{eur(price)} €</span><span className={cx("text-[14px] ml-1.5", best ? "text-white/60" : "text-ink-faint")}>/ mois</span></p>
@@ -437,15 +435,10 @@ export default function Landing() {
             })}
           </div>
           <div className="mt-4 rounded-2xl bg-[#F6F5F3] border border-line px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <p className="text-[15px]"><b>Entreprise, sur devis.</b> <span className="text-ink-soft">Au-delà de 5 commerciaux ou pour de gros volumes : utilisateurs et volume sur mesure, accompagnement au démarrage.</span></p>
+            <p className="text-[15px]"><b>Entreprise, sur devis.</b> <span className="text-ink-soft">Plus de 3 utilisateurs, accès aux données sur mesure, facturation annuelle.</span></p>
             <a href={`mailto:bingoo@maisonravita.fr?subject=${encodeURIComponent("Bingoo! Entreprise : demande de devis")}`} className="shrink-0 rounded-lg px-4 py-2.5 text-center text-[15px] border border-ink/80 hover:bg-black/[.04] transition">Parler à l'équipe</a>
           </div>
-          {/* La garantie, juste sous les prix : c'est elle qui rend le prix sans risque */}
-          <div className="mt-5 rounded-2xl bg-white border border-line px-5 py-4 flex items-start gap-3">
-            <Check className="h-5 w-5 mt-0.5 shrink-0 text-good" />
-            <p className="text-[15.5px] text-ink"><b className="font-bold">Premier mois remboursé, sur Solo, Pro et Équipe.</b> <span className="text-ink-soft">Ni rendez-vous ni réponse positive pendant ton premier mois payant, alors que tu as laissé partir au moins 60 % des premiers messages de ta formule ? Ton premier mois t'est remboursé, sans rien demander.</span></p>
-          </div>
-          <p className="mt-6 text-center text-[14px] text-ink-soft">Sans engagement : tu changes de formule ou tu arrêtes quand tu veux. Besoin de plus ? +100 prospects contactés pour 19 €, quand tu veux. Un prospect contacté = une entreprise qui reçoit un premier e-mail, avec son décideur trouvé et vérifié ; les relances ne comptent pas.</p>
+          <p className="mt-6 text-center text-[14px] text-ink-soft">Sans engagement : tu changes de formule ou tu arrêtes quand tu veux. À l'année : −20 %.</p>
         </section>
 
         {/* Questions */}

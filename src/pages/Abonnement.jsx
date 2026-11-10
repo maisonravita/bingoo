@@ -9,11 +9,11 @@ import { SubNav } from "../components/SubNav";
 // Prix affiché à la française : 19,99 € ; un prix rond reste rond (29 €)
 const eur = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ","));
 const FEATURES = {
-  explorer: ["Toute la base SaaS, fiches illimitées", "Recherche intelligente et niches", "Concurrents suivis, alerte chaque lundi", "Idées et réussites chiffrées", "Leurs pubs et leurs e-mails", "Qui démarcher dans chaque niche"],
-  solo: ["Tout Explorer", "100 prospects par mois dans ta niche", "Décideur trouvé, message écrit pour lui", "Clients d'une niche ajoutés en un clic", "Les entreprises prêtes à acheter, chaque jour", "Prospects non utilisés reportés au mois suivant"],
-  pro: ["Tout Solo", "300 prospects par mois", "2 utilisateurs", "Tes concurrents surveillés au quotidien"],
-  equipe: ["Tout Pro", "700 prospects par mois", "5 utilisateurs", "Prospects répartis entre commerciaux", "Tableau de bord par commercial"],
+  explorer: ["Toute la base SaaS, fiches illimitées", "Recherche intelligente et niches", "10 SaaS suivis, alerte chaque lundi", "Idées et réussites chiffrées", "Notoriété web de chaque SaaS"],
+  explorer_pro: ["Tout Starter", "SaaS et catégories suivis sans limite", "Leurs pubs et leurs e-mails", "Comparer jusqu'à 4 SaaS", "Qui démarcher dans chaque niche"],
+  business: ["Tout Pro", "3 utilisateurs", "Export CSV des listes", "Support prioritaire"],
 };
+const VEILLE = ["explorer", "explorer_pro", "business"];
 const CONTACT = "bingoo@maisonravita.fr";
 
 /** Prospects contactés ce mois-ci : le quota de la formule, le report, les recharges, et le bouton +100. */
@@ -158,8 +158,8 @@ export default function Abonnement() {
         {ws.stripe_customer && <Button loading={busy === "billing-portal"} onClick={() => go("billing-portal")}>Factures, carte, résiliation</Button>}
       </Card>
 
-      <Quota q={quota} pack={pPack} payments={payments} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />
-      <Garantie g={gar} />
+      {!VEILLE.includes(ws.plan) && <Quota q={quota} pack={pPack} payments={payments} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />}
+      {!VEILLE.includes(ws.plan) && <Garantie g={gar} />}
       {ai && <AiGauge ai={ai} />}
       <Credits ai={ai} packs={packs} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />
 
@@ -168,16 +168,16 @@ export default function Abonnement() {
       </div>
       {fond && (fond.left > 0 || ws.founder_price) && (
         <Card className="p-4 sm:p-5 mb-4 border-accent/40 bg-accent-soft/40">
-          <p className="font-semibold">{ws.founder_price ? "Tu as le prix fondateur : Solo à 29 € à vie" : `Prix fondateur : Solo à ${fond.price} € à vie pour les ${fond.places} premiers`}</p>
-          {!ws.founder_price && <p className="text-sm text-ink-soft mt-1">Ensuite, Solo passe à 39,99 €. Ceux qui sont entrés gardent leur prix tant que l'abonnement continue.</p>}
+          <p className="font-semibold">{ws.founder_price ? "Tu as le prix fondateur : Pro à 29 € à vie" : `Prix fondateur : Pro à ${fond.price} € à vie pour les ${fond.places} premiers`}</p>
+          {!ws.founder_price && <p className="text-sm text-ink-soft mt-1">Ensuite, Pro passe à 39,99 €. Ceux qui sont entrés gardent leur prix tant que l'abonnement continue.</p>}
         </Card>
       )}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
         {plans.map((p) => {
-          const fondateur = p.key === "solo" && fond && (ws.founder_price || fond.left > 0);
+          const fondateur = p.key === "explorer_pro" && fond && (ws.founder_price || fond.left > 0);
           const prix = fondateur ? fond.price : p.price;
           const current = ws.plan === p.key && ["active", "trialing", "past_due"].includes(ws.plan_status);
-          const featured = p.key === "pro";
+          const featured = p.key === "explorer_pro";
           return (
             <Card key={p.key} className={cx("p-5 sm:p-6 flex flex-col min-w-0", featured && "!border-ink ring-1 ring-ink")}>
               <div className="flex items-center justify-between gap-2"><p className="font-semibold">{p.label}</p>{featured && <Badge tone="accent">Le plus choisi</Badge>}</div>

@@ -1,0 +1,1 @@
+-- Appliquée via MCP : trigger saas_suivis_limite (Starter : 10 suivis), explorer_starter, pubs et e-mails réservés à Pro et plus

@@ -68,6 +68,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   },
   async "saas-clients"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
+    if (ws.plan === "explorer") throw new HttpError(402, "« Qui démarcher » est dans la formule Pro.");
     await quota(ws.id, "recherche", 200);
     const { saasClients } = await import("../_shared/saas-base.ts");
     return await saasClients({ domaine: b.domaine ? String(b.domaine) : null, categorie: b.categorie ? String(b.categorie) : null, tag: b.tag ? String(b.tag) : null });
@@ -75,7 +76,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   // Explorer → prospection : un segment de clients devient une cible de l'espace (Radar et Mission la prospectent ensuite)
   async "saas-cible-ajouter"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
-    if (ws.plan === "explorer") throw new HttpError(402, "La formule Explorer montre qui démarcher ; pour que Bingoo! les prospecte, passe à Solo.");
+    if (["explorer", "explorer_pro", "business"].includes(String(ws.plan))) throw new HttpError(402, "La prospection ne fait pas partie de ta formule : tu peux noter ces segments et les démarcher avec ton outil.");
     const x = (b.segment ?? {}) as Record<string, unknown>;
     const naf = (Array.isArray(x.naf) ? x.naf : []).map(String).filter((n) => /^\d{2}\.\d{2}[A-Z]$/.test(n)).slice(0, 4);
     if (!x.label || !naf.length) throw new HttpError(400, "Segment incomplet");

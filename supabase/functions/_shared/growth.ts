@@ -1,7 +1,7 @@
 // Croissance : préchauffage, boîte mail, équipe, CRM, agenda, abonnements Stripe.
 import nodemailer from "npm:nodemailer@6.9.16";
 import { HttpError } from "./http.ts";
-import { admin, env, log, PACKS, PLANS, type Prospect, type Workspace } from "./core.ts";
+import { admin, env, log, PACKS, PLANS, VENTE, type Prospect, type Workspace } from "./core.ts";
 
 const APP = (ws: Workspace) => (ws.app_url || env("APP_URL", "https://kairo.maisonravita.fr")).replace(/\/$/, "");
 const today = () => new Date().toISOString().slice(0, 10);
@@ -376,7 +376,7 @@ async function stripe(path: string, params?: Record<string, string>, method = "P
 }
 
 export function plans() {
-  return Object.entries(PLANS).filter(([k]) => !["essai", "fondateur"].includes(k)).map(([key, p]) => ({ key, ...p }));
+  return Object.entries(PLANS).filter(([k]) => VENTE.includes(k)).map(([key, p]) => ({ key, ...p }));
 }
 
 export const ANNUAL_OFF = 0.2;
