@@ -165,7 +165,7 @@ export async function saasTendances() {
   const depuis = new Date(); depuis.setUTCMonth(depuis.getUTCMonth() - 12); depuis.setUTCDate(1);
   const q = (s: string) => `"${s.replace(/"/g, "")}"`;
   const series = await Promise.all(THEMES.map(async ([id, label, mots]) => {
-    const where = [`dateparution>=date'${depuis.toISOString().slice(0, 10)}'`, `familleavis="creation"`, `(search(listeetablissements,"logiciel") or search(listeetablissements,"SaaS") or search(listeetablissements,"plateforme numérique"))`,
+    const where = [`dateparution>=date'${depuis.toISOString().slice(0, 10)}'`, `familleavis="creation"`, `(search(listeetablissements,"logiciel") or search(listeetablissements,"SaaS"))`,
       ...(mots.length ? [`(${mots.map((m) => `search(listeetablissements,${q(m)})`).join(" or ")})`] : [])].join(" and ");
     const u = new URL(BODACC);
     for (const [k, v] of Object.entries({ select: "count(*) as n", group_by: `date_format(dateparution,"yyyy-MM") as mois`, where, order_by: "mois", limit: "24" })) u.searchParams.set(k, v);
