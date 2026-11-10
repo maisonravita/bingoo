@@ -1,0 +1,1 @@
+-- Appliquée via MCP : table saas_notoriete, colonnes saas.rang_web et rang_web_avant, saas_notoriete_maj, saas_notoriete_de, vue saas_liste (+ rang_web)

@@ -1,0 +1,15 @@
+name: Explorer – notoriété
+on:
+  workflow_dispatch:
+  schedule: [{ cron: "20 2 * * *" }]
+jobs:
+  majestic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Rang dans le Majestic Million
+        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}" }
+        run: node scripts/explorer/notoriete.cjs
