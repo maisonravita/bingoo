@@ -529,7 +529,7 @@ function Clients({ domaine, categorie, tag, titre = "Qui démarcher dans cette n
         <div className="mt-4 grid md:grid-cols-2 gap-3">
           {r.segments.map((sg) => (
             <div key={sg.label} className="rounded-xl bg-white/[.07] p-4 flex flex-col">
-              <div className="flex items-start justify-between gap-3"><p className="font-bold">{sg.label}</p>{sg.total != null && <p className="shrink-0 text-right"><span className="text-[20px] font-black tnum" style={HF}>{Number(sg.total).toLocaleString("fr-FR")}</span><br /><span className="text-[11.5px] text-white/60">entreprises</span></p>}</div>
+              <div className="flex items-start justify-between gap-3"><p className="font-bold">{sg.label}</p>{sg.total != null && <p className="shrink-0 text-right"><span className="text-[20px] font-black tnum" style={HF}>{Number(sg.total) >= 10000 ? "10 000+" : Number(sg.total).toLocaleString("fr-FR")}</span><br /><span className="text-[11.5px] text-white/60">entreprises</span></p>}</div>
               <p className="mt-1 text-[13.5px] text-white/80 flex-1">{sg.pourquoi}</p>
               <p className="mt-2 text-[12.5px] text-white/60">À qui écrire : {sg.interlocuteur || "dirigeant"} · NAF {sg.naf.join(", ")}</p>
               {mes.has(sg.label.toLowerCase()) ? <button onClick={() => nav("/radar")} className="mt-3 self-start rounded-lg bg-white/15 px-3 py-2 text-[13px] font-semibold">Dans tes cibles · voir le Radar</button>
