@@ -58,13 +58,15 @@ async function ecrire(spec: any, e: any, demande = "", actuel = "") {
   let code = extraire(await ask(prompt, { maxTokens: 9000, system: "Tu es un excellent développeur front-end. Tu écris du code Preact + htm propre, robuste et lisible, avec une interface soignée." }));
   let err = erreurSyntaxe(code);
   if (err || !/function\s+Ecran\s*\(/.test(code)) {
-    code = extraire(await ask(`${prompt}\n\nTa première version ne marchait pas (${err ?? "pas de fonction Ecran"}). Corrige-la :\n\`\`\`js\n${code}\n\`\`\``, { maxTokens: 9000 }));
+    code = extraire(await ask(`${prompt}\n\nTa première version ne marchait pas (${err ?? "pas de fonction Ecran"}). Corrige-la :\n\`\`\`js\n${code}\n\`\`\``, { maxTokens: 9000, fast: true }));
     err = erreurSyntaxe(code);
   }
   return { code, ok: !err && /function\s+Ecran\s*\(/.test(code) };
 }
 
-export async function saasConstruire(appId: string) {
+// Étape 1 (une invocation) : la spec, écrite dans le brouillon. Étape 2 : un appel par écran, chacun dans sa propre invocation
+// (une invocation est limitée à environ 150 secondes, un écran en prend 40 à 90).
+export async function saasConstruire(appId: string, lancerEcran: (ecranId: string) => Promise<void>) {
   const { data: app } = await admin.from("saas_apps").select("id, projet_id").eq("id", appId).single();
   const { data: pr } = await admin.from("saas_projets").select("data").eq("id", app!.projet_id).single();
   const p = (pr?.data ?? {}) as any;
@@ -76,13 +78,13 @@ Besoin : ${p.probleme}
 Fonctionnalités (équivalentes à ${p.inspire?.nom ?? "un SaaS qui marche"}) : ${(p.equivalences ?? []).map((x: any) => x.chez_toi).join(" ; ")}
 MVP dans l'ordre : ${(p.mvp ?? []).map((m: any) => m.fonction).join(" ; ")}
 
-Rends un objet JSON :
+Rends un objet JSON compact :
 - couleur : couleur de marque en hexadécimal (#xxxxxx), assez foncée pour du texte blanc dessus, PAS celle de ${p.inspire?.nom ?? "l'inspiration"}.
 - slogan : titre du site, 8 mots au plus, percutant ; cible_courte : 5 mots (« Pour les … »).
-- atouts : 6 objets titre + texte (une phrase), tirés des fonctionnalités.
-- collections : 2 à 5 objets nom (snake_case, pluriel), label, champs : 4 à 9 objets nom (snake_case) + type (texte|nombre|montant|date|choix|booleen|email|telephone|lien) + valeurs (pour choix seulement). Les liens entre collections : un champ <collection>_id de type texte.
-- ecrans : 4 à 6 objets id (snake_case court), titre (2 mots au plus), icone (parmi ${ICONES.join(", ")}), but (une à deux phrases), fonctions (3 à 6 éléments). Le premier écran est « Tableau de bord » (indicateurs et activité récente). Couvre le cœur du MVP ; pas d'écran de connexion, de paiement ni de réglages de compte (le gabarit les gère).
-- demo : objet { <collection> : 5 à 10 éléments réalistes en français (noms d'entreprises et de personnes fictifs, montants et dates cohérents en 2026) } pour que l'application soit vivante dès l'inscription.`, { maxTokens: 8000 });
+- atouts : 6 objets titre + texte (une phrase courte), tirés des fonctionnalités.
+- collections : 2 à 5 objets nom (snake_case, pluriel), label, champs : 4 à 8 objets nom (snake_case) + type (texte|nombre|montant|date|choix|booleen|email|telephone|lien) + valeurs (pour choix seulement). Les liens entre collections : un champ <collection>_id de type texte.
+- ecrans : 4 à 6 objets id (snake_case court), titre (2 mots au plus), icone (parmi ${ICONES.join(", ")}), but (une phrase), fonctions (3 à 5 éléments courts). Le premier écran est « Tableau de bord » (indicateurs et activité récente). Couvre le cœur du MVP ; pas d'écran de connexion, de paiement ni de réglages de compte (le gabarit les gère).
+- demo : objet { <collection> : 5 éléments réalistes en français (entreprises et personnes fictives, montants et dates cohérents en 2026) } ; les champs <collection>_id pointent vers le champ « ref » (ex. "c1") que tu ajoutes à chaque élément.`, { maxTokens: 12000 });
 
   const spec: any = {
     nom: p.nom, pitch: p.pitch, cible: p.cible, probleme: p.probleme,
@@ -93,13 +95,20 @@ Rends un objet JSON :
     ecrans: (s.ecrans ?? []).slice(0, 6).map((e: any, i: number) => ({ id: slugify(String(e.id ?? `ecran-${i}`)).replace(/-/g, "_") || `ecran_${i}`, titre: String(e.titre ?? `Écran ${i + 1}`).slice(0, 24), icone: ICONES.includes(e.icone) ? e.icone : "liste", but: e.but, fonctions: e.fonctions })),
     demo: s.demo ?? {},
   };
+  spec.ecrans = spec.ecrans.filter((e: any, i: number) => spec.ecrans.findIndex((x: any) => x.id === e.id) === i);
   if (!spec.ecrans.length) throw new Error("La conception de l'application a échoué, réessaie");
-  await etape(appId, `Écriture de ${spec.ecrans.length} écrans`);
-  const codes = await Promise.all(spec.ecrans.map((e: any) => ecrire(spec, e).catch((x) => { console.error("ecran", e.id, x); return { code: "", ok: false }; })));
-  spec.ecrans = spec.ecrans.map((e: any, i: number) => ({ ...e, code: codes[i].code, ok: codes[i].ok }));
-  if (!spec.ecrans.some((e: any) => e.ok)) throw new Error("L'écriture des écrans a échoué, réessaie");
-  const { data: cur } = await admin.from("saas_apps").select("version").eq("id", appId).single();
-  await admin.from("saas_apps").update({ spec, statut: "pret", etape: null, erreur: null, version: (cur?.version ?? 0) + 1, maj: new Date().toISOString() }).eq("id", appId);
+  await admin.from("saas_apps").update({ brouillon: spec, etape: `Écriture des écrans (0/${spec.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
+  for (const e of spec.ecrans) await lancerEcran(e.id);
+}
+
+/** Étape 2 : écrit un écran du brouillon (appelée une fois par écran, en parallèle). */
+export async function saasEcrireEcran(appId: string, ecranId: string) {
+  const { data: app } = await admin.from("saas_apps").select("brouillon").eq("id", appId).single();
+  const spec = app?.brouillon as any;
+  const e = spec?.ecrans?.find((x: any) => x.id === ecranId);
+  if (!e) return;
+  const r = await ecrire(spec, e).catch((x) => { console.error("ecran", ecranId, x); return { code: "", ok: false }; });
+  await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: ecranId, p_code: r.code, p_ok: r.ok });
 }
 
 /** Modifie un écran à la demande (ou en ajoute un si ecranId = "nouveau"). */

@@ -118,12 +118,18 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     await quota(ws.id, "construire", 3);
     setAi({ ws: ws.id, live: true, feature: "construire" });
     const { saasConstruire, nouveauSlug } = await import("../_shared/app-build.ts");
+    // Chaque écran s'écrit dans sa propre invocation (limite de durée d'une invocation)
+    const cle = await secret("cron_key");
+    const lancerEcran = async (ecran: string) => {
+      const r = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/r/saas-app-ecran`, { method: "POST", headers: { "content-type": "application/json", "x-cron-key": cle }, body: JSON.stringify({ app_id: id, ecran, ws: ws.id }) });
+      if (!r.ok) console.error("saas-app-ecran", r.status, await r.text());
+    };
     const nom = String((pr.data as { nom?: string })?.nom ?? "saas");
     let id = ex?.id;
-    if (id) await admin.from("saas_apps").update({ statut: "en_cours", erreur: null, etape: "Démarrage", maj: new Date().toISOString() }).eq("id", id);
+    if (id) await admin.from("saas_apps").update({ statut: "en_cours", brouillon: null, erreur: null, etape: "Démarrage", maj: new Date().toISOString() }).eq("id", id);
     else id = (await admin.from("saas_apps").insert({ projet_id: pr.id, workspace_id: ws.id, slug: nouveauSlug(nom), etape: "Démarrage" }).select("id").single()).data!.id;
     await log(ws.id, "construire", `Construction du SaaS ${nom}`);
-    const travail = saasConstruire(id!).catch(async (e) => {
+    const travail = saasConstruire(id!, lancerEcran).catch(async (e) => {
       console.error("construire", e);
       await admin.from("saas_apps").update({ statut: ex?.statut === "pret" ? "pret" : "erreur", erreur: String(e?.message ?? e).slice(0, 300), etape: null }).eq("id", id!);
     });
@@ -131,6 +137,17 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const rt = (globalThis as any).EdgeRuntime;
     if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
     return { id, statut: "en_cours" };
+  },
+  // Appel interne (clé des tâches planifiées) : écrit un écran du brouillon
+  async "saas-app-ecran"(req, b) {
+    await cron(req);
+    setAi({ ws: String(b.ws ?? ""), live: true, feature: "construire" });
+    const { saasEcrireEcran } = await import("../_shared/app-build.ts");
+    const travail = saasEcrireEcran(String(b.app_id ?? ""), String(b.ecran ?? "")).catch((e) => console.error("ecran", e));
+    // deno-lint-ignore no-explicit-any
+    const rt = (globalThis as any).EdgeRuntime;
+    if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
+    return { ok: true };
   },
   async "saas-app-modifier"(req, b) {
     const { ws } = await membreOuCron(req, b.workspace_id);

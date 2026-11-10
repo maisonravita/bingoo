@@ -33,8 +33,15 @@ async function session(admin: SupabaseClient, app: any, user: any) {
 // Données d'exemple : chaque nouveau compte démarre avec une application vivante
 async function semer(admin: SupabaseClient, app: any, userId: string) {
   const demo = (app.spec?.demo ?? {}) as Record<string, unknown[]>;
-  const rows = Object.entries(demo).flatMap(([col, xs]) => /^[a-z][a-z0-9_]{0,39}$/.test(col) && Array.isArray(xs)
-    ? xs.slice(0, 15).filter((x) => x && typeof x === "object").map((x, i) => ({ app_id: app.id, user_id: userId, col, data: x, at: new Date(Date.now() - i * 3600e3 * 7).toISOString() })) : []);
+  // Les liens entre exemples (client_id: "c1") pointent vers le champ ref : on les remplace par les vrais identifiants
+  const refs = new Map<string, string>();
+  const items = Object.entries(demo).flatMap(([col, xs]) => /^[a-z][a-z0-9_]{0,39}$/.test(col) && Array.isArray(xs)
+    ? xs.slice(0, 15).filter((x) => x && typeof x === "object" && !Array.isArray(x)).map((x: any) => { const id = crypto.randomUUID(); if (x.ref != null) refs.set(String(x.ref), id); return { id, col, x }; }) : []);
+  const rows = items.map(({ id, col, x }, i) => {
+    const data: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(x)) if (k !== "ref" && k !== "id") data[k] = typeof v === "string" && refs.has(v) && /_id$/.test(k) ? refs.get(v) : v;
+    return { id, app_id: app.id, user_id: userId, col, data, at: new Date(Date.now() - i * 3600e3 * 7).toISOString() };
+  });
   if (rows.length) await admin.from("saas_app_rows").insert(rows);
 }
 
@@ -42,7 +49,7 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
   try {
     if (!/^[a-z0-9-]{3,60}$/.test(slug)) throw new Err(404, "Application introuvable");
     const { data: app } = await admin.from("saas_apps").select("id, spec, statut").eq("slug", slug).maybeSingle();
-    if (!app || app.statut !== "pret") throw new Err(404, "Application introuvable");
+    if (!app || !(app.spec as any)?.ecrans?.length) throw new Err(404, "Application introuvable");
     const b = JSON.parse((await req.text()).slice(0, 60000) || "{}");
 
     if (action === "signup" || action === "login" || action === "demo") {
