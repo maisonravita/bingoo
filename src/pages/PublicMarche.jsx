@@ -96,7 +96,7 @@ export default function PublicMarche({ embedded = false, initial = null }) {
             <div className="mt-6 rounded-2xl bg-ink text-white p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <p className="text-[19px] font-bold">Sois prévenu dès qu'un concurrent bouge.</p>
-                <p className="mt-1 text-white/75 text-[15px]">Changement de prix, nouvelle fonctionnalité, recrutement, nouvelles pubs : chaque lundi dans ta boîte, avec Bingoo!.</p>
+                <p className="mt-1 text-white/75 text-[15px]">Changement de prix, version gratuite, recrutement, nouveautés : chaque lundi dans ta boîte, avec Bingoo!.</p>
               </div>
               <a href="#/" className="shrink-0 inline-flex rounded-xl bg-accent px-6 py-3.5 font-bold hover:bg-accent-dark">Suivre mon marché</a>
             </div>

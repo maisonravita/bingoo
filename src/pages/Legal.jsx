@@ -63,7 +63,7 @@ export function Opposition() {
 }
 
 const editor = () => isPerson ? `${L.company}, personne physique, ${L.address}` : `${L.company}${L.form ? `, ${L.form}` : ""}${L.capital ? ` au capital de ${L.capital}` : ""}, dont le siège est situé ${L.address}${L.rcs ? `, immatriculée au RCS de ${L.rcs}` : ""}, SIRET ${L.siret}${L.vat ? `, TVA intracommunautaire ${L.vat}` : ""}`;
-const UPDATED = "3 novembre 2026";
+const UPDATED = "10 novembre 2026";
 const contact = () => L.contact_email || L.privacy_email;
 
 export function MentionsLegales() {
@@ -81,6 +81,7 @@ export function MentionsLegales() {
       <p>La marque {brand.name}, le logo, les textes, les illustrations, les personnages et le logiciel sont la propriété de {L.company}. Toute reproduction ou réutilisation sans autorisation écrite est interdite. Les marques et noms d'entreprises tiers cités dans l'application ou sur le site appartiennent à leurs titulaires et ne sont mentionnés qu'à titre d'information.</p>
       <h2>Données publiques</h2>
       <p>{brand.name} s'appuie sur des données publiques et réutilisables : données essentielles de la commande publique, BOAMP, BODACC, registre national des entreprises (Sirene), TED, ainsi que les informations publiées par les entreprises elles-mêmes. Chaque information affichée indique sa source.</p>
+      <p>La base Explorer est constituée par la lecture des pages publiques des logiciels recensés (accueil, tarifs, carrières, nouveautés), dans le respect de leur fichier robots.txt, et par des articles de presse et documents publics pour les chiffres d'entreprise. Un éditeur peut demander la correction ou le retrait de sa fiche : <a className="underline" href="#/retrait">BingooBot et retrait</a>.</p>
       <h2>Données personnelles</h2>
       <p>Le traitement des données est décrit dans la <a className="underline" href="#/confidentialite">politique de confidentialité</a>. Pour ne plus être contacté par une entreprise utilisant {brand.name} : <a className="underline" href="#/opposition">Ne plus être contacté</a>.</p>
     </Shell>
@@ -126,6 +127,11 @@ export function Confidentialite() {
       <p>Ces données servent uniquement à faire fonctionner ces deux fonctions pour vous. Elles ne sont jamais vendues, jamais utilisées pour de la publicité, jamais utilisées pour entraîner un modèle d'intelligence artificielle, et ne sont lues par une personne qu'avec votre accord explicite (support) ou si la loi l'impose. Les jetons d'accès sont chiffrés. Vous pouvez retirer l'accès à tout moment dans {brand.name} (Connexions) ou dans votre compte Google.</p>
       <p>L'utilisation et le transfert à toute autre application des informations reçues des API Google respectent les <a className="underline" href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noreferrer">règles des services API Google relatives aux données des utilisateurs</a> (Google API Services User Data Policy), y compris les exigences d'utilisation limitée (Limited Use).</p>
 
+      <h2>5 ter. Explorer (base de logiciels SaaS)</h2>
+      <p>Explorer recense des <b>entreprises</b> qui éditent des logiciels : nom, site, prix, formules, offres d'emploi publiées, nouveautés, et, quand ils sont publiés par la presse ou par l'entreprise, ses chiffres (chiffre d'affaires, levées de fonds, salariés). Les seules données personnelles qu'Explorer peut afficher sont les <b>noms des fondateurs ou dirigeants</b> tels qu'ils sont cités publiquement, dans le récit de l'entreprise.</p>
+      <p><b>Base légale :</b> intérêt légitime (information sur le marché du logiciel). <b>Sources :</b> pages publiques du logiciel, articles de presse, documents officiels (registres, autorités de marché), toujours cités. <b>Durée :</b> tant que l'entreprise figure dans la base. <b>Opposition :</b> toute personne citée peut demander le retrait de son nom à {L.privacy_email}, traité sous 72 heures ; un éditeur peut demander la correction ou le retrait de sa fiche depuis la page <a className="underline" href="#/retrait">BingooBot et retrait</a>.</p>
+      <p>Les SaaS que vous suivez et les fiches que vous ouvrez sont enregistrés pour votre espace uniquement (alertes du lundi, limite de fiches de votre formule). Ils ne sont ni partagés, ni visibles des autres utilisateurs ou des éditeurs concernés.</p>
+
       <h2>6. Destinataires et sous-traitants</h2>
       <p>Les données ne sont jamais vendues. Elles sont traitées par les prestataires techniques suivants, liés par contrat :</p>
       <ul className="list-disc pl-5 space-y-1">
@@ -160,7 +166,7 @@ export function Conditions() {
       {isPerson && <p className="rounded-xl bg-white border border-line p-4 text-sm">{brand.name} est actuellement en phase de lancement : l'accès se fait par l'essai gratuit, et aucun abonnement payant n'est encore proposé. Les articles relatifs au paiement s'appliqueront dès l'ouverture des abonnements, qui sera annoncée au préalable.</p>}
 
       <h2>1. Le service</h2>
-      <p>{brand.name} met à disposition, sous forme d'abonnement en ligne, des agents logiciels d'intelligence artificielle qui repèrent des entreprises ayant une raison d'acheter (Radar), analysent vos concurrents (Espion), recherchent les coordonnées professionnelles des décideurs, rédigent et envoient des messages de prospection, suivent les réponses et organisent les rendez-vous (Mission). Ce sont des logiciels : leurs résultats peuvent comporter des erreurs et doivent être relus.</p>
+      <p>{brand.name} met à disposition, sous forme d'abonnement en ligne, des agents logiciels d'intelligence artificielle qui repèrent des entreprises ayant une raison d'acheter (Radar), analysent vos concurrents (Espion), recherchent les coordonnées professionnelles des décideurs, rédigent et envoient des messages de prospection, suivent les réponses et organisent les rendez-vous (Mission). Il comprend aussi Explorer, une base de logiciels SaaS mise à jour en continu (prix, formules, recrutement, nouveautés, changements, tendances, chiffres publics, idées de marché), le suivi de logiciels et de catégories avec une alerte hebdomadaire, et le rapport gratuit « Ton marché ». Ce sont des logiciels : leurs résultats peuvent comporter des erreurs et doivent être relus.</p>
 
       <h2>2. Compte et aperçu gratuit</h2>
       <p>La création d'un compte nécessite des informations exactes. Vous êtes responsable de la confidentialité de vos identifiants et des actions réalisées depuis votre compte et par les membres de votre équipe. Un aperçu gratuit de 7 jours, sans carte bancaire, permet de découvrir le service (recherche des premières entreprises et rédaction des premiers messages) ; l'envoi de messages nécessite une formule payante. À son terme, les fonctions payantes sont suspendues jusqu'à la souscription d'une formule.</p>
@@ -185,7 +191,11 @@ export function Conditions() {
       </ul>
 
       <h2>6. Limites d'usage</h2>
-      <p>Chaque formule comporte des limites quotidiennes affichées dans l'application. Les envois sont plafonnés et augmentés progressivement pour protéger la réputation de votre domaine. Le budget d'intelligence artificielle inclus est mensuel ; au-delà, le service ralentit ou vous pouvez acheter une recharge.</p>
+      <p>Chaque formule comporte des limites affichées dans l'application, dont le nombre de fiches Explorer consultables par semaine (la liste, les filtres et la recherche restent illimités). Chaque formule comporte aussi des limites quotidiennes. Les envois sont plafonnés et augmentés progressivement pour protéger la réputation de votre domaine. Le budget d'intelligence artificielle inclus est mensuel ; au-delà, le service ralentit ou vous pouvez acheter une recharge.</p>
+
+      <h2>6 bis. Explorer : nature des informations et réutilisation</h2>
+      <p>Les informations d'Explorer sont lues automatiquement sur les pages publiques des logiciels à la date indiquée, puis classées par intelligence artificielle. Les chiffres d'entreprise (chiffre d'affaires, revenu récurrent, levées de fonds, salariés, clients) proviennent de la presse, de l'entreprise elle-même ou de documents officiels : la source de chacun est indiquée, mais nous ne les vérifions pas et ils peuvent être anciens, estimés par des tiers ou contradictoires. Le score de croissance et les idées de marché sont des indicateurs calculés à partir de ces relevés (recrutement, nouveautés, prix, pays), pas des prévisions. Rien dans Explorer ne constitue un conseil en investissement, juridique ou stratégique.</p>
+      <p>Explorer est une base de données protégée (articles L341-1 et suivants du Code de la propriété intellectuelle). Vous pouvez consulter, comparer et citer ses informations pour vos propres besoins, mais pas extraire ou réutiliser de façon systématique tout ou partie substantielle de la base (copie massive, aspiration automatisée, revente, constitution d'un service concurrent), ni contourner les limites de consultation de votre formule.</p>
 
       <h2>7. Disponibilité</h2>
       <p>Nous faisons nos meilleurs efforts pour assurer la disponibilité du service, sans garantie de fonctionnement ininterrompu. Des interruptions peuvent survenir pour maintenance, mise à jour ou en raison de prestataires tiers (hébergement, messagerie, sources de données publiques).</p>
