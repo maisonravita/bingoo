@@ -33,7 +33,10 @@ const ANALYSE = (adresse) => {
   const NEWS = /(newsletter|subscribe|abonne|inscri(s|re|vez)|updates|stay (in touch|updated)|restez inform|lettre d'info|digest|weekly)/i;
   const INTERDIT = /(d[ée]mo|contact|devis|quote|essai|trial|cr[ée]er (un|mon) compte|create (an )?account|sign ?up for free|register|login|connexion|mot de passe|password|rendez-vous|webinar)/i;
   const visible = (el) => { const r = el.getBoundingClientRect(); const st = getComputedStyle(el); return r.width > 0 && r.height > 0 && st.visibility !== "hidden" && st.display !== "none"; };
-  const forms = [...document.querySelectorAll("form")].filter((f) => visible(f) && f.querySelector('input[type="email"], input[name*="mail" i]'));
+  // Formulaires classiques, et champs e-mail hors <form> (sites React) : le plus petit bloc qui contient le champ et un bouton
+  const sansForm = [...document.querySelectorAll('input[type="email"], input[name*="mail" i], input[placeholder*="mail" i]')].filter((x) => visible(x) && !x.closest("form")).map((x) => {
+    let el = x.parentElement; for (let k = 0; k < 5 && el && !el.querySelector("button, input[type=submit]"); k++) el = el.parentElement; return el; }).filter(Boolean);
+  const forms = [...[...document.querySelectorAll("form")].filter((f) => visible(f) && f.querySelector('input[type="email"], input[name*="mail" i], input[placeholder*="mail" i]')), ...sansForm];
   if (!forms.length) return { ok: false, raison: "pas_de_formulaire" };
   for (const [i, f] of forms.entries()) {
     const ctx = (f.innerText + " " + (f.closest("section,footer,div")?.innerText ?? "")).slice(0, 1500);
@@ -66,6 +69,8 @@ const ANALYSE = (adresse) => {
       const pages = [`https://${r.domaine}/`];
       if (ok(pages[0])) {
         await page.goto(pages[0], { waitUntil: "domcontentloaded", timeout: 25000 });
+        await page.waitForTimeout(2000);
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)).catch(() => {});
         await page.waitForTimeout(2500);
         let a = await page.evaluate(ANALYSE, ADRESSE);
         // Sinon, la page newsletter ou blog liée depuis l'accueil (même site)
@@ -80,11 +85,11 @@ const ANALYSE = (adresse) => {
           }
         }
         if (a.ok) {
-          const form = page.locator('form[data-bingoo="1"]').first();
-          const champ = form.locator('input[type="email"], input[name*="mail" i]').first();
+          const form = page.locator('[data-bingoo="1"]').first();
+          const champ = form.locator('input[type="email"], input[name*="mail" i], input[placeholder*="mail" i]').first();
           await champ.fill(ADRESSE);
           for (const c of await form.locator('input[type="checkbox"]').all()) { if (await c.isVisible() && (await c.getAttribute("required")) !== null) await c.check({ force: true }).catch(() => {}); }
-          const bouton = form.locator('button[type="submit"], input[type="submit"], button:not([type])').first();
+          const bouton = form.locator('button[type="submit"], input[type="submit"], button:not([type]), button').first();
           if (await bouton.count()) await bouton.click({ timeout: 8000 }); else await champ.press("Enter");
           await page.waitForTimeout(4000);
           statut = "demande";
