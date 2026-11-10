@@ -1,7 +1,7 @@
 name: Explorer – newsletters
 on:
   workflow_dispatch:
-    inputs: { max: { description: "Nombre de SaaS", default: "30" } }
+    inputs: { max: { description: "Nombre de SaaS", default: "80" } }
   schedule: [{ cron: "10 3 * * *" }]
 jobs:
   inscription:
@@ -13,5 +13,5 @@ jobs:
         with: { node-version: 20 }
       - run: npm i --no-save playwright@1.48.2 && npx playwright install --with-deps chromium
       - name: Inscription aux newsletters publiques
-        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}", MAX: "${{ github.event.inputs.max || '30' }}" }
+        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}", MAX: "${{ github.event.inputs.max || '80' }}" }
         run: node scripts/explorer/newsletters.cjs
