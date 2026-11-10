@@ -517,7 +517,7 @@ function idees(d) {
     const x = { ...n, n: Number(n.n), fr: Number(n.fr), etranger: Number(n.etranger), recrutent: Number(n.recrutent), postes: Number(n.postes), gratuits: Number(n.gratuits), actifs: Number(n.actifs), prix: n.prix_median != null ? Math.round(n.prix_median) : null };
     const tag = x.genre === "tag";
     if (x.etranger >= 3 && (tag ? x.fr === 0 : x.etranger >= 4 * Math.max(1, x.fr)))
-      out.push({ k: "importer", x, poids: x.etranger * 2 + x.recrutent * 3, texte: `${x.etranger} SaaS étrangers dans la base, ${x.fr === 0 ? "aucun français" : `${x.fr} seulement en France`}.${x.recrutent ? ` ${x.recrutent} d'entre eux recrutent, signe que la demande existe.` : ""}` });
+      out.push({ k: "importer", x, poids: x.etranger * 2 + x.recrutent * 3, texte: `Parmi les ${x.fr + x.etranger} SaaS dont le pays est connu : ${x.etranger} étrangers, ${x.fr === 0 ? "aucun français" : `${x.fr} seulement en France`}.${x.recrutent ? ` ${x.recrutent} d'entre eux recrutent, signe que la demande existe.` : ""}` });
     if (x.n >= 4 && x.gratuits === 0 && x.prix != null && x.prix >= 15)
       out.push({ k: "gratuit", x, poids: x.n + x.prix / 10, texte: `Aucun des ${x.n} SaaS n'a de version gratuite, et l'entrée coûte ${x.prix} € par mois en médiane. Une offre gratuite ou moins chère se remarquerait.` });
     if (x.n >= 3 && (x.recrutent / x.n >= 0.4 || x.actifs / x.n >= 0.5))
