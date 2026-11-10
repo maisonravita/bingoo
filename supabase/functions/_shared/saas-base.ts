@@ -16,7 +16,7 @@ const TLD_PAYS: Record<string, string> = { fr: "FR", de: "DE", es: "ES", it: "IT
 
 // Sous-niches : 3 à 6 étiquettes courtes en français, en minuscules (métier visé, type de client, usage précis)
 export const TAGS_REGLE = "3 à 6 étiquettes courtes en français et en minuscules qui précisent la niche : le métier ou secteur visé (ex. « agences immobilières », « restaurants »), le type de client (« indépendants », « tpe », « pme », « grands comptes »), l'usage précis (« relance de factures », « prise de rendez-vous », « signature électronique »)";
-export const nettoieTags = (t: unknown) => [...new Set((Array.isArray(t) ? t : []).map((x) => String(x).toLowerCase().trim().replace(/[«»"]/g, "").slice(0, 40)).filter((x) => x.length >= 3))].slice(0, 6);
+export const nettoieTags = (t: unknown) => [...new Set((Array.isArray(t) ? t : []).map((x) => String(x).toLowerCase().trim().replace(/[«»"]/g, "").slice(0, 40)).filter((x) => x.length >= 3 && !["autre", "autres", "divers", "général", "entreprises"].includes(x)))].slice(0, 6);
 
 export const domaineDe = (u: string) => {
   let s = String(u ?? "").trim().toLowerCase();
