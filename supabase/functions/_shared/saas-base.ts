@@ -14,6 +14,10 @@ export const CATEGORIES = [
 ];
 const TLD_PAYS: Record<string, string> = { fr: "FR", de: "DE", es: "ES", it: "IT", be: "BE", nl: "NL", ch: "CH", uk: "GB", io: "", com: "", co: "", ai: "", app: "", pt: "PT", ca: "CA", se: "SE", dk: "DK", pl: "PL", at: "AT", ie: "IE" };
 
+// Sous-niches : 3 à 6 étiquettes courtes en français, en minuscules (métier visé, type de client, usage précis)
+export const TAGS_REGLE = "3 à 6 étiquettes courtes en français et en minuscules qui précisent la niche : le métier ou secteur visé (ex. « agences immobilières », « restaurants »), le type de client (« indépendants », « tpe », « pme », « grands comptes »), l'usage précis (« relance de factures », « prise de rendez-vous », « signature électronique »)";
+export const nettoieTags = (t: unknown) => [...new Set((Array.isArray(t) ? t : []).map((x) => String(x).toLowerCase().trim().replace(/[«»"]/g, "").slice(0, 40)).filter((x) => x.length >= 3))].slice(0, 6);
+
 export const domaineDe = (u: string) => {
   let s = String(u ?? "").trim().toLowerCase();
   if (!s) return "";
@@ -63,14 +67,14 @@ export async function saasLire(id: string) {
   const tarifs = rendu.length > f.prix_texte.length ? rendu : f.prix_texte;
   setAi({ feature: "explorer/lecture" });
   const a = await askJson<{ est_saas: boolean; nom: string; categorie: string; description: string; cible: string; pays: string | null; langue: string | null;
-    gratuit: boolean; essai: string | null; prix_entree: number | null; devise: string | null; periode: string | null; sur_devis: boolean; formules: { nom: string; prix: string }[] }>(
+    gratuit: boolean; essai: string | null; prix_entree: number | null; devise: string | null; periode: string | null; sur_devis: boolean; formules: { nom: string; prix: string }[]; tags: string[] }>(
     `Voici le site ${s.domaine}. Classe ce logiciel et lis ses prix, sans rien inventer (null si absent).
 ACCUEIL :
 ${accueil}
 TARIFS :
 ${tarifs.slice(0, 3500)}
 Clés : est_saas (true si c'est un logiciel vendu en ligne, par abonnement ou à l'usage ; false pour une agence, un média, un site vitrine), nom, categorie (exactement une de : ${CATEGORIES.join(" | ")}),
-description (une phrase en français : ce qu'il fait), cible (une phrase en français : pour qui), pays (code à 2 lettres du pays du siège s'il est écrit ou évident : adresse, mentions légales, devise ; sinon null), langue (code de la langue du site),
+description (une phrase en français : ce qu'il fait), cible (une phrase en français : pour qui), tags (${TAGS_REGLE}), pays (code à 2 lettres du pays du siège s'il est écrit ou évident : adresse, mentions légales, devise ; sinon null), langue (code de la langue du site),
 gratuit (formule gratuite), essai (durée de l'essai gratuit ou null), prix_entree (prix mensuel le plus bas d'une formule payante, nombre), devise (€ $ £), periode (mois ou an), sur_devis, formules (au plus 4 : nom et prix tel qu'affiché).`,
     { fast: true, maxTokens: 900 }).catch(() => null);
   if (!a) { await admin.from("saas").update({ essais: (s.essais ?? 0) + 1, lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "erreur" }; }
@@ -87,7 +91,7 @@ gratuit (formule gratuite), essai (durée de l'essai gratuit ou null), prix_entr
   const score = Math.max(0, Math.min(100, Math.round((f.recrute.oui ? 25 : 0) + Math.min(35, (f.recrute.postes ?? 0) * 2.5) + (actif ? 25 : 0) + Math.max(0, Math.min(15, hausse * 3)))));
   const champs = {
     nom: (a.nom || s.domaine).slice(0, 80), categorie: CATEGORIES.includes(a.categorie) ? a.categorie : "Autre",
-    description: (a.description ?? "").slice(0, 300), cible: (a.cible ?? "").slice(0, 200), pays, langue: (a.langue ?? "").slice(0, 5) || null, est_saas: true,
+    description: (a.description ?? "").slice(0, 300), cible: (a.cible ?? "").slice(0, 200), tags: nettoieTags(a.tags), pays, langue: (a.langue ?? "").slice(0, 5) || null, est_saas: true,
     prix_entree_eur: prix, devise: a.devise ?? null, prix_affiche: a.prix_entree ? `${a.prix_entree} ${a.devise ?? ""}/${a.periode === "an" ? "an" : "mois"}` : null,
     gratuit: !!a.gratuit, essai: a.essai ?? null, sur_devis: !!a.sur_devis, formules: (a.formules ?? []).slice(0, 4),
     recrute: f.recrute.oui, postes: f.recrute.postes, nouveaute: f.nouveaute.date, outils: f.outils,
@@ -228,4 +232,36 @@ ${neufs.length ? `<h3 style="margin:16px 0 6px">Nouveaux SaaS dans tes catégori
     } catch (e) { console.error("alerte saas", wsId, e); }
   }
   return { espaces: parWs.size, envoyes };
+}
+
+
+// ---------------------------------------------------------------- Sous-niches des fiches déjà lues (sans relire les sites)
+export async function saasTags(max = 80) {
+  setAi({ feature: "explorer/niches" });
+  const { data } = await admin.from("saas").select("id, nom, categorie, description, cible").eq("statut", "ok").eq("tags", "{}").limit(max);
+  const rows = (data ?? []) as { id: string; nom: string; categorie: string; description: string | null; cible: string | null }[];
+  let faits = 0;
+  for (let i = 0; i < rows.length; i += 20) {
+    const lot = rows.slice(i, i + 20);
+    const r = await askJson<{ saas: { i: number; tags: string[] }[] }>(`Pour chaque logiciel ci-dessous, donne ${TAGS_REGLE}. N'invente rien qui ne ressorte pas de la description.
+${lot.map((x, k) => `${k}. ${x.nom} (${x.categorie}) : ${x.description ?? ""} Pour : ${x.cible ?? ""}`).join("\n")}
+Clé : saas, liste d'objets i (le numéro) et tags.`, { fast: true, maxTokens: 2500 }).catch(() => ({ saas: [] }));
+    for (const x of r.saas ?? []) { const row = lot[Number(x.i)]; const tags = nettoieTags(x.tags); if (row && tags.length) { await admin.from("saas").update({ tags }).eq("id", row.id); faits++; } }
+  }
+  return { faits, restant: rows.length - faits };
+}
+
+// ---------------------------------------------------------------- Recherche par le sens
+// La question (« un outil pour relancer mes factures impayées ») devient des termes : synonymes français et anglais,
+// noms d'usage, étiquettes de niche, et une catégorie si elle est évidente. La notation se fait ensuite en base.
+export async function saasRecherche(q: string, categorie?: string | null) {
+  setAi({ feature: "explorer/recherche" });
+  const r = await askJson<{ termes: string[]; categorie: string | null }>(`Quelqu'un cherche un logiciel SaaS avec cette demande : « ${q.slice(0, 200)} ».
+Donne les termes à chercher dans des fiches de logiciels (nom, description, étiquettes) : 6 à 14 mots ou groupes de 1 à 3 mots, en français ET en anglais, synonymes et usages concrets (ex. pour « relancer mes factures impayées » : relance, impayés, recouvrement, facturation, factures, dunning, accounts receivable, encaissement).
+Et la catégorie si elle est évidente, exactement une de : ${CATEGORIES.join(" | ")} ; sinon null.
+Clés : termes, categorie.`, { fast: true, maxTokens: 300 }).catch(() => ({ termes: q.split(/\s+/), categorie: null }));
+  const termes = [...new Set((r.termes ?? []).map((t) => String(t).toLowerCase().trim()).filter((t) => t.length >= 3))].slice(0, 16);
+  const { data, error } = await admin.rpc("saas_recherche", { termes, cat: categorie || null, lim: 60 });
+  if (error) throw new Error(error.message);
+  return { termes, categorie_suggeree: CATEGORIES.includes(r.categorie ?? "") ? r.categorie : null, resultats: data ?? [] };
 }

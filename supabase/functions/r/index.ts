@@ -66,6 +66,15 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     await admin.from("saas_suivis").insert({ workspace_id: ws.id, categorie: moi.categorie }).then(() => null, () => null);
     return { moi: { domaine: moi.domaine, nom: moi.nom, categorie: moi.categorie }, concurrents: ok.map((r) => ({ domaine: r.domaine, nom: r.nom, prix_entree_eur: r.prix_entree_eur })) };
   },
+  async "saas-recherche"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    await quota(ws.id, "recherche", 200);
+    const q = String(b.q ?? "").trim();
+    if (q.length < 3) throw new HttpError(400, "Décris ce que tu cherches");
+    const { saasRecherche } = await import("../_shared/saas-base.ts");
+    return await saasRecherche(q, b.categorie ? String(b.categorie) : null);
+  },
+  async "saas-tags"(req) { await cron(req); const { saasTags } = await import("../_shared/saas-base.ts"); return await saasTags(); },
   // Explorer (clé cron) : relevés de nuit et amorçage de la base
   async "saas-cron"(req) { await cron(req); const { saasCron } = await import("../_shared/saas-base.ts"); return await saasCron(); },
   async "saas-seed"(req, b) {
