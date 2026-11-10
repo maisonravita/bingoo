@@ -211,13 +211,21 @@ export async function saasAlertes(seulement?: string) {
   const depuis = new Date(Date.now() - 7 * 864e5).toISOString();
   const { data: evs } = await admin.from("saas_evenements").select("at, type, avant, apres, saas:saas_id(id, domaine, nom, categorie, statut)").gte("at", depuis).order("at", { ascending: false }).limit(5000);
   const { data: nouveaux } = await admin.from("saas").select("id, domaine, nom, categorie, description, prix_entree_eur").eq("statut", "ok").gte("created_at", depuis).limit(3000);
+  const { data: mails } = await admin.from("saas_emails").select("saas_id, subject, kind, offre, resume").gte("recu_at", depuis).not("kind", "in", "(confirmation,a_classer)").limit(3000);
+  const { data: pubs } = await admin.from("saas_pubs").select("saas_id, titre, body").gte("started", depuis.slice(0, 10)).limit(3000);
+  const { data: noms } = await admin.from("saas").select("id, nom, domaine").in("id", [...new Set([...(mails ?? []), ...(pubs ?? [])].map((x) => x.saas_id).filter(Boolean))]);
+  const nomDe = new Map(((noms ?? []) as { id: string; nom: string; domaine: string }[]).map((x) => [x.id, x]));
   const site = "https://kairo.maisonravita.fr";
   let envoyes = 0;
   for (const [wsId, f] of parWs) {
     const mes = ((evs ?? []) as { at: string; type: string; avant: string | null; apres: string | null; saas: { id: string; domaine: string; nom: string; categorie: string; statut: string } | null }[])
       .filter((e) => e.saas && e.saas.statut === "ok" && (f.saas.has(e.saas.id) || f.cats.has(e.saas.categorie))).slice(0, 40);
     const neufs = ((nouveaux ?? []) as { domaine: string; nom: string; categorie: string; description: string; prix_entree_eur: number | null }[]).filter((s) => f.cats.has(s.categorie)).slice(0, 15);
-    if (!mes.length && !neufs.length) continue;
+    const sesMails = ((mails ?? []) as { saas_id: string; subject: string; kind: string; offre: string; resume: string }[]).filter((m) => f.saas.has(m.saas_id) && nomDe.has(m.saas_id)).slice(0, 10);
+    const parPub = new Map<string, number>();
+    for (const p of (pubs ?? []) as { saas_id: string }[]) if (f.saas.has(p.saas_id)) parPub.set(p.saas_id, (parPub.get(p.saas_id) ?? 0) + 1);
+    const sesPubs = [...parPub].filter(([id]) => nomDe.has(id));
+    if (!mes.length && !neufs.length && !sesMails.length && !sesPubs.length) continue;
     const { data: w } = await admin.from("workspaces").select("*").eq("id", wsId).single();
     if (!w) continue;
     const to = await teamAddress(w as Workspace);
@@ -225,10 +233,14 @@ export async function saasAlertes(seulement?: string) {
     const ligne = (e: typeof mes[number]) => `${e.saas!.nom} : ${EV_TXT[e.type] ?? e.type}${e.type !== "nouveaute" && e.avant && e.apres ? ` (${e.avant} → ${e.apres})` : ""}`;
     const text = [`Ton marché cette semaine`, "", ...(mes.length ? ["Ce qui a bougé :", ...mes.map((e) => `- ${ligne(e)}`), ""] : []),
       ...(neufs.length ? ["Nouveaux SaaS dans tes catégories :", ...neufs.map((s) => `- ${s.nom} (${s.categorie})${s.prix_entree_eur != null ? `, dès ${s.prix_entree_eur} €/mois` : ""}`), ""] : []),
+      ...(sesMails.length ? ["Leurs e-mails :", ...sesMails.map((m) => `- ${nomDe.get(m.saas_id)!.nom} : ${m.subject}${m.offre ? ` (${m.offre})` : ""}`), ""] : []),
+      ...(sesPubs.length ? ["Nouvelles pubs Facebook et Instagram :", ...sesPubs.map(([id, n]) => `- ${nomDe.get(id)!.nom} : ${n} nouvelle${n > 1 ? "s" : ""}`), ""] : []),
       `Tout voir : ${site}/#/explorer/suivis`].join("\n");
     const html = `<div style="font-family:Arial,sans-serif;color:#15161A;max-width:560px"><h2 style="margin:0 0 4px">Ton marché cette semaine</h2><p style="color:#5B5D66;margin:0 0 16px">${mes.length} changement${mes.length > 1 ? "s" : ""} chez les SaaS que tu suis${neufs.length ? `, ${neufs.length} nouveau${neufs.length > 1 ? "x" : ""} SaaS dans tes catégories` : ""}.</p>
 ${mes.length ? `<h3 style="margin:16px 0 6px">Ce qui a bougé</h3><ul style="padding-left:18px">${mes.map((e) => `<li style="margin:4px 0"><a href="${site}/#/explorer/${escH(e.saas!.domaine)}" style="color:#15161A;font-weight:bold">${escH(e.saas!.nom)}</a> : ${escH(EV_TXT[e.type] ?? e.type)}${e.type !== "nouveaute" && e.avant && e.apres ? ` (${escH(e.avant)} → ${escH(e.apres)})` : ""}</li>`).join("")}</ul>` : ""}
 ${neufs.length ? `<h3 style="margin:16px 0 6px">Nouveaux SaaS dans tes catégories</h3><ul style="padding-left:18px">${neufs.map((s) => `<li style="margin:4px 0"><a href="${site}/#/explorer/${escH(s.domaine)}" style="color:#15161A;font-weight:bold">${escH(s.nom)}</a> · ${escH(s.categorie)}${s.prix_entree_eur != null ? ` · dès ${s.prix_entree_eur} €/mois` : ""}</li>`).join("")}</ul>` : ""}
+${sesMails.length ? `<h3 style="margin:16px 0 6px">Leurs e-mails</h3><ul style="padding-left:18px">${sesMails.map((m) => `<li style="margin:4px 0"><a href="${site}/#/explorer/${escH(nomDe.get(m.saas_id)!.domaine)}" style="color:#15161A;font-weight:bold">${escH(nomDe.get(m.saas_id)!.nom)}</a> : ${escH(m.subject)}${m.offre ? ` <span style="color:#5B5D66">(${escH(m.offre)})</span>` : ""}</li>`).join("")}</ul>` : ""}
+${sesPubs.length ? `<h3 style="margin:16px 0 6px">Nouvelles pubs Facebook et Instagram</h3><ul style="padding-left:18px">${sesPubs.map(([id, n]) => `<li style="margin:4px 0"><a href="${site}/#/explorer/${escH(nomDe.get(id)!.domaine)}" style="color:#15161A;font-weight:bold">${escH(nomDe.get(id)!.nom)}</a> : ${n} nouvelle${n > 1 ? "s" : ""}</li>`).join("")}</ul>` : ""}
 <p style="margin-top:20px"><a href="${site}/#/explorer/suivis" style="background:#E0531F;color:#fff;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold">Tout voir dans Explorer</a></p></div>`;
     try {
       await sendSystem({ to, subject: `Ton marché cette semaine : ${mes.length} changement${mes.length > 1 ? "s" : ""}${neufs.length ? `, ${neufs.length} nouveau${neufs.length > 1 ? "x" : ""} SaaS` : ""}`, text, html, key: `alerte-saas-${wsId}-${new Date().toISOString().slice(0, 10)}` });
