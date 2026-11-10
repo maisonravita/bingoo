@@ -73,13 +73,25 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (ws.plan === "explorer") throw new HttpError(402, "« Lancer le mien » est dans la formule Pro.");
     await quota(ws.id, "lancer", 10);
     // Une à deux minutes de travail : on répond tout de suite et on prépare le projet en tâche de fond (la page interroge la base)
-    const domaine = String(b.domaine ?? "").toLowerCase();
-    const { data: s } = await admin.from("saas").select("id, nom").eq("domaine", domaine).eq("statut", "ok").single();
-    if (!s) throw new HttpError(404, "SaaS introuvable");
-    const { data: row } = await admin.from("saas_projets").insert({ workspace_id: ws.id, saas_id: s.id, statut: "en_cours", data: { inspire: { nom: s.nom, domaine } } }).select("id").single();
-    await log(ws.id, "lancer", `Projet de SaaS concurrent de ${s.nom}`);
-    const { saasLancer } = await import("../_shared/saas-base.ts");
-    const travail = saasLancer(ws.id, domaine, row!.id).catch(async (e) => {
+    const { saasLancer, saasAdd, saasLire, domaineDe } = await import("../_shared/saas-base.ts");
+    const domaine = domaineDe(String(b.domaine ?? ""));
+    if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domaine)) throw new HttpError(400, "Adresse de site invalide");
+    // Un SaaS absent de la base y est ajouté, puis lu avant de préparer le projet
+    let { data: s } = await admin.from("saas").select("id, nom, statut").eq("domaine", domaine).maybeSingle();
+    if (!s) { await saasAdd([`https://${domaine}`], "lancer"); ({ data: s } = await admin.from("saas").select("id, nom, statut").eq("domaine", domaine).maybeSingle()); }
+    if (!s) throw new HttpError(400, "Ce site ne peut pas être ajouté");
+    if (["pas_saas", "doublon", "retire"].includes(s.statut)) throw new HttpError(400, "Ce site n'est pas un logiciel SaaS lisible");
+    const { data: row } = await admin.from("saas_projets").insert({ workspace_id: ws.id, saas_id: s.id, statut: "en_cours", data: { inspire: { nom: s.nom ?? domaine, domaine } } }).select("id").single();
+    await log(ws.id, "lancer", `Projet de SaaS concurrent de ${s.nom ?? domaine}`);
+    const sid = s.id, aLire = s.statut !== "ok";
+    const travail = (async () => {
+      if (aLire) {
+        await saasLire(sid);
+        const { data: lu } = await admin.from("saas").select("statut").eq("id", sid).single();
+        if (lu?.statut !== "ok") throw new Error("Ce site n'a pas pu être lu comme un logiciel SaaS");
+      }
+      return saasLancer(ws.id, domaine, row!.id);
+    })().catch(async (e) => {
       await admin.from("saas_projets").update({ statut: "erreur", erreur: String(e?.message ?? e).slice(0, 300) }).eq("id", row!.id);
     });
     // deno-lint-ignore no-explicit-any

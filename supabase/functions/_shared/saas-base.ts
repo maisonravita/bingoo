@@ -543,7 +543,7 @@ type Projet = {
   hypotheses: { clients_mois_1: number; croissance_mensuelle_pct: number; churn_mensuel_pct: number; conversion_essai_pct: number };
 };
 export async function saasLancer(wsId: string, domaine: string, projetId?: string) {
-  const { data: s } = await admin.from("saas").select("id, nom, domaine, categorie, description, cible, pays, prix_entree_eur, gratuit, essai, formules, recrute, postes, tags, methode, liens, prix_rendu").eq("domaine", domaine.toLowerCase()).eq("statut", "ok").single();
+  const { data: s } = await admin.from("saas").select("id, nom, domaine, categorie, description, cible, pays, prix_entree_eur, gratuit, essai, formules, recrute, postes, tags, methode, liens, prix_rendu, prix_affiche, modele_prix").eq("domaine", domaine.toLowerCase()).eq("statut", "ok").single();
   if (!s) throw new Error("SaaS introuvable");
   // Ce que fait le SaaS, lu sur ses pages publiques (accueil, tarifs) : la liste des fonctionnalités à égaler
   const site = `https://${s.domaine}`;
@@ -607,7 +607,7 @@ hypotheses (prudentes : clients_mois_1 nombre de clients payants le premier mois
     `Comptes utilisateurs avec e-mail et mot de passe, abonnement mensuel avec les formules : ${(p.formules ?? []).map((f) => `${f.nom} à ${f.prix} € par mois (${(f.inclus ?? []).join(", ")})`).join(" ; ")}. Essai gratuit de 14 jours.`,
     `Ajoute une page d'accueil publique qui présente le produit et les prix, des mentions légales et une politique de confidentialité conformes au RGPD.`,
   ].join("\n");
-  const data = { ...p, construction, inspire: { nom: s.nom, domaine: s.domaine, categorie: s.categorie, prix: s.prix_entree_eur }, marche: { mediane, prix: prixMarche, concurrents: (conc ?? []).length },
+  const data = { ...p, construction, inspire: { nom: s.nom, domaine: s.domaine, categorie: s.categorie, prix: s.prix_entree_eur, usage: ["usage", "commission"].includes(s.modele_prix ?? "") ? s.prix_affiche : null }, marche: { mediane, prix: prixMarche, concurrents: (conc ?? []).length },
     plan: { prix_moyen: prixMoyen, couts_fixes: couts, mois, equilibre: mois.find((x) => x.resultat > 0)?.mois ?? null } };
   if (projetId) { await admin.from("saas_projets").update({ data, statut: "pret" }).eq("id", projetId); return { id: projetId, ...data }; }
   const { data: row } = await admin.from("saas_projets").insert({ workspace_id: wsId, saas_id: s.id, data }).select("id").single();

@@ -758,6 +758,10 @@ function Idees() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
       <h1 className="text-[30px] font-black tracking-tight" style={HF}>Idées et réussites</h1>
       <p className="text-ink-soft">Les SaaS qui chiffrent le plus et comment ils ont grandi, puis les idées que la base fait ressortir.</p>
+      <div className="mt-4 rounded-2xl bg-ink text-white p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div><p className="font-bold text-[17px]">Un SaaS marche ? Lance le même, à ton nom.</p><p className="text-[13.5px] text-white/70">Colle son adresse : ses fonctionnalités, ton équivalent, les prix, le plan d'affaires et le texte pour le faire coder.</p></div>
+        <AutreSaas grand />
+      </div>
       <div className="mt-4 flex flex-wrap gap-2">
         <Chip on={vue === "reussites"} onClick={() => setVue("reussites")}>Ceux qui chiffrent le plus</Chip>
         <Chip on={vue === "idees"} onClick={() => setVue("idees")}>Idées à prendre</Chip>
@@ -807,6 +811,18 @@ function Idees() {
 }
 
 // ---------------------------------------------------------------- Lancer le mien : un SaaS inspiré d'un SaaS qui marche
+/** N'importe quel SaaS, même absent de la base : on colle son adresse. */
+function AutreSaas({ grand = false }) {
+  const nav = useNavigate();
+  const [u, setU] = useState("");
+  const go = (e) => { e.preventDefault(); const d = u.trim().replace(/^https?:\/\//i, "").replace(/^www\./i, "").split(/[/?#]/)[0].toLowerCase(); if (d.includes(".")) { setU(""); nav(`/explorer/lancer?d=${encodeURIComponent(d)}`); } };
+  return (
+    <form onSubmit={go} className={cx("flex gap-2", grand ? "w-full max-w-xl" : "")}>
+      <input value={u} onChange={(e) => setU(e.target.value)} placeholder={grand ? "adresse du SaaS à concurrencer, ex. notion.so" : "Un autre SaaS : son adresse"} className={cx("flex-1 min-w-0 rounded-xl border border-line bg-white px-3 outline-none focus:border-ink", grand ? "py-3 text-[15px]" : "py-2 text-[13.5px] w-56")} />
+      <button className={cx("shrink-0 rounded-xl bg-ink text-white font-bold hover:bg-black", grand ? "px-5 py-3 text-[15px]" : "px-3 py-2 text-[13px]")}>{grand ? "Lancer le mien" : "OK"}</button>
+    </form>
+  );
+}
 const eurs = (n) => `${Number(n).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €`;
 function Lancer() {
   const nav = useNavigate();
@@ -841,7 +857,10 @@ function Lancer() {
   const nomInspi = saas?.nom ?? p?.inspire?.nom ?? d;
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 print:py-0">
-      <button onClick={() => nav(`/explorer/${d}`)} className="text-[13px] text-ink-soft hover:text-ink print:hidden">← {nomInspi}</button>
+      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <button onClick={() => nav(saas ? `/explorer/${d}` : "/explorer/idees")} className="text-[13px] text-ink-soft hover:text-ink">← {saas ? nomInspi : "Idées et réussites"}</button>
+        <AutreSaas />
+      </div>
       {!p ? (
         <div className="mt-4 rounded-3xl bg-ink text-white p-8">
           <p className="text-[13px] font-bold uppercase tracking-wide text-[#F6A06B]">Lancer le mien</p>
@@ -868,7 +887,7 @@ function Lancer() {
             <Bloc titre="Le besoin">{<><p className="text-[14.5px]">{p.probleme}</p><p className="mt-2 text-[14px] text-ink-soft"><b className="text-ink">Pour qui :</b> {p.cible}</p></>}</Bloc>
             <Bloc titre="Le marché" sous="Relevé dans la base Explorer">
               <div className="grid grid-cols-3 gap-2 text-center">
-                {[[p.inspire?.prix != null ? `${p.inspire.prix} €` : "—", `prix d'entrée de ${nomInspi}`], [p.marche?.mediane != null ? `${p.marche.mediane} €` : "—", "prix médian du marché"], [p.marche?.concurrents ?? "—", "concurrents suivis"]].map(([v, l]) => <div key={l} className="rounded-xl bg-paper py-3"><p className="text-[22px] font-black tnum" style={HF}>{v}</p><p className="text-[11.5px] text-ink-faint px-1">{l}</p></div>)}
+                {[[p.inspire?.prix != null ? `${p.inspire.prix} €` : p.inspire?.usage ? "à l'usage" : "—", p.inspire?.prix == null && p.inspire?.usage ? p.inspire.usage : `prix d'entrée de ${nomInspi}`], [p.marche?.mediane != null ? `${p.marche.mediane} €` : "—", "prix médian du marché"], [p.marche?.concurrents ?? "—", "concurrents suivis"]].map(([v, l]) => <div key={l} className="rounded-xl bg-paper py-3"><p className="text-[22px] font-black tnum" style={HF}>{v}</p><p className="text-[11.5px] text-ink-faint px-1">{l}</p></div>)}
               </div>
             </Bloc>
           </div>
