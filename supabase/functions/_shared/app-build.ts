@@ -84,7 +84,7 @@ Rends un objet JSON compact :
 - atouts : 6 objets titre + texte (une phrase courte), tirés des fonctionnalités.
 - collections : 2 à 5 objets nom (snake_case, pluriel), label, champs : 4 à 8 objets nom (snake_case) + type (texte|nombre|montant|date|choix|booleen|email|telephone|lien) + valeurs (pour choix seulement). Les liens entre collections : un champ <collection>_id de type texte.
 - ecrans : 4 à 6 objets id (snake_case court), titre (2 mots au plus), icone (parmi ${ICONES.join(", ")}), but (une phrase), fonctions (3 à 5 éléments courts). Le premier écran est « Tableau de bord » (indicateurs et activité récente). Couvre le cœur du MVP ; pas d'écran de connexion, de paiement ni de réglages de compte (le gabarit les gère).
-- demo : objet { <collection> : 5 éléments réalistes en français (entreprises et personnes fictives, montants et dates cohérents en 2026) } ; les champs <collection>_id pointent vers le champ « ref » (ex. "c1") que tu ajoutes à chaque élément.`, { maxTokens: 12000 });
+- demo : objet { <collection> : 5 éléments réalistes en français (entreprises et personnes fictives, montants cohérents, dates réparties entre ${new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10)} et ${new Date(Date.now() + 90 * 864e5).toISOString().slice(0, 10)}, aujourd'hui = ${new Date().toISOString().slice(0, 10)}) } ; les champs <collection>_id pointent vers le champ « ref » (ex. "c1") que tu ajoutes à chaque élément.`, { maxTokens: 12000 });
 
   const spec: any = {
     nom: p.nom, pitch: p.pitch, cible: p.cible, probleme: p.probleme,

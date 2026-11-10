@@ -16,7 +16,7 @@ export function appHtml({ spec, slug, api, token = null, apercu = false }) {
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js"></script>
 <style>:root{--c:${/^#[0-9a-f]{6}$/i.test(spec.couleur ?? "") ? spec.couleur : "#4F46E5"}}body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:#F8FAFC;color:#0F172A}
 .anim{animation:a .18s ease-out}@keyframes a{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}</style>
-</head><body><div id="root"></div>
+</head><body><div id="root"><div style="min-height:100vh;display:grid;place-items:center;color:#94A3B8;font-size:14px">Chargement…</div></div>
 <script>window.__BOOT=${safe(boot)};</script>
 <script type="module">
 import { h, render, Fragment, Component } from "${PREACT}";
@@ -85,7 +85,7 @@ ui.Badge = ({ couleur = "gris", children }) => html\`<span class=\${cls("inline-
 ui.Empty = ({ texte = "Rien pour l'instant.", action }) => html\`<div class="text-center py-10 text-slate-500"><p>\${texte}</p>\${action && html\`<div class="mt-3">\${action}</div>\`}</div>\`;
 ui.Loading = () => html\`<div class="py-10 grid place-items-center"><div class="w-6 h-6 rounded-full border-2 border-slate-200 border-t-[var(--c)] animate-spin"/></div>\`;
 ui.Tabs = ({ valeur, onChange, onglets = [] }) => html\`<div class="inline-flex rounded-xl bg-slate-100 p-1 text-sm">\${onglets.map((o) => { const [v, l] = Array.isArray(o) ? o : [o, o]; return html\`<button onClick=\${() => onChange?.(v)} class=\${cls("px-3 py-1.5 rounded-lg font-medium", valeur === v ? "bg-white shadow-sm" : "text-slate-500")}>\${l}</button>\`; })}</div>\`;
-ui.Bar = ({ donnees = [] }) => { const m = Math.max(1, ...donnees.map((d) => Number(d.valeur) || 0)); return html\`<div class="flex items-end gap-2 h-40">\${donnees.map((d) => html\`<div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t-lg bg-[var(--c)]/80" style=\${"height:" + Math.max(3, (Number(d.valeur) || 0) / m * 100) + "%"} title=\${d.valeur}/><span class="text-[11px] text-slate-500 truncate max-w-full">\${d.label}</span></div>\`)}</div>\`; };
+ui.Bar = ({ donnees = [] }) => { const m = Math.max(1, ...donnees.map((d) => Number(d.valeur) || 0)); return html\`<div class="flex gap-2 h-44">\${donnees.map((d) => html\`<div class="flex-1 min-w-0 flex flex-col items-center gap-1"><div class="w-full flex-1 flex items-end"><div class="w-full rounded-t-lg bg-[var(--c)]/80" style=\${"height:" + Math.max(2, (Number(d.valeur) || 0) / m * 100) + "%"} title=\${d.valeur}/></div><span class="text-[11px] text-slate-500 truncate max-w-full">\${d.label}</span></div>\`)}</div>\`; };
 
 // ---------------------------------------------------------------- Écrans générés
 let nav = () => {};
