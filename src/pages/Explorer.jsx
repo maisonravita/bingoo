@@ -7,6 +7,7 @@ import CompanyLogo from "../components/CompanyLogo";
 import { LineChart } from "../components/Charts";
 import { lazy, Suspense } from "react";
 const IsoMonde = lazy(() => import("../components/IsoMonde"));
+const AppCadre = lazy(() => import("../components/AppCadre"));
 import { cx } from "../lib/utils";
 
 // Explorer : la base de SaaS de Bingoo! (le « TrendTrack des SaaS »). Liste filtrable, puis fiche détaillée par logiciel.
@@ -883,6 +884,8 @@ function Lancer() {
             </div>
           </div>
 
+          <Construire projet={p} />
+
           <div className="mt-5 grid md:grid-cols-2 gap-4">
             <Bloc titre="Le besoin">{<><p className="text-[14.5px]">{p.probleme}</p><p className="mt-2 text-[14px] text-ink-soft"><b className="text-ink">Pour qui :</b> {p.cible}</p></>}</Bloc>
             <Bloc titre="Le marché" sous="Relevé dans la base Explorer">
@@ -931,7 +934,7 @@ function Lancer() {
             <Bloc titre="Les risques et la parade">{<ul className="space-y-2">{(p.risques ?? []).map((x, i) => <li key={i}><p className="font-semibold text-[14.5px]">{x.risque}</p><p className="text-[13.5px] text-ink-soft">{x.parade}</p></li>)}</ul>}</Bloc>
           </div>
           {p.construction && (
-            <Bloc className="mt-4" titre="Le faire coder" sous="Colle ce texte dans un outil qui crée des applications (Lovable, Bolt, Claude…) pour obtenir une première version de ton SaaS.">
+            <Bloc className="mt-4" titre="Le cahier des charges" sous="Pour aller plus loin avec ton propre code ou un développeur : tout ton SaaS décrit en un texte.">
               <textarea readOnly value={p.construction} rows={10} className="w-full rounded-xl border border-line bg-paper p-3 text-[13px] font-mono leading-relaxed" />
               <button onClick={() => { navigator.clipboard?.writeText(p.construction).then(() => toast("Texte copié"), () => toast("Copie impossible : sélectionne le texte", "bad")); }} className="mt-2 rounded-xl bg-ink text-white px-4 py-2.5 text-[14px] font-bold hover:bg-black print:hidden">Copier le texte</button>
             </Bloc>
@@ -940,6 +943,102 @@ function Lancer() {
         </>
       )}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------- Bingoo! construit le SaaS
+// Une vraie application en ligne (site, comptes, écrans avec données), hébergée sur #/app/<slug>, modifiable en une phrase.
+function Construire({ projet }) {
+  const { ws } = useWs();
+  const nav = useNavigate();
+  const toast = useToast();
+  const [app, setApp] = useState(undefined);
+  const [ecran, setEcran] = useState("");
+  const [demande, setDemande] = useState("");
+  const [envoi, setEnvoi] = useState(false);
+  const charger = () => supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, version, maj").eq("projet_id", projet.id).maybeSingle().then(({ data }) => { setApp(data ?? null); return data; });
+  useEffect(() => { charger(); }, [projet.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Construction ou modification en tâche de fond : on interroge la base toutes les 5 secondes
+  useEffect(() => {
+    if (app?.statut !== "en_cours") return;
+    const t = setInterval(async () => {
+      const d = await charger();
+      if (d?.statut === "pret" && d.erreur) toast(d.erreur, "bad");
+      if (d?.statut === "erreur") toast(d.erreur || "La construction a échoué, réessaie", "bad");
+    }, 5000);
+    return () => clearInterval(t);
+  }, [app?.statut]); // eslint-disable-line react-hooks/exhaustive-deps
+  const construire = async () => {
+    if (niv(ws) < 2) { nav("/abonnement"); return; }
+    try { await fn("r/saas-construire", { workspace_id: ws.id, projet_id: projet.id }); await charger(); }
+    catch (x) { toast(x.message, "bad"); }
+  };
+  const modifier = async (e) => {
+    e.preventDefault();
+    setEnvoi(true);
+    try { await fn("r/saas-app-modifier", { workspace_id: ws.id, app_id: app.id, ecran: ecran || "nouveau", demande }); setDemande(""); await charger(); toast("Modification lancée, une minute environ"); }
+    catch (x) { toast(x.message, "bad"); } finally { setEnvoi(false); }
+  };
+  if (app === undefined) return null;
+  const lien = app ? `${window.location.origin}${window.location.pathname}#/app/${app.slug}` : "";
+  const pret = app?.spec?.ecrans?.length > 0;
+  return (
+    <section className="mt-5 rounded-3xl bg-ink text-white p-6 sm:p-8 print:hidden">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="max-w-2xl">
+          <p className="text-[13px] font-bold uppercase tracking-wide text-[#F6A06B]">Ton SaaS en ligne</p>
+          <h2 className="mt-1 text-[26px] sm:text-[32px] font-black leading-[1.08]" style={HF}>{pret ? `${projet.nom} tourne déjà.` : `Bingoo! construit ${projet.nom} pour toi.`}</h2>
+          <p className="mt-2 text-white/70 text-[15px]">{pret ? "Ton site, les comptes de tes clients et chaque écran de l'application, avec des données d'exemple. Partage le lien, essaie-le, et demande des changements en une phrase." : "Bingoo! écrit et met en ligne la première version : le site avec tes prix, la création de compte, et les écrans du produit qui marchent pour de vrai. Trois à cinq minutes."}</p>
+        </div>
+        {pret && app.statut !== "en_cours" && (
+          <div className="flex flex-wrap gap-2">
+            <a href={lien} target="_blank" rel="noreferrer" className="rounded-xl bg-accent px-5 py-2.5 text-[14px] font-bold hover:bg-accent-dark">Ouvrir mon SaaS ↗</a>
+            <button onClick={() => navigator.clipboard?.writeText(lien).then(() => toast("Lien copié"))} className="rounded-xl bg-white/10 px-4 py-2.5 text-[14px] font-semibold hover:bg-white/20">Copier le lien</button>
+            <button onClick={() => { if (confirm("Reconstruire toute l'application ? Les modifications faites jusqu'ici seront remplacées.")) construire(); }} className="rounded-xl bg-white/10 px-4 py-2.5 text-[14px] font-semibold hover:bg-white/20">Reconstruire</button>
+          </div>
+        )}
+      </div>
+
+      {app?.statut === "en_cours" ? (
+        <div className="mt-6 rounded-2xl bg-white/5 border border-white/10 p-5">
+          <div className="flex items-center gap-3"><span className="h-5 w-5 rounded-full border-2 border-white/20 border-t-[#F6A06B] animate-spin" /><p className="font-semibold">{app.etape ?? "Construction en cours"}…</p></div>
+          <ol className="mt-4 grid sm:grid-cols-3 gap-2 text-[13px]">
+            {["Conception des données et des écrans", "Écriture et vérification du code", "Mise en ligne"].map((t, i) => {
+              const ou = /Écriture|Modification/.test(app.etape ?? "") ? 1 : 0;
+              return <li key={t} className={cx("rounded-xl px-3 py-2", i < ou ? "bg-[#F6A06B]/20" : i === ou ? "bg-white/10" : "bg-white/5 text-white/45")}>{i < ou ? "✓ " : ""}{t}</li>;
+            })}
+          </ol>
+          <p className="mt-3 text-[12.5px] text-white/50">Tu peux quitter cette page : la construction continue et ton SaaS t'attendra ici.</p>
+        </div>
+      ) : !pret ? (
+        <>
+          {app?.statut === "erreur" && <p className="mt-4 rounded-xl bg-[#7F1D1D]/40 px-4 py-3 text-[14px]">{app.erreur || "La construction a échoué."} Relance-la.</p>}
+          <button onClick={construire} className="mt-6 rounded-xl bg-accent px-7 py-3.5 font-bold hover:bg-accent-dark">{niv(ws) < 2 ? "Disponible avec la formule Pro" : "Construire mon SaaS"}</button>
+        </>
+      ) : null}
+
+      {pret && (
+        <div className="mt-6 grid lg:grid-cols-[1fr_300px] gap-4">
+          <div className="rounded-2xl overflow-hidden bg-white ring-1 ring-white/10">
+            <div className="flex items-center gap-2 bg-[#E8E5DE] px-3 py-2"><span className="flex gap-1.5">{["#F87171", "#FBBF24", "#34D399"].map((c) => <span key={c} className="h-2.5 w-2.5 rounded-full" style={{ background: c }} />)}</span><span className="flex-1 truncate rounded-md bg-white px-2 py-0.5 text-[12px] text-ink-faint">{lien.replace(/^https?:\/\//, "")}</span></div>
+            <Suspense fallback={<div className="h-[620px] grid place-items-center"><Spinner /></div>}><AppCadre slug={app.slug} spec={app.spec} version={app.version} className="block w-full h-[620px] border-0" apercu /></Suspense>
+          </div>
+          <form onSubmit={modifier} className="rounded-2xl bg-white/5 border border-white/10 p-4 flex flex-col gap-3">
+            <p className="font-bold">Modifier en une phrase</p>
+            <select value={ecran} onChange={(e) => setEcran(e.target.value)} className="rounded-xl bg-white/10 border border-white/15 px-3 py-2 text-[14px] outline-none">
+              <option value="" className="text-ink">+ Ajouter un écran</option>
+              {app.spec.ecrans.map((e) => <option key={e.id} value={e.id} className="text-ink">Changer « {e.titre} »{e.ok === false ? " (à corriger)" : ""}</option>)}
+            </select>
+            <textarea value={demande} onChange={(e) => setDemande(e.target.value)} rows={5} placeholder={ecran ? "Ex. : ajoute un filtre par statut et un total en bas du tableau" : "Ex. : un écran Factures pour suivre ce que chaque client doit payer"} className="rounded-xl bg-white/10 border border-white/15 px-3 py-2 text-[14px] outline-none placeholder:text-white/35" />
+            <button disabled={envoi || app.statut === "en_cours" || demande.trim().length < 5} className="rounded-xl bg-accent px-4 py-2.5 text-[14px] font-bold hover:bg-accent-dark disabled:opacity-50">{envoi ? "Envoi…" : "Appliquer"}</button>
+            <div className="mt-auto text-[12.5px] text-white/55 space-y-1.5">
+              <p>{app.spec.ecrans.length} écrans · {app.spec.collections?.length ?? 0} types de données · version {app.version}</p>
+              <p>Chaque client qui crée un compte sur ton SaaS a ses propres données. « Voir la démo » ouvre un compte d'essai rempli d'exemples.</p>
+            </div>
+          </form>
+        </div>
+      )}
+    </section>
   );
 }
 

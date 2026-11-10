@@ -5,7 +5,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 import { clientIp, companyOfIp } from "../_shared/iporg.ts";
 const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
-const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "content-type", "Access-Control-Allow-Methods": "GET, POST, OPTIONS" };
+const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "content-type, x-app-token","Access-Control-Allow-Methods": "GET, POST, OPTIONS" };
 
 const SCRIPT = `(function(){var s=document.currentScript,k=s&&s.getAttribute("data-k");if(!k||window.__kairo)return;window.__kairo=1;var E=s.src.replace(/kairo\\.js.*$/,"e"),st=null;try{st=window.sessionStorage}catch(e){}
 function g(n){try{return st&&st.getItem(n)}catch(e){return null}}function p(n,v){try{st&&st.setItem(n,v)}catch(e){}}
@@ -55,6 +55,13 @@ function sourceOf(referrer: string, query: string) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   const path = new URL(req.url).pathname;
+  // SaaS construits par Bingoo! : comptes et données de l'application (/t/app/<slug>/<action>)
+  const am = path.match(/\/app\/([a-z0-9-]+)\/([a-z]+)$/);
+  if (req.method === "POST" && am) {
+    const { appApi } = await import("../_shared/app-runtime.ts");
+    const r = await appApi(admin, req, am[1], am[2]);
+    return new Response(JSON.stringify(r.body), { status: r.status, headers: { ...cors, "content-type": "application/json; charset=utf-8" } });
+  }
   if (req.method === "GET" && path.endsWith("/kairo.js")) {
     return new Response(SCRIPT, { headers: { ...cors, "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=3600" } });
   }

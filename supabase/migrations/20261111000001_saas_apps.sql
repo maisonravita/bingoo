@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_apps, saas_app_users, saas_app_rows, saas_app_public (Bingoo! construit le SaaS)

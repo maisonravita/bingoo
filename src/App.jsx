@@ -39,6 +39,7 @@ import PublicQuote from "./pages/PublicQuote";
 import Envoyer from "./pages/Envoyer";
 import FreeTools from "./pages/FreeTools";
 import Landing from "./pages/Landing";
+import PublicApp from "./pages/PublicApp";
 import OnboardingExplorer from "./pages/OnboardingExplorer";
 import { modeExplorer } from "./lib/mode";
 import Metier from "./pages/Metier";
@@ -63,6 +64,7 @@ function Gate() {
   if (loc.pathname === "/envoyer") return <Envoyer />;
   if (loc.pathname === "/outils" || loc.pathname.startsWith("/outils/")) return <FreeTools />;
   if (loc.pathname === "/accueil") return <Landing />;
+  if (loc.pathname.startsWith("/app/")) return <PublicApp slug={loc.pathname.split("/")[2] ?? ""} />;
   if (loc.pathname.startsWith("/metier/")) return <Metier slug={loc.pathname.split("/")[2]} />;
   if (loc.pathname === "/opposition") return <Opposition />;
   if (legalReady && loc.pathname === "/mentions-legales") return <MentionsLegales />;

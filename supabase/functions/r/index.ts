@@ -16,6 +16,14 @@ async function secret(name: string) {
   // Fermé par défaut : sans secret configuré, aucune requête ne passe (jamais "" === "")
   return String(data?.value ?? "") || `absent-${crypto.randomUUID()}`;
 }
+// Espace d'un membre connecté, ou n'importe quel espace avec la clé des tâches planifiées (tests et reprises)
+const membreOuCron = async (req: Request, wsId: string) => {
+  if (!req.headers.get("x-cron-key")) return await requireMember(req, wsId);
+  await cron(req);
+  const { data } = await admin.from("workspaces").select("*").eq("id", wsId).single();
+  if (!data) throw new HttpError(404, "Espace introuvable");
+  return { ws: data };
+};
 const cron = async (req: Request) => { if ((req.headers.get("x-cron-key") ?? "") !== await secret("cron_key")) throw new HttpError(401, "Clé invalide"); };
 
 // deno-lint-ignore no-explicit-any
@@ -98,6 +106,50 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const rt = (globalThis as any).EdgeRuntime;
     if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
     return { id: row!.id, statut: "en_cours" };
+  },
+  // Bingoo! construit le SaaS du projet : application en ligne (site, comptes, écrans), quelques minutes en tâche de fond
+  async "saas-construire"(req, b) {
+    const { ws } = await membreOuCron(req, b.workspace_id);
+    if (ws.plan === "explorer") throw new HttpError(402, "« Construire mon SaaS » est dans la formule Pro.");
+    const { data: pr } = await admin.from("saas_projets").select("id, data, statut").eq("id", String(b.projet_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    if (!pr || pr.statut !== "pret") throw new HttpError(404, "Projet introuvable");
+    const { data: ex } = await admin.from("saas_apps").select("id, statut, maj").eq("projet_id", pr.id).maybeSingle();
+    if (ex?.statut === "en_cours" && Date.now() - new Date(ex.maj).getTime() < 10 * 60e3) return { id: ex.id, statut: "en_cours" };
+    await quota(ws.id, "construire", 3);
+    setAi({ ws: ws.id, live: true, feature: "construire" });
+    const { saasConstruire, nouveauSlug } = await import("../_shared/app-build.ts");
+    const nom = String((pr.data as { nom?: string })?.nom ?? "saas");
+    let id = ex?.id;
+    if (id) await admin.from("saas_apps").update({ statut: "en_cours", erreur: null, etape: "Démarrage", maj: new Date().toISOString() }).eq("id", id);
+    else id = (await admin.from("saas_apps").insert({ projet_id: pr.id, workspace_id: ws.id, slug: nouveauSlug(nom), etape: "Démarrage" }).select("id").single()).data!.id;
+    await log(ws.id, "construire", `Construction du SaaS ${nom}`);
+    const travail = saasConstruire(id!).catch(async (e) => {
+      console.error("construire", e);
+      await admin.from("saas_apps").update({ statut: ex?.statut === "pret" ? "pret" : "erreur", erreur: String(e?.message ?? e).slice(0, 300), etape: null }).eq("id", id!);
+    });
+    // deno-lint-ignore no-explicit-any
+    const rt = (globalThis as any).EdgeRuntime;
+    if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
+    return { id, statut: "en_cours" };
+  },
+  async "saas-app-modifier"(req, b) {
+    const { ws } = await membreOuCron(req, b.workspace_id);
+    const demande = String(b.demande ?? "").trim().slice(0, 1500);
+    if (demande.length < 5) throw new HttpError(400, "Décris la modification en une phrase au moins");
+    const { data: app } = await admin.from("saas_apps").select("id, statut").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    if (!app || app.statut !== "pret") throw new HttpError(404, "Application introuvable ou en cours de construction");
+    await quota(ws.id, "modifier_app", 30);
+    setAi({ ws: ws.id, live: true, feature: "construire/modifier" });
+    await log(ws.id, "modifier_app", `Modification : ${demande.slice(0, 120)}`);
+    const { saasModifierEcran } = await import("../_shared/app-build.ts");
+    await admin.from("saas_apps").update({ statut: "en_cours", etape: "Modification en cours", erreur: null, maj: new Date().toISOString() }).eq("id", app.id);
+    const travail = saasModifierEcran(app.id, String(b.ecran ?? "nouveau"), demande).catch(async (e) => {
+      await admin.from("saas_apps").update({ statut: "pret", etape: null, erreur: String(e?.message ?? e).slice(0, 300) }).eq("id", app.id);
+    });
+    // deno-lint-ignore no-explicit-any
+    const rt = (globalThis as any).EdgeRuntime;
+    if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
+    return { id: app.id, statut: "en_cours" };
   },
   async "saas-clients"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
