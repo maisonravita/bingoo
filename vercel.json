@@ -2,5 +2,19 @@
   "buildCommand": "npm run build:site",
   "outputDirectory": "dist-single",
   "installCommand": "npm install --no-audit --no-fund",
-  "framework": null
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/saas",
+      "destination": "/api/saas"
+    },
+    {
+      "source": "/saas/:d",
+      "destination": "/api/saas?d=:d"
+    },
+    {
+      "source": "/sitemap-saas.xml",
+      "destination": "/api/saas?sitemap=1"
+    }
+  ]
 }
