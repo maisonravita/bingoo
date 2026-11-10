@@ -1,0 +1,1 @@
+-- Appliquée via MCP : table saas_pubs, colonnes saas.pubs_at et pubs_actives, RPC saas_pubs_de et saas_pubs_niche, cron bingoo-explorer-pubs

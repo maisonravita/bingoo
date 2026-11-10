@@ -26,6 +26,7 @@ export default function Explorer({ domaine: fixe }) {
   if (d === "bouge") return <><Onglets actif="bouge" /><Fil /></>;
   if (d === "suivis") return <><Onglets actif="suivis" /><Suivis /></>;
   if (d === "marche") return <><Onglets actif="marche" /><Marche /></>;
+  if (d === "pubs") return <><Onglets actif="pubs" /><Pubs /></>;
   if (d === "idees") return <><Onglets actif="idees" /><Idees /></>;
   if (d === "comparer") return <Comparer />;
   return d ? <Fiche domaine={d} /> : <><Onglets actif="liste" /><Liste /></>;
@@ -33,7 +34,7 @@ export default function Explorer({ domaine: fixe }) {
 
 function Onglets({ actif }) {
   const nav = useNavigate();
-  const T = [["liste", "SaaS", "/explorer"], ["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"], ["marche", "Pays et tendances", "/explorer/marche"], ["idees", "Idées et réussites", "/explorer/idees"]];
+  const T = [["liste", "SaaS", "/explorer"], ["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"], ["marche", "Pays et tendances", "/explorer/marche"], ["pubs", "Pubs", "/explorer/pubs"], ["idees", "Idées et réussites", "/explorer/idees"]];
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
       <div className="inline-flex max-w-full overflow-x-auto rounded-xl bg-white border border-line p-1">
@@ -230,12 +231,14 @@ function Fiche({ domaine }) {
   const [limite, setLimite] = useState(null);
   const [quota, setQuota] = useState(null);
   const [hist, setHist] = useState(null);
+  const [pubs, setPubs] = useState([]);
   useEffect(() => {
     setS(undefined); setLimite(null);
     supabase.rpc("saas_fiche", { ws: ws.id, d: domaine }).then(async ({ data, error }) => {
       if (error || !data) { setS(null); return; }
       if (data.limite) { setLimite(data); setS(null); return; }
       setS(data.saas); setRel(data.releves ?? []); setEv(data.evenements ?? []); setQuota(data.max ? { vues: data.vues, max: data.max } : null); setHist(data.histoire ?? null);
+      supabase.rpc("saas_pubs_de", { ws: ws.id, d: domaine }).then(({ data: p }) => setPubs(p ?? []));
       const { data: o } = await supabase.from("saas_liste").select("id, domaine, nom, pays, prix_entree_eur, prix_usage, sur_devis, score_croissance").eq("categorie", data.saas.categorie).neq("id", data.saas.id).order("score_croissance", { ascending: false, nullsFirst: false }).limit(6);
       setSim(o ?? []);
     });
@@ -312,6 +315,14 @@ function Fiche({ domaine }) {
       </div>
 
       {hist && <section className="mt-4"><Histoire h={hist} /></section>}
+      {(pubs.length > 0 || s.pubs_at) && (
+        <section className="mt-4 rounded-2xl bg-white border border-line p-5">
+          <h2 className="font-bold">Ses publicités</h2>
+          <p className="text-[12.5px] text-ink-faint">Bibliothèque publicitaire officielle de Meta · pubs diffusées en Europe sur 12 mois · une pub qui tourne 30 jours ou plus est presque toujours rentable</p>
+          {pubs.length ? <div className="mt-3 grid md:grid-cols-2 gap-3">{pubs.slice(0, 8).map((p) => <CartePub key={p.ext_id} p={p} />)}</div>
+            : <p className="mt-2 text-[13.5px] text-ink-faint">Aucune pub Facebook ou Instagram diffusée en Europe sur les 12 derniers mois.</p>}
+        </section>
+      )}
 
       <section className="mt-4 rounded-2xl bg-white border border-line p-5">
         <h2 className="font-bold">Ce qui a bougé</h2>
@@ -472,6 +483,79 @@ function Marche() {
             ))}
           </div>
         </section>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- Pubs (bibliothèque Meta)
+const PLATEFORME = { facebook: "Facebook", instagram: "Instagram", messenger: "Messenger", audience_network: "Audience Network", threads: "Threads" };
+function CartePub({ p, saas }) {
+  const j = Number(p.jours ?? 0), marche = j >= 30;
+  return (
+    <article className="rounded-xl border border-line p-4 flex flex-col">
+      <div className="flex flex-wrap items-center gap-2 text-[12px]">
+        {saas && <span className="font-bold text-[13.5px]">{saas.nom} {drapeau(saas.pays)}</span>}
+        <span className={cx("rounded-md px-1.5 py-0.5 font-bold", p.active ? "bg-[#DCFCE7] text-[#15803D]" : "bg-paper text-ink-soft")}>{p.active ? `Active depuis ${j} j` : `Arrêtée après ${j} j`}</span>
+        {marche && <span className="rounded-md bg-accent text-white px-1.5 py-0.5 font-bold">Marche</span>}
+        <span className="text-ink-faint">{(p.plateformes ?? []).map((x) => PLATEFORME[x] ?? x).join(", ")}</span>
+      </div>
+      {p.titre && <p className="mt-2 font-semibold text-[14px]">{p.titre}</p>}
+      <p className="mt-1 text-[13.5px] text-ink-soft whitespace-pre-line line-clamp-5 flex-1">{p.body || "Pub sans texte (image ou vidéo seule)"}</p>
+      <div className="mt-2 flex items-center justify-between text-[12px] text-ink-faint">
+        <span>{p.started ? `Depuis le ${date(p.started)}` : ""}{p.reach ? ` · ${Number(p.reach).toLocaleString("fr-FR")} personnes touchées en Europe` : ""}</span>
+        <a href={p.snapshot_url} target="_blank" rel="noopener noreferrer" className="font-semibold text-ink underline">Voir la pub</a>
+      </div>
+    </article>
+  );
+}
+
+function Pubs() {
+  const nav = useNavigate();
+  const { ws } = useWs();
+  const [cat, setCat] = useState("");
+  const [tag, setTag] = useState("");
+  const [niches, setNiches] = useState([]);
+  const [d, setD] = useState(null);
+  const [seulMarche, setSeulMarche] = useState(true);
+  useEffect(() => { supabase.rpc("saas_niches", { cat: cat || null }).then(({ data }) => setNiches(data ?? [])); }, [cat]);
+  useEffect(() => { setD(null); supabase.rpc("saas_pubs_niche", { ws: ws.id, cat: cat || null, tag: tag || null }).then(({ data }) => setD(data ?? { pubs: [], courbe: [], annonceurs: [], total: 0 })); }, [ws.id, cat, tag]);
+  const pubs = (d?.pubs ?? []).filter((p) => !seulMarche || Number(p.jours) >= 30);
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      <h1 className="text-[30px] font-black tracking-tight" style={HF}>Les pubs qui marchent</h1>
+      <p className="text-ink-soft">Les publicités Facebook et Instagram des SaaS de la base, par niche. Celles qui tournent depuis des semaines sont celles qui rapportent.</p>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <select value={cat} onChange={(e) => { setCat(e.target.value); setTag(""); }} className="rounded-xl border border-line bg-white px-3 py-2 text-[14px]"><option value="">Toutes les catégories</option>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select>
+        {niches.slice(0, 12).map((n) => <Chip key={n.tag} on={tag === n.tag} onClick={() => setTag(tag === n.tag ? "" : n.tag)}>{n.tag}</Chip>)}
+      </div>
+      {!d ? <div className="py-16 grid place-items-center"><Spinner /></div> : !Number(d.total) ? (
+        <div className="mt-6 rounded-2xl bg-white border border-line p-8 text-center">
+          <p className="text-[19px] font-bold">Les publicités arrivent.</p>
+          <p className="mt-1 text-ink-soft max-w-xl mx-auto">Bingoo! se branche sur la bibliothèque publicitaire officielle de Meta : chaque pub diffusée en Europe, avec ses dates exactes et le nombre de personnes touchées. Le premier relevé apparaîtra ici.</p>
+        </div>
+      ) : (
+        <>
+          <div className="mt-4 grid lg:grid-cols-3 gap-4">
+            <section className="lg:col-span-2 rounded-2xl bg-white border border-line p-5">
+              <h2 className="font-bold">Pubs actives par mois</h2>
+              <p className="text-[12.5px] text-ink-faint">{cat || tag ? [cat, tag].filter(Boolean).join(" · ") : "Toute la base"} · 12 derniers mois</p>
+              <div className="mt-3">{(d.courbe ?? []).some((c) => Number(c.n)) ? <LineChart points={d.courbe.map((c) => ({ v: Number(c.n), label: new Date(c.mois + "-01").toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }) }))} height={180} unit=" pubs" /> : <p className="text-[13.5px] text-ink-faint">Pas de pub dans cette niche sur 12 mois.</p>}</div>
+            </section>
+            <section className="rounded-2xl bg-white border border-line p-5">
+              <h2 className="font-bold">Qui investit le plus</h2>
+              <ul className="mt-2 divide-y divide-line">{(d.annonceurs ?? []).slice(0, 8).map((a) => (
+                <li key={a.domaine}><button onClick={() => nav(`/explorer/${a.domaine}`)} className="w-full py-2 flex items-center justify-between gap-2 text-left text-[14px] hover:underline"><span className="truncate">{a.nom} {drapeau(a.pays)}</span><span className="shrink-0 text-[12.5px] text-ink-faint tnum">{a.actives} active{a.actives > 1 ? "s" : ""} · {a.total} en 12 mois</span></button></li>
+              ))}</ul>
+            </section>
+          </div>
+          <div className="mt-5 flex items-center justify-between gap-2">
+            <h2 className="font-bold text-[17px]">{seulMarche ? "Pubs diffusées 30 jours ou plus" : "Toutes les pubs, les plus longues d'abord"}</h2>
+            <Chip on={seulMarche} onClick={() => setSeulMarche(!seulMarche)}>Seulement celles qui marchent</Chip>
+          </div>
+          {pubs.length ? <div className="mt-3 grid md:grid-cols-2 xl:grid-cols-3 gap-3">{pubs.map((p) => <CartePub key={p.domaine + p.ext_id} p={p} saas={p} />)}</div> : <p className="mt-3 text-ink-faint">Aucune pub de 30 jours ou plus dans cette sélection.</p>}
+          <p className="mt-4 text-[12px] text-ink-faint">Source : bibliothèque publicitaire de Meta (pubs diffusées dans l'Union européenne). Seules les pubs publiées par la page du logiciel lui-même sont gardées.</p>
+        </>
       )}
     </div>
   );

@@ -1,7 +1,7 @@
 // Explorer : la base de SaaS de Bingoo!. Chaque logiciel est relu régulièrement sur son propre site (accueil, tarifs,
 // page carrières, changelog ou blog) ; chaque relevé est gardé pour l'historique (prix, recrutement, nouveautés).
 // L'IA sert seulement à classer le logiciel et à lire les prix affichés ; tout le reste est lu tel quel, avec l'adresse de la page.
-import { admin, ask, askJson, setAi, type Workspace } from "./core.ts";
+import { admin, ask, askJson, env, setAi, type Workspace } from "./core.ts";
 import { fetchHtml, textOf } from "./analyze.ts";
 import { autorise, lienStrict, lireSite, robots } from "./marche-saas.ts";
 
@@ -384,4 +384,41 @@ export async function saasPays(max = 24) {
     }));
   }
   return { essayes: rows.length, trouves };
+}
+
+// ---------------------------------------------------------------- Publicités (bibliothèque publicitaire officielle de Meta)
+// Pubs diffusées dans l'Union européenne sur 12 mois, avec dates exactes de début et de fin et portée UE.
+// Il faut le secret META_ADS_TOKEN (jeton d'une app Meta dont l'identité est confirmée). Sans lui, rien ne se passe.
+const normN = (x: string) => String(x ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+export async function saasPubs(n = 6) {
+  const token = env("META_ADS_TOKEN");
+  if (!token) return { meta: false };
+  const semaine = new Date(Date.now() - 7 * 864e5).toISOString();
+  const { data } = await admin.from("saas").select("id, nom, domaine").eq("statut", "ok").or(`pubs_at.is.null,pubs_at.lt.${semaine}`)
+    .order("pubs_at", { ascending: true, nullsFirst: true }).order("score_croissance", { ascending: false }).limit(n);
+  const out = { meta: true, lus: 0, pubs: 0, erreur: null as string | null };
+  const depuis = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10);
+  for (const x of (data ?? []) as { id: string; nom: string; domaine: string }[]) {
+    const u = new URL("https://graph.facebook.com/v21.0/ads_archive");
+    for (const [k, v] of Object.entries({ access_token: token, search_terms: x.nom, ad_reached_countries: '["FR","DE","ES","IT","NL","BE","IE","SE","PL","AT"]', ad_active_status: "ALL", ad_type: "ALL",
+      ad_delivery_date_min: depuis, limit: "100", fields: "id,page_name,ad_delivery_start_time,ad_delivery_stop_time,ad_creative_bodies,ad_creative_link_titles,ad_snapshot_url,publisher_platforms,eu_total_reach,languages" })) u.searchParams.set(k, v);
+    const r = await fetch(u, { signal: AbortSignal.timeout(25000) });
+    const d = await r.json().catch(() => null);
+    if (!r.ok) { out.erreur = String(d?.error?.message ?? r.status).slice(0, 200); if (r.status === 400 || r.status === 403 || d?.error?.code === 4 || d?.error?.code === 613) break; continue; }
+    // Seulement les pubs publiées par la page du SaaS lui-même (nom de page identique ou qui commence par son nom)
+    const nom = normN(x.nom);
+    // deno-lint-ignore no-explicit-any
+    const pubs = ((d?.data ?? []) as any[]).filter((a) => { const p = normN(a.page_name ?? ""); return p === nom || p.startsWith(nom + " ") || p.replace(/ /g, "") === nom.replace(/ /g, ""); });
+    const auj = new Date().toISOString().slice(0, 10);
+    const jour = (v?: string) => v && !isNaN(Date.parse(v)) ? new Date(v).toISOString().slice(0, 10) : null;
+    const rows = pubs.map((a) => ({ saas_id: x.id, ext_id: String(a.id), page_name: String(a.page_name ?? "").slice(0, 120),
+      body: String(a.ad_creative_bodies?.[0] ?? "").slice(0, 1500), titre: String(a.ad_creative_link_titles?.[0] ?? "").slice(0, 200) || null, // Lien public de la bibliothèque (l'adresse « snapshot » de l'API contient le jeton : jamais enregistrée)
+      snapshot_url: `https://www.facebook.com/ads/library/?id=${encodeURIComponent(String(a.id))}`,
+      plateformes: (a.publisher_platforms ?? []).map(String), started: jour(a.ad_delivery_start_time), stopped: jour(a.ad_delivery_stop_time), reach: Number(a.eu_total_reach) || null,
+      langues: (a.languages ?? []).map(String), last_seen: auj }));
+    if (rows.length) await admin.from("saas_pubs").upsert(rows, { onConflict: "saas_id,ext_id" });
+    await admin.from("saas").update({ pubs_at: new Date().toISOString(), pubs_actives: rows.filter((r) => !r.stopped).length }).eq("id", x.id);
+    out.lus++; out.pubs += rows.length;
+  }
+  return out;
 }
