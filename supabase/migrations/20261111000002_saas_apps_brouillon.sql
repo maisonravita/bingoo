@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_apps.brouillon, saas_app_ecran_set, saas_apps_garde + cron bingoo-apps-garde
