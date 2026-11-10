@@ -205,10 +205,17 @@ export async function aiGuard() {
   if (ctx.essential) return; // réponses de prospects : toujours traitées (plafond par prospect dans pro.ts)
   const cap = Number(env("AI_DAILY_CAP_EUR", "12"));
   const ws = ctx.ws;
+  if (!ws && String(ctx.feature ?? "").startsWith("explorer/")) {
+    // Base Explorer (lecture des SaaS, niches, recherche) : enveloppe à part, pour ne pas épuiser celle des outils gratuits
+    const capEx = Number(env("AI_EXPLORER_CAP_EUR", "6"));
+    const { data } = await admin.from("ai_usage").select("cost_eur").is("workspace_id", null).like("feature", "explorer/%").gte("at", dayStart());
+    if ((data ?? []).reduce((a, r) => a + Number(r.cost_eur ?? 0), 0) >= capEx) throw new HttpError(503, "Lecture de la base Explorer en pause jusqu'à demain (enveloppe du jour atteinte).");
+    return;
+  }
   if (!ws) {
     // Outils gratuits et travaux de la plateforme : enveloppe à part, qui ne peut pas priver les clients
     const freeCap = Number(env("AI_FREE_CAP_EUR", "2"));
-    const { data } = await admin.from("ai_usage").select("cost_eur").is("workspace_id", null).gte("at", dayStart());
+    const { data } = await admin.from("ai_usage").select("cost_eur").is("workspace_id", null).not("feature", "like", "explorer/%").gte("at", dayStart());
     if ((data ?? []).reduce((a, r) => a + Number(r.cost_eur ?? 0), 0) >= freeCap) throw new HttpError(503, "L'outil gratuit est très demandé aujourd'hui : crée ton compte Bingoo! pour y accéder tout de suite.");
     return;
   }
