@@ -1,7 +1,7 @@
 // Explorer : la base de SaaS de Bingoo!. Chaque logiciel est relu régulièrement sur son propre site (accueil, tarifs,
 // page carrières, changelog ou blog) ; chaque relevé est gardé pour l'historique (prix, recrutement, nouveautés).
 // L'IA sert seulement à classer le logiciel et à lire les prix affichés ; tout le reste est lu tel quel, avec l'adresse de la page.
-import { admin, askJson, setAi } from "./core.ts";
+import { admin, askJson, setAi, type Workspace } from "./core.ts";
 import { fetchHtml, textOf } from "./analyze.ts";
 import { lireSite } from "./marche-saas.ts";
 
@@ -180,4 +180,52 @@ export async function saasTendances() {
   const v = { series, source: "BODACC (annonces légales officielles), créations dont l'activité mentionne un logiciel", maj: new Date().toISOString() };
   if (series.some((x) => x.points.length)) await admin.from("explorer_cache").upsert({ k: "tendances", v, at: new Date().toISOString() });
   return v;
+}
+
+// ---------------------------------------------------------------- Alerte du lundi
+// Pour chaque espace qui suit des SaaS ou des catégories : les changements des 7 derniers jours et les nouveaux SaaS des catégories suivies.
+const EV_TXT: Record<string, string> = {
+  prix_hausse: "hausse de prix", prix_baisse: "baisse de prix", gratuit_ajoute: "lance une version gratuite", gratuit_retire: "retire sa version gratuite",
+  essai_change: "change son essai gratuit", recrutement_hausse: "recrute davantage", recrutement_baisse: "recrute moins", recrute_debut: "commence à recruter",
+  recrute_fin: "n'a plus d'offre d'emploi", nouveaute: "publie une nouveauté", nouveau_saas: "entre dans la base",
+};
+const escH = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+export async function saasAlertes(seulement?: string) {
+  const { teamAddress, sendSystem } = await import("./mail.ts");
+  const { data: suivis } = await admin.from("saas_suivis").select("workspace_id, saas_id, categorie");
+  const parWs = new Map<string, { saas: Set<string>; cats: Set<string> }>();
+  for (const f of (suivis ?? []) as { workspace_id: string; saas_id: string | null; categorie: string | null }[]) {
+    if (seulement && f.workspace_id !== seulement) continue;
+    const x = parWs.get(f.workspace_id) ?? { saas: new Set(), cats: new Set() };
+    if (f.saas_id) x.saas.add(f.saas_id); if (f.categorie) x.cats.add(f.categorie);
+    parWs.set(f.workspace_id, x);
+  }
+  const depuis = new Date(Date.now() - 7 * 864e5).toISOString();
+  const { data: evs } = await admin.from("saas_evenements").select("at, type, avant, apres, saas:saas_id(id, domaine, nom, categorie, statut)").gte("at", depuis).order("at", { ascending: false }).limit(5000);
+  const { data: nouveaux } = await admin.from("saas").select("id, domaine, nom, categorie, description, prix_entree_eur").eq("statut", "ok").gte("created_at", depuis).limit(3000);
+  const site = "https://kairo.maisonravita.fr";
+  let envoyes = 0;
+  for (const [wsId, f] of parWs) {
+    const mes = ((evs ?? []) as { at: string; type: string; avant: string | null; apres: string | null; saas: { id: string; domaine: string; nom: string; categorie: string; statut: string } | null }[])
+      .filter((e) => e.saas && e.saas.statut === "ok" && (f.saas.has(e.saas.id) || f.cats.has(e.saas.categorie))).slice(0, 40);
+    const neufs = ((nouveaux ?? []) as { domaine: string; nom: string; categorie: string; description: string; prix_entree_eur: number | null }[]).filter((s) => f.cats.has(s.categorie)).slice(0, 15);
+    if (!mes.length && !neufs.length) continue;
+    const { data: w } = await admin.from("workspaces").select("*").eq("id", wsId).single();
+    if (!w) continue;
+    const to = await teamAddress(w as Workspace);
+    if (!to) continue;
+    const ligne = (e: typeof mes[number]) => `${e.saas!.nom} : ${EV_TXT[e.type] ?? e.type}${e.type !== "nouveaute" && e.avant && e.apres ? ` (${e.avant} → ${e.apres})` : ""}`;
+    const text = [`Ton marché cette semaine`, "", ...(mes.length ? ["Ce qui a bougé :", ...mes.map((e) => `- ${ligne(e)}`), ""] : []),
+      ...(neufs.length ? ["Nouveaux SaaS dans tes catégories :", ...neufs.map((s) => `- ${s.nom} (${s.categorie})${s.prix_entree_eur != null ? `, dès ${s.prix_entree_eur} €/mois` : ""}`), ""] : []),
+      `Tout voir : ${site}/#/explorer/suivis`].join("\n");
+    const html = `<div style="font-family:Arial,sans-serif;color:#15161A;max-width:560px"><h2 style="margin:0 0 4px">Ton marché cette semaine</h2><p style="color:#5B5D66;margin:0 0 16px">${mes.length} changement${mes.length > 1 ? "s" : ""} chez les SaaS que tu suis${neufs.length ? `, ${neufs.length} nouveau${neufs.length > 1 ? "x" : ""} SaaS dans tes catégories` : ""}.</p>
+${mes.length ? `<h3 style="margin:16px 0 6px">Ce qui a bougé</h3><ul style="padding-left:18px">${mes.map((e) => `<li style="margin:4px 0"><a href="${site}/#/explorer/${escH(e.saas!.domaine)}" style="color:#15161A;font-weight:bold">${escH(e.saas!.nom)}</a> : ${escH(EV_TXT[e.type] ?? e.type)}${e.type !== "nouveaute" && e.avant && e.apres ? ` (${escH(e.avant)} → ${escH(e.apres)})` : ""}</li>`).join("")}</ul>` : ""}
+${neufs.length ? `<h3 style="margin:16px 0 6px">Nouveaux SaaS dans tes catégories</h3><ul style="padding-left:18px">${neufs.map((s) => `<li style="margin:4px 0"><a href="${site}/#/explorer/${escH(s.domaine)}" style="color:#15161A;font-weight:bold">${escH(s.nom)}</a> · ${escH(s.categorie)}${s.prix_entree_eur != null ? ` · dès ${s.prix_entree_eur} €/mois` : ""}</li>`).join("")}</ul>` : ""}
+<p style="margin-top:20px"><a href="${site}/#/explorer/suivis" style="background:#E0531F;color:#fff;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold">Tout voir dans Explorer</a></p></div>`;
+    try {
+      await sendSystem({ to, subject: `Ton marché cette semaine : ${mes.length} changement${mes.length > 1 ? "s" : ""}${neufs.length ? `, ${neufs.length} nouveau${neufs.length > 1 ? "x" : ""} SaaS` : ""}`, text, html, key: `alerte-saas-${wsId}-${new Date().toISOString().slice(0, 10)}` });
+      envoyes++;
+    } catch (e) { console.error("alerte saas", wsId, e); }
+  }
+  return { espaces: parWs.size, envoyes };
 }

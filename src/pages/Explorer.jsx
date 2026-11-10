@@ -21,6 +21,7 @@ export default function Explorer({ domaine: fixe }) {
   const { domaine } = useParams();
   const d = fixe ?? domaine;
   if (d === "bouge") return <><Onglets actif="bouge" /><Fil /></>;
+  if (d === "suivis") return <><Onglets actif="suivis" /><Suivis /></>;
   if (d === "marche") return <><Onglets actif="marche" /><Marche /></>;
   if (d === "comparer") return <Comparer />;
   return d ? <Fiche domaine={d} /> : <><Onglets actif="liste" /><Liste /></>;
@@ -28,7 +29,7 @@ export default function Explorer({ domaine: fixe }) {
 
 function Onglets({ actif }) {
   const nav = useNavigate();
-  const T = [["liste", "SaaS", "/explorer"], ["bouge", "Ce qui a bougé", "/explorer/bouge"], ["marche", "Pays et tendances", "/explorer/marche"]];
+  const T = [["liste", "SaaS", "/explorer"], ["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"], ["marche", "Pays et tendances", "/explorer/marche"]];
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
       <div className="inline-flex rounded-xl bg-white border border-line p-1">
@@ -131,6 +132,7 @@ function Liste() {
           <Chip on={f.gratuit} onClick={() => set("gratuit", !f.gratuit)}>Version gratuite</Chip>
           <Chip on={f.recrute} onClick={() => set("recrute", !f.recrute)}>Recrutent</Chip>
           <Chip on={f.actif} onClick={() => set("actif", !f.actif)}>Nouveauté ce mois-ci</Chip>
+          {f.categorie && <BoutonSuivre categorie={f.categorie} petit />}
         </div>
       </div>
 
@@ -228,6 +230,7 @@ function Fiche({ domaine }) {
           <p className="mt-2 text-[15.5px] max-w-2xl">{s.description}</p>
           {s.cible && <p className="mt-1 text-[14px] text-ink-soft">Pour : {s.cible}</p>}
         </div>
+        <BoutonSuivre saasId={s.id} />
         <div className="rounded-2xl bg-white border border-line px-5 py-3 text-center">
           <p className="text-[12px] text-ink-faint">Score de croissance</p>
           <p className="text-[34px] font-black tnum leading-none mt-1" style={HF}>{s.score_croissance ?? "—"}</p>
@@ -472,6 +475,90 @@ function Comparer() {
           ))}</tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+
+// ---------------------------------------------------------------- Suivre (un SaaS ou une catégorie) et « Mes suivis »
+function BoutonSuivre({ saasId, categorie, petit }) {
+  const { ws } = useWs();
+  const toast = useToast();
+  const [on, setOn] = useState(null);
+  useEffect(() => {
+    let q = supabase.from("saas_suivis").select("id").eq("workspace_id", ws.id);
+    q = saasId ? q.eq("saas_id", saasId) : q.eq("categorie", categorie);
+    q.maybeSingle().then(({ data }) => setOn(data?.id ?? false));
+  }, [ws.id, saasId, categorie]);
+  const basculer = async () => {
+    if (on) { await supabase.from("saas_suivis").delete().eq("id", on); setOn(false); toast(categorie ? `Tu ne suis plus « ${categorie} »` : "Tu ne suis plus ce SaaS"); return; }
+    const { data, error } = await supabase.from("saas_suivis").insert({ workspace_id: ws.id, ...(saasId ? { saas_id: saasId } : { categorie }) }).select("id").single();
+    if (error) { toast("Impossible pour l'instant, réessaie", "bad"); return; }
+    setOn(data.id); toast(categorie ? `Tu suis « ${categorie} » : chaque lundi, ce qui a bougé` : "Suivi : chaque lundi, ce qui a bougé");
+  };
+  if (on === null) return null;
+  return petit ? (
+    <Chip on={!!on} onClick={basculer}>{on ? `✓ Catégorie suivie` : `Suivre « ${categorie} »`}</Chip>
+  ) : (
+    <button onClick={basculer} className={cx("self-start rounded-xl px-4 py-2.5 text-[14px] font-bold transition", on ? "bg-white border border-ink" : "bg-accent text-white hover:bg-accent-dark")}>{on ? "✓ Suivi" : "Suivre"}</button>
+  );
+}
+
+function Suivis() {
+  const nav = useNavigate();
+  const { ws } = useWs();
+  const [r, setR] = useState(null);
+  const charger = () => supabase.rpc("saas_mes_suivis", { ws: ws.id, jours: 30 }).then(({ data }) => setR(data ?? { saas: [], categories: [], fil: [] }));
+  useEffect(() => { charger(); }, [ws.id]);
+  const retirerCat = async (c) => { await supabase.from("saas_suivis").delete().eq("workspace_id", ws.id).eq("categorie", c); charger(); };
+  if (!r) return <div className="py-24 grid place-items-center"><Spinner /></div>;
+  const vide = !r.saas.length && !r.categories.length;
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      <h1 className="text-[30px] font-black tracking-tight" style={HF}>Mes suivis</h1>
+      <p className="text-ink-soft">Les SaaS et les catégories que tu suis. Chaque lundi matin, un e-mail résume ce qui a bougé.</p>
+      {vide ? (
+        <div className="mt-6 rounded-2xl bg-white border border-line p-6">
+          <p className="font-semibold">Tu ne suis encore rien.</p>
+          <p className="mt-1 text-ink-soft text-[14.5px]">Ouvre la fiche d'un concurrent et clique sur « Suivre », ou choisis une catégorie dans la liste puis « Suivre la catégorie ».</p>
+          <button onClick={() => nav("/explorer")} className="mt-4 rounded-xl bg-ink text-white px-4 py-2.5 text-[14px] font-semibold">Parcourir les SaaS</button>
+        </div>
+      ) : (
+        <div className="mt-5 grid lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 space-y-4">
+            <section className="rounded-2xl bg-white border border-line p-5">
+              <h2 className="font-bold">Ce qui a bougé ces 30 derniers jours</h2>
+              {r.fil.length ? (
+                <ul className="mt-3 divide-y divide-line">{r.fil.map((e, i) => (
+                  <li key={i} onClick={() => nav(`/explorer/${e.domaine}`)} className="py-2.5 flex items-center gap-3 cursor-pointer hover:bg-paper/60 -mx-2 px-2 rounded-lg">
+                    <span className="text-ink-faint tnum text-[13px] w-20 shrink-0">{date(e.at)}</span>
+                    <CompanyLogo name={e.nom} url={`https://${e.domaine}`} className="w-8 h-8" />
+                    <span className="text-[14px]"><b>{e.nom}</b> · {evTexte(e)}</span>
+                  </li>
+                ))}</ul>
+              ) : <p className="mt-2 text-[14px] text-ink-faint">Rien pour l'instant. Chaque SaaS est relu une fois par semaine : les changements apparaissent dès le deuxième relevé.</p>}
+            </section>
+          </div>
+          <div className="space-y-4">
+            <section className="rounded-2xl bg-white border border-line p-5">
+              <h2 className="font-bold">SaaS suivis ({r.saas.length})</h2>
+              <ul className="mt-3 space-y-2">{r.saas.map((s) => (
+                <li key={s.id} onClick={() => nav(`/explorer/${s.domaine}`)} className="flex items-center gap-3 cursor-pointer rounded-xl border border-line px-3 py-2 hover:border-ink-faint">
+                  <CompanyLogo name={s.nom} url={`https://${s.domaine}`} className="w-8 h-8" />
+                  <div className="min-w-0 flex-1"><p className="font-semibold text-[14px] truncate">{s.nom} {drapeau(s.pays)}</p><p className="text-[12px] text-ink-faint">{s.prix_entree_eur != null ? `dès ${s.prix_entree_eur} €/mois` : s.sur_devis ? "sur devis" : "prix non affiché"}{s.recrute ? ` · recrute${s.postes ? ` ${s.postes}` : ""}` : ""}</p></div>
+                  {s.changements > 0 && <span className="rounded-md bg-accent-soft text-accent-dark px-2 py-0.5 text-[12px] font-bold">{s.changements}</span>}
+                </li>
+              ))}{!r.saas.length && <li className="text-[13.5px] text-ink-faint">Aucun SaaS suivi.</li>}</ul>
+            </section>
+            <section className="rounded-2xl bg-white border border-line p-5">
+              <h2 className="font-bold">Catégories suivies</h2>
+              <div className="mt-3 flex flex-wrap gap-2">{r.categories.map((c) => (
+                <span key={c} className="inline-flex items-center gap-2 rounded-full bg-paper px-3 py-1.5 text-[13px]">{c}<button onClick={() => retirerCat(c)} title="Ne plus suivre" className="text-ink-faint hover:text-ink">✕</button></span>
+              ))}{!r.categories.length && <span className="text-[13.5px] text-ink-faint">Aucune catégorie suivie.</span>}</div>
+            </section>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

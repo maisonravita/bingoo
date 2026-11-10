@@ -39,6 +39,8 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     return { id: s.id, domaine: d, statut: r?.statut ?? "erreur" };
   },
   async "saas-tendances"(req, b) { await requireMember(req, b.workspace_id); const { saasTendances } = await import("../_shared/saas-base.ts"); return await saasTendances(); },
+  // Alerte du lundi (clé cron ; workspace_id pour envoyer à un seul espace, pour essai)
+  async "saas-alertes"(req, b) { await cron(req); const { saasAlertes } = await import("../_shared/saas-base.ts"); return await saasAlertes(b.workspace_id ? String(b.workspace_id) : undefined); },
   // Explorer (clé cron) : relevés de nuit et amorçage de la base
   async "saas-cron"(req) { await cron(req); const { saasCron } = await import("../_shared/saas-base.ts"); return await saasCron(); },
   async "saas-seed"(req, b) {
