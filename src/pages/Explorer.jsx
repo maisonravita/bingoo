@@ -835,16 +835,16 @@ function Lancer() {
       {!p ? (
         <div className="mt-4 rounded-3xl bg-ink text-white p-8">
           <p className="text-[13px] font-bold uppercase tracking-wide text-[#F6A06B]">Lancer le mien</p>
-          <h1 className="mt-2 text-[32px] sm:text-[42px] font-black leading-[1.05]" style={HF}>{nomInspi} marche. Lance ta version, en mieux.</h1>
-          <p className="mt-3 max-w-2xl text-white/75 text-[16px]">Bingoo! part de ce qui prouve que le besoin existe ({nomInspi}, ses prix, ses concurrents, ses chiffres publics) et te prépare un SaaS différent : un nom à toi, ce qui le rend meilleur, le MVP à coder semaine par semaine, les outils et leur coût, tes prix, comment trouver tes premiers clients, et le plan d'affaires sur 12 mois.</p>
-          <p className="mt-3 text-[13px] text-white/55">Inspiré, pas copié : ni le nom, ni les textes, ni le design de {nomInspi}. Copier une marque ou un site expose à des poursuites ; s'inspirer d'un besoin qui marche, non.</p>
+          <h1 className="mt-2 text-[32px] sm:text-[42px] font-black leading-[1.05]" style={HF}>{nomInspi} marche. Lance le même, à ton nom.</h1>
+          <p className="mt-3 max-w-2xl text-white/75 text-[16px]">Bingoo! lit ce que fait {nomInspi} sur son site et te prépare un SaaS concurrent qui fait la même chose : chaque fonctionnalité et son équivalent chez toi, l'ordre pour les coder, les outils et leur coût, tes prix face aux siens, tes premiers clients, le plan d'affaires sur 12 mois, et le texte à donner à un outil qui code l'application pour toi.</p>
+          <p className="mt-3 text-[13px] text-white/55">Concurrence loyale : les mêmes fonctionnalités, mais ton nom, tes mots et ton design. Reprendre la marque, les textes mot pour mot ou le design de {nomInspi} exposerait à des poursuites.</p>
           <button onClick={generer} disabled={busy} className="mt-6 rounded-xl bg-accent px-7 py-3.5 font-bold hover:bg-accent-dark disabled:opacity-60">{busy ? "Préparation de ton projet… (environ une minute)" : niv(ws) < 2 ? "Disponible avec la formule Pro" : "Préparer mon projet"}</button>
         </div>
       ) : (
         <>
           <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-[13px] font-bold uppercase tracking-wide text-accent-dark">Ton projet, inspiré de {nomInspi}</p>
+              <p className="text-[13px] font-bold uppercase tracking-wide text-accent-dark">Ton SaaS concurrent de {nomInspi}</p>
               <h1 className="mt-1 text-[36px] sm:text-[46px] font-black leading-[1.02]" style={HF}>{p.nom}</h1>
               <p className="mt-1 text-[18px] text-ink-soft max-w-3xl">{p.pitch}</p>
             </div>
@@ -863,7 +863,13 @@ function Lancer() {
             </Bloc>
           </div>
 
-          <h2 className="mt-6 font-bold text-[20px]">Ce qui le rend meilleur</h2>
+          {p.equivalences?.length > 0 && (
+            <Bloc className="mt-4" titre="Fonction par fonction" sous={`Ce que fait ${nomInspi}, lu sur son site, et ton équivalent`}>
+              <table className="w-full text-[14px]"><thead><tr className="text-left text-[12px] text-ink-faint"><th className="pb-1.5 font-medium w-1/2">Chez {nomInspi}</th><th className="pb-1.5 font-medium">Chez {p.nom}</th></tr></thead>
+                <tbody>{p.equivalences.map((x, i) => <tr key={i} className="border-t border-line align-top"><td className="py-2 pr-4 text-ink-soft">{x.chez_eux}</td><td className="py-2 font-medium">✓ {x.chez_toi}</td></tr>)}</tbody></table>
+            </Bloc>
+          )}
+          <h2 className="mt-6 font-bold text-[20px]">Tes petits plus face à {nomInspi}</h2>
           <div className="mt-2 grid md:grid-cols-3 gap-3">{(p.differences ?? []).map((x, i) => <div key={i} className="rounded-2xl bg-accent-soft/60 border border-accent/20 p-4 break-inside-avoid"><p className="font-bold">{x.angle}</p><p className="mt-1 text-[14px] text-ink-soft">{x.pourquoi}</p></div>)}</div>
 
           <div className="mt-4 grid lg:grid-cols-2 gap-4">
@@ -895,7 +901,13 @@ function Lancer() {
             <Bloc titre="Trouver tes premiers clients">{<ul className="space-y-2">{(p.acquisition ?? []).map((x, i) => <li key={i}><p className="font-semibold text-[14.5px]">{x.canal}</p><p className="text-[13.5px] text-ink-soft">{x.comment}</p></li>)}</ul>}</Bloc>
             <Bloc titre="Les risques et la parade">{<ul className="space-y-2">{(p.risques ?? []).map((x, i) => <li key={i}><p className="font-semibold text-[14.5px]">{x.risque}</p><p className="text-[13.5px] text-ink-soft">{x.parade}</p></li>)}</ul>}</Bloc>
           </div>
-          <p className="mt-4 text-[12px] text-ink-faint">Projet préparé par une IA à partir des données de la base Explorer. Inspiré de {nomInspi}, sans en reprendre le nom, les textes ni le design. Vérifie la disponibilité du nom (INPI, nom de domaine) avant de le déposer.</p>
+          {p.construction && (
+            <Bloc className="mt-4" titre="Le faire coder" sous="Colle ce texte dans un outil qui crée des applications (Lovable, Bolt, Claude…) pour obtenir une première version de ton SaaS.">
+              <textarea readOnly value={p.construction} rows={10} className="w-full rounded-xl border border-line bg-paper p-3 text-[13px] font-mono leading-relaxed" />
+              <button onClick={() => { navigator.clipboard?.writeText(p.construction).then(() => toast("Texte copié"), () => toast("Copie impossible : sélectionne le texte", "bad")); }} className="mt-2 rounded-xl bg-ink text-white px-4 py-2.5 text-[14px] font-bold hover:bg-black print:hidden">Copier le texte</button>
+            </Bloc>
+          )}
+          <p className="mt-4 text-[12px] text-ink-faint">Projet préparé par une IA à partir des données de la base Explorer. Concurrent de {nomInspi}, sans en reprendre le nom, les textes mot pour mot ni le design. Vérifie la disponibilité du nom (INPI, nom de domaine) avant de le déposer.</p>
         </>
       )}
     </div>

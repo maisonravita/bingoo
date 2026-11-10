@@ -533,6 +533,7 @@ Clés : type (promotion | lancement | contenu | evenement | temoignage | relance
 // Le plan d'affaires est calculé ici, à partir d'hypothèses affichées, jamais inventé par l'IA.
 type Projet = {
   nom: string; pitch: string; cible: string; probleme: string;
+  equivalences: { chez_eux: string; chez_toi: string }[];
   differences: { angle: string; pourquoi: string }[];
   mvp: { fonction: string; pourquoi: string; semaines: number }[]; plus_tard: string[];
   stack: { brique: string; outil: string; cout_mois: number }[];
@@ -542,26 +543,36 @@ type Projet = {
   hypotheses: { clients_mois_1: number; croissance_mensuelle_pct: number; churn_mensuel_pct: number; conversion_essai_pct: number };
 };
 export async function saasLancer(wsId: string, domaine: string) {
-  const { data: s } = await admin.from("saas").select("id, nom, domaine, categorie, description, cible, pays, prix_entree_eur, gratuit, essai, formules, recrute, postes, tags, methode").eq("domaine", domaine.toLowerCase()).eq("statut", "ok").single();
+  const { data: s } = await admin.from("saas").select("id, nom, domaine, categorie, description, cible, pays, prix_entree_eur, gratuit, essai, formules, recrute, postes, tags, methode, liens, prix_rendu").eq("domaine", domaine.toLowerCase()).eq("statut", "ok").single();
   if (!s) throw new Error("SaaS introuvable");
+  // Ce que fait le SaaS, lu sur ses pages publiques (accueil, tarifs) : la liste des fonctionnalités à égaler
+  const site = `https://${s.domaine}`;
+  const interdit = await robots(site).catch(() => [] as string[]);
+  const lirePage = async (u: string) => (u && autorise(interdit, u) ? textOf((await fetchHtml(u).catch(() => "")).slice(0, 400_000)) : "");
+  const lien = (s.liens as Record<string, string> | null)?.prix ?? "";
+  const [txtAccueil, txtPrix] = await Promise.all([lirePage(site), s.prix_rendu ? Promise.resolve(String(s.prix_rendu)) : lirePage(lien)]);
+  const pages = `${txtAccueil.slice(0, 5000)}\n---\n${txtPrix.slice(0, 4000)}`;
   const { data: h } = await admin.from("saas_histoires").select("annee_creation, chiffres, histoire, lecons").eq("saas_id", s.id).eq("statut", "ok").maybeSingle();
   const { data: conc } = await admin.from("saas").select("nom, pays, prix_entree_eur, gratuit, description").eq("statut", "ok").eq("categorie", s.categorie).neq("id", s.id).order("rang_web", { ascending: true, nullsFirst: false }).limit(12);
   const prixMarche = (conc ?? []).map((c) => c.prix_entree_eur).filter((v) => v != null && v > 0).sort((a, b) => a - b);
   const mediane = prixMarche.length ? prixMarche[Math.floor(prixMarche.length / 2)] : null;
   setAi({ ws: wsId, feature: "explorer/lancer", live: true });
-  const p = await askJson<Projet>(`Tu aides un entrepreneur français à lancer un SaaS en s'inspirant d'un SaaS qui marche, SANS le copier : ni son nom, ni ses textes, ni son design, ni sa marque.
+  const p = await askJson<Projet>(`Tu aides un entrepreneur français à lancer un SaaS CONCURRENT d'un SaaS qui marche : un produit qui fait la même chose, avec les mêmes fonctionnalités principales, pour les mêmes clients. C'est de la concurrence loyale : il ne reprend ni le nom, ni les textes mot pour mot, ni le logo, ni le design, ni le code ; il décrit et construit tout avec ses propres mots.
 Le SaaS qui marche : ${s.nom} (${s.domaine}), catégorie ${s.categorie}, pays ${s.pays ?? "inconnu"}.
 Ce qu'il fait : ${s.description ?? ""}. Pour : ${s.cible ?? ""}.
 Prix d'entrée : ${s.prix_entree_eur != null ? `${s.prix_entree_eur} €/mois` : "non affiché"}${s.gratuit ? ", version gratuite" : ""}${s.essai ? `, essai ${s.essai}` : ""}. Formules : ${JSON.stringify(s.formules ?? []).slice(0, 600)}.
 ${s.recrute ? `Il recrute (${s.postes ?? "?"} postes).` : ""} Canaux visibles sur son site : ${JSON.stringify(s.methode ?? {}).slice(0, 300)}.
 ${h ? `Chiffres publics : ${(h.chiffres ?? []).map((c: { texte: string }) => c.texte).join(" ; ").slice(0, 600)}. Ce qui l'a fait grandir : ${(h.lecons ?? []).join(" ; ")}` : ""}
+Texte de ses pages publiques (accueil puis tarifs), pour savoir exactement ce qu'il fait :
+${pages}
 Ses concurrents dans la base : ${(conc ?? []).map((c) => `${c.nom} (${c.pays ?? "?"}, ${c.prix_entree_eur != null ? `${c.prix_entree_eur} €` : "prix ?"}${c.gratuit ? ", gratuit" : ""})`).join(", ")}. Prix d'entrée médian du marché : ${mediane ?? "inconnu"} €/mois.
 
-Propose un SaaS à lancer en France par une petite équipe (1 à 3 personnes), différent et meilleur sur un point précis.
+Propose le SaaS concurrent à lancer en France par une petite équipe (1 à 3 personnes) : il fait la même chose que ${s.nom}, pour les mêmes clients.
 Clés JSON :
-nom (un nom ORIGINAL, sans ressemblance avec ${s.nom} ni avec un concurrent), pitch (une phrase), cible (qui exactement, en France), probleme (le besoin prouvé par le succès de ${s.nom}),
-differences (3 objets angle + pourquoi : ce qui le rend meilleur ou différent, ex. niche plus précise, prix, simplicité, français, intégrations locales),
-mvp (5 à 8 objets fonction + pourquoi + semaines de développement estimées), plus_tard (3 à 5 fonctions pour après),
+nom (un nom ORIGINAL, sans ressemblance avec ${s.nom} ni avec un concurrent), pitch (une phrase, avec tes mots), cible (les mêmes clients que ${s.nom}, précisés pour la France), probleme (le besoin que ${s.nom} résout, prouvé par son succès),
+equivalences (8 à 14 objets chez_eux + chez_toi : chaque fonctionnalité principale de ${s.nom} lue dans ses pages, puis ta fonctionnalité équivalente décrite avec tes mots, sans reprendre ses noms de fonctions déposés),
+differences (3 objets angle + pourquoi : tes petits plus pour gagner des clients face à lui, ex. prix, français, simplicité, support, intégrations locales),
+mvp (6 à 10 objets fonction + pourquoi + semaines : l'ordre pour coder l'équivalent de ${s.nom}, en commençant par le cœur du produit), plus_tard (3 à 5 fonctions de ${s.nom} à ajouter ensuite),
 stack (5 à 8 objets brique + outil + cout_mois en euros, outils réels et courants : hébergement, base de données, paiement, e-mails, analytics, IA si utile),
 formules (2 ou 3 objets nom + prix en euros par mois + pour + inclus : 3 à 5 éléments ; cohérents avec le prix médian du marché),
 acquisition (4 à 6 objets canal + comment, concrets pour les 6 premiers mois),
@@ -584,7 +595,19 @@ hypotheses (prudentes : clients_mois_1 nombre de clients payants le premier mois
     mois.push({ mois: m, nouveaux: Math.round(nouveaux), clients, mrr, charges, resultat: mrr - charges, cumul });
     nouveaux = nouveaux * (1 + Number(H.croissance_mensuelle_pct || 0) / 100);
   }
-  const data = { ...p, inspire: { nom: s.nom, domaine: s.domaine, categorie: s.categorie, prix: s.prix_entree_eur }, marche: { mediane, prix: prixMarche, concurrents: (conc ?? []).length },
+  // Le prompt à coller dans un outil qui code une application (Lovable, Bolt, Claude…)
+  const construction = [
+    `Construis un SaaS appelé « ${p.nom} » : ${p.pitch}`,
+    `Clients : ${p.cible}`,
+    `Langue de l'interface : français. Design original, sobre et moderne ; ne reprends ni le logo, ni les textes, ni le design d'un autre produit.`,
+    `Fonctionnalités à livrer, dans cet ordre :`,
+    ...(p.mvp ?? []).map((m, i) => `${i + 1}. ${m.fonction} : ${m.pourquoi}`),
+    `Ce qui doit le distinguer : ${(p.differences ?? []).map((x) => x.angle).join(" ; ")}.`,
+    `Technique : ${(p.stack ?? []).map((x) => `${x.brique} avec ${x.outil}`).join(" ; ")}.`,
+    `Comptes utilisateurs avec e-mail et mot de passe, abonnement mensuel avec les formules : ${(p.formules ?? []).map((f) => `${f.nom} à ${f.prix} € par mois (${(f.inclus ?? []).join(", ")})`).join(" ; ")}. Essai gratuit de 14 jours.`,
+    `Ajoute une page d'accueil publique qui présente le produit et les prix, des mentions légales et une politique de confidentialité conformes au RGPD.`,
+  ].join("\n");
+  const data = { ...p, construction, inspire: { nom: s.nom, domaine: s.domaine, categorie: s.categorie, prix: s.prix_entree_eur }, marche: { mediane, prix: prixMarche, concurrents: (conc ?? []).length },
     plan: { prix_moyen: prixMoyen, couts_fixes: couts, mois, equilibre: mois.find((x) => x.resultat > 0)?.mois ?? null } };
   const { data: row } = await admin.from("saas_projets").insert({ workspace_id: wsId, saas_id: s.id, data }).select("id").single();
   return { id: row?.id, ...data };
