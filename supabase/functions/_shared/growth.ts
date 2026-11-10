@@ -407,7 +407,7 @@ export async function checkout(ws: Workspace, userId: string, planKey: string, y
     mode: "subscription", customer, locale: "fr",
     "line_items[0][quantity]": "1",
     "line_items[0][price_data][currency]": "eur",
-    "line_items[0][price_data][unit_amount]": String(yearly ? Math.round(mensuel * 12 * (1 - ANNUAL_OFF)) * 100 : mensuel * 100),
+    "line_items[0][price_data][unit_amount]": String(yearly ? Math.round(mensuel * 12 * (1 - ANNUAL_OFF)) * 100 : Math.round(mensuel * 100)),
     "line_items[0][price_data][recurring][interval]": yearly ? "year" : "month",
     "line_items[0][price_data][product_data][name]": `Bingoo! ${p.label}${fondateur ? " (prix fondateur, à vie)" : ""}${yearly ? " (annuel)" : ""}`,
     "line_items[0][price_data][tax_behavior]": "exclusive",

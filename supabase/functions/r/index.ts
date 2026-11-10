@@ -75,6 +75,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   // Explorer → prospection : un segment de clients devient une cible de l'espace (Radar et Mission la prospectent ensuite)
   async "saas-cible-ajouter"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
+    if (ws.plan === "explorer") throw new HttpError(402, "La formule Explorer montre qui démarcher ; pour que Bingoo! les prospecte, passe à Solo.");
     const x = (b.segment ?? {}) as Record<string, unknown>;
     const naf = (Array.isArray(x.naf) ? x.naf : []).map(String).filter((n) => /^\d{2}\.\d{2}[A-Z]$/.test(n)).slice(0, 4);
     if (!x.label || !naf.length) throw new HttpError(400, "Segment incomplet");

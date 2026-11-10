@@ -3,7 +3,7 @@
 // - Croissance / recrutements : recherche web sourcée (une URL par signal) + signaux du registre déjà connus.
 // Rien n'est inventé : chaque opportunité a une source vérifiable.
 import { HttpError } from "./http.ts";
-import { admin, aiRoom, askJson, log, planOk, setAi, type Workspace } from "./core.ts";
+import { admin, aiRoom, askJson, log, prospectionOk, setAi, type Workspace } from "./core.ts";
 import { estimateValues } from "./radar-extra.ts";
 import { anniversaries, bizType, championSignals, intentSignals, jobsScan, obligationSignals, trialSignals, visitorSignals, webScan } from "./radar-saas.ts";
 import { findTwins, ftOffers, ftReady, lbbCompanies, pickTop3, radarPress, siteWatch, whoToCall, zoneEvents } from "./radar-plus.ts";
@@ -390,10 +390,10 @@ export async function radarCron() {
   const since = new Date(Date.now() - 20 * 36e5).toISOString();
   let { data } = await admin.from("workspaces").select("*").eq("onboarded", true).or(`radar_at.is.null,radar_at.lt.${since}`).order("radar_at", { ascending: true, nullsFirst: true }).limit(30);
   // Espaces à jour seulement (essai en cours ou abonnement réglé) ; les autres sont repoussés pour ne pas bloquer la file
-  const stale = (data ?? []).filter((w) => !planOk(w));
+  const stale = (data ?? []).filter((w) => !prospectionOk(w));
   if (stale.length) await admin.from("workspaces").update({ radar_at: new Date().toISOString() }).in("id", stale.map((w) => w.id));
   const bgm = await (await import("./core.ts")).bgMode();
-  data = (data ?? []).filter((w) => planOk(w) && !(bgm === "clients" && w.plan === "fondateur")).slice(0, 3);
+  data = (data ?? []).filter((w) => prospectionOk(w) && !(bgm === "clients" && w.plan === "fondateur")).slice(0, 3);
   let n = 0;
   const t0 = Date.now();
   for (const ws of data ?? []) {

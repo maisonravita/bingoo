@@ -6,9 +6,12 @@ import { Badge, Button, Card, PageHead, useToast } from "../components/ui";
 import { cx } from "../lib/utils";
 import { SubNav } from "../components/SubNav";
 
+// Prix affiché à la française : 19,99 € ; un prix rond reste rond (29 €)
+const eur = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ","));
 const FEATURES = {
-  solo: ["1 utilisateur", "Explorer : 25 fiches SaaS par semaine, liste et filtres illimités", "100 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Demandes publiques avec réponse prête, chaque jour", "Radar et relances", "Prospects non utilisés reportés au mois suivant"],
-  pro: ["2 utilisateurs", "Explorer : 150 fiches SaaS par semaine et comparaisons", "300 prospects contactés par mois", "Tout ce qu'il y a dans Solo", "Espion : tes concurrents surveillés", "LinkedIn par l'extension"],
+  explorer: ["1 utilisateur", "Explorer complet : fiches illimitées et recherche intelligente", "Suivis et alerte du lundi", "Idées et réussites, pubs et e-mails", "Qui démarcher : les clients de chaque niche", "Pas de prospection (à partir de Solo)"],
+  solo: ["1 utilisateur", "Explorer complet, illimité", "100 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Demandes publiques avec réponse prête, chaque jour", "Radar et relances", "Prospects non utilisés reportés au mois suivant"],
+  pro: ["2 utilisateurs", "Explorer complet, illimité", "300 prospects contactés par mois", "Tout ce qu'il y a dans Solo", "Espion : tes concurrents surveillés", "LinkedIn par l'extension"],
   equipe: ["5 utilisateurs", "Explorer illimité", "700 prospects contactés par mois", "Tout ce qu'il y a dans Pro", "Répartition des prospects entre commerciaux", "Tableau de bord par commercial"],
 };
 const CONTACT = "bingoo@maisonravita.fr";
@@ -166,10 +169,10 @@ export default function Abonnement() {
       {fond && (fond.left > 0 || ws.founder_price) && (
         <Card className="p-4 sm:p-5 mb-4 border-accent/40 bg-accent-soft/40">
           <p className="font-semibold">{ws.founder_price ? "Tu as le prix fondateur : Solo à 29 € à vie" : `Prix fondateur : Solo à ${fond.price} € à vie pour les ${fond.places} premiers`}</p>
-          {!ws.founder_price && <p className="text-sm text-ink-soft mt-1">Ensuite, Solo passe à 39 €. Ceux qui sont entrés gardent leur prix tant que l'abonnement continue.</p>}
+          {!ws.founder_price && <p className="text-sm text-ink-soft mt-1">Ensuite, Solo passe à 39,99 €. Ceux qui sont entrés gardent leur prix tant que l'abonnement continue.</p>}
         </Card>
       )}
-      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {plans.map((p) => {
           const fondateur = p.key === "solo" && fond && (ws.founder_price || fond.left > 0);
           const prix = fondateur ? fond.price : p.price;
@@ -178,8 +181,8 @@ export default function Abonnement() {
           return (
             <Card key={p.key} className={cx("p-5 sm:p-6 flex flex-col min-w-0", featured && "!border-ink ring-1 ring-ink")}>
               <div className="flex items-center justify-between gap-2"><p className="font-semibold">{p.label}</p>{featured && <Badge tone="accent">Le plus choisi</Badge>}</div>
-              <p className="mt-3">{fondateur && <span className="mr-2 text-ink-faint line-through text-2xl tnum">{yearly ? Math.round(p.price * 0.8) : p.price} €</span>}<span className="font-serif text-5xl tnum">{yearly ? Math.round(prix * 0.8) : prix} €</span><span className="text-ink-soft text-sm"> HT / mois</span></p>
-              <p className="text-xs text-ink-faint mt-1">{fondateur ? "prix fondateur, à vie" : ""}{fondateur && " · "}{yearly ? `soit ${Math.round(prix * 12 * 0.8)} € HT par an, au lieu de ${prix * 12} €` : "sans engagement"}</p>
+              <p className="mt-3">{fondateur && <span className="mr-2 text-ink-faint line-through text-2xl tnum">{yearly ? Math.round(p.price * 12 * 0.8 / 12) : eur(p.price)} €</span>}<span className="font-serif text-5xl tnum">{yearly ? Math.round(prix * 12 * 0.8 / 12) : eur(prix)} €</span><span className="text-ink-soft text-sm"> HT / mois</span></p>
+              <p className="text-xs text-ink-faint mt-1">{fondateur ? "prix fondateur, à vie" : ""}{fondateur && " · "}{yearly ? `soit ${Math.round(prix * 12 * 0.8)} € HT par an, au lieu de ${eur(Math.round(prix * 12 * 100) / 100)} €` : "sans engagement"}</p>
               <ul className="mt-4 space-y-2 text-sm flex-1">{(FEATURES[p.key] ?? []).map((f) => <li key={f} className="flex gap-2"><span className="text-good">✓</span><span>{f}</span></li>)}</ul>
               <Button className="mt-6 w-full" variant={featured ? "primary" : "default"} disabled={current || ws.plan === "fondateur"} loading={busy === p.key} onClick={() => go("billing-checkout", p.key)}>
                 {current ? "Ta formule actuelle" : ws.stripe_subscription ? "Changer pour celle-ci" : "Choisir"}

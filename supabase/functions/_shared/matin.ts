@@ -1,7 +1,7 @@
 // E-mail du matin : le client n'a pas à ouvrir l'app. Les 3 opportunités du jour (pourquoi maintenant, à qui, le message),
 // chacune avec un bouton qui mène à une page de confirmation : rien ne part sans un clic sur « Envoyer » dans cette page
 // (un lien ouvert par un antivirus ou un aperçu de messagerie n'envoie jamais rien).
-import { admin, planOk, type Prospect, type Workspace } from "./core.ts";
+import { admin, prospectionOk, type Prospect, type Workspace } from "./core.ts";
 import { sendSystem, teamAddress } from "./mail.ts";
 import { declencheur, emailGenerique } from "./agents.ts";
 
@@ -93,7 +93,7 @@ export async function matinCron(dry = false) {
   for (const ws of wss ?? []) {
     const choix = ((ws.profile ?? {}) as { matin?: boolean }).matin;
     // Espaces « fondateur » (internes) : seulement sur demande explicite ; clients : par défaut, désactivable
-    if (!planOk(ws) || choix === false || (ws.plan === "fondateur" && choix !== true)) continue;
+    if (!prospectionOk(ws) || choix === false || (ws.plan === "fondateur" && choix !== true)) continue;
     try { out[ws.name] = await emailMatin(ws as Workspace, dry); } catch (e) { out[ws.name] = { erreur: (e as Error).message }; }
   }
   return out;

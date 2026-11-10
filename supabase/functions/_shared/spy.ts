@@ -3,7 +3,7 @@
 // TikTok : page publique du profil quand elle est lisible. Instagram et autres : chiffres trouvés sur le web (sourcés).
 // Site : mesures techniques SEO lues directement sur le site. Aucun chiffre n'est estimé.
 import { HttpError } from "./http.ts";
-import { admin, aiRoom, askJson, log, planOk, setAi, type Workspace } from "./core.ts";
+import { admin, aiRoom, askJson, log, prospectionOk, setAi, type Workspace } from "./core.ts";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 async function get(url: string, ms = 12000) {
@@ -187,7 +187,7 @@ export async function spyCron() {
   const { checkCompetitor, siteText, sha } = await import("./pro.ts");
   const { competitorAds } = await import("./campaigns.ts");
   const bgm = await (await import("./core.ts")).bgMode();
-  const wss = ((await admin.from("workspaces").select("*").eq("onboarded", true)).data ?? []).filter((w) => planOk(w) && !(bgm === "clients" && w.plan === "fondateur"));
+  const wss = ((await admin.from("workspaces").select("*").eq("onboarded", true)).data ?? []).filter((w) => prospectionOk(w) && !(bgm === "clients" && w.plan === "fondateur"));
   const byId = new Map((wss ?? []).map((w) => [w.id, w as Workspace & { spy_at?: string | null }]));
   const all = [...byId.keys()];
   if (!all.length) return { skipped: "aucun espace" };
@@ -342,7 +342,7 @@ Format : {"besoins": [{"besoin": "", "entreprise": "", "auteur_fonction": "", "p
 export async function spyDigest() {
   const { teamAddress, sendSystem } = await import("./mail.ts");
   const bgm = await (await import("./core.ts")).bgMode();
-  const wss = ((await admin.from("workspaces").select("*").eq("onboarded", true)).data ?? []).filter((w) => planOk(w) && !(bgm === "clients" && w.plan === "fondateur"));
+  const wss = ((await admin.from("workspaces").select("*").eq("onboarded", true)).data ?? []).filter((w) => prospectionOk(w) && !(bgm === "clients" && w.plan === "fondateur"));
   const monday = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", weekday: "short" }).format(new Date()) === "Mon";
   const out: Record<string, unknown> = {};
   for (const w of (wss ?? []) as (Workspace & { spy_alert_at?: string | null; app_url?: string })[]) {

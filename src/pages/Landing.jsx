@@ -209,10 +209,12 @@ function SourcesRow() {
 }
 
 /* ---------- Tarifs et questions ---------- */
+const eur = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ","));
 const PLANS = [
-  ["Solo", 39, "Pour un solo founder ou un petit SaaS qui démarre, 15 minutes par jour.", ["1 utilisateur", "Explorer : 25 fiches SaaS par semaine, suivis et alerte du lundi", "100 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Demandes publiques avec réponse prête, chaque jour", "Radar et relances"]],
-  ["Pro", 69, "Pour le fondateur dont ça commence à marcher.", ["2 utilisateurs", "Explorer : 150 fiches SaaS par semaine et comparaisons", "300 prospects contactés par mois", "Tout ce qu'il y a dans Solo", "Espion : tes concurrents surveillés", "LinkedIn par l'extension"]],
-  ["Équipe", 109, "Pour une startup ou une PME avec quelques commerciaux.", ["5 utilisateurs", "Explorer illimité", "700 prospects contactés par mois", "Tout ce qu'il y a dans Pro", "Répartition des prospects entre commerciaux", "Tableau de bord par commercial"]],
+  ["Explorer", 19.99, "Pour voir tout ton marché SaaS, sans prospecter.", ["1 utilisateur", "Fiches SaaS illimitées et recherche intelligente", "Suivis et alerte du lundi", "Idées et réussites, pubs et e-mails", "Qui démarcher : les clients de chaque niche"]],
+  ["Solo", 39.99, "Pour un solo founder ou un petit SaaS qui démarre, 15 minutes par jour.", ["1 utilisateur", "Tout Explorer, illimité", "100 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Demandes publiques avec réponse prête, chaque jour", "Radar et relances"]],
+  ["Pro", 69.99, "Pour le fondateur dont ça commence à marcher.", ["2 utilisateurs", "300 prospects contactés par mois", "Tout ce qu'il y a dans Solo", "Espion : tes concurrents surveillés", "LinkedIn par l'extension"]],
+  ["Équipe", 109, "Pour une startup ou une PME avec quelques commerciaux.", ["5 utilisateurs", "700 prospects contactés par mois", "Tout ce qu'il y a dans Pro", "Répartition des prospects entre commerciaux", "Tableau de bord par commercial"]],
 ];
 const FAQ = [
   ["D'où viennent les informations sur les SaaS ?", "De leurs propres sites, relus chaque semaine : page d'accueil, tarifs, page carrières, changelog ou blog. Les chiffres d'entreprise (chiffre d'affaires, levées) viennent de la presse ou de documents officiels, la notoriété du Majestic Million, les tendances des annonces légales officielles (BODACC). Rien n'est estimé : une information introuvable est affichée comme telle, et chaque chiffre a son lien."],
@@ -336,7 +338,7 @@ export default function Landing() {
                 ["Les messages", "À écrire, ou un modèle pour tout le monde", "Écrits pour chaque entreprise, à partir de ce qui se passe chez elle"],
                 ["Ceux qui te cherchent", "À repérer à la main sur Reddit et LinkedIn", "Chaque jour, avec ta réponse prête"],
                 ["Le contrôle", "Souvent des envois en masse", "Rien ne part sans toi"],
-                ["Le prix", "Plusieurs centaines d'euros par mois, cumulés", "Dès 29 € par mois"],
+                ["Le prix", "Plusieurs centaines d'euros par mois, cumulés", "Dès 19,99 € par mois"],
               ].map(([k, a, b]) => (
                 <div key={k} className="grid grid-cols-[minmax(0,.8fr)_minmax(0,1fr)_minmax(0,1fr)] border-t border-line text-[14.5px] sm:text-[15.5px] leading-snug">
                   <span className="px-4 sm:px-5 py-3.5 font-semibold text-ink">{k}</span>
@@ -416,16 +418,16 @@ export default function Landing() {
           </div>
           <div className="mt-8 grid md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
             {PLANS.map(([n, p0, d, items], i) => {
-              const best = i === 1;
-              const fondateur = i === 0 && fond && fond.left > 0;
+              const best = i === 2;
+              const fondateur = i === 1 && fond && fond.left > 0;
               const p = fondateur ? fond.price : p0;
               const annuel = Math.round(p * 12 * 0.8); // même calcul que la facturation Stripe
               const price = yearly ? Math.round(annuel / 12) : p;
               return (
-                <div key={n} style={{ transitionDelay: `${i * 0.12}s` }} className={cx("reveal relative rounded-3xl p-7", best ? "bg-[#16171B] text-white md:pb-10 md:pt-10 shadow-[0_30px_60px_-30px_rgba(21,22,26,.6)]" : i === 0 ? "bg-white border border-line" : "bg-accent-soft/60 border border-accent/20")}>
+                <div key={n} style={{ transitionDelay: `${i * 0.12}s` }} className={cx("reveal relative rounded-3xl p-6", best ? "bg-[#16171B] text-white md:pb-10 md:pt-10 shadow-[0_30px_60px_-30px_rgba(21,22,26,.6)]" : i <= 1 ? "bg-white border border-line" : "bg-accent-soft/60 border border-accent/20")}>
                   {best && <span className="absolute -top-3.5 left-7 rounded-full bg-accent text-white text-[12.5px] font-bold px-3 py-1">Recommandé</span>}
                   <p className="font-bold text-[19px]">{n}</p>
-                  <p className="mt-4">{fondateur && <span className="mr-2 text-[22px] text-ink-faint line-through tnum">{yearly ? Math.round(p0 * 0.8) : p0} €</span>}<span className="font-black text-[52px] leading-none" style={SERIF}>{price} €</span><span className={cx("text-[14px] ml-1.5", best ? "text-white/60" : "text-ink-faint")}>/ mois</span></p>
+                  <p className="mt-4">{fondateur && <span className="mr-2 text-[22px] text-ink-faint line-through tnum">{yearly ? Math.round(p0 * 12 * 0.8 / 12) : eur(p0)} €</span>}<span className="font-black text-[46px] leading-none" style={SERIF}>{eur(price)} €</span><span className={cx("text-[14px] ml-1.5", best ? "text-white/60" : "text-ink-faint")}>/ mois</span></p>
                   {(yearly || fondateur) && <p className={cx("text-[13px] mt-1", best ? "text-white/60" : "text-accent-dark font-semibold")}>{fondateur ? "prix fondateur, à vie" : ""}{fondateur && yearly ? " · " : ""}{yearly ? `facturé ${annuel} € par an` : ""}</p>}
                   <p className={cx("mt-4 text-[15px]", best ? "text-white/75" : "text-ink-soft")}>{d}</p>
                   <ul className="mt-5 space-y-2.5">{items.map((x) => <li key={x} className="flex items-center gap-2.5 text-[15px]"><Check className={cx("h-4 w-4 shrink-0", best ? "text-[#F6A06B]" : "text-accent")} />{x}</li>)}</ul>
@@ -433,13 +435,10 @@ export default function Landing() {
                 </div>
               );
             })}
-            <div className="reveal relative rounded-3xl p-7 bg-[#F6F5F3] border border-line" style={{ transitionDelay: ".36s" }}>
-              <p className="font-bold text-[19px]">Entreprise</p>
-              <p className="mt-4"><span className="font-black text-[40px] leading-none" style={SERIF}>Sur devis</span></p>
-              <p className="mt-4 text-[15px] text-ink-soft">Au-delà de 5 commerciaux, ou pour de gros volumes.</p>
-              <ul className="mt-5 space-y-2.5">{["Utilisateurs et volume sur mesure", "Tout ce qu'il y a dans Équipe", "Accompagnement au démarrage", "Facturation annuelle possible"].map((x) => <li key={x} className="flex items-center gap-2.5 text-[15px]"><Check className="h-4 w-4 shrink-0 text-accent" />{x}</li>)}</ul>
-              <a href={`mailto:bingoo@maisonravita.fr?subject=${encodeURIComponent("Bingoo! Entreprise : demande de devis")}`} className="mt-7 block w-full rounded-lg py-3.5 text-center text-[16px] border border-ink/80 hover:bg-black/[.04] transition">Parler à l'équipe</a>
-            </div>
+          </div>
+          <div className="mt-4 rounded-2xl bg-[#F6F5F3] border border-line px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p className="text-[15px]"><b>Entreprise, sur devis.</b> <span className="text-ink-soft">Au-delà de 5 commerciaux ou pour de gros volumes : utilisateurs et volume sur mesure, accompagnement au démarrage.</span></p>
+            <a href={`mailto:bingoo@maisonravita.fr?subject=${encodeURIComponent("Bingoo! Entreprise : demande de devis")}`} className="shrink-0 rounded-lg px-4 py-2.5 text-center text-[15px] border border-ink/80 hover:bg-black/[.04] transition">Parler à l'équipe</a>
           </div>
           {/* La garantie, juste sous les prix : c'est elle qui rend le prix sans risque */}
           <div className="mt-5 rounded-2xl bg-white border border-line px-5 py-4 flex items-start gap-3">
