@@ -58,7 +58,17 @@ function Liste() {
   const nav = useNavigate();
   const { ws } = useWs();
   const toast = useToast();
-  const [f, setF] = useState({ q: "", categorie: "", pays: "", prixMax: "", gratuit: false, recrute: false, actif: false, tri: "score_croissance" });
+  const [f, setF] = useState({ q: "", categorie: "", pays: "", prixMax: "", gratuit: false, recrute: false, actif: false, tri: "score_croissance", tag: "" });
+  const [ia, setIa] = useState(null); // recherche par le sens : { q, termes, resultats }
+  const [iaBusy, setIaBusy] = useState(false);
+  const [niches, setNiches] = useState([]);
+  useEffect(() => { supabase.rpc("saas_niches", { cat: f.categorie || null }).then(({ data }) => setNiches(data ?? [])); }, [f.categorie]);
+  const chercherIA = async () => {
+    const q = f.q.trim(); if (q.length < 3) return;
+    setIaBusy(true);
+    try { const r = await fn("r/saas-recherche", { workspace_id: ws.id, q, categorie: f.categorie || null }); setIa({ q, ...r }); }
+    catch (x) { toast(x.message, "bad"); } finally { setIaBusy(false); }
+  };
   const [rows, setRows] = useState(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -70,7 +80,8 @@ function Liste() {
   const set = (k, v) => { setPage(0); setF((x) => ({ ...x, [k]: v })); };
 
   useEffect(() => {
-    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at", { count: "exact" });
+    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags", { count: "exact" });
+    if (f.tag) q = q.contains("tags", [f.tag]);
     if (f.q.trim()) q = q.or(`nom.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,domaine.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,description.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%`);
     if (f.categorie) q = q.eq("categorie", f.categorie);
     if (f.pays) q = q.eq("pays", f.pays);
@@ -116,7 +127,10 @@ function Liste() {
 
       <div className="mt-5 rounded-2xl bg-white border border-line p-4 space-y-3">
         <div className="flex flex-wrap gap-2">
-          <input value={f.q} onChange={(e) => set("q", e.target.value)} placeholder="Rechercher un logiciel, un usage…" className="flex-1 min-w-[220px] rounded-xl border border-line px-3 py-2.5 text-[14px] outline-none focus:border-ink" />
+          <form onSubmit={(e) => { e.preventDefault(); chercherIA(); }} className="flex-1 min-w-[260px] flex rounded-xl border border-line focus-within:border-ink overflow-hidden">
+            <input value={f.q} onChange={(e) => { set("q", e.target.value); setIa(null); }} placeholder="Un nom, ou ce que tu cherches : « relancer mes factures impayées »" className="flex-1 min-w-0 px-3 py-2.5 text-[14px] outline-none" />
+            <button disabled={iaBusy || f.q.trim().length < 3} title="Recherche par le sens (français ou anglais)" className="shrink-0 px-3 text-[13px] font-semibold text-accent-dark hover:bg-accent-soft/40 disabled:opacity-40">{iaBusy ? "…" : "Recherche intelligente ↵"}</button>
+          </form>
           <select value={f.categorie} onChange={(e) => set("categorie", e.target.value)} className="rounded-xl border border-line bg-white px-3 py-2.5 text-[14px]">
             <option value="">Toutes les catégories</option>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}
           </select>
@@ -136,14 +150,27 @@ function Liste() {
           <Chip on={f.actif} onClick={() => set("actif", !f.actif)}>Nouveauté ce mois-ci</Chip>
           {f.categorie && <BoutonSuivre categorie={f.categorie} petit />}
         </div>
+        {niches.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            <span className="text-[12px] font-semibold text-ink-faint mr-1">Niches{f.categorie ? ` · ${f.categorie}` : ""} :</span>
+            {niches.slice(0, 16).map((n) => <button key={n.tag} type="button" onClick={() => set("tag", f.tag === n.tag ? "" : n.tag)} className={cx("rounded-full px-2.5 py-1 text-[12.5px] transition", f.tag === n.tag ? "bg-accent text-white" : "bg-paper hover:bg-accent-soft/50")}>{n.tag} <span className="opacity-60 tnum">{n.n}</span></button>)}
+          </div>
+        )}
       </div>
 
-      <p className="mt-4 text-[13px] text-ink-faint">{rows ? `${total.toLocaleString("fr-FR")} résultat${total > 1 ? "s" : ""}` : ""}</p>
-      {!rows ? <div className="py-20 grid place-items-center"><Spinner /></div> : !rows.length ? (
+      {ia ? (
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-[13px]">
+          <span className="text-ink-faint">{ia.resultats.length} résultat{ia.resultats.length > 1 ? "s" : ""} pour « {ia.q} » · cherché aussi :</span>
+          {ia.termes.slice(0, 10).map((t) => <span key={t} className="rounded-md bg-paper px-2 py-0.5">{t}</span>)}
+          {ia.categorie_suggeree && !f.categorie && <button onClick={() => { set("categorie", ia.categorie_suggeree); setIa(null); }} className="rounded-md border border-line bg-white px-2 py-0.5 hover:border-ink">Voir toute la catégorie {ia.categorie_suggeree}</button>}
+          <button onClick={() => setIa(null)} className="underline text-ink-soft">Effacer</button>
+        </div>
+      ) : <p className="mt-4 text-[13px] text-ink-faint">{rows ? `${total.toLocaleString("fr-FR")} résultat${total > 1 ? "s" : ""}` : ""}{f.tag ? ` · niche « ${f.tag} »` : ""}</p>}
+      {(() => { const liste = ia ? ia.resultats : rows; return !liste ? <div className="py-20 grid place-items-center"><Spinner /></div> : !liste.length ? (
         <p className="py-16 text-center text-ink-soft">Aucun SaaS ne correspond. Élargis les filtres, ou ajoute le logiciel que tu cherches.</p>
       ) : (
         <div className="mt-2 grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          {rows.map((s) => (
+          {liste.map((s) => (
             <div key={s.id} role="button" tabIndex={0} onClick={() => nav(`/explorer/${s.domaine}`)} onKeyDown={(e) => e.key === "Enter" && nav(`/explorer/${s.domaine}`)} className={cx("relative cursor-pointer text-left rounded-2xl bg-white border p-4 hover:shadow-sm transition", sel.includes(s.domaine) ? "border-ink shadow-[0_0_0_1px_#15161A]" : "border-line hover:border-ink-faint")}>
               <label onClick={(e) => e.stopPropagation()} className="absolute right-3 bottom-3 flex items-center gap-1.5 text-[12px] text-ink-faint cursor-pointer"><input type="checkbox" checked={sel.includes(s.domaine)} onChange={() => basculer(s.domaine)} className="accent-[#15161A]" />Comparer</label>
               <div className="flex items-start gap-3">
@@ -162,11 +189,12 @@ function Liste() {
                 {s.recrute && <span className="rounded-md bg-[#DCFCE7] text-[#166534] px-2 py-1">Recrute{s.postes ? ` · ${s.postes}` : ""}</span>}
                 {s.nouveaute && Date.parse(s.nouveaute) > Date.now() - 30 * 864e5 && <span className="rounded-md bg-accent-soft text-accent-dark px-2 py-1">Nouveauté {date(s.nouveaute)}</span>}
               </div>
+              {(s.tags ?? []).length > 0 && <div className="mt-2 flex flex-wrap gap-1 pr-20">{s.tags.slice(0, 3).map((t) => <button key={t} type="button" onClick={(e) => { e.stopPropagation(); setIa(null); set("tag", t); }} className="text-[11.5px] text-ink-faint hover:text-accent-dark">#{t.replace(/\s+/g, "-")}</button>)}</div>}
               <div className="h-5" />
             </div>
           ))}
         </div>
-      )}
+      ); })()}
       {sel.length > 0 && (
         <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-30 rounded-2xl bg-ink text-white shadow-xl px-4 py-3 flex items-center gap-3">
           <span className="text-[14px]">{sel.length} SaaS sélectionné{sel.length > 1 ? "s" : ""} (4 au plus)</span>
@@ -174,7 +202,7 @@ function Liste() {
           <button onClick={() => setSel([])} className="text-[13px] text-white/70 hover:text-white">Effacer</button>
         </div>
       )}
-      {total > PAGE && (
+      {!ia && total > PAGE && (
         <div className="mt-5 flex items-center justify-center gap-3 text-[14px]">
           <button disabled={!page} onClick={() => setPage(page - 1)} className="rounded-lg border border-line bg-white px-3 py-1.5 disabled:opacity-40">Précédent</button>
           <span className="tnum text-ink-soft">{page + 1} / {Math.ceil(total / PAGE)}</span>
@@ -231,6 +259,7 @@ function Fiche({ domaine }) {
           <p className="text-ink-soft">{s.categorie} · <a href={`https://${s.domaine}`} target="_blank" rel="noopener noreferrer" className="underline">{s.domaine}</a>{s.pays ? ` · ${PAYS[s.pays] ?? s.pays}` : ""}</p>
           <p className="mt-2 text-[15.5px] max-w-2xl">{s.description}</p>
           {s.cible && <p className="mt-1 text-[14px] text-ink-soft">Pour : {s.cible}</p>}
+          {(s.tags ?? []).length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{s.tags.map((t) => <span key={t} className="rounded-full bg-paper px-2.5 py-1 text-[12.5px]">{t}</span>)}</div>}
         </div>
         <BoutonSuivre saasId={s.id} />
         <div className="rounded-2xl bg-white border border-line px-5 py-3 text-center">
