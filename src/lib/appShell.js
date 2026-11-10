@@ -9,8 +9,8 @@ const HTM = "https://esm.sh/htm@3.1.1";
 
 const safe = (o) => JSON.stringify(o).replace(/</g, "\\u003c").replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029");
 
-export function appHtml({ spec, slug, api, token = null, apercu = false }) {
-  const boot = { spec, slug, api, token, apercu };
+export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false }) {
+  const boot = { spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement };
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${String(spec.nom ?? "Mon SaaS").replace(/[<&]/g, "")}</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js"></script>
@@ -24,14 +24,22 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "${HOOKS}";
 import htm from "${HTM}";
 const html = htm.bind(h);
 const B = window.__BOOT, S = B.spec;
+// Session : gardée par la page Bingoo! qui encadre l'app (cadre isolé), ou dans le navigateur quand l'app tourne seule (code téléchargé)
+const SEULE = window.parent === window;
 let token = B.token;
-const persist = (t) => { token = t; try { parent.postMessage({ type: "bingoo-app-token", slug: B.slug, token: t }, "*"); } catch (e) {} };
+if (!token && SEULE) { try { token = localStorage.getItem("app-token:" + B.slug); } catch (e) {} }
+const persist = (t) => { token = t; if (SEULE) { try { t ? localStorage.setItem("app-token:" + B.slug, t) : localStorage.removeItem("app-token:" + B.slug); } catch (e) {} } else { try { parent.postMessage({ type: "bingoo-app-token", slug: B.slug, token: t }, "*"); } catch (e) {} } };
+const PAY = B.paiement ?? {}, ESSAI = Number(PAY.essai_jours ?? 14);
+const RETOUR = () => B.retour || location.href.split("?")[0];
+// Vers Stripe : la page entière quitte l'app (le cadre isolé ne peut que demander la navigation), sinon un nouvel onglet
+const allerVers = (url) => { try { window.top.location.href = url; } catch (e) { window.open(url, "_blank"); } };
 
 // ---------------------------------------------------------------- Accès aux données (chaque compte ne voit que les siennes)
 async function call(action, body = {}) {
   const r = await fetch(B.api + "/" + B.slug + "/" + action, { method: "POST", headers: { "content-type": "application/json", ...(token ? { "x-app-token": token } : {}) }, body: JSON.stringify(body) });
   const d = await r.json().catch(() => ({}));
   if (r.status === 401 && action !== "login") { persist(null); bus.emit("auth"); }
+  if (r.status === 402) bus.emit("acces");
   if (!r.ok) throw new Error(d.error || "Erreur " + r.status);
   return d;
 }
@@ -111,14 +119,14 @@ function Site({ onAuth }) {
   const f = S.formules ?? [];
   return html\`<div class="bg-white min-h-screen">
   <header class="max-w-6xl mx-auto px-5 py-5 flex items-center justify-between"><div class="flex items-center gap-2 font-bold text-lg"><span class="w-8 h-8 rounded-xl bg-[var(--c)] text-white grid place-items-center">\${(S.nom ?? "S")[0]}</span>\${S.nom}</div><div class="flex gap-2"><\${ui.Button} variant="ghost" onClick=\${() => onAuth("login")}>Se connecter</\${ui.Button}><\${ui.Button} onClick=\${() => onAuth("signup")}>Essai gratuit</\${ui.Button}></div></header>
-  <section class="max-w-6xl mx-auto px-5 pt-14 pb-20 text-center"><p class="inline-block rounded-full bg-[var(--c)]/10 text-[var(--c)] px-3 py-1 text-sm font-semibold">\${S.cible_courte ?? "Essai gratuit 14 jours"}</p>
+  <section class="max-w-6xl mx-auto px-5 pt-14 pb-20 text-center"><p class="inline-block rounded-full bg-[var(--c)]/10 text-[var(--c)] px-3 py-1 text-sm font-semibold">\${S.cible_courte || (ESSAI ? "Essai gratuit " + ESSAI + " jours" : S.nom)}</p>
     <h1 class="mt-5 text-4xl sm:text-6xl font-extrabold tracking-tight max-w-4xl mx-auto leading-[1.05]">\${S.slogan ?? S.pitch}</h1>
     <p class="mt-5 text-lg text-slate-500 max-w-2xl mx-auto">\${S.pitch}</p>
     <div class="mt-8 flex flex-wrap justify-center gap-3"><\${ui.Button} class="!px-6 !py-3 !text-base" onClick=\${() => onAuth("signup")}>Commencer gratuitement</\${ui.Button}><\${ui.Button} variant="secondary" class="!px-6 !py-3 !text-base" onClick=\${() => onAuth("demo")}>Voir la démo</\${ui.Button}></div>
     <p class="mt-3 text-sm text-slate-400">Sans carte bancaire</p></section>
   \${S.probleme && html\`<section class="bg-slate-50 py-16"><div class="max-w-3xl mx-auto px-5 text-center"><p class="text-sm font-semibold text-[var(--c)] uppercase tracking-wide">Le problème</p><p class="mt-3 text-2xl font-semibold leading-snug">\${S.probleme}</p></div></section>\`}
   <section class="max-w-6xl mx-auto px-5 py-20"><h2 class="text-3xl font-bold text-center">Tout ce qu'il te faut</h2><div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">\${(S.atouts ?? []).map((a) => html\`<div class="rounded-2xl border border-slate-200 p-6"><span class="w-10 h-10 rounded-xl bg-[var(--c)]/10 text-[var(--c)] grid place-items-center"><\${Icone} nom="check"/></span><p class="mt-4 font-semibold">\${a.titre}</p><p class="mt-1 text-sm text-slate-500">\${a.texte}</p></div>\`)}</div></section>
-  \${f.length > 0 && html\`<section class="bg-slate-50 py-20"><div class="max-w-5xl mx-auto px-5"><h2 class="text-3xl font-bold text-center">Des prix simples</h2><div class=\${"mt-10 grid gap-4 " + (f.length > 2 ? "md:grid-cols-3" : "md:grid-cols-2")}>\${f.map((x, i) => html\`<div class=\${cls("rounded-2xl p-6 border", i === 1 ? "bg-slate-900 text-white border-slate-900" : "bg-white border-slate-200")}><p class="font-semibold">\${x.nom}</p><p class="mt-2 text-4xl font-extrabold">\${fmt.eur(x.prix)}<span class="text-sm font-normal opacity-60"> /mois</span></p><p class="mt-1 text-sm opacity-70">\${x.pour}</p><ul class="mt-4 space-y-2 text-sm">\${(x.inclus ?? []).map((t) => html\`<li class="flex gap-2"><span class="text-[var(--c)]"><\${Icone} nom="check" class="w-4 h-4"/></span>\${t}</li>\`)}</ul><\${ui.Button} class="w-full mt-6" variant=\${i === 1 ? "primary" : "secondary"} onClick=\${() => onAuth("signup")}>Essayer 14 jours</\${ui.Button}></div>\`)}</div></div></section>\`}
+  \${f.length > 0 && html\`<section class="bg-slate-50 py-20"><div class="max-w-5xl mx-auto px-5"><h2 class="text-3xl font-bold text-center">Des prix simples</h2><div class=\${"mt-10 grid gap-4 " + (f.length > 2 ? "md:grid-cols-3" : "md:grid-cols-2")}>\${f.map((x, i) => html\`<div class=\${cls("rounded-2xl p-6 border", i === 1 ? "bg-slate-900 text-white border-slate-900" : "bg-white border-slate-200")}><p class="font-semibold">\${x.nom}</p><p class="mt-2 text-4xl font-extrabold">\${fmt.eur(x.prix)}<span class="text-sm font-normal opacity-60"> /mois</span></p><p class="mt-1 text-sm opacity-70">\${x.pour}</p><ul class="mt-4 space-y-2 text-sm">\${(x.inclus ?? []).map((t) => html\`<li class="flex gap-2"><span class="text-[var(--c)]"><\${Icone} nom="check" class="w-4 h-4"/></span>\${t}</li>\`)}</ul><\${ui.Button} class="w-full mt-6" variant=\${i === 1 ? "primary" : "secondary"} onClick=\${() => onAuth("signup")}>\${ESSAI ? "Essayer " + ESSAI + " jours" : "Commencer"}</\${ui.Button}></div>\`)}</div></div></section>\`}
   <footer class="max-w-6xl mx-auto px-5 py-10 text-sm text-slate-400 flex justify-between"><span>© \${new Date().getFullYear()} \${S.nom}</span><span>Construit avec Bingoo!</span></footer></div>\`;
 }
 
@@ -138,33 +146,64 @@ function Auth({ mode: m0, onDone, onBack }) {
   </form></div>\`;
 }
 
-function Appli({ user, onLogout }) {
+// ---------------------------------------------------------------- Abonnement
+function Formules({ courante }) {
+  const [busy, setBusy] = useState(null), f = S.formules ?? [];
+  const payer = async (i) => { setBusy(i); try { allerVers((await call("checkout", { formule: i, retour: RETOUR() })).url); } catch (x) { toast(x.message, "bad"); setBusy(null); } };
+  return html\`<div class=\${"grid gap-4 " + (f.length > 2 ? "md:grid-cols-3" : "md:grid-cols-2")}>\${f.map((x, i) => html\`<div class=\${cls("rounded-2xl p-5 border bg-white", courante === x.nom ? "border-[var(--c)] ring-2 ring-[var(--c)]/20" : "border-slate-200")}><p class="font-semibold">\${x.nom}</p><p class="mt-1 text-3xl font-extrabold">\${fmt.eur(x.prix)}<span class="text-sm font-normal text-slate-400"> /mois</span></p><p class="text-sm text-slate-500">\${x.pour}</p><ul class="mt-3 space-y-1.5 text-sm">\${(x.inclus ?? []).map((t) => html\`<li class="flex gap-2"><span class="text-[var(--c)]"><\${Icone} nom="check" class="w-4 h-4"/></span>\${t}</li>\`)}</ul><\${ui.Button} class="w-full mt-5" disabled=\${busy !== null || courante === x.nom} onClick=\${() => payer(i)}>\${courante === x.nom ? "Ta formule" : busy === i ? "Redirection…" : "Choisir"}</\${ui.Button}></div>\`)}</div>\`;
+}
+const jours = (iso) => Math.max(0, Math.ceil((new Date(iso) - Date.now()) / 864e5));
+function Abonnement({ etat }) {
+  const ab = etat.abonnement, actif = ["active", "trialing", "past_due"].includes(ab?.statut);
+  const [busy, setBusy] = useState(false);
+  const portail = async () => { setBusy(true); try { allerVers((await call("portail", { retour: RETOUR() })).url); } catch (x) { toast(x.message, "bad"); setBusy(false); } };
+  return html\`<\${ui.Page} titre="Mon abonnement" sous=\${actif ? "Formule " + (ab.formule ?? "") + (ab.fin_periode ? (ab.annule ? " · se termine le " : " · prochain paiement le ") + fmt.date(ab.fin_periode) : "") : etat.acces ? "Essai gratuit : " + jours(etat.essai_fin) + " jour(s) restant(s)" : "Ton essai est terminé"}>
+    \${ab?.statut === "past_due" && html\`<div class="mb-4 rounded-xl bg-amber-50 text-amber-800 px-4 py-3 text-sm">Le dernier paiement n'est pas passé : mets à jour ta carte pour garder l'accès.</div>\`}
+    \${actif && html\`<div class="mb-6"><\${ui.Button} variant="secondary" icone="carte" disabled=\${busy} onClick=\${portail}>Factures, carte et résiliation</\${ui.Button}></div>\`}
+    <\${Formules} courante=\${actif ? ab.formule : null}/>
+    <p class="mt-4 text-xs text-slate-400">Paiement sécurisé par Stripe. Sans engagement : tu peux résilier à tout moment.</p>
+  </\${ui.Page}>\`;
+}
+function Paywall({ etat, onLogout }) {
+  return html\`<div class="min-h-screen bg-slate-50 p-5 sm:p-10"><div class="max-w-4xl mx-auto"><div class="flex items-center justify-between mb-8"><div class="flex items-center gap-2 font-bold"><span class="w-8 h-8 rounded-xl bg-[var(--c)] text-white grid place-items-center">\${(S.nom ?? "S")[0]}</span>\${S.nom}</div><\${ui.Button} variant="ghost" icone="sortie" onClick=\${onLogout}>Se déconnecter</\${ui.Button}></div>
+    <h1 class="text-3xl font-extrabold tracking-tight">Ton essai est terminé</h1><p class="text-slate-500 mt-1 mb-8">Tes données t'attendent : choisis une formule pour continuer à utiliser \${S.nom}.</p>
+    <\${Formules}/></div></div>\`;
+}
+
+function Appli({ user, etat, onLogout }) {
   const [cur, setCur] = useState({ id: ECRANS[0]?.id, params: null }), [menu, setMenu] = useState(false), [toasts, setToasts] = useState([]);
-  nav = (id, params = null) => { if (ECRANS.some((e) => e.id === id)) { setCur({ id, params }); setMenu(false); } };
+  nav = (id, params = null) => { if (id === "_abonnement" || ECRANS.some((e) => e.id === id)) { setCur({ id, params }); setMenu(false); } };
   useEffect(() => bus.on("toast", (t) => { setToasts((x) => [...x, t]); setTimeout(() => setToasts((x) => x.filter((y) => y.id !== t.id)), 3000); }), []);
-  const E = ECRANS.find((e) => e.id === cur.id) ?? ECRANS[0];
+  const E = cur.id === "_abonnement" ? { id: "_abonnement", titre: "Mon abonnement", Comp: Abonnement } : ECRANS.find((e) => e.id === cur.id) ?? ECRANS[0];
+  if (!etat.acces) return html\`<\${Paywall} etat=\${etat} onLogout=\${onLogout}/>\`;
   const Nav = () => html\`<nav class="space-y-0.5">\${ECRANS.map((e) => html\`<button onClick=\${() => nav(e.id)} class=\${cls("w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium", e.id === E?.id ? "bg-[var(--c)]/10 text-[var(--c)]" : "text-slate-600 hover:bg-slate-100")}><\${Icone} nom=\${e.icone} class="w-[18px] h-[18px]"/>\${e.titre}</button>\`)}</nav>\`;
   return html\`<div class="min-h-screen lg:flex">
     <aside class=\${cls("bg-white border-r border-slate-200 w-60 shrink-0 p-4 flex-col gap-6 lg:flex lg:sticky lg:top-0 lg:h-screen", menu ? "flex fixed inset-y-0 left-0 z-40" : "hidden")}>
       <div class="flex items-center gap-2 font-bold"><span class="w-8 h-8 rounded-xl bg-[var(--c)] text-white grid place-items-center">\${(S.nom ?? "S")[0]}</span>\${S.nom}</div>
       <\${Nav}/>
-      <div class="mt-auto border-t border-slate-100 pt-3 text-sm"><p class="font-medium truncate">\${user.nom}</p><p class="text-slate-400 text-xs truncate">\${/@demo\\.local$/.test(user.email) ? "Compte de démonstration" : user.email}</p><button onClick=\${onLogout} class="mt-2 flex items-center gap-1.5 text-slate-500 hover:text-slate-800"><\${Icone} nom="sortie" class="w-4 h-4"/>Se déconnecter</button></div>
+      \${etat.payant && html\`<button onClick=\${() => nav("_abonnement")} class=\${cls("mt-auto w-full text-left rounded-xl px-3 py-2.5 text-sm", E?.id === "_abonnement" ? "bg-[var(--c)]/10 text-[var(--c)]" : "bg-slate-50 hover:bg-slate-100")}><span class="flex items-center gap-2 font-medium"><\${Icone} nom="carte" class="w-4 h-4"/>Mon abonnement</span><span class="block text-xs text-slate-500 mt-0.5">\${["active", "trialing", "past_due"].includes(etat.abonnement?.statut) ? "Formule " + (etat.abonnement.formule ?? "") : "Essai : " + jours(etat.essai_fin) + " jour(s) restant(s)"}</span></button>\`}
+      <div class=\${cls(etat.payant ? "" : "mt-auto", "border-t border-slate-100 pt-3 text-sm")}><p class="font-medium truncate">\${user.nom}</p><p class="text-slate-400 text-xs truncate">\${/@demo\\.local$/.test(user.email) ? "Compte de démonstration" : user.email}</p><button onClick=\${onLogout} class="mt-2 flex items-center gap-1.5 text-slate-500 hover:text-slate-800"><\${Icone} nom="sortie" class="w-4 h-4"/>Se déconnecter</button></div>
     </aside>
     \${menu && html\`<div class="fixed inset-0 z-30 bg-slate-900/30 lg:hidden" onClick=\${() => setMenu(false)}/>\`}
     <main class="flex-1 min-w-0"><div class="lg:hidden flex items-center justify-between bg-white border-b border-slate-200 px-4 py-3"><button onClick=\${() => setMenu(true)}><\${Icone} nom="menu"/></button><span class="font-bold">\${S.nom}</span><span class="w-5"/></div>
-      <div class="max-w-6xl mx-auto p-5 sm:p-8">\${E ? html\`<\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} key=\${E.id + JSON.stringify(cur.params)} user=\${user} params=\${cur.params}/></\${Garde}>\` : null}</div></main>
+      <div class="max-w-6xl mx-auto p-5 sm:p-8">\${E ? html\`<\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} key=\${E.id + JSON.stringify(cur.params)} user=\${user} params=\${cur.params} etat=\${etat}/></\${Garde}>\` : null}</div></main>
     <div class="fixed bottom-4 right-4 z-50 space-y-2">\${toasts.map((t) => html\`<div class=\${cls("anim rounded-xl px-4 py-2.5 text-sm text-white shadow-lg", t.type === "bad" ? "bg-red-600" : "bg-slate-900")}>\${t.msg}</div>\`)}</div>
   </div>\`;
 }
 
 function Racine() {
-  const [user, setUser] = useState(undefined), [auth, setAuth] = useState(null);
-  const verifier = () => token ? call("me").then((r) => setUser(r.user), () => setUser(null)) : setUser(null);
-  useEffect(() => { verifier(); return bus.on("auth", () => setUser(null)); }, []);
-  const ok = (r) => { persist(r.token); setUser(r.user); setAuth(null); };
+  const [etat, setEtat] = useState(undefined), [auth, setAuth] = useState(null);
+  const verifier = (force) => token ? call("me", { verifier: !!force }).then((r) => setEtat(r), () => setEtat(null)) : setEtat(null);
+  useEffect(() => {
+    verifier(B.retourPaiement);
+    if (B.retourPaiement) setTimeout(() => toast("Merci ! Ton abonnement est activé."), 1200);
+    const a = bus.on("auth", () => setEtat(null)), b = bus.on("acces", () => verifier(true));
+    return () => { a(); b(); };
+  }, []);
+  const ok = (r) => { persist(r.token); setAuth(null); verifier(); };
   const ouvrir = async (m) => { if (m === "demo") { try { ok(await call("demo")); } catch (x) { alert(x.message); } } else setAuth(m); };
-  if (user === undefined) return html\`<\${ui.Loading}/>\`;
-  if (user) return html\`<\${Appli} user=\${user} onLogout=\${async () => { try { await call("logout"); } catch (e) {} persist(null); setUser(null); }}/>\`;
+  if (etat === undefined) return html\`<\${ui.Loading}/>\`;
+  if (etat) return html\`<\${Appli} user=\${etat.user} etat=\${etat} onLogout=\${async () => { try { await call("logout"); } catch (e) {} persist(null); setEtat(null); }}/>\`;
   if (auth) return html\`<\${Auth} mode=\${auth} onDone=\${ok} onBack=\${() => setAuth(null)}/>\`;
   return html\`<\${Site} onAuth=\${ouvrir}/>\`;
 }

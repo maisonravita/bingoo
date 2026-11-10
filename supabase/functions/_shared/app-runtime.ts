@@ -1,10 +1,12 @@
 // Moteur des SaaS construits par Bingoo! : comptes et données des applications générées.
 // Appelé par la fonction publique « t » (chemin /t/app/<slug>/<action>), depuis l'application qui tourne dans un cadre isolé.
 // Chaque compte ne voit que ses propres données. Mots de passe hachés (PBKDF2), jeton de session gardé haché.
+// Abonnements : encaissés sur le compte Stripe du créateur de l'application (sa clé, gardée côté serveur).
+// Pas de nombre maximal de comptes ; les inscriptions sont limitées par adresse IP (anti-abus).
 // deno-lint-ignore-file no-explicit-any
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.45.4";
 
-const LIM = { users: 500, rows: 5000, taille: 20000, cols: 30 };
+const LIM = { inscriptionsParHeure: 15, rows: 20000, taille: 20000 };
 const enc = new TextEncoder();
 const hex = (b: ArrayBuffer | Uint8Array) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
 const sha = async (s: string) => hex(await crypto.subtle.digest("SHA-256", enc.encode(s)));
@@ -30,6 +32,52 @@ async function session(admin: SupabaseClient, app: any, user: any) {
   return { token: jeton, user: { id: user.id, email: user.email, nom: user.nom } };
 }
 
+// ---------------------------------------------------------------- Abonnements (Stripe du créateur)
+async function stripe(key: string, path: string, params?: Record<string, string>, method = "POST") {
+  const url = `https://api.stripe.com/v1/${path}${method === "GET" && params ? `?${new URLSearchParams(params)}` : ""}`;
+  const r = await fetch(url, { method, headers: { authorization: `Bearer ${key}`, "content-type": "application/x-www-form-urlencoded" }, body: method === "GET" ? undefined : new URLSearchParams(params ?? {}) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Err(502, `Paiement indisponible : ${d?.error?.message ?? r.status}`);
+  return d;
+}
+const cleStripe = async (admin: SupabaseClient, appId: string) => (await admin.from("saas_app_secrets").select("stripe_key").eq("app_id", appId).maybeSingle()).data?.stripe_key ?? null;
+const ACTIF = ["active", "trialing", "past_due"];
+
+/** Accès du compte : application gratuite, compte de démo, abonnement en cours, ou essai pas encore terminé. */
+function etat(app: any, u: any) {
+  const pay = app.paiement ?? {};
+  const essaiFin = new Date(new Date(u.at).getTime() + Number(pay.essai_jours ?? 14) * 864e5).toISOString();
+  const ab = u.abonnement ?? null;
+  const demo = /@demo\.local$/.test(u.email);
+  const acces = !pay.actif || demo || ACTIF.includes(ab?.statut) || Date.now() < new Date(essaiFin).getTime();
+  return { acces, payant: !!pay.actif && !demo, essai_fin: essaiFin, abonnement: ab };
+}
+
+/** Relit l'abonnement chez Stripe (au retour du paiement, puis toutes les 10 minutes au plus). */
+async function rafraichir(admin: SupabaseClient, app: any, u: any, force = false) {
+  if (!app.paiement?.actif || !u.stripe_customer) return u;
+  if (!force && u.verifie_at && Date.now() - new Date(u.verifie_at).getTime() < 10 * 60e3) return u;
+  const key = await cleStripe(admin, app.id);
+  if (!key) return u;
+  try {
+    const d = await stripe(key, "subscriptions", { customer: u.stripe_customer, status: "all", limit: "5" }, "GET");
+    const subs = (d.data ?? []) as any[];
+    const s = subs.find((x) => ACTIF.includes(x.status)) ?? subs[0];
+    const abonnement = s ? { statut: s.status, formule: s.metadata?.formule ?? null, fin_periode: s.current_period_end ? new Date(s.current_period_end * 1000).toISOString() : null, annule: !!s.cancel_at_period_end } : null;
+    await admin.from("saas_app_users").update({ abonnement, verifie_at: new Date().toISOString() }).eq("id", u.id);
+    return { ...u, abonnement };
+  } catch (e) { console.error("stripe", e); return u; }
+}
+
+// Adresse de retour après paiement : l'adresse de l'application (lien Bingoo!, son domaine, ou là où le créateur héberge le code)
+function retourOk(_app: any, retour: string) {
+  try {
+    const u = new URL(retour);
+    if (u.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(u.hostname)) return null;
+    return u.toString();
+  } catch { return null; }
+}
+
 // Données d'exemple : chaque nouveau compte démarre avec une application vivante
 async function semer(admin: SupabaseClient, app: any, userId: string) {
   const demo = (app.spec?.demo ?? {}) as Record<string, unknown[]>;
@@ -48,7 +96,7 @@ async function semer(admin: SupabaseClient, app: any, userId: string) {
 export async function appApi(admin: SupabaseClient, req: Request, slug: string, action: string): Promise<{ status: number; body: unknown }> {
   try {
     if (!/^[a-z0-9-]{3,60}$/.test(slug)) throw new Err(404, "Application introuvable");
-    const { data: app } = await admin.from("saas_apps").select("id, spec, statut").eq("slug", slug).maybeSingle();
+    const { data: app } = await admin.from("saas_apps").select("id, spec, statut, paiement, domaine, domaine_statut").eq("slug", slug).maybeSingle();
     if (!app || !(app.spec as any)?.ecrans?.length) throw new Err(404, "Application introuvable");
     const b = JSON.parse((await req.text()).slice(0, 60000) || "{}");
 
@@ -64,11 +112,13 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
         if (!u || !egal(await pbkdf2(pass, salt), h)) throw new Err(401, "E-mail ou mot de passe incorrect");
         return { status: 200, body: await session(admin, app, u) };
       }
-      const { count } = await admin.from("saas_app_users").select("id", { count: "exact", head: true }).eq("app_id", app.id);
-      if ((count ?? 0) >= LIM.users) throw new Err(403, "Cette application a atteint son nombre maximal de comptes");
+      // Anti-abus : nombre d'inscriptions par adresse IP et par heure (l'adresse est gardée hachée)
+      const ip = await sha(`${app.id}:${(req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim()}`);
+      const { count } = await admin.from("saas_app_users").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("ip", ip).gte("at", new Date(Date.now() - 3600e3).toISOString());
+      if ((count ?? 0) >= LIM.inscriptionsParHeure) throw new Err(429, "Trop d'inscriptions depuis cette connexion, réessaie dans une heure");
       const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
       const nom = String(b.nom ?? "").trim().slice(0, 80) || (action === "demo" ? "Invité" : email.split("@")[0]);
-      const { data: u, error } = await admin.from("saas_app_users").insert({ app_id: app.id, email, nom, pass: `${salt}:${await pbkdf2(pass, salt)}` }).select("id, email, nom").single();
+      const { data: u, error } = await admin.from("saas_app_users").insert({ app_id: app.id, email, nom, ip, pass: `${salt}:${await pbkdf2(pass, salt)}` }).select("id, email, nom").single();
       if (error) throw new Err(409, "Un compte existe déjà avec cette adresse");
       await semer(admin, app, u.id);
       return { status: 200, body: await session(admin, app, u) };
@@ -77,11 +127,43 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
     // Toutes les autres actions demandent une session
     const jeton = String(req.headers.get("x-app-token") ?? "");
     if (jeton.length !== 64) throw new Err(401, "Session expirée, reconnecte-toi");
-    const { data: user } = await admin.from("saas_app_users").select("id, email, nom").eq("app_id", app.id).eq("jeton", await sha(jeton)).maybeSingle();
-    if (!user) throw new Err(401, "Session expirée, reconnecte-toi");
+    const { data: u0 } = await admin.from("saas_app_users").select("id, email, nom, at, stripe_customer, abonnement, verifie_at").eq("app_id", app.id).eq("jeton", await sha(jeton)).maybeSingle();
+    if (!u0) throw new Err(401, "Session expirée, reconnecte-toi");
+    const u = await rafraichir(admin, app, u0, action === "me" && b.verifier === true);
+    const user = { id: u.id, email: u.email, nom: u.nom };
+    const et = etat(app, u);
     const mine = () => admin.from("saas_app_rows").select("id, data, at, maj").eq("app_id", app.id).eq("user_id", user.id);
 
-    if (action === "me") return { status: 200, body: { user } };
+    if (action === "me") return { status: 200, body: { user, ...et } };
+    if (action === "checkout" || action === "portail") {
+      if (!et.payant) throw new Err(400, "Cette application est gratuite");
+      const key = await cleStripe(admin, app.id);
+      if (!key) throw new Err(400, "Le paiement n'est pas encore configuré");
+      const retour = retourOk(app, String(b.retour ?? ""));
+      if (!retour) throw new Err(400, "Adresse de retour invalide");
+      let customer = u.stripe_customer;
+      if (!customer) {
+        customer = (await stripe(key, "customers", { email: u.email, name: u.nom ?? "", "metadata[app]": slug, "metadata[compte]": u.id })).id;
+        await admin.from("saas_app_users").update({ stripe_customer: customer }).eq("id", u.id);
+      }
+      if (action === "portail") return { status: 200, body: { url: (await stripe(key, "billing_portal/sessions", { customer, return_url: retour })).url } };
+      const f = ((app.spec as any)?.formules ?? [])[Number(b.formule)];
+      if (!f || !(Number(f.prix) > 0)) throw new Err(400, "Formule introuvable");
+      const sep = retour.includes("?") ? "&" : "?";
+      const sess = await stripe(key, "checkout/sessions", {
+        mode: "subscription", customer, client_reference_id: u.id, locale: "fr",
+        "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "eur",
+        "line_items[0][price_data][unit_amount]": String(Math.round(Number(f.prix) * 100)),
+        "line_items[0][price_data][recurring][interval]": "month",
+        "line_items[0][price_data][product_data][name]": `${(app.spec as any)?.nom ?? "Abonnement"} ${f.nom}`.slice(0, 120),
+        "subscription_data[metadata][formule]": String(f.nom).slice(0, 80), "subscription_data[metadata][app]": slug,
+        allow_promotion_codes: "true",
+        success_url: `${retour}${sep}paiement=ok`, cancel_url: retour,
+      });
+      return { status: 200, body: { url: sess.url } };
+    }
+    // Essai terminé sans abonnement : seules la lecture du compte et le paiement restent possibles
+    if (!et.acces) throw new Err(402, "Ton essai est terminé : choisis une formule pour continuer");
     if (action === "logout") { await admin.from("saas_app_users").update({ jeton: null }).eq("id", user.id); return { status: 200, body: { ok: true } }; }
     if (action === "list") {
       let q = mine().eq("col", colOk(b.col));

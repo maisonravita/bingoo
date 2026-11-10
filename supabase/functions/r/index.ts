@@ -149,6 +149,18 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
     return { ok: true };
   },
+  // Réglages d'un SaaS construit : encaissement Stripe, nom de domaine, chiffres
+  async "saas-app-reglages"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { data: app } = await admin.from("saas_apps").select("id").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    if (!app) throw new HttpError(404, "Application introuvable");
+    const o = await import("../_shared/app-owner.ts");
+    if (b.quoi === "paiement") { await log(ws.id, "app_reglage", "Encaissement de l'application modifié"); return await o.appPaiement(app.id, b); }
+    if (b.quoi === "domaine") { await log(ws.id, "app_reglage", `Nom de domaine : ${String(b.domaine ?? "retiré").slice(0, 80)}`); return await o.appDomaine(app.id, b.domaine); }
+    if (b.quoi === "domaine-verifier") return await o.appDomaineVerifier(app.id);
+    if (b.quoi === "chiffres") return await o.appChiffres(app.id);
+    throw new HttpError(400, "Réglage inconnu");
+  },
   async "saas-app-modifier"(req, b) {
     const { ws } = await membreOuCron(req, b.workspace_id);
     const demande = String(b.demande ?? "").trim().slice(0, 1500);

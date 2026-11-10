@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_apps.domaine/domaine_statut/paiement, saas_app_secrets, saas_app_users (ip, stripe_customer, abonnement), saas_app_par_domaine, cron bingoo-apps-demo

@@ -119,7 +119,15 @@ function Gate() {
   );
 }
 
+// Un nom de domaine qui n'est pas celui de Bingoo! : c'est le domaine d'un SaaS construit par Bingoo!, on n'affiche que lui
+const HOTE = window.location.hostname;
+const DOMAINE_APP = /(^|\.)maisonravita\.fr$|\.vercel\.app$|^localhost$|^127\.0\.0\.1$/.test(HOTE) ? null : HOTE;
+
 export default function App() {
+  if (DOMAINE_APP) return <PublicApp domaine={DOMAINE_APP} />;
+  return <AppBingoo />;
+}
+function AppBingoo() {
   // Lien « mot de passe oublié » : Supabase ouvre une session de récupération, on demande le nouveau mot de passe
   const [recovery, setRecovery] = useState(false);
   useEffect(() => {
