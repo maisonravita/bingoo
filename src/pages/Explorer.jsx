@@ -5,6 +5,8 @@ import { useWs } from "../lib/ws";
 import { Spinner, useToast } from "../components/ui";
 import CompanyLogo from "../components/CompanyLogo";
 import { LineChart } from "../components/Charts";
+import { lazy, Suspense } from "react";
+const IsoMonde = lazy(() => import("../components/IsoMonde"));
 import { cx } from "../lib/utils";
 
 // Explorer : la base de SaaS de Bingoo! (le « TrendTrack des SaaS »). Liste filtrable, puis fiche détaillée par logiciel.
@@ -37,6 +39,7 @@ export default function Explorer({ domaine: fixe }) {
   if (d === "bouge") return <><Onglets actif="bouge" /><Fil /></>;
   if (d === "suivis") return <><Onglets actif="suivis" /><Suivis /></>;
   if (d === "marche") return <><Onglets actif="marche" /><Marche /></>;
+  if (d === "carte") return <><Onglets actif="carte" /><Carte /></>;
   if (d === "pubs") return <><Onglets actif="pubs" /><Pubs /></>;
   if (d === "idees") return <><Onglets actif="idees" /><Idees /></>;
   if (d === "comparer") return <Comparer />;
@@ -45,7 +48,7 @@ export default function Explorer({ domaine: fixe }) {
 
 function Onglets({ actif }) {
   const nav = useNavigate();
-  const T = [["liste", "SaaS", "/explorer"], ["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"], ["marche", "Pays et tendances", "/explorer/marche"], ["pubs", "Pubs et e-mails", "/explorer/pubs"], ["idees", "Idées et réussites", "/explorer/idees"]];
+  const T = [["liste", "SaaS", "/explorer"], ["carte", "Le monde", "/explorer/carte"], ["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"], ["marche", "Pays et tendances", "/explorer/marche"], ["pubs", "Pubs et e-mails", "/explorer/pubs"], ["idees", "Idées et réussites", "/explorer/idees"]];
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
       <div className="inline-flex max-w-full overflow-x-auto rounded-xl bg-white border border-line p-1">
@@ -75,7 +78,7 @@ function Liste() {
   const { ws } = useWs();
   const toast = useToast();
   const loc = useLocation();
-  const [f, setF] = useState(() => { const p = new URLSearchParams(loc.search); return { q: "", categorie: p.get("categorie") ?? "", pays: "", prixMax: "", gratuit: false, recrute: false, actif: false, tri: "score_croissance", tag: p.get("tag") ?? "" }; });
+  const [f, setF] = useState(() => { const p = new URLSearchParams(loc.search); return { q: "", categorie: p.get("categorie") ?? "", pays: p.get("pays") ?? "", prixMax: "", gratuit: false, recrute: false, actif: false, tri: "score_croissance", tag: p.get("tag") ?? "" }; });
   const [ia, setIa] = useState(null); // recherche par le sens : { q, termes, resultats }
   // Export CSV de la liste affichée (formule Business)
   const exporter = (liste) => {
@@ -796,6 +799,25 @@ function Idees() {
           {cli && <div id="clients-niche" className="mt-4"><Clients key={cli.genre + cli.niche} categorie={cli.genre === "categorie" ? cli.niche : null} tag={cli.genre === "tag" ? cli.niche : null} titre={`Qui démarcher : ${cli.niche}`} /></div>}
         </>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- Carte du monde
+function Carte() {
+  const nav = useNavigate();
+  const { ws } = useWs();
+  const [data, setData] = useState(null);
+  useEffect(() => { supabase.rpc("saas_carte", { ws: ws.id }).then(({ data: d }) => setData(d ?? [])); }, [ws.id]);
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      <h1 className="text-[30px] font-black tracking-tight" style={HF}>Le monde des SaaS</h1>
+      <p className="text-ink-soft">Chaque île est un continent, chaque bâtiment un pays : plus il est haut, plus il compte de SaaS. Débarque sur une île, puis entre dans un pays.</p>
+      <div className="mt-4">
+        <Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}>
+          {data ? <IsoMonde data={data} onVoir={(code, domaine) => nav(domaine ? `/explorer/${domaine}` : `/explorer?pays=${code}`)} /> : <div className="py-24 grid place-items-center"><Spinner /></div>}
+        </Suspense>
+      </div>
     </div>
   );
 }
