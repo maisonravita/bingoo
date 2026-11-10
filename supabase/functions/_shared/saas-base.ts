@@ -241,8 +241,8 @@ export async function saasTags(max = 80) {
   const { data } = await admin.from("saas").select("id, nom, categorie, description, cible").eq("statut", "ok").eq("tags", "{}").limit(max);
   const rows = (data ?? []) as { id: string; nom: string; categorie: string; description: string | null; cible: string | null }[];
   let faits = 0;
-  for (let i = 0; i < rows.length; i += 20) {
-    const lot = rows.slice(i, i + 20);
+  for (let i = 0; i < rows.length; i += 10) {
+    const lot = rows.slice(i, i + 10);
     const r = await askJson<{ saas: { i: number; tags: string[] }[] }>(`Pour chaque logiciel ci-dessous, donne ${TAGS_REGLE}. N'invente rien qui ne ressorte pas de la description.
 ${lot.map((x, k) => `${k}. ${x.nom} (${x.categorie}) : ${x.description ?? ""} Pour : ${x.cible ?? ""}`).join("\n")}
 Clé : saas, liste d'objets i (le numéro) et tags.`, { fast: true, maxTokens: 2500 }).catch(() => ({ saas: [] }));
