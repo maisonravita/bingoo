@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { Spinner, useToast } from "../components/ui";
@@ -20,7 +20,33 @@ const PAGE = 48;
 export default function Explorer({ domaine: fixe }) {
   const { domaine } = useParams();
   const d = fixe ?? domaine;
-  return d ? <Fiche domaine={d} /> : <Liste />;
+  if (d === "bouge") return <><Onglets actif="bouge" /><Fil /></>;
+  if (d === "marche") return <><Onglets actif="marche" /><Marche /></>;
+  if (d === "comparer") return <Comparer />;
+  return d ? <Fiche domaine={d} /> : <><Onglets actif="liste" /><Liste /></>;
+}
+
+function Onglets({ actif }) {
+  const nav = useNavigate();
+  const T = [["liste", "SaaS", "/explorer"], ["bouge", "Ce qui a bougé", "/explorer/bouge"], ["marche", "Pays et tendances", "/explorer/marche"]];
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
+      <div className="inline-flex rounded-xl bg-white border border-line p-1">
+        {T.map(([k, l, to]) => <button key={k} onClick={() => nav(to)} className={cx("rounded-lg px-4 py-2 text-[14px] font-semibold transition", actif === k ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
+      </div>
+    </div>
+  );
+}
+
+const EV = {
+  prix_hausse: ["Hausse de prix", "#B91C1C"], prix_baisse: ["Baisse de prix", "#15803D"], gratuit_ajoute: ["Lance une version gratuite", "#15803D"], gratuit_retire: ["Retire sa version gratuite", "#B91C1C"],
+  essai_change: ["Change son essai gratuit", "#92400E"], recrutement_hausse: ["Recrute davantage", "#15803D"], recrutement_baisse: ["Recrute moins", "#92400E"], recrute_debut: ["Commence à recruter", "#15803D"],
+  recrute_fin: ["N'a plus d'offre d'emploi", "#92400E"], nouveaute: ["Publie une nouveauté", "#E0531F"], nouveau_saas: ["Entre dans la base", "#5B5D66"],
+};
+export function evTexte(e) {
+  const [l, c] = EV[e.type] ?? [e.type, "#5B5D66"];
+  const det = e.type === "nouveaute" ? "" : e.avant && e.apres ? ` : ${e.avant} → ${e.apres}` : e.apres ? ` : ${e.apres} poste${Number(e.apres) > 1 ? "s" : ""}` : e.avant ? ` (${e.avant} avant)` : "";
+  return <span><span className="font-semibold" style={{ color: c }}>{l}</span>{det}</span>;
 }
 
 function Chip({ on, children, onClick }) {
@@ -38,10 +64,12 @@ function Liste() {
   const [stats, setStats] = useState(null);
   const [ajout, setAjout] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sel, setSel] = useState([]);
+  const basculer = (d) => setSel((x) => x.includes(d) ? x.filter((y) => y !== d) : x.length >= 4 ? x : [...x, d]);
   const set = (k, v) => { setPage(0); setF((x) => ({ ...x, [k]: v })); };
 
   useEffect(() => {
-    let q = supabase.from("saas").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at", { count: "exact" }).eq("statut", "ok");
+    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at", { count: "exact" });
     if (f.q.trim()) q = q.or(`nom.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,domaine.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,description.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%`);
     if (f.categorie) q = q.eq("categorie", f.categorie);
     if (f.pays) q = q.eq("pays", f.pays);
@@ -56,7 +84,7 @@ function Liste() {
   }, [f, page]);
 
   useEffect(() => {
-    supabase.from("saas").select("categorie, pays, recrute, gratuit").eq("statut", "ok").limit(5000).then(({ data }) => {
+    supabase.from("saas_liste").select("categorie, pays, recrute, gratuit").limit(5000).then(({ data }) => {
       const d = data ?? [];
       const par = (k) => Object.entries(d.reduce((a, r) => { if (r[k]) a[r[k]] = (a[r[k]] ?? 0) + 1; return a; }, {})).sort((a, b) => b[1] - a[1]);
       setStats({ total: d.length, cats: par("categorie"), pays: par("pays"), recrutent: d.filter((r) => r.recrute).length });
@@ -112,7 +140,8 @@ function Liste() {
       ) : (
         <div className="mt-2 grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {rows.map((s) => (
-            <button key={s.id} type="button" onClick={() => nav(`/explorer/${s.domaine}`)} className="text-left rounded-2xl bg-white border border-line p-4 hover:border-ink-faint hover:shadow-sm transition">
+            <div key={s.id} role="button" tabIndex={0} onClick={() => nav(`/explorer/${s.domaine}`)} onKeyDown={(e) => e.key === "Enter" && nav(`/explorer/${s.domaine}`)} className={cx("relative cursor-pointer text-left rounded-2xl bg-white border p-4 hover:shadow-sm transition", sel.includes(s.domaine) ? "border-ink shadow-[0_0_0_1px_#15161A]" : "border-line hover:border-ink-faint")}>
+              <label onClick={(e) => e.stopPropagation()} className="absolute right-3 bottom-3 flex items-center gap-1.5 text-[12px] text-ink-faint cursor-pointer"><input type="checkbox" checked={sel.includes(s.domaine)} onChange={() => basculer(s.domaine)} className="accent-[#15161A]" />Comparer</label>
               <div className="flex items-start gap-3">
                 <CompanyLogo name={s.nom} url={`https://${s.domaine}`} />
                 <div className="min-w-0 flex-1">
@@ -129,8 +158,16 @@ function Liste() {
                 {s.recrute && <span className="rounded-md bg-[#DCFCE7] text-[#166534] px-2 py-1">Recrute{s.postes ? ` · ${s.postes}` : ""}</span>}
                 {s.nouveaute && Date.parse(s.nouveaute) > Date.now() - 30 * 864e5 && <span className="rounded-md bg-accent-soft text-accent-dark px-2 py-1">Nouveauté {date(s.nouveaute)}</span>}
               </div>
-            </button>
+              <div className="h-5" />
+            </div>
           ))}
+        </div>
+      )}
+      {sel.length > 0 && (
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-30 rounded-2xl bg-ink text-white shadow-xl px-4 py-3 flex items-center gap-3">
+          <span className="text-[14px]">{sel.length} SaaS sélectionné{sel.length > 1 ? "s" : ""} (4 au plus)</span>
+          <button disabled={sel.length < 2} onClick={() => nav(`/explorer/comparer?d=${sel.join(",")}`)} className="rounded-lg bg-accent px-4 py-2 text-[14px] font-bold disabled:opacity-50">Comparer</button>
+          <button onClick={() => setSel([])} className="text-[13px] text-white/70 hover:text-white">Effacer</button>
         </div>
       )}
       {total > PAGE && (
@@ -148,24 +185,34 @@ const METHODE = [["affiliation", "Programme d'affiliation"], ["integrations", "I
 
 function Fiche({ domaine }) {
   const nav = useNavigate();
+  const { ws } = useWs();
   const [s, setS] = useState(undefined);
   const [rel, setRel] = useState([]);
+  const [ev, setEv] = useState([]);
   const [sim, setSim] = useState([]);
+  const [limite, setLimite] = useState(null);
+  const [quota, setQuota] = useState(null);
   useEffect(() => {
-    setS(undefined);
-    supabase.from("saas").select("*").eq("domaine", domaine).maybeSingle().then(async ({ data }) => {
-      setS(data ?? null);
-      if (!data) return;
-      const [{ data: r }, { data: o }] = await Promise.all([
-        supabase.from("saas_releves").select("at, prix_entree_eur, postes, recrute, nouveaute").eq("saas_id", data.id).order("at"),
-        supabase.from("saas").select("id, domaine, nom, pays, prix_entree_eur, score_croissance").eq("statut", "ok").eq("categorie", data.categorie).neq("id", data.id).order("score_croissance", { ascending: false, nullsFirst: false }).limit(6),
-      ]);
-      setRel(r ?? []); setSim(o ?? []);
+    setS(undefined); setLimite(null);
+    supabase.rpc("saas_fiche", { ws: ws.id, d: domaine }).then(async ({ data, error }) => {
+      if (error || !data) { setS(null); return; }
+      if (data.limite) { setLimite(data); setS(null); return; }
+      setS(data.saas); setRel(data.releves ?? []); setEv(data.evenements ?? []); setQuota(data.max ? { vues: data.vues, max: data.max } : null);
+      const { data: o } = await supabase.from("saas_liste").select("id, domaine, nom, pays, prix_entree_eur, score_croissance").eq("categorie", data.saas.categorie).neq("id", data.saas.id).order("score_croissance", { ascending: false, nullsFirst: false }).limit(6);
+      setSim(o ?? []);
     });
-  }, [domaine]);
+  }, [domaine, ws.id]);
   const prixPts = useMemo(() => rel.filter((r) => r.prix_entree_eur != null).map((r) => ({ v: r.prix_entree_eur, label: new Date(r.at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) })), [rel]);
   const postesPts = useMemo(() => rel.filter((r) => r.postes != null).map((r) => ({ v: r.postes, label: new Date(r.at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) })), [rel]);
   if (s === undefined) return <div className="py-24 grid place-items-center"><Spinner /></div>;
+  if (limite) return (
+    <div className="max-w-xl mx-auto px-6 py-16 text-center">
+      <p className="text-[13px] font-bold uppercase tracking-wide text-accent-dark">Limite de la semaine atteinte</p>
+      <h1 className="mt-2 text-[28px] font-black leading-tight" style={HF}>Tu as ouvert {limite.max} fiches SaaS cette semaine.</h1>
+      <p className="mt-2 text-ink-soft">La fiche de {limite.nom} se débloque avec la formule supérieure, ou la semaine prochaine. La liste et les filtres restent illimités.</p>
+      <div className="mt-6 flex justify-center gap-2"><button onClick={() => nav("/abonnement")} className="rounded-xl bg-accent text-white px-5 py-3 font-bold">Voir les formules</button><button onClick={() => nav("/explorer")} className="rounded-xl border border-line bg-white px-5 py-3 font-semibold">Retour à Explorer</button></div>
+    </div>
+  );
   if (!s) return <div className="max-w-3xl mx-auto px-6 py-16 text-center"><p className="text-ink-soft">Ce SaaS n'est pas (encore) dans la base.</p><button onClick={() => nav("/explorer")} className="mt-4 underline">Retour à Explorer</button></div>;
   const m = s.methode ?? {};
   const canaux = METHODE.filter(([k]) => m[k]);
@@ -224,6 +271,13 @@ function Fiche({ domaine }) {
         </section>
       </div>
 
+      <section className="mt-4 rounded-2xl bg-white border border-line p-5">
+        <h2 className="font-bold">Ce qui a bougé</h2>
+        {ev.length ? <ul className="mt-3 divide-y divide-line">{ev.map((e, i) => <li key={i} className="py-2 flex items-center gap-3 text-[14px]"><span className="text-ink-faint tnum w-24 shrink-0">{date(e.at)}</span><span>{evTexte(e)}</span></li>)}</ul>
+          : <p className="mt-2 text-[13.5px] text-ink-faint">Rien pour l'instant : chaque relevé est comparé au précédent (prix, formules gratuites, essai, recrutement, nouveautés).</p>}
+      </section>
+      {quota && <p className="mt-3 text-[12.5px] text-ink-faint text-right">{quota.vues} fiche{quota.vues > 1 ? "s" : ""} ouverte{quota.vues > 1 ? "s" : ""} sur {quota.max} cette semaine</p>}
+
       {sim.length > 0 && (
         <section className="mt-4 rounded-2xl bg-white border border-line p-5">
           <h2 className="font-bold">SaaS similaires · {s.categorie}</h2>
@@ -238,6 +292,186 @@ function Fiche({ domaine }) {
           </div>
         </section>
       )}
+    </div>
+  );
+}
+
+
+// ---------------------------------------------------------------- Ce qui a bougé
+function Fil() {
+  const nav = useNavigate();
+  const [jours, setJours] = useState(30);
+  const [cat, setCat] = useState("");
+  const [rows, setRows] = useState(null);
+  useEffect(() => { setRows(null); supabase.rpc("saas_fil", { jours, cat: cat || null }).then(({ data }) => setRows(data ?? [])); }, [jours, cat]);
+  const parJour = useMemo(() => { const m = new Map(); for (const r of rows ?? []) { const k = r.at.slice(0, 10); m.set(k, [...(m.get(k) ?? []), r]); } return [...m.entries()]; }, [rows]);
+  const compte = (t) => (rows ?? []).filter((r) => t.includes(r.type)).length;
+  return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+      <h1 className="text-[30px] font-black tracking-tight" style={HF}>Ce qui a bougé</h1>
+      <p className="text-ink-soft">Chaque relevé est comparé au précédent : prix, version gratuite, essai, recrutement, nouveautés publiées.</p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <select value={jours} onChange={(e) => setJours(Number(e.target.value))} className="rounded-xl border border-line bg-white px-3 py-2.5 text-[14px]">{[7, 30, 90].map((j) => <option key={j} value={j}>{j} derniers jours</option>)}</select>
+        <select value={cat} onChange={(e) => setCat(e.target.value)} className="rounded-xl border border-line bg-white px-3 py-2.5 text-[14px]"><option value="">Toutes les catégories</option>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select>
+      </div>
+      {rows && (
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[["Changements de prix", ["prix_hausse", "prix_baisse"]], ["Recrutement", ["recrutement_hausse", "recrutement_baisse", "recrute_debut", "recrute_fin"]], ["Nouveautés publiées", ["nouveaute"]], ["Gratuit et essai", ["gratuit_ajoute", "gratuit_retire", "essai_change"]]].map(([t, k]) => (
+            <div key={t} className="rounded-2xl bg-white border border-line p-4"><p className="text-[26px] font-black tnum" style={HF}>{compte(k)}</p><p className="text-[13px] text-ink-soft">{t}</p></div>
+          ))}
+        </div>
+      )}
+      {!rows ? <div className="py-16 grid place-items-center"><Spinner /></div> : !rows.length ? (
+        <p className="mt-6 rounded-2xl bg-white border border-line p-6 text-ink-soft">Aucun changement sur la période. Les SaaS sont relus une fois par semaine : les premiers changements apparaissent après le deuxième relevé de chaque logiciel.</p>
+      ) : (
+        <div className="mt-5 space-y-4">
+          {parJour.map(([j, l]) => (
+            <section key={j}>
+              <p className="text-[12.5px] font-bold uppercase tracking-wide text-ink-faint">{new Date(j).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</p>
+              <ul className="mt-2 rounded-2xl bg-white border border-line divide-y divide-line">
+                {l.map((r, i) => (
+                  <li key={i} onClick={() => nav(`/explorer/${r.domaine}`)} className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-paper/60">
+                    <CompanyLogo name={r.nom} url={`https://${r.domaine}`} className="w-9 h-9" />
+                    <div className="min-w-0 flex-1"><p className="text-[14.5px]"><span className="font-bold">{r.nom}</span> {drapeau(r.pays)} · {evTexte(r)}</p><p className="text-[12.5px] text-ink-faint">{r.categorie}</p></div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- Pays et tendances
+function Sparkline({ pts, h = 44 }) {
+  if (pts.length < 2) return <div style={{ height: h }} />;
+  const max = Math.max(...pts.map((p) => p.n)), min = Math.min(...pts.map((p) => p.n));
+  const W = 200, xy = pts.map((p, i) => [(i / (pts.length - 1)) * W, h - 4 - ((p.n - min) / Math.max(1, max - min)) * (h - 8)]);
+  const d = xy.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  return <svg viewBox={`0 0 ${W} ${h}`} className="w-full" style={{ height: h }} preserveAspectRatio="none"><path d={`${d} L${W},${h} L0,${h} Z`} fill="#E0531F" fillOpacity=".1" /><path d={d} fill="none" stroke="#E0531F" strokeWidth="2" vectorEffect="non-scaling-stroke" /></svg>;
+}
+
+function Marche() {
+  const { ws } = useWs();
+  const [m, setM] = useState(null);
+  const [t, setT] = useState(null);
+  const [theme, setTheme] = useState("tous");
+  useEffect(() => {
+    supabase.rpc("saas_marche").then(({ data }) => setM(data ?? []));
+    fn("r/saas-tendances", { workspace_id: ws.id }).then(setT).catch(() => setT({ series: [] }));
+  }, [ws.id]);
+  const pays = useMemo(() => {
+    const g = new Map();
+    for (const r of m ?? []) {
+      const x = g.get(r.pays) ?? { pays: r.pays, n: 0, recrutent: 0, postes: 0, gratuits: 0, actifs: 0, cats: [] };
+      x.n += Number(r.n); x.recrutent += Number(r.recrutent); x.postes += Number(r.postes); x.gratuits += Number(r.gratuits); x.actifs += Number(r.actifs_30j); x.cats.push([r.categorie, Number(r.n), Number(r.postes)]);
+      g.set(r.pays, x);
+    }
+    return [...g.values()].filter((x) => x.pays !== "??").sort((a, b) => b.n - a.n);
+  }, [m]);
+  // Écarts entre pays : catégories bien représentées ailleurs, peu présentes en France
+  const ecarts = useMemo(() => {
+    const parCat = new Map();
+    for (const r of m ?? []) { if (r.pays === "??") continue; const x = parCat.get(r.categorie) ?? { fr: 0, ailleurs: 0, postes: 0 }; if (r.pays === "FR") x.fr += Number(r.n); else { x.ailleurs += Number(r.n); x.postes += Number(r.postes); } parCat.set(r.categorie, x); }
+    return [...parCat.entries()].filter(([c, x]) => c !== "Autre" && x.ailleurs >= 3).map(([c, x]) => ({ c, ...x, ratio: x.ailleurs / Math.max(1, x.fr) })).sort((a, b) => b.ratio - a.ratio).slice(0, 6);
+  }, [m]);
+  const serie = t?.series?.find((s) => s.id === theme);
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      <h1 className="text-[30px] font-black tracking-tight" style={HF}>Pays et tendances</h1>
+      <p className="text-ink-soft">Ce qui se crée, ce qui recrute et ce qui manque, par pays et par catégorie.</p>
+
+      <section className="mt-5 rounded-2xl bg-white border border-line p-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div><h2 className="font-bold text-[17px]">Créations d'éditeurs de logiciels en France</h2><p className="text-[12.5px] text-ink-faint">{t?.source ?? "…"} · 12 derniers mois complets</p></div>
+          <select value={theme} onChange={(e) => setTheme(e.target.value)} className="rounded-xl border border-line bg-white px-3 py-2 text-[14px]">{(t?.series ?? []).map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select>
+        </div>
+        <div className="mt-4">{!t ? <div className="py-10 grid place-items-center"><Spinner /></div> : serie?.points?.length ? <LineChart points={serie.points.map((p) => ({ v: p.n, label: new Date(p.mois + "-01").toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }) }))} height={200} unit=" créations" /> : <p className="text-ink-faint text-[14px]">Données indisponibles pour l'instant.</p>}</div>
+        {t?.series?.length > 0 && (
+          <div className="mt-5 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+            {t.series.filter((s) => s.id !== "tous").sort((a, b) => (b.evolution_3m ?? -999) - (a.evolution_3m ?? -999)).map((s) => (
+              <button key={s.id} onClick={() => setTheme(s.id)} className={cx("text-left rounded-xl border p-3 transition", theme === s.id ? "border-ink" : "border-line hover:border-ink-faint")}>
+                <div className="flex items-baseline justify-between gap-2"><p className="font-semibold text-[13.5px] truncate">{s.label}</p>{s.evolution_3m != null && <span className={cx("text-[12.5px] font-bold tnum", s.evolution_3m >= 0 ? "text-[#15803D]" : "text-[#B91C1C]")}>{s.evolution_3m > 0 ? "+" : ""}{s.evolution_3m} %</span>}</div>
+                <p className="text-[12px] text-ink-faint">{s.dernier} créations le mois dernier · sur 3 mois</p>
+                <Sparkline pts={s.points} />
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-4 rounded-2xl bg-white border border-line p-5">
+        <h2 className="font-bold text-[17px]">Les SaaS par pays</h2>
+        <p className="text-[12.5px] text-ink-faint">Base Explorer · pays lu sur le site de chaque logiciel</p>
+        {!m ? <div className="py-10 grid place-items-center"><Spinner /></div> : (
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-[14px] tnum min-w-[720px]">
+              <thead><tr className="text-left text-[12px] text-ink-faint border-b border-line"><th className="py-2 pr-3 font-medium">Pays</th><th className="py-2 px-2 font-medium text-right">SaaS</th><th className="py-2 px-2 font-medium text-right">Recrutent</th><th className="py-2 px-2 font-medium text-right">Postes ouverts</th><th className="py-2 px-2 font-medium text-right">Gratuits</th><th className="py-2 px-2 font-medium text-right">Nouveauté &lt; 30 j</th><th className="py-2 pl-3 font-medium">Catégories les plus présentes</th></tr></thead>
+              <tbody>{pays.map((p) => (
+                <tr key={p.pays} className="border-b border-line last:border-0">
+                  <td className="py-2.5 pr-3 font-semibold">{drapeau(p.pays)} {PAYS[p.pays] ?? p.pays}</td><td className="py-2.5 px-2 text-right">{p.n}</td><td className="py-2.5 px-2 text-right">{p.recrutent}</td><td className="py-2.5 px-2 text-right">{p.postes}</td><td className="py-2.5 px-2 text-right">{p.gratuits}</td><td className="py-2.5 px-2 text-right">{p.actifs}</td>
+                  <td className="py-2.5 pl-3 text-[13px] text-ink-soft">{p.cats.sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c, n]) => `${c} (${n})`).join(" · ")}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {ecarts.length > 0 && (
+        <section className="mt-4 rounded-2xl bg-white border border-line p-5">
+          <h2 className="font-bold text-[17px]">Fort ailleurs, rare en France</h2>
+          <p className="text-[12.5px] text-ink-faint">Catégories où la base compte beaucoup plus de SaaS étrangers que français</p>
+          <div className="mt-3 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {ecarts.map((e) => (
+              <div key={e.c} className="rounded-xl bg-paper p-4"><p className="font-semibold">{e.c}</p><p className="mt-1 text-[13.5px] text-ink-soft tnum">{e.ailleurs} SaaS à l'étranger ({e.postes} postes ouverts) · {e.fr} en France</p></div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- Comparer
+function Comparer() {
+  const nav = useNavigate();
+  const { ws } = useWs();
+  const { search } = useLocation();
+  const doms = useMemo(() => (new URLSearchParams(search).get("d") ?? "").split(",").filter(Boolean).slice(0, 4), [search]);
+  const [l, setL] = useState(null);
+  useEffect(() => { Promise.all(doms.map((d) => supabase.rpc("saas_fiche", { ws: ws.id, d }).then(({ data }) => data))).then(setL); }, [doms, ws.id]);
+  if (!l) return <div className="py-24 grid place-items-center"><Spinner /></div>;
+  const ok = l.filter((x) => x?.saas).map((x) => ({ ...x.saas, ev: x.evenements ?? [] }));
+  const bloques = l.filter((x) => x?.limite);
+  const lignes = [
+    ["Catégorie", (s) => s.categorie], ["Pays", (s) => s.pays ? `${drapeau(s.pays)} ${PAYS[s.pays] ?? s.pays}` : "—"],
+    ["Prix d'entrée", (s) => s.prix_entree_eur != null ? `${s.prix_entree_eur} €/mois` : s.sur_devis ? "Sur devis" : "Non affiché"],
+    ["Version gratuite", (s) => s.gratuit ? "Oui" : "Non"], ["Essai", (s) => s.essai ?? "—"],
+    ["Formules", (s) => (s.formules ?? []).map((f) => `${f.nom} : ${f.prix}`).join(" · ") || "—"],
+    ["Recrute", (s) => s.recrute ? `Oui${s.postes ? ` · ${s.postes} postes` : ""}` : "Non"], ["Dernière nouveauté", (s) => date(s.nouveaute) ?? "—"],
+    ["Score de croissance", (s) => s.score_croissance ?? "—"],
+    ["Méthode d'acquisition", (s) => METHODE.filter(([k]) => s.methode?.[k]).map(([, t]) => t).join(", ") || "—"],
+    ["Outils du site", (s) => (s.outils ?? []).filter((o) => o.toLowerCase() !== (s.nom ?? "").toLowerCase()).slice(0, 6).join(", ") || "—"],
+    ["Derniers changements", (s) => s.ev.slice(0, 3).map((e, i) => <div key={i}>{evTexte(e)}</div>)],
+  ];
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      <button onClick={() => nav("/explorer")} className="text-[13.5px] text-ink-soft hover:text-ink">← Explorer</button>
+      <h1 className="mt-2 text-[30px] font-black tracking-tight" style={HF}>Comparaison</h1>
+      {bloques.length > 0 && <p className="mt-2 rounded-xl bg-accent-soft px-4 py-3 text-[14px] text-accent-dark">{bloques.map((b) => b.nom).join(", ")} : limite de fiches de la semaine atteinte.</p>}
+      <div className="mt-4 rounded-2xl bg-white border border-line overflow-x-auto">
+        <table className="w-full text-[14px] min-w-[760px]">
+          <thead><tr className="border-b border-line"><th className="w-44" />{ok.map((s) => (
+            <th key={s.id} className="px-4 py-4 text-left align-top"><button onClick={() => nav(`/explorer/${s.domaine}`)} className="flex items-center gap-3 text-left"><CompanyLogo name={s.nom} url={`https://${s.domaine}`} /><span><span className="block font-bold text-[16px]">{s.nom}</span><span className="block text-[12.5px] text-ink-faint font-normal">{s.domaine}</span></span></button></th>
+          ))}</tr></thead>
+          <tbody>{lignes.map(([t, f]) => (
+            <tr key={t} className="border-b border-line last:border-0 align-top"><td className="px-4 py-3 text-[12.5px] font-semibold text-ink-faint">{t}</td>{ok.map((s) => <td key={s.id} className="px-4 py-3">{f(s)}</td>)}</tr>
+          ))}</tbody>
+        </table>
+      </div>
     </div>
   );
 }
