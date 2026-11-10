@@ -10,7 +10,7 @@ import { SubNav } from "../components/SubNav";
 const eur = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ","));
 const FEATURES = {
   explorer: ["Toute la base SaaS, fiches illimitées", "Recherche intelligente et niches", "10 SaaS suivis, alerte chaque lundi", "Idées et réussites chiffrées", "Notoriété web de chaque SaaS"],
-  explorer_pro: ["Tout Starter", "SaaS et catégories suivis sans limite", "Leurs pubs et leurs e-mails", "Comparer jusqu'à 4 SaaS", "Qui démarcher dans chaque niche"],
+  explorer_pro: ["Tout Starter", "SaaS et catégories suivis sans limite", "Leurs e-mails, et bientôt leurs pubs", "Comparer jusqu'à 4 SaaS", "Qui démarcher dans chaque niche"],
   business: ["Tout Pro", "3 utilisateurs", "Export CSV des listes", "Support prioritaire"],
 };
 const VEILLE = ["explorer", "explorer_pro", "business"];

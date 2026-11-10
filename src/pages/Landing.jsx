@@ -20,7 +20,7 @@ const Check = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className=
 const Arrow = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" /></svg>;
 const Lock = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
 
-const MENU = [["Explorer", "#explorer"], ["Passer à l'action", "#preuve"], ["Pourquoi Bingoo!", "#pourquoi"], ["Tarifs", "#tarifs"], ["Questions", "#faq"]];
+const MENU = [["Explorer", "#explorer"], ["Comment ça marche", "#produit"], ["Pourquoi Bingoo!", "#pourquoi"], ["Tarifs", "#tarifs"], ["Questions", "#faq"]];
 
 // Nombre de SaaS suivis dans la base Explorer (vue publique), affiché tel quel
 function useNbSaas() {
@@ -79,161 +79,25 @@ function useReveal() {
 }
 
 /* ---------- La preuve : l'application filmée sur un vrai compte, en 4 onglets ---------- */
-const PREUVES = [
-  ["radar", "Qui a besoin de toi", "Chaque nuit, le Radar repère les entreprises qui viennent de bouger : recrutement, levée, nouveau dirigeant, outil concurrent installé. Chaque signal affiche sa source.", "preuve-radar", "L'écran Opportunités de la vraie application. Données d'exemple."],
-  ["contacts", "Le décideur et son e-mail", "Le dirigeant déclaré au registre officiel, son e-mail professionnel vérifié, son LinkedIn. Jamais une adresse devinée.", "preuve-contacts", "L'écran Contacts de la vraie application. Données d'exemple."],
-  ["canaux", "Il écrit. Tu valides.", "Un message par entreprise, qui part de ce qui se passe chez elle. Relances à J+3 et J+7, appel, clôture. Rien ne part sans toi.", "preuve-canaux", "L'écran « À valider » de la vraie application. Données d'exemple."],
-  ["espion", "Tes concurrents, surveillés", "Prix, publicités, avis, clients mécontents : l'Espion mesure tout, et ton angle se retrouve dans chaque message.", "preuve-espion", "La page Concurrents de la vraie application. Concurrents d'exemple."],
-];
-function Preuve() {
-  const [on, setOn] = useState("radar");
-  const p = PREUVES.find((x) => x[0] === on);
-  return (
-    <section id="preuve" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24">
-      <div className="mx-auto max-w-[1180px]">
-        <p className="text-[14px] font-bold uppercase tracking-wide text-accent-dark">Passer à l'action</p>
-        <h2 className="mt-2 text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Tu as vu ton marché.<br />Va chercher tes clients.</h2>
-        <p className="mt-5 max-w-[680px] text-[17px] sm:text-[19px] leading-[1.5] text-ink-soft">Bingoo! repère les entreprises qui ont besoin de toi aujourd'hui, trouve le décideur et écrit le message. L'application telle qu'elle tourne, en vidéo.</p>
-        <div className="mt-10 flex flex-wrap gap-2" role="tablist" aria-label="La preuve en vidéo">
-          {PREUVES.map(([k, t]) => (
-            <button key={k} role="tab" aria-selected={on === k} onClick={() => setOn(k)}
-              className={cx("rounded-full px-5 py-2.5 text-[15.5px] font-semibold transition border", on === k ? "bg-ink text-white border-ink" : "bg-white text-ink-soft border-line hover:border-ink-faint hover:text-ink")}>{t}</button>
-          ))}
-        </div>
-        <div className="mt-6" role="tabpanel">
-          <p className="max-w-[720px] text-[16.5px] leading-[1.5] text-ink">{p[2]}</p>
-          <figure className="mt-5">
-            <video key={p[3]} src={`./${p[3]}.mp4`} poster={`./${p[3]}.jpg`} autoPlay loop muted playsInline className="w-full rounded-xl border border-black/10 bg-[#F1EFED]" aria-label={p[1]} />
-            <figcaption className="mt-2 text-[13.5px] text-ink-soft">{p[4]}</figcaption>
-          </figure>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ---------- L'essai en direct : le visiteur voit SES clients potentiels, sans compte ---------- */
-function useTry() {
-  const [f, setF] = useState({ url: "" });
-  const [r, setR] = useState(null);
-  const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
-  const search = async (e) => {
-    e?.preventDefault?.();
-    setBusy(true); setErr(""); setR(null);
-    document.getElementById("essai")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    try { setR(await call("free-site", f)); } catch (x) { setErr(x.message); } finally { setBusy(false); }
-  };
-  return { f, setF, r, err, busy, search };
-}
-
-const TRY_STEPS = [["Bingoo! lit ton site", "Ce que tu vends, à qui, dans quelle zone."], ["Le Radar fouille les annonces officielles", "Créations, reprises et ouvertures des 45 derniers jours."], ["Tu vois tes clients potentiels", "Ceux qui choisissent leurs fournisseurs en ce moment."]];
-function TryIt({ t }) {
-  const nav = useNavigate();
-  const { f, setF, r, err, busy, search } = t;
-  const [step, setStep] = useState(0);
-  useEffect(() => { if (!busy) { setStep(0); return; } setStep(0); const a = setTimeout(() => setStep(1), 2500), b = setTimeout(() => setStep(2), 6000); return () => { clearTimeout(a); clearTimeout(b); }; }, [busy]);
-  return (
-    <div className="grid lg:grid-cols-2 gap-10 lg:gap-20 items-start [&>*]:min-w-0">
-      <div className="lg:pt-6">
-        <h2 className="text-[38px] sm:text-[54px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>La deuxième preuve : ton marché</h2>
-        <p className="mt-6 max-w-[560px] text-[17px] sm:text-[19px] leading-[1.5] text-ink">Donne l'adresse de ton site. En une minute, Bingoo! te montre des entreprises qui pourraient devenir tes clients, et pourquoi c'est le moment. Gratuit, sans compte.</p>
-        <form onSubmit={search} className="mt-10 grid sm:grid-cols-[minmax(0,1fr)_auto] gap-3">
-          <label className="sr-only" htmlFor="tr-url">Ton site</label>
-          <div className="flex items-center rounded-lg border border-[#8A8682] bg-white focus-within:border-ink focus-within:ring-2 focus-within:ring-ink/10 min-w-0">
-            <span className="pl-4 text-[17px] text-ink-faint select-none">https://</span>
-            <input id="tr-url" value={f.url} onChange={(e) => setF({ url: e.target.value.replace(/^https?:\/\//i, "") })} placeholder="tonentreprise.fr" inputMode="url" autoComplete="url" className="w-full min-w-0 bg-transparent px-1 py-4 text-[17px] outline-none" />
-          </div>
-          <button type="submit" disabled={busy || !f.url.trim()} className="rounded-lg bg-accent text-white px-7 py-4 text-[17px] hover:bg-accent-dark disabled:opacity-50 transition">{busy ? "Recherche…" : "Lancer le Radar"}</button>
-        </form>
-        {err && <p className="mt-4 rounded-lg bg-[#FDF0EC] px-4 py-3 text-[15px] text-[#9A3412]">{err}</p>}
-        <p className="mt-6 text-[15px] text-ink-soft">Tu vends aux collectivités ? <a href="#/outils/contrats-publics" className="underline hover:text-ink">Vois leurs contrats qui se terminent</a>.</p>
-      </div>
-
-      <div className="rounded-2xl bg-[#F1EFED] p-4 sm:p-8 min-h-[420px]">
-        {!r ? (
-          <ol className="space-y-3">
-            {TRY_STEPS.map(([h, d], i) => {
-              const on = busy && step === i, done = busy && step > i;
-              return (
-                <li key={h} className={cx("flex gap-4 rounded-xl bg-white p-5 transition", on ? "ring-2 ring-accent/40" : "", !busy || on || done ? "opacity-100" : "opacity-60")}>
-                  <span className={cx("grid h-9 w-9 shrink-0 place-items-center rounded-full text-[15px]", done ? "bg-good text-white" : on ? "bg-accent text-white" : "bg-[#F1EFED] text-ink")}>{done ? <Check className="h-4 w-4" /> : on ? <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" style={{ animation: "kspin .8s linear infinite" }} /> : i + 1}</span>
-                  <div><p className="text-[19px] leading-tight text-ink" style={SERIF}>{h}</p><p className="mt-1 text-[14.5px] text-ink-soft">{d}</p></div>
-                </li>
-              );
-            })}
-          </ol>
-        ) : (
-          <div className="space-y-3">
-            {r.offre && <div className="rounded-xl bg-white p-4"><p className="text-[12.5px] text-ink-soft">Bingoo! a compris</p><p className="mt-1 text-[15px] text-ink"><b className="font-medium">{r.nom}</b> : {r.offre.replace(/\.$/, "")}{r.clients ? `, ${r.clients.replace(/\.$/, "")}` : ""}.</p></div>}
-            <p className="px-1 pt-1 text-[16px] text-ink"><span className="text-[34px] leading-none tracking-[-.02em] align-[-4px]" style={SERIF}>{r.total}</span> client{r.total > 1 ? "s" : ""} potentiel{r.total > 1 ? "s" : ""} en France, {r.jours > 1 ? `ces ${r.jours} derniers jours` : "ces dernières 24 heures"}</p>
-            {r.decideurs > 0 && <p className="px-1 -mt-1 text-[15px] text-ink-soft"><b className="font-medium text-ink">{r.decideurs} décideur{r.decideurs > 1 ? "s" : ""}</b> nommé{r.decideurs > 1 ? "s" : ""} dans les annonces officielles. Crée ton compte pour voir leurs noms, puis Bingoo! cherche leur e-mail et leur téléphone.</p>}
-            {!r.total && <p className="rounded-xl bg-white p-4 text-[14.5px] text-ink-soft">Rien de neuf ces dernières semaines sur ta cible. Avec un compte, le Radar suit aussi les changements de dirigeant, les recrutements et les appels d'offres.</p>}
-            {r.visibles.map((c, i) => (
-              <div key={i} className="rounded-xl bg-white p-4 land-in" style={{ animationDelay: `${i * 120}ms` }}>
-                <div className="flex items-center justify-between gap-2"><span className="rounded bg-[#FFF1E8] px-1.5 py-0.5 text-[11.5px] font-medium text-accent-dark">{c.signal}</span><span className="text-[12.5px] text-ink-soft">{new Date(c.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</span></div>
-                <p className="mt-2 text-[16px] font-medium text-ink">{c.nom}{c.ville ? <span className="font-normal text-ink-soft">, {c.ville}</span> : null}</p>
-                <p className="text-[13.5px] text-ink-soft line-clamp-2">{c.activite}</p>
-                <div className="mt-2.5 flex items-center justify-between gap-2 rounded-md bg-[#F6F5F3] px-2.5 py-1.5 text-[12.5px]"><span className="text-ink-soft">{c.decideur || "Le décideur"}</span><span className="flex items-center gap-1.5"><span className="select-none blur-[4px] text-ink" aria-hidden>Prénom Nom</span><Lock className="h-3.5 w-3.5 text-ink-soft" /></span></div>
-                <div className="mt-1 flex items-center justify-between gap-2 rounded-md bg-[#F6F5F3] px-2.5 py-1.5 text-[12.5px]"><span className="text-ink-soft">E-mail et téléphone</span><span className="flex items-center gap-1.5 text-ink-soft">Cherchés avec ton compte<Lock className="h-3.5 w-3.5" /></span></div>
-              </div>
-            ))}
-            {(r.apercu ?? []).slice(0, 3).map((c, i) => (
-              <div key={`a${i}`} className="relative rounded-xl bg-white/70 p-4">
-                <p className="text-[12.5px] text-ink-soft">{c.signal}{c.ville ? `, ${c.ville}` : ""}{c.decideur ? ` · ${c.decideur} identifié` : ""}</p>
-                <p className="select-none blur-[5px] text-[16px] text-ink" aria-hidden>Entreprise masquée</p>
-                <span className="absolute right-3 top-3 inline-flex items-center gap-1 text-[12px] text-ink-soft"><Lock className="h-3 w-3" />Avec un compte</span>
-              </div>
-            ))}
-            {r.caches > 0 && <button onClick={() => nav("/connexion")} className="w-full rounded-lg bg-[#1C1C1C] py-4 text-[16px] text-white hover:bg-black transition">Débloquer les {r.caches} autres et leurs décideurs, gratuitement</button>}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ---------- Les sources, en une ligne qui défile ---------- */
-const SRC = ["BODACC", "Sirene", "France Travail", "Reddit", "LinkedIn public", "BOAMP", "Sites web", "Forums et communautés", "Registre national des entreprises", "TED Europa"];
-function SourcesRow() {
-  return (
-    <div id="donnees" className="mx-auto mt-16 max-w-[1180px] scroll-mt-24">
-      <p className="text-[15px] text-ink-soft">Tout vient de sources publiques et vérifiables. Chaque signal affiche la sienne.</p>
-      <div className="marquee mt-6 overflow-hidden" style={{ maskImage: "linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent)", WebkitMaskImage: "linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent)" }}>
-        <ul className="marquee-track flex w-max items-center text-[22px] sm:text-[26px] text-ink/45" style={SERIF}>
-          {[...SRC, ...SRC].map((x, i) => <li key={i} aria-hidden={i >= SRC.length} className="shrink-0 whitespace-nowrap px-6 sm:px-9">{x}</li>)}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
-/* ---------- Tarifs et questions ---------- */
 const eur = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ","));
 const PLANS = [
   ["Starter", 19.99, "Pour garder un œil sur ton marché.", ["Toute la base SaaS, fiches illimitées", "Recherche intelligente et niches", "10 SaaS suivis, alerte chaque lundi", "Idées et réussites chiffrées", "Notoriété web de chaque SaaS"]],
-  ["Pro", 39.99, "Pour comprendre comment tes concurrents gagnent leurs clients.", ["Tout Starter", "SaaS et catégories suivis sans limite", "Leurs pubs et leurs e-mails", "Comparer jusqu'à 4 SaaS", "Qui démarcher dans chaque niche"]],
+  ["Pro", 39.99, "Pour comprendre comment tes concurrents gagnent leurs clients.", ["Tout Starter", "SaaS et catégories suivis sans limite", "Leurs e-mails, et bientôt leurs pubs", "Comparer jusqu'à 4 SaaS", "Qui démarcher dans chaque niche"]],
   ["Business", 69.99, "Pour une équipe qui suit le marché ensemble.", ["Tout Pro", "3 utilisateurs", "Export CSV des listes", "Support prioritaire"]],
 ];
 const FAQ = [
   ["D'où viennent les informations sur les SaaS ?", "De leurs propres sites, relus chaque semaine : page d'accueil, tarifs, page carrières, changelog ou blog. Les chiffres d'entreprise (chiffre d'affaires, levées) viennent de la presse ou de documents officiels, la notoriété du Majestic Million, les tendances des annonces légales officielles (BODACC). Rien n'est estimé : une information introuvable est affichée comme telle, et chaque chiffre a son lien."],
-  ["Quels SaaS sont dans Explorer ?", "Des logiciels français, européens et américains, dans 25 catégories. Tu peux ajouter n'importe quel SaaS par son adresse : il est lu tout de suite. La base grandit chaque jour."],
+  ["Quels SaaS sont dans Explorer ?", "Des logiciels français, européens et américains, dans 26 catégories. Tu peux ajouter n'importe quel SaaS par son adresse : il est lu tout de suite. La base grandit chaque jour."],
+  ["Quelle différence entre Starter, Pro et Business ?", "Starter te donne toute la base et suit 10 SaaS ou catégories. Pro suit sans limite et ajoute leurs e-mails, la comparaison et les clients de chaque niche. Business ajoute 3 utilisateurs et l'export des listes."],
+  ["Comment marche l'alerte du lundi ?", "Tu suis des SaaS ou des catégories entières. Chaque lundi matin, un e-mail te dit ce qui a bougé : changements de prix, version gratuite ajoutée ou retirée, recrutements, nouveautés, nouveaux concurrents, leurs e-mails de la semaine."],
   ["J'édite un SaaS, puis-je corriger ou retirer sa fiche ?", "Oui. Notre robot (BingooBot) respecte le fichier robots.txt et ne lit que des pages publiques. Écris-nous depuis une adresse de ton domaine pour une correction ou un retrait, traité sous 72 heures."],
-  ["Bingoo! envoie-t-il des messages sans mon accord ?", "Non. Par défaut, chaque message attend ta validation. Tu peux ensuite activer le pilote automatique, dans la limite d'envoi que tu fixes."],
-  ["D'où viennent les informations ?", "De sources publiques et vérifiables : données de la commande publique, BOAMP, annonces légales (BODACC), registre national des entreprises, sites des entreprises. Chaque signal affiche sa source."],
-  ["Et le RGPD ?", "Bingoo! travaille au niveau de l'entreprise et des fonctions qui décident. Les e-mails sont publiés ou vérifiés, jamais devinés, et chaque message permet de ne plus être contacté."],
-  ["Ça marche pour mon entreprise ?", "Bingoo! est fait pour les entreprises qui vendent à d'autres entreprises : fondateurs de SaaS, startups B2B, PME et TPE, agences, cabinets, services sur site. À l'inscription, tu dis ce que tu es : Bingoo! ne cherche pas les mêmes signaux pour un éditeur de logiciel et pour une entreprise de nettoyage. Il n'est pas fait pour vendre à des particuliers."],
-  ["Combien de clients puis-je espérer ?", "À la fin de l'inscription, Bingoo! te montre une fourchette, prudente et probable, calculée à partir de ce que vaut un client pour toi, de ton objectif et de taux de prospection prudents. Les hypothèses sont affichées : ce n'est pas une promesse. Dès tes premiers envois, tes vrais taux remplacent les hypothèses."],
-  ["Bingoo! publie-t-il sur Reddit ou LinkedIn à ma place ?", "Non pour les demandes publiques : Bingoo! te prépare la réponse, tu la publies toi-même. Sur LinkedIn, l'extension n'envoie que les invitations et les messages que tu as validés, avec des limites prudentes."],
-  ["À quoi sert l'extension Chrome ?", "Elle affiche la fiche d'une entreprise sur son propre site, fait sur LinkedIn les invitations et les messages que tu as validés (à un rythme humain, dans des limites prudentes) et reconnaît tes prospects dans Gmail. Elle est facultative : tout le reste marche sans elle."],
-  ["Est-ce que je risque mon compte LinkedIn ?", "Bingoo! ne fait jamais d'envoi en masse ni d'aspiration de profils. Le pilote ne fait que ce que tu as validé, avec des pauses et des limites quotidiennes basses, depuis ton propre navigateur."],
+  ["Et le RGPD ?", "Explorer recense des entreprises, pas des personnes. Les seuls noms affichés sont ceux de fondateurs ou dirigeants cités publiquement par la presse, et toute personne peut en demander le retrait."],
   ["Je peux essayer avant de payer ?", "Oui, sans carte bancaire : 10 fiches par semaine, la recherche et le rapport « Ton marché ». Tu passes à une formule quand tu veux, sans engagement."],
 ];
 
 export default function Landing() {
   const nav = useNavigate();
   useReveal();
-  const tryState = useTry();
   const [yearly, setYearly] = useState(false);
   const [fond, setFond] = useState(null);
   useEffect(() => { call("founder-slots", {}).then(setFond).catch(() => setFond(null)); }, []);
@@ -264,10 +128,10 @@ export default function Landing() {
           <section className="mx-auto max-w-[1440px] bg-white px-5 sm:px-10 pt-14 sm:pt-24 pb-16 sm:pb-20 text-center">
             <h1 className="hero-in relative mx-auto max-w-[1180px]" style={JK}>
               <span className="block text-[32px] sm:text-[50px] lg:text-[66px] leading-[1.1] text-[#3A3F55]" style={{ fontWeight: 500, letterSpacing: "-.01em" }}>Vois tout ce qui bouge sur ton marché SaaS.</span>
-              <span className="mt-1 block text-[38px] sm:text-[60px] lg:text-[80px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>Puis transforme-le en clients.</span>
+              <span className="mt-1 block text-[38px] sm:text-[60px] lg:text-[80px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>Avant tes concurrents.</span>
               <span className="mt-4 sm:mt-6 flex justify-center"><span className="sr-only">Bingoo!</span><Logo height="clamp(64px, 9vw, 112px)" className="!self-center" /></span>
             </h1>
-            <p className="hero-in mx-auto mt-7 max-w-[780px] text-[18px] sm:text-[22px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Les prix, les recrutements, les nouveautés et les méthodes de {nb ? <b>{nb.toLocaleString("fr-FR")} SaaS</b> : "tous les SaaS"}, relus chaque semaine. Et Bingoo! trouve ceux qui ont besoin de toi. <span className="font-semibold text-accent-dark">Le TrendTrack des SaaS.</span></p>
+            <p className="hero-in mx-auto mt-7 max-w-[780px] text-[18px] sm:text-[22px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Les prix, les recrutements, les nouveautés et les méthodes de {nb ? <b>{nb.toLocaleString("fr-FR")} SaaS</b> : "tous les SaaS"}, relus chaque semaine, avec leurs e-mails, leurs chiffres et ce qui manque sur le marché. <span className="font-semibold text-accent-dark">Le TrendTrack des SaaS.</span></p>
             <form onSubmit={(e) => { e.preventDefault(); const u = e.currentTarget.site.value.trim().replace(/^https?:\/\//i, ""); if (u) nav(`/marche?u=${encodeURIComponent(u)}`); }}
               className="hero-in mx-auto mt-9 flex max-w-[680px] flex-col sm:flex-row items-stretch gap-2 rounded-[28px] sm:rounded-full border border-black/[.08] bg-white p-2 shadow-[0_10px_40px_-20px_rgba(21,23,42,.35)]" style={{ ...JK, animationDelay: ".2s" }}>
               <label className="sr-only" htmlFor="hero-site">L'adresse de ton SaaS</label>
@@ -293,21 +157,12 @@ export default function Landing() {
         {/* 1. Explorer : le marché du SaaS */}
         <Explorer n={nb} />
 
-        {/* 2. Passer à l'action : l'application filmée sur un vrai compte */}
-        <Preuve />
-
-        {/* 2. La preuve sur TON marché : l'essai en direct, sans compte */}
-        <section className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
-          <div id="essai" className="mx-auto max-w-[1300px] text-left scroll-mt-24"><TryIt t={tryState} /></div>
-          <SourcesRow />
-        </section>
-
-        {/* 3. Comment ça marche, en 4 pas */}
+        {/* 2. Comment ça marche, en 3 pas */}
         <section id="produit" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
           <div className="mx-auto max-w-[1180px]">
-            <h2 className="text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>15 minutes par jour. Voilà ta part.</h2>
-            <ol className="mt-12 grid gap-3 text-left sm:grid-cols-2 lg:grid-cols-4">
-              {[["Tu réponds à 6 questions", "Ton type d'entreprise, ce que vaut un client, ton objectif. Puis le lien de ton produit."], ["Bingoo! trouve qui a besoin de toi", "Les entreprises au bon moment, leur décideur vérifié, et ceux qui demandent ta solution en public."], ["Il écrit sur tous les canaux", "E-mail, LinkedIn, réponses aux demandes, appels. Tu valides en 15 minutes par jour."], ["Tu prends les rendez-vous", "Les réponses arrivent triées, avec la tienne déjà prête. Le rendez-vous va dans ton agenda."]].map(([h, d], i) => (
+            <h2 className="text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ton marché, sans y passer tes journées.</h2>
+            <ol className="mt-12 grid gap-3 text-left sm:grid-cols-3">
+              {[["Colle l'adresse de ton SaaS", "En une minute, tes concurrents directs côte à côte : leurs prix, qui recrute, qui vient de sortir une nouveauté. Gratuit, sans compte."], ["Suis ta niche", "Tes concurrents et des catégories entières. Bingoo! relit leurs sites chaque semaine, garde l'historique et s'abonne à leurs e-mails."], ["Chaque lundi, ce qui a bougé", "Un e-mail : prix changés, recrutements, nouveautés, nouveaux concurrents. Et dans Explorer, les idées que le marché laisse ouvertes."]].map(([h, d], i) => (
                 <li key={h} className="rounded-2xl bg-[#F6F5F3] p-5">
                   <span className="text-[15px] text-accent-dark tnum">{i + 1}</span>
                   <p className="mt-1 text-[19px] leading-tight text-ink" style={SERIF}>{h}</p>
@@ -318,25 +173,24 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* Pourquoi Bingoo! : face à la pile d'outils habituelle */}
+        {/* Pourquoi Bingoo! : face à la veille faite à la main */}
         <section id="pourquoi" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
           <div className="mx-auto max-w-[1180px]">
-            <h2 className="max-w-[820px] text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Un seul outil, au lieu d'une pile.</h2>
-            <p className="mt-5 max-w-[680px] text-[17px] sm:text-[19px] leading-[1.5] text-ink-soft">D'habitude, pour prospecter, on assemble une base de contacts, un outil d'enrichissement, un outil d'envoi et un outil LinkedIn. Et il reste à savoir qui contacter, et quoi lui écrire.</p>
+            <h2 className="max-w-[820px] text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>La veille que tu n'as pas le temps de faire.</h2>
+            <p className="mt-5 max-w-[680px] text-[17px] sm:text-[19px] leading-[1.5] text-ink-soft">Suivre ses concurrents, c'est ouvrir des dizaines de sites, recopier des prix dans un tableur et oublier de recommencer. Bingoo! le fait pour toi, chaque semaine, avec la source de chaque chiffre.</p>
             <div className="mt-10 overflow-hidden rounded-2xl border border-line">
               <div className="grid grid-cols-[minmax(0,.8fr)_minmax(0,1fr)_minmax(0,1fr)] bg-[#F6F5F3] text-[13px] font-bold uppercase tracking-wide">
                 <span className="px-4 sm:px-5 py-3 text-ink-faint" />
-                <span className="px-4 sm:px-5 py-3 text-ink-soft">La pile d'outils</span>
+                <span className="px-4 sm:px-5 py-3 text-ink-soft">À la main</span>
                 <span className="px-4 sm:px-5 py-3 text-accent-dark">Bingoo!</span>
               </div>
               {[
-                ["Les outils", "4 à 5 abonnements à relier entre eux", "Un seul, en français"],
-                ["Qui contacter", "Une liste à construire toi-même", "Les entreprises qui ont un besoin aujourd'hui, avec la raison et la source"],
-                ["Le décideur", "À chercher, e-mail souvent deviné", "Nommé, e-mail vérifié, jamais deviné"],
-                ["Les messages", "À écrire, ou un modèle pour tout le monde", "Écrits pour chaque entreprise, à partir de ce qui se passe chez elle"],
-                ["Ceux qui te cherchent", "À repérer à la main sur Reddit et LinkedIn", "Chaque jour, avec ta réponse prête"],
-                ["Le contrôle", "Souvent des envois en masse", "Rien ne part sans toi"],
-                ["Le prix", "Plusieurs centaines d'euros par mois, cumulés", "Dès 19,99 € par mois"],
+                ["Leurs prix", "Recopiés de temps en temps dans un tableur", "Relus chaque semaine, avec l'historique et l'alerte"],
+                ["Qui grossit", "Deviner à partir de LinkedIn", "Les postes ouverts comptés, la notoriété mesurée"],
+                ["Leurs e-mails", "S'abonner à tout, puis tout lire", "Rangés par concurrent, classés et résumés"],
+                ["Leurs chiffres", "Des recherches Google sans fin", "Chiffre d'affaires et levées, chacun avec sa source"],
+                ["Les idées", "Une intuition", "Ce qui marche ailleurs et manque en France, calculé"],
+                ["Le prix", "Des heures chaque mois", "Dès 19,99 € par mois"],
               ].map(([k, a, b]) => (
                 <div key={k} className="grid grid-cols-[minmax(0,.8fr)_minmax(0,1fr)_minmax(0,1fr)] border-t border-line text-[14.5px] sm:text-[15.5px] leading-snug">
                   <span className="px-4 sm:px-5 py-3.5 font-semibold text-ink">{k}</span>
@@ -345,60 +199,6 @@ export default function Landing() {
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-
-        {/* 4. Ceux qui te cherchent déjà : les demandes publiques, écran réel */}
-        <section id="demandes" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
-          <div className="mx-auto max-w-[1180px] grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-10 items-center">
-            <div className="min-w-0">
-              <h2 className="text-[36px] sm:text-[50px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Des gens demandent déjà ta solution. Bingoo! les entend.</h2>
-              <p className="mt-6 text-[17px] sm:text-[19px] leading-[1.5] text-ink">Chaque jour, sur Reddit, LinkedIn, X et les forums : « quelqu'un connaît un outil pour… », « une alternative à… ». Bingoo! te les apporte avec le lien exact et une réponse prête — un vrai conseil d'abord, ton produit ensuite.</p>
-              <ul className="mt-6 space-y-3 text-[16px] text-ink">
-                {["En français et en anglais, avec le lien exact de la demande", "Tu relis, tu copies, tu publies toi-même", "Jamais de publication automatique : ton compte reste à toi"].map((x) => <li key={x} className="flex gap-2.5"><Check className="h-4 w-4 mt-1 shrink-0 text-accent" />{x}</li>)}
-              </ul>
-            </div>
-            <figure className="min-w-0">
-              <video src="./demo-journee.mp4" poster="./demo-journee.jpg" controls muted playsInline preload="none" className="w-full rounded-xl border border-black/10 bg-[#F1EFED]" aria-label="L'écran Aujourd'hui de Bingoo! : demandes publiques et messages à valider" />
-              <figcaption className="mt-2 text-[13.5px] text-ink-soft">L'écran « Aujourd'hui » de la vraie application. Données d'exemple.</figcaption>
-            </figure>
-          </div>
-        </section>
-
-        {/* Ton village : à part, en grand */}
-        <section id="village" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07] bg-[#FBF6F1]">
-          <div className="mx-auto max-w-[1180px]">
-            <div className="grid lg:grid-cols-[minmax(0,6fr)_minmax(0,5fr)] gap-6 lg:gap-16 items-end">
-              <h2 className="text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ta prospection devient une ville.</h2>
-              <p className="text-[17px] sm:text-[19px] leading-[1.5] text-ink-soft">Chaque bâtiment est une partie de Bingoo!, avec ce qui t'attend. Un panneau te dit toujours quoi faire ensuite. Et chaque matin, « La nuit de ton équipe » rejoue ce qui a été fait pendant que tu dormais.</p>
-            </div>
-            <figure className="mt-10">
-              <video src="./demo-village.mp4" poster="./demo-village.jpg" autoPlay loop muted playsInline className="w-full rounded-2xl border border-black/10 bg-[#F1EFED] shadow-[0_30px_70px_-40px_rgba(122,74,42,.55)]" aria-label="Le village Bingoo! et la nuit de ton équipe" />
-              <figcaption className="mt-2 text-[13.5px] text-ink-soft">La page Village de la vraie application. Données d'exemple.</figcaption>
-            </figure>
-            <ul className="mt-8 grid sm:grid-cols-3 gap-3">
-              {[["Un coup d'œil", "Ce qui t'attend, bâtiment par bâtiment : réponses, messages prêts, rendez-vous, opportunités."], ["Ton matin", "Le travail du jour en une carte, et « Tout traiter » qui t'emmène d'un bâtiment à l'autre."], ["La nuit de ton équipe", "Le journal réel de ce qui a été fait cette nuit, rejoué en 20 secondes."]].map(([t, d]) => (
-                <li key={t} className="rounded-2xl bg-white p-5 border border-black/[.05]"><p className="text-[18px] leading-tight text-ink" style={SERIF}>{t}</p><p className="mt-2 text-[15px] leading-[1.5] text-ink-soft">{d}</p></li>
-              ))}
-            </ul>
-          </div>
-        </section>
-
-        {/* L'extension Chrome, en une bande */}
-        <section id="extension" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-20 border-t border-black/[.07]">
-          <div className="mx-auto max-w-[1180px]">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-              <div className="max-w-[640px]">
-                <h2 className="text-[36px] sm:text-[50px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Bingoo! partout où tu prospectes</h2>
-                <p className="mt-4 text-[17px] sm:text-[19px] leading-[1.5] text-ink-soft">L'extension Chrome est incluse dans toutes les formules. Elle s'active avec ton compte Bingoo! : sans compte, elle ne fait rien.</p>
-              </div>
-              <button onClick={go} className="self-start md:self-auto inline-flex items-center gap-2.5 rounded-lg bg-ink text-white px-6 py-3.5 text-[16px] hover:bg-black transition">Créer mon compte</button>
-            </div>
-            <ul className="mt-10 grid sm:grid-cols-3 gap-3">
-              {[["Sur le site d'une entreprise", "Sa fiche en un clic : le dirigeant, la taille, ce qui bouge chez elle. Tu l'ajoutes à tes prospects sans copier-coller."], ["Sur LinkedIn", "Les invitations et messages que tu as validés partent depuis ton compte, à un rythme humain, avec des limites prudentes."], ["Dans Gmail", "Quand un prospect t'écrit, sa fiche s'affiche à côté : ce qu'il a reçu, où il en est, sa réponse déjà classée."]].map(([t, d]) => (
-                <li key={t} className="rounded-2xl bg-[#F6F5F3] p-5"><p className="text-[18px] leading-tight text-ink" style={SERIF}>{t}</p><p className="mt-2 text-[15px] leading-[1.5] text-ink-soft">{d}</p></li>
-              ))}
-            </ul>
           </div>
         </section>
 
@@ -457,11 +257,11 @@ export default function Landing() {
         </section>
 
         <section className="max-w-4xl mx-auto px-4 sm:px-6 py-20 text-center">
-          <p className="text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Une longueur d'avance sur tes prochains clients.</p>
-          <p className="mt-4 text-[18px] text-ink-soft">15 minutes par jour. Bingoo! s'occupe du reste.</p>
+          <p className="text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Une longueur d'avance sur ton marché.</p>
+          <p className="mt-4 text-[18px] text-ink-soft">Tes concurrents relus chaque semaine. Toi, tu décides.</p>
           <div className="mt-8 inline-flex flex-col sm:flex-row gap-1.5 rounded-xl bg-[#F1EFED] p-1.5">
             <button onClick={go} className="rounded-lg bg-[#1C1C1C] text-white px-9 py-4 text-[17px] hover:bg-black transition">Créer mon compte</button>
-            <a href="#essai" onClick={scrollTo("essai")} className="rounded-lg bg-white border border-black/10 px-9 py-4 text-[17px] hover:bg-[#FAFAF9] transition">Essayer avec mon produit</a>
+            <button onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); setTimeout(() => document.getElementById("hero-site")?.focus(), 500); }} className="rounded-lg bg-white border border-black/10 px-9 py-4 text-[17px] hover:bg-[#FAFAF9] transition">Voir mon marché, gratuit</button>
           </div>
         </section>
         </div>
