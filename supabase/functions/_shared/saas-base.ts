@@ -277,7 +277,7 @@ export async function saasHistoire(id: string) {
   const etude = await ask(`Cherche les chiffres publics du logiciel ${s.nom} (${s.domaine}) : ${s.description ?? s.categorie}.
 Ce que je veux, seulement s'il est publié quelque part (article de presse, interview du fondateur, communiqué de levée de fonds, page « à propos », registre officiel) :
 année de création, fondateurs, chiffre d'affaires ou ARR ou MRR (avec l'année), montant total levé, nombre de salariés, nombre de clients,
-et comment il a trouvé ses premiers clients ou ce qui l'a fait grandir (si une source le raconte). 3 recherches au plus.
+et surtout comment il a trouvé ses clients et grandi (bouche-à-oreille, référencement, version gratuite, partenariats, vente directe, communauté, place de marché, rachat…) si une interview ou un article le raconte. 3 recherches au plus.
 Réponds en texte. Après CHAQUE chiffre ou fait, écris l'adresse exacte de la page où tu l'as lu. Si rien n'est publié, dis-le ; n'estime rien.`,
     { maxTokens: 1800, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }] }).catch(() => "");
   if (!etude) return { id, statut: "erreur" };
@@ -285,7 +285,8 @@ Réponds en texte. Après CHAQUE chiffre ou fait, écris l'adresse exacte de la 
     `Extrais de ce texte, sans rien ajouter ni estimer :
 ${etude.slice(0, 7000)}
 Clés : annee_creation (nombre ou null), fondateurs (noms), chiffres (liste : type parmi ca | arr | mrr | levee | salaries | clients, valeur (nombre entier, ex. 12000000 pour 12 M), devise (€ $ £ ou null), annee (année du chiffre ou null), texte (le chiffre tel qu'écrit en français court, ex. « 12 M€ de chiffre d'affaires en 2023 »), source (adresse https de la page citée pour ce chiffre)),
-histoire (2 à 4 phrases en français qui racontent son parcours avec ces faits ; null si le texte n'a rien), lecons (0 à 3 phrases courtes : comment il a trouvé ses clients ou grandi, seulement si le texte le dit).`,
+histoire (2 à 4 phrases en français qui racontent son parcours avec ces faits, comme un journaliste : pas de remarque sur les sources, pas de mise en garde ; null si le texte n'a rien),
+lecons (0 à 3 phrases courtes et concrètes sur la méthode qui lui a apporté des clients ou de la croissance, ex. « A grandi grâce à sa version open source, adoptée par 50 000 équipes avant de vendre l'offre payante. » ; seulement si le texte le décrit, sinon liste vide).`,
     { fast: true, maxTokens: 1200 }).catch(() => null);
   if (!x) return { id, statut: "erreur" };
   const chiffres = (x.chiffres ?? []).filter((c) => /^https?:\/\//.test(c.source ?? "") && etude.includes(c.source.replace(/\/$/, "")) && Number(c.valeur) > 0 && ["ca", "arr", "mrr", "levee", "salaries", "clients"].includes(c.type))
