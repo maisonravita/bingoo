@@ -8,7 +8,12 @@ import CompanyLogo from "./CompanyLogo";
    ses pays ; clic sur un bâtiment : ses SaaS phares. Dessins originaux. Données : RPC saas_carte (un objet par pays). */
 pays.registerLocale(fr);
 const C = Math.cos(Math.PI / 6), S = 0.5;
-const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16); const f = (v) => Math.max(0, Math.min(255, Math.round(v * k))); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; };
+const shade = (col, k) => {
+  const f = (v) => Math.max(0, Math.min(255, Math.round(v * k)));
+  const m = String(col).match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+  if (m) return `rgb(${f(+m[1])},${f(+m[2])},${f(+m[3])})`;
+  const n = parseInt(String(col).slice(1), 16); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`;
+};
 const drapeau = (c) => (c && c.length === 2 ? String.fromCodePoint(...[...c.toUpperCase()].map((x) => 127397 + x.charCodeAt(0))) : "");
 const nomPays = (c) => pays.getName(c, "fr") ?? c;
 
@@ -24,37 +29,68 @@ const ILES = {
 const ILE_DE = Object.fromEntries(Object.entries(ILES).flatMap(([k, i]) => i.liste.split(" ").map((c) => [c, k])));
 
 /** Petit moteur isométrique : U = taille d'une case en pixels. */
-function iso(U) {
+function iso(U, nuit = false) {
+  const L = nuit ? 0.52 : 1; // lumière : la nuit, tout s'assombrit sauf les fenêtres et les phares
   const P = (x, y, z = 0) => [(x - y) * C * U, (x + y) * S * U - z * U];
   const pts = (a) => a.map(([x, y, z]) => P(x, y, z).map((n) => n.toFixed(1)).join(",")).join(" ");
   const Box = ({ x, y, z = 0, w, d, h, c, top }) => (
     <g>
-      <polygon points={pts([[x, y + d, z], [x + w, y + d, z], [x + w, y + d, z + h], [x, y + d, z + h]])} fill={shade(c, 0.8)} />
-      <polygon points={pts([[x + w, y, z], [x + w, y + d, z], [x + w, y + d, z + h], [x + w, y, z + h]])} fill={shade(c, 0.93)} />
-      <polygon points={pts([[x, y, z + h], [x + w, y, z + h], [x + w, y + d, z + h], [x, y + d, z + h]])} fill={top ?? c} />
+      <polygon points={pts([[x, y + d, z], [x + w, y + d, z], [x + w, y + d, z + h], [x, y + d, z + h]])} fill={shade(c, 0.8 * L)} />
+      <polygon points={pts([[x + w, y, z], [x + w, y + d, z], [x + w, y + d, z + h], [x + w, y, z + h]])} fill={shade(c, 0.93 * L)} />
+      <polygon points={pts([[x, y, z + h], [x + w, y, z + h], [x + w, y + d, z + h], [x, y + d, z + h]])} fill={shade(top ?? c, L)} />
     </g>
   );
   const Roof = ({ x, y, z, w, d, h, c }) => { const m = y + d / 2; return (
     <g>
-      <polygon points={pts([[x, y + d, z], [x + w, y + d, z], [x + w, m, z + h], [x, m, z + h]])} fill={shade(c, 0.86)} />
-      <polygon points={pts([[x + w, y, z], [x + w, y + d, z], [x + w, m, z + h]])} fill={shade(c, 0.7)} />
-      <polygon points={pts([[x, y, z], [x + w, y, z], [x + w, m, z + h], [x, m, z + h]])} fill={c} />
+      <polygon points={pts([[x, y + d, z], [x + w, y + d, z], [x + w, m, z + h], [x, m, z + h]])} fill={shade(c, 0.86 * L)} />
+      <polygon points={pts([[x + w, y, z], [x + w, y + d, z], [x + w, m, z + h]])} fill={shade(c, 0.7 * L)} />
+      <polygon points={pts([[x, y, z], [x + w, y, z], [x + w, m, z + h], [x, m, z + h]])} fill={shade(c, L)} />
     </g>
   ); };
   const Vitres = ({ x, y, w, d, h, etages }) => (
     <g>{Array.from({ length: etages }, (_, e) => {
       const z = 0.6 + e * (h - 0.8) / etages, hh = Math.min(0.9, (h - 0.8) / etages - 0.35);
       return <g key={e}>
-        <polygon points={pts([[x + 0.25, y + d, z], [x + w - 0.25, y + d, z], [x + w - 0.25, y + d, z + hh], [x + 0.25, y + d, z + hh]])} fill="#FFD9A0" opacity=".9" />
-        <polygon points={pts([[x + w, y + 0.25, z], [x + w, y + d - 0.25, z], [x + w, y + d - 0.25, z + hh], [x + w, y + 0.25, z + hh]])} fill="#FFCB85" opacity=".85" />
+        <polygon points={pts([[x + 0.25, y + d, z], [x + w - 0.25, y + d, z], [x + w - 0.25, y + d, z + hh], [x + 0.25, y + d, z + hh]])} fill={nuit ? "#FFE7A3" : "#FFD9A0"} opacity=".9" />
+        <polygon points={pts([[x + w, y + 0.25, z], [x + w, y + d - 0.25, z], [x + w, y + d - 0.25, z + hh], [x + w, y + 0.25, z + hh]])} fill={nuit ? "#FFDD8A" : "#FFCB85"} opacity=".85" />
       </g>;
     })}</g>
   );
   const Arbre = ({ x, y, s = 1 }) => { const [px, py] = P(x, y, 0); const r = U * 0.32 * s; return (
     <g><ellipse cx={px} cy={py} rx={r * 1.1} ry={r * 0.55} fill="rgba(40,60,20,.18)" /><rect x={px - r * 0.12} y={py - r * 1.6} width={r * 0.24} height={r * 1.6} fill="#8A6142" />
-      <circle cx={px - r * 0.5} cy={py - r * 1.9} r={r * 0.8} fill="#6DAA45" /><circle cx={px + r * 0.5} cy={py - r * 2} r={r * 0.85} fill="#5F9C3C" /><circle cx={px} cy={py - r * 2.7} r={r * 0.9} fill="#7CBB52" /></g>
+      <circle cx={px - r * 0.5} cy={py - r * 1.9} r={r * 0.8} fill={shade("#6DAA45", L)} /><circle cx={px + r * 0.5} cy={py - r * 2} r={r * 0.85} fill={shade("#5F9C3C", L)} /><circle cx={px} cy={py - r * 2.7} r={r * 0.9} fill={shade("#7CBB52", L)} /></g>
   ); };
-  return { P, Box, Roof, Vitres, Arbre };
+  /** Phare rayé rouge et blanc ; son faisceau tourne (bien visible la nuit). */
+  const Phare = ({ x, y }) => {
+    const [lx, ly] = P(x + 0.4, y + 0.4, 4.1);
+    return (
+      <g>
+        <Box x={x} y={y} w={0.8} d={0.8} h={3.6} c="#F4F1EA" />
+        <Box x={x - 0.02} y={y - 0.02} z={0.8} w={0.84} d={0.84} h={0.5} c="#D2463B" />
+        <Box x={x - 0.02} y={y - 0.02} z={2.2} w={0.84} d={0.84} h={0.5} c="#D2463B" />
+        <Box x={x + 0.1} y={y + 0.1} z={3.6} w={0.6} d={0.6} h={0.55} c="#FFD45E" top="#FFE69A" />
+        <Roof x={x - 0.05} y={y - 0.05} z={4.15} w={0.9} d={0.9} h={0.5} c="#A8322A" />
+        <circle cx={lx} cy={ly} r={U * 0.5} fill="#FFE69A" opacity={nuit ? 0.9 : 0.35} />
+        <g style={{ mixBlendMode: "screen" }} opacity={nuit ? 0.75 : 0.22} pointerEvents="none">
+          <polygon points={`${lx},${ly} ${lx + U * 9},${ly - U * 1.4} ${lx + U * 9},${ly + U * 1.4}`} fill="url(#faisceau)">
+            {BOUGE && <animateTransform attributeName="transform" type="rotate" from={`0 ${lx} ${ly}`} to={`360 ${lx} ${ly}`} dur="7s" repeatCount="indefinite" />}
+          </polygon>
+        </g>
+      </g>
+    );
+  };
+  /** Ponton en bois avec un bateau amarré, au bord de l'île. */
+  const Port = ({ x, y }) => {
+    const [bx, by] = P(x + 1.2, y + 2.3, -1);
+    return (
+      <g>
+        <Box x={x} y={y} z={-0.75} w={2.6} d={1.9} h={0.18} c="#9A6B47" top="#B9845A" />
+        {[[x, y + 1.7], [x + 2.4, y + 1.7]].map(([a, b], i) => <Box key={i} x={a} y={b} z={-1.2} w={0.2} d={0.2} h={0.75} c="#6E4A31" />)}
+        <g transform={`translate(${bx} ${by})`}><Bateau s={U / 13} sens={-1} c="#E8692B" /></g>
+      </g>
+    );
+  };
+  return { P, Box, Roof, Vitres, Arbre, Phare, Port, nuit };
 }
 
 // ---------------------------------------------------------------- Vie du monde : bateaux, avions, habitants
@@ -139,7 +175,9 @@ function Ile({ g, k, x, y, w, d, lots, max, onPays, sel, etiquettes, onClick, su
   return (
     <g onClick={onClick} onMouseEnter={() => setSurvol?.(k)} onMouseLeave={() => setSurvol?.(null)} className={onClick ? "cursor-pointer" : undefined} style={{ filter: hover ? "drop-shadow(0 0 10px rgba(255,255,255,.55))" : undefined, transition: "filter .2s" }}>
       <Box x={x - 0.7} y={y - 0.7} z={-1.1} w={w + 1.4} d={d + 1.4} h={0.7} c="#E9D7A4" top="#F1E3B8" />
+      <g.Port x={x + 0.4} y={y + d + 0.2} />
       <Box x={x} y={y} z={-0.4} w={w} d={d} h={0.4} c={ile.c} top={ile.sol} />
+      <g.Phare x={x + w - 1.1} y={y + 0.3} />
       {objets.map((o) => o.el)}
       {etiquettes && places.map(({ p, at }) => {
         const h = 1.6 + 9 * Math.sqrt(Number(p.n) / max);
@@ -158,6 +196,8 @@ export default function IsoMonde({ data, onVoir }) {
   const [ile, setIle] = useState(null);
   const [sel, setSel] = useState(null);
   const [survol, setSurvol] = useState(null);
+  // Jour ou nuit selon l'heure de la personne (20 h - 7 h : nuit), et un bouton pour basculer
+  const [nuit, setNuit] = useState(() => { const h = new Date().getHours(); return h >= 20 || h < 7; });
   const parIle = useMemo(() => {
     const out = Object.fromEntries(Object.keys(ILES).map((k) => [k, []]));
     for (const p of data ?? []) { const k = ILE_DE[p.pays]; if (k) out[k].push(p); }
@@ -170,7 +210,7 @@ export default function IsoMonde({ data, onVoir }) {
   // Monde : les six îles. Île : la même île, agrandie pour loger tous ses pays.
   const scene = useMemo(() => {
     if (!ile) {
-      const g = iso(14);
+      const g = iso(14, nuit);
       const items = Object.entries(ILES).map(([k, i]) => {
         const x = ((i.u / C + i.v / S) / 2) - i.w / 2, y = ((i.v / S - i.u / C) / 2) - i.d / 2;
         return { k, x, y, w: i.w, d: i.d };
@@ -179,8 +219,8 @@ export default function IsoMonde({ data, onVoir }) {
     }
     const n = Math.max(1, parIle[ile].length), cols = Math.max(3, Math.ceil(Math.sqrt(n * 1.3)));
     const rangs = Math.max(3, Math.ceil(n / cols) + 1);
-    return { g: iso(n > 12 ? 17 : 22), items: [{ k: ile, x: 0, y: 0, w: cols * 4 + 1.2, d: rangs * 4 + 1.2 }] };
-  }, [ile, parIle]);
+    return { g: iso(n > 12 ? 17 : 22, nuit), items: [{ k: ile, x: 0, y: 0, w: cols * 4 + 1.2, d: rangs * 4 + 1.2 }] };
+  }, [ile, parIle, nuit]);
   const vb = useMemo(() => {
     const { g, items } = scene;
     const P = g.P;
@@ -193,14 +233,26 @@ export default function IsoMonde({ data, onVoir }) {
 
   return (
     <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-4">
-      <div className="relative overflow-hidden rounded-3xl" style={{ background: "radial-gradient(ellipse at 50% 35%, #5BB8E0 0%, #2E8CC4 45%, #1D5F99 100%)" }}>
+      <div className="relative overflow-hidden rounded-3xl" style={{ background: nuit ? "radial-gradient(ellipse at 50% 30%, #23406B 0%, #142A4D 50%, #0A1730 100%)" : "radial-gradient(ellipse at 50% 35%, #5BB8E0 0%, #2E8CC4 45%, #1D5F99 100%)", transition: "background .6s" }}>
         <svg className="absolute inset-0 w-full h-full opacity-30 pointer-events-none" aria-hidden><defs><pattern id="vagues" width="46" height="24" patternUnits="userSpaceOnUse"><path d="M2 14q5 -5 10 0t10 0" fill="none" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" /></pattern></defs><rect width="100%" height="100%" fill="url(#vagues)" /></svg>
         <div className="absolute left-4 top-4 z-10 flex flex-wrap items-center gap-2">
           {ile ? <button onClick={() => { setIle(null); setSel(null); }} className="rounded-full bg-white/90 px-3.5 py-1.5 text-[13px] font-bold text-ink shadow hover:bg-white">← Le monde</button>
             : <span className="rounded-full bg-white/90 px-3.5 py-1.5 text-[13px] font-bold text-ink shadow">Choisis une île</span>}
+          <button onClick={() => setNuit(!nuit)} className="rounded-full bg-white/90 px-3.5 py-1.5 text-[13px] font-bold text-ink shadow hover:bg-white" title="Basculer jour / nuit">{nuit ? "☀ Jour" : "☾ Nuit"}</button>
           {ile && <span className="rounded-full px-3.5 py-1.5 text-[13px] font-bold text-white shadow" style={{ background: ILES[ile].c }}>{ILES[ile].nom} · {total(ile)} SaaS · {parIle[ile].length} pays</span>}
         </div>
         <svg key={ile ?? "monde"} viewBox={vb.join(" ")} className="relative block w-full h-auto min-h-[360px] max-h-[640px] select-none" style={{ animation: "ile-in .55s cubic-bezier(.2,.8,.2,1) both" }} role="img" aria-label={ile ? `Île ${ILES[ile].nom}` : "Le monde des SaaS"}>
+          <defs><linearGradient id="faisceau" x1="0" x2="1"><stop offset="0" stopColor="#FFF3C4" stopOpacity=".95" /><stop offset="1" stopColor="#FFF3C4" stopOpacity="0" /></linearGradient></defs>
+          {/* Étoiles la nuit, oiseaux le jour */}
+          {nuit && Array.from({ length: 46 }, (_, i) => {
+            const cx = vb[0] + hasard(i * 3 + 1) * vb[2], cy = vb[1] + hasard(i * 3 + 2) * vb[3] * 0.45;
+            return <circle key={`e${i}`} cx={cx} cy={cy} r={0.8 + hasard(i * 3 + 3) * 1.4} fill="#fff" opacity=".8">{BOUGE && <animate attributeName="opacity" values=".2;.95;.2" dur={`${2 + hasard(i) * 3}s`} begin={`${-hasard(i + 5) * 3}s`} repeatCount="indefinite" />}</circle>;
+          })}
+          {!nuit && [0, 1, 2].map((i) => {
+            const y0 = vb[1] + vb[3] * (0.12 + i * 0.1);
+            const d = `M${vb[0] + vb[2] + 40} ${y0} Q${vb[0] + vb[2] / 2} ${y0 - 40} ${vb[0] - 40} ${y0 + 20}`;
+            return <Trajet key={`o${i}`} d={d} dur={30 + i * 7} debut={i * 9}><g>{[0, 1, 2].map((j) => <path key={j} d={`M${j * 12} ${j * 5}q4 -5 8 0q4 -5 8 0`} fill="none" stroke="#1D3A55" strokeWidth="1.6" strokeLinecap="round">{BOUGE && <animateTransform attributeName="transform" type="scale" values="1 1;1 .4;1 1" dur=".7s" begin={`${j * 0.2}s`} repeatCount="indefinite" additive="sum" />}</path>)}</g></Trajet>;
+          })}
           {/* Bateaux entre les îles (monde) ou autour de l'île (escale) */}
           {(() => {
             const { P } = scene.g;
