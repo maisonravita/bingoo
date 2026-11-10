@@ -57,6 +57,46 @@ function iso(U) {
   return { P, Box, Roof, Vitres, Arbre };
 }
 
+// ---------------------------------------------------------------- Vie du monde : bateaux, avions, habitants
+const BOUGE = typeof window === "undefined" || !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+const hasard = (n) => { const x = Math.sin(n * 9301 + 49297) * 233280; return x - Math.floor(x); };
+const chemin = (pts) => pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+/** Un objet qui suit un chemin en boucle (aller simple ou aller-retour). */
+function Trajet({ d, dur, debut = 0, retour = false, children }) {
+  if (!BOUGE) { const m = d.match(/M([-\d.]+) ([-\d.]+)/); return <g transform={`translate(${m?.[1] ?? 0} ${m?.[2] ?? 0})`}>{children}</g>; }
+  return <g>{children}<animateMotion dur={`${dur}s`} begin={`${-debut}s`} repeatCount="indefinite" path={d} {...(retour ? { keyPoints: "0;1;0", keyTimes: "0;0.5;1", calcMode: "linear" } : {})} /></g>;
+}
+/** Bateau vu de trois quarts : coque, voile, sillage. sens = 1 vers la droite, -1 vers la gauche. */
+const Bateau = ({ s = 1, c = "#E8692B", sens = 1 }) => (
+  <g transform={`scale(${s * sens} ${s})`}>
+    <path d="M-16 5 Q-22 -2 -30 4" stroke="#fff" strokeWidth="1.6" fill="none" opacity=".7" />
+    <path d="M-10 0h22l-5 6h-14z" fill="#7A4A2E" /><path d="M-10 0h22l-1 1.6h-20z" fill="#A86B44" />
+    <rect x="0" y="-15" width="1.4" height="15" fill="#5A4E4E" /><path d="M1.4 -14 L11 -2 L1.4 -2z" fill="#fff" /><path d="M0 -13 L-7 -2 L0 -2z" fill={c} />
+  </g>
+);
+/** Avion de ligne, nez vers la droite ; son ombre glisse sur l'eau. */
+const Avion = ({ s = 1 }) => (
+  <g transform={`scale(${s})`}>
+    <path d="M-18 0 Q-18 -3 -14 -3 H12 Q18 -3 20 0 Q18 3 12 3 H-14 Q-18 3 -18 0z" fill="#fff" stroke="#C9D6E3" strokeWidth=".8" />
+    <path d="M-2 -2 L-9 -14 L-4 -14 L6 -2z" fill="#E8692B" /><path d="M-2 2 L-7 9 L-3 9 L5 2z" fill="#E8692B" opacity=".85" /><path d="M-15 -2 L-19 -9 L-15 -9 L-11 -2z" fill="#E8692B" />
+    {[0, 4, 8].map((x) => <circle key={x} cx={x} cy="-0.5" r=".9" fill="#7FB3E0" />)}
+  </g>
+);
+const OmbreAvion = ({ s = 1 }) => <ellipse rx={18 * s} ry={4 * s} fill="rgba(0,30,60,.22)" />;
+/** Habitant : tête, corps coloré, jambes qui bougent. */
+function Habitant({ s = 1, c = "#E8692B", i = 0 }) {
+  return (
+    <g transform={`scale(${s})`}>
+      <ellipse cy="0.5" rx="3" ry="1.2" fill="rgba(0,0,0,.18)" />
+      <rect x="-1.6" y="-4.5" width="1.2" height="4.5" rx=".6" fill="#3B3F48">{BOUGE && <animateTransform attributeName="transform" type="rotate" values="-18 -1 -4.5;18 -1 -4.5;-18 -1 -4.5" dur=".6s" begin={`${i * 0.13}s`} repeatCount="indefinite" />}</rect>
+      <rect x="0.4" y="-4.5" width="1.2" height="4.5" rx=".6" fill="#3B3F48">{BOUGE && <animateTransform attributeName="transform" type="rotate" values="18 1 -4.5;-18 1 -4.5;18 1 -4.5" dur=".6s" begin={`${i * 0.13}s`} repeatCount="indefinite" />}</rect>
+      <rect x="-2.4" y="-10" width="4.8" height="6" rx="2" fill={c} />
+      <circle cy="-12.4" r="2.4" fill="#F1C7A0" />
+    </g>
+  );
+}
+const COULEURS_HAB = ["#E8692B", "#3E5BA6", "#1F9D60", "#C13C6B", "#F2A541", "#6B4FC8", "#2FA7BC"];
+
 /** Un pays = un bâtiment : maison (peu de SaaS), immeuble, puis tour. */
 function Batiment({ g, x, y, h, c, choisi }) {
   const { Box, Roof, Vitres } = g;
@@ -85,6 +125,15 @@ function Ile({ g, k, x, y, w, d, lots, max, onPays, sel, etiquettes, onClick, su
       </g>
     ) })),
     ...libres.flatMap((at, i) => [{ t: at[0] + at[1] + 0.5, el: <Arbre key={`a${i}`} x={at[0] + 1} y={at[1] + 1} s={1 + (i % 3) * 0.15} /> }, ...(i % 2 ? [{ t: at[0] + at[1] + 2, el: <Arbre key={`b${i}`} x={at[0] + 2.2} y={at[1] + 0.4} s={0.8} /> }] : [])]),
+    // Habitants : chacun fait l'aller-retour entre deux points de l'île, au bord des bâtiments
+    ...Array.from({ length: etiquettes ? 10 : Math.min(6, 2 + lots.length) }, (_, i) => {
+      const r = (n) => hasard(k.length * 31 + i * 7 + n);
+      const a = [x + 0.5 + r(1) * (w - 1), y + d - 0.4 - r(2) * 1.2], b = [x + 0.5 + r(3) * (w - 1), y + d - 0.4 - r(4) * 1.2];
+      const versLeFond = i % 3 === 0;
+      const A = versLeFond ? [x + w - 0.4 - r(5) * 1, y + 0.5 + r(6) * (d - 1)] : a, B = versLeFond ? [x + w - 0.4 - r(7) * 1, y + 0.5 + r(8) * (d - 1)] : b;
+      const d2 = chemin([P(A[0], A[1], 0), P(B[0], B[1], 0)]);
+      return { t: versLeFond ? x + w : x + y + w + d, el: <Trajet key={`h${i}`} d={d2} dur={8 + r(9) * 8} debut={r(10) * 10} retour><Habitant s={etiquettes ? 1.3 : 0.95} c={COULEURS_HAB[i % COULEURS_HAB.length]} i={i} /></Trajet> };
+    }),
   ].sort((a, b) => a.t - b.t);
   const hover = survol === k;
   return (
@@ -152,6 +201,26 @@ export default function IsoMonde({ data, onVoir }) {
           {ile && <span className="rounded-full px-3.5 py-1.5 text-[13px] font-bold text-white shadow" style={{ background: ILES[ile].c }}>{ILES[ile].nom} · {total(ile)} SaaS · {parIle[ile].length} pays</span>}
         </div>
         <svg key={ile ?? "monde"} viewBox={vb.join(" ")} className="relative block w-full h-auto min-h-[360px] max-h-[640px] select-none" style={{ animation: "ile-in .55s cubic-bezier(.2,.8,.2,1) both" }} role="img" aria-label={ile ? `Île ${ILES[ile].nom}` : "Le monde des SaaS"}>
+          {/* Bateaux entre les îles (monde) ou autour de l'île (escale) */}
+          {(() => {
+            const { P } = scene.g;
+            if (!ile) {
+              const par = Object.fromEntries(scene.items.map((it) => [it.k, it]));
+              const centre = (it) => P(it.x + it.w / 2, it.y + it.d / 2, -1);
+              const routes = [["amnord", "europe"], ["europe", "asie"], ["amsud", "afrique"], ["afrique", "oceanie"], ["amnord", "amsud"], ["asie", "oceanie"], ["europe", "afrique"]];
+              return routes.map(([a, b], i) => {
+                const [x1, y1] = centre(par[a]), [x2, y2] = centre(par[b]);
+                const mx = (x1 + x2) / 2, my = (y1 + y2) / 2 + 40 + hasard(i) * 30;
+                const sens = x2 >= x1 ? 1 : -1;
+                const d = `M${x1.toFixed(1)} ${(y1 + 18).toFixed(1)} Q${mx.toFixed(1)} ${my.toFixed(1)} ${x2.toFixed(1)} ${(y2 + 18).toFixed(1)}`;
+                return <Trajet key={`bt${i}`} d={d} dur={26 + hasard(i + 3) * 18} debut={hasard(i + 9) * 30}><Bateau s={1.4} sens={sens} c={["#E8692B", "#3E5BA6", "#1F9D60", "#C13C6B"][i % 4]} /></Trajet>;
+              });
+            }
+            const it = scene.items[0];
+            const tour = [[it.x - 3, it.y - 3], [it.x + it.w + 3, it.y - 3], [it.x + it.w + 3, it.y + it.d + 3], [it.x - 3, it.y + it.d + 3], [it.x - 3, it.y - 3]].map(([a, b]) => P(a, b, -1));
+            const d = chemin(tour) + " Z";
+            return [0, 1, 2].map((i) => <Trajet key={`bi${i}`} d={d} dur={60} debut={i * 20}><Bateau s={1.8} c={["#E8692B", "#3E5BA6", "#1F9D60"][i]} /></Trajet>);
+          })()}
           {scene.items.map((it) => (
             <Ile key={it.k} g={scene.g} k={it.k} {...it} lots={ile ? parIle[it.k] : parIle[it.k].slice(0, 6)} max={max} sel={sel}
               etiquettes={!!ile} onPays={ile ? (c) => setSel(c) : null}
@@ -168,6 +237,15 @@ export default function IsoMonde({ data, onVoir }) {
                 <text y="11" textAnchor="middle" fontSize="12.5" fontWeight="700" fill={i.c}>{total(it.k)} SaaS · {parIle[it.k].length} pays</text>
               </g>
             );
+          })}
+          {/* Avions : l'ombre sur l'eau, l'avion bien plus haut */}
+          {[0, 1].map((i) => {
+            const [vx, vy, vw, vh] = vb;
+            const y0 = vy + vh * (0.3 + i * 0.35), pente = vh * 0.12 * (i ? -1 : 1);
+            const d = `M${(vx - 60).toFixed(1)} ${y0.toFixed(1)} L${(vx + vw + 60).toFixed(1)} ${(y0 + pente).toFixed(1)}`;
+            const dOmbre = `M${(vx - 60).toFixed(1)} ${(y0 + 70).toFixed(1)} L${(vx + vw + 60).toFixed(1)} ${(y0 + pente + 70).toFixed(1)}`;
+            const dur = 22 + i * 9, debut = i * 11;
+            return <g key={`av${i}`} pointerEvents="none"><Trajet d={dOmbre} dur={dur} debut={debut}><OmbreAvion s={ile ? 2 : 1.5} /></Trajet><Trajet d={d} dur={dur} debut={debut}><Avion s={ile ? 2 : 1.5} /></Trajet></g>;
           })}
         </svg>
         <style>{"@keyframes ile-in{from{opacity:0;transform:scale(.92)}}"}</style>
