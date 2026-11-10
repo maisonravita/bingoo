@@ -211,10 +211,10 @@ function SourcesRow() {
 /* ---------- Tarifs et questions ---------- */
 const eur = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ","));
 const PLANS = [
-  ["Explorer", 19.99, "Pour voir tout ton marché SaaS, sans prospecter.", ["1 utilisateur", "Fiches SaaS illimitées et recherche intelligente", "Suivis et alerte du lundi", "Idées et réussites, pubs et e-mails", "Qui démarcher : les clients de chaque niche"]],
-  ["Solo", 39.99, "Pour un solo founder ou un petit SaaS qui démarre, 15 minutes par jour.", ["1 utilisateur", "Tout Explorer, illimité", "100 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Demandes publiques avec réponse prête, chaque jour", "Radar et relances"]],
-  ["Pro", 69.99, "Pour le fondateur dont ça commence à marcher.", ["2 utilisateurs", "300 prospects contactés par mois", "Tout ce qu'il y a dans Solo", "Espion : tes concurrents surveillés", "LinkedIn par l'extension"]],
-  ["Équipe", 109, "Pour une startup ou une PME avec quelques commerciaux.", ["5 utilisateurs", "700 prospects contactés par mois", "Tout ce qu'il y a dans Pro", "Répartition des prospects entre commerciaux", "Tableau de bord par commercial"]],
+  ["Explorer", 19.99, "Pour voir tout ton marché SaaS.", ["Toute la base SaaS, fiches illimitées", "Recherche intelligente et niches", "Concurrents suivis, alerte chaque lundi", "Idées et réussites chiffrées", "Leurs pubs et leurs e-mails", "Qui démarcher dans chaque niche"]],
+  ["Solo", 39.99, "Pour transformer ce que tu vois en clients.", ["Tout Explorer", "100 prospects par mois dans ta niche", "Décideur trouvé, message écrit pour lui", "Clients d'une niche ajoutés en un clic", "Les entreprises prêtes à acheter, chaque jour"]],
+  ["Pro", 69.99, "Pour le fondateur dont ça commence à marcher.", ["Tout Solo", "300 prospects par mois", "2 utilisateurs", "Tes concurrents surveillés au quotidien"]],
+  ["Équipe", 109, "Pour une équipe commerciale.", ["Tout Pro", "700 prospects par mois", "5 utilisateurs", "Prospects répartis entre commerciaux", "Tableau de bord par commercial"]],
 ];
 const FAQ = [
   ["D'où viennent les informations sur les SaaS ?", "De leurs propres sites, relus chaque semaine : page d'accueil, tarifs, page carrières, changelog ou blog. Les chiffres d'entreprise (chiffre d'affaires, levées) viennent de la presse ou de documents officiels, la notoriété du Majestic Million, les tendances des annonces légales officielles (BODACC). Rien n'est estimé : une information introuvable est affichée comme telle, et chaque chiffre a son lien."],
@@ -408,8 +408,8 @@ export default function Landing() {
         <section id="tarifs" className="max-w-[1280px] mx-auto px-4 sm:px-6 py-20 scroll-mt-24 border-t border-black/[.07]">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
             <div>
-              <h2 className="text-[38px] sm:text-[54px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Moins cher qu'une journée de commercial.</h2>
-              <p className="mt-3 text-[17px] text-ink-soft">Aperçu gratuit de 7 jours pour voir tes premiers messages, sans carte bancaire. Prix hors taxes par mois, sans engagement.</p>
+              <h2 className="text-[38px] sm:text-[54px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ton marché SaaS, dès 19,99 €.</h2>
+              <p className="mt-3 text-[17px] text-ink-soft">Aperçu gratuit sans carte bancaire : 10 fiches par semaine, ton rapport de marché et tes premiers messages. Prix hors taxes par mois, sans engagement.</p>
             </div>
             <div className="relative inline-flex rounded-full bg-white border border-line p-1 self-start md:self-auto">
               {[[false, "Mensuel"], [true, "Annuel"]].map(([v, l]) => <button key={l} onClick={() => setYearly(v)} className={cx("rounded-full px-5 py-2 text-[14.5px] font-bold transition", yearly === v ? "bg-ink text-white" : "text-ink-soft")}>{l}</button>)}
@@ -443,7 +443,7 @@ export default function Landing() {
           {/* La garantie, juste sous les prix : c'est elle qui rend le prix sans risque */}
           <div className="mt-5 rounded-2xl bg-white border border-line px-5 py-4 flex items-start gap-3">
             <Check className="h-5 w-5 mt-0.5 shrink-0 text-good" />
-            <p className="text-[15.5px] text-ink"><b className="font-bold">Premier mois remboursé.</b> <span className="text-ink-soft">Ni rendez-vous ni réponse positive pendant ton premier mois payant, alors que tu as laissé partir au moins 60 % des premiers messages de ta formule ? Ton premier mois t'est remboursé, sans rien demander.</span></p>
+            <p className="text-[15.5px] text-ink"><b className="font-bold">Premier mois remboursé, sur Solo, Pro et Équipe.</b> <span className="text-ink-soft">Ni rendez-vous ni réponse positive pendant ton premier mois payant, alors que tu as laissé partir au moins 60 % des premiers messages de ta formule ? Ton premier mois t'est remboursé, sans rien demander.</span></p>
           </div>
           <p className="mt-6 text-center text-[14px] text-ink-soft">Sans engagement : tu changes de formule ou tu arrêtes quand tu veux. Besoin de plus ? +100 prospects contactés pour 19 €, quand tu veux. Un prospect contacté = une entreprise qui reçoit un premier e-mail, avec son décideur trouvé et vérifié ; les relances ne comptent pas.</p>
         </section>

@@ -9,10 +9,10 @@ import { SubNav } from "../components/SubNav";
 // Prix affiché à la française : 19,99 € ; un prix rond reste rond (29 €)
 const eur = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ","));
 const FEATURES = {
-  explorer: ["1 utilisateur", "Explorer complet : fiches illimitées et recherche intelligente", "Suivis et alerte du lundi", "Idées et réussites, pubs et e-mails", "Qui démarcher : les clients de chaque niche", "Pas de prospection (à partir de Solo)"],
-  solo: ["1 utilisateur", "Explorer complet, illimité", "100 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Demandes publiques avec réponse prête, chaque jour", "Radar et relances", "Prospects non utilisés reportés au mois suivant"],
-  pro: ["2 utilisateurs", "Explorer complet, illimité", "300 prospects contactés par mois", "Tout ce qu'il y a dans Solo", "Espion : tes concurrents surveillés", "LinkedIn par l'extension"],
-  equipe: ["5 utilisateurs", "Explorer illimité", "700 prospects contactés par mois", "Tout ce qu'il y a dans Pro", "Répartition des prospects entre commerciaux", "Tableau de bord par commercial"],
+  explorer: ["Toute la base SaaS, fiches illimitées", "Recherche intelligente et niches", "Concurrents suivis, alerte chaque lundi", "Idées et réussites chiffrées", "Leurs pubs et leurs e-mails", "Qui démarcher dans chaque niche"],
+  solo: ["Tout Explorer", "100 prospects par mois dans ta niche", "Décideur trouvé, message écrit pour lui", "Clients d'une niche ajoutés en un clic", "Les entreprises prêtes à acheter, chaque jour", "Prospects non utilisés reportés au mois suivant"],
+  pro: ["Tout Solo", "300 prospects par mois", "2 utilisateurs", "Tes concurrents surveillés au quotidien"],
+  equipe: ["Tout Pro", "700 prospects par mois", "5 utilisateurs", "Prospects répartis entre commerciaux", "Tableau de bord par commercial"],
 };
 const CONTACT = "bingoo@maisonravita.fr";
 
