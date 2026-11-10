@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_projets.statut et erreur (préparation en tâche de fond)

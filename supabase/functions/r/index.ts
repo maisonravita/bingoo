@@ -72,10 +72,20 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { ws } = await requireMember(req, b.workspace_id);
     if (ws.plan === "explorer") throw new HttpError(402, "« Lancer le mien » est dans la formule Pro.");
     await quota(ws.id, "lancer", 10);
+    // Une à deux minutes de travail : on répond tout de suite et on prépare le projet en tâche de fond (la page interroge la base)
+    const domaine = String(b.domaine ?? "").toLowerCase();
+    const { data: s } = await admin.from("saas").select("id, nom").eq("domaine", domaine).eq("statut", "ok").single();
+    if (!s) throw new HttpError(404, "SaaS introuvable");
+    const { data: row } = await admin.from("saas_projets").insert({ workspace_id: ws.id, saas_id: s.id, statut: "en_cours", data: { inspire: { nom: s.nom, domaine } } }).select("id").single();
+    await log(ws.id, "lancer", `Projet de SaaS concurrent de ${s.nom}`);
     const { saasLancer } = await import("../_shared/saas-base.ts");
-    const r = await saasLancer(ws.id, String(b.domaine ?? ""));
-    await log(ws.id, "lancer", `Projet de SaaS inspiré de ${r.inspire.nom}`);
-    return r;
+    const travail = saasLancer(ws.id, domaine, row!.id).catch(async (e) => {
+      await admin.from("saas_projets").update({ statut: "erreur", erreur: String(e?.message ?? e).slice(0, 300) }).eq("id", row!.id);
+    });
+    // deno-lint-ignore no-explicit-any
+    const rt = (globalThis as any).EdgeRuntime;
+    if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
+    return { id: row!.id, statut: "en_cours" };
   },
   async "saas-clients"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);

@@ -542,7 +542,7 @@ type Projet = {
   risques: { risque: string; parade: string }[];
   hypotheses: { clients_mois_1: number; croissance_mensuelle_pct: number; churn_mensuel_pct: number; conversion_essai_pct: number };
 };
-export async function saasLancer(wsId: string, domaine: string) {
+export async function saasLancer(wsId: string, domaine: string, projetId?: string) {
   const { data: s } = await admin.from("saas").select("id, nom, domaine, categorie, description, cible, pays, prix_entree_eur, gratuit, essai, formules, recrute, postes, tags, methode, liens, prix_rendu").eq("domaine", domaine.toLowerCase()).eq("statut", "ok").single();
   if (!s) throw new Error("SaaS introuvable");
   // Ce que fait le SaaS, lu sur ses pages publiques (accueil, tarifs) : la liste des fonctionnalités à égaler
@@ -609,6 +609,7 @@ hypotheses (prudentes : clients_mois_1 nombre de clients payants le premier mois
   ].join("\n");
   const data = { ...p, construction, inspire: { nom: s.nom, domaine: s.domaine, categorie: s.categorie, prix: s.prix_entree_eur }, marche: { mediane, prix: prixMarche, concurrents: (conc ?? []).length },
     plan: { prix_moyen: prixMoyen, couts_fixes: couts, mois, equilibre: mois.find((x) => x.resultat > 0)?.mois ?? null } };
+  if (projetId) { await admin.from("saas_projets").update({ data, statut: "pret" }).eq("id", projetId); return { id: projetId, ...data }; }
   const { data: row } = await admin.from("saas_projets").insert({ workspace_id: wsId, saas_id: s.id, data }).select("id").single();
   return { id: row?.id, ...data };
 }

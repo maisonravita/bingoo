@@ -819,12 +819,22 @@ function Lancer() {
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     supabase.from("saas_liste").select("nom, domaine, categorie, description, pays, prix_entree_eur").eq("domaine", d).maybeSingle().then(({ data }) => setSaas(data ?? null));
-    supabase.from("saas_projets").select("id, data, at").eq("workspace_id", ws.id).eq("data->inspire->>domaine", d).order("at", { ascending: false }).limit(1).then(({ data }) => setP(data?.[0] ? { id: data[0].id, ...data[0].data } : null));
+    supabase.from("saas_projets").select("id, data, at, statut").eq("workspace_id", ws.id).eq("data->inspire->>domaine", d).eq("statut", "pret").order("at", { ascending: false }).limit(1).then(({ data }) => setP(data?.[0] ? { id: data[0].id, ...data[0].data } : null));
   }, [d, ws.id]);
+  // Le projet se prépare en tâche de fond (une à deux minutes) : on interroge la base toutes les 4 secondes
   const generer = async () => {
     if (niv(ws) < 2) { nav("/abonnement"); return; }
     setBusy(true);
-    try { setP(await fn("r/saas-lancer", { workspace_id: ws.id, domaine: d })); } catch (x) { toast(x.message, "bad"); } finally { setBusy(false); }
+    try {
+      const { id } = await fn("r/saas-lancer", { workspace_id: ws.id, domaine: d });
+      for (let i = 0; i < 75; i++) {
+        await new Promise((r) => setTimeout(r, 4000));
+        const { data } = await supabase.from("saas_projets").select("data, statut, erreur").eq("id", id).maybeSingle();
+        if (data?.statut === "pret") { setP({ id, ...data.data }); return; }
+        if (data?.statut === "erreur") throw new Error("La préparation a échoué, réessaie dans un instant.");
+      }
+      throw new Error("C'est plus long que prévu : reviens sur cette page dans quelques minutes.");
+    } catch (x) { toast(x.message, "bad"); } finally { setBusy(false); }
   };
   const Bloc = ({ titre, sous, children, className }) => <section className={cx("rounded-2xl bg-white border border-line p-5 break-inside-avoid", className)}><h2 className="font-bold text-[17px]">{titre}</h2>{sous && <p className="text-[12.5px] text-ink-faint">{sous}</p>}<div className="mt-3">{children}</div></section>;
   if (p === undefined) return <div className="py-24 grid place-items-center"><Spinner /></div>;
@@ -838,7 +848,7 @@ function Lancer() {
           <h1 className="mt-2 text-[32px] sm:text-[42px] font-black leading-[1.05]" style={HF}>{nomInspi} marche. Lance le même, à ton nom.</h1>
           <p className="mt-3 max-w-2xl text-white/75 text-[16px]">Bingoo! lit ce que fait {nomInspi} sur son site et te prépare un SaaS concurrent qui fait la même chose : chaque fonctionnalité et son équivalent chez toi, l'ordre pour les coder, les outils et leur coût, tes prix face aux siens, tes premiers clients, le plan d'affaires sur 12 mois, et le texte à donner à un outil qui code l'application pour toi.</p>
           <p className="mt-3 text-[13px] text-white/55">Concurrence loyale : les mêmes fonctionnalités, mais ton nom, tes mots et ton design. Reprendre la marque, les textes mot pour mot ou le design de {nomInspi} exposerait à des poursuites.</p>
-          <button onClick={generer} disabled={busy} className="mt-6 rounded-xl bg-accent px-7 py-3.5 font-bold hover:bg-accent-dark disabled:opacity-60">{busy ? "Préparation de ton projet… (environ une minute)" : niv(ws) < 2 ? "Disponible avec la formule Pro" : "Préparer mon projet"}</button>
+          <button onClick={generer} disabled={busy} className="mt-6 rounded-xl bg-accent px-7 py-3.5 font-bold hover:bg-accent-dark disabled:opacity-60">{busy ? "Préparation de ton projet… (une à deux minutes)" : niv(ws) < 2 ? "Disponible avec la formule Pro" : "Préparer mon projet"}</button>
         </div>
       ) : (
         <>
