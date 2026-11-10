@@ -96,6 +96,20 @@ gratuit (formule gratuite), essai (durée de l'essai gratuit ou null), prix_entr
   };
   const { data: meme } = await admin.from("saas").select("id").eq("statut", "ok").ilike("nom", champs.nom.replace(/[%_\\]/g, "\\$&")).neq("id", id).limit(1);
   if (meme?.length) { await admin.from("saas").update({ statut: "doublon", nom: champs.nom, lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "doublon" }; }
+  // Ce qui a bougé depuis le relevé précédent (seulement pour une fiche déjà lue)
+  if (s.statut === "ok") {
+    const ev: { type: string; avant?: string | null; apres?: string | null }[] = [];
+    const txt = (v: unknown) => v == null || v === "" ? null : String(v);
+    if (s.prix_entree_eur != null && prix != null && prix !== s.prix_entree_eur) ev.push({ type: prix > s.prix_entree_eur ? "prix_hausse" : "prix_baisse", avant: `${s.prix_entree_eur} €`, apres: `${prix} €` });
+    if (s.gratuit === false && champs.gratuit) ev.push({ type: "gratuit_ajoute" });
+    if (s.gratuit === true && !champs.gratuit && a.prix_entree) ev.push({ type: "gratuit_retire" });
+    if (s.essai && champs.essai && s.essai !== champs.essai) ev.push({ type: "essai_change", avant: s.essai, apres: champs.essai });
+    if (!s.recrute && champs.recrute) ev.push({ type: "recrute_debut", apres: txt(champs.postes) });
+    else if (s.recrute && !champs.recrute) ev.push({ type: "recrute_fin", avant: txt(s.postes) });
+    else if (s.postes != null && champs.postes != null && Math.abs(champs.postes - s.postes) >= Math.max(3, Math.round(s.postes * 0.3))) ev.push({ type: champs.postes > s.postes ? "recrutement_hausse" : "recrutement_baisse", avant: String(s.postes), apres: String(champs.postes) });
+    if (champs.nouveaute && (!s.nouveaute || champs.nouveaute > s.nouveaute)) ev.push({ type: "nouveaute", avant: txt(s.nouveaute), apres: champs.nouveaute });
+    if (ev.length) await admin.from("saas_evenements").insert(ev.map((e) => ({ saas_id: id, ...e })));
+  }
   await admin.from("saas").update(champs).eq("id", id);
   await admin.from("saas_releves").insert({ saas_id: id, prix_entree_eur: prix, formules: champs.formules, gratuit: champs.gratuit, essai: champs.essai, recrute: champs.recrute, postes: champs.postes, nouveaute: champs.nouveaute, outils: champs.outils });
   return { id, statut: "ok", nom: champs.nom };
@@ -125,4 +139,45 @@ export async function saasSeed(categorie: string, region: string) {
 Donne seulement ceux dont tu connais le site officiel avec certitude ; n'invente aucune adresse.
 Clé : saas, liste d'objets nom et site (adresse du site officiel).`, { fast: true, maxTokens: 2500 }).catch(() => ({ saas: [] }));
   return await saasAdd((r.saas ?? []).map((x) => x.site), `amorcage:${categorie}:${region}`);
+}
+
+// ---------------------------------------------------------------- Tendances (données officielles)
+// Créations d'entreprises dont l'activité déclarée parle de logiciel, mois par mois sur 12 mois, par thème
+// (annonces légales BODACC). Mis en cache 24 heures.
+const BODACC = "https://bodacc-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/annonces-commerciales/records";
+export const THEMES: [string, string, string[]][] = [
+  ["tous", "Tous les logiciels", []],
+  ["ia", "Intelligence artificielle", ["intelligence artificielle", "IA"]],
+  ["facturation", "Facturation et comptabilité", ["facturation", "comptab"]],
+  ["crm", "CRM et ventes", ["CRM", "relation client"]],
+  ["rh", "RH et paie", ["ressources humaines", "paie", "recrutement"]],
+  ["ecommerce", "E-commerce", ["e-commerce", "vente en ligne"]],
+  ["formation", "Formation", ["formation", "éducation"]],
+  ["sante", "Santé", ["santé", "médical"]],
+  ["immobilier", "Immobilier", ["immobilier"]],
+  ["securite", "Cybersécurité", ["cybersécurité", "sécurité informatique"]],
+  ["marketing", "Marketing", ["marketing", "publicité"]],
+  ["nocode", "No-code et automatisation", ["no-code", "automatisation"]],
+];
+export async function saasTendances() {
+  const { data: c } = await admin.from("explorer_cache").select("v, at").eq("k", "tendances").maybeSingle();
+  if (c && Date.now() - Date.parse(c.at) < 24 * 3600_000) return c.v;
+  const depuis = new Date(); depuis.setUTCMonth(depuis.getUTCMonth() - 12); depuis.setUTCDate(1);
+  const q = (s: string) => `"${s.replace(/"/g, "")}"`;
+  const series = await Promise.all(THEMES.map(async ([id, label, mots]) => {
+    const where = [`dateparution>=date'${depuis.toISOString().slice(0, 10)}'`, `familleavis="creation"`, `(search(listeetablissements,"logiciel") or search(listeetablissements,"SaaS") or search(listeetablissements,"plateforme numérique"))`,
+      ...(mots.length ? [`(${mots.map((m) => `search(listeetablissements,${q(m)})`).join(" or ")})`] : [])].join(" and ");
+    const u = new URL(BODACC);
+    for (const [k, v] of Object.entries({ select: "count(*) as n", group_by: `date_format(dateparution,"yyyy-MM") as mois`, where, order_by: "mois", limit: "24" })) u.searchParams.set(k, v);
+    const r = await fetch(u, { signal: AbortSignal.timeout(20000) }).then((x) => x.json()).catch(() => null);
+    const pts = ((r?.results ?? []) as { mois: string; n: number }[]).map((x) => ({ mois: x.mois, n: Number(x.n) }));
+    // Mois en cours incomplet : retiré de la courbe
+    const enCours = new Date().toISOString().slice(0, 7);
+    const complets = pts.filter((p) => p.mois < enCours);
+    const der = complets.at(-1)?.n ?? 0, avant = complets.at(-4)?.n ?? 0;
+    return { id, label, points: complets, dernier: der, evolution_3m: avant ? Math.round(((der - avant) / avant) * 100) : null };
+  }));
+  const v = { series, source: "BODACC (annonces légales officielles), créations dont l'activité mentionne un logiciel", maj: new Date().toISOString() };
+  if (series.some((x) => x.points.length)) await admin.from("explorer_cache").upsert({ k: "tendances", v, at: new Date().toISOString() });
+  return v;
 }

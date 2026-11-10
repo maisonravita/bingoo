@@ -46,8 +46,27 @@ export type Fiche = {
   nouveaute: { date: string | null; url: string }; lisible: boolean;
 };
 
+/** Règles robots.txt du site pour tous les robots (« User-agent: * ») : chemins interdits. Lecture courte, en cas d'échec rien n'est interdit. */
+async function robots(site: string) {
+  try {
+    const r = await fetch(new URL("/robots.txt", site).href, { signal: AbortSignal.timeout(6000), headers: { "user-agent": "BingooBot/1.0 (+https://kairo.maisonravita.fr/#/retrait)" } });
+    if (!r.ok) return [] as string[];
+    const lignes = (await r.text()).slice(0, 100_000).split(/\r?\n/).map((l) => l.replace(/#.*/, "").trim());
+    const interdit: string[] = []; let pourTous = false, vuRegle = false;
+    for (const l of lignes) {
+      const m = l.match(/^([a-z-]+)\s*:\s*(.*)$/i); if (!m) continue;
+      const k = m[1].toLowerCase(), v = m[2].trim();
+      if (k === "user-agent") { if (vuRegle) { pourTous = false; vuRegle = false; } if (v === "*" || /bingoo/i.test(v)) pourTous = true; }
+      else { vuRegle = true; if (pourTous && k === "disallow" && v) interdit.push(v); }
+    }
+    return interdit;
+  } catch { return [] as string[]; }
+}
+const autorise = (interdit: string[], u: string) => { try { const p = new URL(u).pathname; return !interdit.some((x) => p.startsWith(x.replace(/\*.*$/, ""))); } catch { return false; } };
+
 export async function lireSite(site: string, nom: string): Promise<Fiche> {
-  const html = (await fetchHtml(site).catch(() => "")).slice(0, 400_000); // au-delà, le calcul dépasse les limites de la fonction
+  const interdit = await robots(site);
+  const html = autorise(interdit, site) ? (await fetchHtml(site).catch(() => "")).slice(0, 400_000) : ""; // au-delà de 400 Ko, le calcul dépasse les limites de la fonction
   const base = site;
   const f: Fiche = { nom, site, host: hostOf(site), outils: toolsIn(html).slice(0, 10), prix_url: "", prix_texte: "", recrute: { oui: false, postes: null, url: "" }, nouveaute: { date: null, url: "" }, lisible: !!html };
   if (!html) return f;
@@ -56,7 +75,8 @@ export async function lireSite(site: string, nom: string): Promise<Fiche> {
   const jobs = lien(html, base, /(careers?|jobs?|recrut|carri[eè]res?|join-?us|nous-rejoindre|rejoignez|hiring)/i) || (html.match(ATS) ? (html.match(new RegExp(`https?://[^"'\\s]*${ATS.source}[^"'\\s]*`, "i"))?.[0] ?? "") : "");
   const news = lien(html, base, /(changelog|release|nouveaut|what'?s-?new|updates?|product-?news|blog|actualit)/i);
   const coupe = (h: string) => h.slice(0, 400_000);
-  const [hp, hj, hn] = (await Promise.all([prix ? fetchHtml(prix).catch(() => "") : "", jobs ? fetchHtml(jobs).catch(() => "") : "", news ? fetchHtml(news).catch(() => "") : ""])).map(coupe);
+  const ok = (u: string) => u && (!u.startsWith(site.replace(/\/$/, "")) || autorise(interdit, u)); // une page d'un autre site (offres d'emploi) n'est pas concernée
+  const [hp, hj, hn] = (await Promise.all([ok(prix) ? fetchHtml(prix).catch(() => "") : "", ok(jobs) ? fetchHtml(jobs).catch(() => "") : "", ok(news) ? fetchHtml(news).catch(() => "") : ""])).map(coupe);
   f.prix_url = hp ? prix : "";
   f.prix_texte = textOf(hp || html).slice(0, 3500);
   if (jobs) {
