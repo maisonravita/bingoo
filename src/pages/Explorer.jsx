@@ -14,7 +14,7 @@ export const CATEGORIES = ["CRM et ventes", "Prospection et emailing", "Marketin
 const PAYS = { FR: "France", BE: "Belgique", CH: "Suisse", DE: "Allemagne", ES: "Espagne", IT: "Italie", GB: "Royaume-Uni", NL: "Pays-Bas", PT: "Portugal", IE: "Irlande", SE: "Suède", DK: "Danemark", PL: "Pologne", AT: "Autriche", US: "États-Unis", CA: "Canada", AU: "Australie", IN: "Inde", IL: "Israël" };
 const drapeau = (c) => c && /^[A-Z]{2}$/.test(c) ? String.fromCodePoint(...[...c].map((x) => 127397 + x.charCodeAt(0))) : "";
 const date = (d) => d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : null;
-const TRIS = [["score_croissance", "En croissance"], ["postes", "Qui recrutent le plus"], ["nouveaute", "Nouveautés récentes"], ["prix_entree_eur", "Prix d'entrée"], ["created_at", "Ajoutés récemment"]];
+const TRIS = [["score_croissance", "En croissance"], ["postes", "Qui recrutent le plus"], ["nouveaute", "Nouveautés récentes"], ["rang_web", "Les plus connus"], ["prix_entree_eur", "Prix d'entrée"], ["created_at", "Ajoutés récemment"]];
 const PAGE = 48;
 // Prix d'entrée lisible : abonnement en €/mois, sinon prix à l'usage tel qu'affiché, sinon sur devis
 const usage = (s) => s.prix_usage ?? (["usage", "commission"].includes(s.modele_prix) ? s.prix_affiche : null);
@@ -95,7 +95,7 @@ function Liste() {
     if (f.gratuit) q = q.eq("gratuit", true);
     if (f.recrute) q = q.eq("recrute", true);
     if (f.actif) q = q.gte("nouveaute", new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10));
-    q = q.order(f.tri, { ascending: f.tri === "prix_entree_eur", nullsFirst: false }).order("nom").range(page * PAGE, page * PAGE + PAGE - 1);
+    q = q.order(f.tri, { ascending: f.tri === "prix_entree_eur" || f.tri === "rang_web", nullsFirst: false }).order("nom").range(page * PAGE, page * PAGE + PAGE - 1);
     let vivant = true;
     q.then(({ data, count }) => { if (vivant) { setRows(data ?? []); setTotal(count ?? 0); } });
     return () => { vivant = false; };
@@ -232,6 +232,7 @@ function Fiche({ domaine }) {
   const [quota, setQuota] = useState(null);
   const [hist, setHist] = useState(null);
   const [pubs, setPubs] = useState([]);
+  const [noto, setNoto] = useState([]);
   useEffect(() => {
     setS(undefined); setLimite(null);
     supabase.rpc("saas_fiche", { ws: ws.id, d: domaine }).then(async ({ data, error }) => {
@@ -239,6 +240,7 @@ function Fiche({ domaine }) {
       if (data.limite) { setLimite(data); setS(null); return; }
       setS(data.saas); setRel(data.releves ?? []); setEv(data.evenements ?? []); setQuota(data.max ? { vues: data.vues, max: data.max } : null); setHist(data.histoire ?? null);
       supabase.rpc("saas_pubs_de", { ws: ws.id, d: domaine }).then(({ data: p }) => setPubs(p ?? []));
+      supabase.rpc("saas_notoriete_de", { ws: ws.id, d: domaine }).then(({ data: n }) => setNoto(n ?? []));
       const { data: o } = await supabase.from("saas_liste").select("id, domaine, nom, pays, prix_entree_eur, prix_usage, sur_devis, score_croissance").eq("categorie", data.saas.categorie).neq("id", data.saas.id).order("score_croissance", { ascending: false, nullsFirst: false }).limit(6);
       setSim(o ?? []);
     });
@@ -308,6 +310,15 @@ function Fiche({ domaine }) {
           <h2 className="font-bold">Sa méthode d'acquisition</h2>
           <p className="text-[12.5px] text-ink-faint">Ce qu'on voit sur son site</p>
           {canaux.length ? <ul className="mt-3 space-y-1.5 text-[14px]">{canaux.map(([k, l]) => <li key={k} className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-accent" />{lien(m[k], l)}</li>)}</ul> : <p className="mt-3 text-[14px] text-ink-faint">Aucun canal visible sur la page d'accueil.</p>}
+          <h2 className="mt-6 font-bold">Notoriété web</h2>
+          {s.rang_web ? (
+            <div className="mt-1">
+              <p className="text-[22px] font-black tnum" style={HF}>N° {Number(s.rang_web).toLocaleString("fr-FR")} <span className="text-[13px] font-semibold text-ink-faint">mondial</span></p>
+              {s.rang_web_avant && s.rang_web_avant !== s.rang_web && <p className={cx("text-[13px] font-semibold", s.rang_web < s.rang_web_avant ? "text-[#15803D]" : "text-[#B91C1C]")}>{s.rang_web < s.rang_web_avant ? "▲ gagne" : "▼ perd"} {Math.abs(s.rang_web_avant - s.rang_web).toLocaleString("fr-FR")} places en un mois</p>}
+              {noto.length > 1 && <div className="mt-2"><LineChart points={noto.map((n) => ({ v: n.sous_reseaux ?? 0, label: new Date(n.jour).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) }))} height={90} unit=" sites" /></div>}
+              <p className="mt-1 text-[11.5px] text-ink-faint">Classé parmi le million de sites les plus cités par d'autres sites. Source : Majestic Million CSV by Majestic 12, licence CC BY 3.0.</p>
+            </div>
+          ) : <p className="mt-1 text-[13.5px] text-ink-faint">Pas dans le million de sites les plus cités sur le web (ou pas encore relevé).</p>}
           <h2 className="mt-6 font-bold">Outils de son site</h2>
           <div className="mt-2 flex flex-wrap gap-1.5">{(s.outils ?? []).filter((o) => o.toLowerCase() !== (s.nom ?? "").toLowerCase()).map((o) => <span key={o} className="rounded-md bg-paper px-2 py-1 text-[12.5px]">{o}</span>)}{!(s.outils ?? []).length && <span className="text-[13.5px] text-ink-faint">Aucun repéré</span>}</div>
           <p className="mt-6 text-[12px] text-ink-faint">Relevé du {date(s.lu_at)}. Informations lues sur le site du logiciel.</p>
