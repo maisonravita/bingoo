@@ -310,7 +310,7 @@ function Fil() {
   const parJour = useMemo(() => { const m = new Map(); for (const r of rows ?? []) { const k = r.at.slice(0, 10); m.set(k, [...(m.get(k) ?? []), r]); } return [...m.entries()]; }, [rows]);
   const compte = (t) => (rows ?? []).filter((r) => t.includes(r.type)).length;
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
       <h1 className="text-[30px] font-black tracking-tight" style={HF}>Ce qui a bougé</h1>
       <p className="text-ink-soft">Chaque relevé est comparé au précédent : prix, version gratuite, essai, recrutement, nouveautés publiées.</p>
       <div className="mt-4 flex flex-wrap gap-2">
@@ -514,7 +514,7 @@ function Suivis() {
   if (!r) return <div className="py-24 grid place-items-center"><Spinner /></div>;
   const vide = !r.saas.length && !r.categories.length;
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
       <h1 className="text-[30px] font-black tracking-tight" style={HF}>Mes suivis</h1>
       <p className="text-ink-soft">Les SaaS et les catégories que tu suis. Chaque lundi matin, un e-mail résume ce qui a bougé.</p>
       {vide ? (
