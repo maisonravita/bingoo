@@ -1027,7 +1027,7 @@ function Construire({ projet }) {
             <p className="font-bold">Modifier en une phrase</p>
             <select value={ecran} onChange={(e) => setEcran(e.target.value)} className="rounded-xl bg-white/10 border border-white/15 px-3 py-2 text-[14px] outline-none">
               <option value="" className="text-ink">+ Ajouter un écran</option>
-              {app.spec.ecrans.map((e) => <option key={e.id} value={e.id} className="text-ink">Changer « {e.titre} »{e.ok === false ? " (à corriger)" : ""}</option>)}
+              {app.spec.ecrans.map((e) => <option key={e.id} value={e.id} className="text-ink">{e.code ? `Changer « ${e.titre} »` : `Réessayer « ${e.titre} » (pas encore en ligne)`}</option>)}
             </select>
             <textarea value={demande} onChange={(e) => setDemande(e.target.value)} rows={5} placeholder={ecran ? "Ex. : ajoute un filtre par statut et un total en bas du tableau" : "Ex. : un écran Factures pour suivre ce que chaque client doit payer"} className="rounded-xl bg-white/10 border border-white/15 px-3 py-2 text-[14px] outline-none placeholder:text-white/35" />
             <button disabled={envoi || app.statut === "en_cours" || demande.trim().length < 5} className="rounded-xl bg-accent px-4 py-2.5 text-[14px] font-bold hover:bg-accent-dark disabled:opacity-50">{envoi ? "Envoi…" : "Appliquer"}</button>

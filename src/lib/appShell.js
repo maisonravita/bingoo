@@ -91,7 +91,7 @@ ui.Bar = ({ donnees = [] }) => { const m = Math.max(1, ...donnees.map((d) => Num
 let nav = () => {};
 const go = (id, params) => nav(id, params);
 const ctx = { html, h, Fragment, useState, useEffect, useMemo, useRef, useCallback, ui, fmt, db, useCollection, toast, go, Icone };
-const ECRANS = (S.ecrans ?? []).map((e) => {
+const ECRANS = (S.ecrans ?? []).filter((e) => e.code).map((e) => {
   let Comp;
   try {
     const f = new Function("ctx", "const {html,h,Fragment,useState,useEffect,useMemo,useRef,useCallback,ui,fmt,db,useCollection,toast,go,Icone,user,params}=ctx;\\n" + e.code + "\\n;return typeof Ecran==='function'?Ecran:null;");
