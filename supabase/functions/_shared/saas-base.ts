@@ -346,15 +346,30 @@ Clés : pays (code à 2 lettres, ou null si le texte ne le dit pas clairement : 
   return { pays: p, preuve: r.preuve };
 }
 
+/** Pays du siège d'après Wikidata (site officiel P856 → pays P17, ou siège P159 → pays), pour une liste de domaines. */
+export async function paysWikidata(domaines: string[]) {
+  const variantes = domaines.flatMap((d) => [`https://${d}`, `https://${d}/`, `https://www.${d}`, `https://www.${d}/`, `http://${d}/`, `http://www.${d}/`]);
+  const q = `SELECT ?site ?code WHERE { VALUES ?site { ${variantes.map((v) => `<${v}>`).join(" ")} } ?item wdt:P856 ?site .
+  OPTIONAL { ?item wdt:P159/wdt:P17 ?hq . } OPTIONAL { ?item wdt:P17 ?c . } BIND(COALESCE(?hq, ?c) AS ?pays) ?pays wdt:P297 ?code . }`;
+  const r = await fetch(`https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(q)}`, { headers: { "user-agent": "BingooBot/1.0 (+https://kairo.maisonravita.fr/#/retrait)", accept: "application/sparql-results+json" }, signal: AbortSignal.timeout(25000) }).then((x) => x.json()).catch(() => null);
+  const out = new Map<string, string>();
+  for (const b of (r?.results?.bindings ?? []) as { site: { value: string }; code: { value: string } }[]) {
+    const d = domaineDe(b.site.value);
+    if (d && !out.has(d) && /^[A-Z]{2}$/.test(b.code.value)) out.set(d, b.code.value);
+  }
+  return out;
+}
+
 /** Rattrapage : pays des fiches déjà lues qui n'en ont pas (une tentative par fiche tous les 30 jours). */
 export async function saasPays(max = 24) {
   const mois = new Date(Date.now() - 30 * 864e5).toISOString();
   const { data } = await admin.from("saas").select("id, domaine").eq("statut", "ok").is("pays", null).or(`pays_essai.is.null,pays_essai.lt.${mois}`).limit(max);
   const rows = (data ?? []) as { id: string; domaine: string }[];
   let trouves = 0;
+  const wd = rows.length ? await paysWikidata(rows.map((x) => x.domaine)) : new Map<string, string>();
   for (let i = 0; i < rows.length; i += 4) {
     await Promise.all(rows.slice(i, i + 4).map(async (x) => {
-      const r = await paysDe(`https://${x.domaine}`).catch(() => null);
+      const r = wd.has(x.domaine) ? { pays: wd.get(x.domaine)! } : await paysDe(`https://${x.domaine}`).catch(() => null);
       await admin.from("saas").update({ pays_essai: new Date().toISOString(), ...(r?.pays ? { pays: r.pays } : {}) }).eq("id", x.id);
       if (r?.pays) trouves++;
     }));
