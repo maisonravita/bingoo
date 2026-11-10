@@ -20,7 +20,51 @@ const Check = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className=
 const Arrow = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" /></svg>;
 const Lock = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
 
-const MENU = [["La preuve", "#preuve"], ["Essai en direct", "#essai"], ["Pourquoi Bingoo!", "#pourquoi"], ["Tarifs", "#tarifs"], ["Questions", "#faq"]];
+const MENU = [["Explorer", "#explorer"], ["Passer à l'action", "#preuve"], ["Pourquoi Bingoo!", "#pourquoi"], ["Tarifs", "#tarifs"], ["Questions", "#faq"]];
+
+// Nombre de SaaS suivis dans la base Explorer (vue publique), affiché tel quel
+function useNbSaas() {
+  const [n, setN] = useState(null);
+  useEffect(() => {
+    fetch(`${URL_}/rest/v1/saas_public?select=domaine`, { headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, Prefer: "count=exact", Range: "0-0" } })
+      .then((r) => { const m = (r.headers.get("content-range") ?? "").match(/\/(\d+)$/); if (m) setN(Number(m[1])); }).catch(() => {});
+  }, []);
+  return n;
+}
+
+const EXPLORER = [
+  ["apercu-explorer.jpg", "Tous les SaaS, au même endroit", "Filtre par catégorie, pays, prix, version gratuite, recrutement ou nouveauté du mois. Trie par croissance.", "La liste Explorer dans la vraie application."],
+  ["apercu-explorer-fiche.jpg", "La fiche complète d'un concurrent", "Prix et historique, formules, essai, postes ouverts, dernière nouveauté, outils du site et méthode d'acquisition. Chaque information a son lien.", "La fiche de lemlist, relevée sur son site."],
+  ["apercu-tendances.jpg", "Ce qui monte, mois après mois", "Les créations officielles d'éditeurs de logiciels en France par thème, les SaaS par pays et les catégories fortes ailleurs mais rares en France.", "Pays et tendances : annonces légales officielles (BODACC)."],
+  ["apercu-mes-suivis.jpg", "Suis tes concurrents, sans y penser", "Tu suis des SaaS ou une catégorie entière. Chaque lundi, un e-mail : changements de prix, recrutements, nouveautés, nouveaux entrants.", "Mes suivis, avec quatre SaaS de prospection."],
+];
+function Explorer({ n }) {
+  const [i, setI] = useState(0);
+  const [img, titre, texte, legende] = EXPLORER[i];
+  return (
+    <section id="explorer" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24">
+      <div className="mx-auto max-w-[1180px]">
+        <p className="text-[14px] font-bold uppercase tracking-wide text-accent-dark">Explorer</p>
+        <h2 className="mt-2 max-w-[860px] text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Le marché du SaaS, ouvert devant toi.</h2>
+        <p className="mt-5 max-w-[720px] text-[17px] sm:text-[19px] leading-[1.5] text-ink-soft">{n ? `${n.toLocaleString("fr-FR")} logiciels` : "Des centaines de logiciels"} relus chaque semaine sur leurs propres sites : ce qu'ils facturent, qui recrute, ce qui sort, comment ils trouvent leurs clients. Rien n'est estimé : chaque chiffre a sa source.</p>
+        <div className="mt-10 grid lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.6fr)] gap-6 items-start">
+          <div className="space-y-2">
+            {EXPLORER.map(([, t, d], k) => (
+              <button key={t} onClick={() => setI(k)} className={`w-full text-left rounded-2xl border p-5 transition ${k === i ? "border-ink bg-white shadow-[0_10px_30px_-20px_rgba(21,23,42,.5)]" : "border-line bg-[#F6F5F3] hover:border-ink-faint"}`}>
+                <p className="text-[19px] leading-tight text-ink" style={SERIF}>{t}</p>
+                {k === i && <p className="mt-1.5 text-[15px] leading-snug text-ink-soft">{d}</p>}
+              </button>
+            ))}
+          </div>
+          <figure>
+            <img key={img} src={`./${img}`} alt={titre} className="land-in w-full rounded-2xl border border-black/10 bg-[#F1EFED] shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]" />
+            <figcaption className="mt-2.5 text-[13px] text-ink-faint">{legende}</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function useReveal() {
   useEffect(() => {
@@ -45,8 +89,9 @@ function Preuve() {
   return (
     <section id="preuve" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24">
       <div className="mx-auto max-w-[1180px]">
-        <h2 className="text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>On ne te promet rien.<br />On te montre.</h2>
-        <p className="mt-5 max-w-[680px] text-[17px] sm:text-[19px] leading-[1.5] text-ink-soft">Pas de maquette, pas de chiffres inventés : l'application telle qu'elle tourne, en vidéo. Chaque légende dit ce que tu regardes.</p>
+        <p className="text-[14px] font-bold uppercase tracking-wide text-accent-dark">Passer à l'action</p>
+        <h2 className="mt-2 text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Tu as vu ton marché.<br />Va chercher tes clients.</h2>
+        <p className="mt-5 max-w-[680px] text-[17px] sm:text-[19px] leading-[1.5] text-ink-soft">Bingoo! repère les entreprises qui ont besoin de toi aujourd'hui, trouve le décideur et écrit le message. L'application telle qu'elle tourne, en vidéo.</p>
         <div className="mt-10 flex flex-wrap gap-2" role="tablist" aria-label="La preuve en vidéo">
           {PREUVES.map(([k, t]) => (
             <button key={k} role="tab" aria-selected={on === k} onClick={() => setOn(k)}
@@ -163,11 +208,14 @@ function SourcesRow() {
 
 /* ---------- Tarifs et questions ---------- */
 const PLANS = [
-  ["Solo", 39, "Pour un solo founder ou un petit SaaS qui démarre, 15 minutes par jour.", ["1 utilisateur", "100 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Demandes publiques avec réponse prête, chaque jour", "Radar et relances"]],
-  ["Pro", 69, "Pour le fondateur dont ça commence à marcher.", ["2 utilisateurs", "300 prospects contactés par mois", "Tout ce qu'il y a dans Solo", "Espion : tes concurrents surveillés", "LinkedIn par l'extension"]],
-  ["Équipe", 109, "Pour une startup ou une PME avec quelques commerciaux.", ["5 utilisateurs", "700 prospects contactés par mois", "Tout ce qu'il y a dans Pro", "Répartition des prospects entre commerciaux", "Tableau de bord par commercial"]],
+  ["Solo", 39, "Pour un solo founder ou un petit SaaS qui démarre, 15 minutes par jour.", ["1 utilisateur", "Explorer : 25 fiches SaaS par semaine, suivis et alerte du lundi", "100 prospects contactés par mois", "Décideur trouvé, e-mail vérifié, message écrit pour lui", "Demandes publiques avec réponse prête, chaque jour", "Radar et relances"]],
+  ["Pro", 69, "Pour le fondateur dont ça commence à marcher.", ["2 utilisateurs", "Explorer : 150 fiches SaaS par semaine et comparaisons", "300 prospects contactés par mois", "Tout ce qu'il y a dans Solo", "Espion : tes concurrents surveillés", "LinkedIn par l'extension"]],
+  ["Équipe", 109, "Pour une startup ou une PME avec quelques commerciaux.", ["5 utilisateurs", "Explorer illimité", "700 prospects contactés par mois", "Tout ce qu'il y a dans Pro", "Répartition des prospects entre commerciaux", "Tableau de bord par commercial"]],
 ];
 const FAQ = [
+  ["D'où viennent les informations sur les SaaS ?", "De leurs propres sites, relus chaque semaine : page d'accueil, tarifs, page carrières, changelog ou blog. Pour les tendances, des annonces légales officielles (BODACC). Rien n'est estimé : une information introuvable est affichée comme telle, et chaque chiffre a son lien."],
+  ["Quels SaaS sont dans Explorer ?", "Des logiciels français, européens et américains, dans 25 catégories. Tu peux ajouter n'importe quel SaaS par son adresse : il est lu tout de suite. La base grandit chaque jour."],
+  ["J'édite un SaaS, puis-je corriger ou retirer sa fiche ?", "Oui. Notre robot (BingooBot) respecte le fichier robots.txt et ne lit que des pages publiques. Écris-nous depuis une adresse de ton domaine pour une correction ou un retrait, traité sous 72 heures."],
   ["Et si je n'obtiens aucun résultat ?", "Pendant ton premier mois payant, si tu as laissé partir au moins 60 % des premiers messages de ta formule (60 sur Solo, 180 sur Pro, 420 sur Équipe) et que tu n'as obtenu ni rendez-vous ni réponse positive, ton premier mois t'est remboursé. Tu n'as rien à demander : Bingoo! le calcule et te prévient."],
   ["Bingoo! envoie-t-il des messages sans mon accord ?", "Non. Par défaut, chaque message attend ta validation. Tu peux ensuite activer le pilote automatique, dans la limite d'envoi que tu fixes."],
   ["D'où viennent les informations ?", "De sources publiques et vérifiables : données de la commande publique, BOAMP, annonces légales (BODACC), registre national des entreprises, sites des entreprises. Chaque signal affiche sa source."],
@@ -188,6 +236,7 @@ export default function Landing() {
   const [fond, setFond] = useState(null);
   useEffect(() => { call("founder-slots", {}).then(setFond).catch(() => setFond(null)); }, []);
   const go = () => nav("/connexion");
+  const nb = useNbSaas();
   return (
     <div className="min-h-full bg-[#FAF9F6] text-ink">
       <style>{`@keyframes kspin{to{transform:rotate(360deg)}}@keyframes land-in{from{opacity:0;transform:translateY(10px)}}.land-in{animation:land-in .45s ease-out both}@keyframes marquee{to{transform:translateX(-50%)}}.marquee-track{animation:marquee 32s linear infinite}.marquee:hover .marquee-track{animation-play-state:paused}@media (prefers-reduced-motion: reduce){.marquee-track{animation:none;flex-wrap:wrap;width:auto;justify-content:center}}`}</style>
@@ -212,29 +261,25 @@ export default function Landing() {
         <div className="px-0 sm:px-8">
           <section className="mx-auto max-w-[1440px] bg-white px-5 sm:px-10 pt-14 sm:pt-24 pb-16 sm:pb-20 text-center">
             <h1 className="hero-in relative mx-auto max-w-[1180px]" style={JK}>
-              <span className="block text-[34px] sm:text-[54px] lg:text-[72px] leading-[1.1] text-[#3A3F55]" style={{ fontWeight: 500, letterSpacing: "-.01em" }}>Tu as le business parfait.</span>
-              <span className="mt-1 block text-[40px] sm:text-[64px] lg:text-[84px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>Il te manque des clients ?</span>
+              <span className="block text-[32px] sm:text-[50px] lg:text-[66px] leading-[1.1] text-[#3A3F55]" style={{ fontWeight: 500, letterSpacing: "-.01em" }}>Vois tout ce qui bouge sur ton marché SaaS.</span>
+              <span className="mt-1 block text-[38px] sm:text-[60px] lg:text-[80px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>Puis transforme-le en clients.</span>
               <span className="mt-4 sm:mt-6 flex justify-center"><span className="sr-only">Bingoo!</span><Logo height="clamp(64px, 9vw, 112px)" className="!self-center" /></span>
-              <span aria-hidden className="pointer-events-none absolute right-0 xl:-right-6 -top-10 hidden lg:flex flex-col items-end text-[24px] text-[#3A3F55] rotate-[-4deg]" style={{ fontFamily: "Caveat, cursive", fontWeight: 500, letterSpacing: 0 }}>
-                (oui, ils n'apparaissent pas comme par magie)
-                <svg viewBox="0 0 40 60" className="mr-16 mt-1 h-12 w-8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 2c10 14 8 34-10 52M12 54l-2-12M12 54l11-6" /></svg>
-              </span>
             </h1>
-            <p className="hero-in mx-auto mt-7 max-w-[760px] text-[18px] sm:text-[22px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Bingoo! trouve les entreprises qui ont besoin de toi aujourd'hui, le bon décideur, et décroche le rendez-vous. <span className="font-semibold text-accent-dark">Ton chiffre décolle.</span></p>
-            <form onSubmit={(e) => { e.preventDefault(); try { sessionStorage.setItem("bingoo-email", e.currentTarget.email.value.trim()); } catch { /* navigation privée */ } go(); }}
+            <p className="hero-in mx-auto mt-7 max-w-[780px] text-[18px] sm:text-[22px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Les prix, les recrutements, les nouveautés et les méthodes de {nb ? <b>{nb.toLocaleString("fr-FR")} SaaS</b> : "tous les SaaS"}, relus chaque semaine. Et Bingoo! trouve ceux qui ont besoin de toi. <span className="font-semibold text-accent-dark">Le TrendTrack des SaaS.</span></p>
+            <form onSubmit={(e) => { e.preventDefault(); const u = e.currentTarget.site.value.trim().replace(/^https?:\/\//i, ""); if (u) nav(`/marche?u=${encodeURIComponent(u)}`); }}
               className="hero-in mx-auto mt-9 flex max-w-[680px] flex-col sm:flex-row items-stretch gap-2 rounded-[28px] sm:rounded-full border border-black/[.08] bg-white p-2 shadow-[0_10px_40px_-20px_rgba(21,23,42,.35)]" style={{ ...JK, animationDelay: ".2s" }}>
-              <label className="sr-only" htmlFor="hero-email">Ton e-mail</label>
-              <input id="hero-email" name="email" type="email" autoComplete="email" placeholder="ton@email.com" className="min-w-0 flex-1 bg-transparent px-5 py-3.5 text-[17px] outline-none placeholder:text-[#8A8FA3]" />
-              <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-full bg-[#1B1D2A] px-8 py-3.5 text-[17px] font-semibold text-white hover:bg-black transition">Commencer <Arrow className="h-4 w-4" /></button>
+              <label className="sr-only" htmlFor="hero-site">L'adresse de ton SaaS</label>
+              <input id="hero-site" name="site" inputMode="url" autoComplete="url" placeholder="monsaas.com" required className="min-w-0 flex-1 bg-transparent px-5 py-3.5 text-[17px] outline-none placeholder:text-[#8A8FA3]" />
+              <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-8 py-3.5 text-[17px] font-semibold text-white hover:bg-accent-dark transition">Voir mon marché <Arrow className="h-4 w-4" /></button>
             </form>
-            <a href="#essai" onClick={scrollTo("essai")} className="hero-in mt-4 inline-flex items-center gap-1.5 text-[15.5px] font-semibold text-ink underline decoration-accent/50 decoration-2 underline-offset-4 hover:decoration-accent" style={{ ...JK, animationDelay: ".22s" }}>Ou vois d'abord tes clients potentiels, sans compte <Arrow className="h-4 w-4" /></a>
+            <button onClick={go} className="hero-in mt-4 inline-flex items-center gap-1.5 text-[15.5px] font-semibold text-ink underline decoration-accent/50 decoration-2 underline-offset-4 hover:decoration-accent" style={{ ...JK, animationDelay: ".22s" }}>Ou crée ton compte et explore tous les SaaS <Arrow className="h-4 w-4" /></button>
             <div className="hero-in mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[15px] text-[#5B6075]" style={{ ...JK, animationDelay: ".25s" }}>
-              {["15 minutes par jour", "Premier mois remboursé sans rendez-vous ni réponse", "Pour les SaaS, startups et PME B2B"].map((x) => <span key={x} className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-accent" />{x}</span>)}
+              {["Rapport gratuit, sans compte, en une minute", "Chaque chiffre avec sa source", "Pour les fondateurs de SaaS et les startups"].map((x) => <span key={x} className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-accent" />{x}</span>)}
             </div>
             <p className="mt-6 text-[13.5px] text-ink-faint">En continuant, j'accepte les <a href="#/conditions" className="underline hover:text-ink">Conditions d'utilisation</a> et la <a href="#/confidentialite" className="underline hover:text-ink">Politique de confidentialité</a> de Bingoo!.</p>
             <figure className="hero-in mx-auto mt-12 max-w-[1100px]" style={{ animationDelay: ".35s" }}>
-              <video src="./preuve-radar.mp4" poster="./preuve-radar.jpg" autoPlay loop muted playsInline className="w-full rounded-2xl border border-black/10 bg-[#F1EFED] shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]" aria-label="Le Radar de Bingoo! : une opportunité, son décideur et le message prêt" />
-              <figcaption className="mt-2.5 text-[13px] text-ink-faint">Le Radar dans la vraie application : le fait, le décideur, le message prêt. Données d'exemple.</figcaption>
+              <img src="./apercu-explorer.jpg" alt="Explorer : la liste des SaaS avec leurs prix, recrutements et nouveautés" className="w-full rounded-2xl border border-black/10 bg-[#F1EFED] shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]" />
+              <figcaption className="mt-2.5 text-[13px] text-ink-faint">Explorer dans la vraie application, avec les données relevées cette semaine.</figcaption>
             </figure>
           </section>
         </div>
@@ -243,7 +288,10 @@ export default function Landing() {
       <main className="bg-white">
         <div className="mx-auto max-w-[1440px] bg-white">
 
-        {/* 1. La preuve : l'application filmée sur un vrai compte */}
+        {/* 1. Explorer : le marché du SaaS */}
+        <Explorer n={nb} />
+
+        {/* 2. Passer à l'action : l'application filmée sur un vrai compte */}
         <Preuve />
 
         {/* 2. La preuve sur TON marché : l'essai en direct, sans compte */}
@@ -428,13 +476,13 @@ export default function Landing() {
       <footer className="border-t border-line bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid grid-cols-2 md:grid-cols-4 gap-8 text-[15px]">
           <div><p className="font-bold">Produit</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="#preuve" onClick={scrollTo("preuve")} className="hover:text-ink">La preuve en vidéo</a></li><li><a href="#essai" onClick={scrollTo("essai")} className="hover:text-ink">Essai en direct</a></li><li><a href="#demandes" onClick={scrollTo("demandes")} className="hover:text-ink">Demandes publiques</a></li><li><a href="#village" onClick={scrollTo("village")} className="hover:text-ink">Ton village</a></li><li><a href="#extension" onClick={scrollTo("extension")} className="hover:text-ink">Extension Chrome</a></li><li><a href="#tarifs" onClick={scrollTo("tarifs")} className="hover:text-ink">Tarifs</a></li></ul></div>
-          <div><p className="font-bold">Outils gratuits</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="#/outils/contrats-publics" className="hover:text-ink">Contrats publics qui se terminent</a></li><li><a href="#/outils/analyse-concurrent" className="hover:text-ink">Analyse d'un concurrent</a></li></ul></div>
+          <div><p className="font-bold">Outils gratuits</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="#/marche" className="hover:text-ink">Ton marché SaaS en une minute</a></li><li><a href="/saas" className="hover:text-ink">Tous les SaaS : prix et alternatives</a></li><li><a href="#/outils/contrats-publics" className="hover:text-ink">Contrats publics qui se terminent</a></li><li><a href="#/outils/analyse-concurrent" className="hover:text-ink">Analyse d'un concurrent</a></li></ul></div>
           <div><p className="font-bold">Pour qui</p><ul className="mt-4 space-y-2.5 text-ink-soft">{[["logiciels", "Fondateurs de SaaS"], ["agences", "Agences et cabinets"], ["nettoyage", "Nettoyage"], ["securite", "Sécurité"]].map(([k, l]) => <li key={k}><a href={`#/metier/${k}`} className="hover:text-ink">{l}</a></li>)}</ul></div>
           <div><p className="font-bold">Compte et légal</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><button onClick={() => nav("/connexion?mode=login")} className="hover:text-ink">Connexion</button></li><li><button onClick={go} className="hover:text-ink">Créer un compte</button></li>{legalReady && <><li><a href="#/mentions-legales" className="hover:text-ink">Mentions légales</a></li><li><a href="#/confidentialite" className="hover:text-ink">Confidentialité</a></li><li><a href="#/conditions" className="hover:text-ink">Conditions</a></li></>}<li><a href="#/opposition" className="hover:text-ink">Ne plus être contacté</a></li></ul></div>
         </div>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-10 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-8">
           <Logo height={34} />
-          <p className="text-[13.5px] text-ink-faint">© {new Date().getFullYear()} Bingoo! · Une longueur d'avance sur tes prochains clients</p>
+          <p className="text-[13.5px] text-ink-faint">© {new Date().getFullYear()} Bingoo! · Le TrendTrack des SaaS</p>
         </div>
       </footer>
     </div>

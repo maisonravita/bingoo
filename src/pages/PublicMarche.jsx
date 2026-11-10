@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Logo from "../components/Logo";
 import { cx } from "../lib/utils";
 
@@ -21,10 +21,17 @@ export default function PublicMarche({ embedded = false, initial = null }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [r, setR] = useState(initial);
-  const go = async (e) => {
-    e.preventDefault(); setBusy(true); setErr(""); setR(null);
-    try { setR(await call("free-marche", { url })); } catch (x) { setErr(x.message); } finally { setBusy(false); }
+  const lancer = async (u) => {
+    setBusy(true); setErr(""); setR(null);
+    try { setR(await call("free-marche", { url: u })); } catch (x) { setErr(x.message); } finally { setBusy(false); }
   };
+  const go = (e) => { e.preventDefault(); lancer(url); };
+  // Lien direct depuis la page d'accueil : /marche?u=monsaas.com lance le rapport tout de suite
+  useEffect(() => {
+    if (initial) return;
+    const u = new URLSearchParams(window.location.hash.split("?")[1] ?? window.location.search.slice(1)).get("u");
+    if (u) { setUrl(u); lancer(u); }
+  }, []);
   const s = r?.synthese;
   const ecart = s?.ton_prix != null && s?.prix_median ? Math.round(((s.ton_prix - s.prix_median) / s.prix_median) * 100) : null;
   return (

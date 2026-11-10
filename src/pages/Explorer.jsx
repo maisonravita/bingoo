@@ -112,6 +112,8 @@ function Liste() {
         </form>
       </div>
 
+      <Demarrer />
+
       <div className="mt-5 rounded-2xl bg-white border border-line p-4 space-y-3">
         <div className="flex flex-wrap gap-2">
           <input value={f.q} onChange={(e) => set("q", e.target.value)} placeholder="Rechercher un logiciel, un usage…" className="flex-1 min-w-[220px] rounded-xl border border-line px-3 py-2.5 text-[14px] outline-none focus:border-ink" />
@@ -396,8 +398,8 @@ function Marche() {
           <div className="mt-5 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
             {t.series.filter((s) => s.id !== "tous").sort((a, b) => (b.evolution_3m ?? -999) - (a.evolution_3m ?? -999)).map((s) => (
               <button key={s.id} onClick={() => setTheme(s.id)} className={cx("text-left rounded-xl border p-3 transition", theme === s.id ? "border-ink" : "border-line hover:border-ink-faint")}>
-                <div className="flex items-baseline justify-between gap-2"><p className="font-semibold text-[13.5px] truncate">{s.label}</p>{s.evolution_3m != null && <span className={cx("text-[12.5px] font-bold tnum", s.evolution_3m >= 0 ? "text-[#15803D]" : "text-[#B91C1C]")}>{s.evolution_3m > 0 ? "+" : ""}{s.evolution_3m} %</span>}</div>
-                <p className="text-[12px] text-ink-faint">{s.dernier} créations le mois dernier · sur 3 mois</p>
+                <div className="flex items-baseline justify-between gap-2"><p className="font-semibold text-[13.5px] truncate">{s.label}</p>{s.evolution_3m != null && <span title="Évolution sur 3 mois" className={cx("shrink-0 whitespace-nowrap text-[12.5px] font-bold tnum", s.evolution_3m >= 0 ? "text-[#15803D]" : "text-[#B91C1C]")}>{s.evolution_3m > 0 ? "+" : ""}{s.evolution_3m} %</span>}</div>
+                <p className="text-[12px] text-ink-faint">{s.dernier} créations le mois dernier · évolution sur 3 mois</p>
                 <Sparkline pts={s.points} />
               </button>
             ))}
@@ -560,5 +562,38 @@ function Suivis() {
         </div>
       )}
     </div>
+  );
+}
+
+
+// ---------------------------------------------------------------- Démarrage : ton SaaS et tes concurrents suivis en un clic
+function Demarrer() {
+  const nav = useNavigate();
+  const { ws } = useWs();
+  const toast = useToast();
+  const [rien, setRien] = useState(false);
+  const [url, setUrl] = useState((ws.website ?? "").replace(/^https?:\/\//i, "").replace(/\/$/, ""));
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { supabase.from("saas_suivis").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).then(({ count }) => setRien((count ?? 0) === 0)); }, [ws.id]);
+  if (!rien) return null;
+  const go = async (e) => {
+    e.preventDefault(); if (!url.trim()) return; setBusy(true);
+    try {
+      const r = await fn("r/saas-demarrer", { workspace_id: ws.id, url });
+      toast(`${r.concurrents.length} concurrents de ${r.moi.nom} suivis, et la catégorie « ${r.moi.categorie} »`);
+      nav("/explorer/suivis");
+    } catch (x) { toast(x.message, "bad"); } finally { setBusy(false); }
+  };
+  return (
+    <form onSubmit={go} className="mt-5 rounded-2xl bg-ink text-white p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center gap-4">
+      <div className="flex-1">
+        <p className="text-[19px] font-bold">Commence par ton marché.</p>
+        <p className="mt-1 text-white/75 text-[14.5px]">Donne l'adresse de ton SaaS : Bingoo! le lit, trouve tes concurrents directs et les suit pour toi. Chaque lundi, tu sauras ce qui a bougé.</p>
+      </div>
+      <div className="flex gap-2 w-full lg:w-auto">
+        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="monsaas.com" className="flex-1 lg:w-64 rounded-xl bg-white text-ink px-4 py-3 text-[15px] outline-none" />
+        <button disabled={busy} className="shrink-0 rounded-xl bg-accent px-5 py-3 font-bold hover:bg-accent-dark disabled:opacity-70">{busy ? "Lecture (1 à 2 min)…" : "Suivre mon marché"}</button>
+      </div>
+    </form>
   );
 }
