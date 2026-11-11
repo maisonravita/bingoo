@@ -314,6 +314,13 @@ function Fiche({ domaine }) {
           <p className="mt-2 text-[15.5px] max-w-2xl">{s.description}</p>
           {s.cible && <p className="mt-1 text-[14px] text-ink-soft">Pour : {s.cible}</p>}
           {s.succes && <p className="mt-3 inline-flex flex-wrap items-center gap-x-2 rounded-xl bg-[#FEF3C7] text-[#78350F] px-3.5 py-2 text-[14px]"><b>★ Preuve de succès :</b> {s.succes.preuve}{s.succes.source && <a href={s.succes.source} target="_blank" rel="noopener noreferrer" className="underline text-[12.5px] opacity-80">source</a>}</p>}
+          {(s.succes?.courbe ?? []).length > 2 && (
+            <div className="mt-3 max-w-md rounded-xl border border-line bg-white px-4 py-3">
+              <div className="flex items-baseline justify-between text-[12.5px]"><b>Revenu vérifié, mois par mois</b><span className="text-ink-faint">{s.succes.abonnements ? `${s.succes.abonnements.toLocaleString("fr-FR")} abonnés · ` : ""}{s.succes.fonde ? `créé en ${s.succes.fonde.slice(0, 4)}` : ""}</span></div>
+              <div className="mt-2"><Sparkline pts={s.succes.courbe.map((x) => ({ n: x.v }))} h={56} /></div>
+              <div className="flex justify-between text-[11.5px] text-ink-faint tnum"><span>{s.succes.courbe[0].m}</span><span>{s.succes.courbe.at(-1).m}</span></div>
+            </div>
+          )}
           {(s.tags ?? []).length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{s.tags.map((t) => <span key={t} className="rounded-full bg-paper px-2.5 py-1 text-[12.5px]">{t}</span>)}</div>}
         </div>
         <div className="flex flex-col gap-2"><BoutonSuivre saasId={s.id} />
