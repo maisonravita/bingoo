@@ -1,0 +1,1 @@
+-- Appliquées via MCP : saas_app_ia (+ saas_app_ia_compter), saas_apps.verif (+ saas_app_code_set), saas.constructible / constructible_ia (+ saas_constructible_maj, ajoutée au cron de copiabilité), cron bingoo-app-domaines (saas-domaines, toutes les heures)

@@ -351,16 +351,17 @@ export async function saasNiches(max = 150) {
   const lots: (typeof rows)[] = [];
   for (let i = 0; i < rows.length; i += 15) lots.push(rows.slice(i, i + 15));
   const traiter = async (lot: typeof rows) => {
-    const r = await askJson<{ saas: { i: number; niche: string }[] }>(`Range chaque logiciel dans UNE niche de cette liste, selon ce qu'il fait (son sujet principal), pas selon ses clients :
+    const r = await askJson<{ saas: { i: number; niche: string; constructible?: boolean }[] }>(`Range chaque logiciel dans UNE niche de cette liste, selon ce qu'il fait (son sujet principal), pas selon ses clients :
 ${noms.join(" | ")}
 Si aucune ne convient vraiment, mets "".
+Dis aussi s'il est constructible comme une application web de gestion : constructible = true si son cœur tient dans des données saisies par l'utilisateur, des formulaires, des pages publiques (réservation, formulaire, avis), des tableaux de bord et une IA qui écrit ou analyse du texte ; false s'il lui faut de la vidéo, de l'image ou du son générés, de la 3D, une appli mobile ou une extension, de l'infrastructure (API, serveur, VPN, hébergement), des données extérieures en masse (moteurs de recherche, Google Maps, bases de contacts, appels d'offres), ou le pilotage de plateformes publicitaires ou de réseaux sociaux.
 ${lot.map((x, k) => `${k}. ${x.nom} : ${x.description} (étiquettes : ${(x.tags ?? []).join(", ")})`).join("\n")}
-Clé : saas, liste d'objets i (le numéro) et niche (texte exact de la liste, ou "").`, { fast: true, maxTokens: 3000 }).catch((e) => { console.error("niches", String(e).slice(0, 200)); return { saas: [] }; });
+Clé : saas, liste d'objets i (le numéro), niche (texte exact de la liste, ou "") et constructible (booléen).`, { fast: true, maxTokens: 3000 }).catch((e) => { console.error("niches", String(e).slice(0, 200)); return { saas: [] }; });
     for (const x of r.saas ?? []) {
       const row = lot[Number(x.i)];
       if (!row) continue;
       const niche = noms.includes(x.niche) ? x.niche : null;
-      await admin.from("saas").update({ niche, niche_ia: true }).eq("id", row.id);
+      await admin.from("saas").update({ niche, niche_ia: true, ...(typeof x.constructible === "boolean" ? { constructible_ia: x.constructible } : {}) }).eq("id", row.id);
       faits++;
     }
   };
