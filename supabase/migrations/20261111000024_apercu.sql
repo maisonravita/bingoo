@@ -1,0 +1,1 @@
+-- Appliquée via MCP : RPC saas_apercu(d) (aperçu gratuit avant de préparer un projet)

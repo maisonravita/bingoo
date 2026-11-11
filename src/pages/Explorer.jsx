@@ -944,7 +944,9 @@ function Lancer() {
           <p className="mt-3 text-[13px] text-white/55">Concurrence loyale : les mêmes fonctionnalités, mais ton nom, tes mots et ton design. Reprendre la marque, les textes mot pour mot ou le design de {nomInspi} exposerait à des poursuites.</p>
           <button onClick={generer} disabled={busy} className="mt-6 rounded-xl bg-accent px-7 py-3.5 font-bold hover:bg-accent-dark disabled:opacity-60">{busy ? "Préparation de ton projet… (une à deux minutes)" : niv(ws) < 2 ? "Disponible avec la formule Pro" : "Préparer mon projet"}</button>
         </div>
-      ) : (
+      ) : null}
+      {!p && <Apercu domaine={d} />}
+      {!p ? null : (
         <>
           <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -1023,6 +1025,48 @@ function Lancer() {
 
 // ---------------------------------------------------------------- Bingoo! construit le SaaS
 // Une vraie application en ligne (site, comptes, écrans avec données), hébergée sur #/app/<slug>, modifiable en une phrase.
+// ---------------------------------------------------------------- Aperçu gratuit avant de préparer le projet (sans IA)
+function Apercu({ domaine }) {
+  const nav = useNavigate();
+  const [a, setA] = useState(undefined);
+  useEffect(() => { supabase.rpc("saas_apercu", { d: domaine }).then(({ data }) => setA(data ?? null)); }, [domaine]);
+  if (!a) return null;
+  const canaux = METHODE.filter(([k]) => a.methode?.[k]);
+  const Carte = ({ titre, children }) => <section className="rounded-2xl bg-white border border-line p-5"><h2 className="font-bold text-[16px]">{titre}</h2><div className="mt-2 text-[14px]">{children}</div></section>;
+  return (
+    <div className="mt-5">
+      <div className="flex flex-wrap items-center gap-2">
+        {a.succes?.preuve && <span className="rounded-lg bg-[#FEF3C7] text-[#78350F] px-3 py-1.5 text-[13.5px] font-semibold">★ {a.succes.preuve}</span>}
+        {a.copiable != null && <span className={cx("rounded-lg px-3 py-1.5 text-[13.5px] font-semibold", a.copiable >= 60 ? "bg-[#DCFCE7] text-[#166534]" : "bg-paper text-ink-soft")}>{a.copiable >= 60 ? "🎯 Facile à copier" : a.copiable >= 30 ? "Copiable avec un angle précis" : "Difficile à copier tel quel"} · {a.copiable}/100</span>}
+        <span className="text-[12.5px] text-ink-faint">Aperçu gratuit, tiré de ce que Bingoo! a déjà relevé</span>
+      </div>
+      <div className="mt-3 grid md:grid-cols-3 gap-3">
+        <Carte titre="Ce qu'il vend">
+          <p>{a.description}</p>
+          {a.cible && <p className="mt-1.5 text-ink-soft">Pour : {a.cible}</p>}
+          {(a.formules ?? []).length > 0 && <ul className="mt-2 space-y-1">{a.formules.slice(0, 4).map((f) => <li key={f.nom} className="flex justify-between gap-3 text-[13.5px]"><span>{f.nom}</span><span className="tnum text-ink-soft">{f.prix}</span></li>)}</ul>}
+        </Carte>
+        <Carte titre="Pourquoi le copier">
+          {(a.copiable_raisons ?? []).length ? <ul className="space-y-1">{a.copiable_raisons.map((r) => <li key={r} className={/Géant|Grosse|devis/.test(r) ? "text-ink-soft" : ""}>{/Géant|Grosse|devis/.test(r) ? "– " : "✓ "}{r}</li>)}</ul> : <p className="text-ink-soft">Pas encore assez de données sur ce SaaS.</p>}
+        </Carte>
+        <Carte titre="Comment il trouve ses clients">
+          {canaux.length ? <ul className="space-y-1">{canaux.map(([k, l]) => <li key={k}><a href={a.methode[k]} target="_blank" rel="noopener noreferrer" className="hover:underline">→ {l}</a></li>)}</ul> : <p className="text-ink-soft">Aucun canal visible sur son site.</p>}
+        </Carte>
+      </div>
+      <section className="mt-3 rounded-2xl bg-white border border-line p-5">
+        <h2 className="font-bold text-[16px]">Qui le fait déjà en France</h2>
+        {(a.concurrents_fr ?? []).length ? (
+          <>
+            <p className="text-[13.5px] text-ink-soft">{a.concurrents_fr.length} SaaS français proches dans la base. Ton angle devra se démarquer d'eux.</p>
+            <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-3 gap-2">{a.concurrents_fr.map((c) => <button key={c.domaine} onClick={() => nav(`/explorer/${c.domaine}`)} className="flex items-center gap-2.5 rounded-xl border border-line px-3 py-2 text-left hover:border-ink-faint"><CompanyLogo name={c.nom} url={`https://${c.domaine}`} className="w-8 h-8" pad="p-1" /><span className="min-w-0"><span className="block font-semibold truncate">{c.nom}</span><span className="block text-[12px] text-ink-faint truncate">{c.preuve ?? (c.prix_entree_eur != null ? `dès ${c.prix_entree_eur} €/mois` : "prix non affiché")}</span></span></button>)}</div>
+          </>
+        ) : <p className="text-[14px]"><b className="text-[#166534]">Aucun équivalent français repéré</b> <span className="text-ink-soft">parmi les {a.fr_categorie} SaaS français de la catégorie « {a.categorie} » : la place est peut-être à prendre.</span></p>}
+      </section>
+      <p className="mt-3 text-[13px] text-ink-soft">En préparant ton projet, Bingoo! ajoute : chaque fonctionnalité et ton équivalent, tes prix face aux siens, l'ordre pour les construire, ton plan d'affaires et ta page de précommande.</p>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------- Ouverture : prévenir la liste d'attente (le créateur décide quand)
 function OuvertureListe({ app, projet }) {
   const { ws } = useWs();
