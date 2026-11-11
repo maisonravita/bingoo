@@ -192,6 +192,38 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
       return { status: 200, body: { ok: true } };
     }
 
+    // ---- Pages publiques (réservation, formulaire, avis…) : ouvertes sans compte par les clients d'un utilisateur de l'app
+    if (action === "public-info" || action === "public-list" || action === "public-add") {
+      const page = ((app.spec as any)?.ecrans ?? []).find((e: any) => e.public && e.id === String(b.page ?? ""));
+      const espace = String(b.espace ?? "");
+      if (!page || !/^[0-9a-f-]{36}$/.test(espace)) throw new Err(404, "Page introuvable");
+      const { data: t } = await admin.from("saas_app_users").select(COLS).eq("app_id", app.id).eq("id", espace).maybeSingle();
+      if (!t || (t.espace_id && t.espace_id !== t.id)) throw new Err(404, "Page introuvable");
+      if (!etat(app, t).acces) throw new Err(402, "Cette page n'est pas disponible pour le moment");
+      if (action === "public-info") return { status: 200, body: { nom: t.nom ?? "" } };
+      const col = colOk(b.col);
+      const def = ((app.spec as any)?.collections ?? []).find((c: any) => c.nom === col) ?? { champs: [] };
+      if (action === "public-list") {
+        if (!(page.lecture ?? []).includes(col)) throw new Err(403, "Lecture non autorisée");
+        const champs = (def.champs ?? []) as any[];
+        const drapeau = champs.find((c) => c.type === "booleen" && /^(publie|publiee|visible|publique|en_ligne|affiche|approuve)$/.test(c.nom))?.nom;
+        let q = admin.from("saas_app_rows").select("id, data, at, maj").eq("app_id", app.id).eq("espace_id", espace).eq("col", col);
+        if (drapeau) q = q.eq(`data->>${drapeau}`, "true");
+        const { data } = await q.order("at", { ascending: false }).limit(300);
+        // Ce que d'autres visiteurs ont envoyé (réservations…) : seulement les champs utiles au calcul (dates, durées, statut), jamais leurs coordonnées
+        const prive = new Set(champs.filter((c) => ["email", "telephone"].includes(c.type)).map((c) => c.nom));
+        const recu = col === page.ecriture && !drapeau;
+        const garde = (k: string) => !prive.has(k) && !/^_/.test(k) && (!recu || /date|heure|debut|fin|duree|creneau|statut|type|jour|_id$/.test(k));
+        return { status: 200, body: (data ?? []).map((r: any) => ({ ...Object.fromEntries(Object.entries(r.data ?? {}).filter(([k]) => garde(k))), id: r.id, created_at: r.at })) };
+      }
+      if (col !== page.ecriture) throw new Err(403, "Envoi non autorisé");
+      const depuis = new Date(Date.now() - 3600e3).toISOString();
+      const { count } = await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("espace_id", espace).eq("data->>_public", "true").gte("at", depuis);
+      if ((count ?? 0) >= 60) throw new Err(429, "Trop d'envois en ce moment, réessaie dans une heure");
+      const { data: r } = await admin.from("saas_app_rows").insert({ app_id: app.id, user_id: espace, espace_id: espace, col, data: { ...propre(b.data), _public: true } }).select("id, data, at, maj").single();
+      return { status: 200, body: ligne(r) };
+    }
+
     // ---- Validation avant construction : liste d'attente et précommandes (sans compte)
     if (action === "liste" || action === "precommande") {
       if (!(app as any).validation?.actif) throw new Err(400, "Les inscriptions sont fermées");
@@ -308,7 +340,7 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
     const rows = () => admin.from("saas_app_rows").select("id, data, at, maj").eq("app_id", app.id).eq("espace_id", espace);
     if (!u0.vu_at || Date.now() - new Date(u0.vu_at).getTime() > 3600e3) await admin.from("saas_app_users").update({ vu_at: new Date().toISOString() }).eq("id", u0.id);
 
-    if (action === "me") return { status: 200, body: { user, ...et, variante: titulaire.variante ?? "A" } };
+    if (action === "me") return { status: 200, body: { user, ...et, espace, variante: titulaire.variante ?? "A" } };
 
     if (action === "checkout" || action === "portail") {
       if (!et.payant) throw new Err(400, "Cette application est gratuite");

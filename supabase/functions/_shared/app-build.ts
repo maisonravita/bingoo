@@ -18,6 +18,7 @@ Variables déjà disponibles (ne les redéclare pas) :
 - user : { id, nom, email } du compte connecté. params : paramètres reçus via go().
 - go(idEcran, params?) : ouvre un autre écran de l'application.
 - toast(message, "ok"|"bad") : petite notification.
+- Envoyer un e-mail à quelqu'un (client, prospect…) : ouvre la messagerie de l'utilisateur avec un lien mailto: prérempli (destinataire, objet, texte encodés avec encodeURIComponent), puis enregistre l'envoi dans la collection. N'affirme jamais qu'un e-mail ou un SMS est parti tout seul.
 - ia(consigne, { texte?, json? }) → Promise : l'IA intégrée de l'application (rédiger, reformuler, résumer, traduire, analyser, classer, générer des idées ou un document). Renvoie du texte, ou un objet si json: true (décris alors la forme attendue dans la consigne). Pendant l'appel, désactive le bouton et affiche « … en cours » ; en cas d'erreur, toast(e.message, "bad"). Enregistre le résultat dans une collection quand l'utilisateur voudra le retrouver. N'utilise ia que si la fonctionnalité en a vraiment besoin.
 - fmt.eur(n), fmt.num(n), fmt.date(iso), fmt.dateHeure(iso), fmt.pct(n).
 - ui.Page({ titre, sous, actions }) : en-tête d'écran + contenu (toujours l'élément racine de l'écran).
@@ -27,6 +28,16 @@ Variables déjà disponibles (ne les redéclare pas) :
   ui.Modal({ open, onClose, titre, actions }), ui.Table({ colonnes: [{ cle, label, rendu?(ligne) }], lignes, onClick?(ligne), vide }), ui.Empty({ texte, action }), ui.Loading(), ui.Tabs({ valeur, onChange, onglets: [[v, l]] }), ui.Bar({ donnees: [{ label, valeur }] }), ui.Icone({ nom, class }) avec nom parmi ${ICONES.join(", ")}.
 - Tailwind CSS est chargé. Couleur de la marque : classes bg-[var(--c)], text-[var(--c)], border-[var(--c)]. Grilles : grid sm:grid-cols-2 lg:grid-cols-4 gap-4.
 Règles : tout en français, tutoiement ; un vrai écran utile et complet (création, modification, suppression avec confirm(), recherche ou filtres quand c'est utile, états vides) ; calcule les indicateurs à partir des données ; jamais de fausses données en dur (les données d'exemple sont déjà dans la base) ; pas de fetch, pas de localStorage, pas de window.parent ; code compact : 180 lignes au plus, pas de commentaires, pas de répétition (factorise les formulaires dans une petite fonction).`;
+
+// Page publique : ouverte par les clients de l'utilisateur, sans compte
+const DOC_PUBLIC = (e: any) => `
+
+IMPORTANT : cet écran est une PAGE PUBLIQUE, ouverte sans compte par les clients de l'utilisateur (lien qu'il leur partage). Pas de menu autour : la page se suffit à elle-même.
+- user vaut null. props.espace : nom de l'entreprise de l'utilisateur s'il est connu (peut être vide).
+- Lecture possible seulement avec db.list ou useCollection sur : ${(e.lecture ?? []).join(", ") || "aucune collection"} (n'affiche que ce qui sert au visiteur ; si la collection a un champ booléen publie ou visible, ne montre que les éléments où il vaut true — c'est déjà filtré côté serveur).
+- Écriture possible seulement avec db.add dans : ${e.ecriture ?? "aucune collection"}. Pas de update, pas de remove, pas de ia.
+- Mise en page : en-tête avec le titre et une phrase claire, puis le formulaire ou la liste, en une colonne lisible sur téléphone (max-w-xl mx-auto). Après l'envoi, un message de confirmation chaleureux à la place du formulaire. Champs obligatoires vérifiés avant l'envoi ; adresse e-mail du visiteur demandée quand l'utilisateur devra lui répondre.
+- Réservation : propose seulement des créneaux libres (calculés à partir des disponibilités et des réservations déjà prises), jamais dans le passé.`;
 
 const slugify = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) || "saas";
 
@@ -49,14 +60,15 @@ function contexteSpec(spec: any) {
   return `Application « ${spec.nom} » : ${spec.pitch}
 Pour : ${spec.cible ?? ""}
 Collections (données) : ${(spec.collections ?? []).map((c: any) => `${c.nom} (${c.label}) : ${(c.champs ?? []).map((x: any) => `${x.nom} ${x.type}${x.valeurs ? ` [${x.valeurs.join("|")}]` : ""}`).join(", ")}`).join(" ; ")}
-Écrans de l'application (id : titre) : ${(spec.ecrans ?? []).map((e: any) => `${e.id} : ${e.titre}`).join(" ; ")}`;
+Écrans de l'application (id : titre) : ${(spec.ecrans ?? []).filter((e: any) => !e.public).map((e: any) => `${e.id} : ${e.titre}`).join(" ; ")}${(spec.ecrans ?? []).some((e: any) => e.public) ? `
+Pages publiques (pour les clients de l'utilisateur, sans compte ; leur lien à partager est déjà affiché dans le menu de l'application) : ${(spec.ecrans ?? []).filter((e: any) => e.public).map((e: any) => `${e.titre} (enregistre dans ${e.ecriture ?? "rien"})`).join(" ; ")}. Dans l'application, les éléments reçus par ces pages ont le champ _public = true : signale-les (badge « Reçu en ligne »).` : ""}`;
 }
 
 async function ecrire(spec: any, e: any, demande = "", actuel = "") {
   const consigne = actuel
     ? `Voici le code actuel de l'écran « ${e.titre} » (${e.id}) :\n\`\`\`js\n${actuel}\n\`\`\`\nModification demandée par l'utilisateur : ${demande}\nRéécris l'écran complet avec cette modification, sans rien casser du reste.`
     : `Écris l'écran « ${e.titre} » (id ${e.id}). Ce qu'il doit faire : ${e.but}\nFonctions à couvrir : ${(e.fonctions ?? []).join(" ; ")}${demande ? `\nPrécision de l'utilisateur : ${demande}` : ""}`;
-  const prompt = `${DOC}\n\n${contexteSpec(spec)}\n\n${consigne}\n\nRéponds uniquement avec le code dans un bloc \`\`\`js.`;
+  const prompt = `${DOC}${e.public ? DOC_PUBLIC(e) : ""}\n\n${contexteSpec(spec)}\n\n${consigne}\n\nRéponds uniquement avec le code dans un bloc \`\`\`js.`;
   let code = extraire(await ask(prompt, { maxTokens: 12000, system: "Tu es un excellent développeur front-end. Tu écris du code Preact + htm propre, robuste et lisible, avec une interface soignée." }));
   let err = erreurSyntaxe(code);
   if (err || !/function\s+Ecran\s*\(/.test(code)) {
@@ -86,6 +98,7 @@ Rends un objet JSON compact :
 - atouts : 6 objets titre + texte (une phrase courte), tirés des fonctionnalités.
 - collections : 2 à 5 objets nom (snake_case, pluriel), label, champs : 4 à 8 objets nom (snake_case) + type (texte|nombre|montant|date|choix|booleen|email|telephone|lien) + valeurs (pour choix seulement). Les liens entre collections : un champ <collection>_id de type texte.
 - ecrans : 4 à 6 objets id (snake_case court), titre (2 mots au plus), icone (parmi ${ICONES.join(", ")}), but (une phrase), fonctions (3 à 5 éléments courts). Le premier écran est « Tableau de bord » (indicateurs et activité récente). Couvre le cœur du MVP ; pas d'écran de connexion, de paiement ni de réglages de compte (le gabarit les gère). L'application dispose d'une IA intégrée (rédiger, reformuler, résumer, analyser, générer un document) : si le SaaS d'origine repose sur l'IA, l'écran principal doit la faire fonctionner pour de vrai (saisie → résultat → sauvegarde dans une collection). Elle ne sait pas produire d'images, de vidéos ni de sons, ni se connecter à des services extérieurs.
+- pages_publiques : 0 à 2 objets id (snake_case court), titre (3 mots au plus), but (une phrase), fonctions (3 à 5), lecture (collections que la page montre au visiteur, ex. créneaux, prestations, témoignages publiés ; peut être vide), ecriture (UNE collection où la page enregistre ce que le visiteur envoie : réservation, demande, témoignage, commande, inscription, réponse). Une page publique est ouverte par les clients de l'utilisateur, sans compte, depuis un lien qu'il partage. N'en mets que si le SaaS sert à recevoir quelque chose de ces clients (prise de rendez-vous, formulaire, avis, devis, commande, inscription, sondage) ; sinon une liste vide. Dans ce cas, ne crée PAS d'écran de l'application qui imite cette page : l'application affiche déjà son lien à partager.
 - demo : objet { <collection> : 5 éléments réalistes en français (entreprises et personnes fictives, montants cohérents, dates réparties entre ${new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10)} et ${new Date(Date.now() + 90 * 864e5).toISOString().slice(0, 10)}, aujourd'hui = ${new Date().toISOString().slice(0, 10)}) } ; les champs <collection>_id pointent vers le champ « ref » (ex. "c1") que tu ajoutes à chaque élément.`, { maxTokens: 12000 });
 
   const spec: any = {
@@ -97,6 +110,14 @@ Rends un objet JSON compact :
     ecrans: (s.ecrans ?? []).slice(0, 6).map((e: any, i: number) => ({ id: slugify(String(e.id ?? `ecran-${i}`)).replace(/-/g, "_") || `ecran_${i}`, titre: String(e.titre ?? `Écran ${i + 1}`).slice(0, 24), icone: ICONES.includes(e.icone) ? e.icone : "liste", but: e.but, fonctions: e.fonctions })),
     demo: s.demo ?? {},
   };
+  // Pages publiques (réservation, formulaire, avis…) : écrites comme des écrans, servies sans compte
+  const cols = new Set(spec.collections.map((c: any) => c.nom));
+  for (const [i, x] of (s.pages_publiques ?? []).slice(0, 2).entries()) {
+    const ecriture = cols.has(x?.ecriture) ? x.ecriture : null;
+    const lecture = (Array.isArray(x?.lecture) ? x.lecture : []).filter((c: any) => cols.has(c)).slice(0, 3);
+    if (!ecriture && !lecture.length) continue;
+    spec.ecrans.push({ id: `pub_${slugify(String(x.id ?? i)).replace(/-/g, "_")}`, titre: String(x.titre ?? "Page publique").slice(0, 30), icone: "carte", but: x.but, fonctions: x.fonctions, public: true, lecture, ecriture });
+  }
   spec.ecrans = spec.ecrans.filter((e: any, i: number) => spec.ecrans.findIndex((x: any) => x.id === e.id) === i);
   // Garde-fou : rien du SaaS d'origine (nom, domaine) dans ce que verront les clients
   const { ecrans: _e, ...visible } = spec;

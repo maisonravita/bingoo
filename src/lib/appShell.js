@@ -9,8 +9,8 @@ const HTM = "https://esm.sh/htm@3.1.1";
 
 const safe = (o) => JSON.stringify(o).replace(/</g, "\\u003c").replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029");
 
-export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null, validation = null, precommande = null, verif = false }) {
-  const boot = { spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog, source, ecran, validation, precommande, verif };
+export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null }) {
+  const boot = { spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog, source, ecran, validation, precommande, verif, page };
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${String(spec.nom ?? "Mon SaaS").replace(/[<&]/g, "")}</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js"></script>
@@ -58,6 +58,7 @@ if (B.verif) {
   items.forEach(({ id, col, x }, i) => { const d = {}; for (const [k, v] of Object.entries(x)) if (k !== "ref" && k !== "id") d[k] = typeof v === "string" && refs.has(v) && /_id$/.test(k) ? refs.get(v) : v; (VSTORE[col] ??= []).push({ ...d, id, created_at: new Date(Date.now() - i * 25e6).toISOString(), updated_at: null }); });
 }
 async function verifCall(action, b) {
+  if (action === "public-list") action = "list"; else if (action === "public-add") action = "add"; else if (action === "public-info") return { nom: "Atelier Exemple" };
   const L = VSTORE[b.col] ??= [];
   if (action === "list") return L.filter((x) => Object.entries(b.where ?? {}).every(([k, v]) => String(x[k]) === String(v))).slice().reverse();
   if (action === "get") { const r = L.find((x) => x.id === b.id); if (!r) throw new Error("Élément introuvable"); return r; }
@@ -81,13 +82,23 @@ const db = {
   update: async (col, id, data) => { const r = await call("update", { col, id, data }); bus.emit("col:" + col); return r; },
   remove: async (col, id) => { const r = await call("remove", { col, id }); bus.emit("col:" + col); return r; },
 };
-function useCollection(col, where) {
+const mkUseCollection = (dbx) => function useCollection(col, where) {
   const [rows, setRows] = useState([]), [loading, setLoading] = useState(true), [error, setError] = useState(null);
   const key = JSON.stringify(where ?? {});
-  const reload = useCallback(() => db.list(col, where).then((r) => { setRows(r); setError(null); }, (e) => setError(e.message)).finally(() => setLoading(false)), [col, key]);
+  const reload = useCallback(() => dbx.list(col, where).then((r) => { setRows(r); setError(null); }, (e) => setError(e.message)).finally(() => setLoading(false)), [col, key]);
   useEffect(() => { reload(); return bus.on("col:" + col, reload); }, [reload]);
-  return { rows, loading, error, reload, add: (d) => db.add(col, d), update: (id, d) => db.update(col, id, d), remove: (id) => db.remove(col, id) };
-}
+  return { rows, loading, error, reload, add: (d) => dbx.add(col, d), update: (id, d) => dbx.update(col, id, d), remove: (id) => dbx.remove(col, id) };
+};
+const useCollection = mkUseCollection(db);
+// Pages publiques : lecture et envoi limités à ce que la page déclare, pour l'espace de l'utilisateur qui la partage
+const PAGE = B.page && /^[a-z0-9_]{1,60}$/.test(B.page.id ?? "") ? B.page : null;
+const refuse = () => Promise.reject(new Error("Action impossible sur une page publique"));
+const dbPublic = {
+  list: (col) => call("public-list", { page: PAGE?.id, espace: PAGE?.espace, col }),
+  get: (col, id) => call("public-list", { page: PAGE?.id, espace: PAGE?.espace, col }).then((r) => r.find((x) => x.id === id) ?? null),
+  add: async (col, data) => { const r = await call("public-add", { page: PAGE?.id, espace: PAGE?.espace, col, data }); bus.emit("col:" + col); return r; },
+  update: refuse, remove: refuse,
+};
 const toast = (msg, type = "ok") => bus.emit("toast", { msg, type, id: Math.random() });
 
 // ---------------------------------------------------------------- Mise en forme
@@ -131,11 +142,12 @@ const go = (id, params) => nav(id, params);
 // IA intégrée : ia("Résume ce texte", { texte }) → texte ; { json: true } → objet
 const ia = (consigne, o = {}) => call("ia", { consigne, texte: o.texte ?? "", json: !!o.json }).then((r) => r.resultat);
 const ctx = { html, h, Fragment, useState, useEffect, useMemo, useRef, useCallback, ui, fmt, db, useCollection, toast, go, Icone, ia };
+const ctxPublic = { ...ctx, db: dbPublic, useCollection: mkUseCollection(dbPublic), ia: refuse, go: () => {} };
 const ECRANS = (S.ecrans ?? []).filter((e) => e.code).map((e) => {
   let Comp;
   try {
     const f = new Function("ctx", "const {html,h,Fragment,useState,useEffect,useMemo,useRef,useCallback,ui,fmt,db,useCollection,toast,go,Icone,ia,user,params}=ctx;\\n" + e.code + "\\n;return typeof Ecran==='function'?Ecran:null;");
-    Comp = (props) => { const C = useMemo(() => f({ ...ctx, user: props.user, params: props.params }), [props.params]); return C ? h(C, props) : html\`<\${Casse} titre=\${e.titre}/>\`; };
+    Comp = (props) => { const C = useMemo(() => f({ ...(e.public ? ctxPublic : ctx), user: e.public ? null : props.user, params: props.params }), [props.params]); return C ? h(C, props) : html\`<\${Casse} titre=\${e.titre}/>\`; };
   } catch (err) { console.error(e.id, err); Comp = () => html\`<\${Casse} titre=\${e.titre}/>\`; }
   return { ...e, Comp };
 });
@@ -303,16 +315,20 @@ function Tour({ onFin }) {
 }
 
 function Appli({ user, etat, onLogout, tour, onFinTour }) {
-  const [cur, setCur] = useState({ id: ECRANS.some((e) => e.id === B.ecran) ? B.ecran : ECRANS[0]?.id, params: null }), [menu, setMenu] = useState(false), [toasts, setToasts] = useState([]);
-  nav = (id, params = null) => { if (id === "_abonnement" || id === "_equipe" || id === "_compte" || ECRANS.some((e) => e.id === id)) { setCur({ id, params }); setMenu(false); } };
+  const PRIVES = ECRANS.filter((e) => !e.public), PUBLIQUES = ECRANS.filter((e) => e.public);
+  const [cur, setCur] = useState({ id: PRIVES.some((e) => e.id === B.ecran) ? B.ecran : PRIVES[0]?.id, params: null }), [menu, setMenu] = useState(false), [toasts, setToasts] = useState([]);
+  nav = (id, params = null) => { if (id === "_abonnement" || id === "_equipe" || id === "_compte" || PRIVES.some((e) => e.id === id)) { setCur({ id, params }); setMenu(false); } };
   useEffect(() => bus.on("toast", (t) => { setToasts((x) => [...x, t]); setTimeout(() => setToasts((x) => x.filter((y) => y.id !== t.id)), 3000); }), []);
-  const E = cur.id === "_abonnement" ? { id: "_abonnement", titre: "Mon abonnement", Comp: Abonnement } : cur.id === "_equipe" ? { id: "_equipe", titre: "Équipe", Comp: Equipe } : cur.id === "_compte" ? { id: "_compte", titre: "Mon compte", Comp: Compte } : ECRANS.find((e) => e.id === cur.id) ?? ECRANS[0];
+  const E = cur.id === "_abonnement" ? { id: "_abonnement", titre: "Mon abonnement", Comp: Abonnement } : cur.id === "_equipe" ? { id: "_equipe", titre: "Équipe", Comp: Equipe } : cur.id === "_compte" ? { id: "_compte", titre: "Mon compte", Comp: Compte } : PRIVES.find((e) => e.id === cur.id) ?? PRIVES[0];
   if (!etat.acces) return html\`<\${Paywall} etat=\${etat} onLogout=\${onLogout}/>\`;
-  const Nav = () => html\`<nav class="space-y-0.5">\${[...ECRANS, { id: "_equipe", titre: "Équipe", icone: "contacts", sep: true }].map((e) => html\`<button onClick=\${() => nav(e.id)} class=\${cls("w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium", e.sep && "mt-3", e.id === E?.id ? "bg-[var(--c)]/10 text-[var(--c)]" : "text-slate-600 hover:bg-slate-100")}><\${Icone} nom=\${e.icone} class="w-[18px] h-[18px]"/>\${e.titre}</button>\`)}</nav>\`;
+  const lienPage = (e) => (B.retour || location.href.split("?")[0]).split("?")[0] + "?page=" + e.id + "&e=" + etat.espace;
+  const Partage = () => PUBLIQUES.length && etat.espace ? html\`<div class="rounded-xl bg-slate-50 p-3 text-sm"><p class="text-xs font-semibold text-slate-500 mb-1.5">À partager à tes clients</p>\${PUBLIQUES.map((e) => html\`<div class="flex items-center gap-1.5 py-1"><a href=\${lienPage(e)} target="_blank" rel="noopener" class="flex-1 truncate font-medium text-[var(--c)] hover:underline">\${e.titre} ↗</a><button title="Copier le lien" class="text-slate-400 hover:text-slate-700" onClick=\${() => { try { navigator.clipboard.writeText(lienPage(e)).then(() => toast("Lien copié"), () => prompt("Copie ce lien :", lienPage(e))); } catch (x) { prompt("Copie ce lien :", lienPage(e)); } }}>⧉</button></div>\`)}</div>\` : null;
+  const Nav = () => html\`<nav class="space-y-0.5">\${[...PRIVES, { id: "_equipe", titre: "Équipe", icone: "contacts", sep: true }].map((e) => html\`<button onClick=\${() => nav(e.id)} class=\${cls("w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium", e.sep && "mt-3", e.id === E?.id ? "bg-[var(--c)]/10 text-[var(--c)]" : "text-slate-600 hover:bg-slate-100")}><\${Icone} nom=\${e.icone} class="w-[18px] h-[18px]"/>\${e.titre}</button>\`)}</nav>\`;
   return html\`<div class="min-h-screen lg:flex">
     <aside class=\${cls("bg-white border-r border-slate-200 w-60 shrink-0 p-4 flex-col gap-6 lg:flex lg:sticky lg:top-0 lg:h-screen", menu ? "flex fixed inset-y-0 left-0 z-40" : "hidden")}>
       <div class="flex items-center gap-2 font-bold"><span class="w-8 h-8 rounded-xl bg-[var(--c)] text-white grid place-items-center">\${(S.nom ?? "S")[0]}</span>\${S.nom}</div>
       <\${Nav}/>
+      <\${Partage}/>
       \${etat.payant && html\`<button onClick=\${() => nav("_abonnement")} class=\${cls("mt-auto w-full text-left rounded-xl px-3 py-2.5 text-sm", E?.id === "_abonnement" ? "bg-[var(--c)]/10 text-[var(--c)]" : "bg-slate-50 hover:bg-slate-100")}><span class="flex items-center gap-2 font-medium"><\${Icone} nom="carte" class="w-4 h-4"/>Mon abonnement</span><span class="block text-xs text-slate-500 mt-0.5">\${["active", "trialing", "past_due"].includes(etat.abonnement?.statut) ? "Formule " + (etat.abonnement.formule ?? "") : "Essai : " + jours(etat.essai_fin) + " jour(s) restant(s)"}</span></button>\`}
       <div class=\${cls(etat.payant ? "" : "mt-auto", "border-t border-slate-100 pt-3 text-sm")}><button onClick=\${() => nav("_compte")} class="block w-full text-left hover:text-[var(--c)]"><p class="font-medium truncate">\${user.nom}</p></button><p class="text-slate-400 text-xs truncate">\${/@demo\\.local$/.test(user.email) ? "Compte de démonstration" : user.email}</p><button onClick=\${onLogout} class="mt-2 flex items-center gap-1.5 text-slate-500 hover:text-slate-800"><\${Icone} nom="sortie" class="w-4 h-4"/>Se déconnecter</button></div>
     </aside>
@@ -325,6 +341,16 @@ function Appli({ user, etat, onLogout, tour, onFinTour }) {
   </div>\`;
 }
 
+// Page publique partagée par un utilisateur de l'app à ses propres clients (sans compte)
+function PagePublique() {
+  const E = ECRANS.find((e) => e.public && e.id === PAGE.id);
+  const [info, setInfo] = useState(undefined);
+  useEffect(() => { call("public-info", { page: PAGE.id, espace: PAGE.espace }).then(setInfo, (x) => setInfo({ erreur: x.message })); }, []);
+  if (!E) return html\`<div class="min-h-screen grid place-items-center text-slate-500 p-6">Cette page n'existe pas.</div>\`;
+  if (info === undefined) return html\`<\${ui.Loading}/>\`;
+  if (info.erreur) return html\`<div class="min-h-screen grid place-items-center text-slate-500 p-6 text-center">\${info.erreur}</div>\`;
+  return html\`<div class="min-h-screen bg-slate-50"><div class="max-w-3xl mx-auto px-4 py-8 sm:py-12"><\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} user=\${null} params=\${null} espace=\${info.nom ?? ""}/></\${Garde}><p class="mt-10 text-center text-xs text-slate-400">Propulsé par \${S.nom}</p></div></div>\`;
+}
 // Chaque écran est ouvert à tour de rôle avec les données d'exemple ; le résultat part à la page Bingoo! qui encadre l'app
 function Verif() {
   const [i, setI] = useState(0); const res = useRef([]);
@@ -350,6 +376,7 @@ function Verif() {
 }
 function Racine() {
   if (B.verif) return html\`<\${Verif}/>\`;
+  if (PAGE) return html\`<\${PagePublique}/>\`;
   if (B.validation && !(S.ecrans ?? []).length) return html\`<\${Precommande}/>\`;
   const [etat, setEtat] = useState(undefined), [auth, setAuth] = useState(B.invite ? "signup" : null), [tour, setTour] = useState(false);
   const verifier = (force) => token ? call("me", { verifier: !!force }).then((r) => { if (r.variante) VARIANTE = r.variante; setEtat(r); }, () => setEtat(null)) : setEtat(null);
