@@ -1441,7 +1441,7 @@ function Bourse() {
           <p className="px-4 pt-3 font-bold">Mes conversations</p>
           <ul className="mt-1">{fils.map((x) => (
             <li key={x.bourse_id + x.acheteur_ws}><button onClick={() => setOuvert({ bourse_id: x.bourse_id, acheteur: x.acheteur_ws, nom: x.nom, prix: x.prix, vendeur: x.je_vends, autre: x.je_vends ? x.acheteur : x.vendeur })} className="w-full flex items-center gap-3 px-4 py-2.5 border-t border-line text-left hover:bg-paper">
-              <span className="min-w-0 flex-1"><span className="font-semibold">{x.nom}</span> <span className="text-[12.5px] text-ink-faint">· {x.je_vends ? `acheteur : ${x.acheteur}` : `vendeur : ${x.vendeur}`}</span><span className="block text-[13px] text-ink-soft truncate">{x.dernier}</span></span>
+              <span className="min-w-0 flex-1"><span className="font-semibold">{x.nom}</span> <span className="text-[12.5px] text-ink-faint">· {x.je_vends ? `acheteur : ${x.acheteur}` : `vendeur : ${x.vendeur}`}</span><span className="block text-[13px] text-ink-soft truncate">{String(x.dernier ?? "").replace(/^Offre : (\d+) €$/, (_, n) => `Offre : ${eurs(Number(n))}`)}</span></span>
               {x.vente === "attente_paiement" && <span className="rounded-full bg-[#DCFCE7] px-2 py-0.5 text-[11px] font-bold text-[#15803D]">OFFRE ACCEPTÉE</span>}
               {x.statut_offre === "proposee" && x.je_vends && <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-bold text-accent-dark">OFFRE {eurs(x.offre)}</span>}
               {x.non_lus > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[11px] font-bold text-white">{x.non_lus}</span>}
