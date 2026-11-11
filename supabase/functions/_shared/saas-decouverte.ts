@@ -240,6 +240,7 @@ const MARCHE_CAT: [RegExp, string][] = [
   [/secur|privacy|compliance/i, "Sécurité et conformité"], [/\bai\b|automation|agent/i, "IA et automatisation"], [/event/i, "Événements"], [/agency|freelanc/i, "Agences et freelances"],
 ];
 const PAYS_EN: Record<string, string> = { "united states": "US", usa: "US", "united kingdom": "GB", uk: "GB", france: "FR", germany: "DE", canada: "CA", spain: "ES", italy: "IT", netherlands: "NL", india: "IN", brazil: "BR", australia: "AU", portugal: "PT", poland: "PL", sweden: "SE", switzerland: "CH", belgium: "BE", ireland: "IE", singapore: "SG", "united arab emirates": "AE", israel: "IL", ukraine: "UA", turkey: "TR", mexico: "MX", argentina: "AR", japan: "JP", "south korea": "KR", indonesia: "ID", vietnam: "VN", philippines: "PH", pakistan: "PK", nigeria: "NG", estonia: "EE", romania: "RO", greece: "GR", austria: "AT", denmark: "DK", norway: "NO", finland: "FI", "czech republic": "CZ", "new zealand": "NZ", "south africa": "ZA", egypt: "EG", morocco: "MA", tunisia: "TN" };
+const SERVICE = /\b(agency|agence|llc|consult|done[- ]for[- ]you|services?\b|freelanc|coaching|mentorship|course|cohort|community|newsletter|studio|we help|we build|marketing firm|lead generation agency)\b/i;
 export async function trustmrrPublier(n = 300) {
   const { data } = await admin.from("saas").select("id, nom, domaine, succes").eq("statut", "a_lire").like("succes->>source", "%trustmrr.com%").limit(n);
   let publies = 0;
@@ -247,6 +248,8 @@ export async function trustmrrPublier(n = 300) {
     const su = r.succes ?? {};
     const texte = String(su.description || su.probleme || "").replace(/\s+/g, " ").trim();
     if (!texte) continue;
+    // Sans IA, on ne publie que les vrais abonnements (MRR) qui ne ressemblent pas à une agence ou un service : le reste attend la lecture par l'IA
+    if (!(Number(su.mrr) > 0) || SERVICE.test(`${r.nom} ${texte}`)) continue;
     const marches: string[] = Array.isArray(su.marches) ? su.marches : [];
     const cat = MARCHE_CAT.find(([re]) => marches.some((m) => re.test(m)))?.[1] ?? MARCHE_CAT.find(([re]) => re.test(texte))?.[1] ?? "Autre";
     const pays = PAYS_EN[String(su.pays ?? "").toLowerCase().trim()] ?? (/^[A-Z]{2}$/.test(String(su.pays ?? "")) ? su.pays : null);
