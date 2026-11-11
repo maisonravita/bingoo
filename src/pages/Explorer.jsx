@@ -19,7 +19,7 @@ export const CATEGORIES = ["CRM et ventes", "Prospection et emailing", "Marketin
 const PAYS = { FR: "France", BE: "Belgique", CH: "Suisse", DE: "Allemagne", ES: "Espagne", IT: "Italie", GB: "Royaume-Uni", NL: "Pays-Bas", PT: "Portugal", IE: "Irlande", SE: "Suède", DK: "Danemark", PL: "Pologne", AT: "Autriche", US: "États-Unis", CA: "Canada", AU: "Australie", IN: "Inde", IL: "Israël" };
 const drapeau = (c) => c && /^[A-Z]{2}$/.test(c) ? String.fromCodePoint(...[...c].map((x) => 127397 + x.charCodeAt(0))) : "";
 const date = (d) => d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : null;
-const TRIS = [["score_croissance", "En croissance"], ["postes", "Qui recrutent le plus"], ["nouveaute", "Nouveautés récentes"], ["rang_web", "Les plus connus"], ["prix_entree_eur", "Prix d'entrée"], ["created_at", "Ajoutés récemment"]];
+const TRIS = [["succes_montant", "Plus gros revenu prouvé"], ["score_croissance", "En croissance"], ["postes", "Qui recrutent le plus"], ["nouveaute", "Nouveautés récentes"], ["rang_web", "Les plus connus"], ["prix_entree_eur", "Prix d'entrée"], ["created_at", "Ajoutés récemment"]];
 const PAGE = 48;
 // Niveau de formule pour Explorer : 1 = Starter, 2 = Pro, 3 = Business (et anciennes formules, aperçu, fondateur)
 const niv = (ws) => (ws?.plan === "explorer" ? 1 : ws?.plan === "explorer_pro" ? 2 : 3);
@@ -85,7 +85,7 @@ function Liste() {
   const { ws } = useWs();
   const toast = useToast();
   const loc = useLocation();
-  const [f, setF] = useState(() => { const p = new URLSearchParams(loc.search); return { q: "", categorie: p.get("categorie") ?? "", pays: p.get("pays") ?? "", prixMax: "", gratuit: false, recrute: false, actif: false, tri: "score_croissance", tag: p.get("tag") ?? "" }; });
+  const [f, setF] = useState(() => { const p = new URLSearchParams(loc.search); return { q: "", categorie: p.get("categorie") ?? "", pays: p.get("pays") ?? "", prixMax: "", gratuit: false, recrute: false, actif: false, succes: p.get("succes") === "1", tri: p.get("succes") === "1" ? "succes_montant" : "score_croissance", tag: p.get("tag") ?? "" }; });
   const [ia, setIa] = useState(null); // recherche par le sens : { q, termes, resultats }
   // Export CSV de la liste affichée (formule Business)
   const exporter = (liste) => {
@@ -115,7 +115,7 @@ function Liste() {
   const set = (k, v) => { setPage(0); setF((x) => ({ ...x, [k]: v })); };
 
   useEffect(() => {
-    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web", { count: "exact" });
+    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes", { count: "exact" });
     if (f.tag) q = q.contains("tags", [f.tag]);
     if (f.q.trim()) q = q.or(`nom.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,domaine.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,description.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%`);
     if (f.categorie) q = q.eq("categorie", f.categorie);
@@ -123,6 +123,7 @@ function Liste() {
     if (f.prixMax) q = q.lte("prix_entree_eur", Number(f.prixMax));
     if (f.gratuit) q = q.eq("gratuit", true);
     if (f.recrute) q = q.eq("recrute", true);
+    if (f.succes) q = q.eq("a_succes", true);
     if (f.actif) q = q.gte("nouveaute", new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10));
     q = q.order(f.tri, { ascending: f.tri === "prix_entree_eur" || f.tri === "rang_web", nullsFirst: false }).order("nom").range(page * PAGE, page * PAGE + PAGE - 1);
     let vivant = true;
@@ -180,6 +181,7 @@ function Liste() {
           </select>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Chip on={f.succes} onClick={() => setF((x) => ({ ...x, succes: !x.succes, tri: !x.succes ? "succes_montant" : (x.tri === "succes_montant" ? "score_croissance" : x.tri) }))}>★ SaaS à succès</Chip>
           <Chip on={f.gratuit} onClick={() => set("gratuit", !f.gratuit)}>Version gratuite</Chip>
           <Chip on={f.recrute} onClick={() => set("recrute", !f.recrute)}>Recrutent</Chip>
           <Chip on={f.actif} onClick={() => set("actif", !f.actif)}>Nouveauté ce mois-ci</Chip>
@@ -217,6 +219,7 @@ function Liste() {
                 </div>
                 {s.score_croissance > 0 && <span title="Score de croissance (recrutement, nouveautés)" className={cx("rounded-lg px-2 py-1 text-[12px] font-bold tnum", s.score_croissance >= 60 ? "bg-[#DCFCE7] text-[#166534]" : s.score_croissance >= 30 ? "bg-[#FEF3C7] text-[#92400E]" : "bg-paper text-ink-soft")}>{s.score_croissance}</span>}
               </div>
+              {s.succes && <p className="mt-2 rounded-lg bg-[#FEF3C7] text-[#78350F] px-2.5 py-1.5 text-[12.5px] font-semibold line-clamp-2">★ {s.succes.preuve}</p>}
               <p className="mt-2 text-[13.5px] text-ink-soft line-clamp-2 min-h-[38px]">{s.description}</p>
               <div className="mt-3 flex flex-wrap gap-1.5 text-[12px]">
                 <span className="rounded-md bg-paper px-2 py-1 tnum">{prixCourt(s).replace(/^./, (c) => c.toUpperCase())}</span>
@@ -310,6 +313,7 @@ function Fiche({ domaine }) {
           <p className="text-ink-soft">{s.categorie} · <a href={`https://${s.domaine}`} target="_blank" rel="noopener noreferrer" className="underline">{s.domaine}</a>{s.pays ? ` · ${PAYS[s.pays] ?? s.pays}` : ""}</p>
           <p className="mt-2 text-[15.5px] max-w-2xl">{s.description}</p>
           {s.cible && <p className="mt-1 text-[14px] text-ink-soft">Pour : {s.cible}</p>}
+          {s.succes && <p className="mt-3 inline-flex flex-wrap items-center gap-x-2 rounded-xl bg-[#FEF3C7] text-[#78350F] px-3.5 py-2 text-[14px]"><b>★ Preuve de succès :</b> {s.succes.preuve}{s.succes.source && <a href={s.succes.source} target="_blank" rel="noopener noreferrer" className="underline text-[12.5px] opacity-80">source</a>}</p>}
           {(s.tags ?? []).length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{s.tags.map((t) => <span key={t} className="rounded-full bg-paper px-2.5 py-1 text-[12.5px]">{t}</span>)}</div>}
         </div>
         <div className="flex flex-col gap-2"><BoutonSuivre saasId={s.id} />

@@ -89,3 +89,24 @@ export async function decouvrirTri(n = 240, maxMs = 100_000) {
   const ajoutes = trouves.length ? await saasAdd(trouves, "decouverte:tranco") : 0;
   return { testes: res.length, saas: trouves.length, ajoutes };
 }
+
+/** Importe la bibliothèque de SaaS à succès (preuve sourcée) : ajoutés à l'Explorer, lus en priorité par l'IA. */
+export async function succesImport() {
+  const { SUCCES } = await import("./succes-data.ts");
+  const doms = SUCCES.map((x) => x.domaine);
+  const { data: deja } = await admin.from("saas").select("id, domaine, statut").in("domaine", doms);
+  const par = new Map((deja ?? []).map((x) => [x.domaine, x]));
+  let ajoutes = 0, maj = 0;
+  for (const x of SUCCES) {
+    const succes = { preuve: x.preuve, source: x.source, type: x.type, montant: x.montant };
+    const e = par.get(x.domaine);
+    if (e) {
+      await admin.from("saas").update({ succes, ...(["illisible", "a_lire"].includes(e.statut) ? { statut: "a_lire", essais: 0 } : {}) }).eq("id", e.id);
+      maj++;
+    } else {
+      const { error } = await admin.from("saas").insert({ domaine: x.domaine, nom: x.nom, source: "recherche:succes", succes });
+      if (!error) ajoutes++;
+    }
+  }
+  return { total: SUCCES.length, ajoutes, maj };
+}

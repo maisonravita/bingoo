@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas.succes (preuve sourcée), vue saas_liste (+ succes, a_succes, succes_montant)

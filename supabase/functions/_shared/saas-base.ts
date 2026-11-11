@@ -152,8 +152,10 @@ export async function saasCron(maxMs = 110_000) {
   const semaine = new Date(Date.now() - 7 * 864e5).toISOString();
   // D'abord les fiches à relire tout de suite (tarifs rendus par le navigateur), puis les nouvelles, puis les plus anciennes
   const { data: urgent } = await admin.from("saas").select("id").eq("statut", "ok").is("lu_at", null).limit(15);
+  // Les SaaS à succès (preuve sourcée) passent avant les découvertes automatiques
+  const { data: prouves } = await admin.from("saas").select("id").eq("statut", "a_lire").not("succes", "is", null).lt("essais", 3).limit(15);
   const { data } = await admin.from("saas").select("id").or(`statut.eq.a_lire,and(statut.eq.ok,lu_at.lt.${semaine})`).lt("essais", 3).order("lu_at", { ascending: true, nullsFirst: true }).limit(15);
-  const ids = [...new Set([...(urgent ?? []), ...(data ?? [])].map((x) => x.id))].slice(0, 15);
+  const ids = [...new Set([...(urgent ?? []), ...(prouves ?? []), ...(data ?? [])].map((x) => x.id))].slice(0, 15);
   const out = { lus: 0, ok: 0, illisibles: 0, pas_saas: 0, plafond: 0 };
   // Plafond de lectures par l'IA par jour (réglable dans app_secrets « explorer_lectures_jour ») : le budget IA ne s'emballe jamais
   const { data: reglage } = await admin.from("app_secrets").select("value").eq("name", "explorer_lectures_jour").maybeSingle();
