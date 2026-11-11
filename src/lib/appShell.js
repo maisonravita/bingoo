@@ -9,8 +9,8 @@ const HTM = "https://esm.sh/htm@3.1.1";
 
 const safe = (o) => JSON.stringify(o).replace(/</g, "\\u003c").replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029");
 
-export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null }) {
-  const boot = { spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog, source, ecran };
+export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null, validation = null, precommande = null }) {
+  const boot = { spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog, source, ecran, validation, precommande };
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${String(spec.nom ?? "Mon SaaS").replace(/[<&]/g, "")}</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js"></script>
@@ -155,6 +155,36 @@ function Auth({ mode: m0, onDone, onBack }) {
   </form></div>\`;
 }
 
+// ---------------------------------------------------------------- Avant la construction : liste d'attente et précommandes
+function Precommande() {
+  const V = B.validation, f = S.formules ?? [];
+  const [email, setEmail] = useState(""), [busy, setBusy] = useState(null), [fait, setFait] = useState(false), [merci, setMerci] = useState(null);
+  useEffect(() => {
+    if (!B.apercu) call("vue", { source: B.source }).catch(() => {});
+    if (B.precommande) call("precommande-ok", { session: B.precommande }).then((r) => setMerci(!!r.paye), () => setMerci(false));
+  }, []);
+  const rejoindre = async (e) => { e.preventDefault(); setBusy("liste"); try { await call("liste", { email, source: B.source }); setFait(true); } catch (x) { toast(x.message, "bad"); } finally { setBusy(null); } };
+  const precommander = async (i) => {
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { toast("Indique d'abord ton e-mail, juste au-dessus", "bad"); document.getElementById("pc-email")?.focus(); return; }
+    setBusy(i); try { allerVers((await call("precommande", { email, formule: i, retour: RETOUR(), source: B.source })).url); } catch (x) { toast(x.message, "bad"); setBusy(null); }
+  };
+  const remise = Number(V.remise ?? 0), reduit = (p) => Math.round(Number(p) * (1 - remise / 100) * 100) / 100;
+  return html\`<div class="bg-white min-h-screen">
+  <header class="max-w-6xl mx-auto px-5 py-5 flex items-center justify-between"><div class="flex items-center gap-2 font-bold text-lg"><span class="w-8 h-8 rounded-xl bg-[var(--c)] text-white grid place-items-center">\${(S.nom ?? "S")[0]}</span>\${S.nom}</div><span class="text-sm text-slate-500">Ouverture bientôt</span></header>
+  \${merci !== null && html\`<div class="max-w-3xl mx-auto px-5"><div class=\${cls("rounded-2xl px-5 py-4 text-sm", merci ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800")}>\${merci ? "Merci ! Ta précommande est confirmée : tu seras parmi les tout premiers à utiliser " + S.nom + ", au prix réservé." : "Le paiement n'a pas abouti : tu peux réessayer ci-dessous."}</div></div>\`}
+  <section class="max-w-4xl mx-auto px-5 pt-12 pb-14 text-center"><p class="inline-block rounded-full bg-[var(--c)]/10 text-[var(--c)] px-3 py-1 text-sm font-semibold">Bientôt disponible\${remise ? " · -" + remise + " % pour les premiers" : ""}</p>
+    <h1 class="mt-5 text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.05]">\${S.slogan || S.pitch}</h1>
+    <p class="mt-5 text-lg text-slate-500 max-w-2xl mx-auto">\${S.pitch}</p>
+    \${fait ? html\`<p class="mt-8 inline-block rounded-xl bg-emerald-50 text-emerald-800 px-5 py-3">C'est noté : on te prévient dès l'ouverture.</p>\` : html\`<form onSubmit=\${rejoindre} class="mt-8 mx-auto flex max-w-md flex-col sm:flex-row gap-2"><input id="pc-email" type="email" required value=\${email} onInput=\${(e) => setEmail(e.target.value)} placeholder="ton@email.fr" class="flex-1 rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-[var(--c)]"/><\${ui.Button} type="submit" class="!px-6 !py-3" disabled=\${busy !== null}>\${busy === "liste" ? "…" : "Me prévenir"}</\${ui.Button}></form>\`}
+    \${V.inscrits >= 5 && html\`<p class="mt-3 text-sm text-slate-400">\${V.inscrits} personnes attendent déjà l'ouverture</p>\`}
+  </section>
+  \${S.probleme && html\`<section class="bg-slate-50 py-14"><div class="max-w-3xl mx-auto px-5 text-center"><p class="text-sm font-semibold text-[var(--c)] uppercase tracking-wide">Le problème</p><p class="mt-3 text-2xl font-semibold leading-snug">\${S.probleme}</p></div></section>\`}
+  \${(S.atouts ?? []).length > 0 && html\`<section class="max-w-6xl mx-auto px-5 py-16"><h2 class="text-3xl font-bold text-center">Ce que \${S.nom} va faire pour toi</h2><div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">\${S.atouts.map((a) => html\`<div class="rounded-2xl border border-slate-200 p-5"><p class="font-semibold">\${a.titre}</p><p class="mt-1 text-sm text-slate-500">\${a.texte}</p></div>\`)}</div></section>\`}
+  \${f.length > 0 && PAY.actif && html\`<section class="bg-slate-50 py-16"><div class="max-w-5xl mx-auto px-5"><h2 class="text-3xl font-bold text-center">Réserve ton prix de lancement</h2><p class="mt-2 text-center text-slate-500">\${UNIQUE ? "Paiement unique, accès à vie." : "Tu paies ton premier mois aujourd'hui, avec la remise des premiers clients."}</p>
+    <div class=\${"mt-10 grid gap-4 " + (f.length > 2 ? "md:grid-cols-3" : "md:grid-cols-2")}>\${f.map((x, i) => html\`<div class="rounded-2xl p-5 border bg-white border-slate-200"><p class="font-semibold">\${x.nom}</p><p class="mt-1"><span class="text-3xl font-extrabold">\${fmt.eur(reduit(x.prix))}</span>\${remise ? html\` <span class="text-slate-400 line-through">\${fmt.eur(x.prix)}</span>\` : ""}<span class="text-sm text-slate-400">\${UNIQUE ? " une fois" : " le 1er mois"}</span></p><p class="text-sm text-slate-500">\${x.pour}</p><ul class="mt-3 space-y-1.5 text-sm">\${(x.inclus ?? []).map((t) => html\`<li class="flex gap-2"><span class="text-[var(--c)]"><\${Icone} nom="check" class="w-4 h-4"/></span>\${t}</li>\`)}</ul><\${ui.Button} class="w-full mt-5" disabled=\${busy !== null} onClick=\${() => precommander(i)}>\${busy === i ? "Redirection…" : "Précommander"}</\${ui.Button}></div>\`)}</div></div></section>\`}
+  <footer class="max-w-6xl mx-auto px-5 py-10 text-sm text-slate-400 flex justify-between"><span>© \${new Date().getFullYear()} \${S.nom}</span><span>Construit avec Bingoo!</span></footer></div>\`;
+}
+
 // ---------------------------------------------------------------- Abonnement
 function Formules({ courante }) {
   const [busy, setBusy] = useState(null), f = S.formules ?? [];
@@ -270,6 +300,7 @@ function Appli({ user, etat, onLogout, tour, onFinTour }) {
 }
 
 function Racine() {
+  if (B.validation && !(S.ecrans ?? []).length) return html\`<\${Precommande}/>\`;
   const [etat, setEtat] = useState(undefined), [auth, setAuth] = useState(B.invite ? "signup" : null), [tour, setTour] = useState(false);
   const verifier = (force) => token ? call("me", { verifier: !!force }).then((r) => { if (r.variante) VARIANTE = r.variante; setEtat(r); }, () => setEtat(null)) : setEtat(null);
   useEffect(() => {

@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_apps.validation, table saas_app_liste (liste d'attente et précommandes), saas_app_public (+ validation, page visible avant la construction)

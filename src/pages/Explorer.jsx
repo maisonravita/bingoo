@@ -1012,6 +1012,60 @@ function Lancer() {
 
 // ---------------------------------------------------------------- Bingoo! construit le SaaS
 // Une vraie application en ligne (site, comptes, écrans avec données), hébergée sur #/app/<slug>, modifiable en une phrase.
+// ---------------------------------------------------------------- Valider avant de construire : page de précommande
+function Validation({ projet, app, recharger }) {
+  const { ws } = useWs();
+  const toast = useToast();
+  const [liste, setListe] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const v = app?.validation?.actif ? app.validation : null;
+  useEffect(() => { if (v) supabase.from("saas_app_liste").select("email, formule, precommande, montant, at").eq("app_id", app.id).order("at", { ascending: false }).limit(200).then(({ data }) => setListe(data ?? [])); }, [app?.id, v?.actif]); // eslint-disable-line react-hooks/exhaustive-deps
+  const creer = async () => { setBusy(true); try { await fn("r/saas-validation", { workspace_id: ws.id, projet_id: projet.id, quoi: "creer" }); await recharger(); toast("Ta page de précommande est en ligne"); } catch (x) { toast(x.message, "bad"); } finally { setBusy(false); } };
+  const [cle, setCle] = useState("");
+  const brancher = async () => { setBusy(true); try { await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "paiement", cle: cle.trim(), actif: true }); setCle(""); await recharger(); toast("Stripe branché : les précommandes sont ouvertes"); } catch (x) { toast(x.message, "bad"); } finally { setBusy(false); } };
+  const regler = async (champs) => { try { await fn("r/saas-validation", { workspace_id: ws.id, projet_id: projet.id, quoi: "reglages", ...champs }); await recharger(); } catch (x) { toast(x.message, "bad"); } };
+  if (!v) return (
+    <div className="mt-6 rounded-2xl bg-white/5 border border-white/10 p-5 max-w-3xl">
+      <p className="font-bold text-[16px]">Valide avant de construire</p>
+      <p className="mt-1 text-[14px] text-white/70">Mets en ligne une page de lancement de {projet.nom} en un clic : les visiteurs laissent leur e-mail ou précommandent avec une remise de premier client. Fixe-toi un objectif (par exemple 10 précommandes) : s'il est atteint, construis. Sinon, change d'angle avant d'y passer des semaines.</p>
+      <button onClick={creer} disabled={busy} className="mt-4 rounded-xl bg-white text-ink px-5 py-2.5 text-[14px] font-bold hover:bg-white/90 disabled:opacity-60">{busy ? "Mise en ligne…" : "Créer ma page de précommande"}</button>
+    </div>
+  );
+  const lien = lienApp(app.slug, app.domaine_statut === "ok" ? app.domaine : null);
+  const pre = liste.filter((x) => x.precommande), total = pre.reduce((a, x) => a + Number(x.montant || 0), 0);
+  const pct = Math.min(100, Math.round((pre.length / Math.max(1, v.objectif ?? 10)) * 100));
+  return (
+    <div className="mt-6 rounded-2xl bg-white/5 border border-white/10 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div><p className="font-bold text-[16px]">Ta page de précommande est en ligne</p><p className="text-[13px] text-white/60 break-all">{lien}</p></div>
+        <div className="flex flex-wrap gap-2">
+          <a href={lien} target="_blank" rel="noreferrer" className="rounded-xl bg-accent px-4 py-2 text-[13.5px] font-bold hover:bg-accent-dark">Ouvrir ↗</a>
+          <button onClick={() => navigator.clipboard?.writeText(lien).then(() => toast("Lien copié"))} className="rounded-xl bg-white/10 px-4 py-2 text-[13.5px] font-semibold hover:bg-white/20">Copier le lien</button>
+        </div>
+      </div>
+      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+        {[[liste.length, "inscrits"], [pre.length, `précommandes sur ${v.objectif ?? 10}`], [`${Math.round(total).toLocaleString("fr-FR")} €`, "encaissés"]].map(([n, l]) => <div key={l} className="rounded-xl bg-white/5 p-3"><p className="text-[22px] font-black tnum" style={HF}>{n}</p><p className="text-[12px] text-white/55">{l}</p></div>)}
+      </div>
+      <div className="mt-3 h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#F6A06B]" style={{ width: `${pct}%` }} /></div>
+      <p className="mt-2 text-[13px] text-white/70">{pre.length >= (v.objectif ?? 10) ? "Objectif atteint : le marché a dit oui. Construis ton SaaS, tes clients t'attendent." : `Encore ${(v.objectif ?? 10) - pre.length} précommande${(v.objectif ?? 10) - pre.length > 1 ? "s" : ""} pour valider. Partage le lien là où sont tes clients.`}</p>
+      {!app.paiement?.actif && (
+        <div className="mt-3 rounded-xl bg-white/5 p-3">
+          <p className="text-[13px] text-[#F6A06B]">Pour encaisser les précommandes, branche ton compte Stripe. En attendant, la page récolte les e-mails.</p>
+          <div className="mt-2 flex flex-wrap gap-2"><input type="password" value={cle} onChange={(e) => setCle(e.target.value)} placeholder="Clé secrète Stripe (sk_live_… ou rk_live_…)" autoComplete="off" className="flex-1 min-w-[220px] rounded-lg bg-white/10 border border-white/15 px-3 py-2 text-[13.5px]" />
+            <button disabled={busy || cle.trim().length < 20} onClick={brancher} className="rounded-lg bg-white text-ink px-4 py-2 text-[13.5px] font-bold disabled:opacity-50">Brancher Stripe</button></div>
+          <p className="mt-1.5 text-[12px] text-white/45">Dans Stripe : Développeurs → Clés API. La clé reste côté serveur : elle n'apparaît jamais dans ta page.</p>
+        </div>
+      )}
+      <div className="mt-3 flex flex-wrap items-center gap-4 text-[13px] text-white/70">
+        <label className="flex items-center gap-2">Objectif <input type="number" min={1} defaultValue={v.objectif ?? 10} onBlur={(e) => Number(e.target.value) !== v.objectif && regler({ objectif: e.target.value })} className="w-16 rounded-lg bg-white/10 border border-white/15 px-2 py-1" /> précommandes</label>
+        <label className="flex items-center gap-2">Remise des premiers <input type="number" min={0} max={90} defaultValue={v.remise ?? 30} onBlur={(e) => Number(e.target.value) !== v.remise && regler({ remise: e.target.value })} className="w-16 rounded-lg bg-white/10 border border-white/15 px-2 py-1" /> %</label>
+      </div>
+      {liste.length > 0 && <details className="mt-3"><summary className="cursor-pointer text-[13px] text-white/70">Voir les {liste.length} inscrits</summary><ul className="mt-2 max-h-48 overflow-y-auto text-[13px] divide-y divide-white/10">{liste.map((x) => <li key={x.email} className="py-1.5 flex justify-between gap-3"><span className="truncate">{x.email}</span><span className={x.precommande ? "text-[#F6A06B] font-semibold" : "text-white/45"}>{x.precommande ? `précommande ${x.formule ?? ""} · ${x.montant} €` : "liste d'attente"}</span></li>)}</ul></details>}
+      <p className="mt-3 text-[12.5px] text-white/50">Quand tu construis, Bingoo! garde la même adresse : ta page de précommande devient ton SaaS, et ta liste reste ici.</p>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------- Ton budget : ce que coûte le lancement, et ce que rapporte chaque euro de pub
 // Coûts certains (abonnement Bingoo!, domaine, frais Stripe) + simulation sur 12 mois à partir de TES hypothèses (modifiables).
 const BINGOO_PRO = 39.99; // €/mois, construction, hébergement, e-mails et paiements inclus
@@ -1088,7 +1142,7 @@ function Construire({ projet }) {
   const [demande, setDemande] = useState("");
   const [envoi, setEnvoi] = useState(false);
   const [voirLigne, setVoirLigne] = useState(false);
-  const charger = () => supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, version, maj, paiement, domaine, domaine_statut, public, jumeau_at, lancement, ab, email_dom, icones").eq("projet_id", projet.id).maybeSingle().then(({ data }) => { setApp(data ?? null); return data; });
+  const charger = () => supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, version, maj, paiement, domaine, domaine_statut, public, jumeau_at, lancement, ab, email_dom, icones, validation").eq("projet_id", projet.id).maybeSingle().then(({ data }) => { setApp(data ?? null); return data; });
   useEffect(() => { charger(); }, [projet.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Construction ou modification en tâche de fond : on interroge la base toutes les 5 secondes
   useEffect(() => {
@@ -1151,6 +1205,7 @@ function Construire({ projet }) {
       ) : !pret ? (
         <>
           {app?.statut === "erreur" && <p className="mt-4 rounded-xl bg-[#7F1D1D]/40 px-4 py-3 text-[14px]">{app.erreur || "La construction a échoué."} Relance-la.</p>}
+          <Validation projet={projet} app={app} recharger={charger} />
           <button onClick={construire} className="mt-6 rounded-xl bg-accent px-7 py-3.5 font-bold hover:bg-accent-dark">{niv(ws) < 2 ? "Disponible avec la formule Pro" : "Construire mon SaaS"}</button>
         </>
       ) : null}

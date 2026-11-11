@@ -118,6 +118,44 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     return { id: row!.id, statut: "en_cours" };
   },
   // Bingoo! construit le SaaS du projet : application en ligne (site, comptes, écrans), quelques minutes en tâche de fond
+  // Valider avant de construire : une page publique de liste d'attente et de précommande, sans IA (tirée du projet)
+  async "saas-validation"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { data: pr } = await admin.from("saas_projets").select("id, data, statut").eq("id", String(b.projet_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    if (!pr || pr.statut !== "pret") throw new HttpError(404, "Projet introuvable");
+    const { data: ex } = await admin.from("saas_apps").select("id, slug, statut, validation, spec").eq("projet_id", pr.id).maybeSingle();
+    const quoi = String(b.quoi ?? "creer");
+    if (quoi === "creer") {
+      if (ex?.validation?.actif) return { id: ex.id, slug: ex.slug };
+      if (ex && (ex.spec as any)?.ecrans?.length) throw new HttpError(400, "Ton SaaS est déjà construit : il n'a plus besoin de page de précommande");
+      const p = pr.data as any;
+      const teinte = [...String(p.nom ?? "")].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
+      const hsl = (h: number) => { const l = 0.36, s2 = 0.62, k = (n: number) => (n + h / 30) % 12, f = (n: number) => l - s2 * Math.min(l, 1 - l) * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)); return "#" + [0, 8, 4].map((n) => Math.round(f(n) * 255).toString(16).padStart(2, "0")).join(""); };
+      const spec = {
+        nom: p.nom, pitch: p.pitch, cible: p.cible, probleme: p.probleme, couleur: hsl(teinte),
+        slogan: String(p.pitch ?? "").split(/[.:]/)[0].slice(0, 90), cible_courte: String(p.cible ?? "").split(/[,.;]/)[0].slice(0, 60),
+        atouts: [...(p.differences ?? []).map((x: any) => ({ titre: x.angle ?? x.titre, texte: x.pourquoi ?? x.texte ?? "" })), ...(p.equivalences ?? []).map((x: any) => ({ titre: String(x.chez_toi ?? "").split(/[:,.]/)[0].slice(0, 40), texte: x.chez_toi }))].filter((x: any) => x.titre).slice(0, 6),
+        formules: (p.formules ?? []).slice(0, 3), ecrans: [],
+      };
+      const validation = { actif: true, objectif: 10, remise: 30, cree_at: new Date().toISOString() };
+      const { nouveauSlug } = await import("../_shared/app-build.ts");
+      const row = ex
+        ? (await admin.from("saas_apps").update({ spec, validation, statut: "validation", erreur: null, etape: null, maj: new Date().toISOString() }).eq("id", ex.id).select("id, slug").single()).data
+        : (await admin.from("saas_apps").insert({ projet_id: pr.id, workspace_id: ws.id, slug: nouveauSlug(String(p.nom ?? "saas")), spec, validation, statut: "validation" }).select("id, slug").single()).data;
+      await log(ws.id, "validation", `Page de précommande de ${p.nom}`);
+      return row;
+    }
+    if (!ex) throw new HttpError(404, "Page de précommande introuvable");
+    if (quoi === "reglages") {
+      const v = { ...(ex.validation ?? {}) } as any;
+      if (b.objectif !== undefined) v.objectif = Math.max(1, Math.min(1000, Math.round(Number(b.objectif) || 10)));
+      if (b.remise !== undefined) v.remise = Math.max(0, Math.min(90, Math.round(Number(b.remise) || 0)));
+      if (b.actif !== undefined) v.actif = !!b.actif;
+      await admin.from("saas_apps").update({ validation: v }).eq("id", ex.id);
+      return v;
+    }
+    throw new HttpError(400, "Action inconnue");
+  },
   async "saas-construire"(req, b) {
     const { ws } = await membreOuCron(req, b.workspace_id);
     if (ws.plan === "explorer") throw new HttpError(402, "« Construire mon SaaS » est dans la formule Pro.");

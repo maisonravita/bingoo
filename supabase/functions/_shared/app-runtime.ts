@@ -174,8 +174,10 @@ export async function appFichier(admin: SupabaseClient, slug: string, quoi: stri
 export async function appApi(admin: SupabaseClient, req: Request, slug: string, action: string): Promise<{ status: number; body: unknown }> {
   try {
     if (!/^[a-z0-9-]{3,60}$/.test(slug)) throw new Err(404, "Application introuvable");
-    const { data: app } = await admin.from("saas_apps").select("id, slug, workspace_id, spec, statut, paiement, domaine, domaine_statut, ab, email_dom, emails").eq("slug", slug).maybeSingle();
-    if (!app || !(app.spec as any)?.ecrans?.length) throw new Err(404, "Application introuvable");
+    const { data: app } = await admin.from("saas_apps").select("id, slug, workspace_id, spec, statut, paiement, domaine, domaine_statut, ab, email_dom, emails, validation").eq("slug", slug).maybeSingle();
+    // Page de précommande (avant la construction) : seulement la liste d'attente et la précommande
+    const enValidation = !!(app as any)?.validation?.actif && !(app?.spec as any)?.ecrans?.length;
+    if (!app || (!(app.spec as any)?.ecrans?.length && !enValidation)) throw new Err(404, "Application introuvable");
     const b = JSON.parse((await req.text()).slice(0, 60000) || "{}");
     const variante = b.variante === "B" && (app.ab as any)?.actif ? "B" : "A";
 
@@ -187,6 +189,55 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
       if ((app.ab as any)?.actif) await admin.rpc("saas_app_vue", { p_app: app.id, p_var: variante });
       return { status: 200, body: { ok: true } };
     }
+
+    // ---- Validation avant construction : liste d'attente et précommandes (sans compte)
+    if (action === "liste" || action === "precommande") {
+      if (!(app as any).validation?.actif) throw new Err(400, "Les inscriptions sont fermées");
+      const email = String(b.email ?? "").trim().toLowerCase().slice(0, 160);
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Err(400, "Adresse e-mail invalide");
+      const ip = await sha(`${app.id}:${(req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim()}`);
+      const { count } = await admin.from("saas_app_liste").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("ip", ip).gte("at", new Date(Date.now() - 3600e3).toISOString());
+      if ((count ?? 0) >= 10) throw new Err(429, "Trop d'inscriptions depuis cette connexion, réessaie dans une heure");
+      const ligne = { app_id: app.id, email, nom: String(b.nom ?? "").trim().slice(0, 80) || null, ip, source };
+      if (action === "liste") {
+        await admin.from("saas_app_liste").upsert(ligne, { onConflict: "app_id,email", ignoreDuplicates: true });
+        return { status: 200, body: { ok: true } };
+      }
+      const f = ((app.spec as any)?.formules ?? [])[Number(b.formule)];
+      if (!f || !(Number(f.prix) > 0)) throw new Err(400, "Formule introuvable");
+      const key = await cleStripe(admin, app.id);
+      if (!key || !(app.paiement as any)?.actif) throw new Err(400, "Les précommandes ouvrent bientôt : laisse ton e-mail pour être prévenu");
+      const retour = retourOk(String(b.retour ?? ""));
+      if (!retour) throw new Err(400, "Adresse de retour invalide");
+      const remise = Math.max(0, Math.min(90, Number((app as any).validation?.remise ?? 30)));
+      const unique = (app.paiement as any)?.modele === "unique";
+      // Précommande : le premier mois (ou l'accès à vie) payé maintenant, avec la remise des premiers clients
+      const prix = Math.round(Number(f.prix) * (1 - remise / 100) * 100) / 100;
+      const sep = retour.includes("?") ? "&" : "?";
+      const sess = await stripe(key, "checkout/sessions", {
+        mode: "payment", customer_email: email, locale: "fr",
+        "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "eur",
+        "line_items[0][price_data][unit_amount]": String(Math.round(prix * 100)),
+        "line_items[0][price_data][product_data][name]": `${(app.spec as any)?.nom ?? "Précommande"} ${f.nom} : précommande${unique ? " (accès à vie)" : " (premier mois)"} -${remise} %`.slice(0, 120),
+        "payment_intent_data[metadata][app]": slug, "payment_intent_data[metadata][precommande]": "1", "payment_intent_data[metadata][formule]": String(f.nom).slice(0, 80),
+        "metadata[app]": slug, "metadata[email]": email, "metadata[formule]": String(f.nom).slice(0, 80),
+        success_url: `${retour}${sep}precommande={CHECKOUT_SESSION_ID}`, cancel_url: retour,
+      });
+      await admin.from("saas_app_liste").upsert({ ...ligne, formule: String(f.nom).slice(0, 80), session: sess.id }, { onConflict: "app_id,email" });
+      return { status: 200, body: { url: sess.url } };
+    }
+    if (action === "precommande-ok") {
+      const id = String(b.session ?? "");
+      if (!/^cs_[A-Za-z0-9_]{10,}$/.test(id)) throw new Err(400, "Paiement introuvable");
+      const key = await cleStripe(admin, app.id);
+      if (!key) throw new Err(400, "Paiement introuvable");
+      const sess = await stripe(key, `checkout/sessions/${id}`, {}, "GET");
+      if (sess?.metadata?.app !== slug) throw new Err(400, "Paiement introuvable");
+      const paye = sess.payment_status === "paid";
+      if (paye) await admin.from("saas_app_liste").update({ precommande: true, montant: (sess.amount_total ?? 0) / 100, paye_at: new Date().toISOString() }).eq("app_id", app.id).eq("session", id);
+      return { status: 200, body: { paye } };
+    }
+    if (enValidation) throw new Err(400, "L'application ouvre bientôt : laisse ton e-mail pour être prévenu");
 
     if (action === "signup" || action === "login" || action === "demo") {
       let email = String(b.email ?? "").trim().toLowerCase().slice(0, 160);
