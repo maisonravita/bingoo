@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_bourse_messages, saas_bourse_ventes, saas_bourse_liste v2, saas_bourse_fils

@@ -1291,40 +1291,39 @@ function OngletDomaine({ app, appel, agir, busy }) {
 
 // 2 et 3. Le monde des SaaS et la bourse
 function OngletMonde({ app, appel, agir, busy }) {
-  const [vente, setVente] = useState(null);
+  const nav = useNavigate();
+  const [vente, setVente] = useState(undefined);
+  const [stats, setStats] = useState(null);
   const [prix, setPrix] = useState("");
   const [desc, setDesc] = useState("");
-  const [interets, setInterets] = useState([]);
-  const { ws } = useWs();
-  const toast = useToast();
-  const charger = () => supabase.rpc("saas_bourse_liste").then(({ data }) => {
-    const v = (data ?? []).find((x) => x.slug === app.slug) ?? null; setVente(v);
-    if (v) supabase.from("saas_bourse_interets").select("workspace_id, message, at").eq("bourse_id", v.id).then(({ data: d }) => setInterets(d ?? []));
-  });
+  const charger = () => {
+    supabase.rpc("saas_bourse_liste").then(({ data }) => setVente((data ?? []).find((x) => x.slug === app.slug) ?? null));
+    supabase.rpc("saas_apps_monde").then(({ data }) => setStats((data ?? []).find((x) => x.slug === app.slug) ?? null));
+  };
   useEffect(() => { charger(); }, [app.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const e = stats ? estimer({ ...stats, resilies_90j: 0, age_jours: Math.round((Date.now() - new Date(stats.at).getTime()) / 864e5) }) : null;
   return (
     <div className="grid lg:grid-cols-2 gap-4">
       <div className="rounded-xl bg-white/[.06] p-4 space-y-2">
         <p className="font-bold">🏝 Le monde des SaaS</p>
         <p className="text-[13px] text-white/65">{app.spec.nom} devient un bâtiment sur l'île des créateurs : un étage de plus tous les 1 000 € de revenu mensuel vérifié, un phare à 10 000 €. Il entre aussi dans le classement des créateurs (nom de ton espace, revenu, abonnés).</p>
         {app.public && <div className="rounded-lg bg-white/5 p-2.5"><p className="text-[12.5px] text-white/60">Ton badge à poser sur ton site (il se met à jour tout seul) :</p><img src={`${API}/${app.slug}/badge.svg`} alt="Revenu vérifié par Bingoo!" className="mt-1.5 h-9" /><button onClick={() => navigator.clipboard?.writeText(`<a href="https://kairo.maisonravita.fr/#/explorer/createurs"><img src="${API}/${app.slug}/badge.svg" alt="Revenu vérifié par Bingoo!" height="36"></a>`)} className="mt-1.5 text-[12.5px] underline text-white/70">Copier le code du badge</button></div>}
-        <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={!!app.public} disabled={!!busy} onChange={(e) => agir("pub", () => appel("public", { public: e.target.checked }), e.target.checked ? `${app.spec.nom} apparaît dans le monde` : "Retiré du monde et du classement")} />Afficher {app.spec.nom} dans le monde et le classement</label>
+        <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={!!app.public} disabled={!!busy} onChange={(ev) => agir("pub", () => appel("public", { public: ev.target.checked }), ev.target.checked ? `${app.spec.nom} apparaît dans le monde` : "Retiré du monde et du classement")} />Afficher {app.spec.nom} dans le monde et le classement</label>
       </div>
       <div className="rounded-xl bg-white/[.06] p-4 space-y-2">
         <p className="font-bold">📈 La bourse des SaaS</p>
-        {vente ? (
+        {vente === undefined ? <Spinner /> : vente ? (
           <>
-            <p className="text-[13.5px]">En vente à <b>{eurs(vente.prix)}</b> · revenu vérifié {eurs(vente.mrr)} par mois · {vente.interets} acheteur{vente.interets > 1 ? "s" : ""} intéressé{vente.interets > 1 ? "s" : ""}</p>
-            {interets.length > 0 && <div className="space-y-1.5">{interets.map((it) => <div key={it.workspace_id} className="rounded-lg bg-white/5 p-2 text-[12.5px] flex items-start justify-between gap-2"><span className="text-white/70">{it.message || "(pas de message)"} · {new Date(it.at).toLocaleDateString("fr-FR")}</span><button onClick={async () => { if (!confirm(`Vente conclue avec cet acheteur ? ${app.spec.nom} passera sur son espace et ton Stripe sera débranché.`)) return; try { await fn("r/saas-bourse-vendu", { workspace_id: ws.id, bourse_id: vente.id, acheteur: it.workspace_id }); toast("Vendu ! L'application est transférée"); window.location.hash = "#/explorer/idees"; } catch (x) { toast(x.message, "bad"); } }} className="shrink-0 rounded-lg bg-accent px-2.5 py-1 font-bold">Vendu à lui</button></div>)}</div>}
-            <p className="text-[12px] text-white/45">Les acheteurs t'écrivent par e-mail. Une fois d'accord, clique « Vendu à lui » : l'app est transférée, commission Bingoo! de 5 %.</p>
-            <button disabled={!!busy} onClick={() => agir("bourse", async () => { await appel("bourse", { retirer: true }); await charger(); }, "Retiré de la bourse")} className={btnSombre}>Retirer de la vente</button>
+            <p className="text-[13.5px]">En vente à <b>{eurs(vente.prix)}</b> · {vente.interets} acheteur{vente.interets > 1 ? "s" : ""} en discussion{vente.meilleure_offre ? ` · meilleure offre ${eurs(vente.meilleure_offre)}` : ""}</p>
+            <div className="flex flex-wrap gap-2"><button onClick={() => nav("/explorer/bourse")} className={btnAccent}>Voir les conversations</button><button disabled={!!busy} onClick={() => agir("bourse", async () => { await appel("bourse", { retirer: true }); charger(); }, "Retiré de la bourse")} className={btnSombre}>Retirer de la vente</button></div>
           </>
         ) : (
           <>
-            <p className="text-[13px] text-white/65">Mets {app.spec.nom} en vente : les acheteurs voient son revenu vérifié dans Stripe (jamais un chiffre déclaré), ses abonnés et son ancienneté.</p>
-            <div className="flex gap-2"><input type="number" min={100} value={prix} onChange={(e) => setPrix(e.target.value)} placeholder="Prix demandé (€)" className={champSombre} /></div>
-            <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={3} placeholder="Pourquoi tu vends, ce que l'acheteur récupère, le temps que ça demande…" className={champSombre} />
-            <button disabled={!!busy || !(Number(prix) >= 100)} onClick={() => agir("bourse", async () => { await appel("bourse", { prix: Number(prix), description: desc }); await charger(); }, `${app.spec.nom} est en vente`)} className={btnAccent}>Mettre en vente</button>
+            <p className="text-[13px] text-white/65">Mets {app.spec.nom} en vente : les acheteurs voient son revenu, ses abonnés et ses désabonnements relus dans Stripe, sa courbe et son ancienneté. Vous négociez dans Bingoo!, sans échanger vos e-mails.</p>
+            {e ? <p className="text-[13px]">Estimation Bingoo! : <b>{eurs(e.bas)} – {eurs(e.haut)}</b> <span className="text-white/50">({e.multiple.toFixed(1).replace(".", ",")} × le revenu annuel)</span> <button onClick={() => setPrix(String(Math.round((e.bas + e.haut) / 2)))} className="ml-1 underline text-white/70">utiliser</button></p> : <p className="text-[12.5px] text-white/45">Pas encore de revenu : l'estimation apparaîtra avec tes premiers abonnés.</p>}
+            <input type="number" min={100} value={prix} onChange={(ev) => setPrix(ev.target.value)} placeholder="Prix demandé (€)" className={champSombre} />
+            <textarea value={desc} onChange={(ev) => setDesc(ev.target.value)} rows={3} placeholder="Pourquoi tu vends, ce que l'acheteur récupère (code, domaine, clients), le temps que ça demande par semaine…" className={champSombre} />
+            <button disabled={!!busy || !(Number(prix) >= 100)} onClick={() => agir("bourse", async () => { await appel("bourse", { prix: Number(prix), description: desc }); charger(); }, `${app.spec.nom} est en vente`)} className={btnAccent}>Mettre en vente</button>
           </>
         )}
       </div>
@@ -1408,46 +1407,149 @@ function Createurs() {
 }
 
 // ---------------------------------------------------------------- Bourse des SaaS
+/** Estimation indicative : multiple du revenu annuel selon la croissance, l'ancienneté et les désabonnements. */
+function estimer(x) {
+  const mrr = Number(x.mrr ?? 0), arr = mrr * 12;
+  if (!arr) return null;
+  const g = Number(x.mrr_30j) > 0 ? mrr / Number(x.mrr_30j) - 1 : 0;
+  const churn = Number(x.abonnes) + Number(x.resilies_90j ?? 0) > 0 ? Number(x.resilies_90j ?? 0) / (Number(x.abonnes) + Number(x.resilies_90j ?? 0)) / 3 : 0;
+  let m = 2.5 + (g > 0.1 ? 0.5 : 0) + (g > 0.3 ? 0.5 : 0) + (Number(x.age_jours) > 365 ? 0.5 : 0) - (churn > 0.08 ? 0.7 : 0) - (mrr < 500 ? 0.5 : 0);
+  m = Math.max(1, Math.min(5, m));
+  const r = (n) => Math.round(n / 100) * 100;
+  return { bas: r(arr * (m - 0.5)), haut: r(arr * (m + 0.5)), multiple: m };
+}
+const TRIS_BOURSE = [["mrr", "Revenu", (x) => -Number(x.mrr)], ["prix", "Prix", (x) => Number(x.prix)], ["multiple", "Multiple", (x) => Number(x.mrr) ? Number(x.prix) / (Number(x.mrr) * 12) : 99], ["croissance", "Croissance", (x) => -(Number(x.mrr) - Number(x.mrr_30j))]];
+
 function Bourse() {
   const { ws } = useWs();
-  const toast = useToast();
   const [l, setL] = useState(null);
-  const [msg, setMsg] = useState({});
-  const charger = () => supabase.rpc("saas_bourse_liste").then(({ data }) => setL(data ?? []));
-  useEffect(() => { charger(); }, []);
-  const contacter = async (b) => {
-    try { await fn("r/saas-bourse-interet", { workspace_id: ws.id, bourse_id: b.id, message: msg[b.id] ?? "" }); toast("Le vendeur est prévenu : il te répond par e-mail"); charger(); }
-    catch (x) { toast(x.message, "bad"); }
-  };
+  const [fils, setFils] = useState([]);
+  const [tri, setTri] = useState("mrr");
+  const [cat, setCat] = useState("");
+  const [ouvert, setOuvert] = useState(null);
+  const charger = () => { supabase.rpc("saas_bourse_liste").then(({ data }) => setL(data ?? [])); supabase.rpc("saas_bourse_fils").then(({ data }) => setFils(data ?? [])); };
+  useEffect(() => { charger(); }, [ws.id]);
+  const f = TRIS_BOURSE.find((x) => x[0] === tri)[2];
+  const cats = [...new Set((l ?? []).map((x) => x.categorie).filter(Boolean))].sort();
+  const liste = (l ?? []).filter((x) => !cat || x.categorie === cat).sort((a, b) => f(a) - f(b));
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
       <h1 className="text-[30px] font-black tracking-tight" style={HF}>La bourse des SaaS</h1>
-      <p className="text-ink-soft max-w-3xl">Des SaaS construits sur Bingoo!, à reprendre. Le revenu affiché est relu dans Stripe : jamais un chiffre déclaré. Tu contactes le vendeur, vous vous mettez d'accord, et Bingoo! transfère l'application sur ton espace (commission de 5 %, payée par le vendeur).</p>
-      {l === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : !l.length ? (
-        <div className="mt-5 rounded-2xl bg-white border border-line p-6"><p>Aucun SaaS en vente pour l'instant. Pour vendre le tien : ouvre-le dans « Mes SaaS », onglet « Monde et bourse ».</p></div>
-      ) : (
-        <div className="mt-5 grid md:grid-cols-2 gap-4">{l.map((b) => (
-          <div key={b.id} className="rounded-2xl bg-white border border-line p-5 flex flex-col">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2.5 min-w-0"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white font-black text-[18px]" style={{ background: b.couleur ?? "#4F46E5" }}>{String(b.nom ?? "S")[0]}</span><div className="min-w-0"><p className="font-bold text-[17px] truncate">{b.nom}</p><p className="text-[12.5px] text-ink-faint">{b.inspire ? `Concurrent de ${b.inspire} · ` : ""}{b.age_jours} jours</p></div></div>
-              <p className="shrink-0 text-right"><span className="text-[24px] font-black tnum" style={HF}>{eurs(b.prix)}</span><br /><span className="text-[11.5px] text-ink-faint">prix demandé</span></p>
-            </div>
-            <p className="mt-2 text-[14px] text-ink-soft">{b.pitch}</p>
-            <div className="mt-3 grid grid-cols-3 gap-2 text-center">{[[eurs(b.mrr), "revenu / mois ✓"], [b.abonnes, "abonnés"], [b.comptes, "comptes"]].map(([v, t]) => <div key={t} className="rounded-xl bg-paper py-2"><p className="text-[17px] font-black tnum">{v}</p><p className="text-[11px] text-ink-faint">{t}</p></div>)}</div>
-            {b.mrr > 0 && <p className="mt-1.5 text-[12px] text-ink-faint">Soit {(b.prix / (b.mrr * 12)).toFixed(1).replace(".", ",")} fois le revenu annuel.</p>}
-            {b.description && <p className="mt-3 text-[13.5px] whitespace-pre-line">{b.description}</p>}
-            <div className="mt-auto pt-4">
-              {b.a_moi ? <p className="text-[13px] text-ink-faint">C'est ton annonce · {b.interets} acheteur{b.interets > 1 ? "s" : ""} intéressé{b.interets > 1 ? "s" : ""}</p> : b.deja ? <p className="text-[13px] font-semibold text-[#15803D]">✓ Vendeur contacté</p> : (
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <a href={lienApp(b.slug, null)} target="_blank" rel="noreferrer" className="rounded-xl border border-line px-4 py-2.5 text-[14px] font-semibold text-center hover:border-ink-faint">Essayer ↗</a>
-                  <input value={msg[b.id] ?? ""} onChange={(e) => setMsg({ ...msg, [b.id]: e.target.value })} placeholder="Ton message au vendeur" className="flex-1 rounded-xl border border-line px-3 py-2.5 text-[14px]" />
-                  <button onClick={() => contacter(b)} className="rounded-xl bg-accent text-white px-4 py-2.5 text-[14px] font-bold hover:bg-accent-dark">Je suis intéressé</button>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}</div>
+      <p className="text-ink-soft max-w-3xl">Des SaaS construits sur Bingoo!, à reprendre. Revenu, abonnés et désabonnements sont relus chaque nuit dans Stripe : jamais un chiffre déclaré. Vous discutez et négociez ici, sans échanger vos e-mails ; une fois payé, Bingoo! transfère l'application sur l'espace de l'acheteur (commission de 5 %, payée par le vendeur).</p>
+      {fils.length > 0 && (
+        <div className="mt-5 rounded-2xl bg-white border border-line">
+          <p className="px-4 pt-3 font-bold">Mes conversations</p>
+          <ul className="mt-1">{fils.map((x) => (
+            <li key={x.bourse_id + x.acheteur_ws}><button onClick={() => setOuvert({ bourse_id: x.bourse_id, acheteur: x.acheteur_ws, nom: x.nom, prix: x.prix, vendeur: x.je_vends, autre: x.je_vends ? x.acheteur : x.vendeur })} className="w-full flex items-center gap-3 px-4 py-2.5 border-t border-line text-left hover:bg-paper">
+              <span className="min-w-0 flex-1"><span className="font-semibold">{x.nom}</span> <span className="text-[12.5px] text-ink-faint">· {x.je_vends ? `acheteur : ${x.acheteur}` : `vendeur : ${x.vendeur}`}</span><span className="block text-[13px] text-ink-soft truncate">{x.dernier}</span></span>
+              {x.vente === "attente_paiement" && <span className="rounded-full bg-[#DCFCE7] px-2 py-0.5 text-[11px] font-bold text-[#15803D]">OFFRE ACCEPTÉE</span>}
+              {x.statut_offre === "proposee" && x.je_vends && <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-bold text-accent-dark">OFFRE {eurs(x.offre)}</span>}
+              {x.non_lus > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[11px] font-bold text-white">{x.non_lus}</span>}
+            </button></li>
+          ))}</ul>
+        </div>
       )}
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-1.5"><Chip on={!cat} onClick={() => setCat("")}>Toutes les catégories</Chip>{cats.map((c) => <Chip key={c} on={cat === c} onClick={() => setCat(cat === c ? "" : c)}>{c}</Chip>)}</div>
+        <div className="flex gap-1.5">{TRIS_BOURSE.map(([k, t]) => <Chip key={k} on={tri === k} onClick={() => setTri(k)}>{t}</Chip>)}</div>
+      </div>
+      {l === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : !liste.length ? (
+        <div className="mt-5 rounded-2xl bg-white border border-line p-6"><p>Aucun SaaS en vente pour l'instant. Pour vendre le tien : ouvre-le dans « Mes SaaS et classement », onglet « Monde et bourse ».</p></div>
+      ) : (
+        <div className="mt-4 grid md:grid-cols-2 gap-4">{liste.map((b) => {
+          const e = estimer(b);
+          const g = Number(b.mrr_30j) > 0 ? Math.round((Number(b.mrr) / Number(b.mrr_30j) - 1) * 100) : null;
+          return (
+            <div key={b.id} className="rounded-2xl bg-white border border-line p-5 flex flex-col">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white font-black text-[18px]" style={{ background: b.couleur ?? "#4F46E5" }}>{String(b.nom ?? "S")[0]}</span><div className="min-w-0"><p className="font-bold text-[17px] truncate">{b.nom}</p><p className="text-[12.5px] text-ink-faint">{b.categorie ? `${b.categorie} · ` : ""}{b.inspire ? `concurrent de ${b.inspire} · ` : ""}{b.age_jours} jours</p></div></div>
+                <p className="shrink-0 text-right"><span className="text-[24px] font-black tnum" style={HF}>{eurs(b.prix)}</span><br /><span className="text-[11.5px] text-ink-faint">{Number(b.mrr) ? `${(b.prix / (b.mrr * 12)).toFixed(1).replace(".", ",")} × le revenu annuel` : "prix demandé"}</span></p>
+              </div>
+              <p className="mt-2 text-[14px] text-ink-soft">{b.pitch}</p>
+              <div className="mt-3 grid grid-cols-4 gap-2 text-center">{[[eurs(b.mrr), "par mois ✓"], [g == null ? "—" : `${g > 0 ? "+" : ""}${g} %`, "sur 30 jours"], [b.abonnes, "abonnés"], [b.resilies_90j, "résiliés 90 j"]].map(([v, t]) => <div key={t} className="rounded-xl bg-paper py-2"><p className="text-[15px] font-black tnum">{v}</p><p className="text-[10.5px] text-ink-faint">{t}</p></div>)}</div>
+              {(b.courbe?.length ?? 0) > 1 && <div className="mt-2"><Sparkline pts={b.courbe.map((p) => ({ n: Number(p.n) }))} h={34} /></div>}
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-ink-soft">
+                {e && <span>Estimation Bingoo! : <b className="text-ink">{eurs(e.bas)} – {eurs(e.haut)}</b></span>}
+                {b.meilleure_offre && <span>Meilleure offre : <b className="text-ink">{eurs(b.meilleure_offre)}</b></span>}
+                <span>{b.interets} acheteur{b.interets > 1 ? "s" : ""} en discussion</span>
+              </div>
+              {b.description && <p className="mt-3 text-[13.5px] whitespace-pre-line">{b.description}</p>}
+              <div className="mt-auto pt-4 flex flex-wrap gap-2">
+                <a href={lienApp(b.slug, null)} target="_blank" rel="noreferrer" className="rounded-xl border border-line px-4 py-2.5 text-[14px] font-semibold hover:border-ink-faint">Essayer ↗</a>
+                {b.a_moi ? <p className="self-center text-[13px] text-ink-faint">C'est ton annonce : réponds aux acheteurs dans « Mes conversations ».</p>
+                  : <button onClick={() => setOuvert({ bourse_id: b.id, acheteur: ws.id, nom: b.nom, prix: b.prix, vendeur: false, autre: b.vendeur, nouveau: !b.deja })} className="rounded-xl bg-accent text-white px-4 py-2.5 text-[14px] font-bold hover:bg-accent-dark">{b.deja ? "Reprendre la discussion" : "Discuter ou faire une offre"}</button>}
+              </div>
+            </div>
+          );
+        })}</div>
+      )}
+      <p className="mt-4 text-[12px] text-ink-faint">L'estimation est indicative (multiple du revenu annuel selon la croissance, l'ancienneté et les désabonnements). Je ne suis pas un conseiller financier : vérifiez les chiffres et faites-vous accompagner pour une vente importante.</p>
+      {ouvert && <FilBourse fil={ouvert} onClose={() => { setOuvert(null); charger(); }} />}
+    </div>
+  );
+}
+
+// Conversation acheteur / vendeur : messages, offre, acceptation, transfert
+function FilBourse({ fil, onClose }) {
+  const { ws } = useWs();
+  const toast = useToast();
+  const [msgs, setMsgs] = useState(null);
+  const [vente, setVente] = useState(null);
+  const [texte, setTexte] = useState(fil.nouveau ? "Bonjour, ton SaaS m'intéresse. " : "");
+  const [offre, setOffre] = useState("");
+  const [busy, setBusy] = useState(false);
+  const bas = useMemo(() => ({ el: null }), []);
+  const charger = async () => {
+    const { data } = await supabase.from("saas_bourse_messages").select("*").eq("bourse_id", fil.bourse_id).eq("acheteur_ws", fil.acheteur).order("at");
+    setMsgs(data ?? []);
+    const { data: v } = await supabase.from("saas_bourse_ventes").select("statut, prix, commission").eq("bourse_id", fil.bourse_id).eq("acheteur_ws", fil.acheteur).order("at", { ascending: false }).limit(1);
+    setVente(v?.[0] ?? null);
+    if ((data ?? []).length) fn("r/saas-bourse-lu", { workspace_id: ws.id, bourse_id: fil.bourse_id, acheteur: fil.acheteur }).catch(() => {});
+    setTimeout(() => bas.el?.scrollIntoView({ block: "end" }), 50);
+  };
+  useEffect(() => { charger(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const act = async (f, ok) => { setBusy(true); try { await f(); if (ok) toast(ok); await charger(); } catch (x) { toast(x.message, "bad"); } finally { setBusy(false); } };
+  const envoyer = (e) => { e.preventDefault(); act(async () => { await fn("r/saas-bourse-message", { workspace_id: ws.id, bourse_id: fil.bourse_id, acheteur: fil.acheteur, texte, offre: offre || null }); setTexte(""); setOffre(""); }); };
+  const derniere = [...(msgs ?? [])].reverse().find((m) => m.statut_offre === "proposee");
+  return (
+    <div className="fixed inset-0 z-50 bg-ink/40 grid place-items-center p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="w-full max-w-xl bg-white rounded-3xl shadow-xl flex flex-col max-h-[88vh]">
+        <div className="flex items-start justify-between gap-3 p-5 border-b border-line">
+          <div><p className="font-bold text-[18px]">{fil.nom} <span className="font-normal text-ink-faint text-[14px]">· en vente à {eurs(fil.prix)}</span></p><p className="text-[13px] text-ink-faint">{fil.vendeur ? `Acheteur : ${fil.autre}` : `Vendeur : ${fil.autre}`}</p></div>
+          <button onClick={onClose} className="text-ink-faint hover:text-ink text-[22px] leading-none">×</button>
+        </div>
+        <div className="flex-1 overflow-auto p-5 space-y-2.5">
+          {msgs === null ? <Spinner /> : !msgs.length ? <p className="text-[14px] text-ink-soft">Présente-toi, pose tes questions (clients, temps passé, raisons de la vente) ou fais directement une offre.</p> : msgs.map((m) => {
+            const moi = m.de_ws === ws.id;
+            return (
+              <div key={m.id} className={cx("max-w-[85%] rounded-2xl px-3.5 py-2.5 text-[14px]", moi ? "ml-auto bg-ink text-white" : "bg-paper")}>
+                {m.offre != null && <p className="font-bold">💶 Offre : {eurs(m.offre)} {m.statut_offre === "acceptee" ? "· acceptée ✓" : m.statut_offre === "refusee" ? "· refusée" : m.statut_offre === "remplacee" ? "· remplacée" : "· en attente"}</p>}
+                {m.texte && <p className="whitespace-pre-line">{m.texte}</p>}
+                <p className={cx("mt-1 text-[11px]", moi ? "text-white/50" : "text-ink-faint")}>{new Date(m.at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+              </div>
+            );
+          })}
+          <div ref={(el) => { bas.el = el; }} />
+        </div>
+        {fil.vendeur && derniere && !vente?.statut?.startsWith("a") && (
+          <div className="mx-5 mb-2 rounded-2xl bg-accent-soft/60 p-3 flex flex-wrap items-center gap-2"><p className="flex-1 text-[14px]">Offre de <b>{eurs(derniere.offre)}</b> à décider</p><button disabled={busy} onClick={() => act(() => fn("r/saas-bourse-offre", { workspace_id: ws.id, message_id: derniere.id, accepter: false }), "Offre refusée")} className="rounded-xl border border-line bg-white px-3 py-2 text-[13.5px] font-semibold">Refuser</button><button disabled={busy} onClick={() => act(() => fn("r/saas-bourse-offre", { workspace_id: ws.id, message_id: derniere.id, accepter: true }), "Offre acceptée")} className="rounded-xl bg-accent text-white px-3 py-2 text-[13.5px] font-bold">Accepter</button></div>
+        )}
+        {vente?.statut === "attente_paiement" && (
+          <div className="mx-5 mb-2 rounded-2xl bg-[#DCFCE7] p-3 text-[13.5px]">
+            <p><b>Vente conclue à {eurs(vente.prix)}.</b> {fil.vendeur ? `Une fois le paiement reçu, transfère l'application. Commission Bingoo! : ${eurs(vente.commission)}.` : "Organise le paiement avec le vendeur ; il te transfère l'application dès réception."}</p>
+            {fil.vendeur && <button disabled={busy} onClick={() => { if (confirm(`Paiement reçu ? ${fil.nom} va passer sur l'espace de l'acheteur et ton Stripe sera débranché.`)) act(() => fn("r/saas-bourse-vendu", { workspace_id: ws.id, bourse_id: fil.bourse_id, acheteur: fil.acheteur }), "Transféré !"); }} className="mt-2 rounded-xl bg-[#15803D] text-white px-3 py-2 font-bold">Paiement reçu : transférer {fil.nom}</button>}
+          </div>
+        )}
+        {vente?.statut === "a_facturer" ? <p className="p-5 pt-2 text-[14px] font-semibold text-[#15803D]">✓ {fil.nom} a été transféré.</p> : (
+          <form onSubmit={envoyer} className="p-5 pt-2 border-t border-line flex flex-col gap-2">
+            <textarea value={texte} onChange={(e) => setTexte(e.target.value)} rows={2} placeholder="Ton message" className="rounded-xl border border-line px-3 py-2 text-[14px] outline-none focus:border-ink" />
+            <div className="flex gap-2">
+              {!fil.vendeur && <input type="number" min={100} value={offre} onChange={(e) => setOffre(e.target.value)} placeholder="Offre en € (facultatif)" className="flex-1 rounded-xl border border-line px-3 py-2 text-[14px] outline-none focus:border-ink" />}
+              <button disabled={busy || (!texte.trim() && !offre)} className="ml-auto rounded-xl bg-ink text-white px-5 py-2 font-bold disabled:opacity-50">{offre ? "Envoyer l'offre" : "Envoyer"}</button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

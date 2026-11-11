@@ -173,42 +173,75 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     }
     throw new HttpError(400, "Réglage inconnu");
   },
-  // Bourse des SaaS : un acheteur se manifeste, le vendeur est prévenu par e-mail avec le message et l'adresse de l'acheteur
-  async "saas-bourse-interet"(req, b) {
-    const { ws, userId } = await requireMember(req, b.workspace_id);
+  // Bourse des SaaS : conversation entre acheteur et vendeur dans Bingoo! (messages et offres), sans échanger d'e-mails.
+  // L'autre partie est prévenue par e-mail, avec un lien vers la conversation.
+  async "saas-bourse-message"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
     const { data: bo } = await admin.from("saas_bourse").select("id, prix, app_id, statut").eq("id", String(b.bourse_id ?? "")).maybeSingle();
     if (!bo || bo.statut !== "en_vente") throw new HttpError(404, "Annonce introuvable");
     const { data: app } = await admin.from("saas_apps").select("workspace_id, spec").eq("id", bo.app_id).single();
-    if (app!.workspace_id === ws.id) throw new HttpError(400, "C'est ton propre SaaS");
-    await quota(ws.id, "bourse_interet", 10);
-    const message = String(b.message ?? "").trim().slice(0, 1500);
-    const { error } = await admin.from("saas_bourse_interets").insert({ bourse_id: bo.id, workspace_id: ws.id, par: userId, message });
-    if (error) throw new HttpError(409, "Tu as déjà contacté ce vendeur");
-    const { data: moi } = await admin.from("members").select("email").eq("workspace_id", ws.id).eq("user_id", userId).maybeSingle();
-    const { data: vendeur } = await admin.from("workspaces").select("*").eq("id", app!.workspace_id).single();
+    const vendeur = app!.workspace_id === ws.id;
+    const acheteur = vendeur ? String(b.acheteur ?? "") : ws.id;
+    if (vendeur && !(await admin.from("saas_bourse_messages").select("id").eq("bourse_id", bo.id).eq("acheteur_ws", acheteur).limit(1).maybeSingle()).data) throw new HttpError(400, "Conversation introuvable");
+    const texte = String(b.texte ?? "").trim().slice(0, 2000);
+    const offre = b.offre != null && b.offre !== "" ? Math.round(Number(b.offre)) : null;
+    if (offre != null && (vendeur || !(offre >= 100 && offre <= 10_000_000))) throw new HttpError(400, vendeur ? "Seul l'acheteur fait une offre" : "Offre entre 100 € et 10 M€");
+    if (!texte && offre == null) throw new HttpError(400, "Message vide");
+    await quota(ws.id, "bourse_message", 60);
+    // Une nouvelle offre remplace la précédente encore en attente
+    if (offre != null) await admin.from("saas_bourse_messages").update({ statut_offre: "remplacee" }).eq("bourse_id", bo.id).eq("acheteur_ws", acheteur).eq("statut_offre", "proposee");
+    await admin.from("saas_bourse_messages").insert({ bourse_id: bo.id, acheteur_ws: acheteur, de_ws: ws.id, texte: texte || null, offre, statut_offre: offre != null ? "proposee" : null });
+    const nom = (app!.spec as { nom?: string })?.nom ?? "SaaS";
+    const dest = vendeur ? acheteur : app!.workspace_id;
+    const { data: wd } = await admin.from("workspaces").select("*").eq("id", dest).single();
     const { sendSystem, teamAddress } = await import("../_shared/mail.ts");
-    const to = await teamAddress(vendeur as never);
-    const nom = (app!.spec as { nom?: string })?.nom ?? "ton SaaS";
-    if (to) await sendSystem({ to, replyTo: moi?.email ?? undefined, subject: `Bourse Bingoo! : quelqu'un veut acheter ${nom}`, text: `Bonjour,\n\n${ws.name ?? "Un membre de Bingoo!"} s'intéresse à ${nom}, en vente à ${bo.prix} € sur la bourse des SaaS.\n\nSon message :\n${message || "(pas de message)"}\n\nRéponds directement à cet e-mail pour lui écrire${moi?.email ? ` (${moi.email})` : ""}.\n\nLa vente se conclut entre vous ; Bingoo! transfère ensuite l'application sur l'espace de l'acheteur (commission de 5 %).\n\nBingoo!` });
-    await admin.from("activity").insert({ workspace_id: app!.workspace_id, kind: "bourse", summary: `Un acheteur s'intéresse à ${nom}` });
+    const to = await teamAddress(wd as never);
+    const resume = offre != null ? `Offre de ${offre.toLocaleString("fr-FR")} € pour ${nom}${texte ? ` : « ${texte.slice(0, 300)} »` : ""}` : `« ${texte.slice(0, 500)} »`;
+    if (to) await sendSystem({ to, subject: `Bourse Bingoo! · ${nom} : ${offre != null ? "nouvelle offre" : "nouveau message"} de ${ws.name ?? "un membre"}`, text: `${ws.name ?? "Un membre de Bingoo!"} t'écrit à propos de ${nom} (en vente à ${bo.prix} €) :\n\n${resume}\n\nRéponds dans Bingoo! : https://kairo.maisonravita.fr/#/explorer/bourse\n\nBingoo!`, key: `bourse-${bo.id}-${acheteur}-${Date.now()}` }).catch((e) => console.error("bourse mail", e));
+    await admin.from("activity").insert({ workspace_id: dest, kind: "bourse", summary: `${offre != null ? "Offre" : "Message"} sur la bourse : ${nom}` });
     return { ok: true };
   },
-  // Vente conclue : l'application (et son projet) passe sur l'espace de l'acheteur choisi parmi ceux qui se sont manifestés
+  async "saas-bourse-lu"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    await admin.from("saas_bourse_messages").update({ lu: true }).eq("bourse_id", String(b.bourse_id ?? "")).eq("acheteur_ws", String(b.acheteur ?? "")).neq("de_ws", ws.id);
+    return { ok: true };
+  },
+  // Le vendeur accepte ou refuse l'offre en cours ; acceptée, la vente attend le paiement de l'acheteur
+  async "saas-bourse-offre"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { data: m } = await admin.from("saas_bourse_messages").select("id, bourse_id, acheteur_ws, offre, statut_offre").eq("id", String(b.message_id ?? "")).maybeSingle();
+    const { data: bo } = m ? await admin.from("saas_bourse").select("id, app_id, statut").eq("id", m.bourse_id).single() : { data: null };
+    const { data: app } = bo ? await admin.from("saas_apps").select("workspace_id, spec").eq("id", bo.app_id).single() : { data: null };
+    if (!m || !bo || !app || app.workspace_id !== ws.id || m.statut_offre !== "proposee") throw new HttpError(404, "Offre introuvable");
+    const ok = !!b.accepter;
+    await admin.from("saas_bourse_messages").update({ statut_offre: ok ? "acceptee" : "refusee" }).eq("id", m.id);
+    const nom = (app.spec as { nom?: string })?.nom ?? "SaaS";
+    await admin.from("saas_bourse_messages").insert({ bourse_id: bo.id, acheteur_ws: m.acheteur_ws, de_ws: ws.id, texte: ok ? `Offre de ${m.offre!.toLocaleString("fr-FR")} € acceptée. Prochaine étape : le paiement entre vous (virement), puis je transfère ${nom} sur ton espace.` : `Offre de ${m.offre!.toLocaleString("fr-FR")} € refusée.${b.texte ? ` ${String(b.texte).slice(0, 500)}` : ""}` });
+    if (ok) await admin.from("saas_bourse_ventes").insert({ bourse_id: bo.id, app_id: bo.app_id, vendeur_ws: ws.id, acheteur_ws: m.acheteur_ws, prix: m.offre!, commission: Math.round(m.offre! * 0.05) });
+    const { data: wd } = await admin.from("workspaces").select("*").eq("id", m.acheteur_ws).single();
+    const { sendSystem, teamAddress } = await import("../_shared/mail.ts");
+    const to = await teamAddress(wd as never);
+    if (to) await sendSystem({ to, subject: `Bourse Bingoo! · ${nom} : ton offre est ${ok ? "acceptée" : "refusée"}`, text: `Ton offre de ${m.offre} € pour ${nom} est ${ok ? "acceptée. Organise le paiement avec le vendeur dans la conversation : il transfère ensuite l'application sur ton espace" : "refusée. Tu peux en proposer une autre dans la conversation"}.\n\nhttps://kairo.maisonravita.fr/#/explorer/bourse\n\nBingoo!` }).catch(() => null);
+    await log(ws.id, "bourse", `Offre ${ok ? "acceptée" : "refusée"} : ${nom} ${m.offre} €`);
+    return { ok: true };
+  },
+  // Paiement reçu : l'application (et son projet) passe sur l'espace de l'acheteur ; la commission de 5 % est due à Bingoo!
   async "saas-bourse-vendu"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
-    const { data: bo } = await admin.from("saas_bourse").select("id, prix, app_id, statut").eq("id", String(b.bourse_id ?? "")).maybeSingle();
-    const { data: app } = bo ? await admin.from("saas_apps").select("id, workspace_id, projet_id, spec").eq("id", bo.app_id).maybeSingle() : { data: null };
-    if (!bo || !app || app.workspace_id !== ws.id || bo.statut !== "en_vente") throw new HttpError(404, "Annonce introuvable");
-    const { data: it } = await admin.from("saas_bourse_interets").select("workspace_id").eq("bourse_id", bo.id).eq("workspace_id", String(b.acheteur ?? "")).maybeSingle();
-    if (!it) throw new HttpError(400, "Choisis un acheteur qui s'est manifesté");
-    await admin.from("saas_projets").update({ workspace_id: it.workspace_id }).eq("id", app.projet_id);
+    const { data: v } = await admin.from("saas_bourse_ventes").select("*").eq("bourse_id", String(b.bourse_id ?? "")).eq("acheteur_ws", String(b.acheteur ?? "")).eq("statut", "attente_paiement").order("at", { ascending: false }).limit(1).maybeSingle();
+    if (!v || v.vendeur_ws !== ws.id) throw new HttpError(400, "Accepte d'abord une offre de cet acheteur");
+    const { data: app } = await admin.from("saas_apps").select("id, workspace_id, projet_id, spec").eq("id", v.app_id).single();
+    if (app!.workspace_id !== ws.id) throw new HttpError(403, "Ce SaaS n'est plus à toi");
+    await admin.from("saas_projets").update({ workspace_id: v.acheteur_ws }).eq("id", app!.projet_id);
     // Le compte Stripe du vendeur est débranché : l'acheteur branche le sien (les abonnés en cours se transfèrent entre vous chez Stripe)
-    await admin.from("saas_app_secrets").delete().eq("app_id", app.id);
-    await admin.from("saas_apps").update({ workspace_id: it.workspace_id, public: false, paiement: { actif: false, essai_jours: 14 } }).eq("id", app.id);
-    await admin.from("saas_bourse").update({ statut: "vendu" }).eq("id", bo.id);
-    const nom = (app.spec as { nom?: string })?.nom ?? "SaaS";
-    await log(ws.id, "bourse", `${nom} vendu ${bo.prix} € (commission Bingoo! 5 % : ${Math.round(bo.prix * 0.05)} €)`);
-    await admin.from("activity").insert({ workspace_id: it.workspace_id, kind: "bourse", summary: `${nom} est maintenant à toi : retrouve-le dans « Lancer le mien »` });
+    await admin.from("saas_app_secrets").delete().eq("app_id", app!.id);
+    await admin.from("saas_apps").update({ workspace_id: v.acheteur_ws, public: false, paiement: { actif: false, essai_jours: 14 } }).eq("id", app!.id);
+    await admin.from("saas_bourse").update({ statut: "vendu" }).eq("id", v.bourse_id);
+    await admin.from("saas_bourse_ventes").update({ statut: "a_facturer", transfere_at: new Date().toISOString() }).eq("id", v.id);
+    const nom = (app!.spec as { nom?: string })?.nom ?? "SaaS";
+    await admin.from("saas_bourse_messages").insert({ bourse_id: v.bourse_id, acheteur_ws: v.acheteur_ws, de_ws: ws.id, texte: `${nom} est transféré sur ton espace. Retrouve-le dans « Mes SaaS et classement », puis branche ton compte Stripe (onglet « Encaisser »).` });
+    await log(ws.id, "bourse", `${nom} vendu ${v.prix} € (commission Bingoo! 5 % : ${v.commission} €)`);
+    await admin.from("activity").insert({ workspace_id: v.acheteur_ws, kind: "bourse", summary: `${nom} est maintenant à toi : retrouve-le dans « Mes SaaS et classement »` });
     return { ok: true };
   },
   // Tâches planifiées des SaaS construits : jumeau (une fois par semaine par app) et e-mails des apps (fin d'essai, relance)
