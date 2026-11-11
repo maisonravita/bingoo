@@ -219,6 +219,13 @@ export async function aiGuard() {
   if (ctx.essential) return; // réponses de prospects : toujours traitées (plafond par prospect dans pro.ts)
   const cap = Number(env("AI_DAILY_CAP_EUR", "12"));
   const ws = ctx.ws;
+  if (!ws && String(ctx.feature ?? "").startsWith("app/")) {
+    // IA des SaaS construits par Bingoo! (utilisée par leurs clients) : enveloppe à part, plafonnée aussi par application et par compte
+    const capApps = Number(env("AI_APPS_CAP_EUR", "5"));
+    const { data } = await admin.from("ai_usage").select("cost_eur").is("workspace_id", null).like("feature", "app/%").gte("at", dayStart());
+    if ((data ?? []).reduce((a, r) => a + Number(r.cost_eur ?? 0), 0) >= capApps) throw new HttpError(503, "L'assistant IA est très demandé aujourd'hui, réessaie dans quelques heures.");
+    return;
+  }
   if (!ws && String(ctx.feature ?? "").startsWith("explorer/")) {
     // Base Explorer (lecture des SaaS, niches, recherche) : enveloppe à part, pour ne pas épuiser celle des outils gratuits
     const capEx = Number(env("AI_EXPLORER_CAP_EUR", "6"));

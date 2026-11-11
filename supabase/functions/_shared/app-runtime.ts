@@ -468,13 +468,14 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
       if (!consigne) throw new Err(400, "Consigne vide");
       const ok = (await admin.rpc("saas_app_ia_compter", { p_app: app.id, p_user: u0.id, p_max_user: estDemo(u0.email) ? 5 : 40, p_max_app: 400 })).data;
       if (!ok) throw new Err(429, "Limite d'utilisation de l'IA atteinte pour aujourd'hui, réessaie demain");
-      const { ask, askJson, setAi } = await import("./core.ts");
-      setAi({ ws: app.workspace_id, feature: "app/ia" });
+      const { ask, askJson } = await import("./core.ts");
+      const { aiCtx } = await import("./ai-ctx.ts");
       const prompt = `Tu es l'assistant intégré de l'application « ${String(app.spec?.nom ?? "").slice(0, 60)} » (${String(app.spec?.pitch ?? "").slice(0, 200)}).
 Réponds en français, directement, sans préambule ni commentaire sur toi-même.
 Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\n"""` : ""}`;
-      if (b.json) return { status: 200, body: { resultat: await askJson<unknown>(prompt + "\nRéponds uniquement en JSON valide.", { fast: true, maxTokens: 2500 }) } };
-      return { status: 200, body: { resultat: (await ask(prompt, { fast: true, maxTokens: 2500 })).trim() } };
+      const ctxIa = { ws: null, feature: `app/ia/${slug}`.slice(0, 60), live: true };
+      if (b.json) return { status: 200, body: { resultat: await aiCtx.run(ctxIa, () => askJson<unknown>(prompt + "\nRéponds uniquement en JSON valide.", { fast: true, maxTokens: 2500 })) } };
+      return { status: 200, body: { resultat: (await aiCtx.run(ctxIa, () => ask(prompt, { fast: true, maxTokens: 2500 }))).trim() } };
     }
 
     // ---- Données de l'espace
