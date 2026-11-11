@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
     const { appFichierUtilisateur } = await import("../_shared/app-runtime.ts");
     const f = await appFichierUtilisateur(admin, fu[1], fu[2]);
     if (!f) return new Response("Fichier introuvable", { status: 404, headers: cors });
-    return new Response(f.blob, { headers: { ...cors, "content-type": f.type, "content-disposition": `inline; filename="${encodeURIComponent(f.nom)}"`, "cache-control": "private, max-age=86400", "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox" } });
+    return new Response(f.blob, { headers: { ...cors, "content-type": f.type, "content-disposition": `inline; filename="${encodeURIComponent(f.nom)}"`, "cache-control": "private, max-age=86400", "x-content-type-options": "nosniff", ...(f.type === "application/pdf" ? {} : { "content-security-policy": "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox" }) } });
   }
   const ag = path.match(/\/app\/([a-z0-9-]+)\/agenda\/([0-9a-f]{32})\.ics$/);
   if (req.method === "GET" && ag) {
