@@ -4,6 +4,7 @@
 // Le gabarit (src/lib/appShell.js) fournit navigation, comptes, composants et accès aux données.
 // deno-lint-ignore-file no-explicit-any
 import { admin, ask, askJson } from "./core.ts";
+import { sansIdentite } from "./identite.ts";
 
 const ICONES = ["accueil", "liste", "contacts", "agenda", "graphique", "reglages", "fichier", "boite", "mail", "carte", "tag", "etoile", "horloge", "panier", "message"];
 
@@ -97,9 +98,18 @@ Rends un objet JSON compact :
     demo: s.demo ?? {},
   };
   spec.ecrans = spec.ecrans.filter((e: any, i: number) => spec.ecrans.findIndex((x: any) => x.id === e.id) === i);
+  // Garde-fou : rien du SaaS d'origine (nom, domaine) dans ce que verront les clients
+  const { ecrans: _e, ...visible } = spec;
+  Object.assign(spec, sansIdentite(visible, p.inspire ?? {}, p.nom).valeur);
   if (!spec.ecrans.length) throw new Error("La conception de l'application a échoué, réessaie");
   await admin.from("saas_apps").update({ brouillon: spec, etape: `Écriture des écrans (0/${spec.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
   for (const e of spec.ecrans) await lancerEcran(e.id);
+}
+
+async function inspireDe(appId: string) {
+  const { data: a } = await admin.from("saas_apps").select("projet_id").eq("id", appId).single();
+  const { data: pr } = await admin.from("saas_projets").select("data").eq("id", a!.projet_id).single();
+  return ((pr?.data as any)?.inspire ?? {}) as { nom?: string; domaine?: string };
 }
 
 /** Étape 2 : écrit un écran du brouillon (appelée une fois par écran, en parallèle). */
@@ -109,6 +119,7 @@ export async function saasEcrireEcran(appId: string, ecranId: string) {
   const e = spec?.ecrans?.find((x: any) => x.id === ecranId);
   if (!e) return;
   const r = await ecrire(spec, e).catch((x) => { console.error("ecran", ecranId, x); return { code: "", ok: false }; });
+  r.code = await inspireDe(appId).then((o) => sansIdentite(r.code, o, spec.nom).valeur);
   await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: ecranId, p_code: r.code, p_ok: r.ok });
 }
 
@@ -136,6 +147,7 @@ export async function saasModifierEcran(appId: string, ecranId: string, demande:
     if (!r.ok) throw new Error("La modification n'a pas pu être écrite correctement, reformule ta demande");
     Object.assign(e, r);
   }
+  e.code = sansIdentite(e.code, await inspireDe(appId), spec.nom).valeur;
   const m = { demande, ecran: e.id, titre: e.titre, nouveau: ecranId === "nouveau", suggestion, at: new Date().toISOString() };
   spec._modif = { ...m, liste: [...avant.map(({ liste: _l, ...x }: any) => x), m] };
   await admin.from("saas_apps").update({ brouillon: spec, statut: "pret", etape: null, erreur: null, maj: new Date().toISOString() }).eq("id", appId);

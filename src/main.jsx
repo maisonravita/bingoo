@@ -7,6 +7,10 @@ import "./index.css";
 import { enregistrerSW } from "./lib/push";
 
 const Router = import.meta.env.VITE_HASH_ROUTER ? HashRouter : BrowserRouter;
+// Anciens liens (e-mails, favoris) en « /#/chemin » : convertis en vrai chemin quand le site n'utilise pas les ancres
+if (!import.meta.env.VITE_HASH_ROUTER && window.location.hash.startsWith("#/")) {
+  try { window.history.replaceState(null, "", window.location.hash.slice(1)); } catch { /* navigateur ancien */ }
+}
 // Lien de parrainage (?parrain=code) : gardé jusqu'à la création du compte
 try { const c = new URLSearchParams(window.location.search).get("parrain") || new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("parrain"); if (c && /^[a-z0-9]{4,16}$/i.test(c)) localStorage.setItem("bingoo-parrain", c.toLowerCase()); } catch { /* stockage indisponible */ }
 // Écran de chargement (index.html, au-dessus de la page) : l'appli se prépare derrière, et la page ne s'ouvre

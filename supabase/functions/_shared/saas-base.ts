@@ -697,6 +697,13 @@ hypotheses (prudentes : clients_mois_1 nombre de clients payants le premier mois
     nouveaux = nouveaux * (1 + Number(H.croissance_mensuelle_pct || 0) / 100);
   }
   // Le prompt à coller dans un outil qui code une application (Lovable, Bolt, Claude…)
+  // Garde-fou : un nom qui ressemble à l'original ou à un concurrent est remplacé
+  const { ressemble } = await import("./identite.ts");
+  const prisDeja = [s.nom, s.domaine, ...(conc ?? []).map((c) => c.nom)].filter(Boolean) as string[];
+  for (let essai = 0; essai < 2 && (!p.nom || prisDeja.some((x) => ressemble(p.nom, x))); essai++) {
+    const r = await askJson<{ nom: string }>(`Propose un nom de marque original, court et facile à retenir, pour ce SaaS : ${p.pitch}. Il ne doit ressembler à aucun de ces noms : ${prisDeja.join(", ")}${p.nom ? `, ni à ${p.nom}` : ""}. Clé : nom.`, { fast: true }).catch(() => ({ nom: "" }));
+    if (r.nom) p.nom = String(r.nom).trim().slice(0, 40);
+  }
   const construction = [
     `Construis un SaaS appelé « ${p.nom} » : ${p.pitch}`,
     `Clients : ${p.cible}`,
