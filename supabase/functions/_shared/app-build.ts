@@ -95,6 +95,7 @@ MVP dans l'ordre : ${(p.mvp ?? []).map((m: any) => m.fonction).join(" ; ")}
 Rends un objet JSON compact :
 - couleur : couleur de marque en hexadécimal (#xxxxxx), assez foncée pour du texte blanc dessus, PAS celle de ${p.inspire?.nom ?? "l'inspiration"}.
 - slogan : titre du site, 8 mots au plus, percutant ; cible_courte : 5 mots (« Pour les … »).
+- pitch_site : la phrase sous le titre du site, 35 mots au plus. Elle ne promet QUE ce que cette première version fait vraiment (écrans, pages publiques, IA texte) : pas de synchronisation d'agenda, d'envoi de SMS, d'intégration à un autre logiciel ni de chiffres inventés. Les atouts suivent la même règle.
 - atouts : 6 objets titre + texte (une phrase courte), tirés des fonctionnalités.
 - collections : 2 à 5 objets nom (snake_case, pluriel), label, champs : 4 à 8 objets nom (snake_case) + type (texte|nombre|montant|date|choix|booleen|email|telephone|lien) + valeurs (pour choix seulement). Les liens entre collections : un champ <collection>_id de type texte.
 - ecrans : 4 à 6 objets id (snake_case court), titre (2 mots au plus), icone (parmi ${ICONES.join(", ")}), but (une phrase), fonctions (3 à 5 éléments courts). Le premier écran est « Tableau de bord » (indicateurs et activité récente). Couvre le cœur du MVP ; pas d'écran de connexion, de paiement ni de réglages de compte (le gabarit les gère). L'application dispose d'une IA intégrée (rédiger, reformuler, résumer, analyser, générer un document) : si le SaaS d'origine repose sur l'IA, l'écran principal doit la faire fonctionner pour de vrai (saisie → résultat → sauvegarde dans une collection). Elle ne sait pas produire d'images, de vidéos ni de sons, ni se connecter à des services extérieurs.
@@ -105,6 +106,7 @@ Rends un objet JSON compact :
     nom: p.nom, pitch: p.pitch, cible: p.cible, probleme: p.probleme,
     couleur: /^#[0-9a-f]{6}$/i.test(s.couleur ?? "") ? s.couleur : "#4F46E5",
     slogan: String(s.slogan ?? p.pitch ?? "").slice(0, 90), cible_courte: String(s.cible_courte ?? "").slice(0, 60),
+    ...(s.pitch_site ? { pitch: String(s.pitch_site).slice(0, 300) } : {}),
     atouts: (s.atouts ?? []).slice(0, 6), formules: (p.formules ?? []).slice(0, 3),
     collections: (s.collections ?? []).slice(0, 6),
     ecrans: (s.ecrans ?? []).slice(0, 6).map((e: any, i: number) => ({ id: slugify(String(e.id ?? `ecran-${i}`)).replace(/-/g, "_") || `ecran_${i}`, titre: String(e.titre ?? `Écran ${i + 1}`).slice(0, 24), icone: ICONES.includes(e.icone) ? e.icone : "liste", but: e.but, fonctions: e.fonctions })),

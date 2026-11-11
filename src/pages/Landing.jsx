@@ -173,6 +173,10 @@ export default function Landing() {
                 </li>
               ))}
             </ol>
+            <figure className="mt-12">
+              <video src="/demo-copie.mp4" poster="/demo-copie.jpg" controls muted playsInline preload="none" className="w-full rounded-2xl border border-white/10 shadow-2xl" />
+              <figcaption className="mt-3 text-[13.5px] text-white/55">Vrai SaaS construit par Bingoo! (prise de rendez-vous), avec ses données d'exemple : le site, l'espace de l'utilisateur, la page où ses clients réservent, la réservation qui arrive. 35 secondes.</figcaption>
+            </figure>
             <button onClick={go} className="mt-10 inline-flex items-center gap-2 rounded-full bg-accent px-7 py-3.5 text-[16px] font-semibold hover:bg-accent-dark transition">Voir les SaaS à copier <Arrow className="h-4 w-4" /></button>
             <p className="mt-3 text-[13px] text-white/45">Concurrence loyale : les mêmes fonctionnalités, avec ton nom, tes textes et ton design.</p>
           </div>
