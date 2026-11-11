@@ -7,7 +7,7 @@
 // deno-lint-ignore-file no-explicit-any
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.45.4";
 
-const LIM = { inscriptionsParHeure: 15, rows: 20000, taille: 20000, iaParJour: 300 };
+const LIM = { inscriptionsParHeure: 15, rows: 20000, taille: 20000 };
 const enc = new TextEncoder();
 const hex = (b: ArrayBuffer | Uint8Array) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
 const sha = async (s: string) => hex(await crypto.subtle.digest("SHA-256", enc.encode(s)));
@@ -245,34 +245,6 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
       return { status: 200, body: { ok: true } };
     }
 
-    // ---- Assistant IA : répond à partir des données de l'espace (coût imputé au créateur de l'application)
-    if (action === "ia") {
-      const question = String(b.question ?? "").trim().slice(0, 600);
-      if (question.length < 3) throw new Err(400, "Pose ta question");
-      const depuis = new Date(); depuis.setUTCHours(0, 0, 0, 0);
-      const { count } = await admin.from("ai_usage").select("id", { count: "exact", head: true }).eq("feature", `app-ia/${app.id}`).gte("at", depuis.toISOString());
-      if ((count ?? 0) >= LIM.iaParJour) throw new Err(429, "L'assistant a beaucoup travaillé aujourd'hui : réessaie demain");
-      const s = app.spec as any;
-      const parCol: Record<string, unknown[]> = {};
-      const { data: rs } = await rows().select("id, col, data, at").order("at", { ascending: false }).limit(400);
-      for (const r of (rs ?? []) as any[]) (parCol[r.col] ??= []).push({ id: r.id, cree_le: String(r.at).slice(0, 10), ...r.data });
-      let donnees = JSON.stringify(parCol);
-      if (donnees.length > 40000) donnees = donnees.slice(0, 40000) + "…(tronqué)";
-      const { aiCtx } = await import("./ai-ctx.ts");
-      const { ask } = await import("./core.ts");
-      const rep = await aiCtx.run({ ws: app.workspace_id, feature: `app-ia/${app.id}`, live: true }, () => ask(
-        `Tu es l'assistant intégré à « ${s.nom} » (${s.pitch}). Aujourd'hui : ${new Date().toISOString().slice(0, 10)}.
-Types de données : ${(s.collections ?? []).map((c: any) => `${c.nom} (${c.label})`).join(", ")}.
-Données de l'espace de l'utilisateur (JSON) :
-${donnees}
-
-Question de ${user.nom} : ${question}
-
-Réponds en français, tutoiement, court et concret (5 à 10 lignes au plus), en citant les éléments précis (noms, montants, dates) tirés des données. Si les données ne permettent pas de répondre, dis-le. N'invente rien.`,
-        { fast: true, maxTokens: 900, system: `Tu es l'assistant de l'application ${s.nom}. Tu n'as accès qu'aux données fournies.` }));
-      return { status: 200, body: { reponse: rep } };
-    }
-
     // ---- Données de l'espace
     if (action === "list") {
       let q = rows().eq("col", colOk(b.col));
@@ -307,8 +279,6 @@ Réponds en français, tutoiement, court et concret (5 à 10 lignes au plus), en
   } catch (e) {
     if (e instanceof Err) return { status: e.status, body: { error: e.message } };
     if (e instanceof SyntaxError) return { status: 400, body: { error: "Requête invalide" } };
-    const st = (e as any)?.status;
-    if (st === 402 || st === 503) return { status: 503, body: { error: "L'assistant est en pause pour le moment, réessaie plus tard" } };
     console.error("app", e);
     return { status: 500, body: { error: "Erreur du serveur, réessaie" } };
   }

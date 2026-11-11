@@ -189,31 +189,6 @@ function Equipe({ user }) {
   </\${ui.Page}>\`;
 }
 
-// ---------------------------------------------------------------- Assistant IA (lit les données de l'espace)
-function Assistant() {
-  const [open, setOpen] = useState(false), [q, setQ] = useState(""), [fil, setFil] = useState([]), [busy, setBusy] = useState(false);
-  const bas = useRef(null);
-  useEffect(() => { bas.current?.scrollIntoView({ block: "end" }); }, [fil, busy]);
-  const demander = async (e) => {
-    e?.preventDefault(); const question = q.trim(); if (!question || busy) return;
-    setFil((f) => [...f, { de: "moi", t: question }]); setQ(""); setBusy(true);
-    try { const r = await call("ia", { question }); setFil((f) => [...f, { de: "ia", t: r.reponse }]); }
-    catch (x) { setFil((f) => [...f, { de: "ia", t: x.message, err: true }]); } finally { setBusy(false); }
-  };
-  const idees = (S.ia_questions ?? ["Résume mon activité de la semaine", "Qu'est-ce que je dois faire en priorité ?", "Qu'est-ce qui est en retard ?"]).slice(0, 3);
-  return html\`<div class="fixed bottom-4 right-4 z-40">
-    \${open ? html\`<div class="anim w-[min(380px,calc(100vw-2rem))] h-[min(520px,calc(100vh-6rem))] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
-      <div class="flex items-center justify-between px-4 py-3 bg-[var(--c)] text-white"><p class="font-semibold flex items-center gap-2"><\${Icone} nom="etoile" class="w-4 h-4"/>Assistant \${S.nom}</p><button onClick=\${() => setOpen(false)}><\${Icone} nom="croix" class="w-5 h-5"/></button></div>
-      <div class="flex-1 overflow-auto p-4 space-y-3 text-sm">
-        \${!fil.length && html\`<div><p class="text-slate-500">Pose une question sur tes données.</p><div class="mt-3 space-y-1.5">\${idees.map((t) => html\`<button onClick=\${() => setQ(t)} class="block w-full text-left rounded-xl bg-slate-50 hover:bg-slate-100 px-3 py-2">\${t}</button>\`)}</div></div>\`}
-        \${fil.map((m) => html\`<div class=\${cls("rounded-2xl px-3 py-2 whitespace-pre-wrap", m.de === "moi" ? "ml-8 bg-[var(--c)] text-white" : m.err ? "mr-8 bg-red-50 text-red-700" : "mr-8 bg-slate-100")}>\${m.t}</div>\`)}
-        \${busy && html\`<div class="mr-8 rounded-2xl px-3 py-2 bg-slate-100 text-slate-500">Je regarde tes données…</div>\`}<div ref=\${bas}/>
-      </div>
-      <form onSubmit=\${demander} class="p-3 border-t border-slate-100 flex gap-2"><input value=\${q} onInput=\${(e) => setQ(e.target.value)} placeholder="Ta question…" class="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[var(--c)]"/><\${ui.Button} type="submit" disabled=\${busy || !q.trim()}>Envoyer</\${ui.Button}></form>
-    </div>\` : html\`<button onClick=\${() => setOpen(true)} class="flex items-center gap-2 rounded-full bg-[var(--c)] text-white px-4 py-3 shadow-lg hover:brightness-110 text-sm font-semibold"><\${Icone} nom="etoile" class="w-4 h-4"/>Demander à l'IA</button>\`}
-  </div>\`;
-}
-
 // ---------------------------------------------------------------- Démo animée : l'app se présente toute seule, écran par écran
 function Tour({ onFin }) {
   const [i, setI] = useState(0);
@@ -246,8 +221,8 @@ function Appli({ user, etat, onLogout, tour, onFinTour }) {
     \${menu && html\`<div class="fixed inset-0 z-30 bg-slate-900/30 lg:hidden" onClick=\${() => setMenu(false)}/>\`}
     <main class="flex-1 min-w-0"><div class="lg:hidden flex items-center justify-between bg-white border-b border-slate-200 px-4 py-3"><button onClick=\${() => setMenu(true)}><\${Icone} nom="menu"/></button><span class="font-bold">\${S.nom}</span><span class="w-5"/></div>
       <div class="max-w-6xl mx-auto p-5 sm:p-8">\${E ? html\`<\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} key=\${E.id + JSON.stringify(cur.params)} user=\${user} params=\${cur.params} etat=\${etat}/></\${Garde}>\` : null}</div></main>
-    \${tour ? html\`<\${Tour} onFin=\${onFinTour}/>\` : html\`<\${Assistant}/>\`}
-    <div class="fixed bottom-20 right-4 z-50 space-y-2">\${toasts.map((t) => html\`<div class=\${cls("anim rounded-xl px-4 py-2.5 text-sm text-white shadow-lg", t.type === "bad" ? "bg-red-600" : "bg-slate-900")}>\${t.msg}</div>\`)}</div>
+    \${tour && html\`<\${Tour} onFin=\${onFinTour}/>\`}
+    <div class="fixed bottom-4 right-4 z-50 space-y-2">\${toasts.map((t) => html\`<div class=\${cls("anim rounded-xl px-4 py-2.5 text-sm text-white shadow-lg", t.type === "bad" ? "bg-red-600" : "bg-slate-900")}>\${t.msg}</div>\`)}</div>
   </div>\`;
 }
 
