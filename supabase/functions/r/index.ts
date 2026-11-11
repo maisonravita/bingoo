@@ -203,6 +203,13 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     return { ok: true };
   },
   // Réglages d'un SaaS construit : encaissement Stripe, nom de domaine, chiffres
+  async "saas-app-croissance"(req, b) {
+    const { ws } = await membreOuCron(req, b.workspace_id);
+    const { data: app } = await admin.from("saas_apps").select("id").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    if (!app) throw new HttpError(404, "Application introuvable");
+    const { appCroissance } = await import("../_shared/app-owner.ts");
+    return await appCroissance(app.id);
+  },
   async "saas-app-reglages"(req, b) {
     const { ws, userId } = await requireMember(req, b.workspace_id);
     const { data: app } = await admin.from("saas_apps").select("id").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
