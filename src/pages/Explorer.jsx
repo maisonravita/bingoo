@@ -49,13 +49,14 @@ export default function Explorer({ domaine: fixe }) {
   if (d === "createurs") return <><Onglets actif="createurs" /><Createurs /></>;
   if (d === "bourse") return <><Onglets actif="bourse" /><Bourse /></>;
   if (d === "racheter") return <><Onglets actif="racheter" /><Racheter /></>;
+  if (d === "classement") return <><Onglets actif="classement" /><Classement /></>;
   if (d === "comparer") return <Comparer />;
   return d ? <Fiche domaine={d} /> : <><Onglets actif="liste" /><Liste /></>;
 }
 
 function Onglets({ actif }) {
   const nav = useNavigate();
-  const T = [["liste", "SaaS", "/explorer"], ["carte", "Le monde", "/explorer/carte"], ["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"], ["marche", "Pays et tendances", "/explorer/marche"], ["pubs", "Pubs et e-mails", "/explorer/pubs"], ["idees", "Idées et réussites", "/explorer/idees"], ["createurs", "Mes SaaS et classement", "/explorer/createurs"], ["bourse", "Bourse", "/explorer/bourse"], ["racheter", "À racheter", "/explorer/racheter"]];
+  const T = [["liste", "SaaS", "/explorer"], ["carte", "Le monde", "/explorer/carte"], ["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"], ["marche", "Pays et tendances", "/explorer/marche"], ["pubs", "Pubs et e-mails", "/explorer/pubs"], ["idees", "Idées et réussites", "/explorer/idees"], ["classement", "Classement", "/explorer/classement"], ["createurs", "Mes SaaS et classement", "/explorer/createurs"], ["bourse", "Bourse", "/explorer/bourse"], ["racheter", "À racheter", "/explorer/racheter"]];
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
       <div className="inline-flex max-w-full overflow-x-auto rounded-xl bg-white border border-line p-1">
@@ -1754,6 +1755,48 @@ function FilBourse({ fil, onClose }) {
           </form>
         )}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- Classement : les SaaS qui grossissent le plus vite (revenus vérifiés)
+const ONGLETS_CLASSEMENT = [["mois", "Ce mois-ci", "Croissance du MRR sur 30 jours, à partir de 1 000 $ de MRR."], ["trimestre", "Sur 3 mois", "Revenu du dernier mois complet comparé à celui d'il y a 3 mois."], ["revenu", "Plus gros revenu", "Le MRR vérifié le plus élevé."], ["jeunes", "Nés cette année", "Créés il y a moins de 12 mois, déjà au-dessus de 1 000 $ par mois."]];
+const dollar = (n) => n == null ? "—" : n >= 1e6 ? `${(n / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M$` : n >= 1e4 ? `${Math.round(n / 1e3)} k$` : `${Math.round(n).toLocaleString("fr-FR")} $`;
+function Classement() {
+  const nav = useNavigate();
+  const [tri, setTri] = useState("mois");
+  const [rows, setRows] = useState(undefined);
+  useEffect(() => { setRows(undefined); supabase.rpc("saas_classement", { p_tri: tri }).then(({ data }) => setRows(data ?? [])); }, [tri]);
+  const info = ONGLETS_CLASSEMENT.find((o) => o[0] === tri);
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      <p className="text-[12.5px] font-bold tracking-wider text-accent-dark">CLASSEMENT</p>
+      <h1 className="text-[34px] font-black leading-tight tracking-tight" style={HF}>Les SaaS qui grossissent le plus vite.</h1>
+      <p className="mt-1 text-ink-soft max-w-3xl">Uniquement des revenus vérifiés directement chez Stripe (via TrustMRR), pas des chiffres déclarés. Mis à jour chaque jour.</p>
+      <div className="mt-5 flex flex-wrap gap-1.5">{ONGLETS_CLASSEMENT.map(([k, l]) => <Chip key={k} on={tri === k} onClick={() => setTri(k)}>{l}</Chip>)}</div>
+      <p className="mt-2 text-[12.5px] text-ink-faint">{info[2]}</p>
+      {rows === undefined ? <p className="py-16 text-center text-ink-soft">Chargement…</p> : !rows.length ? <p className="py-16 text-center text-ink-soft">Le classement se remplit : Bingoo! lit en ce moment les revenus vérifiés de milliers de SaaS. Reviens dans quelques heures.</p> : (
+        <div className="mt-4 rounded-2xl border border-line bg-white overflow-hidden">
+          {rows.map((x, i) => {
+            const pts = (x.courbe ?? []).map((c) => ({ n: c.v }));
+            const crois = tri === "trimestre" ? x.crois_3m : x.crois_30j;
+            const ouvrir = () => x.statut === "ok" ? nav(`/explorer/${x.domaine}`) : window.open(x.source, "_blank", "noopener");
+            return (
+              <button key={x.domaine} onClick={ouvrir} className="w-full text-left flex items-center gap-3 sm:gap-4 px-3 sm:px-5 py-3 border-b border-line last:border-0 hover:bg-paper/60">
+                <span className={cx("w-7 text-right tnum font-black", i < 3 ? "text-accent-dark text-[18px]" : "text-ink-faint")}>{i + 1}</span>
+                <CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="w-10 h-10 shrink-0" pad="p-1.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold truncate">{x.nom} <span className="font-normal">{drapeau(x.pays)}</span></p>
+                  <p className="text-[12.5px] text-ink-faint truncate">{x.categorie ?? (x.marches ?? []).filter((m) => m !== "SaaS").slice(0, 2).join(" · ")} · {x.domaine}{x.fonde ? ` · créé en ${x.fonde.slice(0, 4)}` : ""}</p>
+                </div>
+                <div className="hidden md:block w-28">{pts.length > 1 && <Sparkline pts={pts} h={30} />}</div>
+                <div className="w-24 text-right"><p className="font-bold tnum">{dollar(x.mrr ?? x.revenu_mois)}</p><p className="text-[11.5px] text-ink-faint">{x.mrr ? "MRR" : "par mois"}</p></div>
+                <div className="w-20 text-right">{crois != null && <span className={cx("inline-block rounded-lg px-2 py-1 text-[12.5px] font-bold tnum", crois > 0 ? "bg-[#DCFCE7] text-[#166534]" : crois < 0 ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-paper text-ink-soft")}>{crois > 0 ? "+" : ""}{Number(crois).toLocaleString("fr-FR", { maximumFractionDigits: 0 })} %</span>}</div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

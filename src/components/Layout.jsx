@@ -206,7 +206,7 @@ export default function Layout({ children }) {
     { to: "/explorer", label: "Tous les SaaS", icon: "eye" }, { to: "/explorer/carte", label: "Le monde des SaaS", icon: "town" }, { to: "/explorer/suivis", label: "Mes suivis", icon: "today" },
     { to: "/explorer/bouge", label: "Ce qui a bougé", icon: "chart" }, { to: "/explorer/pubs", label: "Pubs et e-mails", icon: "doc" },
     { to: "/explorer/idees", label: "Idées et réussites", icon: "town" }, { to: "/explorer/marche", label: "Pays et tendances", icon: "chart" },
-    { to: "/explorer/createurs", label: "Mes SaaS et classement", icon: "town" }, { to: "/explorer/bourse", label: "Bourse des SaaS", icon: "chart" }, { to: "/explorer/racheter", label: "SaaS à racheter", icon: "eye" },
+    { to: "/explorer/classement", label: "Classement des SaaS", icon: "chart" }, { to: "/explorer/createurs", label: "Mes SaaS et classement", icon: "town" }, { to: "/explorer/bourse", label: "Bourse des SaaS", icon: "chart" }, { to: "/explorer/racheter", label: "SaaS à racheter", icon: "eye" },
   ] : [{ to: "/explorer", label: "Explorer", icon: "eye" }, item(lieu("atelier")), item(lieu("poste")), { to: "/appels", label: "Appels", icon: "phone", count: c.calls }, ...["rdv", "radar", "observatoire"].map((a) => item(lieu(a)))];
   const plus = veille ? [
     { to: "/abonnement", label: "Abonnement", icon: "doc" }, { to: "/equipe", label: "Équipe", icon: "phone" }, { to: "/reglages", label: "Réglages", icon: "plug" },

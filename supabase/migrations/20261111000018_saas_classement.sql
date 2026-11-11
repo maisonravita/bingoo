@@ -1,0 +1,1 @@
+-- Appliquée via MCP : RPC saas_classement(p_tri, p_categorie) — croissance 30 j / 3 mois / revenu / jeunes, revenus vérifiés, 3 mois d'historique minimum
