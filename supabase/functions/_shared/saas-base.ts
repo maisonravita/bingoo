@@ -240,7 +240,19 @@ export async function saasAlertes(seulement?: string) {
     if (f.saas_id) x.saas.add(f.saas_id); if (f.categorie) x.cats.add(f.categorie);
     parWs.set(f.workspace_id, x);
   }
+  // Préférences du parcours « Trouve ton SaaS » : les secteurs où chercher des SaaS à copier
+  const { data: prefs } = await admin.from("saas_preferences").select("workspace_id, secteurs");
+  const secteursDe = new Map<string, string[]>();
+  for (const p of (prefs ?? []) as { workspace_id: string; secteurs: string[] }[]) {
+    if (seulement && p.workspace_id !== seulement) continue;
+    secteursDe.set(p.workspace_id, p.secteurs ?? []);
+    if (!parWs.has(p.workspace_id)) parWs.set(p.workspace_id, { saas: new Set(), cats: new Set() });
+  }
   const depuis = new Date(Date.now() - 7 * 864e5).toISOString();
+  // SaaS à copier : nouveaux cette semaine, et ceux dont le revenu vérifié s'envole
+  const { data: opps } = await admin.from("saas").select("domaine, nom, categorie, copiable, succes, created_at").eq("statut", "ok").gte("copiable", 60).gte("created_at", depuis).order("copiable", { ascending: false }).limit(500);
+  const { data: fusees } = await admin.from("saas").select("domaine, nom, categorie, copiable, succes").eq("statut", "ok").gte("copiable", 40).eq("succes->>type", "revenu_verifie").limit(2000);
+  const decollent = ((fusees ?? []) as any[]).map((x) => ({ ...x, c: Number(String(x.succes?.croissance_30j ?? "").replace("%", "").replace(",", ".")) })).filter((x) => x.c >= 30 && Number(x.succes?.mrr ?? 0) >= 2000).sort((a, b) => b.c - a.c);
   const { data: evs } = await admin.from("saas_evenements").select("at, type, avant, apres, saas:saas_id(id, domaine, nom, categorie, statut)").gte("at", depuis).order("at", { ascending: false }).limit(5000);
   const { data: nouveaux } = await admin.from("saas").select("id, domaine, nom, categorie, description, prix_entree_eur").eq("statut", "ok").gte("created_at", depuis).limit(3000);
   // SaaS qui commencent à s'endormir cette semaine (à racheter, ou leurs clients à récupérer)
@@ -270,13 +282,20 @@ export async function saasAlertes(seulement?: string) {
     const sesPubs = [...parPub].filter(([id]) => nomDe.has(id));
     const jum = (jumeaux.get(wsId) ?? []).slice(0, 8);
     const dorment = ((endormis ?? []) as { id: string; domaine: string; nom: string; categorie: string; endormi_score: number }[]).filter((x) => f.saas.has(x.id) || f.cats.has(x.categorie)).slice(0, 8);
-    if (!mes.length && !neufs.length && !sesMails.length && !sesPubs.length && !jum.length && !dorment.length) continue;
+    // Opportunités : dans les secteurs choisis (ou suivis) ; sans secteur choisi, les meilleures de la semaine
+    const sect = new Set([...(secteursDe.get(wsId) ?? []), ...f.cats]);
+    const dansSect = (x: { categorie: string }) => !sect.size || sect.has(x.categorie);
+    const aCopier = ((opps ?? []) as any[]).filter(dansSect).slice(0, 5);
+    const envol = decollent.filter(dansSect).filter((x) => !aCopier.some((y) => y.domaine === x.domaine)).slice(0, 3);
+    if (!mes.length && !neufs.length && !sesMails.length && !sesPubs.length && !jum.length && !dorment.length && !aCopier.length && !envol.length) continue;
     const { data: w } = await admin.from("workspaces").select("*").eq("id", wsId).single();
     if (!w) continue;
     const to = await teamAddress(w as Workspace);
     if (!to) continue;
     const ligne = (e: typeof mes[number]) => `${e.saas!.nom} : ${EV_TXT[e.type] ?? e.type}${e.type !== "nouveaute" && e.avant && e.apres ? ` (${e.avant} → ${e.apres})` : ""}`;
     const text = [`Ton marché cette semaine`, "",
+      ...(aCopier.length ? ["Nouveaux SaaS à copier :", ...aCopier.map((x) => `- ${x.nom} (${x.categorie}) : ${x.succes?.preuve ?? ""} · facile à copier ${x.copiable}/100`), `${site}/#/explorer/copier`, ""] : []),
+      ...(envol.length ? ["Ils décollent :", ...envol.map((x) => `- ${x.nom} : ${x.succes?.preuve ?? ""}`), ""] : []),
       ...(jum.length ? ["Ton jumeau : à ajouter à ton SaaS", ...jum.map((j) => `- ${j.app} : ${j.titre}`), `Ajouter en un clic : ${site}/#/explorer/lancer?d=${jum[0].domaine}`, ""] : []),
       ...(mes.length ? ["Ce qui a bougé :", ...mes.map((e) => `- ${ligne(e)}`), ""] : []),
       ...(neufs.length ? ["Nouveaux SaaS dans tes catégories :", ...neufs.map((s) => `- ${s.nom} (${s.categorie})${s.prix_entree_eur != null ? `, dès ${s.prix_entree_eur} €/mois` : ""}`), ""] : []),
@@ -285,6 +304,7 @@ export async function saasAlertes(seulement?: string) {
       ...(dorment.length ? ["S'endorment cette semaine (à racheter ou leurs clients à récupérer) :", ...dorment.map((x) => `- ${x.nom} (${x.categorie})`), `${site}/#/explorer/racheter`, ""] : []),
       `Tout voir : ${site}/#/explorer/suivis`].join("\n");
     const html = `<div style="font-family:Arial,sans-serif;color:#15161A;max-width:560px"><h2 style="margin:0 0 4px">Ton marché cette semaine</h2><p style="color:#5B5D66;margin:0 0 16px">${mes.length} changement${mes.length > 1 ? "s" : ""} chez les SaaS que tu suis${neufs.length ? `, ${neufs.length} nouveau${neufs.length > 1 ? "x" : ""} SaaS dans tes catégories` : ""}.</p>
+${aCopier.length || envol.length ? `<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:14px;padding:16px 18px;margin:0 0 12px"><p style="margin:0;font-size:12px;font-weight:bold;letter-spacing:.04em;color:#C2410C">À COPIER CETTE SEMAINE</p>${aCopier.length ? `<ul style="padding-left:18px;margin:8px 0">${aCopier.map((x) => `<li style="margin:6px 0"><a href="${site}/#/explorer/lancer?d=${escH(x.domaine)}" style="color:#15161A;font-weight:bold">${escH(x.nom)}</a> <span style="color:#5B5D66">· ${escH(x.categorie)}</span><br><span style="font-size:13px">${escH(x.succes?.preuve ?? "")} · facile à copier ${x.copiable}/100</span></li>`).join("")}</ul>` : ""}${envol.length ? `<p style="margin:10px 0 4px;font-weight:bold">Ils décollent</p><ul style="padding-left:18px;margin:0">${envol.map((x) => `<li style="margin:4px 0"><a href="${site}/#/explorer/${escH(x.domaine)}" style="color:#15161A;font-weight:bold">${escH(x.nom)}</a> <span style="font-size:13px">${escH(x.succes?.preuve ?? "")}</span></li>`).join("")}</ul>` : ""}<p style="margin:12px 0 0"><a href="${site}/#/explorer/copier" style="color:#C2410C;font-weight:bold">Voir tous les SaaS à copier →</a></p></div>` : ""}
 ${jum.length ? `<div style="background:#15161A;color:#fff;border-radius:14px;padding:16px 18px;margin:0 0 12px"><p style="margin:0;font-size:12px;font-weight:bold;letter-spacing:.04em;color:#F6A06B">TON JUMEAU</p><p style="margin:4px 0 8px;font-weight:bold;font-size:16px">${escH(jum[0].insp)} a bougé : à ajouter à ${escH(jum[0].app)}</p><ul style="padding-left:18px;margin:0">${jum.map((j) => `<li style="margin:4px 0">${j.type === "prix" ? "💶 " : "✨ "}${escH(j.titre)}</li>`).join("")}</ul><p style="margin:12px 0 0"><a href="${site}/#/explorer/lancer?d=${escH(jum[0].domaine)}" style="background:#E0531F;color:#fff;padding:10px 16px;border-radius:10px;text-decoration:none;font-weight:bold">L'ajouter en un clic</a></p></div>` : ""}
 ${mes.length ? `<h3 style="margin:16px 0 6px">Ce qui a bougé</h3><ul style="padding-left:18px">${mes.map((e) => `<li style="margin:4px 0"><a href="${site}/#/explorer/${escH(e.saas!.domaine)}" style="color:#15161A;font-weight:bold">${escH(e.saas!.nom)}</a> : ${escH(EV_TXT[e.type] ?? e.type)}${e.type !== "nouveaute" && e.avant && e.apres ? ` (${escH(e.avant)} → ${escH(e.apres)})` : ""}</li>`).join("")}</ul>` : ""}
 ${neufs.length ? `<h3 style="margin:16px 0 6px">Nouveaux SaaS dans tes catégories</h3><ul style="padding-left:18px">${neufs.map((s) => `<li style="margin:4px 0"><a href="${site}/#/explorer/${escH(s.domaine)}" style="color:#15161A;font-weight:bold">${escH(s.nom)}</a> · ${escH(s.categorie)}${s.prix_entree_eur != null ? ` · dès ${s.prix_entree_eur} €/mois` : ""}</li>`).join("")}</ul>` : ""}
@@ -293,7 +313,7 @@ ${sesPubs.length ? `<h3 style="margin:16px 0 6px">Nouvelles pubs Facebook et Ins
 ${dorment.length ? `<h3 style="margin:16px 0 6px">S'endorment cette semaine</h3><p style="color:#5B5D66;margin:0 0 6px">À racheter, ou leurs clients à récupérer.</p><ul style="padding-left:18px">${dorment.map((x) => `<li style="margin:4px 0"><a href="${site}/#/explorer/racheter" style="color:#15161A;font-weight:bold">${escH(x.nom)}</a> · ${escH(x.categorie)}</li>`).join("")}</ul>` : ""}
 <p style="margin-top:20px"><a href="${site}/#/explorer/suivis" style="background:#E0531F;color:#fff;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold">Tout voir dans Explorer</a></p></div>`;
     try {
-      await sendSystem({ to, subject: `${jum.length ? `${jum[0].insp} a bougé · ` : ""}Ton marché cette semaine : ${mes.length} changement${mes.length > 1 ? "s" : ""}${neufs.length ? `, ${neufs.length} nouveau${neufs.length > 1 ? "x" : ""} SaaS` : ""}`, text, html, key: `alerte-saas-${wsId}-${new Date().toISOString().slice(0, 10)}` });
+      await sendSystem({ to, subject: `${aCopier.length ? `${aCopier.length} nouveau${aCopier.length > 1 ? "x" : ""} SaaS à copier · ` : envol.length ? `${envol[0].nom} décolle · ` : ""}${jum.length ? `${jum[0].insp} a bougé · ` : ""}Ton marché cette semaine : ${mes.length} changement${mes.length > 1 ? "s" : ""}${neufs.length ? `, ${neufs.length} nouveau${neufs.length > 1 ? "x" : ""} SaaS` : ""}`, text, html, key: `alerte-saas-${wsId}-${new Date().toISOString().slice(0, 10)}` });
       envoyes++;
     } catch (e) { console.error("alerte saas", wsId, e); }
   }

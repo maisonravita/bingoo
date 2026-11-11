@@ -1,0 +1,1 @@
+-- Appliquée via MCP : table saas_preferences (réponses du parcours, pour l'e-mail du lundi)

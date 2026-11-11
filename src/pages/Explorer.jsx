@@ -142,7 +142,7 @@ function Liste({ copier: copierPage = false }) {
   const set = (k, v) => { setPage(0); setF((x) => ({ ...x, [k]: v })); };
 
   useEffect(() => {
-    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes, estimation, genre, copiable, copiable_raisons, preuve_ancienne", { count: "exact" });
+    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes, estimation, genre, copiable, copiable_raisons, preuve_ancienne, created_at", { count: "exact" });
     if (f.tag) q = q.contains("tags", [f.tag]);
     if (f.q.trim()) q = q.or(`nom.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,domaine.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,description.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%`);
     if (f.categorie) q = q.eq("categorie", f.categorie);
@@ -259,6 +259,7 @@ function Liste({ copier: copierPage = false }) {
               {s.description ? <p className="mt-2 text-[13.5px] text-ink-soft line-clamp-2 min-h-[38px]">{s.description}</p> : <p className="mt-2 text-[13px] text-ink-faint italic min-h-[38px]">Description en cours de lecture par Bingoo!</p>}
               <div className="mt-3 flex flex-wrap gap-1.5 text-[12px]">
                 <span className="rounded-md bg-paper px-2 py-1 tnum">{prixCourt(s).replace(/^./, (c) => c.toUpperCase())}</span>
+                {s.created_at && Date.parse(s.created_at) > Date.now() - 7 * 864e5 && s.copiable >= 60 && <span className="rounded-md bg-accent text-white px-2 py-1 font-semibold">Nouveau</span>}
                 {s.genre === "app_web" && <span className="rounded-md bg-[#E0E7FF] text-[#3730A3] px-2 py-1">Appli web</span>}
                 {s.gratuit && <span className="rounded-md bg-paper px-2 py-1">Gratuit</span>}
                 {!s.gratuit && s.essai && <span className="rounded-md bg-paper px-2 py-1">Essai</span>}
@@ -2102,9 +2103,15 @@ const QUESTIONS = [
 const lirePar = () => { try { return JSON.parse(localStorage.getItem("bingoo-parcours") ?? "null"); } catch { return null; } };
 function TrouveTonSaas() {
   const nav = useNavigate();
+  const { ws } = useWs();
   const [r, setR] = useState(() => lirePar() ?? { etape: 0, secteurs: [] });
   const [res, setRes] = useState(null);
-  const garder = (n) => { setR(n); try { localStorage.setItem("bingoo-parcours", JSON.stringify(n)); localStorage.setItem("bingoo-parcours-vu", "1"); } catch { /* stockage indisponible */ } };
+  const garder = (n) => {
+    setR(n);
+    try { localStorage.setItem("bingoo-parcours", JSON.stringify(n)); localStorage.setItem("bingoo-parcours-vu", "1"); } catch { /* stockage indisponible */ }
+    // Gardées sur le compte : l'e-mail du lundi apporte les nouveaux SaaS à copier dans ces secteurs
+    if (n.etape === 3) supabase.from("saas_preferences").upsert({ workspace_id: ws.id, secteurs: n.secteurs ?? [], budget: n.budget ?? null, profil: n.profil ?? null, maj: new Date().toISOString() }).then(() => {});
+  };
   useEffect(() => {
     if (r.etape < 3) return;
     setRes(undefined);
@@ -2158,7 +2165,8 @@ function TrouveTonSaas() {
                 </div>
               ))}</div>
               {res.length > 3 && <><p className="mt-8 font-bold">D'autres pistes</p><div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-3 gap-2">{res.slice(3).map((x) => <button key={x.domaine} onClick={() => nav(`/explorer/${x.domaine}`)} className="flex items-center gap-3 rounded-xl border border-line bg-white px-3 py-2.5 text-left hover:border-ink-faint"><CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="w-8 h-8" pad="p-1" /><span className="min-w-0 flex-1"><span className="block font-semibold truncate">{x.nom}</span><span className="block text-[12px] text-ink-faint truncate">{x.preuve ?? x.categorie}</span></span><span className="text-[12px] font-bold text-[#166534] tnum">{x.copiable}</span></button>)}</div></>}
-              <button onClick={() => nav("/explorer/copier")} className="mt-6 text-[14px] font-semibold underline">Voir tous les SaaS à copier</button>
+              <p className="mt-6 rounded-xl bg-accent-soft/60 px-4 py-3 text-[14px]">📬 Chaque lundi, Bingoo! t'envoie les nouveaux SaaS à copier dans {r.secteurs.length ? "ces secteurs" : "tous les secteurs"}, et ceux qui décollent.</p>
+              <button onClick={() => nav("/explorer/copier")} className="mt-4 text-[14px] font-semibold underline">Voir tous les SaaS à copier</button>
             </>
           )}
         </div>
