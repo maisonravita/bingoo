@@ -1,0 +1,1 @@
+-- Appliquée via MCP : table saas_candidats (découverte Tranco, tri sans IA), app_secrets explorer_lectures_jour = 400, crons bingoo-explorer-decouvrir

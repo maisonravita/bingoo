@@ -154,7 +154,14 @@ export async function saasCron(maxMs = 110_000) {
   const { data: urgent } = await admin.from("saas").select("id").eq("statut", "ok").is("lu_at", null).limit(15);
   const { data } = await admin.from("saas").select("id").or(`statut.eq.a_lire,and(statut.eq.ok,lu_at.lt.${semaine})`).lt("essais", 3).order("lu_at", { ascending: true, nullsFirst: true }).limit(15);
   const ids = [...new Set([...(urgent ?? []), ...(data ?? [])].map((x) => x.id))].slice(0, 15);
-  const out = { lus: 0, ok: 0, illisibles: 0, pas_saas: 0 };
+  const out = { lus: 0, ok: 0, illisibles: 0, pas_saas: 0, plafond: 0 };
+  // Plafond de lectures par l'IA par jour (réglable dans app_secrets « explorer_lectures_jour ») : le budget IA ne s'emballe jamais
+  const { data: reglage } = await admin.from("app_secrets").select("value").eq("name", "explorer_lectures_jour").maybeSingle();
+  const plafond = Number(reglage?.value ?? 400);
+  const minuit = new Date(); minuit.setUTCHours(0, 0, 0, 0);
+  const { count: faites } = await admin.from("ai_usage").select("feature", { count: "exact", head: true }).eq("feature", "explorer/lecture").gte("at", minuit.toISOString());
+  out.plafond = plafond;
+  if ((faites ?? 0) >= plafond) return out;
   for (let i = 0; i < ids.length; i += 3) {
     if (Date.now() - t0 > maxMs - 35_000) break;
     const r = await Promise.all(ids.slice(i, i + 3).map((id) => saasLire(id).catch(() => null)));

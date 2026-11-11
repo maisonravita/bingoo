@@ -361,6 +361,9 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   async "saas-pubs"(req, b) { await cron(req); const { saasPubs } = await import("../_shared/saas-base.ts"); return await saasPubs(Math.min(12, Number(b.n ?? 6))); },
   async "saas-tags"(req) { await cron(req); const { saasTags, saasEmailsAClasser } = await import("../_shared/saas-base.ts"); await saasEmailsAClasser().catch(() => null); return await saasTags(); },
   // Explorer (clé cron) : relevés de nuit et amorçage de la base
+  // Découverte à grande échelle (clé cron) : import de la liste Tranco, puis tri sans IA des candidats
+  async "saas-decouvrir-import"(req, b) { await cron(req); const { decouvrirImport } = await import("../_shared/saas-decouverte.ts"); return await decouvrirImport(Math.max(1, Number(b.debut ?? 1)), Math.min(1_000_001, Number(b.fin ?? 100_001))); },
+  async "saas-decouvrir"(req, b) { await cron(req); const { decouvrirTri } = await import("../_shared/saas-decouverte.ts"); return await decouvrirTri(Math.min(400, Number(b.n ?? 240))); },
   async "saas-cron"(req) { await cron(req); const { saasCron } = await import("../_shared/saas-base.ts"); return await saasCron(); },
   async "saas-seed"(req, b) {
     await cron(req);
