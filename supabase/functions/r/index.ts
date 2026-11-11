@@ -187,7 +187,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (ws.plan === "explorer") throw new HttpError(402, "« Construire mon SaaS » est dans la formule Pro.");
     const { data: pr } = await admin.from("saas_projets").select("id, data, statut").eq("id", String(b.projet_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
     if (!pr || pr.statut !== "pret") throw new HttpError(404, "Projet introuvable");
-    const { data: ex } = await admin.from("saas_apps").select("id, statut, maj").eq("projet_id", pr.id).maybeSingle();
+    const { data: ex } = await admin.from("saas_apps").select("id, statut, maj, etape").eq("projet_id", pr.id).maybeSingle();
     if (ex?.statut === "en_cours" && Date.now() - new Date(ex.maj).getTime() < 10 * 60e3) return { id: ex.id, statut: "en_cours" };
     if (!req.headers.get("x-cron-key")) { await quota(ws.id, "construire", 3); await quotaMois(ws.id, ws.plan, "construire"); }
     setAi({ ws: ws.id, live: true, feature: "construire" });
@@ -200,7 +200,8 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     };
     const nom = String((pr.data as { nom?: string })?.nom ?? "saas");
     let id = ex?.id;
-    if (id) await admin.from("saas_apps").update({ statut: "en_cours", brouillon: null, erreur: null, etape: "Démarrage", maj: new Date().toISOString() }).eq("id", id);
+    const essai2 = /2e essai/.test(String((ex as any)?.etape ?? ""));
+    if (id) await admin.from("saas_apps").update({ statut: "en_cours", brouillon: null, erreur: null, etape: essai2 ? "Démarrage (2e essai)" : "Démarrage", maj: new Date().toISOString() }).eq("id", id);
     else id = (await admin.from("saas_apps").insert({ projet_id: pr.id, workspace_id: ws.id, slug: nouveauSlug(nom), etape: "Démarrage" }).select("id").single()).data!.id;
     await log(ws.id, "construire", `Construction du SaaS ${nom}`);
     const travail = saasConstruire(id!, lancerEcran).catch(async (e) => {
@@ -492,7 +493,20 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   async "saas-pays"(req, b) { await cron(req); const { saasPays } = await import("../_shared/saas-base.ts"); return await saasPays(Math.min(40, Number(b.n ?? 24))); },
   async "saas-pubs"(req, b) { await cron(req); const { saasPubs } = await import("../_shared/saas-base.ts"); return await saasPubs(Math.min(12, Number(b.n ?? 6))); },
   async "saas-domaines"(req) { await cron(req); const { appDomainesAttente } = await import("../_shared/app-owner.ts"); return await appDomainesAttente(); },
-  async "saas-app-envois"(req) { await cron(req); const { appEnvoisCron } = await import("../_shared/app-mails.ts"); return await appEnvoisCron(); },
+  async "saas-app-envois"(req) {
+    await cron(req);
+    const { appEnvoisCron } = await import("../_shared/app-mails.ts");
+    const envois = await appEnvoisCron();
+    // Constructions bloquées (invocation coupée en route) : relancées une fois, puis signalées
+    const { data: bloquees } = await admin.from("saas_apps").select("id, projet_id, workspace_id, etape").eq("statut", "en_cours").lt("maj", new Date(Date.now() - 11 * 60e3).toISOString()).limit(5);
+    const cle = await secret("cron_key");
+    for (const a of (bloquees ?? []) as any[]) {
+      if (/2e essai/.test(a.etape ?? "")) { await admin.from("saas_apps").update({ statut: "erreur", erreur: "La construction n'a pas abouti. Relance-la : la plupart du temps, le deuxième passage réussit.", etape: null }).eq("id", a.id); continue; }
+      await admin.from("saas_apps").update({ etape: "Démarrage (2e essai)", maj: new Date(Date.now() - 11 * 60e3).toISOString() }).eq("id", a.id);
+      await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/r/saas-construire`, { method: "POST", headers: { "content-type": "application/json", "x-cron-key": cle }, body: JSON.stringify({ workspace_id: a.workspace_id, projet_id: a.projet_id }) }).catch(() => null);
+    }
+    return { ...envois, relances: (bloquees ?? []).length };
+  },
   async "saas-niches"(req) { await cron(req); const { saasNiches } = await import("../_shared/saas-base.ts"); return await saasNiches(); },
   async "saas-tags"(req) { await cron(req); const { saasTags, saasEmailsAClasser } = await import("../_shared/saas-base.ts"); await saasEmailsAClasser().catch(() => null); return await saasTags(); },
   // Explorer (clé cron) : relevés de nuit et amorçage de la base

@@ -88,7 +88,9 @@ export async function saasConstruire(appId: string, lancerEcran: (ecranId: strin
   const { data: app } = await admin.from("saas_apps").select("id, projet_id").eq("id", appId).single();
   const { data: pr } = await admin.from("saas_projets").select("data").eq("id", app!.projet_id).single();
   const p = (pr?.data ?? {}) as any;
-  await etape(appId, "Conception des données et des écrans");
+  const { data: av } = await admin.from("saas_apps").select("etape").eq("id", appId).single();
+  const suffixe = /2e essai/.test(String(av?.etape ?? "")) ? " (2e essai)" : "";
+  await etape(appId, `Conception des données et des écrans${suffixe}`);
   const s = await askJson<any>(`Tu conçois la première version d'un SaaS qui va être générée automatiquement et mise en ligne.
 SaaS : « ${p.nom} » — ${p.pitch}
 Pour : ${p.cible}
