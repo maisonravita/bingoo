@@ -1295,7 +1295,7 @@ function OngletCroissance({ app, appel, projet, allerA }) {
                 <p className="text-[20px] font-black tnum" style={HF}>{e(p)} <span className="text-[12px] font-medium text-white/50">par mois</span></p>
                 <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#F6A06B]" style={{ width: `${pct}%` }} /></div>
                 <p className="mt-2 text-[12.5px] text-white/70">{d.mrr >= p ? "✓ Atteint" : clients == null ? "Fixe tes prix pour calculer ce palier" : `${clients.toLocaleString("fr-FR")} clients au total, encore ${reste.toLocaleString("fr-FR")}`}</p>
-                {d.mrr < p && clients != null && <p className="text-[12px] text-white/45">{mois != null ? `≈ ${mois} mois au rythme actuel` : "La date s'affiche dès tes premiers abonnés"}</p>}
+                {d.mrr < p && clients != null && <p className="text-[12px] text-white/45">{mois == null ? "La date s'affiche dès tes premiers abonnés" : mois <= 24 ? `≈ ${mois} mois au rythme actuel` : `Plus de 2 ans au rythme actuel : vise ${Math.ceil(reste / 12).toLocaleString("fr-FR")} nouveaux abonnés par mois pour y être dans un an`}</p>}
               </div>
             );
           })}
