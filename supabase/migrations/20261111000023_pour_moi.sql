@@ -1,0 +1,1 @@
+-- Appliquée via MCP : RPC saas_pour_moi(p_categories, p_budget, p_profil)

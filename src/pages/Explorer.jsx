@@ -51,6 +51,7 @@ export default function Explorer({ domaine: fixe }) {
   if (d === "racheter") return <><Onglets actif="racheter" /><Racheter /></>;
   if (d === "classement") return <><Onglets actif="classement" /><Classement /></>;
   if (d === "copier") return <><Onglets actif="copier" /><Liste copier /></>;
+  if (d === "trouver") return <><Onglets actif="copier" /><TrouveTonSaas /></>;
   if (d === "comparer") return <Comparer />;
   return d ? <Fiche domaine={d} /> : <><Onglets actif="liste" /><Liste /></>;
 }
@@ -97,6 +98,10 @@ function Chip({ on, children, onClick }) {
 }
 
 function Liste({ copier: copierPage = false }) {
+  const navDem = useNavigate();
+  const [parcours] = useState(() => lirePar());
+  // Première visite : on commence par les 3 questions (une seule fois)
+  useEffect(() => { try { if (!localStorage.getItem("bingoo-parcours-vu")) { localStorage.setItem("bingoo-parcours-vu", "1"); navDem("/explorer/trouver"); } } catch { /* stockage indisponible */ } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const nav = useNavigate();
   const { ws } = useWs();
   const toast = useToast();
@@ -171,6 +176,7 @@ function Liste({ copier: copierPage = false }) {
         <div>
           <p className="text-[12.5px] font-bold uppercase tracking-wide text-accent-dark">{copierPage ? "Copier et lancer" : "Explorer"}</p>
           <h1 className="text-[30px] sm:text-[36px] font-black leading-tight tracking-tight" style={HF}>{copierPage ? "Ils gagnent déjà de l'argent. À toi de faire pareil." : "Tous les SaaS et applis web, au même endroit."}</h1>
+          {copierPage && <button onClick={() => navDem("/explorer/trouver")} className="mt-2 mb-1 inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-dark px-3.5 py-1.5 text-[13.5px] font-semibold hover:bg-accent-soft/70">🎯 {parcours?.etape === 3 ? "Mes SaaS sur mesure" : "Trouve le tien en 3 questions"} →</button>}
           {copierPage ? <p className="text-ink-soft text-[15px] max-w-3xl">Des SaaS au revenu prouvé, tenus par de petites équipes, avec un prix simple, et souvent sans équivalent en France. Choisis-en un, puis « Lancer le mien » : Bingoo! le construit à ton nom.</p> : <p className="text-ink-soft text-[15px]">{stats ? `${stats.total.toLocaleString("fr-FR")} logiciels suivis · ${stats.cats.length} catégories · ${stats.pays.length} pays · ${stats.recrutent} recrutent en ce moment` : "…"}</p>}
         </div>
         <form onSubmit={ajouter} className="flex gap-2">
@@ -2003,6 +2009,80 @@ function FilBourse({ fil, onClose }) {
           </form>
         )}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- Démarrer : 3 questions, puis les SaaS à copier faits pour toi
+const SECTEURS = ["Marketing et SEO", "Réseaux sociaux et contenu", "IA et automatisation", "Données et analytics", "Développeurs et no-code", "CRM et ventes", "Prospection et emailing", "E-commerce", "Support client", "Gestion de projet", "Facturation et comptabilité", "Éducation et formation", "Immobilier", "Santé", "Commerce et restauration", "BTP et artisans"];
+const QUESTIONS = [
+  ["budget", "Combien peux-tu mettre pour lancer ?", "Abonnement Bingoo!, nom de domaine, premières pubs.", [["faible", "Moins de 500 €", "Je démarre avec presque rien"], ["moyen", "500 à 2 000 €", "De quoi tester quelques canaux"], ["eleve", "Plus de 2 000 €", "Je peux investir dans l'acquisition"]]],
+  ["profil", "Qu'est-ce que tu sais le mieux faire ?", "Bingoo! construit le logiciel : ta force, c'est pour trouver les clients.", [["vente", "Vendre et convaincre", "Prospection, réseau, marketing"], ["code", "La technique", "Je code ou je comprends les outils"], ["aucun", "Ni l'un ni l'autre", "Je veux un produit simple à expliquer"]]],
+];
+const lirePar = () => { try { return JSON.parse(localStorage.getItem("bingoo-parcours") ?? "null"); } catch { return null; } };
+function TrouveTonSaas() {
+  const nav = useNavigate();
+  const [r, setR] = useState(() => lirePar() ?? { etape: 0, secteurs: [] });
+  const [res, setRes] = useState(null);
+  const garder = (n) => { setR(n); try { localStorage.setItem("bingoo-parcours", JSON.stringify(n)); localStorage.setItem("bingoo-parcours-vu", "1"); } catch { /* stockage indisponible */ } };
+  useEffect(() => {
+    if (r.etape < 3) return;
+    setRes(undefined);
+    (async () => {
+      const args = { p_budget: r.budget ?? "moyen", p_profil: r.profil ?? "aucun" };
+      const { data } = await supabase.rpc("saas_pour_moi", { ...args, p_categories: r.secteurs.length ? r.secteurs : null });
+      let liste = (data ?? []).map((x) => ({ ...x, dans: true }));
+      // Peu de modèles dans les secteurs choisis : on complète avec les meilleurs ailleurs, signalés comme tels
+      if (liste.length < 6 && r.secteurs.length) {
+        const { data: tous } = await supabase.rpc("saas_pour_moi", { ...args, p_categories: null });
+        liste = [...liste, ...(tous ?? []).filter((x) => !liste.some((y) => y.domaine === x.domaine)).map((x) => ({ ...x, dans: false }))].slice(0, 9);
+      }
+      setRes(liste);
+    })();
+  }, [r.etape, r.budget, r.profil, r.secteurs.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
+  const Choix = ({ on, onClick, titre, sous }) => <button type="button" onClick={onClick} className={cx("rounded-2xl border px-5 py-4 text-left transition", on ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink-faint")}><p className="font-bold text-[16px]">{titre}</p>{sous && <p className={cx("text-[13px]", on ? "text-white/70" : "text-ink-soft")}>{sous}</p>}</button>;
+  return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+      <p className="text-[12.5px] font-bold uppercase tracking-wide text-accent-dark">Trouve ton SaaS</p>
+      <h1 className="text-[30px] sm:text-[38px] font-black leading-tight tracking-tight" style={HF}>{r.etape < 3 ? "Trois questions, et Bingoo! te montre quoi copier." : "Les SaaS faits pour toi."}</h1>
+      {r.etape < 3 && <div className="mt-3 flex gap-1.5">{[0, 1, 2].map((i) => <span key={i} className={cx("h-1.5 w-10 rounded-full", i <= r.etape ? "bg-accent" : "bg-line")} />)}</div>}
+      {r.etape < 2 && (() => {
+        const [k, q, aide, opts] = QUESTIONS[r.etape];
+        return (
+          <div className="mt-6">
+            <p className="text-[20px] font-bold">{q}</p><p className="text-[14px] text-ink-soft">{aide}</p>
+            <div className="mt-4 grid sm:grid-cols-3 gap-3">{opts.map(([v, t, sous]) => <Choix key={v} on={r[k] === v} titre={t} sous={sous} onClick={() => garder({ ...r, [k]: v, etape: r.etape + 1 })} />)}</div>
+            {r.etape > 0 && <button onClick={() => garder({ ...r, etape: r.etape - 1 })} className="mt-4 text-[13.5px] text-ink-soft hover:text-ink">← Retour</button>}
+          </div>
+        );
+      })()}
+      {r.etape === 2 && (
+        <div className="mt-6">
+          <p className="text-[20px] font-bold">Quels secteurs t'attirent ?</p><p className="text-[14px] text-ink-soft">Choisis-en autant que tu veux, ou aucun pour tout voir.</p>
+          <div className="mt-4 flex flex-wrap gap-2">{SECTEURS.map((c) => { const on = r.secteurs.includes(c); return <button key={c} type="button" onClick={() => setR({ ...r, secteurs: on ? r.secteurs.filter((x) => x !== c) : [...r.secteurs, c] })} className={cx("rounded-full border px-4 py-2 text-[14px] font-medium transition", on ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink-faint")}>{c}</button>; })}</div>
+          <div className="mt-5 flex items-center gap-4"><button onClick={() => garder({ ...r, etape: 3 })} className="rounded-xl bg-accent text-white px-6 py-3 font-bold hover:bg-accent-dark">{r.secteurs.length ? "Voir mes SaaS" : "Peu importe, montre-moi tout"}</button><button onClick={() => garder({ ...r, etape: 1 })} className="text-[13.5px] text-ink-soft hover:text-ink">← Retour</button></div>
+        </div>
+      )}
+      {r.etape === 3 && (
+        <div className="mt-4">
+          <p className="text-[14px] text-ink-soft">Budget {QUESTIONS[0][3].find((x) => x[0] === r.budget)?.[1].toLowerCase()} · {QUESTIONS[1][3].find((x) => x[0] === r.profil)?.[1].toLowerCase()}{r.secteurs.length ? ` · ${r.secteurs.join(", ")}` : ""} · <button onClick={() => garder({ etape: 0, secteurs: [] })} className="underline hover:text-ink">refaire</button></p>
+          {res === undefined || res === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : !res.length ? <p className="py-12 text-ink-soft">Aucun modèle assez simple à copier dans ces secteurs pour l'instant : la base grandit chaque jour. Élargis tes secteurs.</p> : (
+            <>
+              <div className="mt-4 grid md:grid-cols-3 gap-4">{res.slice(0, 3).map((x, i) => (
+                <div key={x.domaine} className={cx("rounded-2xl border p-5 flex flex-col", i === 0 ? "border-ink ring-1 ring-ink bg-white" : "border-line bg-white")}>
+                  <div className="flex items-center gap-3"><CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="w-11 h-11" pad="p-1.5" /><div className="min-w-0"><p className="font-bold truncate">{x.nom} {drapeau(x.pays)}</p><p className="text-[12.5px] text-ink-faint truncate">{x.categorie}{x.dans ? "" : " · hors de tes secteurs"}</p></div></div>
+                  {x.preuve && <p className="mt-3 rounded-lg bg-[#FEF3C7] text-[#78350F] px-2.5 py-1.5 text-[12.5px] font-semibold">★ {x.preuve}</p>}
+                  <p className="mt-2 text-[13.5px] text-ink-soft line-clamp-3">{x.description}</p>
+                  <ul className="mt-2 space-y-0.5 text-[12.5px] text-[#166534] flex-1">{(x.copiable_raisons ?? []).filter((t) => !/Géant|Grosse|devis/.test(t)).slice(0, 4).map((t) => <li key={t}>✓ {t}</li>)}</ul>
+                  <div className="mt-4 flex gap-2"><button onClick={() => nav(`/explorer/lancer?d=${x.domaine}`)} className="flex-1 rounded-xl bg-accent text-white px-4 py-2.5 text-[14px] font-bold hover:bg-accent-dark">Lancer le mien</button><button onClick={() => nav(`/explorer/${x.domaine}`)} className="rounded-xl border border-line px-3 py-2.5 text-[14px] font-semibold hover:border-ink-faint">Fiche</button></div>
+                </div>
+              ))}</div>
+              {res.length > 3 && <><p className="mt-8 font-bold">D'autres pistes</p><div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-3 gap-2">{res.slice(3).map((x) => <button key={x.domaine} onClick={() => nav(`/explorer/${x.domaine}`)} className="flex items-center gap-3 rounded-xl border border-line bg-white px-3 py-2.5 text-left hover:border-ink-faint"><CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="w-8 h-8" pad="p-1" /><span className="min-w-0 flex-1"><span className="block font-semibold truncate">{x.nom}</span><span className="block text-[12px] text-ink-faint truncate">{x.preuve ?? x.categorie}</span></span><span className="text-[12px] font-bold text-[#166534] tnum">{x.copiable}</span></button>)}</div></>}
+              <button onClick={() => nav("/explorer/copier")} className="mt-6 text-[14px] font-semibold underline">Voir tous les SaaS à copier</button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
