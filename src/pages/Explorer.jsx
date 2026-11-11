@@ -59,13 +59,13 @@ export default function Explorer({ domaine: fixe }) {
 
 // 5 rubriques ; celles qui regroupent plusieurs pages affichent une petite ligne de sous-onglets
 const RUBRIQUES = [
-  ["SaaS", [["liste", "Tous les SaaS", "/explorer"]], "observer"],
-  ["Classement", [["classement", "Classement", "/explorer/classement"]]],
-  ["Niches", [["niches", "Niches", "/explorer/niches"]]],
-  ["Mes suivis", [["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"]]],
-  ["Tendances", [["marche", "Pays et tendances", "/explorer/marche"], ["carte", "Le monde", "/explorer/carte"], ["idees", "Idées et réussites", "/explorer/idees"], ["pubs", "Pubs et e-mails", "/explorer/pubs"]]],
-  ["À copier", [["copier", "À copier", "/explorer/copier"]], "copier"],
+  ["À copier", [["copier", "À copier", "/explorer/copier"]]],
   ["Mes SaaS", [["createurs", "Mes SaaS", "/explorer/createurs"], ["bourse", "Bourse", "/explorer/bourse"], ["racheter", "À racheter", "/explorer/racheter"]]],
+  ["SaaS", [["liste", "Tous les SaaS", "/explorer"]], "copier"],
+  ["Niches", [["niches", "Niches", "/explorer/niches"]]],
+  ["Classement", [["classement", "Classement", "/explorer/classement"]]],
+  ["Tendances", [["marche", "Pays et tendances", "/explorer/marche"], ["carte", "Le monde", "/explorer/carte"], ["idees", "Idées et réussites", "/explorer/idees"], ["pubs", "Pubs et e-mails", "/explorer/pubs"]]],
+  ["Mes suivis", [["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"]]],
 ];
 // Pages qui dépendent de contenus encore rares : cachées tant qu'elles sont vides (sauf si on y est)
 let VIDES = null;
@@ -1027,6 +1027,21 @@ function AutreSaas({ grand = false }) {
   );
 }
 const eurs = (n) => `${Number(n).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €`;
+// Le chemin unique : choisir → aperçu gratuit → projet → construit → en ligne
+const ETAPES_PARCOURS = ["Choisir un SaaS", "Aperçu gratuit", "Ton projet", "Ton SaaS construit", "En ligne"];
+function Parcours({ etape }) {
+  return (
+    <ol className="mt-3 flex flex-wrap items-center gap-1.5 text-[12.5px] print:hidden" aria-label="Étapes">
+      {ETAPES_PARCOURS.map((t, i) => (
+        <li key={t} className="flex items-center gap-1.5">
+          <span className={cx("rounded-full px-2.5 py-1 font-semibold", i < etape ? "bg-[#DCFCE7] text-[#166534]" : i === etape ? "bg-ink text-white" : "bg-paper text-ink-faint")}>{i < etape ? "✓ " : `${i + 1}. `}{t}</span>
+          {i < ETAPES_PARCOURS.length - 1 && <span className="text-ink-faint">›</span>}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 function Lancer() {
   const nav = useNavigate();
   const loc = useLocation();
@@ -1036,6 +1051,8 @@ function Lancer() {
   const [saas, setSaas] = useState(null);
   const [p, setP] = useState(undefined);
   const [busy, setBusy] = useState(false);
+  const [construit, setConstruit] = useState(null);
+  useEffect(() => { if (p?.id) supabase.from("saas_apps").select("statut, spec->ecrans, domaine_statut, public").eq("projet_id", p.id).maybeSingle().then(({ data }) => setConstruit(data ?? null)); }, [p?.id]);
   useEffect(() => {
     supabase.from("saas_liste").select("nom, domaine, categorie, description, pays, prix_entree_eur, succes").eq("domaine", d).maybeSingle().then(({ data }) => setSaas(data ?? null));
     supabase.from("saas_projets").select("id, data, at, statut").eq("workspace_id", ws.id).eq("data->inspire->>domaine", d).eq("statut", "pret").order("at", { ascending: false }).limit(1).then(({ data }) => setP(data?.[0] ? { id: data[0].id, ...data[0].data } : null));
@@ -1064,6 +1081,7 @@ function Lancer() {
         <button onClick={() => nav(saas ? `/explorer/${d}` : "/explorer/idees")} className="text-[13px] text-ink-soft hover:text-ink">← {saas ? nomInspi : "Idées et réussites"}</button>
         <AutreSaas />
       </div>
+      <Parcours etape={!p ? 1 : !(construit?.ecrans ?? []).length ? 2 : construit.domaine_statut === "ok" || construit.public ? 4 : 3} />
       {!p ? (
         <div className="mt-4 rounded-3xl bg-ink text-white p-8">
           <p className="text-[13px] font-bold uppercase tracking-wide text-[#F6A06B]">Lancer le mien</p>
