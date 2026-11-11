@@ -204,10 +204,13 @@ export default function Layout({ children }) {
   const veille = modeExplorer(ws);
   // Mêmes 5 rubriques que la barre de l'Explorer ; chaque rubrique s'allume aussi sur ses sous-pages
   const essentiel = veille ? [
+    { titre: "Observer le marché" },
     { to: "/explorer", label: "Tous les SaaS", icon: "list" },
     { to: "/explorer/classement", label: "Classement", icon: "flag" },
     { to: "/explorer/suivis", label: "Mes suivis", icon: "radar", also: ["/explorer/bouge"] },
     { to: "/explorer/marche", label: "Tendances", icon: "spark", also: ["/explorer/carte", "/explorer/idees", "/explorer/pubs"] },
+    { titre: "Copier et lancer" },
+    { to: "/explorer/copier", label: "À copier", icon: "target" },
     { to: "/explorer/createurs", label: "Mes SaaS", icon: "bot", also: ["/explorer/bourse", "/explorer/racheter", "/explorer/lancer"] },
   ] : [{ to: "/explorer", label: "Explorer", icon: "eye" }, item(lieu("atelier")), item(lieu("poste")), { to: "/appels", label: "Appels", icon: "phone", count: c.calls }, ...["rdv", "radar", "observatoire"].map((a) => item(lieu(a)))];
   const plus = veille ? [
@@ -239,7 +242,7 @@ export default function Layout({ children }) {
             <div className="flex items-center justify-between mb-4"><Logo className="ml-2" /><button onClick={() => setMore(false)} aria-label="Fermer le menu" className="grid h-10 w-10 place-items-center rounded-xl hover:bg-white text-[20px]">✕</button></div>
             <div className="flex flex-col gap-0.5">
               {!veille && <NavLink to="/" end onClick={() => setMore(false)} className={link({ to: "/" })}><Icon name="today" /><span className="flex-1">Aujourd'hui</span></NavLink>}
-              {essentiel.map((n) => <NavLink key={n.to} to={n.to} end onClick={() => setMore(false)} className={link(n)}><Icon name={n.icon} /><span className="flex-1">{n.label}</span><Count n={n.count} hot={n.hot} /></NavLink>)}
+              {essentiel.map((n) => n.titre ? <p key={n.titre} className="mt-3 first:mt-0 px-3 pb-1 text-[11.5px] font-bold uppercase tracking-wider text-ink-faint">{n.titre}</p> : <NavLink key={n.to} to={n.to} end onClick={() => setMore(false)} className={link(n)}><Icon name={n.icon} /><span className="flex-1">{n.label}</span><Count n={n.count} hot={n.hot} /></NavLink>)}
             </div>
             <details className="group mt-3 pt-3 border-t border-line" open={plus.some((n) => loc.pathname === n.to || (n.also ?? []).includes(loc.pathname))}>
               <summary className="cursor-pointer list-none flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] font-medium text-ink-soft hover:text-ink hover:bg-white/70"><Icon name="more" /><span className="flex-1">Plus</span><span className="transition group-open:rotate-90" aria-hidden>›</span></summary>

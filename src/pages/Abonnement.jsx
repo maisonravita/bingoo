@@ -9,7 +9,7 @@ import { SubNav } from "../components/SubNav";
 // Prix affiché à la française : 19,99 € ; un prix rond reste rond (29 €)
 const eur = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ","));
 const FEATURES = {
-  explorer: ["Toute la base SaaS, fiches illimitées", "Recherche intelligente et niches", "10 SaaS suivis, alerte chaque lundi", "Idées et réussites chiffrées", "Notoriété web de chaque SaaS"],
+  explorer: ["Toute la base SaaS, fiches illimitées", "Revenus vérifiés et SaaS à copier", "10 SaaS suivis, alerte chaque lundi", "Idées et réussites chiffrées", "Notoriété web de chaque SaaS"],
   explorer_pro: ["Tout Starter", "SaaS et catégories suivis sans limite", "Leurs e-mails, et bientôt leurs pubs", "Comparer jusqu'à 4 SaaS", "Qui démarcher dans chaque niche", "3 SaaS construits par mois (30 modifications)"],
   business: ["Tout Pro", "10 SaaS construits par mois (100 modifications)", "3 utilisateurs", "Export CSV des listes", "Support prioritaire"],
 };

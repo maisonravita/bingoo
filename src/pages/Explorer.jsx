@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
@@ -50,16 +50,18 @@ export default function Explorer({ domaine: fixe }) {
   if (d === "bourse") return <><Onglets actif="bourse" /><Bourse /></>;
   if (d === "racheter") return <><Onglets actif="racheter" /><Racheter /></>;
   if (d === "classement") return <><Onglets actif="classement" /><Classement /></>;
+  if (d === "copier") return <><Onglets actif="copier" /><Liste copier /></>;
   if (d === "comparer") return <Comparer />;
   return d ? <Fiche domaine={d} /> : <><Onglets actif="liste" /><Liste /></>;
 }
 
 // 5 rubriques ; celles qui regroupent plusieurs pages affichent une petite ligne de sous-onglets
 const RUBRIQUES = [
-  ["SaaS", [["liste", "Tous les SaaS", "/explorer"]]],
+  ["SaaS", [["liste", "Tous les SaaS", "/explorer"]], "observer"],
   ["Classement", [["classement", "Classement", "/explorer/classement"]]],
   ["Mes suivis", [["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"]]],
   ["Tendances", [["marche", "Pays et tendances", "/explorer/marche"], ["carte", "Le monde", "/explorer/carte"], ["idees", "Idées et réussites", "/explorer/idees"], ["pubs", "Pubs et e-mails", "/explorer/pubs"]]],
+  ["À copier", [["copier", "À copier", "/explorer/copier"]], "copier"],
   ["Mes SaaS", [["createurs", "Mes SaaS", "/explorer/createurs"], ["bourse", "Bourse", "/explorer/bourse"], ["racheter", "À racheter", "/explorer/racheter"]]],
 ];
 function Onglets({ actif }) {
@@ -68,7 +70,7 @@ function Onglets({ actif }) {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
       <div className="inline-flex max-w-full overflow-x-auto rounded-xl bg-white border border-line p-1">
-        {RUBRIQUES.map(([l, pages]) => <button key={l} onClick={() => nav(pages[0][2])} className={cx("shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-[14px] font-semibold transition", rub[0] === l ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
+        {RUBRIQUES.map(([l, pages, groupe]) => <Fragment key={l}>{groupe === "copier" && <span className="mx-1.5 my-1.5 w-px shrink-0 bg-line" aria-hidden />}<button onClick={() => nav(pages[0][2])} className={cx("shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-[14px] font-semibold transition", rub[0] === l ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button></Fragment>)}
       </div>
       {rub[1].length > 1 && (
         <div className="mt-2 flex gap-4 overflow-x-auto px-1 text-[13.5px]">
@@ -94,13 +96,13 @@ function Chip({ on, children, onClick }) {
   return <button type="button" onClick={onClick} className={cx("rounded-full border px-3 py-1.5 text-[13px] font-medium transition", on ? "bg-ink text-white border-ink" : "bg-white border-line hover:border-ink-faint")}>{children}</button>;
 }
 
-function Liste() {
+function Liste({ copier: copierPage = false }) {
   const nav = useNavigate();
   const { ws } = useWs();
   const toast = useToast();
   const loc = useLocation();
   const [toutesNiches, setToutesNiches] = useState(false);
-  const [f, setF] = useState(() => { const p = new URLSearchParams(loc.search); return { q: "", categorie: p.get("categorie") ?? "", pays: p.get("pays") ?? "", prixMax: "", gratuit: false, recrute: false, actif: false, succes: p.get("succes") === "1", copier: p.get("copier") === "1", genre: p.get("genre") ?? "", tri: p.get("copier") === "1" ? "copiable" : p.get("succes") === "1" ? "succes_montant" : "score_croissance", tag: p.get("tag") ?? "" }; });
+  const [f, setF] = useState(() => { const p = new URLSearchParams(loc.search); return { q: "", categorie: p.get("categorie") ?? "", pays: p.get("pays") ?? "", prixMax: "", gratuit: false, recrute: false, actif: false, succes: p.get("succes") === "1", copier: copierPage || p.get("copier") === "1", genre: p.get("genre") ?? "", tri: copierPage || p.get("copier") === "1" ? "copiable" : p.get("succes") === "1" ? "succes_montant" : "score_croissance", tag: p.get("tag") ?? "" }; });
   const [ia, setIa] = useState(null); // recherche par le sens : { q, termes, resultats }
   // Export CSV de la liste affichée (formule Business)
   const exporter = (liste) => {
@@ -167,9 +169,9 @@ function Liste() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-[12.5px] font-bold uppercase tracking-wide text-accent-dark">Explorer</p>
-          <h1 className="text-[30px] sm:text-[36px] font-black leading-tight tracking-tight" style={HF}>Tous les SaaS et applis web, au même endroit.</h1>
-          <p className="text-ink-soft text-[15px]">{stats ? `${stats.total.toLocaleString("fr-FR")} logiciels suivis · ${stats.cats.length} catégories · ${stats.pays.length} pays · ${stats.recrutent} recrutent en ce moment` : "…"}</p>
+          <p className="text-[12.5px] font-bold uppercase tracking-wide text-accent-dark">{copierPage ? "Copier et lancer" : "Explorer"}</p>
+          <h1 className="text-[30px] sm:text-[36px] font-black leading-tight tracking-tight" style={HF}>{copierPage ? "Ils gagnent déjà de l'argent. À toi de faire pareil." : "Tous les SaaS et applis web, au même endroit."}</h1>
+          {copierPage ? <p className="text-ink-soft text-[15px] max-w-3xl">Des SaaS au revenu prouvé, tenus par de petites équipes, avec un prix simple, et souvent sans équivalent en France. Choisis-en un, puis « Lancer le mien » : Bingoo! le construit à ton nom.</p> : <p className="text-ink-soft text-[15px]">{stats ? `${stats.total.toLocaleString("fr-FR")} logiciels suivis · ${stats.cats.length} catégories · ${stats.pays.length} pays · ${stats.recrutent} recrutent en ce moment` : "…"}</p>}
         </div>
         <form onSubmit={ajouter} className="flex gap-2">
           <input value={ajout} onChange={(e) => setAjout(e.target.value)} placeholder="Ajouter un SaaS (ex. monsaas.com)" className="w-64 rounded-xl border border-line bg-white px-3 py-2.5 text-[14px] outline-none focus:border-ink" />

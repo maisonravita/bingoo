@@ -20,7 +20,7 @@ const Check = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className=
 const Arrow = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" /></svg>;
 const Lock = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
 
-const MENU = [["Explorer", "#explorer"], ["Comment ça marche", "#produit"], ["Pourquoi Bingoo!", "#pourquoi"], ["Tarifs", "#tarifs"], ["Questions", "#faq"]];
+const MENU = [["Observer", "#explorer"], ["Copier et lancer", "#copier"], ["Pourquoi Bingoo!", "#pourquoi"], ["Tarifs", "#tarifs"], ["Questions", "#faq"]];
 
 // Nombre de SaaS suivis dans la base Explorer (vue publique), affiché tel quel
 function useNbSaas() {
@@ -48,7 +48,7 @@ function Explorer({ n }) {
       <div className="mx-auto max-w-[1180px]">
         <p className="text-[14px] font-bold uppercase tracking-wide text-accent-dark">Explorer</p>
         <h2 className="mt-2 max-w-[860px] text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Le marché du SaaS, ouvert devant toi.</h2>
-        <p className="mt-5 max-w-[720px] text-[17px] sm:text-[19px] leading-[1.5] text-ink-soft">{n ? `${n.toLocaleString("fr-FR")} logiciels` : "Des centaines de logiciels"} relus chaque semaine sur leurs propres sites : ce qu'ils facturent, qui recrute, ce qui sort, comment ils trouvent leurs clients. Rien n'est estimé : chaque chiffre a sa source.</p>
+        <p className="mt-5 max-w-[720px] text-[17px] sm:text-[19px] leading-[1.5] text-ink-soft">{n ? `${n.toLocaleString("fr-FR")} logiciels` : "Des centaines de logiciels"} relus chaque semaine sur leurs propres sites : ce qu'ils facturent, qui recrute, ce qui sort, comment ils trouvent leurs clients. Chaque chiffre a sa source, et une estimation est toujours signalée comme telle.</p>
         <div className="mt-10 grid lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.6fr)] gap-6 items-start">
           <div className="space-y-2">
             {EXPLORER.map(([, t, d], k) => (
@@ -81,14 +81,15 @@ function useReveal() {
 /* ---------- La preuve : l'application filmée sur un vrai compte, en 4 onglets ---------- */
 const eur = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ","));
 const PLANS = [
-  ["Starter", 19.99, "Pour garder un œil sur ton marché.", ["Toute la base SaaS, fiches illimitées", "Recherche intelligente et niches", "10 SaaS suivis, alerte chaque lundi", "Idées et réussites chiffrées", "Notoriété web de chaque SaaS"]],
-  ["Pro", 39.99, "Pour comprendre comment tes concurrents gagnent leurs clients.", ["Tout Starter", "SaaS et catégories suivis sans limite", "Leurs e-mails, et bientôt leurs pubs", "Comparer jusqu'à 4 SaaS", "Qui démarcher dans chaque niche"]],
-  ["Business", 69.99, "Pour une équipe qui suit le marché ensemble.", ["Tout Pro", "3 utilisateurs", "Export CSV des listes", "Support prioritaire"]],
+  ["Starter", 19.99, "Pour garder un œil sur ton marché.", ["Toute la base SaaS, fiches illimitées", "Revenus vérifiés et SaaS à copier", "10 SaaS suivis, alerte chaque lundi", "Idées et réussites chiffrées", "Notoriété web de chaque SaaS"]],
+  ["Pro", 39.99, "Pour observer ton marché et lancer tes propres SaaS.", ["Tout Starter", "SaaS et catégories suivis sans limite", "Leurs e-mails, et bientôt leurs pubs", "Comparer jusqu'à 4 SaaS", "3 SaaS construits par mois, à ton nom"]],
+  ["Business", 69.99, "Pour une équipe qui suit le marché ensemble.", ["Tout Pro", "10 SaaS construits par mois", "3 utilisateurs", "Export CSV des listes"]],
 ];
 const FAQ = [
-  ["D'où viennent les informations sur les SaaS ?", "De leurs propres sites, relus chaque semaine : page d'accueil, tarifs, page carrières, changelog ou blog. Les chiffres d'entreprise (chiffre d'affaires, levées) viennent de la presse ou de documents officiels, la notoriété du Majestic Million, les tendances des annonces légales officielles (BODACC). Rien n'est estimé : une information introuvable est affichée comme telle, et chaque chiffre a son lien."],
+  ["D'où viennent les informations sur les SaaS ?", "De leurs propres sites, relus chaque semaine : page d'accueil, tarifs, page carrières, changelog ou blog. Les chiffres d'entreprise (chiffre d'affaires, levées) viennent de la presse ou de documents officiels, la notoriété du Majestic Million, les tendances des annonces légales officielles (BODACC). Les revenus vérifiés viennent de Stripe (via TrustMRR) ou des comptes déposés à l'État. Une estimation est toujours signalée comme telle, une information introuvable est affichée comme telle, et chaque chiffre a son lien."],
+  ["Copier un SaaS, c'est légal ?", "Reprendre les mêmes fonctionnalités, oui : c'est la concurrence. Bingoo! construit ton SaaS avec ton nom, tes textes et ton design. Ce qui est interdit, c'est de reprendre la marque, les textes mot pour mot ou le design d'un autre."],
   ["Quels SaaS sont dans Explorer ?", "Des logiciels français, européens et américains, dans 26 catégories. Tu peux ajouter n'importe quel SaaS par son adresse : il est lu tout de suite. La base grandit chaque jour."],
-  ["Quelle différence entre Starter, Pro et Business ?", "Starter te donne toute la base et suit 10 SaaS ou catégories. Pro suit sans limite et ajoute leurs e-mails, la comparaison et les clients de chaque niche. Business ajoute 3 utilisateurs et l'export des listes."],
+  ["Quelle différence entre Starter, Pro et Business ?", "Starter te donne toute la base, les revenus vérifiés et les SaaS à copier, et suit 10 SaaS ou catégories. Pro suit sans limite, ajoute leurs e-mails et la comparaison, et construit jusqu'à 3 SaaS par mois. Business construit jusqu'à 10 SaaS par mois et ajoute 3 utilisateurs et l'export des listes."],
   ["Comment marche l'alerte du lundi ?", "Tu suis des SaaS ou des catégories entières. Chaque lundi matin, un e-mail te dit ce qui a bougé : changements de prix, version gratuite ajoutée ou retirée, recrutements, nouveautés, nouveaux concurrents, leurs e-mails de la semaine."],
   ["J'édite un SaaS, puis-je corriger ou retirer sa fiche ?", "Oui. Notre robot (BingooBot) respecte le fichier robots.txt et ne lit que des pages publiques. Écris-nous depuis une adresse de ton domaine pour une correction ou un retrait, traité sous 72 heures."],
   ["Et le RGPD ?", "Explorer recense des entreprises, pas des personnes. Les seuls noms affichés sont ceux de fondateurs ou dirigeants cités publiquement par la presse, et toute personne peut en demander le retrait."],
@@ -127,20 +128,20 @@ export default function Landing() {
         <div className="px-0 sm:px-8">
           <section className="mx-auto max-w-[1440px] bg-white px-5 sm:px-10 pt-14 sm:pt-24 pb-16 sm:pb-20 text-center">
             <h1 className="hero-in relative mx-auto max-w-[1180px]" style={JK}>
-              <span className="block text-[32px] sm:text-[50px] lg:text-[66px] leading-[1.1] text-[#3A3F55]" style={{ fontWeight: 500, letterSpacing: "-.01em" }}>Vois tout ce qui bouge sur ton marché SaaS.</span>
-              <span className="mt-1 block text-[38px] sm:text-[60px] lg:text-[80px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>Avant tes concurrents.</span>
+              <span className="block text-[32px] sm:text-[50px] lg:text-[66px] leading-[1.1] text-[#3A3F55]" style={{ fontWeight: 500, letterSpacing: "-.01em" }}>Vois ce qui marche sur le marché SaaS.</span>
+              <span className="mt-1 block text-[38px] sm:text-[60px] lg:text-[80px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>Copie-le. Lance le tien.</span>
               <span className="mt-4 sm:mt-6 flex justify-center"><span className="sr-only">Bingoo!</span><Logo height="clamp(64px, 9vw, 112px)" className="!self-center" /></span>
             </h1>
-            <p className="hero-in mx-auto mt-7 max-w-[780px] text-[18px] sm:text-[22px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Les prix, les recrutements, les nouveautés et les méthodes de {nb ? <b>{nb.toLocaleString("fr-FR")} SaaS</b> : "tous les SaaS"}, relus chaque semaine, avec leurs e-mails, leurs chiffres et ce qui manque sur le marché. <span className="font-semibold text-accent-dark">Le TrendTrack des SaaS.</span></p>
+            <p className="hero-in mx-auto mt-7 max-w-[780px] text-[18px] sm:text-[22px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Observe {nb ? <b>{nb.toLocaleString("fr-FR")} SaaS</b> : "tous les SaaS"} : leurs prix, leurs recrutements, leurs e-mails et leurs vrais revenus. Repère ceux qui gagnent déjà de l'argent, et Bingoo! construit le tien, à ton nom, prêt à encaisser. <span className="font-semibold text-accent-dark">Le TrendTrack des SaaS, qui construit aussi.</span></p>
             <form onSubmit={(e) => { e.preventDefault(); const u = e.currentTarget.site.value.trim().replace(/^https?:\/\//i, ""); if (u) nav(`/marche?u=${encodeURIComponent(u)}`); }}
               className="hero-in mx-auto mt-9 flex max-w-[680px] flex-col sm:flex-row items-stretch gap-2 rounded-[28px] sm:rounded-full border border-black/[.08] bg-white p-2 shadow-[0_10px_40px_-20px_rgba(21,23,42,.35)]" style={{ ...JK, animationDelay: ".2s" }}>
               <label className="sr-only" htmlFor="hero-site">L'adresse de ton SaaS</label>
               <input id="hero-site" name="site" inputMode="url" autoComplete="url" placeholder="monsaas.com" required className="min-w-0 flex-1 bg-transparent px-5 py-3.5 text-[17px] outline-none placeholder:text-[#8A8FA3]" />
               <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-8 py-3.5 text-[17px] font-semibold text-white hover:bg-accent-dark transition">Voir mon marché <Arrow className="h-4 w-4" /></button>
             </form>
-            <button onClick={go} className="hero-in mt-4 inline-flex items-center gap-1.5 text-[15.5px] font-semibold text-ink underline decoration-accent/50 decoration-2 underline-offset-4 hover:decoration-accent" style={{ ...JK, animationDelay: ".22s" }}>Ou crée ton compte et explore tous les SaaS <Arrow className="h-4 w-4" /></button>
+            <button onClick={go} className="hero-in mt-4 inline-flex items-center gap-1.5 text-[15.5px] font-semibold text-ink underline decoration-accent/50 decoration-2 underline-offset-4 hover:decoration-accent" style={{ ...JK, animationDelay: ".22s" }}>Ou trouve un SaaS qui gagne déjà de l'argent et copie-le <Arrow className="h-4 w-4" /></button>
             <div className="hero-in mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[15px] text-[#5B6075]" style={{ ...JK, animationDelay: ".25s" }}>
-              {["Rapport gratuit, sans compte, en une minute", "Chaque chiffre avec sa source", "Pour les fondateurs de SaaS et les startups"].map((x) => <span key={x} className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-accent" />{x}</span>)}
+              {["Rapport gratuit, sans compte, en une minute", "Revenus vérifiés chez Stripe ou dans les comptes officiels", "Ton SaaS construit et en ligne en une journée"].map((x) => <span key={x} className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-accent" />{x}</span>)}
             </div>
             <p className="mt-6 text-[13.5px] text-ink-faint">En continuant, j'accepte les <a href="#/conditions" className="underline hover:text-ink">Conditions d'utilisation</a> et la <a href="#/confidentialite" className="underline hover:text-ink">Politique de confidentialité</a> de Bingoo!.</p>
             <figure className="hero-in mx-auto mt-12 max-w-[1100px]" style={{ animationDelay: ".35s" }}>
@@ -157,7 +158,27 @@ export default function Landing() {
         {/* 1. Explorer : le marché du SaaS */}
         <Explorer n={nb} />
 
-        {/* 2. Comment ça marche, en 3 pas */}
+        {/* 2. Copier ce qui marche */}
+        <section id="copier" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07] bg-[#16171B] text-white">
+          <div className="mx-auto max-w-[1180px]">
+            <p className="text-[14px] font-bold uppercase tracking-wide text-[#F6A06B]">Copier et lancer</p>
+            <h2 className="mt-2 max-w-[900px] text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em]" style={SERIF}>Ne pars pas d'une idée. Pars d'un SaaS qui encaisse déjà.</h2>
+            <p className="mt-5 max-w-[760px] text-[17px] sm:text-[19px] leading-[1.5] text-white/70">Des centaines de SaaS au revenu vérifié chez Stripe ou dans leurs comptes officiels. Bingoo! te montre ceux qu'une petite équipe peut refaire, souvent sans équivalent en France, puis il construit le tien.</p>
+            <ol className="mt-12 grid gap-3 text-left sm:grid-cols-2 lg:grid-cols-4">
+              {[["Trouve", "Le filtre « À copier » classe les SaaS par facilité : revenu prouvé, petite équipe, prix simple, marché libre en France."], ["Prépare", "Ses fonctionnalités et ton équivalent, tes prix face aux siens, ton budget et le mois où tu deviens rentable."], ["Lance", "Bingoo! construit ton SaaS à ton nom : application en ligne, paiements Stripe, ton domaine, tes e-mails. Tu le modifies en une phrase."], ["Grandis", "Tes revenus suivis chaque nuit, ton jumeau qui surveille le SaaS copié, et le classement des créateurs."]].map(([h, d], i) => (
+                <li key={h} className="rounded-2xl bg-white/[.06] border border-white/10 p-5">
+                  <span className="text-[15px] text-[#F6A06B] tnum">{i + 1}</span>
+                  <p className="mt-1 text-[21px] leading-tight" style={SERIF}>{h}</p>
+                  <p className="mt-1.5 text-[14.5px] leading-snug text-white/65">{d}</p>
+                </li>
+              ))}
+            </ol>
+            <button onClick={go} className="mt-10 inline-flex items-center gap-2 rounded-full bg-accent px-7 py-3.5 text-[16px] font-semibold hover:bg-accent-dark transition">Voir les SaaS à copier <Arrow className="h-4 w-4" /></button>
+            <p className="mt-3 text-[13px] text-white/45">Concurrence loyale : les mêmes fonctionnalités, avec ton nom, tes textes et ton design.</p>
+          </div>
+        </section>
+
+        {/* 3. Comment ça marche, en 3 pas */}
         <section id="produit" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
           <div className="mx-auto max-w-[1180px]">
             <h2 className="text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ton marché, sans y passer tes journées.</h2>
@@ -176,7 +197,7 @@ export default function Landing() {
         {/* Pourquoi Bingoo! : face à la veille faite à la main */}
         <section id="pourquoi" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
           <div className="mx-auto max-w-[1180px]">
-            <h2 className="max-w-[820px] text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>La veille que tu n'as pas le temps de faire.</h2>
+            <h2 className="max-w-[820px] text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>La veille que tu n'as pas le temps de faire. Le SaaS que tu n'as pas le temps de coder.</h2>
             <p className="mt-5 max-w-[680px] text-[17px] sm:text-[19px] leading-[1.5] text-ink-soft">Suivre ses concurrents, c'est ouvrir des dizaines de sites, recopier des prix dans un tableur et oublier de recommencer. Bingoo! le fait pour toi, chaque semaine, avec la source de chaque chiffre.</p>
             <div className="mt-10 overflow-hidden rounded-2xl border border-line">
               <div className="grid grid-cols-[minmax(0,.8fr)_minmax(0,1fr)_minmax(0,1fr)] bg-[#F6F5F3] text-[13px] font-bold uppercase tracking-wide">
@@ -190,6 +211,7 @@ export default function Landing() {
                 ["Leurs e-mails", "S'abonner à tout, puis tout lire", "Rangés par concurrent, classés et résumés"],
                 ["Leurs chiffres", "Des recherches Google sans fin", "Chiffre d'affaires et levées, chacun avec sa source"],
                 ["Les idées", "Une intuition", "Ce qui marche ailleurs et manque en France, calculé"],
+                ["Lancer le sien", "Des mois de développement", "Construit par Bingoo!, à ton nom, prêt à encaisser"],
                 ["Le prix", "Des heures chaque mois", "Dès 19,99 € par mois"],
               ].map(([k, a, b]) => (
                 <div key={k} className="grid grid-cols-[minmax(0,.8fr)_minmax(0,1fr)_minmax(0,1fr)] border-t border-line text-[14.5px] sm:text-[15.5px] leading-snug">
@@ -206,7 +228,7 @@ export default function Landing() {
         <section id="tarifs" className="max-w-[1280px] mx-auto px-4 sm:px-6 py-20 scroll-mt-24 border-t border-black/[.07]">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
             <div>
-              <h2 className="text-[38px] sm:text-[54px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ton marché SaaS, dès 19,99 €.</h2>
+              <h2 className="text-[38px] sm:text-[54px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Observe et copie, dès 19,99 €.</h2>
               <p className="mt-3 text-[17px] text-ink-soft">Aperçu gratuit sans carte bancaire : 10 fiches par semaine et ton rapport de marché. Prix hors taxes par mois, sans engagement.</p>
             </div>
             <div className="relative inline-flex rounded-full bg-white border border-line p-1 self-start md:self-auto">
