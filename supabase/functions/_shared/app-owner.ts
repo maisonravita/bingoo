@@ -58,6 +58,45 @@ const consignes = (d: string, v?: any[]) => [
   ...((v ?? []).map((x: any) => ({ type: x.type, nom: x.domain, valeur: x.value }))),
 ];
 
+// Chez qui est le domaine (serveurs DNS publics) : pour ouvrir directement la bonne page de réglages
+const REGISTRAIRES: [RegExp, string, (d: string) => string][] = [
+  [/ovh\.(net|com|ca)/, "OVHcloud", (d) => `https://www.ovh.com/manager/#/web/domain/${d}/zone`],
+  [/gandi\.net/, "Gandi", (d) => `https://admin.gandi.net/domain/dns/${d}/records`],
+  [/ui-dns|ionos|1and1/, "IONOS", () => "https://my.ionos.fr/domains"],
+  [/domaincontrol\.com/, "GoDaddy", (d) => `https://dcc.godaddy.com/control/dnsmanagement?domainName=${d}`],
+  [/cloudflare\.com/, "Cloudflare", () => "https://dash.cloudflare.com/"],
+  [/registrar-servers\.com/, "Namecheap", (d) => `https://ap.www.namecheap.com/Domains/DomainControlPanel/${d}/advancedns`],
+  [/hostinger|dns-parking/, "Hostinger", () => "https://hpanel.hostinger.com/domains"],
+  [/o2switch/, "o2switch", () => "https://www.o2switch.fr/"],
+  [/googledomains|squarespace/, "Squarespace", () => "https://account.squarespace.com/domains"],
+  [/awsdns/, "Amazon Route 53", () => "https://console.aws.amazon.com/route53/"],
+];
+export async function registraire(d: string) {
+  try {
+    const racine = d.split(".").slice(-2).join(".");
+    const r = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(racine)}&type=NS`, { headers: { accept: "application/dns-json" }, signal: AbortSignal.timeout(4000) });
+    const ns = ((await r.json()).Answer ?? []).map((a: any) => String(a.data).toLowerCase()).join(" ");
+    const m = REGISTRAIRES.find(([re]) => re.test(ns));
+    return m ? { nom: m[1], lien: m[2](racine) } : ns ? { nom: null, lien: null } : null;
+  } catch { return null; }
+}
+
+/** Vérifie toutes les heures les domaines en attente ; prévient le créateur quand son SaaS est en ligne. */
+export async function appDomainesAttente() {
+  const { data } = await admin.from("saas_apps").select("id, domaine, workspace_id, spec").eq("domaine_statut", "attente").not("domaine", "is", null).limit(50);
+  let enLigne = 0;
+  for (const a of (data ?? []) as any[]) {
+    const r = await appDomaineVerifier(a.id).catch(() => null);
+    if (r?.statut !== "ok") continue;
+    enLigne++;
+    const { teamAddress, sendSystem } = await import("./mail.ts");
+    const { data: w } = await admin.from("workspaces").select("*").eq("id", a.workspace_id).single();
+    const to = w ? await teamAddress(w as any).catch(() => null) : null;
+    if (to) await sendSystem({ to, subject: `${a.spec?.nom ?? "Ton SaaS"} est en ligne sur ${a.domaine}`, text: `Bonne nouvelle : ton SaaS répond maintenant sur https://${a.domaine}/ (le certificat https est actif).\n\nTu peux partager cette adresse à tes premiers clients.`, key: `domaine-ok-${a.id}-${a.domaine}` }).catch(() => null);
+  }
+  return { verifies: (data ?? []).length, en_ligne: enLigne };
+}
+
 export async function appDomaine(appId: string, brut: unknown) {
   const { data: app } = await admin.from("saas_apps").select("domaine").eq("id", appId).single();
   const d = String(brut ?? "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, "");
@@ -73,7 +112,7 @@ export async function appDomaine(appId: string, brut: unknown) {
   if (!r.ok && r.d?.error?.code !== "domain_already_in_use_by_project" && !/already/i.test(r.d?.error?.message ?? "")) throw new HttpError(400, `Ajout impossible : ${r.d?.error?.message ?? r.status}`);
   if (apex(d)) await vercel("/v10/projects/{p}/domains", "POST", { name: `www.${d}`, redirect: d });
   await admin.from("saas_apps").update({ domaine: d, domaine_statut: "attente" }).eq("id", appId);
-  return { domaine: d, statut: "attente", dns: consignes(d, r.d?.verification) };
+  return { domaine: d, statut: "attente", dns: consignes(d, r.d?.verification), registraire: await registraire(d) };
 }
 
 export async function appDomaineVerifier(appId: string) {
@@ -85,7 +124,7 @@ export async function appDomaineVerifier(appId: string) {
   const conf = await vercel(`/v6/domains/${encodeURIComponent(d)}/config`);
   const ok = p.ok && p.d?.verified !== false && conf.ok && conf.d?.misconfigured === false;
   await admin.from("saas_apps").update({ domaine_statut: ok ? "ok" : "attente" }).eq("id", appId);
-  return { domaine: d, statut: ok ? "ok" : "attente", dns: consignes(d, p.d?.verification) };
+  return { domaine: d, statut: ok ? "ok" : "attente", dns: consignes(d, p.d?.verification), registraire: ok ? null : await registraire(d) };
 }
 
 // ---------------------------------------------------------------- Chiffres

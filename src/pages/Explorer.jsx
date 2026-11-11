@@ -1632,7 +1632,7 @@ const champSombre = "w-full rounded-xl bg-white/10 border border-white/15 px-3 p
 const btnSombre = "rounded-xl bg-white/10 px-4 py-2 text-[13.5px] font-semibold hover:bg-white/20 disabled:opacity-50";
 const btnAccent = "rounded-xl bg-accent px-4 py-2 text-[13.5px] font-bold hover:bg-accent-dark disabled:opacity-50";
 const Explication = ({ children }) => <p className="text-[13.5px] text-white/65 max-w-3xl">{children}</p>;
-const TableDns = ({ dns }) => <table className="mt-2 w-full font-mono text-[11.5px]"><thead><tr className="text-left text-white/45"><th className="py-1 font-medium">Type</th><th className="font-medium">Nom</th><th className="font-medium">Valeur</th></tr></thead><tbody>{dns.map((r, i) => <tr key={i} className="border-t border-white/10 align-top"><td className="py-1 pr-2">{r.type}{r.ok ? " ✓" : ""}</td><td className="pr-2 break-all">{r.nom}</td><td className="break-all">{r.valeur}{r.priorite != null ? ` (priorité ${r.priorite})` : ""}</td></tr>)}</tbody></table>;
+const TableDns = ({ dns }) => <table className="mt-2 w-full font-mono text-[11.5px]"><thead><tr className="text-left text-white/45"><th className="py-1 font-medium">Type</th><th className="font-medium">Nom</th><th className="font-medium">Valeur</th></tr></thead><tbody>{dns.map((r, i) => <tr key={i} className="border-t border-white/10 align-top"><td className="py-1 pr-2">{r.type}{r.ok ? " ✓" : ""}</td><td className="pr-2 break-all"><button type="button" title="Copier" onClick={() => navigator.clipboard?.writeText(r.nom)} className="text-left hover:text-[#F6A06B]">{r.nom} ⧉</button></td><td className="break-all"><button type="button" title="Copier" onClick={() => navigator.clipboard?.writeText(r.valeur)} className="text-left hover:text-[#F6A06B]">{r.valeur} ⧉</button>{r.priorite != null ? ` (priorité ${r.priorite})` : ""}</td></tr>)}</tbody></table>;
 
 // 1. Le jumeau : ce que sort le SaaS d'inspiration, à ajouter en un clic
 function OngletJumeau({ app, appel, agir, busy, projet, onChange }) {
@@ -1942,11 +1942,16 @@ function OngletEmails({ app, appel, agir, busy }) {
 function OngletDomaine({ app, appel, agir, busy }) {
   const [dom, setDom] = useState("");
   const [dns, setDns] = useState(null);
-  useEffect(() => { if (app.domaine && app.domaine_statut !== "ok") appel("domaine-verifier").then((r) => setDns(r.dns), () => {}); }, [app.domaine]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [reg, setReg] = useState(null);
+  useEffect(() => { if (app.domaine && app.domaine_statut !== "ok") appel("domaine-verifier").then((r) => { setDns(r.dns); setReg(r.registraire); }, () => {}); }, [app.domaine]); // eslint-disable-line react-hooks/exhaustive-deps
   return app.domaine ? (
     <div className="max-w-2xl">
       <p className="text-[14px]"><b>{app.domaine}</b> <span className={cx("ml-1 rounded px-1.5 py-0.5 text-[11px] font-bold", app.domaine_statut === "ok" ? "bg-[#15803D]/30 text-[#86EFAC]" : "bg-[#F6A06B]/25 text-[#F6A06B]")}>{app.domaine_statut === "ok" ? "EN LIGNE" : "EN ATTENTE DU DNS"}</span></p>
-      {app.domaine_statut !== "ok" && dns && <><p className="mt-2 text-[12.5px] text-white/60">Chez ton registraire (OVH, Gandi, IONOS…), ajoute :</p><TableDns dns={dns} /><p className="mt-1 text-[12px] text-white/45">La propagation prend de quelques minutes à quelques heures.</p></>}
+      {app.domaine_statut !== "ok" && dns && <>
+        <p className="mt-2 text-[12.5px] text-white/60">{reg?.nom ? <>Ton domaine est chez <b className="text-white">{reg.nom}</b>. Ouvre ses réglages DNS et ajoute ces lignes :</> : "Chez ton registraire (OVH, Gandi, IONOS…), ajoute ces lignes :"}</p>
+        {reg?.lien && <a href={reg.lien} target="_blank" rel="noreferrer" className="mt-2 inline-block rounded-lg bg-accent px-3.5 py-2 text-[13px] font-bold hover:bg-accent-dark">Ouvrir les DNS chez {reg.nom} ↗</a>}
+        <TableDns dns={dns} />
+        <p className="mt-1 text-[12px] text-white/45">C'est tout. Bingoo! vérifie toutes les heures et t'envoie un e-mail dès que ton SaaS répond sur {app.domaine} (de quelques minutes à quelques heures).</p></>}
       <div className="mt-3 flex gap-2">
         {app.domaine_statut !== "ok" && <button disabled={!!busy} onClick={() => agir("verif", async () => { const r = await appel("domaine-verifier"); setDns(r.dns); if (r.statut !== "ok") throw new Error("Pas encore : le DNS ne pointe pas vers Bingoo!"); }, "Domaine en ligne")} className={btnSombre}>{busy === "verif" ? "Vérification…" : "Vérifier"}</button>}
         <button disabled={!!busy} onClick={() => { if (confirm(`Retirer ${app.domaine} ?`)) agir("dom", () => appel("domaine", { domaine: "" }), "Domaine retiré"); }} className={btnSombre}>Retirer</button>
@@ -1955,7 +1960,7 @@ function OngletDomaine({ app, appel, agir, busy }) {
   ) : (
     <div className="space-y-2.5 max-w-xl">
       <Explication>Ton SaaS sur ton adresse, par exemple monsaas.fr ou app.monsaas.fr. Achète le domaine chez un registraire, puis indique-le ici. Tes articles seront aussi sur monsaas.fr/blog.</Explication>
-      <div className="flex gap-2"><input value={dom} onChange={(e) => setDom(e.target.value)} placeholder="monsaas.fr" className={champSombre} /><button disabled={!!busy || !/\./.test(dom)} onClick={() => agir("dom", async () => { const r = await appel("domaine", { domaine: dom.trim() }); setDns(r.dns); }, "Domaine ajouté : il reste à régler le DNS")} className={btnAccent}>{busy === "dom" ? "Ajout…" : "Utiliser ce domaine"}</button></div>
+      <div className="flex gap-2"><input value={dom} onChange={(e) => setDom(e.target.value)} placeholder="monsaas.fr" className={champSombre} /><button disabled={!!busy || !/\./.test(dom)} onClick={() => agir("dom", async () => { const r = await appel("domaine", { domaine: dom.trim() }); setDns(r.dns); setReg(r.registraire); }, "Domaine ajouté : il reste à régler le DNS")} className={btnAccent}>{busy === "dom" ? "Ajout…" : "Utiliser ce domaine"}</button></div>
     </div>
   );
 }

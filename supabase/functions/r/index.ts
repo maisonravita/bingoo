@@ -463,6 +463,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   async "saas-histoires"(req, b) { await cron(req); const { saasHistoires } = await import("../_shared/saas-base.ts"); return await saasHistoires(Math.min(5, Number(b.n ?? 3))); },
   async "saas-pays"(req, b) { await cron(req); const { saasPays } = await import("../_shared/saas-base.ts"); return await saasPays(Math.min(40, Number(b.n ?? 24))); },
   async "saas-pubs"(req, b) { await cron(req); const { saasPubs } = await import("../_shared/saas-base.ts"); return await saasPubs(Math.min(12, Number(b.n ?? 6))); },
+  async "saas-domaines"(req) { await cron(req); const { appDomainesAttente } = await import("../_shared/app-owner.ts"); return await appDomainesAttente(); },
   async "saas-niches"(req) { await cron(req); const { saasNiches } = await import("../_shared/saas-base.ts"); return await saasNiches(); },
   async "saas-tags"(req) { await cron(req); const { saasTags, saasEmailsAClasser } = await import("../_shared/saas-base.ts"); await saasEmailsAClasser().catch(() => null); return await saasTags(); },
   // Explorer (clé cron) : relevés de nuit et amorçage de la base
