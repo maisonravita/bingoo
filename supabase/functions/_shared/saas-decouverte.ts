@@ -115,7 +115,8 @@ export async function succesImport() {
 // Base publique de revenus vérifiés par Stripe. Chaque startup a une fiche Markdown publique prévue pour les agents IA
 // (robots.txt l'autorise). On lit le plan du site, puis les fiches à un rythme doux, et on garde celles qui ont un vrai revenu.
 const TM = "https://trustmrr.com";
-const MRR_MIN = 1000; // en dessous de 1 000 $ par mois, ce n'est pas (encore) un SaaS à succès
+const MRR_MIN = 1000;
+const PLATEFORMES = /(^|\.)(google|notion|gumroad|whop|stripe|lemonsqueezy|carrd|framer|github|gitlab|apple|microsoft|amazon|substack|beehiiv|skool|kajabi|teachable|podia|wix|wixsite|squarespace|webflow|wordpress|bubbleapps|vercel|netlify|linktr|bio|beacons|patreon|ko-fi|buymeacoffee|youtube|tiktok|instagram|facebook|linkedin|x|twitter|discord|telegram|t|producthunt|chromewebstore|trustmrr)\.[a-z.]+$/; // en dessous de 1 000 $ par mois, ce n'est pas (encore) un SaaS à succès
 
 /** Ajoute à la file les startups du plan du site TrustMRR (nouvelles seulement). */
 export async function trustmrrPlan() {
@@ -171,8 +172,13 @@ export async function trustmrrLire(n = 40, maxMs = 100_000) {
         const r = await safeFetchText(`${TM}/startup/${slug}.md`, { headers: { "user-agent": "BingooBot/1.0 (+https://kairo.maisonravita.fr)", accept: "text/markdown,text/plain" } }, 400_000, 12000);
         if (!r.ok) { res.push({ slug, statut: r.status === 404 ? "absent" : "erreur", mrr: null, domaine: null, at }); continue; }
         const f = trustmrrFiche(r.text, slug);
+        // Le site doit être une vraie adresse à la racine : pas une page hébergée chez une plateforme (Google Docs, Notion, Gumroad…)
         let domaine: string | null = null;
-        try { domaine = f.site ? new URL(f.site).hostname.replace(/^www\./, "").toLowerCase() : null; } catch { /* adresse invalide */ }
+        try {
+          const u = f.site ? new URL(f.site) : null;
+          const d = u?.hostname.replace(/^www\./, "").toLowerCase() ?? null;
+          if (u && d && (u.pathname === "/" || u.pathname === "") && !PLATEFORMES.test(d)) domaine = d;
+        } catch { /* adresse invalide */ }
         // Le MRR fait foi ; le revenu sur 30 jours ne compte que pour les startups sans abonnement (ventes à l'unité)
         const mensuel = f.mrr > 0 ? f.mrr : f.rev30;
         res.push({ slug, statut: mensuel >= MRR_MIN && domaine ? "succes" : "petit", mrr: mensuel || null, domaine, at });
@@ -196,6 +202,8 @@ export async function trustmrrLire(n = 40, maxMs = 100_000) {
       const preuve = f.mrr ? `${fmt$(f.mrr)} de MRR vérifié par Stripe${crois && !/^[+-]?0,0/.test(crois) ? ` (${crois} en 30 jours)` : ""}` : `${fmt$(f.rev30)} de revenu vérifié sur 30 jours`;
       const s = { preuve, source: `${TM}/startup/${f.slug}`, type: "revenu_verifie", montant: mensuel * 12, mrr: f.mrr || null, revenu_30j: f.rev30 || null, croissance_30j: f.croissance, abonnements: f.abonnements, revenu_total: f.total, fonde: f.fonde, courbe: f.courbe.slice(-12), marches: f.marches, prix: f.prix, probleme: f.probleme, a_vendre: f.a_vendre, verifie_at: new Date().toISOString() };
       const e = par.get(f.site!);
+      // Ne jamais écraser la preuve d'un autre SaaS (ex. un géant) : seulement si la fiche n'en a pas, ou si c'est la même startup TrustMRR
+      if (e && e.succes && e.succes.source !== s.source) continue;
       if (e) {
         // Un revenu vérifié remplace une estimation ; on garde le plus récent quand les deux sont vérifiés
         await admin.from("saas").update({ succes: s, ...(["illisible", "a_lire"].includes(e.statut) ? { statut: "a_lire", essais: 0 } : {}) }).eq("id", e.id);
