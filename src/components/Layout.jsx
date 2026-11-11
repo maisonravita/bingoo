@@ -289,8 +289,9 @@ export default function Layout({ children }) {
       {/* Téléphone : les 4 endroits du quotidien, toujours sous le pouce */}
       <nav aria-label="Navigation principale" className="md:hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
         <div className="grid grid-cols-4">
-          {[["/", "Aujourd'hui", "today", 0], ["/valider", "Messages", "send", c.drafts], ["/reponses", "Réponses", "inbox", c.replies], ["/agenda", "RDV", "cal", c.today]].map(([to, l, ic, n]) => (
-            <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => cx("relative flex flex-col items-center gap-0.5 py-2.5 text-[11.5px] font-semibold", isActive ? "text-[#E8571C]" : "text-ink-soft")}>
+          {(veille ? [["/explorer", "SaaS", "list", 0], ["/explorer/niches", "Niches", "niche", 0], ["/explorer/copier", "À copier", "target", 0], ["/explorer/createurs", "Mes SaaS", "bot", 0]]
+            : [["/", "Aujourd'hui", "today", 0], ["/valider", "Messages", "send", c.drafts], ["/reponses", "Réponses", "inbox", c.replies], ["/agenda", "RDV", "cal", c.today]]).map(([to, l, ic, n]) => (
+            <NavLink key={to} to={to} end={to === "/" || to === "/explorer"} className={({ isActive }) => cx("relative flex flex-col items-center gap-0.5 py-2.5 text-[11.5px] font-semibold", isActive ? "text-[#E8571C]" : "text-ink-soft")}>
               <Icon name={ic} />{l}
               {n > 0 && <span className="absolute right-[22%] top-1.5 min-w-[17px] rounded-full bg-[#F26A21] px-1 text-[10px] font-black leading-[17px] text-white">{n > 9 ? "9+" : n}</span>}
             </NavLink>
