@@ -1,0 +1,1 @@
+-- Appliqué via MCP : explorer_lectures_jour = 100, ia_plafond_explorer = 0.40 €/jour, ia_plafond_jour = 3 €/jour (app_secrets), cron bingoo-explorer-histoires retiré (histoires à la demande seulement)

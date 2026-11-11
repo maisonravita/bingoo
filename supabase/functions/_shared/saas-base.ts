@@ -75,13 +75,15 @@ export async function saasLire(id: string) {
   const home = (await fetchHtml(site).catch(() => "")).slice(0, 400_000);
   const texteHome = textOf(home);
   // Début de l'accueil (l'offre) et fin (pied de page : adresse, mentions légales, pour le pays)
-  const accueil = texteHome.slice(0, 2600) + (texteHome.length > 3400 ? `\n[…]\n${texteHome.slice(-900)}` : "");
+  const accueil = texteHome.slice(0, 2000) + (texteHome.length > 2700 ? `\n[…]\n${texteHome.slice(-600)}` : "");
+  // Empreinte calculée comme avant (fiches déjà lues : pas de relecture payante juste parce que l'extrait a raccourci)
+  const accueilEmp = texteHome.slice(0, 2600) + (texteHome.length > 3400 ? `\n[…]\n${texteHome.slice(-900)}` : "");
   // Pages de tarifs affichées par JavaScript : texte rendu par un vrai navigateur (workflow « Explorer – tarifs »), s'il a moins de 8 jours
   const rendu = s.prix_rendu && s.prix_rendu_at && Date.now() - Date.parse(s.prix_rendu_at) < 8 * 864e5 ? String(s.prix_rendu) : "";
   const tarifs = rendu.length > f.prix_texte.length ? rendu : f.prix_texte;
   // Économie : si l'accueil et les tarifs n'ont pas changé depuis la dernière lecture, pas d'appel à l'IA ;
   // on met seulement à jour ce qui se lit sans IA (recrutement, dernière nouveauté, pied de page).
-  const empreinte = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${accueil}\n${tarifs.slice(0, 3500)}`)))].slice(0, 12).map((x) => x.toString(16).padStart(2, "0")).join("");
+  const empreinte = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${accueilEmp}\n${tarifs.slice(0, 3500)}`)))].slice(0, 12).map((x) => x.toString(16).padStart(2, "0")).join("");
   if (s.statut === "ok" && s.empreinte === empreinte) {
     await admin.from("saas").update({ lu_at: new Date().toISOString(), essais: 0, recrute: f.recrute.oui, postes: f.recrute.postes, nouveaute: f.nouveaute.date ?? s.nouveaute, copyright: anneeCopyright(home) ?? s.copyright }).eq("id", id);
     return { id, statut: "ok", inchange: true };
@@ -93,12 +95,12 @@ export async function saasLire(id: string) {
 ACCUEIL :
 ${accueil}
 TARIFS :
-${tarifs.slice(0, 3500)}
+${tarifs.slice(0, 2500)}
 Clés : est_saas (true si c'est un logiciel utilisable en ligne : SaaS par abonnement ou à l'usage, OU appli web / outil en ligne utilisé dans le navigateur, gratuit, payant à l'unité ou en accès à vie ; false pour une agence, un média, un site vitrine, une boutique, une appli seulement mobile), genre (saas : abonnement ou usage, surtout pour les pros ; app_web : appli ou outil en ligne, souvent grand public, gratuit, à l'achat unique, à crédits ou avec un abonnement léger), nom, categorie (exactement une de : ${CATEGORIES.join(" | ")}),
 description (une phrase en français : ce qu'il fait), cible (une phrase en français : pour qui), tags (${TAGS_REGLE}), pays (code à 2 lettres du pays du siège s'il est écrit ou évident : adresse, mentions légales, devise ; sinon null), langue (code de la langue du site),
 gratuit (formule gratuite), essai (durée de l'essai gratuit ou null), modele (abonnement : prix fixe par mois, an ou semaine ; usage : prix par ticket, résolution, crédit, unité, boîte mail… ; commission : pourcentage ou frais par transaction ou par billet ; achat_unique : paiement une fois, accès à vie ; gratuit : entièrement gratuit),
 prix_entree (prix le plus bas d'une formule d'ABONNEMENT payante, nombre ; null si le seul prix affiché est à l'usage ou une commission), devise (€ $ £), periode (mois, an ou semaine), prix_usage (si usage ou commission : le prix tel qu'affiché en quelques mots, ex. « 0,99 $ par résolution » ; sinon null), sur_devis, formules (au plus 4 : nom et prix tel qu'affiché).`,
-    { fast: true, maxTokens: 900 }).catch(() => null);
+    { fast: true, maxTokens: 700 }).catch(() => null);
   if (!a) { await admin.from("saas").update({ essais: (s.essais ?? 0) + 1, lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "erreur" }; }
   if (a.est_saas === false) { await admin.from("saas").update({ statut: "pas_saas", nom: a.nom || s.nom, lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "pas_saas" }; }
   const tld = s.domaine.split(".").pop() ?? "";
@@ -149,7 +151,8 @@ prix_entree (prix le plus bas d'une formule d'ABONNEMENT payante, nombre ; null 
 /** Relevés de nuit : les SaaS jamais lus d'abord, puis ceux relus il y a plus de 7 jours. Budget de temps de l'appel respecté. */
 export async function saasCron(maxMs = 110_000) {
   const t0 = Date.now();
-  const semaine = new Date(Date.now() - 7 * 864e5).toISOString();
+  // Relecture : tous les 30 jours (le revenu prouvé est suivi à part, sans IA)
+  const semaine = new Date(Date.now() - 30 * 864e5).toISOString();
   // D'abord les fiches à relire tout de suite (tarifs rendus par le navigateur), puis les nouvelles, puis les plus anciennes
   const { data: urgent } = await admin.from("saas").select("id").eq("statut", "ok").is("lu_at", null).limit(15);
   // Les SaaS à succès (preuve sourcée) passent avant les découvertes automatiques
@@ -159,7 +162,7 @@ export async function saasCron(maxMs = 110_000) {
   const out = { lus: 0, ok: 0, illisibles: 0, pas_saas: 0, plafond: 0 };
   // Plafond de lectures par l'IA par jour (réglable dans app_secrets « explorer_lectures_jour ») : le budget IA ne s'emballe jamais
   const { data: reglage } = await admin.from("app_secrets").select("value").eq("name", "explorer_lectures_jour").maybeSingle();
-  const plafond = Number(reglage?.value ?? 400);
+  const plafond = Number(reglage?.value ?? 100);
   const minuit = new Date(); minuit.setUTCHours(0, 0, 0, 0);
   const { count: faites } = await admin.from("ai_usage").select("feature", { count: "exact", head: true }).eq("feature", "explorer/lecture").gte("at", minuit.toISOString());
   out.plafond = plafond;
@@ -450,14 +453,30 @@ export async function paysDe(site: string, homeHtml?: string) {
   for (const u of pages) textes.push(passages(textOf((await fetchHtml(u).catch(() => "")).slice(0, 400_000))));
   const texte = textes.join("\n---\n").slice(0, 5000);
   if (!ADRESSE.test(texte)) return { pays: null };
-  setAi({ feature: "explorer/pays" });
-  const r = await askJson<{ pays: string | null; preuve: string | null }>(`Voici le pied de page et les mentions légales du site ${site}. Dans quel pays est le siège de l'entreprise ?
-${texte}
-Clés : pays (code à 2 lettres, ou null si le texte ne le dit pas clairement : adresse, registre du commerce, forme de société d'un pays précis), preuve (le passage exact du texte, copié mot pour mot, 3 à 15 mots, qui le montre ; null sinon).`, { fast: true, maxTokens: 150 }).catch(() => null);
-  const norm = (x: string) => x.replace(/\s+/g, " ").trim().toLowerCase();
-  const p = r?.pays && /^[A-Z]{2}$/i.test(r.pays) ? r.pays.toUpperCase() : null;
-  if (!p || !r?.preuve || !norm(texte).includes(norm(r.preuve))) return { pays: null };
-  return { pays: p, preuve: r.preuve };
+  // Sans IA : formes de sociétés, mentions d'immatriculation et noms de pays relevés dans le texte (la preuve est le passage trouvé)
+  return paysHeuristique(texte);
+}
+
+const PAYS_MOTIFS: [string, RegExp][] = [
+  ["FR", /\b(RCS [A-Z][a-zé]+|SIRE[NT]\s*:?\s*\d|SAS(U)? au capital|SARL au capital|\d{5}\s+(Paris|Lyon|Marseille|Toulouse|Nantes|Bordeaux|Lille|Nice|Rennes|Montpellier|Strasbourg)|France\b)/i],
+  ["BE", /\b(BCE|TVA BE ?0?\d{9,10}|Belgique|Belgium|België)\b/i],
+  ["CH", /\b(CHE-\d{3}\.\d{3}\.\d{3}|Suisse|Switzerland|Schweiz)\b/i],
+  ["DE", /\b(GmbH|Handelsregister|HRB \d|Deutschland|Germany)\b/i],
+  ["GB", /\b(Company (No|number)\.? ?\d{8}|Companies House|England and Wales|United Kingdom|\bUK\b [A-Z]{1,2}\d)/i],
+  ["NL", /\b(KvK|B\.V\.|Netherlands|Nederland)\b/i],
+  ["ES", /\b(S\.L\.|CIF:? ?[A-Z]\d{8}|España|Spain)\b/i],
+  ["IT", /\b(S\.r\.l\.|P\.? ?IVA|Partita IVA|Italia|Italy)\b/i],
+  ["CA", /\b(Canada|Ontario|Québec|British Columbia)\b/i],
+  ["AU", /\b(Pty Ltd|ABN \d|Australia)\b/i],
+  ["IE", /\b(Ireland|Dublin \d)\b/i],
+  ["US", /\b(Delaware|[A-Z][a-z]+, (CA|NY|TX|WA|MA|FL|IL|CO|DE) \d{5}|United States|USA)\b/],
+];
+export function paysHeuristique(texte: string) {
+  for (const [pays, re] of PAYS_MOTIFS) {
+    const m = re.exec(texte);
+    if (m) return { pays, preuve: texte.slice(Math.max(0, m.index - 30), m.index + m[0].length + 30).replace(/\s+/g, " ").trim() };
+  }
+  return { pays: null };
 }
 
 /** Pays du siège d'après Wikidata (site officiel P856 → pays P17, ou siège P159 → pays), pour une liste de domaines. */

@@ -217,7 +217,10 @@ export const isTestSpace = (w: { plan?: string | null }) => w.plan === "fondateu
 export async function aiGuard() {
   const ctx = aiCtx.getStore() ?? {};
   if (ctx.essential) return; // réponses de prospects : toujours traitées (plafond par prospect dans pro.ts)
-  const cap = Number(env("AI_DAILY_CAP_EUR", "12"));
+  // Plafonds réglables sans redéploiement (app_secrets « ia_plafond_jour », « ia_plafond_explorer », en euros par jour)
+  const { data: regl } = await admin.from("app_secrets").select("name, value").in("name", ["ia_plafond_jour", "ia_plafond_explorer"]);
+  const reg = (k: string) => { const v = (regl ?? []).find((x: { name: string }) => x.name === k)?.value; return v != null && v !== "" && !isNaN(Number(v)) ? Number(v) : null; };
+  const cap = reg("ia_plafond_jour") ?? Number(env("AI_DAILY_CAP_EUR", "12"));
   const ws = ctx.ws;
   if (!ws && String(ctx.feature ?? "").startsWith("app/")) {
     // IA des SaaS construits par Bingoo! (utilisée par leurs clients) : enveloppe à part, plafonnée aussi par application et par compte
@@ -228,7 +231,7 @@ export async function aiGuard() {
   }
   if (!ws && String(ctx.feature ?? "").startsWith("explorer/")) {
     // Base Explorer (lecture des SaaS, niches, recherche) : enveloppe à part, pour ne pas épuiser celle des outils gratuits
-    const capEx = Number(env("AI_EXPLORER_CAP_EUR", "6"));
+    const capEx = reg("ia_plafond_explorer") ?? Number(env("AI_EXPLORER_CAP_EUR", "6"));
     const { data } = await admin.from("ai_usage").select("cost_eur").is("workspace_id", null).like("feature", "explorer/%").gte("at", dayStart());
     if ((data ?? []).reduce((a, r) => a + Number(r.cost_eur ?? 0), 0) >= capEx) throw new HttpError(503, "Lecture de la base Explorer en pause jusqu'à demain (enveloppe du jour atteinte).");
     return;
