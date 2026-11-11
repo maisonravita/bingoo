@@ -9,7 +9,7 @@ import { saasAdd } from "./saas-base.ts";
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 
 // Sites qui ne sont jamais des SaaS à suivre : administrations, écoles, médias de masse, réseaux, infrastructures
-const EXCLU = /\.(gov|gouv\.fr|edu|mil|int|ac\.[a-z]{2}|gov\.[a-z]{2}|edu\.[a-z]{2})$|(^|\.)(google|facebook|instagram|whatsapp|youtube|wikipedia|amazon|apple|microsoft|twitter|x|tiktok|netflix|yahoo|bing|baidu|yandex|akamai|cloudflare|amazonaws|googleapis|gstatic|doubleclick|fbcdn|cdn|porn|xxx|casino|bet)[.-]/;
+const EXCLU = /\.(gov|gouv\.fr|edu|mil|int|ac\.[a-z]{2}|gov\.[a-z]{2}|edu\.[a-z]{2})$|(^|\.)(google|facebook|instagram|whatsapp|youtube|wikipedia|amazon|apple|microsoft|twitter|x|tiktok|netflix|yahoo|bing|baidu|yandex|akamai|cloudflare|amazonaws|googleapis|gstatic|doubleclick|fbcdn|cdn|porn|xxx|casino|bet|fastly|b-cdn|bunnycdn|edgekey|edgesuite|azureedge|cloudfront|crashlytics|appsflyer|adjust|branch|onelink)[.-]|\.(workers|pages|vercel|netlify|herokuapp|github|gitlab|web|firebaseapp|azurewebsites|myshopify|wixsite|webflow|blogspot|wordpress)\.(dev|app|io|com|net)$|^(cloud\.microsoft|bit\.ly|t\.co|linktr\.ee)$/;
 const TLD_EXCLU = /\.(cn|ru|kr|jp|tw|ir|vn|th|id|tr|by|kz|ua)$/;
 
 /** Ajoute à saas_candidats les sites de rang [debut, fin) de la dernière liste Tranco. */
@@ -57,6 +57,8 @@ export function noteSaas(html: string) {
 /** Trie les prochains candidats (meilleurs rangs d'abord). Renvoie le nombre de SaaS ajoutés à l'Explorer. */
 export async function decouvrirTri(n = 240, maxMs = 100_000) {
   const t0 = Date.now();
+  // Tri interrompu (fonction arrêtée) : ses sites reviennent dans la file au bout de 10 minutes
+  await admin.from("saas_candidats").update({ statut: "a_tester" }).eq("statut", "en_test").lt("at", new Date(Date.now() - 600_000).toISOString());
   const { data } = await admin.from("saas_candidats").select("domaine").eq("statut", "a_tester").order("rang").limit(n);
   const doms = (data ?? []).map((x) => x.domaine);
   if (!doms.length) return { testes: 0, saas: 0 };
