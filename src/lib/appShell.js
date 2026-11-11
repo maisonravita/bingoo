@@ -15,7 +15,7 @@ export function appHtml({ spec, slug, api, token = null, apercu = false, paiemen
 <title>${String(spec.nom ?? "Mon SaaS").replace(/[<&]/g, "")}</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js"></script>
 <style>:root{--c:${/^#[0-9a-f]{6}$/i.test(spec.couleur ?? "") ? spec.couleur : "#4F46E5"}}body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:#F8FAFC;color:#0F172A}
-.anim{animation:a .18s ease-out}@keyframes barre{from{width:0}to{width:100%}}@keyframes a{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}</style>
+main section{max-width:100%;overflow-x:auto}.anim{animation:a .18s ease-out}@keyframes barre{from{width:0}to{width:100%}}@keyframes a{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}</style>
 </head><body><div id="root"><div style="min-height:100vh;display:grid;place-items:center;color:#94A3B8;font-size:14px">Chargement…</div></div>
 <script>window.__BOOT=${safe(boot)};</script>
 <script type="module">
@@ -104,11 +104,13 @@ ui.Bar = ({ donnees = [] }) => { const m = Math.max(1, ...donnees.map((d) => Num
 // ---------------------------------------------------------------- Écrans générés
 let nav = () => {};
 const go = (id, params) => nav(id, params);
-const ctx = { html, h, Fragment, useState, useEffect, useMemo, useRef, useCallback, ui, fmt, db, useCollection, toast, go, Icone };
+// IA intégrée : ia("Résume ce texte", { texte }) → texte ; { json: true } → objet
+const ia = (consigne, o = {}) => call("ia", { consigne, texte: o.texte ?? "", json: !!o.json }).then((r) => r.resultat);
+const ctx = { html, h, Fragment, useState, useEffect, useMemo, useRef, useCallback, ui, fmt, db, useCollection, toast, go, Icone, ia };
 const ECRANS = (S.ecrans ?? []).filter((e) => e.code).map((e) => {
   let Comp;
   try {
-    const f = new Function("ctx", "const {html,h,Fragment,useState,useEffect,useMemo,useRef,useCallback,ui,fmt,db,useCollection,toast,go,Icone,user,params}=ctx;\\n" + e.code + "\\n;return typeof Ecran==='function'?Ecran:null;");
+    const f = new Function("ctx", "const {html,h,Fragment,useState,useEffect,useMemo,useRef,useCallback,ui,fmt,db,useCollection,toast,go,Icone,ia,user,params}=ctx;\\n" + e.code + "\\n;return typeof Ecran==='function'?Ecran:null;");
     Comp = (props) => { const C = useMemo(() => f({ ...ctx, user: props.user, params: props.params }), [props.params]); return C ? h(C, props) : html\`<\${Casse} titre=\${e.titre}/>\`; };
   } catch (err) { console.error(e.id, err); Comp = () => html\`<\${Casse} titre=\${e.titre}/>\`; }
   return { ...e, Comp };

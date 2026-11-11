@@ -428,6 +428,23 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
     // Lecture seule : consultation des données, pas de modification
     if (["add", "update", "remove"].includes(action) && user.role === "lecture") throw new Err(403, "Ton accès est en lecture seule : demande à un administrateur de changer ton rôle");
 
+    // ---- IA de l'application (rédiger, résumer, analyser…) : plafonnée par compte et par application chaque jour
+    if (action === "ia") {
+      if (!et.acces) throw new Err(402, "Ton essai est terminé : abonne-toi pour continuer");
+      const consigne = String(b.consigne ?? "").trim().slice(0, 2000);
+      const texte = String(b.texte ?? "").slice(0, 12000);
+      if (!consigne) throw new Err(400, "Consigne vide");
+      const ok = (await admin.rpc("saas_app_ia_compter", { p_app: app.id, p_user: u0.id, p_max_user: estDemo(u0.email) ? 5 : 40, p_max_app: 400 })).data;
+      if (!ok) throw new Err(429, "Limite d'utilisation de l'IA atteinte pour aujourd'hui, réessaie demain");
+      const { ask, askJson, setAi } = await import("./core.ts");
+      setAi({ ws: app.workspace_id, feature: "app/ia" });
+      const prompt = `Tu es l'assistant intégré de l'application « ${String(app.spec?.nom ?? "").slice(0, 60)} » (${String(app.spec?.pitch ?? "").slice(0, 200)}).
+Réponds en français, directement, sans préambule ni commentaire sur toi-même.
+Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\n"""` : ""}`;
+      if (b.json) return { status: 200, body: { resultat: await askJson<unknown>(prompt + "\nRéponds uniquement en JSON valide.", { fast: true, maxTokens: 2500 }) } };
+      return { status: 200, body: { resultat: (await ask(prompt, { fast: true, maxTokens: 2500 })).trim() } };
+    }
+
     // ---- Données de l'espace
     if (action === "list") {
       let q = rows().eq("col", colOk(b.col));

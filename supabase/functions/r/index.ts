@@ -117,6 +117,23 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
     return { id: row!.id, statut: "en_cours" };
   },
+  // Banc d'essai interne (clé des tâches planifiées) : prépare le projet d'une copie dans un espace de test
+  async "saas-qa-lancer"(req, b) {
+    await cron(req);
+    const { saasLancer, saasAdd, saasLire, domaineDe } = await import("../_shared/saas-base.ts");
+    const domaine = domaineDe(String(b.domaine ?? ""));
+    let { data: s } = await admin.from("saas").select("id, nom, statut").eq("domaine", domaine).maybeSingle();
+    if (!s) { await saasAdd([`https://${domaine}`], "qa"); ({ data: s } = await admin.from("saas").select("id, nom, statut").eq("domaine", domaine).maybeSingle()); }
+    if (!s) throw new HttpError(400, "Site introuvable");
+    if (s.statut !== "ok") await saasLire(s.id);
+    const ws = String(b.workspace_id);
+    const { data: row } = await admin.from("saas_projets").insert({ workspace_id: ws, saas_id: s.id, statut: "en_cours", data: { inspire: { nom: s.nom ?? domaine, domaine } } }).select("id").single();
+    const travail = saasLancer(ws, domaine, row!.id).catch(async (e) => { await admin.from("saas_projets").update({ statut: "erreur", erreur: String(e?.message ?? e).slice(0, 300) }).eq("id", row!.id); });
+    // deno-lint-ignore no-explicit-any
+    const rt = (globalThis as any).EdgeRuntime;
+    if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
+    return { id: row!.id };
+  },
   // Bingoo! construit le SaaS du projet : application en ligne (site, comptes, écrans), quelques minutes en tâche de fond
   // Valider avant de construire : une page publique de liste d'attente et de précommande, sans IA (tirée du projet)
   async "saas-validation"(req, b) {
@@ -172,8 +189,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (!pr || pr.statut !== "pret") throw new HttpError(404, "Projet introuvable");
     const { data: ex } = await admin.from("saas_apps").select("id, statut, maj").eq("projet_id", pr.id).maybeSingle();
     if (ex?.statut === "en_cours" && Date.now() - new Date(ex.maj).getTime() < 10 * 60e3) return { id: ex.id, statut: "en_cours" };
-    await quota(ws.id, "construire", 3);
-    if (!req.headers.get("x-cron-key")) await quotaMois(ws.id, ws.plan, "construire");
+    if (!req.headers.get("x-cron-key")) { await quota(ws.id, "construire", 3); await quotaMois(ws.id, ws.plan, "construire"); }
     setAi({ ws: ws.id, live: true, feature: "construire" });
     const { saasConstruire, nouveauSlug } = await import("../_shared/app-build.ts");
     // Chaque écran s'écrit dans sa propre invocation (limite de durée d'une invocation)
