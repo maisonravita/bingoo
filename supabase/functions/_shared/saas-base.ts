@@ -815,7 +815,7 @@ export async function saasRecapMensuel(seulement?: string, apercu = false) {
         `${visites.toLocaleString("fr-FR")} visites · ${nouveaux ?? 0} nouvel${(nouveaux ?? 0) > 1 ? "les inscriptions" : "le inscription"} · ${ch.abonnes} abonné${ch.abonnes > 1 ? "s" : ""} · ${eur(ch.mrr)} de revenu mensuel`,
         palier ? `Prochain palier : ${eur(palier)} par mois (encore ${eur(palier - ch.mrr)})` : "Palier des 100 000 € par mois dépassé",
       ];
-      if (su?.type === "revenu_verifie" && su.montant) lignes.push(`Le SaaS dont tu t'es inspiré : ${eur(su.montant / 12 / 1.08)} par mois (vérifié)${su.croissance_30j ? `, ${su.croissance_30j} sur 30 jours` : ""}. La demande est toujours là.`);
+      if (su?.type === "revenu_verifie" && su.montant) lignes.push(`Le SaaS dont tu t'es inspiré : ${eur(su.montant / 12 / 1.08)} par mois (vérifié)${su.croissance_30j && !isNaN(parseFloat(su.croissance_30j)) ? `, ${parseFloat(su.croissance_30j) > 0 ? "+" : ""}${parseFloat(su.croissance_30j).toLocaleString("fr-FR")} % sur 30 jours` : ""}. La demande est toujours là.`);
       const lien = a.domaine_statut === "ok" && a.domaine ? `https://${a.domaine}/` : `${site}/app/${a.slug}`;
       const action = !a.paiement?.actif ? "Branche l'encaissement (onglet Encaisser) : sans lui, personne ne peut s'abonner."
         : visites < 100 ? "Peu de visites : publie une page « alternative à … » et partage le lien de ton SaaS là où ta cible se retrouve (onglet Croissance)."
