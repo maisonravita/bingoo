@@ -212,6 +212,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     return { ok: true };
   },
   // Tâches planifiées des SaaS construits : jumeau (une fois par semaine par app) et e-mails des apps (fin d'essai, relance)
+  async "leader-pages-test"(req, b) { await cron(req); const { pagesTest } = await import("../_shared/leader-pages.ts"); return await pagesTest(String(b.domaine ?? "")); },
   async "apps-cron"(req, b) {
     await cron(req);
     const out: Record<string, unknown> = {};

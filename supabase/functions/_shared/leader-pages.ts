@@ -17,6 +17,7 @@ async function lire(url: string) {
 const locs = (xml: string) => [...xml.matchAll(/<loc>\s*(?:<!\[CDATA\[)?\s*([^<\]\s]+)\s*(?:\]\]>)?\s*<\/loc>/gi)].map((m) => m[1].replace(/&amp;/g, "&"));
 
 /** Toutes les pages « produit » du plan du site, une seule langue (sans préfixe, en ou fr). */
+export const diag: Record<string, unknown> = {};
 async function pagesProduit(domaine: string): Promise<string[] | null> {
   const site = `https://${domaine}`;
   const interdit = await robots(site);
@@ -39,6 +40,7 @@ async function pagesProduit(domaine: string): Promise<string[] | null> {
       file.push(...tri.filter((x) => !/blog|post|news|article|author|tag|categor|help|docs|video|image/i.test(x)).slice(0, 8));
     } else for (const u of l) urls.add(u);
   }
+  Object.assign(diag, { plans, vus: [...vus], urls: urls.size, exemple: [...urls].slice(0, 5), robots: rob.slice(0, 300) });
   if (!vus.size || !urls.size) return null;
   const hote = domaine.replace(/^www\./, "");
   return [...urls].filter((u) => {
@@ -55,6 +57,7 @@ async function pagesProduit(domaine: string): Promise<string[] | null> {
 const titreDe = (url: string) => decodeURIComponent(url.split("/").filter(Boolean).pop() ?? "").replace(/[-_]+/g, " ").replace(/\.\w+$/, "").replace(/^./, (c) => c.toUpperCase());
 
 /** Nouvelles pages depuis le dernier passage. null si le site n'a pas de plan lisible ; [] au premier passage (référence). */
+export async function pagesTest(domaine: string) { const l = await pagesProduit(domaine); return { ...diag, produit: l?.length ?? null, exemples_produit: (l ?? []).slice(0, 15) }; }
 export async function pagesNouvelles(saasId: string, domaine: string): Promise<{ url: string; titre: string; resume: string }[] | null> {
   const toutes = await pagesProduit(domaine);
   if (!toutes) return null;
