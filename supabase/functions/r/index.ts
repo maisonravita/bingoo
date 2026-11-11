@@ -120,7 +120,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   // Bingoo! construit le SaaS du projet : application en ligne (site, comptes, écrans), quelques minutes en tâche de fond
   // Valider avant de construire : une page publique de liste d'attente et de précommande, sans IA (tirée du projet)
   async "saas-validation"(req, b) {
-    const { ws } = await requireMember(req, b.workspace_id);
+    const { ws } = await membreOuCron(req, b.workspace_id);
     const { data: pr } = await admin.from("saas_projets").select("id, data, statut").eq("id", String(b.projet_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
     if (!pr || pr.statut !== "pret") throw new HttpError(404, "Projet introuvable");
     const { data: ex } = await admin.from("saas_apps").select("id, slug, statut, validation, spec").eq("projet_id", pr.id).maybeSingle();
