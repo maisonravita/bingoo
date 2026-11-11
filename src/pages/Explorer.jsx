@@ -1373,7 +1373,7 @@ function Bourse() {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
       <h1 className="text-[30px] font-black tracking-tight" style={HF}>La bourse des SaaS</h1>
-      <p className="text-ink-soft max-w-3xl">Des SaaS construits sur Bingoo!, à reprendre. Le revenu affiché est relu dans Stripe : jamais un chiffre déclaré. Tu contactes le vendeur, vous vous mettez d'accord, et Bingoo! transfère l'application sur ton espace (commission de 5 % pour le vendeur).</p>
+      <p className="text-ink-soft max-w-3xl">Des SaaS construits sur Bingoo!, à reprendre. Le revenu affiché est relu dans Stripe : jamais un chiffre déclaré. Tu contactes le vendeur, vous vous mettez d'accord, et Bingoo! transfère l'application sur ton espace (commission de 5 %, payée par le vendeur).</p>
       {l === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : !l.length ? (
         <div className="mt-5 rounded-2xl bg-white border border-line p-6"><p>Aucun SaaS en vente pour l'instant. Pour vendre le tien : ouvre-le dans « Mes SaaS », onglet « Monde et bourse ».</p></div>
       ) : (

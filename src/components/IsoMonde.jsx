@@ -26,7 +26,7 @@ const ILES = {
   afrique: { nom: "Afrique", c: "#E0692F", sol: "#F8DCC9", u: 3, v: 19, w: 9, d: 9, liste: "DZ AO BJ BW BF BI CM CV CF TD KM CG CD CI DJ EG GQ ER SZ ET GA GM GH GN GW KE LS LR LY MG MW ML MR MU MA MZ NA NE NG RW ST SN SC SL SO ZA SS SD TZ TG TN UG ZM ZW EH" },
   oceanie: { nom: "Océanie", c: "#2FA7BC", sol: "#D3EEF2", u: 24, v: 22, w: 8, d: 6, liste: "AU NZ FJ PG SB VU NC WS TO" },
   // Les SaaS construits sur Bingoo! : un bâtiment par SaaS, un étage tous les 1 000 € de revenu mensuel vérifié, un phare à 10 000 €
-  createurs: { nom: "Île des créateurs", c: "#E0531F", sol: "#FCE3D6", u: -4, v: 34, w: 10, d: 8, liste: "" },
+  createurs: { nom: "Île des créateurs", c: "#E0531F", sol: "#FCE3D6", u: 13, v: 37, w: 10, d: 8, liste: "" },
 };
 const hauteurApp = (mrr) => 1.6 + 1.25 * Math.min(14, Math.floor(Number(mrr || 0) / 1000));
 const ILE_DE = Object.fromEntries(Object.entries(ILES).flatMap(([k, i]) => i.liste.split(" ").map((c) => [c, k])));
