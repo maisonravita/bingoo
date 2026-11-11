@@ -144,7 +144,7 @@ function Liste({ copier: copierPage = false }) {
   const set = (k, v) => { setPage(0); setF((x) => ({ ...x, [k]: v })); };
 
   useEffect(() => {
-    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes, estimation, genre, copiable, copiable_raisons, preuve_ancienne, created_at, constructible", { count: "exact" });
+    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes, estimation, genre, copiable, copiable_raisons, preuve_ancienne, created_at, constructible, en_decollage", { count: "exact" });
     if (f.tag) q = q.contains("tags", [f.tag]);
     if (f.q.trim()) q = q.or(`nom.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,domaine.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,description.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%`);
     if (f.categorie) q = q.eq("categorie", f.categorie);
@@ -153,6 +153,7 @@ function Liste({ copier: copierPage = false }) {
     if (f.gratuit) q = q.eq("gratuit", true);
     if (f.recrute) q = q.eq("recrute", true);
     if (f.succes) q = q.eq("a_succes", true);
+    if (f.decollage) q = q.eq("en_decollage", true);
     if (f.copier) q = q.gte("copiable", 60);
     if (f.genre) q = q.eq("genre", f.genre);
     if (f.actif) q = q.gte("nouveaute", new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10));
@@ -217,7 +218,8 @@ function Liste({ copier: copierPage = false }) {
         <div className="flex flex-wrap gap-2">
           <span className="inline-flex rounded-full border border-line bg-white p-0.5">{[["", "Tout"], ["saas", "SaaS"], ["app_web", "Applis web"]].map(([k, l]) => <button key={k || "tout"} type="button" onClick={() => set("genre", k)} className={cx("rounded-full px-3 py-1 text-[13px] font-medium transition", f.genre === k ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}</span>
           <Chip on={f.copier} onClick={() => setF((x) => ({ ...x, copier: !x.copier, tri: !x.copier ? "copiable" : (x.tri === "copiable" ? "score_croissance" : x.tri) }))}>🎯 À copier</Chip>
-          <Chip on={f.succes} onClick={() => setF((x) => ({ ...x, succes: !x.succes, tri: !x.succes ? "succes_montant" : (x.tri === "succes_montant" ? "score_croissance" : x.tri) }))}>★ SaaS à succès</Chip>
+          <Chip on={f.succes} onClick={() => setF((x) => ({ ...x, succes: !x.succes, decollage: false, tri: !x.succes ? "succes_montant" : (x.tri === "succes_montant" ? "score_croissance" : x.tri) }))}>★ SaaS à succès</Chip>
+          <Chip on={f.decollage} onClick={() => setF((x) => ({ ...x, decollage: !x.decollage, succes: false, tri: !x.decollage ? "succes_montant" : x.tri }))}>🚀 En décollage</Chip>
           <Chip on={f.gratuit} onClick={() => set("gratuit", !f.gratuit)}>Version gratuite</Chip>
           <Chip on={f.recrute} onClick={() => set("recrute", !f.recrute)}>Recrutent</Chip>
           <Chip on={f.actif} onClick={() => set("actif", !f.actif)}>Nouveauté ce mois-ci</Chip>
@@ -256,7 +258,7 @@ function Liste({ copier: copierPage = false }) {
                 </div>
                 {s.score_croissance > 0 && <span title="Score de croissance (recrutement, nouveautés)" className={cx("rounded-lg px-2 py-1 text-[12px] font-bold tnum", s.score_croissance >= 60 ? "bg-[#DCFCE7] text-[#166534]" : s.score_croissance >= 30 ? "bg-[#FEF3C7] text-[#92400E]" : "bg-paper text-ink-soft")}>{s.score_croissance}</span>}
               </div>
-              {s.succes && <p className={cx("mt-2 rounded-lg px-2.5 py-1.5 text-[12.5px] line-clamp-2", s.preuve_ancienne ? "bg-paper text-ink-faint" : "bg-[#FEF3C7] text-[#78350F] font-semibold")}>{s.preuve_ancienne ? "Ancien chiffre : " : "★ "}{s.succes.preuve}</p>}
+              {s.succes && <p className={cx("mt-2 rounded-lg px-2.5 py-1.5 text-[12.5px] line-clamp-2", s.preuve_ancienne ? "bg-paper text-ink-faint" : "bg-[#FEF3C7] text-[#78350F] font-semibold")}>{s.preuve_ancienne ? "Ancien chiffre : " : s.en_decollage ? "🚀 En décollage · " : "★ "}{s.succes.preuve}</p>}
               {s.constructible === false && <p className="mt-1.5 text-[12px] font-semibold text-ink-faint">⚠ Bingoo! n'en construit qu'une partie</p>}
               {s.copiable >= 60 && <p title={(s.copiable_raisons ?? []).join(" · ")} className="mt-1.5 text-[12px] font-semibold text-[#166534]">🎯 Facile à copier · {s.copiable}/100 <span className="font-normal text-ink-faint">· {(s.copiable_raisons ?? []).filter((r) => !/^Revenu/.test(r)).slice(0, 2).join(" · ")}</span></p>}
               {!s.succes && s.estimation && <p title="Estimation d'après l'effectif officiel (annuaire des entreprises) : 80 000 à 180 000 € de revenu annuel par salarié" className="mt-2 rounded-lg bg-paper text-ink-soft px-2.5 py-1.5 text-[12.5px] line-clamp-2">≈ {montantCourt(s.estimation.bas)} à {montantCourt(s.estimation.haut)} par mois <span className="text-ink-faint">· estimé d'après l'effectif</span></p>}

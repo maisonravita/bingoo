@@ -117,7 +117,8 @@ export async function succesImport() {
 // Base publique de revenus vérifiés par Stripe. Chaque startup a une fiche Markdown publique prévue pour les agents IA
 // (robots.txt l'autorise). On lit le plan du site, puis les fiches à un rythme doux, et on garde celles qui ont un vrai revenu.
 const TM = "https://trustmrr.com";
-const MRR_MIN = 1000;
+// Revenu mensuel vérifié minimum pour entrer dans la bibliothèque (100 $ : « en décollage » ; 1 000 $ et plus : « à succès »)
+const MRR_MIN = 100;
 const PLATEFORMES = /(^|\.)(google|notion|gumroad|whop|stripe|lemonsqueezy|carrd|framer|github|gitlab|apple|microsoft|amazon|substack|beehiiv|skool|kajabi|teachable|podia|wix|wixsite|squarespace|webflow|wordpress|bubbleapps|vercel|netlify|linktr|bio|beacons|patreon|ko-fi|buymeacoffee|youtube|tiktok|instagram|facebook|linkedin|x|twitter|discord|telegram|t|producthunt|chromewebstore|trustmrr)\.[a-z.]+$/; // en dessous de 1 000 $ par mois, ce n'est pas (encore) un SaaS à succès
 
 /** Ajoute à la file les startups du plan du site TrustMRR (nouvelles seulement). */
@@ -208,7 +209,7 @@ export async function trustmrrLire(n = 40, maxMs = 100_000) {
       const mensuel = f.mrr > 0 ? f.mrr : f.rev30;
       const crois = f.croissance?.replace(".", ",").replace("%", " %");
       const preuve = f.mrr ? `${fmt$(f.mrr)} de MRR vérifié par Stripe${crois && !/^[+-]?0,0/.test(crois) ? ` (${crois} en 30 jours)` : ""}` : `${fmt$(f.rev30)} de revenu vérifié sur 30 jours`;
-      const s = { preuve, source: `${TM}/startup/${f.slug}`, type: "revenu_verifie", montant: mensuel * 12, mrr: f.mrr || null, revenu_30j: f.rev30 || null, croissance_30j: f.croissance, abonnements: f.abonnements, revenu_total: f.total, fonde: f.fonde, courbe: f.courbe.slice(-12), marches: f.marches, prix: f.prix, probleme: f.probleme, a_vendre: f.a_vendre, fondateurs: f.fondateurs, verifie_at: new Date().toISOString() };
+      const s = { preuve, source: `${TM}/startup/${f.slug}`, type: "revenu_verifie", montant: mensuel * 12, mrr: f.mrr || null, revenu_30j: f.rev30 || null, croissance_30j: f.croissance, abonnements: f.abonnements, revenu_total: f.total, fonde: f.fonde, courbe: f.courbe.slice(-12), marches: f.marches, prix: f.prix, probleme: f.probleme, description: f.description, pays: f.pays, a_vendre: f.a_vendre, fondateurs: f.fondateurs, verifie_at: new Date().toISOString() };
       const e = par.get(f.site!);
       // Ne jamais écraser la preuve d'un autre SaaS (ex. un géant) : seulement si la fiche n'en a pas, ou si c'est la même startup TrustMRR
       if (e && e.succes && e.succes.source !== s.source && !String(e.succes.source ?? "").includes("trustmrr.com")) continue;
@@ -223,4 +224,37 @@ export async function trustmrrLire(n = 40, maxMs = 100_000) {
     }
   }
   return { lus: res.length, succes: succes.length, ajoutes, maj };
+}
+
+
+// Publication sans IA des startups TrustMRR : la fiche est remplie avec leurs propres données (en anglais),
+// puis l'IA la relira en français quand le budget le permet (lu_at vide = prioritaire dans la file de lecture).
+const MARCHE_CAT: [RegExp, string][] = [
+  [/sales|crm|lead/i, "CRM et ventes"], [/email|outreach|cold/i, "Prospection et emailing"], [/seo|marketing|advertis|ads\b|growth/i, "Marketing et SEO"],
+  [/social|content|creator|video|newsletter|writing/i, "Réseaux sociaux et contenu"], [/invoic|accounting|bookkeep/i, "Facturation et comptabilité"],
+  [/\bhr\b|payroll|human/i, "Paie et RH"], [/recruit|hiring|job/i, "Recrutement"], [/project|productivity|task/i, "Gestion de projet"],
+  [/collaborat|document|note/i, "Collaboration et documents"], [/support|customer service|helpdesk/i, "Support client"], [/e-?comm|shopify|retail/i, "E-commerce"],
+  [/fintech|finance|payment|crypto|invest|trading/i, "Paiement et finance"], [/legal|law/i, "Juridique"], [/real estate|property/i, "Immobilier"],
+  [/health|fitness|medical|wellness/i, "Santé"], [/educat|learning|course|language/i, "Éducation et formation"], [/restaurant|food|travel|booking/i, "Commerce et restauration"],
+  [/logistic|shipping|transport/i, "Logistique et transport"], [/dev|api|no-?code|developer/i, "Développeurs et no-code"], [/analytic|data|dashboard/i, "Données et analytics"],
+  [/secur|privacy|compliance/i, "Sécurité et conformité"], [/\bai\b|automation|agent/i, "IA et automatisation"], [/event/i, "Événements"], [/agency|freelanc/i, "Agences et freelances"],
+];
+const PAYS_EN: Record<string, string> = { "united states": "US", usa: "US", "united kingdom": "GB", uk: "GB", france: "FR", germany: "DE", canada: "CA", spain: "ES", italy: "IT", netherlands: "NL", india: "IN", brazil: "BR", australia: "AU", portugal: "PT", poland: "PL", sweden: "SE", switzerland: "CH", belgium: "BE", ireland: "IE", singapore: "SG", "united arab emirates": "AE", israel: "IL", ukraine: "UA", turkey: "TR", mexico: "MX", argentina: "AR", japan: "JP", "south korea": "KR", indonesia: "ID", vietnam: "VN", philippines: "PH", pakistan: "PK", nigeria: "NG", estonia: "EE", romania: "RO", greece: "GR", austria: "AT", denmark: "DK", norway: "NO", finland: "FI", "czech republic": "CZ", "new zealand": "NZ", "south africa": "ZA", egypt: "EG", morocco: "MA", tunisia: "TN" };
+export async function trustmrrPublier(n = 300) {
+  const { data } = await admin.from("saas").select("id, nom, domaine, succes").eq("statut", "a_lire").like("succes->>source", "%trustmrr.com%").limit(n);
+  let publies = 0;
+  for (const r of (data ?? []) as any[]) {
+    const su = r.succes ?? {};
+    const texte = String(su.description || su.probleme || "").replace(/\s+/g, " ").trim();
+    if (!texte) continue;
+    const marches: string[] = Array.isArray(su.marches) ? su.marches : [];
+    const cat = MARCHE_CAT.find(([re]) => marches.some((m) => re.test(m)))?.[1] ?? MARCHE_CAT.find(([re]) => re.test(texte))?.[1] ?? "Autre";
+    const pays = PAYS_EN[String(su.pays ?? "").toLowerCase().trim()] ?? (/^[A-Z]{2}$/.test(String(su.pays ?? "")) ? su.pays : null);
+    const { error } = await admin.from("saas").update({
+      statut: "ok", est_saas: true, genre: "saas", nom: (r.nom || r.domaine).slice(0, 80), categorie: cat,
+      description: texte.slice(0, 300), langue: "en", pays, tags: marches.map((m) => m.toLowerCase()).slice(0, 5), lu_at: null, essais: 0,
+    }).eq("id", r.id).eq("statut", "a_lire");
+    if (!error) publies++;
+  }
+  return { publies };
 }

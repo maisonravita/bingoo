@@ -515,7 +515,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   async "saas-decouvrir-import"(req, b) { await cron(req); const { decouvrirImport } = await import("../_shared/saas-decouverte.ts"); return await decouvrirImport(Math.max(1, Number(b.debut ?? 1)), Math.min(1_000_001, Number(b.fin ?? 100_001))); },
   async "saas-succes-import"(req) { await cron(req); const { succesImport } = await import("../_shared/saas-decouverte.ts"); return await succesImport(); },
   async "trustmrr-plan"(req) { await cron(req); const { trustmrrPlan } = await import("../_shared/saas-decouverte.ts"); return await trustmrrPlan(); },
-  async "trustmrr-lire"(req, b) { await cron(req); const { trustmrrLire } = await import("../_shared/saas-decouverte.ts"); return await trustmrrLire(Math.min(80, Number(b.n ?? 40))); },
+  async "trustmrr-lire"(req, b) { await cron(req); const { trustmrrLire, trustmrrPublier } = await import("../_shared/saas-decouverte.ts"); const r = await trustmrrLire(Math.min(80, Number(b.n ?? 40))); return { ...r, ...(await trustmrrPublier(200)) }; },
   async "saas-entreprises"(req, b) { await cron(req); const { entreprisesMaj } = await import("../_shared/saas-entreprise.ts"); return await entreprisesMaj(Math.min(30, Number(b.n ?? 15))); },
   async "saas-relance-j3"(req, b) { await cron(req); const { saasRelanceJ3 } = await import("../_shared/saas-base.ts"); return await saasRelanceJ3(b.seulement ? String(b.seulement) : undefined); },
   async "saas-decouvrir"(req, b) { await cron(req); const { decouvrirTri } = await import("../_shared/saas-decouverte.ts"); return await decouvrirTri(Math.min(400, Number(b.n ?? 240))); },
