@@ -30,6 +30,7 @@ let token = B.token;
 if (!token && SEULE) { try { token = localStorage.getItem("app-token:" + B.slug); } catch (e) {} }
 const persist = (t) => { token = t; if (SEULE) { try { t ? localStorage.setItem("app-token:" + B.slug, t) : localStorage.removeItem("app-token:" + B.slug); } catch (e) {} } else { try { parent.postMessage({ type: "bingoo-app-token", slug: B.slug, token: t }, "*"); } catch (e) {} } };
 const PAY = B.paiement ?? {};
+const UNIQUE = PAY.modele === "unique"; // appli web : paiement unique, accès à vie
 // Test de prix : la variante B affiche les prix augmentés (ou baissés) de l'écart choisi par le créateur
 let VARIANTE = B.ab?.actif && B.variante === "B" ? "B" : "A";
 // Test sur la durée d'essai : la variante B affiche sa propre durée
@@ -158,13 +159,14 @@ function Auth({ mode: m0, onDone, onBack }) {
 function Formules({ courante }) {
   const [busy, setBusy] = useState(null), f = S.formules ?? [];
   const payer = async (i) => { setBusy(i); try { allerVers((await call("checkout", { formule: i, retour: RETOUR() })).url); } catch (x) { toast(x.message, "bad"); setBusy(null); } };
-  return html\`<div class=\${"grid gap-4 " + (f.length > 2 ? "md:grid-cols-3" : "md:grid-cols-2")}>\${f.map((x, i) => html\`<div class=\${cls("rounded-2xl p-5 border bg-white", courante === x.nom ? "border-[var(--c)] ring-2 ring-[var(--c)]/20" : "border-slate-200")}><p class="font-semibold">\${x.nom}</p><p class="mt-1 text-3xl font-extrabold">\${fmt.eur(prixDe(x.prix))}<span class="text-sm font-normal text-slate-400"> /mois</span></p><p class="text-sm text-slate-500">\${x.pour}</p><ul class="mt-3 space-y-1.5 text-sm">\${(x.inclus ?? []).map((t) => html\`<li class="flex gap-2"><span class="text-[var(--c)]"><\${Icone} nom="check" class="w-4 h-4"/></span>\${t}</li>\`)}</ul><\${ui.Button} class="w-full mt-5" disabled=\${busy !== null || courante === x.nom} onClick=\${() => payer(i)}>\${courante === x.nom ? "Ta formule" : busy === i ? "Redirection…" : "Choisir"}</\${ui.Button}></div>\`)}</div>\`;
+  return html\`<div class=\${"grid gap-4 " + (f.length > 2 ? "md:grid-cols-3" : "md:grid-cols-2")}>\${f.map((x, i) => html\`<div class=\${cls("rounded-2xl p-5 border bg-white", courante === x.nom ? "border-[var(--c)] ring-2 ring-[var(--c)]/20" : "border-slate-200")}><p class="font-semibold">\${x.nom}</p><p class="mt-1 text-3xl font-extrabold">\${fmt.eur(prixDe(x.prix))}<span class="text-sm font-normal text-slate-400">\${UNIQUE ? " une fois" : " /mois"}</span></p><p class="text-sm text-slate-500">\${x.pour}</p><ul class="mt-3 space-y-1.5 text-sm">\${(x.inclus ?? []).map((t) => html\`<li class="flex gap-2"><span class="text-[var(--c)]"><\${Icone} nom="check" class="w-4 h-4"/></span>\${t}</li>\`)}</ul><\${ui.Button} class="w-full mt-5" disabled=\${busy !== null || courante === x.nom} onClick=\${() => payer(i)}>\${courante === x.nom ? "Ta formule" : busy === i ? "Redirection…" : "Choisir"}</\${ui.Button}></div>\`)}</div>\`;
 }
 const jours = (iso) => Math.max(0, Math.ceil((new Date(iso) - Date.now()) / 864e5));
 function Abonnement({ etat }) {
   const ab = etat.abonnement, actif = ["active", "trialing", "past_due"].includes(ab?.statut);
   const [busy, setBusy] = useState(false);
   const portail = async () => { setBusy(true); try { allerVers((await call("portail", { retour: RETOUR() })).url); } catch (x) { toast(x.message, "bad"); setBusy(false); } };
+  if (UNIQUE) return html\`<\${ui.Page} titre="Mon accès" sous=\${actif ? "Accès à vie" + (ab.formule ? " · " + ab.formule : "") : etat.acces ? "Essai gratuit : " + jours(etat.essai_fin) + " jour(s) restant(s)" : "Ton essai est terminé"}>\${!actif && html\`<\${Formules} courante=\${null}/>\`}\${actif && html\`<p class="text-slate-600">Merci ! Ton accès est débloqué pour toujours.</p>\`}<p class="mt-4 text-xs text-slate-400">Paiement unique et sécurisé par Stripe : pas d'abonnement, rien à résilier.</p></\${ui.Page}>\`;
   return html\`<\${ui.Page} titre="Mon abonnement" sous=\${actif ? "Formule " + (ab.formule ?? "") + (ab.fin_periode ? (ab.annule ? " · se termine le " : " · prochain paiement le ") + fmt.date(ab.fin_periode) : "") : etat.acces ? "Essai gratuit : " + jours(etat.essai_fin) + " jour(s) restant(s)" : "Ton essai est terminé"}>
     \${ab?.statut === "past_due" && html\`<div class="mb-4 rounded-xl bg-amber-50 text-amber-800 px-4 py-3 text-sm">Le dernier paiement n'est pas passé : mets à jour ta carte pour garder l'accès.</div>\`}
     \${actif && html\`<div class="mb-6"><\${ui.Button} variant="secondary" icone="carte" disabled=\${busy} onClick=\${portail}>Factures, carte et résiliation</\${ui.Button}></div>\`}

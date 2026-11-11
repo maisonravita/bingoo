@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas.genre (saas | app_web) + vue saas_liste, saas_app_public renvoie paiement.modele (abonnement | unique), relecture des sites écartés

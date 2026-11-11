@@ -100,7 +100,7 @@ function Liste() {
   const toast = useToast();
   const loc = useLocation();
   const [toutesNiches, setToutesNiches] = useState(false);
-  const [f, setF] = useState(() => { const p = new URLSearchParams(loc.search); return { q: "", categorie: p.get("categorie") ?? "", pays: p.get("pays") ?? "", prixMax: "", gratuit: false, recrute: false, actif: false, succes: p.get("succes") === "1", tri: p.get("succes") === "1" ? "succes_montant" : "score_croissance", tag: p.get("tag") ?? "" }; });
+  const [f, setF] = useState(() => { const p = new URLSearchParams(loc.search); return { q: "", categorie: p.get("categorie") ?? "", pays: p.get("pays") ?? "", prixMax: "", gratuit: false, recrute: false, actif: false, succes: p.get("succes") === "1", genre: p.get("genre") ?? "", tri: p.get("succes") === "1" ? "succes_montant" : "score_croissance", tag: p.get("tag") ?? "" }; });
   const [ia, setIa] = useState(null); // recherche par le sens : { q, termes, resultats }
   // Export CSV de la liste affichée (formule Business)
   const exporter = (liste) => {
@@ -130,7 +130,7 @@ function Liste() {
   const set = (k, v) => { setPage(0); setF((x) => ({ ...x, [k]: v })); };
 
   useEffect(() => {
-    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes, estimation", { count: "exact" });
+    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes, estimation, genre", { count: "exact" });
     if (f.tag) q = q.contains("tags", [f.tag]);
     if (f.q.trim()) q = q.or(`nom.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,domaine.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,description.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%`);
     if (f.categorie) q = q.eq("categorie", f.categorie);
@@ -139,6 +139,7 @@ function Liste() {
     if (f.gratuit) q = q.eq("gratuit", true);
     if (f.recrute) q = q.eq("recrute", true);
     if (f.succes) q = q.eq("a_succes", true);
+    if (f.genre) q = q.eq("genre", f.genre);
     if (f.actif) q = q.gte("nouveaute", new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10));
     q = q.order(f.tri, { ascending: f.tri === "prix_entree_eur" || f.tri === "rang_web", nullsFirst: false }).order("nom").range(page * PAGE, page * PAGE + PAGE - 1);
     let vivant = true;
@@ -165,7 +166,7 @@ function Liste() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-[12.5px] font-bold uppercase tracking-wide text-accent-dark">Explorer</p>
-          <h1 className="text-[30px] sm:text-[36px] font-black leading-tight tracking-tight" style={HF}>Tous les SaaS, au même endroit.</h1>
+          <h1 className="text-[30px] sm:text-[36px] font-black leading-tight tracking-tight" style={HF}>Tous les SaaS et applis web, au même endroit.</h1>
           <p className="text-ink-soft text-[15px]">{stats ? `${stats.total.toLocaleString("fr-FR")} logiciels suivis · ${stats.cats.length} catégories · ${stats.pays.length} pays · ${stats.recrutent} recrutent en ce moment` : "…"}</p>
         </div>
         <form onSubmit={ajouter} className="flex gap-2">
@@ -196,6 +197,7 @@ function Liste() {
           </select>
         </div>
         <div className="flex flex-wrap gap-2">
+          <span className="inline-flex rounded-full border border-line bg-white p-0.5">{[["", "Tout"], ["saas", "SaaS"], ["app_web", "Applis web"]].map(([k, l]) => <button key={k || "tout"} type="button" onClick={() => set("genre", k)} className={cx("rounded-full px-3 py-1 text-[13px] font-medium transition", f.genre === k ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}</span>
           <Chip on={f.succes} onClick={() => setF((x) => ({ ...x, succes: !x.succes, tri: !x.succes ? "succes_montant" : (x.tri === "succes_montant" ? "score_croissance" : x.tri) }))}>★ SaaS à succès</Chip>
           <Chip on={f.gratuit} onClick={() => set("gratuit", !f.gratuit)}>Version gratuite</Chip>
           <Chip on={f.recrute} onClick={() => set("recrute", !f.recrute)}>Recrutent</Chip>
@@ -240,6 +242,7 @@ function Liste() {
               {s.description ? <p className="mt-2 text-[13.5px] text-ink-soft line-clamp-2 min-h-[38px]">{s.description}</p> : <p className="mt-2 text-[13px] text-ink-faint italic min-h-[38px]">Description en cours de lecture par Bingoo!</p>}
               <div className="mt-3 flex flex-wrap gap-1.5 text-[12px]">
                 <span className="rounded-md bg-paper px-2 py-1 tnum">{prixCourt(s).replace(/^./, (c) => c.toUpperCase())}</span>
+                {s.genre === "app_web" && <span className="rounded-md bg-[#E0E7FF] text-[#3730A3] px-2 py-1">Appli web</span>}
                 {s.gratuit && <span className="rounded-md bg-paper px-2 py-1">Gratuit</span>}
                 {!s.gratuit && s.essai && <span className="rounded-md bg-paper px-2 py-1">Essai</span>}
                 {s.recrute && <span className="rounded-md bg-[#DCFCE7] text-[#166534] px-2 py-1">Recrute{s.postes ? ` · ${s.postes}` : ""}</span>}
@@ -1389,6 +1392,7 @@ function OngletEncaisser({ app, appel, agir, busy }) {
     <div className="space-y-2.5 max-w-xl">
       <p className="text-[14px] text-white/75">Stripe branché : <b className="text-white">{pay.compte}</b>{pay.test && <span className="ml-1.5 rounded bg-[#F6A06B]/25 px-1.5 py-0.5 text-[11px] font-bold text-[#F6A06B]">MODE TEST</span>}</p>
       <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={!!pay.actif} disabled={!!busy} onChange={(e) => agir("actif", () => appel("paiement", { actif: e.target.checked }), e.target.checked ? "Abonnements activés" : "Application gratuite")} />Abonnement obligatoire après l'essai</label>
+      <label className="flex items-center gap-2 text-[14px]">Modèle <select value={pay.modele ?? "abonnement"} onChange={(e) => agir("modele", () => appel("paiement", { modele: e.target.value }), e.target.value === "unique" ? "Paiement unique : tes clients paient une fois, accès à vie" : "Abonnement mensuel enregistré")} className="rounded-lg bg-white/10 border border-white/15 px-2 py-1"><option value="abonnement" className="text-ink">Abonnement mensuel (SaaS)</option><option value="unique" className="text-ink">Paiement unique, accès à vie (appli web)</option></select></label>
       <label className="flex items-center gap-2 text-[14px]">Essai gratuit <input type="number" min={0} max={60} value={essai} onChange={(e) => setEssai(e.target.value)} onBlur={() => Number(essai) !== Number(pay.essai_jours ?? 14) && agir("essai", () => appel("paiement", { essai_jours: Number(essai) }), "Durée d'essai enregistrée")} className="w-16 rounded-lg bg-white/10 border border-white/15 px-2 py-1" /> jours</label>
       <button disabled={!!busy} onClick={() => { if (confirm("Débrancher Stripe ? L'application redevient gratuite.")) agir("cle", () => appel("paiement", { cle: "" }), "Stripe débranché"); }} className="text-[12.5px] text-white/50 underline">Débrancher Stripe</button>
     </div>

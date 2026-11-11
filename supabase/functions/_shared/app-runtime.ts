@@ -68,6 +68,17 @@ async function rafraichir(admin: SupabaseClient, app: any, u: any, force = false
   if (!force && u.verifie_at && Date.now() - new Date(u.verifie_at).getTime() < 10 * 60e3) return u;
   const key = await cleStripe(admin, app.id);
   if (!key) return u;
+  // Paiement unique (appli web) : l'accès est acquis dès qu'un paiement réussi existe pour cette app
+  if (app.paiement?.modele === "unique") {
+    if (u.abonnement?.unique && u.abonnement?.statut === "active") return u;
+    try {
+      const d = await stripe(key, "payment_intents", { customer: u.stripe_customer, limit: "20" }, "GET");
+      const pi = ((d.data ?? []) as any[]).find((x) => x.status === "succeeded" && x.metadata?.app === app.slug);
+      const abonnement = pi ? { statut: "active", formule: pi.metadata?.formule ?? null, montant: pi.amount_received / 100, unique: true, fin_periode: null, annule: false } : u.abonnement ?? null;
+      await admin.from("saas_app_users").update({ abonnement, verifie_at: new Date().toISOString() }).eq("id", u.id);
+      return { ...u, abonnement };
+    } catch (e) { console.error("stripe", e); return u; }
+  }
   try {
     const d = await stripe(key, "subscriptions", { customer: u.stripe_customer, status: "all", limit: "5" }, "GET");
     const subs = (d.data ?? []) as any[];
@@ -163,7 +174,7 @@ export async function appFichier(admin: SupabaseClient, slug: string, quoi: stri
 export async function appApi(admin: SupabaseClient, req: Request, slug: string, action: string): Promise<{ status: number; body: unknown }> {
   try {
     if (!/^[a-z0-9-]{3,60}$/.test(slug)) throw new Err(404, "Application introuvable");
-    const { data: app } = await admin.from("saas_apps").select("id, workspace_id, spec, statut, paiement, domaine, domaine_statut, ab, email_dom, emails").eq("slug", slug).maybeSingle();
+    const { data: app } = await admin.from("saas_apps").select("id, slug, workspace_id, spec, statut, paiement, domaine, domaine_statut, ab, email_dom, emails").eq("slug", slug).maybeSingle();
     if (!app || !(app.spec as any)?.ecrans?.length) throw new Err(404, "Application introuvable");
     const b = JSON.parse((await req.text()).slice(0, 60000) || "{}");
     const variante = b.variante === "B" && (app.ab as any)?.actif ? "B" : "A";
@@ -254,6 +265,18 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
       if (!f || !(Number(f.prix) > 0)) throw new Err(400, "Formule introuvable");
       const prix = prixVariante(Number(f.prix), titulaire.variante, app.ab);
       const sep = retour.includes("?") ? "&" : "?";
+      if (app.paiement?.modele === "unique") {
+        const sess = await stripe(key, "checkout/sessions", {
+          mode: "payment", customer, client_reference_id: titulaire.id, locale: "fr",
+          "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "eur",
+          "line_items[0][price_data][unit_amount]": String(Math.round(prix * 100)),
+          "line_items[0][price_data][product_data][name]": `${(app.spec as any)?.nom ?? "Accès"} ${f.nom} (accès à vie)`.slice(0, 120),
+          "payment_intent_data[metadata][formule]": String(f.nom).slice(0, 80), "payment_intent_data[metadata][app]": slug, "payment_intent_data[metadata][compte]": titulaire.id,
+          "invoice_creation[enabled]": "true", allow_promotion_codes: "true",
+          success_url: `${retour}${sep}paiement=ok`, cancel_url: retour,
+        });
+        return { status: 200, body: { url: sess.url } };
+      }
       const sess = await stripe(key, "checkout/sessions", {
         mode: "subscription", customer, client_reference_id: titulaire.id, locale: "fr",
         "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "eur",

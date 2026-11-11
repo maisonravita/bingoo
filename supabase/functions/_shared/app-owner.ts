@@ -26,6 +26,8 @@ export async function appPaiement(appId: string, b: any) {
     if (b.actif && !(await admin.from("saas_app_secrets").select("app_id").eq("app_id", appId).maybeSingle()).data) throw new HttpError(400, "Branche d'abord ton compte Stripe");
     pay.actif = !!b.actif;
   }
+  // Modèle : abonnement mensuel (SaaS) ou paiement unique (appli web, accès à vie)
+  if (b.modele !== undefined) pay.modele = b.modele === "unique" ? "unique" : "abonnement";
   if (b.essai_jours !== undefined) pay.essai_jours = Math.max(0, Math.min(60, Math.round(Number(b.essai_jours) || 0)));
   await admin.from("saas_apps").update({ paiement: pay }).eq("id", appId);
   return pay;

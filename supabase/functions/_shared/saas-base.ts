@@ -87,16 +87,16 @@ export async function saasLire(id: string) {
     return { id, statut: "ok", inchange: true };
   }
   setAi({ feature: "explorer/lecture" });
-  const a = await askJson<{ est_saas: boolean; nom: string; categorie: string; description: string; cible: string; pays: string | null; langue: string | null;
+  const a = await askJson<{ est_saas: boolean; genre: string | null; nom: string; categorie: string; description: string; cible: string; pays: string | null; langue: string | null;
     gratuit: boolean; essai: string | null; modele: string | null; prix_usage: string | null; prix_entree: number | null; devise: string | null; periode: string | null; sur_devis: boolean; formules: { nom: string; prix: string }[]; tags: string[] }>(
     `Voici le site ${s.domaine}. Classe ce logiciel et lis ses prix, sans rien inventer (null si absent).
 ACCUEIL :
 ${accueil}
 TARIFS :
 ${tarifs.slice(0, 3500)}
-Clés : est_saas (true si c'est un logiciel vendu en ligne, par abonnement ou à l'usage ; false pour une agence, un média, un site vitrine), nom, categorie (exactement une de : ${CATEGORIES.join(" | ")}),
+Clés : est_saas (true si c'est un logiciel utilisable en ligne : SaaS par abonnement ou à l'usage, OU appli web / outil en ligne utilisé dans le navigateur, gratuit, payant à l'unité ou en accès à vie ; false pour une agence, un média, un site vitrine, une boutique, une appli seulement mobile), genre (saas : abonnement ou usage, surtout pour les pros ; app_web : appli ou outil en ligne, souvent grand public, gratuit, à l'achat unique, à crédits ou avec un abonnement léger), nom, categorie (exactement une de : ${CATEGORIES.join(" | ")}),
 description (une phrase en français : ce qu'il fait), cible (une phrase en français : pour qui), tags (${TAGS_REGLE}), pays (code à 2 lettres du pays du siège s'il est écrit ou évident : adresse, mentions légales, devise ; sinon null), langue (code de la langue du site),
-gratuit (formule gratuite), essai (durée de l'essai gratuit ou null), modele (abonnement : prix fixe par mois, an ou semaine ; usage : prix par ticket, résolution, crédit, unité, boîte mail… ; commission : pourcentage ou frais par transaction ou par billet),
+gratuit (formule gratuite), essai (durée de l'essai gratuit ou null), modele (abonnement : prix fixe par mois, an ou semaine ; usage : prix par ticket, résolution, crédit, unité, boîte mail… ; commission : pourcentage ou frais par transaction ou par billet ; achat_unique : paiement une fois, accès à vie ; gratuit : entièrement gratuit),
 prix_entree (prix le plus bas d'une formule d'ABONNEMENT payante, nombre ; null si le seul prix affiché est à l'usage ou une commission), devise (€ $ £), periode (mois, an ou semaine), prix_usage (si usage ou commission : le prix tel qu'affiché en quelques mots, ex. « 0,99 $ par résolution » ; sinon null), sur_devis, formules (au plus 4 : nom et prix tel qu'affiché).`,
     { fast: true, maxTokens: 900 }).catch(() => null);
   if (!a) { await admin.from("saas").update({ essais: (s.essais ?? 0) + 1, lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "erreur" }; }
@@ -107,7 +107,7 @@ prix_entree (prix le plus bas d'une formule d'ABONNEMENT payante, nombre ; null 
   const brut = a.prix_entree && a.prix_entree > 0 ? a.prix_entree * taux * (a.periode === "an" ? 1 / 12 : a.periode === "semaine" ? 52 / 12 : 1) : null;
   // Moins de 2 € par mois : c'est presque toujours un prix à l'usage lu comme un abonnement
   const prix = brut != null && brut >= 2 ? Math.round(brut) : null;
-  const modele = ["abonnement", "usage", "commission"].includes(a.modele ?? "") ? a.modele : null;
+  const modele = ["abonnement", "usage", "commission", "achat_unique", "gratuit"].includes(a.modele ?? "") ? a.modele : null;
   const il30 = Date.now() - 30 * 864e5;
   const actif = f.nouveaute.date ? Date.parse(f.nouveaute.date) >= il30 : false;
   // Score de croissance (0 à 100), à partir de faits relevés : postes ouverts, nouveauté récente, hausse de postes depuis le relevé précédent
@@ -117,7 +117,7 @@ prix_entree (prix le plus bas d'une formule d'ABONNEMENT payante, nombre ; null 
   const champs = {
     empreinte,
     nom: (a.nom || s.domaine).slice(0, 80), categorie: CATEGORIES.includes(a.categorie) ? a.categorie : "Autre",
-    description: (a.description ?? "").slice(0, 300), cible: (a.cible ?? "").slice(0, 200), tags: nettoieTags(a.tags), pays, langue: (a.langue ?? "").slice(0, 5) || null, est_saas: true,
+    description: (a.description ?? "").slice(0, 300), cible: (a.cible ?? "").slice(0, 200), tags: nettoieTags(a.tags), pays, langue: (a.langue ?? "").slice(0, 5) || null, est_saas: true, genre: a.genre === "app_web" ? "app_web" : "saas",
     prix_entree_eur: prix, devise: a.devise ?? null, prix_affiche: prix != null ? `${a.prix_entree} ${a.devise ?? ""}/${a.periode === "an" ? "an" : a.periode === "semaine" ? "semaine" : "mois"}` : a.prix_usage ? String(a.prix_usage).slice(0, 80) : null, modele_prix: modele,
     gratuit: !!a.gratuit, essai: a.essai ?? null, sur_devis: !!a.sur_devis, formules: (a.formules ?? []).slice(0, 4),
     recrute: f.recrute.oui, postes: f.recrute.postes, nouveaute: f.nouveaute.date, outils: f.outils,

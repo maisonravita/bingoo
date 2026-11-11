@@ -21,7 +21,7 @@ function variante(slug, ab) {
 }
 
 export default function AppCadre({ slug, spec, version, paiement, domaine, ab, articles, className, apercu = false, retourPaiement = false, invite = null, tour = false, source = null, ecran = null }) {
-  const doc = useMemo(() => appHtml({ spec, slug, api: API, token: tour ? null : lire(slug), apercu, paiement, retour: lienApp(slug, domaine), retourPaiement, ab, variante: variante(slug, ab), invite, tour, articles: articles ?? [], blog: blogApp(slug, domaine), source, ecran }), [slug, version, paiement?.actif, paiement?.essai_jours, ab?.actif, ab?.ecart, tour]); // eslint-disable-line react-hooks/exhaustive-deps
+  const doc = useMemo(() => appHtml({ spec, slug, api: API, token: tour ? null : lire(slug), apercu, paiement, retour: lienApp(slug, domaine), retourPaiement, ab, variante: variante(slug, ab), invite, tour, articles: articles ?? [], blog: blogApp(slug, domaine), source, ecran }), [slug, version, paiement?.actif, paiement?.essai_jours, paiement?.modele, ab?.actif, ab?.ecart, tour]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const ecoute = (e) => {
       const d = e.data;

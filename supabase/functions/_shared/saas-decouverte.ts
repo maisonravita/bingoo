@@ -50,7 +50,9 @@ export function noteSaas(html: string) {
   let note = (tarifs ? 3 : 0) + (inscription ? 2 : 0) + (connexion ? 1 : 0) + (mensuel ? 2 : 0) + Math.min(3, logiciel);
   if (boutique) note -= 4;
   if (media) note -= 6;
-  const ok = note >= 6 && (tarifs || mensuel) && (inscription || connexion) && !media;
+  // Appli web (outil en ligne) : compte utilisateur + vocabulaire d'outil + offre payante (premium, crédits, à vie)
+  const outil = a(/(upgrade|go pro|premium|credits?|cr[ée]dits|lifetime|[àa] vie|one-time|paiement unique)/) && a(/(online|en ligne|in your browser|dans (ton|votre) navigateur|upload|t[ée]l[ée]verse|g[ée]n[ée]r|convert|[ée]diteur|editor|create|cr[ée]er)/);
+  const ok = !media && ((note >= 6 && (tarifs || mensuel) && (inscription || connexion)) || (!boutique && outil && (inscription || connexion) && logiciel >= 1));
   return { note, ok };
 }
 
