@@ -11,8 +11,17 @@ const lire = (slug) => { try { return localStorage.getItem(cle(slug)); } catch {
 /** Adresse publique de l'application : son nom de domaine s'il est actif, sinon le lien Bingoo!. */
 export const lienApp = (slug, domaine) => domaine ? `https://${domaine}/` : `${window.location.origin}${window.location.pathname}#/app/${slug}`;
 
-export default function AppCadre({ slug, spec, version, paiement, domaine, className, apercu = false, retourPaiement = false }) {
-  const doc = useMemo(() => appHtml({ spec, slug, api: API, token: lire(slug), apercu, paiement, retour: lienApp(slug, domaine), retourPaiement }), [slug, version, paiement?.actif, paiement?.essai_jours]); // eslint-disable-line react-hooks/exhaustive-deps
+/** Adresse des articles de l'app (pages indexables rendues par le serveur). */
+export const blogApp = (slug, domaine) => domaine ? `https://${domaine}/blog/` : `${window.location.origin}/a/${slug}/`;
+
+// Test de prix : chaque visiteur reçoit une variante, gardée dans son navigateur
+function variante(slug, ab) {
+  if (!ab?.actif) return "A";
+  try { let v = localStorage.getItem(`bingoo-ab:${slug}`); if (!v) { v = Math.random() < 0.5 ? "A" : "B"; localStorage.setItem(`bingoo-ab:${slug}`, v); } return v; } catch { return "A"; }
+}
+
+export default function AppCadre({ slug, spec, version, paiement, domaine, ab, articles, className, apercu = false, retourPaiement = false, invite = null, tour = false }) {
+  const doc = useMemo(() => appHtml({ spec, slug, api: API, token: tour ? null : lire(slug), apercu, paiement, retour: lienApp(slug, domaine), retourPaiement, ab, variante: variante(slug, ab), invite, tour, articles: articles ?? [], blog: blogApp(slug, domaine) }), [slug, version, paiement?.actif, paiement?.essai_jours, ab?.actif, ab?.ecart, tour]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const ecoute = (e) => {
       const d = e.data;
@@ -22,5 +31,5 @@ export default function AppCadre({ slug, spec, version, paiement, domaine, class
     window.addEventListener("message", ecoute);
     return () => window.removeEventListener("message", ecoute);
   }, [slug]);
-  return <iframe key={`${slug}-${version}`} title={spec?.nom ?? "Application"} srcDoc={doc} sandbox="allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation" className={className} />;
+  return <iframe key={`${slug}-${version}-${tour ? 1 : 0}`} title={spec?.nom ?? "Application"} srcDoc={doc} sandbox="allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation" className={className} />;
 }

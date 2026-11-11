@@ -159,7 +159,71 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (b.quoi === "domaine") { await log(ws.id, "app_reglage", `Nom de domaine : ${String(b.domaine ?? "retiré").slice(0, 80)}`); return await o.appDomaine(app.id, b.domaine); }
     if (b.quoi === "domaine-verifier") return await o.appDomaineVerifier(app.id);
     if (b.quoi === "chiffres") return await o.appChiffres(app.id);
+    if (b.quoi === "public") return await o.appPublic(app.id, !!b.public);
+    if (b.quoi === "bourse") { await log(ws.id, "app_reglage", b.retirer ? "Retiré de la bourse" : `Mis en vente : ${b.prix} €`); return await o.appBourse(app.id, b); }
+    if (b.quoi === "ab") return await o.appAb(app.id, b);
+    if (b.quoi === "ab-resultats") return await o.appAbResultats(app.id);
+    if (b.quoi === "jumeau") { await quota(ws.id, "jumeau", 5); await log(ws.id, "jumeau", "Vérification du jumeau"); setAi({ ws: ws.id, live: true, feature: "construire/jumeau" }); return await o.appJumeau(app.id); }
+    if (b.quoi === "lancement") { await quota(ws.id, "lancement", 3); await log(ws.id, "lancement", "Kit de lancement"); setAi({ ws: ws.id, live: true, feature: "construire/lancement" }); return await o.appLancement(app.id); }
+    if (b.quoi === "email-domaine" || b.quoi === "email-verifier") {
+      const m = await import("../_shared/app-mails.ts");
+      return b.quoi === "email-domaine" ? await m.appEmailDomaine(app.id, b.domaine) : await m.appEmailVerifier(app.id);
+    }
     throw new HttpError(400, "Réglage inconnu");
+  },
+  // Bourse des SaaS : un acheteur se manifeste, le vendeur est prévenu par e-mail avec le message et l'adresse de l'acheteur
+  async "saas-bourse-interet"(req, b) {
+    const { ws, userId } = await requireMember(req, b.workspace_id);
+    const { data: bo } = await admin.from("saas_bourse").select("id, prix, app_id, statut").eq("id", String(b.bourse_id ?? "")).maybeSingle();
+    if (!bo || bo.statut !== "en_vente") throw new HttpError(404, "Annonce introuvable");
+    const { data: app } = await admin.from("saas_apps").select("workspace_id, spec").eq("id", bo.app_id).single();
+    if (app!.workspace_id === ws.id) throw new HttpError(400, "C'est ton propre SaaS");
+    await quota(ws.id, "bourse_interet", 10);
+    const message = String(b.message ?? "").trim().slice(0, 1500);
+    const { error } = await admin.from("saas_bourse_interets").insert({ bourse_id: bo.id, workspace_id: ws.id, par: userId, message });
+    if (error) throw new HttpError(409, "Tu as déjà contacté ce vendeur");
+    const { data: moi } = await admin.from("members").select("email").eq("workspace_id", ws.id).eq("user_id", userId).maybeSingle();
+    const { data: vendeur } = await admin.from("workspaces").select("*").eq("id", app!.workspace_id).single();
+    const { sendSystem, teamAddress } = await import("../_shared/mail.ts");
+    const to = await teamAddress(vendeur as never);
+    const nom = (app!.spec as { nom?: string })?.nom ?? "ton SaaS";
+    if (to) await sendSystem({ to, replyTo: moi?.email ?? undefined, subject: `Bourse Bingoo! : quelqu'un veut acheter ${nom}`, text: `Bonjour,\n\n${ws.name ?? "Un membre de Bingoo!"} s'intéresse à ${nom}, en vente à ${bo.prix} € sur la bourse des SaaS.\n\nSon message :\n${message || "(pas de message)"}\n\nRéponds directement à cet e-mail pour lui écrire${moi?.email ? ` (${moi.email})` : ""}.\n\nLa vente se conclut entre vous ; Bingoo! transfère ensuite l'application sur l'espace de l'acheteur (commission de 5 %).\n\nBingoo!` });
+    await admin.from("activity").insert({ workspace_id: app!.workspace_id, kind: "bourse", summary: `Un acheteur s'intéresse à ${nom}` });
+    return { ok: true };
+  },
+  // Vente conclue : l'application (et son projet) passe sur l'espace de l'acheteur choisi parmi ceux qui se sont manifestés
+  async "saas-bourse-vendu"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { data: bo } = await admin.from("saas_bourse").select("id, prix, app_id, statut").eq("id", String(b.bourse_id ?? "")).maybeSingle();
+    const { data: app } = bo ? await admin.from("saas_apps").select("id, workspace_id, projet_id, spec").eq("id", bo.app_id).maybeSingle() : { data: null };
+    if (!bo || !app || app.workspace_id !== ws.id || bo.statut !== "en_vente") throw new HttpError(404, "Annonce introuvable");
+    const { data: it } = await admin.from("saas_bourse_interets").select("workspace_id").eq("bourse_id", bo.id).eq("workspace_id", String(b.acheteur ?? "")).maybeSingle();
+    if (!it) throw new HttpError(400, "Choisis un acheteur qui s'est manifesté");
+    await admin.from("saas_projets").update({ workspace_id: it.workspace_id }).eq("id", app.projet_id);
+    // Le compte Stripe du vendeur est débranché : l'acheteur branche le sien (les abonnés en cours se transfèrent entre vous chez Stripe)
+    await admin.from("saas_app_secrets").delete().eq("app_id", app.id);
+    await admin.from("saas_apps").update({ workspace_id: it.workspace_id, public: false, paiement: { actif: false, essai_jours: 14 } }).eq("id", app.id);
+    await admin.from("saas_bourse").update({ statut: "vendu" }).eq("id", bo.id);
+    const nom = (app.spec as { nom?: string })?.nom ?? "SaaS";
+    await log(ws.id, "bourse", `${nom} vendu ${bo.prix} € (commission Bingoo! 5 % : ${Math.round(bo.prix * 0.05)} €)`);
+    await admin.from("activity").insert({ workspace_id: it.workspace_id, kind: "bourse", summary: `${nom} est maintenant à toi : retrouve-le dans « Lancer le mien »` });
+    return { ok: true };
+  },
+  // Tâches planifiées des SaaS construits : jumeau (une fois par semaine par app) et e-mails des apps (fin d'essai, relance)
+  async "apps-cron"(req, b) {
+    await cron(req);
+    const out: Record<string, unknown> = {};
+    if (b.mails !== false) { const { appMailsCron } = await import("../_shared/app-mails.ts"); out.mails = await appMailsCron().catch((e) => ({ erreur: String(e?.message ?? e) })); }
+    if (b.jumeau !== false) {
+      const { appJumeau } = await import("../_shared/app-owner.ts");
+      const { data: apps } = await admin.from("saas_apps").select("id, workspace_id, jumeau_at").eq("statut", "pret").or(`jumeau_at.is.null,jumeau_at.lt.${new Date(Date.now() - 7 * 864e5).toISOString()}`).order("jumeau_at", { ascending: true, nullsFirst: true }).limit(Number(b.n ?? 3));
+      out.jumeau = [];
+      for (const a of apps ?? []) {
+        setAi({ ws: a.workspace_id, live: false, feature: "construire/jumeau" });
+        (out.jumeau as unknown[]).push(await appJumeau(a.id).catch((e) => ({ erreur: String(e?.message ?? e) })));
+      }
+    }
+    return out;
   },
   async "saas-app-modifier"(req, b) {
     const { ws } = await membreOuCron(req, b.workspace_id);

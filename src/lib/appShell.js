@@ -9,13 +9,13 @@ const HTM = "https://esm.sh/htm@3.1.1";
 
 const safe = (o) => JSON.stringify(o).replace(/</g, "\\u003c").replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029");
 
-export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false }) {
-  const boot = { spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement };
+export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null }) {
+  const boot = { spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog };
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${String(spec.nom ?? "Mon SaaS").replace(/[<&]/g, "")}</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js"></script>
 <style>:root{--c:${/^#[0-9a-f]{6}$/i.test(spec.couleur ?? "") ? spec.couleur : "#4F46E5"}}body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:#F8FAFC;color:#0F172A}
-.anim{animation:a .18s ease-out}@keyframes a{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}</style>
+.anim{animation:a .18s ease-out}@keyframes barre{from{width:0}to{width:100%}}@keyframes a{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}</style>
 </head><body><div id="root"><div style="min-height:100vh;display:grid;place-items:center;color:#94A3B8;font-size:14px">Chargement…</div></div>
 <script>window.__BOOT=${safe(boot)};</script>
 <script type="module">
@@ -30,6 +30,9 @@ let token = B.token;
 if (!token && SEULE) { try { token = localStorage.getItem("app-token:" + B.slug); } catch (e) {} }
 const persist = (t) => { token = t; if (SEULE) { try { t ? localStorage.setItem("app-token:" + B.slug, t) : localStorage.removeItem("app-token:" + B.slug); } catch (e) {} } else { try { parent.postMessage({ type: "bingoo-app-token", slug: B.slug, token: t }, "*"); } catch (e) {} } };
 const PAY = B.paiement ?? {}, ESSAI = Number(PAY.essai_jours ?? 14);
+// Test de prix : la variante B affiche les prix augmentés (ou baissés) de l'écart choisi par le créateur
+let VARIANTE = B.ab?.actif && B.variante === "B" ? "B" : "A";
+const prixDe = (p) => VARIANTE === "B" && B.ab?.actif ? Math.round(Number(p) * (1 + Number(B.ab.ecart ?? 20) / 100)) : Number(p);
 const RETOUR = () => B.retour || location.href.split("?")[0];
 // Vers Stripe : la page entière quitte l'app (le cadre isolé ne peut que demander la navigation), sinon un nouvel onglet
 const allerVers = (url) => { try { window.top.location.href = url; } catch (e) { window.open(url, "_blank"); } };
@@ -117,26 +120,29 @@ class Garde extends Component {
 // ---------------------------------------------------------------- Site public
 function Site({ onAuth }) {
   const f = S.formules ?? [];
+  useEffect(() => { if (B.ab?.actif && !B.apercu) call("vue", { variante: VARIANTE }).catch(() => {}); }, []);
   return html\`<div class="bg-white min-h-screen">
   <header class="max-w-6xl mx-auto px-5 py-5 flex items-center justify-between"><div class="flex items-center gap-2 font-bold text-lg"><span class="w-8 h-8 rounded-xl bg-[var(--c)] text-white grid place-items-center">\${(S.nom ?? "S")[0]}</span>\${S.nom}</div><div class="flex gap-2"><\${ui.Button} variant="ghost" onClick=\${() => onAuth("login")}>Se connecter</\${ui.Button}><\${ui.Button} onClick=\${() => onAuth("signup")}>Essai gratuit</\${ui.Button}></div></header>
   <section class="max-w-6xl mx-auto px-5 pt-14 pb-20 text-center"><p class="inline-block rounded-full bg-[var(--c)]/10 text-[var(--c)] px-3 py-1 text-sm font-semibold">\${S.cible_courte || (ESSAI ? "Essai gratuit " + ESSAI + " jours" : S.nom)}</p>
     <h1 class="mt-5 text-4xl sm:text-6xl font-extrabold tracking-tight max-w-4xl mx-auto leading-[1.05]">\${S.slogan ?? S.pitch}</h1>
     <p class="mt-5 text-lg text-slate-500 max-w-2xl mx-auto">\${S.pitch}</p>
-    <div class="mt-8 flex flex-wrap justify-center gap-3"><\${ui.Button} class="!px-6 !py-3 !text-base" onClick=\${() => onAuth("signup")}>Commencer gratuitement</\${ui.Button}><\${ui.Button} variant="secondary" class="!px-6 !py-3 !text-base" onClick=\${() => onAuth("demo")}>Voir la démo</\${ui.Button}></div>
+    <div class="mt-8 flex flex-wrap justify-center gap-3"><\${ui.Button} class="!px-6 !py-3 !text-base" onClick=\${() => onAuth("signup")}>Commencer gratuitement</\${ui.Button}><\${ui.Button} variant="secondary" class="!px-6 !py-3 !text-base" onClick=\${() => onAuth("tour")}>Voir la démo en 30 s</\${ui.Button}></div>
     <p class="mt-3 text-sm text-slate-400">Sans carte bancaire</p></section>
   \${S.probleme && html\`<section class="bg-slate-50 py-16"><div class="max-w-3xl mx-auto px-5 text-center"><p class="text-sm font-semibold text-[var(--c)] uppercase tracking-wide">Le problème</p><p class="mt-3 text-2xl font-semibold leading-snug">\${S.probleme}</p></div></section>\`}
   <section class="max-w-6xl mx-auto px-5 py-20"><h2 class="text-3xl font-bold text-center">Tout ce qu'il te faut</h2><div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">\${(S.atouts ?? []).map((a) => html\`<div class="rounded-2xl border border-slate-200 p-6"><span class="w-10 h-10 rounded-xl bg-[var(--c)]/10 text-[var(--c)] grid place-items-center"><\${Icone} nom="check"/></span><p class="mt-4 font-semibold">\${a.titre}</p><p class="mt-1 text-sm text-slate-500">\${a.texte}</p></div>\`)}</div></section>
-  \${f.length > 0 && html\`<section class="bg-slate-50 py-20"><div class="max-w-5xl mx-auto px-5"><h2 class="text-3xl font-bold text-center">Des prix simples</h2><div class=\${"mt-10 grid gap-4 " + (f.length > 2 ? "md:grid-cols-3" : "md:grid-cols-2")}>\${f.map((x, i) => html\`<div class=\${cls("rounded-2xl p-6 border", i === 1 ? "bg-slate-900 text-white border-slate-900" : "bg-white border-slate-200")}><p class="font-semibold">\${x.nom}</p><p class="mt-2 text-4xl font-extrabold">\${fmt.eur(x.prix)}<span class="text-sm font-normal opacity-60"> /mois</span></p><p class="mt-1 text-sm opacity-70">\${x.pour}</p><ul class="mt-4 space-y-2 text-sm">\${(x.inclus ?? []).map((t) => html\`<li class="flex gap-2"><span class="text-[var(--c)]"><\${Icone} nom="check" class="w-4 h-4"/></span>\${t}</li>\`)}</ul><\${ui.Button} class="w-full mt-6" variant=\${i === 1 ? "primary" : "secondary"} onClick=\${() => onAuth("signup")}>\${ESSAI ? "Essayer " + ESSAI + " jours" : "Commencer"}</\${ui.Button}></div>\`)}</div></div></section>\`}
+  \${f.length > 0 && html\`<section class="bg-slate-50 py-20"><div class="max-w-5xl mx-auto px-5"><h2 class="text-3xl font-bold text-center">Des prix simples</h2><div class=\${"mt-10 grid gap-4 " + (f.length > 2 ? "md:grid-cols-3" : "md:grid-cols-2")}>\${f.map((x, i) => html\`<div class=\${cls("rounded-2xl p-6 border", i === 1 ? "bg-slate-900 text-white border-slate-900" : "bg-white border-slate-200")}><p class="font-semibold">\${x.nom}</p><p class="mt-2 text-4xl font-extrabold">\${fmt.eur(prixDe(x.prix))}<span class="text-sm font-normal opacity-60"> /mois</span></p><p class="mt-1 text-sm opacity-70">\${x.pour}</p><ul class="mt-4 space-y-2 text-sm">\${(x.inclus ?? []).map((t) => html\`<li class="flex gap-2"><span class="text-[var(--c)]"><\${Icone} nom="check" class="w-4 h-4"/></span>\${t}</li>\`)}</ul><\${ui.Button} class="w-full mt-6" variant=\${i === 1 ? "primary" : "secondary"} onClick=\${() => onAuth("signup")}>\${ESSAI ? "Essayer " + ESSAI + " jours" : "Commencer"}</\${ui.Button}></div>\`)}</div></div></section>\`}
+  \${(B.articles ?? []).length > 0 && html\`<section class="max-w-6xl mx-auto px-5 py-16"><h2 class="text-2xl font-bold">Ressources</h2><div class="mt-6 grid md:grid-cols-3 gap-4">\${B.articles.map((a) => html\`<a href=\${(B.blog ?? "") + a.slug} target="_blank" rel="noopener" class="block rounded-2xl border border-slate-200 p-5 hover:border-[var(--c)]"><p class="font-semibold">\${a.titre}</p><p class="mt-1 text-sm text-slate-500">\${a.resume}</p></a>\`)}</div></section>\`}
   <footer class="max-w-6xl mx-auto px-5 py-10 text-sm text-slate-400 flex justify-between"><span>© \${new Date().getFullYear()} \${S.nom}</span><span>Construit avec Bingoo!</span></footer></div>\`;
 }
 
 function Auth({ mode: m0, onDone, onBack }) {
   const [mode, setMode] = useState(m0 === "login" ? "login" : "signup");
   const [f, setF] = useState({ email: "", password: "", nom: "" }), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
-  const submit = async (e) => { e.preventDefault(); setBusy(true); setErr(""); try { onDone(await call(mode, f)); } catch (x) { setErr(x.message); } finally { setBusy(false); } };
+  const submit = async (e) => { e.preventDefault(); setBusy(true); setErr(""); try { onDone(await call(mode, { ...f, variante: VARIANTE, invite: mode === "signup" ? B.invite : null })); } catch (x) { setErr(x.message); } finally { setBusy(false); } };
   return html\`<div class="min-h-screen grid place-items-center p-5 bg-slate-50"><form onSubmit=\${submit} class="anim w-full max-w-sm bg-white rounded-2xl border border-slate-200 p-6 space-y-3">
     <button type="button" onClick=\${onBack} class="text-sm text-slate-400 hover:text-slate-700">← \${S.nom}</button>
-    <h1 class="text-xl font-bold">\${mode === "signup" ? "Crée ton compte" : "Content de te revoir"}</h1>
+    <h1 class="text-xl font-bold">\${mode === "signup" ? (B.invite ? "Rejoins ton équipe" : "Crée ton compte") : "Content de te revoir"}</h1>
+    \${B.invite && mode === "signup" && html\`<p class="text-sm text-slate-500">Tu as été invité sur \${S.nom}. Crée ton compte pour retrouver les données de ton équipe.</p>\`}
     \${mode === "signup" && html\`<\${ui.Input} label="Ton nom" value=\${f.nom} onInput=\${(v) => setF({ ...f, nom: v })}/>\`}
     <\${ui.Input} label="E-mail" type="email" required value=\${f.email} onInput=\${(v) => setF({ ...f, email: v })}/>
     <\${ui.Input} label="Mot de passe" type="password" required value=\${f.password} onInput=\${(v) => setF({ ...f, password: v })} placeholder=\${mode === "signup" ? "8 caractères au moins" : ""}/>
@@ -150,7 +156,7 @@ function Auth({ mode: m0, onDone, onBack }) {
 function Formules({ courante }) {
   const [busy, setBusy] = useState(null), f = S.formules ?? [];
   const payer = async (i) => { setBusy(i); try { allerVers((await call("checkout", { formule: i, retour: RETOUR() })).url); } catch (x) { toast(x.message, "bad"); setBusy(null); } };
-  return html\`<div class=\${"grid gap-4 " + (f.length > 2 ? "md:grid-cols-3" : "md:grid-cols-2")}>\${f.map((x, i) => html\`<div class=\${cls("rounded-2xl p-5 border bg-white", courante === x.nom ? "border-[var(--c)] ring-2 ring-[var(--c)]/20" : "border-slate-200")}><p class="font-semibold">\${x.nom}</p><p class="mt-1 text-3xl font-extrabold">\${fmt.eur(x.prix)}<span class="text-sm font-normal text-slate-400"> /mois</span></p><p class="text-sm text-slate-500">\${x.pour}</p><ul class="mt-3 space-y-1.5 text-sm">\${(x.inclus ?? []).map((t) => html\`<li class="flex gap-2"><span class="text-[var(--c)]"><\${Icone} nom="check" class="w-4 h-4"/></span>\${t}</li>\`)}</ul><\${ui.Button} class="w-full mt-5" disabled=\${busy !== null || courante === x.nom} onClick=\${() => payer(i)}>\${courante === x.nom ? "Ta formule" : busy === i ? "Redirection…" : "Choisir"}</\${ui.Button}></div>\`)}</div>\`;
+  return html\`<div class=\${"grid gap-4 " + (f.length > 2 ? "md:grid-cols-3" : "md:grid-cols-2")}>\${f.map((x, i) => html\`<div class=\${cls("rounded-2xl p-5 border bg-white", courante === x.nom ? "border-[var(--c)] ring-2 ring-[var(--c)]/20" : "border-slate-200")}><p class="font-semibold">\${x.nom}</p><p class="mt-1 text-3xl font-extrabold">\${fmt.eur(prixDe(x.prix))}<span class="text-sm font-normal text-slate-400"> /mois</span></p><p class="text-sm text-slate-500">\${x.pour}</p><ul class="mt-3 space-y-1.5 text-sm">\${(x.inclus ?? []).map((t) => html\`<li class="flex gap-2"><span class="text-[var(--c)]"><\${Icone} nom="check" class="w-4 h-4"/></span>\${t}</li>\`)}</ul><\${ui.Button} class="w-full mt-5" disabled=\${busy !== null || courante === x.nom} onClick=\${() => payer(i)}>\${courante === x.nom ? "Ta formule" : busy === i ? "Redirection…" : "Choisir"}</\${ui.Button}></div>\`)}</div>\`;
 }
 const jours = (iso) => Math.max(0, Math.ceil((new Date(iso) - Date.now()) / 864e5));
 function Abonnement({ etat }) {
@@ -170,13 +176,66 @@ function Paywall({ etat, onLogout }) {
     <\${Formules}/></div></div>\`;
 }
 
-function Appli({ user, etat, onLogout }) {
+// ---------------------------------------------------------------- Équipe
+function Equipe({ user }) {
+  const [m, setM] = useState(null), [lien, setLien] = useState("");
+  const charger = () => call("equipe").then(setM, (x) => toast(x.message, "bad"));
+  useEffect(() => { charger(); }, []);
+  const inviter = async () => { try { const { code } = await call("inviter"); const u = RETOUR(); setLien(u + (u.includes("?") ? "&" : "?") + "invite=" + code); } catch (x) { toast(x.message, "bad"); } };
+  const retirer = async (id) => { if (!confirm("Retirer ce membre de l'équipe ?")) return; try { await call("retirer", { id }); charger(); } catch (x) { toast(x.message, "bad"); } };
+  return html\`<\${ui.Page} titre="Équipe" sous="Tout le monde voit et modifie les mêmes données" actions=\${user.role === "admin" && html\`<\${ui.Button} icone="plus" onClick=\${inviter}>Inviter</\${ui.Button}>\`}>
+    \${lien && html\`<\${ui.Card} class="mb-4" titre="Lien d'invitation (à usage unique)"><div class="flex gap-2"><input readonly value=\${lien} class="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-50" onFocus=\${(e) => e.target.select()}/><\${ui.Button} variant="secondary" onClick=\${() => { try { navigator.clipboard.writeText(lien); toast("Lien copié"); } catch (e) { toast("Sélectionne le lien pour le copier"); } }}>Copier</\${ui.Button}></div><p class="text-xs text-slate-500 mt-2">Envoie-le à ton collègue : il crée son compte et rejoint ton espace.</p></\${ui.Card}>\`}
+    <\${ui.Card}>\${m === null ? html\`<\${ui.Loading}/>\` : html\`<\${ui.Table} colonnes=\${[{ cle: "nom", label: "Nom", rendu: (x) => html\`<span class="font-medium">\${x.nom}</span>\${x.moi ? html\` <\${ui.Badge}>toi</\${ui.Badge}>\` : null}\` }, { cle: "email", label: "E-mail" }, { cle: "role", label: "Rôle", rendu: (x) => html\`<\${ui.Badge} couleur=\${x.role === "admin" ? "violet" : "gris"}>\${x.role === "admin" ? "Administrateur" : "Membre"}</\${ui.Badge}>\` }, { cle: "vu_at", label: "Dernière visite", rendu: (x) => fmt.date(x.vu_at) }, { cle: "id", label: "", rendu: (x) => user.role === "admin" && x.role !== "admin" ? html\`<\${ui.Button} variant="ghost" onClick=\${() => retirer(x.id)}>Retirer</\${ui.Button}>\` : null }]} lignes=\${m}/>\`}</\${ui.Card}>
+  </\${ui.Page}>\`;
+}
+
+// ---------------------------------------------------------------- Assistant IA (lit les données de l'espace)
+function Assistant() {
+  const [open, setOpen] = useState(false), [q, setQ] = useState(""), [fil, setFil] = useState([]), [busy, setBusy] = useState(false);
+  const bas = useRef(null);
+  useEffect(() => { bas.current?.scrollIntoView({ block: "end" }); }, [fil, busy]);
+  const demander = async (e) => {
+    e?.preventDefault(); const question = q.trim(); if (!question || busy) return;
+    setFil((f) => [...f, { de: "moi", t: question }]); setQ(""); setBusy(true);
+    try { const r = await call("ia", { question }); setFil((f) => [...f, { de: "ia", t: r.reponse }]); }
+    catch (x) { setFil((f) => [...f, { de: "ia", t: x.message, err: true }]); } finally { setBusy(false); }
+  };
+  const idees = (S.ia_questions ?? ["Résume mon activité de la semaine", "Qu'est-ce que je dois faire en priorité ?", "Qu'est-ce qui est en retard ?"]).slice(0, 3);
+  return html\`<div class="fixed bottom-4 right-4 z-40">
+    \${open ? html\`<div class="anim w-[min(380px,calc(100vw-2rem))] h-[min(520px,calc(100vh-6rem))] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-3 bg-[var(--c)] text-white"><p class="font-semibold flex items-center gap-2"><\${Icone} nom="etoile" class="w-4 h-4"/>Assistant \${S.nom}</p><button onClick=\${() => setOpen(false)}><\${Icone} nom="croix" class="w-5 h-5"/></button></div>
+      <div class="flex-1 overflow-auto p-4 space-y-3 text-sm">
+        \${!fil.length && html\`<div><p class="text-slate-500">Pose une question sur tes données.</p><div class="mt-3 space-y-1.5">\${idees.map((t) => html\`<button onClick=\${() => setQ(t)} class="block w-full text-left rounded-xl bg-slate-50 hover:bg-slate-100 px-3 py-2">\${t}</button>\`)}</div></div>\`}
+        \${fil.map((m) => html\`<div class=\${cls("rounded-2xl px-3 py-2 whitespace-pre-wrap", m.de === "moi" ? "ml-8 bg-[var(--c)] text-white" : m.err ? "mr-8 bg-red-50 text-red-700" : "mr-8 bg-slate-100")}>\${m.t}</div>\`)}
+        \${busy && html\`<div class="mr-8 rounded-2xl px-3 py-2 bg-slate-100 text-slate-500">Je regarde tes données…</div>\`}<div ref=\${bas}/>
+      </div>
+      <form onSubmit=\${demander} class="p-3 border-t border-slate-100 flex gap-2"><input value=\${q} onInput=\${(e) => setQ(e.target.value)} placeholder="Ta question…" class="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-[var(--c)]"/><\${ui.Button} type="submit" disabled=\${busy || !q.trim()}>Envoyer</\${ui.Button}></form>
+    </div>\` : html\`<button onClick=\${() => setOpen(true)} class="flex items-center gap-2 rounded-full bg-[var(--c)] text-white px-4 py-3 shadow-lg hover:brightness-110 text-sm font-semibold"><\${Icone} nom="etoile" class="w-4 h-4"/>Demander à l'IA</button>\`}
+  </div>\`;
+}
+
+// ---------------------------------------------------------------- Démo animée : l'app se présente toute seule, écran par écran
+function Tour({ onFin }) {
+  const [i, setI] = useState(0);
+  useEffect(() => { nav(ECRANS[0]?.id); }, []);
+  useEffect(() => {
+    const t = setTimeout(() => { const n = (i + 1) % Math.max(1, ECRANS.length); nav(ECRANS[n]?.id); setI(n); }, 4500);
+    return () => clearTimeout(t);
+  }, [i]);
+  const e = ECRANS[i];
+  return html\`<div class="fixed top-0 inset-x-0 z-50"><div class="h-1 bg-[var(--c)]/20"><div key=\${i} class="h-1 bg-[var(--c)]" style="animation:barre 4.5s linear forwards"/></div>
+    <div class="mx-auto mt-3 w-fit max-w-[calc(100vw-2rem)] flex items-center gap-3 rounded-full bg-slate-900/90 text-white pl-4 pr-1.5 py-1.5 shadow-xl text-sm">
+      <span class="truncate"><b>\${i + 1}/\${ECRANS.length} · \${e?.titre}</b>\${e?.but ? " — " + e.but : ""}</span>
+      <button onClick=\${onFin} class="shrink-0 rounded-full bg-[var(--c)] px-3 py-1.5 font-semibold">Essayer gratuitement</button></div></div>\`;
+}
+
+function Appli({ user, etat, onLogout, tour, onFinTour }) {
   const [cur, setCur] = useState({ id: ECRANS[0]?.id, params: null }), [menu, setMenu] = useState(false), [toasts, setToasts] = useState([]);
-  nav = (id, params = null) => { if (id === "_abonnement" || ECRANS.some((e) => e.id === id)) { setCur({ id, params }); setMenu(false); } };
+  nav = (id, params = null) => { if (id === "_abonnement" || id === "_equipe" || ECRANS.some((e) => e.id === id)) { setCur({ id, params }); setMenu(false); } };
   useEffect(() => bus.on("toast", (t) => { setToasts((x) => [...x, t]); setTimeout(() => setToasts((x) => x.filter((y) => y.id !== t.id)), 3000); }), []);
-  const E = cur.id === "_abonnement" ? { id: "_abonnement", titre: "Mon abonnement", Comp: Abonnement } : ECRANS.find((e) => e.id === cur.id) ?? ECRANS[0];
+  const E = cur.id === "_abonnement" ? { id: "_abonnement", titre: "Mon abonnement", Comp: Abonnement } : cur.id === "_equipe" ? { id: "_equipe", titre: "Équipe", Comp: Equipe } : ECRANS.find((e) => e.id === cur.id) ?? ECRANS[0];
   if (!etat.acces) return html\`<\${Paywall} etat=\${etat} onLogout=\${onLogout}/>\`;
-  const Nav = () => html\`<nav class="space-y-0.5">\${ECRANS.map((e) => html\`<button onClick=\${() => nav(e.id)} class=\${cls("w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium", e.id === E?.id ? "bg-[var(--c)]/10 text-[var(--c)]" : "text-slate-600 hover:bg-slate-100")}><\${Icone} nom=\${e.icone} class="w-[18px] h-[18px]"/>\${e.titre}</button>\`)}</nav>\`;
+  const Nav = () => html\`<nav class="space-y-0.5">\${[...ECRANS, { id: "_equipe", titre: "Équipe", icone: "contacts", sep: true }].map((e) => html\`<button onClick=\${() => nav(e.id)} class=\${cls("w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium", e.sep && "mt-3", e.id === E?.id ? "bg-[var(--c)]/10 text-[var(--c)]" : "text-slate-600 hover:bg-slate-100")}><\${Icone} nom=\${e.icone} class="w-[18px] h-[18px]"/>\${e.titre}</button>\`)}</nav>\`;
   return html\`<div class="min-h-screen lg:flex">
     <aside class=\${cls("bg-white border-r border-slate-200 w-60 shrink-0 p-4 flex-col gap-6 lg:flex lg:sticky lg:top-0 lg:h-screen", menu ? "flex fixed inset-y-0 left-0 z-40" : "hidden")}>
       <div class="flex items-center gap-2 font-bold"><span class="w-8 h-8 rounded-xl bg-[var(--c)] text-white grid place-items-center">\${(S.nom ?? "S")[0]}</span>\${S.nom}</div>
@@ -187,23 +246,31 @@ function Appli({ user, etat, onLogout }) {
     \${menu && html\`<div class="fixed inset-0 z-30 bg-slate-900/30 lg:hidden" onClick=\${() => setMenu(false)}/>\`}
     <main class="flex-1 min-w-0"><div class="lg:hidden flex items-center justify-between bg-white border-b border-slate-200 px-4 py-3"><button onClick=\${() => setMenu(true)}><\${Icone} nom="menu"/></button><span class="font-bold">\${S.nom}</span><span class="w-5"/></div>
       <div class="max-w-6xl mx-auto p-5 sm:p-8">\${E ? html\`<\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} key=\${E.id + JSON.stringify(cur.params)} user=\${user} params=\${cur.params} etat=\${etat}/></\${Garde}>\` : null}</div></main>
-    <div class="fixed bottom-4 right-4 z-50 space-y-2">\${toasts.map((t) => html\`<div class=\${cls("anim rounded-xl px-4 py-2.5 text-sm text-white shadow-lg", t.type === "bad" ? "bg-red-600" : "bg-slate-900")}>\${t.msg}</div>\`)}</div>
+    \${tour ? html\`<\${Tour} onFin=\${onFinTour}/>\` : html\`<\${Assistant}/>\`}
+    <div class="fixed bottom-20 right-4 z-50 space-y-2">\${toasts.map((t) => html\`<div class=\${cls("anim rounded-xl px-4 py-2.5 text-sm text-white shadow-lg", t.type === "bad" ? "bg-red-600" : "bg-slate-900")}>\${t.msg}</div>\`)}</div>
   </div>\`;
 }
 
 function Racine() {
-  const [etat, setEtat] = useState(undefined), [auth, setAuth] = useState(null);
-  const verifier = (force) => token ? call("me", { verifier: !!force }).then((r) => setEtat(r), () => setEtat(null)) : setEtat(null);
+  const [etat, setEtat] = useState(undefined), [auth, setAuth] = useState(B.invite ? "signup" : null), [tour, setTour] = useState(false);
+  const verifier = (force) => token ? call("me", { verifier: !!force }).then((r) => { if (r.variante) VARIANTE = r.variante; setEtat(r); }, () => setEtat(null)) : setEtat(null);
   useEffect(() => {
-    verifier(B.retourPaiement);
+    if (B.tour) ouvrir("tour"); else verifier(B.retourPaiement);
     if (B.retourPaiement) setTimeout(() => toast("Merci ! Ton abonnement est activé."), 1200);
     const a = bus.on("auth", () => setEtat(null)), b = bus.on("acces", () => verifier(true));
     return () => { a(); b(); };
   }, []);
   const ok = (r) => { persist(r.token); setAuth(null); verifier(); };
-  const ouvrir = async (m) => { if (m === "demo") { try { ok(await call("demo")); } catch (x) { alert(x.message); } } else setAuth(m); };
+  // Démo animée : compte d'essai jetable, jamais gardé (la session de la personne n'est pas touchée)
+  const ouvrir = async (m) => {
+    if (m === "demo" || m === "tour") {
+      try { const r = await call("demo"); token = r.token; if (m === "demo") persist(r.token); setTour(m === "tour"); setEtat(undefined); await verifier(); } catch (x) { alert(x.message); setEtat(null); }
+    } else setAuth(m);
+  };
+  const finTour = () => { setTour(false); token = null; setEtat(null); setAuth("signup"); };
+  const sortir = async () => { try { await call("logout"); } catch (e) {} persist(null); setEtat(null); };
   if (etat === undefined) return html\`<\${ui.Loading}/>\`;
-  if (etat) return html\`<\${Appli} user=\${etat.user} etat=\${etat} onLogout=\${async () => { try { await call("logout"); } catch (e) {} persist(null); setEtat(null); }}/>\`;
+  if (etat) return html\`<\${Appli} user=\${etat.user} etat=\${etat} tour=\${tour} onFinTour=\${finTour} onLogout=\${tour ? finTour : sortir}/>\`;
   if (auth) return html\`<\${Auth} mode=\${auth} onDone=\${ok} onBack=\${() => setAuth(null)}/>\`;
   return html\`<\${Site} onAuth=\${ouvrir}/>\`;
 }

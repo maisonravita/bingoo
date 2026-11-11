@@ -25,7 +25,10 @@ const ILES = {
   amsud: { nom: "Amérique du Sud", c: "#3DAE76", sol: "#D5EEDD", u: -13, v: 22, w: 8, d: 8, liste: "AR BO BR CL CO EC GY PY PE SR UY VE FK GF" },
   afrique: { nom: "Afrique", c: "#E0692F", sol: "#F8DCC9", u: 3, v: 19, w: 9, d: 9, liste: "DZ AO BJ BW BF BI CM CV CF TD KM CG CD CI DJ EG GQ ER SZ ET GA GM GH GN GW KE LS LR LY MG MW ML MR MU MA MZ NA NE NG RW ST SN SC SL SO ZA SS SD TZ TG TN UG ZM ZW EH" },
   oceanie: { nom: "Océanie", c: "#2FA7BC", sol: "#D3EEF2", u: 24, v: 22, w: 8, d: 6, liste: "AU NZ FJ PG SB VU NC WS TO" },
+  // Les SaaS construits sur Bingoo! : un bâtiment par SaaS, un étage tous les 1 000 € de revenu mensuel vérifié, un phare à 10 000 €
+  createurs: { nom: "Île des créateurs", c: "#E0531F", sol: "#FCE3D6", u: -4, v: 34, w: 10, d: 8, liste: "" },
 };
+const hauteurApp = (mrr) => 1.6 + 1.25 * Math.min(14, Math.floor(Number(mrr || 0) / 1000));
 const ILE_DE = Object.fromEntries(Object.entries(ILES).flatMap(([k, i]) => i.liste.split(" ").map((c) => [c, k])));
 
 /** Petit moteur isométrique : U = taille d'une case en pixels. */
@@ -157,7 +160,8 @@ function Ile({ g, k, x, y, w, d, lots, max, onPays, sel, etiquettes, onClick, su
   const objets = [
     ...places.map(({ p, at }) => ({ t: at[0] + at[1], el: (
       <g key={p.pays} className={onPays ? "cursor-pointer" : undefined} onClick={onPays ? (e) => { e.stopPropagation(); onPays(p.pays); } : undefined}>
-        <Batiment g={g} x={at[0]} y={at[1]} h={1.6 + 9 * Math.sqrt(Number(p.n) / max)} c={ile.c} choisi={sel === p.pays} />
+        <Batiment g={g} x={at[0]} y={at[1]} h={p.app ? hauteurApp(p.mrr) : 1.6 + 9 * Math.sqrt(Number(p.n) / max)} c={p.app ? (p.couleur || ile.c) : ile.c} choisi={sel === p.pays} />
+        {p.app && Number(p.mrr) >= 10000 && <g.Phare x={at[0] + 2.3} y={at[1] + 0.2} />}
       </g>
     ) })),
     ...libres.flatMap((at, i) => [{ t: at[0] + at[1] + 0.5, el: <Arbre key={`a${i}`} x={at[0] + 1} y={at[1] + 1} s={1 + (i % 3) * 0.15} /> }, ...(i % 2 ? [{ t: at[0] + at[1] + 2, el: <Arbre key={`b${i}`} x={at[0] + 2.2} y={at[1] + 0.4} s={0.8} /> }] : [])]),
@@ -180,19 +184,21 @@ function Ile({ g, k, x, y, w, d, lots, max, onPays, sel, etiquettes, onClick, su
       <g.Phare x={x + w - 1.1} y={y + 0.3} />
       {objets.map((o) => o.el)}
       {etiquettes && places.map(({ p, at }) => {
-        const h = 1.6 + 9 * Math.sqrt(Number(p.n) / max);
+        const h = p.app ? hauteurApp(p.mrr) : 1.6 + 9 * Math.sqrt(Number(p.n) / max);
         const [px, py] = P(at[0] + 1.1, at[1] + 1.1, h + 1.9);
         const on = sel === p.pays;
+        const txt = p.app ? `${p.nom} · ${Math.round(Number(p.mrr)).toLocaleString("fr-FR")} €` : `${drapeau(p.pays)} ${p.n}`;
+        const lw = p.app ? Math.max(52, txt.length * 7 + 14) : 52;
         return <g key={`e${p.pays}`} transform={`translate(${px} ${py})`} className="cursor-pointer" onClick={(e) => { e.stopPropagation(); onPays?.(p.pays); }}>
-          <rect x={-26} y={-12} width={52} height={22} rx={11} fill={on ? "#fff" : "#16213A"} fillOpacity={on ? 1 : 0.88} stroke={ile.c} strokeWidth="1.4" />
-          <text y="4" textAnchor="middle" fontSize="12.5" fontWeight="800" fill={on ? "#16213A" : "#fff"}>{drapeau(p.pays)} {p.n}</text>
+          <rect x={-lw / 2} y={-12} width={lw} height={22} rx={11} fill={on ? "#fff" : "#16213A"} fillOpacity={on ? 1 : 0.88} stroke={ile.c} strokeWidth="1.4" />
+          <text y="4" textAnchor="middle" fontSize="12.5" fontWeight="800" fill={on ? "#16213A" : "#fff"}>{txt}</text>
         </g>;
       })}
     </g>
   );
 }
 
-export default function IsoMonde({ data, onVoir }) {
+export default function IsoMonde({ data, apps = [], onVoir, onApp }) {
   const [ile, setIle] = useState(null);
   const [sel, setSel] = useState(null);
   const [survol, setSurvol] = useState(null);
@@ -202,10 +208,12 @@ export default function IsoMonde({ data, onVoir }) {
     const out = Object.fromEntries(Object.keys(ILES).map((k) => [k, []]));
     for (const p of data ?? []) { const k = ILE_DE[p.pays]; if (k) out[k].push(p); }
     for (const k in out) out[k].sort((a, b) => b.n - a.n);
+    out.createurs = (apps ?? []).map((a) => ({ ...a, app: true, pays: a.slug, n: 1 })).sort((a, b) => Number(b.mrr) - Number(a.mrr));
     return out;
-  }, [data]);
+  }, [data, apps]);
   const max = Math.max(1, ...(data ?? []).map((p) => Number(p.n)));
   const total = (k) => parIle[k].reduce((s, p) => s + Number(p.n), 0);
+  const unite = (k) => k === "createurs" ? `${parIle[k].length} SaaS construits` : `${total(k)} SaaS · ${parIle[k].length} pays`;
 
   // Monde : les six îles. Île : la même île, agrandie pour loger tous ses pays.
   const scene = useMemo(() => {
@@ -229,7 +237,8 @@ export default function IsoMonde({ data, onVoir }) {
     const m = 40;
     return [Math.min(...xs) - m, Math.min(...ys) - m - 30, Math.max(...xs) - Math.min(...xs) + 2 * m, Math.max(...ys) - Math.min(...ys) + 2 * m + 40];
   }, [scene]);
-  const p = sel ? (data ?? []).find((q) => q.pays === sel) : null;
+  const p = sel && ile !== "createurs" ? (data ?? []).find((q) => q.pays === sel) : null;
+  const a = sel && ile === "createurs" ? parIle.createurs.find((q) => q.pays === sel) : null;
 
   return (
     <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-4">
@@ -239,7 +248,7 @@ export default function IsoMonde({ data, onVoir }) {
           {ile ? <button onClick={() => { setIle(null); setSel(null); }} className="rounded-full bg-white/90 px-3.5 py-1.5 text-[13px] font-bold text-ink shadow hover:bg-white">← Le monde</button>
             : <span className="rounded-full bg-white/90 px-3.5 py-1.5 text-[13px] font-bold text-ink shadow">Choisis une île</span>}
           <button onClick={() => setNuit(!nuit)} className="rounded-full bg-white/90 px-3.5 py-1.5 text-[13px] font-bold text-ink shadow hover:bg-white" title="Basculer jour / nuit">{nuit ? "☀ Jour" : "☾ Nuit"}</button>
-          {ile && <span className="rounded-full px-3.5 py-1.5 text-[13px] font-bold text-white shadow" style={{ background: ILES[ile].c }}>{ILES[ile].nom} · {total(ile)} SaaS · {parIle[ile].length} pays</span>}
+          {ile && <span className="rounded-full px-3.5 py-1.5 text-[13px] font-bold text-white shadow" style={{ background: ILES[ile].c }}>{ILES[ile].nom} · {unite(ile)}</span>}
         </div>
         <svg key={ile ?? "monde"} viewBox={vb.join(" ")} className="relative block w-full h-auto min-h-[360px] max-h-[640px] select-none" style={{ animation: "ile-in .55s cubic-bezier(.2,.8,.2,1) both" }} role="img" aria-label={ile ? `Île ${ILES[ile].nom}` : "Le monde des SaaS"}>
           <defs><linearGradient id="faisceau" x1="0" x2="1"><stop offset="0" stopColor="#FFF3C4" stopOpacity=".95" /><stop offset="1" stopColor="#FFF3C4" stopOpacity="0" /></linearGradient></defs>
@@ -259,7 +268,7 @@ export default function IsoMonde({ data, onVoir }) {
             if (!ile) {
               const par = Object.fromEntries(scene.items.map((it) => [it.k, it]));
               const centre = (it) => P(it.x + it.w / 2, it.y + it.d / 2, -1);
-              const routes = [["amnord", "europe"], ["europe", "asie"], ["amsud", "afrique"], ["afrique", "oceanie"], ["amnord", "amsud"], ["asie", "oceanie"], ["europe", "afrique"]];
+              const routes = [["amnord", "europe"], ["europe", "asie"], ["amsud", "afrique"], ["afrique", "oceanie"], ["amnord", "amsud"], ["asie", "oceanie"], ["europe", "afrique"], ["afrique", "createurs"], ["amsud", "createurs"]];
               return routes.map(([a, b], i) => {
                 const [x1, y1] = centre(par[a]), [x2, y2] = centre(par[b]);
                 const mx = (x1 + x2) / 2, my = (y1 + y2) / 2 + 40 + hasard(i) * 30;
@@ -279,14 +288,14 @@ export default function IsoMonde({ data, onVoir }) {
               onClick={ile ? undefined : () => setIle(it.k)} survol={survol} setSurvol={ile ? null : setSurvol} />
           ))}
           {!ile && scene.items.map((it) => {
-            const haut = parIle[it.k][0] ? 1.6 + 9 * Math.sqrt(Number(parIle[it.k][0].n) / max) : 1.5;
+            const haut = it.k === "createurs" ? hauteurApp(parIle[it.k][0]?.mrr) : parIle[it.k][0] ? 1.6 + 9 * Math.sqrt(Number(parIle[it.k][0].n) / max) : 1.5;
             const [px, py] = scene.g.P(it.x + it.w / 2, it.y + it.d / 2, haut + 3.2);
             const i = ILES[it.k];
             return (
               <g key={`b${it.k}`} transform={`translate(${px} ${py})`} className="cursor-pointer" onClick={() => setIle(it.k)} onMouseEnter={() => setSurvol(it.k)} onMouseLeave={() => setSurvol(null)}>
                 <rect x={-72} y={-24} width={144} height={42} rx={12} fill="#fff" stroke={i.c} strokeWidth="2.5" style={{ filter: "drop-shadow(0 6px 10px rgba(0,30,60,.35))" }} />
                 <text y="-6" textAnchor="middle" fontSize="14" fontWeight="800" fill="#16213A">{i.nom}</text>
-                <text y="11" textAnchor="middle" fontSize="12.5" fontWeight="700" fill={i.c}>{total(it.k)} SaaS · {parIle[it.k].length} pays</text>
+                <text y="11" textAnchor="middle" fontSize="12.5" fontWeight="700" fill={i.c}>{unite(it.k)}</text>
               </g>
             );
           })}
@@ -304,7 +313,20 @@ export default function IsoMonde({ data, onVoir }) {
       </div>
 
       <aside className="rounded-3xl bg-white border border-line p-5 min-h-[300px]">
-        {p ? (
+        {a ? (
+          <>
+            <button onClick={() => setSel(null)} className="text-[12.5px] text-ink-faint hover:text-ink">← Île des créateurs</button>
+            <p className="mt-3 grid h-12 w-12 place-items-center rounded-2xl text-white text-[22px] font-black" style={{ background: a.couleur || "#E0531F" }}>{String(a.nom ?? "S")[0]}</p>
+            <h2 className="mt-2 text-[24px] font-black" style={{ fontFamily: "var(--font-titre)" }}>{a.nom}</h2>
+            <p className="text-[13.5px] text-ink-soft">{a.pitch}</p>
+            <p className="mt-1 text-[12.5px] text-ink-faint">Créé par {a.createur}</p>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              {[[`${Math.round(Number(a.mrr)).toLocaleString("fr-FR")} €`, "par mois"], [a.abonnes, "abonnés"], [a.comptes, "comptes"]].map(([v, l]) => <div key={l} className="rounded-xl bg-paper py-2"><p className="text-[18px] font-black tnum">{v}</p><p className="text-[11.5px] text-ink-faint">{l}</p></div>)}
+            </div>
+            <p className="mt-2 text-[11.5px] text-ink-faint">Revenu vérifié dans Stripe. {Number(a.mrr) >= 10000 ? "Phare allumé : plus de 10 000 € par mois." : `Prochain étage à ${(Math.floor(Number(a.mrr) / 1000) + 1) * 1000} €.`}</p>
+            <button onClick={() => onApp?.(a)} className="mt-4 w-full rounded-xl bg-ink text-white py-2.5 text-[14px] font-bold hover:bg-black">Ouvrir {a.nom} ↗</button>
+          </>
+        ) : p ? (
           <>
             <button onClick={() => setSel(null)} className="text-[12.5px] text-ink-faint hover:text-ink">← {ILES[ile].nom}</button>
             <p className="mt-2 text-[40px] leading-none">{drapeau(p.pays)}</p>
@@ -324,15 +346,21 @@ export default function IsoMonde({ data, onVoir }) {
           </>
         ) : (
           <>
-            <h2 className="font-bold text-[17px]">{ile ? `${ILES[ile].nom} : ses pays` : "Le monde des SaaS"}</h2>
-            <p className="text-[12.5px] text-ink-faint">{ile ? "Clique sur un bâtiment : plus il est haut, plus le pays compte de SaaS." : "Chaque île est un continent, chaque bâtiment un pays. Clique sur une île pour y débarquer."}</p>
-            <ul className="mt-3 space-y-1">{(ile ? parIle[ile] : [...(data ?? [])].sort((a, b) => b.n - a.n)).slice(0, 12).map((q) => (
+            <h2 className="font-bold text-[17px]">{ile === "createurs" ? "Les SaaS construits sur Bingoo!" : ile ? `${ILES[ile].nom} : ses pays` : "Le monde des SaaS"}</h2>
+            <p className="text-[12.5px] text-ink-faint">{ile === "createurs" ? "Un étage tous les 1 000 € de revenu mensuel vérifié, un phare à 10 000 €." : ile ? "Clique sur un bâtiment : plus il est haut, plus le pays compte de SaaS." : "Chaque île est un continent, chaque bâtiment un pays. L'île orange : les SaaS construits sur Bingoo!."}</p>
+            {ile === "createurs" ? (
+              <ul className="mt-3 space-y-1">{parIle.createurs.slice(0, 15).map((q, i) => (
+                <li key={q.slug}><button onClick={() => setSel(q.pays)} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-paper">
+                  <span className="w-5 text-[12px] text-ink-faint tnum">{i + 1}</span><span className="h-5 w-5 rounded-md" style={{ background: q.couleur || "#E0531F" }} /><span className="flex-1 text-[14px] truncate">{q.nom}</span><span className="text-[13px] font-semibold tnum">{Math.round(Number(q.mrr)).toLocaleString("fr-FR")} €</span>
+                </button></li>
+              ))}{!parIle.createurs.length && <li className="text-[13px] text-ink-faint">Aucun SaaS affiché pour l'instant. Construis le tien dans « Lancer le mien » et coche « Afficher dans le monde ».</li>}</ul>
+            ) : <ul className="mt-3 space-y-1">{(ile ? parIle[ile] : [...(data ?? [])].sort((a, b) => b.n - a.n)).slice(0, 12).map((q) => (
               <li key={q.pays}><button onClick={() => { if (!ile) setIle(ILE_DE[q.pays]); setSel(q.pays); }} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-paper">
                 <span className="text-[18px]">{drapeau(q.pays)}</span><span className="flex-1 text-[14px] truncate">{nomPays(q.pays)}</span>
                 <span className="h-1.5 w-16 rounded-full bg-paper overflow-hidden"><span className="block h-full rounded-full" style={{ width: `${Math.max(6, (q.n / max) * 100)}%`, background: ILES[ILE_DE[q.pays]]?.c ?? "#999" }} /></span>
                 <span className="w-8 text-right text-[13px] font-semibold tnum">{q.n}</span>
               </button></li>
-            ))}</ul>
+            ))}</ul>}
             <p className="mt-3 text-[11.5px] text-ink-faint">Seuls les SaaS dont le pays est connu sont placés.</p>
           </>
         )}

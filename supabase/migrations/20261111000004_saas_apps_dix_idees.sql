@@ -1,0 +1,1 @@
+-- Appliquée via MCP : jumeau (saas_app_suggestions), équipes (espace_id, saas_app_invites), A/B (saas_app_vues), monde (saas_apps_monde), bourse (saas_bourse*), saas_endormis, articles (saas_app_article)

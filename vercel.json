@@ -15,6 +15,22 @@
     {
       "source": "/sitemap-saas.xml",
       "destination": "/api/saas?sitemap=1"
+    },
+    {
+      "source": "/a/:app",
+      "destination": "/api/article?app=:app"
+    },
+    {
+      "source": "/a/:app/:a",
+      "destination": "/api/article?app=:app&a=:a"
+    },
+    {
+      "source": "/blog",
+      "destination": "/api/article"
+    },
+    {
+      "source": "/blog/:a",
+      "destination": "/api/article?a=:a"
     }
   ]
 }

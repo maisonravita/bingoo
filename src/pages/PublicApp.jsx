@@ -1,20 +1,46 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import AppCadre from "../components/AppCadre";
+import AppCadre, { API } from "../components/AppCadre";
 import Splash from "../components/Splash";
 
-// Page publique d'un SaaS construit par Bingoo! : #/app/<slug>, ou son propre nom de domaine. L'application en plein écran.
+// Page publique d'un SaaS construit par Bingoo! : #/app/<slug>, ou son propre nom de domaine. L'application en plein écran,
+// installable sur téléphone et ordinateur (manifeste servi par Bingoo!, service worker minimal).
+const param = (k) => new URLSearchParams(window.location.href.split("?").slice(1).join("&").split("#")[0]).get(k);
+
 export default function PublicApp({ slug, domaine }) {
   const [app, setApp] = useState(undefined);
-  // Retour du paiement Stripe (?paiement=ok) : on le signale à l'app puis on nettoie l'adresse
-  const [retour] = useState(() => /paiement=ok/.test(window.location.href));
+  const [installer, setInstaller] = useState(null);
+  // Retour du paiement Stripe (?paiement=ok), invitation d'équipe (?invite=…), démo animée (?tour=1)
+  const [ctx] = useState(() => ({ retour: param("paiement") === "ok", invite: param("invite"), tour: param("tour") === "1" }));
   useEffect(() => {
-    if (retour) window.history.replaceState(null, "", window.location.href.replace(/[?&]paiement=ok/, ""));
+    if (ctx.retour || ctx.invite) window.history.replaceState(null, "", window.location.href.replace(/[?&](paiement=ok|invite=[a-f0-9]+)/g, ""));
     const q = domaine ? supabase.rpc("saas_app_par_domaine", { p_domaine: domaine }) : supabase.rpc("saas_app_public", { p_slug: slug });
     q.then(({ data }) => setApp(data ?? null));
   }, [slug, domaine]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (app?.spec?.nom) document.title = app.spec.nom; }, [app]);
+  useEffect(() => {
+    if (!app?.spec?.nom) return;
+    document.title = app.spec.nom;
+    const tete = (tag, attrs) => { const el = document.createElement(tag); Object.assign(el, attrs); document.head.appendChild(el); return el; };
+    const els = [
+      tete("link", { rel: "manifest", href: `${API}/${app.slug}/manifest`, crossOrigin: "anonymous" }),
+      tete("link", { rel: "apple-touch-icon", href: `${API}/${app.slug}/icone.svg` }),
+      tete("meta", { name: "theme-color", content: app.spec.couleur ?? "#4F46E5" }),
+      tete("meta", { name: "apple-mobile-web-app-capable", content: "yes" }),
+    ];
+    document.querySelectorAll('link[rel="icon"]').forEach((l) => { l.dataset.avant = l.href; l.href = `${API}/${app.slug}/icone.svg`; });
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw-app.js").catch(() => {});
+    const ecoute = (e) => { e.preventDefault(); setInstaller(e); };
+    window.addEventListener("beforeinstallprompt", ecoute);
+    return () => { els.forEach((x) => x.remove()); window.removeEventListener("beforeinstallprompt", ecoute); };
+  }, [app?.slug]); // eslint-disable-line react-hooks/exhaustive-deps
   if (app === undefined) return <Splash />;
   if (!app) return <div className="min-h-screen grid place-items-center bg-paper text-ink-soft p-6 text-center"><p>Cette application n'existe pas ou n'est plus en ligne.</p></div>;
-  return <AppCadre slug={app.slug} spec={app.spec} version={app.version} paiement={app.paiement} domaine={app.domaine} retourPaiement={retour} className="fixed inset-0 w-full h-full border-0" />;
+  return (
+    <>
+      <AppCadre slug={app.slug} spec={app.spec} version={app.version} paiement={app.paiement} domaine={app.domaine} ab={app.ab} articles={app.articles} retourPaiement={ctx.retour} invite={ctx.invite} tour={ctx.tour} className="fixed inset-0 w-full h-full border-0" />
+      {installer && (
+        <button onClick={async () => { installer.prompt(); await installer.userChoice.catch(() => null); setInstaller(null); }} className="fixed bottom-4 left-4 z-10 rounded-full bg-white/95 shadow-lg ring-1 ring-black/10 px-4 py-2.5 text-[13.5px] font-semibold text-[#0F172A]">⬇ Installer l'application</button>
+      )}
+    </>
+  );
 }

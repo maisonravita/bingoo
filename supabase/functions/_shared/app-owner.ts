@@ -1,6 +1,6 @@
 // Réglages d'un SaaS construit par Bingoo!, côté créateur : encaissement (Stripe), nom de domaine (Vercel), chiffres.
 // deno-lint-ignore-file no-explicit-any
-import { admin } from "./core.ts";
+import { admin, ask, askJson } from "./core.ts";
 import { HttpError } from "./http.ts";
 
 // ---------------------------------------------------------------- Paiement
@@ -98,4 +98,108 @@ export async function appChiffres(appId: string) {
     abonnes: abonnes.length,
     mrr: Math.round(abonnes.reduce((a: number, u: any) => a + (prix[u.abonnement?.formule] ?? 0), 0) * 100) / 100,
   };
+}
+
+// ---------------------------------------------------------------- Le jumeau : ce que sort le SaaS d'inspiration, à ajouter au sien
+
+export async function appJumeau(appId: string) {
+  const { data: app } = await admin.from("saas_apps").select("id, workspace_id, spec, projet_id").eq("id", appId).single();
+  const { data: pr } = await admin.from("saas_projets").select("data, saas_id").eq("id", app!.projet_id).single();
+  const insp = (pr?.data as any)?.inspire ?? {};
+  if (!insp.domaine) return { nouvelles: 0 };
+  const { data: s } = await admin.from("saas").select("id, nom, domaine, prix_entree_eur, formules, liens").eq("domaine", insp.domaine).maybeSingle();
+  const { data: evs } = s ? await admin.from("saas_evenements").select("type, avant, apres, at").eq("saas_id", s.id).gte("at", new Date(Date.now() - 45 * 864e5).toISOString()).order("at", { ascending: false }).limit(10) : { data: [] };
+  const { data: deja } = await admin.from("saas_app_suggestions").select("titre").eq("app_id", appId).gte("at", new Date(Date.now() - 365 * 864e5).toISOString());
+  const spec = (app?.spec ?? {}) as any;
+  const nomInsp = insp.nom ?? insp.domaine;
+  // Recherche web : nouveautés publiées récemment (changelog, blog produit, annonces)
+  const notes = await ask(`Quelles nouvelles fonctionnalités ou changements de produit ${nomInsp} (${insp.domaine}) a-t-il annoncés ou publiés ces 60 derniers jours ? Cherche son changelog, ses notes de version, son blog produit. Liste chaque nouveauté avec sa date et l'adresse de la page source. Si rien de récent, dis-le.`,
+    { tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }], maxTokens: 1800 }).catch(() => "");
+  const r = await askJson<{ suggestions: { type: string; titre: string; detail: string; source: string | null }[] }>(`Le SaaS « ${spec.nom} » est un concurrent de ${nomInsp}. Il a ces écrans : ${(spec.ecrans ?? []).map((e: any) => `${e.titre} (${(e.fonctions ?? []).join(", ")})`).join(" ; ")}.
+Nouveautés récentes de ${nomInsp} (recherche web) :
+${String(notes).slice(0, 5000)}
+Changements relevés par Bingoo! sur son site : ${(evs ?? []).map((e: any) => `${e.type} ${e.avant ?? ""} → ${e.apres ?? ""} (${String(e.at).slice(0, 10)})`).join(" ; ") || "aucun"}.
+Déjà proposé : ${(deja ?? []).map((d: any) => d.titre).join(" ; ") || "rien"}.
+
+Rends { suggestions : 0 à 3 objets type ("fonction" ou "prix"), titre (« Ajouter … », 8 mots au plus), detail (2 phrases : ce que ${nomInsp} a sorti, et ce qu'il faut ajouter à ${spec.nom}, décrit avec tes mots pour un développeur), source (adresse de la page, ou null) }.
+Seulement des nouveautés réelles et datées des 60 derniers jours, utiles à ${spec.nom} et qu'il n'a pas déjà. Aucune si rien de solide.`, { fast: true, maxTokens: 1200 });
+  const nouv = (r.suggestions ?? []).filter((x) => x?.titre && !(deja ?? []).some((d: any) => d.titre.toLowerCase() === String(x.titre).toLowerCase())).slice(0, 3);
+  if (nouv.length) {
+    await admin.from("saas_app_suggestions").insert(nouv.map((x) => ({ app_id: appId, type: x.type === "prix" ? "prix" : "fonction", titre: String(x.titre).slice(0, 120), detail: String(x.detail ?? "").slice(0, 800), source: x.source && /^https?:\/\//.test(x.source) ? x.source : null })));
+    await admin.from("activity").insert({ workspace_id: app!.workspace_id, kind: "jumeau", summary: `${nomInsp} a bougé : ${nouv.length} idée${nouv.length > 1 ? "s" : ""} à ajouter à ${spec.nom}` });
+  }
+  await admin.from("saas_apps").update({ jumeau_at: new Date().toISOString() }).eq("id", appId);
+  return { nouvelles: nouv.length };
+}
+
+// ---------------------------------------------------------------- Kit de lancement : articles (pages indexables), e-mails
+export async function appLancement(appId: string) {
+  const { data: app } = await admin.from("saas_apps").select("spec, projet_id, slug").eq("id", appId).single();
+  const { data: pr } = await admin.from("saas_projets").select("data").eq("id", app!.projet_id).single();
+  const s = (app?.spec ?? {}) as any, p = (pr?.data ?? {}) as any;
+  const r = await askJson<any>(`Prépare le lancement en France du SaaS « ${s.nom} » : ${s.pitch}
+Pour : ${s.cible}. Besoin : ${s.probleme}. Concurrent principal : ${p.inspire?.nom ?? "?"}. Prix : ${(s.formules ?? []).map((f: any) => `${f.nom} ${f.prix} €/mois`).join(", ")}.
+Rends un objet JSON :
+- articles : 3 objets slug (court, mots-clés, tirets), titre (ce que la cible tape dans Google, ex. « Alternative à … », « Comment … »), resume (une phrase), mots_cles (3 à 5), contenu (500 à 700 mots en Markdown simple : ## titres, paragraphes, listes « - », gras **…** ; utile et honnête, sans chiffres inventés, qui présente ${s.nom} comme une solution parmi d'autres et finit par un appel à l'essai gratuit).
+- emails : 3 objets but (« Prospection à froid », « Annonce à ton réseau », « Relance »), sujet, corps (80 à 140 mots, tutoiement pour le réseau et vouvoiement pour la prospection, avec {prenom} et {entreprise} comme champs à remplacer, sans promesse invérifiable, avec une ligne de désinscription pour la prospection).
+- plan : 6 étapes courtes pour les 30 premiers jours (canal + action concrète).`, { maxTokens: 9000 });
+  const articles = (r.articles ?? []).slice(0, 3).map((a: any, i: number) => ({ slug: String(a.slug ?? `article-${i + 1}`).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 70) || `article-${i + 1}`, titre: String(a.titre ?? "").slice(0, 120), resume: String(a.resume ?? "").slice(0, 240), mots_cles: (a.mots_cles ?? []).slice(0, 5), contenu: String(a.contenu ?? "").slice(0, 9000), at: new Date().toISOString() }));
+  const lancement = { articles, emails: (r.emails ?? []).slice(0, 3), plan: (r.plan ?? []).slice(0, 8), at: new Date().toISOString() };
+  await admin.from("saas_apps").update({ lancement }).eq("id", appId);
+  return lancement;
+}
+
+// ---------------------------------------------------------------- Test de prix A/B
+export async function appAb(appId: string, b: any) {
+  const { data: app } = await admin.from("saas_apps").select("ab, spec, version").eq("id", appId).single();
+  const ab = { ...((app?.ab ?? {}) as any) };
+  if (b.appliquer) {
+    // Le gagnant devient le prix de toutes les formules ; le test s'arrête
+    if (b.appliquer === "B" && ab.ecart) {
+      const spec = { ...(app!.spec as any) };
+      spec.formules = (spec.formules ?? []).map((f: any) => ({ ...f, prix: Math.round(Number(f.prix) * (1 + Number(ab.ecart) / 100)) }));
+      await admin.from("saas_apps").update({ spec, version: (app!.version ?? 1) + 1 }).eq("id", appId);
+    }
+    await admin.from("saas_apps").update({ ab: { actif: false, termine: b.appliquer, at: new Date().toISOString() } }).eq("id", appId);
+    return appAbResultats(appId);
+  }
+  if (b.actif !== undefined) { ab.actif = !!b.actif; if (b.actif) ab.debut = new Date().toISOString(); }
+  if (b.ecart !== undefined) ab.ecart = Math.max(-50, Math.min(100, Math.round(Number(b.ecart) || 20)));
+  await admin.from("saas_apps").update({ ab }).eq("id", appId);
+  return appAbResultats(appId);
+}
+export async function appAbResultats(appId: string) {
+  const { data: app } = await admin.from("saas_apps").select("ab").eq("id", appId).single();
+  const ab = (app?.ab ?? {}) as any;
+  const depuis = ab.debut ?? "1970-01-01";
+  const [{ data: vues }, { data: us }] = await Promise.all([
+    admin.from("saas_app_vues").select("variante, vues").eq("app_id", appId).gte("jour", String(depuis).slice(0, 10)),
+    admin.from("saas_app_users").select("variante, abonnement, at").eq("app_id", appId).eq("role", "admin").not("email", "like", "demo-%@demo.local").gte("at", depuis),
+  ]);
+  const res: Record<string, { vues: number; inscrits: number; abonnes: number; revenu: number }> = { A: { vues: 0, inscrits: 0, abonnes: 0, revenu: 0 }, B: { vues: 0, inscrits: 0, abonnes: 0, revenu: 0 } };
+  for (const v of (vues ?? []) as any[]) if (res[v.variante]) res[v.variante].vues += v.vues;
+  for (const u of (us ?? []) as any[]) {
+    const k = u.variante === "B" ? "B" : "A";
+    res[k].inscrits++;
+    if (["active", "past_due"].includes(u.abonnement?.statut)) { res[k].abonnes++; res[k].revenu += Number(u.abonnement?.montant ?? 0); }
+  }
+  // Gagnant : revenu par visite, puis inscriptions par visite ; 100 visites par variante au moins
+  const parVisite = (k: string) => res[k].vues ? (res[k].revenu || res[k].inscrits / 1000) / res[k].vues : 0;
+  const assez = res.A.vues >= 100 && res.B.vues >= 100;
+  return { ...ab, resultats: res, gagnant: assez ? (parVisite("B") > parVisite("A") ? "B" : "A") : null, assez };
+}
+
+// ---------------------------------------------------------------- Monde, classement et bourse
+export async function appPublic(appId: string, oui: boolean) {
+  await admin.from("saas_apps").update({ public: !!oui }).eq("id", appId);
+  return { public: !!oui };
+}
+export async function appBourse(appId: string, b: any) {
+  if (b.retirer) { await admin.from("saas_bourse").update({ statut: "retire" }).eq("app_id", appId); return { statut: "retire" }; }
+  const prix = Math.round(Number(b.prix));
+  if (!(prix >= 100 && prix <= 10_000_000)) throw new HttpError(400, "Prix de vente entre 100 € et 10 M€");
+  const { data: app } = await admin.from("saas_apps").select("public").eq("id", appId).single();
+  if (!app?.public) await admin.from("saas_apps").update({ public: true }).eq("id", appId);
+  await admin.from("saas_bourse").upsert({ app_id: appId, prix, description: String(b.description ?? "").slice(0, 1500), statut: "en_vente", at: new Date().toISOString() }, { onConflict: "app_id" });
+  return { statut: "en_vente", prix };
 }

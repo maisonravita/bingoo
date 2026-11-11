@@ -7,7 +7,7 @@ import CompanyLogo from "../components/CompanyLogo";
 import { LineChart } from "../components/Charts";
 import { lazy, Suspense } from "react";
 const IsoMonde = lazy(() => import("../components/IsoMonde"));
-import AppCadre, { API, lienApp } from "../components/AppCadre";
+import AppCadre, { API, blogApp, lienApp } from "../components/AppCadre";
 import { cx } from "../lib/utils";
 
 // Explorer : la base de SaaS de Bingoo! (le « TrendTrack des SaaS »). Liste filtrable, puis fiche détaillée par logiciel.
@@ -44,13 +44,16 @@ export default function Explorer({ domaine: fixe }) {
   if (d === "carte") return <><Onglets actif="carte" /><Carte /></>;
   if (d === "pubs") return <><Onglets actif="pubs" /><Pubs /></>;
   if (d === "idees") return <><Onglets actif="idees" /><Idees /></>;
+  if (d === "createurs") return <><Onglets actif="createurs" /><Createurs /></>;
+  if (d === "bourse") return <><Onglets actif="bourse" /><Bourse /></>;
+  if (d === "racheter") return <><Onglets actif="racheter" /><Racheter /></>;
   if (d === "comparer") return <Comparer />;
   return d ? <Fiche domaine={d} /> : <><Onglets actif="liste" /><Liste /></>;
 }
 
 function Onglets({ actif }) {
   const nav = useNavigate();
-  const T = [["liste", "SaaS", "/explorer"], ["carte", "Le monde", "/explorer/carte"], ["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"], ["marche", "Pays et tendances", "/explorer/marche"], ["pubs", "Pubs et e-mails", "/explorer/pubs"], ["idees", "Idées et réussites", "/explorer/idees"]];
+  const T = [["liste", "SaaS", "/explorer"], ["carte", "Le monde", "/explorer/carte"], ["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"], ["marche", "Pays et tendances", "/explorer/marche"], ["pubs", "Pubs et e-mails", "/explorer/pubs"], ["idees", "Idées et réussites", "/explorer/idees"], ["createurs", "Mes SaaS et classement", "/explorer/createurs"], ["bourse", "Bourse", "/explorer/bourse"], ["racheter", "À racheter", "/explorer/racheter"]];
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
       <div className="inline-flex max-w-full overflow-x-auto rounded-xl bg-white border border-line p-1">
@@ -956,7 +959,7 @@ function Construire({ projet }) {
   const [ecran, setEcran] = useState("");
   const [demande, setDemande] = useState("");
   const [envoi, setEnvoi] = useState(false);
-  const charger = () => supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, version, maj, paiement, domaine, domaine_statut").eq("projet_id", projet.id).maybeSingle().then(({ data }) => { setApp(data ?? null); return data; });
+  const charger = () => supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, version, maj, paiement, domaine, domaine_statut, public, jumeau_at, lancement, ab, email_dom").eq("projet_id", projet.id).maybeSingle().then(({ data }) => { setApp(data ?? null); return data; });
   useEffect(() => { charger(); }, [projet.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Construction ou modification en tâche de fond : on interroge la base toutes les 5 secondes
   useEffect(() => {
@@ -1021,7 +1024,7 @@ function Construire({ projet }) {
         <div className="mt-6 grid lg:grid-cols-[1fr_300px] gap-4">
           <div className="rounded-2xl overflow-hidden bg-white ring-1 ring-white/10">
             <div className="flex items-center gap-2 bg-[#E8E5DE] px-3 py-2"><span className="flex gap-1.5">{["#F87171", "#FBBF24", "#34D399"].map((c) => <span key={c} className="h-2.5 w-2.5 rounded-full" style={{ background: c }} />)}</span><span className="flex-1 truncate rounded-md bg-white px-2 py-0.5 text-[12px] text-ink-faint">{lien.replace(/^https?:\/\//, "")}</span></div>
-            <Suspense fallback={<div className="h-[620px] grid place-items-center"><Spinner /></div>}><AppCadre slug={app.slug} spec={app.spec} version={app.version} paiement={app.paiement} domaine={app.domaine_statut === "ok" ? app.domaine : null} className="block w-full h-[620px] border-0" apercu /></Suspense>
+            <Suspense fallback={<div className="h-[620px] grid place-items-center"><Spinner /></div>}><AppCadre slug={app.slug} spec={app.spec} version={app.version} paiement={app.paiement} ab={app.ab} articles={app.lancement?.articles ?? []} domaine={app.domaine_statut === "ok" ? app.domaine : null} className="block w-full h-[620px] border-0" apercu /></Suspense>
           </div>
           <form onSubmit={modifier} className="rounded-2xl bg-white/5 border border-white/10 p-4 flex flex-col gap-3">
             <p className="font-bold">Modifier en une phrase</p>
@@ -1038,87 +1041,396 @@ function Construire({ projet }) {
           </form>
         </div>
       )}
-      {pret && <ReglagesApp app={app} onChange={charger} />}
+      {pret && <ReglagesApp app={app} onChange={charger} projet={projet} />}
     </section>
   );
 }
 
-// Réglages d'un SaaS construit : ses chiffres, l'encaissement des abonnements (Stripe du créateur), son nom de domaine, son code
-function ReglagesApp({ app, onChange }) {
+// Réglages d'un SaaS construit, par onglets : jumeau, lancement, encaissement, prix testés, e-mails, domaine, monde et bourse, code
+const ONGLETS_APP = [["jumeau", "Jumeau"], ["lancement", "Lancement"], ["encaisser", "Encaisser"], ["prix", "Prix testés"], ["emails", "E-mails"], ["domaine", "Domaine"], ["monde", "Monde et bourse"], ["code", "Code"]];
+function ReglagesApp({ app, onChange, projet }) {
   const { ws } = useWs();
   const toast = useToast();
+  const [onglet, setOnglet] = useState("jumeau");
   const [ch, setCh] = useState(null);
-  const [cle, setCle] = useState("");
-  const [essai, setEssai] = useState(app.paiement?.essai_jours ?? 14);
-  const [dom, setDom] = useState(app.domaine ?? "");
-  const [dns, setDns] = useState(null);
   const [busy, setBusy] = useState("");
-  const pay = app.paiement ?? {};
   const appel = (quoi, extra = {}) => fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi, ...extra });
   useEffect(() => { appel("chiffres").then(setCh, () => setCh(null)); }, [app.id, app.version]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (app.domaine && app.domaine_statut !== "ok") appel("domaine-verifier").then((r) => { setDns(r.dns); if (r.statut === "ok") onChange(); }, () => {}); }, [app.domaine]); // eslint-disable-line react-hooks/exhaustive-deps
-  const agir = async (k, f, ok) => { setBusy(k); try { await f(); if (ok) toast(ok); await onChange(); } catch (x) { toast(x.message, "bad"); } finally { setBusy(""); } };
-  const champ = "w-full rounded-xl bg-white/10 border border-white/15 px-3 py-2 text-[14px] outline-none placeholder:text-white/35";
-  const btn = "rounded-xl bg-white/10 px-4 py-2 text-[13.5px] font-semibold hover:bg-white/20 disabled:opacity-50";
+  const agir = async (k, f, ok) => { setBusy(k); try { const r = await f(); if (ok) toast(ok); await onChange(); return r; } catch (x) { toast(x.message, "bad"); } finally { setBusy(""); } };
+  const props = { app, appel, agir, busy, projet, onChange };
   return (
-    <div className="mt-4 grid lg:grid-cols-4 gap-4">
-      <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-        <p className="font-bold">Tes chiffres</p>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          {[[ch?.comptes ?? "—", "comptes"], [ch?.nouveaux_7j ?? "—", "cette semaine"], [ch?.abonnes ?? "—", "abonnés"], [ch ? eurs(ch.mrr) : "—", "par mois"]].map(([v, l]) => <div key={l} className="rounded-xl bg-white/5 p-2.5"><p className="text-[20px] font-black tnum" style={HF}>{v}</p><p className="text-[11.5px] text-white/50">{l}</p></div>)}
-        </div>
-        <p className="mt-2 text-[12px] text-white/45">Comptes de démonstration exclus. Pas de nombre maximal de comptes.</p>
+    <div className="mt-4 rounded-2xl bg-white/5 border border-white/10">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/10 rounded-t-2xl overflow-hidden">
+        {[[ch?.comptes ?? "—", "comptes"], [ch?.nouveaux_7j ?? "—", "nouveaux cette semaine"], [ch?.abonnes ?? "—", "abonnés"], [ch ? eurs(ch.mrr) : "—", "revenu mensuel vérifié"]].map(([v, l]) => <div key={l} className="bg-ink px-4 py-3"><p className="text-[22px] font-black tnum" style={HF}>{v}</p><p className="text-[12px] text-white/50">{l}</p></div>)}
       </div>
-
-      <div className="rounded-2xl bg-white/5 border border-white/10 p-4 flex flex-col gap-2.5">
-        <p className="font-bold">Encaisser les abonnements</p>
-        {pay.compte ? (
-          <>
-            <p className="text-[13.5px] text-white/75">Stripe branché : <b className="text-white">{pay.compte}</b>{pay.test && <span className="ml-1.5 rounded bg-[#F6A06B]/25 px-1.5 py-0.5 text-[11px] font-bold text-[#F6A06B]">MODE TEST</span>}</p>
-            <label className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" checked={!!pay.actif} disabled={!!busy} onChange={(e) => agir("actif", () => appel("paiement", { actif: e.target.checked }), e.target.checked ? "Abonnements activés" : "Application gratuite")} />Abonnement obligatoire après l'essai</label>
-            <label className="flex items-center gap-2 text-[13.5px]">Essai gratuit <input type="number" min={0} max={60} value={essai} onChange={(e) => setEssai(e.target.value)} onBlur={() => Number(essai) !== Number(pay.essai_jours ?? 14) && agir("essai", () => appel("paiement", { essai_jours: Number(essai) }), "Durée d'essai enregistrée")} className="w-16 rounded-lg bg-white/10 border border-white/15 px-2 py-1 text-[13.5px]" /> jours</label>
-            <button disabled={!!busy} onClick={() => { if (confirm("Débrancher Stripe ? L'application redevient gratuite.")) agir("cle", () => appel("paiement", { cle: "" }), "Stripe débranché"); }} className="self-start text-[12.5px] text-white/50 underline">Débrancher Stripe</button>
-          </>
-        ) : (
-          <>
-            <p className="text-[13px] text-white/65">L'argent arrive directement sur ton compte Stripe. Colle ta clé secrète (Stripe → Développeurs → Clés API). Elle reste sur le serveur, personne ne peut la relire.</p>
-            <input value={cle} onChange={(e) => setCle(e.target.value)} placeholder="sk_live_… ou sk_test_…" className={champ} autoComplete="off" />
-            <button disabled={!!busy || cle.trim().length < 20} onClick={() => agir("cle", async () => { await appel("paiement", { cle: cle.trim(), actif: true }); setCle(""); }, "Stripe branché : tes clients paieront après l'essai")} className="rounded-xl bg-accent px-4 py-2 text-[13.5px] font-bold hover:bg-accent-dark disabled:opacity-50">{busy === "cle" ? "Vérification…" : "Brancher Stripe"}</button>
-          </>
-        )}
+      <div className="flex gap-1 overflow-x-auto px-3 pt-3 border-b border-white/10">
+        {ONGLETS_APP.map(([k, l]) => <button key={k} onClick={() => setOnglet(k)} className={cx("shrink-0 rounded-t-lg px-3 py-2 text-[13.5px] font-semibold", onglet === k ? "bg-white/10 text-white" : "text-white/55 hover:text-white")}>{l}</button>)}
       </div>
+      <div className="p-4 sm:p-5">
+        {onglet === "jumeau" && <OngletJumeau {...props} />}
+        {onglet === "lancement" && <OngletLancement {...props} />}
+        {onglet === "encaisser" && <OngletEncaisser {...props} />}
+        {onglet === "prix" && <OngletPrix {...props} />}
+        {onglet === "emails" && <OngletEmails {...props} />}
+        {onglet === "domaine" && <OngletDomaine {...props} />}
+        {onglet === "monde" && <OngletMonde {...props} />}
+        {onglet === "code" && <OngletCode {...props} />}
+      </div>
+    </div>
+  );
+}
+const champSombre = "w-full rounded-xl bg-white/10 border border-white/15 px-3 py-2 text-[14px] outline-none placeholder:text-white/35";
+const btnSombre = "rounded-xl bg-white/10 px-4 py-2 text-[13.5px] font-semibold hover:bg-white/20 disabled:opacity-50";
+const btnAccent = "rounded-xl bg-accent px-4 py-2 text-[13.5px] font-bold hover:bg-accent-dark disabled:opacity-50";
+const Explication = ({ children }) => <p className="text-[13.5px] text-white/65 max-w-3xl">{children}</p>;
+const TableDns = ({ dns }) => <table className="mt-2 w-full font-mono text-[11.5px]"><thead><tr className="text-left text-white/45"><th className="py-1 font-medium">Type</th><th className="font-medium">Nom</th><th className="font-medium">Valeur</th></tr></thead><tbody>{dns.map((r, i) => <tr key={i} className="border-t border-white/10 align-top"><td className="py-1 pr-2">{r.type}{r.ok ? " ✓" : ""}</td><td className="pr-2 break-all">{r.nom}</td><td className="break-all">{r.valeur}{r.priorite != null ? ` (priorité ${r.priorite})` : ""}</td></tr>)}</tbody></table>;
 
-      <div className="rounded-2xl bg-white/5 border border-white/10 p-4 flex flex-col gap-2.5">
-        <p className="font-bold">Ton nom de domaine</p>
-        {app.domaine ? (
-          <>
-            <p className="text-[13.5px]"><b>{app.domaine}</b> <span className={cx("ml-1 rounded px-1.5 py-0.5 text-[11px] font-bold", app.domaine_statut === "ok" ? "bg-[#15803D]/30 text-[#86EFAC]" : "bg-[#F6A06B]/25 text-[#F6A06B]")}>{app.domaine_statut === "ok" ? "EN LIGNE" : "EN ATTENTE DU DNS"}</span></p>
-            {app.domaine_statut !== "ok" && dns && (
-              <div className="text-[12.5px] text-white/70">
-                <p>Chez ton registraire (OVH, Gandi, IONOS…), ajoute :</p>
-                <table className="mt-1 w-full font-mono text-[11.5px]"><tbody>{dns.map((r, i) => <tr key={i} className="border-t border-white/10"><td className="py-1 pr-2">{r.type}</td><td className="pr-2">{r.nom}</td><td className="break-all">{r.valeur}</td></tr>)}</tbody></table>
-                <p className="mt-1 text-white/45">La propagation prend de quelques minutes à quelques heures.</p>
-              </div>
-            )}
-            <div className="flex gap-2">
-              {app.domaine_statut !== "ok" && <button disabled={!!busy} onClick={() => agir("verif", async () => { const r = await appel("domaine-verifier"); setDns(r.dns); if (r.statut !== "ok") throw new Error("Pas encore : le DNS ne pointe pas vers Bingoo!"); }, "Domaine en ligne")} className={btn}>{busy === "verif" ? "Vérification…" : "Vérifier"}</button>}
-              <button disabled={!!busy} onClick={() => { if (confirm(`Retirer ${app.domaine} ?`)) agir("dom", () => appel("domaine", { domaine: "" }), "Domaine retiré"); }} className={btn}>Retirer</button>
+// 1. Le jumeau : ce que sort le SaaS d'inspiration, à ajouter en un clic
+function OngletJumeau({ app, appel, agir, busy, projet, onChange }) {
+  const { ws } = useWs();
+  const toast = useToast();
+  const [sg, setSg] = useState(null);
+  const charger = () => supabase.from("saas_app_suggestions").select("*").eq("app_id", app.id).order("at", { ascending: false }).limit(30).then(({ data }) => setSg(data ?? []));
+  useEffect(() => { charger(); }, [app.id, app.version]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ajouter = async (x) => {
+    try {
+      await fn("r/saas-app-modifier", { workspace_id: ws.id, app_id: app.id, ecran: "nouveau", demande: `${x.titre}. ${x.detail ?? ""}` });
+      await supabase.from("saas_app_suggestions").update({ statut: "ajoutee" }).eq("id", x.id);
+      toast("Bingoo! code cet écran : une minute environ"); charger(); onChange();
+    } catch (e) { toast(e.message, "bad"); }
+  };
+  const ignorer = async (x) => { await supabase.from("saas_app_suggestions").update({ statut: "ignoree" }).eq("id", x.id); charger(); };
+  const nomInsp = projet?.inspire?.nom ?? "ton modèle";
+  return (
+    <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <Explication>Bingoo! surveille {nomInsp} chaque semaine. Quand il sort une nouveauté, tu la retrouves ici : un clic et Bingoo! l'ajoute à {app.spec.nom}, avec tes mots.</Explication>
+        <button disabled={!!busy} onClick={() => agir("jumeau", async () => { const r = await appel("jumeau"); await charger(); if (!r.nouvelles) toast(`Rien de nouveau chez ${nomInsp} pour l'instant`); }, null)} className={btnSombre}>{busy === "jumeau" ? "Recherche…" : "Vérifier maintenant"}</button>
+      </div>
+      <div className="mt-4 space-y-2">
+        {sg === null ? <Spinner /> : !sg.filter((x) => x.statut !== "ignoree").length ? <p className="text-[13.5px] text-white/45">Aucune nouveauté repérée chez {nomInsp} pour l'instant. Prochaine vérification automatique dans la semaine{app.jumeau_at ? "" : " (la première a lieu sous 24 heures)"}.</p> : sg.filter((x) => x.statut !== "ignoree").map((x) => (
+          <div key={x.id} className="rounded-xl bg-white/[.06] p-4 flex flex-wrap items-start gap-3">
+            <div className="flex-1 min-w-[240px]">
+              <p className="font-bold">{x.type === "prix" ? "💶 " : "✨ "}{x.titre}</p>
+              <p className="mt-0.5 text-[13.5px] text-white/70">{x.detail}</p>
+              <p className="mt-1 text-[12px] text-white/40">{new Date(x.at).toLocaleDateString("fr-FR")}{x.source && <> · <a href={x.source} target="_blank" rel="noreferrer" className="underline">source</a></>}</p>
             </div>
+            {x.statut === "ajoutee" ? <span className="rounded-lg bg-[#15803D]/30 px-2.5 py-1 text-[12px] font-bold text-[#86EFAC]">AJOUTÉ</span> : x.type === "fonction" ? (
+              <div className="flex gap-2"><button onClick={() => ajouter(x)} disabled={app.statut === "en_cours"} className={btnAccent}>L'ajouter à {app.spec.nom}</button><button onClick={() => ignorer(x)} className={btnSombre}>Ignorer</button></div>
+            ) : <button onClick={() => ignorer(x)} className={btnSombre}>Vu</button>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 5. Lancement : articles indexables, qui démarcher, e-mails de lancement, démo animée, plan de 30 jours
+function OngletLancement({ app, appel, agir, busy, projet }) {
+  const toast = useToast();
+  const l = app.lancement;
+  const dom = app.domaine_statut === "ok" ? app.domaine : null;
+  const blog = blogApp(app.slug, dom);
+  const demo = `${lienApp(app.slug, dom)}${dom ? "?tour=1" : "?tour=1"}`;
+  const copier = (t) => navigator.clipboard?.writeText(t).then(() => toast("Copié"), () => toast("Copie impossible", "bad"));
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <Explication>Tout pour trouver tes premiers clients : des articles que Google peut lire, les entreprises à démarcher, les e-mails de lancement, une démo animée à partager, et le plan des 30 premiers jours.</Explication>
+        <button disabled={!!busy} onClick={() => agir("lancement", () => appel("lancement"), "Kit de lancement prêt")} className={l ? btnSombre : btnAccent}>{busy === "lancement" ? "Préparation… (une minute)" : l ? "Refaire le kit" : "Préparer mon lancement"}</button>
+      </div>
+      <div className="rounded-xl bg-white/[.06] p-4">
+        <p className="font-bold">La démo animée</p>
+        <p className="text-[13px] text-white/60">{app.spec.nom} se présente tout seul, écran par écran, avec un compte d'exemple. À mettre dans tes e-mails, tes posts et ta signature.</p>
+        <div className="mt-2 flex gap-2"><input readOnly value={demo} className={champSombre} onFocus={(e) => e.target.select()} /><button onClick={() => copier(demo)} className={btnSombre}>Copier</button><a href={demo} target="_blank" rel="noreferrer" className={btnSombre}>Voir</a></div>
+      </div>
+      {l && (
+        <>
+          <div>
+            <p className="font-bold">Les articles <span className="font-normal text-white/50 text-[13px]">· pages publiques lisibles par Google, liées depuis ton site</span></p>
+            <div className="mt-2 grid md:grid-cols-3 gap-2">{(l.articles ?? []).map((a) => <a key={a.slug} href={`${blog}${a.slug}`} target="_blank" rel="noreferrer" className="rounded-xl bg-white/[.06] p-3 hover:bg-white/10"><p className="font-semibold text-[14px]">{a.titre}</p><p className="mt-1 text-[12.5px] text-white/55">{a.resume}</p></a>)}</div>
+          </div>
+          <div>
+            <p className="font-bold">Les e-mails de lancement</p>
+            <div className="mt-2 grid md:grid-cols-3 gap-2">{(l.emails ?? []).map((m, i) => <div key={i} className="rounded-xl bg-white/[.06] p-3 flex flex-col"><p className="text-[12px] font-bold uppercase tracking-wide text-[#F6A06B]">{m.but}</p><p className="mt-1 font-semibold text-[14px]">{m.sujet}</p><p className="mt-1 text-[12.5px] text-white/65 whitespace-pre-line flex-1">{m.corps}</p><button onClick={() => copier(`${m.sujet}\n\n${m.corps}`)} className={cx(btnSombre, "mt-2 self-start")}>Copier</button></div>)}</div>
+          </div>
+          {l.plan?.length > 0 && <div><p className="font-bold">Les 30 premiers jours</p><ol className="mt-2 grid md:grid-cols-2 gap-2">{l.plan.map((x, i) => <li key={i} className="rounded-xl bg-white/[.06] px-3 py-2 text-[13.5px]"><b className="text-[#F6A06B]">{i + 1}.</b> {typeof x === "string" ? x : `${x.canal ?? ""} : ${x.action ?? ""}`}</li>)}</ol></div>}
+        </>
+      )}
+      {projet?.inspire?.domaine && <Clients domaine={projet.inspire.domaine} titre={`Qui démarcher pour ${app.spec.nom}`} />}
+    </div>
+  );
+}
+
+// Encaissement des abonnements (Stripe du créateur)
+function OngletEncaisser({ app, appel, agir, busy }) {
+  const [cle, setCle] = useState("");
+  const pay = app.paiement ?? {};
+  const [essai, setEssai] = useState(pay.essai_jours ?? 14);
+  return pay.compte ? (
+    <div className="space-y-2.5 max-w-xl">
+      <p className="text-[14px] text-white/75">Stripe branché : <b className="text-white">{pay.compte}</b>{pay.test && <span className="ml-1.5 rounded bg-[#F6A06B]/25 px-1.5 py-0.5 text-[11px] font-bold text-[#F6A06B]">MODE TEST</span>}</p>
+      <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={!!pay.actif} disabled={!!busy} onChange={(e) => agir("actif", () => appel("paiement", { actif: e.target.checked }), e.target.checked ? "Abonnements activés" : "Application gratuite")} />Abonnement obligatoire après l'essai</label>
+      <label className="flex items-center gap-2 text-[14px]">Essai gratuit <input type="number" min={0} max={60} value={essai} onChange={(e) => setEssai(e.target.value)} onBlur={() => Number(essai) !== Number(pay.essai_jours ?? 14) && agir("essai", () => appel("paiement", { essai_jours: Number(essai) }), "Durée d'essai enregistrée")} className="w-16 rounded-lg bg-white/10 border border-white/15 px-2 py-1" /> jours</label>
+      <button disabled={!!busy} onClick={() => { if (confirm("Débrancher Stripe ? L'application redevient gratuite.")) agir("cle", () => appel("paiement", { cle: "" }), "Stripe débranché"); }} className="text-[12.5px] text-white/50 underline">Débrancher Stripe</button>
+    </div>
+  ) : (
+    <div className="space-y-2.5 max-w-xl">
+      <Explication>L'argent arrive directement sur ton compte Stripe. Colle ta clé secrète (Stripe → Développeurs → Clés API). Elle reste sur le serveur, personne ne peut la relire. Avec une clé sk_test_ tu peux tout essayer sans vrai paiement.</Explication>
+      <input value={cle} onChange={(e) => setCle(e.target.value)} placeholder="sk_live_… ou sk_test_…" className={champSombre} autoComplete="off" />
+      <button disabled={!!busy || cle.trim().length < 20} onClick={() => agir("cle", async () => { await appel("paiement", { cle: cle.trim(), actif: true }); setCle(""); }, "Stripe branché : tes clients paieront après l'essai")} className={btnAccent}>{busy === "cle" ? "Vérification…" : "Brancher Stripe"}</button>
+    </div>
+  );
+}
+
+// 7. Prix testés : la moitié des visiteurs voit des prix différents ; Bingoo! mesure, tu gardes le gagnant
+function OngletPrix({ app, appel, agir, busy }) {
+  const [r, setR] = useState(null);
+  const [ecart, setEcart] = useState(app.ab?.ecart ?? 20);
+  useEffect(() => { appel("ab-resultats").then(setR, () => setR(null)); }, [app.id, app.version]); // eslint-disable-line react-hooks/exhaustive-deps
+  const actif = !!r?.actif;
+  const f = app.spec.formules ?? [];
+  const pB = (p) => Math.round(Number(p) * (1 + Number(actif ? r.ecart : ecart) / 100));
+  return (
+    <div className="space-y-4">
+      <Explication>La moitié des visiteurs voit tes prix actuels (A), l'autre moitié des prix {Number(actif ? r.ecart : ecart) >= 0 ? "plus élevés" : "plus bas"} (B). Bingoo! compte les visites, les inscriptions et les abonnements de chaque côté. Après 100 visites par côté, il désigne le gagnant : tu le gardes en un clic.</Explication>
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="text-[13.5px]">Écart des prix B<br /><input type="number" step={5} min={-50} max={100} value={actif ? r.ecart : ecart} disabled={actif} onChange={(e) => setEcart(e.target.value)} className="mt-1 w-24 rounded-lg bg-white/10 border border-white/15 px-2 py-1.5" /> %</label>
+        <button disabled={!!busy} onClick={() => agir("ab", async () => setR(await appel("ab", actif ? { actif: false } : { actif: true, ecart: Number(ecart) })), actif ? "Test arrêté" : "Test lancé")} className={actif ? btnSombre : btnAccent}>{actif ? "Arrêter le test" : "Lancer le test"}</button>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-3">
+        {["A", "B"].map((v) => {
+          const x = r?.resultats?.[v] ?? { vues: 0, inscrits: 0, abonnes: 0, revenu: 0 };
+          return (
+            <div key={v} className={cx("rounded-xl p-4", r?.gagnant === v ? "bg-[#15803D]/25 ring-1 ring-[#86EFAC]/40" : "bg-white/[.06]")}>
+              <p className="font-bold">Prix {v} {r?.gagnant === v && <span className="ml-1 text-[12px] text-[#86EFAC]">GAGNANT</span>}</p>
+              <p className="text-[13px] text-white/60">{f.map((x2) => `${x2.nom} ${v === "A" ? x2.prix : pB(x2.prix)} €`).join(" · ")}</p>
+              <div className="mt-2 grid grid-cols-4 gap-2 text-center">{[[x.vues, "visites"], [x.inscrits, "inscrits"], [x.abonnes, "abonnés"], [eurs(x.revenu), "par mois"]].map(([n, l]) => <div key={l}><p className="text-[18px] font-black tnum" style={HF}>{n}</p><p className="text-[11px] text-white/50">{l}</p></div>)}</div>
+            </div>
+          );
+        })}
+      </div>
+      {r?.gagnant && <button disabled={!!busy} onClick={() => agir("ab", async () => setR(await appel("ab", { appliquer: r.gagnant })), `Prix ${r.gagnant} gardés`)} className={btnAccent}>Garder les prix {r.gagnant}</button>}
+      {actif && !r?.assez && <p className="text-[12.5px] text-white/45">Encore {Math.max(0, 100 - Math.min(r?.resultats?.A?.vues ?? 0, r?.resultats?.B?.vues ?? 0))} visites par côté avant de désigner un gagnant.</p>}
+    </div>
+  );
+}
+
+// 9. E-mails de l'app : bienvenue, fin d'essai, relance ; depuis le domaine du créateur s'il le vérifie
+function OngletEmails({ app, appel, agir, busy }) {
+  const [dom, setDom] = useState("");
+  const e = app.email_dom;
+  useEffect(() => { if (e?.id && e.statut !== "ok") appel("email-verifier").then(() => {}, () => {}); }, [e?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div className="space-y-4">
+      <Explication>{app.spec.nom} envoie tout seul ses e-mails : bienvenue à l'inscription, rappel 3 jours avant la fin de l'essai, relance après une semaine sans visite. Ils partent de {e?.statut === "ok" ? <b>bonjour@{e.domaine}</b> : <><b>apps@maisonravita.fr</b> au nom de {app.spec.nom}, ou de ton propre domaine une fois vérifié</>}.</Explication>
+      <div className="grid md:grid-cols-3 gap-2 text-[13px]">{[["Bienvenue", "à l'inscription, avec le lien vers l'app"], ["Fin d'essai", "3 jours avant, avec le lien vers les formules"], ["Relance", "après 7 jours sans visite, une seule fois"]].map(([t, d]) => <div key={t} className="rounded-xl bg-white/[.06] p-3"><p className="font-bold">✉ {t}</p><p className="text-white/60">{d}</p></div>)}</div>
+      {e ? (
+        <div className="rounded-xl bg-white/[.06] p-4">
+          <p className="text-[14px]">Domaine d'envoi : <b>{e.domaine}</b> <span className={cx("ml-1 rounded px-1.5 py-0.5 text-[11px] font-bold", e.statut === "ok" ? "bg-[#15803D]/30 text-[#86EFAC]" : "bg-[#F6A06B]/25 text-[#F6A06B]")}>{e.statut === "ok" ? "VÉRIFIÉ" : "EN ATTENTE DU DNS"}</span></p>
+          {e.statut !== "ok" && <><p className="mt-2 text-[12.5px] text-white/60">Ajoute ces enregistrements chez ton registraire :</p><TableDns dns={e.dns ?? []} /></>}
+          <div className="mt-3 flex gap-2">{e.statut !== "ok" && <button disabled={!!busy} onClick={() => agir("ev", () => appel("email-verifier"), null)} className={btnSombre}>{busy === "ev" ? "Vérification…" : "Vérifier"}</button>}<button disabled={!!busy} onClick={() => agir("ed", () => appel("email-domaine", { domaine: "" }), "Domaine d'envoi retiré")} className={btnSombre}>Retirer</button></div>
+        </div>
+      ) : (
+        <div className="flex gap-2 max-w-xl"><input value={dom} onChange={(x) => setDom(x.target.value)} placeholder="monsaas.fr" className={champSombre} /><button disabled={!!busy || !/\./.test(dom)} onClick={() => agir("ed", () => appel("email-domaine", { domaine: dom.trim() }), "Domaine ajouté : il reste le DNS")} className={btnAccent}>Envoyer depuis ce domaine</button></div>
+      )}
+    </div>
+  );
+}
+
+// Nom de domaine de l'app
+function OngletDomaine({ app, appel, agir, busy }) {
+  const [dom, setDom] = useState("");
+  const [dns, setDns] = useState(null);
+  useEffect(() => { if (app.domaine && app.domaine_statut !== "ok") appel("domaine-verifier").then((r) => setDns(r.dns), () => {}); }, [app.domaine]); // eslint-disable-line react-hooks/exhaustive-deps
+  return app.domaine ? (
+    <div className="max-w-2xl">
+      <p className="text-[14px]"><b>{app.domaine}</b> <span className={cx("ml-1 rounded px-1.5 py-0.5 text-[11px] font-bold", app.domaine_statut === "ok" ? "bg-[#15803D]/30 text-[#86EFAC]" : "bg-[#F6A06B]/25 text-[#F6A06B]")}>{app.domaine_statut === "ok" ? "EN LIGNE" : "EN ATTENTE DU DNS"}</span></p>
+      {app.domaine_statut !== "ok" && dns && <><p className="mt-2 text-[12.5px] text-white/60">Chez ton registraire (OVH, Gandi, IONOS…), ajoute :</p><TableDns dns={dns} /><p className="mt-1 text-[12px] text-white/45">La propagation prend de quelques minutes à quelques heures.</p></>}
+      <div className="mt-3 flex gap-2">
+        {app.domaine_statut !== "ok" && <button disabled={!!busy} onClick={() => agir("verif", async () => { const r = await appel("domaine-verifier"); setDns(r.dns); if (r.statut !== "ok") throw new Error("Pas encore : le DNS ne pointe pas vers Bingoo!"); }, "Domaine en ligne")} className={btnSombre}>{busy === "verif" ? "Vérification…" : "Vérifier"}</button>}
+        <button disabled={!!busy} onClick={() => { if (confirm(`Retirer ${app.domaine} ?`)) agir("dom", () => appel("domaine", { domaine: "" }), "Domaine retiré"); }} className={btnSombre}>Retirer</button>
+      </div>
+    </div>
+  ) : (
+    <div className="space-y-2.5 max-w-xl">
+      <Explication>Ton SaaS sur ton adresse, par exemple monsaas.fr ou app.monsaas.fr. Achète le domaine chez un registraire, puis indique-le ici. Tes articles seront aussi sur monsaas.fr/blog.</Explication>
+      <div className="flex gap-2"><input value={dom} onChange={(e) => setDom(e.target.value)} placeholder="monsaas.fr" className={champSombre} /><button disabled={!!busy || !/\./.test(dom)} onClick={() => agir("dom", async () => { const r = await appel("domaine", { domaine: dom.trim() }); setDns(r.dns); }, "Domaine ajouté : il reste à régler le DNS")} className={btnAccent}>{busy === "dom" ? "Ajout…" : "Utiliser ce domaine"}</button></div>
+    </div>
+  );
+}
+
+// 2 et 3. Le monde des SaaS et la bourse
+function OngletMonde({ app, appel, agir, busy }) {
+  const [vente, setVente] = useState(null);
+  const [prix, setPrix] = useState("");
+  const [desc, setDesc] = useState("");
+  const [interets, setInterets] = useState([]);
+  const { ws } = useWs();
+  const toast = useToast();
+  const charger = () => supabase.rpc("saas_bourse_liste").then(({ data }) => {
+    const v = (data ?? []).find((x) => x.slug === app.slug) ?? null; setVente(v);
+    if (v) supabase.from("saas_bourse_interets").select("workspace_id, message, at").eq("bourse_id", v.id).then(({ data: d }) => setInterets(d ?? []));
+  });
+  useEffect(() => { charger(); }, [app.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div className="grid lg:grid-cols-2 gap-4">
+      <div className="rounded-xl bg-white/[.06] p-4 space-y-2">
+        <p className="font-bold">🏝 Le monde des SaaS</p>
+        <p className="text-[13px] text-white/65">{app.spec.nom} devient un bâtiment sur l'île des créateurs : un étage de plus tous les 1 000 € de revenu mensuel vérifié, un phare à 10 000 €. Il entre aussi dans le classement des créateurs (nom de ton espace, revenu, abonnés).</p>
+        <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={!!app.public} disabled={!!busy} onChange={(e) => agir("pub", () => appel("public", { public: e.target.checked }), e.target.checked ? `${app.spec.nom} apparaît dans le monde` : "Retiré du monde et du classement")} />Afficher {app.spec.nom} dans le monde et le classement</label>
+      </div>
+      <div className="rounded-xl bg-white/[.06] p-4 space-y-2">
+        <p className="font-bold">📈 La bourse des SaaS</p>
+        {vente ? (
+          <>
+            <p className="text-[13.5px]">En vente à <b>{eurs(vente.prix)}</b> · revenu vérifié {eurs(vente.mrr)} par mois · {vente.interets} acheteur{vente.interets > 1 ? "s" : ""} intéressé{vente.interets > 1 ? "s" : ""}</p>
+            {interets.length > 0 && <div className="space-y-1.5">{interets.map((it) => <div key={it.workspace_id} className="rounded-lg bg-white/5 p-2 text-[12.5px] flex items-start justify-between gap-2"><span className="text-white/70">{it.message || "(pas de message)"} · {new Date(it.at).toLocaleDateString("fr-FR")}</span><button onClick={async () => { if (!confirm(`Vente conclue avec cet acheteur ? ${app.spec.nom} passera sur son espace et ton Stripe sera débranché.`)) return; try { await fn("r/saas-bourse-vendu", { workspace_id: ws.id, bourse_id: vente.id, acheteur: it.workspace_id }); toast("Vendu ! L'application est transférée"); window.location.hash = "#/explorer/idees"; } catch (x) { toast(x.message, "bad"); } }} className="shrink-0 rounded-lg bg-accent px-2.5 py-1 font-bold">Vendu à lui</button></div>)}</div>}
+            <p className="text-[12px] text-white/45">Les acheteurs t'écrivent par e-mail. Une fois d'accord, clique « Vendu à lui » : l'app est transférée, commission Bingoo! de 5 %.</p>
+            <button disabled={!!busy} onClick={() => agir("bourse", async () => { await appel("bourse", { retirer: true }); await charger(); }, "Retiré de la bourse")} className={btnSombre}>Retirer de la vente</button>
           </>
         ) : (
           <>
-            <p className="text-[13px] text-white/65">Ton SaaS sur ton adresse, par exemple monsaas.fr ou app.monsaas.fr. Achète le domaine chez un registraire, puis indique-le ici.</p>
-            <input value={dom} onChange={(e) => setDom(e.target.value)} placeholder="monsaas.fr" className={champ} />
-            <button disabled={!!busy || !/\./.test(dom)} onClick={() => agir("dom", async () => { const r = await appel("domaine", { domaine: dom.trim() }); setDns(r.dns); }, "Domaine ajouté : il reste à régler le DNS")} className="rounded-xl bg-accent px-4 py-2 text-[13.5px] font-bold hover:bg-accent-dark disabled:opacity-50">{busy === "dom" ? "Ajout…" : "Utiliser ce domaine"}</button>
+            <p className="text-[13px] text-white/65">Mets {app.spec.nom} en vente : les acheteurs voient son revenu vérifié dans Stripe (jamais un chiffre déclaré), ses abonnés et son ancienneté.</p>
+            <div className="flex gap-2"><input type="number" min={100} value={prix} onChange={(e) => setPrix(e.target.value)} placeholder="Prix demandé (€)" className={champSombre} /></div>
+            <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={3} placeholder="Pourquoi tu vends, ce que l'acheteur récupère, le temps que ça demande…" className={champSombre} />
+            <button disabled={!!busy || !(Number(prix) >= 100)} onClick={() => agir("bourse", async () => { await appel("bourse", { prix: Number(prix), description: desc }); await charger(); }, `${app.spec.nom} est en vente`)} className={btnAccent}>Mettre en vente</button>
           </>
         )}
       </div>
+    </div>
+  );
+}
 
-      <div className="rounded-2xl bg-white/5 border border-white/10 p-4 flex flex-col gap-2.5">
-        <p className="font-bold">Le code</p>
-        <p className="text-[13px] text-white/65">Tout ton SaaS dans un dossier : l'application prête à héberger, le code de chaque écran, tes données et leur schéma PostgreSQL, et un mode d'emploi. Il est à toi.</p>
-        <button onClick={async () => { const { telechargerCode } = await import("../lib/appExport"); telechargerCode({ spec: app.spec, slug: app.slug, api: API, lien: lienApp(app.slug, app.domaine_statut === "ok" ? app.domaine : null), paiement: { actif: !!pay.actif, essai_jours: pay.essai_jours ?? 14 } }); }} className="mt-auto rounded-xl bg-white text-ink px-4 py-2 text-[13.5px] font-bold hover:bg-white/90">Télécharger le code (.zip)</button>
+// Le code
+function OngletCode({ app }) {
+  const pay = app.paiement ?? {};
+  const dom = app.domaine_statut === "ok" ? app.domaine : null;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-4">
+      <Explication>Tout ton SaaS dans un dossier : l'application prête à héberger, le code de chaque écran, tes données et leur schéma PostgreSQL, et un mode d'emploi. Il est à toi.</Explication>
+      <button onClick={async () => { const { telechargerCode } = await import("../lib/appExport"); telechargerCode({ spec: app.spec, slug: app.slug, api: API, lien: lienApp(app.slug, dom), paiement: { actif: !!pay.actif, essai_jours: pay.essai_jours ?? 14 } }); }} className="rounded-xl bg-white text-ink px-5 py-2.5 text-[14px] font-bold hover:bg-white/90">Télécharger le code (.zip)</button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- Mes SaaS construits et classement des créateurs
+function Createurs() {
+  const nav = useNavigate();
+  const { ws } = useWs();
+  const [mes, setMes] = useState(null);
+  const [cl, setCl] = useState(null);
+  useEffect(() => {
+    supabase.from("saas_apps").select("id, slug, spec, statut, public, domaine, domaine_statut, at, projet_id, saas_projets(data)").eq("workspace_id", ws.id).order("at", { ascending: false }).then(({ data }) => setMes(data ?? []));
+    supabase.rpc("saas_apps_monde").then(({ data }) => setCl(data ?? []));
+  }, [ws.id]);
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      <h1 className="text-[30px] font-black tracking-tight" style={HF}>Mes SaaS et classement</h1>
+      <p className="text-ink-soft">Les SaaS que Bingoo! a construits pour toi, et le classement des créateurs au revenu vérifié dans Stripe.</p>
+      <h2 className="mt-6 font-bold text-[19px]">Mes SaaS construits</h2>
+      {mes === null ? <div className="py-10 grid place-items-center"><Spinner /></div> : !mes.length ? (
+        <div className="mt-2 rounded-2xl bg-white border border-line p-6"><p>Tu n'as pas encore de SaaS construit. Choisis un SaaS qui marche dans la base, clique « Lancer le mien », puis « Construire mon SaaS ».</p><button onClick={() => nav("/explorer/idees")} className="mt-3 rounded-xl bg-accent text-white px-4 py-2.5 font-bold">Trouver une idée</button></div>
+      ) : (
+        <div className="mt-2 grid md:grid-cols-2 lg:grid-cols-3 gap-3">{mes.map((a) => {
+          const insp = a.saas_projets?.data?.inspire;
+          return (
+            <div key={a.id} className="rounded-2xl bg-white border border-line p-4 flex flex-col">
+              <div className="flex items-center gap-2.5"><span className="grid h-10 w-10 place-items-center rounded-xl text-white font-black" style={{ background: a.spec?.couleur ?? "#4F46E5" }}>{String(a.spec?.nom ?? "S")[0]}</span><div className="min-w-0"><p className="font-bold truncate">{a.spec?.nom ?? "En construction"}</p><p className="text-[12.5px] text-ink-faint truncate">{insp ? `Concurrent de ${insp.nom}` : ""}{a.public ? " · dans le monde" : ""}</p></div></div>
+              <p className="mt-2 text-[13.5px] text-ink-soft line-clamp-2 flex-1">{a.spec?.pitch}</p>
+              <div className="mt-3 flex gap-2">
+                <button onClick={() => nav(`/explorer/lancer?d=${insp?.domaine ?? ""}`)} className="rounded-xl bg-ink text-white px-3.5 py-2 text-[13.5px] font-bold">Gérer</button>
+                {a.spec?.ecrans?.length > 0 && <a href={lienApp(a.slug, a.domaine_statut === "ok" ? a.domaine : null)} target="_blank" rel="noreferrer" className="rounded-xl border border-line px-3.5 py-2 text-[13.5px] font-semibold hover:border-ink-faint">Ouvrir ↗</a>}
+              </div>
+            </div>
+          );
+        })}</div>
+      )}
+      <h2 className="mt-8 font-bold text-[19px]">Classement des créateurs</h2>
+      <p className="text-[13px] text-ink-faint">Revenu mensuel vérifié dans Stripe, jamais déclaré. Seuls les créateurs qui l'ont accepté y figurent.</p>
+      <div className="mt-2 rounded-2xl bg-white border border-line overflow-hidden">
+        {cl === null ? <div className="py-10 grid place-items-center"><Spinner /></div> : !cl.length ? <p className="p-5 text-ink-soft">Personne dans le classement pour l'instant. Sois le premier : dans ton SaaS, onglet « Monde et bourse ».</p> : (
+          <table className="w-full text-[14px]"><thead><tr className="text-left text-[12px] text-ink-faint border-b border-line"><th className="px-4 py-2 font-medium w-10">#</th><th className="font-medium">SaaS</th><th className="font-medium hidden sm:table-cell">Créateur</th><th className="font-medium text-right">Revenu / mois</th><th className="font-medium text-right hidden sm:table-cell">Abonnés</th><th className="font-medium text-right px-4">Comptes</th></tr></thead>
+            <tbody>{cl.map((a, i) => <tr key={a.slug} className="border-t border-line first:border-0"><td className="px-4 py-2.5 font-black tnum">{i < 3 ? ["🥇", "🥈", "🥉"][i] : i + 1}</td><td><a href={lienApp(a.slug, a.domaine)} target="_blank" rel="noreferrer" className="flex items-center gap-2 font-semibold hover:underline"><span className="h-5 w-5 rounded-md" style={{ background: a.couleur ?? "#4F46E5" }} />{a.nom}</a></td><td className="text-ink-soft hidden sm:table-cell">{a.createur}</td><td className="text-right font-bold tnum">{eurs(a.mrr)}</td><td className="text-right tnum hidden sm:table-cell">{a.abonnes}</td><td className="text-right tnum px-4">{a.comptes}</td></tr>)}</tbody></table>
+        )}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- Bourse des SaaS
+function Bourse() {
+  const { ws } = useWs();
+  const toast = useToast();
+  const [l, setL] = useState(null);
+  const [msg, setMsg] = useState({});
+  const charger = () => supabase.rpc("saas_bourse_liste").then(({ data }) => setL(data ?? []));
+  useEffect(() => { charger(); }, []);
+  const contacter = async (b) => {
+    try { await fn("r/saas-bourse-interet", { workspace_id: ws.id, bourse_id: b.id, message: msg[b.id] ?? "" }); toast("Le vendeur est prévenu : il te répond par e-mail"); charger(); }
+    catch (x) { toast(x.message, "bad"); }
+  };
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      <h1 className="text-[30px] font-black tracking-tight" style={HF}>La bourse des SaaS</h1>
+      <p className="text-ink-soft max-w-3xl">Des SaaS construits sur Bingoo!, à reprendre. Le revenu affiché est relu dans Stripe : jamais un chiffre déclaré. Tu contactes le vendeur, vous vous mettez d'accord, et Bingoo! transfère l'application sur ton espace (commission de 5 % pour le vendeur).</p>
+      {l === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : !l.length ? (
+        <div className="mt-5 rounded-2xl bg-white border border-line p-6"><p>Aucun SaaS en vente pour l'instant. Pour vendre le tien : ouvre-le dans « Mes SaaS », onglet « Monde et bourse ».</p></div>
+      ) : (
+        <div className="mt-5 grid md:grid-cols-2 gap-4">{l.map((b) => (
+          <div key={b.id} className="rounded-2xl bg-white border border-line p-5 flex flex-col">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white font-black text-[18px]" style={{ background: b.couleur ?? "#4F46E5" }}>{String(b.nom ?? "S")[0]}</span><div className="min-w-0"><p className="font-bold text-[17px] truncate">{b.nom}</p><p className="text-[12.5px] text-ink-faint">{b.inspire ? `Concurrent de ${b.inspire} · ` : ""}{b.age_jours} jours</p></div></div>
+              <p className="shrink-0 text-right"><span className="text-[24px] font-black tnum" style={HF}>{eurs(b.prix)}</span><br /><span className="text-[11.5px] text-ink-faint">prix demandé</span></p>
+            </div>
+            <p className="mt-2 text-[14px] text-ink-soft">{b.pitch}</p>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">{[[eurs(b.mrr), "revenu / mois ✓"], [b.abonnes, "abonnés"], [b.comptes, "comptes"]].map(([v, t]) => <div key={t} className="rounded-xl bg-paper py-2"><p className="text-[17px] font-black tnum">{v}</p><p className="text-[11px] text-ink-faint">{t}</p></div>)}</div>
+            {b.mrr > 0 && <p className="mt-1.5 text-[12px] text-ink-faint">Soit {(b.prix / (b.mrr * 12)).toFixed(1).replace(".", ",")} fois le revenu annuel.</p>}
+            {b.description && <p className="mt-3 text-[13.5px] whitespace-pre-line">{b.description}</p>}
+            <div className="mt-auto pt-4">
+              {b.a_moi ? <p className="text-[13px] text-ink-faint">C'est ton annonce · {b.interets} acheteur{b.interets > 1 ? "s" : ""} intéressé{b.interets > 1 ? "s" : ""}</p> : b.deja ? <p className="text-[13px] font-semibold text-[#15803D]">✓ Vendeur contacté</p> : (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <a href={lienApp(b.slug, null)} target="_blank" rel="noreferrer" className="rounded-xl border border-line px-4 py-2.5 text-[14px] font-semibold text-center hover:border-ink-faint">Essayer ↗</a>
+                  <input value={msg[b.id] ?? ""} onChange={(e) => setMsg({ ...msg, [b.id]: e.target.value })} placeholder="Ton message au vendeur" className="flex-1 rounded-xl border border-line px-3 py-2.5 text-[14px]" />
+                  <button onClick={() => contacter(b)} className="rounded-xl bg-accent text-white px-4 py-2.5 text-[14px] font-bold hover:bg-accent-dark">Je suis intéressé</button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}</div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- SaaS qui s'endorment : à racheter, ou leurs clients à récupérer
+function Racheter() {
+  const nav = useNavigate();
+  const [cat, setCat] = useState("");
+  const [l, setL] = useState(null);
+  useEffect(() => { setL(null); supabase.rpc("saas_endormis", { p_categorie: cat || null }).then(({ data }) => setL(data ?? [])); }, [cat]);
+  const cats = [...new Set((l ?? []).map((x) => x.categorie))].sort();
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      <h1 className="text-[30px] font-black tracking-tight" style={HF}>Les SaaS qui s'endorment</h1>
+      <p className="text-ink-soft max-w-3xl">Plus de nouveautés, plus de recrutements, des prix figés, du trafic en baisse : ces SaaS ralentissent. Une cible à racheter (leurs fondateurs sont souvent prêts à vendre), ou des clients à récupérer avec ton propre SaaS.</p>
+      <div className="mt-4 flex flex-wrap gap-1.5">
+        <Chip on={!cat} onClick={() => setCat("")}>Toutes les catégories</Chip>
+        {(cat ? [cat] : cats).slice(0, 14).map((c) => <Chip key={c} on={cat === c} onClick={() => setCat(cat === c ? "" : c)}>{c}</Chip>)}
+      </div>
+      {l === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : !l.length ? <p className="mt-6 text-ink-soft">Aucun SaaS endormi repéré dans cette catégorie pour l'instant.</p> : (
+        <div className="mt-4 rounded-2xl bg-white border border-line overflow-hidden">
+          {l.map((x) => (
+            <div key={x.domaine} className="flex flex-wrap items-center gap-3 px-4 py-3 border-t border-line first:border-0">
+              <CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="w-9 h-9" />
+              <div className="min-w-[200px] flex-1"><button onClick={() => nav(`/explorer/${x.domaine}`)} className="font-semibold hover:underline">{x.nom}</button><p className="text-[12.5px] text-ink-faint">{x.categorie}{x.pays ? ` · ${x.pays}` : ""}{x.prix_entree_eur != null ? ` · dès ${x.prix_entree_eur} €/mois` : ""}{x.rang_web ? ` · N° ${Number(x.rang_web).toLocaleString("fr-FR")} mondial` : ""}</p></div>
+              <div className="flex flex-wrap gap-1.5">{(x.signes ?? []).map((sg) => <span key={sg} className="rounded-full bg-[#FDF0EC] px-2.5 py-1 text-[12px] font-medium text-[#9A3412]">{sg}</span>)}</div>
+              <button onClick={() => nav(`/explorer/lancer?d=${x.domaine}`)} className="shrink-0 rounded-xl border border-line px-3 py-2 text-[13px] font-semibold hover:border-ink-faint">Récupérer ses clients</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="mt-3 text-[12px] text-ink-faint">Signes lus sur les sites publics et dans les relevés de Bingoo! : ce sont des indices, pas une certitude. Vérifie avant d'approcher un fondateur.</p>
     </div>
   );
 }
@@ -1128,14 +1440,15 @@ function Carte() {
   const nav = useNavigate();
   const { ws } = useWs();
   const [data, setData] = useState(null);
-  useEffect(() => { supabase.rpc("saas_carte", { ws: ws.id }).then(({ data: d }) => setData(d ?? [])); }, [ws.id]);
+  const [apps, setApps] = useState([]);
+  useEffect(() => { supabase.rpc("saas_carte", { ws: ws.id }).then(({ data: d }) => setData(d ?? [])); supabase.rpc("saas_apps_monde").then(({ data: d }) => setApps(d ?? [])); }, [ws.id]);
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
       <h1 className="text-[30px] font-black tracking-tight" style={HF}>Le monde des SaaS</h1>
       <p className="text-ink-soft">Chaque île est un continent, chaque bâtiment un pays : plus il est haut, plus il compte de SaaS. Débarque sur une île, puis entre dans un pays.</p>
       <div className="mt-4">
         <Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}>
-          {data ? <IsoMonde data={data} onVoir={(code, domaine) => nav(domaine ? `/explorer/${domaine}` : `/explorer?pays=${code}`)} /> : <div className="py-24 grid place-items-center"><Spinner /></div>}
+          {data ? <IsoMonde data={data} apps={apps} onApp={(a) => window.open(lienApp(a.slug, a.domaine), "_blank")} onVoir={(code, domaine) => nav(domaine ? `/explorer/${domaine}` : `/explorer?pays=${code}`)} /> : <div className="py-24 grid place-items-center"><Spinner /></div>}
         </Suspense>
       </div>
     </div>
