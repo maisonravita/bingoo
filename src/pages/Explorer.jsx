@@ -54,14 +54,27 @@ export default function Explorer({ domaine: fixe }) {
   return d ? <Fiche domaine={d} /> : <><Onglets actif="liste" /><Liste /></>;
 }
 
+// 5 rubriques ; celles qui regroupent plusieurs pages affichent une petite ligne de sous-onglets
+const RUBRIQUES = [
+  ["SaaS", [["liste", "Tous les SaaS", "/explorer"]]],
+  ["Classement", [["classement", "Classement", "/explorer/classement"]]],
+  ["Mes suivis", [["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"]]],
+  ["Tendances", [["marche", "Pays et tendances", "/explorer/marche"], ["carte", "Le monde", "/explorer/carte"], ["idees", "Idées et réussites", "/explorer/idees"], ["pubs", "Pubs et e-mails", "/explorer/pubs"]]],
+  ["Mes SaaS", [["createurs", "Mes SaaS", "/explorer/createurs"], ["bourse", "Bourse", "/explorer/bourse"], ["racheter", "À racheter", "/explorer/racheter"]]],
+];
 function Onglets({ actif }) {
   const nav = useNavigate();
-  const T = [["liste", "SaaS", "/explorer"], ["carte", "Le monde", "/explorer/carte"], ["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"], ["marche", "Pays et tendances", "/explorer/marche"], ["pubs", "Pubs et e-mails", "/explorer/pubs"], ["idees", "Idées et réussites", "/explorer/idees"], ["classement", "Classement", "/explorer/classement"], ["createurs", "Mes SaaS et classement", "/explorer/createurs"], ["bourse", "Bourse", "/explorer/bourse"], ["racheter", "À racheter", "/explorer/racheter"]];
+  const rub = RUBRIQUES.find(([, pages]) => pages.some(([k]) => k === actif)) ?? RUBRIQUES[0];
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
       <div className="inline-flex max-w-full overflow-x-auto rounded-xl bg-white border border-line p-1">
-        {T.map(([k, l, to]) => <button key={k} onClick={() => nav(to)} className={cx("shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-[14px] font-semibold transition", actif === k ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
+        {RUBRIQUES.map(([l, pages]) => <button key={l} onClick={() => nav(pages[0][2])} className={cx("shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-[14px] font-semibold transition", rub[0] === l ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
       </div>
+      {rub[1].length > 1 && (
+        <div className="mt-2 flex gap-4 overflow-x-auto px-1 text-[13.5px]">
+          {rub[1].map(([k, l, to]) => <button key={k} onClick={() => nav(to)} className={cx("shrink-0 whitespace-nowrap border-b-2 pb-1 font-medium transition", actif === k ? "border-accent text-ink" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
+        </div>
+      )}
     </div>
   );
 }
