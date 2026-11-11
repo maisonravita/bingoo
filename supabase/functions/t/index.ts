@@ -56,6 +56,14 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   const path = new URL(req.url).pathname;
   // SaaS construits par Bingoo! : comptes et données de l'application (/t/app/<slug>/<action>)
+  // Désinscription des e-mails d'une app (lien en bas de chaque e-mail), puis page de confirmation sur Bingoo!
+  const ad = path.match(/\/app\/([a-z0-9-]+)\/desabonner$/);
+  if (ad && (req.method === "GET" || req.method === "POST")) {
+    const { appDesabonner } = await import("../_shared/app-mails.ts");
+    const ok = await appDesabonner(ad[1], new URL(req.url).searchParams.get("t") ?? "");
+    if (req.method === "POST") return new Response(null, { status: ok ? 200 : 404, headers: cors });
+    return Response.redirect(`https://kairo.maisonravita.fr/#/desabonne?app=${ad[1]}&ok=${ok ? 1 : 0}`, 302);
+  }
   const af = path.match(/\/app\/([a-z0-9-]+)\/(manifest|icone\.svg|badge\.svg)$/);
   if (req.method === "GET" && af) {
     const { appFichier } = await import("../_shared/app-runtime.ts");

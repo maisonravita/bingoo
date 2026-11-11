@@ -153,7 +153,7 @@ export async function appFichier(admin: SupabaseClient, slug: string, quoi: stri
 export async function appApi(admin: SupabaseClient, req: Request, slug: string, action: string): Promise<{ status: number; body: unknown }> {
   try {
     if (!/^[a-z0-9-]{3,60}$/.test(slug)) throw new Err(404, "Application introuvable");
-    const { data: app } = await admin.from("saas_apps").select("id, workspace_id, spec, statut, paiement, domaine, domaine_statut, ab, email_dom").eq("slug", slug).maybeSingle();
+    const { data: app } = await admin.from("saas_apps").select("id, workspace_id, spec, statut, paiement, domaine, domaine_statut, ab, email_dom, emails").eq("slug", slug).maybeSingle();
     if (!app || !(app.spec as any)?.ecrans?.length) throw new Err(404, "Application introuvable");
     const b = JSON.parse((await req.text()).slice(0, 60000) || "{}");
     const variante = b.variante === "B" && (app.ab as any)?.actif ? "B" : "A";

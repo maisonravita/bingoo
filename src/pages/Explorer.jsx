@@ -1352,15 +1352,53 @@ function OngletPrix({ app, appel, agir, busy }) {
   );
 }
 
-// 9. E-mails de l'app : bienvenue, fin d'essai, relance ; depuis le domaine du créateur s'il le vérifie
+// 9. E-mails de l'app : modèles modifiables (et désactivables), e-mail d'essai, annonces à tous les comptes, domaine d'envoi
+const VARS_MAIL = "{prenom} {app} {jours} {formule}";
 function OngletEmails({ app, appel, agir, busy }) {
+  const toast = useToast();
+  const [et, setEt] = useState(null);
+  const [edit, setEdit] = useState(null);
+  const [ann, setAnn] = useState({ sujet: "", texte: "", bouton: "" });
   const [dom, setDom] = useState("");
   const e = app.email_dom;
+  const charger = () => appel("emails").then(setEt, () => setEt(null));
+  useEffect(() => { charger(); }, [app.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (e?.id && e.statut !== "ok") appel("email-verifier").then(() => {}, () => {}); }, [e?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const maj = (type, extra, ok) => agir(`m${type}`, async () => setEt(await appel("emails", { type, ...extra })), ok);
   return (
-    <div className="space-y-4">
-      <Explication>{app.spec.nom} envoie tout seul ses e-mails : bienvenue à l'inscription, rappel 3 jours avant la fin de l'essai, relance après une semaine sans visite. Ils partent de {e?.statut === "ok" ? <b>bonjour@{e.domaine}</b> : <><b>apps@maisonravita.fr</b> au nom de {app.spec.nom}, ou de ton propre domaine une fois vérifié</>}.</Explication>
-      <div className="grid md:grid-cols-3 gap-2 text-[13px]">{[["Bienvenue", "à l'inscription, avec le lien vers l'app"], ["Fin d'essai", "3 jours avant, avec le lien vers les formules"], ["Relance", "après 7 jours sans visite, une seule fois"]].map(([t, d]) => <div key={t} className="rounded-xl bg-white/[.06] p-3"><p className="font-bold">✉ {t}</p><p className="text-white/60">{d}</p></div>)}</div>
+    <div className="space-y-5">
+      <Explication>{app.spec.nom} envoie tout seul ses e-mails, au bon moment, depuis {e?.statut === "ok" ? <b>bonjour@{e.domaine}</b> : <><b>apps@maisonravita.fr</b> (ou ton domaine, plus bas)</>}. Modifie leurs textes, coupe ceux que tu ne veux pas, envoie-toi un essai. Chaque e-mail a un lien de désinscription.</Explication>
+      {et && <div className="flex flex-wrap gap-2 text-[13px]">{[[et.joignables, "comptes joignables"], [et.desabonnes, "désinscrits"], [Object.values(et.modeles).reduce((n, m) => n + m.envoyes_30j, 0) + et.annonces_30j, "e-mails envoyés sur 30 jours"]].map(([v, l]) => <span key={l} className="rounded-lg bg-white/[.06] px-3 py-1.5"><b className="tnum">{v}</b> {l}</span>)}</div>}
+      <div className="space-y-2">{et === null ? <Spinner /> : Object.entries(et.modeles).map(([k, m]) => (
+        <div key={k} className={cx("rounded-xl p-3.5", m.actif ? "bg-white/[.06]" : "bg-white/[.03] opacity-70")}>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2"><input type="checkbox" checked={m.actif} disabled={k === "invitation" || !!busy} onChange={(ev) => maj(k, { actif: ev.target.checked }, ev.target.checked ? `« ${m.nom} » activé` : `« ${m.nom} » coupé`)} /><span className="font-bold">✉ {m.nom}</span></label>
+            <span className="text-[12.5px] text-white/50 flex-1">{m.quand} · {m.envoyes_30j} envoyé{m.envoyes_30j > 1 ? "s" : ""} sur 30 jours{m.modifie ? " · texte modifié" : ""}</span>
+            <button onClick={() => setEdit(edit?.type === k ? null : { type: k, sujet: m.sujet, texte: m.texte, bouton: m.bouton })} className={btnSombre}>{edit?.type === k ? "Fermer" : "Modifier"}</button>
+            <button disabled={!!busy} onClick={() => agir(`t${k}`, async () => { const r = await appel("email-test", { type: k }); toast(`Essai envoyé à ${r.a}`); }, null)} className={btnSombre}>M'envoyer un essai</button>
+          </div>
+          {edit?.type === k && (
+            <div className="mt-3 space-y-2">
+              <input value={edit.sujet} onChange={(ev) => setEdit({ ...edit, sujet: ev.target.value })} className={champSombre} placeholder="Sujet" />
+              <textarea value={edit.texte} onChange={(ev) => setEdit({ ...edit, texte: ev.target.value })} rows={7} className={champSombre} />
+              <input value={edit.bouton} onChange={(ev) => setEdit({ ...edit, bouton: ev.target.value })} className={champSombre} placeholder="Texte du bouton" />
+              <div className="flex flex-wrap items-center gap-2"><button disabled={!!busy} onClick={() => { maj(k, { sujet: edit.sujet, texte: edit.texte, bouton: edit.bouton }, "Modèle enregistré"); setEdit(null); }} className={btnAccent}>Enregistrer</button>{m.modifie && <button onClick={() => { maj(k, { reinitialiser: true }, "Texte d'origine remis"); setEdit(null); }} className={btnSombre}>Remettre le texte d'origine</button>}<span className="text-[12px] text-white/45">Variables : {VARS_MAIL}</span></div>
+            </div>
+          )}
+        </div>
+      ))}</div>
+
+      <div className="rounded-xl bg-white/[.06] p-4 space-y-2">
+        <p className="font-bold">Envoyer une annonce à tes clients</p>
+        <p className="text-[13px] text-white/60">Une nouveauté, une offre, un mot : envoyé à tous les comptes {et ? `(${et.joignables})` : ""}, sans les désinscrits. Une annonce par semaine au plus.{et?.derniere_annonce ? ` Dernière : ${new Date(et.derniere_annonce).toLocaleDateString("fr-FR")}.` : ""}</p>
+        <input value={ann.sujet} onChange={(ev) => setAnn({ ...ann, sujet: ev.target.value })} className={champSombre} placeholder="Sujet, ex. : Nouveau dans {app} : les relances automatiques" />
+        <textarea value={ann.texte} onChange={(ev) => setAnn({ ...ann, texte: ev.target.value })} rows={5} className={champSombre} placeholder={"Bonjour {prenom},\n\n…"} />
+        <div className="flex flex-wrap gap-2">
+          <button disabled={!!busy || ann.texte.length < 10} onClick={() => agir("anntest", async () => { await appel("annonce", { ...ann, test: true }); toast("Essai envoyé à ton adresse"); }, null)} className={btnSombre}>M'envoyer un essai</button>
+          <button disabled={!!busy || ann.texte.length < 10 || ann.sujet.length < 3} onClick={() => { if (confirm(`Envoyer cette annonce à ${et?.joignables ?? "tous les"} comptes ?`)) agir("ann", async () => { const r = await appel("annonce", ann); toast(`Annonce envoyée à ${r.envoyes} compte${r.envoyes > 1 ? "s" : ""}`); setAnn({ sujet: "", texte: "", bouton: "" }); charger(); }, null); }} className={btnAccent}>{busy === "ann" ? "Envoi…" : "Envoyer à tous"}</button>
+        </div>
+      </div>
+
       {e ? (
         <div className="rounded-xl bg-white/[.06] p-4">
           <p className="text-[14px]">Domaine d'envoi : <b>{e.domaine}</b> <span className={cx("ml-1 rounded px-1.5 py-0.5 text-[11px] font-bold", e.statut === "ok" ? "bg-[#15803D]/30 text-[#86EFAC]" : "bg-[#F6A06B]/25 text-[#F6A06B]")}>{e.statut === "ok" ? "VÉRIFIÉ" : "EN ATTENTE DU DNS"}</span></p>
@@ -1368,7 +1406,7 @@ function OngletEmails({ app, appel, agir, busy }) {
           <div className="mt-3 flex gap-2">{e.statut !== "ok" && <button disabled={!!busy} onClick={() => agir("ev", () => appel("email-verifier"), null)} className={btnSombre}>{busy === "ev" ? "Vérification…" : "Vérifier"}</button>}<button disabled={!!busy} onClick={() => agir("ed", () => appel("email-domaine", { domaine: "" }), "Domaine d'envoi retiré")} className={btnSombre}>Retirer</button></div>
         </div>
       ) : (
-        <div className="flex gap-2 max-w-xl"><input value={dom} onChange={(x) => setDom(x.target.value)} placeholder="monsaas.fr" className={champSombre} /><button disabled={!!busy || !/\./.test(dom)} onClick={() => agir("ed", () => appel("email-domaine", { domaine: dom.trim() }), "Domaine ajouté : il reste le DNS")} className={btnAccent}>Envoyer depuis ce domaine</button></div>
+        <div className="rounded-xl bg-white/[.06] p-4"><p className="font-bold">Envoyer depuis ton domaine</p><p className="text-[13px] text-white/60">Tes e-mails partiront de bonjour@tondomaine.fr : plus pro, et moins de courrier indésirable.</p><div className="mt-2 flex gap-2 max-w-xl"><input value={dom} onChange={(x) => setDom(x.target.value)} placeholder="monsaas.fr" className={champSombre} /><button disabled={!!busy || !/\./.test(dom)} onClick={() => agir("ed", () => appel("email-domaine", { domaine: dom.trim() }), "Domaine ajouté : il reste le DNS")} className={btnAccent}>Utiliser ce domaine</button></div></div>
       )}
     </div>
   );

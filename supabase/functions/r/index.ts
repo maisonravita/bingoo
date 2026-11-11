@@ -151,7 +151,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   },
   // Réglages d'un SaaS construit : encaissement Stripe, nom de domaine, chiffres
   async "saas-app-reglages"(req, b) {
-    const { ws } = await requireMember(req, b.workspace_id);
+    const { ws, userId } = await requireMember(req, b.workspace_id);
     const { data: app } = await admin.from("saas_apps").select("id").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
     if (!app) throw new HttpError(404, "Application introuvable");
     const o = await import("../_shared/app-owner.ts");
@@ -168,6 +168,14 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (b.quoi === "lancement-fait") return await o.appLancementFait(app.id, String(b.cle ?? ""), !!b.fait);
     if (b.quoi === "jumeau") { await quota(ws.id, "jumeau", 5); await log(ws.id, "jumeau", "Vérification du jumeau"); setAi({ ws: ws.id, live: true, feature: "construire/jumeau" }); return await o.appJumeau(app.id); }
     if (b.quoi === "lancement") { await quota(ws.id, "lancement", 3); await log(ws.id, "lancement", "Kit de lancement"); setAi({ ws: ws.id, live: true, feature: "construire/lancement" }); return await o.appLancement(app.id); }
+    if (b.quoi === "emails") { const m = await import("../_shared/app-mails.ts"); return b.type ? await m.appEmailsModeles(app.id, b) : await m.appEmailsEtat(app.id); }
+    if (b.quoi === "email-test" || b.quoi === "annonce") {
+      const m = await import("../_shared/app-mails.ts");
+      const { data: moi } = await admin.from("members").select("email").eq("workspace_id", ws.id).eq("user_id", userId).maybeSingle();
+      if (b.quoi === "email-test") { await quota(ws.id, "email_test", 20); return await m.appEmailTest(app.id, String(b.type ?? ""), moi?.email ?? ""); }
+      if (!b.test) await log(ws.id, "annonce", `Annonce envoyée : ${String(b.sujet ?? "").slice(0, 80)}`);
+      return await m.appAnnonce(app.id, String(b.sujet ?? ""), String(b.texte ?? ""), String(b.bouton ?? ""), b.test ? moi?.email ?? null : null);
+    }
     if (b.quoi === "email-domaine" || b.quoi === "email-verifier") {
       const m = await import("../_shared/app-mails.ts");
       return b.quoi === "email-domaine" ? await m.appEmailDomaine(app.id, b.domaine) : await m.appEmailVerifier(app.id);

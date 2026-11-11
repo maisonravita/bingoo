@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_apps.emails, saas_app_users (mail_off, desabo, mail_paiement_at, mail_merci_at), saas_app_mails
