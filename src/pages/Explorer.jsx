@@ -1081,7 +1081,7 @@ function Budget({ projet, inspire }) {
   const cle = `bingoo-budget:${projet.id}`;
   const prixDefaut = Math.round(projet.plan?.prix_moyen ?? projet.formules?.[1]?.prix ?? projet.formules?.[0]?.prix ?? 29);
   const [h, setH] = useState(() => {
-    const def = { pub: 300, prix: prixDefaut, cac: prixDefaut * 3, churn: Number(projet.hypotheses?.churn_mensuel_pct ?? 5) };
+    const def = { pub: 0, organiques: 3, prix: prixDefaut, cac: prixDefaut * 3, churn: Number(projet.hypotheses?.churn_mensuel_pct ?? 5) };
     try { return { ...def, ...JSON.parse(localStorage.getItem(cle) ?? "{}") }; } catch { return def; }
   });
   const maj = (k, v) => setH((x) => { const n = { ...x, [k]: Math.max(0, Number(v) || 0) }; try { localStorage.setItem(cle, JSON.stringify(n)); } catch { /* stockage indisponible */ } return n; });
@@ -1090,7 +1090,7 @@ function Budget({ projet, inspire }) {
   const mois = [];
   let clients = 0, cumul = 0, rentable = null;
   for (let m = 1; m <= 12; m++) {
-    clients = clients * (1 - h.churn / 100) + (h.cac > 0 ? h.pub / h.cac : 0);
+    clients = clients * (1 - h.churn / 100) + Number(h.organiques ?? 0) + (h.cac > 0 ? h.pub / h.cac : 0);
     const revenu = clients * h.prix, frais = clients * STRIPE(h.prix);
     const depenses = fixes + h.pub + frais, resultat = revenu - depenses;
     cumul += resultat;
@@ -1108,7 +1108,7 @@ function Budget({ projet, inspire }) {
   );
   return (
     <section className="mt-5 rounded-2xl bg-white border border-line p-5 break-inside-avoid">
-      <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="font-bold text-[17px]">Ton budget</h2><p className="text-[12.5px] text-ink-faint">Change les chiffres : tout se recalcule.</p></div>
+      <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="font-bold text-[17px]">Tes chiffres de départ</h2><p className="text-[12.5px] text-ink-faint">Change les chiffres : tout se recalcule.</p></div>
       <div className="mt-3 grid lg:grid-cols-[1fr_1.3fr] gap-5">
         <div>
           <p className="text-[13px] font-semibold">Ce que coûte le lancement, chaque mois</p>
@@ -1119,19 +1119,20 @@ function Budget({ projet, inspire }) {
             <tr className="border-t border-line"><td className="py-1.5 font-semibold">Pour démarrer, sans pub</td><td className="py-1.5 text-right tnum font-semibold">{e(fixes)} / mois</td></tr>
           </tbody></table>
           <div className="mt-4 grid grid-cols-2 gap-2.5">
-            {champ("pub", "Ton budget pub par mois", "€", 50)}
+            {champ("organiques", "Clients trouvés sans pub, par mois", "clients")}
+            {champ("pub", "Budget pub par mois (0 € pour commencer)", "€", 50)}
             {champ("prix", "Ton prix par client", "€/mois")}
-            {champ("cac", "Coût pour gagner un client", "€", 5)}
+            {h.pub > 0 && champ("cac", "Coût pour gagner un client en pub", "€", 5)}
             {champ("churn", "Clients perdus par mois", "%", 0.5)}
           </div>
-          <p className="mt-2 text-[12px] text-ink-faint">Par défaut : gagner un client coûte 3 mois de son abonnement, et {h.churn} % des clients partent chaque mois. Ce sont des hypothèses de départ à remplacer par tes vrais chiffres dès tes premières campagnes.</p>
+          <p className="mt-2 text-[12px] text-ink-faint">Par défaut : 3 clients par mois trouvés sans payer (contenu, réseaux, communautés, prospection), 0 € de pub, et {h.churn} % des clients qui partent chaque mois. Ce sont des hypothèses de départ, à remplacer par tes vrais chiffres.</p>
         </div>
         <div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-            {[[Math.round(fin.clients), "clients au bout d'un an"], [e(fin.revenu), "de revenu mensuel au 12e mois"], [rentable ? `mois ${rentable}` : "après 12 mois", "rentable à partir de"], [e(besoin), "à avancer au total"]].map(([v, l]) => <div key={l} className="rounded-xl bg-paper p-3"><p className="text-[19px] font-black tnum" style={HF}>{v}</p><p className="text-[11.5px] text-ink-faint">{l}</p></div>)}
+            {[[Math.round(fin.clients), "clients au bout d'un an"], [e(fin.revenu), "de revenu mensuel au 12e mois"], [rentable ? `mois ${rentable}` : "après 12 mois", "rentable à partir de"], [besoin > 0 ? e(besoin) : "0 €", besoin > 0 ? "à avancer au total" : "à avancer : tu couvres tes frais"]].map(([v, l]) => <div key={l} className="rounded-xl bg-paper p-3"><p className="text-[19px] font-black tnum" style={HF}>{v}</p><p className="text-[11.5px] text-ink-faint">{l}</p></div>)}
           </div>
           <div className="mt-3 rounded-xl border border-line p-3"><p className="text-[12.5px] text-ink-soft">Revenu mensuel, mois 1 à 12</p><div className="mt-1"><Sparkline pts={mois.map((x) => ({ n: x.revenu }))} h={60} /></div></div>
-          <p className="mt-3 text-[13.5px]">{h.pub > 0 ? <>Avec <b>{e(h.pub)} de pub par mois</b>, tu gagnes environ <b>{(h.pub / Math.max(h.cac, 1)).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} clients par mois</b>.</> : <>Sans pub, tes clients viendront du bouche-à-oreille, du référencement et de la prospection : la simulation reste à zéro.</>}
+          <p className="mt-3 text-[13.5px]">{h.pub > 0 ? <>Avec <b>{Number(h.organiques ?? 0)} clients par mois sans payer</b> et <b>{e(h.pub)} de pub</b> (environ {(h.pub / Math.max(h.cac, 1)).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} clients de plus), voici ta trajectoire.</> : <>Sans un euro de pub : <b>{Number(h.organiques ?? 0)} clients par mois</b> trouvés grâce au contenu, aux réseaux et à la prospection suffisent à construire un revenu. La pub pourra accélérer plus tard.</>}
             {mrrLeader && fin.revenu > 0 ? <> {inspire.nom} fait {e(mrrLeader / 1.08)} par mois : tu en serais à {Math.max(0.1, (fin.revenu / (mrrLeader / 1.08)) * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} % au bout d'un an.</> : null}</p>
         </div>
       </div>
@@ -2016,7 +2017,7 @@ function FilBourse({ fil, onClose }) {
 // ---------------------------------------------------------------- Démarrer : 3 questions, puis les SaaS à copier faits pour toi
 const SECTEURS = ["Marketing et SEO", "Réseaux sociaux et contenu", "IA et automatisation", "Données et analytics", "Développeurs et no-code", "CRM et ventes", "Prospection et emailing", "E-commerce", "Support client", "Gestion de projet", "Facturation et comptabilité", "Éducation et formation", "Immobilier", "Santé", "Commerce et restauration", "BTP et artisans"];
 const QUESTIONS = [
-  ["budget", "Combien peux-tu mettre pour lancer ?", "Abonnement Bingoo!, nom de domaine, premières pubs.", [["faible", "Moins de 500 €", "Je démarre avec presque rien"], ["moyen", "500 à 2 000 €", "De quoi tester quelques canaux"], ["eleve", "Plus de 2 000 €", "Je peux investir dans l'acquisition"]]],
+  ["budget", "Comment veux-tu trouver tes premiers clients ?", "Beaucoup de SaaS démarrent sans un euro de pub : contenu, réseaux, bouche-à-oreille.", [["faible", "Sans dépenser", "Contenu, réseaux sociaux, communautés"], ["moyen", "Avec un petit budget", "Quelques tests de pub en plus"], ["eleve", "En investissant dans la pub", "Pour aller plus vite"]]],
   ["profil", "Qu'est-ce que tu sais le mieux faire ?", "Bingoo! construit le logiciel : ta force, c'est pour trouver les clients.", [["vente", "Vendre et convaincre", "Prospection, réseau, marketing"], ["code", "La technique", "Je code ou je comprends les outils"], ["aucun", "Ni l'un ni l'autre", "Je veux un produit simple à expliquer"]]],
 ];
 const lirePar = () => { try { return JSON.parse(localStorage.getItem("bingoo-parcours") ?? "null"); } catch { return null; } };
@@ -2065,7 +2066,7 @@ function TrouveTonSaas() {
       )}
       {r.etape === 3 && (
         <div className="mt-4">
-          <p className="text-[14px] text-ink-soft">Budget {QUESTIONS[0][3].find((x) => x[0] === r.budget)?.[1].toLowerCase()} · {QUESTIONS[1][3].find((x) => x[0] === r.profil)?.[1].toLowerCase()}{r.secteurs.length ? ` · ${r.secteurs.join(", ")}` : ""} · <button onClick={() => garder({ etape: 0, secteurs: [] })} className="underline hover:text-ink">refaire</button></p>
+          <p className="text-[14px] text-ink-soft">{QUESTIONS[0][3].find((x) => x[0] === r.budget)?.[1]} · {QUESTIONS[1][3].find((x) => x[0] === r.profil)?.[1].toLowerCase()}{r.secteurs.length ? ` · ${r.secteurs.join(", ")}` : ""} · <button onClick={() => garder({ etape: 0, secteurs: [] })} className="underline hover:text-ink">refaire</button></p>
           {res === undefined || res === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : !res.length ? <p className="py-12 text-ink-soft">Aucun modèle assez simple à copier dans ces secteurs pour l'instant : la base grandit chaque jour. Élargis tes secteurs.</p> : (
             <>
               <div className="mt-4 grid md:grid-cols-3 gap-4">{res.slice(0, 3).map((x, i) => (
