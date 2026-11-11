@@ -1345,6 +1345,41 @@ function Budget({ projet, inspire }) {
   );
 }
 
+// Vérification avant livraison : chaque écran est ouvert en coulisses avec les données d'exemple ;
+// ceux qui plantent sont réécrits automatiquement, puis tout est revérifié.
+function Verification({ app, recharger }) {
+  const { ws } = useWs();
+  const aFaire = app.verif?.version !== app.version;
+  const enReparation = !aFaire && (app.verif?.repare ?? []).length > 0;
+  useEffect(() => {
+    if (!aFaire) return;
+    const ecoute = async (e) => {
+      if (e.data?.type !== "bingoo-verif" || e.data.slug !== app.slug) return;
+      try { await fn("r/saas-app-verif", { workspace_id: ws.id, app_id: app.id, resultats: e.data.resultats }); } catch { /* réessayé à la prochaine ouverture */ }
+      recharger();
+    };
+    window.addEventListener("message", ecoute);
+    return () => window.removeEventListener("message", ecoute);
+  }, [aFaire, app.id, app.version]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Réparation en cours : la nouvelle version arrive en une à deux minutes
+  useEffect(() => {
+    if (!enReparation) return;
+    const t = setInterval(recharger, 8000), fin = setTimeout(() => clearInterval(t), 4 * 60e3);
+    return () => { clearInterval(t); clearTimeout(fin); };
+  }, [enReparation, app.version]); // eslint-disable-line react-hooks/exhaustive-deps
+  const n = (app.spec?.ecrans ?? []).length;
+  const ko = (app.verif?.resultats ?? []).filter((r) => !r.ok).length;
+  return (
+    <div className="mt-4 flex items-center gap-2 text-[13.5px]">
+      {aFaire ? <><span className="h-4 w-4 rounded-full border-2 border-white/20 border-t-[#F6A06B] animate-spin" /><span className="text-white/80">Bingoo! teste chaque écran de ton SaaS…</span></>
+        : enReparation ? <><span className="h-4 w-4 rounded-full border-2 border-white/20 border-t-[#F6A06B] animate-spin" /><span className="text-white/80">Bingoo! répare {app.verif.repare.length} écran{app.verif.repare.length > 1 ? "s" : ""} qui ne s'ouvrai{app.verif.repare.length > 1 ? "ent" : "t"} pas bien…</span></>
+        : ko ? <span className="text-[#FCA5A5]">⚠ {ko} écran{ko > 1 ? "s" : ""} sur {n} ne s'ouvre{ko > 1 ? "nt" : ""} toujours pas bien. Demande sa correction ci-dessous en une phrase.</span>
+        : <span className="text-[#86EFAC]">✓ Testé par Bingoo! : les {n} écrans s'ouvrent et affichent leurs données.</span>}
+      {aFaire && <AppCadre slug={app.slug} spec={app.spec} version={app.version} verif className="absolute -left-[9999px] top-0 w-[1200px] h-[800px]" />}
+    </div>
+  );
+}
+
 function Construire({ projet }) {
   const { ws } = useWs();
   const nav = useNavigate();
@@ -1354,7 +1389,7 @@ function Construire({ projet }) {
   const [demande, setDemande] = useState("");
   const [envoi, setEnvoi] = useState(false);
   const [voirLigne, setVoirLigne] = useState(false);
-  const charger = () => supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, version, maj, paiement, domaine, domaine_statut, public, jumeau_at, lancement, ab, email_dom, icones, validation").eq("projet_id", projet.id).maybeSingle().then(({ data }) => { setApp(data ?? null); return data; });
+  const charger = () => supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, version, maj, verif, paiement, domaine, domaine_statut, public, jumeau_at, lancement, ab, email_dom, icones, validation").eq("projet_id", projet.id).maybeSingle().then(({ data }) => { setApp(data ?? null); return data; });
   useEffect(() => { charger(); }, [projet.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Construction ou modification en tâche de fond : on interroge la base toutes les 5 secondes
   useEffect(() => {
@@ -1403,6 +1438,7 @@ function Construire({ projet }) {
         )}
       </div>
 
+      {pret && app.statut !== "en_cours" && !attente && <Verification app={app} recharger={charger} />}
       {pret && app.validation && app.statut !== "en_cours" && <OuvertureListe app={app} projet={projet} />}
       {app?.statut === "en_cours" ? (
         <div className="mt-6 rounded-2xl bg-white/5 border border-white/10 p-5">

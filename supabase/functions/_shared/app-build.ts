@@ -152,3 +152,17 @@ export async function saasModifierEcran(appId: string, ecranId: string, demande:
   spec._modif = { ...m, liste: [...avant.map(({ liste: _l, ...x }: any) => x), m] };
   await admin.from("saas_apps").update({ brouillon: spec, statut: "pret", etape: null, erreur: null, maj: new Date().toISOString() }).eq("id", appId);
 }
+
+/** Réparation après la vérification : l'écran plante ou n'a pas été écrit ; on le réécrit avec l'erreur constatée. */
+export async function saasReparerEcran(appId: string, ecranId: string, erreur: string) {
+  const { data: app } = await admin.from("saas_apps").select("spec").eq("id", appId).single();
+  const spec = app?.spec as any;
+  const e = spec?.ecrans?.find((x: any) => x.id === ecranId);
+  if (!e) return false;
+  const r = e.code
+    ? await ecrire(spec, e, `L'écran ne fonctionne pas à l'ouverture, avec les données d'exemple : « ${erreur.slice(0, 300)} ». Trouve la cause (donnée absente, champ d'un autre type que prévu, composant ui mal utilisé, variable non définie) et corrige-la sans changer ce que fait l'écran. Protège chaque accès aux données (valeurs absentes, listes vides).`, e.code)
+    : await ecrire(spec, e);
+  if (!r.ok) return false;
+  await admin.rpc("saas_app_code_set", { p_app: appId, p_id: ecranId, p_code: sansIdentite(r.code, await inspireDe(appId), spec.nom).valeur });
+  return true;
+}

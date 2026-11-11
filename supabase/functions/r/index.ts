@@ -212,6 +212,39 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
     return { id, statut: "en_cours" };
   },
+  // Vérification avant livraison : la page Bingoo! ouvre chaque écran avec les données d'exemple et envoie le résultat ;
+  // les écrans qui plantent sont réécrits automatiquement (2 essais par écran au plus).
+  async "saas-app-verif"(req, b) {
+    const { ws } = await membreOuCron(req, b.workspace_id);
+    const { data: app } = await admin.from("saas_apps").select("id, version, verif, spec").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    if (!app) throw new HttpError(404, "Application introuvable");
+    const ids = new Set(((app.spec as any)?.ecrans ?? []).map((e: any) => e.id));
+    const resultats = (Array.isArray(b.resultats) ? b.resultats : []).filter((r: any) => ids.has(r?.id)).map((r: any) => ({ id: String(r.id), ok: !!r.ok, erreur: r.erreur ? String(r.erreur).slice(0, 400) : null }));
+    const avant = (app.verif ?? {}) as any;
+    const essais: Record<string, number> = { ...(avant.essais ?? {}) };
+    const aReparer = resultats.filter((r: any) => !r.ok && (essais[r.id] ?? 0) < 2).slice(0, 4);
+    for (const r of aReparer) essais[r.id] = (essais[r.id] ?? 0) + 1;
+    const verif = { version: app.version, at: new Date().toISOString(), resultats, essais, ok: resultats.every((r: any) => r.ok), repare: aReparer.map((r: any) => r.id) };
+    await admin.from("saas_apps").update({ verif }).eq("id", app.id);
+    if (aReparer.length) {
+      const cle = await secret("cron_key");
+      for (const r of aReparer) {
+        await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/r/saas-app-reparer`, { method: "POST", headers: { "content-type": "application/json", "x-cron-key": cle }, body: JSON.stringify({ app_id: app.id, ecran: r.id, erreur: r.erreur ?? "", ws: ws.id }) }).catch((e) => console.error("reparer", e));
+      }
+      await log(ws.id, "construire", `Vérification : ${aReparer.length} écran(s) en réparation`);
+    }
+    return verif;
+  },
+  async "saas-app-reparer"(req, b) {
+    await cron(req);
+    setAi({ ws: String(b.ws ?? ""), live: true, feature: "construire/reparer" });
+    const { saasReparerEcran } = await import("../_shared/app-build.ts");
+    const travail = saasReparerEcran(String(b.app_id ?? ""), String(b.ecran ?? ""), String(b.erreur ?? "")).catch((e) => console.error("reparer", e));
+    // deno-lint-ignore no-explicit-any
+    const rt = (globalThis as any).EdgeRuntime;
+    if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
+    return { ok: true };
+  },
   // Appel interne (clé des tâches planifiées) : écrit un écran du brouillon
   async "saas-app-ecran"(req, b) {
     await cron(req);

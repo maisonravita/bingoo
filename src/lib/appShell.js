@@ -9,8 +9,8 @@ const HTM = "https://esm.sh/htm@3.1.1";
 
 const safe = (o) => JSON.stringify(o).replace(/</g, "\\u003c").replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029");
 
-export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null, validation = null, precommande = null }) {
-  const boot = { spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog, source, ecran, validation, precommande };
+export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null, validation = null, precommande = null, verif = false }) {
+  const boot = { spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog, source, ecran, validation, precommande, verif };
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${String(spec.nom ?? "Mon SaaS").replace(/[<&]/g, "")}</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js"></script>
@@ -42,12 +42,36 @@ const allerVers = (url) => { try { window.top.location.href = url; } catch (e) {
 
 // ---------------------------------------------------------------- Accès aux données (chaque compte ne voit que les siennes)
 async function call(action, body = {}) {
+  if (B.verif) return verifCall(action, body);
   const r = await fetch(B.api + "/" + B.slug + "/" + action, { method: "POST", headers: { "content-type": "application/json", ...(token ? { "x-app-token": token } : {}) }, body: JSON.stringify(body) });
   const d = await r.json().catch(() => ({}));
   if (r.status === 401 && action !== "login") { persist(null); bus.emit("auth"); }
   if (r.status === 402) bus.emit("acces");
   if (!r.ok) throw new Error(d.error || "Erreur " + r.status);
   return d;
+}
+// Vérification avant livraison : données d'exemple en mémoire, aucune requête au serveur
+const VSTORE = {}; let VSEQ = 0;
+if (B.verif) {
+  const refs = new Map(), items = [];
+  for (const [col, xs] of Object.entries(S.demo ?? {})) for (const x of (Array.isArray(xs) ? xs : []).slice(0, 15)) { const id = "v" + (++VSEQ); if (x && x.ref != null) refs.set(String(x.ref), id); items.push({ id, col, x: x ?? {} }); }
+  items.forEach(({ id, col, x }, i) => { const d = {}; for (const [k, v] of Object.entries(x)) if (k !== "ref" && k !== "id") d[k] = typeof v === "string" && refs.has(v) && /_id$/.test(k) ? refs.get(v) : v; (VSTORE[col] ??= []).push({ ...d, id, created_at: new Date(Date.now() - i * 25e6).toISOString(), updated_at: null }); });
+}
+async function verifCall(action, b) {
+  const L = VSTORE[b.col] ??= [];
+  if (action === "list") return L.filter((x) => Object.entries(b.where ?? {}).every(([k, v]) => String(x[k]) === String(v))).slice().reverse();
+  if (action === "get") { const r = L.find((x) => x.id === b.id); if (!r) throw new Error("Élément introuvable"); return r; }
+  if (action === "add") { const r = { ...b.data, id: "v" + (++VSEQ), created_at: new Date().toISOString(), updated_at: null }; L.push(r); return r; }
+  if (action === "update") { const r = L.find((x) => x.id === b.id); if (r) Object.assign(r, b.data, { updated_at: new Date().toISOString() }); return r ?? {}; }
+  if (action === "remove") { VSTORE[b.col] = L.filter((x) => x.id !== b.id); return { ok: true }; }
+  if (action === "ia") return { resultat: b.json ? {} : "Texte d'essai rédigé par l'IA." };
+  return {};
+}
+const VERRS = [];
+if (B.verif) {
+  addEventListener("error", (e) => VERRS.push(String(e.message ?? e)));
+  addEventListener("unhandledrejection", (e) => VERRS.push(String(e.reason?.message ?? e.reason)));
+  const ce = console.error.bind(console); console.error = (...a) => { VERRS.push(a.map((x) => x?.message ?? String(x)).join(" ").slice(0, 300)); ce(...a); };
 }
 const bus = { l: {}, on(e, f) { (this.l[e] ??= new Set()).add(f); return () => this.l[e].delete(f); }, emit(e, x) { (this.l[e] ?? []).forEach((f) => f(x)); } };
 const db = {
@@ -301,7 +325,31 @@ function Appli({ user, etat, onLogout, tour, onFinTour }) {
   </div>\`;
 }
 
+// Chaque écran est ouvert à tour de rôle avec les données d'exemple ; le résultat part à la page Bingoo! qui encadre l'app
+function Verif() {
+  const [i, setI] = useState(0); const res = useRef([]);
+  const E = ECRANS[i];
+  useEffect(() => {
+    if (!E) {
+      for (const e of S.ecrans ?? []) if (!e.code) res.current.push({ id: e.id, ok: false, erreur: "Écran non écrit" });
+      try { parent.postMessage({ type: "bingoo-verif", slug: B.slug, resultats: res.current, ecrans: (S.ecrans ?? []).length }, "*"); } catch (x) {}
+      return;
+    }
+    const t = setTimeout(() => {
+      const txt = document.getElementById("verif-zone")?.innerText ?? "";
+      const casse = txt.includes("n'a pas pu être chargé");
+      const bizarre = (/\\bNaN\\b|\\bundefined\\b|\\[object Object\\]|Invalid Date/.exec(txt) ?? [])[0];
+      const erreur = VERRS[0] ?? (casse ? "L'écran ne se charge pas" : bizarre ? "Le texte affiché contient « " + bizarre + " »" : txt.trim().length < 30 ? "L'écran est presque vide" : null);
+      res.current.push({ id: E.id, ok: !erreur, erreur: erreur && String(erreur).slice(0, 400) });
+      VERRS.length = 0;
+      setI(i + 1);
+    }, 1400);
+    return () => clearTimeout(t);
+  }, [i]);
+  return E ? html\`<div id="verif-zone" class="p-6"><\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} user=\${{ id: "v", nom: "Test", email: "test@exemple.fr", role: "admin" }} params=\${null} etat=\${{ acces: true }}/></\${Garde}></div>\` : null;
+}
 function Racine() {
+  if (B.verif) return html\`<\${Verif}/>\`;
   if (B.validation && !(S.ecrans ?? []).length) return html\`<\${Precommande}/>\`;
   const [etat, setEtat] = useState(undefined), [auth, setAuth] = useState(B.invite ? "signup" : null), [tour, setTour] = useState(false);
   const verifier = (force) => token ? call("me", { verifier: !!force }).then((r) => { if (r.variante) VARIANTE = r.variante; setEtat(r); }, () => setEtat(null)) : setEtat(null);

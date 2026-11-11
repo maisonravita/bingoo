@@ -20,8 +20,8 @@ function variante(slug, ab) {
   try { let v = localStorage.getItem(`bingoo-ab:${slug}`); if (!v) { v = Math.random() < 0.5 ? "A" : "B"; localStorage.setItem(`bingoo-ab:${slug}`, v); } return v; } catch { return "A"; }
 }
 
-export default function AppCadre({ slug, spec, version, paiement, domaine, ab, articles, className, apercu = false, retourPaiement = false, invite = null, tour = false, source = null, ecran = null, validation = null, precommande = null }) {
-  const doc = useMemo(() => appHtml({ spec, slug, api: API, token: tour ? null : lire(slug), apercu, paiement, retour: lienApp(slug, domaine), retourPaiement, ab, variante: variante(slug, ab), invite, tour, articles: articles ?? [], blog: blogApp(slug, domaine), source, ecran, validation, precommande }), [slug, version, validation?.inscrits, paiement?.actif, paiement?.essai_jours, paiement?.modele, ab?.actif, ab?.ecart, tour]); // eslint-disable-line react-hooks/exhaustive-deps
+export default function AppCadre({ slug, spec, version, paiement, domaine, ab, articles, className, apercu = false, retourPaiement = false, invite = null, tour = false, source = null, ecran = null, validation = null, precommande = null, verif = false }) {
+  const doc = useMemo(() => appHtml({ spec, slug, api: API, token: tour ? null : lire(slug), apercu, paiement, retour: lienApp(slug, domaine), retourPaiement, ab, variante: variante(slug, ab), invite, tour, articles: articles ?? [], blog: blogApp(slug, domaine), source, ecran, validation, precommande, verif }), [slug, version, validation?.inscrits, paiement?.actif, paiement?.essai_jours, paiement?.modele, ab?.actif, ab?.ecart, tour]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const ecoute = (e) => {
       const d = e.data;
@@ -31,5 +31,5 @@ export default function AppCadre({ slug, spec, version, paiement, domaine, ab, a
     window.addEventListener("message", ecoute);
     return () => window.removeEventListener("message", ecoute);
   }, [slug]);
-  return <iframe key={`${slug}-${version}-${tour ? 1 : 0}`} title={spec?.nom ?? "Application"} srcDoc={doc} sandbox="allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation" className={className} />;
+  return <iframe key={`${slug}-${version}-${tour ? 1 : 0}`} title={spec?.nom ?? "Application"} srcDoc={doc} sandbox={verif ? "allow-scripts" : "allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"} className={className} />;
 }
