@@ -337,6 +337,37 @@ Clé : saas, liste d'objets i (le numéro) et tags.`, { fast: true, maxTokens: 2
   return { faits, restant: rows.length - faits };
 }
 
+// ---------------------------------------------------------------- Marchés de niche : l'IA range chaque SaaS dans une niche de la liste
+// (les mots-clés en base donnent une première niche à l'arrivée ; ce passage la corrige, une seule fois par fiche)
+export async function saasNiches(max = 200) {
+  setAi({ feature: "explorer/niches" });
+  const [{ data: defs }, { data }] = await Promise.all([
+    admin.from("saas_niches_def").select("niche").order("ordre"),
+    admin.from("saas").select("id, nom, categorie, description, cible, tags").eq("statut", "ok").eq("niche_ia", false).neq("description", "").limit(max),
+  ]);
+  const noms = (defs ?? []).map((d: { niche: string }) => d.niche);
+  const rows = (data ?? []) as { id: string; nom: string; categorie: string; description: string; cible: string | null; tags: string[] | null }[];
+  let faits = 0;
+  const lots: (typeof rows)[] = [];
+  for (let i = 0; i < rows.length; i += 25) lots.push(rows.slice(i, i + 25));
+  const traiter = async (lot: typeof rows) => {
+    const r = await askJson<{ saas: { i: number; niche: string }[] }>(`Range chaque logiciel dans UNE niche de cette liste, selon ce qu'il fait (son sujet principal), pas selon ses clients :
+${noms.join(" | ")}
+Si aucune ne convient vraiment, mets "".
+${lot.map((x, k) => `${k}. ${x.nom} : ${x.description} (étiquettes : ${(x.tags ?? []).join(", ")})`).join("\n")}
+Clé : saas, liste d'objets i (le numéro) et niche (texte exact de la liste, ou "").`, { fast: true, maxTokens: 2000 }).catch(() => ({ saas: [] }));
+    for (const x of r.saas ?? []) {
+      const row = lot[Number(x.i)];
+      if (!row) continue;
+      const niche = noms.includes(x.niche) ? x.niche : null;
+      await admin.from("saas").update({ niche, niche_ia: true }).eq("id", row.id);
+      faits++;
+    }
+  };
+  for (let i = 0; i < lots.length; i += 4) await Promise.all(lots.slice(i, i + 4).map(traiter));
+  return { faits, lus: rows.length };
+}
+
 // ---------------------------------------------------------------- Recherche par le sens
 // La question (« un outil pour relancer mes factures impayées ») devient des termes : synonymes français et anglais,
 // noms d'usage, étiquettes de niche, et une catégorie si elle est évidente. La notation se fait ensuite en base.

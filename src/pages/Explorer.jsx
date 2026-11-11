@@ -49,6 +49,7 @@ export default function Explorer({ domaine: fixe }) {
   if (d === "createurs") return <><Onglets actif="createurs" /><Createurs /></>;
   if (d === "bourse") return <><Onglets actif="bourse" /><Bourse /></>;
   if (d === "racheter") return <><Onglets actif="racheter" /><Racheter /></>;
+  if (d === "niches") return <><Onglets actif="niches" /><Niches /></>;
   if (d === "classement") return <><Onglets actif="classement" /><Classement /></>;
   if (d === "copier") return <><Onglets actif="copier" /><Liste copier /></>;
   if (d === "trouver") return <><Onglets actif="copier" /><TrouveTonSaas /></>;
@@ -60,6 +61,7 @@ export default function Explorer({ domaine: fixe }) {
 const RUBRIQUES = [
   ["SaaS", [["liste", "Tous les SaaS", "/explorer"]], "observer"],
   ["Classement", [["classement", "Classement", "/explorer/classement"]]],
+  ["Niches", [["niches", "Niches", "/explorer/niches"]]],
   ["Mes suivis", [["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"]]],
   ["Tendances", [["marche", "Pays et tendances", "/explorer/marche"], ["carte", "Le monde", "/explorer/carte"], ["idees", "Idées et réussites", "/explorer/idees"], ["pubs", "Pubs et e-mails", "/explorer/pubs"]]],
   ["À copier", [["copier", "À copier", "/explorer/copier"]], "copier"],
@@ -882,6 +884,131 @@ function Idees() {
           {cli && <div id="clients-niche" className="mt-4"><Clients key={cli.genre + cli.niche} categorie={cli.genre === "categorie" ? cli.niche : null} tag={cli.genre === "tag" ? cli.niche : null} titre={`Qui démarcher : ${cli.niche}`} /></div>}
         </>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- Marchés de niche : où il reste de la place, où l'argent est déjà prouvé
+const VERDICT = {
+  rentable: ["Petite niche rentable", "#15803D", "#DCFCE7", "Peu de concurrents, et de petits SaaS y gagnent déjà de l'argent. La meilleure place pour démarrer."],
+  ouverte: ["Niche ouverte", "#1D4ED8", "#DBEAFE", "Des SaaS de taille modeste y gagnent de l'argent et la concurrence reste raisonnable."],
+  disputee: ["Très disputée", "#C2410C", "#FFEDD5", "Beaucoup de concurrents : il faudra viser un public précis pour te distinguer."],
+  geants: ["Tenue par des géants", "#6B7280", "#F3F4F6", "Les seuls revenus connus sont ceux de très grandes entreprises. Difficile d'y entrer seul."],
+  a_prouver: ["Pas encore de preuve", "#6B7280", "#F3F4F6", "Aucun revenu connu pour l'instant dans la base. À valider avant d'y aller."],
+};
+const TRIS_NICHE = [["score", "Les meilleures places"], ["concurrence", "Le moins de concurrents"], ["indes", "Le plus de petits SaaS rentables"], ["croissance", "La plus forte croissance"]];
+const pct = (v) => `${v > 0 ? "+" : ""}${Number(v).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %`;
+
+function Niches() {
+  const nav = useNavigate();
+  const loc = useLocation();
+  const ouverte = new URLSearchParams(loc.search).get("n");
+  const [genre, setGenre] = useState("");
+  const [d, setD] = useState(null);
+  const [filtre, setFiltre] = useState("");
+  const [tri, setTri] = useState("score");
+  useEffect(() => { setD(null); supabase.rpc("saas_marches_niche", { p_genre: genre || null }).then(({ data }) => setD(data ?? [])); }, [genre]);
+  const liste = useMemo(() => {
+    const l = (d ?? []).map((x) => ({ ...x, n: Number(x.n), indes: Number(x.indes), croissance: x.croissance == null ? null : Number(x.croissance) }))
+      .filter((x) => !filtre || (filtre === "accelere" ? (x.croissance ?? 0) >= 10 || Number(x.nouveautes) >= 2 : x.verdict === filtre));
+    const k = { score: (x) => -x.score, concurrence: (x) => x.n - x.indes / 100, indes: (x) => -x.indes, croissance: (x) => -(x.croissance ?? -999) }[tri];
+    return l.sort((a, b) => k(a) - k(b));
+  }, [d, filtre, tri]);
+  if (ouverte) return <NicheDetail niche={ouverte} info={(d ?? []).find((x) => x.niche === ouverte)} retour={() => nav("/explorer/niches")} />;
+  const nb = (v) => (d ?? []).filter((x) => x.verdict === v).length;
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      <h1 className="text-[30px] font-black tracking-tight" style={HF}>Marchés de niche</h1>
+      <p className="text-ink-soft max-w-3xl">Chaque sous-marché du SaaS : combien de concurrents, combien de petits SaaS y gagnent déjà de l'argent, à quel prix ils vendent et pour qui. Une niche étroite où des indépendants encaissent, c'est là qu'on démarre le plus vite.</p>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Chip on={!filtre} onClick={() => setFiltre("")}>Toutes{d ? ` · ${d.length}` : ""}</Chip>
+        <Chip on={filtre === "rentable"} onClick={() => setFiltre("rentable")}>💰 Petites et rentables{d ? ` · ${nb("rentable")}` : ""}</Chip>
+        <Chip on={filtre === "ouverte"} onClick={() => setFiltre("ouverte")}>🌱 Ouvertes{d ? ` · ${nb("ouverte")}` : ""}</Chip>
+        <Chip on={filtre === "accelere"} onClick={() => setFiltre("accelere")}>🔥 Qui accélèrent</Chip>
+        <span className="flex-1" />
+        <select value={genre} onChange={(e) => setGenre(e.target.value)} className="rounded-xl border border-line bg-white px-3 py-2 text-[14px]"><option value="">SaaS et applis web</option><option value="saas">SaaS</option><option value="app_web">Applis web</option></select>
+        <select value={tri} onChange={(e) => setTri(e.target.value)} className="rounded-xl border border-line bg-white px-3 py-2 text-[14px]">{TRIS_NICHE.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+      </div>
+      <p className="mt-2 text-[12.5px] text-ink-faint">« Petit SaaS rentable » : revenu prouvé entre 500 $ et 500 000 $ par mois (Stripe vérifié, comptes déposés ou chiffre publié). Calculé sur les SaaS déjà lus ; les niches s'enrichissent chaque jour.</p>
+      {!d ? <div className="py-16 grid place-items-center"><Spinner /></div> : liste.length ? (
+        <div className="mt-4 grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {liste.map((x) => {
+            const v = VERDICT[x.verdict] ?? VERDICT.ouverte;
+            return (
+              <button key={x.niche} onClick={() => nav(`/explorer/niches?n=${encodeURIComponent(x.niche)}`)} className="text-left rounded-2xl bg-white border border-line p-5 flex flex-col hover:border-ink-faint transition">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="text-[19px] font-black leading-tight" style={HF}><span className="mr-1.5">{x.emoji}</span>{x.niche}</h3>
+                  <span className="shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold" style={{ color: v[1], background: v[2] }}>{v[0]}</span>
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-xl bg-paper py-2"><p className="text-[18px] font-black tnum">{x.n}</p><p className="text-[11px] text-ink-faint leading-tight">concurrents</p></div>
+                  <div className="rounded-xl bg-paper py-2"><p className="text-[18px] font-black tnum" style={{ color: x.indes ? "#15803D" : undefined }}>{x.indes}</p><p className="text-[11px] text-ink-faint leading-tight">petits SaaS rentables</p></div>
+                  <div className="rounded-xl bg-paper py-2"><p className="text-[18px] font-black tnum">{x.prix_med != null ? `${Math.round(x.prix_med)} €` : "–"}</p><p className="text-[11px] text-ink-faint leading-tight">prix médian / mois</p></div>
+                </div>
+                {x.meilleur_inde && <p className="mt-3 text-[13px] rounded-lg bg-[#FEF3C7] text-[#78350F] px-2.5 py-1.5"><b>{x.meilleur_inde.nom}</b> · {x.meilleur_inde.preuve}</p>}
+                <div className="mt-2 space-y-0.5 text-[13px] text-ink-soft flex-1">
+                  {x.avec_croissance > 0 && x.croissance != null && <p>Croissance vérifiée : <b style={{ color: x.croissance >= 0 ? "#15803D" : "#B91C1C" }}>{pct(x.croissance)}</b> en 30 jours <span className="text-ink-faint">({x.avec_croissance} SaaS)</span></p>}
+                  {(x.publics ?? []).length > 0 && <p>Pour : {x.publics.join(", ")}</p>}
+                  <p className="text-ink-faint">{[x.fr ? `${x.fr} français` : null, x.gratuits ? `${x.gratuits} avec offre gratuite` : "aucune offre gratuite", Number(x.copiables) ? `${x.copiables} à copier` : null].filter(Boolean).join(" · ")}</p>
+                </div>
+                <div className="mt-3 flex items-center gap-1.5">{(x.exemples ?? []).map((e) => <CompanyLogo key={e.domaine} name={e.nom} url={`https://${e.domaine}`} className="w-7 h-7" pad="p-1" />)}<span className="ml-auto text-[13px] font-semibold text-accent-dark">Voir la niche →</span></div>
+              </button>
+            );
+          })}
+        </div>
+      ) : <p className="mt-6 text-ink-faint">Aucune niche ne correspond à ce filtre pour l'instant.</p>}
+    </div>
+  );
+}
+
+function NicheDetail({ niche, info, retour }) {
+  const nav = useNavigate();
+  const [l, setL] = useState(null);
+  const [vue, setVue] = useState("tous");
+  useEffect(() => { supabase.rpc("saas_niche_detail", { p_niche: niche }).then(({ data }) => setL(data ?? [])); }, [niche]);
+  const v = VERDICT[info?.verdict] ?? null;
+  const rows = (l ?? []).filter((s) => vue === "tous" || (vue === "rentables" ? s.montant >= 6000 && s.montant <= 6e6 : s.copiable >= 60));
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      <button onClick={retour} className="text-[13.5px] font-semibold text-ink-soft hover:text-ink">← Toutes les niches</button>
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        <h1 className="text-[30px] font-black tracking-tight" style={HF}>{info?.emoji} {niche}</h1>
+        {v && <span className="rounded-full px-3 py-1 text-[12.5px] font-bold" style={{ color: v[1], background: v[2] }}>{v[0]}</span>}
+      </div>
+      {v && <p className="text-ink-soft">{v[3]}</p>}
+      {info && (
+        <div className="mt-4 grid grid-cols-2 md:grid-cols-5 gap-2">
+          {[["Concurrents", info.n], ["Petits SaaS rentables", info.indes], ["Revenu médian de ces petits SaaS", info.indes_med ? `${montantCourt(info.indes_med / 12)} / mois` : "–"], ["Prix", info.prix_min != null ? `${Math.round(info.prix_min)} à ${Math.round(info.prix_max)} €` : "–"], ["Croissance vérifiée (30 j)", info.croissance != null ? pct(info.croissance) : "–"]].map(([t, val]) => (
+            <div key={t} className="rounded-2xl bg-white border border-line p-4"><p className="text-[12px] text-ink-faint">{t}</p><p className="mt-0.5 text-[20px] font-black tnum">{val}</p></div>
+          ))}
+        </div>
+      )}
+      {info && (info.publics ?? []).length > 0 && <p className="mt-3 text-[13.5px] text-ink-soft">Ils vendent surtout à : <b>{info.publics.join(", ")}</b>. {Number(info.gratuits) === 0 ? "Aucun n'a d'offre gratuite : une version gratuite te démarquerait." : `${info.gratuits} sur ${info.n} ont une offre gratuite.`}</p>}
+      <div className="mt-5 flex flex-wrap gap-2">
+        <Chip on={vue === "tous"} onClick={() => setVue("tous")}>Tous</Chip>
+        <Chip on={vue === "rentables"} onClick={() => setVue("rentables")}>💰 Petits et rentables</Chip>
+        <Chip on={vue === "copier"} onClick={() => setVue("copier")}>🎯 Faciles à copier</Chip>
+      </div>
+      {!l ? <div className="py-16 grid place-items-center"><Spinner /></div> : rows.length ? (
+        <div className="mt-3 rounded-2xl bg-white border border-line divide-y divide-line">
+          {rows.map((s) => (
+            <div key={s.domaine} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+              <button onClick={() => nav(`/explorer/${s.domaine}`)} className="flex items-start gap-3 text-left flex-1 min-w-0">
+                <CompanyLogo name={s.nom} url={`https://${s.domaine}`} className="w-10 h-10" pad="p-1.5" />
+                <div className="min-w-0">
+                  <p className="font-bold text-[15px]">{s.nom} <span className="font-normal text-ink-faint text-[13px]">{drapeau(s.pays)} {s.domaine}</span>{s.genre === "app_web" && <span className="ml-1.5 rounded-full bg-paper px-2 py-0.5 text-[11px] font-semibold text-ink-soft">Appli web</span>}{s.copiable >= 60 && <span className="ml-1.5 rounded-full bg-accent-soft/60 px-2 py-0.5 text-[11px] font-bold text-accent-dark">🎯 {s.copiable}/100</span>}</p>
+                  <p className="text-[13px] text-ink-soft line-clamp-1">{s.description}</p>
+                  {s.preuve && <p className="text-[12.5px] mt-0.5" style={{ color: s.montant > 6e6 ? "#6B7280" : "#78350F" }}>★ {s.preuve}</p>}
+                </div>
+              </button>
+              <div className="flex items-center gap-3 sm:justify-end">
+                <p className="text-[13px] text-ink-soft tnum w-24 sm:text-right">{s.prix ? `${Math.round(s.prix)} €/mois` : s.gratuit ? "Gratuit" : ""}</p>
+                <button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className="rounded-xl bg-accent text-white px-3.5 py-2 text-[13px] font-bold hover:bg-accent-dark whitespace-nowrap">Lancer le mien</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : <p className="mt-6 text-ink-faint">Rien dans cette sélection pour l'instant.</p>}
     </div>
   );
 }
