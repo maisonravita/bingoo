@@ -173,7 +173,8 @@ export async function trustmrrLire(n = 40, maxMs = 100_000) {
         const f = trustmrrFiche(r.text, slug);
         let domaine: string | null = null;
         try { domaine = f.site ? new URL(f.site).hostname.replace(/^www\./, "").toLowerCase() : null; } catch { /* adresse invalide */ }
-        const mensuel = Math.max(f.mrr, f.rev30);
+        // Le MRR fait foi ; le revenu sur 30 jours ne compte que pour les startups sans abonnement (ventes à l'unité)
+        const mensuel = f.mrr > 0 ? f.mrr : f.rev30;
         res.push({ slug, statut: mensuel >= MRR_MIN && domaine ? "succes" : "petit", mrr: mensuel || null, domaine, at });
         if (mensuel >= MRR_MIN && domaine && /^[a-z0-9.-]+\.[a-z]{2,}$/.test(domaine) && !/(trustmrr|apps\.apple|play\.google|chromewebstore|x\.com|twitter|linkedin|instagram|tiktok|youtube)/.test(domaine)) succes.push({ ...f, site: domaine });
       } catch { res.push({ slug, statut: "erreur", mrr: null, domaine: null, at }); }
@@ -190,8 +191,9 @@ export async function trustmrrLire(n = 40, maxMs = 100_000) {
     const { data: deja } = await admin.from("saas").select("id, domaine, statut, succes").in("domaine", succes.map((x) => x.site!));
     const par = new Map((deja ?? []).map((x) => [x.domaine, x]));
     for (const f of succes) {
-      const mensuel = Math.max(f.mrr, f.rev30);
-      const preuve = f.mrr ? `${fmt$(f.mrr)} de MRR vérifié par Stripe${f.croissance ? ` (${f.croissance} en 30 jours)` : ""}` : `${fmt$(f.rev30)} de revenu vérifié sur 30 jours`;
+      const mensuel = f.mrr > 0 ? f.mrr : f.rev30;
+      const crois = f.croissance?.replace(".", ",").replace("%", " %");
+      const preuve = f.mrr ? `${fmt$(f.mrr)} de MRR vérifié par Stripe${crois && !/^[+-]?0,0/.test(crois) ? ` (${crois} en 30 jours)` : ""}` : `${fmt$(f.rev30)} de revenu vérifié sur 30 jours`;
       const s = { preuve, source: `${TM}/startup/${f.slug}`, type: "revenu_verifie", montant: mensuel * 12, mrr: f.mrr || null, revenu_30j: f.rev30 || null, croissance_30j: f.croissance, abonnements: f.abonnements, revenu_total: f.total, fonde: f.fonde, courbe: f.courbe.slice(-12), marches: f.marches, prix: f.prix, probleme: f.probleme, a_vendre: f.a_vendre, verifie_at: new Date().toISOString() };
       const e = par.get(f.site!);
       if (e) {
