@@ -113,6 +113,14 @@ export async function appFichier(admin: SupabaseClient, slug: string, quoi: stri
   if (quoi === "icone.svg") {
     return { status: 200, type: "image/svg+xml", body: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="${couleur}"/><text x="256" y="340" font-family="Inter,Arial,sans-serif" font-size="280" font-weight="800" fill="#fff" text-anchor="middle">${echap(String(s.nom ?? "S").slice(0, 1).toUpperCase())}</text></svg>` };
   }
+  // Badge « revenu vérifié par Bingoo! » à poser sur son site (seulement si le créateur affiche son SaaS dans le monde)
+  if (quoi === "badge.svg") {
+    const { data: a } = await admin.from("saas_apps").select("id, public").eq("slug", slug).single();
+    const { data: mrr } = a?.public ? await admin.rpc("saas_app_mrr", { p_app: a.id }) : { data: null };
+    const txt = a?.public ? `${Math.round(Number(mrr ?? 0)).toLocaleString("fr-FR").replace(/\u202f|\u00a0/g, " ")} € / mois` : "Construit avec Bingoo!";
+    const w = 132 + txt.length * 7.4;
+    return { status: 200, type: "image/svg+xml", body: `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(w)}" height="36" viewBox="0 0 ${Math.round(w)} 36"><rect width="100%" height="36" rx="10" fill="#15161A"/><rect x="4" y="4" width="28" height="28" rx="8" fill="${couleur}"/><text x="18" y="24" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="800" fill="#fff" text-anchor="middle">${echap(String(s.nom ?? "S").slice(0, 1).toUpperCase())}</text><text x="40" y="15" font-family="Inter,Arial,sans-serif" font-size="9.5" fill="#F6A06B" font-weight="700">${a?.public ? "REVENU VÉRIFIÉ PAR BINGOO!" : echap(String(s.nom ?? ""))}</text><text x="40" y="28" font-family="Inter,Arial,sans-serif" font-size="12.5" fill="#fff" font-weight="800">${echap(txt)}</text></svg>` };
+  }
   if (quoi === "manifest") {
     const propre = app.domaine_statut === "ok" && app.domaine;
     const debut = propre ? "/" : `/?app=${slug}#/app/${slug}`;

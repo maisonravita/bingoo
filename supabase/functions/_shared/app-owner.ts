@@ -273,3 +273,85 @@ export async function appBourse(appId: string, b: any) {
   await admin.from("saas_bourse").upsert({ app_id: appId, prix, description: String(b.description ?? "").slice(0, 1500), statut: "en_vente", at: new Date().toISOString() }, { onConflict: "app_id" });
   return { statut: "en_vente", prix };
 }
+
+// ---------------------------------------------------------------- Revenu vérifié : synchronisation Stripe, historique, jalons
+const ACTIFS = ["active", "trialing", "past_due"];
+
+/** Relit tous les abonnements de l'app chez Stripe (compte du créateur) : le revenu affiché reste vrai même si les clients ne se connectent pas. */
+export async function appStripeSync(appId: string) {
+  const { data: sec } = await admin.from("saas_app_secrets").select("stripe_key").eq("app_id", appId).maybeSingle();
+  if (!sec?.stripe_key) return { synchro: false };
+  const subs: any[] = [];
+  let apres = "";
+  for (let i = 0; i < 20; i++) {
+    const q = new URLSearchParams({ status: "all", limit: "100", ...(apres ? { starting_after: apres } : {}) });
+    const r = await fetch(`https://api.stripe.com/v1/subscriptions?${q}`, { headers: { authorization: `Bearer ${sec.stripe_key}` } });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(`Stripe : ${d?.error?.message ?? r.status}`);
+    subs.push(...(d.data ?? []));
+    if (!d.has_more || !d.data?.length) break;
+    apres = d.data.at(-1).id;
+  }
+  // Pour chaque client : l'abonnement en cours d'abord, sinon le plus récent
+  const parClient = new Map<string, any>();
+  for (const s of subs) {
+    const c = typeof s.customer === "string" ? s.customer : s.customer?.id;
+    const cur = parClient.get(c);
+    if (!cur || (ACTIFS.includes(s.status) && !ACTIFS.includes(cur.status)) || (ACTIFS.includes(s.status) === ACTIFS.includes(cur.status) && s.created > cur.created)) parClient.set(c, s);
+  }
+  const { data: us } = await admin.from("saas_app_users").select("id, stripe_customer").eq("app_id", appId).not("stripe_customer", "is", null);
+  const maintenant = new Date().toISOString();
+  for (const u of us ?? []) {
+    const s = parClient.get(u.stripe_customer);
+    if (!s) continue;
+    const it = s.items?.data?.[0]?.price;
+    const montant = it?.unit_amount != null ? Math.round((it.unit_amount / 100) * (it.recurring?.interval === "year" ? 1 / 12 : 1) * 100) / 100 : null;
+    await admin.from("saas_app_users").update({ verifie_at: maintenant, abonnement: { statut: s.status, formule: s.metadata?.formule ?? null, montant, fin_periode: s.current_period_end ? new Date(s.current_period_end * 1000).toISOString() : null, annule: !!s.cancel_at_period_end } }).eq("id", u.id);
+  }
+  await admin.from("saas_apps").update({ stripe_sync_at: maintenant }).eq("id", appId);
+  return { synchro: true, abonnements: subs.length };
+}
+
+const etageDe = (mrr: number) => Math.floor(mrr / 1000);
+
+/** Photo du jour (revenu, abonnés, comptes) et jalons franchis : un étage de plus, le phare, le premier abonné. */
+export async function appPhotoDuJour(appId: string) {
+  const { data: app } = await admin.from("saas_apps").select("workspace_id, spec, slug").eq("id", appId).single();
+  const { data: mrr } = await admin.rpc("saas_app_mrr", { p_app: appId });
+  const [{ count: abonnes }, { count: comptes }] = await Promise.all([
+    admin.from("saas_app_users").select("id", { count: "exact", head: true }).eq("app_id", appId).in("abonnement->>statut", ["active", "past_due"]),
+    admin.from("saas_app_users").select("id", { count: "exact", head: true }).eq("app_id", appId).not("email", "like", "demo-%@demo.local"),
+  ]);
+  const m = Number(mrr ?? 0);
+  const { data: hier } = await admin.from("saas_app_mrr_jour").select("mrr, abonnes").eq("app_id", appId).lt("jour", new Date().toISOString().slice(0, 10)).order("jour", { ascending: false }).limit(1).maybeSingle();
+  await admin.from("saas_app_mrr_jour").upsert({ app_id: appId, jour: new Date().toISOString().slice(0, 10), mrr: m, abonnes: abonnes ?? 0, comptes: comptes ?? 0 }, { onConflict: "app_id,jour" });
+  if (!hier) return { mrr: m };
+  const nom = (app!.spec as any)?.nom ?? "Ton SaaS";
+  const jalons: string[] = [];
+  if (!hier.abonnes && (abonnes ?? 0) > 0) jalons.push(`${nom} a son premier abonné payant 🎉`);
+  if (etageDe(m) > etageDe(Number(hier.mrr))) jalons.push(m >= 10000 && Number(hier.mrr) < 10000 ? `${nom} passe ${Math.floor(m / 1000)} 000 € par mois : le phare s'allume 🗼` : `${nom} passe ${Math.floor(m / 1000)} 000 € par mois : un étage de plus sur l'île des créateurs 🏢`);
+  for (const j of jalons) await admin.from("activity").insert({ workspace_id: app!.workspace_id, kind: "jalon", summary: j });
+  if (jalons.length) {
+    try {
+      const { sendSystem, teamAddress } = await import("./mail.ts");
+      const { data: w } = await admin.from("workspaces").select("*").eq("id", app!.workspace_id).single();
+      const to = await teamAddress(w as never);
+      if (to) await sendSystem({ to, subject: jalons[0], text: `${jalons.join("\n")}\n\nRevenu mensuel vérifié : ${Math.round(m)} €, ${abonnes} abonné${(abonnes ?? 0) > 1 ? "s" : ""}.\n\nVoir ton SaaS : https://kairo.maisonravita.fr/#/explorer/createurs\n\nBingoo!`, key: `jalon-${appId}-${new Date().toISOString().slice(0, 10)}` });
+    } catch (e) { console.error("jalon", e); }
+  }
+  return { mrr: m, jalons };
+}
+
+/** Tâche quotidienne : synchronisation Stripe puis photo du jour, pour chaque SaaS construit. */
+export async function appsCreateursCron(max = 40) {
+  const { data: apps } = await admin.from("saas_apps").select("id, paiement, stripe_sync_at").not("spec->ecrans", "is", null).order("stripe_sync_at", { ascending: true, nullsFirst: true }).limit(max);
+  const out: unknown[] = [];
+  for (const a of apps ?? []) {
+    const r: Record<string, unknown> = { id: a.id };
+    if ((a.paiement as any)?.compte) r.stripe = await appStripeSync(a.id).catch((e) => ({ erreur: String(e?.message ?? e) }));
+    else await admin.from("saas_apps").update({ stripe_sync_at: new Date().toISOString() }).eq("id", a.id);
+    r.photo = await appPhotoDuJour(a.id).catch((e) => ({ erreur: String(e?.message ?? e) }));
+    out.push(r);
+  }
+  return out;
+}

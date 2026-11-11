@@ -1307,6 +1307,7 @@ function OngletMonde({ app, appel, agir, busy }) {
       <div className="rounded-xl bg-white/[.06] p-4 space-y-2">
         <p className="font-bold">🏝 Le monde des SaaS</p>
         <p className="text-[13px] text-white/65">{app.spec.nom} devient un bâtiment sur l'île des créateurs : un étage de plus tous les 1 000 € de revenu mensuel vérifié, un phare à 10 000 €. Il entre aussi dans le classement des créateurs (nom de ton espace, revenu, abonnés).</p>
+        {app.public && <div className="rounded-lg bg-white/5 p-2.5"><p className="text-[12.5px] text-white/60">Ton badge à poser sur ton site (il se met à jour tout seul) :</p><img src={`${API}/${app.slug}/badge.svg`} alt="Revenu vérifié par Bingoo!" className="mt-1.5 h-9" /><button onClick={() => navigator.clipboard?.writeText(`<a href="https://kairo.maisonravita.fr/#/explorer/createurs"><img src="${API}/${app.slug}/badge.svg" alt="Revenu vérifié par Bingoo!" height="36"></a>`)} className="mt-1.5 text-[12.5px] underline text-white/70">Copier le code du badge</button></div>}
         <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={!!app.public} disabled={!!busy} onChange={(e) => agir("pub", () => appel("public", { public: e.target.checked }), e.target.checked ? `${app.spec.nom} apparaît dans le monde` : "Retiré du monde et du classement")} />Afficher {app.spec.nom} dans le monde et le classement</label>
       </div>
       <div className="rounded-xl bg-white/[.06] p-4 space-y-2">
@@ -1344,29 +1345,45 @@ function OngletCode({ app }) {
 }
 
 // ---------------------------------------------------------------- Mes SaaS construits et classement des créateurs
+const croissance = (a) => Number(a.mrr_30j) > 0 ? Math.round((Number(a.mrr) / Number(a.mrr_30j) - 1) * 100) : Number(a.mrr) > 0 ? null : 0;
+const CLASSEMENTS = [["mrr", "Revenu", (a) => Number(a.mrr)], ["croissance", "Croissance du mois", (a) => Number(a.mrr) - Number(a.mrr_30j)], ["nouveaux", "Nouveaux comptes", (a) => Number(a.nouveaux_30j)]];
 function Createurs() {
   const nav = useNavigate();
   const { ws } = useWs();
   const [mes, setMes] = useState(null);
   const [cl, setCl] = useState(null);
+  const [histo, setHisto] = useState({});
+  const [tri, setTri] = useState("mrr");
   useEffect(() => {
     supabase.from("saas_apps").select("id, slug, spec, statut, public, domaine, domaine_statut, at, projet_id, saas_projets(data)").eq("workspace_id", ws.id).order("at", { ascending: false }).then(({ data }) => setMes(data ?? []));
     supabase.rpc("saas_apps_monde").then(({ data }) => setCl(data ?? []));
+    supabase.from("saas_app_mrr_jour").select("app_id, jour, mrr").gte("jour", new Date(Date.now() - 90 * 864e5).toISOString().slice(0, 10)).order("jour").then(({ data }) => {
+      const h = {}; for (const r of data ?? []) (h[r.app_id] ??= []).push({ n: Number(r.mrr) }); setHisto(h);
+    });
   }, [ws.id]);
+  const chiffres = (slug) => (cl ?? []).find((x) => x.slug === slug);
+  const f = CLASSEMENTS.find((x) => x[0] === tri)[2];
+  const publics = (cl ?? []).filter((a) => a.public).sort((x, y) => f(y) - f(x));
+  const mesPrives = (cl ?? []).filter((a) => a.a_moi && !a.public).map((a) => ({ ...a, place: publics.filter((p) => f(p) > f(a)).length + 1 }));
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
       <h1 className="text-[30px] font-black tracking-tight" style={HF}>Mes SaaS et classement</h1>
-      <p className="text-ink-soft">Les SaaS que Bingoo! a construits pour toi, et le classement des créateurs au revenu vérifié dans Stripe.</p>
+      <p className="text-ink-soft">Les SaaS que Bingoo! a construits pour toi, et le classement des créateurs. Les revenus sont relus chaque nuit dans Stripe : jamais un chiffre déclaré.</p>
       <h2 className="mt-6 font-bold text-[19px]">Mes SaaS construits</h2>
       {mes === null ? <div className="py-10 grid place-items-center"><Spinner /></div> : !mes.length ? (
         <div className="mt-2 rounded-2xl bg-white border border-line p-6"><p>Tu n'as pas encore de SaaS construit. Choisis un SaaS qui marche dans la base, clique « Lancer le mien », puis « Construire mon SaaS ».</p><button onClick={() => nav("/explorer/idees")} className="mt-3 rounded-xl bg-accent text-white px-4 py-2.5 font-bold">Trouver une idée</button></div>
       ) : (
         <div className="mt-2 grid md:grid-cols-2 lg:grid-cols-3 gap-3">{mes.map((a) => {
           const insp = a.saas_projets?.data?.inspire;
+          const c = chiffres(a.slug);
+          const mrr = Number(c?.mrr ?? 0), etage = Math.floor(mrr / 1000), vers = (etage + 1) * 1000;
+          const g = c ? croissance(c) : 0;
           return (
             <div key={a.id} className="rounded-2xl bg-white border border-line p-4 flex flex-col">
-              <div className="flex items-center gap-2.5"><span className="grid h-10 w-10 place-items-center rounded-xl text-white font-black" style={{ background: a.spec?.couleur ?? "#4F46E5" }}>{String(a.spec?.nom ?? "S")[0]}</span><div className="min-w-0"><p className="font-bold truncate">{a.spec?.nom ?? "En construction"}</p><p className="text-[12.5px] text-ink-faint truncate">{insp ? `Concurrent de ${insp.nom}` : ""}{a.public ? " · dans le monde" : ""}</p></div></div>
-              <p className="mt-2 text-[13.5px] text-ink-soft line-clamp-2 flex-1">{a.spec?.pitch}</p>
+              <div className="flex items-center gap-2.5"><span className="grid h-10 w-10 place-items-center rounded-xl text-white font-black" style={{ background: a.spec?.couleur ?? "#4F46E5" }}>{String(a.spec?.nom ?? "S")[0]}</span><div className="min-w-0 flex-1"><p className="font-bold truncate">{a.spec?.nom ?? "En construction"}</p><p className="text-[12.5px] text-ink-faint truncate">{insp ? `Concurrent de ${insp.nom}` : ""}</p></div><span className={cx("shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold", a.public ? "bg-[#DCFCE7] text-[#15803D]" : "bg-paper text-ink-faint")}>{a.public ? "DANS LE MONDE" : "PRIVÉ"}</span></div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">{[[eurs(mrr), "par mois"], [c?.abonnes ?? 0, "abonnés"], [g == null ? "nouveau" : `${g > 0 ? "+" : ""}${g} %`, "sur 30 jours"]].map(([v, l]) => <div key={l} className="rounded-xl bg-paper py-2"><p className="text-[16px] font-black tnum">{v}</p><p className="text-[11px] text-ink-faint">{l}</p></div>)}</div>
+              {(histo[a.id]?.length ?? 0) > 1 && <div className="mt-2"><Sparkline pts={histo[a.id]} h={36} /></div>}
+              <div className="mt-2"><div className="flex justify-between text-[11.5px] text-ink-faint"><span>{etage ? `${etage} étage${etage > 1 ? "s" : ""}` : "Rez-de-chaussée"}{mrr >= 10000 ? " · phare allumé" : ""}</span><span>prochain étage à {eurs(vers)}</span></div><div className="mt-1 h-1.5 rounded-full bg-paper overflow-hidden"><div className="h-full rounded-full bg-accent" style={{ width: `${Math.min(100, ((mrr % 1000) / 1000) * 100)}%` }} /></div></div>
               <div className="mt-3 flex gap-2">
                 <button onClick={() => nav(`/explorer/lancer?d=${insp?.domaine ?? ""}`)} className="rounded-xl bg-ink text-white px-3.5 py-2 text-[13.5px] font-bold">Gérer</button>
                 {a.spec?.ecrans?.length > 0 && <a href={lienApp(a.slug, a.domaine_statut === "ok" ? a.domaine : null)} target="_blank" rel="noreferrer" className="rounded-xl border border-line px-3.5 py-2 text-[13.5px] font-semibold hover:border-ink-faint">Ouvrir ↗</a>}
@@ -1375,14 +1392,17 @@ function Createurs() {
           );
         })}</div>
       )}
-      <h2 className="mt-8 font-bold text-[19px]">Classement des créateurs</h2>
-      <p className="text-[13px] text-ink-faint">Revenu mensuel vérifié dans Stripe, jamais déclaré. Seuls les créateurs qui l'ont accepté y figurent.</p>
+      <div className="mt-8 flex flex-wrap items-end justify-between gap-3">
+        <div><h2 className="font-bold text-[19px]">Classement des créateurs</h2><p className="text-[13px] text-ink-faint">Seuls les créateurs qui l'ont accepté y figurent (onglet « Monde et bourse » de leur SaaS).</p></div>
+        <div className="flex gap-1.5">{CLASSEMENTS.map(([k, l]) => <Chip key={k} on={tri === k} onClick={() => setTri(k)}>{l}</Chip>)}</div>
+      </div>
       <div className="mt-2 rounded-2xl bg-white border border-line overflow-hidden">
-        {cl === null ? <div className="py-10 grid place-items-center"><Spinner /></div> : !cl.length ? <p className="p-5 text-ink-soft">Personne dans le classement pour l'instant. Sois le premier : dans ton SaaS, onglet « Monde et bourse ».</p> : (
-          <table className="w-full text-[14px]"><thead><tr className="text-left text-[12px] text-ink-faint border-b border-line"><th className="px-4 py-2 font-medium w-10">#</th><th className="font-medium">SaaS</th><th className="font-medium hidden sm:table-cell">Créateur</th><th className="font-medium text-right">Revenu / mois</th><th className="font-medium text-right hidden sm:table-cell">Abonnés</th><th className="font-medium text-right px-4">Comptes</th></tr></thead>
-            <tbody>{cl.map((a, i) => <tr key={a.slug} className="border-t border-line first:border-0"><td className="px-4 py-2.5 font-black tnum">{i < 3 ? ["🥇", "🥈", "🥉"][i] : i + 1}</td><td><a href={lienApp(a.slug, a.domaine)} target="_blank" rel="noreferrer" className="flex items-center gap-2 font-semibold hover:underline"><span className="h-5 w-5 rounded-md" style={{ background: a.couleur ?? "#4F46E5" }} />{a.nom}</a></td><td className="text-ink-soft hidden sm:table-cell">{a.createur}</td><td className="text-right font-bold tnum">{eurs(a.mrr)}</td><td className="text-right tnum hidden sm:table-cell">{a.abonnes}</td><td className="text-right tnum px-4">{a.comptes}</td></tr>)}</tbody></table>
+        {cl === null ? <div className="py-10 grid place-items-center"><Spinner /></div> : !publics.length ? <p className="p-5 text-ink-soft">Personne dans le classement pour l'instant. Sois le premier : dans ton SaaS, onglet « Monde et bourse ».</p> : (
+          <table className="w-full text-[14px]"><thead><tr className="text-left text-[12px] text-ink-faint border-b border-line"><th className="px-4 py-2 font-medium w-10">#</th><th className="font-medium">SaaS</th><th className="font-medium hidden sm:table-cell">Créateur</th><th className="font-medium text-right">Revenu / mois</th><th className="font-medium text-right hidden md:table-cell">30 jours</th><th className="font-medium text-right hidden sm:table-cell">Abonnés</th><th className="font-medium text-right px-4">Nouveaux</th></tr></thead>
+            <tbody>{publics.slice(0, 100).map((a, i) => { const g = croissance(a); return <tr key={a.slug} className={cx("border-t border-line first:border-0", a.a_moi && "bg-accent-soft/50")}><td className="px-4 py-2.5 font-black tnum">{i < 3 ? ["🥇", "🥈", "🥉"][i] : i + 1}</td><td><a href={lienApp(a.slug, a.domaine)} target="_blank" rel="noreferrer" className="flex items-center gap-2 font-semibold hover:underline"><span className="h-5 w-5 rounded-md" style={{ background: a.couleur ?? "#4F46E5" }} />{a.nom}{a.a_moi && <span className="rounded-full bg-accent text-white px-1.5 text-[10.5px] font-bold">TOI</span>}</a></td><td className="text-ink-soft hidden sm:table-cell">{a.createur}</td><td className="text-right font-bold tnum">{eurs(a.mrr)}</td><td className={cx("text-right tnum hidden md:table-cell", g > 0 ? "text-[#15803D]" : g < 0 ? "text-[#B91C1C]" : "text-ink-faint")}>{g == null ? "nouveau" : `${g > 0 ? "+" : ""}${g} %`}</td><td className="text-right tnum hidden sm:table-cell">{a.abonnes}</td><td className="text-right tnum px-4">{a.nouveaux_30j}</td></tr>; })}</tbody></table>
         )}
       </div>
+      {mesPrives.length > 0 && <p className="mt-2 text-[13px] text-ink-soft">{mesPrives.map((a) => `${a.nom} serait ${a.place}${a.place === 1 ? "er" : "e"} s'il était affiché`).join(" · ")}. Pour entrer dans le classement : onglet « Monde et bourse » de ton SaaS.</p>}
     </div>
   );
 }

@@ -187,10 +187,11 @@ function Ile({ g, k, x, y, w, d, lots, max, onPays, sel, etiquettes, onClick, su
         const h = p.app ? hauteurApp(p.mrr) : 1.6 + 9 * Math.sqrt(Number(p.n) / max);
         const [px, py] = P(at[0] + 1.1, at[1] + 1.1, h + 1.9);
         const on = sel === p.pays;
-        const txt = p.app ? `${p.nom} · ${Math.round(Number(p.mrr)).toLocaleString("fr-FR")} €` : `${drapeau(p.pays)} ${p.n}`;
+        const g = p.app && Number(p.mrr_30j) > 0 ? Math.round((Number(p.mrr) / Number(p.mrr_30j) - 1) * 100) : null;
+        const txt = p.app ? `${p.a_moi ? "★ " : ""}${p.nom} · ${Math.round(Number(p.mrr)).toLocaleString("fr-FR")} €${g ? ` ${g > 0 ? "↑" : "↓"}${Math.abs(g)} %` : ""}` : `${drapeau(p.pays)} ${p.n}`;
         const lw = p.app ? Math.max(52, txt.length * 7 + 14) : 52;
         return <g key={`e${p.pays}`} transform={`translate(${px} ${py})`} className="cursor-pointer" onClick={(e) => { e.stopPropagation(); onPays?.(p.pays); }}>
-          <rect x={-lw / 2} y={-12} width={lw} height={22} rx={11} fill={on ? "#fff" : "#16213A"} fillOpacity={on ? 1 : 0.88} stroke={ile.c} strokeWidth="1.4" />
+          <rect x={-lw / 2} y={-12} width={lw} height={22} rx={11} fill={on ? "#fff" : p.a_moi ? "#E0531F" : "#16213A"} fillOpacity={on ? 1 : 0.92} stroke={p.a_moi ? "#fff" : ile.c} strokeWidth="1.4" />
           <text y="4" textAnchor="middle" fontSize="12.5" fontWeight="800" fill={on ? "#16213A" : "#fff"}>{txt}</text>
         </g>;
       })}
@@ -319,7 +320,7 @@ export default function IsoMonde({ data, apps = [], onVoir, onApp }) {
             <p className="mt-3 grid h-12 w-12 place-items-center rounded-2xl text-white text-[22px] font-black" style={{ background: a.couleur || "#E0531F" }}>{String(a.nom ?? "S")[0]}</p>
             <h2 className="mt-2 text-[24px] font-black" style={{ fontFamily: "var(--font-titre)" }}>{a.nom}</h2>
             <p className="text-[13.5px] text-ink-soft">{a.pitch}</p>
-            <p className="mt-1 text-[12.5px] text-ink-faint">Créé par {a.createur}</p>
+            <p className="mt-1 text-[12.5px] text-ink-faint">Créé par {a.createur}{a.a_moi ? " · c'est toi" : ""}{a.a_moi && !a.public ? " · visible par toi seulement" : ""}</p>
             <div className="mt-3 grid grid-cols-3 gap-2 text-center">
               {[[`${Math.round(Number(a.mrr)).toLocaleString("fr-FR")} €`, "par mois"], [a.abonnes, "abonnés"], [a.comptes, "comptes"]].map(([v, l]) => <div key={l} className="rounded-xl bg-paper py-2"><p className="text-[18px] font-black tnum">{v}</p><p className="text-[11.5px] text-ink-faint">{l}</p></div>)}
             </div>

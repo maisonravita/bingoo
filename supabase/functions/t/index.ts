@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   const path = new URL(req.url).pathname;
   // SaaS construits par Bingoo! : comptes et données de l'application (/t/app/<slug>/<action>)
-  const af = path.match(/\/app\/([a-z0-9-]+)\/(manifest|icone\.svg)$/);
+  const af = path.match(/\/app\/([a-z0-9-]+)\/(manifest|icone\.svg|badge\.svg)$/);
   if (req.method === "GET" && af) {
     const { appFichier } = await import("../_shared/app-runtime.ts");
     const r = await appFichier(admin, af[1], af[2]);

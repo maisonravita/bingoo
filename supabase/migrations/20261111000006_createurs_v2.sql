@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_app_mrr_jour, saas_apps.stripe_sync_at, saas_apps_monde v2 (croissance, a_moi, public)
