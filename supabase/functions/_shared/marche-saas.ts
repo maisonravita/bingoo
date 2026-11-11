@@ -62,7 +62,14 @@ export async function robots(site: string) {
     return interdit;
   } catch { return [] as string[]; }
 }
-export const autorise = (interdit: string[], u: string) => { try { const p = new URL(u).pathname; return !interdit.some((x) => p.startsWith(x.replace(/\*.*$/, ""))); } catch { return false; } };
+// Règle robots.txt → expression : « * » = n'importe quoi, « $ » = fin de l'adresse ; une règle s'applique au début du chemin (+ requête)
+const regle = (x: string) => new RegExp("^" + x.replace(/[.+?^${}()|[\]\\]/g, (c) => (c === "$" ? "$" : "\\" + c)).replace(/\*/g, ".*").replace(/\\\$$/, "$"));
+export const autorise = (interdit: string[], u: string) => {
+  try {
+    const x = new URL(u); const chemin = x.pathname + x.search;
+    return !interdit.some((r) => { try { return regle(r).test(chemin); } catch { return chemin.startsWith(r.replace(/\*.*$/, "")); } });
+  } catch { return false; }
+};
 
 export async function lireSite(site: string, nom: string): Promise<Fiche> {
   const interdit = await robots(site);

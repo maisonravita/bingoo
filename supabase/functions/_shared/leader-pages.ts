@@ -25,6 +25,9 @@ async function pagesProduit(domaine: string): Promise<string[] | null> {
   let plans = [...rob.matchAll(/^\s*sitemap\s*:\s*(\S+)/gim)].map((m) => m[1]);
   if (!plans.length) plans = [`${site}/sitemap.xml`, `${site}/sitemap_index.xml`];
   const urls = new Set<string>();
+  // Pages venues d'un plan « pages / produits / fonctionnalités » : candidates même sans mot-clé dans l'adresse
+  const pagesDePlan = new Set<string>();
+  const PLAN_PAGES = /(^|[-_/])(pages?|products?|features?|solutions?|integrations?|apps?|marketplace|fonctionnalites?|produits?|landing)([-_.]|$)/i;
   const vus = new Set<string>();
   const file = [...plans.slice(0, 4)];
   while (file.length && vus.size < 12 && urls.size < 20000) {
@@ -37,8 +40,8 @@ async function pagesProduit(domaine: string): Promise<string[] | null> {
     if (/<sitemapindex/i.test(xml)) {
       // Index de plans : d'abord les plans qui parlent de produit, de pages ou de fonctionnalités
       const tri = l.sort((a, b) => Number(/page|product|feature|integration|solution|app|market|fonction/i.test(b)) - Number(/page|product|feature|integration|solution|app|market|fonction/i.test(a)));
-      file.push(...tri.filter((x) => !/blog|post|news|article|author|tag|categor|help|docs|video|image/i.test(x)).slice(0, 8));
-    } else for (const u of l) urls.add(u);
+      file.push(...tri.filter((x) => !/(^|[-_/])(blog|posts?|news|articles?|authors?|tags?|categor\w*|help|docs?|videos?|images?|jobs?|job_\w+|podcasts?|success_stories\w*|partners?|events?|glossary|press)([-_.]|$)/i.test(x.split("/").pop() ?? "")).slice(0, 8));
+    } else for (const u of l) { urls.add(u); if (PLAN_PAGES.test(p.split("/").pop() ?? "")) pagesDePlan.add(u); }
   }
   Object.assign(diag, { plans, vus: [...vus], urls: urls.size, exemple: [...urls].slice(0, 5), robots: rob.slice(0, 300) });
   if (!vus.size || !urls.size) return null;
@@ -49,7 +52,8 @@ async function pagesProduit(domaine: string): Promise<string[] | null> {
       if (x.hostname.replace(/^www\./, "") !== hote) return false;
       const lang = x.pathname.match(LANGUE);
       if (lang && !/^(en|fr|en-us|fr-fr)$/i.test(lang[1])) return false;
-      return UTILE.test(x.pathname) && !BRUIT.test(x.pathname) && autorise(interdit, u);
+      const profondeur = x.pathname.split("/").filter(Boolean).length;
+      return (UTILE.test(x.pathname) || (pagesDePlan.has(u) && profondeur >= 1 && profondeur <= 4)) && !BRUIT.test(x.pathname) && autorise(interdit, u);
     } catch { return false; }
   }).map((u) => u.replace(/[?#].*$/, "").replace(/\/$/, "")).filter((u, i, a) => a.indexOf(u) === i);
 }
