@@ -225,3 +225,46 @@ export async function mailRecu(app: any, slug: string, titulaire: { id: string; 
   const lignes = champs.map(([k, v]) => `${k.replace(/_/g, " ")} : ${String(v).slice(0, 200)}`).join("\n");
   await envoyerBrut(app, titulaire.email, `Nouveau : ${String(page.titre ?? "page publique").slice(0, 60)}`, `Ta page « ${page.titre} » vient de recevoir un envoi.\n\n${lignes}`, "Ouvrir mon espace", lien(app, slug), `recu-${rowId}`, null, "E-mail envoyé à chaque envoi reçu par tes pages publiques.");
 }
+
+/** E-mails des utilisateurs d'une app à leurs propres clients (confirmations, rappels, relances), immédiats ou planifiés.
+ *  Au nom de l'utilisateur (réponse vers son adresse), depuis le domaine de l'app ; les répétitions se replanifient. */
+export async function appEnvoisCron(max = 200, seul?: string) {
+  let q = admin.from("saas_app_envois").select("id, app_id, espace_id, a, sujet, payload, quand").eq("statut", "attente").lte("quand", new Date(Date.now() + 60e3).toISOString()).order("quand").limit(max);
+  if (seul) q = q.eq("id", seul);
+  const { data } = await q;
+  let envoyes = 0, erreurs = 0;
+  const apps = new Map<string, any>();
+  for (const e of (data ?? []) as any[]) {
+    // Réservation de la ligne : deux passages simultanés n'envoient pas deux fois
+    const { data: pris } = await admin.from("saas_app_envois").update({ statut: "envoi" }).eq("id", e.id).eq("statut", "attente").select("id");
+    if (!pris?.length) continue;
+    try {
+      if (!apps.has(e.app_id)) apps.set(e.app_id, (await admin.from("saas_apps").select("id, slug, spec, email_dom, domaine, domaine_statut").eq("id", e.app_id).single()).data);
+      const app = apps.get(e.app_id);
+      const p = e.payload ?? {};
+      const s = app?.spec ?? {};
+      const couleur = /^#[0-9a-f]{6}$/i.test(s.couleur ?? "") ? s.couleur : "#4F46E5";
+      const de = app.email_dom?.statut === "ok" ? `bonjour@${app.email_dom.domaine}` : `apps@${PLATFORM_DOMAIN()}`;
+      const nomExp = String(p.signature || s.nom || "").replace(/[<>"]/g, "").slice(0, 60);
+      const paras = String(p.texte ?? "").split(/\n{2,}/).map((x: string) => x.trim()).filter(Boolean);
+      const html = `<div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#0F172A">${paras.map((x: string) => `<p style="font-size:15px;line-height:1.55;margin:0 0 12px">${esc(x).replace(/\n/g, "<br>")}</p>`).join("")}${p.bouton && p.lien ? `<p style="margin:22px 0"><a href="${esc(p.lien)}" style="background:${couleur};color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:700;font-size:15px">${esc(p.bouton)}</a></p>` : ""}<p style="font-size:12px;color:#94A3B8;margin-top:28px">${esc(nomExp)}${p.signature ? ` · envoyé avec ${esc(s.nom ?? "")}` : ""}</p></div>`;
+      const r = await resend("/emails", "POST", {
+        from: `${nomExp || "Notification"} <${de}>`, to: [e.a], subject: e.sujet, html,
+        text: `${p.texte}${p.bouton && p.lien ? `\n\n${p.bouton} : ${p.lien}` : ""}\n\n${nomExp}`,
+        ...(p.repondre ? { reply_to: p.repondre } : {}),
+      }, { "Idempotency-Key": `envoi-${e.id}` });
+      if (!r.ok) throw new Error(`Resend ${r.status} ${r.data?.message ?? ""}`);
+      await admin.from("saas_app_envois").update({ statut: "envoye", envoye_at: new Date().toISOString() }).eq("id", e.id);
+      envoyes++;
+      if (p.repeter) {
+        const d = new Date(e.quand);
+        if (p.repeter === "jour") d.setUTCDate(d.getUTCDate() + 1); else if (p.repeter === "semaine") d.setUTCDate(d.getUTCDate() + 7); else d.setUTCMonth(d.getUTCMonth() + 1);
+        await admin.from("saas_app_envois").insert({ app_id: e.app_id, espace_id: e.espace_id, a: e.a, sujet: e.sujet, quand: d.toISOString(), payload: p });
+      }
+    } catch (x) {
+      erreurs++;
+      await admin.from("saas_app_envois").update({ statut: "erreur", erreur: String((x as Error)?.message ?? x).slice(0, 300) }).eq("id", e.id);
+    }
+  }
+  return { envoyes, erreurs };
+}

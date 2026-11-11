@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_app_envois, saas_app_fichiers, saas_app_agendas, bucket app-fichiers, cron bingoo-app-envois (toutes les 5 min)

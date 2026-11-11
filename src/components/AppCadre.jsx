@@ -31,5 +31,5 @@ export default function AppCadre({ slug, spec, version, paiement, domaine, ab, a
     window.addEventListener("message", ecoute);
     return () => window.removeEventListener("message", ecoute);
   }, [slug]);
-  return <iframe key={`${slug}-${version}-${tour ? 1 : 0}`} title={spec?.nom ?? "Application"} srcDoc={doc} sandbox={verif ? "allow-scripts" : "allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"} className={className} />;
+  return <iframe key={`${slug}-${version}-${tour ? 1 : 0}`} title={spec?.nom ?? "Application"} srcDoc={doc} sandbox={verif ? "allow-scripts" : "allow-scripts allow-forms allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"} className={className} />;
 }

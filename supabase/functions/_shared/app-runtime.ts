@@ -7,7 +7,35 @@
 // deno-lint-ignore-file no-explicit-any
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.45.4";
 
-const LIM = { inscriptionsParHeure: 15, rows: 20000, taille: 20000 };
+const LIM = { inscriptionsParHeure: 15, rows: 20000, taille: 20000, mailsJourEspace: 100, mailsJourApp: 1000, fichiersEspace: 500, octetsFichier: 4_500_000 };
+const emailOk = (e: unknown) => /^[^@\s<>"]+@[^@\s<>"]+\.[a-z]{2,}$/i.test(String(e ?? "").trim());
+const hex32 = () => hex(crypto.getRandomValues(new Uint8Array(16)));
+
+/** Un e-mail vers un client final (tout de suite ou plus tard), dans les plafonds anti-abus. */
+async function programmerMail(admin: SupabaseClient, app: any, espace: string, m: any, signature: { nom?: string | null; email?: string | null }) {
+  const a = String(m?.a ?? "").trim().toLowerCase();
+  if (!emailOk(a)) throw new Err(400, "Adresse e-mail du destinataire invalide");
+  const sujet = String(m?.sujet ?? "").trim().slice(0, 150), texte = String(m?.texte ?? "").trim().slice(0, 6000);
+  if (!sujet || !texte) throw new Err(400, "Objet et texte de l'e-mail obligatoires");
+  const quand = m?.quand ? new Date(m.quand) : new Date();
+  if (isNaN(quand.getTime())) throw new Err(400, "Date d'envoi invalide");
+  if (quand.getTime() > Date.now() + 400 * 864e5) throw new Err(400, "Date d'envoi trop lointaine");
+  const jour = new Date(Date.now() - 864e5).toISOString();
+  const [{ count: ce }, { count: ca }] = await Promise.all([
+    admin.from("saas_app_envois").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("espace_id", espace).gte("at", jour),
+    admin.from("saas_app_envois").select("id", { count: "exact", head: true }).eq("app_id", app.id).gte("at", jour),
+  ]);
+  if ((ce ?? 0) >= LIM.mailsJourEspace || (ca ?? 0) >= LIM.mailsJourApp) throw new Err(429, "Limite d'e-mails atteinte pour aujourd'hui");
+  const repeter = ["jour", "semaine", "mois"].includes(m?.repeter) ? m.repeter : null;
+  const payload = { texte, bouton: String(m?.bouton ?? "").slice(0, 60), lien: /^https?:\/\//.test(String(m?.lien ?? "")) ? String(m.lien).slice(0, 500) : "", signature: String(signature.nom ?? "").slice(0, 80), repondre: emailOk(signature.email) && !/@demo\.local$/.test(String(signature.email)) ? signature.email : null, repeter };
+  const { data } = await admin.from("saas_app_envois").insert({ app_id: app.id, espace_id: espace, a, sujet, quand: quand.toISOString(), payload }).select("id").single();
+  if (quand.getTime() <= Date.now() + 60e3) {
+    const { appEnvoisCron } = await import("./app-mails.ts");
+    await appEnvoisCron(5, data!.id).catch((e) => console.error("envoi", e));
+  }
+  return { id: data!.id, quand: quand.toISOString() };
+}
+
 const enc = new TextEncoder();
 const hex = (b: ArrayBuffer | Uint8Array) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
 const sha = async (s: string) => hex(await crypto.subtle.digest("SHA-256", enc.encode(s)));
@@ -223,6 +251,12 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
       const { data: r } = await admin.from("saas_app_rows").insert({ app_id: app.id, user_id: espace, espace_id: espace, col, data: { ...propre(b.data), _public: true } }).select("id, data, at, maj").single();
       const { mailRecu } = await import("./app-mails.ts");
       await mailRecu(app, slug, t, page, r!.id, (r!.data ?? {}) as Record<string, unknown>).catch((e) => console.error("recu", e));
+      // Confirmation et rappels au visiteur : seulement à l'adresse qu'il vient de saisir
+      const champMail = ((def.champs ?? []) as any[]).find((c) => c.type === "email")?.nom ?? Object.keys(r!.data ?? {}).find((k) => /e-?mail/i.test(k));
+      const visiteur = champMail ? String((r!.data as any)?.[champMail] ?? "") : "";
+      if (emailOk(visiteur)) for (const m of (Array.isArray(b.mails) ? b.mails : []).slice(0, 3)) {
+        await programmerMail(admin, app, espace, { ...m, a: visiteur, repeter: null }, { nom: t.nom, email: t.email }).catch((e) => console.error("mail visiteur", e?.message ?? e));
+      }
       return { status: 200, body: ligne(r) };
     }
 
@@ -462,6 +496,45 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
     // Lecture seule : consultation des données, pas de modification
     if (["add", "update", "remove"].includes(action) && user.role === "lecture") throw new Err(403, "Ton accès est en lecture seule : demande à un administrateur de changer ton rôle");
 
+    // ---- E-mails aux clients de l'utilisateur (confirmation, rappel, relance), tout de suite ou à une date
+    if (action === "mail") {
+      if (user.role === "lecture") throw new Err(403, "Ton accès est en lecture seule");
+      return { status: 200, body: await programmerMail(admin, app, espace, b, { nom: u0.nom, email: u0.email }) };
+    }
+    if (action === "mail-annuler") {
+      await admin.from("saas_app_envois").update({ statut: "annule" }).eq("app_id", app.id).eq("espace_id", espace).eq("id", String(b.id ?? "")).eq("statut", "attente");
+      return { status: 200, body: { ok: true } };
+    }
+    if (action === "mails") {
+      const { data } = await admin.from("saas_app_envois").select("id, a, sujet, statut, quand, envoye_at, erreur").eq("app_id", app.id).eq("espace_id", espace).order("quand", { ascending: false }).limit(200);
+      return { status: 200, body: data ?? [] };
+    }
+    // ---- Fichiers (photos, PDF, logos) : 4,5 Mo au plus, servis par une adresse impossible à deviner
+    if (action === "upload") {
+      if (user.role === "lecture") throw new Err(403, "Ton accès est en lecture seule");
+      const brut = String(b.data ?? "").replace(/^data:[^,]*,/, "");
+      const bin = Uint8Array.from(atob(brut), (c) => c.charCodeAt(0));
+      if (!bin.length) throw new Err(400, "Fichier vide");
+      if (bin.length > LIM.octetsFichier) throw new Err(413, "Fichier trop lourd (4,5 Mo au plus)");
+      const { count } = await admin.from("saas_app_fichiers").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("espace_id", espace);
+      if ((count ?? 0) >= LIM.fichiersEspace) throw new Err(403, "Limite de fichiers atteinte pour cet espace");
+      const type = /^[a-z]+\/[a-z0-9.+-]+$/i.test(String(b.type ?? "")) ? String(b.type) : "application/octet-stream";
+      if (/html|javascript|svg/i.test(type)) throw new Err(400, "Type de fichier non accepté");
+      const id = hex32(), chemin = `${app.id}/${espace}/${id}`;
+      const { error } = await admin.storage.from("app-fichiers").upload(chemin, bin, { contentType: type, upsert: false });
+      if (error) throw new Err(500, "Envoi du fichier impossible, réessaie");
+      const nom = String(b.nom ?? "fichier").replace(/[\\/<>"]/g, "").slice(0, 120) || "fichier";
+      await admin.from("saas_app_fichiers").insert({ id, app_id: app.id, espace_id: espace, nom, type, taille: bin.length, chemin });
+      return { status: 200, body: { id, nom, type, taille: bin.length, url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/t/app/${slug}/f/${id}` } };
+    }
+    // ---- Agenda : un lien d'abonnement (Google Agenda, Outlook, Apple) pour l'espace
+    if (action === "agenda") {
+      if (!(app.spec as any)?.agenda?.collection) throw new Err(400, "Cette application n'a pas d'agenda");
+      let { data: a } = await admin.from("saas_app_agendas").select("jeton").eq("espace_id", espace).maybeSingle();
+      if (!a) ({ data: a } = await admin.from("saas_app_agendas").insert({ espace_id: espace, app_id: app.id, jeton: hex32() }).select("jeton").single());
+      return { status: 200, body: { url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/t/app/${slug}/agenda/${a!.jeton}.ics` } };
+    }
+
     // ---- IA de l'application (rédiger, résumer, analyser…) : plafonnée par compte et par application chaque jour
     if (action === "ia") {
       if (!et.acces) throw new Err(402, "Ton essai est terminé : abonne-toi pour continuer");
@@ -517,4 +590,46 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
     console.error("app", e);
     return { status: 500, body: { error: "Erreur du serveur, réessaie" } };
   }
+}
+
+
+/** Fichier d'une application (adresse impossible à deviner). */
+export async function appFichierUtilisateur(admin: SupabaseClient, slug: string, id: string) {
+  if (!/^[0-9a-f]{32}$/.test(id)) return null;
+  const { data: app } = await admin.from("saas_apps").select("id").eq("slug", slug).maybeSingle();
+  if (!app) return null;
+  const { data: f } = await admin.from("saas_app_fichiers").select("chemin, type, nom").eq("id", id).eq("app_id", app.id).maybeSingle();
+  if (!f) return null;
+  const { data } = await admin.storage.from("app-fichiers").download(f.chemin);
+  return data ? { blob: data, type: f.type ?? "application/octet-stream", nom: f.nom ?? "fichier" } : null;
+}
+
+/** Flux iCalendar d'un espace (abonnement depuis Google Agenda, Outlook, Apple). */
+export async function appAgendaIcs(admin: SupabaseClient, slug: string, jeton: string) {
+  if (!/^[0-9a-f]{32}$/.test(jeton)) return null;
+  const { data: app } = await admin.from("saas_apps").select("id, spec").eq("slug", slug).maybeSingle();
+  const ag = (app?.spec as any)?.agenda;
+  if (!app || !ag?.collection) return null;
+  const { data: a } = await admin.from("saas_app_agendas").select("espace_id").eq("jeton", jeton).eq("app_id", app.id).maybeSingle();
+  if (!a) return null;
+  const { data: rows } = await admin.from("saas_app_rows").select("id, data").eq("app_id", app.id).eq("espace_id", a.espace_id).eq("col", ag.collection).limit(2000);
+  const esc = (t: unknown) => String(t ?? "").replace(/\\/g, "\\\\").replace(/[,;]/g, (c) => "\\" + c).replace(/\r?\n/g, "\\n").slice(0, 900);
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const evts: string[] = [];
+  for (const r of (rows ?? []) as any[]) {
+    const d = r.data ?? {};
+    const jour = String(d[ag.champ_date] ?? "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(jour)) continue;
+    const heure = ag.champ_heure && /^\d{1,2}[:h]\d{2}/.test(String(d[ag.champ_heure] ?? "")) ? String(d[ag.champ_heure]).replace("h", ":").slice(0, 5).padStart(5, "0") : null;
+    const titre = (Array.isArray(ag.champs_titre) ? ag.champs_titre : [ag.champ_titre]).map((k: string) => d[k]).filter(Boolean).join(" · ") || (app.spec as any)?.nom;
+    if (heure) {
+      const off = (new Date(`${jour}T12:00:00Z`).toLocaleString("en-US", { timeZone: "Europe/Paris", timeZoneName: "shortOffset" }).match(/GMT([+-]\d+)/)?.[1] ?? "+1").padStart(2, "+");
+      const debut = new Date(`${jour}T${heure}:00${off[0]}${off.slice(1).padStart(2, "0")}:00`);
+      const duree = Number(typeof ag.duree === "string" ? d[ag.duree] : ag.duree) || 60;
+      evts.push(`BEGIN:VEVENT\r\nUID:${r.id}@${slug}\r\nDTSTAMP:${fmt(new Date())}\r\nDTSTART:${fmt(debut)}\r\nDTEND:${fmt(new Date(debut.getTime() + duree * 60e3))}\r\nSUMMARY:${esc(titre)}\r\nEND:VEVENT`);
+    } else {
+      evts.push(`BEGIN:VEVENT\r\nUID:${r.id}@${slug}\r\nDTSTAMP:${fmt(new Date())}\r\nDTSTART;VALUE=DATE:${jour.replace(/-/g, "")}\r\nSUMMARY:${esc(titre)}\r\nEND:VEVENT`);
+    }
+  }
+  return `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Bingoo//${slug}//FR\r\nX-WR-CALNAME:${esc((app.spec as any)?.nom)}\r\n${evts.join("\r\n")}${evts.length ? "\r\n" : ""}END:VCALENDAR\r\n`;
 }

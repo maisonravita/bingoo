@@ -66,6 +66,10 @@ async function verifCall(action, b) {
   if (action === "update") { const r = L.find((x) => x.id === b.id); if (r) Object.assign(r, b.data, { updated_at: new Date().toISOString() }); return r ?? {}; }
   if (action === "remove") { VSTORE[b.col] = L.filter((x) => x.id !== b.id); return { ok: true }; }
   if (action === "ia") return { resultat: b.json ? {} : "Texte d'essai rédigé par l'IA." };
+  if (action === "mail") return { id: "m" + (++VSEQ), quand: b.quand ?? new Date().toISOString() };
+  if (action === "mails") return [];
+  if (action === "upload") return { id: "f" + (++VSEQ), nom: b.nom, type: b.type, taille: 1, url: "data:image/gif;base64,R0lGODlhAQABAAAAACw=" };
+  if (action === "agenda") return { url: "https://exemple.fr/agenda.ics" };
   return {};
 }
 const VERRS = [];
@@ -96,7 +100,7 @@ const refuse = () => Promise.reject(new Error("Action impossible sur une page pu
 const dbPublic = {
   list: (col) => call("public-list", { page: PAGE?.id, espace: PAGE?.espace, col }),
   get: (col, id) => call("public-list", { page: PAGE?.id, espace: PAGE?.espace, col }).then((r) => r.find((x) => x.id === id) ?? null),
-  add: async (col, data) => { const r = await call("public-add", { page: PAGE?.id, espace: PAGE?.espace, col, data }); bus.emit("col:" + col); return r; },
+  add: async (col, data, o = {}) => { const r = await call("public-add", { page: PAGE?.id, espace: PAGE?.espace, col, data, mails: [o.confirmation, ...(o.rappels ?? (o.rappel ? [o.rappel] : []))].filter(Boolean) }); bus.emit("col:" + col); return r; },
   update: refuse, remove: refuse,
 };
 const toast = (msg, type = "ok") => bus.emit("toast", { msg, type, id: Math.random() });
@@ -135,18 +139,68 @@ ui.Empty = ({ texte = "Rien pour l'instant.", action }) => html\`<div class="tex
 ui.Loading = () => html\`<div class="py-10 grid place-items-center"><div class="w-6 h-6 rounded-full border-2 border-slate-200 border-t-[var(--c)] animate-spin"/></div>\`;
 ui.Tabs = ({ valeur, onChange, onglets = [] }) => html\`<div class="inline-flex rounded-xl bg-slate-100 p-1 text-sm">\${onglets.map((o) => { const [v, l] = Array.isArray(o) ? o : [o, o]; return html\`<button onClick=\${() => onChange?.(v)} class=\${cls("px-3 py-1.5 rounded-lg font-medium", valeur === v ? "bg-white shadow-sm" : "text-slate-500")}>\${l}</button>\`; })}</div>\`;
 ui.Bar = ({ donnees = [] }) => { const m = Math.max(1, ...donnees.map((d) => Number(d.valeur) || 0)); return html\`<div class="flex gap-2 h-44">\${donnees.map((d) => html\`<div class="flex-1 min-w-0 flex flex-col items-center gap-1"><div class="w-full flex-1 flex items-end"><div class="w-full rounded-t-lg bg-[var(--c)]/80" style=\${"height:" + Math.max(2, (Number(d.valeur) || 0) / m * 100) + "%"} title=\${d.valeur}/></div><span class="text-[11px] text-slate-500 truncate max-w-full">\${d.label}</span></div>\`)}</div>\`; };
+ui.Fichier = ({ label, value, onChange, accept = "image/*,application/pdf" }) => {
+  const [busy, setBusy] = useState(false);
+  const choisir = async (e) => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    if (f.size > 4.5e6) { toast("Fichier trop lourd (4,5 Mo au plus)", "bad"); return; }
+    setBusy(true);
+    try { const data = await new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = ko; r.readAsDataURL(f); }); onChange?.(await call("upload", { nom: f.name, type: f.type, data })); }
+    catch (x) { toast(x.message, "bad"); } finally { setBusy(false); e.target.value = ""; }
+  };
+  const image = value?.url && String(value.type ?? "").startsWith("image/");
+  return html\`<\${Lab} label=\${label}><div class="flex flex-wrap items-center gap-3">\${image ? html\`<img src=\${value.url} alt="" class="h-20 w-20 rounded-xl object-cover border border-slate-200"/>\` : value?.url ? html\`<a href=\${value.url} target="_blank" rel="noopener" class="text-sm font-medium text-[var(--c)] underline">\${value.nom ?? "Fichier"}</a>\` : null}<label class=\${cls("inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium cursor-pointer hover:bg-slate-50", busy && "opacity-60 pointer-events-none")}><input type="file" accept=\${accept} class="hidden" onChange=\${choisir}/>\${busy ? "Envoi…" : value?.url ? "Remplacer" : "Choisir un fichier"}</label>\${value?.url && html\`<button type="button" class="text-sm text-slate-500 hover:text-red-600" onClick=\${() => onChange?.(null)}>Retirer</button>\`}</div></\${Lab}>\`;
+};
 
 // ---------------------------------------------------------------- Écrans générés
 let nav = () => {};
 const go = (id, params) => nav(id, params);
 // IA intégrée : ia("Résume ce texte", { texte }) → texte ; { json: true } → objet
+// E-mails aux clients de l'utilisateur : tout de suite, ou à une date (quand), éventuellement répétés (repeter : jour, semaine, mois)
+const email = (m) => call("mail", m ?? {});
+const annulerEmail = (id) => call("mail-annuler", { id });
+const emailsEnvoyes = () => call("mails");
+// Lien d'abonnement à l'agenda de l'espace (Google Agenda, Outlook, Apple)
+const lienAgenda = () => call("agenda").then((r) => r.url);
+// Document PDF téléchargé (devis, facture, bail, attestation…)
+const rgb = (hx) => { const m = /^#?([0-9a-f]{6})$/i.exec(hx ?? ""); const n = parseInt(m ? m[1] : "4F46E5", 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+async function pdf(d = {}) {
+  const { jsPDF } = await import("https://esm.sh/jspdf@2.5.2");
+  const autoTable = (await import("https://esm.sh/jspdf-autotable@3.8.2")).default;
+  const doc = new jsPDF({ unit: "mm", format: "a4" }), M = 18, W = 210 - 2 * M, C = rgb(S.couleur);
+  let y = 22;
+  const saut = (h) => { if (y + h > 280) { doc.addPage(); y = 20; } };
+  const txt = (v) => String(v ?? "").replace(/ | /g, " ");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(19); doc.setTextColor(C[0], C[1], C[2]); doc.text(txt(d.titre ?? S.nom), M, y); y += 7;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.setTextColor(100, 116, 139);
+  if (d.sousTitre) { doc.text(doc.splitTextToSize(txt(d.sousTitre), W), M, y); y += 7; }
+  if (d.emetteur || d.destinataire) {
+    y += 3; doc.setTextColor(15, 23, 42); const top = y;
+    const bloc = (titre, lignes, x) => { let yy = top; doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.text(txt(titre), x, yy); yy += 5; doc.setFont("helvetica", "normal"); for (const l of [].concat(lignes ?? [])) { doc.text(txt(l), x, yy); yy += 5; } return yy; };
+    const y1 = d.emetteur ? bloc(d.emetteur.titre ?? "De", d.emetteur.lignes ?? d.emetteur, M) : top;
+    const y2 = d.destinataire ? bloc(d.destinataire.titre ?? "Pour", d.destinataire.lignes ?? d.destinataire, M + W / 2 + 4) : top;
+    y = Math.max(y1, y2) + 4;
+  }
+  doc.setFontSize(10.5); doc.setTextColor(15, 23, 42);
+  for (const [l, v] of d.lignes ?? []) { saut(7); doc.setFont("helvetica", "bold"); doc.text(txt(l), M, y); doc.setFont("helvetica", "normal"); doc.text(doc.splitTextToSize(txt(v), W - 55), M + 55, y); y += 6.5; }
+  if (d.tableau?.lignes?.length) {
+    autoTable(doc, { startY: y + 2, head: [d.tableau.colonnes ?? []], body: d.tableau.lignes.map((l) => l.map(txt)), margin: { left: M, right: M }, styles: { font: "helvetica", fontSize: 9.5, cellPadding: 2.4 }, headStyles: { fillColor: C, textColor: 255 }, alternateRowStyles: { fillColor: [248, 250, 252] } });
+    y = doc.lastAutoTable.finalY + 6;
+  }
+  if (d.totaux) for (const [l, v] of d.totaux) { saut(7); doc.setFont("helvetica", "bold"); doc.text(txt(l), M + W - 70, y); doc.text(txt(v), M + W, y, { align: "right" }); y += 6.5; }
+  doc.setFont("helvetica", "normal"); doc.setFontSize(10.5);
+  for (const para of d.paragraphes ?? []) { const ls = doc.splitTextToSize(txt(para), W); for (const l of ls) { saut(6); doc.text(l, M, y); y += 5.2; } y += 2.5; }
+  if (d.signature) { saut(26); y += 6; doc.text(txt(d.signature), M, y); y += 20; }
+  if (d.mentions) { doc.setFontSize(8.5); doc.setTextColor(100, 116, 139); const ls = doc.splitTextToSize(txt(d.mentions), W); saut(ls.length * 4 + 4); doc.text(ls, M, Math.max(y + 4, 286 - ls.length * 4)); }
+  doc.save(txt(d.nomFichier ?? d.titre ?? "document").replace(/[\\/:*?"<>|]+/g, "-").slice(0, 80) + ".pdf");
+}
 const ia = (consigne, o = {}) => call("ia", { consigne, texte: o.texte ?? "", json: !!o.json }).then((r) => r.resultat);
-const ctx = { html, h, Fragment, useState, useEffect, useMemo, useRef, useCallback, ui, fmt, db, useCollection, toast, go, Icone, ia };
-const ctxPublic = { ...ctx, db: dbPublic, useCollection: mkUseCollection(dbPublic), ia: refuse, go: () => {} };
+const ctx = { html, h, Fragment, useState, useEffect, useMemo, useRef, useCallback, ui, fmt, db, useCollection, toast, go, Icone, ia, email, annulerEmail, emailsEnvoyes, pdf, lienAgenda };
+const ctxPublic = { ...ctx, db: dbPublic, useCollection: mkUseCollection(dbPublic), ia: refuse, email: refuse, annulerEmail: refuse, emailsEnvoyes: refuse, lienAgenda: refuse, go: () => {} };
 const ECRANS = (S.ecrans ?? []).filter((e) => e.code).map((e) => {
   let Comp;
   try {
-    const f = new Function("ctx", "const {html,h,Fragment,useState,useEffect,useMemo,useRef,useCallback,ui,fmt,db,useCollection,toast,go,Icone,ia,user,params}=ctx;\\n" + e.code + "\\n;return typeof Ecran==='function'?Ecran:null;");
+    const f = new Function("ctx", "const {html,h,Fragment,useState,useEffect,useMemo,useRef,useCallback,ui,fmt,db,useCollection,toast,go,Icone,ia,email,annulerEmail,emailsEnvoyes,pdf,lienAgenda,user,params}=ctx;\\n" + e.code + "\\n;return typeof Ecran==='function'?Ecran:null;");
     Comp = (props) => { const C = useMemo(() => f({ ...(e.public ? ctxPublic : ctx), user: e.public ? null : props.user, params: props.params }), [props.params]); return C ? h(C, props) : html\`<\${Casse} titre=\${e.titre}/>\`; };
   } catch (err) { console.error(e.id, err); Comp = () => html\`<\${Casse} titre=\${e.titre}/>\`; }
   return { ...e, Comp };
@@ -322,6 +376,7 @@ function Appli({ user, etat, onLogout, tour, onFinTour }) {
   const E = cur.id === "_abonnement" ? { id: "_abonnement", titre: "Mon abonnement", Comp: Abonnement } : cur.id === "_equipe" ? { id: "_equipe", titre: "Équipe", Comp: Equipe } : cur.id === "_compte" ? { id: "_compte", titre: "Mon compte", Comp: Compte } : PRIVES.find((e) => e.id === cur.id) ?? PRIVES[0];
   if (!etat.acces) return html\`<\${Paywall} etat=\${etat} onLogout=\${onLogout}/>\`;
   const lienPage = (e) => (B.retour || location.href.split("?")[0]).split("?")[0] + "?page=" + e.id + "&e=" + etat.espace;
+  const Agenda = () => S.agenda?.collection ? html\`<button class="w-full text-left rounded-xl px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 flex items-center gap-2" onClick=\${async () => { try { const u = await lienAgenda(); try { await navigator.clipboard.writeText(u); toast("Lien copié : colle-le dans Google Agenda (Autres agendas → À partir de l'URL) ou Outlook"); } catch (x) { prompt("Colle ce lien dans ton agenda (Google Agenda : Autres agendas → À partir de l'URL) :", u); } } catch (x) { toast(x.message, "bad"); } }}><\${Icone} nom="agenda" class="w-4 h-4"/>Ajouter à mon agenda</button>\` : null;
   const Partage = () => PUBLIQUES.length && etat.espace ? html\`<div class="rounded-xl bg-slate-50 p-3 text-sm"><p class="text-xs font-semibold text-slate-500 mb-1.5">À partager à tes clients</p>\${PUBLIQUES.map((e) => html\`<div class="flex items-center gap-1.5 py-1"><a href=\${lienPage(e)} target="_blank" rel="noopener" class="flex-1 truncate font-medium text-[var(--c)] hover:underline">\${e.titre} ↗</a><button title="Copier le lien" class="text-slate-400 hover:text-slate-700" onClick=\${() => { try { navigator.clipboard.writeText(lienPage(e)).then(() => toast("Lien copié"), () => prompt("Copie ce lien :", lienPage(e))); } catch (x) { prompt("Copie ce lien :", lienPage(e)); } }}>⧉</button></div>\`)}</div>\` : null;
   const Nav = () => html\`<nav class="space-y-0.5">\${[...PRIVES, { id: "_equipe", titre: "Équipe", icone: "contacts", sep: true }].map((e) => html\`<button onClick=\${() => nav(e.id)} class=\${cls("w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium", e.sep && "mt-3", e.id === E?.id ? "bg-[var(--c)]/10 text-[var(--c)]" : "text-slate-600 hover:bg-slate-100")}><\${Icone} nom=\${e.icone} class="w-[18px] h-[18px]"/>\${e.titre}</button>\`)}</nav>\`;
   return html\`<div class="min-h-screen lg:flex">
@@ -329,6 +384,7 @@ function Appli({ user, etat, onLogout, tour, onFinTour }) {
       <div class="flex items-center gap-2 font-bold"><span class="w-8 h-8 rounded-xl bg-[var(--c)] text-white grid place-items-center">\${(S.nom ?? "S")[0]}</span>\${S.nom}</div>
       <\${Nav}/>
       <\${Partage}/>
+      <\${Agenda}/>
       \${etat.payant && html\`<button onClick=\${() => nav("_abonnement")} class=\${cls("mt-auto w-full text-left rounded-xl px-3 py-2.5 text-sm", E?.id === "_abonnement" ? "bg-[var(--c)]/10 text-[var(--c)]" : "bg-slate-50 hover:bg-slate-100")}><span class="flex items-center gap-2 font-medium"><\${Icone} nom="carte" class="w-4 h-4"/>Mon abonnement</span><span class="block text-xs text-slate-500 mt-0.5">\${["active", "trialing", "past_due"].includes(etat.abonnement?.statut) ? "Formule " + (etat.abonnement.formule ?? "") : "Essai : " + jours(etat.essai_fin) + " jour(s) restant(s)"}</span></button>\`}
       <div class=\${cls(etat.payant ? "" : "mt-auto", "border-t border-slate-100 pt-3 text-sm")}><button onClick=\${() => nav("_compte")} class="block w-full text-left hover:text-[var(--c)]"><p class="font-medium truncate">\${user.nom}</p></button><p class="text-slate-400 text-xs truncate">\${/@demo\\.local$/.test(user.email) ? "Compte de démonstration" : user.email}</p><button onClick=\${onLogout} class="mt-2 flex items-center gap-1.5 text-slate-500 hover:text-slate-800"><\${Icone} nom="sortie" class="w-4 h-4"/>Se déconnecter</button></div>
     </aside>

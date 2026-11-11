@@ -70,7 +70,21 @@ Deno.serve(async (req) => {
     const r = await appFichier(admin, af[1], af[2]);
     return new Response(r.body, { status: r.status, headers: { ...cors, "content-type": `${r.type}; charset=utf-8`, "cache-control": "public, max-age=3600" } });
   }
-  const am = path.match(/\/app\/([a-z0-9-]+)\/([a-z]+)$/);
+  const fu = path.match(/\/app\/([a-z0-9-]+)\/f\/([0-9a-f]{32})$/);
+  if (req.method === "GET" && fu) {
+    const { appFichierUtilisateur } = await import("../_shared/app-runtime.ts");
+    const f = await appFichierUtilisateur(admin, fu[1], fu[2]);
+    if (!f) return new Response("Fichier introuvable", { status: 404, headers: cors });
+    return new Response(f.blob, { headers: { ...cors, "content-type": f.type, "content-disposition": `inline; filename="${encodeURIComponent(f.nom)}"`, "cache-control": "private, max-age=86400", "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox" } });
+  }
+  const ag = path.match(/\/app\/([a-z0-9-]+)\/agenda\/([0-9a-f]{32})\.ics$/);
+  if (req.method === "GET" && ag) {
+    const { appAgendaIcs } = await import("../_shared/app-runtime.ts");
+    const ics = await appAgendaIcs(admin, ag[1], ag[2]);
+    if (!ics) return new Response("Agenda introuvable", { status: 404, headers: cors });
+    return new Response(ics, { headers: { ...cors, "content-type": "text/calendar; charset=utf-8", "cache-control": "private, max-age=900" } });
+  }
+  const am = path.match(/\/app\/([a-z0-9-]+)\/([a-z][a-z-]*)$/);
   if (req.method === "POST" && am) {
     const { appApi } = await import("../_shared/app-runtime.ts");
     const r = await appApi(admin, req, am[1], am[2]);
