@@ -272,6 +272,12 @@ function Fiche({ domaine }) {
       if (error || !data) { setS(null); return; }
       if (data.limite) { setLimite(data); setS(null); return; }
       setS(data.saas); setRel(data.releves ?? []); setEv(data.evenements ?? []); setQuota(data.max ? { vues: data.vues, max: data.max } : null); setHist(data.histoire ?? null);
+      // Pas encore d'histoire : Bingoo! la cherche maintenant (une fois par SaaS), puis on la recharge
+      if (!data.histoire) fn("r/saas-histoire-demande", { workspace_id: ws.id, domaine }).then((r) => {
+        if (r?.statut !== "en_cours") return;
+        setHist({ statut: "en_cours" });
+        setTimeout(() => supabase.rpc("saas_fiche", { ws: ws.id, d: domaine }).then(({ data: d2 }) => setHist(d2?.histoire ?? null)), 55000);
+      }, () => {});
       supabase.rpc("saas_pubs_de", { ws: ws.id, d: domaine }).then(({ data: p }) => setPubs(p ?? []));
       supabase.rpc("saas_notoriete_de", { ws: ws.id, d: domaine }).then(({ data: n }) => setNoto(n ?? []));
       supabase.rpc("saas_emails_de", { ws: ws.id, d: domaine }).then(({ data: e }) => setMails(e ?? []));
@@ -361,7 +367,8 @@ function Fiche({ domaine }) {
       </div>
 
       {dort?.score >= 35 && <BlocEndormi d={dort} s={s} />}
-      {hist && <section className="mt-4"><Histoire h={hist} /></section>}
+      {hist && hist.statut !== "en_cours" && <section className="mt-4"><Histoire h={hist} /></section>}
+      {hist?.statut === "en_cours" && <p className="mt-4 flex items-center gap-2 text-[13.5px] text-ink-soft"><span className="h-2 w-2 rounded-full bg-accent animate-pulse" />Bingoo! cherche les chiffres publics de {s.nom} (chiffre d'affaires, levées, fondateurs)…</p>}
       {mails.length > 0 && (
         <section className="mt-4 rounded-2xl bg-white border border-line p-5">
           <h2 className="font-bold">Ses e-mails</h2>
@@ -1095,6 +1102,7 @@ function ReglagesApp({ app, onChange, projet }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/10 rounded-t-2xl overflow-hidden">
         {[[ch?.comptes ?? "—", "comptes"], [ch?.nouveaux_7j ?? "—", "nouveaux cette semaine"], [ch?.abonnes ?? "—", "abonnés"], [ch ? eurs(ch.mrr) : "—", "revenu mensuel vérifié"]].map(([v, l]) => <div key={l} className="bg-ink px-4 py-3"><p className="text-[22px] font-black tnum" style={HF}>{v}</p><p className="text-[12px] text-white/50">{l}</p></div>)}
       </div>
+      {ch?.quota && <p className="px-4 pt-2.5 text-[12.5px] text-white/50">Ce mois-ci : {ch.quota.constructions}/{ch.quota.construire} construction{ch.quota.construire > 1 ? "s" : ""} · {ch.quota.modifications}/{ch.quota.modifier} modifications</p>}
       <div className="flex gap-1 overflow-x-auto px-3 pt-3 border-b border-white/10">
         {ONGLETS_APP.map(([k, l]) => <button key={k} onClick={() => setOnglet(k)} className={cx("shrink-0 rounded-t-lg px-3 py-2 text-[13.5px] font-semibold", onglet === k ? "bg-white/10 text-white" : "text-white/55 hover:text-white")}>{l}</button>)}
       </div>

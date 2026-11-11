@@ -16,6 +16,16 @@ async function secret(name: string) {
   // Fermé par défaut : sans secret configuré, aucune requête ne passe (jamais "" === "")
   return String(data?.value ?? "") || `absent-${crypto.randomUUID()}`;
 }
+// Plafonds mensuels des SaaS construits, par formule (le coût de l'IA reste toujours sous le prix de l'abonnement)
+const PLAFONDS: Record<string, { construire: number; modifier: number }> = { explorer_pro: { construire: 3, modifier: 30 }, business: { construire: 10, modifier: 100 } };
+const plafondDe = (plan: string) => PLAFONDS[plan] ?? (plan === "explorer" ? { construire: 0, modifier: 0 } : PLAFONDS.business);
+async function quotaMois(wsId: string, plan: string, kind: "construire" | "modifier") {
+  const max = plafondDe(plan)[kind];
+  const debut = new Date(); debut.setUTCDate(1); debut.setUTCHours(0, 0, 0, 0);
+  const { count } = await admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", wsId).eq("kind", kind === "construire" ? "construire" : "modifier_app").gte("created_at", debut.toISOString());
+  if ((count ?? 0) >= max) throw new HttpError(402, kind === "construire" ? `Tu as utilisé tes ${max} constructions du mois : passe à la formule supérieure, ou attends le 1er du mois.` : `Tu as utilisé tes ${max} modifications du mois : passe à la formule supérieure, ou attends le 1er du mois.`);
+  return { utilise: count ?? 0, max };
+}
 // Espace d'un membre connecté, ou n'importe quel espace avec la clé des tâches planifiées (tests et reprises)
 const membreOuCron = async (req: Request, wsId: string) => {
   if (!req.headers.get("x-cron-key")) return await requireMember(req, wsId);
@@ -116,6 +126,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { data: ex } = await admin.from("saas_apps").select("id, statut, maj").eq("projet_id", pr.id).maybeSingle();
     if (ex?.statut === "en_cours" && Date.now() - new Date(ex.maj).getTime() < 10 * 60e3) return { id: ex.id, statut: "en_cours" };
     await quota(ws.id, "construire", 3);
+    if (!req.headers.get("x-cron-key")) await quotaMois(ws.id, ws.plan, "construire");
     setAi({ ws: ws.id, live: true, feature: "construire" });
     const { saasConstruire, nouveauSlug } = await import("../_shared/app-build.ts");
     // Chaque écran s'écrit dans sa propre invocation (limite de durée d'une invocation)
@@ -158,7 +169,12 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (b.quoi === "paiement") { await log(ws.id, "app_reglage", "Encaissement de l'application modifié"); return await o.appPaiement(app.id, b); }
     if (b.quoi === "domaine") { await log(ws.id, "app_reglage", `Nom de domaine : ${String(b.domaine ?? "retiré").slice(0, 80)}`); return await o.appDomaine(app.id, b.domaine); }
     if (b.quoi === "domaine-verifier") return await o.appDomaineVerifier(app.id);
-    if (b.quoi === "chiffres") return await o.appChiffres(app.id);
+    if (b.quoi === "chiffres") {
+      const c = await o.appChiffres(app.id);
+      const debut = new Date(); debut.setUTCDate(1); debut.setUTCHours(0, 0, 0, 0);
+      const [{ count: cons }, { count: mods }] = await Promise.all(["construire", "modifier_app"].map((k) => admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("kind", k).gte("created_at", debut.toISOString())));
+      return { ...c, quota: { ...plafondDe(ws.plan), constructions: cons ?? 0, modifications: mods ?? 0 } };
+    }
     if (b.quoi === "public") return await o.appPublic(app.id, !!b.public);
     if (b.quoi === "icones") return await o.appIcones(app.id, b);
     if (b.quoi === "bourse") { await log(ws.id, "app_reglage", b.retirer ? "Retiré de la bourse" : `Mis en vente : ${b.prix} €`); return await o.appBourse(app.id, b); }
@@ -279,6 +295,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { data: app } = await admin.from("saas_apps").select("id, statut").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
     if (!app || app.statut !== "pret") throw new HttpError(404, "Application introuvable ou en cours de construction");
     await quota(ws.id, "modifier_app", 30);
+    if (!req.headers.get("x-cron-key")) await quotaMois(ws.id, ws.plan, "modifier");
     setAi({ ws: ws.id, live: true, feature: "construire/modifier" });
     await log(ws.id, "modifier_app", `Modification : ${demande.slice(0, 120)}`);
     const { saasModifierEcran } = await import("../_shared/app-build.ts");
@@ -321,6 +338,23 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (q.length < 3) throw new HttpError(400, "Décris ce que tu cherches");
     const { saasRecherche } = await import("../_shared/saas-base.ts");
     return await saasRecherche(q, b.categorie ? String(b.categorie) : null);
+  },
+  // Histoire d'un SaaS à la demande (sa fiche est consultée et il n'en a pas encore) : une fois par SaaS, en tâche de fond
+  async "saas-histoire-demande"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { data: x } = await admin.from("saas").select("id, statut").eq("domaine", String(b.domaine ?? "")).maybeSingle();
+    if (!x || x.statut !== "ok") return { statut: "absent" };
+    const { data: h } = await admin.from("saas_histoires").select("statut").eq("saas_id", x.id).maybeSingle();
+    if (h) return { statut: h.statut };
+    await quota(ws.id, "histoire", 20);
+    await log(ws.id, "histoire", `Histoire demandée : ${b.domaine}`);
+    await admin.from("saas_histoires").upsert({ saas_id: x.id, statut: "en_cours", at: new Date().toISOString() });
+    const { saasHistoire } = await import("../_shared/saas-base.ts");
+    const travail = saasHistoire(x.id).then(async (r) => { if (!r || r.statut === "erreur") await admin.from("saas_histoires").delete().eq("saas_id", x.id).eq("statut", "en_cours"); }).catch(() => admin.from("saas_histoires").delete().eq("saas_id", x.id).eq("statut", "en_cours"));
+    // deno-lint-ignore no-explicit-any
+    const rt = (globalThis as any).EdgeRuntime;
+    if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
+    return { statut: "en_cours" };
   },
   async "saas-histoires"(req, b) { await cron(req); const { saasHistoires } = await import("../_shared/saas-base.ts"); return await saasHistoires(Math.min(5, Number(b.n ?? 3))); },
   async "saas-pays"(req, b) { await cron(req); const { saasPays } = await import("../_shared/saas-base.ts"); return await saasPays(Math.min(40, Number(b.n ?? 24))); },

@@ -79,6 +79,13 @@ export async function saasLire(id: string) {
   // Pages de tarifs affichées par JavaScript : texte rendu par un vrai navigateur (workflow « Explorer – tarifs »), s'il a moins de 8 jours
   const rendu = s.prix_rendu && s.prix_rendu_at && Date.now() - Date.parse(s.prix_rendu_at) < 8 * 864e5 ? String(s.prix_rendu) : "";
   const tarifs = rendu.length > f.prix_texte.length ? rendu : f.prix_texte;
+  // Économie : si l'accueil et les tarifs n'ont pas changé depuis la dernière lecture, pas d'appel à l'IA ;
+  // on met seulement à jour ce qui se lit sans IA (recrutement, dernière nouveauté, pied de page).
+  const empreinte = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${accueil}\n${tarifs.slice(0, 3500)}`)))].slice(0, 12).map((x) => x.toString(16).padStart(2, "0")).join("");
+  if (s.statut === "ok" && s.empreinte === empreinte) {
+    await admin.from("saas").update({ lu_at: new Date().toISOString(), essais: 0, recrute: f.recrute.oui, postes: f.recrute.postes, nouveaute: f.nouveaute.date ?? s.nouveaute, copyright: anneeCopyright(home) ?? s.copyright }).eq("id", id);
+    return { id, statut: "ok", inchange: true };
+  }
   setAi({ feature: "explorer/lecture" });
   const a = await askJson<{ est_saas: boolean; nom: string; categorie: string; description: string; cible: string; pays: string | null; langue: string | null;
     gratuit: boolean; essai: string | null; modele: string | null; prix_usage: string | null; prix_entree: number | null; devise: string | null; periode: string | null; sur_devis: boolean; formules: { nom: string; prix: string }[]; tags: string[] }>(
@@ -108,6 +115,7 @@ prix_entree (prix le plus bas d'une formule d'ABONNEMENT payante, nombre ; null 
   const hausse = prev?.[0]?.postes != null && f.recrute.postes != null ? f.recrute.postes - prev[0].postes : 0;
   const score = Math.max(0, Math.min(100, Math.round((f.recrute.oui ? 25 : 0) + Math.min(35, (f.recrute.postes ?? 0) * 2.5) + (actif ? 25 : 0) + Math.max(0, Math.min(15, hausse * 3)))));
   const champs = {
+    empreinte,
     nom: (a.nom || s.domaine).slice(0, 80), categorie: CATEGORIES.includes(a.categorie) ? a.categorie : "Autre",
     description: (a.description ?? "").slice(0, 300), cible: (a.cible ?? "").slice(0, 200), tags: nettoieTags(a.tags), pays, langue: (a.langue ?? "").slice(0, 5) || null, est_saas: true,
     prix_entree_eur: prix, devise: a.devise ?? null, prix_affiche: prix != null ? `${a.prix_entree} ${a.devise ?? ""}/${a.periode === "an" ? "an" : a.periode === "semaine" ? "semaine" : "mois"}` : a.prix_usage ? String(a.prix_usage).slice(0, 80) : null, modele_prix: modele,
@@ -326,9 +334,9 @@ export async function saasHistoire(id: string) {
   const etude = await ask(`Cherche les chiffres publics du logiciel ${s.nom} (${s.domaine}) : ${s.description ?? s.categorie}.
 Ce que je veux, seulement s'il est publié quelque part (article de presse, interview du fondateur, communiqué de levée de fonds, page « à propos », registre officiel) :
 année de création, fondateurs, chiffre d'affaires ou ARR ou MRR (avec l'année), montant total levé, nombre de salariés, nombre de clients,
-et surtout comment il a trouvé ses clients et grandi (bouche-à-oreille, référencement, version gratuite, partenariats, vente directe, communauté, place de marché, rachat…) si une interview ou un article le raconte. 3 recherches au plus.
+et surtout comment il a trouvé ses clients et grandi (bouche-à-oreille, référencement, version gratuite, partenariats, vente directe, communauté, place de marché, rachat…) si une interview ou un article le raconte. 2 recherches au plus.
 Réponds en texte. Après CHAQUE chiffre ou fait, écris l'adresse exacte de la page où tu l'as lu. Si rien n'est publié, dis-le ; n'estime rien.`,
-    { maxTokens: 1800, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }] }).catch(() => "");
+    { fast: true, maxTokens: 1500, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }] }).catch(() => "");
   if (!etude) return { id, statut: "erreur" };
   const x = await askJson<{ annee_creation: number | null; fondateurs: string[]; chiffres: { type: string; valeur: number; devise: string | null; annee: number | null; texte: string; source: string }[]; histoire: string | null; lecons: string[] }>(
     `Extrais de ce texte, sans rien ajouter ni estimer :

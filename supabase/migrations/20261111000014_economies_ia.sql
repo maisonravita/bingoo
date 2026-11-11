@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas.empreinte (relecture seulement si le site change), cron histoires quotidien n=5, anciens crons de prospection désactivés (cron.alter_job active=false)
