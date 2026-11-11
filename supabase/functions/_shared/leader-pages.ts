@@ -40,7 +40,8 @@ async function pagesProduit(domaine: string): Promise<string[] | null> {
     if (/<sitemapindex/i.test(xml)) {
       // Index de plans : d'abord les plans qui parlent de produit, de pages ou de fonctionnalités
       const tri = l.sort((a, b) => Number(/page|product|feature|integration|solution|app|market|fonction/i.test(b)) - Number(/page|product|feature|integration|solution|app|market|fonction/i.test(a)));
-      file.push(...tri.filter((x) => !/(^|[-_/])(blog|posts?|news|articles?|authors?|tags?|categor\w*|help|docs?|videos?|images?|jobs?|job_\w+|podcasts?|success_stories\w*|partners?|events?|glossary|press)([-_.]|$)/i.test(x.split("/").pop() ?? "")).slice(0, 8));
+      // Une seule langue : on saute les plans d'une autre langue que l'anglais ou le français (de-, es-, pt-br_…)
+      file.push(...tri.filter((x) => !/^(?!en|fr)[a-z]{2}([-_][a-z]{2})?[-_]/i.test(x.split("/").pop() ?? "") && !/\/(?!en|fr)[a-z]{2}(-[a-z]{2})?\/[^/]+$/i.test(new URL(x, p).pathname)).filter((x) => !/(^|[-_/])(blog|posts?|news|articles?|authors?|tags?|categor\w*|help|docs?|videos?|images?|jobs?|job_\w+|podcasts?|success_stories\w*|partners?|events?|glossary|press)([-_.]|$)/i.test(x.split("/").pop() ?? "")).slice(0, 8));
     } else for (const u of l) { urls.add(u); if (PLAN_PAGES.test(p.split("/").pop() ?? "")) pagesDePlan.add(u); }
   }
   Object.assign(diag, { plans, vus: [...vus], urls: urls.size, exemple: [...urls].slice(0, 5), robots: rob.slice(0, 300) });
