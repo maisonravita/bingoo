@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas.copiable / copiable_raisons, saas_copiabilite_maj() + saas_succes_depuis_histoires() (cron bingoo-explorer-copiabilite), vue saas_liste (+ copiable, preuve_ancienne, a_succes exclut les preuves de plus de 4 ans)
