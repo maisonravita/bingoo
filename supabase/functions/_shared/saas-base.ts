@@ -683,3 +683,38 @@ hypotheses (prudentes : clients_mois_1 nombre de clients payants le premier mois
   const { data: row } = await admin.from("saas_projets").insert({ workspace_id: wsId, saas_id: s.id, data }).select("id").single();
   return { id: row?.id, ...data };
 }
+
+/** Trois jours après l'inscription, si rien n'est encore lancé : les 3 SaaS à copier faits pour ce compte (sans IA). */
+export async function saasRelanceJ3(seulement?: string) {
+  const { teamAddress, sendSystem } = await import("./mail.ts");
+  const site = "https://kairo.maisonravita.fr";
+  let q = admin.from("workspaces").select("*").or("profile->>mode.eq.explorer,plan.in.(explorer,explorer_pro,business)");
+  q = seulement ? q.eq("id", seulement) : q.gte("created_at", new Date(Date.now() - 4 * 864e5).toISOString()).lt("created_at", new Date(Date.now() - 3 * 864e5).toISOString());
+  const { data: wss } = await q.limit(500);
+  let envoyes = 0;
+  for (const w of (wss ?? []) as any[]) {
+    const { count: projets } = await admin.from("saas_projets").select("id", { count: "exact", head: true }).eq("workspace_id", w.id);
+    if ((projets ?? 0) > 0) continue;
+    const { data: deja } = await admin.from("saas_relances").select("workspace_id").eq("workspace_id", w.id).eq("type", "j3").maybeSingle();
+    if (deja && !seulement) continue;
+    const { data: pref } = await admin.from("saas_preferences").select("secteurs, budget, profil").eq("workspace_id", w.id).maybeSingle();
+    const { data: liste } = await admin.rpc("saas_pour_moi", { p_categories: pref?.secteurs?.length ? pref.secteurs : null, p_budget: pref?.budget ?? "moyen", p_profil: pref?.profil ?? "aucun" });
+    const top = ((liste ?? []) as any[]).slice(0, 3);
+    if (!top.length) continue;
+    const to = await teamAddress(w as Workspace);
+    if (!to) continue;
+    const raisons = (x: any) => (x.copiable_raisons ?? []).filter((r: string) => !/^Revenu|Géant|Grosse|devis/.test(r)).slice(0, 2).join(" · ");
+    const intro = pref ? "D'après tes réponses, voici les 3 SaaS que tu peux copier dès maintenant." : "Voici 3 SaaS qui gagnent déjà de l'argent et qu'une petite équipe peut refaire.";
+    const text = [`Tes 3 SaaS à copier`, "", intro, "", ...top.map((x, i) => `${i + 1}. ${x.nom} (${x.categorie}) : ${x.preuve ?? ""}\n   ${raisons(x)}\n   Lancer le mien : ${site}/#/explorer/lancer?d=${x.domaine}`), "",
+      pref ? `Changer mes critères : ${site}/#/explorer/trouver` : `Trois questions pour des SaaS sur mesure : ${site}/#/explorer/trouver`].join("\n");
+    const html = `<div style="font-family:Arial,sans-serif;color:#15161A;max-width:560px"><h2 style="margin:0 0 6px">Tes 3 SaaS à copier</h2><p style="color:#5B5D66;margin:0 0 16px">${escH(intro)}</p>
+${top.map((x, i) => `<div style="border:1px solid #E7E5E4;border-radius:14px;padding:14px 16px;margin:0 0 10px"><p style="margin:0;font-weight:bold;font-size:16px">${i + 1}. ${escH(x.nom)} <span style="font-weight:normal;color:#5B5D66;font-size:13px">· ${escH(x.categorie)}</span></p>${x.preuve ? `<p style="margin:6px 0 0;font-size:13.5px;background:#FEF3C7;color:#78350F;display:inline-block;padding:4px 8px;border-radius:8px">★ ${escH(x.preuve)}</p>` : ""}<p style="margin:6px 0 0;font-size:13px;color:#166534">${escH(raisons(x))}</p><p style="margin:10px 0 0"><a href="${site}/#/explorer/lancer?d=${escH(x.domaine)}" style="background:#E0531F;color:#fff;padding:9px 14px;border-radius:9px;text-decoration:none;font-weight:bold;font-size:14px">Lancer le mien</a></p></div>`).join("")}
+<p style="margin-top:14px;font-size:13.5px"><a href="${site}/#/explorer/trouver" style="color:#C2410C;font-weight:bold">${pref ? "Changer mes critères" : "Trois questions pour des SaaS sur mesure"} →</a></p></div>`;
+    try {
+      await sendSystem({ to, subject: `Tes 3 SaaS à copier : ${top.map((x) => x.nom).join(", ")}`, text, html, key: `relance-j3-${w.id}${seulement ? `-${Date.now()}` : ""}` });
+      if (!seulement) await admin.from("saas_relances").upsert({ workspace_id: w.id, type: "j3", at: new Date().toISOString() });
+      envoyes++;
+    } catch (e) { console.error("relance j3", w.id, e); }
+  }
+  return { comptes: (wss ?? []).length, envoyes };
+}

@@ -1,0 +1,1 @@
+-- Appliquée via MCP : table saas_relances, cron bingoo-explorer-relance-j3 (e-mail 3 jours après l'inscription si rien n'est lancé)
