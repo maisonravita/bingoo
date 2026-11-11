@@ -143,7 +143,13 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
     const variante = b.variante === "B" && (app.ab as any)?.actif ? "B" : "A";
 
     // Visite de la page d'accueil (mesure du test de prix)
-    if (action === "vue") { if ((app.ab as any)?.actif) await admin.rpc("saas_app_vue", { p_app: app.id, p_var: variante }); return { status: 200, body: { ok: true } }; }
+    // Visite de la page d'accueil : par source (lien de partage ?src=…) et, pendant un test de prix, par variante
+    const source = String(b.source ?? "direct").toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 30) || "direct";
+    if (action === "vue") {
+      await admin.rpc("saas_app_visite", { p_app: app.id, p_source: source });
+      if ((app.ab as any)?.actif) await admin.rpc("saas_app_vue", { p_app: app.id, p_var: variante });
+      return { status: 200, body: { ok: true } };
+    }
 
     if (action === "signup" || action === "login" || action === "demo") {
       let email = String(b.email ?? "").trim().toLowerCase().slice(0, 160);
@@ -171,7 +177,7 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
       const nom = String(b.nom ?? "").trim().slice(0, 80) || (action === "demo" ? "Invité" : email.split("@")[0]);
       const id = crypto.randomUUID();
       const { data: u, error } = await admin.from("saas_app_users").insert({
-        id, app_id: app.id, email, nom, ip, variante, pass: `${salt}:${await pbkdf2(pass, salt)}`,
+        id, app_id: app.id, email, nom, ip, variante, source: action === "demo" ? null : source, pass: `${salt}:${await pbkdf2(pass, salt)}`,
         espace_id: invite?.espace_id ?? id, role: invite ? "membre" : "admin",
       }).select("id, email, nom").single();
       if (error) throw new Err(409, "Un compte existe déjà avec cette adresse");

@@ -355,3 +355,12 @@ export async function appsCreateursCron(max = 40) {
   }
   return out;
 }
+
+/** Coche une étape du plan de lancement (gardé avec le kit). */
+export async function appLancementFait(appId: string, cle: string, fait: boolean) {
+  const { data: app } = await admin.from("saas_apps").select("lancement").eq("id", appId).single();
+  const l = { ...((app?.lancement ?? {}) as any) };
+  l.fait = { ...(l.fait ?? {}), [String(cle).slice(0, 60)]: fait ? new Date().toISOString() : null };
+  await admin.from("saas_apps").update({ lancement: l }).eq("id", appId);
+  return { fait: l.fait };
+}

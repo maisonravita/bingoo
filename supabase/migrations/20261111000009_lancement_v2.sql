@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_app_visites, saas_app_users.source, saas_app_visite, saas_app_sources

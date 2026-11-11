@@ -11,7 +11,7 @@ export default function PublicApp({ slug, domaine }) {
   const [app, setApp] = useState(undefined);
   const [installer, setInstaller] = useState(null);
   // Retour du paiement Stripe (?paiement=ok), invitation d'équipe (?invite=…), démo animée (?tour=1)
-  const [ctx] = useState(() => ({ retour: param("paiement") === "ok", invite: param("invite"), tour: param("tour") === "1" }));
+  const [ctx] = useState(() => ({ retour: param("paiement") === "ok", invite: param("invite"), tour: param("tour") === "1", source: param("src") || (document.referrer && !document.referrer.includes(window.location.host) ? (() => { try { return new URL(document.referrer).hostname.replace(/^www\./, "").split(".")[0]; } catch { return null; } })() : null) }));
   useEffect(() => {
     if (ctx.retour || ctx.invite) window.history.replaceState(null, "", window.location.href.replace(/[?&](paiement=ok|invite=[a-f0-9]+)/g, ""));
     const q = domaine ? supabase.rpc("saas_app_par_domaine", { p_domaine: domaine }) : supabase.rpc("saas_app_public", { p_slug: slug });
@@ -37,7 +37,7 @@ export default function PublicApp({ slug, domaine }) {
   if (!app) return <div className="min-h-screen grid place-items-center bg-paper text-ink-soft p-6 text-center"><p>Cette application n'existe pas ou n'est plus en ligne.</p></div>;
   return (
     <>
-      <AppCadre slug={app.slug} spec={app.spec} version={app.version} paiement={app.paiement} domaine={app.domaine} ab={app.ab} articles={app.articles} retourPaiement={ctx.retour} invite={ctx.invite} tour={ctx.tour} className="fixed inset-0 w-full h-full border-0" />
+      <AppCadre slug={app.slug} spec={app.spec} version={app.version} paiement={app.paiement} domaine={app.domaine} ab={app.ab} articles={app.articles} retourPaiement={ctx.retour} invite={ctx.invite} tour={ctx.tour} source={ctx.source} className="fixed inset-0 w-full h-full border-0" />
       {installer && (
         <button onClick={async () => { installer.prompt(); await installer.userChoice.catch(() => null); setInstaller(null); }} className="fixed bottom-4 left-4 z-10 rounded-full bg-white/95 shadow-lg ring-1 ring-black/10 px-4 py-2.5 text-[13.5px] font-semibold text-[#0F172A]">⬇ Installer l'application</button>
       )}

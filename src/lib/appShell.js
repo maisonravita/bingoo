@@ -9,8 +9,8 @@ const HTM = "https://esm.sh/htm@3.1.1";
 
 const safe = (o) => JSON.stringify(o).replace(/</g, "\\u003c").replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029");
 
-export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null }) {
-  const boot = { spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog };
+export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null }) {
+  const boot = { spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog, source };
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${String(spec.nom ?? "Mon SaaS").replace(/[<&]/g, "")}</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js"></script>
@@ -120,7 +120,7 @@ class Garde extends Component {
 // ---------------------------------------------------------------- Site public
 function Site({ onAuth }) {
   const f = S.formules ?? [];
-  useEffect(() => { if (B.ab?.actif && !B.apercu) call("vue", { variante: VARIANTE }).catch(() => {}); }, []);
+  useEffect(() => { if (!B.apercu) call("vue", { variante: VARIANTE, source: B.source }).catch(() => {}); }, []);
   return html\`<div class="bg-white min-h-screen">
   <header class="max-w-6xl mx-auto px-5 py-5 flex items-center justify-between"><div class="flex items-center gap-2 font-bold text-lg"><span class="w-8 h-8 rounded-xl bg-[var(--c)] text-white grid place-items-center">\${(S.nom ?? "S")[0]}</span>\${S.nom}</div><div class="flex gap-2"><\${ui.Button} variant="ghost" onClick=\${() => onAuth("login")}>Se connecter</\${ui.Button}><\${ui.Button} onClick=\${() => onAuth("signup")}>Essai gratuit</\${ui.Button}></div></header>
   <section class="max-w-6xl mx-auto px-5 pt-14 pb-20 text-center"><p class="inline-block rounded-full bg-[var(--c)]/10 text-[var(--c)] px-3 py-1 text-sm font-semibold">\${S.cible_courte || (ESSAI ? "Essai gratuit " + ESSAI + " jours" : S.nom)}</p>
@@ -138,7 +138,7 @@ function Site({ onAuth }) {
 function Auth({ mode: m0, onDone, onBack }) {
   const [mode, setMode] = useState(m0 === "login" ? "login" : "signup");
   const [f, setF] = useState({ email: "", password: "", nom: "" }), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
-  const submit = async (e) => { e.preventDefault(); setBusy(true); setErr(""); try { onDone(await call(mode, { ...f, variante: VARIANTE, invite: mode === "signup" ? B.invite : null })); } catch (x) { setErr(x.message); } finally { setBusy(false); } };
+  const submit = async (e) => { e.preventDefault(); setBusy(true); setErr(""); try { onDone(await call(mode, { ...f, variante: VARIANTE, source: B.source, invite: mode === "signup" ? B.invite : null })); } catch (x) { setErr(x.message); } finally { setBusy(false); } };
   return html\`<div class="min-h-screen grid place-items-center p-5 bg-slate-50"><form onSubmit=\${submit} class="anim w-full max-w-sm bg-white rounded-2xl border border-slate-200 p-6 space-y-3">
     <button type="button" onClick=\${onBack} class="text-sm text-slate-400 hover:text-slate-700">← \${S.nom}</button>
     <h1 class="text-xl font-bold">\${mode === "signup" ? (B.invite ? "Rejoins ton équipe" : "Crée ton compte") : "Content de te revoir"}</h1>

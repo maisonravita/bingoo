@@ -25,12 +25,13 @@ function md(t) {
   return out.join("\n");
 }
 
-function page(app, titre, description, canon, corps) {
+function page(app, titre, description, canon, corps, ld = null) {
   const c = /^#[0-9a-f]{6}$/i.test(app.couleur || "") ? app.couleur : "#4F46E5";
   const accueil = app.domaine ? `https://${app.domaine}/` : `${SITE}/#/app/${app.slug}`;
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(titre)}</title><meta name="description" content="${esc(description)}"><link rel="canonical" href="${canon}">
-<meta property="og:title" content="${esc(titre)}"><meta property="og:description" content="${esc(description)}">
+<meta property="og:title" content="${esc(titre)}"><meta property="og:description" content="${esc(description)}"><meta property="og:type" content="article">
+${ld ? `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, "\\u003c")}</script>` : ""}
 <style>*{box-sizing:border-box}body{margin:0;background:#F8FAFC;color:#0F172A;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.65}
 .w{max-width:760px;margin:0 auto;padding:24px 16px 64px}header{display:flex;justify-content:space-between;align-items:center}header a{text-decoration:none;color:inherit;font-weight:800;font-size:18px;display:flex;gap:8px;align-items:center}
 .l{width:30px;height:30px;border-radius:9px;background:${c};color:#fff;display:grid;place-items:center}h1{font-size:clamp(28px,5vw,40px);line-height:1.1;letter-spacing:-.02em;margin:36px 0 10px}
@@ -67,7 +68,8 @@ export default async function handler(req, res) {
     const a = d.article, app = d.app;
     const canon = app.domaine ? `https://${app.domaine}/blog/${a.slug}` : `${SITE}/a/${app.slug}/${a.slug}`;
     const corps = `<h1>${esc(a.titre)}</h1><p class="r">${esc(a.resume)}</p>${md(a.contenu)}`;
-    return res.end(page(app, a.titre, a.resume || "", canon, corps));
+    const ld = { "@context": "https://schema.org", "@type": "Article", headline: a.titre, description: a.resume || "", datePublished: a.at || undefined, mainEntityOfPage: canon, publisher: { "@type": "Organization", name: app.nom }, keywords: (a.mots_cles || []).join(", ") };
+    return res.end(page(app, a.titre, a.resume || "", canon, corps, ld));
   } catch (e) {
     res.statusCode = 500;
     return res.end("Erreur");

@@ -1157,38 +1157,104 @@ function OngletJumeau({ app, appel, agir, busy, projet, onChange }) {
   );
 }
 
-// 5. Lancement : articles indexables, qui démarcher, e-mails de lancement, démo animée, plan de 30 jours
-function OngletLancement({ app, appel, agir, busy, projet }) {
+// 5. Lancement : liens suivis par canal, démo animée, plan des 30 jours à cocher, annuaires, e-mails, articles, qui démarcher.
+// Tout sauf les articles marche sans IA (textes construits à partir du projet).
+const CANAUX = [["linkedin", "LinkedIn"], ["email", "E-mails"], ["reseau", "Ton réseau (WhatsApp, SMS)"], ["producthunt", "Product Hunt"], ["annuaires", "Annuaires de logiciels"], ["blog", "Articles"], ["pub", "Publicité"]];
+const ANNUAIRES = [
+  ["Product Hunt", "https://www.producthunt.com/posts/new", "Le lancement mondial des nouveaux logiciels"],
+  ["BetaList", "https://betalist.com/submit", "Les premiers utilisateurs curieux"],
+  ["Indie Hackers", "https://www.indiehackers.com/products", "La communauté des créateurs indépendants"],
+  ["SaaSHub", "https://www.saashub.com/submit", "Alternatives aux grands logiciels"],
+  ["AlternativeTo", "https://alternativeto.net/manage-item/", "Ceux qui cherchent une alternative à ton modèle"],
+  ["Capterra", "https://www.capterra.fr/vendors/sign-up", "Annuaire des logiciels professionnels (Gartner)"],
+  ["appvizer", "https://www.appvizer.fr/", "Comparateur français de logiciels"],
+  ["G2", "https://sell.g2.com/", "Avis et comparatifs B2B"],
+];
+function kitBase(app, projet) {
+  const s = app.spec, insp = projet?.inspire?.nom ?? "les outils existants", f0 = (s.formules ?? [])[0];
+  const prix = f0 ? `dès ${f0.prix} € par mois` : "à petit prix";
+  return {
+    emails: [
+      { but: "Prospection à froid", sujet: `${s.nom} : ${String(s.slogan || s.pitch).slice(0, 60)}`, corps: `Bonjour {prenom},\n\nJe vous écris car {entreprise} fait partie des ${String(s.cible ?? "entreprises").toLowerCase().replace(/\.$/, "")}.\n\n${s.probleme ?? ""}\n\nNous avons créé ${s.nom} pour ça : ${s.pitch} ${prix}, avec ${app.paiement?.essai_jours ?? 14} jours d'essai gratuit.\n\nVous voulez que je vous montre en 15 minutes ?\n\nBonne journée,\n{ton prénom}\n\nSi vous ne souhaitez plus recevoir de message de ma part, répondez simplement « stop ».` },
+      { but: "Annonce à ton réseau", sujet: `Je lance ${s.nom} !`, corps: `Salut {prenom},\n\nJe lance ${s.nom} : ${s.pitch}\n\nC'est pensé pour ${String(s.cible ?? "les pros").toLowerCase().replace(/\.$/, "")}, en alternative française à ${insp}, ${prix}.\n\nTu connais quelqu'un à qui ça servirait ? Un transfert de ce message m'aiderait énormément.\n\nMerci !\n{ton prénom}` },
+      { but: "Relance", sujet: `Re : ${s.nom}`, corps: `Bonjour {prenom},\n\nJe me permets de revenir vers vous au sujet de ${s.nom}. Une démo de 30 secondes est ici : {lien de la démo}\n\nSi ce n'est pas le bon moment, aucun souci : dites-le-moi et je ne vous relancerai plus.\n\n{ton prénom}` },
+    ],
+    plan: [
+      ["profil", "Jour 1", "Mets le lien de ton SaaS (avec ?src=linkedin) dans ton profil LinkedIn et ta signature e-mail."],
+      ["reseau", "Jour 1-2", "Envoie l'annonce à 30 personnes de ton réseau, une par une (lien ?src=reseau)."],
+      ["demo", "Jour 2", "Partage la démo animée dans un post LinkedIn : le problème, ta solution, le lien."],
+      ["annuaires", "Semaine 1", "Inscris ton SaaS dans les annuaires ci-dessous (lien ?src=annuaires)."],
+      ["prospection", "Semaine 1-2", "Écris à 20 entreprises par jour, prises dans « Qui démarcher » (lien ?src=email)."],
+      ["appels", "Semaine 2", "Appelle ceux qui ont ouvert ou répondu ; propose 15 minutes de démo."],
+      ["producthunt", "Semaine 3", "Lance-toi sur Product Hunt un mardi (lien ?src=producthunt)."],
+      ["bilan", "Jour 30", "Regarde ci-dessus quel canal a amené des inscrits et des abonnés : double-le, coupe le reste."],
+    ],
+  };
+}
+
+function OngletLancement({ app, appel, agir, busy, projet, onChange }) {
   const toast = useToast();
-  const l = app.lancement;
+  const l = app.lancement ?? {};
+  const base = kitBase(app, projet);
   const dom = app.domaine_statut === "ok" ? app.domaine : null;
+  const racine = lienApp(app.slug, dom);
   const blog = blogApp(app.slug, dom);
-  const demo = `${lienApp(app.slug, dom)}${dom ? "?tour=1" : "?tour=1"}`;
+  const avecSrc = (src, extra = "") => `${racine}?src=${src}${extra}`;
+  const demo = `${racine}?tour=1&src=demo`;
+  const [stats, setStats] = useState(null);
+  const [fait, setFait] = useState(l.fait ?? {});
+  useEffect(() => { supabase.rpc("saas_app_sources", { p_app: app.id }).then(({ data }) => setStats(data ?? [])); }, [app.id]);
   const copier = (t) => navigator.clipboard?.writeText(t).then(() => toast("Copié"), () => toast("Copie impossible", "bad"));
+  const cocher = async (cle) => { const v = !fait[cle]; setFait({ ...fait, [cle]: v }); try { await appel("lancement-fait", { cle, fait: v }); } catch (x) { toast(x.message, "bad"); } };
+  const st = (k) => (stats ?? []).find((x) => x.source === k) ?? { vues: 0, inscrits: 0, abonnes: 0 };
+  const emails = l.emails?.length ? l.emails : base.emails;
+  const faits = base.plan.filter(([k]) => fait[k]).length + ANNUAIRES.filter(([n]) => fait[`a:${n}`]).length;
+  const total = base.plan.length + ANNUAIRES.length;
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <Explication>Tout pour trouver tes premiers clients : des articles que Google peut lire, les entreprises à démarcher, les e-mails de lancement, une démo animée à partager, et le plan des 30 premiers jours.</Explication>
-        <button disabled={!!busy} onClick={() => agir("lancement", () => appel("lancement"), "Kit de lancement prêt")} className={l ? btnSombre : btnAccent}>{busy === "lancement" ? "Préparation… (une minute)" : l ? "Refaire le kit" : "Préparer mon lancement"}</button>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Explication>Tout pour trouver tes premiers clients, et savoir quel canal marche. Chaque lien de partage porte sa source : Bingoo! compte les visites, les inscriptions et les abonnés de chacun.</Explication>
+        <div className="w-48"><div className="flex justify-between text-[12px] text-white/55"><span>Lancement</span><span>{faits}/{total}</span></div><div className="mt-1 h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full rounded-full bg-accent" style={{ width: `${(faits / total) * 100}%` }} /></div></div>
       </div>
+
+      <div>
+        <p className="font-bold">Tes liens à partager <span className="font-normal text-white/50 text-[13px]">· 90 derniers jours</span></p>
+        <div className="mt-2 overflow-x-auto rounded-xl bg-white/[.06]"><table className="w-full min-w-[620px] text-[13.5px]"><thead><tr className="text-left text-[11.5px] text-white/45"><th className="px-3 py-2 font-medium">Canal</th><th className="font-medium">Lien</th><th className="font-medium text-right">Visites</th><th className="font-medium text-right">Inscrits</th><th className="font-medium text-right px-3">Abonnés</th></tr></thead>
+          <tbody>{CANAUX.map(([k, n]) => { const x = st(k); const u = avecSrc(k); return <tr key={k} className="border-t border-white/10"><td className="px-3 py-2 font-semibold">{n}</td><td><button onClick={() => copier(u)} className="max-w-[260px] truncate rounded-md bg-white/10 px-2 py-1 font-mono text-[11.5px] hover:bg-white/20" title="Copier">{u.replace(/^https?:\/\//, "")}</button></td><td className="text-right tnum">{x.vues}</td><td className="text-right tnum">{x.inscrits}</td><td className="text-right tnum px-3">{x.abonnes}</td></tr>; })}
+            {(stats ?? []).filter((x) => !CANAUX.some(([k]) => k === x.source)).map((x) => <tr key={x.source} className="border-t border-white/10 text-white/60"><td className="px-3 py-2">{x.source === "direct" ? "Accès direct" : x.source}</td><td /><td className="text-right tnum">{x.vues}</td><td className="text-right tnum">{x.inscrits}</td><td className="text-right tnum px-3">{x.abonnes}</td></tr>)}</tbody></table></div>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-4">
+        <div className="rounded-xl bg-white/[.06] p-4">
+          <p className="font-bold">La démo animée</p>
+          <p className="text-[13px] text-white/60">{app.spec.nom} se présente tout seul, écran par écran, avec un compte d'exemple. Pour tes posts, tes e-mails, ta signature.</p>
+          <div className="mt-2 flex gap-2"><input readOnly value={demo} className={champSombre} onFocus={(e) => e.target.select()} /><button onClick={() => copier(demo)} className={btnSombre}>Copier</button><a href={demo} target="_blank" rel="noreferrer" className={btnSombre}>Voir</a></div>
+          <button onClick={() => copier(`<iframe src="${demo}" width="100%" height="620" style="border:0;border-radius:16px" title="${app.spec.nom}" loading="lazy"></iframe>`)} className="mt-2 text-[12.5px] underline text-white/70">Copier le code pour l'intégrer sur un site</button>
+        </div>
+        <div className="rounded-xl bg-white/[.06] p-4">
+          <p className="font-bold">Les 30 premiers jours</p>
+          <ul className="mt-2 space-y-1.5">{base.plan.map(([k, q, t]) => <li key={k}><label className="flex gap-2.5 text-[13.5px] cursor-pointer"><input type="checkbox" checked={!!fait[k]} onChange={() => cocher(k)} className="mt-1" /><span className={cx(fait[k] && "line-through text-white/40")}><b className="text-[#F6A06B]">{q}</b> · {t}</span></label></li>)}</ul>
+        </div>
+      </div>
+
+      <div>
+        <p className="font-bold">Les annuaires de logiciels <span className="font-normal text-white/50 text-[13px]">· une inscription chacun, avec le lien {`?src=annuaires`}</span></p>
+        <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-4 gap-2">{ANNUAIRES.map(([n, u, d]) => <div key={n} className={cx("rounded-xl p-3", fait[`a:${n}`] ? "bg-[#15803D]/20" : "bg-white/[.06]")}><div className="flex items-center justify-between gap-2"><a href={u} target="_blank" rel="noreferrer" className="font-semibold hover:underline">{n} ↗</a><input type="checkbox" checked={!!fait[`a:${n}`]} onChange={() => cocher(`a:${n}`)} title="Fait" /></div><p className="text-[12px] text-white/55">{d}</p></div>)}</div>
+      </div>
+
+      <div>
+        <p className="font-bold">Les e-mails de lancement <span className="font-normal text-white/50 text-[13px]">· à envoyer toi-même, remplace {"{prenom}"} et {"{entreprise}"}</span></p>
+        <div className="mt-2 grid md:grid-cols-3 gap-2">{emails.map((m, i) => <div key={i} className="rounded-xl bg-white/[.06] p-3 flex flex-col"><p className="text-[12px] font-bold uppercase tracking-wide text-[#F6A06B]">{m.but}</p><p className="mt-1 font-semibold text-[14px]">{m.sujet}</p><p className="mt-1 text-[12.5px] text-white/65 whitespace-pre-line flex-1">{String(m.corps).replace("{lien de la démo}", demo)}</p><button onClick={() => copier(`${m.sujet}\n\n${String(m.corps).replace("{lien de la démo}", demo)}`)} className={cx(btnSombre, "mt-2 self-start")}>Copier</button></div>)}</div>
+      </div>
+
       <div className="rounded-xl bg-white/[.06] p-4">
-        <p className="font-bold">La démo animée</p>
-        <p className="text-[13px] text-white/60">{app.spec.nom} se présente tout seul, écran par écran, avec un compte d'exemple. À mettre dans tes e-mails, tes posts et ta signature.</p>
-        <div className="mt-2 flex gap-2"><input readOnly value={demo} className={champSombre} onFocus={(e) => e.target.select()} /><button onClick={() => copier(demo)} className={btnSombre}>Copier</button><a href={demo} target="_blank" rel="noreferrer" className={btnSombre}>Voir</a></div>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><p className="font-bold">Les articles <span className="font-normal text-white/50 text-[13px]">· pages publiques lisibles par Google, liées depuis ton site</span></p><p className="text-[13px] text-white/60">Trois articles sur ce que tape ta cible dans Google (« alternative à {projet?.inspire?.nom ?? "…"} », « comment … »), écrits par l'IA.</p></div>
+          <button disabled={!!busy} onClick={() => agir("lancement", () => appel("lancement"), "Articles en ligne")} className={l.articles?.length ? btnSombre : btnAccent}>{busy === "lancement" ? "Écriture… (une minute)" : l.articles?.length ? "Réécrire les articles" : "Écrire les articles"}</button>
+        </div>
+        {l.articles?.length > 0 && <div className="mt-2 grid md:grid-cols-3 gap-2">{l.articles.map((x) => <a key={x.slug} href={`${blog}${x.slug}`} target="_blank" rel="noreferrer" className="rounded-xl bg-white/5 p-3 hover:bg-white/10"><p className="font-semibold text-[14px]">{x.titre}</p><p className="mt-1 text-[12.5px] text-white/55">{x.resume}</p></a>)}</div>}
       </div>
-      {l && (
-        <>
-          <div>
-            <p className="font-bold">Les articles <span className="font-normal text-white/50 text-[13px]">· pages publiques lisibles par Google, liées depuis ton site</span></p>
-            <div className="mt-2 grid md:grid-cols-3 gap-2">{(l.articles ?? []).map((a) => <a key={a.slug} href={`${blog}${a.slug}`} target="_blank" rel="noreferrer" className="rounded-xl bg-white/[.06] p-3 hover:bg-white/10"><p className="font-semibold text-[14px]">{a.titre}</p><p className="mt-1 text-[12.5px] text-white/55">{a.resume}</p></a>)}</div>
-          </div>
-          <div>
-            <p className="font-bold">Les e-mails de lancement</p>
-            <div className="mt-2 grid md:grid-cols-3 gap-2">{(l.emails ?? []).map((m, i) => <div key={i} className="rounded-xl bg-white/[.06] p-3 flex flex-col"><p className="text-[12px] font-bold uppercase tracking-wide text-[#F6A06B]">{m.but}</p><p className="mt-1 font-semibold text-[14px]">{m.sujet}</p><p className="mt-1 text-[12.5px] text-white/65 whitespace-pre-line flex-1">{m.corps}</p><button onClick={() => copier(`${m.sujet}\n\n${m.corps}`)} className={cx(btnSombre, "mt-2 self-start")}>Copier</button></div>)}</div>
-          </div>
-          {l.plan?.length > 0 && <div><p className="font-bold">Les 30 premiers jours</p><ol className="mt-2 grid md:grid-cols-2 gap-2">{l.plan.map((x, i) => <li key={i} className="rounded-xl bg-white/[.06] px-3 py-2 text-[13.5px]"><b className="text-[#F6A06B]">{i + 1}.</b> {typeof x === "string" ? x : `${x.canal ?? ""} : ${x.action ?? ""}`}</li>)}</ol></div>}
-        </>
-      )}
+
       {projet?.inspire?.domaine && <Clients domaine={projet.inspire.domaine} titre={`Qui démarcher pour ${app.spec.nom}`} />}
     </div>
   );

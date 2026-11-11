@@ -165,6 +165,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (b.quoi === "prix-suggeres") { await log(ws.id, "app_reglage", "Prix mis à jour (jumeau)"); return await o.appPrixSuggeres(app.id, String(b.suggestion ?? "")); }
     if (b.quoi === "brouillon-valider" || b.quoi === "brouillon-annuler") { await log(ws.id, "app_reglage", b.quoi === "brouillon-valider" ? "Modification mise en ligne" : "Modification abandonnée"); return await o.appBrouillon(app.id, b.quoi === "brouillon-valider"); }
     if (b.quoi === "ab-resultats") return await o.appAbResultats(app.id);
+    if (b.quoi === "lancement-fait") return await o.appLancementFait(app.id, String(b.cle ?? ""), !!b.fait);
     if (b.quoi === "jumeau") { await quota(ws.id, "jumeau", 5); await log(ws.id, "jumeau", "Vérification du jumeau"); setAi({ ws: ws.id, live: true, feature: "construire/jumeau" }); return await o.appJumeau(app.id); }
     if (b.quoi === "lancement") { await quota(ws.id, "lancement", 3); await log(ws.id, "lancement", "Kit de lancement"); setAi({ ws: ws.id, live: true, feature: "construire/lancement" }); return await o.appLancement(app.id); }
     if (b.quoi === "email-domaine" || b.quoi === "email-verifier") {
