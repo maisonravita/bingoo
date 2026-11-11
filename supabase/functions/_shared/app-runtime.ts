@@ -64,6 +64,8 @@ function etat(app: any, titulaire: any) {
 
 /** Relit l'abonnement chez Stripe (au retour du paiement, puis toutes les 10 minutes au plus). */
 async function rafraichir(admin: SupabaseClient, app: any, u: any, force = false) {
+  // Accès de précommande encore valable : rien à relire chez Stripe tant qu'il court
+  if (u.abonnement?.precommande && (!u.abonnement.fin_periode || new Date(u.abonnement.fin_periode).getTime() > Date.now()) && !force) return u;
   if (!app.paiement?.actif || !u.stripe_customer) return u;
   if (!force && u.verifie_at && Date.now() - new Date(u.verifie_at).getTime() < 10 * 60e3) return u;
   const key = await cleStripe(admin, app.id);
@@ -275,6 +277,15 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
       if (error) throw new Err(409, "Un compte existe déjà avec cette adresse");
       if (invite) await admin.from("saas_app_invites").update({ utilise_at: new Date().toISOString() }).eq("code", invite.code);
       else await semer(admin, app, u.id);
+      // Précommande payée avant l'ouverture : l'accès est activé (un mois, ou à vie en paiement unique)
+      if (action === "signup") {
+        const { data: pc } = await admin.from("saas_app_liste").select("formule, montant, paye_at").eq("app_id", app.id).eq("email", email).eq("precommande", true).maybeSingle();
+        if (pc?.paye_at) {
+          const unique = (app.paiement as any)?.modele === "unique";
+          const fin = unique ? null : new Date(Math.max(Date.now(), new Date(pc.paye_at).getTime()) + 31 * 864e5).toISOString();
+          await admin.from("saas_app_users").update({ abonnement: { statut: "active", formule: pc.formule, montant: pc.montant, precommande: true, unique, fin_periode: fin, annule: false } }).eq("id", u.id);
+        }
+      }
       if (action === "signup") {
         const { mailBienvenue } = await import("./app-mails.ts");
         await mailBienvenue(app, slug, { ...u, at: new Date().toISOString() }, !!invite).catch((e) => console.error("bienvenue", e));

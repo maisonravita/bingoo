@@ -150,6 +150,11 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
       return row;
     }
     if (!ex) throw new HttpError(404, "Page de précommande introuvable");
+    if (quoi === "prevenir") {
+      const { appOuverture } = await import("../_shared/app-mails.ts");
+      await log(ws.id, "validation", "Ouverture annoncée aux inscrits");
+      return await appOuverture(ex.id);
+    }
     if (quoi === "reglages") {
       const v = { ...(ex.validation ?? {}) } as any;
       if (b.objectif !== undefined) v.objectif = Math.max(1, Math.min(1000, Math.round(Number(b.objectif) || 10)));

@@ -65,17 +65,22 @@ const RUBRIQUES = [
   ["À copier", [["copier", "À copier", "/explorer/copier"]], "copier"],
   ["Mes SaaS", [["createurs", "Mes SaaS", "/explorer/createurs"], ["bourse", "Bourse", "/explorer/bourse"], ["racheter", "À racheter", "/explorer/racheter"]]],
 ];
+// Pages qui dépendent de contenus encore rares : cachées tant qu'elles sont vides (sauf si on y est)
+let VIDES = null;
+const chargerVides = () => VIDES ?? (VIDES = Promise.all([supabase.rpc("saas_bourse_liste"), supabase.rpc("saas_endormis", { p_categorie: null })]).then(([b, r]) => ({ bourse: !(b.data ?? []).length, racheter: !(r.data ?? []).length })).catch(() => ({})));
 function Onglets({ actif }) {
   const nav = useNavigate();
+  const [vides, setVides] = useState({});
+  useEffect(() => { chargerVides().then(setVides); }, []);
   const rub = RUBRIQUES.find(([, pages]) => pages.some(([k]) => k === actif)) ?? RUBRIQUES[0];
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
       <div className="inline-flex max-w-full overflow-x-auto rounded-xl bg-white border border-line p-1">
         {RUBRIQUES.map(([l, pages, groupe]) => <Fragment key={l}>{groupe === "copier" && <span className="mx-1.5 my-1.5 w-px shrink-0 bg-line" aria-hidden />}<button onClick={() => nav(pages[0][2])} className={cx("shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-[14px] font-semibold transition", rub[0] === l ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button></Fragment>)}
       </div>
-      {rub[1].length > 1 && (
+      {rub[1].filter(([k]) => !vides[k] || k === actif).length > 1 && (
         <div className="mt-2 flex gap-4 overflow-x-auto px-1 text-[13.5px]">
-          {rub[1].map(([k, l, to]) => <button key={k} onClick={() => nav(to)} className={cx("shrink-0 whitespace-nowrap border-b-2 pb-1 font-medium transition", actif === k ? "border-accent text-ink" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
+          {rub[1].filter(([k]) => !vides[k] || k === actif).map(([k, l, to]) => <button key={k} onClick={() => nav(to)} className={cx("shrink-0 whitespace-nowrap border-b-2 pb-1 font-medium transition", actif === k ? "border-accent text-ink" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
         </div>
       )}
     </div>
@@ -1018,6 +1023,34 @@ function Lancer() {
 
 // ---------------------------------------------------------------- Bingoo! construit le SaaS
 // Une vraie application en ligne (site, comptes, écrans avec données), hébergée sur #/app/<slug>, modifiable en une phrase.
+// ---------------------------------------------------------------- Ouverture : prévenir la liste d'attente (le créateur décide quand)
+function OuvertureListe({ app, projet }) {
+  const { ws } = useWs();
+  const toast = useToast();
+  const [l, setL] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const charger = () => supabase.from("saas_app_liste").select("precommande, prevenu_at").eq("app_id", app.id).limit(2000).then(({ data }) => setL(data ?? []));
+  useEffect(() => { charger(); }, [app.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!l || !l.length) return null;
+  const attente = l.filter((x) => !x.prevenu_at), pre = attente.filter((x) => x.precommande).length;
+  const prevenir = async () => {
+    if (!confirm(`Envoyer l'e-mail d'ouverture à ${attente.length} inscrit${attente.length > 1 ? "s" : ""} ?`)) return;
+    setBusy(true);
+    try { const r = await fn("r/saas-validation", { workspace_id: ws.id, projet_id: projet.id, quoi: "prevenir" }); toast(`${r.envoyes} e-mail${r.envoyes > 1 ? "s" : ""} envoyé${r.envoyes > 1 ? "s" : ""}`); await charger(); }
+    catch (x) { toast(x.message, "bad"); } finally { setBusy(false); }
+  };
+  return (
+    <div className="mt-5 rounded-2xl bg-[#F6A06B]/15 border border-[#F6A06B]/30 p-4 flex flex-wrap items-center justify-between gap-3">
+      {attente.length ? (
+        <>
+          <p className="text-[14px]"><b>{attente.length} personne{attente.length > 1 ? "s" : ""} attend{attente.length > 1 ? "ent" : ""} l'ouverture</b>{pre ? `, dont ${pre} qui ont déjà payé leur précommande` : ""}. Préviens-les : celles qui ont précommandé retrouvent leur accès en créant leur compte avec la même adresse.</p>
+          <button onClick={prevenir} disabled={busy} className="rounded-xl bg-accent px-5 py-2.5 text-[14px] font-bold hover:bg-accent-dark disabled:opacity-60">{busy ? "Envoi…" : "Prévenir mes inscrits"}</button>
+        </>
+      ) : <p className="text-[14px] text-white/75">✓ Tes {l.length} inscrits ont été prévenus de l'ouverture.</p>}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------- Valider avant de construire : page de précommande
 function Validation({ projet, app, recharger }) {
   const { ws } = useWs();
@@ -1198,6 +1231,7 @@ function Construire({ projet }) {
         )}
       </div>
 
+      {pret && app.validation && app.statut !== "en_cours" && <OuvertureListe app={app} projet={projet} />}
       {app?.statut === "en_cours" ? (
         <div className="mt-6 rounded-2xl bg-white/5 border border-white/10 p-5">
           <div className="flex items-center gap-3"><span className="h-5 w-5 rounded-full border-2 border-white/20 border-t-[#F6A06B] animate-spin" /><p className="font-semibold">{app.etape ?? "Construction en cours"}…</p></div>
@@ -1826,11 +1860,10 @@ function Createurs() {
   const mesPrives = (cl ?? []).filter((a) => a.a_moi && !a.public).map((a) => ({ ...a, place: publics.filter((p) => f(p) > f(a)).length + 1 }));
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-      <h1 className="text-[30px] font-black tracking-tight" style={HF}>Mes SaaS et classement</h1>
-      <p className="text-ink-soft">Les SaaS que Bingoo! a construits pour toi, et le classement des créateurs. Les revenus sont relus chaque nuit dans Stripe : jamais un chiffre déclaré.</p>
-      <h2 className="mt-6 font-bold text-[19px]">Mes SaaS construits</h2>
+      <h1 className="text-[30px] font-black tracking-tight" style={HF}>Mes SaaS</h1>
+      <p className="text-ink-soft">Les SaaS que Bingoo! a construits pour toi. Les revenus sont relus chaque nuit dans Stripe : jamais un chiffre déclaré.</p>
       {mes === null ? <div className="py-10 grid place-items-center"><Spinner /></div> : !mes.length ? (
-        <div className="mt-2 rounded-2xl bg-white border border-line p-6"><p>Tu n'as pas encore de SaaS construit. Choisis un SaaS qui marche dans la base, clique « Lancer le mien », puis « Construire mon SaaS ».</p><button onClick={() => nav("/explorer/idees")} className="mt-3 rounded-xl bg-accent text-white px-4 py-2.5 font-bold">Trouver une idée</button></div>
+        <div className="mt-2 rounded-2xl bg-white border border-line p-6"><p className="font-bold text-[17px]">Ton premier SaaS commence ici.</p><p className="mt-1 text-ink-soft">Trois questions, et Bingoo! te montre les SaaS qui gagnent déjà de l'argent et que tu peux copier. Ensuite : page de précommande, construction, encaissement.</p><button onClick={() => nav("/explorer/trouver")} className="mt-4 rounded-xl bg-accent px-5 py-2.5 text-[14px] font-bold text-white hover:bg-accent-dark">Trouver mon SaaS en 3 questions</button></div>
       ) : (
         <div className="mt-2 grid md:grid-cols-2 lg:grid-cols-3 gap-3">{mes.map((a) => {
           const insp = a.saas_projets?.data?.inspire;
@@ -1851,6 +1884,7 @@ function Createurs() {
           );
         })}</div>
       )}
+      {publics.length > 0 && <>
       <div className="mt-8 flex flex-wrap items-end justify-between gap-3">
         <div><h2 className="font-bold text-[19px]">Classement des créateurs</h2><p className="text-[13px] text-ink-faint">Seuls les créateurs qui l'ont accepté y figurent (onglet « Monde et bourse » de leur SaaS).</p></div>
         <div className="flex gap-1.5">{CLASSEMENTS.map(([k, l]) => <Chip key={k} on={tri === k} onClick={() => setTri(k)}>{l}</Chip>)}</div>
@@ -1861,6 +1895,7 @@ function Createurs() {
             <tbody>{publics.slice(0, 100).map((a, i) => { const g = croissance(a); return <tr key={a.slug} className={cx("border-t border-line first:border-0", a.a_moi && "bg-accent-soft/50")}><td className="px-4 py-2.5 font-black tnum">{i < 3 ? ["🥇", "🥈", "🥉"][i] : i + 1}</td><td><a href={lienApp(a.slug, a.domaine)} target="_blank" rel="noreferrer" className="flex items-center gap-2 font-semibold hover:underline"><span className="h-5 w-5 rounded-md" style={{ background: a.couleur ?? "#4F46E5" }} />{a.nom}{a.a_moi && <span className="rounded-full bg-accent text-white px-1.5 text-[10.5px] font-bold">TOI</span>}</a></td><td className="text-ink-soft hidden sm:table-cell">{a.createur}</td><td className="text-right font-bold tnum">{eurs(a.mrr)}</td><td className={cx("text-right tnum hidden md:table-cell", g > 0 ? "text-[#15803D]" : g < 0 ? "text-[#B91C1C]" : "text-ink-faint")}>{g == null ? "nouveau" : `${g > 0 ? "+" : ""}${g} %`}</td><td className="text-right tnum hidden sm:table-cell">{a.abonnes}</td><td className="text-right tnum px-4">{a.nouveaux_30j}</td></tr>; })}</tbody></table>
         )}
       </div>
+      </>}
       {mesPrives.length > 0 && <p className="mt-2 text-[13px] text-ink-soft">{mesPrives.map((a) => `${a.nom} serait ${a.place}${a.place === 1 ? "er" : "e"} s'il était affiché`).join(" · ")}. Pour entrer dans le classement : onglet « Monde et bourse » de ton SaaS.</p>}
     </div>
   );
@@ -1914,7 +1949,7 @@ function Bourse() {
         <div className="flex gap-1.5">{TRIS_BOURSE.map(([k, t]) => <Chip key={k} on={tri === k} onClick={() => setTri(k)}>{t}</Chip>)}</div>
       </div>
       {l === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : !liste.length ? (
-        <div className="mt-5 rounded-2xl bg-white border border-line p-6"><p>Aucun SaaS en vente pour l'instant. Pour vendre le tien : ouvre-le dans « Mes SaaS et classement », onglet « Monde et bourse ».</p></div>
+        <div className="mt-5 rounded-2xl bg-white border border-line p-6"><p>Aucun SaaS en vente pour l'instant. Pour vendre le tien : ouvre-le dans « Mes SaaS », onglet « Monde et bourse ».</p></div>
       ) : (
         <div className="mt-4 grid md:grid-cols-2 gap-4">{liste.map((b) => {
           const e = estimer(b);

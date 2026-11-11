@@ -38,7 +38,7 @@ async function envoyerModele(app: any, slug: string, type: string, u: { id?: str
   return true;
 }
 
-async function envoyerBrut(app: any, to: string, sujet: string, texte: string, bouton: string, url: string, cle: string, desabo: string | null) {
+async function envoyerBrut(app: any, to: string, sujet: string, texte: string, bouton: string, url: string, cle: string, desabo: string | null, pied?: string) {
   const s = app.spec ?? {};
   const couleur = /^#[0-9a-f]{6}$/i.test(s.couleur ?? "") ? s.couleur : "#4F46E5";
   const de = app.email_dom?.statut === "ok" ? `bonjour@${app.email_dom.domaine}` : `apps@${PLATFORM_DOMAIN()}`;
@@ -47,7 +47,7 @@ async function envoyerBrut(app: any, to: string, sujet: string, texte: string, b
 <p style="font-weight:800;font-size:18px;margin:0 0 18px"><span style="display:inline-block;width:28px;height:28px;border-radius:8px;background:${couleur};color:#fff;text-align:center;line-height:28px;margin-right:8px">${esc(String(s.nom ?? "S")[0])}</span>${esc(s.nom)}</p>
 ${paras.map((p) => `<p style="font-size:15px;line-height:1.55;margin:0 0 12px">${esc(p).replace(/\n/g, "<br>")}</p>`).join("")}
 ${bouton ? `<p style="margin:22px 0"><a href="${url}" style="background:${couleur};color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:700;font-size:15px">${esc(bouton)}</a></p>` : ""}
-<p style="font-size:12px;color:#94A3B8;margin-top:28px">${esc(s.nom)} · Tu reçois cet e-mail parce que tu as un compte sur ${esc(s.nom)}.${desabo ? ` <a href="${desabo}" style="color:#94A3B8">Ne plus recevoir ces e-mails</a>` : ""}</p></div>`;
+<p style="font-size:12px;color:#94A3B8;margin-top:28px">${esc(s.nom)} · ${pied ? esc(pied) : `Tu reçois cet e-mail parce que tu as un compte sur ${esc(s.nom)}.`}${desabo ? ` <a href="${desabo}" style="color:#94A3B8">Ne plus recevoir ces e-mails</a>` : ""}</p></div>`;
   const r = await resend("/emails", "POST", {
     from: `${String(s.nom ?? "App").replace(/[<>"]/g, "")} <${de}>`, to: [to], subject: sujet, html,
     text: `${texte}\n\n${bouton ? `${bouton} : ${url}` : ""}${desabo ? `\n\nNe plus recevoir ces e-mails : ${desabo}` : ""}`,
@@ -194,4 +194,26 @@ export async function appEmailVerifier(appId: string) {
   const email_dom = { ...e, statut, dns: (r.data?.records ?? []).map((x: any) => ({ type: x.type, nom: x.name, valeur: x.value, priorite: x.priority ?? null, ok: x.status === "verified" })) };
   await admin.from("saas_apps").update({ email_dom }).eq("id", appId);
   return { email_dom };
+}
+
+
+// ---------------------------------------------------------------- Ouverture : prévenir la liste d'attente et les précommandes (déclenché par le créateur)
+export async function appOuverture(appId: string) {
+  const { data: app } = await admin.from("saas_apps").select("id, slug, spec, paiement, domaine, domaine_statut, email_dom, emails, validation").eq("id", appId).single();
+  if (!(app!.spec as any)?.ecrans?.length) throw new HttpError(400, "Construis d'abord ton SaaS : l'e-mail annonce son ouverture");
+  const { data: liste } = await admin.from("saas_app_liste").select("id, email, precommande, formule").eq("app_id", appId).is("prevenu_at", null).limit(2000);
+  const nom = (app!.spec as any)?.nom ?? "L'application";
+  const url = lien(app, app!.slug);
+  let n = 0;
+  for (const x of liste ?? []) {
+    const texte = x.precommande
+      ? `Bonne nouvelle : ${nom} est ouvert.\n\nTa précommande${x.formule ? ` (formule ${x.formule})` : ""} est déjà réglée. Crée ton compte avec cette adresse e-mail : ton accès est activé automatiquement.\n\nMerci d'avoir cru au projet avant tout le monde.`
+      : `Bonne nouvelle : ${nom} est ouvert.\n\nTu t'étais inscrit pour être prévenu : tu peux créer ton compte dès maintenant.`;
+    try {
+      await envoyerBrut(app, x.email, `${nom} est ouvert`, texte, x.precommande ? "Créer mon compte" : `Découvrir ${nom}`, url, `ouverture-${x.id}`, null, `Tu reçois cet e-mail parce que tu t'es inscrit pour être prévenu de l'ouverture de ${nom}.`);
+      await admin.from("saas_app_liste").update({ prevenu_at: new Date().toISOString() }).eq("id", x.id);
+      n++;
+    } catch (e) { console.error("ouverture", e); }
+  }
+  return { envoyes: n };
 }
