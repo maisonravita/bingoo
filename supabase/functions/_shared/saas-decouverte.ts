@@ -110,3 +110,99 @@ export async function succesImport() {
   }
   return { total: SUCCES.length, ajoutes, maj };
 }
+
+// ---------------------------------------------------------------- TrustMRR
+// Base publique de revenus vérifiés par Stripe. Chaque startup a une fiche Markdown publique prévue pour les agents IA
+// (robots.txt l'autorise). On lit le plan du site, puis les fiches à un rythme doux, et on garde celles qui ont un vrai revenu.
+const TM = "https://trustmrr.com";
+const MRR_MIN = 1000; // en dessous de 1 000 $ par mois, ce n'est pas (encore) un SaaS à succès
+
+/** Ajoute à la file les startups du plan du site TrustMRR (nouvelles seulement). */
+export async function trustmrrPlan() {
+  const r = await safeFetchText(`${TM}/startup-sitemap.xml`, { headers: { "user-agent": "BingooBot/1.0 (+https://kairo.maisonravita.fr)" } }, 6_000_000, 30000);
+  if (!r.ok) throw new Error(`TrustMRR ${r.status}`);
+  const slugs = [...new Set([...r.text.matchAll(/<loc>https:\/\/trustmrr\.com\/startup\/([a-z0-9-]+)<\/loc>/g)].map((m) => m[1]))];
+  let ajoutes = 0;
+  for (let i = 0; i < slugs.length; i += 3000) {
+    const { data } = await admin.from("saas_trustmrr").upsert(slugs.slice(i, i + 3000).map((slug) => ({ slug })), { onConflict: "slug", ignoreDuplicates: true }).select("slug");
+    ajoutes += data?.length ?? 0;
+  }
+  return { slugs: slugs.length, ajoutes };
+}
+
+const dollars = (s?: string | null) => (s ? Number(s.replace(/[^0-9.]/g, "")) || 0 : 0);
+
+/** Lit une fiche Markdown TrustMRR. */
+export function trustmrrFiche(md: string, slug: string) {
+  const ligne = (k: string) => md.match(new RegExp(`^- ${k}: (.+)$`, "m"))?.[1]?.trim() ?? null;
+  const site = ligne("Website")?.match(/\((https?:\/\/[^)\s]+)\)/)?.[1] ?? null;
+  const mrr = dollars(ligne("Current MRR"));
+  const rev30 = dollars(ligne("Last 30 days revenue snapshot"));
+  const croissance = ligne("Last 30 days MRR growth") ?? ligne("Last 30 days revenue growth");
+  const abonnements = dollars(ligne("Current active subscriptions")) || null;
+  const total = dollars(ligne("All-time revenue snapshot")) || null;
+  const courbe = [...(md.split("### Monthly revenue timeline")[1] ?? "").matchAll(/^\| (\d{4}-\d{2}) \| \$([\d,]+) \|$/gm)].map((m) => ({ m: m[1], v: Number(m[2].replace(/,/g, "")) }));
+  const marches = [...(ligne("Markets") ?? "").matchAll(/\[([^\]]+)\]/g)].map((m) => m[1]).slice(0, 5);
+  return {
+    slug, site, nom: ligne("Name"), description: ligne("Description"), pays: ligne("Country"), fonde: ligne("Founded date"),
+    mrr, rev30, croissance, abonnements, total, courbe, marches, prix: ligne("Pricing model"), probleme: ligne("Problem solved"),
+    a_vendre: /currently listed for sale/i.test(md) && !/not currently listed for sale/i.test(md),
+  };
+}
+
+const fmt$ = (n: number) => `${Math.round(n).toLocaleString("fr-FR").replace(/ | /g, " ")} $`;
+
+/** Lit les prochaines fiches de la file (rythme doux : 4 en parallèle). */
+export async function trustmrrLire(n = 40, maxMs = 100_000) {
+  const t0 = Date.now();
+  await admin.from("saas_trustmrr").update({ statut: "a_lire" }).eq("statut", "en_cours").lt("at", new Date(Date.now() - 600_000).toISOString());
+  const { data } = await admin.from("saas_trustmrr").select("slug").eq("statut", "a_lire").limit(n);
+  const slugs = (data ?? []).map((x) => x.slug);
+  if (!slugs.length) return { lus: 0 };
+  await admin.from("saas_trustmrr").update({ statut: "en_cours", at: new Date().toISOString() }).in("slug", slugs);
+  const res: { slug: string; statut: string; mrr: number | null; domaine: string | null; at: string }[] = [];
+  const succes: ReturnType<typeof trustmrrFiche>[] = [];
+  let i = 0;
+  const ouvrier = async () => {
+    while (i < slugs.length && Date.now() - t0 < maxMs) {
+      const slug = slugs[i++];
+      const at = new Date().toISOString();
+      try {
+        const r = await safeFetchText(`${TM}/startup/${slug}.md`, { headers: { "user-agent": "BingooBot/1.0 (+https://kairo.maisonravita.fr)", accept: "text/markdown,text/plain" } }, 400_000, 12000);
+        if (!r.ok) { res.push({ slug, statut: r.status === 404 ? "absent" : "erreur", mrr: null, domaine: null, at }); continue; }
+        const f = trustmrrFiche(r.text, slug);
+        let domaine: string | null = null;
+        try { domaine = f.site ? new URL(f.site).hostname.replace(/^www\./, "").toLowerCase() : null; } catch { /* adresse invalide */ }
+        const mensuel = Math.max(f.mrr, f.rev30);
+        res.push({ slug, statut: mensuel >= MRR_MIN && domaine ? "succes" : "petit", mrr: mensuel || null, domaine, at });
+        if (mensuel >= MRR_MIN && domaine && /^[a-z0-9.-]+\.[a-z]{2,}$/.test(domaine) && !/(trustmrr|apps\.apple|play\.google|chromewebstore|x\.com|twitter|linkedin|instagram|tiktok|youtube)/.test(domaine)) succes.push({ ...f, site: domaine });
+      } catch { res.push({ slug, statut: "erreur", mrr: null, domaine: null, at }); }
+    }
+  };
+  await Promise.all(Array.from({ length: 4 }, ouvrier));
+  if (res.length) await admin.from("saas_trustmrr").upsert(res, { onConflict: "slug" });
+  const faits = new Set(res.map((x) => x.slug));
+  const restants = slugs.filter((s) => !faits.has(s));
+  if (restants.length) await admin.from("saas_trustmrr").update({ statut: "a_lire" }).in("slug", restants);
+
+  let ajoutes = 0, maj = 0;
+  if (succes.length) {
+    const { data: deja } = await admin.from("saas").select("id, domaine, statut, succes").in("domaine", succes.map((x) => x.site!));
+    const par = new Map((deja ?? []).map((x) => [x.domaine, x]));
+    for (const f of succes) {
+      const mensuel = Math.max(f.mrr, f.rev30);
+      const preuve = f.mrr ? `${fmt$(f.mrr)} de MRR vérifié par Stripe${f.croissance ? ` (${f.croissance} en 30 jours)` : ""}` : `${fmt$(f.rev30)} de revenu vérifié sur 30 jours`;
+      const s = { preuve, source: `${TM}/startup/${f.slug}`, type: "revenu_verifie", montant: mensuel * 12, mrr: f.mrr || null, revenu_30j: f.rev30 || null, croissance_30j: f.croissance, abonnements: f.abonnements, revenu_total: f.total, fonde: f.fonde, courbe: f.courbe.slice(-12), marches: f.marches, prix: f.prix, probleme: f.probleme, a_vendre: f.a_vendre, verifie_at: new Date().toISOString() };
+      const e = par.get(f.site!);
+      if (e) {
+        // Un revenu vérifié remplace une estimation ; on garde le plus récent quand les deux sont vérifiés
+        await admin.from("saas").update({ succes: s, ...(["illisible", "a_lire"].includes(e.statut) ? { statut: "a_lire", essais: 0 } : {}) }).eq("id", e.id);
+        maj++;
+      } else {
+        const { error } = await admin.from("saas").insert({ domaine: f.site, nom: f.nom, source: "trustmrr", succes: s });
+        if (!error) ajoutes++;
+      }
+    }
+  }
+  return { lus: res.length, succes: succes.length, ajoutes, maj };
+}

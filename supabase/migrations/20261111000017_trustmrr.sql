@@ -1,0 +1,1 @@
+-- Appliquée via MCP : table saas_trustmrr (file de lecture des fiches TrustMRR), crons bingoo-explorer-trustmrr
