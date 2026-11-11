@@ -883,7 +883,7 @@ function Lancer() {
   const [p, setP] = useState(undefined);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    supabase.from("saas_liste").select("nom, domaine, categorie, description, pays, prix_entree_eur").eq("domaine", d).maybeSingle().then(({ data }) => setSaas(data ?? null));
+    supabase.from("saas_liste").select("nom, domaine, categorie, description, pays, prix_entree_eur, succes").eq("domaine", d).maybeSingle().then(({ data }) => setSaas(data ?? null));
     supabase.from("saas_projets").select("id, data, at, statut").eq("workspace_id", ws.id).eq("data->inspire->>domaine", d).eq("statut", "pret").order("at", { ascending: false }).limit(1).then(({ data }) => setP(data?.[0] ? { id: data[0].id, ...data[0].data } : null));
   }, [d, ws.id]);
   // Le projet se prépare en tâche de fond (une à deux minutes) : on interroge la base toutes les 4 secondes
@@ -933,6 +933,7 @@ function Lancer() {
           </div>
 
           <Construire projet={p} />
+          <Budget projet={p} inspire={saas} />
 
           <div className="mt-5 grid md:grid-cols-2 gap-4">
             <Bloc titre="Le besoin">{<><p className="text-[14.5px]">{p.probleme}</p><p className="mt-2 text-[14px] text-ink-soft"><b className="text-ink">Pour qui :</b> {p.cible}</p></>}</Bloc>
@@ -996,6 +997,73 @@ function Lancer() {
 
 // ---------------------------------------------------------------- Bingoo! construit le SaaS
 // Une vraie application en ligne (site, comptes, écrans avec données), hébergée sur #/app/<slug>, modifiable en une phrase.
+// ---------------------------------------------------------------- Ton budget : ce que coûte le lancement, et ce que rapporte chaque euro de pub
+// Coûts certains (abonnement Bingoo!, domaine, frais Stripe) + simulation sur 12 mois à partir de TES hypothèses (modifiables).
+const BINGOO_PRO = 39.99; // €/mois, construction, hébergement, e-mails et paiements inclus
+const DOMAINE_AN = 12; // ≈ €/an pour un .com ou un .fr
+const STRIPE = (prix) => prix * 0.015 + 0.25; // carte européenne standard
+function Budget({ projet, inspire }) {
+  const cle = `bingoo-budget:${projet.id}`;
+  const prixDefaut = Math.round(projet.plan?.prix_moyen ?? projet.formules?.[1]?.prix ?? projet.formules?.[0]?.prix ?? 29);
+  const [h, setH] = useState(() => {
+    const def = { pub: 300, prix: prixDefaut, cac: prixDefaut * 3, churn: Number(projet.hypotheses?.churn_mensuel_pct ?? 5) };
+    try { return { ...def, ...JSON.parse(localStorage.getItem(cle) ?? "{}") }; } catch { return def; }
+  });
+  const maj = (k, v) => setH((x) => { const n = { ...x, [k]: Math.max(0, Number(v) || 0) }; try { localStorage.setItem(cle, JSON.stringify(n)); } catch { /* stockage indisponible */ } return n; });
+  const fixes = BINGOO_PRO + DOMAINE_AN / 12;
+  // Simulation mois par mois : nouveaux clients = pub ÷ coût d'acquisition, moins les départs
+  const mois = [];
+  let clients = 0, cumul = 0, rentable = null;
+  for (let m = 1; m <= 12; m++) {
+    clients = clients * (1 - h.churn / 100) + (h.cac > 0 ? h.pub / h.cac : 0);
+    const revenu = clients * h.prix, frais = clients * STRIPE(h.prix);
+    const depenses = fixes + h.pub + frais, resultat = revenu - depenses;
+    cumul += resultat;
+    if (rentable === null && resultat >= 0) rentable = m;
+    mois.push({ m, clients, revenu, depenses, resultat, cumul });
+  }
+  const fin = mois[11];
+  const besoin = -Math.min(0, ...mois.map((x) => x.cumul)); // trésorerie à avancer avant que ça rapporte
+  const mrrLeader = inspire?.succes?.mrr ?? (inspire?.succes?.montant ? inspire.succes.montant / 12 : null);
+  const e = (n) => `${Math.round(n).toLocaleString("fr-FR")} €`;
+  const champ = (k, label, suffixe, pas = 1) => (
+    <label key={k} className="flex flex-col gap-1 text-[12.5px] text-ink-soft">{label}
+      <span className="flex items-center rounded-xl border border-line bg-white px-3 py-2 focus-within:border-ink"><input type="number" min="0" step={pas} value={h[k]} onChange={(ev) => maj(k, ev.target.value)} className="w-full bg-transparent text-[15px] font-semibold text-ink outline-none tnum" /><span className="text-ink-faint">{suffixe}</span></span>
+    </label>
+  );
+  return (
+    <section className="mt-5 rounded-2xl bg-white border border-line p-5 break-inside-avoid">
+      <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="font-bold text-[17px]">Ton budget</h2><p className="text-[12.5px] text-ink-faint">Change les chiffres : tout se recalcule.</p></div>
+      <div className="mt-3 grid lg:grid-cols-[1fr_1.3fr] gap-5">
+        <div>
+          <p className="text-[13px] font-semibold">Ce que coûte le lancement, chaque mois</p>
+          <table className="mt-1.5 w-full text-[14px]"><tbody>
+            <tr className="border-t border-line"><td className="py-1.5">Bingoo! Pro <span className="text-ink-faint text-[12.5px]">(construction, hébergement, e-mails, paiements)</span></td><td className="py-1.5 text-right tnum">{e(BINGOO_PRO)}</td></tr>
+            <tr className="border-t border-line"><td className="py-1.5">Nom de domaine <span className="text-ink-faint text-[12.5px]">(≈ {DOMAINE_AN} € par an)</span></td><td className="py-1.5 text-right tnum">{e(DOMAINE_AN / 12)}</td></tr>
+            <tr className="border-t border-line"><td className="py-1.5">Frais Stripe <span className="text-ink-faint text-[12.5px]">(1,5 % + 0,25 € par paiement)</span></td><td className="py-1.5 text-right tnum text-ink-soft">{(STRIPE(h.prix)).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} € par client</td></tr>
+            <tr className="border-t border-line"><td className="py-1.5 font-semibold">Pour démarrer, sans pub</td><td className="py-1.5 text-right tnum font-semibold">{e(fixes)} / mois</td></tr>
+          </tbody></table>
+          <div className="mt-4 grid grid-cols-2 gap-2.5">
+            {champ("pub", "Ton budget pub par mois", "€", 50)}
+            {champ("prix", "Ton prix par client", "€/mois")}
+            {champ("cac", "Coût pour gagner un client", "€", 5)}
+            {champ("churn", "Clients perdus par mois", "%", 0.5)}
+          </div>
+          <p className="mt-2 text-[12px] text-ink-faint">Par défaut : gagner un client coûte 3 mois de son abonnement, et {h.churn} % des clients partent chaque mois. Ce sont des hypothèses de départ à remplacer par tes vrais chiffres dès tes premières campagnes.</p>
+        </div>
+        <div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+            {[[Math.round(fin.clients), "clients au bout d'un an"], [e(fin.revenu), "de revenu mensuel au 12e mois"], [rentable ? `mois ${rentable}` : "après 12 mois", "rentable à partir de"], [e(besoin), "à avancer au total"]].map(([v, l]) => <div key={l} className="rounded-xl bg-paper p-3"><p className="text-[19px] font-black tnum" style={HF}>{v}</p><p className="text-[11.5px] text-ink-faint">{l}</p></div>)}
+          </div>
+          <div className="mt-3 rounded-xl border border-line p-3"><p className="text-[12.5px] text-ink-soft">Revenu mensuel, mois 1 à 12</p><div className="mt-1"><Sparkline pts={mois.map((x) => ({ n: x.revenu }))} h={60} /></div></div>
+          <p className="mt-3 text-[13.5px]">{h.pub > 0 ? <>Avec <b>{e(h.pub)} de pub par mois</b>, tu gagnes environ <b>{(h.pub / Math.max(h.cac, 1)).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} clients par mois</b>.</> : <>Sans pub, tes clients viendront du bouche-à-oreille, du référencement et de la prospection : la simulation reste à zéro.</>}
+            {mrrLeader && fin.revenu > 0 ? <> {inspire.nom} fait {e(mrrLeader / 1.08)} par mois : tu en serais à {Math.max(0.1, (fin.revenu / (mrrLeader / 1.08)) * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} % au bout d'un an.</> : null}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function Construire({ projet }) {
   const { ws } = useWs();
   const nav = useNavigate();
