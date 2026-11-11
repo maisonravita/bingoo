@@ -63,7 +63,7 @@ export function Opposition() {
 }
 
 const editor = () => isPerson ? `${L.company}, personne physique, ${L.address}` : `${L.company}${L.form ? `, ${L.form}` : ""}${L.capital ? ` au capital de ${L.capital}` : ""}, dont le siège est situé ${L.address}${L.rcs ? `, immatriculée au RCS de ${L.rcs}` : ""}, SIRET ${L.siret}${L.vat ? `, TVA intracommunautaire ${L.vat}` : ""}`;
-const UPDATED = "10 novembre 2026";
+const UPDATED = "11 novembre 2026";
 const contact = () => L.contact_email || L.privacy_email;
 
 export function MentionsLegales() {
@@ -113,6 +113,9 @@ export function Confidentialite() {
 
       <h2>4. Visiteurs des sites de nos clients</h2>
       <p>Si un client installe le script de suivi {brand.name} sur son site, le script mesure les pages vues sans cookie, avec un identifiant de session aléatoire qui disparaît à la fermeture de l'onglet. Pour reconnaître l'entreprise qui visite, {brand.name} consulte le titulaire public de l'adresse IP (registres RIPE, ARIN) : seul le <b>nom de l'entreprise</b> est conservé, jamais l'adresse IP, et uniquement quand il s'agit d'une entreprise et non d'un particulier ou d'un opérateur. Le client qui installe le script en informe ses visiteurs.</p>
+
+      <h2>4 bis. Clients des logiciels construits avec {brand.name}</h2>
+      <p>Quand vous utilisez un logiciel construit avec {brand.name} par l'un de nos clients (compte, données saisies, page publique de réservation ou de formulaire), c'est ce client, éditeur du logiciel, qui est responsable de vos données ; {brand.name} les héberge pour lui en tant que sous-traitant, dans l'Union européenne. Les mots de passe sont chiffrés, les données de chaque entreprise sont séparées. Les textes envoyés à l'assistant d'intelligence artificielle intégré sont transmis à notre fournisseur d'IA (Anthropic) pour produire la réponse, sans servir à entraîner ses modèles. Pour exercer vos droits, adressez-vous d'abord à l'éditeur du logiciel ; à défaut, à {L.privacy_email}.</p>
 
       <h2>5. L'extension Chrome {brand.name}</h2>
       <p><b>Fiche entreprise :</b> quand vous cliquez sur l'icône de l'extension, l'adresse du site ouvert est envoyée à {brand.name} pour afficher la fiche de l'entreprise. Rien n'est envoyé tant que vous ne cliquez pas, et l'extension ne lit ni votre historique ni le contenu des autres sites.</p>
@@ -168,6 +171,9 @@ export function Conditions() {
       <h2>1. Le service</h2>
       <p>{brand.name} met à disposition, sous forme d'abonnement en ligne, des agents logiciels d'intelligence artificielle qui repèrent des entreprises ayant une raison d'acheter (Radar), analysent vos concurrents (Espion), recherchent les coordonnées professionnelles des décideurs, rédigent et envoient des messages de prospection, suivent les réponses et organisent les rendez-vous (Mission). Il comprend aussi Explorer, une base de logiciels SaaS mise à jour en continu (prix, formules, recrutement, nouveautés, changements, tendances, chiffres publics, idées de marché), le suivi de logiciels et de catégories avec une alerte hebdomadaire, et le rapport gratuit « Ton marché ». Ce sont des logiciels : leurs résultats peuvent comporter des erreurs et doivent être relus.</p>
 
+      <h2>1 bis. Explorer et « Copier et lancer »</h2>
+      <p>{brand.name} permet aussi d'observer le marché des logiciels en ligne (Explorer : fiches, niches, classement, tendances) et de lancer votre propre logiciel inspiré d'un logiciel qui marche (« Copier et lancer ») : préparation d'un projet (fonctionnalités équivalentes, prix, plan), page de précommande, puis construction et hébergement d'une application web (site, comptes de vos clients, écrans, pages publiques, assistant d'intelligence artificielle intégré, encaissement par votre propre compte Stripe).</p>
+
       <h2>2. Compte et aperçu gratuit</h2>
       <p>La création d'un compte nécessite des informations exactes. Vous êtes responsable de la confidentialité de vos identifiants et des actions réalisées depuis votre compte et par les membres de votre équipe. Un aperçu gratuit de 7 jours, sans carte bancaire, permet de découvrir le service (recherche des premières entreprises et rédaction des premiers messages) ; l'envoi de messages nécessite une formule payante. À son terme, les fonctions payantes sont suspendues jusqu'à la souscription d'une formule.</p>
 
@@ -190,6 +196,20 @@ export function Conditions() {
         <li>Informer les visiteurs de votre site si vous y installez le script de suivi {brand.name}.</li>
       </ul>
 
+      <h2>5 bis. S'inspirer d'un logiciel : ce que vous vous engagez à ne pas reprendre</h2>
+      <p>« Copier » désigne ici le fait de proposer les mêmes fonctionnalités, pour les mêmes clients, ce que permet la libre concurrence. Vous vous engagez à ne pas reprendre la marque, le nom, le logo, les textes, les images, le design, le code ni les données du logiciel dont vous vous inspirez, et à ne pas laisser croire à un lien avec lui. {brand.name} retire automatiquement son nom et son adresse de ce qu'il génère et écarte les noms trop ressemblants, mais vous restez seul responsable de ce que vous publiez, de vos noms commerciaux (vérifiez leur disponibilité, notamment auprès de l'INPI) et du respect des droits des tiers.</p>
+
+      <h2>5 ter. Votre logiciel construit avec {brand.name}</h2>
+      <ul className="list-disc pl-5 space-y-1">
+        <li><b>Vous en êtes l'éditeur.</b> Vous vendez à vos propres clients, sous votre nom, à vos conditions ; vous leur devez les informations légales (mentions, conditions de vente, confidentialité) et le service promis. {brand.name} n'est pas partie à vos ventes.</li>
+        <li><b>Encaissement.</b> Les paiements de vos clients passent par votre propre compte Stripe, dont vous gardez la clé ; {brand.name} ne perçoit rien sur vos ventes.</li>
+        <li><b>Précommandes.</b> Une précommande engage à livrer : si le logiciel n'ouvre pas, ou si vos clients sont des consommateurs qui exercent leur droit de rétractation, vous devez les rembourser.</li>
+        <li><b>Hébergement.</b> L'application est hébergée par {brand.name} tant que votre abonnement est actif. À la fin de l'abonnement, elle reste en ligne 30 jours ; vous pouvez en télécharger le code à tout moment.</li>
+        <li><b>Données de vos clients.</b> Pour les données saisies par vos clients dans votre application, vous êtes responsable de traitement et {brand.name} agit comme sous-traitant (article 9 ci-dessous).</li>
+        <li><b>Assistant d'intelligence artificielle intégré.</b> Son usage est plafonné chaque jour par compte et par application ; ses réponses peuvent contenir des erreurs et doivent être relues par vos clients.</li>
+        <li><b>Contrôle avant livraison.</b> {brand.name} ouvre chaque écran avec des données d'exemple et répare ceux qui ne fonctionnent pas, sans garantir l'absence de toute erreur : testez votre application avant de la proposer.</li>
+      </ul>
+
       <h2>6. Limites d'usage</h2>
       <p>Chaque formule comporte des limites affichées dans l'application, dont le nombre de fiches Explorer consultables par semaine (la liste, les filtres et la recherche restent illimités). Chaque formule comporte aussi des limites quotidiennes. Les envois sont plafonnés et augmentés progressivement pour protéger la réputation de votre domaine. Le budget d'intelligence artificielle inclus est mensuel ; au-delà, le service ralentit ou vous pouvez acheter une recharge.</p>
 
@@ -210,7 +230,7 @@ export function Conditions() {
       <p>{brand.name} est un outil d'aide à la prospection : nous ne garantissons aucun nombre de réponses, de rendez-vous ou de ventes, ni l'exactitude ou l'exhaustivité des informations issues de sources publiques ou de l'intelligence artificielle. Notre responsabilité est limitée aux dommages directs et prouvés, dans la limite des sommes versées au titre des douze derniers mois. Nous ne sommes pas responsables des contenus que vous envoyez ni de l'usage que vous faites des informations fournies.</p>
 
       <h2>11. Propriété intellectuelle</h2>
-      <p>Le logiciel, la marque et les contenus de {brand.name} restent notre propriété. Vous bénéficiez d'un droit d'utilisation personnel et non transférable pendant la durée de l'abonnement. Les messages et documents générés pour vous vous appartiennent.</p>
+      <p>Le logiciel, la marque et les contenus de {brand.name} restent notre propriété. Vous bénéficiez d'un droit d'utilisation personnel et non transférable pendant la durée de l'abonnement. Les messages et documents générés pour vous vous appartiennent, ainsi que le code, les textes et les données de l'application construite pour vous : vous pouvez la modifier, l'héberger ailleurs ou la vendre.</p>
 
       <h2>12. Confidentialité</h2>
       <p>Chaque partie garde confidentielles les informations non publiques de l'autre partie dont elle a connaissance, pendant le contrat et deux ans après.</p>
