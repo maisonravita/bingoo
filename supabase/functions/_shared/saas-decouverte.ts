@@ -211,7 +211,7 @@ export async function trustmrrLire(n = 40, maxMs = 100_000) {
       const s = { preuve, source: `${TM}/startup/${f.slug}`, type: "revenu_verifie", montant: mensuel * 12, mrr: f.mrr || null, revenu_30j: f.rev30 || null, croissance_30j: f.croissance, abonnements: f.abonnements, revenu_total: f.total, fonde: f.fonde, courbe: f.courbe.slice(-12), marches: f.marches, prix: f.prix, probleme: f.probleme, a_vendre: f.a_vendre, fondateurs: f.fondateurs, verifie_at: new Date().toISOString() };
       const e = par.get(f.site!);
       // Ne jamais écraser la preuve d'un autre SaaS (ex. un géant) : seulement si la fiche n'en a pas, ou si c'est la même startup TrustMRR
-      if (e && e.succes && e.succes.source !== s.source) continue;
+      if (e && e.succes && e.succes.source !== s.source && !String(e.succes.source ?? "").includes("trustmrr.com")) continue;
       if (e) {
         // Un revenu vérifié remplace une estimation ; on garde le plus récent quand les deux sont vérifiés
         await admin.from("saas").update({ succes: s, ...(["illisible", "a_lire"].includes(e.statut) ? { statut: "a_lire", essais: 0 } : {}) }).eq("id", e.id);
