@@ -9,11 +9,13 @@ const lien = (app: any, slug: string) => app.domaine_statut === "ok" && app.doma
 const esc = (s: string) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 
 async function envoyer(app: any, slug: string, to: string, sujet: string, paragraphes: string[], bouton: string, cle: string) {
+  return envoyerLien(app, slug, to, sujet, paragraphes, bouton, lien(app, slug), cle);
+}
+async function envoyerLien(app: any, slug: string, to: string, sujet: string, paragraphes: string[], bouton: string, url: string, cle: string) {
   if (/@demo\.local$/.test(to)) return;
   const s = app.spec ?? {};
   const couleur = /^#[0-9a-f]{6}$/i.test(s.couleur ?? "") ? s.couleur : "#4F46E5";
   const de = app.email_dom?.statut === "ok" ? `bonjour@${app.email_dom.domaine}` : `apps@${PLATFORM_DOMAIN()}`;
-  const url = lien(app, slug);
   const html = `<div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#0F172A">
 <p style="font-weight:800;font-size:18px;margin:0 0 18px"><span style="display:inline-block;width:28px;height:28px;border-radius:8px;background:${couleur};color:#fff;text-align:center;line-height:28px;margin-right:8px">${esc(String(s.nom ?? "S")[0])}</span>${esc(s.nom)}</p>
 ${paragraphes.map((p) => `<p style="font-size:15px;line-height:1.55;margin:0 0 12px">${esc(p)}</p>`).join("")}
@@ -35,6 +37,16 @@ export async function mailBienvenue(app: any, slug: string, u: any, invite: bool
     `${s.pitch ?? ""} Des exemples t'attendent déjà dans l'application pour te montrer comment tout fonctionne.`,
   ], `Ouvrir ${s.nom}`, `bienvenue-${u.id}`);
   await admin.from("saas_app_users").update({ mail_bienvenue_at: new Date().toISOString() }).eq("id", u.id);
+}
+
+export async function mailInvitation(app: any, slug: string, to: string, de: string, lien: string, code: string) {
+  const s = app.spec ?? {};
+  // Le bouton mène au lien d'invitation (et non à l'accueil de l'app)
+  await envoyerLien(app, slug, to, `${de} t'invite sur ${s.nom}`, [
+    `Bonjour,`,
+    `${de} t'invite à rejoindre son équipe sur ${s.nom}. ${s.pitch ?? ""}`,
+    `L'invitation est valable 14 jours.`,
+  ], `Rejoindre l'équipe`, lien, `invite-${code}`);
 }
 
 /** Tâche quotidienne : fin d'essai dans 3 jours, et relance des comptes inactifs depuis 7 jours (une seule fois). */

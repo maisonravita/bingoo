@@ -104,6 +104,20 @@ async function semer(admin: SupabaseClient, app: any, userId: string) {
   if (rows.length) await admin.from("saas_app_rows").insert(rows);
 }
 
+// ---------------------------------------------------------------- Équipes : places selon la formule
+/** Nombre de places de la formule (« 5 utilisateurs » dans ses avantages) ; null = sans limite. */
+function places(app: any, titulaire: any): number | null {
+  if (!app.paiement?.actif || !["active", "trialing", "past_due"].includes(titulaire.abonnement?.statut)) return null;
+  const f = (app.spec?.formules ?? []).find((x: any) => x.nom === titulaire.abonnement?.formule);
+  for (const t of f?.inclus ?? []) {
+    const m = String(t).match(/(\d+)\s*(utilisateurs?|membres?|collaborateurs?|si[eè]ges?|comptes?|personnes?)/i);
+    if (m) return Number(m[1]);
+    if (/(1|un) seul utilisateur|utilisateur unique/i.test(String(t))) return 1;
+  }
+  return null;
+}
+const ROLES = ["admin", "membre", "lecture"];
+
 // ---------------------------------------------------------------- Application installable (manifeste et icône)
 const echap = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 export async function appFichier(admin: SupabaseClient, slug: string, quoi: string): Promise<{ status: number; type: string; body: string }> {
@@ -172,15 +186,19 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
       // Invitation : le nouveau compte rejoint l'espace (l'équipe) de celui qui l'a invité
       let invite: any = null;
       if (b.invite && action === "signup") {
-        ({ data: invite } = await admin.from("saas_app_invites").select("code, espace_id, utilise_at").eq("app_id", app.id).eq("code", String(b.invite)).maybeSingle());
-        if (!invite || invite.utilise_at) throw new Err(400, "Cette invitation n'est plus valable : demande un nouveau lien");
+        ({ data: invite } = await admin.from("saas_app_invites").select("code, espace_id, utilise_at, role, at").eq("app_id", app.id).eq("code", String(b.invite)).maybeSingle());
+        if (!invite || invite.utilise_at || Date.now() - new Date(invite.at).getTime() > 14 * 864e5) throw new Err(400, "Cette invitation n'est plus valable : demande un nouveau lien");
+        const { data: tit } = await admin.from("saas_app_users").select("abonnement").eq("id", invite.espace_id).maybeSingle();
+        const max = places(app, tit ?? {});
+        const { count: deja } = await admin.from("saas_app_users").select("id", { count: "exact", head: true }).eq("espace_id", invite.espace_id);
+        if (max != null && (deja ?? 0) >= max) throw new Err(403, `L'équipe a déjà ses ${max} places : demande à l'administrateur de passer à une formule supérieure`);
       }
       const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
       const nom = String(b.nom ?? "").trim().slice(0, 80) || (action === "demo" ? "Invité" : email.split("@")[0]);
       const id = crypto.randomUUID();
       const { data: u, error } = await admin.from("saas_app_users").insert({
         id, app_id: app.id, email, nom, ip, variante, source: action === "demo" ? null : source, pass: `${salt}:${await pbkdf2(pass, salt)}`,
-        espace_id: invite?.espace_id ?? id, role: invite ? "membre" : "admin",
+        espace_id: invite?.espace_id ?? id, role: invite ? (ROLES.includes(invite.role) ? invite.role : "membre") : "admin",
       }).select("id, email, nom").single();
       if (error) throw new Err(409, "Un compte existe déjà avec cette adresse");
       if (invite) await admin.from("saas_app_invites").update({ utilise_at: new Date().toISOString() }).eq("code", invite.code);
@@ -241,25 +259,79 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
     // Essai terminé sans abonnement : seuls la lecture du compte et le paiement restent possibles
     if (!et.acces) throw new Err(402, "Ton essai est terminé : choisis une formule pour continuer");
 
-    // ---- Équipe
+    // ---- Mon compte
+    if (action === "compte") {
+      const nom = String(b.nom ?? "").trim().slice(0, 80);
+      if (!nom) throw new Err(400, "Indique ton nom");
+      await admin.from("saas_app_users").update({ nom }).eq("id", user.id);
+      return { status: 200, body: { ok: true } };
+    }
+    if (action === "motdepasse") {
+      const { data: me } = await admin.from("saas_app_users").select("pass").eq("id", user.id).single();
+      const [salt, h] = String(me?.pass ?? ":").split(":");
+      if (!egal(await pbkdf2(String(b.ancien ?? ""), salt), h)) throw new Err(400, "Mot de passe actuel incorrect");
+      if (String(b.nouveau ?? "").length < 8) throw new Err(400, "Nouveau mot de passe : 8 caractères au moins");
+      const sel = hex(crypto.getRandomValues(new Uint8Array(16)));
+      await admin.from("saas_app_users").update({ pass: `${sel}:${await pbkdf2(String(b.nouveau), sel)}` }).eq("id", user.id);
+      return { status: 200, body: { ok: true } };
+    }
+
+    // ---- Équipe : invitations (lien ou e-mail), rôles (administrateur, membre, lecture seule), places de la formule
+    const estAdmin = user.role === "admin";
     if (action === "equipe") {
-      const { data } = await admin.from("saas_app_users").select("id, nom, email, role, at, vu_at").eq("app_id", app.id).eq("espace_id", espace).order("at");
-      return { status: 200, body: (data ?? []).map((m: any) => ({ ...m, moi: m.id === user.id })) };
+      const [{ data }, { data: inv }] = await Promise.all([
+        admin.from("saas_app_users").select("id, nom, email, role, at, vu_at").eq("app_id", app.id).eq("espace_id", espace).order("at"),
+        estAdmin ? admin.from("saas_app_invites").select("code, email, role, at").eq("espace_id", espace).is("utilise_at", null).gte("at", new Date(Date.now() - 14 * 864e5).toISOString()).order("at", { ascending: false }) : Promise.resolve({ data: [] }),
+      ]);
+      return { status: 200, body: { membres: (data ?? []).map((m: any) => ({ ...m, moi: m.id === user.id, titulaire: m.id === espace })), invitations: inv ?? [], places: places(app, titulaire), role: user.role } };
     }
     if (action === "inviter") {
-      if (user.role !== "admin") throw new Err(403, "Seul l'administrateur peut inviter");
-      const { count } = await admin.from("saas_app_users").select("id", { count: "exact", head: true }).eq("espace_id", espace);
-      if ((count ?? 0) >= 50) throw new Err(403, "50 membres au plus par espace");
+      if (!estAdmin) throw new Err(403, "Seul un administrateur peut inviter");
+      const max = places(app, titulaire);
+      const [{ count }, { count: attente }] = await Promise.all([
+        admin.from("saas_app_users").select("id", { count: "exact", head: true }).eq("espace_id", espace),
+        admin.from("saas_app_invites").select("code", { count: "exact", head: true }).eq("espace_id", espace).is("utilise_at", null).gte("at", new Date(Date.now() - 14 * 864e5).toISOString()),
+      ]);
+      if ((count ?? 0) >= (max ?? 50)) throw new Err(403, max != null ? `Ta formule compte ${max} place${max > 1 ? "s" : ""} : passe à une formule supérieure pour inviter plus de monde` : "50 membres au plus par espace");
+      if ((attente ?? 0) >= 30) throw new Err(429, "Trop d'invitations en attente");
+      const email = String(b.email ?? "").trim().toLowerCase().slice(0, 160);
+      if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Err(400, "Adresse e-mail invalide");
+      const role = ROLES.includes(b.role) ? b.role : "membre";
       const code = hex(crypto.getRandomValues(new Uint8Array(12)));
-      await admin.from("saas_app_invites").insert({ code, app_id: app.id, espace_id: espace, par: user.id });
+      await admin.from("saas_app_invites").insert({ code, app_id: app.id, espace_id: espace, par: user.id, email: email || null, role });
+      const retour = retourOk(String(b.retour ?? ""));
+      if (email && retour) {
+        const lien = `${retour}${retour.includes("?") ? "&" : "?"}invite=${code}`;
+        const { mailInvitation } = await import("./app-mails.ts");
+        await mailInvitation(app, slug, email, user.nom ?? "Un collègue", lien, code).catch((e) => console.error("invitation", e));
+      }
       return { status: 200, body: { code } };
     }
+    if (action === "revoquer") {
+      if (!estAdmin) throw new Err(403, "Seul un administrateur peut annuler une invitation");
+      await admin.from("saas_app_invites").delete().eq("espace_id", espace).eq("code", String(b.code ?? "")).is("utilise_at", null);
+      return { status: 200, body: { ok: true } };
+    }
+    if (action === "role") {
+      if (!estAdmin) throw new Err(403, "Seul un administrateur peut changer les rôles");
+      const role = ROLES.includes(b.role) ? b.role : null;
+      if (!role || String(b.id) === espace) throw new Err(400, "Le titulaire de l'espace reste administrateur");
+      await admin.from("saas_app_users").update({ role }).eq("app_id", app.id).eq("espace_id", espace).eq("id", String(b.id));
+      return { status: 200, body: { ok: true } };
+    }
     if (action === "retirer") {
-      if (user.role !== "admin") throw new Err(403, "Seul l'administrateur peut retirer un membre");
+      if (!estAdmin) throw new Err(403, "Seul un administrateur peut retirer un membre");
       if (String(b.id) === espace) throw new Err(400, "Le titulaire de l'espace ne peut pas être retiré");
       await admin.from("saas_app_users").delete().eq("app_id", app.id).eq("espace_id", espace).eq("id", String(b.id));
       return { status: 200, body: { ok: true } };
     }
+    if (action === "quitter") {
+      if (user.id === espace) throw new Err(400, "Le titulaire ne peut pas quitter son propre espace");
+      await admin.from("saas_app_users").update({ espace_id: user.id, role: "admin" }).eq("id", user.id);
+      return { status: 200, body: { ok: true } };
+    }
+    // Lecture seule : consultation des données, pas de modification
+    if (["add", "update", "remove"].includes(action) && user.role === "lecture") throw new Err(403, "Ton accès est en lecture seule : demande à un administrateur de changer ton rôle");
 
     // ---- Données de l'espace
     if (action === "list") {

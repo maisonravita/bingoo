@@ -178,16 +178,54 @@ function Paywall({ etat, onLogout }) {
     <\${Formules}/></div></div>\`;
 }
 
-// ---------------------------------------------------------------- Équipe
+// ---------------------------------------------------------------- Équipe : invitations, rôles, places de la formule
+const ROLE_TXT = { admin: "Administrateur", membre: "Membre", lecture: "Lecture seule" };
 function Equipe({ user }) {
-  const [m, setM] = useState(null), [lien, setLien] = useState("");
-  const charger = () => call("equipe").then(setM, (x) => toast(x.message, "bad"));
+  const [d, setD] = useState(null), [lien, setLien] = useState(""), [f, setF] = useState({ email: "", role: "membre" }), [busy, setBusy] = useState(false);
+  const charger = () => call("equipe").then(setD, (x) => toast(x.message, "bad"));
   useEffect(() => { charger(); }, []);
-  const inviter = async () => { try { const { code } = await call("inviter"); const u = RETOUR(); setLien(u + (u.includes("?") ? "&" : "?") + "invite=" + code); } catch (x) { toast(x.message, "bad"); } };
-  const retirer = async (id) => { if (!confirm("Retirer ce membre de l'équipe ?")) return; try { await call("retirer", { id }); charger(); } catch (x) { toast(x.message, "bad"); } };
-  return html\`<\${ui.Page} titre="Équipe" sous="Tout le monde voit et modifie les mêmes données" actions=\${user.role === "admin" && html\`<\${ui.Button} icone="plus" onClick=\${inviter}>Inviter</\${ui.Button}>\`}>
-    \${lien && html\`<\${ui.Card} class="mb-4" titre="Lien d'invitation (à usage unique)"><div class="flex gap-2"><input readonly value=\${lien} class="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-50" onFocus=\${(e) => e.target.select()}/><\${ui.Button} variant="secondary" onClick=\${() => { try { navigator.clipboard.writeText(lien); toast("Lien copié"); } catch (e) { toast("Sélectionne le lien pour le copier"); } }}>Copier</\${ui.Button}></div><p class="text-xs text-slate-500 mt-2">Envoie-le à ton collègue : il crée son compte et rejoint ton espace.</p></\${ui.Card}>\`}
-    <\${ui.Card}>\${m === null ? html\`<\${ui.Loading}/>\` : html\`<\${ui.Table} colonnes=\${[{ cle: "nom", label: "Nom", rendu: (x) => html\`<span class="font-medium">\${x.nom}</span>\${x.moi ? html\` <\${ui.Badge}>toi</\${ui.Badge}>\` : null}\` }, { cle: "email", label: "E-mail" }, { cle: "role", label: "Rôle", rendu: (x) => html\`<\${ui.Badge} couleur=\${x.role === "admin" ? "violet" : "gris"}>\${x.role === "admin" ? "Administrateur" : "Membre"}</\${ui.Badge}>\` }, { cle: "vu_at", label: "Dernière visite", rendu: (x) => fmt.date(x.vu_at) }, { cle: "id", label: "", rendu: (x) => user.role === "admin" && x.role !== "admin" ? html\`<\${ui.Button} variant="ghost" onClick=\${() => retirer(x.id)}>Retirer</\${ui.Button}>\` : null }]} lignes=\${m}/>\`}</\${ui.Card}>
+  const admin = d?.role === "admin";
+  const inviter = async (e) => {
+    e?.preventDefault(); setBusy(true);
+    try {
+      const { code } = await call("inviter", { email: f.email, role: f.role, retour: RETOUR() });
+      const u = RETOUR(); setLien(u + (u.includes("?") ? "&" : "?") + "invite=" + code);
+      toast(f.email ? "Invitation envoyée à " + f.email : "Lien d'invitation prêt"); setF({ ...f, email: "" }); charger();
+    } catch (x) { toast(x.message, "bad"); } finally { setBusy(false); }
+  };
+  const act = async (a, body, msg) => { try { await call(a, body); if (msg) toast(msg); charger(); } catch (x) { toast(x.message, "bad"); } };
+  const membres = d?.membres ?? [];
+  return html\`<\${ui.Page} titre="Équipe" sous=\${d ? membres.length + " membre" + (membres.length > 1 ? "s" : "") + (d.places != null ? " sur " + d.places + " place" + (d.places > 1 ? "s" : "") + " de ta formule" : "") : ""}>
+    \${admin && html\`<\${ui.Card} class="mb-4" titre="Inviter quelqu'un">
+      <form onSubmit=\${inviter} class="grid sm:grid-cols-[1fr_180px_auto] gap-2 items-end">
+        <\${ui.Input} label="E-mail (facultatif : sinon, un lien à envoyer toi-même)" type="email" value=\${f.email} onInput=\${(v) => setF({ ...f, email: v })} placeholder="camille@entreprise.fr"/>
+        <\${ui.Select} label="Rôle" value=\${f.role} onChange=\${(v) => setF({ ...f, role: v })} options=\${[["membre", "Membre"], ["lecture", "Lecture seule"], ["admin", "Administrateur"]]}/>
+        <\${ui.Button} type="submit" icone="plus" disabled=\${busy}>\${f.email ? "Envoyer l'invitation" : "Créer un lien"}</\${ui.Button}>
+      </form>
+      \${lien && html\`<div class="mt-3 flex gap-2"><input readonly value=\${lien} class="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-50" onFocus=\${(e) => e.target.select()}/><\${ui.Button} variant="secondary" onClick=\${() => { try { navigator.clipboard.writeText(lien); toast("Lien copié"); } catch (e) { toast("Sélectionne le lien pour le copier"); } }}>Copier</\${ui.Button}></div><p class="text-xs text-slate-500 mt-1">Lien à usage unique, valable 14 jours.</p>\`}
+      <p class="text-xs text-slate-500 mt-3"><b>Membre</b> : voit et modifie tout. <b>Lecture seule</b> : voit tout, ne modifie rien. <b>Administrateur</b> : invite, gère l'équipe et l'abonnement.</p>
+    </\${ui.Card}>\`}
+    \${admin && (d?.invitations ?? []).length > 0 && html\`<\${ui.Card} class="mb-4" titre="Invitations en attente">\${d.invitations.map((i) => html\`<div class="flex items-center justify-between gap-3 py-2 border-t border-slate-100 first:border-0 text-sm"><span>\${i.email || "Lien d'invitation"} · <\${ui.Badge}>\${ROLE_TXT[i.role] ?? i.role}</\${ui.Badge}> <span class="text-slate-400">\${fmt.date(i.at)}</span></span><\${ui.Button} variant="ghost" onClick=\${() => act("revoquer", { code: i.code }, "Invitation annulée")}>Annuler</\${ui.Button}></div>\`)}</\${ui.Card}>\`}
+    <\${ui.Card}>\${d === null ? html\`<\${ui.Loading}/>\` : html\`<\${ui.Table} colonnes=\${[
+      { cle: "nom", label: "Nom", rendu: (x) => html\`<span class="font-medium">\${x.nom}</span>\${x.moi ? html\` <\${ui.Badge}>toi</\${ui.Badge}>\` : null}\${x.titulaire ? html\` <\${ui.Badge} couleur="violet">titulaire</\${ui.Badge}>\` : null}\` },
+      { cle: "email", label: "E-mail" },
+      { cle: "role", label: "Rôle", rendu: (x) => admin && !x.titulaire ? html\`<select class="rounded-lg border border-slate-200 px-2 py-1 text-sm" value=\${x.role} onChange=\${(e) => act("role", { id: x.id, role: e.target.value }, "Rôle modifié")}>\${["admin", "membre", "lecture"].map((r) => html\`<option value=\${r}>\${ROLE_TXT[r]}</option>\`)}</select>\` : html\`<\${ui.Badge} couleur=\${x.role === "admin" ? "violet" : x.role === "lecture" ? "gris" : "bleu"}>\${ROLE_TXT[x.role] ?? x.role}</\${ui.Badge}>\` },
+      { cle: "vu_at", label: "Dernière visite", rendu: (x) => fmt.date(x.vu_at) },
+      { cle: "id", label: "", rendu: (x) => admin && !x.titulaire && !x.moi ? html\`<\${ui.Button} variant="ghost" onClick=\${() => confirm("Retirer " + x.nom + " de l'équipe ?") && act("retirer", { id: x.id }, "Membre retiré")}>Retirer</\${ui.Button}>\` : null },
+    ]} lignes=\${membres}/>\`}</\${ui.Card}>
+    \${d && !membres.find((m) => m.moi)?.titulaire && html\`<div class="mt-4"><\${ui.Button} variant="ghost" onClick=\${async () => { if (!confirm("Quitter l'équipe ? Tu retrouveras un espace vide, à toi.")) return; try { await call("quitter"); location.reload(); } catch (x) { toast(x.message, "bad"); } }}>Quitter l'équipe</\${ui.Button}></div>\`}
+  </\${ui.Page}>\`;
+}
+
+// ---------------------------------------------------------------- Mon compte : nom et mot de passe
+function Compte({ user }) {
+  const [nom, setNom] = useState(user.nom ?? ""), [p, setP] = useState({ ancien: "", nouveau: "" });
+  const demo = /@demo\\.local$/.test(user.email);
+  return html\`<\${ui.Page} titre="Mon compte" sous=\${demo ? "Compte de démonstration" : user.email}>
+    <div class="grid md:grid-cols-2 gap-4">
+      <\${ui.Card} titre="Mon nom"><form class="space-y-3" onSubmit=\${async (e) => { e.preventDefault(); try { await call("compte", { nom }); toast("Nom enregistré"); } catch (x) { toast(x.message, "bad"); } }}><\${ui.Input} label="Nom affiché" value=\${nom} onInput=\${setNom}/><\${ui.Button} type="submit">Enregistrer</\${ui.Button}></form></\${ui.Card}>
+      \${!demo && html\`<\${ui.Card} titre="Mot de passe"><form class="space-y-3" onSubmit=\${async (e) => { e.preventDefault(); try { await call("motdepasse", p); setP({ ancien: "", nouveau: "" }); toast("Mot de passe changé"); } catch (x) { toast(x.message, "bad"); } }}><\${ui.Input} label="Mot de passe actuel" type="password" value=\${p.ancien} onInput=\${(v) => setP({ ...p, ancien: v })}/><\${ui.Input} label="Nouveau mot de passe" type="password" value=\${p.nouveau} onInput=\${(v) => setP({ ...p, nouveau: v })} placeholder="8 caractères au moins"/><\${ui.Button} type="submit">Changer</\${ui.Button}></form></\${ui.Card}>\`}
+    </div>
   </\${ui.Page}>\`;
 }
 
@@ -208,9 +246,9 @@ function Tour({ onFin }) {
 
 function Appli({ user, etat, onLogout, tour, onFinTour }) {
   const [cur, setCur] = useState({ id: ECRANS[0]?.id, params: null }), [menu, setMenu] = useState(false), [toasts, setToasts] = useState([]);
-  nav = (id, params = null) => { if (id === "_abonnement" || id === "_equipe" || ECRANS.some((e) => e.id === id)) { setCur({ id, params }); setMenu(false); } };
+  nav = (id, params = null) => { if (id === "_abonnement" || id === "_equipe" || id === "_compte" || ECRANS.some((e) => e.id === id)) { setCur({ id, params }); setMenu(false); } };
   useEffect(() => bus.on("toast", (t) => { setToasts((x) => [...x, t]); setTimeout(() => setToasts((x) => x.filter((y) => y.id !== t.id)), 3000); }), []);
-  const E = cur.id === "_abonnement" ? { id: "_abonnement", titre: "Mon abonnement", Comp: Abonnement } : cur.id === "_equipe" ? { id: "_equipe", titre: "Équipe", Comp: Equipe } : ECRANS.find((e) => e.id === cur.id) ?? ECRANS[0];
+  const E = cur.id === "_abonnement" ? { id: "_abonnement", titre: "Mon abonnement", Comp: Abonnement } : cur.id === "_equipe" ? { id: "_equipe", titre: "Équipe", Comp: Equipe } : cur.id === "_compte" ? { id: "_compte", titre: "Mon compte", Comp: Compte } : ECRANS.find((e) => e.id === cur.id) ?? ECRANS[0];
   if (!etat.acces) return html\`<\${Paywall} etat=\${etat} onLogout=\${onLogout}/>\`;
   const Nav = () => html\`<nav class="space-y-0.5">\${[...ECRANS, { id: "_equipe", titre: "Équipe", icone: "contacts", sep: true }].map((e) => html\`<button onClick=\${() => nav(e.id)} class=\${cls("w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium", e.sep && "mt-3", e.id === E?.id ? "bg-[var(--c)]/10 text-[var(--c)]" : "text-slate-600 hover:bg-slate-100")}><\${Icone} nom=\${e.icone} class="w-[18px] h-[18px]"/>\${e.titre}</button>\`)}</nav>\`;
   return html\`<div class="min-h-screen lg:flex">
@@ -218,10 +256,11 @@ function Appli({ user, etat, onLogout, tour, onFinTour }) {
       <div class="flex items-center gap-2 font-bold"><span class="w-8 h-8 rounded-xl bg-[var(--c)] text-white grid place-items-center">\${(S.nom ?? "S")[0]}</span>\${S.nom}</div>
       <\${Nav}/>
       \${etat.payant && html\`<button onClick=\${() => nav("_abonnement")} class=\${cls("mt-auto w-full text-left rounded-xl px-3 py-2.5 text-sm", E?.id === "_abonnement" ? "bg-[var(--c)]/10 text-[var(--c)]" : "bg-slate-50 hover:bg-slate-100")}><span class="flex items-center gap-2 font-medium"><\${Icone} nom="carte" class="w-4 h-4"/>Mon abonnement</span><span class="block text-xs text-slate-500 mt-0.5">\${["active", "trialing", "past_due"].includes(etat.abonnement?.statut) ? "Formule " + (etat.abonnement.formule ?? "") : "Essai : " + jours(etat.essai_fin) + " jour(s) restant(s)"}</span></button>\`}
-      <div class=\${cls(etat.payant ? "" : "mt-auto", "border-t border-slate-100 pt-3 text-sm")}><p class="font-medium truncate">\${user.nom}</p><p class="text-slate-400 text-xs truncate">\${/@demo\\.local$/.test(user.email) ? "Compte de démonstration" : user.email}</p><button onClick=\${onLogout} class="mt-2 flex items-center gap-1.5 text-slate-500 hover:text-slate-800"><\${Icone} nom="sortie" class="w-4 h-4"/>Se déconnecter</button></div>
+      <div class=\${cls(etat.payant ? "" : "mt-auto", "border-t border-slate-100 pt-3 text-sm")}><button onClick=\${() => nav("_compte")} class="block w-full text-left hover:text-[var(--c)]"><p class="font-medium truncate">\${user.nom}</p></button><p class="text-slate-400 text-xs truncate">\${/@demo\\.local$/.test(user.email) ? "Compte de démonstration" : user.email}</p><button onClick=\${onLogout} class="mt-2 flex items-center gap-1.5 text-slate-500 hover:text-slate-800"><\${Icone} nom="sortie" class="w-4 h-4"/>Se déconnecter</button></div>
     </aside>
     \${menu && html\`<div class="fixed inset-0 z-30 bg-slate-900/30 lg:hidden" onClick=\${() => setMenu(false)}/>\`}
     <main class="flex-1 min-w-0"><div class="lg:hidden flex items-center justify-between bg-white border-b border-slate-200 px-4 py-3"><button onClick=\${() => setMenu(true)}><\${Icone} nom="menu"/></button><span class="font-bold">\${S.nom}</span><span class="w-5"/></div>
+      \${user.role === "lecture" && html\`<div class="bg-amber-50 text-amber-800 text-sm px-5 py-2">Accès en lecture seule : tu vois tout, mais tu ne peux rien modifier.</div>\`}
       <div class="max-w-6xl mx-auto p-5 sm:p-8">\${E ? html\`<\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} key=\${E.id + JSON.stringify(cur.params)} user=\${user} params=\${cur.params} etat=\${etat}/></\${Garde}>\` : null}</div></main>
     \${tour && html\`<\${Tour} onFin=\${onFinTour}/>\`}
     <div class="fixed bottom-4 right-4 z-50 space-y-2">\${toasts.map((t) => html\`<div class=\${cls("anim rounded-xl px-4 py-2.5 text-sm text-white shadow-lg", t.type === "bad" ? "bg-red-600" : "bg-slate-900")}>\${t.msg}</div>\`)}</div>

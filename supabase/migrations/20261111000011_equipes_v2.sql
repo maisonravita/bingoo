@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_app_invites.email, saas_app_invites.role
