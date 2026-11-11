@@ -217,3 +217,11 @@ export async function appOuverture(appId: string) {
   }
   return { envoyes: n };
 }
+
+/** Une page publique vient de recevoir quelque chose (réservation, demande, avis…) : l'utilisateur qui l'a partagée est prévenu. */
+export async function mailRecu(app: any, slug: string, titulaire: { id: string; email: string; nom?: string | null }, page: any, rowId: string, data: Record<string, unknown>) {
+  if (!titulaire?.email || /@demo\.local$/.test(titulaire.email)) return;
+  const champs = Object.entries(data).filter(([k, v]) => !k.startsWith("_") && !/_id$/.test(k) && v !== null && v !== "" && typeof v !== "object").slice(0, 8);
+  const lignes = champs.map(([k, v]) => `${k.replace(/_/g, " ")} : ${String(v).slice(0, 200)}`).join("\n");
+  await envoyerBrut(app, titulaire.email, `Nouveau : ${String(page.titre ?? "page publique").slice(0, 60)}`, `Ta page « ${page.titre} » vient de recevoir un envoi.\n\n${lignes}`, "Ouvrir mon espace", lien(app, slug), `recu-${rowId}`, null, "E-mail envoyé à chaque envoi reçu par tes pages publiques.");
+}

@@ -221,6 +221,8 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
       const { count } = await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("espace_id", espace).eq("data->>_public", "true").gte("at", depuis);
       if ((count ?? 0) >= 60) throw new Err(429, "Trop d'envois en ce moment, réessaie dans une heure");
       const { data: r } = await admin.from("saas_app_rows").insert({ app_id: app.id, user_id: espace, espace_id: espace, col, data: { ...propre(b.data), _public: true } }).select("id, data, at, maj").single();
+      const { mailRecu } = await import("./app-mails.ts");
+      await mailRecu(app, slug, t, page, r!.id, (r!.data ?? {}) as Record<string, unknown>).catch((e) => console.error("recu", e));
       return { status: 200, body: ligne(r) };
     }
 

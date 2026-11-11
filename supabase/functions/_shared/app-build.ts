@@ -114,7 +114,8 @@ Rends un objet JSON compact :
   const cols = new Set(spec.collections.map((c: any) => c.nom));
   for (const [i, x] of (s.pages_publiques ?? []).slice(0, 2).entries()) {
     const ecriture = cols.has(x?.ecriture) ? x.ecriture : null;
-    const lecture = (Array.isArray(x?.lecture) ? x.lecture : []).filter((c: any) => cols.has(c)).slice(0, 3);
+    // La collection d'écriture est toujours lisible (sans les coordonnées des autres visiteurs) : créneaux déjà pris, doublons…
+    const lecture = [...new Set([...(Array.isArray(x?.lecture) ? x.lecture : []).filter((c: any) => cols.has(c)), ...(ecriture ? [ecriture] : [])])].slice(0, 4);
     if (!ecriture && !lecture.length) continue;
     spec.ecrans.push({ id: `pub_${slugify(String(x.id ?? i)).replace(/-/g, "_")}`, titre: String(x.titre ?? "Page publique").slice(0, 30), icone: "carte", but: x.but, fonctions: x.fonctions, public: true, lecture, ecriture });
   }
