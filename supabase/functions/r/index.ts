@@ -160,6 +160,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (b.quoi === "domaine-verifier") return await o.appDomaineVerifier(app.id);
     if (b.quoi === "chiffres") return await o.appChiffres(app.id);
     if (b.quoi === "public") return await o.appPublic(app.id, !!b.public);
+    if (b.quoi === "icones") return await o.appIcones(app.id, b);
     if (b.quoi === "bourse") { await log(ws.id, "app_reglage", b.retirer ? "Retiré de la bourse" : `Mis en vente : ${b.prix} €`); return await o.appBourse(app.id, b); }
     if (b.quoi === "ab") return await o.appAb(app.id, b);
     if (b.quoi === "prix-suggeres") { await log(ws.id, "app_reglage", "Prix mis à jour (jumeau)"); return await o.appPrixSuggeres(app.id, String(b.suggestion ?? "")); }

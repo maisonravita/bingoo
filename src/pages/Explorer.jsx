@@ -8,6 +8,8 @@ import { LineChart } from "../components/Charts";
 import { lazy, Suspense } from "react";
 const IsoMonde = lazy(() => import("../components/IsoMonde"));
 import AppCadre, { API, blogApp, lienApp } from "../components/AppCadre";
+import { cleIcone, iconePng } from "../lib/appIcone";
+import qrcode from "qrcode-generator";
 import { cx } from "../lib/utils";
 
 // Explorer : la base de SaaS de Bingoo! (le « TrendTrack des SaaS »). Liste filtrable, puis fiche détaillée par logiciel.
@@ -963,7 +965,7 @@ function Construire({ projet }) {
   const [demande, setDemande] = useState("");
   const [envoi, setEnvoi] = useState(false);
   const [voirLigne, setVoirLigne] = useState(false);
-  const charger = () => supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, version, maj, paiement, domaine, domaine_statut, public, jumeau_at, lancement, ab, email_dom").eq("projet_id", projet.id).maybeSingle().then(({ data }) => { setApp(data ?? null); return data; });
+  const charger = () => supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, version, maj, paiement, domaine, domaine_statut, public, jumeau_at, lancement, ab, email_dom, icones").eq("projet_id", projet.id).maybeSingle().then(({ data }) => { setApp(data ?? null); return data; });
   useEffect(() => { charger(); }, [projet.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Construction ou modification en tâche de fond : on interroge la base toutes les 5 secondes
   useEffect(() => {
@@ -1071,7 +1073,7 @@ function Construire({ projet }) {
 }
 
 // Réglages d'un SaaS construit, par onglets : jumeau, lancement, encaissement, prix testés, e-mails, domaine, monde et bourse, code
-const ONGLETS_APP = [["jumeau", "Jumeau"], ["lancement", "Lancement"], ["encaisser", "Encaisser"], ["prix", "Prix testés"], ["emails", "E-mails"], ["domaine", "Domaine"], ["monde", "Monde et bourse"], ["code", "Code"]];
+const ONGLETS_APP = [["jumeau", "Jumeau"], ["lancement", "Lancement"], ["encaisser", "Encaisser"], ["prix", "Prix testés"], ["emails", "E-mails"], ["domaine", "Domaine"], ["monde", "Monde et bourse"], ["mobile", "Mobile"], ["code", "Code"]];
 function ReglagesApp({ app, onChange, projet }) {
   const { ws } = useWs();
   const toast = useToast();
@@ -1080,6 +1082,12 @@ function ReglagesApp({ app, onChange, projet }) {
   const [busy, setBusy] = useState("");
   const appel = (quoi, extra = {}) => fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi, ...extra });
   useEffect(() => { appel("chiffres").then(setCh, () => setCh(null)); }, [app.id, app.version]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Icônes PNG de l'app (téléphone, écran d'accueil) : refaites dès que le nom ou la couleur changent
+  useEffect(() => {
+    const cle = cleIcone(app.spec.nom, app.spec.couleur);
+    if (app.icones?.cle === cle) return;
+    appel("icones", { cle, png512: iconePng(app.spec.nom, app.spec.couleur, 512), png192: iconePng(app.spec.nom, app.spec.couleur, 192) }).then(() => onChange(), () => {});
+  }, [app.id, app.spec.nom, app.spec.couleur]); // eslint-disable-line react-hooks/exhaustive-deps
   const agir = async (k, f, ok) => { setBusy(k); try { const r = await f(); if (ok) toast(ok); await onChange(); return r; } catch (x) { toast(x.message, "bad"); } finally { setBusy(""); } };
   const props = { app, appel, agir, busy, projet, onChange };
   return (
@@ -1098,6 +1106,7 @@ function ReglagesApp({ app, onChange, projet }) {
         {onglet === "emails" && <OngletEmails {...props} />}
         {onglet === "domaine" && <OngletDomaine {...props} />}
         {onglet === "monde" && <OngletMonde {...props} />}
+        {onglet === "mobile" && <OngletMobile {...props} />}
         {onglet === "code" && <OngletCode {...props} />}
       </div>
     </div>
@@ -1471,6 +1480,37 @@ function OngletMonde({ app, appel, agir, busy }) {
             <button disabled={!!busy || !(Number(prix) >= 100)} onClick={() => agir("bourse", async () => { await appel("bourse", { prix: Number(prix), description: desc }); charger(); }, `${app.spec.nom} est en vente`)} className={btnAccent}>Mettre en vente</button>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+// 10. L'app sur téléphone : QR code pour l'ouvrir, icône, raccourcis, installation sur Android, iPhone et ordinateur
+function QR({ texte, taille = 168 }) {
+  const svg = useMemo(() => { const q = qrcode(0, "M"); q.addData(texte); q.make(); return q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); }, [texte]);
+  return <div className="rounded-xl bg-white p-2" style={{ width: taille, height: taille }} dangerouslySetInnerHTML={{ __html: svg }} />;
+}
+function OngletMobile({ app }) {
+  const dom = app.domaine_statut === "ok" ? app.domaine : null;
+  const lien = lienApp(app.slug, dom);
+  const ecrans = (app.spec.ecrans ?? []).filter((e) => e.code).slice(0, 4);
+  return (
+    <div className="grid lg:grid-cols-[auto_1fr] gap-5 items-start">
+      <div className="flex flex-col items-center gap-2">
+        <QR texte={lien} />
+        <p className="text-[12px] text-white/55 text-center">Scanne avec ton téléphone<br />pour ouvrir {app.spec.nom}</p>
+      </div>
+      <div className="space-y-4">
+        <Explication>{app.spec.nom} s'installe comme une vraie application, sur téléphone et sur ordinateur : son icône sur l'écran d'accueil, en plein écran, sans passer par l'App Store ni le Play Store. Tes clients n'ont rien à télécharger.</Explication>
+        <div className="flex items-center gap-4">
+          {app.icones?.u192 ? <img src={app.icones.u192} alt="" className="h-16 w-16 rounded-2xl shadow-lg" /> : <span className="grid h-16 w-16 place-items-center rounded-2xl text-white text-[28px] font-black" style={{ background: app.spec.couleur }}>{String(app.spec.nom)[0]}</span>}
+          <div className="text-[13px] text-white/65"><p className="font-bold text-white">L'icône de {app.spec.nom}</p><p>À ta couleur, refaite toute seule si tu changes le nom ou la couleur.</p></div>
+        </div>
+        <div className="grid md:grid-cols-3 gap-2 text-[13px]">
+          {[["Android", "Un bouton « Installer l'application » apparaît en bas de l'écran ; sinon, menu ⋮ → « Installer l'application »."], ["iPhone et iPad", "Dans Safari : Partager ⬆︎ → « Sur l'écran d'accueil ». Ton SaaS l'explique lui-même à tes clients."], ["Ordinateur", "Chrome et Edge : l'icône d'installation dans la barre d'adresse."]].map(([t, d]) => <div key={t} className="rounded-xl bg-white/[.06] p-3"><p className="font-bold">{t}</p><p className="mt-0.5 text-white/60">{d}</p></div>)}
+        </div>
+        {ecrans.length > 0 && <div className="text-[13px] text-white/65"><p className="font-bold text-white">Raccourcis</p><p>Un appui long sur l'icône ouvre directement : {ecrans.map((e) => e.titre).join(", ")}.</p></div>}
+        <p className="text-[12px] text-white/45">Les bibliothèques de l'app sont gardées sur l'appareil : elle s'ouvre plus vite à chaque fois. Les données, elles, restent en ligne (il faut du réseau pour les voir à jour).</p>
       </div>
     </div>
   );

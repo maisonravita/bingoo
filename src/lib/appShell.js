@@ -9,8 +9,8 @@ const HTM = "https://esm.sh/htm@3.1.1";
 
 const safe = (o) => JSON.stringify(o).replace(/</g, "\\u003c").replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029");
 
-export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null }) {
-  const boot = { spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog, source };
+export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null }) {
+  const boot = { spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog, source, ecran };
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${String(spec.nom ?? "Mon SaaS").replace(/[<&]/g, "")}</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js"></script>
@@ -245,7 +245,7 @@ function Tour({ onFin }) {
 }
 
 function Appli({ user, etat, onLogout, tour, onFinTour }) {
-  const [cur, setCur] = useState({ id: ECRANS[0]?.id, params: null }), [menu, setMenu] = useState(false), [toasts, setToasts] = useState([]);
+  const [cur, setCur] = useState({ id: ECRANS.some((e) => e.id === B.ecran) ? B.ecran : ECRANS[0]?.id, params: null }), [menu, setMenu] = useState(false), [toasts, setToasts] = useState([]);
   nav = (id, params = null) => { if (id === "_abonnement" || id === "_equipe" || id === "_compte" || ECRANS.some((e) => e.id === id)) { setCur({ id, params }); setMenu(false); } };
   useEffect(() => bus.on("toast", (t) => { setToasts((x) => [...x, t]); setTimeout(() => setToasts((x) => x.filter((y) => y.id !== t.id)), 3000); }), []);
   const E = cur.id === "_abonnement" ? { id: "_abonnement", titre: "Mon abonnement", Comp: Abonnement } : cur.id === "_equipe" ? { id: "_equipe", titre: "Équipe", Comp: Equipe } : cur.id === "_compte" ? { id: "_compte", titre: "Mon compte", Comp: Compte } : ECRANS.find((e) => e.id === cur.id) ?? ECRANS[0];

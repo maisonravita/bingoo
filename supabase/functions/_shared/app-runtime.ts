@@ -121,7 +121,7 @@ const ROLES = ["admin", "membre", "lecture"];
 // ---------------------------------------------------------------- Application installable (manifeste et icône)
 const echap = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 export async function appFichier(admin: SupabaseClient, slug: string, quoi: string): Promise<{ status: number; type: string; body: string }> {
-  const { data: app } = await admin.from("saas_apps").select("slug, spec, domaine, domaine_statut").eq("slug", slug).maybeSingle();
+  const { data: app } = await admin.from("saas_apps").select("slug, spec, domaine, domaine_statut, icones").eq("slug", slug).maybeSingle();
   const s = (app?.spec ?? {}) as any;
   if (!app || !s.ecrans?.length) return { status: 404, type: "text/plain", body: "introuvable" };
   const couleur = /^#[0-9a-f]{6}$/i.test(s.couleur ?? "") ? s.couleur : "#4F46E5";
@@ -140,10 +140,20 @@ export async function appFichier(admin: SupabaseClient, slug: string, quoi: stri
   if (quoi === "manifest") {
     const propre = app.domaine_statut === "ok" && app.domaine;
     const debut = propre ? "/" : `/?app=${slug}#/app/${slug}`;
+    const ic = (app.icones ?? {}) as any;
+    // Icônes PNG (rendues par Bingoo! à la couleur de l'app) : exigées par Android et iOS ; l'SVG reste en secours
+    const icons = [
+      ...(ic.u192 ? [{ src: ic.u192, sizes: "192x192", type: "image/png", purpose: "any" }] : []),
+      ...(ic.u512 ? [{ src: ic.u512, sizes: "512x512", type: "image/png", purpose: "any" }, { src: ic.u512, sizes: "512x512", type: "image/png", purpose: "maskable" }] : []),
+      { src: `${base}/icone.svg`, sizes: "any", type: "image/svg+xml", purpose: "any" },
+    ];
+    // Raccourcis (appui long sur l'icône) : les premiers écrans de l'app
+    const raccourci = (id: string) => propre ? `/?ecran=${id}` : `/?app=${slug}&ecran=${id}#/app/${slug}`;
     return { status: 200, type: "application/manifest+json", body: JSON.stringify({
       id: propre ? "/" : `/?app=${slug}`, name: s.nom, short_name: String(s.nom ?? "").slice(0, 12), description: s.pitch ?? "",
-      start_url: debut, scope: "/", display: "standalone", background_color: "#F8FAFC", theme_color: couleur, lang: "fr",
-      icons: [{ src: `${base}/icone.svg`, sizes: "any", type: "image/svg+xml", purpose: "any" }, { src: `${base}/icone.svg`, sizes: "any", type: "image/svg+xml", purpose: "maskable" }],
+      start_url: debut, scope: "/", display: "standalone", display_override: ["standalone", "minimal-ui"], orientation: "any",
+      background_color: "#F8FAFC", theme_color: couleur, lang: "fr", categories: ["business", "productivity"], icons,
+      shortcuts: (s.ecrans ?? []).filter((e: any) => e.code).slice(0, 4).map((e: any) => ({ name: e.titre, url: raccourci(e.id), ...(ic.u192 ? { icons: [{ src: ic.u192, sizes: "192x192", type: "image/png" }] } : {}) })),
     }) };
   }
   return { status: 404, type: "text/plain", body: "introuvable" };

@@ -424,3 +424,21 @@ export async function appLancementFait(appId: string, cle: string, fait: boolean
   await admin.from("saas_apps").update({ lancement: l }).eq("id", appId);
   return { fait: l.fait };
 }
+
+// ---------------------------------------------------------------- Icônes PNG de l'app (rendues dans le navigateur du créateur, gardées dans le stockage public)
+export async function appIcones(appId: string, b: any) {
+  const { data: app } = await admin.from("saas_apps").select("slug").eq("id", appId).single();
+  const out: Record<string, string> = {};
+  for (const [k, taille] of [["png512", 512], ["png192", 192]] as const) {
+    const m = String(b[k] ?? "").match(/^data:image\/png;base64,([A-Za-z0-9+/=]+)$/);
+    if (!m || m[1].length > 400_000) throw new HttpError(400, "Icône invalide");
+    const bin = Uint8Array.from(atob(m[1]), (c) => c.charCodeAt(0));
+    const chemin = `icones/${app!.slug}-${taille}-${String(b.cle ?? "").replace(/[^a-z0-9]/gi, "").slice(0, 12)}.png`;
+    const { error } = await admin.storage.from("apps").upload(chemin, bin, { contentType: "image/png", upsert: true, cacheControl: "31536000" });
+    if (error) throw new HttpError(500, `Stockage : ${error.message}`);
+    out[taille === 512 ? "u512" : "u192"] = admin.storage.from("apps").getPublicUrl(chemin).data.publicUrl;
+  }
+  const icones = { ...out, cle: String(b.cle ?? "").slice(0, 80) };
+  await admin.from("saas_apps").update({ icones }).eq("id", appId);
+  return icones;
+}

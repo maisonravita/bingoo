@@ -1,0 +1,1 @@
+-- Appliquée via MCP : bucket storage apps, saas_apps.icones, saas_app_public (icone)

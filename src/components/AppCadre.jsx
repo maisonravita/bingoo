@@ -20,8 +20,8 @@ function variante(slug, ab) {
   try { let v = localStorage.getItem(`bingoo-ab:${slug}`); if (!v) { v = Math.random() < 0.5 ? "A" : "B"; localStorage.setItem(`bingoo-ab:${slug}`, v); } return v; } catch { return "A"; }
 }
 
-export default function AppCadre({ slug, spec, version, paiement, domaine, ab, articles, className, apercu = false, retourPaiement = false, invite = null, tour = false, source = null }) {
-  const doc = useMemo(() => appHtml({ spec, slug, api: API, token: tour ? null : lire(slug), apercu, paiement, retour: lienApp(slug, domaine), retourPaiement, ab, variante: variante(slug, ab), invite, tour, articles: articles ?? [], blog: blogApp(slug, domaine), source }), [slug, version, paiement?.actif, paiement?.essai_jours, ab?.actif, ab?.ecart, tour]); // eslint-disable-line react-hooks/exhaustive-deps
+export default function AppCadre({ slug, spec, version, paiement, domaine, ab, articles, className, apercu = false, retourPaiement = false, invite = null, tour = false, source = null, ecran = null }) {
+  const doc = useMemo(() => appHtml({ spec, slug, api: API, token: tour ? null : lire(slug), apercu, paiement, retour: lienApp(slug, domaine), retourPaiement, ab, variante: variante(slug, ab), invite, tour, articles: articles ?? [], blog: blogApp(slug, domaine), source, ecran }), [slug, version, paiement?.actif, paiement?.essai_jours, ab?.actif, ab?.ecart, tour]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const ecoute = (e) => {
       const d = e.data;
