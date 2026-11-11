@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas.copyright/endormi_score/endormi_depuis, saas_signes_endormi, saas_endormis_maj (+cron), saas_endormis v2, saas_endormi_de

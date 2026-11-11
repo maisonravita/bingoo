@@ -48,6 +48,20 @@ function methode(html: string, base: string) {
 }
 
 /** Relecture complète d'un SaaS (accueil, tarifs, carrières, nouveautés) et enregistrement d'un relevé. */
+/** Année la plus récente du « © » du pied de page (un pied de page figé depuis des années est un signe d'abandon). */
+function anneeCopyright(html: string): number | null {
+  const ans = [...html.replace(/&copy;|&#169;/gi, "©").matchAll(/(?:©|copyright)\s*(?:(?:19|20)\d{2}\s*[-–—]\s*)?((?:19|20)\d{2})/gi)].map((m) => Number(m[1])).filter((y) => y >= 2005 && y <= new Date().getUTCFullYear() + 1);
+  return ans.length ? Math.max(...ans) : null;
+}
+/** Page de contact publique du site (pour approcher l'éditeur). */
+function lienContact(html: string, base: string): string | null {
+  for (const m of html.matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]{0,120}?)<\/a>/gi)) {
+    const t = m[2].replace(/<[^>]+>/g, " ").trim();
+    if (/\/(contact|contactez|contact-us|nous-contacter|about|a-propos)\/?$/i.test(m[1]) || /^(contact|nous contacter|contact us|contactez-nous)$/i.test(t)) { try { return new URL(m[1], base).href; } catch { /* lien illisible */ } }
+  }
+  return null;
+}
+
 export async function saasLire(id: string) {
   const { data: s } = await admin.from("saas").select("*").eq("id", id).single();
   if (!s) return null;
@@ -99,7 +113,8 @@ prix_entree (prix le plus bas d'une formule d'ABONNEMENT payante, nombre ; null 
     prix_entree_eur: prix, devise: a.devise ?? null, prix_affiche: prix != null ? `${a.prix_entree} ${a.devise ?? ""}/${a.periode === "an" ? "an" : a.periode === "semaine" ? "semaine" : "mois"}` : a.prix_usage ? String(a.prix_usage).slice(0, 80) : null, modele_prix: modele,
     gratuit: !!a.gratuit, essai: a.essai ?? null, sur_devis: !!a.sur_devis, formules: (a.formules ?? []).slice(0, 4),
     recrute: f.recrute.oui, postes: f.recrute.postes, nouveaute: f.nouveaute.date, outils: f.outils,
-    liens: { prix: f.prix_url || null, carrieres: f.recrute.url || null, nouveautes: f.nouveaute.url || null },
+    liens: { prix: f.prix_url || null, carrieres: f.recrute.url || null, nouveautes: f.nouveaute.url || null, contact: lienContact(home, site) },
+    copyright: anneeCopyright(home),
     methode: methode(home, site), score_croissance: score, statut: "ok", essais: 0, lu_at: new Date().toISOString(),
   };
   const { data: meme } = await admin.from("saas").select("id").eq("statut", "ok").ilike("nom", champs.nom.replace(/[%_\\]/g, "\\$&")).neq("id", id).limit(1);
@@ -211,6 +226,8 @@ export async function saasAlertes(seulement?: string) {
   const depuis = new Date(Date.now() - 7 * 864e5).toISOString();
   const { data: evs } = await admin.from("saas_evenements").select("at, type, avant, apres, saas:saas_id(id, domaine, nom, categorie, statut)").gte("at", depuis).order("at", { ascending: false }).limit(5000);
   const { data: nouveaux } = await admin.from("saas").select("id, domaine, nom, categorie, description, prix_entree_eur").eq("statut", "ok").gte("created_at", depuis).limit(3000);
+  // SaaS qui commencent à s'endormir cette semaine (à racheter, ou leurs clients à récupérer)
+  const { data: endormis } = await admin.from("saas").select("id, domaine, nom, categorie, endormi_score").eq("statut", "ok").gte("endormi_depuis", depuis.slice(0, 10)).order("endormi_score", { ascending: false }).limit(500);
   const { data: mails } = await admin.from("saas_emails").select("saas_id, subject, kind, offre, resume").gte("recu_at", depuis).not("kind", "in", "(confirmation,a_classer)").limit(3000);
   const { data: pubs } = await admin.from("saas_pubs").select("saas_id, titre, body").gte("started", depuis.slice(0, 10)).limit(3000);
   const { data: noms } = await admin.from("saas").select("id, nom, domaine").in("id", [...new Set([...(mails ?? []), ...(pubs ?? [])].map((x) => x.saas_id).filter(Boolean))]);
@@ -235,7 +252,8 @@ export async function saasAlertes(seulement?: string) {
     for (const p of (pubs ?? []) as { saas_id: string }[]) if (f.saas.has(p.saas_id)) parPub.set(p.saas_id, (parPub.get(p.saas_id) ?? 0) + 1);
     const sesPubs = [...parPub].filter(([id]) => nomDe.has(id));
     const jum = (jumeaux.get(wsId) ?? []).slice(0, 8);
-    if (!mes.length && !neufs.length && !sesMails.length && !sesPubs.length && !jum.length) continue;
+    const dorment = ((endormis ?? []) as { id: string; domaine: string; nom: string; categorie: string; endormi_score: number }[]).filter((x) => f.saas.has(x.id) || f.cats.has(x.categorie)).slice(0, 8);
+    if (!mes.length && !neufs.length && !sesMails.length && !sesPubs.length && !jum.length && !dorment.length) continue;
     const { data: w } = await admin.from("workspaces").select("*").eq("id", wsId).single();
     if (!w) continue;
     const to = await teamAddress(w as Workspace);
@@ -247,6 +265,7 @@ export async function saasAlertes(seulement?: string) {
       ...(neufs.length ? ["Nouveaux SaaS dans tes catégories :", ...neufs.map((s) => `- ${s.nom} (${s.categorie})${s.prix_entree_eur != null ? `, dès ${s.prix_entree_eur} €/mois` : ""}`), ""] : []),
       ...(sesMails.length ? ["Leurs e-mails :", ...sesMails.map((m) => `- ${nomDe.get(m.saas_id)!.nom} : ${m.subject}${m.offre ? ` (${m.offre})` : ""}`), ""] : []),
       ...(sesPubs.length ? ["Nouvelles pubs Facebook et Instagram :", ...sesPubs.map(([id, n]) => `- ${nomDe.get(id)!.nom} : ${n} nouvelle${n > 1 ? "s" : ""}`), ""] : []),
+      ...(dorment.length ? ["S'endorment cette semaine (à racheter ou leurs clients à récupérer) :", ...dorment.map((x) => `- ${x.nom} (${x.categorie})`), `${site}/#/explorer/racheter`, ""] : []),
       `Tout voir : ${site}/#/explorer/suivis`].join("\n");
     const html = `<div style="font-family:Arial,sans-serif;color:#15161A;max-width:560px"><h2 style="margin:0 0 4px">Ton marché cette semaine</h2><p style="color:#5B5D66;margin:0 0 16px">${mes.length} changement${mes.length > 1 ? "s" : ""} chez les SaaS que tu suis${neufs.length ? `, ${neufs.length} nouveau${neufs.length > 1 ? "x" : ""} SaaS dans tes catégories` : ""}.</p>
 ${jum.length ? `<div style="background:#15161A;color:#fff;border-radius:14px;padding:16px 18px;margin:0 0 12px"><p style="margin:0;font-size:12px;font-weight:bold;letter-spacing:.04em;color:#F6A06B">TON JUMEAU</p><p style="margin:4px 0 8px;font-weight:bold;font-size:16px">${escH(jum[0].insp)} a bougé : à ajouter à ${escH(jum[0].app)}</p><ul style="padding-left:18px;margin:0">${jum.map((j) => `<li style="margin:4px 0">${j.type === "prix" ? "💶 " : "✨ "}${escH(j.titre)}</li>`).join("")}</ul><p style="margin:12px 0 0"><a href="${site}/#/explorer/lancer?d=${escH(jum[0].domaine)}" style="background:#E0531F;color:#fff;padding:10px 16px;border-radius:10px;text-decoration:none;font-weight:bold">L'ajouter en un clic</a></p></div>` : ""}
@@ -254,6 +273,7 @@ ${mes.length ? `<h3 style="margin:16px 0 6px">Ce qui a bougé</h3><ul style="pad
 ${neufs.length ? `<h3 style="margin:16px 0 6px">Nouveaux SaaS dans tes catégories</h3><ul style="padding-left:18px">${neufs.map((s) => `<li style="margin:4px 0"><a href="${site}/#/explorer/${escH(s.domaine)}" style="color:#15161A;font-weight:bold">${escH(s.nom)}</a> · ${escH(s.categorie)}${s.prix_entree_eur != null ? ` · dès ${s.prix_entree_eur} €/mois` : ""}</li>`).join("")}</ul>` : ""}
 ${sesMails.length ? `<h3 style="margin:16px 0 6px">Leurs e-mails</h3><ul style="padding-left:18px">${sesMails.map((m) => `<li style="margin:4px 0"><a href="${site}/#/explorer/${escH(nomDe.get(m.saas_id)!.domaine)}" style="color:#15161A;font-weight:bold">${escH(nomDe.get(m.saas_id)!.nom)}</a> : ${escH(m.subject)}${m.offre ? ` <span style="color:#5B5D66">(${escH(m.offre)})</span>` : ""}</li>`).join("")}</ul>` : ""}
 ${sesPubs.length ? `<h3 style="margin:16px 0 6px">Nouvelles pubs Facebook et Instagram</h3><ul style="padding-left:18px">${sesPubs.map(([id, n]) => `<li style="margin:4px 0"><a href="${site}/#/explorer/${escH(nomDe.get(id)!.domaine)}" style="color:#15161A;font-weight:bold">${escH(nomDe.get(id)!.nom)}</a> : ${n} nouvelle${n > 1 ? "s" : ""}</li>`).join("")}</ul>` : ""}
+${dorment.length ? `<h3 style="margin:16px 0 6px">S'endorment cette semaine</h3><p style="color:#5B5D66;margin:0 0 6px">À racheter, ou leurs clients à récupérer.</p><ul style="padding-left:18px">${dorment.map((x) => `<li style="margin:4px 0"><a href="${site}/#/explorer/racheter" style="color:#15161A;font-weight:bold">${escH(x.nom)}</a> · ${escH(x.categorie)}</li>`).join("")}</ul>` : ""}
 <p style="margin-top:20px"><a href="${site}/#/explorer/suivis" style="background:#E0531F;color:#fff;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold">Tout voir dans Explorer</a></p></div>`;
     try {
       await sendSystem({ to, subject: `${jum.length ? `${jum[0].insp} a bougé · ` : ""}Ton marché cette semaine : ${mes.length} changement${mes.length > 1 ? "s" : ""}${neufs.length ? `, ${neufs.length} nouveau${neufs.length > 1 ? "x" : ""} SaaS` : ""}`, text, html, key: `alerte-saas-${wsId}-${new Date().toISOString().slice(0, 10)}` });

@@ -262,8 +262,10 @@ function Fiche({ domaine }) {
   const [pubs, setPubs] = useState([]);
   const [noto, setNoto] = useState([]);
   const [mails, setMails] = useState([]);
+  const [dort, setDort] = useState(null);
   useEffect(() => {
-    setS(undefined); setLimite(null);
+    setS(undefined); setLimite(null); setDort(null);
+    supabase.rpc("saas_endormi_de", { p_domaine: domaine }).then(({ data }) => setDort(data ?? null));
     supabase.rpc("saas_fiche", { ws: ws.id, d: domaine }).then(async ({ data, error }) => {
       if (error || !data) { setS(null); return; }
       if (data.limite) { setLimite(data); setS(null); return; }
@@ -356,6 +358,7 @@ function Fiche({ domaine }) {
         </section>
       </div>
 
+      {dort?.score >= 35 && <BlocEndormi d={dort} s={s} />}
       {hist && <section className="mt-4"><Histoire h={hist} /></section>}
       {mails.length > 0 && (
         <section className="mt-4 rounded-2xl bg-white border border-line p-5">
@@ -1555,33 +1558,90 @@ function FilBourse({ fil, onClose }) {
 }
 
 // ---------------------------------------------------------------- SaaS qui s'endorment : à racheter, ou leurs clients à récupérer
+const couleurScore = (n) => n >= 60 ? "#B91C1C" : n >= 45 ? "#E0531F" : "#D97706";
+const ScoreSommeil = ({ n }) => (
+  <div className="w-24 shrink-0"><div className="flex items-baseline justify-between"><span className="text-[18px] font-black tnum" style={{ color: couleurScore(n), ...HF }}>{n}</span><span className="text-[10.5px] text-ink-faint">/ 100</span></div><div className="h-1.5 rounded-full bg-paper overflow-hidden"><div className="h-full rounded-full" style={{ width: `${n}%`, background: couleurScore(n) }} /></div></div>
+);
+const messageRachat = (x) => `Bonjour,
+
+Je suis ${"{ton prénom}"}, entrepreneur dans le logiciel. J'utilise et j'apprécie ${x.nom}, et je cherche à reprendre un logiciel ${x.categorie ? `de ${x.categorie.toLowerCase()} ` : ""}déjà apprécié de ses clients pour continuer à le développer.
+
+Envisageriez-vous de céder ${x.nom}, ou d'en discuter ? Je peux reprendre le produit, ses clients et son support, avec une transition à votre rythme.
+
+Un appel de 20 minutes la semaine prochaine vous conviendrait-il ?
+
+Bien cordialement,
+${"{ton prénom}"}`;
+
+function Approcher({ x, onClose }) {
+  const toast = useToast();
+  const [t, setT] = useState(messageRachat(x));
+  return (
+    <div className="fixed inset-0 z-50 bg-ink/40 grid place-items-center p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="w-full max-w-xl bg-white rounded-3xl shadow-xl p-5">
+        <div className="flex items-start justify-between gap-3"><div><p className="font-bold text-[18px]">Approcher l'éditeur de {x.nom}</p><p className="text-[13px] text-ink-faint">Un message court et respectueux, à envoyer toi-même depuis ta boîte.</p></div><button onClick={onClose} className="text-ink-faint hover:text-ink text-[22px] leading-none">×</button></div>
+        <textarea value={t} onChange={(e) => setT(e.target.value)} rows={13} className="mt-3 w-full rounded-xl border border-line p-3 text-[14px] outline-none focus:border-ink" />
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button onClick={() => navigator.clipboard?.writeText(t).then(() => toast("Message copié"))} className="rounded-xl bg-ink text-white px-4 py-2.5 text-[14px] font-bold">Copier le message</button>
+          {x.contact ? <a href={x.contact} target="_blank" rel="noreferrer" className="rounded-xl border border-line px-4 py-2.5 text-[14px] font-semibold hover:border-ink-faint">Sa page de contact ↗</a> : <a href={`https://${x.domaine}`} target="_blank" rel="noreferrer" className="rounded-xl border border-line px-4 py-2.5 text-[14px] font-semibold hover:border-ink-faint">Son site ↗</a>}
+        </div>
+        <p className="mt-2 text-[12px] text-ink-faint">Remplace {"{ton prénom}"}. Écris à l'adresse de contact officielle de l'entreprise, une seule fois, et relance au plus une fois.</p>
+      </div>
+    </div>
+  );
+}
+
+function BlocEndormi({ d, s }) {
+  const nav = useNavigate();
+  const [ouvert, setOuvert] = useState(false);
+  return (
+    <section className="mt-4 rounded-2xl bg-[#FDF0EC] border border-[#F5C9B8] p-5">
+      <div className="flex flex-wrap items-start gap-4">
+        <ScoreSommeil n={d.score} />
+        <div className="flex-1 min-w-[240px]"><h2 className="font-bold">{s.nom} s'endort</h2><p className="text-[13px] text-ink-soft">Indices relevés{d.depuis ? ` depuis le ${new Date(d.depuis).toLocaleDateString("fr-FR")}` : ""} : à racheter, ou ses clients à récupérer.</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">{(d.signes ?? []).map((g) => <span key={g.t} className="rounded-full bg-white px-2.5 py-1 text-[12px] font-medium text-[#9A3412]">{g.t}</span>)}</div></div>
+        <div className="flex flex-wrap gap-2"><button onClick={() => setOuvert(true)} className="rounded-xl bg-ink text-white px-4 py-2.5 text-[14px] font-bold">Approcher l'éditeur</button><button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className="rounded-xl bg-white border border-line px-4 py-2.5 text-[14px] font-semibold">Récupérer ses clients</button></div>
+      </div>
+      {ouvert && <Approcher x={{ ...s, contact: d.contact }} onClose={() => setOuvert(false)} />}
+    </section>
+  );
+}
+
 function Racheter() {
   const nav = useNavigate();
   const [cat, setCat] = useState("");
   const [l, setL] = useState(null);
-  useEffect(() => { setL(null); supabase.rpc("saas_endormis", { p_categorie: cat || null }).then(({ data }) => setL(data ?? [])); }, [cat]);
-  const cats = [...new Set((l ?? []).map((x) => x.categorie))].sort();
+  const [toutes, setToutes] = useState([]);
+  const [appro, setAppro] = useState(null);
+  const [clients, setClients] = useState(null);
+  useEffect(() => { setL(null); supabase.rpc("saas_endormis", { p_categorie: cat || null }).then(({ data }) => { setL(data ?? []); if (!cat) setToutes([...new Set((data ?? []).map((x) => x.categorie))].sort()); }); }, [cat]);
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
       <h1 className="text-[30px] font-black tracking-tight" style={HF}>Les SaaS qui s'endorment</h1>
-      <p className="text-ink-soft max-w-3xl">Plus de nouveautés, plus de recrutements, des prix figés, du trafic en baisse : ces SaaS ralentissent. Une cible à racheter (leurs fondateurs sont souvent prêts à vendre), ou des clients à récupérer avec ton propre SaaS.</p>
-      <div className="mt-4 flex flex-wrap gap-1.5">
-        <Chip on={!cat} onClick={() => setCat("")}>Toutes les catégories</Chip>
-        {(cat ? [cat] : cats).slice(0, 14).map((c) => <Chip key={c} on={cat === c} onClick={() => setCat(cat === c ? "" : c)}>{c}</Chip>)}
-      </div>
+      <p className="text-ink-soft max-w-3xl">Plus de nouveautés, un pied de page figé, plus de recrutements, du trafic en baisse, des prix qui ne bougent plus : ces SaaS ralentissent. Une cible à racheter (leurs fondateurs sont souvent prêts à vendre), ou des clients à récupérer avec ton propre SaaS. Recalculé chaque nuit ; ceux qui s'endorment dans tes catégories arrivent dans l'e-mail du lundi.</p>
+      <div className="mt-4 flex flex-wrap gap-1.5"><Chip on={!cat} onClick={() => setCat("")}>Toutes les catégories</Chip>{toutes.map((c) => <Chip key={c} on={cat === c} onClick={() => setCat(cat === c ? "" : c)}>{c}</Chip>)}</div>
       {l === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : !l.length ? <p className="mt-6 text-ink-soft">Aucun SaaS endormi repéré dans cette catégorie pour l'instant.</p> : (
         <div className="mt-4 rounded-2xl bg-white border border-line overflow-hidden">
           {l.map((x) => (
-            <div key={x.domaine} className="flex flex-wrap items-center gap-3 px-4 py-3 border-t border-line first:border-0">
-              <CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="w-9 h-9" />
-              <div className="min-w-[200px] flex-1"><button onClick={() => nav(`/explorer/${x.domaine}`)} className="font-semibold hover:underline">{x.nom}</button><p className="text-[12.5px] text-ink-faint">{x.categorie}{x.pays ? ` · ${x.pays}` : ""}{x.prix_entree_eur != null ? ` · dès ${x.prix_entree_eur} €/mois` : ""}{x.rang_web ? ` · N° ${Number(x.rang_web).toLocaleString("fr-FR")} mondial` : ""}</p></div>
-              <div className="flex flex-wrap gap-1.5">{(x.signes ?? []).map((sg) => <span key={sg} className="rounded-full bg-[#FDF0EC] px-2.5 py-1 text-[12px] font-medium text-[#9A3412]">{sg}</span>)}</div>
-              <button onClick={() => nav(`/explorer/lancer?d=${x.domaine}`)} className="shrink-0 rounded-xl border border-line px-3 py-2 text-[13px] font-semibold hover:border-ink-faint">Récupérer ses clients</button>
+            <div key={x.domaine} className="px-4 py-3.5 border-t border-line first:border-0">
+              <div className="flex flex-wrap items-center gap-3">
+                <ScoreSommeil n={x.score} />
+                <CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="w-9 h-9" />
+                <div className="min-w-[200px] flex-1"><button onClick={() => nav(`/explorer/${x.domaine}`)} className="font-semibold hover:underline">{x.nom}</button>{x.suivi && <span className="ml-2 rounded-full bg-paper px-2 py-0.5 text-[11px] font-bold text-ink-faint">SUIVI</span>}<p className="text-[12.5px] text-ink-faint">{x.categorie}{x.pays ? ` · ${x.pays}` : ""}{x.prix_entree_eur != null ? ` · dès ${x.prix_entree_eur} €/mois` : ""}{x.rang_web ? ` · N° ${Number(x.rang_web).toLocaleString("fr-FR")} mondial` : ""}{x.depuis ? ` · signalé le ${new Date(x.depuis).toLocaleDateString("fr-FR")}` : ""}</p></div>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => setAppro(x)} className="rounded-xl bg-ink text-white px-3 py-2 text-[13px] font-bold">Approcher l'éditeur</button>
+                  <button onClick={() => nav(`/explorer/lancer?d=${x.domaine}`)} className="rounded-xl border border-line px-3 py-2 text-[13px] font-semibold hover:border-ink-faint">Récupérer ses clients</button>
+                  <button onClick={() => setClients(clients === x.domaine ? null : x.domaine)} className="rounded-xl border border-line px-3 py-2 text-[13px] font-semibold hover:border-ink-faint">{clients === x.domaine ? "Fermer" : "Ses clients probables"}</button>
+                </div>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5 pl-[108px] max-sm:pl-0">{(x.signes ?? []).map((g) => <span key={g.t} className="rounded-full bg-[#FDF0EC] px-2.5 py-1 text-[12px] font-medium text-[#9A3412]">{g.t} <span className="opacity-60">+{g.p}</span></span>)}</div>
+              {clients === x.domaine && <div className="mt-3"><Clients domaine={x.domaine} titre={`Les clients probables de ${x.nom}`} /></div>}
             </div>
           ))}
         </div>
       )}
-      <p className="mt-3 text-[12px] text-ink-faint">Signes lus sur les sites publics et dans les relevés de Bingoo! : ce sont des indices, pas une certitude. Vérifie avant d'approcher un fondateur.</p>
+      <p className="mt-3 text-[12px] text-ink-faint">Indices lus sur les sites publics et dans les relevés de Bingoo!, pas une certitude : vérifie avant d'approcher un fondateur. « Ses clients probables » : les entreprises du type de celles qui achètent ce logiciel, comptées dans le registre officiel.</p>
+      {appro && <Approcher x={appro} onClose={() => setAppro(null)} />}
     </div>
   );
 }
