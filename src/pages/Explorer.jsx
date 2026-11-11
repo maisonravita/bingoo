@@ -959,7 +959,8 @@ function Construire({ projet }) {
   const [ecran, setEcran] = useState("");
   const [demande, setDemande] = useState("");
   const [envoi, setEnvoi] = useState(false);
-  const charger = () => supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, version, maj, paiement, domaine, domaine_statut, public, jumeau_at, lancement, ab, email_dom").eq("projet_id", projet.id).maybeSingle().then(({ data }) => { setApp(data ?? null); return data; });
+  const [voirLigne, setVoirLigne] = useState(false);
+  const charger = () => supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, version, maj, paiement, domaine, domaine_statut, public, jumeau_at, lancement, ab, email_dom").eq("projet_id", projet.id).maybeSingle().then(({ data }) => { setApp(data ?? null); return data; });
   useEffect(() => { charger(); }, [projet.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Construction ou modification en tâche de fond : on interroge la base toutes les 5 secondes
   useEffect(() => {
@@ -979,12 +980,18 @@ function Construire({ projet }) {
   const modifier = async (e) => {
     e.preventDefault();
     setEnvoi(true);
-    try { await fn("r/saas-app-modifier", { workspace_id: ws.id, app_id: app.id, ecran: ecran || "nouveau", demande }); setDemande(""); await charger(); toast("Modification lancée, une minute environ"); }
+    try { await fn("r/saas-app-modifier", { workspace_id: ws.id, app_id: app.id, ecran: ecran || "nouveau", demande }); setDemande(""); await charger(); toast("Bingoo! code ta modification : l'aperçu arrive dans une minute"); }
     catch (x) { toast(x.message, "bad"); } finally { setEnvoi(false); }
   };
   if (app === undefined) return null;
   const lien = app ? lienApp(app.slug, app.domaine_statut === "ok" ? app.domaine : null) : "";
   const pret = app?.spec?.ecrans?.length > 0;
+  // Modification en attente : l'aperçu montre la nouvelle version, à mettre en ligne ou à abandonner
+  const attente = app?.statut !== "en_cours" && app?.brouillon?._modif ? app.brouillon : null;
+  const decider = async (valider) => {
+    try { await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: valider ? "brouillon-valider" : "brouillon-annuler" }); await charger(); toast(valider ? "C'est en ligne" : "Modification abandonnée"); setVoirLigne(false); }
+    catch (x) { toast(x.message, "bad"); }
+  };
   return (
     <section className="mt-5 rounded-3xl bg-ink text-white p-6 sm:p-8 print:hidden">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1020,11 +1027,25 @@ function Construire({ projet }) {
         </>
       ) : null}
 
+      {pret && attente && (
+        <div className="mt-6 rounded-2xl bg-[#F6A06B]/15 border border-[#F6A06B]/40 p-4 flex flex-wrap items-center gap-3">
+          <div className="flex-1 min-w-[260px]">
+            <p className="font-bold">Aperçu : {(attente._modif.liste ?? [attente._modif]).length > 1 ? `${(attente._modif.liste ?? []).length} modifications en attente` : attente._modif.nouveau ? `nouvel écran « ${attente._modif.titre} »` : `« ${attente._modif.titre} » modifié`}</p>
+            <ul className="mt-1 text-[13px] text-white/70 space-y-0.5">{(attente._modif.liste ?? [attente._modif]).map((m, i) => <li key={i}>· {m.nouveau ? "Nouvel écran" : m.titre} : {m.demande.slice(0, 140)}</li>)}</ul>
+            <p className="mt-1 text-[12px] text-white/50">Rien n'est encore en ligne : tes clients voient toujours l'ancienne version.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setVoirLigne(!voirLigne)} className="rounded-xl bg-white/10 px-4 py-2.5 text-[14px] font-semibold hover:bg-white/20">{voirLigne ? "Voir l'aperçu" : "Voir la version en ligne"}</button>
+            <button onClick={() => decider(false)} className="rounded-xl bg-white/10 px-4 py-2.5 text-[14px] font-semibold hover:bg-white/20">Abandonner</button>
+            <button onClick={() => decider(true)} className="rounded-xl bg-accent px-5 py-2.5 text-[14px] font-bold hover:bg-accent-dark">Mettre en ligne</button>
+          </div>
+        </div>
+      )}
       {pret && (
         <div className="mt-6 grid lg:grid-cols-[1fr_300px] gap-4">
           <div className="rounded-2xl overflow-hidden bg-white ring-1 ring-white/10">
             <div className="flex items-center gap-2 bg-[#E8E5DE] px-3 py-2"><span className="flex gap-1.5">{["#F87171", "#FBBF24", "#34D399"].map((c) => <span key={c} className="h-2.5 w-2.5 rounded-full" style={{ background: c }} />)}</span><span className="flex-1 truncate rounded-md bg-white px-2 py-0.5 text-[12px] text-ink-faint">{lien.replace(/^https?:\/\//, "")}</span></div>
-            <Suspense fallback={<div className="h-[620px] grid place-items-center"><Spinner /></div>}><AppCadre slug={app.slug} spec={app.spec} version={app.version} paiement={app.paiement} ab={app.ab} articles={app.lancement?.articles ?? []} domaine={app.domaine_statut === "ok" ? app.domaine : null} className="block w-full h-[620px] border-0" apercu /></Suspense>
+            <Suspense fallback={<div className="h-[620px] grid place-items-center"><Spinner /></div>}><AppCadre slug={app.slug} spec={attente && !voirLigne ? attente : app.spec} version={attente && !voirLigne ? `apercu-${attente._modif.at}` : app.version} paiement={app.paiement} ab={app.ab} articles={app.lancement?.articles ?? []} domaine={app.domaine_statut === "ok" ? app.domaine : null} className="block w-full h-[620px] border-0" apercu /></Suspense>
           </div>
           <form onSubmit={modifier} className="rounded-2xl bg-white/5 border border-white/10 p-4 flex flex-col gap-3">
             <p className="font-bold">Modifier en une phrase</p>
@@ -1094,17 +1115,20 @@ function OngletJumeau({ app, appel, agir, busy, projet, onChange }) {
   useEffect(() => { charger(); }, [app.id, app.version]); // eslint-disable-line react-hooks/exhaustive-deps
   const ajouter = async (x) => {
     try {
-      await fn("r/saas-app-modifier", { workspace_id: ws.id, app_id: app.id, ecran: "nouveau", demande: `${x.titre}. ${x.detail ?? ""}` });
-      await supabase.from("saas_app_suggestions").update({ statut: "ajoutee" }).eq("id", x.id);
-      toast("Bingoo! code cet écran : une minute environ"); charger(); onChange();
+      await fn("r/saas-app-modifier", { workspace_id: ws.id, app_id: app.id, ecran: "nouveau", demande: `${x.titre}. ${x.detail ?? ""}`, suggestion: x.id });
+      setEnCours((c) => ({ ...c, [x.id]: true }));
+      toast("Bingoo! code cet écran : l'aperçu arrive dans une minute, en haut"); onChange();
     } catch (e) { toast(e.message, "bad"); }
   };
   const ignorer = async (x) => { await supabase.from("saas_app_suggestions").update({ statut: "ignoree" }).eq("id", x.id); charger(); };
+  const [enCours, setEnCours] = useState({});
+  const prix = (x) => agir(`prix${x.id}`, async () => { await appel("prix-suggeres", { suggestion: x.id }); await charger(); }, "Nouveaux prix en ligne");
+  const enApercu = new Set(((app.brouillon?._modif?.liste ?? (app.brouillon?._modif ? [app.brouillon._modif] : [])).map((m) => m.suggestion)).filter(Boolean));
   const nomInsp = projet?.inspire?.nom ?? "ton modèle";
   return (
     <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <Explication>Bingoo! surveille {nomInsp} chaque semaine. Quand il sort une nouveauté, tu la retrouves ici : un clic et Bingoo! l'ajoute à {app.spec.nom}, avec tes mots.</Explication>
+        <Explication>Chaque semaine, Bingoo! relit le plan du site de {nomInsp} (nouvelles pages fonctionnalités, intégrations, produits) et ses prix. Une nouveauté ? Un clic : Bingoo! la code dans {app.spec.nom}, tu la vois en aperçu, puis tu la mets en ligne. Un changement de prix ? Tes prix suivent dans les mêmes proportions, si tu le veux. Les nouveautés arrivent aussi dans l'e-mail du lundi.</Explication>
         <button disabled={!!busy} onClick={() => agir("jumeau", async () => { const r = await appel("jumeau"); await charger(); if (!r.nouvelles) toast(`Rien de nouveau chez ${nomInsp} pour l'instant`); }, null)} className={btnSombre}>{busy === "jumeau" ? "Recherche…" : "Vérifier maintenant"}</button>
       </div>
       <div className="mt-4 space-y-2">
@@ -1115,9 +1139,14 @@ function OngletJumeau({ app, appel, agir, busy, projet, onChange }) {
               <p className="mt-0.5 text-[13.5px] text-white/70">{x.detail}</p>
               <p className="mt-1 text-[12px] text-white/40">{new Date(x.at).toLocaleDateString("fr-FR")}{x.source && <> · <a href={x.source} target="_blank" rel="noreferrer" className="underline">source</a></>}</p>
             </div>
-            {x.statut === "ajoutee" ? <span className="rounded-lg bg-[#15803D]/30 px-2.5 py-1 text-[12px] font-bold text-[#86EFAC]">AJOUTÉ</span> : x.type === "fonction" ? (
-              <div className="flex gap-2"><button onClick={() => ajouter(x)} disabled={app.statut === "en_cours"} className={btnAccent}>L'ajouter à {app.spec.nom}</button><button onClick={() => ignorer(x)} className={btnSombre}>Ignorer</button></div>
-            ) : <button onClick={() => ignorer(x)} className={btnSombre}>Vu</button>}
+            {x.statut === "ajoutee" ? <span className="rounded-lg bg-[#15803D]/30 px-2.5 py-1 text-[12px] font-bold text-[#86EFAC]">{x.type === "prix" ? "PRIX APPLIQUÉS" : "EN LIGNE"}</span>
+              : enApercu.has(x.id) ? <span className="rounded-lg bg-[#F6A06B]/25 px-2.5 py-1 text-[12px] font-bold text-[#F6A06B]">EN APERÇU · À VALIDER EN HAUT</span>
+              : enCours[x.id] || (app.statut === "en_cours" && Object.keys(enCours).length) ? <span className="rounded-lg bg-white/10 px-2.5 py-1 text-[12px] font-bold">CODAGE EN COURS…</span>
+              : x.type === "prix" && x.donnees?.formules ? (
+                <div className="flex gap-2"><button onClick={() => prix(x)} disabled={!!busy} className={btnAccent}>Appliquer ces prix</button><button onClick={() => ignorer(x)} className={btnSombre}>Garder les miens</button></div>
+              ) : x.type === "fonction" ? (
+                <div className="flex gap-2"><button onClick={() => ajouter(x)} disabled={app.statut === "en_cours"} className={btnAccent}>L'ajouter à {app.spec.nom}</button><button onClick={() => ignorer(x)} className={btnSombre}>Ignorer</button></div>
+              ) : <button onClick={() => ignorer(x)} className={btnSombre}>Vu</button>}
           </div>
         ))}
       </div>

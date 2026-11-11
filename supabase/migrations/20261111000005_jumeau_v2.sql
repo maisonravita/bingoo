@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_app_suggestions.donnees, saas_pages, saas_apps_garde (modifications en aperçu)

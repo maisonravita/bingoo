@@ -101,35 +101,105 @@ export async function appChiffres(appId: string) {
 }
 
 // ---------------------------------------------------------------- Le jumeau : ce que sort le SaaS d'inspiration, à ajouter au sien
+// Trois sources, de la plus sûre à la plus large :
+// 1. ses nouvelles pages produit (plan du site), 2. ses changements de prix relevés par Bingoo!, 3. une recherche web (s'il n'a pas de plan lisible).
+type Sugg = { type: string; titre: string; detail: string; source: string | null; donnees?: unknown };
+const arrondi = (n: number) => Math.max(1, Math.round(n));
 
 export async function appJumeau(appId: string) {
-  const { data: app } = await admin.from("saas_apps").select("id, workspace_id, spec, projet_id").eq("id", appId).single();
-  const { data: pr } = await admin.from("saas_projets").select("data, saas_id").eq("id", app!.projet_id).single();
+  const { data: app } = await admin.from("saas_apps").select("id, workspace_id, spec, projet_id, jumeau_at").eq("id", appId).single();
+  const { data: pr } = await admin.from("saas_projets").select("data").eq("id", app!.projet_id).single();
   const insp = (pr?.data as any)?.inspire ?? {};
   if (!insp.domaine) return { nouvelles: 0 };
-  const { data: s } = await admin.from("saas").select("id, nom, domaine, prix_entree_eur, formules, liens").eq("domaine", insp.domaine).maybeSingle();
-  const { data: evs } = s ? await admin.from("saas_evenements").select("type, avant, apres, at").eq("saas_id", s.id).gte("at", new Date(Date.now() - 45 * 864e5).toISOString()).order("at", { ascending: false }).limit(10) : { data: [] };
-  const { data: deja } = await admin.from("saas_app_suggestions").select("titre").eq("app_id", appId).gte("at", new Date(Date.now() - 365 * 864e5).toISOString());
+  const { data: s } = await admin.from("saas").select("id, nom, domaine, prix_entree_eur").eq("domaine", insp.domaine).maybeSingle();
+  const { data: deja } = await admin.from("saas_app_suggestions").select("titre, source, type, donnees").eq("app_id", appId);
   const spec = (app?.spec ?? {}) as any;
   const nomInsp = insp.nom ?? insp.domaine;
-  // Recherche web : nouveautés publiées récemment (changelog, blog produit, annonces)
-  const notes = await ask(`Quelles nouvelles fonctionnalités ou changements de produit ${nomInsp} (${insp.domaine}) a-t-il annoncés ou publiés ces 60 derniers jours ? Cherche son changelog, ses notes de version, son blog produit. Liste chaque nouveauté avec sa date et l'adresse de la page source. Si rien de récent, dis-le.`,
-    { tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }], maxTokens: 1800 }).catch(() => "");
-  const r = await askJson<{ suggestions: { type: string; titre: string; detail: string; source: string | null }[] }>(`Le SaaS « ${spec.nom} » est un concurrent de ${nomInsp}. Il a ces écrans : ${(spec.ecrans ?? []).map((e: any) => `${e.titre} (${(e.fonctions ?? []).join(", ")})`).join(" ; ")}.
-Nouveautés récentes de ${nomInsp} (recherche web) :
-${String(notes).slice(0, 5000)}
-Changements relevés par Bingoo! sur son site : ${(evs ?? []).map((e: any) => `${e.type} ${e.avant ?? ""} → ${e.apres ?? ""} (${String(e.at).slice(0, 10)})`).join(" ; ") || "aucun"}.
-Déjà proposé : ${(deja ?? []).map((d: any) => d.titre).join(" ; ") || "rien"}.
+  const sugg: Sugg[] = [];
+  const connu = (t: string, src?: string | null) => (deja ?? []).some((d: any) => d.titre.toLowerCase() === t.toLowerCase() || (src && d.source === src));
 
-Rends { suggestions : 0 à 3 objets type ("fonction" ou "prix"), titre (« Ajouter … », 8 mots au plus), detail (2 phrases : ce que ${nomInsp} a sorti, et ce qu'il faut ajouter à ${spec.nom}, décrit avec tes mots pour un développeur), source (adresse de la page, ou null) }.
-Seulement des nouveautés réelles et datées des 60 derniers jours, utiles à ${spec.nom} et qu'il n'a pas déjà. Aucune si rien de solide.`, { fast: true, maxTokens: 1200 });
-  const nouv = (r.suggestions ?? []).filter((x) => x?.titre && !(deja ?? []).some((d: any) => d.titre.toLowerCase() === String(x.titre).toLowerCase())).slice(0, 3);
+  // 1. Nouvelles pages produit
+  const { pagesNouvelles } = await import("./leader-pages.ts");
+  const pages = s ? await pagesNouvelles(s.id, s.domaine).catch((e) => { console.error("pages", e); return null; }) : null;
+  const fraiches = (pages ?? []).filter((p) => !connu("", p.url));
+  if (fraiches.length) {
+    // L'IA dit ce qu'il faut ajouter, avec ses mots ; sans IA, on garde le titre de la page
+    let parIa: Sugg[] = [];
+    try {
+      const r = await askJson<{ suggestions: Sugg[] }>(`Le SaaS « ${spec.nom} » est un concurrent de ${nomInsp}. Ses écrans : ${(spec.ecrans ?? []).map((e: any) => `${e.titre} (${(e.fonctions ?? []).join(", ")})`).join(" ; ")}.
+${nomInsp} vient de publier ces pages :
+${fraiches.map((p, i) => `${i + 1}. ${p.titre} — ${p.resume} (${p.url})`).join("\n")}
+Pour chaque page qui annonce une fonctionnalité utile que ${spec.nom} n'a pas encore, rends un objet type "fonction", titre (« Ajouter … », 8 mots au plus), detail (2 phrases : ce que ${nomInsp} propose, puis ce qu'il faut ajouter à ${spec.nom}, avec tes mots, pour un développeur), source (l'adresse de la page). Ignore les pages marketing sans nouveauté.
+Rends { suggestions : [...] } (0 à 3 éléments).`, { fast: true, maxTokens: 1000 });
+      parIa = (r.suggestions ?? []).filter((x) => x?.titre);
+    } catch (e) {
+      console.error("jumeau ia", e);
+      parIa = fraiches.slice(0, 3).map((p) => ({ type: "fonction", titre: `Ajouter « ${p.titre.slice(0, 60)} »`, detail: `${nomInsp} a publié une nouvelle page : ${p.titre}.${p.resume ? ` ${p.resume}` : ""} L'équivalent dans ${spec.nom}, avec tes mots.`, source: p.url }));
+    }
+    sugg.push(...parIa);
+  }
+
+  // 2. Changement de prix du leader depuis le dernier passage : tes prix suivent dans les mêmes proportions
+  if (s?.prix_entree_eur && (spec.formules ?? []).length) {
+    const depuis = app!.jumeau_at ?? new Date(Date.now() - 30 * 864e5).toISOString();
+    const { data: ev } = await admin.from("saas_evenements").select("type, avant, apres, at").eq("saas_id", s.id).in("type", ["prix_hausse", "prix_baisse"]).gte("at", depuis).order("at", { ascending: false }).limit(1);
+    const e = ev?.[0];
+    const avant = Number(String(e?.avant ?? "").replace(/[^\d.,]/g, "").replace(",", ".")), apres = Number(String(e?.apres ?? "").replace(/[^\d.,]/g, "").replace(",", "."));
+    if (e && avant > 0 && apres > 0) {
+      const ratio = apres / avant;
+      const formules = (spec.formules ?? []).map((f: any) => ({ nom: f.nom, avant: Number(f.prix), apres: arrondi(Number(f.prix) * ratio) }));
+      const titre = `${nomInsp} ${ratio > 1 ? "monte" : "baisse"} ses prix : ${avant} € → ${apres} €`;
+      if (!connu(titre)) sugg.push({ type: "prix", titre, detail: `${nomInsp} est passé de ${avant} € à ${apres} € par mois (${ratio > 1 ? "+" : ""}${Math.round((ratio - 1) * 100)} %). Pour garder le même écart avec lui : ${formules.map((f: any) => `${f.nom} ${f.avant} € → ${f.apres} €`).join(", ")}.`, source: null, donnees: { formules, ratio } });
+    }
+  }
+
+  // 3. Pas de plan du site lisible : recherche web des nouveautés annoncées (au plus une fois par mois)
+  const dernierWeb = (deja ?? []).length ? null : 1;
+  if (pages === null && (dernierWeb || !app!.jumeau_at || Date.now() - new Date(app!.jumeau_at).getTime() > 28 * 864e5)) {
+    try {
+      const notes = await ask(`Quelles nouvelles fonctionnalités ${nomInsp} (${insp.domaine}) a-t-il annoncées ces 60 derniers jours ? Cherche son changelog, ses notes de version, son blog produit. Liste chaque nouveauté avec sa date et l'adresse de la page source. Si rien de récent, dis-le.`,
+        { tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }], maxTokens: 1500 });
+      const r = await askJson<{ suggestions: Sugg[] }>(`Le SaaS « ${spec.nom} » (écrans : ${(spec.ecrans ?? []).map((e: any) => e.titre).join(", ")}) est un concurrent de ${nomInsp}.
+Nouveautés de ${nomInsp} : ${String(notes).slice(0, 4000)}
+Rends { suggestions : 0 à 3 objets type "fonction", titre (« Ajouter … », 8 mots au plus), detail (2 phrases), source (adresse ou null) } : seulement des nouveautés réelles, datées des 60 derniers jours, utiles à ${spec.nom}.`, { fast: true, maxTokens: 900 });
+      sugg.push(...(r.suggestions ?? []).filter((x) => x?.titre));
+    } catch (e) { console.error("jumeau web", e); }
+  }
+
+  const nouv = sugg.filter((x) => !connu(String(x.titre), x.source)).slice(0, 4);
   if (nouv.length) {
-    await admin.from("saas_app_suggestions").insert(nouv.map((x) => ({ app_id: appId, type: x.type === "prix" ? "prix" : "fonction", titre: String(x.titre).slice(0, 120), detail: String(x.detail ?? "").slice(0, 800), source: x.source && /^https?:\/\//.test(x.source) ? x.source : null })));
-    await admin.from("activity").insert({ workspace_id: app!.workspace_id, kind: "jumeau", summary: `${nomInsp} a bougé : ${nouv.length} idée${nouv.length > 1 ? "s" : ""} à ajouter à ${spec.nom}` });
+    await admin.from("saas_app_suggestions").insert(nouv.map((x) => ({ app_id: appId, type: x.type === "prix" ? "prix" : "fonction", titre: String(x.titre).slice(0, 140), detail: String(x.detail ?? "").slice(0, 900), source: x.source && /^https?:\/\//.test(x.source) ? x.source : null, donnees: x.donnees ?? null })));
+    await admin.from("activity").insert({ workspace_id: app!.workspace_id, kind: "jumeau", summary: `${nomInsp} a bougé : ${nouv.length} idée${nouv.length > 1 ? "s" : ""} pour ${spec.nom}` });
   }
   await admin.from("saas_apps").update({ jumeau_at: new Date().toISOString() }).eq("id", appId);
-  return { nouvelles: nouv.length };
+  return { nouvelles: nouv.length, pages: pages === null ? "pas de plan du site" : pages.length ? `${pages.length} nouvelle(s) page(s)` : "référence enregistrée ou rien de neuf" };
+}
+
+/** Applique les prix proposés par le jumeau aux formules de l'app. */
+export async function appPrixSuggeres(appId: string, suggestionId: string) {
+  const { data: sg } = await admin.from("saas_app_suggestions").select("id, type, donnees, statut").eq("id", suggestionId).eq("app_id", appId).maybeSingle();
+  const f = (sg?.donnees as any)?.formules;
+  if (!sg || sg.type !== "prix" || !Array.isArray(f)) throw new HttpError(404, "Suggestion introuvable");
+  const { data: app } = await admin.from("saas_apps").select("spec, version").eq("id", appId).single();
+  const spec = { ...(app!.spec as any) };
+  spec.formules = (spec.formules ?? []).map((x: any) => { const n = f.find((y: any) => y.nom === x.nom); return n ? { ...x, prix: n.apres } : x; });
+  await admin.from("saas_apps").update({ spec, version: (app!.version ?? 1) + 1, maj: new Date().toISOString() }).eq("id", appId);
+  await admin.from("saas_app_suggestions").update({ statut: "ajoutee" }).eq("id", sg.id);
+  return { formules: spec.formules };
+}
+
+/** Aperçu d'une modification : la mettre en ligne, ou l'abandonner. */
+export async function appBrouillon(appId: string, valider: boolean) {
+  const { data: app } = await admin.from("saas_apps").select("spec, brouillon, version, statut").eq("id", appId).single();
+  const b = app?.brouillon as any;
+  if (!b?._modif) throw new HttpError(404, "Aucune modification en attente");
+  if (valider) {
+    const { _modif, ...spec } = b;
+    await admin.from("saas_apps").update({ spec, brouillon: null, version: (app!.version ?? 1) + 1, maj: new Date().toISOString() }).eq("id", appId);
+    const ids = (_modif.liste ?? [_modif]).map((x: any) => x.suggestion).filter(Boolean);
+    if (ids.length) await admin.from("saas_app_suggestions").update({ statut: "ajoutee" }).in("id", ids).eq("app_id", appId);
+  } else await admin.from("saas_apps").update({ brouillon: null }).eq("id", appId);
+  return { ok: true };
 }
 
 // ---------------------------------------------------------------- Kit de lancement : articles (pages indexables), e-mails

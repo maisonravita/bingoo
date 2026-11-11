@@ -112,9 +112,14 @@ export async function saasEcrireEcran(appId: string, ecranId: string) {
 }
 
 /** Modifie un écran à la demande (ou en ajoute un si ecranId = "nouveau"). */
-export async function saasModifierEcran(appId: string, ecranId: string, demande: string) {
-  const { data: app } = await admin.from("saas_apps").select("spec, version").eq("id", appId).single();
-  const spec = (app?.spec ?? {}) as any;
+// La modification s'écrit dans le brouillon (aperçu) : le créateur la voit, puis la met en ligne ou l'abandonne.
+export async function saasModifierEcran(appId: string, ecranId: string, demande: string, suggestion: string | null = null) {
+  // Une modification déjà en attente d'aperçu : la nouvelle s'ajoute par-dessus (on met en ligne le tout)
+  const { data: app } = await admin.from("saas_apps").select("spec, brouillon, version").eq("id", appId).single();
+  const enAttente = (app?.brouillon as any)?._modif ? (app!.brouillon as any) : null;
+  const spec = structuredClone(enAttente ?? (app?.spec ?? {})) as any;
+  const avant = enAttente?._modif?.liste ?? (enAttente?._modif ? [enAttente._modif] : []);
+  delete spec._modif;
   let e = (spec.ecrans ?? []).find((x: any) => x.id === ecranId);
   if (ecranId === "nouveau") {
     const n = await askJson<any>(`${contexteSpec(spec)}\nL'utilisateur veut un nouvel écran : ${demande}\nRends un objet JSON id (snake_case court, différent des écrans existants), titre (2 mots au plus), icone (parmi ${ICONES.join(", ")}), but, fonctions (3 à 6), collection (null, ou un nouvel objet nom + label + champs si l'écran a besoin de données qui n'existent pas encore).`, { fast: true });
@@ -130,5 +135,7 @@ export async function saasModifierEcran(appId: string, ecranId: string, demande:
     if (!r.ok) throw new Error("La modification n'a pas pu être écrite correctement, reformule ta demande");
     Object.assign(e, r);
   }
-  await admin.from("saas_apps").update({ spec, statut: "pret", etape: null, erreur: null, version: (app?.version ?? 0) + 1, maj: new Date().toISOString() }).eq("id", appId);
+  const m = { demande, ecran: e.id, titre: e.titre, nouveau: ecranId === "nouveau", suggestion, at: new Date().toISOString() };
+  spec._modif = { ...m, liste: [...avant.map(({ liste: _l, ...x }: any) => x), m] };
+  await admin.from("saas_apps").update({ brouillon: spec, statut: "pret", etape: null, erreur: null, maj: new Date().toISOString() }).eq("id", appId);
 }
