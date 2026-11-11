@@ -131,10 +131,14 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
       const p = pr.data as any;
       const teinte = [...String(p.nom ?? "")].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
       const hsl = (h: number) => { const l = 0.36, s2 = 0.62, k = (n: number) => (n + h / 30) % 12, f = (n: number) => l - s2 * Math.min(l, 1 - l) * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)); return "#" + [0, 8, 4].map((n) => Math.round(f(n) * 255).toString(16).padStart(2, "0")).join(""); };
+      // Page publique : jamais le nom du SaaS copié (concurrence loyale, et ce n'est pas un argument pour le client)
+      const inspi = String(p.inspire?.nom ?? "").trim().toLowerCase();
+      const propre = (t: unknown) => { const x = String(t ?? "").trim(); return x && (!inspi || !x.toLowerCase().includes(inspi)) ? x : ""; };
+      const slogan = String(p.pitch ?? "").split(/\s(?:qui|grâce|pour que|afin|avec)\s|[.:,;]/)[0].trim().slice(0, 70);
       const spec = {
-        nom: p.nom, pitch: p.pitch, cible: p.cible, probleme: p.probleme, couleur: hsl(teinte),
-        slogan: String(p.pitch ?? "").split(/[.:]/)[0].slice(0, 90), cible_courte: String(p.cible ?? "").split(/[,.;]/)[0].slice(0, 60),
-        atouts: [...(p.differences ?? []).map((x: any) => ({ titre: x.angle ?? x.titre, texte: x.pourquoi ?? x.texte ?? "" })), ...(p.equivalences ?? []).map((x: any) => ({ titre: String(x.chez_toi ?? "").split(/[:,.]/)[0].slice(0, 40), texte: x.chez_toi }))].filter((x: any) => x.titre).slice(0, 6),
+        nom: p.nom, pitch: propre(p.pitch), cible: p.cible, probleme: propre(p.probleme), couleur: hsl(teinte),
+        slogan, cible_courte: String(p.cible ?? "").split(/[,.;]/)[0].slice(0, 60),
+        atouts: [...(p.differences ?? []).map((x: any) => ({ titre: propre(x.angle ?? x.titre), texte: propre(x.pourquoi ?? x.texte) })), ...(p.equivalences ?? []).map((x: any) => ({ titre: propre(String(x.chez_toi ?? "").split(/[:,.]/)[0].slice(0, 40)), texte: propre(x.chez_toi) }))].filter((x: any) => x.titre && x.texte).slice(0, 6),
         formules: (p.formules ?? []).slice(0, 3), ecrans: [],
       };
       const validation = { actif: true, objectif: 10, remise: 30, cree_at: new Date().toISOString() };

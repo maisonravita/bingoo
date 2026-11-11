@@ -41,14 +41,14 @@ export default function PublicApp({ slug, domaine }) {
   return (
     <>
       <AppCadre slug={app.slug} spec={app.spec} version={app.version} paiement={app.paiement} domaine={app.domaine} ab={app.ab} articles={app.articles} retourPaiement={ctx.retour} invite={ctx.invite} tour={ctx.tour} source={ctx.source} ecran={ctx.ecran} validation={app.validation} precommande={ctx.precommande} className="fixed inset-0 w-full h-full border-0" />
-      {ios && (
+      {ios && !app.validation && (
         <div className="fixed inset-x-3 bottom-3 z-10 rounded-2xl bg-white/97 shadow-xl ring-1 ring-black/10 p-3.5 text-[13.5px] text-[#0F172A] flex items-start gap-3">
           <span className="text-[22px]">📲</span>
           <p className="flex-1">Installe <b>{app.spec.nom}</b> sur ton écran d'accueil : touche <b>Partager</b> <span aria-hidden>⬆︎</span> puis <b>« Sur l'écran d'accueil »</b>.</p>
           <button onClick={() => { setIos(false); try { localStorage.setItem("bingoo-ios-vu", "1"); } catch { /* stockage indisponible */ } }} className="text-[#64748B] text-[18px] leading-none">×</button>
         </div>
       )}
-      {installer && (
+      {installer && !app.validation && (
         <button onClick={async () => { installer.prompt(); await installer.userChoice.catch(() => null); setInstaller(null); }} className="fixed bottom-4 left-4 z-10 rounded-full bg-white/95 shadow-lg ring-1 ring-black/10 px-4 py-2.5 text-[13.5px] font-semibold text-[#0F172A]">⬇ Installer l'application</button>
       )}
     </>
