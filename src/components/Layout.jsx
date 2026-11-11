@@ -202,11 +202,13 @@ export default function Layout({ children }) {
   const item = (l) => ({ to: l.to, label: l.nom, short: l.court, icon: l.icon, count: compte[l.art], hot: l.art === "atelier", also: also[l.art] });
   const avance = !estSimple(ws);
   const veille = modeExplorer(ws);
+  // Mêmes 5 rubriques que la barre de l'Explorer ; chaque rubrique s'allume aussi sur ses sous-pages
   const essentiel = veille ? [
-    { to: "/explorer", label: "Tous les SaaS", icon: "eye" }, { to: "/explorer/carte", label: "Le monde des SaaS", icon: "town" }, { to: "/explorer/suivis", label: "Mes suivis", icon: "today" },
-    { to: "/explorer/bouge", label: "Ce qui a bougé", icon: "chart" }, { to: "/explorer/pubs", label: "Pubs et e-mails", icon: "doc" },
-    { to: "/explorer/idees", label: "Idées et réussites", icon: "town" }, { to: "/explorer/marche", label: "Pays et tendances", icon: "chart" },
-    { to: "/explorer/classement", label: "Classement des SaaS", icon: "chart" }, { to: "/explorer/createurs", label: "Mes SaaS et classement", icon: "town" }, { to: "/explorer/bourse", label: "Bourse des SaaS", icon: "chart" }, { to: "/explorer/racheter", label: "SaaS à racheter", icon: "eye" },
+    { to: "/explorer", label: "Tous les SaaS", icon: "list" },
+    { to: "/explorer/classement", label: "Classement", icon: "flag" },
+    { to: "/explorer/suivis", label: "Mes suivis", icon: "radar", also: ["/explorer/bouge"] },
+    { to: "/explorer/marche", label: "Tendances", icon: "spark", also: ["/explorer/carte", "/explorer/idees", "/explorer/pubs"] },
+    { to: "/explorer/createurs", label: "Mes SaaS", icon: "bot", also: ["/explorer/bourse", "/explorer/racheter", "/explorer/lancer"] },
   ] : [{ to: "/explorer", label: "Explorer", icon: "eye" }, item(lieu("atelier")), item(lieu("poste")), { to: "/appels", label: "Appels", icon: "phone", count: c.calls }, ...["rdv", "radar", "observatoire"].map((a) => item(lieu(a)))];
   const plus = veille ? [
     { to: "/abonnement", label: "Abonnement", icon: "doc" }, { to: "/equipe", label: "Équipe", icon: "phone" }, { to: "/reglages", label: "Réglages", icon: "plug" },
