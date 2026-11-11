@@ -211,6 +211,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (b.quoi === "paiement") { await log(ws.id, "app_reglage", "Encaissement de l'application modifié"); return await o.appPaiement(app.id, b); }
     if (b.quoi === "domaine") { await log(ws.id, "app_reglage", `Nom de domaine : ${String(b.domaine ?? "retiré").slice(0, 80)}`); return await o.appDomaine(app.id, b.domaine); }
     if (b.quoi === "domaine-verifier") return await o.appDomaineVerifier(app.id);
+    if (b.quoi === "croissance") return await o.appCroissance(app.id);
     if (b.quoi === "chiffres") {
       const c = await o.appChiffres(app.id);
       const debut = new Date(); debut.setUTCDate(1); debut.setUTCHours(0, 0, 0, 0);

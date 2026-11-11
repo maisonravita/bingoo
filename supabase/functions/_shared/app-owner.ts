@@ -444,3 +444,36 @@ export async function appIcones(appId: string, b: any) {
   await admin.from("saas_apps").update({ icones }).eq("id", appId);
   return icones;
 }
+
+// ---------------------------------------------------------------- Plan de croissance : tes chiffres réels, face au SaaS copié
+// Sans IA : les canaux visibles sur le site du modèle, les leçons de son histoire (avec sources), sa courbe de revenu vérifiée,
+// et le rythme réel de l'app (abonnés gagnés sur 30 jours) pour estimer la date de chaque palier.
+export async function appCroissance(appId: string) {
+  const { data: app } = await admin.from("saas_apps").select("id, spec, projet_id").eq("id", appId).single();
+  const { data: pr } = await admin.from("saas_projets").select("data").eq("id", app!.projet_id).single();
+  const insp = (pr?.data as any)?.inspire ?? {};
+  const ch = await appChiffres(appId);
+  const { data: us } = await admin.from("saas_app_users").select("at, abonnement").eq("app_id", appId).not("email", "like", "demo-%@demo.local").limit(10000);
+  const il30 = Date.now() - 30 * 864e5;
+  const abonnes30 = (us ?? []).filter((u: any) => ["active", "past_due"].includes(u.abonnement?.statut) && new Date(u.at).getTime() >= il30).length;
+  const formules = (((app?.spec as any)?.formules ?? []) as any[]).map((f) => Number(f.prix) || 0).filter((p) => p > 0);
+  const prixMoyen = ch.abonnes ? ch.mrr / ch.abonnes : formules.length ? formules.reduce((a, b) => a + b, 0) / formules.length : 0;
+  const { data: src } = await admin.rpc("saas_app_sources", { p_app: appId });
+  let modele: any = null;
+  if (insp.domaine) {
+    const { data: s } = await admin.from("saas").select("id, nom, domaine, methode, succes, copiable_raisons").eq("domaine", insp.domaine).maybeSingle();
+    if (s) {
+      const { data: h } = await admin.from("saas_histoires").select("lecons, annee_creation").eq("saas_id", s.id).eq("statut", "ok").maybeSingle();
+      const { count: mails } = await admin.from("saas_emails").select("id", { count: "exact", head: true }).eq("saas_id", s.id);
+      const { count: pubs } = await admin.from("saas_pubs").select("id", { count: "exact", head: true }).eq("saas_id", s.id).then((r) => r, () => ({ count: 0 }));
+      const sc = (s.succes ?? {}) as any;
+      modele = {
+        nom: s.nom, domaine: s.domaine, preuve: sc.preuve ?? null, source: sc.source ?? null,
+        mrr_mensuel: sc.mrr ?? (sc.montant ? Math.round(sc.montant / 12 / 1.08) : null), courbe: sc.courbe ?? [],
+        canaux: Object.entries((s.methode ?? {}) as Record<string, string>).filter(([, u]) => !!u).map(([k, u]) => ({ k, url: u })),
+        lecons: (h?.lecons ?? []).slice(0, 5), creation: h?.annee_creation ?? null, emails: mails ?? 0, pubs: pubs ?? 0,
+      };
+    }
+  }
+  return { ...ch, abonnes_30j: abonnes30, prix_moyen: Math.round(prixMoyen * 100) / 100, sources: (src ?? []).slice(0, 5), modele };
+}

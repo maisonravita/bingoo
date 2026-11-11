@@ -1251,11 +1251,98 @@ function Construire({ projet }) {
 }
 
 // Réglages d'un SaaS construit, par onglets : jumeau, lancement, encaissement, prix testés, e-mails, domaine, monde et bourse, code
-const ONGLETS_APP = [["jumeau", "Jumeau"], ["lancement", "Lancement"], ["encaisser", "Encaisser"], ["prix", "Prix testés"], ["emails", "E-mails"], ["domaine", "Domaine"], ["monde", "Monde et bourse"], ["mobile", "Mobile"], ["code", "Code"]];
+const ONGLETS_APP = [["croissance", "Croissance"], ["jumeau", "Jumeau"], ["lancement", "Lancement"], ["encaisser", "Encaisser"], ["prix", "Prix testés"], ["emails", "E-mails"], ["domaine", "Domaine"], ["monde", "Monde et bourse"], ["mobile", "Mobile"], ["code", "Code"]];
+// ---------------------------------------------------------------- Plan de croissance : tes vrais chiffres, les paliers, et ce qui fait grandir le SaaS copié
+const PALIERS = [1000, 10000, 100000];
+const CANAL_ACTION = {
+  comparatifs: ["Pages « alternative à » et comparatifs", "Publie des pages qui répondent à « alternative à … » et « … vs … » : ce sont des visiteurs prêts à changer d'outil. Les premiers articles sont prêts dans l'onglet Lancement.", "lancement"],
+  outils_gratuits: ["Un outil gratuit qui attire ta cible", "Un petit outil utile (calculateur, générateur, modèle) qui se partage et mène à l'inscription. Demande-le à Bingoo! en une phrase dans « Modifier ».", null],
+  affiliation: ["Un programme d'affiliation", "Propose une commission récurrente (souvent 20 à 30 %) à ceux qui t'amènent des clients, avec un outil d'affiliation branché sur ton Stripe.", null],
+  integrations: ["Les marketplaces d'intégrations", "Sois listé là où tes clients cherchent déjà : les catalogues d'intégrations des outils qu'ils utilisent tous les jours.", null],
+  producthunt: ["Un lancement Product Hunt", "Une journée de visibilité auprès des premiers utilisateurs : prépare la page, les visuels et une dizaine de soutiens avant le jour J.", null],
+  g2: ["Les avis G2", "Demande un avis à tes 10 premiers clients : les acheteurs comparent les notes avant de choisir.", null],
+  capterra: ["Les avis Capterra", "Demande un avis à tes 10 premiers clients : Capterra est souvent la première page vue par les PME qui cherchent un logiciel.", null],
+  linkedin: ["LinkedIn chaque semaine", "Raconte ce que tu construis et les problèmes de tes clients, chaque semaine : c'est là que se trouvent les décideurs B2B.", null],
+  youtube: ["Des vidéos YouTube", "Des démos et des tutoriels courts : ils se trouvent sur Google pendant des années.", null],
+  x: ["X (Twitter)", "Construis en public : tes chiffres, tes nouveautés, tes leçons. C'est le canal des fondateurs qui vendent aux fondateurs.", null],
+};
+const ETAPES = [
+  [0, "Tes 10 premiers clients, à la main", "À ce stade, rien ne remplace le contact direct : ta liste de précommande, les communautés où ta cible pose ses questions, et la prospection (« Voir qui démarcher » sur la fiche du SaaS copié). Chaque conversation t'apprend ce qui fait acheter."],
+  [1000, "Rendre l'acquisition répétable", "Tu as prouvé que ça se vend. Installe maintenant ce qui marche sans toi : les pages comparatifs, l'affiliation, les avis, et les e-mails de relance."],
+  [10000, "Accélérer", "Ton coût d'acquisition est connu : c'est le moment de la publicité, des partenariats et des tests de prix (onglet Prix testés)."],
+];
+function OngletCroissance({ app, appel, projet, allerA }) {
+  const [d, setD] = useState(undefined);
+  useEffect(() => { appel("croissance").then(setD, () => setD(null)); }, [app.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (d === undefined) return <p className="text-white/50 text-[14px]">Chargement…</p>;
+  if (!d) return <p className="text-white/50 text-[14px]">Le plan de croissance n'a pas pu être calculé, réessaie dans un instant.</p>;
+  const e = (n) => `${Math.round(n).toLocaleString("fr-FR")} €`;
+  const m = d.modele;
+  const etape = [...ETAPES].reverse().find(([seuil]) => d.mrr >= seuil) ?? ETAPES[0];
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="font-bold text-[16px]">Tes paliers</p>
+        <p className="text-[13px] text-white/55">Revenu mensuel vérifié chez Stripe : {e(d.mrr)} · {d.abonnes} abonné{d.abonnes > 1 ? "s" : ""}{d.prix_moyen ? ` · ${d.prix_moyen.toLocaleString("fr-FR")} € en moyenne par client` : ""} · {d.abonnes_30j} nouvel{d.abonnes_30j > 1 ? "s" : ""} abonné{d.abonnes_30j > 1 ? "s" : ""} ces 30 derniers jours</p>
+        <div className="mt-3 grid sm:grid-cols-3 gap-2">
+          {PALIERS.map((p) => {
+            const clients = d.prix_moyen ? Math.ceil(p / d.prix_moyen) : null;
+            const reste = clients != null ? Math.max(0, clients - d.abonnes) : null;
+            const mois = reste != null && d.abonnes_30j > 0 ? Math.ceil(reste / d.abonnes_30j) : null;
+            const pct = Math.min(100, Math.round((d.mrr / p) * 100));
+            return (
+              <div key={p} className={cx("rounded-xl p-3", d.mrr >= p ? "bg-[#F6A06B]/20" : "bg-white/5")}>
+                <p className="text-[20px] font-black tnum" style={HF}>{e(p)} <span className="text-[12px] font-medium text-white/50">par mois</span></p>
+                <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#F6A06B]" style={{ width: `${pct}%` }} /></div>
+                <p className="mt-2 text-[12.5px] text-white/70">{d.mrr >= p ? "✓ Atteint" : clients == null ? "Fixe tes prix pour calculer ce palier" : `${clients.toLocaleString("fr-FR")} clients au total, encore ${reste.toLocaleString("fr-FR")}`}</p>
+                {d.mrr < p && clients != null && <p className="text-[12px] text-white/45">{mois != null ? `≈ ${mois} mois au rythme actuel` : "La date s'affiche dès tes premiers abonnés"}</p>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div className="rounded-xl bg-white/5 border border-white/10 p-4">
+        <p className="text-[12px] font-bold uppercase tracking-wide text-[#F6A06B]">Ta priorité maintenant</p>
+        <p className="mt-1 font-bold">{etape[1]}</p>
+        <p className="mt-1 text-[13.5px] text-white/70">{etape[2]}</p>
+      </div>
+      {m && (
+        <div>
+          <p className="font-bold text-[16px]">Comment {m.nom} trouve ses clients</p>
+          <p className="text-[13px] text-white/55">{m.preuve ? <>{m.preuve}{m.source ? <> · <a href={m.source} target="_blank" rel="noopener noreferrer" className="underline">source</a></> : null}. </> : null}{m.mrr_mensuel && d.mrr > 0 ? `Tu fais ${Math.max(0.1, (d.mrr / m.mrr_mensuel) * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} % de son revenu mensuel.` : ""} Ce que voici est relevé sur son site : c'est ce qui le fait grandir.</p>
+          {(m.courbe ?? []).length > 2 && <div className="mt-2 max-w-md"><Sparkline pts={m.courbe.map((x) => ({ n: x.v }))} h={40} /></div>}
+          <div className="mt-3 grid md:grid-cols-2 gap-2">
+            {m.canaux.filter((c) => CANAL_ACTION[c.k]).map((c) => {
+              const [titre, texte, onglet] = CANAL_ACTION[c.k];
+              return (
+                <div key={c.k} className="rounded-xl bg-white/5 p-3">
+                  <p className="font-semibold text-[14px]">{titre}</p>
+                  <p className="mt-0.5 text-[13px] text-white/65">{texte}</p>
+                  <div className="mt-1.5 flex gap-3 text-[12.5px]"><a href={c.url} target="_blank" rel="noopener noreferrer" className="underline text-white/60">Voir le sien</a>{onglet && <button onClick={() => allerA(onglet)} className="underline text-[#F6A06B]">Faire le mien</button>}</div>
+                </div>
+              );
+            })}
+            {m.emails > 0 && <div className="rounded-xl bg-white/5 p-3"><p className="font-semibold text-[14px]">Ses e-mails ({m.emails} reçus)</p><p className="mt-0.5 text-[13px] text-white/65">{m.nom} relance ses inscrits par e-mail. Lis-les dans Tendances → Pubs et e-mails, puis active tes propres relances.</p><button onClick={() => allerA("emails")} className="mt-1.5 underline text-[12.5px] text-[#F6A06B]">Mes e-mails</button></div>}
+            {m.canaux.length === 0 && m.emails === 0 && <p className="text-[13px] text-white/50">Aucun canal visible sur son site pour l'instant : Bingoo! le relit chaque semaine.</p>}
+          </div>
+          {m.lecons.length > 0 && (
+            <div className="mt-3"><p className="text-[13px] font-semibold">Les leçons de son histoire</p><ul className="mt-1 space-y-1 text-[13px] text-white/70">{m.lecons.map((l) => <li key={l}>→ {l}</li>)}</ul></div>
+          )}
+        </div>
+      )}
+      {(d.sources ?? []).length > 0 && (
+        <div><p className="font-bold text-[16px]">D'où viennent tes inscrits</p>
+          <div className="mt-2 grid grid-cols-2 sm:grid-cols-5 gap-2">{d.sources.map((s) => <div key={s.source} className="rounded-lg bg-white/5 px-3 py-2"><p className="text-[13px] font-semibold truncate">{s.source}</p><p className="text-[12px] text-white/55">{s.inscrits} inscrit{s.inscrits > 1 ? "s" : ""} · {s.abonnes} abonné{s.abonnes > 1 ? "s" : ""}</p></div>)}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReglagesApp({ app, onChange, projet }) {
   const { ws } = useWs();
   const toast = useToast();
-  const [onglet, setOnglet] = useState("jumeau");
+  const [onglet, setOnglet] = useState("croissance");
   const [ch, setCh] = useState(null);
   const [busy, setBusy] = useState("");
   const appel = (quoi, extra = {}) => fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi, ...extra });
@@ -1278,6 +1365,7 @@ function ReglagesApp({ app, onChange, projet }) {
         {ONGLETS_APP.map(([k, l]) => <button key={k} onClick={() => setOnglet(k)} className={cx("shrink-0 rounded-t-lg px-3 py-2 text-[13.5px] font-semibold", onglet === k ? "bg-white/10 text-white" : "text-white/55 hover:text-white")}>{l}</button>)}
       </div>
       <div className="p-4 sm:p-5">
+        {onglet === "croissance" && <OngletCroissance {...props} allerA={setOnglet} />}
         {onglet === "jumeau" && <OngletJumeau {...props} />}
         {onglet === "lancement" && <OngletLancement {...props} />}
         {onglet === "encaisser" && <OngletEncaisser {...props} />}
