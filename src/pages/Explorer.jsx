@@ -144,7 +144,7 @@ function Liste({ copier: copierPage = false }) {
   const set = (k, v) => { setPage(0); setF((x) => ({ ...x, [k]: v })); };
 
   useEffect(() => {
-    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes, estimation, genre, copiable, copiable_raisons, preuve_ancienne, created_at", { count: "exact" });
+    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes, estimation, genre, copiable, copiable_raisons, preuve_ancienne, created_at, constructible", { count: "exact" });
     if (f.tag) q = q.contains("tags", [f.tag]);
     if (f.q.trim()) q = q.or(`nom.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,domaine.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,description.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%`);
     if (f.categorie) q = q.eq("categorie", f.categorie);
@@ -156,6 +156,7 @@ function Liste({ copier: copierPage = false }) {
     if (f.copier) q = q.gte("copiable", 60);
     if (f.genre) q = q.eq("genre", f.genre);
     if (f.actif) q = q.gte("nouveaute", new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10));
+    if (f.copier || copierPage) q = q.order("constructible", { ascending: false, nullsFirst: false });
     if (f.tri === "copiable") q = q.order("copiable", { ascending: false, nullsFirst: false }).order("revenu_tri", { ascending: false, nullsFirst: false });
     else q = q.order(f.tri, { ascending: f.tri === "prix_entree_eur" || f.tri === "rang_web", nullsFirst: false }).order("nom").range(page * PAGE, page * PAGE + PAGE - 1);
     let vivant = true;
@@ -256,6 +257,7 @@ function Liste({ copier: copierPage = false }) {
                 {s.score_croissance > 0 && <span title="Score de croissance (recrutement, nouveautés)" className={cx("rounded-lg px-2 py-1 text-[12px] font-bold tnum", s.score_croissance >= 60 ? "bg-[#DCFCE7] text-[#166534]" : s.score_croissance >= 30 ? "bg-[#FEF3C7] text-[#92400E]" : "bg-paper text-ink-soft")}>{s.score_croissance}</span>}
               </div>
               {s.succes && <p className={cx("mt-2 rounded-lg px-2.5 py-1.5 text-[12.5px] line-clamp-2", s.preuve_ancienne ? "bg-paper text-ink-faint" : "bg-[#FEF3C7] text-[#78350F] font-semibold")}>{s.preuve_ancienne ? "Ancien chiffre : " : "★ "}{s.succes.preuve}</p>}
+              {s.constructible === false && <p className="mt-1.5 text-[12px] font-semibold text-ink-faint">⚠ Bingoo! n'en construit qu'une partie</p>}
               {s.copiable >= 60 && <p title={(s.copiable_raisons ?? []).join(" · ")} className="mt-1.5 text-[12px] font-semibold text-[#166534]">🎯 Facile à copier · {s.copiable}/100 <span className="font-normal text-ink-faint">· {(s.copiable_raisons ?? []).filter((r) => !/^Revenu/.test(r)).slice(0, 2).join(" · ")}</span></p>}
               {!s.succes && s.estimation && <p title="Estimation d'après l'effectif officiel (annuaire des entreprises) : 80 000 à 180 000 € de revenu annuel par salarié" className="mt-2 rounded-lg bg-paper text-ink-soft px-2.5 py-1.5 text-[12.5px] line-clamp-2">≈ {montantCourt(s.estimation.bas)} à {montantCourt(s.estimation.haut)} par mois <span className="text-ink-faint">· estimé d'après l'effectif</span></p>}
               {s.description ? <p className="mt-2 text-[13.5px] text-ink-soft line-clamp-2 min-h-[38px]">{s.description}</p> : <p className="mt-2 text-[13px] text-ink-faint italic min-h-[38px]">Description en cours de lecture par Bingoo!</p>}
@@ -1042,6 +1044,21 @@ function Parcours({ etape }) {
   );
 }
 
+// Avant de payer : ce que la copie construite par Bingoo! fera, et ce qu'elle ne fera pas encore
+const FERA = ["Site, comptes de tes clients, essai gratuit et abonnements (ton Stripe)", "Écrans de gestion avec leurs données, recherche et filtres", "Pages publiques sans compte : réservation, formulaire, avis, commande", "Vrais e-mails : confirmations, rappels planifiés, relances", "Documents PDF (devis, factures, contrats), photos et fichiers", "Assistant IA qui rédige, résume et analyse", "Agenda à ajouter dans Google Agenda ou Outlook"];
+const FERA_PAS = ["Vidéo, image ou son générés", "Appli mobile native ou extension de navigateur", "SMS", "Synchronisation avec Google, Outlook ou un autre logiciel"];
+function CeQueTaCopieFera({ saas, compact = false }) {
+  return (
+    <div className={cx("rounded-2xl border p-4", saas?.constructible === false ? "border-[#FED7AA] bg-[#FFF7ED]" : "border-line bg-white")}>
+      <p className="font-bold text-[15px]">Ce que ta copie fera dès le premier jour</p>
+      {saas?.constructible === false && <p className="mt-1 text-[13.5px] text-[#9A3412]">Attention : le cœur de {saas.nom} repose sur une technologie que Bingoo! ne construit pas encore. Ta copie en reprendra la gestion et les pages, pas ce cœur-là.</p>}
+      <div className={cx("mt-2 grid gap-x-6 gap-y-1 text-[13.5px]", compact ? "" : "sm:grid-cols-2")}>
+        <ul className="space-y-1">{FERA.map((t) => <li key={t} className="flex gap-1.5"><span className="text-[#15803D]">✓</span>{t}</li>)}</ul>
+        <ul className="space-y-1 text-ink-soft"><li className="font-semibold text-ink">Pas encore :</li>{FERA_PAS.map((t) => <li key={t} className="flex gap-1.5"><span>–</span>{t}</li>)}</ul>
+      </div>
+    </div>
+  );
+}
 function Lancer() {
   const nav = useNavigate();
   const loc = useLocation();
@@ -1054,7 +1071,7 @@ function Lancer() {
   const [construit, setConstruit] = useState(null);
   useEffect(() => { if (p?.id) supabase.from("saas_apps").select("statut, spec->ecrans, domaine_statut, public").eq("projet_id", p.id).maybeSingle().then(({ data }) => setConstruit(data ?? null)); }, [p?.id]);
   useEffect(() => {
-    supabase.from("saas_liste").select("nom, domaine, categorie, description, pays, prix_entree_eur, succes").eq("domaine", d).maybeSingle().then(({ data }) => setSaas(data ?? null));
+    supabase.from("saas_liste").select("nom, domaine, categorie, description, pays, prix_entree_eur, succes, constructible").eq("domaine", d).maybeSingle().then(({ data }) => setSaas(data ?? null));
     supabase.from("saas_projets").select("id, data, at, statut").eq("workspace_id", ws.id).eq("data->inspire->>domaine", d).eq("statut", "pret").order("at", { ascending: false }).limit(1).then(({ data }) => setP(data?.[0] ? { id: data[0].id, ...data[0].data } : null));
   }, [d, ws.id]);
   // Le projet se prépare en tâche de fond (une à deux minutes) : on interroge la base toutes les 4 secondes
@@ -1091,6 +1108,7 @@ function Lancer() {
           <button onClick={generer} disabled={busy} className="mt-6 rounded-xl bg-accent px-7 py-3.5 font-bold hover:bg-accent-dark disabled:opacity-60">{busy ? "Préparation de ton projet… (une à deux minutes)" : niv(ws) < 2 ? "Disponible avec la formule Pro" : "Préparer mon projet"}</button>
         </div>
       ) : null}
+      {!p && <div className="mt-4"><CeQueTaCopieFera saas={saas} /></div>}
       {!p && <Apercu domaine={d} />}
       {!p ? null : (
         <>
@@ -1121,7 +1139,8 @@ function Lancer() {
           {p.equivalences?.length > 0 && (
             <Bloc className="mt-4" titre="Fonction par fonction" sous={`Ce que fait ${nomInspi}, lu sur son site, et ton équivalent`}>
               <table className="w-full text-[14px]"><thead><tr className="text-left text-[12px] text-ink-faint"><th className="pb-1.5 font-medium w-1/2">Chez {nomInspi}</th><th className="pb-1.5 font-medium">Chez {p.nom}</th></tr></thead>
-                <tbody>{p.equivalences.map((x, i) => <tr key={i} className="border-t border-line align-top"><td className="py-2 pr-4 text-ink-soft">{x.chez_eux}</td><td className="py-2 font-medium">✓ {x.chez_toi}</td></tr>)}</tbody></table>
+                <tbody>{p.equivalences.map((x, i) => <tr key={i} className="border-t border-line align-top"><td className="py-2 pr-4 text-ink-soft">{x.chez_eux}</td><td className="py-2 font-medium">{x.v1 === false ? <span className="mr-1.5 rounded bg-paper px-1.5 py-0.5 text-[11px] font-bold text-ink-soft">Plus tard</span> : x.v1 === true ? <span className="mr-1.5 rounded bg-[#DCFCE7] px-1.5 py-0.5 text-[11px] font-bold text-[#166534]">Dans ta copie</span> : "✓ "}{x.chez_toi}</td></tr>)}</tbody></table>
+              {p.equivalences.some((x) => x.v1 === false) && <p className="mt-2 text-[12.5px] text-ink-faint">« Plus tard » : Bingoo! ne le construit pas encore ; tu pourras le faire coder ensuite (le texte pour un développeur est plus bas).</p>}
             </Bloc>
           )}
           <h2 className="mt-6 font-bold text-[20px]">Tes petits plus face à {nomInspi}</h2>
