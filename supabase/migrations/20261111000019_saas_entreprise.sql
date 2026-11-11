@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas.entreprise / entreprise_at (annuaire officiel des entreprises), fin de l'estimation par le trafic, cron bingoo-explorer-entreprises

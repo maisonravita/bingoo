@@ -130,7 +130,7 @@ function Liste() {
   const set = (k, v) => { setPage(0); setF((x) => ({ ...x, [k]: v })); };
 
   useEffect(() => {
-    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes", { count: "exact" });
+    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes, estimation", { count: "exact" });
     if (f.tag) q = q.contains("tags", [f.tag]);
     if (f.q.trim()) q = q.or(`nom.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,domaine.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,description.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%`);
     if (f.categorie) q = q.eq("categorie", f.categorie);
@@ -236,6 +236,7 @@ function Liste() {
                 {s.score_croissance > 0 && <span title="Score de croissance (recrutement, nouveautés)" className={cx("rounded-lg px-2 py-1 text-[12px] font-bold tnum", s.score_croissance >= 60 ? "bg-[#DCFCE7] text-[#166534]" : s.score_croissance >= 30 ? "bg-[#FEF3C7] text-[#92400E]" : "bg-paper text-ink-soft")}>{s.score_croissance}</span>}
               </div>
               {s.succes && <p className="mt-2 rounded-lg bg-[#FEF3C7] text-[#78350F] px-2.5 py-1.5 text-[12.5px] font-semibold line-clamp-2">★ {s.succes.preuve}</p>}
+              {!s.succes && s.estimation && <p title="Estimation d'après l'effectif officiel (annuaire des entreprises) : 80 000 à 180 000 € de revenu annuel par salarié" className="mt-2 rounded-lg bg-paper text-ink-soft px-2.5 py-1.5 text-[12.5px] line-clamp-2">≈ {montantCourt(s.estimation.bas)} à {montantCourt(s.estimation.haut)} par mois <span className="text-ink-faint">· estimé d'après l'effectif</span></p>}
               {s.description ? <p className="mt-2 text-[13.5px] text-ink-soft line-clamp-2 min-h-[38px]">{s.description}</p> : <p className="mt-2 text-[13px] text-ink-faint italic min-h-[38px]">Description en cours de lecture par Bingoo!</p>}
               <div className="mt-3 flex flex-wrap gap-1.5 text-[12px]">
                 <span className="rounded-md bg-paper px-2 py-1 tnum">{prixCourt(s).replace(/^./, (c) => c.toUpperCase())}</span>
@@ -330,6 +331,8 @@ function Fiche({ domaine }) {
           <p className="mt-2 text-[15.5px] max-w-2xl">{s.description}</p>
           {s.cible && <p className="mt-1 text-[14px] text-ink-soft">Pour : {s.cible}</p>}
           {s.succes && <p className="mt-3 inline-flex flex-wrap items-center gap-x-2 rounded-xl bg-[#FEF3C7] text-[#78350F] px-3.5 py-2 text-[14px]"><b>★ Preuve de succès :</b> {s.succes.preuve}{s.succes.source && <a href={s.succes.source} target="_blank" rel="noopener noreferrer" className="underline text-[12.5px] opacity-80">source</a>}</p>}
+          {!s.succes && s.estimation && <p className="mt-3 inline-flex flex-wrap items-center gap-x-2 rounded-xl bg-paper px-3.5 py-2 text-[14px] text-ink-soft"><b className="text-ink">Revenu estimé :</b> {montantCourt(s.estimation.bas)} à {montantCourt(s.estimation.haut)} par mois <span className="text-[12.5px] text-ink-faint">(d'après l'effectif officiel, {s.estimation.effectif} : 80 000 à 180 000 € par salarié et par an)</span></p>}
+          {s.entreprise?.nom && !s.entreprise.refus && <p className="mt-2 text-[13px] text-ink-soft">Société : <b>{s.entreprise.nom}</b>{s.entreprise.creation ? ` · créée en ${s.entreprise.creation.slice(0, 4)}` : ""}{s.entreprise.effectif ? ` · ${s.entreprise.effectif.libelle}` : ""}{s.entreprise.ca ? ` · CA ${s.entreprise.annee} : ${(s.entreprise.ca / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M€` : ""}{s.entreprise.resultat != null && s.entreprise.ca ? ` · résultat : ${(s.entreprise.resultat / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M€` : ""} · <a href={s.entreprise.source} target="_blank" rel="noopener noreferrer" className="underline">annuaire officiel</a></p>}
           {(s.succes?.courbe ?? []).filter((x) => x.m !== new Date().toISOString().slice(0, 7)).length > 2 && (
             <div className="mt-3 max-w-md rounded-xl border border-line bg-white px-4 py-3">
               <div className="flex items-baseline justify-between text-[12.5px]"><b>Revenu vérifié, mois par mois</b><span className="text-ink-faint">{s.succes.abonnements ? `${s.succes.abonnements.toLocaleString("fr-FR")} abonnés · ` : ""}{s.succes.fonde ? `créé en ${s.succes.fonde.slice(0, 4)}` : ""}</span></div>
@@ -1776,6 +1779,7 @@ function FilBourse({ fil, onClose }) {
 
 // ---------------------------------------------------------------- Classement : les SaaS qui grossissent le plus vite (revenus vérifiés)
 const ONGLETS_CLASSEMENT = [["mois", "Ce mois-ci", "Croissance du MRR sur 30 jours, à partir de 1 000 $ de MRR."], ["trimestre", "Sur 3 mois", "Revenu du dernier mois complet comparé à celui d'il y a 3 mois."], ["revenu", "Plus gros revenu", "Le MRR vérifié le plus élevé."], ["jeunes", "Nés cette année", "Créés il y a moins de 12 mois, déjà au-dessus de 1 000 $ par mois."]];
+const montantCourt = (n) => n >= 1e6 ? `${(n / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M$` : n >= 1e3 ? `${Math.round(n / 1e3)} k$` : `${Math.round(n)} $`;
 const MARCHES_FR = { AI: "IA", "Dev Tools": "Outils développeurs", Marketing: "Marketing", Analytics: "Analytics", Productivity: "Productivité", Sales: "Ventes", "Content Creation": "Création de contenu", Education: "Éducation", "E-comm": "E-commerce", "E-commerce": "E-commerce", "Mobile Apps": "Applis mobiles", "Design Tools": "Design", "Recruiting & HR": "Recrutement et RH", Fintech: "Finance", Security: "Sécurité", "Social Media": "Réseaux sociaux", "Health & Fitness": "Santé et sport", Entertainment: "Divertissement", Community: "Communauté", "No-Code": "No-code", Marketplace: "Marketplace", Games: "Jeux", "Customer Support": "Support client", "Real Estate": "Immobilier", Legal: "Juridique", Travel: "Voyage", Crypto: "Crypto", "News & Magazines": "Médias" };
 const marcheFr = (m) => MARCHES_FR[m] ?? m;
 const dollar = (n) => n == null ? "—" : n >= 1e6 ? `${(n / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M$` : n >= 1e4 ? `${Math.round(n / 1e3)} k$` : `${Math.round(n).toLocaleString("fr-FR")} $`;
