@@ -9,7 +9,7 @@ import type { SupabaseClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const LIM = { inscriptionsParHeure: 15, rows: 20000, taille: 20000, mailsJourEspace: 100, mailsJourApp: 1000, fichiersEspace: 500, octetsFichier: 4_500_000 };
 // Appels à l'IA intégrée inclus chaque mois par application, selon la formule du créateur (au-delà : sa propre clé)
-const IA_INCLUSE: Record<string, number> = { explorer_pro: 1000, business: 5000, fondateur: 5000 };
+const IA_INCLUSE: Record<string, number> = { explorer_pro: 1000, business: 3000, fondateur: 3000 };
 const emailOk = (e: unknown) => /^[^@\s<>"]+@[^@\s<>"]+\.[a-z]{2,}$/i.test(String(e ?? "").trim());
 const hex32 = () => hex(crypto.getRandomValues(new Uint8Array(16)));
 

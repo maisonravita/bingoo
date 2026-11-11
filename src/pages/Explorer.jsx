@@ -2038,7 +2038,7 @@ function OngletIA({ app, appel, agir, busy }) {
   const pct = Math.min(100, Math.round((e.mois / Math.max(1, e.inclus)) * 100));
   return (
     <div className="space-y-3 max-w-xl">
-      <Explication>Ton SaaS a un assistant IA intégré (rédiger, résumer, analyser). Ta formule inclut {e.inclus.toLocaleString("fr-FR")} réponses par mois. Au-delà, branche ta propre clé Anthropic : les réponses te sont alors facturées directement par Anthropic, sans limite de Bingoo!.</Explication>
+      <Explication>Ton SaaS a un assistant IA intégré (rédiger, résumer, analyser). Ta formule inclut {e.inclus.toLocaleString("fr-FR")} réponses par mois, pour toutes tes applications. Au-delà, branche ta propre clé Anthropic : les réponses te sont alors facturées directement par Anthropic, sans limite de Bingoo!.</Explication>
       {!e.cle && (
         <div>
           <p className="text-[13.5px]">Ce mois-ci : <b>{e.mois.toLocaleString("fr-FR")}</b> / {e.inclus.toLocaleString("fr-FR")} réponses</p>
