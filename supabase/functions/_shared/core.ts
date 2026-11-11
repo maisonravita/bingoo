@@ -255,6 +255,9 @@ export async function aiGuard() {
     const spent = await aiSpent(null);
     if (spent >= cap || (!ctx.live && spent >= cap * 0.7)) throw new HttpError(503, "Pause de sécurité : le plafond quotidien d'IA de la plateforme est atteint. Reprise automatique demain.");
   }
+  // Construire, réparer, modifier un SaaS et préparer un projet : déjà limités par les quotas mensuels de la formule
+  // (3 ou 10 constructions, 30 ou 100 modifications) ; ils ne doivent pas s'arrêter à mi-chemin faute d'enveloppe.
+  if (/^(construire|explorer\/lancer)/.test(String(ctx.feature ?? ""))) return;
   const [spent, budget] = await Promise.all([aiSpent(ws), aiBudget(ws)]);
   if (spent >= budget) {
     // Au-delà de l'enveloppe : on puise dans les recharges achetées, s'il en reste
