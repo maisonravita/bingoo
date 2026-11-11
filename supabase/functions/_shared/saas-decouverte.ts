@@ -143,10 +143,15 @@ export function trustmrrFiche(md: string, slug: string) {
   const abonnements = dollars(ligne("Current active subscriptions")) || null;
   const total = dollars(ligne("All-time revenue snapshot")) || null;
   const courbe = [...(md.split("### Monthly revenue timeline")[1] ?? "").matchAll(/^\| (\d{4}-\d{2}) \| \$([\d,]+) \|$/gm)].map((m) => ({ m: m[1], v: Number(m[2].replace(/,/g, "")) }));
+  // Fondateurs affichés publiquement par la startup elle-même sur TrustMRR (nom, lien du profil, photo, abonnés X)
+  const fondateurs = [...md.matchAll(/^- (?:Co-)?[Ff]ounder: \[([^\]]+)\]\((https:\/\/trustmrr\.com\/founder\/[^)\s]+)\)$/gm)].slice(0, 3).map((m) => ({ nom: m[1].trim(), lien: m[2] }));
+  const photo = ligne("Founder image")?.match(/\((https:\/\/[^)\s]+)\)/)?.[1] ?? null;
+  const abonnesX = dollars(ligne("X followers")) || null;
+  if (fondateurs[0]) Object.assign(fondateurs[0], { photo, x_abonnes: abonnesX });
   const marches = [...(ligne("Markets") ?? "").matchAll(/\[([^\]]+)\]/g)].map((m) => m[1]).slice(0, 5);
   return {
     slug, site, nom: ligne("Name"), description: ligne("Description"), pays: ligne("Country"), fonde: ligne("Founded date"),
-    mrr, rev30, croissance, abonnements, total, courbe, marches, prix: ligne("Pricing model"), probleme: ligne("Problem solved"),
+    mrr, rev30, croissance, fondateurs, abonnements, total, courbe, marches, prix: ligne("Pricing model"), probleme: ligne("Problem solved"),
     a_vendre: /currently listed for sale/i.test(md) && !/not currently listed for sale/i.test(md),
   };
 }
@@ -201,7 +206,7 @@ export async function trustmrrLire(n = 40, maxMs = 100_000) {
       const mensuel = f.mrr > 0 ? f.mrr : f.rev30;
       const crois = f.croissance?.replace(".", ",").replace("%", " %");
       const preuve = f.mrr ? `${fmt$(f.mrr)} de MRR vérifié par Stripe${crois && !/^[+-]?0,0/.test(crois) ? ` (${crois} en 30 jours)` : ""}` : `${fmt$(f.rev30)} de revenu vérifié sur 30 jours`;
-      const s = { preuve, source: `${TM}/startup/${f.slug}`, type: "revenu_verifie", montant: mensuel * 12, mrr: f.mrr || null, revenu_30j: f.rev30 || null, croissance_30j: f.croissance, abonnements: f.abonnements, revenu_total: f.total, fonde: f.fonde, courbe: f.courbe.slice(-12), marches: f.marches, prix: f.prix, probleme: f.probleme, a_vendre: f.a_vendre, verifie_at: new Date().toISOString() };
+      const s = { preuve, source: `${TM}/startup/${f.slug}`, type: "revenu_verifie", montant: mensuel * 12, mrr: f.mrr || null, revenu_30j: f.rev30 || null, croissance_30j: f.croissance, abonnements: f.abonnements, revenu_total: f.total, fonde: f.fonde, courbe: f.courbe.slice(-12), marches: f.marches, prix: f.prix, probleme: f.probleme, a_vendre: f.a_vendre, fondateurs: f.fondateurs, verifie_at: new Date().toISOString() };
       const e = par.get(f.site!);
       // Ne jamais écraser la preuve d'un autre SaaS (ex. un géant) : seulement si la fiche n'en a pas, ou si c'est la même startup TrustMRR
       if (e && e.succes && e.succes.source !== s.source) continue;

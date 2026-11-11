@@ -331,6 +331,9 @@ function Fiche({ domaine }) {
           <p className="mt-2 text-[15.5px] max-w-2xl">{s.description}</p>
           {s.cible && <p className="mt-1 text-[14px] text-ink-soft">Pour : {s.cible}</p>}
           {s.succes && <p className="mt-3 inline-flex flex-wrap items-center gap-x-2 rounded-xl bg-[#FEF3C7] text-[#78350F] px-3.5 py-2 text-[14px]"><b>★ Preuve de succès :</b> {s.succes.preuve}{s.succes.source && <a href={s.succes.source} target="_blank" rel="noopener noreferrer" className="underline text-[12.5px] opacity-80">source</a>}</p>}
+          {(s.succes?.fondateurs ?? []).length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2"><span className="text-[12.5px] font-semibold text-ink-faint">Fondé par</span>{s.succes.fondateurs.map((f) => <Fondateur key={f.lien} f={f} grand />)}</div>
+          )}
           {!s.succes && s.estimation && <p className="mt-3 inline-flex flex-wrap items-center gap-x-2 rounded-xl bg-paper px-3.5 py-2 text-[14px] text-ink-soft"><b className="text-ink">Revenu estimé :</b> {montantCourt(s.estimation.bas)} à {montantCourt(s.estimation.haut)} par mois <span className="text-[12.5px] text-ink-faint">(d'après l'effectif officiel, {s.estimation.effectif} : 80 000 à 180 000 € par salarié et par an)</span></p>}
           {s.entreprise?.nom && !s.entreprise.refus && <p className="mt-2 text-[13px] text-ink-soft">Société : <b>{s.entreprise.nom}</b>{s.entreprise.creation ? ` · créée en ${s.entreprise.creation.slice(0, 4)}` : ""}{s.entreprise.effectif ? ` · ${s.entreprise.effectif.libelle}` : ""}{s.entreprise.ca ? ` · CA ${s.entreprise.annee} : ${(s.entreprise.ca / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M€` : ""}{s.entreprise.resultat != null && s.entreprise.ca ? ` · résultat : ${(s.entreprise.resultat / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M€` : ""} · <a href={s.entreprise.source} target="_blank" rel="noopener noreferrer" className="underline">annuaire officiel</a></p>}
           {(s.succes?.courbe ?? []).filter((x) => x.m !== new Date().toISOString().slice(0, 7)).length > 2 && (
@@ -1783,6 +1786,17 @@ const montantCourt = (n) => n >= 1e6 ? `${(n / 1e6).toLocaleString("fr-FR", { ma
 const MARCHES_FR = { AI: "IA", "Dev Tools": "Outils développeurs", Marketing: "Marketing", Analytics: "Analytics", Productivity: "Productivité", Sales: "Ventes", "Content Creation": "Création de contenu", Education: "Éducation", "E-comm": "E-commerce", "E-commerce": "E-commerce", "Mobile Apps": "Applis mobiles", "Design Tools": "Design", "Recruiting & HR": "Recrutement et RH", Fintech: "Finance", Security: "Sécurité", "Social Media": "Réseaux sociaux", "Health & Fitness": "Santé et sport", Entertainment: "Divertissement", Community: "Communauté", "No-Code": "No-code", Marketplace: "Marketplace", Games: "Jeux", "Customer Support": "Support client", "Real Estate": "Immobilier", Legal: "Juridique", Travel: "Voyage", Crypto: "Crypto", "News & Magazines": "Médias" };
 const marcheFr = (m) => MARCHES_FR[m] ?? m;
 const dollar = (n) => n == null ? "—" : n >= 1e6 ? `${(n / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M$` : n >= 1e4 ? `${Math.round(n / 1e3)} k$` : `${Math.round(n).toLocaleString("fr-FR")} $`;
+/** Fondateur affiché publiquement par la startup sur TrustMRR. */
+function Fondateur({ f, className = "", grand = false }) {
+  const [ok, setOk] = useState(true);
+  return (
+    <a href={f.lien} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className={cx("items-center gap-2 min-w-0 hover:underline", className.includes("hidden") ? "" : "flex", className)}>
+      {f.photo && ok ? <img src={f.photo} alt="" onError={() => setOk(false)} referrerPolicy="no-referrer" className={cx("rounded-full object-cover shrink-0 bg-paper", grand ? "w-10 h-10" : "w-7 h-7")} /> : <span className={cx("rounded-full bg-paper grid place-items-center font-bold text-ink-soft shrink-0", grand ? "w-10 h-10" : "w-7 h-7 text-[12px]")}>{f.nom.slice(0, 1).toUpperCase()}</span>}
+      <span className="min-w-0"><span className={cx("block truncate font-semibold", grand ? "text-[15px]" : "text-[13px]")}>{f.nom}</span>{f.x_abonnes ? <span className="block text-[11.5px] text-ink-faint">{f.x_abonnes.toLocaleString("fr-FR")} abonnés sur X</span> : null}</span>
+    </a>
+  );
+}
+
 function Classement() {
   const nav = useNavigate();
   const [tri, setTri] = useState("mois");
@@ -1810,6 +1824,7 @@ function Classement() {
                   <p className="font-bold truncate">{x.nom} <span className="font-normal">{drapeau(x.pays)}</span></p>
                   <p className="text-[12.5px] text-ink-faint truncate">{x.categorie ?? (x.marches ?? []).filter((m) => m !== "SaaS").slice(0, 2).map(marcheFr).join(" · ")} · {x.domaine}{x.fonde ? ` · créé en ${x.fonde.slice(0, 4)}` : ""}</p>
                 </div>
+                {x.fondateurs?.[0] && <Fondateur f={x.fondateurs[0]} className="hidden lg:flex w-44" />}
                 <div className="hidden md:block w-28">{pts.length > 1 && <Sparkline pts={pts} h={30} />}</div>
                 <div className="w-24 text-right"><p className="font-bold tnum">{dollar(x.mrr ?? x.revenu_mois)}</p><p className="text-[11.5px] text-ink-faint">{x.mrr ? "MRR" : "par mois"}</p></div>
                 <div className="w-20 text-right">{crois != null && <span className={cx("inline-block rounded-lg px-2 py-1 text-[12.5px] font-bold tnum", crois > 0 ? "bg-[#DCFCE7] text-[#166534]" : crois < 0 ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-paper text-ink-soft")}>{crois > 0 ? "+" : ""}{Number(crois).toLocaleString("fr-FR", { maximumFractionDigits: 0 })} %</span>}</div>
