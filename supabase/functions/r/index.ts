@@ -507,6 +507,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     }
     return { ...envois, relances: (bloquees ?? []).length };
   },
+  async "saas-recap-mensuel"(req, b) { await cron(req); const { saasRecapMensuel } = await import("../_shared/saas-base.ts"); return await saasRecapMensuel(b.workspace_id ? String(b.workspace_id) : undefined, !!b.apercu); },
   async "saas-niches"(req) { await cron(req); const { saasNiches } = await import("../_shared/saas-base.ts"); return await saasNiches(); },
   async "saas-tags"(req) { await cron(req); const { saasTags, saasEmailsAClasser } = await import("../_shared/saas-base.ts"); await saasEmailsAClasser().catch(() => null); return await saasTags(); },
   // Explorer (clé cron) : relevés de nuit et amorçage de la base

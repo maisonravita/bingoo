@@ -776,3 +776,64 @@ ${top.map((x, i) => `<div style="border:1px solid #E7E5E4;border-radius:14px;pad
   }
   return { comptes: (wss ?? []).length, envoyes };
 }
+
+
+/** Récap mensuel des créateurs (sans IA) : chiffres du mois écoulé de chacun de leurs SaaS, palier, comparaison avec le SaaS
+ *  dont ils se sont inspirés (revenu vérifié et croissance), et UNE action concrète choisie par des règles simples. */
+export async function saasRecapMensuel(seulement?: string, apercu = false) {
+  const { teamAddress, sendSystem } = await import("./mail.ts");
+  const site = "https://kairo.maisonravita.fr";
+  const debut = new Date(); debut.setUTCDate(1); debut.setUTCHours(0, 0, 0, 0); debut.setUTCMonth(debut.getUTCMonth() - 1);
+  const fin = new Date(debut); fin.setUTCMonth(fin.getUTCMonth() + 1);
+  const mois = debut.toLocaleDateString("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" });
+  let q = admin.from("saas_apps").select("id, slug, statut, spec, workspace_id, projet_id, domaine, domaine_statut, paiement").eq("statut", "pret");
+  if (seulement) q = q.eq("workspace_id", seulement);
+  const { data: apps } = await q.limit(2000);
+  const parWs = new Map<string, any[]>();
+  for (const a of (apps ?? []) as any[]) if ((a.spec?.ecrans ?? []).length) parWs.set(a.workspace_id, [...(parWs.get(a.workspace_id) ?? []), a]);
+  const { appChiffres } = await import("./app-owner.ts");
+  const eur = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} €`;
+  let envoyes = 0; const apercus: any[] = [];
+  for (const [wsId, liste] of parWs) {
+    const { data: w } = await admin.from("workspaces").select("*").eq("id", wsId).single();
+    if (!w || (w.profile as any)?.qa && !seulement) continue;
+    const blocs: { titre: string; lignes: string[]; action: string; lien: string }[] = [];
+    for (const a of liste.slice(0, 5)) {
+      const ch: any = await appChiffres(a.id).catch(() => null);
+      if (!ch) continue;
+      const [{ count: nouveaux }, { data: vis }] = await Promise.all([
+        admin.from("saas_app_users").select("id", { count: "exact", head: true }).eq("app_id", a.id).not("email", "like", "demo-%@demo.local").gte("at", debut.toISOString()).lt("at", fin.toISOString()),
+        admin.from("saas_app_visites").select("vues").eq("app_id", a.id).gte("jour", debut.toISOString().slice(0, 10)).lt("jour", fin.toISOString().slice(0, 10)),
+      ]);
+      const visites = (vis ?? []).reduce((t: number, v: any) => t + Number(v.vues ?? 0), 0);
+      const palier = [1000, 10000, 100000].find((p) => ch.mrr < p) ?? null;
+      const { data: pr } = await admin.from("saas_projets").select("data").eq("id", a.projet_id).maybeSingle();
+      const insp = (pr?.data as any)?.inspire;
+      const { data: orig } = insp?.domaine ? await admin.from("saas").select("nom, succes").eq("domaine", insp.domaine).maybeSingle() : { data: null };
+      const su: any = orig?.succes;
+      const lignes = [
+        `${visites.toLocaleString("fr-FR")} visites · ${nouveaux ?? 0} nouvel${(nouveaux ?? 0) > 1 ? "les inscriptions" : "le inscription"} · ${ch.abonnes} abonné${ch.abonnes > 1 ? "s" : ""} · ${eur(ch.mrr)} de revenu mensuel`,
+        palier ? `Prochain palier : ${eur(palier)} par mois (encore ${eur(palier - ch.mrr)})` : "Palier des 100 000 € par mois dépassé",
+      ];
+      if (su?.type === "revenu_verifie" && su.montant) lignes.push(`Le SaaS dont tu t'es inspiré : ${eur(su.montant / 12 / 1.08)} par mois (vérifié)${su.croissance_30j ? `, ${su.croissance_30j} sur 30 jours` : ""}. La demande est toujours là.`);
+      const lien = a.domaine_statut === "ok" && a.domaine ? `https://${a.domaine}/` : `${site}/app/${a.slug}`;
+      const action = !a.paiement?.actif ? "Branche l'encaissement (onglet Encaisser) : sans lui, personne ne peut s'abonner."
+        : visites < 100 ? "Peu de visites : publie une page « alternative à … » et partage le lien de ton SaaS là où ta cible se retrouve (onglet Croissance)."
+        : (nouveaux ?? 0) === 0 ? "Des visites mais aucune inscription : rends l'essai plus visible sur ton site et raccourcis le formulaire."
+        : ch.abonnes === 0 ? "Des inscrits mais pas encore d'abonné : écris-leur un par un pour savoir ce qui manque (ils répondent souvent)."
+        : "Ça tourne : demande un avis à tes abonnés et propose une offre annuelle avec deux mois offerts.";
+      blocs.push({ titre: String(a.spec?.nom ?? a.slug), lignes, action, lien });
+    }
+    if (!blocs.length) continue;
+    const titre = `Ton récap de ${mois}`;
+    const text = [titre, "", ...blocs.flatMap((b) => [b.titre, ...b.lignes.map((l) => `- ${l}`), `À faire ce mois-ci : ${b.action}`, b.lien, ""]), `Ouvrir Bingoo! : ${site}/#/explorer/createurs`].join("\n");
+    const html = `<div style="font-family:Arial,sans-serif;color:#15161A;max-width:560px"><h2 style="margin:0 0 4px">${escH(titre)}</h2><p style="color:#5B5D66;margin:0 0 16px">Ce qu'ont fait tes SaaS le mois dernier, et la prochaine marche.</p>
+${blocs.map((b) => `<div style="border:1px solid #E7E5E4;border-radius:14px;padding:14px 16px;margin:0 0 12px"><p style="margin:0 0 6px;font-weight:bold;font-size:17px">${escH(b.titre)}</p>${b.lignes.map((l) => `<p style="margin:3px 0;font-size:14px;color:#3F3F46">${escH(l)}</p>`).join("")}<p style="margin:10px 0 0;font-size:14px;background:#FFF7ED;color:#9A3412;padding:8px 10px;border-radius:9px"><b>À faire ce mois-ci :</b> ${escH(b.action)}</p><p style="margin:10px 0 0"><a href="${b.lien}" style="color:#C2410C;font-weight:bold;font-size:13.5px">Ouvrir ${escH(b.titre)} →</a></p></div>`).join("")}
+<p style="margin-top:6px"><a href="${site}/#/explorer/createurs" style="background:#E0531F;color:#fff;padding:10px 16px;border-radius:10px;text-decoration:none;font-weight:bold;font-size:14px">Ouvrir Bingoo!</a></p></div>`;
+    if (apercu) { apercus.push({ workspace: wsId, sujet: titre, html }); continue; }
+    const to = await teamAddress(w as Workspace);
+    if (!to) continue;
+    try { await sendSystem({ to, subject: titre, text, html, key: `recap-${wsId}-${debut.toISOString().slice(0, 7)}` }); envoyes++; } catch (e) { console.error("recap", wsId, e); }
+  }
+  return apercu ? { apercus } : { comptes: parWs.size, envoyes };
+}

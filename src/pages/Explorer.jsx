@@ -2610,7 +2610,14 @@ function Comparer() {
   if (!l) return <div className="py-24 grid place-items-center"><Spinner /></div>;
   const ok = l.filter((x) => x?.saas).map((x) => ({ ...x.saas, ev: x.evenements ?? [] }));
   const bloques = l.filter((x) => x?.limite);
+  // Lequel copier : revenu prouvé et facilité de copie, en écartant ce que Bingoo! ne sait pas construire
+  const note = (s) => (s.copiable ?? 0) - (s.constructible === false ? 100 : 0);
+  const meilleur = ok.length > 1 ? [...ok].sort((a, b) => note(b) - note(a))[0] : null;
   const lignes = [
+    ["Revenu prouvé", (s) => s.succes?.preuve ? <span className="text-[#78350F]">★ {s.succes.preuve}</span> : "—"],
+    ["Facile à copier", (s) => s.copiable != null ? <div><b>{s.copiable}/100</b>{(s.copiable_raisons ?? []).slice(0, 3).map((r) => <div key={r} className="text-[12.5px] text-ink-soft">{r}</div>)}</div> : "—"],
+    ["Bingoo! sait le construire", (s) => s.constructible === false ? <span className="text-[#9A3412]">En partie seulement</span> : s.constructible ? <span className="text-[#15803D]">Oui</span> : "—"],
+    ["Niche", (s) => s.niche ?? "—"],
     ["Catégorie", (s) => s.categorie], ["Pays", (s) => s.pays ? `${drapeau(s.pays)} ${PAYS[s.pays] ?? s.pays}` : "—"],
     ["Prix d'entrée", (s) => s.prix_entree_eur != null ? `${s.prix_entree_eur} €/mois` : usage(s) ? `À l'usage : ${usage(s)}` : s.sur_devis ? "Sur devis" : "Non affiché"],
     ["Version gratuite", (s) => s.gratuit ? "Oui" : "Non"], ["Essai", (s) => s.essai ?? "—"],
@@ -2626,6 +2633,7 @@ function Comparer() {
       <button onClick={() => nav("/explorer")} className="text-[13.5px] text-ink-soft hover:text-ink">← Explorer</button>
       <h1 className="mt-2 text-[30px] font-black tracking-tight" style={HF}>Comparaison</h1>
       {bloques.length > 0 && <p className="mt-2 rounded-xl bg-accent-soft px-4 py-3 text-[14px] text-accent-dark">{bloques.map((b) => b.nom).join(", ")} : limite de fiches de la semaine atteinte.</p>}
+      {meilleur && note(meilleur) > 0 && <p className="mt-3 rounded-xl bg-[#DCFCE7] px-4 py-3 text-[14px] text-[#166534]"><b>À copier en premier : {meilleur.nom}</b>. Le revenu y est prouvé, une petite équipe peut le refaire et Bingoo! sait le construire.</p>}
       <div className="mt-4 rounded-2xl bg-white border border-line overflow-x-auto">
         <table className="w-full text-[14px] min-w-[760px]">
           <thead><tr className="border-b border-line"><th className="w-44" />{ok.map((s) => (
@@ -2633,7 +2641,9 @@ function Comparer() {
           ))}</tr></thead>
           <tbody>{lignes.map(([t, f]) => (
             <tr key={t} className="border-b border-line last:border-0 align-top"><td className="px-4 py-3 text-[12.5px] font-semibold text-ink-faint">{t}</td>{ok.map((s) => <td key={s.id} className="px-4 py-3">{f(s)}</td>)}</tr>
-          ))}</tbody>
+          ))}
+          <tr><td />{ok.map((s) => <td key={s.id} className="px-4 py-4"><button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className={cx("rounded-xl px-4 py-2.5 text-[13.5px] font-bold", meilleur?.id === s.id ? "bg-accent text-white hover:bg-accent-dark" : "border border-line bg-white hover:border-ink")}>Lancer le mien</button></td>)}</tr>
+          </tbody>
         </table>
       </div>
     </div>
