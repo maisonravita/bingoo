@@ -1283,35 +1283,71 @@ function OngletEncaisser({ app, appel, agir, busy }) {
   );
 }
 
-// 7. Prix testés : la moitié des visiteurs voit des prix différents ; Bingoo! mesure, tu gardes le gagnant
+// 7. Tests A/B : prix ou durée d'essai. La moitié des visiteurs voit B ; Bingoo! calcule la probabilité que B fasse mieux.
 function OngletPrix({ app, appel, agir, busy }) {
   const [r, setR] = useState(null);
+  const [type, setType] = useState(app.ab?.type ?? "prix");
   const [ecart, setEcart] = useState(app.ab?.ecart ?? 20);
+  const [essaiB, setEssaiB] = useState(app.ab?.essai_b ?? 7);
   useEffect(() => { appel("ab-resultats").then(setR, () => setR(null)); }, [app.id, app.version]); // eslint-disable-line react-hooks/exhaustive-deps
   const actif = !!r?.actif;
+  const t = actif ? r.type ?? "prix" : type;
   const f = app.spec.formules ?? [];
-  const pB = (p) => Math.round(Number(p) * (1 + Number(actif ? r.ecart : ecart) / 100));
+  const ec = Number(actif ? r.ecart : ecart);
+  const essaiA = Number(actif ? r.essai_a : app.paiement?.essai_jours ?? 14), eB = Number(actif ? r.essai_b : essaiB);
+  const decrire = (v) => t === "essai" ? `Essai de ${v === "A" ? essaiA : eB} jours` : f.map((x) => `${x.nom} ${v === "A" ? x.prix : Math.round(Number(x.prix) * (1 + ec / 100))} €`).join(" · ");
+  const pct = (a, b) => (b ? `${((a / b) * 100).toFixed(1).replace(".", ",")} %` : "—");
+  const p = r?.proba_b;
+  const lancer = () => agir("ab", async () => setR(await appel("ab", { actif: true, type, ecart: Number(ecart), essai_b: Number(essaiB) })), "Test lancé");
   return (
     <div className="space-y-4">
-      <Explication>La moitié des visiteurs voit tes prix actuels (A), l'autre moitié des prix {Number(actif ? r.ecart : ecart) >= 0 ? "plus élevés" : "plus bas"} (B). Bingoo! compte les visites, les inscriptions et les abonnements de chaque côté. Après 100 visites par côté, il désigne le gagnant : tu le gardes en un clic.</Explication>
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="text-[13.5px]">Écart des prix B<br /><input type="number" step={5} min={-50} max={100} value={actif ? r.ecart : ecart} disabled={actif} onChange={(e) => setEcart(e.target.value)} className="mt-1 w-24 rounded-lg bg-white/10 border border-white/15 px-2 py-1.5" /> %</label>
-        <button disabled={!!busy} onClick={() => agir("ab", async () => setR(await appel("ab", actif ? { actif: false } : { actif: true, ecart: Number(ecart) })), actif ? "Test arrêté" : "Test lancé")} className={actif ? btnSombre : btnAccent}>{actif ? "Arrêter le test" : "Lancer le test"}</button>
-      </div>
-      <div className="grid sm:grid-cols-2 gap-3">
-        {["A", "B"].map((v) => {
-          const x = r?.resultats?.[v] ?? { vues: 0, inscrits: 0, abonnes: 0, revenu: 0 };
-          return (
-            <div key={v} className={cx("rounded-xl p-4", r?.gagnant === v ? "bg-[#15803D]/25 ring-1 ring-[#86EFAC]/40" : "bg-white/[.06]")}>
-              <p className="font-bold">Prix {v} {r?.gagnant === v && <span className="ml-1 text-[12px] text-[#86EFAC]">GAGNANT</span>}</p>
-              <p className="text-[13px] text-white/60">{f.map((x2) => `${x2.nom} ${v === "A" ? x2.prix : pB(x2.prix)} €`).join(" · ")}</p>
-              <div className="mt-2 grid grid-cols-4 gap-2 text-center">{[[x.vues, "visites"], [x.inscrits, "inscrits"], [x.abonnes, "abonnés"], [eurs(x.revenu), "par mois"]].map(([n, l]) => <div key={l}><p className="text-[18px] font-black tnum" style={HF}>{n}</p><p className="text-[11px] text-white/50">{l}</p></div>)}</div>
+      <Explication>La moitié des visiteurs voit la version A (la tienne), l'autre la version B. Bingoo! compte visites, inscriptions et abonnements de chaque côté et calcule la probabilité que B fasse mieux. À 95 % (et 50 visites par côté au moins), le gagnant est sûr : tu le gardes en un clic, ou Bingoo! le garde pour toi.</Explication>
+      {!actif && (
+        <div className="rounded-xl bg-white/[.06] p-4 space-y-3">
+          <div className="flex gap-1.5">{[["prix", "Tester les prix"], ["essai", "Tester la durée d'essai"]].map(([k, l]) => <button key={k} onClick={() => setType(k)} className={cx("rounded-lg px-3 py-1.5 text-[13.5px] font-semibold", type === k ? "bg-white text-ink" : "bg-white/10")}>{l}</button>)}</div>
+          {type === "prix" ? <label className="block text-[13.5px]">Prix B : tes prix <input type="number" step={5} min={-50} max={100} value={ecart} onChange={(e) => setEcart(e.target.value)} className="mx-1 w-20 rounded-lg bg-white/10 border border-white/15 px-2 py-1" /> % <span className="text-white/50">({decrire("B")})</span></label>
+            : <label className="block text-[13.5px]">Essai B : <input type="number" min={0} max={60} value={essaiB} onChange={(e) => setEssaiB(e.target.value)} className="mx-1 w-20 rounded-lg bg-white/10 border border-white/15 px-2 py-1" /> jours <span className="text-white/50">(A : {app.paiement?.essai_jours ?? 14} jours)</span></label>}
+          {type === "essai" && !app.paiement?.actif && <p className="text-[12.5px] text-[#F6A06B]">Branche Stripe (onglet « Encaisser ») pour que la durée d'essai compte.</p>}
+          <button disabled={!!busy} onClick={lancer} className={btnAccent}>Lancer le test</button>
+        </div>
+      )}
+      {actif && (
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-[14px]">Test en cours depuis le {new Date(r.debut).toLocaleDateString("fr-FR")} · {t === "essai" ? "durée d'essai" : "prix"}</p>
+          <label className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" checked={!!r.auto} onChange={(e) => agir("abauto", async () => setR(await appel("ab", { auto: e.target.checked })), e.target.checked ? "Bingoo! gardera le gagnant tout seul" : null)} />Garder le gagnant automatiquement</label>
+          <button disabled={!!busy} onClick={() => { if (confirm("Arrêter le test sans rien changer ?")) agir("ab", async () => setR(await appel("ab", { appliquer: "A" })), "Test arrêté"); }} className={btnSombre}>Arrêter le test</button>
+        </div>
+      )}
+      {(actif || r?.debut) && (
+        <>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {["A", "B"].map((v) => {
+              const x = r?.resultats?.[v] ?? { vues: 0, inscrits: 0, abonnes: 0, revenu: 0 };
+              return (
+                <div key={v} className={cx("rounded-xl p-4", r?.gagnant === v ? "bg-[#15803D]/25 ring-1 ring-[#86EFAC]/40" : "bg-white/[.06]")}>
+                  <p className="font-bold">Version {v} {v === "A" && <span className="font-normal text-white/50">(la tienne)</span>} {r?.gagnant === v && <span className="ml-1 text-[12px] text-[#86EFAC]">GAGNANT</span>}</p>
+                  <p className="text-[13px] text-white/60">{decrire(v)}</p>
+                  <div className="mt-2 grid grid-cols-4 gap-2 text-center">{[[x.vues, "visites"], [pct(x.inscrits, x.vues), "s'inscrivent"], [pct(x.abonnes, x.vues), "s'abonnent"], [x.vues ? eurs(Math.round((x.revenu / x.vues) * 100) / 100) : "—", "par visite"]].map(([n, l]) => <div key={l}><p className="text-[16px] font-black tnum" style={HF}>{n}</p><p className="text-[11px] text-white/50">{l}</p></div>)}</div>
+                </div>
+              );
+            })}
+          </div>
+          {p != null && (
+            <div>
+              <div className="flex justify-between text-[12.5px] text-white/60"><span>Probabilité que B fasse mieux ({r.mesure})</span><b className="text-white">{Math.round(p * 100)} %</b></div>
+              <div className="mt-1 h-2 rounded-full bg-white/10 overflow-hidden relative"><div className="h-full rounded-full" style={{ width: `${p * 100}%`, background: p >= 0.95 ? "#22C55E" : p <= 0.05 ? "#F87171" : "#F6A06B" }} /><span className="absolute top-0 h-full w-px bg-white/50" style={{ left: "95%" }} /><span className="absolute top-0 h-full w-px bg-white/50" style={{ left: "5%" }} /></div>
+              <p className="mt-1 text-[12px] text-white/45">{r.gagnant ? `Gagnant sûr : la version ${r.gagnant}.` : !r.assez ? `Encore ${Math.max(0, 50 - Math.min(r.resultats.A.vues, r.resultats.B.vues))} visites par côté au moins.` : "Pas encore assez net : on continue."} {r.mesure === "taux d'inscription" ? "Dès 5 abonnés, la mesure passe au revenu par visite." : ""}</p>
             </div>
-          );
-        })}
-      </div>
-      {r?.gagnant && <button disabled={!!busy} onClick={() => agir("ab", async () => setR(await appel("ab", { appliquer: r.gagnant })), `Prix ${r.gagnant} gardés`)} className={btnAccent}>Garder les prix {r.gagnant}</button>}
-      {actif && !r?.assez && <p className="text-[12.5px] text-white/45">Encore {Math.max(0, 100 - Math.min(r?.resultats?.A?.vues ?? 0, r?.resultats?.B?.vues ?? 0))} visites par côté avant de désigner un gagnant.</p>}
+          )}
+          {r?.gagnant && actif && <button disabled={!!busy} onClick={() => agir("ab", async () => setR(await appel("ab", { appliquer: r.gagnant })), r.gagnant === "B" ? "Version B gardée" : "Ta version reste")} className={btnAccent}>{r.gagnant === "B" ? (t === "essai" ? `Passer à ${eB} jours d'essai` : "Garder les prix B") : "Garder ma version"}</button>}
+        </>
+      )}
+      {(r?.historique ?? []).length > 0 && (
+        <div>
+          <p className="font-bold text-[14px]">Tests passés</p>
+          <ul className="mt-1 space-y-1 text-[13px] text-white/70">{[...r.historique].reverse().map((h, i) => <li key={i}>· {new Date(h.au).toLocaleDateString("fr-FR")} : {h.type === "essai" ? `essai ${h.essai_a} j contre ${h.essai_b} j` : `prix ${h.ecart > 0 ? "+" : ""}${h.ecart} %`} → {h.gagnant === "B" ? "B gardé" : "A gardé"}{h.proba_b != null ? ` (B meilleur à ${Math.round(h.proba_b * 100)} %)` : ""}</li>)}</ul>
+        </div>
+      )}
     </div>
   );
 }

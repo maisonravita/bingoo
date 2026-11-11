@@ -251,7 +251,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     await cron(req);
     const out: Record<string, unknown> = {};
     if (b.mails !== false) { const { appMailsCron } = await import("../_shared/app-mails.ts"); out.mails = await appMailsCron().catch((e) => ({ erreur: String(e?.message ?? e) })); }
-    if (b.createurs !== false && new Date().getUTCHours() === 2 || b.createurs === true) { const { appsCreateursCron } = await import("../_shared/app-owner.ts"); out.createurs = await appsCreateursCron().catch((e) => ({ erreur: String(e?.message ?? e) })); }
+    if (b.createurs !== false && new Date().getUTCHours() === 2 || b.createurs === true) { const { appsCreateursCron } = await import("../_shared/app-owner.ts"); out.createurs = await appsCreateursCron().catch((e) => ({ erreur: String(e?.message ?? e) })); const { appsAbCron } = await import("../_shared/app-owner.ts"); out.ab = await appsAbCron().catch((e) => ({ erreur: String(e?.message ?? e) })); }
     if (b.jumeau !== false) {
       const { appJumeau } = await import("../_shared/app-owner.ts");
       const { data: apps } = await admin.from("saas_apps").select("id, workspace_id, jumeau_at").eq("statut", "pret").or(`jumeau_at.is.null,jumeau_at.lt.${new Date(Date.now() - 7 * 864e5).toISOString()}`).order("jumeau_at", { ascending: true, nullsFirst: true }).limit(Number(b.n ?? 3));

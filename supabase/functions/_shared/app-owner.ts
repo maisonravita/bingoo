@@ -219,29 +219,67 @@ Rends un objet JSON :
   return lancement;
 }
 
-// ---------------------------------------------------------------- Test de prix A/B
-export async function appAb(appId: string, b: any) {
-  const { data: app } = await admin.from("saas_apps").select("ab, spec, version").eq("id", appId).single();
-  const ab = { ...((app?.ab ?? {}) as any) };
-  if (b.appliquer) {
-    // Le gagnant devient le prix de toutes les formules ; le test s'arrête
-    if (b.appliquer === "B" && ab.ecart) {
-      const spec = { ...(app!.spec as any) };
-      spec.formules = (spec.formules ?? []).map((f: any) => ({ ...f, prix: Math.round(Number(f.prix) * (1 + Number(ab.ecart) / 100)) }));
-      await admin.from("saas_apps").update({ spec, version: (app!.version ?? 1) + 1 }).eq("id", appId);
-    }
-    await admin.from("saas_apps").update({ ab: { actif: false, termine: b.appliquer, at: new Date().toISOString() } }).eq("id", appId);
-    return appAbResultats(appId);
+// ---------------------------------------------------------------- Tests A/B : prix ou durée d'essai
+// Chaque visiteur reçoit A ou B. Mesure : revenu par visite quand il y a assez d'abonnés (5 au moins), sinon taux d'inscription.
+// Décision bayésienne : probabilité que B fasse mieux que A (tirages dans des lois Bêta) ; gagnant à 95 % et 50 visites par côté.
+function gamma(k: number): number {
+  if (k < 1) return gamma(k + 1) * Math.pow(Math.random(), 1 / k);
+  const d = k - 1 / 3, c = 1 / Math.sqrt(9 * d);
+  for (;;) {
+    let x, v;
+    do { const u1 = Math.random(), u2 = Math.random(); x = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); v = 1 + c * x; } while (v <= 0);
+    v = v * v * v; const u = Math.random();
+    if (u < 1 - 0.0331 * x ** 4 || Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
   }
-  if (b.actif !== undefined) { ab.actif = !!b.actif; if (b.actif) ab.debut = new Date().toISOString(); }
-  if (b.ecart !== undefined) ab.ecart = Math.max(-50, Math.min(100, Math.round(Number(b.ecart) || 20)));
+}
+const beta = (a: number, b: number) => { const x = gamma(a); return x / (x + gamma(b)); };
+function probaB(a: { n: number; k: number; valeur: number }, b: { n: number; k: number; valeur: number }) {
+  let gagne = 0; const N = 4000;
+  for (let i = 0; i < N; i++) if (beta(1 + b.k, 1 + Math.max(0, b.n - b.k)) * b.valeur > beta(1 + a.k, 1 + Math.max(0, a.n - a.k)) * a.valeur) gagne++;
+  return gagne / N;
+}
+
+export async function appAb(appId: string, b: any) {
+  const { data: app } = await admin.from("saas_apps").select("ab, spec, version, paiement").eq("id", appId).single();
+  const ab = { ...((app?.ab ?? {}) as any) };
+  if (b.appliquer) return await appliquerAb(appId, b.appliquer === "B" ? "B" : "A");
+  if (b.actif !== undefined) {
+    ab.actif = !!b.actif;
+    if (b.actif) {
+      ab.debut = new Date().toISOString();
+      ab.type = b.type === "essai" ? "essai" : "prix";
+      ab.ecart = Math.max(-50, Math.min(100, Math.round(Number(b.ecart ?? ab.ecart ?? 20) || 20)));
+      ab.essai_b = Math.max(0, Math.min(60, Math.round(Number(b.essai_b ?? 7))));
+      ab.essai_a = Number((app?.paiement as any)?.essai_jours ?? 14);
+    }
+  }
+  if (b.auto !== undefined) ab.auto = !!b.auto;
   await admin.from("saas_apps").update({ ab }).eq("id", appId);
   return appAbResultats(appId);
 }
-export async function appAbResultats(appId: string) {
-  const { data: app } = await admin.from("saas_apps").select("ab").eq("id", appId).single();
+
+/** Garde le gagnant (B : les prix ou la durée d'essai du test deviennent la règle), arrête le test et l'ajoute à l'historique. */
+export async function appliquerAb(appId: string, gagnant: "A" | "B") {
+  const { data: app } = await admin.from("saas_apps").select("ab, spec, version, paiement").eq("id", appId).single();
   const ab = (app?.ab ?? {}) as any;
-  const depuis = ab.debut ?? "1970-01-01";
+  const r = await appAbResultats(appId);
+  if (gagnant === "B") {
+    if (ab.type === "essai") await admin.from("saas_apps").update({ paiement: { ...(app!.paiement as any), essai_jours: ab.essai_b } }).eq("id", appId);
+    else {
+      const spec = { ...(app!.spec as any) };
+      spec.formules = (spec.formules ?? []).map((f: any) => ({ ...f, prix: Math.round(Number(f.prix) * (1 + Number(ab.ecart ?? 0) / 100)) }));
+      await admin.from("saas_apps").update({ spec, version: (app!.version ?? 1) + 1 }).eq("id", appId);
+    }
+  }
+  const histo = [...(ab.historique ?? []), { type: ab.type ?? "prix", ecart: ab.ecart, essai_a: ab.essai_a, essai_b: ab.essai_b, gagnant, proba_b: r.proba_b, resultats: r.resultats, du: ab.debut, au: new Date().toISOString() }].slice(-10);
+  await admin.from("saas_apps").update({ ab: { actif: false, auto: ab.auto, historique: histo } }).eq("id", appId);
+  return appAbResultats(appId);
+}
+
+export async function appAbResultats(appId: string) {
+  const { data: app } = await admin.from("saas_apps").select("ab, spec").eq("id", appId).single();
+  const ab = (app?.ab ?? {}) as any;
+  const depuis = ab.debut ?? new Date().toISOString();
   const [{ data: vues }, { data: us }] = await Promise.all([
     admin.from("saas_app_vues").select("variante, vues").eq("app_id", appId).gte("jour", String(depuis).slice(0, 10)),
     admin.from("saas_app_users").select("variante, abonnement, at").eq("app_id", appId).eq("role", "admin").not("email", "like", "demo-%@demo.local").gte("at", depuis),
@@ -253,10 +291,32 @@ export async function appAbResultats(appId: string) {
     res[k].inscrits++;
     if (["active", "past_due"].includes(u.abonnement?.statut)) { res[k].abonnes++; res[k].revenu += Number(u.abonnement?.montant ?? 0); }
   }
-  // Gagnant : revenu par visite, puis inscriptions par visite ; 100 visites par variante au moins
-  const parVisite = (k: string) => res[k].vues ? (res[k].revenu || res[k].inscrits / 1000) / res[k].vues : 0;
-  const assez = res.A.vues >= 100 && res.B.vues >= 100;
-  return { ...ab, resultats: res, gagnant: assez ? (parVisite("B") > parVisite("A") ? "B" : "A") : null, assez };
+  if (!ab.debut) return { ...ab, resultats: res, proba_b: null, gagnant: null, mesure: null };
+  // Revenu par visite (abonnés × revenu moyen par abonné) dès 5 abonnés, sinon taux d'inscription
+  const parRevenu = res.A.abonnes + res.B.abonnes >= 5;
+  const moyen = (k: string) => res[k].abonnes ? res[k].revenu / res[k].abonnes : 1;
+  const p = probaB(
+    { n: res.A.vues, k: parRevenu ? res.A.abonnes : res.A.inscrits, valeur: parRevenu ? moyen("A") : 1 },
+    { n: res.B.vues, k: parRevenu ? res.B.abonnes : res.B.inscrits, valeur: parRevenu ? moyen("B") : 1 },
+  );
+  const assez = res.A.vues >= 50 && res.B.vues >= 50;
+  const gagnant = assez && p >= 0.95 ? "B" : assez && p <= 0.05 ? "A" : null;
+  return { ...ab, resultats: res, proba_b: Math.round(p * 100) / 100, gagnant, assez, mesure: parRevenu ? "revenu par visite" : "taux d'inscription" };
+}
+
+/** Tâche quotidienne : un test en mode automatique s'arrête de lui-même dès qu'un gagnant est sûr, et le créateur est prévenu. */
+export async function appsAbCron() {
+  const { data: apps } = await admin.from("saas_apps").select("id, workspace_id, spec").eq("ab->>actif", "true").eq("ab->>auto", "true");
+  const out: unknown[] = [];
+  for (const a of apps ?? []) {
+    const r = await appAbResultats(a.id);
+    if (!r.gagnant) { out.push({ id: a.id, proba_b: r.proba_b }); continue; }
+    await appliquerAb(a.id, r.gagnant);
+    const nom = (a.spec as any)?.nom ?? "Ton SaaS";
+    await admin.from("activity").insert({ workspace_id: a.workspace_id, kind: "ab", summary: `Test terminé sur ${nom} : ${r.gagnant === "B" ? "la version B l'emporte et devient la règle" : "ta version actuelle reste la meilleure"}` });
+    out.push({ id: a.id, gagnant: r.gagnant });
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------- Monde, classement et bourse

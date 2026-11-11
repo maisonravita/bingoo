@@ -37,7 +37,7 @@ async function session(admin: SupabaseClient, user: any) {
 // ---------------------------------------------------------------- Prix (A/B) et abonnements (Stripe du créateur)
 /** Prix d'une formule pour une variante : la variante B affiche les prix du test (écart en %). */
 export const prixVariante = (prix: number, variante: string | null | undefined, ab: any) =>
-  variante === "B" && ab?.actif ? Math.round(prix * (1 + Number(ab.ecart ?? 20) / 100)) : Number(prix);
+  variante === "B" && ab?.actif && ab?.type !== "essai" ? Math.round(prix * (1 + Number(ab.ecart ?? 20) / 100)) : Number(prix);
 
 async function stripe(key: string, path: string, params?: Record<string, string>, method = "POST") {
   const url = `https://api.stripe.com/v1/${path}${method === "GET" && params ? `?${new URLSearchParams(params)}` : ""}`;
@@ -53,7 +53,9 @@ const COLS = "id, email, nom, at, stripe_customer, abonnement, verifie_at, espac
 /** Accès de l'espace : application gratuite, compte de démo, abonnement en cours, ou essai pas encore terminé. */
 function etat(app: any, titulaire: any) {
   const pay = app.paiement ?? {};
-  const essaiFin = new Date(new Date(titulaire.at).getTime() + Number(pay.essai_jours ?? 14) * 864e5).toISOString();
+  // Test sur la durée d'essai : la variante B a sa propre durée (gardée même après le test pour ceux qui l'ont reçue)
+  const jours = titulaire.variante === "B" && app.ab?.type === "essai" && app.ab?.essai_b != null && (app.ab?.actif || !app.ab?.historique) ? Number(app.ab.essai_b) : Number(pay.essai_jours ?? 14);
+  const essaiFin = new Date(new Date(titulaire.at).getTime() + jours * 864e5).toISOString();
   const ab = titulaire.abonnement ?? null;
   const demo = estDemo(titulaire.email);
   const acces = !pay.actif || demo || ACTIF.includes(ab?.statut) || Date.now() < new Date(essaiFin).getTime();

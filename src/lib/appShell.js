@@ -29,10 +29,12 @@ const SEULE = window.parent === window;
 let token = B.token;
 if (!token && SEULE) { try { token = localStorage.getItem("app-token:" + B.slug); } catch (e) {} }
 const persist = (t) => { token = t; if (SEULE) { try { t ? localStorage.setItem("app-token:" + B.slug, t) : localStorage.removeItem("app-token:" + B.slug); } catch (e) {} } else { try { parent.postMessage({ type: "bingoo-app-token", slug: B.slug, token: t }, "*"); } catch (e) {} } };
-const PAY = B.paiement ?? {}, ESSAI = Number(PAY.essai_jours ?? 14);
+const PAY = B.paiement ?? {};
 // Test de prix : la variante B affiche les prix augmentés (ou baissés) de l'écart choisi par le créateur
 let VARIANTE = B.ab?.actif && B.variante === "B" ? "B" : "A";
-const prixDe = (p) => VARIANTE === "B" && B.ab?.actif ? Math.round(Number(p) * (1 + Number(B.ab.ecart ?? 20) / 100)) : Number(p);
+// Test sur la durée d'essai : la variante B affiche sa propre durée
+const ESSAI = VARIANTE === "B" && B.ab?.type === "essai" && B.ab?.essai_b != null ? Number(B.ab.essai_b) : Number(PAY.essai_jours ?? 14);
+const prixDe = (p) => VARIANTE === "B" && B.ab?.actif && B.ab?.type !== "essai" ? Math.round(Number(p) * (1 + Number(B.ab.ecart ?? 20) / 100)) : Number(p);
 const RETOUR = () => B.retour || location.href.split("?")[0];
 // Vers Stripe : la page entière quitte l'app (le cadre isolé ne peut que demander la navigation), sinon un nouvel onglet
 const allerVers = (url) => { try { window.top.location.href = url; } catch (e) { window.open(url, "_blank"); } };
