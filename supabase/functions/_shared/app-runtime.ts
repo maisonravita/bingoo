@@ -8,6 +8,8 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const LIM = { inscriptionsParHeure: 15, rows: 20000, taille: 20000, mailsJourEspace: 100, mailsJourApp: 1000, fichiersEspace: 500, octetsFichier: 4_500_000 };
+// Appels à l'IA intégrée inclus chaque mois par application, selon la formule du créateur (au-delà : sa propre clé)
+const IA_INCLUSE: Record<string, number> = { explorer_pro: 1000, business: 5000, fondateur: 5000 };
 const emailOk = (e: unknown) => /^[^@\s<>"]+@[^@\s<>"]+\.[a-z]{2,}$/i.test(String(e ?? "").trim());
 const hex32 = () => hex(crypto.getRandomValues(new Uint8Array(16)));
 
@@ -541,13 +543,32 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
       const consigne = String(b.consigne ?? "").trim().slice(0, 2000);
       const texte = String(b.texte ?? "").slice(0, 12000);
       if (!consigne) throw new Err(400, "Consigne vide");
-      const ok = (await admin.rpc("saas_app_ia_compter", { p_app: app.id, p_user: u0.id, p_max_user: estDemo(u0.email) ? 5 : 40, p_max_app: 400 })).data;
+      // Quota inclus chaque mois selon la formule du créateur ; au-delà, sa propre clé d'IA (s'il l'a branchée)
+      const { data: sec } = await admin.from("saas_app_secrets").select("ia_cle").eq("app_id", app.id).maybeSingle();
+      const cle = sec?.ia_cle && /^sk-ant-[A-Za-z0-9_-]{20,}$/.test(sec.ia_cle) ? sec.ia_cle : null;
+      if (!cle) {
+        const { data: w } = await admin.from("workspaces").select("plan").eq("id", app.workspace_id).maybeSingle();
+        const inclus = IA_INCLUSE[w?.plan ?? ""] ?? 300;
+        const mois = (await admin.rpc("saas_app_ia_mois", { p_app: app.id })).data ?? 0;
+        if (mois >= inclus) throw new Err(429, "L'assistant IA a atteint son quota du mois. L'éditeur de l'application peut le prolonger.");
+      }
+      const ok = (await admin.rpc("saas_app_ia_compter", { p_app: app.id, p_user: u0.id, p_max_user: estDemo(u0.email) ? 5 : cle ? 500 : 40, p_max_app: cle ? 20000 : 400 })).data;
       if (!ok) throw new Err(429, "Limite d'utilisation de l'IA atteinte pour aujourd'hui, réessaie demain");
       const { ask, askJson } = await import("./core.ts");
       const { aiCtx } = await import("./ai-ctx.ts");
       const prompt = `Tu es l'assistant intégré de l'application « ${String(app.spec?.nom ?? "").slice(0, 60)} » (${String(app.spec?.pitch ?? "").slice(0, 200)}).
 Réponds en français, directement, sans préambule ni commentaire sur toi-même.
 Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\n"""` : ""}`;
+      if (cle) {
+        // Clé du créateur : appel direct, rien n'est imputé à Bingoo!
+        const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "x-api-key": cle, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+          body: JSON.stringify({ model: Deno.env.get("ANTHROPIC_FAST_MODEL") ?? "claude-haiku-5-5", max_tokens: 2500, messages: [{ role: "user", content: prompt + (b.json ? "\nRéponds uniquement en JSON valide." : "") }] }) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Err(502, r.status === 401 ? "La clé d'IA de l'application n'est plus valable : préviens l'éditeur" : "L'assistant IA ne répond pas, réessaie dans un instant");
+        const t = String(j.content?.[0]?.text ?? "").trim();
+        if (!b.json) return { status: 200, body: { resultat: t } };
+        try { return { status: 200, body: { resultat: JSON.parse(t.replace(/^```(?:json)?\s*|\s*```$/g, "")) } }; } catch { throw new Err(502, "Réponse de l'IA illisible, réessaie"); }
+      }
       const ctxIa = { ws: null, feature: `app/ia/${slug}`.slice(0, 60), live: true };
       if (b.json) return { status: 200, body: { resultat: await aiCtx.run(ctxIa, () => askJson<unknown>(prompt + "\nRéponds uniquement en JSON valide.", { fast: true, maxTokens: 2500 })) } };
       return { status: 200, body: { resultat: (await aiCtx.run(ctxIa, () => ask(prompt, { fast: true, maxTokens: 2500 }))).trim() } };

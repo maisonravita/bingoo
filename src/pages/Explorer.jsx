@@ -1518,7 +1518,7 @@ function Construire({ projet }) {
 }
 
 // Réglages d'un SaaS construit, par onglets : jumeau, lancement, encaissement, prix testés, e-mails, domaine, monde et bourse, code
-const ONGLETS_APP = [["croissance", "Croissance"], ["jumeau", "Jumeau"], ["lancement", "Lancement"], ["encaisser", "Encaisser"], ["prix", "Prix testés"], ["emails", "E-mails"], ["domaine", "Domaine"], ["monde", "Monde et bourse"], ["mobile", "Mobile"], ["code", "Code"]];
+const ONGLETS_APP = [["croissance", "Croissance"], ["versions", "Versions"], ["ia", "Assistant IA"], ["jumeau", "Jumeau"], ["lancement", "Lancement"], ["encaisser", "Encaisser"], ["prix", "Prix testés"], ["emails", "E-mails"], ["domaine", "Domaine"], ["monde", "Monde et bourse"], ["mobile", "Mobile"], ["code", "Code"]];
 // ---------------------------------------------------------------- Plan de croissance : tes vrais chiffres, les paliers, et ce qui fait grandir le SaaS copié
 const PALIERS = [1000, 10000, 100000];
 const CANAL_ACTION = {
@@ -1624,8 +1624,8 @@ function ReglagesApp({ app, onChange, projet }) {
   const props = { app, appel, agir, busy, projet, onChange };
   return (
     <div className="mt-4 rounded-2xl bg-white/5 border border-white/10">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/10 rounded-t-2xl overflow-hidden">
-        {[[ch?.comptes ?? "—", "comptes"], [ch?.nouveaux_7j ?? "—", "nouveaux cette semaine"], [ch?.abonnes ?? "—", "abonnés"], [ch ? eurs(ch.mrr) : "—", "revenu mensuel vérifié"]].map(([v, l]) => <div key={l} className="bg-ink px-4 py-3"><p className="text-[22px] font-black tnum" style={HF}>{v}</p><p className="text-[12px] text-white/50">{l}</p></div>)}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-px bg-white/10 rounded-t-2xl overflow-hidden">
+        {[[ch?.visites_30j ?? "—", "visites (30 j)"], [ch?.comptes ?? "—", "inscrits"], [ch?.essais ?? "—", "en essai"], [ch?.abonnes ?? "—", "abonnés"], [ch ? eurs(ch.mrr) : "—", "revenu mensuel"]].map(([v, l]) => <div key={l} className="bg-ink px-4 py-3"><p className="text-[22px] font-black tnum" style={HF}>{v}</p><p className="text-[12px] text-white/50">{l}</p></div>)}
       </div>
       {ch?.quota && <p className="px-4 pt-2.5 text-[12.5px] text-white/50">Ce mois-ci : {ch.quota.constructions}/{ch.quota.construire} construction{ch.quota.construire > 1 ? "s" : ""} · {ch.quota.modifications}/{ch.quota.modifier} modifications</p>}
       <div className="flex gap-1 overflow-x-auto px-3 pt-3 border-b border-white/10">
@@ -1633,6 +1633,8 @@ function ReglagesApp({ app, onChange, projet }) {
       </div>
       <div className="p-4 sm:p-5">
         {onglet === "croissance" && <OngletCroissance {...props} allerA={setOnglet} />}
+        {onglet === "versions" && <OngletVersions {...props} />}
+        {onglet === "ia" && <OngletIA {...props} />}
         {onglet === "jumeau" && <OngletJumeau {...props} />}
         {onglet === "lancement" && <OngletLancement {...props} />}
         {onglet === "encaisser" && <OngletEncaisser {...props} />}
@@ -1979,6 +1981,57 @@ function OngletDomaine({ app, appel, agir, busy }) {
     <div className="space-y-2.5 max-w-xl">
       <Explication>Ton SaaS sur ton adresse, par exemple monsaas.fr ou app.monsaas.fr. Achète le domaine chez un registraire, puis indique-le ici. Tes articles seront aussi sur monsaas.fr/blog.</Explication>
       <div className="flex gap-2"><input value={dom} onChange={(e) => setDom(e.target.value)} placeholder="monsaas.fr" className={champSombre} /><button disabled={!!busy || !/\./.test(dom)} onClick={() => agir("dom", async () => { const r = await appel("domaine", { domaine: dom.trim() }); setDns(r.dns); setReg(r.registraire); }, "Domaine ajouté : il reste à régler le DNS")} className={btnAccent}>{busy === "dom" ? "Ajout…" : "Utiliser ce domaine"}</button></div>
+    </div>
+  );
+}
+
+// Versions : chaque mise en ligne garde la précédente ; on revient en arrière en un clic
+function OngletVersions({ app, appel, agir, busy }) {
+  const [v, setV] = useState(null);
+  useEffect(() => { appel("versions").then(setV, () => setV([])); }, [app.version]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div className="space-y-2.5 max-w-2xl">
+      <Explication>Chaque fois que ton SaaS change en ligne (modification, réparation, reconstruction), la version d'avant est gardée. Si quelque chose ne te plaît plus, reviens en arrière : la version choisie repasse le contrôle de Bingoo!.</Explication>
+      <p className="text-[13.5px]"><b>Version en ligne : {app.version}</b></p>
+      {!v ? <Spinner /> : !v.length ? <p className="text-[13.5px] text-white/55">Pas encore d'ancienne version : elles apparaîtront à ta première modification.</p> : (
+        <ul className="divide-y divide-white/10 rounded-xl border border-white/10">
+          {v.map((x) => (
+            <li key={x.version} className="flex flex-wrap items-center gap-3 px-3.5 py-2.5 text-[13.5px]">
+              <span className="font-semibold">Version {x.version}</span>
+              <span className="text-white/55">{new Date(x.at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+              <span className="flex-1 text-white/55 truncate">{x.ecrans.join(" · ")}</span>
+              <button disabled={!!busy} onClick={() => { if (confirm(`Remettre en ligne la version ${x.version} ?`)) agir(`v${x.version}`, () => appel("restaurer", { version: x.version }), `Version ${x.version} remise en ligne`); }} className={btnSombre}>{busy === `v${x.version}` ? "…" : "Revenir à celle-ci"}</button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// Assistant IA intégré : quota inclus chaque mois, puis la clé Anthropic du créateur (collée par lui)
+function OngletIA({ app, appel, agir, busy }) {
+  const [e, setE] = useState(null);
+  const [cle, setCle] = useState("");
+  const charger = () => appel("ia-etat").then(setE, () => setE(null));
+  useEffect(() => { charger(); }, [app.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!e) return <Spinner />;
+  const pct = Math.min(100, Math.round((e.mois / Math.max(1, e.inclus)) * 100));
+  return (
+    <div className="space-y-3 max-w-xl">
+      <Explication>Ton SaaS a un assistant IA intégré (rédiger, résumer, analyser). Ta formule inclut {e.inclus.toLocaleString("fr-FR")} réponses par mois. Au-delà, branche ta propre clé Anthropic : les réponses te sont alors facturées directement par Anthropic, sans limite de Bingoo!.</Explication>
+      {!e.cle && (
+        <div>
+          <p className="text-[13.5px]">Ce mois-ci : <b>{e.mois.toLocaleString("fr-FR")}</b> / {e.inclus.toLocaleString("fr-FR")} réponses</p>
+          <div className="mt-1.5 h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${pct}%`, background: pct >= 90 ? "#F87171" : "#F6A06B" }} /></div>
+        </div>
+      )}
+      {e.cle ? (
+        <div className="flex flex-wrap items-center gap-2 text-[13.5px]"><span>Clé branchée : <b className="font-mono">{e.cle}</b> · {e.mois.toLocaleString("fr-FR")} réponses ce mois-ci</span><button disabled={!!busy} onClick={() => agir("ia", async () => { await appel("ia-cle", { cle: "" }); await charger(); }, "Clé retirée : retour au quota inclus")} className={btnSombre}>Retirer</button></div>
+      ) : (
+        <div className="flex gap-2"><input type="password" autoComplete="off" value={cle} onChange={(x) => setCle(x.target.value)} placeholder="sk-ant-…" className={champSombre} /><button disabled={!!busy || cle.length < 20} onClick={() => agir("ia", async () => { await appel("ia-cle", { cle }); setCle(""); await charger(); }, "Clé branchée")} className={btnAccent}>{busy === "ia" ? "Vérification…" : "Brancher"}</button></div>
+      )}
+      <p className="text-[12px] text-white/45">Crée une clé sur console.anthropic.com (rubrique API Keys). Elle est gardée côté serveur et n'est jamais affichée en entier.</p>
     </div>
   );
 }

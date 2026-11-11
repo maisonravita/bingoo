@@ -1,0 +1,1 @@
+-- Appliquées via MCP : saas_app_secrets (+ saas_app_ia_mois), saas_app_versions (+ déclencheur des 15 dernières versions)

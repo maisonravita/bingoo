@@ -133,7 +133,12 @@ export async function appChiffres(appId: string) {
   const { data: us } = await admin.from("saas_app_users").select("email, at, abonnement").eq("app_id", appId).not("email", "like", "demo-%@demo.local").limit(10000);
   const prix = Object.fromEntries((((app?.spec as any)?.formules ?? []) as any[]).map((f) => [f.nom, Number(f.prix) || 0]));
   const abonnes = (us ?? []).filter((u: any) => ["active", "past_due"].includes(u.abonnement?.statut));
+  const essaiJours = Number((app?.paiement as any)?.essai_jours ?? 14);
+  const essais = (us ?? []).filter((u: any) => !["active", "past_due"].includes(u.abonnement?.statut) && Date.now() - new Date(u.at).getTime() < essaiJours * 864e5).length;
+  const { data: vis } = await admin.from("saas_app_visites").select("vues").eq("app_id", appId).gte("jour", new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10));
   return {
+    visites_30j: (vis ?? []).reduce((a: number, v: any) => a + Number(v.vues ?? 0), 0),
+    essais,
     comptes: (us ?? []).length,
     nouveaux_7j: (us ?? []).filter((u: any) => Date.now() - new Date(u.at).getTime() < 7 * 864e5).length,
     abonnes: abonnes.length,
