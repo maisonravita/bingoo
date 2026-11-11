@@ -166,7 +166,8 @@ const lienAgenda = () => call("agenda").then((r) => r.url);
 const rgb = (hx) => { const m = /^#?([0-9a-f]{6})$/i.exec(hx ?? ""); const n = parseInt(m ? m[1] : "4F46E5", 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 async function pdf(d = {}) {
   const { jsPDF } = await import("https://esm.sh/jspdf@2.5.2");
-  const autoTable = (await import("https://esm.sh/jspdf-autotable@3.8.2")).default;
+  const mAt = await import("https://esm.sh/jspdf-autotable@3.8.2");
+  const autoTable = [mAt.default, mAt.autoTable, mAt.default?.default, mAt.default?.autoTable].find((f) => typeof f === "function");
   const doc = new jsPDF({ unit: "mm", format: "a4" }), M = 18, W = 210 - 2 * M, C = rgb(S.couleur);
   let y = 22;
   const saut = (h) => { if (y + h > 280) { doc.addPage(); y = 20; } };
@@ -183,7 +184,7 @@ async function pdf(d = {}) {
   }
   doc.setFontSize(10.5); doc.setTextColor(15, 23, 42);
   for (const [l, v] of d.lignes ?? []) { saut(7); doc.setFont("helvetica", "bold"); doc.text(txt(l), M, y); doc.setFont("helvetica", "normal"); doc.text(doc.splitTextToSize(txt(v), W - 55), M + 55, y); y += 6.5; }
-  if (d.tableau?.lignes?.length) {
+  if (d.tableau?.lignes?.length && autoTable) {
     autoTable(doc, { startY: y + 2, head: [d.tableau.colonnes ?? []], body: d.tableau.lignes.map((l) => l.map(txt)), margin: { left: M, right: M }, styles: { font: "helvetica", fontSize: 9.5, cellPadding: 2.4 }, headStyles: { fillColor: C, textColor: 255 }, alternateRowStyles: { fillColor: [248, 250, 252] } });
     y = doc.lastAutoTable.finalY + 6;
   }
@@ -192,7 +193,9 @@ async function pdf(d = {}) {
   for (const para of d.paragraphes ?? []) { const ls = doc.splitTextToSize(txt(para), W); for (const l of ls) { saut(6); doc.text(l, M, y); y += 5.2; } y += 2.5; }
   if (d.signature) { saut(26); y += 6; doc.text(txt(d.signature), M, y); y += 20; }
   if (d.mentions) { doc.setFontSize(8.5); doc.setTextColor(100, 116, 139); const ls = doc.splitTextToSize(txt(d.mentions), W); saut(ls.length * 4 + 4); doc.text(ls, M, Math.max(y + 4, 286 - ls.length * 4)); }
-  doc.save(txt(d.nomFichier ?? d.titre ?? "document").replace(/[\\/:*?"<>|]+/g, "-").slice(0, 80) + ".pdf");
+  const nomF = txt(d.nomFichier ?? d.titre ?? "document").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9._ -]+/g, "").trim().replace(/\\s+/g, "-").slice(0, 80) || "document";
+  const url = URL.createObjectURL(doc.output("blob")), a = document.createElement("a");
+  a.href = url; a.download = nomF + ".pdf"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 const ia = (consigne, o = {}) => call("ia", { consigne, texte: o.texte ?? "", json: !!o.json }).then((r) => r.resultat);
 const ctx = { html, h, Fragment, useState, useEffect, useMemo, useRef, useCallback, ui, fmt, db, useCollection, toast, go, Icone, ia, email, annulerEmail, emailsEnvoyes, pdf, lienAgenda };
