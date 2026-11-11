@@ -99,6 +99,7 @@ function Liste() {
   const { ws } = useWs();
   const toast = useToast();
   const loc = useLocation();
+  const [toutesNiches, setToutesNiches] = useState(false);
   const [f, setF] = useState(() => { const p = new URLSearchParams(loc.search); return { q: "", categorie: p.get("categorie") ?? "", pays: p.get("pays") ?? "", prixMax: "", gratuit: false, recrute: false, actif: false, succes: p.get("succes") === "1", tri: p.get("succes") === "1" ? "succes_montant" : "score_croissance", tag: p.get("tag") ?? "" }; });
   const [ia, setIa] = useState(null); // recherche par le sens : { q, termes, resultats }
   // Export CSV de la liste affichée (formule Business)
@@ -204,7 +205,8 @@ function Liste() {
         {niches.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 pt-1">
             <span className="text-[12px] font-semibold text-ink-faint mr-1">Niches{f.categorie ? ` · ${f.categorie}` : ""} :</span>
-            {niches.slice(0, 16).map((n) => <button key={n.tag} type="button" onClick={() => set("tag", f.tag === n.tag ? "" : n.tag)} className={cx("rounded-full px-2.5 py-1 text-[12.5px] transition", f.tag === n.tag ? "bg-accent text-white" : "bg-paper hover:bg-accent-soft/50")}>{n.tag} <span className="opacity-60 tnum">{n.n}</span></button>)}
+            {niches.slice(0, toutesNiches ? 16 : 7).map((n) => <button key={n.tag} type="button" onClick={() => set("tag", f.tag === n.tag ? "" : n.tag)} className={cx("rounded-full px-2.5 py-1 text-[12.5px] transition", f.tag === n.tag ? "bg-accent text-white" : "bg-paper hover:bg-accent-soft/50")}>{n.tag} <span className="opacity-60 tnum">{n.n}</span></button>)}
+          {niches.length > 7 && <button type="button" onClick={() => setToutesNiches((v) => !v)} className="text-[12.5px] font-semibold text-ink-soft hover:text-ink px-1.5">{toutesNiches ? "Moins" : `+ ${Math.min(16, niches.length) - 7} autres`}</button>}
           </div>
         )}
       </div>
@@ -234,7 +236,7 @@ function Liste() {
                 {s.score_croissance > 0 && <span title="Score de croissance (recrutement, nouveautés)" className={cx("rounded-lg px-2 py-1 text-[12px] font-bold tnum", s.score_croissance >= 60 ? "bg-[#DCFCE7] text-[#166534]" : s.score_croissance >= 30 ? "bg-[#FEF3C7] text-[#92400E]" : "bg-paper text-ink-soft")}>{s.score_croissance}</span>}
               </div>
               {s.succes && <p className="mt-2 rounded-lg bg-[#FEF3C7] text-[#78350F] px-2.5 py-1.5 text-[12.5px] font-semibold line-clamp-2">★ {s.succes.preuve}</p>}
-              <p className="mt-2 text-[13.5px] text-ink-soft line-clamp-2 min-h-[38px]">{s.description}</p>
+              {s.description ? <p className="mt-2 text-[13.5px] text-ink-soft line-clamp-2 min-h-[38px]">{s.description}</p> : <p className="mt-2 text-[13px] text-ink-faint italic min-h-[38px]">Description en cours de lecture par Bingoo!</p>}
               <div className="mt-3 flex flex-wrap gap-1.5 text-[12px]">
                 <span className="rounded-md bg-paper px-2 py-1 tnum">{prixCourt(s).replace(/^./, (c) => c.toUpperCase())}</span>
                 {s.gratuit && <span className="rounded-md bg-paper px-2 py-1">Gratuit</span>}
@@ -1774,6 +1776,8 @@ function FilBourse({ fil, onClose }) {
 
 // ---------------------------------------------------------------- Classement : les SaaS qui grossissent le plus vite (revenus vérifiés)
 const ONGLETS_CLASSEMENT = [["mois", "Ce mois-ci", "Croissance du MRR sur 30 jours, à partir de 1 000 $ de MRR."], ["trimestre", "Sur 3 mois", "Revenu du dernier mois complet comparé à celui d'il y a 3 mois."], ["revenu", "Plus gros revenu", "Le MRR vérifié le plus élevé."], ["jeunes", "Nés cette année", "Créés il y a moins de 12 mois, déjà au-dessus de 1 000 $ par mois."]];
+const MARCHES_FR = { AI: "IA", "Dev Tools": "Outils développeurs", Marketing: "Marketing", Analytics: "Analytics", Productivity: "Productivité", Sales: "Ventes", "Content Creation": "Création de contenu", Education: "Éducation", "E-comm": "E-commerce", "E-commerce": "E-commerce", "Mobile Apps": "Applis mobiles", "Design Tools": "Design", "Recruiting & HR": "Recrutement et RH", Fintech: "Finance", Security: "Sécurité", "Social Media": "Réseaux sociaux", "Health & Fitness": "Santé et sport", Entertainment: "Divertissement", Community: "Communauté", "No-Code": "No-code", Marketplace: "Marketplace", Games: "Jeux", "Customer Support": "Support client", "Real Estate": "Immobilier", Legal: "Juridique", Travel: "Voyage", Crypto: "Crypto", "News & Magazines": "Médias" };
+const marcheFr = (m) => MARCHES_FR[m] ?? m;
 const dollar = (n) => n == null ? "—" : n >= 1e6 ? `${(n / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M$` : n >= 1e4 ? `${Math.round(n / 1e3)} k$` : `${Math.round(n).toLocaleString("fr-FR")} $`;
 function Classement() {
   const nav = useNavigate();
@@ -1800,7 +1804,7 @@ function Classement() {
                 <CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="w-10 h-10 shrink-0" pad="p-1.5" />
                 <div className="min-w-0 flex-1">
                   <p className="font-bold truncate">{x.nom} <span className="font-normal">{drapeau(x.pays)}</span></p>
-                  <p className="text-[12.5px] text-ink-faint truncate">{x.categorie ?? (x.marches ?? []).filter((m) => m !== "SaaS").slice(0, 2).join(" · ")} · {x.domaine}{x.fonde ? ` · créé en ${x.fonde.slice(0, 4)}` : ""}</p>
+                  <p className="text-[12.5px] text-ink-faint truncate">{x.categorie ?? (x.marches ?? []).filter((m) => m !== "SaaS").slice(0, 2).map(marcheFr).join(" · ")} · {x.domaine}{x.fonde ? ` · créé en ${x.fonde.slice(0, 4)}` : ""}</p>
                 </div>
                 <div className="hidden md:block w-28">{pts.length > 1 && <Sparkline pts={pts} h={30} />}</div>
                 <div className="w-24 text-right"><p className="font-bold tnum">{dollar(x.mrr ?? x.revenu_mois)}</p><p className="text-[11.5px] text-ink-faint">{x.mrr ? "MRR" : "par mois"}</p></div>

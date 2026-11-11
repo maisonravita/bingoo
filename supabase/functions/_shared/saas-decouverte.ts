@@ -157,7 +157,8 @@ const fmt$ = (n: number) => `${Math.round(n).toLocaleString("fr-FR").replace(/�
 export async function trustmrrLire(n = 40, maxMs = 100_000) {
   const t0 = Date.now();
   await admin.from("saas_trustmrr").update({ statut: "a_lire" }).eq("statut", "en_cours").lt("at", new Date(Date.now() - 600_000).toISOString());
-  const { data } = await admin.from("saas_trustmrr").select("slug").eq("statut", "a_lire").limit(n);
+  // Ordre aléatoire (tiré à l'import) : le classement est représentatif dès les premières heures, pas seulement les noms en A
+  const { data } = await admin.from("saas_trustmrr").select("slug").eq("statut", "a_lire").order("ordre").limit(n);
   const slugs = (data ?? []).map((x) => x.slug);
   if (!slugs.length) return { lus: 0 };
   await admin.from("saas_trustmrr").update({ statut: "en_cours", at: new Date().toISOString() }).in("slug", slugs);

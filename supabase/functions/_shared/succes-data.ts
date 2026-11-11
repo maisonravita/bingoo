@@ -1804,7 +1804,7 @@ export const SUCCES: { domaine: string; nom: string; preuve: string; source: str
 {
 "domaine": "3ds.com",
 "nom": "Dassault Systèmes",
-"preuve": "5613,3 M€ de chiffre d'affaires logiciel en 2024 (Top 250 EY des éditeurs français)",
+"preuve": "5,6 Md€ de chiffre d'affaires logiciel en 2024 (Top 250 EY des éditeurs français)",
 "source": "https://www.ey.com/content/dam/ey-unified-site/ey-com/fr-fr/insights/top-250-editeurs-logiciels-francais/documents/ey-top250-des-editeurs-de-logiciels-francais-2025.pdf",
 "montant": 6062364000.0,
 "type": "revenu"
@@ -1812,7 +1812,7 @@ export const SUCCES: { domaine: string; nom: string; preuve: string; source: str
 {
 "domaine": "criteo.com",
 "nom": "Criteo",
-"preuve": "1786,8 M€ de chiffre d'affaires logiciel en 2024 (Top 250 EY des éditeurs français)",
+"preuve": "1,8 Md€ de chiffre d'affaires logiciel en 2024 (Top 250 EY des éditeurs français)",
 "source": "https://www.ey.com/content/dam/ey-unified-site/ey-com/fr-fr/insights/top-250-editeurs-logiciels-francais/documents/ey-top250-des-editeurs-de-logiciels-francais-2025.pdf",
 "montant": 1929744000.0000002,
 "type": "revenu"
