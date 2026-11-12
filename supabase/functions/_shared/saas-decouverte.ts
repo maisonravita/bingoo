@@ -138,7 +138,8 @@ const dollars = (s?: string | null) => (s ? Number(s.replace(/[^0-9.]/g, "")) ||
 
 /** Lit une fiche Markdown TrustMRR. */
 export function trustmrrFiche(md: string, slug: string) {
-  const ligne = (k: string) => md.match(new RegExp(`^- ${k}: (.+)$`, "m"))?.[1]?.trim() ?? null;
+  // Le Markdown échappe la ponctuation (« Blumi \\| Orbitagents ») : on retire ces barres obliques
+  const ligne = (k: string) => md.match(new RegExp(`^- ${k}: (.+)$`, "m"))?.[1]?.trim().replace(/\\([|*_#\[\]()<>`~-])/g, "$1") ?? null;
   const site = ligne("Website")?.match(/\((https?:\/\/[^)\s]+)\)/)?.[1] ?? null;
   const mrr = dollars(ligne("Current MRR"));
   const rev30 = dollars(ligne("Last 30 days revenue snapshot"));
@@ -147,7 +148,7 @@ export function trustmrrFiche(md: string, slug: string) {
   const total = dollars(ligne("All-time revenue snapshot")) || null;
   const courbe = [...(md.split("### Monthly revenue timeline")[1] ?? "").matchAll(/^\| (\d{4}-\d{2}) \| \$([\d,]+) \|$/gm)].map((m) => ({ m: m[1], v: Number(m[2].replace(/,/g, "")) }));
   // Fondateurs affichés publiquement par la startup elle-même sur TrustMRR (nom, lien du profil, photo, abonnés X)
-  const fondateurs = [...md.matchAll(/^- (?:Co-)?[Ff]ounder: \[([^\]]+)\]\((https:\/\/trustmrr\.com\/founder\/[^)\s]+)\)$/gm)].slice(0, 3).map((m) => ({ nom: m[1].trim(), lien: m[2] }));
+  const fondateurs = [...md.matchAll(/^- (?:Co-)?[Ff]ounder: \[([^\]]+)\]\((https:\/\/trustmrr\.com\/founder\/[^)\s]+)\)$/gm)].slice(0, 3).map((m) => ({ nom: m[1].replace(/\\([|*_#\[\]()<>`~-])/g, "$1").trim(), lien: m[2] }));
   const photo = ligne("Founder image")?.match(/\((https:\/\/[^)\s]+)\)/)?.[1] ?? null;
   const abonnesX = dollars(ligne("X followers")) || null;
   if (fondateurs[0]) Object.assign(fondateurs[0], { photo, x_abonnes: abonnesX });
@@ -220,7 +221,7 @@ export async function trustmrrLire(n = 40, maxMs = 100_000) {
         await admin.from("saas").update({ succes: s, ...(["illisible", "a_lire"].includes(e.statut) ? { statut: "a_lire", essais: 0 } : {}) }).eq("id", e.id);
         maj++;
       } else {
-        const { error } = await admin.from("saas").insert({ domaine: f.site, nom: f.nom, source: "trustmrr", succes: s });
+        const { error } = await admin.from("saas").insert({ domaine: f.site, nom: nomPropre(f.nom || f.site!), source: "trustmrr", succes: s });
         if (!error) ajoutes++;
       }
     }
@@ -242,9 +243,9 @@ const MARCHE_CAT: [RegExp, string][] = [
   [/secur|privacy|compliance/i, "Sécurité et conformité"], [/\bai\b|automation|agent/i, "IA et automatisation"], [/event/i, "Événements"], [/agency|freelanc/i, "Agences et freelances"],
 ];
 const PAYS_EN: Record<string, string> = { "united states": "US", usa: "US", "united kingdom": "GB", uk: "GB", france: "FR", germany: "DE", canada: "CA", spain: "ES", italy: "IT", netherlands: "NL", india: "IN", brazil: "BR", australia: "AU", portugal: "PT", poland: "PL", sweden: "SE", switzerland: "CH", belgium: "BE", ireland: "IE", singapore: "SG", "united arab emirates": "AE", israel: "IL", ukraine: "UA", turkey: "TR", mexico: "MX", argentina: "AR", japan: "JP", "south korea": "KR", indonesia: "ID", vietnam: "VN", philippines: "PH", pakistan: "PK", nigeria: "NG", estonia: "EE", romania: "RO", greece: "GR", austria: "AT", denmark: "DK", norway: "NO", finland: "FI", "czech republic": "CZ", "new zealand": "NZ", "south africa": "ZA", egypt: "EG", morocco: "MA", tunisia: "TN" };
-const SERVICE = /\b(agency|agence|llc|consult|done[- ]for[- ]you|services?\b|freelanc|coaching|mentorship|course|cohort|community|newsletter|studio|we help|we build|marketing firm|lead generation agency)\b/i;
+const SERVICE = /\b(agency|agence|llc|consult|done[- ]for[- ]you|services?\b|freelanc|coaching|mentorship|course|cohort|community|newsletter|studio|we help|we build|marketing firm|lead generation agency|consultant|onlyfans|personal branding|white[- ]label services)\b/i;
 // « Acme, LLC (only Stripe MRR counted) » → « Acme »
-export const nomPropre = (n: string) => String(n).replace(/\s*[\(\[][^)\]]*[\)\]]\s*/g, " ").replace(/,?\s+(llc|inc\.?|ltd\.?|limited|gmbh|sas|sarl|s\.?l\.?|b\.?v\.?|corp\.?|co\.)$/i, "").replace(/\s*[|—–-]\s+.*$/, "").replace(/\s+/g, " ").trim().slice(0, 60) || String(n).slice(0, 60);
+export const nomPropre = (n: string) => String(n).replace(/\s*[\(\[][^)\]]*[\)\]]\s*/g, " ").trim().replace(/,?\s+(llc|inc\.?|ltd\.?|limited|gmbh|sas|sarl|s\.?l\.?|b\.?v\.?|corp\.?|co\.)$/i, "").replace(/\s*[|—–-]\s+.*$/, "").replace(/\s+/g, " ").trim().slice(0, 60).replace(/^[A-Z0-9 .&'-]{5,}$/, (t) => t.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase())) || String(n).slice(0, 60);
 export async function trustmrrPublier(n = 300) {
   const { data } = await admin.from("saas").select("id, nom, domaine, succes").eq("statut", "a_lire").like("succes->>source", "%trustmrr.com%").is("succes->>attente", null).limit(n);
   let publies = 0;

@@ -23,6 +23,9 @@ const PAYS = new Proxy(PAYS_BASE, { get: (o, k) => o[k] ?? (typeof k === "string
 const drapeau = (c) => c && /^[A-Z]{2}$/.test(c) ? String.fromCodePoint(...[...c].map((x) => 127397 + x.charCodeAt(0))) : "";
 const date = (d) => d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : null;
 // Un revenu vérifié sous 100 $ par mois (ou à 0) est affiché tel quel, sans étoile ni couleur « succès »
+// Étiquettes trop génériques pour aider à choisir (souvent reprises en anglais de TrustMRR)
+const GENERIQUES = new Set(["saas", "ai", "ia", "b2b", "b2c", "startups", "startup", "web", "app", "apps", "tools", "productivity", "marketing", "content creation", "dev tools", "developer tools", "mobile apps", "other", "autre", "logiciel", "software"]);
+const etiquettes = (s) => (s.tags ?? []).filter((t) => !GENERIQUES.has(String(t).toLowerCase()));
 const preuveFaible = (su) => (su?.type === "revenu_verifie" && Number(su.montant ?? 0) < 1200) || /prévision|objectif|non réalisé/i.test(su?.preuve ?? "");
 const TRIS = [["copiable", "Les plus faciles à copier"], ["succes_montant", "Plus gros revenu prouvé"], ["score_croissance", "En croissance"], ["postes", "Qui recrutent le plus"], ["nouveaute", "Nouveautés récentes"], ["rang_web", "Les plus connus"], ["prix_entree_eur", "Prix d'entrée"], ["created_at", "Ajoutés récemment"]];
 const PAGE = 48;
@@ -274,7 +277,7 @@ function Liste({ copier: copierPage = false }) {
                 {s.recrute && <span className="rounded-md bg-[#DCFCE7] text-[#166534] px-2 py-1">Recrute{s.postes ? ` · ${s.postes}` : ""}</span>}
                 {s.nouveaute && Date.parse(s.nouveaute) > Date.now() - 30 * 864e5 && <span className="rounded-md bg-accent-soft text-accent-dark px-2 py-1">Nouveauté {date(s.nouveaute)}</span>}
               </div>
-              {(s.tags ?? []).length > 0 && <div className="mt-2 flex flex-wrap gap-1 pr-20">{s.tags.slice(0, 3).map((t) => <button key={t} type="button" onClick={(e) => { e.stopPropagation(); setIa(null); set("tag", t); }} className="text-[11.5px] text-ink-faint hover:text-accent-dark">#{t.replace(/\s+/g, "-")}</button>)}</div>}
+              {etiquettes(s).length > 0 && <div className="mt-2 flex flex-wrap gap-1 pr-20">{etiquettes(s).slice(0, 3).map((t) => <button key={t} type="button" onClick={(e) => { e.stopPropagation(); setIa(null); set("tag", t); }} className="text-[11.5px] text-ink-faint hover:text-accent-dark">#{t.replace(/\s+/g, "-")}</button>)}</div>}
               <div className="h-5" />
             </div>
           ))}
@@ -374,7 +377,7 @@ function Fiche({ domaine }) {
               <div className="flex justify-between text-[11.5px] text-ink-faint tnum"><span>{s.succes.courbe[0].m}</span><span>{s.succes.courbe.filter((x) => x.m !== new Date().toISOString().slice(0, 7)).at(-1).m}</span></div>
             </div>
           )}
-          {(s.tags ?? []).length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{s.tags.map((t) => <span key={t} className="rounded-full bg-paper px-2.5 py-1 text-[12.5px]">{t}</span>)}</div>}
+          {etiquettes(s).length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{etiquettes(s).map((t) => <span key={t} className="rounded-full bg-paper px-2.5 py-1 text-[12.5px]">{t}</span>)}</div>}
         </div>
         <div className="flex flex-col gap-2"><BoutonSuivre saasId={s.id} />
           <button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className="rounded-xl bg-accent text-white px-4 py-2.5 text-[14px] font-bold hover:bg-accent-dark">Lancer le mien</button></div>

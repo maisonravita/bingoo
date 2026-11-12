@@ -5,13 +5,14 @@ import { useWs } from "../lib/ws";
 import { Badge, Button, Card, PageHead, useToast } from "../components/ui";
 import { cx } from "../lib/utils";
 import { SubNav } from "../components/SubNav";
+import { modeExplorer } from "../lib/mode";
 
 // Prix affiché à la française : 19,99 € ; un prix rond reste rond (29 €)
 const eur = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ","));
 const FEATURES = {
   explorer: ["Toute la base SaaS, fiches illimitées", "Revenus vérifiés et SaaS à copier", "10 SaaS suivis, alerte chaque lundi", "Idées et réussites chiffrées", "Notoriété web de chaque SaaS"],
-  explorer_pro: ["Tout Starter", "SaaS et catégories suivis sans limite", "Leurs e-mails, et bientôt leurs pubs", "Comparer jusqu'à 4 SaaS", "Qui démarcher dans chaque niche", "3 SaaS construits par mois (30 modifications)"],
-  business: ["Tout Pro", "10 SaaS construits par mois (100 modifications)", "3 utilisateurs", "Export CSV des listes", "Support prioritaire"],
+  explorer_pro: ["Tout Starter", "SaaS et catégories suivis sans limite", "Leurs e-mails, et bientôt leurs pubs", "Comparer jusqu'à 4 SaaS", "Qui démarcher dans chaque niche", "3 SaaS construits par mois (30 modifications)", "1 000 réponses de l'assistant IA de tes SaaS par mois"],
+  business: ["Tout Pro", "10 SaaS construits par mois (100 modifications)", "3 000 réponses de l'assistant IA de tes SaaS par mois", "3 utilisateurs", "Export CSV des listes", "Support prioritaire"],
 };
 const VEILLE = ["explorer", "explorer_pro", "business"];
 const CONTACT = "bingoo@maisonravita.fr";
@@ -63,24 +64,26 @@ function Garantie({ g }) {
 }
 const STATUS = { active: ["Actif", "good"], trialing: ["Essai", "accent"], past_due: ["Paiement en retard", "bad"], unpaid: ["Impayé", "bad"], canceled: ["Arrêté", "bad"], incomplete: ["En attente", "warn"] };
 
-const FEAT = { "r/spy-cron": "Espion (veille de nuit)", "espion/rapport": "Espion : rapports complets", "espion/publicites": "Espion : publicités", "espion/decouverte": "Espion : nouveaux concurrents", "espion/besoins": "Espion : besoins publics", "m/autopilot": "Mission : rédaction et relances", "m/cron": "Mission : pilote automatique", "r/radar-scan": "Radar", "r/radar-cron": "Radar (chaque matin)", "a/chat": "Vos salariés (questions)", "m/prepare": "Radar : contacts préparés", "k/draft": "Rédaction des e-mails", "k/linkedin": "LinkedIn", "r/radar-run": "Radar", "m/step": "Mission", "a/turn": "Vos salariés (questions)" };
+const FEAT = { "explorer/lecture": "Lecture des fiches SaaS", "explorer/histoire": "Histoires des SaaS", "explorer/recherche": "Recherche intelligente", "explorer/clients": "Qui démarcher", "explorer/lancer": "Projets de copie", "explorer/construire": "Construction de tes SaaS", "explorer/modifier": "Modifications de tes SaaS", "k/analyze": "Analyse de ton entreprise", "r/spy-cron": "Espion (veille de nuit)", "espion/rapport": "Espion : rapports complets", "espion/publicites": "Espion : publicités", "espion/decouverte": "Espion : nouveaux concurrents", "espion/besoins": "Espion : besoins publics", "m/autopilot": "Mission : rédaction et relances", "m/cron": "Mission : pilote automatique", "r/radar-scan": "Radar", "r/radar-cron": "Radar (chaque matin)", "a/chat": "Vos salariés (questions)", "m/prepare": "Radar : contacts préparés", "k/draft": "Rédaction des e-mails", "k/linkedin": "LinkedIn", "r/radar-run": "Radar", "m/step": "Mission", "a/turn": "Vos salariés (questions)" };
 /** Consommation IA du mois : ce que l'équipe IA a utilisé, et ce qui se passe quand le plafond approche. */
-function AiGauge({ ai }) {
+function AiGauge({ ai, saas }) {
   const pct = Math.min(100, Math.round((Number(ai.spent) / Math.max(1, Number(ai.budget))) * 100));
   const extra = Number(ai.balance ?? 0), paused = pct >= 100 && extra <= 0;
   return (
     <Card className="p-5 sm:p-6 mb-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-2"><p className="font-semibold">Travail de ton équipe IA ce mois-ci</p><p className="text-sm text-ink-soft tnum">{pct} % de l'enveloppe incluse</p></div>
+      <div className="flex flex-wrap items-baseline justify-between gap-2"><p className="font-semibold">{saas ? "IA utilisée ce mois-ci" : "Travail de ton équipe IA ce mois-ci"}</p><p className="text-sm text-ink-soft tnum">{pct} % de l'enveloppe incluse</p></div>
       <div className="mt-3 h-2.5 rounded-full bg-paper overflow-hidden"><div className={cx("h-full rounded-full transition-all", pct >= 100 ? "bg-bad" : pct >= 80 ? "bg-warn" : "bg-accent")} style={{ width: `${pct}%` }} /></div>
-      {Object.keys(ai.by ?? {}).length > 0 && <p className="text-[12.5px] text-ink-faint mt-2">{Object.entries(ai.by).slice(0, 5).map(([k]) => FEAT[k] ?? k).join(" · ")}</p>}
+      {Object.keys(ai.by ?? {}).length > 0 && <p className="text-[12.5px] text-ink-faint mt-2">{Object.entries(ai.by).slice(0, 5).map(([k]) => FEAT[k] ?? (k.startsWith("app/") ? "Assistant IA de tes SaaS" : k.startsWith("explorer/") ? "Bingoo!" : "Autres tâches")).filter((x, i, a) => a.indexOf(x) === i).join(" · ")}</p>}
       {extra > 0 && <p className="text-sm mt-3"><b>Crédits achetés disponibles :</b> {Math.round((extra / Math.max(0.01, Number(ai.budget))) * 100)} % d'enveloppe en plus, utilisée seulement une fois l'enveloppe du mois finie. Elle ne périme pas.</p>}
-      <p className={cx("text-sm mt-3", paused ? "text-bad font-medium" : "text-ink-soft")}>{paused ? "Ton équipe IA est en pause jusqu'au 1er du mois : l'enveloppe est utilisée. Les réponses de tes prospects restent traitées. Achète des crédits pour la relancer tout de suite." : pct >= 100 ? "L'enveloppe du mois est utilisée : ton équipe continue grâce à tes crédits achetés." : pct >= 60 ? "Au-delà de 60 %, la veille de nuit passe en mode économe pour garder l'essentiel (missions, réponses) jusqu'à la fin du mois." : "Tout fonctionne à plein régime. Les réponses de tes prospects sont toujours traitées, quoi qu'il arrive."}</p>
+      <p className={cx("text-sm mt-3", paused ? "text-bad font-medium" : "text-ink-soft")}>{paused ? (saas ? "L'IA de Bingoo! est en pause jusqu'au 1er du mois : l'enveloppe est utilisée. Tes SaaS en ligne continuent de tourner. Achète des crédits pour la relancer tout de suite." : "Ton équipe IA est en pause jusqu'au 1er du mois : l'enveloppe est utilisée. Les réponses de tes prospects restent traitées. Achète des crédits pour la relancer tout de suite.") : pct >= 100 ? "L'enveloppe du mois est utilisée : ton équipe continue grâce à tes crédits achetés." : pct >= 60 ? (saas ? "Quand l'enveloppe est finie, l'IA s'arrête jusqu'au 1er du mois, sauf crédits achetés. Tes SaaS en ligne continuent de tourner." : "Au-delà de 60 %, la veille de nuit passe en mode économe pour garder l'essentiel (missions, réponses) jusqu'à la fin du mois.") : (saas ? "Tout fonctionne à plein régime." : "Tout fonctionne à plein régime. Les réponses de tes prospects sont toujours traitées, quoi qu'il arrive.")}</p>
     </Card>
   );
 }
 
 /** Acheter des crédits IA : paiement unique, quand l'enveloppe du mois ne suffit pas. */
-function Credits({ ai, packs, busy, onBuy }) {
+// Ce que paie un pack de crédits côté Bingoo! (une construction de SaaS coûte environ 1 € d'IA)
+const TRAVAIL_SAAS = { s: "environ 3 SaaS construits de plus", m: "environ 8 SaaS construits de plus", l: "environ 17 SaaS construits de plus" };
+function Credits({ ai, packs, busy, onBuy, saas }) {
   if (!packs.length) return null;
   const pct = ai ? Math.round((Number(ai.spent) / Math.max(1, Number(ai.budget))) * 100) : 0;
   const paused = ai && pct >= 100 && Number(ai.balance ?? 0) <= 0;
@@ -96,7 +99,7 @@ function Credits({ ai, packs, busy, onBuy }) {
           <div key={p.key} className={cx("rounded-2xl border p-4 flex flex-col", p.key === "m" ? "border-accent bg-accent-soft/30" : "border-line bg-white")}>
             <div className="flex items-center justify-between"><span className="font-semibold">{p.label.replace("Recharge", "Crédits")}</span>{p.key === "m" && <Badge tone="accent">Le plus pris</Badge>}</div>
             <p className="mt-2"><span className="font-serif text-4xl tnum">{p.price} €</span><span className="text-ink-soft text-sm"> HT</span></p>
-            <p className="text-[13px] text-ink-soft mt-1 flex-1">{p.work}, ou l'équivalent en recherches et analyses.</p>
+            <p className="text-[13px] text-ink-soft mt-1 flex-1">{saas ? `${TRAVAIL_SAAS[p.key] ?? p.work}, ou l'équivalent en modifications et lectures de fiches.` : `${p.work}, ou l'équivalent en recherches et analyses.`}</p>
             <Button className="mt-3 w-full" variant={p.key === "m" ? "accent" : "default"} disabled={!!busy} loading={busy === p.key} onClick={() => onBuy(p.key)}>Acheter</Button>
           </div>
         ))}
@@ -140,6 +143,7 @@ export default function Abonnement() {
     catch (e) { toast(e.message, "bad"); setBusy(null); }
   };
 
+  const saas = modeExplorer(ws) || ws.plan === "fondateur";
   const daysLeft = ws.trial_ends ? Math.ceil((new Date(ws.trial_ends) - new Date()) / 864e5) : null;
   const [label, tone] = ws.plan === "essai" ? [daysLeft > 0 ? `Aperçu : ${daysLeft} jour${daysLeft > 1 ? "s" : ""} restant${daysLeft > 1 ? "s" : ""}` : (payments ? "Essai terminé" : "Accès de lancement"), daysLeft > 0 || !payments ? "accent" : "bad"] : STATUS[ws.plan_status] ?? [ws.plan_status, "muted"];
 
@@ -158,10 +162,10 @@ export default function Abonnement() {
         {ws.stripe_customer && <Button loading={busy === "billing-portal"} onClick={() => go("billing-portal")}>Factures, carte, résiliation</Button>}
       </Card>
 
-      {!VEILLE.includes(ws.plan) && <Quota q={quota} pack={pPack} payments={payments} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />}
-      {!VEILLE.includes(ws.plan) && <Garantie g={gar} />}
-      {ai && <AiGauge ai={ai} />}
-      <Credits ai={ai} packs={packs} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />
+      {!saas && <Quota q={quota} pack={pPack} payments={payments} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />}
+      {!saas && <Garantie g={gar} />}
+      {ai && <AiGauge ai={ai} saas={saas} />}
+      <Credits saas={saas} ai={ai} packs={packs.filter((p) => !p.prospects)} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />
 
       <div className="mb-4 inline-flex rounded-full border border-line bg-white p-1 text-sm">
         {[[false, "Mensuel"], [true, "Annuel · −20 %"]].map(([v, l]) => <button key={l} onClick={() => setYearly(v)} className={cx("rounded-full px-4 py-1.5 font-medium transition", yearly === v ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
@@ -193,8 +197,8 @@ export default function Abonnement() {
         <Card className="p-5 sm:p-6 flex flex-col min-w-0 bg-paper/50">
           <p className="font-semibold">Entreprise</p>
           <p className="mt-3"><span className="font-serif text-4xl">Sur devis</span></p>
-          <p className="text-xs text-ink-faint mt-1">au-delà de 5 commerciaux</p>
-          <ul className="mt-4 space-y-2 text-sm flex-1">{["Utilisateurs et volume sur mesure", "Tout ce qu'il y a dans Équipe", "Accompagnement au démarrage", "Facturation annuelle possible"].map((f) => <li key={f} className="flex gap-2"><span className="text-good">✓</span><span>{f}</span></li>)}</ul>
+          <p className="text-xs text-ink-faint mt-1">{saas ? "équipes, incubateurs, studios" : "au-delà de 5 commerciaux"}</p>
+          <ul className="mt-4 space-y-2 text-sm flex-1">{(saas ? ["Utilisateurs et SaaS construits sur mesure", "Tout Business", "Accompagnement au lancement", "Facturation annuelle possible"] : ["Utilisateurs et volume sur mesure", "Tout ce qu'il y a dans Équipe", "Accompagnement au démarrage", "Facturation annuelle possible"]).map((f) => <li key={f} className="flex gap-2"><span className="text-good">✓</span><span>{f}</span></li>)}</ul>
           <a href={`mailto:${CONTACT}?subject=${encodeURIComponent("Bingoo! Entreprise : demande de devis")}`} className="mt-6 inline-flex justify-center rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold hover:border-ink-faint">Parler à l'équipe</a>
         </Card>
       </div>
