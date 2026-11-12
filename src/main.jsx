@@ -5,6 +5,7 @@ import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import "./index.css";
 import { enregistrerSW } from "./lib/push";
+import { chargerTraducteur } from "./lib/langue";
 
 const Router = import.meta.env.VITE_HASH_ROUTER ? HashRouter : BrowserRouter;
 // Anciens liens (e-mails, favoris) en « /#/chemin » : convertis en vrai chemin quand le site n'utilise pas les ancres
@@ -16,6 +17,7 @@ try { const c = new URLSearchParams(window.location.search).get("parrain") || ne
 // Écran de chargement (index.html, au-dessus de la page) : l'appli se prépare derrière, et la page ne s'ouvre
 // après 1,5 s pour un visiteur ou 5 s pour un client connecté, puis l'écran s'efface en fondu
 const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+chargerTraducteur();
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode><ErrorBoundary><Router><App /></Router></ErrorBoundary></React.StrictMode>,
 );

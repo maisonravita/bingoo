@@ -1,3 +1,4 @@
+import { LANGUES, langueActuelle, choisirLangue } from "../lib/langue";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
@@ -302,6 +303,7 @@ export default function Landing() {
         </div>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-10 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-8">
           <Logo height={34} />
+          <label className="flex items-center gap-2 text-[13.5px] text-ink-soft"><span aria-hidden>🌐</span><select aria-label="Langue du site" value={langueActuelle()} onChange={(e) => choisirLangue(e.target.value)} className="rounded-lg border border-line bg-white px-2 py-1">{LANGUES.map(([c, l]) => <option key={c} value={c}>{l}</option>)}</select></label>
           <p className="text-[13.5px] text-ink-faint">© {new Date().getFullYear()} Bingoo! · Le TrendTrack des SaaS</p>
         </div>
       </footer>
