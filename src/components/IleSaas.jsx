@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import * as THREE from "three";
+// three.js n'est chargé que lorsqu'on ouvre l'archipel (le site est un seul fichier : l'inclure alourdirait toutes les pages)
+const URL_THREE = "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.min.js";
+let THREE = null;
+let chargement = null;
+const chargerThree = () => (THREE ? Promise.resolve(THREE) : (chargement ??= import(/* @vite-ignore */ URL_THREE).then((m) => { THREE = m; return m; })));
 
 /* L'archipel Bingoo! : la carte du jeu. Chaque île est un lieu du produit, branché sur les vraies données :
    la Tour des records (classement), le Château des niches, le Phare (ce qui monte), le Marché (à vendre),
@@ -315,8 +319,11 @@ export default function IleSaas({ d, onLieu, nuit }) {
   const [survol, setSurvol] = useState(null);
   const reduit = useMemo(() => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches, []);
 
+  const [pret, setPret] = useState(!!THREE);
+  const [erreur, setErreur] = useState(false);
+  useEffect(() => { if (!pret) chargerThree().then(() => setPret(true), () => setErreur(true)); }, [pret]);
   useEffect(() => {
-    const el = boite.current; if (!el) return undefined;
+    const el = boite.current; if (!el || !pret) return undefined;
     const W = () => el.clientWidth, H = () => el.clientHeight;
     const rendu = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     rendu.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
@@ -397,6 +404,36 @@ export default function IleSaas({ d, onLieu, nuit }) {
       scene.add(b); return b;
     });
     const tort = tortue(); tort.scale.setScalar(0.9); scene.add(tort);
+    // Habitants qui se promènent sur les îles (aller-retour, ou tour de place)
+    const CHEMINS = {
+      classement: [[[-1.7, 1.5], [1.4, 2.0]], [[2.3, -0.6], [2.1, 1.4]], [[-2.0, -0.4], [-0.6, -2.2]]],
+      niches: [[[-1.6, 2.0], [1.4, 2.1]], [[2.5, -1.2], [2.5, 1.0]], [[-2.5, -1.0], [-2.5, 1.0]]],
+      marche: [[[-1.0, 1.15], [0.9, 1.25]]],
+      chantier: [[[-1.9, 1.5], [0.9, 1.9]], [[0.4, -1.6], [1.9, 0.0]], [[-1.6, -0.2], [-0.4, 1.2]]],
+      createurs: [[[0, 1.0], [1.0, 0], [0, -1.0], [-1.0, 0]], [[-2.2, 0.6], [-1.0, 2.0]], [[1.8, 1.4], [2.2, -0.2]]],
+      atlas: [[[-1.1, 1.2], [1.2, 1.0]]],
+      phare: [[[-0.8, 0.75], [0.7, 0.8]]],
+    };
+    const SOL = { niches: 0.68, phare: 0.32 };
+    const tenues = [[COUL.orange, "#2B2F45"], ["#4F7FE0", "#F6C343"], [COUL.vert, "#8A4A22"], ["#C13C6B", "#F1EFEA"], ["#F2A541", "#2F9E92"], ["#6B4FA3", "#E0531F"], ["#2FA7BC", "#16213A"], ["#D8433A", "#F6C343"]];
+    const habitants = [];
+    let nh = 0;
+    for (const [id, chemins] of Object.entries(CHEMINS)) for (const pts of chemins) {
+      const [habit, chapeau] = tenues[nh % tenues.length];
+      const h = personnage({ habit, chapeau, peau: ["#F1C7A0", "#C98B5E", "#8D5A3B", "#F5D5B8"][nh % 4] });
+      h.scale.setScalar(0.72);
+      h.userData = { lieu: id, pts, boucle: pts.length > 2, v: 0.32 + hasard(nh) * 0.2, p: hasard(nh + 4) * pts.length, sol: SOL[id] ?? 0.5 };
+      objets[id].add(h); habitants.push(h); nh++;
+    }
+    // Mouettes
+    const oiseaux = [];
+    for (let i = 0; i < 5; i++) {
+      const o = new THREE.Group();
+      const aile = (s) => { const a = maille(new THREE.BoxGeometry(0.55, 0.04, 0.16), mat("#FFFFFF"), { x: s * 0.27, ombre: false }); const piv = new THREE.Group(); piv.add(a); a.position.x = s * 0.27; piv.userData.aile = s; return piv; };
+      o.add(maille(new THREE.BoxGeometry(0.18, 0.1, 0.32), mat("#F4F4F4"), { ombre: false })); o.add(aile(1)); o.add(aile(-1));
+      o.userData = { r: 6 + i * 2.5, a: hasard(i) * 6.28, v: 0.18 + hasard(i + 2) * 0.12, y: 6.5 + i * 0.6, c: [hasard(i + 7) * 8 - 4, hasard(i + 9) * 8 - 4] };
+      scene.add(o); oiseaux.push(o);
+    }
 
     // Interaction : survol, clic, glisser, zoom
     const ray = new THREE.Raycaster(), souris = new THREE.Vector2();
@@ -480,15 +517,41 @@ export default function IleSaas({ d, onLieu, nuit }) {
       const ta = t * 0.06;
       const tx = -4 + Math.cos(ta) * 11, tz = 4 + Math.sin(ta) * 8;
       tort.rotation.y = Math.atan2(-(tz - tort.position.z), tx - tort.position.x); tort.position.set(tx, -0.35, tz);
+      for (const h of habitants) {
+        const u = h.userData, n = u.pts.length;
+        u.p = (u.p + dt * u.v * 0.5) % (u.boucle ? n : 2 * (n - 1));
+        let seg = Math.floor(u.p), f = u.p - seg, a, b;
+        if (u.boucle) { a = u.pts[seg % n]; b = u.pts[(seg + 1) % n]; }
+        else if (seg < n - 1) { a = u.pts[seg]; b = u.pts[seg + 1]; } else { const r = seg - (n - 1); a = u.pts[n - 1 - r]; b = u.pts[Math.max(0, n - 2 - r)]; }
+        const x = a[0] + (b[0] - a[0]) * f, z = a[1] + (b[1] - a[1]) * f;
+        h.rotation.y = Math.atan2(b[0] - a[0], b[1] - a[1]);
+        h.position.set(x, u.sol + Math.abs(Math.sin(t * 9 + u.v * 10)) * 0.05, z);
+      }
+      for (const o of oiseaux) {
+        const u = o.userData; u.a += u.v * dt;
+        o.position.set(u.c[0] + Math.cos(u.a) * u.r, u.y + Math.sin(t + u.r) * 0.3, u.c[1] + Math.sin(u.a) * u.r);
+        o.rotation.y = -u.a;
+        for (const c of o.children) if (c.userData.aile) c.rotation.z = c.userData.aile * Math.sin(t * 8 + u.r) * 0.5;
+      }
       for (const p of poissons) { const u = p.userData; u.a += u.v * dt * 3; p.position.x = u.c[0] + Math.cos(u.a) * u.r; p.position.z = u.c[1] + Math.sin(u.a) * u.r * 0.6; p.rotation.y = -u.a; }
       rendu.render(scene, cam);
       // Étiquettes HTML au-dessus des lieux (mises à jour quelques fois par seconde)
       if (++compteurLabels % 3 === 0) {
         const hauteurs = { classement: 7.8, niches: 5.4, phare: 5.6, marche: 3.4, chantier: 4.2, createurs: 3.4, atlas: 4.2, sage: 2.2 };
-        setLabels(LIEUX.map((l) => {
+        const brut = LIEUX.map((l) => {
           tmp.set(l.x, hauteurs[l.id] + objets[l.id].position.y, l.z).project(cam);
-          return { id: l.id, x: (tmp.x * 0.5 + 0.5) * W(), y: (-tmp.y * 0.5 + 0.5) * H() };
-        }));
+          return { id: l.id, x: (tmp.x * 0.5 + 0.5) * W(), y: (-tmp.y * 0.5 + 0.5) * H(), w: l.nom.length * 7.6 + 26 };
+        }).sort((a, b) => a.y - b.y);
+        // Pas de chevauchement : étiquette réduite au nom, puis décalée vers le haut si besoin
+        const poses = [];
+        const touche = (a, b) => Math.abs(a.x - b.x) < (a.w + b.w) / 2 + 4 && a.y > b.y - a.h - 4 && a.y - a.h < b.y + 4;
+        for (const l of brut) {
+          l.compact = vue.zoom < 0.95; l.h = l.compact ? 26 : 40;
+          if (poses.some((p) => touche(l, p))) { l.compact = true; l.h = 26; }
+          for (let k = 0; k < 6 && poses.some((p) => touche(l, p)); k++) l.y -= 14;
+          poses.push(l);
+        }
+        setLabels(brut);
       }
     };
     anim = requestAnimationFrame(boucle);
@@ -500,7 +563,7 @@ export default function IleSaas({ d, onLieu, nuit }) {
       scene.traverse((o) => { o.geometry?.dispose?.(); if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose()); else o.material?.dispose?.(); });
       rendu.dispose(); el.removeChild(rendu.domElement);
     };
-  }, [d, reduit]);
+  }, [d, reduit, pret]);
 
   useEffect(() => { etat.current.nuit = nuit; }, [nuit]);
 
@@ -517,14 +580,15 @@ export default function IleSaas({ d, onLieu, nuit }) {
   return (
     <div className="relative w-full h-full">
       <div ref={boite} className="absolute inset-0" />
+      {!pret && <div className="absolute inset-0 grid place-items-center text-white/80 text-[14px] font-semibold">{erreur ? "L'archipel n'a pas pu se charger : vérifie ta connexion et recharge la page." : "L'archipel se dessine…"}</div>}
       {labels.map((l) => {
         const lieu = LIEUX.find((x) => x.id === l.id);
         const on = survol === l.id;
         return (
-          <button key={l.id} onClick={() => onLieu?.(l.id)} style={{ left: l.x, top: l.y, transform: `translate(-50%, -100%) scale(${on ? 1.08 : 1})` }}
+          <button key={l.id} onClick={() => onLieu?.(l.id)} style={{ left: l.x, top: l.y, zIndex: on ? 15 : 10, transform: `translate(-50%, -100%) scale(${on ? 1.08 : 1})` }}
             className={cx2("absolute z-10 whitespace-nowrap rounded-xl px-3 py-1.5 text-left shadow-[0_6px_16px_rgba(10,30,70,.35)] transition-transform", on ? "bg-white" : "bg-[#16213A]/90 text-white")}>
             <span className="block text-[13px] font-black leading-tight" style={{ fontFamily: "var(--font-titre)" }}>{lieu.nom}</span>
-            <span className={cx2("block text-[11.5px] font-semibold leading-tight", on ? "text-[#BF4314]" : "text-[#FFC9A8]")}>{texte[l.id]}</span>
+            {(!l.compact || on) && <span className={cx2("block text-[11.5px] font-semibold leading-tight", on ? "text-[#BF4314]" : "text-[#FFC9A8]")}>{texte[l.id]}</span>}
           </button>
         );
       })}
