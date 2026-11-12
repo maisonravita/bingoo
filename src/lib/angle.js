@@ -8,9 +8,13 @@ const dollars = (n) => `${Number(n || 0).toLocaleString("fr-FR")} $`;
 
 export const ANGLES = [["france", "Version française"], ["metier", "Pour un métier"], ["simple", "En plus simple"]];
 
+// Un outil de développeur ou d'IA générique n'a pas de sens « pour les coiffeurs » : l'angle métier n'est proposé que pour les outils de gestion, de vente, de clientèle…
+const VERTICALES = ["CRM et ventes", "Facturation et comptabilité", "Marketing et SEO", "Support client", "Réseaux sociaux et contenu", "Prospection et emailing", "Gestion de projet", "Commerce et restauration", "Immobilier", "Santé", "BTP et artisans", "Éducation et formation", "E-commerce"];
+export const verticalisable = (s) => VERTICALES.includes(s.categorie) && !/(prompt|\bapi\b|developer|\bllm|token|github|\bcode\b|claude|chatgpt|cursor)/i.test(`${s.description ?? ""} ${s.proposition ?? ""}`);
+
 export function angleDe(s, r, force) {
   const metier = (r?.metier ?? "").trim();
-  const type = force ?? (metier ? "metier" : s.pays !== "FR" ? "france" : "simple");
+  const type = force ?? (metier && verticalisable(s) ? "metier" : s.pays !== "FR" ? "france" : "simple");
   const chiffre = s.mrr ? `Il encaisse ${dollars(s.mrr)} par mois` : "Il gagne déjà de l'argent";
   if (type === "metier") {
     const m = metier || "un métier que tu connais";

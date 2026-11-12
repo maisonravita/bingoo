@@ -1,1 +1,2 @@
 -- saas_pour_moi3 renvoie aussi sans_fr, audience_brute et probleme (pour l'angle « ta version ») — appliqué via MCP
+-- saas_pour_moi3 : bonus +14 pour les SaaS adaptables à un métier quand p.metier est donné (appliqué via MCP)
