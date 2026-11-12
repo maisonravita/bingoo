@@ -1,5 +1,5 @@
 // Fonction « r » : Bingoo! Radar, Espion et Studio (modules de croissance), séparée pour des mises à jour légères.
-import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
+import { HttpError, json, readJson, refuserInvite, wrap } from "../_shared/http.ts";
 import { admin, log, quota, requireMember, setAi, type Prospect } from "../_shared/core.ts";
 import { radarCron, radarGetConfig, radarSetConfig, radarToProspect, scanRadar } from "../_shared/radar.ts";
 import { attreyForums, attreySearch } from "../_shared/attrey.ts";
@@ -1439,5 +1439,6 @@ Deno.serve(wrap(async (req) => {
   const h = routes[name];
   if (!h) throw new HttpError(404, "Action inconnue");
   if (req.method !== "POST") throw new HttpError(405, "POST attendu");
+  refuserInvite(req, name, ["saas-chiffres", "saas-bourse-lu", "saas-tendances"]);
   return json(await h(req, await readJson(req)));
 }));

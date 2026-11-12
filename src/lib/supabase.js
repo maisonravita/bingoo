@@ -23,6 +23,7 @@ export async function fn(name, body) {
       const label = QUOTA_LABEL[QUOTA_OF[name.split("/").pop()]];
       message = `Tu as utilisé toutes les ${label ?? "actions de ce type"} prévues par ta formule aujourd'hui. Bingoo! reprendra demain matin ; pour aller plus loin, passe à la formule supérieure (Réglages → Abonnement).`;
     }
+    if (/^Crée ton compte gratuit/.test(message)) window.dispatchEvent(new CustomEvent("bingoo-compte", { detail: null }));
     throw new Error(message);
   }
   if (data?.error) throw new Error(data.error);

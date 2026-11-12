@@ -45,6 +45,7 @@ import { modeExplorer } from "./lib/mode";
 import Metier from "./pages/Metier";
 import { Conditions, Confidentialite, legalReady, MentionsLegales, Opposition } from "./pages/Legal";
 import { supabase } from "./lib/supabase";
+import { EspaceInvite, estInvite } from "./lib/invite";
 import { accueilVille } from "./lib/lieu";
 
 function Gate() {
@@ -83,6 +84,7 @@ function Gate() {
   if (!session) return <Auth invited={!!pendingJoin} />;
   if (pendingJoin) return <Join token={pendingJoin} />;
   // Nouvelle inscription : le TrendTrack des SaaS (une question, l'adresse du SaaS)
+  if (estInvite(session) && (!ws || !ws.onboarded)) return <EspaceInvite />;
   if (!ws || !ws.onboarded) return <OnboardingExplorer />;
   return (
     <Layout>

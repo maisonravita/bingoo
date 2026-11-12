@@ -1,4 +1,5 @@
 import { LANGUES, langueActuelle, choisirLangue, chargerTraducteur } from "../lib/langue";
+import { CompteModal, MotDePasseManquant, demanderCompte, estInvite } from "../lib/invite";
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
@@ -156,7 +157,8 @@ function TopBar({ ws, replies }) {
 }
 
 export default function Layout({ children }) {
-  const { ws, list, select } = useWs();
+  const { ws, list, select, session } = useWs();
+  const invite = estInvite(session);
   const loc = useLocation();
   const [more, setMore] = useState(false);
   const [c, setC] = useState({});
@@ -255,7 +257,9 @@ export default function Layout({ children }) {
               <NavLink className="hover:text-ink" to="/aide" onClick={() => setMore(false)}>Aide</NavLink>
               <label className="flex items-center gap-2"><span aria-hidden>🌐</span><select aria-label="Langue du site" value={langueActuelle()} onChange={(e) => choisirLangue(e.target.value)} className="flex-1 min-w-0 rounded-lg border border-line bg-white px-2 py-1 text-[13px]">{LANGUES.map(([c, l]) => <option key={c} value={c}>{l}</option>)}</select></label>
               <button className="text-left hover:text-ink" onClick={() => { setMore(false); setFb(true); }}>Donner mon avis</button>
-              <button className="text-left font-semibold text-ink hover:text-accent-dark" onClick={() => supabase.auth.signOut()}>Se déconnecter</button>
+              {invite
+                ? <><button className="text-left font-semibold text-accent-dark hover:underline" onClick={() => { setMore(false); demanderCompte("Garde tes résultats et reviens quand tu veux."); }}>Créer mon compte</button><button className="text-left text-ink-soft hover:text-ink" onClick={() => supabase.auth.signOut()}>Se connecter à un autre compte</button></>
+                : <button className="text-left font-semibold text-ink hover:text-accent-dark" onClick={() => supabase.auth.signOut()}>Se déconnecter</button>}
               <LegalLinks className="mt-2" />
             </div>
           </aside>
@@ -264,16 +268,29 @@ export default function Layout({ children }) {
     </>
   );
 
+  const extra = <><CompteModal /><MotDePasseManquant /></>;
+  const bandeau = invite && (
+    <div className="bg-ink text-white text-[13.5px]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
+        <span className="text-white/80">Tu explores Bingoo! sans compte.</span>
+        <button onClick={() => demanderCompte("Garde tes résultats et reviens quand tu veux.")} className="font-semibold text-[#F6A06B] hover:underline">Créer mon compte gratuit</button>
+      </div>
+    </div>
+  );
   if (full) return (
     <div className="min-h-full">
+      {bandeau}
       {menu}
       {children}
+      {extra}
       {fb && <Feedback onClose={() => setFb(false)} />}
     </div>
   );
 
   return (
     <div className="min-h-full">
+      {bandeau}
+      {extra}
       <main className="min-w-0 px-4 pt-4 pb-28 md:pb-16 md:px-10 md:pt-6 max-w-6xl mx-auto">
         <div className="flex items-center gap-3 mb-4">
           {menu}

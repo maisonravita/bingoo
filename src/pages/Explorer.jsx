@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { nomCanal, plan30, promptClaude } from "../lib/plan30";
+import { demanderCompte, estInvite } from "../lib/invite";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
@@ -2699,7 +2700,9 @@ function Connecteur() {
   const base = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/t/mcp`;
   const charger = () => supabase.from("saas_api_cles").select("id, nom, debut, created_at, dernier_usage, appels, revoquee").eq("workspace_id", ws.id).order("created_at", { ascending: false }).then(({ data }) => setCles(data ?? []));
   useEffect(() => { charger(); }, [ws.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { session } = useWs();
   const creer = async () => {
+    if (estInvite(session)) return demanderCompte("Ton adresse de connecteur est rattachée à ton compte.");
     setBusy(true);
     const { data, error } = await supabase.rpc("saas_api_cle_creer", { ws: ws.id, p_nom: "Claude" });
     setBusy(false);
@@ -2924,12 +2927,14 @@ function AchatVente() {
   );
 }
 function FormAnnonce({ type, fermer }) {
-  const { ws } = useWs();
+  const { ws, session } = useWs();
   const toast = useToast();
   const [v, setV] = useState({ domaine: "", nom: "", prix: "", mrr: "", message: "", budget: "", secteurs: [] });
   const [busy, setBusy] = useState(false);
   const envoyer = async (e) => {
-    e.preventDefault(); setBusy(true);
+    e.preventDefault();
+    if (estInvite(session)) return demanderCompte("Les acheteurs et vendeurs doivent pouvoir te répondre.");
+    setBusy(true);
     const num = (x) => (x === "" ? null : Math.round(Number(String(x).replace(/[^\d.]/g, ""))) || null);
     const domaine = v.domaine.trim().replace(/^https?:\/\//i, "").replace(/^www\./i, "").split(/[/?#]/)[0].toLowerCase();
     const { error } = type === "annonce"

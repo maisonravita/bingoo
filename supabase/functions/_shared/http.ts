@@ -68,3 +68,16 @@ export async function readJson<T = Record<string, unknown>>(req: Request): Promi
 }
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Visiteur sans compte (connexion anonyme de « Commencer ») : il explore librement,
+// mais tout ce qui coûte de l'IA ou envoie un message demande d'abord un compte.
+// La signature du jeton est vérifiée ensuite par requireMember ; ici on lit seulement la mention « anonyme ».
+export const COMPTE_REQUIS = "Crée ton compte gratuit pour continuer : ça prend 20 secondes et tu gardes tout ce que tu as fait.";
+export function refuserInvite(req: Request, nom: string, permis: string[]) {
+  const jeton = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").split(".")[1];
+  if (!jeton || permis.includes(nom)) return;
+  try {
+    const p = JSON.parse(atob(jeton.replace(/-/g, "+").replace(/_/g, "/")));
+    if (p?.is_anonymous === true) throw new HttpError(403, COMPTE_REQUIS);
+  } catch (e) { if (e instanceof HttpError) throw e; }
+}

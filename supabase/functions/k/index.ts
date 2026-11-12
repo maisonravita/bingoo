@@ -1,5 +1,5 @@
 // Point d'entrée unique : https://<ref>.supabase.co/functions/v1/k/<action>
-import { HttpError, json, readJson, wrap } from "../_shared/http.ts";
+import { HttpError, json, readJson, wrap, refuserInvite } from "../_shared/http.ts";
 import { admin, log, PACKS, planOk, quota, requireMember, setAi, type Prospect, type Target } from "../_shared/core.ts";
 import { analyze, normalizeUrl, readSite } from "../_shared/analyze.ts";
 import { countTarget, searchTarget } from "../_shared/search.ts";
@@ -525,5 +525,6 @@ Deno.serve(wrap(async (req) => {
   const h = routes[name];
   if (!h) throw new HttpError(404, "Action inconnue");
   if (req.method !== "POST") throw new HttpError(405, "POST attendu");
+  refuserInvite(req, name, []);
   return json(await h(req, await readJson<Body>(req)));
 }));

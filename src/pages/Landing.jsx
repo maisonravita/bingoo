@@ -1,4 +1,5 @@
 import { LANGUES, langueActuelle, choisirLangue } from "../lib/langue";
+import { commencer } from "../lib/invite";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
@@ -103,7 +104,7 @@ export default function Landing() {
   const [yearly, setYearly] = useState(false);
   const [fond, setFond] = useState(null);
   useEffect(() => { call("founder-slots", {}).then(setFond).catch(() => setFond(null)); }, []);
-  const go = () => nav("/connexion");
+  const go = () => commencer(nav);
   const nb = useNbSaas();
   return (
     <div className="min-h-full bg-[#FAF9F6] text-ink">
