@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { nomCanal, plan30, promptClaude } from "../lib/plan30";
+import { ANGLES, angleDe, premiersClients } from "../lib/angle";
 import { demanderCompte, estInvite } from "../lib/invite";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
@@ -217,7 +218,7 @@ function Liste({ copier: copierPage = false }) {
           <p className="text-[12.5px] font-bold uppercase tracking-wide text-accent-dark">{copierPage ? "Copier et lancer" : "Explorer"}</p>
           <h1 className="text-[30px] sm:text-[36px] font-black leading-tight tracking-tight" style={HF}>{copierPage ? "Ils gagnent déjà de l'argent. À toi de faire pareil." : "Tous les SaaS et applis web, au même endroit."}</h1>
           {copierPage && <button onClick={() => navDem("/explorer/trouver")} className="mt-2 mb-1 inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-dark px-3.5 py-1.5 text-[13.5px] font-semibold hover:bg-accent-soft/70">🎯 {parcours?.etape === 3 ? "Mes SaaS sur mesure" : "Trouve le tien en 3 questions"} →</button>}
-          {copierPage ? <p className="text-ink-soft text-[15px] max-w-3xl">Des SaaS au revenu prouvé, tenus par de petites équipes, avec un prix simple, et souvent sans équivalent en France. Choisis-en un, puis « Lancer le même » : Bingoo! le construit à ton nom.</p> : <p className="text-ink-soft text-[15px]">{stats ? `${stats.total.toLocaleString("fr-FR")} logiciels suivis · ${stats.cats.length} catégories · ${stats.pays.length} pays · ${stats.recrutent} recrutent en ce moment` : "…"}</p>}
+          {copierPage ? <p className="text-ink-soft text-[15px] max-w-3xl">Des SaaS au revenu prouvé, tenus par de petites équipes, avec un prix simple, et souvent sans équivalent en France. Choisis-en un, puis « Lancer ma version » : Bingoo! le construit à ton nom.</p> : <p className="text-ink-soft text-[15px]">{stats ? `${stats.total.toLocaleString("fr-FR")} logiciels suivis · ${stats.cats.length} catégories · ${stats.pays.length} pays · ${stats.recrutent} recrutent en ce moment` : "…"}</p>}
           {!copierPage && <button onClick={() => nav("/explorer/carte")} className="mt-1 text-[13.5px] font-semibold text-accent-dark hover:underline">🏝️ Voir la bibliothèque en archipel 3D</button>}
         </div>
         <form onSubmit={(e) => { e.preventDefault(); if (ajout.trim().length > 3) nav(`/explorer/chiffres?u=${encodeURIComponent(ajout.trim())}`); }} className="flex gap-2">
@@ -419,7 +420,7 @@ function Fiche({ domaine }) {
           {etiquettes(s).length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{etiquettes(s).map((t) => <span key={t} className="rounded-full bg-paper px-2.5 py-1 text-[12.5px]">{t}</span>)}</div>}
         </div>
         <div className="flex flex-col gap-2"><BoutonSuivre saasId={s.id} />
-          <button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className="rounded-xl bg-accent text-white px-4 py-2.5 text-[14px] font-bold hover:bg-accent-dark">Lancer le même</button></div>
+          <button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className="rounded-xl bg-accent text-white px-4 py-2.5 text-[14px] font-bold hover:bg-accent-dark">Lancer ma version</button></div>
         <div className="rounded-2xl bg-white border border-line px-5 py-3 text-center">
           <p className="text-[12px] text-ink-faint">Score de croissance</p>
           <p className="text-[34px] font-black tnum leading-none mt-1" style={HF}>{s.score_croissance ?? "—"}</p>
@@ -890,7 +891,7 @@ function Histoire({ h, saas, onOuvrir }) {
         </div>
       )}
       <div className="mt-3 flex flex-wrap gap-1.5">
-        {saas && <button onClick={(e) => { e.stopPropagation(); window.location.hash = `#/explorer/lancer?d=${saas.domaine}`; }} className="rounded-full bg-accent text-white px-3 py-1 text-[12.5px] font-bold hover:bg-accent-dark">Lancer le même</button>}
+        {saas && <button onClick={(e) => { e.stopPropagation(); window.location.hash = `#/explorer/lancer?d=${saas.domaine}`; }} className="rounded-full bg-accent text-white px-3 py-1 text-[12.5px] font-bold hover:bg-accent-dark">Lancer ma version</button>}
         {ch.map((c, i) => <a key={i} href={c.source} target="_blank" rel="noopener noreferrer" title={c.source} className="rounded-full border border-line px-2.5 py-1 text-[12.5px] hover:border-ink-faint">{c.texte} <span className="text-ink-faint">· {hote(c.source)}</span></a>)}
       </div>
     </article>
@@ -934,7 +935,7 @@ function Idees() {
       <h1 className="text-[30px] font-black tracking-tight" style={HF}>Idées et réussites</h1>
       <p className="text-ink-soft">Les SaaS qui chiffrent le plus et comment ils ont grandi, puis les idées que la base fait ressortir.</p>
       <div className="mt-4 rounded-2xl bg-ink text-white p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div><p className="font-bold text-[17px]">Un SaaS marche ? Lance le même, à ton nom.</p><p className="text-[13.5px] text-white/70">Colle son adresse : ses fonctionnalités, ton équivalent, les prix, le plan d'affaires et le texte pour le faire coder.</p></div>
+        <div><p className="font-bold text-[17px]">Un SaaS marche ? Lance ta version, à ton nom.</p><p className="text-[13.5px] text-white/70">Colle son adresse : ses fonctionnalités, ton équivalent, les prix, le plan d'affaires et le texte pour le faire coder.</p></div>
         <AutreSaas grand />
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
@@ -1101,7 +1102,7 @@ function MicroDetail({ slug, info, retour }) {
   );
 }
 
-// ---------------------------------------------------------------- Lancer le même : un SaaS inspiré d'un SaaS qui marche
+// ---------------------------------------------------------------- Lancer ma version : un SaaS inspiré d'un SaaS qui marche
 /** N'importe quel SaaS, même absent de la base : on colle son adresse. */
 function AutreSaas({ grand = false }) {
   const nav = useNavigate();
@@ -1110,7 +1111,7 @@ function AutreSaas({ grand = false }) {
   return (
     <form onSubmit={go} className={cx("flex gap-2", grand ? "w-full max-w-xl" : "")}>
       <input value={u} onChange={(e) => setU(e.target.value)} placeholder={grand ? "adresse du SaaS à concurrencer, ex. notion.so" : "Un autre SaaS : son adresse"} className={cx("flex-1 min-w-0 rounded-xl border border-line bg-white px-3 outline-none focus:border-ink", grand ? "py-3 text-[15px]" : "py-2 text-[13.5px] w-56")} />
-      <button className={cx("shrink-0 rounded-xl bg-ink text-white font-bold hover:bg-black", grand ? "px-5 py-3 text-[15px]" : "px-3 py-2 text-[13px]")}>{grand ? "Lancer le même" : "OK"}</button>
+      <button className={cx("shrink-0 rounded-xl bg-ink text-white font-bold hover:bg-black", grand ? "px-5 py-3 text-[15px]" : "px-3 py-2 text-[13px]")}>{grand ? "Lancer ma version" : "OK"}</button>
     </form>
   );
 }
@@ -1150,7 +1151,11 @@ function Lancer() {
   const loc = useLocation();
   const { ws } = useWs();
   const toast = useToast();
-  const d = new URLSearchParams(loc.search).get("d") ?? "";
+  const qs = new URLSearchParams(loc.search);
+  const d = qs.get("d") ?? "";
+  // L'angle choisi dans « Trouver mon SaaS » (version française, pour un métier, en plus simple) guide la construction
+  const angleType = qs.get("angle");
+  const angleMetier = qs.get("m") ?? "";
   const [saas, setSaas] = useState(null);
   const [p, setP] = useState(undefined);
   const [busy, setBusy] = useState(false);
@@ -1165,7 +1170,8 @@ function Lancer() {
     if (niv(ws) < 2) { nav("/abonnement"); return; }
     setBusy(true);
     try {
-      const { id } = await fn("r/saas-lancer", { workspace_id: ws.id, domaine: d });
+      const a = angleType && saas ? angleDe(saas, { metier: angleMetier }, angleType) : null;
+      const { id } = await fn("r/saas-lancer", { workspace_id: ws.id, domaine: d, angle: a ? `${a.titre}. ${a.brief}` : null });
       for (let i = 0; i < 75; i++) {
         await new Promise((r) => setTimeout(r, 4000));
         const { data } = await supabase.from("saas_projets").select("data, statut, erreur").eq("id", id).maybeSingle();
@@ -1187,8 +1193,9 @@ function Lancer() {
       <Parcours etape={!p ? 1 : !(construit?.ecrans ?? []).length ? 2 : construit.domaine_statut === "ok" || construit.public ? 4 : 3} />
       {!p ? (
         <div className="mt-4 rounded-3xl bg-ink text-white p-8">
-          <p className="text-[13px] font-bold uppercase tracking-wide text-[#F6A06B]">Lancer le même</p>
-          <h1 className="mt-2 text-[32px] sm:text-[42px] font-black leading-[1.05]" style={HF}>{nomInspi} marche. Lance le même, à ton nom.</h1>
+          <p className="text-[13px] font-bold uppercase tracking-wide text-[#F6A06B]">Lancer ma version</p>
+          <h1 className="mt-2 text-[32px] sm:text-[42px] font-black leading-[1.05]" style={HF}>{nomInspi} marche. Lance ta version, à ton nom.</h1>
+          {angleType && saas && <p className="mt-3 inline-block rounded-lg bg-white/10 px-3 py-1.5 text-[15px] font-semibold text-[#F6A06B]">Ta version : {angleDe(saas, { metier: angleMetier }, angleType).titre.replace(`${saas.nom}, `, "")}</p>}
           <p className="mt-3 max-w-2xl text-white/75 text-[16px]">Bingoo! lit ce que fait {nomInspi} sur son site et te prépare un SaaS concurrent qui fait la même chose : chaque fonctionnalité et son équivalent chez toi, l'ordre pour les coder, les outils et leur coût, tes prix face aux siens, tes premiers clients, le plan d'affaires sur 12 mois, et le texte à donner à un outil qui code l'application pour toi.</p>
           <p className="mt-3 text-[13px] text-white/55">Concurrence loyale : les mêmes fonctionnalités, mais ton nom, tes mots et ton design. Reprendre la marque, les textes mot pour mot ou le design de {nomInspi} exposerait à des poursuites.</p>
           <button onClick={generer} disabled={busy} className="mt-6 rounded-xl bg-accent px-7 py-3.5 font-bold hover:bg-accent-dark disabled:opacity-60">{busy ? "Préparation de ton projet… (une à deux minutes)" : niv(ws) < 2 ? "Disponible avec la formule Pro" : "Préparer mon projet"}</button>
@@ -1690,7 +1697,7 @@ function OngletCroissance({ app, appel, projet, allerA }) {
                 <div key={c.k} className="rounded-xl bg-white/5 p-3">
                   <p className="font-semibold text-[14px]">{titre}</p>
                   <p className="mt-0.5 text-[13px] text-white/65">{texte}</p>
-                  <div className="mt-1.5 flex gap-3 text-[12.5px]"><a href={c.url} target="_blank" rel="noopener noreferrer" className="underline text-white/60">Voir le sien</a>{onglet && <button onClick={() => allerA(onglet)} className="underline text-[#F6A06B]">Faire le même</button>}</div>
+                  <div className="mt-1.5 flex gap-3 text-[12.5px]"><a href={c.url} target="_blank" rel="noopener noreferrer" className="underline text-white/60">Voir le sien</a>{onglet && <button onClick={() => allerA(onglet)} className="underline text-[#F6A06B]">Faire ma version</button>}</div>
                 </div>
               );
             })}
@@ -2467,6 +2474,7 @@ const QUESTIONS = [
   { k: "profil", q: "Qu'est-ce que tu sais le mieux faire ?", aide: "Bingoo! construit le logiciel : ta force sert à trouver les clients.", opts: [
     ["vente", "Vendre et convaincre", "Prospection, réseau, marketing"], ["code", "La technique", "Je code ou je comprends les outils"], ["aucun", "Ni l'un ni l'autre", "Je débute, je veux du simple"],
   ] },
+  { k: "metier", texte: true, q: "Tu connais bien un métier ou un secteur ?", aide: "Facultatif. Si oui, Bingoo! te propose une version faite pour ce métier : tu parles leur langue, c'est ton avantage. Sinon, il te propose la version française.", idees: ["Coiffeurs", "Restaurants", "Agents immobiliers", "Conciergeries", "Coachs sportifs", "Artisans du bâtiment", "Kinés et ostéopathes", "Avocats", "E-commerçants", "Associations"] },
   { k: "secteurs", multi: true, secteurs: true, q: "Des secteurs qui t'attirent ?", aide: "Aucun, c'est très bien aussi : Bingoo! cherche partout." },
 ];
 const QK = (k) => QUESTIONS.find((q) => q.k === k);
@@ -2479,7 +2487,7 @@ const paramsDe = (r) => ({ categories: r.secteurs, canaux: r.canaux, refus: r.re
 function TrouveTonSaas() {
   const { ws, session, reload } = useWs();
   const avant = lirePar();
-  const [r, setR] = useState(() => ({ canaux: [], refus: [], secteurs: [], audience: null, ambition: null, profil: null, temps: null, ...(avant ?? {}), etape: 0 }));
+  const [r, setR] = useState(() => ({ canaux: [], refus: [], secteurs: [], audience: null, ambition: null, profil: null, temps: null, metier: "", ...(avant ?? {}), etape: 0 }));
   const [res, setRes] = useState(null);
   const [ap, setAp] = useState(null);
   const invite = estInvite(session);
@@ -2488,7 +2496,7 @@ function TrouveTonSaas() {
   const sauver = (n) => { try { localStorage.setItem("bingoo-parcours2", JSON.stringify({ ...n, fini: n.etape >= QUESTIONS.length || n.fini })); } catch { /* stockage indisponible */ } };
   const aller = (n) => {
     setR(n); sauver(n);
-    if (n.etape >= QUESTIONS.length) supabase.from("saas_preferences").upsert({ workspace_id: ws.id, secteurs: n.secteurs ?? [], profil: n.profil ?? null, reponses: { canaux: n.canaux, refus: n.refus, temps: n.temps, audience: n.audience, ambition: n.ambition }, maj: new Date().toISOString() }).then(() => {});
+    if (n.etape >= QUESTIONS.length) supabase.from("saas_preferences").upsert({ workspace_id: ws.id, secteurs: n.secteurs ?? [], profil: n.profil ?? null, reponses: { canaux: n.canaux, refus: n.refus, temps: n.temps, audience: n.audience, ambition: n.ambition, metier: n.metier || null }, maj: new Date().toISOString() }).then(() => {});
   };
   const charger = () => {
     setRes(undefined);
@@ -2510,7 +2518,7 @@ function TrouveTonSaas() {
     r.canaux.map((c) => lib("canaux", c)?.toLowerCase()).filter(Boolean).join(", "),
     r.refus?.length ? `Sans : ${r.refus.map((c) => lib("refus", c)?.toLowerCase()).join(", ")}` : null,
     lib("temps", r.temps) && `${lib("temps", r.temps)} par semaine`,
-    lib("audience", r.audience), lib("ambition", r.ambition, 2), r.secteurs.join(", "),
+    lib("audience", r.audience), lib("ambition", r.ambition, 2), r.metier ? `Métier : ${r.metier}` : null, r.secteurs.join(", "),
   ].filter(Boolean);
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
@@ -2523,7 +2531,16 @@ function TrouveTonSaas() {
           </div>
           <h1 className="mt-6 text-[30px] sm:text-[40px] font-black leading-[1.05] tracking-tight" style={HF}>{Q.q}</h1>
           <p className="mt-2 text-[15.5px] text-ink-soft max-w-2xl">{Q.aide}</p>
-          {Q.secteurs ? (
+          {Q.texte ? (
+            <div className="mt-6">
+              <input value={r.metier ?? ""} onChange={(e) => setR({ ...r, metier: e.target.value.slice(0, 60) })} onKeyDown={(e) => { if (e.key === "Enter") aller({ ...r, etape: r.etape + 1 }); }} placeholder="Ex. coiffeurs, restaurants, comptables…" className="w-full max-w-md rounded-xl border-2 border-line bg-white px-4 py-3 text-[16px] outline-none focus:border-ink" />
+              <div className="mt-3 flex flex-wrap gap-2">{Q.idees.map((m) => <button key={m} type="button" onClick={() => setR({ ...r, metier: m })} className={cx("rounded-full border px-3.5 py-1.5 text-[13.5px]", r.metier === m ? "bg-ink text-white border-ink" : "bg-white border-line hover:border-ink-faint")}>{m}</button>)}</div>
+              <div className="mt-7 flex items-center gap-4">
+                <button onClick={() => aller({ ...r, etape: r.etape + 1 })} className="rounded-xl bg-accent text-white px-6 py-3 font-bold hover:bg-accent-dark">{(r.metier ?? "").trim() ? "Continuer" : "Non, passer"}</button>
+                <button onClick={() => setR({ ...r, etape: r.etape - 1 })} className="text-[14px] text-ink-soft hover:text-ink">Retour</button>
+              </div>
+            </div>
+          ) : Q.secteurs ? (
             <div className="mt-6 flex flex-wrap gap-2">{SECTEURS.map((c) => <button key={c} type="button" onClick={() => basculer("secteurs", c)} className={cx("rounded-full border px-4 py-2 text-[14px] font-medium transition", choisi("secteurs", c) ? "bg-ink text-white border-ink" : "bg-white border-line hover:border-ink-faint")}>{c}</button>)}</div>
           ) : (
             <div className={cx("mt-6 grid gap-3", Q.opts.length > 3 ? "sm:grid-cols-2" : "sm:grid-cols-3")}>{Q.opts.map(([v, t, sous]) => {
@@ -2537,10 +2554,10 @@ function TrouveTonSaas() {
               );
             })}</div>
           )}
-          <div className="mt-7 flex items-center gap-4">
+          {!Q.texte && <div className="mt-7 flex items-center gap-4">
             {Q.multi && <button onClick={() => aller({ ...r, etape: r.etape + 1 })} className="rounded-xl bg-accent text-white px-6 py-3 font-bold hover:bg-accent-dark">{r.etape === QUESTIONS.length - 1 ? (r.secteurs.length ? "Voir mes SaaS" : "Peu importe, cherche partout") : r[Q.k].length ? "Continuer" : Q.aucun ?? "Passer"}</button>}
             {r.etape > 0 && <button onClick={() => setR({ ...r, etape: r.etape - 1 })} className="text-[14px] text-ink-soft hover:text-ink">Retour</button>}
-          </div>
+          </div>}
           {ap && <PreuveDirecte ap={ap} />}
         </div>
       ) : (
@@ -2556,7 +2573,7 @@ function TrouveTonSaas() {
           {res === undefined || res === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : !res.length ? (
             <div className="mt-8 rounded-2xl border border-line bg-white p-6"><p className="font-bold">Rien qui colle à toutes tes réponses pour l'instant.</p><p className="mt-1 text-ink-soft">Retire un secteur ou une façon de trouver des clients : la bibliothèque grandit chaque jour.</p><button onClick={() => setR({ ...r, etape: 0 })} className="mt-4 rounded-xl bg-ink text-white px-5 py-2.5 font-semibold">Changer mes réponses</button></div>
           ) : !debloque ? (
-            <Debloquer premier={res[0]} total={ap?.n} invite={invite} />
+            <Debloquer premier={res[0]} total={ap?.n} invite={invite} r={r} />
           ) : (
             <Paquet res={res} r={r} />
           )}
@@ -2580,14 +2597,14 @@ function PreuveDirecte({ ap }) {
 export const estPaye = (ws) => ws?.plan === "fondateur" || (["explorer", "explorer_pro", "business", "solo", "pro"].includes(ws?.plan) && ["active", "trialing", "past_due"].includes(ws?.plan_status));
 // Avant paiement : le premier SaaS en clair (la preuve), les deux autres, le plan et le prompt une fois l'abonnement réglé.
 // Le serveur n'envoie que le premier tant que rien n'est payé : les cartes floutées sont factices.
-function Debloquer({ premier, total, invite }) {
+function Debloquer({ premier, total, invite, r }) {
   const nav = useNavigate();
   const debloquer = () => invite ? demanderCompte("Crée ton compte, puis choisis ta formule : tes 3 SaaS et ton plan s'affichent dès le paiement reçu.") : nav("/abonnement");
   const faux = [["Assistant de facturation", "1 8•• $"], ["Extension de prospection", "3 1•• $"]];
   return (
     <>
       <div className="mt-6 grid md:grid-cols-3 gap-4">
-        <CartePourToi x={premier} grand premier />
+        <CartePourToi x={premier} r={r} grand premier />
         {faux.map(([nom, m]) => (
           <div key={nom} aria-hidden className="pointer-events-none select-none blur-[7px] rounded-2xl border border-line bg-white p-5">
             <div className="flex items-center gap-3"><span className="h-11 w-11 rounded-xl bg-accent-soft" /><div className="flex-1"><p className="font-bold">{nom}</p><p className="text-[12.5px] text-ink-faint">Catégorie</p></div><p className="font-black">{m}</p></div>
@@ -2607,56 +2624,129 @@ function Debloquer({ premier, total, invite }) {
     </>
   );
 }
-// Le paquet de sortie : 3 SaaS, puis pour celui choisi un plan sur 30 jours et un prompt pour son propre Claude
+// Le paquet de sortie : tes 3 SaaS, chacun avec son angle (ta version), puis pour celui choisi :
+// le plan sur 30 jours, tes 10 premiers clients (où les trouver, quoi leur dire, ton tableau) et le prompt pour ton Claude
+const lienLancer = (s, a) => `/explorer/lancer?d=${s.domaine}&angle=${a.type}${a.type === "metier" ? `&m=${encodeURIComponent(a.metier)}` : ""}`;
 function Paquet({ res, r }) {
   const nav = useNavigate();
   const [i, setI] = useState(0);
+  const [forces, setForces] = useState({});
   const [prompt, setPrompt] = useState(false);
   const [copie, setCopie] = useState(false);
   useEffect(() => { finirGuide(); window.dispatchEvent(new CustomEvent("bingoo-etape", { detail: 2 })); }, []);
   const s = res[Math.min(i, res.length - 1)];
+  const [metierLibre, setMetierLibre] = useState(r.metier ?? "");
+  const rr = { ...r, metier: metierLibre };
+  const a = angleDe(s, rr, forces[s.domaine]);
   const p = plan30(s, r);
-  const texte = promptClaude(s, r);
+  const texte = `${promptClaude(s, r)}\n\nL'angle de ma version : ${a.titre}. ${a.brief}`;
   const copier = () => { navigator.clipboard?.writeText(texte).then(() => { setCopie(true); setTimeout(() => setCopie(false), 2000); }); };
   return (
     <>
-      <div className="mt-6 grid md:grid-cols-3 gap-4">{res.slice(0, 3).map((x, k) => <CartePourToi key={x.domaine} x={x} grand premier={k === i} onChoisir={() => setI(k)} choisi={k === i} />)}</div>
-      <section className="mt-8 rounded-3xl border border-line bg-white overflow-hidden">
-        <div className="px-5 sm:px-7 pt-6 pb-4 border-b border-line flex flex-wrap items-center gap-4">
-          <CompanyLogo name={s.nom} url={`https://${s.domaine}`} className="w-10 h-10" pad="p-1.5" />
-          <div className="flex-1 min-w-[200px]">
-            <h2 className="text-[22px] font-black leading-tight" style={HF}>Ton plan sur 30 jours avec {s.nom}</h2>
-            <p className="text-[13.5px] text-ink-soft">{p.canaux.length ? <>Tiré des canaux qu'utilise vraiment {s.nom} : <b className="text-ink">{p.canaux.map(nomCanal).join(", ")}</b>.</> : "Tiré des canaux qui marchent pour ce genre de SaaS."}{r.refus?.length ? " Sans ce que tu refuses de faire." : ""}</p>
-          </div>
-          <button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className="rounded-xl bg-accent text-white px-5 py-3 font-bold hover:bg-accent-dark">Bingoo! le construit pour toi</button>
+      <div className="mt-6 grid md:grid-cols-3 gap-4">{res.slice(0, 3).map((x, k) => <CartePourToi key={x.domaine} x={x} r={rr} force={forces[x.domaine]} grand premier={k === i} onChoisir={() => setI(k)} choisi={k === i} />)}</div>
+      <section className="mt-8 rounded-3xl border-2 border-ink bg-white p-5 sm:p-7">
+        <p className="text-[13px] font-semibold text-accent-dark">Ta version</p>
+        <h2 className="mt-1 text-[24px] sm:text-[30px] font-black leading-tight" style={HF}>{a.titre}</h2>
+        <p className="mt-2 text-[15px] text-ink-soft max-w-3xl">{a.phrase}</p>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="text-[13px] text-ink-faint">Un autre angle ?</span>
+          {ANGLES.map(([k, l]) => <button key={k} onClick={() => setForces({ ...forces, [s.domaine]: k })} className={cx("rounded-full border px-3 py-1.5 text-[13px] font-medium", a.type === k ? "bg-ink text-white border-ink" : "bg-white border-line hover:border-ink-faint")}>{l}</button>)}
+          {a.type === "metier" && <input value={metierLibre} onChange={(e) => setMetierLibre(e.target.value.slice(0, 60))} placeholder="Quel métier ?" className="rounded-full border border-line bg-white px-3 py-1.5 text-[13px] outline-none focus:border-ink w-44" />}
+        </div>
+        <button onClick={() => nav(lienLancer(s, a))} className="mt-5 rounded-xl bg-accent text-white px-6 py-3.5 font-bold hover:bg-accent-dark">Bingoo! construit ma version</button>
+      </section>
+      <section className="mt-6 rounded-3xl border border-line bg-white overflow-hidden">
+        <div className="px-5 sm:px-7 pt-6 pb-4 border-b border-line">
+          <h2 className="text-[22px] font-black leading-tight" style={HF}>Ton plan sur 30 jours</h2>
+          <p className="text-[13.5px] text-ink-soft">{p.canaux.length ? <>Tiré des canaux qu'utilise vraiment {s.nom} : <b className="text-ink">{p.canaux.map(nomCanal).join(", ")}</b>.</> : "Tiré des canaux qui marchent pour ce genre de SaaS."}{r.refus?.length ? " Sans ce que tu refuses de faire." : ""}</p>
         </div>
         <ol className="grid md:grid-cols-2">
           {p.semaines.map((w, k) => (
             <li key={w.titre} className={cx("px-5 sm:px-7 py-5 border-line", k % 2 === 0 && "md:border-r", k < 2 && "border-b")}>
               <p className="font-bold text-[15.5px]">{w.titre}</p>
-              <ul className="mt-2 space-y-1.5 text-[13.5px] text-ink-soft">{w.actions.map((a) => <li key={a} className="flex gap-2"><span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-accent" /><span>{a}</span></li>)}</ul>
+              <ul className="mt-2 space-y-1.5 text-[13.5px] text-ink-soft">{w.actions.map((x) => <li key={x} className="flex gap-2"><span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-accent" /><span>{x}</span></li>)}</ul>
             </li>
           ))}
         </ol>
-        <div className="px-5 sm:px-7 py-4 bg-paper border-t border-line">
-          <button onClick={() => setPrompt(!prompt)} className="text-[14px] font-semibold hover:underline">{prompt ? "Masquer" : "Tu préfères coder toi-même ? Voir le prompt à donner à ton Claude"}</button>
-          {prompt && (
-            <div className="mt-3">
-              <pre className="whitespace-pre-wrap rounded-xl border border-line bg-white p-4 text-[12.5px] leading-relaxed max-h-80 overflow-auto">{texte}</pre>
-              <button onClick={copier} className="mt-2 rounded-xl bg-ink text-white px-4 py-2 text-[13.5px] font-semibold">{copie ? "Prompt copié" : "Copier le prompt"}</button>
-            </div>
-          )}
-        </div>
       </section>
-      {res.length > 3 && <><h2 className="mt-10 text-[19px] font-bold">Aussi pour toi</h2><div className="mt-3 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">{res.slice(3).map((x) => <CartePourToi key={x.domaine} x={x} />)}</div></>}
-      <p className="mt-8 rounded-xl bg-accent-soft/60 px-4 py-3 text-[14px]">📬 Chaque lundi, Bingoo! t'envoie les nouveaux SaaS qui correspondent à ces réponses.</p>
+      <PremiersClients s={s} a={a} r={r} />
+      <div className="mt-6 rounded-2xl border border-line bg-paper px-5 sm:px-7 py-4">
+        <button onClick={() => setPrompt(!prompt)} className="text-[14px] font-semibold hover:underline">{prompt ? "Masquer" : "Tu préfères coder toi-même ? Voir le prompt à donner à ton Claude"}</button>
+        {prompt && (
+          <div className="mt-3">
+            <pre className="whitespace-pre-wrap rounded-xl border border-line bg-white p-4 text-[12.5px] leading-relaxed max-h-80 overflow-auto">{texte}</pre>
+            <button onClick={copier} className="mt-2 rounded-xl bg-ink text-white px-4 py-2 text-[13.5px] font-semibold">{copie ? "Prompt copié" : "Copier le prompt"}</button>
+          </div>
+        )}
+      </div>
+      {res.length > 3 && <><h2 className="mt-10 text-[19px] font-bold">Aussi pour toi</h2><div className="mt-3 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">{res.slice(3).map((x) => <CartePourToi key={x.domaine} x={x} r={rr} />)}</div></>}
     </>
   );
 }
-function CartePourToi({ x, grand, premier, onChoisir, choisi }) {
+
+// Tes 10 premiers clients : où les trouver, quoi leur dire, et un tableau pour les suivre (gardé sur cet appareil)
+const ETATS = [["", "À contacter"], ["contacte", "Contacté"], ["repondu", "A répondu"], ["essai", "En essai"], ["payant", "Payant"]];
+function PremiersClients({ s, a, r }) {
+  const pc = premiersClients(s, a, r);
+  const cle = `bingoo-clients-${s.domaine}`;
+  const lire = () => { try { return JSON.parse(localStorage.getItem(cle) ?? "null") ?? Array.from({ length: 10 }, () => ({ nom: "", etat: "" })); } catch { return Array.from({ length: 10 }, () => ({ nom: "", etat: "" })); } };
+  const [liste, setListe] = useState(lire);
+  const [onglet, setOnglet] = useState("ou");
+  const [copie, setCopie] = useState(null);
+  useEffect(() => { setListe(lire()); }, [s.domaine]); // eslint-disable-line react-hooks/exhaustive-deps
+  const maj = (k, champ, v) => { const n = liste.map((x, j) => (j === k ? { ...x, [champ]: v } : x)); setListe(n); try { localStorage.setItem(cle, JSON.stringify(n)); } catch { /* stockage indisponible */ } };
+  const payants = liste.filter((x) => x.etat === "payant").length;
+  const contactes = liste.filter((x) => x.etat).length;
+  const copier = (t, k) => navigator.clipboard?.writeText(t).then(() => { setCopie(k); setTimeout(() => setCopie(null), 2000); });
+  return (
+    <section className="mt-6 rounded-3xl border border-line bg-white overflow-hidden">
+      <div className="px-5 sm:px-7 pt-6 pb-4 border-b border-line flex flex-wrap items-end gap-4">
+        <div className="flex-1 min-w-[220px]">
+          <h2 className="text-[22px] font-black leading-tight" style={HF}>Tes 10 premiers clients</h2>
+          <p className="text-[13.5px] text-ink-soft">Avant même que ton SaaS soit fini : trouve-les, parle-leur, fais-les essayer.</p>
+        </div>
+        <div className="text-right"><p className="text-[28px] font-black tnum leading-none" style={HF}>{payants}<span className="text-ink-faint text-[18px]"> / 10</span></p><p className="text-[12px] text-ink-faint">clients payants</p></div>
+      </div>
+      <div className="px-5 sm:px-7 pt-4 flex gap-4 border-b border-line text-[14px]">
+        {[["ou", "Où les trouver"], ["dire", "Quoi leur dire"], ["suivi", `Ton tableau (${contactes}/10)`]].map(([k, l]) => <button key={k} onClick={() => setOnglet(k)} className={cx("pb-2.5 -mb-px border-b-2 font-semibold", onglet === k ? "border-accent text-ink" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
+      </div>
+      <div className="px-5 sm:px-7 py-5">
+        {onglet === "ou" && (
+          <ol className="space-y-3">{pc.ou.map(([t, d], k) => (
+            <li key={t} className="flex gap-3"><span className="grid place-items-center h-6 w-6 shrink-0 rounded-full bg-accent-soft text-accent-dark text-[12.5px] font-bold">{k + 1}</span><div><p className="font-semibold text-[14.5px]">{t}</p><p className="text-[13.5px] text-ink-soft">{d}</p></div></li>
+          ))}</ol>
+        )}
+        {onglet === "dire" && (
+          <div className="grid md:grid-cols-2 gap-3">{pc.messages.map(([t, m], k) => (
+            <div key={t} className="rounded-2xl border border-line p-4 flex flex-col">
+              <p className="font-semibold text-[14px]">{t}</p>
+              <pre className="mt-2 flex-1 whitespace-pre-wrap font-sans text-[13px] text-ink-soft leading-relaxed">{m}</pre>
+              <button onClick={() => copier(m, k)} className="mt-3 self-start rounded-lg border border-line px-3 py-1.5 text-[12.5px] font-semibold hover:border-ink">{copie === k ? "Copié" : "Copier"}</button>
+            </div>
+          ))}</div>
+        )}
+        {onglet === "suivi" && (
+          <div>
+            <div className="h-2 rounded-full bg-line overflow-hidden"><div className="h-full bg-good transition-all" style={{ width: `${payants * 10}%` }} /></div>
+            <ul className="mt-4 grid sm:grid-cols-2 gap-2">{liste.map((x, k) => (
+              <li key={k} className="flex items-center gap-2 rounded-xl border border-line px-3 py-2">
+                <span className="w-5 text-[12.5px] text-ink-faint tnum">{k + 1}</span>
+                <input value={x.nom} onChange={(e) => maj(k, "nom", e.target.value.slice(0, 60))} placeholder="Nom ou entreprise" className="flex-1 min-w-0 bg-transparent text-[13.5px] outline-none" />
+                <select value={x.etat} onChange={(e) => maj(k, "etat", e.target.value)} className={cx("rounded-lg border border-line px-2 py-1 text-[12.5px]", x.etat === "payant" && "bg-good text-white border-good")}>{ETATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+              </li>
+            ))}</ul>
+            <p className="mt-3 text-[12.5px] text-ink-faint">Ce tableau est gardé sur cet appareil.</p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+function CartePourToi({ x, r, force, grand, premier, onChoisir, choisi }) {
   const nav0 = useNavigate();
   const { session } = useWs();
-  const nav = (to) => estInvite(session) ? demanderCompte("Crée ton compte pour voir sa fiche et le faire construire.") : nav0(to);
+  const nav = (to) => estInvite(session) ? demanderCompte("Crée ton compte pour voir sa fiche et lancer ta version.") : nav0(to);
+  const a = r ? angleDe(x, r, force) : null;
   return (
     <div className={cx("rounded-2xl border bg-white flex flex-col", grand ? "p-5" : "p-4", premier ? "border-ink ring-1 ring-ink" : "border-line")}>
       <div className="flex items-center gap-3">
@@ -2664,12 +2754,13 @@ function CartePourToi({ x, grand, premier, onChoisir, choisi }) {
         <div className="min-w-0 flex-1"><p className="font-bold truncate">{x.nom} {drapeau(x.pays)}</p><p className="text-[12.5px] text-ink-faint truncate">{x.categorie}</p></div>
         {x.mrr > 0 && <div className="text-right"><p className="font-black tnum leading-none" style={HF}>{dollar(x.mrr)}</p><p className="text-[11px] text-ink-faint">par mois, vérifié</p></div>}
       </div>
+      {a && <p className="mt-3 rounded-lg bg-accent-soft/70 px-2.5 py-1.5 text-[13px] font-semibold text-accent-dark">Ta version : {a.titre.replace(`${x.nom}, `, "")}</p>}
       <p className={cx("mt-3 text-ink-soft", grand ? "text-[14px] line-clamp-3" : "text-[13px] line-clamp-2")}>{x.description}</p>
       {(x.pourquoi ?? []).length > 0 && <ul className="mt-3 space-y-1 text-[13px] flex-1">{x.pourquoi.slice(0, grand ? 4 : 2).map((t) => <li key={t} className="flex gap-2"><span className="text-good">✓</span><span>{t}</span></li>)}</ul>}
       <div className="mt-4 flex gap-2">
         {onChoisir
-          ? <button onClick={onChoisir} className={cx("flex-1 rounded-xl font-bold px-3 py-2.5 text-[13.5px] whitespace-nowrap", choisi ? "bg-ink text-white" : "border border-line hover:border-ink")}>{choisi ? "Son plan est en dessous" : "Voir son plan"}</button>
-          : <button onClick={() => nav(`/explorer/lancer?d=${x.domaine}`)} className="flex-1 rounded-xl bg-accent text-white font-bold hover:bg-accent-dark px-3 py-2 text-[13px]">Copier ce SaaS</button>}
+          ? <button onClick={onChoisir} className={cx("flex-1 rounded-xl font-bold px-3 py-2.5 text-[13.5px] whitespace-nowrap", choisi ? "bg-ink text-white" : "border border-line hover:border-ink")}>{choisi ? "Choisi" : "Choisir celui-ci"}</button>
+          : <button onClick={() => nav(a ? lienLancer(x, a) : `/explorer/lancer?d=${x.domaine}`)} className="flex-1 rounded-xl bg-accent text-white font-bold hover:bg-accent-dark px-3 py-2 text-[13px]">Lancer ma version</button>}
         <button onClick={() => nav(`/explorer/${x.domaine}`)} className={cx("rounded-xl border border-line font-semibold hover:border-ink-faint", grand ? "px-4 py-2.5 text-[14px]" : "px-3 py-2 text-[13px]")}>Sa fiche</button>
       </div>
     </div>
@@ -3518,7 +3609,7 @@ function Comparer() {
           <tbody>{lignes.map(([t, f]) => (
             <tr key={t} className="border-b border-line last:border-0 align-top"><td className="px-4 py-3 text-[12.5px] font-semibold text-ink-faint">{t}</td>{ok.map((s) => <td key={s.id} className="px-4 py-3">{f(s)}</td>)}</tr>
           ))}
-          <tr><td />{ok.map((s) => <td key={s.id} className="px-4 py-4"><button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className={cx("rounded-xl px-4 py-2.5 text-[13.5px] font-bold", meilleur?.id === s.id ? "bg-accent text-white hover:bg-accent-dark" : "border border-line bg-white hover:border-ink")}>Lancer le même</button></td>)}</tr>
+          <tr><td />{ok.map((s) => <td key={s.id} className="px-4 py-4"><button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className={cx("rounded-xl px-4 py-2.5 text-[13.5px] font-bold", meilleur?.id === s.id ? "bg-accent text-white hover:bg-accent-dark" : "border border-line bg-white hover:border-ink")}>Lancer ma version</button></td>)}</tr>
           </tbody>
         </table>
       </div>

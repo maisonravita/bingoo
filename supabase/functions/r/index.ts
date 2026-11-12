@@ -150,7 +150,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (!s) { await saasAdd([`https://${domaine}`], "lancer"); ({ data: s } = await admin.from("saas").select("id, nom, statut").eq("domaine", domaine).maybeSingle()); }
     if (!s) throw new HttpError(400, "Ce site ne peut pas être ajouté");
     if (["pas_saas", "doublon", "retire"].includes(s.statut)) throw new HttpError(400, "Ce site n'est pas un logiciel SaaS lisible");
-    const { data: row } = await admin.from("saas_projets").insert({ workspace_id: ws.id, saas_id: s.id, statut: "en_cours", data: { inspire: { nom: s.nom ?? domaine, domaine } } }).select("id").single();
+    const { data: row } = await admin.from("saas_projets").insert({ workspace_id: ws.id, saas_id: s.id, statut: "en_cours", data: { inspire: { nom: s.nom ?? domaine, domaine }, angle: typeof b.angle === "string" ? b.angle.slice(0, 400) : null } }).select("id").single();
     await log(ws.id, "lancer", `Projet de SaaS concurrent de ${s.nom ?? domaine}`);
     const sid = s.id, aLire = s.statut !== "ok";
     const travail = (async () => {
@@ -159,7 +159,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
         const { data: lu } = await admin.from("saas").select("statut").eq("id", sid).single();
         if (lu?.statut !== "ok") throw new Error("Ce site n'a pas pu être lu comme un logiciel SaaS");
       }
-      return saasLancer(ws.id, domaine, row!.id);
+      return saasLancer(ws.id, domaine, row!.id, typeof b.angle === "string" ? b.angle.slice(0, 400) : null);
     })().catch(async (e) => {
       await admin.from("saas_projets").update({ statut: "erreur", erreur: String(e?.message ?? e).slice(0, 300) }).eq("id", row!.id);
     });
@@ -178,7 +178,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (!s) throw new HttpError(400, "Site introuvable");
     if (s.statut !== "ok") await saasLire(s.id);
     const ws = String(b.workspace_id);
-    const { data: row } = await admin.from("saas_projets").insert({ workspace_id: ws, saas_id: s.id, statut: "en_cours", data: { inspire: { nom: s.nom ?? domaine, domaine } } }).select("id").single();
+    const { data: row } = await admin.from("saas_projets").insert({ workspace_id: ws, saas_id: s.id, statut: "en_cours", data: { inspire: { nom: s.nom ?? domaine, domaine }, angle: typeof b.angle === "string" ? b.angle.slice(0, 400) : null } }).select("id").single();
     const travail = saasLancer(ws, domaine, row!.id).catch(async (e) => { await admin.from("saas_projets").update({ statut: "erreur", erreur: String(e?.message ?? e).slice(0, 300) }).eq("id", row!.id); });
     // deno-lint-ignore no-explicit-any
     const rt = (globalThis as any).EdgeRuntime;

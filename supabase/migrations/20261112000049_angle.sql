@@ -1,0 +1,1 @@
+-- saas_pour_moi3 renvoie aussi sans_fr, audience_brute et probleme (pour l'angle « ta version ») — appliqué via MCP

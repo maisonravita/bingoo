@@ -131,7 +131,7 @@ export default function Landing() {
           <section className="mx-auto max-w-[1440px] bg-white px-5 sm:px-10 pt-14 sm:pt-24 pb-16 sm:pb-20 text-center">
             <h1 className="hero-in relative mx-auto max-w-[1180px]" style={JK}>
               <span className="block text-[32px] sm:text-[50px] lg:text-[66px] leading-[1.1] text-[#3A3F55]" style={{ fontWeight: 500, letterSpacing: "-.01em" }}>Vois ce qui marche sur le marché SaaS.</span>
-              <span className="mt-1 block text-[38px] sm:text-[60px] lg:text-[80px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>Copie-le. Lance le tien.</span>
+              <span className="mt-1 block text-[38px] sm:text-[60px] lg:text-[80px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>Lance ta version.</span>
               <span className="mt-4 sm:mt-6 flex justify-center"><span className="sr-only">Bingoo!</span><Logo height="clamp(64px, 9vw, 112px)" className="!self-center" /></span>
             </h1>
             <p className="hero-in mx-auto mt-7 max-w-[780px] text-[18px] sm:text-[22px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Observe {nb ? <b>{nb.toLocaleString("fr-FR")} SaaS</b> : "tous les SaaS"} : leurs prix, leurs recrutements, leurs e-mails et leurs vrais revenus. Repère ceux qui gagnent déjà de l'argent, et Bingoo! construit le tien, à ton nom, prêt à encaisser. <span className="font-semibold text-accent-dark">Le TrendTrack des SaaS, qui construit aussi.</span></p>
@@ -141,7 +141,7 @@ export default function Landing() {
               <input id="hero-site" name="site" inputMode="url" autoComplete="url" placeholder="monsaas.com" required className="min-w-0 flex-1 bg-transparent px-5 py-3.5 text-[17px] outline-none placeholder:text-[#8A8FA3]" />
               <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-8 py-3.5 text-[17px] font-semibold text-white hover:bg-accent-dark transition">Voir mon marché <Arrow className="h-4 w-4" /></button>
             </form>
-            <button onClick={go} className="hero-in mt-4 inline-flex items-center gap-1.5 text-[15.5px] font-semibold text-ink underline decoration-accent/50 decoration-2 underline-offset-4 hover:decoration-accent" style={{ ...JK, animationDelay: ".22s" }}>Ou trouve un SaaS qui gagne déjà de l'argent et copie-le <Arrow className="h-4 w-4" /></button>
+            <button onClick={go} className="hero-in mt-4 inline-flex items-center gap-1.5 text-[15.5px] font-semibold text-ink underline decoration-accent/50 decoration-2 underline-offset-4 hover:decoration-accent" style={{ ...JK, animationDelay: ".22s" }}>Trouve le SaaS qui gagne déjà de l'argent et lance ta version <Arrow className="h-4 w-4" /></button>
             <div className="hero-in mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[15px] text-[#5B6075]" style={{ ...JK, animationDelay: ".25s" }}>
               {["Rapport gratuit, sans compte, en une minute", "Revenus vérifiés chez Stripe ou dans les comptes officiels", "Ton SaaS construit et en ligne en une journée"].map((x) => <span key={x} className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-accent" />{x}</span>)}
             </div>

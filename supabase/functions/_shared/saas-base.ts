@@ -707,7 +707,7 @@ type Projet = {
   risques: { risque: string; parade: string }[];
   hypotheses: { clients_mois_1: number; croissance_mensuelle_pct: number; churn_mensuel_pct: number; conversion_essai_pct: number };
 };
-export async function saasLancer(wsId: string, domaine: string, projetId?: string) {
+export async function saasLancer(wsId: string, domaine: string, projetId?: string, angle?: string | null) {
   const { data: s } = await admin.from("saas").select("id, nom, domaine, categorie, description, cible, pays, prix_entree_eur, gratuit, essai, formules, recrute, postes, tags, methode, liens, prix_rendu, prix_affiche, modele_prix").eq("domaine", domaine.toLowerCase()).eq("statut", "ok").single();
   if (!s) throw new Error("SaaS introuvable");
   // Ce que fait le SaaS, lu sur ses pages publiques (accueil, tarifs) : la liste des fonctionnalités à égaler
@@ -732,7 +732,7 @@ Texte de ses pages publiques (accueil puis tarifs), pour savoir exactement ce qu
 ${pages}
 Ses concurrents dans la base : ${(conc ?? []).map((c) => `${c.nom} (${c.pays ?? "?"}, ${c.prix_entree_eur != null ? `${c.prix_entree_eur} €` : "prix ?"}${c.gratuit ? ", gratuit" : ""})`).join(", ")}. Prix d'entrée médian du marché : ${mediane ?? "inconnu"} €/mois.
 
-Propose le SaaS concurrent à lancer en France par une petite équipe (1 à 3 personnes) : il fait la même chose que ${s.nom}, pour les mêmes clients.
+Propose le SaaS concurrent à lancer en France par une petite équipe (1 à 3 personnes) : il fait la même chose que ${s.nom}, pour les mêmes clients.${angle ? `\nL'entrepreneur a choisi cet angle pour sa version, respecte-le dans le nom, la cible, les fonctionnalités et le prix : ${angle}` : ""}
 Clés JSON :
 nom (un nom ORIGINAL, sans ressemblance avec ${s.nom} ni avec un concurrent), pitch (une phrase, avec tes mots), cible (les mêmes clients que ${s.nom}, précisés pour la France), probleme (le besoin que ${s.nom} résout, prouvé par son succès),
 equivalences (8 à 14 objets chez_eux + chez_toi + v1 : chaque fonctionnalité principale de ${s.nom} lue dans ses pages, puis ta fonctionnalité équivalente décrite avec tes mots, sans reprendre ses noms de fonctions déposés ; v1 = true si Bingoo! la construit dès la première version — comptes, données et écrans de gestion, pages publiques sans compte (réservation, formulaire, avis), vrais e-mails immédiats ou planifiés, PDF, photos et fichiers, agenda abonnable, IA qui écrit ou analyse du texte, abonnements Stripe — et false sinon : vidéo, image ou son générés, appli mobile native, extension de navigateur, SMS, synchronisation bidirectionnelle avec Google ou Outlook, connexion à un autre logiciel ou à une API extérieure),
