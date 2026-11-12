@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { nomCanal, plan30, promptClaude } from "../lib/plan30";
 import { demanderCompte, estInvite } from "../lib/invite";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { Spinner, useToast } from "../components/ui";
@@ -50,6 +50,9 @@ const prixCourt = (s) => s.prix_entree_eur != null ? `dès ${s.prix_entree_eur} 
 export default function Explorer({ domaine: fixe }) {
   const { domaine } = useParams();
   const d = fixe ?? domaine;
+  const { session } = useWs();
+  // Sans compte, on ne peut pas explorer Bingoo! : seul le parcours « Trouver mon SaaS » est ouvert
+  if (estInvite(session) && d !== "trouver") return <Navigate to="/explorer/trouver" replace />;
   if (d === "bouge") return <><Onglets actif="bouge" /><Fil /></>;
   if (d === "suivis") return <><Onglets actif="suivis" /><Suivis /></>;
   if (d === "marche") return <><Onglets actif="marche" /><Marche /></>;
@@ -93,14 +96,16 @@ function Onglets({ actif, trouver }) {
   const [guide, setGuide] = useState(guideActif);
   const [etape, setEtape] = useState(1);
   useEffect(() => { const f = (e) => setEtape(e.detail); window.addEventListener("bingoo-etape", f); return () => window.removeEventListener("bingoo-etape", f); }, []);
-  if (guide && trouver) return (
+  const { session: sess } = useWs();
+  const invite = estInvite(sess);
+  if ((guide || invite) && trouver) return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-5">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-line bg-white px-4 py-3">
         <span className="font-bold text-[14px]">Ton premier SaaS en 3 étapes</span>
         <ol className="flex flex-wrap gap-x-4 gap-y-1 text-[13.5px] text-ink-soft">
           {["Réponds à quelques questions", "Choisis parmi tes 3 SaaS", "Bingoo! le construit pour toi"].map((l, k) => <li key={l} className={cx(k + 1 === etape && "font-semibold text-ink", k + 1 < etape && "line-through")}>{k + 1}. {l}</li>)}
         </ol>
-        <button onClick={() => { finirGuide(); setGuide(false); nav("/explorer"); }} className="ml-auto text-[13.5px] font-semibold text-accent-dark hover:underline">Voir tout Bingoo!</button>
+        <button onClick={() => invite ? demanderCompte("Crée ton compte pour explorer toute la bibliothèque de SaaS.") : (finirGuide(), setGuide(false), nav("/explorer"))} className="ml-auto text-[13.5px] font-semibold text-accent-dark hover:underline">{invite ? "Créer mon compte" : "Voir tout Bingoo!"}</button>
       </div>
     </div>
   );
@@ -2649,7 +2654,9 @@ function Paquet({ res, r }) {
   );
 }
 function CartePourToi({ x, grand, premier, onChoisir, choisi }) {
-  const nav = useNavigate();
+  const nav0 = useNavigate();
+  const { session } = useWs();
+  const nav = (to) => estInvite(session) ? demanderCompte("Crée ton compte pour voir sa fiche et le faire construire.") : nav0(to);
   return (
     <div className={cx("rounded-2xl border bg-white flex flex-col", grand ? "p-5" : "p-4", premier ? "border-ink ring-1 ring-ink" : "border-line")}>
       <div className="flex items-center gap-3">

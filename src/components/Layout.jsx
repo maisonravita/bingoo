@@ -207,7 +207,9 @@ export default function Layout({ children }) {
   const avance = !estSimple(ws);
   const veille = modeExplorer(ws);
   // Mêmes 5 rubriques que la barre de l'Explorer ; chaque rubrique s'allume aussi sur ses sous-pages
-  const essentiel = veille ? [
+  const essentiel = invite ? [
+    { to: "/explorer/trouver", label: "Trouver mon SaaS", icon: "target" },
+  ] : veille ? [
     { to: "/explorer/trouver", label: "Trouver mon SaaS", icon: "target" },
     { to: "/explorer/copier", label: "À copier", icon: "target", also: ["/explorer/chiffres"] },
     { to: "/explorer/demande", label: "Demande à Bingoo!", icon: "spark", also: ["/explorer/connecteur"] },
@@ -215,7 +217,7 @@ export default function Layout({ children }) {
     { to: "/explorer/vendre", label: "Acheter / vendre", icon: "doc", also: ["/explorer/bourse", "/explorer/racheter"] },
     { to: "/explorer", label: "Explorer les SaaS", icon: "list", also: ["/explorer/niches", "/explorer/classement", "/explorer/marche", "/explorer/carte", "/explorer/idees", "/explorer/pubs", "/explorer/suivis", "/explorer/bouge"] },
   ] : [{ to: "/explorer", label: "Explorer", icon: "eye" }, item(lieu("atelier")), item(lieu("poste")), { to: "/appels", label: "Appels", icon: "phone", count: c.calls }, ...["rdv", "radar", "observatoire"].map((a) => item(lieu(a)))];
-  const plus = veille ? [
+  const plus = invite ? [] : veille ? [
     { to: "/abonnement", label: "Abonnement", icon: "doc" }, { to: "/equipe", label: "Équipe", icon: "phone" }, { to: "/reglages", label: "Réglages", icon: "plug" },
     ...(isAdmin ? [{ to: "/admin", label: "Administration", icon: "chart" }] : []),
   ] : [
@@ -246,12 +248,12 @@ export default function Layout({ children }) {
               {!veille && <NavLink to="/" end onClick={() => setMore(false)} className={link({ to: "/" })}><Icon name="today" /><span className="flex-1">Aujourd'hui</span></NavLink>}
               {essentiel.map((n) => n.titre ? <p key={n.titre} className="mt-3 first:mt-0 px-3 pb-1 text-[11.5px] font-bold uppercase tracking-wider text-ink-faint">{n.titre}</p> : <NavLink key={n.to} to={n.to} end onClick={() => setMore(false)} className={link(n)}><Icon name={n.icon} /><span className="flex-1">{n.label}</span><Count n={n.count} hot={n.hot} /></NavLink>)}
             </div>
-            <details className="group mt-3 pt-3 border-t border-line" open={plus.some((n) => loc.pathname === n.to || (n.also ?? []).includes(loc.pathname))}>
+            {plus.length > 0 && <details className="group mt-3 pt-3 border-t border-line" open={plus.some((n) => loc.pathname === n.to || (n.also ?? []).includes(loc.pathname))}>
               <summary className="cursor-pointer list-none flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] font-medium text-ink-soft hover:text-ink hover:bg-white/70"><Icon name="more" /><span className="flex-1">Plus</span><span className="transition group-open:rotate-90" aria-hidden>›</span></summary>
               <div className="mt-0.5 flex flex-col gap-0.5">
                 {plus.map((n) => <NavLink key={n.to} to={n.to} end onClick={() => setMore(false)} className={link(n)}><Icon name={n.icon} /><span className="flex-1">{n.label}</span><Count n={n.count} hot={n.hot} /></NavLink>)}
               </div>
-            </details>
+            </details>}
             <div className="mt-4 pt-4 border-t border-line px-3 text-[14px] text-ink-soft flex flex-col gap-1.5">
               {list?.length > 1 ? <WsSwitch ws={ws} list={list} select={select} /> : <p className="font-semibold text-ink truncate">{ws.profile?.nom || ws.name || "Mon entreprise"}</p>}
               <NavLink className="hover:text-ink" to="/aide" onClick={() => setMore(false)}>Aide</NavLink>
@@ -303,7 +305,7 @@ export default function Layout({ children }) {
         {children}
       </main>
       {/* Téléphone : les 4 endroits du quotidien, toujours sous le pouce */}
-      <nav aria-label="Navigation principale" className="md:hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
+      <nav aria-label="Navigation principale" hidden={invite} className="md:hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
         <div className="grid grid-cols-4">
           {(veille ? [["/explorer/trouver", "Trouver", "target", 0], ["/explorer/copier", "À copier", "target", 0], ["/explorer/createurs", "Mes SaaS", "bot", 0], ["/explorer", "Explorer", "list", 0]]
             : [["/", "Aujourd'hui", "today", 0], ["/valider", "Messages", "send", c.drafts], ["/reponses", "Réponses", "inbox", c.replies], ["/agenda", "RDV", "cal", c.today]]).map(([to, l, ic, n]) => (
