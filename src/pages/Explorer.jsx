@@ -2593,7 +2593,7 @@ function Debloquer({ premier, total, invite }) {
       </div>
       <div className="mt-6 rounded-3xl border-2 border-ink bg-white p-5 sm:p-7 flex flex-wrap items-center gap-5">
         <div className="flex-1 min-w-[260px]">
-          <h2 className="text-[22px] sm:text-[26px] font-black leading-tight" style={HF}>Débloque tes 2 autres SaaS, ton plan sur 30 jours et ton prompt</h2>
+          <h2 className="text-[22px] sm:text-[26px] font-black leading-tight" style={HF}>Débloque tes 2 autres SaaS, ton plan sur 30 jours et ton SaaS clé en main</h2>
           <p className="mt-1.5 text-[14.5px] text-ink-soft">Ils s'affichent dès ton paiement reçu.{total > 3 ? ` Bingoo! a trouvé ${Number(total).toLocaleString("fr-FR")} SaaS vérifiés qui collent à tes réponses : tu pourras tous les parcourir, et Bingoo! construit celui que tu choisis.` : " Et Bingoo! construit celui que tu choisis."}</p>
         </div>
         <button onClick={debloquer} className="rounded-xl bg-accent text-white px-6 py-3.5 font-bold hover:bg-accent-dark">Débloquer mes résultats</button>
