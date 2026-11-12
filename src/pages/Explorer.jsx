@@ -2684,13 +2684,13 @@ function Paquet({ res, r }) {
   );
 }
 
-// Tes 10 premiers clients : où les trouver, quoi leur dire, et un tableau pour les suivre (gardé sur cet appareil)
-const ETATS = [["", "À contacter"], ["contacte", "Contacté"], ["repondu", "A répondu"], ["essai", "En essai"], ["payant", "Payant"]];
+// Tes 10 premiers clients : la semaine à cocher, les prospects trouvés par Bingoo! (registre public des entreprises)
+// avec leur suivi enregistré dans Bingoo!, les messages prêts à copier et les autres endroits où chercher
+const ETATS = [["", "À contacter"], ["contacte", "Contacté"], ["repondu", "A répondu"], ["essai", "En essai"], ["payant", "Payant"], ["non", "Pas intéressé"]];
 export function PremiersClients({ s, a, r }) {
+  const { ws } = useWs();
+  const toast = useToast();
   const pc = premiersClients(s, a, r);
-  const cle = `bingoo-clients-${s.domaine}`;
-  const lire = () => { try { return JSON.parse(localStorage.getItem(cle) ?? "null") ?? Array.from({ length: 10 }, () => ({ nom: "", etat: "" })); } catch { return Array.from({ length: 10 }, () => ({ nom: "", etat: "" })); } };
-  const [liste, setListe] = useState(lire);
   const [onglet, setOnglet] = useState("semaine");
   const semaine = semaineClients(s, a, r);
   const cleJ = `bingoo-semaine-${s.domaine}`;
@@ -2698,11 +2698,31 @@ export function PremiersClients({ s, a, r }) {
   useEffect(() => { try { setFaits(JSON.parse(localStorage.getItem(cleJ) ?? "[]")); } catch { setFaits([]); } }, [cleJ]);
   const cocher = (k) => { const n = faits.includes(k) ? faits.filter((x) => x !== k) : [...faits, k]; setFaits(n); try { localStorage.setItem(cleJ, JSON.stringify(n)); } catch { /* stockage indisponible */ } };
   const [copie, setCopie] = useState(null);
-  useEffect(() => { setListe(lire()); }, [s.domaine]); // eslint-disable-line react-hooks/exhaustive-deps
-  const maj = (k, champ, v) => { const n = liste.map((x, j) => (j === k ? { ...x, [champ]: v } : x)); setListe(n); try { localStorage.setItem(cle, JSON.stringify(n)); } catch { /* stockage indisponible */ } };
-  const payants = liste.filter((x) => x.etat === "payant").length;
-  const contactes = liste.filter((x) => x.etat).length;
   const copier = (t, k) => navigator.clipboard?.writeText(t).then(() => { setCopie(k); setTimeout(() => setCopie(null), 2000); });
+  // Prospects enregistrés pour cette version
+  const [pros, setPros] = useState(null);
+  const [dep, setDep] = useState(() => { try { return localStorage.getItem("bingoo-departement") ?? ""; } catch { return ""; } });
+  const [busy, setBusy] = useState(false);
+  const [ajout, setAjout] = useState("");
+  const charger = () => supabase.from("saas_prospects_lancement").select("id, nom, ville, dirigeant, prenom, depuis, maps, etat").eq("workspace_id", ws.id).eq("domaine", s.domaine).order("created_at").then(({ data }) => setPros(data ?? []));
+  useEffect(() => { charger(); }, [s.domaine, ws.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const trouver = async (e) => {
+    e?.preventDefault();
+    try { localStorage.setItem("bingoo-departement", dep.trim()); } catch { /* stockage indisponible */ }
+    setBusy(true);
+    try {
+      const x = await fn("r/saas-prospects", { workspace_id: ws.id, domaine: s.domaine, metier: a.type === "metier" ? a.metier : null, categorie: s.categorie, departement: dep.trim() });
+      toast(x.trouves ? `${x.trouves} prospects trouvés : ${x.cible}, département ${x.departement}` : "Aucun établissement trouvé : essaie un département voisin", x.trouves ? "good" : "bad");
+      await charger();
+    } catch (err) { toast(err.message, "bad"); } finally { setBusy(false); }
+  };
+  const etat = async (id, v) => { setPros(pros.map((p) => (p.id === id ? { ...p, etat: v } : p))); await supabase.from("saas_prospects_lancement").update({ etat: v, maj: new Date().toISOString() }).eq("id", id); };
+  const ajouter = async (e) => { e.preventDefault(); if (!ajout.trim()) return; await supabase.from("saas_prospects_lancement").insert({ workspace_id: ws.id, domaine: s.domaine, siret: `manuel-${Date.now()}`, nom: ajout.trim().slice(0, 80) }); setAjout(""); charger(); };
+  const premier = (pc.messages[0] ?? ["", ""])[1];
+  const messagePour = (p) => premier.replace("[prénom]", p.prenom ?? "").replace("Bonjour ,", "Bonjour,");
+  const payants = (pros ?? []).filter((x) => x.etat === "payant").length;
+  const contactes = (pros ?? []).filter((x) => x.etat && x.etat !== "").length;
+  const cibleTxt = a.type === "metier" ? a.les : "tes clients";
   return (
     <section className="mt-6 rounded-3xl border border-line bg-white overflow-hidden">
       <div className="px-5 sm:px-7 pt-6 pb-4 border-b border-line flex flex-wrap items-end gap-4">
@@ -2712,8 +2732,8 @@ export function PremiersClients({ s, a, r }) {
         </div>
         <div className="text-right"><p className="text-[28px] font-black tnum leading-none" style={HF}>{payants}<span className="text-ink-faint text-[18px]"> / 10</span></p><p className="text-[12px] text-ink-faint">clients payants</p></div>
       </div>
-      <div className="px-5 sm:px-7 pt-4 flex gap-4 border-b border-line text-[14px]">
-        {[["semaine", `Ta semaine (${faits.length}/7)`], ["ou", "Où les trouver"], ["dire", "Quoi leur dire"], ["suivi", `Ton tableau (${contactes}/10)`]].map(([k, l]) => <button key={k} onClick={() => setOnglet(k)} className={cx("pb-2.5 -mb-px border-b-2 font-semibold", onglet === k ? "border-accent text-ink" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
+      <div className="px-5 sm:px-7 pt-4 flex gap-4 overflow-x-auto border-b border-line text-[14px]">
+        {[["semaine", `Ta semaine (${faits.length}/7)`], ["prospects", `Tes prospects${pros?.length ? ` (${contactes}/${pros.length})` : ""}`], ["dire", "Quoi leur dire"], ["ou", "Où chercher encore"]].map(([k, l]) => <button key={k} onClick={() => setOnglet(k)} className={cx("shrink-0 pb-2.5 -mb-px border-b-2 font-semibold whitespace-nowrap", onglet === k ? "border-accent text-ink" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
       </div>
       <div className="px-5 sm:px-7 py-5">
         {onglet === "semaine" && (
@@ -2731,6 +2751,38 @@ export function PremiersClients({ s, a, r }) {
             );
           })}</ol>
         )}
+        {onglet === "prospects" && (
+          <div>
+            <form onSubmit={trouver} className="flex flex-wrap items-end gap-2 rounded-2xl bg-paper border border-line p-4">
+              <div className="flex-1 min-w-[220px]">
+                <p className="font-semibold text-[14.5px]">Bingoo! trouve {cibleTxt} de ton département</p>
+                <p className="text-[12.5px] text-ink-soft">Établissements en activité, tirés du registre public des entreprises, avec le nom du dirigeant quand il est publié.</p>
+              </div>
+              <input value={dep} onChange={(e) => setDep(e.target.value.slice(0, 3))} placeholder="Département (ex. 75)" className="w-44 rounded-xl border border-line bg-white px-3 py-2.5 text-[14px] outline-none focus:border-ink" />
+              <button disabled={busy || !dep.trim()} className="rounded-xl bg-accent text-white px-5 py-2.5 font-bold hover:bg-accent-dark disabled:opacity-50">{busy ? "Recherche…" : pros?.length ? "En trouver d'autres" : "Trouver mes prospects"}</button>
+            </form>
+            {pros === null ? <div className="py-8 grid place-items-center"><Spinner /></div> : !pros.length ? (
+              <p className="mt-4 text-[13.5px] text-ink-soft">{a.type === "metier" || ["Immobilier", "Commerce et restauration", "Santé", "BTP et artisans", "Éducation et formation", "E-commerce"].includes(s.categorie) ? "Indique ton département : Bingoo! te sort jusqu'à 50 établissements à contacter." : "Pour ce SaaS, choisis l'angle « Pour un métier » plus haut : Bingoo! saura alors quels établissements chercher."}</p>
+            ) : (
+              <>
+                <div className="mt-4 h-2 rounded-full bg-line overflow-hidden"><div className="h-full bg-good transition-all" style={{ width: `${Math.min(100, payants * 10)}%` }} /></div>
+                <ul className="mt-3 divide-y divide-line rounded-2xl border border-line">{pros.map((p, k) => (
+                  <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2.5">
+                    <div className="flex-1 min-w-[180px]">
+                      <p className="font-semibold text-[14px]">{p.nom}</p>
+                      <p className="text-[12.5px] text-ink-faint">{[p.ville, p.dirigeant && `dirigé par ${p.dirigeant}`, p.depuis && `depuis ${p.depuis}`].filter(Boolean).join(" · ")}</p>
+                    </div>
+                    {p.maps && <a href={p.maps} target="_blank" rel="noopener noreferrer" className="text-[12.5px] font-semibold text-accent-dark hover:underline">Site et téléphone</a>}
+                    <button onClick={() => copier(messagePour(p), `p${k}`)} className="rounded-lg border border-line px-2.5 py-1 text-[12.5px] font-semibold hover:border-ink">{copie === `p${k}` ? "Copié" : "Copier son message"}</button>
+                    <select value={p.etat} onChange={(e) => etat(p.id, e.target.value)} className={cx("rounded-lg border border-line px-2 py-1 text-[12.5px]", p.etat === "payant" && "bg-good text-white border-good", p.etat === "non" && "text-ink-faint")}>{ETATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+                  </li>
+                ))}</ul>
+              </>
+            )}
+            <form onSubmit={ajouter} className="mt-3 flex gap-2"><input value={ajout} onChange={(e) => setAjout(e.target.value)} placeholder="Ajouter quelqu'un que tu connais" className="flex-1 rounded-xl border border-line bg-white px-3 py-2 text-[13.5px] outline-none focus:border-ink" /><button className="rounded-xl border border-line px-4 py-2 text-[13.5px] font-semibold hover:border-ink">Ajouter</button></form>
+            <p className="mt-2 text-[12px] text-ink-faint">Contacte les professionnels sur leur adresse professionnelle et retire tout de suite ceux qui ne veulent pas être recontactés.</p>
+          </div>
+        )}
         {onglet === "ou" && (
           <ol className="space-y-3">{pc.ou.map(([t, d], k) => (
             <li key={t} className="flex gap-3"><span className="grid place-items-center h-6 w-6 shrink-0 rounded-full bg-accent-soft text-accent-dark text-[12.5px] font-bold">{k + 1}</span><div><p className="font-semibold text-[14.5px]">{t}</p><p className="text-[13.5px] text-ink-soft">{d}</p></div></li>
@@ -2744,19 +2796,6 @@ export function PremiersClients({ s, a, r }) {
               <button onClick={() => copier(m, k)} className="mt-3 self-start rounded-lg border border-line px-3 py-1.5 text-[12.5px] font-semibold hover:border-ink">{copie === k ? "Copié" : "Copier"}</button>
             </div>
           ))}</div>
-        )}
-        {onglet === "suivi" && (
-          <div>
-            <div className="h-2 rounded-full bg-line overflow-hidden"><div className="h-full bg-good transition-all" style={{ width: `${payants * 10}%` }} /></div>
-            <ul className="mt-4 grid sm:grid-cols-2 gap-2">{liste.map((x, k) => (
-              <li key={k} className="flex items-center gap-2 rounded-xl border border-line px-3 py-2">
-                <span className="w-5 text-[12.5px] text-ink-faint tnum">{k + 1}</span>
-                <input value={x.nom} onChange={(e) => maj(k, "nom", e.target.value.slice(0, 60))} placeholder="Nom ou entreprise" className="flex-1 min-w-0 bg-transparent text-[13.5px] outline-none" />
-                <select value={x.etat} onChange={(e) => maj(k, "etat", e.target.value)} className={cx("rounded-lg border border-line px-2 py-1 text-[12.5px]", x.etat === "payant" && "bg-good text-white border-good")}>{ETATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
-              </li>
-            ))}</ul>
-            <p className="mt-3 text-[12.5px] text-ink-faint">Ce tableau est gardé sur cet appareil.</p>
-          </div>
         )}
       </div>
     </section>

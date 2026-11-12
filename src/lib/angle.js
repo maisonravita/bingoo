@@ -75,9 +75,9 @@ export function semaineClients(s, a, r) {
     ? (k) => `Publie ton message dans ${k} groupes ou forums où ${a.type === "metier" ? `se retrouvent ${cible}` : "se trouve ta cible"}, et réponds à chaque commentaire dans l'heure.`
     : (k, encore) => `Envoie ton message à ${k} ${encore ? "autres " : ""}personnes de ta liste, personnalisé avec leur prénom et un détail sur eux.`;
   return [
-    { j: "Jour 1", titre: "Ta liste", actions: [`Fais construire ta version par Bingoo! (environ une heure de ton côté).`, `Note ${n(50, 30)} personnes ou entreprises ${source}, avec leur e-mail ou leur profil.`] },
+    { j: "Jour 1", titre: "Ta liste", actions: [`Fais construire ta version par Bingoo! (environ une heure de ton côté).`, a.type === "metier" ? `Ouvre l'onglet « Tes prospects » : Bingoo! te sort jusqu'à 50 ${a.les} de ton département. Garde les ${n(40, 25)} qui te parlent le plus.` : `Note ${n(50, 30)} personnes ou entreprises ${source}, avec leur e-mail ou leur profil (ou ouvre « Tes prospects » si Bingoo! peut les trouver pour toi).`] },
     { j: "Jour 2", titre: "Ton offre", actions: [`Choisis ton offre de lancement : un mois gratuit, puis −30 % à vie pour les 10 premiers.`, `Prépare tes messages dans l'onglet « Quoi leur dire » : remplace les crochets par tes mots.`] },
-    { j: "Jour 3", titre: "Premiers contacts", actions: [contacter(n(15, 8)), "Note chaque contact dans ton tableau."] },
+    { j: "Jour 3", titre: "Premiers contacts", actions: [contacter(n(15, 8)), "Note chaque contact dans « Tes prospects »."] },
     { j: "Jour 4", titre: "Deuxième vague", actions: [contacter(n(15, 8), true), "Réponds à tous ceux qui ont répondu, même les « non merci » : demande-leur pourquoi."] },
     { j: "Jour 5", titre: "Montre-le", actions: [refus.has("video") ? "Envoie 3 captures d'écran qui montrent le résultat à ceux qui sont intéressés." : "Fais une démo de 10 minutes (visio ou vidéo enregistrée) à ceux qui sont intéressés.", refus.has("appeler") ? "Relance par écrit ceux qui n'ont pas répondu, une seule fois." : "Relance une seule fois ceux qui n'ont pas répondu."] },
     { j: "Jour 6", titre: "Ouvre les essais", actions: ["Donne l'accès à tous ceux qui ont dit oui, et aide chacun à faire sa première action dans l'outil.", "Note ce qui les bloque : c'est ta liste d'améliorations."] },

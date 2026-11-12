@@ -57,6 +57,24 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     return { id: s.id, domaine: d, statut: r?.statut ?? "erreur" };
   },
   // Explorer : les chiffres d'un SaaS à partir de son adresse (sans IA : base Bingoo!, puis sa fiche TrustMRR lue à la demande)
+  // Tes premiers prospects : établissements du métier visé dans un département, tirés du registre public (gratuit, sans IA)
+  async "saas-prospects"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { data: payant } = await admin.rpc("saas_paye_ws", { p_ws: ws.id });
+    if (!payant) throw new HttpError(402, "Les prospects trouvés par Bingoo! font partie de la formule payante.");
+    await quota(ws.id, "saas_prospects", 15);
+    const domaine = String(b.domaine ?? "").toLowerCase().slice(0, 120);
+    if (!domaine) throw new HttpError(400, "SaaS manquant");
+    const { chercherProspects } = await import("../_shared/premiers-clients.ts");
+    const r = await chercherProspects(b.metier ? String(b.metier).slice(0, 60) : null, b.categorie ? String(b.categorie) : null, String(b.departement ?? ""), 50);
+    await log(ws.id, "saas_prospects", `${r.prospects.length} prospects (${r.cible}, ${r.departement}) pour ta version de ${domaine}`);
+    if (r.prospects.length) {
+      const rows = r.prospects.map((p) => ({ ...p, workspace_id: ws.id, domaine }));
+      const { error } = await admin.from("saas_prospects_lancement").upsert(rows, { onConflict: "workspace_id,domaine,siret", ignoreDuplicates: true });
+      if (error) throw new HttpError(500, error.message);
+    }
+    return { cible: r.cible, departement: r.departement, trouves: r.prospects.length, source: r.source };
+  },
   async "saas-chiffres"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     await quota(ws.id, "saas_chiffres", 60);
