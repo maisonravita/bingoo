@@ -4,7 +4,7 @@ const sans = (t) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 // Mots du quotidien → mots-clés cherchés dans les SaaS (souvent en anglais)
 const SUJETS = [
-  [/factur|invoice|devis/, "invoic|factur|quote|devis", "facturation"],
+  [/factur|invoice|devis/, "invoic(e|es|ing)\\b|factur|billing (software|tool|app)|\\bdevis\\b", "facturation"],
   [/compta|accounting|impot|tva|tax/, "accounting|bookkeep|comptab|\\btax", "comptabilité"],
   [/cv\b|resume|candidat|emploi|job/, "resume|\\bcv\\b|cover letter|job", "CV et emploi"],
   [/pinterest/, "pinterest", "Pinterest"], [/tiktok/, "tiktok", "TikTok"], [/instagram|insta\b/, "instagram", "Instagram"], [/linkedin/, "linkedin", "LinkedIn"], [/reddit/, "reddit", "Reddit"], [/youtube/, "youtube", "YouTube"], [/twitter|\bx\b/, "twitter|\\btweets?\\b", "X"],

@@ -103,7 +103,7 @@ export async function mcpBingoo(req: Request, admin: SupabaseClient, cleChemin: 
   const cle = cleChemin || (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
   const empreinte = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(cle)))].map((x) => x.toString(16).padStart(2, "0")).join("");
   const { data: k } = cle ? await admin.from("saas_api_cles").select("id, workspace_id, appels, revoquee").eq("empreinte", empreinte).maybeSingle() : { data: null };
-  if (!k || k.revoquee) return json({ jsonrpc: "2.0", id: null, error: { code: -32001, message: "Clé Bingoo! invalide ou révoquée : crée-en une dans Bingoo!, Réglages > Connecteur." } }, 401, cors);
+  if (!k || k.revoquee) return json({ jsonrpc: "2.0", id: null, error: { code: -32001, message: "Clé Bingoo! invalide ou révoquée : crée-en une dans Bingoo!, menu « Demande à Bingoo! », onglet « Dans Claude ou ChatGPT »." } }, 401, cors);
   let corps: any; try { corps = await req.json(); } catch { return json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "JSON invalide" } }, 400, cors); }
   const { data: microListe } = await admin.from("saas_micro").select("slug").order("ordre");
   const niches = (microListe ?? []).map((x: any) => x.slug);
