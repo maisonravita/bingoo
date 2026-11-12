@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_pour_moi2 (canaux, cible, ambition, solo, constructible) et saas_preferences.reponses
