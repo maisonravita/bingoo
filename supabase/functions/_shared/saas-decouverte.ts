@@ -146,7 +146,7 @@ export function trustmrrFiche(md: string, slug: string) {
   const croissance = ligne("Last 30 days MRR growth") ?? ligne("Last 30 days revenue growth");
   const abonnements = dollars(ligne("Current active subscriptions")) || null;
   const total = dollars(ligne("All-time revenue snapshot")) || null;
-  const courbe = [...(md.split("### Monthly revenue timeline")[1] ?? "").matchAll(/^\| (\d{4}-\d{2}) \| \$([\d,]+) \|$/gm)].map((m) => ({ m: m[1], v: Number(m[2].replace(/,/g, "")) }));
+  const courbe = [...(md.split("### Monthly revenue timeline")[1] ?? "").split("\n## ")[0].matchAll(/^\| (\d{4}-\d{2}) \| \$([\d,.]+) \|$/gm)].map((m) => ({ m: m[1], v: Math.round(Number(m[2].replace(/,/g, ""))) }));
   // Fondateurs affichés publiquement par la startup elle-même sur TrustMRR (nom, lien du profil, photo, abonnés X)
   const fondateurs = [...md.matchAll(/^- (?:Co-)?[Ff]ounder: \[([^\]]+)\]\((https:\/\/trustmrr\.com\/founder\/[^)\s]+)\)$/gm)].slice(0, 3).map((m) => ({ nom: m[1].replace(/\\([|*_#\[\]()<>`~-])/g, "$1").trim(), lien: m[2] }));
   const photo = ligne("Founder image")?.match(/\((https:\/\/[^)\s]+)\)/)?.[1] ?? null;
@@ -157,6 +157,62 @@ export function trustmrrFiche(md: string, slug: string) {
     slug, site, nom: ligne("Name"), description: ligne("Description"), pays: ligne("Country"), fonde: ligne("Founded date"),
     mrr, rev30, croissance, fondateurs, abonnements, total, courbe, marches, prix: ligne("Pricing model"), probleme: ligne("Problem solved"),
     a_vendre: /currently listed for sale/i.test(md) && !/not currently listed for sale/i.test(md),
+    details: trustmrrDetails(md),
+  };
+}
+
+/** Tout ce que la fiche publique TrustMRR contient, rangé (sans la liste « Discover More Startups »). */
+export function trustmrrDetails(md: string) {
+  const nettoie = (v: string) => v.replace(/\\([|*_#\[\]()<>`~-])/g, "$1").trim();
+  const sections: Record<string, string> = {};
+  for (const bloc of md.split(/^## /m).slice(1)) { const i = bloc.indexOf("\n"); sections[bloc.slice(0, i).trim()] = bloc.slice(i + 1); }
+  // Lignes « - Clé: valeur » d'une section ; les listes de liens deviennent des listes de textes
+  const cles = (t = "") => {
+    const o: Record<string, any> = {};
+    for (const m of t.matchAll(/^- ([^:\n]+): (.+)$/gm)) {
+      const v = nettoie(m[2]);
+      const liens = [...v.matchAll(/\[([^\]]+)\]\(([^)\s]+)\)/g)];
+      o[m[1].trim()] = liens.length > 1 || (liens.length === 1 && /, \[/.test(v)) ? liens.map((l) => l[1]) : liens.length === 1 && v.startsWith("[") ? liens[0][1] : v;
+    }
+    return o;
+  };
+  const num = (v: any) => { if (v == null) return null; const n = Number(String(v).replace(/[^0-9.-]/g, "")); return Number.isFinite(n) && String(v).match(/\d/) ? n : null; };
+  const lienDe = (v: any) => String(v ?? "").match(/\((https?:\/\/[^)\s]+)\)/)?.[1] ?? null;
+  const table = (t = "") => [...t.matchAll(/^\| ([^|]+?) \| \$?([\d,.]+) \|$/gm)].map((m) => ({ k: m[1].trim(), v: Math.round(Number(m[2].replace(/,/g, "")) * 100) / 100 }));
+  const brut = (k: string) => md.match(new RegExp(`^- ${k}: (.+)$`, "m"))?.[1] ?? null;
+  const profil = cles(sections["Profile"]), verif = cles(sections["Verification Sources"]), snap = cles(sections["Metric Snapshots"]);
+  const insights = cles(sections["Startup Insights"]), tech = cles(sections["Tech Stack"]), distrib = cles(sections["Distribution"]), seo = cles(sections["SEO Domain Data"]);
+  const rev = sections["Revenue"] ?? "";
+  const periodes = Object.fromEntries(table(rev.split("###")[0]).map((x) => [x.k, x.v]));
+  const jours = table((rev.split("### Daily revenue")[1] ?? "").split("###")[0]).map((x) => ({ d: x.k, v: x.v }));
+  const vente = sections["Acquisition"] ?? "";
+  const liste = (v: any) => (Array.isArray(v) ? v : v ? [v] : []) as string[];
+  return {
+    icone: lienDe(brut("Icon")),
+    description: profil["Description"] ?? null,
+    paiement: verif["Verified payment provider API source"] ?? null,
+    marchand_officiel: verif["Merchant of record"] ?? null,
+    synchro: verif["Revenue last synced"] ?? null,
+    analytics: { ga: verif["Google Analytics API connected"] === "Yes", datafast: verif["DataFast API key connected"] === "Yes", gsc: verif["Google Search Console API connected"] === "Yes" },
+    revenus: { h24: periodes["Last 24 hours"] ?? null, j7: periodes["Last 7 days"] ?? null, j30: periodes["Last 30 days"] ?? null, m3: periodes["Last 3 months"] ?? null, m6: periodes["Last 6 months"] ?? null, m12: periodes["Last 12 months"] ?? null, total: periodes["All time"] ?? null },
+    croissance_revenu_30j: cles(rev)["Last 30 days revenue growth"] ?? null,
+    jours,
+    mrr: num(snap["Current MRR"]), croissance_mrr_30j: snap["Last 30 days MRR growth"] ?? null,
+    abonnements: num(snap["Current active subscriptions"]), clients: num(snap["Current customers"] ?? snap["Customers"]),
+    churn: snap["Churn rate"] ?? snap["Last 30 days churn"] ?? snap["Churn"] ?? null,
+    visiteurs_30j: num(snap["Last 30 days traffic or visitors"]), revenu_par_visiteur: num(snap["Last 30 days revenue per visitor"]),
+    marge: snap["Last 30 days profit margin"] ?? null,
+    autres_mesures: Object.fromEntries(Object.entries(snap).filter(([k]) => !/^(Current MRR|Last 30 days MRR growth|Current active subscriptions|Last 30 days traffic or visitors|Last 30 days revenue per visitor|Last 30 days profit margin)$/.test(k))),
+    proposition: insights["Value proposition"] ?? null, probleme: insights["Problem solved"] ?? null, prix: insights["Pricing model"] ?? null,
+    persona: insights["Target persona"] ?? null, audience: liste(insights["Audience type"]).join(", ") || null, equipe: insights["Team size"] ?? null,
+    financement: insights["Funding"] ?? null, utilisateurs: num(insights["Estimated user count"]), infos: insights["Additional info"] ?? null,
+    marches: liste(insights["Markets"]),
+    tech: Object.fromEntries(Object.entries(tech).map(([k, v]) => [k, liste(v)])),
+    canaux: liste(distrib["Marketing channels"]),
+    domain_rating: num(seo["Domain rating"]),
+    captures: [...(sections["Screenshots"] ?? "").matchAll(/!\[([^\]]*)\]\((https:\/\/[^)\s]+)\)/g)].slice(0, 4).map((m) => ({ titre: m[1].replace(/\s*\(\d+x\d+\)/, ""), url: m[2] })),
+    vente: { a_vendre: /currently listed for sale/i.test(vente) && !/not currently listed for sale/i.test(vente), ...cles(vente) },
+    lu_at: new Date().toISOString(),
   };
 }
 
@@ -211,17 +267,18 @@ export async function trustmrrLire(n = 40, maxMs = 100_000) {
     for (const f of succes) {
       const mensuel = f.mrr > 0 ? f.mrr : f.rev30;
       const crois = f.croissance?.replace(".", ",").replace("%", " %");
-      const preuve = f.mrr ? `${fmt$(f.mrr)} de MRR vérifié par Stripe${crois && !/^[+-]?0,0/.test(crois) ? ` (${crois} en 30 jours)` : ""}` : f.rev30 ? `${fmt$(f.rev30)} de revenu vérifié sur 30 jours` : "Pas encore de revenu (Stripe connecté)";
+      const fournisseur = String(f.details?.paiement ?? "").replace(/\s*\(.*\)\s*$/, "").trim() || "Stripe";
+      const preuve = f.mrr ? `${fmt$(f.mrr)} de MRR vérifié par ${fournisseur}${crois && !/^[+-]?0,0/.test(crois) ? ` (${crois} en 30 jours)` : ""}` : f.rev30 ? `${fmt$(f.rev30)} de revenu vérifié sur 30 jours` : "Pas encore de revenu (Stripe connecté)";
       const s = { preuve, source: `${TM}/startup/${f.slug}`, type: "revenu_verifie", montant: mensuel * 12, mrr: f.mrr || null, revenu_30j: f.rev30 || null, croissance_30j: f.croissance, abonnements: f.abonnements, revenu_total: f.total, fonde: f.fonde, courbe: f.courbe.slice(-12), marches: f.marches, prix: f.prix, probleme: f.probleme, description: f.description, pays: f.pays, a_vendre: f.a_vendre, fondateurs: f.fondateurs, verifie_at: new Date().toISOString() };
       const e = par.get(f.site!);
       // Ne jamais écraser la preuve d'un autre SaaS (ex. un géant) : seulement si la fiche n'en a pas, ou si c'est la même startup TrustMRR
-      if (e && e.succes && e.succes.source !== s.source && !String(e.succes.source ?? "").includes("trustmrr.com")) continue;
+      if (e && e.succes && e.succes.source !== s.source && !String(e.succes.source ?? "").includes("trustmrr.com")) { await admin.from("saas").update({ trustmrr: f.details }).eq("id", e.id); continue; }
       if (e) {
         // Un revenu vérifié remplace une estimation ; on garde le plus récent quand les deux sont vérifiés
-        await admin.from("saas").update({ succes: s, ...(["illisible", "a_lire"].includes(e.statut) ? { statut: "a_lire", essais: 0 } : {}) }).eq("id", e.id);
+        await admin.from("saas").update({ succes: s, trustmrr: f.details, ...(["illisible", "a_lire"].includes(e.statut) ? { statut: "a_lire", essais: 0 } : {}) }).eq("id", e.id);
         maj++;
       } else {
-        const { error } = await admin.from("saas").insert({ domaine: f.site, nom: nomPropre(f.nom || f.site!), source: "trustmrr", succes: s });
+        const { error } = await admin.from("saas").insert({ domaine: f.site, nom: nomPropre(f.nom || f.site!), source: "trustmrr", succes: s, trustmrr: f.details });
         if (!error) ajoutes++;
       }
     }

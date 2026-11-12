@@ -388,6 +388,7 @@ function Fiche({ domaine }) {
         </div>
       </div>
 
+      {s.trustmrr && <BlocTrustmrr s={s} />}
       {!s.lu_at && s.succes?.source?.includes("trustmrr.com") ? <FicheTrustmrr s={s} /> : (<>
       <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
@@ -2460,10 +2461,67 @@ function Fondateur({ f, className = "", grand = false }) {
   );
 }
 
+// Tout ce que la fiche publique TrustMRR contient : chiffres vérifiés (paiements, trafic) et ce que le fondateur déclare
+const TM_LIBELLES = { Frontend: "Interface", Backend: "Serveur et paiement", Mobile: "Mobile", AI: "IA", Database: "Base de données", Hosting: "Hébergement", Infrastructure: "Infrastructure" };
+const pctFr = (v) => v ? String(v).replace(".", ",").replace("%", " %") : null;
+function BlocTrustmrr({ s }) {
+  const t = s.trustmrr ?? {};
+  const r = t.revenus ?? {};
+  const [plus, setPlus] = useState(false);
+  const periodes = [["24 h", r.h24], ["7 jours", r.j7], ["30 jours", r.j30], ["3 mois", r.m3], ["6 mois", r.m6], ["12 mois", r.m12], ["Depuis le début", r.total]].filter((x) => x[1] != null);
+  const mesures = [
+    ["MRR", t.mrr != null ? dollar(t.mrr) : null, pctFr(t.croissance_mrr_30j) && `${pctFr(t.croissance_mrr_30j)} en 30 jours`],
+    ["Abonnés actifs", t.abonnements?.toLocaleString("fr-FR"), ""],
+    ["Clients", t.clients?.toLocaleString("fr-FR"), ""],
+    ["Utilisateurs (estimés)", t.utilisateurs?.toLocaleString("fr-FR"), "déclaré"],
+    ["Visiteurs sur 30 jours", t.visiteurs_30j?.toLocaleString("fr-FR"), t.analytics?.ga ? "Google Analytics" : ""],
+    ["Revenu par visiteur", t.revenu_par_visiteur != null ? `${t.revenu_par_visiteur.toLocaleString("fr-FR")} $` : null, "30 jours"],
+    ["Marge", pctFr(t.marge), "30 jours"],
+    ["Désabonnement", pctFr(t.churn), ""],
+    ["Autorité du domaine", t.domain_rating != null ? `${t.domain_rating}/100` : null, "SEO"],
+    ...Object.entries(t.autres_mesures ?? {}).map(([k, v]) => [k, String(v), ""]),
+  ].filter((x) => x[1]);
+  const jours = t.jours ?? [], maxJ = Math.max(1, ...jours.map((j) => j.v));
+  const fiche = [["Sa promesse", t.proposition], ["Le problème qu'il résout", t.probleme], ["Son prix", t.prix], ["Pour qui", [t.persona, t.audience].filter(Boolean).join(" · ")], ["Équipe", t.equipe], ["Financement", t.financement], ["En plus", t.infos]].filter((x) => x[1]);
+  const vente = t.vente ?? {};
+  const venteLignes = Object.entries(vente).filter(([k]) => k !== "a_vendre");
+  return (
+    <section className="mt-6 rounded-2xl bg-white border border-line p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-bold text-[17px]">Les chiffres vérifiés</h2>
+        <p className="text-[12px] text-ink-faint">{t.paiement ? `Relevé dans ${t.paiement.replace(/\s*\(.*\)/, "")}` : "Relevé chez le prestataire de paiement"}{t.synchro ? ` le ${new Date(t.synchro).toLocaleDateString("fr-FR")}` : ""} · <a href={s.succes?.source} target="_blank" rel="noopener noreferrer" className="underline">fiche TrustMRR</a></p>
+      </div>
+      {periodes.length > 0 && <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">{periodes.map(([k, v]) => (
+        <div key={k} className="rounded-xl bg-paper px-3 py-2"><p className="text-[11.5px] text-ink-faint">Encaissé · {k}</p><p className="font-bold tnum">{dollar(v)}</p></div>
+      ))}</div>}
+      {mesures.length > 0 && <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">{mesures.map(([k, v, sub]) => (
+        <div key={k} className="rounded-xl border border-line px-3 py-2"><p className="text-[11.5px] text-ink-faint">{k}</p><p className="font-bold tnum">{v}</p>{sub && <p className="text-[11px] text-ink-faint">{sub}</p>}</div>
+      ))}</div>}
+      {jours.length > 1 && <div className="mt-4">
+        <p className="text-[12.5px] font-semibold">Encaissé chaque jour, 30 derniers jours</p>
+        <div className="mt-2 flex items-end gap-[2px] h-20">{jours.map((j) => <div key={j.d} title={`${new Date(j.d).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} : ${dollar(j.v)}`} className="flex-1 rounded-t bg-accent/70 hover:bg-accent min-h-[2px]" style={{ height: `${Math.max(2, (j.v / maxJ) * 100)}%` }} />)}</div>
+        <div className="flex justify-between text-[11px] text-ink-faint mt-1"><span>{new Date(jours[0].d).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</span><span>{new Date(jours[jours.length - 1].d).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</span></div>
+      </div>}
+      {vente.a_vendre && <div className="mt-4 rounded-xl bg-[#FEF3C7] text-[#78350F] px-4 py-3 text-[13.5px]"><b>À vendre sur TrustMRR.</b>{venteLignes.map(([k, v]) => <span key={k}> {k} : {Array.isArray(v) ? v.join(", ") : String(v)}.</span>)}</div>}
+
+      <div className="mt-5 flex items-baseline justify-between gap-2"><h2 className="font-bold text-[17px]">Ce que dit le fondateur</h2><p className="text-[12px] text-ink-faint">déclaré sur TrustMRR, non vérifié</p></div>
+      {t.description && <p className="mt-2 text-[14px] text-ink-soft whitespace-pre-line">{t.description}</p>}
+      {fiche.length > 0 && <dl className="mt-3 grid sm:grid-cols-2 gap-x-6 gap-y-2.5">{fiche.map(([k, v]) => <div key={k}><dt className="text-[12px] text-ink-faint">{k}</dt><dd className="text-[14px]">{v}</dd></div>)}</dl>}
+      {(t.canaux ?? []).length > 0 && <div className="mt-4"><p className="text-[12px] text-ink-faint">Comment il trouve ses clients</p><div className="mt-1 flex flex-wrap gap-1.5">{t.canaux.map((c) => <span key={c} className="rounded-md bg-accent-soft/60 px-2 py-1 text-[12.5px]">{c}</span>)}</div></div>}
+      {Object.keys(t.tech ?? {}).length > 0 && <div className="mt-4"><p className="text-[12px] text-ink-faint">Avec quoi il est construit</p><div className="mt-1 space-y-1">{Object.entries(t.tech).map(([k, l]) => <p key={k} className="text-[13px]"><span className="text-ink-faint">{TM_LIBELLES[k] ?? k} : </span>{l.join(", ")}</p>)}</div></div>}
+      {(t.marches ?? []).length > 0 && <p className="mt-3 text-[12.5px] text-ink-faint">Marchés : {t.marches.join(", ")}</p>}
+      {(t.captures ?? []).length > 0 && <div className="mt-4">
+        <button type="button" onClick={() => setPlus((v) => !v)} className="text-[13px] font-semibold text-accent-dark hover:underline">{plus ? "Masquer" : "Voir"} {t.captures.length > 1 ? "ses captures d'écran" : "sa capture d'écran"}</button>
+        {plus && <div className="mt-2 grid sm:grid-cols-2 gap-3">{t.captures.map((c) => <a key={c.url} href={c.url} target="_blank" rel="noopener noreferrer" className="block rounded-xl border border-line overflow-hidden max-h-80"><img src={c.url} alt={c.titre} loading="lazy" className="w-full object-cover object-top" /></a>)}</div>}
+      </div>}
+    </section>
+  );
+}
+
 // Fiche pas encore lue par Bingoo! : on montre ce que TrustMRR publie (chiffres Stripe), sans afficher de « Non » qu'on n'a pas vérifié
 function FicheTrustmrr({ s }) {
   const su = s.succes ?? {};
-  const tuiles = [
+  const tuiles = s.trustmrr ? [] : [
     ["Abonnés actifs", su.abonnements ? Number(su.abonnements).toLocaleString("fr-FR") : null, "vérifié par Stripe"],
     ["Revenu total encaissé", su.revenu_total ? dollar(Number(su.revenu_total)) : null, "depuis le lancement"],
     ["Créé en", su.fonde ? new Date(su.fonde).toLocaleDateString("fr-FR", { month: "long", year: "numeric" }) : null, ""],
@@ -2475,9 +2533,9 @@ function FicheTrustmrr({ s }) {
         <div key={t} className="rounded-2xl bg-white border border-line p-4"><p className="text-[12.5px] text-ink-faint">{t}</p><p className="mt-1 text-[19px] font-bold">{v}</p>{sub && <p className="text-[12px] text-ink-faint">{sub}</p>}</div>
       ))}</div>}
       <section className="mt-4 rounded-2xl bg-white border border-line p-5">
-        {su.probleme && su.probleme !== s.description && <><h2 className="font-bold">Le problème qu'il résout</h2><p className="mt-1 text-[14.5px]">{su.probleme}</p></>}
-        {su.prix && <><h2 className={cx("font-bold", su.probleme && su.probleme !== s.description && "mt-5")}>Son prix, selon sa fiche TrustMRR</h2><p className="mt-1 text-[14.5px]">{su.prix}</p></>}
-        <p className="mt-5 rounded-xl bg-paper px-4 py-3 text-[13px] text-ink-soft">Fiche importée de TrustMRR : le revenu et les abonnés viennent directement de Stripe. Bingoo! n'a pas encore lu son site : la description en français, les formules, la version gratuite, le recrutement et la méthode d'acquisition s'ajouteront à sa première lecture.</p>
+        {!s.trustmrr && su.probleme && su.probleme !== s.description && <><h2 className="font-bold">Le problème qu'il résout</h2><p className="mt-1 text-[14.5px]">{su.probleme}</p></>}
+        {!s.trustmrr && su.prix && <><h2 className={cx("font-bold", su.probleme && su.probleme !== s.description && "mt-5")}>Son prix, selon sa fiche TrustMRR</h2><p className="mt-1 text-[14.5px]">{su.prix}</p></>}
+        <p className="mt-5 rounded-xl bg-paper px-4 py-3 text-[13px] text-ink-soft">Fiche importée de TrustMRR : le revenu et les abonnés viennent directement de son outil de paiement. Bingoo! n'a pas encore lu son site : la description en français, les formules, la version gratuite, le recrutement et la méthode d'acquisition s'ajouteront à sa première lecture.</p>
         <a href={`https://${s.domaine}`} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-[13.5px] font-semibold text-accent-dark hover:underline">Voir son site →</a>
       </section>
     </>
