@@ -1684,7 +1684,7 @@ function OngletCroissance({ app, appel, projet, allerA }) {
                 <div key={c.k} className="rounded-xl bg-white/5 p-3">
                   <p className="font-semibold text-[14px]">{titre}</p>
                   <p className="mt-0.5 text-[13px] text-white/65">{texte}</p>
-                  <div className="mt-1.5 flex gap-3 text-[12.5px]"><a href={c.url} target="_blank" rel="noopener noreferrer" className="underline text-white/60">Voir le sien</a>{onglet && <button onClick={() => allerA(onglet)} className="underline text-[#F6A06B]">Faire le mien</button>}</div>
+                  <div className="mt-1.5 flex gap-3 text-[12.5px]"><a href={c.url} target="_blank" rel="noopener noreferrer" className="underline text-white/60">Voir le sien</a>{onglet && <button onClick={() => allerA(onglet)} className="underline text-[#F6A06B]">Faire le même</button>}</div>
                 </div>
               );
             })}
