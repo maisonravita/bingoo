@@ -253,36 +253,48 @@ function Liste({ copier: copierPage = false }) {
       {(() => { const liste = ia ? ia.resultats : rows; return !liste ? <div className="py-20 grid place-items-center"><Spinner /></div> : !liste.length ? (
         <p className="py-16 text-center text-ink-soft">Aucun SaaS ne correspond. Élargis les filtres, ou ajoute le logiciel que tu cherches.</p>
       ) : (
-        <div className="mt-2 grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          {liste.map((s) => (
-            <div key={s.id} role="button" tabIndex={0} onClick={() => nav(`/explorer/${s.domaine}`)} onKeyDown={(e) => e.key === "Enter" && nav(`/explorer/${s.domaine}`)} className={cx("relative cursor-pointer text-left rounded-2xl bg-white border p-4 hover:shadow-sm transition", sel.includes(s.domaine) ? "border-ink shadow-[0_0_0_1px_#15161A]" : "border-line hover:border-ink-faint")}>
-              <label onClick={(e) => e.stopPropagation()} className="absolute right-3 bottom-3 flex items-center gap-1.5 text-[12px] text-ink-faint cursor-pointer"><input type="checkbox" checked={sel.includes(s.domaine)} onChange={() => basculer(s.domaine)} className="accent-[#15161A]" />Comparer</label>
-              <div className="flex items-start gap-3">
-                <CompanyLogo name={s.nom} url={`https://${s.domaine}`} />
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold truncate">{s.nom} <span className="font-normal">{drapeau(s.pays)}</span></p>
-                  <p className="text-[12.5px] text-ink-faint truncate">{s.categorie} · {s.domaine}</p>
+        <div className="mt-2 rounded-2xl border border-line bg-white overflow-hidden">
+          <div className="hidden lg:grid grid-cols-[28px_1fr_190px_110px_120px] gap-4 px-5 py-2 border-b border-line bg-paper/60 text-[11.5px] font-semibold text-ink-faint">
+            <span /><span>Logiciel</span><span>Revenu</span><span>Prix</span><span>Signaux</span>
+          </div>
+          {liste.map((s) => {
+            const faible = s.succes && (s.preuve_ancienne || preuveFaible(s.succes));
+            return (
+              <div key={s.id} role="button" tabIndex={0} onClick={() => nav(`/explorer/${s.domaine}`)} onKeyDown={(e) => e.key === "Enter" && nav(`/explorer/${s.domaine}`)}
+                className={cx("cursor-pointer grid grid-cols-[28px_1fr] lg:grid-cols-[28px_1fr_190px_110px_120px] gap-x-4 gap-y-2 px-4 sm:px-5 py-3.5 border-b border-line last:border-0 items-center hover:bg-paper/50", sel.includes(s.domaine) && "bg-accent-soft/30")}>
+                <label onClick={(e) => e.stopPropagation()} title="Comparer" className="self-start pt-3 flex justify-center cursor-pointer"><input type="checkbox" checked={sel.includes(s.domaine)} onChange={() => basculer(s.domaine)} className="h-4 w-4 accent-[#15161A]" /></label>
+                <div className="min-w-0 flex items-start gap-3">
+                  <CompanyLogo name={s.nom} url={`https://${s.domaine}`} className="w-10 h-10 shrink-0" pad="p-1.5" />
+                  <div className="min-w-0">
+                    <p className="font-bold truncate">{s.nom} <span className="font-normal">{drapeau(s.pays)}</span> <span className="text-[12.5px] font-normal text-ink-faint">{s.categorie}</span></p>
+                    {s.description ? <p className="text-[13.5px] text-ink-soft line-clamp-1">{s.description}</p> : <p className="text-[13px] text-ink-faint italic">Description en cours de lecture</p>}
+                    <div className="mt-1 flex flex-wrap gap-1.5 text-[11.5px]">
+                      {s.copiable >= 60 && <span title={(s.copiable_raisons ?? []).join(" · ")} className="rounded-md bg-[#DCFCE7] text-[#166534] px-1.5 py-0.5 font-semibold">🎯 Facile à copier {s.copiable}</span>}
+                      {s.en_decollage && <span className="rounded-md bg-accent-soft text-accent-dark px-1.5 py-0.5 font-semibold">🚀 En décollage</span>}
+                      {s.genre === "app_web" && <span className="rounded-md bg-[#E0E7FF] text-[#3730A3] px-1.5 py-0.5">Appli web</span>}
+                      {s.constructible === false && <span className="text-ink-faint">⚠ construit en partie</span>}
+                      {etiquettes(s).slice(0, 2).map((t) => <button key={t} type="button" onClick={(e) => { e.stopPropagation(); setIa(null); set("tag", t); }} className="text-ink-faint hover:text-accent-dark">#{t.replace(/\s+/g, "-")}</button>)}
+                    </div>
+                  </div>
                 </div>
-                {s.score_croissance > 0 && <span title="Score de croissance (recrutement, nouveautés)" className={cx("rounded-lg px-2 py-1 text-[12px] font-bold tnum", s.score_croissance >= 60 ? "bg-[#DCFCE7] text-[#166534]" : s.score_croissance >= 30 ? "bg-[#FEF3C7] text-[#92400E]" : "bg-paper text-ink-soft")}>{s.score_croissance}</span>}
+                <div className="col-start-2 lg:col-start-auto text-[13px] min-w-0">
+                  {s.succes ? <p title={s.succes.preuve} className={cx("line-clamp-2", faible ? "text-ink-faint" : "font-semibold text-[#78350F]")}>{faible ? "" : "★ "}{s.succes.preuve}</p>
+                    : s.estimation ? <p className="text-ink-soft" title="Estimation d'après l'effectif officiel">≈ {montantCourt(s.estimation.bas)} à {montantCourt(s.estimation.haut)} / mois <span className="text-ink-faint">estimé</span></p>
+                    : <p className="text-ink-faint">Non public</p>}
+                </div>
+                <div className="col-start-2 lg:col-start-auto text-[13px]">
+                  <p className="font-semibold tnum">{prixCourt(s).replace(/^./, (c) => c.toUpperCase())}</p>
+                  {(s.gratuit || s.essai) && <p className="text-[12px] text-ink-faint">{s.gratuit ? "Version gratuite" : "Essai gratuit"}</p>}
+                </div>
+                <div className="col-start-2 lg:col-start-auto flex flex-wrap gap-1 text-[11.5px]">
+                  {s.recrute && <span className="rounded-md bg-[#DCFCE7] text-[#166534] px-1.5 py-0.5">Recrute{s.postes ? ` · ${s.postes}` : ""}</span>}
+                  {s.nouveaute && Date.parse(s.nouveaute) > Date.now() - 30 * 864e5 && <span className="rounded-md bg-accent-soft text-accent-dark px-1.5 py-0.5">Nouveauté {date(s.nouveaute)}</span>}
+                  {s.succes?.fonde && Date.parse(s.succes.fonde) > Date.now() - 183 * 864e5 && Number(s.succes.montant ?? 0) >= 1200 && <span className="rounded-md bg-accent text-white px-1.5 py-0.5 font-semibold">Lancé récemment</span>}
+                  {s.score_croissance > 0 && <span title="Score de croissance (recrutement, nouveautés)" className="rounded-md bg-paper px-1.5 py-0.5 tnum">Croissance {s.score_croissance}</span>}
+                </div>
               </div>
-              {s.succes && <p className={cx("mt-2 rounded-lg px-2.5 py-1.5 text-[12.5px] line-clamp-2", s.preuve_ancienne || preuveFaible(s.succes) ? "bg-paper text-ink-faint" : "bg-[#FEF3C7] text-[#78350F] font-semibold")}>{s.preuve_ancienne ? "Ancien chiffre : " : preuveFaible(s.succes) ? (s.succes.type === "revenu_verifie" ? "Revenu vérifié : " : "Non prouvé : ") : s.en_decollage ? "🚀 En décollage · " : "★ "}{s.succes.preuve}</p>}
-              {s.constructible === false && <p className="mt-1.5 text-[12px] font-semibold text-ink-faint">⚠ Bingoo! n'en construit qu'une partie</p>}
-              {s.copiable >= 60 && <p title={(s.copiable_raisons ?? []).join(" · ")} className="mt-1.5 text-[12px] font-semibold text-[#166534]">🎯 Facile à copier · {s.copiable}/100 <span className="font-normal text-ink-faint">· {(s.copiable_raisons ?? []).filter((r) => !/^Revenu/.test(r)).slice(0, 2).join(" · ")}</span></p>}
-              {!s.succes && s.estimation && <p title="Estimation d'après l'effectif officiel (annuaire des entreprises) : 80 000 à 180 000 € de revenu annuel par salarié" className="mt-2 rounded-lg bg-paper text-ink-soft px-2.5 py-1.5 text-[12.5px] line-clamp-2">≈ {montantCourt(s.estimation.bas)} à {montantCourt(s.estimation.haut)} par mois <span className="text-ink-faint">· estimé d'après l'effectif</span></p>}
-              {s.description ? <p className="mt-2 text-[13.5px] text-ink-soft line-clamp-2 min-h-[38px]">{s.description}</p> : <p className="mt-2 text-[13px] text-ink-faint italic min-h-[38px]">Description en cours de lecture par Bingoo!</p>}
-              <div className="mt-3 flex flex-wrap gap-1.5 text-[12px]">
-                <span className="rounded-md bg-paper px-2 py-1 tnum">{prixCourt(s).replace(/^./, (c) => c.toUpperCase())}</span>
-                {s.succes?.fonde && Date.parse(s.succes.fonde) > Date.now() - 183 * 864e5 && Number(s.succes.montant ?? 0) >= 1200 && <span title="Lancé il y a moins de 6 mois et déjà 100 $ par mois ou plus" className="rounded-md bg-accent text-white px-2 py-1 font-semibold">Lancé récemment</span>}
-                {s.genre === "app_web" && <span className="rounded-md bg-[#E0E7FF] text-[#3730A3] px-2 py-1">Appli web</span>}
-                {s.gratuit && <span className="rounded-md bg-paper px-2 py-1">Gratuit</span>}
-                {!s.gratuit && s.essai && <span className="rounded-md bg-paper px-2 py-1">Essai</span>}
-                {s.recrute && <span className="rounded-md bg-[#DCFCE7] text-[#166534] px-2 py-1">Recrute{s.postes ? ` · ${s.postes}` : ""}</span>}
-                {s.nouveaute && Date.parse(s.nouveaute) > Date.now() - 30 * 864e5 && <span className="rounded-md bg-accent-soft text-accent-dark px-2 py-1">Nouveauté {date(s.nouveaute)}</span>}
-              </div>
-              {etiquettes(s).length > 0 && <div className="mt-2 flex flex-wrap gap-1 pr-20">{etiquettes(s).slice(0, 3).map((t) => <button key={t} type="button" onClick={(e) => { e.stopPropagation(); setIa(null); set("tag", t); }} className="text-[11.5px] text-ink-faint hover:text-accent-dark">#{t.replace(/\s+/g, "-")}</button>)}</div>}
-              <div className="h-5" />
-            </div>
-          ))}
+            );
+          })}
         </div>
       ); })()}
       {sel.length > 0 && (
