@@ -56,6 +56,24 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const r = s.statut === "ok" ? { statut: "ok" } : await saasLire(s.id);
     return { id: s.id, domaine: d, statut: r?.statut ?? "erreur" };
   },
+  // Explorer : les chiffres d'un SaaS à partir de son adresse (sans IA : base Bingoo!, puis sa fiche TrustMRR lue à la demande)
+  async "saas-chiffres"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    await quota(ws.id, "saas_chiffres", 60);
+    const { domaineDe } = await import("../_shared/saas-base.ts");
+    const d = domaineDe(String(b.url ?? ""));
+    if (!d) throw new HttpError(400, "Adresse du site invalide (ex. monsaas.com)");
+    const champs = "domaine, nom, statut, categorie, description, pays, succes, trustmrr, copiable, copiable_raisons, estimation, rang_web, prix_entree_eur, constructible";
+    let { data: s } = await admin.from("saas").select(champs).eq("domaine", d).maybeSingle();
+    const frais = s?.trustmrr?.lu_at && Date.now() - Date.parse(s.trustmrr.lu_at) < 3 * 864e5;
+    let trustmrr = !!s?.trustmrr;
+    if (!frais) {
+      const { trustmrrPourDomaine } = await import("../_shared/saas-decouverte.ts");
+      trustmrr = (await trustmrrPourDomaine(d).catch(() => ({ trustmrr: false }))).trustmrr || trustmrr;
+      ({ data: s } = await admin.from("saas").select(champs).eq("domaine", d).maybeSingle());
+    }
+    return { domaine: d, trouve: !!s && !["pas_saas", "doublon"].includes(s.statut), trustmrr, saas: s ?? null };
+  },
   async "saas-tendances"(req, b) { await requireMember(req, b.workspace_id); const { saasTendances } = await import("../_shared/saas-base.ts"); return await saasTendances(); },
   // Alerte du lundi (clé cron ; workspace_id pour envoyer à un seul espace, pour essai)
   async "saas-alertes"(req, b) { await cron(req); const { saasAlertes } = await import("../_shared/saas-base.ts"); return await saasAlertes(b.workspace_id ? String(b.workspace_id) : undefined); },

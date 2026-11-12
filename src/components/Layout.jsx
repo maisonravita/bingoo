@@ -208,6 +208,7 @@ export default function Layout({ children }) {
     { titre: "Copier et lancer" },
     { to: "/explorer/trouver", label: "Trouver mon SaaS", icon: "spark" },
     { to: "/explorer/copier", label: "À copier", icon: "target" },
+    { to: "/explorer/chiffres", label: "Chiffres d'un SaaS", icon: "chart" },
     { to: "/explorer/createurs", label: "Mes SaaS", icon: "bot", also: ["/explorer/bourse", "/explorer/racheter", "/explorer/lancer"] },
     { titre: "Observer le marché" },
     { to: "/explorer", label: "Tous les SaaS", icon: "list" },

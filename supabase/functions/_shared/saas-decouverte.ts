@@ -219,11 +219,11 @@ export function trustmrrDetails(md: string) {
 const fmt$ = (n: number) => `${Math.round(n).toLocaleString("fr-FR").replace(/ | /g, " ")} $`;
 
 /** Lit les prochaines fiches de la file (rythme doux : 4 en parallèle). */
-export async function trustmrrLire(n = 40, maxMs = 100_000) {
+export async function trustmrrLire(n = 40, maxMs = 100_000, seul?: string) {
   const t0 = Date.now();
   await admin.from("saas_trustmrr").update({ statut: "a_lire" }).eq("statut", "en_cours").lt("at", new Date(Date.now() - 600_000).toISOString());
   // Ordre aléatoire (tiré à l'import) : le classement est représentatif dès les premières heures, pas seulement les noms en A
-  const { data } = await admin.from("saas_trustmrr").select("slug").eq("statut", "a_lire").order("ordre").limit(n);
+  const { data } = seul ? { data: [{ slug: seul }] } : await admin.from("saas_trustmrr").select("slug").eq("statut", "a_lire").order("ordre").limit(n);
   const slugs = (data ?? []).map((x) => x.slug);
   if (!slugs.length) return { lus: 0 };
   await admin.from("saas_trustmrr").update({ statut: "en_cours", at: new Date().toISOString() }).in("slug", slugs);
@@ -303,8 +303,10 @@ const PAYS_EN: Record<string, string> = { "united states": "US", usa: "US", "uni
 const SERVICE = /\b(agency|agence|llc|l\.l\.c|consult\w*|digital marketing|social media management|it solutions|done[- ]for[- ]you|services?\b|freelanc|coaching|mentorship|course|cohort|community|newsletter|studio|we help|we build|marketing firm|lead generation agency|consultant|onlyfans|personal branding|white[- ]label services)\b/i;
 // « Acme, LLC (only Stripe MRR counted) » → « Acme »
 export const nomPropre = (n: string) => String(n).replace(/\s*[\(\[][^)\]]*[\)\]]\s*/g, " ").trim().replace(/,?\s+(l\.?l\.?c\.?|inc\.?|ltd\.?|limited|gmbh|sas|sarl|s\.?l\.?|b\.?v\.?|corp\.?|co\.|pty\.?)$/i, "").replace(/\s*[|—–-]\s+.*$/, "").replace(/\s+/g, " ").trim().slice(0, 60).replace(/^[A-Z0-9 .&'-]{5,}$/, (t) => t.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase())) || String(n).slice(0, 60);
-export async function trustmrrPublier(n = 300) {
-  const { data } = await admin.from("saas").select("id, nom, domaine, succes").eq("statut", "a_lire").like("succes->>source", "%trustmrr.com%").is("succes->>attente", null).limit(n);
+export async function trustmrrPublier(n = 300, domaine?: string) {
+  let q = admin.from("saas").select("id, nom, domaine, succes").eq("statut", "a_lire").like("succes->>source", "%trustmrr.com%").is("succes->>attente", null);
+  if (domaine) q = q.eq("domaine", domaine);
+  const { data } = await q.limit(n);
   let publies = 0;
   for (const r of (data ?? []) as any[]) {
     const su = r.succes ?? {};
@@ -322,4 +324,26 @@ export async function trustmrrPublier(n = 300) {
     if (!error) publies++;
   }
   return { publies };
+}
+
+
+/** Chiffres d'un SaaS à la demande (sans IA) : retrouve sa fiche TrustMRR par son adresse, la lit et la publie tout de suite. */
+export async function trustmrrPourDomaine(domaine: string) {
+  const d = domaine.replace(/^www\./, "").toLowerCase();
+  let { data: t } = await admin.from("saas_trustmrr").select("slug").eq("domaine", d).limit(1).maybeSingle();
+  if (!t) {
+    // Pas encore dans la file : on essaie les adresses TrustMRR les plus probables (nom du site)
+    const base = d.split(".")[0];
+    for (const slug of [...new Set([base, d.replace(/\./g, "-"), base.replace(/^(get|try|use)/, "")])].filter((x) => /^[a-z0-9-]{2,}$/.test(x))) {
+      const r = await safeFetchText(`${TM}/startup/${slug}.md`, { headers: { "user-agent": "BingooBot/1.0 (+https://kairo.maisonravita.fr)", accept: "text/markdown,text/plain" } }, 400_000, 10000).catch(() => null);
+      if (!r?.ok) continue;
+      const site = trustmrrFiche(r.text, slug).site;
+      let hote = ""; try { hote = site ? new URL(site).hostname.replace(/^www\./, "").toLowerCase() : ""; } catch { /* adresse illisible */ }
+      if (hote === d) { await admin.from("saas_trustmrr").upsert({ slug, statut: "a_lire", domaine: d }, { onConflict: "slug" }); t = { slug }; break; }
+    }
+  }
+  if (!t) return { trustmrr: false };
+  await trustmrrLire(1, 20_000, t.slug);
+  await trustmrrPublier(1, d);
+  return { trustmrr: true, slug: t.slug };
 }

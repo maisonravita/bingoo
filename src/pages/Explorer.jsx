@@ -61,13 +61,14 @@ export default function Explorer({ domaine: fixe }) {
   if (d === "classement") return <><Onglets actif="classement" /><Classement /></>;
   if (d === "copier") return <><Onglets actif="copier" /><Liste copier /></>;
   if (d === "trouver") return <><Onglets actif="copier" /><TrouveTonSaas /></>;
+  if (d === "chiffres") return <><Onglets actif="chiffres" /><div className="max-w-5xl mx-auto px-4 sm:px-6 py-6"><ChiffresSaas grand /></div></>;
   if (d === "comparer") return <Comparer />;
   return d ? <Fiche domaine={d} /> : <><Onglets actif="liste" /><Liste /></>;
 }
 
 // 5 rubriques ; celles qui regroupent plusieurs pages affichent une petite ligne de sous-onglets
 const RUBRIQUES = [
-  ["À copier", [["copier", "À copier", "/explorer/copier"]]],
+  ["À copier", [["copier", "À copier", "/explorer/copier"], ["chiffres", "Chiffres d'un SaaS", "/explorer/chiffres"]]],
   ["Mes SaaS", [["createurs", "Mes SaaS", "/explorer/createurs"], ["bourse", "Bourse", "/explorer/bourse"], ["racheter", "À racheter", "/explorer/racheter"]]],
   ["SaaS", [["liste", "Tous les SaaS", "/explorer"]], "copier"],
   ["Niches", [["niches", "Niches", "/explorer/niches"]]],
@@ -201,6 +202,7 @@ function Liste({ copier: copierPage = false }) {
       </div>
 
       <Demarrer />
+      {copierPage && <div className="mt-5"><ChiffresSaas /></div>}
 
       <div className="mt-5 rounded-2xl bg-white border border-line p-4 space-y-3">
         <div className="flex flex-wrap gap-2">
@@ -2515,6 +2517,74 @@ function BlocTrustmrr({ s }) {
         <button type="button" onClick={() => setPlus((v) => !v)} className="text-[13px] font-semibold text-accent-dark hover:underline">{plus ? "Masquer" : "Voir"} {t.captures.length > 1 ? "ses captures d'écran" : "sa capture d'écran"}</button>
         {plus && <div className="mt-2 grid sm:grid-cols-2 gap-3">{t.captures.map((c) => <a key={c.url} href={c.url} target="_blank" rel="noopener noreferrer" className="block rounded-xl border border-line overflow-hidden max-h-80"><img src={c.url} alt={c.titre} loading="lazy" className="w-full object-cover object-top" /></a>)}</div>}
       </div>}
+    </section>
+  );
+}
+
+// Colle l'adresse d'un SaaS : ses chiffres (base Bingoo!, revenus vérifiés TrustMRR, sans IA) et un bouton pour le copier
+function ChiffresSaas({ grand }) {
+  const { ws } = useWs();
+  const nav = useNavigate();
+  const toast = useToast();
+  const [url, setUrl] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [r, setR] = useState(null);
+  const [lecture, setLecture] = useState(false);
+  const chercher = async (e) => {
+    e?.preventDefault(); if (url.trim().length < 4) return;
+    setBusy(true); setR(null);
+    try { setR(await fn("r/saas-chiffres", { workspace_id: ws.id, url })); }
+    catch (x) { toast(x.message, "bad"); } finally { setBusy(false); }
+  };
+  const lire = async () => {
+    setLecture(true);
+    try { const a = await fn("r/saas-add", { workspace_id: ws.id, url: r.domaine }); if (a.statut === "ok") nav(`/explorer/${a.domaine}`); else toast(a.statut === "pas_saas" ? "Ce site ne ressemble pas à un logiciel en ligne." : "Ce site n'a pas pu être lu pour l'instant.", "bad"); }
+    catch (x) { toast(x.message, "bad"); } finally { setLecture(false); }
+  };
+  const s = r?.saas, t = s?.trustmrr ?? {}, su = s?.succes ?? {};
+  const mrr = t.mrr ?? su.mrr;
+  const chiffres = s ? [
+    ["MRR vérifié", mrr != null ? dollar(Number(mrr)) : null, pctFr(t.croissance_mrr_30j ?? su.croissance_30j) && `${pctFr(t.croissance_mrr_30j ?? su.croissance_30j)} en 30 jours`],
+    ["Encaissé sur 30 jours", t.revenus?.j30 != null ? dollar(t.revenus.j30) : su.revenu_30j ? dollar(Number(su.revenu_30j)) : null, ""],
+    ["Encaissé depuis le début", t.revenus?.total != null ? dollar(t.revenus.total) : su.revenu_total ? dollar(Number(su.revenu_total)) : null, ""],
+    ["Abonnés actifs", (t.abonnements ?? su.abonnements)?.toLocaleString?.("fr-FR"), ""],
+    ["Visiteurs sur 30 jours", t.visiteurs_30j?.toLocaleString("fr-FR"), ""],
+    ["Équipe", t.equipe, t.financement ?? ""],
+    ["Chiffre public", !mrr && su.preuve ? su.preuve : null, su.type && su.type !== "revenu_verifie" ? "presse ou documents officiels" : ""],
+    ["Estimation", !mrr && !su.preuve && s.estimation?.centre ? `≈ ${Number(s.estimation.centre).toLocaleString("fr-FR")} €/mois` : null, "estimation Bingoo!, pas un chiffre vérifié"],
+  ].filter((x) => x[1]) : [];
+  return (
+    <section className={cx("rounded-2xl border p-5", grand ? "bg-ink text-white border-ink" : "bg-white border-line")}>
+      <p className={cx("font-bold", grand ? "text-[26px]" : "text-[17px]")} style={grand ? HF : undefined}>Les chiffres d'un SaaS, en collant son adresse</p>
+      <p className={cx("text-[13.5px] mt-0.5", grand ? "text-white/65" : "text-ink-soft")}>Revenu vérifié chez son outil de paiement quand il est public, abonnés, trafic, équipe. Puis un bouton pour lancer le même, à ton nom.</p>
+      <form onSubmit={chercher} className="mt-3 flex gap-2">
+        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="ex. url2pin.com" className="flex-1 min-w-0 rounded-xl border border-line bg-white text-ink px-3 py-2.5 text-[15px] outline-none focus:border-accent" />
+        <button disabled={busy || url.trim().length < 4} className="rounded-xl bg-accent text-white px-5 py-2.5 text-[14px] font-semibold disabled:opacity-60">{busy ? "Recherche…" : "Voir ses chiffres"}</button>
+      </form>
+      {busy && <p className={cx("mt-3 text-[13px]", grand ? "text-white/65" : "text-ink-soft")}>Bingoo! cherche dans sa base, puis sur TrustMRR…</p>}
+      {r && (
+        <div className="mt-4 rounded-2xl bg-white text-ink border border-line p-4">
+          <div className="flex items-center gap-3">
+            <CompanyLogo name={s?.nom ?? r.domaine} url={`https://${r.domaine}`} className="w-11 h-11 shrink-0" pad="p-1.5" />
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-[17px] truncate">{s?.nom ?? r.domaine} {s?.pays && <span className="font-normal">{drapeau(s.pays)}</span>}</p>
+              <p className="text-[12.5px] text-ink-faint truncate">{[s?.categorie, r.domaine].filter(Boolean).join(" · ")}</p>
+            </div>
+            {s?.copiable != null && <span className={cx("rounded-lg px-2.5 py-1 text-[12.5px] font-bold", s.copiable >= 60 ? "bg-[#DCFCE7] text-[#166534]" : "bg-paper text-ink-soft")}>{s.copiable >= 60 ? "🎯 Facile à copier" : "Copiable"} · {s.copiable}/100</span>}
+          </div>
+          {chiffres.length > 0 ? (
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">{chiffres.map(([k, v, sub]) => (
+              <div key={k} className="rounded-xl bg-paper px-3 py-2"><p className="text-[11.5px] text-ink-faint">{k}</p><p className="font-bold tnum">{v}</p>{sub && <p className="text-[11px] text-ink-faint">{sub}</p>}</div>
+            ))}</div>
+          ) : <p className="mt-3 text-[13.5px] text-ink-soft">Aucun revenu public trouvé pour {r.domaine} : il n'est pas sur TrustMRR et Bingoo! n'a pas de chiffre sourcé. Tu peux quand même le copier.</p>}
+          {r.trustmrr && <p className="mt-2 text-[11.5px] text-ink-faint">Revenus vérifiés via TrustMRR{t.paiement ? ` (${t.paiement.replace(/\s*\(.*\)/, "")})` : ""}{t.synchro ? `, relevés le ${new Date(t.synchro).toLocaleDateString("fr-FR")}` : ""}.</p>}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button onClick={() => nav(`/explorer/lancer?d=${encodeURIComponent(r.domaine)}`)} className="rounded-xl bg-accent text-white px-5 py-2.5 text-[14px] font-semibold">🚀 Copier ce SaaS</button>
+            {s && ["ok", "a_lire"].includes(s.statut) && (s.statut === "ok" ? <button onClick={() => nav(`/explorer/${r.domaine}`)} className="rounded-xl border border-line px-4 py-2.5 text-[14px] font-semibold hover:border-ink-faint">Voir la fiche complète</button> : null)}
+            {(!s || s.statut !== "ok") && <button onClick={lire} disabled={lecture} title="Lit son site avec l'IA : prix, formules, cible" className="rounded-xl border border-line px-4 py-2.5 text-[14px] font-semibold hover:border-ink-faint disabled:opacity-60">{lecture ? "Lecture de son site…" : "Lire son site (prix, formules)"}</button>}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
