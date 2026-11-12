@@ -58,6 +58,7 @@ const FAQ = [
   ["D'où viennent les chiffres ?", "Les revenus sont vérifiés directement chez l'outil de paiement des SaaS (Stripe et d'autres), via TrustMRR. La visibilité, les canaux et la pub viennent de leurs propres déclarations et de sources publiques. Chaque chiffre a sa source sur la fiche."],
   ["Faire ma version d'un SaaS, c'est légal ?", "Faire la même chose qu'un autre, oui : c'est la concurrence. Bingoo! construit ta version avec ton nom, tes textes et ton design, et souvent un angle à toi (en français, pour un métier, plus simple). Reprendre la marque, les textes mot pour mot ou le design d'un autre, non."],
   ["Comment Bingoo! trouve mes premiers clients ?", "Pour ta version, il cherche dans le registre public des entreprises les établissements de ton département qui ont le problème (par exemple 50 salons de coiffure à Paris), te prépare le message à envoyer et suit avec toi qui a répondu, qui essaie, qui paie. Tu envoies toi-même, depuis ton adresse."],
+  ["Et si ça ne marche pas pour moi ?", "Avec « Lancer », si ta version n'est pas en ligne dans les 14 jours qui suivent ton paiement, tu es remboursé. Sans engagement ensuite : tu arrêtes quand tu veux."],
   ["Je peux essayer avant de payer ?", "Oui, sans compte ni carte : tu réponds aux questions et tu vois en direct combien de SaaS vérifiés collent à tes réponses, et le premier de tes 3 SaaS en clair. Le reste se débloque avec une formule, sans engagement."],
   ["Et si un éditeur veut corriger sa fiche ?", "Notre robot ne lit que des pages publiques et respecte le fichier robots.txt. Écris-nous depuis une adresse de ton domaine : correction ou retrait sous 72 heures."],
 ];
@@ -228,9 +229,9 @@ export default function Landing() {
               <span className="absolute -top-3 -right-2 rounded-full bg-good text-white text-[11.5px] font-bold px-2 py-0.5">-20 %</span>
             </div>
           </div>
-          <div className="mt-8 grid md:grid-cols-3 gap-4 items-end">
-            {PLANS.map(([n, p0, d, items], i) => {
-              const best = i === 1;
+          <div className="mt-8 grid md:grid-cols-2 gap-4 items-end max-w-[880px]">
+            {PLANS.slice(0, 2).map(([n, p0, d, items], i) => {
+              const best = i === 1; // « Lancer » : la formule mise en avant
               const fondateur = i === 1 && fond && fond.left > 0;
               const p = fondateur ? fond.price : p0;
               const annuel = Math.round(p * 12 * 0.8); // même calcul que la facturation Stripe
@@ -244,12 +245,13 @@ export default function Landing() {
                   <p className={cx("mt-4 text-[15px]", best ? "text-white/75" : "text-ink-soft")}>{d}</p>
                   <ul className="mt-5 space-y-2.5">{items.map((x) => <li key={x} className="flex items-center gap-2.5 text-[15px]"><Check className={cx("h-4 w-4 shrink-0", best ? "text-[#F6A06B]" : "text-accent")} />{x}</li>)}</ul>
                   <button onClick={go} className={cx("mt-7 w-full rounded-lg py-3.5 text-[16px] transition", best ? "bg-accent hover:bg-accent-dark text-white" : "bg-ink text-white hover:bg-black")}>Commencer</button>
+                  {best && <p className="mt-3 text-center text-[13px] text-white/70">Remboursé sous 14 jours si ta version n'est pas en ligne.</p>}
                 </div>
               );
             })}
           </div>
           <div className="mt-4 rounded-2xl bg-[#F6F5F3] border border-line px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <p className="text-[15px]"><b>Entreprise, sur devis.</b> <span className="text-ink-soft">Plus de 3 utilisateurs, accès aux données sur mesure, facturation annuelle.</span></p>
+            <p className="text-[15px]"><b>Tu lances plusieurs SaaS ou tu es une équipe ?</b> <span className="text-ink-soft">« Lancer à plusieurs » : 10 SaaS construits par mois et 3 utilisateurs, 69,99 € par mois. Au-delà, sur devis.</span></p>
             <a href={`mailto:bingoo@maisonravita.fr?subject=${encodeURIComponent("Bingoo! Entreprise : demande de devis")}`} className="shrink-0 rounded-lg px-4 py-2.5 text-center text-[15px] border border-ink/80 hover:bg-black/[.04] transition">Parler à l'équipe</a>
           </div>
           <p className="mt-6 text-center text-[14px] text-ink-soft">Sans engagement : tu changes de formule ou tu arrêtes quand tu veux. À l'année : −20 %.</p>
