@@ -79,7 +79,7 @@ const RUBRIQUES = [
   ["SaaS", [["liste", "Tous les SaaS", "/explorer"]], "copier"],
   ["Niches", [["niches", "Niches", "/explorer/niches"]]],
   ["Classement", [["classement", "Classement", "/explorer/classement"]]],
-  ["L'île", [["carte", "L'île des SaaS", "/explorer/carte"]]],
+  ["L'archipel", [["carte", "L'archipel des SaaS", "/explorer/carte"]]],
   ["Tendances", [["marche", "Ce qui monte", "/explorer/marche"], ["idees", "Idées et réussites", "/explorer/idees"], ["pubs", "Pubs et e-mails", "/explorer/pubs"]]],
   ["Mes suivis", [["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"]]],
 ];
@@ -3230,20 +3230,71 @@ function Racheter() {
 }
 
 // ---------------------------------------------------------------- Carte du monde
+const IleSaas = lazy(() => import("../components/IleSaas"));
+const ASTUCES = [
+  "Clique sur une île pour y débarquer. Glisse pour te déplacer, molette ou pincement pour zoomer.",
+  "Les bateaux qui naviguent sont des SaaS à vendre : clique dessus.",
+  "La Tour des records grandit avec le nombre de SaaS à plus de 10 000 $ par mois.",
+  "Le Sage, sur sa caisse, répond à tes questions : « trouve-moi 3 SaaS TikTok qui scalent ».",
+  "La nuit, les fenêtres s'allument et le phare balaie la mer.",
+];
 function Carte() {
   const nav = useNavigate();
   const { ws } = useWs();
+  const [d, setD] = useState(null);
+  const [lieu, setLieu] = useState(null);
+  const [vente, setVente] = useState(null);
+  const [nuit, setNuit] = useState(() => { const h = new Date().getHours(); return h >= 20 || h < 7; });
+  const [astuce, setAstuce] = useState(0);
+  const [pays, setPays] = useState(false);
   const [data, setData] = useState(null);
   const [apps, setApps] = useState([]);
-  useEffect(() => { supabase.rpc("saas_carte", { ws: ws.id }).then(({ data: d }) => setData(d ?? [])); supabase.rpc("saas_apps_monde").then(({ data: d }) => setApps(d ?? [])); }, [ws.id]);
-  return (
+  useEffect(() => { supabase.rpc("saas_ile", { ws: ws.id }).then(({ data: x }) => setD(x ?? {})); }, [ws.id]);
+  useEffect(() => { const i = setInterval(() => setAstuce((a) => (a + 1) % ASTUCES.length), 7000); return () => clearInterval(i); }, []);
+  useEffect(() => { if (pays && !data) { supabase.rpc("saas_carte", { ws: ws.id }).then(({ data: x }) => setData(x ?? [])); supabase.rpc("saas_apps_monde").then(({ data: x }) => setApps(x ?? [])); } }, [pays, data, ws.id]);
+  const ouvrir = (id, v) => { if (id === "bateau") { setVente(v); setLieu("bateau"); return; } setLieu(id); };
+  if (pays) return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-      <h1 className="text-[30px] font-black tracking-tight" style={HF}>Le monde des SaaS</h1>
-      <p className="text-ink-soft">Chaque île est un continent, chaque bâtiment un pays : plus il est haut, plus il compte de SaaS. Débarque sur une île, puis entre dans un pays.</p>
-      <div className="mt-4">
-        <Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}>
-          {data ? <IsoMonde data={data} apps={apps} onApp={(a) => window.open(lienApp(a.slug, a.domaine), "_blank")} onVoir={(code, domaine) => nav(domaine ? `/explorer/${domaine}` : `/explorer?pays=${code}`)} /> : <div className="py-24 grid place-items-center"><Spinner /></div>}
-        </Suspense>
+      <button onClick={() => setPays(false)} className="text-[13.5px] font-semibold text-ink-soft hover:text-ink">Retour à l'archipel</button>
+      <h1 className="mt-2 text-[30px] font-black tracking-tight" style={HF}>L'Atlas des pays</h1>
+      <p className="text-ink-soft">Chaque île est un continent, chaque bâtiment un pays : plus il est haut, plus il compte de SaaS.</p>
+      <div className="mt-4"><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}>{data ? <IsoMonde data={data} apps={apps} onApp={(a) => window.open(lienApp(a.slug, a.domaine), "_blank")} onVoir={(code, domaine) => nav(domaine ? `/explorer/${domaine}` : `/explorer?pays=${code}`)} /> : <div className="py-24 grid place-items-center"><Spinner /></div>}</Suspense></div>
+    </div>
+  );
+  const fiche = {
+    classement: { titre: "La Tour des records", phrase: "Les SaaS qui encaissent le plus, revenus relus chez leur outil de paiement.", corps: (d?.records ?? []).map((r, i) => [`${i + 1}. ${r.nom}`, `${dollar(r.j30)} en 30 j`]), bouton: "Voir le classement", page: "/explorer/classement" },
+    niches: { titre: "Le Château des niches", phrase: "Une tour par grande niche. Entre pour voir les 84 marchés précis.", corps: (d?.niches ?? []).map((n) => [`${n.emoji} ${n.nom}`, `${n.n_rev} rentables`]), bouton: "Entrer dans le château", page: "/explorer/niches" },
+    phare: { titre: "Le Phare de ce qui monte", phrase: "Il éclaire la niche qui grandit le plus en ce moment.", corps: d?.monte ? [[`${d.monte.emoji} ${d.monte.nom}`, `+${d.monte.crois_med} % en 30 j`]] : [], bouton: "Voir ce qui monte", page: "/explorer/marche" },
+    marche: { titre: "Le Marché", phrase: "On y achète et on y vend des SaaS qui tournent déjà.", corps: (d?.ventes ?? []).slice(0, 5).map((v) => [v.nom, v.prix ? dollar(v.prix) : "à discuter"]), bouton: `Voir les ${d?.nb_ventes ?? ""} SaaS à vendre`, page: "/explorer/vendre" },
+    chantier: { titre: "Le Chantier naval", phrase: "Ici on construit ta copie : choisis un SaaS qui marche, Bingoo! la construit à ton nom.", corps: [["SaaS prêts à copier", Number(d?.a_copier ?? 0).toLocaleString("fr-FR")], ["Avec un revenu vérifié", Number(d?.verifies ?? 0).toLocaleString("fr-FR")]], bouton: "Choisir un SaaS à copier", page: "/explorer/copier" },
+    createurs: { titre: "L'Île des créateurs", phrase: "Une maison par SaaS construit sur Bingoo!.", corps: [["SaaS construits", d?.apps ?? 0], ["Les tiens", d?.mes_apps ?? 0]], bouton: "Voir mes SaaS", page: "/explorer/createurs" },
+    atlas: { titre: "L'Atlas des pays", phrase: "Le monde des SaaS par continent et par pays.", corps: [["Pays représentés", d?.pays ?? 0], ["SaaS dans la bibliothèque", Number(d?.total ?? 0).toLocaleString("fr-FR")]], bouton: "Ouvrir l'atlas", page: null },
+    sage: { titre: "Le Sage", phrase: "Pose-lui ta question comme à un ami : il répond avec les vrais chiffres.", corps: [["« Trouve-moi 3 SaaS TikTok qui scalent »", ""], ["« Un petit SaaS à racheter dans l'immobilier »", ""]], bouton: "Lui poser une question", page: "/explorer/demande" },
+    bateau: vente ? { titre: vente.nom, phrase: "Ce bateau est à vendre.", corps: [["Prix demandé", vente.prix ? dollar(vente.prix) : "à discuter"]], bouton: "Voir ses chiffres", page: `/explorer/chiffres?u=${encodeURIComponent(vente.domaine)}` } : null,
+  }[lieu];
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5">
+      <div className="relative h-[72vh] min-h-[480px] overflow-hidden rounded-3xl" style={{ background: nuit ? "#0B2347" : "#1D6FC0" }}>
+        <Suspense fallback={<div className="absolute inset-0 grid place-items-center"><Spinner /></div>}>{d && <IleSaas d={d} nuit={nuit} onLieu={ouvrir} />}</Suspense>
+        <div className="absolute left-3 top-3 z-20 flex max-w-[min(420px,calc(100%-24px))] items-start gap-3 rounded-2xl bg-[#1A1340]/90 p-3 text-white shadow-lg">
+          <svg viewBox="0 0 64 64" className="h-12 w-12 shrink-0" aria-hidden>
+            <rect width="64" height="64" rx="14" fill="#2B1F6B" />
+            <path d="M22 50c-2-14 4-28 16-30 9-1 14 6 12 14-1 5-5 8-10 8l4 8z" fill="#E0531F" />
+            <path d="M38 20c6-1 11 3 12 9l-8-2z" fill="#F6C343" />
+            <path d="M50 29l7 3-7 3z" fill="#F6C343" /><circle cx="44" cy="27" r="2.6" fill="#16213A" /><circle cx="45" cy="26" r="0.9" fill="#fff" />
+            <path d="M24 44c-6 2-9 8-8 13 5-2 9-6 10-11z" fill="#2F9E92" /><path d="M30 18c-1-5 2-9 6-10-1 4 0 7 2 9z" fill="#D8433A" />
+          </svg>
+          <div className="min-w-0"><p className="text-[13px] font-black" style={HF}>Coco, ta guide</p><p key={astuce} className="text-[12.5px] leading-snug text-white/80">{ASTUCES[astuce]}</p></div>
+        </div>
+        <button onClick={() => setNuit(!nuit)} className="absolute right-3 top-3 z-20 rounded-xl bg-[#1A1340]/90 px-3 py-2 text-[13px] font-bold text-white shadow-lg">{nuit ? "☀ Jour" : "☾ Nuit"}</button>
+        {fiche && (
+          <div className="absolute bottom-3 left-3 z-20 w-[min(360px,calc(100%-70px))] rounded-2xl bg-white p-4 shadow-2xl">
+            <div className="flex items-start justify-between gap-2"><p className="text-[19px] font-black leading-tight" style={HF}>{fiche.titre}</p><button onClick={() => setLieu(null)} aria-label="Fermer" className="text-ink-faint hover:text-ink text-[18px] leading-none">×</button></div>
+            <p className="mt-1 text-[13px] text-ink-soft">{fiche.phrase}</p>
+            {fiche.corps.length > 0 && <ul className="mt-3 space-y-1.5">{fiche.corps.map(([a, b]) => <li key={a} className="flex items-baseline justify-between gap-3 text-[13.5px]"><span className="truncate">{a}</span>{b !== "" && <b className="tnum shrink-0">{b}</b>}</li>)}</ul>}
+            <button onClick={() => fiche.page ? nav(fiche.page) : setPays(true)} className="mt-4 w-full rounded-xl bg-accent text-white py-2.5 text-[14px] font-bold hover:bg-accent-dark">{fiche.bouton}</button>
+          </div>
+        )}
       </div>
     </div>
   );
