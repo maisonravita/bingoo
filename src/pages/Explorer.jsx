@@ -72,7 +72,8 @@ const RUBRIQUES = [
   ["SaaS", [["liste", "Tous les SaaS", "/explorer"]], "copier"],
   ["Niches", [["niches", "Niches", "/explorer/niches"]]],
   ["Classement", [["classement", "Classement", "/explorer/classement"]]],
-  ["Tendances", [["marche", "Pays et tendances", "/explorer/marche"], ["carte", "Le monde", "/explorer/carte"], ["idees", "Idées et réussites", "/explorer/idees"], ["pubs", "Pubs et e-mails", "/explorer/pubs"]]],
+  ["L'île", [["carte", "L'île des SaaS", "/explorer/carte"]]],
+  ["Tendances", [["marche", "Pays et tendances", "/explorer/marche"], ["idees", "Idées et réussites", "/explorer/idees"], ["pubs", "Pubs et e-mails", "/explorer/pubs"]]],
   ["Mes suivis", [["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"]]],
 ];
 // Pages qui dépendent de contenus encore rares : cachées tant qu'elles sont vides (sauf si on y est)
