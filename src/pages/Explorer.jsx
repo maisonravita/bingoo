@@ -362,7 +362,7 @@ function Fiche({ domaine }) {
           {s.copiable != null && (
             <div className={cx("mt-3 rounded-xl border px-3.5 py-2.5 max-w-2xl", s.copiable >= 60 ? "border-[#BBF7D0] bg-[#F0FDF4]" : "border-line bg-white")}>
               <p className="text-[14px]"><b>{s.copiable >= 60 ? "🎯 Bon modèle à copier" : s.copiable >= 30 ? "Copiable avec un angle précis" : "Difficile à copier tel quel"}</b> <span className="text-ink-faint tnum">· {s.copiable}/100</span></p>
-              <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[12.5px] text-ink-soft">{(s.copiable_raisons ?? []).map((r) => <li key={r}>{/Géant|Grosse|devis/.test(r) ? "–" : "✓"} {r}</li>)}</ul>
+              <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[12.5px] text-ink-soft">{(s.copiable_raisons ?? []).map((r) => <li key={r}>{/Géant|Grosse|devis|Pas encore de revenu|très faible/.test(r) ? "–" : "✓"} {r}</li>)}</ul>
             </div>
           )}
           {(s.succes?.fondateurs ?? []).length > 0 && (
@@ -410,7 +410,7 @@ function Fiche({ domaine }) {
             <div className="mt-3 grid sm:grid-cols-2 gap-2">{s.formules.map((x, i) => <div key={i} className="rounded-xl bg-paper px-3 py-2.5"><p className="font-semibold text-[14px]">{x.nom}</p><p className="text-[13.5px] text-ink-soft">{x.prix}</p></div>)}</div>
           ) : <p className="mt-2 text-[14px] text-ink-faint">Formules non lisibles sur la page des tarifs.</p>}
           <h2 className="mt-6 font-bold">Historique du prix d'entrée</h2>
-          <div className="mt-2">{prixPts.length > 1 ? <LineChart points={prixPts} unit=" €" height={160} /> : <p className="text-[13.5px] text-ink-faint">Un relevé par semaine : la courbe apparaît dès le deuxième relevé.</p>}</div>
+          <div className="mt-2">{prixPts.length > 1 ? <LineChart points={prixPts} unit=" €" height={160} /> : <p className="text-[13.5px] text-ink-faint">Un relevé par mois : la courbe apparaît dès le deuxième relevé.</p>}</div>
           <h2 className="mt-6 font-bold">Postes ouverts dans le temps</h2>
           <div className="mt-2">{postesPts.length > 1 ? <LineChart points={postesPts} height={140} /> : <p className="text-[13.5px] text-ink-faint">La courbe apparaît dès le deuxième relevé.</p>}</div>
         </section>
@@ -1221,7 +1221,7 @@ function Apercu({ domaine }) {
           {(a.formules ?? []).length > 0 && <ul className="mt-2 space-y-1">{a.formules.slice(0, 4).map((f) => <li key={f.nom} className="flex justify-between gap-3 text-[13.5px]"><span>{f.nom}</span><span className="tnum text-ink-soft">{f.prix}</span></li>)}</ul>}
         </Carte>
         <Carte titre="Pourquoi le copier">
-          {(a.copiable_raisons ?? []).length ? <ul className="space-y-1">{a.copiable_raisons.map((r) => <li key={r} className={/Géant|Grosse|devis/.test(r) ? "text-ink-soft" : ""}>{/Géant|Grosse|devis/.test(r) ? "– " : "✓ "}{r}</li>)}</ul> : <p className="text-ink-soft">Pas encore assez de données sur ce SaaS.</p>}
+          {(a.copiable_raisons ?? []).length ? <ul className="space-y-1">{a.copiable_raisons.map((r) => <li key={r} className={/Géant|Grosse|devis|Pas encore de revenu|très faible/.test(r) ? "text-ink-soft" : ""}>{/Géant|Grosse|devis|Pas encore de revenu|très faible/.test(r) ? "– " : "✓ "}{r}</li>)}</ul> : <p className="text-ink-soft">Pas encore assez de données sur ce SaaS.</p>}
         </Carte>
         <Carte titre="Comment il trouve ses clients">
           {canaux.length ? <ul className="space-y-1">{canaux.map(([k, l]) => <li key={k}><a href={a.methode[k]} target="_blank" rel="noopener noreferrer" className="hover:underline">→ {l}</a></li>)}</ul> : <p className="text-ink-soft">Aucun canal visible sur son site.</p>}
@@ -2427,7 +2427,7 @@ function TrouveTonSaas() {
                   <div className="flex items-center gap-3"><CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="w-11 h-11" pad="p-1.5" /><div className="min-w-0"><p className="font-bold truncate">{x.nom} {drapeau(x.pays)}</p><p className="text-[12.5px] text-ink-faint truncate">{x.categorie}{x.dans ? "" : " · hors de tes secteurs"}</p></div></div>
                   {x.preuve && <p className="mt-3 rounded-lg bg-[#FEF3C7] text-[#78350F] px-2.5 py-1.5 text-[12.5px] font-semibold">★ {x.preuve}</p>}
                   <p className="mt-2 text-[13.5px] text-ink-soft line-clamp-3">{x.description}</p>
-                  <ul className="mt-2 space-y-0.5 text-[12.5px] text-[#166534] flex-1">{(x.copiable_raisons ?? []).filter((t) => !/Géant|Grosse|devis/.test(t)).slice(0, 4).map((t) => <li key={t}>✓ {t}</li>)}</ul>
+                  <ul className="mt-2 space-y-0.5 text-[12.5px] text-[#166534] flex-1">{(x.copiable_raisons ?? []).filter((t) => !/Géant|Grosse|devis|Pas encore de revenu|très faible/.test(t)).slice(0, 4).map((t) => <li key={t}>✓ {t}</li>)}</ul>
                   <div className="mt-4 flex gap-2"><button onClick={() => nav(`/explorer/lancer?d=${x.domaine}`)} className="flex-1 rounded-xl bg-accent text-white px-4 py-2.5 text-[14px] font-bold hover:bg-accent-dark">Lancer le mien</button><button onClick={() => nav(`/explorer/${x.domaine}`)} className="rounded-xl border border-line px-3 py-2.5 text-[14px] font-semibold hover:border-ink-faint">Fiche</button></div>
                 </div>
               ))}</div>
