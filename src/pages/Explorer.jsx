@@ -395,7 +395,7 @@ function Fiche({ domaine }) {
       {!s.lu_at && s.succes?.source?.includes("trustmrr.com") ? <FicheTrustmrr s={s} /> : (<>
       <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          ["Prix d'entrée", s.prix_entree_eur != null ? `${s.prix_entree_eur} €/mois` : usage(s) ? "À l'usage" : s.sur_devis ? "Sur devis" : "Non affiché", usage(s) ?? (s.prix_affiche && s.devise !== "€" ? `affiché ${s.prix_affiche}` : ""), s.liens?.prix],
+          ["Prix d'entrée", s.prix_entree_eur != null ? `${s.prix_entree_eur} €/mois` : usage(s) ? "À l'usage" : s.sur_devis ? "Sur devis" : s.lecture === "sans_ia" ? "Non détecté" : "Non affiché", usage(s) ?? (s.prix_affiche && s.devise !== "€" ? `affiché ${s.prix_affiche}` : ""), s.liens?.prix],
           ["Gratuit / essai", s.gratuit ? "Version gratuite" : s.essai ? (/\d/.test(s.essai) ? `Essai ${s.essai}` : "Essai gratuit") : "Non", "", s.liens?.prix],
           ["Recrute", s.recrute ? `Oui${s.postes ? ` · ${s.postes} poste${s.postes > 1 ? "s" : ""}` : ""}` : "Pas d'offre lue", "", s.liens?.carrieres],
           ["Dernière nouveauté", date(s.nouveaute) ?? "Non trouvée", "changelog ou blog", s.liens?.nouveautes],

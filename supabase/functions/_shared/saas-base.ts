@@ -62,6 +62,18 @@ function lienContact(html: string, base: string): string | null {
   return null;
 }
 
+// Catégorie devinée par mots-clés (anglais et français) quand l'IA n'est pas disponible
+const CAT_MOTS: [RegExp, string][] = [
+  [/\bcrm\b|sales pipeline|pipeline de vente/i, "CRM et ventes"], [/cold email|outreach|prospect|lead gen/i, "Prospection et emailing"], [/\bseo\b|marketing|ads\b|publicit/i, "Marketing et SEO"],
+  [/social media|réseaux sociaux|linkedin|twitter|\bx\b|instagram|tiktok|youtube|content|creator|newsletter|podcast|video/i, "Réseaux sociaux et contenu"], [/invoice|factur|accounting|comptab|bookkeep/i, "Facturation et comptabilité"],
+  [/payroll|\bpaie\b|\bhr\b|ressources humaines/i, "Paie et RH"], [/recruit|hiring|recrut|job/i, "Recrutement"], [/project management|gestion de projet|task|tâche/i, "Gestion de projet"],
+  [/document|notes?\b|wiki|collaborat/i, "Collaboration et documents"], [/customer support|helpdesk|support client|chatbot/i, "Support client"], [/shopify|e-?commerce|store|boutique/i, "E-commerce"],
+  [/payment|paiement|finance|invest|trading|crypto/i, "Paiement et finance"], [/legal|juridique|contract|contrat/i, "Juridique"], [/real estate|immobili|property/i, "Immobilier"],
+  [/health|santé|fitness|medical|médical/i, "Santé"], [/learn|course|formation|education|language/i, "Éducation et formation"], [/developer|\bapi\b|no-?code|code/i, "Développeurs et no-code"],
+  [/analytics|dashboard|data\b|données/i, "Données et analytics"], [/security|sécurité|privacy|compliance/i, "Sécurité et conformité"], [/\bai\b|\bia\b|automation|automatis|agent/i, "IA et automatisation"],
+];
+const categorieSansIa = (t: string) => CAT_MOTS.find(([re]) => re.test(t))?.[1] ?? "Autre";
+
 /** Lecture d'un site sans IA : prix affichés par mois, version gratuite, essai, devis, description et langue de la page. */
 export function lectureSansIa(s: { nom?: string | null; domaine: string; categorie?: string | null }, home: string, tarifs: string) {
   const meta = (n: string) => home.match(new RegExp(`<meta[^>]+(?:name|property)=["']${n}["'][^>]*content=["']([^"']{10,400})["']`, "i"))?.[1] ?? home.match(new RegExp(`<meta[^>]+content=["']([^"']{10,400})["'][^>]*(?:name|property)=["']${n}["']`, "i"))?.[1] ?? null;
@@ -75,9 +87,9 @@ export function lectureSansIa(s: { nom?: string | null; domaine: string; categor
   const essai = t.match(/(\d{1,2})[- ]day(?:s)?[- ]free[- ]trial|free trial (?:of |for )?(\d{1,2}) days|essai gratuit (?:de |pendant )?(\d{1,2}) jours|(\d{1,2}) jours d'essai/i);
   const nEssai = essai ? essai.slice(1).find(Boolean) : null;
   const gratuit = /free (?:plan|forever|tier)|forever free|\$0\b|0 ?€|gratuit pour toujours|offre gratuite|plan gratuit|version gratuite|start (?:for )?free/i.test(t + " " + textOf(home).slice(0, 3000));
-  const titre = decode(home.match(/<title[^>]*>([^<]{2,120})<\/title>/i)?.[1] ?? "").split(/\s[|–—-]\s/)[0];
+  const titre = decode(home.match(/<title[^>]*>([^<]{2,120})<\/title>/i)?.[1] ?? "").split(/\s[|–—-]\s|:\s/)[0].trim();
   return {
-    est_saas: true, genre: null, nom: s.nom || titre || s.domaine, categorie: s.categorie ?? "Autre",
+    est_saas: true, genre: null, nom: s.nom || titre || s.domaine, categorie: s.categorie ?? categorieSansIa(`${titre} ${meta("description") ?? ""}`),
     description: decode(meta("description") ?? meta("og:description") ?? ""), cible: "", tags: [], pays: null,
     langue: home.match(/<html[^>]+lang=["']([a-z]{2})/i)?.[1] ?? null,
     gratuit, essai: nEssai ? `${nEssai} jours` : /free trial|essai gratuit/i.test(t) ? "oui" : null,
