@@ -69,7 +69,7 @@ export function plan30(s, r) {
       { titre: "Jour 30 : le point", actions: [
         prix ? `Objectif : 10 clients payants, soit ${10 * prix} € par mois.` : "Objectif : 10 clients payants.",
         "Garde le canal qui a amené le plus de clients et arrête les autres : concentre-toi le mois suivant.",
-        "Appelle 3 clients pour savoir ce qui les a convaincus, et mets leurs mots sur ta page d'accueil.",
+        `${(r.refus ?? []).includes("appeler") ? "Écris à" : "Appelle"} 3 clients pour savoir ce qui les a convaincus, et mets leurs mots sur ta page d'accueil.`,
       ] },
     ],
   };
