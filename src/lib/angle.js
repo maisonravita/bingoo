@@ -59,3 +59,24 @@ export function premiersClients(s, a, r) {
   messages.push(["Quand quelqu'un dit oui", `Merci ! Voici ton accès : [lien]. Tu as un mois gratuit. ${refus.has("appeler") ? "Je t'écris" : "Je t'appelle"} dans une semaine pour savoir ce qui t'a servi et ce qui t'a manqué. Si ça t'est utile, l'abonnement sera de [prix] € par mois.`]);
   return { cible, ou: ou.slice(0, 5), messages };
 }
+
+// Une semaine pour tes 10 premiers clients : un jour = une étape, des quantités adaptées au temps dont la personne dispose
+export function semaineClients(s, a, r) {
+  const peu = r?.temps === "peu";
+  const refus = new Set(r?.refus ?? []);
+  const n = (beaucoup, un_peu) => (peu ? un_peu : beaucoup);
+  const cible = a.type === "metier" ? a.metier.toLowerCase() : "ta cible";
+  const source = a.type === "metier" ? `sur Google Maps (« ${a.metier} » + ta ville et les villes voisines)` : a.type === "france" ? `parmi les utilisateurs français de ${s.nom} et sur les comparateurs` : `parmi ceux qui se plaignent de ${s.nom} (avis, Reddit, Google)`;
+  const contacter = refus.has("appeler")
+    ? (k) => `Publie ton message dans ${k} groupes ou forums où se trouve ${cible}, et réponds à chaque commentaire dans l'heure.`
+    : (k) => `Envoie ton premier message à ${k} personnes de ta liste, personnalisé avec leur prénom et un détail sur eux.`;
+  return [
+    { j: "Jour 1", titre: "Ta liste", actions: [`Fais construire ta version par Bingoo! (environ une heure de ton côté).`, `Note ${n(50, 30)} personnes ou entreprises ${source}, avec leur e-mail ou leur profil.`] },
+    { j: "Jour 2", titre: "Ton offre", actions: [`Choisis ton offre de lancement : un mois gratuit, puis −30 % à vie pour les 10 premiers.`, `Prépare tes messages dans l'onglet « Quoi leur dire » : remplace les crochets par tes mots.`] },
+    { j: "Jour 3", titre: "Premiers contacts", actions: [contacter(n(15, 8)), "Note chaque contact dans ton tableau."] },
+    { j: "Jour 4", titre: "Deuxième vague", actions: [contacter(n(15, 8)), "Réponds à tous ceux qui ont répondu, même les « non merci » : demande-leur pourquoi."] },
+    { j: "Jour 5", titre: "Montre-le", actions: [refus.has("video") ? "Envoie 3 captures d'écran qui montrent le résultat à ceux qui sont intéressés." : "Fais une démo de 10 minutes (visio ou vidéo enregistrée) à ceux qui sont intéressés.", refus.has("appeler") ? "Relance par écrit ceux qui n'ont pas répondu, une seule fois." : "Relance une seule fois ceux qui n'ont pas répondu."] },
+    { j: "Jour 6", titre: "Ouvre les essais", actions: ["Donne l'accès à tous ceux qui ont dit oui, et aide chacun à faire sa première action dans l'outil.", "Note ce qui les bloque : c'est ta liste d'améliorations."] },
+    { j: "Jour 7", titre: "Tes 10 premiers", actions: ["Demande à chaque personne en essai si elle veut garder l'outil, avec ton offre des 10 premiers.", "Fais le point : combien de contacts, de oui, d'essais, de payants. Garde le canal qui a le mieux marché pour la semaine suivante."] },
+  ];
+}

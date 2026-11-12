@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { nomCanal, plan30, promptClaude } from "../lib/plan30";
-import { ANGLES, angleDe, premiersClients } from "../lib/angle";
+import { ANGLES, angleDe, premiersClients, semaineClients } from "../lib/angle";
 import { demanderCompte, estInvite } from "../lib/invite";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
@@ -2615,7 +2615,7 @@ function Debloquer({ premier, total, invite, r }) {
       </div>
       <div className="mt-6 rounded-3xl border-2 border-ink bg-white p-5 sm:p-7 flex flex-wrap items-center gap-5">
         <div className="flex-1 min-w-[260px]">
-          <h2 className="text-[22px] sm:text-[26px] font-black leading-tight" style={HF}>Débloque tes 2 autres SaaS, ton plan sur 30 jours et ton SaaS clé en main</h2>
+          <h2 className="text-[22px] sm:text-[26px] font-black leading-tight" style={HF}>Débloque tes 2 autres SaaS, ton plan pour tes 10 premiers clients en 7 jours et ton SaaS clé en main</h2>
           <p className="mt-1.5 text-[14.5px] text-ink-soft">Ils s'affichent dès ton paiement reçu.{total > 3 ? ` Bingoo! a trouvé ${Number(total).toLocaleString("fr-FR")} SaaS vérifiés qui collent à tes réponses : tu pourras tous les parcourir, et Bingoo! construit celui que tu choisis.` : " Et Bingoo! construit celui que tu choisis."}</p>
         </div>
         <button onClick={debloquer} className="rounded-xl bg-accent text-white px-6 py-3.5 font-bold hover:bg-accent-dark">Débloquer mes résultats</button>
@@ -2691,7 +2691,12 @@ function PremiersClients({ s, a, r }) {
   const cle = `bingoo-clients-${s.domaine}`;
   const lire = () => { try { return JSON.parse(localStorage.getItem(cle) ?? "null") ?? Array.from({ length: 10 }, () => ({ nom: "", etat: "" })); } catch { return Array.from({ length: 10 }, () => ({ nom: "", etat: "" })); } };
   const [liste, setListe] = useState(lire);
-  const [onglet, setOnglet] = useState("ou");
+  const [onglet, setOnglet] = useState("semaine");
+  const semaine = semaineClients(s, a, r);
+  const cleJ = `bingoo-semaine-${s.domaine}`;
+  const [faits, setFaits] = useState(() => { try { return JSON.parse(localStorage.getItem(cleJ) ?? "[]"); } catch { return []; } });
+  useEffect(() => { try { setFaits(JSON.parse(localStorage.getItem(cleJ) ?? "[]")); } catch { setFaits([]); } }, [cleJ]);
+  const cocher = (k) => { const n = faits.includes(k) ? faits.filter((x) => x !== k) : [...faits, k]; setFaits(n); try { localStorage.setItem(cleJ, JSON.stringify(n)); } catch { /* stockage indisponible */ } };
   const [copie, setCopie] = useState(null);
   useEffect(() => { setListe(lire()); }, [s.domaine]); // eslint-disable-line react-hooks/exhaustive-deps
   const maj = (k, champ, v) => { const n = liste.map((x, j) => (j === k ? { ...x, [champ]: v } : x)); setListe(n); try { localStorage.setItem(cle, JSON.stringify(n)); } catch { /* stockage indisponible */ } };
@@ -2702,15 +2707,30 @@ function PremiersClients({ s, a, r }) {
     <section className="mt-6 rounded-3xl border border-line bg-white overflow-hidden">
       <div className="px-5 sm:px-7 pt-6 pb-4 border-b border-line flex flex-wrap items-end gap-4">
         <div className="flex-1 min-w-[220px]">
-          <h2 className="text-[22px] font-black leading-tight" style={HF}>Tes 10 premiers clients</h2>
-          <p className="text-[13.5px] text-ink-soft">Avant même que ton SaaS soit fini : trouve-les, parle-leur, fais-les essayer.</p>
+          <h2 className="text-[22px] font-black leading-tight" style={HF}>Tes 10 premiers clients en 7 jours</h2>
+          <p className="text-[13.5px] text-ink-soft">Un jour, une étape. Commence le jour où Bingoo! construit ta version : tu n'attends pas qu'elle soit parfaite.</p>
         </div>
         <div className="text-right"><p className="text-[28px] font-black tnum leading-none" style={HF}>{payants}<span className="text-ink-faint text-[18px]"> / 10</span></p><p className="text-[12px] text-ink-faint">clients payants</p></div>
       </div>
       <div className="px-5 sm:px-7 pt-4 flex gap-4 border-b border-line text-[14px]">
-        {[["ou", "Où les trouver"], ["dire", "Quoi leur dire"], ["suivi", `Ton tableau (${contactes}/10)`]].map(([k, l]) => <button key={k} onClick={() => setOnglet(k)} className={cx("pb-2.5 -mb-px border-b-2 font-semibold", onglet === k ? "border-accent text-ink" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
+        {[["semaine", `Ta semaine (${faits.length}/7)`], ["ou", "Où les trouver"], ["dire", "Quoi leur dire"], ["suivi", `Ton tableau (${contactes}/10)`]].map(([k, l]) => <button key={k} onClick={() => setOnglet(k)} className={cx("pb-2.5 -mb-px border-b-2 font-semibold", onglet === k ? "border-accent text-ink" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
       </div>
       <div className="px-5 sm:px-7 py-5">
+        {onglet === "semaine" && (
+          <ol className="grid md:grid-cols-2 gap-3">{semaine.map((d) => {
+            const fait = faits.includes(d.j);
+            return (
+              <li key={d.j} className={cx("rounded-2xl border p-4", fait ? "border-good bg-good/5" : "border-line")}>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={fait} onChange={() => cocher(d.j)} className="h-5 w-5 accent-[#15803D]" />
+                  <span className="text-[13px] font-semibold text-ink-faint">{d.j}</span>
+                  <span className={cx("font-bold text-[15px]", fait && "line-through text-ink-soft")}>{d.titre}</span>
+                </label>
+                <ul className="mt-2 ml-8 space-y-1 text-[13.5px] text-ink-soft">{d.actions.map((x) => <li key={x}>{x}</li>)}</ul>
+              </li>
+            );
+          })}</ol>
+        )}
         {onglet === "ou" && (
           <ol className="space-y-3">{pc.ou.map(([t, d], k) => (
             <li key={t} className="flex gap-3"><span className="grid place-items-center h-6 w-6 shrink-0 rounded-full bg-accent-soft text-accent-dark text-[12.5px] font-bold">{k + 1}</span><div><p className="font-semibold text-[14.5px]">{t}</p><p className="text-[13.5px] text-ink-soft">{d}</p></div></li>
