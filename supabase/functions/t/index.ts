@@ -53,8 +53,11 @@ function sourceOf(referrer: string, query: string) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   const path = new URL(req.url).pathname;
+  if (req.method === "OPTIONS" && !/\/mcp(\/|$)/.test(path)) return new Response("ok", { headers: cors });
+  // Connecteur Bingoo! pour Claude, ChatGPT et les clients MCP (/t/mcp/<clé>)
+  const mcp = path.match(/\/mcp(?:\/([A-Za-z0-9_]+))?\/?$/);
+  if (mcp) { const { mcpBingoo } = await import("../_shared/mcp-bingoo.ts"); return await mcpBingoo(req, admin, mcp[1] ?? null); }
   // SaaS construits par Bingoo! : comptes et données de l'application (/t/app/<slug>/<action>)
   // Désinscription des e-mails d'une app (lien en bas de chaque e-mail), puis page de confirmation sur Bingoo!
   const ad = path.match(/\/app\/([a-z0-9-]+)\/desabonner$/);
