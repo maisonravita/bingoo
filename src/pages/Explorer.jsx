@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { plan30, promptClaude } from "../lib/plan30";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
@@ -61,7 +62,7 @@ export default function Explorer({ domaine: fixe }) {
   if (d === "niches") return <><Onglets actif="niches" /><Niches /></>;
   if (d === "classement") return <><Onglets actif="classement" /><Classement /></>;
   if (d === "copier") return <><Onglets actif="copier" /><PageCopier /></>;
-  if (d === "trouver") return <><Onglets actif="copier" /><TrouveTonSaas /></>;
+  if (d === "trouver") return <><Onglets actif="copier" trouver /><TrouveTonSaas /></>;
   if (d === "vendre") return <><Onglets actif="vendre" /><AchatVente /></>;
   if (d === "demande") return <><Onglets actif="demande" /><DemandeBingoo /></>;
   if (d === "connecteur") return <><Onglets actif="connecteur" /><Connecteur /></>;
@@ -86,11 +87,25 @@ const RUBRIQUES = [
 // Pages qui dépendent de contenus encore rares : cachées tant qu'elles sont vides (sauf si on y est)
 let VIDES = null;
 const chargerVides = () => VIDES ?? (VIDES = Promise.all([supabase.rpc("saas_bourse_liste"), supabase.rpc("saas_endormis", { p_categorie: null })]).then(([b, r]) => ({ bourse: !(b.data ?? []).length, racheter: !(r.data ?? []).length })).catch(() => ({})));
-function Onglets({ actif }) {
+function Onglets({ actif, trouver }) {
   const nav = useNavigate();
   const [vides, setVides] = useState({});
   useEffect(() => { chargerVides().then(setVides); }, []);
   const rub = RUBRIQUES.find(([, pages]) => pages.some(([k]) => k === actif)) ?? RUBRIQUES[0];
+  const [guide, setGuide] = useState(guideActif);
+  if (guide && trouver) return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-5">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-line bg-white px-4 py-3">
+        <span className="font-bold text-[14px]">Ton premier SaaS en 3 étapes</span>
+        <ol className="flex flex-wrap gap-x-4 gap-y-1 text-[13.5px] text-ink-soft">
+          <li><span className="font-semibold text-ink">1. Réponds à quelques questions</span></li>
+          <li>2. Choisis parmi tes 3 SaaS</li>
+          <li>3. Bingoo! le construit pour toi</li>
+        </ol>
+        <button onClick={() => { finirGuide(); setGuide(false); nav("/explorer"); }} className="ml-auto text-[13.5px] font-semibold text-accent-dark hover:underline">Voir tout Bingoo!</button>
+      </div>
+    </div>
+  );
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
       <div className="inline-flex max-w-full overflow-x-auto rounded-xl bg-white border border-line p-1">
@@ -124,7 +139,7 @@ function Liste({ copier: copierPage = false }) {
   const navDem = useNavigate();
   const [parcours] = useState(() => lirePar());
   // Première visite : on commence par les 3 questions (une seule fois)
-  useEffect(() => { try { if (!localStorage.getItem("bingoo-parcours-vu")) { localStorage.setItem("bingoo-parcours-vu", "1"); navDem("/explorer/trouver"); } } catch { /* stockage indisponible */ } }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { try { if (guideActif()) { localStorage.setItem("bingoo-guide", "en_cours"); localStorage.setItem("bingoo-parcours-vu", "1"); navDem("/explorer/trouver"); } } catch { /* stockage indisponible */ } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const nav = useNavigate();
   const { ws } = useWs();
   const toast = useToast();
@@ -2430,10 +2445,19 @@ const QUESTIONS = [
     ["pub", "Payer de la publicité", "Google Ads, Meta Ads, influenceurs"],
     ["bouche", "Bouche-à-oreille et affiliation", "Parrainage, partenaires"],
   ] },
+  { k: "refus", multi: true, aucun: "Rien, je suis prêt à tout", q: "Qu'est-ce que tu refuses de faire ?", aide: "Bingoo! écarte les SaaS qui trouvent leurs clients comme ça, et ton plan n'en parlera pas.", opts: [
+    ["appeler", "Appeler ou démarcher des inconnus", "Appels, messages et e-mails à froid"],
+    ["video", "Me montrer en vidéo", "TikTok, YouTube, Reels"],
+    ["ecrire", "Écrire du contenu chaque semaine", "Articles, posts, newsletter"],
+    ["pub", "Payer de la publicité", "Google Ads, Meta Ads"],
+  ] },
+  { k: "temps", q: "Combien d'heures par semaine peux-tu y mettre ?", aide: "Avec peu de temps, Bingoo! choisit des SaaS tenus par une seule personne et qu'il sait construire en entier.", opts: [
+    ["peu", "Moins de 5 heures", "À côté d'un travail ou des études"], ["moyen", "5 à 15 heures", "Quelques soirées et le week-end"], ["beaucoup", "Plus de 15 heures", "C'est mon projet principal"],
+  ] },
   { k: "audience", q: "À qui veux-tu vendre ?", aide: "Les pros paient plus cher ; les particuliers sont plus nombreux.", opts: [
     ["B2B", "Aux professionnels", "Entreprises, indépendants, agences"], ["B2C", "Aux particuliers", "Créateurs, étudiants, grand public"], ["", "Peu importe", ""],
   ] },
-  { k: "ambition", q: "Combien veux-tu en tirer par mois ?", aide: "Bingoo! te montre des SaaS qui font déjà ce chiffre, pas plus gros.", opts: [
+  { k: "ambition", q: "Quel revenu vises-tu par mois ?", aide: "Bingoo! te montre des SaaS qui font déjà ce chiffre, pas plus gros.", opts: [
     ["complement", "Un complément", "300 à 3 000 $ par mois"], ["vivre", "En vivre", "2 000 à 20 000 $ par mois"], ["gros", "Viser gros", "Plus de 10 000 $ par mois"],
   ] },
   { k: "profil", q: "Qu'est-ce que tu sais le mieux faire ?", aide: "Bingoo! construit le logiciel : ta force sert à trouver les clients.", opts: [
@@ -2441,36 +2465,45 @@ const QUESTIONS = [
   ] },
   { k: "secteurs", multi: true, secteurs: true, q: "Des secteurs qui t'attirent ?", aide: "Aucun, c'est très bien aussi : Bingoo! cherche partout." },
 ];
+const QK = (k) => QUESTIONS.find((q) => q.k === k);
 const lirePar = () => { try { return JSON.parse(localStorage.getItem("bingoo-parcours2") ?? "null"); } catch { return null; } };
+// Mode débutant : tant que le premier parcours n'est pas fini, un seul chemin guidé
+// Les personnes déjà venues avant ce mode ne le voient pas
+export const guideActif = () => { try { return localStorage.getItem("bingoo-guide") !== "fini" && !lirePar()?.fini && (localStorage.getItem("bingoo-guide") === "en_cours" || !localStorage.getItem("bingoo-parcours-vu")); } catch { return false; } };
+const finirGuide = () => { try { localStorage.setItem("bingoo-guide", "fini"); } catch { /* stockage indisponible */ } };
 function TrouveTonSaas() {
-  const nav = useNavigate();
   const { ws } = useWs();
   const avant = lirePar();
-  // On repart toujours de la première question (réponses précédentes déjà cochées), les derniers résultats restent à un clic
-  const [r, setR] = useState(() => ({ canaux: [], secteurs: [], audience: null, ambition: null, profil: null, ...(avant ?? {}), etape: 0 }));
+  const [r, setR] = useState(() => ({ canaux: [], refus: [], secteurs: [], audience: null, ambition: null, profil: null, temps: null, ...(avant ?? {}), etape: 0 }));
   const [res, setRes] = useState(null);
   const sauver = (n) => { try { localStorage.setItem("bingoo-parcours2", JSON.stringify({ ...n, fini: n.etape >= QUESTIONS.length || n.fini })); } catch { /* stockage indisponible */ } };
   const aller = (n) => {
     setR(n); sauver(n);
-    if (n.etape >= QUESTIONS.length) supabase.from("saas_preferences").upsert({ workspace_id: ws.id, secteurs: n.secteurs ?? [], profil: n.profil ?? null, reponses: { canaux: n.canaux, audience: n.audience, ambition: n.ambition }, maj: new Date().toISOString() }).then(() => {});
+    if (n.etape >= QUESTIONS.length) supabase.from("saas_preferences").upsert({ workspace_id: ws.id, secteurs: n.secteurs ?? [], profil: n.profil ?? null, reponses: { canaux: n.canaux, refus: n.refus, temps: n.temps, audience: n.audience, ambition: n.ambition }, maj: new Date().toISOString() }).then(() => {});
   };
   useEffect(() => {
     if (r.etape < QUESTIONS.length) return;
     setRes(undefined);
-    supabase.rpc("saas_pour_moi2", { p_categories: r.secteurs.length ? r.secteurs : null, p_canaux: r.canaux.length ? r.canaux : null, p_audience: r.audience || null, p_profil: r.profil ?? "aucun", p_ambition: r.ambition ?? "vivre" })
+    supabase.rpc("saas_pour_moi3", { p: { categories: r.secteurs, canaux: r.canaux, refus: r.refus ?? [], audience: r.audience || null, profil: r.profil ?? "aucun", ambition: r.ambition ?? "vivre", temps: r.temps ?? "moyen" } })
       .then(({ data }) => setRes(data ?? []));
   }, [r.etape]); // eslint-disable-line react-hooks/exhaustive-deps
   const fini = r.etape >= QUESTIONS.length;
   const Q = QUESTIONS[r.etape];
   const choisi = (k, v) => Array.isArray(r[k]) ? r[k].includes(v) : r[k] === v;
   const basculer = (k, v) => setR({ ...r, [k]: r[k].includes(v) ? r[k].filter((x) => x !== v) : [...r[k], v] });
-  const resume = [r.canaux.map((c) => QUESTIONS[0].opts.find((o) => o[0] === c)?.[1].toLowerCase()).filter(Boolean).join(", "), QUESTIONS[1].opts.find((o) => o[0] === (r.audience ?? ""))?.[1], QUESTIONS[2].opts.find((o) => o[0] === r.ambition)?.[2], r.secteurs.join(", ")].filter(Boolean);
+  const lib = (k, v, i = 1) => QK(k).opts.find((o) => o[0] === (v ?? ""))?.[i];
+  const resume = [
+    r.canaux.map((c) => lib("canaux", c)?.toLowerCase()).filter(Boolean).join(", "),
+    r.refus?.length ? `Sans : ${r.refus.map((c) => lib("refus", c)?.toLowerCase()).join(", ")}` : null,
+    lib("temps", r.temps) && `${lib("temps", r.temps)} par semaine`,
+    lib("audience", r.audience), lib("ambition", r.ambition, 2), r.secteurs.join(", "),
+  ].filter(Boolean);
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       {!fini ? (
         <div className="max-w-3xl">
           <div className="flex items-center gap-3">
-            <div className="flex gap-1.5">{QUESTIONS.map((_, i) => <span key={i} className={cx("h-1.5 w-8 rounded-full transition-colors", i < r.etape ? "bg-accent" : i === r.etape ? "bg-ink" : "bg-line")} />)}</div>
+            <div className="flex gap-1.5">{QUESTIONS.map((_, i) => <span key={i} className={cx("h-1.5 w-6 sm:w-8 rounded-full transition-colors", i < r.etape ? "bg-accent" : i === r.etape ? "bg-ink" : "bg-line")} />)}</div>
             <span className="text-[13px] text-ink-faint tnum">Question {r.etape + 1} sur {QUESTIONS.length}</span>
             {avant?.fini && r.etape === 0 && <button onClick={() => aller({ ...r, etape: QUESTIONS.length })} className="ml-auto text-[13.5px] font-semibold text-accent-dark hover:underline">Revoir mes derniers résultats</button>}
           </div>
@@ -2491,7 +2524,7 @@ function TrouveTonSaas() {
             })}</div>
           )}
           <div className="mt-7 flex items-center gap-4">
-            {Q.multi && <button onClick={() => aller({ ...r, etape: r.etape + 1 })} className="rounded-xl bg-accent text-white px-6 py-3 font-bold hover:bg-accent-dark">{r.etape === QUESTIONS.length - 1 ? (r.secteurs.length ? "Voir mes SaaS" : "Peu importe, cherche partout") : r[Q.k].length ? "Continuer" : "Passer"}</button>}
+            {Q.multi && <button onClick={() => aller({ ...r, etape: r.etape + 1 })} className="rounded-xl bg-accent text-white px-6 py-3 font-bold hover:bg-accent-dark">{r.etape === QUESTIONS.length - 1 ? (r.secteurs.length ? "Voir mes SaaS" : "Peu importe, cherche partout") : r[Q.k].length ? "Continuer" : Q.aucun ?? "Passer"}</button>}
             {r.etape > 0 && <button onClick={() => setR({ ...r, etape: r.etape - 1 })} className="text-[14px] text-ink-soft hover:text-ink">Retour</button>}
           </div>
         </div>
@@ -2499,7 +2532,7 @@ function TrouveTonSaas() {
         <div>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h1 className="text-[30px] sm:text-[38px] font-black leading-tight tracking-tight" style={HF}>Les SaaS faits pour toi</h1>
+              <h1 className="text-[30px] sm:text-[38px] font-black leading-tight tracking-tight" style={HF}>Tes 3 SaaS à lancer</h1>
               <p className="mt-1 text-[14.5px] text-ink-soft">Ils gagnent déjà de l'argent, vérifié chez leur outil de paiement, et ils trouvent leurs clients comme tu veux le faire.</p>
             </div>
             <button onClick={() => setR({ ...r, etape: 0 })} className="rounded-xl border border-line bg-white px-4 py-2 text-[13.5px] font-semibold hover:border-ink-faint">Changer mes réponses</button>
@@ -2508,18 +2541,60 @@ function TrouveTonSaas() {
           {res === undefined || res === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : !res.length ? (
             <div className="mt-8 rounded-2xl border border-line bg-white p-6"><p className="font-bold">Rien qui colle à toutes tes réponses pour l'instant.</p><p className="mt-1 text-ink-soft">Retire un secteur ou une façon de trouver des clients : la bibliothèque grandit chaque jour.</p><button onClick={() => setR({ ...r, etape: 0 })} className="mt-4 rounded-xl bg-ink text-white px-5 py-2.5 font-semibold">Changer mes réponses</button></div>
           ) : (
-            <>
-              <div className="mt-6 grid md:grid-cols-3 gap-4">{res.slice(0, 3).map((x, i) => <CartePourToi key={x.domaine} x={x} grand premier={i === 0} />)}</div>
-              {res.length > 3 && <><h2 className="mt-10 text-[19px] font-bold">Aussi pour toi</h2><div className="mt-3 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">{res.slice(3).map((x) => <CartePourToi key={x.domaine} x={x} />)}</div></>}
-              <p className="mt-8 rounded-xl bg-accent-soft/60 px-4 py-3 text-[14px]">📬 Chaque lundi, Bingoo! t'envoie les nouveaux SaaS qui correspondent à ces réponses.</p>
-            </>
+            <Paquet res={res} r={r} />
           )}
         </div>
       )}
     </div>
   );
 }
-function CartePourToi({ x, grand, premier }) {
+// Le paquet de sortie : 3 SaaS, puis pour celui choisi un plan sur 30 jours et un prompt pour son propre Claude
+function Paquet({ res, r }) {
+  const nav = useNavigate();
+  const [i, setI] = useState(0);
+  const [prompt, setPrompt] = useState(false);
+  const [copie, setCopie] = useState(false);
+  useEffect(() => { finirGuide(); }, []);
+  const s = res[Math.min(i, res.length - 1)];
+  const p = plan30(s, r);
+  const texte = promptClaude(s, r);
+  const copier = () => { navigator.clipboard?.writeText(texte).then(() => { setCopie(true); setTimeout(() => setCopie(false), 2000); }); };
+  return (
+    <>
+      <div className="mt-6 grid md:grid-cols-3 gap-4">{res.slice(0, 3).map((x, k) => <CartePourToi key={x.domaine} x={x} grand premier={k === i} onChoisir={() => setI(k)} choisi={k === i} />)}</div>
+      <section className="mt-8 rounded-3xl border border-line bg-white overflow-hidden">
+        <div className="px-5 sm:px-7 pt-6 pb-4 border-b border-line flex flex-wrap items-center gap-4">
+          <CompanyLogo name={s.nom} url={`https://${s.domaine}`} className="w-10 h-10" pad="p-1.5" />
+          <div className="flex-1 min-w-[200px]">
+            <h2 className="text-[22px] font-black leading-tight" style={HF}>Ton plan sur 30 jours avec {s.nom}</h2>
+            <p className="text-[13.5px] text-ink-soft">{p.canaux.length ? <>Tiré des canaux qu'utilise vraiment {s.nom} : <b className="text-ink">{p.canaux.join(", ")}</b>.</> : "Tiré des canaux qui marchent pour ce genre de SaaS."}{r.refus?.length ? " Sans ce que tu refuses de faire." : ""}</p>
+          </div>
+          <button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className="rounded-xl bg-accent text-white px-5 py-3 font-bold hover:bg-accent-dark">Bingoo! le construit pour toi</button>
+        </div>
+        <ol className="grid md:grid-cols-2">
+          {p.semaines.map((w, k) => (
+            <li key={w.titre} className={cx("px-5 sm:px-7 py-5 border-line", k % 2 === 0 && "md:border-r", k < 2 && "border-b")}>
+              <p className="font-bold text-[15.5px]">{w.titre}</p>
+              <ul className="mt-2 space-y-1.5 text-[13.5px] text-ink-soft">{w.actions.map((a) => <li key={a} className="flex gap-2"><span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-accent" /><span>{a}</span></li>)}</ul>
+            </li>
+          ))}
+        </ol>
+        <div className="px-5 sm:px-7 py-4 bg-paper border-t border-line">
+          <button onClick={() => setPrompt(!prompt)} className="text-[14px] font-semibold hover:underline">{prompt ? "Masquer" : "Tu préfères coder toi-même ? Voir le prompt à donner à ton Claude"}</button>
+          {prompt && (
+            <div className="mt-3">
+              <pre className="whitespace-pre-wrap rounded-xl border border-line bg-white p-4 text-[12.5px] leading-relaxed max-h-80 overflow-auto">{texte}</pre>
+              <button onClick={copier} className="mt-2 rounded-xl bg-ink text-white px-4 py-2 text-[13.5px] font-semibold">{copie ? "Prompt copié" : "Copier le prompt"}</button>
+            </div>
+          )}
+        </div>
+      </section>
+      {res.length > 3 && <><h2 className="mt-10 text-[19px] font-bold">Aussi pour toi</h2><div className="mt-3 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">{res.slice(3).map((x) => <CartePourToi key={x.domaine} x={x} />)}</div></>}
+      <p className="mt-8 rounded-xl bg-accent-soft/60 px-4 py-3 text-[14px]">📬 Chaque lundi, Bingoo! t'envoie les nouveaux SaaS qui correspondent à ces réponses.</p>
+    </>
+  );
+}
+function CartePourToi({ x, grand, premier, onChoisir, choisi }) {
   const nav = useNavigate();
   return (
     <div className={cx("rounded-2xl border bg-white flex flex-col", grand ? "p-5" : "p-4", premier ? "border-ink ring-1 ring-ink" : "border-line")}>
@@ -2531,7 +2606,9 @@ function CartePourToi({ x, grand, premier }) {
       <p className={cx("mt-3 text-ink-soft", grand ? "text-[14px] line-clamp-3" : "text-[13px] line-clamp-2")}>{x.description}</p>
       {(x.pourquoi ?? []).length > 0 && <ul className="mt-3 space-y-1 text-[13px] flex-1">{x.pourquoi.slice(0, grand ? 4 : 2).map((t) => <li key={t} className="flex gap-2"><span className="text-good">✓</span><span>{t}</span></li>)}</ul>}
       <div className="mt-4 flex gap-2">
-        <button onClick={() => nav(`/explorer/lancer?d=${x.domaine}`)} className={cx("flex-1 rounded-xl bg-accent text-white font-bold hover:bg-accent-dark", grand ? "px-4 py-2.5 text-[14px]" : "px-3 py-2 text-[13px]")}>Copier ce SaaS</button>
+        {onChoisir
+          ? <button onClick={onChoisir} className={cx("flex-1 rounded-xl font-bold px-4 py-2.5 text-[14px]", choisi ? "bg-ink text-white" : "border border-line hover:border-ink")}>{choisi ? "Plan affiché ci-dessous" : "Voir son plan"}</button>
+          : <button onClick={() => nav(`/explorer/lancer?d=${x.domaine}`)} className="flex-1 rounded-xl bg-accent text-white font-bold hover:bg-accent-dark px-3 py-2 text-[13px]">Copier ce SaaS</button>}
         <button onClick={() => nav(`/explorer/${x.domaine}`)} className={cx("rounded-xl border border-line font-semibold hover:border-ink-faint", grand ? "px-4 py-2.5 text-[14px]" : "px-3 py-2 text-[13px]")}>Sa fiche</button>
       </div>
     </div>

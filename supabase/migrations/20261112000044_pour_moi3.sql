@@ -1,0 +1,1 @@
+-- Marqueur : saas_pour_moi3(p jsonb) appliquée via MCP (questions temps, refus, revenu visé)
