@@ -2686,7 +2686,7 @@ function Paquet({ res, r }) {
 
 // Tes 10 premiers clients : où les trouver, quoi leur dire, et un tableau pour les suivre (gardé sur cet appareil)
 const ETATS = [["", "À contacter"], ["contacte", "Contacté"], ["repondu", "A répondu"], ["essai", "En essai"], ["payant", "Payant"]];
-function PremiersClients({ s, a, r }) {
+export function PremiersClients({ s, a, r }) {
   const pc = premiersClients(s, a, r);
   const cle = `bingoo-clients-${s.domaine}`;
   const lire = () => { try { return JSON.parse(localStorage.getItem(cle) ?? "null") ?? Array.from({ length: 10 }, () => ({ nom: "", etat: "" })); } catch { return Array.from({ length: 10 }, () => ({ nom: "", etat: "" })); } };
@@ -2723,7 +2723,7 @@ function PremiersClients({ s, a, r }) {
               <li key={d.j} className={cx("rounded-2xl border p-4", fait ? "border-good bg-good/5" : "border-line")}>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input type="checkbox" checked={fait} onChange={() => cocher(d.j)} className="h-5 w-5 accent-[#15803D]" />
-                  <span className="text-[13px] font-semibold text-ink-faint">{d.j}</span>
+                  <span className="shrink-0 whitespace-nowrap text-[13px] font-semibold text-ink-faint">{d.j}</span>
                   <span className={cx("font-bold text-[15px]", fait && "line-through text-ink-soft")}>{d.titre}</span>
                 </label>
                 <ul className="mt-2 ml-8 space-y-1 text-[13.5px] text-ink-soft">{d.actions.map((x) => <li key={x}>{x}</li>)}</ul>
