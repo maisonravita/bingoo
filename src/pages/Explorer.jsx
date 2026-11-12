@@ -2699,6 +2699,17 @@ export function PremiersClients({ s, a, r }) {
   const cocher = (k) => { const n = faits.includes(k) ? faits.filter((x) => x !== k) : [...faits, k]; setFaits(n); try { localStorage.setItem(cleJ, JSON.stringify(n)); } catch { /* stockage indisponible */ } };
   const [copie, setCopie] = useState(null);
   const copier = (t, k) => navigator.clipboard?.writeText(t).then(() => { setCopie(k); setTimeout(() => setCopie(null), 2000); });
+  // La semaine démarrée (et l'e-mail de chaque matin)
+  const [lanc, setLanc] = useState(undefined);
+  const [mails, setMails] = useState(true);
+  useEffect(() => { supabase.from("saas_lancements").select("id, debut, emails").eq("workspace_id", ws.id).eq("domaine", s.domaine).maybeSingle().then(({ data }) => setLanc(data ?? null)); }, [s.domaine, ws.id]);
+  const jourDe = (l) => l ? Math.floor((new Date(new Date().toDateString()) - new Date(`${l.debut}T00:00:00`)) / 86400000) + 1 : 0;
+  const jour = jourDe(lanc);
+  const demarrer = async () => {
+    const { data, error } = await supabase.from("saas_lancements").upsert({ workspace_id: ws.id, domaine: s.domaine, titre: a.titre, etapes: semaine, emails: mails, debut: new Date().toLocaleDateString("en-CA"), dernier_envoi: 0 }, { onConflict: "workspace_id,domaine" }).select("id, debut, emails").single();
+    if (error) toast(error.message, "bad"); else { setLanc(data); toast(mails ? "C'est parti : l'étape du jour t'attend chaque matin dans ta boîte mail" : "C'est parti : jour 1 aujourd'hui", "good"); }
+  };
+  const basculerMails = async (v) => { setLanc({ ...lanc, emails: v }); await supabase.from("saas_lancements").update({ emails: v }).eq("id", lanc.id); };
   // Prospects enregistrés pour cette version
   const [pros, setPros] = useState(null);
   const [dep, setDep] = useState(() => { try { return localStorage.getItem("bingoo-departement") ?? ""; } catch { return ""; } });
@@ -2736,11 +2747,29 @@ export function PremiersClients({ s, a, r }) {
         {[["semaine", `Ta semaine (${faits.length}/7)`], ["prospects", `Tes prospects${pros?.length ? ` (${contactes}/${pros.length})` : ""}`], ["dire", "Quoi leur dire"], ["ou", "Où chercher encore"]].map(([k, l]) => <button key={k} onClick={() => setOnglet(k)} className={cx("shrink-0 pb-2.5 -mb-px border-b-2 font-semibold whitespace-nowrap", onglet === k ? "border-accent text-ink" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
       </div>
       <div className="px-5 sm:px-7 py-5">
+        {onglet === "semaine" && lanc !== undefined && (
+          <div className="mb-4 rounded-2xl bg-paper border border-line p-4 flex flex-wrap items-center gap-3">
+            {!lanc ? (
+              <>
+                <div className="flex-1 min-w-[220px]"><p className="font-semibold text-[14.5px]">Prêt à commencer ta semaine ?</p><p className="text-[12.5px] text-ink-soft">Bingoo! t'envoie chaque matin l'étape du jour, avec où tu en es.</p></div>
+                <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={mails} onChange={(e) => setMails(e.target.checked)} className="h-4 w-4 accent-[#15803D]" />Recevoir l'étape chaque matin</label>
+                <button onClick={demarrer} className="rounded-xl bg-accent text-white px-5 py-2.5 font-bold hover:bg-accent-dark">Commencer aujourd'hui</button>
+              </>
+            ) : (
+              <>
+                <div className="flex-1 min-w-[220px]"><p className="font-semibold text-[14.5px]">{jour > 7 ? "Ta semaine est terminée" : `Jour ${Math.max(1, jour)} sur 7`}{jour >= 1 && jour <= 7 ? ` : ${semaine[jour - 1]?.titre.toLowerCase()}` : ""}</p><p className="text-[12.5px] text-ink-soft">{jour > 7 ? "Fais le point dans « Tes prospects », puis recommence avec le canal qui a le mieux marché." : "Fais l'étape du jour et coche-la."}</p></div>
+                <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={!!lanc.emails} onChange={(e) => basculerMails(e.target.checked)} className="h-4 w-4 accent-[#15803D]" />Recevoir l'étape chaque matin</label>
+                {jour > 7 && <button onClick={demarrer} className="rounded-xl border border-line px-4 py-2 text-[13.5px] font-semibold hover:border-ink">Recommencer une semaine</button>}
+              </>
+            )}
+          </div>
+        )}
         {onglet === "semaine" && (
-          <ol className="grid md:grid-cols-2 gap-3">{semaine.map((d) => {
+          <ol className="grid md:grid-cols-2 gap-3">{semaine.map((d, k) => {
             const fait = faits.includes(d.j);
+            const auj = lanc && jour === k + 1;
             return (
-              <li key={d.j} className={cx("rounded-2xl border p-4", fait ? "border-good bg-good/5" : "border-line")}>
+              <li key={d.j} className={cx("rounded-2xl border p-4", fait ? "border-good bg-good/5" : auj ? "border-accent border-2" : "border-line")}>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input type="checkbox" checked={fait} onChange={() => cocher(d.j)} className="h-5 w-5 accent-[#15803D]" />
                   <span className="shrink-0 whitespace-nowrap text-[13px] font-semibold text-ink-faint">{d.j}</span>

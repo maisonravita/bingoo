@@ -75,6 +75,34 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     }
     return { cible: r.cible, departement: r.departement, trouves: r.prospects.length, source: r.source };
   },
+  // Accompagnement de la semaine des 10 premiers clients : chaque matin, l'étape du jour par e-mail (cron)
+  async "saas-semaine-cron"(req) {
+    await cron(req);
+    const { sendSystem } = await import("../_shared/mail.ts");
+    const aujourdhui = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+    const { data: ls } = await admin.from("saas_lancements").select("*").eq("emails", true).lt("dernier_envoi", 7).limit(500);
+    let envoyes = 0;
+    for (const l of ls ?? []) {
+      const jour = Math.floor((aujourdhui.getTime() - new Date(`${l.debut}T00:00:00`).getTime()) / 86400000) + 1;
+      if (jour < 1 || jour > 7 || jour <= l.dernier_envoi) continue;
+      const { data: u } = await admin.auth.admin.getUserById(l.user_id);
+      const to = u?.user?.email;
+      if (!to || u?.user?.is_anonymous) continue;
+      const e = (l.etapes as { j: string; titre: string; actions: string[] }[])[jour - 1];
+      if (!e) continue;
+      const { data: ps } = await admin.from("saas_prospects_lancement").select("etat").eq("workspace_id", l.workspace_id).eq("domaine", l.domaine);
+      const n = (k: string) => (ps ?? []).filter((p) => p.etat === k).length;
+      const bilan = ps?.length ? `\nOù tu en es : ${ps.length} prospects, ${(ps ?? []).filter((p) => p.etat && p.etat !== "non").length} contactés, ${n("essai")} en essai, ${n("payant")} payants.\n` : "";
+      const lien = "https://kairo.maisonravita.fr/#/explorer/trouver";
+      const text = `Bonjour,\n\n${e.j} sur 7 de ta semaine pour trouver tes 10 premiers clients (${l.titre}).\n\nAujourd'hui : ${e.titre}\n${e.actions.map((a) => `- ${a}`).join("\n")}\n${bilan}\nTout est prêt dans Bingoo! (tes prospects, tes messages à copier) : ${lien}\n\nUne étape par jour, c'est tout. À demain.\nBingoo!\n\nTu ne veux plus ces e-mails ? Décoche « Recevoir l'étape chaque matin » dans ta semaine, sur Bingoo!.`;
+      try {
+        await sendSystem({ to, subject: `${e.j} : ${e.titre} (tes 10 premiers clients)`, text, key: `semaine-${l.id}-${jour}` });
+        await admin.from("saas_lancements").update({ dernier_envoi: jour }).eq("id", l.id);
+        envoyes++;
+      } catch (_) { /* on réessaiera au prochain passage */ }
+    }
+    return { envoyes };
+  },
   async "saas-chiffres"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     await quota(ws.id, "saas_chiffres", 60);
