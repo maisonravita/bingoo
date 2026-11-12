@@ -930,112 +930,103 @@ function Niches() {
   const nav = useNavigate();
   const loc = useLocation();
   const ouverte = new URLSearchParams(loc.search).get("n");
-  const [genre, setGenre] = useState("");
   const [d, setD] = useState(null);
-  const [filtre, setFiltre] = useState("");
-  const [tri, setTri] = useState("score");
-  useEffect(() => { setD(null); supabase.rpc("saas_marches_niche", { p_genre: genre || null }).then(({ data }) => setD(data ?? [])); }, [genre]);
+  const [tri, setTri] = useState("rentables");
+  const [q, setQ] = useState("");
+  useEffect(() => { supabase.rpc("saas_micro_stats").then(({ data }) => setD(data ?? [])); }, []);
   const liste = useMemo(() => {
-    const l = (d ?? []).map((x) => ({ ...x, n: Number(x.n), indes: Number(x.indes), croissance: x.croissance == null ? null : Number(x.croissance) }))
-      .filter((x) => !filtre || (filtre === "accelere" ? (x.croissance ?? 0) >= 10 || Number(x.nouveautes) >= 2 : x.verdict === filtre));
-    const k = { score: (x) => -x.score, concurrence: (x) => x.n - x.indes / 100, indes: (x) => -x.indes, croissance: (x) => -(x.croissance ?? -999) }[tri];
-    return l.sort((a, b) => k(a) - k(b));
-  }, [d, filtre, tri]);
-  if (ouverte) return <NicheDetail niche={ouverte} info={(d ?? []).find((x) => x.niche === ouverte)} retour={() => nav("/explorer/niches")} />;
-  const nb = (v) => (d ?? []).filter((x) => x.verdict === v).length;
+    const l = (d ?? []).filter((x) => !q.trim() || `${x.nom} ${x.phrase}`.toLowerCase().includes(q.trim().toLowerCase()));
+    const k = { rentables: (x) => -(x.n_rev * 1000 + (x.mrr_med ?? 0) / 100), mediane: (x) => -(x.n_rev >= 3 ? x.mrr_med ?? 0 : -1), sansfr: (x) => (x.fr > 0 ? 1e9 : 0) - x.n_rev, solos: (x) => -x.solos, croissance: (x) => -(x.n_rev >= 3 ? x.crois_med ?? -999 : -999) }[tri];
+    return [...l].sort((a, b) => k(a) - k(b));
+  }, [d, tri, q]);
+  if (ouverte) return <MicroDetail slug={ouverte} info={(d ?? []).find((x) => x.slug === ouverte)} retour={() => nav("/explorer/niches")} />;
+  const max = Math.max(1, ...(d ?? []).map((x) => x.n_rev));
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-      <h1 className="text-[30px] font-black tracking-tight" style={HF}>Marchés de niche</h1>
-      <p className="text-ink-soft max-w-3xl">Chaque sous-marché du SaaS : combien de concurrents, combien de petits SaaS y gagnent déjà de l'argent, à quel prix ils vendent et pour qui. Une niche étroite où des indépendants encaissent, c'est là qu'on démarre le plus vite.</p>
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Chip on={!filtre} onClick={() => setFiltre("")}>Toutes{d ? ` · ${d.length}` : ""}</Chip>
-        <Chip on={filtre === "rentable"} onClick={() => setFiltre("rentable")}>💰 Petites et rentables{d ? ` · ${nb("rentable")}` : ""}</Chip>
-        <Chip on={filtre === "ouverte"} onClick={() => setFiltre("ouverte")}>🌱 Ouvertes{d ? ` · ${nb("ouverte")}` : ""}</Chip>
-        <Chip on={filtre === "accelere"} onClick={() => setFiltre("accelere")}>🔥 Qui accélèrent</Chip>
-        <span className="flex-1" />
-        <select value={genre} onChange={(e) => setGenre(e.target.value)} className="rounded-xl border border-line bg-white px-3 py-2 text-[14px]"><option value="">SaaS et applis web</option><option value="saas">SaaS</option><option value="app_web">Applis web</option></select>
-        <select value={tri} onChange={(e) => setTri(e.target.value)} className="rounded-xl border border-line bg-white px-3 py-2 text-[14px]">{TRIS_NICHE.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      <h1 className="text-[32px] sm:text-[42px] font-black leading-[1.02] tracking-tight" style={HF}>Les niches où de petits SaaS gagnent de l'argent</h1>
+      <p className="mt-2 text-[15px] text-ink-soft max-w-2xl">Des marchés précis, pas de grandes catégories : « humaniser les textes IA », « Pinterest », « CV et recherche d'emploi »… Pour chacun, combien de SaaS y font un revenu vérifié et combien ils gagnent.</p>
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        {[["rentables", "Le plus de SaaS rentables"], ["mediane", "Revenu médian le plus haut"], ["croissance", "Qui grandissent le plus"], ["solos", "Tenues par des solos"], ["sansfr", "Sans concurrent français"]].map(([k, l]) => <Chip key={k} on={tri === k} onClick={() => setTri(k)}>{l}</Chip>)}
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chercher une niche" className="ml-auto w-full sm:w-56 rounded-xl border border-line bg-white px-3 py-2 text-[14px] outline-none focus:border-ink" />
       </div>
-      <p className="mt-2 text-[12.5px] text-ink-faint">« Petit SaaS rentable » : revenu prouvé entre 500 $ et 500 000 $ par mois (Stripe vérifié, comptes déposés ou chiffre publié). Calculé sur les SaaS déjà lus ; les niches s'enrichissent chaque jour.</p>
-      {!d ? <div className="py-16 grid place-items-center"><Spinner /></div> : liste.length ? (
-        <div className="mt-4 grid md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {liste.map((x) => {
-            const v = VERDICT[x.verdict] ?? VERDICT.ouverte;
-            return (
-              <button key={x.niche} onClick={() => nav(`/explorer/niches?n=${encodeURIComponent(x.niche)}`)} className="text-left rounded-2xl bg-white border border-line p-5 flex flex-col hover:border-ink-faint transition">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-[19px] font-black leading-tight" style={HF}><span className="mr-1.5">{x.emoji}</span>{x.niche}</h3>
-                  <span className="shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold" style={{ color: v[1], background: v[2] }}>{v[0]}</span>
+      {!d ? <div className="py-16 grid place-items-center"><Spinner /></div> : (
+        <div className="mt-4 rounded-2xl border border-line bg-white overflow-hidden">
+          <div className="hidden md:grid grid-cols-[1fr_170px_120px_200px] gap-4 px-5 py-2 border-b border-line bg-paper/60 text-[11.5px] font-semibold text-ink-faint">
+            <span>Niche</span><span>SaaS rentables</span><span>Revenu médian</span><span>Le plus gros</span>
+          </div>
+          {liste.map((x) => (
+            <button key={x.slug} onClick={() => nav(`/explorer/niches?n=${x.slug}`)} className="w-full text-left grid grid-cols-[1fr_auto] md:grid-cols-[1fr_170px_120px_200px] gap-x-4 gap-y-1 px-4 sm:px-5 py-3.5 border-b border-line last:border-0 items-center hover:bg-paper/50">
+              <div className="min-w-0 flex items-center gap-3">
+                <span className="text-[26px] w-9 text-center shrink-0" aria-hidden>{x.emoji}</span>
+                <div className="min-w-0">
+                  <p className="font-bold text-[15.5px] truncate">{x.nom} {x.fr === 0 && x.n_rev > 0 && <span className="ml-1 align-middle rounded-md bg-[#DBEAFE] text-[#1E40AF] px-1.5 py-0.5 text-[11px] font-semibold">Aucun français</span>}</p>
+                  <p className="text-[13px] text-ink-soft truncate">{x.phrase}</p>
                 </div>
-                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-xl bg-paper py-2"><p className="text-[18px] font-black tnum">{x.n}</p><p className="text-[11px] text-ink-faint leading-tight">concurrents</p></div>
-                  <div className="rounded-xl bg-paper py-2"><p className="text-[18px] font-black tnum" style={{ color: x.indes ? "#15803D" : undefined }}>{x.indes}</p><p className="text-[11px] text-ink-faint leading-tight">petits SaaS rentables</p></div>
-                  <div className="rounded-xl bg-paper py-2"><p className="text-[18px] font-black tnum">{x.prix_med != null ? `${Math.round(x.prix_med)} €` : "–"}</p><p className="text-[11px] text-ink-faint leading-tight">prix médian / mois</p></div>
-                </div>
-                {x.meilleur_inde && <p className="mt-3 text-[13px] rounded-lg bg-[#FEF3C7] text-[#78350F] px-2.5 py-1.5"><b>{x.meilleur_inde.nom}</b> · {x.meilleur_inde.preuve}</p>}
-                <div className="mt-2 space-y-0.5 text-[13px] text-ink-soft flex-1">
-                  {x.avec_croissance > 0 && x.croissance != null && <p>Croissance vérifiée : <b style={{ color: x.croissance >= 0 ? "#15803D" : "#B91C1C" }}>{pct(x.croissance)}</b> en 30 jours <span className="text-ink-faint">({x.avec_croissance} SaaS)</span></p>}
-                  {(x.publics ?? []).length > 0 && <p>Pour : {x.publics.join(", ")}</p>}
-                  <p className="text-ink-faint">{[x.fr ? `${x.fr} français` : null, x.gratuits ? `${x.gratuits} avec offre gratuite` : "aucune offre gratuite", Number(x.copiables) ? `${x.copiables} à copier` : null].filter(Boolean).join(" · ")}</p>
-                </div>
-                <div className="mt-3 flex items-center gap-1.5">{(x.exemples ?? []).map((e) => <CompanyLogo key={e.domaine} name={e.nom} url={`https://${e.domaine}`} className="w-7 h-7" pad="p-1" />)}<span className="ml-auto text-[13px] font-semibold text-accent-dark">Voir la niche →</span></div>
-              </button>
-            );
-          })}
+              </div>
+              <div className="text-right md:text-left">
+                <p className="text-[14px] tnum"><b>{x.n_rev}</b> <span className="text-ink-faint">sur {x.n}</span></p>
+                <div className="hidden md:block mt-1 h-1.5 rounded-full bg-paper overflow-hidden"><div className="h-full rounded-full bg-accent" style={{ width: `${(x.n_rev / max) * 100}%` }} /></div>
+              </div>
+              <p className="hidden md:block text-[15px] font-bold tnum">{x.mrr_med ? `${dollar(x.mrr_med)}` : "–"}<span className="text-[11.5px] font-normal text-ink-faint">{x.mrr_med ? " / mois" : ""}</span></p>
+              <p className="col-span-2 md:col-span-1 text-[13px] text-ink-soft truncate">{x.top?.[0] ? <><b className="text-ink">{x.top[0].nom}</b> {dollar(x.top[0].mrr)} / mois</> : "Pas encore de revenu vérifié"}</p>
+            </button>
+          ))}
         </div>
-      ) : <p className="mt-6 text-ink-faint">Aucune niche ne correspond à ce filtre pour l'instant.</p>}
+      )}
+      <p className="mt-3 text-[12px] text-ink-faint">Un SaaS est rangé dans la niche dont les mots-clés apparaissent dans son nom ou ce qu'il fait. « Rentable » : au moins 100 $ par mois vérifiés chez son outil de paiement.</p>
     </div>
   );
 }
 
-function NicheDetail({ niche, info, retour }) {
+function MicroDetail({ slug, info, retour }) {
   const nav = useNavigate();
   const [l, setL] = useState(null);
-  const [vue, setVue] = useState("tous");
-  useEffect(() => { supabase.rpc("saas_niche_detail", { p_niche: niche }).then(({ data }) => setL(data ?? [])); }, [niche]);
-  const v = VERDICT[info?.verdict] ?? null;
-  const rows = (l ?? []).filter((s) => vue === "tous" || (vue === "rentables" ? s.montant >= 6000 && s.montant <= 6e6 : s.copiable >= 60));
+  const [vue, setVue] = useState("revenu");
+  useEffect(() => { supabase.rpc("saas_micro_detail", { p_slug: slug }).then(({ data }) => setL(data ?? [])); }, [slug]);
+  const rows = (l ?? []).filter((s) => vue === "tous" || (vue === "revenu" ? s.mrr >= 100 : s.copiable >= 60));
+  const canaux = useMemo(() => {
+    const c = {}; (l ?? []).filter((s) => s.mrr >= 100).forEach((s) => (s.canaux ?? []).forEach((k) => { c[k] = (c[k] ?? 0) + 1; }));
+    return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  }, [l]);
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-      <button onClick={retour} className="text-[13.5px] font-semibold text-ink-soft hover:text-ink">← Toutes les niches</button>
-      <div className="mt-2 flex flex-wrap items-center gap-3">
-        <h1 className="text-[30px] font-black tracking-tight" style={HF}>{info?.emoji} {niche}</h1>
-        {v && <span className="rounded-full px-3 py-1 text-[12.5px] font-bold" style={{ color: v[1], background: v[2] }}>{v[0]}</span>}
+      <button onClick={retour} className="text-[13.5px] font-semibold text-ink-soft hover:text-ink">Toutes les niches</button>
+      <div className="mt-3 flex items-center gap-4">
+        <span className="text-[48px] leading-none" aria-hidden>{info?.emoji}</span>
+        <div><h1 className="text-[32px] sm:text-[40px] font-black leading-tight tracking-tight" style={HF}>{info?.nom ?? slug}</h1><p className="text-[15px] text-ink-soft">{info?.phrase}</p></div>
       </div>
-      {v && <p className="text-ink-soft">{v[3]}</p>}
       {info && (
-        <div className="mt-4 grid grid-cols-2 md:grid-cols-5 gap-2">
-          {[["Concurrents", info.n], ["Petits SaaS rentables", info.indes], ["Revenu médian de ces petits SaaS", info.indes_med ? `${montantCourt(info.indes_med / 12)} / mois` : "–"], ["Prix", info.prix_min != null ? `${Math.round(info.prix_min)} à ${Math.round(info.prix_max)} €` : "–"], ["Croissance vérifiée (30 j)", info.croissance != null ? pct(info.croissance) : "–"]].map(([t, val]) => (
-            <div key={t} className="rounded-2xl bg-white border border-line p-4"><p className="text-[12px] text-ink-faint">{t}</p><p className="mt-0.5 text-[20px] font-black tnum">{val}</p></div>
+        <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-x-6 gap-y-4 rounded-2xl border border-line bg-white p-5">
+          {[["SaaS dans la niche", info.n], ["Avec un revenu vérifié", info.n_rev], ["Revenu médian", info.mrr_med ? `${dollar(info.mrr_med)} / mois` : "–"], ["Revenu cumulé", info.mrr_total ? `${dollar(info.mrr_total)} / mois` : "–"], ["Concurrents français", info.fr]].map(([t, v]) => (
+            <div key={t}><p className="text-[12px] text-ink-faint">{t}</p><p className="text-[22px] font-black tnum" style={HF}>{v}</p></div>
           ))}
         </div>
       )}
-      {info && (info.publics ?? []).length > 0 && <p className="mt-3 text-[13.5px] text-ink-soft">Ils vendent surtout à : <b>{info.publics.join(", ")}</b>. {Number(info.gratuits) === 0 ? "Aucun n'a d'offre gratuite : une version gratuite te démarquerait." : `${info.gratuits} sur ${info.n} ont une offre gratuite.`}</p>}
-      <div className="mt-5 flex flex-wrap gap-2">
+      {canaux.length > 0 && <div className="mt-4"><p className="text-[13px] text-ink-soft">Comment les SaaS rentables de cette niche trouvent leurs clients</p><div className="mt-1.5 flex flex-wrap gap-1.5">{canaux.map(([k, n]) => <span key={k} className="rounded-md bg-accent-soft/70 text-accent-dark px-2.5 py-1 text-[13px] font-medium">{CANAL_FR[k] ?? k} <span className="opacity-60 tnum">{n}</span></span>)}</div></div>}
+      <div className="mt-6 flex flex-wrap gap-2">
+        <Chip on={vue === "revenu"} onClick={() => setVue("revenu")}>Avec un revenu vérifié</Chip>
+        <Chip on={vue === "copier"} onClick={() => setVue("copier")}>Faciles à copier</Chip>
         <Chip on={vue === "tous"} onClick={() => setVue("tous")}>Tous</Chip>
-        <Chip on={vue === "rentables"} onClick={() => setVue("rentables")}>💰 Petits et rentables</Chip>
-        <Chip on={vue === "copier"} onClick={() => setVue("copier")}>🎯 Faciles à copier</Chip>
       </div>
-      {!l ? <div className="py-16 grid place-items-center"><Spinner /></div> : rows.length ? (
-        <div className="mt-3 rounded-2xl bg-white border border-line divide-y divide-line">
+      {!l ? <div className="py-16 grid place-items-center"><Spinner /></div> : !rows.length ? <p className="mt-6 text-ink-faint">Rien dans cette sélection : essaie « Tous ».</p> : (
+        <div className="mt-3 rounded-2xl bg-white border border-line overflow-hidden">
           {rows.map((s) => (
-            <div key={s.domaine} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-              <button onClick={() => nav(`/explorer/${s.domaine}`)} className="flex items-start gap-3 text-left flex-1 min-w-0">
-                <CompanyLogo name={s.nom} url={`https://${s.domaine}`} className="w-10 h-10" pad="p-1.5" />
-                <div className="min-w-0">
-                  <p className="font-bold text-[15px]">{s.nom} <span className="font-normal text-ink-faint text-[13px]">{drapeau(s.pays)} {s.domaine}</span>{s.genre === "app_web" && <span className="ml-1.5 rounded-full bg-paper px-2 py-0.5 text-[11px] font-semibold text-ink-soft">Appli web</span>}{s.copiable >= 60 && <span className="ml-1.5 rounded-full bg-accent-soft/60 px-2 py-0.5 text-[11px] font-bold text-accent-dark">🎯 {s.copiable}/100</span>}</p>
-                  <p className="text-[13px] text-ink-soft line-clamp-1">{s.description}</p>
-                  {s.preuve && <p className="text-[12.5px] mt-0.5" style={{ color: s.montant > 6e6 ? "#6B7280" : "#78350F" }}>★ {s.preuve}</p>}
-                </div>
-              </button>
-              <div className="flex items-center gap-3 sm:justify-end">
-                <p className="text-[13px] text-ink-soft tnum w-24 sm:text-right">{s.prix ? `${Math.round(s.prix)} €/mois` : s.gratuit ? "Gratuit" : ""}</p>
-                <button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className="rounded-xl bg-accent text-white px-3.5 py-2 text-[13px] font-bold hover:bg-accent-dark whitespace-nowrap">Lancer le mien</button>
+            <div key={s.domaine} onClick={() => nav(`/explorer/${s.domaine}`)} className="cursor-pointer grid grid-cols-[auto_1fr_auto] md:grid-cols-[auto_1fr_130px_auto] items-center gap-x-4 gap-y-2 px-4 sm:px-5 py-3.5 border-b border-line last:border-0 hover:bg-paper/50">
+              <CompanyLogo name={s.nom} url={`https://${s.domaine}`} className="w-10 h-10" pad="p-1.5" />
+              <div className="min-w-0">
+                <p className="font-bold truncate">{s.nom} <span className="font-normal">{drapeau(s.pays)}</span></p>
+                <p className="text-[13px] text-ink-soft line-clamp-1">{s.description}</p>
+                {(s.canaux ?? []).length > 0 && <p className="mt-0.5 text-[12px] text-ink-faint truncate">{s.canaux.slice(0, 4).map((c) => CANAL_FR[c] ?? c).join(", ")}</p>}
               </div>
+              <div className="text-right">
+                {s.mrr > 0 ? <><p className="font-black tnum" style={HF}>{dollar(s.mrr)}</p><p className="text-[11px] text-ink-faint">par mois, vérifié</p></> : s.preuve ? <p className="text-[12px] text-ink-soft max-w-[140px] line-clamp-2">{s.preuve}</p> : <p className="text-[12px] text-ink-faint">Non public</p>}
+                {s.crois != null && s.mrr > 0 && <p className={cx("text-[12px] font-bold tnum", s.crois > 0 ? "text-good" : "text-bad")}>{s.crois > 0 ? "+" : ""}{Math.round(s.crois)} %</p>}
+              </div>
+              <button onClick={(e) => { e.stopPropagation(); nav(`/explorer/lancer?d=${s.domaine}`); }} className="col-span-3 md:col-span-1 justify-self-end rounded-xl bg-accent text-white px-4 py-2 text-[13px] font-bold hover:bg-accent-dark">Copier</button>
             </div>
           ))}
         </div>
-      ) : <p className="mt-6 text-ink-faint">Rien dans cette sélection pour l'instant.</p>}
+      )}
     </div>
   );
 }
