@@ -29,7 +29,7 @@ const ILES = {
   createurs: { nom: "Île des créateurs", c: "#E0531F", sol: "#FCE3D6", u: 13, v: 37, w: 10, d: 8, liste: "" },
 };
 const hauteurApp = (mrr) => 1.6 + 1.25 * Math.min(14, Math.floor(Number(mrr || 0) / 1000));
-const ILE_DE = Object.fromEntries(Object.entries(ILES).flatMap(([k, i]) => i.liste.split(" ").map((c) => [c, k])));
+export const ILE_DE = Object.fromEntries(Object.entries(ILES).flatMap(([k, i]) => i.liste.split(" ").map((c) => [c, k])));
 
 /** Petit moteur isométrique : U = taille d'une case en pixels. */
 function iso(U, nuit = false) {

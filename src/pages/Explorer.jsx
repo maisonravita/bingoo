@@ -3253,14 +3253,7 @@ function Carte() {
   useEffect(() => { const i = setInterval(() => setAstuce((a) => (a + 1) % ASTUCES.length), 7000); return () => clearInterval(i); }, []);
   useEffect(() => { if (pays && !data) { supabase.rpc("saas_carte", { ws: ws.id }).then(({ data: x }) => setData(x ?? [])); supabase.rpc("saas_apps_monde").then(({ data: x }) => setApps(x ?? [])); } }, [pays, data, ws.id]);
   const ouvrir = (id, v) => { if (id === "bateau") { setVente(v); setLieu("bateau"); return; } setLieu(id); };
-  if (pays) return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-      <button onClick={() => setPays(false)} className="text-[13.5px] font-semibold text-ink-soft hover:text-ink">Retour à l'archipel</button>
-      <h1 className="mt-2 text-[30px] font-black tracking-tight" style={HF}>L'Atlas des pays</h1>
-      <p className="text-ink-soft">Chaque île est un continent, chaque bâtiment un pays : plus il est haut, plus il compte de SaaS.</p>
-      <div className="mt-4"><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}>{data ? <IsoMonde data={data} apps={apps} onApp={(a) => window.open(lienApp(a.slug, a.domaine), "_blank")} onVoir={(code, domaine) => nav(domaine ? `/explorer/${domaine}` : `/explorer?pays=${code}`)} /> : <div className="py-24 grid place-items-center"><Spinner /></div>}</Suspense></div>
-    </div>
-  );
+  if (pays) return <AtlasPays data={data} retour={() => setPays(false)} nuit={nuit} setNuit={setNuit} />;
   const fiche = {
     classement: { titre: "La Tour des records", phrase: "Les SaaS qui encaissent le plus, revenus relus chez leur outil de paiement.", corps: (d?.records ?? []).map((r, i) => [`${i + 1}. ${r.nom}`, `${dollar(r.j30)} en 30 j`]), bouton: "Voir le classement", page: "/explorer/classement" },
     niches: { titre: "Le Château des niches", phrase: "Une tour par grande niche. Entre pour voir les 84 marchés précis.", corps: (d?.niches ?? []).map((n) => [`${n.emoji} ${n.nom}`, `${n.n_rev} rentables`]), bouton: "Entrer dans le château", page: "/explorer/niches" },
@@ -3293,6 +3286,46 @@ function Carte() {
             <p className="mt-1 text-[13px] text-ink-soft">{fiche.phrase}</p>
             {fiche.corps.length > 0 && <ul className="mt-3 space-y-1.5">{fiche.corps.map(([a, b]) => <li key={a} className="flex items-baseline justify-between gap-3 text-[13.5px]"><span className="truncate">{a}</span>{b !== "" && <b className="tnum shrink-0">{b}</b>}</li>)}</ul>}
             <button onClick={() => fiche.page ? nav(fiche.page) : setPays(true)} className="mt-4 w-full rounded-xl bg-accent text-white py-2.5 text-[14px] font-bold hover:bg-accent-dark">{fiche.bouton}</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// L'Atlas des pays, dans le même monde 3D que l'archipel : une île par continent, un immeuble par pays
+function AtlasPays({ data, retour, nuit, setNuit }) {
+  const nav = useNavigate();
+  const [ile, setIle] = useState(null);
+  const [pays, setPays] = useState(null);
+  const [ileDe, setIleDe] = useState(null);
+  useEffect(() => { import("../components/IsoMonde").then((m) => setIleDe(m.ILE_DE)); }, []);
+  const choisir = (id, code) => { if (id === "pays") { setPays(code); return; } setPays(null); setIle(id); };
+  const p = pays ? (data ?? []).find((q) => q.pays === pays) : null;
+  const liste = ile && ileDe ? (data ?? []).filter((q) => ileDe[q.pays] === ile).sort((a, b) => b.n - a.n) : [];
+  const NOMS = { amnord: "Amérique du Nord", europe: "Europe", asie: "Asie", amsud: "Amérique du Sud", afrique: "Afrique", oceanie: "Océanie" };
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5">
+      <div className="relative h-[72vh] min-h-[480px] overflow-hidden rounded-3xl" style={{ background: nuit ? "#0B2347" : "#1D6FC0" }}>
+        <Suspense fallback={<div className="absolute inset-0 grid place-items-center"><Spinner /></div>}>{data && ileDe ? <IleSaas mode="atlas" pays={data} ileDe={ileDe} nuit={nuit} onLieu={choisir} /> : <div className="absolute inset-0 grid place-items-center"><Spinner /></div>}</Suspense>
+        <div className="absolute left-3 top-3 z-20 flex items-center gap-2">
+          <button onClick={retour} className="rounded-xl bg-[#1A1340]/90 px-3 py-2 text-[13px] font-bold text-white shadow-lg">Retour à l'archipel</button>
+          <span className="hidden sm:block rounded-xl bg-[#1A1340]/90 px-3 py-2 text-[13px] text-white/85 shadow-lg">Une île par continent, un immeuble par pays : plus il est haut, plus il compte de SaaS.</span>
+        </div>
+        <button onClick={() => setNuit(!nuit)} className="absolute right-3 top-3 z-20 rounded-xl bg-[#1A1340]/90 px-3 py-2 text-[13px] font-bold text-white shadow-lg">{nuit ? "☀ Jour" : "☾ Nuit"}</button>
+        {(p || ile) && (
+          <div className="absolute bottom-3 left-3 z-20 w-[min(360px,calc(100%-70px))] max-h-[62%] overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[19px] font-black leading-tight" style={HF}>{p ? `${drapeau(p.pays)} ${PAYS[p.pays] ?? p.pays}` : NOMS[ile]}</p>
+              <button onClick={() => { if (p) setPays(null); else setIle(null); }} aria-label="Fermer" className="text-ink-faint hover:text-ink text-[18px] leading-none">×</button>
+            </div>
+            {p ? <>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">{[[p.n, "SaaS"], [p.recrutent ?? 0, "recrutent"], [p.postes ?? 0, "postes ouverts"]].map(([v, l]) => <div key={l} className="rounded-xl bg-paper py-2"><p className="text-[18px] font-black tnum">{Number(v).toLocaleString("fr-FR")}</p><p className="text-[11px] text-ink-faint">{l}</p></div>)}</div>
+              {(p.phares ?? []).length > 0 && <ul className="mt-3 space-y-1.5">{p.phares.slice(0, 5).map((x) => <li key={x.domaine}><button onClick={() => nav(`/explorer/${x.domaine}`)} className="w-full flex items-center gap-2.5 rounded-xl border border-line px-2.5 py-1.5 text-left hover:border-ink-faint"><CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="w-7 h-7" /><span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold">{x.nom}</span></button></li>)}</ul>}
+              <button onClick={() => nav(`/explorer?pays=${p.pays}`)} className="mt-3 w-full rounded-xl bg-accent text-white py-2.5 text-[14px] font-bold hover:bg-accent-dark">Voir les {Number(p.n).toLocaleString("fr-FR")} SaaS</button>
+            </> : <ul className="mt-2 space-y-0.5">{liste.slice(0, 14).map((q) => (
+              <li key={q.pays}><button onClick={() => setPays(q.pays)} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-paper"><span className="text-[18px]">{drapeau(q.pays)}</span><span className="flex-1 text-[14px] truncate">{PAYS[q.pays] ?? q.pays}</span><b className="tnum text-[13.5px]">{Number(q.n).toLocaleString("fr-FR")}</b></button></li>
+            ))}</ul>}
           </div>
         )}
       </div>

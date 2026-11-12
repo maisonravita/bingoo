@@ -310,7 +310,53 @@ export const LIEUX = [
   { id: "sage", nom: "Le Sage", ...ecran(17, 5.5), page: "/explorer/demande" },
 ];
 
-export default function IleSaas({ d, onLieu, nuit }) {
+// ---------------------------------------------------------------- L'Atlas : un continent par île, un immeuble par pays
+const CONTINENTS = [
+  ["amnord", "Amérique du Nord", "#F2A541", "#F7E3B5", -13, -3], ["europe", "Europe", "#4F7FE0", "#D9E5FA", 0, -7.5], ["asie", "Asie", "#B45FC8", "#EFDDF3", 13.5, -3],
+  ["amsud", "Amérique du Sud", "#3DAE76", "#D5EEDD", -8.5, 7.5], ["afrique", "Afrique", "#E0692F", "#F8DCC9", 2.5, 6.5], ["oceanie", "Océanie", "#2FA7BC", "#D3EEF2", 15, 8.5],
+];
+const nomsPays = (() => { try { return new Intl.DisplayNames(["fr"], { type: "region" }); } catch { return null; } })();
+export const nomPays = (c) => { try { return nomsPays?.of(c) ?? c; } catch { return c; } };
+const drapeauPays = (c) => (c && c.length === 2 ? String.fromCodePoint(...[...c.toUpperCase()].map((x) => 127397 + x.charCodeAt(0))) : "");
+function lieuxAtlas(pays, ileDe) {
+  const par = {};
+  for (const p of pays ?? []) { const k = ileDe[p.pays]; if (k) (par[k] ??= []).push(p); }
+  const totaux = CONTINENTS.map(([id]) => (par[id] ?? []).reduce((a, p) => a + Number(p.n), 0));
+  const maxT = Math.max(1, ...totaux), maxN = Math.max(1, ...(pays ?? []).map((p) => Number(p.n)));
+  return CONTINENTS.map(([id, nom, c, sol, sx, sy], i) => {
+    const liste = (par[id] ?? []).sort((a, b) => b.n - a.n);
+    const r = 2.3 + 2.1 * Math.sqrt(totaux[i] / maxT);
+    return { id, nom, couleur: c, sol, ...ecran(sx, sy), r, liste, maxN, total: totaux[i], haut: 1.6 + 5.6 * Math.sqrt((liste[0]?.n ?? 0) / maxN) + 1.4, texte: `${totaux[i].toLocaleString("fr-FR")} SaaS, ${liste.length} pays` };
+  });
+}
+function ileContinent(l, graine) {
+  const g = socle(l.r, graine, { dessus: l.sol === "#F8DCC9" ? "#D9B77A" : COUL.herbe });
+  const places = [[0, 0]];
+  for (let k = 0; k < 5; k++) { const a = (k / 5) * Math.PI * 2 + 0.4; places.push([Math.cos(a) * l.r * 0.42, Math.sin(a) * l.r * 0.42]); }
+  for (let k = 0; k < 7; k++) { const a = (k / 7) * Math.PI * 2 + 0.1; places.push([Math.cos(a) * l.r * 0.72, Math.sin(a) * l.r * 0.72]); }
+  l.liste.slice(0, places.length).forEach((p, i) => {
+    const [x, z] = places[i];
+    const h = 0.7 + 5.6 * Math.sqrt(Number(p.n) / l.maxN), w = i === 0 ? 1.15 : 0.78;
+    const b = new THREE.Group();
+    b.add(maille(new THREE.BoxGeometry(w, h, w), mat(i % 2 ? COUL.blanc : l.sol), { y: h / 2 }));
+    b.add(maille(new THREE.BoxGeometry(w + 0.12, 0.12, w + 0.12), mat(l.couleur), { y: h + 0.06 }));
+    for (let e = 0; e < Math.min(8, Math.floor(h / 0.55)); e++) for (const sx of [-1, 1]) {
+      const f = maille(new THREE.BoxGeometry(0.16, 0.2, 0.03), new THREE.MeshStandardMaterial({ color: "#FFE3A6", emissive: "#FFB84D", emissiveIntensity: 0, flatShading: true }), { x: sx * w * 0.22, y: 0.35 + e * 0.55, z: w / 2 + 0.02, ombre: false });
+      f.userData.fenetre = true; b.add(f);
+    }
+    b.add(maille(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 4), mat(COUL.boisSombre), { y: h + 0.4 }));
+    const dr = maille(new THREE.BoxGeometry(0.36, 0.22, 0.02), mat(l.couleur), { x: 0.18, y: h + 0.6, ombre: false }); dr.userData.drapeau = true; b.add(dr);
+    b.position.set(x, 0.45, z); b.rotation.y = hasard(graine + i) * 0.6 - 0.3;
+    b.traverse((o) => { o.userData.pays = p.pays; });
+    g.add(b);
+  });
+  for (let k = 0; k < 3; k++) { const a = hasard(graine * 5 + k) * 6.28; g.add(palmier(Math.cos(a) * l.r * 0.86, Math.sin(a) * l.r * 0.86, 0.7, k + graine)); }
+  return g;
+}
+
+export default function IleSaas({ d, onLieu, nuit, mode = "archipel", pays, ileDe }) {
+  const lieux = useMemo(() => (mode === "atlas" ? lieuxAtlas(pays, ileDe ?? {}) : LIEUX), [mode, pays, ileDe]);
+  const [bulle, setBulle] = useState(null);
   const boite = useRef(null);
   const etat = useRef({});
   const rappel = useRef(onLieu);
@@ -334,7 +380,8 @@ export default function IleSaas({ d, onLieu, nuit }) {
     const scene = new THREE.Scene();
 
     // Caméra isométrique (orthographique), zoom et déplacement à la souris ou au doigt
-    const vue = { zoom: 1, cible: new THREE.Vector3(-0.7, 0, -1.45) };
+    const centre = mode === "atlas" ? new THREE.Vector3(ecran(1, 0.5).x, 0, ecran(1, 0.5).z) : new THREE.Vector3(-0.7, 0, -1.45);
+    const vue = { zoom: 1, cible: centre.clone() };
     const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, -100, 200);
     const cadrer = () => {
       const r = W() / H(), base = W() < 640 ? 24 : W() / H() > 1.6 ? 12.5 : 14.5;
@@ -390,14 +437,14 @@ export default function IleSaas({ d, onLieu, nuit }) {
       createurs: () => createurs(d?.apps ?? 4), atlas: () => atlas(),
       sage: () => { const g = new THREE.Group(); g.add(maille(new THREE.BoxGeometry(1.1, 0.5, 1.1), mat(COUL.bois), { y: -0.35 })); g.add(maille(new THREE.BoxGeometry(1.15, 0.08, 1.15), mat(COUL.boisSombre), { y: -0.1 })); const p = personnage({ habit: "#E8C65A", chapeau: "#F1EFEA", peau: "#F0C9A7", barbe: true, baton: true }); p.position.y = -0.05; p.scale.setScalar(1.6); g.add(p); g.add(maille(new THREE.DodecahedronGeometry(0.14, 0), mat(COUL.orange), { x: -0.35, y: 0.05, z: 0.3 })); g.userData.flotte = true; return g; },
     };
-    for (const l of LIEUX) {
-      const g = fabriques[l.id](); g.position.set(l.x, 0, l.z); g.userData.lieu = l.id;
+    lieux.forEach((l, i) => {
+      const g = mode === "atlas" ? ileContinent(l, 20 + i * 3) : fabriques[l.id](); g.position.set(l.x, 0, l.z); g.userData.lieu = l.id;
       g.traverse((o) => { o.userData.lieu = l.id; });
       scene.add(g); objets[l.id] = g;
-    }
+    });
     // Bateaux : un par SaaS à vendre (jusqu'à 6), qui naviguent entre les îles
     const voiles = [COUL.blanc, "#FFE7C2", "#E6F0FF", "#FFD6D6", COUL.blanc, "#E8FFE0"];
-    const bateaux = (d?.ventes ?? []).slice(0, 6).map((v, i) => {
+    const bateaux = (mode === "atlas" ? [] : d?.ventes ?? []).slice(0, 6).map((v, i) => {
       const b = bateau(voiles[i % voiles.length]); b.scale.setScalar(1.15);
       b.userData = { vente: v, r: 9 + (i % 3) * 3.2, v: (0.025 + hasard(i) * 0.02) * (i % 2 ? 1 : -1), a: (i / 6) * Math.PI * 2, c: [hasard(i + 2) * 2 - 1, 2 + hasard(i + 5) * 2] };
       b.traverse((o) => { o.userData.bateau = i; });
@@ -414,6 +461,7 @@ export default function IleSaas({ d, onLieu, nuit }) {
       atlas: [[[-1.1, 1.2], [1.2, 1.0]]],
       phare: [[[-0.8, 0.75], [0.7, 0.8]]],
     };
+    if (mode === "atlas") { for (const k of Object.keys(CHEMINS)) delete CHEMINS[k]; lieux.forEach((l) => { const r = l.r * 0.92; CHEMINS[l.id] = [[[r, 0], [0, r], [-r, 0], [0, -r]], [[-r * 0.9, r * 0.3], [-r * 0.3, r * 0.9]]]; }); }
     const SOL = { niches: 0.68, phare: 0.32 };
     const tenues = [[COUL.orange, "#2B2F45"], ["#4F7FE0", "#F6C343"], [COUL.vert, "#8A4A22"], ["#C13C6B", "#F1EFEA"], ["#F2A541", "#2F9E92"], ["#6B4FA3", "#E0531F"], ["#2FA7BC", "#16213A"], ["#D8433A", "#F6C343"]];
     const habitants = [];
@@ -423,7 +471,7 @@ export default function IleSaas({ d, onLieu, nuit }) {
       const h = personnage({ habit, chapeau, peau: ["#F1C7A0", "#C98B5E", "#8D5A3B", "#F5D5B8"][nh % 4] });
       h.scale.setScalar(0.72);
       h.userData = { lieu: id, pts, boucle: pts.length > 2, v: 0.32 + hasard(nh) * 0.2, p: hasard(nh + 4) * pts.length, sol: SOL[id] ?? 0.5 };
-      objets[id].add(h); habitants.push(h); nh++;
+      objets[id]?.add(h); habitants.push(h); nh++;
     }
     // Mouettes
     const oiseaux = [];
@@ -442,8 +490,8 @@ export default function IleSaas({ d, onLieu, nuit }) {
       const r = rendu.domElement.getBoundingClientRect();
       souris.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
       ray.setFromCamera(souris, cam);
-      const h = ray.intersectObjects(scene.children, true).find((x) => x.object.userData.lieu || x.object.userData.bateau !== undefined);
-      return h ? (h.object.userData.bateau !== undefined ? { bateau: h.object.userData.bateau } : { lieu: h.object.userData.lieu }) : null;
+      const h = ray.intersectObjects(scene.children, true).find((x) => x.object.userData.pays || x.object.userData.lieu || x.object.userData.bateau !== undefined);
+      return h ? (h.object.userData.pays ? { pays: h.object.userData.pays, lieu: h.object.userData.lieu } : h.object.userData.bateau !== undefined ? { bateau: h.object.userData.bateau } : { lieu: h.object.userData.lieu }) : null;
     };
     const surPointeur = (e) => {
       if (glisse) {
@@ -457,6 +505,7 @@ export default function IleSaas({ d, onLieu, nuit }) {
       const h = viser(e);
       const id = h?.lieu ?? (h?.bateau !== undefined ? `bateau-${h.bateau}` : null);
       etat.current.survol = id; setSurvol(id);
+      if (h?.pays) { const r = rendu.domElement.getBoundingClientRect(); const p = (pays ?? []).find((q) => q.pays === h.pays); setBulle({ code: h.pays, n: p?.n, x: e.clientX - r.left, y: e.clientY - r.top }); } else setBulle(null);
       rendu.domElement.style.cursor = id ? "pointer" : "grab";
     };
     const bas = (e) => { glisse = { x: e.clientX, y: e.clientY, c: vue.cible.clone() }; bouge = false; rendu.domElement.setPointerCapture?.(e.pointerId); };
@@ -464,7 +513,8 @@ export default function IleSaas({ d, onLieu, nuit }) {
       const etaitGlisse = bouge; glisse = null;
       if (etaitGlisse) return;
       const h = viser(e);
-      if (h?.lieu) { const l = LIEUX.find((x) => x.id === h.lieu); etat.current.vol = { de: vue.cible.clone(), a: new THREE.Vector3(l.x, 0, l.z + 1), z0: vue.zoom, z1: Math.max(vue.zoom, 1.6), t: 0 }; rappel.current?.(h.lieu); }
+      if (h?.pays) { rappel.current?.("pays", h.pays); return; }
+      if (h?.lieu) { const l = lieux.find((x) => x.id === h.lieu); etat.current.vol = { de: vue.cible.clone(), a: new THREE.Vector3(l.x, 0, l.z + 1), z0: vue.zoom, z1: Math.max(vue.zoom, 1.6), t: 0 }; rappel.current?.(h.lieu); }
       else if (h?.bateau !== undefined) rappel.current?.("bateau", bateaux[h.bateau]?.userData.vente);
     };
     const molette = (e) => { e.preventDefault(); vue.zoom = Math.max(0.7, Math.min(3, vue.zoom * (e.deltaY < 0 ? 1.1 : 0.9))); cadrer(); };
@@ -473,7 +523,7 @@ export default function IleSaas({ d, onLieu, nuit }) {
     rendu.domElement.addEventListener("pointerup", haut);
     rendu.domElement.addEventListener("wheel", molette, { passive: false });
     rendu.domElement.style.cursor = "grab"; rendu.domElement.style.touchAction = "none";
-    etat.current.recentrer = () => { etat.current.vol = { de: vue.cible.clone(), a: new THREE.Vector3(-0.7, 0, -1.45), z0: vue.zoom, z1: 1, t: 0 }; };
+    etat.current.recentrer = () => { etat.current.vol = { de: vue.cible.clone(), a: centre.clone(), z0: vue.zoom, z1: 1, t: 0 }; };
     etat.current.zoomer = (k) => { vue.zoom = Math.max(0.7, Math.min(3, vue.zoom * k)); cadrer(); };
 
     // Animation
@@ -538,8 +588,8 @@ export default function IleSaas({ d, onLieu, nuit }) {
       // Étiquettes HTML au-dessus des lieux (mises à jour quelques fois par seconde)
       if (++compteurLabels % 3 === 0) {
         const hauteurs = { classement: 7.8, niches: 5.4, phare: 5.6, marche: 3.4, chantier: 4.2, createurs: 3.4, atlas: 4.2, sage: 2.2 };
-        const brut = LIEUX.map((l) => {
-          tmp.set(l.x, hauteurs[l.id] + objets[l.id].position.y, l.z).project(cam);
+        const brut = lieux.map((l) => {
+          tmp.set(l.x, (l.haut ?? hauteurs[l.id]) + objets[l.id].position.y, l.z).project(cam);
           return { id: l.id, x: (tmp.x * 0.5 + 0.5) * W(), y: (-tmp.y * 0.5 + 0.5) * H(), w: l.nom.length * 7.6 + 26 };
         }).sort((a, b) => a.y - b.y);
         // Pas de chevauchement : étiquette réduite au nom, puis décalée vers le haut si besoin
@@ -563,7 +613,7 @@ export default function IleSaas({ d, onLieu, nuit }) {
       scene.traverse((o) => { o.geometry?.dispose?.(); if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose()); else o.material?.dispose?.(); });
       rendu.dispose(); el.removeChild(rendu.domElement);
     };
-  }, [d, reduit, pret]);
+  }, [d, reduit, pret, lieux, mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { etat.current.nuit = nuit; }, [nuit]);
 
@@ -582,16 +632,17 @@ export default function IleSaas({ d, onLieu, nuit }) {
       <div ref={boite} className="absolute inset-0" />
       {!pret && <div className="absolute inset-0 grid place-items-center text-white/80 text-[14px] font-semibold">{erreur ? "L'archipel n'a pas pu se charger : vérifie ta connexion et recharge la page." : "L'archipel se dessine…"}</div>}
       {labels.map((l) => {
-        const lieu = LIEUX.find((x) => x.id === l.id);
+        const lieu = lieux.find((x) => x.id === l.id);
         const on = survol === l.id;
         return (
           <button key={l.id} onClick={() => onLieu?.(l.id)} style={{ left: l.x, top: l.y, zIndex: on ? 15 : 10, transform: `translate(-50%, -100%) scale(${on ? 1.08 : 1})` }}
             className={cx2("absolute z-10 whitespace-nowrap rounded-xl px-3 py-1.5 text-left shadow-[0_6px_16px_rgba(10,30,70,.35)] transition-transform", on ? "bg-white" : "bg-[#16213A]/90 text-white")}>
             <span className="block text-[13px] font-black leading-tight" style={{ fontFamily: "var(--font-titre)" }}>{lieu.nom}</span>
-            {(!l.compact || on) && <span className={cx2("block text-[11.5px] font-semibold leading-tight", on ? "text-[#BF4314]" : "text-[#FFC9A8]")}>{texte[l.id]}</span>}
+            {(!l.compact || on) && <span className={cx2("block text-[11.5px] font-semibold leading-tight", on ? "text-[#BF4314]" : "text-[#FFC9A8]")}>{lieu.texte ?? texte[l.id]}</span>}
           </button>
         );
       })}
+      {bulle && <div className="pointer-events-none absolute z-20 rounded-xl bg-white px-3 py-1.5 text-[13px] font-bold text-[#16213A] shadow-lg" style={{ left: bulle.x + 14, top: bulle.y - 10 }}>{drapeauPays(bulle.code)} {nomPays(bulle.code)}{bulle.n != null ? <span className="font-semibold text-[#BF4314]"> · {Number(bulle.n).toLocaleString("fr-FR")} SaaS</span> : null}</div>}
       <div className="absolute right-3 bottom-3 z-10 flex flex-col gap-1.5">
         <button onClick={() => etat.current.zoomer?.(1.2)} aria-label="Zoomer" className="h-9 w-9 rounded-xl bg-white/90 text-[18px] font-black text-[#16213A] shadow">+</button>
         <button onClick={() => etat.current.zoomer?.(0.83)} aria-label="Dézoomer" className="h-9 w-9 rounded-xl bg-white/90 text-[18px] font-black text-[#16213A] shadow">−</button>
