@@ -44,9 +44,9 @@ export function knowledgeOf(ws: { knowledge?: string }) {
 export const PLANS: Record<string, { label: string; price: number; factor: number; seats: number; credits: number; ai: number; quota: number }> = {
   essai: { label: "Aperçu gratuit", price: 0, factor: 0.5, seats: 1, credits: 15, ai: 2, quota: 20 },
   // Veille du marché SaaS, sans prospection (pas d'envoi, pas de tâches de prospection de nuit)
-  explorer: { label: "Starter", price: 19.99, factor: 0.5, seats: 1, credits: 0, ai: 1.5, quota: 0 },
-  explorer_pro: { label: "Pro", price: 39.99, factor: 0.5, seats: 1, credits: 0, ai: 3, quota: 0 },
-  business: { label: "Business", price: 69.99, factor: 1, seats: 3, credits: 0, ai: 6, quota: 0 },
+  explorer: { label: "Trouver", price: 19.99, factor: 0.5, seats: 1, credits: 0, ai: 1.5, quota: 0 },
+  explorer_pro: { label: "Lancer", price: 39.99, factor: 0.5, seats: 1, credits: 0, ai: 3, quota: 0 },
+  business: { label: "Lancer à plusieurs", price: 69.99, factor: 1, seats: 3, credits: 0, ai: 6, quota: 0 },
   // Anciennes formules (prospection), plus vendues
   solo: { label: "Solo", price: 39.99, factor: 1, seats: 1, credits: 140, ai: 6, quota: 100 },
   pro: { label: "Pro (prospection)", price: 69.99, factor: 2, seats: 2, credits: 420, ai: 14, quota: 300 },
