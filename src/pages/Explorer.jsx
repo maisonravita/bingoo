@@ -211,7 +211,7 @@ function Liste({ copier: copierPage = false }) {
           <p className="text-[12.5px] font-bold uppercase tracking-wide text-accent-dark">{copierPage ? "Copier et lancer" : "Explorer"}</p>
           <h1 className="text-[30px] sm:text-[36px] font-black leading-tight tracking-tight" style={HF}>{copierPage ? "Ils gagnent déjà de l'argent. À toi de faire pareil." : "Tous les SaaS et applis web, au même endroit."}</h1>
           {copierPage && <button onClick={() => navDem("/explorer/trouver")} className="mt-2 mb-1 inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-dark px-3.5 py-1.5 text-[13.5px] font-semibold hover:bg-accent-soft/70">🎯 {parcours?.etape === 3 ? "Mes SaaS sur mesure" : "Trouve le tien en 3 questions"} →</button>}
-          {copierPage ? <p className="text-ink-soft text-[15px] max-w-3xl">Des SaaS au revenu prouvé, tenus par de petites équipes, avec un prix simple, et souvent sans équivalent en France. Choisis-en un, puis « Lancer le mien » : Bingoo! le construit à ton nom.</p> : <p className="text-ink-soft text-[15px]">{stats ? `${stats.total.toLocaleString("fr-FR")} logiciels suivis · ${stats.cats.length} catégories · ${stats.pays.length} pays · ${stats.recrutent} recrutent en ce moment` : "…"}</p>}
+          {copierPage ? <p className="text-ink-soft text-[15px] max-w-3xl">Des SaaS au revenu prouvé, tenus par de petites équipes, avec un prix simple, et souvent sans équivalent en France. Choisis-en un, puis « Lancer le même » : Bingoo! le construit à ton nom.</p> : <p className="text-ink-soft text-[15px]">{stats ? `${stats.total.toLocaleString("fr-FR")} logiciels suivis · ${stats.cats.length} catégories · ${stats.pays.length} pays · ${stats.recrutent} recrutent en ce moment` : "…"}</p>}
           {!copierPage && <button onClick={() => nav("/explorer/carte")} className="mt-1 text-[13.5px] font-semibold text-accent-dark hover:underline">🏝️ Voir la bibliothèque en archipel 3D</button>}
         </div>
         <form onSubmit={(e) => { e.preventDefault(); if (ajout.trim().length > 3) nav(`/explorer/chiffres?u=${encodeURIComponent(ajout.trim())}`); }} className="flex gap-2">
@@ -413,7 +413,7 @@ function Fiche({ domaine }) {
           {etiquettes(s).length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{etiquettes(s).map((t) => <span key={t} className="rounded-full bg-paper px-2.5 py-1 text-[12.5px]">{t}</span>)}</div>}
         </div>
         <div className="flex flex-col gap-2"><BoutonSuivre saasId={s.id} />
-          <button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className="rounded-xl bg-accent text-white px-4 py-2.5 text-[14px] font-bold hover:bg-accent-dark">Lancer le mien</button></div>
+          <button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className="rounded-xl bg-accent text-white px-4 py-2.5 text-[14px] font-bold hover:bg-accent-dark">Lancer le même</button></div>
         <div className="rounded-2xl bg-white border border-line px-5 py-3 text-center">
           <p className="text-[12px] text-ink-faint">Score de croissance</p>
           <p className="text-[34px] font-black tnum leading-none mt-1" style={HF}>{s.score_croissance ?? "—"}</p>
@@ -884,7 +884,7 @@ function Histoire({ h, saas, onOuvrir }) {
         </div>
       )}
       <div className="mt-3 flex flex-wrap gap-1.5">
-        {saas && <button onClick={(e) => { e.stopPropagation(); window.location.hash = `#/explorer/lancer?d=${saas.domaine}`; }} className="rounded-full bg-accent text-white px-3 py-1 text-[12.5px] font-bold hover:bg-accent-dark">Lancer le mien</button>}
+        {saas && <button onClick={(e) => { e.stopPropagation(); window.location.hash = `#/explorer/lancer?d=${saas.domaine}`; }} className="rounded-full bg-accent text-white px-3 py-1 text-[12.5px] font-bold hover:bg-accent-dark">Lancer le même</button>}
         {ch.map((c, i) => <a key={i} href={c.source} target="_blank" rel="noopener noreferrer" title={c.source} className="rounded-full border border-line px-2.5 py-1 text-[12.5px] hover:border-ink-faint">{c.texte} <span className="text-ink-faint">· {hote(c.source)}</span></a>)}
       </div>
     </article>
@@ -1095,7 +1095,7 @@ function MicroDetail({ slug, info, retour }) {
   );
 }
 
-// ---------------------------------------------------------------- Lancer le mien : un SaaS inspiré d'un SaaS qui marche
+// ---------------------------------------------------------------- Lancer le même : un SaaS inspiré d'un SaaS qui marche
 /** N'importe quel SaaS, même absent de la base : on colle son adresse. */
 function AutreSaas({ grand = false }) {
   const nav = useNavigate();
@@ -1104,7 +1104,7 @@ function AutreSaas({ grand = false }) {
   return (
     <form onSubmit={go} className={cx("flex gap-2", grand ? "w-full max-w-xl" : "")}>
       <input value={u} onChange={(e) => setU(e.target.value)} placeholder={grand ? "adresse du SaaS à concurrencer, ex. notion.so" : "Un autre SaaS : son adresse"} className={cx("flex-1 min-w-0 rounded-xl border border-line bg-white px-3 outline-none focus:border-ink", grand ? "py-3 text-[15px]" : "py-2 text-[13.5px] w-56")} />
-      <button className={cx("shrink-0 rounded-xl bg-ink text-white font-bold hover:bg-black", grand ? "px-5 py-3 text-[15px]" : "px-3 py-2 text-[13px]")}>{grand ? "Lancer le mien" : "OK"}</button>
+      <button className={cx("shrink-0 rounded-xl bg-ink text-white font-bold hover:bg-black", grand ? "px-5 py-3 text-[15px]" : "px-3 py-2 text-[13px]")}>{grand ? "Lancer le même" : "OK"}</button>
     </form>
   );
 }
@@ -1181,7 +1181,7 @@ function Lancer() {
       <Parcours etape={!p ? 1 : !(construit?.ecrans ?? []).length ? 2 : construit.domaine_statut === "ok" || construit.public ? 4 : 3} />
       {!p ? (
         <div className="mt-4 rounded-3xl bg-ink text-white p-8">
-          <p className="text-[13px] font-bold uppercase tracking-wide text-[#F6A06B]">Lancer le mien</p>
+          <p className="text-[13px] font-bold uppercase tracking-wide text-[#F6A06B]">Lancer le même</p>
           <h1 className="mt-2 text-[32px] sm:text-[42px] font-black leading-[1.05]" style={HF}>{nomInspi} marche. Lance le même, à ton nom.</h1>
           <p className="mt-3 max-w-2xl text-white/75 text-[16px]">Bingoo! lit ce que fait {nomInspi} sur son site et te prépare un SaaS concurrent qui fait la même chose : chaque fonctionnalité et son équivalent chez toi, l'ordre pour les coder, les outils et leur coût, tes prix face aux siens, tes premiers clients, le plan d'affaires sur 12 mois, et le texte à donner à un outil qui code l'application pour toi.</p>
           <p className="mt-3 text-[13px] text-white/55">Concurrence loyale : les mêmes fonctionnalités, mais ton nom, tes mots et ton design. Reprendre la marque, les textes mot pour mot ou le design de {nomInspi} exposerait à des poursuites.</p>
@@ -3451,7 +3451,7 @@ function Comparer() {
           <tbody>{lignes.map(([t, f]) => (
             <tr key={t} className="border-b border-line last:border-0 align-top"><td className="px-4 py-3 text-[12.5px] font-semibold text-ink-faint">{t}</td>{ok.map((s) => <td key={s.id} className="px-4 py-3">{f(s)}</td>)}</tr>
           ))}
-          <tr><td />{ok.map((s) => <td key={s.id} className="px-4 py-4"><button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className={cx("rounded-xl px-4 py-2.5 text-[13.5px] font-bold", meilleur?.id === s.id ? "bg-accent text-white hover:bg-accent-dark" : "border border-line bg-white hover:border-ink")}>Lancer le mien</button></td>)}</tr>
+          <tr><td />{ok.map((s) => <td key={s.id} className="px-4 py-4"><button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className={cx("rounded-xl px-4 py-2.5 text-[13.5px] font-bold", meilleur?.id === s.id ? "bg-accent text-white hover:bg-accent-dark" : "border border-line bg-white hover:border-ink")}>Lancer le même</button></td>)}</tr>
           </tbody>
         </table>
       </div>

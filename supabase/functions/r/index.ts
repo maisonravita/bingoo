@@ -139,7 +139,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   },
   async "saas-lancer"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
-    if (ws.plan === "explorer") throw new HttpError(402, "« Lancer le mien » est dans la formule Pro.");
+    if (ws.plan === "explorer") throw new HttpError(402, "« Lancer le même » est dans la formule Pro.");
     await quota(ws.id, "lancer", 10);
     // Une à deux minutes de travail : on répond tout de suite et on prépare le projet en tâche de fond (la page interroge la base)
     const { saasLancer, saasAdd, saasLire, domaineDe } = await import("../_shared/saas-base.ts");

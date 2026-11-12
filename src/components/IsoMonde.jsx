@@ -354,7 +354,7 @@ export default function IsoMonde({ data, apps = [], onVoir, onApp }) {
                 <li key={q.slug}><button onClick={() => setSel(q.pays)} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-paper">
                   <span className="w-5 text-[12px] text-ink-faint tnum">{i + 1}</span><span className="h-5 w-5 rounded-md" style={{ background: q.couleur || "#E0531F" }} /><span className="flex-1 text-[14px] truncate">{q.nom}</span><span className="text-[13px] font-semibold tnum">{Math.round(Number(q.mrr)).toLocaleString("fr-FR")} €</span>
                 </button></li>
-              ))}{!parIle.createurs.length && <li className="text-[13px] text-ink-faint">Aucun SaaS affiché pour l'instant. Construis le tien dans « Lancer le mien » et coche « Afficher dans le monde ».</li>}</ul>
+              ))}{!parIle.createurs.length && <li className="text-[13px] text-ink-faint">Aucun SaaS affiché pour l'instant. Construis le tien dans « Lancer le même » et coche « Afficher dans le monde ».</li>}</ul>
             ) : <ul className="mt-3 space-y-1">{(ile ? parIle[ile] : [...(data ?? [])].sort((a, b) => b.n - a.n)).slice(0, 12).map((q) => (
               <li key={q.pays}><button onClick={() => { if (!ile) setIle(ILE_DE[q.pays]); setSel(q.pays); }} className="w-full flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-paper">
                 <span className="text-[18px]">{drapeau(q.pays)}</span><span className="flex-1 text-[14px] truncate">{nomPays(q.pays)}</span>

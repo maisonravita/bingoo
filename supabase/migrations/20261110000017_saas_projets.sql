@@ -1,1 +1,1 @@
--- Appliquée via MCP : table saas_projets (Lancer le mien)
+-- Appliquée via MCP : table saas_projets (Lancer le même)

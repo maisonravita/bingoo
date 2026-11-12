@@ -1,4 +1,4 @@
-// Bingoo! construit le SaaS : à partir d'un projet « Lancer le mien », génère une application qui marche
+// Bingoo! construit le SaaS : à partir d'un projet « Lancer le même », génère une application qui marche
 // (site public, comptes, écrans avec données), hébergée par Bingoo! sur kairo.maisonravita.fr/#/app/<slug>.
 // 1. une spec (couleur, données, écrans, données d'exemple) ; 2. le code de chaque écran, en parallèle.
 // Le gabarit (src/lib/appShell.js) fournit navigation, comptes, composants et accès aux données.

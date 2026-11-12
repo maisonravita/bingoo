@@ -692,7 +692,7 @@ Clés : type (promotion | lancement | contenu | evenement | temoignage | relance
   }
 }
 
-// ---------------------------------------------------------------- « Lancer le mien » : un SaaS inspiré d'un SaaS qui marche
+// ---------------------------------------------------------------- « Lancer le même » : un SaaS inspiré d'un SaaS qui marche
 // On ne copie ni le nom, ni les textes, ni le design (droit d'auteur, marques, parasitisme) : on reprend le besoin prouvé
 // et on construit une offre différenciée, à partir des données de la base (prix du marché, concurrents, chiffres publics).
 // Le plan d'affaires est calculé ici, à partir d'hypothèses affichées, jamais inventé par l'IA.
@@ -807,10 +807,10 @@ export async function saasRelanceJ3(seulement?: string) {
     if (!to) continue;
     const raisons = (x: any) => (x.copiable_raisons ?? []).filter((r: string) => !/^Revenu|Géant|Grosse|devis/.test(r)).slice(0, 2).join(" · ");
     const intro = pref ? "D'après tes réponses, voici les 3 SaaS que tu peux copier dès maintenant." : "Voici 3 SaaS qui gagnent déjà de l'argent et qu'une petite équipe peut refaire.";
-    const text = [`Tes 3 SaaS à copier`, "", intro, "", ...top.map((x, i) => `${i + 1}. ${x.nom} (${x.categorie}) : ${x.preuve ?? ""}\n   ${raisons(x)}\n   Lancer le mien : ${site}/#/explorer/lancer?d=${x.domaine}`), "",
+    const text = [`Tes 3 SaaS à copier`, "", intro, "", ...top.map((x, i) => `${i + 1}. ${x.nom} (${x.categorie}) : ${x.preuve ?? ""}\n   ${raisons(x)}\n   Lancer le même : ${site}/#/explorer/lancer?d=${x.domaine}`), "",
       pref ? `Changer mes critères : ${site}/#/explorer/trouver` : `Trois questions pour des SaaS sur mesure : ${site}/#/explorer/trouver`].join("\n");
     const html = `<div style="font-family:Arial,sans-serif;color:#15161A;max-width:560px"><h2 style="margin:0 0 6px">Tes 3 SaaS à copier</h2><p style="color:#5B5D66;margin:0 0 16px">${escH(intro)}</p>
-${top.map((x, i) => `<div style="border:1px solid #E7E5E4;border-radius:14px;padding:14px 16px;margin:0 0 10px"><p style="margin:0;font-weight:bold;font-size:16px">${i + 1}. ${escH(x.nom)} <span style="font-weight:normal;color:#5B5D66;font-size:13px">· ${escH(x.categorie)}</span></p>${x.preuve ? `<p style="margin:6px 0 0;font-size:13.5px;background:#FEF3C7;color:#78350F;display:inline-block;padding:4px 8px;border-radius:8px">★ ${escH(x.preuve)}</p>` : ""}<p style="margin:6px 0 0;font-size:13px;color:#166534">${escH(raisons(x))}</p><p style="margin:10px 0 0"><a href="${site}/#/explorer/lancer?d=${escH(x.domaine)}" style="background:#E0531F;color:#fff;padding:9px 14px;border-radius:9px;text-decoration:none;font-weight:bold;font-size:14px">Lancer le mien</a></p></div>`).join("")}
+${top.map((x, i) => `<div style="border:1px solid #E7E5E4;border-radius:14px;padding:14px 16px;margin:0 0 10px"><p style="margin:0;font-weight:bold;font-size:16px">${i + 1}. ${escH(x.nom)} <span style="font-weight:normal;color:#5B5D66;font-size:13px">· ${escH(x.categorie)}</span></p>${x.preuve ? `<p style="margin:6px 0 0;font-size:13.5px;background:#FEF3C7;color:#78350F;display:inline-block;padding:4px 8px;border-radius:8px">★ ${escH(x.preuve)}</p>` : ""}<p style="margin:6px 0 0;font-size:13px;color:#166534">${escH(raisons(x))}</p><p style="margin:10px 0 0"><a href="${site}/#/explorer/lancer?d=${escH(x.domaine)}" style="background:#E0531F;color:#fff;padding:9px 14px;border-radius:9px;text-decoration:none;font-weight:bold;font-size:14px">Lancer le même</a></p></div>`).join("")}
 <p style="margin-top:14px;font-size:13.5px"><a href="${site}/#/explorer/trouver" style="color:#C2410C;font-weight:bold">${pref ? "Changer mes critères" : "Trois questions pour des SaaS sur mesure"} →</a></p></div>`;
     try {
       await sendSystem({ to, subject: `Tes 3 SaaS à copier : ${top.map((x) => x.nom).join(", ")}`, text, html, key: `relance-j3-${w.id}${seulement ? `-${Date.now()}` : ""}` });
