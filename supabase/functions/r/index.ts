@@ -84,6 +84,29 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (error) throw new HttpError(500, error.message);
     return { niches: MICRO_NICHES.length, ranges: data };
   },
+  // Acheter / vendre : un membre contacte l'auteur d'une annonce (vendeur) ou d'une demande (acheteur) ; le message part par e-mail,
+  // avec l'adresse de l'expéditeur en réponse (il en est prévenu avant d'envoyer)
+  async "annonce-contact"(req, b) {
+    const { ws, userId } = await requireMember(req, b.workspace_id);
+    const { data: u } = await admin.auth.admin.getUserById(userId);
+    const user = { email: u?.user?.email };
+    await quota(ws.id, "annonce_contact", 20);
+    const texte = String(b.message ?? "").trim().slice(0, 2000);
+    if (texte.length < 10) throw new HttpError(400, "Écris au moins une phrase.");
+    const table = b.annonce_id ? "saas_annonces" : "saas_demandes";
+    const { data: cible } = await admin.from(table).select("*").eq("id", b.annonce_id ?? b.demande_id).eq("statut", "active").maybeSingle();
+    if (!cible) throw new HttpError(404, "Cette annonce n'est plus en ligne.");
+    if (cible.workspace_id === ws.id) throw new HttpError(400, "C'est ton annonce.");
+    const { data: wd } = await admin.from("workspaces").select("*").eq("id", cible.workspace_id).single();
+    const { sendSystem, teamAddress } = await import("../_shared/mail.ts");
+    const to = await teamAddress(wd as never);
+    const moi = user?.email ?? await teamAddress(ws as never);
+    if (!to) throw new HttpError(400, "Le vendeur n'a pas d'adresse e-mail joignable.");
+    const sujet = b.annonce_id ? `Bingoo! · Quelqu'un veut acheter ${cible.nom ?? cible.domaine}` : `Bingoo! · Quelqu'un a un SaaS pour toi`;
+    await sendSystem({ to, replyTo: moi || undefined, subject: sujet, text: `${ws.name ?? "Un membre de Bingoo!"} t'écrit à propos de ${b.annonce_id ? `ton annonce pour ${cible.nom ?? cible.domaine}` : "ta recherche de SaaS à acheter"} :\n\n« ${texte} »\n\nRéponds directement à cet e-mail pour lui écrire${moi ? ` (${moi})` : ""}.\n\nBingoo!`, key: `annonce-${cible.id}-${ws.id}-${Date.now()}` });
+    await admin.from("activity").insert({ workspace_id: cible.workspace_id, kind: "bourse", summary: `Message sur ${b.annonce_id ? "ton annonce" : "ta recherche"} de ${ws.name ?? "un membre"}` });
+    return { ok: true };
+  },
   async "saas-tendances"(req, b) { await requireMember(req, b.workspace_id); const { saasTendances } = await import("../_shared/saas-base.ts"); return await saasTendances(); },
   // Alerte du lundi (clé cron ; workspace_id pour envoyer à un seul espace, pour essai)
   async "saas-alertes"(req, b) { await cron(req); const { saasAlertes } = await import("../_shared/saas-base.ts"); return await saasAlertes(b.workspace_id ? String(b.workspace_id) : undefined); },

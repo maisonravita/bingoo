@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_annonces, saas_demandes, saas_a_vendre, saas_demandes_liste

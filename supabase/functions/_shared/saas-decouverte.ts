@@ -156,7 +156,7 @@ export function trustmrrFiche(md: string, slug: string) {
   return {
     slug, site, nom: ligne("Name"), description: ligne("Description"), pays: ligne("Country"), fonde: ligne("Founded date"),
     mrr, rev30, croissance, fondateurs, abonnements, total, courbe, marches, prix: ligne("Pricing model"), probleme: ligne("Problem solved"),
-    a_vendre: /currently listed for sale/i.test(md) && !/not currently listed for sale/i.test(md),
+    a_vendre: /Status: Listed for sale/i.test(md) || (/currently listed for sale/i.test(md) && !/not currently listed for sale/i.test(md)),
     details: trustmrrDetails(md),
   };
 }
@@ -211,7 +211,11 @@ export function trustmrrDetails(md: string) {
     canaux: liste(distrib["Marketing channels"]),
     domain_rating: num(seo["Domain rating"]),
     captures: [...(sections["Screenshots"] ?? "").matchAll(/!\[([^\]]*)\]\((https:\/\/[^)\s]+)\)/g)].slice(0, 4).map((m) => ({ titre: m[1].replace(/\s*\(\d+x\d+\)/, ""), url: m[2] })),
-    vente: { a_vendre: /currently listed for sale/i.test(vente) && !/not currently listed for sale/i.test(vente), ...cles(vente) },
+    vente: (() => {
+      const v = cles(vente);
+      const a = /Status: Listed for sale/i.test(vente) || (/currently listed for sale/i.test(vente) && !/not currently listed for sale/i.test(vente));
+      return a ? { a_vendre: true, prix: num(v["Asking price"]), multiple: v["Revenue multiple"] ?? null, depuis: v["First listed for sale"] ?? null, acheteurs_vus: num(v["Interested buyers who saw this recently"]), offres: num(v["Acquisition offers received"]), message: v["Message from the seller"] ? String(v["Message from the seller"]).replace(/^Seller\s*[—-]\s*/, "").replace(/^["“]|["”]$/g, "") : null, offre_url: (vente.match(/Make an offer: \[[^\]]*\]\((https:\/\/trustmrr\.com\/[^)\s]+)\)/) ?? [])[1] ?? null } : { a_vendre: false };
+    })(),
     lu_at: new Date().toISOString(),
   };
 }

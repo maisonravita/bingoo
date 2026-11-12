@@ -61,6 +61,7 @@ export default function Explorer({ domaine: fixe }) {
   if (d === "classement") return <><Onglets actif="classement" /><Classement /></>;
   if (d === "copier") return <><Onglets actif="copier" /><PageCopier /></>;
   if (d === "trouver") return <><Onglets actif="copier" /><TrouveTonSaas /></>;
+  if (d === "vendre") return <><Onglets actif="vendre" /><AchatVente /></>;
   if (d === "chiffres") return <><Onglets actif="chiffres" /><ChiffresSaas /></>;
   if (d === "comparer") return <Comparer />;
   return d ? <Fiche domaine={d} /> : <><Onglets actif="liste" /><Liste /></>;
@@ -69,7 +70,8 @@ export default function Explorer({ domaine: fixe }) {
 // 5 rubriques ; celles qui regroupent plusieurs pages affichent une petite ligne de sous-onglets
 const RUBRIQUES = [
   ["À copier", [["copier", "À copier", "/explorer/copier"], ["chiffres", "Chiffres d'un SaaS", "/explorer/chiffres"]]],
-  ["Mes SaaS", [["createurs", "Mes SaaS", "/explorer/createurs"], ["bourse", "Bourse", "/explorer/bourse"], ["racheter", "À racheter", "/explorer/racheter"]]],
+  ["Mes SaaS", [["createurs", "Mes SaaS", "/explorer/createurs"]]],
+  ["Acheter / vendre", [["vendre", "À vendre", "/explorer/vendre"], ["bourse", "Construits sur Bingoo!", "/explorer/bourse"], ["racheter", "SaaS qui s'endorment", "/explorer/racheter"]]],
   ["SaaS", [["liste", "Tous les SaaS", "/explorer"]], "copier"],
   ["Niches", [["niches", "Niches", "/explorer/niches"]]],
   ["Classement", [["classement", "Classement", "/explorer/classement"]]],
@@ -2580,6 +2582,146 @@ function LigneCopier({ x }) {
   );
 }
 
+// ---------------------------------------------------------------- Acheter / vendre un SaaS
+function AchatVente() {
+  const { ws } = useWs();
+  const toast = useToast();
+  const nav = useNavigate();
+  const [l, setL] = useState(null);
+  const [dem, setDem] = useState(null);
+  const [vue, setVue] = useState("vendre");
+  const [form, setForm] = useState(null);
+  const [contact, setContact] = useState(null);
+  const charger = () => { supabase.rpc("saas_a_vendre", { ws: ws.id }).then(({ data }) => setL(data ?? [])); supabase.rpc("saas_demandes_liste", { ws: ws.id }).then(({ data }) => setDem(data ?? [])); };
+  useEffect(() => { charger(); }, [ws.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const retirer = async (table, id) => { await supabase.from(table).update({ statut: "retiree" }).eq("id", id); toast("Retiré", "good"); charger(); };
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      <div className="grid lg:grid-cols-[1fr_auto] gap-5 items-end">
+        <div>
+          <h1 className="text-[32px] sm:text-[42px] font-black leading-[1.02] tracking-tight" style={HF}>Acheter ou vendre un SaaS</h1>
+          <p className="mt-2 text-[15px] text-ink-soft max-w-2xl">Reprends un SaaS qui tourne déjà, ou vends le tien à quelqu'un qui le fera grandir. Quand le SaaS est sur TrustMRR, son revenu est vérifié chez son outil de paiement.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setForm("annonce")} className="rounded-xl bg-accent text-white px-5 py-3 font-bold hover:bg-accent-dark">Vendre mon SaaS</button>
+          <button onClick={() => setForm("demande")} className="rounded-xl border-2 border-ink bg-white px-5 py-3 font-bold hover:bg-paper">Je cherche à acheter</button>
+        </div>
+      </div>
+      <div className="mt-6 flex gap-2">
+        <Chip on={vue === "vendre"} onClick={() => setVue("vendre")}>À vendre {l ? `(${l.length})` : ""}</Chip>
+        <Chip on={vue === "acheteurs"} onClick={() => setVue("acheteurs")}>Ils cherchent à acheter {dem ? `(${dem.length})` : ""}</Chip>
+      </div>
+      {vue === "vendre" ? (!l ? <div className="py-16 grid place-items-center"><Spinner /></div> : !l.length ? (
+        <div className="mt-4 rounded-2xl border border-line bg-white p-6"><p className="font-bold">Rien à vendre pour l'instant.</p><p className="mt-1 text-ink-soft">Les SaaS mis en vente sur TrustMRR apparaissent ici au fil de leur relecture. Tu peux aussi être le premier à publier une annonce.</p></div>
+      ) : (
+        <div className="mt-4 grid md:grid-cols-2 gap-4">{l.map((x) => (
+          <div key={x.source + x.id} className="rounded-2xl border border-line bg-white p-5 flex flex-col">
+            <div className="flex items-start gap-3">
+              <CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="w-11 h-11" pad="p-1.5" />
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-[16px] truncate">{x.nom} <span className="font-normal">{drapeau(x.pays)}</span></p>
+                <p className="text-[12.5px] text-ink-faint truncate">{[x.categorie, x.domaine].filter(Boolean).join(", ")}</p>
+              </div>
+              <span className={cx("rounded-md px-2 py-0.5 text-[11.5px] font-semibold", x.source === "trustmrr" ? "bg-[#E0E7FF] text-[#3730A3]" : "bg-accent-soft text-accent-dark")}>{x.source === "trustmrr" ? "En vente sur TrustMRR" : x.moi ? "Mon annonce" : "Annonce Bingoo!"}</span>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <div><p className="text-[11.5px] text-ink-faint">Prix demandé</p><p className="text-[20px] font-black tnum" style={HF}>{x.prix ? dollar(x.prix) : "À discuter"}</p></div>
+              <div><p className="text-[11.5px] text-ink-faint">Revenu par mois</p><p className="text-[20px] font-black tnum" style={HF}>{x.mrr ? dollar(x.mrr) : x.mrr_declare ? dollar(x.mrr_declare) : "–"}</p><p className="text-[11px] text-ink-faint">{x.mrr ? "vérifié" : x.mrr_declare ? "déclaré par le vendeur" : ""}</p></div>
+              <div><p className="text-[11.5px] text-ink-faint">Multiple</p><p className="text-[20px] font-black tnum" style={HF}>{x.multiple ?? (x.prix && (x.mrr || x.mrr_declare) ? `${(x.prix / ((x.mrr || x.mrr_declare) * 12)).toLocaleString("fr-FR", { maximumFractionDigits: 1 })}×` : "–")}</p><p className="text-[11px] text-ink-faint">du revenu annuel</p></div>
+            </div>
+            {x.message && <p className="mt-3 text-[13.5px] text-ink-soft line-clamp-3">« {x.message} »</p>}
+            {x.offres != null && <p className="mt-2 text-[12.5px] text-ink-faint">{x.offres} offre{x.offres > 1 ? "s" : ""} déjà reçue{x.offres > 1 ? "s" : ""}{x.depuis ? `, en vente depuis le ${new Date(x.depuis).toLocaleDateString("fr-FR")}` : ""}</p>}
+            <div className="mt-4 pt-1 flex flex-wrap gap-2 mt-auto">
+              {x.source === "trustmrr" ? <a href={x.offre_url ?? `https://trustmrr.com`} target="_blank" rel="noopener noreferrer" className="rounded-xl bg-ink text-white px-4 py-2 text-[13.5px] font-semibold">Faire une offre sur TrustMRR</a>
+                : x.moi ? <button onClick={() => retirer("saas_annonces", x.id)} className="rounded-xl border border-line px-4 py-2 text-[13.5px] font-semibold">Retirer mon annonce</button>
+                : <button onClick={() => setContact({ annonce_id: x.id, nom: x.nom })} className="rounded-xl bg-ink text-white px-4 py-2 text-[13.5px] font-semibold">Contacter le vendeur</button>}
+              <button onClick={() => nav(`/explorer/chiffres?u=${encodeURIComponent(x.domaine)}`)} className="rounded-xl border border-line px-4 py-2 text-[13.5px] font-semibold hover:border-ink-faint">Ses chiffres</button>
+            </div>
+          </div>
+        ))}</div>
+      )) : (!dem ? <div className="py-16 grid place-items-center"><Spinner /></div> : !dem.length ? (
+        <div className="mt-4 rounded-2xl border border-line bg-white p-6"><p className="font-bold">Personne n'a encore publié de recherche.</p><p className="mt-1 text-ink-soft">Dis ce que tu cherches : les vendeurs te contacteront.</p></div>
+      ) : (
+        <div className="mt-4 rounded-2xl border border-line bg-white overflow-hidden">{dem.map((x) => (
+          <div key={x.id} className="px-5 py-4 border-b border-line last:border-0 flex flex-wrap items-center gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="font-bold">{x.acheteur ?? "Un membre"} cherche un SaaS{x.budget_max ? ` jusqu'à ${dollar(x.budget_max)}` : ""}</p>
+              {(x.secteurs ?? []).length > 0 && <p className="text-[13px] text-ink-faint">{x.secteurs.join(", ")}</p>}
+              {x.message && <p className="mt-1 text-[14px] text-ink-soft">« {x.message} »</p>}
+            </div>
+            {x.moi ? <button onClick={() => retirer("saas_demandes", x.id)} className="rounded-xl border border-line px-4 py-2 text-[13.5px] font-semibold">Retirer</button>
+              : <button onClick={() => setContact({ demande_id: x.id, nom: x.acheteur })} className="rounded-xl bg-ink text-white px-4 py-2 text-[13.5px] font-semibold">Lui proposer mon SaaS</button>}
+          </div>
+        ))}</div>
+      ))}
+      {form && <FormAnnonce type={form} fermer={(ok) => { setForm(null); if (ok) { charger(); setVue(form === "annonce" ? "vendre" : "acheteurs"); } }} />}
+      {contact && <ContactAnnonce c={contact} fermer={() => setContact(null)} />}
+    </div>
+  );
+}
+function FormAnnonce({ type, fermer }) {
+  const { ws } = useWs();
+  const toast = useToast();
+  const [v, setV] = useState({ domaine: "", nom: "", prix: "", mrr: "", message: "", budget: "", secteurs: [] });
+  const [busy, setBusy] = useState(false);
+  const envoyer = async (e) => {
+    e.preventDefault(); setBusy(true);
+    const num = (x) => (x === "" ? null : Math.round(Number(String(x).replace(/[^\d.]/g, ""))) || null);
+    const domaine = v.domaine.trim().replace(/^https?:\/\//i, "").replace(/^www\./i, "").split(/[/?#]/)[0].toLowerCase();
+    const { error } = type === "annonce"
+      ? await supabase.from("saas_annonces").insert({ workspace_id: ws.id, domaine, nom: v.nom.trim() || null, prix: num(v.prix), mrr_declare: num(v.mrr), message: v.message.trim() || null })
+      : await supabase.from("saas_demandes").insert({ workspace_id: ws.id, budget_max: num(v.budget), secteurs: v.secteurs, message: v.message.trim() || null });
+    setBusy(false);
+    if (error) return toast(error.message, "bad");
+    if (type === "annonce" && domaine) fn("r/saas-chiffres", { workspace_id: ws.id, url: domaine }).catch(() => null);
+    toast(type === "annonce" ? "Annonce publiée" : "Recherche publiée", "good"); fermer(true);
+  };
+  const champ = "w-full rounded-xl border border-line px-3 py-2.5 text-[14.5px] outline-none focus:border-ink";
+  return (
+    <div className="fixed inset-0 z-50 bg-ink/40 grid place-items-center p-4" onClick={(e) => e.target === e.currentTarget && fermer(false)}>
+      <form onSubmit={envoyer} className="w-full max-w-lg rounded-2xl bg-white p-6 space-y-3 max-h-[90vh] overflow-y-auto">
+        <p className="text-[22px] font-black" style={HF}>{type === "annonce" ? "Vendre mon SaaS" : "Je cherche un SaaS à acheter"}</p>
+        {type === "annonce" ? <>
+          <p className="text-[13.5px] text-ink-soft">Construit sur Bingoo! ? Mets-le plutôt en vente depuis « Mes SaaS » : son revenu Stripe y est vérifié chaque nuit. Ici, pour n'importe quel autre SaaS.</p>
+          <label className="block"><span className="text-[13px] font-semibold">Adresse du SaaS</span><input required value={v.domaine} onChange={(e) => setV({ ...v, domaine: e.target.value })} placeholder="monsaas.com" className={champ} /></label>
+          <label className="block"><span className="text-[13px] font-semibold">Nom</span><input value={v.nom} onChange={(e) => setV({ ...v, nom: e.target.value })} className={champ} /></label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block"><span className="text-[13px] font-semibold">Prix demandé ($)</span><input inputMode="numeric" value={v.prix} onChange={(e) => setV({ ...v, prix: e.target.value })} placeholder="ex. 20000" className={champ} /></label>
+            <label className="block"><span className="text-[13px] font-semibold">Revenu par mois ($)</span><input inputMode="numeric" value={v.mrr} onChange={(e) => setV({ ...v, mrr: e.target.value })} placeholder="déclaré" className={champ} /></label>
+          </div>
+          <p className="text-[12px] text-ink-faint">Si ton SaaS est sur TrustMRR, Bingoo! affiche son revenu vérifié à côté de ton annonce.</p>
+        </> : <>
+          <label className="block"><span className="text-[13px] font-semibold">Budget maximum ($)</span><input inputMode="numeric" value={v.budget} onChange={(e) => setV({ ...v, budget: e.target.value })} placeholder="ex. 50000" className={champ} /></label>
+          <div><span className="text-[13px] font-semibold">Secteurs</span><div className="mt-1 flex flex-wrap gap-1.5">{SECTEURS.map((c) => { const on = v.secteurs.includes(c); return <button key={c} type="button" onClick={() => setV({ ...v, secteurs: on ? v.secteurs.filter((x) => x !== c) : [...v.secteurs, c] })} className={cx("rounded-full border px-3 py-1 text-[12.5px]", on ? "bg-ink text-white border-ink" : "border-line")}>{c}</button>; })}</div></div>
+        </>}
+        <label className="block"><span className="text-[13px] font-semibold">{type === "annonce" ? "Pourquoi tu vends, ce qui est inclus" : "Ce que tu cherches"}</span><textarea rows={4} value={v.message} onChange={(e) => setV({ ...v, message: e.target.value })} className={champ} /></label>
+        <div className="flex gap-2 pt-1"><button disabled={busy} className="rounded-xl bg-accent text-white px-5 py-2.5 font-bold disabled:opacity-60">{busy ? "Publication…" : "Publier"}</button><button type="button" onClick={() => fermer(false)} className="rounded-xl border border-line px-5 py-2.5 font-semibold">Annuler</button></div>
+      </form>
+    </div>
+  );
+}
+function ContactAnnonce({ c, fermer }) {
+  const { ws } = useWs();
+  const toast = useToast();
+  const [t, setT] = useState("");
+  const [busy, setBusy] = useState(false);
+  const envoyer = async (e) => {
+    e.preventDefault(); setBusy(true);
+    try { await fn("r/annonce-contact", { workspace_id: ws.id, ...c, message: t }); toast("Message envoyé", "good"); fermer(); }
+    catch (x) { toast(x.message, "bad"); } finally { setBusy(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-50 bg-ink/40 grid place-items-center p-4" onClick={(e) => e.target === e.currentTarget && fermer()}>
+      <form onSubmit={envoyer} className="w-full max-w-lg rounded-2xl bg-white p-6 space-y-3">
+        <p className="text-[22px] font-black" style={HF}>{c.annonce_id ? `Écrire au vendeur de ${c.nom}` : `Proposer ton SaaS à ${c.nom ?? "cet acheteur"}`}</p>
+        <textarea required rows={5} value={t} onChange={(e) => setT(e.target.value)} placeholder={c.annonce_id ? "Présente-toi, dis ce qui t'intéresse et pose tes questions." : "Ton SaaS, son revenu, son prix."} className="w-full rounded-xl border border-line px-3 py-2.5 text-[14.5px] outline-none focus:border-ink" />
+        <p className="text-[12.5px] text-ink-faint">Ton message part par e-mail avec ton adresse : la réponse arrive directement dans ta boîte.</p>
+        <div className="flex gap-2"><button disabled={busy || t.trim().length < 10} className="rounded-xl bg-accent text-white px-5 py-2.5 font-bold disabled:opacity-50">{busy ? "Envoi…" : "Envoyer"}</button><button type="button" onClick={fermer} className="rounded-xl border border-line px-5 py-2.5 font-semibold">Annuler</button></div>
+      </form>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------- Classement : les SaaS qui grossissent le plus vite (revenus vérifiés)
 const ONGLETS_CLASSEMENT = [["encaisse", "Le plus encaissé en 30 jours", "Argent réellement encaissé sur les 30 derniers jours, relevé chez l'outil de paiement du SaaS (Stripe, Dodo, Lemon Squeezy…)."], ["mois", "Croissance du mois", "Croissance du MRR sur 30 jours : au moins 1 000 $ aujourd'hui et 300 $ il y a 30 jours, pour éviter les pourcentages gonflés par un tout petit départ."], ["trimestre", "Sur 3 mois", "Revenu du dernier mois complet comparé à celui d'il y a 3 mois."], ["revenu", "Plus gros revenu", "Le MRR vérifié le plus élevé."], ["jeunes", "Nés cette année", "Créés il y a moins de 12 mois, déjà au-dessus de 1 000 $ par mois."]];
 const montantCourt = (n) => n >= 1e6 ? `${(n / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M$` : n >= 1e3 ? `${Math.round(n / 1e3)} k$` : `${Math.round(n)} $`;
@@ -2620,7 +2762,6 @@ function BlocTrustmrr({ s }) {
   const jours = t.jours ?? [], maxJ = Math.max(1, ...jours.map((j) => j.v));
   const fiche = [["Sa promesse", t.proposition], ["Le problème qu'il résout", t.probleme], ["Son prix", t.prix], ["Pour qui", [t.persona, t.audience].filter(Boolean).join(" · ")], ["Équipe", t.equipe], ["Financement", t.financement], ["En plus", t.infos]].filter((x) => x[1]);
   const vente = t.vente ?? {};
-  const venteLignes = Object.entries(vente).filter(([k]) => k !== "a_vendre");
   return (
     <section className="mt-6 rounded-2xl bg-white border border-line p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -2638,7 +2779,7 @@ function BlocTrustmrr({ s }) {
         <div className="mt-2 flex items-end gap-[2px] h-20">{jours.map((j) => <div key={j.d} title={`${new Date(j.d).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} : ${dollar(j.v)}`} className="flex-1 rounded-t bg-accent/70 hover:bg-accent min-h-[2px]" style={{ height: `${Math.max(2, (j.v / maxJ) * 100)}%` }} />)}</div>
         <div className="flex justify-between text-[11px] text-ink-faint mt-1"><span>{new Date(jours[0].d).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</span><span>{new Date(jours[jours.length - 1].d).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</span></div>
       </div>}
-      {vente.a_vendre && <div className="mt-4 rounded-xl bg-[#FEF3C7] text-[#78350F] px-4 py-3 text-[13.5px]"><b>À vendre sur TrustMRR.</b>{venteLignes.map(([k, v]) => <span key={k}> {k} : {Array.isArray(v) ? v.join(", ") : String(v)}.</span>)}</div>}
+      {vente.a_vendre && <div className="mt-4 rounded-xl bg-[#FEF3C7] text-[#78350F] px-4 py-3 text-[13.5px]"><b>À vendre sur TrustMRR{vente.prix ? ` : ${dollar(vente.prix)}` : ""}</b>{vente.multiple ? ` (${String(vente.multiple).replace(".", ",")} le revenu annuel)` : ""}{vente.offres != null ? `, ${vente.offres} offre${vente.offres > 1 ? "s" : ""} reçue${vente.offres > 1 ? "s" : ""}` : ""}.{vente.message && <span className="block mt-1 italic">« {vente.message} »</span>}{vente.offre_url && <a href={vente.offre_url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block font-semibold underline">Faire une offre sur TrustMRR</a>}</div>}
 
       <div className="mt-5 flex items-baseline justify-between gap-2"><h2 className="font-bold text-[17px]">Ce que dit le fondateur</h2><p className="text-[12px] text-ink-faint">déclaré sur TrustMRR, non vérifié</p></div>
       {t.description && <p className="mt-2 text-[14px] text-ink-soft whitespace-pre-line">{t.description}</p>}
