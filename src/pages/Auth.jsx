@@ -58,7 +58,7 @@ export default function Auth({ invited = false }) {
 
   const title = invited ? "Rejoins ton équipe" : mode === "signup" ? "Crée ton compte" : mode === "reset" ? "Mot de passe oublié" : "Connecte-toi";
   const sub = invited ? "Crée ton compte ou connecte-toi pour rejoindre l'espace auquel tu as été invité."
-    : mode === "signup" ? "Vois tes premiers messages gratuitement, sans carte bancaire." : mode === "reset" ? "Indique ton e-mail : on t'envoie un lien pour en choisir un nouveau." : "Content de te revoir.";
+    : mode === "signup" ? "Trouve le SaaS à lancer et fais-le construire. Gratuit, sans carte bancaire." : mode === "reset" ? "Indique ton e-mail : on t'envoie un lien pour en choisir un nouveau." : "Content de te revoir.";
 
   return (
     <div className="min-h-full flex flex-col" style={{ background: "radial-gradient(ellipse at 50% 0%, #FFF1E6 0%, #FAF9F6 60%)" }}>
@@ -83,8 +83,8 @@ export default function Auth({ invited = false }) {
 
             <form onSubmit={submit} className="mt-6 space-y-4">
               <label className="block">
-                <span className="block text-[13px] font-semibold mb-1.5">E-mail professionnel</span>
-                <input type="email" required autoComplete="email" placeholder="prenom@entreprise.fr" value={email} onChange={(e) => setEmail(e.target.value)} className={field} />
+                <span className="block text-[13px] font-semibold mb-1.5">Ton e-mail</span>
+                <input type="email" required autoComplete="email" placeholder="ton@email.fr" value={email} onChange={(e) => setEmail(e.target.value)} className={field} />
               </label>
               {mode !== "reset" && (
                 <div>

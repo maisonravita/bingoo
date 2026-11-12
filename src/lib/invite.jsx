@@ -23,6 +23,13 @@ export async function commencer(nav) {
 const champ = "w-full rounded-xl border border-line bg-white px-3.5 py-3 text-[15px] outline-none focus:border-accent focus:ring-4 focus:ring-accent/15";
 const HF = { fontFamily: "var(--font-titre)" };
 
+// Lien partagé vers Bingoo! (une fiche, une niche, le classement…) ouvert par un visiteur : on l'y emmène sans compte
+export function EntreeInvite({ repli }) {
+  const [ko, setKo] = useState(false);
+  useEffect(() => { supabase.auth.signInAnonymously().then(({ error }) => { if (error) setKo(true); }); }, []);
+  return ko ? repli : <div className="min-h-screen grid place-items-center bg-paper text-ink-soft text-[15px]">Ouverture de Bingoo!…</div>;
+}
+
 // Fenêtre « Crée ton compte » : rattache une adresse au visiteur, tout ce qu'il a fait est conservé
 export function CompteModal() {
   const { ws, reload } = useWs();

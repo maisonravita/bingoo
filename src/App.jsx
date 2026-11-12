@@ -45,7 +45,7 @@ import { modeExplorer } from "./lib/mode";
 import Metier from "./pages/Metier";
 import { Conditions, Confidentialite, legalReady, MentionsLegales, Opposition } from "./pages/Legal";
 import { supabase } from "./lib/supabase";
-import { EspaceInvite, estInvite } from "./lib/invite";
+import { EntreeInvite, EspaceInvite, estInvite } from "./lib/invite";
 import { accueilVille } from "./lib/lieu";
 
 function Gate() {
@@ -81,6 +81,7 @@ function Gate() {
   }
   // Visiteur : la page d'accueil ; la connexion et l'inscription sont sur /connexion
   if (!session && loc.pathname === "/" && !pendingJoin) return <Landing />;
+  if (!session && !pendingJoin && loc.pathname.startsWith("/explorer")) return <EntreeInvite repli={<Auth />} />;
   if (!session) return <Auth invited={!!pendingJoin} />;
   if (pendingJoin) return <Join token={pendingJoin} />;
   // Nouvelle inscription : le TrendTrack des SaaS (une question, l'adresse du SaaS)
