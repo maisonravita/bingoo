@@ -115,6 +115,6 @@ h1, h2, h3 { font-family: var(--font-titre); font-weight: 700; letter-spacing: -
 .font-serif, [style*="--font-titre"] { font-family: var(--font-titre) !important; font-weight: 800 !important; letter-spacing: -0.03em; }
 
 /* Traduction (Google) : pas de bandeau ajouté en haut de page, pas de décalage, pas d'info-bulle */
-iframe.skiptranslate, .goog-te-banner-frame, #goog-gt-tt, .goog-te-balloon-frame { display: none !important; }
+iframe.skiptranslate, body > .skiptranslate, .goog-te-banner-frame, #goog-gt-tt, .goog-te-balloon-frame, .goog-te-gadget, [class^="VIpgJd-"] { display: none !important; }
 body { top: 0 !important; }
 .goog-text-highlight { background: none !important; box-shadow: none !important; }
