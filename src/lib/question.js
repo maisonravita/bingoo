@@ -34,7 +34,8 @@ export function lireQuestion(q) {
   const n = t.match(/\b(\d{1,2})\b(?!\s*(?:k|000|\$|€|%|dollars|euros))/) ?? t.match(new RegExp(`\\b(${Object.keys(NOMBRES).join("|")})\\b\\s+(?:saas|logiciels?|outils?|apps?|applis?|idees?|exemples?|produits?|concurrents?)`));
   if (n) { p.nombre = Math.min(50, Number(n[1]) || NOMBRES[n[1]] || 10); }
   const sujets = SUJETS.filter(([re]) => re.test(t));
-  if (sujets.length) { p.texte = sujets.map(([, m]) => m).join("|"); lu.push(sujets.map(([, , l]) => l).join(", ")); }
+  // Les recherches tournent dans PostgreSQL, où la limite de mot s'écrit \y (et non \b)
+  if (sujets.length) { p.texte = sujets.map(([, m]) => m).join("|").replace(/\\b/g, "\\y"); lu.push(sujets.map(([, , l]) => l).join(", ")); }
   if (/scal|grandi|croiss|monte|decoll|grow|explos|cartonn|marche (bien|fort)|en ce moment/.test(t)) { p.tri = "croissance"; lu.push("qui grandissent le plus"); }
   if (/plus gros|gagne le plus|plus rentable|plus d.argent|biggest|top revenu|millionnaire/.test(t)) { p.tri = "revenu"; lu.push("plus gros revenu"); }
   if (/encaiss/.test(t)) { p.tri = "encaisse"; lu.push("le plus encaissé en 30 jours"); }
