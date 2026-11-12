@@ -76,7 +76,7 @@ const RUBRIQUES = [
   ["Niches", [["niches", "Niches", "/explorer/niches"]]],
   ["Classement", [["classement", "Classement", "/explorer/classement"]]],
   ["L'île", [["carte", "L'île des SaaS", "/explorer/carte"]]],
-  ["Tendances", [["marche", "Pays et tendances", "/explorer/marche"], ["idees", "Idées et réussites", "/explorer/idees"], ["pubs", "Pubs et e-mails", "/explorer/pubs"]]],
+  ["Tendances", [["marche", "Ce qui monte", "/explorer/marche"], ["idees", "Idées et réussites", "/explorer/idees"], ["pubs", "Pubs et e-mails", "/explorer/pubs"]]],
   ["Mes suivis", [["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"]]],
 ];
 // Pages qui dépendent de contenus encore rares : cachées tant qu'elles sont vides (sauf si on y est)
@@ -585,10 +585,55 @@ function Marche() {
     return [...parCat.entries()].filter(([c, x]) => c !== "Autre" && x.ailleurs >= 3).map(([c, x]) => ({ c, ...x, ratio: x.ailleurs / Math.max(1, x.fr) })).sort((a, b) => b.ratio - a.ratio).slice(0, 6);
   }, [m]);
   const serie = t?.series?.find((s) => s.id === theme);
+  const nav = useNavigate();
+  const [niches, setNiches] = useState(null);
+  const [canaux, setCanaux] = useState(null);
+  useEffect(() => { supabase.rpc("saas_micro_stats").then(({ data }) => setNiches(data ?? [])); supabase.rpc("saas_canaux_tendance").then(({ data }) => setCanaux(data ?? [])); }, []);
+  const accelerent = (niches ?? []).filter((x) => x.n_rev >= 4 && x.crois_med != null).sort((a, b) => b.crois_med - a.crois_med).slice(0, 8);
+  const maxA = Math.max(1, ...accelerent.map((x) => x.crois_med));
+  const canauxTop = (canaux ?? []).filter((x) => x.n >= 8).sort((a, b) => (b.en_croissance / b.n) - (a.en_croissance / a.n)).slice(0, 8);
+  const creaTop = (t?.series ?? []).filter((x) => x.id !== "tous" && x.evolution_3m != null).sort((a, b) => b.evolution_3m - a.evolution_3m)[0];
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-      <h1 className="text-[30px] font-black tracking-tight" style={HF}>Pays et tendances</h1>
-      <p className="text-ink-soft">Ce qui se crée, ce qui recrute et ce qui manque, par pays et par catégorie.</p>
+      <h1 className="text-[32px] sm:text-[42px] font-black leading-[1.02] tracking-tight" style={HF}>Ce qui monte en ce moment</h1>
+      <p className="mt-2 text-[15px] text-ink-soft max-w-2xl">Les niches dont les SaaS grandissent le plus, les façons de trouver des clients qui marchent, et ce qui se crée en France. Revenus vérifiés chez les outils de paiement, créations tirées des annonces légales officielles.</p>
+
+      <div className="mt-6 grid md:grid-cols-3 gap-4">
+        {[
+          ["La niche qui grandit le plus", accelerent[0] ? `${accelerent[0].emoji} ${accelerent[0].nom}` : "…", accelerent[0] ? `+${accelerent[0].crois_med} % de revenu médian en 30 jours` : "", accelerent[0] && (() => nav(`/explorer/niches?n=${accelerent[0].slug}`))],
+          ["Le canal qui fait grandir", canauxTop[0] ? (CANAL_FR[canauxTop[0].canal] ?? canauxTop[0].canal) : "…", canauxTop[0] ? `${Math.round((canauxTop[0].en_croissance / canauxTop[0].n) * 100)} % des SaaS qui l'utilisent grandissent de plus de 10 % par mois` : "", null],
+          ["Ce qui se crée le plus en France", creaTop?.label ?? "…", creaTop ? `${creaTop.evolution_3m > 0 ? "+" : ""}${creaTop.evolution_3m} % de créations en 3 mois` : "", creaTop && (() => setTheme(creaTop.id))],
+        ].map(([t2, v, sous, go]) => (
+          <button key={t2} disabled={!go} onClick={go ?? undefined} className="text-left rounded-2xl bg-ink text-white p-5 disabled:cursor-default">
+            <p className="text-[13px] text-white/60">{t2}</p>
+            <p className="mt-1 text-[22px] font-black leading-tight" style={HF}>{v}</p>
+            <p className="mt-1 text-[13px] text-white/70">{sous}</p>
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4 grid lg:grid-cols-2 gap-4">
+        <section className="rounded-2xl bg-white border border-line p-5">
+          <h2 className="font-bold text-[17px]">Les niches qui accélèrent</h2>
+          <p className="text-[12.5px] text-ink-faint">Croissance médiane du revenu sur 30 jours, niches d'au moins 4 SaaS rentables</p>
+          {!niches ? <div className="py-10 grid place-items-center"><Spinner /></div> : <div className="mt-4 space-y-2.5">{accelerent.map((x) => (
+            <button key={x.slug} onClick={() => nav(`/explorer/niches?n=${x.slug}`)} className="w-full text-left group">
+              <div className="flex items-baseline justify-between gap-2 text-[14px]"><span className="font-semibold truncate group-hover:text-accent-dark">{x.emoji} {x.nom}</span><span className="tnum font-bold text-good">+{x.crois_med} %</span></div>
+              <div className="mt-1 h-2 rounded-full bg-paper overflow-hidden"><div className="h-full rounded-full bg-good" style={{ width: `${(x.crois_med / maxA) * 100}%` }} /></div>
+            </button>
+          ))}</div>}
+        </section>
+        <section className="rounded-2xl bg-white border border-line p-5">
+          <h2 className="font-bold text-[17px]">Comment les SaaS qui grandissent trouvent leurs clients</h2>
+          <p className="text-[12.5px] text-ink-faint">Part des SaaS rentables qui grandissent de plus de 10 % par mois, selon le canal qu'ils utilisent</p>
+          {!canaux ? <div className="py-10 grid place-items-center"><Spinner /></div> : <div className="mt-4 space-y-2.5">{canauxTop.map((x) => { const p = Math.round((x.en_croissance / x.n) * 100); return (
+            <div key={x.canal}>
+              <div className="flex items-baseline justify-between gap-2 text-[14px]"><span className="font-semibold">{CANAL_FR[x.canal] ?? x.canal} <span className="font-normal text-ink-faint text-[12.5px]">{x.n} SaaS, médiane {dollar(x.mrr_med)} / mois</span></span><span className="tnum font-bold">{p} %</span></div>
+              <div className="mt-1 h-2 rounded-full bg-paper overflow-hidden"><div className="h-full rounded-full bg-accent" style={{ width: `${p}%` }} /></div>
+            </div>
+          ); })}</div>}
+        </section>
+      </div>
 
       <section className="mt-5 rounded-2xl bg-white border border-line p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">

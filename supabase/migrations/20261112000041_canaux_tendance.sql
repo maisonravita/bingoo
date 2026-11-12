@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_canaux_tendance
