@@ -207,7 +207,8 @@ export default function Layout({ children }) {
   // Mêmes 5 rubriques que la barre de l'Explorer ; chaque rubrique s'allume aussi sur ses sous-pages
   const essentiel = veille ? [
     { titre: "Copier et lancer" },
-    { to: "/explorer/trouver", label: "Trouver mon SaaS", icon: "spark" },
+    { to: "/explorer/demande", label: "Demande à Bingoo!", icon: "spark", also: ["/explorer/connecteur"] },
+    { to: "/explorer/trouver", label: "Trouver mon SaaS", icon: "target" },
     { to: "/explorer/copier", label: "À copier", icon: "target" },
     { to: "/explorer/chiffres", label: "Chiffres d'un SaaS", icon: "chart" },
     { to: "/explorer/createurs", label: "Mes SaaS", icon: "bot", also: ["/explorer/lancer"] },
