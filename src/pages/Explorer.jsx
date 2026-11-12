@@ -301,6 +301,7 @@ const METHODE = [["affiliation", "Programme d'affiliation"], ["integrations", "I
 function Fiche({ domaine }) {
   const nav = useNavigate();
   const { ws } = useWs();
+  const toast = useToast();
   const [s, setS] = useState(undefined);
   const [rel, setRel] = useState([]);
   const [ev, setEv] = useState([]);
@@ -319,12 +320,7 @@ function Fiche({ domaine }) {
       if (error || !data) { setS(null); return; }
       if (data.limite) { setLimite(data); setS(null); return; }
       setS(data.saas); setRel(data.releves ?? []); setEv(data.evenements ?? []); setQuota(data.max ? { vues: data.vues, max: data.max } : null); setHist(data.histoire ?? null);
-      // Pas encore d'histoire : Bingoo! la cherche maintenant (une fois par SaaS), puis on la recharge
-      if (!data.histoire) fn("r/saas-histoire-demande", { workspace_id: ws.id, domaine }).then((r) => {
-        if (r?.statut !== "en_cours") return;
-        setHist({ statut: "en_cours" });
-        setTimeout(() => supabase.rpc("saas_fiche", { ws: ws.id, d: domaine }).then(({ data: d2 }) => setHist(d2?.histoire ?? null)), 55000);
-      }, () => {});
+      // L'histoire (chiffres publics, levées) se cherche à la demande, sur un clic : elle utilise l'IA
       supabase.rpc("saas_pubs_de", { ws: ws.id, d: domaine }).then(({ data: p }) => setPubs(p ?? []));
       supabase.rpc("saas_notoriete_de", { ws: ws.id, d: domaine }).then(({ data: n }) => setNoto(n ?? []));
       supabase.rpc("saas_emails_de", { ws: ws.id, d: domaine }).then(({ data: e }) => setMails(e ?? []));
@@ -434,6 +430,12 @@ function Fiche({ domaine }) {
 
       {dort?.score >= 35 && <BlocEndormi d={dort} s={s} />}
       {hist && hist.statut !== "en_cours" && <section className="mt-4"><Histoire h={hist} /></section>}
+      {!hist && <button onClick={() => fn("r/saas-histoire-demande", { workspace_id: ws.id, domaine }).then((r) => {
+        if (r?.statut !== "en_cours") { if (r?.statut === "ok") supabase.rpc("saas_fiche", { ws: ws.id, d: domaine }).then(({ data: d2 }) => setHist(d2?.histoire ?? null)); return; }
+        setHist({ statut: "en_cours" });
+        setTimeout(() => supabase.rpc("saas_fiche", { ws: ws.id, d: domaine }).then(({ data: d2 }) => setHist(d2?.histoire ?? null)), 55000);
+      }, (e) => toast(e.message, "bad"))} className="mt-4 text-[13.5px] font-semibold text-accent-dark hover:underline">📖 Chercher l'histoire de {s.nom} (chiffre d'affaires, levées, fondateurs)</button>}
+      {!s.lu_at && s.langue === "en" && <p className="mt-4 rounded-xl bg-paper px-4 py-3 text-[13px] text-ink-soft">Fiche importée de TrustMRR (revenu vérifié par Stripe). La description en français, les formules et la méthode d'acquisition arrivent à sa prochaine lecture par Bingoo!.</p>}
       {hist?.statut === "en_cours" && <p className="mt-4 flex items-center gap-2 text-[13.5px] text-ink-soft"><span className="h-2 w-2 rounded-full bg-accent animate-pulse" />Bingoo! cherche les chiffres publics de {s.nom} (chiffre d'affaires, levées, fondateurs)…</p>}
       {mails.length > 0 && (
         <section className="mt-4 rounded-2xl bg-white border border-line p-5">

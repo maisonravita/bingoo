@@ -816,7 +816,7 @@ export async function saasRecapMensuel(seulement?: string, apercu = false) {
         palier ? `Prochain palier : ${eur(palier)} par mois (encore ${eur(palier - ch.mrr)})` : "Palier des 100 000 € par mois dépassé",
       ];
       if (su?.type === "revenu_verifie" && su.montant) lignes.push(`Le SaaS dont tu t'es inspiré : ${eur(su.montant / 12 / 1.08)} par mois (vérifié)${su.croissance_30j && !isNaN(parseFloat(su.croissance_30j)) ? `, ${parseFloat(su.croissance_30j) > 0 ? "+" : ""}${parseFloat(su.croissance_30j).toLocaleString("fr-FR")} % sur 30 jours` : ""}. La demande est toujours là.`);
-      const lien = a.domaine_statut === "ok" && a.domaine ? `https://${a.domaine}/` : `${site}/app/${a.slug}`;
+      const lien = a.domaine_statut === "ok" && a.domaine ? `https://${a.domaine}/` : `${site}/#/app/${a.slug}`;
       const action = !a.paiement?.actif ? "Branche l'encaissement (onglet Encaisser) : sans lui, personne ne peut s'abonner."
         : visites < 100 ? "Peu de visites : publie une page « alternative à … » et partage le lien de ton SaaS là où ta cible se retrouve (onglet Croissance)."
         : (nouveaux ?? 0) === 0 ? "Des visites mais aucune inscription : rends l'essai plus visible sur ton site et raccourcis le formulaire."

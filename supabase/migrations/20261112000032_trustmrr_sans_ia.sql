@@ -1,0 +1,1 @@
+-- Appliqué via MCP : vue saas_liste (en_decollage, a_succes ≥ 1 000 $), saas_copiabilite_maj (petits revenus), mots-clés anglais des niches, nettoyage des fiches TrustMRR importées

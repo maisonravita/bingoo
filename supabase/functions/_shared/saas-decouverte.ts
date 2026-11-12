@@ -241,6 +241,8 @@ const MARCHE_CAT: [RegExp, string][] = [
 ];
 const PAYS_EN: Record<string, string> = { "united states": "US", usa: "US", "united kingdom": "GB", uk: "GB", france: "FR", germany: "DE", canada: "CA", spain: "ES", italy: "IT", netherlands: "NL", india: "IN", brazil: "BR", australia: "AU", portugal: "PT", poland: "PL", sweden: "SE", switzerland: "CH", belgium: "BE", ireland: "IE", singapore: "SG", "united arab emirates": "AE", israel: "IL", ukraine: "UA", turkey: "TR", mexico: "MX", argentina: "AR", japan: "JP", "south korea": "KR", indonesia: "ID", vietnam: "VN", philippines: "PH", pakistan: "PK", nigeria: "NG", estonia: "EE", romania: "RO", greece: "GR", austria: "AT", denmark: "DK", norway: "NO", finland: "FI", "czech republic": "CZ", "new zealand": "NZ", "south africa": "ZA", egypt: "EG", morocco: "MA", tunisia: "TN" };
 const SERVICE = /\b(agency|agence|llc|consult|done[- ]for[- ]you|services?\b|freelanc|coaching|mentorship|course|cohort|community|newsletter|studio|we help|we build|marketing firm|lead generation agency)\b/i;
+// « Acme, LLC (only Stripe MRR counted) » → « Acme »
+export const nomPropre = (n: string) => String(n).replace(/\s*[\(\[][^)\]]*[\)\]]\s*/g, " ").replace(/,?\s+(llc|inc\.?|ltd\.?|limited|gmbh|sas|sarl|s\.?l\.?|b\.?v\.?|corp\.?|co\.)$/i, "").replace(/\s*[|—–-]\s+.*$/, "").replace(/\s+/g, " ").trim().slice(0, 60) || String(n).slice(0, 60);
 export async function trustmrrPublier(n = 300) {
   const { data } = await admin.from("saas").select("id, nom, domaine, succes").eq("statut", "a_lire").like("succes->>source", "%trustmrr.com%").limit(n);
   let publies = 0;
@@ -254,8 +256,8 @@ export async function trustmrrPublier(n = 300) {
     const cat = MARCHE_CAT.find(([re]) => marches.some((m) => re.test(m)))?.[1] ?? MARCHE_CAT.find(([re]) => re.test(texte))?.[1] ?? "Autre";
     const pays = PAYS_EN[String(su.pays ?? "").toLowerCase().trim()] ?? (/^[A-Z]{2}$/.test(String(su.pays ?? "")) ? su.pays : null);
     const { error } = await admin.from("saas").update({
-      statut: "ok", est_saas: true, genre: "saas", nom: (r.nom || r.domaine).slice(0, 80), categorie: cat,
-      description: texte.slice(0, 300), langue: "en", pays, tags: marches.map((m) => m.toLowerCase()).slice(0, 5), lu_at: null, essais: 0,
+      statut: "ok", est_saas: true, genre: "saas", nom: nomPropre(r.nom || r.domaine), categorie: cat,
+      description: texte.slice(0, 300), langue: "en", pays, tags: [], lu_at: null, essais: 0,
     }).eq("id", r.id).eq("statut", "a_lire");
     if (!error) publies++;
   }
