@@ -59,9 +59,9 @@ export default function Explorer({ domaine: fixe }) {
   if (d === "racheter") return <><Onglets actif="racheter" /><Racheter /></>;
   if (d === "niches") return <><Onglets actif="niches" /><Niches /></>;
   if (d === "classement") return <><Onglets actif="classement" /><Classement /></>;
-  if (d === "copier") return <><Onglets actif="copier" /><Liste copier /></>;
+  if (d === "copier") return <><Onglets actif="copier" /><PageCopier /></>;
   if (d === "trouver") return <><Onglets actif="copier" /><TrouveTonSaas /></>;
-  if (d === "chiffres") return <><Onglets actif="chiffres" /><div className="max-w-5xl mx-auto px-4 sm:px-6 py-6"><ChiffresSaas grand /></div></>;
+  if (d === "chiffres") return <><Onglets actif="chiffres" /><ChiffresSaas /></>;
   if (d === "comparer") return <Comparer />;
   return d ? <Fiche domaine={d} /> : <><Onglets actif="liste" /><Liste /></>;
 }
@@ -195,14 +195,13 @@ function Liste({ copier: copierPage = false }) {
           {copierPage && <button onClick={() => navDem("/explorer/trouver")} className="mt-2 mb-1 inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-dark px-3.5 py-1.5 text-[13.5px] font-semibold hover:bg-accent-soft/70">🎯 {parcours?.etape === 3 ? "Mes SaaS sur mesure" : "Trouve le tien en 3 questions"} →</button>}
           {copierPage ? <p className="text-ink-soft text-[15px] max-w-3xl">Des SaaS au revenu prouvé, tenus par de petites équipes, avec un prix simple, et souvent sans équivalent en France. Choisis-en un, puis « Lancer le mien » : Bingoo! le construit à ton nom.</p> : <p className="text-ink-soft text-[15px]">{stats ? `${stats.total.toLocaleString("fr-FR")} logiciels suivis · ${stats.cats.length} catégories · ${stats.pays.length} pays · ${stats.recrutent} recrutent en ce moment` : "…"}</p>}
         </div>
-        <form onSubmit={ajouter} className="flex gap-2">
-          <input value={ajout} onChange={(e) => setAjout(e.target.value)} placeholder="Ajouter un SaaS (ex. monsaas.com)" className="w-64 rounded-xl border border-line bg-white px-3 py-2.5 text-[14px] outline-none focus:border-ink" />
-          <button disabled={busy} className="rounded-xl bg-ink text-white px-4 py-2.5 text-[14px] font-semibold disabled:opacity-60">{busy ? "Lecture…" : "Ajouter"}</button>
+        <form onSubmit={(e) => { e.preventDefault(); if (ajout.trim().length > 3) nav(`/explorer/chiffres?u=${encodeURIComponent(ajout.trim())}`); }} className="flex gap-2">
+          <input value={ajout} onChange={(e) => setAjout(e.target.value)} placeholder="Combien gagne… (colle une adresse)" className="w-64 rounded-xl border border-line bg-white px-3 py-2.5 text-[14px] outline-none focus:border-ink" />
+          <button className="rounded-xl bg-ink text-white px-4 py-2.5 text-[14px] font-semibold">Voir ses chiffres</button>
         </form>
       </div>
 
       <Demarrer />
-      {copierPage && <div className="mt-5"><ChiffresSaas /></div>}
 
       <div className="mt-5 rounded-2xl bg-white border border-line p-4 space-y-3">
         <div className="flex flex-wrap gap-2">
@@ -2485,6 +2484,99 @@ function CartePourToi({ x, grand, premier }) {
   );
 }
 
+// ---------------------------------------------------------------- À copier : les SaaS qui gagnent déjà de l'argent, lisibles comme une liste d'affaires
+const CANAL_FR = { "SEO": "SEO", "Blog": "Blog", "Content marketing": "Contenu", "Newsletter": "Newsletter", "Email marketing": "E-mailing", "App store optimization": "App Store", "X / Twitter": "X", "Instagram": "Instagram", "Reddit": "Reddit", "LinkedIn": "LinkedIn", "YouTube": "YouTube", "TikTok": "TikTok", "Facebook": "Facebook", "Threads": "Threads", "Pinterest": "Pinterest", "Discord": "Discord", "Hacker News": "Hacker News", "Forums": "Forums", "Slack communities": "Slack", "Product Hunt": "Product Hunt", "Cold email": "E-mails à froid", "Cold DM": "Messages privés", "Cold calling": "Appels", "Partnerships": "Partenariats", "Events & conferences": "Salons", "Google Ads": "Google Ads", "Meta Ads": "Meta Ads", "LinkedIn Ads": "LinkedIn Ads", "TikTok Ads": "TikTok Ads", "X Ads": "X Ads", "YouTube Ads": "YouTube Ads", "Influencers": "Influenceurs", "Word of mouth": "Bouche-à-oreille", "Referral program": "Parrainage", "Affiliate": "Affiliation" };
+const FILTRES_COPIER = [
+  ["taille", "Revenu", [["", "Tous"], ["petit", "100 à 3 000 $"], ["moyen", "3 000 à 20 000 $"], ["gros", "20 000 $ et plus"]]],
+  ["canal", "Trouve ses clients par", [["", "Tous"], ["seo", "Google et contenu"], ["reseaux", "Réseaux sociaux"], ["prospection", "Prospection"], ["pub", "Publicité"], ["bouche", "Bouche-à-oreille"]]],
+  ["audience", "Vend à", [["", "Tous"], ["B2B", "Des pros"], ["B2C", "Des particuliers"]]],
+];
+function PageCopier() {
+  const nav = useNavigate();
+  const [f, setF] = useState({ taille: "", canal: "", audience: "", categorie: "", tri: "copiable", q: "" });
+  const [page, setPage] = useState(0);
+  const [d, setD] = useState(null);
+  const [url, setUrl] = useState("");
+  useEffect(() => {
+    let vivant = true; setD(null);
+    const t = setTimeout(() => supabase.rpc("saas_a_copier", { p_taille: f.taille || null, p_canal: f.canal || null, p_audience: f.audience || null, p_categorie: f.categorie || null, p_tri: f.tri, p_q: f.q.trim() || null, p_offset: page * 30 })
+      .then(({ data }) => { if (vivant) setD(data ?? { total: 0, rows: [] }); }), f.q ? 300 : 0);
+    return () => { vivant = false; clearTimeout(t); };
+  }, [f, page]);
+  const set = (k, v) => { setPage(0); setF((x) => ({ ...x, [k]: v })); };
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      <div className="grid lg:grid-cols-[1fr_360px] gap-6 items-end">
+        <div>
+          <h1 className="text-[32px] sm:text-[42px] font-black leading-[1.02] tracking-tight" style={HF}>Ils gagnent déjà de l'argent.<br />Choisis-en un, Bingoo! le construit à ton nom.</h1>
+          <p className="mt-3 text-[15px] text-ink-soft max-w-2xl">Chaque revenu est relu chez l'outil de paiement du SaaS. Tu vois comment il trouve ses clients, à qui il vend et qui le fait tourner.</p>
+        </div>
+        <form onSubmit={(e) => { e.preventDefault(); if (url.trim().length > 3) nav(`/explorer/chiffres?u=${encodeURIComponent(url.trim())}`); }} className="rounded-2xl bg-ink text-white p-4">
+          <p className="font-bold">Tu as déjà un SaaS en tête ?</p>
+          <p className="text-[13px] text-white/60">Colle son adresse : ses chiffres, puis un bouton pour le copier.</p>
+          <div className="mt-3 flex gap-2"><input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="ex. url2pin.com" className="flex-1 min-w-0 rounded-xl bg-white text-ink px-3 py-2 text-[14px] outline-none" /><button className="rounded-xl bg-accent px-4 py-2 text-[14px] font-semibold">Voir</button></div>
+        </form>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-line bg-white p-4 space-y-3">
+        {FILTRES_COPIER.map(([k, l, opts]) => (
+          <div key={k} className="flex flex-wrap items-center gap-1.5">
+            <span className="w-full sm:w-44 shrink-0 text-[13px] font-semibold text-ink-soft">{l}</span>
+            {opts.map(([v, t]) => <button key={v || "tous"} type="button" onClick={() => set(k, v)} className={cx("rounded-full px-3 py-1.5 text-[13px] font-medium transition", f[k] === v ? "bg-ink text-white" : "bg-paper hover:bg-line")}>{t}</button>)}
+          </div>
+        ))}
+        <div className="flex flex-wrap gap-2 pt-1">
+          <input value={f.q} onChange={(e) => set("q", e.target.value)} placeholder="Chercher un nom ou un mot (ex. pinterest, facture)" className="flex-1 min-w-[220px] rounded-xl border border-line px-3 py-2 text-[14px] outline-none focus:border-ink" />
+          <select value={f.categorie} onChange={(e) => set("categorie", e.target.value)} className="rounded-xl border border-line bg-white px-3 py-2 text-[14px]"><option value="">Tous les secteurs</option>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select>
+          <select value={f.tri} onChange={(e) => set("tri", e.target.value)} className="rounded-xl border border-line bg-white px-3 py-2 text-[14px]"><option value="copiable">Les plus faciles à copier</option><option value="revenu">Plus gros revenu</option><option value="croissance">Plus forte croissance</option><option value="recent">Ajoutés récemment</option></select>
+        </div>
+      </div>
+
+      <p className="mt-5 text-[13px] text-ink-faint tnum">{d ? `${Number(d.total).toLocaleString("fr-FR")} SaaS à copier` : "Recherche…"}</p>
+      <div className="mt-2 rounded-2xl border border-line bg-white overflow-hidden">
+        {!d ? <div className="py-16 grid place-items-center"><Spinner /></div> : !d.rows.length ? (
+          <div className="p-8"><p className="font-bold">Aucun SaaS ne coche tous ces filtres.</p><p className="mt-1 text-ink-soft">Enlève un filtre : par exemple la façon de trouver des clients.</p></div>
+        ) : d.rows.map((x) => <LigneCopier key={x.domaine} x={x} />)}
+      </div>
+      {d && d.total > 30 && <div className="mt-4 flex items-center justify-center gap-3 text-[14px]">
+        <button disabled={page === 0} onClick={() => setPage(page - 1)} className="rounded-xl border border-line bg-white px-4 py-2 font-semibold disabled:opacity-40">Précédents</button>
+        <span className="text-ink-faint tnum">{page + 1} / {Math.ceil(d.total / 30)}</span>
+        <button disabled={(page + 1) * 30 >= d.total} onClick={() => setPage(page + 1)} className="rounded-xl border border-line bg-white px-4 py-2 font-semibold disabled:opacity-40">Suivants</button>
+      </div>}
+    </div>
+  );
+}
+function LigneCopier({ x }) {
+  const nav = useNavigate();
+  const pts = (x.courbe ?? []).slice(-8).map((v) => ({ n: Number(v) }));
+  const canaux = (x.canaux ?? []).slice(0, 3).map((c) => CANAL_FR[c] ?? c);
+  const infos = [x.audience && (/B2B/.test(x.audience) ? (/B2C/.test(x.audience) ? "Pros et particuliers" : "Vend aux pros") : "Vend aux particuliers"), x.equipe && (/^1\b|solo/i.test(x.equipe) ? "Une seule personne" : `Équipe : ${x.equipe.replace(/people|persons?/i, "personnes")}`), x.abonnes ? `${Number(x.abonnes).toLocaleString("fr-FR")} abonnés` : null].filter(Boolean);
+  return (
+    <div onClick={() => nav(`/explorer/${x.domaine}`)} className="cursor-pointer grid grid-cols-[auto_1fr_auto] md:grid-cols-[auto_1fr_120px_130px_auto] items-center gap-x-4 gap-y-2 px-4 sm:px-5 py-4 border-b border-line last:border-0 hover:bg-paper/50">
+      <CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="w-11 h-11 self-start" pad="p-1.5" />
+      <div className="min-w-0">
+        <p className="font-bold text-[16px] truncate">{x.nom} <span className="font-normal">{drapeau(x.pays)}</span> <span className="text-[12.5px] font-normal text-ink-faint">{x.categorie}</span></p>
+        <p className="text-[13.5px] text-ink-soft line-clamp-1">{x.description}</p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[12px]">
+          {canaux.map((c) => <span key={c} className="rounded-md bg-accent-soft/70 text-accent-dark px-2 py-0.5 font-medium">{c}</span>)}
+          {infos.map((t) => <span key={t} className="text-ink-faint">{t}</span>)}
+          {x.constructible === false && <span className="text-ink-faint">⚠ construit en partie</span>}
+        </div>
+      </div>
+      <div className="hidden md:block">{pts.length > 2 && <Sparkline pts={pts} h={34} />}</div>
+      <div className="text-right">
+        <p className="text-[19px] font-black tnum leading-none" style={HF}>{x.mrr > 0 ? dollar(x.mrr) : "—"}</p>
+        <p className="text-[11.5px] text-ink-faint">par mois, vérifié</p>
+        {x.crois != null && <p className={cx("text-[12px] font-bold tnum", x.crois > 0 ? "text-good" : x.crois < 0 ? "text-bad" : "text-ink-faint")}>{x.crois > 0 ? "+" : ""}{Number(x.crois).toLocaleString("fr-FR", { maximumFractionDigits: 0 })} % en 30 j</p>}
+      </div>
+      <div className="col-span-3 md:col-span-1 flex items-center gap-2 justify-end">
+        {x.copiable != null && <span title={(x.copiable_raisons ?? []).join(" · ")} className={cx("rounded-lg px-2 py-1 text-[12px] font-bold tnum", x.copiable >= 60 ? "bg-[#DCFCE7] text-[#166534]" : "bg-paper text-ink-soft")}>{x.copiable}/100</span>}
+        <button onClick={(e) => { e.stopPropagation(); nav(`/explorer/lancer?d=${x.domaine}`); }} className="rounded-xl bg-accent text-white px-4 py-2 text-[13.5px] font-bold hover:bg-accent-dark">Copier</button>
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------- Classement : les SaaS qui grossissent le plus vite (revenus vérifiés)
 const ONGLETS_CLASSEMENT = [["mois", "Ce mois-ci", "Croissance du MRR sur 30 jours : au moins 1 000 $ aujourd'hui et 300 $ il y a 30 jours, pour éviter les pourcentages gonflés par un tout petit départ."], ["trimestre", "Sur 3 mois", "Revenu du dernier mois complet comparé à celui d'il y a 3 mois."], ["revenu", "Plus gros revenu", "Le MRR vérifié le plus élevé."], ["jeunes", "Nés cette année", "Créés il y a moins de 12 mois, déjà au-dessus de 1 000 $ par mois."]];
 const montantCourt = (n) => n >= 1e6 ? `${(n / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M$` : n >= 1e3 ? `${Math.round(n / 1e3)} k$` : `${Math.round(n)} $`;
@@ -2560,70 +2652,87 @@ function BlocTrustmrr({ s }) {
 }
 
 // Colle l'adresse d'un SaaS : ses chiffres (base Bingoo!, revenus vérifiés TrustMRR, sans IA) et un bouton pour le copier
-function ChiffresSaas({ grand }) {
+function ChiffresSaas() {
   const { ws } = useWs();
   const nav = useNavigate();
+  const loc = useLocation();
   const toast = useToast();
-  const [url, setUrl] = useState("");
+  const depart = new URLSearchParams(loc.search).get("u") ?? "";
+  const [url, setUrl] = useState(depart);
   const [busy, setBusy] = useState(false);
   const [r, setR] = useState(null);
   const [lecture, setLecture] = useState(false);
-  const chercher = async (e) => {
-    e?.preventDefault(); if (url.trim().length < 4) return;
+  const chercher = async (u = url) => {
+    if (u.trim().length < 4) return;
     setBusy(true); setR(null);
-    try { setR(await fn("r/saas-chiffres", { workspace_id: ws.id, url })); }
+    try { setR(await fn("r/saas-chiffres", { workspace_id: ws.id, url: u })); }
     catch (x) { toast(x.message, "bad"); } finally { setBusy(false); }
   };
+  useEffect(() => { if (depart) chercher(depart); }, [depart]); // eslint-disable-line react-hooks/exhaustive-deps
   const lire = async () => {
     setLecture(true);
     try { const a = await fn("r/saas-add", { workspace_id: ws.id, url: r.domaine }); if (a.statut === "ok") nav(`/explorer/${a.domaine}`); else toast(a.statut === "pas_saas" ? "Ce site ne ressemble pas à un logiciel en ligne." : "Ce site n'a pas pu être lu pour l'instant.", "bad"); }
     catch (x) { toast(x.message, "bad"); } finally { setLecture(false); }
   };
   const s = r?.saas, t = s?.trustmrr ?? {}, su = s?.succes ?? {};
-  const mrr = t.mrr ?? su.mrr;
-  const chiffres = s ? [
-    ["MRR vérifié", mrr != null ? dollar(Number(mrr)) : null, pctFr(t.croissance_mrr_30j ?? su.croissance_30j) && `${pctFr(t.croissance_mrr_30j ?? su.croissance_30j)} en 30 jours`],
-    ["Encaissé sur 30 jours", t.revenus?.j30 != null ? dollar(t.revenus.j30) : su.revenu_30j ? dollar(Number(su.revenu_30j)) : null, ""],
-    ["Encaissé depuis le début", t.revenus?.total != null ? dollar(t.revenus.total) : su.revenu_total ? dollar(Number(su.revenu_total)) : null, ""],
-    ["Abonnés actifs", (t.abonnements ?? su.abonnements)?.toLocaleString?.("fr-FR"), ""],
-    ["Visiteurs sur 30 jours", t.visiteurs_30j?.toLocaleString("fr-FR"), ""],
-    ["Équipe", t.equipe, t.financement ?? ""],
-    ["Chiffre public", !mrr && su.preuve ? su.preuve : null, su.type && su.type !== "revenu_verifie" ? "presse ou documents officiels" : ""],
-    ["Estimation", !mrr && !su.preuve && s.estimation?.centre ? `≈ ${Number(s.estimation.centre).toLocaleString("fr-FR")} €/mois` : null, "estimation Bingoo!, pas un chiffre vérifié"],
+  const mrr = t.mrr ?? (su.mrr != null ? Number(su.mrr) : null);
+  const crois = t.croissance_mrr_30j ?? su.croissance_30j;
+  const mois = (su.courbe ?? []).filter((c) => c.m < new Date().toISOString().slice(0, 7)).map((c) => ({ v: c.v, label: c.m }));
+  const cases = s ? [
+    ["Encaissé sur 30 jours", t.revenus?.j30 != null ? dollar(t.revenus.j30) : su.revenu_30j ? dollar(Number(su.revenu_30j)) : null],
+    ["Encaissé depuis le début", t.revenus?.total != null ? dollar(t.revenus.total) : su.revenu_total ? dollar(Number(su.revenu_total)) : null],
+    ["Abonnés actifs", (t.abonnements ?? su.abonnements) != null ? Number(t.abonnements ?? su.abonnements).toLocaleString("fr-FR") : null],
+    ["Visiteurs sur 30 jours", t.visiteurs_30j?.toLocaleString("fr-FR")],
+    ["Revenu par visiteur", t.revenu_par_visiteur != null ? `${t.revenu_par_visiteur.toLocaleString("fr-FR")} $` : null],
+    ["Marge", pctFr(t.marge)],
+    ["Équipe", t.equipe],
+    ["Créé en", su.fonde ? new Date(su.fonde).toLocaleDateString("fr-FR", { month: "long", year: "numeric" }) : null],
   ].filter((x) => x[1]) : [];
+  const autreChiffre = !mrr && su.preuve ? su.preuve : null;
+  const estimation = !mrr && !su.preuve && s?.estimation?.centre ? `≈ ${Number(s.estimation.centre).toLocaleString("fr-FR")} € par mois` : null;
   return (
-    <section className={cx("rounded-2xl border p-5", grand ? "bg-ink text-white border-ink" : "bg-white border-line")}>
-      <p className={cx("font-bold", grand ? "text-[26px]" : "text-[17px]")} style={grand ? HF : undefined}>Les chiffres d'un SaaS, en collant son adresse</p>
-      <p className={cx("text-[13.5px] mt-0.5", grand ? "text-white/65" : "text-ink-soft")}>Revenu vérifié chez son outil de paiement quand il est public, abonnés, trafic, équipe. Puis un bouton pour lancer le même, à ton nom.</p>
-      <form onSubmit={chercher} className="mt-3 flex gap-2">
-        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="ex. url2pin.com" className="flex-1 min-w-0 rounded-xl border border-line bg-white text-ink px-3 py-2.5 text-[15px] outline-none focus:border-accent" />
-        <button disabled={busy || url.trim().length < 4} className="rounded-xl bg-accent text-white px-5 py-2.5 text-[14px] font-semibold disabled:opacity-60">{busy ? "Recherche…" : "Voir ses chiffres"}</button>
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+      <h1 className="text-[32px] sm:text-[44px] font-black leading-[1.02] tracking-tight" style={HF}>Combien gagne ce SaaS ?</h1>
+      <p className="mt-2 text-[15.5px] text-ink-soft max-w-2xl">Colle son adresse. Bingoo! cherche son revenu vérifié chez son outil de paiement, ses abonnés et comment il trouve ses clients. Puis tu peux lancer le même, à ton nom.</p>
+      <form onSubmit={(e) => { e.preventDefault(); chercher(); }} className="mt-5 flex gap-2 max-w-2xl">
+        <input value={url} onChange={(e) => setUrl(e.target.value)} autoFocus placeholder="ex. url2pin.com" className="flex-1 min-w-0 rounded-2xl border-2 border-ink bg-white px-4 py-3 text-[17px] outline-none" />
+        <button disabled={busy || url.trim().length < 4} className="rounded-2xl bg-accent text-white px-6 py-3 text-[15px] font-bold disabled:opacity-50">{busy ? "Recherche…" : "Voir ses chiffres"}</button>
       </form>
-      {busy && <p className={cx("mt-3 text-[13px]", grand ? "text-white/65" : "text-ink-soft")}>Bingoo! cherche dans sa base, puis sur TrustMRR…</p>}
+      {busy && <p className="mt-4 text-[14px] text-ink-soft">Bingoo! cherche dans sa bibliothèque, puis sur TrustMRR…</p>}
+
       {r && (
-        <div className="mt-4 rounded-2xl bg-white text-ink border border-line p-4">
-          <div className="flex items-center gap-3">
-            <CompanyLogo name={s?.nom ?? r.domaine} url={`https://${r.domaine}`} className="w-11 h-11 shrink-0" pad="p-1.5" />
-            <div className="min-w-0 flex-1">
-              <p className="font-bold text-[17px] truncate">{s?.nom ?? r.domaine} {s?.pays && <span className="font-normal">{drapeau(s.pays)}</span>}</p>
-              <p className="text-[12.5px] text-ink-faint truncate">{[s?.categorie, r.domaine].filter(Boolean).join(" · ")}</p>
+        <div className="mt-8 rounded-3xl border border-line bg-white overflow-hidden">
+          <div className="p-5 sm:p-7 grid md:grid-cols-[1fr_auto] gap-6 items-center">
+            <div className="flex items-center gap-4 min-w-0">
+              <CompanyLogo name={s?.nom ?? r.domaine} url={`https://${r.domaine}`} className="w-14 h-14 shrink-0" pad="p-2" />
+              <div className="min-w-0">
+                <p className="text-[24px] font-black truncate" style={HF}>{s?.nom ?? r.domaine} {s?.pays && <span className="font-normal text-[20px]">{drapeau(s.pays)}</span>}</p>
+                <p className="text-[13.5px] text-ink-faint truncate">{[s?.categorie, r.domaine].filter(Boolean).join(", ")}</p>
+                {s?.description && <p className="mt-1 text-[14px] text-ink-soft line-clamp-2">{s.description}</p>}
+              </div>
             </div>
-            {s?.copiable != null && <span className={cx("rounded-lg px-2.5 py-1 text-[12.5px] font-bold", s.copiable >= 60 ? "bg-[#DCFCE7] text-[#166534]" : "bg-paper text-ink-soft")}>{s.copiable >= 60 ? "🎯 Facile à copier" : "Copiable"} · {s.copiable}/100</span>}
+            <div className="md:text-right">
+              {mrr != null ? <>
+                <p className="text-[44px] font-black tnum leading-none" style={HF}>{dollar(mrr)}</p>
+                <p className="text-[13px] text-ink-faint">par mois, vérifié{t.paiement ? ` dans ${t.paiement.replace(/\s*\(.*\)/, "")}` : ""}</p>
+                {crois && <p className={cx("mt-1 text-[14px] font-bold tnum", String(crois).startsWith("-") ? "text-bad" : "text-good")}>{pctFr(crois)} en 30 jours</p>}
+              </> : autreChiffre ? <><p className="text-[20px] font-black max-w-xs" style={HF}>{autreChiffre}</p><p className="text-[12.5px] text-ink-faint">chiffre public, pas un revenu vérifié</p></>
+                : estimation ? <><p className="text-[28px] font-black" style={HF}>{estimation}</p><p className="text-[12.5px] text-ink-faint">estimation Bingoo!, pas un chiffre vérifié</p></>
+                : <p className="text-[15px] text-ink-soft max-w-xs">Pas de revenu public trouvé : il n'est pas sur TrustMRR.</p>}
+            </div>
           </div>
-          {chiffres.length > 0 ? (
-            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">{chiffres.map(([k, v, sub]) => (
-              <div key={k} className="rounded-xl bg-paper px-3 py-2"><p className="text-[11.5px] text-ink-faint">{k}</p><p className="font-bold tnum">{v}</p>{sub && <p className="text-[11px] text-ink-faint">{sub}</p>}</div>
-            ))}</div>
-          ) : <p className="mt-3 text-[13.5px] text-ink-soft">Aucun revenu public trouvé pour {r.domaine} : il n'est pas sur TrustMRR et Bingoo! n'a pas de chiffre sourcé. Tu peux quand même le copier.</p>}
-          {r.trustmrr && <p className="mt-2 text-[11.5px] text-ink-faint">Revenus vérifiés via TrustMRR{t.paiement ? ` (${t.paiement.replace(/\s*\(.*\)/, "")})` : ""}{t.synchro ? `, relevés le ${new Date(t.synchro).toLocaleDateString("fr-FR")}` : ""}.</p>}
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button onClick={() => nav(`/explorer/lancer?d=${encodeURIComponent(r.domaine)}`)} className="rounded-xl bg-accent text-white px-5 py-2.5 text-[14px] font-semibold">🚀 Copier ce SaaS</button>
-            {s && ["ok", "a_lire"].includes(s.statut) && (s.statut === "ok" ? <button onClick={() => nav(`/explorer/${r.domaine}`)} className="rounded-xl border border-line px-4 py-2.5 text-[14px] font-semibold hover:border-ink-faint">Voir la fiche complète</button> : null)}
-            {(!s || s.statut !== "ok") && <button onClick={lire} disabled={lecture} title="Lit son site : prix, version gratuite, essai, recrutement" className="rounded-xl border border-line px-4 py-2.5 text-[14px] font-semibold hover:border-ink-faint disabled:opacity-60">{lecture ? "Lecture de son site…" : "Lire son site (prix, formules)"}</button>}
+          {mois.length > 2 && <div className="px-5 sm:px-7"><p className="text-[12.5px] font-semibold text-ink-soft">Encaissé chaque mois</p><LineChart points={mois} unit=" $" height={140} /></div>}
+          {cases.length > 0 && <div className="px-5 sm:px-7 pt-4 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4">{cases.map(([k, v]) => <div key={k}><p className="text-[12px] text-ink-faint">{k}</p><p className="text-[18px] font-bold tnum">{v}</p></div>)}</div>}
+          {(t.canaux ?? []).length > 0 && <div className="px-5 sm:px-7 pt-5"><p className="text-[12.5px] text-ink-faint">Comment il trouve ses clients</p><div className="mt-1.5 flex flex-wrap gap-1.5">{t.canaux.map((c) => <span key={c} className="rounded-md bg-accent-soft/70 text-accent-dark px-2.5 py-1 text-[13px] font-medium">{CANAL_FR[c] ?? c}</span>)}</div></div>}
+          <div className="mt-6 px-5 sm:px-7 py-5 bg-paper/70 border-t border-line flex flex-wrap items-center gap-3">
+            <button onClick={() => nav(`/explorer/lancer?d=${encodeURIComponent(r.domaine)}`)} className="rounded-xl bg-accent text-white px-6 py-3 text-[15px] font-bold hover:bg-accent-dark">Copier ce SaaS</button>
+            {s?.statut === "ok" ? <button onClick={() => nav(`/explorer/${r.domaine}`)} className="rounded-xl border border-line bg-white px-5 py-3 text-[14.5px] font-semibold hover:border-ink-faint">Voir sa fiche complète</button>
+              : <button onClick={lire} disabled={lecture} className="rounded-xl border border-line bg-white px-5 py-3 text-[14.5px] font-semibold hover:border-ink-faint disabled:opacity-60">{lecture ? "Lecture de son site…" : "Lire son site (prix, version gratuite)"}</button>}
+            {r.trustmrr && <span className="text-[12px] text-ink-faint">Source : TrustMRR{t.synchro ? `, relevé le ${new Date(t.synchro).toLocaleDateString("fr-FR")}` : ""}</span>}
           </div>
         </div>
       )}
-    </section>
+    </div>
   );
 }
 
