@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_classement renvoie verifie_at, exclut les chiffres de plus de 45 jours et les croissances sur base < 300 $

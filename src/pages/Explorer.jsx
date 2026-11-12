@@ -2443,7 +2443,7 @@ function TrouveTonSaas() {
 }
 
 // ---------------------------------------------------------------- Classement : les SaaS qui grossissent le plus vite (revenus vérifiés)
-const ONGLETS_CLASSEMENT = [["mois", "Ce mois-ci", "Croissance du MRR sur 30 jours, à partir de 1 000 $ de MRR."], ["trimestre", "Sur 3 mois", "Revenu du dernier mois complet comparé à celui d'il y a 3 mois."], ["revenu", "Plus gros revenu", "Le MRR vérifié le plus élevé."], ["jeunes", "Nés cette année", "Créés il y a moins de 12 mois, déjà au-dessus de 1 000 $ par mois."]];
+const ONGLETS_CLASSEMENT = [["mois", "Ce mois-ci", "Croissance du MRR sur 30 jours : au moins 1 000 $ aujourd'hui et 300 $ il y a 30 jours, pour éviter les pourcentages gonflés par un tout petit départ."], ["trimestre", "Sur 3 mois", "Revenu du dernier mois complet comparé à celui d'il y a 3 mois."], ["revenu", "Plus gros revenu", "Le MRR vérifié le plus élevé."], ["jeunes", "Nés cette année", "Créés il y a moins de 12 mois, déjà au-dessus de 1 000 $ par mois."]];
 const montantCourt = (n) => n >= 1e6 ? `${(n / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M$` : n >= 1e3 ? `${Math.round(n / 1e3)} k$` : `${Math.round(n)} $`;
 const MARCHES_FR = { AI: "IA", "Dev Tools": "Outils développeurs", Marketing: "Marketing", Analytics: "Analytics", Productivity: "Productivité", Sales: "Ventes", "Content Creation": "Création de contenu", Education: "Éducation", "E-comm": "E-commerce", "E-commerce": "E-commerce", "Mobile Apps": "Applis mobiles", "Design Tools": "Design", "Recruiting & HR": "Recrutement et RH", Fintech: "Finance", Security: "Sécurité", "Social Media": "Réseaux sociaux", "Health & Fitness": "Santé et sport", Entertainment: "Divertissement", Community: "Communauté", "No-Code": "No-code", Marketplace: "Marketplace", Games: "Jeux", "Customer Support": "Support client", "Real Estate": "Immobilier", Legal: "Juridique", Travel: "Voyage", Crypto: "Crypto", "News & Magazines": "Médias" };
 const marcheFr = (m) => MARCHES_FR[m] ?? m;
@@ -2469,11 +2469,18 @@ function Classement() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
       <p className="text-[12.5px] font-bold tracking-wider text-accent-dark">CLASSEMENT</p>
       <h1 className="text-[34px] font-black leading-tight tracking-tight" style={HF}>Les SaaS qui grossissent le plus vite.</h1>
-      <p className="mt-1 text-ink-soft max-w-3xl">Uniquement des revenus vérifiés directement chez Stripe (via TrustMRR), pas des chiffres déclarés. Mis à jour chaque jour.</p>
+      <p className="mt-1 text-ink-soft max-w-3xl">Uniquement des revenus vérifiés directement chez Stripe (via TrustMRR), pas des chiffres déclarés. Chaque MRR affiché a moins de 45 jours, avec sa date de relevé ; la petite courbe montre le revenu encaissé chaque mois.</p>
       <div className="mt-5 flex flex-wrap gap-1.5">{ONGLETS_CLASSEMENT.map(([k, l]) => <Chip key={k} on={tri === k} onClick={() => setTri(k)}>{l}</Chip>)}</div>
       <p className="mt-2 text-[12.5px] text-ink-faint">{info[2]}</p>
       {rows === undefined ? <p className="py-16 text-center text-ink-soft">Chargement…</p> : !rows.length ? <p className="py-16 text-center text-ink-soft">Le classement se remplit : Bingoo! lit en ce moment les revenus vérifiés de milliers de SaaS. Reviens dans quelques heures.</p> : (
         <div className="mt-4 rounded-2xl border border-line bg-white overflow-hidden">
+          <div className="flex items-center gap-3 sm:gap-4 px-3 sm:px-5 py-2 border-b border-line bg-paper/60 text-[11.5px] font-semibold text-ink-faint">
+            <span className="w-7" /><span className="w-10" /><span className="flex-1">SaaS</span>
+            <span className="hidden lg:block w-44">Fondateur</span>
+            <span className="hidden md:block w-28" title="Revenu réellement encaissé chaque mois (mois terminés)">Encaissé par mois</span>
+            <span className="w-24 text-right" title="Revenu mensuel récurrent actuel, relu chez Stripe">MRR actuel</span>
+            <span className="w-20 text-right">{tri === "trimestre" ? "3 mois" : "30 jours"}</span>
+          </div>
           {rows.map((x, i) => {
             const pts = (x.courbe ?? []).map((c) => ({ n: c.v }));
             const crois = tri === "trimestre" ? x.crois_3m : x.crois_30j;
@@ -2488,7 +2495,7 @@ function Classement() {
                 </div>
                 {x.fondateurs?.[0] && <Fondateur f={x.fondateurs[0]} className="hidden lg:flex w-44" />}
                 <div className="hidden md:block w-28">{pts.length > 1 && <Sparkline pts={pts} h={30} />}</div>
-                <div className="w-24 text-right"><p className="font-bold tnum">{dollar(x.mrr ?? x.revenu_mois)}</p><p className="text-[11.5px] text-ink-faint">{x.mrr ? "MRR" : "par mois"}</p></div>
+                <div className="w-24 text-right"><p className="font-bold tnum">{dollar(x.mrr ?? x.revenu_mois)}</p><p className="text-[11.5px] text-ink-faint" title={x.verifie_at ? `Relu chez Stripe le ${new Date(x.verifie_at).toLocaleDateString("fr-FR")}` : undefined}>{x.verifie_at ? `au ${new Date(x.verifie_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}` : x.mrr ? "MRR" : "par mois"}</p></div>
                 <div className="w-20 text-right">{crois != null && <span className={cx("inline-block rounded-lg px-2 py-1 text-[12.5px] font-bold tnum", crois > 0 ? "bg-[#DCFCE7] text-[#166534]" : crois < 0 ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-paper text-ink-soft")}>{crois > 0 ? "+" : ""}{Number(crois).toLocaleString("fr-FR", { maximumFractionDigits: 0 })} %</span>}</div>
               </button>
             );
