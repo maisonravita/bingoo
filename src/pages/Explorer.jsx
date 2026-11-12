@@ -2478,7 +2478,8 @@ function TrouveTonSaas() {
   const [res, setRes] = useState(null);
   const [ap, setAp] = useState(null);
   const invite = estInvite(session);
-  const debloque = !invite || !!ws?.profile?.email_donne;
+  // Les 3 SaaS, le plan et le prompt se débloquent une fois le paiement reçu (le serveur n'envoie que le premier avant)
+  const debloque = estPaye(ws);
   const sauver = (n) => { try { localStorage.setItem("bingoo-parcours2", JSON.stringify({ ...n, fini: n.etape >= QUESTIONS.length || n.fini })); } catch { /* stockage indisponible */ } };
   const aller = (n) => {
     setR(n); sauver(n);
@@ -2550,9 +2551,9 @@ function TrouveTonSaas() {
           {res === undefined || res === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : !res.length ? (
             <div className="mt-8 rounded-2xl border border-line bg-white p-6"><p className="font-bold">Rien qui colle à toutes tes réponses pour l'instant.</p><p className="mt-1 text-ink-soft">Retire un secteur ou une façon de trouver des clients : la bibliothèque grandit chaque jour.</p><button onClick={() => setR({ ...r, etape: 0 })} className="mt-4 rounded-xl bg-ink text-white px-5 py-2.5 font-semibold">Changer mes réponses</button></div>
           ) : !debloque ? (
-            <Debloquer premier={res[0]} total={ap?.n} onFait={async () => { await reload(); }} />
+            <Debloquer premier={res[0]} total={ap?.n} invite={invite} />
           ) : (
-            <>{invite && <AdresseAValider email={ws?.profile?.email_donne} />}<Paquet res={res} r={r} /></>
+            <Paquet res={res} r={r} />
           )}
         </div>
       )}
@@ -2571,21 +2572,12 @@ function PreuveDirecte({ ap }) {
     </div>
   );
 }
-// Visiteur sans compte : le premier SaaS en clair (la preuve), les deux autres et le plan contre une adresse e-mail.
-// Le serveur n'envoie que le premier tant qu'aucune adresse n'est donnée : les cartes floutées sont factices.
-function Debloquer({ premier, total, onFait }) {
-  const { ws } = useWs();
-  const [email, setEmail] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-  const envoyer = async (e) => {
-    e.preventDefault(); setBusy(true); setErr("");
-    const adr = email.trim().toLowerCase();
-    const { error } = await supabase.auth.updateUser({ email: adr, data: { mdp_a_definir: true } }, { emailRedirectTo: window.location.href.split("#")[0] });
-    if (error) { setBusy(false); setErr(/already|registered|exists/i.test(error.message) ? "Cette adresse a déjà un compte Bingoo! : connecte-toi pour retrouver tes résultats." : error.message); return; }
-    await supabase.from("workspaces").update({ profile: { ...(ws?.profile ?? {}), email_donne: adr } }).eq("id", ws.id);
-    await onFait();
-  };
+export const estPaye = (ws) => ws?.plan === "fondateur" || (["explorer", "explorer_pro", "business", "solo", "pro"].includes(ws?.plan) && ["active", "trialing", "past_due"].includes(ws?.plan_status));
+// Avant paiement : le premier SaaS en clair (la preuve), les deux autres, le plan et le prompt une fois l'abonnement réglé.
+// Le serveur n'envoie que le premier tant que rien n'est payé : les cartes floutées sont factices.
+function Debloquer({ premier, total, invite }) {
+  const nav = useNavigate();
+  const debloquer = () => invite ? demanderCompte("Crée ton compte, puis choisis ta formule : tes 3 SaaS et ton plan s'affichent dès le paiement reçu.") : nav("/abonnement");
   const faux = [["Assistant de facturation", "1 8•• $"], ["Extension de prospection", "3 1•• $"]];
   return (
     <>
@@ -2599,22 +2591,16 @@ function Debloquer({ premier, total, onFait }) {
           </div>
         ))}
       </div>
-      <form onSubmit={envoyer} className="mt-6 rounded-3xl border-2 border-ink bg-white p-5 sm:p-7">
-        <h2 className="text-[22px] sm:text-[26px] font-black leading-tight" style={HF}>Débloque tes 2 autres SaaS et ton plan sur 30 jours</h2>
-        <p className="mt-1.5 text-[14.5px] text-ink-soft">Ton adresse suffit : tu les vois tout de suite ici, et Bingoo! t'envoie un lien pour les retrouver sur tous tes appareils.{total > 3 ? ` Bingoo! a trouvé ${Number(total).toLocaleString("fr-FR")} SaaS vérifiés pour toi : tu pourras tous les parcourir.` : ""}</p>
-        <div className="mt-4 flex flex-col sm:flex-row gap-2">
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ton@email.fr" autoComplete="email" className="flex-1 rounded-xl border border-line bg-white px-4 py-3 text-[16px] outline-none focus:border-ink" />
-          <button disabled={busy} className="rounded-xl bg-accent text-white px-6 py-3 font-bold hover:bg-accent-dark disabled:opacity-60">{busy ? "Un instant…" : "Voir mes résultats"}</button>
+      <div className="mt-6 rounded-3xl border-2 border-ink bg-white p-5 sm:p-7 flex flex-wrap items-center gap-5">
+        <div className="flex-1 min-w-[260px]">
+          <h2 className="text-[22px] sm:text-[26px] font-black leading-tight" style={HF}>Débloque tes 2 autres SaaS, ton plan sur 30 jours et ton prompt</h2>
+          <p className="mt-1.5 text-[14.5px] text-ink-soft">Ils s'affichent dès ton paiement reçu.{total > 3 ? ` Bingoo! a trouvé ${Number(total).toLocaleString("fr-FR")} SaaS vérifiés qui collent à tes réponses : tu pourras tous les parcourir, et Bingoo! construit celui que tu choisis.` : " Et Bingoo! construit celui que tu choisis."}</p>
         </div>
-        {err && <p className="mt-2 text-[13.5px] text-[#9A3412]">{err}</p>}
-        <p className="mt-2 text-[12.5px] text-ink-faint">Gratuit, sans carte bancaire, sans mot de passe pour l'instant.</p>
-      </form>
+        <button onClick={debloquer} className="rounded-xl bg-accent text-white px-6 py-3.5 font-bold hover:bg-accent-dark">Débloquer mes résultats</button>
+      </div>
       <div aria-hidden className="pointer-events-none select-none blur-[7px] mt-6 h-56 rounded-3xl border border-line bg-white p-7"><p className="text-[22px] font-black">Ton plan sur 30 jours</p><div className="mt-4 grid md:grid-cols-2 gap-6 text-ink-soft"><p>Semaine 1 : construire ta version…</p><p>Semaine 2 : préparer le lancement…</p><p>Semaines 3 et 4 : tes 10 premiers clients…</p><p>Jour 30 : le point…</p></div></div>
     </>
   );
-}
-function AdresseAValider({ email }) {
-  return <p className="mt-4 rounded-xl bg-accent-soft/60 px-4 py-3 text-[14px]">📬 Un lien t'attend{email ? <> sur <b>{email}</b></> : ""} : clique dessus pour garder tes résultats sur tous tes appareils et faire construire ton SaaS par Bingoo!.</p>;
 }
 // Le paquet de sortie : 3 SaaS, puis pour celui choisi un plan sur 30 jours et un prompt pour son propre Claude
 function Paquet({ res, r }) {
