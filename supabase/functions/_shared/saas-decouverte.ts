@@ -250,7 +250,7 @@ export async function trustmrrLire(n = 40, maxMs = 100_000, seul?: string) {
         res.push({ slug, statut: mensuel >= MRR_MIN && domaine ? "succes" : "petit", mrr: mensuel || null, domaine, at });
         // Toutes les startups qui ont leur propre site entrent dans la bibliothèque, même à 0 $ : le chiffre affiché dit la vérité,
         // et seules celles à 100 $ par mois et plus comptent comme « en décollage » ou « à succès »
-        if (domaine && /^[a-z0-9.-]+\.[a-z]{2,}$/.test(domaine) && !/(trustmrr|apps\.apple|play\.google|chromewebstore|x\.com|twitter|linkedin|instagram|tiktok|youtube)/.test(domaine)) succes.push({ ...f, site: domaine });
+        if (domaine && /^[a-z0-9.-]+\.[a-z]{2,}$/.test(domaine) && !/(^|\.)(trustmrr\.com|apps\.apple\.com|play\.google\.com|chromewebstore\.google\.com|x\.com|twitter\.com|linkedin\.com|instagram\.com|tiktok\.com|youtube\.com)$/.test(domaine)) succes.push({ ...f, site: domaine });
       } catch { res.push({ slug, statut: "erreur", mrr: null, domaine: null, at }); }
     }
   };
