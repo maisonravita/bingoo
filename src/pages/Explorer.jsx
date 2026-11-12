@@ -2811,6 +2811,7 @@ export function PremiersClients({ s, a, r }) {
               </>
             )}
             <form onSubmit={ajouter} className="mt-3 flex gap-2"><input value={ajout} onChange={(e) => setAjout(e.target.value)} placeholder="Ajouter quelqu'un que tu connais" className="flex-1 rounded-xl border border-line bg-white px-3 py-2 text-[13.5px] outline-none focus:border-ink" /><button className="rounded-xl border border-line px-4 py-2 text-[13.5px] font-semibold hover:border-ink">Ajouter</button></form>
+            {(r.refus ?? []).includes("appeler") && <p className="mt-3 rounded-xl bg-accent-soft/60 px-3 py-2 text-[13px]">Tu as dit ne pas vouloir démarcher : garde cette liste pour repérer qui croiser dans les groupes et les salons, ou écris seulement à ceux qui t'inspirent.</p>}
             <p className="mt-2 text-[12px] text-ink-faint">Contacte les professionnels sur leur adresse professionnelle et retire tout de suite ceux qui ne veulent pas être recontactés.</p>
           </div>
         )}
