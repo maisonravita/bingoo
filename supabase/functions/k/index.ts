@@ -525,6 +525,6 @@ Deno.serve(wrap(async (req) => {
   const h = routes[name];
   if (!h) throw new HttpError(404, "Action inconnue");
   if (req.method !== "POST") throw new HttpError(405, "POST attendu");
-  refuserInvite(req, name, []);
+  refuserInvite(req, name, ["plans", "founder-slots"]);
   return json(await h(req, await readJson<Body>(req)));
 }));

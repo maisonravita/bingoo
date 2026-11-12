@@ -2567,7 +2567,7 @@ function Floute({ n }) {
         ))}</div>
         <div className="mt-8 h-72 rounded-3xl border border-line bg-white p-7"><p className="text-[22px] font-black">Ton plan sur 30 jours</p><div className="mt-4 grid md:grid-cols-2 gap-6 text-ink-soft"><p>Semaine 1 : construire ta version…</p><p>Semaine 2 : préparer le lancement…</p><p>Semaines 3 et 4 : tes 10 premiers clients…</p><p>Jour 30 : le point…</p></div></div>
       </div>
-      <div className="absolute inset-0 grid place-items-center p-4">
+      <div className="absolute inset-0 flex justify-center items-start pt-10 p-4">
         <div className="max-w-md rounded-3xl border border-line bg-white/95 p-6 sm:p-7 text-center shadow-xl">
           <p className="text-[24px] font-black leading-tight" style={HF}>Tes {Math.min(3, n)} SaaS sont prêts</p>
           <p className="mt-2 text-[14.5px] text-ink-soft">Avec leur revenu vérifié, ton plan sur 30 jours et le prompt pour ton Claude. Crée ton compte gratuit pour les voir : ça prend 20 secondes.</p>

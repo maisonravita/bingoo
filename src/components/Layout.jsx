@@ -299,7 +299,7 @@ export default function Layout({ children }) {
           {ws.autonomy === "auto" && <span className="w-2.5 h-2.5 rounded-full bg-good pulse-dot" title="Pilote automatique actif" />}
           <TopBar ws={ws} replies={c.replies} />
         </div>
-        {ws.plan === "essai" && <div className="mb-5 flex"><TrialBar ws={ws} /></div>}
+        {ws.plan === "essai" && !invite && <div className="mb-5 flex"><TrialBar ws={ws} /></div>}
         {children}
       </main>
       {/* Téléphone : les 4 endroits du quotidien, toujours sous le pouce */}
