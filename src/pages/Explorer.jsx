@@ -2581,7 +2581,7 @@ function LigneCopier({ x }) {
 }
 
 // ---------------------------------------------------------------- Classement : les SaaS qui grossissent le plus vite (revenus vérifiés)
-const ONGLETS_CLASSEMENT = [["mois", "Ce mois-ci", "Croissance du MRR sur 30 jours : au moins 1 000 $ aujourd'hui et 300 $ il y a 30 jours, pour éviter les pourcentages gonflés par un tout petit départ."], ["trimestre", "Sur 3 mois", "Revenu du dernier mois complet comparé à celui d'il y a 3 mois."], ["revenu", "Plus gros revenu", "Le MRR vérifié le plus élevé."], ["jeunes", "Nés cette année", "Créés il y a moins de 12 mois, déjà au-dessus de 1 000 $ par mois."]];
+const ONGLETS_CLASSEMENT = [["encaisse", "Le plus encaissé en 30 jours", "Argent réellement encaissé sur les 30 derniers jours, relevé chez l'outil de paiement du SaaS (Stripe, Dodo, Lemon Squeezy…)."], ["mois", "Croissance du mois", "Croissance du MRR sur 30 jours : au moins 1 000 $ aujourd'hui et 300 $ il y a 30 jours, pour éviter les pourcentages gonflés par un tout petit départ."], ["trimestre", "Sur 3 mois", "Revenu du dernier mois complet comparé à celui d'il y a 3 mois."], ["revenu", "Plus gros revenu", "Le MRR vérifié le plus élevé."], ["jeunes", "Nés cette année", "Créés il y a moins de 12 mois, déjà au-dessus de 1 000 $ par mois."]];
 const montantCourt = (n) => n >= 1e6 ? `${(n / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M$` : n >= 1e3 ? `${Math.round(n / 1e3)} k$` : `${Math.round(n)} $`;
 const MARCHES_FR = { AI: "IA", "Dev Tools": "Outils développeurs", Marketing: "Marketing", Analytics: "Analytics", Productivity: "Productivité", Sales: "Ventes", "Content Creation": "Création de contenu", Education: "Éducation", "E-comm": "E-commerce", "E-commerce": "E-commerce", "Mobile Apps": "Applis mobiles", "Design Tools": "Design", "Recruiting & HR": "Recrutement et RH", Fintech: "Finance", Security: "Sécurité", "Social Media": "Réseaux sociaux", "Health & Fitness": "Santé et sport", Entertainment: "Divertissement", Community: "Communauté", "No-Code": "No-code", Marketplace: "Marketplace", Games: "Jeux", "Customer Support": "Support client", "Real Estate": "Immobilier", Legal: "Juridique", Travel: "Voyage", Crypto: "Crypto", "News & Magazines": "Médias" };
 const marcheFr = (m) => MARCHES_FR[m] ?? m;
@@ -2765,7 +2765,7 @@ function FicheTrustmrr({ s }) {
 
 function Classement() {
   const nav = useNavigate();
-  const [tri, setTri] = useState("mois");
+  const [tri, setTri] = useState("encaisse");
   const [rows, setRows] = useState(undefined);
   useEffect(() => { setRows(undefined); supabase.rpc("saas_classement", { p_tri: tri }).then(({ data }) => setRows(data ?? [])); }, [tri]);
   const info = ONGLETS_CLASSEMENT.find((o) => o[0] === tri);
@@ -2782,7 +2782,7 @@ function Classement() {
             <span className="w-7" /><span className="w-10" /><span className="flex-1">SaaS</span>
             <span className="hidden lg:block w-44">Fondateur</span>
             <span className="hidden md:block w-28" title="Revenu réellement encaissé chaque mois (mois terminés)">Encaissé par mois</span>
-            <span className="w-24 text-right" title="Revenu mensuel récurrent actuel, relu chez le prestataire de paiement">MRR actuel</span>
+            <span className="w-24 text-right" title="Revenu relu chez le prestataire de paiement">{tri === "encaisse" ? "Encaissé 30 j" : "MRR actuel"}</span>
             <span className="w-20 text-right">{tri === "trimestre" ? "3 mois" : "30 jours"}</span>
           </div>
           {rows.map((x, i) => {
@@ -2799,7 +2799,7 @@ function Classement() {
                 </div>
                 {x.fondateurs?.[0] && <Fondateur f={x.fondateurs[0]} className="hidden lg:flex w-44" />}
                 <div className="hidden md:block w-28">{pts.length > 1 && <Sparkline pts={pts} h={30} />}</div>
-                <div className="w-24 text-right"><p className="font-bold tnum">{dollar(x.mrr ?? x.revenu_mois)}</p><p className="text-[11.5px] text-ink-faint" title={x.verifie_at ? `Relu le ${new Date(x.verifie_at).toLocaleDateString("fr-FR")}` : undefined}>{x.verifie_at ? `au ${new Date(x.verifie_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}` : x.mrr ? "MRR" : "par mois"}</p></div>
+                <div className="w-24 text-right"><p className="font-bold tnum">{dollar(tri === "encaisse" ? x.j30 : x.mrr ?? x.revenu_mois)}</p><p className="text-[11.5px] text-ink-faint" title={x.verifie_at ? `Relu le ${new Date(x.verifie_at).toLocaleDateString("fr-FR")}` : undefined}>{x.verifie_at ? `${x.paiement ? x.paiement.replace(/\s*\(.*\)/, "") + ", " : ""}${new Date(x.verifie_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}` : x.mrr ? "MRR" : "par mois"}</p></div>
                 <div className="w-20 text-right">{crois != null && <span className={cx("inline-block rounded-lg px-2 py-1 text-[12.5px] font-bold tnum", crois > 0 ? "bg-[#DCFCE7] text-[#166534]" : crois < 0 ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-paper text-ink-soft")}>{crois > 0 ? "+" : ""}{Number(crois).toLocaleString("fr-FR", { maximumFractionDigits: 0 })} %</span>}</div>
               </button>
             );
