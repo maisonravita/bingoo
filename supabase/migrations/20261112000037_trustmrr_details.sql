@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas.trustmrr jsonb

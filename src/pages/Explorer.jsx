@@ -434,7 +434,7 @@ function Fiche({ domaine }) {
           ) : <p className="mt-1 text-[13.5px] text-ink-faint">Pas dans le million de sites les plus cités sur le web (ou pas encore relevé).</p>}
           <h2 className="mt-6 font-bold">Outils de son site</h2>
           <div className="mt-2 flex flex-wrap gap-1.5">{(s.outils ?? []).filter((o) => o.toLowerCase() !== (s.nom ?? "").toLowerCase()).map((o) => <span key={o} className="rounded-md bg-paper px-2 py-1 text-[12.5px]">{o}</span>)}{!(s.outils ?? []).length && <span className="text-[13.5px] text-ink-faint">Aucun repéré</span>}</div>
-          <p className="mt-6 text-[12px] text-ink-faint">Relevé du {date(s.lu_at)}. Informations lues sur le site du logiciel.</p>
+          <p className="mt-6 text-[12px] text-ink-faint">Relevé du {date(s.lu_at)}. Informations lues sur le site du logiciel{s.lecture === "sans_ia" ? " sans IA : prix, version gratuite et essai détectés automatiquement, à vérifier sur son site. La description en français et les formules arriveront à la prochaine lecture par l'IA." : "."}</p>
         </section>
       </div>
       </>)}
@@ -2581,7 +2581,7 @@ function ChiffresSaas({ grand }) {
           <div className="mt-4 flex flex-wrap gap-2">
             <button onClick={() => nav(`/explorer/lancer?d=${encodeURIComponent(r.domaine)}`)} className="rounded-xl bg-accent text-white px-5 py-2.5 text-[14px] font-semibold">🚀 Copier ce SaaS</button>
             {s && ["ok", "a_lire"].includes(s.statut) && (s.statut === "ok" ? <button onClick={() => nav(`/explorer/${r.domaine}`)} className="rounded-xl border border-line px-4 py-2.5 text-[14px] font-semibold hover:border-ink-faint">Voir la fiche complète</button> : null)}
-            {(!s || s.statut !== "ok") && <button onClick={lire} disabled={lecture} title="Lit son site avec l'IA : prix, formules, cible" className="rounded-xl border border-line px-4 py-2.5 text-[14px] font-semibold hover:border-ink-faint disabled:opacity-60">{lecture ? "Lecture de son site…" : "Lire son site (prix, formules)"}</button>}
+            {(!s || s.statut !== "ok") && <button onClick={lire} disabled={lecture} title="Lit son site : prix, version gratuite, essai, recrutement" className="rounded-xl border border-line px-4 py-2.5 text-[14px] font-semibold hover:border-ink-faint disabled:opacity-60">{lecture ? "Lecture de son site…" : "Lire son site (prix, formules)"}</button>}
           </div>
         </div>
       )}

@@ -62,6 +62,31 @@ function lienContact(html: string, base: string): string | null {
   return null;
 }
 
+/** Lecture d'un site sans IA : prix affichés par mois, version gratuite, essai, devis, description et langue de la page. */
+export function lectureSansIa(s: { nom?: string | null; domaine: string; categorie?: string | null }, home: string, tarifs: string) {
+  const meta = (n: string) => home.match(new RegExp(`<meta[^>]+(?:name|property)=["']${n}["'][^>]*content=["']([^"']{10,400})["']`, "i"))?.[1] ?? home.match(new RegExp(`<meta[^>]+content=["']([^"']{10,400})["'][^>]*(?:name|property)=["']${n}["']`, "i"))?.[1] ?? null;
+  const decode = (t: string) => t.replace(/&amp;/g, "&").replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  const t = tarifs.replace(/\s+/g, " ");
+  // Prix mensuels affichés : « $19/mo », « 19 € / mois », « €9 per month »
+  const prix: { v: number; dev: string }[] = [];
+  for (const m of t.matchAll(/([$€£])\s?(\d{1,4}(?:[.,]\d{1,2})?)\s*(?:\/|per|par|a|\s)\s*(?:mo\b|month|mois|m\b)/gi)) prix.push({ v: Number(m[2].replace(",", ".")), dev: m[1] });
+  for (const m of t.matchAll(/(\d{1,4}(?:[.,]\d{1,2})?)\s?([$€£])\s*(?:\/|per|par|HT\s*\/|\s)\s*(?:mo\b|month|mois|m\b)/gi)) prix.push({ v: Number(m[1].replace(",", ".")), dev: m[2] });
+  const payants = prix.filter((p) => p.v > 0 && p.v < 5000).sort((a, b) => a.v - b.v);
+  const essai = t.match(/(\d{1,2})[- ]day(?:s)?[- ]free[- ]trial|free trial (?:of |for )?(\d{1,2}) days|essai gratuit (?:de |pendant )?(\d{1,2}) jours|(\d{1,2}) jours d'essai/i);
+  const nEssai = essai ? essai.slice(1).find(Boolean) : null;
+  const gratuit = /free (?:plan|forever|tier)|forever free|\$0\b|0 ?€|gratuit pour toujours|offre gratuite|plan gratuit|version gratuite|start (?:for )?free/i.test(t + " " + textOf(home).slice(0, 3000));
+  const titre = decode(home.match(/<title[^>]*>([^<]{2,120})<\/title>/i)?.[1] ?? "").split(/\s[|–—-]\s/)[0];
+  return {
+    est_saas: true, genre: null, nom: s.nom || titre || s.domaine, categorie: s.categorie ?? "Autre",
+    description: decode(meta("description") ?? meta("og:description") ?? ""), cible: "", tags: [], pays: null,
+    langue: home.match(/<html[^>]+lang=["']([a-z]{2})/i)?.[1] ?? null,
+    gratuit, essai: nEssai ? `${nEssai} jours` : /free trial|essai gratuit/i.test(t) ? "oui" : null,
+    modele: payants.length ? "abonnement" : gratuit ? null : null, prix_usage: null,
+    prix_entree: payants[0]?.v ?? null, devise: payants[0]?.dev ?? null, periode: payants.length ? "mois" : null,
+    sur_devis: !payants.length && /contact sales|book a demo|talk to sales|sur devis|demander un devis|nous contacter pour/i.test(t), formules: [],
+  };
+}
+
 export async function saasLire(id: string) {
   const { data: s } = await admin.from("saas").select("*").eq("id", id).single();
   if (!s) return null;
@@ -89,7 +114,7 @@ export async function saasLire(id: string) {
     return { id, statut: "ok", inchange: true };
   }
   setAi({ feature: "explorer/lecture" });
-  const a = await askJson<{ est_saas: boolean; genre: string | null; nom: string; categorie: string; description: string; cible: string; pays: string | null; langue: string | null;
+  let a = await askJson<{ est_saas: boolean; genre: string | null; nom: string; categorie: string; description: string; cible: string; pays: string | null; langue: string | null;
     gratuit: boolean; essai: string | null; modele: string | null; prix_usage: string | null; prix_entree: number | null; devise: string | null; periode: string | null; sur_devis: boolean; formules: { nom: string; prix: string }[]; tags: string[] }>(
     `Voici le site ${s.domaine}. Classe ce logiciel et lis ses prix, sans rien inventer (null si absent).
 ACCUEIL :
@@ -101,8 +126,14 @@ description (une phrase en français : ce qu'il fait), cible (une phrase en fran
 gratuit (formule gratuite), essai (durée de l'essai gratuit ou null), modele (abonnement : prix fixe par mois, an ou semaine ; usage : prix par ticket, résolution, crédit, unité, boîte mail… ; commission : pourcentage ou frais par transaction ou par billet ; achat_unique : paiement une fois, accès à vie ; gratuit : entièrement gratuit),
 prix_entree (prix le plus bas d'une formule d'ABONNEMENT payante, nombre ; null si le seul prix affiché est à l'usage ou une commission), devise (€ $ £), periode (mois, an ou semaine), prix_usage (si usage ou commission : le prix tel qu'affiché en quelques mots, ex. « 0,99 $ par résolution » ; sinon null), sur_devis, formules (au plus 4 : nom et prix tel qu'affiché).`,
     { fast: true, maxTokens: 700 }).catch(() => null);
-  // IA indisponible (crédit épuisé, plafond) : la fiche n'est PAS marquée comme lue, sinon elle s'afficherait « lue » mais vide
-  if (!a) { await admin.from("saas").update({ essais: (s.essais ?? 0) + 1 }).eq("id", id); return { id, statut: "erreur" }; }
+  // IA indisponible (crédit épuisé, plafond) : pour un SaaS déjà prouvé (TrustMRR, chiffre sourcé) ou ajouté par un membre,
+  // on lit quand même ce qui se lit sans IA (prix affichés, version gratuite, essai, description du site) ; sinon on réessaiera plus tard
+  let sansIa = false;
+  if (!a) {
+    if (!(s.succes || s.trustmrr || String(s.source ?? "").startsWith("ajout:"))) { await admin.from("saas").update({ essais: (s.essais ?? 0) + 1 }).eq("id", id); return { id, statut: "erreur" }; }
+    a = lectureSansIa(s, home, tarifs) as typeof a;
+    sansIa = true;
+  }
   if (a.est_saas === false) { await admin.from("saas").update({ statut: "pas_saas", nom: a.nom || s.nom, lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "pas_saas" }; }
   const tld = s.domaine.split(".").pop() ?? "";
   const pays = (a.pays && /^[A-Z]{2}$/.test(a.pays.toUpperCase()) ? a.pays.toUpperCase() : null) ?? (TLD_PAYS[tld] || null) ?? s.pays ?? (await paysDe(site, home).catch(() => null))?.pays ?? null;
@@ -118,9 +149,9 @@ prix_entree (prix le plus bas d'une formule d'ABONNEMENT payante, nombre ; null 
   const hausse = prev?.[0]?.postes != null && f.recrute.postes != null ? f.recrute.postes - prev[0].postes : 0;
   const score = Math.max(0, Math.min(100, Math.round((f.recrute.oui ? 25 : 0) + Math.min(35, (f.recrute.postes ?? 0) * 2.5) + (actif ? 25 : 0) + Math.max(0, Math.min(15, hausse * 3)))));
   const champs = {
-    empreinte,
-    nom: (a.nom || s.domaine).slice(0, 80), categorie: CATEGORIES.includes(a.categorie) ? a.categorie : "Autre",
-    description: (a.description ?? "").slice(0, 300), cible: (a.cible ?? "").slice(0, 200), tags: nettoieTags(a.tags), pays, langue: (a.langue ?? "").slice(0, 5) || null, est_saas: true, genre: a.genre === "app_web" ? "app_web" : "saas",
+    empreinte: sansIa ? null : empreinte, lecture: sansIa ? "sans_ia" : "ia",
+    nom: (a.nom || s.domaine).slice(0, 80), categorie: CATEGORIES.includes(a.categorie) ? a.categorie : s.categorie ?? "Autre",
+    description: (a.description || s.description || "").slice(0, 300), cible: (a.cible ?? "").slice(0, 200), tags: sansIa ? (s.tags ?? []) : nettoieTags(a.tags), pays, langue: (a.langue ?? "").slice(0, 5) || null, est_saas: true, genre: a.genre === "app_web" ? "app_web" : "saas",
     prix_entree_eur: prix, devise: a.devise ?? null, prix_affiche: prix != null ? `${a.prix_entree} ${a.devise ?? ""}/${a.periode === "an" ? "an" : a.periode === "semaine" ? "semaine" : "mois"}` : a.prix_usage ? String(a.prix_usage).slice(0, 80) : null, modele_prix: modele,
     gratuit: !!a.gratuit, essai: a.essai ?? null, sur_devis: !!a.sur_devis, formules: (a.formules ?? []).slice(0, 4),
     recrute: f.recrute.oui, postes: f.recrute.postes, nouveaute: f.nouveaute.date, outils: f.outils,

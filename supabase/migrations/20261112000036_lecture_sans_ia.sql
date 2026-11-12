@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas.lecture ('ia' | 'sans_ia')
