@@ -2471,7 +2471,7 @@ const lirePar = () => { try { return JSON.parse(localStorage.getItem("bingoo-par
 export const guideActif = () => { try { return localStorage.getItem("bingoo-guide") !== "fini" && !lirePar()?.fini && (localStorage.getItem("bingoo-guide") === "en_cours" || !localStorage.getItem("bingoo-parcours-vu")); } catch { return false; } };
 const finirGuide = () => { try { localStorage.setItem("bingoo-guide", "fini"); } catch { /* stockage indisponible */ } };
 function TrouveTonSaas() {
-  const { ws } = useWs();
+  const { ws, session } = useWs();
   const avant = lirePar();
   const [r, setR] = useState(() => ({ canaux: [], refus: [], secteurs: [], audience: null, ambition: null, profil: null, temps: null, ...(avant ?? {}), etape: 0 }));
   const [res, setRes] = useState(null);
@@ -2482,6 +2482,8 @@ function TrouveTonSaas() {
   };
   useEffect(() => {
     if (r.etape < QUESTIONS.length) return;
+    // Visiteur sans compte : rien n'est chargé, les résultats sont floutés jusqu'au compte
+    if (estInvite(session)) { setRes([{}, {}, {}]); return; }
     setRes(undefined);
     supabase.rpc("saas_pour_moi3", { p: { categories: r.secteurs, canaux: r.canaux, refus: r.refus ?? [], audience: r.audience || null, profil: r.profil ?? "aucun", ambition: r.ambition ?? "vivre", temps: r.temps ?? "moyen" } })
       .then(({ data }) => setRes(data ?? []));
@@ -2539,11 +2541,40 @@ function TrouveTonSaas() {
           {resume.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{resume.map((x) => <span key={x} className="rounded-full bg-paper border border-line px-3 py-1 text-[12.5px] text-ink-soft">{x}</span>)}</div>}
           {res === undefined || res === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : !res.length ? (
             <div className="mt-8 rounded-2xl border border-line bg-white p-6"><p className="font-bold">Rien qui colle à toutes tes réponses pour l'instant.</p><p className="mt-1 text-ink-soft">Retire un secteur ou une façon de trouver des clients : la bibliothèque grandit chaque jour.</p><button onClick={() => setR({ ...r, etape: 0 })} className="mt-4 rounded-xl bg-ink text-white px-5 py-2.5 font-semibold">Changer mes réponses</button></div>
+          ) : estInvite(session) ? (
+            <Floute n={res.length} />
           ) : (
             <Paquet res={res} r={r} />
           )}
         </div>
       )}
+    </div>
+  );
+}
+// Visiteur sans compte : les résultats existent mais restent floutés jusqu'à la création du compte.
+// Rien de réel n'est affiché sous le flou (des cartes factices), pour que le DOM ne les révèle pas.
+function Floute({ n }) {
+  const faux = [["Outil de planification", "2 4•• $"], ["Assistant de facturation", "1 8•• $"], ["Extension de prospection", "3 1•• $"]];
+  return (
+    <div className="relative mt-6">
+      <div aria-hidden className="pointer-events-none select-none blur-[7px]">
+        <div className="grid md:grid-cols-3 gap-4">{faux.map(([nom, m]) => (
+          <div key={nom} className="rounded-2xl border border-line bg-white p-5">
+            <div className="flex items-center gap-3"><span className="h-11 w-11 rounded-xl bg-accent-soft" /><div className="flex-1"><p className="font-bold">{nom}</p><p className="text-[12.5px] text-ink-faint">Catégorie</p></div><p className="font-black">{m}</p></div>
+            <p className="mt-3 text-[14px] text-ink-soft">Un SaaS qui gagne déjà de l'argent, tenu par une petite équipe, avec un prix simple et des clients fidèles.</p>
+            <ul className="mt-3 space-y-1 text-[13px]"><li>✓ Trouve ses clients comme toi</li><li>✓ Ne demande rien de ce que tu refuses</li><li>✓ Tenu par une seule personne</li></ul>
+          </div>
+        ))}</div>
+        <div className="mt-8 h-72 rounded-3xl border border-line bg-white p-7"><p className="text-[22px] font-black">Ton plan sur 30 jours</p><div className="mt-4 grid md:grid-cols-2 gap-6 text-ink-soft"><p>Semaine 1 : construire ta version…</p><p>Semaine 2 : préparer le lancement…</p><p>Semaines 3 et 4 : tes 10 premiers clients…</p><p>Jour 30 : le point…</p></div></div>
+      </div>
+      <div className="absolute inset-0 grid place-items-center p-4">
+        <div className="max-w-md rounded-3xl border border-line bg-white/95 p-6 sm:p-7 text-center shadow-xl">
+          <p className="text-[24px] font-black leading-tight" style={HF}>Tes {Math.min(3, n)} SaaS sont prêts</p>
+          <p className="mt-2 text-[14.5px] text-ink-soft">Avec leur revenu vérifié, ton plan sur 30 jours et le prompt pour ton Claude. Crée ton compte gratuit pour les voir : ça prend 20 secondes.</p>
+          <button onClick={() => demanderCompte("Tes 3 SaaS et ton plan t'attendent.")} className="mt-5 w-full rounded-xl bg-accent text-white py-3 font-bold hover:bg-accent-dark">Voir mes résultats</button>
+          <p className="mt-2 text-[12.5px] text-ink-faint">Gratuit, sans carte bancaire.</p>
+        </div>
+      </div>
     </div>
   );
 }
