@@ -75,6 +75,26 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     }
     return { cible: r.cible, departement: r.departement, trouves: r.prospects.length, source: r.source };
   },
+  // « Nouveau client sur ton SaaS ! » : prévient le créateur à chaque nouvel abonné payant de son SaaS (cron toutes les 20 minutes)
+  async "saas-nouveaux-clients"(req) {
+    await cron(req);
+    const { sendSystem, teamAddress } = await import("../_shared/mail.ts");
+    const { data: us } = await admin.from("saas_app_users").select("id, app_id, abonnement, saas_apps!inner(workspace_id, spec)").in("abonnement->>statut", ["active", "past_due"]).is("createur_prevenu_at", null).not("email", "like", "demo-%@demo.local").limit(200);
+    let envoyes = 0;
+    for (const u of (us ?? []) as any[]) {
+      await admin.from("saas_app_users").update({ createur_prevenu_at: new Date().toISOString() }).eq("id", u.id);
+      const { data: w } = await admin.from("workspaces").select("*").eq("id", u.saas_apps.workspace_id).single();
+      const to = w ? await teamAddress(w as any) : null;
+      if (!to) continue;
+      const nom = u.saas_apps.spec?.nom ?? "ton SaaS";
+      const { data: mrr } = await admin.rpc("saas_app_mrr", { p_app: u.app_id });
+      const { count } = await admin.from("saas_app_users").select("id", { count: "exact", head: true }).eq("app_id", u.app_id).in("abonnement->>statut", ["active", "past_due"]);
+      const montant = Number(u.abonnement?.montant ?? 0);
+      const text = `Bravo !\n\nUn nouveau client vient de s'abonner à ${nom}${montant ? ` (${montant} € par mois)` : ""}.\n\n${nom} a maintenant ${count ?? 1} client${(count ?? 1) > 1 ? "s" : ""} payant${(count ?? 1) > 1 ? "s" : ""} et encaisse ${Math.round(Number(mrr ?? 0))} € par mois.\n\nVoir tes clients : https://kairo.maisonravita.fr/#/explorer/createurs\n\nBingoo!`;
+      try { await sendSystem({ to, subject: `🎉 Nouveau client sur ${nom} !`, text, key: `client-${u.id}` }); envoyes++; } catch (_) { /* déjà marqué : pas de doublon */ }
+    }
+    return { envoyes };
+  },
   // Accompagnement de la semaine des 10 premiers clients : chaque matin, l'étape du jour par e-mail (cron)
   async "saas-semaine-cron"(req) {
     await cron(req);
