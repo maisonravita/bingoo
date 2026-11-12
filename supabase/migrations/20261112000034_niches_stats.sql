@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_tags_exclus (étiquettes génériques/anglaises hors des niches), saas_stats_entete (vrais totaux)
