@@ -2522,7 +2522,7 @@ function BlocTrustmrr({ s }) {
 function FicheTrustmrr({ s }) {
   const su = s.succes ?? {};
   const tuiles = s.trustmrr ? [] : [
-    ["Abonnés actifs", su.abonnements ? Number(su.abonnements).toLocaleString("fr-FR") : null, "vérifié par Stripe"],
+    ["Abonnés actifs", su.abonnements ? Number(su.abonnements).toLocaleString("fr-FR") : null, "vérifié"],
     ["Revenu total encaissé", su.revenu_total ? dollar(Number(su.revenu_total)) : null, "depuis le lancement"],
     ["Créé en", su.fonde ? new Date(su.fonde).toLocaleDateString("fr-FR", { month: "long", year: "numeric" }) : null, ""],
     ["À vendre", su.a_vendre ? "Oui, sur TrustMRR" : null, su.a_vendre ? "le fondateur accepte des offres" : ""],
@@ -2552,7 +2552,7 @@ function Classement() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
       <p className="text-[12.5px] font-bold tracking-wider text-accent-dark">CLASSEMENT</p>
       <h1 className="text-[34px] font-black leading-tight tracking-tight" style={HF}>Les SaaS qui grossissent le plus vite.</h1>
-      <p className="mt-1 text-ink-soft max-w-3xl">Uniquement des revenus vérifiés directement chez Stripe (via TrustMRR), pas des chiffres déclarés. Chaque MRR affiché a moins de 45 jours, avec sa date de relevé ; la petite courbe montre le revenu encaissé chaque mois.</p>
+      <p className="mt-1 text-ink-soft max-w-3xl">Uniquement des revenus vérifiés directement chez leur prestataire de paiement (Stripe, Dodo, Lemon Squeezy…, via TrustMRR), pas des chiffres déclarés. Chaque MRR affiché a moins de 45 jours, avec sa date de relevé ; la petite courbe montre le revenu encaissé chaque mois.</p>
       <div className="mt-5 flex flex-wrap gap-1.5">{ONGLETS_CLASSEMENT.map(([k, l]) => <Chip key={k} on={tri === k} onClick={() => setTri(k)}>{l}</Chip>)}</div>
       <p className="mt-2 text-[12.5px] text-ink-faint">{info[2]}</p>
       {rows === undefined ? <p className="py-16 text-center text-ink-soft">Chargement…</p> : !rows.length ? <p className="py-16 text-center text-ink-soft">Le classement se remplit : Bingoo! lit en ce moment les revenus vérifiés de milliers de SaaS. Reviens dans quelques heures.</p> : (
@@ -2561,7 +2561,7 @@ function Classement() {
             <span className="w-7" /><span className="w-10" /><span className="flex-1">SaaS</span>
             <span className="hidden lg:block w-44">Fondateur</span>
             <span className="hidden md:block w-28" title="Revenu réellement encaissé chaque mois (mois terminés)">Encaissé par mois</span>
-            <span className="w-24 text-right" title="Revenu mensuel récurrent actuel, relu chez Stripe">MRR actuel</span>
+            <span className="w-24 text-right" title="Revenu mensuel récurrent actuel, relu chez le prestataire de paiement">MRR actuel</span>
             <span className="w-20 text-right">{tri === "trimestre" ? "3 mois" : "30 jours"}</span>
           </div>
           {rows.map((x, i) => {
@@ -2578,7 +2578,7 @@ function Classement() {
                 </div>
                 {x.fondateurs?.[0] && <Fondateur f={x.fondateurs[0]} className="hidden lg:flex w-44" />}
                 <div className="hidden md:block w-28">{pts.length > 1 && <Sparkline pts={pts} h={30} />}</div>
-                <div className="w-24 text-right"><p className="font-bold tnum">{dollar(x.mrr ?? x.revenu_mois)}</p><p className="text-[11.5px] text-ink-faint" title={x.verifie_at ? `Relu chez Stripe le ${new Date(x.verifie_at).toLocaleDateString("fr-FR")}` : undefined}>{x.verifie_at ? `au ${new Date(x.verifie_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}` : x.mrr ? "MRR" : "par mois"}</p></div>
+                <div className="w-24 text-right"><p className="font-bold tnum">{dollar(x.mrr ?? x.revenu_mois)}</p><p className="text-[11.5px] text-ink-faint" title={x.verifie_at ? `Relu le ${new Date(x.verifie_at).toLocaleDateString("fr-FR")}` : undefined}>{x.verifie_at ? `au ${new Date(x.verifie_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}` : x.mrr ? "MRR" : "par mois"}</p></div>
                 <div className="w-20 text-right">{crois != null && <span className={cx("inline-block rounded-lg px-2 py-1 text-[12.5px] font-bold tnum", crois > 0 ? "bg-[#DCFCE7] text-[#166534]" : crois < 0 ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-paper text-ink-soft")}>{crois > 0 ? "+" : ""}{Number(crois).toLocaleString("fr-FR", { maximumFractionDigits: 0 })} %</span>}</div>
               </button>
             );
