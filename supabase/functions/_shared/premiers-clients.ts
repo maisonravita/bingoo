@@ -78,7 +78,23 @@ export async function chercherProspects(metier: string | null, categorie: string
   const out: Record<string, unknown>[] = [];
   const vus = new Set<string>();
   const sirens = new Set<string>();
-  for (let page = 1; page <= 6 && out.length < max; page++) {
+  // Le registre classe les entreprises par nombre d'établissements : les premières pages sont des chaînes.
+  // On part d'une page au hasard plus loin dans la liste (petites structures, et des noms différents à chaque recherche).
+  const base = (page: number, per: number) => {
+    const u = new URL(API);
+    if (cible.naf.length) u.searchParams.set("activite_principale", cible.naf.join(","));
+    if (cible.texte) u.searchParams.set("q", cible.texte);
+    u.searchParams.set("departement", dep);
+    u.searchParams.set("etat_administratif", "A");
+    u.searchParams.set("tranche_effectif_salarie", "NN,00,01,02,03,11");
+    u.searchParams.set("per_page", String(per));
+    u.searchParams.set("page", String(page));
+    return u;
+  };
+  const tete = await fetch(base(1, 25), { headers: { accept: "application/json" } }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const pages = Number(tete?.total_pages ?? 1);
+  const depart = pages > 14 ? 8 + Math.floor(Math.random() * (pages - 14)) : 1;
+  for (let page = depart; page < depart + 6 && page <= pages && out.length < max; page++) {
     const u = new URL(API);
     if (cible.naf.length) u.searchParams.set("activite_principale", cible.naf.join(","));
     if (cible.texte) u.searchParams.set("q", cible.texte);
