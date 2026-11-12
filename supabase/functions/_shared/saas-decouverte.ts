@@ -233,13 +233,15 @@ export async function trustmrrLire(n = 40, maxMs = 100_000, seul?: string) {
   await admin.from("saas_trustmrr").update({ statut: "en_cours", at: new Date().toISOString() }).in("slug", slugs);
   const res: { slug: string; statut: string; mrr: number | null; domaine: string | null; at: string }[] = [];
   const succes: ReturnType<typeof trustmrrFiche>[] = [];
-  let i = 0;
+  let i = 0, freine = false;
   const ouvrier = async () => {
-    while (i < slugs.length && Date.now() - t0 < maxMs) {
+    while (i < slugs.length && Date.now() - t0 < maxMs && !freine) {
       const slug = slugs[i++];
       const at = new Date().toISOString();
       try {
         const r = await safeFetchText(`${TM}/startup/${slug}.md`, { headers: { "user-agent": "BingooBot/1.0 (+https://kairo.maisonravita.fr)", accept: "text/markdown,text/plain" } }, 400_000, 12000);
+        // Trop de requêtes : TrustMRR demande de ralentir, on s'arrête là et on reprendra ces fiches au prochain passage
+        if (r.status === 429 || r.status === 503) { freine = true; res.push({ slug, statut: "a_lire", mrr: null, domaine: null, at }); break; }
         if (!r.ok) { res.push({ slug, statut: r.status === 404 ? "absent" : "erreur", mrr: null, domaine: null, at }); continue; }
         const f = trustmrrFiche(r.text, slug);
         // Le site doit être une vraie adresse à la racine : pas une page hébergée chez une plateforme (Google Docs, Notion, Gumroad…)
