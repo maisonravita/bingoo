@@ -217,7 +217,7 @@ export default function Layout({ children }) {
     { to: "/explorer", label: "Tous les SaaS", icon: "list" },
     { to: "/explorer/niches", label: "Niches", icon: "niche" },
     { to: "/explorer/classement", label: "Classement", icon: "flag" },
-    { to: "/explorer/carte", label: "L'île des SaaS", icon: "town" },
+    { to: "/explorer/carte", label: "L'archipel des SaaS", icon: "town" },
     { to: "/explorer/marche", label: "Tendances", icon: "eye", also: ["/explorer/idees", "/explorer/pubs"] },
     { to: "/explorer/suivis", label: "Mes suivis", icon: "radar", also: ["/explorer/bouge"] },
   ] : [{ to: "/explorer", label: "Explorer", icon: "eye" }, item(lieu("atelier")), item(lieu("poste")), { to: "/appels", label: "Appels", icon: "phone", count: c.calls }, ...["rdv", "radar", "observatoire"].map((a) => item(lieu(a)))];
