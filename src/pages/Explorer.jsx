@@ -2657,6 +2657,7 @@ function Paquet({ res, r }) {
         </div>
         <button onClick={() => nav(lienLancer(s, a))} className="mt-5 rounded-xl bg-accent text-white px-6 py-3.5 font-bold hover:bg-accent-dark">Bingoo! construit ma version</button>
       </section>
+      <CommentIlSeFaitConnaitre s={s} />
       <section className="mt-6 rounded-3xl border border-line bg-white overflow-hidden">
         <div className="px-5 sm:px-7 pt-6 pb-4 border-b border-line">
           <h2 className="text-[22px] font-black leading-tight" style={HF}>Ton plan sur 30 jours</h2>
@@ -2848,6 +2849,45 @@ function Tendance({ x }) {
     </div>
   );
 }
+// Sa visibilité : trafic, autorité sur Google, canaux où il se montre et pub payante (déclarés au fondateur sur TrustMRR, ou pubs Meta relevées)
+const PAYANTS = ["Google Ads", "Meta Ads", "TikTok Ads", "LinkedIn Ads", "X Ads", "YouTube Ads", "Influencers"];
+const milliers = (n) => n >= 1000 ? `${String(Math.round(n / 100) / 10).replace(".", ",")} k` : String(Math.round(n));
+function Visibilite({ x, court }) {
+  const canaux = x.canaux ?? [];
+  const pub = canaux.filter((c) => PAYANTS.includes(c));
+  const morceaux = [
+    x.visiteurs ? `👀 ${milliers(Number(x.visiteurs))} visites/mois` : null,
+    x.autorite != null ? `🔎 Autorité Google ${Math.round(x.autorite)}/100` : null,
+    pub.length || x.pubs_actives ? `📣 Pub : ${x.pubs_actives ? `${x.pubs_actives} pubs Meta actives` : pub.slice(0, 2).map(nomCanal).join(", ")}` : canaux.length ? `📣 Sans pub : ${canaux.filter((c) => !PAYANTS.includes(c)).slice(0, 2).map(nomCanal).join(", ")}` : null,
+  ].filter(Boolean);
+  if (!morceaux.length) return null;
+  return court ? <p className="mt-2 text-[12.5px] text-ink-soft leading-relaxed">{morceaux.join(" · ")}</p> : null;
+}
+function CommentIlSeFaitConnaitre({ s }) {
+  const canaux = s.canaux ?? [];
+  const pub = canaux.filter((c) => PAYANTS.includes(c));
+  const orga = canaux.filter((c) => !PAYANTS.includes(c));
+  const tuiles = [
+    ["Trafic", s.visiteurs ? `${milliers(Number(s.visiteurs))} visites par mois` : "Non publié", s.visiteurs && s.mrr ? `soit ${String(Math.round((s.mrr / s.visiteurs) * 100) / 100).replace(".", ",")} $ de revenu par visite` : ""],
+    ["Visibilité sur Google", s.autorite != null ? `Autorité ${Math.round(s.autorite)}/100` : "Non mesurée", s.autorite != null ? (s.autorite < 20 ? "Faible : la place est à prendre sur Google" : s.autorite < 45 ? "Moyenne : battable avec du contenu régulier" : "Forte : difficile à dépasser sur Google") : ""],
+    ["Pub payante", s.pubs_actives ? `${s.pubs_actives} pubs Meta actives` : pub.length ? pub.map(nomCanal).join(", ") : "Aucune déclarée", pub.length || s.pubs_actives ? "Il paie pour se montrer : regarde ses pubs pour t'en inspirer" : "Il grandit sans pub : tu peux faire pareil"],
+    ["Ce qui marche sans payer", orga.length ? orga.slice(0, 4).map(nomCanal).join(", ") : "Non précisé", "Déclaré par le fondateur"],
+  ];
+  return (
+    <section className="mt-6 rounded-3xl border border-line bg-white p-5 sm:p-7">
+      <h2 className="text-[22px] font-black leading-tight" style={HF}>Comment {s.nom} se fait connaître</h2>
+      <p className="text-[13.5px] text-ink-soft">Sa visibilité, sa pub et ses canaux : fais pareil, là où il est faible tu passes devant.</p>
+      <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">{tuiles.map(([l, v, d]) => (
+        <div key={l} className="rounded-2xl border border-line p-4"><p className="text-[12.5px] text-ink-faint">{l}</p><p className="mt-1 font-bold text-[15px]">{v}</p>{d && <p className="mt-1 text-[12.5px] text-ink-soft">{d}</p>}</div>
+      ))}</div>
+      <div className="mt-4 flex flex-wrap gap-2 text-[13px]">
+        <a href={`https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=ALL&q=${encodeURIComponent(s.nom)}`} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-line px-3 py-2 font-semibold hover:border-ink">Voir ses pubs Facebook et Instagram</a>
+        <a href={`https://adstransparency.google.com/?domain=${encodeURIComponent(s.domaine)}&region=anywhere`} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-line px-3 py-2 font-semibold hover:border-ink">Voir ses pubs Google</a>
+        <a href={`https://${s.domaine}`} target="_blank" rel="noopener noreferrer" className="rounded-xl border border-line px-3 py-2 font-semibold hover:border-ink">Voir son site</a>
+      </div>
+    </section>
+  );
+}
 function CartePourToi({ x, r, force, grand, premier, onChoisir, choisi }) {
   const nav0 = useNavigate();
   const { session } = useWs();
@@ -2861,6 +2901,7 @@ function CartePourToi({ x, r, force, grand, premier, onChoisir, choisi }) {
         {x.mrr > 0 && <div className="text-right"><p className="font-black tnum leading-none" style={HF}>{dollar(x.mrr)}</p><p className="text-[11px] text-ink-faint">par mois, vérifié</p></div>}
       </div>
       <Tendance x={x} />
+      <Visibilite x={x} court />
       {a && <p className="mt-3 rounded-lg bg-accent-soft/70 px-2.5 py-1.5 text-[13px] font-semibold text-accent-dark">Ta version : {a.court}</p>}
       <p className={cx("mt-3 text-ink-soft", grand ? "text-[14px] line-clamp-3" : "text-[13px] line-clamp-2")}>{x.description}</p>
       {(x.pourquoi ?? []).length > 0 && <ul className="mt-3 space-y-1 text-[13px] flex-1">{x.pourquoi.slice(0, grand ? 4 : 2).map((t) => <li key={t} className="flex gap-2"><span className="text-good">✓</span><span>{t}</span></li>)}</ul>}
