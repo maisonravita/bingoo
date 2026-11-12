@@ -68,7 +68,7 @@ export function cibleNaf(metier: string | null, categorie: string | null) {
 }
 
 type Etab = { siret?: string; adresse?: string; code_postal?: string; libelle_commune?: string; liste_enseignes?: string[] | null; nom_commercial?: string | null; etat_administratif?: string; date_creation?: string };
-type Res = { nom_complet?: string; siren?: string; date_creation?: string; siege?: Etab; matching_etablissements?: Etab[]; dirigeants?: { nom?: string; prenoms?: string; qualite?: string; type_dirigeant?: string }[] };
+type Res = { nombre_etablissements_ouverts?: number; nom_complet?: string; siren?: string; date_creation?: string; siege?: Etab; matching_etablissements?: Etab[]; dirigeants?: { nom?: string; prenoms?: string; qualite?: string; type_dirigeant?: string }[] };
 
 export async function chercherProspects(metier: string | null, categorie: string | null, departement: string, max = 50) {
   const cible = cibleNaf(metier, categorie);
@@ -77,12 +77,15 @@ export async function chercherProspects(metier: string | null, categorie: string
   if (!/^(\d{2}|2A|2B|97\d)$/.test(dep)) throw new HttpError(400, "Indique un département (ex. 75, 69, 13, 2A).");
   const out: Record<string, unknown>[] = [];
   const vus = new Set<string>();
-  for (let page = 1; page <= 4 && out.length < max; page++) {
+  const sirens = new Set<string>();
+  for (let page = 1; page <= 6 && out.length < max; page++) {
     const u = new URL(API);
     if (cible.naf.length) u.searchParams.set("activite_principale", cible.naf.join(","));
     if (cible.texte) u.searchParams.set("q", cible.texte);
     u.searchParams.set("departement", dep);
     u.searchParams.set("etat_administratif", "A");
+    // Les petites structures (moins de 20 salariés) : ce sont elles qui achètent un petit SaaS, pas les grandes chaînes
+    u.searchParams.set("tranche_effectif_salarie", "NN,00,01,02,03,11");
     u.searchParams.set("per_page", "25");
     u.searchParams.set("page", String(page));
     let data: { results?: Res[]; total_results?: number; total_pages?: number } | null = null;
@@ -94,6 +97,8 @@ export async function chercherProspects(metier: string | null, categorie: string
     }
     if (!data) throw new HttpError(503, "Registre des entreprises saturé, réessaie dans une minute");
     for (const r of data.results ?? []) {
+      if ((r.nombre_etablissements_ouverts ?? 1) > 3 || (r.siren && sirens.has(r.siren))) continue; // pas de chaînes ni de franchises en série
+      if (r.siren) sirens.add(r.siren);
       const e = (r.matching_etablissements?.length ? r.matching_etablissements : r.siege ? [r.siege] : [])
         .find((x) => (!x.etat_administratif || x.etat_administratif === "A") && (x.code_postal ?? "").startsWith(dep.replace(/^2[AB]$/, "20")));
       if (!e?.siret || vus.has(e.siret)) continue;
@@ -104,7 +109,7 @@ export async function chercherProspects(metier: string | null, categorie: string
       const ville = e.libelle_commune ? titre(e.libelle_commune) : "";
       out.push({
         nom, siret: e.siret, adresse: e.adresse ?? "", ville, code_postal: e.code_postal ?? "",
-        dirigeant: chef ? titre(`${chef.prenoms?.split(" ")[0] ?? ""} ${chef.nom}`.trim()) : null,
+        dirigeant: chef ? titre(`${chef.prenoms?.split(" ")[0] ?? ""} ${chef.nom.replace(/\s*\(.*?\)/g, "")}`.trim()) : null,
         prenom: chef?.prenoms ? titre(chef.prenoms.split(" ")[0]) : null,
         depuis: e.date_creation?.slice(0, 4) ?? null,
         maps: `https://www.google.com/maps/search/${encodeURIComponent(`${nom} ${ville}`)}`,
