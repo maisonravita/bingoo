@@ -330,7 +330,7 @@ export default function IleSaas({ d, onLieu, nuit }) {
     const vue = { zoom: 1, cible: new THREE.Vector3(-0.7, 0, -1.45) };
     const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, -100, 200);
     const cadrer = () => {
-      const r = W() / H(), base = W() < 640 ? 26 : 16.5;
+      const r = W() / H(), base = W() < 640 ? 24 : W() / H() > 1.6 ? 12.5 : 14.5;
       const h = base / vue.zoom, w = h * r;
       cam.left = -w; cam.right = w; cam.top = h; cam.bottom = -h; cam.updateProjectionMatrix();
       cam.position.copy(vue.cible).add(new THREE.Vector3(20, 20, 20)); cam.lookAt(vue.cible);
