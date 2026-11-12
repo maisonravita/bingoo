@@ -1,0 +1,1 @@
+-- saas_pour_moi3 : croissance, jours, bonus tendance ; saas_pour_moi_apercu : nombre en tendance (appliqué via MCP)

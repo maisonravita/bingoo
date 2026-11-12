@@ -2565,8 +2565,8 @@ function TrouveTonSaas() {
         <div>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h1 className="text-[30px] sm:text-[38px] font-black leading-tight tracking-tight" style={HF}>Tes 3 SaaS à lancer</h1>
-              <p className="mt-1 text-[14.5px] text-ink-soft">Ils gagnent déjà de l'argent, vérifié chez leur outil de paiement, et ils trouvent leurs clients comme tu veux le faire.</p>
+              <h1 className="text-[30px] sm:text-[38px] font-black leading-tight tracking-tight" style={HF}>Tes 3 SaaS en tendance</h1>
+              <p className="mt-1 text-[14.5px] text-ink-soft">Ils encaissent déjà, vérifié chez leur outil de paiement, leur revenu monte en ce moment, et ils trouvent leurs clients comme tu veux le faire.</p>
             </div>
             <button onClick={() => setR({ ...r, etape: 0 })} className="rounded-xl border border-line bg-white px-4 py-2 text-[13.5px] font-semibold hover:border-ink-faint">Changer mes réponses</button>
           </div>
@@ -2589,7 +2589,7 @@ function PreuveDirecte({ ap }) {
   const e = ap.exemple;
   return (
     <div className="mt-8 rounded-2xl border border-line bg-white px-5 py-4" aria-live="polite">
-      <p className="text-[15px]"><b className="tnum text-[18px]" style={HF}>{Number(ap.n).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié collent déjà à tes réponses{ap.mediane ? <>, avec un revenu médian de <b className="tnum">{dollar(ap.mediane)}</b> par mois</> : null}.</p>
+      <p className="text-[15px]"><b className="tnum text-[18px]" style={HF}>{Number(ap.n).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié collent déjà à tes réponses{ap.mediane ? <>, avec un revenu médian de <b className="tnum">{dollar(ap.mediane)}</b> par mois</> : null}.{ap.tendance ? <> Dont <b className="tnum">{Number(ap.tendance).toLocaleString("fr-FR")}</b> en tendance : leur revenu monte ce mois-ci.</> : null}</p>
       {e && <p className="mt-1.5 flex items-center gap-2 text-[13.5px] text-ink-soft"><CompanyLogo name={e.nom} url={`https://${e.domaine}`} className="w-5 h-5" pad="p-0.5" /><span>Par exemple <b className="text-ink">{e.nom}</b> encaisse {dollar(e.mrr)} par mois{e.croissance ? `, +${String(e.croissance).replace(".", ",")} % en 30 jours` : ""}.</span></p>}
       {ap.tests >= 50 && <p className="mt-1 text-[12.5px] text-ink-faint">{Number(ap.tests).toLocaleString("fr-FR")} personnes ont déjà fait ce parcours.</p>}
     </div>
@@ -2833,6 +2833,21 @@ export function PremiersClients({ s, a, r }) {
     </section>
   );
 }
+// La tendance d'un SaaS : son revenu des 30 derniers jours (vérifié), en 4 semaines, et la variation sur 30 jours
+const tendanceDe = (c) => c == null ? null : c >= 30 ? ["🔥", "En pleine tendance", "text-[#B42318] bg-[#FEF3F2]"] : c >= 10 ? ["📈", "En hausse", "text-good bg-good/10"] : c < -10 ? ["📉", "En baisse", "text-ink-soft bg-paper"] : ["➖", "Stable", "text-ink-soft bg-paper"];
+function Tendance({ x }) {
+  const t = tendanceDe(x.croissance);
+  const j = Array.isArray(x.jours) ? x.jours.map((d) => Number(d.v) || 0) : [];
+  const sem = j.length >= 28 ? [0, 1, 2, 3].map((k) => j.slice(Math.max(0, j.length - 28 + k * 7), j.length - 28 + (k + 1) * 7).reduce((a, b) => a + b, 0)) : [];
+  const max = Math.max(1, ...sem);
+  if (!t) return null;
+  return (
+    <div className="mt-3 flex items-end justify-between gap-3">
+      <span className={cx("rounded-full px-2.5 py-1 text-[12.5px] font-semibold", t[2])}>{t[0]} {t[1]}{x.croissance != null ? ` · ${x.croissance > 0 ? "+" : ""}${String(Math.round(x.croissance)).replace(".", ",")} % en 30 j` : ""}</span>
+      {sem.length === 4 && <span className="flex items-end gap-1 h-7" title="Revenu vérifié, semaine par semaine (4 dernières semaines)">{sem.map((v, k) => <span key={k} className={cx("w-2.5 rounded-sm", k === 3 ? "bg-accent" : "bg-line")} style={{ height: `${Math.max(12, (v / max) * 100)}%` }} />)}</span>}
+    </div>
+  );
+}
 function CartePourToi({ x, r, force, grand, premier, onChoisir, choisi }) {
   const nav0 = useNavigate();
   const { session } = useWs();
@@ -2845,6 +2860,7 @@ function CartePourToi({ x, r, force, grand, premier, onChoisir, choisi }) {
         <div className="min-w-0 flex-1"><p className="font-bold truncate">{x.nom} {drapeau(x.pays)}</p><p className="text-[12.5px] text-ink-faint truncate">{x.categorie}</p></div>
         {x.mrr > 0 && <div className="text-right"><p className="font-black tnum leading-none" style={HF}>{dollar(x.mrr)}</p><p className="text-[11px] text-ink-faint">par mois, vérifié</p></div>}
       </div>
+      <Tendance x={x} />
       {a && <p className="mt-3 rounded-lg bg-accent-soft/70 px-2.5 py-1.5 text-[13px] font-semibold text-accent-dark">Ta version : {a.court}</p>}
       <p className={cx("mt-3 text-ink-soft", grand ? "text-[14px] line-clamp-3" : "text-[13px] line-clamp-2")}>{x.description}</p>
       {(x.pourquoi ?? []).length > 0 && <ul className="mt-3 space-y-1 text-[13px] flex-1">{x.pourquoi.slice(0, grand ? 4 : 2).map((t) => <li key={t} className="flex gap-2"><span className="text-good">✓</span><span>{t}</span></li>)}</ul>}
