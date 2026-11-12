@@ -1,0 +1,1 @@
+-- saas_resultats_bingoo() : totaux anonymes des SaaS lancés avec Bingoo! (clients payants, revenu mensuel) + SaaS rendus publics (appliqué via MCP)

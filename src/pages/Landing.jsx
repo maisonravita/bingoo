@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
 import { legalReady } from "./Legal";
 import { cx } from "../lib/utils";
+import ResultatsBingoo from "../components/ResultatsBingoo";
 
 // Page d'accueil publique de Bingoo! : épurée, et chaque promesse adossée à une preuve.
 // Deux preuves seulement : l'application filmée sur un vrai compte, et l'essai en direct sur le site du visiteur.
@@ -156,6 +157,9 @@ export default function Landing() {
 
       <main className="bg-white">
         <div className="mx-auto max-w-[1440px] bg-white">
+
+        {/* La preuve : ce qu'encaissent les SaaS lancés avec Bingoo! (s'affiche dès 3 SaaS avec des clients payants) */}
+        <ResultatsBingoo className="px-5 sm:px-10 lg:px-20 py-14 border-t border-black/[.07] mx-auto max-w-[1180px]" />
 
         {/* 1. Explorer : le marché du SaaS */}
         <Explorer n={nb} />

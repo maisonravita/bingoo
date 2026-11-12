@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import ResultatsBingoo from "../components/ResultatsBingoo";
 import { nomCanal, plan30, promptClaude } from "../lib/plan30";
 import { ANGLES, angleDe, premiersClients, semaineClients } from "../lib/angle";
 import { demanderCompte, estInvite } from "../lib/invite";
@@ -2613,6 +2614,7 @@ function Debloquer({ premier, total, invite, r }) {
           </div>
         ))}
       </div>
+      <ResultatsBingoo className="mt-8" />
       <div className="mt-6 rounded-3xl border-2 border-ink bg-white p-5 sm:p-7 flex flex-wrap items-center gap-5">
         <div className="flex-1 min-w-[260px]">
           <h2 className="text-[22px] sm:text-[26px] font-black leading-tight" style={HF}>Débloque tes 2 autres SaaS, ton plan pour tes 10 premiers clients en 7 jours et ton SaaS clé en main</h2>
