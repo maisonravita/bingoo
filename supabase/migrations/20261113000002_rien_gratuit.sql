@@ -1,0 +1,1 @@
+-- Rien de gratuit : saas_pour_moi3 ne renvoie aucun SaaS avant paiement (limit 0), l'aperçu en direct ne nomme plus aucun SaaS (MCP)
