@@ -388,6 +388,7 @@ function Fiche({ domaine }) {
         </div>
       </div>
 
+      {!s.lu_at && s.succes?.source?.includes("trustmrr.com") ? <FicheTrustmrr s={s} /> : (<>
       <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           ["Prix d'entrée", s.prix_entree_eur != null ? `${s.prix_entree_eur} €/mois` : usage(s) ? "À l'usage" : s.sur_devis ? "Sur devis" : "Non affiché", usage(s) ?? (s.prix_affiche && s.devise !== "€" ? `affiché ${s.prix_affiche}` : ""), s.liens?.prix],
@@ -432,6 +433,7 @@ function Fiche({ domaine }) {
           <p className="mt-6 text-[12px] text-ink-faint">Relevé du {date(s.lu_at)}. Informations lues sur le site du logiciel.</p>
         </section>
       </div>
+      </>)}
 
       {dort?.score >= 35 && <BlocEndormi d={dort} s={s} />}
       {hist && hist.statut !== "en_cours" && <section className="mt-4"><Histoire h={hist} /></section>}
@@ -440,7 +442,6 @@ function Fiche({ domaine }) {
         setHist({ statut: "en_cours" });
         setTimeout(() => supabase.rpc("saas_fiche", { ws: ws.id, d: domaine }).then(({ data: d2 }) => setHist(d2?.histoire ?? null)), 55000);
       }, (e) => toast(e.message, "bad"))} className="mt-4 text-[13.5px] font-semibold text-accent-dark hover:underline">📖 Chercher l'histoire de {s.nom} (chiffre d'affaires, levées, fondateurs)</button>}
-      {!s.lu_at && s.langue === "en" && <p className="mt-4 rounded-xl bg-paper px-4 py-3 text-[13px] text-ink-soft">Fiche importée de TrustMRR (revenu vérifié par Stripe). La description en français, les formules et la méthode d'acquisition arrivent à sa prochaine lecture par Bingoo!.</p>}
       {hist?.statut === "en_cours" && <p className="mt-4 flex items-center gap-2 text-[13.5px] text-ink-soft"><span className="h-2 w-2 rounded-full bg-accent animate-pulse" />Bingoo! cherche les chiffres publics de {s.nom} (chiffre d'affaires, levées, fondateurs)…</p>}
       {mails.length > 0 && (
         <section className="mt-4 rounded-2xl bg-white border border-line p-5">
@@ -2456,6 +2457,30 @@ function Fondateur({ f, className = "", grand = false }) {
       {f.photo && ok ? <img src={f.photo} alt="" onError={() => setOk(false)} referrerPolicy="no-referrer" className={cx("rounded-full object-cover shrink-0 bg-paper", grand ? "w-10 h-10" : "w-7 h-7")} /> : <span className={cx("rounded-full bg-paper grid place-items-center font-bold text-ink-soft shrink-0", grand ? "w-10 h-10" : "w-7 h-7 text-[12px]")}>{f.nom.slice(0, 1).toUpperCase()}</span>}
       <span className="min-w-0"><span className={cx("block truncate font-semibold", grand ? "text-[15px]" : "text-[13px]")}>{f.nom}</span>{f.x_abonnes ? <span className="block text-[11.5px] text-ink-faint">{f.x_abonnes.toLocaleString("fr-FR")} abonnés sur X</span> : null}</span>
     </a>
+  );
+}
+
+// Fiche pas encore lue par Bingoo! : on montre ce que TrustMRR publie (chiffres Stripe), sans afficher de « Non » qu'on n'a pas vérifié
+function FicheTrustmrr({ s }) {
+  const su = s.succes ?? {};
+  const tuiles = [
+    ["Abonnés actifs", su.abonnements ? Number(su.abonnements).toLocaleString("fr-FR") : null, "vérifié par Stripe"],
+    ["Revenu total encaissé", su.revenu_total ? dollar(Number(su.revenu_total)) : null, "depuis le lancement"],
+    ["Créé en", su.fonde ? new Date(su.fonde).toLocaleDateString("fr-FR", { month: "long", year: "numeric" }) : null, ""],
+    ["À vendre", su.a_vendre ? "Oui, sur TrustMRR" : null, su.a_vendre ? "le fondateur accepte des offres" : ""],
+  ].filter((t) => t[1]);
+  return (
+    <>
+      {tuiles.length > 0 && <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">{tuiles.map(([t, v, sub]) => (
+        <div key={t} className="rounded-2xl bg-white border border-line p-4"><p className="text-[12.5px] text-ink-faint">{t}</p><p className="mt-1 text-[19px] font-bold">{v}</p>{sub && <p className="text-[12px] text-ink-faint">{sub}</p>}</div>
+      ))}</div>}
+      <section className="mt-4 rounded-2xl bg-white border border-line p-5">
+        {su.probleme && su.probleme !== s.description && <><h2 className="font-bold">Le problème qu'il résout</h2><p className="mt-1 text-[14.5px]">{su.probleme}</p></>}
+        {su.prix && <><h2 className={cx("font-bold", su.probleme && su.probleme !== s.description && "mt-5")}>Son prix, selon sa fiche TrustMRR</h2><p className="mt-1 text-[14.5px]">{su.prix}</p></>}
+        <p className="mt-5 rounded-xl bg-paper px-4 py-3 text-[13px] text-ink-soft">Fiche importée de TrustMRR : le revenu et les abonnés viennent directement de Stripe. Bingoo! n'a pas encore lu son site : la description en français, les formules, la version gratuite, le recrutement et la méthode d'acquisition s'ajouteront à sa première lecture.</p>
+        <a href={`https://${s.domaine}`} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-[13.5px] font-semibold text-accent-dark hover:underline">Voir son site →</a>
+      </section>
+    </>
   );
 }
 

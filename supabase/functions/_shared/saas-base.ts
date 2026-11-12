@@ -101,7 +101,8 @@ description (une phrase en français : ce qu'il fait), cible (une phrase en fran
 gratuit (formule gratuite), essai (durée de l'essai gratuit ou null), modele (abonnement : prix fixe par mois, an ou semaine ; usage : prix par ticket, résolution, crédit, unité, boîte mail… ; commission : pourcentage ou frais par transaction ou par billet ; achat_unique : paiement une fois, accès à vie ; gratuit : entièrement gratuit),
 prix_entree (prix le plus bas d'une formule d'ABONNEMENT payante, nombre ; null si le seul prix affiché est à l'usage ou une commission), devise (€ $ £), periode (mois, an ou semaine), prix_usage (si usage ou commission : le prix tel qu'affiché en quelques mots, ex. « 0,99 $ par résolution » ; sinon null), sur_devis, formules (au plus 4 : nom et prix tel qu'affiché).`,
     { fast: true, maxTokens: 700 }).catch(() => null);
-  if (!a) { await admin.from("saas").update({ essais: (s.essais ?? 0) + 1, lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "erreur" }; }
+  // IA indisponible (crédit épuisé, plafond) : la fiche n'est PAS marquée comme lue, sinon elle s'afficherait « lue » mais vide
+  if (!a) { await admin.from("saas").update({ essais: (s.essais ?? 0) + 1 }).eq("id", id); return { id, statut: "erreur" }; }
   if (a.est_saas === false) { await admin.from("saas").update({ statut: "pas_saas", nom: a.nom || s.nom, lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "pas_saas" }; }
   const tld = s.domaine.split(".").pop() ?? "";
   const pays = (a.pays && /^[A-Z]{2}$/.test(a.pays.toUpperCase()) ? a.pays.toUpperCase() : null) ?? (TLD_PAYS[tld] || null) ?? s.pays ?? (await paysDe(site, home).catch(() => null))?.pays ?? null;
@@ -154,7 +155,7 @@ export async function saasCron(maxMs = 110_000) {
   // Relecture : tous les 30 jours (le revenu prouvé est suivi à part, sans IA)
   const semaine = new Date(Date.now() - 30 * 864e5).toISOString();
   // D'abord les fiches à relire tout de suite (tarifs rendus par le navigateur), puis les nouvelles, puis les plus anciennes
-  const { data: urgent } = await admin.from("saas").select("id").eq("statut", "ok").is("lu_at", null).limit(15);
+  const { data: urgent } = await admin.from("saas").select("id").eq("statut", "ok").is("lu_at", null).lt("essais", 3).limit(15);
   // Les SaaS à succès (preuve sourcée) passent avant les découvertes automatiques
   const { data: prouves } = await admin.from("saas").select("id").eq("statut", "a_lire").not("succes", "is", null).lt("essais", 3).limit(15);
   const { data } = await admin.from("saas").select("id").or(`statut.eq.a_lire,and(statut.eq.ok,lu_at.lt.${semaine})`).lt("essais", 3).order("lu_at", { ascending: true, nullsFirst: true }).limit(15);
