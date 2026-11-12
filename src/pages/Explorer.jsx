@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { plan30, promptClaude } from "../lib/plan30";
+import { nomCanal, plan30, promptClaude } from "../lib/plan30";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
@@ -93,14 +93,14 @@ function Onglets({ actif, trouver }) {
   useEffect(() => { chargerVides().then(setVides); }, []);
   const rub = RUBRIQUES.find(([, pages]) => pages.some(([k]) => k === actif)) ?? RUBRIQUES[0];
   const [guide, setGuide] = useState(guideActif);
+  const [etape, setEtape] = useState(1);
+  useEffect(() => { const f = (e) => setEtape(e.detail); window.addEventListener("bingoo-etape", f); return () => window.removeEventListener("bingoo-etape", f); }, []);
   if (guide && trouver) return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-5">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-line bg-white px-4 py-3">
         <span className="font-bold text-[14px]">Ton premier SaaS en 3 étapes</span>
         <ol className="flex flex-wrap gap-x-4 gap-y-1 text-[13.5px] text-ink-soft">
-          <li><span className="font-semibold text-ink">1. Réponds à quelques questions</span></li>
-          <li>2. Choisis parmi tes 3 SaaS</li>
-          <li>3. Bingoo! le construit pour toi</li>
+          {["Réponds à quelques questions", "Choisis parmi tes 3 SaaS", "Bingoo! le construit pour toi"].map((l, k) => <li key={l} className={cx(k + 1 === etape && "font-semibold text-ink", k + 1 < etape && "line-through")}>{k + 1}. {l}</li>)}
         </ol>
         <button onClick={() => { finirGuide(); setGuide(false); nav("/explorer"); }} className="ml-auto text-[13.5px] font-semibold text-accent-dark hover:underline">Voir tout Bingoo!</button>
       </div>
@@ -2554,7 +2554,7 @@ function Paquet({ res, r }) {
   const [i, setI] = useState(0);
   const [prompt, setPrompt] = useState(false);
   const [copie, setCopie] = useState(false);
-  useEffect(() => { finirGuide(); }, []);
+  useEffect(() => { finirGuide(); window.dispatchEvent(new CustomEvent("bingoo-etape", { detail: 2 })); }, []);
   const s = res[Math.min(i, res.length - 1)];
   const p = plan30(s, r);
   const texte = promptClaude(s, r);
@@ -2567,7 +2567,7 @@ function Paquet({ res, r }) {
           <CompanyLogo name={s.nom} url={`https://${s.domaine}`} className="w-10 h-10" pad="p-1.5" />
           <div className="flex-1 min-w-[200px]">
             <h2 className="text-[22px] font-black leading-tight" style={HF}>Ton plan sur 30 jours avec {s.nom}</h2>
-            <p className="text-[13.5px] text-ink-soft">{p.canaux.length ? <>Tiré des canaux qu'utilise vraiment {s.nom} : <b className="text-ink">{p.canaux.join(", ")}</b>.</> : "Tiré des canaux qui marchent pour ce genre de SaaS."}{r.refus?.length ? " Sans ce que tu refuses de faire." : ""}</p>
+            <p className="text-[13.5px] text-ink-soft">{p.canaux.length ? <>Tiré des canaux qu'utilise vraiment {s.nom} : <b className="text-ink">{p.canaux.map(nomCanal).join(", ")}</b>.</> : "Tiré des canaux qui marchent pour ce genre de SaaS."}{r.refus?.length ? " Sans ce que tu refuses de faire." : ""}</p>
           </div>
           <button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className="rounded-xl bg-accent text-white px-5 py-3 font-bold hover:bg-accent-dark">Bingoo! le construit pour toi</button>
         </div>
@@ -2607,7 +2607,7 @@ function CartePourToi({ x, grand, premier, onChoisir, choisi }) {
       {(x.pourquoi ?? []).length > 0 && <ul className="mt-3 space-y-1 text-[13px] flex-1">{x.pourquoi.slice(0, grand ? 4 : 2).map((t) => <li key={t} className="flex gap-2"><span className="text-good">✓</span><span>{t}</span></li>)}</ul>}
       <div className="mt-4 flex gap-2">
         {onChoisir
-          ? <button onClick={onChoisir} className={cx("flex-1 rounded-xl font-bold px-4 py-2.5 text-[14px]", choisi ? "bg-ink text-white" : "border border-line hover:border-ink")}>{choisi ? "Plan affiché ci-dessous" : "Voir son plan"}</button>
+          ? <button onClick={onChoisir} className={cx("flex-1 rounded-xl font-bold px-3 py-2.5 text-[13.5px] whitespace-nowrap", choisi ? "bg-ink text-white" : "border border-line hover:border-ink")}>{choisi ? "Son plan est en dessous" : "Voir son plan"}</button>
           : <button onClick={() => nav(`/explorer/lancer?d=${x.domaine}`)} className="flex-1 rounded-xl bg-accent text-white font-bold hover:bg-accent-dark px-3 py-2 text-[13px]">Copier ce SaaS</button>}
         <button onClick={() => nav(`/explorer/${x.domaine}`)} className={cx("rounded-xl border border-line font-semibold hover:border-ink-faint", grand ? "px-4 py-2.5 text-[14px]" : "px-3 py-2 text-[13px]")}>Sa fiche</button>
       </div>

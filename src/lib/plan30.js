@@ -40,6 +40,8 @@ const REFUS_CANAUX = {
   ecrire: ["SEO", "Blog", "Content marketing", "Newsletter", "X / Twitter", "LinkedIn", "Threads"],
   pub: ["Google Ads", "Meta Ads", "LinkedIn Ads", "TikTok Ads", "X Ads", "YouTube Ads"],
 };
+const FR = { "Content marketing": "contenu", "Email marketing": "e-mailing", "Word of mouth": "bouche-à-oreille", "Referral program": "parrainage", "Affiliate": "affiliation", "Partnerships": "partenariats", "Events & conferences": "salons", "Cold email": "e-mails à froid", "Cold DM": "messages privés", "Cold calling": "appels", "Influencers": "influenceurs", "Slack communities": "communautés Slack", "Forums": "forums", "Blog": "blog", "App store optimization": "référencement App Store" };
+export const nomCanal = (c) => FR[c] ?? c;
 const DEFAUT = ["SEO", "Reddit", "Product Hunt", "Word of mouth"];
 
 export function plan30(s, r) {
@@ -48,7 +50,7 @@ export function plan30(s, r) {
   const interdits = new Set((r.refus ?? []).flatMap((k) => REFUS_CANAUX[k] ?? []));
   const canaux = [...(s.canaux ?? []), ...DEFAUT].filter((c, i, a) => ACTIONS[c] && !interdits.has(c) && a.indexOf(c) === i).slice(0, 3);
   const prix = s.prix_entree_eur ? Math.round(s.prix_entree_eur) : null;
-  const cible = s.persona || (/B2B/.test(s.audience ?? "") ? "les professionnels visés" : "ta cible");
+  const persona = (s.persona ?? "").split(/[.;]/)[0].slice(0, 90);
   return {
     canaux,
     semaines: [
@@ -60,8 +62,8 @@ export function plan30(s, r) {
       ] },
       { titre: "Semaine 2 : préparer le lancement", actions: [
         "Publie ta page de précommande et montre-la à 10 personnes qui ont le problème : note leurs mots exacts.",
-        `Fais une liste de ${q(50, 25)} personnes ou entreprises de ${cible} à qui ton outil servirait.`,
-        ...canaux.slice(0, 1).map((c) => `Commence ${c === "SEO" || c === "Blog" ? "ton premier contenu" : "à te montrer"} sur ton premier canal : ${ACTIONS[c](q)}`),
+        `Fais une liste de ${q(50, 25)} personnes ou entreprises à qui ton outil servirait${persona ? ` (sa cible : ${persona})` : ""}.`,
+        ...canaux.slice(0, 1).map((c) => `Ouvre ton compte ou ta page sur ton premier canal (${nomCanal(c)}) et prépare 5 publications d'avance.`),
       ] },
       { titre: "Semaines 3 et 4 : tes 10 premiers clients", actions: canaux.map((c) => ACTIONS[c](q)) },
       { titre: "Jour 30 : le point", actions: [
