@@ -206,20 +206,12 @@ export default function Layout({ children }) {
   const veille = modeExplorer(ws);
   // Mêmes 5 rubriques que la barre de l'Explorer ; chaque rubrique s'allume aussi sur ses sous-pages
   const essentiel = veille ? [
-    { titre: "Copier et lancer" },
-    { to: "/explorer/demande", label: "Demande à Bingoo!", icon: "spark", also: ["/explorer/connecteur"] },
     { to: "/explorer/trouver", label: "Trouver mon SaaS", icon: "target" },
-    { to: "/explorer/copier", label: "À copier", icon: "target" },
-    { to: "/explorer/chiffres", label: "Chiffres d'un SaaS", icon: "chart" },
+    { to: "/explorer/copier", label: "À copier", icon: "target", also: ["/explorer/chiffres"] },
+    { to: "/explorer/demande", label: "Demande à Bingoo!", icon: "spark", also: ["/explorer/connecteur"] },
     { to: "/explorer/createurs", label: "Mes SaaS", icon: "bot", also: ["/explorer/lancer"] },
     { to: "/explorer/vendre", label: "Acheter / vendre", icon: "doc", also: ["/explorer/bourse", "/explorer/racheter"] },
-    { titre: "Observer le marché" },
-    { to: "/explorer", label: "Tous les SaaS", icon: "list" },
-    { to: "/explorer/niches", label: "Niches", icon: "niche" },
-    { to: "/explorer/classement", label: "Classement", icon: "flag" },
-    { to: "/explorer/carte", label: "L'archipel des SaaS", icon: "town" },
-    { to: "/explorer/marche", label: "Tendances", icon: "eye", also: ["/explorer/idees", "/explorer/pubs"] },
-    { to: "/explorer/suivis", label: "Mes suivis", icon: "radar", also: ["/explorer/bouge"] },
+    { to: "/explorer", label: "Explorer les SaaS", icon: "list", also: ["/explorer/niches", "/explorer/classement", "/explorer/marche", "/explorer/carte", "/explorer/idees", "/explorer/pubs", "/explorer/suivis", "/explorer/bouge"] },
   ] : [{ to: "/explorer", label: "Explorer", icon: "eye" }, item(lieu("atelier")), item(lieu("poste")), { to: "/appels", label: "Appels", icon: "phone", count: c.calls }, ...["rdv", "radar", "observatoire"].map((a) => item(lieu(a)))];
   const plus = veille ? [
     { to: "/abonnement", label: "Abonnement", icon: "doc" }, { to: "/equipe", label: "Équipe", icon: "phone" }, { to: "/reglages", label: "Réglages", icon: "plug" },
@@ -296,7 +288,7 @@ export default function Layout({ children }) {
       {/* Téléphone : les 4 endroits du quotidien, toujours sous le pouce */}
       <nav aria-label="Navigation principale" className="md:hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
         <div className="grid grid-cols-4">
-          {(veille ? [["/explorer/copier", "À copier", "target", 0], ["/explorer/createurs", "Mes SaaS", "bot", 0], ["/explorer", "SaaS", "list", 0], ["/explorer/niches", "Niches", "niche", 0]]
+          {(veille ? [["/explorer/trouver", "Trouver", "target", 0], ["/explorer/copier", "À copier", "target", 0], ["/explorer/createurs", "Mes SaaS", "bot", 0], ["/explorer", "Explorer", "list", 0]]
             : [["/", "Aujourd'hui", "today", 0], ["/valider", "Messages", "send", c.drafts], ["/reponses", "Réponses", "inbox", c.replies], ["/agenda", "RDV", "cal", c.today]]).map(([to, l, ic, n]) => (
             <NavLink key={to} to={to} end={to === "/" || to === "/explorer"} className={({ isActive }) => cx("relative flex flex-col items-center gap-0.5 py-2.5 text-[11.5px] font-semibold", isActive ? "text-[#E8571C]" : "text-ink-soft")}>
               <Icon name={ic} />{l}

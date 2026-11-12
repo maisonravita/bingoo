@@ -62,7 +62,7 @@ export default function Explorer({ domaine: fixe }) {
   if (d === "niches") return <><Onglets actif="niches" /><Niches /></>;
   if (d === "classement") return <><Onglets actif="classement" /><Classement /></>;
   if (d === "copier") return <><Onglets actif="copier" /><PageCopier /></>;
-  if (d === "trouver") return <><Onglets actif="copier" trouver /><TrouveTonSaas /></>;
+  if (d === "trouver") return <><Onglets actif="trouver" trouver /><TrouveTonSaas /></>;
   if (d === "vendre") return <><Onglets actif="vendre" /><AchatVente /></>;
   if (d === "demande") return <><Onglets actif="demande" /><DemandeBingoo /></>;
   if (d === "connecteur") return <><Onglets actif="connecteur" /><Connecteur /></>;
@@ -71,18 +71,15 @@ export default function Explorer({ domaine: fixe }) {
   return d ? <Fiche domaine={d} /> : <><Onglets actif="liste" /><Liste /></>;
 }
 
-// 5 rubriques ; celles qui regroupent plusieurs pages affichent une petite ligne de sous-onglets
+// 6 entrées. Les pages marquées « cachée » restent ouvertes par lien mais ne s'affichent pas dans les sous-onglets
 const RUBRIQUES = [
-  ["Demande à Bingoo!", [["demande", "Demande à Bingoo!", "/explorer/demande"], ["connecteur", "Dans Claude ou ChatGPT", "/explorer/connecteur"]]],
+  ["Trouver mon SaaS", [["trouver", "Trouver mon SaaS", "/explorer/trouver"]]],
   ["À copier", [["copier", "À copier", "/explorer/copier"], ["chiffres", "Chiffres d'un SaaS", "/explorer/chiffres"]]],
+  ["Demande à Bingoo!", [["demande", "Demande à Bingoo!", "/explorer/demande"], ["connecteur", "Dans Claude ou ChatGPT", "/explorer/connecteur", true]]],
   ["Mes SaaS", [["createurs", "Mes SaaS", "/explorer/createurs"]]],
-  ["Acheter / vendre", [["vendre", "À vendre", "/explorer/vendre"], ["bourse", "Construits sur Bingoo!", "/explorer/bourse"], ["racheter", "SaaS qui s'endorment", "/explorer/racheter"]]],
-  ["SaaS", [["liste", "Tous les SaaS", "/explorer"]], "copier"],
-  ["Niches", [["niches", "Niches", "/explorer/niches"]]],
-  ["Classement", [["classement", "Classement", "/explorer/classement"]]],
-  ["L'archipel", [["carte", "L'archipel des SaaS", "/explorer/carte"]]],
-  ["Tendances", [["marche", "Ce qui monte", "/explorer/marche"], ["idees", "Idées et réussites", "/explorer/idees"], ["pubs", "Pubs et e-mails", "/explorer/pubs"]]],
-  ["Mes suivis", [["suivis", "Mes suivis", "/explorer/suivis"], ["bouge", "Ce qui a bougé", "/explorer/bouge"]]],
+  ["Acheter / vendre", [["vendre", "À vendre", "/explorer/vendre"], ["bourse", "Construits sur Bingoo!", "/explorer/bourse", true], ["racheter", "SaaS qui s'endorment", "/explorer/racheter", true]]],
+  ["Explorer les SaaS", [["liste", "Tous les SaaS", "/explorer"], ["niches", "Par niche", "/explorer/niches"], ["classement", "Classement", "/explorer/classement"], ["marche", "Ce qui monte", "/explorer/marche"],
+    ["carte", "L'archipel", "/explorer/carte", true], ["idees", "Idées et réussites", "/explorer/idees", true], ["pubs", "Pubs et e-mails", "/explorer/pubs", true], ["suivis", "Mes suivis", "/explorer/suivis", true], ["bouge", "Ce qui a bougé", "/explorer/bouge", true]]],
 ];
 // Pages qui dépendent de contenus encore rares : cachées tant qu'elles sont vides (sauf si on y est)
 let VIDES = null;
@@ -109,11 +106,11 @@ function Onglets({ actif, trouver }) {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
       <div className="inline-flex max-w-full overflow-x-auto rounded-xl bg-white border border-line p-1">
-        {RUBRIQUES.map(([l, pages, groupe]) => <Fragment key={l}>{groupe === "copier" && <span className="mx-1.5 my-1.5 w-px shrink-0 bg-line" aria-hidden />}<button onClick={() => nav(pages[0][2])} className={cx("shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-[14px] font-semibold transition", rub[0] === l ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button></Fragment>)}
+        {RUBRIQUES.map(([l, pages]) => <Fragment key={l}><button onClick={() => nav(pages[0][2])} className={cx("shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-[14px] font-semibold transition", rub[0] === l ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button></Fragment>)}
       </div>
-      {rub[1].filter(([k]) => !vides[k] || k === actif).length > 1 && (
+      {rub[1].filter(([k, , , cachee]) => (!vides[k] && !cachee) || k === actif).length > 1 && (
         <div className="mt-2 flex gap-4 overflow-x-auto px-1 text-[13.5px]">
-          {rub[1].filter(([k]) => !vides[k] || k === actif).map(([k, l, to]) => <button key={k} onClick={() => nav(to)} className={cx("shrink-0 whitespace-nowrap border-b-2 pb-1 font-medium transition", actif === k ? "border-accent text-ink" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
+          {rub[1].filter(([k, , , cachee]) => (!vides[k] && !cachee) || k === actif).map(([k, l, to]) => <button key={k} onClick={() => nav(to)} className={cx("shrink-0 whitespace-nowrap border-b-2 pb-1 font-medium transition", actif === k ? "border-accent text-ink" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
         </div>
       )}
     </div>
@@ -215,6 +212,7 @@ function Liste({ copier: copierPage = false }) {
           <h1 className="text-[30px] sm:text-[36px] font-black leading-tight tracking-tight" style={HF}>{copierPage ? "Ils gagnent déjà de l'argent. À toi de faire pareil." : "Tous les SaaS et applis web, au même endroit."}</h1>
           {copierPage && <button onClick={() => navDem("/explorer/trouver")} className="mt-2 mb-1 inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-dark px-3.5 py-1.5 text-[13.5px] font-semibold hover:bg-accent-soft/70">🎯 {parcours?.etape === 3 ? "Mes SaaS sur mesure" : "Trouve le tien en 3 questions"} →</button>}
           {copierPage ? <p className="text-ink-soft text-[15px] max-w-3xl">Des SaaS au revenu prouvé, tenus par de petites équipes, avec un prix simple, et souvent sans équivalent en France. Choisis-en un, puis « Lancer le mien » : Bingoo! le construit à ton nom.</p> : <p className="text-ink-soft text-[15px]">{stats ? `${stats.total.toLocaleString("fr-FR")} logiciels suivis · ${stats.cats.length} catégories · ${stats.pays.length} pays · ${stats.recrutent} recrutent en ce moment` : "…"}</p>}
+          {!copierPage && <button onClick={() => nav("/explorer/carte")} className="mt-1 text-[13.5px] font-semibold text-accent-dark hover:underline">🏝️ Voir la bibliothèque en archipel 3D</button>}
         </div>
         <form onSubmit={(e) => { e.preventDefault(); if (ajout.trim().length > 3) nav(`/explorer/chiffres?u=${encodeURIComponent(ajout.trim())}`); }} className="flex gap-2">
           <input value={ajout} onChange={(e) => setAjout(e.target.value)} placeholder="Combien gagne… (colle une adresse)" className="w-64 rounded-xl border border-line bg-white px-3 py-2.5 text-[14px] outline-none focus:border-ink" />
