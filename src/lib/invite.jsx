@@ -47,10 +47,17 @@ export function CompteModal() {
   const envoyer = async (e) => {
     e.preventDefault(); setBusy(true); setEtat(null);
     const retour = window.location.href.split("#")[0];
-    const { error } = await supabase.auth.updateUser({ email: email.trim(), data: { mdp_a_definir: true } }, { emailRedirectTo: retour });
+    const { data: maj, error } = await supabase.auth.updateUser({ email: email.trim(), data: { mdp_a_definir: true } }, { emailRedirectTo: retour });
     if (error) { setBusy(false); setEtat({ ko: /already|registered|exists/i.test(error.message) ? "Cette adresse a déjà un compte : connecte-toi plutôt (menu, puis Se déconnecter, puis Se connecter)." : error.message }); return; }
     // L'adresse est gardée tout de suite (les résultats se débloquent) ; le mot de passe se choisit après le clic dans l'e-mail
     if (ws?.id) await supabase.from("workspaces").update({ profile: { ...(ws.profile ?? {}), email_donne: email.trim().toLowerCase() } }).eq("id", ws.id);
+    // Confirmation par e-mail désactivée (tests) : l'adresse est validée tout de suite, on passe au mot de passe
+    if (maj?.user?.email && !maj.user.new_email) {
+      await supabase.auth.refreshSession();
+      await reload?.();
+      setBusy(false); setOuvert(false);
+      return;
+    }
     await reload?.();
     setBusy(false);
     setEtat({ mail: true });
