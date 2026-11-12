@@ -19,6 +19,8 @@ export const CATEGORIES = ["CRM et ventes", "Prospection et emailing", "Marketin
 const PAYS = { FR: "France", BE: "Belgique", CH: "Suisse", DE: "Allemagne", ES: "Espagne", IT: "Italie", GB: "Royaume-Uni", NL: "Pays-Bas", PT: "Portugal", IE: "Irlande", SE: "Suède", DK: "Danemark", PL: "Pologne", AT: "Autriche", US: "États-Unis", CA: "Canada", AU: "Australie", IN: "Inde", IL: "Israël" };
 const drapeau = (c) => c && /^[A-Z]{2}$/.test(c) ? String.fromCodePoint(...[...c].map((x) => 127397 + x.charCodeAt(0))) : "";
 const date = (d) => d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : null;
+// Un revenu vérifié sous 100 $ par mois (ou à 0) est affiché tel quel, sans étoile ni couleur « succès »
+const preuveFaible = (su) => su?.type === "revenu_verifie" && Number(su.montant ?? 0) < 1200;
 const TRIS = [["copiable", "Les plus faciles à copier"], ["succes_montant", "Plus gros revenu prouvé"], ["score_croissance", "En croissance"], ["postes", "Qui recrutent le plus"], ["nouveaute", "Nouveautés récentes"], ["rang_web", "Les plus connus"], ["prix_entree_eur", "Prix d'entrée"], ["created_at", "Ajoutés récemment"]];
 const PAGE = 48;
 // Niveau de formule pour Explorer : 1 = Starter, 2 = Pro, 3 = Business (et anciennes formules, aperçu, fondateur)
@@ -258,14 +260,14 @@ function Liste({ copier: copierPage = false }) {
                 </div>
                 {s.score_croissance > 0 && <span title="Score de croissance (recrutement, nouveautés)" className={cx("rounded-lg px-2 py-1 text-[12px] font-bold tnum", s.score_croissance >= 60 ? "bg-[#DCFCE7] text-[#166534]" : s.score_croissance >= 30 ? "bg-[#FEF3C7] text-[#92400E]" : "bg-paper text-ink-soft")}>{s.score_croissance}</span>}
               </div>
-              {s.succes && <p className={cx("mt-2 rounded-lg px-2.5 py-1.5 text-[12.5px] line-clamp-2", s.preuve_ancienne ? "bg-paper text-ink-faint" : "bg-[#FEF3C7] text-[#78350F] font-semibold")}>{s.preuve_ancienne ? "Ancien chiffre : " : s.en_decollage ? "🚀 En décollage · " : "★ "}{s.succes.preuve}</p>}
+              {s.succes && <p className={cx("mt-2 rounded-lg px-2.5 py-1.5 text-[12.5px] line-clamp-2", s.preuve_ancienne || preuveFaible(s.succes) ? "bg-paper text-ink-faint" : "bg-[#FEF3C7] text-[#78350F] font-semibold")}>{s.preuve_ancienne ? "Ancien chiffre : " : preuveFaible(s.succes) ? "Revenu vérifié : " : s.en_decollage ? "🚀 En décollage · " : "★ "}{s.succes.preuve}</p>}
               {s.constructible === false && <p className="mt-1.5 text-[12px] font-semibold text-ink-faint">⚠ Bingoo! n'en construit qu'une partie</p>}
               {s.copiable >= 60 && <p title={(s.copiable_raisons ?? []).join(" · ")} className="mt-1.5 text-[12px] font-semibold text-[#166534]">🎯 Facile à copier · {s.copiable}/100 <span className="font-normal text-ink-faint">· {(s.copiable_raisons ?? []).filter((r) => !/^Revenu/.test(r)).slice(0, 2).join(" · ")}</span></p>}
               {!s.succes && s.estimation && <p title="Estimation d'après l'effectif officiel (annuaire des entreprises) : 80 000 à 180 000 € de revenu annuel par salarié" className="mt-2 rounded-lg bg-paper text-ink-soft px-2.5 py-1.5 text-[12.5px] line-clamp-2">≈ {montantCourt(s.estimation.bas)} à {montantCourt(s.estimation.haut)} par mois <span className="text-ink-faint">· estimé d'après l'effectif</span></p>}
               {s.description ? <p className="mt-2 text-[13.5px] text-ink-soft line-clamp-2 min-h-[38px]">{s.description}</p> : <p className="mt-2 text-[13px] text-ink-faint italic min-h-[38px]">Description en cours de lecture par Bingoo!</p>}
               <div className="mt-3 flex flex-wrap gap-1.5 text-[12px]">
                 <span className="rounded-md bg-paper px-2 py-1 tnum">{prixCourt(s).replace(/^./, (c) => c.toUpperCase())}</span>
-                {s.created_at && Date.parse(s.created_at) > Date.now() - 7 * 864e5 && s.copiable >= 60 && <span className="rounded-md bg-accent text-white px-2 py-1 font-semibold">Nouveau</span>}
+                {s.succes?.fonde && Date.parse(s.succes.fonde) > Date.now() - 183 * 864e5 && Number(s.succes.montant ?? 0) >= 1200 && <span title="Lancé il y a moins de 6 mois et déjà 100 $ par mois ou plus" className="rounded-md bg-accent text-white px-2 py-1 font-semibold">Lancé récemment</span>}
                 {s.genre === "app_web" && <span className="rounded-md bg-[#E0E7FF] text-[#3730A3] px-2 py-1">Appli web</span>}
                 {s.gratuit && <span className="rounded-md bg-paper px-2 py-1">Gratuit</span>}
                 {!s.gratuit && s.essai && <span className="rounded-md bg-paper px-2 py-1">Essai</span>}
@@ -353,7 +355,7 @@ function Fiche({ domaine }) {
           <p className="text-ink-soft">{s.categorie} · <a href={`https://${s.domaine}`} target="_blank" rel="noopener noreferrer" className="underline">{s.domaine}</a>{s.pays ? ` · ${PAYS[s.pays] ?? s.pays}` : ""}</p>
           <p className="mt-2 text-[15.5px] max-w-2xl">{s.description}</p>
           {s.cible && <p className="mt-1 text-[14px] text-ink-soft">Pour : {s.cible}</p>}
-          {s.succes && <p className="mt-3 inline-flex flex-wrap items-center gap-x-2 rounded-xl bg-[#FEF3C7] text-[#78350F] px-3.5 py-2 text-[14px]"><b>{s.succes.annee && s.succes.annee < new Date().getFullYear() - 4 ? "Ancien chiffre :" : "★ Preuve de succès :"}</b> {s.succes.preuve}{s.succes.source && <a href={s.succes.source} target="_blank" rel="noopener noreferrer" className="underline text-[12.5px] opacity-80">source</a>}</p>}
+          {s.succes && <p className={cx("mt-3 inline-flex flex-wrap items-center gap-x-2 rounded-xl px-3.5 py-2 text-[14px]", preuveFaible(s.succes) ? "bg-paper text-ink-soft" : "bg-[#FEF3C7] text-[#78350F]")}><b>{s.succes.annee && s.succes.annee < new Date().getFullYear() - 4 ? "Ancien chiffre :" : preuveFaible(s.succes) ? "Revenu vérifié :" : Number(s.succes.montant ?? 0) < 12000 && s.succes.type === "revenu_verifie" ? "🚀 En décollage :" : "★ Preuve de succès :"}</b> {s.succes.preuve}{s.succes.source && <a href={s.succes.source} target="_blank" rel="noopener noreferrer" className="underline text-[12.5px] opacity-80">source</a>}</p>}
           {s.copiable != null && (
             <div className={cx("mt-3 rounded-xl border px-3.5 py-2.5 max-w-2xl", s.copiable >= 60 ? "border-[#BBF7D0] bg-[#F0FDF4]" : "border-line bg-white")}>
               <p className="text-[14px]"><b>{s.copiable >= 60 ? "🎯 Bon modèle à copier" : s.copiable >= 30 ? "Copiable avec un angle précis" : "Difficile à copier tel quel"}</b> <span className="text-ink-faint tnum">· {s.copiable}/100</span></p>
@@ -1205,7 +1207,7 @@ function Apercu({ domaine }) {
   return (
     <div className="mt-5">
       <div className="flex flex-wrap items-center gap-2">
-        {a.succes?.preuve && <span className="rounded-lg bg-[#FEF3C7] text-[#78350F] px-3 py-1.5 text-[13.5px] font-semibold">★ {a.succes.preuve}</span>}
+        {a.succes?.preuve && <span className={cx("rounded-lg px-3 py-1.5 text-[13.5px] font-semibold", preuveFaible(a.succes) ? "bg-paper text-ink-soft" : "bg-[#FEF3C7] text-[#78350F]")}>{preuveFaible(a.succes) ? "Revenu vérifié : " : "★ "}{a.succes.preuve}</span>}
         {a.copiable != null && <span className={cx("rounded-lg px-3 py-1.5 text-[13.5px] font-semibold", a.copiable >= 60 ? "bg-[#DCFCE7] text-[#166534]" : "bg-paper text-ink-soft")}>{a.copiable >= 60 ? "🎯 Facile à copier" : a.copiable >= 30 ? "Copiable avec un angle précis" : "Difficile à copier tel quel"} · {a.copiable}/100</span>}
         <span className="text-[12.5px] text-ink-faint">Aperçu gratuit, tiré de ce que Bingoo! a déjà relevé</span>
       </div>
@@ -2618,7 +2620,7 @@ function Comparer() {
   const note = (s) => (s.copiable ?? 0) - (s.constructible === false ? 100 : 0);
   const meilleur = ok.length > 1 ? [...ok].sort((a, b) => note(b) - note(a))[0] : null;
   const lignes = [
-    ["Revenu prouvé", (s) => s.succes?.preuve ? <span className="text-[#78350F]">★ {s.succes.preuve}</span> : "—"],
+    ["Revenu prouvé", (s) => s.succes?.preuve ? <span className={preuveFaible(s.succes) ? "text-ink-soft" : "text-[#78350F]"}>{preuveFaible(s.succes) ? "" : "★ "}{s.succes.preuve}</span> : "—"],
     ["Facile à copier", (s) => s.copiable != null ? <div><b>{s.copiable}/100</b>{(s.copiable_raisons ?? []).slice(0, 3).map((r) => <div key={r} className="text-[12.5px] text-ink-soft">{r}</div>)}</div> : "—"],
     ["Bingoo! sait le construire", (s) => s.constructible === false ? <span className="text-[#9A3412]">En partie seulement</span> : s.constructible ? <span className="text-[#15803D]">Oui</span> : "—"],
     ["Niche", (s) => s.niche ?? "—"],

@@ -191,7 +191,9 @@ export async function trustmrrLire(n = 40, maxMs = 100_000) {
         // Le MRR fait foi ; le revenu sur 30 jours ne compte que pour les startups sans abonnement (ventes à l'unité)
         const mensuel = f.mrr > 0 ? f.mrr : f.rev30;
         res.push({ slug, statut: mensuel >= MRR_MIN && domaine ? "succes" : "petit", mrr: mensuel || null, domaine, at });
-        if (mensuel >= MRR_MIN && domaine && /^[a-z0-9.-]+\.[a-z]{2,}$/.test(domaine) && !/(trustmrr|apps\.apple|play\.google|chromewebstore|x\.com|twitter|linkedin|instagram|tiktok|youtube)/.test(domaine)) succes.push({ ...f, site: domaine });
+        // Toutes les startups qui ont leur propre site entrent dans la bibliothèque, même à 0 $ : le chiffre affiché dit la vérité,
+        // et seules celles à 100 $ par mois et plus comptent comme « en décollage » ou « à succès »
+        if (domaine && /^[a-z0-9.-]+\.[a-z]{2,}$/.test(domaine) && !/(trustmrr|apps\.apple|play\.google|chromewebstore|x\.com|twitter|linkedin|instagram|tiktok|youtube)/.test(domaine)) succes.push({ ...f, site: domaine });
       } catch { res.push({ slug, statut: "erreur", mrr: null, domaine: null, at }); }
     }
   };
@@ -208,7 +210,7 @@ export async function trustmrrLire(n = 40, maxMs = 100_000) {
     for (const f of succes) {
       const mensuel = f.mrr > 0 ? f.mrr : f.rev30;
       const crois = f.croissance?.replace(".", ",").replace("%", " %");
-      const preuve = f.mrr ? `${fmt$(f.mrr)} de MRR vérifié par Stripe${crois && !/^[+-]?0,0/.test(crois) ? ` (${crois} en 30 jours)` : ""}` : `${fmt$(f.rev30)} de revenu vérifié sur 30 jours`;
+      const preuve = f.mrr ? `${fmt$(f.mrr)} de MRR vérifié par Stripe${crois && !/^[+-]?0,0/.test(crois) ? ` (${crois} en 30 jours)` : ""}` : f.rev30 ? `${fmt$(f.rev30)} de revenu vérifié sur 30 jours` : "Pas encore de revenu (Stripe connecté)";
       const s = { preuve, source: `${TM}/startup/${f.slug}`, type: "revenu_verifie", montant: mensuel * 12, mrr: f.mrr || null, revenu_30j: f.rev30 || null, croissance_30j: f.croissance, abonnements: f.abonnements, revenu_total: f.total, fonde: f.fonde, courbe: f.courbe.slice(-12), marches: f.marches, prix: f.prix, probleme: f.probleme, description: f.description, pays: f.pays, a_vendre: f.a_vendre, fondateurs: f.fondateurs, verifie_at: new Date().toISOString() };
       const e = par.get(f.site!);
       // Ne jamais écraser la preuve d'un autre SaaS (ex. un géant) : seulement si la fiche n'en a pas, ou si c'est la même startup TrustMRR
@@ -244,19 +246,19 @@ const SERVICE = /\b(agency|agence|llc|consult|done[- ]for[- ]you|services?\b|fre
 // « Acme, LLC (only Stripe MRR counted) » → « Acme »
 export const nomPropre = (n: string) => String(n).replace(/\s*[\(\[][^)\]]*[\)\]]\s*/g, " ").replace(/,?\s+(llc|inc\.?|ltd\.?|limited|gmbh|sas|sarl|s\.?l\.?|b\.?v\.?|corp\.?|co\.)$/i, "").replace(/\s*[|—–-]\s+.*$/, "").replace(/\s+/g, " ").trim().slice(0, 60) || String(n).slice(0, 60);
 export async function trustmrrPublier(n = 300) {
-  const { data } = await admin.from("saas").select("id, nom, domaine, succes").eq("statut", "a_lire").like("succes->>source", "%trustmrr.com%").limit(n);
+  const { data } = await admin.from("saas").select("id, nom, domaine, succes").eq("statut", "a_lire").like("succes->>source", "%trustmrr.com%").is("succes->>attente", null).limit(n);
   let publies = 0;
   for (const r of (data ?? []) as any[]) {
     const su = r.succes ?? {};
     const texte = String(su.description || su.probleme || "").replace(/\s+/g, " ").trim();
-    if (!texte) continue;
-    // Sans IA, on ne publie que les vrais abonnements (MRR) qui ne ressemblent pas à une agence ou un service : le reste attend la lecture par l'IA
-    if (!(Number(su.mrr) > 0) || SERVICE.test(`${r.nom} ${texte}`)) continue;
+    // Agences, services ou fiche sans texte : mis de côté pour la lecture par l'IA (marqués pour ne pas bloquer la file)
+    const aMettreDeCote = !texte || SERVICE.test(`${r.nom} ${texte}`);
+    if (aMettreDeCote) { await admin.from("saas").update({ succes: { ...su, attente: true } }).eq("id", r.id); continue; }
     const marches: string[] = Array.isArray(su.marches) ? su.marches : [];
     const cat = MARCHE_CAT.find(([re]) => marches.some((m) => re.test(m)))?.[1] ?? MARCHE_CAT.find(([re]) => re.test(texte))?.[1] ?? "Autre";
     const pays = PAYS_EN[String(su.pays ?? "").toLowerCase().trim()] ?? (/^[A-Z]{2}$/.test(String(su.pays ?? "")) ? su.pays : null);
     const { error } = await admin.from("saas").update({
-      statut: "ok", est_saas: true, genre: "saas", nom: nomPropre(r.nom || r.domaine), categorie: cat,
+      statut: "ok", est_saas: true, genre: Number(su.mrr) > 0 || !(Number(su.revenu_30j) > 0) ? "saas" : "app_web", nom: nomPropre(r.nom || r.domaine), categorie: cat,
       description: texte.slice(0, 300), langue: "en", pays, tags: [], lu_at: null, essais: 0,
     }).eq("id", r.id).eq("statut", "a_lire");
     if (!error) publies++;

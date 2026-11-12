@@ -1,0 +1,1 @@
+-- Appliquée via MCP : copiabilité pénalise les revenus < 100 $/mois ; file TrustMRR relancée (tous les sites propres) ; lecture 80/min
