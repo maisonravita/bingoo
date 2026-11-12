@@ -2600,8 +2600,8 @@ function Debloquer({ premier, total, onFait }) {
         ))}
       </div>
       <form onSubmit={envoyer} className="mt-6 rounded-3xl border-2 border-ink bg-white p-5 sm:p-7">
-        <h2 className="text-[22px] sm:text-[26px] font-black leading-tight" style={HF}>Où t'envoie-t-on tes 2 autres SaaS et ton plan sur 30 jours ?</h2>
-        <p className="mt-1.5 text-[14.5px] text-ink-soft">Tu les vois tout de suite ici, et tu les gardes dans ta boîte mail.{total > 3 ? ` Bingoo! a trouvé ${Number(total).toLocaleString("fr-FR")} SaaS vérifiés pour toi : tu pourras tous les parcourir.` : ""}</p>
+        <h2 className="text-[22px] sm:text-[26px] font-black leading-tight" style={HF}>Débloque tes 2 autres SaaS et ton plan sur 30 jours</h2>
+        <p className="mt-1.5 text-[14.5px] text-ink-soft">Ton adresse suffit : tu les vois tout de suite ici, et Bingoo! t'envoie un lien pour les retrouver sur tous tes appareils.{total > 3 ? ` Bingoo! a trouvé ${Number(total).toLocaleString("fr-FR")} SaaS vérifiés pour toi : tu pourras tous les parcourir.` : ""}</p>
         <div className="mt-4 flex flex-col sm:flex-row gap-2">
           <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ton@email.fr" autoComplete="email" className="flex-1 rounded-xl border border-line bg-white px-4 py-3 text-[16px] outline-none focus:border-ink" />
           <button disabled={busy} className="rounded-xl bg-accent text-white px-6 py-3 font-bold hover:bg-accent-dark disabled:opacity-60">{busy ? "Un instant…" : "Voir mes résultats"}</button>
