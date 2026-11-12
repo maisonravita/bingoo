@@ -1,0 +1,2 @@
+-- saas_pour_moi_apercu(p jsonb) : preuve en direct pendant les questions (appliquée via MCP, voir la base pour le corps complet)
+-- saas_pour_moi3 : un visiteur sans compte et sans adresse e-mail ne reçoit que le premier SaaS (limit 1 au lieu de 15)

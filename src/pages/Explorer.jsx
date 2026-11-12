@@ -2470,24 +2470,31 @@ const lirePar = () => { try { return JSON.parse(localStorage.getItem("bingoo-par
 // Les personnes déjà venues avant ce mode ne le voient pas
 export const guideActif = () => { try { return localStorage.getItem("bingoo-guide") !== "fini" && !lirePar()?.fini && (localStorage.getItem("bingoo-guide") === "en_cours" || !localStorage.getItem("bingoo-parcours-vu")); } catch { return false; } };
 const finirGuide = () => { try { localStorage.setItem("bingoo-guide", "fini"); } catch { /* stockage indisponible */ } };
+const paramsDe = (r) => ({ categories: r.secteurs, canaux: r.canaux, refus: r.refus ?? [], audience: r.audience || null, profil: r.profil ?? "aucun", ambition: r.ambition ?? "vivre", temps: r.temps ?? "moyen" });
 function TrouveTonSaas() {
-  const { ws, session } = useWs();
+  const { ws, session, reload } = useWs();
   const avant = lirePar();
   const [r, setR] = useState(() => ({ canaux: [], refus: [], secteurs: [], audience: null, ambition: null, profil: null, temps: null, ...(avant ?? {}), etape: 0 }));
   const [res, setRes] = useState(null);
+  const [ap, setAp] = useState(null);
+  const invite = estInvite(session);
+  const debloque = !invite || !!ws?.profile?.email_donne;
   const sauver = (n) => { try { localStorage.setItem("bingoo-parcours2", JSON.stringify({ ...n, fini: n.etape >= QUESTIONS.length || n.fini })); } catch { /* stockage indisponible */ } };
   const aller = (n) => {
     setR(n); sauver(n);
     if (n.etape >= QUESTIONS.length) supabase.from("saas_preferences").upsert({ workspace_id: ws.id, secteurs: n.secteurs ?? [], profil: n.profil ?? null, reponses: { canaux: n.canaux, refus: n.refus, temps: n.temps, audience: n.audience, ambition: n.ambition }, maj: new Date().toISOString() }).then(() => {});
   };
-  useEffect(() => {
-    if (r.etape < QUESTIONS.length) return;
-    // Visiteur sans compte : rien n'est chargé, les résultats sont floutés jusqu'au compte
-    if (estInvite(session)) { setRes([{}, {}, {}]); return; }
+  const charger = () => {
     setRes(undefined);
-    supabase.rpc("saas_pour_moi3", { p: { categories: r.secteurs, canaux: r.canaux, refus: r.refus ?? [], audience: r.audience || null, profil: r.profil ?? "aucun", ambition: r.ambition ?? "vivre", temps: r.temps ?? "moyen" } })
-      .then(({ data }) => setRes(data ?? []));
-  }, [r.etape]); // eslint-disable-line react-hooks/exhaustive-deps
+    supabase.rpc("saas_pour_moi3", { p: paramsDe(r) }).then(({ data }) => setRes(data ?? []));
+  };
+  useEffect(() => { if (r.etape >= QUESTIONS.length) charger(); }, [r.etape, debloque]); // eslint-disable-line react-hooks/exhaustive-deps
+  // La preuve en direct : combien de SaaS au revenu vérifié collent déjà aux réponses données
+  useEffect(() => {
+    if (r.etape >= QUESTIONS.length) return;
+    const t = setTimeout(() => supabase.rpc("saas_pour_moi_apercu", { p: { categories: r.secteurs, canaux: r.canaux, refus: r.refus ?? [], audience: r.audience || null, ambition: r.ambition, temps: r.temps } }).then(({ data }) => data && setAp(data)), 250);
+    return () => clearTimeout(t);
+  }, [r]); // eslint-disable-line react-hooks/exhaustive-deps
   const fini = r.etape >= QUESTIONS.length;
   const Q = QUESTIONS[r.etape];
   const choisi = (k, v) => Array.isArray(r[k]) ? r[k].includes(v) : r[k] === v;
@@ -2528,6 +2535,7 @@ function TrouveTonSaas() {
             {Q.multi && <button onClick={() => aller({ ...r, etape: r.etape + 1 })} className="rounded-xl bg-accent text-white px-6 py-3 font-bold hover:bg-accent-dark">{r.etape === QUESTIONS.length - 1 ? (r.secteurs.length ? "Voir mes SaaS" : "Peu importe, cherche partout") : r[Q.k].length ? "Continuer" : Q.aucun ?? "Passer"}</button>}
             {r.etape > 0 && <button onClick={() => setR({ ...r, etape: r.etape - 1 })} className="text-[14px] text-ink-soft hover:text-ink">Retour</button>}
           </div>
+          {ap && <PreuveDirecte ap={ap} />}
         </div>
       ) : (
         <div>
@@ -2541,42 +2549,72 @@ function TrouveTonSaas() {
           {resume.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{resume.map((x) => <span key={x} className="rounded-full bg-paper border border-line px-3 py-1 text-[12.5px] text-ink-soft">{x}</span>)}</div>}
           {res === undefined || res === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : !res.length ? (
             <div className="mt-8 rounded-2xl border border-line bg-white p-6"><p className="font-bold">Rien qui colle à toutes tes réponses pour l'instant.</p><p className="mt-1 text-ink-soft">Retire un secteur ou une façon de trouver des clients : la bibliothèque grandit chaque jour.</p><button onClick={() => setR({ ...r, etape: 0 })} className="mt-4 rounded-xl bg-ink text-white px-5 py-2.5 font-semibold">Changer mes réponses</button></div>
-          ) : estInvite(session) ? (
-            <Floute n={res.length} />
+          ) : !debloque ? (
+            <Debloquer premier={res[0]} total={ap?.n} onFait={async () => { await reload(); }} />
           ) : (
-            <Paquet res={res} r={r} />
+            <>{invite && <AdresseAValider email={ws?.profile?.email_donne} />}<Paquet res={res} r={r} /></>
           )}
         </div>
       )}
     </div>
   );
 }
-// Visiteur sans compte : les résultats existent mais restent floutés jusqu'à la création du compte.
-// Rien de réel n'est affiché sous le flou (des cartes factices), pour que le DOM ne les révèle pas.
-function Floute({ n }) {
-  const faux = [["Outil de planification", "2 4•• $"], ["Assistant de facturation", "1 8•• $"], ["Extension de prospection", "3 1•• $"]];
+// Pendant les questions : de vrais chiffres de la base, recalculés à chaque réponse (rien d'inventé)
+function PreuveDirecte({ ap }) {
+  if (!ap.n) return <p className="mt-8 rounded-2xl border border-line bg-white px-5 py-4 text-[14px] text-ink-soft">Aucun SaaS vérifié ne colle encore à toutes ces réponses : élargis un peu, la bibliothèque grandit chaque jour.</p>;
+  const e = ap.exemple;
   return (
-    <div className="relative mt-6">
-      <div aria-hidden className="pointer-events-none select-none blur-[7px]">
-        <div className="grid md:grid-cols-3 gap-4">{faux.map(([nom, m]) => (
-          <div key={nom} className="rounded-2xl border border-line bg-white p-5">
-            <div className="flex items-center gap-3"><span className="h-11 w-11 rounded-xl bg-accent-soft" /><div className="flex-1"><p className="font-bold">{nom}</p><p className="text-[12.5px] text-ink-faint">Catégorie</p></div><p className="font-black">{m}</p></div>
-            <p className="mt-3 text-[14px] text-ink-soft">Un SaaS qui gagne déjà de l'argent, tenu par une petite équipe, avec un prix simple et des clients fidèles.</p>
-            <ul className="mt-3 space-y-1 text-[13px]"><li>✓ Trouve ses clients comme toi</li><li>✓ Ne demande rien de ce que tu refuses</li><li>✓ Tenu par une seule personne</li></ul>
-          </div>
-        ))}</div>
-        <div className="mt-8 h-72 rounded-3xl border border-line bg-white p-7"><p className="text-[22px] font-black">Ton plan sur 30 jours</p><div className="mt-4 grid md:grid-cols-2 gap-6 text-ink-soft"><p>Semaine 1 : construire ta version…</p><p>Semaine 2 : préparer le lancement…</p><p>Semaines 3 et 4 : tes 10 premiers clients…</p><p>Jour 30 : le point…</p></div></div>
-      </div>
-      <div className="absolute inset-0 flex justify-center items-start pt-10 p-4">
-        <div className="max-w-md rounded-3xl border border-line bg-white/95 p-6 sm:p-7 text-center shadow-xl">
-          <p className="text-[24px] font-black leading-tight" style={HF}>Tes {Math.min(3, n)} SaaS sont prêts</p>
-          <p className="mt-2 text-[14.5px] text-ink-soft">Avec leur revenu vérifié, ton plan sur 30 jours et le prompt pour ton Claude. Crée ton compte gratuit pour les voir : ça prend 20 secondes.</p>
-          <button onClick={() => demanderCompte("Tes 3 SaaS et ton plan t'attendent.")} className="mt-5 w-full rounded-xl bg-accent text-white py-3 font-bold hover:bg-accent-dark">Voir mes résultats</button>
-          <p className="mt-2 text-[12.5px] text-ink-faint">Gratuit, sans carte bancaire.</p>
-        </div>
-      </div>
+    <div className="mt-8 rounded-2xl border border-line bg-white px-5 py-4" aria-live="polite">
+      <p className="text-[15px]"><b className="tnum text-[18px]" style={HF}>{Number(ap.n).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié collent déjà à tes réponses{ap.mediane ? <>, avec un revenu médian de <b className="tnum">{dollar(ap.mediane)}</b> par mois</> : null}.</p>
+      {e && <p className="mt-1.5 flex items-center gap-2 text-[13.5px] text-ink-soft"><CompanyLogo name={e.nom} url={`https://${e.domaine}`} className="w-5 h-5" pad="p-0.5" /><span>Par exemple <b className="text-ink">{e.nom}</b> encaisse {dollar(e.mrr)} par mois{e.croissance ? `, +${String(e.croissance).replace(".", ",")} % en 30 jours` : ""}.</span></p>}
+      {ap.tests >= 50 && <p className="mt-1 text-[12.5px] text-ink-faint">{Number(ap.tests).toLocaleString("fr-FR")} personnes ont déjà fait ce parcours.</p>}
     </div>
   );
+}
+// Visiteur sans compte : le premier SaaS en clair (la preuve), les deux autres et le plan contre une adresse e-mail.
+// Le serveur n'envoie que le premier tant qu'aucune adresse n'est donnée : les cartes floutées sont factices.
+function Debloquer({ premier, total, onFait }) {
+  const { ws } = useWs();
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const envoyer = async (e) => {
+    e.preventDefault(); setBusy(true); setErr("");
+    const adr = email.trim().toLowerCase();
+    const { error } = await supabase.auth.updateUser({ email: adr, data: { mdp_a_definir: true } }, { emailRedirectTo: window.location.href.split("#")[0] });
+    if (error) { setBusy(false); setErr(/already|registered|exists/i.test(error.message) ? "Cette adresse a déjà un compte Bingoo! : connecte-toi pour retrouver tes résultats." : error.message); return; }
+    await supabase.from("workspaces").update({ profile: { ...(ws?.profile ?? {}), email_donne: adr } }).eq("id", ws.id);
+    await onFait();
+  };
+  const faux = [["Assistant de facturation", "1 8•• $"], ["Extension de prospection", "3 1•• $"]];
+  return (
+    <>
+      <div className="mt-6 grid md:grid-cols-3 gap-4">
+        <CartePourToi x={premier} grand premier />
+        {faux.map(([nom, m]) => (
+          <div key={nom} aria-hidden className="pointer-events-none select-none blur-[7px] rounded-2xl border border-line bg-white p-5">
+            <div className="flex items-center gap-3"><span className="h-11 w-11 rounded-xl bg-accent-soft" /><div className="flex-1"><p className="font-bold">{nom}</p><p className="text-[12.5px] text-ink-faint">Catégorie</p></div><p className="font-black">{m}</p></div>
+            <p className="mt-3 text-[14px] text-ink-soft">Un SaaS qui gagne déjà de l'argent, tenu par une petite équipe, avec un prix simple.</p>
+            <ul className="mt-3 space-y-1 text-[13px]"><li>✓ Trouve ses clients comme toi</li><li>✓ Ne demande rien de ce que tu refuses</li><li>✓ Tenu par une seule personne</li></ul>
+          </div>
+        ))}
+      </div>
+      <form onSubmit={envoyer} className="mt-6 rounded-3xl border-2 border-ink bg-white p-5 sm:p-7">
+        <h2 className="text-[22px] sm:text-[26px] font-black leading-tight" style={HF}>Où t'envoie-t-on tes 2 autres SaaS et ton plan sur 30 jours ?</h2>
+        <p className="mt-1.5 text-[14.5px] text-ink-soft">Tu les vois tout de suite ici, et tu les gardes dans ta boîte mail.{total > 3 ? ` Bingoo! a trouvé ${Number(total).toLocaleString("fr-FR")} SaaS vérifiés pour toi : tu pourras tous les parcourir.` : ""}</p>
+        <div className="mt-4 flex flex-col sm:flex-row gap-2">
+          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ton@email.fr" autoComplete="email" className="flex-1 rounded-xl border border-line bg-white px-4 py-3 text-[16px] outline-none focus:border-ink" />
+          <button disabled={busy} className="rounded-xl bg-accent text-white px-6 py-3 font-bold hover:bg-accent-dark disabled:opacity-60">{busy ? "Un instant…" : "Voir mes résultats"}</button>
+        </div>
+        {err && <p className="mt-2 text-[13.5px] text-[#9A3412]">{err}</p>}
+        <p className="mt-2 text-[12.5px] text-ink-faint">Gratuit, sans carte bancaire, sans mot de passe pour l'instant.</p>
+      </form>
+      <div aria-hidden className="pointer-events-none select-none blur-[7px] mt-6 h-56 rounded-3xl border border-line bg-white p-7"><p className="text-[22px] font-black">Ton plan sur 30 jours</p><div className="mt-4 grid md:grid-cols-2 gap-6 text-ink-soft"><p>Semaine 1 : construire ta version…</p><p>Semaine 2 : préparer le lancement…</p><p>Semaines 3 et 4 : tes 10 premiers clients…</p><p>Jour 30 : le point…</p></div></div>
+    </>
+  );
+}
+function AdresseAValider({ email }) {
+  return <p className="mt-4 rounded-xl bg-accent-soft/60 px-4 py-3 text-[14px]">📬 Un lien t'attend{email ? <> sur <b>{email}</b></> : ""} : clique dessus pour garder tes résultats sur tous tes appareils et faire construire ton SaaS par Bingoo!.</p>;
 }
 // Le paquet de sortie : 3 SaaS, puis pour celui choisi un plan sur 30 jours et un prompt pour son propre Claude
 function Paquet({ res, r }) {

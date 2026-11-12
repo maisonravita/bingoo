@@ -25,10 +25,10 @@ const HF = { fontFamily: "var(--font-titre)" };
 
 // Fenêtre « Crée ton compte » : rattache une adresse au visiteur, tout ce qu'il a fait est conservé
 export function CompteModal() {
+  const { ws, reload } = useWs();
   const [ouvert, setOuvert] = useState(false);
   const [raison, setRaison] = useState(null);
   const [email, setEmail] = useState("");
-  const [mdp, setMdp] = useState("");
   const [etat, setEtat] = useState(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -42,10 +42,11 @@ export function CompteModal() {
     const retour = window.location.href.split("#")[0];
     const { error } = await supabase.auth.updateUser({ email: email.trim(), data: { mdp_a_definir: true } }, { emailRedirectTo: retour });
     if (error) { setBusy(false); setEtat({ ko: /already|registered|exists/i.test(error.message) ? "Cette adresse a déjà un compte : connecte-toi plutôt (menu, puis Se déconnecter, puis Se connecter)." : error.message }); return; }
-    // Si l'adresse est validée tout de suite, on enregistre le mot de passe dans la foulée ; sinon après le clic dans l'e-mail
-    const r = await supabase.auth.updateUser({ password: mdp, data: { mdp_a_definir: false } });
+    // L'adresse est gardée tout de suite (les résultats se débloquent) ; le mot de passe se choisit après le clic dans l'e-mail
+    if (ws?.id) await supabase.from("workspaces").update({ profile: { ...(ws.profile ?? {}), email_donne: email.trim().toLowerCase() } }).eq("id", ws.id);
+    await reload?.();
     setBusy(false);
-    setEtat(r.error ? { mail: true } : { ok: true });
+    setEtat({ mail: true });
   };
   return (
     <div className="fixed inset-0 z-[80] grid place-items-center bg-black/40 p-4" onClick={() => setOuvert(false)}>
@@ -53,16 +54,14 @@ export function CompteModal() {
         {etat?.ok ? (
           <><h2 className="text-[24px] font-black" style={HF}>C'est fait.</h2><p className="mt-2 text-ink-soft">Ton compte est créé et tout ce que tu as fait est gardé. Tu peux continuer.</p><button onClick={() => window.location.reload()} className="mt-5 w-full rounded-xl bg-accent text-white py-3 font-bold">Continuer</button></>
         ) : etat?.mail ? (
-          <><h2 className="text-[24px] font-black" style={HF}>Regarde tes e-mails</h2><p className="mt-2 text-ink-soft">Bingoo! vient d'envoyer un lien à <b className="text-ink">{email}</b>. Clique dessus pour valider ton adresse : tu reviendras ici, avec tout ce que tu as fait, et tu choisiras ton mot de passe.</p><button onClick={() => setOuvert(false)} className="mt-5 w-full rounded-xl border border-line py-3 font-semibold">Fermer</button></>
+          <><h2 className="text-[24px] font-black" style={HF}>Regarde tes e-mails</h2><p className="mt-2 text-ink-soft">Bingoo! vient d'envoyer un lien à <b className="text-ink">{email}</b>. Clique dessus pour valider ton adresse : tu reviendras ici avec tout ce que tu as fait, tu choisiras ton mot de passe et tout sera débloqué.</p><button onClick={() => setOuvert(false)} className="mt-5 w-full rounded-xl border border-line py-3 font-semibold">Fermer</button></>
         ) : (
           <form onSubmit={envoyer}>
             <h2 className="text-[24px] font-black leading-tight" style={HF}>Crée ton compte gratuit</h2>
             <p className="mt-1.5 text-[14.5px] text-ink-soft">{raison ?? "Pour aller plus loin, il faut un compte."} Tes réponses et tes SaaS sont gardés.</p>
             <label className="mt-5 block text-[13.5px] font-semibold">Ton adresse e-mail</label>
             <input type="email" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" className={cx(champ, "mt-1")} />
-            <label className="mt-3 block text-[13.5px] font-semibold">Choisis un mot de passe</label>
-            <input type="password" required minLength={8} value={mdp} onChange={(e) => setMdp(e.target.value)} autoComplete="new-password" className={cx(champ, "mt-1")} />
-            <p className="mt-1 text-[12.5px] text-ink-faint">8 caractères minimum.</p>
+            <p className="mt-1 text-[12.5px] text-ink-faint">Bingoo! t'envoie un lien : un clic, et tu choisis ton mot de passe.</p>
             {etat?.ko && <p className="mt-3 rounded-xl bg-[#FDF0EC] px-3 py-2 text-[13.5px] text-[#9A3412]">{etat.ko}</p>}
             <button disabled={busy} className="mt-5 w-full rounded-xl bg-accent text-white py-3 font-bold disabled:opacity-60">{busy ? "Création…" : "Créer mon compte"}</button>
             <button type="button" onClick={() => setOuvert(false)} className="mt-2 w-full py-2 text-[14px] text-ink-soft hover:text-ink">Plus tard</button>
