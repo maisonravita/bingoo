@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_micro, saas.micro, saas_micro_maj/stats/detail (micro-niches sans IA)

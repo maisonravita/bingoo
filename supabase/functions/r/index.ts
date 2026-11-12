@@ -74,6 +74,16 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     }
     return { domaine: d, trouve: !!s && !["pas_saas", "doublon"].includes(s.statut), trustmrr, saas: s ?? null };
   },
+  // Micro-niches : met à jour la liste (depuis le code) puis range chaque SaaS dans la sienne (sans IA)
+  async "saas-micro-maj"(req) {
+    await cron(req);
+    const { MICRO_NICHES } = await import("../_shared/micro-niches.ts");
+    await admin.from("saas_micro").delete().neq("slug", "");
+    await admin.from("saas_micro").insert(MICRO_NICHES.map(([slug, emoji, nom, phrase, motif], i) => ({ ordre: i + 1, slug, emoji, nom, phrase, motif })));
+    const { data, error } = await admin.rpc("saas_micro_maj");
+    if (error) throw new HttpError(500, error.message);
+    return { niches: MICRO_NICHES.length, ranges: data };
+  },
   async "saas-tendances"(req, b) { await requireMember(req, b.workspace_id); const { saasTendances } = await import("../_shared/saas-base.ts"); return await saasTendances(); },
   // Alerte du lundi (clé cron ; workspace_id pour envoyer à un seul espace, pour essai)
   async "saas-alertes"(req, b) { await cron(req); const { saasAlertes } = await import("../_shared/saas-base.ts"); return await saasAlertes(b.workspace_id ? String(b.workspace_id) : undefined); },
