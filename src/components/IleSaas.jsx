@@ -380,11 +380,12 @@ export default function IleSaas({ d, onLieu, nuit, mode = "archipel", pays, ileD
     const scene = new THREE.Scene();
 
     // Caméra isométrique (orthographique), zoom et déplacement à la souris ou au doigt
-    const centre = mode === "atlas" ? new THREE.Vector3(ecran(1, 0.5).x, 0, ecran(1, 0.5).z) : new THREE.Vector3(-0.7, 0, -1.45);
+    // Le haut de la scène porte les boutons et la guide : on décale le monde un peu vers le bas de l'écran
+    const centre = mode === "atlas" ? new THREE.Vector3(ecran(1, -2.2).x, 0, ecran(1, -2.2).z) : new THREE.Vector3(-1.9, 0, -2.65);
     const vue = { zoom: 1, cible: centre.clone() };
     const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, -100, 200);
     const cadrer = () => {
-      const r = W() / H(), base = W() < 640 ? 24 : W() / H() > 1.6 ? 12.5 : 14.5;
+      const r = W() / H(), base = (mode === "atlas" ? 1.12 : 1) * (W() < 640 ? 24 : W() / H() > 1.6 ? 12.5 : 14.5);
       const h = base / vue.zoom, w = h * r;
       cam.left = -w; cam.right = w; cam.top = h; cam.bottom = -h; cam.updateProjectionMatrix();
       cam.position.copy(vue.cible).add(new THREE.Vector3(20, 20, 20)); cam.lookAt(vue.cible);

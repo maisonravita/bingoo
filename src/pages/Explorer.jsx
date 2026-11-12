@@ -3310,8 +3310,8 @@ function AtlasPays({ data, retour, nuit, setNuit }) {
         <Suspense fallback={<div className="absolute inset-0 grid place-items-center"><Spinner /></div>}>{data && ileDe ? <IleSaas mode="atlas" pays={data} ileDe={ileDe} nuit={nuit} onLieu={choisir} /> : <div className="absolute inset-0 grid place-items-center"><Spinner /></div>}</Suspense>
         <div className="absolute left-3 top-3 z-20 flex items-center gap-2">
           <button onClick={retour} className="rounded-xl bg-[#1A1340]/90 px-3 py-2 text-[13px] font-bold text-white shadow-lg">Retour à l'archipel</button>
-          <span className="hidden sm:block rounded-xl bg-[#1A1340]/90 px-3 py-2 text-[13px] text-white/85 shadow-lg">Une île par continent, un immeuble par pays : plus il est haut, plus il compte de SaaS.</span>
         </div>
+        {!p && !ile && <p className="absolute bottom-3 left-3 z-20 max-w-[min(420px,calc(100%-70px))] rounded-xl bg-[#1A1340]/90 px-3 py-2 text-[13px] text-white/85 shadow-lg">Une île par continent, un immeuble par pays : plus il est haut, plus il compte de SaaS. Survole un immeuble, clique pour ses SaaS.</p>}
         <button onClick={() => setNuit(!nuit)} className="absolute right-3 top-3 z-20 rounded-xl bg-[#1A1340]/90 px-3 py-2 text-[13px] font-bold text-white shadow-lg">{nuit ? "☀ Jour" : "☾ Nuit"}</button>
         {(p || ile) && (
           <div className="absolute bottom-3 left-3 z-20 w-[min(360px,calc(100%-70px))] max-h-[62%] overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl">
