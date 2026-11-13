@@ -7,3 +7,5 @@
 -- saas_pour_moi_apercu : compte uniquement les SaaS constructibles.
 -- saas_apercu : renvoie aussi canaux déclarés, croissance, audience, langue, constructible.
 -- saas_a_copier (« À lancer ») : uniquement les SaaS constructibles ; même croissance que les cartes (succes.croissance_30j d'abord) ; renvoie langue.
+-- saas_constructible_maj : un mot bloquant l'emporte sur l'avis de l'IA ; écarte aussi audio en direct, triche (« indétectable »), services déguisés, dessins générés.
+-- saas_pour_moi3 : fiche sans description écartée ; pros/particuliers respecté quand la personne l'a choisi (s'il en reste au moins 3).

@@ -1086,7 +1086,7 @@ function MicroDetail({ slug, info, retour }) {
                 {s.mrr > 0 ? <><p className="font-black tnum" style={HF}>{dollar(s.mrr)}</p><p className="text-[11px] text-ink-faint">par mois, vérifié</p></> : s.preuve ? <p className="text-[12px] text-ink-soft max-w-[140px] line-clamp-2">{s.preuve}</p> : <p className="text-[12px] text-ink-faint">Non public</p>}
                 {s.crois != null && s.mrr > 0 && <p className={cx("text-[12px] font-bold tnum", s.crois > 0 ? "text-good" : "text-bad")}>{s.crois > 0 ? "+" : ""}{Math.round(s.crois)} %</p>}
               </div>
-              <button onClick={(e) => { e.stopPropagation(); nav(`/explorer/lancer?d=${s.domaine}`); }} className="col-span-3 md:col-span-1 justify-self-end rounded-xl bg-accent text-white px-4 py-2 text-[13px] font-bold hover:bg-accent-dark">Copier</button>
+              <button onClick={(e) => { e.stopPropagation(); nav(`/explorer/lancer?d=${s.domaine}`); }} className="col-span-3 md:col-span-1 justify-self-end rounded-xl bg-accent text-white px-4 py-2 text-[13px] font-bold hover:bg-accent-dark">Lancer ma version</button>
             </div>
           ))}
         </div>
@@ -2587,7 +2587,7 @@ function PreuveDirecte({ ap }) {
   return (
     <div className="mt-8 rounded-2xl border border-line bg-white px-5 py-4" aria-live="polite">
       <p className="text-[15px]"><b className="tnum text-[18px]" style={HF}>{Number(ap.n).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié collent déjà à tes réponses{ap.mediane ? <>, avec un revenu médian de <b className="tnum">{dollar(ap.mediane)}</b> par mois</> : null}.{ap.tendance ? <> Dont <b className="tnum">{Number(ap.tendance).toLocaleString("fr-FR")}</b> en tendance : leur revenu monte ce mois-ci.</> : null}</p>
-      {e && <p className="mt-1.5 text-[13.5px] text-ink-soft">Le plus gros d'entre eux encaisse <b className="text-ink">{dollar(e.mrr)}</b> par mois{e.croissance ? `, +${String(e.croissance).replace(".", ",")} % en 30 jours` : ""}.</p>}
+      {e && <p className="mt-1.5 text-[13.5px] text-ink-soft">Le plus gros d'entre eux encaisse <b className="text-ink">{dollar(e.mrr)}</b> par mois{e.croissance ? `, ${pct30(e.croissance)} en 30 jours` : ""}.</p>}
       {ap.tests >= 50 && <p className="mt-1 text-[12.5px] text-ink-faint">{Number(ap.tests).toLocaleString("fr-FR")} personnes ont déjà fait ce parcours.</p>}
     </div>
   );
@@ -2958,7 +2958,8 @@ function DemandeBingoo() {
                 <div className="flex items-center gap-3"><span className="w-6 text-right text-[15px] font-black text-ink-faint tnum">{i + 1}</span><CompanyLogo name={s.nom} url={`https://${s.domaine}`} className="w-12 h-12" pad="p-1.5" /></div>
                 <div className="min-w-0">
                   <p className="font-bold text-[17px]">{s.nom} <span className="font-normal">{drapeau(s.pays)}</span> <span className="text-[13px] font-normal text-ink-faint">{s.domaine}</span></p>
-                  <p className="text-[14px] text-ink-soft line-clamp-2">{s.description}</p>
+                  <p className="text-[14px] text-ink-soft line-clamp-2">{resumeFr(s)}</p>
+                  {!enFrancais(s) && s.description && <p lang="en" className="text-[12px] text-ink-faint line-clamp-1">Sur son site : {s.description}</p>}
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
                     {s.encaisse_30j != null && <span><span className="text-ink-faint">Encaissé 30 j </span><b className="tnum">{dollar(s.encaisse_30j)}</b></span>}
                     {s.abonnes != null && <span><span className="text-ink-faint">Abonnés </span><b className="tnum">{Number(s.abonnes).toLocaleString("fr-FR")}</b></span>}
@@ -2973,7 +2974,7 @@ function DemandeBingoo() {
                   <p className="text-[11.5px] text-ink-faint">{s.mrr ? "par mois, vérifié" : "revenu non public"}</p>
                   {s.croissance_30j != null && s.mrr && <p className={cx("text-[13px] font-bold tnum", s.croissance_30j >= 0 ? "text-good" : "text-bad")}>{s.croissance_30j > 0 ? "+" : ""}{Math.round(s.croissance_30j)} % en 30 j</p>}
                   <div className="mt-3 flex sm:justify-end gap-1.5 flex-wrap">
-                    <button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className="rounded-lg bg-accent text-white px-3 py-1.5 text-[13px] font-bold">Copier</button>
+                    <button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className="rounded-lg bg-accent text-white px-3 py-1.5 text-[13px] font-bold whitespace-nowrap">Lancer ma version</button>
                     <button onClick={() => suivre(s.domaine)} className="rounded-lg border border-line px-3 py-1.5 text-[13px] font-semibold hover:border-ink-faint">Suivre</button>
                     <button onClick={() => nav(`/explorer/${s.domaine}`)} className="rounded-lg border border-line px-3 py-1.5 text-[13px] font-semibold hover:border-ink-faint">Fiche</button>
                   </div>
@@ -3157,6 +3158,10 @@ function AchatVente() {
   const [vue, setVue] = useState("vendre");
   const [form, setForm] = useState(null);
   const [contact, setContact] = useState(null);
+  // Un débutant ne rachète pas un SaaS à 10 M$ : on commence par les plus abordables
+  const [budget, setBudget] = useState("petit");
+  const BUDGETS = [["petit", "Moins de 10 000 $", (p) => p != null && p < 10000], ["moyen", "10 000 à 100 000 $", (p) => p >= 10000 && p < 100000], ["gros", "Plus de 100 000 $", (p) => p >= 100000], ["tous", "Tous", () => true]];
+  const visibles = (l ?? []).filter((x) => BUDGETS.find((b) => b[0] === budget)[2](x.prix != null ? Number(x.prix) : null)).sort((a, b) => (a.prix ?? Infinity) - (b.prix ?? Infinity));
   const charger = () => { supabase.rpc("saas_a_vendre", { ws: ws.id }).then(({ data }) => setL(data ?? [])); supabase.rpc("saas_demandes_liste", { ws: ws.id }).then(({ data }) => setDem(data ?? [])); };
   useEffect(() => { charger(); }, [ws.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const retirer = async (table, id) => { await supabase.from(table).update({ statut: "retiree" }).eq("id", id); toast("Retiré", "good"); charger(); };
@@ -3176,10 +3181,11 @@ function AchatVente() {
         <Chip on={vue === "vendre"} onClick={() => setVue("vendre")}>À vendre {l ? `(${l.length})` : ""}</Chip>
         <Chip on={vue === "acheteurs"} onClick={() => setVue("acheteurs")}>Ils cherchent à acheter {dem ? `(${dem.length})` : ""}</Chip>
       </div>
+      {vue === "vendre" && <div className="mt-3 flex flex-wrap gap-2 text-[13px]">{BUDGETS.map(([k, t]) => <button key={k} onClick={() => setBudget(k)} className={cx("rounded-full border px-3 py-1.5 font-medium", budget === k ? "bg-ink text-white border-ink" : "bg-white border-line hover:border-ink-faint")}>{t}</button>)}</div>}
       {vue === "vendre" ? (!l ? <div className="py-16 grid place-items-center"><Spinner /></div> : !l.length ? (
         <div className="mt-4 rounded-2xl border border-line bg-white p-6"><p className="font-bold">Rien à vendre pour l'instant.</p><p className="mt-1 text-ink-soft">Les SaaS mis en vente sur TrustMRR apparaissent ici au fil de leur relecture. Tu peux aussi être le premier à publier une annonce.</p></div>
       ) : (
-        <div className="mt-4 grid md:grid-cols-2 gap-4">{l.map((x) => (
+        <div className="mt-4 grid md:grid-cols-2 gap-4">{visibles.map((x) => (
           <div key={x.source + x.id} className="rounded-2xl border border-line bg-white p-5 flex flex-col">
             <div className="flex items-start gap-3">
               <CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="w-11 h-11" pad="p-1.5" />
@@ -3192,7 +3198,7 @@ function AchatVente() {
             <div className="mt-4 grid grid-cols-3 gap-3">
               <div><p className="text-[11.5px] text-ink-faint">Prix demandé</p><p className="text-[20px] font-black tnum" style={HF}>{x.prix ? dollar(x.prix) : "À discuter"}</p></div>
               <div><p className="text-[11.5px] text-ink-faint">Revenu par mois</p><p className="text-[20px] font-black tnum" style={HF}>{x.mrr ? dollar(x.mrr) : x.mrr_declare ? dollar(x.mrr_declare) : "–"}</p><p className="text-[11px] text-ink-faint">{x.mrr ? "vérifié" : x.mrr_declare ? "déclaré par le vendeur" : ""}</p></div>
-              <div><p className="text-[11.5px] text-ink-faint">Multiple</p><p className="text-[20px] font-black tnum" style={HF}>{x.multiple ?? (x.prix && (x.mrr || x.mrr_declare) ? `${(x.prix / ((x.mrr || x.mrr_declare) * 12)).toLocaleString("fr-FR", { maximumFractionDigits: 1 })}×` : "–")}</p><p className="text-[11px] text-ink-faint">du revenu annuel</p></div>
+              <div><p className="text-[11.5px] text-ink-faint">Multiple</p><p className="text-[20px] font-black tnum" style={HF}>{(x.multiple != null ? String(x.multiple).replace(".", ",").replace(/x$/i, " ×") : null) ?? (x.prix && (x.mrr || x.mrr_declare) ? `${(x.prix / ((x.mrr || x.mrr_declare) * 12)).toLocaleString("fr-FR", { maximumFractionDigits: 1 })}×` : "–")}</p><p className="text-[11px] text-ink-faint">du revenu annuel</p></div>
             </div>
             {x.message && <p className="mt-3 text-[13.5px] text-ink-soft line-clamp-3">« {x.message} »</p>}
             {x.offres != null && <p className="mt-2 text-[12.5px] text-ink-faint">{x.offres} offre{x.offres > 1 ? "s" : ""} déjà reçue{x.offres > 1 ? "s" : ""}{x.depuis ? `, en vente depuis le ${new Date(x.depuis).toLocaleDateString("fr-FR")}` : ""}</p>}

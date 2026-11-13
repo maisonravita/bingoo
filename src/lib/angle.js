@@ -40,9 +40,9 @@ const cibleDe = (s, a) => a.type === "metier" ? a.les : /B2B|both/i.test(s.audie
 const CAT_FR = {
   "CRM et ventes": "Un outil pour suivre ses clients et ses ventes",
   "Facturation et comptabilité": "Un outil de facturation et de suivi des paiements",
-  "Gestion de projet": "Un outil pour organiser son activité",
+  "Gestion de projet": "Un outil de gestion et de productivité",
   "Marketing et SEO": "Un outil de marketing pour se faire connaître",
-  "Réseaux sociaux et contenu": "Un outil pour publier sur les réseaux sociaux",
+  "Réseaux sociaux et contenu": "Un outil pour créer du contenu et se montrer en ligne",
   "Support client": "Un outil pour répondre à ses clients",
   "Prospection et emailing": "Un outil pour trouver des clients et leur écrire",
   "Commerce et restauration": "Un outil pour les commerces et les restaurants",

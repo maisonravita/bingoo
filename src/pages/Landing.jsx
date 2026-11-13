@@ -6,6 +6,7 @@ import Logo from "../components/Logo";
 import { legalReady } from "./Legal";
 import { cx } from "../lib/utils";
 import ResultatsBingoo from "../components/ResultatsBingoo";
+import { supabase } from "../lib/supabase";
 
 // Page d'accueil publique de Bingoo! : épurée, et chaque promesse adossée à une preuve.
 // Deux preuves seulement : l'application filmée sur un vrai compte, et l'essai en direct sur le site du visiteur.
@@ -64,6 +65,9 @@ const FAQ = [
 ];
 
 export default function Landing() {
+  // Le compteur de la démonstration est le vrai : SaaS vérifiés que Bingoo! sait construire, et ceux qui sont en tendance
+  const [demo, setDemo] = useState(null);
+  useEffect(() => { supabase.rpc("saas_pour_moi_apercu", { p: {} }).then(({ data }) => setDemo(data ?? null)); }, []);
   const nav = useNavigate();
   useReveal();
   const [yearly, setYearly] = useState(false);
@@ -154,7 +158,7 @@ export default function Landing() {
                       <p className="text-[14px] text-ink-faint">Question 1 sur 8</p>
                       <p className="mt-2 text-[24px] sm:text-[30px] leading-tight text-ink" style={SERIF}>Comment te vois-tu trouver tes clients ?</p>
                       <div className="mt-5 grid sm:grid-cols-2 gap-2">{["Écrire et être trouvé sur Google", "Publier sur les réseaux", "Contacter les gens directement", "Bouche-à-oreille et affiliation"].map((x) => <span key={x} className="rounded-xl border-2 border-line bg-white px-4 py-3 text-[15px] font-semibold">{x}</span>)}</div>
-                      <p className="mt-5 rounded-xl bg-white border border-line px-4 py-3 text-[14.5px]"><b>550</b> SaaS au revenu vérifié collent déjà à tes réponses. Dont <b>163</b> en tendance.</p>
+                      <p className="mt-5 rounded-xl bg-white border border-line px-4 py-3 text-[14.5px]"><b>{demo ? Number(demo.n).toLocaleString("fr-FR") : "…"}</b> SaaS au revenu vérifié collent déjà à tes réponses. Dont <b>{demo ? Number(demo.tendance).toLocaleString("fr-FR") : "…"}</b> en tendance.</p>
                     </div>
                   )}
                 </li>
