@@ -75,6 +75,20 @@ const CAT_MOTS: [RegExp, string][] = [
 const categorieSansIa = (t: string) => CAT_MOTS.find(([re]) => re.test(t))?.[1] ?? "Autre";
 
 /** Lecture d'un site sans IA : prix affichés par mois, version gratuite, essai, devis, description et langue de la page. */
+/** Sans IA : est-ce un SaaS ? « saas » si on voit une inscription en ligne ET des tarifs récurrents ou une page de tarifs ;
+ *  « pas_saas » pour une boutique ou un site sans aucun de ces signes ; sinon « doute » (relu plus tard). */
+export function verdictSansIa(texte: string, tarifs: string, prixUrl: string) {
+  const t = `${texte.slice(0, 6000)} ${tarifs.slice(0, 4000)}`;
+  const inscription = /sign ?up|get started|start (?:your |for )?free|try (?:it )?(?:for )?free|free trial|create (?:an |your )?account|start building|book a demo|essai gratuit|inscri(?:ption|vez|s-toi)|commencer (?:gratuitement|maintenant)|cr[ée]er (?:un|mon|votre) compte|demander une d[ée]mo/i.test(t);
+  const recurrent = /([$€£]\s?\d{1,4}(?:[.,]\d{1,2})?|\d{1,4}(?:[.,]\d{1,2})?\s?[$€£])\s*(?:\/|per|par)\s*(?:mo\b|month|mois|user|utilisateur|seat|year|an\b|yr\b)|billed (?:monthly|annually|yearly)|factur[ée] (?:mensuellement|annuellement)|per (?:user|seat)\/|\bplans? (?:&|and) pricing\b/i.test(t);
+  const boutique = /add to (?:cart|bag)|ajouter au panier|free shipping|livraison (?:offerte|gratuite)|shop now|my cart|mon panier/i.test(t);
+  const connexion = /log ?in|sign ?in|se connecter|connexion|dashboard|tableau de bord/i.test(t);
+  if (boutique && !recurrent) return "pas_saas";
+  if (inscription && (recurrent || !!prixUrl)) return "saas";
+  if (!inscription && !recurrent && !prixUrl && !connexion) return "pas_saas";
+  return "doute";
+}
+
 export function lectureSansIa(s: { nom?: string | null; domaine: string; categorie?: string | null }, home: string, tarifs: string) {
   const meta = (n: string) => home.match(new RegExp(`<meta[^>]+(?:name|property)=["']${n}["'][^>]*content=["']([^"']{10,400})["']`, "i"))?.[1] ?? home.match(new RegExp(`<meta[^>]+content=["']([^"']{10,400})["'][^>]*(?:name|property)=["']${n}["']`, "i"))?.[1] ?? null;
   const decode = (t: string) => t.replace(/&amp;/g, "&").replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
@@ -142,7 +156,13 @@ prix_entree (prix le plus bas d'une formule d'ABONNEMENT payante, nombre ; null 
   // on lit quand même ce qui se lit sans IA (prix affichés, version gratuite, essai, description du site) ; sinon on réessaiera plus tard
   let sansIa = false;
   if (!a) {
-    if (!(s.succes || s.trustmrr || String(s.source ?? "").startsWith("ajout:"))) { await admin.from("saas").update({ essais: (s.essais ?? 0) + 1 }).eq("id", id); return { id, statut: "erreur" }; }
+    if (!(s.succes || s.trustmrr || String(s.source ?? "").startsWith("ajout:"))) {
+      // Découverte automatique, sans IA : on reconnaît un SaaS à ses signes (inscription en ligne + tarifs récurrents ou page de tarifs),
+      // et on écarte ce qui n'en est clairement pas un (boutique, aucun signe). Le reste sera relu plus tard.
+      const v = verdictSansIa(texteHome, tarifs, f.prix_url);
+      if (v === "pas_saas") { await admin.from("saas").update({ statut: "pas_saas", lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "pas_saas" }; }
+      if (v !== "saas") { await admin.from("saas").update({ essais: (s.essais ?? 0) + 1 }).eq("id", id); return { id, statut: "erreur" }; }
+    }
     a = lectureSansIa(s, home, tarifs) as typeof a;
     sansIa = true;
   }
@@ -201,8 +221,8 @@ export async function saasCron(maxMs = 110_000) {
   const { data: urgent } = await admin.from("saas").select("id").eq("statut", "ok").is("lu_at", null).lt("essais", 3).limit(15);
   // Les SaaS à succès (preuve sourcée) passent avant les découvertes automatiques
   const { data: prouves } = await admin.from("saas").select("id").eq("statut", "a_lire").not("succes", "is", null).lt("essais", 3).limit(15);
-  const { data } = await admin.from("saas").select("id").or(`statut.eq.a_lire,and(statut.eq.ok,lu_at.lt.${semaine})`).lt("essais", 3).order("lu_at", { ascending: true, nullsFirst: true }).limit(15);
-  const ids = [...new Set([...(urgent ?? []), ...(prouves ?? []), ...(data ?? [])].map((x) => x.id))].slice(0, 15);
+  const { data } = await admin.from("saas").select("id").or(`statut.eq.a_lire,and(statut.eq.ok,lu_at.lt.${semaine})`).lt("essais", 3).order("lu_at", { ascending: true, nullsFirst: true }).limit(30);
+  const ids = [...new Set([...(urgent ?? []), ...(prouves ?? []), ...(data ?? [])].map((x) => x.id))].slice(0, 30);
   const out = { lus: 0, ok: 0, illisibles: 0, pas_saas: 0, plafond: 0 };
   // Plafond de lectures par l'IA par jour (réglable dans app_secrets « explorer_lectures_jour ») : le budget IA ne s'emballe jamais
   const { data: reglage } = await admin.from("app_secrets").select("value").eq("name", "explorer_lectures_jour").maybeSingle();
@@ -211,9 +231,9 @@ export async function saasCron(maxMs = 110_000) {
   const { count: faites } = await admin.from("ai_usage").select("feature", { count: "exact", head: true }).eq("feature", "explorer/lecture").gte("at", minuit.toISOString());
   out.plafond = plafond;
   if ((faites ?? 0) >= plafond) return out;
-  for (let i = 0; i < ids.length; i += 3) {
+  for (let i = 0; i < ids.length; i += 5) {
     if (Date.now() - t0 > maxMs - 35_000) break;
-    const r = await Promise.all(ids.slice(i, i + 3).map((id) => saasLire(id).catch(() => null)));
+    const r = await Promise.all(ids.slice(i, i + 5).map((id) => saasLire(id).catch(() => null)));
     for (const x of r) { out.lus++; if (x?.statut === "ok") out.ok++; else if (x?.statut === "illisible") out.illisibles++; else if (x?.statut === "pas_saas") out.pas_saas++; }
   }
   return out;
