@@ -195,7 +195,7 @@ export default function Landing() {
             <ol className="relative mt-12 space-y-16 lg:pl-16">
               <span className="fx-rail hidden lg:block" aria-hidden><span id="fx-rail" style={{ transform: "scaleY(0)" }} /></span>
               {[
-                ["Réponds à quelques questions", "Comment tu veux trouver tes clients, ce que tu refuses de faire, ton temps, le revenu visé, le métier que tu connais. Pendant que tu réponds, tu vois combien de SaaS vérifiés collent déjà à tes réponses.", null],
+                ["Réponds à quelques questions", "Ton continent, le revenu que tu espères, ton temps, ton budget, comment tu veux trouver tes clients et ce que tu refuses de faire. Pendant que tu réponds, tu vois combien de SaaS vérifiés collent déjà à tes réponses.", null],
                 ["Tes 3 SaaS en tendance", "Des SaaS qui encaissent déjà, revenus vérifiés chez leur outil de paiement, dont le revenu monte en ce moment. Pour chacun, sa tendance, sa visibilité et ta version : en français, pour un métier, ou plus simple.", "version"],
                 ["Bingoo! construit ta version", "Ton site, les comptes de tes clients, l'abonnement avec ton Stripe, ton domaine. À ton nom, avec tes mots et ton design, en ligne en une journée.", "video"],
                 ["Ton plan pour tes 10 premiers clients", "Bingoo! trouve les établissements qui ont le problème dans ton département, te prépare le message, et t'envoie chaque matin l'étape du jour. Les trouver, c'est Bingoo! ; les convaincre, c'est toi.", "prospects"],

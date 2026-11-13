@@ -2451,7 +2451,9 @@ const SECTEURS = ["Marketing et SEO", "Réseaux sociaux et contenu", "IA et auto
 // Les pays proposés en premier (les plus fréquents chez nos visiteurs) ; les autres se choisissent dans la liste
 const PAYS_RAPIDES = ["FR", "BE", "CH", "CA", "MA", "US", "GB", "ES"];
 const QUESTIONS = [
-  { k: "pays", pays: true, q: "Dans quel pays te situes-tu ?", aide: "Bingoo! part de ce qui marche déjà chez toi, et de ce qui marche ailleurs sans équivalent dans ton pays." },
+  { k: "continent", q: "Sur quel continent es-tu ?", aide: "Bingoo! part de ce qui marche déjà sur ton continent, et de ce qui marche ailleurs sans équivalent chez toi.", opts: [
+    ["europe", "Europe", "France, Belgique, Suisse, Luxembourg…"], ["amerique_nord", "Amérique du Nord", "Canada, États-Unis"], ["afrique", "Afrique", "Maroc, Algérie, Tunisie, Sénégal, Côte d'Ivoire…"], ["moyen_orient", "Moyen-Orient", "Émirats, Liban, Arabie saoudite…"], ["amerique_latine", "Amérique latine", "Mexique, Brésil, Colombie…"], ["asie", "Asie", "Inde, Japon, Singapour…"], ["oceanie", "Océanie", "Australie, Nouvelle-Zélande"],
+  ] },
   { k: "situation", q: "Tu fais quoi aujourd'hui ?", aide: "Bingoo! adapte ton plan au temps et à l'énergie que tu as vraiment.", opts: [
     ["etudiant", "Étudiant", "En cours, en alternance ou en stage"], ["salarie", "Salarié", "Un travail à côté du projet"], ["independant", "Indépendant ou freelance", "Tu as déjà des clients pour ton activité"], ["entreprise", "J'ai déjà une entreprise", "Tu veux ajouter un logiciel à ce que tu fais"], ["recherche", "En recherche d'emploi", "Tu as du temps à y consacrer"],
   ] },
@@ -2461,9 +2463,7 @@ const QUESTIONS = [
   { k: "blocage", q: "Qu'est-ce qui t'a le plus freiné jusqu'ici ?", aide: "Bingoo! met l'accent de ton plan sur ce point-là.", opts: [
     ["idee", "Trouver la bonne idée", "Je ne savais pas quoi lancer"], ["construire", "Construire le produit", "La technique me bloquait"], ["clients", "Trouver des clients", "Je ne savais pas comment vendre"], ["tenir", "Tenir dans la durée", "Je commence, puis j'arrête"],
   ] },
-  { k: "ambition", q: "Combien aimerais-tu gagner par mois ?", aide: "Bingoo! te montre des SaaS qui font déjà ce chiffre, pas plus gros.", opts: [
-    ["complement", "Un complément", "300 à 2 000 $ par mois"], ["vivre", "En vivre", "2 000 à 10 000 $ par mois"], ["gros", "Viser gros", "Plus de 10 000 $ par mois"],
-  ] },
+  { k: "objectif", jauge: true, q: "Combien espères-tu gagner par mois ?", aide: "Glisse la jauge. Bingoo! te montre des SaaS qui font déjà ce chiffre : un objectif, pas une promesse." },
   { k: "delai", q: "Quand aimerais-tu avoir ton premier client ?", aide: "Ton plan s'organise autour de cette date. C'est un objectif, pas une promesse : ça dépend aussi du marché.", opts: [
     ["mois", "Dans le mois", "Je veux avancer vite"], ["trois", "D'ici 3 mois", "Le rythme le plus courant"], ["six", "D'ici 6 mois", "Je préfère construire sans pression"],
   ] },
@@ -2530,6 +2530,7 @@ const ICONES_OPTIONS = {
   audience: { B2B: "mallette", B2C: "personne", "": "globe" },
   ambition: { complement: "piece", vivre: "maison", gros: "fusee" },
   profil: { vente: "cible", code: "code", aucun: "etoile" },
+  continent: { europe: "globe", amerique_nord: "globe", afrique: "globe", moyen_orient: "globe", amerique_latine: "globe", asie: "globe", oceanie: "globe" },
   situation: { etudiant: "etoile", salarie: "mallette", independant: "personne", entreprise: "maison", recherche: "google" },
   experience: { jamais: "etoile", abandonne: "horloge", vendu: "piece", tourne: "fusee" },
   blocage: { idee: "google", construire: "code", clients: "cible", tenir: "horloge" },
@@ -2541,6 +2542,7 @@ const ICONES_OPTIONS = {
 const iconeOption = (k, v) => IC[ICONES_OPTIONS[k]?.[v ?? ""]] ?? IC.etoile;
 // Le petit mot après chaque réponse : ce que Bingoo! en fait concrètement
 const RETOURS = {
+  continent: (v) => `Bingoo! met en avant ce qui marche déjà ${v === "europe" ? "en Europe" : v === "afrique" ? "en Afrique" : v === "asie" ? "en Asie" : v === "oceanie" ? "en Océanie" : v === "amerique_nord" ? "en Amérique du Nord" : v === "amerique_latine" ? "en Amérique latine" : "au Moyen-Orient"}, puis ce qui marche ailleurs sans équivalent chez toi.`,
   pays: (v) => v === "FR" ? "Bingoo! met en avant les SaaS qui marchent déjà en France, puis ceux qui marchent ailleurs sans équivalent français : la place est libre." : `Bingoo! met en avant ce qui marche déjà en ${PAYS[v] ?? "ton pays"}, puis ce qui marche ailleurs et que tu peux adapter.`,
   ambition: { complement: "Un bon premier objectif : une poignée de clients suffit souvent.", vivre: "C'est l'objectif le plus courant. Bingoo! te montre des SaaS qui font déjà ce chiffre.", gros: "Ambitieux. Bingoo! te montre des SaaS qui y sont arrivés : un repère, pas une garantie." },
   temps: { peu: "Bingoo! choisit des SaaS tenus par une seule personne, qu'il sait construire en entier.", moyen: "Assez pour lancer et trouver tes premiers clients en quelques semaines.", beaucoup: "Tu peux viser plus gros et avancer vite : ton plan en tiendra compte." },
@@ -2554,6 +2556,10 @@ const RETOURS = {
   motivation: { liberte: "Noté. Bingoo! te le rappellera les jours où c'est dur.", revenu: "Noté. Ton plan vise d'abord un premier revenu régulier.", quitter: "Noté. Avance sans quitter ton travail tant que ton SaaS ne paie pas.", prouver: "Noté. Le plus important : aller au bout, une étape à la fois." },
   profil: { vente: "Ton avantage : trouver les clients. Bingoo! s'occupe du logiciel.", code: "Bingoo! construit l'essentiel, et tu pourras aller plus loin toi-même.", aucun: "Aucun problème : Bingoo! construit le logiciel et te dit quoi faire chaque jour." },
 };
+// La jauge du revenu espéré : en euros, ramenée aux trois tailles de SaaS du serveur
+const OBJ_MIN = 500, OBJ_MAX = 30000, OBJ_DEFAUT = 3000;
+const ambitionDe = (r) => { const o = r.objectif ?? null; if (o == null) return r.ambition ?? "vivre"; return o < 2000 ? "complement" : o <= 10000 ? "vivre" : "gros"; };
+const CONTINENTS = { europe: "Europe", amerique_nord: "Amérique du Nord", afrique: "Afrique", moyen_orient: "Moyen-Orient", amerique_latine: "Amérique latine", asie: "Asie", oceanie: "Océanie" };
 // Un refus ne peut pas contredire un canal choisi juste avant (« Payer de la publicité » des deux côtés)
 const REFUS_CONTRAIRE = { appeler: "prospection", pub: "pub", ecrire: "seo" };
 const optionsDe = (Q, r) => Q.k === "refus" ? Q.opts.filter(([v]) => !(r.canaux ?? []).includes(REFUS_CONTRAIRE[v])) : Q.opts;
@@ -2563,11 +2569,11 @@ const lirePar = () => { try { return JSON.parse(localStorage.getItem("bingoo-par
 // Les personnes déjà venues avant ce mode ne le voient pas
 export const guideActif = () => { try { return localStorage.getItem("bingoo-guide") !== "fini" && !lirePar()?.fini && (localStorage.getItem("bingoo-guide") === "en_cours" || !localStorage.getItem("bingoo-parcours-vu")); } catch { return false; } };
 const finirGuide = () => { try { localStorage.setItem("bingoo-guide", "fini"); } catch { /* stockage indisponible */ } };
-const paramsDe = (r) => ({ pays: r.pays || null, categories: r.secteurs, canaux: r.canaux, refus: [...new Set([...(r.refus ?? []).filter((v) => !(r.canaux ?? []).includes(REFUS_CONTRAIRE[v])), ...(r.budget === "zero" ? ["pub"] : [])])], audience: r.audience || null, profil: r.profil ?? "aucun", ambition: r.ambition ?? "vivre", temps: r.temps ?? "moyen", metier: null });
+const paramsDe = (r) => ({ continent: r.continent || null, langue: r.langue || null, categories: r.secteurs, canaux: r.canaux, refus: [...new Set([...(r.refus ?? []).filter((v) => !(r.canaux ?? []).includes(REFUS_CONTRAIRE[v])), ...(r.budget === "zero" ? ["pub"] : [])])], audience: r.audience || null, profil: r.profil ?? "aucun", ambition: ambitionDe(r), temps: r.temps ?? "moyen", metier: null });
 export function TrouveTonSaas() {
   const { ws, session, reload } = useWs();
   const avant = lirePar();
-  const [r, setR] = useState(() => ({ canaux: [], refus: [], secteurs: [], audience: null, ambition: null, profil: null, temps: null, ...(avant ?? {}), pays: avant?.pays ?? null, metier: "", etape: 0 }));
+  const [r, setR] = useState(() => ({ canaux: [], refus: [], secteurs: [], audience: null, ambition: null, profil: null, temps: null, ...(avant ?? {}), metier: "", etape: 0 }));
   const [res, setRes] = useState(null);
   const [ap, setAp] = useState(null);
   const [planVu, setPlanVu] = useState(false);
@@ -2578,7 +2584,7 @@ export function TrouveTonSaas() {
   const sauver = (n) => { try { localStorage.setItem("bingoo-parcours2", JSON.stringify({ ...n, fini: n.etape >= QUESTIONS.length || n.fini })); } catch { /* stockage indisponible */ } };
   const aller = (n) => {
     setR(n); sauver(n);
-    if (n.etape >= QUESTIONS.length) supabase.from("saas_preferences").upsert({ workspace_id: ws.id, secteurs: n.secteurs ?? [], profil: n.profil ?? null, reponses: { pays: n.pays ?? null, situation: n.situation ?? null, experience: n.experience ?? null, blocage: n.blocage ?? null, delai: n.delai ?? null, budget: n.budget ?? null, langue: n.langue ?? null, motivation: n.motivation ?? null, canaux: n.canaux, refus: n.refus, temps: n.temps, audience: n.audience, ambition: n.ambition }, maj: new Date().toISOString() }).then(() => {});
+    if (n.etape >= QUESTIONS.length) supabase.from("saas_preferences").upsert({ workspace_id: ws.id, secteurs: n.secteurs ?? [], profil: n.profil ?? null, reponses: { continent: n.continent ?? null, objectif: n.objectif ?? null, situation: n.situation ?? null, experience: n.experience ?? null, blocage: n.blocage ?? null, delai: n.delai ?? null, budget: n.budget ?? null, langue: n.langue ?? null, motivation: n.motivation ?? null, canaux: n.canaux, refus: n.refus, temps: n.temps, audience: n.audience, ambition: n.ambition }, maj: new Date().toISOString() }).then(() => {});
   };
   const charger = () => {
     setRes(undefined);
@@ -2593,7 +2599,7 @@ export function TrouveTonSaas() {
   // La preuve en direct : combien de SaaS au revenu vérifié collent déjà aux réponses données
   useEffect(() => {
     if (r.etape >= QUESTIONS.length && debloque) return;
-    const t = setTimeout(() => supabase.rpc("saas_pour_moi_apercu", { p: { pays: r.pays || null, categories: r.secteurs, canaux: r.canaux, refus: r.refus ?? [], audience: r.audience || null, ambition: r.ambition, temps: r.temps } }).then(({ data }) => data && setAp(data)), 250);
+    const t = setTimeout(() => supabase.rpc("saas_pour_moi_apercu", { p: { continent: r.continent || null, categories: r.secteurs, canaux: r.canaux, refus: r.refus ?? [], audience: r.audience || null, ambition: r.objectif != null ? ambitionDe(r) : null, temps: r.temps } }).then(({ data }) => data && setAp(data)), 250);
     return () => clearTimeout(t);
   }, [r]); // eslint-disable-line react-hooks/exhaustive-deps
   const fini = r.etape >= QUESTIONS.length;
@@ -2602,11 +2608,11 @@ export function TrouveTonSaas() {
   const basculer = (k, v) => setR({ ...r, [k]: r[k].includes(v) ? r[k].filter((x) => x !== v) : [...r[k], v] });
   const lib = (k, v, i = 1) => QK(k).opts.find((o) => o[0] === (v ?? ""))?.[i];
   const resume = [
-    r.pays ? `${drapeau(r.pays)} ${PAYS[r.pays] ?? r.pays}` : null,
+    r.continent ? CONTINENTS[r.continent] : null,
     r.canaux.map((c) => lib("canaux", c)?.toLowerCase()).filter(Boolean).join(", "),
     r.refus?.length ? `Sans : ${r.refus.map((c) => lib("refus", c)?.toLowerCase()).join(", ")}` : null,
     lib("temps", r.temps) && `${lib("temps", r.temps)} par semaine`,
-    lib("audience", r.audience), lib("ambition", r.ambition, 2), r.secteurs.join(", "),
+    lib("audience", r.audience), r.objectif ? `${Number(r.objectif).toLocaleString("fr-FR")} € par mois visés` : null, r.secteurs.join(", "),
   ].filter(Boolean);
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
@@ -2647,6 +2653,8 @@ export function TrouveTonSaas() {
                     </select>
                   </label>
                 </div>
+              ) : Q.jauge ? (
+                <Jauge valeur={r.objectif ?? OBJ_DEFAUT} onChange={(v) => setR({ ...r, objectif: v })} />
               ) : Q.secteurs ? (
                 <div className="mt-8 flex flex-wrap justify-center gap-2">{SECTEURS.map((c) => <button key={c} type="button" onClick={() => basculer("secteurs", c)} className={cx("rounded-full border px-4 py-2 text-[14px] font-semibold transition", choisi("secteurs", c) ? "border-transparent bg-ink text-white ring-2 ring-accent/40" : "border-line bg-white/90 hover:border-ink-faint")}>{c}</button>)}</div>
               ) : (
@@ -2664,7 +2672,7 @@ export function TrouveTonSaas() {
               )}
             </div>
             {!Q.multi && retour && <div key={`m-${r.etape}-${r[Q.k]}`} className="land-in mt-6 fx-halo rounded-2xl" aria-live="polite"><div className="flex items-start gap-3 rounded-2xl bg-white px-5 py-4"><span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full fx-pastille text-white text-[12px] font-black">B!</span><p className="text-[15px] leading-snug">{retour}</p></div></div>}
-            <button onClick={() => aller({ ...r, etape: r.etape + 1 })} disabled={!Q.multi && r[Q.k] == null}
+            <button onClick={() => aller({ ...r, ...(Q.jauge && r.objectif == null ? { objectif: OBJ_DEFAUT } : {}), etape: r.etape + 1 })} disabled={!Q.multi && !Q.jauge && r[Q.k] == null}
               className="fx-brille mt-8 w-full rounded-2xl bg-accent py-4 text-[16.5px] font-bold text-white shadow-[0_18px_40px_-18px_rgba(224,83,31,.8)] transition hover:bg-accent-dark disabled:opacity-40 disabled:shadow-none">
               {Q.multi ? (r.etape === QUESTIONS.length - 1 ? (r.secteurs.length ? "Voir mes SaaS" : "Peu importe, cherche partout") : r[Q.k].length ? "Continuer" : Q.aucun ?? "Passer") : "Continuer"}
             </button>
@@ -2708,13 +2716,30 @@ function PreuveDirecte({ ap }) {
 export const estPaye = (ws) => ws?.plan === "fondateur" || (["explorer", "explorer_pro", "business", "solo", "pro"].includes(ws?.plan) && ["active", "trialing", "past_due"].includes(ws?.plan_status));
 // Avant paiement : le premier SaaS en clair (la preuve), les deux autres, le plan et le prompt une fois l'abonnement réglé.
 // Le serveur n'envoie que le premier tant que rien n'est payé : les cartes floutées sont factices.
+// La jauge du revenu espéré : glisser, voir le chiffre et ce qu'il représente en clients
+function Jauge({ valeur, onChange }) {
+  const pct = ((valeur - OBJ_MIN) / (OBJ_MAX - OBJ_MIN)) * 100;
+  const clients = Math.ceil(valeur / 39);
+  const repere = valeur < 2000 ? "Un complément de revenu" : valeur <= 10000 ? "De quoi en vivre" : "Viser gros";
+  return (
+    <div className="mt-10 rounded-3xl border border-line bg-white/90 p-6 sm:p-8 text-center backdrop-blur">
+      <p className="text-[13px] font-semibold uppercase tracking-wide text-accent-dark">{repere}</p>
+      <p className="mt-2 text-[52px] sm:text-[64px] font-black leading-none tracking-tight tnum fx-texte" style={HF}>{valeur.toLocaleString("fr-FR")} €</p>
+      <p className="mt-1 text-[14px] text-ink-soft">par mois</p>
+      <input type="range" min={OBJ_MIN} max={OBJ_MAX} step={500} value={valeur} onChange={(e) => onChange(Number(e.target.value))} aria-label="Revenu espéré par mois"
+        className="jauge mt-8 w-full" style={{ background: `linear-gradient(90deg, #E0531F, #9B6BFF ${pct}%, #ECEAE4 ${pct}%)` }} />
+      <div className="mt-2 flex justify-between text-[12px] text-ink-faint tnum"><span>{OBJ_MIN.toLocaleString("fr-FR")} €</span><span>{OBJ_MAX.toLocaleString("fr-FR")} € et plus</span></div>
+      <p className="mt-6 rounded-2xl bg-paper px-4 py-3 text-[14.5px]">Avec un abonnement à 39 € par mois, c'est environ <b className="tnum">{clients.toLocaleString("fr-FR")} clients</b>. Un repère, pas une promesse.</p>
+    </div>
+  );
+}
 // Avant la liste : l'objectif traduit en nombre de clients, réparti sur les façons de trouver des clients choisies.
 // Un repère pour se fixer un cap, calculé sur des hypothèses affichées, jamais une promesse.
 const OBJECTIF = { complement: 1000, vivre: 5000, gros: 10000 };
 const PRIX_CLIENT = { B2B: 39, B2C: 12, "": 25 };
 const NOM_CANAL = { seo: "Google et ton contenu", reseaux: "Les réseaux", prospection: "Le contact direct", pub: "La publicité", bouche: "Le bouche-à-oreille" };
 function PlanChiffre({ r, ap, onSuite }) {
-  const objectif = OBJECTIF[r.ambition] ?? 5000;
+  const objectif = r.objectif ?? OBJECTIF[r.ambition] ?? 5000;
   const prix = PRIX_CLIENT[r.audience ?? ""] ?? 25;
   const clients = Math.ceil(objectif / prix);
   const canaux = (r.canaux?.length ? r.canaux : ["seo", "reseaux"]).slice(0, 3);
@@ -2770,8 +2795,8 @@ function CarteFloutee({ x, k, paysVise, onLancer, busy }) {
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5">
         {t && <span className={cx("rounded-full px-2.5 py-1 text-[12px] font-semibold", t[2])}>{t[1]}{x.croissance != null ? ` · ${pct30(x.croissance)} en 30 j` : ""}</span>}
-        {x.sans_local && paysVise && <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[12px] font-semibold text-accent-dark">Pas d'équivalent en {PAYS[paysVise] ?? paysVise}</span>}
-        {x.local && <span className="rounded-full bg-[#E4ECFB] px-2.5 py-1 text-[12px] font-semibold text-[#2B59C3]">Marche déjà dans ton pays</span>}
+        {x.sans_local && <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[12px] font-semibold text-accent-dark">Pas d'équivalent en français</span>}
+        {x.local && <span className="rounded-full bg-[#E4ECFB] px-2.5 py-1 text-[12px] font-semibold text-[#2B59C3]">Marche déjà sur ton continent</span>}
       </div>
       <p className="mt-3 h-[38px] select-none text-[13px] leading-snug text-ink-soft blur-[5px]" aria-hidden>Un logiciel simple qui aide ses clients à gagner du temps chaque semaine, avec un prix clair.</p>
       <ul className="mt-2 space-y-1 text-[12.5px] text-ink-soft">

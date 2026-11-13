@@ -156,3 +156,6 @@ body { top: 0 !important; }
 @keyframes land-in { from { opacity: 0; transform: translateY(10px); } }
 .land-in { animation: land-in .45s cubic-bezier(.2,.7,.2,1) both; }
 @media (prefers-reduced-motion: reduce) { .land-in { animation: none; } }
+.jauge { -webkit-appearance: none; appearance: none; height: 10px; border-radius: 9999px; outline: none; cursor: pointer; }
+.jauge::-webkit-slider-thumb { -webkit-appearance: none; width: 30px; height: 30px; border-radius: 9999px; background: #fff; border: 3px solid #E0531F; box-shadow: 0 6px 18px -4px rgba(224,83,31,.6); cursor: grab; }
+.jauge::-moz-range-thumb { width: 26px; height: 26px; border-radius: 9999px; background: #fff; border: 3px solid #E0531F; box-shadow: 0 6px 18px -4px rgba(224,83,31,.6); cursor: grab; }

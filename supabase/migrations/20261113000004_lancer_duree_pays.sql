@@ -6,3 +6,4 @@
 -- saas_pour_moi3 : les mêmes SaaS complets, seulement après paiement.
 -- saas_pour_moi_floute : les mêmes SaaS avant paiement, sans nom, domaine ni description (rang, catégorie, revenu, croissance, pays, canaux, solo, local, sans_local).
 -- saas_pour_moi_apercu : mêmes fourchettes de revenu.
+-- continent_de(code pays) et saas_pour_moi_coeur : p.continent (+10 si le SaaS vient du continent) et p.langue (« Pas d'équivalent français » compté si fr ou deux).
