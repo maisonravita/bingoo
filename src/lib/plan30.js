@@ -43,6 +43,8 @@ const REFUS_CANAUX = {
 const FR = { "Content marketing": "contenu", "Email marketing": "e-mailing", "Word of mouth": "bouche-à-oreille", "Referral program": "parrainage", "Affiliate": "affiliation", "Partnerships": "partenariats", "Events & conferences": "salons", "Cold email": "e-mails à froid", "Cold DM": "messages privés", "Cold calling": "appels", "Influencers": "influenceurs", "Slack communities": "communautés Slack", "Forums": "forums", "Blog": "blog", "App store optimization": "référencement App Store" };
 export const nomCanal = (c) => FR[c] ?? c;
 const DEFAUT = ["SEO", "Reddit", "Product Hunt", "Word of mouth"];
+// Pour un métier local (coiffeurs, restaurants…), les canaux où ces pros se trouvent vraiment
+const DEFAUT_METIER = ["Facebook", "Instagram", "Word of mouth", "SEO"];
 
 // Un prix qui fait vivre : on part du sien, sans descendre sous un seuil qui rend l'objectif ridicule
 export function prixConseille(s, a) {
@@ -57,12 +59,15 @@ export function plan30(s, r, a) {
   const peu = r.temps === "peu";
   const q = (beaucoup, un_peu) => (peu ? un_peu : beaucoup);
   const interdits = new Set((r.refus ?? []).flatMap((k) => REFUS_CANAUX[k] ?? []));
-  const canaux = [...(s.canaux ?? []), ...DEFAUT].filter((c, i, a) => ACTIONS[c] && !interdits.has(c) && a.indexOf(c) === i).slice(0, 3);
+  const declares = (s.canaux ?? []).filter((c) => ACTIONS[c] && !(a?.type === "metier" && ["Product Hunt", "Hacker News", "Reddit", "X / Twitter", "Slack communities"].includes(c)));
+  const canaux = [...declares, ...(a?.type === "metier" ? DEFAUT_METIER : DEFAUT)].filter((c, i, a) => ACTIONS[c] && !interdits.has(c) && a.indexOf(c) === i).slice(0, 3);
   const { sien, prix } = prixConseille(s, a);
   const cible = a?.type === "metier" ? a.les : /B2B|both/i.test(s.audience ?? "") ? "des petites entreprises" : "des personnes qui ont le problème";
   const pourAtteindre = s.mrr ? Math.ceil((s.mrr * 0.92) / prix) : null; // dollars → euros, à peu près
   return {
     canaux,
+    // Vrai seulement si ces canaux viennent du SaaS lui-même
+    sesCanaux: canaux.filter((c) => declares.includes(c)),
     semaines: [
       { titre: "Semaine 1 : ta version en ligne", actions: [
         `Fais construire par Bingoo! ta version de ${s.nom}, à ton nom et avec ton design (environ une heure de ton côté).`,

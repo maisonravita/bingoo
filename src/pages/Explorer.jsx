@@ -2661,7 +2661,7 @@ function Paquet({ res, r }) {
       <section className="mt-6 rounded-3xl border border-line bg-white overflow-hidden">
         <div className="px-5 sm:px-7 pt-6 pb-4 border-b border-line">
           <h2 className="text-[22px] font-black leading-tight" style={HF}>Ton plan sur 30 jours</h2>
-          <p className="text-[13.5px] text-ink-soft">{p.canaux.length ? <>Tiré des canaux qu'utilise vraiment {s.nom} : <b className="text-ink">{p.canaux.map(nomCanal).join(", ")}</b>.</> : "Tiré des canaux qui marchent pour ce genre de SaaS."}{r.refus?.length ? " Sans ce que tu refuses de faire." : ""}</p>
+          <p className="text-[13.5px] text-ink-soft">{p.sesCanaux.length ? <>Tiré des canaux qu'utilise vraiment {s.nom} : <b className="text-ink">{p.sesCanaux.map(nomCanal).join(", ")}</b>.</> : <>Tiré des canaux qui marchent {a.type === "metier" ? `pour toucher ${a.les}` : "pour ce genre de SaaS"} : <b className="text-ink">{p.canaux.map(nomCanal).join(", ")}</b>.</>}{r.refus?.length ? " Sans ce que tu refuses de faire." : ""}</p>
         </div>
         <ol className="grid md:grid-cols-2">
           {p.semaines.map((w, k) => (
@@ -2742,7 +2742,7 @@ export function PremiersClients({ s, a, r }) {
       <div className="px-5 sm:px-7 pt-6 pb-4 border-b border-line flex flex-wrap items-end gap-4">
         <div className="flex-1 min-w-[220px]">
           <h2 className="text-[22px] font-black leading-tight" style={HF}>Tes 10 premiers clients en 7 jours</h2>
-          <p className="text-[13.5px] text-ink-soft">Un jour, une étape. Commence le jour où Bingoo! construit ta version : tu n'attends pas qu'elle soit parfaite.</p>
+          <p className="text-[13.5px] text-ink-soft">Un jour, une étape, dès que ta version est en ligne : tu n'attends pas qu'elle soit parfaite.</p>
         </div>
         <div className="text-right"><p className="text-[28px] font-black tnum leading-none" style={HF}>{payants}<span className="text-ink-faint text-[18px]"> / 10</span></p><p className="text-[12px] text-ink-faint">clients payants</p></div>
       </div>
@@ -2871,7 +2871,7 @@ function CommentIlSeFaitConnaitre({ s }) {
     ["Trafic", s.visiteurs ? `${milliers(Number(s.visiteurs))} visites par mois` : "Non publié", s.visiteurs && s.mrr ? `soit ${String(Math.round((s.mrr / s.visiteurs) * 100) / 100).replace(".", ",")} $ de revenu par visite` : ""],
     ["Visibilité sur Google", s.autorite != null ? `Autorité ${Math.round(s.autorite)}/100` : "Non mesurée", s.autorite != null ? (s.autorite < 20 ? "Faible : la place est à prendre sur Google" : s.autorite < 45 ? "Moyenne : battable avec du contenu régulier" : "Forte : difficile à dépasser sur Google") : ""],
     ["Pub payante", s.pubs_actives ? `${s.pubs_actives} pubs Meta actives` : pub.length ? pub.map(nomCanal).join(", ") : "Aucune déclarée", pub.length || s.pubs_actives ? "Il paie pour se montrer : regarde ses pubs pour t'en inspirer" : "Il grandit sans pub : tu peux faire pareil"],
-    ["Ce qui marche sans payer", orga.length ? orga.slice(0, 4).map(nomCanal).join(", ") : "Non précisé", "Déclaré par le fondateur"],
+    ["Ce qui marche sans payer", orga.length ? orga.slice(0, 4).map(nomCanal).join(", ") : "Non précisé", orga.length ? "Déclaré par le fondateur" : ""],
   ];
   return (
     <section className="mt-6 rounded-3xl border border-line bg-white p-5 sm:p-7">
