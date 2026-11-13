@@ -10,7 +10,8 @@ export const ANGLES = [["france", "Version française"], ["metier", "Pour un mé
 
 // Un outil de développeur ou d'IA générique n'a pas de sens « pour les coiffeurs » : l'angle métier n'est proposé que pour les outils de gestion, de vente, de clientèle…
 const VERTICALES = ["CRM et ventes", "Facturation et comptabilité", "Marketing et SEO", "Support client", "Réseaux sociaux et contenu", "Prospection et emailing", "Gestion de projet", "Commerce et restauration", "Immobilier", "Santé", "BTP et artisans", "Éducation et formation", "E-commerce"];
-export const verticalisable = (s) => VERTICALES.includes(s.categorie) && !(/b2c/i.test(s.audience ?? "") && !/b2b|both/i.test(s.audience ?? "")) && !/(prompt|\bapi\b|developer|\bllm|token|github|\bcode\b|claude|chatgpt|cursor)/i.test(`${s.description ?? ""} ${s.proposition ?? ""}`);
+// Le serveur décide (s.vert) quand il le sait : même règle partout, sur la carte, dans le plan et sur la page Lancer
+export const verticalisable = (s) => typeof s.vert === "boolean" ? s.vert : VERTICALES.includes(s.categorie) && !(/b2c/i.test(s.audience ?? "") && !/b2b|both/i.test(s.audience ?? "")) && !/(prompt|\bapi\b|developer|\bllm|token|github|\bcode\b|claude|chatgpt|cursor)/i.test(`${s.description ?? ""} ${s.proposition ?? ""}`);
 
 // « coiffeurs » → « les coiffeurs » (sauf si la personne a déjà mis un article)
 const lesDe = (m) => /^(les|des|la|le|l'|aux?)\s?/i.test(m.trim()) ? m.trim().toLowerCase() : `les ${m.trim().toLowerCase()}`;
@@ -32,7 +33,40 @@ export function angleDe(s, r, force) {
 }
 
 // Qui les clients, en une expression utilisable dans une phrase
-const cibleDe = (s, a) => a.type === "metier" ? a.les : (s.persona ? s.persona.split(/[.;,]/)[0].slice(0, 70) : /B2B/i.test(s.audience ?? "") ? "les petites entreprises" : "ta cible");
+const cibleDe = (s, a) => a.type === "metier" ? a.les : /B2B|both/i.test(s.audience ?? "") ? "les petites entreprises" : "tes futurs clients";
+
+// Ce que fait le SaaS, en français. Beaucoup de fiches sont en anglais : on donne une phrase française tirée de sa catégorie,
+// de sa cible et de son prix, et l'original reste visible en petit.
+const CAT_FR = {
+  "CRM et ventes": "Un outil pour suivre ses clients et ses ventes",
+  "Facturation et comptabilité": "Un outil de facturation et de suivi des paiements",
+  "Gestion de projet": "Un outil pour organiser son activité",
+  "Marketing et SEO": "Un outil de marketing pour se faire connaître",
+  "Réseaux sociaux et contenu": "Un outil pour publier sur les réseaux sociaux",
+  "Support client": "Un outil pour répondre à ses clients",
+  "Prospection et emailing": "Un outil pour trouver des clients et leur écrire",
+  "Commerce et restauration": "Un outil pour les commerces et les restaurants",
+  "Immobilier": "Un outil pour les professionnels de l'immobilier",
+  "Santé": "Un outil pour les professionnels de santé",
+  "BTP et artisans": "Un outil pour les artisans",
+  "Éducation et formation": "Un outil pour former et enseigner",
+  "E-commerce": "Un outil pour vendre en ligne",
+  "IA et automatisation": "Un outil qui automatise une tâche avec l'IA",
+  "Collaboration et documents": "Un outil pour travailler à plusieurs sur des documents",
+  "Paie et RH": "Un outil de gestion du personnel",
+  "Recrutement": "Un outil pour recruter",
+  "Juridique": "Un outil juridique",
+  "Logistique et transport": "Un outil de logistique",
+  "Paiement et finance": "Un outil de finance",
+  "Données et analytics": "Un outil de suivi de données",
+};
+export const enFrancais = (s) => /^fr$/i.test(s.langue ?? "") || (/^FR$/.test(s.pays ?? "") && !/\b(the|and|your|with|for)\b/i.test(s.description ?? ""));
+export function resumeFr(s) {
+  if (enFrancais(s) && s.description) return s.description;
+  const qui = /B2B/i.test(s.audience ?? "") && /B2C/i.test(s.audience ?? "") || /both/i.test(s.audience ?? "") ? "vendu aux pros et aux particuliers" : /B2C/i.test(s.audience ?? "") ? "vendu aux particuliers" : "vendu aux professionnels";
+  const prix = s.prix_entree_eur ? `, à partir de ${Math.round(s.prix_entree_eur)} € par mois` : "";
+  return `${CAT_FR[s.categorie] ?? "Un logiciel en ligne"}, ${qui}${prix}.`;
+}
 
 export function premiersClients(s, a, r) {
   const refus = new Set(r?.refus ?? []);
@@ -75,7 +109,7 @@ export function semaineClients(s, a, r) {
     ? (k) => `Publie ton message dans ${k} groupes ou forums où ${a.type === "metier" ? `se retrouvent ${cible}` : "se trouve ta cible"}, et réponds à chaque commentaire dans l'heure.`
     : (k, encore) => `Envoie ton message à ${k} ${encore ? "autres " : ""}personnes de ta liste, personnalisé avec leur prénom et un détail sur eux.`;
   return [
-    { j: "Jour 1", titre: "Ta liste", actions: [`Fais construire ta version par Bingoo! (environ une heure de ton côté).`, a.type === "metier" ? `Ouvre l'onglet « Tes prospects » : Bingoo! te sort jusqu'à 50 ${a.metier.toLowerCase()} de ton département. Garde les ${n(40, 25)} qui te parlent le plus.` : `Note ${n(50, 30)} personnes ou entreprises ${source}, avec leur e-mail ou leur profil (ou ouvre « Tes prospects » si Bingoo! peut les trouver pour toi).`] },
+    { j: "Jour 1", titre: "Ta liste", actions: [`Vérifie que ta version est en ligne et fais un paiement test : tout doit marcher avant le premier message.`, a.type === "metier" ? `Ouvre l'onglet « Tes prospects » : Bingoo! te sort jusqu'à 50 ${a.metier.toLowerCase()} de ton département. Garde les ${n(40, 25)} qui te parlent le plus.` : `Note ${n(50, 30)} personnes ou entreprises ${source}, avec leur e-mail ou leur profil (ou ouvre « Tes prospects » si Bingoo! peut les trouver pour toi).`] },
     { j: "Jour 2", titre: "Ton offre", actions: [`Choisis ton offre de lancement : un mois gratuit, puis −30 % à vie pour les 10 premiers.`, `Prépare tes messages dans l'onglet « Quoi leur dire » : remplace les crochets par tes mots.`] },
     { j: "Jour 3", titre: "Premiers contacts", actions: [contacter(n(15, 8)), "Note chaque contact dans « Tes prospects »."] },
     { j: "Jour 4", titre: "Deuxième vague", actions: [contacter(n(15, 8), true), "Réponds à tous ceux qui ont répondu, même les « non merci » : demande-leur pourquoi."] },

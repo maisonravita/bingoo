@@ -1,0 +1,8 @@
+-- Appliquées via MCP le 13/11/2026 :
+-- saas_constructible_maj : lit aussi les fiches en anglais (téléphone, SMS, appli mobile, extension, API, vidéo, image…) ; 658 SaaS constructibles sur 2 040.
+-- saas_pour_moi3 : uniquement les SaaS constructibles ; pas d'outils de développeurs sauf profil « code » ;
+--   « pour un métier » seulement pour un outil de gestion généraliste vendu aux pros (rendez-vous, factures, clients, avis, réseaux sociaux)
+--   ou une fiche qui cite ce métier ; quand un métier est donné, rien d'autre (s'il y en a au moins 3) ;
+--   uniquement des SaaS en hausse d'au moins 10 % sur 30 jours (s'il y en a au moins 3) ; renvoie vert, metier_vise, langue.
+-- saas_pour_moi_apercu : compte uniquement les SaaS constructibles.
+-- saas_apercu : renvoie aussi canaux déclarés, croissance, audience, langue, constructible.

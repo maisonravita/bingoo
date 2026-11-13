@@ -6,7 +6,7 @@ import { cx } from "./utils";
 // « Commencer » sans compte : connexion anonyme Supabase. Le visiteur explore tout Bingoo! ;
 // ce qui coûte de l'IA, envoie un message ou touche au paiement lui demande de créer son compte (le serveur refuse aussi).
 export const estInvite = (session) => session?.user?.is_anonymous === true;
-export const COMPTE_REQUIS = /^Crée ton compte gratuit/;
+export const COMPTE_REQUIS = /^Crée ton compte/;
 export const demanderCompte = (raison) => window.dispatchEvent(new CustomEvent("bingoo-compte", { detail: raison ?? null }));
 
 export async function commencer(nav) {
@@ -71,7 +71,7 @@ export function CompteModal() {
           <><h2 className="text-[24px] font-black" style={HF}>Regarde tes e-mails</h2><p className="mt-2 text-ink-soft">Bingoo! vient d'envoyer un lien à <b className="text-ink">{email}</b>. Clique dessus pour valider ton adresse : tu reviendras ici avec tout ce que tu as fait, tu choisiras ton mot de passe et tout sera débloqué.</p><button onClick={() => setOuvert(false)} className="mt-5 w-full rounded-xl border border-line py-3 font-semibold">Fermer</button></>
         ) : (
           <form onSubmit={envoyer}>
-            <h2 className="text-[24px] font-black leading-tight" style={HF}>Crée ton compte gratuit</h2>
+            <h2 className="text-[24px] font-black leading-tight" style={HF}>Crée ton compte</h2>
             <p className="mt-1.5 text-[14.5px] text-ink-soft">{raison ?? "Pour aller plus loin, il faut un compte."} Tes réponses et tes SaaS sont gardés.</p>
             <label className="mt-5 block text-[13.5px] font-semibold">Ton adresse e-mail</label>
             <input type="email" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" className={cx(champ, "mt-1")} />

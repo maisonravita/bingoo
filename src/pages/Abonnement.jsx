@@ -145,17 +145,17 @@ export default function Abonnement() {
 
   const saas = modeExplorer(ws) || ws.plan === "fondateur";
   const daysLeft = ws.trial_ends ? Math.ceil((new Date(ws.trial_ends) - new Date()) / 864e5) : null;
-  const [label, tone] = ws.plan === "essai" ? [daysLeft > 0 ? `Aperçu : ${daysLeft} jour${daysLeft > 1 ? "s" : ""} restant${daysLeft > 1 ? "s" : ""}` : (payments ? "Essai terminé" : "Accès de lancement"), daysLeft > 0 || !payments ? "accent" : "bad"] : STATUS[ws.plan_status] ?? [ws.plan_status, "muted"];
+  const [label, tone] = ws.plan === "essai" ? [saas ? "Verrouillé" : daysLeft > 0 ? `Aperçu : ${daysLeft} jour${daysLeft > 1 ? "s" : ""} restant${daysLeft > 1 ? "s" : ""}` : (payments ? "Essai terminé" : "Accès de lancement"), daysLeft > 0 || !payments ? "accent" : "bad"] : STATUS[ws.plan_status] ?? [ws.plan_status, "muted"];
 
   return (
     <div>
       <SubNav section="reglages" />
       <PageHead title="Abonnement" sub="Sans engagement : tu changes de formule ou tu arrêtes quand tu veux." />
-      {!payments && <Card className="p-4 sm:p-5 mb-6 border-accent/30 bg-accent-soft/40"><p className="font-semibold">Les abonnements ouvrent bientôt</p><p className="text-sm text-ink-soft mt-1">Bingoo! est en phase de lancement : ton accès reste gratuit, même après l'essai. Tu seras prévenu avant l'ouverture des abonnements.</p></Card>}
+      {!payments && <Card className="p-4 sm:p-5 mb-6 border-accent/30 bg-accent-soft/40"><p className="font-semibold">Les abonnements ouvrent très bientôt</p><p className="text-sm text-ink-soft mt-1">Tu seras prévenu par e-mail dès l'ouverture : tes SaaS se débloqueront dès ton paiement.</p></Card>}
       <Card className="p-5 sm:p-6 mb-6 flex flex-wrap items-center gap-4">
         <div className="flex-1 min-w-[200px]">
           <p className="text-sm text-ink-soft">Ta formule</p>
-          <p className="font-serif text-3xl">{ws.plan === "fondateur" ? "Fondateur (offerte)" : plans.find((p) => p.key === ws.plan)?.label ?? "Aperçu gratuit"}</p>
+          <p className="font-serif text-3xl">{ws.plan === "fondateur" ? "Fondateur (offerte)" : plans.find((p) => p.key === ws.plan)?.label ?? "Aucune formule"}</p>
           {ws.period_end && ws.plan !== "essai" && <p className="text-sm text-ink-soft mt-1">Prochaine échéance le {new Date(ws.period_end).toLocaleDateString("fr-FR")}</p>}
         </div>
         <Badge tone={tone}>{label}</Badge>
@@ -172,8 +172,8 @@ export default function Abonnement() {
       </div>
       {fond && (fond.left > 0 || ws.founder_price) && (
         <Card className="p-4 sm:p-5 mb-4 border-accent/40 bg-accent-soft/40">
-          <p className="font-semibold">{ws.founder_price ? "Tu as le prix fondateur : Pro à 29 € à vie" : `Prix fondateur : Pro à ${fond.price} € à vie pour les ${fond.places} premiers`}</p>
-          {!ws.founder_price && <p className="text-sm text-ink-soft mt-1">Ensuite, Pro passe à 39,99 €. Ceux qui sont entrés gardent leur prix tant que l'abonnement continue.</p>}
+          <p className="font-semibold">{ws.founder_price ? `Tu as le prix fondateur : ${saas ? "Lancer" : "Pro"} à 29 € à vie` : `Prix fondateur : ${saas ? "Lancer" : "Pro"} à ${fond.price} € à vie pour les ${fond.places} premiers`}</p>
+          {!ws.founder_price && <p className="text-sm text-ink-soft mt-1">Ensuite, {saas ? "Lancer" : "Pro"} passe à 39,99 €. Ceux qui sont entrés gardent leur prix tant que l'abonnement continue.</p>}
         </Card>
       )}
       <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -198,7 +198,7 @@ export default function Abonnement() {
           <p className="font-semibold">Entreprise</p>
           <p className="mt-3"><span className="font-serif text-4xl">Sur devis</span></p>
           <p className="text-xs text-ink-faint mt-1">{saas ? "équipes, incubateurs, studios" : "au-delà de 5 commerciaux"}</p>
-          <ul className="mt-4 space-y-2 text-sm flex-1">{(saas ? ["Utilisateurs et SaaS construits sur mesure", "Tout Business", "Accompagnement au lancement", "Facturation annuelle possible"] : ["Utilisateurs et volume sur mesure", "Tout ce qu'il y a dans Équipe", "Accompagnement au démarrage", "Facturation annuelle possible"]).map((f) => <li key={f} className="flex gap-2"><span className="text-good">✓</span><span>{f}</span></li>)}</ul>
+          <ul className="mt-4 space-y-2 text-sm flex-1">{(saas ? ["Utilisateurs et SaaS construits sur mesure", "Tout Lancer à plusieurs", "Accompagnement au lancement", "Facturation annuelle possible"] : ["Utilisateurs et volume sur mesure", "Tout ce qu'il y a dans Équipe", "Accompagnement au démarrage", "Facturation annuelle possible"]).map((f) => <li key={f} className="flex gap-2"><span className="text-good">✓</span><span>{f}</span></li>)}</ul>
           <a href={`mailto:${CONTACT}?subject=${encodeURIComponent("Bingoo! Entreprise : demande de devis")}`} className="mt-6 inline-flex justify-center rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold hover:border-ink-faint">Parler à l'équipe</a>
         </Card>
       </div>

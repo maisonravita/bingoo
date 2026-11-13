@@ -53,13 +53,13 @@ const PLANS = [
   ["Lancer à plusieurs", 69.99, "Pour une équipe qui lance plusieurs SaaS.", ["Tout Lancer", "10 SaaS construits par mois", "3 utilisateurs", "Export des listes"]],
 ];
 const FAQ = [
-  ["Je ne sais pas coder, ça marche quand même ?", "Oui. Tu réponds à 7 questions, tu choisis ton SaaS, et Bingoo! construit ta version : le site, les comptes de tes clients, l'abonnement avec ton Stripe. Tu n'écris pas une ligne de code."],
+  ["Je ne sais pas coder, ça marche quand même ?", "Oui. Tu réponds à 8 questions, tu choisis ton SaaS, et Bingoo! construit ta version : le site, les comptes de tes clients, l'abonnement avec ton Stripe. Tu n'écris pas une ligne de code."],
   ["Combien je vais gagner ?", "Personne ne peut te le promettre, et Bingoo! ne le fait pas. Ce qu'il fait : te faire partir de SaaS qui encaissent déjà (revenus vérifiés chez leur outil de paiement), construire ta version, et te donner chaque jour quoi faire pour trouver tes 10 premiers clients. Le reste dépend de toi."],
   ["D'où viennent les chiffres ?", "Les revenus sont vérifiés directement chez l'outil de paiement des SaaS (Stripe et d'autres), via TrustMRR. La visibilité, les canaux et la pub viennent de leurs propres déclarations et de sources publiques. Chaque chiffre a sa source sur la fiche."],
   ["Faire ma version d'un SaaS, c'est légal ?", "Faire la même chose qu'un autre, oui : c'est la concurrence. Bingoo! construit ta version avec ton nom, tes textes et ton design, et souvent un angle à toi (en français, pour un métier, plus simple). Reprendre la marque, les textes mot pour mot ou le design d'un autre, non."],
   ["Comment Bingoo! trouve mes premiers clients ?", "Pour ta version, il cherche dans le registre public des entreprises les établissements de ton département qui ont le problème (par exemple 50 salons de coiffure à Paris), te prépare le message à envoyer et suit avec toi qui a répondu, qui essaie, qui paie. Tu envoies toi-même, depuis ton adresse."],
   ["Et si ça ne marche pas pour moi ?", "Avec « Lancer », si ta version n'est pas en ligne dans les 14 jours qui suivent ton paiement, tu es remboursé. Sans engagement ensuite : tu arrêtes quand tu veux."],
-  ["Je peux essayer avant de payer ?", "Oui, sans compte ni carte : tu réponds aux questions et tu vois en direct combien de SaaS vérifiés collent à tes réponses, et le premier de tes 3 SaaS en clair. Le reste se débloque avec une formule, sans engagement."],
+  ["Qu'est-ce que je vois avant de payer ?", "Tu réponds aux questions sans compte, et tu vois en direct combien de SaaS vérifiés collent à ton profil, leur revenu médian et combien sont en tendance. Les SaaS eux-mêmes, leurs chiffres et ta version se débloquent avec une formule, sans engagement. Avec « Lancer », si ta version n'est pas en ligne sous 14 jours, tu es remboursé."],
   ["Et si un éditeur veut corriger sa fiche ?", "Notre robot ne lit que des pages publiques et respecte le fichier robots.txt. Écris-nous depuis une adresse de ton domaine : correction ou retrait sous 72 heures."],
 ];
 
@@ -101,7 +101,7 @@ export default function Landing() {
             </h1>
             <p className="hero-in mx-auto mt-7 max-w-[780px] text-[18px] sm:text-[22px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Bingoo! repère les SaaS en tendance qui encaissent déjà{nb ? <> (parmi <b>{nb.toLocaleString("fr-FR")}</b> suivis, revenus vérifiés)</> : null}, construit ta version à ton nom, et te trouve tes premiers clients en 7 jours.</p>
             <button onClick={go} className="hero-in mt-9 inline-flex items-center justify-center gap-2 rounded-full bg-accent px-10 py-4 text-[18px] font-bold text-white shadow-[0_14px_40px_-16px_rgba(226,85,35,.8)] hover:bg-accent-dark transition" style={{ ...JK, animationDelay: ".2s" }}>Commencer <Arrow className="h-4 w-4" /></button>
-            <p className="hero-in mt-3 text-[14px] text-[#5B6075]" style={{ ...JK, animationDelay: ".22s" }}>Gratuit, sans compte : 7 questions et tu vois ton SaaS.</p>
+            <p className="hero-in mt-3 text-[14px] text-[#5B6075]" style={{ ...JK, animationDelay: ".22s" }}>8 questions, sans compte, et tu vois combien de SaaS collent à ton profil.</p>
             <div className="hero-in mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[15px] text-[#5B6075]" style={{ ...JK, animationDelay: ".25s" }}>
               {["Des SaaS qui encaissent déjà, revenus vérifiés chez Stripe", "Ta version construite et en ligne en une journée", "Tes premiers clients trouvés pour toi"].map((x) => <span key={x} className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-accent" />{x}</span>)}
             </div>
@@ -115,7 +115,7 @@ export default function Landing() {
             <p className="mt-6 text-[13.5px] text-ink-faint">En continuant, j'accepte les <a href="#/conditions" className="underline hover:text-ink">Conditions d'utilisation</a> et la <a href="#/confidentialite" className="underline hover:text-ink">Politique de confidentialité</a> de Bingoo!.</p>
             <figure className="hero-in mx-auto mt-12 max-w-[1100px]" style={{ animationDelay: ".35s" }}>
               <img src="./apercu-tendance.jpg" alt="Tes 3 SaaS en tendance, avec leur revenu vérifié et ta version" className="w-full rounded-2xl border border-black/10 bg-[#F1EFED] shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]" />
-              <figcaption className="mt-2.5 text-[13px] text-ink-faint">Le résultat après les 7 questions, dans la vraie application.</figcaption>
+              <figcaption className="mt-2.5 text-[13px] text-ink-faint">Le résultat après les 8 questions, dans la vraie application.</figcaption>
             </figure>
           </section>
         </div>
@@ -133,7 +133,7 @@ export default function Landing() {
             <h2 className="max-w-[900px] text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>De « je ne sais pas quoi lancer » à tes premiers paiements.</h2>
             <ol className="mt-12 space-y-16">
               {[
-                ["Réponds à 7 questions", "Comment tu veux trouver tes clients, ce que tu refuses de faire, ton temps, le revenu visé, le métier que tu connais. Pendant que tu réponds, tu vois combien de SaaS vérifiés collent déjà à tes réponses.", null],
+                ["Réponds à 8 questions", "Comment tu veux trouver tes clients, ce que tu refuses de faire, ton temps, le revenu visé, le métier que tu connais. Pendant que tu réponds, tu vois combien de SaaS vérifiés collent déjà à tes réponses.", null],
                 ["Tes 3 SaaS en tendance", "Des SaaS qui encaissent déjà, revenus vérifiés chez leur outil de paiement, dont le revenu monte en ce moment. Pour chacun, sa tendance, sa visibilité et ta version : en français, pour un métier, ou plus simple.", "apercu-tendance.jpg"],
                 ["Bingoo! construit ta version", "Ton site, les comptes de tes clients, l'abonnement avec ton Stripe, ton domaine. À ton nom, avec tes mots et ton design, en ligne en une journée.", "video"],
                 ["Tes 10 premiers clients en 7 jours", "Bingoo! trouve les établissements qui ont le problème dans ton département, te prépare le message, et t'envoie chaque matin l'étape du jour. Tu suis qui répond, qui essaie, qui paie.", "apercu-prospects.jpg"],
@@ -151,7 +151,7 @@ export default function Landing() {
                     <figure><img src={`./${img}`} alt={h} loading="lazy" className="w-full rounded-2xl border border-black/10 bg-[#F1EFED] shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]" /><figcaption className="mt-2.5 text-[13px] text-ink-faint">Dans la vraie application.{img === "apercu-prospects.jpg" ? " Noms des dirigeants floutés." : ""}</figcaption></figure>
                   ) : (
                     <div className="rounded-2xl bg-[#F6F5F3] border border-line p-6 sm:p-8">
-                      <p className="text-[14px] text-ink-faint">Question 1 sur 7</p>
+                      <p className="text-[14px] text-ink-faint">Question 1 sur 8</p>
                       <p className="mt-2 text-[24px] sm:text-[30px] leading-tight text-ink" style={SERIF}>Comment te vois-tu trouver tes clients ?</p>
                       <div className="mt-5 grid sm:grid-cols-2 gap-2">{["Écrire et être trouvé sur Google", "Publier sur les réseaux", "Contacter les gens directement", "Bouche-à-oreille et affiliation"].map((x) => <span key={x} className="rounded-xl border-2 border-line bg-white px-4 py-3 text-[15px] font-semibold">{x}</span>)}</div>
                       <p className="mt-5 rounded-xl bg-white border border-line px-4 py-3 text-[14.5px]"><b>550</b> SaaS au revenu vérifié collent déjà à tes réponses. Dont <b>163</b> en tendance.</p>
@@ -222,7 +222,7 @@ export default function Landing() {
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
             <div>
               <h2 className="text-[38px] sm:text-[54px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ton SaaS et tes premiers clients, dès 19,99 €.</h2>
-              <p className="mt-3 text-[17px] text-ink-soft">Commence gratuitement, sans compte : tes réponses et ton premier SaaS en clair. Prix hors taxes par mois, sans engagement.</p>
+              <p className="mt-3 text-[17px] text-ink-soft">Tu réponds aux questions sans compte et tu vois combien de SaaS collent à ton profil. Tes SaaS se débloquent avec une formule. Prix hors taxes par mois, sans engagement.</p>
             </div>
             <div className="relative inline-flex rounded-full bg-white border border-line p-1 self-start md:self-auto">
               {[[false, "Mensuel"], [true, "Annuel"]].map(([v, l]) => <button key={l} onClick={() => setYearly(v)} className={cx("rounded-full px-5 py-2 text-[14.5px] font-bold transition", yearly === v ? "bg-ink text-white" : "text-ink-soft")}>{l}</button>)}
@@ -273,18 +273,17 @@ export default function Landing() {
         </section>
 
         <section className="max-w-4xl mx-auto px-4 sm:px-6 py-20 text-center">
-          <p className="text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ton premier paiement commence par 7 questions.</p>
-          <p className="mt-4 text-[18px] text-ink-soft">Gratuit, sans compte, et tu vois ton SaaS en tendance tout de suite.</p>
+          <p className="text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ton premier paiement commence par 8 questions.</p>
+          <p className="mt-4 text-[18px] text-ink-soft">Sans compte pour commencer : tu vois tout de suite combien de SaaS en tendance collent à ton profil.</p>
           <button onClick={go} className="mt-8 inline-flex items-center gap-2 rounded-full bg-accent px-10 py-4 text-[18px] font-bold text-white hover:bg-accent-dark transition">Commencer <Arrow className="h-4 w-4" /></button>
         </section>
         </div>
       </main>
 
       <footer className="border-t border-line bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid grid-cols-2 md:grid-cols-4 gap-8 text-[15px]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid grid-cols-2 md:grid-cols-3 gap-8 text-[15px]">
           <div><p className="font-bold">Produit</p><ul className="mt-4 space-y-2.5 text-ink-soft">{[["comment", "Comment ça marche"], ["tendances", "Les SaaS en tendance"], ["clients", "Tes premiers clients"], ["tarifs", "Tarifs"]].map(([id, l]) => <li key={id}><a href={`#${id}`} onClick={scrollTo(id)} className="hover:text-ink">{l}</a></li>)}</ul></div>
-          <div><p className="font-bold">Outils gratuits</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="#/marche" className="hover:text-ink">Ton marché SaaS en une minute</a></li><li><a href="/saas" className="hover:text-ink">Tous les SaaS : prix et alternatives</a></li><li><a href="#/outils/contrats-publics" className="hover:text-ink">Contrats publics qui se terminent</a></li><li><a href="#/outils/analyse-concurrent" className="hover:text-ink">Analyse d'un concurrent</a></li></ul></div>
-          <div><p className="font-bold">Pour qui</p><ul className="mt-4 space-y-2.5 text-ink-soft">{[["logiciels", "Fondateurs de SaaS"], ["agences", "Agences et cabinets"]].map(([k, l]) => <li key={k}><a href={`#/metier/${k}`} className="hover:text-ink">{l}</a></li>)}</ul></div>
+          <div><p className="font-bold">Les SaaS</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="/saas" className="hover:text-ink">Tous les SaaS suivis : prix et alternatives</a></li><li><a href="#faq" onClick={scrollTo("faq")} className="hover:text-ink">Questions fréquentes</a></li></ul></div>
           <div><p className="font-bold">Compte et légal</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><button onClick={() => nav("/connexion?mode=login")} className="hover:text-ink">Connexion</button></li><li><button onClick={go} className="hover:text-ink">Créer un compte</button></li>{legalReady && <><li><a href="#/mentions-legales" className="hover:text-ink">Mentions légales</a></li><li><a href="#/confidentialite" className="hover:text-ink">Confidentialité</a></li><li><a href="#/conditions" className="hover:text-ink">Conditions</a></li></>}<li><a href="#/opposition" className="hover:text-ink">Ne plus être contacté</a></li></ul></div>
         </div>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-10 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-8">

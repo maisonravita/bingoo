@@ -56,21 +56,13 @@ function WsSwitch({ ws, list, select, className }) {
 }
 
 function TrialBar({ ws }) {
-  const left = ws.trial_ends ? Math.ceil((new Date(ws.trial_ends) - new Date()) / 864e5) : 7;
-  // Avant l'ouverture des abonnements, un essai terminé reste actif : on ne demande pas de payer ce qu'on ne peut pas encore acheter
+  // Rien de gratuit : tant que la formule n'est pas payée, les SaaS restent verrouillés
   const [payments, setPayments] = useState(true);
   useEffect(() => { fn("plans").then((r) => setPayments(r?.payments !== false)).catch(() => {}); }, []);
-  if (!payments && left <= 3) return (
-    <div className="flex-1 min-w-0 flex items-center gap-3 rounded-full px-5 py-2.5 text-sm border bg-gradient-to-r from-accent-soft/70 to-white border-accent/15">
-      <span className="font-semibold">Accès de lancement</span>
-      <span className="text-ink-soft border-l border-line pl-3">Bingoo! reste gratuit pour toi jusqu'à l'ouverture des abonnements, annoncée à l'avance.</span>
-    </div>
-  );
   return (
-    <NavLink to="/abonnement" className={cx("flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full px-5 py-2.5 text-sm border transition", left > 2 ? "bg-gradient-to-r from-accent-soft/70 to-white border-accent/15 hover:border-accent/40" : "bg-bad-soft border-bad/30 text-bad")}>
-      <svg viewBox="0 0 24 24" className="w-5 h-5 text-accent shrink-0" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 15c-1.5 1.5-2 5-2 5s3.5-.5 5-2M9 13l-3-3 4-6c3-2 7-2 10-1 1 3 1 7-1 10l-6 4-3-3M14.5 9.5h.01" /></svg>
-      <span className="font-semibold">{left > 0 ? `Aperçu gratuit : ${left} jour${left > 1 ? "s" : ""} restant${left > 1 ? "s" : ""}` : "Ton aperçu gratuit est terminé"}</span>
-      <span className="hidden sm:inline text-ink-soft border-l border-line pl-3">Abonne-toi pour envoyer : premier mois remboursé sans rendez-vous ni réponse →</span>
+    <NavLink to="/abonnement" className="flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full px-5 py-2.5 text-sm border transition bg-gradient-to-r from-accent-soft/70 to-white border-accent/15 hover:border-accent/40">
+      <span className="font-semibold">Tes SaaS sont verrouillés</span>
+      <span className="text-ink-soft border-l border-line pl-3">{payments ? "Choisis ta formule pour les débloquer, sans engagement →" : "Les abonnements ouvrent très bientôt : tes SaaS se débloqueront dès ton paiement."}</span>
     </NavLink>
   );
 }
@@ -211,14 +203,14 @@ export default function Layout({ children }) {
     { to: "/explorer/trouver", label: "Trouver mon SaaS", icon: "target" },
   ] : veille ? [
     { to: "/explorer/trouver", label: "Trouver mon SaaS", icon: "target" },
-    { to: "/explorer/copier", label: "À copier", icon: "target", also: ["/explorer/chiffres"] },
+    { to: "/explorer/copier", label: "À lancer", icon: "target", also: ["/explorer/chiffres"] },
     { to: "/explorer/demande", label: "Demande à Bingoo!", icon: "spark", also: ["/explorer/connecteur"] },
     { to: "/explorer/createurs", label: "Mes SaaS", icon: "bot", also: ["/explorer/lancer"] },
     { to: "/explorer/vendre", label: "Acheter / vendre", icon: "doc", also: ["/explorer/bourse", "/explorer/racheter"] },
     { to: "/explorer", label: "Explorer les SaaS", icon: "list", also: ["/explorer/niches", "/explorer/classement", "/explorer/marche", "/explorer/carte", "/explorer/idees", "/explorer/pubs", "/explorer/suivis", "/explorer/bouge"] },
   ] : [{ to: "/explorer", label: "Explorer", icon: "eye" }, item(lieu("atelier")), item(lieu("poste")), { to: "/appels", label: "Appels", icon: "phone", count: c.calls }, ...["rdv", "radar", "observatoire"].map((a) => item(lieu(a)))];
   const plus = invite ? [] : veille ? [
-    { to: "/abonnement", label: "Abonnement", icon: "doc" }, { to: "/equipe", label: "Équipe", icon: "phone" }, { to: "/reglages", label: "Réglages", icon: "plug" },
+    { to: "/abonnement", label: "Abonnement", icon: "doc" }, ...(["business", "fondateur"].includes(ws.plan) ? [{ to: "/equipe", label: "Équipe", icon: "phone" }] : []),
     ...(isAdmin ? [{ to: "/admin", label: "Administration", icon: "chart" }] : []),
   ] : [
     item(lieu("annuaire")),
@@ -275,7 +267,7 @@ export default function Layout({ children }) {
     <div className="bg-ink text-white text-[13.5px]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
         <span className="text-white/80">Tu explores Bingoo! sans compte.</span>
-        <button onClick={() => demanderCompte("Garde tes résultats et reviens quand tu veux.")} className="font-semibold text-[#F6A06B] hover:underline">Créer mon compte gratuit</button>
+        <button onClick={() => demanderCompte("Garde tes résultats et reviens quand tu veux.")} className="font-semibold text-[#F6A06B] hover:underline">Créer mon compte</button>
       </div>
     </div>
   );
@@ -307,7 +299,7 @@ export default function Layout({ children }) {
       {/* Téléphone : les 4 endroits du quotidien, toujours sous le pouce */}
       <nav aria-label="Navigation principale" hidden={invite} className="md:hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
         <div className="grid grid-cols-4">
-          {(veille ? [["/explorer/trouver", "Trouver", "target", 0], ["/explorer/copier", "À copier", "target", 0], ["/explorer/createurs", "Mes SaaS", "bot", 0], ["/explorer", "Explorer", "list", 0]]
+          {(veille ? [["/explorer/trouver", "Trouver", "target", 0], ["/explorer/copier", "À lancer", "target", 0], ["/explorer/createurs", "Mes SaaS", "bot", 0], ["/explorer", "Explorer", "list", 0]]
             : [["/", "Aujourd'hui", "today", 0], ["/valider", "Messages", "send", c.drafts], ["/reponses", "Réponses", "inbox", c.replies], ["/agenda", "RDV", "cal", c.today]]).map(([to, l, ic, n]) => (
             <NavLink key={to} to={to} end={to === "/" || to === "/explorer"} className={({ isActive }) => cx("relative flex flex-col items-center gap-0.5 py-2.5 text-[11.5px] font-semibold", isActive ? "text-[#E8571C]" : "text-ink-soft")}>
               <Icon name={ic} />{l}

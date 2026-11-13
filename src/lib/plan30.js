@@ -44,31 +44,41 @@ const FR = { "Content marketing": "contenu", "Email marketing": "e-mailing", "Wo
 export const nomCanal = (c) => FR[c] ?? c;
 const DEFAUT = ["SEO", "Reddit", "Product Hunt", "Word of mouth"];
 
-export function plan30(s, r) {
+// Un prix qui fait vivre : on part du sien, sans descendre sous un seuil qui rend l'objectif ridicule
+export function prixConseille(s, a) {
+  const sien = s.prix_entree_eur ? Math.round(s.prix_entree_eur) : null;
+  const pro = a?.type === "metier" || /B2B|both/i.test(s.audience ?? "");
+  const plancher = pro ? 19 : 9;
+  return { sien, prix: Math.max(sien ?? plancher, plancher) };
+}
+const dollarsFr = (n) => `${Number(Math.round(n)).toLocaleString("fr-FR")} $`;
+
+export function plan30(s, r, a) {
   const peu = r.temps === "peu";
   const q = (beaucoup, un_peu) => (peu ? un_peu : beaucoup);
   const interdits = new Set((r.refus ?? []).flatMap((k) => REFUS_CANAUX[k] ?? []));
   const canaux = [...(s.canaux ?? []), ...DEFAUT].filter((c, i, a) => ACTIONS[c] && !interdits.has(c) && a.indexOf(c) === i).slice(0, 3);
-  const prix = s.prix_entree_eur ? Math.round(s.prix_entree_eur) : null;
-  const persona = (s.persona ?? "").split(/[.;]/)[0].slice(0, 90);
+  const { sien, prix } = prixConseille(s, a);
+  const cible = a?.type === "metier" ? a.les : /B2B|both/i.test(s.audience ?? "") ? "des petites entreprises" : "des personnes qui ont le problème";
+  const pourAtteindre = s.mrr ? Math.ceil((s.mrr * 0.92) / prix) : null; // dollars → euros, à peu près
   return {
     canaux,
     semaines: [
-      { titre: "Semaine 1 : construire ta version", actions: [
+      { titre: "Semaine 1 : ta version en ligne", actions: [
         `Fais construire par Bingoo! ta version de ${s.nom}, à ton nom et avec ton design (environ une heure de ton côté).`,
         "Choisis un nom, achète le domaine et branche-le en un clic depuis Mes SaaS.",
         "Branche ton compte Stripe : tes clients pourront payer dès le premier jour.",
-        prix ? `Fixe ton prix près du sien : ${s.nom} démarre à ${prix} € par mois, c'est un prix que le marché accepte déjà.` : `Regarde le prix de ${s.nom} sur son site et place-toi au même niveau pour commencer.`,
+        sien && sien < prix ? `Fixe ton prix à ${prix} € par mois : ${s.nom} démarre à ${sien} €, mais une version ${a?.type === "metier" ? `pensée pour ${a.les}` : "pour les pros français"} vaut plus.` : `Fixe ton prix à ${prix} € par mois${sien ? `, comme ${s.nom} : c'est un prix que le marché accepte déjà` : ""}.`,
       ] },
-      { titre: "Semaine 2 : préparer le lancement", actions: [
-        "Publie ta page de précommande et montre-la à 10 personnes qui ont le problème : note leurs mots exacts.",
-        `Fais une liste de ${q(50, 25)} personnes ou entreprises à qui ton outil servirait${persona ? ` (sa cible : ${persona})` : ""}.`,
-        ...canaux.slice(0, 1).map((c) => `Ouvre ton compte ou ta page sur ton premier canal (${nomCanal(c)}) et prépare 5 publications d'avance.`),
+      { titre: "Semaine 2 : tes 10 premiers clients", actions: [
+        "Suis « Tes 10 premiers clients en 7 jours », juste en dessous : une étape par jour.",
+        `Montre ta page à ${q(10, 5)} personnes de ta cible (${cible}) et note leurs mots exacts.`,
+        ...canaux.slice(0, 1).map((c) => `Ouvre ton compte sur ton premier canal (${nomCanal(c)}) et prépare 5 publications d'avance.`),
       ] },
-      { titre: "Semaines 3 et 4 : tes 10 premiers clients", actions: canaux.map((c) => ACTIONS[c](q)) },
+      { titre: "Semaines 3 et 4 : de 10 à 30 clients", actions: canaux.map((c) => ACTIONS[c](q)) },
       { titre: "Jour 30 : le point", actions: [
-        prix ? `Objectif : 10 clients payants, soit ${10 * prix} € par mois.` : "Objectif : 10 clients payants.",
-        "Garde le canal qui a amené le plus de clients et arrête les autres : concentre-toi le mois suivant.",
+        `Objectif : 30 clients payants à ${prix} €, soit ${(30 * prix).toLocaleString("fr-FR")} € par mois.`,
+        pourAtteindre ? `Le cap suivant : le revenu de ${s.nom}, ${dollarsFr(s.mrr)} par mois. À ton prix, c'est environ ${pourAtteindre.toLocaleString("fr-FR")} clients.` : "Garde le canal qui a amené le plus de clients et concentre-toi dessus le mois suivant.",
         `${(r.refus ?? []).includes("appeler") ? "Écris à" : "Appelle"} 3 clients pour savoir ce qui les a convaincus, et mets leurs mots sur ta page d'accueil.`,
       ] },
     ],

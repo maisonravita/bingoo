@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import ResultatsBingoo from "../components/ResultatsBingoo";
 import { nomCanal, plan30, promptClaude } from "../lib/plan30";
-import { ANGLES, angleDe, premiersClients, semaineClients } from "../lib/angle";
+import { ANGLES, angleDe, enFrancais, premiersClients, resumeFr, semaineClients } from "../lib/angle";
 import { demanderCompte, estInvite } from "../lib/invite";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
@@ -32,7 +32,7 @@ const date = (d) => d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric"
 const GENERIQUES = new Set(["saas", "ai", "ia", "b2b", "b2c", "startups", "startup", "web", "app", "apps", "tools", "productivity", "marketing", "content creation", "dev tools", "developer tools", "mobile apps", "other", "autre", "logiciel", "software"]);
 const etiquettes = (s) => (s.tags ?? []).filter((t) => !GENERIQUES.has(String(t).toLowerCase()));
 const preuveFaible = (su) => (su?.type === "revenu_verifie" && Number(su.montant ?? 0) < 1200) || /prévision|objectif|non réalisé/i.test(su?.preuve ?? "");
-const TRIS = [["copiable", "Les plus faciles à copier"], ["succes_montant", "Plus gros revenu prouvé"], ["score_croissance", "En croissance"], ["postes", "Qui recrutent le plus"], ["nouveaute", "Nouveautés récentes"], ["rang_web", "Les plus connus"], ["prix_entree_eur", "Prix d'entrée"], ["created_at", "Ajoutés récemment"]];
+const TRIS = [["copiable", "Les plus faciles à lancer"], ["succes_montant", "Plus gros revenu prouvé"], ["score_croissance", "En croissance"], ["postes", "Qui recrutent le plus"], ["nouveaute", "Nouveautés récentes"], ["rang_web", "Les plus connus"], ["prix_entree_eur", "Prix d'entrée"], ["created_at", "Ajoutés récemment"]];
 const PAGE = 48;
 // Niveau de formule pour Explorer : 1 = Starter, 2 = Pro, 3 = Business (et anciennes formules, aperçu, fondateur)
 const niv = (ws) => (ws?.plan === "explorer" ? 1 : ws?.plan === "explorer_pro" ? 2 : 3);
@@ -80,7 +80,7 @@ export default function Explorer({ domaine: fixe }) {
 // 6 entrées. Les pages marquées « cachée » restent ouvertes par lien mais ne s'affichent pas dans les sous-onglets
 const RUBRIQUES = [
   ["Trouver mon SaaS", [["trouver", "Trouver mon SaaS", "/explorer/trouver"]]],
-  ["À copier", [["copier", "À copier", "/explorer/copier"], ["chiffres", "Chiffres d'un SaaS", "/explorer/chiffres"]]],
+  ["À lancer", [["copier", "À lancer", "/explorer/copier"], ["chiffres", "Chiffres d'un SaaS", "/explorer/chiffres"]]],
   ["Demande à Bingoo!", [["demande", "Demande à Bingoo!", "/explorer/demande"], ["connecteur", "Dans Claude ou ChatGPT", "/explorer/connecteur", true]]],
   ["Mes SaaS", [["createurs", "Mes SaaS", "/explorer/createurs"]]],
   ["Acheter / vendre", [["vendre", "À vendre", "/explorer/vendre"], ["bourse", "Construits sur Bingoo!", "/explorer/bourse", true], ["racheter", "SaaS qui s'endorment", "/explorer/racheter", true]]],
@@ -216,11 +216,9 @@ function Liste({ copier: copierPage = false }) {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-[12.5px] font-bold uppercase tracking-wide text-accent-dark">{copierPage ? "Copier et lancer" : "Explorer"}</p>
           <h1 className="text-[30px] sm:text-[36px] font-black leading-tight tracking-tight" style={HF}>{copierPage ? "Ils gagnent déjà de l'argent. À toi de faire pareil." : "Tous les SaaS et applis web, au même endroit."}</h1>
-          {copierPage && <button onClick={() => navDem("/explorer/trouver")} className="mt-2 mb-1 inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-dark px-3.5 py-1.5 text-[13.5px] font-semibold hover:bg-accent-soft/70">🎯 {parcours?.etape === 3 ? "Mes SaaS sur mesure" : "Trouve le tien en 3 questions"} →</button>}
-          {copierPage ? <p className="text-ink-soft text-[15px] max-w-3xl">Des SaaS au revenu prouvé, tenus par de petites équipes, avec un prix simple, et souvent sans équivalent en France. Choisis-en un, puis « Lancer ma version » : Bingoo! le construit à ton nom.</p> : <p className="text-ink-soft text-[15px]">{stats ? `${stats.total.toLocaleString("fr-FR")} logiciels suivis · ${stats.cats.length} catégories · ${stats.pays.length} pays · ${stats.recrutent} recrutent en ce moment` : "…"}</p>}
-          {!copierPage && <button onClick={() => nav("/explorer/carte")} className="mt-1 text-[13.5px] font-semibold text-accent-dark hover:underline">🏝️ Voir la bibliothèque en archipel 3D</button>}
+          {copierPage && <button onClick={() => navDem("/explorer/trouver")} className="mt-2 mb-1 inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-dark px-3.5 py-1.5 text-[13.5px] font-semibold hover:bg-accent-soft/70">🎯 {parcours?.etape === 3 ? "Mes SaaS sur mesure" : "Trouve le tien en 8 questions"} →</button>}
+          {copierPage ? <p className="text-ink-soft text-[15px] max-w-3xl">Des SaaS au revenu prouvé, tenus par de petites équipes, avec un prix simple, et souvent sans équivalent en France. Choisis-en un, puis « Lancer ma version » : Bingoo! le construit à ton nom.</p> : <p className="text-ink-soft text-[15px]">{stats ? `${stats.total.toLocaleString("fr-FR")} logiciels suivis, dans ${stats.cats.length} catégories et ${stats.pays.length} pays` : "…"}</p>}
         </div>
         <form onSubmit={(e) => { e.preventDefault(); if (ajout.trim().length > 3) nav(`/explorer/chiffres?u=${encodeURIComponent(ajout.trim())}`); }} className="flex gap-2">
           <input value={ajout} onChange={(e) => setAjout(e.target.value)} placeholder="Combien gagne… (colle une adresse)" className="w-64 rounded-xl border border-line bg-white px-3 py-2.5 text-[14px] outline-none focus:border-ink" />
@@ -228,7 +226,6 @@ function Liste({ copier: copierPage = false }) {
         </form>
       </div>
 
-      <Demarrer />
 
       <div className="mt-5 rounded-2xl bg-white border border-line p-4 space-y-3">
         <div className="flex flex-wrap gap-2">
@@ -251,7 +248,7 @@ function Liste({ copier: copierPage = false }) {
         </div>
         <div className="flex flex-wrap gap-2">
           <span className="inline-flex rounded-full border border-line bg-white p-0.5">{[["", "Tout"], ["saas", "SaaS"], ["app_web", "Applis web"]].map(([k, l]) => <button key={k || "tout"} type="button" onClick={() => set("genre", k)} className={cx("rounded-full px-3 py-1 text-[13px] font-medium transition", f.genre === k ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}</span>
-          <Chip on={f.copier} onClick={() => setF((x) => ({ ...x, copier: !x.copier, tri: !x.copier ? "copiable" : (x.tri === "copiable" ? "score_croissance" : x.tri) }))}>🎯 À copier</Chip>
+          <Chip on={f.copier} onClick={() => setF((x) => ({ ...x, copier: !x.copier, tri: !x.copier ? "copiable" : (x.tri === "copiable" ? "score_croissance" : x.tri) }))}>🎯 Faciles à lancer</Chip>
           <Chip on={f.succes} onClick={() => setF((x) => ({ ...x, succes: !x.succes, decollage: false, tri: !x.succes ? "succes_montant" : (x.tri === "succes_montant" ? "score_croissance" : x.tri) }))}>★ SaaS à succès</Chip>
           <Chip on={f.decollage} onClick={() => setF((x) => ({ ...x, decollage: !x.decollage, succes: false, tri: !x.decollage ? "succes_montant" : x.tri }))}>🚀 En décollage</Chip>
           <Chip on={f.gratuit} onClick={() => set("gratuit", !f.gratuit)}>Version gratuite</Chip>
@@ -296,7 +293,7 @@ function Liste({ copier: copierPage = false }) {
                     <p className="font-bold truncate">{s.nom} <span className="font-normal">{drapeau(s.pays)}</span> <span className="text-[12.5px] font-normal text-ink-faint">{s.categorie}</span></p>
                     {s.description ? <p className="text-[13.5px] text-ink-soft line-clamp-1">{s.description}</p> : <p className="text-[13px] text-ink-faint italic">Description en cours de lecture</p>}
                     <div className="mt-1 flex flex-wrap gap-1.5 text-[11.5px]">
-                      {s.copiable >= 60 && <span title={(s.copiable_raisons ?? []).join(" · ")} className="rounded-md bg-[#DCFCE7] text-[#166534] px-1.5 py-0.5 font-semibold">🎯 Facile à copier {s.copiable}</span>}
+                      {s.copiable >= 60 && <span title={(s.copiable_raisons ?? []).join(" · ")} className="rounded-md bg-[#DCFCE7] text-[#166534] px-1.5 py-0.5 font-semibold">🎯 Facile à lancer {s.copiable}</span>}
                       {s.en_decollage && <span className="rounded-md bg-accent-soft text-accent-dark px-1.5 py-0.5 font-semibold">🚀 En décollage</span>}
                       {s.genre === "app_web" && <span className="rounded-md bg-[#E0E7FF] text-[#3730A3] px-1.5 py-0.5">Appli web</span>}
                       {s.constructible === false && <span className="text-ink-faint">⚠ construit en partie</span>}
@@ -402,7 +399,7 @@ function Fiche({ domaine }) {
           {s.succes && <p className={cx("mt-3 inline-flex flex-wrap items-center gap-x-2 rounded-xl px-3.5 py-2 text-[14px]", preuveFaible(s.succes) ? "bg-paper text-ink-soft" : "bg-[#FEF3C7] text-[#78350F]")}><b>{s.succes.annee && s.succes.annee < new Date().getFullYear() - 4 ? "Ancien chiffre :" : preuveFaible(s.succes) ? (s.succes.type === "revenu_verifie" ? "Revenu vérifié :" : "Chiffre non prouvé :") : Number(s.succes.montant ?? 0) < 12000 && s.succes.type === "revenu_verifie" ? "🚀 En décollage :" : "★ Preuve de succès :"}</b> {s.succes.preuve}{s.succes.source && <a href={s.succes.source} target="_blank" rel="noopener noreferrer" className="underline text-[12.5px] opacity-80">source</a>}</p>}
           {s.copiable != null && (
             <div className={cx("mt-3 rounded-xl border px-3.5 py-2.5 max-w-2xl", s.copiable >= 60 ? "border-[#BBF7D0] bg-[#F0FDF4]" : "border-line bg-white")}>
-              <p className="text-[14px]"><b>{s.copiable >= 60 ? "🎯 Bon modèle à copier" : s.copiable >= 30 ? "Copiable avec un angle précis" : "Difficile à copier tel quel"}</b> <span className="text-ink-faint tnum">· {s.copiable}/100</span></p>
+              <p className="text-[14px]"><b>{s.copiable >= 60 ? "🎯 Bon modèle à lancer" : s.copiable >= 30 ? "À lancer avec un angle précis" : "Difficile à lancer tel quel"}</b> <span className="text-ink-faint tnum">· {s.copiable}/100</span></p>
               <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[12.5px] text-ink-soft">{(s.copiable_raisons ?? []).map((r) => <li key={r}>{/Géant|Grosse|devis|Pas encore de revenu|très faible/.test(r) ? "–" : "✓"} {r}</li>)}</ul>
             </div>
           )}
@@ -1077,7 +1074,7 @@ function MicroDetail({ slug, info, retour }) {
       {canaux.length > 0 && <div className="mt-4"><p className="text-[13px] text-ink-soft">Comment les SaaS rentables de cette niche trouvent leurs clients</p><div className="mt-1.5 flex flex-wrap gap-1.5">{canaux.map(([k, n]) => <span key={k} className="rounded-md bg-accent-soft/70 text-accent-dark px-2.5 py-1 text-[13px] font-medium">{CANAL_FR[k] ?? k} <span className="opacity-60 tnum">{n}</span></span>)}</div></div>}
       <div className="mt-6 flex flex-wrap gap-2">
         <Chip on={vue === "revenu"} onClick={() => setVue("revenu")}>Avec un revenu vérifié</Chip>
-        <Chip on={vue === "copier"} onClick={() => setVue("copier")}>Faciles à copier</Chip>
+        <Chip on={vue === "copier"} onClick={() => setVue("copier")}>Faciles à lancer</Chip>
         <Chip on={vue === "tous"} onClick={() => setVue("tous")}>Tous</Chip>
       </div>
       {!l ? <div className="py-16 grid place-items-center"><Spinner /></div> : !rows.length ? <p className="mt-6 text-ink-faint">Rien dans cette sélection : essaie « Tous ».</p> : (
@@ -1117,8 +1114,8 @@ function AutreSaas({ grand = false }) {
   );
 }
 const eurs = (n) => `${Number(n).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €`;
-// Le chemin unique : choisir → aperçu gratuit → projet → construit → en ligne
-const ETAPES_PARCOURS = ["Choisir un SaaS", "Aperçu gratuit", "Ton projet", "Ton SaaS construit", "En ligne"];
+// Le chemin unique : choisir → son aperçu → ton projet → construit → en ligne
+const ETAPES_PARCOURS = ["Choisir un SaaS", "Son aperçu", "Ton projet", "Ta version construite", "En ligne"];
 function Parcours({ etape }) {
   return (
     <ol className="mt-3 flex flex-wrap items-center gap-1.5 text-[12.5px] print:hidden" aria-label="Étapes">
@@ -1132,14 +1129,14 @@ function Parcours({ etape }) {
   );
 }
 
-// Avant de payer : ce que la copie construite par Bingoo! fera, et ce qu'elle ne fera pas encore
+// Ce que la version construite par Bingoo! fera, et ce qu'elle ne fera pas encore
 const FERA = ["Site, comptes de tes clients, essai gratuit et abonnements (ton Stripe)", "Écrans de gestion avec leurs données, recherche et filtres", "Pages publiques sans compte : réservation, formulaire, avis, commande", "Vrais e-mails : confirmations, rappels planifiés, relances", "Documents PDF (devis, factures, contrats), photos et fichiers", "Assistant IA qui rédige, résume et analyse", "Agenda à ajouter dans Google Agenda ou Outlook"];
 const FERA_PAS = ["Vidéo, image ou son générés", "Appli mobile native ou extension de navigateur", "SMS", "Synchronisation avec Google, Outlook ou un autre logiciel"];
 function CeQueTaCopieFera({ saas, compact = false }) {
   return (
     <div className={cx("rounded-2xl border p-4", saas?.constructible === false ? "border-[#FED7AA] bg-[#FFF7ED]" : "border-line bg-white")}>
-      <p className="font-bold text-[15px]">Ce que ta copie fera dès le premier jour</p>
-      {saas?.constructible === false && <p className="mt-1 text-[13.5px] text-[#9A3412]">Attention : le cœur de {saas.nom} repose sur une technologie que Bingoo! ne construit pas encore. Ta copie en reprendra la gestion et les pages, pas ce cœur-là.</p>}
+      <p className="font-bold text-[15px]">Ce que ta version fera dès le premier jour</p>
+      {saas?.constructible === false && <p className="mt-1 text-[13.5px] text-[#9A3412]">Attention : le cœur de {saas.nom} repose sur une technologie que Bingoo! ne construit pas encore. Ta version en reprendra la gestion et les pages, pas ce cœur-là.</p>}
       <div className={cx("mt-2 grid gap-x-6 gap-y-1 text-[13.5px]", compact ? "" : "sm:grid-cols-2")}>
         <ul className="space-y-1">{FERA.map((t) => <li key={t} className="flex gap-1.5"><span className="text-[#15803D]">✓</span>{t}</li>)}</ul>
         <ul className="space-y-1 text-ink-soft"><li className="font-semibold text-ink">Pas encore :</li>{FERA_PAS.map((t) => <li key={t} className="flex gap-1.5"><span>–</span>{t}</li>)}</ul>
@@ -1196,10 +1193,10 @@ function Lancer() {
         <div className="mt-4 rounded-3xl bg-ink text-white p-8">
           <p className="text-[13px] font-bold uppercase tracking-wide text-[#F6A06B]">Lancer ma version</p>
           <h1 className="mt-2 text-[32px] sm:text-[42px] font-black leading-[1.05]" style={HF}>{nomInspi} marche. Lance ta version, à ton nom.</h1>
-          {angleType && saas && <p className="mt-3 inline-block rounded-lg bg-white/10 px-3 py-1.5 text-[15px] font-semibold text-[#F6A06B]">Ta version : {angleDe(saas, { metier: angleMetier }, angleType).titre.replace(`${saas.nom}, `, "")}</p>}
-          <p className="mt-3 max-w-2xl text-white/75 text-[16px]">Bingoo! lit ce que fait {nomInspi} sur son site et te prépare un SaaS concurrent qui fait la même chose : chaque fonctionnalité et son équivalent chez toi, l'ordre pour les coder, les outils et leur coût, tes prix face aux siens, tes premiers clients, le plan d'affaires sur 12 mois, et le texte à donner à un outil qui code l'application pour toi.</p>
+          {angleType && saas && <p className="mt-3 inline-block rounded-lg bg-white/10 px-3 py-1.5 text-[15px] font-semibold text-[#F6A06B]">Ta version : {angleDe(saas, { metier: angleMetier }, angleType).court}</p>}
+          <p className="mt-3 max-w-2xl text-white/75 text-[16px]">Bingoo! construit ta version de {nomInspi} et la met en ligne : ton site, les comptes de tes clients, l'abonnement avec ton Stripe, ton domaine. D'abord, il prépare ton projet en une à deux minutes : chaque fonctionnalité et ton équivalent, tes prix face aux siens et ton plan sur 12 mois. Ensuite, un clic pour construire.</p>
           <p className="mt-3 text-[13px] text-white/55">Concurrence loyale : les mêmes fonctionnalités, mais ton nom, tes mots et ton design. Reprendre la marque, les textes mot pour mot ou le design de {nomInspi} exposerait à des poursuites.</p>
-          <button onClick={generer} disabled={busy} className="mt-6 rounded-xl bg-accent px-7 py-3.5 font-bold hover:bg-accent-dark disabled:opacity-60">{busy ? "Préparation de ton projet… (une à deux minutes)" : niv(ws) < 2 ? "Disponible avec la formule Pro" : "Préparer mon projet"}</button>
+          <button onClick={generer} disabled={busy} className="mt-6 rounded-xl bg-accent px-7 py-3.5 font-bold hover:bg-accent-dark disabled:opacity-60">{busy ? "Préparation de ton projet… (une à deux minutes)" : niv(ws) < 2 ? "Disponible avec la formule Lancer" : "Préparer mon projet"}</button>
         </div>
       ) : null}
       {!p && <div className="mt-4"><CeQueTaCopieFera saas={saas} /></div>}
@@ -1208,7 +1205,7 @@ function Lancer() {
         <>
           <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-[13px] font-bold uppercase tracking-wide text-accent-dark">Ton SaaS concurrent de {nomInspi}</p>
+              <p className="text-[13px] font-semibold text-accent-dark">Ta version de {nomInspi}</p>
               <h1 className="mt-1 text-[36px] sm:text-[46px] font-black leading-[1.02]" style={HF}>{p.nom}</h1>
               <p className="mt-1 text-[18px] text-ink-soft max-w-3xl">{p.pitch}</p>
             </div>
@@ -1233,7 +1230,7 @@ function Lancer() {
           {p.equivalences?.length > 0 && (
             <Bloc className="mt-4" titre="Fonction par fonction" sous={`Ce que fait ${nomInspi}, lu sur son site, et ton équivalent`}>
               <table className="w-full text-[14px]"><thead><tr className="text-left text-[12px] text-ink-faint"><th className="pb-1.5 font-medium w-1/2">Chez {nomInspi}</th><th className="pb-1.5 font-medium">Chez {p.nom}</th></tr></thead>
-                <tbody>{p.equivalences.map((x, i) => <tr key={i} className="border-t border-line align-top"><td className="py-2 pr-4 text-ink-soft">{x.chez_eux}</td><td className="py-2 font-medium">{x.v1 === false ? <span className="mr-1.5 rounded bg-paper px-1.5 py-0.5 text-[11px] font-bold text-ink-soft">Plus tard</span> : x.v1 === true ? <span className="mr-1.5 rounded bg-[#DCFCE7] px-1.5 py-0.5 text-[11px] font-bold text-[#166534]">Dans ta copie</span> : "✓ "}{x.chez_toi}</td></tr>)}</tbody></table>
+                <tbody>{p.equivalences.map((x, i) => <tr key={i} className="border-t border-line align-top"><td className="py-2 pr-4 text-ink-soft">{x.chez_eux}</td><td className="py-2 font-medium">{x.v1 === false ? <span className="mr-1.5 rounded bg-paper px-1.5 py-0.5 text-[11px] font-bold text-ink-soft">Plus tard</span> : x.v1 === true ? <span className="mr-1.5 rounded bg-[#DCFCE7] px-1.5 py-0.5 text-[11px] font-bold text-[#166534]">Dans ta version</span> : "✓ "}{x.chez_toi}</td></tr>)}</tbody></table>
               {p.equivalences.some((x) => x.v1 === false) && <p className="mt-2 text-[12.5px] text-ink-faint">« Plus tard » : Bingoo! ne le construit pas encore ; tu pourras le faire coder ensuite (le texte pour un développeur est plus bas).</p>}
             </Bloc>
           )}
@@ -1275,7 +1272,7 @@ function Lancer() {
               <button onClick={() => { navigator.clipboard?.writeText(p.construction).then(() => toast("Texte copié"), () => toast("Copie impossible : sélectionne le texte", "bad")); }} className="mt-2 rounded-xl bg-ink text-white px-4 py-2.5 text-[14px] font-bold hover:bg-black print:hidden">Copier le texte</button>
             </Bloc>
           )}
-          <p className="mt-4 text-[12px] text-ink-faint">Projet préparé par une IA à partir des données de la base Explorer. Concurrent de {nomInspi}, sans en reprendre le nom, les textes mot pour mot ni le design. Vérifie la disponibilité du nom (INPI, nom de domaine) avant de le déposer.</p>
+          <p className="mt-4 text-[12px] text-ink-faint">Projet préparé par une IA à partir des données de la base Explorer. Ta version de {nomInspi}, sans en reprendre le nom, les textes mot pour mot ni le design. Vérifie la disponibilité du nom (INPI, nom de domaine) avant de le déposer.</p>
         </>
       )}
     </div>
@@ -1284,7 +1281,11 @@ function Lancer() {
 
 // ---------------------------------------------------------------- Bingoo! construit le SaaS
 // Une vraie application en ligne (site, comptes, écrans avec données), hébergée sur #/app/<slug>, modifiable en une phrase.
-// ---------------------------------------------------------------- Aperçu gratuit avant de préparer le projet (sans IA)
+// ---------------------------------------------------------------- Son aperçu, avant de préparer le projet (sans IA)
+// Mêmes chiffres que sur les cartes : une seule croissance (arrondie), les canaux déclarés si le site n'en montre pas
+const pct30 = (c) => `${c > 0 ? "+" : ""}${Math.round(c).toLocaleString("fr-FR")} %`;
+const preuveSansCroissance = (p) => (p ?? "").replace(/\s*\([+-−]?[\d.,\s]+\s?% en 30 jours\)/, "");
+const raisonFr = (r) => r.replace("copie une niche, pas tout le produit", "lance-toi sur une niche, pas sur tout le produit");
 function Apercu({ domaine }) {
   const nav = useNavigate();
   const [a, setA] = useState(undefined);
@@ -1295,21 +1296,21 @@ function Apercu({ domaine }) {
   return (
     <div className="mt-5">
       <div className="flex flex-wrap items-center gap-2">
-        {a.succes?.preuve && <span className={cx("rounded-lg px-3 py-1.5 text-[13.5px] font-semibold", preuveFaible(a.succes) ? "bg-paper text-ink-soft" : "bg-[#FEF3C7] text-[#78350F]")}>{preuveFaible(a.succes) ? "Revenu vérifié : " : "★ "}{a.succes.preuve}</span>}
-        {a.copiable != null && <span className={cx("rounded-lg px-3 py-1.5 text-[13.5px] font-semibold", a.copiable >= 60 ? "bg-[#DCFCE7] text-[#166534]" : "bg-paper text-ink-soft")}>{a.copiable >= 60 ? "🎯 Facile à copier" : a.copiable >= 30 ? "Copiable avec un angle précis" : "Difficile à copier tel quel"} · {a.copiable}/100</span>}
-        <span className="text-[12.5px] text-ink-faint">Aperçu gratuit, tiré de ce que Bingoo! a déjà relevé</span>
+        {a.succes?.preuve && <span className={cx("rounded-lg px-3 py-1.5 text-[13.5px] font-semibold", preuveFaible(a.succes) ? "bg-paper text-ink-soft" : "bg-[#FEF3C7] text-[#78350F]")}>{preuveFaible(a.succes) ? "Revenu vérifié : " : "★ "}{preuveSansCroissance(a.succes.preuve)}{a.croissance != null ? ` (${pct30(a.croissance)} en 30 jours)` : ""}</span>}
+        {a.copiable != null && <span className={cx("rounded-lg px-3 py-1.5 text-[13.5px] font-semibold", a.copiable >= 60 ? "bg-[#DCFCE7] text-[#166534]" : "bg-paper text-ink-soft")}>{a.copiable >= 60 ? "🎯 Facile à lancer" : a.copiable >= 30 ? "À lancer avec un angle précis" : "Difficile à lancer tel quel"} · {a.copiable}/100</span>}
+        <span className="text-[12.5px] text-ink-faint">Tiré de ce que Bingoo! a déjà relevé</span>
       </div>
       <div className="mt-3 grid md:grid-cols-3 gap-3">
         <Carte titre="Ce qu'il vend">
-          <p>{a.description}</p>
-          {a.cible && <p className="mt-1.5 text-ink-soft">Pour : {a.cible}</p>}
+          <p>{resumeFr(a)}</p>
+          {!enFrancais(a) && a.description && <p lang="en" className="mt-1.5 text-[12.5px] text-ink-faint">Sur son site : {a.description}</p>}
           {(a.formules ?? []).length > 0 && <ul className="mt-2 space-y-1">{a.formules.slice(0, 4).map((f) => <li key={f.nom} className="flex justify-between gap-3 text-[13.5px]"><span>{f.nom}</span><span className="tnum text-ink-soft">{f.prix}</span></li>)}</ul>}
         </Carte>
-        <Carte titre="Pourquoi le copier">
-          {(a.copiable_raisons ?? []).length ? <ul className="space-y-1">{a.copiable_raisons.map((r) => <li key={r} className={/Géant|Grosse|devis|Pas encore de revenu|très faible/.test(r) ? "text-ink-soft" : ""}>{/Géant|Grosse|devis|Pas encore de revenu|très faible/.test(r) ? "– " : "✓ "}{r}</li>)}</ul> : <p className="text-ink-soft">Pas encore assez de données sur ce SaaS.</p>}
+        <Carte titre="Pourquoi lui">
+          {(a.copiable_raisons ?? []).length ? <ul className="space-y-1">{a.copiable_raisons.map((r) => /^En croissance \(/.test(r) ? (a.croissance > 0 ? `En croissance (${pct30(a.croissance)} en 30 jours)` : null) : raisonFr(r)).filter(Boolean).map((r) => <li key={r} className={/Géant|Grosse|devis|Pas encore de revenu|très faible/.test(r) ? "text-ink-soft" : ""}>{/Géant|Grosse|devis|Pas encore de revenu|très faible/.test(r) ? "– " : "✓ "}{r}</li>)}</ul> : <p className="text-ink-soft">Pas encore assez de données sur ce SaaS.</p>}
         </Carte>
         <Carte titre="Comment il trouve ses clients">
-          {canaux.length ? <ul className="space-y-1">{canaux.map(([k, l]) => <li key={k}><a href={a.methode[k]} target="_blank" rel="noopener noreferrer" className="hover:underline">→ {l}</a></li>)}</ul> : <p className="text-ink-soft">Aucun canal visible sur son site.</p>}
+          {canaux.length ? <ul className="space-y-1">{canaux.map(([k, l]) => <li key={k}><a href={a.methode[k]} target="_blank" rel="noopener noreferrer" className="hover:underline">→ {l}</a></li>)}</ul> : (a.canaux ?? []).length ? <><p>{a.canaux.slice(0, 5).map(nomCanal).join(", ")}</p><p className="mt-1 text-[12.5px] text-ink-faint">Déclaré par le fondateur</p></> : <p className="text-ink-soft">Non précisé pour l'instant.</p>}
         </Carte>
       </div>
       <section className="mt-3 rounded-2xl bg-white border border-line p-5">
@@ -1321,7 +1322,7 @@ function Apercu({ domaine }) {
           </>
         ) : <p className="text-[14px]"><b className="text-[#166534]">Aucun équivalent français repéré</b> <span className="text-ink-soft">parmi les {a.fr_categorie} SaaS français de la catégorie « {a.categorie} » : la place est peut-être à prendre.</span></p>}
       </section>
-      <p className="mt-3 text-[13px] text-ink-soft">En préparant ton projet, Bingoo! ajoute : chaque fonctionnalité et ton équivalent, tes prix face aux siens, l'ordre pour les construire, ton plan d'affaires et ta page de précommande.</p>
+      <p className="mt-3 text-[13px] text-ink-soft">En préparant ton projet, Bingoo! ajoute : chaque fonctionnalité et ton équivalent, tes prix face aux siens, ton plan d'affaires et ta page de précommande. Puis il construit ta version.</p>
     </div>
   );
 }
@@ -1647,7 +1648,7 @@ const CANAL_ACTION = {
   x: ["X (Twitter)", "Construis en public : tes chiffres, tes nouveautés, tes leçons. C'est le canal des fondateurs qui vendent aux fondateurs.", null],
 };
 const ETAPES = [
-  [0, "Tes 10 premiers clients, à la main", "À ce stade, rien ne remplace le contact direct : ta liste de précommande, les communautés où ta cible pose ses questions, et la prospection (« Voir qui démarcher » sur la fiche du SaaS copié). Chaque conversation t'apprend ce qui fait acheter."],
+  [0, "Tes 10 premiers clients, à la main", "À ce stade, rien ne remplace le contact direct : ta liste de précommande, les communautés où ta cible pose ses questions, et la prospection (« Voir qui démarcher » sur la fiche du SaaS de départ). Chaque conversation t'apprend ce qui fait acheter."],
   [1000, "Rendre l'acquisition répétable", "Tu as prouvé que ça se vend. Installe maintenant ce qui marche sans toi : les pages comparatifs, l'affiliation, les avis, et les e-mails de relance."],
   [10000, "Accélérer", "Ton coût d'acquisition est connu : c'est le moment de la publicité, des partenariats et des tests de prix (onglet Prix testés)."],
 ];
@@ -2260,7 +2261,7 @@ function Createurs() {
       <h1 className="text-[30px] font-black tracking-tight" style={HF}>Mes SaaS</h1>
       <p className="text-ink-soft">Les SaaS que Bingoo! a construits pour toi. Les revenus sont relus chaque nuit dans Stripe : jamais un chiffre déclaré.</p>
       {mes === null ? <div className="py-10 grid place-items-center"><Spinner /></div> : !mes.length ? (
-        <div className="mt-2 rounded-2xl bg-white border border-line p-6"><p className="font-bold text-[17px]">Ton premier SaaS commence ici.</p><p className="mt-1 text-ink-soft">Trois questions, et Bingoo! te montre les SaaS qui gagnent déjà de l'argent et que tu peux copier. Ensuite : page de précommande, construction, encaissement.</p><button onClick={() => nav("/explorer/trouver")} className="mt-4 rounded-xl bg-accent px-5 py-2.5 text-[14px] font-bold text-white hover:bg-accent-dark">Trouver mon SaaS en 3 questions</button></div>
+        <div className="mt-2 rounded-2xl bg-white border border-line p-6"><p className="font-bold text-[17px]">Ton premier SaaS commence ici.</p><p className="mt-1 text-ink-soft">Réponds à 8 questions : Bingoo! te montre les SaaS en tendance qui gagnent déjà de l'argent, puis construit ta version et la met en ligne.</p><button onClick={() => nav("/explorer/trouver")} className="mt-4 rounded-xl bg-accent px-5 py-2.5 text-[14px] font-bold text-white hover:bg-accent-dark">Trouver mon SaaS</button></div>
       ) : (
         <div className="mt-2 grid md:grid-cols-2 lg:grid-cols-3 gap-3">{mes.map((a) => {
           const insp = a.saas_projets?.data?.inspire;
@@ -2639,7 +2640,7 @@ function Paquet({ res, r }) {
   const [metierLibre, setMetierLibre] = useState(r.metier ?? "");
   const rr = { ...r, metier: metierLibre };
   const a = angleDe(s, rr, forces[s.domaine]);
-  const p = plan30(s, r);
+  const p = plan30(s, rr, a);
   const texte = `${promptClaude(s, r)}\n\nL'angle de ma version : ${a.titre}. ${a.brief}`;
   const copier = () => { navigator.clipboard?.writeText(texte).then(() => { setCopie(true); setTimeout(() => setCopie(false), 2000); }); };
   return (
@@ -2902,7 +2903,8 @@ function CartePourToi({ x, r, force, grand, premier, onChoisir, choisi }) {
       <Tendance x={x} />
       <Visibilite x={x} court />
       {a && <p className="mt-3 rounded-lg bg-accent-soft/70 px-2.5 py-1.5 text-[13px] font-semibold text-accent-dark">Ta version : {a.court}</p>}
-      <p className={cx("mt-3 text-ink-soft", grand ? "text-[14px] line-clamp-3" : "text-[13px] line-clamp-2")}>{x.description}</p>
+      <p className={cx("mt-3 text-ink-soft", grand ? "text-[14px] line-clamp-3" : "text-[13px] line-clamp-2")}>{resumeFr(x)}</p>
+      {grand && !enFrancais(x) && x.description && <p lang="en" className="mt-1 text-[12px] text-ink-faint line-clamp-2" title={x.description}>Sur son site : {x.description}</p>}
       {(x.pourquoi ?? []).length > 0 && <ul className="mt-3 space-y-1 text-[13px] flex-1">{x.pourquoi.slice(0, grand ? 4 : 2).map((t) => <li key={t} className="flex gap-2"><span className="text-good">✓</span><span>{t}</span></li>)}</ul>}
       <div className="mt-4 flex gap-2">
         {onChoisir
@@ -2915,7 +2917,7 @@ function CartePourToi({ x, r, force, grand, premier, onChoisir, choisi }) {
 }
 
 // ---------------------------------------------------------------- Demande à Bingoo! : une question en français, des SaaS avec leurs vrais chiffres
-const EXEMPLES_QUESTIONS = ["Trouve-moi 3 SaaS de facturation qui scalent en ce moment", "Des petits SaaS tenus par une seule personne qui gagnent plus de 2 000 $", "Les outils TikTok qui grandissent le plus", "Un SaaS à racheter dans l'immobilier", "Des SaaS B2B faciles à copier sans concurrent français"];
+const EXEMPLES_QUESTIONS = ["Trouve-moi 3 SaaS de facturation qui scalent en ce moment", "Des petits SaaS tenus par une seule personne qui gagnent plus de 2 000 $", "Les outils TikTok qui grandissent le plus", "Un SaaS à racheter dans l'immobilier", "Des SaaS pour les pros sans équivalent français"];
 function DemandeBingoo() {
   const loc = useLocation();
   const nav = useNavigate();
@@ -3085,7 +3087,7 @@ function PageCopier() {
         </div>
         <form onSubmit={(e) => { e.preventDefault(); if (url.trim().length > 3) nav(`/explorer/chiffres?u=${encodeURIComponent(url.trim())}`); }} className="rounded-2xl bg-ink text-white p-4">
           <p className="font-bold">Tu as déjà un SaaS en tête ?</p>
-          <p className="text-[13px] text-white/60">Colle son adresse : ses chiffres, puis un bouton pour le copier.</p>
+          <p className="text-[13px] text-white/60">Colle son adresse : ses chiffres, puis un bouton pour lancer ta version.</p>
           <div className="mt-3 flex gap-2"><input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="ex. url2pin.com" className="flex-1 min-w-0 rounded-xl bg-white text-ink px-3 py-2 text-[14px] outline-none" /><button className="rounded-xl bg-accent px-4 py-2 text-[14px] font-semibold">Voir</button></div>
         </form>
       </div>
@@ -3100,11 +3102,11 @@ function PageCopier() {
         <div className="flex flex-wrap gap-2 pt-1">
           <input value={f.q} onChange={(e) => set("q", e.target.value)} placeholder="Chercher un nom ou un mot (ex. pinterest, facture)" className="flex-1 min-w-[220px] rounded-xl border border-line px-3 py-2 text-[14px] outline-none focus:border-ink" />
           <select value={f.categorie} onChange={(e) => set("categorie", e.target.value)} className="rounded-xl border border-line bg-white px-3 py-2 text-[14px]"><option value="">Tous les secteurs</option>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select>
-          <select value={f.tri} onChange={(e) => set("tri", e.target.value)} className="rounded-xl border border-line bg-white px-3 py-2 text-[14px]"><option value="copiable">Les plus faciles à copier</option><option value="revenu">Plus gros revenu</option><option value="croissance">Plus forte croissance</option><option value="recent">Ajoutés récemment</option></select>
+          <select value={f.tri} onChange={(e) => set("tri", e.target.value)} className="rounded-xl border border-line bg-white px-3 py-2 text-[14px]"><option value="copiable">Les plus faciles à lancer</option><option value="revenu">Plus gros revenu</option><option value="croissance">Plus forte croissance</option><option value="recent">Ajoutés récemment</option></select>
         </div>
       </div>
 
-      <p className="mt-5 text-[13px] text-ink-faint tnum">{d ? `${Number(d.total).toLocaleString("fr-FR")} SaaS à copier` : "Recherche…"}</p>
+      <p className="mt-5 text-[13px] text-ink-faint tnum">{d ? `${Number(d.total).toLocaleString("fr-FR")} SaaS à lancer` : "Recherche…"}</p>
       <div className="mt-2 rounded-2xl border border-line bg-white overflow-hidden">
         {!d ? <div className="py-16 grid place-items-center"><Spinner /></div> : !d.rows.length ? (
           <div className="p-8"><p className="font-bold">Aucun SaaS ne coche tous ces filtres.</p><p className="mt-1 text-ink-soft">Enlève un filtre : par exemple la façon de trouver des clients.</p></div>
@@ -3438,7 +3440,7 @@ function ChiffresSaas() {
           {cases.length > 0 && <div className="px-5 sm:px-7 pt-4 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4">{cases.map(([k, v]) => <div key={k}><p className="text-[12px] text-ink-faint">{k}</p><p className="text-[18px] font-bold tnum">{v}</p></div>)}</div>}
           {(t.canaux ?? []).length > 0 && <div className="px-5 sm:px-7 pt-5"><p className="text-[12.5px] text-ink-faint">Comment il trouve ses clients</p><div className="mt-1.5 flex flex-wrap gap-1.5">{t.canaux.map((c) => <span key={c} className="rounded-md bg-accent-soft/70 text-accent-dark px-2.5 py-1 text-[13px] font-medium">{CANAL_FR[c] ?? c}</span>)}</div></div>}
           <div className="mt-6 px-5 sm:px-7 py-5 bg-paper/70 border-t border-line flex flex-wrap items-center gap-3">
-            <button onClick={() => nav(`/explorer/lancer?d=${encodeURIComponent(r.domaine)}`)} className="rounded-xl bg-accent text-white px-6 py-3 text-[15px] font-bold hover:bg-accent-dark">Copier ce SaaS</button>
+            <button onClick={() => nav(`/explorer/lancer?d=${encodeURIComponent(r.domaine)}`)} className="rounded-xl bg-accent text-white px-6 py-3 text-[15px] font-bold hover:bg-accent-dark">Lancer ma version</button>
             {s?.statut === "ok" ? <button onClick={() => nav(`/explorer/${r.domaine}`)} className="rounded-xl border border-line bg-white px-5 py-3 text-[14.5px] font-semibold hover:border-ink-faint">Voir sa fiche complète</button>
               : <button onClick={lire} disabled={lecture} className="rounded-xl border border-line bg-white px-5 py-3 text-[14.5px] font-semibold hover:border-ink-faint disabled:opacity-60">{lecture ? "Lecture de son site…" : "Lire son site (prix, version gratuite)"}</button>}
             {r.trustmrr && <span className="text-[12px] text-ink-faint">Source : TrustMRR{t.synchro ? `, relevé le ${new Date(t.synchro).toLocaleDateString("fr-FR")}` : ""}</span>}
@@ -3639,7 +3641,7 @@ function Carte() {
     niches: { titre: "Le Château des niches", phrase: "Une tour par grande niche. Entre pour voir les 84 marchés précis.", corps: (d?.niches ?? []).map((n) => [`${n.emoji} ${n.nom}`, `${n.n_rev} rentables`]), bouton: "Entrer dans le château", page: "/explorer/niches" },
     phare: { titre: "Le Phare de ce qui monte", phrase: "Il éclaire la niche qui grandit le plus en ce moment.", corps: d?.monte ? [[`${d.monte.emoji} ${d.monte.nom}`, `+${d.monte.crois_med} % en 30 j`]] : [], bouton: "Voir ce qui monte", page: "/explorer/marche" },
     marche: { titre: "Le Marché", phrase: "On y achète et on y vend des SaaS qui tournent déjà.", corps: (d?.ventes ?? []).slice(0, 5).map((v) => [v.nom, v.prix ? dollar(v.prix) : "à discuter"]), bouton: `Voir les ${d?.nb_ventes ?? ""} SaaS à vendre`, page: "/explorer/vendre" },
-    chantier: { titre: "Le Chantier naval", phrase: "Ici on construit ta copie : choisis un SaaS qui marche, Bingoo! la construit à ton nom.", corps: [["SaaS prêts à copier", Number(d?.a_copier ?? 0).toLocaleString("fr-FR")], ["Avec un revenu vérifié", Number(d?.verifies ?? 0).toLocaleString("fr-FR")]], bouton: "Choisir un SaaS à copier", page: "/explorer/copier" },
+    chantier: { titre: "Le Chantier naval", phrase: "Ici on construit ta version : choisis un SaaS qui marche, Bingoo! la construit à ton nom.", corps: [["SaaS prêts à lancer", Number(d?.a_copier ?? 0).toLocaleString("fr-FR")], ["Avec un revenu vérifié", Number(d?.verifies ?? 0).toLocaleString("fr-FR")]], bouton: "Choisir un SaaS à lancer", page: "/explorer/copier" },
     createurs: { titre: "L'Île des créateurs", phrase: "Une maison par SaaS construit sur Bingoo!.", corps: [["SaaS construits", d?.apps ?? 0], ["Les tiens", d?.mes_apps ?? 0]], bouton: "Voir mes SaaS", page: "/explorer/createurs" },
     atlas: { titre: "L'Atlas des pays", phrase: "Le monde des SaaS par continent et par pays.", corps: [["Pays représentés", d?.pays ?? 0], ["SaaS dans la bibliothèque", Number(d?.total ?? 0).toLocaleString("fr-FR")]], bouton: "Ouvrir l'atlas", page: null },
     sage: { titre: "Le Sage", phrase: "Pose-lui ta question comme à un ami : il répond avec les vrais chiffres.", corps: [["« Trouve-moi 3 SaaS TikTok qui scalent »", ""], ["« Un petit SaaS à racheter dans l'immobilier »", ""]], bouton: "Lui poser une question", page: "/explorer/demande" },
@@ -3729,7 +3731,7 @@ function Comparer() {
   const meilleur = ok.length > 1 ? [...ok].sort((a, b) => note(b) - note(a))[0] : null;
   const lignes = [
     ["Revenu prouvé", (s) => s.succes?.preuve ? <span className={preuveFaible(s.succes) ? "text-ink-soft" : "text-[#78350F]"}>{preuveFaible(s.succes) ? "" : "★ "}{s.succes.preuve}</span> : "—"],
-    ["Facile à copier", (s) => s.copiable != null ? <div><b>{s.copiable}/100</b>{(s.copiable_raisons ?? []).slice(0, 3).map((r) => <div key={r} className="text-[12.5px] text-ink-soft">{r}</div>)}</div> : "—"],
+    ["Facile à lancer", (s) => s.copiable != null ? <div><b>{s.copiable}/100</b>{(s.copiable_raisons ?? []).slice(0, 3).map((r) => <div key={r} className="text-[12.5px] text-ink-soft">{r}</div>)}</div> : "—"],
     ["Bingoo! sait le construire", (s) => s.constructible === false ? <span className="text-[#9A3412]">En partie seulement</span> : s.constructible ? <span className="text-[#15803D]">Oui</span> : "—"],
     ["Niche", (s) => s.niche ?? "—"],
     ["Catégorie", (s) => s.categorie], ["Pays", (s) => s.pays ? `${drapeau(s.pays)} ${PAYS[s.pays] ?? s.pays}` : "—"],
@@ -3747,7 +3749,7 @@ function Comparer() {
       <button onClick={() => nav("/explorer")} className="text-[13.5px] text-ink-soft hover:text-ink">← Explorer</button>
       <h1 className="mt-2 text-[30px] font-black tracking-tight" style={HF}>Comparaison</h1>
       {bloques.length > 0 && <p className="mt-2 rounded-xl bg-accent-soft px-4 py-3 text-[14px] text-accent-dark">{bloques.map((b) => b.nom).join(", ")} : limite de fiches de la semaine atteinte.</p>}
-      {meilleur && note(meilleur) > 0 && <p className="mt-3 rounded-xl bg-[#DCFCE7] px-4 py-3 text-[14px] text-[#166534]"><b>À copier en premier : {meilleur.nom}</b>. Le revenu y est prouvé, une petite équipe peut le refaire et Bingoo! sait le construire.</p>}
+      {meilleur && note(meilleur) > 0 && <p className="mt-3 rounded-xl bg-[#DCFCE7] px-4 py-3 text-[14px] text-[#166534]"><b>À lancer en premier : {meilleur.nom}</b>. Le revenu y est prouvé, une petite équipe peut le refaire et Bingoo! sait le construire.</p>}
       <div className="mt-4 rounded-2xl bg-white border border-line overflow-x-auto">
         <table className="w-full text-[14px] min-w-[760px]">
           <thead><tr className="border-b border-line"><th className="w-44" />{ok.map((s) => (

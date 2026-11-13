@@ -623,7 +623,7 @@ export default function IleSaas({ d, onLieu, nuit, mode = "archipel", pays, ileD
     niches: d?.niches?.[0] ? `${d.niches.length} grandes niches` : "Les niches",
     phare: d?.monte ? `${d.monte.emoji} ${d.monte.nom} +${d.monte.crois_med} %` : "Ce qui monte",
     marche: d ? `${d.nb_ventes} SaaS à vendre` : "À vendre",
-    chantier: d ? `${Number(d.a_copier).toLocaleString("fr-FR")} à copier` : "À copier",
+    chantier: d ? `${Number(d.a_copier).toLocaleString("fr-FR")} à lancer` : "À lancer",
     createurs: d ? `${d.apps} SaaS construits` : "Créateurs",
     atlas: d ? `${d.pays} pays` : "Les pays",
     sage: "Pose-lui ta question",
