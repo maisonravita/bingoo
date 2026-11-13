@@ -637,6 +637,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   async "saas-relance-j3"(req, b) { await cron(req); const { saasRelanceJ3 } = await import("../_shared/saas-base.ts"); return await saasRelanceJ3(b.seulement ? String(b.seulement) : undefined); },
   async "saas-decouvrir"(req, b) { await cron(req); const { decouvrirTri } = await import("../_shared/saas-decouverte.ts"); return await decouvrirTri(Math.min(400, Number(b.n ?? 240))); },
   async "saas-cron"(req) { await cron(req); const { saasCron } = await import("../_shared/saas-base.ts"); return await saasCron(); },
+  async "saas-decouvertes"(req) { await cron(req); const { saasDecouvertesLire } = await import("../_shared/saas-base.ts"); return await saasDecouvertesLire(); },
   async "saas-seed"(req, b) {
     await cron(req);
     const { saasSeed, CATEGORIES } = await import("../_shared/saas-base.ts");

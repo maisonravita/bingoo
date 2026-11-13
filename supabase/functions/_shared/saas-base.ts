@@ -213,6 +213,20 @@ prix_entree (prix le plus bas d'une formule d'ABONNEMENT payante, nombre ; null 
 }
 
 /** Relevés de nuit : les SaaS jamais lus d'abord, puis ceux relus il y a plus de 7 jours. Budget de temps de l'appel respecté. */
+/** Lecture dédiée aux découvertes automatiques (sans IA si le crédit IA est vide) : 25 fiches par minute. */
+export async function saasDecouvertesLire(maxMs = 50_000) {
+  const t0 = Date.now();
+  const { data } = await admin.from("saas").select("id").eq("statut", "a_lire").is("succes", null).lt("essais", 3).order("created_at", { ascending: false }).limit(25);
+  const out = { lus: 0, ok: 0, pas_saas: 0, autres: 0 };
+  const ids = (data ?? []).map((x) => x.id);
+  for (let i = 0; i < ids.length; i += 5) {
+    if (Date.now() - t0 > maxMs - 15_000) break;
+    const r = await Promise.all(ids.slice(i, i + 5).map((id) => saasLire(id).catch(() => null)));
+    for (const x of r) { out.lus++; if (x?.statut === "ok") out.ok++; else if (x?.statut === "pas_saas") out.pas_saas++; else out.autres++; }
+  }
+  return out;
+}
+
 export async function saasCron(maxMs = 110_000) {
   const t0 = Date.now();
   // Relecture : tous les 30 jours (le revenu prouvé est suivi à part, sans IA)
