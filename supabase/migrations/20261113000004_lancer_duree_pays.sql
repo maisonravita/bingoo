@@ -1,0 +1,8 @@
+-- Appliquée via MCP le 13/11/2026 :
+-- workspaces.periode : durée de l'abonnement « Lancer » (mois, trimestre, an), écrite par le webhook Stripe.
+-- saas_pour_moi_coeur (privée) : le calcul de saas_pour_moi3, sans limite de paiement, avec le pays visé (p.pays : +12 si le SaaS vient de ce pays,
+--   +8 s'il n'a pas d'équivalent français quand le pays est la France), fourchettes de revenu sans chevauchement (300-2 000 / 2 000-10 000 / 10 000+),
+--   et les champs solo, local, sans_local ; 30 SaaS au plus.
+-- saas_pour_moi3 : les mêmes SaaS complets, seulement après paiement.
+-- saas_pour_moi_floute : les mêmes SaaS avant paiement, sans nom, domaine ni description (rang, catégorie, revenu, croissance, pays, canaux, solo, local, sans_local).
+-- saas_pour_moi_apercu : mêmes fourchettes de revenu.

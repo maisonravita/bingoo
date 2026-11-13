@@ -62,6 +62,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { ws } = await requireMember(req, b.workspace_id);
     const { data: payant } = await admin.rpc("saas_paye_ws", { p_ws: ws.id });
     if (!payant) throw new HttpError(402, "Les prospects trouvés par Bingoo! font partie de la formule payante.");
+    if (ws.plan === "explorer_pro" && ((ws as { periode?: string }).periode ?? "mois") === "mois") throw new HttpError(402, "Tes 10 premiers clients en 7 jours font partie des formules 3 mois et 12 mois.");
     await quota(ws.id, "saas_prospects", 15);
     const domaine = String(b.domaine ?? "").toLowerCase().slice(0, 120);
     if (!domaine) throw new HttpError(400, "SaaS manquant");
@@ -307,6 +308,17 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { data: ex } = await admin.from("saas_apps").select("id, statut, maj, etape").eq("projet_id", pr.id).maybeSingle();
     if (ex?.statut === "en_cours" && Date.now() - new Date(ex.maj).getTime() < 10 * 60e3) return { id: ex.id, statut: "en_cours" };
     if (!req.headers.get("x-cron-key")) { await quota(ws.id, "construire", 3); await quotaMois(ws.id, ws.plan, "construire"); }
+    // Un seul SaaS par abonnement « Lancer » : un autre SaaS remplace le premier seulement dans les 48 h, ou une fois dans l'année avec 12 mois
+    if (!ex && ws.plan === "explorer_pro") {
+      const { data: autres } = await admin.from("saas_apps").select("id, at, statut").eq("workspace_id", ws.id).neq("statut", "remplace");
+      if (autres?.length) {
+        const recent = autres.every((a) => Date.now() - new Date(a.at).getTime() < 48 * 3600e3);
+        const { count: changes } = await admin.from("saas_apps").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("statut", "remplace").gte("at", new Date(Date.now() - 365 * 864e5).toISOString());
+        const annuel = (ws as { periode?: string }).periode === "an" && (changes ?? 0) < 1;
+        if (!recent && !annuel) throw new HttpError(402, "Ton abonnement comprend un SaaS. Pour en lancer un autre, prends un deuxième abonnement : écris-nous à bingoo@maisonravita.fr.");
+        await admin.from("saas_apps").update({ statut: "remplace", public: false }).in("id", autres.map((a) => a.id));
+      }
+    }
     setAi({ ws: ws.id, live: true, feature: "construire" });
     const { saasConstruire, nouveauSlug } = await import("../_shared/app-build.ts");
     // Chaque écran s'écrit dans sa propre invocation (limite de durée d'une invocation)

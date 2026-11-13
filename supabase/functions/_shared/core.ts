@@ -53,10 +53,16 @@ export const PLANS: Record<string, { label: string; price: number; factor: numbe
   equipe: { label: "Équipe", price: 109, factor: 4, seats: 5, credits: 1000, ai: 24, quota: 700 },
   fondateur: { label: "Fondateur", price: 0, factor: 1, seats: 50, credits: 5000, ai: 15, quota: 5000 },
 };
-/** Prix fondateur : les 50 premiers abonnés Solo paient 29 € à vie. */
+/** Prix fondateur : les 50 premiers abonnés au mois paient 29 € par mois à vie. */
 export const FOUNDER = { plan: "explorer_pro", price: 29, places: 50 };
-/** Formules en vente (page Abonnement, paiement) et formules de veille seule (sans prospection). */
-export const VENTE = ["explorer", "explorer_pro", "business"];
+/** Formule en vente : « Lancer », un seul SaaS par abonnement, payé au mois, au trimestre ou à l'année (prix affichés par mois).
+ *  Plus la durée est longue, plus elle comprend de choses. Les anciennes formules (Trouver, Lancer à plusieurs) restent pour leurs abonnés. */
+export const PERIODES: Record<string, { label: string; mois: number; parMois: number; inclus: string[] }> = {
+  mois: { label: "1 mois", mois: 1, parMois: 34.99, inclus: ["Ton SaaS construit et en ligne, à ton nom", "Tes SaaS à succès, avec leur nom et leurs chiffres", "Ton plan sur 30 jours"] },
+  trimestre: { label: "3 mois", mois: 3, parMois: 22.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Tes 10 premiers clients en 7 jours : établissements trouvés pour toi", "L'étape du jour chaque matin par e-mail", "L'assistant IA de ton SaaS"] },
+  an: { label: "12 mois", mois: 12, parMois: 11.99, inclus: ["Tout ce qu'il y a dans 3 mois", "Changer de SaaS une fois dans l'année", "Réponse prioritaire par e-mail"] },
+};
+export const VENTE = ["explorer_pro"];
 export const VEILLE_SEULE = ["explorer", "explorer_pro", "business"];
 type PlanFields = { plan?: string; plan_status?: string; trial_ends?: string | null };
 /** Bloque les actions payantes quand l'essai est fini ou que l'abonnement n'est plus réglé. */

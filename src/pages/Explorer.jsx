@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import ResultatsBingoo from "../components/ResultatsBingoo";
+import ChoixFormule from "../components/ChoixFormule";
 import { nomCanal, plan30, promptClaude } from "../lib/plan30";
 import { ANGLES, angleDe, enFrancais, premiersClients, resumeFr, semaineClients } from "../lib/angle";
 import { demanderCompte, estInvite } from "../lib/invite";
@@ -2452,7 +2453,7 @@ const PAYS_RAPIDES = ["FR", "BE", "CH", "CA", "MA", "US", "GB", "ES"];
 const QUESTIONS = [
   { k: "pays", pays: true, q: "Dans quel pays te situes-tu ?", aide: "Bingoo! part de ce qui marche déjà chez toi, et de ce qui marche ailleurs sans équivalent dans ton pays." },
   { k: "ambition", q: "Combien aimerais-tu gagner par mois ?", aide: "Bingoo! te montre des SaaS qui font déjà ce chiffre, pas plus gros.", opts: [
-    ["complement", "Un complément", "300 à 3 000 $ par mois"], ["vivre", "En vivre", "2 000 à 20 000 $ par mois"], ["gros", "Viser gros", "Plus de 10 000 $ par mois"],
+    ["complement", "Un complément", "300 à 2 000 $ par mois"], ["vivre", "En vivre", "2 000 à 10 000 $ par mois"], ["gros", "Viser gros", "Plus de 10 000 $ par mois"],
   ] },
   { k: "temps", q: "Combien d'heures par semaine peux-tu y mettre ?", aide: "Avec peu de temps, Bingoo! choisit des SaaS tenus par une seule personne et qu'il sait construire en entier.", opts: [
     ["peu", "Moins de 5 heures", "À côté d'un travail ou des études"], ["moyen", "5 à 15 heures", "Quelques soirées et le week-end"], ["beaucoup", "Plus de 15 heures", "C'est mon projet principal"],
@@ -2478,6 +2479,14 @@ const QUESTIONS = [
   ] },
   { k: "secteurs", multi: true, secteurs: true, q: "Des secteurs qui t'attirent ?", aide: "Aucun, c'est très bien aussi : Bingoo! cherche partout." },
 ];
+// Le petit mot après chaque réponse : ce que Bingoo! en fait concrètement
+const RETOURS = {
+  pays: (v) => v === "FR" ? "Bingoo! met en avant les SaaS qui marchent déjà en France, puis ceux qui marchent ailleurs sans équivalent français : la place est libre." : `Bingoo! met en avant ce qui marche déjà en ${PAYS[v] ?? "ton pays"}, puis ce qui marche ailleurs et que tu peux adapter.`,
+  ambition: { complement: "Un bon premier objectif : une poignée de clients suffit souvent.", vivre: "C'est l'objectif le plus courant. Bingoo! te montre des SaaS qui font déjà ce chiffre.", gros: "Ambitieux, et faisable : Bingoo! ne te montre que des SaaS qui y sont déjà arrivés." },
+  temps: { peu: "Bingoo! choisit des SaaS tenus par une seule personne, qu'il sait construire en entier.", moyen: "Assez pour lancer et trouver tes premiers clients en quelques semaines.", beaucoup: "Tu peux viser plus gros et avancer vite : ton plan en tiendra compte." },
+  audience: { B2B: "Les pros paient plus cher : il te faut moins de clients pour atteindre ton objectif.", B2C: "Les particuliers sont plus nombreux : ce sont le contenu et les réseaux qui les amènent.", "": "Bingoo! cherche des deux côtés et garde ce qui marche le mieux." },
+  profil: { vente: "Ton avantage : trouver les clients. Bingoo! s'occupe du logiciel.", code: "Bingoo! construit l'essentiel, et tu pourras aller plus loin toi-même.", aucun: "Aucun problème : Bingoo! construit le logiciel et te dit quoi faire chaque jour." },
+};
 // Un refus ne peut pas contredire un canal choisi juste avant (« Payer de la publicité » des deux côtés)
 const REFUS_CONTRAIRE = { appeler: "prospection", pub: "pub", ecrire: "seo" };
 const optionsDe = (Q, r) => Q.k === "refus" ? Q.opts.filter(([v]) => !(r.canaux ?? []).includes(REFUS_CONTRAIRE[v])) : Q.opts;
@@ -2494,6 +2503,8 @@ export function TrouveTonSaas() {
   const [r, setR] = useState(() => ({ canaux: [], refus: [], secteurs: [], audience: null, ambition: null, profil: null, temps: null, ...(avant ?? {}), pays: avant?.pays ?? null, metier: "", etape: 0 }));
   const [res, setRes] = useState(null);
   const [ap, setAp] = useState(null);
+  const [planVu, setPlanVu] = useState(false);
+  const retour = (() => { const Qc = QUESTIONS[r.etape]; const v = Qc?.k ? r[Qc.k] : null; const m = Qc && RETOURS[Qc.k]; if (!m || v == null || Array.isArray(v)) return null; return typeof m === "function" ? m(v) : m[v] ?? null; })();
   const invite = estInvite(session);
   // Les 3 SaaS, le plan et le prompt se débloquent une fois le paiement reçu (le serveur n'envoie que le premier avant)
   const debloque = estPaye(ws);
@@ -2544,14 +2555,14 @@ export function TrouveTonSaas() {
           {Q.pays ? (
             <div className="mt-6">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{PAYS_RAPIDES.map((c) => (
-                <button key={c} type="button" onClick={() => aller({ ...r, pays: c, etape: r.etape + 1 })}
+                <button key={c} type="button" onClick={() => setR({ ...r, pays: c })}
                   className={cx("rounded-2xl border-2 px-4 py-4 text-left transition", r.pays === c ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink")}>
                   <span className="block text-[26px] leading-none" aria-hidden>{drapeau(c)}</span>
                   <span className="mt-2 block font-bold text-[15.5px]">{PAYS[c]}</span>
                 </button>
               ))}</div>
               <label className="mt-4 flex flex-wrap items-center gap-3 text-[14px] text-ink-soft">Un autre pays
-                <select value={PAYS_RAPIDES.includes(r.pays) ? "" : r.pays ?? ""} onChange={(e) => e.target.value && aller({ ...r, pays: e.target.value, etape: r.etape + 1 })} className="rounded-xl border-2 border-line bg-white px-3 py-2.5 text-[14.5px] text-ink outline-none focus:border-ink">
+                <select value={PAYS_RAPIDES.includes(r.pays) ? "" : r.pays ?? ""} onChange={(e) => e.target.value && setR({ ...r, pays: e.target.value })} className="rounded-xl border-2 border-line bg-white px-3 py-2.5 text-[14.5px] text-ink outline-none focus:border-ink">
                   <option value="">Choisir…</option>
                   {TOUS_PAYS.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
                 </select>
@@ -2563,7 +2574,7 @@ export function TrouveTonSaas() {
             <div className={cx("mt-6 grid gap-3", optionsDe(Q, r).length > 3 ? "sm:grid-cols-2" : "sm:grid-cols-3")}>{optionsDe(Q, r).map(([v, t, sous]) => {
               const on = choisi(Q.k, v);
               return (
-                <button key={v || "tout"} type="button" onClick={() => Q.multi ? basculer(Q.k, v) : aller({ ...r, [Q.k]: v, etape: r.etape + 1 })}
+                <button key={v || "tout"} type="button" onClick={() => Q.multi ? basculer(Q.k, v) : setR({ ...r, [Q.k]: v })}
                   className={cx("group rounded-2xl border-2 px-5 py-4 text-left transition", on ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink")}>
                   <span className="flex items-start justify-between gap-3"><span className="font-bold text-[16.5px]">{t}</span>{Q.multi && <span className={cx("mt-0.5 grid place-items-center h-5 w-5 shrink-0 rounded-md border-2 text-[12px]", on ? "border-white bg-white text-ink" : "border-line")}>{on ? "✓" : ""}</span>}</span>
                   {sous && <span className={cx("mt-1 block text-[13.5px]", on ? "text-white/70" : "text-ink-soft")}>{sous}</span>}
@@ -2571,7 +2582,12 @@ export function TrouveTonSaas() {
               );
             })}</div>
           )}
-          {!Q.pays ? <div className="mt-7 flex items-center gap-4">
+          {!Q.multi && retour && <div className="mt-6 flex items-start gap-3 rounded-2xl border border-line bg-white px-5 py-4" aria-live="polite"><span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-accent to-[#9B6BFF] text-white text-[13px] font-black">B!</span><p className="text-[15px] leading-snug">{retour}</p></div>}
+          {!Q.multi && <div className="mt-6 flex items-center gap-4">
+            <button onClick={() => aller({ ...r, etape: r.etape + 1 })} disabled={r[Q.k] == null} className="rounded-xl bg-accent text-white px-6 py-3 font-bold hover:bg-accent-dark disabled:opacity-40">Continuer</button>
+            {r.etape > 0 && <button onClick={() => setR({ ...r, etape: r.etape - 1 })} className="text-[14px] text-ink-soft hover:text-ink">Retour</button>}
+          </div>}
+          {!Q.multi ? null : !Q.pays ? <div className="mt-7 flex items-center gap-4">
             {Q.multi && <button onClick={() => aller({ ...r, etape: r.etape + 1 })} className="rounded-xl bg-accent text-white px-6 py-3 font-bold hover:bg-accent-dark">{r.etape === QUESTIONS.length - 1 ? (r.secteurs.length ? "Voir mes SaaS" : "Peu importe, cherche partout") : r[Q.k].length ? "Continuer" : Q.aucun ?? "Passer"}</button>}
             {r.etape > 0 && <button onClick={() => setR({ ...r, etape: r.etape - 1 })} className="text-[14px] text-ink-soft hover:text-ink">Retour</button>}
           </div> : r.etape > 0 && <button onClick={() => setR({ ...r, etape: r.etape - 1 })} className="mt-6 text-[14px] text-ink-soft hover:text-ink">Retour</button>}
@@ -2588,7 +2604,7 @@ export function TrouveTonSaas() {
           </div>
           {resume.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{resume.map((x) => <span key={x} className="rounded-full bg-paper border border-line px-3 py-1 text-[12.5px] text-ink-soft">{x}</span>)}</div>}
           {!debloque ? (
-            ap === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : <Debloquer total={ap?.n} tendance={ap?.tendance} mediane={ap?.mediane} invite={invite} r={r} />
+            ap === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : !planVu ? <PlanChiffre r={r} ap={ap} onSuite={() => setPlanVu(true)} /> : <Debloquer total={ap?.n} tendance={ap?.tendance} mediane={ap?.mediane} invite={invite} r={r} />
           ) : res === undefined || res === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : !res.length ? (
             <div className="mt-8 rounded-2xl border border-line bg-white p-6"><p className="font-bold">Rien qui colle à toutes tes réponses pour l'instant.</p><p className="mt-1 text-ink-soft">Retire un secteur ou une façon de trouver des clients : la bibliothèque grandit chaque jour.</p><button onClick={() => setR({ ...r, etape: 0 })} className="mt-4 rounded-xl bg-ink text-white px-5 py-2.5 font-semibold">Changer mes réponses</button></div>
           ) : (
@@ -2614,13 +2630,44 @@ function PreuveDirecte({ ap }) {
 export const estPaye = (ws) => ws?.plan === "fondateur" || (["explorer", "explorer_pro", "business", "solo", "pro"].includes(ws?.plan) && ["active", "trialing", "past_due"].includes(ws?.plan_status));
 // Avant paiement : le premier SaaS en clair (la preuve), les deux autres, le plan et le prompt une fois l'abonnement réglé.
 // Le serveur n'envoie que le premier tant que rien n'est payé : les cartes floutées sont factices.
+// Avant la liste : l'objectif traduit en nombre de clients, réparti sur les façons de trouver des clients choisies.
+// Un repère pour se fixer un cap, calculé sur des hypothèses affichées, jamais une promesse.
+const OBJECTIF = { complement: 1000, vivre: 5000, gros: 10000 };
+const PRIX_CLIENT = { B2B: 39, B2C: 12, "": 25 };
+const NOM_CANAL = { seo: "Google et ton contenu", reseaux: "Les réseaux", prospection: "Le contact direct", pub: "La publicité", bouche: "Le bouche-à-oreille" };
+function PlanChiffre({ r, ap, onSuite }) {
+  const objectif = OBJECTIF[r.ambition] ?? 5000;
+  const prix = PRIX_CLIENT[r.audience ?? ""] ?? 25;
+  const clients = Math.ceil(objectif / prix);
+  const canaux = (r.canaux?.length ? r.canaux : ["seo", "reseaux"]).slice(0, 3);
+  const parts = canaux.map((c, k) => [c, k === 0 ? clients - Math.floor(clients / canaux.length) * (canaux.length - 1) : Math.floor(clients / canaux.length)]);
+  return (
+    <div className="mt-8 max-w-3xl">
+      <div className="fx-halo rounded-3xl"><div className="rounded-3xl bg-white p-6 sm:p-8">
+        <p className="text-[13px] font-semibold uppercase tracking-wide text-accent-dark">Ton plan, calculé sur tes réponses</p>
+        <p className="mt-3 text-[15px] text-ink-soft">Pour atteindre chaque mois</p>
+        <p className="text-[48px] sm:text-[60px] font-black leading-none tracking-tight tnum fx-texte" style={HF}>{objectif.toLocaleString("fr-FR")} €</p>
+        <p className="mt-3 text-[16px]">il te faut <b className="tnum">{clients.toLocaleString("fr-FR")} clients</b> à {prix} € par mois{r.audience === "B2B" ? ", le prix courant d'un outil pour les pros" : r.audience === "B2C" ? ", le prix courant d'une appli grand public" : ""}.</p>
+        <div className="mt-6 space-y-3">{parts.map(([c, n]) => (
+          <div key={c} className="flex items-center gap-3 text-[14.5px]">
+            <span className="w-44 shrink-0 font-semibold">{NOM_CANAL[c] ?? c}</span>
+            <span className="relative h-2.5 flex-1 rounded-full bg-paper"><span className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-accent to-[#9B6BFF]" style={{ width: `${Math.max(8, (n / clients) * 100)}%` }} /></span>
+            <b className="w-20 shrink-0 text-right tnum">{n} clients</b>
+          </div>
+        ))}</div>
+        {ap?.n ? <p className="mt-6 rounded-xl bg-paper px-4 py-3 text-[14px]"><b className="tnum">{Number(ap.n).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié font déjà ça{ap.mediane ? <>, avec un revenu médian de <b className="tnum">{dollar(ap.mediane)}</b> par mois</> : null}.</p> : null}
+        <p className="mt-4 text-[12.5px] text-ink-faint">Un repère pour te fixer un cap, pas une promesse de revenus.</p>
+        <button onClick={onSuite} className="fx-brille mt-6 rounded-xl bg-accent px-6 py-3.5 font-bold text-white hover:bg-accent-dark">Voir mes SaaS à succès</button>
+      </div></div>
+    </div>
+  );
+}
 const CLE_CHOIX = "bingoo-choix";
 // « Lancer celui-ci » avant paiement : on garde le SaaS choisi (son rang) et on file au paiement de la formule Lancer
-async function lancerApresPaiement({ rang, invite, ws, nav }) {
-  try { localStorage.setItem(CLE_CHOIX, String(rang)); } catch { /* stockage indisponible */ }
+async function lancerApresPaiement({ periode, invite, ws, nav }) {
   if (invite) return demanderCompte("Crée ton compte : tu arrives ensuite directement au paiement, et ton SaaS s'ouvre dès qu'il est reçu.");
-  try { const { url } = await fn("billing-checkout", { workspace_id: ws.id, plan: "explorer_pro", yearly: false }); if (url) { window.location.href = url; return; } } catch { /* paiement pas encore ouvert : on passe par la page Abonnement */ }
-  nav("/abonnement?formule=explorer_pro");
+  try { const { url } = await fn("billing-checkout", { workspace_id: ws.id, plan: "explorer_pro", periode }); if (url) { window.location.href = url; return; } } catch { /* paiement pas encore ouvert : on passe par la page Abonnement */ }
+  nav(`/abonnement?formule=explorer_pro&periode=${periode}`);
 }
 const Cadenas = ({ className = "h-3.5 w-3.5" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
 // Avant paiement : les SaaS à succès qui collent aux réponses, avec leurs vrais chiffres, mais sans leur nom ni ce qui permet de les reproduire.
@@ -2659,8 +2706,19 @@ function Debloquer({ total, tendance, mediane, invite, r }) {
   const [n, setN] = useState(9);
   const [busy, setBusy] = useState(false);
   useEffect(() => { setListe(undefined); supabase.rpc("saas_pour_moi_floute", { p: paramsDe(r) }).then(({ data, error }) => setListe(error ? null : (data ?? []))); }, [r.etape]); // eslint-disable-line react-hooks/exhaustive-deps
-  const lancer = async (rang) => { setBusy(true); try { await lancerApresPaiement({ rang, invite, ws, nav }); } finally { setBusy(false); } };
+  const { fondateur: prixFondateur, periodes } = useFormules();
+  const [choix, setChoix] = useState(null); // rang du SaaS choisi : on montre les formules
+  const lancer = (rang) => { try { localStorage.setItem(CLE_CHOIX, String(rang)); } catch { /* stockage indisponible */ } setChoix(rang); setTimeout(() => document.getElementById("formules")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); };
+  const payer = async (periode) => { setBusy(periode); try { await lancerApresPaiement({ periode, invite, ws, nav }); } finally { setBusy(false); } };
   const debloquer = () => lancer(0);
+  const formules = choix !== null && (
+    <section id="formules" className="mt-8 scroll-mt-6 rounded-3xl border-2 border-ink bg-[#FAF9F6] p-5 sm:p-8">
+      <p className="text-[13px] font-semibold text-accent-dark">Ton plan est prêt</p>
+      <h2 className="mt-1 text-[26px] sm:text-[32px] font-black leading-tight" style={HF}>Choisis ta formule et lance ton SaaS</h2>
+      <p className="mt-1.5 mb-6 text-[14.5px] text-ink-soft">Son nom, sa fiche et ta version s'affichent dès le paiement reçu, et Bingoo! commence à le construire.</p>
+      <ChoixFormule periodes={periodes} fondateur={prixFondateur} busy={busy} onChoisir={payer} />
+    </section>
+  );
   const faux = [["Outil de réservation", "2 4•• $"], ["Assistant de facturation", "1 8•• $"], ["Extension de prospection", "3 1•• $"]];
   const bandeau = (
     <div className="mt-6 rounded-3xl border-2 border-ink bg-white p-5 sm:p-7 flex flex-wrap items-center gap-5">
@@ -2676,6 +2734,7 @@ function Debloquer({ total, tendance, mediane, invite, r }) {
     <>
       {bandeau}
       <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{liste.slice(0, n).map((x, k) => <CarteFloutee key={x.rang ?? k} x={x} k={k} paysVise={r.pays} onLancer={lancer} busy={busy} />)}</div>
+      {formules}
       {liste.length > n && <div className="mt-6 text-center"><button onClick={() => setN(n + 9)} className="rounded-xl border border-line bg-white px-5 py-2.5 text-[14px] font-semibold hover:border-ink-faint">Voir {Math.min(9, liste.length - n)} SaaS de plus</button></div>}
       <ResultatsBingoo className="mt-8" />
     </>
@@ -2693,9 +2752,16 @@ function Debloquer({ total, tendance, mediane, invite, r }) {
         ))}
       </div>
       {bandeau}
+      {formules}
       <ResultatsBingoo className="mt-8" />
     </>
   );
+}
+// Les formules en vente et le prix fondateur (serveur), avec repli sur les valeurs locales
+function useFormules() {
+  const [f, setF] = useState({ fondateur: null, periodes: null });
+  useEffect(() => { fn("plans").then((r) => setF({ fondateur: r.fondateur?.left > 0 ? r.fondateur.price : null, periodes: (r.plans ?? []).find((p) => p.key === "explorer_pro")?.periodes ?? null })).catch(() => {}); }, []);
+  return f;
 }
 // Le paquet de sortie : tes 3 SaaS, chacun avec son angle (ta version), puis pour celui choisi :
 // le plan sur 30 jours, tes 10 premiers clients (où les trouver, quoi leur dire, ton tableau) et le prompt pour ton Claude
@@ -2808,6 +2874,13 @@ export function PremiersClients({ s, a, r }) {
   const payants = (pros ?? []).filter((x) => x.etat === "payant").length;
   const contactes = (pros ?? []).filter((x) => x.etat && x.etat !== "").length;
   const cibleTxt = a.type === "metier" ? a.les : "tes clients";
+  // Les prospects trouvés pour toi : formules 3 mois et 12 mois
+  if (ws?.plan === "explorer_pro" && (ws.periode ?? "mois") === "mois") return (
+    <section className="mt-6 rounded-3xl border border-line bg-white p-5 sm:p-7 flex flex-wrap items-center gap-5">
+      <div className="flex-1 min-w-[240px]"><h2 className="text-[22px] font-black leading-tight" style={HF}>Tes 10 premiers clients en 7 jours</h2><p className="mt-1.5 text-[14.5px] text-ink-soft">Les établissements qui ont le problème, trouvés pour toi, le message prêt et l'étape du jour chaque matin : c'est dans les formules 3 mois et 12 mois.</p></div>
+      <a href="#/abonnement" className="rounded-xl bg-accent px-5 py-3 font-bold text-white hover:bg-accent-dark">Passer à 3 mois</a>
+    </section>
+  );
   return (
     <section className="mt-6 rounded-3xl border border-line bg-white overflow-hidden">
       <div className="px-5 sm:px-7 pt-6 pb-4 border-b border-line flex flex-wrap items-end gap-4">

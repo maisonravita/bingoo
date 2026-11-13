@@ -6,6 +6,7 @@ import { Badge, Button, Card, PageHead, useToast } from "../components/ui";
 import { cx } from "../lib/utils";
 import { SubNav } from "../components/SubNav";
 import { modeExplorer } from "../lib/mode";
+import ChoixFormule from "../components/ChoixFormule";
 
 // Prix affiché à la française : 19,99 € ; un prix rond reste rond (29 €)
 const eur = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ","));
@@ -137,15 +138,16 @@ export default function Abonnement() {
     if (loc.hash.includes("credits") || q.get("credits")) setTimeout(() => document.getElementById("credits")?.scrollIntoView({ behavior: "smooth" }), 400);
   }, [loc.search]);
 
-  const go = async (route, plan, pack) => {
-    setBusy(plan ?? pack ?? route);
-    try { const r = await fn(route, { workspace_id: ws.id, plan, yearly, pack }); window.location.href = r.url; }
+  const go = async (route, plan, pack, periode) => {
+    setBusy(periode ?? plan ?? pack ?? route);
+    try { const r = await fn(route, { workspace_id: ws.id, plan, yearly, pack, periode }); window.location.href = r.url; }
     catch (e) { toast(e.message, "bad"); setBusy(null); }
   };
 
   // Arrivée depuis « Lancer celui-ci » : on ouvre directement le paiement de la formule demandée
   const formule = new URLSearchParams(loc.search).get("formule");
-  useEffect(() => { if (formule && payments && plans.some((p) => p.key === formule) && !["active", "trialing"].includes(ws.plan_status)) go("billing-checkout", formule); }, [formule, payments, plans.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  const periodeVoulue = new URLSearchParams(loc.search).get("periode");
+  useEffect(() => { if (formule && periodeVoulue && payments && plans.some((p) => p.key === formule) && !["active", "trialing"].includes(ws.plan_status)) go("billing-checkout", formule, undefined, periodeVoulue); }, [formule, periodeVoulue, payments, plans.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const saas = modeExplorer(ws) || ws.plan === "fondateur";
   const daysLeft = ws.trial_ends ? Math.ceil((new Date(ws.trial_ends) - new Date()) / 864e5) : null;
   const [label, tone] = ws.plan === "essai" ? [saas ? "Verrouillé" : daysLeft > 0 ? `Aperçu : ${daysLeft} jour${daysLeft > 1 ? "s" : ""} restant${daysLeft > 1 ? "s" : ""}` : (payments ? "Essai terminé" : "Accès de lancement"), daysLeft > 0 || !payments ? "accent" : "bad"] : STATUS[ws.plan_status] ?? [ws.plan_status, "muted"];
@@ -170,41 +172,15 @@ export default function Abonnement() {
       {ai && <AiGauge ai={ai} saas={saas} />}
       <Credits saas={saas} ai={ai} packs={packs.filter((p) => !p.prospects)} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />
 
-      <div className="mb-4 inline-flex rounded-full border border-line bg-white p-1 text-sm">
-        {[[false, "Mensuel"], [true, "Annuel · −20 %"]].map(([v, l]) => <button key={l} onClick={() => setYearly(v)} className={cx("rounded-full px-4 py-1.5 font-medium transition", yearly === v ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
-      </div>
-      {fond && (fond.left > 0 || ws.founder_price) && (
-        <Card className="p-4 sm:p-5 mb-4 border-accent/40 bg-accent-soft/40">
-          <p className="font-semibold">{ws.founder_price ? `Tu as le prix fondateur : ${saas ? "Lancer" : "Pro"} à 29 € à vie` : `Prix fondateur : ${saas ? "Lancer" : "Pro"} à ${fond.price} € à vie pour les ${fond.places} premiers`}</p>
-          {!ws.founder_price && <p className="text-sm text-ink-soft mt-1">Ensuite, {saas ? "Lancer" : "Pro"} passe à 39,99 €. Ceux qui sont entrés gardent leur prix tant que l'abonnement continue.</p>}
-        </Card>
-      )}
-      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {plans.map((p) => {
-          const fondateur = p.key === "explorer_pro" && fond && (ws.founder_price || fond.left > 0);
-          const prix = fondateur ? fond.price : p.price;
-          const current = ws.plan === p.key && ["active", "trialing", "past_due"].includes(ws.plan_status);
-          const featured = p.key === "explorer_pro";
-          return (
-            <Card key={p.key} className={cx("p-5 sm:p-6 flex flex-col min-w-0", featured && "!border-ink ring-1 ring-ink")}>
-              <div className="flex items-center justify-between gap-2"><p className="font-semibold">{p.label}</p>{featured && <Badge tone="accent">Le plus choisi</Badge>}</div>
-              <p className="mt-3">{fondateur && <span className="mr-2 text-ink-faint line-through text-xl tnum whitespace-nowrap">{yearly ? Math.round(p.price * 12 * 0.8 / 12) : eur(p.price)} €</span>}<span className="font-serif text-4xl tnum whitespace-nowrap">{yearly ? Math.round(prix * 12 * 0.8 / 12) : eur(prix)} €</span><span className="text-ink-soft text-sm"> HT / mois</span></p>
-              <p className="text-xs text-ink-faint mt-1">{fondateur ? "prix fondateur, à vie" : ""}{fondateur && " · "}{yearly ? `soit ${Math.round(prix * 12 * 0.8)} € HT par an, au lieu de ${eur(Math.round(prix * 12 * 100) / 100)} €` : "sans engagement"}</p>
-              <ul className="mt-4 space-y-2 text-sm flex-1">{(FEATURES[p.key] ?? []).map((f) => <li key={f} className="flex gap-2"><span className="text-good">✓</span><span>{f}</span></li>)}</ul>
-              <Button className="mt-6 w-full" variant={featured ? "primary" : "default"} disabled={current || ws.plan === "fondateur"} loading={busy === p.key} onClick={() => go("billing-checkout", p.key)}>
-                {current ? "Ta formule actuelle" : ws.stripe_subscription ? "Changer pour celle-ci" : "Choisir"}
-              </Button>
-            </Card>
-          );
-        })}
-        <Card className="p-5 sm:p-6 flex flex-col min-w-0 bg-paper/50">
-          <p className="font-semibold">Entreprise</p>
-          <p className="mt-3"><span className="font-serif text-4xl">Sur devis</span></p>
-          <p className="text-xs text-ink-faint mt-1">{saas ? "équipes, incubateurs, studios" : "au-delà de 5 commerciaux"}</p>
-          <ul className="mt-4 space-y-2 text-sm flex-1">{(saas ? ["Utilisateurs et SaaS construits sur mesure", "Tout Lancer à plusieurs", "Accompagnement au lancement", "Facturation annuelle possible"] : ["Utilisateurs et volume sur mesure", "Tout ce qu'il y a dans Équipe", "Accompagnement au démarrage", "Facturation annuelle possible"]).map((f) => <li key={f} className="flex gap-2"><span className="text-good">✓</span><span>{f}</span></li>)}</ul>
-          <a href={`mailto:${CONTACT}?subject=${encodeURIComponent("Bingoo! Entreprise : demande de devis")}`} className="mt-6 inline-flex justify-center rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold hover:border-ink-faint">Parler à l'équipe</a>
-        </Card>
-      </div>
+      <h2 className="font-serif text-2xl mb-1">Lancer ton SaaS</h2>
+      <p className="text-sm text-ink-soft mb-6">Un SaaS par abonnement. Plus la durée est longue, moins c'est cher par mois et plus c'est complet.</p>
+      <ChoixFormule periodes={plans.find((p) => p.key === "explorer_pro")?.periodes} fondateur={fond && (ws.founder_price || fond.left > 0) ? fond.price : null}
+        actuelle={ws.plan === "explorer_pro" && ["active", "trialing", "past_due"].includes(ws.plan_status) ? (ws.periode ?? "mois") : null}
+        busy={busy} onChoisir={(k) => go("billing-checkout", "explorer_pro", undefined, k)} />
+      <Card className="mt-6 p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4 bg-paper/50">
+        <div><p className="font-semibold">Plusieurs SaaS, une équipe, un incubateur ?</p><p className="text-sm text-ink-soft mt-1">Formule sur devis : utilisateurs et SaaS sur mesure, accompagnement au lancement.</p></div>
+        <a href={`mailto:${CONTACT}?subject=${encodeURIComponent("Bingoo! Entreprise : demande de devis")}`} className="inline-flex justify-center rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold hover:border-ink-faint">Nous écrire</a>
+      </Card>
       <p className="text-xs text-ink-soft mt-4">Paiement sécurisé par Stripe. Facture avec TVA envoyée chaque mois. Code promo accepté à l'étape de paiement.</p>
     </div>
   );

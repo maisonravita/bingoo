@@ -1,7 +1,7 @@
 // Croissance : préchauffage, boîte mail, équipe, CRM, agenda, abonnements Stripe.
 import nodemailer from "npm:nodemailer@6.9.16";
 import { HttpError } from "./http.ts";
-import { admin, env, log, PACKS, PLANS, VENTE, type Prospect, type Workspace } from "./core.ts";
+import { admin, env, log, PACKS, PERIODES, PLANS, VENTE, type Prospect, type Workspace } from "./core.ts";
 
 const APP = (ws: Workspace) => (ws.app_url || env("APP_URL", "https://kairo.maisonravita.fr")).replace(/\/$/, "");
 const today = () => new Date().toISOString().slice(0, 10);
@@ -376,7 +376,7 @@ async function stripe(path: string, params?: Record<string, string>, method = "P
 }
 
 export function plans() {
-  return Object.entries(PLANS).filter(([k]) => VENTE.includes(k)).map(([key, p]) => ({ key, ...p }));
+  return Object.entries(PLANS).filter(([k]) => VENTE.includes(k)).map(([key, p]) => ({ key, ...p, periodes: Object.entries(PERIODES).map(([k, x]) => ({ key: k, ...x, total: Math.round(x.parMois * x.mois * 100) / 100 })) }));
 }
 
 export const ANNUAL_OFF = 0.2;
@@ -387,7 +387,7 @@ export async function founderSlots() {
   const taken = count ?? 0;
   return { price: FOUNDER.price, places: FOUNDER.places, taken, left: Math.max(0, FOUNDER.places - taken) };
 }
-export async function checkout(ws: Workspace, userId: string, planKey: string, yearly = false) {
+export async function checkout(ws: Workspace, userId: string, planKey: string, yearly = false, periodeKey = "mois") {
   await requireAdmin(ws.id, userId);
   const p = PLANS[planKey];
   if (!p || !p.price) throw new HttpError(400, "Formule inconnue");
@@ -401,18 +401,22 @@ export async function checkout(ws: Workspace, userId: string, planKey: string, y
   if (ws.stripe_subscription && ["active", "trialing", "past_due"].includes(ws.plan_status)) return await portal(ws, userId);
   // Prix fondateur : Solo à 29 € à vie tant qu'il reste des places (vérifié au paiement, pas seulement à l'affichage)
   const { FOUNDER } = await import("./core.ts");
-  const fondateur = planKey === FOUNDER.plan && ((ws as { founder_price?: boolean }).founder_price || (await founderSlots()).left > 0);
-  const mensuel = fondateur ? FOUNDER.price : p.price;
+  // Durée choisie (1, 3 ou 12 mois) ; les anciennes demandes « annuel » valent 12 mois
+  const per = PERIODES[yearly ? "an" : periodeKey] ?? PERIODES.mois;
+  const perKey = Object.keys(PERIODES).find((k) => PERIODES[k] === per) ?? "mois";
+  const fondateur = planKey === FOUNDER.plan && per.mois === 1 && ((ws as { founder_price?: boolean }).founder_price || (await founderSlots()).left > 0);
+  const total = fondateur ? FOUNDER.price : Math.round(per.parMois * per.mois * 100) / 100;
   const s = await stripe("/checkout/sessions", {
     mode: "subscription", customer, locale: "fr",
     "line_items[0][quantity]": "1",
     "line_items[0][price_data][currency]": "eur",
-    "line_items[0][price_data][unit_amount]": String(yearly ? Math.round(mensuel * 12 * (1 - ANNUAL_OFF)) * 100 : Math.round(mensuel * 100)),
-    "line_items[0][price_data][recurring][interval]": yearly ? "year" : "month",
-    "line_items[0][price_data][product_data][name]": `Bingoo! ${p.label}${fondateur ? " (prix fondateur, à vie)" : ""}${yearly ? " (annuel)" : ""}`,
+    "line_items[0][price_data][unit_amount]": String(Math.round(total * 100)),
+    "line_items[0][price_data][recurring][interval]": per.mois === 12 ? "year" : "month",
+    "line_items[0][price_data][recurring][interval_count]": per.mois === 3 ? "3" : "1",
+    "line_items[0][price_data][product_data][name]": `Bingoo! ${p.label} · ${per.label}${fondateur ? " (prix fondateur, à vie)" : ""}`,
     "line_items[0][price_data][tax_behavior]": "exclusive",
-    "metadata[workspace_id]": ws.id, "metadata[plan]": planKey, "metadata[periode]": yearly ? "annuel" : "mensuel", "metadata[fondateur]": fondateur ? "1" : "0",
-    "subscription_data[metadata][workspace_id]": ws.id, "subscription_data[metadata][plan]": planKey,
+    "metadata[workspace_id]": ws.id, "metadata[plan]": planKey, "metadata[periode]": perKey, "metadata[fondateur]": fondateur ? "1" : "0",
+    "subscription_data[metadata][workspace_id]": ws.id, "subscription_data[metadata][plan]": planKey, "subscription_data[metadata][periode]": perKey,
     allow_promotion_codes: "true", billing_address_collection: "required",
     "tax_id_collection[enabled]": "true", "customer_update[name]": "auto", "customer_update[address]": "auto",
     success_url: `${APP(ws)}/#/abonnement?paiement=ok`, cancel_url: `${APP(ws)}/#/abonnement?paiement=annule`,
@@ -495,12 +499,12 @@ export async function stripeWebhook(req: Request) {
       await log(id, "abonnement", "Paiement en cours de validation : l'abonnement démarre dès qu'il est confirmé");
       return { ok: true, pending: true };
     }
-    await admin.from("workspaces").update({ plan, plan_status: "active", stripe_subscription: String(o.subscription ?? ""), stripe_customer: String(o.customer ?? ""), trial_ends: null, ...(o.metadata?.fondateur === "1" ? { founder_price: true } : {}) }).eq("id", id);
+    await admin.from("workspaces").update({ plan, plan_status: "active", stripe_subscription: String(o.subscription ?? ""), stripe_customer: String(o.customer ?? ""), trial_ends: null, ...(PERIODES[String(o.metadata?.periode ?? "")] ? { periode: String(o.metadata.periode) } : {}), ...(o.metadata?.fondateur === "1" ? { founder_price: true } : {}) }).eq("id", id);
     await log(id, "abonnement", `Abonnement ${PLANS[o.metadata?.plan]?.label ?? ""} activé`);
   } else if (ev.type.startsWith("customer.subscription.")) {
     const status = ev.type === "customer.subscription.deleted" ? "canceled" : String(o.status ?? "active");
     const end = o.current_period_end ?? o.items?.data?.[0]?.current_period_end;
-    await admin.from("workspaces").update({ plan_status: status, ...(o.metadata?.plan && status !== "canceled" ? { plan: o.metadata.plan } : {}), stripe_subscription: String(o.id ?? ""), period_end: end ? new Date(end * 1000).toISOString() : null }).eq("id", id);
+    await admin.from("workspaces").update({ plan_status: status, ...(o.metadata?.plan && status !== "canceled" ? { plan: o.metadata.plan } : {}), ...(PERIODES[String(o.metadata?.periode ?? "")] ? { periode: String(o.metadata.periode) } : {}), stripe_subscription: String(o.id ?? ""), period_end: end ? new Date(end * 1000).toISOString() : null }).eq("id", id);
     if (status === "canceled") await log(id, "abonnement", "Abonnement arrêté");
   } else if (ev.type === "checkout.session.async_payment_succeeded") {
     await admin.from("workspaces").update({ plan_status: "active", trial_ends: null }).eq("id", id).neq("plan", "fondateur");
