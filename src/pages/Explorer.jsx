@@ -2614,7 +2614,7 @@ export function TrouveTonSaas() {
     r.canaux.map((c) => lib("canaux", c)?.toLowerCase()).filter(Boolean).join(", "),
     r.refus?.length ? `Sans : ${r.refus.map((c) => lib("refus", c)?.toLowerCase()).join(", ")}` : null,
     lib("temps", r.temps) && `${lib("temps", r.temps)} par semaine`,
-    lib("audience", r.audience), r.objectif ? `${Number(r.objectif).toLocaleString("fr-FR")} € par mois visés` : null, r.secteurs.join(", "),
+    r.audience === "B2B" ? "Aux professionnels" : r.audience === "B2C" ? "Aux particuliers" : r.audience === "" ? "Pros et particuliers" : null, r.objectif ? `${Number(r.objectif).toLocaleString("fr-FR")} € par mois visés` : null, r.secteurs.join(", "),
   ].filter(Boolean);
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
@@ -2739,33 +2739,44 @@ function Jauge({ valeur, onChange }) {
 const OBJECTIF = { complement: 1000, vivre: 5000, gros: 10000 };
 const PRIX_CLIENT = { B2B: 39, B2C: 12, "": 25 };
 const NOM_CANAL = { seo: "Google et ton contenu", reseaux: "Les réseaux", prospection: "Le contact direct", pub: "La publicité", bouche: "Le bouche-à-oreille" };
+// Les canaux qu'un refus interdit : « écrire du contenu » exclut Google et les publications sur les réseaux
+const CANAUX_INTERDITS = { appeler: ["prospection"], ecrire: ["seo", "reseaux"], video: [], pub: ["pub"] };
 function PlanChiffre({ r, ap, onSuite }) {
   const objectif = r.objectif ?? OBJECTIF[r.ambition] ?? 5000;
   const prix = PRIX_CLIENT[r.audience ?? ""] ?? 25;
   const clients = Math.ceil(objectif / prix);
-  const canaux = (r.canaux?.length ? r.canaux : ["seo", "reseaux"]).slice(0, 3);
-  const parts = canaux.map((c, k) => [c, k === 0 ? clients - Math.floor(clients / canaux.length) * (canaux.length - 1) : Math.floor(clients / canaux.length)]);
+  const interdits = new Set((r.refus ?? []).flatMap((x) => CANAUX_INTERDITS[x] ?? []).concat(r.budget === "zero" ? ["pub"] : []));
+  const voulus = (r.canaux ?? []).filter((c) => !interdits.has(c));
+  const canaux = (voulus.length ? voulus : ["bouche", "seo", "reseaux", "prospection", "pub"].filter((c) => !interdits.has(c))).slice(0, 3);
+  const liste = canaux.length ? canaux : ["bouche"];
+  const parts = liste.map((c, k) => [c, k === 0 ? clients - Math.floor(clients / liste.length) * (liste.length - 1) : Math.floor(clients / liste.length)]);
+  const audessus = ap?.au_dessus;
+  // Un conseil quand l'objectif est grand pour le temps ou le délai choisis (sans jamais décourager)
+  const conseil = objectif >= 7000 && r.temps === "peu" ? `Conseil : avec moins de 5 heures par semaine, vise d'abord ${Math.min(2000, objectif).toLocaleString("fr-FR")} € par mois, puis monte en puissance quand ton SaaS tourne.`
+    : objectif >= 7000 && r.delai === "mois" ? "Conseil : vise ton premier client dans le mois, et ce montant sur la durée. Les plus beaux SaaS se construisent client après client."
+    : null;
   return (
     <div className="land-in mx-auto mt-10 max-w-2xl">
       <div className="fx-halo rounded-3xl"><div className="rounded-3xl bg-white p-6 sm:p-10 text-center">
         <p className="text-[13px] font-semibold uppercase tracking-wide text-accent-dark">Ton plan, calculé sur tes réponses</p>
         <p className="mt-3 text-[15px] text-ink-soft">Pour atteindre chaque mois</p>
         <p className="text-[48px] sm:text-[60px] font-black leading-none tracking-tight tnum fx-texte" style={HF}>{objectif.toLocaleString("fr-FR")} €</p>
-        <p className="mt-3 text-[16px]">il te faut <b className="tnum">{clients.toLocaleString("fr-FR")} clients</b> à {prix} € par mois{r.audience === "B2B" ? ", le prix courant d'un outil pour les pros" : r.audience === "B2C" ? ", le prix courant d'une appli grand public" : ""}.</p>
+        <p className="mt-3 text-[16px]">il te faut environ <b className="tnum">{clients.toLocaleString("fr-FR")} clients</b> à {prix} € par mois{r.audience === "B2B" ? ", le prix courant d'un outil pour les pros" : r.audience === "B2C" ? ", le prix courant d'une appli grand public" : ""}.</p>
         <div className="mt-8 space-y-3 text-left">{parts.map(([c, n]) => (
           <div key={c} className="flex items-center gap-3 text-[14.5px]">
             <span className="w-44 shrink-0 font-semibold">{NOM_CANAL[c] ?? c}</span>
             <span className="relative h-2.5 flex-1 rounded-full bg-paper"><span className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-accent to-[#9B6BFF]" style={{ width: `${Math.max(8, (n / clients) * 100)}%` }} /></span>
-            <b className="w-20 shrink-0 text-right tnum">{n} clients</b>
+            <b className="w-24 shrink-0 text-right tnum">{n.toLocaleString("fr-FR")} clients</b>
           </div>
         ))}</div>
+        {!voulus.length && <p className="mt-3 text-[12.5px] text-ink-faint">Tirés des façons de trouver des clients que tu n'as pas refusées.</p>}
         <div className="mt-6 flex flex-wrap justify-center gap-2 text-[12.5px]">{[
           r.delai && `Premier client visé : ${{ mois: "dans le mois", trois: "d'ici 3 mois", six: "d'ici 6 mois" }[r.delai]}`,
-          r.temps && `${{ peu: "Moins de 5 h", moyen: "5 à 15 h", beaucoup: "Plus de 15 h" }[r.temps]} par semaine`,
           r.budget && (r.budget === "zero" ? "Sans publicité payante" : `Budget : ${{ petit: "jusqu'à 100 €", moyen: "100 à 500 €", gros: "plus de 500 €" }[r.budget]} par mois`),
           r.langue && `Vendu ${{ fr: "en français", en: "en anglais", deux: "en français et en anglais" }[r.langue]}`,
         ].filter(Boolean).map((x) => <span key={x} className="rounded-full border border-line bg-white px-3 py-1 text-ink-soft">{x}</span>)}</div>
-        {ap?.n ? <p className="mt-4 rounded-xl bg-paper px-4 py-3 text-[14px]"><b className="tnum">{Number(ap.n).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié font déjà ça{ap.mediane ? <>, avec un revenu médian de <b className="tnum">{dollar(ap.mediane)}</b> par mois</> : null}.</p> : null}
+        {ap?.n ? <p className="mt-4 rounded-xl bg-paper px-4 py-3 text-[14px]">{audessus ? <><b className="tnum">{Number(audessus).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié font déjà {objectif.toLocaleString("fr-FR")} € par mois ou plus, parmi les <b className="tnum">{Number(ap.n).toLocaleString("fr-FR")}</b> qui collent à ton profil. C'est possible.</> : <>Parmi les <b className="tnum">{Number(ap.n).toLocaleString("fr-FR")}</b> SaaS qui collent à ton profil, aucun n'atteint encore {objectif.toLocaleString("fr-FR")} € par mois. Une place à prendre : tu pourrais être le premier.</>}</p> : null}
+        {conseil && <p className="mt-3 rounded-xl border border-accent/20 bg-accent-soft/40 px-4 py-3 text-[14px]">{conseil}</p>}
         <p className="mt-4 text-[12.5px] text-ink-faint">Un repère pour te fixer un cap, pas une promesse de revenus.</p>
         <button onClick={onSuite} className="fx-brille mt-8 w-full rounded-2xl bg-accent py-4 text-[16.5px] font-bold text-white shadow-[0_18px_40px_-18px_rgba(224,83,31,.8)] hover:bg-accent-dark">Voir mes SaaS à succès</button>
       </div></div>
