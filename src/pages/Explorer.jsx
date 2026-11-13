@@ -394,13 +394,13 @@ function Fiche({ domaine }) {
         <div className="flex-1 min-w-[240px]">
           <h1 className="text-[30px] font-black leading-tight tracking-tight" style={HF}>{s.nom} <span className="text-[22px]">{drapeau(s.pays)}</span></h1>
           <p className="text-ink-soft">{s.categorie} · <a href={`https://${s.domaine}`} target="_blank" rel="noopener noreferrer" className="underline">{s.domaine}</a>{s.pays ? ` · ${PAYS[s.pays] ?? s.pays}` : ""}</p>
-          <p className="mt-2 text-[15.5px] max-w-2xl">{s.description}</p>
-          {s.cible && <p className="mt-1 text-[14px] text-ink-soft">Pour : {s.cible}</p>}
-          {s.succes && <p className={cx("mt-3 inline-flex flex-wrap items-center gap-x-2 rounded-xl px-3.5 py-2 text-[14px]", preuveFaible(s.succes) ? "bg-paper text-ink-soft" : "bg-[#FEF3C7] text-[#78350F]")}><b>{s.succes.annee && s.succes.annee < new Date().getFullYear() - 4 ? "Ancien chiffre :" : preuveFaible(s.succes) ? (s.succes.type === "revenu_verifie" ? "Revenu vérifié :" : "Chiffre non prouvé :") : Number(s.succes.montant ?? 0) < 12000 && s.succes.type === "revenu_verifie" ? "🚀 En décollage :" : "★ Preuve de succès :"}</b> {s.succes.preuve}{s.succes.source && <a href={s.succes.source} target="_blank" rel="noopener noreferrer" className="underline text-[12.5px] opacity-80">source</a>}</p>}
+          <p className="mt-2 text-[15.5px] max-w-2xl">{resumeFr({ ...s, audience: s.trustmrr?.audience })}</p>
+          {!enFrancais(s) && s.description && <p lang="en" className="mt-1 text-[13px] text-ink-faint max-w-2xl">Sur son site : {s.description}</p>}
+          {s.succes && <p className={cx("mt-3 inline-flex flex-wrap items-center gap-x-2 rounded-xl px-3.5 py-2 text-[14px]", preuveFaible(s.succes) ? "bg-paper text-ink-soft" : "bg-[#FEF3C7] text-[#78350F]")}><b>{s.succes.annee && s.succes.annee < new Date().getFullYear() - 4 ? "Ancien chiffre :" : preuveFaible(s.succes) ? (s.succes.type === "revenu_verifie" ? "Revenu vérifié :" : "Chiffre non prouvé :") : Number(s.succes.montant ?? 0) < 12000 && s.succes.type === "revenu_verifie" ? "🚀 En décollage :" : "★ Preuve de succès :"}</b> {preuveSansCroissance(s.succes.preuve)}{croissanceDe(s) != null ? ` (${pct30(croissanceDe(s))} en 30 jours)` : ""}{s.succes.source && <a href={s.succes.source} target="_blank" rel="noopener noreferrer" className="underline text-[12.5px] opacity-80">source</a>}</p>}
           {s.copiable != null && (
             <div className={cx("mt-3 rounded-xl border px-3.5 py-2.5 max-w-2xl", s.copiable >= 60 ? "border-[#BBF7D0] bg-[#F0FDF4]" : "border-line bg-white")}>
               <p className="text-[14px]"><b>{s.copiable >= 60 ? "🎯 Bon modèle à lancer" : s.copiable >= 30 ? "À lancer avec un angle précis" : "Difficile à lancer tel quel"}</b> <span className="text-ink-faint tnum">· {s.copiable}/100</span></p>
-              <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[12.5px] text-ink-soft">{(s.copiable_raisons ?? []).map((r) => <li key={r}>{/Géant|Grosse|devis|Pas encore de revenu|très faible/.test(r) ? "–" : "✓"} {r}</li>)}</ul>
+              <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[12.5px] text-ink-soft">{(s.copiable_raisons ?? []).map((r) => /^En croissance \(/.test(r) ? (croissanceDe(s) > 0 ? `En croissance (${pct30(croissanceDe(s))} en 30 jours)` : null) : raisonFr(r)).filter(Boolean).map((r) => <li key={r}>{/Géant|Grosse|devis|Pas encore de revenu|très faible/.test(r) ? "–" : "✓"} {r}</li>)}</ul>
             </div>
           )}
           {(s.succes?.fondateurs ?? []).length > 0 && (
@@ -419,11 +419,6 @@ function Fiche({ domaine }) {
         </div>
         <div className="flex flex-col gap-2"><BoutonSuivre saasId={s.id} />
           <button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className="rounded-xl bg-accent text-white px-4 py-2.5 text-[14px] font-bold hover:bg-accent-dark">Lancer ma version</button></div>
-        <div className="rounded-2xl bg-white border border-line px-5 py-3 text-center">
-          <p className="text-[12px] text-ink-faint">Score de croissance</p>
-          <p className="text-[34px] font-black tnum leading-none mt-1" style={HF}>{s.score_croissance ?? "—"}</p>
-          <p className="text-[11.5px] text-ink-faint mt-1">recrutement · nouveautés</p>
-        </div>
       </div>
 
       {s.trustmrr && <BlocTrustmrr s={s} />}
@@ -1283,6 +1278,7 @@ function Lancer() {
 // Une vraie application en ligne (site, comptes, écrans avec données), hébergée sur #/app/<slug>, modifiable en une phrase.
 // ---------------------------------------------------------------- Son aperçu, avant de préparer le projet (sans IA)
 // Mêmes chiffres que sur les cartes : une seule croissance (arrondie), les canaux déclarés si le site n'en montre pas
+const croissanceDe = (s) => { const v = parseFloat(String(s?.succes?.croissance_30j ?? s?.trustmrr?.croissance_mrr_30j ?? "").replace(",", ".").replace("%", "")); return Number.isFinite(v) ? v : null; };
 const pct30 = (c) => `${c > 0 ? "+" : ""}${Math.round(c).toLocaleString("fr-FR")} %`;
 const preuveSansCroissance = (p) => (p ?? "").replace(/\s*\([+-−]?[\d.,\s]+\s?% en 30 jours\)/, "");
 const raisonFr = (r) => r.replace("copie une niche, pas tout le produit", "lance-toi sur une niche, pas sur tout le produit");
@@ -3130,7 +3126,7 @@ function LigneCopier({ x }) {
       <CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="w-11 h-11 self-start" pad="p-1.5" />
       <div className="min-w-0">
         <p className="font-bold text-[16px] truncate">{x.nom} <span className="font-normal">{drapeau(x.pays)}</span> <span className="text-[12.5px] font-normal text-ink-faint">{x.categorie}</span></p>
-        <p className="text-[13.5px] text-ink-soft line-clamp-1">{x.description}</p>
+        <p className="text-[13.5px] text-ink-soft line-clamp-1">{resumeFr(x)}</p>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[12px]">
           {canaux.map((c) => <span key={c} className="rounded-md bg-accent-soft/70 text-accent-dark px-2 py-0.5 font-medium">{c}</span>)}
           {infos.map((t) => <span key={t} className="text-ink-faint">{t}</span>)}
@@ -3145,7 +3141,7 @@ function LigneCopier({ x }) {
       </div>
       <div className="col-span-3 md:col-span-1 flex items-center gap-2 justify-end">
         {x.copiable != null && <span title={(x.copiable_raisons ?? []).join(" · ")} className={cx("rounded-lg px-2 py-1 text-[12px] font-bold tnum", x.copiable >= 60 ? "bg-[#DCFCE7] text-[#166534]" : "bg-paper text-ink-soft")}>{x.copiable}/100</span>}
-        <button onClick={(e) => { e.stopPropagation(); nav(`/explorer/lancer?d=${x.domaine}`); }} className="rounded-xl bg-accent text-white px-4 py-2 text-[13.5px] font-bold hover:bg-accent-dark">Copier</button>
+        <button onClick={(e) => { e.stopPropagation(); nav(`/explorer/lancer?d=${x.domaine}`); }} className="rounded-xl bg-accent text-white px-4 py-2 text-[13.5px] font-bold hover:bg-accent-dark whitespace-nowrap">Lancer ma version</button>
       </div>
     </div>
   );
@@ -3317,9 +3313,12 @@ function BlocTrustmrr({ s }) {
   const t = s.trustmrr ?? {};
   const r = t.revenus ?? {};
   const [plus, setPlus] = useState(false);
-  const periodes = [["24 h", r.h24], ["7 jours", r.j7], ["30 jours", r.j30], ["3 mois", r.m3], ["6 mois", r.m6], ["12 mois", r.m12], ["Depuis le début", r.total]].filter((x) => x[1] != null);
+  // Un montant plus petit qu'une période plus courte est un trou de la source : on ne l'affiche pas
+  let max = 0;
+  const periodes = [["24 h", r.h24], ["7 jours", r.j7], ["30 jours", r.j30], ["3 mois", r.m3], ["6 mois", r.m6], ["12 mois", r.m12], ["Depuis le début", r.total]].filter((x) => x[1] != null)
+    .filter(([, v], k, a) => { const ok = Number(v) >= max && !(Number(v) === 0 && a.slice(k + 1).some((y) => Number(y[1]) > 0)); max = Math.max(max, Number(v)); return ok; });
   const mesures = [
-    ["MRR", t.mrr != null ? dollar(t.mrr) : null, pctFr(t.croissance_mrr_30j) && `${pctFr(t.croissance_mrr_30j)} en 30 jours`],
+    ["MRR", t.mrr != null ? dollar(t.mrr) : null, croissanceDe(s) != null ? `${pct30(croissanceDe(s))} en 30 jours` : ""],
     ["Abonnés actifs", t.abonnements?.toLocaleString("fr-FR"), ""],
     ["Clients", t.clients?.toLocaleString("fr-FR"), ""],
     ["Utilisateurs (estimés)", t.utilisateurs?.toLocaleString("fr-FR"), "déclaré"],
@@ -3337,7 +3336,7 @@ function BlocTrustmrr({ s }) {
     <section className="mt-6 rounded-2xl bg-white border border-line p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-bold text-[17px]">Les chiffres vérifiés</h2>
-        <p className="text-[12px] text-ink-faint">{t.paiement ? `Relevé dans ${t.paiement.replace(/\s*\(.*\)/, "")}` : "Relevé chez le prestataire de paiement"}{t.synchro ? ` le ${new Date(t.synchro).toLocaleDateString("fr-FR")}` : ""} · <a href={s.succes?.source} target="_blank" rel="noopener noreferrer" className="underline">fiche TrustMRR</a></p>
+        <p className="text-[12px] text-ink-faint">{t.paiement ? `Vérifié dans ${t.paiement.replace(/\s*\(.*\)/, "")}` : "Vérifié chez le prestataire de paiement"}{s.succes?.verifie_at || t.lu_at ? ` le ${new Date(s.succes?.verifie_at ?? t.lu_at).toLocaleDateString("fr-FR")}` : ""} · <a href={s.succes?.source} target="_blank" rel="noopener noreferrer" className="underline">fiche TrustMRR</a></p>
       </div>
       {periodes.length > 0 && <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">{periodes.map(([k, v]) => (
         <div key={k} className="rounded-xl bg-paper px-3 py-2"><p className="text-[11.5px] text-ink-faint">Encaissé · {k}</p><p className="font-bold tnum">{dollar(v)}</p></div>

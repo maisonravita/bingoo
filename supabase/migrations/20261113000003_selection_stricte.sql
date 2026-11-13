@@ -6,3 +6,4 @@
 --   uniquement des SaaS en hausse d'au moins 10 % sur 30 jours (s'il y en a au moins 3) ; renvoie vert, metier_vise, langue.
 -- saas_pour_moi_apercu : compte uniquement les SaaS constructibles.
 -- saas_apercu : renvoie aussi canaux déclarés, croissance, audience, langue, constructible.
+-- saas_a_copier (« À lancer ») : uniquement les SaaS constructibles ; même croissance que les cartes (succes.croissance_30j d'abord) ; renvoie langue.

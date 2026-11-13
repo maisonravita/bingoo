@@ -5,8 +5,10 @@ import { useWs } from "../lib/ws";
 import { Badge, Button, Card, Input, PageHead, Spinner, useToast } from "../components/ui";
 import { fmtDate } from "../lib/utils";
 import { SubNav } from "../components/SubNav";
+import { modeExplorer } from "../lib/mode";
 
 const ROLE = { owner: "Propriétaire", admin: "Administrateur", member: "Commercial" };
+const ROLE_SAAS = { owner: "Propriétaire", admin: "Administrateur", member: "Membre" };
 const SEATS = { essai: 1, solo: 1, pro: 3, equipe: 10, fondateur: 50 };
 
 export default function Equipe() {
@@ -32,7 +34,9 @@ export default function Equipe() {
 
   const me = d?.members.find((m) => m.user_id === session?.user?.id);
   const canManage = ["owner", "admin"].includes(me?.role);
-  const seats = SEATS[ws.plan] ?? 1;
+  const saas = modeExplorer(ws) || ws.plan === "fondateur";
+  // « Lancer à plusieurs » : 3 utilisateurs
+  const seats = saas ? (["business", "fondateur"].includes(ws.plan) ? 3 : 1) : SEATS[ws.plan] ?? 1;
   const used = (d?.members.length ?? 0) + (d?.invites.length ?? 0);
 
   const invite = async () => {
@@ -61,9 +65,9 @@ export default function Equipe() {
               <div className="w-9 h-9 rounded-full bg-paper grid place-items-center font-semibold uppercase shrink-0">{(m.email || "?")[0]}</div>
               <div className="flex-1 min-w-[160px]">
                 <p className="font-medium break-all">{m.email || "Membre"}{m.user_id === session?.user?.id && <span className="text-ink-soft font-normal"> (toi)</span>}</p>
-                <p className="text-xs text-ink-soft">{c.total} prospects · {c.rdv} en RDV · {c.clients} clients</p>
+                {!saas && <p className="text-xs text-ink-soft">{c.total} prospects · {c.rdv} en RDV · {c.clients} clients</p>}
               </div>
-              <Badge tone={m.role === "owner" ? "accent" : "muted"}>{ROLE[m.role]}</Badge>
+              <Badge tone={m.role === "owner" ? "accent" : "muted"}>{(saas ? ROLE_SAAS : ROLE)[m.role]}</Badge>
               {canManage && m.role !== "owner" && m.user_id !== session?.user?.id && (
                 <div className="flex gap-1">
                   <Button size="sm" variant="ghost" loading={busy === "team-member" + m.user_id} onClick={() => act("team-member", { user_id: m.user_id, action: m.role === "admin" ? "member" : "admin" }, "Rôle modifié")}>{m.role === "admin" ? "Passer commercial" : "Passer admin"}</Button>
@@ -77,7 +81,7 @@ export default function Equipe() {
           <div key={i.id} className="p-4 flex flex-wrap items-center gap-3 bg-paper/50">
             <div className="w-9 h-9 rounded-full border border-dashed border-line grid place-items-center text-ink-soft shrink-0">+</div>
             <div className="flex-1 min-w-[160px]"><p className="font-medium break-all">{i.email || "Invitation ouverte"}</p><p className="text-xs text-ink-soft">Invitation envoyée le {fmtDate(i.created_at)}, valable jusqu'au {fmtDate(i.expires_at)}</p></div>
-            <Badge>{ROLE[i.role]}</Badge>
+            <Badge>{(saas ? ROLE_SAAS : ROLE)[i.role]}</Badge>
             {canManage && <Button size="sm" variant="ghost" onClick={() => act("team-revoke", { invite_id: i.id }, "Invitation annulée")}>Annuler</Button>}
           </div>
         ))}
@@ -94,7 +98,7 @@ export default function Equipe() {
                 <p className="text-sm text-ink-soft mt-1">Tu obtiens un lien à lui envoyer (valable 7 jours). Il crée son compte et rejoint ton espace.</p>
                 <div className="flex flex-wrap gap-2 mt-4">
                   <Input type="email" placeholder="E-mail (facultatif)" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} className="flex-1 min-w-[180px]" />
-                  <select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })} className="rounded-xl border border-line bg-white px-3 text-sm"><option value="member">Commercial</option><option value="admin">Administrateur</option></select>
+                  <select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })} className="rounded-xl border border-line bg-white px-3 text-sm"><option value="member">{saas ? "Membre" : "Commercial"}</option><option value="admin">Administrateur</option></select>
                   <Button variant="primary" loading={busy === "invite"} onClick={invite}>Créer le lien</Button>
                 </div>
                 {link && <div className="mt-3 flex flex-wrap gap-2 items-center"><code className="flex-1 min-w-0 text-xs bg-paper rounded-lg px-3 py-2 break-all">{link}</code><Button size="sm" onClick={copy}>Copier</Button></div>}
