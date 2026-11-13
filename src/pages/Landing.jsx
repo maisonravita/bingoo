@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
 import { legalReady } from "./Legal";
 import ResultatsBingoo from "../components/ResultatsBingoo";
+import { ApercuTendance, ApercuVersion, ApercuVisibilite, ApercuProspects, ApercuSemaine } from "../components/VitrineAccueil";
 import { supabase } from "../lib/supabase";
 
 // Page d'accueil publique de Bingoo! : épurée, et chaque promesse adossée à une preuve.
@@ -89,8 +90,8 @@ export default function Landing() {
             <p className="hero-in mx-auto mt-7 max-w-[780px] text-[18px] sm:text-[22px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Bingoo! repère les SaaS en tendance qui encaissent déjà{nb ? <> (parmi <b>{nb.toLocaleString("fr-FR")}</b> suivis, revenus vérifiés)</> : null}, construit ta version à ton nom, et te trouve tes premiers clients en 7 jours.</p>
             <button onClick={go} className="hero-in mt-9 inline-flex items-center justify-center gap-2 rounded-full bg-accent px-10 py-4 text-[18px] font-bold text-white shadow-[0_14px_40px_-16px_rgba(226,85,35,.8)] hover:bg-accent-dark transition" style={{ ...JK, animationDelay: ".2s" }}>Commencer <Arrow className="h-4 w-4" /></button>
             <p className="hero-in mt-3 text-[14px] text-[#5B6075]" style={{ ...JK, animationDelay: ".22s" }}>8 questions, sans compte, et tu vois combien de SaaS collent à ton profil.</p>
-            <div className="hero-in mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[15px] text-[#5B6075]" style={{ ...JK, animationDelay: ".25s" }}>
-              {["Des SaaS qui encaissent déjà, revenus vérifiés chez Stripe", "Ta version construite et en ligne en une journée", "Tes premiers clients trouvés pour toi"].map((x) => <span key={x} className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-accent" />{x}</span>)}
+            <div className="hero-in mx-auto mt-7 flex w-fit flex-col sm:w-auto sm:flex-row sm:flex-wrap items-start sm:items-center justify-center gap-x-5 gap-y-2 text-left text-[15px] text-[#5B6075]" style={{ ...JK, animationDelay: ".25s" }}>
+              {["Des SaaS qui encaissent déjà, revenus vérifiés chez Stripe", "Ta version construite et en ligne en une journée", "Tes premiers clients trouvés pour toi"].map((x) => <span key={x} className="inline-flex items-start gap-1.5"><Check className="h-4 w-4 mt-[3px] shrink-0 text-accent" />{x}</span>)}
             </div>
             <form onSubmit={(e) => { e.preventDefault(); const u = e.currentTarget.site.value.trim().replace(/^https?:\/\//i, ""); if (u) nav(`/marche?u=${encodeURIComponent(u)}`); }}
               className="hero-in mx-auto mt-8 flex max-w-[520px] items-stretch gap-2 rounded-full border border-black/[.08] bg-white p-1.5" style={{ ...JK, animationDelay: ".28s" }}>
@@ -101,8 +102,8 @@ export default function Landing() {
             <p className="mt-6 text-[12.5px] text-ink-faint">Aucun revenu n'est garanti : tu pars de SaaS qui encaissent déjà, et Bingoo! t'aide à faire pareil.</p>
             <p className="mt-6 text-[13.5px] text-ink-faint">En continuant, j'accepte les <a href="#/conditions" className="underline hover:text-ink">Conditions d'utilisation</a> et la <a href="#/confidentialite" className="underline hover:text-ink">Politique de confidentialité</a> de Bingoo!.</p>
             <figure className="hero-in mx-auto mt-12 max-w-[1100px]" style={{ animationDelay: ".35s" }}>
-              <img src="./apercu-tendance.jpg" alt="Tes 3 SaaS en tendance, avec leur revenu vérifié et ta version" className="w-full rounded-2xl border border-black/10 bg-[#F1EFED] shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]" />
-              <figcaption className="mt-2.5 text-[13px] text-ink-faint">Le résultat après les 8 questions, dans la vraie application.</figcaption>
+              <ApercuTendance />
+              <figcaption className="mt-2.5 text-[13px] text-ink-faint">Le résultat après les 8 questions. Vrais SaaS, revenus vérifiés relevés en novembre 2026.</figcaption>
             </figure>
           </section>
         </div>
@@ -121,9 +122,9 @@ export default function Landing() {
             <ol className="mt-12 space-y-16">
               {[
                 ["Réponds à 8 questions", "Comment tu veux trouver tes clients, ce que tu refuses de faire, ton temps, le revenu visé, le métier que tu connais. Pendant que tu réponds, tu vois combien de SaaS vérifiés collent déjà à tes réponses.", null],
-                ["Tes 3 SaaS en tendance", "Des SaaS qui encaissent déjà, revenus vérifiés chez leur outil de paiement, dont le revenu monte en ce moment. Pour chacun, sa tendance, sa visibilité et ta version : en français, pour un métier, ou plus simple.", "apercu-tendance.jpg"],
+                ["Tes 3 SaaS en tendance", "Des SaaS qui encaissent déjà, revenus vérifiés chez leur outil de paiement, dont le revenu monte en ce moment. Pour chacun, sa tendance, sa visibilité et ta version : en français, pour un métier, ou plus simple.", "version"],
                 ["Bingoo! construit ta version", "Ton site, les comptes de tes clients, l'abonnement avec ton Stripe, ton domaine. À ton nom, avec tes mots et ton design, en ligne en une journée.", "video"],
-                ["Tes 10 premiers clients en 7 jours", "Bingoo! trouve les établissements qui ont le problème dans ton département, te prépare le message, et t'envoie chaque matin l'étape du jour. Tu suis qui répond, qui essaie, qui paie.", "apercu-prospects.jpg"],
+                ["Tes 10 premiers clients en 7 jours", "Bingoo! trouve les établissements qui ont le problème dans ton département, te prépare le message, et t'envoie chaque matin l'étape du jour. Tu suis qui répond, qui essaie, qui paie.", "prospects"],
               ].map(([h, d, img], i) => (
                 <li key={h} className="grid lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.5fr)] gap-6 lg:gap-12 items-center">
                   <div>
@@ -135,7 +136,7 @@ export default function Landing() {
                   {img === "video" ? (
                     <figure><video src="/demo-copie.mp4" poster="/demo-copie.jpg" controls muted playsInline preload="none" className="w-full rounded-2xl border border-black/10 shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]" /><figcaption className="mt-2.5 text-[13px] text-ink-faint">Un vrai SaaS construit par Bingoo! (prise de rendez-vous), avec ses données d'exemple. 35 secondes.</figcaption></figure>
                   ) : img ? (
-                    <figure><img src={`./${img}`} alt={h} loading="lazy" className="w-full rounded-2xl border border-black/10 bg-[#F1EFED] shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]" /><figcaption className="mt-2.5 text-[13px] text-ink-faint">Dans la vraie application.{img === "apercu-prospects.jpg" ? " Noms des dirigeants floutés." : ""}</figcaption></figure>
+                    <figure>{img === "version" ? <ApercuVersion /> : <ApercuProspects />}<figcaption className="mt-2.5 text-[13px] text-ink-faint">{img === "version" ? "Ta version, à partir d'un SaaS qui encaisse déjà." : "Aperçu avec des établissements d'exemple."}</figcaption></figure>
                   ) : (
                     <div className="rounded-2xl bg-[#F6F5F3] border border-line p-6 sm:p-8">
                       <p className="text-[14px] text-ink-faint">Question 1 sur 8</p>
@@ -160,7 +161,7 @@ export default function Landing() {
                 <div key={h} className="rounded-2xl bg-white/[.06] border border-white/10 p-5"><p className="text-[26px]">{e}</p><p className="mt-2 text-[20px] leading-tight" style={SERIF}>{h}</p><p className="mt-1.5 text-[14.5px] leading-snug text-white/65">{d}</p></div>
               ))}
             </div>
-            <figure className="mt-10"><img src="./apercu-visibilite.jpg" alt="Comment un SaaS se fait connaître" loading="lazy" className="w-full rounded-2xl border border-white/10" /><figcaption className="mt-2.5 text-[13px] text-white/50">« Comment il se fait connaître », sur chacun de tes SaaS.</figcaption></figure>
+            <figure className="mt-10"><ApercuVisibilite /><figcaption className="mt-2.5 text-[13px] text-white/50">« Comment il se fait connaître », sur chacun de tes SaaS.</figcaption></figure>
           </div>
         </section>
 
@@ -173,7 +174,7 @@ export default function Landing() {
                 {["Une semaine, une étape par jour, cochée au fur et à mesure", "Les établissements à contacter, trouvés pour toi dans le registre public", "Le message prêt, adressé au dirigeant", "L'étape du jour chaque matin dans ta boîte mail", "Ton compteur : 0 / 10 clients payants"].map((x) => <li key={x} className="flex gap-2.5"><Check className="h-5 w-5 mt-0.5 shrink-0 text-accent" />{x}</li>)}
               </ul>
             </div>
-            <figure><img src="./apercu-semaine.jpg" alt="Tes 10 premiers clients en 7 jours" loading="lazy" className="w-full rounded-2xl border border-black/10 shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]" /></figure>
+            <figure><ApercuSemaine /></figure>
           </div>
         </section>
 
@@ -182,9 +183,9 @@ export default function Landing() {
           <div className="mx-auto max-w-[1180px]">
             <h2 className="max-w-[820px] text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ailleurs, une idée et un prompt. Ici, ton SaaS et tes clients.</h2>
             <div className="mt-10 overflow-hidden rounded-2xl border border-line">
-              <div className="grid grid-cols-[minmax(0,.8fr)_minmax(0,1fr)_minmax(0,1fr)] bg-[#F6F5F3] text-[13px] font-bold uppercase tracking-wide">
+              <div className="grid grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)] sm:grid-cols-[minmax(0,.8fr)_minmax(0,1fr)_minmax(0,1fr)] bg-[#F6F5F3] text-[13px] font-bold uppercase tracking-wide">
                 <span className="px-4 sm:px-5 py-3 text-ink-faint" />
-                <span className="px-4 sm:px-5 py-3 text-ink-soft">Ailleurs</span>
+                <span className="hidden sm:block px-4 sm:px-5 py-3 text-ink-soft">Ailleurs</span>
                 <span className="px-4 sm:px-5 py-3 text-accent-dark">Bingoo!</span>
               </div>
               {[
@@ -194,9 +195,9 @@ export default function Landing() {
                 ["Tes clients", "Débrouille-toi", "Trouvés pour toi, message prêt, suivi jusqu'au paiement"],
                 ["Tenir le rythme", "Seul", "L'étape du jour, chaque matin"],
               ].map(([k, a2, b2]) => (
-                <div key={k} className="grid grid-cols-[minmax(0,.8fr)_minmax(0,1fr)_minmax(0,1fr)] border-t border-line text-[14.5px] sm:text-[15.5px] leading-snug">
-                  <span className="px-4 sm:px-5 py-3.5 font-semibold text-ink">{k}</span>
-                  <span className="px-4 sm:px-5 py-3.5 text-ink-soft">{a2}</span>
+                <div key={k} className="grid grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)] sm:grid-cols-[minmax(0,.8fr)_minmax(0,1fr)_minmax(0,1fr)] border-t border-line text-[14.5px] sm:text-[15.5px] leading-snug">
+                  <span className="px-4 sm:px-5 py-3.5 font-semibold text-ink">{k}<span className="sm:hidden mt-1 block text-[12.5px] font-normal text-ink-faint line-through">{a2}</span></span>
+                  <span className="hidden sm:block px-4 sm:px-5 py-3.5 text-ink-soft">{a2}</span>
                   <span className="px-4 sm:px-5 py-3.5 text-ink bg-accent-soft/30 flex gap-2"><Check className="h-4 w-4 mt-0.5 shrink-0 text-accent" />{b2}</span>
                 </div>
               ))}
