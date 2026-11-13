@@ -65,7 +65,7 @@ function FilmAuto() {
   }, []);
   const basculer = () => { const v = ref.current; if (!v) return; v.muted = !v.muted; setSon(!v.muted); if (!v.muted) v.play().catch(() => {}); };
   return (
-    <div id="film" className="hero-in relative mx-auto mt-8 sm:mt-10 max-w-[1100px] scroll-mt-24" style={{ animationDelay: ".05s" }}>
+    <div id="film" className="hero-in relative mx-auto mt-10 sm:mt-12 max-w-[1100px] scroll-mt-24" style={{ animationDelay: ".3s" }}>
       <video ref={ref} src="/film-lancement.mp4" poster="/film-lancement.jpg" muted loop playsInline preload="metadata" controls className="w-full aspect-video rounded-2xl border border-black/10 bg-white shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]" />
       <button onClick={basculer} className="absolute right-3 top-3 sm:right-4 sm:top-4 rounded-full bg-black/60 px-3.5 py-2 text-[13px] font-semibold text-white backdrop-blur hover:bg-black/75 transition">{son ? "Couper le son" : "🔊 Mettre le son"}</button>
     </div>
@@ -108,7 +108,6 @@ export default function Landing() {
               <span className="mt-1 block text-[38px] sm:text-[60px] lg:text-[80px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>Lance ta version. Encaisse.</span>
               <span className="mt-4 sm:mt-6 flex justify-center"><span className="sr-only">Bingoo!</span><Logo height="clamp(64px, 9vw, 112px)" className="!self-center" /></span>
             </h1>
-            <FilmAuto />
             <p className="hero-in mx-auto mt-7 max-w-[780px] text-[18px] sm:text-[22px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Bingoo! repère les SaaS en tendance qui encaissent déjà{nb ? <> (parmi <b>{nb.toLocaleString("fr-FR")}</b> suivis, revenus vérifiés)</> : null}, construit ta version à ton nom, et te trouve tes premiers clients en 7 jours.</p>
             <button onClick={go} className="hero-in mt-9 inline-flex items-center justify-center gap-2 rounded-full bg-accent px-10 py-4 text-[18px] font-bold text-white shadow-[0_14px_40px_-16px_rgba(226,85,35,.8)] hover:bg-accent-dark transition" style={{ ...JK, animationDelay: ".2s" }}>Commencer <Arrow className="h-4 w-4" /></button>
             <p className="hero-in mt-3 text-[14px] text-[#5B6075]" style={{ ...JK, animationDelay: ".22s" }}>8 questions, sans compte, et tu vois combien de SaaS collent à ton profil.</p>
@@ -123,6 +122,7 @@ export default function Landing() {
             </form>
             <p className="mt-6 text-[12.5px] text-ink-faint">Aucun revenu n'est garanti : tu pars de SaaS qui encaissent déjà, et Bingoo! t'aide à faire pareil.</p>
             <p className="mt-6 text-[13.5px] text-ink-faint">En continuant, j'accepte les <a href="#/conditions" className="underline hover:text-ink">Conditions d'utilisation</a> et la <a href="#/confidentialite" className="underline hover:text-ink">Politique de confidentialité</a> de Bingoo!.</p>
+            <FilmAuto />
             <figure className="hero-in mx-auto mt-12 max-w-[1100px]" style={{ animationDelay: ".35s" }}>
               <ApercuTendance />
               <figcaption className="mt-2.5 text-[13px] text-ink-faint">Le résultat après les 8 questions. Vrais SaaS, revenus vérifiés relevés en novembre 2026.</figcaption>
