@@ -4,27 +4,19 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
 import { legalReady } from "./Legal";
-import { cx } from "../lib/utils";
 import ResultatsBingoo from "../components/ResultatsBingoo";
 import { supabase } from "../lib/supabase";
 
 // Page d'accueil publique de Bingoo! : épurée, et chaque promesse adossée à une preuve.
 // Deux preuves seulement : l'application filmée sur un vrai compte, et l'essai en direct sur le site du visiteur.
 const URL_ = import.meta.env.VITE_SUPABASE_URL, KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-async function call(action, body) {
-  const res = await fetch(`${URL_}/functions/v1/r/${action}`, { method: "POST", headers: { "Content-Type": "application/json", apikey: KEY, Authorization: `Bearer ${KEY}` }, body: JSON.stringify(body) });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || data.error) throw new Error(data.error || "Erreur réseau, réessaie");
-  return data;
-}
 const JK = { fontFamily: "'Plus Jakarta Sans', Geist, system-ui, sans-serif" };
 const SERIF = { fontFamily: "var(--font-titre)", fontWeight: 800, letterSpacing: "-.03em" };
 const scrollTo = (id) => (e) => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }); };
 const Check = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>;
 const Arrow = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" /></svg>;
-const Lock = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
 
-const MENU = [["Comment ça marche", "#comment"], ["Les SaaS en tendance", "#tendances"], ["Tes premiers clients", "#clients"], ["Tarifs", "#tarifs"], ["Questions", "#faq"]];
+const MENU = [["Comment ça marche", "#comment"], ["Les SaaS en tendance", "#tendances"], ["Tes premiers clients", "#clients"], ["Questions", "#faq"]];
 
 // Nombre de SaaS suivis dans la base Explorer (vue publique), affiché tel quel
 function useNbSaas() {
@@ -47,20 +39,14 @@ function useReveal() {
 }
 
 /* ---------- La preuve : l'application filmée sur un vrai compte, en 4 onglets ---------- */
-const eur = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ","));
-const PLANS = [
-  ["Trouver", 19.99, "Pour trouver le SaaS à lancer et tes premiers clients.", ["Tes SaaS en tendance débloqués, avec leurs vrais revenus", "Leur visibilité, leur pub et leurs canaux", "Ton plan sur 30 jours", "Tes 10 premiers clients en 7 jours : prospects trouvés pour toi", "L'étape du jour chaque matin par e-mail"]],
-  ["Lancer", 39.99, "Pour que Bingoo! construise ta version et la mette en ligne.", ["Tout Trouver", "3 SaaS construits par mois, à ton nom", "En ligne avec ton domaine, prêt à encaisser (ton Stripe)", "Toute la base : tendances, niches, classement", "Les SaaS à vendre et à racheter"]],
-  ["Lancer à plusieurs", 69.99, "Pour une équipe qui lance plusieurs SaaS.", ["Tout Lancer", "10 SaaS construits par mois", "3 utilisateurs", "Export des listes"]],
-];
 const FAQ = [
   ["Je ne sais pas coder, ça marche quand même ?", "Oui. Tu réponds à 8 questions, tu choisis ton SaaS, et Bingoo! construit ta version : le site, les comptes de tes clients, l'abonnement avec ton Stripe. Tu n'écris pas une ligne de code."],
   ["Combien je vais gagner ?", "Personne ne peut te le promettre, et Bingoo! ne le fait pas. Ce qu'il fait : te faire partir de SaaS qui encaissent déjà (revenus vérifiés chez leur outil de paiement), construire ta version, et te donner chaque jour quoi faire pour trouver tes 10 premiers clients. Le reste dépend de toi."],
   ["D'où viennent les chiffres ?", "Les revenus sont vérifiés directement chez l'outil de paiement des SaaS (Stripe et d'autres), via TrustMRR. La visibilité, les canaux et la pub viennent de leurs propres déclarations et de sources publiques. Chaque chiffre a sa source sur la fiche."],
   ["Faire ma version d'un SaaS, c'est légal ?", "Faire la même chose qu'un autre, oui : c'est la concurrence. Bingoo! construit ta version avec ton nom, tes textes et ton design, et souvent un angle à toi (en français, pour un métier, plus simple). Reprendre la marque, les textes mot pour mot ou le design d'un autre, non."],
   ["Comment Bingoo! trouve mes premiers clients ?", "Pour ta version, il cherche dans le registre public des entreprises les établissements de ton département qui ont le problème (par exemple 50 salons de coiffure à Paris), te prépare le message à envoyer et suit avec toi qui a répondu, qui essaie, qui paie. Tu envoies toi-même, depuis ton adresse."],
-  ["Et si ça ne marche pas pour moi ?", "Avec « Lancer », si ta version n'est pas en ligne dans les 14 jours qui suivent ton paiement, tu es remboursé. Sans engagement ensuite : tu arrêtes quand tu veux."],
-  ["Qu'est-ce que je vois avant de payer ?", "Tu réponds aux questions sans compte, et tu vois en direct combien de SaaS vérifiés collent à ton profil, leur revenu médian et combien sont en tendance. Les SaaS eux-mêmes, leurs chiffres et ta version se débloquent avec une formule, sans engagement. Avec « Lancer », si ta version n'est pas en ligne sous 14 jours, tu es remboursé."],
+  ["Et si ça ne marche pas pour moi ?", "Si ta version n'est pas en ligne dans les 14 jours qui suivent ton paiement, tu es remboursé. Sans engagement ensuite : tu arrêtes quand tu veux."],
+  ["Qu'est-ce que je vois avant de payer ?", "Tu réponds aux questions sans compte, et tu vois en direct combien de SaaS vérifiés collent à ton profil, leur revenu médian et combien sont en tendance. Les SaaS eux-mêmes, leurs chiffres et ta version se débloquent ensuite, sans engagement. Si ta version n'est pas en ligne sous 14 jours, tu es remboursé."],
   ["Et si un éditeur veut corriger sa fiche ?", "Notre robot ne lit que des pages publiques et respecte le fichier robots.txt. Écris-nous depuis une adresse de ton domaine : correction ou retrait sous 72 heures."],
 ];
 
@@ -70,9 +56,6 @@ export default function Landing() {
   useEffect(() => { supabase.rpc("saas_pour_moi_apercu", { p: {} }).then(({ data }) => setDemo(data ?? null)); }, []);
   const nav = useNavigate();
   useReveal();
-  const [yearly, setYearly] = useState(false);
-  const [fond, setFond] = useState(null);
-  useEffect(() => { call("founder-slots", {}).then(setFond).catch(() => setFond(null)); }, []);
   const go = () => commencer(nav);
   const nb = useNbSaas();
   return (
@@ -221,46 +204,6 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* Tarifs */}
-        <section id="tarifs" className="max-w-[1280px] mx-auto px-4 sm:px-6 py-20 scroll-mt-24 border-t border-black/[.07]">
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-            <div>
-              <h2 className="text-[38px] sm:text-[54px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ton SaaS et tes premiers clients, dès 19,99 €.</h2>
-              <p className="mt-3 text-[17px] text-ink-soft">Tu réponds aux questions sans compte et tu vois combien de SaaS collent à ton profil. Tes SaaS se débloquent avec une formule. Prix hors taxes par mois, sans engagement.</p>
-            </div>
-            <div className="relative inline-flex rounded-full bg-white border border-line p-1 self-start md:self-auto">
-              {[[false, "Mensuel"], [true, "Annuel"]].map(([v, l]) => <button key={l} onClick={() => setYearly(v)} className={cx("rounded-full px-5 py-2 text-[14.5px] font-bold transition", yearly === v ? "bg-ink text-white" : "text-ink-soft")}>{l}</button>)}
-              <span className="absolute -top-3 -right-2 rounded-full bg-good text-white text-[11.5px] font-bold px-2 py-0.5">-20 %</span>
-            </div>
-          </div>
-          <div className="mt-8 grid md:grid-cols-2 gap-4 items-end max-w-[880px]">
-            {PLANS.slice(0, 2).map(([n, p0, d, items], i) => {
-              const best = i === 1; // « Lancer » : la formule mise en avant
-              const fondateur = i === 1 && fond && fond.left > 0;
-              const p = fondateur ? fond.price : p0;
-              const annuel = Math.round(p * 12 * 0.8); // même calcul que la facturation Stripe
-              const price = yearly ? Math.round(annuel / 12) : p;
-              return (
-                <div key={n} style={{ transitionDelay: `${i * 0.12}s` }} className={cx("reveal relative rounded-3xl p-6", best ? "bg-[#16171B] text-white md:pb-10 md:pt-10 shadow-[0_30px_60px_-30px_rgba(21,22,26,.6)]" : i === 0 ? "bg-white border border-line" : "bg-accent-soft/60 border border-accent/20")}>
-                  {best && <span className="absolute -top-3.5 left-7 rounded-full bg-accent text-white text-[12.5px] font-bold px-3 py-1">Recommandé</span>}
-                  <p className="font-bold text-[19px]">{n}</p>
-                  <p className="mt-4">{fondateur && <span className="mr-2 text-[22px] text-ink-faint line-through tnum">{yearly ? Math.round(p0 * 12 * 0.8 / 12) : eur(p0)} €</span>}<span className="font-black text-[46px] leading-none" style={SERIF}>{eur(price)} €</span><span className={cx("text-[14px] ml-1.5", best ? "text-white/60" : "text-ink-faint")}>/ mois</span></p>
-                  {(yearly || fondateur) && <p className={cx("text-[13px] mt-1", best ? "text-white/60" : "text-accent-dark font-semibold")}>{fondateur ? "prix fondateur, à vie" : ""}{fondateur && yearly ? " · " : ""}{yearly ? `facturé ${annuel} € par an` : ""}</p>}
-                  <p className={cx("mt-4 text-[15px]", best ? "text-white/75" : "text-ink-soft")}>{d}</p>
-                  <ul className="mt-5 space-y-2.5">{items.map((x) => <li key={x} className="flex items-center gap-2.5 text-[15px]"><Check className={cx("h-4 w-4 shrink-0", best ? "text-[#F6A06B]" : "text-accent")} />{x}</li>)}</ul>
-                  <button onClick={go} className={cx("mt-7 w-full rounded-lg py-3.5 text-[16px] transition", best ? "bg-accent hover:bg-accent-dark text-white" : "bg-ink text-white hover:bg-black")}>Commencer</button>
-                  {best && <p className="mt-3 text-center text-[13px] text-white/70">Remboursé sous 14 jours si ta version n'est pas en ligne.</p>}
-                </div>
-              );
-            })}
-          </div>
-          <div className="mt-4 rounded-2xl bg-[#F6F5F3] border border-line px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <p className="text-[15px]"><b>Tu lances plusieurs SaaS ou tu es une équipe ?</b> <span className="text-ink-soft">« Lancer à plusieurs » : 10 SaaS construits par mois et 3 utilisateurs, 69,99 € par mois. Au-delà, sur devis.</span></p>
-            <a href={`mailto:bingoo@maisonravita.fr?subject=${encodeURIComponent("Bingoo! Entreprise : demande de devis")}`} className="shrink-0 rounded-lg px-4 py-2.5 text-center text-[15px] border border-ink/80 hover:bg-black/[.04] transition">Parler à l'équipe</a>
-          </div>
-          <p className="mt-6 text-center text-[14px] text-ink-soft">Sans engagement : tu changes de formule ou tu arrêtes quand tu veux. À l'année : −20 %.</p>
-        </section>
-
         {/* Questions */}
         <section id="faq" className="bg-white border-y border-line scroll-mt-24">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-20">
@@ -286,7 +229,7 @@ export default function Landing() {
 
       <footer className="border-t border-line bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid grid-cols-2 md:grid-cols-3 gap-8 text-[15px]">
-          <div><p className="font-bold">Produit</p><ul className="mt-4 space-y-2.5 text-ink-soft">{[["comment", "Comment ça marche"], ["tendances", "Les SaaS en tendance"], ["clients", "Tes premiers clients"], ["tarifs", "Tarifs"]].map(([id, l]) => <li key={id}><a href={`#${id}`} onClick={scrollTo(id)} className="hover:text-ink">{l}</a></li>)}</ul></div>
+          <div><p className="font-bold">Produit</p><ul className="mt-4 space-y-2.5 text-ink-soft">{[["comment", "Comment ça marche"], ["tendances", "Les SaaS en tendance"], ["clients", "Tes premiers clients"]].map(([id, l]) => <li key={id}><a href={`#${id}`} onClick={scrollTo(id)} className="hover:text-ink">{l}</a></li>)}</ul></div>
           <div><p className="font-bold">Les SaaS</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="/saas" className="hover:text-ink">Tous les SaaS suivis : prix et alternatives</a></li><li><a href="#faq" onClick={scrollTo("faq")} className="hover:text-ink">Questions fréquentes</a></li></ul></div>
           <div><p className="font-bold">Compte et légal</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><button onClick={() => nav("/connexion?mode=login")} className="hover:text-ink">Connexion</button></li><li><button onClick={go} className="hover:text-ink">Créer un compte</button></li>{legalReady && <><li><a href="#/mentions-legales" className="hover:text-ink">Mentions légales</a></li><li><a href="#/confidentialite" className="hover:text-ink">Confidentialité</a></li><li><a href="#/conditions" className="hover:text-ink">Conditions</a></li></>}<li><a href="#/opposition" className="hover:text-ink">Ne plus être contacté</a></li></ul></div>
         </div>
