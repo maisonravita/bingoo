@@ -2558,6 +2558,11 @@ const RETOURS = {
 };
 // La jauge du revenu espéré : en euros, ramenée aux trois tailles de SaaS du serveur
 const OBJ_MIN = 500, OBJ_MAX = 30000, OBJ_DEFAUT = 3000;
+const commentaireObjectif = (v) => v < 1000 ? ["Un premier pas", "Un objectif accessible : quelques dizaines de clients suffisent."]
+  : v < 3000 ? ["Un vrai complément", "C'est l'objectif le plus fréquent pour commencer. Bien choisi."]
+  : v < 7000 ? ["De quoi en vivre", "Il faudra de la régularité, et souvent plusieurs mois."]
+  : v <= 15000 ? ["Tu vises gros", "Peu de SaaS y arrivent, mais Bingoo! te montre ceux qui l'ont fait."]
+  : ["Tu vises très gros", "C'est rare et ça prend souvent plus d'un an : vise d'abord tes 10 premiers clients."];
 const ambitionDe = (r) => { const o = r.objectif ?? null; if (o == null) return r.ambition ?? "vivre"; return o < 2000 ? "complement" : o <= 10000 ? "vivre" : "gros"; };
 const CONTINENTS = { europe: "Europe", amerique_nord: "Amérique du Nord", afrique: "Afrique", moyen_orient: "Moyen-Orient", amerique_latine: "Amérique latine", asie: "Asie", oceanie: "Océanie" };
 // Un refus ne peut pas contredire un canal choisi juste avant (« Payer de la publicité » des deux côtés)
@@ -2577,7 +2582,7 @@ export function TrouveTonSaas() {
   const [res, setRes] = useState(null);
   const [ap, setAp] = useState(null);
   const [planVu, setPlanVu] = useState(false);
-  const retour = (() => { const Qc = QUESTIONS[r.etape]; const v = Qc?.k ? r[Qc.k] : null; const m = Qc && RETOURS[Qc.k]; if (!m || v == null || Array.isArray(v)) return null; return typeof m === "function" ? m(v) : m[v] ?? null; })();
+  const retour = (() => { const Qc = QUESTIONS[r.etape]; if (Qc?.jauge) return commentaireObjectif(r.objectif ?? OBJ_DEFAUT)[1]; const v = Qc?.k ? r[Qc.k] : null; const m = Qc && RETOURS[Qc.k]; if (!m || v == null || Array.isArray(v)) return null; return typeof m === "function" ? m(v) : m[v] ?? null; })();
   const invite = estInvite(session);
   // Les 3 SaaS, le plan et le prompt se débloquent une fois le paiement reçu (le serveur n'envoie que le premier avant)
   const debloque = estPaye(ws);
@@ -2599,7 +2604,7 @@ export function TrouveTonSaas() {
   // La preuve en direct : combien de SaaS au revenu vérifié collent déjà aux réponses données
   useEffect(() => {
     if (r.etape >= QUESTIONS.length && debloque) return;
-    const t = setTimeout(() => supabase.rpc("saas_pour_moi_apercu", { p: { continent: r.continent || null, categories: r.secteurs, canaux: r.canaux, refus: r.refus ?? [], audience: r.audience || null, ambition: r.objectif != null ? ambitionDe(r) : null, temps: r.temps } }).then(({ data }) => data && setAp(data)), 250);
+    const t = setTimeout(() => supabase.rpc("saas_pour_moi_apercu", { p: { continent: r.continent || null, categories: r.secteurs, canaux: r.canaux, refus: r.refus ?? [], audience: r.audience || null, objectif: r.objectif != null ? Math.round(r.objectif * 1.08) : null, temps: r.temps } }).then(({ data }) => data && setAp(data)), 250);
     return () => clearTimeout(t);
   }, [r]); // eslint-disable-line react-hooks/exhaustive-deps
   const fini = r.etape >= QUESTIONS.length;
@@ -2671,12 +2676,12 @@ export function TrouveTonSaas() {
                 })}</div>
               )}
             </div>
-            {!Q.multi && retour && <div key={`m-${r.etape}-${r[Q.k]}`} className="land-in mt-6 fx-halo rounded-2xl" aria-live="polite"><div className="flex items-start gap-3 rounded-2xl bg-white px-5 py-4"><span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full fx-pastille text-white text-[12px] font-black">B!</span><p className="text-[15px] leading-snug">{retour}</p></div></div>}
+            {!Q.multi && retour && <div key={`m-${r.etape}-${Q.jauge ? commentaireObjectif(r.objectif ?? OBJ_DEFAUT)[0] : r[Q.k]}`} className="land-in mt-6 fx-halo rounded-2xl" aria-live="polite"><div className="flex items-start gap-3 rounded-2xl bg-white px-5 py-4"><span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full fx-pastille text-white text-[12px] font-black">B!</span><p className="text-[15px] leading-snug">{retour}</p></div></div>}
             <button onClick={() => aller({ ...r, ...(Q.jauge && r.objectif == null ? { objectif: OBJ_DEFAUT } : {}), etape: r.etape + 1 })} disabled={!Q.multi && !Q.jauge && r[Q.k] == null}
               className="fx-brille mt-8 w-full rounded-2xl bg-accent py-4 text-[16.5px] font-bold text-white shadow-[0_18px_40px_-18px_rgba(224,83,31,.8)] transition hover:bg-accent-dark disabled:opacity-40 disabled:shadow-none">
               {Q.multi ? (r.etape === QUESTIONS.length - 1 ? (r.secteurs.length ? "Voir mes SaaS" : "Peu importe, cherche partout") : r[Q.k].length ? "Continuer" : Q.aucun ?? "Passer") : "Continuer"}
             </button>
-            {ap?.n ? <p className="mt-5 text-center text-[13.5px] leading-relaxed text-ink-soft"><span className="relative mr-2 inline-flex h-2 w-2 align-middle"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-good opacity-60" /><span className="relative inline-flex h-2 w-2 rounded-full bg-good" /></span><b className="tnum text-ink">{Number(ap.n).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié collent déjà à tes réponses{ap.tendance ? <>, dont <b className="tnum text-ink">{Number(ap.tendance).toLocaleString("fr-FR")}</b> en tendance</> : null}</p> : null}
+            {ap?.n ? <p className="mt-5 text-center text-[13.5px] leading-relaxed text-ink-soft"><span className="relative mr-2 inline-flex h-2 w-2 align-middle"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-good opacity-60" /><span className="relative inline-flex h-2 w-2 rounded-full bg-good" /></span><b className="tnum text-ink">{Number(ap.n).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié collent déjà à tes réponses{r.objectif && ap.au_dessus != null ? <>, dont <b className="tnum text-ink">{Number(ap.au_dessus).toLocaleString("fr-FR")}</b> qui font déjà {Number(r.objectif).toLocaleString("fr-FR")} € par mois ou plus</> : ap.tendance ? <>, dont <b className="tnum text-ink">{Number(ap.tendance).toLocaleString("fr-FR")}</b> en tendance</> : null}</p> : null}
             {r.etape === 0 && <p className="mt-2 text-center text-[12.5px] text-ink-faint">Tes résultats complets avec un abonnement, sans engagement.</p>}
           </div>
         </div>
@@ -2720,7 +2725,7 @@ export const estPaye = (ws) => ws?.plan === "fondateur" || (["explorer", "explor
 function Jauge({ valeur, onChange }) {
   const pct = ((valeur - OBJ_MIN) / (OBJ_MAX - OBJ_MIN)) * 100;
   const clients = Math.ceil(valeur / 39);
-  const repere = valeur < 2000 ? "Un complément de revenu" : valeur <= 10000 ? "De quoi en vivre" : "Viser gros";
+  const repere = commentaireObjectif(valeur)[0];
   return (
     <div className="mt-10 rounded-3xl border border-line bg-white/90 p-6 sm:p-8 text-center backdrop-blur">
       <p className="text-[13px] font-semibold uppercase tracking-wide text-accent-dark">{repere}</p>
