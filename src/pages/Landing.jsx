@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
 import { legalReady } from "./Legal";
 import ResultatsBingoo from "../components/ResultatsBingoo";
-import { ApercuTendance, ApercuVersion, ApercuVisibilite, ApercuProspects, ApercuSemaine } from "../components/VitrineAccueil";
+import { ApercuTendance, ApercuVersion, ApercuFiche, ApercuProspects, ApercuSemaine } from "../components/VitrineAccueil";
 import { supabase } from "../lib/supabase";
 
 // Page d'accueil publique de Bingoo! : épurée, et chaque promesse adossée à une preuve.
@@ -17,6 +17,13 @@ const scrollTo = (id) => (e) => { e.preventDefault(); document.getElementById(id
 const Check = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>;
 const Arrow = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" /></svg>;
 
+const ico = (d) => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{d}</svg>;
+const ICONES = {
+  tendance: ico(<><path d="M3 17l6-6 4 4 8-8" /><path d="M15 7h6v6" /></>),
+  oeil: ico(<><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></>),
+  pub: ico(<><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z" /><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" /></>),
+  verifie: ico(<><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z" /><path d="m9 12 2 2 4-4" /></>),
+};
 const MENU = [["Comment ça marche", "#comment"], ["Les SaaS en tendance", "#tendances"], ["Tes premiers clients", "#clients"], ["Questions", "#faq"]];
 
 // Nombre de SaaS suivis dans la base Explorer (vue publique), affiché tel quel
@@ -173,17 +180,27 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* 2. Le radar : ce qui fait la preuve (tendances, visibilité, pub, revenus vérifiés) */}
-        <section id="tendances" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07] bg-[#16171B] text-white">
-          <div className="mx-auto max-w-[1180px]">
-            <h2 className="max-w-[900px] text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em]" style={SERIF}>On ne te donne pas une idée. On te montre ce qui encaisse.</h2>
-            <p className="mt-5 max-w-[760px] text-[17px] sm:text-[19px] leading-[1.5] text-white/70">{nb ? `${nb.toLocaleString("fr-FR")} SaaS suivis` : "Des milliers de SaaS suivis"}, avec leurs revenus vérifiés jour par jour, leur tendance sur 30 jours, leur trafic, leur visibilité sur Google, la pub qu'ils font et les canaux qui leur amènent des clients.</p>
-            <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {[["🔥", "Leur tendance", "Revenu des 4 dernières semaines et variation sur 30 jours : tu pars de ce qui monte."], ["👀", "Leur visibilité", "Visites par mois, revenu par visite, autorité sur Google : tu vois où la place est à prendre."], ["📣", "Leur pub", "Ce qu'ils paient pour se montrer, et les liens vers leurs pubs Facebook, Instagram et Google."], ["✅", "Leurs vrais revenus", "Vérifiés chez leur outil de paiement, pas estimés."]].map(([e, h, d]) => (
-                <div key={h} className="rounded-2xl bg-white/[.06] border border-white/10 p-5"><p className="text-[26px]">{e}</p><p className="mt-2 text-[20px] leading-tight" style={SERIF}>{h}</p><p className="mt-1.5 text-[14.5px] leading-snug text-white/65">{d}</p></div>
-              ))}
+        {/* 2. Ce que Bingoo! montre sur chaque SaaS : tendance, visibilité, pub, revenus vérifiés */}
+        <section id="tendances" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07] bg-[#FAF9F6]">
+          <div className="mx-auto max-w-[1180px] grid lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.3fr)] gap-10 lg:gap-14 items-center">
+            <div>
+              <h2 className="text-[38px] sm:text-[52px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>On ne te donne pas une idée. On te montre ce qui encaisse.</h2>
+              <p className="mt-5 text-[17px] leading-[1.55] text-ink-soft">{nb ? <><b className="text-ink">{nb.toLocaleString("fr-FR")}</b> SaaS suivis</> : "Des milliers de SaaS suivis"}, et pour chacun :</p>
+              <ul className="mt-6 space-y-5">
+                {[
+                  [ICONES.tendance, "Leur tendance", "Leur revenu sur 30 jours : tu pars de ce qui monte."],
+                  [ICONES.oeil, "Leur visibilité", "Visites, revenu par visite, place sur Google : tu vois où la place est à prendre."],
+                  [ICONES.pub, "Leur pub", "Ce qu'ils paient pour se montrer, avec les liens vers leurs pubs."],
+                  [ICONES.verifie, "Leurs vrais revenus", "Vérifiés chez leur outil de paiement, jamais estimés."],
+                ].map(([ic, h, d]) => (
+                  <li key={h} className="flex gap-4">
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent-dark">{ic}</span>
+                    <div><p className="text-[17px] font-bold text-ink">{h}</p><p className="mt-0.5 text-[15px] leading-snug text-ink-soft">{d}</p></div>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <figure className="mt-10"><ApercuVisibilite /><figcaption className="mt-2.5 text-[13px] text-white/50">« Comment il se fait connaître », sur chacun de tes SaaS.</figcaption></figure>
+            <figure><ApercuFiche /><figcaption className="mt-2.5 text-[13px] text-ink-faint">La fiche d'un SaaS, avec ses vrais chiffres.</figcaption></figure>
           </div>
         </section>
 

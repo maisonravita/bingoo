@@ -112,34 +112,6 @@ export function ApercuVersion() {
   );
 }
 
-/** « Comment il se fait connaître » : visibilité, pub et canaux du SaaS de départ */
-export function ApercuVisibilite() {
-  const s = SAAS[0];
-  const tuiles = [
-    ["Revenu vérifié", s.mrr + " par mois", `${s.cr} en 30 jours, vérifié chez son outil de paiement`],
-    ["Visibilité sur Google", "Autorité 26/100", "Moyenne : la place se prend avec du contenu"],
-    ["Pub payante", "Aucune déclarée", "Il grandit sans pub : tu peux faire pareil"],
-    ["Ce qui marche sans payer", "Google et affiliation", "Déclaré par le fondateur"],
-  ];
-  return (
-    <Fenetre titre={`Fiche · ${s.nom}`}>
-      <div className="p-4 sm:p-7">
-        <div className="flex items-center gap-3"><Pastille s={s} grand /><div><p className="text-[19px] sm:text-[24px] font-extrabold leading-tight tracking-tight" style={HF}>Comment {s.nom} se fait connaître</p><p className="text-[13px] text-ink-soft">Sa visibilité, sa pub et ses canaux : fais pareil, et passe devant là où il est faible.</p></div></div>
-        <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-          {tuiles.map(([t, v, d]) => (
-            <div key={t} className="rounded-2xl border border-line bg-[#FAF9F6] p-3.5 sm:p-4">
-              <p className="text-[11.5px] sm:text-[12px] text-ink-faint">{t}</p>
-              <p className="mt-1 font-extrabold text-[15px] sm:text-[17px] leading-tight">{v}</p>
-              <p className="mt-1 text-[12px] sm:text-[12.5px] leading-snug text-ink-soft">{d}</p>
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2">{["Voir ses pubs Facebook et Instagram", "Voir ses pubs Google", "Voir son site"].map((x) => <span key={x} className="rounded-xl border border-line px-3 py-2 text-[12.5px] font-semibold">{x}</span>)}</div>
-      </div>
-    </Fenetre>
-  );
-}
-
 function Entete({ onglet }) {
   const onglets = ["Ta semaine (5/7)", "Tes prospects (25)", "Quoi leur dire", "Où chercher encore"];
   return (
@@ -205,6 +177,58 @@ export function ApercuSemaine() {
             </div>
           ))}
         </div>
+      </div>
+    </Fenetre>
+  );
+}
+
+/** La fiche d'un SaaS : revenu vérifié et sa progression, visibilité, pub et canaux */
+export function ApercuFiche() {
+  const s = SAAS[0];
+  return (
+    <Fenetre titre={`Fiche · ${s.nom}`}>
+      <div className="p-5 sm:p-7">
+        <div className="flex items-center gap-3">
+          <Pastille s={s} grand />
+          <div className="min-w-0 flex-1"><p className="text-[18px] sm:text-[21px] font-extrabold leading-tight tracking-tight" style={HF}>{s.nom}</p><p className="text-[12.5px] text-ink-faint">{s.cat} · tenu par une petite équipe</p></div>
+          <span className="rounded-full bg-good-soft px-2.5 py-1 text-[12px] font-semibold text-good">↗ {s.cr} en 30 j</span>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-line bg-[#FAF9F6] p-4 sm:p-5">
+          <div className="flex items-end justify-between gap-3">
+            <div><p className="text-[12px] text-ink-faint">Revenu vérifié chez son outil de paiement</p><p className="mt-0.5 text-[28px] sm:text-[32px] font-extrabold leading-none tracking-tight tabular-nums" style={HF}>{s.mrr}<span className="ml-1 text-[14px] font-semibold text-ink-faint">/ mois</span></p></div>
+          </div>
+          <div className="mt-4 space-y-2.5">
+            {[["Il y a 30 jours", "1 792 $", 68, "bg-[#E3E1D9]"], ["Aujourd'hui", s.mrr, 100, "bg-accent"]].map(([l, v, w, c]) => (
+              <div key={l} className="flex items-center gap-3 text-[12.5px]">
+                <span className="w-[92px] shrink-0 text-ink-soft">{l}</span>
+                <span className="relative h-3 flex-1 rounded-full bg-white"><span className={cx("absolute inset-y-0 left-0 rounded-full", c)} style={{ width: `${w}%` }} /></span>
+                <b className="w-[64px] shrink-0 text-right tabular-nums">{v}</b>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-3 grid sm:grid-cols-3 gap-3">
+          <div className="rounded-2xl border border-line p-4">
+            <p className="text-[12px] text-ink-faint">Visibilité sur Google</p>
+            <p className="mt-1 font-extrabold text-[17px]">26<span className="text-[13px] font-semibold text-ink-faint">/100</span></p>
+            <span className="mt-2 block h-1.5 rounded-full bg-[#F1EFEA]"><span className="block h-full w-[26%] rounded-full bg-warn" /></span>
+            <p className="mt-2 text-[12px] leading-snug text-ink-soft">Moyenne : la place se prend avec du contenu.</p>
+          </div>
+          <div className="rounded-2xl border border-line p-4">
+            <p className="text-[12px] text-ink-faint">Pub payante</p>
+            <p className="mt-1 font-extrabold text-[17px]">Aucune</p>
+            <p className="mt-2 text-[12px] leading-snug text-ink-soft">Il grandit sans payer de pub : tu peux faire pareil.</p>
+          </div>
+          <div className="rounded-2xl border border-line p-4">
+            <p className="text-[12px] text-ink-faint">Ses canaux</p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">{["Google", "Affiliation"].map((c) => <span key={c} className="rounded-full bg-accent-soft px-2.5 py-1 text-[12px] font-semibold text-accent-dark">{c}</span>)}</div>
+            <p className="mt-2 text-[12px] leading-snug text-ink-soft">Déclarés par le fondateur.</p>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">{["Voir ses pubs", "Voir son site", "Lancer ma version"].map((x, i) => <span key={x} className={cx("rounded-xl px-3.5 py-2 text-[12.5px] font-semibold", i === 2 ? "bg-accent text-white" : "border border-line")}>{x}</span>)}</div>
       </div>
     </Fenetre>
   );
