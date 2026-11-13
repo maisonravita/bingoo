@@ -3162,7 +3162,8 @@ function AchatVente() {
   const [budget, setBudget] = useState("petit");
   const BUDGETS = [["petit", "Moins de 10 000 $", (p) => p != null && p < 10000], ["moyen", "10 000 à 100 000 $", (p) => p >= 10000 && p < 100000], ["gros", "Plus de 100 000 $", (p) => p >= 100000], ["tous", "Tous", () => true]];
   const prixDe = (x) => (Number(x.prix) > 0 ? Number(x.prix) : null); // 0 = « à discuter »
-  const visibles = (l ?? []).filter((x) => BUDGETS.find((b) => b[0] === budget)[2](prixDe(x))).sort((a, b) => (prixDe(a) ?? Infinity) - (prixDe(b) ?? Infinity));
+  // Hors « Tous », seulement des SaaS qui encaissent déjà : un projet sans revenu n'est pas une affaire à racheter
+  const visibles = (l ?? []).filter((x) => BUDGETS.find((b) => b[0] === budget)[2](prixDe(x)) && (budget === "tous" || Number(x.mrr || x.mrr_declare) > 0)).sort((a, b) => (prixDe(a) ?? Infinity) - (prixDe(b) ?? Infinity));
   const charger = () => { supabase.rpc("saas_a_vendre", { ws: ws.id }).then(({ data }) => setL(data ?? [])); supabase.rpc("saas_demandes_liste", { ws: ws.id }).then(({ data }) => setDem(data ?? [])); };
   useEffect(() => { charger(); }, [ws.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const retirer = async (table, id) => { await supabase.from(table).update({ statut: "retiree" }).eq("id", id); toast("Retiré", "good"); charger(); };
