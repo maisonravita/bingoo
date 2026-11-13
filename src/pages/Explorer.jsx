@@ -217,7 +217,7 @@ function Liste({ copier: copierPage = false }) {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[30px] sm:text-[36px] font-black leading-tight tracking-tight" style={HF}>{copierPage ? "Ils gagnent déjà de l'argent. À toi de faire pareil." : "Tous les SaaS et applis web, au même endroit."}</h1>
-          {copierPage && <button onClick={() => navDem("/explorer/trouver")} className="mt-2 mb-1 inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-dark px-3.5 py-1.5 text-[13.5px] font-semibold hover:bg-accent-soft/70">🎯 {parcours?.etape === 3 ? "Mes SaaS sur mesure" : "Trouve le tien en 8 questions"} →</button>}
+          {copierPage && <button onClick={() => navDem("/explorer/trouver")} className="mt-2 mb-1 inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-dark px-3.5 py-1.5 text-[13.5px] font-semibold hover:bg-accent-soft/70">{parcours?.etape === 3 ? "Mes SaaS sur mesure" : "Trouve le tien en 8 questions"} →</button>}
           {copierPage ? <p className="text-ink-soft text-[15px] max-w-3xl">Des SaaS au revenu prouvé, tenus par de petites équipes, avec un prix simple, et souvent sans équivalent en France. Choisis-en un, puis « Lancer ma version » : Bingoo! le construit à ton nom.</p> : <p className="text-ink-soft text-[15px]">{stats ? `${stats.total.toLocaleString("fr-FR")} logiciels suivis, dans ${stats.cats.length} catégories et ${stats.pays.length} pays` : "…"}</p>}
         </div>
         <form onSubmit={(e) => { e.preventDefault(); if (ajout.trim().length > 3) nav(`/explorer/chiffres?u=${encodeURIComponent(ajout.trim())}`); }} className="flex gap-2">
@@ -248,9 +248,9 @@ function Liste({ copier: copierPage = false }) {
         </div>
         <div className="flex flex-wrap gap-2">
           <span className="inline-flex rounded-full border border-line bg-white p-0.5">{[["", "Tout"], ["saas", "SaaS"], ["app_web", "Applis web"]].map(([k, l]) => <button key={k || "tout"} type="button" onClick={() => set("genre", k)} className={cx("rounded-full px-3 py-1 text-[13px] font-medium transition", f.genre === k ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}</span>
-          <Chip on={f.copier} onClick={() => setF((x) => ({ ...x, copier: !x.copier, tri: !x.copier ? "copiable" : (x.tri === "copiable" ? "score_croissance" : x.tri) }))}>🎯 Faciles à lancer</Chip>
-          <Chip on={f.succes} onClick={() => setF((x) => ({ ...x, succes: !x.succes, decollage: false, tri: !x.succes ? "succes_montant" : (x.tri === "succes_montant" ? "score_croissance" : x.tri) }))}>★ SaaS à succès</Chip>
-          <Chip on={f.decollage} onClick={() => setF((x) => ({ ...x, decollage: !x.decollage, succes: false, tri: !x.decollage ? "succes_montant" : x.tri }))}>🚀 En décollage</Chip>
+          <Chip on={f.copier} onClick={() => setF((x) => ({ ...x, copier: !x.copier, tri: !x.copier ? "copiable" : (x.tri === "copiable" ? "score_croissance" : x.tri) }))}>Faciles à lancer</Chip>
+          <Chip on={f.succes} onClick={() => setF((x) => ({ ...x, succes: !x.succes, decollage: false, tri: !x.succes ? "succes_montant" : (x.tri === "succes_montant" ? "score_croissance" : x.tri) }))}>SaaS à succès</Chip>
+          <Chip on={f.decollage} onClick={() => setF((x) => ({ ...x, decollage: !x.decollage, succes: false, tri: !x.decollage ? "succes_montant" : x.tri }))}>En décollage</Chip>
           <Chip on={f.gratuit} onClick={() => set("gratuit", !f.gratuit)}>Version gratuite</Chip>
           <Chip on={f.recrute} onClick={() => set("recrute", !f.recrute)}>Recrutent</Chip>
           <Chip on={f.actif} onClick={() => set("actif", !f.actif)}>Nouveauté ce mois-ci</Chip>
@@ -293,16 +293,16 @@ function Liste({ copier: copierPage = false }) {
                     <p className="font-bold truncate">{s.nom} <span className="font-normal">{drapeau(s.pays)}</span> <span className="text-[12.5px] font-normal text-ink-faint">{s.categorie}</span></p>
                     {s.description ? <p className="text-[13.5px] text-ink-soft line-clamp-1">{s.description}</p> : <p className="text-[13px] text-ink-faint italic">Description en cours de lecture</p>}
                     <div className="mt-1 flex flex-wrap gap-1.5 text-[11.5px]">
-                      {s.copiable >= 60 && <span title={(s.copiable_raisons ?? []).join(" · ")} className="rounded-md bg-[#DCFCE7] text-[#166534] px-1.5 py-0.5 font-semibold">🎯 Facile à lancer {s.copiable}</span>}
-                      {s.en_decollage && <span className="rounded-md bg-accent-soft text-accent-dark px-1.5 py-0.5 font-semibold">🚀 En décollage</span>}
+                      {s.copiable >= 60 && <span title={(s.copiable_raisons ?? []).join(" · ")} className="rounded-md bg-[#DCFCE7] text-[#166534] px-1.5 py-0.5 font-semibold">Facile à lancer {s.copiable}</span>}
+                      {s.en_decollage && <span className="rounded-md bg-accent-soft text-accent-dark px-1.5 py-0.5 font-semibold">En décollage</span>}
                       {s.genre === "app_web" && <span className="rounded-md bg-[#E0E7FF] text-[#3730A3] px-1.5 py-0.5">Appli web</span>}
-                      {s.constructible === false && <span className="text-ink-faint">⚠ construit en partie</span>}
+                      {s.constructible === false && <span className="text-ink-faint">construit en partie</span>}
                       {etiquettes(s).slice(0, 2).map((t) => <button key={t} type="button" onClick={(e) => { e.stopPropagation(); setIa(null); set("tag", t); }} className="text-ink-faint hover:text-accent-dark">#{t.replace(/\s+/g, "-")}</button>)}
                     </div>
                   </div>
                 </div>
                 <div className="col-start-2 lg:col-start-auto text-[13px] min-w-0">
-                  {s.succes ? <p title={s.succes.preuve} className={cx("line-clamp-2", faible ? "text-ink-faint" : "font-semibold text-[#78350F]")}>{faible ? "" : "★ "}{s.succes.preuve}</p>
+                  {s.succes ? <p title={s.succes.preuve} className={cx("line-clamp-2", faible ? "text-ink-faint" : "font-semibold text-[#78350F]")}>{faible ? "" : ""}{s.succes.preuve}</p>
                     : s.estimation ? <p className="text-ink-soft" title="Estimation d'après l'effectif officiel">≈ {montantCourt(s.estimation.bas)} à {montantCourt(s.estimation.haut)} / mois <span className="text-ink-faint">estimé</span></p>
                     : <p className="text-ink-faint">Non public</p>}
                 </div>
@@ -396,10 +396,10 @@ function Fiche({ domaine }) {
           <p className="text-ink-soft">{s.categorie} · <a href={`https://${s.domaine}`} target="_blank" rel="noopener noreferrer" className="underline">{s.domaine}</a>{s.pays ? ` · ${PAYS[s.pays] ?? s.pays}` : ""}</p>
           <p className="mt-2 text-[15.5px] max-w-2xl">{resumeFr({ ...s, audience: s.trustmrr?.audience })}</p>
           {!enFrancais(s) && s.description && <p lang="en" className="mt-1 text-[13px] text-ink-faint max-w-2xl">Sur son site : {s.description}</p>}
-          {s.succes && <p className={cx("mt-3 inline-flex flex-wrap items-center gap-x-2 rounded-xl px-3.5 py-2 text-[14px]", preuveFaible(s.succes) ? "bg-paper text-ink-soft" : "bg-[#FEF3C7] text-[#78350F]")}><b>{s.succes.annee && s.succes.annee < new Date().getFullYear() - 4 ? "Ancien chiffre :" : preuveFaible(s.succes) ? (s.succes.type === "revenu_verifie" ? "Revenu vérifié :" : "Chiffre non prouvé :") : Number(s.succes.montant ?? 0) < 12000 && s.succes.type === "revenu_verifie" ? "🚀 En décollage :" : "★ Preuve de succès :"}</b> {preuveSansCroissance(s.succes.preuve)}{croissanceDe(s) != null ? ` (${pct30(croissanceDe(s))} en 30 jours)` : ""}{s.succes.source && <a href={s.succes.source} target="_blank" rel="noopener noreferrer" className="underline text-[12.5px] opacity-80">source</a>}</p>}
+          {s.succes && <p className={cx("mt-3 inline-flex flex-wrap items-center gap-x-2 rounded-xl px-3.5 py-2 text-[14px]", preuveFaible(s.succes) ? "bg-paper text-ink-soft" : "bg-[#FEF3C7] text-[#78350F]")}><b>{s.succes.annee && s.succes.annee < new Date().getFullYear() - 4 ? "Ancien chiffre :" : preuveFaible(s.succes) ? (s.succes.type === "revenu_verifie" ? "Revenu vérifié :" : "Chiffre non prouvé :") : Number(s.succes.montant ?? 0) < 12000 && s.succes.type === "revenu_verifie" ? "En décollage :" : "Preuve de succès :"}</b> {preuveSansCroissance(s.succes.preuve)}{croissanceDe(s) != null ? ` (${pct30(croissanceDe(s))} en 30 jours)` : ""}{s.succes.source && <a href={s.succes.source} target="_blank" rel="noopener noreferrer" className="underline text-[12.5px] opacity-80">source</a>}</p>}
           {s.copiable != null && (
             <div className={cx("mt-3 rounded-xl border px-3.5 py-2.5 max-w-2xl", s.copiable >= 60 ? "border-[#BBF7D0] bg-[#F0FDF4]" : "border-line bg-white")}>
-              <p className="text-[14px]"><b>{s.copiable >= 60 ? "🎯 Bon modèle à lancer" : s.copiable >= 30 ? "À lancer avec un angle précis" : "Difficile à lancer tel quel"}</b> <span className="text-ink-faint tnum">· {s.copiable}/100</span></p>
+              <p className="text-[14px]"><b>{s.copiable >= 60 ? "Bon modèle à lancer" : s.copiable >= 30 ? "À lancer avec un angle précis" : "Difficile à lancer tel quel"}</b> <span className="text-ink-faint tnum">· {s.copiable}/100</span></p>
               <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[12.5px] text-ink-soft">{(s.copiable_raisons ?? []).map((r) => /^En croissance \(/.test(r) ? (croissanceDe(s) > 0 ? `En croissance (${pct30(croissanceDe(s))} en 30 jours)` : null) : raisonFr(r)).filter(Boolean).map((r) => <li key={r}>{/Géant|Grosse|devis|Pas encore de revenu|très faible/.test(r) ? "–" : "✓"} {r}</li>)}</ul>
             </div>
           )}
@@ -475,7 +475,7 @@ function Fiche({ domaine }) {
         if (r?.statut !== "en_cours") { if (r?.statut === "ok") supabase.rpc("saas_fiche", { ws: ws.id, d: domaine }).then(({ data: d2 }) => setHist(d2?.histoire ?? null)); return; }
         setHist({ statut: "en_cours" });
         setTimeout(() => supabase.rpc("saas_fiche", { ws: ws.id, d: domaine }).then(({ data: d2 }) => setHist(d2?.histoire ?? null)), 55000);
-      }, (e) => toast(e.message, "bad"))} className="mt-4 text-[13.5px] font-semibold text-accent-dark hover:underline">📖 Chercher l'histoire de {s.nom} (chiffre d'affaires, levées, fondateurs)</button>}
+      }, (e) => toast(e.message, "bad"))} className="mt-4 text-[13.5px] font-semibold text-accent-dark hover:underline">Chercher l'histoire de {s.nom} (chiffre d'affaires, levées, fondateurs)</button>}
       {hist?.statut === "en_cours" && <p className="mt-4 flex items-center gap-2 text-[13.5px] text-ink-soft"><span className="h-2 w-2 rounded-full bg-accent animate-pulse" />Bingoo! cherche les chiffres publics de {s.nom} (chiffre d'affaires, levées, fondateurs)…</p>}
       {mails.length > 0 && (
         <section className="mt-4 rounded-2xl bg-white border border-line p-5">
@@ -1292,8 +1292,8 @@ function Apercu({ domaine }) {
   return (
     <div className="mt-5">
       <div className="flex flex-wrap items-center gap-2">
-        {a.succes?.preuve && <span className={cx("rounded-lg px-3 py-1.5 text-[13.5px] font-semibold", preuveFaible(a.succes) ? "bg-paper text-ink-soft" : "bg-[#FEF3C7] text-[#78350F]")}>{preuveFaible(a.succes) ? "Revenu vérifié : " : "★ "}{preuveSansCroissance(a.succes.preuve)}{a.croissance != null ? ` (${pct30(a.croissance)} en 30 jours)` : ""}</span>}
-        {a.copiable != null && <span className={cx("rounded-lg px-3 py-1.5 text-[13.5px] font-semibold", a.copiable >= 60 ? "bg-[#DCFCE7] text-[#166534]" : "bg-paper text-ink-soft")}>{a.copiable >= 60 ? "🎯 Facile à lancer" : a.copiable >= 30 ? "À lancer avec un angle précis" : "Difficile à lancer tel quel"} · {a.copiable}/100</span>}
+        {a.succes?.preuve && <span className={cx("rounded-lg px-3 py-1.5 text-[13.5px] font-semibold", preuveFaible(a.succes) ? "bg-paper text-ink-soft" : "bg-[#FEF3C7] text-[#78350F]")}>{preuveFaible(a.succes) ? "Revenu vérifié : " : ""}{preuveSansCroissance(a.succes.preuve)}{a.croissance != null ? ` (${pct30(a.croissance)} en 30 jours)` : ""}</span>}
+        {a.copiable != null && <span className={cx("rounded-lg px-3 py-1.5 text-[13.5px] font-semibold", a.copiable >= 60 ? "bg-[#DCFCE7] text-[#166534]" : "bg-paper text-ink-soft")}>{a.copiable >= 60 ? "Facile à lancer" : a.copiable >= 30 ? "À lancer avec un angle précis" : "Difficile à lancer tel quel"} · {a.copiable}/100</span>}
         <span className="text-[12.5px] text-ink-faint">Tiré de ce que Bingoo! a déjà relevé</span>
       </div>
       <div className="mt-3 grid md:grid-cols-3 gap-3">
@@ -1501,7 +1501,7 @@ function Verification({ app, recharger }) {
     <div className="mt-4 flex items-center gap-2 text-[13.5px]">
       {aFaire ? <><span className="h-4 w-4 rounded-full border-2 border-white/20 border-t-[#F6A06B] animate-spin" /><span className="text-white/80">Bingoo! teste chaque écran de ton SaaS…</span></>
         : enReparation ? <><span className="h-4 w-4 rounded-full border-2 border-white/20 border-t-[#F6A06B] animate-spin" /><span className="text-white/80">Bingoo! répare {app.verif.repare.length} écran{app.verif.repare.length > 1 ? "s" : ""} qui ne s'ouvrai{app.verif.repare.length > 1 ? "ent" : "t"} pas bien…</span></>
-        : ko ? <span className="text-[#FCA5A5]">⚠ {ko} écran{ko > 1 ? "s" : ""} sur {n} ne s'ouvre{ko > 1 ? "nt" : ""} toujours pas bien. Demande sa correction ci-dessous en une phrase.</span>
+        : ko ? <span className="text-[#FCA5A5]">{ko} écran{ko > 1 ? "s" : ""} sur {n} ne s'ouvre{ko > 1 ? "nt" : ""} toujours pas bien. Demande sa correction ci-dessous en une phrase.</span>
         : <span className="text-[#86EFAC]">✓ Testé par Bingoo! : les {n} écrans s'ouvrent et affichent leurs données.</span>}
       {aFaire && <AppCadre slug={app.slug} spec={app.spec} version={app.version} verif className="absolute -left-[9999px] top-0 w-[1200px] h-[800px]" />}
     </div>
@@ -1793,7 +1793,7 @@ function OngletJumeau({ app, appel, agir, busy, projet, onChange }) {
         {sg === null ? <Spinner /> : !sg.filter((x) => x.statut !== "ignoree").length ? <p className="text-[13.5px] text-white/45">Aucune nouveauté repérée chez {nomInsp} pour l'instant. Prochaine vérification automatique dans la semaine{app.jumeau_at ? "" : " (la première a lieu sous 24 heures)"}.</p> : sg.filter((x) => x.statut !== "ignoree").map((x) => (
           <div key={x.id} className="rounded-xl bg-white/[.06] p-4 flex flex-wrap items-start gap-3">
             <div className="flex-1 min-w-[240px]">
-              <p className="font-bold">{x.type === "prix" ? "💶 " : "✨ "}{x.titre}</p>
+              <p className="font-bold">{x.titre}</p>
               <p className="mt-0.5 text-[13.5px] text-white/70">{x.detail}</p>
               <p className="mt-1 text-[12px] text-white/40">{new Date(x.at).toLocaleDateString("fr-FR")}{x.source && <> · <a href={x.source} target="_blank" rel="noreferrer" className="underline">source</a></>}</p>
             </div>
@@ -2028,7 +2028,7 @@ function OngletEmails({ app, appel, agir, busy }) {
       <div className="space-y-2">{et === null ? <Spinner /> : Object.entries(et.modeles).map(([k, m]) => (
         <div key={k} className={cx("rounded-xl p-3.5", m.actif ? "bg-white/[.06]" : "bg-white/[.03] opacity-70")}>
           <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2"><input type="checkbox" checked={m.actif} disabled={k === "invitation" || !!busy} onChange={(ev) => maj(k, { actif: ev.target.checked }, ev.target.checked ? `« ${m.nom} » activé` : `« ${m.nom} » coupé`)} /><span className="font-bold">✉ {m.nom}</span></label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={m.actif} disabled={k === "invitation" || !!busy} onChange={(ev) => maj(k, { actif: ev.target.checked }, ev.target.checked ? `« ${m.nom} » activé` : `« ${m.nom} » coupé`)} /><span className="font-bold">{m.nom}</span></label>
             <span className="text-[12.5px] text-white/50 flex-1">{m.quand} · {m.envoyes_30j} envoyé{m.envoyes_30j > 1 ? "s" : ""} sur 30 jours{m.modifie ? " · texte modifié" : ""}</span>
             <button onClick={() => setEdit(edit?.type === k ? null : { type: k, sujet: m.sujet, texte: m.texte, bouton: m.bouton })} className={btnSombre}>{edit?.type === k ? "Fermer" : "Modifier"}</button>
             <button disabled={!!busy} onClick={() => agir(`t${k}`, async () => { const r = await appel("email-test", { type: k }); toast(`Essai envoyé à ${r.a}`); }, null)} className={btnSombre}>M'envoyer un essai</button>
@@ -2162,13 +2162,13 @@ function OngletMonde({ app, appel, agir, busy }) {
   return (
     <div className="grid lg:grid-cols-2 gap-4">
       <div className="rounded-xl bg-white/[.06] p-4 space-y-2">
-        <p className="font-bold">🏝 Le monde des SaaS</p>
+        <p className="font-bold">Le monde des SaaS</p>
         <p className="text-[13px] text-white/65">{app.spec.nom} devient un bâtiment sur l'île des créateurs : un étage de plus tous les 1 000 € de revenu mensuel vérifié, un phare à 10 000 €. Il entre aussi dans le classement des créateurs (nom de ton espace, revenu, abonnés).</p>
         {app.public && <div className="rounded-lg bg-white/5 p-2.5"><p className="text-[12.5px] text-white/60">Ton badge à poser sur ton site (il se met à jour tout seul) :</p><img src={`${API}/${app.slug}/badge.svg`} alt="Revenu vérifié par Bingoo!" className="mt-1.5 h-9" /><button onClick={() => navigator.clipboard?.writeText(`<a href="https://kairo.maisonravita.fr/#/explorer/createurs"><img src="${API}/${app.slug}/badge.svg" alt="Revenu vérifié par Bingoo!" height="36"></a>`)} className="mt-1.5 text-[12.5px] underline text-white/70">Copier le code du badge</button></div>}
         <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={!!app.public} disabled={!!busy} onChange={(ev) => agir("pub", () => appel("public", { public: ev.target.checked }), ev.target.checked ? `${app.spec.nom} apparaît dans le monde` : "Retiré du monde et du classement")} />Afficher {app.spec.nom} dans le monde et le classement</label>
       </div>
       <div className="rounded-xl bg-white/[.06] p-4 space-y-2">
-        <p className="font-bold">📈 La bourse des SaaS</p>
+        <p className="font-bold">La bourse des SaaS</p>
         {vente === undefined ? <Spinner /> : vente ? (
           <>
             <p className="text-[13.5px]">En vente à <b>{eurs(vente.prix)}</b> · {vente.interets} acheteur{vente.interets > 1 ? "s" : ""} en discussion{vente.meilleure_offre ? ` · meilleure offre ${eurs(vente.meilleure_offre)}` : ""}</p>
@@ -2286,7 +2286,7 @@ function Createurs() {
       <div className="mt-2 rounded-2xl bg-white border border-line overflow-hidden">
         {cl === null ? <div className="py-10 grid place-items-center"><Spinner /></div> : !publics.length ? <p className="p-5 text-ink-soft">Personne dans le classement pour l'instant. Sois le premier : dans ton SaaS, onglet « Monde et bourse ».</p> : (
           <table className="w-full text-[14px]"><thead><tr className="text-left text-[12px] text-ink-faint border-b border-line"><th className="px-4 py-2 font-medium w-10">#</th><th className="font-medium">SaaS</th><th className="font-medium hidden sm:table-cell">Créateur</th><th className="font-medium text-right">Revenu / mois</th><th className="font-medium text-right hidden md:table-cell">30 jours</th><th className="font-medium text-right hidden sm:table-cell">Abonnés</th><th className="font-medium text-right px-4">Nouveaux</th></tr></thead>
-            <tbody>{publics.slice(0, 100).map((a, i) => { const g = croissance(a); return <tr key={a.slug} className={cx("border-t border-line first:border-0", a.a_moi && "bg-accent-soft/50")}><td className="px-4 py-2.5 font-black tnum">{i < 3 ? ["🥇", "🥈", "🥉"][i] : i + 1}</td><td><a href={lienApp(a.slug, a.domaine)} target="_blank" rel="noreferrer" className="flex items-center gap-2 font-semibold hover:underline"><span className="h-5 w-5 rounded-md" style={{ background: a.couleur ?? "#4F46E5" }} />{a.nom}{a.a_moi && <span className="rounded-full bg-accent text-white px-1.5 text-[10.5px] font-bold">TOI</span>}</a></td><td className="text-ink-soft hidden sm:table-cell">{a.createur}</td><td className="text-right font-bold tnum">{eurs(a.mrr)}</td><td className={cx("text-right tnum hidden md:table-cell", g > 0 ? "text-[#15803D]" : g < 0 ? "text-[#B91C1C]" : "text-ink-faint")}>{g == null ? "nouveau" : `${g > 0 ? "+" : ""}${g} %`}</td><td className="text-right tnum hidden sm:table-cell">{a.abonnes}</td><td className="text-right tnum px-4">{a.nouveaux_30j}</td></tr>; })}</tbody></table>
+            <tbody>{publics.slice(0, 100).map((a, i) => { const g = croissance(a); return <tr key={a.slug} className={cx("border-t border-line first:border-0", a.a_moi && "bg-accent-soft/50")}><td className="px-4 py-2.5 font-black tnum">{i + 1}</td><td><a href={lienApp(a.slug, a.domaine)} target="_blank" rel="noreferrer" className="flex items-center gap-2 font-semibold hover:underline"><span className="h-5 w-5 rounded-md" style={{ background: a.couleur ?? "#4F46E5" }} />{a.nom}{a.a_moi && <span className="rounded-full bg-accent text-white px-1.5 text-[10.5px] font-bold">TOI</span>}</a></td><td className="text-ink-soft hidden sm:table-cell">{a.createur}</td><td className="text-right font-bold tnum">{eurs(a.mrr)}</td><td className={cx("text-right tnum hidden md:table-cell", g > 0 ? "text-[#15803D]" : g < 0 ? "text-[#B91C1C]" : "text-ink-faint")}>{g == null ? "nouveau" : `${g > 0 ? "+" : ""}${g} %`}</td><td className="text-right tnum hidden sm:table-cell">{a.abonnes}</td><td className="text-right tnum px-4">{a.nouveaux_30j}</td></tr>; })}</tbody></table>
         )}
       </div>
       </>}
@@ -2412,7 +2412,7 @@ function FilBourse({ fil, onClose }) {
             const moi = m.de_ws === ws.id;
             return (
               <div key={m.id} className={cx("max-w-[85%] rounded-2xl px-3.5 py-2.5 text-[14px]", moi ? "ml-auto bg-ink text-white" : "bg-paper")}>
-                {m.offre != null && <p className="font-bold">💶 Offre : {eurs(m.offre)} {m.statut_offre === "acceptee" ? "· acceptée ✓" : m.statut_offre === "refusee" ? "· refusée" : m.statut_offre === "remplacee" ? "· remplacée" : "· en attente"}</p>}
+                {m.offre != null && <p className="font-bold">Offre : {eurs(m.offre)} {m.statut_offre === "acceptee" ? "· acceptée ✓" : m.statut_offre === "refusee" ? "· refusée" : m.statut_offre === "remplacee" ? "· remplacée" : "· en attente"}</p>}
                 {m.texte && <p className="whitespace-pre-line">{m.texte}</p>}
                 <p className={cx("mt-1 text-[11px]", moi ? "text-white/50" : "text-ink-faint")}>{new Date(m.at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
               </div>
@@ -2605,7 +2605,7 @@ function Debloquer({ total, tendance, mediane, invite }) {
         {faux.map(([nom, m]) => (
           <div key={nom} className="pointer-events-none select-none blur-[7px] rounded-2xl border border-line bg-white p-5">
             <div className="flex items-center gap-3"><span className="h-11 w-11 rounded-xl bg-accent-soft" /><div className="flex-1"><p className="font-bold">{nom}</p><p className="text-[12.5px] text-ink-faint">Catégorie</p></div><p className="font-black">{m}</p></div>
-            <p className="mt-3 rounded-full bg-[#FEF3F2] px-2.5 py-1 text-[12.5px] w-fit">🔥 En pleine tendance</p>
+            <p className="mt-3 rounded-full bg-[#FEF3F2] px-2.5 py-1 text-[12.5px] w-fit">En pleine tendance</p>
             <p className="mt-3 text-[14px] text-ink-soft">Un SaaS qui gagne déjà de l'argent, tenu par une petite équipe, avec un prix simple.</p>
             <ul className="mt-3 space-y-1 text-[13px]"><li>✓ Trouve ses clients comme toi</li><li>✓ Ne demande rien de ce que tu refuses</li><li>✓ Tenu par une seule personne</li></ul>
           </div>
@@ -2831,7 +2831,7 @@ export function PremiersClients({ s, a, r }) {
   );
 }
 // La tendance d'un SaaS : son revenu des 30 derniers jours (vérifié), en 4 semaines, et la variation sur 30 jours
-const tendanceDe = (c) => c == null ? null : c >= 30 ? ["🔥", "En pleine tendance", "text-[#B42318] bg-[#FEF3F2]"] : c >= 10 ? ["📈", "En hausse", "text-good bg-good/10"] : c < -10 ? ["📉", "En baisse", "text-ink-soft bg-paper"] : ["➖", "Stable", "text-ink-soft bg-paper"];
+const tendanceDe = (c) => c == null ? null : c >= 30 ? ["", "En pleine tendance", "text-[#B42318] bg-[#FEF3F2]"] : c >= 10 ? ["", "En hausse", "text-good bg-good/10"] : c < -10 ? ["", "En baisse", "text-ink-soft bg-paper"] : ["", "Stable", "text-ink-soft bg-paper"];
 function Tendance({ x }) {
   const t = tendanceDe(x.croissance);
   const j = Array.isArray(x.jours) ? x.jours.map((d) => Number(d.v) || 0) : [];
@@ -2840,7 +2840,7 @@ function Tendance({ x }) {
   if (!t) return null;
   return (
     <div className="mt-3 flex items-end justify-between gap-3">
-      <span className={cx("rounded-full px-2.5 py-1 text-[12.5px] font-semibold", t[2])}>{t[0]} {t[1]}{x.croissance != null ? ` · ${x.croissance > 0 ? "+" : ""}${String(Math.round(x.croissance)).replace(".", ",")} % en 30 j` : ""}</span>
+      <span className={cx("rounded-full px-2.5 py-1 text-[12.5px] font-semibold", t[2])}>{t[1]}{x.croissance != null ? ` · ${x.croissance > 0 ? "+" : ""}${String(Math.round(x.croissance)).replace(".", ",")} % en 30 j` : ""}</span>
       {sem.length === 4 && <span className="flex items-end gap-1 h-7" title="Revenu vérifié, semaine par semaine (4 dernières semaines)">{sem.map((v, k) => <span key={k} className={cx("w-2.5 rounded-sm", k === 3 ? "bg-accent" : "bg-line")} style={{ height: `${Math.max(12, (v / max) * 100)}%` }} />)}</span>}
     </div>
   );
@@ -2852,9 +2852,9 @@ function Visibilite({ x, court }) {
   const canaux = x.canaux ?? [];
   const pub = canaux.filter((c) => PAYANTS.includes(c));
   const morceaux = [
-    x.visiteurs ? `👀 ${milliers(Number(x.visiteurs))} visites/mois` : null,
-    x.autorite != null ? `🔎 Autorité Google ${Math.round(x.autorite)}/100` : null,
-    pub.length || x.pubs_actives ? `📣 Pub : ${x.pubs_actives ? `${x.pubs_actives} pubs Meta actives` : pub.slice(0, 2).map(nomCanal).join(", ")}` : canaux.length ? `📣 Sans pub : ${canaux.filter((c) => !PAYANTS.includes(c)).slice(0, 2).map(nomCanal).join(", ")}` : null,
+    x.visiteurs ? `${milliers(Number(x.visiteurs))} visites/mois` : null,
+    x.autorite != null ? `Autorité Google ${Math.round(x.autorite)}/100` : null,
+    pub.length || x.pubs_actives ? `Pub : ${x.pubs_actives ? `${x.pubs_actives} pubs Meta actives` : pub.slice(0, 2).map(nomCanal).join(", ")}` : canaux.length ? `Sans pub : ${canaux.filter((c) => !PAYANTS.includes(c)).slice(0, 2).map(nomCanal).join(", ")}` : null,
   ].filter(Boolean);
   if (!morceaux.length) return null;
   return court ? <p className="mt-2 text-[12.5px] text-ink-soft leading-relaxed">{morceaux.join(" · ")}</p> : null;
@@ -3131,7 +3131,7 @@ function LigneCopier({ x }) {
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[12px]">
           {canaux.map((c) => <span key={c} className="rounded-md bg-accent-soft/70 text-accent-dark px-2 py-0.5 font-medium">{c}</span>)}
           {infos.map((t) => <span key={t} className="text-ink-faint">{t}</span>)}
-          {x.constructible === false && <span className="text-ink-faint">⚠ construit en partie</span>}
+          {x.constructible === false && <span className="text-ink-faint">construit en partie</span>}
         </div>
       </div>
       <div className="hidden md:block">{pts.length > 2 && <Sparkline pts={pts} h={34} />}</div>
@@ -3668,7 +3668,7 @@ function Carte() {
           </svg>
           <div className="min-w-0"><p className="text-[13px] font-black" style={HF}>Coco, ta guide</p><p key={astuce} className="text-[12.5px] leading-snug text-white/80">{ASTUCES[astuce]}</p></div>
         </div>
-        <button onClick={() => setNuit(!nuit)} className="absolute right-3 top-3 z-20 rounded-xl bg-[#1A1340]/90 px-3 py-2 text-[13px] font-bold text-white shadow-lg">{nuit ? "☀ Jour" : "☾ Nuit"}</button>
+        <button onClick={() => setNuit(!nuit)} className="absolute right-3 top-3 z-20 rounded-xl bg-[#1A1340]/90 px-3 py-2 text-[13px] font-bold text-white shadow-lg">{nuit ? "Jour" : "Nuit"}</button>
         {fiche && (
           <div className="absolute bottom-3 left-3 z-20 w-[min(360px,calc(100%-70px))] rounded-2xl bg-white p-4 shadow-2xl">
             <div className="flex items-start justify-between gap-2"><p className="text-[19px] font-black leading-tight" style={HF}>{fiche.titre}</p><button onClick={() => setLieu(null)} aria-label="Fermer" className="text-ink-faint hover:text-ink text-[18px] leading-none">×</button></div>
@@ -3701,7 +3701,7 @@ function AtlasPays({ data, retour, nuit, setNuit }) {
           <button onClick={retour} className="rounded-xl bg-[#1A1340]/90 px-3 py-2 text-[13px] font-bold text-white shadow-lg">Retour à l'archipel</button>
         </div>
         {!p && !ile && <p className="absolute bottom-3 left-3 z-20 max-w-[min(420px,calc(100%-70px))] rounded-xl bg-[#1A1340]/90 px-3 py-2 text-[13px] text-white/85 shadow-lg">Une île par continent, un immeuble par pays : plus il est haut, plus il compte de SaaS. Survole un immeuble, clique pour ses SaaS.</p>}
-        <button onClick={() => setNuit(!nuit)} className="absolute right-3 top-3 z-20 rounded-xl bg-[#1A1340]/90 px-3 py-2 text-[13px] font-bold text-white shadow-lg">{nuit ? "☀ Jour" : "☾ Nuit"}</button>
+        <button onClick={() => setNuit(!nuit)} className="absolute right-3 top-3 z-20 rounded-xl bg-[#1A1340]/90 px-3 py-2 text-[13px] font-bold text-white shadow-lg">{nuit ? "Jour" : "Nuit"}</button>
         {(p || ile) && (
           <div className="absolute bottom-3 left-3 z-20 w-[min(360px,calc(100%-70px))] max-h-[62%] overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl">
             <div className="flex items-start justify-between gap-2">
@@ -3737,7 +3737,7 @@ function Comparer() {
   const note = (s) => (s.copiable ?? 0) - (s.constructible === false ? 100 : 0);
   const meilleur = ok.length > 1 ? [...ok].sort((a, b) => note(b) - note(a))[0] : null;
   const lignes = [
-    ["Revenu prouvé", (s) => s.succes?.preuve ? <span className={preuveFaible(s.succes) ? "text-ink-soft" : "text-[#78350F]"}>{preuveFaible(s.succes) ? "" : "★ "}{s.succes.preuve}</span> : "—"],
+    ["Revenu prouvé", (s) => s.succes?.preuve ? <span className={preuveFaible(s.succes) ? "text-ink-soft" : "text-[#78350F]"}>{preuveFaible(s.succes) ? "" : ""}{s.succes.preuve}</span> : "—"],
     ["Facile à lancer", (s) => s.copiable != null ? <div><b>{s.copiable}/100</b>{(s.copiable_raisons ?? []).slice(0, 3).map((r) => <div key={r} className="text-[12.5px] text-ink-soft">{r}</div>)}</div> : "—"],
     ["Bingoo! sait le construire", (s) => s.constructible === false ? <span className="text-[#9A3412]">En partie seulement</span> : s.constructible ? <span className="text-[#15803D]">Oui</span> : "—"],
     ["Niche", (s) => s.niche ?? "—"],

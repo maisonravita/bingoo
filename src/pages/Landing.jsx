@@ -72,9 +72,9 @@ function FilmAuto() {
   }, []);
   const basculer = () => { const v = ref.current; if (!v) return; v.muted = !v.muted; setSon(!v.muted); if (!v.muted) v.play().catch(() => {}); };
   return (
-    <div id="film" className="hero-in relative mx-auto mt-10 sm:mt-12 max-w-[1100px] scroll-mt-24" style={{ animationDelay: ".3s" }}>
-      <video ref={ref} src="/film-lancement.mp4" poster="/film-lancement.jpg" muted loop playsInline preload="metadata" controls className="w-full aspect-video rounded-2xl border border-black/10 bg-white shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]" />
-      <button onClick={basculer} className="absolute right-3 top-3 sm:right-4 sm:top-4 rounded-full bg-black/60 px-3.5 py-2 text-[13px] font-semibold text-white backdrop-blur hover:bg-black/75 transition">{son ? "Couper le son" : "🔊 Mettre le son"}</button>
+    <div id="film" className="hero-in fx-halo mx-auto mt-10 sm:mt-12 max-w-[1100px] scroll-mt-24" style={{ animationDelay: ".3s" }}>
+      <video ref={ref} src="/film-lancement.mp4" poster="/film-lancement.jpg" muted loop playsInline preload="metadata" controls className="w-full block aspect-video rounded-2xl bg-white" />
+      <button onClick={basculer} className="absolute right-3 top-3 sm:right-4 sm:top-4 rounded-full bg-black/60 px-3.5 py-2 text-[13px] font-semibold text-white backdrop-blur hover:bg-black/75 transition"><span className="inline-flex items-center gap-1.5"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 10v4h4l5 4V6L8 10H4z" />{son ? <path d="M17 9a4 4 0 0 1 0 6" /> : <path d="m17 9 4 6M21 9l-4 6" />}</svg>{son ? "Couper le son" : "Mettre le son"}</span></button>
     </div>
   );
 }
@@ -92,7 +92,6 @@ export default function Landing() {
       <style>{`@keyframes kspin{to{transform:rotate(360deg)}}@keyframes land-in{from{opacity:0;transform:translateY(10px)}}.land-in{animation:land-in .45s ease-out both}@keyframes marquee{to{transform:translateX(-50%)}}.marquee-track{animation:marquee 32s linear infinite}.marquee:hover .marquee-track{animation-play-state:paused}@media (prefers-reduced-motion: reduce){.marquee-track{animation:none;flex-wrap:wrap;width:auto;justify-content:center}}`}</style>
 
       {/* Haut de page : fond clair, menu blanc */}
-      <div className="bg-white">
         <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-black/[.04]">
           <div className="mx-auto max-w-[1280px] h-[72px] px-4 sm:px-8 flex items-center justify-between gap-4" style={JK}>
             <div className="flex items-center gap-12">
@@ -107,16 +106,21 @@ export default function Landing() {
             </div>
           </div>
         </header>
+      <div className="bg-white">
 
         <div className="px-0 sm:px-8">
-          <section className="mx-auto max-w-[1440px] bg-white px-5 sm:px-10 pt-14 sm:pt-24 pb-16 sm:pb-20 text-center">
+          <section className="relative overflow-hidden mx-auto max-w-[1440px] bg-white px-5 sm:px-10 pt-14 sm:pt-24 pb-16 sm:pb-20 text-center">
+            <div className="fx-grille" aria-hidden />
+            <span className="fx-aurore h-[360px] w-[360px] bg-[#F6A06B] left-[8%] top-[60px]" aria-hidden />
+            <span className="fx-aurore h-[320px] w-[320px] bg-[#9B6BFF] right-[8%] top-[140px]" style={{ animationDelay: "-6s" }} aria-hidden />
+            <div className="relative z-[1]">
             <h1 className="hero-in relative mx-auto max-w-[1180px]" style={JK}>
               <span className="block text-[32px] sm:text-[50px] lg:text-[66px] leading-[1.1] text-[#3A3F55]" style={{ fontWeight: 500, letterSpacing: "-.01em" }}>Pars d'un SaaS à succès.</span>
               <span className="mt-1 block text-[38px] sm:text-[60px] lg:text-[80px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>Lance ta version. Encaisse.</span>
               <span className="mt-4 sm:mt-6 flex justify-center"><span className="sr-only">Bingoo!</span><Logo height="clamp(64px, 9vw, 112px)" className="!self-center" /></span>
             </h1>
             <p className="hero-in mx-auto mt-7 max-w-[780px] text-[18px] sm:text-[22px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Bingoo! repère les SaaS en tendance qui encaissent déjà{nb ? <> (parmi <b>{nb.toLocaleString("fr-FR")}</b> suivis, revenus vérifiés)</> : null}, construit ta version à ton nom, et te trouve tes premiers clients en 7 jours.</p>
-            <button onClick={go} className="hero-in mt-9 inline-flex items-center justify-center gap-2 rounded-full bg-accent px-10 py-4 text-[18px] font-bold text-white shadow-[0_14px_40px_-16px_rgba(226,85,35,.8)] hover:bg-accent-dark transition" style={{ ...JK, animationDelay: ".2s" }}>Commencer <Arrow className="h-4 w-4" /></button>
+            <button onClick={go} className="hero-in fx-brille mt-9 inline-flex items-center justify-center gap-2 rounded-full bg-accent px-10 py-4 text-[18px] font-bold text-white shadow-[0_14px_40px_-16px_rgba(226,85,35,.8)] hover:bg-accent-dark transition" style={{ ...JK, animationDelay: ".2s" }}>Commencer <Arrow className="h-4 w-4" /></button>
             <p className="hero-in mt-3 text-[14px] text-[#5B6075]" style={{ ...JK, animationDelay: ".22s" }}>8 questions, sans compte, et tu vois combien de SaaS collent à ton profil.</p>
             <div className="hero-in mx-auto mt-7 flex w-fit flex-col sm:w-auto sm:flex-row sm:flex-wrap items-start sm:items-center justify-center gap-x-5 gap-y-2 text-left text-[15px] text-[#5B6075]" style={{ ...JK, animationDelay: ".25s" }}>
               {["Des SaaS qui encaissent déjà, revenus vérifiés chez Stripe", "Ta version construite et en ligne en une journée", "Tes premiers clients trouvés pour toi"].map((x) => <span key={x} className="inline-flex items-start gap-1.5"><Check className="h-4 w-4 mt-[3px] shrink-0 text-accent" />{x}</span>)}
@@ -134,6 +138,7 @@ export default function Landing() {
               <ApercuTendance />
               <figcaption className="mt-2.5 text-[13px] text-ink-faint">Le résultat après les 8 questions. Vrais SaaS, revenus vérifiés relevés en novembre 2026.</figcaption>
             </figure>
+          </div>
           </section>
         </div>
       </div>
@@ -157,7 +162,7 @@ export default function Landing() {
               ].map(([h, d, img], i) => (
                 <li key={h} className="grid lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.5fr)] gap-6 lg:gap-12 items-center">
                   <div>
-                    <span className="grid place-items-center h-9 w-9 rounded-full bg-accent text-white font-bold tnum">{i + 1}</span>
+                    <span className="grid place-items-center h-9 w-9 rounded-full fx-pastille text-white font-bold tnum">{i + 1}</span>
                     <p className="mt-4 text-[28px] sm:text-[34px] leading-tight text-ink" style={SERIF}>{h}</p>
                     <p className="mt-3 text-[16.5px] leading-relaxed text-ink-soft">{d}</p>
                     {i === 0 && <button onClick={go} className="mt-6 inline-flex items-center gap-2 rounded-full bg-accent px-7 py-3.5 text-[16px] font-semibold text-white hover:bg-accent-dark transition">Commencer <Arrow className="h-4 w-4" /></button>}
@@ -194,7 +199,7 @@ export default function Landing() {
                   [ICONES.verifie, "Leurs vrais revenus", "Vérifiés chez leur outil de paiement, jamais estimés."],
                 ].map(([ic, h, d]) => (
                   <li key={h} className="flex gap-4">
-                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent-dark">{ic}</span>
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl fx-pastille text-white">{ic}</span>
                     <div><p className="text-[17px] font-bold text-ink">{h}</p><p className="mt-0.5 text-[15px] leading-snug text-ink-soft">{d}</p></div>
                   </li>
                 ))}
@@ -262,7 +267,7 @@ export default function Landing() {
         <section className="max-w-4xl mx-auto px-4 sm:px-6 py-20 text-center">
           <p className="text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ton premier paiement commence par 8 questions.</p>
           <p className="mt-4 text-[18px] text-ink-soft">Sans compte pour commencer : tu vois tout de suite combien de SaaS en tendance collent à ton profil.</p>
-          <button onClick={go} className="mt-8 inline-flex items-center gap-2 rounded-full bg-accent px-10 py-4 text-[18px] font-bold text-white hover:bg-accent-dark transition">Commencer <Arrow className="h-4 w-4" /></button>
+          <button onClick={go} className="fx-brille mt-8 inline-flex items-center gap-2 rounded-full bg-accent px-10 py-4 text-[18px] font-bold text-white hover:bg-accent-dark transition">Commencer <Arrow className="h-4 w-4" /></button>
         </section>
         </div>
       </main>
@@ -275,7 +280,7 @@ export default function Landing() {
         </div>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-10 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-8">
           <Logo height={34} />
-          <label className="flex items-center gap-2 text-[13.5px] text-ink-soft"><span aria-hidden>🌐</span><select aria-label="Langue du site" value={langueActuelle()} onChange={(e) => choisirLangue(e.target.value)} className="rounded-lg border border-line bg-white px-2 py-1">{LANGUES.map(([c, l]) => <option key={c} value={c}>{l}</option>)}</select></label>
+          <label className="flex items-center gap-2 text-[13.5px] text-ink-soft"><select aria-label="Langue du site" value={langueActuelle()} onChange={(e) => choisirLangue(e.target.value)} className="rounded-lg border border-line bg-white px-2 py-1">{LANGUES.map(([c, l]) => <option key={c} value={c}>{l}</option>)}</select></label>
           <p className="text-[13.5px] text-ink-faint">© {new Date().getFullYear()} Bingoo! · Les SaaS en tendance, le tien construit avec tes premiers clients</p>
         </div>
       </footer>

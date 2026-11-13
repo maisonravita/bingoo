@@ -118,3 +118,27 @@ h1, h2, h3 { font-family: var(--font-titre); font-weight: 700; letter-spacing: -
 iframe.skiptranslate, body > .skiptranslate, .goog-te-banner-frame, #goog-gt-tt, .goog-te-balloon-frame, .goog-te-gadget, [class^="VIpgJd-"] { display: none !important; }
 body { top: 0 !important; }
 .goog-text-highlight { background: none !important; box-shadow: none !important; }
+
+/* ---------- Page d'accueil : touche futuriste (fond quadrillé, halos, reflets) ---------- */
+.fx-grille { position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background-image: linear-gradient(rgba(21,22,26,.055) 1px, transparent 1px), linear-gradient(90deg, rgba(21,22,26,.055) 1px, transparent 1px);
+  background-size: 56px 56px; background-position: center top;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%); mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%); }
+.fx-aurore { position: absolute; border-radius: 9999px; filter: blur(70px); opacity: .32; pointer-events: none; z-index: 0; animation: fx-flotte 16s ease-in-out infinite alternate; }
+@keyframes fx-flotte { 0% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(40px,-30px,0) scale(1.08); } 100% { transform: translate3d(-30px,20px,0) scale(.95); } }
+.fx-halo { position: relative; isolation: isolate; }
+.fx-halo::before { content: ""; position: absolute; inset: -2px; border-radius: 18px; z-index: -1;
+  background: conic-gradient(from var(--fx-angle, 0deg), #E0531F, #F6A06B, #9B6BFF, #4F8BFF, #E0531F); animation: fx-tourne 8s linear infinite; opacity: .9; }
+.fx-halo::after { content: ""; position: absolute; inset: 6%; border-radius: 40px; z-index: -2; filter: blur(48px); opacity: .45;
+  background: conic-gradient(from var(--fx-angle, 0deg), #E0531F, #9B6BFF, #4F8BFF, #E0531F); animation: fx-tourne 8s linear infinite; }
+@property --fx-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes fx-tourne { to { --fx-angle: 360deg; } }
+.fx-brille { position: relative; overflow: hidden; isolation: isolate; }
+.fx-brille::after { content: ""; position: absolute; top: 0; bottom: 0; left: -60%; width: 45%; z-index: 1; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.45), transparent); transform: skewX(-20deg); animation: fx-reflet 4.5s ease-in-out infinite; }
+@keyframes fx-reflet { 0%, 60% { left: -60%; } 100% { left: 130%; } }
+.fx-filet { height: 2px; background: linear-gradient(90deg, #E0531F, #F6A06B 35%, #9B6BFF 70%, #4F8BFF); opacity: .85; }
+.fx-pastille { background: linear-gradient(135deg, #E0531F, #F08A4B 55%, #9B6BFF); box-shadow: 0 0 0 4px rgba(224,83,31,.12), 0 8px 24px -8px rgba(224,83,31,.6); }
+.fx-carte { transition: transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s; }
+.fx-carte:hover { transform: translateY(-4px); }
+@media (prefers-reduced-motion: reduce) { .fx-aurore, .fx-halo::before, .fx-halo::after, .fx-brille::after { animation: none; } }

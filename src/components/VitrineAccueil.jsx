@@ -30,11 +30,13 @@ export const SAAS = [
 // Le cadre « fenêtre d'application » commun à tous les aperçus
 export function Fenetre({ children, className = "", titre }) {
   return (
-    <div className={cx("overflow-hidden rounded-2xl border border-black/10 bg-white text-left text-ink shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]", className)} style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+    <div className={cx("fx-carte overflow-hidden rounded-2xl border border-black/10 bg-white text-left text-ink shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]", className)} style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
       <div className="flex items-center gap-1.5 border-b border-line bg-[#FBFAF8] px-4 py-2.5">
         <span className="h-2.5 w-2.5 rounded-full bg-[#E3E1D9]" /><span className="h-2.5 w-2.5 rounded-full bg-[#E3E1D9]" /><span className="h-2.5 w-2.5 rounded-full bg-[#E3E1D9]" />
         {titre && <span className="ml-3 truncate text-[12px] font-medium text-ink-faint">{titre}</span>}
+        <span className="ml-auto hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold text-good"><span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-good opacity-60" /><span className="relative inline-flex h-2 w-2 rounded-full bg-good" /></span></span>
       </div>
+      <div className="fx-filet" aria-hidden />
       {children}
     </div>
   );
@@ -52,7 +54,7 @@ function Carte({ s, choisi }) {
         <div className="min-w-0 flex-1"><p className="truncate font-bold text-[15.5px] leading-tight">{s.nom}</p><p className="mt-0.5 truncate text-[12.5px] text-ink-faint">{s.cat}</p></div>
         <div className="text-right"><p className="font-extrabold text-[16px] leading-tight tabular-nums">{s.mrr}</p><p className="text-[11px] text-ink-faint">par mois, vérifié</p></div>
       </div>
-      <p className="mt-3 w-fit rounded-full bg-good-soft px-2.5 py-1 text-[12px] font-semibold text-good">↗ En hausse · {s.cr} en 30 j</p>
+      <p className="mt-3 w-fit rounded-full bg-good-soft px-2.5 py-1 text-[12px] font-semibold text-good">En hausse · {s.cr} en 30 j</p>
       <p className="mt-2.5 rounded-lg bg-accent-soft px-3 py-1.5 text-[13px] font-semibold text-accent-dark">Ta version : {s.angle}</p>
       <p className="mt-3 text-[13.5px] leading-snug text-ink-soft">{s.desc}</p>
       <ul className="mt-3 space-y-1.5 text-[12.5px]">{s.points.map((p) => <li key={p} className="flex gap-2"><Tick className="mt-0.5 h-3.5 w-3.5 shrink-0 text-good" />{p}</li>)}</ul>
@@ -191,7 +193,7 @@ export function ApercuFiche() {
         <div className="flex items-center gap-3">
           <Pastille s={s} grand />
           <div className="min-w-0 flex-1"><p className="text-[18px] sm:text-[21px] font-extrabold leading-tight tracking-tight" style={HF}>{s.nom}</p><p className="text-[12.5px] text-ink-faint">{s.cat} · tenu par une petite équipe</p></div>
-          <span className="rounded-full bg-good-soft px-2.5 py-1 text-[12px] font-semibold text-good">↗ {s.cr} en 30 j</span>
+          <span className="rounded-full bg-good-soft px-2.5 py-1 text-[12px] font-semibold text-good">{s.cr} en 30 j</span>
         </div>
 
         <div className="mt-5 rounded-2xl border border-line bg-[#FAF9F6] p-4 sm:p-5">

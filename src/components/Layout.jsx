@@ -249,7 +249,7 @@ export default function Layout({ children }) {
             <div className="mt-4 pt-4 border-t border-line px-3 text-[14px] text-ink-soft flex flex-col gap-1.5">
               {list?.length > 1 ? <WsSwitch ws={ws} list={list} select={select} /> : <p className="font-semibold text-ink truncate">{ws.profile?.nom || ws.name || "Mon entreprise"}</p>}
               <NavLink className="hover:text-ink" to="/aide" onClick={() => setMore(false)}>Aide</NavLink>
-              <label className="flex items-center gap-2"><span aria-hidden>🌐</span><select aria-label="Langue du site" value={langueActuelle()} onChange={(e) => choisirLangue(e.target.value)} className="flex-1 min-w-0 rounded-lg border border-line bg-white px-2 py-1 text-[13px]">{LANGUES.map(([c, l]) => <option key={c} value={c}>{l}</option>)}</select></label>
+              <label className="flex items-center gap-2"><select aria-label="Langue du site" value={langueActuelle()} onChange={(e) => choisirLangue(e.target.value)} className="flex-1 min-w-0 rounded-lg border border-line bg-white px-2 py-1 text-[13px]">{LANGUES.map(([c, l]) => <option key={c} value={c}>{l}</option>)}</select></label>
               <button className="text-left hover:text-ink" onClick={() => { setMore(false); setFb(true); }}>Donner mon avis</button>
               {invite
                 ? <><button className="text-left font-semibold text-accent-dark hover:underline" onClick={() => { setMore(false); demanderCompte("Garde tes résultats et reviens quand tu veux."); }}>Créer mon compte</button><button className="text-left text-ink-soft hover:text-ink" onClick={() => supabase.auth.signOut()}>Se connecter à un autre compte</button></>
