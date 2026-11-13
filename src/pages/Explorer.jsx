@@ -2479,6 +2479,38 @@ const QUESTIONS = [
   ] },
   { k: "secteurs", multi: true, secteurs: true, q: "Des secteurs qui t'attirent ?", aide: "Aucun, c'est très bien aussi : Bingoo! cherche partout." },
 ];
+// Les icônes des réponses (traits simples, mêmes proportions que le reste de l'interface)
+const Coche = () => <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>;
+const tr = (d) => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{d}</svg>;
+const IC = {
+  google: tr(<><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>),
+  reseaux: tr(<><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="6" r="2.5" /><circle cx="18" cy="18" r="2.5" /><path d="m8.2 10.8 7.6-3.6M8.2 13.2l7.6 3.6" /></>),
+  contact: tr(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>),
+  pub: tr(<><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z" /><path d="M16 9a4 4 0 0 1 0 6" /></>),
+  bouche: tr(<><path d="M7 10h10M7 14h6" /><path d="M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 4V6a2 2 0 0 1 2-2z" /></>),
+  telephone: tr(<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" />),
+  video: tr(<><rect x="3" y="6" width="13" height="12" rx="2" /><path d="m16 10 5-3v10l-5-3" /></>),
+  ecrire: tr(<><path d="M4 20h4L19 9l-4-4L4 16v4z" /><path d="m13.5 6.5 4 4" /></>),
+  piece: tr(<><circle cx="12" cy="12" r="8" /><path d="M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.7 0-2.8 1-2.8 2.1 0 2.9 5.6 1.4 5.6 4.3 0 1.2-1.2 2.1-2.8 2.1-1.1 0-2.1-.5-2.6-1.5M12 6.5v1.5M12 16v1.5" /></>),
+  maison: tr(<><path d="m3 11 9-7 9 7" /><path d="M5 10v10h14V10" /></>),
+  fusee: tr(<><path d="M5 19c1.5-1.5 3-1.5 4 0s-1 3-4 4c1-3 2.5-5.5 0-4z" /><path d="M9 15 15 9c2-2 4.5-3.5 6-4-.5 1.5-2 4-4 6l-6 6z" /><path d="m9 11-3 0-2 2 4 1M13 15v3l-2 2-1-4" /></>),
+  horloge: tr(<><circle cx="12" cy="12" r="8" /><path d="M12 8v4l2.5 2" /></>),
+  mallette: tr(<><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 12h18" /></>),
+  personne: tr(<><circle cx="12" cy="8" r="3.5" /><path d="M5 20c1-3.5 3.8-5 7-5s6 1.5 7 5" /></>),
+  globe: tr(<><circle cx="12" cy="12" r="8" /><path d="M4 12h16M12 4c2.5 2.5 2.5 13.5 0 16M12 4c-2.5 2.5-2.5 13.5 0 16" /></>),
+  cible: tr(<><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="4" /><circle cx="12" cy="12" r="1" /></>),
+  code: tr(<path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 6l-3 12" />),
+  etoile: tr(<path d="m12 4 2.4 5 5.6.7-4.1 3.8 1 5.5L12 16.4 7.1 19l1-5.5L4 9.7 9.6 9z" />),
+};
+const ICONES_OPTIONS = {
+  canaux: { seo: "google", reseaux: "reseaux", prospection: "contact", pub: "pub", bouche: "bouche" },
+  refus: { appeler: "telephone", video: "video", ecrire: "ecrire", pub: "pub" },
+  temps: { peu: "horloge", moyen: "horloge", beaucoup: "horloge" },
+  audience: { B2B: "mallette", B2C: "personne", "": "globe" },
+  ambition: { complement: "piece", vivre: "maison", gros: "fusee" },
+  profil: { vente: "cible", code: "code", aucun: "etoile" },
+};
+const iconeOption = (k, v) => IC[ICONES_OPTIONS[k]?.[v ?? ""]] ?? IC.etoile;
 // Le petit mot après chaque réponse : ce que Bingoo! en fait concrètement
 const RETOURS = {
   pays: (v) => v === "FR" ? "Bingoo! met en avant les SaaS qui marchent déjà en France, puis ceux qui marchent ailleurs sans équivalent français : la place est libre." : `Bingoo! met en avant ce qui marche déjà en ${PAYS[v] ?? "ton pays"}, puis ce qui marche ailleurs et que tu peux adapter.`,
@@ -2544,66 +2576,76 @@ export function TrouveTonSaas() {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       {!fini ? (
-        <div className="max-w-3xl">
-          <div className="flex items-center gap-3">
-            <div className="flex gap-1.5">{QUESTIONS.map((_, i) => <span key={i} className={cx("h-1.5 w-6 sm:w-8 rounded-full transition-colors", i < r.etape ? "bg-accent" : i === r.etape ? "bg-ink" : "bg-line")} />)}</div>
-            <span className="text-[13px] text-ink-faint tnum">Question {r.etape + 1} sur {QUESTIONS.length}</span>
-            {r.etape === 0 && <span className="hidden sm:inline text-[13px] text-ink-faint">· Tes résultats complets avec un abonnement, sans engagement</span>}
-            {avant?.fini && r.etape === 0 && <button onClick={() => aller({ ...r, etape: QUESTIONS.length })} className="ml-auto text-[13.5px] font-semibold text-accent-dark hover:underline">Revoir mes derniers résultats</button>}
+        <div className="relative -mx-4 sm:-mx-6 -mt-8 px-4 sm:px-6 pt-10 pb-16 overflow-hidden">
+          <div className="pointer-events-none absolute inset-0" style={{ WebkitMaskImage: "linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent)", maskImage: "linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent)" }} aria-hidden>
+            <div className="fx-grille" />
+            <span className="fx-aurore h-[260px] w-[260px] bg-[#F6A06B] left-[8%] top-10" />
+            <span className="fx-aurore h-[240px] w-[240px] bg-[#9B6BFF] right-[8%] top-40" style={{ animationDelay: "-6s" }} />
           </div>
-          <h1 className="mt-6 text-[30px] sm:text-[40px] font-black leading-[1.05] tracking-tight" style={HF}>{Q.q}</h1>
-          <p className="mt-2 text-[15.5px] text-ink-soft max-w-2xl">{Q.aide}</p>
-          {Q.pays ? (
-            <div className="mt-6">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{PAYS_RAPIDES.map((c) => (
-                <button key={c} type="button" onClick={() => setR({ ...r, pays: c })}
-                  className={cx("rounded-2xl border-2 px-4 py-4 text-left transition", r.pays === c ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink")}>
-                  <span className="block text-[26px] leading-none" aria-hidden>{drapeau(c)}</span>
-                  <span className="mt-2 block font-bold text-[15.5px]">{PAYS[c]}</span>
-                </button>
-              ))}</div>
-              <label className="mt-4 flex flex-wrap items-center gap-3 text-[14px] text-ink-soft">Un autre pays
-                <select value={PAYS_RAPIDES.includes(r.pays) ? "" : r.pays ?? ""} onChange={(e) => e.target.value && setR({ ...r, pays: e.target.value })} className="rounded-xl border-2 border-line bg-white px-3 py-2.5 text-[14.5px] text-ink outline-none focus:border-ink">
-                  <option value="">Choisir…</option>
-                  {TOUS_PAYS.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
-                </select>
-              </label>
+          <div className="relative z-[1] mx-auto max-w-2xl">
+            <div className="flex items-center justify-between gap-3 text-[13px] text-ink-faint">
+              {r.etape > 0 ? <button onClick={() => setR({ ...r, etape: r.etape - 1 })} className="inline-flex items-center gap-1 font-semibold text-ink-soft hover:text-ink"><span aria-hidden>←</span> Retour</button> : <span />}
+              <span className="tnum">Question {r.etape + 1} sur {QUESTIONS.length}</span>
+              {avant?.fini && r.etape === 0 ? <button onClick={() => aller({ ...r, etape: QUESTIONS.length })} className="font-semibold text-accent-dark hover:underline">Mes derniers résultats</button> : <span />}
             </div>
-          ) : Q.secteurs ? (
-            <div className="mt-6 flex flex-wrap gap-2">{SECTEURS.map((c) => <button key={c} type="button" onClick={() => basculer("secteurs", c)} className={cx("rounded-full border px-4 py-2 text-[14px] font-medium transition", choisi("secteurs", c) ? "bg-ink text-white border-ink" : "bg-white border-line hover:border-ink-faint")}>{c}</button>)}</div>
-          ) : (
-            <div className={cx("mt-6 grid gap-3", optionsDe(Q, r).length > 3 ? "sm:grid-cols-2" : "sm:grid-cols-3")}>{optionsDe(Q, r).map(([v, t, sous]) => {
-              const on = choisi(Q.k, v);
-              return (
-                <button key={v || "tout"} type="button" onClick={() => Q.multi ? basculer(Q.k, v) : setR({ ...r, [Q.k]: v })}
-                  className={cx("group rounded-2xl border-2 px-5 py-4 text-left transition", on ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink")}>
-                  <span className="flex items-start justify-between gap-3"><span className="font-bold text-[16.5px]">{t}</span>{Q.multi && <span className={cx("mt-0.5 grid place-items-center h-5 w-5 shrink-0 rounded-md border-2 text-[12px]", on ? "border-white bg-white text-ink" : "border-line")}>{on ? "✓" : ""}</span>}</span>
-                  {sous && <span className={cx("mt-1 block text-[13.5px]", on ? "text-white/70" : "text-ink-soft")}>{sous}</span>}
-                </button>
-              );
-            })}</div>
-          )}
-          {!Q.multi && retour && <div className="mt-6 flex items-start gap-3 rounded-2xl border border-line bg-white px-5 py-4" aria-live="polite"><span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-accent to-[#9B6BFF] text-white text-[13px] font-black">B!</span><p className="text-[15px] leading-snug">{retour}</p></div>}
-          {!Q.multi && <div className="mt-6 flex items-center gap-4">
-            <button onClick={() => aller({ ...r, etape: r.etape + 1 })} disabled={r[Q.k] == null} className="rounded-xl bg-accent text-white px-6 py-3 font-bold hover:bg-accent-dark disabled:opacity-40">Continuer</button>
-            {r.etape > 0 && <button onClick={() => setR({ ...r, etape: r.etape - 1 })} className="text-[14px] text-ink-soft hover:text-ink">Retour</button>}
-          </div>}
-          {!Q.multi ? null : !Q.pays ? <div className="mt-7 flex items-center gap-4">
-            {Q.multi && <button onClick={() => aller({ ...r, etape: r.etape + 1 })} className="rounded-xl bg-accent text-white px-6 py-3 font-bold hover:bg-accent-dark">{r.etape === QUESTIONS.length - 1 ? (r.secteurs.length ? "Voir mes SaaS" : "Peu importe, cherche partout") : r[Q.k].length ? "Continuer" : Q.aucun ?? "Passer"}</button>}
-            {r.etape > 0 && <button onClick={() => setR({ ...r, etape: r.etape - 1 })} className="text-[14px] text-ink-soft hover:text-ink">Retour</button>}
-          </div> : r.etape > 0 && <button onClick={() => setR({ ...r, etape: r.etape - 1 })} className="mt-6 text-[14px] text-ink-soft hover:text-ink">Retour</button>}
-          {ap && <PreuveDirecte ap={ap} />}
+            <div className="mt-3 h-1.5 rounded-full bg-black/[.06] overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-accent via-[#F08A4B] to-[#9B6BFF] transition-all duration-500" style={{ width: `${((r.etape + 1) / QUESTIONS.length) * 100}%` }} /></div>
+            <div key={r.etape} className="land-in">
+              <h1 className="mt-10 text-center text-[32px] sm:text-[44px] font-black leading-[1.05] tracking-tight" style={HF}>{Q.q}</h1>
+              <p className="mx-auto mt-3 max-w-xl text-center text-[15.5px] text-ink-soft">{Q.aide}</p>
+              {Q.pays ? (
+                <div className="mt-8">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{PAYS_RAPIDES.map((c) => {
+                    const on = r.pays === c;
+                    return (
+                      <button key={c} type="button" onClick={() => setR({ ...r, pays: c })}
+                        className={cx("relative rounded-2xl border bg-white/90 px-4 py-5 text-center backdrop-blur transition hover:-translate-y-0.5", on ? "border-transparent ring-2 ring-accent shadow-[0_18px_40px_-20px_rgba(224,83,31,.7)]" : "border-line hover:border-ink-faint")}>
+                        {on && <span className="absolute right-2.5 top-2.5 grid h-5 w-5 place-items-center rounded-full bg-accent text-white"><Coche /></span>}
+                        <span className="block text-[34px] leading-none" aria-hidden>{drapeau(c)}</span>
+                        <span className="mt-2.5 block font-bold text-[15px]">{PAYS[c]}</span>
+                      </button>
+                    );
+                  })}</div>
+                  <label className="mt-4 flex items-center justify-center gap-3 text-[14px] text-ink-soft">Un autre pays
+                    <select value={PAYS_RAPIDES.includes(r.pays) ? "" : r.pays ?? ""} onChange={(e) => e.target.value && setR({ ...r, pays: e.target.value })} className="rounded-xl border border-line bg-white px-3 py-2.5 text-[14.5px] text-ink outline-none focus:border-ink">
+                      <option value="">Choisir…</option>
+                      {TOUS_PAYS.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
+                    </select>
+                  </label>
+                </div>
+              ) : Q.secteurs ? (
+                <div className="mt-8 flex flex-wrap justify-center gap-2">{SECTEURS.map((c) => <button key={c} type="button" onClick={() => basculer("secteurs", c)} className={cx("rounded-full border px-4 py-2 text-[14px] font-semibold transition", choisi("secteurs", c) ? "border-transparent bg-ink text-white ring-2 ring-accent/40" : "border-line bg-white/90 hover:border-ink-faint")}>{c}</button>)}</div>
+              ) : (
+                <div className={cx("mt-8 grid gap-3", optionsDe(Q, r).length > 3 ? "sm:grid-cols-2" : "")}>{optionsDe(Q, r).map(([v, t, sous]) => {
+                  const on = choisi(Q.k, v);
+                  return (
+                    <button key={v || "tout"} type="button" onClick={() => Q.multi ? basculer(Q.k, v) : setR({ ...r, [Q.k]: v })}
+                      className={cx("group flex items-center gap-4 rounded-2xl border bg-white/90 px-4 py-4 text-left backdrop-blur transition hover:-translate-y-0.5", on ? "border-transparent ring-2 ring-accent shadow-[0_18px_40px_-20px_rgba(224,83,31,.7)]" : "border-line hover:border-ink-faint")}>
+                      <span className={cx("grid h-11 w-11 shrink-0 place-items-center rounded-xl transition", on ? "fx-pastille text-white" : "bg-paper text-ink-soft group-hover:text-ink")}>{iconeOption(Q.k, v)}</span>
+                      <span className="min-w-0 flex-1"><span className="block font-bold text-[16px]">{t}</span>{sous && <span className="mt-0.5 block text-[13.5px] text-ink-soft">{sous}</span>}</span>
+                      <span className={cx("grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition", on ? "border-accent bg-accent text-white" : "border-line")}>{on && <Coche />}</span>
+                    </button>
+                  );
+                })}</div>
+              )}
+            </div>
+            {!Q.multi && retour && <div key={`m-${r.etape}-${r[Q.k]}`} className="land-in mt-6 fx-halo rounded-2xl" aria-live="polite"><div className="flex items-start gap-3 rounded-2xl bg-white px-5 py-4"><span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full fx-pastille text-white text-[12px] font-black">B!</span><p className="text-[15px] leading-snug">{retour}</p></div></div>}
+            <button onClick={() => aller({ ...r, etape: r.etape + 1 })} disabled={!Q.multi && r[Q.k] == null}
+              className="fx-brille mt-8 w-full rounded-2xl bg-accent py-4 text-[16.5px] font-bold text-white shadow-[0_18px_40px_-18px_rgba(224,83,31,.8)] transition hover:bg-accent-dark disabled:opacity-40 disabled:shadow-none">
+              {Q.multi ? (r.etape === QUESTIONS.length - 1 ? (r.secteurs.length ? "Voir mes SaaS" : "Peu importe, cherche partout") : r[Q.k].length ? "Continuer" : Q.aucun ?? "Passer") : "Continuer"}
+            </button>
+            {ap?.n ? <p className="mt-5 text-center text-[13.5px] leading-relaxed text-ink-soft"><span className="relative mr-2 inline-flex h-2 w-2 align-middle"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-good opacity-60" /><span className="relative inline-flex h-2 w-2 rounded-full bg-good" /></span><b className="tnum text-ink">{Number(ap.n).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié collent déjà à tes réponses{ap.tendance ? <>, dont <b className="tnum text-ink">{Number(ap.tendance).toLocaleString("fr-FR")}</b> en tendance</> : null}</p> : null}
+            {r.etape === 0 && <p className="mt-2 text-center text-[12.5px] text-ink-faint">Tes résultats complets avec un abonnement, sans engagement.</p>}
+          </div>
         </div>
       ) : (
         <div>
-          <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="text-center">
             <div>
-              <h1 className="text-[30px] sm:text-[38px] font-black leading-tight tracking-tight" style={HF}>{debloque ? "Tes 3 SaaS en tendance" : "Tes SaaS à succès"}</h1>
-              <p className="mt-1 text-[14.5px] text-ink-soft">{debloque ? "Ils encaissent déjà, vérifié chez leur outil de paiement, leur revenu monte en ce moment, et ils trouvent leurs clients comme tu veux le faire." : "Ils encaissent déjà, vérifié chez leur outil de paiement, et ils trouvent leurs clients comme tu veux le faire. Choisis celui que tu veux lancer."}</p>
+              <h1 className="text-[32px] sm:text-[44px] font-black leading-tight tracking-tight" style={HF}>{debloque ? "Tes 3 SaaS en tendance" : "Tes SaaS à succès"}</h1>
+              <p className="mx-auto mt-2 max-w-2xl text-[15px] text-ink-soft">{debloque ? "Ils encaissent déjà, vérifié chez leur outil de paiement, leur revenu monte en ce moment, et ils trouvent leurs clients comme tu veux le faire." : "Ils encaissent déjà, vérifié chez leur outil de paiement, et ils trouvent leurs clients comme tu veux le faire. Choisis celui que tu veux lancer."}</p>
             </div>
-            <button onClick={() => setR({ ...r, etape: 0 })} className="rounded-xl border border-line bg-white px-4 py-2 text-[13.5px] font-semibold hover:border-ink-faint">Changer mes réponses</button>
           </div>
-          {resume.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{resume.map((x) => <span key={x} className="rounded-full bg-paper border border-line px-3 py-1 text-[12.5px] text-ink-soft">{x}</span>)}</div>}
+          {resume.length > 0 && <div className="mt-4 flex flex-wrap justify-center gap-1.5">{resume.map((x) => <span key={x} className="rounded-full bg-white border border-line px-3 py-1 text-[12.5px] text-ink-soft">{x}</span>)}<button onClick={() => setR({ ...r, etape: 0 })} className="rounded-full px-3 py-1 text-[12.5px] font-semibold text-accent-dark hover:underline">Changer mes réponses</button></div>}
           {!debloque ? (
             ap === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : !planVu ? <PlanChiffre r={r} ap={ap} onSuite={() => setPlanVu(true)} /> : <Debloquer total={ap?.n} tendance={ap?.tendance} mediane={ap?.mediane} invite={invite} r={r} />
           ) : res === undefined || res === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : !res.length ? (
@@ -2643,13 +2685,13 @@ function PlanChiffre({ r, ap, onSuite }) {
   const canaux = (r.canaux?.length ? r.canaux : ["seo", "reseaux"]).slice(0, 3);
   const parts = canaux.map((c, k) => [c, k === 0 ? clients - Math.floor(clients / canaux.length) * (canaux.length - 1) : Math.floor(clients / canaux.length)]);
   return (
-    <div className="mt-8 max-w-3xl">
-      <div className="fx-halo rounded-3xl"><div className="rounded-3xl bg-white p-6 sm:p-8">
+    <div className="land-in mx-auto mt-10 max-w-2xl">
+      <div className="fx-halo rounded-3xl"><div className="rounded-3xl bg-white p-6 sm:p-10 text-center">
         <p className="text-[13px] font-semibold uppercase tracking-wide text-accent-dark">Ton plan, calculé sur tes réponses</p>
         <p className="mt-3 text-[15px] text-ink-soft">Pour atteindre chaque mois</p>
         <p className="text-[48px] sm:text-[60px] font-black leading-none tracking-tight tnum fx-texte" style={HF}>{objectif.toLocaleString("fr-FR")} €</p>
         <p className="mt-3 text-[16px]">il te faut <b className="tnum">{clients.toLocaleString("fr-FR")} clients</b> à {prix} € par mois{r.audience === "B2B" ? ", le prix courant d'un outil pour les pros" : r.audience === "B2C" ? ", le prix courant d'une appli grand public" : ""}.</p>
-        <div className="mt-6 space-y-3">{parts.map(([c, n]) => (
+        <div className="mt-8 space-y-3 text-left">{parts.map(([c, n]) => (
           <div key={c} className="flex items-center gap-3 text-[14.5px]">
             <span className="w-44 shrink-0 font-semibold">{NOM_CANAL[c] ?? c}</span>
             <span className="relative h-2.5 flex-1 rounded-full bg-paper"><span className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-accent to-[#9B6BFF]" style={{ width: `${Math.max(8, (n / clients) * 100)}%` }} /></span>
@@ -2658,7 +2700,7 @@ function PlanChiffre({ r, ap, onSuite }) {
         ))}</div>
         {ap?.n ? <p className="mt-6 rounded-xl bg-paper px-4 py-3 text-[14px]"><b className="tnum">{Number(ap.n).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié font déjà ça{ap.mediane ? <>, avec un revenu médian de <b className="tnum">{dollar(ap.mediane)}</b> par mois</> : null}.</p> : null}
         <p className="mt-4 text-[12.5px] text-ink-faint">Un repère pour te fixer un cap, pas une promesse de revenus.</p>
-        <button onClick={onSuite} className="fx-brille mt-6 rounded-xl bg-accent px-6 py-3.5 font-bold text-white hover:bg-accent-dark">Voir mes SaaS à succès</button>
+        <button onClick={onSuite} className="fx-brille mt-8 w-full rounded-2xl bg-accent py-4 text-[16.5px] font-bold text-white shadow-[0_18px_40px_-18px_rgba(224,83,31,.8)] hover:bg-accent-dark">Voir mes SaaS à succès</button>
       </div></div>
     </div>
   );
@@ -2676,7 +2718,7 @@ const Cadenas = ({ className = "h-3.5 w-3.5" }) => <svg viewBox="0 0 24 24" clas
 function CarteFloutee({ x, k, paysVise, onLancer, busy }) {
   const t = tendanceDe(x.croissance);
   return (
-    <div className="flex flex-col rounded-2xl border border-line bg-white p-4 sm:p-5">
+    <div className="fx-spot flex flex-col rounded-2xl border border-line bg-white p-4 sm:p-5 transition hover:-translate-y-1 hover:shadow-[0_24px_50px_-30px_rgba(21,23,42,.45)]">
       <div className="flex items-start gap-3">
         <span className="h-11 w-11 shrink-0 rounded-xl bg-gradient-to-br from-accent-soft to-[#E9E1FF] blur-[3px]" aria-hidden />
         <div className="min-w-0 flex-1">
@@ -2696,7 +2738,7 @@ function CarteFloutee({ x, k, paysVise, onLancer, busy }) {
         {x.solo && <li>Tenu par une seule personne</li>}
       </ul>
       <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-paper px-3 py-1.5 text-[12.5px] font-semibold text-ink-soft"><Cadenas />Son nom et ta version après paiement</p>
-      <button onClick={() => onLancer(x.rang ?? k)} disabled={busy} className="mt-4 rounded-xl bg-accent py-2.5 text-[14px] font-bold text-white hover:bg-accent-dark disabled:opacity-60">Lancer celui-ci</button>
+      <button onClick={() => onLancer(x.rang ?? k)} disabled={busy} className="fx-brille mt-4 rounded-xl bg-accent py-3 text-[14.5px] font-bold text-white hover:bg-accent-dark disabled:opacity-60">Lancer celui-ci</button>
     </div>
   );
 }
@@ -2713,7 +2755,7 @@ function Debloquer({ total, tendance, mediane, invite, r }) {
   const payer = async (periode) => { setBusy(periode); try { await lancerApresPaiement({ periode, invite, ws, nav }); } finally { setBusy(false); } };
   const debloquer = () => lancer(0);
   const formules = choix !== null && (
-    <section id="formules" className="mt-8 scroll-mt-6 rounded-3xl border-2 border-ink bg-[#FAF9F6] p-5 sm:p-8">
+    <section id="formules" className="land-in mt-10 scroll-mt-6 rounded-3xl bg-white p-5 sm:p-8 shadow-[0_40px_90px_-50px_rgba(21,23,42,.5)] ring-1 ring-black/[.06]">
       <p className="text-[13px] font-semibold text-accent-dark">Ton plan est prêt</p>
       <h2 className="mt-1 text-[26px] sm:text-[32px] font-black leading-tight" style={HF}>Choisis ta formule et lance ton SaaS</h2>
       <p className="mt-1.5 mb-6 text-[14.5px] text-ink-soft">Son nom, sa fiche et ta version s'affichent dès le paiement reçu, et Bingoo! commence à le construire.</p>
@@ -2722,13 +2764,13 @@ function Debloquer({ total, tendance, mediane, invite, r }) {
   );
   const faux = [["Outil de réservation", "2 4•• $"], ["Assistant de facturation", "1 8•• $"], ["Extension de prospection", "3 1•• $"]];
   const bandeau = (
-    <div className="mt-6 rounded-3xl border-2 border-ink bg-white p-5 sm:p-7 flex flex-wrap items-center gap-5">
+    <div className="mt-8 fx-halo rounded-3xl"><div className="rounded-3xl bg-white p-5 sm:p-7 flex flex-wrap items-center gap-5">
       <div className="flex-1 min-w-[260px]">
         <h2 className="text-[22px] sm:text-[26px] font-black leading-tight" style={HF}>{liste?.length ? `${Number(total || liste.length).toLocaleString("fr-FR")} SaaS à succès pour toi` : "Tes 3 SaaS sont prêts"}</h2>
         <p className="mt-1.5 text-[14.5px] text-ink-soft">{total ? <>Bingoo! a trouvé <b className="text-ink">{Number(total).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié qui collent à tes réponses{tendance ? <>, dont <b className="text-ink">{Number(tendance).toLocaleString("fr-FR")}</b> en tendance</> : null}{mediane ? <>, revenu médian {dollar(mediane)} par mois</> : null}. </> : null}Leur nom, leur fiche, ta version, ton plan et tes premiers clients s'affichent dès ton paiement reçu.</p>
       </div>
-      <button onClick={debloquer} disabled={busy} className="rounded-xl bg-accent text-white px-6 py-3.5 font-bold hover:bg-accent-dark disabled:opacity-60">Débloquer mes résultats</button>
-    </div>
+      <button onClick={debloquer} disabled={busy} className="fx-brille rounded-xl bg-accent text-white px-6 py-3.5 font-bold hover:bg-accent-dark disabled:opacity-60">Débloquer mes résultats</button>
+    </div></div>
   );
   if (liste === undefined) return <div className="py-16 grid place-items-center"><Spinner /></div>;
   if (liste?.length) return (

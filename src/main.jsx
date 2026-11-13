@@ -38,3 +38,6 @@ if (splash) {
 
 // Notifications sur le téléphone (réponses chaudes) : le service worker ne garde rien en cache
 enregistrerSW();
+
+// Lumière qui suit la souris sur les éléments .fx-spot (accueil et parcours)
+window.addEventListener("pointermove", (e) => { const el = e.target.closest?.(".fx-spot"); if (!el) return; const r = el.getBoundingClientRect(); el.style.setProperty("--mx", `${e.clientX - r.left}px`); el.style.setProperty("--my", `${e.clientY - r.top}px`); }, { passive: true });
