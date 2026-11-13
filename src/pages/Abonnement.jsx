@@ -11,8 +11,8 @@ import ChoixFormule from "../components/ChoixFormule";
 // Prix affiché à la française : 19,99 € ; un prix rond reste rond (29 €)
 const eur = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ","));
 const FEATURES = {
-  explorer: ["Tes SaaS en tendance débloqués, avec leurs vrais revenus", "Leur visibilité, leur pub et leurs canaux", "Ton plan sur 30 jours", "Tes 10 premiers clients en 7 jours : prospects trouvés pour toi", "L'étape du jour chaque matin par e-mail", "Toute la base SaaS et 10 SaaS suivis"],
-  explorer_pro: ["Tout Trouver", "3 SaaS construits par mois, à ton nom (30 modifications)", "En ligne avec ton domaine, prêt à encaisser (ton Stripe)", "SaaS et catégories suivis sans limite", "Les SaaS à vendre et à racheter", "1 000 réponses de l'assistant IA de tes SaaS par mois"],
+  explorer: ["Tes SaaS en tendance débloqués, avec leurs vrais revenus", "Leur visibilité, leur pub et leurs canaux", "Ton plan sur 30 jours", "Ton plan pour tes 10 premiers clients, avec des établissements à contacter", "L'étape du jour chaque matin par e-mail", "Toute la base SaaS et 10 SaaS suivis"],
+  explorer_pro: ["Tout Trouver", "3 SaaS construits par mois, à ton nom (30 modifications)", "En ligne avec ton domaine, branché à ton Stripe", "SaaS et catégories suivis sans limite", "Les SaaS à vendre et à racheter", "1 000 réponses de l'assistant IA de tes SaaS par mois"],
   business: ["Tout Lancer", "10 SaaS construits par mois (100 modifications)", "3 000 réponses de l'assistant IA de tes SaaS par mois", "3 utilisateurs", "Export CSV des listes", "Support prioritaire"],
 };
 const VEILLE = ["explorer", "explorer_pro", "business"];

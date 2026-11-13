@@ -5,7 +5,7 @@ import { cx } from "../lib/utils";
 // Repli si le serveur ne répond pas : mêmes valeurs que PERIODES dans supabase/functions/_shared/core.ts
 export const PERIODES_LOCAL = [
   { key: "mois", label: "1 mois", mois: 1, parMois: 34.99, inclus: ["Ton SaaS construit et en ligne, à ton nom", "Tes SaaS à succès, avec leur nom et leurs chiffres", "Ton plan sur 30 jours"] },
-  { key: "trimestre", label: "3 mois", mois: 3, parMois: 22.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Tes 10 premiers clients en 7 jours : établissements trouvés pour toi", "L'étape du jour chaque matin par e-mail", "L'assistant IA de ton SaaS"] },
+  { key: "trimestre", label: "3 mois", mois: 3, parMois: 22.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Ton plan pour tes 10 premiers clients, avec des établissements à contacter trouvés pour toi", "L'étape du jour chaque matin par e-mail", "L'assistant IA de ton SaaS"] },
   { key: "an", label: "12 mois", mois: 12, parMois: 11.99, inclus: ["Tout ce qu'il y a dans 3 mois", "Changer de SaaS une fois dans l'année", "Réponse prioritaire par e-mail"] },
 ];
 const eur = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ","));
@@ -44,7 +44,7 @@ export default function ChoixFormule({ periodes, fondateur, onChoisir, busy, act
           );
         })}
       </div>
-      <p className={cx("mt-5 text-center text-[13.5px]", sombre ? "text-white/60" : "text-ink-soft")}>Un SaaS par abonnement. Prix hors taxes.</p>
+      <p className={cx("mt-5 text-center text-[13.5px]", sombre ? "text-white/60" : "text-ink-soft")}>Un SaaS par abonnement. Prix hors taxes. Bingoo! construit et met en ligne ton SaaS ; ses ventes dépendent du marché et de ton travail, aucun revenu n'est garanti.</p>
     </div>
   );
 }

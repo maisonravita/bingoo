@@ -59,7 +59,7 @@ export const FOUNDER = { plan: "explorer_pro", price: 29, places: 50 };
  *  Plus la durée est longue, plus elle comprend de choses. Les anciennes formules (Trouver, Lancer à plusieurs) restent pour leurs abonnés. */
 export const PERIODES: Record<string, { label: string; mois: number; parMois: number; inclus: string[] }> = {
   mois: { label: "1 mois", mois: 1, parMois: 34.99, inclus: ["Ton SaaS construit et en ligne, à ton nom", "Tes SaaS à succès, avec leur nom et leurs chiffres", "Ton plan sur 30 jours"] },
-  trimestre: { label: "3 mois", mois: 3, parMois: 22.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Tes 10 premiers clients en 7 jours : établissements trouvés pour toi", "L'étape du jour chaque matin par e-mail", "L'assistant IA de ton SaaS"] },
+  trimestre: { label: "3 mois", mois: 3, parMois: 22.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Ton plan pour tes 10 premiers clients, avec des établissements à contacter trouvés pour toi", "L'étape du jour chaque matin par e-mail", "L'assistant IA de ton SaaS"] },
   an: { label: "12 mois", mois: 12, parMois: 11.99, inclus: ["Tout ce qu'il y a dans 3 mois", "Changer de SaaS une fois dans l'année", "Réponse prioritaire par e-mail"] },
 };
 export const VENTE = ["explorer_pro"];

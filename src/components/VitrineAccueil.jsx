@@ -66,7 +66,7 @@ function Carte({ s, choisi }) {
   );
 }
 
-/** « Tes 3 SaaS en tendance » : le résultat après les 8 questions */
+/** « Tes 3 SaaS en tendance » : le résultat après les questions */
 export function ApercuTendance({ compact = false }) {
   const reponses = ["Écrire et être trouvé sur Google", "Sans démarcher", "5 à 15 h par semaine", "Aux professionnels", "En vivre"];
   return (
@@ -119,7 +119,7 @@ function Entete({ onglet }) {
   return (
     <div className="border-b border-line px-4 sm:px-6 pt-4 sm:pt-5">
       <div className="flex items-start justify-between gap-3">
-        <div><p className="text-[17px] sm:text-[20px] font-extrabold leading-tight tracking-tight" style={HF}>Tes 10 premiers clients en 7 jours</p><p className="mt-0.5 text-[12px] sm:text-[12.5px] text-ink-soft">Ta version pour les restaurants · une étape par jour</p></div>
+        <div><p className="text-[17px] sm:text-[20px] font-extrabold leading-tight tracking-tight" style={HF}>Ton plan pour tes 10 premiers clients</p><p className="mt-0.5 text-[12px] sm:text-[12.5px] text-ink-soft">Ta version pour les restaurants · une étape par jour</p></div>
         <div className="text-right"><p className="text-[22px] font-extrabold leading-none tabular-nums">2<span className="text-[14px] text-ink-faint">/10</span></p><p className="text-[11px] text-ink-faint">clients payants</p></div>
       </div>
       <div className="mt-3 flex gap-4 overflow-hidden text-[12.5px] whitespace-nowrap">{onglets.map((o, i) => <span key={o} className={cx("pb-2.5", i === onglet ? "border-b-2 border-accent font-bold text-ink" : "text-ink-soft", i > 1 && "hidden sm:inline")}>{o}</span>)}</div>

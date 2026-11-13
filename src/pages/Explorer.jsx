@@ -219,7 +219,7 @@ function Liste({ copier: copierPage = false }) {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[30px] sm:text-[36px] font-black leading-tight tracking-tight" style={HF}>{copierPage ? "Ils gagnent déjà de l'argent. À toi de faire pareil." : "Tous les SaaS et applis web, au même endroit."}</h1>
-          {copierPage && <button onClick={() => navDem("/explorer/trouver")} className="mt-2 mb-1 inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-dark px-3.5 py-1.5 text-[13.5px] font-semibold hover:bg-accent-soft/70">{parcours?.etape === 3 ? "Mes SaaS sur mesure" : "Trouve le tien en 8 questions"} →</button>}
+          {copierPage && <button onClick={() => navDem("/explorer/trouver")} className="mt-2 mb-1 inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-dark px-3.5 py-1.5 text-[13.5px] font-semibold hover:bg-accent-soft/70">{parcours?.etape === 3 ? "Mes SaaS sur mesure" : "Trouve le tien en quelques questions"} →</button>}
           {copierPage ? <p className="text-ink-soft text-[15px] max-w-3xl">Des SaaS au revenu prouvé, tenus par de petites équipes, avec un prix simple, et souvent sans équivalent en France. Choisis-en un, puis « Lancer ma version » : Bingoo! le construit à ton nom.</p> : <p className="text-ink-soft text-[15px]">{stats ? `${stats.total.toLocaleString("fr-FR")} logiciels suivis, dans ${stats.cats.length} catégories et ${stats.pays.length} pays` : "…"}</p>}
         </div>
         <form onSubmit={(e) => { e.preventDefault(); if (ajout.trim().length > 3) nav(`/explorer/chiffres?u=${encodeURIComponent(ajout.trim())}`); }} className="flex gap-2">
@@ -2259,7 +2259,7 @@ function Createurs() {
       <h1 className="text-[30px] font-black tracking-tight" style={HF}>Mes SaaS</h1>
       <p className="text-ink-soft">Les SaaS que Bingoo! a construits pour toi. Les revenus sont relus chaque nuit dans Stripe : jamais un chiffre déclaré.</p>
       {mes === null ? <div className="py-10 grid place-items-center"><Spinner /></div> : !mes.length ? (
-        <div className="mt-2 rounded-2xl bg-white border border-line p-6"><p className="font-bold text-[17px]">Ton premier SaaS commence ici.</p><p className="mt-1 text-ink-soft">Réponds à 8 questions : Bingoo! te montre les SaaS en tendance qui gagnent déjà de l'argent, puis construit ta version et la met en ligne.</p><button onClick={() => nav("/explorer/trouver")} className="mt-4 rounded-xl bg-accent px-5 py-2.5 text-[14px] font-bold text-white hover:bg-accent-dark">Trouver mon SaaS</button></div>
+        <div className="mt-2 rounded-2xl bg-white border border-line p-6"><p className="font-bold text-[17px]">Ton premier SaaS commence ici.</p><p className="mt-1 text-ink-soft">Réponds à quelques questions : Bingoo! te montre les SaaS en tendance qui gagnent déjà de l'argent, puis construit ta version et la met en ligne.</p><button onClick={() => nav("/explorer/trouver")} className="mt-4 rounded-xl bg-accent px-5 py-2.5 text-[14px] font-bold text-white hover:bg-accent-dark">Trouver mon SaaS</button></div>
       ) : (
         <div className="mt-2 grid md:grid-cols-2 lg:grid-cols-3 gap-3">{mes.map((a) => {
           const insp = a.saas_projets?.data?.inspire;
@@ -2452,14 +2452,32 @@ const SECTEURS = ["Marketing et SEO", "Réseaux sociaux et contenu", "IA et auto
 const PAYS_RAPIDES = ["FR", "BE", "CH", "CA", "MA", "US", "GB", "ES"];
 const QUESTIONS = [
   { k: "pays", pays: true, q: "Dans quel pays te situes-tu ?", aide: "Bingoo! part de ce qui marche déjà chez toi, et de ce qui marche ailleurs sans équivalent dans ton pays." },
+  { k: "situation", q: "Tu fais quoi aujourd'hui ?", aide: "Bingoo! adapte ton plan au temps et à l'énergie que tu as vraiment.", opts: [
+    ["etudiant", "Étudiant", "En cours, en alternance ou en stage"], ["salarie", "Salarié", "Un travail à côté du projet"], ["independant", "Indépendant ou freelance", "Tu as déjà des clients pour ton activité"], ["entreprise", "J'ai déjà une entreprise", "Tu veux ajouter un logiciel à ce que tu fais"], ["recherche", "En recherche d'emploi", "Tu as du temps à y consacrer"],
+  ] },
+  { k: "experience", q: "Tu as déjà lancé quelque chose en ligne ?", aide: "Aucune mauvaise réponse : ça change seulement le rythme de ton plan.", opts: [
+    ["jamais", "Jamais", "Ce serait mon premier projet"], ["abandonne", "Oui, mais j'ai arrêté", "Le projet n'est pas allé au bout"], ["vendu", "Oui, et j'ai déjà vendu", "Quelques ventes, même petites"], ["tourne", "Oui, et ça tourne", "J'ai déjà une activité en ligne qui rapporte"],
+  ] },
+  { k: "blocage", q: "Qu'est-ce qui t'a le plus freiné jusqu'ici ?", aide: "Bingoo! met l'accent de ton plan sur ce point-là.", opts: [
+    ["idee", "Trouver la bonne idée", "Je ne savais pas quoi lancer"], ["construire", "Construire le produit", "La technique me bloquait"], ["clients", "Trouver des clients", "Je ne savais pas comment vendre"], ["tenir", "Tenir dans la durée", "Je commence, puis j'arrête"],
+  ] },
   { k: "ambition", q: "Combien aimerais-tu gagner par mois ?", aide: "Bingoo! te montre des SaaS qui font déjà ce chiffre, pas plus gros.", opts: [
     ["complement", "Un complément", "300 à 2 000 $ par mois"], ["vivre", "En vivre", "2 000 à 10 000 $ par mois"], ["gros", "Viser gros", "Plus de 10 000 $ par mois"],
+  ] },
+  { k: "delai", q: "Quand aimerais-tu avoir ton premier client ?", aide: "Ton plan s'organise autour de cette date. C'est un objectif, pas une promesse : ça dépend aussi du marché.", opts: [
+    ["mois", "Dans le mois", "Je veux avancer vite"], ["trois", "D'ici 3 mois", "Le rythme le plus courant"], ["six", "D'ici 6 mois", "Je préfère construire sans pression"],
   ] },
   { k: "temps", q: "Combien d'heures par semaine peux-tu y mettre ?", aide: "Avec peu de temps, Bingoo! choisit des SaaS tenus par une seule personne et qu'il sait construire en entier.", opts: [
     ["peu", "Moins de 5 heures", "À côté d'un travail ou des études"], ["moyen", "5 à 15 heures", "Quelques soirées et le week-end"], ["beaucoup", "Plus de 15 heures", "C'est mon projet principal"],
   ] },
+  { k: "budget", q: "Quel budget peux-tu mettre chaque mois, en plus de Bingoo! ?", aide: "Pour la publicité ou des outils. Zéro, c'est possible : ton plan s'en passe.", opts: [
+    ["zero", "0 €", "Uniquement du temps"], ["petit", "Jusqu'à 100 €", "Un petit coup de pouce"], ["moyen", "100 à 500 €", "De quoi tester la publicité"], ["gros", "Plus de 500 €", "Je peux investir pour aller plus vite"],
+  ] },
   { k: "audience", q: "À qui veux-tu vendre ?", aide: "Les pros paient plus cher ; les particuliers sont plus nombreux.", opts: [
     ["B2B", "Aux professionnels", "Entreprises, indépendants, agences"], ["B2C", "Aux particuliers", "Créateurs, étudiants, grand public"], ["", "Peu importe", "Bingoo! cherche des deux côtés"],
+  ] },
+  { k: "langue", q: "Dans quelle langue veux-tu vendre ?", aide: "Ton site, tes messages et tes contenus seront écrits dans cette langue.", opts: [
+    ["fr", "En français", "France, Belgique, Suisse, Québec…"], ["en", "En anglais", "Le plus grand marché"], ["deux", "Les deux", "Une version dans chaque langue"],
   ] },
   { k: "profil", q: "Qu'est-ce que tu sais le mieux faire ?", aide: "Bingoo! construit le logiciel : ta force sert à trouver les clients.", opts: [
     ["vente", "Vendre et convaincre", "Prospection, réseau, marketing"], ["code", "La technique", "Je code ou je comprends les outils"], ["aucun", "Ni l'un ni l'autre", "Je débute, je veux du simple"],
@@ -2476,6 +2494,9 @@ const QUESTIONS = [
     ["video", "Me montrer en vidéo", "TikTok, YouTube, Reels"],
     ["ecrire", "Écrire du contenu chaque semaine", "Articles, posts, newsletter"],
     ["pub", "Payer de la publicité", "Google Ads, Meta Ads"],
+  ] },
+  { k: "motivation", q: "Au fond, pourquoi tu te lances ?", aide: "Ça ne change pas tes SaaS, mais Bingoo! s'en souvient pour t'aider à tenir.", opts: [
+    ["liberte", "Être libre de mon temps", "Choisir quand et où je travaille"], ["revenu", "Un revenu en plus", "Mieux vivre, mettre de côté"], ["quitter", "Quitter mon travail actuel", "Construire ma porte de sortie"], ["prouver", "Me prouver que j'en suis capable", "Aller au bout d'un projet à moi"],
   ] },
   { k: "secteurs", multi: true, secteurs: true, q: "Des secteurs qui t'attirent ?", aide: "Aucun, c'est très bien aussi : Bingoo! cherche partout." },
 ];
@@ -2509,14 +2530,28 @@ const ICONES_OPTIONS = {
   audience: { B2B: "mallette", B2C: "personne", "": "globe" },
   ambition: { complement: "piece", vivre: "maison", gros: "fusee" },
   profil: { vente: "cible", code: "code", aucun: "etoile" },
+  situation: { etudiant: "etoile", salarie: "mallette", independant: "personne", entreprise: "maison", recherche: "google" },
+  experience: { jamais: "etoile", abandonne: "horloge", vendu: "piece", tourne: "fusee" },
+  blocage: { idee: "google", construire: "code", clients: "cible", tenir: "horloge" },
+  delai: { mois: "fusee", trois: "horloge", six: "horloge" },
+  budget: { zero: "etoile", petit: "piece", moyen: "piece", gros: "pub" },
+  langue: { fr: "bouche", en: "globe", deux: "globe" },
+  motivation: { liberte: "horloge", revenu: "piece", quitter: "fusee", prouver: "cible" },
 };
 const iconeOption = (k, v) => IC[ICONES_OPTIONS[k]?.[v ?? ""]] ?? IC.etoile;
 // Le petit mot après chaque réponse : ce que Bingoo! en fait concrètement
 const RETOURS = {
   pays: (v) => v === "FR" ? "Bingoo! met en avant les SaaS qui marchent déjà en France, puis ceux qui marchent ailleurs sans équivalent français : la place est libre." : `Bingoo! met en avant ce qui marche déjà en ${PAYS[v] ?? "ton pays"}, puis ce qui marche ailleurs et que tu peux adapter.`,
-  ambition: { complement: "Un bon premier objectif : une poignée de clients suffit souvent.", vivre: "C'est l'objectif le plus courant. Bingoo! te montre des SaaS qui font déjà ce chiffre.", gros: "Ambitieux, et faisable : Bingoo! ne te montre que des SaaS qui y sont déjà arrivés." },
+  ambition: { complement: "Un bon premier objectif : une poignée de clients suffit souvent.", vivre: "C'est l'objectif le plus courant. Bingoo! te montre des SaaS qui font déjà ce chiffre.", gros: "Ambitieux. Bingoo! te montre des SaaS qui y sont arrivés : un repère, pas une garantie." },
   temps: { peu: "Bingoo! choisit des SaaS tenus par une seule personne, qu'il sait construire en entier.", moyen: "Assez pour lancer et trouver tes premiers clients en quelques semaines.", beaucoup: "Tu peux viser plus gros et avancer vite : ton plan en tiendra compte." },
   audience: { B2B: "Les pros paient plus cher : il te faut moins de clients pour atteindre ton objectif.", B2C: "Les particuliers sont plus nombreux : ce sont le contenu et les réseaux qui les amènent.", "": "Bingoo! cherche des deux côtés et garde ce qui marche le mieux." },
+  situation: { etudiant: "Ton plan tiendra compte de tes cours : peu d'heures, mais régulières.", salarie: "Ton plan se fait le soir et le week-end, sans mettre ton travail en danger.", independant: "Tes clients actuels sont un bon point de départ : ils ont peut-être le même problème.", entreprise: "Un logiciel qui prolonge ce que tu fais déjà, c'est souvent le plus simple à vendre.", recherche: "Tu as du temps : ton plan peut avancer plus vite." },
+  experience: { jamais: "Bingoo! te guide pas à pas, une étape par jour.", abandonne: "Ton plan est découpé en petites étapes, pour aller au bout cette fois.", vendu: "Tu sais déjà vendre : c'est le plus dur.", tourne: "Tu peux aller plus vite : Bingoo! te montre des SaaS plus ambitieux." },
+  blocage: { idee: "Tu pars de SaaS qui encaissent déjà : l'idée a déjà fait ses preuves ailleurs.", construire: "Bingoo! construit le logiciel pour toi.", clients: "Ton plan met l'accent sur la recherche de clients, avec des contacts trouvés pour toi.", tenir: "Une étape par jour, chaque matin par e-mail, pour avancer sans t'épuiser." },
+  delai: { mois: "Possible pour certains, pas pour tous : ton plan te donne les actions, le résultat dépend aussi du marché.", trois: "Un délai réaliste pour lancer, tester et trouver tes premiers clients.", six: "Tu as le temps de bien construire et de tester ton offre." },
+  budget: { zero: "Ton plan se passera de publicité payante : contenu, réseaux et contact direct.", petit: "De quoi tester une petite publicité quand ton offre est prête.", moyen: "Assez pour tester la publicité et voir ce qui marche.", gros: "Tu pourras tester plusieurs canaux payants plus vite." },
+  langue: { fr: "Bingoo! met en avant les SaaS sans équivalent en français.", en: "Le marché le plus grand, et aussi le plus disputé.", deux: "Bingoo! prépare ta version dans les deux langues." },
+  motivation: { liberte: "Noté. Bingoo! te le rappellera les jours où c'est dur.", revenu: "Noté. Ton plan vise d'abord un premier revenu régulier.", quitter: "Noté. Avance sans quitter ton travail tant que ton SaaS ne paie pas.", prouver: "Noté. Le plus important : aller au bout, une étape à la fois." },
   profil: { vente: "Ton avantage : trouver les clients. Bingoo! s'occupe du logiciel.", code: "Bingoo! construit l'essentiel, et tu pourras aller plus loin toi-même.", aucun: "Aucun problème : Bingoo! construit le logiciel et te dit quoi faire chaque jour." },
 };
 // Un refus ne peut pas contredire un canal choisi juste avant (« Payer de la publicité » des deux côtés)
@@ -2528,7 +2563,7 @@ const lirePar = () => { try { return JSON.parse(localStorage.getItem("bingoo-par
 // Les personnes déjà venues avant ce mode ne le voient pas
 export const guideActif = () => { try { return localStorage.getItem("bingoo-guide") !== "fini" && !lirePar()?.fini && (localStorage.getItem("bingoo-guide") === "en_cours" || !localStorage.getItem("bingoo-parcours-vu")); } catch { return false; } };
 const finirGuide = () => { try { localStorage.setItem("bingoo-guide", "fini"); } catch { /* stockage indisponible */ } };
-const paramsDe = (r) => ({ pays: r.pays || null, categories: r.secteurs, canaux: r.canaux, refus: (r.refus ?? []).filter((v) => !(r.canaux ?? []).includes(REFUS_CONTRAIRE[v])), audience: r.audience || null, profil: r.profil ?? "aucun", ambition: r.ambition ?? "vivre", temps: r.temps ?? "moyen", metier: null });
+const paramsDe = (r) => ({ pays: r.pays || null, categories: r.secteurs, canaux: r.canaux, refus: [...new Set([...(r.refus ?? []).filter((v) => !(r.canaux ?? []).includes(REFUS_CONTRAIRE[v])), ...(r.budget === "zero" ? ["pub"] : [])])], audience: r.audience || null, profil: r.profil ?? "aucun", ambition: r.ambition ?? "vivre", temps: r.temps ?? "moyen", metier: null });
 export function TrouveTonSaas() {
   const { ws, session, reload } = useWs();
   const avant = lirePar();
@@ -2543,7 +2578,7 @@ export function TrouveTonSaas() {
   const sauver = (n) => { try { localStorage.setItem("bingoo-parcours2", JSON.stringify({ ...n, fini: n.etape >= QUESTIONS.length || n.fini })); } catch { /* stockage indisponible */ } };
   const aller = (n) => {
     setR(n); sauver(n);
-    if (n.etape >= QUESTIONS.length) supabase.from("saas_preferences").upsert({ workspace_id: ws.id, secteurs: n.secteurs ?? [], profil: n.profil ?? null, reponses: { canaux: n.canaux, refus: n.refus, temps: n.temps, audience: n.audience, ambition: n.ambition, metier: n.metier || null }, maj: new Date().toISOString() }).then(() => {});
+    if (n.etape >= QUESTIONS.length) supabase.from("saas_preferences").upsert({ workspace_id: ws.id, secteurs: n.secteurs ?? [], profil: n.profil ?? null, reponses: { pays: n.pays ?? null, situation: n.situation ?? null, experience: n.experience ?? null, blocage: n.blocage ?? null, delai: n.delai ?? null, budget: n.budget ?? null, langue: n.langue ?? null, motivation: n.motivation ?? null, canaux: n.canaux, refus: n.refus, temps: n.temps, audience: n.audience, ambition: n.ambition }, maj: new Date().toISOString() }).then(() => {});
   };
   const charger = () => {
     setRes(undefined);
@@ -2698,7 +2733,13 @@ function PlanChiffre({ r, ap, onSuite }) {
             <b className="w-20 shrink-0 text-right tnum">{n} clients</b>
           </div>
         ))}</div>
-        {ap?.n ? <p className="mt-6 rounded-xl bg-paper px-4 py-3 text-[14px]"><b className="tnum">{Number(ap.n).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié font déjà ça{ap.mediane ? <>, avec un revenu médian de <b className="tnum">{dollar(ap.mediane)}</b> par mois</> : null}.</p> : null}
+        <div className="mt-6 flex flex-wrap justify-center gap-2 text-[12.5px]">{[
+          r.delai && `Premier client visé : ${{ mois: "dans le mois", trois: "d'ici 3 mois", six: "d'ici 6 mois" }[r.delai]}`,
+          r.temps && `${{ peu: "Moins de 5 h", moyen: "5 à 15 h", beaucoup: "Plus de 15 h" }[r.temps]} par semaine`,
+          r.budget && (r.budget === "zero" ? "Sans publicité payante" : `Budget : ${{ petit: "jusqu'à 100 €", moyen: "100 à 500 €", gros: "plus de 500 €" }[r.budget]} par mois`),
+          r.langue && `Vendu ${{ fr: "en français", en: "en anglais", deux: "en français et en anglais" }[r.langue]}`,
+        ].filter(Boolean).map((x) => <span key={x} className="rounded-full border border-line bg-white px-3 py-1 text-ink-soft">{x}</span>)}</div>
+        {ap?.n ? <p className="mt-4 rounded-xl bg-paper px-4 py-3 text-[14px]"><b className="tnum">{Number(ap.n).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié font déjà ça{ap.mediane ? <>, avec un revenu médian de <b className="tnum">{dollar(ap.mediane)}</b> par mois</> : null}.</p> : null}
         <p className="mt-4 text-[12.5px] text-ink-faint">Un repère pour te fixer un cap, pas une promesse de revenus.</p>
         <button onClick={onSuite} className="fx-brille mt-8 w-full rounded-2xl bg-accent py-4 text-[16.5px] font-bold text-white shadow-[0_18px_40px_-18px_rgba(224,83,31,.8)] hover:bg-accent-dark">Voir mes SaaS à succès</button>
       </div></div>
@@ -2920,7 +2961,7 @@ export function PremiersClients({ s, a, r }) {
   // Les prospects trouvés pour toi : formules 3 mois et 12 mois
   if (ws?.plan === "explorer_pro" && (ws.periode ?? "mois") === "mois") return (
     <section className="mt-6 rounded-3xl border border-line bg-white p-5 sm:p-7 flex flex-wrap items-center gap-5">
-      <div className="flex-1 min-w-[240px]"><h2 className="text-[22px] font-black leading-tight" style={HF}>Tes 10 premiers clients en 7 jours</h2><p className="mt-1.5 text-[14.5px] text-ink-soft">Les établissements qui ont le problème, trouvés pour toi, le message prêt et l'étape du jour chaque matin : c'est dans les formules 3 mois et 12 mois.</p></div>
+      <div className="flex-1 min-w-[240px]"><h2 className="text-[22px] font-black leading-tight" style={HF}>Ton plan pour tes 10 premiers clients</h2><p className="mt-1.5 text-[14.5px] text-ink-soft">Les établissements qui ont le problème, trouvés pour toi, le message prêt et l'étape du jour chaque matin : c'est dans les formules 3 mois et 12 mois.</p></div>
       <a href="#/abonnement" className="rounded-xl bg-accent px-5 py-3 font-bold text-white hover:bg-accent-dark">Passer à 3 mois</a>
     </section>
   );
@@ -2928,7 +2969,7 @@ export function PremiersClients({ s, a, r }) {
     <section className="mt-6 rounded-3xl border border-line bg-white overflow-hidden">
       <div className="px-5 sm:px-7 pt-6 pb-4 border-b border-line flex flex-wrap items-end gap-4">
         <div className="flex-1 min-w-[220px]">
-          <h2 className="text-[22px] font-black leading-tight" style={HF}>Tes 10 premiers clients en 7 jours</h2>
+          <h2 className="text-[22px] font-black leading-tight" style={HF}>Ton plan pour tes 10 premiers clients</h2>
           <p className="text-[13.5px] text-ink-soft">Un jour, une étape, dès que ta version est en ligne : tu n'attends pas qu'elle soit parfaite.</p>
         </div>
         <div className="text-right"><p className="text-[28px] font-black tnum leading-none" style={HF}>{payants}<span className="text-ink-faint text-[18px]"> / 10</span></p><p className="text-[12px] text-ink-faint">clients payants</p></div>

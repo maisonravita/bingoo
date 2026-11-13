@@ -76,7 +76,7 @@ export function plan30(s, r, a) {
         sien && sien < prix ? `Fixe ton prix à ${prix} € par mois : ${s.nom} démarre à ${sien} €, mais une version ${a?.type === "metier" ? `pensée pour ${a.les}` : "pour les pros français"} vaut plus.` : `Fixe ton prix à ${prix} € par mois${sien ? `, comme ${s.nom} : c'est un prix que le marché accepte déjà` : ""}.`,
       ] },
       { titre: "Semaine 2 : tes 10 premiers clients", actions: [
-        "Suis « Tes 10 premiers clients en 7 jours », juste en dessous : une étape par jour.",
+        "Suis « Ton plan pour tes 10 premiers clients », juste en dessous : une étape par jour.",
         `Montre ta page à ${q(10, 5)} personnes de ta cible (${cible}) et note leurs mots exacts.`,
         ...canaux.slice(0, 1).map((c) => `Ouvre ton compte sur ton premier canal (${nomCanal(c)}) et prépare 5 publications d'avance.`),
       ] },
