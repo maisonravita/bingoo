@@ -417,7 +417,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     }
     if (b.quoi === "ia-etat") {
       const [{ data: sec }, { data: mois }] = await Promise.all([admin.from("saas_app_secrets").select("ia_cle, maj").eq("app_id", app.id).maybeSingle(), admin.rpc("saas_app_ia_mois", { p_app: app.id })]);
-      const inclus = ({ explorer_pro: 1000, business: 3000, fondateur: 3000 } as Record<string, number>)[ws.plan] ?? 300;
+      const inclus = ({ explorer_pro: 300, business: 3000, fondateur: 3000 } as Record<string, number>)[ws.plan] ?? 300;
       return { cle: sec?.ia_cle ? `${sec.ia_cle.slice(0, 10)}…${sec.ia_cle.slice(-4)}` : null, maj: sec?.maj ?? null, mois: mois ?? 0, inclus };
     }
     if (b.quoi === "ia-cle") {

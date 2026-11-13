@@ -399,7 +399,7 @@ export async function checkout(ws: Workspace, userId: string, planKey: string, y
     await admin.from("workspaces").update({ stripe_customer: customer }).eq("id", ws.id);
   }
   if (ws.stripe_subscription && ["active", "trialing", "past_due"].includes(ws.plan_status)) return await portal(ws, userId);
-  // Prix fondateur : Solo à 29 € à vie tant qu'il reste des places (vérifié au paiement, pas seulement à l'affichage)
+  // Prix fondateur : 19 € à vie tant qu'il reste des places (vérifié au paiement, pas seulement à l'affichage)
   const { FOUNDER } = await import("./core.ts");
   // Durée choisie (1, 3 ou 12 mois) ; les anciennes demandes « annuel » valent 12 mois
   const per = PERIODES[yearly ? "an" : periodeKey] ?? PERIODES.mois;
