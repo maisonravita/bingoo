@@ -143,6 +143,9 @@ export default function Abonnement() {
     catch (e) { toast(e.message, "bad"); setBusy(null); }
   };
 
+  // Arrivée depuis « Lancer celui-ci » : on ouvre directement le paiement de la formule demandée
+  const formule = new URLSearchParams(loc.search).get("formule");
+  useEffect(() => { if (formule && payments && plans.some((p) => p.key === formule) && !["active", "trialing"].includes(ws.plan_status)) go("billing-checkout", formule); }, [formule, payments, plans.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const saas = modeExplorer(ws) || ws.plan === "fondateur";
   const daysLeft = ws.trial_ends ? Math.ceil((new Date(ws.trial_ends) - new Date()) / 864e5) : null;
   const [label, tone] = ws.plan === "essai" ? [saas ? "Verrouillé" : daysLeft > 0 ? `Aperçu : ${daysLeft} jour${daysLeft > 1 ? "s" : ""} restant${daysLeft > 1 ? "s" : ""}` : (payments ? "Essai terminé" : "Accès de lancement"), daysLeft > 0 || !payments ? "accent" : "bad"] : STATUS[ws.plan_status] ?? [ws.plan_status, "muted"];

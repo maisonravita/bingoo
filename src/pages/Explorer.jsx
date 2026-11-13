@@ -25,6 +25,7 @@ const PAYS_BASE = { FR: "France", BE: "Belgique", CH: "Suisse", DE: "Allemagne",
 // Tous les codes pays traduits en français (le navigateur connaît les noms), avec repli sur la liste de base
 const nomsPays = (() => { try { return new Intl.DisplayNames(["fr"], { type: "region" }); } catch { return null; } })();
 const PAYS = new Proxy(PAYS_BASE, { get: (o, k) => o[k] ?? (typeof k === "string" && /^[A-Z]{2}$/.test(k) ? (() => { try { const n = nomsPays?.of(k); return n && n !== k ? n : undefined; } catch { return undefined; } })() : undefined) });
+const TOUS_PAYS = (() => { const L = "AD AE AL AM AO AR AT AU AZ BA BD BE BF BG BH BJ BO BR BY CA CD CG CH CI CL CM CN CO CR CY CZ DE DK DO DZ EC EE EG ES ET FI FR GA GB GE GH GN GR GT HK HN HR HT HU ID IE IL IN IQ IR IS IT JM JO JP KE KR KW KZ LB LK LT LU LV LY MA MC MD ME MG MK ML MR MT MU MX MY MZ NE NG NI NL NO NZ OM PA PE PH PK PL PT PY QA RE RO RS RU RW SA SE SG SI SK SN TD TG TH TN TR TW TZ UA UG US UY UZ VE VN ZA".split(" "); return L.map((c) => [c, PAYS[c] ?? c]).sort((a, b) => a[1].localeCompare(b[1], "fr")); })();
 const drapeau = (c) => c && /^[A-Z]{2}$/.test(c) ? String.fromCodePoint(...[...c].map((x) => 127397 + x.charCodeAt(0))) : "";
 const date = (d) => d ? new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : null;
 // Un revenu vérifié sous 100 $ par mois (ou à 0) est affiché tel quel, sans étoile ni couleur « succès »
@@ -2446,7 +2447,22 @@ function FilBourse({ fil, onClose }) {
 // ---------------------------------------------------------------- Démarrer : 3 questions, puis les SaaS à copier faits pour toi
 const SECTEURS = ["Marketing et SEO", "Réseaux sociaux et contenu", "IA et automatisation", "Données et analytics", "Développeurs et no-code", "CRM et ventes", "Prospection et emailing", "E-commerce", "Support client", "Gestion de projet", "Facturation et comptabilité", "Éducation et formation", "Immobilier", "Santé", "Commerce et restauration", "BTP et artisans"];
 // Trouve ton SaaS : 5 questions, puis les SaaS au revenu vérifié qui collent à ta façon de vendre (données TrustMRR : canaux, cible, taille, équipe)
+// Les pays proposés en premier (les plus fréquents chez nos visiteurs) ; les autres se choisissent dans la liste
+const PAYS_RAPIDES = ["FR", "BE", "CH", "CA", "MA", "US", "GB", "ES"];
 const QUESTIONS = [
+  { k: "pays", pays: true, q: "Dans quel pays te situes-tu ?", aide: "Bingoo! part de ce qui marche déjà chez toi, et de ce qui marche ailleurs sans équivalent dans ton pays." },
+  { k: "ambition", q: "Combien aimerais-tu gagner par mois ?", aide: "Bingoo! te montre des SaaS qui font déjà ce chiffre, pas plus gros.", opts: [
+    ["complement", "Un complément", "300 à 3 000 $ par mois"], ["vivre", "En vivre", "2 000 à 20 000 $ par mois"], ["gros", "Viser gros", "Plus de 10 000 $ par mois"],
+  ] },
+  { k: "temps", q: "Combien d'heures par semaine peux-tu y mettre ?", aide: "Avec peu de temps, Bingoo! choisit des SaaS tenus par une seule personne et qu'il sait construire en entier.", opts: [
+    ["peu", "Moins de 5 heures", "À côté d'un travail ou des études"], ["moyen", "5 à 15 heures", "Quelques soirées et le week-end"], ["beaucoup", "Plus de 15 heures", "C'est mon projet principal"],
+  ] },
+  { k: "audience", q: "À qui veux-tu vendre ?", aide: "Les pros paient plus cher ; les particuliers sont plus nombreux.", opts: [
+    ["B2B", "Aux professionnels", "Entreprises, indépendants, agences"], ["B2C", "Aux particuliers", "Créateurs, étudiants, grand public"], ["", "Peu importe", "Bingoo! cherche des deux côtés"],
+  ] },
+  { k: "profil", q: "Qu'est-ce que tu sais le mieux faire ?", aide: "Bingoo! construit le logiciel : ta force sert à trouver les clients.", opts: [
+    ["vente", "Vendre et convaincre", "Prospection, réseau, marketing"], ["code", "La technique", "Je code ou je comprends les outils"], ["aucun", "Ni l'un ni l'autre", "Je débute, je veux du simple"],
+  ] },
   { k: "canaux", multi: true, q: "Comment te vois-tu trouver tes clients ?", aide: "Bingoo! cherche des SaaS qui gagnent déjà de l'argent exactement comme ça. Plusieurs réponses possibles.", opts: [
     ["seo", "Écrire et être trouvé sur Google", "Blog, SEO, newsletter"],
     ["reseaux", "Publier sur les réseaux", "TikTok, X, Instagram, Reddit, LinkedIn"],
@@ -2460,32 +2476,22 @@ const QUESTIONS = [
     ["ecrire", "Écrire du contenu chaque semaine", "Articles, posts, newsletter"],
     ["pub", "Payer de la publicité", "Google Ads, Meta Ads"],
   ] },
-  { k: "temps", q: "Combien d'heures par semaine peux-tu y mettre ?", aide: "Avec peu de temps, Bingoo! choisit des SaaS tenus par une seule personne et qu'il sait construire en entier.", opts: [
-    ["peu", "Moins de 5 heures", "À côté d'un travail ou des études"], ["moyen", "5 à 15 heures", "Quelques soirées et le week-end"], ["beaucoup", "Plus de 15 heures", "C'est mon projet principal"],
-  ] },
-  { k: "audience", q: "À qui veux-tu vendre ?", aide: "Les pros paient plus cher ; les particuliers sont plus nombreux.", opts: [
-    ["B2B", "Aux professionnels", "Entreprises, indépendants, agences"], ["B2C", "Aux particuliers", "Créateurs, étudiants, grand public"], ["", "Peu importe", ""],
-  ] },
-  { k: "ambition", q: "Quel revenu vises-tu par mois ?", aide: "Bingoo! te montre des SaaS qui font déjà ce chiffre, pas plus gros.", opts: [
-    ["complement", "Un complément", "300 à 3 000 $ par mois"], ["vivre", "En vivre", "2 000 à 20 000 $ par mois"], ["gros", "Viser gros", "Plus de 10 000 $ par mois"],
-  ] },
-  { k: "profil", q: "Qu'est-ce que tu sais le mieux faire ?", aide: "Bingoo! construit le logiciel : ta force sert à trouver les clients.", opts: [
-    ["vente", "Vendre et convaincre", "Prospection, réseau, marketing"], ["code", "La technique", "Je code ou je comprends les outils"], ["aucun", "Ni l'un ni l'autre", "Je débute, je veux du simple"],
-  ] },
-  { k: "metier", texte: true, q: "Tu connais bien un métier ou un secteur ?", aide: "Facultatif. Si oui, Bingoo! te propose une version faite pour ce métier : tu parles leur langue, c'est ton avantage. Sinon, il te propose la version française.", idees: ["Coiffeurs", "Restaurants", "Agents immobiliers", "Conciergeries", "Coachs sportifs", "Artisans du bâtiment", "Kinés et ostéopathes", "Avocats", "E-commerçants", "Associations"] },
   { k: "secteurs", multi: true, secteurs: true, q: "Des secteurs qui t'attirent ?", aide: "Aucun, c'est très bien aussi : Bingoo! cherche partout." },
 ];
+// Un refus ne peut pas contredire un canal choisi juste avant (« Payer de la publicité » des deux côtés)
+const REFUS_CONTRAIRE = { appeler: "prospection", pub: "pub", ecrire: "seo" };
+const optionsDe = (Q, r) => Q.k === "refus" ? Q.opts.filter(([v]) => !(r.canaux ?? []).includes(REFUS_CONTRAIRE[v])) : Q.opts;
 const QK = (k) => QUESTIONS.find((q) => q.k === k);
 const lirePar = () => { try { return JSON.parse(localStorage.getItem("bingoo-parcours2") ?? "null"); } catch { return null; } };
 // Mode débutant : tant que le premier parcours n'est pas fini, un seul chemin guidé
 // Les personnes déjà venues avant ce mode ne le voient pas
 export const guideActif = () => { try { return localStorage.getItem("bingoo-guide") !== "fini" && !lirePar()?.fini && (localStorage.getItem("bingoo-guide") === "en_cours" || !localStorage.getItem("bingoo-parcours-vu")); } catch { return false; } };
 const finirGuide = () => { try { localStorage.setItem("bingoo-guide", "fini"); } catch { /* stockage indisponible */ } };
-const paramsDe = (r) => ({ categories: r.secteurs, canaux: r.canaux, refus: r.refus ?? [], audience: r.audience || null, profil: r.profil ?? "aucun", ambition: r.ambition ?? "vivre", temps: r.temps ?? "moyen", metier: r.metier || null });
-function TrouveTonSaas() {
+const paramsDe = (r) => ({ pays: r.pays || null, categories: r.secteurs, canaux: r.canaux, refus: (r.refus ?? []).filter((v) => !(r.canaux ?? []).includes(REFUS_CONTRAIRE[v])), audience: r.audience || null, profil: r.profil ?? "aucun", ambition: r.ambition ?? "vivre", temps: r.temps ?? "moyen", metier: null });
+export function TrouveTonSaas() {
   const { ws, session, reload } = useWs();
   const avant = lirePar();
-  const [r, setR] = useState(() => ({ canaux: [], refus: [], secteurs: [], audience: null, ambition: null, profil: null, temps: null, metier: "", ...(avant ?? {}), etape: 0 }));
+  const [r, setR] = useState(() => ({ canaux: [], refus: [], secteurs: [], audience: null, ambition: null, profil: null, temps: null, ...(avant ?? {}), pays: avant?.pays ?? null, metier: "", etape: 0 }));
   const [res, setRes] = useState(null);
   const [ap, setAp] = useState(null);
   const invite = estInvite(session);
@@ -2498,13 +2504,18 @@ function TrouveTonSaas() {
   };
   const charger = () => {
     setRes(undefined);
-    supabase.rpc("saas_pour_moi3", { p: paramsDe(r) }).then(({ data }) => setRes(data ?? []));
+    supabase.rpc("saas_pour_moi3", { p: paramsDe(r) }).then(({ data }) => {
+      let l = data ?? [];
+      // Choisi avant le paiement (« Lancer celui-ci ») : il passe en premier
+      try { const k = Number(localStorage.getItem(CLE_CHOIX)); if (Number.isInteger(k) && k > 0 && k < l.length) l = [l[k], ...l.slice(0, k), ...l.slice(k + 1)]; localStorage.removeItem(CLE_CHOIX); } catch { /* stockage indisponible */ }
+      setRes(l);
+    });
   };
   useEffect(() => { if (r.etape >= QUESTIONS.length) { if (debloque) charger(); else setRes([]); } }, [r.etape, debloque]); // eslint-disable-line react-hooks/exhaustive-deps
   // La preuve en direct : combien de SaaS au revenu vérifié collent déjà aux réponses données
   useEffect(() => {
     if (r.etape >= QUESTIONS.length && debloque) return;
-    const t = setTimeout(() => supabase.rpc("saas_pour_moi_apercu", { p: { categories: r.secteurs, canaux: r.canaux, refus: r.refus ?? [], audience: r.audience || null, ambition: r.ambition, temps: r.temps } }).then(({ data }) => data && setAp(data)), 250);
+    const t = setTimeout(() => supabase.rpc("saas_pour_moi_apercu", { p: { pays: r.pays || null, categories: r.secteurs, canaux: r.canaux, refus: r.refus ?? [], audience: r.audience || null, ambition: r.ambition, temps: r.temps } }).then(({ data }) => data && setAp(data)), 250);
     return () => clearTimeout(t);
   }, [r]); // eslint-disable-line react-hooks/exhaustive-deps
   const fini = r.etape >= QUESTIONS.length;
@@ -2513,10 +2524,11 @@ function TrouveTonSaas() {
   const basculer = (k, v) => setR({ ...r, [k]: r[k].includes(v) ? r[k].filter((x) => x !== v) : [...r[k], v] });
   const lib = (k, v, i = 1) => QK(k).opts.find((o) => o[0] === (v ?? ""))?.[i];
   const resume = [
+    r.pays ? `${drapeau(r.pays)} ${PAYS[r.pays] ?? r.pays}` : null,
     r.canaux.map((c) => lib("canaux", c)?.toLowerCase()).filter(Boolean).join(", "),
     r.refus?.length ? `Sans : ${r.refus.map((c) => lib("refus", c)?.toLowerCase()).join(", ")}` : null,
     lib("temps", r.temps) && `${lib("temps", r.temps)} par semaine`,
-    lib("audience", r.audience), lib("ambition", r.ambition, 2), r.metier ? `Métier : ${r.metier}` : null, r.secteurs.join(", "),
+    lib("audience", r.audience), lib("ambition", r.ambition, 2), r.secteurs.join(", "),
   ].filter(Boolean);
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
@@ -2529,19 +2541,26 @@ function TrouveTonSaas() {
           </div>
           <h1 className="mt-6 text-[30px] sm:text-[40px] font-black leading-[1.05] tracking-tight" style={HF}>{Q.q}</h1>
           <p className="mt-2 text-[15.5px] text-ink-soft max-w-2xl">{Q.aide}</p>
-          {Q.texte ? (
+          {Q.pays ? (
             <div className="mt-6">
-              <input value={r.metier ?? ""} onChange={(e) => setR({ ...r, metier: e.target.value.slice(0, 60) })} onKeyDown={(e) => { if (e.key === "Enter") aller({ ...r, etape: r.etape + 1 }); }} placeholder="Ex. coiffeurs, restaurants, comptables…" className="w-full max-w-md rounded-xl border-2 border-line bg-white px-4 py-3 text-[16px] outline-none focus:border-ink" />
-              <div className="mt-3 flex flex-wrap gap-2">{Q.idees.map((m) => <button key={m} type="button" onClick={() => setR({ ...r, metier: m })} className={cx("rounded-full border px-3.5 py-1.5 text-[13.5px]", r.metier === m ? "bg-ink text-white border-ink" : "bg-white border-line hover:border-ink-faint")}>{m}</button>)}</div>
-              <div className="mt-7 flex items-center gap-4">
-                <button onClick={() => aller({ ...r, etape: r.etape + 1 })} className="rounded-xl bg-accent text-white px-6 py-3 font-bold hover:bg-accent-dark">{(r.metier ?? "").trim() ? "Continuer" : "Non, passer"}</button>
-                <button onClick={() => setR({ ...r, etape: r.etape - 1 })} className="text-[14px] text-ink-soft hover:text-ink">Retour</button>
-              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{PAYS_RAPIDES.map((c) => (
+                <button key={c} type="button" onClick={() => aller({ ...r, pays: c, etape: r.etape + 1 })}
+                  className={cx("rounded-2xl border-2 px-4 py-4 text-left transition", r.pays === c ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink")}>
+                  <span className="block text-[26px] leading-none" aria-hidden>{drapeau(c)}</span>
+                  <span className="mt-2 block font-bold text-[15.5px]">{PAYS[c]}</span>
+                </button>
+              ))}</div>
+              <label className="mt-4 flex flex-wrap items-center gap-3 text-[14px] text-ink-soft">Un autre pays
+                <select value={PAYS_RAPIDES.includes(r.pays) ? "" : r.pays ?? ""} onChange={(e) => e.target.value && aller({ ...r, pays: e.target.value, etape: r.etape + 1 })} className="rounded-xl border-2 border-line bg-white px-3 py-2.5 text-[14.5px] text-ink outline-none focus:border-ink">
+                  <option value="">Choisir…</option>
+                  {TOUS_PAYS.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
+                </select>
+              </label>
             </div>
           ) : Q.secteurs ? (
             <div className="mt-6 flex flex-wrap gap-2">{SECTEURS.map((c) => <button key={c} type="button" onClick={() => basculer("secteurs", c)} className={cx("rounded-full border px-4 py-2 text-[14px] font-medium transition", choisi("secteurs", c) ? "bg-ink text-white border-ink" : "bg-white border-line hover:border-ink-faint")}>{c}</button>)}</div>
           ) : (
-            <div className={cx("mt-6 grid gap-3", Q.opts.length > 3 ? "sm:grid-cols-2" : "sm:grid-cols-3")}>{Q.opts.map(([v, t, sous]) => {
+            <div className={cx("mt-6 grid gap-3", optionsDe(Q, r).length > 3 ? "sm:grid-cols-2" : "sm:grid-cols-3")}>{optionsDe(Q, r).map(([v, t, sous]) => {
               const on = choisi(Q.k, v);
               return (
                 <button key={v || "tout"} type="button" onClick={() => Q.multi ? basculer(Q.k, v) : aller({ ...r, [Q.k]: v, etape: r.etape + 1 })}
@@ -2552,24 +2571,24 @@ function TrouveTonSaas() {
               );
             })}</div>
           )}
-          {!Q.texte && <div className="mt-7 flex items-center gap-4">
+          {!Q.pays ? <div className="mt-7 flex items-center gap-4">
             {Q.multi && <button onClick={() => aller({ ...r, etape: r.etape + 1 })} className="rounded-xl bg-accent text-white px-6 py-3 font-bold hover:bg-accent-dark">{r.etape === QUESTIONS.length - 1 ? (r.secteurs.length ? "Voir mes SaaS" : "Peu importe, cherche partout") : r[Q.k].length ? "Continuer" : Q.aucun ?? "Passer"}</button>}
             {r.etape > 0 && <button onClick={() => setR({ ...r, etape: r.etape - 1 })} className="text-[14px] text-ink-soft hover:text-ink">Retour</button>}
-          </div>}
+          </div> : r.etape > 0 && <button onClick={() => setR({ ...r, etape: r.etape - 1 })} className="mt-6 text-[14px] text-ink-soft hover:text-ink">Retour</button>}
           {ap && <PreuveDirecte ap={ap} />}
         </div>
       ) : (
         <div>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h1 className="text-[30px] sm:text-[38px] font-black leading-tight tracking-tight" style={HF}>Tes 3 SaaS en tendance</h1>
-              <p className="mt-1 text-[14.5px] text-ink-soft">Ils encaissent déjà, vérifié chez leur outil de paiement, leur revenu monte en ce moment, et ils trouvent leurs clients comme tu veux le faire.</p>
+              <h1 className="text-[30px] sm:text-[38px] font-black leading-tight tracking-tight" style={HF}>{debloque ? "Tes 3 SaaS en tendance" : "Tes SaaS à succès"}</h1>
+              <p className="mt-1 text-[14.5px] text-ink-soft">{debloque ? "Ils encaissent déjà, vérifié chez leur outil de paiement, leur revenu monte en ce moment, et ils trouvent leurs clients comme tu veux le faire." : "Ils encaissent déjà, vérifié chez leur outil de paiement, et ils trouvent leurs clients comme tu veux le faire. Choisis celui que tu veux lancer."}</p>
             </div>
             <button onClick={() => setR({ ...r, etape: 0 })} className="rounded-xl border border-line bg-white px-4 py-2 text-[13.5px] font-semibold hover:border-ink-faint">Changer mes réponses</button>
           </div>
           {resume.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{resume.map((x) => <span key={x} className="rounded-full bg-paper border border-line px-3 py-1 text-[12.5px] text-ink-soft">{x}</span>)}</div>}
           {!debloque ? (
-            ap === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : <Debloquer total={ap?.n} tendance={ap?.tendance} mediane={ap?.mediane} invite={invite} />
+            ap === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : <Debloquer total={ap?.n} tendance={ap?.tendance} mediane={ap?.mediane} invite={invite} r={r} />
           ) : res === undefined || res === null ? <div className="py-16 grid place-items-center"><Spinner /></div> : !res.length ? (
             <div className="mt-8 rounded-2xl border border-line bg-white p-6"><p className="font-bold">Rien qui colle à toutes tes réponses pour l'instant.</p><p className="mt-1 text-ink-soft">Retire un secteur ou une façon de trouver des clients : la bibliothèque grandit chaque jour.</p><button onClick={() => setR({ ...r, etape: 0 })} className="mt-4 rounded-xl bg-ink text-white px-5 py-2.5 font-semibold">Changer mes réponses</button></div>
           ) : (
@@ -2595,10 +2614,73 @@ function PreuveDirecte({ ap }) {
 export const estPaye = (ws) => ws?.plan === "fondateur" || (["explorer", "explorer_pro", "business", "solo", "pro"].includes(ws?.plan) && ["active", "trialing", "past_due"].includes(ws?.plan_status));
 // Avant paiement : le premier SaaS en clair (la preuve), les deux autres, le plan et le prompt une fois l'abonnement réglé.
 // Le serveur n'envoie que le premier tant que rien n'est payé : les cartes floutées sont factices.
-function Debloquer({ total, tendance, mediane, invite }) {
+const CLE_CHOIX = "bingoo-choix";
+// « Lancer celui-ci » avant paiement : on garde le SaaS choisi (son rang) et on file au paiement de la formule Lancer
+async function lancerApresPaiement({ rang, invite, ws, nav }) {
+  try { localStorage.setItem(CLE_CHOIX, String(rang)); } catch { /* stockage indisponible */ }
+  if (invite) return demanderCompte("Crée ton compte : tu arrives ensuite directement au paiement, et ton SaaS s'ouvre dès qu'il est reçu.");
+  try { const { url } = await fn("billing-checkout", { workspace_id: ws.id, plan: "explorer_pro", yearly: false }); if (url) { window.location.href = url; return; } } catch { /* paiement pas encore ouvert : on passe par la page Abonnement */ }
+  nav("/abonnement?formule=explorer_pro");
+}
+const Cadenas = ({ className = "h-3.5 w-3.5" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
+// Avant paiement : les SaaS à succès qui collent aux réponses, avec leurs vrais chiffres, mais sans leur nom ni ce qui permet de les reproduire.
+// Le serveur n'envoie ni nom, ni domaine, ni description tant que rien n'est payé.
+function CarteFloutee({ x, k, paysVise, onLancer, busy }) {
+  const t = tendanceDe(x.croissance);
+  return (
+    <div className="flex flex-col rounded-2xl border border-line bg-white p-4 sm:p-5">
+      <div className="flex items-start gap-3">
+        <span className="h-11 w-11 shrink-0 rounded-xl bg-gradient-to-br from-accent-soft to-[#E9E1FF] blur-[3px]" aria-hidden />
+        <div className="min-w-0 flex-1">
+          <p className="select-none font-bold text-[15.5px] blur-[6px]" aria-hidden>{["Saasify Pro", "Bookeasy", "Flowmate", "Clientio", "Postwise", "Invoicely"][k % 6]}</p>
+          <p className="mt-0.5 truncate text-[12.5px] text-ink-faint">{x.categorie}</p>{x.pays && x.pays !== "??" && <p className="truncate text-[12px] text-ink-faint">Origine : {drapeau(x.pays)} {PAYS[x.pays] ?? x.pays}</p>}
+        </div>
+        <div className="text-right"><p className="font-black text-[16px] leading-tight tnum">{dollar(x.mrr)}</p><p className="text-[11px] text-ink-faint">par mois, vérifié</p></div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {t && <span className={cx("rounded-full px-2.5 py-1 text-[12px] font-semibold", t[2])}>{t[1]}{x.croissance != null ? ` · ${pct30(x.croissance)} en 30 j` : ""}</span>}
+        {x.sans_local && paysVise && <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[12px] font-semibold text-accent-dark">Pas d'équivalent en {PAYS[paysVise] ?? paysVise}</span>}
+        {x.local && <span className="rounded-full bg-[#E4ECFB] px-2.5 py-1 text-[12px] font-semibold text-[#2B59C3]">Marche déjà dans ton pays</span>}
+      </div>
+      <p className="mt-3 h-[38px] select-none text-[13px] leading-snug text-ink-soft blur-[5px]" aria-hidden>Un logiciel simple qui aide ses clients à gagner du temps chaque semaine, avec un prix clair.</p>
+      <ul className="mt-2 space-y-1 text-[12.5px] text-ink-soft">
+        {x.canaux?.length > 0 && <li>Trouve ses clients par : <b className="text-ink">{x.canaux.slice(0, 3).map(nomCanal).join(", ")}</b></li>}
+        {x.solo && <li>Tenu par une seule personne</li>}
+      </ul>
+      <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-paper px-3 py-1.5 text-[12.5px] font-semibold text-ink-soft"><Cadenas />Son nom et ta version après paiement</p>
+      <button onClick={() => onLancer(x.rang ?? k)} disabled={busy} className="mt-4 rounded-xl bg-accent py-2.5 text-[14px] font-bold text-white hover:bg-accent-dark disabled:opacity-60">Lancer celui-ci</button>
+    </div>
+  );
+}
+function Debloquer({ total, tendance, mediane, invite, r }) {
   const nav = useNavigate();
-  const debloquer = () => invite ? demanderCompte("Crée ton compte, puis choisis ta formule : tes SaaS et ton plan s'affichent dès le paiement reçu.") : nav("/abonnement");
+  const { ws } = useWs();
+  const [liste, setListe] = useState(undefined);
+  const [n, setN] = useState(9);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { setListe(undefined); supabase.rpc("saas_pour_moi_floute", { p: paramsDe(r) }).then(({ data, error }) => setListe(error ? null : (data ?? []))); }, [r.etape]); // eslint-disable-line react-hooks/exhaustive-deps
+  const lancer = async (rang) => { setBusy(true); try { await lancerApresPaiement({ rang, invite, ws, nav }); } finally { setBusy(false); } };
+  const debloquer = () => lancer(0);
   const faux = [["Outil de réservation", "2 4•• $"], ["Assistant de facturation", "1 8•• $"], ["Extension de prospection", "3 1•• $"]];
+  const bandeau = (
+    <div className="mt-6 rounded-3xl border-2 border-ink bg-white p-5 sm:p-7 flex flex-wrap items-center gap-5">
+      <div className="flex-1 min-w-[260px]">
+        <h2 className="text-[22px] sm:text-[26px] font-black leading-tight" style={HF}>{liste?.length ? `${Number(total || liste.length).toLocaleString("fr-FR")} SaaS à succès pour toi` : "Tes 3 SaaS sont prêts"}</h2>
+        <p className="mt-1.5 text-[14.5px] text-ink-soft">{total ? <>Bingoo! a trouvé <b className="text-ink">{Number(total).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié qui collent à tes réponses{tendance ? <>, dont <b className="text-ink">{Number(tendance).toLocaleString("fr-FR")}</b> en tendance</> : null}{mediane ? <>, revenu médian {dollar(mediane)} par mois</> : null}. </> : null}Leur nom, leur fiche, ta version, ton plan et tes premiers clients s'affichent dès ton paiement reçu.</p>
+      </div>
+      <button onClick={debloquer} disabled={busy} className="rounded-xl bg-accent text-white px-6 py-3.5 font-bold hover:bg-accent-dark disabled:opacity-60">Débloquer mes résultats</button>
+    </div>
+  );
+  if (liste === undefined) return <div className="py-16 grid place-items-center"><Spinner /></div>;
+  if (liste?.length) return (
+    <>
+      {bandeau}
+      <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{liste.slice(0, n).map((x, k) => <CarteFloutee key={x.rang ?? k} x={x} k={k} paysVise={r.pays} onLancer={lancer} busy={busy} />)}</div>
+      {liste.length > n && <div className="mt-6 text-center"><button onClick={() => setN(n + 9)} className="rounded-xl border border-line bg-white px-5 py-2.5 text-[14px] font-semibold hover:border-ink-faint">Voir {Math.min(9, liste.length - n)} SaaS de plus</button></div>}
+      <ResultatsBingoo className="mt-8" />
+    </>
+  );
+  // Repli (liste floutée indisponible) : l'aperçu chiffré et trois cartes d'illustration
   return (
     <>
       <div className="mt-6 grid md:grid-cols-3 gap-4" aria-hidden>
@@ -2607,17 +2689,10 @@ function Debloquer({ total, tendance, mediane, invite }) {
             <div className="flex items-center gap-3"><span className="h-11 w-11 rounded-xl bg-accent-soft" /><div className="flex-1"><p className="font-bold">{nom}</p><p className="text-[12.5px] text-ink-faint">Catégorie</p></div><p className="font-black">{m}</p></div>
             <p className="mt-3 rounded-full bg-[#FEF3F2] px-2.5 py-1 text-[12.5px] w-fit">En pleine tendance</p>
             <p className="mt-3 text-[14px] text-ink-soft">Un SaaS qui gagne déjà de l'argent, tenu par une petite équipe, avec un prix simple.</p>
-            <ul className="mt-3 space-y-1 text-[13px]"><li>✓ Trouve ses clients comme toi</li><li>✓ Ne demande rien de ce que tu refuses</li><li>✓ Tenu par une seule personne</li></ul>
           </div>
         ))}
       </div>
-      <div className="mt-6 rounded-3xl border-2 border-ink bg-white p-5 sm:p-7 flex flex-wrap items-center gap-5">
-        <div className="flex-1 min-w-[260px]">
-          <h2 className="text-[22px] sm:text-[26px] font-black leading-tight" style={HF}>Tes 3 SaaS sont prêts</h2>
-          <p className="mt-1.5 text-[14.5px] text-ink-soft">{total ? <>Bingoo! a trouvé <b className="text-ink">{Number(total).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié qui collent à tes réponses{tendance ? <>, dont <b className="text-ink">{Number(tendance).toLocaleString("fr-FR")}</b> en tendance</> : null}{mediane ? <>, revenu médian {dollar(mediane)} par mois</> : null}. </> : null}Tes 3 meilleurs, ta version, ton plan, tes premiers clients et ton SaaS clé en main s'affichent dès ton paiement reçu.</p>
-        </div>
-        <button onClick={debloquer} className="rounded-xl bg-accent text-white px-6 py-3.5 font-bold hover:bg-accent-dark">Débloquer mes résultats</button>
-      </div>
+      {bandeau}
       <ResultatsBingoo className="mt-8" />
     </>
   );
