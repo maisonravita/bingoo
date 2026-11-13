@@ -85,8 +85,8 @@ export function verdictSansIa(texte: string, tarifs: string, prixUrl: string) {
   const connexion = /log ?in|sign ?in|se connecter|connexion|dashboard|tableau de bord/i.test(t);
   if (boutique && !recurrent) return "pas_saas";
   if (inscription && (recurrent || !!prixUrl)) return "saas";
-  if (!inscription && !recurrent && !prixUrl && !connexion) return "pas_saas";
-  return "doute";
+  // Aucun signe : souvent un site affiché en JavaScript (page vide sans navigateur) → mis de côté, pas écarté
+  return connexion || inscription || recurrent ? "doute" : "vide";
 }
 
 export function lectureSansIa(s: { nom?: string | null; domaine: string; categorie?: string | null }, home: string, tarifs: string) {
@@ -161,7 +161,8 @@ prix_entree (prix le plus bas d'une formule d'ABONNEMENT payante, nombre ; null 
       // et on écarte ce qui n'en est clairement pas un (boutique, aucun signe). Le reste sera relu plus tard.
       const v = verdictSansIa(texteHome, tarifs, f.prix_url);
       if (v === "pas_saas") { await admin.from("saas").update({ statut: "pas_saas", lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "pas_saas" }; }
-      if (v !== "saas") { await admin.from("saas").update({ essais: (s.essais ?? 0) + 1 }).eq("id", id); return { id, statut: "erreur" }; }
+      // Doute : mis de côté (3 essais d'un coup) pour une lecture plus complète plus tard, sans bloquer la file
+      if (v !== "saas") { await admin.from("saas").update({ essais: 3, lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "erreur" }; }
     }
     a = lectureSansIa(s, home, tarifs) as typeof a;
     sansIa = true;
