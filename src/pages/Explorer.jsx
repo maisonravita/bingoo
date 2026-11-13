@@ -3161,7 +3161,8 @@ function AchatVente() {
   // Un débutant ne rachète pas un SaaS à 10 M$ : on commence par les plus abordables
   const [budget, setBudget] = useState("petit");
   const BUDGETS = [["petit", "Moins de 10 000 $", (p) => p != null && p < 10000], ["moyen", "10 000 à 100 000 $", (p) => p >= 10000 && p < 100000], ["gros", "Plus de 100 000 $", (p) => p >= 100000], ["tous", "Tous", () => true]];
-  const visibles = (l ?? []).filter((x) => BUDGETS.find((b) => b[0] === budget)[2](x.prix != null ? Number(x.prix) : null)).sort((a, b) => (a.prix ?? Infinity) - (b.prix ?? Infinity));
+  const prixDe = (x) => (Number(x.prix) > 0 ? Number(x.prix) : null); // 0 = « à discuter »
+  const visibles = (l ?? []).filter((x) => BUDGETS.find((b) => b[0] === budget)[2](prixDe(x))).sort((a, b) => (prixDe(a) ?? Infinity) - (prixDe(b) ?? Infinity));
   const charger = () => { supabase.rpc("saas_a_vendre", { ws: ws.id }).then(({ data }) => setL(data ?? [])); supabase.rpc("saas_demandes_liste", { ws: ws.id }).then(({ data }) => setDem(data ?? [])); };
   useEffect(() => { charger(); }, [ws.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const retirer = async (table, id) => { await supabase.from(table).update({ statut: "retiree" }).eq("id", id); toast("Retiré", "good"); charger(); };
@@ -3198,7 +3199,7 @@ function AchatVente() {
             <div className="mt-4 grid grid-cols-3 gap-3">
               <div><p className="text-[11.5px] text-ink-faint">Prix demandé</p><p className="text-[20px] font-black tnum" style={HF}>{x.prix ? dollar(x.prix) : "À discuter"}</p></div>
               <div><p className="text-[11.5px] text-ink-faint">Revenu par mois</p><p className="text-[20px] font-black tnum" style={HF}>{x.mrr ? dollar(x.mrr) : x.mrr_declare ? dollar(x.mrr_declare) : "–"}</p><p className="text-[11px] text-ink-faint">{x.mrr ? "vérifié" : x.mrr_declare ? "déclaré par le vendeur" : ""}</p></div>
-              <div><p className="text-[11.5px] text-ink-faint">Multiple</p><p className="text-[20px] font-black tnum" style={HF}>{(x.multiple != null ? String(x.multiple).replace(".", ",").replace(/x$/i, " ×") : null) ?? (x.prix && (x.mrr || x.mrr_declare) ? `${(x.prix / ((x.mrr || x.mrr_declare) * 12)).toLocaleString("fr-FR", { maximumFractionDigits: 1 })}×` : "–")}</p><p className="text-[11px] text-ink-faint">du revenu annuel</p></div>
+              <div><p className="text-[11.5px] text-ink-faint">Multiple</p><p className="text-[20px] font-black tnum" style={HF}>{(parseFloat(x.multiple) > 0 ? String(x.multiple).replace(".", ",").replace(/x$/i, " ×") : null) ?? (Number(x.prix) > 0 && (x.mrr || x.mrr_declare) ? `${(x.prix / ((x.mrr || x.mrr_declare) * 12)).toLocaleString("fr-FR", { maximumFractionDigits: 1 })}×` : "–")}</p><p className="text-[11px] text-ink-faint">du revenu annuel</p></div>
             </div>
             {x.message && <p className="mt-3 text-[13.5px] text-ink-soft line-clamp-3">« {x.message} »</p>}
             {x.offres != null && <p className="mt-2 text-[12.5px] text-ink-faint">{x.offres} offre{x.offres > 1 ? "s" : ""} déjà reçue{x.offres > 1 ? "s" : ""}{x.depuis ? `, en vente depuis le ${new Date(x.depuis).toLocaleDateString("fr-FR")}` : ""}</p>}
