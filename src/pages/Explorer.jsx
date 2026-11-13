@@ -2548,6 +2548,7 @@ export function TrouveTonSaas() {
           <div className="flex items-center gap-3">
             <div className="flex gap-1.5">{QUESTIONS.map((_, i) => <span key={i} className={cx("h-1.5 w-6 sm:w-8 rounded-full transition-colors", i < r.etape ? "bg-accent" : i === r.etape ? "bg-ink" : "bg-line")} />)}</div>
             <span className="text-[13px] text-ink-faint tnum">Question {r.etape + 1} sur {QUESTIONS.length}</span>
+            {r.etape === 0 && <span className="hidden sm:inline text-[13px] text-ink-faint">· Tes résultats complets avec un abonnement, sans engagement</span>}
             {avant?.fini && r.etape === 0 && <button onClick={() => aller({ ...r, etape: QUESTIONS.length })} className="ml-auto text-[13.5px] font-semibold text-accent-dark hover:underline">Revoir mes derniers résultats</button>}
           </div>
           <h1 className="mt-6 text-[30px] sm:text-[40px] font-black leading-[1.05] tracking-tight" style={HF}>{Q.q}</h1>

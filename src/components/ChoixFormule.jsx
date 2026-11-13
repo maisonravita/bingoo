@@ -15,6 +15,10 @@ export default function ChoixFormule({ periodes, fondateur, onChoisir, busy, act
   const liste = periodes?.length ? periodes : PERIODES_LOCAL;
   return (
     <div>
+      <div className={cx("mb-6 flex items-center gap-3 rounded-2xl px-4 py-3.5", sombre ? "bg-white/10" : "bg-good-soft")}>
+        <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0 text-good" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z" /><path d="m9 12 2 2 4-4" /></svg>
+        <p className="text-[15px]"><b>Ta version en ligne sous 14 jours, ou remboursé intégralement.</b> <span className="text-ink-soft">Sans engagement : tu arrêtes quand tu veux.</span></p>
+      </div>
       <div className="grid md:grid-cols-3 gap-4 items-stretch">
         {liste.map((p) => {
           const vedette = p.key === "trimestre";
@@ -40,7 +44,7 @@ export default function ChoixFormule({ periodes, fondateur, onChoisir, busy, act
           );
         })}
       </div>
-      <p className={cx("mt-5 text-center text-[13.5px]", sombre ? "text-white/60" : "text-ink-soft")}>Un SaaS par abonnement. Ta version en ligne sous 14 jours ou remboursé. Prix hors taxes.</p>
+      <p className={cx("mt-5 text-center text-[13.5px]", sombre ? "text-white/60" : "text-ink-soft")}>Un SaaS par abonnement. Prix hors taxes.</p>
     </div>
   );
 }
