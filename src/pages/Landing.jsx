@@ -89,12 +89,38 @@ function FilmAuto() {
   );
 }
 
+// Effets de la page : lumière qui suit la souris sur les écrans, menu qui s'affirme au défilement,
+// écran du haut qui se redresse en descendant, rail lumineux qui se remplit le long des 4 étapes
+function useEffetsPage() {
+  useEffect(() => {
+    const doux = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const souris = (e) => { const el = e.target.closest?.(".fx-spot"); if (!el) return; const r = el.getBoundingClientRect(); el.style.setProperty("--mx", `${e.clientX - r.left}px`); el.style.setProperty("--my", `${e.clientY - r.top}px`); };
+    let raf = 0;
+    const maj = () => {
+      raf = 0;
+      document.querySelector(".fx-entete")?.classList.toggle("defile", window.scrollY > 12);
+      const h = window.innerHeight;
+      const t = document.getElementById("fx-incline");
+      if (t && !doux) { const r = t.getBoundingClientRect(); const p = Math.min(1, Math.max(0, (h - r.top) / (h * 0.75))); t.style.transform = `perspective(1400px) rotateX(${(1 - p) * 16}deg) scale(${0.94 + p * 0.06})`; }
+      const rail = document.getElementById("fx-rail");
+      if (rail) { const r = rail.parentElement.getBoundingClientRect(); const p = Math.min(1, Math.max(0, (h * 0.6 - r.top) / r.height)); rail.style.transform = `scaleY(${p})`; }
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(maj); };
+    window.addEventListener("pointermove", souris, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    maj();
+    return () => { window.removeEventListener("pointermove", souris); window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); if (raf) cancelAnimationFrame(raf); };
+  }, []);
+}
+
 export default function Landing() {
   // Le compteur de la démonstration est le vrai : SaaS vérifiés que Bingoo! sait construire, et ceux qui sont en tendance
   const [demo, setDemo] = useState(null);
   useEffect(() => { supabase.rpc("saas_pour_moi_apercu", { p: {} }).then(({ data }) => setDemo(data ?? null)); }, []);
   const nav = useNavigate();
   useReveal();
+  useEffetsPage();
   const go = () => commencer(nav);
   const nb = useNbSaas();
   return (
@@ -102,7 +128,7 @@ export default function Landing() {
       <style>{`@keyframes kspin{to{transform:rotate(360deg)}}@keyframes land-in{from{opacity:0;transform:translateY(10px)}}.land-in{animation:land-in .45s ease-out both}@keyframes marquee{to{transform:translateX(-50%)}}.marquee-track{animation:marquee 32s linear infinite}.marquee:hover .marquee-track{animation-play-state:paused}@media (prefers-reduced-motion: reduce){.marquee-track{animation:none;flex-wrap:wrap;width:auto;justify-content:center}}`}</style>
 
       {/* Haut de page : fond clair, menu blanc */}
-        <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-black/[.04]">
+        <header className="fx-entete sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-black/[.04]">
           <div className="mx-auto max-w-[1280px] h-[72px] px-4 sm:px-8 flex items-center justify-between gap-4" style={JK}>
             <div className="flex items-center gap-12">
               <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Bingoo!"><Logo height={34} /></button>
@@ -126,7 +152,7 @@ export default function Landing() {
             <div className="relative z-[1]">
             <h1 className="hero-in relative mx-auto max-w-[1180px]" style={JK}>
               <span className="block text-[32px] sm:text-[50px] lg:text-[66px] leading-[1.1] text-[#3A3F55]" style={{ fontWeight: 500, letterSpacing: "-.01em" }}>Pars d'un SaaS à succès.</span>
-              <span className="mt-1 block text-[38px] sm:text-[60px] lg:text-[80px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>Lance ta version. Encaisse.</span>
+              <span className="mt-1 block text-[38px] sm:text-[60px] lg:text-[80px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>Lance ta version. <span className="fx-texte">Encaisse.</span></span>
               <span className="mt-4 sm:mt-6 flex justify-center"><span className="sr-only">Bingoo!</span><Logo height="clamp(64px, 9vw, 112px)" className="!self-center" /></span>
             </h1>
             <p className="hero-in mx-auto mt-7 max-w-[780px] text-[18px] sm:text-[22px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Bingoo! repère les SaaS en tendance qui encaissent déjà{nb ? <> (parmi <b>{nb.toLocaleString("fr-FR")}</b> suivis, revenus vérifiés)</> : null}, construit ta version à ton nom, et te trouve tes premiers clients en 7 jours.</p>
@@ -145,7 +171,7 @@ export default function Landing() {
             <p className="mt-6 text-[13.5px] text-ink-faint">En continuant, j'accepte les <a href="#/conditions" className="underline hover:text-ink">Conditions d'utilisation</a> et la <a href="#/confidentialite" className="underline hover:text-ink">Politique de confidentialité</a> de Bingoo!.</p>
             <FilmAuto />
             <figure className="hero-in mx-auto mt-12 max-w-[1100px]" style={{ animationDelay: ".35s" }}>
-              <ApercuTendance />
+              <div id="fx-incline" style={{ transformOrigin: "50% 0%", willChange: "transform" }}><ApercuTendance /></div>
               <figcaption className="mt-2.5 text-[13px] text-ink-faint">Le résultat après les 8 questions. Vrais SaaS, revenus vérifiés relevés en novembre 2026.</figcaption>
             </figure>
           </div>
@@ -163,16 +189,17 @@ export default function Landing() {
         <section id="comment" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
           <div className="mx-auto max-w-[1180px]">
             <h2 className="max-w-[900px] text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>De « je ne sais pas quoi lancer » à tes premiers paiements.</h2>
-            <ol className="mt-12 space-y-16">
+            <ol className="relative mt-12 space-y-16 lg:pl-16">
+              <span className="fx-rail hidden lg:block" aria-hidden><span id="fx-rail" style={{ transform: "scaleY(0)" }} /></span>
               {[
                 ["Réponds à 8 questions", "Comment tu veux trouver tes clients, ce que tu refuses de faire, ton temps, le revenu visé, le métier que tu connais. Pendant que tu réponds, tu vois combien de SaaS vérifiés collent déjà à tes réponses.", null],
                 ["Tes 3 SaaS en tendance", "Des SaaS qui encaissent déjà, revenus vérifiés chez leur outil de paiement, dont le revenu monte en ce moment. Pour chacun, sa tendance, sa visibilité et ta version : en français, pour un métier, ou plus simple.", "version"],
                 ["Bingoo! construit ta version", "Ton site, les comptes de tes clients, l'abonnement avec ton Stripe, ton domaine. À ton nom, avec tes mots et ton design, en ligne en une journée.", "video"],
                 ["Tes 10 premiers clients en 7 jours", "Bingoo! trouve les établissements qui ont le problème dans ton département, te prépare le message, et t'envoie chaque matin l'étape du jour. Tu suis qui répond, qui essaie, qui paie.", "prospects"],
               ].map(([h, d, img], i) => (
-                <li key={h} className="grid lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.5fr)] gap-6 lg:gap-12 items-center">
+                <li key={h} className="relative grid lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.5fr)] gap-6 lg:gap-12 items-center">
                   <div>
-                    <span className="grid place-items-center h-9 w-9 rounded-full fx-pastille text-white font-bold tnum">{i + 1}</span>
+                    <span className="grid place-items-center h-9 w-9 rounded-full fx-pastille text-white font-bold tnum lg:absolute lg:-left-16 lg:z-[1] lg:ring-[6px] lg:ring-white">{i + 1}</span>
                     <p className="mt-4 text-[28px] sm:text-[34px] leading-tight text-ink" style={SERIF}>{h}</p>
                     <p className="mt-3 text-[16.5px] leading-relaxed text-ink-soft">{d}</p>
                     {i === 0 && <button onClick={go} className="mt-6 inline-flex items-center gap-2 rounded-full bg-accent px-7 py-3.5 text-[16px] font-semibold text-white hover:bg-accent-dark transition">Commencer <Arrow className="h-4 w-4" /></button>}

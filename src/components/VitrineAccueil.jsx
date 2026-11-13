@@ -30,7 +30,7 @@ export const SAAS = [
 // Le cadre « fenêtre d'application » commun à tous les aperçus
 export function Fenetre({ children, className = "", titre }) {
   return (
-    <div className={cx("fx-carte overflow-hidden rounded-2xl border border-black/10 bg-white text-left text-ink shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]", className)} style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+    <div className={cx("fx-carte fx-spot overflow-hidden rounded-2xl border border-black/10 bg-white text-left text-ink shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]", className)} style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
       <div className="flex items-center gap-1.5 border-b border-line bg-[#FBFAF8] px-4 py-2.5">
         <span className="h-2.5 w-2.5 rounded-full bg-[#E3E1D9]" /><span className="h-2.5 w-2.5 rounded-full bg-[#E3E1D9]" /><span className="h-2.5 w-2.5 rounded-full bg-[#E3E1D9]" />
         {titre && <span className="ml-3 truncate text-[12px] font-medium text-ink-faint">{titre}</span>}

@@ -142,3 +142,14 @@ body { top: 0 !important; }
 .fx-carte { transition: transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s; }
 .fx-carte:hover { transform: translateY(-4px); }
 @media (prefers-reduced-motion: reduce) { .fx-aurore, .fx-halo::before, .fx-halo::after, .fx-brille::after { animation: none; } }
+.fx-texte { background: linear-gradient(100deg, #E0531F 0%, #F08A4B 35%, #9B6BFF 75%, #4F8BFF 100%); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: fx-glisse 9s ease-in-out infinite alternate; }
+@keyframes fx-glisse { to { background-position: 100% 0; } }
+.fx-spot { position: relative; }
+.fx-spot::before { content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none; opacity: 0; transition: opacity .3s; border-radius: inherit;
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgba(224,83,31,.10), rgba(155,107,255,.07) 40%, transparent 70%); }
+.fx-spot:hover::before { opacity: 1; }
+.fx-rail { position: absolute; left: 17px; top: 0; bottom: 0; width: 2px; background: #EDEBE6; border-radius: 2px; }
+.fx-rail > span { position: absolute; inset: 0; transform-origin: top; background: linear-gradient(#E0531F, #9B6BFF 60%, #4F8BFF); border-radius: 2px; box-shadow: 0 0 12px rgba(224,83,31,.45); }
+.fx-entete { transition: box-shadow .3s, background-color .3s; }
+.fx-entete.defile { box-shadow: 0 10px 30px -18px rgba(21,22,26,.35); background-color: rgba(255,255,255,.82); }
+@media (prefers-reduced-motion: reduce) { .fx-texte { animation: none; } }
