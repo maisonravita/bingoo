@@ -112,12 +112,10 @@ export default function Landing() {
       <main className="bg-white">
         <div className="mx-auto max-w-[1440px] bg-white">
 
-        {/* Le film de lancement : Bingoo! en 46 secondes */}
+        {/* Le film de lancement */}
         <section id="film" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-20 border-t border-black/[.07]">
           <div className="mx-auto max-w-[1100px] text-center">
-            <h2 className="text-[34px] sm:text-[48px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Bingoo! en 46 secondes.</h2>
-            <p className="mx-auto mt-3 max-w-[620px] text-[16.5px] sm:text-[18px] text-ink-soft">Trouver un SaaS qui encaisse déjà, construire ta version, trouver tes clients, encaisser.</p>
-            <video src="/film-lancement.mp4" poster="/film-lancement.jpg" controls playsInline preload="none" className="mt-8 w-full aspect-video rounded-2xl border border-black/10 bg-[#16171B] shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]" />
+            <video src="/film-lancement.mp4" poster="/film-lancement.jpg" controls playsInline preload="none" className="w-full aspect-video rounded-2xl border border-black/10 bg-[#16171B] shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]" />
           </div>
         </section>
 
