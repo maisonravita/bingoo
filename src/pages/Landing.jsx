@@ -3,9 +3,10 @@ import { commencer } from "../lib/invite";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
+import { cx } from "../lib/utils";
 import { legalReady } from "./Legal";
 import ResultatsBingoo from "../components/ResultatsBingoo";
-import { ApercuTendance, ApercuVersion, ApercuFiche, ApercuProspects, ApercuSemaine } from "../components/VitrineAccueil";
+import { Fenetre, ApercuTendance, ApercuVersion, ApercuFiche, ApercuProspects, ApercuSemaine } from "../components/VitrineAccueil";
 import { supabase } from "../lib/supabase";
 
 // Page d'accueil publique de Bingoo! : épurée, et chaque promesse adossée à une preuve.
@@ -60,16 +61,25 @@ const FAQ = [
 
 
 // Le film de lancement : se lance tout seul (sans le son, règle des navigateurs) dès qu'il est à l'écran, se met en pause quand on le quitte
-function FilmAuto() {
-  const ref = useRef(null);
-  const [son, setSon] = useState(false);
+// Une vidéo qui se lance toute seule (sans le son, règle des navigateurs) dès qu'elle est à l'écran, et se met en pause quand on la quitte
+function useLectureAuto(ref) {
   useEffect(() => {
     const v = ref.current; if (!v) return;
     if (!("IntersectionObserver" in window)) { v.play().catch(() => {}); return; }
     const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) v.play().catch(() => {}); else v.pause(); }, { threshold: 0.35 });
     io.observe(v);
     return () => io.disconnect();
-  }, []);
+  }, [ref]);
+}
+function VideoAuto({ src, poster }) {
+  const ref = useRef(null);
+  useLectureAuto(ref);
+  return <div className="fx-halo"><video ref={ref} src={src} poster={poster} muted loop playsInline preload="metadata" controls className="block w-full rounded-2xl bg-white" /></div>;
+}
+function FilmAuto() {
+  const ref = useRef(null);
+  const [son, setSon] = useState(false);
+  useLectureAuto(ref);
   const basculer = () => { const v = ref.current; if (!v) return; v.muted = !v.muted; setSon(!v.muted); if (!v.muted) v.play().catch(() => {}); };
   return (
     <div id="film" className="hero-in fx-halo mx-auto mt-10 sm:mt-12 max-w-[1100px] scroll-mt-24" style={{ animationDelay: ".3s" }}>
@@ -168,16 +178,17 @@ export default function Landing() {
                     {i === 0 && <button onClick={go} className="mt-6 inline-flex items-center gap-2 rounded-full bg-accent px-7 py-3.5 text-[16px] font-semibold text-white hover:bg-accent-dark transition">Commencer <Arrow className="h-4 w-4" /></button>}
                   </div>
                   {img === "video" ? (
-                    <figure><video src="/demo-copie.mp4" poster="/demo-copie.jpg" controls muted playsInline preload="none" className="w-full rounded-2xl border border-black/10 shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]" /><figcaption className="mt-2.5 text-[13px] text-ink-faint">Un vrai SaaS construit par Bingoo! (prise de rendez-vous), avec ses données d'exemple. 35 secondes.</figcaption></figure>
+                    <figure><VideoAuto src="/demo-copie.mp4" poster="/demo-copie.jpg" /><figcaption className="mt-2.5 text-[13px] text-ink-faint">Un vrai SaaS construit par Bingoo! (prise de rendez-vous), avec ses données d'exemple. 35 secondes.</figcaption></figure>
                   ) : img ? (
                     <figure>{img === "version" ? <ApercuVersion /> : <ApercuProspects />}<figcaption className="mt-2.5 text-[13px] text-ink-faint">{img === "version" ? "Ta version, à partir d'un SaaS qui encaisse déjà." : "Aperçu avec des établissements d'exemple."}</figcaption></figure>
                   ) : (
-                    <div className="rounded-2xl bg-[#F6F5F3] border border-line p-6 sm:p-8">
+                    <Fenetre titre="Trouver mon SaaS"><div className="bg-[#FAF9F6] p-6 sm:p-8">
+                      <div className="mb-4 flex gap-1.5" aria-hidden>{Array.from({ length: 8 }, (_, k) => <span key={k} className={cx("h-1.5 flex-1 rounded-full", k === 0 ? "bg-gradient-to-r from-accent to-[#9B6BFF]" : "bg-line")} />)}</div>
                       <p className="text-[14px] text-ink-faint">Question 1 sur 8</p>
                       <p className="mt-2 text-[24px] sm:text-[30px] leading-tight text-ink" style={SERIF}>Comment te vois-tu trouver tes clients ?</p>
-                      <div className="mt-5 grid sm:grid-cols-2 gap-2">{["Écrire et être trouvé sur Google", "Publier sur les réseaux", "Contacter les gens directement", "Bouche-à-oreille et affiliation"].map((x) => <span key={x} className="rounded-xl border-2 border-line bg-white px-4 py-3 text-[15px] font-semibold">{x}</span>)}</div>
+                      <div className="mt-5 grid sm:grid-cols-2 gap-2">{["Écrire et être trouvé sur Google", "Publier sur les réseaux", "Contacter les gens directement", "Bouche-à-oreille et affiliation"].map((x) => <span key={x} className={cx("rounded-xl border-2 px-4 py-3 text-[15px] font-semibold transition", x.startsWith("Écrire") ? "border-ink bg-ink text-white" : "border-line bg-white")}>{x}</span>)}</div>
                       <p className="mt-5 rounded-xl bg-white border border-line px-4 py-3 text-[14.5px]"><b>{demo ? Number(demo.n).toLocaleString("fr-FR") : "…"}</b> SaaS au revenu vérifié collent déjà à tes réponses. Dont <b>{demo ? Number(demo.tendance).toLocaleString("fr-FR") : "…"}</b> en tendance.</p>
-                    </div>
+                    </div></Fenetre>
                   )}
                 </li>
               ))}
@@ -226,7 +237,8 @@ export default function Landing() {
         <section id="pourquoi" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
           <div className="mx-auto max-w-[1180px]">
             <h2 className="max-w-[820px] text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ailleurs, une idée et un prompt. Ici, ton SaaS et tes clients.</h2>
-            <div className="mt-10 overflow-hidden rounded-2xl border border-line">
+            <div className="mt-10 overflow-hidden rounded-2xl border border-line bg-white shadow-[0_30px_70px_-50px_rgba(21,23,42,.5)]">
+              <div className="fx-filet" aria-hidden />
               <div className="grid grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)] sm:grid-cols-[minmax(0,.8fr)_minmax(0,1fr)_minmax(0,1fr)] bg-[#F6F5F3] text-[13px] font-bold uppercase tracking-wide">
                 <span className="px-4 sm:px-5 py-3 text-ink-faint" />
                 <span className="hidden sm:block px-4 sm:px-5 py-3 text-ink-soft">Ailleurs</span>
@@ -264,15 +276,21 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="max-w-4xl mx-auto px-4 sm:px-6 py-20 text-center">
+        <section className="relative overflow-hidden px-4 sm:px-6 py-24 text-center">
+          <div className="fx-grille" style={{ WebkitMaskImage: "radial-gradient(ellipse 60% 70% at 50% 50%, #000 25%, transparent 75%)", maskImage: "radial-gradient(ellipse 60% 70% at 50% 50%, #000 25%, transparent 75%)" }} aria-hidden />
+          <span className="fx-aurore h-[300px] w-[300px] bg-[#F6A06B] left-[18%] top-[40px]" aria-hidden />
+          <span className="fx-aurore h-[280px] w-[280px] bg-[#9B6BFF] right-[18%] top-[120px]" style={{ animationDelay: "-5s" }} aria-hidden />
+          <div className="relative z-[1] max-w-4xl mx-auto">
           <p className="text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ton premier paiement commence par 8 questions.</p>
           <p className="mt-4 text-[18px] text-ink-soft">Sans compte pour commencer : tu vois tout de suite combien de SaaS en tendance collent à ton profil.</p>
           <button onClick={go} className="fx-brille mt-8 inline-flex items-center gap-2 rounded-full bg-accent px-10 py-4 text-[18px] font-bold text-white hover:bg-accent-dark transition">Commencer <Arrow className="h-4 w-4" /></button>
+          </div>
         </section>
         </div>
       </main>
 
-      <footer className="border-t border-line bg-white">
+      <footer className="bg-white">
+        <div className="fx-filet" aria-hidden />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid grid-cols-2 md:grid-cols-3 gap-8 text-[15px]">
           <div><p className="font-bold">Produit</p><ul className="mt-4 space-y-2.5 text-ink-soft">{[["comment", "Comment ça marche"], ["tendances", "Les SaaS en tendance"], ["clients", "Tes premiers clients"]].map(([id, l]) => <li key={id}><a href={`#${id}`} onClick={scrollTo(id)} className="hover:text-ink">{l}</a></li>)}</ul></div>
           <div><p className="font-bold">Les SaaS</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="/saas" className="hover:text-ink">Tous les SaaS suivis : prix et alternatives</a></li><li><a href="#faq" onClick={scrollTo("faq")} className="hover:text-ink">Questions fréquentes</a></li></ul></div>
