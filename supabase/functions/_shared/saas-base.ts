@@ -217,12 +217,15 @@ prix_entree (prix le plus bas d'une formule d'ABONNEMENT payante, nombre ; null 
 /** Lecture dédiée aux découvertes automatiques (sans IA si le crédit IA est vide) : 25 fiches par minute. */
 export async function saasDecouvertesLire(maxMs = 50_000) {
   const t0 = Date.now();
-  const { data } = await admin.from("saas").select("id").eq("statut", "a_lire").is("succes", null).lt("essais", 3).order("created_at", { ascending: false }).limit(25);
+  const { data } = await admin.from("saas").select("id, essais").eq("statut", "a_lire").is("succes", null).lt("essais", 3).order("created_at", { ascending: false }).limit(15);
   const out = { lus: 0, ok: 0, pas_saas: 0, autres: 0 };
   const ids = (data ?? []).map((x) => x.id);
-  for (let i = 0; i < ids.length; i += 5) {
+  // Chaque fiche est comptée AVANT d'être lue : si un site trop lourd fait tomber la fonction, il ne bloque plus la file
+  // (sans ça, les mêmes fiches revenaient chaque minute et la lecture s'arrêtait). Une lecture réussie remet le compteur à zéro.
+  for (const x of data ?? []) await admin.from("saas").update({ essais: (x.essais ?? 0) + 1 }).eq("id", x.id);
+  for (let i = 0; i < ids.length; i += 3) {
     if (Date.now() - t0 > maxMs - 15_000) break;
-    const r = await Promise.all(ids.slice(i, i + 5).map((id) => saasLire(id).catch(() => null)));
+    const r = await Promise.all(ids.slice(i, i + 3).map((id) => saasLire(id).catch(() => null)));
     for (const x of r) { out.lus++; if (x?.statut === "ok") out.ok++; else if (x?.statut === "pas_saas") out.pas_saas++; else out.autres++; }
   }
   return out;
