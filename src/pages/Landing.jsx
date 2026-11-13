@@ -17,7 +17,7 @@ const scrollTo = (id) => (e) => { e.preventDefault(); document.getElementById(id
 const Check = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>;
 const Arrow = ({ className = "h-4 w-4" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" /></svg>;
 
-const MENU = [["Comment ça marche", "#comment"], ["Les SaaS en tendance", "#tendances"], ["Tes premiers clients", "#clients"], ["Questions", "#faq"]];
+const MENU = [["Le film", "#film"], ["Comment ça marche", "#comment"], ["Les SaaS en tendance", "#tendances"], ["Tes premiers clients", "#clients"], ["Questions", "#faq"]];
 
 // Nombre de SaaS suivis dans la base Explorer (vue publique), affiché tel quel
 function useNbSaas() {
@@ -89,7 +89,7 @@ export default function Landing() {
             </h1>
             <p className="hero-in mx-auto mt-7 max-w-[780px] text-[18px] sm:text-[22px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Bingoo! repère les SaaS en tendance qui encaissent déjà{nb ? <> (parmi <b>{nb.toLocaleString("fr-FR")}</b> suivis, revenus vérifiés)</> : null}, construit ta version à ton nom, et te trouve tes premiers clients en 7 jours.</p>
             <button onClick={go} className="hero-in mt-9 inline-flex items-center justify-center gap-2 rounded-full bg-accent px-10 py-4 text-[18px] font-bold text-white shadow-[0_14px_40px_-16px_rgba(226,85,35,.8)] hover:bg-accent-dark transition" style={{ ...JK, animationDelay: ".2s" }}>Commencer <Arrow className="h-4 w-4" /></button>
-            <p className="hero-in mt-3 text-[14px] text-[#5B6075]" style={{ ...JK, animationDelay: ".22s" }}>8 questions, sans compte, et tu vois combien de SaaS collent à ton profil.</p>
+            <p className="hero-in mt-3 text-[14px] text-[#5B6075]" style={{ ...JK, animationDelay: ".22s" }}>8 questions, sans compte, et tu vois combien de SaaS collent à ton profil. <a href="#film" onClick={scrollTo("film")} className="font-semibold text-ink underline underline-offset-2 hover:text-accent-dark">Voir le film (46 s)</a></p>
             <div className="hero-in mx-auto mt-7 flex w-fit flex-col sm:w-auto sm:flex-row sm:flex-wrap items-start sm:items-center justify-center gap-x-5 gap-y-2 text-left text-[15px] text-[#5B6075]" style={{ ...JK, animationDelay: ".25s" }}>
               {["Des SaaS qui encaissent déjà, revenus vérifiés chez Stripe", "Ta version construite et en ligne en une journée", "Tes premiers clients trouvés pour toi"].map((x) => <span key={x} className="inline-flex items-start gap-1.5"><Check className="h-4 w-4 mt-[3px] shrink-0 text-accent" />{x}</span>)}
             </div>
@@ -111,6 +111,15 @@ export default function Landing() {
 
       <main className="bg-white">
         <div className="mx-auto max-w-[1440px] bg-white">
+
+        {/* Le film de lancement : Bingoo! en 46 secondes */}
+        <section id="film" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-20 border-t border-black/[.07]">
+          <div className="mx-auto max-w-[1100px] text-center">
+            <h2 className="text-[34px] sm:text-[48px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Bingoo! en 46 secondes.</h2>
+            <p className="mx-auto mt-3 max-w-[620px] text-[16.5px] sm:text-[18px] text-ink-soft">Trouver un SaaS qui encaisse déjà, construire ta version, trouver tes clients, encaisser.</p>
+            <video src="/film-lancement.mp4" poster="/film-lancement.jpg" controls playsInline preload="none" className="mt-8 w-full aspect-video rounded-2xl border border-black/10 bg-[#16171B] shadow-[0_40px_90px_-45px_rgba(21,23,42,.55)]" />
+          </div>
+        </section>
 
         {/* La preuve : ce qu'encaissent les SaaS lancés avec Bingoo! (s'affiche dès 3 SaaS avec des clients payants) */}
         <ResultatsBingoo className="px-5 sm:px-10 lg:px-20 py-14 border-t border-black/[.07] mx-auto max-w-[1180px]" />
