@@ -102,6 +102,7 @@ Rends un objet JSON compact :
 - couleur : couleur de marque en hexadécimal (#xxxxxx), assez foncée pour du texte blanc dessus, PAS celle de ${p.inspire?.nom ?? "l'inspiration"}.
 - slogan : titre du site, 8 mots au plus, percutant ; cible_courte : 5 mots (« Pour les … »).
 - pitch_site : la phrase sous le titre du site, 35 mots au plus. Elle ne promet QUE ce que cette première version fait vraiment (écrans, pages publiques, IA texte) : pas de synchronisation d'agenda, d'envoi de SMS, d'intégration à un autre logiciel ni de chiffres inventés. Les atouts suivent la même règle.
+- formules : reprends EXACTEMENT ces formules (même nom, même prix, même « pour ») : ${JSON.stringify((p.formules ?? []).slice(0, 3).map((f: any) => ({ nom: f.nom, prix: f.prix, pour: f.pour })))}, avec pour chacune « inclus » : 3 à 5 avantages qui ne citent QUE ce que cette première version fait vraiment (ses écrans, ses pages publiques, l'IA texte, les e-mails, le paiement par carte, le nombre d'utilisateurs). Interdits : « dès disponible », API, images, vidéo, import de fichiers, chiffrement, modèle d'IA au choix, intégrations, application mobile, recherche web.
 - probleme_site : le problème des clients, en 2 phrases au plus, à la 2e personne ou sur « les » clients : AUCUN chiffre, AUCUN nom de logiciel, de marque ou de concurrent (ni le nôtre), aucune revendication de clients ou de succès.
 - atouts : 6 objets titre + texte (une phrase courte), tirés des fonctionnalités.
 - collections : 2 à 5 objets nom (snake_case, pluriel), label, champs : 4 à 8 objets nom (snake_case) + type (texte|nombre|montant|date|choix|booleen|email|telephone|lien) + valeurs (pour choix seulement). Les liens entre collections : un champ <collection>_id de type texte.
@@ -120,7 +121,11 @@ Collections : ${(s.collections ?? []).slice(0, 6).map((c: any) => `${c.nom} : ${
     slogan: String(s.slogan ?? p.pitch ?? "").slice(0, 90), cible_courte: String(s.cible_courte ?? "").slice(0, 60),
     ...(s.pitch_site ? { pitch: String(s.pitch_site).slice(0, 300) } : {}),
     ...(s.probleme_site ? { probleme: String(s.probleme_site).slice(0, 320) } : {}),
-    atouts: (s.atouts ?? []).slice(0, 6), formules: (p.formules ?? []).slice(0, 3),
+    atouts: (s.atouts ?? []).slice(0, 6),
+    // Formules du site : avantages réécrits pour ne promettre que ce qui est construit (sinon celles du projet)
+    formules: (Array.isArray(s.formules) && s.formules.length === Math.min(3, (p.formules ?? []).length) && s.formules.every((f: any) => f?.nom && Number.isFinite(Number(f.prix)) && Array.isArray(f.inclus) && f.inclus.length)
+      ? s.formules.slice(0, 3).map((f: any) => ({ nom: String(f.nom).slice(0, 40), prix: Number(f.prix), pour: String(f.pour ?? "").slice(0, 120), inclus: f.inclus.slice(0, 5).map((x: unknown) => String(x).slice(0, 90)).filter((x: string) => !/dès disponible|api\b|chiffr|image|vidéo|import/i.test(x)) }))
+      : (p.formules ?? []).slice(0, 3)),
     collections: (s.collections ?? []).slice(0, 6),
     ecrans: (s.ecrans ?? []).slice(0, 6).map((e: any, i: number) => ({ id: slugify(String(e.id ?? `ecran-${i}`)).replace(/-/g, "_") || `ecran_${i}`, titre: String(e.titre ?? `Écran ${i + 1}`).slice(0, 24), icone: ICONES.includes(e.icone) ? e.icone : "liste", but: e.but, fonctions: e.fonctions })),
     demo: (demo && typeof demo === "object" && !Array.isArray(demo) ? (demo.demo ?? demo) : {}) as any,

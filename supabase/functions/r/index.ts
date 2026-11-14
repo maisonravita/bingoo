@@ -223,7 +223,9 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (!s) throw new HttpError(400, "Ce site ne peut pas être ajouté");
     if (["pas_saas", "doublon", "retire"].includes(s.statut)) throw new HttpError(400, "Ce site n'est pas un logiciel SaaS lisible");
     // Vérifié « Bingoo! ne sait pas le construire » (agent IA, IA sans filtre, intégration profonde…) : refusé avant toute dépense
-    if (s.constructible_ia === false) throw new HttpError(400, `Bingoo! ne peut pas construire une version fiable de ${s.nom ?? domaine} (il dépend de briques que Bingoo! ne sait pas faire). Choisis un autre SaaS dans tes résultats.`);
+    // Règle n° 1 : Bingoo! ne lance QUE ce qu'il a vérifié savoir construire en entier (sinon le client paie pour un SaaS qui ne peut pas marcher)
+    if (s.constructible_ia === false) throw new HttpError(400, `Bingoo! ne peut pas construire une version qui marche vraiment de ${s.nom ?? domaine} : son cœur repose sur une technologie que Bingoo! ne sait pas faire. Choisis un autre SaaS dans tes résultats.`);
+    if (s.constructible_ia !== true) throw new HttpError(400, `${s.nom ?? domaine} n'a pas encore été vérifié par Bingoo! : choisis un SaaS dans tes résultats, ils sont tous vérifiés.`);
     // Double lancement (double clic, page rechargée) : on rend la préparation déjà en cours ou prête depuis moins de 30 min, sans repayer l'IA
     const { data: recent } = await admin.from("saas_projets").select("id, statut").eq("workspace_id", ws.id).eq("saas_id", s.id).in("statut", ["en_cours", "pret"]).gte("at", new Date(Date.now() - 30 * 60e3).toISOString()).order("at", { ascending: false }).limit(1);
     if (recent?.[0]) return { id: recent[0].id, statut: recent[0].statut };
@@ -268,6 +270,11 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { ws } = await membreOuCron(req, b.workspace_id);
     const { data: pr } = await admin.from("saas_projets").select("id, data, statut").eq("id", String(b.projet_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
     if (!pr || pr.statut !== "pret") throw new HttpError(404, "Projet introuvable");
+    if (!req.headers.get("x-cron-key")) {
+      const dom = String((pr.data as any)?.inspire?.domaine ?? "");
+      const { data: src } = dom ? await admin.from("saas").select("nom, constructible_ia").eq("domaine", dom).maybeSingle() : { data: null };
+      if (src && src.constructible_ia === false) throw new HttpError(400, `Bingoo! ne peut pas construire une version qui marche vraiment de ${src.nom ?? dom}. Choisis un autre SaaS dans tes résultats.`);
+    }
     const { data: ex } = await admin.from("saas_apps").select("id, slug, statut, validation, spec").eq("projet_id", pr.id).maybeSingle();
     const quoi = String(b.quoi ?? "creer");
     if (quoi === "creer") {
@@ -760,7 +767,8 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (!lot.length) return { faits: 0, sans_texte: vides.length };
     const r = await askJson<{ saas: { ref: string; debut: string; constructible: boolean; fait: string; pour_qui: string }[] }>(`Bingoo! construit des applications web de gestion, et seulement cela : comptes utilisateurs, formulaires, listes et tableaux, fiches clients, agenda et réservation en ligne, devis et factures simples, tableaux de bord, pages publiques (réservation, formulaire, avis), e-mails automatiques simples, abonnements payés par Stripe, et une IA qui écrit, résume ou analyse du TEXTE saisi par l'utilisateur.
 
-Bingoo! NE sait PAS construire : un agent IA qui agit seul sur d'autres plateformes (prospection, envoi en masse, LinkedIn, réseaux sociaux, publication automatique), une intégration profonde avec un autre logiciel (Shopify, Gmail, Outlook, Word, Excel, GitHub, logiciels comptables, caisses, banques), des données achetées ou aspirées (contacts, marchés, Google, cotes), la génération d'images, de vidéos, de sons, de BD ou de livres, une appli mobile, de bureau ou une extension, un produit physique, une caisse ou du matériel, un service humain (agence, conseil, équipe d'assistance, cours avec des experts), une marketplace ou une communauté qui dépend de ses membres, la finance, le trading, l'assurance, les remboursements de santé, ou un outil pour créer des logiciels.
+Bingoo! NE sait PAS construire : un agent IA qui agit seul sur d'autres plateformes (prospection, envoi en masse, LinkedIn, réseaux sociaux, publication automatique), une intégration profonde avec un autre logiciel (Shopify, Gmail, Outlook, Word, Excel, GitHub, logiciels comptables, caisses, banques), des données achetées ou aspirées (contacts, marchés, Google, cotes), la génération d'images, de vidéos, de sons, de BD ou de livres, une appli mobile, de bureau ou une extension, un produit physique, une caisse ou du matériel, un service humain (agence, conseil, équipe d'assistance, cours avec des experts), une marketplace ou une communauté qui dépend de ses membres, la finance, le trading, l'assurance, les remboursements de santé, un outil pour créer des logiciels, ni un produit dont la valeur vient d'une IA particulière : chatbot « sans filtre », « non censuré » ou « uncensored », compagnon ou personnage IA, modèle entraîné sur des données spéciales, choix entre plusieurs modèles d'IA, confidentialité technique poussée (chiffrement de bout en bout, rien n'est stocké).
+Test décisif : un client qui paie la version de Bingoo! obtiendra-t-il ce pour quoi il paie le SaaS d'origine ? Si la raison principale d'acheter le SaaS d'origine est une chose de la liste ci-dessus, alors false, même si le reste (comptes, historique, abonnement) est faisable.
 
 Pour chaque logiciel ci-dessous :
 - "constructible" : true seulement si Bingoo! peut en construire une version complète et utile avec ce qu'il sait faire ; dans le doute, false.
