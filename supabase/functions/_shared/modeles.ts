@@ -37,7 +37,7 @@ export function specReservation(perso: any) {
     { id: "clients", titre: V.clients.slice(0, 24), icone: "contacts", but: "Ton fichier " + V.clients.toLowerCase() + " avec leur historique et ce qu'ils t'ont rapporté." },
     { id: "prestations", titre: V.prestas.slice(0, 24), icone: "tag", but: "Tes offres, tes prix et tes durées." },
     { id: "pub_reserver", titre: "Réserver en ligne", icone: "carte", but: "La page que tes " + V.clients.toLowerCase() + " utilisent pour réserver seuls, 24 h sur 24.", public: true, lecture: ["prestations", "rendezvous"], ecriture: "rendezvous" },
-  ].map((e) => ({ ...e, code: tete + code[e.id], ok: true }));
+  ].map((e) => ({ ...e, code: tete + code[e.id], ok: true, modele: "reservation" }));
 
   const collections = [
     { nom: "prestations", label: V.prestas, champs: [{ nom: "nom", type: "texte" }, { nom: "prix", type: "montant" }, { nom: "duree", type: "nombre" }, { nom: "description", type: "texte" }, { nom: "actif", type: "booleen" }] },

@@ -62,10 +62,19 @@ function extraire(t: string) {
   return (f ?? t).trim();
 }
 
+// Deux vraies lignes d'exemple par collection : l'écran calcule sur les champs et les valeurs qui existent vraiment (sinon blocs vides et chiffres à zéro)
+function exemplesDe(spec: any) {
+  const d = spec?.demo ?? {};
+  const l = Object.entries(d).filter(([, xs]) => Array.isArray(xs) && xs.length).map(([k, xs]: [string, any]) => {
+    const statuts = [...new Set((xs as any[]).map((x) => x?.statut).filter((v) => typeof v === "string"))].slice(0, 8);
+    return `${k} (${xs.length} exemples) : ${(xs as any[]).slice(0, 2).map((x) => JSON.stringify(x).slice(0, 260)).join(" | ")}${statuts.length ? ` — valeurs de statut présentes : ${statuts.join(", ")}` : ""}`;
+  });
+  return l.length ? `\nDonnées d'exemple déjà chargées dans l'application (utilise exactement ces noms de champs et ces valeurs ; les dates sont recentrées sur aujourd'hui) :\n${l.join("\n")}` : "";
+}
 function contexteSpec(spec: any) {
   return `Application « ${spec.nom} » : ${spec.pitch}
 Pour : ${spec.cible ?? ""}
-Collections (données) : ${(spec.collections ?? []).map((c: any) => `${c.nom} (${c.label}) : ${(c.champs ?? []).map((x: any) => `${x.nom} ${x.type}${x.valeurs ? ` [${x.valeurs.join("|")}]` : ""}`).join(", ")}`).join(" ; ")}
+Collections (données) : ${(spec.collections ?? []).map((c: any) => `${c.nom} (${c.label}) : ${(c.champs ?? []).map((x: any) => `${x.nom} ${x.type}${x.valeurs ? ` [${x.valeurs.join("|")}]` : ""}`).join(", ")}`).join(" ; ")}${exemplesDe(spec)}
 Écrans de l'application (id : titre) : ${(spec.ecrans ?? []).filter((e: any) => !e.public).map((e: any) => `${e.id} : ${e.titre}`).join(" ; ")}${(spec.ecrans ?? []).some((e: any) => e.public) ? `
 Pages publiques (pour les clients de l'utilisateur, sans compte ; leur lien à partager est déjà affiché dans le menu de l'application) : ${(spec.ecrans ?? []).filter((e: any) => e.public).map((e: any) => `${e.titre} (enregistre dans ${e.ecriture ?? "rien"})`).join(" ; ")}. Dans l'application, les éléments reçus par ces pages ont le champ _public = true : signale-les (badge « Reçu en ligne »).` : ""}`;
 }
@@ -221,8 +230,10 @@ export async function saasReparerEcran(appId: string, ecranId: string, erreur: s
   const spec = app?.spec as any;
   const e = spec?.ecrans?.find((x: any) => x.id === ecranId);
   if (!e) return false;
+  // Écran d'un modèle fait main : jamais réécrit par l'IA (il est testé ; un souci vient alors des données, pas du code)
+  if (e.modele) return false;
   const r = e.code
-    ? await ecrire(spec, e, `L'écran ne fonctionne pas à l'ouverture, avec les données d'exemple : « ${erreur.slice(0, 300)} ». Trouve la cause (donnée absente, champ d'un autre type que prévu, composant ui mal utilisé, variable non définie) et corrige-la sans changer ce que fait l'écran. Protège chaque accès aux données (valeurs absentes, listes vides).`, e.code)
+    ? await ecrire(spec, e, `À l'ouverture, avec les données d'exemple, l'écran a ce problème : « ${erreur.slice(0, 650)} ». Trouve la cause (donnée absente, nom de champ ou valeur de statut différents de ceux des données d'exemple, champ d'un autre type que prévu, composant ui mal utilisé, variable non définie) et corrige-la sans changer ce que fait l'écran. Protège chaque accès aux données (valeurs absentes, listes vides).`, e.code)
     : await ecrire(spec, e);
   if (!r.ok) return false;
   await admin.rpc("saas_app_code_set", { p_app: appId, p_id: ecranId, p_code: sansIdentite(r.code, await inspireDe(appId), spec.nom).valeur });

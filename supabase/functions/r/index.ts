@@ -368,7 +368,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { data: app } = await admin.from("saas_apps").select("id, version, verif, spec").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
     if (!app) throw new HttpError(404, "Application introuvable");
     const ids = new Set(((app.spec as any)?.ecrans ?? []).map((e: any) => e.id));
-    const resultats = (Array.isArray(b.resultats) ? b.resultats : []).filter((r: any) => ids.has(r?.id)).map((r: any) => ({ id: String(r.id), ok: !!r.ok, erreur: r.erreur ? String(r.erreur).slice(0, 400) : null }));
+    const resultats = (Array.isArray(b.resultats) ? b.resultats : []).filter((r: any) => ids.has(r?.id)).map((r: any) => ({ id: String(r.id), ok: !!r.ok, erreur: r.erreur ? String(r.erreur).slice(0, 700) : null }));
     const avant = (app.verif ?? {}) as any;
     const essais: Record<string, number> = { ...(avant.essais ?? {}) };
     const aReparer = resultats.filter((r: any) => !r.ok && (essais[r.id] ?? 0) < 2).slice(0, 4);
