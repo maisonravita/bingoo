@@ -743,7 +743,7 @@ Description : ${x.texte}
 ${x.persona ? `Clients visés : ${x.persona}` : ""}
 
 Écris en français simple, sans jamais citer son nom, son site, ni aucune marque :
-- "fait" : ce qu'il fait concrètement, en une phrase de 20 mots maximum, qui commence par un verbe (ex. « Aide les crèches à… »).
+- "fait" : ce qu'il fait concrètement, en une phrase de 15 mots maximum, qui commence par un verbe et donne envie (ex. « Aide les crèches à… »).
 - "pour_qui" : ses clients, en 8 mots maximum (ex. « Crèches et assistantes maternelles »).
 Réponds en JSON : {"fait": "...", "pour_qui": "..."}`, { fast: true, maxTokens: 200 });
         const nettoie = (t: string) => String(t ?? "").replaceAll(x.nom, "ce SaaS").slice(0, 200).trim();

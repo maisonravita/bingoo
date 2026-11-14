@@ -2835,18 +2835,10 @@ function CarteFloutee({ x, k, paysVise, onLancer, busy }) {
         {x.sans_local && <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[12px] font-semibold text-accent-dark">Pas d'équivalent en français</span>}
         {x.local && <span className="rounded-full bg-[#E4ECFB] px-2.5 py-1 text-[12px] font-semibold text-[#2B59C3]">Marche déjà sur ton continent</span>}
       </div>
-      {/* Ce qu'il fait et pour qui, en clair : de quoi choisir. Seuls son nom, son logo et son adresse restent cachés. */}
+      {/* Juste de quoi avoir envie : ce qu'il fait, en deux lignes. Le reste (nom, fiche, comment il trouve ses clients) après paiement. */}
       {x.fait
-        ? <p className="mt-3 text-[13.5px] leading-snug text-ink line-clamp-3" lang={x.fr ? "fr" : undefined}>{x.fait}</p>
+        ? <p className="mt-3 text-[13.5px] leading-snug text-ink line-clamp-2" lang={x.fr ? "fr" : undefined}>{x.fait}</p>
         : <p className="mt-3 h-[38px] select-none text-[13px] leading-snug text-ink-soft blur-[5px]" aria-hidden>Un logiciel simple qui aide ses clients à gagner du temps chaque semaine, avec un prix clair.</p>}
-      <ul className="mt-2 space-y-1 text-[12.5px] text-ink-soft">
-        {x.pour_qui && <li>Pour : <b className="text-ink">{x.pour_qui}</b></li>}
-        {(x.audience === "B2B" || x.audience === "B2C") && <li>Vend à : <b className="text-ink">{x.audience === "B2B" ? "des pros" : "des particuliers"}</b></li>}
-        {x.prix_entree_eur > 0 && <li>Prix d'entrée : <b className="text-ink tnum">{Math.round(x.prix_entree_eur)} € par mois</b></li>}
-        {x.canaux?.length > 0 && <li>Trouve ses clients par : <b className="text-ink">{x.canaux.slice(0, 3).map(nomCanal).join(", ")}</b></li>}
-        {x.solo && <li>Tenu par une seule personne</li>}
-        {x.constructible && <li>Bingoo! sait construire ta version en entier</li>}
-      </ul>
       <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-paper px-3 py-1.5 text-[12.5px] font-semibold text-ink-soft"><Cadenas />Son nom et ta version après paiement</p>
       <button onClick={() => onLancer(x.rang ?? k)} disabled={busy} className="fx-brille mt-4 rounded-xl bg-accent py-3 text-[14.5px] font-bold text-white hover:bg-accent-dark disabled:opacity-60">Lancer celui-ci</button>
     </div>
