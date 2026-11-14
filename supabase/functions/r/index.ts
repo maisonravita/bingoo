@@ -629,6 +629,22 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { saasTikTok } = await import("../_shared/app-tiktok.ts");
     return await saasTikTok(app, pr?.data ?? null, !!b.refaire);
   },
+  async "saas-tiktok-vignettes"(req, b) {
+    await membreOuCron(req, b.workspace_id);
+    const { vignettes } = await import("../_shared/app-tiktok.ts");
+    return await vignettes(Array.isArray(b.urls) ? b.urls.map(String) : []);
+  },
+  async "saas-tiktok-pareil"(req, b) {
+    const { ws } = await membreOuCron(req, b.workspace_id);
+    const { data: app } = await admin.from("saas_apps").select("id, spec, projet_id").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    if (!app?.spec) throw new HttpError(404, "Ton SaaS doit d'abord être construit");
+    const { data: pr } = await admin.from("saas_projets").select("data").eq("id", app.projet_id).maybeSingle();
+    await quota(ws.id, "tiktok_pareil", 30);
+    await log(ws.id, "tiktok_pareil", "Faire pareil (TikTok)");
+    setAi({ ws: ws.id, live: true, feature: "tiktok" });
+    const { fairePareil } = await import("../_shared/app-tiktok.ts");
+    return await fairePareil(app, pr?.data ?? null, b.video ?? {});
+  },
   async "saas-videos"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const { data } = await admin.from("saas_videos").select("id, format, script, at").eq("workspace_id", ws.id).eq("app_id", String(b.app_id ?? "")).order("at", { ascending: false }).limit(10);

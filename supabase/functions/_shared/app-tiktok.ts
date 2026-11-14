@@ -6,6 +6,32 @@ import { admin, askJson } from "./core.ts";
 const court = (v: unknown, n: number) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, n);
 const lienTikTok = (u: unknown) => { const s = String(u ?? "").trim(); return /^https:\/\/(www\.|vm\.|m\.)?tiktok\.com\//i.test(s) ? s.split("?")[0] : null; };
 
+// oEmbed public de TikTok : vraie couverture, auteur et légende d'une vidéo (et la preuve que le lien existe)
+export async function oembed(url: string) {
+  try {
+    const r = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(8000), headers: { "user-agent": "Mozilla/5.0 (Bingoo)" } });
+    if (!r.ok) return null;
+    const d = await r.json();
+    if (!d?.thumbnail_url) return null;
+    return { image: String(d.thumbnail_url), auteur: d.author_name ? String(d.author_name) : null, compte: d.author_url ? String(d.author_url) : null, legende: d.title ? String(d.title).slice(0, 220) : null };
+  } catch { return null; }
+}
+/** Couvertures fraîches (les liens d'images de TikTok expirent) pour une liste de vidéos. */
+export async function vignettes(urls: string[]) {
+  const ok = urls.map(lienTikTok).filter(Boolean).slice(0, 12) as string[];
+  const res = await Promise.all(ok.map(async (u) => [u, await oembed(u)] as const));
+  return Object.fromEntries(res.filter(([, v]) => v));
+}
+/** « Faire pareil » : la même mécanique que cette vidéo, adaptée à son SaaS. */
+export async function fairePareil(app: any, projet: any, v: { titre?: string; legende?: string; auteur?: string; pourquoi?: string }) {
+  const spec = app.spec ?? {};
+  const x = await askJson<any>(`Une vidéo TikTok a bien marché : « ${court(v.legende || v.titre, 240)} » (par ${court(v.auteur, 60) || "un créateur"}). Ce qui la fait marcher : ${court(v.pourquoi, 200)}
+Adapte exactement la même mécanique (même structure, même type d'accroche, même rythme) au SaaS « ${spec.nom ?? projet?.nom} » : ${spec.pitch ?? projet?.pitch ?? ""}. Pour : ${spec.cible ?? projet?.cible ?? ""}.
+Ne copie pas les phrases de la vidéo : reprends sa recette. Français, tutoiement, sans emoji, sans promesse chiffrée.
+JSON : { "accroche": "texte à l'écran les 2 premières secondes, 70 caractères max", "deroule": ["3 étapes courtes"], "a_filmer": "ce qu'il faut filmer concrètement, 1 phrase", "legende": "la légende à publier sous la vidéo, avec 3 à 5 hashtags pertinents", "duree": secondes }`, { fast: true, maxTokens: 900 });
+  return { accroche: court(x.accroche, 90), deroule: (Array.isArray(x.deroule) ? x.deroule : []).slice(0, 3).map((d: unknown) => court(d, 160)), a_filmer: court(x.a_filmer, 220), legende: court(x.legende, 300), duree: Math.max(7, Math.min(90, Number(x.duree) || 20)) };
+}
+
 export async function saasTikTok(app: any, projet: any, refaire = false) {
   if (!refaire) {
     const { data } = await admin.from("saas_tiktok").select("data, at").eq("app_id", app.id).maybeSingle();
@@ -42,6 +68,8 @@ JSON : { "formats": [ ... ], "conseils": ["3 conseils concrets de publication po
     formats: (Array.isArray(formats?.formats) ? formats.formats : []).slice(0, 6).map((f: any) => ({ format: court(f.format, 50), accroche: court(f.accroche, 90), deroule: (Array.isArray(f.deroule) ? f.deroule : []).slice(0, 3).map((x: unknown) => court(x, 160)), pourquoi: court(f.pourquoi, 200), duree: Math.max(7, Math.min(90, Number(f.duree) || 20)) })).filter((f: any) => f.accroche),
     conseils: (Array.isArray(formats?.conseils) ? formats.conseils : []).slice(0, 3).map((x: unknown) => court(x, 200)),
   };
+  // Chaque vidéo est vérifiée auprès de TikTok : un lien qu'il ne reconnaît pas est écarté
+  data.videos = (await Promise.all(data.videos.map(async (v: any) => { const o = await oembed(v.url); return o ? { ...v, auteur: o.auteur, compte: o.compte, legende: o.legende } : null; }))).filter(Boolean);
   if (!data.formats.length && !data.comptes.length && !data.videos.length) { console.error("tiktok", erreurs); throw new Error(`La recherche n'a rien donné, réessaie dans un instant${erreurs.length ? ` (${erreurs[0].slice(0, 160)})` : ""}`); }
   await admin.from("saas_tiktok").upsert({ app_id: app.id, workspace_id: app.workspace_id, data, at: new Date().toISOString() });
   return { ...data, at: new Date().toISOString() };

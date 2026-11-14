@@ -464,6 +464,12 @@ function TikTok({ m }) {
         )}
       </Carte>
 
+      <Carte className="mt-4" titre="Vidéos qui marchent dans ta niche" sous="Trouvées sur TikTok et vérifiées une par une. Regarde-les, puis fais pareil pour ton SaaS.">
+        {!t ? <p className="text-[13.5px] text-[#616161]">Lance l'analyse TikTok pour les voir.</p>
+          : !t.videos?.length ? <p className="text-[13.5px] text-[#616161]">Aucune vidéo sûre trouvée cette fois : réessaie plus tard avec « Actualiser ».</p>
+            : <VideosTikTok videos={t.videos} m={m} />}
+      </Carte>
+
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Carte titre="Ils trouvent leurs clients sur TikTok" sous={st?.n_cat >= 4 ? `SaaS de ta catégorie, revenus vérifiés.` : "Les SaaS vérifiés qui gagnent le plus avec TikTok."}>
           {st === undefined ? <Spinner /> : !st?.saas?.length ? <p className="text-[13.5px] text-[#616161]">Pas encore de données.</p> : (
@@ -477,13 +483,16 @@ function TikTok({ m }) {
             </ul>
           )}
         </Carte>
-        <Carte titre="À étudier sur TikTok" sous="Des comptes et des vidéos de ta niche trouvés sur le web, avec ce qu'ils font bien.">
-          {!t ? <p className="text-[13.5px] text-[#616161]">Lance l'analyse TikTok pour les voir.</p> : !(t.comptes?.length || t.videos?.length) ? <p className="text-[13.5px] text-[#616161]">Rien de sûr trouvé cette fois : réessaie plus tard avec « Actualiser ».</p> : (
+        <Carte titre="Comptes à suivre" sous="Des comptes de ta niche qui publient régulièrement, avec ce qu'ils font bien.">
+          {!t ? <p className="text-[13.5px] text-[#616161]">Lance l'analyse TikTok pour les voir.</p> : !t.comptes?.length ? <p className="text-[13.5px] text-[#616161]">Aucun compte sûr trouvé cette fois.</p> : (
             <ul className="divide-y divide-[#EBEBEB]">
-              {[...(t.comptes ?? []).map((c) => ({ ...c, type: "Compte", titre: c.nom, chiffre: c.abonnes })), ...(t.videos ?? []).map((v) => ({ ...v, type: "Vidéo", chiffre: v.vues }))].map((x, i) => (
-                <li key={i} className="py-2.5">
-                  <div className="flex items-center gap-2"><span className="rounded bg-[#F1F1F1] px-1.5 text-[11px] font-semibold">{x.type}</span><a href={x.url} target="_blank" rel="noreferrer" className="min-w-0 truncate text-[13.5px] font-semibold text-[#005BD3] hover:underline">{x.titre || x.url.replace(/^https:\/\/(www\.)?/, "")} ↗</a>{x.chiffre && <span className="shrink-0 text-[12px] text-[#8A8A8A]">{x.chiffre}</span>}</div>
-                  {x.pourquoi && <p className="mt-0.5 text-[12.5px] text-[#616161]">{x.pourquoi}</p>}
+              {t.comptes.map((c, i) => (
+                <li key={i} className="flex items-start gap-3 py-2.5">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#111] text-[13px] font-bold text-white">{(c.nom || "?").replace(/^@/, "").charAt(0).toUpperCase()}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2"><a href={c.url} target="_blank" rel="noreferrer" className="truncate text-[13.5px] font-semibold text-[#005BD3] hover:underline">{c.nom || c.url.replace(/^https:\/\/(www\.)?tiktok\.com\//, "")} ↗</a>{c.abonnes && <span className="shrink-0 text-[12px] text-[#8A8A8A]">{c.abonnes}</span>}</div>
+                    {c.pourquoi && <p className="mt-0.5 text-[12.5px] text-[#616161]">{c.pourquoi}</p>}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -491,5 +500,64 @@ function TikTok({ m }) {
         </Carte>
       </div>
     </>
+  );
+}
+
+// Les vidéos TikTok à étudier : leur vraie couverture (rafraîchie à chaque visite), le lien pour la regarder, et « Faire pareil »
+function VideosTikTok({ videos, m }) {
+  const { ws } = useWs();
+  const nav = useNavigate();
+  const [img, setImg] = useState({});
+  const [pareil, setPareil] = useState({});
+  const [copie, setCopie] = useState(null);
+  useEffect(() => { fn("r/saas-tiktok-vignettes", { workspace_id: ws.id, urls: videos.map((v) => v.url) }).then((d) => setImg(d ?? {}), () => {}); }, [videos.map((v) => v.url).join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
+  const faire = async (v) => {
+    setPareil((p) => ({ ...p, [v.url]: "encours" }));
+    try { const r = await fn("r/saas-tiktok-pareil", { workspace_id: ws.id, app_id: m.app.id, video: { titre: v.titre, legende: img[v.url]?.legende ?? v.legende, auteur: img[v.url]?.auteur ?? v.auteur, pourquoi: v.pourquoi } }); setPareil((p) => ({ ...p, [v.url]: r })); }
+    catch (e) { setPareil((p) => ({ ...p, [v.url]: { erreur: e.message } })); }
+  };
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      {videos.map((v) => {
+        const o = img[v.url] ?? {};
+        const p = pareil[v.url];
+        return (
+          <div key={v.url} className={cx("flex flex-col", p && p !== "encours" && !p.erreur && "col-span-2 sm:col-span-3 lg:col-span-5 lg:flex-row lg:gap-4")}>
+            <a href={v.url} target="_blank" rel="noreferrer" className={cx("group relative block aspect-[9/16] overflow-hidden rounded-xl bg-[#111]", p && p !== "encours" && !p.erreur && "lg:w-[180px] lg:shrink-0")}>
+              {o.image ? <img src={o.image} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" />
+                : <div className="grid h-full place-items-center bg-gradient-to-br from-[#25F4EE33] via-[#111] to-[#FE2C5533]"><svg viewBox="0 0 24 24" className="h-8 w-8 text-white/60" fill="currentColor"><path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5v2a1.5 1.5 0 1 0 1.5 1.5V3h2c.4 2.6 2.2 4.4 5 4.6v2c-2 0-3.7-.7-5-1.9" /></svg></div>}
+              <span className="absolute inset-0 grid place-items-center opacity-0 transition group-hover:opacity-100"><span className="grid h-12 w-12 place-items-center rounded-full bg-black/55"><svg viewBox="0 0 24 24" className="ml-0.5 h-6 w-6 text-white" fill="currentColor"><path d="M8 5v14l11-7z" /></svg></span></span>
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent p-2 pt-8">
+                <p className="truncate text-[12px] font-semibold text-white">{o.auteur ? `@${o.auteur}` : "TikTok"}</p>
+                {v.vues && <p className="text-[11px] text-white/75">{v.vues}</p>}
+              </div>
+            </a>
+            <div className="mt-2 flex min-w-0 flex-1 flex-col">
+              <p className="line-clamp-2 text-[12.5px] font-medium text-[#303030]">{o.legende || v.legende || v.titre}</p>
+              {v.pourquoi && <p className="mt-1 line-clamp-3 text-[12px] text-[#8A8A8A]">{v.pourquoi}</p>}
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <a href={v.url} target="_blank" rel="noreferrer" className="rounded-lg bg-white px-2.5 py-1 text-[12px] font-semibold shadow-[0_1px_0_rgba(0,0,0,.08),0_0_0_1px_rgba(0,0,0,.12)] hover:bg-[#F7F7F7]">Voir ↗</a>
+                {(!p || p.erreur) && <button onClick={() => faire(v)} className="rounded-lg bg-[#303030] px-2.5 py-1 text-[12px] font-semibold text-white hover:bg-[#1A1A1A]">Faire pareil</button>}
+                {p === "encours" && <span className="px-1 py-1 text-[12px] text-[#616161]">Bingoo! adapte…</span>}
+              </div>
+              {p?.erreur && <p className="mt-1 text-[12px] text-[#B42318]">{p.erreur}</p>}
+              {p && p !== "encours" && !p.erreur && (
+                <div className="mt-3 rounded-xl border border-[#EBEBEB] bg-[#FCFCFC] p-3 lg:mt-0">
+                  <p className="text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A]">Ta version pour {m.nom} · {p.duree} s</p>
+                  <p className="mt-1 text-[15px] font-bold">« {p.accroche} »</p>
+                  <ol className="mt-1.5 space-y-0.5 text-[13px] text-[#303030]">{p.deroule.map((d, k) => <li key={k}>{k + 1}. {d}</li>)}</ol>
+                  {p.a_filmer && <p className="mt-2 text-[13px] text-[#616161]"><b className="text-[#303030]">À filmer :</b> {p.a_filmer}</p>}
+                  {p.legende && <p className="mt-2 rounded-lg bg-white p-2 text-[12.5px] text-[#303030] ring-1 ring-[#EBEBEB]">{p.legende}</p>}
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    <Bouton principal onClick={() => nav(`/explorer/video?angle=${encodeURIComponent(p.accroche)}`)}>En faire une vidéo animée</Bouton>
+                    <Bouton onClick={() => navigator.clipboard?.writeText(`${p.accroche}\n\n${p.deroule.map((d, k) => `${k + 1}. ${d}`).join("\n")}\n\n${p.legende}`).then(() => { setCopie(v.url); setTimeout(() => setCopie(null), 1600); })}>{copie === v.url ? "Copié" : "Copier le script"}</Bouton>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
