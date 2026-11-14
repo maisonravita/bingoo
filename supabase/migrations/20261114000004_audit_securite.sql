@@ -66,3 +66,6 @@ select cron.schedule('bingoo-semaine-matin', '5 7 * * *', $$select net.http_post
 --     saas_pour_moi_coeur / saas_pour_moi_apercu : s.m_mrr >= 2000 dès la sélection de base (appliqué en direct).
 --     « Complément de revenu » vise désormais 2 000 à 5 000 $/mois (avant : 300 à 2 000).
 --     Les SaaS ≥ 2 000 $ refusés par l'ancienne règle à mots-clés (sans examen IA, pitch_fr->>'fait' vide) sont remis dans la file de vérification.
+-- 13. saas_pitch_a_faire : ne vérifie plus que les SaaS à 2 000 $/mois et plus (c.m_mrr >= 2000), le reste n'est plus montré.
+--     cron_dispatch bingoo-pitch-fr : toutes les minutes (≈ 0,0006 € par SaaS vérifié).
+--     Garde-fou recalé sur le vrai solde : ia_credit_eur 4,6 depuis le 14/11 17 h 19 UTC, ia_reserve_eur 2,75 (2 $ max pour les tâches de fond), ia_plafond_verif 1,6.
