@@ -33,6 +33,45 @@ export async function appPaiement(appId: string, b: any) {
   return pay;
 }
 
+// ---------------------------------------------------------------- Connexion Stripe en un clic (Stripe Connect, comptes Standard)
+// Le fondateur se connecte à son compte Stripe (ou en crée un) sur stripe.com, sans chercher de clé secrète.
+// L'argent de ses abonnés arrive sur SON compte ; Bingoo! ne prend aucune commission. Le collage de clé reste possible en repli.
+const SITE = "https://kairo.maisonravita.fr";
+async function hmac(texte: string) {
+  const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(texte))))).replace(/[+/=]/g, (c) => ({ "+": "-", "/": "_", "=": "" }[c] as string));
+}
+export async function stripeConnectLien(appId: string, wsId: string) {
+  const { data } = await admin.from("app_secrets").select("value").eq("name", "stripe_connect_client_id").maybeSingle();
+  if (!data?.value) throw new HttpError(503, "La connexion Stripe en un clic arrive très bientôt : en attendant, colle ta clé Stripe ci-dessous.");
+  const corps = btoa(JSON.stringify({ a: appId, w: wsId, t: Date.now() + 30 * 60e3 })).replace(/=+$/, "");
+  const u = new URL("https://connect.stripe.com/oauth/authorize");
+  u.searchParams.set("response_type", "code");
+  u.searchParams.set("client_id", data.value);
+  u.searchParams.set("scope", "read_write");
+  u.searchParams.set("state", `${corps}.${await hmac(corps)}`);
+  u.searchParams.set("redirect_uri", `${Deno.env.get("SUPABASE_URL")}/functions/v1/r/stripe-connect-retour`);
+  return { url: u.toString() };
+}
+export async function stripeConnectRetour(url: URL): Promise<Response> {
+  const retour = (q: string) => new Response(null, { status: 302, headers: { location: `${SITE}/#/explorer/reglages-saas?onglet=encaisser&stripe=${q}` } });
+  if (url.searchParams.get("error")) return retour("annule");
+  const [corps, sig] = String(url.searchParams.get("state") ?? "").split(".");
+  if (!corps || !sig || sig !== await hmac(corps)) return retour("erreur");
+  let s: { a: string; w: string; t: number };
+  try { s = JSON.parse(atob(corps)); } catch { return retour("erreur"); }
+  if (!s?.a || !(s.t > Date.now())) return retour("expire");
+  const { data: app } = await admin.from("saas_apps").select("id").eq("id", s.a).eq("workspace_id", s.w).maybeSingle();
+  if (!app) return retour("erreur");
+  const r = await fetch("https://connect.stripe.com/oauth/token", { method: "POST", headers: { authorization: `Bearer ${Deno.env.get("STRIPE_SECRET_KEY") ?? ""}`, "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ grant_type: "authorization_code", code: String(url.searchParams.get("code") ?? "") }) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d?.access_token) { console.error("stripe connect", r.status, d?.error, d?.error_description); return retour("erreur"); }
+  await appPaiement(app.id, { cle: d.access_token, actif: true });
+  const { data: a2 } = await admin.from("saas_apps").select("paiement").eq("id", app.id).single();
+  await admin.from("saas_apps").update({ paiement: { ...(a2?.paiement ?? {}), connect: d.stripe_user_id ?? null } }).eq("id", app.id);
+  return retour("ok");
+}
+
 // ---------------------------------------------------------------- Nom de domaine (projet Vercel qui héberge Bingoo!)
 async function vercelConf() {
   const env = (k: string) => Deno.env.get(k) ?? "";

@@ -1952,9 +1952,18 @@ function OngletLancement({ app, appel, agir, busy, projet, onChange }) {
 
 // Encaissement des abonnements (Stripe du créateur)
 function OngletEncaisser({ app, appel, agir, busy }) {
-  const [cle, setCle] = useState("");
+  const toast = useToast();
+  const [cle, setCle] = useState(""), [cleVisible, setCleVisible] = useState(false), [part, setPart] = useState(false);
   const pay = app.paiement ?? {};
   const [essai, setEssai] = useState(pay.essai_jours ?? 14);
+  // Retour de Stripe (?stripe=ok|annule|erreur|expire) : on le dit clairement, puis on nettoie l'adresse
+  useEffect(() => {
+    const m = /[?&]stripe=(ok|annule|erreur|expire)/.exec(window.location.href)?.[1];
+    if (!m) return;
+    toast({ ok: "Stripe connecté : tes clients paieront après leur essai, l'argent arrive sur ton compte.", annule: "Connexion à Stripe annulée.", erreur: "La connexion à Stripe n'a pas abouti : réessaie, ou colle ta clé ci-dessous.", expire: "Le lien a expiré : clique de nouveau sur « Connecter Stripe »." }[m], m === "ok" ? undefined : "bad");
+    window.history.replaceState(null, "", window.location.href.replace(/[?&]stripe=[a-z]+/, ""));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const connecter = async () => { setPart(true); try { const r = await appel("stripe-connect"); window.location.href = r.url; } catch (e) { setPart(false); setCleVisible(true); toast(e.message, "bad"); } };
   return pay.compte ? (
     <div className="space-y-2.5 max-w-xl">
       <p className="text-[14px] text-white/75">Stripe branché : <b className="text-white">{pay.compte}</b>{pay.test && <span className="ml-1.5 rounded bg-[#F6A06B]/25 px-1.5 py-0.5 text-[11px] font-bold text-[#F6A06B]">MODE TEST</span>}</p>
@@ -1965,9 +1974,15 @@ function OngletEncaisser({ app, appel, agir, busy }) {
     </div>
   ) : (
     <div className="space-y-2.5 max-w-xl">
-      <Explication>L'argent arrive directement sur ton compte Stripe. Colle ta clé secrète (Stripe → Développeurs → Clés API). Elle reste sur le serveur, personne ne peut la relire. Avec une clé sk_test_ tu peux tout essayer sans vrai paiement.</Explication>
-      <input value={cle} onChange={(e) => setCle(e.target.value)} placeholder="sk_live_… ou sk_test_…" className={champSombre} autoComplete="off" />
-      <button disabled={!!busy || cle.trim().length < 20} onClick={() => agir("cle", async () => { await appel("paiement", { cle: cle.trim(), actif: true }); setCle(""); }, "Stripe branché : tes clients paieront après l'essai")} className={btnAccent}>{busy === "cle" ? "Vérification…" : "Brancher Stripe"}</button>
+      <Explication>Connecte ton compte Stripe (ou crée-le en 5 minutes) : l'argent de tes abonnés arrive directement chez toi, sans commission de Bingoo!. Tu n'as rien à copier.</Explication>
+      <button disabled={part} onClick={connecter} className={btnAccent}>{part ? "Ouverture de Stripe…" : "Connecter Stripe"}</button>
+      {!cleVisible ? <button onClick={() => setCleVisible(true)} className="block text-[12.5px] text-white/50 underline">Je préfère coller une clé (sk_test_ pour essayer sans vrai paiement)</button> : (
+        <div className="space-y-2 pt-1">
+          <p className="text-[12.5px] text-white/55">Stripe → Développeurs → Clés API. La clé reste sur le serveur, personne ne peut la relire.</p>
+          <input value={cle} onChange={(e) => setCle(e.target.value)} placeholder="sk_live_… ou sk_test_…" className={champSombre} autoComplete="off" />
+          <button disabled={!!busy || cle.trim().length < 20} onClick={() => agir("cle", async () => { await appel("paiement", { cle: cle.trim(), actif: true }); setCle(""); }, "Stripe branché : tes clients paieront après l'essai")} className={btnAccent}>{busy === "cle" ? "Vérification…" : "Brancher avec la clé"}</button>
+        </div>
+      )}
     </div>
   );
 }

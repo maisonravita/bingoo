@@ -413,12 +413,14 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { appCroissance } = await import("../_shared/app-owner.ts");
     return await appCroissance(app.id);
   },
+  async "stripe-connect-retour"() { throw new HttpError(405, "Lien de retour Stripe : à ouvrir depuis le navigateur"); },
   async "saas-app-reglages"(req, b) {
     const { ws, userId } = await requireMember(req, b.workspace_id);
     const { data: app } = await admin.from("saas_apps").select("id").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
     if (!app) throw new HttpError(404, "Application introuvable");
     const o = await import("../_shared/app-owner.ts");
     if (b.quoi === "paiement") { await log(ws.id, "app_reglage", "Encaissement de l'application modifié"); return await o.appPaiement(app.id, b); }
+    if (b.quoi === "stripe-connect") return await o.stripeConnectLien(app.id, ws.id);
     if (b.quoi === "domaine") { await log(ws.id, "app_reglage", `Nom de domaine : ${String(b.domaine ?? "retiré").slice(0, 80)}`); return await o.appDomaine(app.id, b.domaine); }
     if (b.quoi === "domaine-verifier") return await o.appDomaineVerifier(app.id);
     if (b.quoi === "croissance") return await o.appCroissance(app.id);
@@ -1705,6 +1707,8 @@ Deno.serve(wrap(async (req) => {
   if (["free-renewals", "free-signals", "free-site", "free-marche", "free-competitor"].includes(name)) throw new HttpError(410, "Cette fonction a été retirée de Bingoo!.");
   const h = routes[name];
   if (!h) throw new HttpError(404, "Action inconnue");
+  // Retour de Stripe après « Connecter Stripe » (redirection du navigateur, donc GET sans jeton : l'état signé fait foi)
+  if (name === "stripe-connect-retour" && req.method === "GET") return await (await import("../_shared/app-owner.ts")).stripeConnectRetour(new URL(req.url));
   if (req.method !== "POST") throw new HttpError(405, "POST attendu");
   refuserInvite(req, name, ["saas-chiffres", "saas-bourse-lu", "saas-tendances"]);
   return json(await h(req, await readJson(req)));

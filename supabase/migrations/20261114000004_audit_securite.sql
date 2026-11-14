@@ -73,3 +73,6 @@ select cron.schedule('bingoo-semaine-matin', '5 7 * * *', $$select net.http_post
 --     cron bingoo-constructible-heure (44 * * * *) : saas_constructible_maj() juste avant le rafraîchissement de saas_choix (47).
 -- 15. E-mails des SaaS livrés : en démo l'envoi est simulé ; adresses d'exemple (@exemple.fr, @example.com, @demo.local) refusées ;
 --     pages publiques : 10 envois par heure et par connexion (empreinte _ip), e-mails de confirmation à une même adresse limités (6 par heure).
+-- 16. Connexion Stripe en un clic (Stripe Connect Standard, OAuth) : r/saas-app-reglages quoi=stripe-connect → lien signé (HMAC, 30 min, app + espace) ;
+--     GET r/stripe-connect-retour échange le code avec la clé plateforme (STRIPE_SECRET_KEY) et enregistre l'accès comme une clé collée.
+--     À activer : app_secrets.stripe_connect_client_id (ca_…, valeur publique) + l'adresse de retour déclarée dans Stripe Connect.
