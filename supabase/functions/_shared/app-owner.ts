@@ -42,12 +42,16 @@ async function hmac(texte: string) {
   return btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(texte))))).replace(/[+/=]/g, (c) => ({ "+": "-", "/": "_", "=": "" }[c] as string));
 }
 export async function stripeConnectLien(appId: string, wsId: string) {
-  const { data } = await admin.from("app_secrets").select("value").eq("name", "stripe_connect_client_id").maybeSingle();
-  if (!data?.value) throw new HttpError(503, "La connexion Stripe en un clic arrive très bientôt : en attendant, colle ta clé Stripe ci-dessous.");
-  const corps = btoa(JSON.stringify({ a: appId, w: wsId, t: Date.now() + 30 * 60e3 })).replace(/=+$/, "");
+  // Production d'abord ; sinon l'environnement de test de Stripe (configuré en premier, exigé par Stripe), avec sa propre clé plateforme
+  const { data: ids } = await admin.from("app_secrets").select("name, value").in("name", ["stripe_connect_client_id", "stripe_connect_client_id_test"]);
+  const m = Object.fromEntries((ids ?? []).map((x) => [x.name, x.value]));
+  const test = !m.stripe_connect_client_id && !!m.stripe_connect_client_id_test && !!Deno.env.get("STRIPE_TEST_SECRET_KEY");
+  const cid = test ? m.stripe_connect_client_id_test : m.stripe_connect_client_id;
+  if (!cid) throw new HttpError(503, "La connexion Stripe en un clic arrive très bientôt : en attendant, colle ta clé Stripe ci-dessous.");
+  const corps = btoa(JSON.stringify({ a: appId, w: wsId, t: Date.now() + 30 * 60e3, x: test ? 1 : 0 })).replace(/=+$/, "");
   const u = new URL("https://connect.stripe.com/oauth/authorize");
   u.searchParams.set("response_type", "code");
-  u.searchParams.set("client_id", data.value);
+  u.searchParams.set("client_id", cid);
   u.searchParams.set("scope", "read_write");
   u.searchParams.set("state", `${corps}.${await hmac(corps)}`);
   u.searchParams.set("redirect_uri", `${Deno.env.get("SUPABASE_URL")}/functions/v1/r/stripe-connect-retour`);
@@ -58,12 +62,12 @@ export async function stripeConnectRetour(url: URL): Promise<Response> {
   if (url.searchParams.get("error")) return retour("annule");
   const [corps, sig] = String(url.searchParams.get("state") ?? "").split(".");
   if (!corps || !sig || sig !== await hmac(corps)) return retour("erreur");
-  let s: { a: string; w: string; t: number };
+  let s: { a: string; w: string; t: number; x?: number };
   try { s = JSON.parse(atob(corps)); } catch { return retour("erreur"); }
   if (!s?.a || !(s.t > Date.now())) return retour("expire");
   const { data: app } = await admin.from("saas_apps").select("id").eq("id", s.a).eq("workspace_id", s.w).maybeSingle();
   if (!app) return retour("erreur");
-  const r = await fetch("https://connect.stripe.com/oauth/token", { method: "POST", headers: { authorization: `Bearer ${Deno.env.get("STRIPE_SECRET_KEY") ?? ""}`, "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ grant_type: "authorization_code", code: String(url.searchParams.get("code") ?? "") }) });
+  const r = await fetch("https://connect.stripe.com/oauth/token", { method: "POST", headers: { authorization: `Bearer ${Deno.env.get(s.x ? "STRIPE_TEST_SECRET_KEY" : "STRIPE_SECRET_KEY") ?? ""}`, "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ grant_type: "authorization_code", code: String(url.searchParams.get("code") ?? "") }) });
   const d = await r.json().catch(() => ({}));
   if (!r.ok || !d?.access_token) { console.error("stripe connect", r.status, d?.error, d?.error_description); return retour("erreur"); }
   await appPaiement(app.id, { cle: d.access_token, actif: true });
