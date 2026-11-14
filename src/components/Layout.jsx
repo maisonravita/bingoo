@@ -1,7 +1,7 @@
 import { LANGUES, langueActuelle, choisirLangue, chargerTraducteur } from "../lib/langue";
 import { CompteModal, MotDePasseManquant, demanderCompte, estInvite } from "../lib/invite";
-import { useEffect, useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { cx } from "../lib/utils";
@@ -38,6 +38,13 @@ const ICONS = {
   funnel: <path d="M3 4h18l-7 8v6l-4 2v-8z" />,
   radar: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><path d="M12 12l6-6" /></>,
   town: <><path d="M3 21h18" /><path d="M5 21V10l4-3 4 3v11" /><path d="M13 21V6l3-2 3 2v15" /><path d="M8 13h2M8 17h2M15.5 10h1M15.5 14h1" /></>,
+  side: <><rect x="3.5" y="4.5" width="17" height="15" rx="3" /><path d="M9.5 4.5v15" /></>,
+  search: <><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4.2-4.2" /></>,
+  video: <><rect x="3" y="6" width="13" height="12" rx="2.5" /><path d="m16 10.5 5-3v9l-5-3" /></>,
+  coins: <><ellipse cx="9" cy="7" rx="5.5" ry="2.5" /><path d="M3.5 7v4c0 1.4 2.5 2.5 5.5 2.5s5.5-1.1 5.5-2.5V7" /><path d="M9.5 16.4c.9.6 2.4 1.1 4.5 1.1 3 0 5.5-1.1 5.5-2.5v-4c0-1.2-1.6-2.1-3.9-2.4" /></>,
+  help: <><circle cx="12" cy="12" r="8.5" /><path d="M9.6 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.4M12 16.8v.01" /></>,
+  chat: <path d="M4 5h16v11H9l-5 4z" />,
+  logout: <><path d="M10 4H5v16h5" /><path d="m14 8 4 4-4 4M18 12H9" /></>,
   more: <><circle cx="5" cy="12" r="1.3" /><circle cx="12" cy="12" r="1.3" /><circle cx="19" cy="12" r="1.3" /></>,
 };
 export const Icon = ({ name, className = "w-5 h-5" }) => <svg viewBox="0 0 24 24" className={cx(className, "shrink-0")} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{ICONS[name]}</svg>;
@@ -148,6 +155,164 @@ function TopBar({ ws, replies }) {
   );
 }
 
+// ---------------------------------------------------------------- Bingoo! : barre latérale fixe + barre du haut (fil d'Ariane, recherche, compte et crédits)
+const FORMULE = { explorer_pro: "Lancer", business: "Business", fondateur: "Fondateur", explorer: "Trouver", essai: "Sans formule" };
+const DUREE_F = { mois: "1 mois", trimestre: "3 mois", an: "12 mois" };
+function useCredits(ws, invite) {
+  const loc = useLocation();
+  const [c, setC] = useState(null);
+  useEffect(() => { if (!invite) fn("r/credits", { workspace_id: ws.id }).then(setC).catch(() => {}); }, [ws.id, invite, loc.pathname]);
+  return c;
+}
+// L'avatar entouré de l'anneau des crédits restants
+function Anneau({ pct, lettre, size = 42 }) {
+  const r = 19, L = 2 * Math.PI * r;
+  return (
+    <span className="relative grid place-items-center" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 44 44" className="absolute inset-0 -rotate-90" aria-hidden>
+        <circle cx="22" cy="22" r={r} fill="none" stroke="#E7E5E0" strokeWidth="3" />
+        {pct != null && <circle cx="22" cy="22" r={r} fill="none" stroke={pct < 15 ? "#DC2626" : "#E8571C"} strokeWidth="3" strokeLinecap="round" strokeDasharray={L} strokeDashoffset={L * (1 - Math.max(0.02, pct / 100))} className="transition-all duration-700" />}
+      </svg>
+      <span className="grid h-[30px] w-[30px] place-items-center rounded-full bg-ink text-[13px] font-bold text-white">{lettre}</span>
+    </span>
+  );
+}
+function MenuCompte({ ws, list, select, credits, invite, onAvis, onClose }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    const k = (e) => e.key === "Escape" && onClose();
+    setTimeout(() => document.addEventListener("pointerdown", h)); document.addEventListener("keydown", k);
+    return () => { document.removeEventListener("pointerdown", h); document.removeEventListener("keydown", k); };
+  }, [onClose]);
+  const L = ({ to, children }) => <NavLink to={to} onClick={onClose} className="block rounded-lg px-3 py-2 text-[14.5px] hover:bg-paper">{children}</NavLink>;
+  return (
+    <div ref={ref} className="absolute right-0 top-[calc(100%+10px)] z-50 w-[330px] rounded-2xl border border-line bg-white p-2 shadow-[0_24px_60px_-20px_rgba(15,23,42,.35)] rise">
+      {!invite && (
+        <div className="rounded-xl border border-line p-3.5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="flex items-center gap-2 font-semibold"><Icon name="coins" className="w-[18px] h-[18px]" />Solde</p>
+            <NavLink to="/abonnement#credits" onClick={onClose} className="rounded-lg bg-ink px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-ink/85">Recharger</NavLink>
+          </div>
+          <div className="mt-2.5 space-y-1 text-[14px]">
+            <p className="flex justify-between text-ink-soft"><span>Total</span><b className="text-ink tnum">{credits ? `${credits.total ?? 0} crédits` : "…"}</b></p>
+            <p className="flex justify-between text-ink-soft"><span>Restant</span><b className="text-ink tnum">{credits ? credits.solde : "…"}</b></p>
+          </div>
+        </div>
+      )}
+      <div className="mt-2 rounded-xl border border-line p-3.5">
+        <p className="text-[12.5px] text-ink-faint">Espace actuel</p>
+        {list?.length > 1 ? <WsSwitch ws={ws} list={list} select={select} className="mt-1" /> : <p className="mt-0.5 font-semibold truncate">{ws.profile?.nom || ws.name || "Mon espace"}</p>}
+        <p className="text-[13px] text-ink-soft">{invite ? "Sans compte" : `Formule ${FORMULE[ws.plan] ?? ws.plan}${ws.plan === "explorer_pro" && ws.periode ? ` · ${DUREE_F[ws.periode] ?? ""}` : ""}`}</p>
+      </div>
+      <div className="mt-1.5 py-1">
+        {!invite && <><L to="/reglages">Paramètres</L><L to="/abonnement">Abonnement</L><L to="/abonnement#credits">Acheter des crédits</L></>}
+        <label className="flex items-center justify-between gap-3 rounded-lg px-3 py-1.5 text-[14.5px] hover:bg-paper">Langue
+          <select aria-label="Langue du site" value={langueActuelle()} onChange={(e) => choisirLangue(e.target.value)} className="rounded-md border border-line bg-white px-2 py-1 text-[13px]">{LANGUES.map(([code, nom]) => <option key={code} value={code}>{nom}</option>)}</select>
+        </label>
+      </div>
+      <div className="border-t border-line py-1.5">
+        <L to="/aide">Aide</L>
+        <button onClick={() => { onClose(); onAvis(); }} className="block w-full rounded-lg px-3 py-2 text-left text-[14.5px] hover:bg-paper">Donner mon avis</button>
+        <L to="/conditions">Conditions et confidentialité</L>
+      </div>
+      <div className="border-t border-line pt-1.5">
+        {invite
+          ? <button onClick={() => { onClose(); demanderCompte("Garde tes résultats et reviens quand tu veux."); }} className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[14.5px] font-semibold text-accent-dark hover:bg-paper">Créer mon compte</button>
+          : <button onClick={() => supabase.auth.signOut()} className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[14.5px] hover:bg-paper"><Icon name="logout" className="w-[18px] h-[18px]" />Se déconnecter</button>}
+      </div>
+    </div>
+  );
+}
+
+function AppShell({ ws, list, select, invite, isAdmin, essentiel, c, bandeau, extra, menuMobile, onAvis, children }) {
+  const loc = useLocation();
+  const nav = useNavigate();
+  const credits = useCredits(ws, invite);
+  const [replie, setReplie] = useState(() => { try { return localStorage.getItem("bingoo-menu") === "1"; } catch { return false; } });
+  const [compte, setCompte] = useState(false);
+  const [q, setQ] = useState("");
+  const recherche = useRef(null);
+  useEffect(() => { try { localStorage.setItem("bingoo-menu", replie ? "1" : "0"); } catch { /* sans effet */ } }, [replie]);
+  useEffect(() => setCompte(false), [loc.pathname]);
+  useEffect(() => {
+    const k = (e) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); recherche.current?.focus(); } };
+    window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k);
+  }, []);
+  const outils = invite ? [] : [
+    { to: "/explorer/createurs", label: "Vidéo pub", icon: "video", hash: "video" },
+    { to: "/abonnement#credits", label: "Crédits", icon: "coins" },
+    { to: "/abonnement", label: "Abonnement", icon: "card" },
+    ...(["business", "fondateur"].includes(ws.plan) ? [{ to: "/equipe", label: "Équipe", icon: "users" }] : []),
+    ...(isAdmin ? [{ to: "/admin", label: "Administration", icon: "chart" }] : []),
+  ];
+  const actif = (n) => !n.hash && (loc.pathname === n.to.split("#")[0] && (!n.to.includes("#") ? !loc.hash.includes("credits") || n.to !== "/abonnement" : loc.hash.includes("credits")) || (n.also ?? []).includes(loc.pathname));
+  const courant = [...essentiel, ...outils].find(actif) ?? essentiel.find((n) => loc.pathname.startsWith(n.to + "/"));
+  const fil = loc.pathname.startsWith("/explorer/") && !courant ? ["Explorer les SaaS", decodeURIComponent(loc.pathname.split("/")[2] ?? "")]
+    : ["Bingoo!", courant?.label ?? ({ "/reglages": "Paramètres", "/aide": "Aide", "/legal": "Conditions" })[loc.pathname] ?? ""];
+  const pct = credits?.total ? Math.round((credits.solde / credits.total) * 100) : null;
+  const lien = (n) => (
+    <NavLink key={n.label} to={n.to} end title={replie ? n.label : undefined}
+      className={cx("group flex items-center gap-3 rounded-xl px-3 py-2 text-[14.5px] font-medium transition", replie && "justify-center px-0", actif(n) ? "bg-[#EDEBE6] text-ink font-semibold" : "text-ink-soft hover:bg-[#F1EFEA] hover:text-ink")}>
+      <Icon name={n.icon} className="w-[19px] h-[19px]" />{!replie && <span className="flex-1 truncate">{n.label}</span>}
+    </NavLink>
+  );
+  return (
+    <div className="min-h-full md:flex">
+      {extra}
+      <aside className={cx("hidden md:flex sticky top-0 h-screen shrink-0 flex-col border-r border-line bg-[#FAF9F6] transition-[width] duration-200", replie ? "w-[76px] px-2.5" : "w-[264px] px-4")}>
+        <div className={cx("flex h-16 items-center", replie ? "justify-center" : "px-1.5")}>
+          {replie ? <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#E8571C] text-[17px] font-black text-white">B</span> : <span className="flex items-center"><Logo height={30} /></span>}
+        </div>
+        <nav aria-label="Navigation principale" className="mt-2 flex flex-col gap-0.5">{essentiel.map(lien)}</nav>
+        {outils.length > 0 && <>
+          {!replie ? <p className="mt-6 mb-1.5 px-3 text-[13px] font-medium text-ink-faint">Outils</p> : <div className="my-4 mx-3 border-t border-line" />}
+          <div className="flex flex-col gap-0.5">{outils.map(lien)}</div>
+        </>}
+        <div className="flex-1" />
+        {!invite && !replie && (
+          <NavLink to="/abonnement#credits" className="mb-3 block rounded-2xl border border-line bg-white p-3.5 hover:border-ink-faint/60">
+            <div className="flex items-center justify-between text-[13px]"><span className="font-semibold">Tes crédits</span><span className="tnum text-ink-soft">{credits ? credits.solde : "…"}</span></div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-paper"><div className="h-full rounded-full bg-[#E8571C] transition-all duration-700" style={{ width: `${pct ?? 0}%` }} /></div>
+            <p className="mt-2 text-[12.5px] text-ink-soft">Vidéo pub, modifications, autre SaaS</p>
+          </NavLink>
+        )}
+        <div className={cx("mb-4 flex flex-col gap-0.5 border-t border-line pt-3", replie && "items-center")}>
+          {lien({ to: "/aide", label: "Aide", icon: "help" })}
+        </div>
+      </aside>
+
+      <div className="min-w-0 flex-1">
+        {bandeau}
+        <header className="sticky top-0 z-40 hidden md:flex h-16 items-center gap-3 border-b border-line bg-white/85 px-6 backdrop-blur">
+          <button onClick={() => setReplie(!replie)} aria-label={replie ? "Déplier le menu" : "Replier le menu"} className="grid h-9 w-9 place-items-center rounded-lg text-ink-soft hover:bg-paper hover:text-ink"><Icon name="side" className="w-[19px] h-[19px]" /></button>
+          <p className="flex min-w-0 items-center gap-2 text-[15px]"><span className="text-ink-soft">{fil[0]}</span>{fil[1] && <><span className="text-ink-faint">›</span><span className="truncate font-medium">{fil[1]}</span></>}</p>
+          <div className="flex-1" />
+          <form onSubmit={(e) => { e.preventDefault(); if (q.trim()) { nav(`/explorer/demande?q=${encodeURIComponent(q.trim())}`); setQ(""); recherche.current?.blur(); } }}
+            className="hidden lg:flex w-[340px] items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 focus-within:border-ink-faint">
+            <Icon name="search" className="w-[17px] h-[17px] text-ink-faint" />
+            <input ref={recherche} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un SaaS, une idée…" className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-ink-faint" />
+            <kbd className="rounded-md border border-line px-1.5 text-[11px] text-ink-faint">⌘ K</kbd>
+          </form>
+          <button onClick={onAvis} className="hidden xl:block rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper">Retour d'information</button>
+          <NavLink to="/aide" className="rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper">Aide</NavLink>
+          <NavLink to="/explorer/demande" className="flex items-center gap-2 rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper"><Icon name="spark" className="w-[17px] h-[17px] text-[#E8571C]" />Demander</NavLink>
+          {!invite && <Bell ws={ws} replies={c.replies} />}
+          <div className="relative">
+            <button onClick={() => setCompte(!compte)} aria-label="Mon compte et mes crédits" aria-expanded={compte} className="rounded-full hover:opacity-90">
+              <Anneau pct={invite ? null : pct} lettre={(ws.sender_name || ws.profile?.nom || ws.name || "?").trim()[0]?.toUpperCase()} />
+            </button>
+            {compte && <MenuCompte ws={ws} list={list} select={select} credits={credits} invite={invite} onAvis={onAvis} onClose={() => setCompte(false)} />}
+          </div>
+        </header>
+        {/* Téléphone : le menu 3 traits et le logo */}
+        <div className="md:hidden flex items-center gap-3 px-4 pt-4">{menuMobile}<Logo /></div>
+        <main className="min-w-0 px-4 pt-4 pb-28 md:pb-16 md:px-10 md:pt-8 max-w-6xl mx-auto">{children}</main>
+      </div>
+    </div>
+  );
+}
+
 export default function Layout({ children }) {
   const { ws, list, select, session } = useWs();
   const invite = estInvite(session);
@@ -203,7 +368,7 @@ export default function Layout({ children }) {
     { to: "/explorer/trouver", label: "Trouver mon SaaS", icon: "target" },
   ] : veille ? [
     { to: "/explorer/trouver", label: "Trouver mon SaaS", icon: "target" },
-    { to: "/explorer/copier", label: "À lancer", icon: "target", also: ["/explorer/chiffres"] },
+    { to: "/explorer/copier", label: "À lancer", icon: "flag", also: ["/explorer/chiffres"] },
     { to: "/explorer/demande", label: "Demande à Bingoo!", icon: "spark", also: ["/explorer/connecteur"] },
     { to: "/explorer/createurs", label: "Mes SaaS", icon: "bot", also: ["/explorer/lancer"] },
     { to: "/explorer/vendre", label: "Acheter / vendre", icon: "doc", also: ["/explorer/bourse", "/explorer/racheter"] },
@@ -281,6 +446,25 @@ export default function Layout({ children }) {
     </div>
   );
 
+  const basMobile = (
+    <nav aria-label="Navigation mobile" hidden={invite} className="md:hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
+      <div className="grid grid-cols-4">
+        {[["/explorer/trouver", "Trouver", "target"], ["/explorer/copier", "À lancer", "target"], ["/explorer/createurs", "Mes SaaS", "bot"], ["/explorer", "Explorer", "list"]].map(([to, l, ic]) => (
+          <NavLink key={to} to={to} end={to === "/explorer"} className={({ isActive }) => cx("relative flex flex-col items-center gap-0.5 py-2.5 text-[11.5px] font-semibold", isActive ? "text-[#E8571C]" : "text-ink-soft")}><Icon name={ic} />{l}</NavLink>
+        ))}
+      </div>
+    </nav>
+  );
+  if (veille || invite) return (
+    <>
+      <AppShell ws={ws} list={list} select={select} invite={invite} isAdmin={isAdmin} essentiel={essentiel} c={c} bandeau={bandeau} extra={extra} menuMobile={menu} onAvis={() => setFb(true)}>
+        {ws.plan === "essai" && !invite && <div className="mb-5 flex"><TrialBar ws={ws} /></div>}
+        {children}
+      </AppShell>
+      {basMobile}
+      {fb && <Feedback onClose={() => setFb(false)} />}
+    </>
+  );
   return (
     <div className="min-h-full">
       {bandeau}

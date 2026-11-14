@@ -589,8 +589,12 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   // Crédits Bingoo! : solde, derniers mouvements, ce que coûte chaque action
   async credits(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
-    const { data } = await admin.from("credits").select("delta, motif, at").eq("workspace_id", ws.id).order("at", { ascending: false }).limit(15);
-    return { solde: await creditsSolde(ws.id), mouvements: data ?? [], couts: COUT_CREDITS };
+    const [{ data }, { data: entrees }] = await Promise.all([
+      admin.from("credits").select("delta, motif, at").eq("workspace_id", ws.id).order("at", { ascending: false }).limit(15),
+      admin.from("credits").select("delta").eq("workspace_id", ws.id).gt("delta", 0),
+    ]);
+    const total = (entrees ?? []).reduce((n, x) => n + Number(x.delta), 0);
+    return { solde: await creditsSolde(ws.id), total, mouvements: data ?? [], couts: COUT_CREDITS };
   },
   // Vidéo pub en motion design : l'IA écrit le scénario (10 crédits), la page l'anime et l'exporte en vidéo
   async "saas-video"(req, b) {
