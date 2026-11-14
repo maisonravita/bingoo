@@ -10,7 +10,7 @@ const euros = (n) => `${Number(n || 0).toLocaleString("fr-FR")} €`;
 export default function ResultatsBingoo({ sombre = false, className = "" }) {
   const [d, setD] = useState(null);
   useEffect(() => { supabase.rpc("saas_resultats_bingoo").then(({ data }) => setD(data ?? null)); }, []);
-  if (!d || d.avec_clients < MIN) return null;
+  if (!(Number(d?.avec_clients) >= MIN)) return null;
   const c = sombre ? "text-white" : "text-ink";
   const doux = sombre ? "text-white/65" : "text-ink-soft";
   return (

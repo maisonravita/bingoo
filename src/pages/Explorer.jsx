@@ -2602,7 +2602,7 @@ export function TrouveTonSaas() {
   const { ws, session, reload } = useWs();
   const avant = lirePar();
   // Retour de la page de paiement sans payer : on revient directement sur ses SaaS, pas à la première question
-  const annule = /paiement=annule/.test(window.location.hash) && !!avant?.fini;
+  const annule = /paiement=annule/.test(window.location.href) && !!avant?.fini;
   const [r, setR] = useState(() => ({ canaux: [], refus: [], secteurs: [], audience: null, ambition: null, profil: null, temps: null, ...(avant ?? {}), metier: "", etape: annule ? QUESTIONS.length : 0 }));
   const [res, setRes] = useState(null);
   const [ap, setAp] = useState(null);

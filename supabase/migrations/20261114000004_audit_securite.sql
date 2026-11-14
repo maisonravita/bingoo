@@ -51,3 +51,7 @@ alter table public.saas add column if not exists pitch_fr jsonb;
 --    par sa référence après paiement (avant : par son rang, faux s'il était au-delà des 9 premiers ou si la liste avait bougé). Index trigramme sur saas.nom.
 create extension if not exists pg_trgm with schema extensions;
 create index if not exists saas_nom_trgm on public.saas using gin (nom extensions.gin_trgm_ops);
+
+-- 10. (Appliqué via MCP) L'étape du jour par e-mail (promise dans les formules) : la tâche n'était plus planifiée.
+--     Envoyée seulement à ceux qui ont coché « Recevoir l'étape chaque matin ».
+select cron.schedule('bingoo-semaine-matin', '5 7 * * *', $$select net.http_post(url:='https://fbsjbnnmzazylmquzryo.supabase.co/functions/v1/r/saas-semaine-cron', headers:=jsonb_build_object('content-type','application/json','x-cron-key',(select value from public.app_secrets where name='cron_key')), body:='{}'::jsonb, timeout_milliseconds:=150000)$$);
