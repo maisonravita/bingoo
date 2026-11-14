@@ -36,3 +36,6 @@ create index if not exists saas_demandes_workspace_idx on public.saas_demandes(w
 create index if not exists saas_annonces_workspace_idx on public.saas_annonces(workspace_id);
 create index if not exists saas_api_cles_workspace_idx on public.saas_api_cles(workspace_id);
 create index if not exists saas_sans_succes_recent on public.saas (statut, created_at desc) where succes is null;
+
+-- 6. Fiches floutées : ce que fait le SaaS et pour qui, en clair mais sans son nom (saas_masquer, saas.pitch_fr rédigé en français par r/saas-pitch-fr)
+alter table public.saas add column if not exists pitch_fr jsonb;

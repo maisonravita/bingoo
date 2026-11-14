@@ -729,6 +729,29 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   async "saas-tags"(req) { await cron(req); const { saasTags, saasEmailsAClasser } = await import("../_shared/saas-base.ts"); await saasEmailsAClasser().catch(() => null); return await saasTags(); },
   // Explorer (clé cron) : relevés de nuit et amorçage de la base
   // Découverte à grande échelle (clé cron) : import de la liste Tranco, puis tri sans IA des candidats
+  // Fiches floutées (avant paiement) : ce que fait chaque SaaS et pour qui, en français et sans son nom
+  async "saas-pitch-fr"(req) {
+    await cron(req);
+    setAi({ ws: null, feature: "explorer/pitch" });
+    const { askJson } = await import("../_shared/core.ts");
+    const { data } = await admin.rpc("saas_pitch_a_faire", { lim: 12 });
+    let faits = 0;
+    for (const x of (data ?? []) as { id: string; nom: string; domaine: string; texte: string; persona: string | null }[]) {
+      try {
+        const r = await askJson<{ fait: string; pour_qui: string }>(`Voici un logiciel en ligne (SaaS). Nom : ${x.nom}. Site : ${x.domaine}.
+Description : ${x.texte}
+${x.persona ? `Clients visés : ${x.persona}` : ""}
+
+Écris en français simple, sans jamais citer son nom, son site, ni aucune marque :
+- "fait" : ce qu'il fait concrètement, en une phrase de 20 mots maximum, qui commence par un verbe (ex. « Aide les crèches à… »).
+- "pour_qui" : ses clients, en 8 mots maximum (ex. « Crèches et assistantes maternelles »).
+Réponds en JSON : {"fait": "...", "pour_qui": "..."}`, { fast: true, maxTokens: 200 });
+        const nettoie = (t: string) => String(t ?? "").replaceAll(x.nom, "ce SaaS").slice(0, 200).trim();
+        if (r?.fait) { await admin.from("saas").update({ pitch_fr: { fait: nettoie(r.fait), pour_qui: nettoie(r.pour_qui) } }).eq("id", x.id); faits++; }
+      } catch (e) { if ((e as { status?: number }).status === 503 || (e as { status?: number }).status === 402) break; }
+    }
+    return { faits };
+  },
   async "saas-decouvrir-import"(req, b) { await cron(req); const { decouvrirImport } = await import("../_shared/saas-decouverte.ts"); return await decouvrirImport(Math.max(1, Number(b.debut ?? 1)), Math.min(1_000_001, Number(b.fin ?? 100_001))); },
   async "saas-succes-import"(req) { await cron(req); const { succesImport } = await import("../_shared/saas-decouverte.ts"); return await succesImport(); },
   async "trustmrr-plan"(req) { await cron(req); const { trustmrrPlan } = await import("../_shared/saas-decouverte.ts"); return await trustmrrPlan(); },
