@@ -270,6 +270,13 @@ function AppShell({ ws, list, select, invite, isAdmin, essentiel, c, bandeau, ex
           <div className="flex flex-col gap-0.5">{outils.map(lien)}</div>
         </>}
         <div className="flex-1" />
+        {invite && !replie && (
+          <div className="mb-3 rounded-2xl border border-line bg-white p-3.5">
+            <p className="text-[13.5px] font-semibold">Garde tes résultats</p>
+            <p className="mt-1 text-[12.5px] text-ink-soft">Ton compte garde tes réponses et les SaaS trouvés pour toi.</p>
+            <button onClick={() => demanderCompte("Garde tes résultats et reviens quand tu veux.")} className="mt-2.5 w-full rounded-lg bg-ink py-2 text-[13px] font-semibold text-white hover:bg-ink/85">Créer mon compte</button>
+          </div>
+        )}
         {!invite && !replie && (
           <NavLink to="/abonnement#credits" className="mb-3 block rounded-2xl border border-line bg-white p-3.5 hover:border-ink-faint/60">
             <div className="flex items-center justify-between text-[13px]"><span className="font-semibold">Tes crédits</span><span className="tnum text-ink-soft">{credits ? credits.solde : "…"}</span></div>
@@ -294,16 +301,19 @@ function AppShell({ ws, list, select, invite, isAdmin, essentiel, c, bandeau, ex
             <input ref={recherche} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un SaaS, une idée…" className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-ink-faint" />
             <kbd className="rounded-md border border-line px-1.5 text-[11px] text-ink-faint">⌘ K</kbd>
           </form>
-          <button onClick={onAvis} className="hidden xl:block rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper">Retour d'information</button>
+          <button onClick={onAvis} className={cx("hidden rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper", !invite && "xl:block")}>Retour d'information</button>
           <NavLink to="/aide" className="rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper">Aide</NavLink>
           <NavLink to="/explorer/demande" className="flex items-center gap-2 rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper"><Icon name="spark" className="w-[17px] h-[17px] text-[#E8571C]" />Demander</NavLink>
           {!invite && <Bell ws={ws} replies={c.replies} />}
-          <div className="relative">
+          {invite ? <>
+            <button onClick={() => supabase.auth.signOut()} className="rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper">Se connecter</button>
+            <button onClick={() => demanderCompte("Garde tes résultats et reviens quand tu veux.")} className="rounded-xl bg-ink px-4 py-2 text-[14px] font-semibold text-white hover:bg-ink/85">Créer mon compte</button>
+          </> : <div className="relative">
             <button onClick={() => setCompte(!compte)} aria-label="Mon compte et mes crédits" aria-expanded={compte} className="rounded-full hover:opacity-90">
               <Anneau pct={invite ? null : pct} lettre={(ws.sender_name || ws.profile?.nom || ws.name || "?").trim()[0]?.toUpperCase()} />
             </button>
             {compte && <MenuCompte ws={ws} list={list} select={select} credits={credits} invite={invite} onAvis={onAvis} onClose={() => setCompte(false)} />}
-          </div>
+          </div>}
         </header>
         {/* Téléphone : le menu 3 traits et le logo */}
         <div className="md:hidden flex items-center gap-3 px-4 pt-4">{menuMobile}<Logo /></div>
