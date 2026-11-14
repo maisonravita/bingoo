@@ -38,7 +38,7 @@ export default function PublicApp({ slug, domaine }) {
   }, [app?.slug]); // eslint-disable-line react-hooks/exhaustive-deps
   if (app === undefined) return <Splash />;
   if (!app) return <div className="min-h-screen grid place-items-center bg-paper text-ink-soft p-6 text-center"><p>Cette application n'existe pas ou n'est plus en ligne.</p></div>;
-  // Abonnement Bingoo! du créateur arrêté depuis plus de 7 jours : le service est mis en pause (rien n'est effacé)
+  // Abonnement Bingoo! du créateur arrêté depuis plus de 5 jours : le service est mis en pause (rien n'est effacé)
   if (app.suspendu) return <div className="min-h-screen grid place-items-center bg-paper p-6 text-center"><div><p className="text-[20px] font-bold text-ink">{app.spec?.nom}</p><p className="mt-2 text-ink-soft">Ce service est momentanément indisponible. Reviens un peu plus tard.</p></div></div>;
   return (
     <>

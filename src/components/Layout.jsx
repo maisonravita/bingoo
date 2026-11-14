@@ -320,11 +320,16 @@ export default function Layout({ children }) {
 
   const extra = <><CompteModal /><MotDePasseManquant /></>;
   // Paiement refusé (Stripe réessaie pendant environ 2 semaines) ou abonnement arrêté : prévenir partout, avec la solution
-  const finAcces = ws.period_end ? new Date(new Date(ws.period_end).getTime() + 7 * 864e5).toLocaleDateString("fr-FR", { day: "numeric", month: "long" }) : null;
-  const alertePaiement = !invite && ws.plan !== "fondateur" && (["past_due", "unpaid"].includes(ws.plan_status)
-    ? ["Ton dernier paiement n'est pas passé.", "Mets à jour ta carte pour garder ton SaaS en ligne et continuer à l'améliorer.", "Mettre à jour ma carte"]
+  // 5 jours après un impayé (ou la fin d'un abonnement arrêté) : Bingoo! et le SaaS du créateur sont bloqués jusqu'au paiement
+  const jour = (d) => new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+  const impaye = !invite && ws.plan !== "fondateur" && ["past_due", "unpaid"].includes(ws.plan_status);
+  const limiteImpaye = impaye ? new Date(new Date(ws.impaye_depuis ?? Date.now()).getTime() + 5 * 864e5) : null;
+  const bloque = impaye && limiteImpaye < new Date();
+  const finAcces = ws.period_end ? jour(new Date(ws.period_end).getTime() + 5 * 864e5) : null;
+  const alertePaiement = !invite && ws.plan !== "fondateur" && (impaye
+    ? ["Ton dernier paiement n'est pas passé.", `Mets à jour ta carte avant le ${jour(limiteImpaye)} : sinon Bingoo! et ton SaaS seront bloqués.`, "Mettre à jour ma carte"]
     : ws.plan_status === "canceled" && ws.stripe_customer
-      ? ["Ton abonnement est arrêté.", finAcces ? `Ton SaaS reste en ligne jusqu'au ${finAcces}, puis il est mis en pause (rien n'est effacé).` : "Ton SaaS est en pause, rien n'est effacé.", "Me réabonner"]
+      ? ["Ton abonnement est arrêté.", finAcces && new Date(ws.period_end).getTime() + 5 * 864e5 > Date.now() ? `Ton SaaS reste en ligne jusqu'au ${finAcces}, puis il est mis en pause (rien n'est effacé).` : "Ton SaaS est en pause, rien n'est effacé.", "Me réabonner"]
       : null);
   const bandeauPaiement = alertePaiement && (
     <div className="bg-[#B42318] text-white text-[13.5px]">
@@ -354,6 +359,18 @@ export default function Layout({ children }) {
   // Avant le paiement : le parcours seul (questions, SaaS floutés, paiement), sans le menu de l'application.
   // Après le paiement : la révélation et l'atelier en plein écran, sinon l'interface complète.
   const paye = ws.plan === "fondateur" || (["explorer", "explorer_pro", "business", "solo", "pro"].includes(ws.plan) && ["active", "trialing", "past_due"].includes(ws.plan_status));
+  if (bloque && !["/abonnement", "/aide", "/reglages"].includes(loc.pathname)) return (
+    <div className="min-h-screen grid place-items-center bg-[#F1F1F1] p-6">
+      {extra}
+      <div className="w-full max-w-[460px] rounded-2xl bg-white p-7 text-center shadow-[0_1px_0_rgba(0,0,0,.08),0_0_0_1px_rgba(0,0,0,.06)]">
+        <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-[#FEE4E2] text-[22px]">🔒</div>
+        <h1 className="text-[20px] font-bold text-[#1A1A1A]">Ton accès est bloqué</h1>
+        <p className="mt-2 text-[14px] text-[#616161]">Ton paiement n'est pas passé depuis le {jour(ws.impaye_depuis)}. Bingoo! et ton SaaS sont en pause. Rien n'est effacé : mets à jour ta carte et tout revient tout de suite.</p>
+        <NavLink to="/abonnement" className="mt-5 inline-flex w-full justify-center rounded-lg bg-[#303030] px-4 py-2.5 text-[14px] font-semibold text-white hover:bg-[#1A1A1A]">Mettre à jour ma carte</NavLink>
+        <div className="mt-3 flex justify-center gap-4 text-[13px] text-[#616161]"><NavLink to="/aide" className="hover:underline">Aide</NavLink><button onClick={() => supabase.auth.signOut()} className="hover:underline">Se déconnecter</button></div>
+      </div>
+    </div>
+  );
   if (loc.pathname.startsWith("/explorer/revelation") || loc.pathname.startsWith("/explorer/atelier")) return <>{extra}{children}{fb && <Feedback onClose={() => setFb(false)} />}</>;
   if (!paye || invite) return (
     <div className="min-h-full">
