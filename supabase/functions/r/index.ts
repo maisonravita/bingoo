@@ -736,9 +736,14 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     setAi({ ws: null, feature: "explorer/verif" });
     const { askJson } = await import("../_shared/core.ts");
     const { data } = await admin.rpc("saas_pitch_a_faire", { lim: 10 });
-    const lot = (data ?? []) as { id: string; nom: string; domaine: string; texte: string; persona: string | null }[];
-    if (!lot.length) return { faits: 0 };
-    const r = await askJson<{ saas: { i: number; constructible: boolean; fait: string; pour_qui: string }[] }>(`Bingoo! construit des applications web de gestion, et seulement cela : comptes utilisateurs, formulaires, listes et tableaux, fiches clients, agenda et réservation en ligne, devis et factures simples, tableaux de bord, pages publiques (réservation, formulaire, avis), e-mails automatiques simples, abonnements payés par Stripe, et une IA qui écrit, résume ou analyse du TEXTE saisi par l'utilisateur.
+    const tous = (data ?? []) as { id: string; nom: string; domaine: string; texte: string; persona: string | null }[];
+    if (!tous.length) return { faits: 0 };
+    // Sans description, on ne peut pas savoir ce qu'il fait : on ne le propose pas
+    const vides = tous.filter((x) => String(x.texte ?? "").trim().length < 25);
+    for (const v of vides) await admin.from("saas").update({ constructible_ia: false, pitch_fr: { fait: null, pour_qui: null, verifie: new Date().toISOString(), sans_texte: true } }).eq("id", v.id);
+    const lot = tous.filter((x) => !vides.includes(x));
+    if (!lot.length) return { faits: 0, sans_texte: vides.length };
+    const r = await askJson<{ saas: { ref: string; constructible: boolean; fait: string; pour_qui: string }[] }>(`Bingoo! construit des applications web de gestion, et seulement cela : comptes utilisateurs, formulaires, listes et tableaux, fiches clients, agenda et réservation en ligne, devis et factures simples, tableaux de bord, pages publiques (réservation, formulaire, avis), e-mails automatiques simples, abonnements payés par Stripe, et une IA qui écrit, résume ou analyse du TEXTE saisi par l'utilisateur.
 
 Bingoo! NE sait PAS construire : un agent IA qui agit seul sur d'autres plateformes (prospection, envoi en masse, LinkedIn, réseaux sociaux, publication automatique), une intégration profonde avec un autre logiciel (Shopify, Gmail, Outlook, Word, Excel, GitHub, logiciels comptables, caisses, banques), des données achetées ou aspirées (contacts, marchés, Google, cotes), la génération d'images, de vidéos, de sons, de BD ou de livres, une appli mobile, de bureau ou une extension, un produit physique, une caisse ou du matériel, un service humain (agence, conseil, équipe d'assistance, cours avec des experts), une marketplace ou une communauté qui dépend de ses membres, la finance, le trading, l'assurance, les remboursements de santé, ou un outil pour créer des logiciels.
 
@@ -747,12 +752,17 @@ Pour chaque logiciel ci-dessous :
 - "fait" : ce qu'il fait, en français simple, en 15 mots maximum, qui commence par un verbe et donne envie, SANS jamais citer son nom, son site ni une marque.
 - "pour_qui" : ses clients en 8 mots maximum.
 
-${lot.map((x, k) => `${k}. ${x.texte}${x.persona ? ` (clients : ${x.persona})` : ""}`).join("\n")}
+${lot.map((x, k) => `[R${k}] ${x.texte}${x.persona ? ` (clients : ${x.persona})` : ""}`).join("\n")}
 
-Réponds en JSON : {"saas": [{"i": 0, "constructible": true, "fait": "...", "pour_qui": "..."}]}`, { fast: true, maxTokens: 1500 });
+Réponds en JSON, une entrée par logiciel, avec sa référence exacte (R0, R1…) : {"saas": [{"ref": "R0", "constructible": true, "fait": "...", "pour_qui": "..."}]}`, { fast: true, maxTokens: 1500 });
+    // Chaque réponse est rattachée par sa référence ; si les références ne correspondent pas exactement au lot, on jette tout (pas de description collée sur le mauvais SaaS)
+    const rep = (r?.saas ?? []) as { ref: string; constructible: boolean; fait: string; pour_qui: string }[];
+    const refs = rep.map((x) => String(x.ref ?? "").trim().toUpperCase());
+    const attendues = lot.map((_, k) => `R${k}`);
+    if (refs.length !== lot.length || new Set(refs).size !== refs.length || !refs.every((x) => attendues.includes(x))) return { faits: 0, rejete: "références incohérentes", recu: refs.length, attendu: lot.length };
     let faits = 0;
-    for (const x of r?.saas ?? []) {
-      const s0 = lot[Number(x.i)];
+    for (const x of rep) {
+      const s0 = lot[Number(String(x.ref).trim().toUpperCase().slice(1))];
       if (!s0) continue;
       const nettoie = (t: string) => String(t ?? "").replaceAll(s0.nom, "ce SaaS").slice(0, 200).trim();
       await admin.from("saas").update({ constructible_ia: x.constructible === true, pitch_fr: { fait: nettoie(x.fait), pour_qui: nettoie(x.pour_qui), verifie: new Date().toISOString() } }).eq("id", s0.id);
