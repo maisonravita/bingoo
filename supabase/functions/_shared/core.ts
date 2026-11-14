@@ -315,7 +315,7 @@ export async function aiGuard() {
   await gardeCredit(!!ctx.live);
   if (ctx.essential) return; // réponses de prospects : toujours traitées (plafond par prospect dans pro.ts)
   // Plafonds réglables sans redéploiement (app_secrets « ia_plafond_jour », « ia_plafond_explorer », en euros par jour)
-  const { data: regl } = await admin.from("app_secrets").select("name, value").in("name", ["ia_plafond_jour", "ia_plafond_explorer", "ia_plafond_verif"]);
+  const { data: regl } = await admin.from("app_secrets").select("name, value").in("name", ["ia_plafond_jour", "ia_plafond_explorer", "ia_plafond_verif", "catalogue_ia"]);
   const reg = (k: string) => { const v = (regl ?? []).find((x: { name: string }) => x.name === k)?.value; return v != null && v !== "" && !isNaN(Number(v)) ? Number(v) : null; };
   const cap = reg("ia_plafond_jour") ?? Number(env("AI_DAILY_CAP_EUR", "12"));
   const ws = ctx.ws;
@@ -332,6 +332,11 @@ export async function aiGuard() {
     const { data } = await admin.from("ai_usage").select("cost_eur").is("workspace_id", null).eq("feature", "explorer/verif").gte("at", dayStart());
     if ((data ?? []).reduce((a, r) => a + Number(r.cost_eur ?? 0), 0) >= capV) throw new HttpError(503, "Vérification des SaaS en pause jusqu'à demain (enveloppe du jour atteinte).");
     return;
+  }
+  if (!ws && String(ctx.feature ?? "").startsWith("explorer/") && reg("catalogue_ia") !== 1) {
+    // Ajout de nouveaux SaaS au catalogue (lecture des sites, amorçage, niches, sous-niches, enrichissements) : SANS IA.
+    // Chaque étape bascule sur sa version sans IA (mots-clés, prix affichés, signes d'un SaaS). Rallumer : app_secrets catalogue_ia = 1.
+    throw new HttpError(503, "Catalogue : lecture sans IA");
   }
   if (!ws && String(ctx.feature ?? "").startsWith("explorer/")) {
     // Base Explorer (lecture des SaaS, niches, recherche) : enveloppe à part, pour ne pas épuiser celle des outils gratuits

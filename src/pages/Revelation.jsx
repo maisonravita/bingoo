@@ -155,6 +155,37 @@ function Vedette({ s, visible, onConstruire }) {
 // ---------------------------------------------------------------- L'atelier, comme Lovable : la conversation à gauche, le SaaS qui se construit à droite.
 // Une fois en ligne, le créateur demande ses changements dans la conversation et les voit apparaître dans l'aperçu.
 const LECTURE = (nom) => [`Je lis le site de ${nom}`, "Je lis ses prix et ses formules", "Je repère ses fonctionnalités clés", "Je choisis un nom et un angle pour ta version"];
+// Ce que Bingoo! a réellement décidé pour ta version, présenté comme sa réflexion (questions qu'il se pose, puis sa réponse)
+function penseDe(p) {
+  if (!p) return null;
+  const l = [];
+  if (p.cible) l.push({ q: "Qui paie déjà pour ce genre d'outil ?", r: [p.cible] });
+  if (p.probleme) l.push({ q: "Quel problème il règle vraiment ?", r: [p.probleme] });
+  const eq = (p.equivalences ?? []).slice(0, 4).map((x) => x.chez_toi).filter(Boolean);
+  if (eq.length) l.push({ q: "Qu'est-ce que ta version doit savoir faire ?", r: eq });
+  const di = (p.differences ?? []).slice(0, 3).map((x) => x.angle).filter(Boolean);
+  if (di.length) l.push({ q: "Comment tu te démarques ?", r: di });
+  const fo = (p.formules ?? []).slice(0, 3).filter((x) => x?.nom).map((x) => `${x.nom}${x.prix ? ` · ${x.prix} €/mois` : ""}`);
+  if (fo.length) l.push({ q: "À quel prix le vendre ?", r: fo });
+  const mv = (p.mvp ?? []).slice(0, 3).map((x) => x.fonction).filter(Boolean);
+  if (mv.length) l.push({ q: "Par quoi je commence ?", r: mv });
+  return l.length ? l : null;
+}
+function Reflexion({ pense, enCours }) {
+  const [n, setN] = useState(enCours ? 1 : pense.length);
+  useEffect(() => { if (n >= pense.length) return; const t = setTimeout(() => setN((x) => x + 1), 2200); return () => clearTimeout(t); }, [n, pense.length]);
+  return (
+    <div className="mt-3 space-y-3 border-l-2 border-[#F3D3C2] pl-3.5">
+      {pense.slice(0, n).map((x, i) => (
+        <div key={i} className="rise">
+          <p className="text-[13px] font-semibold text-ink">{x.q}</p>
+          <ul className="mt-1 space-y-0.5 text-[13px] text-ink-soft">{x.r.map((t, k) => <li key={k} className="flex gap-1.5"><span className="text-[#E8571C]">→</span><span>{t}</span></li>)}</ul>
+        </div>
+      ))}
+      {n < pense.length && <p className="flex items-center gap-2 text-[12.5px] text-ink-faint"><span className="h-1.5 w-1.5 rounded-full bg-[#E8571C] pulse-dot" />Je réfléchis…</p>}
+    </div>
+  );
+}
 const IDEES = ["Ajoute une page de tarifs", "Ajoute un tableau de bord de mes ventes", "Ajoute une page d'aide pour mes clients"];
 const Coche = ({ ok }) => ok
   ? <span className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full bg-good/15 text-good"><svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5 9-10" /></svg></span>
@@ -203,7 +234,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
             if (!p) throw new Error("C'est plus long que prévu.");
           }
           if (!vivant) return;
-          const garde = { id: p.id, nom: p.nom, pitch: p.pitch, cible: p.cible };
+          const garde = { id: p.id, nom: p.nom, pitch: p.pitch, cible: p.cible, pense: penseDe(p) };
           setProjet(garde); if (!atelier) ecrire(CLE_CHANTIER, { ...c, projet: garde });
         }
         setEtape(2);
@@ -310,7 +341,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
             {projet?.nom && (
               <Bingoo>
                 <p>Ta version s'appelle <b>{projet.nom}</b>.{projet.pitch ? ` ${projet.pitch}` : ""}</p>
-                {projet.cible && <p className="mt-1.5 text-ink-soft">Pour : {projet.cible}</p>}
+                {projet.pense ? <Reflexion pense={projet.pense} enCours={!fini} /> : projet.cible && <p className="mt-1.5 text-ink-soft">Pour : {projet.cible}</p>}
               </Bingoo>
             )}
             </>}
