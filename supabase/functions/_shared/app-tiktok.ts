@@ -19,10 +19,45 @@ export async function oembed(url: string) {
       auteur: d.author_name ? String(d.author_name) : (d.author_unique_id ? String(d.author_unique_id) : null), compte: d.author_url ? String(d.author_url) : null, legende: d.title ? String(d.title).slice(0, 220) : null };
   } catch { return null; }
 }
+// TikTok ne donne plus la couverture dans son oEmbed (et son lecteur intégré la masque sous une bannière de cookies) :
+// on lit la couverture sur la page de la vidéo, puis on la garde chez Bingoo! (les liens d'images de TikTok expirent).
+const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
+export async function couverture(url: string): Promise<string | null> {
+  const id = /\/video\/(\d{8,25})/.exec(url)?.[1];
+  if (!id) return null;
+  const chemin = `tiktok/${id}.jpg`;
+  const publique = admin.storage.from("apps").getPublicUrl(chemin).data.publicUrl;
+  // Déjà gardée ?
+  const deja = await fetch(publique, { method: "HEAD", signal: AbortSignal.timeout(4000) }).catch(() => null);
+  if (deja?.ok) return publique;
+  try {
+    const pages = [`https://www.tiktok.com/embed/v2/${id}`, url];
+    let img: string | null = null;
+    for (const p of pages) {
+      const r = await fetch(p, { signal: AbortSignal.timeout(8000), headers: { "user-agent": UA, "accept-language": "fr-FR,fr;q=0.9" } });
+      if (!r.ok) continue;
+      const html = await r.text();
+      const m = /"(?:cover|originCover|dynamicCover|thumbnailUrl|coverUrl)"\s*:\s*\[?\s*"(https:[^"]+)"/.exec(html) ?? /<meta[^>]+property="og:image"[^>]+content="([^"]+)"/.exec(html);
+      if (m) { img = m[1].replace(/\\u002F/g, "/").replace(/\\\//g, "/").replace(/&amp;/g, "&"); break; }
+    }
+    if (!img) return null;
+    const b = await fetch(img, { signal: AbortSignal.timeout(8000), headers: { "user-agent": UA, referer: "https://www.tiktok.com/" } });
+    if (!b.ok) return null;
+    const bin = new Uint8Array(await b.arrayBuffer());
+    if (bin.length < 2000 || bin.length > 2_000_000) return null;
+    const { error } = await admin.storage.from("apps").upload(chemin, bin, { contentType: b.headers.get("content-type") ?? "image/jpeg", upsert: true, cacheControl: "31536000" });
+    return error ? null : publique;
+  } catch { return null; }
+}
+
 /** Couvertures fraîches (les liens d'images de TikTok expirent) pour une liste de vidéos. */
 export async function vignettes(urls: string[]) {
   const ok = urls.map(lienTikTok).filter(Boolean).slice(0, 12) as string[];
-  const res = await Promise.all(ok.map(async (u) => [u, await oembed(u)] as const));
+  const res = await Promise.all(ok.map(async (u) => {
+    const o = await oembed(u);
+    const image = o?.image ?? await couverture(u);
+    return [u, o || image ? { ...(o ?? { lecteur: null, auteur: null, compte: null, legende: null }), image } : null] as const;
+  }));
   return Object.fromEntries(res.filter(([, v]) => v));
 }
 /** « Faire pareil » : la même mécanique que cette vidéo, adaptée à son SaaS. */
@@ -44,6 +79,8 @@ export async function saasTikTok(app: any, projet: any, refaire = false) {
   const modele = projet?.inspire?.nom ?? projet?.inspire?.domaine ?? "";
   const qui = `« ${spec.nom ?? projet?.nom} » : ${spec.pitch ?? projet?.pitch ?? ""}. Pour : ${spec.cible ?? projet?.cible ?? ""}. Inspiré de ${modele} (${projet?.inspire?.domaine ?? ""}), catégorie ${projet?.inspire?.categorie ?? ""}.`;
 
+  // La niche du client : ses clients (cible courte), la catégorie du SaaS modèle et ce que fait son SaaS
+  const niche = [spec.cible_courte, projet?.inspire?.categorie].filter(Boolean).join(" · ") || court(spec.cible ?? projet?.cible, 80);
   const erreurs: string[] = [];
   const sources: string[] = [];
   const [trouve, formats] = await Promise.all([
@@ -52,9 +89,10 @@ Cherche sur le web (TikTok est indexé par les moteurs de recherche) :
 1. le compte TikTok officiel de ${modele} s'il existe ;
 2. des comptes TikTok de logiciels concurrents ou proches qui publient régulièrement ;
 3. des vidéos TikTok de la même niche qui ont beaucoup de vues (le problème de ces clients, des démos d'outils, des créateurs qui en parlent), en français ou en anglais.
+La niche à viser : ${niche}. Fais plusieurs recherches différentes, par exemple « tiktok ${modele} », « site:tiktok.com ${spec.cible_courte ?? ""} », les mots du métier de ces clients en français PUIS en anglais, et « tiktok logiciel » + ce métier.
 Règles strictes : ne donne QUE des liens tiktok.com que tu as vus dans les résultats de recherche, jamais un lien inventé ou reconstruit. Si tu ne trouves rien de sûr, renvoie des listes vides. Les nombres (abonnés, vues) seulement s'ils apparaissent dans les résultats, sinon null.
-JSON : { "comptes": [{ "nom": "", "url": "", "abonnes": "texte ou null", "pourquoi": "ce qu'il fait bien, 1 phrase en français" }], "videos": [{ "titre": "", "url": "", "vues": "texte ou null", "pourquoi": "pourquoi elle a marché, 1 phrase en français" }] } (5 de chaque au plus)`,
-      { fast: true, maxTokens: 2500, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 4 }], sources }).catch((e) => { erreurs.push(String(e?.message ?? e)); return { comptes: [], videos: [] }; }),
+JSON : { "comptes": [{ "nom": "", "url": "", "abonnes": "texte ou null", "pourquoi": "ce qu'il fait bien, 1 phrase en français" }], "videos": [{ "titre": "", "url": "", "vues": "texte ou null", "pourquoi": "pourquoi elle a marché, 1 phrase en français" }] } (8 de chaque au plus)`,
+      { fast: true, maxTokens: 3000, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }], sources }).catch((e) => { erreurs.push(String(e?.message ?? e)); return { comptes: [], videos: [] }; }),
     askJson<any>(`Tu es un expert des vidéos TikTok qui font connaître des logiciels SaaS sans budget publicitaire. Son SaaS : ${qui}
 Propose 6 formats de vidéos courtes adaptés à CE SaaS et à SES clients (pas des conseils génériques), du plus facile au plus ambitieux. Pour chacun :
 - format : le nom du format (ex. « Avant / après », « POV », « 3 erreurs que… », « Je teste pendant 7 jours », « Démo en 15 secondes », « Histoire d'un client »)
@@ -67,8 +105,8 @@ JSON : { "formats": [ ... ], "conseils": ["3 conseils concrets de publication po
   ]);
 
   const data = {
-    comptes: (Array.isArray(trouve?.comptes) ? trouve.comptes : []).map((c: any) => ({ nom: court(c.nom, 60), url: lienTikTok(c.url), abonnes: c.abonnes ? court(c.abonnes, 30) : null, pourquoi: court(c.pourquoi, 200) })).filter((c: any) => c.url).slice(0, 5),
-    videos: (Array.isArray(trouve?.videos) ? trouve.videos : []).map((v: any) => ({ titre: court(v.titre, 120), url: lienTikTok(v.url), vues: v.vues ? court(v.vues, 30) : null, pourquoi: court(v.pourquoi, 200) })).filter((v: any) => v.url).slice(0, 5),
+    comptes: (Array.isArray(trouve?.comptes) ? trouve.comptes : []).map((c: any) => ({ nom: court(c.nom, 60), url: lienTikTok(c.url), abonnes: c.abonnes ? court(c.abonnes, 30) : null, pourquoi: court(c.pourquoi, 200) })).filter((c: any) => c.url).slice(0, 8),
+    videos: (Array.isArray(trouve?.videos) ? trouve.videos : []).map((v: any) => ({ titre: court(v.titre, 120), url: lienTikTok(v.url), vues: v.vues ? court(v.vues, 30) : null, pourquoi: court(v.pourquoi, 200) })).filter((v: any) => v.url).slice(0, 8),
     formats: (Array.isArray(formats?.formats) ? formats.formats : []).slice(0, 6).map((f: any) => ({ format: court(f.format, 50), accroche: court(f.accroche, 90), deroule: (Array.isArray(f.deroule) ? f.deroule : []).slice(0, 3).map((x: unknown) => court(x, 160)), pourquoi: court(f.pourquoi, 200), duree: Math.max(7, Math.min(90, Number(f.duree) || 20)) })).filter((f: any) => f.accroche),
     conseils: (Array.isArray(formats?.conseils) ? formats.conseils : []).slice(0, 3).map((x: unknown) => court(x, 200)),
   };
@@ -77,7 +115,8 @@ JSON : { "formats": [ ... ], "conseils": ["3 conseils concrets de publication po
   const vu = (u: string) => { const id = /\/video\/(\d+)/.exec(u)?.[1]; const compte = /tiktok\.com\/(@[^/?#]+)/i.exec(u)?.[1]?.toLowerCase(); return trouves.some((x) => (id ? x.includes(id) : compte ? x.includes(compte) : x === u.toLowerCase())); };
   data.videos = data.videos.filter((v: any) => vu(v.url));
   data.comptes = data.comptes.filter((c: any) => vu(c.url));
-  data.videos = await Promise.all(data.videos.map(async (v: any) => { const o = await oembed(v.url); return o ? { ...v, auteur: o.auteur ?? v.auteur ?? null, legende: o.legende ?? null } : v; }));
+  data.videos = await Promise.all(data.videos.map(async (v: any) => { const [o, image] = await Promise.all([oembed(v.url), couverture(v.url)]); return { ...v, ...(o ? { auteur: o.auteur ?? v.auteur ?? null, legende: o.legende ?? null } : {}), image: image ?? o?.image ?? null }; }));
+  (data as any).niche = niche; (data as any).modele = modele || null;
   if (!data.formats.length && !data.comptes.length && !data.videos.length) { console.error("tiktok", erreurs); throw new Error(`La recherche n'a rien donné, réessaie dans un instant${erreurs.length ? ` (${erreurs[0].slice(0, 160)})` : ""}`); }
   await admin.from("saas_tiktok").upsert({ app_id: app.id, workspace_id: app.workspace_id, data, at: new Date().toISOString() });
   return { ...data, at: new Date().toISOString() };

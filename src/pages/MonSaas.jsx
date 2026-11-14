@@ -45,7 +45,7 @@ export default function MonSaas({ page }) {
   if (page === "dossier") return m.domaine ? <Navigate to={`/explorer/lancer?d=${encodeURIComponent(m.domaine)}`} replace /> : <PasEncore />;
   return (
     <div>
-      {page === "mon-saas" && <Accueil m={m} />}
+      {page === "mon-saas" && <Accueil m={m} charger={charger} />}
       {page === "clients" && <Clients m={m} />}
       {page === "methodes" && <CeQuiMarche m={m} />}
       {page === "tiktok" && <TikTok m={m} />}
@@ -86,9 +86,77 @@ export function Tete({ titre, sous, actions, icone }) {
     </div>
   );
 }
-const Tuile = ({ m, size = "h-9 w-9 text-[16px] rounded-[10px]" }) => (
-  <span className={cx("grid shrink-0 place-items-center font-black text-white", size)} style={{ background: `linear-gradient(140deg, ${m.couleur}, ${m.couleur}cc)` }}>{m.nom.charAt(0).toUpperCase()}</span>
-);
+const Tuile = ({ m, size = "h-9 w-9 text-[16px] rounded-[10px]" }) => m.app?.spec?.logo
+  ? <img src={m.app.spec.logo} alt={m.nom} className={cx("shrink-0 object-contain bg-white ring-1 ring-[#EBEBEB]", size)} />
+  : <span className={cx("grid shrink-0 place-items-center font-black text-white", size)} style={{ background: `linear-gradient(140deg, ${m.couleur}, ${m.couleur}cc)` }}>{m.nom.charAt(0).toUpperCase()}</span>;
+
+// ---------------------------------------------------------------- Identité : logo, couleur et style du SaaS (changés en direct, sans IA)
+const STYLES_SAAS = [["moderne", "Moderne", "Clair, aperçu à côté du titre"], ["doux", "Doux", "Fond teinté, tout en douceur"], ["sombre", "Sombre", "Accueil et menu sombres"], ["editorial", "Éditorial", "Titres à empattement, chic"], ["vif", "Vif", "Dégradé et menu à ta couleur"]];
+const NUANCES = ["#E8571C", "#DC2626", "#DB2777", "#7C3AED", "#4F46E5", "#2563EB", "#0891B2", "#0F766E", "#16A34A", "#CA8A04", "#1F2937"];
+// Logo redimensionné dans le navigateur (512 px au plus, PNG) avant l'envoi
+const reduireLogo = (fichier) => new Promise((ok, ko) => {
+  const img = new Image(); const url = URL.createObjectURL(fichier);
+  img.onload = () => { const r = Math.min(1, 512 / Math.max(img.width, img.height)); const c = document.createElement("canvas"); c.width = Math.round(img.width * r); c.height = Math.round(img.height * r); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); ok(c.toDataURL("image/png")); };
+  img.onerror = () => { URL.revokeObjectURL(url); ko(new Error("Image illisible")); }; img.src = url;
+});
+function Identite({ m, charger }) {
+  const { ws } = useWs();
+  const [busy, setBusy] = useState(null);
+  const [err, setErr] = useState(null);
+  const style = m.app.spec?.style ?? null;
+  const envoyer = async (k, patch) => {
+    setBusy(k); setErr(null);
+    try { await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: m.app.id, quoi: "identite", ...patch }); await charger(); }
+    catch (e) { setErr(e.message); } finally { setBusy(null); }
+  };
+  const choisirLogo = async (e) => {
+    const f = e.target.files?.[0]; e.target.value = ""; if (!f) return;
+    if (!/^image\/(png|jpe?g|webp)$/.test(f.type)) { setErr("Choisis une image PNG, JPG ou WebP."); return; }
+    try { await envoyer("logo", { logo: await reduireLogo(f) }); } catch (x) { setErr(x.message); }
+  };
+  return (
+    <Carte className="mt-4" titre="Ton identité" sous="Ton logo, ta couleur et le style de ton SaaS. Tes clients le voient tout de suite, sans reconstruire.">
+      <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
+        <div>
+          <p className="text-[12.5px] font-semibold text-[#616161]">Logo</p>
+          <div className="mt-2 flex items-center gap-3">
+            <Tuile m={m} size="h-16 w-16 text-[26px] rounded-2xl" />
+            <div className="space-y-1.5">
+              <label className={cx("inline-flex cursor-pointer items-center rounded-lg bg-[#303030] px-3 py-1.5 text-[12.5px] font-semibold text-white hover:bg-[#1A1A1A]", busy && "pointer-events-none opacity-60")}>
+                {busy === "logo" ? "Envoi…" : m.app.spec?.logo ? "Changer" : "Ajouter mon logo"}
+                <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={choisirLogo} />
+              </label>
+              {m.app.spec?.logo && <button onClick={() => envoyer("logo", { logo: null })} className="block text-[12px] text-[#8A8A8A] hover:text-[#1A1A1A]">Retirer</button>}
+            </div>
+          </div>
+          <p className="mt-4 text-[12.5px] font-semibold text-[#616161]">Couleur</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {NUANCES.map((c) => <button key={c} title={c} onClick={() => envoyer("couleur", { couleur: c })} className={cx("h-7 w-7 rounded-full ring-offset-2 transition", m.couleur.toLowerCase() === c.toLowerCase() && "ring-2 ring-[#303030]")} style={{ background: c }} />)}
+            <label title="Autre couleur" className="relative grid h-7 w-7 cursor-pointer place-items-center rounded-full border border-dashed border-[#B5B5B5] text-[14px] text-[#8A8A8A]">+<input type="color" defaultValue={m.couleur} onChange={(e) => envoyer("couleur", { couleur: e.target.value })} className="absolute inset-0 opacity-0" /></label>
+          </div>
+        </div>
+        <div>
+          <p className="text-[12.5px] font-semibold text-[#616161]">Style</p>
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+            {STYLES_SAAS.map(([k, t, d]) => (
+              <button key={k} onClick={() => envoyer("style", { style: k })} className={cx("rounded-xl p-2 text-left ring-1 transition", style === k ? "ring-2 ring-[#303030]" : "ring-[#EBEBEB] hover:ring-[#B5B5B5]")}>
+                <span className="flex h-14 overflow-hidden rounded-lg ring-1 ring-black/5" style={{ background: k === "sombre" ? "#0f172a" : k === "vif" ? `linear-gradient(150deg, ${m.couleur}, #0f172a)` : k === "doux" ? `${m.couleur}12` : "#fff" }}>
+                  <span className="w-1/3" style={{ background: k === "sombre" ? "#1e293b" : k === "vif" ? m.couleur : k === "doux" ? `${m.couleur}22` : "#F1F5F9" }} />
+                  <span className="flex-1 p-1.5"><span className="block h-1.5 w-3/4 rounded" style={{ background: k === "sombre" || k === "vif" ? "#fff" : "#0f172a" }} /><span className="mt-1 block h-1 w-1/2 rounded bg-current opacity-30" /><span className="mt-1.5 block h-2.5 w-8 rounded" style={{ background: m.couleur }} /></span>
+                </span>
+                <span className={cx("mt-1.5 block text-[12.5px] font-semibold", k === "editorial" && "font-serif")}>{t}</span>
+                <span className="block text-[11px] leading-tight text-[#8A8A8A]">{d}</span>
+              </button>
+            ))}
+          </div>
+          {!style && <p className="mt-2 text-[12px] text-[#8A8A8A]">Bingoo! a choisi un style pour toi : choisis-en un pour le fixer.</p>}
+        </div>
+      </div>
+      {err && <p className="mt-3 text-[12.5px] text-[#B42318]">{err}</p>}
+      {busy && busy !== "logo" && <p className="mt-3 text-[12px] text-[#8A8A8A]">Mise à jour…</p>}
+    </Carte>
+  );
+}
 
 function PasEncore() {
   return (
@@ -112,7 +180,7 @@ const ICONES = {
 const Ic = ({ k, className = "h-5 w-5" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{ICONES[k]}</svg>;
 
 // ---------------------------------------------------------------- Accueil : ses chiffres, le guide de lancement, son SaaS
-function Accueil({ m }) {
+function Accueil({ m, charger }) {
   const { ws } = useWs();
   const nav = useNavigate();
   const [ch, setCh] = useState(null);
@@ -190,10 +258,12 @@ function Accueil({ m }) {
         </ul>
       </Carte>
 
+      <Identite m={m} charger={charger} />
+
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.5fr_1fr]">
         <Carte titre="Ton SaaS" sous="Ce que voient tes clients" actions={<Bouton onClick={() => window.open(lien, "_blank", "noopener")}>Ouvrir</Bouton>}>
           <div className="relative aspect-[16/10] overflow-hidden rounded-lg ring-1 ring-[#EBEBEB]">
-            <iframe title={`Aperçu de ${m.nom}`} src={lien} tabIndex={-1} className="pointer-events-none absolute left-0 top-0 h-[300%] w-[300%] origin-top-left scale-[.3333] border-0" />
+            <iframe key={m.app.version} title={`Aperçu de ${m.nom}`} src={lien} tabIndex={-1} className="pointer-events-none absolute left-0 top-0 h-[300%] w-[300%] origin-top-left scale-[.3333] border-0" />
           </div>
         </Carte>
         <div className="space-y-4">
@@ -433,7 +503,13 @@ function TikTok({ m }) {
         {t === undefined ? <div className="py-10 grid place-items-center"><Spinner /></div> : !t ? (
           <div className="rounded-xl bg-[#F7F7F7] p-6 text-center">
             <p className="font-semibold">Bingoo! analyse TikTok pour {m.nom}</p>
-            <p className="mx-auto mt-1 max-w-md text-[13px] text-[#616161]">Il cherche les comptes et les vidéos de ta niche qui marchent, et écrit 6 idées de vidéos adaptées à ton SaaS. Compte environ une minute.</p>
+            <p className="mx-auto mt-1 max-w-md text-[13px] text-[#616161]">Il cherche sur TikTok les comptes et les vidéos qui marchent dans ta niche{m.app.spec?.cible_courte ? <> (<b>{m.app.spec.cible_courte.replace(/^pour /i, "")}</b>)</> : ""}{m.projet?.inspire?.nom ? <>, en partant de <b>{m.projet.inspire.nom}</b></> : ""}, puis écrit 6 idées de vidéos adaptées à {m.nom}. Compte environ une minute.</p>
+            <ul className="mx-auto mt-3 max-w-md space-y-1 text-left text-[12.5px] text-[#616161]">
+              <li>1. Le compte TikTok de {m.projet?.inspire?.nom ?? "ton SaaS modèle"}, s'il en a un</li>
+              <li>2. Les comptes de ta niche qui publient régulièrement</li>
+              <li>3. Les vidéos de ta niche qui ont le plus de vues, avec leur couverture</li>
+              <li>4. 6 idées de vidéos pour {m.nom}, prêtes à filmer</li>
+            </ul>
             <Bouton principal className="mt-4" disabled={busy} onClick={() => lancer(false)}>{busy ? "Analyse en cours…" : "Lancer l'analyse TikTok"}</Bouton>
             {err && <p className="mt-2 text-[13px] text-[#B42318]">{err}</p>}
           </div>
@@ -464,7 +540,7 @@ function TikTok({ m }) {
         )}
       </Carte>
 
-      <Carte className="mt-4" titre="Vidéos qui marchent dans ta niche" sous="Trouvées sur TikTok et vérifiées une par une. Regarde-les, puis fais pareil pour ton SaaS.">
+      <Carte className="mt-4" titre="Vidéos qui marchent dans ta niche" sous={t?.niche ? `Ta niche : ${t.niche}. Trouvées sur TikTok et vérifiées une par une : regarde-les, puis fais pareil pour ton SaaS.` : "Trouvées sur TikTok et vérifiées une par une. Regarde-les, puis fais pareil pour ton SaaS."}>
         {!t ? <p className="text-[13.5px] text-[#616161]">Lance l'analyse TikTok pour les voir.</p>
           : !t.videos?.length ? <p className="text-[13.5px] text-[#616161]">Aucune vidéo sûre trouvée cette fois : réessaie plus tard avec « Actualiser ».</p>
             : <VideosTikTok videos={t.videos} m={m} />}
@@ -520,7 +596,8 @@ function VideosTikTok({ videos, m }) {
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {videos.map((v) => {
         const o0 = img[v.url] ?? {};
-        const o = { ...o0, auteur: o0.auteur ?? v.auteur ?? (decodeURIComponent(/@([^/?#]+)/.exec(v.url)?.[1] ?? "") || null) };
+        // Couverture gardée chez Bingoo! (le lecteur de TikTok la cache sous sa bannière de cookies : on ne l'affiche plus)
+        const o = { ...o0, image: o0.image ?? v.image ?? null, lecteur: null, auteur: o0.auteur ?? v.auteur ?? (decodeURIComponent(/@([^/?#]+)/.exec(v.url)?.[1] ?? "") || null) };
         const p = pareil[v.url];
         return (
           <div key={v.url} className={cx("flex flex-col", p && p !== "encours" && !p.erreur && "col-span-2 sm:col-span-3 lg:col-span-5 lg:flex-row lg:gap-4")}>

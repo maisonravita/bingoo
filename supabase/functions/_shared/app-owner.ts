@@ -471,6 +471,31 @@ export async function appLancementFait(appId: string, cle: string, fait: boolean
   return { fait: l.fait };
 }
 
+// ---------------------------------------------------------------- Identité visuelle : logo, couleur, style (choisis par le créateur)
+const STYLES_OK = ["moderne", "doux", "sombre", "editorial", "vif"];
+export async function appIdentite(appId: string, b: any) {
+  const { data: app } = await admin.from("saas_apps").select("slug, spec, brouillon, version").eq("id", appId).single();
+  const patch: Record<string, unknown> = {};
+  if (b.couleur !== undefined) { if (!/^#[0-9a-f]{6}$/i.test(String(b.couleur))) throw new HttpError(400, "Couleur invalide"); patch.couleur = String(b.couleur); }
+  if (b.style !== undefined) { if (!STYLES_OK.includes(String(b.style))) throw new HttpError(400, "Style inconnu"); patch.style = String(b.style); }
+  if (b.logo === null) patch.logo = null;
+  else if (b.logo !== undefined) {
+    // Image seulement (PNG, JPEG, WebP), redimensionnée par le navigateur ; pas de SVG (il pourrait contenir du code)
+    const m = String(b.logo).match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/);
+    if (!m || m[2].length > 700_000) throw new HttpError(400, "Logo invalide (PNG, JPG ou WebP, 500 Ko au plus)");
+    const bin = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
+    const chemin = `logos/${app!.slug}-${crypto.randomUUID().slice(0, 8)}.${m[1] === "jpeg" ? "jpg" : m[1]}`;
+    const { error } = await admin.storage.from("apps").upload(chemin, bin, { contentType: `image/${m[1]}`, upsert: true, cacheControl: "31536000" });
+    if (error) throw new HttpError(500, `Stockage : ${error.message}`);
+    patch.logo = admin.storage.from("apps").getPublicUrl(chemin).data.publicUrl;
+  }
+  if (!Object.keys(patch).length) return { ok: true };
+  const appliquer = (sp: any) => { const n = { ...(sp ?? {}), ...patch }; if (n.logo === null) delete n.logo; return n; };
+  // Aussi dans le brouillon en cours (sinon sa mise en ligne effacerait le logo)
+  await admin.from("saas_apps").update({ spec: appliquer(app!.spec), ...(app!.brouillon ? { brouillon: appliquer(app!.brouillon) } : {}), version: (app!.version ?? 0) + 1, maj: new Date().toISOString() }).eq("id", appId);
+  return { ok: true, ...patch };
+}
+
 // ---------------------------------------------------------------- Icônes PNG de l'app (rendues dans le navigateur du créateur, gardées dans le stockage public)
 export async function appIcones(appId: string, b: any) {
   const { data: app } = await admin.from("saas_apps").select("slug").eq("id", appId).single();

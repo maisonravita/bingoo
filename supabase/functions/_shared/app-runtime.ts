@@ -132,9 +132,25 @@ function retourOk(retour: string) {
   } catch { return null; }
 }
 
+// Les dates des exemples sont écrites le jour de la construction : on les recale autour d'aujourd'hui (sinon le planning
+// de « cette semaine » est vide, et l'app paraît morte quelques semaines plus tard). Décalage = aujourd'hui − date médiane des exemples.
+const RE_JOUR = /^(\d{4}-\d{2}-\d{2})(T[\d:.]+(?:Z|[+-]\d{2}:?\d{2})?)?$/;
+export function recalerDemo(demo: Record<string, unknown[]>): Record<string, unknown[]> {
+  const jours: number[] = [];
+  const voir = (v: unknown) => { if (typeof v === "string") { const m = RE_JOUR.exec(v); if (m) { const t = Date.parse(m[1] + "T12:00:00Z"); if (!isNaN(t)) jours.push(t); } } };
+  for (const xs of Object.values(demo)) for (const x of Array.isArray(xs) ? xs : []) if (x && typeof x === "object") Object.values(x as object).forEach(voir);
+  if (!jours.length) return demo;
+  jours.sort((a, b) => a - b);
+  const auj = Date.parse(new Date().toISOString().slice(0, 10) + "T12:00:00Z");
+  const dec = Math.round((auj - jours[Math.floor(jours.length / 2)]) / 864e5) * 864e5;
+  if (!dec) return demo;
+  const decaler = (v: unknown) => { if (typeof v !== "string") return v; const m = RE_JOUR.exec(v); if (!m) return v; const t = Date.parse(m[1] + "T12:00:00Z"); if (isNaN(t)) return v; return new Date(t + dec).toISOString().slice(0, 10) + (m[2] ?? ""); };
+  return Object.fromEntries(Object.entries(demo).map(([k, xs]) => [k, Array.isArray(xs) ? xs.map((x) => x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x as object).map(([c, v]) => [c, decaler(v)])) : x) : xs]));
+}
+
 // Données d'exemple : chaque nouvel espace démarre avec une application vivante
 async function semer(admin: SupabaseClient, app: any, userId: string) {
-  const demo = (app.spec?.demo ?? {}) as Record<string, unknown[]>;
+  const demo = recalerDemo((app.spec?.demo ?? {}) as Record<string, unknown[]>);
   // Les liens entre exemples (client_id: "c1") pointent vers le champ ref : on les remplace par les vrais identifiants
   const refs = new Map<string, string>();
   const items = Object.entries(demo).flatMap(([col, xs]) => /^[a-z][a-z0-9_]{0,39}$/.test(col) && Array.isArray(xs)
