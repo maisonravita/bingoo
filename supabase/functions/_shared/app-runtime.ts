@@ -160,8 +160,10 @@ async function semer(admin: SupabaseClient, app: any, userId: string) {
     ? xs.slice(0, 60).filter((x) => x && typeof x === "object" && !Array.isArray(x)).map((x: any) => { const id = crypto.randomUUID(); if (x.ref != null) refs.set(String(x.ref), id); return { id, col, x }; }) : []);
   const rows = items.map(({ id, col, x }, i) => {
     const data: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(x)) if (k !== "ref" && k !== "id") data[k] = typeof v === "string" && refs.has(v) && /_id$/.test(k) ? refs.get(v) : v;
-    return { id, app_id: app.id, user_id: userId, espace_id: userId, col, data, at: new Date(Date.now() - i * 3600e3 * 7).toISOString() };
+    for (const [k, v] of Object.entries(x)) if (k !== "ref" && k !== "id" && k !== "cree_le") data[k] = typeof v === "string" && refs.has(v) && /_id$/.test(k) ? refs.get(v) : v;
+    // cree_le (date d'exemple) : la ligne paraît créée ce jour-là (historique crédible dans les graphiques)
+    const cree = typeof x.cree_le === "string" && !isNaN(Date.parse(x.cree_le)) ? new Date(Date.parse(x.cree_le.length === 10 ? x.cree_le + "T10:00:00Z" : x.cree_le) + (i % 9) * 3600e3).toISOString() : null;
+    return { id, app_id: app.id, user_id: userId, espace_id: userId, col, data, at: cree ?? new Date(Date.now() - i * 3600e3 * 7).toISOString() };
   });
   if (rows.length) await admin.from("saas_app_rows").insert(rows);
 }

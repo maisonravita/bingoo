@@ -12,7 +12,11 @@ export function modeleDe(p: any): string | null {
   const autre = /billett?erie|\bbillets?\b|\btickets?\b|location de (voiture|v[ée]hicule|mat[ée]riel)|\brestaurants?\b|r[ée]servation de tables?|\btables? (de|pour) \d|\bh[ôo]tels?\b|chambres? d.h[ôo]te/.test(t);
   const reservation = autre ? 0 : n(/r[ée]serv|rendez-vous|\brdv\b|cr[ée]neau|planning d.intervention|interventions? (à|a) domicile|s[ée]ances?|agenda en ligne/g);
   const devis = n(/\bdevis\b|factur|\bquotes?\b|invoic|estimat|bons? de commande|acomptes?|relances? de paiement|impay/g);
-  if (!reservation && !devis) return null;
+  // Outil d'écriture par IA : le cœur du produit est un texte écrit par l'IA (CV, posts, articles, guides, réponses…)
+  const ecriture = /\bia\b|intelligence artificielle/.test(t) ? n(/r[ée]dig|g[ée]n[èeé]r|[ée]cri(t|re|ture|vain)|reformul|\bcv\b|lettres? de motivation|\bposts?\b|articles?\b|newsletters?\b|copywrit|textes?\b|guides?\b/g) : 0;
+  const best = Math.max(reservation, devis);
+  if (ecriture >= 3 && ecriture > best) return "ecriture";
+  if (!best) return null;
   return devis > reservation ? "devis" : "reservation";
 }
 
@@ -141,8 +145,48 @@ export function specDevis(perso: any) {
 }
 
 export const FAIT = {
+  ecriture: "Cette version fait exactement ceci, et rien d'autre : l'utilisateur choisit un type de texte, remplit quelques champs, et l'IA intégrée écrit le texte ; il l'ajuste en un clic (plus court, plus percutant, plus simple, en anglais), le modifie, le copie ou le télécharge en PDF ; tous ses textes sont rangés et cherchables, avec favoris et duplication ; une page « Mon style » où il décrit qui il est et colle un exemple de son écriture pour que l'IA écrive avec sa voix ; un tableau de bord de son activité ; l'équipe et l'abonnement. Les textes (pitch_site, atouts, formules) ne promettent RIEN d'autre (pas de publication automatique sur les réseaux, pas d'import de fichier ni de lecture de document, pas d'images, pas de détection de plagiat, pas de modèle d'IA au choix, pas d'extension de navigateur).",
   reservation: "Cette version fait exactement ceci, et rien d'autre : un planning en calendrier, le suivi de chaque rendez-vous par étapes (à confirmer, confirmé, terminé, annulé), un fichier clients avec historique et chiffre d'affaires, les offres avec prix et durées, une page de réservation en ligne pour les clients avec e-mail de confirmation et rappel automatique par e-mail la veille, un tableau de bord du chiffre d'affaires, l'import et l'export Excel, l'équipe et l'abonnement. Les textes (pitch_site, atouts, formules) ne promettent RIEN d'autre (pas de SMS, pas de paiement ni d'acompte à la réservation, pas de factures PDF).",
   devis: "Cette version fait exactement ceci, et rien d'autre : un catalogue de prestations avec prix, des devis créés en un clic (lignes, TVA, total), envoyés par e-mail et téléchargeables en PDF, transformés en facture numérotée quand ils sont acceptés, des factures PDF avec mentions légales et IBAN, le suivi des paiements et des retards avec relance par e-mail en un clic, un fichier clients avec ce que chacun a rapporté et doit encore, une page en ligne où les clients demandent un devis, un tableau de bord (encaissé, reste à encaisser, taux d'acceptation), l'import et l'export Excel, l'équipe et l'abonnement. Les textes (pitch_site, atouts, formules) ne promettent RIEN d'autre (pas de signature électronique, pas de paiement en ligne des factures, pas de connexion à la banque ni à un logiciel comptable, pas de facture électronique Chorus Pro).",
 };
-export const PERSO: Record<string, (p: any) => string> = { reservation: PERSO_RESERVATION, devis: PERSO_DEVIS };
-export const SPEC: Record<string, (perso: any) => any> = { reservation: specReservation, devis: specDevis };
+
+// ---------------------------------------------------------------- Modèle « Outil d'écriture par IA »
+export const PERSO_ECRITURE = (p: any) => `Un outil d'écriture par IA va être livré pour ce produit : « ${p.nom} » — ${p.pitch}. Pour : ${p.cible}.
+L'utilisateur choisit un type de texte, remplit quelques champs, et l'IA écrit. Rends un objet JSON :
+- vocab : { doc: le nom d'un texte produit, au singulier (ex. « CV », « Post », « Article », « Guide », « Réponse »), docs: au pluriel }
+- types : 2 à 4 types de textes que ce produit écrit : { id (snake_case court), nom (3 mots max), description (une phrase), consigne (la consigne précise donnée à l'IA pour écrire ce texte : longueur, structure, règles du genre, 3 à 5 phrases), champs : 3 à 5 objets { nom (snake_case), label, type (« texte », « long » ou « choix »), options (pour choix : 3 à 5 valeurs), placeholder (exemple concret), requis (true/false) } }
+- tons : 4 tons proposés (un ou deux mots chacun, ex. « Professionnel », « Chaleureux »)
+- exemples : 7 textes déjà écrits, réalistes et de bonne qualité, répartis entre les types : { type (id d'un type), titre (6 mots max), entrees (valeurs des champs de ce type), contenu (le texte final, 60 à 160 mots, avec des retours à la ligne) }
+Tout en français, sans aucun nom de marque réelle.`;
+
+export function specEcriture(perso: any) {
+  const types = (Array.isArray(perso?.types) && perso.types.length ? perso.types : [{ id: "texte", nom: "Nouveau texte", description: "Un texte prêt à publier.", consigne: "Écris un texte clair et engageant à partir de ces informations.", champs: [{ nom: "sujet", label: "Sujet", type: "texte", placeholder: "De quoi parle le texte ?", requis: true }, { nom: "public", label: "Pour qui", type: "texte", placeholder: "Ex. : des dirigeants de PME", requis: false }, { nom: "points", label: "Points à faire passer", type: "long", placeholder: "Une idée par ligne", requis: false }] }])
+    .slice(0, 4).map((x: any, i: number) => ({ id: String(x.id ?? `type_${i}`).toLowerCase().replace(/[^a-z0-9_]+/g, "_").slice(0, 30) || `type_${i}`, nom: String(x.nom ?? "Texte").slice(0, 40), description: String(x.description ?? "").slice(0, 160), consigne: String(x.consigne ?? "").slice(0, 900),
+      champs: (Array.isArray(x.champs) ? x.champs : []).slice(0, 5).map((c: any, j: number) => ({ nom: String(c.nom ?? `champ_${j}`).toLowerCase().replace(/[^a-z0-9_]+/g, "_").slice(0, 30) || `champ_${j}`, label: String(c.label ?? "Information").slice(0, 60), type: ["texte", "long", "choix"].includes(c.type) ? c.type : "texte", options: Array.isArray(c.options) ? c.options.slice(0, 6).map(String) : undefined, placeholder: String(c.placeholder ?? "").slice(0, 120), requis: c.requis === true })) }));
+  for (const t of types) if (!t.champs.some((c: any) => c.requis)) t.champs[0] && (t.champs[0].requis = true);
+  const tons = (Array.isArray(perso?.tons) && perso.tons.length ? perso.tons : ["Professionnel", "Chaleureux", "Direct", "Inspirant"]).slice(0, 5).map((x: unknown) => String(x).slice(0, 24));
+  const V = { doc: "Texte", docs: "Mes textes", ...(perso?.vocab ?? {}), types, tons };
+  V.doc = String(V.doc).slice(0, 30); V.docs = String(V.docs).slice(0, 30);
+  const tete = `const V = ${JSON.stringify(V)};\n`;
+  const code = MODELES_CODE.ecriture;
+  const ecrans = [
+    { id: "tableau_bord", titre: "Tableau de bord", icone: "graphique", but: "Ton activité d'écriture et un accès direct à chaque type de texte." },
+    { id: "creer", titre: "Créer", icone: "message", but: "Remplis l'essentiel, l'IA écrit ton texte, tu l'ajustes en un clic." },
+    { id: "documents", titre: V.docs.slice(0, 24), icone: "boite", but: "Tous tes textes, rangés, cherchables, à copier ou télécharger en PDF." },
+    { id: "profil", titre: "Mon style", icone: "reglages", but: "Qui tu es et un exemple de ton écriture, pour que l'IA écrive avec ta voix." },
+  ].map((e) => ({ ...e, code: tete + code[e.id], ok: true, modele: "ecriture" }));
+  const collections = [
+    { nom: "documents", label: V.docs.replace(/^mes\s+/i, ""), champs: [{ nom: "titre", type: "texte" }, { nom: "type", type: "choix", valeurs: types.map((t: any) => t.id) }, { nom: "contenu", type: "texte" }, { nom: "ton", type: "texte" }, { nom: "mots", type: "nombre" }, { nom: "favori", type: "booleen" }] },
+    { nom: "profil", label: "Mon style", champs: [{ nom: "a_propos", type: "texte" }, { nom: "ton", type: "texte" }, { nom: "langue", type: "texte" }, { nom: "exemples", type: "texte" }] },
+  ];
+  const jour = (d: number) => { const x = new Date(); x.setUTCDate(x.getUTCDate() + d); return x.toISOString().slice(0, 10); };
+  const ex = (Array.isArray(perso?.exemples) ? perso.exemples : []).filter((x: any) => x?.contenu).slice(0, 8);
+  const ages = [-1, -3, -6, -9, -15, -22, -30, -41, -50];
+  const documents = ex.map((x: any, i: number) => { const c = String(x.contenu).replace(/\\n/g, "\n").slice(0, 2500); return { titre: String(x.titre ?? "Texte").slice(0, 80), type: types.some((t: any) => t.id === x.type) ? x.type : types[i % types.length].id, entrees: x.entrees && typeof x.entrees === "object" ? x.entrees : {}, contenu: c, ton: tons[i % tons.length], mots: (c.trim().match(/\S+/g) ?? []).length, favori: i % 3 === 0, cree_le: jour(ages[i % ages.length]) }; });
+  const profil = [{ a_propos: "", ton: tons[0], langue: "français", exemples: "" }];
+  return { vocab: { doc: V.doc, docs: V.docs }, ecrans, collections, demo: { documents, profil }, demo_ancre: jour(0), agenda: null };
+}
+
+// Aiguillage : personnalisation (IA rapide) et spec de chaque modèle
+export const PERSO: Record<string, (p: any) => string> = { reservation: PERSO_RESERVATION, devis: PERSO_DEVIS, ecriture: PERSO_ECRITURE };
+export const SPEC: Record<string, (perso: any) => any> = { reservation: specReservation, devis: specDevis, ecriture: specEcriture };
