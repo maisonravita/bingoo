@@ -44,15 +44,42 @@ export function knowledgeOf(ws: { knowledge?: string }) {
 export const PLANS: Record<string, { label: string; price: number; factor: number; seats: number; credits: number; ai: number; quota: number }> = {
   essai: { label: "Aperçu gratuit", price: 0, factor: 0.5, seats: 1, credits: 15, ai: 2, quota: 20 },
   // Veille du marché SaaS, sans prospection (pas d'envoi, pas de tâches de prospection de nuit)
-  explorer: { label: "Trouver", price: 19.99, factor: 0.5, seats: 1, credits: 0, ai: 1.5, quota: 0 },
-  explorer_pro: { label: "Lancer", price: 39.99, factor: 0.5, seats: 1, credits: 0, ai: 3, quota: 0 },
-  business: { label: "Lancer à plusieurs", price: 69.99, factor: 1, seats: 3, credits: 0, ai: 6, quota: 0 },
+  explorer: { label: "Trouver", price: 19.99, factor: 0.5, seats: 1, credits: 0, ai: 1, quota: 0 },
+  explorer_pro: { label: "Lancer", price: 24.99, factor: 0.5, seats: 1, credits: 0, ai: 4, quota: 0 },
+  business: { label: "Lancer à plusieurs", price: 69.99, factor: 1, seats: 3, credits: 0, ai: 12, quota: 0 },
   // Anciennes formules (prospection), plus vendues
   solo: { label: "Solo", price: 39.99, factor: 1, seats: 1, credits: 140, ai: 6, quota: 100 },
   pro: { label: "Pro (prospection)", price: 69.99, factor: 2, seats: 2, credits: 420, ai: 14, quota: 300 },
   equipe: { label: "Équipe", price: 109, factor: 4, seats: 5, credits: 1000, ai: 24, quota: 700 },
   fondateur: { label: "Fondateur", price: 0, factor: 1, seats: 50, credits: 5000, ai: 15, quota: 5000 },
 };
+/** Limites de chaque formule, par mois (le 1er du mois remet tout à zéro). Au-delà : les crédits.
+ *  Pensées pour que l'IA d'un abonné coûte toujours moins que son abonnement, même au prix annuel (9,99 €/mois).
+ *  ia = plafond de dépense IA du mois pour l'espace, en euros (constructions comprises). */
+export const LIMITES: Record<string, { construire: number; modifier: number; tiktok: number; pareil: number; ia: number }> = {
+  explorer: { construire: 0, modifier: 0, tiktok: 0, pareil: 0, ia: 1 },
+  explorer_pro: { construire: 3, modifier: 30, tiktok: 4, pareil: 20, ia: 4 },
+  business: { construire: 10, modifier: 100, tiktok: 12, pareil: 60, ia: 12 },
+  fondateur: { construire: 10, modifier: 100, tiktok: 12, pareil: 60, ia: 12 },
+};
+export const limitesDe = (plan?: string | null) => LIMITES[plan ?? ""] ?? LIMITES.explorer;
+/** Ce qui compte pour chaque limite (le type d'activité enregistré) */
+export const ACTIVITE_LIMITE = { construire: "construire", modifier: "modifier_app", tiktok: "tiktok", pareil: "tiktok_pareil" } as const;
+export type Limite = keyof typeof ACTIVITE_LIMITE;
+const NOMS_LIMITE: Record<Limite, string> = { construire: "constructions", modifier: "modifications", tiktok: "recherches TikTok", pareil: "scripts « Faire pareil »" };
+export async function utiliseMois(wsId: string, k: Limite) {
+  const { count } = await admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", wsId).eq("kind", ACTIVITE_LIMITE[k]).gte("created_at", monthStart());
+  return count ?? 0;
+}
+/** Vérifie la limite du mois ; 402 avec un message clair si elle est atteinte. */
+export async function limiteMois(wsId: string, plan: string | null | undefined, k: Limite) {
+  const max = limitesDe(plan)[k];
+  const utilise = await utiliseMois(wsId, k);
+  if (max <= 0) throw new HttpError(402, "Cette fonction est comprise dans la formule Lancer.");
+  if (utilise >= max) throw new HttpError(402, `Tu as utilisé tes ${max} ${NOMS_LIMITE[k]} du mois. Ça repart le 1er du mois${k === "modifier" || k === "construire" ? ", ou continue avec tes crédits" : ""}.`);
+  return { utilise, max };
+}
+
 /** Prix fondateur : les 50 premiers abonnés au mois paient 19 € par mois à vie. */
 export const FOUNDER = { plan: "explorer_pro", price: 19, places: 50 };
 /** Formule en vente : « Lancer », un seul SaaS par abonnement, payé au mois, au trimestre ou à l'année (prix affichés par mois).
@@ -190,7 +217,7 @@ export async function aiSpent(wsId: string | null, since = wsId ? monthStart() :
 /** Budget IA mensuel d'un espace (réglage propre à l'espace, sinon celui de son offre). */
 export async function aiBudget(wsId: string) {
   const { data: w } = await admin.from("workspaces").select("plan, ai_budget_eur").eq("id", wsId).single();
-  return Number(w?.ai_budget_eur ?? PLANS[w?.plan ?? "essai"]?.ai ?? 4);
+  return Number(w?.ai_budget_eur ?? LIMITES[w?.plan ?? ""]?.ia ?? PLANS[w?.plan ?? "essai"]?.ai ?? 4);
 }
 /** Recharges achetées et pas encore consommées (elles ne servent qu'au-delà de l'enveloppe du mois). */
 export async function aiBalance(wsId: string) {
@@ -330,7 +357,13 @@ export async function aiGuard() {
   }
   // Construire, réparer, modifier un SaaS : déjà limités par les quotas mensuels de la formule
   // (3 ou 10 constructions, 30 ou 100 modifications) ; ils ne doivent pas s'arrêter à mi-chemin faute d'enveloppe.
-  if (/^construire/.test(String(ctx.feature ?? ""))) return;
+  if (/^construire|^video/.test(String(ctx.feature ?? ""))) {
+    // Une construction ne doit pas s'arrêter à mi-chemin : seulement un plafond dur, très au-dessus de l'usage normal
+    // (les constructions et modifications en plus sont payées en crédits).
+    const [spent, budget, extra] = await Promise.all([aiSpent(ws), aiBudget(ws), aiBalance(ws)]);
+    if (spent >= budget * 2.5 + extra) throw new HttpError(402, "Tu as atteint la limite d'utilisation de l'IA de ce mois. Elle repart le 1er du mois.");
+    return;
+  }
   const [spent, budget] = await Promise.all([aiSpent(ws), aiBudget(ws)]);
   if (spent >= budget) {
     // Au-delà de l'enveloppe : on puise dans les recharges achetées, s'il en reste

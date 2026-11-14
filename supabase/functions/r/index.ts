@@ -1,6 +1,6 @@
 // Fonction « r » : Bingoo! Radar, Espion et Studio (modules de croissance), séparée pour des mises à jour légères.
 import { HttpError, json, readJson, refuserInvite, wrap } from "../_shared/http.ts";
-import { admin, COUT_CREDITS, creditsDepenser, creditsRendre, creditsSolde, log, quota, requireMember, setAi, type Prospect } from "../_shared/core.ts";
+import { admin, aiBudget, aiSpent, COUT_CREDITS, limiteMois, limitesDe, utiliseMois, creditsDepenser, creditsRendre, creditsSolde, log, quota, requireMember, setAi, type Prospect } from "../_shared/core.ts";
 import { radarCron, radarGetConfig, radarSetConfig, radarToProspect, scanRadar } from "../_shared/radar.ts";
 import { attreyForums, attreySearch } from "../_shared/attrey.ts";
 import { attreyMultiScan } from "../_shared/attrey-multicanal.ts";
@@ -16,16 +16,8 @@ async function secret(name: string) {
   // Fermé par défaut : sans secret configuré, aucune requête ne passe (jamais "" === "")
   return String(data?.value ?? "") || `absent-${crypto.randomUUID()}`;
 }
-// Plafonds mensuels des SaaS construits, par formule (le coût de l'IA reste toujours sous le prix de l'abonnement)
-const PLAFONDS: Record<string, { construire: number; modifier: number }> = { explorer_pro: { construire: 3, modifier: 30 }, business: { construire: 10, modifier: 100 } };
-const plafondDe = (plan: string) => PLAFONDS[plan] ?? (plan === "explorer" ? { construire: 0, modifier: 0 } : PLAFONDS.business);
-async function quotaMois(wsId: string, plan: string, kind: "construire" | "modifier") {
-  const max = plafondDe(plan)[kind];
-  const debut = new Date(); debut.setUTCDate(1); debut.setUTCHours(0, 0, 0, 0);
-  const { count } = await admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", wsId).eq("kind", kind === "construire" ? "construire" : "modifier_app").gte("created_at", debut.toISOString());
-  if ((count ?? 0) >= max) throw new HttpError(402, kind === "construire" ? `Tu as utilisé tes ${max} constructions du mois : attends le 1er du mois.` : `Tu as utilisé tes ${max} modifications du mois : attends le 1er du mois, ou utilise tes crédits.`);
-  return { utilise: count ?? 0, max };
-}
+// Limites du mois par formule : voir LIMITES dans core.ts
+const quotaMois = (wsId: string, plan: string, kind: "construire" | "modifier") => limiteMois(wsId, plan, kind);
 // Espace d'un membre connecté, ou n'importe quel espace avec la clé des tâches planifiées (tests et reprises)
 const membreOuCron = async (req: Request, wsId: string) => {
   if (!req.headers.get("x-cron-key")) return await requireMember(req, wsId);
@@ -366,7 +358,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
       for (const r of aReparer) {
         await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/r/saas-app-reparer`, { method: "POST", headers: { "content-type": "application/json", "x-cron-key": cle }, body: JSON.stringify({ app_id: app.id, ecran: r.id, erreur: r.erreur ?? "", ws: ws.id }) }).catch((e) => console.error("reparer", e));
       }
-      await log(ws.id, "construire", `Vérification : ${aReparer.length} écran(s) en réparation`);
+      await log(ws.id, "reparer", `Vérification : ${aReparer.length} écran(s) en réparation`);
     }
     return verif;
   },
@@ -440,7 +432,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
       const c = await o.appChiffres(app.id);
       const debut = new Date(); debut.setUTCDate(1); debut.setUTCHours(0, 0, 0, 0);
       const [{ count: cons }, { count: mods }] = await Promise.all(["construire", "modifier_app"].map((k) => admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("kind", k).gte("created_at", debut.toISOString())));
-      return { ...c, quota: { ...plafondDe(ws.plan), constructions: cons ?? 0, modifications: mods ?? 0 } };
+      return { ...c, quota: { construire: limitesDe(ws.plan).construire, modifier: limitesDe(ws.plan).modifier, constructions: cons ?? 0, modifications: mods ?? 0 } };
     }
     if (b.quoi === "public") return await o.appPublic(app.id, !!b.public);
     if (b.quoi === "icones") return await o.appIcones(app.id, b);
@@ -586,6 +578,16 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
     return { id: app.id, statut: "en_cours", credit: parCredit };
   },
+  // Ce que l'abonné a utilisé ce mois-ci, par rapport à sa formule
+  async limites(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const lim = limitesDe(ws.plan);
+    const ks = ["construire", "modifier", "tiktok", "pareil"] as const;
+    const utilises = await Promise.all(ks.map((k) => utiliseMois(ws.id, k)));
+    const [depense, budget] = await Promise.all([aiSpent(ws.id), aiBudget(ws.id)]);
+    const fin = new Date(); fin.setUTCMonth(fin.getUTCMonth() + 1, 1); fin.setUTCHours(0, 0, 0, 0);
+    return { plan: ws.plan, repart: fin.toISOString(), mois: Object.fromEntries(ks.map((k, i) => [k, { utilise: utilises[i], max: lim[k] }])), ia: { pct: budget > 0 ? Math.min(100, Math.round((depense / budget) * 100)) : 0 } };
+  },
   // Crédits Bingoo! : solde, derniers mouvements, ce que coûte chaque action
   async credits(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
@@ -624,6 +626,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { data: pr } = await admin.from("saas_projets").select("data").eq("id", app.projet_id).maybeSingle();
     if (b.lire) { const { data } = await admin.from("saas_tiktok").select("data, at").eq("app_id", app.id).maybeSingle(); return data ? { ...data.data, at: data.at } : null; }
     await quota(ws.id, "tiktok", 4);
+    if (!req.headers.get("x-cron-key")) await limiteMois(ws.id, ws.plan, "tiktok");
     await log(ws.id, "tiktok", "Recherche TikTok");
     setAi({ ws: ws.id, live: true, feature: "tiktok" });
     const { saasTikTok } = await import("../_shared/app-tiktok.ts");
@@ -644,6 +647,7 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (!app?.spec) throw new HttpError(404, "Ton SaaS doit d'abord être construit");
     const { data: pr } = await admin.from("saas_projets").select("data").eq("id", app.projet_id).maybeSingle();
     await quota(ws.id, "tiktok_pareil", 30);
+    if (!req.headers.get("x-cron-key")) await limiteMois(ws.id, ws.plan, "pareil");
     await log(ws.id, "tiktok_pareil", "Faire pareil (TikTok)");
     setAi({ ws: ws.id, live: true, feature: "tiktok" });
     const { fairePareil } = await import("../_shared/app-tiktok.ts");

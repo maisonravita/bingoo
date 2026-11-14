@@ -112,6 +112,39 @@ function Credits({ ai, packs, busy, onBuy, saas }) {
 
 // Crédits Bingoo! (formule Lancer) : une modification en plus, une vidéo pub, un autre SaaS
 const ACTIONS_CREDITS = [["Une modification en plus", "modification", "au-delà des 30 du mois"], ["Une vidéo pub de ton SaaS", "video", "20 s en motion design, 2 formats"], ["Un autre SaaS", "saas", "ton premier reste en ligne"]];
+// Ce que l'abonné a utilisé ce mois-ci, face aux limites de sa formule
+const LIGNES_MOIS = [["construire", "Constructions de SaaS", "Reconstruire ou repartir de zéro"], ["modifier", "Modifications dans l'Atelier", "Au-delà : 1 crédit la modification"], ["tiktok", "Recherches TikTok", "Vidéos et comptes à étudier"], ["pareil", "Scripts « Faire pareil »", "Une vidéo TikTok adaptée à ton SaaS"]];
+function MoisEnCours({ l }) {
+  if (!l) return null;
+  const repart = new Date(l.repart).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+  return (
+    <Card className="p-5 sm:p-6 mb-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="font-semibold text-lg">Ton mois</p>
+        <p className="text-sm text-ink-soft">Tout repart à zéro le {repart}</p>
+      </div>
+      <div className="mt-4 grid sm:grid-cols-2 gap-x-8 gap-y-4">
+        {LIGNES_MOIS.map(([k, t, sous]) => {
+          const m = l.mois?.[k] ?? { utilise: 0, max: 0 };
+          const pct = m.max ? Math.min(100, Math.round((m.utilise / m.max) * 100)) : 100;
+          return (
+            <div key={k}>
+              <div className="flex items-baseline justify-between gap-2"><p className="text-[14px] font-semibold">{t}</p><p className="text-[13px] tnum"><b>{m.utilise}</b><span className="text-ink-soft"> / {m.max || "—"}</span></p></div>
+              <div className="mt-1.5 h-1.5 rounded-full bg-paper overflow-hidden"><div className={cx("h-full rounded-full", pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-500" : "bg-ink")} style={{ width: `${m.max ? pct : 0}%` }} /></div>
+              <p className="mt-1 text-[12px] text-ink-soft">{m.max ? sous : "Compris dans la formule Lancer"}</p>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-5 border-t border-line pt-3 flex items-center gap-3">
+        <p className="text-[13px] text-ink-soft flex-1">Utilisation de l'IA ce mois-ci</p>
+        <div className="w-40 h-1.5 rounded-full bg-paper overflow-hidden"><div className={cx("h-full rounded-full", l.ia.pct >= 90 ? "bg-red-500" : l.ia.pct >= 70 ? "bg-amber-500" : "bg-ink")} style={{ width: `${l.ia.pct}%` }} /></div>
+        <p className="text-[13px] tnum w-10 text-right">{l.ia.pct} %</p>
+      </div>
+    </Card>
+  );
+}
+
 function CreditsBingoo({ c, packs, busy, onBuy, payments }) {
   if (!packs.length) return null;
   return (
@@ -158,6 +191,8 @@ export default function Abonnement() {
   const [credits, setCredits] = useState(null);
   const chargerCredits = () => fn("r/credits", { workspace_id: ws.id }).then(setCredits).catch(() => {});
   useEffect(() => { chargerCredits(); }, [ws.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [lim, setLim] = useState(null);
+  useEffect(() => { fn("r/limites", { workspace_id: ws.id }).then(setLim).catch(() => {}); }, [ws.id]);
   const [pPack, setPPack] = useState(null);
   const [quota, setQuota] = useState(null);
   useEffect(() => { fn("quota", { workspace_id: ws.id }).then(setQuota).catch(() => {}); }, [ws.id]);
@@ -212,7 +247,7 @@ export default function Abonnement() {
 
       {!saas && <Quota q={quota} pack={pPack} payments={payments} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />}
       {!saas && <Garantie g={gar} />}
-      {ai && <AiGauge ai={ai} saas={saas} />}
+      {saas ? <MoisEnCours l={lim} /> : ai && <AiGauge ai={ai} saas={saas} />}
       {saas ? <CreditsBingoo c={credits} packs={cPacks} payments={payments} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />
         : <Credits saas={saas} ai={ai} packs={packs.filter((p) => !p.prospects)} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />}
 
