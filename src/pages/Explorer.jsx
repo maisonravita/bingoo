@@ -13,6 +13,7 @@ import { LineChart } from "../components/Charts";
 import { lazy, Suspense } from "react";
 const IsoMonde = lazy(() => import("../components/IsoMonde"));
 import AppCadre, { API, blogApp, lienApp } from "../components/AppCadre";
+const VideoPub = lazy(() => import("../components/VideoPub"));
 import { cleIcone, iconePng } from "../lib/appIcone";
 import qrcode from "qrcode-generator";
 import { cx } from "../lib/utils";
@@ -1409,7 +1410,7 @@ function Validation({ projet, app, recharger }) {
 
 // ---------------------------------------------------------------- Ton budget : ce que coûte le lancement, et ce que rapporte chaque euro de pub
 // Coûts certains (abonnement Bingoo!, domaine, frais Stripe) + simulation sur 12 mois à partir de TES hypothèses (modifiables).
-const BINGOO_PRO = 39.99; // €/mois, construction, hébergement, e-mails et paiements inclus
+const BINGOO_PRO = 24.99; // €/mois (formule 1 mois), construction, hébergement, e-mails et paiements inclus
 const DOMAINE_AN = 12; // ≈ €/an pour un .com ou un .fr
 const STRIPE = (prix) => prix * 0.015 + 0.25; // carte européenne standard
 function Budget({ projet, inspire }) {
@@ -1448,7 +1449,7 @@ function Budget({ projet, inspire }) {
         <div>
           <p className="text-[13px] font-semibold">Ce que coûte le lancement, chaque mois</p>
           <table className="mt-1.5 w-full text-[14px]"><tbody>
-            <tr className="border-t border-line"><td className="py-1.5">Bingoo! Pro <span className="text-ink-faint text-[12.5px]">(construction, hébergement, e-mails, paiements)</span></td><td className="py-1.5 text-right tnum">{e(BINGOO_PRO)}</td></tr>
+            <tr className="border-t border-line"><td className="py-1.5">Bingoo! <span className="text-ink-faint text-[12.5px]">(construction, hébergement, e-mails, paiements)</span></td><td className="py-1.5 text-right tnum">{e(BINGOO_PRO)}</td></tr>
             <tr className="border-t border-line"><td className="py-1.5">Nom de domaine <span className="text-ink-faint text-[12.5px]">(≈ {DOMAINE_AN} € par an)</span></td><td className="py-1.5 text-right tnum">{e(DOMAINE_AN / 12)}</td></tr>
             <tr className="border-t border-line"><td className="py-1.5">Frais Stripe <span className="text-ink-faint text-[12.5px]">(1,5 % + 0,25 € par paiement)</span></td><td className="py-1.5 text-right tnum text-ink-soft">{(STRIPE(h.prix)).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} € par client</td></tr>
             <tr className="border-t border-line"><td className="py-1.5 font-semibold">Pour démarrer, sans pub</td><td className="py-1.5 text-right tnum font-semibold">{e(fixes)} / mois</td></tr>
@@ -1534,13 +1535,19 @@ function Construire({ projet }) {
   const construire = async () => {
     if (niv(ws) < 2) { nav("/abonnement"); return; }
     try { await fn("r/saas-construire", { workspace_id: ws.id, projet_id: projet.id }); await charger(); }
-    catch (x) { toast(x.message, "bad"); }
+    catch (x) {
+      // Un autre SaaS que celui de l'abonnement : il s'ajoute pour 60 crédits, après confirmation
+      if (!/crédits/.test(x.message ?? "")) { toast(x.message, "bad"); return; }
+      if (!confirm(`${x.message}\n\nLancer ce SaaS pour 60 crédits ?`)) return;
+      try { await fn("r/saas-construire", { workspace_id: ws.id, projet_id: projet.id, credits: true }); await charger(); toast("60 crédits utilisés : Bingoo! construit ton nouveau SaaS"); }
+      catch (y) { toast(y.message, "bad"); if (/Recharge/.test(y.message ?? "")) nav("/abonnement#credits"); }
+    }
   };
   const modifier = async (e) => {
     e.preventDefault();
     setEnvoi(true);
-    try { await fn("r/saas-app-modifier", { workspace_id: ws.id, app_id: app.id, ecran: ecran || "nouveau", demande }); setDemande(""); await charger(); toast("Bingoo! code ta modification : l'aperçu arrive dans une minute"); }
-    catch (x) { toast(x.message, "bad"); } finally { setEnvoi(false); }
+    try { const r = await fn("r/saas-app-modifier", { workspace_id: ws.id, app_id: app.id, ecran: ecran || "nouveau", demande }); setDemande(""); await charger(); toast(`Bingoo! code ta modification : l'aperçu arrive dans une minute${r?.credit ? " (1 crédit utilisé)" : ""}`); }
+    catch (x) { toast(x.message, "bad"); if (/Recharge/.test(x.message ?? "")) nav("/abonnement#credits"); } finally { setEnvoi(false); }
   };
   if (app === undefined) return null;
   const lien = app ? lienApp(app.slug, app.domaine_statut === "ok" ? app.domaine : null) : "";
@@ -1624,6 +1631,7 @@ function Construire({ projet }) {
           </form>
         </div>
       )}
+      {pret && app.statut !== "en_cours" && <Suspense fallback={null}><VideoPub app={app} lien={lien} /></Suspense>}
       {pret && <ReglagesApp app={app} onChange={charger} projet={projet} />}
     </section>
   );

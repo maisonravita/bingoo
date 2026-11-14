@@ -198,12 +198,35 @@ export async function aiBalance(wsId: string) {
   return Number(data ?? 0);
 }
 /** Recharges IA vendues : prix payé (HT) → travail IA ajouté (coût pour Bingoo!), environ 50 % de marge. */
-export const PACKS: Record<string, { label: string; price: number; credit: number; work: string; prospects?: number }> = {
+export const PACKS: Record<string, { label: string; price: number; credit: number; work: string; prospects?: number; credits?: number }> = {
   s: { label: "Recharge S", price: 7, credit: 3.5, work: "environ 500 e-mails rédigés de plus" },
   m: { label: "Recharge M", price: 17, credit: 9, work: "environ 1 300 e-mails rédigés de plus" },
   l: { label: "Recharge L", price: 35, credit: 19, work: "environ 2 800 e-mails rédigés de plus" },
   p100: { label: "Recharge 100 prospects", price: 19, credit: 0, work: "100 prospects contactés de plus ce mois-ci", prospects: 100 },
+  // Crédits Bingoo! (formule Lancer) : modification en plus 1, vidéo pub 10, autre SaaS 60
+  c20: { label: "20 crédits", price: 9.99, credit: 0, work: "20 modifications, ou 2 vidéos pub", credits: 20 },
+  c60: { label: "60 crédits", price: 24.99, credit: 0, work: "1 autre SaaS, ou 6 vidéos pub", credits: 60 },
+  c150: { label: "150 crédits", price: 49.99, credit: 0, work: "2 autres SaaS et 3 vidéos pub", credits: 150 },
 };
+/** Ce que coûte chaque action en crédits Bingoo! */
+export const COUT_CREDITS = { modification: 1, video: 10, saas: 60 };
+export async function creditsSolde(wsId: string): Promise<number> {
+  const { data } = await admin.rpc("credits_solde", { p_ws: wsId });
+  return Number(data ?? 0);
+}
+/** Dépense des crédits ; sinon 402 avec un message clair (combien il en faut, combien il en reste). */
+export async function creditsDepenser(wsId: string, n: number, motif: string) {
+  const { data, error } = await admin.rpc("credits_depenser", { p_ws: wsId, p_n: n, p_motif: motif });
+  if (error) throw new HttpError(500, "Crédits : " + error.message);
+  if (!data) {
+    const solde = await creditsSolde(wsId);
+    throw new HttpError(402, `Il te faut ${n} crédit${n > 1 ? "s" : ""} (tu en as ${solde}). Recharge tes crédits dans Abonnement.`);
+  }
+}
+/** Rend des crédits (travail qui a échoué). */
+export async function creditsRendre(wsId: string, n: number, motif: string) {
+  await admin.from("credits").insert({ workspace_id: wsId, delta: n, motif });
+}
 /** Reste-t-il de la marge pour un travail optionnel (veille de nuit, recherches web) ? share = part du budget qu'il peut atteindre. */
 export async function aiRoom(wsId: string, share = 0.6) {
   const [spent, budget, extra] = await Promise.all([aiSpent(wsId), aiBudget(wsId), aiBalance(wsId)]);

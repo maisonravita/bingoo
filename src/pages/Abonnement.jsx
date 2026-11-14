@@ -110,12 +110,54 @@ function Credits({ ai, packs, busy, onBuy, saas }) {
   );
 }
 
+// Crédits Bingoo! (formule Lancer) : une modification en plus, une vidéo pub, un autre SaaS
+const ACTIONS_CREDITS = [["Une modification en plus", "modification", "au-delà des 30 du mois"], ["Une vidéo pub de ton SaaS", "video", "20 s en motion design, 2 formats"], ["Un autre SaaS", "saas", "ton premier reste en ligne"]];
+function CreditsBingoo({ c, packs, busy, onBuy, payments }) {
+  if (!packs.length) return null;
+  return (
+    <Card id="credits" className="p-5 sm:p-6 mb-6 scroll-mt-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="font-semibold text-lg">Tes crédits</p>
+        <p className="text-sm text-ink-soft">Solde : <b className="text-ink text-base tnum">{c ? `${c.solde} crédit${c.solde > 1 ? "s" : ""}` : "…"}</b></p>
+      </div>
+      <div className="mt-3 grid sm:grid-cols-3 gap-2">
+        {ACTIONS_CREDITS.map(([l, k, sous]) => (
+          <div key={k} className="rounded-xl bg-paper/70 border border-line px-3.5 py-2.5">
+            <p className="text-[13.5px] font-semibold">{l}</p>
+            <p className="text-[12.5px] text-ink-soft"><b className="text-ink">{c?.couts?.[k] ?? { modification: 1, video: 10, saas: 60 }[k]} crédit{k === "modification" ? "" : "s"}</b> · {sous}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 grid sm:grid-cols-3 gap-3">
+        {packs.map((p) => (
+          <div key={p.key} className={cx("rounded-2xl border p-4 flex flex-col", p.key === "c60" ? "border-accent bg-accent-soft/30" : "border-line bg-white")}>
+            <div className="flex items-center justify-between"><span className="font-semibold">{p.label}</span>{p.key === "c60" && <Badge tone="accent">Le plus pris</Badge>}</div>
+            <p className="mt-2"><span className="font-serif text-4xl tnum">{eur(p.price)} €</span><span className="text-ink-soft text-sm"> HT</span></p>
+            <p className="text-[13px] text-ink-soft mt-1 flex-1">Par exemple {p.work}.</p>
+            <Button className="mt-3 w-full" variant={p.key === "c60" ? "accent" : "default"} disabled={!!busy || !payments} loading={busy === p.key} onClick={() => onBuy(p.key)}>Acheter</Button>
+          </div>
+        ))}
+      </div>
+      <p className="text-[12px] text-ink-faint mt-3">Paiement unique, sans abonnement, facture fournie. Tes crédits ne périment pas tant que ton abonnement est actif. Une action qui échoue te rend ses crédits.</p>
+      {c?.mouvements?.length > 0 && (
+        <details className="mt-3 text-[13px]"><summary className="cursor-pointer text-ink-soft">Historique</summary>
+          <ul className="mt-2 space-y-1">{c.mouvements.map((m, i) => <li key={i} className="flex justify-between gap-3"><span>{m.motif} <span className="text-ink-faint">· {new Date(m.at).toLocaleDateString("fr-FR")}</span></span><b className={cx("tnum", m.delta > 0 ? "text-[#15803D]" : "")}>{m.delta > 0 ? "+" : ""}{m.delta}</b></li>)}</ul>
+        </details>
+      )}
+    </Card>
+  );
+}
+
 export default function Abonnement() {
   const { ws, reload } = useWs();
   const toast = useToast();
   const loc = useLocation();
   const [plans, setPlans] = useState([]);
   const [packs, setPacks] = useState([]);
+  const [cPacks, setCPacks] = useState([]);
+  const [credits, setCredits] = useState(null);
+  const chargerCredits = () => fn("r/credits", { workspace_id: ws.id }).then(setCredits).catch(() => {});
+  useEffect(() => { chargerCredits(); }, [ws.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [pPack, setPPack] = useState(null);
   const [quota, setQuota] = useState(null);
   useEffect(() => { fn("quota", { workspace_id: ws.id }).then(setQuota).catch(() => {}); }, [ws.id]);
@@ -127,13 +169,14 @@ export default function Abonnement() {
   useEffect(() => { supabase.rpc("ai_month", { p_ws: ws.id }).then(({ data }) => setAi(data ?? null)); }, [ws.id]);
   const [payments, setPayments] = useState(true);
   const [fond, setFond] = useState(null);
-  useEffect(() => { fn("plans").then((r) => { setFond(r.fondateur ?? null); setPlans(r.plans ?? []); setPacks(r.packs ?? []); setPPack(r.prospect_pack ?? null); setPayments(r.payments !== false); }).catch(() => {}); }, []);
+  useEffect(() => { fn("plans").then((r) => { setFond(r.fondateur ?? null); setPlans(r.plans ?? []); setPacks(r.packs ?? []); setCPacks(r.credit_packs ?? []); setPPack(r.prospect_pack ?? null); setPayments(r.payments !== false); }).catch(() => {}); }, []);
   useEffect(() => {
     const q = new URLSearchParams(loc.search);
     if (q.get("paiement") === "ok") { toast("Paiement confirmé, merci ! Ton abonnement s'active dans quelques secondes.", "good"); setTimeout(reload, 4000); }
     if (q.get("paiement") === "annule") toast("Paiement annulé : rien n'a été prélevé.");
     if (q.get("recharge") === "ok") { toast("Crédits payés, merci ! Ils sont ajoutés dans quelques secondes et ton équipe IA repart.", "good"); setTimeout(() => supabase.rpc("ai_month", { p_ws: ws.id }).then(({ data }) => setAi(data ?? null)), 5000); }
     if (q.get("recharge") === "prospects") { toast("Recharge payée, merci ! 100 prospects de plus ce mois-ci.", "good"); setTimeout(() => fn("quota", { workspace_id: ws.id }).then(setQuota).catch(() => {}), 5000); }
+    if (q.get("recharge") === "credits") { toast("Crédits payés, merci ! Ils arrivent sur ton solde dans quelques secondes.", "good"); setTimeout(chargerCredits, 4000); }
     if (q.get("recharge") === "annule") toast("Achat annulé : rien n'a été prélevé.");
     if (loc.hash.includes("credits") || q.get("credits")) setTimeout(() => document.getElementById("credits")?.scrollIntoView({ behavior: "smooth" }), 400);
   }, [loc.search]);
@@ -170,7 +213,8 @@ export default function Abonnement() {
       {!saas && <Quota q={quota} pack={pPack} payments={payments} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />}
       {!saas && <Garantie g={gar} />}
       {ai && <AiGauge ai={ai} saas={saas} />}
-      <Credits saas={saas} ai={ai} packs={packs.filter((p) => !p.prospects)} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />
+      {saas ? <CreditsBingoo c={credits} packs={cPacks} payments={payments} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />
+        : <Credits saas={saas} ai={ai} packs={packs.filter((p) => !p.prospects)} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />}
 
       <h2 className="font-serif text-2xl mb-1">Lancer ton SaaS</h2>
       <p className="text-sm text-ink-soft mb-6">Un SaaS par abonnement. Plus la durée est longue, moins c'est cher par mois et plus c'est complet.</p>

@@ -486,7 +486,7 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
   },
   async plans() {
     const { founderSlots } = await import("../_shared/growth.ts");
-    return { fondateur: await founderSlots().catch(() => null), plans: plans(), packs: Object.entries(PACKS).filter(([, p]) => !p.prospects).map(([key, p]) => ({ key, label: p.label, price: p.price, work: p.work })), prospect_pack: { key: "p100", ...PACKS.p100 }, payments: !!Deno.env.get("STRIPE_SECRET_KEY") };
+    return { fondateur: await founderSlots().catch(() => null), plans: plans(), packs: Object.entries(PACKS).filter(([, p]) => !p.prospects && !p.credits).map(([key, p]) => ({ key, label: p.label, price: p.price, work: p.work })), credit_packs: Object.entries(PACKS).filter(([, p]) => p.credits).map(([key, p]) => ({ key, label: p.label, price: p.price, work: p.work, credits: p.credits })), prospect_pack: { key: "p100", ...PACKS.p100 }, payments: !!Deno.env.get("STRIPE_SECRET_KEY") };
   },
   async quota(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);

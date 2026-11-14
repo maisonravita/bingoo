@@ -439,13 +439,13 @@ export async function recharge(ws: Workspace, userId: string, packKey: string) {
     mode: "payment", customer, locale: "fr",
     "line_items[0][quantity]": "1",
     "line_items[0][price_data][currency]": "eur",
-    "line_items[0][price_data][unit_amount]": String(p.price * 100),
+    "line_items[0][price_data][unit_amount]": String(Math.round(p.price * 100)),
     "line_items[0][price_data][product_data][name]": `Bingoo! ${p.label} : ${p.work}`,
     "line_items[0][price_data][tax_behavior]": "exclusive",
     "metadata[workspace_id]": ws.id, "metadata[kind]": "recharge", "metadata[pack]": packKey,
     "invoice_creation[enabled]": "true", billing_address_collection: "required", "tax_id_collection[enabled]": "true",
     "customer_update[name]": "auto", "customer_update[address]": "auto",
-    success_url: `${APP(ws)}/#/abonnement?recharge=${p.prospects ? "prospects" : "ok"}`, cancel_url: `${APP(ws)}/#/abonnement?recharge=annule`,
+    success_url: `${APP(ws)}/#/abonnement?recharge=${p.credits ? "credits" : p.prospects ? "prospects" : "ok"}`, cancel_url: `${APP(ws)}/#/abonnement?recharge=annule`,
   });
   return { url: s.url };
 }
@@ -484,6 +484,12 @@ export async function stripeWebhook(req: Request) {
     const p = PACKS[String(o.metadata?.pack ?? "")];
     if (!p || o.payment_status !== "paid") return { skipped: "recharge non réglée" };
     // Recharge de prospects : compteur du mois ; recharge IA : enveloppe
+    // Crédits Bingoo! : une seule fois par paiement (ref unique = session Stripe)
+    if (p.credits) {
+      const { error } = await admin.from("credits").insert({ workspace_id: id, delta: p.credits, motif: `Achat : ${p.label}`, ref: String(o.id) });
+      if (!error) await log(id, "abonnement", `${p.label} achetés`);
+      return { ok: true };
+    }
     const { error } = p.prospects
       ? await admin.from("prospect_topups").insert({ workspace_id: id, prospects: p.prospects, paid_eur: p.price, stripe_session: String(o.id) })
       : await admin.from("ai_topups").insert({ workspace_id: id, pack: String(o.metadata.pack), paid_eur: p.price, credit_eur: p.credit, stripe_session: String(o.id) });

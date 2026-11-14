@@ -1,6 +1,6 @@
 // Fonction « r » : Bingoo! Radar, Espion et Studio (modules de croissance), séparée pour des mises à jour légères.
 import { HttpError, json, readJson, refuserInvite, wrap } from "../_shared/http.ts";
-import { admin, log, quota, requireMember, setAi, type Prospect } from "../_shared/core.ts";
+import { admin, COUT_CREDITS, creditsDepenser, creditsRendre, creditsSolde, log, quota, requireMember, setAi, type Prospect } from "../_shared/core.ts";
 import { radarCron, radarGetConfig, radarSetConfig, radarToProspect, scanRadar } from "../_shared/radar.ts";
 import { attreyForums, attreySearch } from "../_shared/attrey.ts";
 import { attreyMultiScan } from "../_shared/attrey-multicanal.ts";
@@ -23,7 +23,7 @@ async function quotaMois(wsId: string, plan: string, kind: "construire" | "modif
   const max = plafondDe(plan)[kind];
   const debut = new Date(); debut.setUTCDate(1); debut.setUTCHours(0, 0, 0, 0);
   const { count } = await admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", wsId).eq("kind", kind === "construire" ? "construire" : "modifier_app").gte("created_at", debut.toISOString());
-  if ((count ?? 0) >= max) throw new HttpError(402, kind === "construire" ? `Tu as utilisé tes ${max} constructions du mois : passe à la formule supérieure, ou attends le 1er du mois.` : `Tu as utilisé tes ${max} modifications du mois : passe à la formule supérieure, ou attends le 1er du mois.`);
+  if ((count ?? 0) >= max) throw new HttpError(402, kind === "construire" ? `Tu as utilisé tes ${max} constructions du mois : attends le 1er du mois.` : `Tu as utilisé tes ${max} modifications du mois : attends le 1er du mois, ou utilise tes crédits.`);
   return { utilise: count ?? 0, max };
 }
 // Espace d'un membre connecté, ou n'importe quel espace avec la clé des tâches planifiées (tests et reprises)
@@ -307,18 +307,23 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (!pr || pr.statut !== "pret") throw new HttpError(404, "Projet introuvable");
     const { data: ex } = await admin.from("saas_apps").select("id, statut, maj, etape").eq("projet_id", pr.id).maybeSingle();
     if (ex?.statut === "en_cours" && Date.now() - new Date(ex.maj).getTime() < 10 * 60e3) return { id: ex.id, statut: "en_cours" };
-    if (!req.headers.get("x-cron-key")) { await quota(ws.id, "construire", 3); await quotaMois(ws.id, ws.plan, "construire"); }
-    // Un seul SaaS par abonnement « Lancer » : un autre SaaS remplace le premier seulement dans les 48 h, ou une fois dans l'année avec 12 mois
+    // Un seul SaaS par abonnement « Lancer » : un autre SaaS remplace le premier seulement dans les 48 h, ou une fois dans l'année avec 12 mois ;
+    // sinon il s'ajoute pour 60 crédits (le premier reste en ligne)
+    let remplacer: string[] = [], parCredits = false;
     if (!ex && ws.plan === "explorer_pro") {
       const { data: autres } = await admin.from("saas_apps").select("id, at, statut").eq("workspace_id", ws.id).neq("statut", "remplace");
       if (autres?.length) {
         const recent = autres.every((a) => Date.now() - new Date(a.at).getTime() < 48 * 3600e3);
         const { count: changes } = await admin.from("saas_apps").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("statut", "remplace").gte("at", new Date(Date.now() - 365 * 864e5).toISOString());
         const annuel = (ws as { periode?: string }).periode === "an" && (changes ?? 0) < 1;
-        if (!recent && !annuel) throw new HttpError(402, "Ton abonnement comprend un SaaS. Pour en lancer un autre, prends un deuxième abonnement : écris-nous à bingoo@maisonravita.fr.");
-        await admin.from("saas_apps").update({ statut: "remplace", public: false }).in("id", autres.map((a) => a.id));
+        if (b.credits === true) parCredits = true;
+        else if (!recent && !annuel) throw new HttpError(402, `Ton abonnement comprend un SaaS. Lance celui-ci en plus pour ${COUT_CREDITS.saas} crédits (ton premier SaaS reste en ligne).`);
+        else remplacer = autres.map((a) => a.id);
       }
     }
+    if (!req.headers.get("x-cron-key") && !parCredits) { await quota(ws.id, "construire", 3); await quotaMois(ws.id, ws.plan, "construire"); }
+    if (parCredits) await creditsDepenser(ws.id, COUT_CREDITS.saas, "Autre SaaS");
+    if (remplacer.length) await admin.from("saas_apps").update({ statut: "remplace", public: false }).in("id", remplacer);
     setAi({ ws: ws.id, live: true, feature: "construire" });
     const { saasConstruire, nouveauSlug } = await import("../_shared/app-build.ts");
     // Chaque écran s'écrit dans sa propre invocation (limite de durée d'une invocation)
@@ -557,18 +562,60 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const { data: app } = await admin.from("saas_apps").select("id, statut").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
     if (!app || app.statut !== "pret") throw new HttpError(404, "Application introuvable ou en cours de construction");
     await quota(ws.id, "modifier_app", 30);
-    if (!req.headers.get("x-cron-key")) await quotaMois(ws.id, ws.plan, "modifier");
+    // Au-delà des modifications du mois : 1 crédit par modification (si le créateur en a)
+    let parCredit = false;
+    if (!req.headers.get("x-cron-key")) {
+      try { await quotaMois(ws.id, ws.plan, "modifier"); }
+      catch (e) {
+        if ((e as HttpError).status !== 402) throw e;
+        if (await creditsSolde(ws.id) < COUT_CREDITS.modification) throw new HttpError(402, "Tu as utilisé les modifications de ton mois. Une modification en plus = 1 crédit : recharge tes crédits dans Abonnement.");
+        await creditsDepenser(ws.id, COUT_CREDITS.modification, "Modification en plus");
+        parCredit = true;
+      }
+    }
     setAi({ ws: ws.id, live: true, feature: "construire/modifier" });
     await log(ws.id, "modifier_app", `Modification : ${demande.slice(0, 120)}`);
     const { saasModifierEcran } = await import("../_shared/app-build.ts");
     await admin.from("saas_apps").update({ statut: "en_cours", etape: "Modification en cours", erreur: null, maj: new Date().toISOString() }).eq("id", app.id);
     const travail = saasModifierEcran(app.id, String(b.ecran ?? "nouveau"), demande, b.suggestion ? String(b.suggestion) : null).catch(async (e) => {
+      if (parCredit) await creditsRendre(ws.id, COUT_CREDITS.modification, "Modification échouée : crédit rendu");
       await admin.from("saas_apps").update({ statut: "pret", etape: null, erreur: String(e?.message ?? e).slice(0, 300) }).eq("id", app.id);
     });
     // deno-lint-ignore no-explicit-any
     const rt = (globalThis as any).EdgeRuntime;
     if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
-    return { id: app.id, statut: "en_cours" };
+    return { id: app.id, statut: "en_cours", credit: parCredit };
+  },
+  // Crédits Bingoo! : solde, derniers mouvements, ce que coûte chaque action
+  async credits(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { data } = await admin.from("credits").select("delta, motif, at").eq("workspace_id", ws.id).order("at", { ascending: false }).limit(15);
+    return { solde: await creditsSolde(ws.id), mouvements: data ?? [], couts: COUT_CREDITS };
+  },
+  // Vidéo pub en motion design : l'IA écrit le scénario (10 crédits), la page l'anime et l'exporte en vidéo
+  async "saas-video"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { data: app } = await admin.from("saas_apps").select("id, slug, spec, domaine, domaine_statut, statut").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    if (!app?.spec?.ecrans?.length) throw new HttpError(404, "Ton SaaS doit d'abord être construit");
+    const format = b.format === "paysage" ? "paysage" : "vertical";
+    await quota(ws.id, "video", 10);
+    await creditsDepenser(ws.id, COUT_CREDITS.video, "Vidéo pub");
+    try {
+      setAi({ ws: ws.id, live: true, feature: "video" });
+      const { saasVideoScript } = await import("../_shared/app-video.ts");
+      const script = await saasVideoScript(app.spec, typeof b.angle === "string" ? b.angle.slice(0, 300) : "");
+      const { data: v } = await admin.from("saas_videos").insert({ app_id: app.id, workspace_id: ws.id, format, script }).select("id, format, script, at").single();
+      await log(ws.id, "video", `Vidéo pub de ${app.spec.nom}`);
+      return v;
+    } catch (e) {
+      await creditsRendre(ws.id, COUT_CREDITS.video, "Vidéo échouée : crédits rendus");
+      throw e;
+    }
+  },
+  async "saas-videos"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { data } = await admin.from("saas_videos").select("id, format, script, at").eq("workspace_id", ws.id).eq("app_id", String(b.app_id ?? "")).order("at", { ascending: false }).limit(10);
+    return { videos: data ?? [] };
   },
   async "saas-clients"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
