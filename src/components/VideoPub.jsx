@@ -9,7 +9,7 @@ import { DUREE, FORMATS, dessiner, exporterVideo, preparerPolice } from "../lib/
 
 const lienCourt = (l) => String(l || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
 
-export default function VideoPub({ app, lien, nu = false }) {
+export default function VideoPub({ app, lien, nu = false, angleInitial = "" }) {
   const { ws } = useWs();
   const toast = useToast();
   const nav = useNavigate();
@@ -17,7 +17,7 @@ export default function VideoPub({ app, lien, nu = false }) {
   const [sel, setSel] = useState(null);
   const [format, setFormat] = useState("vertical");
   const [solde, setSolde] = useState(null);
-  const [angle, setAngle] = useState("");
+  const [angle, setAngle] = useState(angleInitial);
   const [busy, setBusy] = useState(false);
   const [export_, setExport] = useState(null);
   const [lecture, setLecture] = useState(true);

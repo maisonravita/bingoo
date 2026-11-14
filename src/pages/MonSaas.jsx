@@ -48,6 +48,7 @@ export default function MonSaas({ page }) {
       {page === "mon-saas" && <Accueil m={m} />}
       {page === "clients" && <Clients m={m} />}
       {page === "methodes" && <CeQuiMarche m={m} />}
+      {page === "tiktok" && <TikTok m={m} />}
       {page === "video" && <Video m={m} />}
       {page === "reglages-saas" && <Reglages m={m} charger={charger} />}
     </div>
@@ -231,12 +232,14 @@ function Clients({ m }) {
 
 // ---------------------------------------------------------------- Vidéo pub
 function Video({ m }) {
+  const loc = useLocation();
+  const angle = new URLSearchParams(loc.search).get("angle") ?? "";
   const lien = lienApp(m.app.slug, m.app.domaine_statut === "ok" ? m.app.domaine : null);
   return (
     <>
       <Tete titre="Vidéo pub" sous="Une pub animée de 20 secondes, à tes couleurs, prête pour TikTok, Reels et Shorts." />
       <Carte className="clair" pad={false}>
-        <Suspense fallback={<div className="py-16 grid place-items-center"><Spinner /></div>}><VideoPub app={m.app} lien={lien} nu /></Suspense>
+        <Suspense fallback={<div className="py-16 grid place-items-center"><Spinner /></div>}><VideoPub app={m.app} lien={lien} nu angleInitial={angle} /></Suspense>
       </Carte>
     </>
   );
@@ -390,6 +393,102 @@ function CeQuiMarche({ m }) {
             </Carte>
           )}
         </div>
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------- TikTok : ce qui marche, à étudier, et ses idées de vidéos
+function TikTok({ m }) {
+  const { ws } = useWs();
+  const nav = useNavigate();
+  const [st, setSt] = useState(undefined);
+  const [t, setT] = useState(undefined);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  useEffect(() => {
+    if (m.domaine) supabase.rpc("saas_tiktok_marche", { dom: m.domaine }).then(({ data }) => setSt(data ?? null)); else setSt(null);
+    fn("r/saas-tiktok", { workspace_id: ws.id, app_id: m.app.id, lire: true }).then((d) => setT(d ?? null), () => setT(null));
+  }, [m.app.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const lancer = async (refaire) => {
+    setBusy(true); setErr(null);
+    try { setT(await fn("r/saas-tiktok", { workspace_id: ws.id, app_id: m.app.id, refaire })); } catch (e) { setErr(e.message); } finally { setBusy(false); }
+  };
+  const ecart = st?.mediane && st?.mediane_tous ? Math.round(((st.mediane - st.mediane_tous) / st.mediane_tous) * 100) : null;
+  return (
+    <>
+      <Tete titre="TikTok" sous="Le canal où un SaaS peut décoller sans budget : qui y gagne de l'argent, quoi étudier, et tes idées de vidéos."
+        actions={<Bouton onClick={() => window.open("https://ads.tiktok.com/business/creativecenter/inspiration/topads/pc/fr", "_blank", "noopener")}>Pubs TikTok du moment ↗</Bouton>} />
+
+      <Carte pad={false}>
+        <div className="grid grid-cols-1 divide-y divide-[#EBEBEB] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          {[["SaaS vérifiés sur TikTok", st ? Number(st.n).toLocaleString("fr-FR") : "…", "trouvent leurs clients sur TikTok"], ["Leur revenu médian", st ? mrr$(st.mediane) : "…", ecart != null ? `${ecart > 0 ? "+" : ""}${ecart} % par rapport aux autres canaux` : "par mois"], ["Dans ta catégorie", st ? String(st.n_cat ?? 0) : "…", st?.categorie ?? ""]].map(([l, v, s2]) => (
+            <div key={l} className="p-4"><p className="text-[12.5px] font-medium text-[#616161]">{l}</p><p className="mt-1.5 text-[22px] font-bold leading-none tnum">{v}</p><p className="mt-1.5 text-[12px] text-[#8A8A8A]">{s2}</p></div>
+          ))}
+        </div>
+      </Carte>
+
+      <Carte className="mt-4" titre="Tes idées de vidéos TikTok" sous={`Des formats pensés pour ${m.nom} et ses clients. Choisis-en un, filme-le avec ton téléphone, ou transforme-le en vidéo animée.`}
+        actions={t ? <Bouton disabled={busy} onClick={() => lancer(true)}>{busy ? "Recherche…" : "Actualiser"}</Bouton> : null}>
+        {t === undefined ? <div className="py-10 grid place-items-center"><Spinner /></div> : !t ? (
+          <div className="rounded-xl bg-[#F7F7F7] p-6 text-center">
+            <p className="font-semibold">Bingoo! analyse TikTok pour {m.nom}</p>
+            <p className="mx-auto mt-1 max-w-md text-[13px] text-[#616161]">Il cherche les comptes et les vidéos de ta niche qui marchent, et écrit 6 idées de vidéos adaptées à ton SaaS. Compte environ une minute.</p>
+            <Bouton principal className="mt-4" disabled={busy} onClick={() => lancer(false)}>{busy ? "Analyse en cours…" : "Lancer l'analyse TikTok"}</Bouton>
+            {err && <p className="mt-2 text-[13px] text-[#B42318]">{err}</p>}
+          </div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {(t.formats ?? []).map((f, i) => (
+              <div key={i} className="flex gap-3 rounded-xl border border-[#EBEBEB] p-3">
+                <div className="relative flex h-[148px] w-[84px] shrink-0 items-end overflow-hidden rounded-lg p-1.5" style={{ background: `linear-gradient(160deg, ${m.couleur}, #111)` }}>
+                  <p className="text-[9.5px] font-bold leading-tight text-white [text-shadow:0_1px_2px_rgba(0,0,0,.6)]">{f.accroche}</p>
+                  <span className="absolute right-1.5 top-1.5 rounded bg-black/50 px-1 text-[9px] font-semibold text-white">{f.duree} s</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="rounded-md bg-[#F1F1F1] px-1.5 py-0.5 text-[11.5px] font-semibold">{f.format}</span>
+                  <p className="mt-1.5 text-[13.5px] font-semibold leading-snug">« {f.accroche} »</p>
+                  <ol className="mt-1.5 space-y-0.5 text-[12.5px] text-[#616161]">{(f.deroule ?? []).map((x, k) => <li key={k}>{k + 1}. {x}</li>)}</ol>
+                  <p className="mt-1.5 text-[12px] italic text-[#8A8A8A]">{f.pourquoi}</p>
+                  <button onClick={() => nav(`/explorer/video?angle=${encodeURIComponent(f.accroche)}`)} className="mt-2 text-[12.5px] font-semibold text-[#005BD3] hover:underline">En faire une vidéo animée →</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {t?.conseils?.length > 0 && (
+          <div className="mt-3 rounded-xl bg-[#F7F7F7] p-3">
+            <p className="text-[12.5px] font-semibold">Pour publier</p>
+            <ul className="mt-1 space-y-0.5 text-[13px] text-[#616161]">{t.conseils.map((c, i) => <li key={i}>· {c}</li>)}</ul>
+          </div>
+        )}
+      </Carte>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <Carte titre="Ils trouvent leurs clients sur TikTok" sous={st?.n_cat >= 4 ? `SaaS de ta catégorie, revenus vérifiés.` : "Les SaaS vérifiés qui gagnent le plus avec TikTok."}>
+          {st === undefined ? <Spinner /> : !st?.saas?.length ? <p className="text-[13.5px] text-[#616161]">Pas encore de données.</p> : (
+            <ul className="divide-y divide-[#EBEBEB]">
+              {st.saas.map((x) => (
+                <li key={x.domaine} className="flex items-center gap-3 py-2.5">
+                  <div className="min-w-0 flex-1"><button onClick={() => nav(`/explorer/${x.domaine}`)} className="truncate text-left text-[13.5px] font-semibold hover:underline">{x.nom}</button><p className="truncate text-[12px] text-[#8A8A8A]">{x.categorie} · {(x.canaux ?? []).filter((c) => c !== "TikTok").slice(0, 3).map(nomCanal).join(", ") || "TikTok seulement"}</p></div>
+                  <p className="shrink-0 text-[13.5px] font-semibold tnum">{mrr$(x.mrr)}<span className="font-normal text-[#8A8A8A]"> /mois</span></p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Carte>
+        <Carte titre="À étudier sur TikTok" sous="Des comptes et des vidéos de ta niche trouvés sur le web, avec ce qu'ils font bien.">
+          {!t ? <p className="text-[13.5px] text-[#616161]">Lance l'analyse TikTok pour les voir.</p> : !(t.comptes?.length || t.videos?.length) ? <p className="text-[13.5px] text-[#616161]">Rien de sûr trouvé cette fois : réessaie plus tard avec « Actualiser ».</p> : (
+            <ul className="divide-y divide-[#EBEBEB]">
+              {[...(t.comptes ?? []).map((c) => ({ ...c, type: "Compte", titre: c.nom, chiffre: c.abonnes })), ...(t.videos ?? []).map((v) => ({ ...v, type: "Vidéo", chiffre: v.vues }))].map((x, i) => (
+                <li key={i} className="py-2.5">
+                  <div className="flex items-center gap-2"><span className="rounded bg-[#F1F1F1] px-1.5 text-[11px] font-semibold">{x.type}</span><a href={x.url} target="_blank" rel="noreferrer" className="min-w-0 truncate text-[13.5px] font-semibold text-[#005BD3] hover:underline">{x.titre || x.url.replace(/^https:\/\/(www\.)?/, "")} ↗</a>{x.chiffre && <span className="shrink-0 text-[12px] text-[#8A8A8A]">{x.chiffre}</span>}</div>
+                  {x.pourquoi && <p className="mt-0.5 text-[12.5px] text-[#616161]">{x.pourquoi}</p>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Carte>
       </div>
     </>
   );

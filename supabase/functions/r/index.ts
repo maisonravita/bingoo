@@ -616,6 +616,19 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
       throw e;
     }
   },
+  // TikTok : comptes et vidéos réels à étudier + formats adaptés au SaaS (cache 14 jours ; « refaire » limité)
+  async "saas-tiktok"(req, b) {
+    const { ws } = await membreOuCron(req, b.workspace_id);
+    const { data: app } = await admin.from("saas_apps").select("id, workspace_id, spec, projet_id").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    if (!app?.spec) throw new HttpError(404, "Ton SaaS doit d'abord être construit");
+    const { data: pr } = await admin.from("saas_projets").select("data").eq("id", app.projet_id).maybeSingle();
+    if (b.lire) { const { data } = await admin.from("saas_tiktok").select("data, at").eq("app_id", app.id).maybeSingle(); return data ? { ...data.data, at: data.at } : null; }
+    await quota(ws.id, "tiktok", 4);
+    await log(ws.id, "tiktok", "Recherche TikTok");
+    setAi({ ws: ws.id, live: true, feature: "tiktok" });
+    const { saasTikTok } = await import("../_shared/app-tiktok.ts");
+    return await saasTikTok(app, pr?.data ?? null, !!b.refaire);
+  },
   async "saas-videos"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const { data } = await admin.from("saas_videos").select("id, format, script, at").eq("workspace_id", ws.id).eq("app_id", String(b.app_id ?? "")).order("at", { ascending: false }).limit(10);
