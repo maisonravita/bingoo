@@ -302,7 +302,7 @@ function AppShell({ ws, list, select, invite, isAdmin, essentiel, c, bandeau, ex
             <kbd className="rounded-md border border-line px-1.5 text-[11px] text-ink-faint">⌘ K</kbd>
           </form>
           <button onClick={onAvis} className={cx("hidden rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper", !invite && "xl:block")}>Retour d'information</button>
-          <NavLink to="/aide" className={cx("shrink-0 whitespace-nowrap rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper", invite && "hidden xl:block")}>Aide</NavLink>
+          <NavLink to="/aide" className={cx("shrink-0 whitespace-nowrap rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper", invite && "hidden")}>Aide</NavLink>
           <NavLink to="/explorer/demande" className="shrink-0 whitespace-nowrap flex items-center gap-2 rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper"><Icon name="spark" className="w-[17px] h-[17px] text-[#E8571C]" />Demander</NavLink>
           {!invite && <Bell ws={ws} replies={c.replies} />}
           {invite ? <>
