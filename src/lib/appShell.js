@@ -358,7 +358,12 @@ function Apercu() {
   const cols = Object.entries(S.demo ?? {}).filter(([, xs]) => Array.isArray(xs) && xs.length);
   const label = (k) => ((S.collections ?? []).find((c) => c.nom === k)?.label) ?? (k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, " "));
   const [k0, xs0] = cols.sort((a, b) => b[1].length - a[1].length)[0] ?? ["", []];
-  const champs = xs0.length ? Object.keys(xs0[0]).filter((c) => c !== "ref" && c !== "id" && !c.endsWith("_id") && ["string", "number"].includes(typeof xs0[0][c])).slice(0, 3) : [];
+  // Champs parlants d'abord (la base range les clés par longueur) : nom ou numéro, puis date, puis montant ; jamais un champ souvent vide
+  const rang = (c) => /^(nom|titre|name)$/.test(c) ? 0 : /nom|titre|numero|libelle/.test(c) ? 1 : /^date$|date|_le$/.test(c) ? 2 : /montant|prix|total/.test(c) ? 3 : /statut/.test(c) ? 4 : 6;
+  const plein = (c) => xs0.filter((x) => x?.[c] !== "" && x?.[c] != null).length >= xs0.length * 0.7;
+  const champs = xs0.length ? [...new Set(xs0.flatMap((x) => Object.keys(x ?? {})))].filter((c) => c !== "ref" && c !== "id" && c !== "cree_le" && !c.endsWith("_id") && !/email|telephone|notes|tva|adresse/.test(c) && ["string", "number"].includes(typeof xs0[0][c]) && plein(c)).sort((a, b) => rang(a) - rang(b)).slice(0, 3) : [];
+  const cd = champs.find((c) => rang(c) === 2), auj = new Date().toISOString().slice(0, 10);
+  const lignes = (cd ? [...xs0].sort((a, b) => ((a[cd] <= auj) === (b[cd] <= auj) ? String(b[cd]).localeCompare(String(a[cd])) : a[cd] <= auj ? -1 : 1)) : xs0).filter((x) => champs[0] == null || (x[champs[0]] !== "" && x[champs[0]] != null));
   const val = (v) => String(joli(v)).slice(0, 28);
   const sombre = STY.menu === "sombre", couleur = STY.menu === "couleur";
   return html\`<div class="rounded-2xl bg-white shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/10 overflow-hidden text-left">
@@ -372,7 +377,7 @@ function Apercu() {
         <p class="text-[13px] font-bold text-slate-900">\${ecr[0]?.titre ?? "Tableau de bord"}</p>
         <div class="mt-3 grid grid-cols-3 gap-2">\${cols.slice(0, 3).map(([k, xs]) => html\`<div class="rounded-xl bg-white ring-1 ring-slate-200/70 p-2.5"><p class="text-[10px] text-slate-500 truncate">\${label(k)}</p><p class="text-[17px] font-bold text-slate-900 tabular-nums">\${xs.length.toLocaleString("fr-FR")}</p><div class="mt-1 h-1 rounded-full bg-[var(--c)]/15"><div class="h-1 rounded-full bg-[var(--c)]" style=\${"width:" + Math.max(12, Math.round(100 * xs.length / (xs0.length || 1))) + "%"}/></div></div>\`)}</div>
         \${k0 && html\`<div class="mt-3 rounded-xl bg-white ring-1 ring-slate-200/70 overflow-hidden"><p class="px-3 pt-2.5 text-[11px] font-semibold text-slate-700">\${label(k0)}</p>
-          \${xs0.slice(0, 4).map((x) => html\`<div class="flex items-center gap-2 px-3 py-2 border-t border-slate-100 text-[11px]">\${champs.map((c, j) => html\`<span class=\${cls("truncate", j === 0 ? "flex-1 font-medium text-slate-800" : "w-24 text-slate-500")}>\${val(x[c])}</span>\`)}</div>\`)}</div>\`}
+          \${lignes.slice(0, 4).map((x) => html\`<div class="flex items-center gap-2 px-3 py-2 border-t border-slate-100 text-[11px]">\${champs.map((c, j) => html\`<span class=\${cls("truncate", j === 0 ? "flex-1 font-medium text-slate-800" : "w-24 text-slate-500")}>\${val(x[c])}</span>\`)}</div>\`)}</div>\`}
       </div>
     </div>
   </div>\`;
