@@ -315,7 +315,7 @@ export async function aiGuard() {
   await gardeCredit(!!ctx.live);
   if (ctx.essential) return; // réponses de prospects : toujours traitées (plafond par prospect dans pro.ts)
   // Plafonds réglables sans redéploiement (app_secrets « ia_plafond_jour », « ia_plafond_explorer », en euros par jour)
-  const { data: regl } = await admin.from("app_secrets").select("name, value").in("name", ["ia_plafond_jour", "ia_plafond_explorer"]);
+  const { data: regl } = await admin.from("app_secrets").select("name, value").in("name", ["ia_plafond_jour", "ia_plafond_explorer", "ia_plafond_verif"]);
   const reg = (k: string) => { const v = (regl ?? []).find((x: { name: string }) => x.name === k)?.value; return v != null && v !== "" && !isNaN(Number(v)) ? Number(v) : null; };
   const cap = reg("ia_plafond_jour") ?? Number(env("AI_DAILY_CAP_EUR", "12"));
   const ws = ctx.ws;
@@ -326,10 +326,17 @@ export async function aiGuard() {
     if ((data ?? []).reduce((a, r) => a + Number(r.cost_eur ?? 0), 0) >= capApps) throw new HttpError(503, "L'assistant IA est très demandé aujourd'hui, réessaie dans quelques heures.");
     return;
   }
+  if (!ws && ctx.feature === "explorer/verif") {
+    // Vérification « Bingoo! sait-il le construire ? » : prioritaire (c'est ce qui décide ce qu'on montre), enveloppe à part et petite
+    const capV = reg("ia_plafond_verif") ?? 0.3;
+    const { data } = await admin.from("ai_usage").select("cost_eur").is("workspace_id", null).eq("feature", "explorer/verif").gte("at", dayStart());
+    if ((data ?? []).reduce((a, r) => a + Number(r.cost_eur ?? 0), 0) >= capV) throw new HttpError(503, "Vérification des SaaS en pause jusqu'à demain (enveloppe du jour atteinte).");
+    return;
+  }
   if (!ws && String(ctx.feature ?? "").startsWith("explorer/")) {
     // Base Explorer (lecture des SaaS, niches, recherche) : enveloppe à part, pour ne pas épuiser celle des outils gratuits
     const capEx = reg("ia_plafond_explorer") ?? Number(env("AI_EXPLORER_CAP_EUR", "6"));
-    const { data } = await admin.from("ai_usage").select("cost_eur").is("workspace_id", null).like("feature", "explorer/%").gte("at", dayStart());
+    const { data } = await admin.from("ai_usage").select("cost_eur").is("workspace_id", null).like("feature", "explorer/%").neq("feature", "explorer/verif").gte("at", dayStart());
     if ((data ?? []).reduce((a, r) => a + Number(r.cost_eur ?? 0), 0) >= capEx) throw new HttpError(503, "Lecture de la base Explorer en pause jusqu'à demain (enveloppe du jour atteinte).");
     return;
   }
