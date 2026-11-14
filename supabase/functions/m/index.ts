@@ -202,6 +202,12 @@ const routes2: Record<string, (req: Request, b: Record<string, unknown>) => Prom
     }
     return out;
   },
+  // Diagnostic (clé de tâche) : où en est le crédit IA depuis la dernière recharge
+  async "ia-solde"(req) {
+    if ((req.headers.get("x-cron-key") ?? "") !== (await secret("cron_key"))) throw new HttpError(401, "Clé invalide");
+    const { iaSolde } = await import("../_shared/core.ts");
+    return (await iaSolde()) ?? { info: "aucun crédit déclaré" };
+  },
   // Diagnostic (clé de tâche) : Stripe est-il branché en réel ? Ne renvoie jamais la clé, seulement le mode.
   async "stripe-mode"(req) {
     if ((req.headers.get("x-cron-key") ?? "") !== (await secret("cron_key"))) throw new HttpError(401, "Clé invalide");

@@ -243,8 +243,49 @@ export async function backgroundPaused() { return (await bgMode()) === "off"; }
 /** Espace de test (formule fondateur) : pas d'IA automatique en mode « clients ». */
 export const isTestSpace = (w: { plan?: string | null }) => w.plan === "fondateur";
 
+// ---------------------------------------------------------------- Garde-fou du crédit IA (le compte Anthropic rechargé)
+// app_secrets : « ia_credit_eur » = ce qui a été mis sur le compte, « ia_credit_depuis » = date de la recharge,
+// « ia_reserve_eur » = ce qu'on garde pour les clients. Dépense comptée avec 15 % de marge (arrondis, recherches web).
+// Sous la réserve : seules les demandes des personnes connectées passent (construire, Atelier…), plus aucune tâche de fond.
+// Sous 0,50 € : tout s'arrête proprement, avant que le compte Anthropic ne soit à zéro.
+let soldeCache: { at: number; restant: number | null } = { at: 0, restant: null };
+export async function iaSolde(): Promise<{ credit: number; depense: number; restant: number; reserve: number } | null> {
+  const { data } = await admin.from("app_secrets").select("name, value").in("name", ["ia_credit_eur", "ia_credit_depuis", "ia_reserve_eur"]);
+  const v = (k: string) => (data ?? []).find((x: { name: string }) => x.name === k)?.value ?? null;
+  const credit = Number(v("ia_credit_eur")), depuis = v("ia_credit_depuis");
+  if (!credit || !depuis) return null;
+  const { data: u } = await admin.from("ai_usage").select("cost_eur").gte("at", depuis).limit(100000);
+  const depense = (u ?? []).reduce((a: number, r: { cost_eur: number | null }) => a + Number(r.cost_eur ?? 0), 0) * 1.15;
+  return { credit, depense: Math.round(depense * 100) / 100, restant: Math.round((credit - depense) * 100) / 100, reserve: Number(v("ia_reserve_eur") ?? 3) };
+}
+async function alerteSolde(niveau: string, restant: number) {
+  const nom = `ia_alerte_${niveau}`;
+  const { data: deja } = await admin.from("app_secrets").select("value").eq("name", nom).maybeSingle();
+  const { data: dep } = await admin.from("app_secrets").select("value").eq("name", "ia_credit_depuis").maybeSingle();
+  if (deja?.value && dep?.value && new Date(deja.value).getTime() >= new Date(dep.value).getTime()) return; // déjà prévenu depuis la dernière recharge
+  await admin.from("app_secrets").upsert({ name: nom, value: new Date().toISOString() });
+  const { data: to } = await admin.from("app_secrets").select("value").eq("name", "ia_alerte_email").maybeSingle();
+  const key = env("RESEND_API_KEY"), dom = PLATFORM_DOMAIN();
+  if (!to?.value || !key || !dom) return;
+  const texte = niveau === "stop"
+    ? `Le crédit IA de Bingoo! est presque vide (${restant.toFixed(2)} € restants) : toute l'IA est en pause pour ne pas atteindre zéro. Recharge le compte Anthropic, puis dis-le à Claude pour relancer.`
+    : `Il reste ${restant.toFixed(2)} € de crédit IA : les tâches de fond (lecture et classement des SaaS) sont en pause, seules les demandes des utilisateurs passent encore.`;
+  await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${key}`, "content-type": "application/json" },
+    body: JSON.stringify({ from: `Bingoo! <alertes@${dom}>`, to: [to.value], subject: niveau === "stop" ? "Bingoo! : crédit IA presque vide, IA en pause" : "Bingoo! : crédit IA bas, tâches de fond en pause", text: texte }) }).catch(() => null);
+}
+async function gardeCredit(live: boolean) {
+  if (Date.now() - soldeCache.at > 30000) soldeCache = { at: Date.now(), restant: (await iaSolde().catch(() => null))?.restant ?? null };
+  const r = soldeCache.restant;
+  if (r == null) return;
+  if (r <= 0.5) { await alerteSolde("stop", r); throw new HttpError(503, "Bingoo! fait une courte pause de maintenance sur l'IA. Réessaie un peu plus tard."); }
+  const { data } = await admin.from("app_secrets").select("value").eq("name", "ia_reserve_eur").maybeSingle();
+  const reserve = Number(data?.value ?? 3);
+  if (r <= reserve && !live) { await alerteSolde("reserve", r); throw new HttpError(503, "Tâches IA de fond en pause : crédit réservé aux utilisateurs."); }
+}
+
 export async function aiGuard() {
   const ctx = aiCtx.getStore() ?? {};
+  await gardeCredit(!!ctx.live);
   if (ctx.essential) return; // réponses de prospects : toujours traitées (plafond par prospect dans pro.ts)
   // Plafonds réglables sans redéploiement (app_secrets « ia_plafond_jour », « ia_plafond_explorer », en euros par jour)
   const { data: regl } = await admin.from("app_secrets").select("name, value").in("name", ["ia_plafond_jour", "ia_plafond_explorer"]);
