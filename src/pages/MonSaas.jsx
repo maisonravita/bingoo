@@ -520,7 +520,7 @@ function VideosTikTok({ videos, m }) {
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {videos.map((v) => {
         const o0 = img[v.url] ?? {};
-        const o = { ...o0, auteur: o0.auteur ?? v.auteur ?? decodeURIComponent(/@([^/?#]+)/.exec(v.url)?.[1] ?? "") || null };
+        const o = { ...o0, auteur: o0.auteur ?? v.auteur ?? (decodeURIComponent(/@([^/?#]+)/.exec(v.url)?.[1] ?? "") || null) };
         const p = pareil[v.url];
         return (
           <div key={v.url} className={cx("flex flex-col", p && p !== "encours" && !p.erreur && "col-span-2 sm:col-span-3 lg:col-span-5 lg:flex-row lg:gap-4")}>
