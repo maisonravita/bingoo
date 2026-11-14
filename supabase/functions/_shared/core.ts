@@ -315,13 +315,14 @@ export async function aiGuard() {
   await gardeCredit(!!ctx.live);
   if (ctx.essential) return; // réponses de prospects : toujours traitées (plafond par prospect dans pro.ts)
   // Plafonds réglables sans redéploiement (app_secrets « ia_plafond_jour », « ia_plafond_explorer », en euros par jour)
-  const { data: regl } = await admin.from("app_secrets").select("name, value").in("name", ["ia_plafond_jour", "ia_plafond_explorer", "ia_plafond_verif", "catalogue_ia"]);
+  const { data: regl } = await admin.from("app_secrets").select("name, value").in("name", ["ia_plafond_jour", "ia_plafond_explorer", "ia_plafond_verif", "catalogue_ia", "ia_plafond_apps"]);
   const reg = (k: string) => { const v = (regl ?? []).find((x: { name: string }) => x.name === k)?.value; return v != null && v !== "" && !isNaN(Number(v)) ? Number(v) : null; };
   const cap = reg("ia_plafond_jour") ?? Number(env("AI_DAILY_CAP_EUR", "12"));
   const ws = ctx.ws;
   if (!ws && String(ctx.feature ?? "").startsWith("app/")) {
     // IA des SaaS construits par Bingoo! (utilisée par leurs clients) : enveloppe à part, plafonnée aussi par application et par compte
-    const capApps = Number(env("AI_APPS_CAP_EUR", "5"));
+    // Réglable sans redéploiement : app_secrets « ia_plafond_apps » (euros par jour, toutes les apps ensemble)
+    const capApps = reg("ia_plafond_apps") ?? Number(env("AI_APPS_CAP_EUR", "0.5"));
     const { data } = await admin.from("ai_usage").select("cost_eur").is("workspace_id", null).like("feature", "app/%").gte("at", dayStart());
     if ((data ?? []).reduce((a, r) => a + Number(r.cost_eur ?? 0), 0) >= capApps) throw new HttpError(503, "L'assistant IA est très demandé aujourd'hui, réessaie dans quelques heures.");
     return;

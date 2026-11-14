@@ -218,10 +218,12 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const domaine = domaineDe(String(b.domaine ?? ""));
     if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domaine)) throw new HttpError(400, "Adresse de site invalide");
     // Un SaaS absent de la base y est ajouté, puis lu avant de préparer le projet
-    let { data: s } = await admin.from("saas").select("id, nom, statut").eq("domaine", domaine).maybeSingle();
-    if (!s) { await saasAdd([`https://${domaine}`], "lancer"); ({ data: s } = await admin.from("saas").select("id, nom, statut").eq("domaine", domaine).maybeSingle()); }
+    let { data: s } = await admin.from("saas").select("id, nom, statut, constructible_ia").eq("domaine", domaine).maybeSingle();
+    if (!s) { await saasAdd([`https://${domaine}`], "lancer"); ({ data: s } = await admin.from("saas").select("id, nom, statut, constructible_ia").eq("domaine", domaine).maybeSingle()); }
     if (!s) throw new HttpError(400, "Ce site ne peut pas être ajouté");
     if (["pas_saas", "doublon", "retire"].includes(s.statut)) throw new HttpError(400, "Ce site n'est pas un logiciel SaaS lisible");
+    // Vérifié « Bingoo! ne sait pas le construire » (agent IA, IA sans filtre, intégration profonde…) : refusé avant toute dépense
+    if (s.constructible_ia === false) throw new HttpError(400, `Bingoo! ne peut pas construire une version fiable de ${s.nom ?? domaine} (il dépend de briques que Bingoo! ne sait pas faire). Choisis un autre SaaS dans tes résultats.`);
     // Double lancement (double clic, page rechargée) : on rend la préparation déjà en cours ou prête depuis moins de 30 min, sans repayer l'IA
     const { data: recent } = await admin.from("saas_projets").select("id, statut").eq("workspace_id", ws.id).eq("saas_id", s.id).in("statut", ["en_cours", "pret"]).gte("at", new Date(Date.now() - 30 * 60e3).toISOString()).order("at", { ascending: false }).limit(1);
     if (recent?.[0]) return { id: recent[0].id, statut: recent[0].statut };
