@@ -210,6 +210,8 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
     // Page de précommande (avant la construction) : seulement la liste d'attente et la précommande
     const enValidation = !!(app as any)?.validation?.actif && !(app?.spec as any)?.ecrans?.length;
     if (!app || (!(app.spec as any)?.ecrans?.length && !enValidation)) throw new Err(404, "Application introuvable");
+    // Créateur dont l'abonnement Bingoo! est arrêté depuis plus de 7 jours : service en pause, données conservées
+    if (action !== "vue") { const { data: susp } = await admin.rpc("saas_proprio_suspendu", { p_ws: app.workspace_id }); if (susp) throw new Err(503, "Ce service est momentanément indisponible."); }
     const b = JSON.parse((await req.text()).slice(0, 60000) || "{}");
     const variante = b.variante === "B" && (app.ab as any)?.actif ? "B" : "A";
 

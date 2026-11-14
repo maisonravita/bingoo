@@ -218,7 +218,7 @@ function AppShell({ ws, list, select, invite, sections, bas, bandeau, extra, men
       </aside>
 
       <div className={cx("md:pt-14 transition-[padding] duration-200", replie ? "md:pl-[64px]" : "md:pl-[240px]")}>
-        {bandeau && <div className="md:hidden">{bandeau}</div>}
+        {bandeau}
         <div className="md:hidden flex items-center gap-3 px-4 pt-4">{menuMobile}<Logo /></div>
         <main className="shopi mx-auto min-w-0 max-w-[1080px] px-4 pb-28 pt-4 md:px-8 md:pb-16 md:pt-6">{children}</main>
       </div>
@@ -319,7 +319,22 @@ export default function Layout({ children }) {
   );
 
   const extra = <><CompteModal /><MotDePasseManquant /></>;
-  const bandeau = invite && (
+  // Paiement refusé (Stripe réessaie pendant environ 2 semaines) ou abonnement arrêté : prévenir partout, avec la solution
+  const finAcces = ws.period_end ? new Date(new Date(ws.period_end).getTime() + 7 * 864e5).toLocaleDateString("fr-FR", { day: "numeric", month: "long" }) : null;
+  const alertePaiement = !invite && ws.plan !== "fondateur" && (["past_due", "unpaid"].includes(ws.plan_status)
+    ? ["Ton dernier paiement n'est pas passé.", "Mets à jour ta carte pour garder ton SaaS en ligne et continuer à l'améliorer.", "Mettre à jour ma carte"]
+    : ws.plan_status === "canceled" && ws.stripe_customer
+      ? ["Ton abonnement est arrêté.", finAcces ? `Ton SaaS reste en ligne jusqu'au ${finAcces}, puis il est mis en pause (rien n'est effacé).` : "Ton SaaS est en pause, rien n'est effacé.", "Me réabonner"]
+      : null);
+  const bandeauPaiement = alertePaiement && (
+    <div className="bg-[#B42318] text-white text-[13.5px]">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2 text-center">
+        <span><b>{alertePaiement[0]}</b> <span className="text-white/85">{alertePaiement[1]}</span></span>
+        <NavLink to="/abonnement" className="rounded-lg bg-white px-3 py-1 font-semibold text-[#B42318] hover:bg-white/90">{alertePaiement[2]}</NavLink>
+      </div>
+    </div>
+  );
+  const bandeau = bandeauPaiement || invite && (
     <div className="bg-ink text-white text-[13.5px]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
         <span className="text-white/80">Tu explores Bingoo! sans compte.</span>
@@ -343,6 +358,7 @@ export default function Layout({ children }) {
   if (!paye || invite) return (
     <div className="min-h-full">
       {extra}
+      {bandeauPaiement}
       <header className="sticky top-0 z-40 border-b border-line/70 bg-white/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
           <NavLink to="/explorer/trouver"><Logo /></NavLink>
