@@ -1,4 +1,6 @@
 function Ecran() {
+  // Texte brut prêt à coller : sans les marques Markdown que l'IA ajoute parfois (**gras**, # titres)
+  const net = (s) => String(s ?? "").replace(/\*\*(.+?)\*\*/g, "$1").replace(/__(.+?)__/g, "$1").replace(/^#{1,6}\s*/gm, "").replace(/^\s*[-*]\s+/gm, "• ").trim();
   const D = useCollection("documents"), P = useCollection("profil");
   const types = V.types ?? [];
   const [t, setT] = useState(params?.type ?? types[0]?.id), [f, setF] = useState({}), [ton, setTon] = useState(null), [res, setRes] = useState(""), [busy, setBusy] = useState(""), [titre, setTitre] = useState(""), [id, setId] = useState(null);
@@ -6,9 +8,9 @@ function Ecran() {
   const prof = P.rows[0] ?? {};
   const tonChoisi = ton ?? prof.ton ?? V.tons?.[0] ?? "Professionnel";
   const manque = (type?.champs ?? []).filter((c) => c.requis !== false && !String(f[c.nom] ?? "").trim()).map((c) => c.label);
-  const consigne = () => type.consigne + "\n\nInformations données par l'utilisateur :\n" + (type.champs ?? []).map((c) => "- " + c.label + " : " + (f[c.nom] || "(non précisé)")).join("\n") + "\n\nTon : " + tonChoisi + "." + (prof.a_propos ? "\nÀ propos de l'auteur (à utiliser si utile) : " + prof.a_propos : "") + (prof.exemples ? "\nImite le style de cet exemple écrit par l'auteur, sans le recopier :\n" + prof.exemples : "") + "\nÉcris en " + (prof.langue || "français") + ". Rends uniquement le texte final, prêt à copier, sans commentaire ni titre en trop.";
-  const generer = async () => { if (manque.length) { toast("À remplir : " + manque.join(", "), "bad"); return; } setBusy("gen"); try { const r = await ia(consigne()); setRes(String(r ?? "")); setId(null); setTitre((type.champs?.[0] && String(f[type.champs[0].nom] ?? "").slice(0, 60)) || type.nom); } catch (e) { toast(e.message, "bad"); } finally { setBusy(""); } };
-  const retoucher = async (q) => { setBusy(q); try { const r = await ia(q + " Garde le sens, rends uniquement le nouveau texte.", { texte: res }); setRes(String(r ?? res)); } catch (e) { toast(e.message, "bad"); } finally { setBusy(""); } };
+  const consigne = () => type.consigne + "\n\nInformations données par l'utilisateur :\n" + (type.champs ?? []).map((c) => "- " + c.label + " : " + (f[c.nom] || "(non précisé)")).join("\n") + "\n\nTon : " + tonChoisi + "." + (prof.a_propos ? "\nÀ propos de l'auteur (à utiliser si utile) : " + prof.a_propos : "") + (prof.exemples ? "\nImite le style de cet exemple écrit par l'auteur, sans le recopier :\n" + prof.exemples : "") + "\nÉcris en " + (prof.langue || "français") + ". Rends uniquement le texte final, prêt à copier, en texte brut sans Markdown (pas d'astérisques, pas de #) : titres de rubrique en MAJUSCULES, puces avec « • », sans commentaire.";
+  const generer = async () => { if (manque.length) { toast("À remplir : " + manque.join(", "), "bad"); return; } setBusy("gen"); try { const r = await ia(consigne()); setRes(net(r)); setId(null); setTitre((type.champs?.[0] && String(f[type.champs[0].nom] ?? "").slice(0, 60)) || type.nom); } catch (e) { toast(e.message, "bad"); } finally { setBusy(""); } };
+  const retoucher = async (q) => { setBusy(q); try { const r = await ia(q + " Garde le sens et la mise en forme (texte brut, sans Markdown), rends uniquement le nouveau texte.", { texte: res }); setRes(net(r) || res); } catch (e) { toast(e.message, "bad"); } finally { setBusy(""); } };
   const mots = (s) => (String(s).trim().match(/\S+/g) ?? []).length;
   const enregistrer = async () => { const d = { titre: titre || type.nom, type: type.id, entrees: f, contenu: res, ton: tonChoisi, mots: mots(res), favori: false }; if (id) await D.update(id, d); else { const r = await D.add(d); setId(r?.id); } toast("Enregistré dans " + V.docs.toLowerCase()); };
   const copier = () => { try { navigator.clipboard.writeText(res); toast("Copié"); } catch (e) { toast("Copie impossible", "bad"); } };
