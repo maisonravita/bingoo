@@ -21,8 +21,8 @@ const quotaMois = (wsId: string, plan: string, kind: "construire" | "modifier") 
 // Un SaaS par abonnement. Un autre SaaS : 60 crédits (le premier reste en ligne), ou le changement gratuit une fois dans l'année avec la durée de 12 mois.
 // Vérifié AVANT toute dépense d'IA (préparation et construction).
 async function autreSaas(ws: { id: string; periode?: string }) {
-  // Compte les SaaS réellement construits ou en construction (pas une page de précommande, pas une construction échouée, pas un SaaS remplacé)
-  const { data: autres } = await admin.from("saas_apps").select("id").eq("workspace_id", ws.id).not("statut", "in", "(remplace,erreur,validation)");
+  // Compte les SaaS réellement construits ou en construction (pas une page de précommande, pas une construction échouée, pas un SaaS remplacé ni retiré par Bingoo!)
+  const { data: autres } = await admin.from("saas_apps").select("id").eq("workspace_id", ws.id).not("statut", "in", "(remplace,erreur,validation,retire)");
   if (!autres?.length) return { deja: false, changement: false, ids: [] as string[] };
   const { count: changes } = await admin.from("saas_apps").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("statut", "remplace").gte("at", new Date(Date.now() - 365 * 864e5).toISOString());
   return { deja: true, changement: ws.periode === "an" && (changes ?? 0) < 1, ids: autres.map((x) => x.id) };

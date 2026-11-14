@@ -148,7 +148,7 @@ function AppShell({ ws, list, select, invite, sections, bas, bandeau, extra, men
     window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k);
   }, []);
   // Le SaaS du créateur : son nom et sa couleur en haut à droite, comme la boutique sur Shopify
-  useEffect(() => { if (!invite) supabase.from("saas_apps").select("spec->nom, spec->couleur").eq("workspace_id", ws.id).neq("statut", "remplace").order("at", { ascending: false }).limit(1).then(({ data }) => setSaas(data?.[0] ?? null)); }, [ws.id, invite]);
+  useEffect(() => { if (!invite) supabase.from("saas_apps").select("spec->nom, spec->couleur").eq("workspace_id", ws.id).not("statut", "in", "(remplace,retire)").order("at", { ascending: false }).limit(1).then(({ data }) => setSaas(data?.[0] ?? null)); }, [ws.id, invite]);
   const actif = (n) => (n.to.includes("#") ? loc.pathname === n.to.split("#")[0] && loc.hash.includes(n.to.split("#")[1]) : loc.pathname === n.to && !(n.to === "/abonnement" && loc.hash.includes("credits"))) || (n.also ?? []).includes(loc.pathname);
   const pct = credits?.total ? Math.round((credits.solde / credits.total) * 100) : null;
   const nomSaas = saas?.nom ?? ws.profile?.nom ?? ws.name ?? "Mon espace";
