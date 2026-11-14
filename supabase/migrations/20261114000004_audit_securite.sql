@@ -61,3 +61,8 @@ select cron.schedule('bingoo-semaine-matin', '5 7 * * *', $$select net.http_post
 --     saas_constructible_maj : constructible = coalesce(constructible_ia, not (mots-clés exclus)) — le verdict de l'IA prime sur les mots-clés.
 --     saas_pitch_a_faire : candidats = tous les SaaS lus (statut ok) pas encore vérifiés, par revenu décroissant.
 --     app_secrets : ia_plafond_verif (enveloppe de la vérification, €/jour), ia_plafond_apps (IA des SaaS construits, €/jour).
+
+-- 12. (14/11, 18 h 20) Catalogue : seuls des SaaS qui ont fait leurs preuves sont proposés.
+--     saas_pour_moi_coeur / saas_pour_moi_apercu : s.m_mrr >= 2000 dès la sélection de base (appliqué en direct).
+--     « Complément de revenu » vise désormais 2 000 à 5 000 $/mois (avant : 300 à 2 000).
+--     Les SaaS ≥ 2 000 $ refusés par l'ancienne règle à mots-clés (sans examen IA, pitch_fr->>'fait' vide) sont remis dans la file de vérification.
