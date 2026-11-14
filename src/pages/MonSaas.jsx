@@ -99,6 +99,38 @@ const reduireLogo = (fichier) => new Promise((ok, ko) => {
   img.onload = () => { const r = Math.min(1, 512 / Math.max(img.width, img.height)); const c = document.createElement("canvas"); c.width = Math.round(img.width * r); c.height = Math.round(img.height * r); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); ok(c.toDataURL("image/png")); };
   img.onerror = () => { URL.revokeObjectURL(url); ko(new Error("Image illisible")); }; img.src = url;
 });
+// ---------------------------------------------------------------- Informations légales : remplissent les mentions légales, CGV et la confidentialité de son SaaS
+const CHAMPS_LEGAUX = [["editeur", "Nom ou raison sociale", "Marie Dupont ou Mopli SAS", true], ["forme", "Statut", "Micro-entreprise, SAS, SARL…", false], ["siret", "SIRET", "14 chiffres", false], ["adresse", "Adresse", "12 rue …, 75011 Paris", true], ["email", "E-mail de contact", "contact@…", true], ["tva", "N° de TVA (si tu en as un)", "FR…", false], ["mediateur", "Médiateur de la consommation (si tu vends à des particuliers)", "Nom et site du médiateur", false]];
+function Legal({ m, charger }) {
+  const { ws } = useWs();
+  const [f, setF] = useState(() => ({ ...(m.app.spec?.legal ?? {}) }));
+  const [etat, setEtat] = useState(null);
+  const manque = CHAMPS_LEGAUX.filter(([k, , , oblig]) => oblig && !String(m.app.spec?.legal?.[k] ?? "").trim()).length;
+  const enregistrer = async (e) => {
+    e.preventDefault(); setEtat("…");
+    try { await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: m.app.id, quoi: "legal", ...f }); await charger(); setEtat("ok"); }
+    catch (x) { setEtat(x.message); }
+  };
+  return (
+    <Carte className="mt-4" titre="Tes informations légales" sous="Elles remplissent automatiquement les mentions légales, les conditions générales de vente et la politique de confidentialité de ton SaaS, obligatoires pour encaisser."
+      actions={<span className={cx("rounded-full px-2 py-0.5 text-[12px] font-semibold", manque ? "bg-[#FFF1D6] text-[#8A5A00]" : "bg-[#CDFEE1] text-[#0C5132]")}>{manque ? `${manque} à compléter` : "Complet"}</span>}>
+      <form onSubmit={enregistrer} className="grid gap-3 sm:grid-cols-2">
+        {CHAMPS_LEGAUX.map(([k, l, ph, oblig]) => (
+          <label key={k} className={cx("block", k === "mediateur" && "sm:col-span-2")}>
+            <span className="text-[12.5px] font-semibold text-[#616161]">{l}{oblig && <span className="text-[#B42318]"> *</span>}</span>
+            <input value={f[k] ?? ""} onChange={(e) => setF({ ...f, [k]: e.target.value })} placeholder={ph} className="mt-1 w-full rounded-lg border border-[#D4D4D4] px-3 py-2 text-[13.5px] outline-none focus:border-[#303030]" />
+          </label>
+        ))}
+        <div className="flex items-center gap-3 sm:col-span-2">
+          <Bouton principal type="submit">Enregistrer</Bouton>
+          {etat === "ok" ? <span className="text-[12.5px] text-[#0C5132]">Enregistré : tes documents sont à jour.</span> : etat && etat !== "…" ? <span className="text-[12.5px] text-[#B42318]">{etat}</span> : null}
+        </div>
+      </form>
+      <p className="mt-3 text-[12px] text-[#8A8A8A]">Modèles fournis pour démarrer, adaptés à un abonnement en ligne : fais-les relire par un professionnel si ton activité a des règles particulières (santé, finance, enfants…).</p>
+    </Carte>
+  );
+}
+
 function Identite({ m, charger }) {
   const { ws } = useWs();
   const [busy, setBusy] = useState(null);
@@ -259,6 +291,7 @@ function Accueil({ m, charger }) {
       </Carte>
 
       <Identite m={m} charger={charger} />
+      <Legal m={m} charger={charger} />
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.5fr_1fr]">
         <Carte titre="Ton SaaS" sous="Ce que voient tes clients" actions={<Bouton onClick={() => window.open(lien, "_blank", "noopener")}>Ouvrir</Bouton>}>

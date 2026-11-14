@@ -496,6 +496,19 @@ export async function appIdentite(appId: string, b: any) {
   return { ok: true, ...patch };
 }
 
+// ---------------------------------------------------------------- Informations légales du créateur (mentions légales, CGV, confidentialité de son SaaS)
+const CHAMPS_LEGAUX: Record<string, number> = { editeur: 120, forme: 60, siret: 20, rcs: 80, adresse: 200, email: 120, tva: 30, mediateur: 200 };
+export async function appLegal(appId: string, b: any) {
+  const { data: app } = await admin.from("saas_apps").select("spec, brouillon, version").eq("id", appId).single();
+  const legal: Record<string, string> = {};
+  for (const [k, n] of Object.entries(CHAMPS_LEGAUX)) { const v = String(b[k] ?? "").replace(/[<>]/g, "").trim().slice(0, n); if (v) legal[k] = v; }
+  if (legal.siret && !/^\d{9}(\d{5})?$/.test(legal.siret.replace(/\s/g, ""))) throw new HttpError(400, "SIRET invalide : 14 chiffres (ou SIREN : 9 chiffres)");
+  if (legal.email && !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(legal.email)) throw new HttpError(400, "E-mail de contact invalide");
+  const appliquer = (sp: any) => ({ ...(sp ?? {}), legal });
+  await admin.from("saas_apps").update({ spec: appliquer(app!.spec), ...(app!.brouillon ? { brouillon: appliquer(app!.brouillon) } : {}), version: (app!.version ?? 0) + 1, maj: new Date().toISOString() }).eq("id", appId);
+  return { ok: true, legal };
+}
+
 // ---------------------------------------------------------------- Icônes PNG de l'app (rendues dans le navigateur du créateur, gardées dans le stockage public)
 export async function appIcones(appId: string, b: any) {
   const { data: app } = await admin.from("saas_apps").select("slug").eq("id", appId).single();

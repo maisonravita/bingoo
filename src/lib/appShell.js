@@ -170,6 +170,102 @@ ui.Fichier = ({ label, value, onChange, accept = "image/*,application/pdf" }) =>
   return html\`<\${Lab} label=\${label}><div class="flex flex-wrap items-center gap-3">\${image ? html\`<img src=\${value.url} alt="" class="h-20 w-20 rounded-xl object-cover border border-slate-200"/>\` : value?.url ? html\`<a href=\${value.url} target="_blank" rel="noopener" class="text-sm font-medium text-[var(--c)] underline">\${value.nom ?? "Fichier"}</a>\` : null}<label class=\${cls("inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium cursor-pointer hover:bg-slate-50", busy && "opacity-60 pointer-events-none")}><input type="file" accept=\${accept} class="hidden" onChange=\${choisir}/>\${busy ? "Envoi…" : value?.url ? "Remplacer" : "Choisir un fichier"}</label>\${value?.url && html\`<button type="button" class="text-sm text-slate-500 hover:text-red-600" onClick=\${() => onChange?.(null)}>Retirer</button>\`}</div></\${Lab}>\`;
 };
 
+// Fichier téléchargé depuis l'app (CSV…)
+const telecharger = (nom, texte, type = "text/csv;charset=utf-8") => { const u = URL.createObjectURL(new Blob(["﻿" + texte], { type })); const a = document.createElement("a"); a.href = u; a.download = nom; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000); };
+const celluleCsv = (v) => '"' + String(v ?? "").replace(/"/g, '""') + '"';
+ui.Empty = ({ texte = "Rien pour l'instant.", action }) => html\`<div class="text-center py-12"><span class="mx-auto mb-3 grid w-12 h-12 place-items-center rounded-2xl bg-[var(--c)]/10 text-[var(--c)]"><\${Icone} nom="boite"/></span><p class="text-slate-500">\${texte}</p>\${action && html\`<div class="mt-4">\${action}</div>\`}</div>\`;
+// Valeur affichée proprement : nombres à la française, dates lisibles, « en_cours » → « En cours », oui/non
+const joli = (v) => {
+  if (v == null || v === "") return "—";
+  if (typeof v === "boolean") return v ? "Oui" : "Non";
+  if (typeof v === "number") return v.toLocaleString("fr-FR", { maximumFractionDigits: 2 });
+  if (typeof v !== "string") return "—";
+  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(v)) return new Date(v + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+  if (/^\\d{4}-\\d{2}-\\d{2}T/.test(v)) return new Date(v).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  if (/^[a-z]+(_[a-z]+)+$|^[a-z]+$/.test(v) && v.length < 30) { const t = v.replace(/_/g, " ").replace(/ee\\b/g, "ée"); return t.charAt(0).toUpperCase() + t.slice(1); }
+  return v;
+};
+// Tableau : recherche, tri par colonne, export Excel (CSV) et pagination, pour tous les écrans
+ui.Table = function Table({ colonnes = [], lignes = [], onClick, vide = "Rien pour l'instant.", parPage = 25 }) {
+  const [q, setQ] = useState(""), [tri, setTri] = useState(null), [p, setP] = useState(0);
+  if (!lignes.length) return html\`<\${ui.Empty} texte=\${vide}/>\`;
+  const brut = (l, c) => { const v = c.cle ? l[c.cle] : null; return v == null || typeof v === "object" ? "" : v; };
+  const ql = q.trim().toLowerCase();
+  let L = ql ? lignes.filter((l) => Object.values(l).some((v) => (typeof v === "string" || typeof v === "number") && String(v).toLowerCase().includes(ql))) : lignes;
+  if (tri) { const c = colonnes[tri.i]; L = [...L].sort((a, b) => { const x = brut(a, c), y = brut(b, c); return tri.sens * (typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), "fr", { numeric: true })); }); }
+  const pages = Math.max(1, Math.ceil(L.length / parPage)), P = Math.min(p, pages - 1), V = L.slice(P * parPage, P * parPage + parPage);
+  const exporter = () => telecharger((S.nom ?? "export") + ".csv", [colonnes.map((c) => celluleCsv(c.label)).join(";"), ...L.map((l) => colonnes.map((c) => celluleCsv(brut(l, c))).join(";"))].join("\\n"));
+  return html\`<div>
+    <div class="flex flex-wrap items-center gap-2 mb-3">\${lignes.length > 5 && html\`<input value=\${q} onInput=\${(e) => { setQ(e.target.value); setP(0); }} placeholder="Rechercher…" class="flex-1 min-w-[160px] rounded-xl border border-slate-200 px-3 py-1.5 text-sm outline-none focus:border-[var(--c)]"/>\`}<span class="ml-auto text-xs text-slate-400">\${L.length} ligne\${L.length > 1 ? "s" : ""}</span><button onClick=\${exporter} class="rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100">Exporter</button></div>
+    <div class="overflow-x-auto -mx-5"><table class="w-full text-sm"><thead><tr class="text-left text-xs text-slate-500 border-b border-slate-100">\${colonnes.map((c, i) => html\`<th class="px-5 py-2 font-medium whitespace-nowrap \${c.cle ? "cursor-pointer select-none hover:text-slate-800" : ""}" onClick=\${() => c.cle && setTri(tri?.i === i ? { i, sens: -tri.sens } : { i, sens: 1 })}>\${c.label}\${tri?.i === i ? (tri.sens > 0 ? " ↑" : " ↓") : ""}</th>\`)}</tr></thead>
+    <tbody>\${V.map((l) => html\`<tr class=\${cls("border-b border-slate-50 last:border-0", onClick && "cursor-pointer hover:bg-slate-50")} onClick=\${() => onClick?.(l)}>\${colonnes.map((c) => html\`<td class="px-5 py-2.5">\${c.rendu ? c.rendu(l) : joli(l[c.cle])}</td>\`)}</tr>\`)}</tbody></table></div>
+    \${!V.length && html\`<p class="py-6 text-center text-sm text-slate-400">Aucun résultat pour « \${q} ».</p>\`}
+    \${pages > 1 && html\`<div class="mt-3 flex items-center justify-end gap-2 text-sm"><button disabled=\${P === 0} onClick=\${() => setP(P - 1)} class="rounded-lg px-2 py-1 hover:bg-slate-100 disabled:opacity-40">‹</button><span class="text-slate-500">\${P + 1} / \${pages}</span><button disabled=\${P >= pages - 1} onClick=\${() => setP(P + 1)} class="rounded-lg px-2 py-1 hover:bg-slate-100 disabled:opacity-40">›</button></div>\`}
+  </div>\`;
+};
+// Colonnes à glisser (suivi par étape : prospects, commandes, tâches…)
+ui.Kanban = ({ colonnes = [], lignes = [], champ = "statut", onDeplacer, rendu, onClick }) => html\`<div class="flex gap-3 overflow-x-auto pb-2">\${colonnes.map((o) => { const [v, l] = Array.isArray(o) ? o : [o, o]; const L = lignes.filter((x) => x[champ] === v); return html\`<div class="w-72 shrink-0 rounded-2xl bg-slate-100/70 p-2" onDragOver=\${(e) => e.preventDefault()} onDrop=\${(e) => { const id = e.dataTransfer.getData("text"); if (id) onDeplacer?.(id, v); }}><p class="px-2 py-1.5 text-sm font-semibold flex justify-between">\${l}<span class="text-slate-400 font-normal">\${L.length}</span></p><div class="space-y-2 min-h-[40px]">\${L.map((x) => html\`<div draggable="true" onDragStart=\${(e) => e.dataTransfer.setData("text", x.id)} onClick=\${() => onClick?.(x)} class="rounded-xl bg-white p-3 text-sm shadow-sm ring-1 ring-slate-200 cursor-grab active:cursor-grabbing">\${rendu ? rendu(x) : x.nom ?? x.titre ?? ""}</div>\`)}</div></div>\`; })}</div>\`;
+// Calendrier du mois (rendez-vous, interventions, échéances)
+ui.Calendrier = function Calendrier({ lignes = [], champ = "date", rendu, onClick, onJour }) {
+  const [m, setM] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  const debut = new Date(m); debut.setDate(1 - ((m.getDay() + 6) % 7));
+  const iso = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const jours = Array.from({ length: 42 }, (_, i) => { const d = new Date(debut); d.setDate(debut.getDate() + i); return d; });
+  const par = {}; for (const x of lignes) { const k = String(x[champ] ?? "").slice(0, 10); (par[k] ??= []).push(x); }
+  const auj = iso(new Date());
+  return html\`<div class="rounded-2xl bg-white border border-slate-200 overflow-hidden"><div class="flex items-center justify-between px-4 py-3 border-b border-slate-100"><p class="font-semibold capitalize">\${m.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</p><div class="flex gap-1 text-sm"><button class="rounded-lg px-2 py-1 hover:bg-slate-100" onClick=\${() => setM(new Date(m.getFullYear(), m.getMonth() - 1, 1))}>‹</button><button class="rounded-lg px-2 py-1 hover:bg-slate-100" onClick=\${() => { const d = new Date(); setM(new Date(d.getFullYear(), d.getMonth(), 1)); }}>Aujourd'hui</button><button class="rounded-lg px-2 py-1 hover:bg-slate-100" onClick=\${() => setM(new Date(m.getFullYear(), m.getMonth() + 1, 1))}>›</button></div></div>
+    <div class="grid grid-cols-7 text-xs text-slate-500 border-b border-slate-100">\${["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((j) => html\`<p class="px-2 py-1.5">\${j}</p>\`)}</div>
+    <div class="grid grid-cols-7">\${jours.map((d) => { const k = iso(d), L = par[k] ?? []; return html\`<div class=\${cls("min-h-[88px] border-b border-r border-slate-100 p-1.5", d.getMonth() !== m.getMonth() && "bg-slate-50/60 text-slate-400", onJour && "cursor-pointer hover:bg-slate-50")} onClick=\${() => onJour?.(k)}><p class=\${cls("text-xs font-medium w-6 h-6 grid place-items-center rounded-full", k === auj && "bg-[var(--c)] text-white")}>\${d.getDate()}</p>\${L.slice(0, 3).map((x) => html\`<button onClick=\${(e) => { e.stopPropagation(); onClick?.(x); }} class="mt-0.5 block w-full truncate rounded-md bg-[var(--c)]/10 px-1.5 py-0.5 text-left text-[11px] font-medium text-[var(--c)]">\${rendu ? rendu(x) : x.nom ?? x.titre ?? ""}</button>\`)}\${L.length > 3 && html\`<p class="px-1 text-[11px] text-slate-400">+\${L.length - 3}</p>\`}</div>\`; })}</div></div>\`;
+};
+// Courbe (évolution dans le temps) et anneau (répartition)
+ui.Ligne = ({ donnees = [], hauteur = 180 }) => { const n = donnees.length; if (!n) return html\`<\${ui.Empty}/>\`; const m = Math.max(1, ...donnees.map((d) => Number(d.valeur) || 0)); const W = 600, H = hauteur; const pt = (d, i) => [n === 1 ? W / 2 : (i / (n - 1)) * W, H - 8 - ((Number(d.valeur) || 0) / m) * (H - 24)]; const pts = donnees.map(pt); const ligne = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" "); return html\`<div><svg viewBox=\${"0 0 " + W + " " + H} class="w-full" preserveAspectRatio="none" style=\${"height:" + H + "px"}><path d=\${ligne + " L" + W + " " + H + " L0 " + H + " Z"} fill="var(--c)" opacity=".1"/><path d=\${ligne} fill="none" stroke="var(--c)" stroke-width="2.5" vector-effect="non-scaling-stroke"/></svg><div class="mt-1 flex justify-between text-[11px] text-slate-400">\${donnees.filter((_, i) => n <= 7 || i % Math.ceil(n / 6) === 0 || i === n - 1).map((d) => html\`<span>\${d.label}</span>\`)}</div></div>\`; };
+ui.Donut = ({ donnees = [] }) => { const t = donnees.reduce((a, d) => a + (Number(d.valeur) || 0), 0) || 1; let a0 = 0; const op = [1, .7, .48, .3, .18, .1]; return html\`<div class="flex items-center gap-5"><svg viewBox="0 0 42 42" class="w-32 h-32 -rotate-90">\${donnees.map((d, i) => { const v = (Number(d.valeur) || 0) / t * 100; const el = html\`<circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--c)" stroke-opacity=\${op[i % op.length]} stroke-width="6" stroke-dasharray=\${v + " " + (100 - v)} stroke-dashoffset=\${-a0}/>\`; a0 += v; return el; })}</svg><ul class="space-y-1 text-sm">\${donnees.map((d, i) => html\`<li class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-[var(--c)]" style=\${"opacity:" + op[i % op.length]}/>\${d.label}<span class="text-slate-400">\${Math.round((Number(d.valeur) || 0) / t * 100)} %</span></li>\`)}</ul></div>\`; };
+ui.Progress = ({ valeur = 0, max = 100, label }) => html\`<div>\${label && html\`<div class="flex justify-between text-xs text-slate-500 mb-1"><span>\${label}</span><span>\${Math.round(valeur / (max || 1) * 100)} %</span></div>\`}<div class="h-2 rounded-full bg-slate-100"><div class="h-2 rounded-full bg-[var(--c)]" style=\${"width:" + Math.min(100, valeur / (max || 1) * 100) + "%"}/></div></div>\`;
+
+// Mes données : export et import Excel (CSV) de chaque type de données, pour démarrer avec ses vraies données
+const lireCsv = (t) => { const sep = (t.split("\\n")[0].match(/;/g) ?? []).length >= (t.split("\\n")[0].match(/,/g) ?? []).length ? ";" : ","; const L = []; let r = [], c = "", q = false; for (let i = 0; i < t.length; i++) { const ch = t[i]; if (q) { if (ch === '"') { if (t[i + 1] === '"') { c += '"'; i++; } else q = false; } else c += ch; } else if (ch === '"') q = true; else if (ch === sep) { r.push(c); c = ""; } else if (ch === "\\n" || ch === "\\r") { if (ch === "\\r" && t[i + 1] === "\\n") i++; r.push(c); c = ""; if (r.some((x) => x.trim())) L.push(r); r = []; } else c += ch; } r.push(c); if (r.some((x) => x.trim())) L.push(r); return L; };
+const sansAccent = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "");
+function Donnees() {
+  const cols = S.collections ?? [];
+  const [n, setN] = useState({}), [busy, setBusy] = useState(null);
+  const compter = () => Promise.all(cols.map((c) => db.list(c.nom).then((r) => [c.nom, r.length], () => [c.nom, 0]))).then((x) => setN(Object.fromEntries(x)));
+  useEffect(() => { compter(); }, []);
+  const exporter = async (c) => { const rows = await db.list(c.nom); const ch = c.champs ?? []; telecharger(c.label + ".csv", [ch.map((x) => celluleCsv(x.nom)).join(";"), ...rows.map((r) => ch.map((x) => celluleCsv(r[x.nom])).join(";"))].join("\\n")); };
+  const importer = async (c, e) => {
+    const f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return;
+    setBusy(c.nom);
+    try {
+      const L = lireCsv(await f.text()); if (L.length < 2) throw new Error("Le fichier est vide ou n'a pas de ligne de titres.");
+      const ch = c.champs ?? []; const tete = L[0].map((h) => ch.find((x) => sansAccent(x.nom) === sansAccent(h) || sansAccent(x.label ?? "") === sansAccent(h)));
+      if (!tete.some(Boolean)) throw new Error("Aucune colonne reconnue. Titres attendus : " + ch.map((x) => x.nom).join(", "));
+      let ok = 0;
+      for (const ligne of L.slice(1, 501)) {
+        const d = {}; tete.forEach((x, i) => { if (!x) return; let v = (ligne[i] ?? "").trim(); if (v === "") return; if (x.type === "nombre" || x.type === "montant") { const nb = Number(v.replace(/\\s/g, "").replace(",", ".").replace(/[€$]/g, "")); if (!isNaN(nb)) v = nb; } else if (x.type === "booleen") v = /^(oui|vrai|true|1|x)$/i.test(v); d[x.nom] = v; });
+        if (Object.keys(d).length) { await db.add(c.nom, d); ok++; }
+      }
+      toast(ok + " ligne" + (ok > 1 ? "s" : "") + " importée" + (ok > 1 ? "s" : "") + " dans " + c.label); compter();
+    } catch (x) { toast(x.message, "bad"); } finally { setBusy(null); }
+  };
+  return html\`<\${ui.Page} titre="Mes données" sous="Exporte tes données en un clic, ou importe celles que tu as déjà (fichier Excel enregistré en CSV).">
+    <div class="grid sm:grid-cols-2 gap-4">\${cols.map((c) => html\`<\${ui.Card} titre=\${c.label}><p class="text-3xl font-bold tabular-nums">\${n[c.nom] ?? "…"}</p><p class="text-sm text-slate-500">enregistrement\${n[c.nom] > 1 ? "s" : ""}</p>
+      <p class="mt-3 text-xs text-slate-400">Colonnes : \${(c.champs ?? []).map((x) => x.nom).join(", ")}</p>
+      <div class="mt-4 flex flex-wrap gap-2"><\${ui.Button} variant="secondary" onClick=\${() => exporter(c)}>Exporter</\${ui.Button}><label class=\${cls("inline-flex cursor-pointer items-center rounded-xl bg-[var(--c)] px-4 py-2 text-sm font-semibold text-white", busy && "opacity-50 pointer-events-none")}>\${busy === c.nom ? "Import…" : "Importer un fichier"}<input type="file" accept=".csv,text/csv" class="hidden" onChange=\${(e) => importer(c, e)}/></label></div></\${ui.Card}>\`)}</div>
+  </\${ui.Page}>\`;
+}
+// Premiers pas : ce qu'un nouveau client fait en arrivant (masquable)
+function PremiersPas({ user, publiques, lien }) {
+  const cle = "pp:" + B.slug + ":" + (user.id ?? user.email);
+  const [cache, setCache] = useState(() => { try { return localStorage.getItem(cle) === "1"; } catch (e) { return false; } });
+  const [n0, setN0] = useState(null);
+  const c0 = (S.collections ?? [])[0];
+  useEffect(() => { if (c0) db.list(c0.nom).then((r) => setN0(r.length), () => setN0(0)); }, []);
+  if (cache || /@demo\\.local$/.test(user.email ?? "") || !c0) return null;
+  const cacher = () => { setCache(true); try { localStorage.setItem(cle, "1"); } catch (e) {} };
+  const etapes = [[n0 > 0, "Ajoute tes " + c0.label.toLowerCase(), "Saisis-en un ou importe ton fichier Excel.", () => nav("_donnees")], [false, "Invite ton équipe", "Chacun a son accès, tu choisis ce qu'il peut faire.", () => nav("_equipe")], ...(publiques[0] ? [[false, "Partage « " + publiques[0].titre + " »", "Envoie ce lien à tes clients.", () => { try { navigator.clipboard.writeText(lien(publiques[0])); toast("Lien copié"); } catch (e) {} }]] : [])];
+  return html\`<div class="mb-6 rounded-2xl border border-[var(--c)]/20 bg-[var(--c)]/[0.04] p-5"><div class="flex items-start justify-between gap-3"><div><p class="font-semibold">Bienvenue sur \${S.nom}</p><p class="text-sm text-slate-500">Trois étapes pour bien démarrer.</p></div><button onClick=\${cacher} class="text-sm text-slate-400 hover:text-slate-700">Masquer</button></div>
+    <div class="mt-4 grid gap-2 sm:grid-cols-3">\${etapes.map(([ok, t, d, f], i) => html\`<button onClick=\${f} class="rounded-xl bg-white p-3 text-left ring-1 ring-slate-200 hover:ring-[var(--c)]"><span class=\${cls("grid w-6 h-6 place-items-center rounded-full text-xs font-bold", ok ? "bg-emerald-500 text-white" : "bg-[var(--c)]/10 text-[var(--c)]")}>\${ok ? "✓" : i + 1}</span><p class="mt-2 text-sm font-semibold">\${t}</p><p class="text-xs text-slate-500">\${d}</p></button>\`)}</div></div>\`;
+}
+
 // ---------------------------------------------------------------- Écrans générés
 let nav = () => {};
 const go = (id, params) => nav(id, params);
@@ -250,7 +346,7 @@ function Apercu() {
   const label = (k) => ((S.collections ?? []).find((c) => c.nom === k)?.label) ?? (k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, " "));
   const [k0, xs0] = cols.sort((a, b) => b[1].length - a[1].length)[0] ?? ["", []];
   const champs = xs0.length ? Object.keys(xs0[0]).filter((c) => c !== "ref" && c !== "id" && !c.endsWith("_id") && ["string", "number"].includes(typeof xs0[0][c])).slice(0, 3) : [];
-  const val = (v) => typeof v === "number" ? v.toLocaleString("fr-FR") : String(v ?? "").slice(0, 28);
+  const val = (v) => String(joli(v)).slice(0, 28);
   const sombre = STY.menu === "sombre", couleur = STY.menu === "couleur";
   return html\`<div class="rounded-2xl bg-white shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/10 overflow-hidden text-left">
     <div class="flex items-center gap-1.5 px-3 py-2 border-b border-slate-100 bg-slate-50"><span class="w-2.5 h-2.5 rounded-full bg-red-300"/><span class="w-2.5 h-2.5 rounded-full bg-amber-300"/><span class="w-2.5 h-2.5 rounded-full bg-emerald-300"/><span class="ml-3 text-[11px] text-slate-400 truncate">\${S.nom}</span></div>
@@ -268,6 +364,49 @@ function Apercu() {
     </div>
   </div>\`;
 }
+// Documents légaux du SaaS (modèles remplis avec les informations saisies par le créateur dans Bingoo!)
+const LG = S.legal ?? {};
+const EDITEUR = LG.editeur || S.nom;
+const MANQUE = (v, t) => v ? v : html\`<span class="rounded bg-amber-100 px-1 text-amber-800">\${t} à compléter</span>\`;
+const DOCS = { mentions: "Mentions légales", cgv: "Conditions générales de vente", confidentialite: "Politique de confidentialité" };
+function DocLegal({ k }) {
+  const P = ({ children }) => html\`<p class="mt-2 text-[14.5px] leading-relaxed text-slate-600">\${children}</p>\`;
+  const T = ({ children }) => html\`<h3 class="mt-6 text-[15px] font-semibold text-slate-900">\${children}</h3>\`;
+  const f = S.formules ?? [];
+  if (k === "mentions") return html\`<div>
+    <\${T}>Éditeur<//><\${P}>\${S.nom} est édité par \${MANQUE(LG.editeur, "Nom ou raison sociale")}\${LG.forme ? ", " + LG.forme : ""}\${LG.siret ? ", SIRET " + LG.siret : ""}\${LG.rcs ? ", " + LG.rcs : ""}, dont l'adresse est \${MANQUE(LG.adresse, "Adresse")}.<//>
+    <\${P}>Contact : \${MANQUE(LG.email, "E-mail")}.\${LG.tva ? " Numéro de TVA intracommunautaire : " + LG.tva + "." : ""} Directeur de la publication : \${EDITEUR}.<//>
+    <\${T}>Hébergement<//><\${P}>Le site est hébergé par Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, États-Unis. Les données sont hébergées par Supabase Inc., sur des serveurs situés à Paris (France). Le service est construit et opéré techniquement avec Bingoo!.<//>
+    <\${T}>Propriété intellectuelle<//><\${P}>Les textes, la marque \${S.nom} et les contenus du site appartiennent à \${EDITEUR}. Toute reproduction sans autorisation est interdite.<//></div>\`;
+  if (k === "cgv") return html\`<div>
+    <\${T}>1. Objet<//><\${P}>Les présentes conditions encadrent l'utilisation du service en ligne \${S.nom}, édité par \${EDITEUR}, et son abonnement. Créer un compte vaut acceptation de ces conditions.<//>
+    <\${T}>2. Le service<//><\${P}>\${S.pitch ?? ""} Le service est accessible en ligne, depuis un ordinateur ou un téléphone, après création d'un compte.<//>
+    \${ESSAI ? html\`<\${T}>3. Essai gratuit<//><\${P}>Chaque nouveau compte bénéficie de \${ESSAI} jours d'essai gratuit, sans carte bancaire. À la fin de l'essai, l'accès continue seulement après souscription d'un abonnement.<//>\` : null}
+    <\${T}>4. Prix<//><\${P}>\${f.length ? f.map((x) => x.nom + " : " + x.prix + " € par mois").join(" ; ") + ". " : ""}Les prix sont indiqués en euros\${LG.tva ? ", toutes taxes comprises" : (LG.forme ?? "").toLowerCase().includes("micro") ? ", TVA non applicable (article 293 B du CGI)" : ""}. \${EDITEUR} peut faire évoluer ses prix ; tout changement est annoncé au moins 30 jours à l'avance et ne s'applique qu'à la période suivante.<//>
+    <\${T}>5. Paiement et renouvellement<//><\${P}>Le paiement se fait par carte bancaire, par l'intermédiaire de Stripe. L'abonnement est payé d'avance et renouvelé automatiquement chaque mois, jusqu'à sa résiliation. Une facture est envoyée sur simple demande à \${LG.email || "l'adresse de contact"}.<//>
+    <\${T}>6. Résiliation<//><\${P}>L'abonnement est sans engagement : il se résilie à tout moment depuis le compte, et prend fin à la fin de la période déjà payée. Aucun remboursement au prorata n'est dû.<//>
+    <\${T}>7. Droit de rétractation<//><\${P}>Le client consommateur dispose de 14 jours pour se rétracter à compter de la souscription. En demandant l'accès immédiat au service, il accepte qu'il commence avant la fin de ce délai ; s'il se rétracte, il paie la part du service déjà fournie.<//>
+    <\${T}>8. Données et responsabilité<//><\${P}>Le client reste propriétaire des données qu'il saisit et peut les exporter à tout moment. \${EDITEUR} met tout en œuvre pour assurer la disponibilité du service, sans pouvoir garantir une disponibilité totale ; sa responsabilité est limitée au montant payé sur les 12 derniers mois.<//>
+    <\${T}>9. Litiges<//><\${P}>En cas de difficulté, contacte d'abord \${MANQUE(LG.email, "E-mail")}. Le client consommateur peut recourir gratuitement au médiateur de la consommation : \${MANQUE(LG.mediateur, "Médiateur")}. Ces conditions sont soumises au droit français.<//></div>\`;
+  return html\`<div>
+    <\${T}>Responsable du traitement<//><\${P}>\${MANQUE(LG.editeur, "Nom ou raison sociale")}, \${MANQUE(LG.adresse, "Adresse")}, joignable à \${MANQUE(LG.email, "E-mail")}.<//>
+    <\${T}>Données collectées<//><\${P}>Ton nom et ton e-mail (compte), les données que tu saisis dans le service, ton historique d'utilisation et, si tu t'abonnes, les informations de facturation. Le paiement par carte est traité par Stripe : \${S.nom} ne voit ni ne conserve ton numéro de carte. Les visites du site sont comptées sans cookie publicitaire.<//>
+    <\${T}>Pourquoi<//><\${P}>Pour fournir le service, gérer ton compte et ton abonnement (exécution du contrat), t'envoyer les e-mails liés au service, et respecter nos obligations légales (factures).<//>
+    <\${T}>Combien de temps<//><\${P}>Tant que ton compte est actif, puis 3 ans après ta dernière activité. Les factures sont conservées 10 ans (obligation comptable).<//>
+    <\${T}>Qui y a accès<//><\${P}>\${EDITEUR} et ses prestataires techniques, qui agissent sur ses instructions : Bingoo! (fonctionnement du service), Supabase (hébergement des données, à Paris), Vercel (hébergement du site, États-Unis, encadré par les clauses contractuelles types de la Commission européenne), Stripe (paiement). Tes données ne sont jamais vendues.<//>
+    <\${T}>Tes droits<//><\${P}>Tu peux accéder à tes données, les corriger, les exporter ou les faire supprimer, et t'opposer à leur traitement, en écrivant à \${MANQUE(LG.email, "E-mail")}. Tu peux aussi saisir la CNIL (cnil.fr).<//></div>\`;
+}
+function FenetreLegale() {
+  const [k, setK] = useState(null);
+  useEffect(() => bus.on("doc", (x) => setK(x)), []);
+  if (!k) return null;
+  return html\`<div class="fixed inset-0 z-[60] bg-slate-900/40 grid place-items-center p-4" onClick=\${(e) => e.target === e.currentTarget && setK(null)}><div class="anim w-full max-w-2xl bg-white rounded-2xl shadow-xl max-h-[88vh] overflow-auto p-6 sm:p-8">
+    <div class="flex items-start justify-between gap-4"><div><p class="text-sm font-semibold text-[var(--c)]">\${S.nom}</p><h2 class="text-2xl font-bold">\${DOCS[k]}</h2></div><button onClick=\${() => setK(null)} class="text-2xl leading-none text-slate-400 hover:text-slate-700">×</button></div>
+    <div class="mt-2 flex flex-wrap gap-2 text-sm">\${Object.entries(DOCS).filter(([x]) => x !== k).map(([x, t]) => html\`<button onClick=\${() => setK(x)} class="text-[var(--c)] hover:underline">\${t}</button>\`)}</div>
+    <\${DocLegal} k=\${k}/></div></div>\`;
+}
+const LiensLegaux = ({ class: c = "" }) => html\`<span class=\${cls("flex flex-wrap gap-x-4 gap-y-1", c)}>\${Object.entries(DOCS).map(([k, t]) => html\`<button onClick=\${() => bus.emit("doc", k)} class="hover:text-slate-700 hover:underline">\${t}</button>\`)}</span>\`;
+
 // Jamais de chiffres de succès dans la bouche du SaaS (ils venaient du SaaS modèle) : on retire ces phrases à l'affichage
 const sansRevendication = (t) => String(t ?? "").split(/(?<=[.!?])\\s+/).filter((ph) => !/revendique|cela prouve|ce qui prouve|\\d[\\d\\s.,]*\\s*(?:\\+\\s*)?(?:000|k|millions?)?\\s*(?:clients?|entreprises?|utilisateurs?|abonnés?|prestations?|réservations?|commandes?|membres?|€|euros?|dollars?|\\$)/i.test(ph)).join(" ").trim();
 function Site({ onAuth }) {
@@ -286,7 +425,7 @@ function Site({ onAuth }) {
   <div class=\${cls(hero === "sombre" && "bg-slate-950 text-white", hero === "degrade" && "text-white bg-[var(--c)]")} style=\${hero === "degrade" ? "background-image:radial-gradient(1200px 500px at 80% -10%,rgba(255,255,255,.28),transparent),linear-gradient(160deg,var(--c),#0f172a)" : hero === "centre" ? "background:linear-gradient(180deg,color-mix(in srgb,var(--c) 7%,white),white)" : ""}>
   <header class="max-w-6xl mx-auto px-5 py-5 flex items-center justify-between gap-4"><div class="flex items-center gap-2.5 font-bold text-lg"><\${Logo} clair=\${fonce}/>\${S.nom}</div>
     <nav class=\${cls("hidden md:flex gap-6 text-sm font-medium", fonce ? "text-white/70" : "text-slate-500")}><a href="#fonctions">Fonctionnalités</a>\${f.length > 0 && html\`<a href="#tarifs">Tarifs</a>\`}<a href="#faq">Questions</a></nav>
-    <div class="flex gap-2"><\${ui.Button} variant="ghost" class=\${fonce ? "!text-white" : ""} onClick=\${() => onAuth("login")}>Se connecter</\${ui.Button}><\${ui.Button} class=\${fonce ? "!bg-white !text-slate-900" : ""} onClick=\${() => onAuth("signup")}>Essai gratuit</\${ui.Button}></div></header>
+    <div class="flex gap-2 whitespace-nowrap"><span class="hidden sm:inline"><\${ui.Button} variant="ghost" class=\${fonce ? "!text-white" : ""} onClick=\${() => onAuth("login")}>Se connecter</\${ui.Button}></span><\${ui.Button} class=\${fonce ? "!bg-white !text-slate-900" : ""} onClick=\${() => onAuth("signup")}>Essai gratuit</\${ui.Button}></div></header>
   \${hero === "cote" ? html\`<section class="max-w-6xl mx-auto px-5 pt-10 pb-20 grid lg:grid-cols-[1fr_1.15fr] gap-12 items-center"><div><\${Pastille}/><h1 class="mt-5 text-4xl sm:text-[54px] font-extrabold tracking-tight leading-[1.04]">\${S.slogan ?? S.pitch}</h1><p class="mt-5 text-lg text-slate-500">\${S.pitch}</p><\${Boutons}/></div><\${Apercu}/></section>\`
     : html\`<section class="max-w-6xl mx-auto px-5 pt-12 pb-16 text-center"><\${Pastille}/><h1 class="mt-5 text-4xl sm:text-6xl font-extrabold tracking-tight max-w-4xl mx-auto leading-[1.04]">\${S.slogan ?? S.pitch}</h1><p class=\${cls("mt-5 text-lg max-w-2xl mx-auto", fonce ? "text-white/75" : "text-slate-500")}>\${S.pitch}</p><\${Boutons} centre/><div class="mt-14 max-w-4xl mx-auto"><\${Apercu}/></div></section>\`}
   </div>
@@ -300,7 +439,7 @@ function Site({ onAuth }) {
   <section id="faq" class="py-20"><div class="max-w-3xl mx-auto px-5"><h2 class="text-3xl font-bold text-center tracking-tight">Questions fréquentes</h2><div class="mt-8 divide-y divide-slate-200 border-y border-slate-200">\${faq.map(([q, r]) => html\`<details class="group py-4"><summary class="flex cursor-pointer list-none items-center justify-between font-semibold">\${q}<span class="text-slate-400 group-open:rotate-45 transition text-xl leading-none">+</span></summary><p class="mt-2 text-slate-500">\${r}</p></details>\`)}</div></div></section>
   \${(B.articles ?? []).length > 0 && html\`<section class="max-w-6xl mx-auto px-5 pb-16"><h2 class="text-2xl font-bold">Ressources</h2><div class="mt-6 grid md:grid-cols-3 gap-4">\${B.articles.map((a) => html\`<a href=\${(B.blog ?? "") + a.slug} target="_blank" rel="noopener" class="block rounded-2xl border border-slate-200 p-5 hover:border-[var(--c)]"><p class="font-semibold">\${a.titre}</p><p class="mt-1 text-sm text-slate-500">\${a.resume ?? ""}</p></a>\`)}</div></section>\`}
   <section class="px-5 pb-20"><div class="max-w-5xl mx-auto rounded-3xl bg-[var(--c)] text-white px-8 py-14 text-center" style="background-image:radial-gradient(800px 300px at 50% -20%,rgba(255,255,255,.25),transparent)"><h2 class="text-3xl sm:text-4xl font-bold tracking-tight">Prêt à essayer \${S.nom} ?</h2><p class="mt-3 text-white/80">\${S.pitch}</p><\${ui.Button} class="mt-7 !px-6 !py-3 !text-base !bg-white !text-slate-900" onClick=\${() => onAuth("signup")}>Commencer gratuitement</\${ui.Button}></div></section>
-  <footer class="border-t border-slate-100"><div class="max-w-6xl mx-auto px-5 py-8 text-sm text-slate-400 flex flex-wrap items-center justify-between gap-3"><span class="flex items-center gap-2 font-semibold text-slate-600"><\${Logo} taille="w-6 h-6"/>\${S.nom}</span><span>© \${new Date().getFullYear()} \${S.nom} · Construit avec Bingoo!</span></div></footer></div>\`;
+  <footer class="border-t border-slate-100"><div class="max-w-6xl mx-auto px-5 py-8 text-sm text-slate-400 flex flex-wrap items-center justify-between gap-3"><span class="flex items-center gap-2 font-semibold text-slate-600"><\${Logo} taille="w-6 h-6"/>\${S.nom}</span><\${LiensLegaux}/><span>© \${new Date().getFullYear()} \${S.nom} · Construit avec Bingoo!</span></div></footer></div>\`;
 }
 
 
@@ -317,6 +456,7 @@ function Auth({ mode: m0, onDone, onBack }) {
     <\${ui.Input} label="Mot de passe" type="password" required value=\${f.password} onInput=\${(v) => setF({ ...f, password: v })} placeholder=\${mode === "signup" ? "8 caractères au moins" : ""}/>
     \${err && html\`<p class="text-sm text-red-600">\${err}</p>\`}
     <\${ui.Button} type="submit" class="w-full !py-2.5" disabled=\${busy}>\${busy ? "…" : mode === "signup" ? "Créer mon compte" : "Se connecter"}</\${ui.Button}>
+    \${mode === "signup" && html\`<p class="text-xs text-slate-400 text-center">En créant ton compte, tu acceptes les <button type="button" class="underline" onClick=\${() => bus.emit("doc", "cgv")}>conditions générales</button> et la <button type="button" class="underline" onClick=\${() => bus.emit("doc", "confidentialite")}>politique de confidentialité</button>.</p>\`}
     <p class="text-sm text-center text-slate-500">\${mode === "signup" ? "Déjà un compte ? " : "Pas encore de compte ? "}<button type="button" class="font-semibold text-[var(--c)]" onClick=\${() => setMode(mode === "signup" ? "login" : "signup")}>\${mode === "signup" ? "Se connecter" : "Créer un compte"}</button></p>
   </form></div>\`;
 }
@@ -424,6 +564,7 @@ function Compte({ user }) {
       <\${ui.Card} titre="Mon nom"><form class="space-y-3" onSubmit=\${async (e) => { e.preventDefault(); try { await call("compte", { nom }); toast("Nom enregistré"); } catch (x) { toast(x.message, "bad"); } }}><\${ui.Input} label="Nom affiché" value=\${nom} onInput=\${setNom}/><\${ui.Button} type="submit">Enregistrer</\${ui.Button}></form></\${ui.Card}>
       \${!demo && html\`<\${ui.Card} titre="Mot de passe"><form class="space-y-3" onSubmit=\${async (e) => { e.preventDefault(); try { await call("motdepasse", p); setP({ ancien: "", nouveau: "" }); toast("Mot de passe changé"); } catch (x) { toast(x.message, "bad"); } }}><\${ui.Input} label="Mot de passe actuel" type="password" value=\${p.ancien} onInput=\${(v) => setP({ ...p, ancien: v })}/><\${ui.Input} label="Nouveau mot de passe" type="password" value=\${p.nouveau} onInput=\${(v) => setP({ ...p, nouveau: v })} placeholder="8 caractères au moins"/><\${ui.Button} type="submit">Changer</\${ui.Button}></form></\${ui.Card}>\`}
     </div>
+    <div class="mt-6 text-sm text-slate-400"><\${LiensLegaux}/></div>
   </\${ui.Page}>\`;
 }
 
@@ -445,14 +586,14 @@ function Tour({ onFin }) {
 function Appli({ user, etat, onLogout, tour, onFinTour }) {
   const PRIVES = ECRANS.filter((e) => !e.public), PUBLIQUES = ECRANS.filter((e) => e.public);
   const [cur, setCur] = useState({ id: PRIVES.some((e) => e.id === B.ecran) ? B.ecran : PRIVES[0]?.id, params: null }), [menu, setMenu] = useState(false), [toasts, setToasts] = useState([]);
-  nav = (id, params = null) => { if (id === "_abonnement" || id === "_equipe" || id === "_compte" || PRIVES.some((e) => e.id === id)) { setCur({ id, params }); setMenu(false); } };
+  nav = (id, params = null) => { if (id === "_abonnement" || id === "_equipe" || id === "_compte" || id === "_donnees" || PRIVES.some((e) => e.id === id)) { setCur({ id, params }); setMenu(false); } };
   useEffect(() => bus.on("toast", (t) => { setToasts((x) => [...x, t]); setTimeout(() => setToasts((x) => x.filter((y) => y.id !== t.id)), 3000); }), []);
-  const E = cur.id === "_abonnement" ? { id: "_abonnement", titre: "Mon abonnement", Comp: Abonnement } : cur.id === "_equipe" ? { id: "_equipe", titre: "Équipe", Comp: Equipe } : cur.id === "_compte" ? { id: "_compte", titre: "Mon compte", Comp: Compte } : PRIVES.find((e) => e.id === cur.id) ?? PRIVES[0];
+  const E = cur.id === "_abonnement" ? { id: "_abonnement", titre: "Mon abonnement", Comp: Abonnement } : cur.id === "_equipe" ? { id: "_equipe", titre: "Équipe", Comp: Equipe } : cur.id === "_compte" ? { id: "_compte", titre: "Mon compte", Comp: Compte } : cur.id === "_donnees" ? { id: "_donnees", titre: "Mes données", Comp: Donnees } : PRIVES.find((e) => e.id === cur.id) ?? PRIVES[0];
   if (!etat.acces) return html\`<\${Paywall} etat=\${etat} onLogout=\${onLogout}/>\`;
   const lienPage = (e) => (B.retour || location.href.split("?")[0]).split("?")[0] + "?page=" + e.id + "&e=" + etat.espace;
   const Agenda = () => S.agenda?.collection ? html\`<button class="w-full text-left rounded-xl px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 flex items-center gap-2" onClick=\${async () => { try { const u = await lienAgenda(); try { await navigator.clipboard.writeText(u); toast("Lien copié : colle-le dans Google Agenda (Autres agendas → À partir de l'URL) ou Outlook"); } catch (x) { prompt("Colle ce lien dans ton agenda (Google Agenda : Autres agendas → À partir de l'URL) :", u); } } catch (x) { toast(x.message, "bad"); } }}><\${Icone} nom="agenda" class="w-4 h-4"/>Ajouter à mon agenda</button>\` : null;
   const Partage = () => PUBLIQUES.length && etat.espace ? html\`<div class="rounded-xl bg-slate-50 p-3 text-sm"><p class="text-xs font-semibold text-slate-500 mb-1.5">À partager à tes clients</p>\${PUBLIQUES.map((e) => html\`<div class="flex items-center gap-1.5 py-1"><a href=\${lienPage(e)} target="_blank" rel="noopener" class="flex-1 truncate font-medium text-[var(--c)] hover:underline">\${e.titre} ↗</a><button title="Copier le lien" class="text-slate-400 hover:text-slate-700" onClick=\${() => { try { navigator.clipboard.writeText(lienPage(e)).then(() => toast("Lien copié"), () => prompt("Copie ce lien :", lienPage(e))); } catch (x) { prompt("Copie ce lien :", lienPage(e)); } }}>⧉</button></div>\`)}</div>\` : null;
-  const Nav = () => html\`<nav class="space-y-0.5">\${[...PRIVES, { id: "_equipe", titre: "Équipe", icone: "contacts", sep: true }].map((e) => html\`<button onClick=\${() => nav(e.id)} class=\${cls("w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium", e.sep && "mt-3", e.id === E?.id ? (MENU_FONCE ? "bg-white/15 text-white" : "bg-[var(--c)]/10 text-[var(--c)]") : (MENU_FONCE ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-slate-600 hover:bg-slate-100"))}><\${Icone} nom=\${e.icone} class="w-[18px] h-[18px]"/>\${e.titre}</button>\`)}</nav>\`;
+  const Nav = () => html\`<nav class="space-y-0.5">\${[...PRIVES, { id: "_equipe", titre: "Équipe", icone: "contacts", sep: true }, ...((S.collections ?? []).length ? [{ id: "_donnees", titre: "Mes données", icone: "fichier" }] : [])].map((e) => html\`<button onClick=\${() => nav(e.id)} class=\${cls("w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium", e.sep && "mt-3", e.id === E?.id ? (MENU_FONCE ? "bg-white/15 text-white" : "bg-[var(--c)]/10 text-[var(--c)]") : (MENU_FONCE ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-slate-600 hover:bg-slate-100"))}><\${Icone} nom=\${e.icone} class="w-[18px] h-[18px]"/>\${e.titre}</button>\`)}</nav>\`;
   return html\`<div class="min-h-screen lg:flex">
     <aside class=\${cls("w-60 shrink-0 p-4 flex-col gap-6 lg:flex lg:sticky lg:top-0 lg:h-screen", MENU_FONCE ? "menu-fonce" : "", STY.menu === "sombre" ? "bg-slate-900 text-slate-200" : STY.menu === "couleur" ? "bg-[var(--c)] text-white" : STY.menu === "teinte" ? "border-r border-slate-200" : "bg-white border-r border-slate-200", menu ? "flex fixed inset-y-0 left-0 z-40" : "hidden")} style=\${STY.menu === "teinte" ? "background:color-mix(in srgb,var(--c) 6%,white)" : ""}>
       <div class="flex items-center gap-2 font-bold"><\${Logo} clair=\${MENU_FONCE}/>\${S.nom}</div>
@@ -465,7 +606,7 @@ function Appli({ user, etat, onLogout, tour, onFinTour }) {
     \${menu && html\`<div class="fixed inset-0 z-30 bg-slate-900/30 lg:hidden" onClick=\${() => setMenu(false)}/>\`}
     <main class="flex-1 min-w-0"><div class="lg:hidden flex items-center justify-between bg-white border-b border-slate-200 px-4 py-3"><button onClick=\${() => setMenu(true)}><\${Icone} nom="menu"/></button><span class="font-bold">\${S.nom}</span><span class="w-5"/></div>
       \${user.role === "lecture" && html\`<div class="bg-amber-50 text-amber-800 text-sm px-5 py-2">Accès en lecture seule : tu vois tout, mais tu ne peux rien modifier.</div>\`}
-      <div class="max-w-6xl mx-auto p-5 sm:p-8">\${E ? html\`<\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} key=\${E.id + JSON.stringify(cur.params)} user=\${user} params=\${cur.params} etat=\${etat}/></\${Garde}>\` : null}</div></main>
+      <div class="max-w-6xl mx-auto p-5 sm:p-8">\${!tour && E?.id === PRIVES[0]?.id && html\`<\${PremiersPas} user=\${user} publiques=\${PUBLIQUES} lien=\${lienPage}/>\`}\${E ? html\`<\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} key=\${E.id + JSON.stringify(cur.params)} user=\${user} params=\${cur.params} etat=\${etat}/></\${Garde}>\` : null}</div></main>
     \${tour && html\`<\${Tour} onFin=\${onFinTour}/>\`}
     <div class="fixed bottom-4 right-4 z-50 space-y-2">\${toasts.map((t) => html\`<div class=\${cls("anim rounded-xl px-4 py-2.5 text-sm text-white shadow-lg", t.type === "bad" ? "bg-red-600" : "bg-slate-900")}>\${t.msg}</div>\`)}</div>
   </div>\`;
@@ -531,6 +672,7 @@ function Racine() {
   return html\`<\${Site} onAuth=\${ouvrir}/>\`;
 }
 render(html\`<\${Racine}/>\`, document.getElementById("root"));
+{ const d = document.createElement("div"); document.body.appendChild(d); render(html\`<\${FenetreLegale}/>\`, d); }
 </script></body></html>`;
 }
 
