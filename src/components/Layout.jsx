@@ -290,24 +290,24 @@ function AppShell({ ws, list, select, invite, isAdmin, essentiel, c, bandeau, ex
       </aside>
 
       <div className="min-w-0 flex-1">
-        {bandeau}
+        {bandeau && <div className="md:hidden">{bandeau}</div>}
         <header className="sticky top-0 z-40 hidden md:flex h-16 items-center gap-3 border-b border-line bg-white/85 px-6 backdrop-blur">
           <button onClick={() => setReplie(!replie)} aria-label={replie ? "Déplier le menu" : "Replier le menu"} className="grid h-9 w-9 place-items-center rounded-lg text-ink-soft hover:bg-paper hover:text-ink"><Icon name="side" className="w-[19px] h-[19px]" /></button>
-          <p className="flex min-w-0 items-center gap-2 text-[15px]"><span className="text-ink-soft">{fil[0]}</span>{fil[1] && <><span className="text-ink-faint">›</span><span className="truncate font-medium">{fil[1]}</span></>}</p>
+          <p className="flex min-w-0 shrink items-center gap-2 whitespace-nowrap text-[15px]"><span className="text-ink-soft">{fil[0]}</span>{fil[1] && <><span className="text-ink-faint">›</span><span className="truncate font-medium">{fil[1]}</span></>}</p>
           <div className="flex-1" />
           <form onSubmit={(e) => { e.preventDefault(); if (q.trim()) { nav(`/explorer/demande?q=${encodeURIComponent(q.trim())}`); setQ(""); recherche.current?.blur(); } }}
-            className="hidden lg:flex w-[340px] items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 focus-within:border-ink-faint">
+            className="hidden lg:flex w-[260px] xl:w-[340px] items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 focus-within:border-ink-faint">
             <Icon name="search" className="w-[17px] h-[17px] text-ink-faint" />
             <input ref={recherche} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un SaaS, une idée…" className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-ink-faint" />
             <kbd className="rounded-md border border-line px-1.5 text-[11px] text-ink-faint">⌘ K</kbd>
           </form>
           <button onClick={onAvis} className={cx("hidden rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper", !invite && "xl:block")}>Retour d'information</button>
-          <NavLink to="/aide" className="rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper">Aide</NavLink>
-          <NavLink to="/explorer/demande" className="flex items-center gap-2 rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper"><Icon name="spark" className="w-[17px] h-[17px] text-[#E8571C]" />Demander</NavLink>
+          <NavLink to="/aide" className={cx("shrink-0 whitespace-nowrap rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper", invite && "hidden xl:block")}>Aide</NavLink>
+          <NavLink to="/explorer/demande" className="shrink-0 whitespace-nowrap flex items-center gap-2 rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper"><Icon name="spark" className="w-[17px] h-[17px] text-[#E8571C]" />Demander</NavLink>
           {!invite && <Bell ws={ws} replies={c.replies} />}
           {invite ? <>
-            <button onClick={() => supabase.auth.signOut()} className="rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper">Se connecter</button>
-            <button onClick={() => demanderCompte("Garde tes résultats et reviens quand tu veux.")} className="rounded-xl bg-ink px-4 py-2 text-[14px] font-semibold text-white hover:bg-ink/85">Créer mon compte</button>
+            <button onClick={() => supabase.auth.signOut()} className="shrink-0 whitespace-nowrap rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper">Se connecter</button>
+            <button onClick={() => demanderCompte("Garde tes résultats et reviens quand tu veux.")} className="shrink-0 whitespace-nowrap rounded-xl bg-ink px-4 py-2 text-[14px] font-semibold text-white hover:bg-ink/85">Créer mon compte</button>
           </> : <div className="relative">
             <button onClick={() => setCompte(!compte)} aria-label="Mon compte et mes crédits" aria-expanded={compte} className="rounded-full hover:opacity-90">
               <Anneau pct={invite ? null : pct} lettre={(ws.sender_name || ws.profile?.nom || ws.name || "?").trim()[0]?.toUpperCase()} />
