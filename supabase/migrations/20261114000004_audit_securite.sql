@@ -42,3 +42,7 @@ alter table public.saas add column if not exists pitch_fr jsonb;
 
 -- 7. Objectif de revenu (Appliqué via MCP) : saas_pour_moi_coeur et saas_pour_moi_apercu filtrent sur mrr >= objectif × 0,8
 --    (repli si moins de 6 SaaS), « bonne taille » = entre 0,8 et 5 fois l'objectif ; la liste garde les SaaS en tendance s'il y en a au moins 9.
+
+-- 8. Constructibilité (Appliqué via MCP) : saas_constructible_maj corrigée (les \m \M étaient doublement échappés : 19 exclusions ne marchaient pas),
+--    nouvelles exclusions (agents, prospection, intégrations, santé/assurance, livres, services…), et vérification une par une par l'IA
+--    (r/saas-pitch-fr, toutes les 3 min) : dès 150 SaaS vérifiés, seuls les SaaS jugés constructibles par cette vérification sont proposés.

@@ -729,26 +729,34 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   async "saas-tags"(req) { await cron(req); const { saasTags, saasEmailsAClasser } = await import("../_shared/saas-base.ts"); await saasEmailsAClasser().catch(() => null); return await saasTags(); },
   // Explorer (clé cron) : relevés de nuit et amorçage de la base
   // Découverte à grande échelle (clé cron) : import de la liste Tranco, puis tri sans IA des candidats
-  // Fiches floutées (avant paiement) : ce que fait chaque SaaS et pour qui, en français et sans son nom
+  // Avant de proposer un SaaS : l'IA vérifie que Bingoo! sait vraiment construire sa version (définition stricte),
+  // et rédige ce qu'il fait, en français et sans son nom, pour les cartes floutées.
   async "saas-pitch-fr"(req) {
     await cron(req);
-    setAi({ ws: null, feature: "explorer/pitch" });
+    setAi({ ws: null, feature: "explorer/verif" });
     const { askJson } = await import("../_shared/core.ts");
-    const { data } = await admin.rpc("saas_pitch_a_faire", { lim: 12 });
-    let faits = 0;
-    for (const x of (data ?? []) as { id: string; nom: string; domaine: string; texte: string; persona: string | null }[]) {
-      try {
-        const r = await askJson<{ fait: string; pour_qui: string }>(`Voici un logiciel en ligne (SaaS). Nom : ${x.nom}. Site : ${x.domaine}.
-Description : ${x.texte}
-${x.persona ? `Clients visés : ${x.persona}` : ""}
+    const { data } = await admin.rpc("saas_pitch_a_faire", { lim: 10 });
+    const lot = (data ?? []) as { id: string; nom: string; domaine: string; texte: string; persona: string | null }[];
+    if (!lot.length) return { faits: 0 };
+    const r = await askJson<{ saas: { i: number; constructible: boolean; fait: string; pour_qui: string }[] }>(`Bingoo! construit des applications web de gestion, et seulement cela : comptes utilisateurs, formulaires, listes et tableaux, fiches clients, agenda et réservation en ligne, devis et factures simples, tableaux de bord, pages publiques (réservation, formulaire, avis), e-mails automatiques simples, abonnements payés par Stripe, et une IA qui écrit, résume ou analyse du TEXTE saisi par l'utilisateur.
 
-Écris en français simple, sans jamais citer son nom, son site, ni aucune marque :
-- "fait" : ce qu'il fait concrètement, en une phrase de 15 mots maximum, qui commence par un verbe et donne envie (ex. « Aide les crèches à… »).
-- "pour_qui" : ses clients, en 8 mots maximum (ex. « Crèches et assistantes maternelles »).
-Réponds en JSON : {"fait": "...", "pour_qui": "..."}`, { fast: true, maxTokens: 200 });
-        const nettoie = (t: string) => String(t ?? "").replaceAll(x.nom, "ce SaaS").slice(0, 200).trim();
-        if (r?.fait) { await admin.from("saas").update({ pitch_fr: { fait: nettoie(r.fait), pour_qui: nettoie(r.pour_qui) } }).eq("id", x.id); faits++; }
-      } catch (e) { if ((e as { status?: number }).status === 503 || (e as { status?: number }).status === 402) break; }
+Bingoo! NE sait PAS construire : un agent IA qui agit seul sur d'autres plateformes (prospection, envoi en masse, LinkedIn, réseaux sociaux, publication automatique), une intégration profonde avec un autre logiciel (Shopify, Gmail, Outlook, Word, Excel, GitHub, logiciels comptables, caisses, banques), des données achetées ou aspirées (contacts, marchés, Google, cotes), la génération d'images, de vidéos, de sons, de BD ou de livres, une appli mobile, de bureau ou une extension, un produit physique, une caisse ou du matériel, un service humain (agence, conseil, équipe d'assistance, cours avec des experts), une marketplace ou une communauté qui dépend de ses membres, la finance, le trading, l'assurance, les remboursements de santé, ou un outil pour créer des logiciels.
+
+Pour chaque logiciel ci-dessous :
+- "constructible" : true seulement si Bingoo! peut en construire une version complète et utile avec ce qu'il sait faire ; dans le doute, false.
+- "fait" : ce qu'il fait, en français simple, en 15 mots maximum, qui commence par un verbe et donne envie, SANS jamais citer son nom, son site ni une marque.
+- "pour_qui" : ses clients en 8 mots maximum.
+
+${lot.map((x, k) => `${k}. ${x.texte}${x.persona ? ` (clients : ${x.persona})` : ""}`).join("\n")}
+
+Réponds en JSON : {"saas": [{"i": 0, "constructible": true, "fait": "...", "pour_qui": "..."}]}`, { fast: true, maxTokens: 1500 });
+    let faits = 0;
+    for (const x of r?.saas ?? []) {
+      const s0 = lot[Number(x.i)];
+      if (!s0) continue;
+      const nettoie = (t: string) => String(t ?? "").replaceAll(s0.nom, "ce SaaS").slice(0, 200).trim();
+      await admin.from("saas").update({ constructible_ia: x.constructible === true, pitch_fr: { fait: nettoie(x.fait), pour_qui: nettoie(x.pour_qui), verifie: new Date().toISOString() } }).eq("id", s0.id);
+      faits++;
     }
     return { faits };
   },

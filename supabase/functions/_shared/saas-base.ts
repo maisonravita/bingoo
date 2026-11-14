@@ -459,7 +459,7 @@ Clé : saas, liste d'objets i (le numéro), niche (texte exact de la liste, ou "
       const row = lot[Number(x.i)];
       if (!row) continue;
       const niche = noms.includes(x.niche) ? x.niche : null;
-      await admin.from("saas").update({ niche, niche_ia: true, ...(typeof x.constructible === "boolean" ? { constructible_ia: x.constructible } : {}) }).eq("id", row.id);
+      await admin.from("saas").update({ niche, niche_ia: true, /* la constructibilité est jugée à part, plus strictement (r/saas-pitch-fr) */ }).eq("id", row.id);
       faits++;
     }
   };
