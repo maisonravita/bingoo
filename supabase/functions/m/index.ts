@@ -290,6 +290,8 @@ const routes2: Record<string, (req: Request, b: Record<string, unknown>) => Prom
 Deno.serve(wrap(async (req) => {
   const parts = new URL(req.url).pathname.split("/").filter(Boolean);
   const nom = parts[parts.indexOf("m") + 1] ?? "";
+  // Outils de l'ancien Bingoo (prospection, outils gratuits, pages publiques de devis/rendez-vous) : retirés
+  if (["lien-envoi"].includes(nom)) throw new HttpError(410, "Cette fonction a été retirée de Bingoo!.");
   const h = routes[nom] ?? routes2[nom];
   if (!h) throw new HttpError(404, "Action inconnue");
   if (req.method !== "POST") throw new HttpError(405, "POST attendu");

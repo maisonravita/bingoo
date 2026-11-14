@@ -1603,6 +1603,8 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
 Deno.serve(wrap(async (req) => {
   const parts = new URL(req.url).pathname.split("/").filter(Boolean);
   const name = parts[parts.indexOf("r") + 1] ?? "";
+  // Outils de l'ancien Bingoo (prospection, outils gratuits, pages publiques de devis/rendez-vous) : retirés
+  if (["free-renewals", "free-signals", "free-site", "free-marche", "free-competitor"].includes(name)) throw new HttpError(410, "Cette fonction a été retirée de Bingoo!.");
   const h = routes[name];
   if (!h) throw new HttpError(404, "Action inconnue");
   if (req.method !== "POST") throw new HttpError(405, "POST attendu");

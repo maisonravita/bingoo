@@ -517,6 +517,8 @@ const routes: Record<string, (req: Request, b: Body) => Promise<unknown>> = {
 Deno.serve(wrap(async (req) => {
   const parts = new URL(req.url).pathname.split("/").filter(Boolean);
   const name = parts[parts.indexOf("k") + 1] ?? "";
+  // Outils de l'ancien Bingoo (prospection, outils gratuits, pages publiques de devis/rendez-vous) : retirés
+  if (["public-booking", "public-book", "public-estimation-info", "public-estimation", "quote-totals", "mailbox-options"].includes(name)) throw new HttpError(410, "Cette fonction a été retirée de Bingoo!.");
   if (name === "calendar" && req.method === "GET") {
     const ics = await calendarFeed(new URL(req.url).searchParams.get("t") ?? "");
     return new Response(ics, { headers: { "Content-Type": "text/calendar; charset=utf-8", "Cache-Control": "max-age=900", "Access-Control-Allow-Origin": "*" } });

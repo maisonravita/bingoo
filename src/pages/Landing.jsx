@@ -31,8 +31,8 @@ const MENU = [["Comment ça marche", "#comment"], ["Les SaaS en tendance", "#ten
 function useNbSaas() {
   const [n, setN] = useState(null);
   useEffect(() => {
-    fetch(`${URL_}/rest/v1/saas_public?select=domaine`, { headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, Prefer: "count=exact", Range: "0-0" } })
-      .then((r) => { const m = (r.headers.get("content-range") ?? "").match(/\/(\d+)$/); if (m) setN(Number(m[1])); }).catch(() => {});
+    fetch(`${URL_}/rest/v1/rpc/saas_stats_entete`, { method: "POST", headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, "content-type": "application/json" }, body: "{}" })
+      .then((r) => r.json()).then((d) => { if (d?.total) setN(Number(d.total)); }).catch(() => {});
   }, []);
   return n;
 }

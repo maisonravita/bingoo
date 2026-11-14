@@ -67,6 +67,10 @@ export function messageIdFor(key: string, from: string) {
 /** key : identifiant du message en base. Garantit qu'un même e-mail n'est accepté qu'une fois par Resend (24 h)
  *  et qu'il porte toujours le même Message-ID (rapprochement des réponses et des rebonds dans la boîte). */
 export async function sendMail(ws: Workspace, m: { to: string; subject: string; text: string; replyTo?: string; prospecting?: boolean; ics?: string; fromName?: string; key?: string; parentKey?: string }) {
+  // L'ancien Bingoo (prospection par e-mail) a été retiré : plus aucun e-mail ne part vers des prospects,
+  // sauf si l'interrupteur app_secrets « prospection_envois » est remis sur « on ».
+  const { data: interrupteur } = await admin.from("app_secrets").select("value").eq("name", "prospection_envois").maybeSingle();
+  if (interrupteur?.value !== "on") throw new HttpError(410, "Les envois de prospection ont été retirés de Bingoo!.");
   const footer = m.prospecting
     ? `${brand(ws)}${ws.postal_address ? ` · ${ws.postal_address}` : ""}\nPour ne plus recevoir de messages de notre part, répondez simplement « STOP »${ws.app_url ? ` ou rendez-vous sur ${ws.app_url.replace(/\/$/, "")}/#/opposition` : ""}.`
     : "";

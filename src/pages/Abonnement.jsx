@@ -115,7 +115,8 @@ const ACTIONS_CREDITS = [["Une modification en plus", "modification", "au-delà 
 // Ce que l'abonné a utilisé ce mois-ci, face aux limites de sa formule
 const LIGNES_MOIS = [["construire", "Constructions de SaaS", "Reconstruire ou repartir de zéro"], ["modifier", "Modifications dans l'Atelier", "Au-delà : 1 crédit la modification"], ["tiktok", "Recherches TikTok", "Vidéos et comptes à étudier"], ["pareil", "Scripts « Faire pareil »", "Une vidéo TikTok adaptée à ton SaaS"]];
 function MoisEnCours({ l }) {
-  if (!l) return null;
+  if (!l?.mois) return null;
+  const ia = l.ia ?? { pct: 0 };
   const repart = new Date(l.repart).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
   return (
     <Card className="p-5 sm:p-6 mb-6">
@@ -138,8 +139,8 @@ function MoisEnCours({ l }) {
       </div>
       <div className="mt-5 border-t border-line pt-3 flex items-center gap-3">
         <p className="text-[13px] text-ink-soft flex-1">Utilisation de l'IA ce mois-ci</p>
-        <div className="w-40 h-1.5 rounded-full bg-paper overflow-hidden"><div className={cx("h-full rounded-full", l.ia.pct >= 90 ? "bg-red-500" : l.ia.pct >= 70 ? "bg-amber-500" : "bg-ink")} style={{ width: `${l.ia.pct}%` }} /></div>
-        <p className="text-[13px] tnum w-10 text-right">{l.ia.pct} %</p>
+        <div className="w-40 h-1.5 rounded-full bg-paper overflow-hidden"><div className={cx("h-full rounded-full", ia.pct >= 90 ? "bg-red-500" : ia.pct >= 70 ? "bg-amber-500" : "bg-ink")} style={{ width: `${ia.pct}%` }} /></div>
+        <p className="text-[13px] tnum w-10 text-right">{ia.pct} %</p>
       </div>
     </Card>
   );
