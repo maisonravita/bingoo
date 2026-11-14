@@ -222,6 +222,9 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (!s) { await saasAdd([`https://${domaine}`], "lancer"); ({ data: s } = await admin.from("saas").select("id, nom, statut").eq("domaine", domaine).maybeSingle()); }
     if (!s) throw new HttpError(400, "Ce site ne peut pas être ajouté");
     if (["pas_saas", "doublon", "retire"].includes(s.statut)) throw new HttpError(400, "Ce site n'est pas un logiciel SaaS lisible");
+    // Double lancement (double clic, page rechargée) : on rend la préparation déjà en cours ou prête depuis moins de 30 min, sans repayer l'IA
+    const { data: recent } = await admin.from("saas_projets").select("id, statut").eq("workspace_id", ws.id).eq("saas_id", s.id).in("statut", ["en_cours", "pret"]).gte("at", new Date(Date.now() - 30 * 60e3).toISOString()).order("at", { ascending: false }).limit(1);
+    if (recent?.[0]) return { id: recent[0].id, statut: recent[0].statut };
     const { data: row } = await admin.from("saas_projets").insert({ workspace_id: ws.id, saas_id: s.id, statut: "en_cours", data: { inspire: { nom: s.nom ?? domaine, domaine }, angle: typeof b.angle === "string" ? b.angle.slice(0, 400) : null } }).select("id").single();
     await log(ws.id, "lancer", `Projet de SaaS concurrent de ${s.nom ?? domaine}`);
     const sid = s.id, aLire = s.statut !== "ok";
