@@ -523,7 +523,11 @@ function VideosTikTok({ videos, m }) {
         const p = pareil[v.url];
         return (
           <div key={v.url} className={cx("flex flex-col", p && p !== "encours" && !p.erreur && "col-span-2 sm:col-span-3 lg:col-span-5 lg:flex-row lg:gap-4")}>
-            <a href={v.url} target="_blank" rel="noreferrer" className={cx("group relative block aspect-[9/16] overflow-hidden rounded-xl bg-[#111]", p && p !== "encours" && !p.erreur && "lg:w-[180px] lg:shrink-0")}>
+            {!o.image && o.lecteur ? (
+              <div className={cx("relative aspect-[9/16] overflow-hidden rounded-xl bg-[#111]", p && p !== "encours" && !p.erreur && "lg:w-[180px] lg:shrink-0")}>
+                <iframe src={o.lecteur} title={o.legende || "Vidéo TikTok"} loading="lazy" allow="encrypted-media; fullscreen; picture-in-picture" allowFullScreen className="absolute inset-0 h-full w-full border-0" />
+              </div>
+            ) : <a href={v.url} target="_blank" rel="noreferrer" className={cx("group relative block aspect-[9/16] overflow-hidden rounded-xl bg-[#111]", p && p !== "encours" && !p.erreur && "lg:w-[180px] lg:shrink-0")}>
               {o.image ? <img src={o.image} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" />
                 : <div className="grid h-full place-items-center bg-gradient-to-br from-[#25F4EE33] via-[#111] to-[#FE2C5533]"><svg viewBox="0 0 24 24" className="h-8 w-8 text-white/60" fill="currentColor"><path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5v2a1.5 1.5 0 1 0 1.5 1.5V3h2c.4 2.6 2.2 4.4 5 4.6v2c-2 0-3.7-.7-5-1.9" /></svg></div>}
               <span className="absolute inset-0 grid place-items-center opacity-0 transition group-hover:opacity-100"><span className="grid h-12 w-12 place-items-center rounded-full bg-black/55"><svg viewBox="0 0 24 24" className="ml-0.5 h-6 w-6 text-white" fill="currentColor"><path d="M8 5v14l11-7z" /></svg></span></span>
@@ -531,8 +535,9 @@ function VideosTikTok({ videos, m }) {
                 <p className="truncate text-[12px] font-semibold text-white">{o.auteur ? `@${o.auteur}` : "TikTok"}</p>
                 {v.vues && <p className="text-[11px] text-white/75">{v.vues}</p>}
               </div>
-            </a>
+            </a>}
             <div className="mt-2 flex min-w-0 flex-1 flex-col">
+              {o.auteur && <p className="truncate text-[12px] font-semibold text-[#303030]">@{o.auteur}{v.vues ? <span className="font-normal text-[#8A8A8A]"> · {v.vues}</span> : null}</p>}
               <p className="line-clamp-2 text-[12.5px] font-medium text-[#303030]">{o.legende || v.legende || v.titre}</p>
               {v.pourquoi && <p className="mt-1 line-clamp-3 text-[12px] text-[#8A8A8A]">{v.pourquoi}</p>}
               <div className="mt-2 flex flex-wrap gap-1.5">

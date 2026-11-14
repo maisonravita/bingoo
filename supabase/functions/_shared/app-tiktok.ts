@@ -12,8 +12,11 @@ export async function oembed(url: string) {
     const r = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(8000), headers: { "user-agent": "Mozilla/5.0 (Bingoo)" } });
     if (!r.ok) return null;
     const d = await r.json();
-    if (!d?.thumbnail_url) return null;
-    return { image: String(d.thumbnail_url), auteur: d.author_name ? String(d.author_name) : null, compte: d.author_url ? String(d.author_url) : null, legende: d.title ? String(d.title).slice(0, 220) : null };
+    if (d?.type !== "video" && !d?.thumbnail_url) return null;
+    // Le lecteur officiel (couverture, puis lecture sur place) : à partir de l'identifiant de la vidéo
+    const id = /\/video\/(\d+)/.exec(url)?.[1] ?? /player\/v1\/(\d+)/.exec(String(d.html ?? ""))?.[1] ?? null;
+    return { image: d.thumbnail_url ? String(d.thumbnail_url) : null, lecteur: id ? `https://www.tiktok.com/player/v1/${id}?music_info=0&description=0&rel=0&controls=1&progress_bar=1&play_button=1` : null,
+      auteur: d.author_name ? String(d.author_name) : (d.author_unique_id ? String(d.author_unique_id) : null), compte: d.author_url ? String(d.author_url) : null, legende: d.title ? String(d.title).slice(0, 220) : null };
   } catch { return null; }
 }
 /** Couvertures fraîches (les liens d'images de TikTok expirent) pour une liste de vidéos. */
