@@ -39,3 +39,6 @@ create index if not exists saas_sans_succes_recent on public.saas (statut, creat
 
 -- 6. Fiches floutées : ce que fait le SaaS et pour qui, en clair mais sans son nom (saas_masquer, saas.pitch_fr rédigé en français par r/saas-pitch-fr)
 alter table public.saas add column if not exists pitch_fr jsonb;
+
+-- 7. Objectif de revenu (Appliqué via MCP) : saas_pour_moi_coeur et saas_pour_moi_apercu filtrent sur mrr >= objectif × 0,8
+--    (repli si moins de 6 SaaS), « bonne taille » = entre 0,8 et 5 fois l'objectif ; la liste garde les SaaS en tendance s'il y en a au moins 9.

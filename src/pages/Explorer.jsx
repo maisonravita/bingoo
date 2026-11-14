@@ -2596,7 +2596,7 @@ const lirePar = () => { try { return JSON.parse(localStorage.getItem("bingoo-par
 // Les personnes déjà venues avant ce mode ne le voient pas
 export const guideActif = () => { try { return localStorage.getItem("bingoo-guide") !== "fini" && !lirePar()?.fini && (localStorage.getItem("bingoo-guide") === "en_cours" || !localStorage.getItem("bingoo-parcours-vu")); } catch { return false; } };
 const finirGuide = () => { try { localStorage.setItem("bingoo-guide", "fini"); } catch { /* stockage indisponible */ } };
-const paramsDe = (r) => ({ continent: r.continent || null, langue: r.langue || null, categories: r.secteurs, canaux: r.canaux, refus: [...new Set([...(r.refus ?? []).filter((v) => !(r.canaux ?? []).includes(REFUS_CONTRAIRE[v])), ...(r.budget === "zero" ? ["pub"] : [])])], audience: r.audience || null, profil: r.profil ?? "aucun", ambition: ambitionDe(r), temps: r.temps ?? "moyen", metier: null });
+const paramsDe = (r) => ({ continent: r.continent || null, langue: r.langue || null, categories: r.secteurs, canaux: r.canaux, refus: [...new Set([...(r.refus ?? []).filter((v) => !(r.canaux ?? []).includes(REFUS_CONTRAIRE[v])), ...(r.budget === "zero" ? ["pub"] : [])])], audience: r.audience || null, profil: r.profil ?? "aucun", ambition: ambitionDe(r), temps: r.temps ?? "moyen", metier: null, objectif: r.objectif != null ? Math.round(r.objectif * 1.08) : null });
 export function TrouveTonSaas() {
   const { ws, session, reload } = useWs();
   const avant = lirePar();
