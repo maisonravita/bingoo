@@ -1647,7 +1647,7 @@ function Construire({ projet }) {
 }
 
 // Réglages d'un SaaS construit, par onglets : jumeau, lancement, encaissement, prix testés, e-mails, domaine, monde et bourse, code
-const ONGLETS_APP = [["croissance", "Croissance"], ["versions", "Versions"], ["ia", "Assistant IA"], ["jumeau", "Jumeau"], ["lancement", "Lancement"], ["encaisser", "Encaisser"], ["prix", "Prix testés"], ["emails", "E-mails"], ["domaine", "Domaine"], ["monde", "Monde et bourse"], ["mobile", "Mobile"], ["code", "Code"]];
+export const ONGLETS_APP = [["croissance", "Croissance"], ["versions", "Versions"], ["ia", "Assistant IA"], ["jumeau", "Jumeau"], ["lancement", "Lancement"], ["encaisser", "Encaisser"], ["prix", "Prix testés"], ["emails", "E-mails"], ["domaine", "Domaine"], ["monde", "Monde et bourse"], ["mobile", "Mobile"], ["code", "Code"]];
 // ---------------------------------------------------------------- Plan de croissance : tes vrais chiffres, les paliers, et ce qui fait grandir le SaaS copié
 const PALIERS = [1000, 10000, 100000];
 const CANAL_ACTION = {
@@ -1735,7 +1735,7 @@ function OngletCroissance({ app, appel, projet, allerA }) {
   );
 }
 
-export function ReglagesApp({ app, onChange, projet, initial }) {
+export function ReglagesApp({ app, onChange, projet, initial, nu = false, onglet: impose }) {
   const { ws } = useWs();
   const toast = useToast();
   const [onglet, setOnglet] = useState(initial ?? "croissance");
@@ -1751,6 +1751,24 @@ export function ReglagesApp({ app, onChange, projet, initial }) {
   }, [app.id, app.spec.nom, app.spec.couleur]); // eslint-disable-line react-hooks/exhaustive-deps
   const agir = async (k, f, ok) => { setBusy(k); try { const r = await f(); if (ok) toast(ok); await onChange(); return r; } catch (x) { toast(x.message, "bad"); } finally { setBusy(""); } };
   const props = { app, appel, agir, busy, projet, onChange };
+  // Sans habillage (page Réglages du SaaS) : seulement le contenu de l'onglet choisi par la page
+  const o = impose ?? onglet;
+  if (nu) return (
+    <div>
+      {o === "croissance" && <OngletCroissance {...props} allerA={() => {}} />}
+      {o === "versions" && <OngletVersions {...props} />}
+      {o === "ia" && <OngletIA {...props} />}
+      {o === "jumeau" && <OngletJumeau {...props} />}
+      {o === "lancement" && <OngletLancement {...props} />}
+      {o === "encaisser" && <OngletEncaisser {...props} />}
+      {o === "prix" && <OngletPrix {...props} />}
+      {o === "emails" && <OngletEmails {...props} />}
+      {o === "domaine" && <OngletDomaine {...props} />}
+      {o === "monde" && <OngletMonde {...props} />}
+      {o === "mobile" && <OngletMobile {...props} />}
+      {o === "code" && <OngletCode {...props} />}
+    </div>
+  );
   return (
     <div className="mt-4 rounded-2xl bg-white/5 border border-white/10">
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-px bg-white/10 rounded-t-2xl overflow-hidden">

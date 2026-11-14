@@ -225,6 +225,7 @@ function MenuCompte({ ws, list, select, credits, invite, onAvis, onClose }) {
   );
 }
 
+// L'interface après paiement, dans l'esprit de l'administration Shopify : barre noire en haut, menu gris clair, fond gris doux, cartes blanches.
 function AppShell({ ws, list, select, invite, isAdmin, essentiel, c, bandeau, extra, menuMobile, onAvis, children }) {
   const loc = useLocation();
   const nav = useNavigate();
@@ -232,6 +233,7 @@ function AppShell({ ws, list, select, invite, isAdmin, essentiel, c, bandeau, ex
   const [replie, setReplie] = useState(() => { try { return localStorage.getItem("bingoo-menu") === "1"; } catch { return false; } });
   const [compte, setCompte] = useState(false);
   const [q, setQ] = useState("");
+  const [saas, setSaas] = useState(null);
   const recherche = useRef(null);
   useEffect(() => { try { localStorage.setItem("bingoo-menu", replie ? "1" : "0"); } catch { /* sans effet */ } }, [replie]);
   useEffect(() => setCompte(false), [loc.pathname]);
@@ -239,14 +241,15 @@ function AppShell({ ws, list, select, invite, isAdmin, essentiel, c, bandeau, ex
     const k = (e) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); recherche.current?.focus(); } };
     window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k);
   }, []);
+  // Le SaaS du créateur : son nom et sa couleur en haut à droite, comme la boutique sur Shopify
+  useEffect(() => { if (!invite) supabase.from("saas_apps").select("spec->nom, spec->couleur").eq("workspace_id", ws.id).neq("statut", "remplace").order("at", { ascending: false }).limit(1).then(({ data }) => setSaas(data?.[0] ?? null)); }, [ws.id, invite]);
   // Les rubriques : son SaaS d'abord, puis découvrir, puis le compte
   const sections = invite ? [{ items: essentiel }] : [
-    { titre: "Mon SaaS", items: [
+    { items: [
       { to: "/explorer/mon-saas", label: "Accueil", icon: "today" },
       { to: "/explorer/atelier", label: "Atelier", icon: "chat" },
       { to: "/explorer/clients", label: "Premiers clients", icon: "users" },
       { to: "/explorer/video", label: "Vidéo pub", icon: "video" },
-      { to: "/explorer/reglages-saas", label: "Réglages du SaaS", icon: "cog" },
       { to: "/explorer/dossier", label: "Mon dossier", icon: "doc", also: ["/explorer/lancer"] },
     ] },
     { titre: "Découvrir", items: essentiel.filter((n) => n.to !== "/explorer/createurs") },
@@ -257,80 +260,79 @@ function AppShell({ ws, list, select, invite, isAdmin, essentiel, c, bandeau, ex
       ...(isAdmin ? [{ to: "/admin", label: "Administration", icon: "chart" }] : []),
     ] },
   ];
-  const tous = sections.flatMap((x) => x.items);
-  const actif = (n) => !n.hash && (loc.pathname === n.to.split("#")[0] && (!n.to.includes("#") ? !loc.hash.includes("credits") || n.to !== "/abonnement" : loc.hash.includes("credits")) || (n.also ?? []).includes(loc.pathname));
-  const courant = tous.find(actif) ?? tous.find((n) => loc.pathname.startsWith(n.to + "/"));
-  const fil = loc.pathname.startsWith("/explorer/") && !courant ? ["Explorer les SaaS", decodeURIComponent(loc.pathname.split("/")[2] ?? "")]
-    : ["Bingoo!", courant?.label ?? ({ "/reglages": "Paramètres", "/aide": "Aide", "/legal": "Conditions" })[loc.pathname] ?? ""];
+  const bas = invite ? [{ to: "/aide", label: "Aide", icon: "help" }] : [{ to: "/explorer/reglages-saas", label: "Réglages du SaaS", icon: "cog" }, { to: "/aide", label: "Aide", icon: "help" }];
+  const actif = (n) => (n.to.includes("#") ? loc.pathname === n.to.split("#")[0] && loc.hash.includes(n.to.split("#")[1]) : loc.pathname === n.to && !(n.to === "/abonnement" && loc.hash.includes("credits"))) || (n.also ?? []).includes(loc.pathname);
   const pct = credits?.total ? Math.round((credits.solde / credits.total) * 100) : null;
+  const nomSaas = saas?.nom ?? ws.profile?.nom ?? ws.name ?? "Mon espace";
+  const couleur = saas?.couleur ?? "#E8571C";
   const lien = (n) => (
     <NavLink key={n.label} to={n.to} end title={replie ? n.label : undefined}
-      className={cx("group flex items-center gap-3 rounded-xl px-3 py-[7px] text-[14.5px] font-medium transition", replie && "justify-center px-0", actif(n) ? "bg-[#EDEBE6] text-ink font-semibold" : "text-ink-soft hover:bg-[#F1EFEA] hover:text-ink")}>
-      <Icon name={n.icon} className="w-[19px] h-[19px]" />{!replie && <span className="flex-1 truncate">{n.label}</span>}
+      className={cx("flex h-8 items-center gap-2.5 rounded-lg px-2 text-[13.5px] font-semibold transition", replie && "justify-center px-0", actif(n) ? "bg-white text-[#1A1A1A] shadow-[0_1px_0_rgba(0,0,0,.08),0_0_0_1px_rgba(0,0,0,.04)]" : "text-[#303030] hover:bg-[#E3E3E3]")}>
+      <Icon name={n.icon} className={cx("h-[18px] w-[18px]", actif(n) ? "text-[#1A1A1A]" : "text-[#4A4A4A]")} />{!replie && <span className="flex-1 truncate">{n.label}</span>}
     </NavLink>
   );
   return (
-    <div className="min-h-full md:flex">
+    <div className="min-h-screen bg-[#F1F1F1]">
       {extra}
-      <aside className={cx("hidden md:flex sticky top-0 h-screen shrink-0 flex-col border-r border-line bg-[#FAF9F6] transition-[width] duration-200", replie ? "w-[76px] px-2.5" : "w-[264px] px-4")}>
-        <div className={cx("flex h-14 shrink-0 items-center", replie ? "justify-center" : "px-1.5")}>
-          {replie ? <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#E8571C] text-[17px] font-black text-white">B</span> : <span className="flex items-center"><Logo height={30} /></span>}
+      {/* Barre du haut, noire, comme Shopify */}
+      <header className="fixed inset-x-0 top-0 z-40 hidden h-14 items-center gap-3 bg-[#1A1A1A] px-3 text-white md:flex">
+        <div className={cx("flex items-center gap-2", replie ? "w-[52px]" : "w-[228px]")}>
+          <button onClick={() => setReplie(!replie)} aria-label={replie ? "Déplier le menu" : "Replier le menu"} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white"><Icon name="side" className="h-[18px] w-[18px]" /></button>
+          {!replie && <NavLink to="/explorer/mon-saas" className="flex items-center"><Logo inverse height={24} /></NavLink>}
         </div>
-        <nav aria-label="Navigation principale" className="-mx-1 mt-1 flex-1 overflow-y-auto px-1">
+        <form onSubmit={(e) => { e.preventDefault(); if (q.trim()) { nav(`/explorer/demande?q=${encodeURIComponent(q.trim())}`); setQ(""); recherche.current?.blur(); } }}
+          className="mx-auto flex w-full max-w-[560px] items-center gap-2 rounded-lg bg-[#303030] px-3 py-1.5 ring-1 ring-white/10 focus-within:bg-[#3A3A3A] focus-within:ring-white/25">
+          <Icon name="search" className="h-4 w-4 text-white/55" />
+          <input ref={recherche} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un SaaS, une idée, une question…" className="min-w-0 flex-1 bg-transparent text-[13.5px] text-white outline-none placeholder:text-white/45" />
+          <kbd className="rounded border border-white/15 px-1.5 text-[11px] text-white/50">⌘ K</kbd>
+        </form>
+        <div className="flex items-center gap-2">
+          <NavLink to="/explorer/demande" className="hidden lg:flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] font-semibold text-white/85 hover:bg-white/10"><Icon name="spark" className="h-4 w-4 text-[#F6A06B]" />Demander</NavLink>
+          {invite ? <>
+            <button onClick={() => supabase.auth.signOut()} className="whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-semibold text-white/85 hover:bg-white/10">Se connecter</button>
+            <button onClick={() => demanderCompte("Garde tes résultats et reviens quand tu veux.")} className="whitespace-nowrap rounded-lg bg-white px-3 py-1.5 text-[13px] font-semibold text-[#1A1A1A] hover:bg-white/90">Créer mon compte</button>
+          </> : (
+            <div className="relative">
+              <button onClick={() => setCompte(!compte)} aria-label="Mon compte et mes crédits" aria-expanded={compte} className="flex items-center gap-2 rounded-lg py-1 pl-1 pr-2.5 hover:bg-white/10">
+                <span className="grid h-7 w-7 place-items-center rounded-md text-[12.5px] font-black text-white" style={{ background: couleur }}>{nomSaas.trim().charAt(0).toUpperCase()}</span>
+                <span className="hidden max-w-[160px] truncate text-[13px] font-semibold lg:block">{nomSaas}</span>
+              </button>
+              {compte && <div className="text-ink"><MenuCompte ws={ws} list={list} select={select} credits={credits} invite={invite} onAvis={onAvis} onClose={() => setCompte(false)} /></div>}
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* Menu */}
+      <aside className={cx("fixed bottom-0 left-0 top-14 z-30 hidden flex-col bg-[#EBEBEB] px-2 pb-2 pt-3 transition-[width] duration-200 md:flex", replie ? "w-[64px]" : "w-[240px]")}>
+        <nav aria-label="Navigation principale" className="flex-1 overflow-y-auto">
           {sections.map((sec, i) => (
             <div key={sec.titre ?? i} className={cx(i > 0 && "mt-4")}>
-              {sec.titre && (!replie ? <p className="mb-1.5 px-3 text-[12.5px] font-medium text-ink-faint">{sec.titre}</p> : i > 0 && <div className="mx-3 mb-3 border-t border-line" />)}
-              <div className="flex flex-col gap-0.5">{sec.items.map(lien)}</div>
+              {sec.titre && (!replie ? <p className="mb-1 flex items-center px-2 text-[12px] font-semibold text-[#616161]">{sec.titre}</p> : <div className="mx-2 mb-2 border-t border-[#D4D4D4]" />)}
+              <div className="flex flex-col gap-px">{sec.items.map(lien)}</div>
             </div>
           ))}
         </nav>
         {invite && !replie && (
-          <div className="mb-3 rounded-2xl border border-line bg-white p-3.5">
-            <p className="text-[13.5px] font-semibold">Garde tes résultats</p>
-            <p className="mt-1 text-[12.5px] text-ink-soft">Ton compte garde tes réponses et les SaaS trouvés pour toi.</p>
-            <button onClick={() => demanderCompte("Garde tes résultats et reviens quand tu veux.")} className="mt-2.5 w-full rounded-lg bg-ink py-2 text-[13px] font-semibold text-white hover:bg-ink/85">Créer mon compte</button>
+          <div className="mb-2 rounded-xl bg-white p-3 shadow-[0_1px_0_rgba(0,0,0,.08)]">
+            <p className="text-[13px] font-semibold">Garde tes résultats</p>
+            <p className="mt-0.5 text-[12px] text-[#616161]">Ton compte garde tes réponses et tes SaaS.</p>
+            <button onClick={() => demanderCompte("Garde tes résultats et reviens quand tu veux.")} className="mt-2 w-full rounded-lg bg-[#1A1A1A] py-1.5 text-[12.5px] font-semibold text-white">Créer mon compte</button>
           </div>
         )}
         {!invite && !replie && (
-          <NavLink to="/abonnement#credits" className="mb-2 mt-3 block rounded-xl border border-line bg-white px-3 py-2.5 hover:border-ink-faint/60">
-            <div className="flex items-center justify-between text-[13px]"><span className="font-semibold">Tes crédits</span><span className="tnum text-ink-soft">{credits ? credits.solde : "…"}</span></div>
-            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-paper"><div className="h-full rounded-full bg-[#E8571C] transition-all duration-700" style={{ width: `${pct ?? 0}%` }} /></div>
+          <NavLink to="/abonnement#credits" className="mb-2 block rounded-xl bg-white px-3 py-2.5 shadow-[0_1px_0_rgba(0,0,0,.08),0_0_0_1px_rgba(0,0,0,.04)] hover:bg-[#FAFAFA]">
+            <div className="flex items-center justify-between text-[12.5px]"><span className="font-semibold">Crédits</span><span className="tnum font-semibold">{credits ? credits.solde : "…"}</span></div>
+            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-[#EBEBEB]"><div className="h-full rounded-full bg-[#1A1A1A] transition-all duration-700" style={{ width: `${pct ?? 0}%` }} /></div>
           </NavLink>
         )}
-        <div className={cx("mb-3 flex flex-col gap-0.5 border-t border-line pt-2", replie && "items-center")}>
-          {lien({ to: "/aide", label: "Aide", icon: "help" })}
-        </div>
+        <div className="flex flex-col gap-px border-t border-[#D4D4D4] pt-2">{bas.map(lien)}</div>
       </aside>
 
-      <div className="min-w-0 flex-1">
+      <div className={cx("md:pt-14 transition-[padding] duration-200", replie ? "md:pl-[64px]" : "md:pl-[240px]")}>
         {bandeau && <div className="md:hidden">{bandeau}</div>}
-        <header className="sticky top-0 z-40 hidden md:flex h-16 items-center gap-3 border-b border-line bg-white/85 px-6 backdrop-blur">
-          <button onClick={() => setReplie(!replie)} aria-label={replie ? "Déplier le menu" : "Replier le menu"} className="grid h-9 w-9 place-items-center rounded-lg text-ink-soft hover:bg-paper hover:text-ink"><Icon name="side" className="w-[19px] h-[19px]" /></button>
-          <p className="flex min-w-0 shrink items-center gap-2 whitespace-nowrap text-[15px]"><span className="text-ink-soft">{fil[0]}</span>{fil[1] && <><span className="text-ink-faint">›</span><span className="truncate font-medium">{fil[1]}</span></>}</p>
-          <div className="flex-1" />
-          <form onSubmit={(e) => { e.preventDefault(); if (q.trim()) { nav(`/explorer/demande?q=${encodeURIComponent(q.trim())}`); setQ(""); recherche.current?.blur(); } }}
-            className="hidden lg:flex w-[260px] xl:w-[340px] items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 focus-within:border-ink-faint">
-            <Icon name="search" className="w-[17px] h-[17px] text-ink-faint" />
-            <input ref={recherche} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un SaaS, une idée…" className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-ink-faint" />
-            <kbd className="rounded-md border border-line px-1.5 text-[11px] text-ink-faint">⌘ K</kbd>
-          </form>
-          <button onClick={onAvis} className={cx("hidden rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper", !invite && "xl:block")}>Retour d'information</button>
-          <NavLink to="/aide" className={cx("shrink-0 whitespace-nowrap rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper", invite && "hidden")}>Aide</NavLink>
-          <NavLink to="/explorer/demande" className="shrink-0 whitespace-nowrap flex items-center gap-2 rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper"><Icon name="spark" className="w-[17px] h-[17px] text-[#E8571C]" />Demander</NavLink>
-          {!invite && <Bell ws={ws} replies={c.replies} />}
-          {invite ? <>
-            <button onClick={() => supabase.auth.signOut()} className="shrink-0 whitespace-nowrap rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper">Se connecter</button>
-            <button onClick={() => demanderCompte("Garde tes résultats et reviens quand tu veux.")} className="shrink-0 whitespace-nowrap rounded-xl bg-ink px-4 py-2 text-[14px] font-semibold text-white hover:bg-ink/85">Créer mon compte</button>
-          </> : <div className="relative">
-            <button onClick={() => setCompte(!compte)} aria-label="Mon compte et mes crédits" aria-expanded={compte} className="rounded-full hover:opacity-90">
-              <Anneau pct={invite ? null : pct} lettre={(ws.sender_name || ws.profile?.nom || ws.name || "?").trim()[0]?.toUpperCase()} />
-            </button>
-            {compte && <MenuCompte ws={ws} list={list} select={select} credits={credits} invite={invite} onAvis={onAvis} onClose={() => setCompte(false)} />}
-          </div>}
-        </header>
-        {/* Téléphone : le menu 3 traits et le logo */}
         <div className="md:hidden flex items-center gap-3 px-4 pt-4">{menuMobile}<Logo /></div>
-        <main className="min-w-0 px-4 pt-4 pb-28 md:pb-16 md:px-10 md:pt-8 max-w-6xl mx-auto">{children}</main>
+        <main className="shopi mx-auto min-w-0 max-w-[1080px] px-4 pb-28 pt-4 md:px-8 md:pb-16 md:pt-6">{children}</main>
       </div>
     </div>
   );

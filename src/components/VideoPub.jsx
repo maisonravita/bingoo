@@ -9,7 +9,7 @@ import { DUREE, FORMATS, dessiner, exporterVideo, preparerPolice } from "../lib/
 
 const lienCourt = (l) => String(l || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
 
-export default function VideoPub({ app, lien }) {
+export default function VideoPub({ app, lien, nu = false }) {
   const { ws } = useWs();
   const toast = useToast();
   const nav = useNavigate();
@@ -64,8 +64,8 @@ export default function VideoPub({ app, lien }) {
   };
 
   return (
-    <div className="mt-6 rounded-2xl bg-white/5 border border-white/10 p-5 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className={nu ? "p-4 sm:p-5" : "mt-6 rounded-2xl bg-white/5 border border-white/10 p-5 sm:p-6"}>
+      <div className={cx("flex flex-wrap items-start justify-between gap-3", nu && "hidden")}>
         <div className="max-w-xl">
           <p className="text-[13px] font-bold uppercase tracking-wide text-[#F6A06B]">Vidéo pub</p>
           <h3 className="mt-1 text-[22px] font-black leading-tight">Une pub animée de {opts.nom}, prête à publier</h3>
@@ -74,7 +74,7 @@ export default function VideoPub({ app, lien }) {
         <p className="rounded-full bg-white/10 px-3.5 py-1.5 text-[13px] font-semibold">{solde == null ? "…" : `${solde} crédit${solde > 1 ? "s" : ""}`}</p>
       </div>
 
-      <div className="mt-5 grid lg:grid-cols-[auto_1fr] gap-6 items-start">
+      <div className={cx("grid lg:grid-cols-[auto_1fr] gap-6 items-start", !nu && "mt-5")}>
         <div className="flex flex-col items-center gap-3">
           <div className={cx("relative overflow-hidden rounded-2xl bg-black/40 border border-white/10 grid place-items-center", format === "vertical" ? "w-[270px] h-[480px]" : "w-[480px] max-w-full aspect-video")}>
             {sel ? <canvas ref={canvas} width={W} height={H} className="w-full h-full" />
@@ -94,6 +94,7 @@ export default function VideoPub({ app, lien }) {
         </div>
 
         <div className="space-y-4">
+          {nu && <p className="text-[13px] text-white/60">Ton solde : <b className="text-white">{solde == null ? "…" : `${solde} crédit${solde > 1 ? "s" : ""}`}</b></p>}
           {sel && (
             <div className="flex flex-wrap gap-2">
               <button onClick={telecharger} disabled={export_ != null} className="rounded-xl bg-accent px-5 py-2.5 text-[14px] font-bold hover:bg-accent-dark disabled:opacity-60">{export_ != null ? "Enregistrement…" : "Télécharger la vidéo"}</button>
