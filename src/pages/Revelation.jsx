@@ -157,7 +157,8 @@ function Vedette({ s, visible, onConstruire }) {
 }
 
 // ---------------------------------------------------------------- Le chantier : Bingoo! construit le SaaS sous les yeux du créateur
-const ETAPES = ["Lecture du SaaS modèle", "Conception de ta version", "Écriture des écrans", "Vérification de chaque écran", "Mise en ligne"];
+const ETAPES = ["Lecture", "Conception", "Écrans", "Vérification", "En ligne"];
+const LECTURE = (nom) => [`Lecture du site de ${nom}`, "Lecture de ses prix et de ses formules", "Repérage de ses fonctionnalités clés", "Choix d'un nom et d'un angle pour ta version"];
 
 function Chantier({ ws, nav }) {
   const c = lire(CLE_CHANTIER) ?? {};
@@ -166,17 +167,18 @@ function Chantier({ ws, nav }) {
   const [app, setApp] = useState(null);
   const [erreur, setErreur] = useState(null);
   const [mot, setMot] = useState(0);
+  const [tic, setTic] = useState(0);
   const [essai, setEssai] = useState(0);
   const lance = useRef(false);
 
-  useEffect(() => { const t = setInterval(() => setMot((m) => (m + 1) % MOTS.length), 5200); return () => clearInterval(t); }, []);
+  useEffect(() => { const t = setInterval(() => setMot((m) => (m + 1) % MOTS.length), 6000); return () => clearInterval(t); }, []);
+  useEffect(() => { const t = setInterval(() => setTic((x) => x + 1), 7000); return () => clearInterval(t); }, []);
 
   useEffect(() => {
     if (lance.current) return; lance.current = true;
     let vivant = true;
     (async () => {
       try {
-        // Étapes 1-2 : le projet (une à deux minutes)
         let p = projet;
         if (!p?.id) {
           const { data: deja } = await supabase.from("saas_projets").select("id, data, statut").eq("workspace_id", ws.id).eq("data->inspire->>domaine", c.domaine).eq("statut", "pret").order("at", { ascending: false }).limit(1);
@@ -185,7 +187,7 @@ function Chantier({ ws, nav }) {
             const { id } = await fn("r/saas-lancer", { workspace_id: ws.id, domaine: c.domaine });
             for (let i = 0; i < 90 && vivant; i++) {
               await attendre(3500);
-              if (i === 6) setEtape(1);
+              if (i === 8) setEtape(1);
               const { data } = await supabase.from("saas_projets").select("data, statut, erreur").eq("id", id).maybeSingle();
               if (data?.statut === "pret") { p = { id, ...data.data }; break; }
               if (data?.statut === "erreur") throw new Error(data.erreur || "La préparation a échoué.");
@@ -193,10 +195,10 @@ function Chantier({ ws, nav }) {
             if (!p) throw new Error("C'est plus long que prévu.");
           }
           if (!vivant) return;
-          setProjet(p); ecrire(CLE_CHANTIER, { ...c, projet: { id: p.id, nom: p.nom, pitch: p.pitch } });
+          const garde = { id: p.id, nom: p.nom, pitch: p.pitch, cible: p.cible, formules: (p.formules ?? []).slice(0, 3) };
+          setProjet(garde); ecrire(CLE_CHANTIER, { ...c, projet: garde });
         }
         setEtape(2);
-        // Étapes 3-5 : la construction
         const { data: ex } = await supabase.from("saas_apps").select("statut").eq("projet_id", p.id).maybeSingle();
         if (!ex || ex.statut === "erreur") await fn("r/saas-construire", { workspace_id: ws.id, projet_id: p.id });
         for (let i = 0; i < 240 && vivant; i++) {
@@ -216,116 +218,158 @@ function Chantier({ ws, nav }) {
 
   const spec = app?.spec?.ecrans?.length ? app.spec : app?.brouillon;
   const ecrans = (spec?.ecrans ?? []).filter((e) => !e.public);
+  const publics = (spec?.ecrans ?? []).filter((e) => e.public);
   const ecrits = (() => { const m = /\((\d+)\/(\d+)\)/.exec(app?.etape ?? ""); return m ? Number(m[1]) : etape >= 3 ? ecrans.length : 0; })();
   const couleur = spec?.couleur ?? "#E8571C";
-  const nom = projet?.nom ?? spec?.nom ?? c.nom;
+  const nom = projet?.nom ?? spec?.nom ?? null;
   const fini = etape >= 5;
-  const pct = fini ? 100 : Math.min(96, [6, 22, 38, 82, 92][etape] + (etape === 2 && ecrans.length ? (ecrits / ecrans.length) * 40 : 0));
-  const entrer = () => { ecrire(CLE_CHANTIER, null); nav(`/explorer/lancer?d=${encodeURIComponent(c.domaine)}`); };
+  const pct = fini ? 100 : Math.min(96, [8, 24, 40, 86, 94][etape] + (etape === 2 && ecrans.length ? (ecrits / ecrans.length) * 44 : 0));
+
+  // Le journal : ce que Bingoo! fait vraiment, ligne après ligne
+  const journal = [];
+  const lect = LECTURE(c.nom);
+  lect.slice(0, etape >= 1 ? lect.length : Math.min(lect.length, 1 + tic)).forEach((t, i) => journal.push({ k: `l${i}`, t, ok: etape >= 1 || i < Math.min(lect.length, tic) }));
+  if (projet?.nom) {
+    journal.push({ k: "nom", t: <>Ta version s'appelle <b>{projet.nom}</b></>, ok: true });
+    if (projet.cible) journal.push({ k: "cible", t: <>Pour : {String(projet.cible).slice(0, 90)}</>, ok: true });
+  }
+  if (spec?.couleur) journal.push({ k: "couleur", t: <span className="inline-flex items-center gap-2">Couleur de marque <span className="inline-block h-3.5 w-3.5 rounded" style={{ background: couleur }} /></span>, ok: true });
+  ecrans.slice(0, Math.max(ecrits, 0)).forEach((e) => journal.push({ k: `e${e.id}`, t: <>Écran « {e.titre} » écrit</>, ok: true }));
+  if (etape === 2 && ecrans.length && ecrits < ecrans.length) journal.push({ k: `w${ecrits}`, t: <>Écriture de l'écran « {ecrans[ecrits]?.titre} »</>, ok: false });
+  if (etape >= 3) journal.push({ k: "verif", t: "Chaque écran ouvert avec des données d'exemple", ok: fini });
+  if (fini) {
+    if (publics.length) journal.push({ k: "pub", t: `${publics.length} page${publics.length > 1 ? "s" : ""} publique${publics.length > 1 ? "s" : ""} pour tes clients`, ok: true });
+    journal.push({ k: "fin", t: "Comptes clients, paiements et e-mails branchés", ok: true });
+  }
+  const fil = useRef(null);
+  useEffect(() => { fil.current?.scrollTo({ top: fil.current.scrollHeight, behavior: "smooth" }); }, [journal.length]);
 
   if (!c.domaine) return <Navigate to="/explorer/copier" replace />;
+  if (fini && app) return <EnLigne app={app} nom={nom} couleur={couleur} ecrans={ecrans} projet={projet} c={c} nav={nav} />;
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#0B0B12] text-white">
-      <div className="pointer-events-none absolute inset-0" aria-hidden>
-        <div className="fx-grille opacity-[.35]" />
-        <span className="fx-aurore h-[420px] w-[420px] left-[-80px] top-[-60px]" style={{ background: couleur, opacity: .45 }} />
-        <span className="fx-aurore h-[380px] w-[380px] right-[-60px] bottom-[-60px] bg-[#9B6BFF]" style={{ animationDelay: "-7s", opacity: .3 }} />
+    <div className="relative min-h-screen overflow-hidden bg-[#FAF9F6]">
+      <div className="pointer-events-none absolute inset-0" aria-hidden style={{ WebkitMaskImage: "radial-gradient(ellipse at 50% 20%, #000 25%, transparent 70%)", maskImage: "radial-gradient(ellipse at 50% 20%, #000 25%, transparent 70%)" }}>
+        <div className="fx-grille" />
+        <span className="fx-aurore h-[380px] w-[380px] left-[18%] top-0 transition-colors duration-1000" style={{ background: couleur, opacity: .28 }} />
+        <span className="fx-aurore h-[340px] w-[340px] right-[16%] top-24 bg-[#9B6BFF]" style={{ animationDelay: "-7s", opacity: .22 }} />
       </div>
-      <div className="relative z-[1] px-5 pt-5 sm:px-8"><Logo inverse /></div>
-      <div className="relative z-[1] mx-auto grid max-w-6xl gap-10 px-5 py-8 sm:px-8 lg:grid-cols-[1fr_1.15fr] lg:py-12">
-        <div>
-          <p className="text-[13px] font-bold uppercase tracking-[.14em] text-[#F6A06B]">{fini ? "C'est en ligne" : "Bingoo! construit"}</p>
-          <h1 className="mt-2 text-[36px] sm:text-[50px] font-black leading-[1.02]" style={HF}>{fini ? <>{nom} est en ligne.</> : <>Ta version de {c.nom}{projet?.nom ? <> : <span className="text-[#F6A06B]">{projet.nom}</span></> : null}</>}</h1>
-          <p className="mt-3 max-w-lg text-[16px] text-white/70">{fini ? "Ton site, les comptes de tes clients et chaque écran sont prêts. Partage le lien, essaie-le, puis demande des changements en une phrase." : projet?.pitch ?? "Bingoo! lit le SaaS modèle et conçoit ta version : ton nom, tes écrans, ton design."}</p>
+      <div className="relative z-[1] flex items-center justify-between px-5 pt-5 sm:px-8">
+        <Logo />
+        <p className="hidden sm:block text-[13px] text-ink-faint">Tu peux fermer cette page, la construction continue.</p>
+      </div>
 
-          <div className="mt-8 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-[#F6A06B] to-[#E8571C] transition-all duration-[1500ms] ease-out" style={{ width: `${pct}%` }} /></div>
-          <ol className="mt-6 space-y-3">
-            {ETAPES.map((t, i) => {
-              const fait = i < etape || fini, encours = i === etape && !fini;
-              return (
-                <li key={t} className={cx("flex items-center gap-3 text-[15.5px] transition-opacity duration-500", !fait && !encours && "opacity-40")}>
-                  <span className={cx("grid h-7 w-7 shrink-0 place-items-center rounded-full", fait ? "bg-[#E8571C]" : "border-2 border-white/25")}>
-                    {fait ? <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5 9-10" /></svg>
-                      : encours ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : null}
-                  </span>
-                  <span className={cx(encours && "font-semibold")}>{t}{i === 2 && ecrans.length > 0 && !fini ? ` (${Math.min(ecrits, ecrans.length)}/${ecrans.length})` : ""}</span>
-                </li>
-              );
-            })}
-          </ol>
+      <div className="relative z-[1] mx-auto max-w-2xl px-5 pb-16 pt-10 sm:pt-14 text-center">
+        <div className="relative mx-auto grid h-24 w-24 place-items-center">
+          <span className="absolute inset-0 rounded-[30px] opacity-50 blur-2xl transition-colors duration-1000" style={{ background: couleur }} />
+          <svg viewBox="0 0 100 100" className="absolute -left-[26px] -top-[26px] h-[148px] w-[148px] animate-spin [animation-duration:2.4s]" aria-hidden><circle cx="50" cy="50" r="47" fill="none" stroke="#ECEAE4" strokeWidth="1.6" /><circle cx="50" cy="50" r="47" fill="none" stroke={couleur} strokeWidth="2.2" strokeLinecap="round" strokeDasharray="60 236" /></svg>
+          <span className="relative grid h-24 w-24 place-items-center rounded-[28px] text-[40px] font-black text-white shadow-[0_20px_40px_-18px_rgba(0,0,0,.5)] transition-colors duration-1000" style={{ background: `linear-gradient(140deg, ${couleur}, ${couleur}cc)`, ...HF }}>
+            {(nom ?? c.nom ?? "?").trim().charAt(0).toUpperCase()}
+          </span>
+        </div>
+        <p className="mt-12 text-[13px] font-bold uppercase tracking-[.16em] text-accent-dark">Bingoo! construit</p>
+        <h1 className="mt-2 text-[38px] sm:text-[54px] font-black leading-[1.02]" style={HF}>{nom ? <span key={nom} className="rise inline-block">{nom}</span> : <>Ta version de {c.nom}</>}</h1>
+        <p className="mx-auto mt-3 max-w-xl text-[16.5px] leading-relaxed text-ink-soft">{projet?.pitch ?? `Bingoo! lit ${c.nom} et conçoit ta version : ton nom, tes écrans, ton design.`}</p>
 
-          {erreur ? (
-            <div className="mt-8 rounded-2xl border border-white/15 bg-white/5 p-4">
-              <p className="font-semibold">Petit contretemps : {erreur}</p>
-              <p className="mt-1 text-[13.5px] text-white/60">Rien n'est perdu : relance, Bingoo! reprend là où il s'est arrêté.</p>
-              <button onClick={() => { setErreur(null); setEssai((e) => e + 1); }} className="mt-3 rounded-xl bg-white px-5 py-2.5 text-[14px] font-bold text-ink">Relancer</button>
-            </div>
-          ) : fini ? (
-            <div className="mt-8 flex flex-wrap gap-3">
-              <a href={lienApp(app.slug, app.domaine_statut === "ok" ? app.domaine : null)} target="_blank" rel="noreferrer" className="fx-brille rounded-xl bg-accent px-6 py-3.5 text-[15.5px] font-bold hover:bg-accent-dark">Ouvrir mon SaaS ↗</a>
-              <button onClick={entrer} className="rounded-xl bg-white px-6 py-3.5 text-[15.5px] font-bold text-ink hover:bg-white/90">Entrer dans Bingoo!</button>
-            </div>
-          ) : (
-            <p key={mot} className="mt-10 max-w-md text-[17px] italic leading-snug text-white/80 rise">« {MOTS[mot]} »</p>
-          )}
-          {!fini && !erreur && <p className="mt-6 text-[12.5px] text-white/45">Compte quelques minutes. Tu peux fermer cette page : la construction continue et ton SaaS t'attendra.</p>}
+        <div className="mt-9">
+          <div className="h-1.5 overflow-hidden rounded-full bg-[#ECEAE4]"><div className="h-full rounded-full transition-all duration-[1500ms] ease-out" style={{ width: `${pct}%`, background: `linear-gradient(90deg, #F6A06B, ${couleur === "#E8571C" ? "#E8571C" : couleur})` }} /></div>
+          <div className="mt-3 grid grid-cols-5 text-[12.5px]">
+            {ETAPES.map((t, i) => <span key={t} className={cx("transition-colors", i < etape ? "text-ink" : i === etape ? "font-bold text-ink" : "text-ink-faint")}>{i < etape ? "✓ " : ""}{t}</span>)}
+          </div>
         </div>
 
-        <Maquette nom={nom} couleur={couleur} ecrans={ecrans} ecrits={fini ? ecrans.length : ecrits} fini={fini} etape={etape} />
+        <div className="mt-8 overflow-hidden rounded-2xl border border-line bg-white text-left shadow-[0_30px_70px_-45px_rgba(21,23,42,.45)]">
+          <div className="flex items-center gap-2 border-b border-line px-4 py-3">
+            <span className="h-2 w-2 rounded-full bg-[#EF4444] pulse-dot" />
+            <span className="text-[13px] font-semibold">En direct</span>
+            <span className="ml-auto text-[12.5px] tnum text-ink-faint">{Math.round(pct)} %</span>
+          </div>
+          <ul ref={fil} className="max-h-[260px] space-y-0.5 overflow-y-auto px-2 py-2">
+            {journal.map((l) => (
+              <li key={l.k} className="rise flex items-center gap-3 rounded-lg px-2.5 py-2 text-[14.5px]">
+                {l.ok ? <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-good/15 text-good"><svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5 9-10" /></svg></span>
+                  : <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-line border-t-[#E8571C]" />}
+                <span className={cx("min-w-0 truncate", l.ok ? "text-ink" : "text-ink-soft")}>{l.t}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {erreur ? (
+          <div className="mt-6 rounded-2xl border border-line bg-white p-5">
+            <p className="font-semibold">Petit contretemps : {erreur}</p>
+            <p className="mt-1 text-[13.5px] text-ink-soft">Rien n'est perdu : relance, Bingoo! reprend là où il s'est arrêté.</p>
+            <button onClick={() => { setErreur(null); setEssai((e) => e + 1); }} className="mt-3 rounded-xl bg-ink px-5 py-2.5 text-[14px] font-bold text-white">Relancer</button>
+          </div>
+        ) : (
+          <p key={mot} className="rise mx-auto mt-8 max-w-md text-[16px] leading-snug text-ink-soft">{MOTS[mot]}</p>
+        )}
       </div>
     </div>
   );
 }
 
-// L'application qui s'assemble : la fenêtre, puis chaque écran qui apparaît dans le menu au fil de l'écriture
-function Maquette({ nom, couleur, ecrans, ecrits, fini, etape }) {
-  const [sel, setSel] = useState(0);
-  useEffect(() => { if (ecrits > 0) setSel(Math.max(0, ecrits - 1)); }, [ecrits]);
-  useEffect(() => { if (!fini || !ecrans.length) return; const t = setInterval(() => setSel((s) => (s + 1) % ecrans.length), 1800); return () => clearInterval(t); }, [fini, ecrans.length]);
-  const pret = (i) => i < ecrits;
-  const barres = [62, 38, 80, 52, 70, 44, 90, 58];
+// ---------------------------------------------------------------- En ligne : le vrai SaaS, ouvert dans une fenêtre, et la suite
+function EnLigne({ app, nom, couleur, ecrans, projet, c, nav }) {
+  const lien = lienApp(app.slug, app.domaine_statut === "ok" ? app.domaine : null);
+  const [copie, setCopie] = useState(false);
+  const entrer = (vers) => { ecrire(CLE_CHANTIER, null); nav(vers ?? `/explorer/lancer?d=${encodeURIComponent(c.domaine)}`); };
+  const affiche = lien.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const confettis = Array.from({ length: 36 }, (_, i) => i);
   return (
-    <div className="relative">
-      <div className="absolute -inset-6 rounded-[40px] opacity-60 blur-3xl" style={{ background: `radial-gradient(closest-side, ${couleur}66, transparent)` }} aria-hidden />
-      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white text-ink shadow-[0_50px_120px_-40px_rgba(0,0,0,.8)] transition-transform duration-700" style={{ transform: etape >= 1 ? "none" : "perspective(1200px) rotateX(8deg) scale(.96)" }}>
-        <div className="flex items-center gap-2 border-b border-line bg-[#F6F5F2] px-4 py-2.5">
-          <span className="h-3 w-3 rounded-full bg-[#FF5F57]" /><span className="h-3 w-3 rounded-full bg-[#FEBC2E]" /><span className="h-3 w-3 rounded-full bg-[#28C840]" />
-          <span className="ml-3 flex-1 truncate rounded-md bg-white px-3 py-1 text-[12px] text-ink-faint">{nom ? `${String(nom).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "")}.app` : "…"}</span>
-        </div>
-        <div className="grid min-h-[420px] grid-cols-[150px_1fr]">
-          <div className="p-3 text-white transition-colors duration-700" style={{ background: etape >= 1 ? couleur : "#CBD5E1" }}>
-            <p className="mb-4 truncate px-1 text-[14px] font-black">{nom ?? <span className="inline-block h-3 w-20 rounded bg-white/40" />}</p>
-            {(ecrans.length ? ecrans : Array.from({ length: 5 }, (_, i) => ({ id: i }))).slice(0, 8).map((e, i) => (
-              <div key={e.id} className={cx("mb-1 truncate rounded-lg px-2 py-1.5 text-[12.5px] transition-all duration-500", pret(i) ? "opacity-100" : "opacity-30", sel === i && pret(i) ? "bg-white/25 font-semibold" : "")}>
-                {e.titre && pret(i) ? e.titre : <span className="inline-block h-2.5 w-20 rounded bg-white/40 align-middle" />}
-              </div>
-            ))}
+    <div className="relative min-h-screen overflow-hidden bg-[#FAF9F6]">
+      <div className="pointer-events-none absolute inset-0" aria-hidden style={{ WebkitMaskImage: "radial-gradient(ellipse at 50% 10%, #000 25%, transparent 70%)", maskImage: "radial-gradient(ellipse at 50% 10%, #000 25%, transparent 70%)" }}>
+        <div className="fx-grille" />
+        <span className="fx-aurore h-[420px] w-[420px] left-[14%] -top-20" style={{ background: couleur, opacity: .3 }} />
+        <span className="fx-aurore h-[360px] w-[360px] right-[14%] top-10 bg-[#F6A06B]" style={{ animationDelay: "-5s", opacity: .3 }} />
+      </div>
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-0" aria-hidden>
+        {confettis.map((i) => <span key={i} className="confetti" style={{ left: `${(i * 97) % 100}%`, background: [couleur, "#F6A06B", "#9B6BFF", "#22C55E", "#FACC15"][i % 5], animationDelay: `${(i % 9) * 0.12}s`, animationDuration: `${2.4 + (i % 5) * 0.35}s`, transform: `rotate(${i * 37}deg)` }} />)}
+      </div>
+      <div className="relative z-[1] px-5 pt-5 sm:px-8"><Logo /></div>
+
+      <div className="relative z-[1] mx-auto max-w-5xl px-5 pb-20 pt-8 sm:pt-10">
+        <div className="text-center">
+          <span className="mx-auto grid h-16 w-16 place-items-center rounded-[20px] text-[28px] font-black text-white shadow-[0_18px_36px_-16px_rgba(0,0,0,.5)] pop" style={{ background: `linear-gradient(140deg, ${couleur}, ${couleur}cc)`, ...HF }}>{(nom ?? "?").charAt(0).toUpperCase()}</span>
+          <p className="mt-5 inline-flex items-center gap-2 rounded-full bg-good/10 px-3 py-1 text-[13px] font-bold text-good"><span className="h-2 w-2 rounded-full bg-good pulse-dot" />En ligne</p>
+          <h1 className="mt-3 text-[40px] sm:text-[60px] font-black leading-[1] hero-in" style={HF}>{nom} est en ligne.</h1>
+          <p className="mx-auto mt-3 max-w-xl text-[16.5px] text-ink-soft">{projet?.pitch ?? "Ton site, les comptes de tes clients et chaque écran sont prêts."}</p>
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+            <a href={lien} target="_blank" rel="noreferrer" className="fx-brille rounded-2xl bg-accent px-7 py-4 text-[16px] font-bold text-white hover:bg-accent-dark">Ouvrir {nom} ↗</a>
+            <button onClick={() => entrer()} className="rounded-2xl bg-ink px-7 py-4 text-[16px] font-bold text-white hover:bg-ink/85">Entrer dans Bingoo!</button>
           </div>
-          <div className="p-5">
-            <p className="text-[18px] font-black">{pret(sel) && ecrans[sel]?.titre ? ecrans[sel].titre : <span className="inline-block h-4 w-40 animate-pulse rounded bg-[#E2E8F0]" />}</p>
-            <div className="mt-4 grid grid-cols-3 gap-2.5">
-              {[0, 1, 2].map((k) => (
-                <div key={k} className="rounded-xl bg-[#F8FAFC] p-3">
-                  <span className="block h-2 w-12 rounded bg-[#CBD5E1]" />
-                  <span className={cx("mt-2.5 block h-4 rounded transition-all duration-700", ecrits > 0 ? "" : "animate-pulse")} style={{ width: ecrits > 0 ? `${50 + k * 12}%` : "40%", background: k === 0 && ecrits > 0 ? couleur : "#0F172A22" }} />
-                </div>
-              ))}
+          <button onClick={() => navigator.clipboard?.writeText(lien).then(() => { setCopie(true); setTimeout(() => setCopie(false), 1800); })}
+            className="mt-4 inline-flex max-w-full items-center gap-2 rounded-full border border-line bg-white px-4 py-2 text-[13.5px] text-ink-soft hover:border-ink-faint">
+            <span className="truncate">{affiche}</span><b className="text-ink">{copie ? "Copié" : "Copier"}</b>
+          </button>
+        </div>
+
+        <div className="relative mt-12">
+          <div className="absolute -inset-x-10 -inset-y-6 rounded-[48px] opacity-40 blur-3xl" style={{ background: `radial-gradient(closest-side, ${couleur}, transparent)` }} aria-hidden />
+          <div className="relative overflow-hidden rounded-2xl border border-line bg-white shadow-[0_60px_120px_-50px_rgba(21,23,42,.55)]">
+            <div className="flex items-center gap-2 border-b border-line bg-[#F6F5F2] px-4 py-2.5">
+              <span className="h-3 w-3 rounded-full bg-[#FF5F57]" /><span className="h-3 w-3 rounded-full bg-[#FEBC2E]" /><span className="h-3 w-3 rounded-full bg-[#28C840]" />
+              <span className="mx-auto max-w-[60%] truncate rounded-md bg-white px-4 py-1 text-[12.5px] text-ink-soft">{affiche}</span>
             </div>
-            <div className="mt-5 flex h-[110px] items-end gap-2">
-              {barres.map((h, k) => <span key={`${sel}-${k}`} className="flex-1 rounded-t-md transition-all duration-700" style={{ height: ecrits > 0 ? `${h}%` : "12%", transitionDelay: `${k * 60}ms`, background: k === barres.length - 1 ? couleur : `${couleur}40` }} />)}
+            <div className="relative aspect-[16/10] w-full">
+              <iframe title={`Aperçu de ${nom}`} src={lien} className="absolute left-0 top-0 h-[200%] w-[200%] origin-top-left scale-50 border-0" />
             </div>
-            <div className="mt-5 space-y-2">
-              {[0, 1, 2].map((k) => (
-                <div key={k} className="flex items-center gap-3 rounded-lg bg-[#F8FAFC] px-3 py-2.5">
-                  <span className="h-2.5 rounded bg-[#CBD5E1]" style={{ width: `${30 + k * 8}%` }} />
-                  <span className="ml-auto h-4 w-14 rounded-full transition-colors duration-700" style={{ background: ecrits > k ? ["#22C55E", couleur, "#F59E0B"][k] : "#E2E8F0" }} />
-                </div>
-              ))}
-            </div>
+          </div>
+          <p className="mt-3 text-center text-[13px] text-ink-faint">{ecrans.length} écrans · comptes clients · paiements · e-mails. Clique dedans : c'est ton vrai SaaS.</p>
+        </div>
+
+        <div className="mt-14">
+          <p className="text-center text-[13px] font-bold uppercase tracking-[.14em] text-ink-faint">La suite, dans Bingoo!</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {[["Encaisse tes premiers clients", "Branche ton compte Stripe : l'argent arrive directement chez toi.", "encaisser"], ["Mets ton nom de domaine", "monsaas.fr au lieu d'une adresse Bingoo!, en quelques clics.", "domaine"], ["Crée ta vidéo pub", "20 secondes animées à tes couleurs, prêtes pour TikTok et Reels.", "video"]].map(([t, d]) => (
+              <button key={t} onClick={() => entrer()} className="fx-spot rounded-2xl border border-line bg-white p-5 text-left transition hover:-translate-y-1 hover:shadow-[0_24px_50px_-30px_rgba(21,23,42,.45)]">
+                <p className="font-bold text-[15.5px]">{t}</p>
+                <p className="mt-1.5 text-[13.5px] leading-snug text-ink-soft">{d}</p>
+                <p className="mt-3 text-[13.5px] font-semibold text-accent-dark">Y aller →</p>
+              </button>
+            ))}
           </div>
         </div>
       </div>
-      {fini && <p className="relative mt-4 text-center text-[13px] text-white/55">{ecrans.length} écrans · comptes clients · paiements · e-mails</p>}
     </div>
   );
 }
