@@ -106,16 +106,17 @@ function Onglets({ actif, trouver }) {
   const [guide, setGuide] = useState(guideActif);
   const [etape, setEtape] = useState(1);
   useEffect(() => { const f = (e) => setEtape(e.detail); window.addEventListener("bingoo-etape", f); return () => window.removeEventListener("bingoo-etape", f); }, []);
-  const { session: sess } = useWs();
+  const { session: sess, ws: wsO } = useWs();
   const invite = estInvite(sess);
-  if ((guide || invite) && trouver) return (
+  const avantPaiement = invite || !estPaye(wsO);
+  if ((guide || avantPaiement) && trouver) return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-5">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-line bg-white px-4 py-3">
         <span className="font-bold text-[14px]">Ton premier SaaS en 3 étapes</span>
         <ol className="flex flex-wrap gap-x-4 gap-y-1 text-[13.5px] text-ink-soft">
-          {["Réponds à quelques questions", "Choisis parmi tes 3 SaaS", "Bingoo! le construit pour toi"].map((l, k) => <li key={l} className={cx(k + 1 === etape && "font-semibold text-ink", k + 1 < etape && "line-through")}>{k + 1}. {l}</li>)}
+          {["Réponds aux questions", "Choisis ton SaaS à succès", "Bingoo! construit ta version"].map((l, k) => <li key={l} className={cx(k + 1 === etape && "font-semibold text-ink", k + 1 < etape && "line-through")}>{k + 1}. {l}</li>)}
         </ol>
-        <button onClick={() => invite ? demanderCompte("Crée ton compte pour explorer toute la bibliothèque de SaaS.") : (finirGuide(), setGuide(false), nav("/explorer"))} className="ml-auto text-[13.5px] font-semibold text-accent-dark hover:underline">{invite ? "Créer mon compte" : "Voir tout Bingoo!"}</button>
+        {!avantPaiement && <button onClick={() => (finirGuide(), setGuide(false), nav("/explorer"))} className="ml-auto text-[13.5px] font-semibold text-accent-dark hover:underline">Voir tout Bingoo!</button>}
       </div>
     </div>
   );
