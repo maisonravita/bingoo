@@ -156,7 +156,7 @@ export async function quota(workspaceId: string, kind: string, max: number, want
 const WRITE_MODEL = () => env("ANTHROPIC_MODEL", "claude-sonnet-5-5");
 const FAST_MODEL = () => env("ANTHROPIC_FAST_MODEL", "claude-haiku-5-5");
 type Block = { type: string; text?: string };
-export type AskOpts = { fast?: boolean; maxTokens?: number; system?: string; tools?: unknown[] };
+export type AskOpts = { fast?: boolean; maxTokens?: number; system?: string; tools?: unknown[]; sources?: string[] };
 
 // ---------------------------------------------------------------- Coût IA : mesure, budgets, garde-fous
 // Prix en dollars par million de jetons (entrée, sortie), modifiables via le secret AI_PRICES (JSON). Recherche web : par requête.
@@ -337,8 +337,15 @@ export async function ask(prompt: string, opts: AskOpts = {}): Promise<string> {
   const text = (d: { content?: Block[] }) => (d.content ?? []).filter((b) => b.type === "text").map((b) => b.text ?? "").join("").trim();
   // Pas de réflexion étendue : elle consomme le budget de sortie et peut couper la réponse
   base.thinking = { type: "disabled" };
+  // Les adresses réellement renvoyées par la recherche web (pour écarter un lien qui n'en vient pas)
+  // deno-lint-ignore no-explicit-any
+  const garder = (d: any) => { if (!opts.sources) return; for (const b of d?.content ?? []) {
+    if (b.type === "web_search_tool_result" && Array.isArray(b.content)) for (const x of b.content) if (x?.url) opts.sources.push(String(x.url));
+    for (const c of b.citations ?? []) if (c?.url) opts.sources.push(String(c.url));
+  } };
   const run = async () => {
     let r = await call(base, key);
+    if (r.ok) garder(r.data);
     if (!r.ok && r.status === 400 && /thinking/i.test(r.data?.error?.message ?? "")) {
       delete base.thinking;
       r = await call(base, key);
@@ -346,6 +353,7 @@ export async function ask(prompt: string, opts: AskOpts = {}): Promise<string> {
     for (let i = 0; i < 3 && r.ok && r.data?.stop_reason === "pause_turn"; i++) {
       base.messages = [{ role: "user", content: prompt }, { role: "assistant", content: r.data.content }];
       r = await call(base, key);
+      if (r.ok) garder(r.data);
     }
     return r;
   };
