@@ -95,7 +95,7 @@ JSON : { "comptes": [{ "nom": "", "url": "", "abonnes": "texte ou null", "pourqu
       { fast: true, maxTokens: 3000, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }], sources }).catch((e) => { erreurs.push(String(e?.message ?? e)); return { comptes: [], videos: [] }; }),
     askJson<any>(`Tu es un expert des vidéos TikTok qui font connaître des logiciels SaaS sans budget publicitaire. Son SaaS : ${qui}
 Propose 6 formats de vidéos courtes adaptés à CE SaaS et à SES clients (pas des conseils génériques), du plus facile au plus ambitieux. Pour chacun :
-- format : le nom du format (ex. « Avant / après », « POV », « 3 erreurs que… », « Je teste pendant 7 jours », « Démo en 15 secondes », « Histoire d'un client »)
+- format : le nom du format en 4 mots au plus (ex. « Avant / après », « POV », « 3 erreurs que… », « Je teste pendant 7 jours », « Démo en 15 secondes », « Histoire d'un client »)
 - accroche : la phrase exacte affichée à l'écran les 2 premières secondes, 70 caractères maximum, en français, tutoiement, qui arrête le pouce
 - deroule : 3 étapes courtes de la vidéo (tableau de 3 phrases)
 - pourquoi : pourquoi ce format marche pour ce public, 1 phrase
@@ -107,7 +107,7 @@ JSON : { "formats": [ ... ], "conseils": ["3 conseils concrets de publication po
   const data = {
     comptes: (Array.isArray(trouve?.comptes) ? trouve.comptes : []).map((c: any) => ({ nom: court(c.nom, 60), url: lienTikTok(c.url), abonnes: c.abonnes ? court(c.abonnes, 30) : null, pourquoi: court(c.pourquoi, 200) })).filter((c: any) => c.url).slice(0, 8),
     videos: (Array.isArray(trouve?.videos) ? trouve.videos : []).map((v: any) => ({ titre: court(v.titre, 120), url: lienTikTok(v.url), vues: v.vues ? court(v.vues, 30) : null, pourquoi: court(v.pourquoi, 200) })).filter((v: any) => v.url).slice(0, 8),
-    formats: (Array.isArray(formats?.formats) ? formats.formats : []).slice(0, 6).map((f: any) => ({ format: court(f.format, 50), accroche: court(f.accroche, 90), deroule: (Array.isArray(f.deroule) ? f.deroule : []).slice(0, 3).map((x: unknown) => court(x, 160)), pourquoi: court(f.pourquoi, 200), duree: Math.max(7, Math.min(90, Number(f.duree) || 20)) })).filter((f: any) => f.accroche),
+    formats: (Array.isArray(formats?.formats) ? formats.formats : []).slice(0, 6).map((f: any) => ({ format: court(f.format, 40), accroche: court(f.accroche, 90), deroule: (Array.isArray(f.deroule) ? f.deroule : []).slice(0, 3).map((x: unknown) => court(x, 160)), pourquoi: court(f.pourquoi, 200), duree: Math.max(7, Math.min(90, Number(f.duree) || 20)) })).filter((f: any) => f.accroche),
     conseils: (Array.isArray(formats?.conseils) ? formats.conseils : []).slice(0, 3).map((x: unknown) => court(x, 200)),
   };
   // Seuls les liens réellement trouvés par la recherche web sont gardés (identifiant de vidéo ou nom de compte présent dans les sources)

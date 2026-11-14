@@ -498,7 +498,7 @@ function TikTok({ m }) {
         </div>
       </Carte>
 
-      <Carte className="mt-4" titre="Tes idées de vidéos TikTok" sous={`Des formats pensés pour ${m.nom} et ses clients. Choisis-en un, filme-le avec ton téléphone, ou transforme-le en vidéo animée.`}
+      <Carte className="mt-4" titre="Tes idées de vidéos TikTok" sous={`Des vidéos à créer pour ${m.nom} : elles n'existent pas encore, la vignette montre ce que tu filmes. Choisis-en une, filme-la avec ton téléphone, ou transforme-la en vidéo animée.`}
         actions={t ? <Bouton disabled={busy} onClick={() => lancer(true)}>{busy ? "Recherche…" : "Actualiser"}</Bouton> : null}>
         {t === undefined ? <div className="py-10 grid place-items-center"><Spinner /></div> : !t ? (
           <div className="rounded-xl bg-[#F7F7F7] p-6 text-center">
@@ -519,10 +519,11 @@ function TikTok({ m }) {
               <div key={i} className="flex gap-3 rounded-xl border border-[#EBEBEB] p-3">
                 <div className="relative flex h-[148px] w-[84px] shrink-0 items-end overflow-hidden rounded-lg p-1.5" style={{ background: `linear-gradient(160deg, ${m.couleur}, #111)` }}>
                   <p className="text-[9.5px] font-bold leading-tight text-white [text-shadow:0_1px_2px_rgba(0,0,0,.6)]">{f.accroche}</p>
+                  <span className="absolute left-1.5 top-1.5 rounded bg-white/90 px-1 text-[9px] font-bold uppercase tracking-wide text-[#1A1A1A]">À filmer</span>
                   <span className="absolute right-1.5 top-1.5 rounded bg-black/50 px-1 text-[9px] font-semibold text-white">{f.duree} s</span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="rounded-md bg-[#F1F1F1] px-1.5 py-0.5 text-[11.5px] font-semibold">{f.format}</span>
+                  <span className="inline-block max-w-full truncate rounded-md bg-[#F1F1F1] px-1.5 py-0.5 align-top text-[11.5px] font-semibold" title={f.format}>{f.format}</span>
                   <p className="mt-1.5 text-[13.5px] font-semibold leading-snug">« {f.accroche} »</p>
                   <ol className="mt-1.5 space-y-0.5 text-[12.5px] text-[#616161]">{(f.deroule ?? []).map((x, k) => <li key={k}>{k + 1}. {x}</li>)}</ol>
                   <p className="mt-1.5 text-[12px] italic text-[#8A8A8A]">{f.pourquoi}</p>
