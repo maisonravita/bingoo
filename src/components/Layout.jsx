@@ -239,21 +239,33 @@ function AppShell({ ws, list, select, invite, isAdmin, essentiel, c, bandeau, ex
     const k = (e) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); recherche.current?.focus(); } };
     window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k);
   }, []);
-  const outils = invite ? [] : [
-    { to: "/explorer/createurs", label: "Vidéo pub", icon: "video", hash: "video" },
-    { to: "/abonnement#credits", label: "Crédits", icon: "coins" },
-    { to: "/abonnement", label: "Abonnement", icon: "card" },
-    ...(["business", "fondateur"].includes(ws.plan) ? [{ to: "/equipe", label: "Équipe", icon: "users" }] : []),
-    ...(isAdmin ? [{ to: "/admin", label: "Administration", icon: "chart" }] : []),
+  // Les rubriques : son SaaS d'abord, puis découvrir, puis le compte
+  const sections = invite ? [{ items: essentiel }] : [
+    { titre: "Mon SaaS", items: [
+      { to: "/explorer/mon-saas", label: "Accueil", icon: "today" },
+      { to: "/explorer/atelier", label: "Atelier", icon: "chat" },
+      { to: "/explorer/clients", label: "Premiers clients", icon: "users" },
+      { to: "/explorer/video", label: "Vidéo pub", icon: "video" },
+      { to: "/explorer/reglages-saas", label: "Réglages du SaaS", icon: "cog" },
+      { to: "/explorer/dossier", label: "Mon dossier", icon: "doc", also: ["/explorer/lancer"] },
+    ] },
+    { titre: "Découvrir", items: essentiel.filter((n) => n.to !== "/explorer/createurs") },
+    { titre: "Compte", items: [
+      { to: "/abonnement#credits", label: "Crédits", icon: "coins" },
+      { to: "/abonnement", label: "Abonnement", icon: "card" },
+      ...(["business", "fondateur"].includes(ws.plan) ? [{ to: "/equipe", label: "Équipe", icon: "users" }] : []),
+      ...(isAdmin ? [{ to: "/admin", label: "Administration", icon: "chart" }] : []),
+    ] },
   ];
+  const tous = sections.flatMap((x) => x.items);
   const actif = (n) => !n.hash && (loc.pathname === n.to.split("#")[0] && (!n.to.includes("#") ? !loc.hash.includes("credits") || n.to !== "/abonnement" : loc.hash.includes("credits")) || (n.also ?? []).includes(loc.pathname));
-  const courant = [...essentiel, ...outils].find(actif) ?? essentiel.find((n) => loc.pathname.startsWith(n.to + "/"));
+  const courant = tous.find(actif) ?? tous.find((n) => loc.pathname.startsWith(n.to + "/"));
   const fil = loc.pathname.startsWith("/explorer/") && !courant ? ["Explorer les SaaS", decodeURIComponent(loc.pathname.split("/")[2] ?? "")]
     : ["Bingoo!", courant?.label ?? ({ "/reglages": "Paramètres", "/aide": "Aide", "/legal": "Conditions" })[loc.pathname] ?? ""];
   const pct = credits?.total ? Math.round((credits.solde / credits.total) * 100) : null;
   const lien = (n) => (
     <NavLink key={n.label} to={n.to} end title={replie ? n.label : undefined}
-      className={cx("group flex items-center gap-3 rounded-xl px-3 py-2 text-[14.5px] font-medium transition", replie && "justify-center px-0", actif(n) ? "bg-[#EDEBE6] text-ink font-semibold" : "text-ink-soft hover:bg-[#F1EFEA] hover:text-ink")}>
+      className={cx("group flex items-center gap-3 rounded-xl px-3 py-[7px] text-[14.5px] font-medium transition", replie && "justify-center px-0", actif(n) ? "bg-[#EDEBE6] text-ink font-semibold" : "text-ink-soft hover:bg-[#F1EFEA] hover:text-ink")}>
       <Icon name={n.icon} className="w-[19px] h-[19px]" />{!replie && <span className="flex-1 truncate">{n.label}</span>}
     </NavLink>
   );
@@ -261,15 +273,17 @@ function AppShell({ ws, list, select, invite, isAdmin, essentiel, c, bandeau, ex
     <div className="min-h-full md:flex">
       {extra}
       <aside className={cx("hidden md:flex sticky top-0 h-screen shrink-0 flex-col border-r border-line bg-[#FAF9F6] transition-[width] duration-200", replie ? "w-[76px] px-2.5" : "w-[264px] px-4")}>
-        <div className={cx("flex h-16 items-center", replie ? "justify-center" : "px-1.5")}>
+        <div className={cx("flex h-14 shrink-0 items-center", replie ? "justify-center" : "px-1.5")}>
           {replie ? <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#E8571C] text-[17px] font-black text-white">B</span> : <span className="flex items-center"><Logo height={30} /></span>}
         </div>
-        <nav aria-label="Navigation principale" className="mt-2 flex flex-col gap-0.5">{essentiel.map(lien)}</nav>
-        {outils.length > 0 && <>
-          {!replie ? <p className="mt-6 mb-1.5 px-3 text-[13px] font-medium text-ink-faint">Outils</p> : <div className="my-4 mx-3 border-t border-line" />}
-          <div className="flex flex-col gap-0.5">{outils.map(lien)}</div>
-        </>}
-        <div className="flex-1" />
+        <nav aria-label="Navigation principale" className="-mx-1 mt-1 flex-1 overflow-y-auto px-1">
+          {sections.map((sec, i) => (
+            <div key={sec.titre ?? i} className={cx(i > 0 && "mt-4")}>
+              {sec.titre && (!replie ? <p className="mb-1.5 px-3 text-[12.5px] font-medium text-ink-faint">{sec.titre}</p> : i > 0 && <div className="mx-3 mb-3 border-t border-line" />)}
+              <div className="flex flex-col gap-0.5">{sec.items.map(lien)}</div>
+            </div>
+          ))}
+        </nav>
         {invite && !replie && (
           <div className="mb-3 rounded-2xl border border-line bg-white p-3.5">
             <p className="text-[13.5px] font-semibold">Garde tes résultats</p>
@@ -278,13 +292,12 @@ function AppShell({ ws, list, select, invite, isAdmin, essentiel, c, bandeau, ex
           </div>
         )}
         {!invite && !replie && (
-          <NavLink to="/abonnement#credits" className="mb-3 block rounded-2xl border border-line bg-white p-3.5 hover:border-ink-faint/60">
+          <NavLink to="/abonnement#credits" className="mb-2 mt-3 block rounded-xl border border-line bg-white px-3 py-2.5 hover:border-ink-faint/60">
             <div className="flex items-center justify-between text-[13px]"><span className="font-semibold">Tes crédits</span><span className="tnum text-ink-soft">{credits ? credits.solde : "…"}</span></div>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-paper"><div className="h-full rounded-full bg-[#E8571C] transition-all duration-700" style={{ width: `${pct ?? 0}%` }} /></div>
-            <p className="mt-2 text-[12.5px] text-ink-soft">Vidéo pub, modifications, autre SaaS</p>
+            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-paper"><div className="h-full rounded-full bg-[#E8571C] transition-all duration-700" style={{ width: `${pct ?? 0}%` }} /></div>
           </NavLink>
         )}
-        <div className={cx("mb-4 flex flex-col gap-0.5 border-t border-line pt-3", replie && "items-center")}>
+        <div className={cx("mb-3 flex flex-col gap-0.5 border-t border-line pt-2", replie && "items-center")}>
           {lien({ to: "/aide", label: "Aide", icon: "help" })}
         </div>
       </aside>
@@ -459,7 +472,7 @@ export default function Layout({ children }) {
   const basMobile = (
     <nav aria-label="Navigation mobile" hidden={invite} className="md:hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
       <div className="grid grid-cols-4">
-        {[["/explorer/trouver", "Trouver", "target"], ["/explorer/copier", "À lancer", "target"], ["/explorer/createurs", "Mes SaaS", "bot"], ["/explorer", "Explorer", "list"]].map(([to, l, ic]) => (
+        {[["/explorer/mon-saas", "Mon SaaS", "today"], ["/explorer/atelier", "Atelier", "spark"], ["/explorer/clients", "Clients", "users"], ["/explorer", "Explorer", "list"]].map(([to, l, ic]) => (
           <NavLink key={to} to={to} end={to === "/explorer"} className={({ isActive }) => cx("relative flex flex-col items-center gap-0.5 py-2.5 text-[11.5px] font-semibold", isActive ? "text-[#E8571C]" : "text-ink-soft")}><Icon name={ic} />{l}</NavLink>
         ))}
       </div>
@@ -468,7 +481,7 @@ export default function Layout({ children }) {
   // Avant le paiement : le parcours seul (questions, SaaS floutés, paiement), sans le menu de l'application.
   // Après le paiement : la révélation et la construction en plein écran, puis l'interface complète.
   const paye = ws.plan === "fondateur" || (["explorer", "explorer_pro", "business", "solo", "pro"].includes(ws.plan) && ["active", "trialing", "past_due"].includes(ws.plan_status));
-  if ((veille || invite) && loc.pathname.startsWith("/explorer/revelation")) return <>{extra}{children}{fb && <Feedback onClose={() => setFb(false)} />}</>;
+  if ((veille || invite) && (loc.pathname.startsWith("/explorer/revelation") || loc.pathname.startsWith("/explorer/atelier"))) return <>{extra}{children}{fb && <Feedback onClose={() => setFb(false)} />}</>;
   if ((veille || invite) && (!paye || invite)) return (
     <div className="min-h-full">
       {extra}

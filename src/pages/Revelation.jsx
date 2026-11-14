@@ -54,7 +54,7 @@ export default function Revelation({ paramsDe }) {
 
   const construire = (s) => {
     const c = { domaine: s.domaine, nom: s.nom, categorie: s.categorie };
-    ecrire(CLE_CHANTIER, c); localStorage.removeItem(CLE_CHOIX);
+    ecrire(CLE_CHANTIER, c); ecrire("bingoo-mon-saas-modele", s); localStorage.removeItem(CLE_CHOIX);
     setPhase("construction");
   };
 
@@ -157,11 +157,13 @@ const Coche = ({ ok }) => ok
   ? <span className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full bg-good/15 text-good"><svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5 9-10" /></svg></span>
   : <span className="h-[18px] w-[18px] shrink-0 animate-spin rounded-full border-2 border-line border-t-[#E8571C]" />;
 
-function Chantier({ ws, nav }) {
-  const c = lire(CLE_CHANTIER) ?? {};
-  const [etape, setEtape] = useState(0);
+export function Chantier({ ws, nav, init, atelier = false }) {
+  const c = init ?? lire(CLE_CHANTIER) ?? {};
+  // Atelier : le SaaS existe déjà, on l'ouvre directement (jamais de nouvelle construction)
+  const pretDeja = atelier && c.app?.statut === "pret" && c.app?.spec?.ecrans?.length > 0;
+  const [etape, setEtape] = useState(pretDeja ? 5 : 0);
   const [projet, setProjet] = useState(c.projet ?? null);
-  const [app, setApp] = useState(null);
+  const [app, setApp] = useState(pretDeja ? c.app : null);
   const [erreur, setErreur] = useState(null);
   const [tic, setTic] = useState(0);
   const [essai, setEssai] = useState(0);
@@ -178,9 +180,11 @@ function Chantier({ ws, nav }) {
   useEffect(() => {
     if (lance.current) return; lance.current = true;
     let vivant = true;
+    if (pretDeja) return () => { vivant = false; lance.current = false; };
     (async () => {
       try {
         let p = projet;
+        if (atelier && !p?.id) throw new Error("Ton SaaS est introuvable.");
         if (!p?.id) {
           const { data: deja } = await supabase.from("saas_projets").select("id, data, statut").eq("workspace_id", ws.id).eq("data->inspire->>domaine", c.domaine).eq("statut", "pret").order("at", { ascending: false }).limit(1);
           if (deja?.[0]) p = { id: deja[0].id, ...deja[0].data };
@@ -197,11 +201,11 @@ function Chantier({ ws, nav }) {
           }
           if (!vivant) return;
           const garde = { id: p.id, nom: p.nom, pitch: p.pitch, cible: p.cible };
-          setProjet(garde); ecrire(CLE_CHANTIER, { ...c, projet: garde });
+          setProjet(garde); if (!atelier) ecrire(CLE_CHANTIER, { ...c, projet: garde });
         }
         setEtape(2);
         const { data: ex } = await supabase.from("saas_apps").select("statut").eq("projet_id", p.id).maybeSingle();
-        if (!ex || ex.statut === "erreur") await fn("r/saas-construire", { workspace_id: ws.id, projet_id: p.id });
+        if (!atelier && (!ex || ex.statut === "erreur")) await fn("r/saas-construire", { workspace_id: ws.id, projet_id: p.id });
         for (let i = 0; i < 240 && vivant; i++) {
           await attendre(3000);
           const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut").eq("projet_id", p.id).maybeSingle();
@@ -273,14 +277,20 @@ function Chantier({ ws, nav }) {
         </span>
         <div className="flex-1" />
         {fini && <a href={lien} target="_blank" rel="noreferrer" className="rounded-lg border border-line px-3 py-1.5 text-[13.5px] font-semibold hover:bg-paper">Ouvrir ↗</a>}
-        <button onClick={() => { ecrire(CLE_CHANTIER, null); nav(`/explorer/lancer?d=${encodeURIComponent(c.domaine)}`); }} disabled={!fini}
-          className="rounded-lg bg-ink px-3.5 py-1.5 text-[13.5px] font-semibold text-white hover:bg-ink/85 disabled:opacity-40">Entrer dans Bingoo!</button>
+        <button onClick={() => { if (!atelier) ecrire(CLE_CHANTIER, null); nav("/explorer/mon-saas"); }} disabled={!fini && !atelier}
+          className="rounded-lg bg-ink px-3.5 py-1.5 text-[13.5px] font-semibold text-white hover:bg-ink/85 disabled:opacity-40">{atelier ? "Fermer l'atelier" : "Entrer dans Bingoo!"}</button>
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* La conversation */}
         <section className="flex min-h-0 flex-col border-line bg-white lg:w-[440px] lg:shrink-0 lg:border-r max-lg:h-[46vh] max-lg:border-b">
           <div ref={fil} className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5">
+            {atelier ? (
+              <Bingoo>
+                <p>Bienvenue dans l'atelier de <b>{nom ?? "ton SaaS"}</b>. {fini ? "Essaie-le à droite, puis dis-moi ce que tu veux changer, en une phrase." : "J'ouvre ton SaaS…"}</p>
+                {fini && <div className="mt-3 flex flex-wrap gap-1.5">{IDEES.map((x) => <button key={x} onClick={() => { setEcran(""); envoyer(x); }} disabled={occupe} className="rounded-full border border-line bg-white px-3 py-1.5 text-[12.5px] font-medium hover:border-ink-faint disabled:opacity-50">{x}</button>)}</div>}
+              </Bingoo>
+            ) : <>
             <Moi>Construis ma version de {c.nom}</Moi>
             <Bingoo>
               <p>C'est parti. {c.nom} gagne déjà de l'argent : je construis ta version, avec ton nom, tes mots et ton design.</p>
@@ -299,7 +309,8 @@ function Chantier({ ws, nav }) {
                 {projet.cible && <p className="mt-1.5 text-ink-soft">Pour : {projet.cible}</p>}
               </Bingoo>
             )}
-            {fini && (
+            </>}
+            {fini && !atelier && (
               <Bingoo>
                 <p><b>{nom} est en ligne.</b> Essaie-le à droite : crée un compte, ajoute des données, clique partout. C'est ton vrai SaaS.</p>
                 <p className="mt-1.5">Dis-moi ce que tu veux changer, en une phrase.</p>

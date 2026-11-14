@@ -91,7 +91,7 @@ function Gate() {
     <Layout>
       <ErrorBoundary resetKey={loc.pathname}>
       <Routes>
-        <Route path="/" element={modeExplorer(ws) ? <Navigate to="/explorer" replace /> : <Accueil />} />
+        <Route path="/" element={modeExplorer(ws) ? <Navigate to="/explorer/mon-saas" replace /> : <Accueil />} />
         <Route path="/liste" element={<Today />} />
         <Route path="/village" element={<Village />} />
         <Route path="/valider" element={<Review />} />
