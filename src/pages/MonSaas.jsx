@@ -523,7 +523,7 @@ function TikTok({ m }) {
                   <span className="absolute right-1.5 top-1.5 rounded bg-black/50 px-1 text-[9px] font-semibold text-white">{f.duree} s</span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="inline-block max-w-full truncate rounded-md bg-[#F1F1F1] px-1.5 py-0.5 align-top text-[11.5px] font-semibold" title={f.format}>{f.format}</span>
+                  <span className="inline-block max-w-full truncate rounded-md bg-[#F1F1F1] px-1.5 py-0.5 align-top text-[11.5px] font-semibold" title={f.format}>{f.format?.length >= 48 ? f.format.slice(0, f.format.lastIndexOf(" ")).replace(/\s+\S{1,2}$/, "") + "…" : f.format}</span>
                   <p className="mt-1.5 text-[13.5px] font-semibold leading-snug">« {f.accroche} »</p>
                   <ol className="mt-1.5 space-y-0.5 text-[12.5px] text-[#616161]">{(f.deroule ?? []).map((x, k) => <li key={k}>{k + 1}. {x}</li>)}</ol>
                   <p className="mt-1.5 text-[12px] italic text-[#8A8A8A]">{f.pourquoi}</p>
