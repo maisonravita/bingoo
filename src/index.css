@@ -163,3 +163,4 @@ body { top: 0 !important; }
 .confetti { position: absolute; top: -20px; width: 9px; height: 14px; border-radius: 2px; opacity: 0; animation-name: confetti-chute; animation-timing-function: cubic-bezier(.25,.6,.4,1); animation-fill-mode: forwards; }
 @keyframes confetti-chute { 0% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0deg); } 100% { opacity: 0; transform: translate3d(30px, 720px, 0) rotate(540deg); } }
 @media (prefers-reduced-motion: reduce) { .confetti { display: none; } }
+@keyframes barre { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }

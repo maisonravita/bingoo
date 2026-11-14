@@ -19,13 +19,6 @@ const lire = (k) => { try { return JSON.parse(localStorage.getItem(k) ?? "null")
 const ecrire = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch { /* stockage indisponible */ } };
 const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const MOTS = [
-  "Imagine ton premier client qui s'inscrit pendant que tu dors.",
-  "Imagine le jour où ton SaaS paie ton loyer.",
-  "Ceux qui réussissent ne sont pas les plus doués : ce sont ceux qui lancent.",
-  "Imagine annoncer à tes proches que tu as ton propre logiciel.",
-  "Chaque SaaS à succès a commencé par une première version. La tienne arrive.",
-];
 
 export default function Revelation({ paramsDe }) {
   const { ws, reload } = useWs();
@@ -156,9 +149,13 @@ function Vedette({ s, visible, onConstruire }) {
   );
 }
 
-// ---------------------------------------------------------------- Le chantier : Bingoo! construit le SaaS sous les yeux du créateur
-const ETAPES = ["Lecture", "Conception", "Écrans", "Vérification", "En ligne"];
-const LECTURE = (nom) => [`Lecture du site de ${nom}`, "Lecture de ses prix et de ses formules", "Repérage de ses fonctionnalités clés", "Choix d'un nom et d'un angle pour ta version"];
+// ---------------------------------------------------------------- L'atelier, comme Lovable : la conversation à gauche, le SaaS qui se construit à droite.
+// Une fois en ligne, le créateur demande ses changements dans la conversation et les voit apparaître dans l'aperçu.
+const LECTURE = (nom) => [`Je lis le site de ${nom}`, "Je lis ses prix et ses formules", "Je repère ses fonctionnalités clés", "Je choisis un nom et un angle pour ta version"];
+const IDEES = ["Ajoute une page de tarifs", "Ajoute un tableau de bord de mes ventes", "Ajoute une page d'aide pour mes clients"];
+const Coche = ({ ok }) => ok
+  ? <span className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full bg-good/15 text-good"><svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5 9-10" /></svg></span>
+  : <span className="h-[18px] w-[18px] shrink-0 animate-spin rounded-full border-2 border-line border-t-[#E8571C]" />;
 
 function Chantier({ ws, nav }) {
   const c = lire(CLE_CHANTIER) ?? {};
@@ -166,14 +163,18 @@ function Chantier({ ws, nav }) {
   const [projet, setProjet] = useState(c.projet ?? null);
   const [app, setApp] = useState(null);
   const [erreur, setErreur] = useState(null);
-  const [mot, setMot] = useState(0);
   const [tic, setTic] = useState(0);
   const [essai, setEssai] = useState(0);
+  const [echanges, setEchanges] = useState([]); // modifications demandées après la mise en ligne
+  const [demande, setDemande] = useState("");
+  const [ecran, setEcran] = useState("");
+  const [occupe, setOccupe] = useState(false);
+  const [vue, setVue] = useState("ordi");
+  const [cle, setCle] = useState(0);
   const lance = useRef(false);
+  const fil = useRef(null);
 
-  useEffect(() => { const t = setInterval(() => setMot((m) => (m + 1) % MOTS.length), 6000); return () => clearInterval(t); }, []);
-  useEffect(() => { const t = setInterval(() => setTic((x) => x + 1), 7000); return () => clearInterval(t); }, []);
-
+  useEffect(() => { const t = setInterval(() => setTic((x) => x + 1), 6500); return () => clearInterval(t); }, []);
   useEffect(() => {
     if (lance.current) return; lance.current = true;
     let vivant = true;
@@ -195,7 +196,7 @@ function Chantier({ ws, nav }) {
             if (!p) throw new Error("C'est plus long que prévu.");
           }
           if (!vivant) return;
-          const garde = { id: p.id, nom: p.nom, pitch: p.pitch, cible: p.cible, formules: (p.formules ?? []).slice(0, 3) };
+          const garde = { id: p.id, nom: p.nom, pitch: p.pitch, cible: p.cible };
           setProjet(garde); ecrire(CLE_CHANTIER, { ...c, projet: garde });
         }
         setEtape(2);
@@ -218,156 +219,182 @@ function Chantier({ ws, nav }) {
 
   const spec = app?.spec?.ecrans?.length ? app.spec : app?.brouillon;
   const ecrans = (spec?.ecrans ?? []).filter((e) => !e.public);
-  const publics = (spec?.ecrans ?? []).filter((e) => e.public);
   const ecrits = (() => { const m = /\((\d+)\/(\d+)\)/.exec(app?.etape ?? ""); return m ? Number(m[1]) : etape >= 3 ? ecrans.length : 0; })();
   const couleur = spec?.couleur ?? "#E8571C";
   const nom = projet?.nom ?? spec?.nom ?? null;
   const fini = etape >= 5;
+  const lien = app?.slug ? lienApp(app.slug, app.domaine_statut === "ok" ? app.domaine : null) : "";
   const pct = fini ? 100 : Math.min(96, [8, 24, 40, 86, 94][etape] + (etape === 2 && ecrans.length ? (ecrits / ecrans.length) * 44 : 0));
+  useEffect(() => { fil.current?.scrollTo({ top: fil.current.scrollHeight, behavior: "smooth" }); });
 
-  // Le journal : ce que Bingoo! fait vraiment, ligne après ligne
-  const journal = [];
-  const lect = LECTURE(c.nom);
-  lect.slice(0, etape >= 1 ? lect.length : Math.min(lect.length, 1 + tic)).forEach((t, i) => journal.push({ k: `l${i}`, t, ok: etape >= 1 || i < Math.min(lect.length, tic) }));
-  if (projet?.nom) {
-    journal.push({ k: "nom", t: <>Ta version s'appelle <b>{projet.nom}</b></>, ok: true });
-    if (projet.cible) journal.push({ k: "cible", t: <>Pour : {String(projet.cible).slice(0, 90)}</>, ok: true });
-  }
-  if (spec?.couleur) journal.push({ k: "couleur", t: <span className="inline-flex items-center gap-2">Couleur de marque <span className="inline-block h-3.5 w-3.5 rounded" style={{ background: couleur }} /></span>, ok: true });
-  ecrans.slice(0, Math.max(ecrits, 0)).forEach((e) => journal.push({ k: `e${e.id}`, t: <>Écran « {e.titre} » écrit</>, ok: true }));
-  if (etape === 2 && ecrans.length && ecrits < ecrans.length) journal.push({ k: `w${ecrits}`, t: <>Écriture de l'écran « {ecrans[ecrits]?.titre} »</>, ok: false });
-  if (etape >= 3) journal.push({ k: "verif", t: "Chaque écran ouvert avec des données d'exemple", ok: fini });
-  if (fini) {
-    if (publics.length) journal.push({ k: "pub", t: `${publics.length} page${publics.length > 1 ? "s" : ""} publique${publics.length > 1 ? "s" : ""} pour tes clients`, ok: true });
-    journal.push({ k: "fin", t: "Comptes clients, paiements et e-mails branchés", ok: true });
-  }
-  const fil = useRef(null);
-  useEffect(() => { fil.current?.scrollTo({ top: fil.current.scrollHeight, behavior: "smooth" }); }, [journal.length]);
+  // Une modification demandée dans la conversation : écrite, puis mise en ligne, puis l'aperçu se recharge
+  const envoyer = async (texte) => {
+    const t = (texte ?? demande).trim();
+    if (t.length < 5 || occupe || !app) return;
+    const n = echanges.length;
+    setEchanges((l) => [...l, { moi: t, etat: "encours" }]); setDemande(""); setOccupe(true);
+    const maj = (o) => setEchanges((l) => l.map((x, k) => (k === n ? { ...x, ...o } : x)));
+    try {
+      const r = await fn("r/saas-app-modifier", { workspace_id: ws.id, app_id: app.id, ecran: ecran || "nouveau", demande: t });
+      for (let i = 0; i < 80; i++) {
+        await attendre(3000);
+        const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut").eq("id", app.id).maybeSingle();
+        if (data && data.statut !== "en_cours") {
+          if (data.erreur) throw new Error(data.erreur);
+          if (data.brouillon?._modif) await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "brouillon-valider" });
+          const { data: frais } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut").eq("id", app.id).maybeSingle();
+          setApp(frais ?? data); setCle((k) => k + 1);
+          maj({ etat: "ok", credit: r?.credit });
+          return;
+        }
+      }
+      throw new Error("C'est plus long que prévu : l'aperçu se mettra à jour tout seul.");
+    } catch (e) { maj({ etat: "ko", erreur: e.message }); } finally { setOccupe(false); }
+  };
 
   if (!c.domaine) return <Navigate to="/explorer/copier" replace />;
-  if (fini && app) return <EnLigne app={app} nom={nom} couleur={couleur} ecrans={ecrans} projet={projet} c={c} nav={nav} />;
+  const lect = LECTURE(c.nom);
+  const lignes = [
+    ...lect.slice(0, etape >= 1 ? lect.length : Math.min(lect.length, 1 + tic)).map((t, i) => ({ k: `l${i}`, t, ok: etape >= 1 || i < Math.min(lect.length, tic) })),
+    ...(etape >= 2 ? ecrans.map((e, i) => ({ k: `e${e.id}`, t: i < ecrits ? <>Écran « {e.titre} » écrit</> : <>J'écris l'écran « {e.titre} »</>, ok: i < ecrits })).filter((x, i) => i <= ecrits) : []),
+    ...(etape >= 3 ? [{ k: "v", t: "Je vérifie chaque écran avec des données d'exemple", ok: fini }] : []),
+  ];
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#FAF9F6]">
-      <div className="pointer-events-none absolute inset-0" aria-hidden style={{ WebkitMaskImage: "radial-gradient(ellipse at 50% 20%, #000 25%, transparent 70%)", maskImage: "radial-gradient(ellipse at 50% 20%, #000 25%, transparent 70%)" }}>
-        <div className="fx-grille" />
-        <span className="fx-aurore h-[380px] w-[380px] left-[18%] top-0 transition-colors duration-1000" style={{ background: couleur, opacity: .28 }} />
-        <span className="fx-aurore h-[340px] w-[340px] right-[16%] top-24 bg-[#9B6BFF]" style={{ animationDelay: "-7s", opacity: .22 }} />
-      </div>
-      <div className="relative z-[1] flex items-center justify-between px-5 pt-5 sm:px-8">
-        <Logo />
-        <p className="hidden sm:block text-[13px] text-ink-faint">Tu peux fermer cette page, la construction continue.</p>
-      </div>
+    <div className="flex h-screen flex-col bg-[#FAF9F6]">
+      {/* Barre du haut */}
+      <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line bg-white px-4">
+        <span className="flex items-center"><Logo height={26} /></span>
+        <span className="mx-1 h-5 w-px bg-line" />
+        <span className="grid h-7 w-7 place-items-center rounded-lg text-[13px] font-black text-white transition-colors duration-700" style={{ background: couleur }}>{(nom ?? c.nom ?? "?").charAt(0).toUpperCase()}</span>
+        <p className="min-w-0 truncate font-semibold">{nom ?? `Ta version de ${c.nom}`}</p>
+        <span className={cx("hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold", fini ? "bg-good/10 text-good" : "bg-accent-soft text-accent-dark")}>
+          <span className={cx("h-1.5 w-1.5 rounded-full pulse-dot", fini ? "bg-good" : "bg-[#E8571C]")} />{fini ? (occupe ? "Modification…" : "En ligne") : `Construction · ${Math.round(pct)} %`}
+        </span>
+        <div className="flex-1" />
+        {fini && <a href={lien} target="_blank" rel="noreferrer" className="rounded-lg border border-line px-3 py-1.5 text-[13.5px] font-semibold hover:bg-paper">Ouvrir ↗</a>}
+        <button onClick={() => { ecrire(CLE_CHANTIER, null); nav(`/explorer/lancer?d=${encodeURIComponent(c.domaine)}`); }} disabled={!fini}
+          className="rounded-lg bg-ink px-3.5 py-1.5 text-[13.5px] font-semibold text-white hover:bg-ink/85 disabled:opacity-40">Entrer dans Bingoo!</button>
+      </header>
 
-      <div className="relative z-[1] mx-auto max-w-2xl px-5 pb-16 pt-10 sm:pt-14 text-center">
-        <div className="relative mx-auto grid h-24 w-24 place-items-center">
-          <span className="absolute inset-0 rounded-[30px] opacity-50 blur-2xl transition-colors duration-1000" style={{ background: couleur }} />
-          <svg viewBox="0 0 100 100" className="absolute -left-[26px] -top-[26px] h-[148px] w-[148px] animate-spin [animation-duration:2.4s]" aria-hidden><circle cx="50" cy="50" r="47" fill="none" stroke="#ECEAE4" strokeWidth="1.6" /><circle cx="50" cy="50" r="47" fill="none" stroke={couleur} strokeWidth="2.2" strokeLinecap="round" strokeDasharray="60 236" /></svg>
-          <span className="relative grid h-24 w-24 place-items-center rounded-[28px] text-[40px] font-black text-white shadow-[0_20px_40px_-18px_rgba(0,0,0,.5)] transition-colors duration-1000" style={{ background: `linear-gradient(140deg, ${couleur}, ${couleur}cc)`, ...HF }}>
-            {(nom ?? c.nom ?? "?").trim().charAt(0).toUpperCase()}
-          </span>
-        </div>
-        <p className="mt-12 text-[13px] font-bold uppercase tracking-[.16em] text-accent-dark">Bingoo! construit</p>
-        <h1 className="mt-2 text-[38px] sm:text-[54px] font-black leading-[1.02]" style={HF}>{nom ? <span key={nom} className="rise inline-block">{nom}</span> : <>Ta version de {c.nom}</>}</h1>
-        <p className="mx-auto mt-3 max-w-xl text-[16.5px] leading-relaxed text-ink-soft">{projet?.pitch ?? `Bingoo! lit ${c.nom} et conçoit ta version : ton nom, tes écrans, ton design.`}</p>
-
-        <div className="mt-9">
-          <div className="h-1.5 overflow-hidden rounded-full bg-[#ECEAE4]"><div className="h-full rounded-full transition-all duration-[1500ms] ease-out" style={{ width: `${pct}%`, background: `linear-gradient(90deg, #F6A06B, ${couleur === "#E8571C" ? "#E8571C" : couleur})` }} /></div>
-          <div className="mt-3 grid grid-cols-5 text-[12.5px]">
-            {ETAPES.map((t, i) => <span key={t} className={cx("transition-colors", i < etape ? "text-ink" : i === etape ? "font-bold text-ink" : "text-ink-faint")}>{i < etape ? "✓ " : ""}{t}</span>)}
-          </div>
-        </div>
-
-        <div className="mt-8 overflow-hidden rounded-2xl border border-line bg-white text-left shadow-[0_30px_70px_-45px_rgba(21,23,42,.45)]">
-          <div className="flex items-center gap-2 border-b border-line px-4 py-3">
-            <span className="h-2 w-2 rounded-full bg-[#EF4444] pulse-dot" />
-            <span className="text-[13px] font-semibold">En direct</span>
-            <span className="ml-auto text-[12.5px] tnum text-ink-faint">{Math.round(pct)} %</span>
-          </div>
-          <ul ref={fil} className="max-h-[260px] space-y-0.5 overflow-y-auto px-2 py-2">
-            {journal.map((l) => (
-              <li key={l.k} className="rise flex items-center gap-3 rounded-lg px-2.5 py-2 text-[14.5px]">
-                {l.ok ? <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-good/15 text-good"><svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5 9-10" /></svg></span>
-                  : <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-line border-t-[#E8571C]" />}
-                <span className={cx("min-w-0 truncate", l.ok ? "text-ink" : "text-ink-soft")}>{l.t}</span>
-              </li>
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        {/* La conversation */}
+        <section className="flex min-h-0 flex-col border-line bg-white lg:w-[440px] lg:shrink-0 lg:border-r max-lg:h-[46vh] max-lg:border-b">
+          <div ref={fil} className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5">
+            <Moi>Construis ma version de {c.nom}</Moi>
+            <Bingoo>
+              <p>C'est parti. {c.nom} gagne déjà de l'argent : je construis ta version, avec ton nom, tes mots et ton design.</p>
+              <div className="mt-3 rounded-xl border border-line bg-[#FCFBF9] p-3">
+                <div className="mb-2 flex items-center justify-between text-[12.5px] text-ink-soft"><span className="font-semibold text-ink">Construction</span><span className="tnum">{Math.round(pct)} %</span></div>
+                <div className="mb-3 h-1 overflow-hidden rounded-full bg-[#ECEAE4]"><div className="h-full rounded-full bg-[#E8571C] transition-all duration-[1500ms]" style={{ width: `${pct}%` }} /></div>
+                {fini ? (
+                  <details className="text-[13.5px]"><summary className="flex cursor-pointer list-none items-center gap-2.5"><Coche ok /><span>Terminé : {ecrans.length} écrans écrits et vérifiés</span><span className="ml-auto text-[12px] text-ink-faint">Détails</span></summary>
+                    <ul className="mt-2 space-y-1.5">{lignes.map((l) => <li key={l.k} className="flex items-center gap-2.5"><Coche ok /><span className="min-w-0 truncate">{l.t}</span></li>)}</ul></details>
+                ) : <ul className="space-y-1.5">{lignes.map((l) => <li key={l.k} className="rise flex items-center gap-2.5 text-[13.5px]"><Coche ok={l.ok} /><span className={cx("min-w-0 truncate", !l.ok && "text-ink-soft")}>{l.t}</span></li>)}</ul>}
+              </div>
+            </Bingoo>
+            {projet?.nom && (
+              <Bingoo>
+                <p>Ta version s'appelle <b>{projet.nom}</b>.{projet.pitch ? ` ${projet.pitch}` : ""}</p>
+                {projet.cible && <p className="mt-1.5 text-ink-soft">Pour : {projet.cible}</p>}
+              </Bingoo>
+            )}
+            {fini && (
+              <Bingoo>
+                <p><b>{nom} est en ligne.</b> Essaie-le à droite : crée un compte, ajoute des données, clique partout. C'est ton vrai SaaS.</p>
+                <p className="mt-1.5">Dis-moi ce que tu veux changer, en une phrase.</p>
+                <div className="mt-3 flex flex-wrap gap-1.5">{IDEES.map((x) => <button key={x} onClick={() => { setEcran(""); envoyer(x); }} disabled={occupe} className="rounded-full border border-line bg-white px-3 py-1.5 text-[12.5px] font-medium hover:border-ink-faint disabled:opacity-50">{x}</button>)}</div>
+              </Bingoo>
+            )}
+            {echanges.map((x, i) => (
+              <div key={i} className="space-y-5">
+                <Moi>{x.moi}</Moi>
+                <Bingoo>
+                  {x.etat === "encours" ? <p className="flex items-center gap-2.5 text-ink-soft"><Coche ok={false} />Je modifie ton SaaS… (une à deux minutes)</p>
+                    : x.etat === "ok" ? <p className="flex items-center gap-2.5"><Coche ok />C'est en ligne, regarde l'aperçu.{x.credit ? " (1 crédit utilisé)" : ""}</p>
+                      : <p className="text-[#B42318]">{x.erreur}</p>}
+                </Bingoo>
+              </div>
             ))}
-          </ul>
-        </div>
-
-        {erreur ? (
-          <div className="mt-6 rounded-2xl border border-line bg-white p-5">
-            <p className="font-semibold">Petit contretemps : {erreur}</p>
-            <p className="mt-1 text-[13.5px] text-ink-soft">Rien n'est perdu : relance, Bingoo! reprend là où il s'est arrêté.</p>
-            <button onClick={() => { setErreur(null); setEssai((e) => e + 1); }} className="mt-3 rounded-xl bg-ink px-5 py-2.5 text-[14px] font-bold text-white">Relancer</button>
+            {erreur && (
+              <Bingoo>
+                <p>Petit contretemps : {erreur} Rien n'est perdu, je reprends là où je me suis arrêté.</p>
+                <button onClick={() => { setErreur(null); setEssai((e) => e + 1); }} className="mt-2.5 rounded-lg bg-ink px-4 py-2 text-[13px] font-semibold text-white">Relancer</button>
+              </Bingoo>
+            )}
           </div>
-        ) : (
-          <p key={mot} className="rise mx-auto mt-8 max-w-md text-[16px] leading-snug text-ink-soft">{MOTS[mot]}</p>
-        )}
+          {/* La zone de saisie */}
+          <form onSubmit={(e) => { e.preventDefault(); envoyer(); }} className="shrink-0 border-t border-line p-3">
+            <div className={cx("rounded-2xl border bg-white p-2.5 transition", fini ? "border-line focus-within:border-ink-faint focus-within:shadow-[0_8px_30px_-18px_rgba(21,23,42,.4)]" : "border-line opacity-60")}>
+              <textarea value={demande} onChange={(e) => setDemande(e.target.value)} disabled={!fini || occupe} rows={2}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); envoyer(); } }}
+                placeholder={fini ? `Demande un changement à Bingoo!…` : "Tu pourras demander des changements dès que ton SaaS est en ligne"}
+                className="block w-full resize-none bg-transparent px-1.5 text-[14.5px] outline-none placeholder:text-ink-faint" />
+              <div className="mt-1.5 flex items-center gap-2">
+                <select value={ecran} onChange={(e) => setEcran(e.target.value)} disabled={!fini} className="min-w-0 max-w-[60%] truncate rounded-lg border border-line bg-[#FCFBF9] px-2 py-1 text-[12.5px] text-ink-soft">
+                  <option value="">Où : un nouvel écran</option>
+                  {ecrans.map((e) => <option key={e.id} value={e.id}>Où : {e.titre}</option>)}
+                </select>
+                <div className="flex-1" />
+                <button type="submit" disabled={!fini || occupe || demande.trim().length < 5} aria-label="Envoyer" className="grid h-8 w-8 place-items-center rounded-full bg-ink text-white disabled:opacity-30">
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
+                </button>
+              </div>
+            </div>
+            <p className="mt-1.5 px-1 text-[11.5px] text-ink-faint">30 modifications par mois incluses, puis 1 crédit chacune.</p>
+          </form>
+        </section>
+
+        {/* L'aperçu */}
+        <section className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
+          <div className="mb-2.5 flex items-center gap-2">
+            <div className="flex rounded-lg border border-line bg-white p-0.5 text-[12.5px] font-semibold">
+              {[["ordi", "Ordinateur"], ["tel", "Téléphone"]].map(([k, l]) => <button key={k} onClick={() => setVue(k)} className={cx("rounded-md px-2.5 py-1", vue === k ? "bg-ink text-white" : "text-ink-soft")}>{l}</button>)}
+            </div>
+            <div className="min-w-0 flex-1 truncate rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] text-ink-faint">{fini ? lien.replace(/^https?:\/\//, "") : "Aperçu en construction…"}</div>
+            <button onClick={() => setCle((k) => k + 1)} disabled={!fini} aria-label="Recharger l'aperçu" className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-white text-ink-soft hover:text-ink disabled:opacity-40">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" /></svg>
+            </button>
+          </div>
+          <div className={cx("relative mx-auto min-h-0 w-full flex-1 overflow-hidden rounded-xl border border-line bg-white shadow-[0_30px_80px_-50px_rgba(21,23,42,.5)] transition-[max-width] duration-500", vue === "tel" ? "max-w-[390px]" : "max-w-none")}>
+            {fini ? <iframe key={cle} title={`Aperçu de ${nom}`} src={lien} className="absolute inset-0 h-full w-full border-0" />
+              : <Assemblage nom={nom} couleur={couleur} ecrans={ecrans} ecrits={ecrits} etape={etape} />}
+            {occupe && <div className="absolute inset-x-0 top-0 h-1 overflow-hidden bg-[#ECEAE4]"><div className="h-full w-1/3 animate-[barre_1.2s_ease-in-out_infinite] bg-[#E8571C]" /></div>}
+          </div>
+        </section>
       </div>
     </div>
   );
 }
+const Moi = ({ children }) => <div className="ml-10 flex justify-end"><p className="rounded-2xl rounded-br-md bg-[#F1EFEA] px-3.5 py-2.5 text-[14.5px] leading-snug">{children}</p></div>;
+const Bingoo = ({ children }) => (
+  <div className="rise flex gap-2.5">
+    <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#E8571C] text-[12px] font-black text-white">B</span>
+    <div className="min-w-0 flex-1 text-[14.5px] leading-relaxed">{children}</div>
+  </div>
+);
 
-// ---------------------------------------------------------------- En ligne : le vrai SaaS, ouvert dans une fenêtre, et la suite
-function EnLigne({ app, nom, couleur, ecrans, projet, c, nav }) {
-  const lien = lienApp(app.slug, app.domaine_statut === "ok" ? app.domaine : null);
-  const [copie, setCopie] = useState(false);
-  const entrer = (vers) => { ecrire(CLE_CHANTIER, null); nav(vers ?? `/explorer/lancer?d=${encodeURIComponent(c.domaine)}`); };
-  const affiche = lien.replace(/^https?:\/\//, "").replace(/\/$/, "");
-  const confettis = Array.from({ length: 36 }, (_, i) => i);
+// Pendant la construction : l'application s'assemble (sa couleur, son nom, chaque écran qui apparaît)
+function Assemblage({ nom, couleur, ecrans, ecrits, etape }) {
+  const sel = Math.max(0, Math.min(ecrans.length - 1, ecrits - 1));
+  const vu = ecrans[sel];
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#FAF9F6]">
-      <div className="pointer-events-none absolute inset-0" aria-hidden style={{ WebkitMaskImage: "radial-gradient(ellipse at 50% 10%, #000 25%, transparent 70%)", maskImage: "radial-gradient(ellipse at 50% 10%, #000 25%, transparent 70%)" }}>
-        <div className="fx-grille" />
-        <span className="fx-aurore h-[420px] w-[420px] left-[14%] -top-20" style={{ background: couleur, opacity: .3 }} />
-        <span className="fx-aurore h-[360px] w-[360px] right-[14%] top-10 bg-[#F6A06B]" style={{ animationDelay: "-5s", opacity: .3 }} />
+    <div className="absolute inset-0 grid grid-cols-[180px_1fr] max-sm:grid-cols-[110px_1fr]">
+      <div className="p-4 transition-colors duration-1000" style={{ background: etape >= 1 ? couleur : "#E2E8F0" }}>
+        <p className="mb-5 truncate text-[15px] font-black text-white">{nom ?? <span className="inline-block h-3.5 w-24 animate-pulse rounded bg-white/50" />}</p>
+        {(ecrans.length ? ecrans : Array.from({ length: 6 }, (_, i) => ({ id: i }))).slice(0, 9).map((e, i) => (
+          <div key={e.id} className={cx("mb-1 truncate rounded-lg px-2.5 py-2 text-[13px] text-white transition-all duration-500", i < ecrits ? "opacity-100" : "opacity-35", i === sel && i < ecrits && "bg-white/20 font-semibold")}>
+            {e.titre && i < ecrits ? e.titre : <span className="inline-block h-2.5 w-20 rounded bg-white/50 align-middle" />}
+          </div>
+        ))}
       </div>
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-0" aria-hidden>
-        {confettis.map((i) => <span key={i} className="confetti" style={{ left: `${(i * 97) % 100}%`, background: [couleur, "#F6A06B", "#9B6BFF", "#22C55E", "#FACC15"][i % 5], animationDelay: `${(i % 9) * 0.12}s`, animationDuration: `${2.4 + (i % 5) * 0.35}s`, transform: `rotate(${i * 37}deg)` }} />)}
-      </div>
-      <div className="relative z-[1] px-5 pt-5 sm:px-8"><Logo /></div>
-
-      <div className="relative z-[1] mx-auto max-w-5xl px-5 pb-20 pt-8 sm:pt-10">
-        <div className="text-center">
-          <span className="mx-auto grid h-16 w-16 place-items-center rounded-[20px] text-[28px] font-black text-white shadow-[0_18px_36px_-16px_rgba(0,0,0,.5)] pop" style={{ background: `linear-gradient(140deg, ${couleur}, ${couleur}cc)`, ...HF }}>{(nom ?? "?").charAt(0).toUpperCase()}</span>
-          <p className="mt-5 inline-flex items-center gap-2 rounded-full bg-good/10 px-3 py-1 text-[13px] font-bold text-good"><span className="h-2 w-2 rounded-full bg-good pulse-dot" />En ligne</p>
-          <h1 className="mt-3 text-[40px] sm:text-[60px] font-black leading-[1] hero-in" style={HF}>{nom} est en ligne.</h1>
-          <p className="mx-auto mt-3 max-w-xl text-[16.5px] text-ink-soft">{projet?.pitch ?? "Ton site, les comptes de tes clients et chaque écran sont prêts."}</p>
-          <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-            <a href={lien} target="_blank" rel="noreferrer" className="fx-brille rounded-2xl bg-accent px-7 py-4 text-[16px] font-bold text-white hover:bg-accent-dark">Ouvrir {nom} ↗</a>
-            <button onClick={() => entrer()} className="rounded-2xl bg-ink px-7 py-4 text-[16px] font-bold text-white hover:bg-ink/85">Entrer dans Bingoo!</button>
-          </div>
-          <button onClick={() => navigator.clipboard?.writeText(lien).then(() => { setCopie(true); setTimeout(() => setCopie(false), 1800); })}
-            className="mt-4 inline-flex max-w-full items-center gap-2 rounded-full border border-line bg-white px-4 py-2 text-[13.5px] text-ink-soft hover:border-ink-faint">
-            <span className="truncate">{affiche}</span><b className="text-ink">{copie ? "Copié" : "Copier"}</b>
-          </button>
-        </div>
-
-        <div className="relative mt-12">
-          <div className="absolute -inset-x-10 -inset-y-6 rounded-[48px] opacity-40 blur-3xl" style={{ background: `radial-gradient(closest-side, ${couleur}, transparent)` }} aria-hidden />
-          <div className="relative overflow-hidden rounded-2xl border border-line bg-white shadow-[0_60px_120px_-50px_rgba(21,23,42,.55)]">
-            <div className="flex items-center gap-2 border-b border-line bg-[#F6F5F2] px-4 py-2.5">
-              <span className="h-3 w-3 rounded-full bg-[#FF5F57]" /><span className="h-3 w-3 rounded-full bg-[#FEBC2E]" /><span className="h-3 w-3 rounded-full bg-[#28C840]" />
-              <span className="mx-auto max-w-[60%] truncate rounded-md bg-white px-4 py-1 text-[12.5px] text-ink-soft">{affiche}</span>
-            </div>
-            <div className="relative aspect-[16/10] w-full">
-              <iframe title={`Aperçu de ${nom}`} src={lien} className="absolute left-0 top-0 h-[200%] w-[200%] origin-top-left scale-50 border-0" />
-            </div>
-          </div>
-          <p className="mt-3 text-center text-[13px] text-ink-faint">{ecrans.length} écrans · comptes clients · paiements · e-mails. Clique dedans : c'est ton vrai SaaS.</p>
-        </div>
-
-        <div className="mt-14">
-          <p className="text-center text-[13px] font-bold uppercase tracking-[.14em] text-ink-faint">La suite, dans Bingoo!</p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            {[["Encaisse tes premiers clients", "Branche ton compte Stripe : l'argent arrive directement chez toi.", "encaisser"], ["Mets ton nom de domaine", "monsaas.fr au lieu d'une adresse Bingoo!, en quelques clics.", "domaine"], ["Crée ta vidéo pub", "20 secondes animées à tes couleurs, prêtes pour TikTok et Reels.", "video"]].map(([t, d]) => (
-              <button key={t} onClick={() => entrer()} className="fx-spot rounded-2xl border border-line bg-white p-5 text-left transition hover:-translate-y-1 hover:shadow-[0_24px_50px_-30px_rgba(21,23,42,.45)]">
-                <p className="font-bold text-[15.5px]">{t}</p>
-                <p className="mt-1.5 text-[13.5px] leading-snug text-ink-soft">{d}</p>
-                <p className="mt-3 text-[13.5px] font-semibold text-accent-dark">Y aller →</p>
-              </button>
-            ))}
-          </div>
+      <div className="relative overflow-hidden p-6">
+        <div className="fx-grille opacity-40" aria-hidden />
+        <div className="relative">
+          {vu && ecrits > 0 ? <p key={vu.id} className="rise text-[22px] font-black">{vu.titre}</p> : <span className="block h-5 w-48 animate-pulse rounded bg-[#E2E8F0]" />}
+          <div className="mt-6 grid grid-cols-3 gap-3">{[0, 1, 2].map((k) => <div key={k} className="h-20 rounded-xl border border-line bg-white p-3"><span className="block h-2 w-14 rounded bg-[#E2E8F0]" /><span className="mt-3 block h-5 rounded animate-pulse" style={{ width: `${45 + k * 12}%`, background: ecrits > k ? couleur : "#E2E8F0", opacity: ecrits > k ? .85 : 1 }} /></div>)}</div>
+          <div className="mt-4 space-y-2.5">{[0, 1, 2, 3, 4].map((k) => <div key={k} className="flex h-12 items-center gap-3 rounded-xl border border-line bg-white px-4"><span className="h-2.5 rounded bg-[#E2E8F0]" style={{ width: `${26 + ((k * 13) % 30)}%` }} /><span className="ml-auto h-5 w-16 rounded-full transition-colors duration-700" style={{ background: ecrits > k + 1 ? `${couleur}33` : "#F1F5F9" }} /></div>)}</div>
+          <p className="mt-8 text-center text-[13px] text-ink-faint">{etape < 2 ? "Bingoo! conçoit ta version…" : `Écriture des écrans · ${Math.min(ecrits, ecrans.length)}/${ecrans.length || "…"}`}</p>
         </div>
       </div>
     </div>
