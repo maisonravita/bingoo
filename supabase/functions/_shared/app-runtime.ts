@@ -21,6 +21,10 @@ async function programmerMail(admin: SupabaseClient, app: any, espace: string, m
   if (!sujet || !texte) throw new Err(400, "Objet et texte de l'e-mail obligatoires");
   const quand = m?.quand ? new Date(m.quand) : new Date();
   if (isNaN(quand.getTime())) throw new Err(400, "Date d'envoi invalide");
+  // Démo : l'envoi est simulé, rien ne part (sinon n'importe quel visiteur enverrait des e-mails depuis l'application)
+  if (/@demo\.local$/.test(String(signature.email ?? ""))) return { ok: true, demo: true, a, sujet };
+  // Adresses des données d'exemple : jamais d'envoi (ces domaines existent et appartiennent à d'autres)
+  if (/@(exemple|example)\.(fr|com|org|net)$|@demo\.local$/.test(a)) throw new Err(400, "C'est une adresse d'exemple : remplace-la par la vraie adresse de ton client");
   if (quand.getTime() > Date.now() + 400 * 864e5) throw new Err(400, "Date d'envoi trop lointaine");
   const jour = new Date(Date.now() - 864e5).toISOString();
   const [{ count: ce }, { count: ca }] = await Promise.all([
@@ -273,13 +277,20 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
       const depuis = new Date(Date.now() - 3600e3).toISOString();
       const { count } = await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("espace_id", espace).eq("data->>_public", "true").gte("at", depuis);
       if ((count ?? 0) >= 60) throw new Err(429, "Trop d'envois en ce moment, réessaie dans une heure");
-      const { data: r } = await admin.from("saas_app_rows").insert({ app_id: app.id, user_id: espace, espace_id: espace, col, data: { ...propre(b.data), _public: true } }).select("id, data, at, maj").single();
+      // Une même connexion : 10 envois par heure au plus (sinon les e-mails de confirmation deviendraient un relais de spam)
+      const ip = await sha(`${app.id}:pub:${(req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim()}`);
+      const { count: parIp } = await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("data->>_ip", ip).gte("at", depuis);
+      if ((parIp ?? 0) >= 10) throw new Err(429, "Trop d'envois depuis cette connexion, réessaie dans une heure");
+      const { data: r } = await admin.from("saas_app_rows").insert({ app_id: app.id, user_id: espace, espace_id: espace, col, data: { ...propre(b.data), _public: true, _ip: ip } }).select("id, data, at, maj").single();
       const { mailRecu } = await import("./app-mails.ts");
       await mailRecu(app, slug, t, page, r!.id, (r!.data ?? {}) as Record<string, unknown>).catch((e) => console.error("recu", e));
       // Confirmation et rappels au visiteur : seulement à l'adresse qu'il vient de saisir
       const champMail = ((def.champs ?? []) as any[]).find((c) => c.type === "email")?.nom ?? Object.keys(r!.data ?? {}).find((k) => /e-?mail/i.test(k));
       const visiteur = champMail ? String((r!.data as any)?.[champMail] ?? "") : "";
-      if (emailOk(visiteur)) for (const m of (Array.isArray(b.mails) ? b.mails : []).slice(0, 3)) {
+      // Une même adresse : 2 demandes par heure au plus reçoivent des e-mails
+      const { count: dejaVisiteur } = emailOk(visiteur) ? await admin.from("saas_app_envois").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("a", visiteur.toLowerCase()).gte("at", depuis) : { count: 0 };
+      // (une demande = une confirmation + au plus deux rappels : 2 demandes par heure et par adresse)
+      if (emailOk(visiteur) && (dejaVisiteur ?? 0) < 6) for (const m of (Array.isArray(b.mails) ? b.mails : []).slice(0, 3)) {
         await programmerMail(admin, app, espace, { ...m, a: visiteur, repeter: null }, { nom: t.nom, email: t.email }).catch((e) => console.error("mail visiteur", e?.message ?? e));
       }
       return { status: 200, body: ligne(r) };

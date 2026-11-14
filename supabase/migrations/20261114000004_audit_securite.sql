@@ -71,3 +71,5 @@ select cron.schedule('bingoo-semaine-matin', '5 7 * * *', $$select net.http_post
 --     Garde-fou recalé sur le vrai solde : ia_credit_eur 4,6 depuis le 14/11 17 h 19 UTC, ia_reserve_eur 2,75 (2 $ max pour les tâches de fond), ia_plafond_verif 1,6.
 -- 14. Statut « retire » (SaaS retiré par Bingoo!, ex. Aparté) ; saas_app_public et l'API t/app ne servent plus les SaaS « remplace » ou « retire ».
 --     cron bingoo-constructible-heure (44 * * * *) : saas_constructible_maj() juste avant le rafraîchissement de saas_choix (47).
+-- 15. E-mails des SaaS livrés : en démo l'envoi est simulé ; adresses d'exemple (@exemple.fr, @example.com, @demo.local) refusées ;
+--     pages publiques : 10 envois par heure et par connexion (empreinte _ip), e-mails de confirmation à une même adresse limités (6 par heure).

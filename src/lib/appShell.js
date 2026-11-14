@@ -284,7 +284,7 @@ let nav = () => {};
 const go = (id, params) => nav(id, params);
 // IA intégrée : ia("Résume ce texte", { texte }) → texte ; { json: true } → objet
 // E-mails aux clients de l'utilisateur : tout de suite, ou à une date (quand), éventuellement répétés (repeter : jour, semaine, mois)
-const email = (m) => call("mail", m ?? {});
+const email = (m) => call("mail", m ?? {}).then((r) => { if (r?.demo) toast("Démo : l'e-mail est simulé, rien n'est envoyé. Dans ton vrai compte, il part vraiment."); return r; });
 const annulerEmail = (id) => call("mail-annuler", { id });
 const emailsEnvoyes = () => call("mails");
 // Lien d'abonnement à l'agenda de l'espace (Google Agenda, Outlook, Apple)
