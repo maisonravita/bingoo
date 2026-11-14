@@ -1,0 +1,2 @@
+-- saas_ce_qui_marche(dom) : canaux déclarés du SaaS modèle, canaux qui rapportent dans sa catégorie (exemples), sur tous les SaaS vérifiés, et ses pubs Meta.
+-- Appliquée via MCP le 14/11/2026 (voir la définition dans la base). Réservée aux abonnés (saas_paye()).

@@ -7,6 +7,8 @@ import { useWs } from "../lib/ws";
 import { cx } from "../lib/utils";
 import { Spinner } from "../components/ui";
 import { lienApp } from "../components/AppCadre";
+import { nomCanal as nomBrut } from "../lib/plan30";
+const nomCanal = (c) => { const n = nomBrut(c) ?? ""; return n.charAt(0).toUpperCase() + n.slice(1); };
 import { angleDe } from "../lib/angle";
 import { ONGLETS_APP, PremiersClients, ReglagesApp } from "./Explorer";
 import { Chantier } from "./Revelation";
@@ -45,6 +47,7 @@ export default function MonSaas({ page }) {
     <div>
       {page === "mon-saas" && <Accueil m={m} />}
       {page === "clients" && <Clients m={m} />}
+      {page === "methodes" && <CeQuiMarche m={m} />}
       {page === "video" && <Video m={m} />}
       {page === "reglages-saas" && <Reglages m={m} charger={charger} />}
     </div>
@@ -262,6 +265,131 @@ function Reglages({ m, charger }) {
         <Carte titre={sec[1]} className="clair min-w-0">
           <ReglagesApp app={m.app} projet={m.projet} onChange={charger} nu onglet={sec[0]} />
         </Carte>
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------- Ce qui marche : comment le SaaS modèle et ceux de sa catégorie trouvent leurs clients
+const COMMENT = {
+  "SEO": "Des pages qui répondent aux recherches Google de tes clients, une ou deux par semaine.",
+  "Blog": "Des articles utiles sur leurs problèmes, qui mènent vers ton essai gratuit.",
+  "Content marketing": "Guides, modèles et petits outils gratuits qui attirent tes clients idéaux.",
+  "Newsletter": "Une lettre régulière qui garde tes visiteurs au chaud jusqu'à l'achat.",
+  "Email marketing": "Une série d'e-mails après l'inscription pour transformer l'essai en abonnement.",
+  "X / Twitter": "Construire en public : tes chiffres, tes nouveautés, tes leçons.",
+  "LinkedIn": "Un post par semaine sur les problèmes de tes clients, là où sont les décideurs.",
+  "Instagram": "Des vidéos courtes qui montrent le résultat, avant et après.",
+  "TikTok": "Des vidéos courtes et concrètes : le problème, puis ton outil qui le règle.",
+  "YouTube": "Des tutoriels qui montrent comment résoudre leur problème avec ton outil.",
+  "Facebook": "Les groupes où ton public pose ses questions, et ta page.",
+  "Reddit": "Répondre utilement dans les communautés de ta niche, avant de parler de toi.",
+  "Product Hunt": "Un lancement d'un jour pour une première vague d'utilisateurs.",
+  "Hacker News": "Un « Show HN » sincère quand ton outil intéresse les développeurs.",
+  "Cold email": "Des e-mails courts et personnalisés à une liste de clients idéaux.",
+  "Cold DM": "Des messages privés personnalisés aux bonnes personnes.",
+  "Cold calling": "Appeler directement les entreprises qui ont le problème.",
+  "Partnerships": "S'associer à un outil ou un pro qui a déjà tes clients.",
+  "Affiliate": "Des partenaires qui touchent une commission sur chaque client apporté.",
+  "Referral program": "Tes clients invitent leurs proches contre un mois offert.",
+  "Influencers": "Des créateurs de ta niche qui présentent ton outil à leur audience.",
+  "Word of mouth": "Un produit si utile que tes clients en parlent d'eux-mêmes.",
+  "Google Ads": "Des annonces sur les recherches où tes clients sont prêts à acheter.",
+  "Meta Ads": "Des pubs Facebook et Instagram ciblées sur ton public.",
+  "TikTok Ads": "Des pubs vidéo courtes, dans le style natif de TikTok.",
+  "LinkedIn Ads": "Des pubs ciblées par métier et taille d'entreprise.",
+  "YouTube Ads": "Des pubs vidéo avant les tutoriels que regarde ton public.",
+  "App store optimization": "Une fiche App Store optimisée sur les bons mots-clés.",
+  "Discord": "Une communauté où tes utilisateurs s'entraident.",
+  "Pinterest": "Des épingles qui renvoient vers tes guides et modèles.",
+  "Events & conferences": "Les salons et événements où se retrouvent tes clients.",
+  "Forums": "Les forums spécialisés où ton public cherche des solutions.",
+};
+const mrr$ = (n) => n == null ? "—" : n >= 1e4 ? `${Math.round(n / 1e3)} k$` : `${Math.round(n).toLocaleString("fr-FR")} $`;
+function CeQuiMarche({ m }) {
+  const nav = useNavigate();
+  const [d, setD] = useState(undefined);
+  useEffect(() => { if (!m.domaine) { setD(null); return; } supabase.rpc("saas_ce_qui_marche", { dom: m.domaine }).then(({ data }) => setD(data ?? null)); }, [m.domaine]);
+  if (d === undefined) return <div className="py-24 grid place-items-center"><Spinner /></div>;
+  const mo = d?.modele;
+  const petite = !d || (d.categorie?.total ?? 0) < 5;
+  const liste = petite ? (d?.tous?.canaux ?? []) : (d?.canaux ?? []);
+  const base = petite ? d?.tous?.total : d?.categorie?.total;
+  const max = Math.max(1, ...liste.map((c) => c.n));
+  const siens = new Set(mo?.canaux ?? []);
+  const video = [...siens].some((c) => /TikTok|Instagram|YouTube|Meta Ads/.test(c));
+  // Le canal le plus rentable (revenu médian le plus haut, parmi ceux utilisés par au moins 5 SaaS)
+  const rentable = [...liste].filter((c) => c.n >= 5).sort((a, b) => b.mediane - a.mediane)[0]?.canal;
+  return (
+    <>
+      <Tete titre="Ce qui marche" sous={mo ? `Comment ${mo.nom} et les SaaS qui lui ressemblent trouvent leurs clients, d'après leurs chiffres vérifiés.` : "Les méthodes qui rapportent, d'après les chiffres vérifiés des SaaS."} />
+      {mo && (
+        <Carte titre={`Comment ${mo.nom} trouve ses clients`} sous={`Le SaaS dont ${m.nom} est inspiré · ${mo.categorie}`}>
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-[#EBEBEB] sm:grid-cols-4">
+            {[["Revenu mensuel", mrr$(mo.mrr), "vérifié"], ["Visiteurs", mo.visiteurs != null ? Number(mo.visiteurs).toLocaleString("fr-FR") : "—", "par mois"], ["Autorité Google", mo.autorite != null ? `${Math.round(mo.autorite)}/100` : "—", "plus c'est haut, mieux il se classe"], ["Par visiteur", mo.par_visiteur != null ? `${Number(mo.par_visiteur).toLocaleString("fr-FR")} $` : "—", "de revenu"]].map(([l, v, s]) => (
+              <div key={l} className="bg-white p-3"><p className="text-[12px] text-[#616161]">{l}</p><p className="mt-0.5 text-[18px] font-bold tnum">{v}</p><p className="text-[11.5px] text-[#8A8A8A]">{s}</p></div>
+            ))}
+          </div>
+          {mo.canaux?.length ? (
+            <ul className="mt-4 divide-y divide-[#EBEBEB]">
+              {mo.canaux.map((c) => (
+                <li key={c} className="flex items-start gap-3 py-2.5">
+                  <span className="mt-0.5 shrink-0 rounded-md bg-[#F1F1F1] px-2 py-0.5 text-[12.5px] font-semibold">{nomCanal(c)}</span>
+                  <p className="text-[13.5px] text-[#303030]">{COMMENT[c] ?? "Un canal qu'il utilise pour trouver ses clients."}</p>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="mt-4 text-[13.5px] text-[#616161]">{mo.nom} ne déclare pas ses canaux. Regarde ce qui marche chez les SaaS qui lui ressemblent, juste en dessous.</p>}
+          {mo.persona && <p className="mt-3 rounded-lg bg-[#F7F7F7] px-3 py-2 text-[13px] text-[#616161]"><b className="text-[#303030]">Ses clients :</b> {mo.persona}</p>}
+        </Carte>
+      )}
+
+      <Carte className="mt-4" titre={petite ? "Ce qui rapporte chez les SaaS vérifiés" : `Ce qui rapporte en ${mo?.categorie ?? "ce moment"}`}
+        sous={`D'après ${Number(base ?? 0).toLocaleString("fr-FR")} SaaS au revenu vérifié qui déclarent leurs canaux${petite && mo ? " (sa catégorie en compte trop peu)" : ""}.`}>
+        {!liste.length ? <p className="text-[13.5px] text-[#616161]">Pas encore assez de données.</p> : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-[13.5px]">
+              <thead><tr className="text-left text-[12px] text-[#616161]"><th className="pb-2 font-medium">Canal</th><th className="pb-2 font-medium">Utilisé par</th><th className="pb-2 font-medium">Revenu médian</th>{!petite && <th className="pb-2 font-medium">Exemples</th>}</tr></thead>
+              <tbody className="divide-y divide-[#EBEBEB]">
+                {liste.map((c) => (
+                  <tr key={c.canal}>
+                    <td className="py-2.5 pr-3"><span className="flex flex-wrap items-center gap-1.5"><span className="font-semibold">{nomCanal(c.canal)}</span>{c.canal === rentable && <span className="whitespace-nowrap rounded-full bg-[#FFF1E3] px-1.5 py-0.5 text-[11px] font-semibold text-[#8A4B00]">le plus rentable</span>}{siens.has(c.canal) && <span className="whitespace-nowrap rounded-full bg-[#CDFEE1] px-1.5 py-0.5 text-[11px] font-semibold text-[#0C5132]">ton modèle aussi</span>}</span></td>
+                    <td className="py-2.5 pr-3"><div className="flex items-center gap-2"><div className="h-1.5 w-24 overflow-hidden rounded-full bg-[#EBEBEB]"><div className="h-full rounded-full bg-[#303030]" style={{ width: `${(c.n / max) * 100}%` }} /></div><span className="whitespace-nowrap tnum text-[#616161]">{c.n} sur {base}</span></div></td>
+                    <td className="whitespace-nowrap py-2.5 pr-3 tnum font-semibold">{mrr$(c.mediane)}<span className="font-normal text-[#8A8A8A]"> /mois</span></td>
+                    {!petite && <td className="py-2.5 text-[13px] text-[#616161]">{(c.exemples ?? []).map((e, i) => <span key={e.domaine}>{i > 0 && ", "}<button onClick={() => nav(`/explorer/${e.domaine}`)} className="hover:text-[#1A1A1A] hover:underline">{e.nom}</button> <span className="text-[#8A8A8A]">{mrr$(e.mrr)}</span></span>)}</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Carte>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1.5fr_1fr]">
+        <Carte titre={mo ? `Les publicités de ${mo.nom}` : "Ses publicités"} sous="Relevées dans la bibliothèque publicitaire officielle de Meta. Une pub qui tourne depuis longtemps est une pub qui rapporte.">
+          {d?.pubs?.length ? (
+            <ul className="space-y-2.5">
+              {d.pubs.map((p, i) => (
+                <li key={i} className="rounded-lg border border-[#EBEBEB] p-3">
+                  <div className="flex items-center justify-between gap-2 text-[12px] text-[#616161]"><span>{(p.plateformes ?? []).join(", ")}</span><span className="font-semibold text-[#0C5132]">{p.jours} jours {p.stopped ? "" : "· en cours"}</span></div>
+                  {p.titre && <p className="mt-1 font-semibold text-[13.5px]">{p.titre}</p>}
+                  <p className="mt-1 line-clamp-3 text-[13px] text-[#303030]">{p.body}</p>
+                  <a href={p.snapshot_url} target="_blank" rel="noreferrer" className="mt-1.5 inline-block text-[12.5px] font-semibold text-[#005BD3] hover:underline">Voir la pub ↗</a>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="rounded-lg bg-[#F7F7F7] px-3 py-3 text-[13.5px] text-[#616161]">Aucune pub relevée pour l'instant. Ses publicités Facebook et Instagram apparaîtront ici dès qu'elles seront relevées, avec leur durée de diffusion.</p>}
+        </Carte>
+        <div className="space-y-4">
+          <Carte titre="Passe à l'action" sous="Ton plan jour par jour reprend ces canaux, dans l'ordre.">
+            <Bouton principal className="w-full" onClick={() => nav("/explorer/clients")}>Voir mon plan pour mes premiers clients</Bouton>
+          </Carte>
+          {video && (
+            <Carte titre="Ton modèle mise sur la vidéo" sous="Crée ta pub animée à tes couleurs, prête pour TikTok et Reels.">
+              <Bouton className="w-full" onClick={() => nav("/explorer/video")}>Créer ma vidéo pub</Bouton>
+            </Carte>
+          )}
+        </div>
       </div>
     </>
   );

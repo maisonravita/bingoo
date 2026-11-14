@@ -249,6 +249,7 @@ function AppShell({ ws, list, select, invite, isAdmin, essentiel, c, bandeau, ex
       { to: "/explorer/mon-saas", label: "Accueil", icon: "today" },
       { to: "/explorer/atelier", label: "Atelier", icon: "chat" },
       { to: "/explorer/clients", label: "Premiers clients", icon: "users" },
+      { to: "/explorer/methodes", label: "Ce qui marche", icon: "funnel" },
       { to: "/explorer/video", label: "Vidéo pub", icon: "video" },
       { to: "/explorer/dossier", label: "Mon dossier", icon: "doc", also: ["/explorer/lancer"] },
     ] },

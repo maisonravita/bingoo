@@ -63,7 +63,7 @@ export default function Explorer({ domaine: fixe }) {
   // Après le paiement : le flou disparaît, puis Bingoo! construit le SaaS choisi
   if (d === "revelation") return <Suspense fallback={null}><Revelation paramsDe={paramsDe} /></Suspense>;
   // L'espace de son SaaS : accueil, atelier (plein écran), premiers clients, vidéo pub, réglages, dossier
-  if (["mon-saas", "atelier", "clients", "video", "reglages-saas", "dossier"].includes(d) && ws && estPaye(ws)) return <Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><MonSaas page={d} /></Suspense>;
+  if (["mon-saas", "atelier", "clients", "methodes", "video", "reglages-saas", "dossier"].includes(d) && ws && estPaye(ws)) return <Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><MonSaas page={d} /></Suspense>;
   // Rien n'est ouvert avant le paiement : le parcours d'abord
   if (ws && !estPaye(ws) && d !== "trouver") return <Navigate to="/explorer/trouver" replace />;
   if (d === "bouge") return <><Onglets actif="bouge" /><Fil /></>;
