@@ -127,7 +127,8 @@ Rends un objet JSON compact :
 Les données d'exemple sont produites à part : ne mets pas de clé demo.`, { maxTokens: 9000 });
 
   // Données d'exemple à part (modèle rapide) : la conception reste courte et ne dépasse jamais la durée d'une invocation
-  const perso = modele ? await askJson<any>(PERSO[modele](p), { fast: true, maxTokens: 1600 }).catch(() => ({})) : null;
+  // Le modèle Écriture demande aussi 7 textes d'exemple complets : plus de place, sinon la réponse est coupée
+  const perso = modele ? await askJson<any>(PERSO[modele](p), { fast: true, maxTokens: modele === "ecriture" ? 7000 : 2000 }).catch(() => ({})) : null;
   const demo = modele ? {} : await askJson<any>(`Application « ${p.nom} » : ${p.pitch}
 Collections : ${(s.collections ?? []).slice(0, 6).map((c: any) => `${c.nom} : ${(c.champs ?? []).map((x: any) => `${x.nom} ${x.type}${x.valeurs ? ` [${x.valeurs.join("|")}]` : ""}`).join(", ")}`).join(" ; ")}
 Écris les données d'exemple de cette application. Rends un objet JSON { <collection> : 12 éléments réalistes en français (entreprises et personnes fictives, montants cohérents, dates réparties entre ${new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10)} et ${new Date(Date.now() + 90 * 864e5).toISOString().slice(0, 10)}, aujourd'hui = ${new Date().toISOString().slice(0, 10)}) } ; les champs <collection>_id pointent vers le champ « ref » (ex. "c1") que tu ajoutes à chaque élément.`, { fast: true, maxTokens: 12000 }).catch(() => ({}));

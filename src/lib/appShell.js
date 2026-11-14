@@ -355,7 +355,8 @@ const iconeDe = (t, t2) => { const x = String(t ?? "").toLowerCase(); const r = 
 // Aperçu du produit (page d'accueil) : construit avec les vrais écrans et les données d'exemple du SaaS
 function Apercu() {
   const ecr = (S.ecrans ?? []).filter((e) => !e.public).slice(0, 6);
-  const cols = Object.entries(S.demo ?? {}).filter(([, xs]) => Array.isArray(xs) && xs.length);
+  // Une collection à une seule ligne (réglages, fiche de l'entreprise) n'est pas une donnée à compter
+  const cols = Object.entries(S.demo ?? {}).filter(([, xs]) => Array.isArray(xs) && xs.length > 1);
   const label = (k) => ((S.collections ?? []).find((c) => c.nom === k)?.label) ?? (k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, " "));
   const [k0, xs0] = cols.sort((a, b) => b[1].length - a[1].length)[0] ?? ["", []];
   // Champs parlants d'abord (la base range les clés par longueur) : nom ou numéro, puis date, puis montant ; jamais un champ souvent vide
