@@ -496,6 +496,28 @@ export async function appIdentite(appId: string, b: any) {
   return { ok: true, ...patch };
 }
 
+// ---------------------------------------------------------------- Textes et prix du site, modifiés par le créateur (sans IA)
+export async function appTextes(appId: string, b: any) {
+  const { data: app } = await admin.from("saas_apps").select("spec, brouillon, version").eq("id", appId).single();
+  const t = (v: unknown, n: number) => String(v ?? "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
+  const patch: Record<string, unknown> = {};
+  if (b.slogan !== undefined) { const v = t(b.slogan, 90); if (v.length < 3) throw new HttpError(400, "Le titre est trop court"); patch.slogan = v; }
+  if (b.cible_courte !== undefined) patch.cible_courte = t(b.cible_courte, 60);
+  if (b.pitch !== undefined) patch.pitch = t(b.pitch, 300);
+  if (b.probleme !== undefined) patch.probleme = t(b.probleme, 400);
+  if (Array.isArray(b.atouts)) patch.atouts = b.atouts.slice(0, 6).map((a: any) => ({ titre: t(a?.titre, 50), texte: t(a?.texte, 160) })).filter((a: any) => a.titre);
+  if (Array.isArray(b.formules)) {
+    patch.formules = b.formules.slice(0, 3).map((f: any) => {
+      const prix = Math.round(Number(f?.prix) * 100) / 100;
+      if (!t(f?.nom, 40) || !Number.isFinite(prix) || prix < 0 || prix > 10000) throw new HttpError(400, "Chaque formule a besoin d'un nom et d'un prix entre 0 et 10 000 €");
+      return { nom: t(f.nom, 40), prix, pour: t(f.pour, 120), inclus: (Array.isArray(f.inclus) ? f.inclus : []).map((x: unknown) => t(x, 90)).filter(Boolean).slice(0, 6) };
+    });
+  }
+  const appliquer = (sp: any) => ({ ...(sp ?? {}), ...patch });
+  await admin.from("saas_apps").update({ spec: appliquer(app!.spec), ...(app!.brouillon ? { brouillon: appliquer(app!.brouillon) } : {}), version: (app!.version ?? 0) + 1, maj: new Date().toISOString() }).eq("id", appId);
+  return { ok: true };
+}
+
 // ---------------------------------------------------------------- Informations légales du créateur (mentions légales, CGV, confidentialité de son SaaS)
 const CHAMPS_LEGAUX: Record<string, number> = { editeur: 120, forme: 60, siret: 20, rcs: 80, adresse: 200, email: 120, tva: 30, mediateur: 200 };
 export async function appLegal(appId: string, b: any) {

@@ -99,6 +99,71 @@ const reduireLogo = (fichier) => new Promise((ok, ko) => {
   img.onload = () => { const r = Math.min(1, 512 / Math.max(img.width, img.height)); const c = document.createElement("canvas"); c.width = Math.round(img.width * r); c.height = Math.round(img.height * r); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); ok(c.toDataURL("image/png")); };
   img.onerror = () => { URL.revokeObjectURL(url); ko(new Error("Image illisible")); }; img.src = url;
 });
+// ---------------------------------------------------------------- Textes et prix du site : modifiés directement, sans IA ni crédit
+const champCls = "mt-1 w-full rounded-lg border border-[#D4D4D4] px-3 py-2 text-[13.5px] outline-none focus:border-[#303030]";
+function Textes({ m, charger }) {
+  const { ws } = useWs();
+  const sp = m.app.spec ?? {};
+  const init = () => ({ slogan: sp.slogan ?? "", cible_courte: sp.cible_courte ?? "", pitch: sp.pitch ?? "", probleme: sp.probleme ?? "",
+    atouts: Array.from({ length: Math.max(3, (sp.atouts ?? []).length) }, (_, i) => ({ titre: sp.atouts?.[i]?.titre ?? "", texte: sp.atouts?.[i]?.texte ?? "" })),
+    formules: (sp.formules ?? []).map((x) => ({ nom: x.nom ?? "", prix: x.prix ?? 0, pour: x.pour ?? "", inclus: (x.inclus ?? []).join("\n") })) });
+  const [f, setF] = useState(init);
+  const [ouvert, setOuvert] = useState(false);
+  const [etat, setEtat] = useState(null);
+  const enregistrer = async (e) => {
+    e.preventDefault(); setEtat("…");
+    try {
+      await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: m.app.id, quoi: "textes", ...f, formules: f.formules.map((x) => ({ ...x, prix: Number(String(x.prix).replace(",", ".")), inclus: x.inclus.split("\n").map((l) => l.trim()).filter(Boolean) })) });
+      await charger(); setEtat("ok");
+    } catch (x) { setEtat(x.message); }
+  };
+  const ch = (k, l, long, max) => (
+    <label className="block"><span className="text-[12.5px] font-semibold text-[#616161]">{l}</span>
+      {long ? <textarea rows={3} maxLength={max} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} className={champCls} />
+        : <input maxLength={max} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} className={champCls} />}</label>
+  );
+  return (
+    <Carte className="mt-4" titre="Textes et prix" sous="Change les phrases de ton site et tes formules toi-même, en direct : sans IA et sans utiliser de modification."
+      actions={<Bouton onClick={() => { setOuvert(!ouvert); if (!ouvert) setF(init()); }}>{ouvert ? "Fermer" : "Modifier"}</Bouton>}>
+      {!ouvert ? (
+        <div className="grid gap-2 text-[13px] text-[#616161] sm:grid-cols-2">
+          <p><span className="font-semibold text-[#1A1A1A]">Titre : </span>{sp.slogan}</p>
+          <p><span className="font-semibold text-[#1A1A1A]">Formules : </span>{(sp.formules ?? []).map((x) => `${x.nom} ${x.prix} €`).join(" · ") || "aucune"}</p>
+        </div>
+      ) : (
+        <form onSubmit={enregistrer} className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">{ch("slogan", "Titre du site", false, 90)}{ch("cible_courte", "Pour qui (petite étiquette)", false, 60)}</div>
+          {ch("pitch", "Phrase sous le titre", true, 300)}
+          {ch("probleme", "Le problème que tu règles", true, 400)}
+          <div>
+            <p className="text-[12.5px] font-semibold text-[#616161]">Fonctionnalités mises en avant</p>
+            <div className="mt-1 grid gap-2 sm:grid-cols-2">{f.atouts.map((a, i) => (
+              <div key={i} className="rounded-lg border border-[#EBEBEB] p-2">
+                <input placeholder="Titre" maxLength={50} value={a.titre} onChange={(e) => { const n = [...f.atouts]; n[i] = { ...a, titre: e.target.value }; setF({ ...f, atouts: n }); }} className="w-full text-[13px] font-semibold outline-none" />
+                <input placeholder="Une phrase" maxLength={160} value={a.texte} onChange={(e) => { const n = [...f.atouts]; n[i] = { ...a, texte: e.target.value }; setF({ ...f, atouts: n }); }} className="mt-1 w-full text-[12.5px] text-[#616161] outline-none" />
+              </div>))}
+              {f.atouts.length < 6 && <button type="button" onClick={() => setF({ ...f, atouts: [...f.atouts, { titre: "", texte: "" }] })} className="rounded-lg border border-dashed border-[#B5B5B5] p-2 text-[12.5px] text-[#8A8A8A]">+ Ajouter</button>}
+            </div>
+          </div>
+          {f.formules.length > 0 && <div>
+            <p className="text-[12.5px] font-semibold text-[#616161]">Formules (le prix s'applique aux nouveaux abonnés)</p>
+            <div className="mt-1 grid gap-2 lg:grid-cols-3">{f.formules.map((x, i) => {
+              const maj = (k, v) => { const n = [...f.formules]; n[i] = { ...x, [k]: v }; setF({ ...f, formules: n }); };
+              return (
+                <div key={i} className="rounded-lg border border-[#EBEBEB] p-2.5 space-y-1.5">
+                  <div className="flex gap-2"><input value={x.nom} maxLength={40} onChange={(e) => maj("nom", e.target.value)} className="min-w-0 flex-1 text-[13px] font-semibold outline-none" /><span className="flex items-center gap-1 text-[13px]"><input value={x.prix} onChange={(e) => maj("prix", e.target.value)} className="w-16 rounded border border-[#D4D4D4] px-1.5 py-0.5 text-right tnum" />€/mois</span></div>
+                  <input placeholder="Pour qui" value={x.pour} maxLength={120} onChange={(e) => maj("pour", e.target.value)} className="w-full text-[12.5px] text-[#616161] outline-none" />
+                  <textarea rows={4} value={x.inclus} onChange={(e) => maj("inclus", e.target.value)} placeholder="Un avantage par ligne" className="w-full rounded border border-[#EBEBEB] p-1.5 text-[12.5px] outline-none" />
+                </div>);
+            })}</div>
+          </div>}
+          <div className="flex items-center gap-3"><Bouton principal type="submit">Enregistrer</Bouton>{etat === "ok" ? <span className="text-[12.5px] text-[#0C5132]">En ligne : ton site est à jour.</span> : etat && etat !== "…" ? <span className="text-[12.5px] text-[#B42318]">{etat}</span> : null}</div>
+        </form>
+      )}
+    </Carte>
+  );
+}
+
 // ---------------------------------------------------------------- Informations légales : remplissent les mentions légales, CGV et la confidentialité de son SaaS
 const CHAMPS_LEGAUX = [["editeur", "Nom ou raison sociale", "Marie Dupont ou Mopli SAS", true], ["forme", "Statut", "Micro-entreprise, SAS, SARL…", false], ["siret", "SIRET", "14 chiffres", false], ["adresse", "Adresse", "12 rue …, 75011 Paris", true], ["email", "E-mail de contact", "contact@…", true], ["tva", "N° de TVA (si tu en as un)", "FR…", false], ["mediateur", "Médiateur de la consommation (si tu vends à des particuliers)", "Nom et site du médiateur", false]];
 function Legal({ m, charger }) {
@@ -291,6 +356,7 @@ function Accueil({ m, charger }) {
       </Carte>
 
       <Identite m={m} charger={charger} />
+      <Textes m={m} charger={charger} />
       <Legal m={m} charger={charger} />
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.5fr_1fr]">
