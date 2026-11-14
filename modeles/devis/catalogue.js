@@ -1,0 +1,13 @@
+function Ecran() {
+  const K = useCollection("catalogue"), D = useCollection("devis");
+  const [m, setM] = useState(null);
+  const enregistrer = async () => { const { id, created_at, updated_at, ...d } = m; if (!d.nom) { toast("Le nom est obligatoire", "bad"); return; } if (id) await K.update(id, d); else await K.add(d); setM(null); toast("Enregistré"); };
+  const usage = (p) => D.rows.filter((d) => (d.lignes ?? []).some((l) => l.libelle === p.nom)).length;
+  if (K.loading) return html`<${ui.Loading}/>`;
+  return html`<${ui.Page} titre=${V.prestas} sous="Ton catalogue : ajoute-les à un devis en un clic, sans tout ressaisir." actions=${html`<${ui.Button} onClick=${() => setM({ nom: "", prix: 0, unite: "forfait", description: "" })}>Ajouter</${ui.Button}>`}>
+    ${!K.rows.length ? html`<${ui.Empty} texte="Ajoute ce que tu vends, avec ton prix."/>` : html`<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">${K.rows.map((p) => html`<button onClick=${() => setM({ ...p })} class="text-left rounded-2xl border border-slate-200 bg-white p-5 hover:shadow-md transition"><p class="font-semibold">${p.nom}</p><p class="mt-1 text-sm text-slate-500 line-clamp-2">${p.description}</p><div class="mt-4 flex items-end justify-between"><p class="text-2xl font-bold">${fmt.eur(p.prix)}<span class="text-sm font-normal text-slate-500"> HT${p.unite ? " / " + p.unite : ""}</span></p><p class="text-sm text-slate-500">${usage(p)} devis</p></div></button>`)}</div>`}
+    <${ui.Modal} open=${!!m} onClose=${() => setM(null)} titre=${m?.id ? m.nom : "Ajouter : " + V.presta.toLowerCase()} actions=${html`${m?.id && html`<${ui.Button} variant="danger" onClick=${async () => { if (confirm("Supprimer ?")) { await K.remove(m.id); setM(null); } }}>Supprimer</${ui.Button}>`}<${ui.Button} variant="secondary" onClick=${() => setM(null)}>Annuler</${ui.Button}><${ui.Button} onClick=${enregistrer}>Enregistrer</${ui.Button}>`}>
+      ${m && html`<div class="grid sm:grid-cols-2 gap-3"><div class="sm:col-span-2"><${ui.Input} label="Nom" value=${m.nom} onInput=${(v) => setM({ ...m, nom: v })}/></div><${ui.Input} label="Prix HT (€)" type="number" value=${m.prix} onInput=${(v) => setM({ ...m, prix: v })}/><${ui.Select} label="Unité" value=${m.unite} onChange=${(v) => setM({ ...m, unite: v })} options=${[["forfait", "Forfait"], ["heure", "Heure"], ["jour", "Jour"], ["unité", "Unité"], ["m²", "m²"], ["mois", "Mois"], ["personne", "Personne"]]}/><div class="sm:col-span-2"><${ui.Textarea} label="Description" value=${m.description} onInput=${(v) => setM({ ...m, description: v })}/></div></div>`}
+    </${ui.Modal}>
+  </${ui.Page}>`;
+}

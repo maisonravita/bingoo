@@ -103,9 +103,9 @@ export async function saasConstruire(appId: string, lancerEcran: (ecranId: strin
   const suffixe = /2e essai/.test(String(av?.etape ?? "")) ? " (2e essai)" : "";
   await etape(appId, `Conception des données et des écrans${suffixe}`);
   // Métier connu : modèle fait main (écrans soignés et testés), l'IA n'adapte que le vocabulaire, les offres et les textes
-  const { modeleDe, specReservation, PERSO_RESERVATION } = await import("./modeles.ts");
+  const { modeleDe, FAIT, PERSO, SPEC } = await import("./modeles.ts");
   const modele = modeleDe(p);
-  const FAIT_MODELE = "Cette version fait exactement ceci, et rien d'autre : un planning en calendrier, le suivi de chaque rendez-vous par étapes (à confirmer, confirmé, terminé, annulé), un fichier clients avec historique et chiffre d'affaires, les offres avec prix et durées, une page de réservation en ligne pour les clients avec e-mail de confirmation et rappel automatique par e-mail la veille, un tableau de bord du chiffre d'affaires, l'import et l'export Excel, l'équipe et l'abonnement. Les textes (pitch_site, atouts, formules) ne promettent RIEN d'autre (pas de SMS, pas de paiement ni d'acompte à la réservation, pas de factures PDF).";
+  const FAIT_MODELE = modele ? (FAIT as Record<string, string>)[modele] : "";
   const s = await askJson<any>(`Tu conçois la première version d'un SaaS qui va être générée automatiquement et mise en ligne.${modele ? `\n${FAIT_MODELE}` : ""}
 SaaS : « ${p.nom} » — ${p.pitch}
 Pour : ${p.cible}
@@ -127,7 +127,7 @@ Rends un objet JSON compact :
 Les données d'exemple sont produites à part : ne mets pas de clé demo.`, { maxTokens: 9000 });
 
   // Données d'exemple à part (modèle rapide) : la conception reste courte et ne dépasse jamais la durée d'une invocation
-  const perso = modele ? await askJson<any>(PERSO_RESERVATION(p), { fast: true, maxTokens: 1200 }).catch(() => ({})) : null;
+  const perso = modele ? await askJson<any>(PERSO[modele](p), { fast: true, maxTokens: 1600 }).catch(() => ({})) : null;
   const demo = modele ? {} : await askJson<any>(`Application « ${p.nom} » : ${p.pitch}
 Collections : ${(s.collections ?? []).slice(0, 6).map((c: any) => `${c.nom} : ${(c.champs ?? []).map((x: any) => `${x.nom} ${x.type}${x.valeurs ? ` [${x.valeurs.join("|")}]` : ""}`).join(", ")}`).join(" ; ")}
 Écris les données d'exemple de cette application. Rends un objet JSON { <collection> : 12 éléments réalistes en français (entreprises et personnes fictives, montants cohérents, dates réparties entre ${new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10)} et ${new Date(Date.now() + 90 * 864e5).toISOString().slice(0, 10)}, aujourd'hui = ${new Date().toISOString().slice(0, 10)}) } ; les champs <collection>_id pointent vers le champ « ref » (ex. "c1") que tu ajoutes à chaque élément.`, { fast: true, maxTokens: 12000 }).catch(() => ({}));
@@ -159,8 +159,8 @@ Collections : ${(s.collections ?? []).slice(0, 6).map((c: any) => `${c.nom} : ${
   spec.ecrans = spec.ecrans.filter((e: any, i: number) => spec.ecrans.findIndex((x: any) => x.id === e.id) === i);
   if (modele) {
     // Modèle fait main : écrans, collections, données vivantes et agenda viennent du modèle (déjà écrits et testés)
-    const m = specReservation(perso);
-    Object.assign(spec, { ecrans: m.ecrans, collections: m.collections, demo: m.demo, agenda: m.agenda, modele, vocab: m.vocab });
+    const m = SPEC[modele](perso);
+    Object.assign(spec, { ecrans: m.ecrans, collections: m.collections, demo: m.demo, demo_ancre: m.demo_ancre, agenda: m.agenda, modele, vocab: m.vocab });
   }
   // Garde-fou : rien du SaaS d'origine (nom, domaine) dans ce que verront les clients
   const { ecrans: _e, ...visible } = spec;

@@ -71,19 +71,21 @@ async function call(action, body = {}) {
 // Vérification avant livraison : données d'exemple en mémoire, aucune requête au serveur
 const VSTORE = {}; let VSEQ = 0;
 // Mêmes dates que dans le vrai SaaS : les exemples sont recentrés sur aujourd'hui (comme recalerDemo côté serveur)
-function recaler(demo) {
+function recaler(demo, ancre) {
   const RJ = /^(\\d{4}-\\d{2}-\\d{2})(T[\\d:.]+(?:Z|[+-]\\d{2}:?\\d{2})?)?$/, jours = [];
+  const a = ancre ? Date.parse(String(ancre).slice(0, 10) + "T12:00:00Z") : NaN;
+  if (!isNaN(a)) jours.push(a);
   for (const xs of Object.values(demo)) for (const x of Array.isArray(xs) ? xs : []) if (x && typeof x === "object") for (const v of Object.values(x)) { const m = typeof v === "string" && RJ.exec(v); if (m) { const t = Date.parse(m[1] + "T12:00:00Z"); if (!isNaN(t)) jours.push(t); } }
   if (!jours.length) return demo;
   jours.sort((a, b) => a - b);
-  const dec = Math.round((Date.parse(new Date().toISOString().slice(0, 10) + "T12:00:00Z") - jours[Math.floor(jours.length / 2)]) / 864e5) * 864e5;
+  const dec = Math.round((Date.parse(new Date().toISOString().slice(0, 10) + "T12:00:00Z") - (isNaN(a) ? jours[Math.floor(jours.length / 2)] : a)) / 864e5) * 864e5;
   if (!dec) return demo;
   const dv = (v) => { const m = typeof v === "string" && RJ.exec(v); if (!m) return v; const t = Date.parse(m[1] + "T12:00:00Z"); return isNaN(t) ? v : new Date(t + dec).toISOString().slice(0, 10) + (m[2] ?? ""); };
   return Object.fromEntries(Object.entries(demo).map(([k, xs]) => [k, Array.isArray(xs) ? xs.map((x) => x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).map(([c, v]) => [c, dv(v)])) : x) : xs]));
 }
 if (B.verif) {
   const refs = new Map(), items = [];
-  for (const [col, xs] of Object.entries(recaler(S.demo ?? {}))) for (const x of (Array.isArray(xs) ? xs : []).slice(0, 60)) { const id = "v" + (++VSEQ); if (x && x.ref != null) refs.set(String(x.ref), id); items.push({ id, col, x: x ?? {} }); }
+  for (const [col, xs] of Object.entries(recaler(S.demo ?? {}, S.demo_ancre))) for (const x of (Array.isArray(xs) ? xs : []).slice(0, 60)) { const id = "v" + (++VSEQ); if (x && x.ref != null) refs.set(String(x.ref), id); items.push({ id, col, x: x ?? {} }); }
   items.forEach(({ id, col, x }, i) => { const d = {}; for (const [k, v] of Object.entries(x)) if (k !== "ref" && k !== "id") d[k] = typeof v === "string" && refs.has(v) && /_id$/.test(k) ? refs.get(v) : v; (VSTORE[col] ??= []).push({ ...d, id, created_at: new Date(Date.now() - i * 25e6).toISOString(), updated_at: null }); });
 }
 async function verifCall(action, b) {

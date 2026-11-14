@@ -1,0 +1,17 @@
+function Ecran(props) {
+  const K = useCollection("catalogue");
+  const [f, setF] = useState({ produit: "", client_nom: "", client_email: "", telephone: "", entreprise: "", message: "" }), [ok, setOk] = useState(false), [busy, setBusy] = useState(false);
+  const p = K.rows.find((x) => x.id === f.produit);
+  const envoyer = async (e) => { e.preventDefault(); if (!f.client_nom || !f.client_email || (!p && !f.message)) { toast("Indique ton nom, ton e-mail et ce dont tu as besoin", "bad"); return; } setBusy(true); try {
+    await db.add("devis", { statut: "demande", client_nom: f.client_nom, client_email: f.client_email, telephone: f.telephone, entreprise: f.entreprise, date: new Date().toISOString().slice(0, 10), lignes: p ? [{ libelle: p.nom, quantite: 1, prix: Number(p.prix) || 0 }] : [], tva: 20, notes: f.message }, { confirmation: { sujet: "Ta demande de devis est bien reçue", texte: "Bonjour " + f.client_nom + ",\n\nNous avons bien reçu ta demande" + (p ? " : " + p.nom : "") + ".\nTu recevras ton devis détaillé très vite, par e-mail.\n\nÀ bientôt !" } });
+    setOk(true); } catch (x) { toast(x.message, "bad"); } finally { setBusy(false); } };
+  if (ok) return html`<div class="max-w-lg mx-auto text-center py-16"><span class="mx-auto grid w-14 h-14 place-items-center rounded-full bg-emerald-100 text-emerald-600 text-2xl">✓</span><h1 class="mt-4 text-2xl font-bold">Demande envoyée</h1><p class="mt-2 text-slate-500">Un e-mail de confirmation vient de t'être envoyé. Ton devis arrive très vite.</p></div>`;
+  return html`<div class="max-w-2xl mx-auto py-10 px-4">
+    <h1 class="text-3xl font-bold tracking-tight">Demander un devis</h1><p class="mt-2 text-slate-500">${props?.espace ? props.espace + " te répond" : "Réponse"} rapidement, avec un devis détaillé et sans engagement.</p>
+    <form onSubmit=${envoyer} class="mt-8 space-y-6">
+      ${K.rows.length ? html`<div><p class="text-sm font-semibold mb-2">Ce qui t'intéresse</p><div class="grid sm:grid-cols-2 gap-3">${K.rows.map((x) => html`<button type="button" onClick=${() => setF({ ...f, produit: f.produit === x.id ? "" : x.id })} class=${"text-left rounded-2xl border p-4 transition " + (f.produit === x.id ? "border-[var(--c)] ring-2 ring-[var(--c)]/20 bg-[var(--c)]/5" : "border-slate-200 bg-white hover:border-slate-300")}><p class="font-semibold">${x.nom}</p><p class="text-sm text-slate-500 line-clamp-2">${x.description}</p><p class="mt-2 text-sm font-semibold">À partir de ${fmt.eur(x.prix)} HT${x.unite ? " / " + x.unite : ""}</p></button>`)}</div></div>` : null}
+      <div class="grid sm:grid-cols-2 gap-3"><${ui.Input} label="Ton nom" value=${f.client_nom} onInput=${(v) => setF({ ...f, client_nom: v })} required/><${ui.Input} label="Ton e-mail" type="email" value=${f.client_email} onInput=${(v) => setF({ ...f, client_email: v })} required/><${ui.Input} label="Téléphone" value=${f.telephone} onInput=${(v) => setF({ ...f, telephone: v })}/><${ui.Input} label="Entreprise (si besoin)" value=${f.entreprise} onInput=${(v) => setF({ ...f, entreprise: v })}/></div>
+      <${ui.Textarea} label="Ton besoin en quelques mots" value=${f.message} onInput=${(v) => setF({ ...f, message: v })} rows="4" placeholder="Quantités, dates, adresse, contraintes…"/>
+      <${ui.Button} type="submit" disabled=${busy} class="w-full py-3 text-base">${busy ? "Envoi…" : "Recevoir mon devis"}</${ui.Button}>
+    </form></div>`;
+}
