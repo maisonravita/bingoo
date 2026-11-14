@@ -217,7 +217,8 @@ export async function saasModifierEcran(appId: string, ecranId: string, demande:
     if (!e) throw new Error("Écran introuvable");
     const r = await ecrire(spec, e, demande, e.code);
     if (!r.ok) throw new Error("La modification n'a pas pu être écrite correctement, reformule ta demande");
-    Object.assign(e, r);
+    // Écran personnalisé à la demande de l'utilisateur : les mises à jour du modèle ne l'écraseront plus
+    Object.assign(e, r, { modifie: true });
   }
   e.code = sansIdentite(e.code, await inspireDe(appId), spec.nom).valeur;
   const m = { demande, ecran: e.id, titre: e.titre, nouveau: ecranId === "nouveau", suggestion, at: new Date().toISOString() };

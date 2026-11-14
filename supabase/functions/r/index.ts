@@ -756,6 +756,32 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   // Découverte à grande échelle (clé cron) : import de la liste Tranco, puis tri sans IA des candidats
   // Avant de proposer un SaaS : l'IA vérifie que Bingoo! sait vraiment construire sa version (définition stricte),
   // et rédige ce qu'il fait, en français et sans son nom, pour les cartes floutées.
+  // Après une correction d'un modèle fait main (clé cron) : les SaaS déjà construits reçoivent le nouveau code des écrans du modèle,
+  // en gardant leur vocabulaire (première ligne « const V = … »). Les écrans que l'utilisateur a fait modifier ne sont pas touchés.
+  async "modeles-maj"(req) {
+    await cron(req);
+    const { MODELES_CODE } = await import("../_shared/modeles-code.ts");
+    const { data: apps } = await admin.from("saas_apps").select("id, spec, version").not("spec->>modele", "is", null).not("statut", "in", "(remplace,retire,erreur)");
+    let maj = 0;
+    for (const a of apps ?? []) {
+      const spec = a.spec as any, code = (MODELES_CODE as any)[spec.modele];
+      if (!code) continue;
+      let change = false;
+      const ecrans = (spec.ecrans ?? []).map((e: any) => {
+        if (!e.modele || !code[e.id] || e.modifie) return e;
+        const tete = String(e.code ?? "").split("\n")[0];
+        if (!tete.startsWith("const V = ")) return e;
+        const neuf = tete + "\n" + code[e.id];
+        if (neuf === e.code) return e;
+        change = true;
+        return { ...e, code: neuf };
+      });
+      if (!change) continue;
+      await admin.from("saas_apps").update({ spec: { ...spec, ecrans }, version: (a.version ?? 1) + 1 }).eq("id", a.id);
+      maj++;
+    }
+    return { apps: (apps ?? []).length, maj };
+  },
   async "saas-pitch-fr"(req) {
     await cron(req);
     setAi({ ws: null, feature: "explorer/verif" });
