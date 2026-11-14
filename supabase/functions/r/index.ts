@@ -632,6 +632,10 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   async "saas-tiktok-vignettes"(req, b) {
     await membreOuCron(req, b.workspace_id);
     const { vignettes } = await import("../_shared/app-tiktok.ts");
+    if (b.diag && req.headers.get("x-cron-key")) {
+      const r = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(String(b.urls?.[0] ?? ""))}`, { headers: { "user-agent": "Mozilla/5.0 (Bingoo)" } }).catch((e) => ({ status: 0, text: async () => String(e) } as any));
+      return { status: r.status, corps: (await r.text()).slice(0, 400) };
+    }
     return await vignettes(Array.isArray(b.urls) ? b.urls.map(String) : []);
   },
   async "saas-tiktok-pareil"(req, b) {
