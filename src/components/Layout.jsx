@@ -8,9 +8,6 @@ import { cx } from "../lib/utils";
 import { LegalLinks } from "../pages/Legal";
 import Logo from "./Logo";
 import Feedback from "./Feedback";
-import { estSimple } from "../lib/lieu";
-import { accueilVille, LIEUX } from "../lib/lieu";
-import { modeExplorer } from "../lib/mode";
 
 const ICONS = {
   today: <path d="M4 12h3l3-7 4 14 3-7h3" />,
@@ -29,6 +26,7 @@ const ICONS = {
   target: <><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.5" /><circle cx="12" cy="12" r="1" /></>,
   plug: <><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0z" /><path d="M12 17v4" /></>,
   users: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><circle cx="17" cy="9" r="2.5" /><path d="M16 14.2a5 5 0 0 1 5.5 5" /></>,
+  user: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
   card: <><rect x="2.5" y="5" width="19" height="14" rx="2.5" /><path d="M2.5 10h19M6 15h4" /></>,
   niche: <path d="M12 3a9 9 0 1 0 9 9M12 7a5 5 0 1 0 5 5M12 11a1 1 0 1 0 1 1M13 11l7-7M17 4h3v3" />,
   spark: <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6" />,
@@ -63,100 +61,7 @@ function WsSwitch({ ws, list, select, className }) {
   );
 }
 
-function TrialBar({ ws }) {
-  // Rien de gratuit : tant que la formule n'est pas payée, les SaaS restent verrouillés
-  const [payments, setPayments] = useState(true);
-  useEffect(() => { fn("plans").then((r) => setPayments(r?.payments !== false)).catch(() => {}); }, []);
-  return (
-    <NavLink to="/abonnement" className="flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full px-5 py-2.5 text-sm border transition bg-gradient-to-r from-accent-soft/70 to-white border-accent/15 hover:border-accent/40">
-      <span className="font-semibold">Tes SaaS sont verrouillés</span>
-      <span className="text-ink-soft border-l border-line pl-3">{payments ? "Choisis ta formule pour les débloquer, sans engagement →" : "Les abonnements ouvrent très bientôt : tes SaaS se débloqueront dès ton paiement."}</span>
-    </NavLink>
-  );
-}
-
-/** Haut de page : essai, cloche (réponses + alertes Espion), accès à son compte. */
-const SEEN_KEY = (id, k) => `bingoo:alerts-seen:${k}:${id}`;
-const getSeen = (id, k) => { try { return localStorage.getItem(SEEN_KEY(id, k)) ?? ""; } catch { return ""; } };
-const setSeen = (id, k) => { try { localStorage.setItem(SEEN_KEY(id, k), new Date().toISOString()); } catch { /* navigation privée */ } };
-const ALERT = { espion_alerte: ["Espion", "/espion"], radar_alerte: ["Radar", "/radar"], budget_ia: ["Consommation IA", "/abonnement"] };
-function Bell({ ws, replies }) {
-  const loc = useLocation();
-  const [open, setOpen] = useState(false);
-  const [alerts, setAlerts] = useState([]);
-  const [seen, setSeenState] = useState(() => ({ espion_alerte: getSeen(ws.id, "espion_alerte"), radar_alerte: getSeen(ws.id, "radar_alerte"), budget_ia: getSeen(ws.id, "budget_ia") }));
-  useEffect(() => {
-    let alive = true;
-    const load = () => supabase.from("activity").select("id, kind, summary, created_at").eq("workspace_id", ws.id).in("kind", ["espion_alerte", "radar_alerte", "budget_ia"]).gte("created_at", new Date(Date.now() - 14 * 864e5).toISOString()).order("created_at", { ascending: false }).limit(8).then(({ data }) => alive && setAlerts(data ?? []));
-    load(); const t = setInterval(load, 60000);
-    return () => { alive = false; clearInterval(t); };
-  }, [ws.id]);
-  useEffect(() => {
-    const k = loc.pathname.startsWith("/espion") ? "espion_alerte" : loc.pathname.startsWith("/radar") ? "radar_alerte" : loc.pathname.startsWith("/abonnement") ? "budget_ia" : null;
-    if (k) { setSeen(ws.id, k); setSeenState((x) => ({ ...x, [k]: getSeen(ws.id, k) })); }
-    setOpen(false);
-  }, [loc.pathname, ws.id]);
-  const isNew = (a) => !seen[a.kind] || a.created_at > seen[a.kind];
-  const fresh = alerts.filter(isNew).length;
-  const total = (replies ?? 0) + fresh;
-  return (
-    <div className="relative">
-      <button onClick={() => setOpen((x) => !x)} title={total ? `${total} nouveauté${total > 1 ? "s" : ""}` : "Rien de nouveau"} className="relative w-10 h-10 rounded-full grid place-items-center text-ink-soft hover:text-ink hover:bg-white transition">
-        <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 21h4" /></svg>
-        {total > 0 && <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-accent text-white text-[10.5px] font-bold grid place-items-center ring-2 ring-paper">{total > 9 ? "9+" : total}</span>}
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-12 z-40 w-[340px] rounded-2xl border border-line bg-white shadow-xl p-2">
-            <NavLink to="/reponses" className="flex items-center justify-between rounded-xl px-3 py-2.5 hover:bg-paper">
-              <span className="text-[14px] font-semibold">Réponses de prospects</span>
-              <span className={cx("text-[12.5px] font-semibold", replies ? "text-accent" : "text-ink-faint")}>{replies ? `${replies} à traiter` : "aucune"}</span>
-            </NavLink>
-            <div className="border-t border-line my-1" />
-            <p className="px-3 pt-1.5 pb-1 text-[11px] font-bold uppercase tracking-wider text-ink-faint">Alertes Radar et Espion</p>
-            {!alerts.length ? <p className="px-3 pb-2.5 text-[13px] text-ink-faint">Rien d'urgent ces 14 derniers jours.</p> : alerts.map((a) => (
-              <NavLink key={a.id} to={ALERT[a.kind]?.[1] ?? "/"} className="flex gap-2.5 rounded-xl px-3 py-2 hover:bg-paper">
-                <span className={cx("mt-1.5 h-2 w-2 rounded-full shrink-0", isNew(a) ? "bg-accent" : "bg-line")} />
-                <span className="min-w-0"><span className="block text-[13px] text-ink leading-snug line-clamp-2">{a.summary}</span><span className="block text-[11.5px] text-ink-faint mt-0.5">{ALERT[a.kind]?.[0]} · {new Date(a.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</span></span>
-              </NavLink>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-/** Crédits IA, toujours visibles : jauge du mois et accès direct à l'achat. */
-function CreditsChip({ ws }) {
-  const loc = useLocation();
-  const [ai, setAi] = useState(null);
-  useEffect(() => { supabase.rpc("ai_month", { p_ws: ws.id }).then(({ data }) => setAi(data ?? null)); }, [ws.id, loc.pathname]);
-  const pct = ai ? Math.min(100, Math.round((Number(ai.spent) / Math.max(1, Number(ai.budget))) * 100)) : 0;
-  const low = pct >= 80 && Number(ai?.balance ?? 0) <= 0;
-  // Tant qu'il reste de la marge, rien à afficher : la jauge n'apparaît qu'à 80 % du mois consommé
-  if (!ai || !Number.isFinite(pct) || pct < 80) return null;
-  return (
-    <NavLink to="/abonnement?credits=1" title="Crédits IA du mois : acheter des crédits" className={cx("hidden lg:flex items-center gap-2.5 rounded-full border px-3.5 py-2 text-[13px] font-medium transition hover:border-accent/50", low ? "border-accent bg-accent-soft text-accent-dark" : "border-line bg-white text-ink-soft")}>
-      <span className="w-16 h-1.5 rounded-full bg-paper overflow-hidden"><span className={cx("block h-full rounded-full", pct >= 100 ? "bg-bad" : pct >= 80 ? "bg-warn" : "bg-accent")} style={{ width: `${Math.max(4, pct)}%` }} /></span>
-      <span>{low ? "Ajouter des crédits" : `Crédits IA · ${pct} %`}</span>
-    </NavLink>
-  );
-}
-
-function TopBar({ ws, replies }) {
-  const who = (ws.sender_name || ws.profile?.nom || ws.name || "?").trim();
-  return (
-    <div className="hidden md:flex items-center gap-4">
-      {!modeExplorer(ws) && <CreditsChip ws={ws} />}
-      <Bell ws={ws} replies={replies} />
-      <NavLink to="/reglages" title="Réglages" className="w-11 h-11 rounded-full bg-ink text-white grid place-items-center font-bold text-[15px] hover:ring-4 hover:ring-accent-soft transition">{who[0].toUpperCase()}</NavLink>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------- Bingoo! : barre latérale fixe + barre du haut (fil d'Ariane, recherche, compte et crédits)
+// ---------------------------------------------------------------- Bingoo! : barre latérale fixe + barre du haut (recherche, compte et crédits)
 const FORMULE = { explorer_pro: "Lancer", business: "Business", fondateur: "Fondateur", explorer: "Trouver", essai: "Sans formule" };
 const DUREE_F = { mois: "1 mois", trimestre: "3 mois", an: "12 mois" };
 function useCredits(ws, invite) {
@@ -227,7 +132,7 @@ function MenuCompte({ ws, list, select, credits, invite, onAvis, onClose }) {
 }
 
 // L'interface après paiement, dans l'esprit de l'administration Shopify : barre noire en haut, menu gris clair, fond gris doux, cartes blanches.
-function AppShell({ ws, list, select, invite, isAdmin, essentiel, c, bandeau, extra, menuMobile, onAvis, children }) {
+function AppShell({ ws, list, select, invite, sections, bas, bandeau, extra, menuMobile, onAvis, children }) {
   const loc = useLocation();
   const nav = useNavigate();
   const credits = useCredits(ws, invite);
@@ -244,26 +149,6 @@ function AppShell({ ws, list, select, invite, isAdmin, essentiel, c, bandeau, ex
   }, []);
   // Le SaaS du créateur : son nom et sa couleur en haut à droite, comme la boutique sur Shopify
   useEffect(() => { if (!invite) supabase.from("saas_apps").select("spec->nom, spec->couleur").eq("workspace_id", ws.id).neq("statut", "remplace").order("at", { ascending: false }).limit(1).then(({ data }) => setSaas(data?.[0] ?? null)); }, [ws.id, invite]);
-  // Les rubriques : son SaaS d'abord, puis découvrir, puis le compte
-  const sections = invite ? [{ items: essentiel }] : [
-    { items: [
-      { to: "/explorer/mon-saas", label: "Accueil", icon: "today" },
-      { to: "/explorer/atelier", label: "Atelier", icon: "chat" },
-      { to: "/explorer/clients", label: "Premiers clients", icon: "users" },
-      { to: "/explorer/methodes", label: "Ce qui marche", icon: "funnel" },
-      { to: "/explorer/tiktok", label: "TikTok", icon: "tiktok" },
-      { to: "/explorer/video", label: "Vidéo pub", icon: "video" },
-      { to: "/explorer/dossier", label: "Mon dossier", icon: "doc", also: ["/explorer/lancer"] },
-    ] },
-    { titre: "Découvrir", items: essentiel.filter((n) => n.to !== "/explorer/createurs") },
-    { titre: "Compte", items: [
-      { to: "/abonnement#credits", label: "Crédits", icon: "coins" },
-      { to: "/abonnement", label: "Abonnement", icon: "card" },
-      ...(["business", "fondateur"].includes(ws.plan) ? [{ to: "/equipe", label: "Équipe", icon: "users" }] : []),
-      ...(isAdmin ? [{ to: "/admin", label: "Administration", icon: "chart" }] : []),
-    ] },
-  ];
-  const bas = invite ? [{ to: "/aide", label: "Aide", icon: "help" }] : [{ to: "/explorer/reglages-saas", label: "Réglages du SaaS", icon: "cog" }, { to: "/aide", label: "Aide", icon: "help" }];
   const actif = (n) => (n.to.includes("#") ? loc.pathname === n.to.split("#")[0] && loc.hash.includes(n.to.split("#")[1]) : loc.pathname === n.to && !(n.to === "/abonnement" && loc.hash.includes("credits"))) || (n.also ?? []).includes(loc.pathname);
   const pct = credits?.total ? Math.round((credits.solde / credits.total) * 100) : null;
   const nomSaas = saas?.nom ?? ws.profile?.nom ?? ws.name ?? "Mon espace";
@@ -341,13 +226,46 @@ function AppShell({ ws, list, select, invite, isAdmin, essentiel, c, bandeau, ex
   );
 }
 
+// Les rubriques : son SaaS d'abord, puis découvrir, puis le compte
+function rubriques(ws, invite, isAdmin) {
+  const decouvrir = [
+    { to: "/explorer/trouver", label: "Trouver mon SaaS", icon: "target" },
+    { to: "/explorer/copier", label: "À lancer", icon: "flag", also: ["/explorer/chiffres"] },
+    { to: "/explorer/demande", label: "Demande à Bingoo!", icon: "spark", also: ["/explorer/connecteur"] },
+    { to: "/explorer/vendre", label: "Acheter / vendre", icon: "doc", also: ["/explorer/bourse", "/explorer/racheter"] },
+    { to: "/explorer", label: "Explorer les SaaS", icon: "list", also: ["/explorer/niches", "/explorer/classement", "/explorer/marche", "/explorer/carte", "/explorer/idees", "/explorer/pubs", "/explorer/suivis", "/explorer/bouge", "/explorer/createurs"] },
+  ];
+  if (invite) return { sections: [{ items: decouvrir.slice(0, 1) }], bas: [{ to: "/aide", label: "Aide", icon: "help" }] };
+  return {
+    sections: [
+      { items: [
+        { to: "/explorer/mon-saas", label: "Accueil", icon: "today" },
+        { to: "/explorer/atelier", label: "Atelier", icon: "chat" },
+        { to: "/explorer/clients", label: "Premiers clients", icon: "users" },
+        { to: "/explorer/methodes", label: "Ce qui marche", icon: "funnel" },
+        { to: "/explorer/tiktok", label: "TikTok", icon: "tiktok" },
+        { to: "/explorer/video", label: "Vidéo pub", icon: "video" },
+        { to: "/explorer/dossier", label: "Mon dossier", icon: "doc", also: ["/explorer/lancer"] },
+      ] },
+      { titre: "Découvrir", items: decouvrir },
+      { titre: "Compte", items: [
+        { to: "/abonnement#credits", label: "Crédits", icon: "coins" },
+        { to: "/abonnement", label: "Abonnement", icon: "card" },
+        ...(["business", "fondateur"].includes(ws.plan) ? [{ to: "/equipe", label: "Équipe", icon: "users" }] : []),
+        ...(isAdmin ? [{ to: "/admin", label: "Administration", icon: "chart" }] : []),
+      ] },
+    ],
+    bas: [{ to: "/explorer/reglages-saas", label: "Réglages du SaaS", icon: "cog" }, { to: "/reglages", label: "Paramètres", icon: "user" }, { to: "/aide", label: "Aide", icon: "help" }],
+  };
+}
+
 export default function Layout({ children }) {
   const { ws, list, select, session } = useWs();
   const invite = estInvite(session);
   const loc = useLocation();
   const [more, setMore] = useState(false);
-  const [c, setC] = useState({});
   const [fb, setFb] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   // Temps passé : une minute comptée seulement si l'onglet est visible et utilisé
   useEffect(() => {
     let last = Date.now();
@@ -360,94 +278,39 @@ export default function Layout({ children }) {
     return () => { clearInterval(t); evs.forEach((e) => window.removeEventListener(e, seen)); };
   }, [ws.id]);
   useEffect(() => setMore(false), [loc.pathname]);
-  useEffect(() => {
-    let alive = true;
-    const head = (t) => supabase.from(t).select("id", { count: "exact", head: true }).eq("workspace_id", ws.id);
-    const load = async () => {
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      const [d, l, r, m, o, ap] = await Promise.all([
-        head("messages").eq("status", "brouillon"),
-        head("prospects").eq("linkedin_status", "a_envoyer"),
-        head("replies").eq("handled", false),
-        head("meetings").eq("status", "confirme").gte("starts_at", today.toISOString()).lt("starts_at", new Date(today.getTime() + 86400000).toISOString()),
-        head("radar_opps").eq("status", "nouveau"),
-        head("prospects").lte("next_action_at", new Date().toISOString().slice(0, 10)).ilike("next_action", "%appeler%").not("status", "in", "(ignore,refus,client,rdv)"),
-      ]);
-      if (alive) setC({ drafts: d.count ?? 0, li: l.count ?? 0, replies: r.count ?? 0, today: m.count ?? 0, radar: o.count ?? 0, calls: ap.count ?? 0 });
-    };
-    load();
-    const t = setInterval(load, 20000);
-    window.addEventListener("kairo:refresh", load);
-    return () => { alive = false; clearInterval(t); window.removeEventListener("kairo:refresh", load); };
-  }, [ws.id]);
-
-  const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => { supabase.rpc("is_admin").then(({ data }) => setIsAdmin(!!data)); }, []);
-  // Le menu : l'essentiel en haut, avec des noms simples ; tout le reste derrière « Plus ».
-  // Les outils avancés (Concurrents, LinkedIn, Devis, Extension) n'apparaissent que s'ils sont activés dans Réglages.
-  const compte = { atelier: c.drafts, poste: c.replies, rdv: c.today, radar: c.radar, linkedin: c.li };
-  const also = { annuaire: ["/mission"], mairie: ["/connexions", "/equipe", "/abonnement"] };
-  const lieu = (art) => LIEUX.find((l) => l.art === art);
-  const item = (l) => ({ to: l.to, label: l.nom, short: l.court, icon: l.icon, count: compte[l.art], hot: l.art === "atelier", also: also[l.art] });
-  const avance = !estSimple(ws);
-  const veille = modeExplorer(ws);
-  // Mêmes 5 rubriques que la barre de l'Explorer ; chaque rubrique s'allume aussi sur ses sous-pages
-  const essentiel = invite ? [
-    { to: "/explorer/trouver", label: "Trouver mon SaaS", icon: "target" },
-  ] : veille ? [
-    { to: "/explorer/trouver", label: "Trouver mon SaaS", icon: "target" },
-    { to: "/explorer/copier", label: "À lancer", icon: "flag", also: ["/explorer/chiffres"] },
-    { to: "/explorer/demande", label: "Demande à Bingoo!", icon: "spark", also: ["/explorer/connecteur"] },
-    { to: "/explorer/createurs", label: "Mes SaaS", icon: "bot", also: ["/explorer/lancer"] },
-    { to: "/explorer/vendre", label: "Acheter / vendre", icon: "doc", also: ["/explorer/bourse", "/explorer/racheter"] },
-    { to: "/explorer", label: "Explorer les SaaS", icon: "list", also: ["/explorer/niches", "/explorer/classement", "/explorer/marche", "/explorer/carte", "/explorer/idees", "/explorer/pubs", "/explorer/suivis", "/explorer/bouge"] },
-  ] : [{ to: "/explorer", label: "Explorer", icon: "eye" }, item(lieu("atelier")), item(lieu("poste")), { to: "/appels", label: "Appels", icon: "phone", count: c.calls }, ...["rdv", "radar", "observatoire"].map((a) => item(lieu(a)))];
-  const plus = invite ? [] : veille ? [
-    { to: "/abonnement", label: "Abonnement", icon: "doc" }, ...(["business", "fondateur"].includes(ws.plan) ? [{ to: "/equipe", label: "Équipe", icon: "phone" }] : []),
-    ...(isAdmin ? [{ to: "/admin", label: "Administration", icon: "chart" }] : []),
-  ] : [
-    item(lieu("annuaire")),
-    { to: "/village", label: "Ma ville", icon: "town" },
-    ...(avance ? [item(lieu("espion")), item(lieu("linkedin")), { to: "/devis", label: "Devis", icon: "doc" }, { to: "/extension", label: "Extension LinkedIn", icon: "plug" }] : []),
-    item(lieu("mairie")),
-    ...(isAdmin ? [{ to: "/admin", label: "Administration", icon: "chart" }] : []),
-  ];
-  const isOn = (n, isActive) => isActive || (n.also ?? []).some((p) => loc.pathname === p);
-  const link = (n) => ({ isActive }) => cx("flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] font-medium transition", isOn(n, isActive) ? "bg-accent-soft/80 text-accent-dark font-semibold border border-transparent" : "text-ink-soft hover:text-ink hover:bg-white/70 border border-transparent");
-  const Count = ({ n, hot }) => n > 0 ? <span className={cx("text-xs font-semibold rounded-full px-2 py-0.5 tnum", hot ? "bg-accent text-white" : "bg-ink/10 text-ink")}>{n}</span> : null;
+  const { sections, bas } = rubriques(ws, invite, isAdmin);
+  const isOn = (n) => loc.pathname === n.to.split("#")[0] || (n.also ?? []).includes(loc.pathname);
 
-  // Accueil en ville : plein écran, sans menu. Partout : un seul bouton « 3 traits » qui ouvre le menu.
-  const full = loc.pathname === "/village" || (loc.pathname === "/" && accueilVille());
+  // Téléphone : un bouton « 3 traits » qui ouvre le menu (mêmes rubriques que sur ordinateur)
   const menu = (
     <>
-      <button onClick={() => setMore(true)} aria-label="Ouvrir le menu" className={cx("relative z-30 grid h-12 w-12 sm:h-14 sm:w-14 shrink-0 place-items-center rounded-2xl bg-white shadow-[0_10px_24px_-12px_rgba(122,74,42,.5)] hover:bg-[#FFF7F0]", full ? "!fixed left-4 top-4 sm:left-6 sm:top-6" : "border border-line")}>
-        <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="M4 7h16M4 12h16M4 17h16" /></svg>
-        {(c.replies + c.drafts) > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-[11px] font-bold text-white">{c.replies + c.drafts}</span>}
+      <button onClick={() => setMore(true)} aria-label="Ouvrir le menu" className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white shadow-[0_1px_0_rgba(0,0,0,.08),0_0_0_1px_rgba(0,0,0,.06)]">
+        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden><path d="M4 7h16M4 12h16M4 17h16" /></svg>
       </button>
       {more && (
         <div className="fixed inset-0 z-50" onClick={() => setMore(false)}>
           <div className="absolute inset-0 bg-ink/35" />
-          <aside className="absolute left-0 top-0 h-full w-[300px] max-w-[85vw] overflow-y-auto bg-paper p-4 shadow-2xl rise" onClick={(e) => e.stopPropagation()} aria-label="Menu">
-            <div className="flex items-center justify-between mb-4"><Logo className="ml-2" /><button onClick={() => setMore(false)} aria-label="Fermer le menu" className="grid h-10 w-10 place-items-center rounded-xl hover:bg-white text-[20px]">✕</button></div>
-            <div className="flex flex-col gap-0.5">
-              {!veille && <NavLink to="/" end onClick={() => setMore(false)} className={link({ to: "/" })}><Icon name="today" /><span className="flex-1">Aujourd'hui</span></NavLink>}
-              {essentiel.map((n) => n.titre ? <p key={n.titre} className="mt-3 first:mt-0 px-3 pb-1 text-[11.5px] font-bold uppercase tracking-wider text-ink-faint">{n.titre}</p> : <NavLink key={n.to} to={n.to} end onClick={() => setMore(false)} className={link(n)}><Icon name={n.icon} /><span className="flex-1">{n.label}</span><Count n={n.count} hot={n.hot} /></NavLink>)}
-            </div>
-            {plus.length > 0 && <details className="group mt-3 pt-3 border-t border-line" open={plus.some((n) => loc.pathname === n.to || (n.also ?? []).includes(loc.pathname))}>
-              <summary className="cursor-pointer list-none flex items-center gap-3 rounded-xl px-3 py-2 text-[15px] font-medium text-ink-soft hover:text-ink hover:bg-white/70"><Icon name="more" /><span className="flex-1">Plus</span><span className="transition group-open:rotate-90" aria-hidden>›</span></summary>
-              <div className="mt-0.5 flex flex-col gap-0.5">
-                {plus.map((n) => <NavLink key={n.to} to={n.to} end onClick={() => setMore(false)} className={link(n)}><Icon name={n.icon} /><span className="flex-1">{n.label}</span><Count n={n.count} hot={n.hot} /></NavLink>)}
+          <aside className="absolute left-0 top-0 h-full w-[290px] max-w-[85vw] overflow-y-auto bg-[#EBEBEB] p-3 shadow-2xl rise" onClick={(e) => e.stopPropagation()} aria-label="Menu">
+            <div className="mb-3 flex items-center justify-between px-1"><Logo height={26} /><button onClick={() => setMore(false)} aria-label="Fermer le menu" className="grid h-9 w-9 place-items-center rounded-lg hover:bg-white text-[18px]">✕</button></div>
+            {[...sections, { titre: " ", items: bas }].map((sec, i) => (
+              <div key={i} className={cx(i > 0 && "mt-4")}>
+                {sec.titre && sec.titre.trim() && <p className="mb-1 px-2 text-[12px] font-semibold text-[#616161]">{sec.titre}</p>}
+                {sec.items.map((n) => (
+                  <NavLink key={n.label} to={n.to} onClick={() => setMore(false)} className={cx("flex h-9 items-center gap-2.5 rounded-lg px-2 text-[14px] font-semibold", isOn(n) ? "bg-white text-[#1A1A1A]" : "text-[#303030]")}>
+                    <Icon name={n.icon} className="h-[18px] w-[18px]" />{n.label}
+                  </NavLink>
+                ))}
               </div>
-            </details>}
-            <div className="mt-4 pt-4 border-t border-line px-3 text-[14px] text-ink-soft flex flex-col gap-1.5">
-              {list?.length > 1 ? <WsSwitch ws={ws} list={list} select={select} /> : <p className="font-semibold text-ink truncate">{ws.profile?.nom || ws.name || "Mon entreprise"}</p>}
-              <NavLink className="hover:text-ink" to="/aide" onClick={() => setMore(false)}>Aide</NavLink>
-              <label className="flex items-center gap-2"><select aria-label="Langue du site" value={langueActuelle()} onChange={(e) => choisirLangue(e.target.value)} className="flex-1 min-w-0 rounded-lg border border-line bg-white px-2 py-1 text-[13px]">{LANGUES.map(([c, l]) => <option key={c} value={c}>{l}</option>)}</select></label>
-              <button className="text-left hover:text-ink" onClick={() => { setMore(false); setFb(true); }}>Donner mon avis</button>
+            ))}
+            <div className="mt-4 border-t border-[#D4D4D4] px-2 pt-3 text-[13.5px] text-[#303030] flex flex-col gap-2">
+              {list?.length > 1 && <WsSwitch ws={ws} list={list} select={select} />}
+              <label className="flex items-center gap-2"><select aria-label="Langue du site" value={langueActuelle()} onChange={(e) => choisirLangue(e.target.value)} className="flex-1 min-w-0 rounded-lg border border-line bg-white px-2 py-1 text-[13px]">{LANGUES.map(([code, nom]) => <option key={code} value={code}>{nom}</option>)}</select></label>
+              <button className="text-left" onClick={() => { setMore(false); setFb(true); }}>Donner mon avis</button>
               {invite
-                ? <><button className="text-left font-semibold text-accent-dark hover:underline" onClick={() => { setMore(false); demanderCompte("Garde tes résultats et reviens quand tu veux."); }}>Créer mon compte</button><button className="text-left text-ink-soft hover:text-ink" onClick={() => supabase.auth.signOut()}>Se connecter à un autre compte</button></>
-                : <button className="text-left font-semibold text-ink hover:text-accent-dark" onClick={() => supabase.auth.signOut()}>Se déconnecter</button>}
-              <LegalLinks className="mt-2" />
+                ? <button className="text-left font-semibold text-accent-dark" onClick={() => { setMore(false); demanderCompte("Garde tes résultats et reviens quand tu veux."); }}>Créer mon compte</button>
+                : <button className="text-left font-semibold" onClick={() => supabase.auth.signOut()}>Se déconnecter</button>}
+              <LegalLinks className="mt-1" />
             </div>
           </aside>
         </div>
@@ -464,30 +327,20 @@ export default function Layout({ children }) {
       </div>
     </div>
   );
-  if (full) return (
-    <div className="min-h-full">
-      {bandeau}
-      {menu}
-      {children}
-      {extra}
-      {fb && <Feedback onClose={() => setFb(false)} />}
-    </div>
-  );
-
   const basMobile = (
     <nav aria-label="Navigation mobile" hidden={invite} className="md:hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
       <div className="grid grid-cols-4">
-        {[["/explorer/mon-saas", "Mon SaaS", "today"], ["/explorer/atelier", "Atelier", "spark"], ["/explorer/clients", "Clients", "users"], ["/explorer", "Explorer", "list"]].map(([to, l, ic]) => (
+        {[["/explorer/mon-saas", "Mon SaaS", "today"], ["/explorer/atelier", "Atelier", "chat"], ["/explorer/clients", "Clients", "users"], ["/explorer", "Explorer", "list"]].map(([to, l, ic]) => (
           <NavLink key={to} to={to} end={to === "/explorer"} className={({ isActive }) => cx("relative flex flex-col items-center gap-0.5 py-2.5 text-[11.5px] font-semibold", isActive ? "text-[#E8571C]" : "text-ink-soft")}><Icon name={ic} />{l}</NavLink>
         ))}
       </div>
     </nav>
   );
   // Avant le paiement : le parcours seul (questions, SaaS floutés, paiement), sans le menu de l'application.
-  // Après le paiement : la révélation et la construction en plein écran, puis l'interface complète.
+  // Après le paiement : la révélation et l'atelier en plein écran, sinon l'interface complète.
   const paye = ws.plan === "fondateur" || (["explorer", "explorer_pro", "business", "solo", "pro"].includes(ws.plan) && ["active", "trialing", "past_due"].includes(ws.plan_status));
-  if ((veille || invite) && (loc.pathname.startsWith("/explorer/revelation") || loc.pathname.startsWith("/explorer/atelier"))) return <>{extra}{children}{fb && <Feedback onClose={() => setFb(false)} />}</>;
-  if ((veille || invite) && (!paye || invite)) return (
+  if (loc.pathname.startsWith("/explorer/revelation") || loc.pathname.startsWith("/explorer/atelier")) return <>{extra}{children}{fb && <Feedback onClose={() => setFb(false)} />}</>;
+  if (!paye || invite) return (
     <div className="min-h-full">
       {extra}
       <header className="sticky top-0 z-40 border-b border-line/70 bg-white/80 backdrop-blur">
@@ -508,44 +361,13 @@ export default function Layout({ children }) {
       {fb && <Feedback onClose={() => setFb(false)} />}
     </div>
   );
-  if (veille || invite) return (
+  return (
     <>
-      <AppShell ws={ws} list={list} select={select} invite={invite} isAdmin={isAdmin} essentiel={essentiel} c={c} bandeau={bandeau} extra={extra} menuMobile={menu} onAvis={() => setFb(true)}>
-        {ws.plan === "essai" && !invite && <div className="mb-5 flex"><TrialBar ws={ws} /></div>}
+      <AppShell ws={ws} list={list} select={select} invite={invite} sections={sections} bas={bas} bandeau={bandeau} extra={extra} menuMobile={menu} onAvis={() => setFb(true)}>
         {children}
       </AppShell>
       {basMobile}
       {fb && <Feedback onClose={() => setFb(false)} />}
     </>
-  );
-  return (
-    <div className="min-h-full">
-      {bandeau}
-      {extra}
-      <main className="min-w-0 px-4 pt-4 pb-28 md:pb-16 md:px-10 md:pt-6 max-w-6xl mx-auto">
-        <div className="flex items-center gap-3 mb-4">
-          {menu}
-          <Logo />
-          <div className="flex-1" />
-          {ws.autonomy === "auto" && <span className="w-2.5 h-2.5 rounded-full bg-good pulse-dot" title="Pilote automatique actif" />}
-          <TopBar ws={ws} replies={c.replies} />
-        </div>
-        {ws.plan === "essai" && !invite && <div className="mb-5 flex"><TrialBar ws={ws} /></div>}
-        {children}
-      </main>
-      {/* Téléphone : les 4 endroits du quotidien, toujours sous le pouce */}
-      <nav aria-label="Navigation principale" hidden={invite} className="md:hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
-        <div className="grid grid-cols-4">
-          {(veille ? [["/explorer/trouver", "Trouver", "target", 0], ["/explorer/copier", "À lancer", "target", 0], ["/explorer/createurs", "Mes SaaS", "bot", 0], ["/explorer", "Explorer", "list", 0]]
-            : [["/", "Aujourd'hui", "today", 0], ["/valider", "Messages", "send", c.drafts], ["/reponses", "Réponses", "inbox", c.replies], ["/agenda", "RDV", "cal", c.today]]).map(([to, l, ic, n]) => (
-            <NavLink key={to} to={to} end={to === "/" || to === "/explorer"} className={({ isActive }) => cx("relative flex flex-col items-center gap-0.5 py-2.5 text-[11.5px] font-semibold", isActive ? "text-[#E8571C]" : "text-ink-soft")}>
-              <Icon name={ic} />{l}
-              {n > 0 && <span className="absolute right-[22%] top-1.5 min-w-[17px] rounded-full bg-[#F26A21] px-1 text-[10px] font-black leading-[17px] text-white">{n > 9 ? "9+" : n}</span>}
-            </NavLink>
-          ))}
-        </div>
-      </nav>
-      {fb && <Feedback onClose={() => setFb(false)} />}
-    </div>
   );
 }

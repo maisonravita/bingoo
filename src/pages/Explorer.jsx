@@ -723,18 +723,11 @@ function Clients({ domaine, categorie, tag, titre = "Qui démarcher dans cette n
   const { ws, reload } = useWs();
   const [r, setR] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [ajout, setAjout] = useState("");
   const voir = async () => {
     setBusy(true);
     try { setR(await fn("r/saas-clients", { workspace_id: ws.id, domaine: domaine ?? null, categorie: categorie ?? null, tag: tag ?? null })); }
     catch (x) { toast(x.message, "bad"); } finally { setBusy(false); }
   };
-  const ajouter = async (sg) => {
-    setAjout(sg.label);
-    try { const x = await fn("r/saas-cible-ajouter", { workspace_id: ws.id, segment: sg }); await reload?.(); toast(x.deja ? "Déjà dans tes cibles" : "Ajouté à tes cibles : Bingoo! commence à chercher ces entreprises", "good"); }
-    catch (x) { toast(x.message, "bad"); } finally { setAjout(""); }
-  };
-  const mes = new Set((ws.targets ?? []).map((t) => String(t.label).toLowerCase()));
   return (
     <section className="rounded-2xl bg-ink text-white p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -748,9 +741,6 @@ function Clients({ domaine, categorie, tag, titre = "Qui démarcher dans cette n
               <div className="flex items-start justify-between gap-3"><p className="font-bold">{sg.label}</p>{sg.total != null && <p className="shrink-0 text-right"><span className="text-[20px] font-black tnum" style={HF}>{Number(sg.total) >= 10000 ? "10 000+" : Number(sg.total).toLocaleString("fr-FR")}</span><br /><span className="text-[11.5px] text-white/60">entreprises</span></p>}</div>
               <p className="mt-1 text-[13.5px] text-white/80 flex-1">{sg.pourquoi}</p>
               <p className="mt-2 text-[12.5px] text-white/60">À qui écrire : {sg.interlocuteur || "dirigeant"} · NAF {sg.naf.join(", ")}</p>
-              {["explorer", "explorer_pro", "business"].includes(ws.plan) ? null
-                : mes.has(sg.label.toLowerCase()) ? <button onClick={() => nav("/radar")} className="mt-3 self-start rounded-lg bg-white/15 px-3 py-2 text-[13px] font-semibold">Dans tes cibles · voir le Radar</button>
-                : <button onClick={() => ajouter(sg)} disabled={!!ajout} className="mt-3 self-start rounded-lg bg-white text-ink px-3 py-2 text-[13px] font-bold hover:bg-white/90 disabled:opacity-60">{ajout === sg.label ? "Ajout…" : "Ajouter à mes cibles"}</button>}
             </div>
           ))}
           <p className="md:col-span-2 text-[11.5px] text-white/50">Segments proposés par une IA à partir de ce que ces logiciels vendent et à qui ; nombres : {r.source}.</p>
