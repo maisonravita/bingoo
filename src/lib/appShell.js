@@ -72,7 +72,7 @@ async function call(action, body = {}) {
 const VSTORE = {}; let VSEQ = 0;
 if (B.verif) {
   const refs = new Map(), items = [];
-  for (const [col, xs] of Object.entries(S.demo ?? {})) for (const x of (Array.isArray(xs) ? xs : []).slice(0, 15)) { const id = "v" + (++VSEQ); if (x && x.ref != null) refs.set(String(x.ref), id); items.push({ id, col, x: x ?? {} }); }
+  for (const [col, xs] of Object.entries(S.demo ?? {})) for (const x of (Array.isArray(xs) ? xs : []).slice(0, 60)) { const id = "v" + (++VSEQ); if (x && x.ref != null) refs.set(String(x.ref), id); items.push({ id, col, x: x ?? {} }); }
   items.forEach(({ id, col, x }, i) => { const d = {}; for (const [k, v] of Object.entries(x)) if (k !== "ref" && k !== "id") d[k] = typeof v === "string" && refs.has(v) && /_id$/.test(k) ? refs.get(v) : v; (VSTORE[col] ??= []).push({ ...d, id, created_at: new Date(Date.now() - i * 25e6).toISOString(), updated_at: null }); });
 }
 async function verifCall(action, b) {

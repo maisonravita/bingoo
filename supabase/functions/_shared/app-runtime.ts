@@ -154,7 +154,7 @@ async function semer(admin: SupabaseClient, app: any, userId: string) {
   // Les liens entre exemples (client_id: "c1") pointent vers le champ ref : on les remplace par les vrais identifiants
   const refs = new Map<string, string>();
   const items = Object.entries(demo).flatMap(([col, xs]) => /^[a-z][a-z0-9_]{0,39}$/.test(col) && Array.isArray(xs)
-    ? xs.slice(0, 15).filter((x) => x && typeof x === "object" && !Array.isArray(x)).map((x: any) => { const id = crypto.randomUUID(); if (x.ref != null) refs.set(String(x.ref), id); return { id, col, x }; }) : []);
+    ? xs.slice(0, 60).filter((x) => x && typeof x === "object" && !Array.isArray(x)).map((x: any) => { const id = crypto.randomUUID(); if (x.ref != null) refs.set(String(x.ref), id); return { id, col, x }; }) : []);
   const rows = items.map(({ id, col, x }, i) => {
     const data: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(x)) if (k !== "ref" && k !== "id") data[k] = typeof v === "string" && refs.has(v) && /_id$/.test(k) ? refs.get(v) : v;
