@@ -8,7 +8,8 @@ export function modeleDe(p: any): string | null {
   const t = [p?.pitch, p?.cible, p?.probleme, ...(p?.equivalences ?? []).map((x: any) => x?.chez_toi), ...(p?.mvp ?? []).map((x: any) => x?.fonction)].join(" ").toLowerCase();
   const reservation = /r[ée]serv|rendez-vous|\brdv\b|cr[ée]neau|prise de rdv|planning d.intervention|interventions? (à|a) domicile|s[ée]ances?|agenda en ligne/.test(t);
   // Pas pour un logiciel dont le cœur est ailleurs (billetterie, location de biens, restaurant…)
-  const autre = /billet|ticket|location de (voiture|v[ée]hicule|mat[ée]riel)|restaurant|table|h[ôo]tel|chambre/.test(t);
+  // Mots entiers seulement : « tableau de bord » ne doit pas passer pour une « table » de restaurant
+  const autre = /billett?erie|\bbillets?\b|\btickets?\b|location de (voiture|v[ée]hicule|mat[ée]riel)|\brestaurants?\b|r[ée]servation de tables?|\btables? (de|pour) \d|\bh[ôo]tels?\b|chambres? d.h[ôo]te/.test(t);
   return reservation && !autre ? "reservation" : null;
 }
 
