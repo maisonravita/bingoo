@@ -99,6 +99,30 @@ const reduireLogo = (fichier) => new Promise((ok, ko) => {
   img.onload = () => { const r = Math.min(1, 512 / Math.max(img.width, img.height)); const c = document.createElement("canvas"); c.width = Math.round(img.width * r); c.height = Math.round(img.height * r); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); ok(c.toDataURL("image/png")); };
   img.onerror = () => { URL.revokeObjectURL(url); ko(new Error("Image illisible")); }; img.src = url;
 });
+// ---------------------------------------------------------------- Ton SaaS en 30 secondes : ce qu'il fait, pour qui, comment il gagne de l'argent, ce qui est inclus
+function EnBref({ m }) {
+  const sp = m.app.spec ?? {};
+  const ecrans = (sp.ecrans ?? []).filter((e) => !e.public);
+  const publiques = (sp.ecrans ?? []).filter((e) => e.public);
+  const plusTard = [...new Set([...(m.projet?.equivalences ?? []).filter((x) => x.v1 === false).map((x) => x.chez_toi), ...(m.projet?.plus_tard ?? [])])].filter(Boolean).slice(0, 5);
+  const f = sp.formules ?? [];
+  return (
+    <Carte className="mt-4" titre={`${m.nom} en 30 secondes`} sous="Ce que tu vends, à qui, et ce que tes clients trouvent dedans : de quoi le présenter en une phrase.">
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div><p className="text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A]">Ce qu'il fait</p><p className="mt-1 text-[13.5px]">{sp.pitch}</p>
+          <p className="mt-3 text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A]">Pour qui</p><p className="mt-1 text-[13.5px]">{sp.cible_courte || sp.cible}</p></div>
+        <div><p className="text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A]">Dedans</p>
+          <ul className="mt-1 space-y-1 text-[13px]">{ecrans.map((e) => <li key={e.id}><b>{e.titre}</b><span className="text-[#616161]"> — {e.but}</span></li>)}
+            {publiques.map((e) => <li key={e.id}><b>{e.titre}</b><span className="text-[#616161]"> — page à partager à tes clients</span></li>)}
+            <li className="text-[#616161]">+ comptes de tes clients, équipe, import et export Excel, documents légaux</li></ul></div>
+        <div><p className="text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A]">Comment il gagne de l'argent</p>
+          <p className="mt-1 text-[13.5px]">{f.length ? `Abonnement mensuel : ${f.map((x) => `${x.nom} ${x.prix} €`).join(", ")}.` : "Abonnement mensuel."} {m.app.paiement?.actif ? "Les paiements arrivent sur ton Stripe." : "Branche Stripe pour encaisser."}</p>
+          {plusTard.length > 0 && <><p className="mt-3 text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A]">Pas encore dedans</p><ul className="mt-1 space-y-0.5 text-[13px] text-[#616161]">{plusTard.map((x) => <li key={x}>· {x}</li>)}</ul><p className="mt-1 text-[12px] text-[#8A8A8A]">À demander dans l'atelier, en une phrase.</p></>}</div>
+      </div>
+    </Carte>
+  );
+}
+
 // ---------------------------------------------------------------- Textes et prix du site : modifiés directement, sans IA ni crédit
 const champCls = "mt-1 w-full rounded-lg border border-[#D4D4D4] px-3 py-2 text-[13.5px] outline-none focus:border-[#303030]";
 function Textes({ m, charger }) {
@@ -323,6 +347,8 @@ function Accueil({ m, charger }) {
           ))}
         </div>
       </Carte>
+
+      <EnBref m={m} />
 
       <Carte className="mt-4" pad={false}>
         <div className="px-4 pt-4">

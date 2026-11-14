@@ -209,10 +209,15 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   const [cle, setCle] = useState(0);
   const lance = useRef(false);
   const parCredits = useRef(false); // l'utilisateur a accepté de payer ce SaaS supplémentaire en crédits
+  // 3 questions avant de construire (facultatives) : le SaaS devient le sien, pas un SaaS généré
+  const [questions, setQuestions] = useState(() => !(atelier || pretDeja || c.projet?.id));
+  const [rep, setRep] = useState({ nom: "", clients: "", mieux: "" });
+  const angle = useRef(null);
   const fil = useRef(null);
 
   useEffect(() => { const t = setInterval(() => setTic((x) => x + 1), 6500); return () => clearInterval(t); }, []);
   useEffect(() => {
+    if (questions) return;
     if (lance.current) return; lance.current = true;
     let vivant = true;
     if (pretDeja) return () => { vivant = false; lance.current = false; };
@@ -224,7 +229,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
           const { data: deja } = await supabase.from("saas_projets").select("id, data, statut").eq("workspace_id", ws.id).eq("data->inspire->>domaine", c.domaine).eq("statut", "pret").order("at", { ascending: false }).limit(1);
           if (deja?.[0]) p = { id: deja[0].id, ...deja[0].data };
           else {
-            const { id } = await fn("r/saas-lancer", { workspace_id: ws.id, domaine: c.domaine });
+            const { id } = await fn("r/saas-lancer", { workspace_id: ws.id, domaine: c.domaine, angle: angle.current });
             for (let i = 0; i < 90 && vivant; i++) {
               await attendre(3500);
               if (i === 8) setEtape(1);
@@ -254,7 +259,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
       } catch (e) { if (vivant) setErreur(e.message); }
     })();
     return () => { vivant = false; lance.current = false; };
-  }, [essai]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [essai, questions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const spec = app?.spec?.ecrans?.length ? app.spec : app?.brouillon;
   const ecrans = (spec?.ecrans ?? []).filter((e) => !e.public);
@@ -327,6 +332,21 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                 {fini && <div className="mt-3 flex flex-wrap gap-1.5">{IDEES.map((x) => <button key={x} onClick={() => { setEcran(""); envoyer(x); }} disabled={occupe} className="rounded-full border border-line bg-white px-3 py-1.5 text-[12.5px] font-medium hover:border-ink-faint disabled:opacity-50">{x}</button>)}</div>}
               </Bingoo>
             ) : <>
+            {questions ? (
+              <Bingoo>
+                <p>Avant de construire ta version de {c.nom}, trois questions pour qu'elle soit vraiment <b>la tienne</b>. Tout est facultatif.</p>
+                <div className="mt-3 space-y-2.5">
+                  {[["nom", "Comment veux-tu l'appeler ?", "Laisse vide : Bingoo! propose un nom", 40], ["clients", "Qui sont tes clients, exactement ?", "Ex. les salons de coiffure à Lyon", 160], ["mieux", "Qu'est-ce que tu veux faire mieux que " + c.nom + " ?", "Ex. plus simple, moins cher, en français", 200]].map(([k, q, ph, n]) => (
+                    <label key={k} className="block"><span className="text-[13px] font-semibold">{q}</span>
+                      <input value={rep[k]} maxLength={n} onChange={(e) => setRep({ ...rep, [k]: e.target.value })} placeholder={ph} className="mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-[13.5px] outline-none focus:border-[#E8571C]" /></label>
+                  ))}
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button onClick={() => { const t = [rep.nom.trim() && `Nom souhaité, à utiliser tel quel : ${rep.nom.trim()}`, rep.clients.trim() && `Clients visés : ${rep.clients.trim()}`, rep.mieux.trim() && `Ce que je veux faire mieux : ${rep.mieux.trim()}`].filter(Boolean).join(". "); angle.current = t || null; setQuestions(false); }} className="rounded-lg bg-[#E8571C] px-4 py-2 text-[13px] font-semibold text-white">Construire ma version</button>
+                  <button onClick={() => { angle.current = null; setQuestions(false); }} className="rounded-lg px-3 py-2 text-[13px] font-semibold text-ink-soft hover:text-ink">Passer</button>
+                </div>
+              </Bingoo>
+            ) : <>
             <Moi>Construis ma version de {c.nom}</Moi>
             <Bingoo>
               <p>C'est parti. {c.nom} gagne déjà de l'argent : je construis ta version, avec ton nom, tes mots et ton design.</p>
@@ -345,6 +365,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                 {projet.pense ? <Reflexion pense={projet.pense} enCours={!fini} /> : projet.cible && <p className="mt-1.5 text-ink-soft">Pour : {projet.cible}</p>}
               </Bingoo>
             )}
+            </>}
             </>}
             {fini && !atelier && (
               <Bingoo>

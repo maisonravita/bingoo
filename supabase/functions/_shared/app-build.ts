@@ -121,7 +121,7 @@ Les données d'exemple sont produites à part : ne mets pas de clé demo.`, { ma
   const perso = modele ? await askJson<any>(PERSO_RESERVATION(p), { fast: true, maxTokens: 1200 }).catch(() => ({})) : null;
   const demo = modele ? {} : await askJson<any>(`Application « ${p.nom} » : ${p.pitch}
 Collections : ${(s.collections ?? []).slice(0, 6).map((c: any) => `${c.nom} : ${(c.champs ?? []).map((x: any) => `${x.nom} ${x.type}${x.valeurs ? ` [${x.valeurs.join("|")}]` : ""}`).join(", ")}`).join(" ; ")}
-Écris les données d'exemple de cette application. Rends un objet JSON { <collection> : 5 éléments réalistes en français (entreprises et personnes fictives, montants cohérents, dates réparties entre ${new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10)} et ${new Date(Date.now() + 90 * 864e5).toISOString().slice(0, 10)}, aujourd'hui = ${new Date().toISOString().slice(0, 10)}) } ; les champs <collection>_id pointent vers le champ « ref » (ex. "c1") que tu ajoutes à chaque élément.`, { fast: true, maxTokens: 7000 }).catch(() => ({}));
+Écris les données d'exemple de cette application. Rends un objet JSON { <collection> : 12 éléments réalistes en français (entreprises et personnes fictives, montants cohérents, dates réparties entre ${new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10)} et ${new Date(Date.now() + 90 * 864e5).toISOString().slice(0, 10)}, aujourd'hui = ${new Date().toISOString().slice(0, 10)}) } ; les champs <collection>_id pointent vers le champ « ref » (ex. "c1") que tu ajoutes à chaque élément.`, { fast: true, maxTokens: 12000 }).catch(() => ({}));
   const spec: any = {
     nom: p.nom, pitch: p.pitch, cible: p.cible, probleme: p.probleme,
     couleur: /^#[0-9a-f]{6}$/i.test(s.couleur ?? "") ? s.couleur : "#4F46E5",
