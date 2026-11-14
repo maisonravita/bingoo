@@ -14,6 +14,7 @@ import { lazy, Suspense } from "react";
 const IsoMonde = lazy(() => import("../components/IsoMonde"));
 import AppCadre, { API, blogApp, lienApp } from "../components/AppCadre";
 const VideoPub = lazy(() => import("../components/VideoPub"));
+const Revelation = lazy(() => import("./Revelation"));
 import { cleIcone, iconePng } from "../lib/appIcone";
 import qrcode from "qrcode-generator";
 import { cx } from "../lib/utils";
@@ -55,9 +56,13 @@ const prixCourt = (s) => s.prix_entree_eur != null ? `dès ${s.prix_entree_eur} 
 export default function Explorer({ domaine: fixe }) {
   const { domaine } = useParams();
   const d = fixe ?? domaine;
-  const { session } = useWs();
+  const { session, ws } = useWs();
   // Sans compte, on ne peut pas explorer Bingoo! : seul le parcours « Trouver mon SaaS » est ouvert
   if (estInvite(session) && d !== "trouver") return <Navigate to="/explorer/trouver" replace />;
+  // Après le paiement : le flou disparaît, puis Bingoo! construit le SaaS choisi
+  if (d === "revelation") return <Suspense fallback={null}><Revelation paramsDe={paramsDe} /></Suspense>;
+  // Rien n'est ouvert avant le paiement : le parcours d'abord
+  if (ws && !estPaye(ws) && d !== "trouver") return <Navigate to="/explorer/trouver" replace />;
   if (d === "bouge") return <><Onglets actif="bouge" /><Fil /></>;
   if (d === "suivis") return <><Onglets actif="suivis" /><Suivis /></>;
   if (d === "marche") return <><Onglets actif="marche" /><Marche /></>;
@@ -2795,7 +2800,7 @@ const CLE_CHOIX = "bingoo-choix";
 // « Lancer celui-ci » avant paiement : on garde le SaaS choisi (son rang) et on file au paiement de la formule Lancer
 async function lancerApresPaiement({ periode, invite, ws, nav }) {
   if (invite) return demanderCompte("Crée ton compte : tu arrives ensuite directement au paiement, et ton SaaS s'ouvre dès qu'il est reçu.");
-  try { const { url } = await fn("billing-checkout", { workspace_id: ws.id, plan: "explorer_pro", periode }); if (url) { window.location.href = url; return; } } catch { /* paiement pas encore ouvert : on passe par la page Abonnement */ }
+  try { const { url } = await fn("billing-checkout", { workspace_id: ws.id, plan: "explorer_pro", periode, retour: "revelation" }); if (url) { window.location.href = url; return; } } catch { /* paiement pas encore ouvert : on passe par la page Abonnement */ }
   nav(`/abonnement?formule=explorer_pro&periode=${periode}`);
 }
 const Cadenas = ({ className = "h-3.5 w-3.5" }) => <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;

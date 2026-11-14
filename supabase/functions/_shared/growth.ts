@@ -387,7 +387,7 @@ export async function founderSlots() {
   const taken = count ?? 0;
   return { price: FOUNDER.price, places: FOUNDER.places, taken, left: Math.max(0, FOUNDER.places - taken) };
 }
-export async function checkout(ws: Workspace, userId: string, planKey: string, yearly = false, periodeKey = "mois") {
+export async function checkout(ws: Workspace, userId: string, planKey: string, yearly = false, periodeKey = "mois", retour = "") {
   await requireAdmin(ws.id, userId);
   const p = PLANS[planKey];
   if (!p || !p.price) throw new HttpError(400, "Formule inconnue");
@@ -419,7 +419,9 @@ export async function checkout(ws: Workspace, userId: string, planKey: string, y
     "subscription_data[metadata][workspace_id]": ws.id, "subscription_data[metadata][plan]": planKey, "subscription_data[metadata][periode]": perKey,
     allow_promotion_codes: "true", billing_address_collection: "required",
     "tax_id_collection[enabled]": "true", "customer_update[name]": "auto", "customer_update[address]": "auto",
-    success_url: `${APP(ws)}/#/abonnement?paiement=ok`, cancel_url: `${APP(ws)}/#/abonnement?paiement=annule`,
+    // Depuis « Trouver mon SaaS » : retour sur la révélation (le flou disparaît, la construction démarre)
+    success_url: retour === "revelation" ? `${APP(ws)}/#/explorer/revelation?paiement=ok` : `${APP(ws)}/#/abonnement?paiement=ok`,
+    cancel_url: retour === "revelation" ? `${APP(ws)}/#/explorer/trouver?paiement=annule` : `${APP(ws)}/#/abonnement?paiement=annule`,
   });
   return { url: s.url };
 }

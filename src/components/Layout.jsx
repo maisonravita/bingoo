@@ -465,6 +465,31 @@ export default function Layout({ children }) {
       </div>
     </nav>
   );
+  // Avant le paiement : le parcours seul (questions, SaaS floutés, paiement), sans le menu de l'application.
+  // Après le paiement : la révélation et la construction en plein écran, puis l'interface complète.
+  const paye = ws.plan === "fondateur" || (["explorer", "explorer_pro", "business", "solo", "pro"].includes(ws.plan) && ["active", "trialing", "past_due"].includes(ws.plan_status));
+  if ((veille || invite) && loc.pathname.startsWith("/explorer/revelation")) return <>{extra}{children}{fb && <Feedback onClose={() => setFb(false)} />}</>;
+  if ((veille || invite) && (!paye || invite)) return (
+    <div className="min-h-full">
+      {extra}
+      <header className="sticky top-0 z-40 border-b border-line/70 bg-white/80 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
+          <NavLink to="/explorer/trouver"><Logo /></NavLink>
+          <div className="flex-1" />
+          <NavLink to="/aide" className="hidden sm:block rounded-xl px-3 py-2 text-[14px] font-medium text-ink-soft hover:text-ink">Aide</NavLink>
+          {invite ? <>
+            <button onClick={() => supabase.auth.signOut()} className="whitespace-nowrap rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper">Se connecter</button>
+            <button onClick={() => demanderCompte("Garde tes résultats et reviens quand tu veux.")} className="hidden sm:block whitespace-nowrap rounded-xl bg-ink px-4 py-2 text-[14px] font-semibold text-white hover:bg-ink/85">Créer mon compte</button>
+          </> : <>
+            <span className="hidden sm:block max-w-[200px] truncate text-[13.5px] text-ink-soft">{session?.user?.email}</span>
+            <button onClick={() => supabase.auth.signOut()} className="whitespace-nowrap rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper">Se déconnecter</button>
+          </>}
+        </div>
+      </header>
+      <main className="min-w-0 pb-16">{children}</main>
+      {fb && <Feedback onClose={() => setFb(false)} />}
+    </div>
+  );
   if (veille || invite) return (
     <>
       <AppShell ws={ws} list={list} select={select} invite={invite} isAdmin={isAdmin} essentiel={essentiel} c={c} bandeau={bandeau} extra={extra} menuMobile={menu} onAvis={() => setFb(true)}>
