@@ -46,3 +46,8 @@ alter table public.saas add column if not exists pitch_fr jsonb;
 -- 8. Constructibilité (Appliqué via MCP) : saas_constructible_maj corrigée (les \m \M étaient doublement échappés : 19 exclusions ne marchaient pas),
 --    nouvelles exclusions (agents, prospection, intégrations, santé/assurance, livres, services…), et vérification une par une par l'IA
 --    (r/saas-pitch-fr, toutes les 3 min) : dès 150 SaaS vérifiés, seuls les SaaS jugés constructibles par cette vérification sont proposés.
+
+-- 9. (Appliqué via MCP) saas_pour_moi_coeur renvoie l'id ; saas_pour_moi_floute renvoie « ref » (id) : le SaaS choisi avant paiement est retrouvé
+--    par sa référence après paiement (avant : par son rang, faux s'il était au-delà des 9 premiers ou si la liste avait bougé). Index trigramme sur saas.nom.
+create extension if not exists pg_trgm with schema extensions;
+create index if not exists saas_nom_trgm on public.saas using gin (nom extensions.gin_trgm_ops);

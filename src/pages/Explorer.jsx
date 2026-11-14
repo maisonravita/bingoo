@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { indexChoisi } from "../lib/choix";
 import ResultatsBingoo from "../components/ResultatsBingoo";
 import ChoixFormule from "../components/ChoixFormule";
 import { nomCanal, plan30, promptClaude } from "../lib/plan30";
@@ -2600,10 +2601,12 @@ const paramsDe = (r) => ({ continent: r.continent || null, langue: r.langue || n
 export function TrouveTonSaas() {
   const { ws, session, reload } = useWs();
   const avant = lirePar();
-  const [r, setR] = useState(() => ({ canaux: [], refus: [], secteurs: [], audience: null, ambition: null, profil: null, temps: null, ...(avant ?? {}), metier: "", etape: 0 }));
+  // Retour de la page de paiement sans payer : on revient directement sur ses SaaS, pas à la première question
+  const annule = /paiement=annule/.test(window.location.hash) && !!avant?.fini;
+  const [r, setR] = useState(() => ({ canaux: [], refus: [], secteurs: [], audience: null, ambition: null, profil: null, temps: null, ...(avant ?? {}), metier: "", etape: annule ? QUESTIONS.length : 0 }));
   const [res, setRes] = useState(null);
   const [ap, setAp] = useState(null);
-  const [planVu, setPlanVu] = useState(false);
+  const [planVu, setPlanVu] = useState(annule);
   const retour = (() => { const Qc = QUESTIONS[r.etape]; if (Qc?.jauge) return commentaireObjectif(r.objectif ?? OBJ_DEFAUT)[1]; const v = Qc?.k ? r[Qc.k] : null; const m = Qc && RETOURS[Qc.k]; if (!m || v == null || Array.isArray(v)) return null; return typeof m === "function" ? m(v) : m[v] ?? null; })();
   const invite = estInvite(session);
   // Les 3 SaaS, le plan et le prompt se débloquent une fois le paiement reçu (le serveur n'envoie que le premier avant)
@@ -2618,7 +2621,7 @@ export function TrouveTonSaas() {
     supabase.rpc("saas_pour_moi3", { p: paramsDe(r) }).then(({ data }) => {
       let l = data ?? [];
       // Choisi avant le paiement (« Lancer celui-ci ») : il passe en premier
-      try { const k = Number(localStorage.getItem(CLE_CHOIX)); if (Number.isInteger(k) && k > 0 && k < l.length) l = [l[k], ...l.slice(0, k), ...l.slice(k + 1)]; localStorage.removeItem(CLE_CHOIX); } catch { /* stockage indisponible */ }
+      try { const k = indexChoisi(l); if (k > 0) l = [l[k], ...l.slice(0, k), ...l.slice(k + 1)]; localStorage.removeItem(CLE_CHOIX); } catch { /* stockage indisponible */ }
       setRes(l);
     });
   };
@@ -2840,7 +2843,7 @@ function CarteFloutee({ x, k, paysVise, onLancer, busy }) {
         ? <p className="mt-3 text-[13.5px] leading-snug text-ink line-clamp-2" lang={x.fr ? "fr" : undefined}>{x.fait}</p>
         : <p className="mt-3 h-[38px] select-none text-[13px] leading-snug text-ink-soft blur-[5px]" aria-hidden>Un logiciel simple qui aide ses clients à gagner du temps chaque semaine, avec un prix clair.</p>}
       <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-paper px-3 py-1.5 text-[12.5px] font-semibold text-ink-soft"><Cadenas />Son nom et ta version après paiement</p>
-      <button onClick={() => onLancer(x.rang ?? k)} disabled={busy} className="fx-brille mt-4 rounded-xl bg-accent py-3 text-[14.5px] font-bold text-white hover:bg-accent-dark disabled:opacity-60">Lancer celui-ci</button>
+      <button onClick={() => onLancer(x.rang ?? k, x.ref)} disabled={busy} className="fx-brille mt-4 rounded-xl bg-accent py-3 text-[14.5px] font-bold text-white hover:bg-accent-dark disabled:opacity-60">Lancer celui-ci</button>
     </div>
   );
 }
@@ -2853,7 +2856,7 @@ function Debloquer({ total, tendance, mediane, invite, r }) {
   useEffect(() => { setListe(undefined); supabase.rpc("saas_pour_moi_floute", { p: paramsDe(r) }).then(({ data, error }) => setListe(error ? null : (data ?? []))); }, [r.etape]); // eslint-disable-line react-hooks/exhaustive-deps
   const { fondateur: prixFondateur, periodes } = useFormules();
   const [choix, setChoix] = useState(null); // rang du SaaS choisi : on montre les formules
-  const lancer = (rang) => { try { localStorage.setItem(CLE_CHOIX, String(rang)); } catch { /* stockage indisponible */ } setChoix(rang); setTimeout(() => document.getElementById("formules")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); };
+  const lancer = (rang, ref) => { try { localStorage.setItem(CLE_CHOIX, JSON.stringify({ rang, ref: ref ?? null })); } catch { /* stockage indisponible */ } setChoix(rang); setTimeout(() => document.getElementById("formules")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); };
   const payer = async (periode) => { setBusy(periode); try { await lancerApresPaiement({ periode, invite, ws, nav }); } finally { setBusy(false); } };
   const debloquer = () => lancer(0);
   const formules = choix !== null && (

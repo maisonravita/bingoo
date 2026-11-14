@@ -9,6 +9,7 @@ import { resumeFr } from "../lib/angle";
 import CompanyLogo from "../components/CompanyLogo";
 import Logo from "../components/Logo";
 import { lienApp } from "../components/AppCadre";
+import { indexChoisi } from "../lib/choix";
 
 const HF = { fontFamily: "var(--font-titre)" };
 const CLE_CHOIX = "bingoo-choix";
@@ -44,9 +45,11 @@ export default function Revelation({ paramsDe }) {
     if (phase !== "chargement") return;
     const r = lire("bingoo-parcours2") ?? {};
     supabase.rpc("saas_pour_moi3", { p: paramsDe({ canaux: [], refus: [], secteurs: [], ...r }) }).then(({ data }) => {
-      const l = (data ?? []).slice(0, 9);
-      const k = Number(localStorage.getItem(CLE_CHOIX));
-      setChoix(Number.isInteger(k) && k >= 0 && k < l.length ? k : 0);
+      // Le SaaS choisi passe en premier (retrouvé par sa référence, même s'il était au-delà des 9 premiers)
+      const tous = data ?? [];
+      const k = indexChoisi(tous);
+      const l = (k >= 0 ? [tous[k], ...tous.filter((_, i) => i !== k)] : tous).slice(0, 9);
+      setChoix(0);
       setListe(l); setPhase("revele");
       setTimeout(() => setVisible(true), 900);
     });
