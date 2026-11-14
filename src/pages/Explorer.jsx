@@ -1156,7 +1156,11 @@ function Lancer() {
   const [p, setP] = useState(undefined);
   const [busy, setBusy] = useState(false);
   const [construit, setConstruit] = useState(null);
-  useEffect(() => { if (p?.id) supabase.from("saas_apps").select("statut, spec->ecrans, domaine_statut, public").eq("projet_id", p.id).maybeSingle().then(({ data }) => setConstruit(data ?? null)); }, [p?.id]);
+  // Une fois construit : une fonction est « dans ta version » seulement si un écran construit la couvre vraiment (mots en commun)
+  const motsDe = (t) => new Set(String(t ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length >= 5));
+  const motsConstruits = (construit?.ecrans ?? []).length ? motsDe((construit.ecrans ?? []).map((e) => `${e.titre} ${e.but ?? ""} ${(e.fonctions ?? []).join(" ")}`).join(" ")) : null;
+  const faitDeja = motsConstruits ? (t) => { const m = [...motsDe(t)]; const n = m.filter((w) => motsConstruits.has(w) || [...motsConstruits].some((c) => c.startsWith(w.slice(0, 6)))).length; return n >= 2 || (m.length && n / m.length >= 0.4); } : null;
+  useEffect(() => { if (p?.id) supabase.from("saas_apps").select("statut, spec->ecrans, spec->formules, domaine_statut, public").eq("projet_id", p.id).maybeSingle().then(({ data }) => setConstruit(data ?? null)); }, [p?.id]);
   useEffect(() => {
     supabase.from("saas_liste").select("nom, domaine, categorie, description, pays, prix_entree_eur, succes, constructible").eq("domaine", d).maybeSingle().then(({ data }) => setSaas(data ?? null));
     supabase.from("saas_projets").select("id, data, at, statut").eq("workspace_id", ws.id).eq("data->inspire->>domaine", d).eq("statut", "pret").order("at", { ascending: false }).limit(1).then(({ data }) => setP(data?.[0] ? { id: data[0].id, ...data[0].data } : null));
@@ -1228,15 +1232,16 @@ function Lancer() {
           {p.equivalences?.length > 0 && (
             <Bloc className="mt-4" titre="Fonction par fonction" sous={`Ce que fait ${nomInspi}, lu sur son site, et ton équivalent`}>
               <table className="w-full text-[14px]"><thead><tr className="text-left text-[12px] text-ink-faint"><th className="pb-1.5 font-medium w-1/2">Chez {nomInspi}</th><th className="pb-1.5 font-medium">Chez {p.nom}</th></tr></thead>
-                <tbody>{p.equivalences.map((x, i) => <tr key={i} className="border-t border-line align-top"><td className="py-2 pr-4 text-ink-soft">{x.chez_eux}</td><td className="py-2 font-medium">{x.v1 === false ? <span className="mr-1.5 rounded bg-paper px-1.5 py-0.5 text-[11px] font-bold text-ink-soft">Plus tard</span> : x.v1 === true ? <span className="mr-1.5 rounded bg-[#DCFCE7] px-1.5 py-0.5 text-[11px] font-bold text-[#166534]">Dans ta version</span> : "✓ "}{x.chez_toi}</td></tr>)}</tbody></table>
-              {p.equivalences.some((x) => x.v1 === false) && <p className="mt-2 text-[12.5px] text-ink-faint">« Plus tard » : Bingoo! ne le construit pas encore ; tu pourras le faire coder ensuite (le texte pour un développeur est plus bas).</p>}
+                <tbody>{p.equivalences.map((x, i) => <tr key={i} className="border-t border-line align-top"><td className="py-2 pr-4 text-ink-soft">{x.chez_eux}</td><td className="py-2 font-medium">{faitDeja ? (faitDeja(x.chez_toi) ? <span className="mr-1.5 rounded bg-[#DCFCE7] px-1.5 py-0.5 text-[11px] font-bold text-[#166534]">Dans ta version</span> : <span className="mr-1.5 rounded bg-paper px-1.5 py-0.5 text-[11px] font-bold text-ink-soft">À ajouter</span>) : x.v1 === false ? <span className="mr-1.5 rounded bg-paper px-1.5 py-0.5 text-[11px] font-bold text-ink-soft">Plus tard</span> : x.v1 === true ? <span className="mr-1.5 rounded bg-[#DCFCE7] px-1.5 py-0.5 text-[11px] font-bold text-[#166534]">Dans ta version</span> : "✓ "}{x.chez_toi}</td></tr>)}</tbody></table>
+              {faitDeja ? <p className="mt-2 text-[12.5px] text-ink-faint">« Dans ta version » : comparé aux écrans réellement construits. « À ajouter » : demande-le dans l'atelier en une phrase, ou fais-le coder ensuite (le texte pour un développeur est plus bas).</p>
+                : p.equivalences.some((x) => x.v1 === false) && <p className="mt-2 text-[12.5px] text-ink-faint">« Plus tard » : Bingoo! ne le construit pas encore ; tu pourras le faire coder ensuite (le texte pour un développeur est plus bas).</p>}
             </Bloc>
           )}
           <h2 className="mt-6 font-bold text-[20px]">Tes petits plus face à {nomInspi}</h2>
           <div className="mt-2 grid md:grid-cols-3 gap-3">{(p.differences ?? []).map((x, i) => <div key={i} className="rounded-2xl bg-accent-soft/60 border border-accent/20 p-4 break-inside-avoid"><p className="font-bold">{x.angle}</p><p className="mt-1 text-[14px] text-ink-soft">{x.pourquoi}</p></div>)}</div>
 
           <div className="mt-4 grid lg:grid-cols-2 gap-4">
-            <Bloc titre="Le MVP à coder" sous={`${(p.mvp ?? []).reduce((a, x) => a + Number(x.semaines || 0), 0)} semaines au total, estimées pour une personne`}>
+            <Bloc titre={faitDeja ? "Pour aller plus loin avec un développeur" : "Le MVP à coder"} sous={`${(p.mvp ?? []).reduce((a, x) => a + Number(x.semaines || 0), 0)} semaines au total, estimées pour une personne`}>
               <ol className="space-y-2">{(p.mvp ?? []).map((x, i) => <li key={i} className="flex gap-3"><span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-ink text-white text-[12px] font-bold">{i + 1}</span><div className="flex-1"><p className="font-semibold text-[14.5px]">{x.fonction} <span className="font-normal text-ink-faint text-[12.5px]">· {x.semaines} sem.</span></p><p className="text-[13.5px] text-ink-soft">{x.pourquoi}</p></div></li>)}</ol>
               {p.plus_tard?.length > 0 && <div className="mt-3"><p className="text-[12px] font-bold uppercase tracking-wide text-ink-faint">Plus tard</p><div className="mt-1 flex flex-wrap gap-1.5">{p.plus_tard.map((x) => <span key={x} className="rounded-full bg-paper px-2.5 py-1 text-[12.5px]">{x}</span>)}</div></div>}
             </Bloc>
@@ -1246,7 +1251,7 @@ function Lancer() {
           </div>
 
           <h2 className="mt-6 font-bold text-[20px]">Tes prix</h2>
-          <div className="mt-2 grid md:grid-cols-3 gap-3">{(p.formules ?? []).map((f, i) => <div key={i} className={cx("rounded-2xl border p-5 break-inside-avoid", i === 1 ? "bg-ink text-white border-ink" : "bg-white border-line")}><p className="font-bold">{f.nom}</p><p className="mt-1 text-[32px] font-black tnum" style={HF}>{eurs(f.prix)}<span className={cx("text-[13px] font-medium", i === 1 ? "text-white/60" : "text-ink-faint")}> / mois</span></p><p className={cx("text-[13.5px]", i === 1 ? "text-white/75" : "text-ink-soft")}>{f.pour}</p><ul className="mt-2 space-y-1 text-[13.5px]">{(f.inclus ?? []).map((x) => <li key={x}>✓ {x}</li>)}</ul></div>)}</div>
+          <div className="mt-2 grid md:grid-cols-3 gap-3">{(construit?.formules?.length ? construit.formules : p.formules ?? []).map((f, i) => <div key={i} className={cx("rounded-2xl border p-5 break-inside-avoid", i === 1 ? "bg-ink text-white border-ink" : "bg-white border-line")}><p className="font-bold">{f.nom}</p><p className="mt-1 text-[32px] font-black tnum" style={HF}>{eurs(f.prix)}<span className={cx("text-[13px] font-medium", i === 1 ? "text-white/60" : "text-ink-faint")}> / mois</span></p><p className={cx("text-[13.5px]", i === 1 ? "text-white/75" : "text-ink-soft")}>{f.pour}</p><ul className="mt-2 space-y-1 text-[13.5px]">{(f.inclus ?? []).map((x) => <li key={x}>✓ {x}</li>)}</ul></div>)}</div>
 
           <Bloc className="mt-4" titre="Le plan d'affaires sur 12 mois" sous={`Calculé à partir des hypothèses ci-dessous, prix moyen ${eurs(p.plan?.prix_moyen ?? 0)} par mois et par client, frais de paiement 3 %. Ce sont des hypothèses prudentes, pas une promesse.`}>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">

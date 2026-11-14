@@ -55,3 +55,9 @@ create index if not exists saas_nom_trgm on public.saas using gin (nom extension
 -- 10. (Appliqué via MCP) L'étape du jour par e-mail (promise dans les formules) : la tâche n'était plus planifiée.
 --     Envoyée seulement à ceux qui ont coché « Recevoir l'étape chaque matin ».
 select cron.schedule('bingoo-semaine-matin', '5 7 * * *', $$select net.http_post(url:='https://fbsjbnnmzazylmquzryo.supabase.co/functions/v1/r/saas-semaine-cron', headers:=jsonb_build_object('content-type','application/json','x-cron-key',(select value from public.app_secrets where name='cron_key')), body:='{}'::jsonb, timeout_milliseconds:=150000)$$);
+
+-- 11. (Appliqué via MCP) Règle n° 1 : seuls les SaaS vérifiés « Bingoo! sait le construire » sont proposés.
+--     saas_pour_moi_coeur / saas_pour_moi_apercu : « and exists (select 1 from saas v where v.id = s.id and v.constructible_ia is true) » (lu en direct).
+--     saas_constructible_maj : constructible = coalesce(constructible_ia, not (mots-clés exclus)) — le verdict de l'IA prime sur les mots-clés.
+--     saas_pitch_a_faire : candidats = tous les SaaS lus (statut ok) pas encore vérifiés, par revenu décroissant.
+--     app_secrets : ia_plafond_verif (enveloppe de la vérification, €/jour), ia_plafond_apps (IA des SaaS construits, €/jour).
