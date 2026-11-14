@@ -334,7 +334,8 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
         else throw new HttpError(402, MSG_AUTRE(await creditsSolde(ws.id)));
       }
     }
-    if (!req.headers.get("x-cron-key") && !parCredits) { await quota(ws.id, "construire", 3); await quotaMois(ws.id, ws.plan, "construire"); }
+    // Une reprise après échec ne compte pas : le client n'a rien obtenu
+    if (!req.headers.get("x-cron-key") && !parCredits && ex?.statut !== "erreur") { await quota(ws.id, "construire", 3); await quotaMois(ws.id, ws.plan, "construire"); }
     if (parCredits) await creditsDepenser(ws.id, COUT_CREDITS.saas, "Autre SaaS");
     if (remplacer.length) await admin.from("saas_apps").update({ statut: "remplace", public: false }).in("id", remplacer);
     setAi({ ws: ws.id, live: true, feature: "construire" });
