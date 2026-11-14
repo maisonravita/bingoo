@@ -18,6 +18,16 @@ async function secret(name: string) {
 }
 // Limites du mois par formule : voir LIMITES dans core.ts
 const quotaMois = (wsId: string, plan: string, kind: "construire" | "modifier") => limiteMois(wsId, plan, kind);
+// Un SaaS par abonnement. Un autre SaaS : 60 crédits (le premier reste en ligne), ou le changement gratuit une fois dans l'année avec la durée de 12 mois.
+// Vérifié AVANT toute dépense d'IA (préparation et construction).
+async function autreSaas(ws: { id: string; periode?: string }) {
+  // Compte les SaaS réellement construits ou en construction (pas une page de précommande, pas une construction échouée, pas un SaaS remplacé)
+  const { data: autres } = await admin.from("saas_apps").select("id").eq("workspace_id", ws.id).not("statut", "in", "(remplace,erreur,validation)");
+  if (!autres?.length) return { deja: false, changement: false, ids: [] as string[] };
+  const { count: changes } = await admin.from("saas_apps").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("statut", "remplace").gte("at", new Date(Date.now() - 365 * 864e5).toISOString());
+  return { deja: true, changement: ws.periode === "an" && (changes ?? 0) < 1, ids: autres.map((x) => x.id) };
+}
+const MSG_AUTRE = (solde: number) => `Ton abonnement comprend un SaaS, et le tien est déjà construit. Un autre SaaS coûte ${COUT_CREDITS.saas} crédits (ton premier reste en ligne)${solde < COUT_CREDITS.saas ? ` : il te manque ${COUT_CREDITS.saas - solde} crédits` : ""}.`;
 // Espace d'un membre connecté, ou n'importe quel espace avec la clé des tâches planifiées (tests et reprises)
 const membreOuCron = async (req: Request, wsId: string) => {
   if (!req.headers.get("x-cron-key")) return await requireMember(req, wsId);
@@ -199,6 +209,9 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   async "saas-lancer"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     if (ws.plan === "explorer") throw new HttpError(402, "« Lancer le même » est dans la formule Pro.");
+    // Déjà un SaaS construit : pas de préparation (payante en IA) sans le droit d'en construire un autre
+    const au = await autreSaas(ws as { id: string; periode?: string });
+    if (au.deja && !au.changement) { const solde = await creditsSolde(ws.id); if (solde < COUT_CREDITS.saas) throw new HttpError(402, MSG_AUTRE(solde)); }
     await quota(ws.id, "lancer", 10);
     // Une à deux minutes de travail : on répond tout de suite et on prépare le projet en tâche de fond (la page interroge la base)
     const { saasLancer, saasAdd, saasLire, domaineDe } = await import("../_shared/saas-base.ts");
@@ -299,18 +312,14 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     if (!pr || pr.statut !== "pret") throw new HttpError(404, "Projet introuvable");
     const { data: ex } = await admin.from("saas_apps").select("id, statut, maj, etape").eq("projet_id", pr.id).maybeSingle();
     if (ex?.statut === "en_cours" && Date.now() - new Date(ex.maj).getTime() < 10 * 60e3) return { id: ex.id, statut: "en_cours" };
-    // Un seul SaaS par abonnement « Lancer » : un autre SaaS remplace le premier seulement dans les 48 h, ou une fois dans l'année avec 12 mois ;
-    // sinon il s'ajoute pour 60 crédits (le premier reste en ligne)
+    // Un seul SaaS par abonnement (toutes formules) : un autre SaaS = 60 crédits, sauf le changement annuel de la durée 12 mois (il remplace le premier)
     let remplacer: string[] = [], parCredits = false;
-    if (!ex && ws.plan === "explorer_pro") {
-      const { data: autres } = await admin.from("saas_apps").select("id, at, statut").eq("workspace_id", ws.id).neq("statut", "remplace");
-      if (autres?.length) {
-        const recent = autres.every((a) => Date.now() - new Date(a.at).getTime() < 48 * 3600e3);
-        const { count: changes } = await admin.from("saas_apps").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("statut", "remplace").gte("at", new Date(Date.now() - 365 * 864e5).toISOString());
-        const annuel = (ws as { periode?: string }).periode === "an" && (changes ?? 0) < 1;
-        if (b.credits === true) parCredits = true;
-        else if (!recent && !annuel) throw new HttpError(402, `Ton abonnement comprend un SaaS. Lance celui-ci en plus pour ${COUT_CREDITS.saas} crédits (ton premier SaaS reste en ligne).`);
-        else remplacer = autres.map((a) => a.id);
+    if (!ex && !req.headers.get("x-cron-key")) {
+      const au = await autreSaas(ws as { id: string; periode?: string });
+      if (au.deja) {
+        if (au.changement && b.credits !== true) remplacer = au.ids;
+        else if (b.credits === true) parCredits = true;
+        else throw new HttpError(402, MSG_AUTRE(await creditsSolde(ws.id)));
       }
     }
     if (!req.headers.get("x-cron-key") && !parCredits) { await quota(ws.id, "construire", 3); await quotaMois(ws.id, ws.plan, "construire"); }

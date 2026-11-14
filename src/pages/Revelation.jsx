@@ -208,6 +208,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   const [vue, setVue] = useState("ordi");
   const [cle, setCle] = useState(0);
   const lance = useRef(false);
+  const parCredits = useRef(false); // l'utilisateur a accepté de payer ce SaaS supplémentaire en crédits
   const fil = useRef(null);
 
   useEffect(() => { const t = setInterval(() => setTic((x) => x + 1), 6500); return () => clearInterval(t); }, []);
@@ -239,7 +240,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
         }
         setEtape(2);
         const { data: ex } = await supabase.from("saas_apps").select("statut").eq("projet_id", p.id).maybeSingle();
-        if (!atelier && (!ex || ex.statut === "erreur")) await fn("r/saas-construire", { workspace_id: ws.id, projet_id: p.id });
+        if (!atelier && (!ex || ex.statut === "erreur")) await fn("r/saas-construire", { workspace_id: ws.id, projet_id: p.id, ...(parCredits.current ? { credits: true } : {}) });
         for (let i = 0; i < 240 && vivant; i++) {
           await attendre(3000);
           const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut").eq("projet_id", p.id).maybeSingle();
@@ -364,8 +365,15 @@ export function Chantier({ ws, nav, init, atelier = false }) {
             ))}
             {erreur && (
               <Bingoo>
-                <p>Petit contretemps : {erreur} Rien n'est perdu, je reprends là où je me suis arrêté.</p>
-                <button onClick={() => { setErreur(null); setEssai((e) => e + 1); }} className="mt-2.5 rounded-lg bg-ink px-4 py-2 text-[13px] font-semibold text-white">Relancer</button>
+                {/Un autre SaaS coûte/.test(erreur) ? <>
+                  <p>{erreur}</p>
+                  {/il te manque/.test(erreur)
+                    ? <button onClick={() => nav("/abonnement")} className="mt-2.5 rounded-lg bg-ink px-4 py-2 text-[13px] font-semibold text-white">Recharger mes crédits</button>
+                    : <button onClick={() => { parCredits.current = true; setErreur(null); setEssai((e) => e + 1); }} className="mt-2.5 rounded-lg bg-ink px-4 py-2 text-[13px] font-semibold text-white">Construire avec 60 crédits</button>}
+                </> : <>
+                  <p>Petit contretemps : {erreur} Rien n'est perdu, je reprends là où je me suis arrêté.</p>
+                  <button onClick={() => { setErreur(null); setEssai((e) => e + 1); }} className="mt-2.5 rounded-lg bg-ink px-4 py-2 text-[13px] font-semibold text-white">Relancer</button>
+                </>}
               </Bingoo>
             )}
           </div>
