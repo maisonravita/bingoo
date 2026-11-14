@@ -256,7 +256,8 @@ export function Chantier({ ws, nav, init, atelier = false }) {
     } catch (e) { maj({ etat: "ko", erreur: e.message }); } finally { setOccupe(false); }
   };
 
-  if (!c.domaine) return <Navigate to="/explorer/copier" replace />;
+  // Dans l'atelier, le SaaS existe déjà : pas besoin du SaaS d'origine (un SaaS lancé depuis une idée n'en a pas)
+  if (!c.domaine && !(atelier && c.app)) return <Navigate to="/explorer/copier" replace />;
   const lect = LECTURE(c.nom);
   const lignes = [
     ...lect.slice(0, etape >= 1 ? lect.length : Math.min(lect.length, 1 + tic)).map((t, i) => ({ k: `l${i}`, t, ok: etape >= 1 || i < Math.min(lect.length, tic) })),

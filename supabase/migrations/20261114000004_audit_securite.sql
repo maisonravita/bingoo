@@ -22,3 +22,17 @@ begin
   return n;
 end $$;
 revoke execute on function public.cron_dispatch_run() from public, anon, authenticated;
+
+-- 5. Performance : index sur les clés étrangères utilisées par l'application
+create index if not exists saas_apps_workspace_idx on public.saas_apps(workspace_id);
+create index if not exists saas_tiktok_workspace_idx on public.saas_tiktok(workspace_id);
+create index if not exists saas_videos_workspace_idx on public.saas_videos(workspace_id);
+create index if not exists saas_projets_saas_idx on public.saas_projets(saas_id);
+create index if not exists saas_suivis_saas_idx on public.saas_suivis(saas_id);
+create index if not exists saas_vues_saas_idx on public.saas_vues(saas_id);
+create index if not exists saas_app_rows_user_idx on public.saas_app_rows(user_id);
+create index if not exists saas_app_invites_app_idx on public.saas_app_invites(app_id);
+create index if not exists saas_demandes_workspace_idx on public.saas_demandes(workspace_id);
+create index if not exists saas_annonces_workspace_idx on public.saas_annonces(workspace_id);
+create index if not exists saas_api_cles_workspace_idx on public.saas_api_cles(workspace_id);
+create index if not exists saas_sans_succes_recent on public.saas (statut, created_at desc) where succes is null;

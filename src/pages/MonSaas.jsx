@@ -41,7 +41,7 @@ export default function MonSaas({ page }) {
   const nav = useNavigate();
   if (m === undefined) return <div className="py-24 grid place-items-center"><Spinner /></div>;
   if (!m) return <PasEncore />;
-  if (page === "atelier") return <Chantier ws={ws} nav={nav} init={{ domaine: m.domaine, nom: m.projet?.inspire?.nom ?? m.domaine, projet: m.projet ? { id: m.projet.id, nom: m.projet.nom, pitch: m.projet.pitch, cible: m.projet.cible } : null, app: m.app }} atelier />;
+  if (page === "atelier") return <Chantier ws={ws} nav={nav} init={{ domaine: m.domaine, nom: m.projet?.inspire?.nom ?? m.domaine ?? m.nom, projet: m.projet ? { id: m.projet.id, nom: m.projet.nom, pitch: m.projet.pitch, cible: m.projet.cible } : null, app: m.app }} atelier />;
   if (page === "dossier") return m.domaine ? <Navigate to={`/explorer/lancer?d=${encodeURIComponent(m.domaine)}`} replace /> : <PasEncore />;
   return (
     <div>
