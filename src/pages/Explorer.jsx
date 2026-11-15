@@ -2710,10 +2710,10 @@ export function TrouveTonSaas() {
   const retour = (() => { const Qc = QUESTIONS[r.etape]; if (Qc?.jauge) return commentaireObjectif(r.objectif ?? OBJ_DEFAUT)[1]; const v = Qc?.k ? r[Qc.k] : null; const m = Qc && RETOURS[Qc.k]; if (!m || v == null || Array.isArray(v)) return null; return typeof m === "function" ? m(v) : m[v] ?? null; })();
   const invite = estInvite(session);
   // Les 3 SaaS, le plan et le prompt se débloquent une fois le paiement reçu (le serveur n'envoie que le premier avant)
-  // Aperçu « comme un visiteur » pour l'administrateur (?visiteur=1) : voir la page de résultats d'avant paiement
-  const [admin, setAdmin] = useState(false);
-  useEffect(() => { if (/visiteur=1/.test(window.location.href)) supabase.rpc("is_admin").then(({ data }) => setAdmin(!!data)); }, []);
-  const debloque = estPaye(ws) && !admin;
+  // Aperçu « comme un visiteur » (?visiteur=1) : voir la page de résultats d'avant paiement
+  // (aucun risque : ce n'est que la page qu'un visiteur voit déjà)
+  const [visiteur] = useState(() => /visiteur=1/.test(window.location.href));
+  const debloque = estPaye(ws) && !visiteur;
   const sauver = (n) => { try { localStorage.setItem("bingoo-parcours2", JSON.stringify({ ...n, fini: n.etape >= QUESTIONS.length || n.fini })); } catch { /* stockage indisponible */ } };
   const aller = (n) => {
     setR(n); sauver(n);
