@@ -177,14 +177,56 @@ async function semer(admin: SupabaseClient, app: any, userId: string) {
 function places(app: any, titulaire: any): number | null {
   if (!app.paiement?.actif || !["active", "trialing", "past_due"].includes(titulaire.abonnement?.statut)) return null;
   const f = (app.spec?.formules ?? []).find((x: any) => x.nom === titulaire.abonnement?.formule);
-  for (const t of f?.inclus ?? []) {
-    const m = String(t).match(/(\d+)\s*(utilisateurs?|membres?|collaborateurs?|si[eè]ges?|comptes?|personnes?)/i);
+  for (const t0 of f?.inclus ?? []) {
+    // « Plus de 5 utilisateurs » = pas de limite haute ; « de 2 à 5 utilisateurs » = 5
+    if (/plus de|au-del[àa]|à partir de|illimit/i.test(String(t0))) continue;
+    const t = String(t0).replace(/(\d+)\s*(?:à|-)\s*(\d+)/, "$2");
+    const m = String(t).match(/(\d+)\s*(utilisateurs?|membres?|collaborateurs?|si[eè]ges?|comptes?|personnes?|intervenants?|praticiens?|employ[ée]s?|salari[ée]s?|techniciens?|agents?|places?)\b/i);
     if (m) return Number(m[1]);
     if (/(1|un) seul utilisateur|utilisateur unique/i.test(String(t))) return 1;
   }
   return null;
 }
 const ROLES = ["admin", "membre", "lecture"];
+
+// ---------------------------------------------------------------- Quotas : « 10 témoignages », « 40 000 mots par mois »…
+const sansAccent = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const racine = (s: string) => sansAccent(s).replace(/[^a-z]/g, "").replace(/(aux|eaux|s|x)$/, "");
+/** La formule qui s'applique : celle de l'abonnement, sinon la formule gratuite (prix 0) s'il y en a une. */
+function formuleDe(app: any, titulaire: any) {
+  const fs = (app.spec?.formules ?? []) as any[];
+  if (["active", "trialing", "past_due"].includes(titulaire?.abonnement?.statut)) return fs.find((x) => x.nom === titulaire.abonnement?.formule) ?? null;
+  return fs.find((x) => Number(x.prix) === 0) ?? null;
+}
+/** Limite de la formule pour une collection (le nom de la limite ressemble au nom ou au libellé de la collection). */
+function quota(app: any, titulaire: any, col: string): { max: number; mot: string; mois: boolean; formule: string } | null {
+  if (!app.paiement?.actif) return null;
+  const f = formuleDe(app, titulaire);
+  const def = ((app.spec?.collections ?? []) as any[]).find((c) => c.nom === col);
+  if (!f || !def) return null;
+  const noms = [col, ...String(col).split("_"), ...String(def.label ?? "").split(/\s+/)].map(racine).filter((x) => x.length >= 3);
+  for (const t of (f.inclus ?? []) as string[]) {
+    if (/illimit|plus de|au-del[àa]|à partir de/i.test(String(t))) continue;
+    const m = String(t).replace(/(\d+)\s*(?:à|-)\s*(\d+)/, "$2").match(/(\d[\d\s\u202f.]*)\s+([a-zà-ÿ'’-]+)/i);
+    if (!m) continue;
+    const mot = racine(m[2]);
+    if (mot.length < 3 || !noms.some((n) => n === mot || n.startsWith(mot) || mot.startsWith(n))) continue;
+    const max = Number(m[1].replace(/[^\d]/g, ""));
+    if (!Number.isFinite(max) || max <= 0) continue;
+    return { max, mot: m[2], mois: /par mois|\/\s*mois|mensuel/i.test(String(t)), formule: String(f.nom) };
+  }
+  return null;
+}
+async function verifierQuota(admin: SupabaseClient, app: any, titulaire: any, espace: string, col: string, publicPage = false) {
+  const q = quota(app, titulaire, col);
+  if (!q) return;
+  let r = admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("espace_id", espace).eq("col", col);
+  if (q.mois) { const d = new Date(); r = r.gte("at", new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString()); }
+  const { count } = await r;
+  if ((count ?? 0) < q.max) return;
+  if (publicPage) throw new Err(403, "Cette page n'accepte plus d'envois pour le moment");
+  throw new Err(403, `Ta formule ${q.formule} compte ${q.max.toLocaleString("fr-FR")} ${q.mot}${q.mois ? " par mois" : ""} : passe à une formule supérieure pour en ajouter`);
+}
 
 // ---------------------------------------------------------------- Application installable (manifeste et icône)
 const echap = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
@@ -281,6 +323,7 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
       const ip = await sha(`${app.id}:pub:${(req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim()}`);
       const { count: parIp } = await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("data->>_ip", ip).gte("at", depuis);
       if ((parIp ?? 0) >= 10) throw new Err(429, "Trop d'envois depuis cette connexion, réessaie dans une heure");
+      await verifierQuota(admin, app, t, espace, col, true);
       const { data: r } = await admin.from("saas_app_rows").insert({ app_id: app.id, user_id: espace, espace_id: espace, col, data: { ...propre(b.data), _public: true, _ip: ip } }).select("id, data, at, maj").single();
       const { mailRecu } = await import("./app-mails.ts");
       await mailRecu(app, slug, t, page, r!.id, (r!.data ?? {}) as Record<string, unknown>).catch((e) => console.error("recu", e));
@@ -624,6 +667,7 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       const col = colOk(b.col);
       const { count } = await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("espace_id", espace);
       if ((count ?? 0) >= LIM.rows) throw new Err(403, "Limite de données atteinte pour cet espace");
+      await verifierQuota(admin, app, titulaire, espace, col);
       const { data } = await admin.from("saas_app_rows").insert({ app_id: app.id, user_id: user.id, espace_id: espace, col, data: propre(b.data) }).select("id, data, at, maj").single();
       return { status: 200, body: ligne(data) };
     }
