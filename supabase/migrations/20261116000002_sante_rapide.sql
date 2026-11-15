@@ -1,0 +1,2 @@
+-- Appliquée via MCP le 2026-11-16 : bingoo_sante() n'appelle plus saas_leaders (lourd : dépassait parfois le délai de 3 s
+-- des visiteurs → HTTP 500 au test de nuit) ; tâche « bingoo-cron-historique » : historique des tâches gardé 7 jours.
