@@ -384,7 +384,7 @@ export default function Layout({ children }) {
           <NavLink to="/explorer/trouver"><Logo /></NavLink>
           <nav className="ml-4 hidden md:flex items-center gap-1 text-[14px] font-medium">
             <NavLink to="/explorer/trouver" className={({ isActive }) => cx("rounded-xl px-3 py-2", isActive ? "text-ink" : "text-ink-soft hover:text-ink")}>Trouver mon SaaS</NavLink>
-            {invite ? <button onClick={() => demanderCompte("Crée ton compte gratuit pour explorer tous les SaaS et leurs chiffres.")} className="rounded-xl px-3 py-2 text-ink-soft hover:text-ink">Explorer les SaaS</button>
+            {invite ? <button onClick={() => demanderCompte("Crée ton compte gratuit pour explorer les SaaS qui marchent.")} className="rounded-xl px-3 py-2 text-ink-soft hover:text-ink">Explorer les SaaS</button>
               : <NavLink to="/explorer" end className={({ isActive }) => cx("rounded-xl px-3 py-2", isActive ? "text-ink" : "text-ink-soft hover:text-ink")}>Explorer les SaaS</NavLink>}
           </nav>
           <div className="flex-1" />
