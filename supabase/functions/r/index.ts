@@ -260,7 +260,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   },
   async "saas-lancer"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
-    if (ws.plan === "explorer") throw new HttpError(402, "« Lancer le même » est dans la formule Pro.");
+    if (ws.plan === "explorer") throw new HttpError(402, "« Lancer le même » est dans la formule Lancer.");
     // Déjà un SaaS construit : pas de préparation (payante en IA) sans le droit d'en construire un autre
     const au = await autreSaas(ws as { id: string; periode?: string });
     if (au.deja && !au.changement) { const solde = await creditsSolde(ws.id); if (solde < COUT_CREDITS.saas) throw new HttpError(402, MSG_AUTRE(solde)); }
@@ -371,7 +371,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   },
   async "saas-construire"(req, b) {
     const { ws } = await membreOuCron(req, b.workspace_id);
-    if (ws.plan === "explorer") throw new HttpError(402, "« Construire mon SaaS » est dans la formule Pro.");
+    if (ws.plan === "explorer") throw new HttpError(402, "« Construire mon SaaS » est dans la formule Lancer.");
     const { data: pr } = await admin.from("saas_projets").select("id, data, statut").eq("id", String(b.projet_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
     if (!pr || pr.statut !== "pret") throw new HttpError(404, "Projet introuvable");
     const { data: ex } = await admin.from("saas_apps").select("id, statut, maj, etape").eq("projet_id", pr.id).maybeSingle();
@@ -783,7 +783,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   },
   async "saas-clients"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
-    if (ws.plan === "explorer") throw new HttpError(402, "« Qui démarcher » est dans la formule Pro.");
+    if (ws.plan === "explorer") throw new HttpError(402, "« Qui démarcher » est dans la formule Lancer.");
     await quota(ws.id, "recherche", 200);
     const { saasClients } = await import("../_shared/saas-base.ts");
     return await saasClients({ domaine: b.domaine ? String(b.domaine) : null, categorie: b.categorie ? String(b.categorie) : null, tag: b.tag ? String(b.tag) : null });

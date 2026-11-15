@@ -353,7 +353,7 @@ function Liste({ copier: copierPage = false }) {
       {sel.length > 0 && (
         <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-30 rounded-2xl bg-ink text-white shadow-xl px-4 py-3 flex items-center gap-3">
           <span className="text-[14px]">{sel.length} SaaS sélectionné{sel.length > 1 ? "s" : ""} (4 au plus)</span>
-          <button disabled={sel.length < 2} onClick={() => niv(ws) < 2 ? (toast("Comparer est dans la formule Pro", "bad"), nav("/abonnement")) : nav(`/explorer/comparer?d=${sel.join(",")}`)} className="rounded-lg bg-accent px-4 py-2 text-[14px] font-bold disabled:opacity-50">Comparer</button>
+          <button disabled={sel.length < 2} onClick={() => niv(ws) < 2 ? (toast("Comparer est dans la formule Lancer", "bad"), nav("/abonnement")) : nav(`/explorer/comparer?d=${sel.join(",")}`)} className="rounded-lg bg-accent px-4 py-2 text-[14px] font-bold disabled:opacity-50">Comparer</button>
           <button onClick={() => setSel([])} className="text-[13px] text-white/70 hover:text-white">Effacer</button>
         </div>
       )}
@@ -582,7 +582,7 @@ function Fiche({ domaine }) {
           <div className="mt-3 space-y-2">{mails.slice(0, 10).map((m) => <CarteMail key={m.id} m={m} />)}</div>
         </section>
       )}
-      {niv(ws) < 2 ? <div className="mt-4"><Verrou sombre titre={`Ses pubs, ses e-mails et ses clients`} texte={`Avec la formule Pro : les publicités et les e-mails de ${s.nom}, et les types d'entreprises qui achètent ce genre de logiciel.`} /></div>
+      {niv(ws) < 2 ? <div className="mt-4"><Verrou sombre titre={`Ses pubs, ses e-mails et ses clients`} texte={`Avec la formule Lancer : les publicités et les e-mails de ${s.nom}, et les types d'entreprises qui achètent ce genre de logiciel.`} /></div>
         : <div className="mt-4"><Clients domaine={s.domaine} titre={`Les clients de ${s.nom}, tes prospects`} /></div>}
       {(pubs.length > 0 || s.pubs_at) && (
         <section className="mt-4 rounded-2xl bg-white border border-line p-5">
@@ -883,7 +883,7 @@ function CartePub({ p, saas }) {
 
 function Pubs() {
   const { ws } = useWs();
-  if (niv(ws) < 2) return <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6"><h1 className="text-[30px] font-black tracking-tight" style={HF}>Pubs et e-mails</h1><div className="mt-4"><Verrou titre="Comment ils vont chercher leurs clients" texte="Les publicités Facebook et Instagram et les e-mails des SaaS de ta niche, dans la formule Pro." /></div></div>;
+  if (niv(ws) < 2) return <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6"><h1 className="text-[30px] font-black tracking-tight" style={HF}>Pubs et e-mails</h1><div className="mt-4"><Verrou titre="Comment ils vont chercher leurs clients" texte="Les publicités Facebook et Instagram et les e-mails des SaaS de ta niche, dans la formule Lancer." /></div></div>;
   return <PubsContenu />;
 }
 function PubsContenu() {
@@ -1699,7 +1699,7 @@ function Construire({ projet }) {
         <>
           {app?.statut === "erreur" && <p className="mt-4 rounded-xl bg-[#7F1D1D]/40 px-4 py-3 text-[14px]">{app.erreur || "La construction a échoué."} Relance-la.</p>}
           <Validation projet={projet} app={app} recharger={charger} />
-          <button onClick={construire} className="mt-6 rounded-xl bg-accent px-7 py-3.5 font-bold hover:bg-accent-dark">{niv(ws) < 2 ? "Disponible avec la formule Pro" : "Construire mon SaaS"}</button>
+          <button onClick={construire} className="mt-6 rounded-xl bg-accent px-7 py-3.5 font-bold hover:bg-accent-dark">{niv(ws) < 2 ? "Disponible avec la formule Lancer" : "Construire mon SaaS"}</button>
         </>
       ) : null}
 
@@ -2522,7 +2522,7 @@ function Bourse() {
           );
         })}</div>
       )}
-      <p className="mt-4 text-[12px] text-ink-faint">L'estimation est indicative (multiple du revenu annuel selon la croissance, l'ancienneté et les désabonnements). Je ne suis pas un conseiller financier : vérifiez les chiffres et faites-vous accompagner pour une vente importante.</p>
+      <p className="mt-4 text-[12px] text-ink-faint">L'estimation est indicative (multiple du revenu annuel selon la croissance, l'ancienneté et les désabonnements). Je ne suis pas un conseiller financier : vérifie les chiffres et fais-toi accompagner pour une vente importante.</p>
       {ouvert && <FilBourse fil={ouvert} onClose={() => { setOuvert(null); charger(); }} />}
     </div>
   );
