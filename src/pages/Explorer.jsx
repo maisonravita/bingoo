@@ -2621,6 +2621,7 @@ const TOUTES_QUESTIONS = [
 ];
 // Avant le paiement : 6 questions, celles qui changent la liste de SaaS (« 30 secondes »). Les autres affinent le plan après le paiement.
 const QUESTIONS = ["continent", "objectif", "audience", "temps", "canaux", "secteurs"].map((k) => TOUTES_QUESTIONS.find((q) => q.k === k));
+const SURTITRES = { continent: "Ton marché", objectif: "Ton objectif", audience: "Tes clients", temps: "Ton rythme", canaux: "Ta façon de vendre", secteurs: "Idée · domaine" };
 export const QUESTIONS_AFFINE = TOUTES_QUESTIONS.filter((q) => !QUESTIONS.includes(q));
 // Les icônes des réponses (traits simples, mêmes proportions que le reste de l'interface)
 const Coche = () => <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>;
@@ -2752,8 +2753,8 @@ export function TrouveTonSaas() {
             <span className="fx-aurore h-[260px] w-[260px] bg-[#F6A06B] left-[8%] top-10" />
             <span className="fx-aurore h-[240px] w-[240px] bg-[#9B6BFF] right-[8%] top-40" style={{ animationDelay: "-6s" }} />
           </div>
-          <div className="relative z-[1] mx-auto max-w-5xl lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-10 lg:items-start">
-          <div className="mx-auto w-full max-w-2xl">
+          <div className="relative z-[1] mx-auto max-w-6xl lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-12 lg:items-start">
+          <div className="mx-auto w-full max-w-2xl lg:max-w-none">
             <div className="flex items-center justify-between gap-3 text-[13px] text-ink-faint">
               {r.etape > 0 ? <button onClick={() => setR({ ...r, etape: r.etape - 1 })} className="inline-flex items-center gap-1 font-semibold text-ink-soft hover:text-ink"><span aria-hidden>←</span> Retour</button> : <span />}
               <span className="tnum">Question {r.etape + 1} sur {QUESTIONS.length}</span>
@@ -2761,8 +2762,9 @@ export function TrouveTonSaas() {
             </div>
             <div className="mt-3 h-1.5 rounded-full bg-black/[.06] overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-accent via-[#F08A4B] to-[#9B6BFF] transition-all duration-500" style={{ width: `${((r.etape + 1) / QUESTIONS.length) * 100}%` }} /></div>
             <div key={r.etape} className="land-in">
-              <h1 className="mt-10 text-center text-[32px] sm:text-[44px] font-black leading-[1.05] tracking-tight" style={HF}>{Q.q}</h1>
-              <p className="mx-auto mt-3 max-w-xl text-center text-[15.5px] text-ink-soft">{Q.aide}</p>
+              <p className="mt-12 text-[13px] font-bold uppercase tracking-[.18em] text-accent-dark">{r.etape === 0 ? "30 secondes chrono" : SURTITRES[Q.k] ?? "Ton projet"}</p>
+              <h1 className="mt-2 text-[34px] sm:text-[50px] font-black leading-[1.04] tracking-[-.02em]" style={HF}>{Q.q}</h1>
+              <p className="mt-3 max-w-xl text-[17px] text-ink-soft">{Q.aide}</p>
               {Q.pays ? (
                 <div className="mt-8">
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{PAYS_RAPIDES.map((c) => {
@@ -2786,20 +2788,22 @@ export function TrouveTonSaas() {
               ) : Q.jauge ? (
                 <Jauge valeur={r.objectif ?? OBJ_DEFAUT} onChange={(v) => setR({ ...r, objectif: v })} />
               ) : Q.secteurs ? (
-                <div className="mt-8 grid sm:grid-cols-2 gap-2.5">{SECTEURS.map((c) => { const st = statsSect?.[c]; const on = choisi("secteurs", c); return (
-                  <button key={c} type="button" onClick={() => basculer("secteurs", c)} className={cx("flex items-center gap-3 rounded-2xl border bg-white/90 px-4 py-3 text-left transition hover:-translate-y-0.5", on ? "border-transparent ring-2 ring-accent shadow-[0_18px_40px_-20px_rgba(224,83,31,.7)]" : "border-line hover:border-ink-faint")}>
-                    <span className="min-w-0 flex-1"><span className="block font-bold text-[15px]">{c}</span>
-                      <span className="block text-[12.5px] text-ink-soft">{st ? `${Number(st.n).toLocaleString("fr-FR")} SaaS rentables` : "…"}{st?.top ? <> · <b className="text-good">n°1 : {dollar(st.top)}/mois</b></> : ""}</span></span>
-                    <span className={cx("grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition", on ? "border-accent bg-accent text-white" : "border-line")}>{on && <Coche />}</span>
+                <div className="mt-9 grid sm:grid-cols-2 gap-4">{SECTEURS.map((c) => { const st = statsSect?.[c]; const on = choisi("secteurs", c); return (
+                  <button key={c} type="button" onClick={() => basculer("secteurs", c)} className={cx("flex items-center gap-4 rounded-3xl border bg-white px-4 py-4 text-left shadow-[0_1px_2px_rgba(16,24,40,.04)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-28px_rgba(21,23,42,.45)]", on ? "border-transparent ring-2 ring-accent" : "border-line")}>
+                    <span className="flex shrink-0 -space-x-3">{(st?.logos ?? []).slice(0, 3).map((d, i) => <span key={d} className="grid h-12 w-12 place-items-center overflow-hidden rounded-xl border-2 border-white bg-white shadow-sm" style={{ zIndex: 3 - i }}><CompanyLogo name={d} url={`https://${d}`} className="h-full w-full" pad="p-1" /></span>)}{!st?.logos?.length && <span className="h-12 w-12 rounded-xl bg-paper" />}</span>
+                    <span className="min-w-0 flex-1"><span className="block font-bold text-[17px] leading-tight">{c}</span>
+                      <span className="mt-0.5 block text-[13.5px] text-ink-soft">{st ? `${Number(st.n).toLocaleString("fr-FR")} SaaS` : "…"}</span>
+                      {st?.top ? <span className="block text-[13.5px] font-bold text-good">n°1 · {dollar(st.top)}/mois</span> : null}</span>
+                    <span className={cx("grid h-7 w-7 shrink-0 place-items-center rounded-full transition", on ? "bg-accent text-white" : "text-ink-faint")}>{on ? <Coche /> : <span aria-hidden>→</span>}</span>
                   </button>); })}</div>
               ) : (
-                <div className={cx("mt-8 grid gap-3", optionsDe(Q, r).length > 3 ? "sm:grid-cols-2" : "")}>{optionsDe(Q, r).map(([v, t, sous]) => {
+                <div className={cx("mt-9 grid gap-4", optionsDe(Q, r).length > 2 ? "sm:grid-cols-2" : "")}>{optionsDe(Q, r).map(([v, t, sous]) => {
                   const on = choisi(Q.k, v);
                   return (
                     <button key={v || "tout"} type="button" onClick={() => Q.multi ? basculer(Q.k, v) : setR({ ...r, [Q.k]: v })}
-                      className={cx("group flex items-center gap-4 rounded-2xl border bg-white/90 px-4 py-4 text-left backdrop-blur transition hover:-translate-y-0.5", on ? "border-transparent ring-2 ring-accent shadow-[0_18px_40px_-20px_rgba(224,83,31,.7)]" : "border-line hover:border-ink-faint")}>
-                      <span className={cx("grid h-11 w-11 shrink-0 place-items-center rounded-xl transition", on ? "fx-pastille text-white" : "bg-paper text-ink-soft group-hover:text-ink")}>{iconeOption(Q.k, v)}</span>
-                      <span className="min-w-0 flex-1"><span className="block font-bold text-[16px]">{t}</span>{sous && <span className="mt-0.5 block text-[13.5px] text-ink-soft">{sous}</span>}</span>
+                      className={cx("group flex items-center gap-4 rounded-3xl border bg-white px-5 py-5 text-left shadow-[0_1px_2px_rgba(16,24,40,.04)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-28px_rgba(21,23,42,.45)]", on ? "border-transparent ring-2 ring-accent shadow-[0_18px_40px_-20px_rgba(224,83,31,.7)]" : "border-line hover:border-ink-faint")}>
+                      <span className={cx("grid h-14 w-14 shrink-0 place-items-center rounded-2xl transition [&_svg]:h-6 [&_svg]:w-6", on ? "fx-pastille text-white" : "bg-gradient-to-br from-accent to-[#F08A4B] text-white shadow-[0_10px_24px_-12px_rgba(224,83,31,.8)]")}>{iconeOption(Q.k, v)}</span>
+                      <span className="min-w-0 flex-1"><span className="block font-bold text-[18px] leading-tight">{t}</span>{sous && <span className="mt-1 block text-[14.5px] leading-snug text-ink-soft">{sous}</span>}</span>
                       <span className={cx("grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition", on ? "border-accent bg-accent text-white" : "border-line")}>{on && <Coche />}</span>
                     </button>
                   );
@@ -2839,15 +2843,22 @@ export function TrouveTonSaas() {
 }
 // À droite des questions : la recherche qui se resserre en direct (vrais chiffres de la base, recalculés à chaque réponse)
 function PanneauDirect({ ap, r }) {
-  const filtres = [r.continent && CONTINENTS[r.continent], r.objectif && `${Number(r.objectif).toLocaleString("fr-FR")} €/mois`, r.audience === "B2B" ? "pros" : r.audience === "B2C" ? "particuliers" : null, ...(r.secteurs ?? [])].filter(Boolean);
+  const [lead, setLead] = useState([]);
+  const cats = (r.secteurs ?? []).join("|");
+  useEffect(() => { supabase.rpc("saas_leaders", { p_cats: r.secteurs ?? [] }).then(({ data }) => setLead(data ?? [])); }, [cats]); // eslint-disable-line react-hooks/exhaustive-deps
+  const filtres = [r.continent && CONTINENTS[r.continent], r.objectif && `${Number(r.objectif).toLocaleString("fr-FR")} €`, r.audience === "B2B" ? "pros" : r.audience === "B2C" ? "particuliers" : null, ...(r.secteurs ?? []).map((s) => s.split(" ")[0].toLowerCase()), "rentables"].filter(Boolean);
+  const pts = (x) => (Array.isArray(x.courbe) ? x.courbe : []).slice(-8).map((p) => ({ n: Number(p.v) || 0 }));
+  const flou = <span className="select-none rounded-md bg-good/10 px-2 py-0.5 text-[12px] font-bold text-good blur-[4px]" aria-hidden>12,4 k$/mois</span>;
+  const [premier, ...autres] = lead;
   return (
-    <aside className="hidden lg:block sticky top-24 mt-16 rounded-3xl border border-line bg-white/95 p-5 shadow-[0_30px_60px_-40px_rgba(21,23,42,.5)] backdrop-blur" aria-live="polite">
-      <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-paper px-3 py-2 text-[12.5px]"><span aria-hidden>🔍</span>{filtres.length ? filtres.map((f) => <span key={f} className="rounded-md bg-accent-soft px-1.5 py-0.5 font-semibold text-accent-dark">{f}</span>) : <span className="text-ink-faint">Bingoo! analyse le marché…</span>}</div>
-      <p className="mt-4 text-[40px] font-black leading-none tnum" style={HF}>{ap ? Number(ap.n ?? 0).toLocaleString("fr-FR") : "…"}</p>
-      <p className="mt-1 text-[13.5px] text-ink-soft">SaaS au revenu vérifié collent à tes réponses, et Bingoo! sait construire ta version de chacun.</p>
-      {ap?.mediane ? <p className="mt-3 rounded-xl bg-paper px-3 py-2 text-[13px]">Revenu médian : <b className="tnum">{dollar(ap.mediane)}</b> par mois</p> : null}
-      {ap?.exemple?.mrr ? <div className="mt-2 rounded-xl border border-line px-3 py-2.5"><p className="text-[11px] font-bold uppercase tracking-wide text-ink-faint">Un exemple pour toi</p><p className="mt-0.5 text-[15px] font-black tnum" style={HF}>{dollar(ap.exemple.mrr)} <span className="text-[12px] font-normal text-ink-faint">par mois</span></p>{ap.exemple.croissance ? <p className="text-[12px] text-good">{pct30(ap.exemple.croissance)} en 30 jours</p> : null}<p className="mt-1 flex items-center gap-1 text-[12px] text-ink-faint"><Cadenas />Son nom à la fin</p></div> : null}
-      <p className="mt-3 flex items-center gap-1.5 text-[12px] text-ink-faint"><span className="h-1.5 w-1.5 rounded-full bg-good" />Données mises à jour aujourd'hui</p>
+    <aside className="hidden lg:block sticky top-20 mt-24 overflow-hidden rounded-[28px] border border-line bg-white shadow-[0_40px_80px_-50px_rgba(21,23,42,.55)]" aria-live="polite">
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-line px-5 py-4"><svg viewBox="0 0 24 24" className="h-4.5 w-4.5 text-ink-faint" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>{filtres.map((f) => <span key={f} className="rounded-lg bg-accent-soft px-2 py-1 text-[13px] font-semibold text-accent-dark">{f}</span>)}<span className="h-4 w-px animate-pulse bg-ink-faint" /></div>
+      <div className="px-5 pt-4"><p className="flex items-baseline gap-2"><span className="text-[34px] font-black leading-none tnum" style={HF}>{ap ? Number(ap.n ?? 0).toLocaleString("fr-FR") : "…"}</span><span className="text-[14px] text-ink-soft">SaaS pour toi, triés par revenu</span></p></div>
+      {premier && <div className="mx-4 mt-3 rounded-2xl bg-paper p-4"><p className="text-[11px] font-bold uppercase tracking-[.16em] text-ink-faint">Meilleur de ton domaine</p>
+        <div className="mt-2 flex items-center gap-2.5"><CompanyLogo name={premier.nom} url={`https://${premier.domaine}`} className="h-9 w-9 shrink-0" pad="p-1" /><p className="min-w-0 flex-1 truncate font-bold text-[15.5px]">{premier.nom}</p></div>
+        <div className="mt-2 flex items-end justify-between gap-3">{flou}<div className="w-32">{pts(premier).length > 2 && <Sparkline pts={pts(premier)} h={40} />}</div></div></div>}
+      <ul className="mt-1 px-2 pb-2">{autres.map((x) => <li key={x.domaine} className="flex items-center gap-3 rounded-xl px-3 py-2.5"><CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="h-9 w-9 shrink-0" pad="p-1" /><p className="min-w-0 flex-1 truncate font-semibold text-[14.5px]">{x.nom}</p><div className="w-16">{pts(x).length > 2 && <Sparkline pts={pts(x)} h={22} />}</div>{flou}</li>)}</ul>
+      <p className="flex items-center gap-1.5 border-t border-line px-5 py-3 text-[12.5px] text-ink-faint"><span className="h-2 w-2 rounded-full bg-good" />Données mises à jour aujourd'hui · revenus visibles à la fin</p>
     </aside>
   );
 }
