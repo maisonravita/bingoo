@@ -1160,6 +1160,16 @@ function Lancer() {
   const motsDe = (t) => new Set(String(t ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length >= 5));
   const motsConstruits = (construit?.ecrans ?? []).length ? motsDe((construit.ecrans ?? []).map((e) => `${e.titre} ${e.but ?? ""} ${(e.fonctions ?? []).join(" ")}`).join(" ")) : null;
   const faitDeja = motsConstruits ? (t) => { const m = [...motsDe(t)]; const n = m.filter((w) => motsConstruits.has(w) || [...motsConstruits].some((c) => c.startsWith(w.slice(0, 6)))).length; return n >= 2 || (m.length && n / m.length >= 0.4); } : null;
+  // Un abonnement = un SaaS : si le sien est déjà construit, un autre coûte des crédits (le serveur le refuse sinon)
+  const [autre, setAutre] = useState(null);
+  useEffect(() => {
+    Promise.all([
+      supabase.from("saas_apps").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).not("statut", "in", "(remplace,erreur,validation,retire)"),
+      fn("r/credits", { workspace_id: ws.id }).catch(() => null),
+    ]).then(([a, c]) => setAutre({ deja: (a.count ?? 0) > 0, solde: Number(c?.solde ?? 0) }));
+  }, [ws.id]);
+  const COUT_AUTRE = 60;
+  const bloque = !!autre?.deja && autre.solde < COUT_AUTRE;
   useEffect(() => { if (p?.id) supabase.from("saas_apps").select("statut, spec->ecrans, spec->formules, domaine_statut, public").eq("projet_id", p.id).maybeSingle().then(({ data }) => setConstruit(data ?? null)); }, [p?.id]);
   useEffect(() => {
     supabase.from("saas_liste").select("nom, domaine, categorie, description, pays, prix_entree_eur, succes, constructible").eq("domaine", d).maybeSingle().then(({ data }) => setSaas(data ?? null));
@@ -1168,6 +1178,7 @@ function Lancer() {
   // Le projet se prépare en tâche de fond (une à deux minutes) : on interroge la base toutes les 4 secondes
   const generer = async () => {
     if (niv(ws) < 2) { nav("/abonnement"); return; }
+    if (bloque) { nav("/abonnement#credits"); return; }
     setBusy(true);
     try {
       const a = angleType && saas ? angleDe(saas, { metier: angleMetier }, angleType) : null;
@@ -1192,13 +1203,19 @@ function Lancer() {
       </div>
       <Parcours etape={!p ? 1 : !(construit?.ecrans ?? []).length ? 2 : construit.domaine_statut === "ok" || construit.public ? 4 : 3} />
       {!p ? (
-        <div className="mt-4 rounded-3xl bg-ink text-white p-8">
-          <p className="text-[13px] font-bold uppercase tracking-wide text-[#F6A06B]">Lancer ma version</p>
-          <h1 className="mt-2 text-[32px] sm:text-[42px] font-black leading-[1.05]" style={HF}>{nomInspi} marche. Lance ta version, à ton nom.</h1>
-          {angleType && saas && <p className="mt-3 inline-block rounded-lg bg-white/10 px-3 py-1.5 text-[15px] font-semibold text-[#F6A06B]">Ta version : {angleDe(saas, { metier: angleMetier }, angleType).court}</p>}
-          <p className="mt-3 max-w-2xl text-white/75 text-[16px]">Bingoo! construit ta version de {nomInspi} et la met en ligne : ton site, les comptes de tes clients, l'abonnement avec ton Stripe, ton domaine. D'abord, il prépare ton projet en une à deux minutes : chaque fonctionnalité et ton équivalent, tes prix face aux siens et ton plan sur 12 mois. Ensuite, un clic pour construire.</p>
-          <p className="mt-3 text-[13px] text-white/55">Concurrence loyale : les mêmes fonctionnalités, mais ton nom, tes mots et ton design. Reprendre la marque, les textes mot pour mot ou le design de {nomInspi} exposerait à des poursuites.</p>
-          <button onClick={generer} disabled={busy} className="mt-6 rounded-xl bg-accent px-7 py-3.5 font-bold hover:bg-accent-dark disabled:opacity-60">{busy ? "Préparation de ton projet… (une à deux minutes)" : niv(ws) < 2 ? "Disponible avec la formule Lancer" : "Préparer mon projet"}</button>
+        <div className="mt-4 rounded-3xl border border-line bg-white p-8">
+          <p className="text-[13px] font-bold uppercase tracking-wide text-accent-dark">Lancer ma version</p>
+          <h1 className="mt-2 text-[32px] sm:text-[42px] font-black leading-[1.05] text-ink" style={HF}>{nomInspi} marche. Lance ta version, à ton nom.</h1>
+          {angleType && saas && <p className="mt-3 inline-block rounded-lg bg-accent-soft px-3 py-1.5 text-[15px] font-semibold text-accent-dark">Ta version : {angleDe(saas, { metier: angleMetier }, angleType).court}</p>}
+          <p className="mt-3 max-w-2xl text-ink-soft text-[16px]">Bingoo! construit ta version de {nomInspi} et la met en ligne : ton site, les comptes de tes clients, l'abonnement avec ton Stripe, ton domaine. D'abord, il prépare ton projet en une à deux minutes : chaque fonctionnalité et ton équivalent, tes prix face aux siens et ton plan sur 12 mois. Ensuite, un clic pour construire.</p>
+          <p className="mt-3 text-[13px] text-ink-faint">Concurrence loyale : les mêmes fonctionnalités, mais ton nom, tes mots et ton design. Reprendre la marque, les textes mot pour mot ou le design de {nomInspi} exposerait à des poursuites.</p>
+          {autre?.deja && <div className={cx("mt-5 max-w-2xl rounded-xl px-4 py-3 text-[14px]", bloque ? "bg-paper border border-line text-ink-soft" : "bg-accent-soft text-ink")}>
+            <b className="text-ink">Ton abonnement comprend un SaaS, et le tien est déjà construit.</b> Un autre SaaS coûte {COUT_AUTRE} crédits, et ton premier reste en ligne.{bloque ? ` Il te manque ${COUT_AUTRE - autre.solde} crédits.` : ` Tu as ${autre.solde} crédits.`}
+          </div>}
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <button onClick={generer} disabled={busy || autre === null} className={cx("rounded-xl px-7 py-3.5 font-bold disabled:opacity-60", bloque ? "bg-line text-ink-faint cursor-pointer hover:bg-line" : "bg-accent text-white hover:bg-accent-dark")}>{busy ? "Préparation de ton projet… (une à deux minutes)" : niv(ws) < 2 ? "Disponible avec la formule Lancer" : bloque ? "Préparer mon projet" : autre?.deja ? `Préparer mon projet · ${COUT_AUTRE} crédits` : "Préparer mon projet"}</button>
+            {bloque && <a href="#/abonnement#credits" className="rounded-xl bg-ink px-5 py-3.5 font-bold text-white hover:opacity-90">Recharger des crédits</a>}
+          </div>
         </div>
       ) : null}
       {!p && <div className="mt-4"><CeQueTaCopieFera saas={saas} /></div>}
