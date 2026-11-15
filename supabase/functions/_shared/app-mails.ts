@@ -12,13 +12,13 @@ const T = `${Deno.env.get("SUPABASE_URL")}/functions/v1/t/app`;
 
 /** Modèles par défaut. Variables : {prenom}, {app}, {jours}, {formule}, {de}. */
 export const MODELES: Record<string, { nom: string; quand: string; sujet: string; texte: string; bouton: string; pub?: boolean }> = {
-  bienvenue: { nom: "Bienvenue", quand: "à l'inscription", sujet: "Bienvenue sur {app}", texte: "Bonjour {prenom},\n\nTon compte {app} est prêt. Des exemples t'attendent déjà dans l'application pour te montrer comment tout fonctionne.\n\nUne question ? Réponds simplement à cet e-mail.", bouton: "Ouvrir {app}" },
-  essai: { nom: "Fin d'essai", quand: "3 jours avant la fin de l'essai", sujet: "Ton essai {app} se termine dans 3 jours", texte: "Bonjour {prenom},\n\nTon essai gratuit de {app} se termine dans 3 jours. Pour garder l'accès à tes données, choisis une formule dans « Mon abonnement ».\n\nSans engagement : tu peux résilier quand tu veux.", bouton: "Choisir ma formule" },
-  relance: { nom: "Relance", quand: "après 7 jours sans visite, une fois", sujet: "Tout est prêt sur {app}", texte: "Bonjour {prenom},\n\nÇa fait une semaine qu'on ne t'a pas vu sur {app}. Tes données sont là où tu les as laissées.", bouton: "Revenir sur {app}", pub: true },
-  merci: { nom: "Merci", quand: "au premier paiement", sujet: "Merci pour ta confiance", texte: "Bonjour {prenom},\n\nTon abonnement {formule} à {app} est actif. Merci !\n\nTes factures et ta carte se gèrent dans « Mon abonnement ».", bouton: "Ouvrir {app}" },
-  paiement: { nom: "Paiement échoué", quand: "quand un paiement ne passe pas", sujet: "Ton paiement {app} n'est pas passé", texte: "Bonjour {prenom},\n\nLe dernier paiement de ton abonnement {app} n'est pas passé. Mets à jour ta carte dans « Mon abonnement » pour garder l'accès.", bouton: "Mettre à jour ma carte" },
+  bienvenue: { nom: "Bienvenue", quand: "à l'inscription", sujet: "Bienvenue sur {app}", texte: "Bonjour {prenom},\n\nVotre compte {app} est prêt. Des exemples vous attendent déjà dans l'application pour vous montrer comment tout fonctionne.\n\nUne question ? Réponds simplement à cet e-mail.", bouton: "Ouvrir {app}" },
+  essai: { nom: "Fin d'essai", quand: "3 jours avant la fin de l'essai", sujet: "Votre essai {app} se termine dans 3 jours", texte: "Bonjour {prenom},\n\nVotre essai gratuit de {app} se termine dans 3 jours. Pour garder l'accès à vos données, choisissez une formule dans « Mon abonnement ».\n\nSans engagement : tu peux résilier quand tu veux.", bouton: "Choisir ma formule" },
+  relance: { nom: "Relance", quand: "après 7 jours sans visite, une fois", sujet: "Tout est prêt sur {app}", texte: "Bonjour {prenom},\n\nCela fait une semaine que nous ne vous avons pas vu sur {app}. Vos données sont là où vous les avez laissées.", bouton: "Revenir sur {app}", pub: true },
+  merci: { nom: "Merci", quand: "au premier paiement", sujet: "Merci pour votre confiance", texte: "Bonjour {prenom},\n\nVotre abonnement {formule} à {app} est actif. Merci !\n\nVos factures et votre carte se gèrent dans « Mon abonnement ».", bouton: "Ouvrir {app}" },
+  paiement: { nom: "Paiement échoué", quand: "quand un paiement ne passe pas", sujet: "Votre paiement {app} n'est pas passé", texte: "Bonjour {prenom},\n\nLe dernier paiement de votre abonnement {app} n'est pas passé. Mettez à jour votre carte dans « Mon abonnement » pour garder l'accès.", bouton: "Mettre à jour ma carte" },
   annonce: { nom: "Annonce", quand: "envoyée par toi", sujet: "{app}", texte: "", bouton: "Ouvrir {app}", pub: true },
-  invitation: { nom: "Invitation", quand: "quand un administrateur invite quelqu'un", sujet: "{de} t'invite sur {app}", texte: "Bonjour,\n\n{de} t'invite à rejoindre son équipe sur {app}.\n\nL'invitation est valable 14 jours.", bouton: "Rejoindre l'équipe" },
+  invitation: { nom: "Invitation", quand: "quand un administrateur invite quelqu'un", sujet: "{de} vous invite sur {app}", texte: "Bonjour,\n\n{de} vous invite à rejoindre son équipe sur {app}.\n\nL'invitation est valable 14 jours.", bouton: "Rejoindre l'équipe" },
 };
 /** Modèle en vigueur (celui du créateur s'il l'a modifié) et s'il est actif. */
 export function modele(app: any, type: string) {
@@ -47,7 +47,7 @@ async function envoyerBrut(app: any, to: string, sujet: string, texte: string, b
 <p style="font-weight:800;font-size:18px;margin:0 0 18px"><span style="display:inline-block;width:28px;height:28px;border-radius:8px;background:${couleur};color:#fff;text-align:center;line-height:28px;margin-right:8px">${esc(String(s.nom ?? "S")[0])}</span>${esc(s.nom)}</p>
 ${paras.map((p) => `<p style="font-size:15px;line-height:1.55;margin:0 0 12px">${esc(p).replace(/\n/g, "<br>")}</p>`).join("")}
 ${bouton ? `<p style="margin:22px 0"><a href="${url}" style="background:${couleur};color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:700;font-size:15px">${esc(bouton)}</a></p>` : ""}
-<p style="font-size:12px;color:#94A3B8;margin-top:28px">${esc(s.nom)} · ${pied ? esc(pied) : `Tu reçois cet e-mail parce que tu as un compte sur ${esc(s.nom)}.`}${desabo ? ` <a href="${desabo}" style="color:#94A3B8">Ne plus recevoir ces e-mails</a>` : ""}</p></div>`;
+<p style="font-size:12px;color:#94A3B8;margin-top:28px">${esc(s.nom)} · ${pied ? esc(pied) : `Vous recevez cet e-mail parce que vous avez un compte sur ${esc(s.nom)}.`}${desabo ? ` <a href="${desabo}" style="color:#94A3B8">Ne plus recevoir ces e-mails</a>` : ""}</p></div>`;
   const r = await resend("/emails", "POST", {
     from: `${String(s.nom ?? "App").replace(/[<>"]/g, "")} <${de}>`, to: [to], subject: sujet, html,
     text: `${texte}\n\n${bouton ? `${bouton} : ${url}` : ""}${desabo ? `\n\nNe plus recevoir ces e-mails : ${desabo}` : ""}`,
@@ -207,10 +207,10 @@ export async function appOuverture(appId: string) {
   let n = 0;
   for (const x of liste ?? []) {
     const texte = x.precommande
-      ? `Bonne nouvelle : ${nom} est ouvert.\n\nTa précommande${x.formule ? ` (formule ${x.formule})` : ""} est déjà réglée. Crée ton compte avec cette adresse e-mail : ton accès est activé automatiquement.\n\nMerci d'avoir cru au projet avant tout le monde.`
-      : `Bonne nouvelle : ${nom} est ouvert.\n\nTu t'étais inscrit pour être prévenu : tu peux créer ton compte dès maintenant.`;
+      ? `Bonne nouvelle : ${nom} est ouvert.\n\nTa précommande${x.formule ? ` (formule ${x.formule})` : ""} est déjà réglée. Créez votre compte avec cette adresse e-mail : votre accès est activé automatiquement.\n\nMerci d'avoir cru au projet avant tout le monde.`
+      : `Bonne nouvelle : ${nom} est ouvert.\n\nVous vous étiez inscrit pour être prévenu : vous pouvez créer votre compte dès maintenant.`;
     try {
-      await envoyerBrut(app, x.email, `${nom} est ouvert`, texte, x.precommande ? "Créer mon compte" : `Découvrir ${nom}`, url, `ouverture-${x.id}`, null, `Tu reçois cet e-mail parce que tu t'es inscrit pour être prévenu de l'ouverture de ${nom}.`);
+      await envoyerBrut(app, x.email, `${nom} est ouvert`, texte, x.precommande ? "Créer mon compte" : `Découvrir ${nom}`, url, `ouverture-${x.id}`, null, `Vous recevez cet e-mail parce que vous vous êtes inscrit pour être prévenu de l'ouverture de ${nom}.`);
       await admin.from("saas_app_liste").update({ prevenu_at: new Date().toISOString() }).eq("id", x.id);
       n++;
     } catch (e) { console.error("ouverture", e); }
@@ -223,7 +223,7 @@ export async function mailRecu(app: any, slug: string, titulaire: { id: string; 
   if (!titulaire?.email || /@demo\.local$/.test(titulaire.email)) return;
   const champs = Object.entries(data).filter(([k, v]) => !k.startsWith("_") && !/_id$/.test(k) && v !== null && v !== "" && typeof v !== "object").slice(0, 8);
   const lignes = champs.map(([k, v]) => `${k.replace(/_/g, " ")} : ${String(v).slice(0, 200)}`).join("\n");
-  await envoyerBrut(app, titulaire.email, `Nouveau : ${String(page.titre ?? "page publique").slice(0, 60)}`, `Ta page « ${page.titre} » vient de recevoir un envoi.\n\n${lignes}`, "Ouvrir mon espace", lien(app, slug), `recu-${rowId}`, null, "E-mail envoyé à chaque envoi reçu par tes pages publiques.");
+  await envoyerBrut(app, titulaire.email, `Nouveau : ${String(page.titre ?? "page publique").slice(0, 60)}`, `Votre page « ${page.titre} » vient de recevoir un envoi.\n\n${lignes}`, "Ouvrir mon espace", lien(app, slug), `recu-${rowId}`, null, "E-mail envoyé à chaque envoi reçu par tes pages publiques.");
 }
 
 /** E-mails des utilisateurs d'une app à leurs propres clients (confirmations, rappels, relances), immédiats ou planifiés.

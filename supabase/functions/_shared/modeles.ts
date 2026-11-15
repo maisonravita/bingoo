@@ -26,7 +26,7 @@ const HEURES = ["09:00", "09:30", "10:00", "11:00", "11:30", "14:00", "14:30", "
 
 /** Prompt de personnalisation (modèle rapide) : vocabulaire du métier et offres réalistes. */
 export const PERSO_RESERVATION = (p: any) => `Un SaaS de réservation et de planning va être livré pour ce métier : « ${p.nom} » — ${p.pitch}. Pour : ${p.cible}.
-Rends un objet JSON :
+Rendez un objet JSON :
 - vocab : { rdv: le nom d'un rendez-vous dans ce métier au singulier (ex. « Rendez-vous », « Intervention », « Séance », « Cours »), rdvs: au pluriel, presta: une offre au singulier (ex. « Prestation », « Soin », « Service », « Formule »), prestas: au pluriel, client: « Client » ou mieux pour ce métier (« Patient », « Élève »…), clients: au pluriel, intervenant: la personne qui réalise (ex. « Intervenant », « Praticien », « Coach ») }
 - prestations : 5 offres réalistes de ce métier en France : { nom (40 caractères max), prix (euros, nombre), duree (minutes, nombre), description (une phrase) }
 - intervenants : 3 prénoms et noms français
@@ -39,12 +39,12 @@ export function specReservation(perso: any) {
   const tete = `const V = ${JSON.stringify(V)};\n`;
   const code = MODELES_CODE.reservation;
   const ecrans = [
-    { id: "tableau_bord", titre: "Tableau de bord", icone: "graphique", but: "Ton chiffre d'affaires, tes demandes à confirmer et tes prochains " + V.rdvs.toLowerCase() + "." },
-    { id: "planning", titre: "Planning", icone: "agenda", but: "Le calendrier du mois : ajoute et déplace tes " + V.rdvs.toLowerCase() + " en un clic." },
-    { id: "rendezvous", titre: V.rdvs.slice(0, 24), icone: "liste", but: "Suis chaque " + V.rdv.toLowerCase() + " par étape, de la demande au paiement." },
-    { id: "clients", titre: V.clients.slice(0, 24), icone: "contacts", but: "Ton fichier " + V.clients.toLowerCase() + " avec leur historique et ce qu'ils t'ont rapporté." },
-    { id: "prestations", titre: V.prestas.slice(0, 24), icone: "tag", but: "Tes offres, tes prix et tes durées." },
-    { id: "pub_reserver", titre: "Réserver en ligne", icone: "carte", but: "La page que tes " + V.clients.toLowerCase() + " utilisent pour réserver seuls, 24 h sur 24.", public: true, lecture: ["prestations", "rendezvous"], ecriture: "rendezvous" },
+    { id: "tableau_bord", titre: "Tableau de bord", icone: "graphique", but: "Votre chiffre d'affaires, vos demandes à confirmer et vos prochains " + V.rdvs.toLowerCase() + "." },
+    { id: "planning", titre: "Planning", icone: "agenda", but: "Le calendrier du mois : ajoute et déplace vos " + V.rdvs.toLowerCase() + " en un clic." },
+    { id: "rendezvous", titre: V.rdvs.slice(0, 24), icone: "liste", but: "Suivez chaque " + V.rdv.toLowerCase() + " par étape, de la demande au paiement." },
+    { id: "clients", titre: V.clients.slice(0, 24), icone: "contacts", but: "Votre fichier " + V.clients.toLowerCase() + " avec leur historique et ce qu'ils vous ont rapporté." },
+    { id: "prestations", titre: V.prestas.slice(0, 24), icone: "tag", but: "Vos offres, vos prix et vos durées." },
+    { id: "pub_reserver", titre: "Réserver en ligne", icone: "carte", but: "La page que vos " + V.clients.toLowerCase() + " utilisent pour réserver seuls, 24 h sur 24.", public: true, lecture: ["prestations", "rendezvous"], ecriture: "rendezvous" },
   ].map((e) => ({ ...e, code: tete + code[e.id], ok: true, modele: "reservation" }));
 
   const collections = [
@@ -75,7 +75,7 @@ export function specReservation(perso: any) {
 
 // ---------------------------------------------------------------- Modèle « Clients, devis et factures »
 export const PERSO_DEVIS = (p: any) => `Un logiciel de devis et de factures va être livré pour ce métier : « ${p.nom} » — ${p.pitch}. Pour : ${p.cible}.
-Rends un objet JSON :
+Rendez un objet JSON :
 - vocab : { client: « Client » ou mieux pour ce métier, clients: au pluriel, presta: ce qu'on vend au singulier (« Prestation », « Produit », « Service »…), prestas: au pluriel }
 - catalogue : 6 lignes de devis réalistes de ce métier en France : { nom (45 caractères max), prix (euros HT, nombre), unite (« forfait », « heure », « jour », « unité », « m² », « mois » ou « personne »), description (une phrase) }
 - entreprise : { nom: nom d'une entreprise fictive de ce métier, ville: une ville française }
@@ -89,13 +89,13 @@ export function specDevis(perso: any) {
   const tete = `const V = ${JSON.stringify(V)};\n`;
   const code = MODELES_CODE.devis;
   const ecrans = [
-    { id: "tableau_bord", titre: "Tableau de bord", icone: "graphique", but: "Ce que tu as encaissé, ce qu'on te doit, tes devis en attente et qui relancer." },
-    { id: "devis", titre: "Devis", icone: "fichier", but: "Crée tes devis en un clic depuis ton catalogue, envoie-les par e-mail et transforme-les en facture." },
-    { id: "factures", titre: "Factures", icone: "panier", but: "Tes factures numérotées en PDF, les paiements reçus et les relances des retards." },
-    { id: "clients", titre: V.clients.slice(0, 24), icone: "contacts", but: "Ton fichier " + V.clients.toLowerCase() + " avec ce que chacun t'a rapporté et ce qu'il te doit." },
-    { id: "catalogue", titre: V.prestas.slice(0, 24), icone: "tag", but: "Ton catalogue de " + V.prestas.toLowerCase() + " et tes prix, pour remplir un devis sans rien ressaisir." },
-    { id: "entreprise", titre: "Mon entreprise", icone: "reglages", but: "Tes coordonnées, ton SIRET, ton IBAN et tes mentions, repris sur chaque document." },
-    { id: "pub_demande", titre: "Demander un devis", icone: "carte", but: "La page où tes " + V.clients.toLowerCase() + " demandent un devis en ligne, 24 h sur 24.", public: true, lecture: ["catalogue"], ecriture: "devis" },
+    { id: "tableau_bord", titre: "Tableau de bord", icone: "graphique", but: "Ce que vous avez encaissé, ce qu'on vous doit, vos devis en attente et qui relancer." },
+    { id: "devis", titre: "Devis", icone: "fichier", but: "Créez vos devis en un clic depuis votre catalogue, envoie-les par e-mail et transforme-les en facture." },
+    { id: "factures", titre: "Factures", icone: "panier", but: "Vos factures numérotées en PDF, les paiements reçus et les relances des retards." },
+    { id: "clients", titre: V.clients.slice(0, 24), icone: "contacts", but: "Votre fichier " + V.clients.toLowerCase() + " avec ce que chacun vous a rapporté et ce qu'il vous doit." },
+    { id: "catalogue", titre: V.prestas.slice(0, 24), icone: "tag", but: "Votre catalogue de " + V.prestas.toLowerCase() + " et vos prix, pour remplir un devis sans rien ressaisir." },
+    { id: "entreprise", titre: "Mon entreprise", icone: "reglages", but: "Vos coordonnées, votre SIRET, votre IBAN et vos mentions, repris sur chaque document." },
+    { id: "pub_demande", titre: "Demander un devis", icone: "carte", but: "La page où vos " + V.clients.toLowerCase() + " demandent un devis en ligne, 24 h sur 24.", public: true, lecture: ["catalogue"], ecriture: "devis" },
   ].map((e) => ({ ...e, code: tete + code[e.id], ok: true, modele: "devis" }));
   const L = { nom: "lignes", type: "texte" };
   const collections = [
@@ -153,7 +153,7 @@ export const FAIT = {
 
 // ---------------------------------------------------------------- Modèle « Outil d'écriture par IA »
 export const PERSO_ECRITURE = (p: any) => `Un outil d'écriture par IA va être livré pour ce produit : « ${p.nom} » — ${p.pitch}. Pour : ${p.cible}.
-L'utilisateur choisit un type de texte, remplit quelques champs, et l'IA écrit. Rends un objet JSON :
+L'utilisateur choisit un type de texte, remplit quelques champs, et l'IA écrit. Rendez un objet JSON :
 - vocab : { doc: le nom d'un texte produit, au singulier (ex. « CV », « Post », « Article », « Guide », « Réponse »), docs: au pluriel }
 - types : 2 à 4 types de textes que ce produit écrit : { id (snake_case court), nom (3 mots max), description (une phrase), consigne (la consigne précise donnée à l'IA pour écrire ce texte : longueur, structure, règles du genre, 3 à 5 phrases), champs : 3 à 5 objets { nom (snake_case), label, type (« texte », « long » ou « choix »), options (pour choix : 3 à 5 valeurs), placeholder (exemple concret), requis (true/false) } }
 - tons : 4 tons proposés (un ou deux mots chacun, ex. « Professionnel », « Chaleureux »)
@@ -161,7 +161,7 @@ L'utilisateur choisit un type de texte, remplit quelques champs, et l'IA écrit.
 Tout en français, sans aucun nom de marque réelle.`;
 
 export function specEcriture(perso: any) {
-  const types = (Array.isArray(perso?.types) && perso.types.length ? perso.types : [{ id: "texte", nom: "Nouveau texte", description: "Un texte prêt à publier.", consigne: "Écris un texte clair et engageant à partir de ces informations.", champs: [{ nom: "sujet", label: "Sujet", type: "texte", placeholder: "De quoi parle le texte ?", requis: true }, { nom: "public", label: "Pour qui", type: "texte", placeholder: "Ex. : des dirigeants de PME", requis: false }, { nom: "points", label: "Points à faire passer", type: "long", placeholder: "Une idée par ligne", requis: false }] }])
+  const types = (Array.isArray(perso?.types) && perso.types.length ? perso.types : [{ id: "texte", nom: "Nouveau texte", description: "Un texte prêt à publier.", consigne: "Écrivez un texte clair et engageant à partir de ces informations.", champs: [{ nom: "sujet", label: "Sujet", type: "texte", placeholder: "De quoi parle le texte ?", requis: true }, { nom: "public", label: "Pour qui", type: "texte", placeholder: "Ex. : des dirigeants de PME", requis: false }, { nom: "points", label: "Points à faire passer", type: "long", placeholder: "Une idée par ligne", requis: false }] }])
     .slice(0, 4).map((x: any, i: number) => ({ id: String(x.id ?? `type_${i}`).toLowerCase().replace(/[^a-z0-9_]+/g, "_").slice(0, 30) || `type_${i}`, nom: String(x.nom ?? "Texte").slice(0, 40), description: String(x.description ?? "").slice(0, 160), consigne: String(x.consigne ?? "").slice(0, 900),
       champs: (Array.isArray(x.champs) ? x.champs : []).slice(0, 5).map((c: any, j: number) => ({ nom: String(c.nom ?? `champ_${j}`).toLowerCase().replace(/[^a-z0-9_]+/g, "_").slice(0, 30) || `champ_${j}`, label: String(c.label ?? "Information").slice(0, 60), type: ["texte", "long", "choix"].includes(c.type) ? c.type : "texte", options: Array.isArray(c.options) ? c.options.slice(0, 6).map(String) : undefined, placeholder: String(c.placeholder ?? "").slice(0, 120), requis: c.requis === true })) }));
   for (const t of types) if (!t.champs.some((c: any) => c.requis)) t.champs[0] && (t.champs[0].requis = true);
@@ -171,10 +171,10 @@ export function specEcriture(perso: any) {
   const tete = `const V = ${JSON.stringify(V)};\n`;
   const code = MODELES_CODE.ecriture;
   const ecrans = [
-    { id: "tableau_bord", titre: "Tableau de bord", icone: "graphique", but: "Ton activité d'écriture et un accès direct à chaque type de texte." },
-    { id: "creer", titre: "Créer", icone: "message", but: "Remplis l'essentiel, l'IA écrit ton texte, tu l'ajustes en un clic." },
-    { id: "documents", titre: V.docs.slice(0, 24), icone: "boite", but: "Tous tes textes, rangés, cherchables, à copier ou télécharger en PDF." },
-    { id: "profil", titre: "Mon style", icone: "reglages", but: "Qui tu es et un exemple de ton écriture, pour que l'IA écrive avec ta voix." },
+    { id: "tableau_bord", titre: "Tableau de bord", icone: "graphique", but: "Votre activité d'écriture et un accès direct à chaque type de texte." },
+    { id: "creer", titre: "Créer", icone: "message", but: "Remplissez l'essentiel, l'IA écrit votre texte, vous l'ajustez en un clic." },
+    { id: "documents", titre: V.docs.slice(0, 24), icone: "boite", but: "Tous vos textes, rangés, cherchables, à copier ou télécharger en PDF." },
+    { id: "profil", titre: "Mon style", icone: "reglages", but: "Qui vous êtes et un exemple de votre écriture, pour que l'IA écrive avec votre voix." },
   ].map((e) => ({ ...e, code: tete + code[e.id], ok: true, modele: "ecriture" }));
   const collections = [
     { nom: "documents", label: V.docs.replace(/^mes\s+/i, ""), champs: [{ nom: "titre", type: "texte" }, { nom: "type", type: "choix", valeurs: types.map((t: any) => t.id) }, { nom: "contenu", type: "texte" }, { nom: "ton", type: "texte" }, { nom: "mots", type: "nombre" }, { nom: "favori", type: "booleen" }] },

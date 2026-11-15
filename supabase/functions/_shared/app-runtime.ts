@@ -24,7 +24,7 @@ async function programmerMail(admin: SupabaseClient, app: any, espace: string, m
   // Démo : l'envoi est simulé, rien ne part (sinon n'importe quel visiteur enverrait des e-mails depuis l'application)
   if (/@demo\.local$/.test(String(signature.email ?? ""))) return { ok: true, demo: true, a, sujet };
   // Adresses des données d'exemple : jamais d'envoi (ces domaines existent et appartiennent à d'autres)
-  if (/@(exemple|example)\.(fr|com|org|net)$|@demo\.local$/.test(a)) throw new Err(400, "C'est une adresse d'exemple : remplace-la par la vraie adresse de ton client");
+  if (/@(exemple|example)\.(fr|com|org|net)$|@demo\.local$/.test(a)) throw new Err(400, "C'est une adresse d'exemple : remplacez-la par la vraie adresse de votre client");
   if (quand.getTime() > Date.now() + 400 * 864e5) throw new Err(400, "Date d'envoi trop lointaine");
   const jour = new Date(Date.now() - 864e5).toISOString();
   const [{ count: ce }, { count: ca }] = await Promise.all([
@@ -35,7 +35,7 @@ async function programmerMail(admin: SupabaseClient, app: any, espace: string, m
   // n'abîme pas la réputation d'envoi de toutes les applications
   const domPropre = app.email_dom?.statut === "ok";
   const limEspace = domPropre ? LIM.mailsJourEspace : 30, limApp = domPropre ? LIM.mailsJourApp : 200;
-  if ((ce ?? 0) >= limEspace || (ca ?? 0) >= limApp) throw new Err(429, domPropre ? "Limite d'e-mails atteinte pour aujourd'hui" : "Limite d'e-mails atteinte pour aujourd'hui : branche ton propre domaine d'envoi (Réglages du SaaS → E-mails) pour envoyer davantage");
+  if ((ce ?? 0) >= limEspace || (ca ?? 0) >= limApp) throw new Err(429, domPropre ? "Limite d'e-mails atteinte pour aujourd'hui" : "Limite d'e-mails atteinte pour aujourd'hui, réessayez demain");
   const repeter = ["jour", "semaine", "mois"].includes(m?.repeter) ? m.repeter : null;
   const payload = { texte, bouton: String(m?.bouton ?? "").slice(0, 60), lien: /^https?:\/\//.test(String(m?.lien ?? "")) ? String(m.lien).slice(0, 500) : "", signature: String(signature.nom ?? "").slice(0, 80), repondre: emailOk(signature.email) && !/@demo\.local$/.test(String(signature.email)) ? signature.email : null, repeter };
   const { data } = await admin.from("saas_app_envois").insert({ app_id: app.id, espace_id: espace, a, sujet, quand: quand.toISOString(), payload }).select("id").single();
@@ -229,7 +229,7 @@ async function verifierQuota(admin: SupabaseClient, app: any, titulaire: any, es
   const { count } = await r;
   if ((count ?? 0) < q.max) return;
   if (publicPage) throw new Err(403, "Cette page n'accepte plus d'envois pour le moment");
-  throw new Err(403, `Ta formule ${q.formule} compte ${q.max.toLocaleString("fr-FR")} ${q.mot}${q.mois ? " par mois" : ""} : passe à une formule supérieure pour en ajouter`);
+  throw new Err(403, `Votre formule ${q.formule} compte ${q.max.toLocaleString("fr-FR")} ${q.mot}${q.mois ? " par mois" : ""} : passe à une formule supérieure pour en ajouter`);
 }
 
 // ---------------------------------------------------------------- Application installable (manifeste et icône)
@@ -359,7 +359,7 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
       const f = ((app.spec as any)?.formules ?? [])[Number(b.formule)];
       if (!f || !(Number(f.prix) > 0)) throw new Err(400, "Formule introuvable");
       const key = await cleStripe(admin, app.id);
-      if (!key || !(app.paiement as any)?.actif) throw new Err(400, "Les précommandes ouvrent bientôt : laisse ton e-mail pour être prévenu");
+      if (!key || !(app.paiement as any)?.actif) throw new Err(400, "Les précommandes ouvrent bientôt : laissez votre e-mail pour être prévenu");
       const retour = retourOk(String(b.retour ?? ""));
       if (!retour) throw new Err(400, "Adresse de retour invalide");
       const remise = Math.max(0, Math.min(90, Number((app as any).validation?.remise ?? 30)));
@@ -390,7 +390,7 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
       if (paye) await admin.from("saas_app_liste").update({ precommande: true, montant: (sess.amount_total ?? 0) / 100, paye_at: new Date().toISOString() }).eq("app_id", app.id).eq("session", id);
       return { status: 200, body: { paye } };
     }
-    if (enValidation) throw new Err(400, "L'application ouvre bientôt : laisse ton e-mail pour être prévenu");
+    if (enValidation) throw new Err(400, "L'application ouvre bientôt : laissez votre e-mail pour être prévenu");
 
     if (action === "signup" || action === "login" || action === "demo") {
       let email = String(b.email ?? "").trim().toLowerCase().slice(0, 160);
@@ -446,9 +446,9 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
 
     // Toutes les autres actions demandent une session
     const jeton = String(req.headers.get("x-app-token") ?? "");
-    if (jeton.length !== 64) throw new Err(401, "Session expirée, reconnecte-toi");
+    if (jeton.length !== 64) throw new Err(401, "Session expirée, reconnectez-vous");
     const { data: u0 } = await admin.from("saas_app_users").select(COLS).eq("app_id", app.id).eq("jeton", await sha(jeton)).maybeSingle();
-    if (!u0) throw new Err(401, "Session expirée, reconnecte-toi");
+    if (!u0) throw new Err(401, "Session expirée, reconnectez-vous");
     if (action === "logout") { await admin.from("saas_app_users").update({ jeton: null }).eq("id", u0.id); return { status: 200, body: { ok: true } }; }
     const espace = u0.espace_id ?? u0.id;
     // Le titulaire de l'espace porte l'essai et l'abonnement de toute l'équipe
@@ -503,12 +503,12 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
       return { status: 200, body: { url: sess.url } };
     }
     // Essai terminé sans abonnement : seuls la lecture du compte et le paiement restent possibles
-    if (!et.acces) throw new Err(402, "Ton essai est terminé : choisis une formule pour continuer");
+    if (!et.acces) throw new Err(402, "Votre essai est terminé : choisissez une formule pour continuer");
 
     // ---- Mon compte
     if (action === "compte") {
       const nom = String(b.nom ?? "").trim().slice(0, 80);
-      if (!nom) throw new Err(400, "Indique ton nom");
+      if (!nom) throw new Err(400, "Indiquez votre nom");
       await admin.from("saas_app_users").update({ nom }).eq("id", user.id);
       return { status: 200, body: { ok: true } };
     }
@@ -538,7 +538,7 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
         admin.from("saas_app_users").select("id", { count: "exact", head: true }).eq("espace_id", espace),
         admin.from("saas_app_invites").select("code", { count: "exact", head: true }).eq("espace_id", espace).is("utilise_at", null).gte("at", new Date(Date.now() - 14 * 864e5).toISOString()),
       ]);
-      if ((count ?? 0) >= (max ?? 50)) throw new Err(403, max != null ? `Ta formule compte ${max} place${max > 1 ? "s" : ""} : passe à une formule supérieure pour inviter plus de monde` : "50 membres au plus par espace");
+      if ((count ?? 0) >= (max ?? 50)) throw new Err(403, max != null ? `Votre formule compte ${max} place${max > 1 ? "s" : ""} : passe à une formule supérieure pour inviter plus de monde` : "50 membres au plus par espace");
       if ((attente ?? 0) >= 30) throw new Err(429, "Trop d'invitations en attente");
       const email = String(b.email ?? "").trim().toLowerCase().slice(0, 160);
       if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Err(400, "Adresse e-mail invalide");
@@ -577,11 +577,11 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
       return { status: 200, body: { ok: true } };
     }
     // Lecture seule : consultation des données, pas de modification
-    if (["add", "update", "remove"].includes(action) && user.role === "lecture") throw new Err(403, "Ton accès est en lecture seule : demande à un administrateur de changer ton rôle");
+    if (["add", "update", "remove"].includes(action) && user.role === "lecture") throw new Err(403, "Votre accès est en lecture seule : demandez à un administrateur de changer votre rôle");
 
     // ---- E-mails aux clients de l'utilisateur (confirmation, rappel, relance), tout de suite ou à une date
     if (action === "mail") {
-      if (user.role === "lecture") throw new Err(403, "Ton accès est en lecture seule");
+      if (user.role === "lecture") throw new Err(403, "Votre accès est en lecture seule");
       return { status: 200, body: await programmerMail(admin, app, espace, b, { nom: u0.nom, email: u0.email }) };
     }
     if (action === "mail-annuler") {
@@ -594,7 +594,7 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
     }
     // ---- Fichiers (photos, PDF, logos) : 4,5 Mo au plus, servis par une adresse impossible à deviner
     if (action === "upload") {
-      if (user.role === "lecture") throw new Err(403, "Ton accès est en lecture seule");
+      if (user.role === "lecture") throw new Err(403, "Votre accès est en lecture seule");
       const brut = String(b.data ?? "").replace(/^data:[^,]*,/, "");
       const bin = Uint8Array.from(atob(brut), (c) => c.charCodeAt(0));
       if (!bin.length) throw new Err(400, "Fichier vide");
@@ -620,7 +620,7 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
 
     // ---- IA de l'application (rédiger, résumer, analyser…) : plafonnée par compte et par application chaque jour
     if (action === "ia") {
-      if (!et.acces) throw new Err(402, "Ton essai est terminé : abonne-toi pour continuer");
+      if (!et.acces) throw new Err(402, "Votre essai est terminé : abonnez-vous pour continuer");
       const consigne = String(b.consigne ?? "").trim().slice(0, 2000);
       const texte = String(b.texte ?? "").slice(0, 12000);
       if (!consigne) throw new Err(400, "Consigne vide");

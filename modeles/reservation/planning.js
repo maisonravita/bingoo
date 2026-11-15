@@ -5,7 +5,7 @@ function Ecran() {
   const ouvrir = (r) => setM(r ? { ...r } : { ...vide });
   const presta = (id) => { const p = P.rows.find((x) => x.id === id); setM({ ...m, prestation_id: id, montant: p?.prix ?? m.montant, duree: p?.duree ?? m.duree }); };
   const enregistrer = async () => {
-    if (!m.client_nom || !m.date) { toast("Indique au moins le nom et la date", "bad"); return; }
+    if (!m.client_nom || !m.date) { toast("Indiquez au moins le nom et la date", "bad"); return; }
     const { id, created_at, updated_at, ...d } = m;
     if (id) await R.update(id, d); else await R.add(d);
     toast("Enregistré"); setM(null);
@@ -14,7 +14,7 @@ function Ecran() {
   const STAT = [["demande", "À confirmer"], ["confirme", "Confirmé"], ["termine", "Terminé"], ["annule", "Annulé"]];
   const heures = Array.from({ length: 23 }, (_, i) => { const h = 8 + Math.floor(i / 2), mn = i % 2 ? "30" : "00"; return String(h).padStart(2, "0") + ":" + mn; });
   if (R.loading) return html`<${ui.Loading}/>`;
-  return html`<${ui.Page} titre="Planning" sous="Ton mois en un coup d'œil. Clique sur un jour pour ajouter quelque chose." actions=${html`<${ui.Button} icone="agenda" onClick=${() => ouvrir(null)}>Ajouter</${ui.Button}>`}>
+  return html`<${ui.Page} titre="Planning" sous="Votre mois en un coup d'œil. Cliquez sur un jour pour ajouter quelque chose." actions=${html`<${ui.Button} icone="agenda" onClick=${() => ouvrir(null)}>Ajouter</${ui.Button}>`}>
     <${ui.Calendrier} lignes=${R.rows.filter((r) => r.statut !== "annule").sort((a, b) => String(a.heure).localeCompare(String(b.heure)))} champ="date" rendu=${(r) => r.heure + " " + r.client_nom} onClick=${ouvrir} onJour=${(d) => setM({ ...vide, date: d })}/>
     <${ui.Modal} open=${!!m} onClose=${() => setM(null)} titre=${m?.id ? "Modifier" : "Ajouter : " + V.rdv.toLowerCase()} actions=${html`${m?.id && html`<${ui.Button} variant="danger" onClick=${supprimer}>Supprimer</${ui.Button}>`}<${ui.Button} variant="secondary" onClick=${() => setM(null)}>Annuler</${ui.Button}><${ui.Button} onClick=${enregistrer}>Enregistrer</${ui.Button}>`}>
       ${m && html`<div class="grid sm:grid-cols-2 gap-3">

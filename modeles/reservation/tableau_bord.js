@@ -16,7 +16,7 @@ function Ecran() {
   const nomP = (id) => P.rows.find((p) => p.id === id)?.nom ?? "";
   const statut = (r, s) => R.update(r.id, { statut: s }).then(() => toast(s === "confirme" ? "Confirmé" : "Demande refusée"));
   if (R.loading) return html`<${ui.Loading}/>`;
-  return html`<${ui.Page} titre="Tableau de bord" sous=${"Ton activité, " + new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })} actions=${html`<${ui.Button} icone="agenda" onClick=${() => go("planning")}>Ouvrir le planning</${ui.Button}>`}>
+  return html`<${ui.Page} titre="Tableau de bord" sous=${"Votre activité, " + new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })} actions=${html`<${ui.Button} icone="agenda" onClick=${() => go("planning")}>Ouvrir le planning</${ui.Button}>`}>
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <${ui.Stat} label="Chiffre d'affaires du mois" valeur=${fmt.eur(caMois)} icone="graphique"/>
       <${ui.Stat} label=${V.rdvs + " cette semaine"} valeur=${semaine} icone="agenda"/>

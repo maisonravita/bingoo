@@ -306,7 +306,7 @@ function Liste({ copier: copierPage = false }) {
       ) : (
         <div className="mt-2 rounded-2xl border border-line bg-white overflow-hidden">
           <div className="hidden lg:grid grid-cols-[28px_1fr_190px_110px_120px] gap-4 px-5 py-2 border-b border-line bg-paper/60 text-[11.5px] font-semibold text-ink-faint">
-            <span /><span>Logiciel</span><span>Revenu</span><span>Prix</span><span>Signaux</span>
+            <span /><span>Logiciel</span><span title="Revenus en dollars, tels que publiés par les SaaS ; prix convertis en euros">Revenu ($)</span><span>Prix (€)</span><span>Signaux</span>
           </div>
           {(vitrine ? liste.slice(0, 20) : liste).map((s, i) => {
             const faible = s.succes && (s.preuve_ancienne || preuveFaible(s.succes));
@@ -2964,7 +2964,8 @@ export const estPaye = (ws) => ws?.plan === "fondateur" || (["explorer", "explor
 // La jauge du revenu espéré : glisser, voir le chiffre et ce qu'il représente en clients
 function Jauge({ valeur, onChange }) {
   const pct = ((valeur - OBJ_MIN) / (OBJ_MAX - OBJ_MIN)) * 100;
-  const clients = Math.ceil(valeur / 39);
+  // 17 € : prix d'entrée médian des SaaS de la base (relevé du 16/11/2026, 6 461 SaaS avec un prix affiché)
+  const clients = Math.ceil(valeur / 17);
   const repere = commentaireObjectif(valeur)[0];
   return (
     <div className="mt-10 rounded-3xl border border-line bg-white/90 p-6 sm:p-8 text-center backdrop-blur">
@@ -2974,7 +2975,7 @@ function Jauge({ valeur, onChange }) {
       <input type="range" min={OBJ_MIN} max={OBJ_MAX} step={500} value={valeur} onChange={(e) => onChange(Number(e.target.value))} aria-label="Revenu espéré par mois"
         className="jauge mt-8 w-full" style={{ background: `linear-gradient(90deg, #E0531F, #9B6BFF ${pct}%, #ECEAE4 ${pct}%)` }} />
       <div className="mt-2 flex justify-between text-[12px] text-ink-faint tnum"><span>{OBJ_MIN.toLocaleString("fr-FR")} €</span><span>{OBJ_MAX.toLocaleString("fr-FR")} € et plus</span></div>
-      <p className="mt-6 rounded-2xl bg-paper px-4 py-3 text-[14.5px]">Avec un abonnement à 39 € par mois, c'est environ <b className="tnum">{clients.toLocaleString("fr-FR")} clients</b>. Un repère, pas une promesse.</p>
+      <p className="mt-6 rounded-2xl bg-paper px-4 py-3 text-[14.5px]">Au prix d'entrée médian d'un SaaS (17 € par mois), c'est environ <b className="tnum">{clients.toLocaleString("fr-FR")} clients</b>. Un repère, pas une promesse.</p>
     </div>
   );
 }
