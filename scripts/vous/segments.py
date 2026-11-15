@@ -11,12 +11,15 @@ def segments(src):
         if c=='/' and i+1<n and src[i+1]=='*':
             j=src.find('*/',i+2); j=n if j<0 else j+2; buf+=src[i:j]; i=j; continue
         if c in '"\'':
-            flush_code(); j=i+1
-            while j<n and src[j]!=c:
-                if src[j]=='\\': j+=1
+            j=i+1; ferme=False
+            while j<n:
+                if src[j]=='\\': j+=2; continue
                 if src[j]=='\n': break
+                if src[j]==c: ferme=True; break
                 j+=1
-            out.append(('quote',c)); out.append(('text',src[i+1:j])); out.append(('quote',c)); i=j+1; continue
+            if not ferme:  # pas une chaîne (apostrophe dans une expression régulière, etc.) : laissé tel quel, comme du code
+                buf+=c; i+=1; continue
+            flush_code(); out.append(('quote',c)); out.append(('text',src[i+1:j])); out.append(('quote',c)); i=j+1; continue
         if c=='`':
             flush_code(); out.append(('quote','`')); i+=1; t=''
             while i<n and src[i]!='`':

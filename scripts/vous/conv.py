@@ -14,7 +14,7 @@ EXPR=[
  (r"-toi\b","-vous"),(r"\btoi\b","vous"),(r"\bte\b","vous"),
  (r"\bton\b","votre"),(r"\bta\b","votre"),(r"\btes\b","vos"),
 ]
-VERBES={"rejoins":"rejoignez","gère":"gérez","saisis":"saisissez","ajoute":"ajoutez","choisis":"choisissez","crée":"créez","copie":"copiez","indique":"indiquez","colle":"collez","garde":"gardez",
+VERBES={"crédite":"créditez","repère":"repérez","organise":"organisez","rejoins":"rejoignez","gère":"gérez","saisis":"saisissez","ajoute":"ajoutez","choisis":"choisissez","crée":"créez","copie":"copiez","indique":"indiquez","colle":"collez","garde":"gardez",
  "partage":"partagez","glisse":"glissez","clique":"cliquez","tape":"tapez","essaie":"essayez","vérifie":"vérifiez","remplace":"remplacez",
  "branche":"branchez","invite":"invitez","exporte":"exportez","importe":"importez","note":"notez","renseigne":"renseignez","remplis":"remplissez",
  "complète":"complétez","modifie":"modifiez","supprime":"supprimez","envoie":"envoyez","reprends":"reprenez","fais":"faites","mets":"mettez",
