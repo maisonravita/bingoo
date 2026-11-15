@@ -274,14 +274,18 @@ export async function verifierPromesses(appId: string) {
   if (!items.length) return;
   const ecrans = s.ecrans.map((e: any) => `- ${e.titre}${e.public ? " (page publique)" : ""} : ${e.but ?? ""}${e.fonctions?.length ? ` (${e.fonctions.join(", ")})` : ""}`).join("\n");
   const c = s.capacites ?? {};
-  const r = await askJson<any>(`Application « ${s.nom} ». Ses écrans réels :
+  const sait = [c.ia && "une IA intégrée (rédiger, reformuler, résumer, analyser)", c.email && "envoyer de vrais e-mails, tout de suite ou planifiés (confirmations, rappels, relances)",
+    !c.email && c.rappel && "un e-mail de confirmation puis un rappel automatique la veille quand un client réserve", !c.email && c.email_recu && "un e-mail de confirmation quand un client envoie une demande",
+    c.pdf && "générer des PDF", c.agenda && "un agenda auquel on s'abonne depuis Google Agenda ou Outlook", "inviter son équipe", "exporter toutes ses données", "un essai gratuit puis un abonnement"].filter(Boolean);
+  const r = await askJson<any>(`Application « ${s.nom} ». Ses écrans réels (les pages publiques sont ouvertes à ses clients, sans compte) :
 ${ecrans}
-Elle sait aussi : ${[c.ia && "IA intégrée", c.email && "envoyer des e-mails", c.pdf && "générer des PDF", c.agenda && "agenda abonnable", "inviter son équipe", "exporter ses données"].filter(Boolean).join(", ")}.
-Voici des phrases de son site. Pour chacune, dis si l'application la fait VRAIMENT avec ces écrans. Un argument de prix, d'hébergement, de support, de simplicité ou de sans-engagement est vrai. Une fonction précise (signature, état des lieux, export comptable, indexation, partenaires, application mobile native, intégration…) qu'aucun écran ne fait est fausse. Au moindre doute sur une fonction, faux.
+Elle sait aussi : ${sait.join(" ; ")}.
+Voici des phrases de son site. Repère UNIQUEMENT celles qui promettent une fonction précise qu'aucun écran ni aucune capacité ci-dessus ne fait (exemples de fausses promesses : signature électronique, état des lieux, export comptable, synchronisation bancaire, application mobile native, prévisions par IA alors qu'il n'y a pas d'IA).
+Un argument de prix, de simplicité, d'hébergement, de support, de nombre d'utilisateurs ou de sans-engagement est vrai. Une phrase qui décrit, même avec d'autres mots, un écran ou une capacité de la liste est vraie. Dans le doute, considère la phrase vraie.
 ${items.map((x) => `${x.k} : ${x.t}`).join("\n")}
 Rends {"faux": ["clés des phrases fausses"]}`, { fast: true, maxTokens: 400 }).catch(() => null);
   const faux = new Set((Array.isArray(r?.faux) ? r.faux : []).map(String));
-  if (!faux.size) return;
+  if (!faux.size || faux.size > items.length / 2) return;
   const atouts = (s.atouts ?? []).filter((_: any, i: number) => !faux.has(`a${i}`));
   const formules = (s.formules ?? []).map((f: any, i: number) => {
     const inclus = (f?.inclus ?? []).filter((_: any, j: number) => !faux.has(`f${i}_${j}`));
