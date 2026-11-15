@@ -22,6 +22,15 @@ await etape("Bilan de santé de la base", async () => {
   }
 });
 
+// 2) Pages lisibles par Google des SaaS livrés
+await etape("Page Google d'un SaaS livré + plan du site", async () => {
+  const h = await (await fetch(`${SITE}/p/${APP}`)).text();
+  verif(/application\/ld\+json/.test(h) && /<h1>/.test(h), "page de présentation incomplète");
+  verif(!/succès de|revendique|\$/.test(h.replace(/<script[\s\S]*?<\/script>/g, "")), "la page reprend des chiffres du SaaS d'origine");
+  const x = await (await fetch(`${SITE}/sitemap-apps.xml`)).text();
+  verif(x.includes(`/p/${APP}`), "plan du site sans la page");
+});
+
 const browser = await chromium.launch();
 for (const [label, opt] of [["téléphone", devices["iPhone 13"]], ["ordinateur", { viewport: { width: 1280, height: 860 } }]]) {
   const ctx = await browser.newContext(opt);
