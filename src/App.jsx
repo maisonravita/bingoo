@@ -1,21 +1,21 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { WsProvider, useWs } from "./lib/ws";
 import { ToastProvider } from "./components/ui";
 import Layout from "./components/Layout";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Splash from "./components/Splash";
 import Auth, { PasswordRecovery } from "./pages/Auth";
-import Parametres from "./pages/Parametres";
-import Equipe from "./pages/Equipe";
-import Admin from "./pages/Admin";
-import Aide from "./pages/Aide";
-import Abonnement from "./pages/Abonnement";
+const Parametres = lazy(() => import("./pages/Parametres"));
+const Equipe = lazy(() => import("./pages/Equipe"));
+const Admin = lazy(() => import("./pages/Admin"));
+const Aide = lazy(() => import("./pages/Aide"));
+const Abonnement = lazy(() => import("./pages/Abonnement"));
 import Join, { JOIN_KEY } from "./pages/Join";
 import Explorer from "./pages/Explorer";
-import PublicRetrait from "./pages/PublicRetrait";
+const PublicRetrait = lazy(() => import("./pages/PublicRetrait"));
 import Landing from "./pages/Landing";
-import PublicApp from "./pages/PublicApp";
+const PublicApp = lazy(() => import("./pages/PublicApp"));
 import OnboardingExplorer from "./pages/OnboardingExplorer";
 import { Conditions, Confidentialite, legalReady, MentionsLegales, Opposition } from "./pages/Legal";
 import { supabase } from "./lib/supabase";
@@ -77,7 +77,7 @@ const HOTE = window.location.hostname;
 const DOMAINE_APP = /(^|\.)maisonravita\.fr$|\.vercel\.app$|^localhost$|^127\.0\.0\.1$/.test(HOTE) ? null : HOTE;
 
 export default function App() {
-  if (DOMAINE_APP) return <PublicApp domaine={DOMAINE_APP} />;
+  if (DOMAINE_APP) return <Suspense fallback={<Splash />}><PublicApp domaine={DOMAINE_APP} /></Suspense>;
   return <AppBingoo />;
 }
 function AppBingoo() {
@@ -87,5 +87,5 @@ function AppBingoo() {
     const { data } = supabase.auth.onAuthStateChange((e) => { if (e === "PASSWORD_RECOVERY") setRecovery(true); });
     return () => data.subscription.unsubscribe();
   }, []);
-  return <ToastProvider><WsProvider><Gate />{recovery && <PasswordRecovery onDone={() => setRecovery(false)} />}</WsProvider></ToastProvider>;
+  return <ToastProvider><WsProvider><Suspense fallback={<Splash />}><Gate /></Suspense>{recovery && <PasswordRecovery onDone={() => setRecovery(false)} />}</WsProvider></ToastProvider>;
 }

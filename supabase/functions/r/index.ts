@@ -446,6 +446,24 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
     return { ok: true };
   },
+  // Suppression du compte par la personne elle-même (RGPD), après confirmation écrite « SUPPRIMER »
+  async "compte-supprimer"(req, b) {
+    if (String(b.confirmation ?? "") !== "SUPPRIMER") throw new HttpError(400, "Écris SUPPRIMER pour confirmer");
+    const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+    const { data } = token ? await admin.auth.getUser(token) : { data: { user: null } };
+    if (!data?.user) throw new HttpError(401, "Connexion requise");
+    const { supprimerCompte } = await import("../_shared/growth.ts");
+    return await supprimerCompte(data.user.id);
+  },
+  // Appel interne : quels services externes sont configurés (oui/non uniquement, jamais les valeurs)
+  async "plateforme-etat"(req) {
+    await cron(req);
+    const e = (k: string) => !!Deno.env.get(k);
+    const { data } = await admin.from("app_secrets").select("name").in("name", ["vercel_token", "vercel_project_id", "stripe_connect_client_id"]);
+    const s = new Set((data ?? []).map((x) => x.name));
+    return { vercel: (e("VERCEL_TOKEN") || s.has("vercel_token")) && (e("VERCEL_PROJECT_ID") || s.has("vercel_project_id")), stripe: e("STRIPE_SECRET_KEY"),
+      stripe_connect: s.has("stripe_connect_client_id"), meta: e("META_ADS_TOKEN"), resend: e("RESEND_API_KEY"), anthropic: e("ANTHROPIC_API_KEY") };
+  },
   // Appel interne : ajoute à un SaaS déjà livré les écrans que son site promet mais qui manquent
   async "saas-app-niveau"(req, b) {
     await cron(req);

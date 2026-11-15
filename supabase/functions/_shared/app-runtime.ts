@@ -31,7 +31,11 @@ async function programmerMail(admin: SupabaseClient, app: any, espace: string, m
     admin.from("saas_app_envois").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("espace_id", espace).gte("at", jour),
     admin.from("saas_app_envois").select("id", { count: "exact", head: true }).eq("app_id", app.id).gte("at", jour),
   ]);
-  if ((ce ?? 0) >= LIM.mailsJourEspace || (ca ?? 0) >= LIM.mailsJourApp) throw new Err(429, "Limite d'e-mails atteinte pour aujourd'hui");
+  // Sans domaine d'envoi à lui, l'app envoie depuis l'adresse partagée de Bingoo! : plafonds plus bas, pour qu'un seul abus
+  // n'abîme pas la réputation d'envoi de toutes les applications
+  const domPropre = app.email_dom?.statut === "ok";
+  const limEspace = domPropre ? LIM.mailsJourEspace : 30, limApp = domPropre ? LIM.mailsJourApp : 200;
+  if ((ce ?? 0) >= limEspace || (ca ?? 0) >= limApp) throw new Err(429, domPropre ? "Limite d'e-mails atteinte pour aujourd'hui" : "Limite d'e-mails atteinte pour aujourd'hui : branche ton propre domaine d'envoi (Réglages du SaaS → E-mails) pour envoyer davantage");
   const repeter = ["jour", "semaine", "mois"].includes(m?.repeter) ? m.repeter : null;
   const payload = { texte, bouton: String(m?.bouton ?? "").slice(0, 60), lien: /^https?:\/\//.test(String(m?.lien ?? "")) ? String(m.lien).slice(0, 500) : "", signature: String(signature.nom ?? "").slice(0, 80), repondre: emailOk(signature.email) && !/@demo\.local$/.test(String(signature.email)) ? signature.email : null, repeter };
   const { data } = await admin.from("saas_app_envois").insert({ app_id: app.id, espace_id: espace, a, sujet, quand: quand.toISOString(), payload }).select("id").single();

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "../lib/supabase";
+import { fn, supabase } from "../lib/supabase";
+import { demander } from "../lib/demander";
 import { useWs } from "../lib/ws";
 import { useToast } from "../components/ui";
 import { LANGUES, langueActuelle, choisirLangue } from "../lib/langue";
@@ -57,7 +58,31 @@ export default function Parametres() {
           </div>
         </Carte>
         <div><Bouton onClick={() => supabase.auth.signOut()}>Se déconnecter</Bouton></div>
+        <SupprimerCompte />
       </div>
     </div>
+  );
+}
+
+// Suppression du compte (RGPD) : tout est effacé, abonnements arrêtés, SaaS mis hors ligne
+function SupprimerCompte() {
+  const [ouvert, setOuvert] = useState(false), [mot, setMot] = useState(""), [occupe, setOccupe] = useState(false);
+  const toast = useToast();
+  const supprimer = async () => {
+    if (!(await demander("Supprimer définitivement ton compte ? Tes abonnements s'arrêtent, tes SaaS sont mis hors ligne et toutes tes données sont effacées. C'est irréversible.", { ok: "Supprimer mon compte", danger: true }))) return;
+    setOccupe(true);
+    try { await fn("r/compte-supprimer", { confirmation: mot }); await supabase.auth.signOut(); window.location.href = "/"; }
+    catch (e) { toast(e.message, "bad"); setOccupe(false); }
+  };
+  if (!ouvert) return <button onClick={() => setOuvert(true)} className="self-start text-[12.5px] text-[#8A8A8A] underline hover:text-red-600">Supprimer mon compte</button>;
+  return (
+    <Carte titre="Supprimer mon compte" sous="Tes abonnements s'arrêtent, tes SaaS sont mis hors ligne et toutes tes données sont effacées. Irréversible.">
+      <label className="block text-[13px] font-medium text-[#303030]">Écris SUPPRIMER pour confirmer</label>
+      <div className="mt-1 flex gap-2">
+        <input className={CHAMP} value={mot} onChange={(e) => setMot(e.target.value)} placeholder="SUPPRIMER" />
+        <button disabled={mot !== "SUPPRIMER" || occupe} onClick={supprimer} className="shrink-0 rounded-lg bg-red-600 px-4 py-2 text-[13.5px] font-semibold text-white disabled:opacity-40">{occupe ? "Suppression…" : "Supprimer"}</button>
+      </div>
+      <button onClick={() => { setOuvert(false); setMot(""); }} className="mt-2 text-[12.5px] text-[#8A8A8A] underline">Annuler</button>
+    </Carte>
   );
 }

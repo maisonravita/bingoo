@@ -528,3 +528,23 @@ export async function stripeWebhook(req: Request) {
   }
   return { ok: true };
 }
+
+/** Suppression de compte (RGPD) : arrête les abonnements des espaces dont la personne est seule membre, met leurs SaaS hors ligne,
+ *  efface ces espaces et toutes leurs données, retire la personne des espaces partagés, puis supprime son compte. */
+export async function supprimerCompte(userId: string) {
+  const { data: ms } = await admin.from("members").select("workspace_id").eq("user_id", userId);
+  for (const m of ms ?? []) {
+    const { count } = await admin.from("members").select("user_id", { count: "exact", head: true }).eq("workspace_id", m.workspace_id);
+    if ((count ?? 0) > 1) { await admin.from("members").delete().eq("workspace_id", m.workspace_id).eq("user_id", userId); continue; }
+    const { data: ws } = await admin.from("workspaces").select("id, stripe_subscription, plan_status").eq("id", m.workspace_id).maybeSingle();
+    if (ws?.stripe_subscription && ["active", "trialing", "past_due", "incomplete"].includes(String(ws.plan_status))) {
+      await stripe(`/subscriptions/${ws.stripe_subscription}`, undefined, "DELETE").catch((e) => console.error("résiliation", e));
+    }
+    await admin.from("saas_apps").update({ statut: "retire", public: false }).eq("workspace_id", m.workspace_id);
+    const { error } = await admin.from("workspaces").delete().eq("id", m.workspace_id);
+    if (error) throw new HttpError(409, "Une vente de SaaS est en cours sur ton espace : termine-la ou écris au support pour supprimer ton compte.");
+  }
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) throw new HttpError(500, "La suppression du compte a échoué, réessaie ou écris au support.");
+  return { ok: true };
+}

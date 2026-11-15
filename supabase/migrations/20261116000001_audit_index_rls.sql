@@ -1,0 +1,2 @@
+-- Appliquée via MCP le 2026-11-16 (audit) : index sur 14 clés étrangères ; 8 règles d'accès qui recalculaient auth.uid()/auth.jwt()
+-- à chaque ligne passent par (select auth.uid()) ; route r/compte-supprimer (RGPD) ; route r/plateforme-etat (oui/non des services).

@@ -1,5 +1,8 @@
-import { useEffect, useMemo } from "react";
-import { appHtml } from "../lib/appShell";
+import { useEffect, useMemo, useState } from "react";
+
+// Le gabarit des applications (lourd) n'est chargé que lorsqu'une application s'affiche : la page d'accueil reste légère
+let gabarit = null;
+const chargerGabarit = () => (gabarit ??= import("../lib/appShell"));
 
 // Un SaaS construit par Bingoo!, affiché dans un cadre isolé : sandbox SANS allow-same-origin, donc le code généré
 // ne peut lire ni la session Bingoo!, ni le stockage du site. La session de l'application est gardée ici, par application.
@@ -21,7 +24,9 @@ function variante(slug, ab) {
 }
 
 export default function AppCadre({ slug, spec, version, paiement, domaine, ab, articles, className, apercu = false, retourPaiement = false, invite = null, tour = false, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null, capture = null }) {
-  const doc = useMemo(() => appHtml({ spec, slug, api: API, token: tour ? null : lire(slug), apercu, paiement, retour: lienApp(slug, domaine), retourPaiement, ab, variante: variante(slug, ab), invite, tour, articles: articles ?? [], blog: blogApp(slug, domaine), source, ecran, validation, precommande, verif, page, capture }), [slug, version, capture?.join(","), validation?.inscrits, paiement?.actif, paiement?.essai_jours, paiement?.modele, ab?.actif, ab?.ecart, tour]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [shell, setShell] = useState(null);
+  useEffect(() => { let vivant = true; chargerGabarit().then((m) => { if (vivant) setShell(() => m.appHtml); }); return () => { vivant = false; }; }, []);
+  const doc = useMemo(() => !shell ? null : shell({ spec, slug, api: API, token: tour ? null : lire(slug), apercu, paiement, retour: lienApp(slug, domaine), retourPaiement, ab, variante: variante(slug, ab), invite, tour, articles: articles ?? [], blog: blogApp(slug, domaine), source, ecran, validation, precommande, verif, page, capture }), [shell, slug, version, capture?.join(","), validation?.inscrits, paiement?.actif, paiement?.essai_jours, paiement?.modele, ab?.actif, ab?.ecart, tour]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const ecoute = (e) => {
       const d = e.data;
@@ -31,5 +36,6 @@ export default function AppCadre({ slug, spec, version, paiement, domaine, ab, a
     window.addEventListener("message", ecoute);
     return () => window.removeEventListener("message", ecoute);
   }, [slug]);
+  if (!doc) return <div className={className} />;
   return <iframe key={`${slug}-${version}-${tour ? 1 : 0}`} title={spec?.nom ?? "Application"} srcDoc={doc} sandbox={verif || capture ? "allow-scripts" : "allow-scripts allow-forms allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"} className={className} />;
 }
