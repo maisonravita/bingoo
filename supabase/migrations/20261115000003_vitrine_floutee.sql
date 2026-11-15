@@ -1,0 +1,3 @@
+-- Appliquée via MCP : saas_liste en vitrine pour les comptes gratuits (20 premiers au global et par catégorie,
+-- revenus, estimations, trafic masqués, colonne vitrine), saas_classement en vitrine (20, sans chiffres),
+-- saas_leaders et courbe_forme (forme de courbe sans montants).

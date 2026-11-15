@@ -202,6 +202,7 @@ function Liste({ copier: copierPage = false }) {
   const [sel, setSel] = useState([]);
   const basculer = (d) => setSel((x) => x.includes(d) ? x.filter((y) => y !== d) : x.length >= 4 ? x : [...x, d]);
   const set = (k, v) => { setPage(0); setF((x) => ({ ...x, [k]: v })); };
+  const vitrine = !!rows?.[0]?.vitrine;
 
   useEffect(() => {
     let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes, estimation, genre, copiable, copiable_raisons, preuve_ancienne, created_at, constructible, en_decollage", { count: "exact" });
@@ -296,8 +297,8 @@ function Liste({ copier: copierPage = false }) {
           {ia.categorie_suggeree && !f.categorie && <button onClick={() => { set("categorie", ia.categorie_suggeree); setIa(null); }} className="rounded-md border border-line bg-white px-2 py-0.5 hover:border-ink">Voir toute la catégorie {ia.categorie_suggeree}</button>}
           <button onClick={() => setIa(null)} className="underline text-ink-soft">Effacer</button>
         </div>
-      ) : <div className="mt-4 flex items-center justify-between gap-2"><p className="text-[13px] text-ink-faint">{rows ? `${total.toLocaleString("fr-FR")} résultat${total > 1 ? "s" : ""}` : ""}{f.tag ? ` · niche « ${f.tag} »` : ""}</p>
-        {rows?.length > 0 && <button onClick={() => exporter(rows)} className="text-[13px] font-semibold underline">Exporter (CSV)</button>}</div>}
+      ) : <div className="mt-4 flex items-center justify-between gap-2"><p className="text-[13px] text-ink-faint">{rows ? vitrine ? "Vitrine gratuite : les SaaS qui gagnent le plus" : `${total.toLocaleString("fr-FR")} résultat${total > 1 ? "s" : ""}` : ""}{f.tag ? ` · niche « ${f.tag} »` : ""}</p>
+        {rows?.length > 0 && !vitrine && <button onClick={() => exporter(rows)} className="text-[13px] font-semibold underline">Exporter (CSV)</button>}</div>}
       {(() => { const liste = ia ? ia.resultats : rows; return !liste ? <div className="py-20 grid place-items-center"><Spinner /></div> : !liste.length ? (
         <p className="py-16 text-center text-ink-soft">Aucun SaaS ne correspond. Élargis les filtres, ou ajoute le logiciel que tu cherches.</p>
       ) : (
@@ -305,7 +306,7 @@ function Liste({ copier: copierPage = false }) {
           <div className="hidden lg:grid grid-cols-[28px_1fr_190px_110px_120px] gap-4 px-5 py-2 border-b border-line bg-paper/60 text-[11.5px] font-semibold text-ink-faint">
             <span /><span>Logiciel</span><span>Revenu</span><span>Prix</span><span>Signaux</span>
           </div>
-          {liste.map((s) => {
+          {(vitrine ? liste.slice(0, 20) : liste).map((s, i) => {
             const faible = s.succes && (s.preuve_ancienne || preuveFaible(s.succes));
             return (
               <div key={s.id} role="button" tabIndex={0} onClick={() => nav(`/explorer/${s.domaine}`)} onKeyDown={(e) => e.key === "Enter" && nav(`/explorer/${s.domaine}`)}
@@ -326,7 +327,8 @@ function Liste({ copier: copierPage = false }) {
                   </div>
                 </div>
                 <div className="col-start-2 lg:col-start-auto text-[13px] min-w-0">
-                  {s.succes ? <p title={s.succes.preuve} className={cx("line-clamp-2", faible ? "text-ink-faint" : "font-semibold text-[#78350F]")}>{faible ? "" : ""}{s.succes.preuve}</p>
+                  {s.vitrine ? <Floute i={i} />
+                    : s.succes ? <p title={s.succes.preuve} className={cx("line-clamp-2", faible ? "text-ink-faint" : "font-semibold text-[#78350F]")}>{faible ? "" : ""}{s.succes.preuve}</p>
                     : s.estimation ? <p className="text-ink-soft" title={s.estimation.methode === "trafic" ? "Estimation d'après le trafic du site : revenus publiés des SaaS au trafic comparable" : "Estimation d'après l'effectif officiel"}>≈ {montantCourt(s.estimation.bas)} à {montantCourt(s.estimation.haut)} / mois <span className="text-ink-faint">estimé</span></p>
                     : <p className="text-ink-faint">Non public</p>}
                 </div>
@@ -345,6 +347,7 @@ function Liste({ copier: copierPage = false }) {
           })}
         </div>
       ); })()}
+      {vitrine && !ia && <VitrineFin reste={stats ? stats.total - Math.min(20, rows.length) : 0} />}
       {sel.length > 0 && (
         <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-30 rounded-2xl bg-ink text-white shadow-xl px-4 py-3 flex items-center gap-3">
           <span className="text-[14px]">{sel.length} SaaS sélectionné{sel.length > 1 ? "s" : ""} (4 au plus)</span>
@@ -352,7 +355,7 @@ function Liste({ copier: copierPage = false }) {
           <button onClick={() => setSel([])} className="text-[13px] text-white/70 hover:text-white">Effacer</button>
         </div>
       )}
-      {!ia && total > PAGE && (
+      {!ia && !vitrine && total > PAGE && (
         <div className="mt-5 flex items-center justify-center gap-3 text-[14px]">
           <button disabled={!page} onClick={() => setPage(page - 1)} className="rounded-lg border border-line bg-white px-3 py-1.5 disabled:opacity-40">Précédent</button>
           <span className="tnum text-ink-soft">{page + 1} / {Math.ceil(total / PAGE)}</span>
@@ -377,11 +380,29 @@ function LancerCout({ s, className }) {
   );
 }
 
+// Compte gratuit : chiffres masqués côté serveur, on montre un montant flouté (faux) et un cadenas
+const FAUX = ["12,4 k$", "48 k$", "7,9 k$", "23 k$", "105 k$", "31 k$"];
+function Floute({ i = 0, suffixe = " / mois", className }) {
+  return <span title="Débloque pour voir" className={cx("inline-flex items-center gap-1.5", className)}><span className="blur-[5px] select-none font-semibold text-[#78350F]" aria-hidden>{FAUX[i % FAUX.length]}{suffixe}</span><span aria-label="Verrouillé">🔒</span></span>;
+}
+function VitrineFin({ reste, quoi = "SaaS" }) {
+  const nav = useNavigate();
+  return (
+    <div className="mt-4 rounded-2xl border-2 border-accent bg-accent-soft/40 p-5 sm:p-6 flex flex-wrap items-center gap-4">
+      <div className="flex-1 min-w-[240px]">
+        <p className="text-[19px] font-black leading-tight" style={HF}>{reste ? `Débloque les ${reste.toLocaleString("fr-FR")} autres ${quoi}` : `Débloque tous les ${quoi}`} et leurs revenus</p>
+        <p className="mt-1 text-[13.5px] text-ink-soft">Revenus vérifiés, trafic, fiches complètes, pubs et clients. Et Bingoo! construit ta version et la met en ligne.</p>
+      </div>
+      <button onClick={() => nav("/abonnement")} className="rounded-xl bg-accent px-6 py-3 font-bold text-white hover:bg-accent-dark">Débloquer</button>
+    </div>
+  );
+}
+
 // La fiche d'un SaaS sans abonnement : ses chiffres publics (revenu, trafic, prix), le reste réservé à l'abonnement
 function FicheApercu({ domaine }) {
   const nav = useNavigate();
   const [s, setS] = useState(undefined);
-  useEffect(() => { supabase.from("saas_liste").select("domaine, nom, categorie, description, pays, prix_entree_eur, sur_devis, gratuit, rang_web, succes, estimation, copiable").eq("domaine", domaine).maybeSingle().then(({ data }) => setS(data ?? null)); }, [domaine]);
+  useEffect(() => { supabase.from("saas_liste").select("domaine, nom, categorie, description, pays, prix_entree_eur, sur_devis, gratuit, rang_web, succes, estimation, copiable, vitrine").eq("domaine", domaine).maybeSingle().then(({ data }) => setS(data ?? null)); }, [domaine]);
   if (s === undefined) return <div className="py-24 grid place-items-center"><Spinner /></div>;
   if (!s) return <div className="max-w-3xl mx-auto px-4 py-16 text-center text-ink-soft">Ce SaaS n'est pas dans Bingoo!. <button onClick={() => nav("/explorer")} className="underline">Retour à la liste</button></div>;
   const bloque = [["Ses fonctionnalités, écran par écran", "et ce que ta version reprendrait"], ["Ses prix et ses formules", "comparés aux concurrents"], ["Ses pubs et ses vidéos", "les angles qui lui amènent des clients"], ["Ses clients", "les entreprises qui l'utilisent, tes futurs prospects"], ["Sa croissance", "recrutements, nouveautés, évolution du trafic"], ["Lancer ta version", "Bingoo! la construit, la met en ligne et t'aide à vendre"]];
@@ -394,8 +415,8 @@ function FicheApercu({ domaine }) {
       </div>
       {s.description && <p className="mt-3 max-w-3xl text-[15.5px] text-ink-soft">{s.description}</p>}
       <div className="mt-5 grid sm:grid-cols-3 gap-3">
-        <div className="rounded-2xl border border-line bg-white p-4"><p className="text-[12.5px] text-ink-faint">Revenu par mois</p><p className="mt-1 text-[22px] font-black tnum" style={HF}>{s.succes?.montant ? montantCourt(s.succes.montant / 12) : s.estimation ? `${montantCourt(s.estimation.bas)} à ${montantCourt(s.estimation.haut)}` : "non connu"}</p><p className="text-[12px] text-ink-faint">{s.succes?.montant ? (s.succes.type === "revenu_verifie" ? "vérifié" : "publié") : s.estimation ? "estimé, fiabilité faible" : ""}</p></div>
-        <div className="rounded-2xl border border-line bg-white p-4"><p className="text-[12.5px] text-ink-faint">Trafic</p><p className="mt-1 text-[22px] font-black tnum" style={HF}>{s.rang_web ? `N° ${Number(s.rang_web).toLocaleString("fr-FR")}` : "faible"}</p><p className="text-[12px] text-ink-faint">{s.rang_web ? "classement mondial des sites" : "hors des 500 000 sites les plus visités"}</p></div>
+        <div className="rounded-2xl border border-line bg-white p-4"><p className="text-[12.5px] text-ink-faint">Revenu par mois</p><p className="mt-1 text-[22px] font-black tnum" style={HF}>{s.vitrine ? <Floute suffixe="" /> : s.succes?.montant ? montantCourt(s.succes.montant / 12) : s.estimation ? `${montantCourt(s.estimation.bas)} à ${montantCourt(s.estimation.haut)}` : "non connu"}</p><p className="text-[12px] text-ink-faint">{s.vitrine ? "débloque pour voir" : s.succes?.montant ? (s.succes.type === "revenu_verifie" ? "vérifié" : "publié") : s.estimation ? "estimé, fiabilité faible" : ""}</p></div>
+        <div className="rounded-2xl border border-line bg-white p-4"><p className="text-[12.5px] text-ink-faint">Trafic</p><p className="mt-1 text-[22px] font-black tnum" style={HF}>{s.vitrine ? <Floute i={3} suffixe="" /> : s.rang_web ? `N° ${Number(s.rang_web).toLocaleString("fr-FR")}` : "faible"}</p><p className="text-[12px] text-ink-faint">{s.vitrine ? "débloque pour voir" : s.rang_web ? "classement mondial des sites" : "hors des 500 000 sites les plus visités"}</p></div>
         <div className="rounded-2xl border border-line bg-white p-4"><p className="text-[12.5px] text-ink-faint">Prix d'entrée</p><p className="mt-1 text-[22px] font-black tnum" style={HF}>{s.prix_entree_eur != null ? `${s.prix_entree_eur} €` : s.sur_devis ? "sur devis" : s.gratuit ? "gratuit" : "non affiché"}</p><p className="text-[12px] text-ink-faint">{s.prix_entree_eur != null ? "par mois" : ""}</p></div>
       </div>
       <h2 className="mt-6 text-[17px] font-bold">Lancer ta version de {s.nom}</h2>
@@ -4118,6 +4139,7 @@ function Classement() {
   const [rows, setRows] = useState(undefined);
   useEffect(() => { setRows(undefined); supabase.rpc("saas_classement", { p_tri: tri }).then(({ data }) => setRows(data ?? [])); }, [tri]);
   const info = ONGLETS_CLASSEMENT.find((o) => o[0] === tri);
+  const vitrine = !!rows?.[0]?.vitrine;
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
       <p className="text-[12.5px] font-bold tracking-wider text-accent-dark">CLASSEMENT</p>
@@ -4148,13 +4170,14 @@ function Classement() {
                 </div>
                 {x.fondateurs?.[0] && <Fondateur f={x.fondateurs[0]} className="hidden lg:flex w-44" />}
                 <div className="hidden md:block w-28">{pts.length > 1 && <Sparkline pts={pts} h={30} />}</div>
-                <div className="w-24 text-right"><p className="font-bold tnum">{dollar(tri === "encaisse" ? x.j30 : x.mrr ?? x.revenu_mois)}</p><p className="text-[11.5px] text-ink-faint" title={x.verifie_at ? `Relu le ${new Date(x.verifie_at).toLocaleDateString("fr-FR")}` : undefined}>{x.verifie_at ? `${x.paiement ? x.paiement.replace(/\s*\(.*\)/, "") + ", " : ""}${new Date(x.verifie_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}` : x.mrr ? "MRR" : "par mois"}</p></div>
+                {x.vitrine ? <div className="w-24 text-right"><Floute i={i} suffixe="" /></div> : <div className="w-24 text-right"><p className="font-bold tnum">{dollar(tri === "encaisse" ? x.j30 : x.mrr ?? x.revenu_mois)}</p><p className="text-[11.5px] text-ink-faint" title={x.verifie_at ? `Relu le ${new Date(x.verifie_at).toLocaleDateString("fr-FR")}` : undefined}>{x.verifie_at ? `${x.paiement ? x.paiement.replace(/\s*\(.*\)/, "") + ", " : ""}${new Date(x.verifie_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}` : x.mrr ? "MRR" : "par mois"}</p></div>}
                 <div className="w-20 text-right">{crois != null && <span className={cx("inline-block rounded-lg px-2 py-1 text-[12.5px] font-bold tnum", crois > 0 ? "bg-[#DCFCE7] text-[#166534]" : crois < 0 ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-paper text-ink-soft")}>{crois > 0 ? "+" : ""}{Number(crois).toLocaleString("fr-FR", { maximumFractionDigits: 0 })} %</span>}</div>
               </button>
             );
           })}
         </div>
       )}
+      {vitrine && <VitrineFin quoi="SaaS du classement" />}
     </div>
   );
 }
