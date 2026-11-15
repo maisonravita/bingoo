@@ -3,7 +3,7 @@ import { indexChoisi } from "../lib/choix";
 import ResultatsBingoo from "../components/ResultatsBingoo";
 import ChoixFormule from "../components/ChoixFormule";
 import { nomCanal, plan30, promptClaude } from "../lib/plan30";
-import { ANGLES, angleDe, enFrancais, kitDiffusion, premiersClients, resumeFr, semaineClients } from "../lib/angle";
+import { ANGLES, BUDGETS, angleDe, enFrancais, kitDiffusion, methodesAcquisition, premiersClients, resumeFr, semaineClients } from "../lib/angle";
 import { demanderCompte, estInvite } from "../lib/invite";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
@@ -3003,6 +3003,10 @@ export function PremiersClients({ s, a, r, app }) {
   const pc0 = premiersClients(s, a, r);
   // SaaS construit : les messages sont déjà remplis (nom, prix, lien suivi par canal) ; sinon les modèles à crochets
   const pc = kit ? { ...pc0, messages: kit.messages } : pc0;
+  // Le budget du fondateur décide des méthodes proposées (0 € : seulement les méthodes gratuites)
+  const [budget, setBudget] = useState(() => { try { return localStorage.getItem("bingoo-budget") ?? ((r?.refus ?? []).includes("pub") ? "zero" : "zero"); } catch { return "zero"; } });
+  const choisirBudget = (b) => { setBudget(b); try { localStorage.setItem("bingoo-budget", b); } catch { /* stockage indisponible */ } };
+  const meth = methodesAcquisition(s, a, r, app, budget);
   const [onglet, setOnglet] = useState("semaine");
   const semaine = semaineClients(s, a, r);
   const cleJ = `bingoo-semaine-${s.domaine}`;
@@ -3064,7 +3068,7 @@ export function PremiersClients({ s, a, r, app }) {
         <div className="text-right"><p className="text-[28px] font-black tnum leading-none" style={HF}>{payants}<span className="text-ink-faint text-[18px]"> / 10</span></p><p className="text-[12px] text-ink-faint">clients payants</p></div>
       </div>
       <div className="px-5 sm:px-7 pt-4 flex gap-4 overflow-x-auto border-b border-line text-[14px]">
-        {[["semaine", `Ta semaine (${faits.length}/7)`], ["prospects", `Tes prospects${pros?.length ? ` (${contactes}/${pros.length})` : ""}${nRelance ? ` · ${nRelance} à relancer` : ""}`], ["dire", "Quoi leur dire"], ...(kit ? [["groupes", "Groupes et réseaux"]] : []), ["ou", "Où chercher encore"]].map(([k, l]) => <button key={k} onClick={() => setOnglet(k)} className={cx("shrink-0 pb-2.5 -mb-px border-b-2 font-semibold whitespace-nowrap", onglet === k ? "border-accent text-ink" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
+        {[["semaine", `Ta semaine (${faits.length}/7)`], ["methodes", "Les méthodes"], ["prospects", `Tes prospects${pros?.length ? ` (${contactes}/${pros.length})` : ""}${nRelance ? ` · ${nRelance} à relancer` : ""}`], ["dire", "Quoi leur dire"], ...(kit ? [["groupes", "Groupes et réseaux"]] : []), ["ou", "Où chercher encore"]].map(([k, l]) => <button key={k} onClick={() => setOnglet(k)} className={cx("shrink-0 pb-2.5 -mb-px border-b-2 font-semibold whitespace-nowrap", onglet === k ? "border-accent text-ink" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
       </div>
       <div className="px-5 sm:px-7 py-5">
         {onglet === "semaine" && lanc !== undefined && (
@@ -3139,6 +3143,44 @@ export function PremiersClients({ s, a, r, app }) {
             <form onSubmit={ajouter} className="mt-3 flex gap-2"><input value={ajout} onChange={(e) => setAjout(e.target.value)} placeholder="Ajouter quelqu'un que tu connais" className="flex-1 rounded-xl border border-line bg-white px-3 py-2 text-[13.5px] outline-none focus:border-ink" /><button className="rounded-xl border border-line px-4 py-2 text-[13.5px] font-semibold hover:border-ink">Ajouter</button></form>
             {(r.refus ?? []).includes("appeler") && <p className="mt-3 rounded-xl bg-accent-soft/60 px-3 py-2 text-[13px]">Tu as dit ne pas vouloir démarcher : garde cette liste pour repérer qui croiser dans les groupes et les salons, ou écris seulement à ceux qui t'inspirent.</p>}
             <p className="mt-2 text-[12px] text-ink-faint">Contacte les professionnels sur leur adresse professionnelle et retire tout de suite ceux qui ne veulent pas être recontactés.</p>
+          </div>
+        )}
+        {onglet === "methodes" && (
+          <div>
+            <div className="rounded-2xl bg-paper border border-line p-4">
+              <p className="font-semibold text-[14.5px]">Combien peux-tu mettre pour trouver tes clients ?</p>
+              <div className="mt-3 grid sm:grid-cols-3 gap-2">{BUDGETS.map(([k, l, d]) => (
+                <button key={k} onClick={() => choisirBudget(k)} className={cx("rounded-xl border-2 px-3 py-2.5 text-left transition", budget === k ? "border-accent bg-white" : "border-line bg-white/60 hover:border-ink-faint")}>
+                  <p className="font-bold text-[14px]">{l}</p><p className="text-[12.5px] text-ink-soft">{d}</p>
+                </button>
+              ))}</div>
+              <p className="mt-3 text-[13.5px] text-ink-soft">{meth.conseil}</p>
+            </div>
+            <ol className="mt-4 space-y-3">{meth.pour.map((m, k) => (
+              <li key={m.k} className={cx("rounded-2xl border p-4", k < 2 ? "border-accent border-2" : "border-line")}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="grid place-items-center h-7 w-7 shrink-0 rounded-full bg-accent-soft text-accent-dark text-[13px] font-bold">{k + 1}</span>
+                  <p className="font-bold text-[16px]">{m.nom}</p>
+                  {k < 2 && <span className="rounded-full bg-accent px-2 py-0.5 text-[11.5px] font-bold text-white">Commence par celle-ci</span>}
+                  <span className={cx("rounded-full px-2 py-0.5 text-[11.5px] font-semibold", m.cout === 0 ? "bg-good/10 text-good" : "bg-[#FEF3C7] text-[#78350F]")}>{m.cout === 0 ? "Gratuit" : m.cout === 1 ? "Petit budget" : "Budget pub"}</span>
+                  <span className="rounded-full bg-paper px-2 py-0.5 text-[11.5px] text-ink-soft">{m.delai}</span>
+                  {m.modele && <span className="rounded-full bg-ink px-2 py-0.5 text-[11.5px] font-semibold text-white">{meth.modeleNom} l'utilise</span>}
+                </div>
+                <p className="mt-2 text-[13.5px] text-ink-soft">{m.pourquoi}</p>
+                <ul className="mt-2 space-y-1 text-[13.5px]">{m.etapes.map((e) => <li key={e} className="flex gap-2"><span className="text-accent-dark">→</span><span>{e}</span></li>)}</ul>
+                {(m.va || m.lien) && <div className="mt-3 flex flex-wrap gap-2">
+                  {m.va && <button onClick={() => setOnglet(m.va === "groupes" && !kit ? "dire" : m.va)} className="rounded-lg border border-line px-3 py-1.5 text-[12.5px] font-semibold hover:border-ink">{m.va === "groupes" ? "Mes groupes et mon post" : "Mes messages prêts"}</button>}
+                  {m.lien && <a href={`#${m.lien[0]}`} className="rounded-lg border border-line px-3 py-1.5 text-[12.5px] font-semibold hover:border-ink">{m.lien[1]}</a>}
+                </div>}
+              </li>
+            ))}</ol>
+            {meth.plusTard.length > 0 && (
+              <div className="mt-4 rounded-2xl bg-paper border border-line p-4">
+                <p className="font-semibold text-[14px]">Plus tard, quand tes premiers clients paieront</p>
+                <p className="mt-1 text-[13px] text-ink-soft">{meth.plusTard.map((m) => m.nom).join(" · ")}. Pas besoin d'y penser maintenant : ce que tu encaisses avec les méthodes gratuites financera ces tests.</p>
+              </div>
+            )}
+            <p className="mt-3 text-[12px] text-ink-faint">Aucune méthode ne garantit un résultat : teste, mesure avec tes liens suivis (?src=…), garde ce qui amène des inscrits.</p>
           </div>
         )}
         {onglet === "ou" && (

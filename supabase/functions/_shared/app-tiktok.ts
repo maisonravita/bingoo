@@ -117,7 +117,10 @@ JSON : { "formats": [ ... ], "conseils": ["3 conseils concrets de publication po
   data.comptes = data.comptes.filter((c: any) => vu(c.url));
   data.videos = await Promise.all(data.videos.map(async (v: any) => { const [o, image] = await Promise.all([oembed(v.url), couverture(v.url)]); return { ...v, ...(o ? { auteur: o.auteur ?? v.auteur ?? null, legende: o.legende ?? null } : {}), image: image ?? o?.image ?? null }; }));
   (data as any).niche = niche; (data as any).modele = modele || null;
-  if (!data.formats.length && !data.comptes.length && !data.videos.length) { console.error("tiktok", erreurs); throw new Error(`La recherche n'a rien donné, réessaie dans un instant${erreurs.length ? ` (${erreurs[0].slice(0, 160)})` : ""}`); }
+  if (!data.formats.length && !data.comptes.length && !data.videos.length) { console.error("tiktok", erreurs);
+    // Plus d'IA disponible (enveloppe du mois, pause de sécurité) : on le dit tel quel, « réessaie » serait trompeur
+    const limite = erreurs.find((e) => /enveloppe IA|limite d'utilisation|Pause de sécurité/.test(e));
+    if (limite) throw new Error(limite); throw new Error(`La recherche n'a rien donné, réessaie dans un instant${erreurs.length ? ` (${erreurs[0].slice(0, 160)})` : ""}`); }
   await admin.from("saas_tiktok").upsert({ app_id: app.id, workspace_id: app.workspace_id, data, at: new Date().toISOString() });
   return { ...data, at: new Date().toISOString() };
 }

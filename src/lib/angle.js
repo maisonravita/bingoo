@@ -165,3 +165,65 @@ export function kitDiffusion(s, a, r, app, lien) {
 
   return { messages, groupes };
 }
+
+// Les méthodes pour décrocher ses premiers clients, classées selon le budget du fondateur (0 €, petit budget, budget pub),
+// ce qu'il refuse de faire, et ce que le SaaS modèle a réellement utilisé. Aucune promesse de résultat : des étapes concrètes.
+export const BUDGETS = [["zero", "Je n'ai pas d'argent", "0 € : que des méthodes gratuites"], ["petit", "Un petit budget", "jusqu'à 300 € par mois"], ["pub", "Un budget pub", "300 € par mois ou plus"]];
+export function methodesAcquisition(s, a, r, app, budget) {
+  const sp = app?.spec ?? {};
+  const nom = sp.nom ?? "ta version";
+  const refus = new Set(r?.refus ?? []);
+  const pro = a.type === "metier" || /B2B|both/i.test(s.audience ?? "");
+  const cible = a.type === "metier" ? a.les : pro ? "les petites entreprises" : "ta cible";
+  const f0 = (sp.formules ?? []).find((f) => Number(f.prix) > 0);
+  const prix = Number(f0?.prix ?? s.prix_entree_eur ?? 0) || null;
+  const modele = new Set(s.canaux ?? []);
+  const M = [
+    { k: "contact", nom: "Le contact direct", cout: 0, delai: "Dès la première semaine", refus: "appeler", canaux: ["Cold email", "Cold DM", "Cold calling"],
+      pourquoi: `Le plus rapide pour les 10 premiers : tu parles à ${cible} un par un, tu apprends ce qui les fait acheter.`,
+      etapes: ["Fais ta liste de 50 personnes ou entreprises qui ont le problème (onglet « Tes prospects »).", "Envoie 10 à 15 messages par jour, personnalisés avec un détail sur chacun (onglet « Quoi leur dire »).", "Relance une seule fois au bout de 4 jours, puis passe à autre chose."], va: "dire" },
+    { k: "communautes", nom: "Les groupes et communautés", cout: 0, delai: "1 à 2 semaines", canaux: ["Facebook", "Reddit", "Discord", "Forums", "Slack communities"],
+      pourquoi: `${cible.replace(/^\p{Ll}/u, (c) => c.toUpperCase())} posent leurs questions dans des groupes Facebook, LinkedIn et des forums : c'est là que tu deviens « celui qui s'y connaît ».`,
+      etapes: ["Rejoins les 3 groupes les plus actifs de ta cible.", "Pendant une semaine, réponds à 2 questions par jour, sans parler de ton outil.", "Puis publie ton post (une question + ton offre de test gratuit)."], va: "groupes" },
+    { k: "tiktok", nom: "TikTok et Reels", cout: 0, delai: "2 à 6 semaines", refus: "video", canaux: ["TikTok", "Instagram", "YouTube"],
+      pourquoi: "L'algorithme montre tes vidéos à des inconnus, même avec 0 abonné : c'est le seul réseau où un nouveau compte peut toucher des milliers de personnes gratuitement.",
+      etapes: ["Une vidéo de 15 à 30 secondes par jour pendant 30 jours : le problème, puis ton outil qui le règle.", "Les 3 premières secondes = l'accroche. Filme avec ton téléphone, pas besoin de montage.", "Mets le lien de ton SaaS dans ta bio et réponds à chaque commentaire."], lien: ["/explorer/tiktok", "Mes idées de vidéos"] },
+    { k: "linkedin", nom: "LinkedIn (ton profil perso)", cout: 0, delai: "3 à 6 semaines", refus: "ecrire", canaux: ["LinkedIn"], seulPro: true,
+      pourquoi: "Les posts d'une personne touchent bien plus que ceux d'une page entreprise. Raconter ton lancement attire les curieux et tes premiers clients.",
+      etapes: ["Mets le lien de ton SaaS en haut de ton profil.", "3 posts par semaine : le problème de ta cible, une leçon, où tu en es.", "Commente 10 posts de ta cible par jour : ils viennent voir ton profil."] },
+    { k: "parrainage", nom: "Le parrainage", cout: 0, delai: "Dès tes premiers clients", canaux: ["Referral program", "Word of mouth"],
+      pourquoi: "Un client content connaît d'autres gens qui ont le même problème. Le parrainage ne coûte rien tant qu'il ne rapporte pas.",
+      etapes: ["Offre 1 mois gratuit au parrain et au filleul.", "Demande-le au bon moment : juste après qu'un client te dit merci.", "Envoie à chaque client un message avec son lien à partager."] },
+    { k: "affiliation", nom: "L'affiliation", cout: 0, delai: "1 à 2 mois", canaux: ["Affiliate", "Influencers"],
+      pourquoi: `Des gens qui parlent déjà à ${cible} (créateurs, consultants, formateurs${a.type === "metier" ? ", fournisseurs du métier" : ""}) recommandent ${nom} et touchent une commission. Tu ne paies que quand un client paie.`,
+      etapes: ["Propose 20 à 30 % de commission pendant 12 mois sur chaque client amené.", "Branche un outil d'affiliation compatible Stripe (Rewardful, Tolt ou PromoteKit) : il compte les ventes et les commissions.", `Contacte 10 personnes qui ont une audience auprès de ${cible}, avec un accès gratuit pour tester d'abord.`] },
+    { k: "partenaires", nom: "Les prescripteurs", cout: 0, delai: "1 à 2 mois", canaux: ["Partnerships", "Events & conferences"], seulPro: true,
+      pourquoi: a.type === "metier" ? `Ceux qui conseillent déjà ${a.les} (fédération, école, fournisseurs, expert-comptable) peuvent te recommander à des dizaines de clients d'un coup.` : "Les outils complémentaires et les consultants de ta cible peuvent te recommander à leurs clients.",
+      etapes: ["Liste 10 acteurs qui parlent déjà à ta cible sans te concurrencer.", "Propose-leur un échange : une démo pour leurs membres, un avantage pour leurs clients, ou une commission.", "Va à un salon ou un meetup de ta cible avec ton outil prêt sur ton téléphone."] },
+    { k: "google", nom: "Google et les comparateurs", cout: 0, delai: "1 à 3 mois", refus: "ecrire", canaux: ["SEO", "Blog", "Product Hunt"],
+      pourquoi: "Les gens qui tapent « logiciel pour… » ou « alternative à… » cherchent déjà à acheter. Ça met du temps, puis ça amène des clients tous les mois sans effort.",
+      etapes: ["Inscris ton SaaS sur les annuaires et comparateurs (Kit de lancement).", "Fais écrire tes 3 articles par Bingoo! (« alternative à… », « comment… »).", "Demande un avis Google ou Capterra à chaque client content."], lien: ["/explorer/reglages-saas?onglet=lancement", "Ouvrir le kit de lancement"] },
+    { k: "createurs", nom: "Les petits créateurs", cout: 1, delai: "2 à 4 semaines", refus: "video", canaux: ["Influencers"],
+      pourquoi: "Un créateur de 5 000 à 50 000 abonnés dans ta niche coûte peu et inspire plus confiance qu'une pub.",
+      etapes: ["Repère 10 créateurs qui parlent à ta cible (TikTok, Instagram, YouTube).", "Propose : accès gratuit + 50 à 150 € la vidéo, ou une commission d'affiliation.", "Mesure chaque créateur avec son propre lien (?src=nom-du-createur)."] },
+    { k: "meta", nom: "La pub Facebook et Instagram", cout: 1, delai: "1 à 2 semaines de test", refus: "pub", canaux: ["Meta Ads"],
+      pourquoi: `On peut cibler très précisément ${a.type === "metier" ? `${a.les} par centre d'intérêt et par ville` : "par centres d'intérêt, âge et ville"}, avec un petit budget de départ.`,
+      etapes: ["Commence à 5 à 10 € par jour pendant 7 jours, pas plus.", "Teste 3 vidéos ou visuels (ta vidéo pub Bingoo! en fait partie) et garde le meilleur.", "Coupe tout ce qui n'amène pas d'inscrits après 7 jours. Ne monte le budget que sur ce qui marche."], lien: ["/explorer/video", "Ma vidéo pub"] },
+    { k: "googleads", nom: "La pub Google", cout: 2, delai: "1 à 2 semaines de test", refus: "pub", canaux: ["Google Ads"],
+      pourquoi: "Tu apparais au moment exact où quelqu'un cherche une solution. Plus cher par clic, mais ce sont des gens prêts à acheter.",
+      etapes: ["3 à 5 mots-clés très précis (« logiciel … pour … »), pas de mots larges.", "10 à 20 € par jour, envoyés vers ta page avec ?src=google.", "Regarde le coût par inscrit après 7 jours ; s'il dépasse ce qu'un client te rapporte en 3 mois, arrête."] },
+    { k: "tiktokads", nom: "La pub TikTok", cout: 2, delai: "1 à 2 semaines de test", refus: "pub", canaux: ["TikTok Ads"],
+      pourquoi: "Tu boostes tes vidéos qui marchent déjà en organique : c'est la pub la moins chère à produire.",
+      etapes: ["Attends d'avoir une vidéo organique qui marche mieux que les autres.", "Booste-la (Spark Ads) avec le budget minimum de TikTok, environ 20 € par jour.", "Garde la même règle : coupe après 7 jours si elle n'amène pas d'inscrits."] },
+  ];
+  const plafond = budget === "pub" ? 2 : budget === "petit" ? 1 : 0;
+  const score = (m) => (m.canaux.some((c) => modele.has(c)) ? 100 : 0) + (m.k === "contact" && pro ? 30 : 0) + (m.k === "tiktok" && !pro ? 30 : 0) + (m.k === "partenaires" && a.type === "metier" ? 20 : 0) - m.cout * 5;
+  const ok = M.filter((m) => !(m.seulPro && !pro)).map((m) => ({ ...m, modele: m.canaux.some((c) => modele.has(c)), refuse: !!(m.refus && refus.has(m.refus)) }));
+  const pour = ok.filter((m) => m.cout <= plafond && !m.refuse).sort((x, y) => score(y) - score(x));
+  const plusTard = ok.filter((m) => m.cout > plafond && !m.refuse);
+  const conseil = budget === "zero"
+    ? `Sans un euro de pub, c'est possible : la plupart des SaaS trouvent leurs 10 premiers clients à la main. Concentre-toi sur 2 méthodes, pas plus, pendant 30 jours.${prix ? ` À ${prix} € par mois, tes premiers abonnés paieront ta future pub.` : ""}`
+    : budget === "petit" ? "Garde 80 % de ton énergie sur les méthodes gratuites, et teste la pub en petit, 7 jours maximum, avant de dépenser plus."
+      : "La pub accélère ce qui marche déjà, elle ne remplace pas un message qui convainc : teste d'abord ton message à la main, puis mets de l'argent derrière.";
+  return { pour, plusTard, conseil, modeleNom: s.nom };
+}
