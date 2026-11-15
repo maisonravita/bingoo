@@ -133,9 +133,10 @@ export function kitDiffusion(s, a, r, app, lien) {
   const nom = sp.nom ?? "mon outil";
   const refus = new Set(r?.refus ?? []);
   const cible = a.type === "metier" ? a.les : String(sp.cible ?? cibleDe(s, a)).replace(/\.$/, "").replace(/^(\p{Lu})(\p{Ll})/u, (_, x, y) => x.toLowerCase() + y);
-  const quoi = String(sp.pitch ?? sp.slogan ?? "").replace(/\.$/, "") || `un outil ${a.court}`;
+  const phrase1 = (x) => String(x ?? "").split(/(?<=[.!?])\s+/)[0].replace(/[.!]$/, "").trim();
+  const quoi = phrase1(sp.pitch ?? sp.slogan) || `un outil ${a.court}`;
   const quoiMin = vouvoyer(quoi.replace(/^(\p{Lu})(\p{Ll})/u, (_, x, y) => x.toLowerCase() + y));
-  const prob = vouvoyer(String(sp.probleme ?? "").replace(/\.$/, ""));
+  const prob = vouvoyer(phrase1(sp.probleme)).replace(/\?$/, "");
   const desCible = cible.replace(/^les /, "des ");
   const f0 = (sp.formules ?? []).find((f) => Number(f.prix) > 0);
   const prix = f0 ? `${String(f0.prix).replace(".", ",")} € par mois` : null;
@@ -157,8 +158,8 @@ export function kitDiffusion(s, a, r, app, lien) {
   const q = (t) => encodeURIComponent(t.toLowerCase());
   const groupes = [
     ["Groupes Facebook", mots.slice(0, 2).map((m) => [m, `https://www.facebook.com/search/groups/?q=${q(m)}`]), "Rejoins les 3 plus actifs (des posts chaque jour). Réponds d'abord à 2 ou 3 questions, puis publie ton post."],
-    ["Groupes LinkedIn", mots.slice(0, 2).map((m) => [m, `https://www.linkedin.com/search/results/groups/?keywords=${q(m)}`]), "Les dirigeants y lisent plus qu'ils n'écrivent : un post court avec une question marche mieux qu'une annonce."],
-    ["Comptes Instagram de ta cible", [[mots[0], `https://www.instagram.com/explore/search/keyword/?q=${q(mots[0])}`]], "Ouvre les comptes pros de ta cible : un message privé court, personnalisé avec un détail de leur compte."],
+    ["Groupes LinkedIn", mots.slice(0, 2).map((m) => [m, `https://www.linkedin.com/search/results/groups/?keywords=${q(m)}`]), "On y lit plus qu'on n'écrit : un post court qui pose une question marche mieux qu'une annonce."],
+    ["Comptes Instagram de ta cible", [[mots[0], `https://www.instagram.com/explore/search/keyword/?q=${q(mots[0])}`]], "Repère les comptes de ta cible : un message privé court, avec un détail de leur compte pour montrer que tu l'as regardé."],
     ["Discussions Reddit et forums", [[mots[2] ?? mots[0], `https://www.google.com/search?q=${q(`${mots[2] ?? mots[0]} forum OR reddit`)}`]], "Cherche les questions sur ton problème et réponds en expliquant comment tu le règles."],
   ];
 
