@@ -16,7 +16,8 @@ export function modeleDe(p: any): string | null {
   const ecriture = /\bia\b|intelligence artificielle/.test(t) ? n(/r[ée]dig|g[ée]n[èeé]r|[ée]cri(t|re|ture|vain)|reformul|\bcv\b|lettres? de motivation|\bposts?\b|articles?\b|newsletters?\b|copywrit|textes?\b|guides?\b/g) : 0;
   const best = Math.max(reservation, devis);
   if (ecriture >= 3 && ecriture > best) return "ecriture";
-  if (!best) return null;
+  // Une mention en passant (« facturation », « une séance ») ne fait pas d'un logiciel de fidélité un outil de devis
+  if (best < 3) return null;
   return devis > reservation ? "devis" : "reservation";
 }
 

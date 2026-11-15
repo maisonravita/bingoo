@@ -827,7 +827,13 @@ stack (5 à 8 objets brique + outil + cout_mois en euros, outils réels et coura
 formules (2 ou 3 objets nom + prix en euros par mois + pour + inclus : 3 à 5 éléments ; cohérents avec le prix médian du marché),
 acquisition (4 à 6 objets canal + comment, concrets pour les 6 premiers mois),
 risques (3 objets risque + parade),
-hypotheses (prudentes : clients_mois_1 nombre de clients payants le premier mois, croissance_mensuelle_pct, churn_mensuel_pct, conversion_essai_pct).`, { maxTokens: 3500 });
+hypotheses (prudentes : clients_mois_1 nombre de clients payants le premier mois, croissance_mensuelle_pct, churn_mensuel_pct, conversion_essai_pct).`, { maxTokens: 7000 });
+  // Réponse coupée (projet long, analyse poussée) : les tarifs, canaux et risques manquants sont demandés à part
+  if (!(p.formules ?? []).length || !(p.acquisition ?? []).length || !(p.risques ?? []).length) {
+    const r = await askJson<any>(`SaaS « ${p.nom} » : ${p.pitch}. Pour : ${p.cible}. Concurrent : ${s.nom}${s.prix_entree_eur != null ? `, prix d'entrée ${s.prix_entree_eur} €/mois` : ""}. Fonctions de la première version : ${(p.mvp ?? []).map((m: any) => m.fonction).join(" ; ")}.
+Rends {"formules": [2 ou 3 objets nom + prix (euros par mois, nombre) + pour + inclus (3 à 5 éléments, seulement des fonctions de la première version)], "acquisition": [4 à 6 objets canal + comment], "risques": [3 objets risque + parade]}`, { fast: true, maxTokens: 2500 }).catch(() => null);
+    for (const k of ["formules", "acquisition", "risques"] as const) if (!((p as any)[k] ?? []).length && Array.isArray(r?.[k])) (p as any)[k] = r[k];
+  }
   // Plan d'affaires sur 12 mois, calculé à partir des hypothèses (prix moyen = moyenne des formules)
   // Garde-fous : un premier SaaS démarre lentement, quoi que propose l'IA
   const h0 = p.hypotheses ?? {} as Projet["hypotheses"];
