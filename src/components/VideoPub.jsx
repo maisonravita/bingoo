@@ -5,7 +5,8 @@ import { fn } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { useToast } from "./ui";
 import { cx } from "../lib/utils";
-import { DUREE, FORMATS, STYLES, dessiner, exporterVideo, preparerPolice } from "../lib/videoPub";
+import { DUREE, FORMATS, STYLES, dessiner, exporterVideo, graineDe, preparerPolice } from "../lib/videoPub";
+import { STYLES as STYLES_APP, styleDe } from "../lib/appShell";
 import { AMBIANCES, ecouterMusique } from "../lib/musiqueVideo";
 import AppCadre from "./AppCadre";
 
@@ -33,7 +34,7 @@ export default function VideoPub({ app, lien, nu = false, angleInitial = "" }) {
   const garder = (k, v, set) => { set(v); try { localStorage.setItem(`bingoo-video-${k}-${app.id}`, v); } catch { /* stockage indisponible */ } };
   const [ecoute, setEcoute] = useState(null);
   useEffect(() => () => ecoute?.(), [ecoute]);
-  const ecouter = () => { if (ecoute) { ecoute(); setEcoute(null); return; } if (musique === "aucune") return; const stop = ecouterMusique(musique, DUREE); setEcoute(() => stop); setTimeout(() => setEcoute(null), DUREE * 1000); };
+  const ecouter = () => { if (ecoute) { ecoute(); setEcoute(null); return; } if (musique === "aucune") return; const stop = ecouterMusique(musique, DUREE, graine); setEcoute(() => stop); setTimeout(() => setEcoute(null), DUREE * 1000); };
   // Les vrais écrans du SaaS : photographiés avec les données d'exemple, dans un cadre caché
   const ecransApp = (app.spec?.ecrans ?? []).filter((e) => e.code);
   const norm = (x) => String(x ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -56,9 +57,12 @@ export default function VideoPub({ app, lien, nu = false, angleInitial = "" }) {
     const [v, c] = await Promise.all([fn("r/saas-videos", { workspace_id: ws.id, app_id: app.id }).catch(() => ({ videos: [] })), fn("r/credits", { workspace_id: ws.id }).catch(() => null)]);
     setVideos(v.videos ?? []); setSel((s) => s ?? v.videos?.[0] ?? null); setSolde(c?.solde ?? 0);
   };
-  useEffect(() => { charger(); preparerPolice(); }, [app.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Signature du SaaS : la police de son application, et une graine pour ses motifs, transitions et sa musique
+  const police = STYLES_APP[styleDe(app.spec)]?.titres ?? "Plus Jakarta Sans";
+  const graine = graineDe(app.slug ?? app.spec?.nom);
+  useEffect(() => { charger(); preparerPolice(police); }, [app.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const opts = { nom: app.spec?.nom ?? "Mon SaaS", couleur: app.spec?.couleur ?? "#4F46E5", lien: lienCourt(lien), images, style };
+  const opts = { nom: app.spec?.nom ?? "Mon SaaS", couleur: app.spec?.couleur ?? "#4F46E5", lien: lienCourt(lien), images, style, police, graine };
   const [W, H] = FORMATS[format];
   const dessinerA = (t) => { const c = canvas.current; if (c && sel) dessiner(c.getContext("2d"), W, H, t, sel.script, opts); };
 
@@ -83,7 +87,7 @@ export default function VideoPub({ app, lien, nu = false, angleInitial = "" }) {
   const telecharger = async () => {
     setExport(0);
     try {
-      const { blob, ext } = await exporterVideo(canvas.current, dessinerA, setExport, musique === "aucune" ? null : musique);
+      const { blob, ext } = await exporterVideo(canvas.current, dessinerA, setExport, musique === "aucune" ? null : musique, graine);
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${app.slug}-pub-${format}.${ext}`; a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
       toast("Vidéo téléchargée");

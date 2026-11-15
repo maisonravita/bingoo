@@ -7,7 +7,11 @@ export const FORMATS = { vertical: [1080, 1920], carre: [1080, 1080], paysage: [
 export const STYLES = { percutant: "Percutant", sobre: "Sobre", demo: "Démo" };
 // Couleurs du style courant (fixées à chaque image par dessiner)
 let TX = "#fff", TX2 = (a) => `rgba(255,255,255,${a})`, CARTE = "rgba(255,255,255,0.07)", CLAIR = false;
-const POLICE = '"Plus Jakarta Sans", system-ui, sans-serif';
+let POLICE = '"Plus Jakarta Sans", system-ui, sans-serif';
+// Signature visuelle propre à chaque SaaS (tirée de son nom) : motif de fond, transitions, forme du logo
+let MOTIF = 0, TRANSITION = 0, FORME = 0;
+/** Graine stable d'un SaaS : deux SaaS n'ont pas la même vidéo. */
+export const graineDe = (s) => { let h = 2166136261; for (const c of String(s ?? "")) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0; return h; };
 
 // --- outils
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
@@ -57,8 +61,10 @@ const SCENES_DEMO = [
 ];
 
 /** Dessine l'image au temps t (secondes). */
-export function dessiner(ctx, W, H, t, script, { nom, couleur, lien, images = [], style = "percutant" }) {
+export function dessiner(ctx, W, H, t, script, { nom, couleur, lien, images = [], style = "percutant", police = null, graine = 0 }) {
   CLAIR = style === "sobre";
+  POLICE = `"${police || "Plus Jakarta Sans"}", system-ui, sans-serif`;
+  MOTIF = graine % 4; TRANSITION = (graine >>> 3) % 3; FORME = (graine >>> 6) % 3;
   TX = CLAIR ? "#0F172A" : "#fff"; TX2 = CLAIR ? (a) => `rgba(15,23,42,${a})` : (a) => `rgba(255,255,255,${a})`; CARTE = CLAIR ? "rgba(15,23,42,0.05)" : "rgba(255,255,255,0.07)";
   const c = hexRgb(couleur), cv = CLAIR ? c : vive(c), u = Math.min(W, H) / 1080, vertical = H > W, carre = H === W;
   const SCENES = style === "demo" ? SCENES_DEMO : SCENES_STD;
@@ -68,7 +74,9 @@ export function dessiner(ctx, W, H, t, script, { nom, couleur, lien, images = []
     const local = t - s.de, d = s.a - s.de;
     const entree = easeOut(prog(local, 0, 0.45)), sortie = s.a === DUREE ? 0 : easeInOut(prog(local, d - 0.4, d));
     ctx.save(); ctx.globalAlpha = 1;
-    ctx.translate(0, (1 - entree) * 40 * u - sortie * 40 * u);
+    if (TRANSITION === 0) ctx.translate(0, (1 - entree) * 40 * u - sortie * 40 * u);
+    else if (TRANSITION === 1) ctx.translate((1 - entree) * 70 * u - sortie * 70 * u, 0);
+    else { const k = 1 + (1 - entree) * 0.06 - sortie * 0.05; ctx.translate(W / 2, H / 2); ctx.scale(k, k); ctx.translate(-W / 2, -H / 2); }
     const alpha = Math.min(entree, 1 - sortie);
     s.dessin(ctx, { W, H, u, t: local, d, c, cv, nom, lien, script, vertical, carre, alpha, images });
     ctx.restore();
@@ -89,6 +97,14 @@ export function dessiner(ctx, W, H, t, script, { nom, couleur, lien, images = []
   ctx.fillStyle = rgba(cv, 0.9); ctx.fillRect(0, H - 8 * u, W * (t / DUREE), 8 * u);
 }
 
+function motif(ctx, W, H, t, u, couleur) {
+  ctx.strokeStyle = couleur; ctx.fillStyle = couleur; ctx.lineWidth = 1.5 * u; const pas = 90 * u, dec = (t * 18 * u) % pas;
+  if (MOTIF === 0) { ctx.beginPath(); for (let x = -pas + dec; x < W; x += pas) { ctx.moveTo(x, 0); ctx.lineTo(x, H); } for (let y = -pas + dec; y < H; y += pas) { ctx.moveTo(0, y); ctx.lineTo(W, y); } ctx.stroke(); }
+  else if (MOTIF === 1) { for (let x = -pas + dec; x < W + pas; x += pas * 0.6) for (let y = -pas + dec; y < H + pas; y += pas * 0.6) { ctx.beginPath(); ctx.arc(x, y, 2.6 * u, 0, 7); ctx.fill(); } }
+  else if (MOTIF === 2) { ctx.beginPath(); for (let x = -H + dec * 2; x < W; x += pas * 0.8) { ctx.moveTo(x, 0); ctx.lineTo(x + H, H); } ctx.stroke(); }
+  else { for (let k = 0; k < 7; k++) { ctx.beginPath(); const y0 = H * (k + 0.5) / 7; for (let x = 0; x <= W; x += 20 * u) { const y = y0 + Math.sin(x / (180 * u) + t * 0.8 + k) * 24 * u; if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.stroke(); } }
+}
+
 function fond(ctx, W, H, t, c, u) {
   if (CLAIR) {
     const g0 = ctx.createLinearGradient(0, 0, W, H); g0.addColorStop(0, "#FFFFFF"); g0.addColorStop(1, rgba(melange(c, [255, 255, 255], 0.9), 1));
@@ -97,10 +113,7 @@ function fond(ctx, W, H, t, c, u) {
       const px = W * (x + Math.sin(t * 0.35 + i * 2) * 0.05), py = H * (y + Math.cos(t * 0.3 + i) * 0.04), R = Math.max(W, H) * r;
       const rg = ctx.createRadialGradient(px, py, 0, px, py, R); rg.addColorStop(0, rgba(col, a)); rg.addColorStop(1, rgba(col, 0)); ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
     });
-    ctx.strokeStyle = "rgba(15,23,42,0.04)"; ctx.lineWidth = 1.5 * u; const pas0 = 90 * u, dec0 = (t * 18 * u) % pas0; ctx.beginPath();
-    for (let x = -pas0 + dec0; x < W; x += pas0) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
-    for (let y = -pas0 + dec0; y < H; y += pas0) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
-    ctx.stroke(); return;
+    motif(ctx, W, H, t, u, "rgba(15,23,42,0.05)"); return;
   }
   const g = ctx.createLinearGradient(0, 0, W, H);
   g.addColorStop(0, "#07070C"); g.addColorStop(1, rgba(melange(c, [7, 7, 12], 0.72), 1));
@@ -112,12 +125,8 @@ function fond(ctx, W, H, t, c, u) {
     const rg = ctx.createRadialGradient(px, py, 0, px, py, R); rg.addColorStop(0, rgba(col, a)); rg.addColorStop(1, rgba(col, 0));
     ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
   });
-  // Grille fine qui défile
-  ctx.strokeStyle = "rgba(255,255,255,0.045)"; ctx.lineWidth = 1.5 * u; const pas = 90 * u, dec = (t * 18 * u) % pas;
-  ctx.beginPath();
-  for (let x = -pas + dec; x < W; x += pas) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
-  for (let y = -pas + dec; y < H; y += pas) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
-  ctx.stroke();
+  // Motif fin qui défile (propre au SaaS)
+  motif(ctx, W, H, t, u, "rgba(255,255,255,0.05)");
 }
 
 function accroche(ctx, s) {
@@ -145,7 +154,11 @@ function logo(ctx, x, y, taille, c, nom, u) {
   const g = ctx.createLinearGradient(x - taille / 2, y - taille / 2, x + taille / 2, y + taille / 2);
   g.addColorStop(0, rgba(vive(c), 1)); g.addColorStop(1, rgba(c, 1));
   ctx.shadowColor = rgba(c, 0.6); ctx.shadowBlur = 60 * u;
-  ctx.fillStyle = g; rond(ctx, x - taille / 2, y - taille / 2, taille, taille, taille * 0.28); ctx.fill(); ctx.shadowBlur = 0;
+  ctx.fillStyle = g;
+  if (FORME === 1) { ctx.beginPath(); ctx.arc(x, y, taille / 2, 0, 7); }
+  else if (FORME === 2) { ctx.save(); ctx.translate(x, y); ctx.rotate(Math.PI / 4); rond(ctx, -taille * 0.36, -taille * 0.36, taille * 0.72, taille * 0.72, taille * 0.16); ctx.restore(); }
+  else rond(ctx, x - taille / 2, y - taille / 2, taille, taille, taille * 0.28);
+  ctx.fill(); ctx.shadowBlur = 0;
   ctx.fillStyle = "#fff"; ctx.font = `800 ${taille * 0.5}px ${POLICE}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.fillText(String(nom || "?").trim().charAt(0).toUpperCase(), x, y + taille * 0.03);
 }
@@ -288,12 +301,17 @@ function appel(ctx, s) {
 }
 
 /** Charge la police avant de dessiner (sinon le canvas prend la police par défaut). */
-export async function preparerPolice() {
-  try { await Promise.all(["800", "700", "600"].map((p) => document.fonts.load(`${p} 60px "Plus Jakarta Sans"`))); } catch { /* police de secours */ }
+export async function preparerPolice(police = "Plus Jakarta Sans") {
+  // La police du SaaS (celle de son application), chargée depuis Google Fonts si besoin
+  try {
+    const id = `police-video-${police.replace(/\W/g, "")}`;
+    if (police !== "Plus Jakarta Sans" && !document.getElementById(id)) { const l = document.createElement("link"); l.id = id; l.rel = "stylesheet"; l.href = `https://fonts.googleapis.com/css2?family=${police.replace(/ /g, "+")}:wght@600;700;800&display=swap`; document.head.appendChild(l); }
+    await Promise.all(["800", "700", "600"].map((p) => document.fonts.load(`${p} 60px "${police}"`)));
+  } catch { /* police de secours */ }
 }
 
 /** Enregistre la vidéo complète (temps réel), avec la musique choisie ; renvoie { blob, ext }. */
-export async function exporterVideo(canvas, dessinerA, onProgres, musique = null) {
+export async function exporterVideo(canvas, dessinerA, onProgres, musique = null, graine = 0) {
   const avecSon = !!musique;
   const types = avecSon
     ? ["video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4;codecs=avc1,mp4a.40.2", "video/mp4;codecs=avc1,opus", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"]
@@ -307,7 +325,7 @@ export async function exporterVideo(canvas, dessinerA, onProgres, musique = null
     const { jouerMusique } = await import("./musiqueVideo.js");
     ac = new (window.AudioContext || window.webkitAudioContext)();
     const dest = ac.createMediaStreamDestination();
-    jouerMusique(ac, dest, musique, DUREE + 0.2, ac.currentTime + 0.02);
+    jouerMusique(ac, dest, musique, DUREE + 0.2, ac.currentTime + 0.02, graine);
     flux = new MediaStream([...image.getVideoTracks(), ...dest.stream.getAudioTracks()]);
   }
   const rec = new MediaRecorder(flux, { mimeType: type, videoBitsPerSecond: 8_000_000, ...(avecSon ? { audioBitsPerSecond: 160_000 } : {}) });

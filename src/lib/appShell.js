@@ -695,8 +695,9 @@ function Capture() {
     if (!E) { try { parent.postMessage({ type: "bingoo-capture-fin", slug: B.slug }, "*"); } catch (x) {} return; }
     const t = setTimeout(async () => {
       try {
-        const { toPng } = await import("https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/+esm");
-        const png = await toPng(document.getElementById("cap"), { pixelRatio: 1, width: 1280, height: 800, skipFonts: true, backgroundColor: "#F8FAFC" });
+        // Image vectorielle (SVG) : la page Bingoo! la dessine dans la vidéo (le rendu en PNG ne se termine pas dans un cadre isolé)
+        const { toSvg } = await import("https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/+esm");
+        const png = await Promise.race([toSvg(document.getElementById("cap"), { width: 1280, height: 800, skipFonts: true, backgroundColor: "#F8FAFC" }), new Promise((_, non) => setTimeout(() => non(new Error("Capture trop longue")), 10000))]);
         parent.postMessage({ type: "bingoo-capture", slug: B.slug, id: E.id, png }, "*");
       } catch (x) { try { parent.postMessage({ type: "bingoo-capture", slug: B.slug, id: E.id, erreur: String(x?.message ?? x).slice(0, 200) }, "*"); } catch (y) {} }
       setI(i + 1);
