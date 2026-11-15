@@ -99,7 +99,7 @@ export function premiersClients(s, a, r) {
 }
 
 // Une semaine pour tes 10 premiers clients : un jour = une étape, des quantités adaptées au temps dont la personne dispose
-export function semaineClients(s, a, r) {
+export function semaineClients(s, a, r, cb) {
   const peu = r?.temps === "peu";
   const refus = new Set(r?.refus ?? []);
   const n = (beaucoup, un_peu) => (peu ? un_peu : beaucoup);
@@ -108,6 +108,23 @@ export function semaineClients(s, a, r) {
   const contacter = refus.has("appeler")
     ? (k) => `Publie ton message dans ${k} groupes ou forums où ${a.type === "metier" ? `se retrouvent ${cible}` : "se trouve ta cible"}, et réponds à chaque commentaire dans l'heure.`
     : (k, encore) => `Envoie ton message à ${k} ${encore ? "autres " : ""}personnes de ta liste, personnalisé avec leur prénom et un détail sur eux.`;
+  // Cibles précises (onglet « Qui démarcher ») : le plan les nomme, jour par jour
+  const [c0, c1] = cb?.cibles ?? [];
+  if (c0) {
+    const c1b = c1 ?? c0;
+    const viser = (c, k) => refus.has("appeler")
+      ? `Publie ton message dans ${k} groupes ou forums où se retrouvent ${c.qui}${cb.reseaux?.length ? ` (par exemple ${cb.reseaux.slice(0, 2).map((x) => x.nom).join(", ")})` : ""}, et réponds à chaque commentaire dans l'heure.`
+      : `Envoie ton message à ${k} de ${c.qui}, personnalisé avec leur prénom. Commence par : « ${c.accroche} »`;
+    return [
+      { j: "Jour 1", titre: "Ta liste", actions: [`Vérifie que ta version est en ligne et fais un paiement test : tout doit marcher avant le premier message.`, `Fais ta liste de ${n(40, 25)} ${c0.qui}${c0.ou?.[0] ? ` : ${c0.ou[0].texte.replace(/\.$/, "")}` : ""}. Les recherches toutes prêtes sont dans « Qui démarcher ».`, ...(c1 ? [`Ajoute ${n(20, 10)} ${c1.qui}.`] : [])] },
+      { j: "Jour 2", titre: "Ton offre", actions: [`Choisis ton offre de lancement : un mois gratuit, puis −30 % à vie pour les 10 premiers.`, `Prépare tes messages dans l'onglet « Quoi leur dire » : remplace les crochets par tes mots.`] },
+      { j: "Jour 3", titre: "Premiers contacts", actions: [viser(c0, n(15, 8)), "Note chaque contact dans « Tes prospects »."] },
+      { j: "Jour 4", titre: "Deuxième vague", actions: [viser(c1b, n(15, 8)), "Réponds à tous ceux qui ont répondu, même les « non merci » : demande-leur pourquoi."] },
+      { j: "Jour 5", titre: "Montre-le", actions: [refus.has("video") ? "Envoie 3 captures d'écran qui montrent le résultat à ceux qui sont intéressés." : "Fais une démo de 10 minutes (visio ou vidéo enregistrée) à ceux qui sont intéressés.", refus.has("appeler") ? "Relance par écrit ceux qui n'ont pas répondu, une seule fois." : "Relance une seule fois ceux qui n'ont pas répondu."] },
+      { j: "Jour 6", titre: "Ouvre les essais", actions: ["Donne l'accès à tous ceux qui ont dit oui, et aide chacun à faire sa première action dans l'outil.", cb.reseaux?.[0] ? `Pendant ce temps, prends contact avec ${cb.reseaux[0].nom} : ${cb.reseaux[0].comment.replace(/\.$/, "")}.` : "Note ce qui les bloque : c'est ta liste d'améliorations."] },
+      { j: "Jour 7", titre: "Tes 10 premiers", actions: ["Demande à chaque personne en essai si elle veut garder l'outil, avec ton offre des 10 premiers.", "Fais le point : combien de contacts, de oui, d'essais, de payants. Garde la cible qui a le mieux répondu pour la semaine suivante."] },
+    ];
+  }
   return [
     { j: "Jour 1", titre: "Ta liste", actions: [`Vérifie que ta version est en ligne et fais un paiement test : tout doit marcher avant le premier message.`, a.type === "metier" ? `Ouvre l'onglet « Tes prospects » : Bingoo! te sort jusqu'à 50 ${a.metier.toLowerCase()} de ton département. Garde les ${n(40, 25)} qui te parlent le plus.` : `Note ${n(50, 30)} personnes ou entreprises ${source}, avec leur e-mail ou leur profil (ou ouvre « Tes prospects » si Bingoo! peut les trouver pour toi).`] },
     { j: "Jour 2", titre: "Ton offre", actions: [`Choisis ton offre de lancement : un mois gratuit, puis −30 % à vie pour les 10 premiers.`, `Prépare tes messages dans l'onglet « Quoi leur dire » : remplace les crochets par tes mots.`] },

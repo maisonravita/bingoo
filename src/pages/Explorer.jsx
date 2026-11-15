@@ -3253,6 +3253,50 @@ function Paquet({ res, r }) {
 // Tes 10 premiers clients : la semaine à cocher, les prospects trouvés par Bingoo! (registre public des entreprises)
 // avec leur suivi enregistré dans Bingoo!, les messages prêts à copier et les autres endroits où chercher
 const ETATS = [["", "À contacter"], ["contacte", "Contacté"], ["repondu", "A répondu"], ["essai", "En essai"], ["payant", "Payant"], ["non", "Pas intéressé"]];
+// Liens de recherche prêts : la personne n'a qu'à cliquer (sa ville ajoutée quand la recherche est locale)
+const OU = {
+  maps: ["Google Maps", (q, v) => `https://www.google.com/maps/search/${encodeURIComponent([q, v].filter(Boolean).join(" "))}`],
+  pagesjaunes: ["Pages Jaunes", (q, v) => `https://www.pagesjaunes.fr/annuaire/chercherlespros?quoiqui=${encodeURIComponent(q)}&ou=${encodeURIComponent(v || "France")}`],
+  google: ["Google", (q) => `https://www.google.com/search?q=${encodeURIComponent(q)}`],
+  linkedin: ["LinkedIn", (q, v) => `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent([q, v].filter(Boolean).join(" "))}`],
+  facebook: ["Groupes Facebook", (q) => `https://www.facebook.com/search/groups/?q=${encodeURIComponent(q)}`],
+  instagram: ["Instagram", (q) => `https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(q)}`],
+};
+function QuiDemarcher({ cb, busy, ville, majVille, refaire, copier, copie }) {
+  if (!cb) return <div className="py-10 grid place-items-center text-center"><Spinner /><p className="mt-3 text-[13.5px] text-ink-soft">{busy ? "Bingoo! prépare qui démarcher pour ton SaaS…" : "Tes cibles n'ont pas pu être préparées."}</p>{!busy && <button onClick={refaire} className="mt-3 rounded-xl border border-line px-4 py-2 text-[13.5px] font-semibold hover:border-ink">Réessayer</button>}</div>;
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex-1 min-w-[240px]">
+          {cb.commencer && <p className="text-[15px]"><b>Par où commencer :</b> {cb.commencer}</p>}
+          {cb.eviter && <p className="mt-1 text-[13.5px] text-ink-soft"><b>À éviter au début :</b> {cb.eviter}</p>}
+        </div>
+        <label className="text-[13px] text-ink-soft">Ta ville (pour les recherches locales)<input value={ville} onChange={(e) => majVille(e.target.value)} placeholder="ex. Lyon" className="mt-1 block w-48 rounded-xl border border-line bg-white px-3 py-2 text-[14px] text-ink" /></label>
+      </div>
+      <div className="grid lg:grid-cols-3 gap-3">
+        {cb.cibles.map((c, i) => (
+          <div key={i} className={cx("rounded-2xl border p-4 flex flex-col", i === 0 ? "border-accent bg-accent-soft/30" : "border-line bg-white")}>
+            <p className="text-[11.5px] font-bold uppercase tracking-wide text-accent-dark">{i === 0 ? "Cible n°1 · la plus facile" : `Cible n°${i + 1}`}</p>
+            <p className="mt-1 text-[17px] font-black leading-snug" style={HF}>{c.qui.charAt(0).toUpperCase() + c.qui.slice(1)}</p>
+            {c.combien && <p className="text-[12.5px] text-ink-faint">{c.combien}</p>}
+            <p className="mt-2 text-[13.5px] text-ink-soft">{c.pourquoi}</p>
+            <p className="mt-3 text-[12px] font-semibold text-ink-faint">OÙ LES TROUVER</p>
+            <ul className="mt-1 space-y-1.5">{c.ou.map((o, k) => { const [nom, url] = OU[o.type] ?? OU.google; return <li key={k} className="text-[13px]"><a href={url(o.recherche, ville.trim())} target="_blank" rel="noopener noreferrer" className="font-semibold text-accent-dark underline">{nom} : « {o.recherche}{["maps", "pagesjaunes", "linkedin"].includes(o.type) && ville.trim() ? ` ${ville.trim()}` : ""} » ↗</a><span className="block text-ink-soft">{o.texte}</span></li>; })}</ul>
+            {c.accroche && <div className="mt-auto pt-3"><p className="text-[12px] font-semibold text-ink-faint">TA PREMIÈRE PHRASE</p><p className="mt-1 rounded-xl bg-paper px-3 py-2 text-[13.5px]">« {c.accroche} »</p><button onClick={() => copier(c.accroche, `acc${i}`)} className="mt-1.5 text-[12.5px] font-semibold underline">{copie === `acc${i}` ? "Copié ✓" : "Copier"}</button></div>}
+          </div>
+        ))}
+      </div>
+      {cb.reseaux?.length > 0 && (
+        <div className="rounded-2xl border border-line bg-white p-4">
+          <p className="font-bold text-[15px]">Les réseaux du métier</p>
+          <ul className="mt-2 grid sm:grid-cols-2 gap-2">{cb.reseaux.map((x, i) => <li key={i} className="text-[13.5px]"><a href={OU.google[1](x.nom)} target="_blank" rel="noopener noreferrer" className="font-semibold underline">{x.nom} ↗</a><span className="text-ink-faint"> · {x.type}</span><span className="block text-ink-soft">{x.comment}</span></li>)}</ul>
+        </div>
+      )}
+      <p className="text-[12px] text-ink-faint">Préparé par Bingoo! pour ton SaaS. Vérifie les noms avant de les citer. <button onClick={refaire} disabled={busy} className="underline disabled:opacity-50">{busy ? "En cours…" : "Proposer d'autres cibles"}</button></p>
+    </div>
+  );
+}
+
 export function PremiersClients({ s, a, r, app }) {
   const { ws } = useWs();
   const toast = useToast();
@@ -3265,8 +3309,19 @@ export function PremiersClients({ s, a, r, app }) {
   const [budget, setBudget] = useState(() => { try { return localStorage.getItem("bingoo-budget") ?? ((r?.refus ?? []).includes("pub") ? "zero" : "zero"); } catch { return "zero"; } });
   const choisirBudget = (b) => { setBudget(b); try { localStorage.setItem("bingoo-budget", b); } catch { /* stockage indisponible */ } };
   const meth = methodesAcquisition(s, a, r, app, budget);
-  const [onglet, setOnglet] = useState("semaine");
-  const semaine = semaineClients(s, a, r);
+  const [onglet, setOnglet] = useState("qui");
+  // Qui démarcher : préparé une fois pour ce SaaS (cibles, où les trouver, quoi leur dire), avec les liens de recherche sur ta ville
+  const [cb, setCb] = useState(null);
+  const [cbBusy, setCbBusy] = useState(false);
+  const [ville, setVille] = useState(() => { try { return localStorage.getItem("bingoo-ville") ?? ""; } catch { return ""; } });
+  const majVille = (v) => { setVille(v); try { localStorage.setItem("bingoo-ville", v); } catch { /* stockage indisponible */ } };
+  const chargerCibles = async (refaire = false) => {
+    setCbBusy(true);
+    try { setCb(await fn("r/saas-cibles", { workspace_id: ws.id, domaine: s.domaine, angle: a.brief, ...(refaire ? { refaire: true } : {}) })); }
+    catch (err) { toast(err.message, "bad"); } finally { setCbBusy(false); }
+  };
+  useEffect(() => { setCb(null); chargerCibles(); }, [s.domaine, ws.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const semaine = semaineClients(s, a, r, cb);
   const cleJ = `bingoo-semaine-${s.domaine}`;
   const [faits, setFaits] = useState(() => { try { return JSON.parse(localStorage.getItem(cleJ) ?? "[]"); } catch { return []; } });
   useEffect(() => { try { setFaits(JSON.parse(localStorage.getItem(cleJ) ?? "[]")); } catch { setFaits([]); } }, [cleJ]);
@@ -3326,9 +3381,10 @@ export function PremiersClients({ s, a, r, app }) {
         <div className="text-right"><p className="text-[28px] font-black tnum leading-none" style={HF}>{payants}<span className="text-ink-faint text-[18px]"> / 10</span></p><p className="text-[12px] text-ink-faint">clients payants</p></div>
       </div>
       <div className="px-5 sm:px-7 pt-4 flex gap-4 overflow-x-auto border-b border-line text-[14px]">
-        {[["semaine", `Ta semaine (${faits.length}/7)`], ["methodes", "Les méthodes"], ["prospects", `Tes prospects${pros?.length ? ` (${contactes}/${pros.length})` : ""}${nRelance ? ` · ${nRelance} à relancer` : ""}`], ["dire", "Quoi leur dire"], ...(kit ? [["groupes", "Groupes et réseaux"]] : []), ["ou", "Où chercher encore"]].map(([k, l]) => <button key={k} onClick={() => setOnglet(k)} className={cx("shrink-0 pb-2.5 -mb-px border-b-2 font-semibold whitespace-nowrap", onglet === k ? "border-accent text-ink" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
+        {[["qui", "Qui démarcher"], ["semaine", `Ta semaine (${faits.length}/7)`], ["methodes", "Les méthodes"], ["prospects", `Tes prospects${pros?.length ? ` (${contactes}/${pros.length})` : ""}${nRelance ? ` · ${nRelance} à relancer` : ""}`], ["dire", "Quoi leur dire"], ...(kit ? [["groupes", "Groupes et réseaux"]] : []), ["ou", "Où chercher encore"]].map(([k, l]) => <button key={k} onClick={() => setOnglet(k)} className={cx("shrink-0 pb-2.5 -mb-px border-b-2 font-semibold whitespace-nowrap", onglet === k ? "border-accent text-ink" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
       </div>
       <div className="px-5 sm:px-7 py-5">
+        {onglet === "qui" && <QuiDemarcher cb={cb} busy={cbBusy} ville={ville} majVille={majVille} refaire={() => chargerCibles(true)} copier={copier} copie={copie} />}
         {onglet === "semaine" && lanc !== undefined && (
           <div className="mb-4 rounded-2xl bg-paper border border-line p-4 flex flex-wrap items-center gap-3">
             {!lanc ? (

@@ -1,0 +1,1 @@
+-- Appliquée via MCP : table saas_cibles (workspace_id, domaine, data, at) : « Qui démarcher » préparé par r/saas-cibles, lisible par les membres.

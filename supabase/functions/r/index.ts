@@ -60,6 +60,56 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   },
   // Explorer : les chiffres d'un SaaS à partir de son adresse (sans IA : base Bingoo!, puis sa fiche TrustMRR lue à la demande)
   // Tes premiers prospects : établissements du métier visé dans un département, tirés du registre public (gratuit, sans IA)
+  // Qui démarcher pour ses 10 premiers clients : cibles précises du SaaS construit (ou à construire), où les trouver, quoi leur dire.
+  // Une fois par SaaS (gardé), refait sur demande.
+  async "saas-cibles"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const domaine = String(b.domaine ?? "").toLowerCase().slice(0, 120);
+    if (!domaine) throw new HttpError(400, "SaaS manquant");
+    if (!b.refaire) {
+      const { data: deja } = await admin.from("saas_cibles").select("data").eq("workspace_id", ws.id).eq("domaine", domaine).maybeSingle();
+      if (deja) return deja.data;
+    } else await quota(ws.id, "saas_cibles", 10);
+    const { data: prs } = await admin.from("saas_projets").select("id, data").eq("workspace_id", ws.id).eq("data->inspire->>domaine", domaine).eq("statut", "pret").order("at", { ascending: false }).limit(1);
+    const p = (prs?.[0]?.data ?? null) as any;
+    const { data: app } = prs?.[0] ? await admin.from("saas_apps").select("spec").eq("projet_id", prs[0].id).maybeSingle() : { data: null };
+    const sp = (app?.spec ?? {}) as any;
+    const { data: src } = await admin.from("saas").select("nom, description, categorie, cible, pays").eq("domaine", domaine).maybeSingle();
+    const quoi = p
+      ? `« ${p.nom} » : ${sp.pitch ?? p.pitch}\nPour : ${sp.cible_courte ?? ""} ${p.cible ?? ""}\nProblème réglé : ${p.probleme ?? ""}\nÉcrans : ${(sp.ecrans ?? []).map((e: any) => e.titre).join(", ")}\nPrix : ${(sp.formules ?? p.formules ?? []).map((f: any) => `${f.nom} ${f.prix} €/mois`).join(", ")}`
+      : `Une version française de ${src?.nom ?? domaine} (${src?.categorie ?? ""}) : ${src?.description ?? ""}${b.angle ? `\nAngle : ${String(b.angle).slice(0, 300)}` : ""}`;
+    const { askJson } = await import("../_shared/core.ts");
+    const r = await askJson<any>(`Tu aides un fondateur débutant, en France, qui ne connaît rien à la vente, à trouver ses 10 premiers clients payants pour son logiciel :
+${quoi}
+
+Dis-lui précisément QUI démarcher, OÙ les trouver et QUOI leur dire. Concret, en français simple, à la 2e personne (tu). Rends un objet JSON :
+{
+ "cibles": 3 objets, de la plus facile à convaincre à la plus difficile : {
+   "qui": "un segment précis et trouvable (ex. « les kinés libéraux qui exercent seuls », « les salons de toilettage d'1 à 3 personnes »), 12 mots au plus",
+   "pourquoi": "pourquoi eux diraient oui en premier, une phrase",
+   "combien": "ordre de grandeur en France s'il est connu et sûr, sinon chaîne vide",
+   "ou": 2 à 4 objets { "type": "maps|pagesjaunes|google|linkedin|facebook|instagram", "recherche": "les mots exacts à taper (sans la ville)", "texte": "quoi faire là, une phrase" },
+   "accroche": "la première phrase du message à leur envoyer, avec leurs mots, sans nom de concurrent"
+ },
+ "reseaux": 0 à 4 objets { "nom": "association, syndicat, salon, média ou communauté RÉELLE et connue de cette cible en France", "type": "association|syndicat|salon|media|groupe", "comment": "comment t'en servir, une phrase" } — seulement ceux dont tu es sûr qu'ils existent ; sinon une liste vide,
+ "commencer": "par qui commencer cette semaine et pourquoi, une phrase",
+ "eviter": "qui ne pas démarcher au début et pourquoi, une phrase"
+}
+Aucun chiffre de revenu promis. Pas de lien : seulement les mots à chercher.`, { fast: true, maxTokens: 1800 });
+    const types = new Set(["maps", "pagesjaunes", "google", "linkedin", "facebook", "instagram"]);
+    const court = (x: unknown, n: number) => String(x ?? "").trim().slice(0, n);
+    const data = {
+      cibles: (Array.isArray(r?.cibles) ? r.cibles : []).slice(0, 3).map((c: any) => ({
+        qui: court(c.qui, 120), pourquoi: court(c.pourquoi, 220), combien: court(c.combien, 60), accroche: court(c.accroche, 260),
+        ou: (Array.isArray(c.ou) ? c.ou : []).filter((o: any) => types.has(o?.type) && o?.recherche).slice(0, 4).map((o: any) => ({ type: o.type, recherche: court(o.recherche, 80), texte: court(o.texte, 200) })),
+      })).filter((c: any) => c.qui),
+      reseaux: (Array.isArray(r?.reseaux) ? r.reseaux : []).slice(0, 4).map((x: any) => ({ nom: court(x.nom, 90), type: court(x.type, 20), comment: court(x.comment, 200) })).filter((x: any) => x.nom),
+      commencer: court(r?.commencer, 260), eviter: court(r?.eviter, 260),
+    };
+    if (!data.cibles.length) throw new HttpError(502, "Bingoo! n'a pas pu préparer tes cibles, réessaie dans un instant");
+    await admin.from("saas_cibles").upsert({ workspace_id: ws.id, domaine, data, at: new Date().toISOString() });
+    return data;
+  },
   async "saas-prospects"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const { data: payant } = await admin.rpc("saas_paye_ws", { p_ws: ws.id });
