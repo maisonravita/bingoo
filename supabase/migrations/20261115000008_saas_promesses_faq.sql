@@ -1,0 +1,1 @@
+-- Appliquée via MCP : saas_promesses_tenues filtre aussi spec.faq (questions dont la réponse promet une capacité absente).

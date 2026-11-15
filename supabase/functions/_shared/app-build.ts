@@ -112,7 +112,11 @@ Pour : ${p.cible}
 Besoin : ${p.probleme}
 Fonctionnalités (équivalentes à ${p.inspire?.nom ?? "un SaaS qui marche"}) : ${(p.equivalences ?? []).map((x: any) => x.chez_toi).join(" ; ")}
 MVP dans l'ordre : ${(p.mvp ?? []).map((m: any) => m.fonction).join(" ; ")}
-
+${p.scan?.modules?.length ? `Fiche produit de ${p.inspire?.nom ?? "l'original"} (à égaler, avec nos mots) — modules : ${p.scan.modules.map((m: any) => `${m.nom} (${m.fait} ; données : ${(m.donnees ?? []).join(", ")} ; étapes : ${(m.etapes ?? []).join(" → ")})`).join(" | ")}
+Parcours d'un nouveau client : ${(p.scan.parcours ?? []).join(" → ")}
+${p.scan.formules ? `Logique des formules : ${p.scan.formules}\n` : ""}Vocabulaire du métier : ${(p.scan.vocabulaire ?? []).join(", ")}
+Les écrans reprennent les modules les plus importants de cette fiche (un écran par module, mêmes données, même parcours), avec nos noms et nos mots.
+` : ""}
 Rends un objet JSON compact :
 - couleur : couleur de marque en hexadécimal (#xxxxxx), assez foncée pour du texte blanc dessus, PAS celle de ${p.inspire?.nom ?? "l'inspiration"}.
 - slogan : titre du site, 8 mots au plus, percutant ; cible_courte : 5 mots (« Pour les … »).
@@ -120,6 +124,7 @@ Rends un objet JSON compact :
 - formules : reprends EXACTEMENT ces formules (même nom, même prix, même « pour ») : ${JSON.stringify((p.formules ?? []).slice(0, 3).map((f: any) => ({ nom: f.nom, prix: f.prix, pour: f.pour })))}, avec pour chacune « inclus » : 3 à 5 avantages qui ne citent QUE ce que cette première version fait vraiment (ses écrans, ses pages publiques, l'IA texte, les e-mails, le paiement par carte, le nombre d'utilisateurs). Interdits : « dès disponible », API, images, vidéo, import de fichiers, chiffrement, modèle d'IA au choix, intégrations, application mobile, recherche web.
 - probleme_site : le problème des clients, en 2 phrases au plus, à la 2e personne ou sur « les » clients : AUCUN chiffre, AUCUN nom de logiciel, de marque ou de concurrent (ni le nôtre), aucune revendication de clients ou de succès.
 - atouts : 6 objets titre + texte (une phrase courte), tirés des fonctionnalités.
+- faq : 4 à 6 objets q + r : les questions que se posent les futurs clients avant d'acheter${p.scan?.objections?.length ? ` (inspire-toi de : ${p.scan.objections.map((o: any) => o.q).join(" ; ")})` : ""}, réponses honnêtes en 1 à 2 phrases avec nos mots, qui ne promettent que ce que fait cette version. Pas de question sur l'essai, l'engagement, la sécurité des données ni l'équipe (déjà présentes).
 - collections : 2 à 5 objets nom (snake_case, pluriel), label, champs : 4 à 8 objets nom (snake_case) + type (texte|nombre|montant|date|choix|booleen|email|telephone|lien) + valeurs (pour choix seulement). Les liens entre collections : un champ <collection>_id de type texte.
 - ecrans : 4 à 6 objets id (snake_case court), titre (2 mots au plus), icone (parmi ${ICONES.join(", ")}), but (une phrase), fonctions (3 à 5 éléments courts). Le premier écran est « Tableau de bord » (indicateurs et activité récente). Couvre le cœur du MVP ; pas d'écran de connexion, de paiement ni de réglages de compte (le gabarit les gère). L'application dispose d'une IA intégrée (rédiger, reformuler, résumer, analyser, générer un document) : si le SaaS d'origine repose sur l'IA, l'écran principal doit la faire fonctionner pour de vrai (saisie → résultat → sauvegarde dans une collection). Elle ne sait pas produire d'images, de vidéos ni de sons, ni se connecter à des services extérieurs. L'application sait aussi envoyer de vrais e-mails aux clients de l'utilisateur (tout de suite, planifiés ou répétés : confirmations, rappels, relances), générer des PDF (devis, factures, contrats), stocker des photos et fichiers, et publier un agenda abonnable : prévois les écrans qui s'en servent quand le SaaS d'origine le fait.
 - agenda : null, ou { collection, champ_date, champ_heure (ou null), duree (nombre de minutes, ou nom du champ de durée), champs_titre (1 à 2 champs) } si l'application gère des rendez-vous, des événements, des échéances ou des interventions datées : l'utilisateur pourra s'abonner à cet agenda depuis Google Agenda ou Outlook.
@@ -139,6 +144,7 @@ Collections : ${(s.collections ?? []).slice(0, 6).map((c: any) => `${c.nom} : ${
     ...(s.pitch_site ? { pitch: String(s.pitch_site).slice(0, 300) } : {}),
     ...(s.probleme_site ? { probleme: String(s.probleme_site).slice(0, 320) } : {}),
     atouts: (s.atouts ?? []).slice(0, 6),
+    faq: (Array.isArray(s.faq) ? s.faq : []).filter((x: any) => x?.q && x?.r).slice(0, 6).map((x: any) => ({ q: String(x.q).slice(0, 140), r: String(x.r).slice(0, 400) })),
     // Formules du site : avantages réécrits pour ne promettre que ce qui est construit (sinon celles du projet)
     formules: (Array.isArray(s.formules) && s.formules.length === Math.min(3, (p.formules ?? []).length) && s.formules.every((f: any) => f?.nom && Number.isFinite(Number(f.prix)) && Array.isArray(f.inclus) && f.inclus.length)
       ? s.formules.slice(0, 3).map((f: any) => ({ nom: String(f.nom).slice(0, 40), prix: Number(f.prix), pour: String(f.pour ?? "").slice(0, 120), inclus: f.inclus.slice(0, 5).map((x: unknown) => String(x).slice(0, 90)).filter((x: string) => !/dès disponible|api\b|chiffr|image|vidéo|import/i.test(x)) }))

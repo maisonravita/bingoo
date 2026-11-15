@@ -767,8 +767,40 @@ export async function saasLancer(wsId: string, domaine: string, projetId?: strin
   const interdit = await robots(site).catch(() => [] as string[]);
   const lirePage = async (u: string) => (u && autorise(interdit, u) ? textOf((await fetchHtml(u).catch(() => "")).slice(0, 400_000)) : "");
   const lien = (s.liens as Record<string, string> | null)?.prix ?? "";
-  const [txtAccueil, txtPrix] = await Promise.all([lirePage(site), s.prix_rendu ? Promise.resolve(String(s.prix_rendu)) : lirePage(lien)]);
+  // Scan profond : l'accueil, puis les pages qui décrivent le produit (fonctionnalités, tarifs, FAQ, aide, intégrations…)
+  const htmlAccueil = autorise(interdit, site) ? (await fetchHtml(site).catch(() => "")).slice(0, 400_000) : "";
+  const txtAccueil = textOf(htmlAccueil);
+  const MOTS = /feature|fonctionnalit|product|produit|pricing|tarif|prix|plans?\b|faq|help|aide|support|docs?\b|guide|how-it-works|comment|solution|use-case|cas-|integration|int[ée]gration|tour|demo|why|pourquoi|module/i;
+  const vus = new Set<string>(), candidats: { u: string; score: number }[] = [];
+  for (const m of htmlAccueil.matchAll(/href\s*=\s*["']([^"']+)["']/gi)) {
+    try {
+      const u = new URL(m[1], site);
+      if (u.hostname.replace(/^www\./, "") !== s.domaine.replace(/^www\./, "") || /\.(pdf|png|jpe?g|svg|zip)$/i.test(u.pathname)) continue;
+      const k = u.origin + u.pathname.replace(/\/$/, "");
+      if (vus.has(k) || k === site.replace(/\/$/, "")) continue;
+      vus.add(k);
+      const score = (MOTS.test(u.pathname) ? 10 : 0) - u.pathname.split("/").length - (/blog|news|article|career|job|legal|privacy|terms|cookie|login|signin|signup|register/i.test(u.pathname) ? 20 : 0);
+      if (score > 0) candidats.push({ u: k, score });
+    } catch { /* lien illisible */ }
+  }
+  const choisies = candidats.sort((a, b) => b.score - a.score).map((x) => x.u).filter((u) => u !== lien).slice(0, 7);
+  const [txtPrix, ...autres] = await Promise.all([s.prix_rendu ? Promise.resolve(String(s.prix_rendu)) : lirePage(lien), ...choisies.map((u) => lirePage(u).catch(() => ""))]);
   const pages = `${txtAccueil.slice(0, 5000)}\n---\n${txtPrix.slice(0, 4000)}`;
+  const toutes = [`ACCUEIL\n${txtAccueil.slice(0, 5000)}`, `TARIFS\n${txtPrix.slice(0, 4000)}`, ...autres.map((x, i) => x.trim() ? `${choisies[i]}\n${x.slice(0, 3500)}` : "").filter(Boolean)].join("\n---\n").slice(0, 30000);
+  // Fiche produit, avec nos mots : ce qu'il faut égaler (modules, données, parcours, logique des formules, objections)
+  setAi({ ws: wsId, feature: "explorer/lancer", live: true });
+  const scan = await askJson<any>(`Voici les pages publiques de ${s.nom} (${s.domaine}), un logiciel en ligne. Décris le PRODUIT pour qu'une petite équipe puisse construire un équivalent qui fait la même chose, avec SES PROPRES MOTS : ne recopie aucune phrase, aucun slogan, aucun nom de fonctionnalité déposé, aucun nom de marque.
+${toutes}
+
+Rends un objet JSON :
+{
+ "modules": 5 à 10 objets { "nom": "nom générique du module (2 à 4 mots)", "fait": "ce que l'utilisateur y fait, une phrase", "donnees": ["les informations manipulées (ex. client, date, montant, statut)"], "etapes": ["2 à 4 étapes du parcours dans ce module"] }, du plus important au moins important,
+ "parcours": ["4 à 6 étapes, de l'inscription au premier résultat utile"],
+ "formules": "ce qui change d'une formule à l'autre (limites, options, nombre d'utilisateurs), une à trois phrases ; chaîne vide si inconnu",
+ "objections": 4 à 6 objets { "q": "une question qu'un futur client se pose avant d'acheter ce type de logiciel", "r": "une réponse honnête, générique, 1 à 2 phrases" },
+ "vocabulaire": ["8 à 15 mots du métier des clients"],
+ "style": { "theme": "clair|sombre", "densite": "aere|dense", "ton": "3 mots" }
+}`, { fast: true, maxTokens: 3000 }).catch(() => null);
   const { data: h } = await admin.from("saas_histoires").select("annee_creation, chiffres, histoire, lecons").eq("saas_id", s.id).eq("statut", "ok").maybeSingle();
   const { data: conc } = await admin.from("saas").select("nom, pays, prix_entree_eur, gratuit, description").eq("statut", "ok").eq("categorie", s.categorie).neq("id", s.id).order("rang_web", { ascending: true, nullsFirst: false }).limit(12);
   const prixMarche = (conc ?? []).map((c) => c.prix_entree_eur).filter((v) => v != null && v > 0).sort((a, b) => a - b);
@@ -782,6 +814,7 @@ ${s.recrute ? `Il recrute (${s.postes ?? "?"} postes).` : ""} Canaux visibles su
 ${h ? `Chiffres publics : ${(h.chiffres ?? []).map((c: { texte: string }) => c.texte).join(" ; ").slice(0, 600)}. Ce qui l'a fait grandir : ${(h.lecons ?? []).join(" ; ")}` : ""}
 Texte de ses pages publiques (accueil puis tarifs), pour savoir exactement ce qu'il fait :
 ${pages}
+${scan?.modules?.length ? `Ses modules, lus sur ses autres pages (fonctionnalités, aide, FAQ) : ${scan.modules.map((m: any) => `${m.nom} : ${m.fait}`).join(" ; ")}.${scan.formules ? ` Logique de ses formules : ${scan.formules}` : ""}` : ""}
 Ses concurrents dans la base : ${(conc ?? []).map((c) => `${c.nom} (${c.pays ?? "?"}, ${c.prix_entree_eur != null ? `${c.prix_entree_eur} €` : "prix ?"}${c.gratuit ? ", gratuit" : ""})`).join(", ")}. Prix d'entrée médian du marché : ${mediane ?? "inconnu"} €/mois.
 
 Propose le SaaS concurrent à lancer en France par une petite équipe (1 à 3 personnes) : il fait la même chose que ${s.nom}, pour les mêmes clients.${angle ? `\nL'entrepreneur a choisi cet angle pour sa version, respecte-le dans le nom, la cible, les fonctionnalités et le prix : ${angle}` : ""}
@@ -831,7 +864,7 @@ hypotheses (prudentes : clients_mois_1 nombre de clients payants le premier mois
     `Comptes utilisateurs avec e-mail et mot de passe, abonnement mensuel avec les formules : ${(p.formules ?? []).map((f) => `${f.nom} à ${f.prix} € par mois (${(f.inclus ?? []).join(", ")})`).join(" ; ")}. Essai gratuit de 14 jours.`,
     `Ajoute une page d'accueil publique qui présente le produit et les prix, des mentions légales et une politique de confidentialité conformes au RGPD.`,
   ].join("\n");
-  const data = { ...p, construction, inspire: { nom: s.nom, domaine: s.domaine, categorie: s.categorie, prix: s.prix_entree_eur, usage: ["usage", "commission"].includes(s.modele_prix ?? "") ? s.prix_affiche : null }, marche: { mediane, prix: prixMarche, concurrents: (conc ?? []).length },
+  const data = { ...p, construction, ...(scan?.modules?.length ? { scan: { modules: scan.modules.slice(0, 10), parcours: (scan.parcours ?? []).slice(0, 6), formules: String(scan.formules ?? "").slice(0, 400), objections: (scan.objections ?? []).slice(0, 6), vocabulaire: (scan.vocabulaire ?? []).slice(0, 15), style: scan.style ?? null, pages: choisies.length + 2 } } : {}), inspire: { nom: s.nom, domaine: s.domaine, categorie: s.categorie, prix: s.prix_entree_eur, usage: ["usage", "commission"].includes(s.modele_prix ?? "") ? s.prix_affiche : null }, marche: { mediane, prix: prixMarche, concurrents: (conc ?? []).length },
     plan: { prix_moyen: prixMoyen, couts_fixes: couts, mois, equilibre: mois.find((x) => x.resultat > 0)?.mois ?? null } };
   if (projetId) { await admin.from("saas_projets").update({ data, statut: "pret" }).eq("id", projetId); return { id: projetId, ...data }; }
   const { data: row } = await admin.from("saas_projets").insert({ workspace_id: wsId, saas_id: s.id, data }).select("id").single();
