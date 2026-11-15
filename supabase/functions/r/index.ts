@@ -836,6 +836,7 @@ Réponds en JSON, une entrée par logiciel, avec sa référence exacte (R0, R1�
     }
     return { faits, ecartes };
   },
+  async "saas-trafic-maj"(req) { await cron(req); const { traficMaj } = await import("../_shared/saas-decouverte.ts"); return await traficMaj(); },
   async "saas-decouvrir-import"(req, b) { await cron(req); const { decouvrirImport } = await import("../_shared/saas-decouverte.ts"); return await decouvrirImport(Math.max(1, Number(b.debut ?? 1)), Math.min(1_000_001, Number(b.fin ?? 100_001))); },
   async "saas-succes-import"(req) { await cron(req); const { succesImport } = await import("../_shared/saas-decouverte.ts"); return await succesImport(); },
   async "trustmrr-plan"(req) { await cron(req); const { trustmrrPlan } = await import("../_shared/saas-decouverte.ts"); return await trustmrrPlan(); },

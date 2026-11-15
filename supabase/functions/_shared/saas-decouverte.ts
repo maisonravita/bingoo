@@ -353,3 +353,30 @@ export async function trustmrrPourDomaine(domaine: string) {
   await trustmrrPublier(1, d);
   return { trustmrr: true, slug: t.slug };
 }
+
+/** Trafic de la semaine : le classement Tranco du jour pour les SaaS de la base. Un écart fort (×1,5 ou plus, ou l'entrée /
+ *  la sortie des 500 000 premiers) devient un événement « trafic_hausse » / « trafic_baisse » pour la veille du lundi. */
+export async function traficMaj() {
+  const meta = await (await fetch("https://tranco-list.eu/api/lists/date/latest")).json();
+  const r = await fetch(`https://tranco-list.eu/download/${meta.list_id}/500000`);
+  if (!r.ok) throw new Error(`Tranco ${r.status}`);
+  const rang = new Map<string, number>();
+  for (const l of (await r.text()).split("\n")) { const [rg, d] = l.trim().split(","); if (d) rang.set(d.toLowerCase(), Number(rg)); }
+  let lus = 0, maj = 0, evts = 0;
+  for (let from = 0; ; from += 1000) {
+    const { data } = await admin.from("saas").select("id, domaine, rang_tranco").eq("statut", "ok").order("id").range(from, from + 999);
+    if (!data?.length) break;
+    lus += data.length;
+    const ev: { saas_id: string; type: string; avant: string; apres: string }[] = [];
+    for (const s of data as { id: string; domaine: string; rang_tranco: number | null }[]) {
+      const n = rang.get(s.domaine.replace(/^www\./, "")) ?? null, a = s.rang_tranco;
+      // Les petites variations quotidiennes ne comptent pas : seulement ±10 % ou l'entrée / la sortie du classement
+      if (n === a || (a && n && Math.max(a / n, n / a) < 1.1)) continue;
+      if (a && n ? Math.max(a / n, n / a) >= 1.5 : (a || n)) ev.push({ saas_id: s.id, type: !a || (n && n < a) ? "trafic_hausse" : "trafic_baisse", avant: a ? `N° ${a.toLocaleString("fr-FR")}` : "hors classement", apres: n ? `N° ${n.toLocaleString("fr-FR")}` : "hors classement" });
+      await admin.from("saas").update({ rang_tranco: n, ...(n ? { rang_web: n } : {}) }).eq("id", s.id);
+      maj++;
+    }
+    if (ev.length) { await admin.from("saas_evenements").insert(ev); evts += ev.length; }
+  }
+  return { liste: meta.list_id, lus, maj, evenements: evts };
+}

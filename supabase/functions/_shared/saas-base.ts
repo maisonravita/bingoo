@@ -315,6 +315,7 @@ const EV_TXT: Record<string, string> = {
   prix_hausse: "hausse de prix", prix_baisse: "baisse de prix", gratuit_ajoute: "lance une version gratuite", gratuit_retire: "retire sa version gratuite",
   essai_change: "change son essai gratuit", recrutement_hausse: "recrute davantage", recrutement_baisse: "recrute moins", recrute_debut: "commence à recruter",
   recrute_fin: "n'a plus d'offre d'emploi", nouveaute: "publie une nouveauté", nouveau_saas: "entre dans la base",
+  trafic_hausse: "gagne du trafic", trafic_baisse: "perd du trafic",
 };
 const escH = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 export async function saasAlertes(seulement?: string) {
