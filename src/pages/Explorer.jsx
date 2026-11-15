@@ -3180,6 +3180,7 @@ export function PremiersClients({ s, a, r, app }) {
                 <p className="mt-1 text-[13px] text-ink-soft">{meth.plusTard.map((m) => m.nom).join(" · ")}. Pas besoin d'y penser maintenant : ce que tu encaisses avec les méthodes gratuites financera ces tests.</p>
               </div>
             )}
+            {meth.refusees.length > 0 && <p className="mt-3 text-[13px] text-ink-soft">Mises de côté parce que tu as dit ne pas vouloir les faire : {meth.refusees.map((m) => m.nom.toLowerCase()).join(", ")}. Tu peux changer d'avis à tout moment dans ton parcours.</p>}
             <p className="mt-3 text-[12px] text-ink-faint">Aucune méthode ne garantit un résultat : teste, mesure avec tes liens suivis (?src=…), garde ce qui amène des inscrits.</p>
           </div>
         )}

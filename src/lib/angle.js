@@ -225,5 +225,6 @@ export function methodesAcquisition(s, a, r, app, budget) {
     ? `Sans un euro de pub, c'est possible : la plupart des SaaS trouvent leurs 10 premiers clients à la main. Concentre-toi sur 2 méthodes, pas plus, pendant 30 jours.${prix ? ` À ${prix} € par mois, tes premiers abonnés paieront ta future pub.` : ""}`
     : budget === "petit" ? "Garde 80 % de ton énergie sur les méthodes gratuites, et teste la pub en petit, 7 jours maximum, avant de dépenser plus."
       : "La pub accélère ce qui marche déjà, elle ne remplace pas un message qui convainc : teste d'abord ton message à la main, puis mets de l'argent derrière.";
-  return { pour, plusTard, conseil, modeleNom: s.nom };
+  const refusees = ok.filter((m) => m.refuse && m.cout <= plafond);
+  return { pour, plusTard, refusees, conseil, modeleNom: s.nom };
 }
