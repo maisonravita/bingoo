@@ -365,11 +365,23 @@ function Liste({ copier: copierPage = false }) {
 
 const METHODE = [["affiliation", "Programme d'affiliation"], ["integrations", "Intégrations / marketplace"], ["outils_gratuits", "Outils gratuits"], ["comparatifs", "Pages comparatifs / alternatives"], ["producthunt", "Product Hunt"], ["g2", "Fiche G2"], ["capterra", "Fiche Capterra"], ["linkedin", "LinkedIn"], ["youtube", "YouTube"], ["x", "X (Twitter)"]];
 
+// Le délai et le budget pour lancer sa version : à la main (ordre de grandeur, développeur indépendant) contre Bingoo!
+function LancerCout({ s, className }) {
+  const jours = s.copiable >= 60 ? 25 : s.copiable >= 30 ? 45 : 70;
+  const eur = (n) => `${Math.round(n / 1000).toLocaleString("fr-FR")} 000 €`;
+  return (
+    <div className={cx("grid sm:grid-cols-2 gap-3 max-w-2xl", className)}>
+      <div className="rounded-xl border border-line bg-white px-4 py-3"><p className="text-[12.5px] text-ink-faint">La faire développer</p><p className="mt-0.5 text-[18px] font-black" style={HF}>≈ {Math.round(jours / 5)} semaines · {eur(jours * 400)}</p><p className="text-[12px] text-ink-faint">Ordre de grandeur : un développeur indépendant à 400 € par jour, sans compter le site, les paiements et la mise en ligne.</p></div>
+      <div className="rounded-xl border-2 border-accent bg-accent-soft/40 px-4 py-3"><p className="text-[12.5px] text-accent-dark font-semibold">Avec Bingoo!</p><p className="mt-0.5 text-[18px] font-black" style={HF}>En ligne le jour même</p><p className="text-[12px] text-ink-soft">Ta version construite, ton site, les comptes de tes clients, l'abonnement avec ton Stripe : compris dans l'abonnement.</p></div>
+    </div>
+  );
+}
+
 // La fiche d'un SaaS sans abonnement : ses chiffres publics (revenu, trafic, prix), le reste réservé à l'abonnement
 function FicheApercu({ domaine }) {
   const nav = useNavigate();
   const [s, setS] = useState(undefined);
-  useEffect(() => { supabase.from("saas_liste").select("domaine, nom, categorie, description, pays, prix_entree_eur, sur_devis, gratuit, rang_web, succes, estimation").eq("domaine", domaine).maybeSingle().then(({ data }) => setS(data ?? null)); }, [domaine]);
+  useEffect(() => { supabase.from("saas_liste").select("domaine, nom, categorie, description, pays, prix_entree_eur, sur_devis, gratuit, rang_web, succes, estimation, copiable").eq("domaine", domaine).maybeSingle().then(({ data }) => setS(data ?? null)); }, [domaine]);
   if (s === undefined) return <div className="py-24 grid place-items-center"><Spinner /></div>;
   if (!s) return <div className="max-w-3xl mx-auto px-4 py-16 text-center text-ink-soft">Ce SaaS n'est pas dans Bingoo!. <button onClick={() => nav("/explorer")} className="underline">Retour à la liste</button></div>;
   const bloque = [["Ses fonctionnalités, écran par écran", "et ce que ta version reprendrait"], ["Ses prix et ses formules", "comparés aux concurrents"], ["Ses pubs et ses vidéos", "les angles qui lui amènent des clients"], ["Ses clients", "les entreprises qui l'utilisent, tes futurs prospects"], ["Sa croissance", "recrutements, nouveautés, évolution du trafic"], ["Lancer ta version", "Bingoo! la construit, la met en ligne et t'aide à vendre"]];
@@ -386,6 +398,8 @@ function FicheApercu({ domaine }) {
         <div className="rounded-2xl border border-line bg-white p-4"><p className="text-[12.5px] text-ink-faint">Trafic</p><p className="mt-1 text-[22px] font-black tnum" style={HF}>{s.rang_web ? `N° ${Number(s.rang_web).toLocaleString("fr-FR")}` : "faible"}</p><p className="text-[12px] text-ink-faint">{s.rang_web ? "classement mondial des sites" : "hors des 500 000 sites les plus visités"}</p></div>
         <div className="rounded-2xl border border-line bg-white p-4"><p className="text-[12.5px] text-ink-faint">Prix d'entrée</p><p className="mt-1 text-[22px] font-black tnum" style={HF}>{s.prix_entree_eur != null ? `${s.prix_entree_eur} €` : s.sur_devis ? "sur devis" : s.gratuit ? "gratuit" : "non affiché"}</p><p className="text-[12px] text-ink-faint">{s.prix_entree_eur != null ? "par mois" : ""}</p></div>
       </div>
+      <h2 className="mt-6 text-[17px] font-bold">Lancer ta version de {s.nom}</h2>
+      <LancerCout s={s} className="mt-2" />
       <section className="mt-5 rounded-3xl border border-line bg-white p-6">
         <h2 className="text-[20px] font-black" style={HF}>La fiche complète de {s.nom}</h2>
         <div className="mt-4 grid sm:grid-cols-2 gap-3">{bloque.map(([t, d]) => <div key={t} className="flex gap-3 rounded-xl bg-paper px-4 py-3"><span aria-hidden>🔒</span><div><p className="font-semibold text-[14.5px]">{t}</p><p className="text-[13px] text-ink-soft">{d}</p></div></div>)}</div>
@@ -457,6 +471,7 @@ function Fiche({ domaine }) {
               <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[12.5px] text-ink-soft">{(s.copiable_raisons ?? []).map((r) => /^En croissance \(/.test(r) ? (croissanceDe(s) > 0 ? `En croissance (${pct30(croissanceDe(s))} en 30 jours)` : null) : raisonFr(r)).filter(Boolean).map((r) => <li key={r}>{/Géant|Grosse|devis|Pas encore de revenu|très faible/.test(r) ? "–" : "✓"} {r}</li>)}</ul>
             </div>
           )}
+          <LancerCout s={s} className="mt-3" />
           {(s.succes?.fondateurs ?? []).length > 0 && (
             <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2"><span className="text-[12.5px] font-semibold text-ink-faint">Fondé par</span>{s.succes.fondateurs.map((f) => <Fondateur key={f.lien} f={f} grand />)}</div>
           )}
