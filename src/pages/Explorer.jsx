@@ -2569,7 +2569,7 @@ const SECTEURS = ["Marketing et SEO", "Réseaux sociaux et contenu", "IA et auto
 // Trouve ton SaaS : 5 questions, puis les SaaS au revenu vérifié qui collent à ta façon de vendre (données TrustMRR : canaux, cible, taille, équipe)
 // Les pays proposés en premier (les plus fréquents chez nos visiteurs) ; les autres se choisissent dans la liste
 const PAYS_RAPIDES = ["FR", "BE", "CH", "CA", "MA", "US", "GB", "ES"];
-const QUESTIONS = [
+const TOUTES_QUESTIONS = [
   { k: "continent", q: "Sur quel continent es-tu ?", aide: "Bingoo! part de ce qui marche déjà sur ton continent, et de ce qui marche ailleurs sans équivalent chez toi.", opts: [
     ["europe", "Europe", "France, Belgique, Suisse, Luxembourg…"], ["amerique_nord", "Amérique du Nord", "Canada, États-Unis"], ["afrique", "Afrique", "Maroc, Algérie, Tunisie, Sénégal, Côte d'Ivoire…"], ["moyen_orient", "Moyen-Orient", "Émirats, Liban, Arabie saoudite…"], ["amerique_latine", "Amérique latine", "Mexique, Brésil, Colombie…"], ["asie", "Asie", "Inde, Japon, Singapour…"], ["oceanie", "Océanie", "Australie, Nouvelle-Zélande"],
   ] },
@@ -2619,6 +2619,9 @@ const QUESTIONS = [
   ] },
   { k: "secteurs", multi: true, secteurs: true, q: "Des secteurs qui t'attirent ?", aide: "Aucun, c'est très bien aussi : Bingoo! cherche partout." },
 ];
+// Avant le paiement : 6 questions, celles qui changent la liste de SaaS (« 30 secondes »). Les autres affinent le plan après le paiement.
+const QUESTIONS = ["continent", "objectif", "audience", "temps", "canaux", "secteurs"].map((k) => TOUTES_QUESTIONS.find((q) => q.k === k));
+export const QUESTIONS_AFFINE = TOUTES_QUESTIONS.filter((q) => !QUESTIONS.includes(q));
 // Les icônes des réponses (traits simples, mêmes proportions que le reste de l'interface)
 const Coche = () => <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>;
 const tr = (d) => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{d}</svg>;
@@ -2684,7 +2687,7 @@ const CONTINENTS = { europe: "Europe", amerique_nord: "Amérique du Nord", afriq
 // Un refus ne peut pas contredire un canal choisi juste avant (« Payer de la publicité » des deux côtés)
 const REFUS_CONTRAIRE = { appeler: "prospection", pub: "pub", ecrire: "seo" };
 const optionsDe = (Q, r) => Q.k === "refus" ? Q.opts.filter(([v]) => !(r.canaux ?? []).includes(REFUS_CONTRAIRE[v])) : Q.opts;
-const QK = (k) => QUESTIONS.find((q) => q.k === k);
+const QK = (k) => TOUTES_QUESTIONS.find((q) => q.k === k);
 const lirePar = () => { try { return JSON.parse(localStorage.getItem("bingoo-parcours2") ?? "null"); } catch { return null; } };
 // Mode débutant : tant que le premier parcours n'est pas fini, un seul chemin guidé
 // Les personnes déjà venues avant ce mode ne le voient pas
@@ -2700,6 +2703,9 @@ export function TrouveTonSaas() {
   const [res, setRes] = useState(null);
   const [ap, setAp] = useState(null);
   const [planVu, setPlanVu] = useState(annule);
+  // L'écran « domaine » : combien de SaaS rentables par domaine et le revenu du n°1 (vrais chiffres de la base)
+  const [statsSect, setStatsSect] = useState(null);
+  useEffect(() => { supabase.rpc("saas_secteurs_stats").then(({ data }) => setStatsSect(data ?? {})); }, []);
   const retour = (() => { const Qc = QUESTIONS[r.etape]; if (Qc?.jauge) return commentaireObjectif(r.objectif ?? OBJ_DEFAUT)[1]; const v = Qc?.k ? r[Qc.k] : null; const m = Qc && RETOURS[Qc.k]; if (!m || v == null || Array.isArray(v)) return null; return typeof m === "function" ? m(v) : m[v] ?? null; })();
   const invite = estInvite(session);
   // Les 3 SaaS, le plan et le prompt se débloquent une fois le paiement reçu (le serveur n'envoie que le premier avant)
@@ -2746,7 +2752,8 @@ export function TrouveTonSaas() {
             <span className="fx-aurore h-[260px] w-[260px] bg-[#F6A06B] left-[8%] top-10" />
             <span className="fx-aurore h-[240px] w-[240px] bg-[#9B6BFF] right-[8%] top-40" style={{ animationDelay: "-6s" }} />
           </div>
-          <div className="relative z-[1] mx-auto max-w-2xl">
+          <div className="relative z-[1] mx-auto max-w-5xl lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-10 lg:items-start">
+          <div className="mx-auto w-full max-w-2xl">
             <div className="flex items-center justify-between gap-3 text-[13px] text-ink-faint">
               {r.etape > 0 ? <button onClick={() => setR({ ...r, etape: r.etape - 1 })} className="inline-flex items-center gap-1 font-semibold text-ink-soft hover:text-ink"><span aria-hidden>←</span> Retour</button> : <span />}
               <span className="tnum">Question {r.etape + 1} sur {QUESTIONS.length}</span>
@@ -2779,7 +2786,12 @@ export function TrouveTonSaas() {
               ) : Q.jauge ? (
                 <Jauge valeur={r.objectif ?? OBJ_DEFAUT} onChange={(v) => setR({ ...r, objectif: v })} />
               ) : Q.secteurs ? (
-                <div className="mt-8 flex flex-wrap justify-center gap-2">{SECTEURS.map((c) => <button key={c} type="button" onClick={() => basculer("secteurs", c)} className={cx("rounded-full border px-4 py-2 text-[14px] font-semibold transition", choisi("secteurs", c) ? "border-transparent bg-ink text-white ring-2 ring-accent/40" : "border-line bg-white/90 hover:border-ink-faint")}>{c}</button>)}</div>
+                <div className="mt-8 grid sm:grid-cols-2 gap-2.5">{SECTEURS.map((c) => { const st = statsSect?.[c]; const on = choisi("secteurs", c); return (
+                  <button key={c} type="button" onClick={() => basculer("secteurs", c)} className={cx("flex items-center gap-3 rounded-2xl border bg-white/90 px-4 py-3 text-left transition hover:-translate-y-0.5", on ? "border-transparent ring-2 ring-accent shadow-[0_18px_40px_-20px_rgba(224,83,31,.7)]" : "border-line hover:border-ink-faint")}>
+                    <span className="min-w-0 flex-1"><span className="block font-bold text-[15px]">{c}</span>
+                      <span className="block text-[12.5px] text-ink-soft">{st ? `${Number(st.n).toLocaleString("fr-FR")} SaaS rentables` : "…"}{st?.top ? <> · <b className="text-good">n°1 : {dollar(st.top)}/mois</b></> : ""}</span></span>
+                    <span className={cx("grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition", on ? "border-accent bg-accent text-white" : "border-line")}>{on && <Coche />}</span>
+                  </button>); })}</div>
               ) : (
                 <div className={cx("mt-8 grid gap-3", optionsDe(Q, r).length > 3 ? "sm:grid-cols-2" : "")}>{optionsDe(Q, r).map(([v, t, sous]) => {
                   const on = choisi(Q.k, v);
@@ -2799,7 +2811,9 @@ export function TrouveTonSaas() {
               className="fx-brille mt-8 w-full rounded-2xl bg-accent py-4 text-[16.5px] font-bold text-white shadow-[0_18px_40px_-18px_rgba(224,83,31,.8)] transition hover:bg-accent-dark disabled:opacity-40 disabled:shadow-none">
               {Q.multi ? (r.etape === QUESTIONS.length - 1 ? (r.secteurs.length ? "Voir mes SaaS" : "Peu importe, cherche partout") : r[Q.k].length ? "Continuer" : Q.aucun ?? "Passer") : "Continuer"}
             </button>
-            {r.etape === 0 && <p className="mt-2 text-center text-[12.5px] text-ink-faint">Tes résultats complets avec un abonnement, sans engagement.</p>}
+            {r.etape === 0 && <p className="mt-2 text-center text-[12.5px] text-ink-faint">6 questions, 30 secondes. Tes résultats complets avec un abonnement, sans engagement.</p>}
+          </div>
+          <PanneauDirect ap={ap} r={r} />
           </div>
         </div>
       ) : (
@@ -2821,6 +2835,20 @@ export function TrouveTonSaas() {
         </div>
       )}
     </div>
+  );
+}
+// À droite des questions : la recherche qui se resserre en direct (vrais chiffres de la base, recalculés à chaque réponse)
+function PanneauDirect({ ap, r }) {
+  const filtres = [r.continent && CONTINENTS[r.continent], r.objectif && `${Number(r.objectif).toLocaleString("fr-FR")} €/mois`, r.audience === "B2B" ? "pros" : r.audience === "B2C" ? "particuliers" : null, ...(r.secteurs ?? [])].filter(Boolean);
+  return (
+    <aside className="hidden lg:block sticky top-24 mt-16 rounded-3xl border border-line bg-white/95 p-5 shadow-[0_30px_60px_-40px_rgba(21,23,42,.5)] backdrop-blur" aria-live="polite">
+      <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-paper px-3 py-2 text-[12.5px]"><span aria-hidden>🔍</span>{filtres.length ? filtres.map((f) => <span key={f} className="rounded-md bg-accent-soft px-1.5 py-0.5 font-semibold text-accent-dark">{f}</span>) : <span className="text-ink-faint">Bingoo! analyse le marché…</span>}</div>
+      <p className="mt-4 text-[40px] font-black leading-none tnum" style={HF}>{ap ? Number(ap.n ?? 0).toLocaleString("fr-FR") : "…"}</p>
+      <p className="mt-1 text-[13.5px] text-ink-soft">SaaS au revenu vérifié collent à tes réponses, et Bingoo! sait construire ta version de chacun.</p>
+      {ap?.mediane ? <p className="mt-3 rounded-xl bg-paper px-3 py-2 text-[13px]">Revenu médian : <b className="tnum">{dollar(ap.mediane)}</b> par mois</p> : null}
+      {ap?.exemple?.mrr ? <div className="mt-2 rounded-xl border border-line px-3 py-2.5"><p className="text-[11px] font-bold uppercase tracking-wide text-ink-faint">Meilleur résultat</p><p className="mt-0.5 text-[15px] font-black tnum" style={HF}>{dollar(ap.exemple.mrr)} <span className="text-[12px] font-normal text-ink-faint">par mois</span></p>{ap.exemple.croissance ? <p className="text-[12px] text-good">{pct30(ap.exemple.croissance)} en 30 jours</p> : null}<p className="mt-1 flex items-center gap-1 text-[12px] text-ink-faint"><Cadenas />Son nom à la fin</p></div> : null}
+      <p className="mt-3 flex items-center gap-1.5 text-[12px] text-ink-faint"><span className="h-1.5 w-1.5 rounded-full bg-good" />Données mises à jour aujourd'hui</p>
+    </aside>
   );
 }
 // Pendant les questions : de vrais chiffres de la base, recalculés à chaque réponse (rien d'inventé)
@@ -2940,6 +2968,28 @@ function CarteFloutee({ x, k, paysVise, onLancer, busy }) {
     </div>
   );
 }
+// Le n°1 en clair avant paiement : la preuve que c'est réel, et ce que Bingoo! en ferait pour toi
+function CarteClaire({ x, onLancer, busy }) {
+  const t = tendanceDe(x.croissance);
+  return (
+    <div className="fx-halo rounded-3xl"><div className="rounded-3xl bg-white p-5 sm:p-7">
+      <p className="inline-flex items-center gap-1.5 rounded-full bg-good/10 px-3 py-1 text-[12px] font-bold uppercase tracking-wide text-good"><span className="h-1.5 w-1.5 rounded-full bg-good" />N°1 · débloqué pour toi</p>
+      <div className="mt-4 flex flex-wrap items-start gap-4">
+        <CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="w-14 h-14 shrink-0" pad="p-2" />
+        <div className="min-w-0 flex-1"><p className="text-[26px] font-black leading-tight" style={HF}>{x.nom}</p><p className="text-[13.5px] text-ink-soft">{x.categorie} · <a href={`https://${x.domaine}`} target="_blank" rel="noopener noreferrer" className="underline">{x.domaine}</a>{x.pays && x.pays !== "??" ? ` · ${drapeau(x.pays)} ${PAYS[x.pays] ?? x.pays}` : ""}</p></div>
+        <div className="text-right"><p className="text-[28px] font-black leading-none tnum" style={HF}>{dollar(x.mrr)}</p><p className="text-[12px] text-ink-faint">par mois, vérifié</p></div>
+      </div>
+      {x.fait && <p className="mt-3 text-[15px] text-ink" lang={x.fr ? "fr" : undefined}>{x.fait}</p>}
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {t && <span className={cx("rounded-full px-2.5 py-1 text-[12px] font-semibold", t[2])}>{t[1]}{x.croissance != null ? ` · ${pct30(x.croissance)} en 30 j` : ""}</span>}
+        {x.rang_web && <span className="rounded-full bg-paper px-2.5 py-1 text-[12px] font-semibold text-ink-soft">Trafic : N° {Number(x.rang_web).toLocaleString("fr-FR")} mondial</span>}
+        {x.sans_local && <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[12px] font-semibold text-accent-dark">Pas d'équivalent en français</span>}
+      </div>
+      <LancerCout s={x} className="mt-4" />
+      <button onClick={() => onLancer(0, x.ref)} disabled={busy} className="fx-brille mt-5 w-full sm:w-auto rounded-xl bg-accent px-7 py-3.5 text-[15.5px] font-bold text-white hover:bg-accent-dark disabled:opacity-60">Lancer ma version de {x.nom}</button>
+    </div></div>
+  );
+}
 function Debloquer({ total, tendance, mediane, invite, r }) {
   const nav = useNavigate();
   const { ws } = useWs();
@@ -2967,14 +3017,18 @@ function Debloquer({ total, tendance, mediane, invite, r }) {
         <h2 className="text-[22px] sm:text-[26px] font-black leading-tight" style={HF}>{liste?.length ? `${Number(total || liste.length).toLocaleString("fr-FR")} SaaS à succès pour toi` : "Tes 3 SaaS sont prêts"}</h2>
         <p className="mt-1.5 text-[14.5px] text-ink-soft">{total ? <>Bingoo! a trouvé <b className="text-ink">{Number(total).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié qui collent à tes réponses{tendance ? <>, dont <b className="text-ink">{Number(tendance).toLocaleString("fr-FR")}</b> en tendance</> : null}{mediane ? <>, revenu médian {dollar(mediane)} par mois</> : null}. </> : null}Leur nom, leur fiche, ta version, ton plan et tes premiers clients s'affichent dès ton paiement reçu.</p>
       </div>
-      <button onClick={debloquer} disabled={busy} className="fx-brille rounded-xl bg-accent text-white px-6 py-3.5 font-bold hover:bg-accent-dark disabled:opacity-60">Débloquer mes résultats</button>
+      <div className="flex flex-wrap gap-2">
+        <button onClick={() => (invite ? demanderCompte("Crée ton compte gratuit pour explorer tous les SaaS et leurs chiffres.") : nav("/explorer"))} className="rounded-xl border border-line bg-white px-5 py-3.5 font-bold hover:border-ink">Explorer gratuitement</button>
+        <button onClick={debloquer} disabled={busy} className="fx-brille rounded-xl bg-accent text-white px-6 py-3.5 font-bold hover:bg-accent-dark disabled:opacity-60">{liste?.length > 1 ? `Débloquer les ${Math.max(liste.length, Number(total || 0)) - 1} autres` : "Débloquer mes résultats"}</button>
+      </div>
     </div></div>
   );
   if (liste === undefined) return <div className="py-16 grid place-items-center"><Spinner /></div>;
   if (liste?.length) return (
     <>
+      {liste[0]?.clair && <div className="mt-8"><CarteClaire x={liste[0]} onLancer={lancer} busy={busy} /></div>}
       {bandeau}
-      <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{liste.slice(0, n).map((x, k) => <CarteFloutee key={x.rang ?? k} x={x} k={k} paysVise={r.pays} onLancer={lancer} busy={busy} />)}</div>
+      <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{liste.slice(liste[0]?.clair ? 1 : 0, n).map((x, k) => <CarteFloutee key={x.rang ?? k} x={x} k={k} paysVise={r.pays} onLancer={lancer} busy={busy} />)}</div>
       {formules}
       {liste.length > n && <div className="mt-6 text-center"><button onClick={() => setN(n + 9)} className="rounded-xl border border-line bg-white px-5 py-2.5 text-[14px] font-semibold hover:border-ink-faint">Voir {Math.min(9, liste.length - n)} SaaS de plus</button></div>}
       <ResultatsBingoo className="mt-8" />

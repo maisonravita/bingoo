@@ -414,10 +414,18 @@ function Clients({ m }) {
     if (garde?.domaine === m.domaine) { setS(garde); return; }
     supabase.from("saas_liste").select("*").eq("domaine", m.domaine).maybeSingle().then(({ data }) => setS(data ? { ...data, canaux: data.canaux ?? data.succes?.canaux ?? [], mrr: data.mrr ?? data.succes?.mrr ?? null } : null));
   }, [m.domaine]);
-  const r = lire("bingoo-parcours2") ?? {};
+  const [r, setR] = useState(() => lire("bingoo-parcours2") ?? {});
+  // Les questions qui n'ont pas été posées avant le paiement : elles affinent le plan (ce qu'il refuse, son budget)
+  const maj = (n) => { setR(n); try { localStorage.setItem("bingoo-parcours2", JSON.stringify(n)); } catch { /* stockage indisponible */ } };
+  const refus = r.refus ?? [];
+  const OPT_REFUS = [["appeler", "Démarcher des inconnus"], ["video", "Me montrer en vidéo"], ["ecrire", "Écrire du contenu chaque semaine"], ["pub", "Payer de la publicité"]];
   return (
     <>
       <Tete titre="Premiers clients" sous={`Ton plan pour trouver les 10 premiers clients de ${m.nom}, une étape par jour.`} />
+      <Carte className="mb-4" titre="Affine ton plan en 30 secondes" sous="Ce que tu refuses de faire : Bingoo! retire ces méthodes de ton plan et de tes messages.">
+        <div className="flex flex-wrap gap-2">{OPT_REFUS.map(([k, l]) => { const on = refus.includes(k); return <button key={k} onClick={() => maj({ ...r, refus: on ? refus.filter((x) => x !== k) : [...refus, k] })} className={cx("rounded-full border px-3.5 py-1.5 text-[13px] font-semibold", on ? "border-[#303030] bg-[#303030] text-white" : "border-[#E3E3E3] bg-white hover:border-[#8A8A8A]")}>{on ? "✕ " : ""}{l}</button>; })}</div>
+        <p className="mt-2 text-[12px] text-[#8A8A8A]">{refus.length ? "Mis de côté dans ton plan. Clique à nouveau pour les remettre." : "Rien de refusé : toutes les méthodes te sont proposées."}</p>
+      </Carte>
       {s === undefined ? <div className="py-16 grid place-items-center"><Spinner /></div>
         : s ? <PremiersClients s={s} a={angleDe(s, r)} r={r} app={m.app} />
           : <Carte><p className="text-[13.5px] text-[#616161]">Le plan se prépare à partir du SaaS modèle : il n'est pas encore disponible pour ton SaaS.</p></Carte>}
