@@ -6,7 +6,8 @@ const { chromium, devices } = createRequire(import.meta.url)("playwright");
 const SITE = process.env.SITE || "https://kairo.maisonravita.fr";
 const SB = "https://fbsjbnnmzazylmquzryo.supabase.co";
 const ANON = process.env.ANON || (await import("node:fs")).readFileSync(".env.production", "utf8").match(/VITE_SUPABASE_ANON_KEY=(\S+)/)[1];
-const APP = process.env.APP || "kineflux-5o1k";
+// Le SaaS livré le plus récent (lu dans le plan du site) : le test suit les SaaS réellement en ligne
+const APP = process.env.APP || ((await (await fetch(`${SITE}/sitemap-apps.xml`)).text()).match(/\/p\/([a-z0-9-]+)</) || [])[1] || "kineflux-5o1k";
 const ko = [], avert = [];
 const etape = async (nom, f) => { const t = Date.now(); try { await f(); console.log(`✓ ${nom} (${Date.now() - t} ms)`); } catch (e) { ko.push(nom); console.log(`✗ ${nom} : ${e.message.split("\n")[0]}`); } };
 const verif = (c, m) => { if (!c) throw new Error(m); };
