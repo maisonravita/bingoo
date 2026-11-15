@@ -1,0 +1,2 @@
+-- Appliquée via MCP : table saas_vitrine (id, ordre) remplie par saas_vitrine_maj() (cron bingoo-vitrine, 5 h 17 chaque jour) ;
+-- saas_liste sans fonctions de fenêtre (10 s -> 40 ms), saas_acces() évalué une seule fois par requête.
