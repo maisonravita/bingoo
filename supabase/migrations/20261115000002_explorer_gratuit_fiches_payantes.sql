@@ -1,0 +1,2 @@
+-- Appliquée via MCP : liste lisible par tout compte connecté (saas_liste_ok),
+-- saas_fiche / saas_pubs_de / saas_emails_de / saas_notoriete_de réservées aux comptes payants (saas_acces()).

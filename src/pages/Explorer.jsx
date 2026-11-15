@@ -444,9 +444,15 @@ function Fiche({ domaine }) {
   if (s === undefined) return <div className="py-24 grid place-items-center"><Spinner /></div>;
   if (limite) return (
     <div className="max-w-xl mx-auto px-6 py-16 text-center">
+      {limite.max ? <>
       <p className="text-[13px] font-bold uppercase tracking-wide text-accent-dark">Limite de la semaine atteinte</p>
       <h1 className="mt-2 text-[28px] font-black leading-tight" style={HF}>Tu as ouvert {limite.max} fiches SaaS cette semaine.</h1>
       <p className="mt-2 text-ink-soft">La fiche de {limite.nom} se débloque avec la formule supérieure, ou la semaine prochaine. La liste et les filtres restent illimités.</p>
+      </> : <>
+      <p className="text-[13px] font-bold uppercase tracking-wide text-accent-dark">Fiche complète</p>
+      <h1 className="mt-2 text-[28px] font-black leading-tight" style={HF}>Débloque la fiche de {limite.nom}</h1>
+      <p className="mt-2 text-ink-soft">Historique des prix, pubs en cours, emails envoyés à leurs clients, notoriété et comment ils ont trouvé leurs premiers clients. La liste, les classements et les filtres restent gratuits.</p>
+      </>}
       <div className="mt-6 flex justify-center gap-2"><button onClick={() => nav("/abonnement")} className="rounded-xl bg-accent text-white px-5 py-3 font-bold">Voir les formules</button><button onClick={() => nav("/explorer")} className="rounded-xl border border-line bg-white px-5 py-3 font-semibold">Retour à Explorer</button></div>
     </div>
   );
