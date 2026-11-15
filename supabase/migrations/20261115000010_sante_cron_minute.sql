@@ -1,0 +1,5 @@
+-- Appliquée via MCP le 2026-11-15.
+-- 1) bingoo_sante() : bilan de santé (oui/non + compteurs, aucune donnée client) lu par le test automatique de nuit.
+-- 2) Les tâches « bingoo-apps-garde » et « bingoo-dispatch » (chaque minute) démarraient ensemble et échouaient souvent
+--    au démarrage (« job startup timeout », ~300 fois/jour) : une seule tâche « bingoo-minute » les enchaîne via cron_minute().
+-- Voir le corps exact dans la base : \df+ public.bingoo_sante / public.cron_minute
