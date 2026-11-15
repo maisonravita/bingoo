@@ -2765,10 +2765,13 @@ export function TrouveTonSaas() {
               if (k === "lancer" || k === "idee") return setR({ ...r, but: k });
               if (invite) return demanderCompte("Crée ton compte gratuit pour explorer les SaaS et leurs chiffres.");
               navT(k === "verifier" ? "/explorer/chiffres" : "/explorer");
-            }} className="group flex items-start gap-4 rounded-3xl border border-line bg-white p-5 text-left shadow-[0_1px_2px_rgba(16,24,40,.04)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-28px_rgba(21,23,42,.45)]">
+            }} className="group flex flex-col overflow-hidden rounded-3xl border border-line bg-white text-left shadow-[0_1px_2px_rgba(16,24,40,.04)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-28px_rgba(21,23,42,.45)]">
+              <span className="block h-36 border-b border-line bg-paper/70 p-4"><ApercuBut k={k} stats={statsSect} /></span>
+              <span className="flex items-start gap-4 p-5">
               <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-accent to-[#F08A4B] text-white shadow-[0_10px_24px_-12px_rgba(224,83,31,.8)] [&_svg]:h-6 [&_svg]:w-6">{IC[ic]}</span>
               <span className="min-w-0 flex-1"><span className="block font-bold text-[18px] leading-tight">{l}</span><span className="mt-1 block text-[14.5px] leading-snug text-ink-soft">{d}</span></span>
               <span className="mt-1 text-ink-faint transition group-hover:translate-x-0.5" aria-hidden>→</span>
+              </span>
             </button>
           ))}</div>
         </div>
@@ -2866,6 +2869,28 @@ export function TrouveTonSaas() {
         </div>
       )}
     </div>
+  );
+}
+// Les petites vignettes du premier écran, faites avec de vrais SaaS de la base
+function ApercuBut({ k, stats }) {
+  const cats = Object.entries(stats ?? {}).filter(([, v]) => v?.top && v?.logos?.length >= 3).sort((a, b) => b[1].top - a[1].top);
+  const [c1, c2, c3] = cats;
+  const logo = (d, cl = "h-9 w-9") => <span key={d} className={cx("grid shrink-0 place-items-center overflow-hidden rounded-xl border-2 border-white bg-white shadow-sm", cl)}><CompanyLogo name={d} url={`https://${d}`} className="h-full w-full" pad="p-1" /></span>;
+  if (!c1) return null;
+  if (k === "lancer") return (
+    <span className="mx-auto block max-w-[260px] overflow-hidden rounded-xl border border-line bg-white shadow-sm">
+      <span className="flex items-center gap-1 border-b border-line px-2.5 py-1.5"><span className="h-2 w-2 rounded-full bg-[#FF5F57]" /><span className="h-2 w-2 rounded-full bg-[#FEBC2E]" /><span className="h-2 w-2 rounded-full bg-[#28C840]" /><span className="ml-2 rounded bg-paper px-2 text-[10px] text-ink-faint">tonsaas.fr</span></span>
+      <span className="block p-3"><span className="block h-2.5 w-2/3 rounded bg-ink/80" /><span className="mt-1.5 block h-2 w-5/6 rounded bg-line" /><span className="mt-2.5 inline-flex items-center gap-1 rounded-full bg-good/10 px-2 py-0.5 text-[10.5px] font-bold text-good"><span className="h-1.5 w-1.5 rounded-full bg-good" />En ligne · prêt à encaisser</span></span>
+    </span>
+  );
+  if (k === "idee") return (
+    <span className="mx-auto flex max-w-[260px] items-center gap-3 rounded-2xl border border-line bg-white p-3 shadow-sm">{logo(c1[1].logos[0], "h-11 w-11")}<span className="min-w-0"><span className="block truncate text-[13px] font-bold">{c1[0]}</span><span className="mt-0.5 inline-block rounded-md bg-good/10 px-1.5 py-0.5 text-[12px] font-bold text-good">{dollar(c1[1].top)}/mois</span></span></span>
+  );
+  if (k === "verifier") return (
+    <span className="flex flex-col items-center gap-2"><span className="rounded-full border border-line bg-white px-3 py-1 text-[12px]">« {c2?.[0]?.toLowerCase() ?? "ton idée"} »</span><span className="text-accent" aria-hidden>↓</span><span className="flex items-center gap-1.5">{(c2?.[1]?.logos ?? []).slice(0, 3).map((d) => logo(d))}<span className="ml-1 rounded-full bg-good/10 px-2 py-0.5 text-[11.5px] font-bold text-good">✓ marché validé</span></span></span>
+  );
+  return (
+    <span className="mx-auto block max-w-[280px] space-y-1.5">{[c1, c2, c3].filter(Boolean).map(([c, v], i) => <span key={c} className="flex items-center gap-2 rounded-lg border border-line bg-white px-2 py-1"><span className="w-3 text-[11px] text-ink-faint">{i + 1}</span>{logo(v.logos[0], "h-6 w-6 rounded-md border")}<span className="min-w-0 flex-1 truncate text-[12px] font-semibold">{c}</span><span className="rounded bg-good/10 px-1.5 text-[11px] font-bold text-good">{dollar(v.top)}</span></span>)}</span>
   );
 }
 // À droite des questions : la recherche qui se resserre en direct (vrais chiffres de la base, recalculés à chaque réponse)
