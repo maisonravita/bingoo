@@ -95,13 +95,14 @@ Dis-lui précisément QUI démarcher, OÙ les trouver et QUOI leur dire. Concret
  "commencer": "par qui commencer cette semaine et pourquoi, une phrase",
  "eviter": "qui ne pas démarcher au début et pourquoi, une phrase"
 }
-Aucun chiffre de revenu promis. Pas de lien : seulement les mots à chercher.`, { fast: true, maxTokens: 1800 });
+Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit plus haut (ses écrans) : rien d'autre (pas de relance, d'IA ou d'envoi automatique s'il n'y est pas). Aucun chiffre de revenu promis. Pas de lien : seulement les mots à chercher. Phrases courtes.`, { fast: true, maxTokens: 1800 });
     const types = new Set(["maps", "pagesjaunes", "google", "linkedin", "facebook", "instagram"]);
-    const court = (x: unknown, n: number) => String(x ?? "").trim().slice(0, n);
+    // Coupé proprement à la fin d'un mot, jamais au milieu
+    const court = (x: unknown, n: number) => { const s = String(x ?? "").trim(); return s.length <= n ? s : s.slice(0, n).replace(/\s+\S*$/, "") + "…"; };
     const data = {
       cibles: (Array.isArray(r?.cibles) ? r.cibles : []).slice(0, 3).map((c: any) => ({
         qui: court(c.qui, 120), pourquoi: court(c.pourquoi, 220), combien: court(c.combien, 60), accroche: court(c.accroche, 260),
-        ou: (Array.isArray(c.ou) ? c.ou : []).filter((o: any) => types.has(o?.type) && o?.recherche).slice(0, 4).map((o: any) => ({ type: o.type, recherche: court(o.recherche, 80), texte: court(o.texte, 200) })),
+        ou: (Array.isArray(c.ou) ? c.ou : []).filter((o: any) => types.has(o?.type) && o?.recherche).slice(0, 4).map((o: any) => ({ type: o.type, recherche: court(o.recherche, 80), texte: court(o.texte, 320) })),
       })).filter((c: any) => c.qui),
       reseaux: (Array.isArray(r?.reseaux) ? r.reseaux : []).slice(0, 4).map((x: any) => ({ nom: court(x.nom, 90), type: court(x.type, 20), comment: court(x.comment, 200) })).filter((x: any) => x.nom),
       commencer: court(r?.commencer, 260), eviter: court(r?.eviter, 260),

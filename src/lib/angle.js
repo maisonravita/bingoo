@@ -110,13 +110,15 @@ export function semaineClients(s, a, r, cb) {
     : (k, encore) => `Envoie ton message à ${k} ${encore ? "autres " : ""}personnes de ta liste, personnalisé avec leur prénom et un détail sur eux.`;
   // Cibles précises (onglet « Qui démarcher ») : le plan les nomme, jour par jour
   const [c0, c1] = cb?.cibles ?? [];
+  // « Les kinés libéraux… » → « parmi les kinés libéraux… » (jamais « 25 Les … »)
+  const parmi = (c) => { const q = c.qui.charAt(0).toLowerCase() + c.qui.slice(1); return /^(les|des)\s/.test(q) ? `parmi ${q.replace(/^des\s/, "les ")}` : `parmi les ${q}`; };
   if (c0) {
     const c1b = c1 ?? c0;
     const viser = (c, k) => refus.has("appeler")
-      ? `Publie ton message dans ${k} groupes ou forums où se retrouvent ${c.qui}${cb.reseaux?.length ? ` (par exemple ${cb.reseaux.slice(0, 2).map((x) => x.nom).join(", ")})` : ""}, et réponds à chaque commentaire dans l'heure.`
-      : `Envoie ton message à ${k} de ${c.qui}, personnalisé avec leur prénom. Commence par : « ${c.accroche} »`;
+      ? `Publie ton message dans ${k} groupes ou forums où se retrouvent ${parmi(c).replace(/^parmi /, "")}${cb.reseaux?.length ? ` (par exemple ${cb.reseaux.slice(0, 2).map((x) => x.nom).join(", ")})` : ""}, et réponds à chaque commentaire dans l'heure.`
+      : `Envoie ton message à ${k} contacts ${parmi(c)}, personnalisé avec leur prénom. Commence par : « ${c.accroche} »`;
     return [
-      { j: "Jour 1", titre: "Ta liste", actions: [`Vérifie que ta version est en ligne et fais un paiement test : tout doit marcher avant le premier message.`, `Fais ta liste de ${n(40, 25)} ${c0.qui}${c0.ou?.[0] ? ` : ${c0.ou[0].texte.replace(/\.$/, "")}` : ""}. Les recherches toutes prêtes sont dans « Qui démarcher ».`, ...(c1 ? [`Ajoute ${n(20, 10)} ${c1.qui}.`] : [])] },
+      { j: "Jour 1", titre: "Ta liste", actions: [`Vérifie que ta version est en ligne et fais un paiement test : tout doit marcher avant le premier message.`, `Fais ta liste de ${n(40, 25)} contacts ${parmi(c0)} : les recherches toutes prêtes sont dans l'onglet « Qui démarcher ».`, ...(c1 ? [`Ajoute ${n(20, 10)} contacts ${parmi(c1)}.`] : [])] },
       { j: "Jour 2", titre: "Ton offre", actions: [`Choisis ton offre de lancement : un mois gratuit, puis −30 % à vie pour les 10 premiers.`, `Prépare tes messages dans l'onglet « Quoi leur dire » : remplace les crochets par tes mots.`] },
       { j: "Jour 3", titre: "Premiers contacts", actions: [viser(c0, n(15, 8)), "Note chaque contact dans « Tes prospects »."] },
       { j: "Jour 4", titre: "Deuxième vague", actions: [viser(c1b, n(15, 8)), "Réponds à tous ceux qui ont répondu, même les « non merci » : demande-leur pourquoi."] },
