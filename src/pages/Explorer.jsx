@@ -2791,7 +2791,7 @@ export function TrouveTonSaas() {
                 <div className="mt-9 grid sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">{SECTEURS.map((c) => { const st = statsSect?.[c]; const on = choisi("secteurs", c); return (
                   <button key={c} type="button" onClick={() => basculer("secteurs", c)} className={cx("flex items-center gap-4 rounded-3xl border bg-white px-4 py-4 text-left shadow-[0_1px_2px_rgba(16,24,40,.04)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-28px_rgba(21,23,42,.45)]", on ? "border-transparent ring-2 ring-accent" : "border-line")}>
                     <span className="flex shrink-0 -space-x-4">{(st?.logos ?? []).slice(0, 3).map((d, i) => <span key={d} className="grid h-11 w-11 place-items-center overflow-hidden rounded-xl border-2 border-white bg-white shadow-sm" style={{ zIndex: 3 - i }}><CompanyLogo name={d} url={`https://${d}`} className="h-full w-full" pad="p-1" /></span>)}{!st?.logos?.length && <span className="h-12 w-12 rounded-xl bg-paper" />}</span>
-                    <span className="min-w-0 flex-1"><span className="block truncate font-bold text-[16px] leading-tight">{c}</span>
+                    <span className="min-w-0 flex-1"><span className="block font-bold text-[15.5px] leading-tight line-clamp-2">{c}</span>
                       <span className="mt-0.5 block text-[13.5px] text-ink-soft">{st ? `${Number(st.n).toLocaleString("fr-FR")} SaaS` : "…"}</span>
                       {st?.top ? <span className="block whitespace-nowrap text-[13.5px] font-bold text-good">n°1 · {dollar(st.top)}/mois</span> : null}</span>
                     <span className={cx("grid h-7 w-7 shrink-0 place-items-center rounded-full transition", on ? "bg-accent text-white" : "text-ink-faint")}>{on ? <Coche /> : <span aria-hidden>→</span>}</span>
@@ -2817,7 +2817,7 @@ export function TrouveTonSaas() {
             </button>
             {r.etape === 0 && <p className="mt-2 text-center text-[12.5px] text-ink-faint">6 questions, 30 secondes. Tes résultats complets avec un abonnement, sans engagement.</p>}
           </div>
-          <PanneauDirect ap={ap} r={r} />
+          <PanneauDirect ap={ap} r={r} stats={statsSect} />
           </div>
         </div>
       ) : (
@@ -2842,7 +2842,8 @@ export function TrouveTonSaas() {
   );
 }
 // À droite des questions : la recherche qui se resserre en direct (vrais chiffres de la base, recalculés à chaque réponse)
-function PanneauDirect({ ap, r }) {
+function PanneauDirect({ ap, r, stats }) {
+  const marche = (r.secteurs ?? []).reduce((s, c) => s + Number(stats?.[c]?.n ?? 0), 0);
   const [lead, setLead] = useState([]);
   const cats = (r.secteurs ?? []).join("|");
   useEffect(() => { supabase.rpc("saas_leaders", { p_cats: r.secteurs ?? [] }).then(({ data }) => setLead(data ?? [])); }, [cats]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -2853,7 +2854,8 @@ function PanneauDirect({ ap, r }) {
   return (
     <aside className="hidden lg:block sticky top-20 mt-24 overflow-hidden rounded-[28px] border border-line bg-white shadow-[0_40px_80px_-50px_rgba(21,23,42,.55)]" aria-live="polite">
       <div className="flex flex-wrap items-center gap-1.5 border-b border-line px-5 py-4"><svg viewBox="0 0 24 24" className="h-4.5 w-4.5 text-ink-faint" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>{filtres.map((f) => <span key={f} className="rounded-lg bg-accent-soft px-2 py-1 text-[13px] font-semibold text-accent-dark">{f}</span>)}<span className="h-4 w-px animate-pulse bg-ink-faint" /></div>
-      <div className="px-5 pt-4"><p className="flex items-baseline gap-2"><span className="text-[34px] font-black leading-none tnum" style={HF}>{ap ? Number(ap.n ?? 0).toLocaleString("fr-FR") : "…"}</span><span className="text-[14px] text-ink-soft">SaaS pour toi, triés par revenu</span></p></div>
+      <div className="px-5 pt-4">{ap && !ap.n && marche ? <><p className="flex items-baseline gap-2"><span className="text-[34px] font-black leading-none tnum" style={HF}>{marche.toLocaleString("fr-FR")}</span><span className="text-[14px] text-ink-soft">SaaS rentables dans ton domaine</span></p><p className="mt-1 text-[12.5px] text-ink-faint">Aucun ne colle encore à toutes tes réponses : élargis un critère pour en voir.</p></>
+        : <p className="flex items-baseline gap-2"><span className="text-[34px] font-black leading-none tnum" style={HF}>{ap ? Number(ap.n ?? 0).toLocaleString("fr-FR") : "…"}</span><span className="text-[14px] text-ink-soft">SaaS pour toi, triés par revenu</span></p>}</div>
       {premier && <div className="mx-4 mt-3 rounded-2xl bg-paper p-4"><p className="text-[11px] font-bold uppercase tracking-[.16em] text-ink-faint">{(r.secteurs ?? []).length ? "Meilleur de ton domaine" : "Meilleur résultat"}</p>
         <div className="mt-2 flex items-center gap-2.5"><CompanyLogo name={premier.nom} url={`https://${premier.domaine}`} className="h-9 w-9 shrink-0" pad="p-1" /><p className="min-w-0 flex-1 truncate font-bold text-[15.5px]">{premier.nom}</p></div>
         <div className="mt-2 flex items-end justify-between gap-3">{flou}<div className="w-32">{pts(premier).length > 2 && <Sparkline pts={pts(premier)} h={40} />}</div></div></div>}
