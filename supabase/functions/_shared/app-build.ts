@@ -163,6 +163,8 @@ Collections : ${(s.collections ?? []).slice(0, 6).map((c: any) => `${c.nom} : ${
     const m = SPEC[modele](perso);
     Object.assign(spec, { ecrans: m.ecrans, collections: m.collections, demo: m.demo, demo_ancre: m.demo_ancre, agenda: m.agenda, modele, vocab: m.vocab });
   }
+  // Promis sur le site = construit : un écran qui fait vraiment ce que le site promet (IA, relances, PDF) s'il manque
+  await ajouterEcransPromis(spec, p).catch((x) => console.error("écrans promis", x));
   // Garde-fou : rien du SaaS d'origine (nom, domaine) dans ce que verront les clients
   const { ecrans: _e, ...visible } = spec;
   Object.assign(spec, sansIdentite(visible, p.inspire ?? {}, p.nom).valeur);
@@ -170,9 +172,13 @@ Collections : ${(s.collections ?? []).slice(0, 6).map((c: any) => `${c.nom} : ${
   if (modele) {
     // Tous les écrans sont déjà écrits : on met en ligne directement (même chemin que la fin d'une construction classique)
     const e0 = spec.ecrans[0];
-    await admin.from("saas_apps").update({ brouillon: spec, etape: `Écriture des écrans (${spec.ecrans.length}/${spec.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
+    const aEcrire = spec.ecrans.filter((e: any) => !e.code);
+    const faits = spec.ecrans.length - aEcrire.length;
+    await admin.from("saas_apps").update({ brouillon: spec, etape: `Écriture des écrans (${faits}/${spec.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
     const { data: fin } = await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: e0.id, p_code: e0.code, p_ok: true });
     if (fin === "pret") await corrigerAccroche(appId).catch((x) => console.error("accroche", x));
+    // Écrans ajoutés au modèle pour tenir les promesses du site : écrits comme dans une construction classique
+    for (const e of aEcrire) await lancerEcran(e.id);
     return;
   }
   await admin.from("saas_apps").update({ brouillon: spec, etape: `Écriture des écrans (0/${spec.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
@@ -195,6 +201,43 @@ export async function saasEcrireEcran(appId: string, ecranId: string) {
   r.code = await inspireDe(appId).then((o) => sansIdentite(r.code, o, spec.nom).valeur);
   const { data: fin } = await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: ecranId, p_code: r.code, p_ok: r.ok });
   if (fin === "pret") await corrigerAccroche(appId).catch((x) => console.error("accroche", x));
+}
+
+/** Capacités promises par le site (accroche, atouts, formules) mais qu'aucun écran prévu n'utilise :
+ *  on ajoute l'écran qui les fait fonctionner pour de vrai (au plus 2), avant l'écriture des écrans. */
+async function ajouterEcransPromis(spec: any, p: any) {
+  const promis = [spec.pitch, spec.slogan, ...(spec.atouts ?? []).map((a: any) => `${a?.titre ?? ""} ${a?.texte ?? ""}`), ...(spec.formules ?? []).flatMap((f: any) => f?.inclus ?? [])].map((x) => String(x ?? "")).join("\n");
+  const ecrans = (spec.ecrans ?? []) as any[];
+  // Ce que les écrans prévus font : leur code (modèle fait main) ou leur description (écrans à écrire)
+  const fait = ecrans.map((e) => e.code ? String(e.code) : `${e.but ?? ""} ${(e.fonctions ?? []).join(" ")}`).join("\n");
+  const codeOuTexte = (re: RegExp, reCode: RegExp) => ecrans.some((e) => e.code ? reCode.test(String(e.code)) : re.test(`${e.but ?? ""} ${(e.fonctions ?? []).join(" ")}`));
+  const besoins: { cle: string; quoi: string }[] = [];
+  const phrases = (re: RegExp) => promis.split(/\n|(?<=[.;])\s/).filter((l) => re.test(l)).slice(0, 4).join(" ; ");
+  const reIa = /\bIA\b|intelligence artificielle|r[ée]dig\w* (automatiquement|par l|pour (toi|vous))/;
+  const reRel = /relances?\b|e-?mails? (programm|planifi)|programm\w* .{0,20}e-?mails?/i;
+  const rePdf = /\bpdf\b/i;
+  if (reIa.test(promis) && !codeOuTexte(/\bIA\b|intelligence artificielle|r[ée]dig|g[ée]n[èe]r|r[ée]sum|reformul/i, /(^|[^A-Za-z0-9_.$])ia\s*\(/))
+    besoins.push({ cle: "ia", quoi: `l'IA intégrée de l'application (fonction ia) pour faire pour de vrai : ${phrases(reIa)}` });
+  if (reRel.test(promis) && !codeOuTexte(/relance|e-?mail/i, /(^|[^A-Za-z0-9_.$])email\s*\(/))
+    besoins.push({ cle: "email", quoi: `de vrais e-mails aux clients (fonction email, avec quand pour les envois planifiés et annulerEmail) pour faire pour de vrai : ${phrases(reRel)}` });
+  if (rePdf.test(promis) && !codeOuTexte(/pdf|devis|facture|document/i, /pdf\w*\s*\(/i))
+    besoins.push({ cle: "pdf", quoi: `la génération de PDF (fonction pdf) pour faire pour de vrai : ${phrases(rePdf)}` });
+  if (!besoins.length) return;
+  const cols = (spec.collections ?? []).map((c: any) => `${c.nom} (${(c.champs ?? []).map((x: any) => x.nom).join(", ")})`).join(" ; ");
+  const r = await askJson<any>(`Application « ${spec.nom} » pour ${spec.cible ?? p?.cible ?? ""}. Écrans existants : ${ecrans.map((e) => e.titre).join(", ")}. Collections : ${cols}.
+Le site promet des fonctions qu'aucun écran ne fait encore. Conçois UN écran par besoin ci-dessous, qui fait vraiment la chose avec les données existantes (saisie → résultat → enregistrement) :
+${besoins.map((b, i) => `${i + 1}. ${b.quoi}`).join("\n")}
+Rends {"ecrans": [{ "cle": "ia|email|pdf", "id": "snake_case court, différent des écrans existants", "titre": "2 mots au plus", "icone": "parmi ${ICONES.join(", ")}", "but": "une phrase", "fonctions": ["3 à 5 éléments courts, dont l'appel à la fonction de l'application"], "collection": null ou { "nom", "label", "champs": [{ "nom", "type" }] } si l'écran doit garder ses résultats et qu'aucune collection ne convient }]}`, { fast: true, maxTokens: 1500 });
+  for (const n of (Array.isArray(r?.ecrans) ? r.ecrans : []).slice(0, 2)) {
+    let id = slugify(String(n.id ?? n.cle ?? "assistant")).replace(/-/g, "_") || "assistant";
+    if (ecrans.some((e) => e.id === id)) id += "_2";
+    if (n.collection?.nom && !(spec.collections ?? []).some((c: any) => c.nom === n.collection.nom)) spec.collections = [...(spec.collections ?? []), n.collection];
+    // Placé avant les pages publiques, après les écrans de l'application
+    const e = { id, titre: String(n.titre ?? "Assistant").slice(0, 24), icone: ICONES.includes(n.icone) ? n.icone : (n.cle === "email" ? "mail" : n.cle === "pdf" ? "fichier" : "message"), but: n.but, fonctions: n.fonctions };
+    const k = ecrans.findIndex((x) => x.public);
+    if (k < 0) ecrans.push(e); else ecrans.splice(k, 0, e);
+  }
+  spec.ecrans = ecrans;
 }
 
 /** Le site ne promet que ce que l'application fait : la base retire les atouts et avantages faux et signale
