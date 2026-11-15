@@ -1,0 +1,3 @@
+-- Appliquée via MCP : saas.revenu_suspect (colonne calculée, saas_revenu_suspect(succes, rang_web)) :
+-- millions/mois sans trafic, saut énorme sur 2 mois, 0 aujourd'hui avec un gros historique, pic isolé > 10x le revenu actuel.
+-- Exclus de : leaders, secteurs_stats, classement, pour_moi (coeur, floute, apercu, 2), a_copier, reussites, niches, micro, vitrine.
