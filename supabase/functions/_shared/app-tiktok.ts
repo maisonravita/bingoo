@@ -121,6 +121,9 @@ JSON : { "formats": [ ... ], "conseils": ["3 conseils concrets de publication po
     // Plus d'IA disponible (enveloppe du mois, pause de sécurité) : on le dit tel quel, « réessaie » serait trompeur
     const limite = erreurs.find((e) => /enveloppe IA|limite d'utilisation|Pause de sécurité/.test(e));
     if (limite) throw new Error(limite); throw new Error(`La recherche n'a rien donné, réessaie dans un instant${erreurs.length ? ` (${erreurs[0].slice(0, 160)})` : ""}`); }
+  // Les « Faire pareil » déjà écrits restent attachés à l'analyse, même après une actualisation
+  const { data: avant } = await admin.from("saas_tiktok").select("data").eq("app_id", app.id).maybeSingle();
+  if (avant?.data?.pareil) (data as any).pareil = avant.data.pareil;
   await admin.from("saas_tiktok").upsert({ app_id: app.id, workspace_id: app.workspace_id, data, at: new Date().toISOString() });
   return { ...data, at: new Date().toISOString() };
 }

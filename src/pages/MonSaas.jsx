@@ -593,6 +593,18 @@ function CeQuiMarche({ m }) {
   );
 }
 
+// Une analyse IA refusée : on dit clairement pourquoi, et ce qui reste disponible
+function ErreurIA({ err, garde }) {
+  const limite = /enveloppe IA|limite d'utilisation|Pause de sécurité/.test(err);
+  return (
+    <div className={cx("mt-3 rounded-xl px-4 py-3 text-left text-[13px]", limite ? "bg-[#FFF4E5] text-[#5E4200]" : "bg-[#FEE9E7] text-[#8E1F0B]")}>
+      <p className="font-semibold">{limite ? "L'IA de ton mois est épuisée" : "L'analyse n'a pas abouti"}</p>
+      <p className="mt-0.5">{limite ? "Tu as utilisé toute l'IA comprise dans ta formule ce mois-ci. Elle repart le 1er du mois, ou tout de suite avec une recharge." : err}{garde ? " Ta dernière analyse reste affichée ci-dessous." : ""}</p>
+      {limite && <a href="#/abonnement" className="mt-2 inline-block font-semibold underline">Ajouter une recharge</a>}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------- TikTok : ce qui marche, à étudier, et ses idées de vidéos
 function TikTok({ m }) {
   const { ws } = useWs();
@@ -624,7 +636,8 @@ function TikTok({ m }) {
       </Carte>
 
       <Carte className="mt-4" titre="Tes idées de vidéos TikTok" sous={`Des vidéos à créer pour ${m.nom} : elles n'existent pas encore, la vignette montre ce que tu filmes. Choisis-en une, filme-la avec ton téléphone, ou transforme-la en vidéo animée.`}
-        actions={t ? <Bouton disabled={busy} onClick={() => lancer(true)}>{busy ? "Recherche…" : "Actualiser"}</Bouton> : null}>
+        actions={t ? <div className="flex items-center gap-2">{t.at && <span className="text-[12px] text-[#8A8A8A]">Analyse du {new Date(t.at).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</span>}<Bouton disabled={busy} onClick={() => lancer(true)}>{busy ? "Recherche…" : "Actualiser"}</Bouton></div> : null}>
+        {t && err && <ErreurIA err={err} garde />}
         {t === undefined ? <div className="py-10 grid place-items-center"><Spinner /></div> : !t ? (
           <div className="rounded-xl bg-[#F7F7F7] p-6 text-center">
             <p className="font-semibold">Bingoo! analyse TikTok pour {m.nom}</p>
@@ -636,7 +649,8 @@ function TikTok({ m }) {
               <li>4. 6 idées de vidéos pour {m.nom}, prêtes à filmer</li>
             </ul>
             <Bouton principal className="mt-4" disabled={busy} onClick={() => lancer(false)}>{busy ? "Analyse en cours…" : "Lancer l'analyse TikTok"}</Bouton>
-            {err && <p className="mt-2 text-[13px] text-[#B42318]">{err}</p>}
+            <p className="mt-2 text-[12px] text-[#8A8A8A]">Utilise l'IA comprise dans ta formule ce mois-ci. Le résultat reste enregistré ici, tu le retrouves à chaque visite.</p>
+            {err && <ErreurIA err={err} />}
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
@@ -669,7 +683,7 @@ function TikTok({ m }) {
       <Carte className="mt-4" titre="Vidéos qui marchent dans ta niche" sous={t?.niche ? `Ta niche : ${t.niche}. Trouvées sur TikTok et vérifiées une par une : regarde-les, puis fais pareil pour ton SaaS.` : "Trouvées sur TikTok et vérifiées une par une. Regarde-les, puis fais pareil pour ton SaaS."}>
         {!t ? <p className="text-[13.5px] text-[#616161]">Lance l'analyse TikTok pour les voir.</p>
           : !t.videos?.length ? <p className="text-[13.5px] text-[#616161]">Aucune vidéo sûre trouvée cette fois : réessaie plus tard avec « Actualiser ».</p>
-            : <VideosTikTok videos={t.videos} m={m} />}
+            : <VideosTikTok videos={t.videos} m={m} deja={t.pareil} />}
       </Carte>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -706,16 +720,16 @@ function TikTok({ m }) {
 }
 
 // Les vidéos TikTok à étudier : leur vraie couverture (rafraîchie à chaque visite), le lien pour la regarder, et « Faire pareil »
-function VideosTikTok({ videos, m }) {
+function VideosTikTok({ videos, m, deja }) {
   const { ws } = useWs();
   const nav = useNavigate();
   const [img, setImg] = useState({});
-  const [pareil, setPareil] = useState({});
+  const [pareil, setPareil] = useState(() => deja ?? {});
   const [copie, setCopie] = useState(null);
   useEffect(() => { fn("r/saas-tiktok-vignettes", { workspace_id: ws.id, urls: videos.map((v) => v.url) }).then((d) => setImg(d ?? {}), () => {}); }, [videos.map((v) => v.url).join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
   const faire = async (v) => {
     setPareil((p) => ({ ...p, [v.url]: "encours" }));
-    try { const r = await fn("r/saas-tiktok-pareil", { workspace_id: ws.id, app_id: m.app.id, video: { titre: v.titre, legende: img[v.url]?.legende ?? v.legende, auteur: img[v.url]?.auteur ?? v.auteur, pourquoi: v.pourquoi } }); setPareil((p) => ({ ...p, [v.url]: r })); }
+    try { const r = await fn("r/saas-tiktok-pareil", { workspace_id: ws.id, app_id: m.app.id, video: { url: v.url, titre: v.titre, legende: img[v.url]?.legende ?? v.legende, auteur: img[v.url]?.auteur ?? v.auteur, pourquoi: v.pourquoi } }); setPareil((p) => ({ ...p, [v.url]: r })); }
     catch (e) { setPareil((p) => ({ ...p, [v.url]: { erreur: e.message } })); }
   };
   return (

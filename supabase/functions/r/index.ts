@@ -678,7 +678,14 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     await log(ws.id, "tiktok_pareil", "Faire pareil (TikTok)");
     setAi({ ws: ws.id, live: true, feature: "tiktok" });
     const { fairePareil } = await import("../_shared/app-tiktok.ts");
-    return await fairePareil(app, pr?.data ?? null, b.video ?? {});
+    const res = await fairePareil(app, pr?.data ?? null, b.video ?? {});
+    // Gardée avec l'analyse : le client la retrouve à sa prochaine visite
+    const url = String(b.video?.url ?? "");
+    if (url) {
+      const { data: row } = await admin.from("saas_tiktok").select("data").eq("app_id", app.id).maybeSingle();
+      if (row) await admin.from("saas_tiktok").update({ data: { ...row.data, pareil: { ...(row.data?.pareil ?? {}), [url]: res } } }).eq("app_id", app.id);
+    }
+    return res;
   },
   async "saas-videos"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
