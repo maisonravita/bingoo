@@ -7,6 +7,8 @@ const PREACT = "https://esm.sh/preact@10.24.3";
 const HOOKS = "https://esm.sh/preact@10.24.3/hooks";
 const HTM = "https://esm.sh/htm@3.1.1";
 
+import { CODE_DEMANDER } from "./demander";
+
 const safe = (o) => JSON.stringify(o).replace(/</g, "\\u003c").replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029");
 
 // Styles des SaaS construits : chaque SaaS a sa propre allure (police, menu, page d'accueil), choisie par le créateur
@@ -43,6 +45,8 @@ import { h, render, Fragment, Component } from "${PREACT}";
 import { useState, useEffect, useMemo, useRef, useCallback } from "${HOOKS}";
 import htm from "${HTM}";
 const html = htm.bind(h);
+${CODE_DEMANDER}
+window.demander = demander; window.avertir = avertir;
 const B = window.__BOOT, S = B.spec;
 // Session : gardée par la page Bingoo! qui encadre l'app (cadre isolé), ou dans le navigateur quand l'app tourne seule (code téléchargé)
 const SEULE = window.parent === window;
@@ -573,9 +577,9 @@ function Equipe({ user }) {
       { cle: "email", label: "E-mail" },
       { cle: "role", label: "Rôle", rendu: (x) => admin && !x.titulaire ? html\`<select class="rounded-lg border border-slate-200 px-2 py-1 text-sm" value=\${x.role} onChange=\${(e) => act("role", { id: x.id, role: e.target.value }, "Rôle modifié")}>\${["admin", "membre", "lecture"].map((r) => html\`<option value=\${r}>\${ROLE_TXT[r]}</option>\`)}</select>\` : html\`<\${ui.Badge} couleur=\${x.role === "admin" ? "violet" : x.role === "lecture" ? "gris" : "bleu"}>\${ROLE_TXT[x.role] ?? x.role}</\${ui.Badge}>\` },
       { cle: "vu_at", label: "Dernière visite", rendu: (x) => fmt.date(x.vu_at) },
-      { cle: "id", label: "", rendu: (x) => admin && !x.titulaire && !x.moi ? html\`<\${ui.Button} variant="ghost" onClick=\${() => confirm("Retirer " + x.nom + " de l'équipe ?") && act("retirer", { id: x.id }, "Membre retiré")}>Retirer</\${ui.Button}>\` : null },
+      { cle: "id", label: "", rendu: (x) => admin && !x.titulaire && !x.moi ? html\`<\${ui.Button} variant="ghost" onClick=\${async () => (await demander("Retirer " + x.nom + " de l'équipe ?", { ok: "Retirer", danger: true })) && act("retirer", { id: x.id }, "Membre retiré")}>Retirer</\${ui.Button}>\` : null },
     ]} lignes=\${membres}/>\`}</\${ui.Card}>
-    \${d && !membres.find((m) => m.moi)?.titulaire && html\`<div class="mt-4"><\${ui.Button} variant="ghost" onClick=\${async () => { if (!confirm("Quitter l'équipe ? Tu retrouveras un espace vide, à toi.")) return; try { await call("quitter"); location.reload(); } catch (x) { toast(x.message, "bad"); } }}>Quitter l'équipe</\${ui.Button}></div>\`}
+    \${d && !membres.find((m) => m.moi)?.titulaire && html\`<div class="mt-4"><\${ui.Button} variant="ghost" onClick=\${async () => { if (!await demander("Quitter l'équipe ? Tu retrouveras un espace vide, à toi.", { ok: "Quitter", danger: true })) return; try { await call("quitter"); location.reload(); } catch (x) { toast(x.message, "bad"); } }}>Quitter l'équipe</\${ui.Button}></div>\`}
   </\${ui.Page}>\`;
 }
 
@@ -742,7 +746,7 @@ function Racine() {
   // Démo animée : compte d'essai jetable, jamais gardé (la session de la personne n'est pas touchée)
   const ouvrir = async (m) => {
     if (m === "demo" || m === "tour") {
-      try { const r = await call("demo"); token = r.token; if (m === "demo") persist(r.token); setTour(m === "tour"); setEtat(undefined); await verifier(); } catch (x) { alert(x.message); setEtat(null); }
+      try { const r = await call("demo"); token = r.token; if (m === "demo") persist(r.token); setTour(m === "tour"); setEtat(undefined); await verifier(); } catch (x) { avertir(x.message); setEtat(null); }
     } else setAuth(m);
   };
   const finTour = () => { setTour(false); token = null; setEtat(null); setAuth("signup"); };

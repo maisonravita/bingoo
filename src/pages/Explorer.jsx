@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { demander } from "../lib/demander";
 import { indexChoisi } from "../lib/choix";
 import ResultatsBingoo from "../components/ResultatsBingoo";
 import ChoixFormule from "../components/ChoixFormule";
@@ -1442,7 +1443,7 @@ function OuvertureListe({ app, projet }) {
   if (!l || !l.length) return null;
   const attente = l.filter((x) => !x.prevenu_at), pre = attente.filter((x) => x.precommande).length;
   const prevenir = async () => {
-    if (!confirm(`Envoyer l'e-mail d'ouverture à ${attente.length} inscrit${attente.length > 1 ? "s" : ""} ?`)) return;
+    if (!await demander(`Envoyer l'e-mail d'ouverture à ${attente.length} inscrit${attente.length > 1 ? "s" : ""} ?`)) return;
     setBusy(true);
     try { const r = await fn("r/saas-validation", { workspace_id: ws.id, projet_id: projet.id, quoi: "prevenir" }); toast(`${r.envoyes} e-mail${r.envoyes > 1 ? "s" : ""} envoyé${r.envoyes > 1 ? "s" : ""}`); await charger(); }
     catch (x) { toast(x.message, "bad"); } finally { setBusy(false); }
@@ -1643,7 +1644,7 @@ function Construire({ projet }) {
     catch (x) {
       // Un autre SaaS que celui de l'abonnement : il s'ajoute pour 60 crédits, après confirmation
       if (!/crédits/.test(x.message ?? "")) { toast(x.message, "bad"); return; }
-      if (!confirm(`${x.message}\n\nLancer ce SaaS pour 60 crédits ?`)) return;
+      if (!await demander(`${x.message}\n\nLancer ce SaaS pour 60 crédits ?`, { ok: "Lancer pour 60 crédits" })) return;
       try { await fn("r/saas-construire", { workspace_id: ws.id, projet_id: projet.id, credits: true }); await charger(); toast("60 crédits utilisés : Bingoo! construit ton nouveau SaaS"); }
       catch (y) { toast(y.message, "bad"); if (/Recharge/.test(y.message ?? "")) nav("/abonnement#credits"); }
     }
@@ -1675,7 +1676,7 @@ function Construire({ projet }) {
           <div className="flex flex-wrap gap-2">
             <a href={lien} target="_blank" rel="noreferrer" className="rounded-xl bg-accent px-5 py-2.5 text-[14px] font-bold hover:bg-accent-dark">Ouvrir mon SaaS ↗</a>
             <button onClick={() => navigator.clipboard?.writeText(lien).then(() => toast("Lien copié"))} className="rounded-xl bg-white/10 px-4 py-2.5 text-[14px] font-semibold hover:bg-white/20">Copier le lien</button>
-            <button onClick={() => { if (confirm("Reconstruire toute l'application ? Les modifications faites jusqu'ici seront remplacées.")) construire(); }} className="rounded-xl bg-white/10 px-4 py-2.5 text-[14px] font-semibold hover:bg-white/20">Reconstruire</button>
+            <button onClick={async () => { if (await demander("Reconstruire toute l'application ? Les modifications faites jusqu'ici seront remplacées.")) construire(); }} className="rounded-xl bg-white/10 px-4 py-2.5 text-[14px] font-semibold hover:bg-white/20">Reconstruire</button>
           </div>
         )}
       </div>
@@ -2070,7 +2071,7 @@ function OngletEncaisser({ app, appel, agir, busy }) {
       <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={!!pay.actif} disabled={!!busy} onChange={(e) => agir("actif", () => appel("paiement", { actif: e.target.checked }), e.target.checked ? "Abonnements activés" : "Application gratuite")} />Abonnement obligatoire après l'essai</label>
       <label className="flex items-center gap-2 text-[14px]">Modèle <select value={pay.modele ?? "abonnement"} onChange={(e) => agir("modele", () => appel("paiement", { modele: e.target.value }), e.target.value === "unique" ? "Paiement unique : tes clients paient une fois, accès à vie" : "Abonnement mensuel enregistré")} className="rounded-lg bg-white/10 border border-white/15 px-2 py-1"><option value="abonnement" className="text-ink">Abonnement mensuel (SaaS)</option><option value="unique" className="text-ink">Paiement unique, accès à vie (appli web)</option></select></label>
       <label className="flex items-center gap-2 text-[14px]">Essai gratuit <input type="number" min={0} max={60} value={essai} onChange={(e) => setEssai(e.target.value)} onBlur={() => Number(essai) !== Number(pay.essai_jours ?? 14) && agir("essai", () => appel("paiement", { essai_jours: Number(essai) }), "Durée d'essai enregistrée")} className="w-16 rounded-lg bg-white/10 border border-white/15 px-2 py-1" /> jours</label>
-      <button disabled={!!busy} onClick={() => { if (confirm("Débrancher Stripe ? L'application redevient gratuite.")) agir("cle", () => appel("paiement", { cle: "" }), "Stripe débranché"); }} className="text-[12.5px] text-white/50 underline">Débrancher Stripe</button>
+      <button disabled={!!busy} onClick={async () => { if (await demander("Débrancher Stripe ? L'application redevient gratuite.")) agir("cle", () => appel("paiement", { cle: "" }), "Stripe débranché"); }} className="text-[12.5px] text-white/50 underline">Débrancher Stripe</button>
     </div>
   ) : (
     <div className="space-y-2.5 max-w-xl">
@@ -2119,7 +2120,7 @@ function OngletPrix({ app, appel, agir, busy }) {
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-[14px]">Test en cours depuis le {new Date(r.debut).toLocaleDateString("fr-FR")} · {t === "essai" ? "durée d'essai" : "prix"}</p>
           <label className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" checked={!!r.auto} onChange={(e) => agir("abauto", async () => setR(await appel("ab", { auto: e.target.checked })), e.target.checked ? "Bingoo! gardera le gagnant tout seul" : null)} />Garder le gagnant automatiquement</label>
-          <button disabled={!!busy} onClick={() => { if (confirm("Arrêter le test sans rien changer ?")) agir("ab", async () => setR(await appel("ab", { appliquer: "A" })), "Test arrêté"); }} className={btnSombre}>Arrêter le test</button>
+          <button disabled={!!busy} onClick={async () => { if (await demander("Arrêter le test sans rien changer ?")) agir("ab", async () => setR(await appel("ab", { appliquer: "A" })), "Test arrêté"); }} className={btnSombre}>Arrêter le test</button>
         </div>
       )}
       {(actif || r?.debut) && (
@@ -2199,7 +2200,7 @@ function OngletEmails({ app, appel, agir, busy }) {
         <textarea value={ann.texte} onChange={(ev) => setAnn({ ...ann, texte: ev.target.value })} rows={5} className={champSombre} placeholder={"Bonjour {prenom},\n\n…"} />
         <div className="flex flex-wrap gap-2">
           <button disabled={!!busy || ann.texte.length < 10} onClick={() => agir("anntest", async () => { await appel("annonce", { ...ann, test: true }); toast("Essai envoyé à ton adresse"); }, null)} className={btnSombre}>M'envoyer un essai</button>
-          <button disabled={!!busy || ann.texte.length < 10 || ann.sujet.length < 3} onClick={() => { if (confirm(`Envoyer cette annonce à ${et?.joignables ?? "tous les"} comptes ?`)) agir("ann", async () => { const r = await appel("annonce", ann); toast(`Annonce envoyée à ${r.envoyes} compte${r.envoyes > 1 ? "s" : ""}`); setAnn({ sujet: "", texte: "", bouton: "" }); charger(); }, null); }} className={btnAccent}>{busy === "ann" ? "Envoi…" : "Envoyer à tous"}</button>
+          <button disabled={!!busy || ann.texte.length < 10 || ann.sujet.length < 3} onClick={async () => { if (await demander(`Envoyer cette annonce à ${et?.joignables ?? "tous les"} comptes ?`)) agir("ann", async () => { const r = await appel("annonce", ann); toast(`Annonce envoyée à ${r.envoyes} compte${r.envoyes > 1 ? "s" : ""}`); setAnn({ sujet: "", texte: "", bouton: "" }); charger(); }, null); }} className={btnAccent}>{busy === "ann" ? "Envoi…" : "Envoyer à tous"}</button>
         </div>
       </div>
 
@@ -2232,7 +2233,7 @@ function OngletDomaine({ app, appel, agir, busy }) {
         <p className="mt-1 text-[12px] text-white/45">C'est tout. Bingoo! vérifie toutes les heures et t'envoie un e-mail dès que ton SaaS répond sur {app.domaine} (de quelques minutes à quelques heures).</p></>}
       <div className="mt-3 flex gap-2">
         {app.domaine_statut !== "ok" && <button disabled={!!busy} onClick={() => agir("verif", async () => { const r = await appel("domaine-verifier"); setDns(r.dns); if (r.statut !== "ok") throw new Error("Pas encore : le DNS ne pointe pas vers Bingoo!"); }, "Domaine en ligne")} className={btnSombre}>{busy === "verif" ? "Vérification…" : "Vérifier"}</button>}
-        <button disabled={!!busy} onClick={() => { if (confirm(`Retirer ${app.domaine} ?`)) agir("dom", () => appel("domaine", { domaine: "" }), "Domaine retiré"); }} className={btnSombre}>Retirer</button>
+        <button disabled={!!busy} onClick={async () => { if (await demander(`Retirer ${app.domaine} ?`)) agir("dom", () => appel("domaine", { domaine: "" }), "Domaine retiré"); }} className={btnSombre}>Retirer</button>
       </div>
     </div>
   ) : (
@@ -2258,7 +2259,7 @@ function OngletVersions({ app, appel, agir, busy }) {
               <span className="font-semibold">Version {x.version}</span>
               <span className="text-white/55">{new Date(x.at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
               <span className="flex-1 text-white/55 truncate">{x.ecrans.join(" · ")}</span>
-              <button disabled={!!busy} onClick={() => { if (confirm(`Remettre en ligne la version ${x.version} ?`)) agir(`v${x.version}`, () => appel("restaurer", { version: x.version }), `Version ${x.version} remise en ligne`); }} className={btnSombre}>{busy === `v${x.version}` ? "…" : "Revenir à celle-ci"}</button>
+              <button disabled={!!busy} onClick={async () => { if (await demander(`Remettre en ligne la version ${x.version} ?`)) agir(`v${x.version}`, () => appel("restaurer", { version: x.version }), `Version ${x.version} remise en ligne`); }} className={btnSombre}>{busy === `v${x.version}` ? "…" : "Revenir à celle-ci"}</button>
             </li>
           ))}
         </ul>
@@ -2574,7 +2575,7 @@ function FilBourse({ fil, onClose }) {
         {vente?.statut === "attente_paiement" && (
           <div className="mx-5 mb-2 rounded-2xl bg-[#DCFCE7] p-3 text-[13.5px]">
             <p><b>Vente conclue à {eurs(vente.prix)}.</b> {fil.vendeur ? `Une fois le paiement reçu, transfère l'application. Commission Bingoo! : ${eurs(vente.commission)}.` : "Organise le paiement avec le vendeur ; il te transfère l'application dès réception."}</p>
-            {fil.vendeur && <button disabled={busy} onClick={() => { if (confirm(`Paiement reçu ? ${fil.nom} va passer sur l'espace de l'acheteur et ton Stripe sera débranché.`)) act(() => fn("r/saas-bourse-vendu", { workspace_id: ws.id, bourse_id: fil.bourse_id, acheteur: fil.acheteur }), "Transféré !"); }} className="mt-2 rounded-xl bg-[#15803D] text-white px-3 py-2 font-bold">Paiement reçu : transférer {fil.nom}</button>}
+            {fil.vendeur && <button disabled={busy} onClick={async () => { if (await demander(`Paiement reçu ? ${fil.nom} va passer sur l'espace de l'acheteur et ton Stripe sera débranché.`)) act(() => fn("r/saas-bourse-vendu", { workspace_id: ws.id, bourse_id: fil.bourse_id, acheteur: fil.acheteur }), "Transféré !"); }} className="mt-2 rounded-xl bg-[#15803D] text-white px-3 py-2 font-bold">Paiement reçu : transférer {fil.nom}</button>}
           </div>
         )}
         {vente?.statut === "a_facturer" ? <p className="p-5 pt-2 text-[14px] font-semibold text-[#15803D]">✓ {fil.nom} a été transféré.</p> : (

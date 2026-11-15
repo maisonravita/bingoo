@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { demander } from "../lib/demander";
 import { Link } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
@@ -71,7 +72,7 @@ export default function Equipe() {
               {canManage && m.role !== "owner" && m.user_id !== session?.user?.id && (
                 <div className="flex gap-1">
                   <Button size="sm" variant="ghost" loading={busy === "team-member" + m.user_id} onClick={() => act("team-member", { user_id: m.user_id, action: m.role === "admin" ? "member" : "admin" }, "Rôle modifié")}>{m.role === "admin" ? "Passer commercial" : "Passer admin"}</Button>
-                  <Button size="sm" variant="danger" onClick={() => { if (confirmRemove(m.email)) act("team-member", { user_id: m.user_id, action: "remove" }, "Membre retiré"); }}>Retirer</Button>
+                  <Button size="sm" variant="danger" onClick={async () => { if (await confirmRemove(m.email)) act("team-member", { user_id: m.user_id, action: "remove" }, "Membre retiré"); }}>Retirer</Button>
                 </div>
               )}
             </div>
@@ -120,5 +121,5 @@ export default function Equipe() {
 }
 
 function confirmRemove(email) {
-  return window.confirm(`Retirer ${email || "ce membre"} de l'équipe ? Ses prospects redeviennent sans responsable.`);
+  return demander(`Retirer ${email || "ce membre"} de l'équipe ? Ses prospects redeviennent sans responsable.`, { ok: "Retirer", danger: true });
 }
