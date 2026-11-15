@@ -46,7 +46,8 @@ export default function VideoPub({ app, lien, nu = false, angleInitial = "" }) {
       const d = ev.data;
       if (d?.slug !== app.slug || d?.type !== "bingoo-capture") return;
       if (!d.png) { setImgs((m) => ({ ...m, [d.id]: null })); return; }
-      const im = new Image(); im.onload = () => setImgs((m) => ({ ...m, [d.id]: im })); im.onerror = () => setImgs((m) => ({ ...m, [d.id]: null })); im.src = d.png;
+      // Rendue une seule fois en image fixe : redessiner le SVG à chaque image de la vidéo serait trop lourd
+      const im = new Image(); im.onload = () => { const cv = document.createElement("canvas"); cv.width = im.width || 1280; cv.height = im.height || 800; try { cv.getContext("2d").drawImage(im, 0, 0); setImgs((m) => ({ ...m, [d.id]: cv })); } catch { setImgs((m) => ({ ...m, [d.id]: null })); } }; im.onerror = () => setImgs((m) => ({ ...m, [d.id]: null })); im.src = d.png;
     };
     window.addEventListener("message", ecoute);
     return () => window.removeEventListener("message", ecoute);

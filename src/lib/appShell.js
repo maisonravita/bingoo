@@ -701,6 +701,8 @@ function Capture() {
         if (txt.trim().length > 60 && !/Chargement/.test(txt)) break;
         await new Promise((ok) => setTimeout(ok, 250));
       }
+      // Pas d'animation d'entrée dans la photo (sinon le contenu y reste à opacité 0)
+      if (!document.getElementById("sans-anim")) { const st = document.createElement("style"); st.id = "sans-anim"; st.textContent = "*,*::before,*::after{animation:none!important;transition:none!important;opacity:1}"; document.head.appendChild(st); }
       await new Promise((ok) => setTimeout(ok, 400));
       try {
         // Image vectorielle (SVG) : la page Bingoo! la dessine dans la vidéo (le rendu en PNG ne se termine pas dans un cadre isolé)
