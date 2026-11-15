@@ -763,6 +763,7 @@ function VideosTikTok({ videos, m, deja }) {
               </div>
             </a>}
             <div className="mt-2 flex min-w-0 flex-1 flex-col">
+              {v.type && <p className="mb-1"><span className="rounded-md bg-[#F1F1F1] px-1.5 py-0.5 text-[11px] font-semibold text-[#616161]">{{ demo_outil: "Démo d'outil", quotidien_metier: "Leur quotidien", conseil_metier: "Conseil entre pros" }[v.type]}</span></p>}
               {o.auteur && <p className="truncate text-[12px] font-semibold text-[#303030]">@{o.auteur}{v.vues ? <span className="font-normal text-[#8A8A8A]"> · {v.vues}</span> : null}</p>}
               <p className="line-clamp-2 text-[12.5px] font-medium text-[#303030]">{o.legende || v.legende || v.titre}</p>
               {v.pourquoi && <p className="mt-1 line-clamp-3 text-[12px] text-[#8A8A8A]">{v.pourquoi}</p>}
