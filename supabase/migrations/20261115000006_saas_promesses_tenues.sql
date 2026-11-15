@@ -1,0 +1,5 @@
+-- Appliquée via MCP : saas_promesse_ko(texte, capacités) et saas_promesses_tenues(spec) ;
+-- déclencheur saas_apps_promesses (avant chaque écriture de spec) : capacités réelles détectées dans le code des écrans
+-- (ia(), email(), pdf(), rappels:/confirmation: des pages publiques, agenda), atouts et avantages des formules faux retirés,
+-- atouts complétés par les vrais écrans, accroche signalée (capacites.pitch_ko) et réécrite par corrigerAccroche().
+-- Rattrapage appliqué aux 11 SaaS existants ; accroches de filon-2h2s et kineflux-5o1k réécrites.

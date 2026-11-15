@@ -171,7 +171,8 @@ Collections : ${(s.collections ?? []).slice(0, 6).map((c: any) => `${c.nom} : ${
     // Tous les écrans sont déjà écrits : on met en ligne directement (même chemin que la fin d'une construction classique)
     const e0 = spec.ecrans[0];
     await admin.from("saas_apps").update({ brouillon: spec, etape: `Écriture des écrans (${spec.ecrans.length}/${spec.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
-    await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: e0.id, p_code: e0.code, p_ok: true });
+    const { data: fin } = await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: e0.id, p_code: e0.code, p_ok: true });
+    if (fin === "pret") await corrigerAccroche(appId).catch((x) => console.error("accroche", x));
     return;
   }
   await admin.from("saas_apps").update({ brouillon: spec, etape: `Écriture des écrans (0/${spec.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
@@ -192,7 +193,40 @@ export async function saasEcrireEcran(appId: string, ecranId: string) {
   if (!e) return;
   const r = await ecrire(spec, e).catch((x) => { console.error("ecran", ecranId, x); return { code: "", ok: false }; });
   r.code = await inspireDe(appId).then((o) => sansIdentite(r.code, o, spec.nom).valeur);
-  await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: ecranId, p_code: r.code, p_ok: r.ok });
+  const { data: fin } = await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: ecranId, p_code: r.code, p_ok: r.ok });
+  if (fin === "pret") await corrigerAccroche(appId).catch((x) => console.error("accroche", x));
+}
+
+/** Le site ne promet que ce que l'application fait : la base retire les atouts et avantages faux et signale
+ *  une accroche qui promet trop (spec.capacites.pitch_ko) ; on la réécrit ici, d'après les vrais écrans. */
+export async function corrigerAccroche(appId: string) {
+  const { data: a } = await admin.from("saas_apps").select("spec").eq("id", appId).single();
+  const s = a?.spec as any, c = s?.capacites;
+  if (!c?.pitch_ko) return;
+  const sait = [
+    c.ia && "son IA intégrée (rédiger, reformuler, résumer, analyser)",
+    c.email && "envoyer de vrais e-mails aux clients, tout de suite ou planifiés (confirmations, rappels, relances)",
+    !c.email && c.rappel && "un e-mail de confirmation puis un rappel la veille quand un client réserve",
+    !c.email && !c.rappel && c.email_recu && "un e-mail de confirmation quand un client envoie une demande",
+    c.pdf && "générer des PDF (devis, factures, documents)",
+    c.agenda && "un agenda auquel on s'abonne depuis Google Agenda ou Outlook",
+  ].filter(Boolean);
+  const ecrans = (s.ecrans ?? []).map((e: any) => `${e.titre}${e.public ? " (page publique pour les clients)" : ""} : ${e.but ?? ""}`).join(" ; ");
+  for (let essai = 0; essai < 2; essai++) {
+    const r = await askJson<any>(`Site du SaaS « ${s.nom} » (${s.cible_courte ?? s.cible ?? ""}).
+Accroche actuelle : « ${s.pitch} »
+Slogan actuel : « ${s.slogan} »
+Elle promet des choses que l'application ne fait pas. Ce que l'application fait VRAIMENT : ses écrans — ${ecrans}.${sait.length ? ` Elle sait aussi : ${sait.join(" ; ")}.` : ""}
+Elle ne fait rien d'autre${c.ia ? "" : " : pas d'IA"}${c.email ? "" : c.rappel ? ", pas de relances par e-mail" : ", pas d'e-mails programmés"}, pas de SMS, pas d'intégration ni d'import, pas d'API.
+Réécris en français naturel, au même ton : pitch (35 mots au plus, garde tout ce qui est vrai dans l'accroche actuelle) et slogan (8 mots au plus, garde l'actuel s'il est vrai). Aucun chiffre inventé. Rends {"pitch": "...", "slogan": "..."}.`, { fast: true, maxTokens: 400 });
+    const pitch = String(r?.pitch ?? "").trim().slice(0, 300), slogan = String(r?.slogan ?? s.slogan ?? "").trim().slice(0, 90);
+    if (!pitch) continue;
+    const { data: ko1 } = await admin.rpc("saas_promesse_ko", { t: pitch, caps: c });
+    const { data: ko2 } = await admin.rpc("saas_promesse_ko", { t: slogan, caps: c });
+    if (ko1 || ko2) continue;
+    await admin.from("saas_apps").update({ spec: { ...s, pitch, slogan } }).eq("id", appId);
+    return;
+  }
 }
 
 /** Modifie un écran à la demande (ou en ajoute un si ecranId = "nouveau"). */
