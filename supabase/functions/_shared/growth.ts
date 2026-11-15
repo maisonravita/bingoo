@@ -407,7 +407,7 @@ export async function checkout(ws: Workspace, userId: string, planKey: string, y
   const fondateur = planKey === FOUNDER.plan && per.mois === 1 && ((ws as { founder_price?: boolean }).founder_price || (await founderSlots()).left > 0);
   const total = fondateur ? FOUNDER.price : Math.round(per.parMois * per.mois * 100) / 100;
   const s = await stripe("/checkout/sessions", {
-    mode: "subscription", customer, locale: "fr", allow_promotion_codes: "true",
+    mode: "subscription", customer, locale: "fr",
     "line_items[0][quantity]": "1",
     "line_items[0][price_data][currency]": "eur",
     "line_items[0][price_data][unit_amount]": String(Math.round(total * 100)),
