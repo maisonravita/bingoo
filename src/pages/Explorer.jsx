@@ -2873,8 +2873,9 @@ export function TrouveTonSaas() {
 }
 // Les petites vignettes du premier écran, faites avec de vrais SaaS de la base
 function ApercuBut({ k, stats }) {
-  const cats = Object.entries(stats ?? {}).filter(([, v]) => v?.top && v?.logos?.length >= 3).sort((a, b) => b[1].top - a[1].top);
+  const cats = Object.entries(stats ?? {}).filter(([c, v]) => c !== "Autre" && v?.top && v?.logos?.length >= 3).sort((a, b) => b[1].top - a[1].top);
   const [c1, c2, c3] = cats;
+  const nomDe = (d) => String(d ?? "").replace(/^www\./, "").split(".")[0].replace(/^./, (x) => x.toUpperCase());
   const logo = (d, cl = "h-9 w-9") => <span key={d} className={cx("grid shrink-0 place-items-center overflow-hidden rounded-xl border-2 border-white bg-white shadow-sm", cl)}><CompanyLogo name={d} url={`https://${d}`} className="h-full w-full" pad="p-1" /></span>;
   if (!c1) return null;
   if (k === "lancer") return (
@@ -2884,13 +2885,13 @@ function ApercuBut({ k, stats }) {
     </span>
   );
   if (k === "idee") return (
-    <span className="mx-auto flex max-w-[260px] items-center gap-3 rounded-2xl border border-line bg-white p-3 shadow-sm">{logo(c1[1].logos[0], "h-11 w-11")}<span className="min-w-0"><span className="block truncate text-[13px] font-bold">{c1[0]}</span><span className="mt-0.5 inline-block rounded-md bg-good/10 px-1.5 py-0.5 text-[12px] font-bold text-good">{dollar(c1[1].top)}/mois</span></span></span>
+    <span className="mx-auto flex max-w-[260px] items-center gap-3 rounded-2xl border border-line bg-white p-3 shadow-sm">{logo(c1[1].logos[0], "h-11 w-11")}<span className="min-w-0"><span className="block truncate text-[14px] font-bold">{nomDe(c1[1].logos[0])}</span><span className="block truncate text-[11px] text-ink-faint">{c1[0]}</span><span className="mt-0.5 inline-block rounded-md bg-good/10 px-1.5 py-0.5 text-[12px] font-bold text-good">{dollar(c1[1].top)}/mois</span></span></span>
   );
   if (k === "verifier") return (
     <span className="flex flex-col items-center gap-2"><span className="rounded-full border border-line bg-white px-3 py-1 text-[12px]">« {c2?.[0]?.toLowerCase() ?? "ton idée"} »</span><span className="text-accent" aria-hidden>↓</span><span className="flex items-center gap-1.5">{(c2?.[1]?.logos ?? []).slice(0, 3).map((d) => logo(d))}<span className="ml-1 rounded-full bg-good/10 px-2 py-0.5 text-[11.5px] font-bold text-good">✓ marché validé</span></span></span>
   );
   return (
-    <span className="mx-auto block max-w-[280px] space-y-1.5">{[c1, c2, c3].filter(Boolean).map(([c, v], i) => <span key={c} className="flex items-center gap-2 rounded-lg border border-line bg-white px-2 py-1"><span className="w-3 text-[11px] text-ink-faint">{i + 1}</span>{logo(v.logos[0], "h-6 w-6 rounded-md border")}<span className="min-w-0 flex-1 truncate text-[12px] font-semibold">{c}</span><span className="rounded bg-good/10 px-1.5 text-[11px] font-bold text-good">{dollar(v.top)}</span></span>)}</span>
+    <span className="mx-auto block max-w-[280px] space-y-1.5">{[c1, c2, c3].filter(Boolean).map(([c, v], i) => <span key={c} className="flex items-center gap-2 rounded-lg border border-line bg-white px-2 py-1"><span className="w-3 text-[11px] text-ink-faint">{i + 1}</span>{logo(v.logos[0], "h-6 w-6 rounded-md border")}<span className="min-w-0 flex-1 truncate text-[12px] font-semibold">{nomDe(v.logos[0])}</span><span className="rounded bg-good/10 px-1.5 text-[11px] font-bold text-good">{dollar(v.top)}</span></span>)}</span>
   );
 }
 // À droite des questions : la recherche qui se resserre en direct (vrais chiffres de la base, recalculés à chaque réponse)
