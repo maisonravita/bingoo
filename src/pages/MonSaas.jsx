@@ -690,7 +690,7 @@ function TikTok({ m }) {
 
       <Carte className="mt-4" titre="Vidéos qui marchent dans ta niche" sous={t?.niche ? `Ta niche : ${t.niche}. Trouvées sur TikTok et vérifiées une par une : regarde-les, puis fais pareil pour ton SaaS.` : "Trouvées sur TikTok et vérifiées une par une. Regarde-les, puis fais pareil pour ton SaaS."}>
         {!t ? <p className="text-[13.5px] text-[#616161]">Lance l'analyse TikTok pour les voir.</p>
-          : !t.videos?.length ? <p className="text-[13.5px] text-[#616161]">Aucune vidéo sûre trouvée cette fois : réessaie plus tard avec « Actualiser ».</p>
+          : !t.videos?.length ? <p className="text-[13.5px] text-[#616161]">Bingoo! n'a pas trouvé de vidéo TikTok qui parle vraiment à tes clients en tant que professionnels (il préfère ne rien te montrer que des vidéos hors sujet). Pars des idées de vidéos ci-dessus et inspire-toi des SaaS qui trouvent leurs clients sur TikTok, plus bas.</p>
             : <VideosTikTok videos={t.videos} m={m} deja={t.pareil} />}
       </Carte>
 

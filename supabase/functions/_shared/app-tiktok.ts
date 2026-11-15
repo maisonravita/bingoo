@@ -139,16 +139,27 @@ JSON : { "formats": [ ... ], "conseils": ["3 conseils concrets de publication po
   data.videos = await Promise.all(data.videos.map(async (v: any) => { const [o, image, st] = await Promise.all([oembed(v.url), couverture(v.url), infosVideo(v.url)]); return { ...v, ...(o ? { auteur: o.auteur ?? v.auteur ?? null, legende: o.legende ?? null } : {}), image: image ?? o?.image ?? null, n_vues: st.vues, likes: st.likes, date: st.date, vues: st.vues != null ? nombre(st.vues) : v.vues }; }));
   // Tri sur ce que dit VRAIMENT chaque vidéo (auteur, légende réelle) : seules celles qui parlent aux clients du SaaS restent,
   // avec un « pourquoi » tiré de la légende (et pas imaginé avant de la lire)
-  if (data.videos.length) {
-    const liste = data.videos.map((v: any, i: number) => `${i}. @${v.auteur ?? "?"} — titre : ${v.titre} — légende réelle : ${v.legende ?? "(inconnue)"}${v.vues ? ` — ${v.vues}` : ""}`).join("\n");
-    const tri = await askJson<any>(`Le SaaS « ${spec.nom ?? ""} » se vend à ${clients}. Voici des vidéos TikTok trouvées. Pour chacune, décide si elle aide CE fondateur à faire connaître son SaaS auprès de ${clients} : oui seulement si elle s'adresse à ces professionnels (démo d'un outil pour eux, leur quotidien ou leurs galères de professionnels, conseils entre confrères), non si elle s'adresse à LEURS clients (patients, consommateurs…), si elle est hors sujet, ou dans un autre pays sans rapport.
-${liste}
-JSON : { "videos": [{ "i": numéro, "garder": true|false, "type": "demo_outil|quotidien_metier|conseil_metier", "pourquoi": "ce que le fondateur peut en reprendre, d'après la légende réelle, 1 phrase concrète en français" }] }`, { fast: true, maxTokens: 1500 }).catch(() => null);
+  if (data.videos.length || data.comptes.length) {
+    const liste = data.videos.map((v: any, i: number) => `V${i}. @${v.auteur ?? "?"} — titre : ${v.titre} — légende : ${v.legende ?? "(inconnue)"}${v.vues ? ` — ${v.vues}` : ""}`).join("\n");
+    const listeC = data.comptes.map((c: any, i: number) => `C${i}. ${c.nom} — ${c.url}`).join("\n");
+    const tri = await askJson<any>(`Le SaaS « ${spec.nom ?? ""} » se vend à ${clients} (les professionnels eux-mêmes). Voici des vidéos et des comptes TikTok trouvés. Note chacun de 0 à 10 : à quel point il aide CE fondateur à toucher ${clients} sur TikTok.
+- 8 à 10 : s'adresse clairement à ces professionnels (démo d'un outil pour leur métier, leur quotidien ou leurs galères de professionnels, conseils entre confrères), ou créateur suivi par eux.
+- 0 à 4 : s'adresse à LEURS clients (patients, consommateurs : soins, santé, vitrine d'un cabinet ou d'une boutique), hors sujet, ou autre pays sans rapport.
+Au moindre doute, note bas. Le « pourquoi » ne contient aucune réserve (si tu as une réserve, la note est basse).
+Vidéos :
+${liste || "(aucune)"}
+Comptes :
+${listeC || "(aucun)"}
+JSON : { "videos": [{ "i": numéro sans le V, "note": 0-10, "type": "demo_outil|quotidien_metier|conseil_metier", "pourquoi": "ce que le fondateur peut en reprendre, 1 phrase concrète en français" }], "comptes": [{ "i": numéro sans le C, "note": 0-10, "pourquoi": "pourquoi le suivre ou lui proposer un partenariat, 1 phrase" }] }`, { fast: true, maxTokens: 1800 }).catch(() => null);
     if (Array.isArray(tri?.videos)) {
       const avis = new Map(tri.videos.map((x: any) => [Number(x.i), x]));
-      data.videos = data.videos.map((v: any, i: number) => ({ v, a: avis.get(i) as any })).filter(({ a }) => a?.garder === true)
+      data.videos = data.videos.map((v: any, i: number) => ({ v, a: avis.get(i) as any })).filter(({ a }) => Number(a?.note) >= 7)
         .map(({ v, a }) => ({ ...v, type: ["demo_outil", "quotidien_metier", "conseil_metier"].includes(a.type) ? a.type : null, pourquoi: court(a.pourquoi, 220) || v.pourquoi }));
-    }
+    } else data.videos = [];
+    if (Array.isArray(tri?.comptes)) {
+      const avis = new Map(tri.comptes.map((x: any) => [Number(x.i), x]));
+      data.comptes = data.comptes.map((c: any, i: number) => ({ c, a: avis.get(i) as any })).filter(({ a }) => Number(a?.note) >= 7).map(({ c, a }) => ({ ...c, pourquoi: court(a.pourquoi, 200) || c.pourquoi }));
+    } else data.comptes = [];
     data.videos.sort((a: any, b: any) => (b.n_vues ?? -1) - (a.n_vues ?? -1));
     data.videos = data.videos.slice(0, 8);
   }
