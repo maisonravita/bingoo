@@ -220,7 +220,7 @@ function Liste({ copier: copierPage = false }) {
     if (f.actif) q = q.gte("nouveaute", new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10));
     if (f.copier || copierPage) q = q.order("constructible", { ascending: false, nullsFirst: false });
     if (f.tri === "copiable") q = q.order("copiable", { ascending: false, nullsFirst: false }).order("revenu_tri", { ascending: false, nullsFirst: false });
-    else q = q.order(f.tri, { ascending: f.tri === "prix_entree_eur" || f.tri === "rang_web", nullsFirst: false }).order("nom").range(page * PAGE, page * PAGE + PAGE - 1);
+    else { const tri = !estPaye(ws) && ["score_croissance", "succes_montant", "rang_web"].includes(f.tri) ? "revenu_tri" : f.tri; q = q.order(tri, { ascending: tri === "prix_entree_eur" || tri === "rang_web", nullsFirst: false }).order("nom").range(page * PAGE, page * PAGE + PAGE - 1); }
     let vivant = true;
     q.then(({ data, count }) => { if (vivant) { setRows(data ?? []); setTotal(count ?? 0); } });
     return () => { vivant = false; };

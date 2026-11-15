@@ -1,0 +1,3 @@
+-- Appliquée via MCP : vitrine_niveau(saas) (0 = revenu prouvé 3 k$ à 150 k$/mois, nom propre, catégorie connue ;
+-- 1 = estimation dans cette fourchette ; 2 = autres ; 3 = fiche peu lisible). saas_liste classe la vitrine selon ce niveau,
+-- et ne garde par catégorie que les niveaux 0 et 1.
