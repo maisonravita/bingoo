@@ -694,11 +694,19 @@ function Capture() {
   useEffect(() => {
     if (!E) { try { parent.postMessage({ type: "bingoo-capture-fin", slug: B.slug }, "*"); } catch (x) {} return; }
     const t = setTimeout(async () => {
+      // On attend que l'écran soit rempli (données chargées, plus de « Chargement »), 8 secondes au plus
+      for (let k = 0; k < 32; k++) {
+        const z = document.querySelector("#cap main") ?? document.getElementById("cap");
+        const txt = z?.innerText ?? "";
+        if (txt.trim().length > 60 && !/Chargement/.test(txt)) break;
+        await new Promise((ok) => setTimeout(ok, 250));
+      }
+      await new Promise((ok) => setTimeout(ok, 400));
       try {
         // Image vectorielle (SVG) : la page Bingoo! la dessine dans la vidéo (le rendu en PNG ne se termine pas dans un cadre isolé)
         const { toSvg } = await import("https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/+esm");
         const png = await Promise.race([toSvg(document.getElementById("cap"), { width: 1280, height: 800, skipFonts: true, backgroundColor: "#F8FAFC" }), new Promise((_, non) => setTimeout(() => non(new Error("Capture trop longue")), 10000))]);
-        parent.postMessage({ type: "bingoo-capture", slug: B.slug, id: E.id, png }, "*");
+        parent.postMessage({ type: "bingoo-capture", slug: B.slug, id: E.id, png, texte: (document.querySelector("#cap main")?.innerText ?? "").length }, "*");
       } catch (x) { try { parent.postMessage({ type: "bingoo-capture", slug: B.slug, id: E.id, erreur: String(x?.message ?? x).slice(0, 200) }, "*"); } catch (y) {} }
       setI(i + 1);
     }, 1800);
