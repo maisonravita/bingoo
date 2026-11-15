@@ -2763,7 +2763,7 @@ export function TrouveTonSaas() {
             <div className="mt-3 h-1.5 rounded-full bg-black/[.06] overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-accent via-[#F08A4B] to-[#9B6BFF] transition-all duration-500" style={{ width: `${((r.etape + 1) / QUESTIONS.length) * 100}%` }} /></div>
             <div key={r.etape} className="land-in">
               <p className="mt-12 text-[13px] font-bold uppercase tracking-[.18em] text-accent-dark">{r.etape === 0 ? "30 secondes chrono" : SURTITRES[Q.k] ?? "Ton projet"}</p>
-              <h1 className="mt-2 text-[34px] sm:text-[50px] font-black leading-[1.04] tracking-[-.02em]" style={HF}>{Q.q}</h1>
+              <h1 className="mt-2 leading-[1.04] tracking-[-.02em]" style={{ ...HF, fontWeight: 900, fontSize: "clamp(34px, 4.2vw, 54px)" }}>{Q.q}</h1>
               <p className="mt-3 max-w-xl text-[17px] text-ink-soft">{Q.aide}</p>
               {Q.pays ? (
                 <div className="mt-8">
