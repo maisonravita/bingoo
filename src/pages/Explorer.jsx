@@ -2714,6 +2714,7 @@ export function TrouveTonSaas() {
   // (aucun risque : ce n'est que la page qu'un visiteur voit déjà)
   const [visiteur] = useState(() => /visiteur=1/.test(window.location.href));
   const debloque = estPaye(ws) && !visiteur;
+  const navT = useNavigate();
   const sauver = (n) => { try { localStorage.setItem("bingoo-parcours2", JSON.stringify({ ...n, fini: n.etape >= QUESTIONS.length || n.fini })); } catch { /* stockage indisponible */ } };
   const aller = (n) => {
     setR(n); sauver(n);
@@ -2749,7 +2750,29 @@ export function TrouveTonSaas() {
   ].filter(Boolean);
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      {!fini ? (
+      {!fini && r.etape === 0 && !r.but && !avant?.fini ? (
+        <div className="mx-auto max-w-4xl pt-6 pb-16">
+          <p className="text-[13px] font-bold uppercase tracking-[.18em] text-accent-dark">30 secondes chrono</p>
+          <h1 className="mt-2 leading-[1.04] tracking-[-.02em]" style={{ ...HF, fontWeight: 900, fontSize: "clamp(34px, 4.2vw, 54px)" }}>Tu viens sur Bingoo! pour quoi ?</h1>
+          <p className="mt-3 text-[17px] text-ink-soft">Choisis, Bingoo! s'adapte à toi.</p>
+          <div className="mt-9 grid sm:grid-cols-2 gap-4">{[
+            ["lancer", "Lancer mon SaaS", "Bingoo! te trouve un SaaS qui encaisse déjà, construit ta version et t'aide à vendre.", "fusee"],
+            ["idee", "Trouver une idée", "Des SaaS qui gagnent déjà de l'argent dans ta niche.", "google"],
+            ["verifier", "Vérifier un SaaS", "Son revenu, son trafic, ses prix : est-ce que ce marché rapporte vraiment ?", "piece"],
+            ["concurrents", "Voir mes concurrents", "Qui fait la même chose, et combien ils gagnent.", "personne"],
+          ].map(([k, l, d, ic]) => (
+            <button key={k} type="button" onClick={() => {
+              if (k === "lancer" || k === "idee") return setR({ ...r, but: k });
+              if (invite) return demanderCompte("Crée ton compte gratuit pour explorer les SaaS et leurs chiffres.");
+              navT(k === "verifier" ? "/explorer/chiffres" : "/explorer");
+            }} className="group flex items-start gap-4 rounded-3xl border border-line bg-white p-5 text-left shadow-[0_1px_2px_rgba(16,24,40,.04)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-28px_rgba(21,23,42,.45)]">
+              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-accent to-[#F08A4B] text-white shadow-[0_10px_24px_-12px_rgba(224,83,31,.8)] [&_svg]:h-6 [&_svg]:w-6">{IC[ic]}</span>
+              <span className="min-w-0 flex-1"><span className="block font-bold text-[18px] leading-tight">{l}</span><span className="mt-1 block text-[14.5px] leading-snug text-ink-soft">{d}</span></span>
+              <span className="mt-1 text-ink-faint transition group-hover:translate-x-0.5" aria-hidden>→</span>
+            </button>
+          ))}</div>
+        </div>
+      ) : !fini ? (
         <div className="relative -mx-4 sm:-mx-6 -mt-8 px-4 sm:px-6 pt-10 pb-16 overflow-hidden">
           <div className="pointer-events-none absolute inset-0" style={{ WebkitMaskImage: "linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent)", maskImage: "linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent)" }} aria-hidden>
             <div className="fx-grille" />
@@ -2766,7 +2789,7 @@ export function TrouveTonSaas() {
             <div className="mt-3 h-1.5 rounded-full bg-black/[.06] overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-accent via-[#F08A4B] to-[#9B6BFF] transition-all duration-500" style={{ width: `${((r.etape + 1) / QUESTIONS.length) * 100}%` }} /></div>
             {ap && <div className="lg:hidden mt-4 flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-2.5" aria-live="polite"><span className="text-[22px] font-black tnum" style={HF}>{Number(ap.n ?? 0).toLocaleString("fr-FR")}</span><span className="text-[13px] leading-tight text-ink-soft">SaaS au revenu vérifié pour toi{ap.mediane ? <> · médiane <b className="text-ink">{dollar(ap.mediane)}</b>/mois</> : ""}</span><span className="ml-auto h-2 w-2 shrink-0 rounded-full bg-good" /></div>}
             <div key={r.etape} className="land-in">
-              <p className="mt-10 lg:mt-12 text-[13px] font-bold uppercase tracking-[.18em] text-accent-dark">{r.etape === 0 ? "30 secondes chrono" : SURTITRES[Q.k] ?? "Ton projet"}</p>
+              <p className="mt-10 lg:mt-12 text-[13px] font-bold uppercase tracking-[.18em] text-accent-dark">{SURTITRES[Q.k] ?? "Ton projet"}</p>
               <h1 className="mt-2 leading-[1.04] tracking-[-.02em]" style={{ ...HF, fontWeight: 900, fontSize: "clamp(34px, 4.2vw, 54px)" }}>{Q.q}</h1>
               <p className="mt-3 max-w-xl text-[17px] text-ink-soft">{Q.aide}</p>
               {Q.pays ? (
