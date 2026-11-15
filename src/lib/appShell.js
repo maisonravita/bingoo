@@ -594,8 +594,10 @@ function Compte({ user }) {
 
 // ---------------------------------------------------------------- Démo animée : l'app se présente toute seule, écran par écran
 function Tour({ onFin }) {
+  // Les pages publiques (réservation…) ne s'ouvrent pas depuis l'application : la visite ne passe que par ses écrans
+  const ECRANS_V = ECRANS.filter((e) => !e.public);
   const [i, setI] = useState(0), [pause, setPause] = useState(false), barre = useRef(null);
-  useEffect(() => { nav(ECRANS[0]?.id); }, []);
+  useEffect(() => { nav(ECRANS_V[0]?.id); }, []);
   // Le visiteur clique ou tape dans l'application : la visite s'arrête et le laisse essayer (elle ne lui reprend jamais l'écran)
   useEffect(() => {
     const stop = (ev) => { if (!barre.current?.contains(ev.target)) setPause(true); };
@@ -604,16 +606,16 @@ function Tour({ onFin }) {
   }, []);
   useEffect(() => {
     if (pause) return;
-    const t = setTimeout(() => { const n = i + 1; if (n >= ECRANS.length) { setPause(true); return; } nav(ECRANS[n]?.id); setI(n); }, 4500);
+    const t = setTimeout(() => { const n = i + 1; if (n >= ECRANS_V.length) { setPause(true); return; } nav(ECRANS_V[n]?.id); setI(n); }, 4500);
     return () => clearTimeout(t);
   }, [i, pause]);
   // La barre de la visite est fixée en haut : on décale la page d'autant, pour ne jamais cacher le titre de l'écran
   useEffect(() => { const b = document.body.style; const avant = b.paddingTop; b.paddingTop = "56px"; return () => { b.paddingTop = avant; }; }, []);
-  const e = ECRANS[i];
+  const e = ECRANS_V[i];
   return html\`<div ref=\${barre} class="fixed top-0 inset-x-0 z-50">\${pause ? null : html\`<div class="h-1 bg-[var(--c)]/20"><div key=\${i} class="h-1 bg-[var(--c)]" style="animation:barre 4.5s linear forwards"/></div>\`}
     <div class="mx-auto mt-3 w-fit max-w-[calc(100vw-2rem)] flex items-center gap-3 rounded-full bg-slate-900/90 text-white pl-4 pr-1.5 py-1.5 shadow-xl text-sm">
-      <span class="truncate">\${pause ? html\`<b>Démo</b> — essaie librement, c'est un espace d'essai : aucun e-mail ne part\` : html\`<b>\${i + 1}/\${ECRANS.length} · \${e?.titre}</b>\${e?.but ? " — " + e.but : ""}\`}</span>
-      \${pause && i < ECRANS.length - 1 ? html\`<button onClick=\${() => setPause(false)} class="shrink-0 rounded-full bg-white/15 px-3 py-1.5">Reprendre la visite</button>\` : null}
+      <span class="truncate">\${pause ? html\`<b>Démo</b> — essaie librement, c'est un espace d'essai : aucun e-mail ne part\` : html\`<b>\${i + 1}/\${ECRANS_V.length} · \${e?.titre}</b>\${e?.but ? " — " + e.but : ""}\`}</span>
+      \${pause && i < ECRANS_V.length - 1 ? html\`<button onClick=\${() => setPause(false)} class="shrink-0 rounded-full bg-white/15 px-3 py-1.5">Reprendre la visite</button>\` : null}
       <button onClick=\${onFin} class="shrink-0 rounded-full bg-[var(--c)] px-3 py-1.5 font-semibold">Essayer gratuitement</button></div></div>\`;
 }
 
