@@ -76,3 +76,5 @@ select cron.schedule('bingoo-semaine-matin', '5 7 * * *', $$select net.http_post
 -- 16. Connexion Stripe en un clic (Stripe Connect Standard, OAuth) : r/saas-app-reglages quoi=stripe-connect → lien signé (HMAC, 30 min, app + espace) ;
 --     GET r/stripe-connect-retour échange le code avec la clé plateforme (STRIPE_SECRET_KEY) et enregistre l'accès comme une clé collée.
 --     À activer : app_secrets.stripe_connect_client_id (ca_…, valeur publique) + l'adresse de retour déclarée dans Stripe Connect.
+-- 17. (15/11, 1 h) Incident : base saturée (quota disque de la petite instance épuisé). Cause : saas_constructible_maj réécrivait toute la table saas à chaque passage (horaire depuis la note 12).
+--     Corrigé : ne réécrit que les fiches dont la valeur change (is distinct from). Rythmes allégés : constructible et saas_choix toutes les 3 h (44/47 */3), bingoo-pitch-fr toutes les 10 min.
