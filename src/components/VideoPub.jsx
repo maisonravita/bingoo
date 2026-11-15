@@ -49,7 +49,7 @@ export default function VideoPub({ app, lien, nu = false, angleInitial = "" }) {
     setBusy(true);
     try {
       const v = await fn("r/saas-video", { workspace_id: ws.id, app_id: app.id, format, angle: angle.trim() || undefined });
-      setVideos((l) => [v, ...(l ?? [])]); setSel(v); setSolde((s) => (s ?? cout) - cout); setLecture(true);
+      setVideos((l) => [v, ...(l ?? [])]); setSel(v); setSolde((s) => (s ?? cout) - cout); setLecture(true); window.dispatchEvent(new Event("bingoo-credits"));
       toast("Ta vidéo est prête : 10 crédits utilisés");
     } catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
   };

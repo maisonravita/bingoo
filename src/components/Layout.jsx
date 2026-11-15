@@ -67,7 +67,10 @@ const DUREE_F = { mois: "1 mois", trimestre: "3 mois", an: "12 mois" };
 function useCredits(ws, invite) {
   const loc = useLocation();
   const [c, setC] = useState(null);
-  useEffect(() => { if (!invite) fn("r/credits", { workspace_id: ws.id }).then(setC).catch(() => {}); }, [ws.id, invite, loc.pathname]);
+  const [maj, setMaj] = useState(0);
+  // Une dépense de crédits (vidéo, modification…) prévient la barre latérale pour que le solde affiché suive
+  useEffect(() => { const f = () => setMaj((n) => n + 1); window.addEventListener("bingoo-credits", f); return () => window.removeEventListener("bingoo-credits", f); }, []);
+  useEffect(() => { if (!invite) fn("r/credits", { workspace_id: ws.id }).then(setC).catch(() => {}); }, [ws.id, invite, loc.pathname, maj]);
   return c;
 }
 // L'avatar entouré de l'anneau des crédits restants
