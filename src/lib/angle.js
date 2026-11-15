@@ -146,11 +146,11 @@ export function kitDiffusion(s, a, r, app, lien) {
   const messages = [];
   if (!refus.has("appeler")) {
     messages.push(["E-mail de premier contact", `Objet : ${nom}, pour ${cible}\n\nBonjour [prénom],\n\n${prob ? `${prob}. ` : ""}J'ai créé ${nom} pour ça : ${quoiMin}.\n\nJe cherche mes 10 premiers utilisateurs : ${offre}, et je vous aide moi-même à le mettre en place.\n\nVous voulez essayer ? ${url("email")}\n\nBonne journée,\n[ton prénom]\n\nPas intéressé ? Répondez « stop », je ne vous écrirai plus.`, "email"]);
-    messages.push(["Message privé Instagram", `Bonjour ! Je suis tombé sur votre compte, super travail 👏\nJe lance ${nom}, ${quoiMin}. Je cherche quelques ${a.type === "metier" ? a.metier.toLowerCase() : "professionnels"} pour le tester gratuitement (${essai} jours) et me dire ce qui manque. Ça vous dit ? ${url("instagram")}`, "instagram"]);
+    messages.push(["Message privé Instagram", `Bonjour ! Je suis tombé sur votre compte, super travail 👏\nJe lance ${nom} : ${quoiMin}. Je cherche quelques ${a.type === "metier" ? a.metier.toLowerCase() : "personnes"} pour le tester gratuitement (${essai} jours) et me dire ce qui manque. Ça vous dit ? ${url("instagram")}`, "instagram"]);
     messages.push(["Demande de connexion LinkedIn", `Bonjour [prénom], je lance ${nom} (${quoiMin}) et je cherche l'avis ${desCible}. Ravi d'échanger !`, "linkedin"]);
     messages.push(["Relance (4 jours après, une seule fois)", `Bonjour [prénom], je reviens vers vous au sujet de ${nom}. La démo prend 30 secondes : ${url("relance")}&tour=1\nSi ce n'est pas le bon moment, dites-le-moi et je ne vous relancerai plus.\n[ton prénom]`, "relance"]);
   }
-  messages.push(["Post dans un groupe ou un forum", `Bonjour à tous 👋 ${prob ? `${prob} : vous gérez ça comment aujourd'hui ? ` : ""}J'ai créé ${nom}, ${quoiMin}. Je cherche 10 personnes pour le tester gratuitement et me dire franchement ce qui manque. Le lien est ici : ${url("groupes")}`, "groupes"]);
+  messages.push(["Post dans un groupe ou un forum", `Bonjour à tous 👋 ${prob ? `${prob} : vous gérez ça comment aujourd'hui ? ` : ""}J'ai créé ${nom} : ${quoiMin}. Je cherche 10 personnes pour le tester gratuitement et me dire franchement ce qui manque. Le lien est ici : ${url("groupes")}`, "groupes"]);
   messages.push(["Quand quelqu'un dit oui", `Merci ! Voici ton accès : ${url("oui")}\nTu as ${essai} jours gratuits, sans carte bancaire à l'inscription. ${refus.has("appeler") ? "Je t'écris" : "Je t'appelle"} dans une semaine pour savoir ce qui t'a servi.${prix ? ` Si ça t'est utile, l'abonnement sera de ${prix}.` : ""}`, "oui"]);
 
   // Les groupes : on ne liste pas de faux noms de groupes, on ouvre la vraie recherche avec les bons mots
