@@ -37,16 +37,16 @@ function lignes(ctx, texte, largeur) {
 // Texte centré sur plusieurs lignes, mots qui montent un par un
 function texteAnime(ctx, texte, x, y, { taille, poids = 800, largeur, couleur = TX, t = 1, decale = 0.06, interligne = 1.12 }) {
   ctx.font = `${poids} ${taille}px ${POLICE}`; ctx.textBaseline = "middle"; ctx.textAlign = "left";
-  const ls = lignes(ctx, texte, largeur); const h = ls.length * taille * interligne; let i = 0;
+  const ls = lignes(ctx, texte, largeur); const h = ls.length * taille * interligne; let i = 0; const base = ctx.globalAlpha;
   ls.forEach((l, k) => {
     const mots = l.split(" "); const w = ctx.measureText(l).width; let cx = x - w / 2; const cy = y - h / 2 + taille * interligne * (k + 0.5);
     for (const m of mots) {
       const p = easeOut(prog(t, i * decale, i * decale + 0.45)); i++;
-      ctx.globalAlpha = p; ctx.fillStyle = couleur; ctx.fillText(m, cx, cy + (1 - p) * taille * 0.5);
+      ctx.globalAlpha = base * p; ctx.fillStyle = couleur; ctx.fillText(m, cx, cy + (1 - p) * taille * 0.5);
       cx += ctx.measureText(m + " ").width;
     }
   });
-  ctx.globalAlpha = 1; return h;
+  ctx.globalAlpha = base; return h;
 }
 
 // --- scènes (temps en secondes)
@@ -68,6 +68,7 @@ export function dessiner(ctx, W, H, t, script, { nom, couleur, lien, images = []
   TX = CLAIR ? "#0F172A" : "#fff"; TX2 = CLAIR ? (a) => `rgba(15,23,42,${a})` : (a) => `rgba(255,255,255,${a})`; CARTE = CLAIR ? "rgba(15,23,42,0.05)" : "rgba(255,255,255,0.07)";
   const c = hexRgb(couleur), cv = CLAIR ? c : vive(c), u = Math.min(W, H) / 1080, vertical = H > W, carre = H === W;
   const SCENES = style === "demo" ? SCENES_DEMO : SCENES_STD;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
   fond(ctx, W, H, t, c, u);
   for (const s of SCENES) {
     if (t < s.de - 0.01 || t > s.a + 0.01) continue;
@@ -78,8 +79,9 @@ export function dessiner(ctx, W, H, t, script, { nom, couleur, lien, images = []
     else if (TRANSITION === 1) ctx.translate((1 - entree) * 70 * u - sortie * 70 * u, 0);
     else { const k = 1 + (1 - entree) * 0.06 - sortie * 0.05; ctx.translate(W / 2, H / 2); ctx.scale(k, k); ctx.translate(-W / 2, -H / 2); }
     const alpha = Math.min(entree, 1 - sortie);
-    s.dessin(ctx, { W, H, u, t: local, d, c, cv, nom, lien, script, vertical, carre, alpha, images });
-    ctx.restore();
+    try { s.dessin(ctx, { W, H, u, t: Math.max(0, local), d, c, cv, nom, lien, script, vertical, carre, alpha, images }); }
+    catch (e) { console.warn("scène", e); }
+    finally { ctx.restore(); ctx.globalAlpha = 1; }
   }
   // Marque du SaaS en haut, une fois révélée (sauf sur l'écran final où elle est en grand)
   const sr = SCENES.find((x) => x.dessin === revelation), sa = SCENES.find((x) => x.dessin === appel);
@@ -244,7 +246,8 @@ function vraiEcran(ctx, x, y, w, h, u, c, img, t, d, graine, lien) {
 function ecrans(ctx, s) {
   const { W, H, u, t, c, cv, script, alpha } = s;
   const liste = script.ecrans.slice(0, 3), par = s.d / Math.max(1, liste.length);
-  const i = Math.min(liste.length - 1, Math.floor(t / par)), lt = t - i * par, e = liste[i];
+  const i = Math.max(0, Math.min(liste.length - 1, Math.floor(t / par))), lt = Math.max(0, t - i * par), e = liste[i];
+  if (!e) return;
   const img = s.images?.[i] && s.images[i].width ? s.images[i] : null;
   const entree = easeOut(prog(lt, 0, 0.6)), sortie = i < liste.length - 1 ? easeInOut(prog(lt, par - 0.35, par)) : 0;
   ctx.globalAlpha = alpha;
