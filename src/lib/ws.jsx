@@ -15,7 +15,11 @@ export function WsProvider({ children }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data } = supabase.auth.onAuthStateChange((e, s) => {
+      // Déconnexion : on oublie le SaaS en cours et le parcours, pour que le compte suivant reparte de zéro sur ce navigateur
+      if (e === "SIGNED_OUT") { try { ["bingoo-chantier", "bingoo-choix", "bingoo-mon-saas-modele", "bingoo-parcours2"].forEach((k) => localStorage.removeItem(k)); } catch { /* stockage indisponible */ } }
+      setSession(s);
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 

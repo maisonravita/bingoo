@@ -19,12 +19,14 @@ const paye = (ws) => ws?.plan === "fondateur" || (["explorer", "explorer_pro", "
 const lire = (k) => { try { return JSON.parse(localStorage.getItem(k) ?? "null"); } catch { return null; } };
 const ecrire = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch { /* stockage indisponible */ } };
 const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
+// Le chantier en cours appartient à un espace : celui d'un autre compte (même navigateur) est ignoré
+const chantierDe = (ws) => { const c = lire(CLE_CHANTIER); return c && (!c.ws || c.ws === ws?.id) && !(c.projet && !c.ws) ? c : null; };
 
 
 export default function Revelation({ paramsDe }) {
   const { ws, reload } = useWs();
   const nav = useNavigate();
-  const chantier0 = lire(CLE_CHANTIER);
+  const chantier0 = chantierDe(ws);
   const [phase, setPhase] = useState(chantier0 ? "construction" : "attente");
   const [liste, setListe] = useState(null);
   const [choix, setChoix] = useState(0);
@@ -56,7 +58,7 @@ export default function Revelation({ paramsDe }) {
   }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const construire = (s) => {
-    const c = { domaine: s.domaine, nom: s.nom, categorie: s.categorie };
+    const c = { domaine: s.domaine, nom: s.nom, categorie: s.categorie, ws: ws.id };
     ecrire(CLE_CHANTIER, c); ecrire("bingoo-mon-saas-modele", s); localStorage.removeItem(CLE_CHOIX);
     setPhase("construction");
   };
@@ -192,7 +194,7 @@ const Coche = ({ ok }) => ok
   : <span className="h-[18px] w-[18px] shrink-0 animate-spin rounded-full border-2 border-line border-t-[#E8571C]" />;
 
 export function Chantier({ ws, nav, init, atelier = false }) {
-  const c = init ?? lire(CLE_CHANTIER) ?? {};
+  const c = init ?? chantierDe(ws) ?? {};
   // Atelier : le SaaS existe déjà, on l'ouvre directement (jamais de nouvelle construction)
   const pretDeja = atelier && c.app?.statut === "pret" && c.app?.spec?.ecrans?.length > 0;
   const [etape, setEtape] = useState(pretDeja ? 5 : 0);
@@ -241,7 +243,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
           }
           if (!vivant) return;
           const garde = { id: p.id, nom: p.nom, pitch: p.pitch, cible: p.cible, pense: penseDe(p) };
-          setProjet(garde); if (!atelier) ecrire(CLE_CHANTIER, { ...c, projet: garde });
+          setProjet(garde); if (!atelier) ecrire(CLE_CHANTIER, { ...c, ws: ws.id, projet: garde });
         }
         setEtape(2);
         const { data: ex } = await supabase.from("saas_apps").select("statut").eq("projet_id", p.id).maybeSingle();
@@ -256,7 +258,11 @@ export function Chantier({ ws, nav, init, atelier = false }) {
           if (data.statut === "erreur") throw new Error(data.erreur || "La construction a échoué.");
         }
         if (vivant) throw new Error("C'est plus long que prévu.");
-      } catch (e) { if (vivant) setErreur(e.message); }
+      } catch (e) {
+        // Projet d'un autre espace (ancien chantier resté dans le navigateur) : on le prépare de nouveau pour ce compte
+        if (vivant && !atelier && /Projet introuvable/i.test(e.message ?? "") && projet?.id) { ecrire(CLE_CHANTIER, { ...c, ws: ws.id, projet: null }); setProjet(null); lance.current = false; setEssai((x) => x + 1); return; }
+        if (vivant) setErreur(e.message);
+      }
     })();
     return () => { vivant = false; lance.current = false; };
   }, [essai, questions]); // eslint-disable-line react-hooks/exhaustive-deps
