@@ -2710,7 +2710,10 @@ export function TrouveTonSaas() {
   const retour = (() => { const Qc = QUESTIONS[r.etape]; if (Qc?.jauge) return commentaireObjectif(r.objectif ?? OBJ_DEFAUT)[1]; const v = Qc?.k ? r[Qc.k] : null; const m = Qc && RETOURS[Qc.k]; if (!m || v == null || Array.isArray(v)) return null; return typeof m === "function" ? m(v) : m[v] ?? null; })();
   const invite = estInvite(session);
   // Les 3 SaaS, le plan et le prompt se débloquent une fois le paiement reçu (le serveur n'envoie que le premier avant)
-  const debloque = estPaye(ws);
+  // Aperçu « comme un visiteur » pour l'administrateur (?visiteur=1) : voir la page de résultats d'avant paiement
+  const [admin, setAdmin] = useState(false);
+  useEffect(() => { if (/visiteur=1/.test(window.location.href)) supabase.rpc("is_admin").then(({ data }) => setAdmin(!!data)); }, []);
+  const debloque = estPaye(ws) && !admin;
   const sauver = (n) => { try { localStorage.setItem("bingoo-parcours2", JSON.stringify({ ...n, fini: n.etape >= QUESTIONS.length || n.fini })); } catch { /* stockage indisponible */ } };
   const aller = (n) => {
     setR(n); sauver(n);
@@ -2824,7 +2827,7 @@ export function TrouveTonSaas() {
         <div>
           <div className="text-center">
             <div>
-              <h1 className="text-[32px] sm:text-[44px] font-black leading-tight tracking-tight" style={HF}>{debloque ? "Tes 3 SaaS en tendance" : "Tes SaaS à succès"}</h1>
+              <h1 className="text-[32px] sm:text-[44px] font-black leading-tight tracking-tight" style={HF}>{debloque ? "Tes 3 SaaS en tendance" : ap?.n ? `${Number(ap.n).toLocaleString("fr-FR")} SaaS${r.secteurs?.length === 1 ? ` ${r.secteurs[0].split(" ")[0].toLowerCase()}` : ""} gagnent déjà de l'argent` : "Tes SaaS à succès"}</h1>
               <p className="mx-auto mt-2 max-w-2xl text-[15px] text-ink-soft">{debloque ? "Ils encaissent déjà, vérifié chez leur outil de paiement, leur revenu monte en ce moment, et ils trouvent leurs clients comme tu veux le faire." : "Ils encaissent déjà, vérifié chez leur outil de paiement, et ils trouvent leurs clients comme tu veux le faire. Choisis celui que tu veux lancer."}</p>
             </div>
           </div>
@@ -2998,9 +3001,29 @@ function CarteClaire({ x, onLancer, busy }) {
         {x.rang_web && <span className="rounded-full bg-paper px-2.5 py-1 text-[12px] font-semibold text-ink-soft">Trafic : N° {Number(x.rang_web).toLocaleString("fr-FR")} mondial</span>}
         {x.sans_local && <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[12px] font-semibold text-accent-dark">Pas d'équivalent en français</span>}
       </div>
-      <LancerCout s={x} className="mt-4" />
+      <div className="mt-4 grid grid-cols-3 gap-2 rounded-2xl border border-line p-3">
+        <div className="flex items-center gap-2.5"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-[3px] border-accent text-[16px] font-black tnum" style={HF}>{x.copiable != null ? Math.max(1, Math.min(10, Math.round(10 - x.copiable / 10))) : "–"}</span><span className="text-[11px] font-bold uppercase leading-tight tracking-wide text-ink-faint">Difficulté<br /><span className="normal-case font-normal">sur 10</span></span></div>
+        <div><p className="text-[11px] font-bold uppercase tracking-wide text-ink-faint">Trafic</p><p className="mt-1 text-[15px] font-black tnum" style={HF}>{x.rang_web ? `N° ${Number(x.rang_web).toLocaleString("fr-FR")}` : "faible"}</p><p className="text-[11px] text-ink-faint">mondial</p></div>
+        <div><p className="text-[11px] font-bold uppercase tracking-wide text-ink-faint">Revenu mensuel</p>{Array.isArray(x.courbe) && x.courbe.length > 2 ? <Sparkline pts={x.courbe.slice(-8).map((p) => ({ n: Number(p.v) || 0 }))} h={34} /> : <p className="mt-1 text-[15px] font-black tnum" style={HF}>{dollar(x.mrr)}</p>}</div>
+      </div>
+      <LancerCout s={x} className="mt-3" />
       <button onClick={() => onLancer(0, x.ref)} disabled={busy} className="fx-brille mt-5 w-full sm:w-auto rounded-xl bg-accent px-7 py-3.5 text-[15.5px] font-bold text-white hover:bg-accent-dark disabled:opacity-60">Lancer ma version de {x.nom}</button>
     </div></div>
+  );
+}
+function CarteVerrouillee({ x, k, onLancer, busy, className }) {
+  return (
+    <div className={cx("relative flex flex-col overflow-hidden rounded-3xl border border-line bg-white p-5", className)}>
+      <p className="w-fit rounded-md border border-line px-2 py-0.5 text-[11.5px] font-bold">N°{(x.rang ?? k) + 1}</p>
+      <div className="mt-3 flex items-center gap-3"><span className="h-11 w-11 shrink-0 rounded-xl bg-gradient-to-br from-accent-soft to-[#E9E1FF] blur-[2px]" aria-hidden /><div className="min-w-0 flex-1"><p className="select-none font-bold text-[16px] blur-[6px]" aria-hidden>{["Saasify Pro", "Bookeasy", "Flowmate", "Clientio", "Postwise", "Invoicely"][k % 6]}</p><p className="truncate text-[12.5px] text-ink-faint">{x.categorie}</p></div></div>
+      {x.fait && <p className="mt-3 text-[13.5px] leading-snug text-ink-soft line-clamp-3" lang={x.fr ? "fr" : undefined}>{x.fait}</p>}
+      <div className="relative mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-line p-3">
+        <div className="blur-[5px]" aria-hidden><p className="text-[11px] font-bold uppercase text-ink-faint">Trafic</p><Sparkline pts={[3, 4, 3, 6, 7, 9].map((n) => ({ n }))} h={30} /></div>
+        <div className="blur-[5px]" aria-hidden><p className="text-[11px] font-bold uppercase text-ink-faint">Revenu</p><Sparkline pts={[2, 3, 5, 4, 7, 8].map((n) => ({ n }))} h={30} /></div>
+        <button onClick={() => onLancer(x.rang ?? k, x.ref)} disabled={busy} className="absolute inset-0 m-auto flex h-fit w-fit items-center gap-1.5 rounded-xl bg-ink px-4 py-2.5 text-[13.5px] font-bold text-white shadow-lg"><Cadenas />Débloque pour voir</button>
+      </div>
+      <p className="mt-3 text-[13px] font-semibold text-ink-soft">Revenu vérifié : <span className="select-none blur-[5px]" aria-hidden>{dollar(Math.round(Number(x.mrr || 9000) * 1.37))}</span> / mois</p>
+    </div>
   );
 }
 function Debloquer({ total, tendance, mediane, invite, r }) {
@@ -3039,9 +3062,27 @@ function Debloquer({ total, tendance, mediane, invite, r }) {
   if (liste === undefined) return <div className="py-16 grid place-items-center"><Spinner /></div>;
   if (liste?.length) return (
     <>
-      {liste[0]?.clair && <div className="mt-8"><CarteClaire x={liste[0]} onLancer={lancer} busy={busy} /></div>}
+      {liste[0]?.clair ? (
+        <>
+          <div className="mt-8 grid items-center gap-5 lg:grid-cols-[1fr_1.55fr_1fr]">
+            {liste[1] ? <CarteVerrouillee x={liste[1]} k={1} onLancer={lancer} busy={busy} className="hidden lg:flex opacity-80 scale-[.96]" /> : <span />}
+            <CarteClaire x={liste[0]} onLancer={lancer} busy={busy} />
+            {liste[2] ? <CarteVerrouillee x={liste[2]} k={2} onLancer={lancer} busy={busy} className="hidden lg:flex opacity-80 scale-[.96]" /> : <span />}
+          </div>
+          {liste.length > 3 && <h2 className="mt-12 text-[22px] font-black" style={HF}>Les {Math.max(liste.length, Number(total || 0)) - 1} autres, prêts à être débloqués</h2>}
+          <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{liste.slice(1, n).map((x, k) => <CarteVerrouillee key={x.rang ?? k} x={x} k={k + 1} onLancer={lancer} busy={busy} className={k < 2 ? "lg:hidden" : ""} />)}</div>
+          <div className="h-24" />
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/90 px-4 py-3 backdrop-blur">
+            <div className="mx-auto flex max-w-3xl gap-3">
+              <button onClick={() => (invite ? demanderCompte("Crée ton compte gratuit pour explorer tous les SaaS et leurs chiffres.") : nav("/explorer"))} className="flex-1 rounded-2xl border border-line bg-white py-3.5 text-[15px] font-bold hover:border-ink">Explorer gratuitement</button>
+              <button onClick={debloquer} disabled={busy} className="fx-brille flex-[2] rounded-2xl bg-accent py-3.5 text-[15.5px] font-bold text-white hover:bg-accent-dark disabled:opacity-60"><span className="inline-flex items-center gap-2"><Cadenas />Débloquer les {Math.max(liste.length, Number(total || 0)) - 1} autres</span></button>
+            </div>
+          </div>
+        </>
+      ) : <>
       {bandeau}
-      <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{liste.slice(liste[0]?.clair ? 1 : 0, n).map((x, k) => <CarteFloutee key={x.rang ?? k} x={x} k={k} paysVise={r.pays} onLancer={lancer} busy={busy} />)}</div>
+      <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{liste.slice(0, n).map((x, k) => <CarteFloutee key={x.rang ?? k} x={x} k={k} paysVise={r.pays} onLancer={lancer} busy={busy} />)}</div>
+      </>}
       {formules}
       {liste.length > n && <div className="mt-6 text-center"><button onClick={() => setN(n + 9)} className="rounded-xl border border-line bg-white px-5 py-2.5 text-[14px] font-semibold hover:border-ink-faint">Voir {Math.min(9, liste.length - n)} SaaS de plus</button></div>}
       <ResultatsBingoo className="mt-8" />
