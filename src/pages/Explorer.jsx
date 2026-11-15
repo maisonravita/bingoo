@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { demander } from "../lib/demander";
+import { charger } from "../lib/charger";
 import { indexChoisi } from "../lib/choix";
 import ResultatsBingoo from "../components/ResultatsBingoo";
 import ChoixFormule from "../components/ChoixFormule";
@@ -13,11 +14,11 @@ import { Spinner, useToast } from "../components/ui";
 import CompanyLogo from "../components/CompanyLogo";
 import { LineChart } from "../components/Charts";
 import { lazy, Suspense } from "react";
-const IsoMonde = lazy(() => import("../components/IsoMonde"));
+const IsoMonde = lazy(() => charger(() => import("../components/IsoMonde")));
 import AppCadre, { API, blogApp, lienApp } from "../components/AppCadre";
-const VideoPub = lazy(() => import("../components/VideoPub"));
-const Revelation = lazy(() => import("./Revelation"));
-const MonSaas = lazy(() => import("./MonSaas"));
+const VideoPub = lazy(() => charger(() => import("../components/VideoPub")));
+const Revelation = lazy(() => charger(() => import("./Revelation")));
+const MonSaas = lazy(() => charger(() => import("./MonSaas")));
 import { cleIcone, iconePng } from "../lib/appIcone";
 import qrcode from "qrcode-generator";
 import { cx } from "../lib/utils";
@@ -4329,7 +4330,7 @@ function Racheter() {
 }
 
 // ---------------------------------------------------------------- Carte du monde
-const IleSaas = lazy(() => import("../components/IleSaas"));
+const IleSaas = lazy(() => charger(() => import("../components/IleSaas")));
 const ASTUCES = [
   "Clique sur une île pour y débarquer. Glisse pour te déplacer, molette ou pincement pour zoomer.",
   "Les bateaux qui naviguent sont des SaaS à vendre : clique dessus.",

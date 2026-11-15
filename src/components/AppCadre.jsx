@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { charger } from "../lib/charger";
 
 // Le gabarit des applications (lourd) n'est chargé que lorsqu'une application s'affiche : la page d'accueil reste légère
 let gabarit = null;
-const chargerGabarit = () => (gabarit ??= import("../lib/appShell"));
+const chargerGabarit = () => (gabarit ??= charger(() => import("../lib/appShell")));
 
 // Un SaaS construit par Bingoo!, affiché dans un cadre isolé : sandbox SANS allow-same-origin, donc le code généré
 // ne peut lire ni la session Bingoo!, ni le stockage du site. La session de l'application est gardée ici, par application.

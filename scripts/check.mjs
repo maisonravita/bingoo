@@ -5,6 +5,9 @@ import { build } from "esbuild";
 import { execSync } from "node:child_process";
 import { readdirSync, statSync } from "node:fs";
 import { BRAND, esbuildBrand } from "./brand.mjs";
+import { servirDist } from "./serve-dist.mjs";
+const SITE_LOCAL = await servirDist();
+process.on("exit", () => SITE_LOCAL.fermer());
 
 let failed = 0;
 const ok = (m) => console.log(`  ✓ ${m}`);
@@ -30,7 +33,7 @@ for (const [path, expect] of [["/opposition", "Ne plus être contacté"], ["/", 
   const page = await browser.newPage({ viewport: { width: 390, height: 800 } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto(`file://${process.cwd()}/dist-single/index.html#${path}`);
+  await page.goto(`${SITE_LOCAL.url}/index.html#${path}`);
   await page.waitForTimeout(1200);
   const text = await page.textContent("body");
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);

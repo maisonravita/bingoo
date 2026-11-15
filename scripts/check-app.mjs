@@ -1,6 +1,9 @@
 // Contrôle des parcours connectés (avec Supabase simulé) : chaque page clé s'affiche sans erreur JavaScript et sans
 // débordement, sur téléphone et sur ordinateur. Lancé par `npm run check` après la construction du site.
 import { createRequire } from "node:module";
+import { servirDist } from "./serve-dist.mjs";
+const SITE_LOCAL = await servirDist();
+process.on("exit", () => SITE_LOCAL.fermer());
 const { chromium, devices } = createRequire(import.meta.url)("playwright");
 
 const ago = (m) => new Date(Date.now() - m * 60000).toISOString();
@@ -25,7 +28,7 @@ for (const [label, opt] of [["téléphone", devices["iPhone 13"]], ["ordinateur"
   await ctx.addInitScript(() => { localStorage.setItem("sb-fbsjbnnmzazylmquzryo-auth-token", JSON.stringify({ access_token: "x", refresh_token: "y", token_type: "bearer", expires_in: 3600, expires_at: 4102444800, user: { id: "u1", aud: "authenticated", role: "authenticated", email: "t@t.fr", app_metadata: {}, user_metadata: {}, created_at: "2026-01-01" } })); localStorage.setItem("kairo-ws", "w1"); });
   await ctx.route("**/*", async (route) => {
     const u = route.request().url(), m = route.request().method();
-    if (u.startsWith("file://")) return route.continue();
+    if (u.startsWith(SITE_LOCAL.url) || u.startsWith("file://")) return route.continue();
     const H = { "access-control-allow-origin": "*", "access-control-expose-headers": "content-range" };
     const J = (o) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(o), headers: { ...H, "content-range": `0-0/${Array.isArray(o) ? o.length : 1}` } });
     if (m === "HEAD") return route.fulfill({ status: 200, body: "", headers: { ...H, "content-range": "*/1" } });
@@ -46,7 +49,7 @@ for (const [label, opt] of [["téléphone", devices["iPhone 13"]], ["ordinateur"
     const page = await ctx.newPage();
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
-    await page.goto(`file://${process.cwd()}/dist-single/index.html#${path}`);
+    await page.goto(`${SITE_LOCAL.url}/index.html#${path}`);
     await page.waitForTimeout(3000); // écran d'accueil : 1,2 s pour un utilisateur connecté
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
     const blank = (await page.textContent("body")).trim().length < 40;

@@ -6,19 +6,20 @@ import Layout from "./components/Layout";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Splash from "./components/Splash";
 import Auth, { PasswordRecovery } from "./pages/Auth";
-const Parametres = lazy(() => import("./pages/Parametres"));
-const Equipe = lazy(() => import("./pages/Equipe"));
-const Admin = lazy(() => import("./pages/Admin"));
-const Aide = lazy(() => import("./pages/Aide"));
-const Abonnement = lazy(() => import("./pages/Abonnement"));
+const Parametres = lazy(() => charger(() => import("./pages/Parametres")));
+const Equipe = lazy(() => charger(() => import("./pages/Equipe")));
+const Admin = lazy(() => charger(() => import("./pages/Admin")));
+const Aide = lazy(() => charger(() => import("./pages/Aide")));
+const Abonnement = lazy(() => charger(() => import("./pages/Abonnement")));
 import Join, { JOIN_KEY } from "./pages/Join";
 import Explorer from "./pages/Explorer";
-const PublicRetrait = lazy(() => import("./pages/PublicRetrait"));
+const PublicRetrait = lazy(() => charger(() => import("./pages/PublicRetrait")));
 import Landing from "./pages/Landing";
-const PublicApp = lazy(() => import("./pages/PublicApp"));
+const PublicApp = lazy(() => charger(() => import("./pages/PublicApp")));
 import OnboardingExplorer from "./pages/OnboardingExplorer";
 import { Conditions, Confidentialite, legalReady, MentionsLegales, Opposition } from "./pages/Legal";
 import { supabase } from "./lib/supabase";
+import { charger } from "./lib/charger";
 import { EntreeInvite, EspaceInvite, estInvite } from "./lib/invite";
 
 function Gate() {

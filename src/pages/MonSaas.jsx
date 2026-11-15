@@ -12,8 +12,9 @@ const nomCanal = (c) => { const n = nomBrut(c) ?? ""; return n.charAt(0).toUpper
 import { angleDe } from "../lib/angle";
 import { ONGLETS_APP, PremiersClients, ReglagesApp } from "./Explorer";
 import { Chantier } from "./Revelation";
+import { charger } from "../lib/charger";
 
-const VideoPub = lazy(() => import("../components/VideoPub"));
+const VideoPub = lazy(() => charger(() => import("../components/VideoPub")));
 const HF = { fontFamily: "var(--font-titre)" };
 const eur = (n) => `${Number(n || 0).toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €`;
 const lire = (k) => { try { return JSON.parse(localStorage.getItem(k) ?? "null"); } catch { return null; } };
