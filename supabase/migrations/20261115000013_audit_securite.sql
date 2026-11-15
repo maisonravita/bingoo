@@ -1,0 +1,2 @@
+-- Appliquée via MCP le 2026-11-15 (audit) : cron_minute() et saas_vitrine_maj() ne sont plus appelables depuis Internet
+-- (seulement par les tâches planifiées) ; search_path figé sur les fonctions de calcul des promesses et de la vitrine.

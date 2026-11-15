@@ -431,7 +431,7 @@ export async function saasTags(max = 80) {
     const r = await askJson<{ saas: { i: number; tags: string[] }[] }>(`Pour chaque logiciel ci-dessous, donne ${TAGS_REGLE}. N'invente rien qui ne ressorte pas de la description.
 ${lot.map((x, k) => `${k}. ${x.nom} (${x.categorie}) : ${x.description ?? ""} Pour : ${x.cible ?? ""}`).join("\n")}
 Clé : saas, liste d'objets i (le numéro) et tags.`, { fast: true, maxTokens: 2500 }).catch(() => ({ saas: [] }));
-    for (const x of r.saas ?? []) { const row = lot[Number(x.i)]; const tags = nettoieTags(x.tags); if (row && tags.length) { await admin.from("saas").update({ tags }).eq("id", row.id); faits++; } }
+    for (const x of (Array.isArray(r?.saas) ? r.saas : [])) { const row = lot[Number(x.i)]; const tags = nettoieTags(x.tags); if (row && tags.length) { await admin.from("saas").update({ tags }).eq("id", row.id); faits++; } }
   }
   return { faits, restant: rows.length - faits };
 }
@@ -456,7 +456,7 @@ Si aucune ne convient vraiment, mets "".
 Dis aussi s'il est constructible comme une application web de gestion : constructible = true si son cœur tient dans des données saisies par l'utilisateur, des formulaires, des pages publiques (réservation, formulaire, avis), des tableaux de bord et une IA qui écrit ou analyse du texte ; false s'il lui faut de la vidéo, de l'image ou du son générés, de la 3D, une appli mobile ou une extension, de l'infrastructure (API, serveur, VPN, hébergement), des données extérieures en masse (moteurs de recherche, Google Maps, bases de contacts, appels d'offres), ou le pilotage de plateformes publicitaires ou de réseaux sociaux.
 ${lot.map((x, k) => `${k}. ${x.nom} : ${x.description} (étiquettes : ${(x.tags ?? []).join(", ")})`).join("\n")}
 Clé : saas, liste d'objets i (le numéro), niche (texte exact de la liste, ou "") et constructible (booléen).`, { fast: true, maxTokens: 3000 }).catch((e) => { console.error("niches", String(e).slice(0, 200)); return { saas: [] }; });
-    for (const x of r.saas ?? []) {
+    for (const x of (Array.isArray(r?.saas) ? r.saas : [])) {
       const row = lot[Number(x.i)];
       if (!row) continue;
       const niche = noms.includes(x.niche) ? x.niche : null;

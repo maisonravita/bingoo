@@ -54,7 +54,8 @@ const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
     const d = domaineDe(String(b.url ?? ""));
     if (!d) throw new HttpError(400, "Adresse du site invalide (ex. monsaas.com)");
     await saasAdd([d], `ajout:${ws.id}`);
-    const { data: s } = await admin.from("saas").select("id, statut").eq("domaine", d).single();
+    const { data: s } = await admin.from("saas").select("id, statut").eq("domaine", d).maybeSingle();
+    if (!s) throw new HttpError(400, "Ce site n'a pas pu être ajouté (adresse refusée ou déjà écartée)");
     const r = s.statut === "ok" ? { statut: "ok" } : await saasLire(s.id);
     return { id: s.id, domaine: d, statut: r?.statut ?? "erreur" };
   },
