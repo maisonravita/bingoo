@@ -2764,8 +2764,9 @@ export function TrouveTonSaas() {
               {avant?.fini && r.etape === 0 ? <button onClick={() => aller({ ...r, etape: QUESTIONS.length })} className="font-semibold text-accent-dark hover:underline">Mes derniers résultats</button> : <span />}
             </div>
             <div className="mt-3 h-1.5 rounded-full bg-black/[.06] overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-accent via-[#F08A4B] to-[#9B6BFF] transition-all duration-500" style={{ width: `${((r.etape + 1) / QUESTIONS.length) * 100}%` }} /></div>
+            {ap && <div className="lg:hidden mt-4 flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-2.5" aria-live="polite"><span className="text-[22px] font-black tnum" style={HF}>{Number(ap.n ?? 0).toLocaleString("fr-FR")}</span><span className="text-[13px] leading-tight text-ink-soft">SaaS au revenu vérifié pour toi{ap.mediane ? <> · médiane <b className="text-ink">{dollar(ap.mediane)}</b>/mois</> : ""}</span><span className="ml-auto h-2 w-2 shrink-0 rounded-full bg-good" /></div>}
             <div key={r.etape} className="land-in">
-              <p className="mt-12 text-[13px] font-bold uppercase tracking-[.18em] text-accent-dark">{r.etape === 0 ? "30 secondes chrono" : SURTITRES[Q.k] ?? "Ton projet"}</p>
+              <p className="mt-10 lg:mt-12 text-[13px] font-bold uppercase tracking-[.18em] text-accent-dark">{r.etape === 0 ? "30 secondes chrono" : SURTITRES[Q.k] ?? "Ton projet"}</p>
               <h1 className="mt-2 leading-[1.04] tracking-[-.02em]" style={{ ...HF, fontWeight: 900, fontSize: "clamp(34px, 4.2vw, 54px)" }}>{Q.q}</h1>
               <p className="mt-3 max-w-xl text-[17px] text-ink-soft">{Q.aide}</p>
               {Q.pays ? (
