@@ -5,6 +5,14 @@
   "framework": null,
   "rewrites": [
     {
+      "source": "/p/:app",
+      "destination": "/api/app?app=:app"
+    },
+    {
+      "source": "/sitemap-apps.xml",
+      "destination": "/api/app?sitemap=1"
+    },
+    {
       "source": "/saas",
       "destination": "/api/saas"
     },

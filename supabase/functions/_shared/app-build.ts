@@ -182,7 +182,7 @@ Collections : ${(s.collections ?? []).slice(0, 6).map((c: any) => `${c.nom} : ${
     const faits = spec.ecrans.length - aEcrire.length;
     await admin.from("saas_apps").update({ brouillon: spec, etape: `Écriture des écrans (${faits}/${spec.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
     const { data: fin } = await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: e0.id, p_code: e0.code, p_ok: true });
-    if (fin === "pret") await corrigerAccroche(appId).catch((x) => console.error("accroche", x));
+    if (fin === "pret") { await verifierPromesses(appId).catch((x) => console.error("promesses", x)); await corrigerAccroche(appId).catch((x) => console.error("accroche", x)); }
     // Écrans ajoutés au modèle pour tenir les promesses du site : écrits comme dans une construction classique
     for (const e of aEcrire) await lancerEcran(e.id);
     return;
@@ -206,7 +206,7 @@ export async function saasEcrireEcran(appId: string, ecranId: string) {
   const r = await ecrire(spec, e).catch((x) => { console.error("ecran", ecranId, x); return { code: "", ok: false }; });
   r.code = await inspireDe(appId).then((o) => sansIdentite(r.code, o, spec.nom).valeur);
   const { data: fin } = await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: ecranId, p_code: r.code, p_ok: r.ok });
-  if (fin === "pret") await corrigerAccroche(appId).catch((x) => console.error("accroche", x));
+  if (fin === "pret") { await verifierPromesses(appId).catch((x) => console.error("promesses", x)); await corrigerAccroche(appId).catch((x) => console.error("accroche", x)); }
 }
 
 /** Capacités promises par le site (accroche, atouts, formules) mais qu'aucun écran prévu n'utilise :
@@ -255,10 +255,42 @@ export async function saasMettreANiveau(appId: string, lancerEcran: (ecranId: st
   const avant = new Set((spec.ecrans ?? []).map((e: any) => e.id));
   await ajouterEcransPromis(spec, {});
   const nouveaux = (spec.ecrans ?? []).filter((e: any) => !avant.has(e.id) && !e.code);
-  if (!nouveaux.length) return { ajoutes: [] as string[] };
+  if (!nouveaux.length) { await verifierPromesses(appId); return { ajoutes: [] as string[], relu: true }; }
   await admin.from("saas_apps").update({ brouillon: spec, maj: new Date().toISOString() }).eq("id", appId);
   for (const e of nouveaux) await lancerEcran(e.id);
   return { ajoutes: nouveaux.map((e: any) => e.titre) };
+}
+
+/** Relecture du site par l'IA : chaque atout, avantage de formule et réponse de FAQ doit correspondre à un écran réel.
+ *  Ce qui n'est fait par aucun écran est retiré (les règles automatiques de la base ne voient que l'IA, les e-mails, les PDF…). */
+export async function verifierPromesses(appId: string) {
+  const { data: a } = await admin.from("saas_apps").select("spec").eq("id", appId).single();
+  const s = a?.spec as any;
+  if (!s?.ecrans?.length) return;
+  const items: { k: string; t: string }[] = [];
+  (s.atouts ?? []).forEach((x: any, i: number) => items.push({ k: `a${i}`, t: `${x?.titre ?? ""} : ${x?.texte ?? ""}` }));
+  (s.formules ?? []).forEach((f: any, i: number) => (f?.inclus ?? []).forEach((x: any, j: number) => items.push({ k: `f${i}_${j}`, t: String(x) })));
+  (s.faq ?? []).forEach((x: any, i: number) => items.push({ k: `q${i}`, t: `${x?.q ?? ""} → ${x?.r ?? ""}` }));
+  if (!items.length) return;
+  const ecrans = s.ecrans.map((e: any) => `- ${e.titre}${e.public ? " (page publique)" : ""} : ${e.but ?? ""}${e.fonctions?.length ? ` (${e.fonctions.join(", ")})` : ""}`).join("\n");
+  const c = s.capacites ?? {};
+  const r = await askJson<any>(`Application « ${s.nom} ». Ses écrans réels :
+${ecrans}
+Elle sait aussi : ${[c.ia && "IA intégrée", c.email && "envoyer des e-mails", c.pdf && "générer des PDF", c.agenda && "agenda abonnable", "inviter son équipe", "exporter ses données"].filter(Boolean).join(", ")}.
+Voici des phrases de son site. Pour chacune, dis si l'application la fait VRAIMENT avec ces écrans. Un argument de prix, d'hébergement, de support, de simplicité ou de sans-engagement est vrai. Une fonction précise (signature, état des lieux, export comptable, indexation, partenaires, application mobile native, intégration…) qu'aucun écran ne fait est fausse. Au moindre doute sur une fonction, faux.
+${items.map((x) => `${x.k} : ${x.t}`).join("\n")}
+Rends {"faux": ["clés des phrases fausses"]}`, { fast: true, maxTokens: 400 }).catch(() => null);
+  const faux = new Set((Array.isArray(r?.faux) ? r.faux : []).map(String));
+  if (!faux.size) return;
+  const atouts = (s.atouts ?? []).filter((_: any, i: number) => !faux.has(`a${i}`));
+  const formules = (s.formules ?? []).map((f: any, i: number) => {
+    const inclus = (f?.inclus ?? []).filter((_: any, j: number) => !faux.has(`f${i}_${j}`));
+    return { ...f, inclus: inclus.length ? inclus : i ? [`Tout ${s.formules[i - 1]?.nom ?? "le reste"}`] : s.ecrans.filter((e: any) => !e.public).slice(0, 3).map((e: any) => e.titre) };
+  });
+  const faq = (s.faq ?? []).filter((_: any, i: number) => !faux.has(`q${i}`));
+  // Atouts trop peu nombreux : complétés depuis les vrais écrans (comme le fait la base)
+  for (const e of s.ecrans.filter((e: any) => !e.public)) { if (atouts.length >= 3) break; if (!atouts.some((x: any) => x.titre === e.titre)) atouts.push({ titre: e.titre, texte: e.but ?? "" }); }
+  await admin.from("saas_apps").update({ spec: { ...s, atouts, formules, faq } }).eq("id", appId);
 }
 
 /** Le site ne promet que ce que l'application fait : la base retire les atouts et avantages faux et signale

@@ -1,0 +1,3 @@
+-- Appliquée via MCP le 2026-11-15.
+-- saas_promesse_ko : signature électronique, hors connexion, OCR… comptent aussi comme promesses non tenues.
+-- saas_apps_plan_du_site() : liste publique des SaaS en ligne (pages /p/<app> et articles) pour /sitemap-apps.xml.

@@ -1,3 +1,4 @@
 User-agent: *
 Allow: /
 Sitemap: https://kairo.maisonravita.fr/sitemap-saas.xml
+Sitemap: https://kairo.maisonravita.fr/sitemap-apps.xml
