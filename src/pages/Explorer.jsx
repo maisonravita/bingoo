@@ -2851,7 +2851,7 @@ function PanneauDirect({ ap, r, stats }) {
   const cats = (r.secteurs ?? []).join("|");
   useEffect(() => { supabase.rpc("saas_leaders", { p_cats: r.secteurs ?? [] }).then(({ data }) => setLead(data ?? [])); }, [cats]); // eslint-disable-line react-hooks/exhaustive-deps
   const filtres = [r.continent && CONTINENTS[r.continent], r.objectif && `${Number(r.objectif).toLocaleString("fr-FR")} €`, r.audience === "B2B" ? "pros" : r.audience === "B2C" ? "particuliers" : null, ...(r.secteurs ?? []).map((s) => s.split(" ")[0].toLowerCase()), "rentables"].filter(Boolean);
-  const pts = (x) => (Array.isArray(x.courbe) ? x.courbe : []).slice(-8).map((p) => ({ n: Number(p.v) || 0 }));
+  const pts = (x) => (Array.isArray(x.courbe) ? x.courbe : []).filter((p) => p.m !== new Date().toISOString().slice(0, 7)).slice(-8).map((p) => ({ n: Number(p.v) || 0 }));
   const flou = <span className="select-none rounded-md bg-good/10 px-2 py-0.5 text-[12px] font-bold text-good blur-[4px]" aria-hidden>12,4 k$/mois</span>;
   const [premier, ...autres] = lead;
   return (
@@ -3004,7 +3004,7 @@ function CarteClaire({ x, onLancer, busy }) {
       <div className="mt-4 grid grid-cols-3 gap-2 rounded-2xl border border-line p-3">
         <div className="flex items-center gap-2.5"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-[3px] border-accent text-[16px] font-black tnum" style={HF}>{x.copiable != null ? Math.max(1, Math.min(10, Math.round(10 - x.copiable / 10))) : "–"}</span><span className="text-[11px] font-bold uppercase leading-tight tracking-wide text-ink-faint">Difficulté<br /><span className="normal-case font-normal">sur 10</span></span></div>
         <div><p className="text-[11px] font-bold uppercase tracking-wide text-ink-faint">Trafic</p><p className="mt-1 text-[15px] font-black tnum" style={HF}>{x.rang_web ? `N° ${Number(x.rang_web).toLocaleString("fr-FR")}` : "faible"}</p><p className="text-[11px] text-ink-faint">mondial</p></div>
-        <div><p className="text-[11px] font-bold uppercase tracking-wide text-ink-faint">Revenu mensuel</p>{Array.isArray(x.courbe) && x.courbe.length > 2 ? <Sparkline pts={x.courbe.slice(-8).map((p) => ({ n: Number(p.v) || 0 }))} h={34} /> : <p className="mt-1 text-[15px] font-black tnum" style={HF}>{dollar(x.mrr)}</p>}</div>
+        <div><p className="text-[11px] font-bold uppercase tracking-wide text-ink-faint">Revenu mensuel</p>{Array.isArray(x.courbe) && x.courbe.length > 2 ? <Sparkline pts={x.courbe.filter((p) => p.m !== new Date().toISOString().slice(0, 7)).slice(-8).map((p) => ({ n: Number(p.v) || 0 }))} h={34} /> : <p className="mt-1 text-[15px] font-black tnum" style={HF}>{dollar(x.mrr)}</p>}</div>
       </div>
       <LancerCout s={x} className="mt-3" />
       <button onClick={() => onLancer(0, x.ref)} disabled={busy} className="fx-brille mt-5 w-full sm:w-auto rounded-xl bg-accent px-7 py-3.5 text-[15.5px] font-bold text-white hover:bg-accent-dark disabled:opacity-60">Lancer ma version de {x.nom}</button>
