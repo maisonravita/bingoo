@@ -602,6 +602,8 @@ function Tour({ onFin }) {
     const t = setTimeout(() => { const n = i + 1; if (n >= ECRANS.length) { setPause(true); return; } nav(ECRANS[n]?.id); setI(n); }, 4500);
     return () => clearTimeout(t);
   }, [i, pause]);
+  // La barre de la visite est fixée en haut : on décale la page d'autant, pour ne jamais cacher le titre de l'écran
+  useEffect(() => { const b = document.body.style; const avant = b.paddingTop; b.paddingTop = "56px"; return () => { b.paddingTop = avant; }; }, []);
   const e = ECRANS[i];
   return html\`<div ref=\${barre} class="fixed top-0 inset-x-0 z-50">\${pause ? null : html\`<div class="h-1 bg-[var(--c)]/20"><div key=\${i} class="h-1 bg-[var(--c)]" style="animation:barre 4.5s linear forwards"/></div>\`}
     <div class="mx-auto mt-3 w-fit max-w-[calc(100vw-2rem)] flex items-center gap-3 rounded-full bg-slate-900/90 text-white pl-4 pr-1.5 py-1.5 shadow-xl text-sm">
