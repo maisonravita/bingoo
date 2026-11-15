@@ -1,0 +1,2 @@
+-- Appliquée via MCP le 2026-11-15 : saas_app_ecran_set ne livre plus un écran resté vide après échec (les autres le sont).
+-- Route r/saas-app-niveau (clé cron) : ajoute aux SaaS déjà livrés les écrans promis par leur site mais manquants.

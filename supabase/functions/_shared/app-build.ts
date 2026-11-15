@@ -221,7 +221,7 @@ async function ajouterEcransPromis(spec: any, p: any) {
   const phrases = (re: RegExp) => promis.split(/\n|(?<=[.;])\s/).filter((l) => re.test(l)).slice(0, 4).join(" ; ");
   const reIa = /\bIA\b|intelligence artificielle|r[ée]dig\w* (automatiquement|par l|pour (toi|vous))/;
   const reRel = /relances?\b|e-?mails? (programm|planifi)|programm\w* .{0,20}e-?mails?/i;
-  const rePdf = /\bpdf\b/i;
+  const rePdf = /\bpdf\b|quittances?\b|factures? (en|au format)|attestations?\b/i;
   if (reIa.test(promis) && !codeOuTexte(/\bIA\b|intelligence artificielle|r[ée]dig|g[ée]n[èe]r|r[ée]sum|reformul/i, /(^|[^A-Za-z0-9_.$])ia\s*\(/))
     besoins.push({ cle: "ia", quoi: `l'IA intégrée de l'application (fonction ia) pour faire pour de vrai : ${phrases(reIa)}` });
   if (reRel.test(promis) && !codeOuTexte(/relance|e-?mail/i, /(^|[^A-Za-z0-9_.$])email\s*\(/))
@@ -244,6 +244,21 @@ Rends {"ecrans": [{ "cle": "ia|email|pdf", "id": "snake_case court, différent d
     if (k < 0) ecrans.push(e); else ecrans.splice(k, 0, e);
   }
   spec.ecrans = ecrans;
+}
+
+/** Mise à niveau d'un SaaS déjà livré : si son site promet une fonction qu'aucun écran ne fait (IA, e-mails, PDF),
+ *  on écrit l'écran manquant. L'application reste en ligne pendant ce temps ; la nouvelle version remplace l'ancienne à la fin. */
+export async function saasMettreANiveau(appId: string, lancerEcran: (ecranId: string) => Promise<void>) {
+  const { data: a } = await admin.from("saas_apps").select("spec, statut, brouillon, projet_id").eq("id", appId).single();
+  if (!a || a.statut !== "pret" || a.brouillon) return { ajoutes: [] as string[] };
+  const spec = structuredClone(a.spec) as any;
+  const avant = new Set((spec.ecrans ?? []).map((e: any) => e.id));
+  await ajouterEcransPromis(spec, {});
+  const nouveaux = (spec.ecrans ?? []).filter((e: any) => !avant.has(e.id) && !e.code);
+  if (!nouveaux.length) return { ajoutes: [] as string[] };
+  await admin.from("saas_apps").update({ brouillon: spec, maj: new Date().toISOString() }).eq("id", appId);
+  for (const e of nouveaux) await lancerEcran(e.id);
+  return { ajoutes: nouveaux.map((e: any) => e.titre) };
 }
 
 /** Le site ne promet que ce que l'application fait : la base retire les atouts et avantages faux et signale

@@ -445,6 +445,21 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
     return { ok: true };
   },
+  // Appel interne : ajoute à un SaaS déjà livré les écrans que son site promet mais qui manquent
+  async "saas-app-niveau"(req, b) {
+    await cron(req);
+    const appId = String(b.app_id ?? "");
+    const { data: a } = await admin.from("saas_apps").select("workspace_id").eq("id", appId).maybeSingle();
+    if (!a) throw new HttpError(404, "Application introuvable");
+    setAi({ ws: a.workspace_id, live: true, feature: "construire/niveau" });
+    const cle = await secret("cron_key");
+    const lancerEcran = async (ecran: string) => {
+      const r = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/r/saas-app-ecran`, { method: "POST", headers: { "content-type": "application/json", "x-cron-key": cle }, body: JSON.stringify({ app_id: appId, ecran, ws: a.workspace_id }) });
+      if (!r.ok) console.error("saas-app-ecran", r.status, await r.text());
+    };
+    const { saasMettreANiveau } = await import("../_shared/app-build.ts");
+    return await saasMettreANiveau(appId, lancerEcran);
+  },
   // Appel interne (clé des tâches planifiées) : écrit un écran du brouillon
   async "saas-app-ecran"(req, b) {
     await cron(req);
