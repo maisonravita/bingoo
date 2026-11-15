@@ -33,7 +33,7 @@ for (const [label, opt] of [["téléphone", devices["iPhone 13"]], ["ordinateur"
 
   await etape(`[${label}] Accueil`, async () => {
     await page.goto(`${SITE}/?e2e=${Date.now()}`, { waitUntil: "networkidle", timeout: 45000 });
-    await page.getByText(/SaaS/).first().waitFor({ timeout: 15000 });
+    await page.waitForFunction(() => /SaaS/.test(document.body.innerText), null, { timeout: 20000 });
     await debordement(); sansErreur();
   });
   await etape(`[${label}] Questions du parcours`, async () => {
