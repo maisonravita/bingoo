@@ -3,7 +3,7 @@ import { indexChoisi } from "../lib/choix";
 import ResultatsBingoo from "../components/ResultatsBingoo";
 import ChoixFormule from "../components/ChoixFormule";
 import { nomCanal, plan30, promptClaude } from "../lib/plan30";
-import { ANGLES, angleDe, enFrancais, premiersClients, resumeFr, semaineClients } from "../lib/angle";
+import { ANGLES, angleDe, enFrancais, kitDiffusion, premiersClients, resumeFr, semaineClients } from "../lib/angle";
 import { demanderCompte, estInvite } from "../lib/invite";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
@@ -2995,10 +2995,14 @@ function Paquet({ res, r }) {
 // Tes 10 premiers clients : la semaine à cocher, les prospects trouvés par Bingoo! (registre public des entreprises)
 // avec leur suivi enregistré dans Bingoo!, les messages prêts à copier et les autres endroits où chercher
 const ETATS = [["", "À contacter"], ["contacte", "Contacté"], ["repondu", "A répondu"], ["essai", "En essai"], ["payant", "Payant"], ["non", "Pas intéressé"]];
-export function PremiersClients({ s, a, r }) {
+export function PremiersClients({ s, a, r, app }) {
   const { ws } = useWs();
   const toast = useToast();
-  const pc = premiersClients(s, a, r);
+  const lienSaas = app ? lienApp(app.slug, app.domaine_statut === "ok" ? app.domaine : null) : null;
+  const kit = app ? kitDiffusion(s, a, r, app, lienSaas) : null;
+  const pc0 = premiersClients(s, a, r);
+  // SaaS construit : les messages sont déjà remplis (nom, prix, lien suivi par canal) ; sinon les modèles à crochets
+  const pc = kit ? { ...pc0, messages: kit.messages } : pc0;
   const [onglet, setOnglet] = useState("semaine");
   const semaine = semaineClients(s, a, r);
   const cleJ = `bingoo-semaine-${s.domaine}`;
@@ -3023,7 +3027,7 @@ export function PremiersClients({ s, a, r }) {
   const [dep, setDep] = useState(() => { try { return localStorage.getItem("bingoo-departement") ?? ""; } catch { return ""; } });
   const [busy, setBusy] = useState(false);
   const [ajout, setAjout] = useState("");
-  const charger = () => supabase.from("saas_prospects_lancement").select("id, nom, ville, dirigeant, prenom, depuis, maps, etat").eq("workspace_id", ws.id).eq("domaine", s.domaine).order("created_at").then(({ data }) => setPros(data ?? []));
+  const charger = () => supabase.from("saas_prospects_lancement").select("id, nom, ville, dirigeant, prenom, depuis, maps, etat, maj").eq("workspace_id", ws.id).eq("domaine", s.domaine).order("created_at").then(({ data }) => setPros(data ?? []));
   useEffect(() => { charger(); }, [s.domaine, ws.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const trouver = async (e) => {
     e?.preventDefault();
@@ -3038,7 +3042,13 @@ export function PremiersClients({ s, a, r }) {
   const etat = async (id, v) => { setPros(pros.map((p) => (p.id === id ? { ...p, etat: v } : p))); await supabase.from("saas_prospects_lancement").update({ etat: v, maj: new Date().toISOString() }).eq("id", id); };
   const ajouter = async (e) => { e.preventDefault(); if (!ajout.trim()) return; await supabase.from("saas_prospects_lancement").insert({ workspace_id: ws.id, domaine: s.domaine, siret: `manuel-${Date.now()}`, nom: ajout.trim().slice(0, 80) }); setAjout(""); charger(); };
   const premier = (pc.messages[0] ?? ["", ""])[1];
-  const messagePour = (p) => premier.replace("[prénom]", p.prenom ?? "").replace("Bonjour ,", "Bonjour,");
+  const relanceTxt = (pc.messages.find(([t]) => /^Relance/.test(t)) ?? ["", ""])[1];
+  const pour = (txt, p) => txt.replace("[prénom]", p.prenom ?? "").replace(/Bonjour ,/g, "Bonjour,").replace(/^Objet : .*\n\n/, "");
+  const messagePour = (p) => pour(premier, p);
+  // À relancer : contacté il y a 4 jours ou plus, sans réponse
+  const aRelancer = (p) => p.etat === "contacte" && p.maj && Date.now() - new Date(p.maj).getTime() >= 4 * 86400000;
+  const nRelance = (pros ?? []).filter(aRelancer).length;
+  const mailto = (txt) => { const m = /^Objet : (.*)\n\n([\s\S]*)$/.exec(txt); return `mailto:?subject=${encodeURIComponent(m ? m[1] : "")}&body=${encodeURIComponent(m ? m[2] : txt)}`; };
   const payants = (pros ?? []).filter((x) => x.etat === "payant").length;
   const contactes = (pros ?? []).filter((x) => x.etat && x.etat !== "").length;
   const cibleTxt = a.type === "metier" ? a.les : "tes clients";
@@ -3059,7 +3069,7 @@ export function PremiersClients({ s, a, r }) {
         <div className="text-right"><p className="text-[28px] font-black tnum leading-none" style={HF}>{payants}<span className="text-ink-faint text-[18px]"> / 10</span></p><p className="text-[12px] text-ink-faint">clients payants</p></div>
       </div>
       <div className="px-5 sm:px-7 pt-4 flex gap-4 overflow-x-auto border-b border-line text-[14px]">
-        {[["semaine", `Ta semaine (${faits.length}/7)`], ["prospects", `Tes prospects${pros?.length ? ` (${contactes}/${pros.length})` : ""}`], ["dire", "Quoi leur dire"], ["ou", "Où chercher encore"]].map(([k, l]) => <button key={k} onClick={() => setOnglet(k)} className={cx("shrink-0 pb-2.5 -mb-px border-b-2 font-semibold whitespace-nowrap", onglet === k ? "border-accent text-ink" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
+        {[["semaine", `Ta semaine (${faits.length}/7)`], ["prospects", `Tes prospects${pros?.length ? ` (${contactes}/${pros.length})` : ""}${nRelance ? ` · ${nRelance} à relancer` : ""}`], ["dire", "Quoi leur dire"], ...(kit ? [["groupes", "Groupes et réseaux"], ["videos", "TikTok et Reels"]] : []), ["ou", "Où chercher encore"]].map(([k, l]) => <button key={k} onClick={() => setOnglet(k)} className={cx("shrink-0 pb-2.5 -mb-px border-b-2 font-semibold whitespace-nowrap", onglet === k ? "border-accent text-ink" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
       </div>
       <div className="px-5 sm:px-7 py-5">
         {onglet === "semaine" && lanc !== undefined && (
@@ -3116,8 +3126,10 @@ export function PremiersClients({ s, a, r }) {
                       <p className="font-semibold text-[14px]">{p.nom}</p>
                       <p className="text-[12.5px] text-ink-faint">{[p.ville, p.dirigeant && `dirigé par ${p.dirigeant}`, p.depuis && `depuis ${p.depuis}`].filter(Boolean).join(" · ")}</p>
                     </div>
+                    {aRelancer(p) && <span className="rounded-full bg-[#FEF3C7] px-2 py-0.5 text-[11.5px] font-bold text-[#78350F]">À relancer</span>}
                     {p.maps && <a href={p.maps} target="_blank" rel="noopener noreferrer" className="text-[12.5px] font-semibold text-accent-dark hover:underline">Site et téléphone</a>}
-                    <button onClick={() => copier(messagePour(p), `p${k}`)} className="rounded-lg border border-line px-2.5 py-1 text-[12.5px] font-semibold hover:border-ink">{copie === `p${k}` ? "Copié" : "Copier son message"}</button>
+                    {aRelancer(p) && relanceTxt ? <button onClick={() => copier(pour(relanceTxt, p), `r${k}`)} className="rounded-lg border border-[#B45309] px-2.5 py-1 text-[12.5px] font-semibold text-[#78350F] hover:bg-[#FEF3C7]">{copie === `r${k}` ? "Copié" : "Copier la relance"}</button>
+                      : <button onClick={() => copier(messagePour(p), `p${k}`)} className="rounded-lg border border-line px-2.5 py-1 text-[12.5px] font-semibold hover:border-ink">{copie === `p${k}` ? "Copié" : "Copier son message"}</button>}
                     <select value={p.etat} onChange={(e) => etat(p.id, e.target.value)} className={cx("rounded-lg border border-line px-2 py-1 text-[12.5px]", p.etat === "payant" && "bg-good text-white border-good", p.etat === "non" && "text-ink-faint")}>{ETATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
                   </li>
                 ))}</ul>
@@ -3138,9 +3150,48 @@ export function PremiersClients({ s, a, r }) {
             <div key={t} className="rounded-2xl border border-line p-4 flex flex-col">
               <p className="font-semibold text-[14px]">{t}</p>
               <pre className="mt-2 flex-1 whitespace-pre-wrap font-sans text-[13px] text-ink-soft leading-relaxed">{m}</pre>
-              <button onClick={() => copier(m, k)} className="mt-3 self-start rounded-lg border border-line px-3 py-1.5 text-[12.5px] font-semibold hover:border-ink">{copie === k ? "Copié" : "Copier"}</button>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button onClick={() => copier(m, k)} className="rounded-lg border border-line px-3 py-1.5 text-[12.5px] font-semibold hover:border-ink">{copie === k ? "Copié" : "Copier"}</button>
+                {kit && /^Objet : /.test(m) && <a href={mailto(m)} className="rounded-lg bg-ink px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90">Ouvrir dans ma messagerie</a>}
+              </div>
             </div>
           ))}</div>
+        )}
+        {kit && onglet === "dire" && <p className="mt-3 text-[12.5px] text-ink-faint">Chaque lien porte sa source (?src=email, ?src=instagram…) : dans « Kit de lancement », tu vois quel canal t'amène des inscrits. Bingoo! n'envoie rien à ta place.</p>}
+        {kit && onglet === "groupes" && (
+          <div className="space-y-3">
+            <div className="rounded-2xl bg-paper border border-line p-4">
+              <p className="font-semibold text-[14px]">Ton post, prêt à publier</p>
+              <pre className="mt-2 whitespace-pre-wrap font-sans text-[13px] text-ink-soft leading-relaxed">{(kit.messages.find(([t]) => /^Post/.test(t)) ?? ["", ""])[1]}</pre>
+              <button onClick={() => copier((kit.messages.find(([t]) => /^Post/.test(t)) ?? ["", ""])[1], "post")} className="mt-3 rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] font-semibold hover:border-ink">{copie === "post" ? "Copié" : "Copier le post"}</button>
+            </div>
+            <div className="grid md:grid-cols-2 gap-3">{kit.groupes.map(([t, liens, conseil]) => (
+              <div key={t} className="rounded-2xl border border-line p-4">
+                <p className="font-semibold text-[14.5px]">{t}</p>
+                <p className="mt-1 text-[13px] text-ink-soft">{conseil}</p>
+                <div className="mt-2 flex flex-wrap gap-2">{liens.map(([m, u]) => <a key={u} href={u} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-line px-2.5 py-1 text-[12.5px] font-semibold hover:border-ink">Chercher « {m} » ↗</a>)}</div>
+              </div>
+            ))}</div>
+            <p className="text-[12.5px] text-ink-faint">Lis les règles de chaque groupe avant de publier : beaucoup interdisent la pub directe, mais acceptent une question ou un retour d'expérience.</p>
+          </div>
+        )}
+        {kit && onglet === "videos" && (
+          <div className="space-y-3">
+            <div className="rounded-2xl bg-paper border border-line p-4 flex flex-wrap items-center gap-3">
+              <div className="flex-1 min-w-[220px]"><p className="font-semibold text-[14px]">Le lien à mettre dans ta bio</p><p className="font-mono text-[12px] text-ink-soft break-all">{kit.bio}</p></div>
+              <button onClick={() => copier(kit.bio, "bio")} className="rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] font-semibold hover:border-ink">{copie === "bio" ? "Copié" : "Copier"}</button>
+              <a href="#/explorer/video" className="rounded-lg bg-ink px-3 py-1.5 text-[12.5px] font-semibold text-white">Ma vidéo pub animée</a>
+            </div>
+            <div className="grid md:grid-cols-2 gap-3">{kit.videos.map((v, k) => (
+              <div key={v.titre} className="rounded-2xl border border-line p-4 flex flex-col">
+                <p className="text-[12px] font-bold uppercase tracking-wide text-accent-dark">Vidéo {k + 1} · {v.titre}</p>
+                <p className="mt-1 font-bold text-[15px]">« {v.accroche} »</p>
+                <ul className="mt-2 space-y-1 text-[13px] text-ink-soft flex-1">{v.plan.map((x) => <li key={x}>• {x}</li>)}</ul>
+                <button onClick={() => copier(v.legende, `v${k}`)} className="mt-3 self-start rounded-lg border border-line px-3 py-1.5 text-[12.5px] font-semibold hover:border-ink">{copie === `v${k}` ? "Copié" : "Copier la légende"}</button>
+              </div>
+            ))}</div>
+            <p className="text-[12.5px] text-ink-faint">Une vidéo par jour pendant une semaine vaut mieux qu'une vidéo parfaite. Garde les 3 premières secondes pour l'accroche.</p>
+          </div>
         )}
       </div>
     </section>

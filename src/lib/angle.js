@@ -118,3 +118,61 @@ export function semaineClients(s, a, r) {
     { j: "Jour 7", titre: "Tes 10 premiers", actions: ["Demande à chaque personne en essai si elle veut garder l'outil, avec ton offre des 10 premiers.", "Fais le point : combien de contacts, de oui, d'essais, de payants. Garde le canal qui a le mieux marché pour la semaine suivante."] },
   ];
 }
+
+// Les textes d'un SaaS parlent souvent à son utilisateur en « tu » : dans un message à un prospect qu'on ne connaît pas, on vouvoie
+const VERBES_TU = { es: "êtes", as: "avez", peux: "pouvez", veux: "voulez", fais: "faites", dois: "devez", vas: "allez", sais: "savez", dis: "dites" };
+export const vouvoyer = (t) => String(t ?? "")
+  .replace(/\btu (\p{L}+)/giu, (_, v) => `vous ${VERBES_TU[v.toLowerCase()] ?? v.replace(/es$/, "ez").replace(/s$/, "z")}`)
+  .replace(/\bt'(?=\p{L})/giu, "vous ").replace(/\b(ton|ta)\b/gi, "votre").replace(/\btes\b/gi, "vos").replace(/\b(te|toi)\b/gi, "vous");
+
+// Distribution clé en main d'un SaaS construit : les messages déjà remplis (nom, ce qu'il fait, prix, lien suivi par canal),
+// les groupes où trouver sa cible (liens de recherche prêts) et des idées de vidéos TikTok / Reels à tourner soi-même.
+// Rien n'est envoyé par Bingoo! : le fondateur copie, ouvre, et envoie lui-même.
+export function kitDiffusion(s, a, r, app, lien) {
+  const sp = app?.spec ?? {};
+  const nom = sp.nom ?? "mon outil";
+  const refus = new Set(r?.refus ?? []);
+  const cible = a.type === "metier" ? a.les : String(sp.cible ?? cibleDe(s, a)).replace(/\.$/, "").replace(/^(\p{Lu})(\p{Ll})/u, (_, x, y) => x.toLowerCase() + y);
+  const quoi = String(sp.pitch ?? sp.slogan ?? "").replace(/\.$/, "") || `un outil ${a.court}`;
+  const quoiMin = vouvoyer(quoi.replace(/^(\p{Lu})(\p{Ll})/u, (_, x, y) => x.toLowerCase() + y));
+  const prob = vouvoyer(String(sp.probleme ?? "").replace(/\.$/, ""));
+  const desCible = cible.replace(/^les /, "des ");
+  const probTu = String(sp.probleme ?? "").replace(/\.$/, "");
+  const f0 = (sp.formules ?? []).find((f) => Number(f.prix) > 0);
+  const prix = f0 ? `${String(f0.prix).replace(".", ",")} € par mois` : null;
+  const essai = Number(app?.paiement?.essai_jours ?? 14) || 14;
+  const url = (src) => (lien ? `${lien}${lien.includes("?") ? "&" : "?"}src=${src}` : "[lien]");
+  const offre = `${essai} jours d'essai gratuit${prix ? `, puis ${prix}` : ""}`;
+  const messages = [];
+  if (!refus.has("appeler")) {
+    messages.push(["E-mail de premier contact", `Objet : ${nom}, pour ${cible}\n\nBonjour [prénom],\n\n${prob ? `${prob}. ` : ""}J'ai créé ${nom} pour ça : ${quoiMin}.\n\nJe cherche mes 10 premiers utilisateurs : ${offre}, et je vous aide moi-même à le mettre en place.\n\nVous voulez essayer ? ${url("email")}\n\nBonne journée,\n[ton prénom]\n\nPas intéressé ? Répondez « stop », je ne vous écrirai plus.`, "email"]);
+    messages.push(["Message privé Instagram", `Bonjour ! Je suis tombé sur votre compte, super travail 👏\nJe lance ${nom}, ${quoiMin}. Je cherche quelques ${a.type === "metier" ? a.metier.toLowerCase() : "professionnels"} pour le tester gratuitement (${essai} jours) et me dire ce qui manque. Ça vous dit ? ${url("instagram")}`, "instagram"]);
+    messages.push(["Demande de connexion LinkedIn", `Bonjour [prénom], je lance ${nom} (${quoiMin}) et je cherche l'avis ${desCible}. Ravi d'échanger !`, "linkedin"]);
+    messages.push(["Relance (4 jours après, une seule fois)", `Bonjour [prénom], je reviens vers vous au sujet de ${nom}. La démo prend 30 secondes : ${url("relance")}&tour=1\nSi ce n'est pas le bon moment, dites-le-moi et je ne vous relancerai plus.\n[ton prénom]`, "relance"]);
+  }
+  messages.push(["Post dans un groupe ou un forum", `Bonjour à tous 👋 ${prob ? `${prob} : vous gérez ça comment aujourd'hui ? ` : ""}J'ai créé ${nom}, ${quoiMin}. Je cherche 10 personnes pour le tester gratuitement et me dire franchement ce qui manque. Le lien est ici : ${url("groupes")}`, "groupes"]);
+  messages.push(["Quand quelqu'un dit oui", `Merci ! Voici ton accès : ${url("oui")}\nTu as ${essai} jours gratuits, sans carte bancaire à l'inscription. ${refus.has("appeler") ? "Je t'écris" : "Je t'appelle"} dans une semaine pour savoir ce qui t'a servi.${prix ? ` Si ça t'est utile, l'abonnement sera de ${prix}.` : ""}`, "oui"]);
+
+  // Les groupes : on ne liste pas de faux noms de groupes, on ouvre la vraie recherche avec les bons mots
+  const mots = a.type === "metier" ? [a.metier, `${a.metier} France`, `entraide ${a.metier}`] : [String(sp.cible ?? s.categorie ?? nom).split(/[,.(]/)[0].trim(), `${s.categorie ?? ""} France`.trim(), `alternative ${s.nom ?? ""}`.trim()];
+  const q = (t) => encodeURIComponent(t.toLowerCase());
+  const groupes = [
+    ["Groupes Facebook", mots.slice(0, 2).map((m) => [m, `https://www.facebook.com/search/groups/?q=${q(m)}`]), "Rejoins les 3 plus actifs (des posts chaque jour). Réponds d'abord à 2 ou 3 questions, puis publie ton post."],
+    ["Groupes LinkedIn", mots.slice(0, 2).map((m) => [m, `https://www.linkedin.com/search/results/groups/?keywords=${q(m)}`]), "Les dirigeants y lisent plus qu'ils n'écrivent : un post court avec une question marche mieux qu'une annonce."],
+    ["Comptes Instagram de ta cible", [[mots[0], `https://www.instagram.com/explore/search/keyword/?q=${q(mots[0])}`]], "Ouvre les comptes pros de ta cible : un message privé court, personnalisé avec un détail de leur compte."],
+    ["Discussions Reddit et forums", [[mots[2] ?? mots[0], `https://www.google.com/search?q=${q(`${mots[2] ?? mots[0]} forum OR reddit`)}`]], "Cherche les questions sur ton problème et réponds en expliquant comment tu le règles."],
+  ];
+
+  // Idées de vidéos courtes : accroche, ce qu'on filme, légende prête
+  const tag = (t) => `#${String(t).normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase()}`;
+  const hashtags = [a.type === "metier" ? tag(a.metier) : tag(s.categorie ?? "entrepreneur"), tag(nom), "#entrepreneur", "#astuce"].filter((x) => x.length > 2).join(" ");
+  const videos = [
+    { titre: "Le problème, en face caméra", accroche: probTu ? `${probTu} ? Regarde ça.` : `Si tu es ${cible.replace(/^les /, "")}, regarde ça.`, plan: ["0-3 s : tu dis l'accroche face caméra, sans intro.", `3-15 s : tu montres ${nom} sur ton téléphone ou ton écran, en faisant la chose en direct.`, "15-20 s : « Le lien est dans ma bio, c'est gratuit pour essayer. »"] },
+    { titre: "Avant / après", accroche: "Avant, je faisais ça à la main. Maintenant ça prend 10 secondes.", plan: ["Plan 1 : la galère (papier, tableur, messages) en accéléré.", `Plan 2 : la même chose dans ${nom}, en temps réel.`, "Texte à l'écran : le temps gagné."] },
+    { titre: "La démo sans visage", accroche: `Le logiciel que ${cible} attendaient.`, plan: [`Enregistre l'écran de la démo animée (${url("tiktok")}&tour=1).`, "Ajoute une musique tendance et 3 textes courts à l'écran.", "Dernier texte : « Essai gratuit, lien en bio »."] },
+    { titre: "Les 3 erreurs", accroche: `3 erreurs que font ${cible} (la 3e coûte cher).`, plan: ["Une erreur par plan, 5 secondes chacune, face caméra.", `Pour la 3e : « c'est pour ça que j'ai créé ${nom} », et tu le montres.`] },
+    { titre: "Je construis en public", accroche: `Jour 1 : je lance ${nom} et je cherche mes 10 premiers clients.`, plan: ["Raconte où tu en es (inscrits, retours), sans chiffres inventés.", "Une vidéo par semaine : les gens suivent l'histoire et finissent par tester."] },
+  ].map((v) => ({ ...v, legende: `${v.accroche} ${nom} : ${quoiMin}. Essai gratuit, lien en bio 👆 ${hashtags}` }));
+
+  return { messages, groupes, videos, bio: url("bio") };
+}

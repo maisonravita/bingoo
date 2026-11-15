@@ -419,7 +419,7 @@ function Clients({ m }) {
     <>
       <Tete titre="Premiers clients" sous={`Ton plan pour trouver les 10 premiers clients de ${m.nom}, une étape par jour.`} />
       {s === undefined ? <div className="py-16 grid place-items-center"><Spinner /></div>
-        : s ? <PremiersClients s={s} a={angleDe(s, r)} r={r} />
+        : s ? <PremiersClients s={s} a={angleDe(s, r)} r={r} app={m.app} />
           : <Carte><p className="text-[13.5px] text-[#616161]">Le plan se prépare à partir du SaaS modèle : il n'est pas encore disponible pour ton SaaS.</p></Carte>}
     </>
   );
