@@ -126,7 +126,7 @@ export const vouvoyer = (t) => String(t ?? "")
   .replace(/\bt'(?=\p{L})/giu, "vous ").replace(/\b(ton|ta)\b/gi, "votre").replace(/\btes\b/gi, "vos").replace(/\b(te|toi)\b/gi, "vous");
 
 // Distribution clé en main d'un SaaS construit : les messages déjà remplis (nom, ce qu'il fait, prix, lien suivi par canal),
-// les groupes où trouver sa cible (liens de recherche prêts) et des idées de vidéos TikTok / Reels à tourner soi-même.
+// et les groupes où trouver sa cible (liens de recherche prêts). Les vidéos TikTok ont leur propre page.
 // Rien n'est envoyé par Bingoo! : le fondateur copie, ouvre, et envoie lui-même.
 export function kitDiffusion(s, a, r, app, lien) {
   const sp = app?.spec ?? {};
@@ -137,7 +137,6 @@ export function kitDiffusion(s, a, r, app, lien) {
   const quoiMin = vouvoyer(quoi.replace(/^(\p{Lu})(\p{Ll})/u, (_, x, y) => x.toLowerCase() + y));
   const prob = vouvoyer(String(sp.probleme ?? "").replace(/\.$/, ""));
   const desCible = cible.replace(/^les /, "des ");
-  const probTu = String(sp.probleme ?? "").replace(/\.$/, "");
   const f0 = (sp.formules ?? []).find((f) => Number(f.prix) > 0);
   const prix = f0 ? `${String(f0.prix).replace(".", ",")} € par mois` : null;
   const essai = Number(app?.paiement?.essai_jours ?? 14) || 14;
@@ -163,16 +162,5 @@ export function kitDiffusion(s, a, r, app, lien) {
     ["Discussions Reddit et forums", [[mots[2] ?? mots[0], `https://www.google.com/search?q=${q(`${mots[2] ?? mots[0]} forum OR reddit`)}`]], "Cherche les questions sur ton problème et réponds en expliquant comment tu le règles."],
   ];
 
-  // Idées de vidéos courtes : accroche, ce qu'on filme, légende prête
-  const tag = (t) => `#${String(t).normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase()}`;
-  const hashtags = [a.type === "metier" ? tag(a.metier) : tag(s.categorie ?? "entrepreneur"), tag(nom), "#entrepreneur", "#astuce"].filter((x) => x.length > 2).join(" ");
-  const videos = [
-    { titre: "Le problème, en face caméra", accroche: probTu ? `${probTu} ? Regarde ça.` : `Si tu es ${cible.replace(/^les /, "")}, regarde ça.`, plan: ["0-3 s : tu dis l'accroche face caméra, sans intro.", `3-15 s : tu montres ${nom} sur ton téléphone ou ton écran, en faisant la chose en direct.`, "15-20 s : « Le lien est dans ma bio, c'est gratuit pour essayer. »"] },
-    { titre: "Avant / après", accroche: "Avant, je faisais ça à la main. Maintenant ça prend 10 secondes.", plan: ["Plan 1 : la galère (papier, tableur, messages) en accéléré.", `Plan 2 : la même chose dans ${nom}, en temps réel.`, "Texte à l'écran : le temps gagné."] },
-    { titre: "La démo sans visage", accroche: `Le logiciel que ${cible} attendaient.`, plan: [`Enregistre l'écran de la démo animée (${url("tiktok")}&tour=1).`, "Ajoute une musique tendance et 3 textes courts à l'écran.", "Dernier texte : « Essai gratuit, lien en bio »."] },
-    { titre: "Les 3 erreurs", accroche: `3 erreurs que font ${cible} (la 3e coûte cher).`, plan: ["Une erreur par plan, 5 secondes chacune, face caméra.", `Pour la 3e : « c'est pour ça que j'ai créé ${nom} », et tu le montres.`] },
-    { titre: "Je construis en public", accroche: `Jour 1 : je lance ${nom} et je cherche mes 10 premiers clients.`, plan: ["Raconte où tu en es (inscrits, retours), sans chiffres inventés.", "Une vidéo par semaine : les gens suivent l'histoire et finissent par tester."] },
-  ].map((v) => ({ ...v, legende: `${v.accroche} ${nom} : ${quoiMin}. Essai gratuit, lien en bio 👆 ${hashtags}` }));
-
-  return { messages, groupes, videos, bio: url("bio") };
+  return { messages, groupes };
 }

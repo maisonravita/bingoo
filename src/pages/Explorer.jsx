@@ -3052,13 +3052,8 @@ export function PremiersClients({ s, a, r, app }) {
   const payants = (pros ?? []).filter((x) => x.etat === "payant").length;
   const contactes = (pros ?? []).filter((x) => x.etat && x.etat !== "").length;
   const cibleTxt = a.type === "metier" ? a.les : "tes clients";
-  // Les prospects trouvés pour toi : formules 3 mois et 12 mois
-  if (ws?.plan === "explorer_pro" && (ws.periode ?? "mois") === "mois") return (
-    <section className="mt-6 rounded-3xl border border-line bg-white p-5 sm:p-7 flex flex-wrap items-center gap-5">
-      <div className="flex-1 min-w-[240px]"><h2 className="text-[22px] font-black leading-tight" style={HF}>Ton plan pour tes 10 premiers clients</h2><p className="mt-1.5 text-[14.5px] text-ink-soft">Les établissements qui ont le problème, trouvés pour toi, le message prêt et l'étape du jour chaque matin : c'est dans les formules 3 mois et 12 mois.</p></div>
-      <a href="#/abonnement" className="rounded-xl bg-accent px-5 py-3 font-bold text-white hover:bg-accent-dark">Passer à 3 mois</a>
-    </section>
-  );
+  // Les prospects trouvés pour toi : formules 3 mois et 12 mois (les messages, les groupes et le plan restent ouverts à tous)
+  const verrou = ws?.plan === "explorer_pro" && (ws.periode ?? "mois") === "mois";
   return (
     <section className="mt-6 rounded-3xl border border-line bg-white overflow-hidden">
       <div className="px-5 sm:px-7 pt-6 pb-4 border-b border-line flex flex-wrap items-end gap-4">
@@ -3069,7 +3064,7 @@ export function PremiersClients({ s, a, r, app }) {
         <div className="text-right"><p className="text-[28px] font-black tnum leading-none" style={HF}>{payants}<span className="text-ink-faint text-[18px]"> / 10</span></p><p className="text-[12px] text-ink-faint">clients payants</p></div>
       </div>
       <div className="px-5 sm:px-7 pt-4 flex gap-4 overflow-x-auto border-b border-line text-[14px]">
-        {[["semaine", `Ta semaine (${faits.length}/7)`], ["prospects", `Tes prospects${pros?.length ? ` (${contactes}/${pros.length})` : ""}${nRelance ? ` · ${nRelance} à relancer` : ""}`], ["dire", "Quoi leur dire"], ...(kit ? [["groupes", "Groupes et réseaux"], ["videos", "TikTok et Reels"]] : []), ["ou", "Où chercher encore"]].map(([k, l]) => <button key={k} onClick={() => setOnglet(k)} className={cx("shrink-0 pb-2.5 -mb-px border-b-2 font-semibold whitespace-nowrap", onglet === k ? "border-accent text-ink" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
+        {[["semaine", `Ta semaine (${faits.length}/7)`], ["prospects", `Tes prospects${pros?.length ? ` (${contactes}/${pros.length})` : ""}${nRelance ? ` · ${nRelance} à relancer` : ""}`], ["dire", "Quoi leur dire"], ...(kit ? [["groupes", "Groupes et réseaux"]] : []), ["ou", "Où chercher encore"]].map(([k, l]) => <button key={k} onClick={() => setOnglet(k)} className={cx("shrink-0 pb-2.5 -mb-px border-b-2 font-semibold whitespace-nowrap", onglet === k ? "border-accent text-ink" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
       </div>
       <div className="px-5 sm:px-7 py-5">
         {onglet === "semaine" && lanc !== undefined && (
@@ -3105,7 +3100,13 @@ export function PremiersClients({ s, a, r, app }) {
             );
           })}</ol>
         )}
-        {onglet === "prospects" && (
+        {onglet === "prospects" && verrou && (
+          <div className="rounded-2xl bg-paper border border-line p-5 flex flex-wrap items-center gap-4">
+            <div className="flex-1 min-w-[220px]"><p className="font-semibold text-[15px]">Les établissements qui ont le problème, trouvés pour toi</p><p className="mt-1 text-[13.5px] text-ink-soft">Jusqu'à 50 établissements de ton département avec le nom du dirigeant, ton suivi et les relances repérées : c'est dans les formules 3 mois et 12 mois.</p></div>
+            <a href="#/abonnement" className="rounded-xl bg-accent px-5 py-3 font-bold text-white hover:bg-accent-dark">Passer à 3 mois</a>
+          </div>
+        )}
+        {onglet === "prospects" && !verrou && (
           <div>
             <form onSubmit={trouver} className="flex flex-wrap items-end gap-2 rounded-2xl bg-paper border border-line p-4">
               <div className="flex-1 min-w-[220px]">
@@ -3173,24 +3174,6 @@ export function PremiersClients({ s, a, r, app }) {
               </div>
             ))}</div>
             <p className="text-[12.5px] text-ink-faint">Lis les règles de chaque groupe avant de publier : beaucoup interdisent la pub directe, mais acceptent une question ou un retour d'expérience.</p>
-          </div>
-        )}
-        {kit && onglet === "videos" && (
-          <div className="space-y-3">
-            <div className="rounded-2xl bg-paper border border-line p-4 flex flex-wrap items-center gap-3">
-              <div className="flex-1 min-w-[220px]"><p className="font-semibold text-[14px]">Le lien à mettre dans ta bio</p><p className="font-mono text-[12px] text-ink-soft break-all">{kit.bio}</p></div>
-              <button onClick={() => copier(kit.bio, "bio")} className="rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] font-semibold hover:border-ink">{copie === "bio" ? "Copié" : "Copier"}</button>
-              <a href="#/explorer/video" className="rounded-lg bg-ink px-3 py-1.5 text-[12.5px] font-semibold text-white">Ma vidéo pub animée</a>
-            </div>
-            <div className="grid md:grid-cols-2 gap-3">{kit.videos.map((v, k) => (
-              <div key={v.titre} className="rounded-2xl border border-line p-4 flex flex-col">
-                <p className="text-[12px] font-bold uppercase tracking-wide text-accent-dark">Vidéo {k + 1} · {v.titre}</p>
-                <p className="mt-1 font-bold text-[15px]">« {v.accroche} »</p>
-                <ul className="mt-2 space-y-1 text-[13px] text-ink-soft flex-1">{v.plan.map((x) => <li key={x}>• {x}</li>)}</ul>
-                <button onClick={() => copier(v.legende, `v${k}`)} className="mt-3 self-start rounded-lg border border-line px-3 py-1.5 text-[12.5px] font-semibold hover:border-ink">{copie === `v${k}` ? "Copié" : "Copier la légende"}</button>
-              </div>
-            ))}</div>
-            <p className="text-[12.5px] text-ink-faint">Une vidéo par jour pendant une semaine vaut mieux qu'une vidéo parfaite. Garde les 3 premières secondes pour l'accroche.</p>
           </div>
         )}
       </div>
