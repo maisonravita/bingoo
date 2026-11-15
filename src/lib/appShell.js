@@ -26,8 +26,10 @@ export function styleDe(spec) {
 }
 const policeUrl = (st) => "https://fonts.googleapis.com/css2?" + [...new Set([st.police, st.titres])].map((p) => "family=" + p.replace(/ /g, "+") + (p === "Fraunces" ? ":opsz,wght@9..144,500;9..144,700" : ":wght@400;500;600;700;800")).join("&") + "&display=swap";
 
-export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null }) {
-  const boot = { style: styleDe(spec), spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog, source, ecran, validation, precommande, verif, page };
+export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null, capture = null }) {
+  // Capture (vidéo pub) : mêmes données d'exemple que la vérification, aucune requête au serveur
+  if (capture) verif = true;
+  const boot = { style: styleDe(spec), spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog, source, ecran, validation, precommande, verif, page, capture };
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${String(spec.nom ?? "Mon SaaS").replace(/[<&]/g, "")}</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js"></script>
@@ -685,7 +687,33 @@ function Verif() {
   }, [i]);
   return E ? html\`<div id="verif-zone" class="p-6"><\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} user=\${{ id: "v", nom: "Test", email: "test@exemple.fr", role: "admin" }} params=\${null} etat=\${{ acces: true }}/></\${Garde}></div>\` : null;
 }
+// Vidéo pub : chaque écran demandé est affiché avec les données d'exemple, photographié, puis envoyé à la page Bingoo!
+function Capture() {
+  const ids = (B.capture ?? []).filter((id) => ECRANS.some((e) => e.id === id));
+  const [i, setI] = useState(0); const E = ECRANS.find((e) => e.id === ids[i]);
+  useEffect(() => {
+    if (!E) { try { parent.postMessage({ type: "bingoo-capture-fin", slug: B.slug }, "*"); } catch (x) {} return; }
+    const t = setTimeout(async () => {
+      try {
+        const { toPng } = await import("https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/+esm");
+        const png = await toPng(document.getElementById("cap"), { pixelRatio: 1, width: 1280, height: 800, skipFonts: true, backgroundColor: "#F8FAFC" });
+        parent.postMessage({ type: "bingoo-capture", slug: B.slug, id: E.id, png }, "*");
+      } catch (x) { try { parent.postMessage({ type: "bingoo-capture", slug: B.slug, id: E.id, erreur: String(x?.message ?? x).slice(0, 200) }, "*"); } catch (y) {} }
+      setI(i + 1);
+    }, 1800);
+    return () => clearTimeout(t);
+  }, [i]);
+  if (!E) return null;
+  const menu = ECRANS.filter((e) => !e.public).slice(0, 8);
+  const ecran = html\`<\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} user=\${{ id: "v", nom: "Camille", email: "camille@exemple.fr", role: "admin" }} params=\${null} etat=\${{ acces: true }} espace="Atelier Exemple"/></\${Garde}>\`;
+  if (E.public) return html\`<div id="cap" style="width:1280px;height:800px;overflow:hidden" class="bg-slate-50 text-slate-900"><div class="max-w-3xl mx-auto px-4 py-10">\${ecran}</div></div>\`;
+  return html\`<div id="cap" style="width:1280px;height:800px;overflow:hidden" class="flex bg-slate-50 text-slate-900">
+    <aside class="w-60 shrink-0 bg-white border-r border-slate-200 p-4"><div class="flex items-center gap-2 font-bold mb-6 px-2"><span class="w-8 h-8 rounded-xl bg-[var(--c)] text-white grid place-items-center">\${(S.nom ?? "S")[0]}</span>\${S.nom}</div>
+      \${menu.map((e) => html\`<div class=\${cls("flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm mb-1", e.id === E.id ? "bg-[var(--c)]/10 text-[var(--c)] font-semibold" : "text-slate-600")}><\${Icone} nom=\${e.icone} class="w-4 h-4"/>\${e.titre}</div>\`)}</aside>
+    <main class="flex-1 min-w-0 overflow-hidden p-8">\${ecran}</main></div>\`;
+}
 function Racine() {
+  if (B.capture) return html\`<\${Capture}/>\`;
   if (B.verif) return html\`<\${Verif}/>\`;
   if (PAGE) return html\`<\${PagePublique}/>\`;
   if (B.validation && !(S.ecrans ?? []).length) return html\`<\${Precommande}/>\`;

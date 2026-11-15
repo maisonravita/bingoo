@@ -10,13 +10,14 @@ export type ScriptVideo = {
   ecrans: { titre: string; detail: string }[]; benefices: string[]; appel: string;
 };
 
-export async function saasVideoScript(spec: any, angle = ""): Promise<ScriptVideo> {
+export async function saasVideoScript(spec: any, angle = "", ctx: { scan?: any; cible?: any } = {}): Promise<ScriptVideo> {
   const ecrans = (spec.ecrans ?? []).filter((e: any) => !e.public).map((e: any) => `${e.titre}${e.but ? ` (${String(e.but).slice(0, 80)})` : ""}`).join(" ; ");
   const prompt = `Tu écris le scénario d'une vidéo publicitaire de 20 secondes, en motion design (texte animé, pas de voix), pour le logiciel SaaS « ${spec.nom} ».
 Ce qu'il fait : ${spec.pitch ?? ""}
 Pour qui : ${spec.cible ?? ""}
 Ses écrans : ${ecrans}
-${angle ? `Angle voulu par le créateur : ${angle}\n` : ""}
+${angle ? `Angle voulu par le créateur : ${angle}\n` : ""}${ctx.cible?.qui ? `Le client visé en premier : ${ctx.cible.qui} — ${ctx.cible.pourquoi ?? ""}\n` : ""}${ctx.scan?.objections?.length ? `Ce qui fait hésiter ces clients : ${ctx.scan.objections.map((o: any) => o.q).join(" ; ")}\n` : ""}${ctx.scan?.vocabulaire?.length ? `Leurs mots : ${ctx.scan.vocabulaire.slice(0, 10).join(", ")}\n` : ""}
+Écris pour CE client précis : l'accroche nomme sa situation concrète avec ses mots (pas une généralité), le problème est une scène de sa journée, les bénéfices répondent à ce qui le fait hésiter. Ne promets que ce que font les écrans listés.
 Règles : français, tutoiement, phrases très courtes et concrètes, parle au client final (pas au créateur). Aucune promesse chiffrée inventée (pas de « +50 % », pas de faux avis), pas d'emoji, pas de point d'exclamation en série.
 Clés du JSON :
 - accroche : la question ou la phrase choc du début, 45 caractères maximum (ex. « Tes devis te prennent ta soirée ? »)

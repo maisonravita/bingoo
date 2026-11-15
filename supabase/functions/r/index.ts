@@ -679,15 +679,19 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   // Vidéo pub en motion design : l'IA écrit le scénario (10 crédits), la page l'anime et l'exporte en vidéo
   async "saas-video"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
-    const { data: app } = await admin.from("saas_apps").select("id, slug, spec, domaine, domaine_statut, statut").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    const { data: app } = await admin.from("saas_apps").select("id, slug, spec, domaine, domaine_statut, statut, projet_id").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
     if (!app?.spec?.ecrans?.length) throw new HttpError(404, "Ton SaaS doit d'abord être construit");
-    const format = b.format === "paysage" ? "paysage" : "vertical";
+    const format = ["paysage", "carre"].includes(b.format) ? b.format : "vertical";
+    // Le scénario vise le client n°1 (« Qui démarcher ») et répond à ses hésitations (fiche produit du scan)
+    const { data: pr } = await admin.from("saas_projets").select("data").eq("id", app.projet_id).maybeSingle();
+    const dom = String((pr?.data as any)?.inspire?.domaine ?? "");
+    const { data: cb } = dom ? await admin.from("saas_cibles").select("data").eq("workspace_id", ws.id).eq("domaine", dom).maybeSingle() : { data: null };
     await quota(ws.id, "video", 10);
     await creditsDepenser(ws.id, COUT_CREDITS.video, "Vidéo pub");
     try {
       setAi({ ws: ws.id, live: true, feature: "video" });
       const { saasVideoScript } = await import("../_shared/app-video.ts");
-      const script = await saasVideoScript(app.spec, typeof b.angle === "string" ? b.angle.slice(0, 300) : "");
+      const script = await saasVideoScript(app.spec, typeof b.angle === "string" ? b.angle.slice(0, 300) : "", { scan: (pr?.data as any)?.scan, cible: (cb?.data as any)?.cibles?.[0] });
       const { data: v } = await admin.from("saas_videos").insert({ app_id: app.id, workspace_id: ws.id, format, script }).select("id, format, script, at").single();
       await log(ws.id, "video", `Vidéo pub de ${app.spec.nom}`);
       return v;

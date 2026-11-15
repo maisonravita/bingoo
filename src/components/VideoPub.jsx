@@ -5,7 +5,9 @@ import { fn } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { useToast } from "./ui";
 import { cx } from "../lib/utils";
-import { DUREE, FORMATS, dessiner, exporterVideo, preparerPolice } from "../lib/videoPub";
+import { DUREE, FORMATS, STYLES, dessiner, exporterVideo, preparerPolice } from "../lib/videoPub";
+import { AMBIANCES, ecouterMusique } from "../lib/musiqueVideo";
+import AppCadre from "./AppCadre";
 
 const lienCourt = (l) => String(l || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
 
@@ -24,6 +26,31 @@ export default function VideoPub({ app, lien, nu = false, angleInitial = "" }) {
   const canvas = useRef(null);
   const t0 = useRef(performance.now());
   const cout = 10;
+  // Style, musique : gardés pour ce SaaS
+  const memo = (k, d) => { try { return localStorage.getItem(`bingoo-video-${k}-${app.id}`) ?? d; } catch { return d; } };
+  const [style, setStyleV] = useState(() => memo("style", "percutant"));
+  const [musique, setMusiqueV] = useState(() => memo("musique", "energique"));
+  const garder = (k, v, set) => { set(v); try { localStorage.setItem(`bingoo-video-${k}-${app.id}`, v); } catch { /* stockage indisponible */ } };
+  const [ecoute, setEcoute] = useState(null);
+  useEffect(() => () => ecoute?.(), [ecoute]);
+  const ecouter = () => { if (ecoute) { ecoute(); setEcoute(null); return; } if (musique === "aucune") return; const stop = ecouterMusique(musique, DUREE); setEcoute(() => stop); setTimeout(() => setEcoute(null), DUREE * 1000); };
+  // Les vrais écrans du SaaS : photographiés avec les données d'exemple, dans un cadre caché
+  const ecransApp = (app.spec?.ecrans ?? []).filter((e) => e.code);
+  const norm = (x) => String(x ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const idDe = (titre, i) => (ecransApp.find((e) => norm(e.titre) === norm(titre)) ?? ecransApp.filter((e) => !e.public)[i] ?? ecransApp[i])?.id;
+  const [imgs, setImgs] = useState({});
+  const aCapturer = sel ? [...new Set(sel.script.ecrans.slice(0, 3).map((e, i) => idDe(e.titre, i)).filter(Boolean))].filter((id) => !(id in imgs)) : [];
+  useEffect(() => {
+    const ecoute = (ev) => {
+      const d = ev.data;
+      if (d?.slug !== app.slug || d?.type !== "bingoo-capture") return;
+      if (!d.png) { setImgs((m) => ({ ...m, [d.id]: null })); return; }
+      const im = new Image(); im.onload = () => setImgs((m) => ({ ...m, [d.id]: im })); im.onerror = () => setImgs((m) => ({ ...m, [d.id]: null })); im.src = d.png;
+    };
+    window.addEventListener("message", ecoute);
+    return () => window.removeEventListener("message", ecoute);
+  }, [app.slug]);
+  const images = sel ? sel.script.ecrans.slice(0, 3).map((e, i) => imgs[idDe(e.titre, i)] ?? null) : [];
 
   const charger = async () => {
     const [v, c] = await Promise.all([fn("r/saas-videos", { workspace_id: ws.id, app_id: app.id }).catch(() => ({ videos: [] })), fn("r/credits", { workspace_id: ws.id }).catch(() => null)]);
@@ -31,7 +58,7 @@ export default function VideoPub({ app, lien, nu = false, angleInitial = "" }) {
   };
   useEffect(() => { charger(); preparerPolice(); }, [app.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const opts = { nom: app.spec?.nom ?? "Mon SaaS", couleur: app.spec?.couleur ?? "#4F46E5", lien: lienCourt(lien) };
+  const opts = { nom: app.spec?.nom ?? "Mon SaaS", couleur: app.spec?.couleur ?? "#4F46E5", lien: lienCourt(lien), images, style };
   const [W, H] = FORMATS[format];
   const dessinerA = (t) => { const c = canvas.current; if (c && sel) dessiner(c.getContext("2d"), W, H, t, sel.script, opts); };
 
@@ -42,7 +69,7 @@ export default function VideoPub({ app, lien, nu = false, angleInitial = "" }) {
     const image = () => { dessinerA(((performance.now() - t0.current) / 1000) % DUREE); id = requestAnimationFrame(image); };
     id = requestAnimationFrame(image);
     return () => cancelAnimationFrame(id);
-  }, [sel, format, export_, lecture]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sel, format, export_, lecture, style, Object.keys(imgs).length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const creer = async () => {
     if ((solde ?? 0) < cout) { nav("/abonnement#credits"); return; }
@@ -56,7 +83,7 @@ export default function VideoPub({ app, lien, nu = false, angleInitial = "" }) {
   const telecharger = async () => {
     setExport(0);
     try {
-      const { blob, ext } = await exporterVideo(canvas.current, dessinerA, setExport);
+      const { blob, ext } = await exporterVideo(canvas.current, dessinerA, setExport, musique === "aucune" ? null : musique);
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${app.slug}-pub-${format}.${ext}`; a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
       toast("Vidéo téléchargée");
@@ -69,14 +96,15 @@ export default function VideoPub({ app, lien, nu = false, angleInitial = "" }) {
         <div className="max-w-xl">
           <p className="text-[13px] font-bold uppercase tracking-wide text-[#F6A06B]">Vidéo pub</p>
           <h3 className="mt-1 text-[22px] font-black leading-tight">Une pub animée de {opts.nom}, prête à publier</h3>
-          <p className="mt-1.5 text-[14px] text-white/65">20 secondes en motion design, aux couleurs de ton SaaS : l'accroche, tes écrans, tes bénéfices et ton lien. Pour TikTok, Reels, Shorts ou ta page.</p>
+          <p className="mt-1.5 text-[14px] text-white/65">20 secondes en motion design, aux couleurs de ton SaaS : l'accroche, tes vrais écrans en action, tes bénéfices et ton lien, en musique. Pour TikTok, Reels, Shorts, le fil Instagram ou ta page.</p>
         </div>
         <p className="rounded-full bg-white/10 px-3.5 py-1.5 text-[13px] font-semibold">{solde == null ? "…" : `${solde} crédit${solde > 1 ? "s" : ""}`}</p>
       </div>
 
       <div className={cx("grid lg:grid-cols-[auto_1fr] gap-6 items-start", !nu && "mt-5")}>
         <div className="flex flex-col items-center gap-3">
-          <div className={cx("relative overflow-hidden rounded-2xl bg-black/40 border border-white/10 grid place-items-center", format === "vertical" ? "w-[270px] h-[480px]" : "w-[480px] max-w-full aspect-video")}>
+          {aCapturer.length > 0 && <AppCadre slug={app.slug} spec={app.spec} version={app.version ?? 1} capture={aCapturer} className="fixed -left-[9999px] top-0 w-[1280px] h-[800px] pointer-events-none" />}
+          <div className={cx("relative overflow-hidden rounded-2xl bg-black/40 border border-white/10 grid place-items-center", format === "vertical" ? "w-[270px] h-[480px]" : format === "carre" ? "w-[400px] h-[400px] max-w-full" : "w-[480px] max-w-full aspect-video")}>
             {sel ? <canvas ref={canvas} width={W} height={H} className="w-full h-full" />
               : <p className="px-6 text-center text-[13.5px] text-white/50">{videos == null ? "Chargement…" : "Ta vidéo apparaîtra ici."}</p>}
             {export_ != null && (
@@ -87,7 +115,7 @@ export default function VideoPub({ app, lien, nu = false, angleInitial = "" }) {
             )}
           </div>
           <div className="flex gap-1 rounded-xl bg-white/10 p-1 text-[13px] font-semibold">
-            {[["vertical", "Vertical 9:16"], ["paysage", "Paysage 16:9"]].map(([k, l]) => (
+            {[["vertical", "Vertical 9:16"], ["carre", "Carré 1:1"], ["paysage", "Paysage 16:9"]].map(([k, l]) => (
               <button key={k} disabled={export_ != null} onClick={() => setFormat(k)} className={cx("rounded-lg px-3 py-1.5", format === k ? "bg-white text-ink" : "text-white/70 hover:text-white")}>{l}</button>
             ))}
           </div>
@@ -95,6 +123,17 @@ export default function VideoPub({ app, lien, nu = false, angleInitial = "" }) {
 
         <div className="space-y-4">
           {nu && <p className="text-[13px] text-white/60">Ton solde : <b className="text-white">{solde == null ? "…" : `${solde} crédit${solde > 1 ? "s" : ""}`}</b></p>}
+          {sel && (
+            <div className="rounded-xl bg-black/25 p-4 space-y-3 text-[13px]">
+              <div><p className="text-white/45 text-[12px] font-semibold uppercase tracking-wide">Style</p>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">{Object.entries(STYLES).map(([k, l]) => <button key={k} disabled={export_ != null} onClick={() => garder("style", k, setStyleV)} className={cx("rounded-lg px-3 py-1.5 font-semibold", style === k ? "bg-white text-ink" : "bg-white/10 text-white/70 hover:bg-white/20")}>{l}</button>)}</div></div>
+              <div><p className="text-white/45 text-[12px] font-semibold uppercase tracking-wide">Musique libre de droits</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">{[...Object.entries(AMBIANCES), ["aucune", "Sans musique"]].map(([k, l]) => <button key={k} disabled={export_ != null} onClick={() => { ecoute?.(); setEcoute(null); garder("musique", k, setMusiqueV); }} className={cx("rounded-lg px-3 py-1.5 font-semibold", musique === k ? "bg-white text-ink" : "bg-white/10 text-white/70 hover:bg-white/20")}>{l}</button>)}
+                  {musique !== "aucune" && <button onClick={ecouter} disabled={export_ != null} className="rounded-lg px-3 py-1.5 font-semibold text-[#F6A06B] hover:underline">{ecoute ? "■ Arrêter" : "▶ Écouter"}</button>}</div>
+                <p className="mt-1 text-[11.5px] text-white/40">Composée par Bingoo! pour ta vidéo : tu peux la publier partout sans problème de droits.</p></div>
+              <p className="text-[11.5px] text-white/45">{aCapturer.length ? "Bingoo! photographie les vrais écrans de ton SaaS…" : images.some(Boolean) ? "Les vrais écrans de ton SaaS sont dans la vidéo." : "Écrans stylisés (les captures n'ont pas pu être faites)."}</p>
+            </div>
+          )}
           {sel && (
             <div className="flex flex-wrap gap-2">
               <button onClick={telecharger} disabled={export_ != null} className="rounded-xl bg-accent px-5 py-2.5 text-[14px] font-bold hover:bg-accent-dark disabled:opacity-60">{export_ != null ? "Enregistrement…" : "Télécharger la vidéo"}</button>
@@ -119,7 +158,7 @@ export default function VideoPub({ app, lien, nu = false, angleInitial = "" }) {
             <button onClick={creer} disabled={busy} className="mt-3 rounded-xl bg-white text-ink px-5 py-2.5 text-[14px] font-bold hover:bg-white/90 disabled:opacity-60">
               {busy ? "Bingoo! écrit ta vidéo…" : (solde ?? 0) < cout ? `Recharger mes crédits (il en faut ${cout})` : `Créer la vidéo · ${cout} crédits`}
             </button>
-            <p className="mt-2 text-[12px] text-white/45">Une fois créée, tu la télécharges autant de fois que tu veux, dans les deux formats. Vidéo sans son : ajoute une musique tendance directement sur TikTok ou Instagram.</p>
+            <p className="mt-2 text-[12px] text-white/45">Une fois créée, tu la télécharges autant de fois que tu veux : dans les trois formats, les trois styles et avec la musique de ton choix.</p>
           </div>
           {videos?.length > 1 && (
             <div className="flex flex-wrap gap-2">
