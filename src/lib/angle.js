@@ -183,7 +183,7 @@ export function methodesAcquisition(s, a, r, app, budget) {
       pourquoi: `Le plus rapide pour les 10 premiers : tu parles à ${cible} un par un, tu apprends ce qui les fait acheter.`,
       etapes: ["Fais ta liste de 50 personnes ou entreprises qui ont le problème (onglet « Tes prospects »).", "Envoie 10 à 15 messages par jour, personnalisés avec un détail sur chacun (onglet « Quoi leur dire »).", "Relance une seule fois au bout de 4 jours, puis passe à autre chose."], va: "dire" },
     { k: "communautes", nom: "Les groupes et communautés", cout: 0, delai: "1 à 2 semaines", canaux: ["Facebook", "Reddit", "Discord", "Forums", "Slack communities"],
-      pourquoi: `${cible.replace(/^\p{Ll}/u, (c) => c.toUpperCase())} posent leurs questions dans des groupes Facebook, LinkedIn et des forums : c'est là que tu deviens « celui qui s'y connaît ».`,
+      pourquoi: `${(cible === "ta cible" ? "tes futurs clients" : cible).replace(/^\p{Ll}/u, (c) => c.toUpperCase())} posent leurs questions dans des groupes Facebook, LinkedIn et des forums : c'est là que tu deviens « celui qui s'y connaît ».`,
       etapes: ["Rejoins les 3 groupes les plus actifs de ta cible.", "Pendant une semaine, réponds à 2 questions par jour, sans parler de ton outil.", "Puis publie ton post (une question + ton offre de test gratuit)."], va: "groupes" },
     { k: "tiktok", nom: "TikTok et Reels", cout: 0, delai: "2 à 6 semaines", refus: "video", canaux: ["TikTok", "Instagram", "YouTube"],
       pourquoi: "L'algorithme montre tes vidéos à des inconnus, même avec 0 abonné : c'est le seul réseau où un nouveau compte peut toucher des milliers de personnes gratuitement.",
@@ -217,7 +217,7 @@ export function methodesAcquisition(s, a, r, app, budget) {
       etapes: ["Attends d'avoir une vidéo organique qui marche mieux que les autres.", "Booste-la (Spark Ads) avec le budget minimum de TikTok, environ 20 € par jour.", "Garde la même règle : coupe après 7 jours si elle n'amène pas d'inscrits."] },
   ];
   const plafond = budget === "pub" ? 2 : budget === "petit" ? 1 : 0;
-  const score = (m) => (m.canaux.some((c) => modele.has(c)) ? 100 : 0) + (m.k === "contact" && pro ? 30 : 0) + (m.k === "tiktok" && !pro ? 30 : 0) + (m.k === "partenaires" && a.type === "metier" ? 20 : 0) - m.cout * 5;
+  const score = (m) => (m.canaux.some((c) => modele.has(c)) ? 100 : 0) + (m.k === "contact" && pro ? 30 : 0) + (m.k === "tiktok" && !pro ? 30 : 0) + (m.k === "partenaires" && a.type === "metier" ? 20 : 0) - (m.k === "parrainage" ? 40 : 0) - m.cout * 5;
   const ok = M.filter((m) => !(m.seulPro && !pro)).map((m) => ({ ...m, modele: m.canaux.some((c) => modele.has(c)), refuse: !!(m.refus && refus.has(m.refus)) }));
   const pour = ok.filter((m) => m.cout <= plafond && !m.refuse).sort((x, y) => score(y) - score(x));
   const plusTard = ok.filter((m) => m.cout > plafond && !m.refuse);
