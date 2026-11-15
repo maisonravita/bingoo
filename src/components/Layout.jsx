@@ -382,6 +382,11 @@ export default function Layout({ children }) {
       <header className="sticky top-0 z-40 border-b border-line/70 bg-white/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
           <NavLink to="/explorer/trouver"><Logo /></NavLink>
+          <nav className="ml-4 hidden md:flex items-center gap-1 text-[14px] font-medium">
+            <NavLink to="/explorer/trouver" className={({ isActive }) => cx("rounded-xl px-3 py-2", isActive ? "text-ink" : "text-ink-soft hover:text-ink")}>Trouver mon SaaS</NavLink>
+            {invite ? <button onClick={() => demanderCompte("Crée ton compte gratuit pour explorer tous les SaaS et leurs chiffres.")} className="rounded-xl px-3 py-2 text-ink-soft hover:text-ink">Explorer les SaaS</button>
+              : <NavLink to="/explorer" end className={({ isActive }) => cx("rounded-xl px-3 py-2", isActive ? "text-ink" : "text-ink-soft hover:text-ink")}>Explorer les SaaS</NavLink>}
+          </nav>
           <div className="flex-1" />
           <NavLink to="/aide" className="hidden sm:block rounded-xl px-3 py-2 text-[14px] font-medium text-ink-soft hover:text-ink">Aide</NavLink>
           {invite ? <>

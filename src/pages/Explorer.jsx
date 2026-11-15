@@ -65,8 +65,15 @@ export default function Explorer({ domaine: fixe }) {
   if (d === "revelation") return <Suspense fallback={null}><Revelation paramsDe={paramsDe} /></Suspense>;
   // L'espace de son SaaS : accueil, atelier (plein écran), premiers clients, vidéo pub, réglages, dossier
   if (["mon-saas", "atelier", "clients", "methodes", "tiktok", "video", "reglages-saas", "dossier"].includes(d) && ws && estPaye(ws)) return <Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><MonSaas page={d} /></Suspense>;
-  // Rien n'est ouvert avant le paiement : le parcours d'abord
-  if (ws && !estPaye(ws) && d !== "trouver") return <Navigate to="/explorer/trouver" replace />;
+  // Avant le paiement, avec un compte gratuit : explorer est ouvert (liste, niches, classement, ce qui monte, chiffres),
+  // la fiche complète, les pubs, la veille et la construction sont réservées à l'abonnement
+  if (ws && !estPaye(ws)) {
+    if (!d) return <><Onglets actif="liste" /><Liste /></>;
+    if (["niches", "classement", "marche", "chiffres"].includes(d)) return <><Onglets actif={d} />{d === "niches" ? <Niches /> : d === "classement" ? <Classement /> : d === "marche" ? <Marche /> : <ChiffresSaas />}</>;
+    if (d === "lancer") return <Navigate to="/abonnement" replace />;
+    if (d.includes(".")) return <FicheApercu domaine={d} />;
+    if (d !== "trouver") return <Navigate to="/explorer/trouver" replace />;
+  }
   if (d === "bouge") return <><Onglets actif="bouge" /><Fil /></>;
   if (d === "suivis") return <><Onglets actif="suivis" /><Suivis /></>;
   if (d === "marche") return <><Onglets actif="marche" /><Marche /></>;
@@ -106,7 +113,10 @@ function Onglets({ actif, trouver }) {
   const nav = useNavigate();
   const [vides, setVides] = useState({});
   useEffect(() => { chargerVides().then(setVides); }, []);
-  const rub = RUBRIQUES.find(([, pages]) => pages.some(([k]) => k === actif)) ?? RUBRIQUES[0];
+  const { session: sess0, ws: ws0 } = useWs();
+  const libre = !estInvite(sess0) && !estPaye(ws0);
+  const RUBS = libre ? RUBRIQUES.filter(([l]) => ["Trouver mon SaaS", "Explorer les SaaS"].includes(l)).map(([l, pages]) => [l, l === "Explorer les SaaS" ? pages.filter(([k]) => ["liste", "niches", "classement", "marche"].includes(k)) : pages]) : RUBRIQUES;
+  const rub = RUBS.find(([, pages]) => pages.some(([k]) => k === actif)) ?? RUBS[0];
   const [guide, setGuide] = useState(guideActif);
   const [etape, setEtape] = useState(1);
   useEffect(() => { const f = (e) => setEtape(e.detail); window.addEventListener("bingoo-etape", f); return () => window.removeEventListener("bingoo-etape", f); }, []);
@@ -127,7 +137,7 @@ function Onglets({ actif, trouver }) {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
       <div className="inline-flex max-w-full overflow-x-auto rounded-xl bg-white border border-line p-1">
-        {RUBRIQUES.map(([l, pages]) => <Fragment key={l}><button onClick={() => nav(pages[0][2])} className={cx("shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-[14px] font-semibold transition", rub[0] === l ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button></Fragment>)}
+        {RUBS.map(([l, pages]) => <Fragment key={l}><button onClick={() => nav(pages[0][2])} className={cx("shrink-0 whitespace-nowrap rounded-lg px-4 py-2 text-[14px] font-semibold transition", rub[0] === l ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button></Fragment>)}
       </div>
       {rub[1].filter(([k, , , cachee]) => (!vides[k] && !cachee) || k === actif).length > 1 && (
         <div className="mt-2 flex gap-4 overflow-x-auto px-1 text-[13.5px]">
@@ -353,6 +363,36 @@ function Liste({ copier: copierPage = false }) {
 }
 
 const METHODE = [["affiliation", "Programme d'affiliation"], ["integrations", "Intégrations / marketplace"], ["outils_gratuits", "Outils gratuits"], ["comparatifs", "Pages comparatifs / alternatives"], ["producthunt", "Product Hunt"], ["g2", "Fiche G2"], ["capterra", "Fiche Capterra"], ["linkedin", "LinkedIn"], ["youtube", "YouTube"], ["x", "X (Twitter)"]];
+
+// La fiche d'un SaaS sans abonnement : ses chiffres publics (revenu, trafic, prix), le reste réservé à l'abonnement
+function FicheApercu({ domaine }) {
+  const nav = useNavigate();
+  const [s, setS] = useState(undefined);
+  useEffect(() => { supabase.from("saas_liste").select("domaine, nom, categorie, description, pays, prix_entree_eur, sur_devis, gratuit, rang_web, succes, estimation").eq("domaine", domaine).maybeSingle().then(({ data }) => setS(data ?? null)); }, [domaine]);
+  if (s === undefined) return <div className="py-24 grid place-items-center"><Spinner /></div>;
+  if (!s) return <div className="max-w-3xl mx-auto px-4 py-16 text-center text-ink-soft">Ce SaaS n'est pas dans Bingoo!. <button onClick={() => nav("/explorer")} className="underline">Retour à la liste</button></div>;
+  const bloque = [["Ses fonctionnalités, écran par écran", "et ce que ta version reprendrait"], ["Ses prix et ses formules", "comparés aux concurrents"], ["Ses pubs et ses vidéos", "les angles qui lui amènent des clients"], ["Ses clients", "les entreprises qui l'utilisent, tes futurs prospects"], ["Sa croissance", "recrutements, nouveautés, évolution du trafic"], ["Lancer ta version", "Bingoo! la construit, la met en ligne et t'aide à vendre"]];
+  return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+      <button onClick={() => nav("/explorer")} className="text-[13px] text-ink-soft hover:text-ink">← Tous les SaaS</button>
+      <div className="mt-3 flex items-start gap-4">
+        <CompanyLogo name={s.nom} url={`https://${s.domaine}`} className="w-14 h-14 shrink-0" pad="p-2" />
+        <div className="min-w-0"><h1 className="text-[34px] font-black leading-tight" style={HF}>{s.nom}</h1><p className="text-[14px] text-ink-soft">{s.categorie}{s.pays ? ` · ${s.pays}` : ""} · {s.domaine}</p></div>
+      </div>
+      {s.description && <p className="mt-3 max-w-3xl text-[15.5px] text-ink-soft">{s.description}</p>}
+      <div className="mt-5 grid sm:grid-cols-3 gap-3">
+        <div className="rounded-2xl border border-line bg-white p-4"><p className="text-[12.5px] text-ink-faint">Revenu par mois</p><p className="mt-1 text-[22px] font-black tnum" style={HF}>{s.succes?.montant ? montantCourt(s.succes.montant / 12) : s.estimation ? `${montantCourt(s.estimation.bas)} à ${montantCourt(s.estimation.haut)}` : "non connu"}</p><p className="text-[12px] text-ink-faint">{s.succes?.montant ? (s.succes.type === "revenu_verifie" ? "vérifié" : "publié") : s.estimation ? "estimé, fiabilité faible" : ""}</p></div>
+        <div className="rounded-2xl border border-line bg-white p-4"><p className="text-[12.5px] text-ink-faint">Trafic</p><p className="mt-1 text-[22px] font-black tnum" style={HF}>{s.rang_web ? `N° ${Number(s.rang_web).toLocaleString("fr-FR")}` : "faible"}</p><p className="text-[12px] text-ink-faint">{s.rang_web ? "classement mondial des sites" : "hors des 500 000 sites les plus visités"}</p></div>
+        <div className="rounded-2xl border border-line bg-white p-4"><p className="text-[12.5px] text-ink-faint">Prix d'entrée</p><p className="mt-1 text-[22px] font-black tnum" style={HF}>{s.prix_entree_eur != null ? `${s.prix_entree_eur} €` : s.sur_devis ? "sur devis" : s.gratuit ? "gratuit" : "non affiché"}</p><p className="text-[12px] text-ink-faint">{s.prix_entree_eur != null ? "par mois" : ""}</p></div>
+      </div>
+      <section className="mt-5 rounded-3xl border border-line bg-white p-6">
+        <h2 className="text-[20px] font-black" style={HF}>La fiche complète de {s.nom}</h2>
+        <div className="mt-4 grid sm:grid-cols-2 gap-3">{bloque.map(([t, d]) => <div key={t} className="flex gap-3 rounded-xl bg-paper px-4 py-3"><span aria-hidden>🔒</span><div><p className="font-semibold text-[14.5px]">{t}</p><p className="text-[13px] text-ink-soft">{d}</p></div></div>)}</div>
+        <div className="mt-5 flex flex-wrap items-center gap-3"><button onClick={() => nav("/abonnement")} className="rounded-xl bg-accent px-6 py-3 font-bold text-white hover:bg-accent-dark">Débloquer et lancer ma version</button><p className="text-[13px] text-ink-faint">Explorer reste gratuit. L'abonnement ouvre les fiches complètes et construit ton SaaS.</p></div>
+      </section>
+    </div>
+  );
+}
 
 function Fiche({ domaine }) {
   const nav = useNavigate();
