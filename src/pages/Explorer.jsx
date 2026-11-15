@@ -2753,7 +2753,7 @@ export function TrouveTonSaas() {
             <span className="fx-aurore h-[260px] w-[260px] bg-[#F6A06B] left-[8%] top-10" />
             <span className="fx-aurore h-[240px] w-[240px] bg-[#9B6BFF] right-[8%] top-40" style={{ animationDelay: "-6s" }} />
           </div>
-          <div className="relative z-[1] mx-auto max-w-6xl lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-12 lg:items-start">
+          <div className="relative z-[1] mx-auto max-w-6xl lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-10 lg:items-start">
           <div className="mx-auto w-full max-w-2xl lg:max-w-none">
             <div className="flex items-center justify-between gap-3 text-[13px] text-ink-faint">
               {r.etape > 0 ? <button onClick={() => setR({ ...r, etape: r.etape - 1 })} className="inline-flex items-center gap-1 font-semibold text-ink-soft hover:text-ink"><span aria-hidden>←</span> Retour</button> : <span />}
@@ -2788,12 +2788,12 @@ export function TrouveTonSaas() {
               ) : Q.jauge ? (
                 <Jauge valeur={r.objectif ?? OBJ_DEFAUT} onChange={(v) => setR({ ...r, objectif: v })} />
               ) : Q.secteurs ? (
-                <div className="mt-9 grid sm:grid-cols-2 gap-4">{SECTEURS.map((c) => { const st = statsSect?.[c]; const on = choisi("secteurs", c); return (
+                <div className="mt-9 grid sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">{SECTEURS.map((c) => { const st = statsSect?.[c]; const on = choisi("secteurs", c); return (
                   <button key={c} type="button" onClick={() => basculer("secteurs", c)} className={cx("flex items-center gap-4 rounded-3xl border bg-white px-4 py-4 text-left shadow-[0_1px_2px_rgba(16,24,40,.04)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-28px_rgba(21,23,42,.45)]", on ? "border-transparent ring-2 ring-accent" : "border-line")}>
-                    <span className="flex shrink-0 -space-x-3">{(st?.logos ?? []).slice(0, 3).map((d, i) => <span key={d} className="grid h-12 w-12 place-items-center overflow-hidden rounded-xl border-2 border-white bg-white shadow-sm" style={{ zIndex: 3 - i }}><CompanyLogo name={d} url={`https://${d}`} className="h-full w-full" pad="p-1" /></span>)}{!st?.logos?.length && <span className="h-12 w-12 rounded-xl bg-paper" />}</span>
-                    <span className="min-w-0 flex-1"><span className="block font-bold text-[17px] leading-tight">{c}</span>
+                    <span className="flex shrink-0 -space-x-4">{(st?.logos ?? []).slice(0, 3).map((d, i) => <span key={d} className="grid h-11 w-11 place-items-center overflow-hidden rounded-xl border-2 border-white bg-white shadow-sm" style={{ zIndex: 3 - i }}><CompanyLogo name={d} url={`https://${d}`} className="h-full w-full" pad="p-1" /></span>)}{!st?.logos?.length && <span className="h-12 w-12 rounded-xl bg-paper" />}</span>
+                    <span className="min-w-0 flex-1"><span className="block truncate font-bold text-[16px] leading-tight">{c}</span>
                       <span className="mt-0.5 block text-[13.5px] text-ink-soft">{st ? `${Number(st.n).toLocaleString("fr-FR")} SaaS` : "…"}</span>
-                      {st?.top ? <span className="block text-[13.5px] font-bold text-good">n°1 · {dollar(st.top)}/mois</span> : null}</span>
+                      {st?.top ? <span className="block whitespace-nowrap text-[13.5px] font-bold text-good">n°1 · {dollar(st.top)}/mois</span> : null}</span>
                     <span className={cx("grid h-7 w-7 shrink-0 place-items-center rounded-full transition", on ? "bg-accent text-white" : "text-ink-faint")}>{on ? <Coche /> : <span aria-hidden>→</span>}</span>
                   </button>); })}</div>
               ) : (
@@ -2854,10 +2854,10 @@ function PanneauDirect({ ap, r }) {
     <aside className="hidden lg:block sticky top-20 mt-24 overflow-hidden rounded-[28px] border border-line bg-white shadow-[0_40px_80px_-50px_rgba(21,23,42,.55)]" aria-live="polite">
       <div className="flex flex-wrap items-center gap-1.5 border-b border-line px-5 py-4"><svg viewBox="0 0 24 24" className="h-4.5 w-4.5 text-ink-faint" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>{filtres.map((f) => <span key={f} className="rounded-lg bg-accent-soft px-2 py-1 text-[13px] font-semibold text-accent-dark">{f}</span>)}<span className="h-4 w-px animate-pulse bg-ink-faint" /></div>
       <div className="px-5 pt-4"><p className="flex items-baseline gap-2"><span className="text-[34px] font-black leading-none tnum" style={HF}>{ap ? Number(ap.n ?? 0).toLocaleString("fr-FR") : "…"}</span><span className="text-[14px] text-ink-soft">SaaS pour toi, triés par revenu</span></p></div>
-      {premier && <div className="mx-4 mt-3 rounded-2xl bg-paper p-4"><p className="text-[11px] font-bold uppercase tracking-[.16em] text-ink-faint">Meilleur de ton domaine</p>
+      {premier && <div className="mx-4 mt-3 rounded-2xl bg-paper p-4"><p className="text-[11px] font-bold uppercase tracking-[.16em] text-ink-faint">{(r.secteurs ?? []).length ? "Meilleur de ton domaine" : "Meilleur résultat"}</p>
         <div className="mt-2 flex items-center gap-2.5"><CompanyLogo name={premier.nom} url={`https://${premier.domaine}`} className="h-9 w-9 shrink-0" pad="p-1" /><p className="min-w-0 flex-1 truncate font-bold text-[15.5px]">{premier.nom}</p></div>
         <div className="mt-2 flex items-end justify-between gap-3">{flou}<div className="w-32">{pts(premier).length > 2 && <Sparkline pts={pts(premier)} h={40} />}</div></div></div>}
-      <ul className="mt-1 px-2 pb-2">{autres.map((x) => <li key={x.domaine} className="flex items-center gap-3 rounded-xl px-3 py-2.5"><CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="h-9 w-9 shrink-0" pad="p-1" /><p className="min-w-0 flex-1 truncate font-semibold text-[14.5px]">{x.nom}</p><div className="w-16">{pts(x).length > 2 && <Sparkline pts={pts(x)} h={22} />}</div>{flou}</li>)}</ul>
+      <ul className="mt-1 px-2 pb-2">{autres.slice(0, 4).map((x) => <li key={x.domaine} className="flex items-center gap-3 rounded-xl px-3 py-2.5"><CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="h-9 w-9 shrink-0" pad="p-1" /><p className="min-w-0 flex-1 truncate font-semibold text-[14.5px]">{x.nom}</p><div className="w-16">{pts(x).length > 2 && <Sparkline pts={pts(x)} h={22} />}</div>{flou}</li>)}</ul>
       <p className="flex items-center gap-1.5 border-t border-line px-5 py-3 text-[12.5px] text-ink-faint"><span className="h-2 w-2 rounded-full bg-good" />Données mises à jour aujourd'hui · revenus visibles à la fin</p>
     </aside>
   );
