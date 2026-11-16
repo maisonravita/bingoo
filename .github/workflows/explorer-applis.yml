@@ -9,11 +9,17 @@ jobs:
     timeout-minutes: 320
     strategy:
       fail-fast: false
-      matrix: { etape: [classements, recherche] }
+      matrix:
+        include:
+          - { etape: classements, part: 0 }
+          - { etape: recherche, part: 0 }
+          - { etape: recherche, part: 1 }
+          - { etape: recherche, part: 2 }
+          - { etape: recherche, part: 3 }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - name: Applis de l'App Store (données publiques, sans IA)
-        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}", ETAPE: "${{ matrix.etape }}", MINUTES: "295" }
+        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}", ETAPE: "${{ matrix.etape }}", PART: "${{ matrix.part }}", PARTS: "4", MINUTES: "295" }
         run: node scripts/explorer/applis.cjs

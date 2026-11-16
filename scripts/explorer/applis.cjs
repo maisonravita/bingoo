@@ -3,7 +3,7 @@
 //    et meilleur rang « recettes » (le seul signal de revenu public : Apple ne publie aucun chiffre).
 // 2. Recherche publique par mots-clés pour aller au-delà des classements.
 // 3. Fiche détaillée (nom, éditeur, note, avis, prix, description) par lots de 150, puis écriture dans saas_mobiles.
-// Les jeux sont écartés, ainsi que les applis avec moins de 20 avis (souvent abandonnées).
+// Les jeux sont écartés, ainsi que les applis avec moins de 5 avis (souvent abandonnées).
 const TOK = process.env.SUPABASE_ACCESS_TOKEN, REF = "fbsjbnnmzazylmquzryo";
 const FIN = Date.now() + Number(process.env.MINUTES || 300) * 60_000;
 const PAYS = (process.env.PAYS || "us,gb,fr,de,ca,au,es,it,nl,br,mx,jp,kr,in,se,ch,be,at,ie,nz,sg,dk,no,fi,pl,pt").split(",");
@@ -48,7 +48,14 @@ async function classements() {
   }
 }
 async function recherches() {
-  for (const mot of MOTS) for (const pays of ["us", "fr", "gb"]) {
+  // Boule de neige : en plus de la liste, les mots les plus fréquents dans les noms d'applis déjà relevées
+  const extra = await q(`select w from (select lower(regexp_replace(unnest(regexp_split_to_array(nom, '[^A-Za-zÀ-ÿ]+')), '^$', '')) w from public.saas_mobiles) x
+    where length(w) between 4 and 20 and w not in ('with','your','pour','app','apps','the','and','free','pro','plus','lite','tracker','maker','editor','official')
+    group by w having count(*) >= 3 order by count(*) desc limit 1500`).catch(() => []);
+  const PART = Number(process.env.PART || 0), PARTS = Number(process.env.PARTS || 1);
+  const mots = [...new Set([...MOTS, ...extra.map((x) => x.w)])].filter((_, k) => k % PARTS === PART);
+  console.log("mots de recherche :", mots.length);
+  for (const mot of mots) for (const pays of ["us", "fr", "gb", "de", "br"]) {
     if (Date.now() > FIN - 20 * 60_000) return;
     await fiches();
     const j = await apple(`https://itunes.apple.com/search?term=${encodeURIComponent(mot)}&entity=software&limit=200&country=${pays}`);
@@ -73,7 +80,7 @@ async function fiches(force = false) {
     for (const r of j?.results ?? []) {
       if (!r.trackId || r.kind !== "software") continue;
       if ((r.genreIds ?? []).includes("6014") || r.primaryGenreName === "Games") continue;
-      if ((r.userRatingCount ?? 0) < 20) continue;
+      if ((r.userRatingCount ?? 0) < 5) continue;
       const d = String(r.description ?? "");
       const abo = /subscription|subscribe|auto-renew|premium|pro version|unlock all|free trial|abonnement/i.test(d) || /\bpro\b|premium|plus\b/i.test(String(r.trackName ?? ""));
       const x = ids.get(r.trackId) ?? {};
