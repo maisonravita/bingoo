@@ -63,6 +63,36 @@ for (const [label, opt] of [["téléphone", devices["iPhone 13"]], ["ordinateur"
   });
   await ctx.close();
 }
+// 3) Chaque SaaS livré : sa démo s'ouvre et chacun de ses écrans s'affiche sans erreur
+const TOUTES = [...(await (await fetch(`${SITE}/sitemap-apps.xml`)).text()).matchAll(/\/p\/([a-z0-9-]+)</g)].map((m) => m[1]);
+{
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  for (const slug of TOUTES) {
+    await etape(`[SaaS ${slug}] tous les écrans de la démo`, async () => {
+      const page = await ctx.newPage(); const erreurs = [];
+      page.on("pageerror", (e) => erreurs.push(e.message));
+      await page.goto(`${SITE}/?e2e=${Date.now()}#/app/${slug}`, { waitUntil: "networkidle", timeout: 45000 });
+      const cadre = page.frameLocator("iframe").first();
+      await cadre.getByText("Voir la démo en 30 s").first().click({ timeout: 20000 });
+      await page.waitForTimeout(2500);
+      await page.mouse.click(5, 300); // arrête la visite guidée
+      const liens = cadre.locator("aside button, aside a, nav button");
+      const n = Math.min(await liens.count(), 12);
+      const vides = [];
+      for (let i = 0; i < n; i++) {
+        const l = liens.nth(i); const nom = (await l.innerText().catch(() => "")).trim();
+        if (!nom || /équipe|mes données|installer|déconnexion|se déconnecter/i.test(nom)) continue;
+        await l.click({ timeout: 5000 }).catch(() => null); await page.waitForTimeout(1500);
+        const txt = await cadre.locator("main").innerText().catch(() => "");
+        if (/Cet écran n'a pas pu|a rencontré un problème|Erreur dans l'écran/i.test(txt) || txt.trim().length < 40) vides.push(nom);
+      }
+      await page.close();
+      verif(!erreurs.length, `erreur JavaScript : ${erreurs[0]}`);
+      verif(!vides.length, `écran(s) en erreur ou vide(s) : ${vides.join(", ")}`);
+    });
+  }
+  await ctx.close();
+}
 await browser.close();
 
 if (avert.length) console.log(`\nÀ surveiller : ${avert.join(" · ")}`);
