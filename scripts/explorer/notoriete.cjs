@@ -3,9 +3,14 @@
 // Source : « Majestic Million CSV by Majestic 12 », licence Creative Commons Attribution 3.0 (attribution affichée dans la fiche).
 // Majestic demande de ne pas télécharger plus d'une fois par 24 heures : ce script tourne une fois par jour.
 const TOK = process.env.SUPABASE_ACCESS_TOKEN, REF = "fbsjbnnmzazylmquzryo";
-async function q(sql) {
+// Nouvel essai si la base est saturée (429, 5xx) ou en conflit avec un autre collecteur (deadlock, verrou)
+async function q(sql, n = 0) {
   const r = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, { method: "POST", headers: { Authorization: `Bearer ${TOK}`, "Content-Type": "application/json", "User-Agent": "bingoo-ci" }, body: JSON.stringify({ query: sql }) });
-  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  if (!r.ok) {
+    const t = await r.text();
+    if ((r.status === 429 || r.status >= 500 || /40P01|deadlock|55P03|lock timeout/i.test(t)) && n < 6) { await new Promise((ok) => setTimeout(ok, 5000 * (n + 1))); return q(sql, n + 1); }
+    throw new Error(`${r.status} ${t}`);
+  }
   return r.json();
 }
 (async () => {

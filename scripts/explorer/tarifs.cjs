@@ -2,9 +2,14 @@
 // affiche la page et en garde le texte (saas.prix_rendu). La fiche est ensuite relue par la tâche de nuit (lu_at remis à vide).
 const { chromium } = require("playwright");
 const TOK = process.env.SUPABASE_ACCESS_TOKEN, REF = "fbsjbnnmzazylmquzryo";
-async function q(sql) {
+// Nouvel essai si la base est saturée (429, 5xx) ou en conflit avec un autre collecteur (deadlock, verrou)
+async function q(sql, n = 0) {
   const r = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, { method: "POST", headers: { Authorization: `Bearer ${TOK}`, "Content-Type": "application/json", "User-Agent": "bingoo-ci" }, body: JSON.stringify({ query: sql }) });
-  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  if (!r.ok) {
+    const t = await r.text();
+    if ((r.status === 429 || r.status >= 500 || /40P01|deadlock|55P03|lock timeout/i.test(t)) && n < 6) { await new Promise((ok) => setTimeout(ok, 5000 * (n + 1))); return q(sql, n + 1); }
+    throw new Error(`${r.status} ${t}`);
+  }
   return r.json();
 }
 // Règles robots.txt (« User-agent: * ») : une page interdite n'est pas ouverte

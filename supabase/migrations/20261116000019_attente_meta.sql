@@ -1,0 +1,8 @@
+-- 16/11 après-midi (appliqué via MCP) :
+-- - saas_a_copier (« À lancer ») : la courbe de revenus n'est calculée que pour les 30 SaaS affichés (1,6 s → 0,07 s).
+-- - saas_recherche : sans filtre texte/niche/catégorie/pays et avec un tri par revenu ou croissance, seuls les SaaS avec revenu sont lus (6 s → 3 s).
+-- - 1 439 noms égaux à l'adresse (« metricool.com ») renommés (« Metricool ») ; sauvegarde public._noms_avant.
+-- - 270 SaaS « Autre » rangés dans la catégorie majoritaire de leur micro-niche ; sauvegarde public._cats_avant.
+-- - 51 niches retrouvées par mots-clés.
+-- - cron bingoo-explorer-trustmrr : toutes les 15 min au lieu de chaque minute.
+select 1;

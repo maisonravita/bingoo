@@ -27,7 +27,7 @@ const EXCLUS = /(^|\.)(twitter|x|facebook|instagram|linkedin|youtube|youtu|tikto
 async function q(sql, n = 0) {
   const r = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, { method: "POST", headers: { Authorization: `Bearer ${TOK}`, "Content-Type": "application/json", "User-Agent": "bingoo-ci" }, body: JSON.stringify({ query: sql }) });
   if ((r.status === 429 || r.status >= 500) && n < 6) { await dormir(5000 * (n + 1)); return q(sql, n + 1); }
-  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  if (!r.ok) { const t = await r.text(); if (/40P01|deadlock|55P03/i.test(t) && n < 6) { await dormir(5000 * (n + 1)); return q(sql, n + 1); } throw new Error(`${r.status} ${t}`); }
   return r.json();
 }
 const dormir = (ms) => new Promise((ok) => setTimeout(ok, ms));
