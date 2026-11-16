@@ -482,6 +482,7 @@ function RapportCote({ s, lancer }) {
       {(s.categorie || cible) && <div className="mt-2.5 flex flex-wrap gap-1.5">{s.categorie && <span className="rounded-full bg-accent/10 text-accent-dark px-2.5 py-1 text-[12px] font-semibold">{s.categorie}</span>}{cible && <span className="rounded-full bg-ink text-white px-2.5 py-1 text-[12px] font-semibold">{cible}</span>}</div>}
       <button onClick={lancer} className="mt-3 w-full rounded-xl bg-accent text-white px-4 py-3 text-[15px] font-bold hover:bg-accent-dark">Lancer ma version</button>
       <div className="mt-2 grid grid-cols-2 gap-2"><Favori grand id={s.id} nom={s.nom} className="w-full px-2" /><BoutonSuivre saasId={s.id} /></div>
+      <a href={`https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=ALL&q=${encodeURIComponent(s.nom || s.domaine)}`} target="_blank" rel="noopener noreferrer" className="mt-2 block rounded-xl border border-line bg-white px-3 py-2.5 text-center text-[13.5px] font-semibold hover:border-ink">Voir ses pubs Facebook et Instagram ↗</a>
     </div>
   );
 }
