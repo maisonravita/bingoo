@@ -50,6 +50,7 @@ const outils = (niches: string[]) => [
     } } },
   { name: "valider_idee", description: "Confronte une idée de SaaS ou d'appli aux chiffres réels de Bingoo! : nombre de concurrents, combien ont un revenu vérifié, revenu médian et maximum, prix médian, croissance, applis mobiles du même type, et les concurrents les plus proches. Donne ensuite ton propre verdict à partir de ces chiffres.",
     inputSchema: { type: "object", properties: { idee: { type: "string", description: "L'idée en une phrase, ex. « facturation pour freelances »." } }, required: ["idee"] } },
+  { name: "mes_favoris", description: "Les SaaS et applis mobiles mis en favoris (cœur) dans le compte Bingoo!, avec leur revenu, prix, catégorie, note et lien.", inputSchema: { type: "object", properties: {} } },
   { name: "mes_suivis", description: "Les SaaS et catégories suivis par le compte Bingoo!.", inputSchema: { type: "object", properties: {} } },
 ];
 
@@ -107,6 +108,12 @@ async function appeler(admin: SupabaseClient, ws: string, nom: string, a: any) {
     const { data, error } = await admin.rpc("saas_valider_idee", { p_texte: String(a?.idee ?? "").slice(0, 500) });
     if (error) throw new Error(error.message);
     return { ...data, top: (data?.top ?? []).map((s: any) => ({ ...s, lien_bingoo: lien(s.domaine) })) };
+  }
+  if (nom === "mes_favoris") {
+    const { data } = await admin.from("saas_favoris").select("created_at, saas:saas_id(nom, domaine, description, categorie, prix_entree_eur, succes), appli:mobile_id(nom, editeur, categorie, note, avis, rang_revenus, url)").eq("workspace_id", ws).order("created_at", { ascending: false });
+    return { favoris: (data ?? []).map((x: any) => x.saas
+      ? { type: "saas", nom: x.saas.nom, domaine: x.saas.domaine, description: x.saas.description, categorie: x.saas.categorie, prix_entree_eur: x.saas.prix_entree_eur, mrr: x.saas.succes?.mrr ?? null, lien_bingoo: lien(x.saas.domaine), copier: `${SITE}/#/explorer/lancer?d=${x.saas.domaine}` }
+      : { type: "appli", ...x.appli }) };
   }
   if (nom === "mes_suivis") {
     const { data } = await admin.from("saas_suivis").select("categorie, saas:saas_id(nom, domaine)").eq("workspace_id", ws);

@@ -32,7 +32,7 @@ function useNbSaas() {
   const [n, setN] = useState(null);
   useEffect(() => {
     fetch(`${URL_}/rest/v1/rpc/saas_stats_entete`, { method: "POST", headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, "content-type": "application/json" }, body: "{}" })
-      .then((r) => r.json()).then((d) => { if (d?.total) setN(Number(d.total)); }).catch(() => {});
+      .then((r) => r.json()).then((d) => { if (d?.total) setN(Number(d.total) + Number(d.applis ?? 0)); }).catch(() => {});
   }, []);
   return n;
 }
@@ -231,12 +231,12 @@ export default function Landing() {
           <div className="mx-auto max-w-[1180px] grid lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.3fr)] gap-10 lg:gap-14 items-center">
             <div>
               <h2 className="text-[38px] sm:text-[52px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>On ne te donne pas une idée. On te montre ce qui encaisse.</h2>
-              <p className="mt-5 text-[17px] leading-[1.55] text-ink-soft">{nb ? <><b className="text-ink">{nb.toLocaleString("fr-FR")}</b> SaaS suivis</> : "Des milliers de SaaS suivis"}, et pour chacun :</p>
+              <p className="mt-5 text-[17px] leading-[1.55] text-ink-soft">{nb ? <><b className="text-ink">{nb.toLocaleString("fr-FR")}</b> SaaS et applis suivis</> : "Des dizaines de milliers de SaaS et d'applis suivis"}, et pour chacun :</p>
               <ul className="mt-6 space-y-5">
                 {[
                   [ICONES.tendance, "Leur tendance", "Leur revenu sur 30 jours : tu pars de ce qui monte."],
                   [ICONES.oeil, "Leur visibilité", "Visites, revenu par visite, place sur Google : tu vois où la place est à prendre."],
-                  [ICONES.pub, "Leur pub", "Ce qu'ils paient pour se montrer, avec les liens vers leurs pubs."],
+                  [ICONES.pub, "Ton idée, validée", "Concurrents, revenus et applis du même type : un score sur 100, chaque point expliqué par un vrai chiffre."],
                   [ICONES.verifie, "Leurs vrais revenus", "Vérifiés chez leur outil de paiement, jamais estimés."],
                 ].map(([ic, h, d]) => (
                   <li key={h} className="flex gap-4">
@@ -276,7 +276,8 @@ export default function Landing() {
               </div>
               {[
                 ["Quoi lancer", "Une liste d'idées", "Des SaaS qui encaissent déjà, revenus vérifiés"],
-                ["Pourquoi celui-là", "Un chiffre de « potentiel »", "Sa tendance, sa visibilité, sa pub, ses canaux"],
+                ["Pourquoi celui-là", "Un chiffre de « potentiel »", "Sa tendance, sa visibilité, ses canaux"],
+                ["Ton idée à toi", "Un avis d'IA", "Un score sur 100 expliqué par les SaaS et applis qui existent déjà"],
                 ["Le construire", "Un prompt à coller dans une IA", "Construit par Bingoo!, en ligne, branché à ton Stripe"],
                 ["Tes clients", "Débrouille-toi", "Établissements à contacter trouvés pour toi, message prêt"],
                 ["Tenir le rythme", "Seul", "L'étape du jour, chaque matin"],

@@ -1147,25 +1147,33 @@ function Niches() {
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chercher une niche" className="ml-auto w-full sm:w-56 rounded-xl border border-line bg-white px-3 py-2 text-[14px] outline-none focus:border-ink" />
       </div>
       {!d ? <div className="py-16 grid place-items-center"><Spinner /></div> : (
-        <div className="mt-4 rounded-2xl border border-line bg-white overflow-hidden">
-          <div className="hidden md:grid grid-cols-[1fr_170px_120px_200px] gap-4 px-5 py-2 border-b border-line bg-paper/60 text-[11.5px] font-semibold text-ink-faint">
-            <span>Niche</span><span>SaaS rentables</span><span>Revenu médian</span><span>Le plus gros</span>
-          </div>
-          {liste.map((x) => (
-            <button key={x.slug} onClick={() => nav(`/explorer/niches?n=${x.slug}`)} className="w-full text-left grid grid-cols-[1fr_auto] md:grid-cols-[1fr_170px_120px_200px] gap-x-4 gap-y-1 px-4 sm:px-5 py-3.5 border-b border-line last:border-0 items-center hover:bg-paper/50">
-              <div className="min-w-0 flex items-center gap-3">
-                <span className="text-[26px] w-9 text-center shrink-0" aria-hidden>{x.emoji}</span>
-                <div className="min-w-0">
-                  <p className="font-bold text-[15.5px] truncate">{x.nom} {x.fr === 0 && x.n_rev > 0 && <span className="ml-1 align-middle rounded-md bg-[#DBEAFE] text-[#1E40AF] px-1.5 py-0.5 text-[11px] font-semibold">Aucun français</span>}</p>
-                  <p className="text-[13px] text-ink-soft truncate">{x.phrase}</p>
+        <div className="mt-4 grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {liste.map((x, i) => (
+            <button key={x.slug} onClick={() => nav(`/explorer/niches?n=${x.slug}`)} className="group text-left flex flex-col rounded-2xl border border-line bg-white p-5 hover:border-ink/25 transition">
+              <div className="flex items-start gap-3">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-paper text-[13px] font-black tnum text-ink-soft">{i + 1}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-[16.5px] leading-tight">{x.nom}</p>
+                  <p className="mt-0.5 text-[13px] text-ink-soft line-clamp-2">{x.phrase}</p>
                 </div>
               </div>
-              <div className="text-right md:text-left">
-                <p className="text-[14px] tnum"><b>{x.n_rev}</b> <span className="text-ink-faint">sur {x.n}</span></p>
-                <div className="hidden md:block mt-1 h-1.5 rounded-full bg-paper overflow-hidden"><div className="h-full rounded-full bg-accent" style={{ width: `${(x.n_rev / max) * 100}%` }} /></div>
+              {x.fr === 0 && x.n_rev > 0 && <span className="mt-3 self-start rounded-full bg-[#DBEAFE] text-[#1E40AF] px-2.5 py-1 text-[11.5px] font-semibold">Aucun concurrent français</span>}
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-paper/70 border border-line p-3">
+                  <p className="text-[10.5px] font-bold uppercase tracking-wider text-ink-faint">SaaS rentables</p>
+                  <p className="mt-1 tnum"><b className="text-[18px]">{x.n_rev}</b> <span className="text-[12.5px] text-ink-faint">sur {Number(x.n).toLocaleString("fr-FR")}</span></p>
+                  <div className="mt-2 h-1.5 rounded-full bg-white overflow-hidden"><div className="h-full rounded-full bg-accent" style={{ width: `${(x.n_rev / max) * 100}%` }} /></div>
+                </div>
+                <div className="rounded-xl bg-paper/70 border border-line p-3">
+                  <p className="text-[10.5px] font-bold uppercase tracking-wider text-ink-faint">Revenu médian</p>
+                  <p className="mt-1 text-[18px] font-black tnum">{x.mrr_med ? dollar(x.mrr_med) : "–"}<span className="text-[11.5px] font-normal text-ink-faint">{x.mrr_med ? " / mois" : ""}</span></p>
+                </div>
               </div>
-              <p className="hidden md:block text-[15px] font-bold tnum">{x.mrr_med ? `${dollar(x.mrr_med)}` : "–"}<span className="text-[11.5px] font-normal text-ink-faint">{x.mrr_med ? " / mois" : ""}</span></p>
-              <p className="col-span-2 md:col-span-1 text-[13px] text-ink-soft truncate">{x.top?.[0] ? <><b className="text-ink">{x.top[0].nom}</b> {dollar(x.top[0].mrr)} / mois</> : "Pas encore de revenu vérifié"}</p>
+              <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[13px]">
+                <span className="text-ink-faint shrink-0">Le plus gros</span>
+                <span className="min-w-0 truncate">{x.top?.[0] ? <><b>{x.top[0].nom}</b> <span className="tnum text-ink-soft">{dollar(x.top[0].mrr)} / mois</span></> : <span className="text-ink-faint">pas encore de revenu vérifié</span>}</span>
+                <span className="ml-auto shrink-0 font-semibold text-accent-dark group-hover:underline">Voir la niche</span>
+              </div>
             </button>
           ))}
         </div>
@@ -1189,7 +1197,6 @@ function MicroDetail({ slug, info, retour }) {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
       <button onClick={retour} className="text-[13.5px] font-semibold text-ink-soft hover:text-ink">Toutes les niches</button>
       <div className="mt-3 flex items-center gap-4">
-        <span className="text-[48px] leading-none" aria-hidden>{info?.emoji}</span>
         <div><h1 className="text-[32px] sm:text-[40px] font-black leading-tight tracking-tight" style={HF}>{info?.nom ?? slug}</h1><p className="text-[15px] text-ink-soft">{info?.phrase}</p></div>
       </div>
       {info && (
@@ -3668,7 +3675,15 @@ function CartePourToi({ x, r, force, grand, premier, onChoisir, choisi }) {
 }
 
 // ---------------------------------------------------------------- Demande à Bingoo! : une question en français, des SaaS avec leurs vrais chiffres
-const EXEMPLES_QUESTIONS = ["Trouve-moi 3 SaaS de facturation qui scalent en ce moment", "Des petits SaaS tenus par une seule personne qui gagnent plus de 2 000 $", "Les outils TikTok qui grandissent le plus", "Un SaaS à racheter dans l'immobilier", "Des SaaS pour les pros sans équivalent français"];
+// Idées de questions, rangées par intention (titre, sous-titre, question envoyée)
+const EXEMPLES_QUESTIONS = [
+  ["Ce qui grandit", "Les SaaS qui scalent ce mois-ci", "Trouve-moi 3 SaaS de facturation qui scalent en ce moment"],
+  ["Faisable en solo", "Petits SaaS tenus par une seule personne", "Des petits SaaS tenus par une seule personne qui gagnent plus de 2 000 $"],
+  ["Réseaux sociaux", "Les outils TikTok qui grandissent", "Les outils TikTok qui grandissent le plus"],
+  ["Racheter", "Un SaaS à vendre dans un secteur", "Un SaaS à racheter dans l'immobilier"],
+  ["Place à prendre", "Rien d'équivalent en France", "Des SaaS pour les pros sans équivalent français"],
+  ["Revenu vérifié", "Plus de 10 000 $ par mois", "Des SaaS B2B qui gagnent plus de 10 000 $ par mois"],
+];
 function DemandeBingoo() {
   const loc = useLocation();
   const nav = useNavigate();
@@ -3697,16 +3712,42 @@ function DemandeBingoo() {
   };
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      <h1 className="text-[32px] sm:text-[44px] font-black leading-[1.02] tracking-tight" style={HF}>Demande à Bingoo!</h1>
-      <p className="mt-2 text-[15.5px] text-ink-soft max-w-2xl">Pose ta question comme à un ami. Bingoo! te répond avec des SaaS et leurs vrais chiffres : revenu vérifié, croissance, comment ils trouvent leurs clients.</p>
-      <form onSubmit={(e) => { e.preventDefault(); demander(); }} className="mt-5 flex gap-2">
-        <input value={q} onChange={(e) => setQ(e.target.value)} autoFocus placeholder="ex. trouve-moi 3 SaaS de facturation qui scalent en ce moment" className="flex-1 min-w-0 rounded-2xl border-2 border-ink bg-white px-4 py-3 text-[16.5px] outline-none" />
-        <button disabled={busy || q.trim().length < 4} className="rounded-2xl bg-accent text-white px-6 py-3 text-[15px] font-bold disabled:opacity-50">{busy ? "Recherche…" : "Demander"}</button>
-      </form>
-      {!r && <div className="mt-4 flex flex-wrap gap-2">{EXEMPLES_QUESTIONS.map((x) => <button key={x} onClick={() => demander(x)} className="rounded-full border border-line bg-white px-3.5 py-1.5 text-[13.5px] hover:border-ink">{x}</button>)}</div>}
+      <div className={cx("mx-auto text-center", r ? "max-w-3xl" : "max-w-3xl pt-6 sm:pt-12")}>
+        <p className="text-[12.5px] font-bold tracking-wider text-accent-dark">DEMANDE À BINGOO!</p>
+        <h1 className="mt-1 text-[32px] sm:text-[44px] font-black leading-[1.05] tracking-tight" style={HF}>{r ? "Ta recherche" : "Que veux-tu trouver ?"}</h1>
+        {!r && <p className="mt-2 text-[15.5px] text-ink-soft">Pose ta question comme à un ami. Bingoo! répond avec des SaaS et leurs vrais chiffres : revenu vérifié, croissance, comment ils trouvent leurs clients.</p>}
+        <form onSubmit={(e) => { e.preventDefault(); demander(); }} className="mt-5 flex items-center gap-2 rounded-2xl border border-line bg-white p-2 pl-4 shadow-[0_18px_50px_-30px_rgba(15,23,42,.45)] focus-within:border-ink">
+          <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-ink-faint" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <input value={q} onChange={(e) => setQ(e.target.value)} autoFocus placeholder="Trouve-moi des SaaS de facturation qui scalent en ce moment" className="flex-1 min-w-0 bg-transparent py-2.5 text-[16px] outline-none" />
+          <button disabled={busy || q.trim().length < 4} className="shrink-0 rounded-xl bg-ink text-white px-5 py-2.5 text-[14.5px] font-bold disabled:opacity-40">{busy ? "Recherche…" : "Demander"}</button>
+        </form>
+        {r && <button onClick={() => { setR(null); setQ(""); setLu([]); }} className="mt-3 text-[13.5px] font-semibold text-ink-soft hover:text-ink">Nouvelle question</button>}
+      </div>
+      {!r && (
+        <div className="mx-auto mt-8 max-w-4xl">
+          <p className="text-[12px] font-bold uppercase tracking-wider text-ink-faint">Pour commencer</p>
+          <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {EXEMPLES_QUESTIONS.map(([titre, sous, x]) => (
+              <button key={x} onClick={() => demander(x)} className="group text-left rounded-2xl border border-line bg-white p-4 hover:border-ink/30 transition">
+                <p className="font-bold text-[15px]">{titre}</p>
+                <p className="mt-0.5 text-[13px] text-ink-soft">{sous}</p>
+                <p className="mt-3 text-[12.5px] italic text-ink-faint line-clamp-2">« {x} »</p>
+              </button>
+            ))}
+          </div>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[13.5px] text-ink-soft">
+            <span>Tu préfères demander dans Claude ou ChatGPT ?</span>
+            <button onClick={() => nav("/explorer/connecteur")} className="font-semibold text-accent-dark hover:underline">Connecte Bingoo! à ton IA</button>
+          </div>
+        </div>
+      )}
       {r && (
         <div className="mt-6">
-          {lu.length > 0 && <p className="text-[13.5px] text-ink-soft">Bingoo! a compris : <b className="text-ink">{lu.join(", ")}</b>. {Number(r.total).toLocaleString("fr-FR")} SaaS trouvés.</p>}
+          <div className="mx-auto max-w-3xl flex flex-wrap items-center justify-center gap-1.5 text-[13px]">
+            {lu.length > 0 && <span className="text-ink-faint">Bingoo! a compris :</span>}
+            {lu.map((x) => <span key={x} className="rounded-full bg-white border border-line px-2.5 py-1 font-semibold">{x}</span>)}
+            <span className="text-ink-soft">· {Number(r.total).toLocaleString("fr-FR")} SaaS trouvés</span>
+          </div>
           {!r.saas.length ? <div className="mt-4 rounded-2xl border border-line bg-white p-6"><p className="font-bold">Aucun SaaS ne répond à tout ça.</p><p className="mt-1 text-ink-soft">Enlève une contrainte (montant, pays, cible) ou essaie un autre mot.</p></div> : (
             <div className="mt-3 space-y-3">{r.saas.map((s, i) => (
               <div key={s.domaine} className="rounded-2xl border border-line bg-white p-4 sm:p-5 grid sm:grid-cols-[auto_1fr_auto] gap-4 items-start">
@@ -3830,6 +3871,8 @@ function PageCopier() {
     return () => { vivant = false; clearTimeout(t); };
   }, [f, page]);
   const set = (k, v) => { setPage(0); setF((x) => ({ ...x, [k]: v })); };
+  const [vue, setVueC] = useState(() => { try { return localStorage.getItem("bingoo-vue-liste") || "cartes"; } catch { return "cartes"; } });
+  const choisirVue = (v) => { setVueC(v); try { localStorage.setItem("bingoo-vue-liste", v); } catch { /* stockage indisponible */ } };
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
       <div className="grid lg:grid-cols-[1fr_360px] gap-6 items-end">
@@ -3859,11 +3902,18 @@ function PageCopier() {
       </div>
 
       <p className="mt-5 text-[13px] text-ink-faint tnum">{d ? `${Number(d.total).toLocaleString("fr-FR")} SaaS à lancer` : "Recherche…"}</p>
+      <div className="mt-2 flex justify-end"><div className="inline-flex rounded-lg border border-line bg-white p-0.5 text-[12.5px] font-semibold">{[["cartes", "Cartes"], ["tableau", "Tableau"]].map(([k, l]) => <button key={k} onClick={() => choisirVue(k)} className={cx("rounded-md px-2.5 py-1", vue === k ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}</div></div>
+      {d && d.rows.length > 0 && vue === "cartes" ? (
+        <div className="mt-3 grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {d.rows.map((x) => <CarteSaas key={x.domaine} s={{ ...x, description: resumeFr(x), succes: x.mrr > 0 ? { mrr: x.mrr, type: x.type_preuve } : null, cible: x.cible || x.audience }} ouvrir={() => nav(`/explorer/${x.domaine}`)} />)}
+        </div>
+      ) : (
       <div className="mt-2 rounded-2xl border border-line bg-white overflow-hidden">
         {!d ? <div className="py-16 grid place-items-center"><Spinner /></div> : !d.rows.length ? (
           <div className="p-8"><p className="font-bold">Aucun SaaS ne coche tous ces filtres.</p><p className="mt-1 text-ink-soft">Enlève un filtre : par exemple la façon de trouver des clients.</p></div>
         ) : d.rows.map((x) => <LigneCopier key={x.domaine} x={x} />)}
       </div>
+      )}
       {d && d.total > 30 && <div className="mt-4 flex items-center justify-center gap-3 text-[14px]">
         <button disabled={page === 0} onClick={() => setPage(page - 1)} className="rounded-xl border border-line bg-white px-4 py-2 font-semibold disabled:opacity-40">Précédents</button>
         <span className="text-ink-faint tnum">{page + 1} / {Math.ceil(d.total / 30)}</span>
