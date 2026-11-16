@@ -1,0 +1,26 @@
+name: Explorer – images
+on:
+  workflow_dispatch:
+  schedule: [{ cron: "35 4 * * 2" }]
+concurrency: { group: explorer-images, cancel-in-progress: false }
+jobs:
+  sites:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Image de présentation des SaaS (og:image)
+        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}", MINUTES: "170" }
+        run: node scripts/explorer/images.cjs
+  applis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Capture App Store des applis
+        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}", ETAPE: "captures", MINUTES: "170" }
+        run: node scripts/explorer/applis.cjs

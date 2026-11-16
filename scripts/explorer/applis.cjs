@@ -26,7 +26,7 @@ async function basePleine() {
     (select count(*) from public.saas where statut = 'ok') + (select count(*) from public.saas_mobiles) as total`).catch(() => null);
   const plafond = Number(process.env.PLAFOND || 80000);
   if (r?.[0]?.mo > 470) { pleine = true; console.log("Base presque pleine (", r[0].mo, "Mo) : collecte arrêtée"); }
-  if (r?.[0]?.total >= plafond) { pleine = true; console.log("Objectif atteint (", r[0].total, "SaaS et applis) : collecte arrêtée"); }
+  if (process.env.ETAPE !== "captures" && r?.[0]?.total >= plafond) { pleine = true; console.log("Objectif atteint (", r[0].total, "SaaS et applis) : collecte arrêtée"); }
   return pleine;
 }
 const lit = (v) => (v == null || v === "" ? "null" : "'" + String(v).replace(/'/g, "''") + "'");
@@ -99,13 +99,13 @@ async function fiches(force = false) {
       lignes.push(`(${r.trackId}, ${lit(String(r.trackName).slice(0, 120))}, ${lit(String(r.sellerName ?? r.artistName ?? "").slice(0, 120))}, ${lit(GENRE_FR[r.primaryGenreName] ?? r.primaryGenreName)},
         ${lit(d.replace(/\s+/g, " ").slice(0, 320))}, ${r.averageUserRating != null ? Number(r.averageUserRating).toFixed(2) : "null"}, ${Number(r.userRatingCount) || 0},
         ${r.price != null ? Number(r.price) : "null"}, ${lit(r.currency)}, ${abo}, ${lit(r.artworkUrl100)}, ${lit(String(r.trackViewUrl ?? "").split("?")[0])}, ${lit(r.sellerUrl)},
-        ${lit(String(r.releaseDate ?? "").slice(0, 10))}, ${lit(String(r.currentVersionReleaseDate ?? "").slice(0, 10))}, ${x.rang ?? "null"}, ${lit(x.pays ? NOMS_PAYS[x.pays] : null)}, ${lit(x.cat)})`);
+        ${lit(String(r.releaseDate ?? "").slice(0, 10))}, ${lit(String(r.currentVersionReleaseDate ?? "").slice(0, 10))}, ${x.rang ?? "null"}, ${lit(x.pays ? NOMS_PAYS[x.pays] : null)}, ${lit(x.cat)}, ${lit((r.screenshotUrls ?? [])[0] ?? (r.ipadScreenshotUrls ?? [])[0] ?? null)})`);
     }
     if (lignes.length) {
-      await q(`insert into public.saas_mobiles (id, nom, editeur, categorie, description, note, avis, prix, devise, abonnement, icone, url, site, sortie, maj, rang_revenus, rang_pays, rang_categorie)
+      await q(`insert into public.saas_mobiles (id, nom, editeur, categorie, description, note, avis, prix, devise, abonnement, icone, url, site, sortie, maj, rang_revenus, rang_pays, rang_categorie, capture)
         values ${lignes.join(",")}
         on conflict (id) do update set nom = excluded.nom, editeur = excluded.editeur, categorie = excluded.categorie, description = excluded.description, note = excluded.note, avis = excluded.avis,
-          prix = excluded.prix, devise = excluded.devise, abonnement = excluded.abonnement, icone = excluded.icone, url = excluded.url, site = excluded.site, maj = excluded.maj, vu_at = now(),
+          prix = excluded.prix, devise = excluded.devise, abonnement = excluded.abonnement, icone = excluded.icone, url = excluded.url, site = excluded.site, maj = excluded.maj, vu_at = now(), capture = coalesce(excluded.capture, saas_mobiles.capture),
           rang_revenus = coalesce(excluded.rang_revenus, saas_mobiles.rang_revenus), rang_pays = coalesce(excluded.rang_pays, saas_mobiles.rang_pays), rang_categorie = coalesce(excluded.rang_categorie, saas_mobiles.rang_categorie)`)
         .then(() => (gardees += lignes.length)).catch((e) => console.error("écriture", e.message));
     }
@@ -113,7 +113,22 @@ async function fiches(force = false) {
   console.log("applis gardées jusqu'ici :", gardees);
 }
 
+// Rattrapage : la première capture d'écran App Store des applis déjà relevées (pour les cartes de l'Explorer)
+async function captures() {
+  const rows = await q(`select id from public.saas_mobiles where capture is null order by avis desc nulls last limit 100000`);
+  console.log("applis sans capture :", rows.length);
+  let faites = 0;
+  for (let i = 0; i < rows.length; i += 150) {
+    if (Date.now() > FIN || await basePleine()) break;
+    const j = await apple(`https://itunes.apple.com/lookup?id=${rows.slice(i, i + 150).map((x) => x.id).join(",")}&country=us`);
+    const v = (j?.results ?? []).map((r) => [r.trackId, (r.screenshotUrls ?? [])[0] ?? (r.ipadScreenshotUrls ?? [])[0]]).filter(([id, u]) => id && u);
+    if (v.length) await q(`update public.saas_mobiles m set capture = v.u from (values ${v.map(([id, u]) => `(${id}::bigint, ${lit(u)})`).join(",")}) v(id, u) where m.id = v.id`).then(() => (faites += v.length)).catch((e) => console.error("capture", e.message));
+  }
+  console.log("captures ajoutées :", faites);
+}
+
 (async () => {
+  if (process.env.ETAPE === "captures") return await captures();
   if (process.env.ETAPE !== "recherche") await classements();
   console.log("après classements :", ids.size);
   if (process.env.ETAPE !== "classements") await recherches();
