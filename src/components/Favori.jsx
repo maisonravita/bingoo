@@ -48,7 +48,7 @@ export default function Favori({ type = "saas", id, nom, grand = false, classNam
   const coeur = <svg viewBox="0 0 24 24" className={grand ? "w-5 h-5" : "w-[18px] h-[18px]"} fill={on ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.9 3.6 4.5 7 4.5c2 0 3.6 1.1 5 3 1.4-1.9 3-3 5-3 3.4 0 5.6 3.4 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z" /></svg>;
   if (grand) return (
     <button onClick={basculer} className={cx("rounded-xl border px-4 py-2.5 text-[14px] font-bold inline-flex items-center justify-center gap-2", on ? "border-[#F43F5E] text-[#E11D48] bg-[#FFF1F2]" : "border-line bg-white text-ink hover:border-ink/30", className)}>
-      {coeur}{on ? "Dans mes favoris" : "Ajouter aux favoris"}
+      {coeur}{on ? "En favori" : "Favori"}
     </button>
   );
   return (

@@ -67,7 +67,8 @@ export function CarteSaas({ s: brut, ouvrir, debloquer }) {
   const mrr = Number(s.succes?.mrr ?? 0) || Number(s.succes?.revenu_30j ?? 0) || (s.succes?.montant ? Number(s.succes.montant) / 12 : 0);
   const verifie = s.succes?.type === "revenu_verifie";
   const cible = cibleDe(s.cible);
-  const facile = s.copiable > 0 ? Math.max(1, Math.min(10, 11 - Math.round(s.copiable / 10))) : null;
+  // Difficulté de construction (1 = un week-end en solo, 10 = plusieurs mois), estimée à partir du produit
+  const facile = s.difficulte ?? (s.copiable > 0 ? Math.max(1, Math.min(10, 11 - Math.round(s.copiable / 10))) : null);
   return (
     <Carte
       entete={<><CompanyLogo name={s.nom} url={`https://${s.domaine}`} className="w-10 h-10 shrink-0" pad="p-1.5" /><div className="min-w-0"><p className="font-bold text-[16px] leading-tight truncate">{s.nom}</p><p className="text-[12px] text-ink-faint truncate">{s.domaine}</p></div></>}
@@ -79,7 +80,7 @@ export function CarteSaas({ s: brut, ouvrir, debloquer }) {
       visuel={<Visuel src={s.image} nom={s.nom} url={`https://${s.domaine}`} />}
       chiffres={
         <div className="flex items-center gap-3">
-          {facile != null ? <Anneau valeur={11 - facile} max={10} texte={<>{facile}<span className="block text-[9px] font-medium text-ink-faint">/10</span></>} libelle="Difficulté" /> : null}
+          {facile != null ? <Anneau valeur={facile} max={10} texte={<>{facile}<span className="block text-[9px] font-medium text-ink-faint">/10</span></>} libelle={<span title="Estimation : 1 = un week-end en solo, 10 = plusieurs mois">Difficulté</span>} /> : null}
           <div className="min-w-0 flex-1 grid grid-cols-2 gap-2 text-[12px]">
             <div><p className="text-[10.5px] font-bold uppercase tracking-wider text-ink-faint">Revenu</p><p className="mt-0.5 font-black text-[15px] tnum">{s.vitrine ? "🔒" : mrr > 0 ? `${$(mrr)}` : <span className="text-[12.5px] font-medium text-ink-faint">non public</span>}</p></div>
             <div><p className="text-[10.5px] font-bold uppercase tracking-wider text-ink-faint">Prix</p><p className="mt-0.5 font-black text-[15px] tnum">{s.prix_entree_eur != null ? `${s.prix_entree_eur} €` : <span className="text-[12.5px] font-medium text-ink-faint">{s.gratuit ? "gratuit" : s.sur_devis ? "sur devis" : "—"}</span>}</p></div>

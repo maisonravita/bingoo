@@ -221,7 +221,7 @@ function Liste({ copier: copierPage = false }) {
   const vitrine = !!rows?.[0]?.vitrine;
 
   useEffect(() => {
-    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes, estimation, genre, copiable, copiable_raisons, preuve_ancienne, created_at, constructible, en_decollage, vitrine, image, cible", { count: "estimated" });
+    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes, estimation, genre, copiable, copiable_raisons, preuve_ancienne, created_at, constructible, en_decollage, vitrine, image, cible, difficulte", { count: "estimated" });
     if (f.tag) q = q.contains("tags", [f.tag]);
     if (f.q.trim()) q = q.or(`nom.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,domaine.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,description.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%`);
     if (f.categorie) q = q.eq("categorie", f.categorie);
@@ -454,6 +454,30 @@ function FicheApercu({ domaine }) {
   );
 }
 
+// Fiche au format « rapport » : à droite, l'image du produit, les chiffres clés et les actions
+function RapportCote({ s, lancer }) {
+  const [bad, setBad] = useState(false);
+  const mrr = Number(s.succes?.mrr ?? 0) || Number(s.succes?.revenu_30j ?? 0) || (s.succes?.montant ? Number(s.succes.montant) / 12 : 0);
+  const verifie = s.succes?.type === "revenu_verifie";
+  const cible = /b2b/i.test(s.cible ?? "") ? "B2B" : /b2c/i.test(s.cible ?? "") ? "B2C" : null;
+  return (
+    <div className="w-full lg:w-[360px] shrink-0 rounded-2xl border border-line bg-white p-3">
+      <div className="aspect-[16/10] overflow-hidden rounded-xl border border-line bg-paper">
+        {s.image && !bad ? <img src={s.image} alt={`Aperçu de ${s.nom}`} onError={() => setBad(true)} className="h-full w-full object-cover object-top" />
+          : <div className="grid h-full w-full place-items-center"><CompanyLogo name={s.nom} url={`https://${s.domaine}`} className="w-20 h-20" pad="p-2.5" /></div>}
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-xl bg-paper py-2.5"><p className="text-[10.5px] font-bold uppercase tracking-wider text-ink-faint">Revenu</p><p className="mt-0.5 font-black tnum text-[15px]">{mrr > 0 ? `${Math.round(mrr).toLocaleString("fr-FR")} $` : "—"}</p><p className="text-[10.5px] text-ink-faint">{mrr > 0 ? (verifie ? "vérifié / mois" : "public / mois") : "non public"}</p></div>
+        <div className="rounded-xl bg-paper py-2.5"><p className="text-[10.5px] font-bold uppercase tracking-wider text-ink-faint">Prix</p><p className="mt-0.5 font-black tnum text-[15px]">{s.prix_entree_eur != null ? `${s.prix_entree_eur} €` : s.gratuit ? "Gratuit" : "—"}</p><p className="text-[10.5px] text-ink-faint">{s.prix_entree_eur != null ? "dès, par mois" : s.sur_devis ? "sur devis" : "à l'entrée"}</p></div>
+        <div className="rounded-xl bg-paper py-2.5" title="Estimation : 1 = un week-end en solo, 10 = plusieurs mois"><p className="text-[10.5px] font-bold uppercase tracking-wider text-ink-faint">Difficulté</p><p className="mt-0.5 font-black tnum text-[15px]">{s.difficulte != null ? `${s.difficulte}/10` : "—"}</p><p className="text-[10.5px] text-ink-faint">estimée</p></div>
+      </div>
+      {(s.categorie || cible) && <div className="mt-2.5 flex flex-wrap gap-1.5">{s.categorie && <span className="rounded-full bg-accent/10 text-accent-dark px-2.5 py-1 text-[12px] font-semibold">{s.categorie}</span>}{cible && <span className="rounded-full bg-ink text-white px-2.5 py-1 text-[12px] font-semibold">{cible}</span>}</div>}
+      <button onClick={lancer} className="mt-3 w-full rounded-xl bg-accent text-white px-4 py-3 text-[15px] font-bold hover:bg-accent-dark">Lancer ma version</button>
+      <div className="mt-2 grid grid-cols-2 gap-2"><Favori grand id={s.id} nom={s.nom} className="w-full px-2" /><BoutonSuivre saasId={s.id} /></div>
+    </div>
+  );
+}
+
 function Fiche({ domaine }) {
   const nav = useNavigate();
   const { ws } = useWs();
@@ -508,7 +532,7 @@ function Fiche({ domaine }) {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
       <button onClick={() => nav("/explorer")} className="text-[13.5px] text-ink-soft hover:text-ink">← Explorer</button>
-      <div className="mt-3 flex flex-wrap items-start gap-4">
+      <div className="mt-3 flex flex-wrap lg:flex-nowrap items-start gap-5">
         <CompanyLogo name={s.nom} url={`https://${s.domaine}`} className="w-16 h-16" pad="p-2" />
         <div className="flex-1 min-w-[240px]">
           <h1 className="text-[30px] font-black leading-tight tracking-tight" style={HF}>{s.nom} <span className="text-[22px]">{drapeau(s.pays)}</span></h1>
@@ -537,8 +561,7 @@ function Fiche({ domaine }) {
           )}
           {etiquettes(s).length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{etiquettes(s).map((t) => <span key={t} className="rounded-full bg-paper px-2.5 py-1 text-[12.5px]">{t}</span>)}</div>}
         </div>
-        <div className="flex flex-col gap-2"><Favori grand id={s.id} nom={s.nom} /><BoutonSuivre saasId={s.id} />
-          <button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className="rounded-xl bg-accent text-white px-4 py-2.5 text-[14px] font-bold hover:bg-accent-dark">Lancer ma version</button></div>
+        <RapportCote s={s} lancer={() => nav(`/explorer/lancer?d=${s.domaine}`)} />
       </div>
 
       {s.trustmrr && <BlocTrustmrr s={s} />}
@@ -4528,7 +4551,7 @@ function BoutonSuivre({ saasId, categorie, petit }) {
   return petit ? (
     <Chip on={!!on} onClick={basculer}>{on ? `✓ Catégorie suivie` : `Suivre « ${categorie} »`}</Chip>
   ) : (
-    <button onClick={basculer} className={cx("self-start rounded-xl px-4 py-2.5 text-[14px] font-bold transition", on ? "bg-white border border-ink" : "bg-accent text-white hover:bg-accent-dark")}>{on ? "✓ Suivi" : "Suivre"}</button>
+    <button onClick={basculer} title="Alerte chaque lundi quand ses prix, son recrutement ou ses nouveautés bougent" className={cx("rounded-xl px-4 py-2.5 text-[14px] font-bold transition border", on ? "bg-white border-ink" : "bg-white border-line hover:border-ink/30")}>{on ? "✓ Suivi" : "Suivre"}</button>
   );
 }
 

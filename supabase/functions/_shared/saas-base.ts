@@ -77,6 +77,10 @@ const categorieSansIa = (t: string) => CAT_MOTS.find(([re]) => re.test(t))?.[1] 
 /** Lecture d'un site sans IA : prix affichés par mois, version gratuite, essai, devis, description et langue de la page. */
 /** Sans IA : est-ce un SaaS ? « saas » si on voit une inscription en ligne ET des tarifs récurrents ou une page de tarifs ;
  *  « pas_saas » pour une boutique ou un site sans aucun de ces signes ; sinon « doute » (relu plus tard). */
+// Signes d'un site qui n'est pas un logiciel, et signes qu'il en est un (lecture sans IA)
+const PAS_LOGICIEL = /\b(forums?|magazine|news(paper)?|novels?|manga|comics?|journal of|peer.?review|universit\w*|college|actualit\w*|recipes?|beauty|fashion|casino|betting|porn\w*|adult|escort|church|lottery|horoscope|lyrics|torrent|leak\w*|awards?|business directory|annuaire|wiki|clinic|hospital\w*|hotels?|airlines?|museum\w*|podcast|radio|tv shows?|movies?|films? en streaming|mmorpg|multijoueur|multiplayer|fan site|supporters|official website|site officiel|recette\w*|for sale|restaurants)\b/i;
+const LOGICIEL = /(software|platform|\bapps?\b|\btools?\b|saas|dashboard|automat|\bapi\b|plateforme|logiciel|\boutils?\b|\bcrm\b|builder|generator|tracker|analytics|scheduling|booking|management|\bmanage\b|workflow|integration|\bai\b|\bia\b|\bcreate|\bbuild|hosting|upload|calculator|\bsystem\b|your own|sign.?up|\bengine\b|\bsdk\b)/i;
+
 export function verdictSansIa(texte: string, tarifs: string, prixUrl: string) {
   const t = `${texte.slice(0, 6000)} ${tarifs.slice(0, 4000)}`;
   const inscription = /sign ?up|get started|start (?:your |for )?free|try (?:it )?(?:for )?free|free trial|create (?:an |your )?account|start building|book a demo|essai gratuit|inscri(?:ption|vez|s-toi)|commencer (?:gratuitement|maintenant)|cr[ée]er (?:un|mon|votre) compte|demander une d[ée]mo/i.test(t);
@@ -172,6 +176,13 @@ prix_entree (prix le plus bas d'une formule d'ABONNEMENT payante, nombre ; null 
     }
     a = lectureSansIa(s, home, tarifs) as typeof a;
     sansIa = true;
+    // Sans IA, on écarte ce qui n'est clairement pas un logiciel (média, forum, roman, film, boutique…)
+    // et on met de côté une fiche sans description ni prix (rien à montrer)
+    if (!(s.succes || s.trustmrr || String(s.source ?? "").startsWith("ajout:"))) {
+      const txt = `${a?.nom ?? ""} ${a?.description ?? ""}`;
+      if (PAS_LOGICIEL.test(txt) && !LOGICIEL.test(txt)) { await admin.from("saas").update({ statut: "pas_saas", lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "pas_saas" }; }
+      if (!String(a?.description ?? "").trim() && !(a as any)?.prix_entree && !a?.gratuit) { await admin.from("saas").update({ essais: 3, lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "erreur" }; }
+    }
   }
   if (a.est_saas === false) { await admin.from("saas").update({ statut: "pas_saas", nom: a.nom || s.nom, lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "pas_saas" }; }
   const tld = s.domaine.split(".").pop() ?? "";

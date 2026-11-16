@@ -23,6 +23,7 @@ export default function ApplisMobiles() {
   const [cats, setCats] = useState([]);
   const [rows, setRows] = useState(undefined);
   const [page, setPage] = useState(0);
+  const [erreur, setErreur] = useState(false);
   useEffect(() => { supabase.rpc("saas_mobiles_categories").then(({ data }) => setCats(data ?? [])); }, []);
   useEffect(() => { const t = setTimeout(() => setCherche(q.trim()), 350); return () => clearTimeout(t); }, [q]);
   useEffect(() => { setPage(0); }, [cherche, tri, cat, abo]);
@@ -30,7 +31,7 @@ export default function ApplisMobiles() {
     let vivant = true;
     setRows(undefined);
     supabase.rpc("saas_mobiles_liste", { p_q: cherche || null, p_categorie: cat || null, p_tri: tri, p_abonnement: abo ? true : null, p_offset: page * 30 })
-      .then(({ data }) => vivant && setRows(data ?? []));
+      .then(({ data, error }) => { if (!vivant) return; setErreur(!!error); setRows(data ?? []); });
     return () => { vivant = false; };
   }, [cherche, tri, cat, abo, page]);
   const total = rows?.[0]?.total ?? 0;
@@ -54,7 +55,7 @@ export default function ApplisMobiles() {
       </div>
 
       {rows === undefined ? <p className="py-16 text-center text-ink-soft">Chargement…</p>
-        : !rows.length ? <p className="py-16 text-center text-ink-soft">{totalBase ? "Aucune appli ne correspond. Essaie un autre mot." : "Les applis arrivent : Bingoo! relève en ce moment l'App Store. Reviens dans quelques heures."}</p>
+        : !rows.length ? <p className="py-16 text-center text-ink-soft">{erreur ? "Le chargement a pris trop de temps. Réessaie dans un instant." : totalBase ? "Aucune appli ne correspond. Essaie un autre mot." : "Les applis arrivent : Bingoo! relève en ce moment l'App Store. Reviens dans quelques heures."}</p>
         : (
           <>
             <p className="mt-4 text-[13px] text-ink-faint">{Number(total).toLocaleString("fr-FR")} applis</p>
