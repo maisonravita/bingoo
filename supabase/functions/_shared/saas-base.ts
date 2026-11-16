@@ -215,9 +215,12 @@ prix_entree (prix le plus bas d'une formule d'ABONNEMENT payante, nombre ; null 
 
 /** Relevés de nuit : les SaaS jamais lus d'abord, puis ceux relus il y a plus de 7 jours. Budget de temps de l'appel respecté. */
 /** Lecture dédiée aux découvertes automatiques (sans IA si le crédit IA est vide) : 25 fiches par minute. */
-export async function saasDecouvertesLire(maxMs = 50_000) {
+export async function saasDecouvertesLire(maxMs = 50_000, part = 0, parts = 1) {
   const t0 = Date.now();
-  const { data } = await admin.from("saas").select("id, essais").eq("statut", "a_lire").is("succes", null).lt("essais", 3).order("created_at", { ascending: false }).limit(15);
+  // Plusieurs lecteurs en parallèle (part 0..parts-1) : chacun prend sa tranche de la même liste, sans doublon
+  parts = Math.max(1, Math.min(8, parts | 0)); part = Math.max(0, Math.min(parts - 1, part | 0));
+  const { data: tout } = await admin.from("saas").select("id, essais").eq("statut", "a_lire").is("succes", null).lt("essais", 3).order("created_at", { ascending: false }).limit(15 * parts);
+  const data = (tout ?? []).slice(part * 15, part * 15 + 15);
   const out = { lus: 0, ok: 0, pas_saas: 0, autres: 0 };
   const ids = (data ?? []).map((x) => x.id);
   // Chaque fiche est comptée AVANT d'être lue : si un site trop lourd fait tomber la fonction, il ne bloque plus la file
