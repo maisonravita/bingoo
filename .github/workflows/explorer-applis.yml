@@ -1,0 +1,19 @@
+name: Explorer – applis mobiles
+on:
+  workflow_dispatch:
+  schedule: [{ cron: "20 2 * * 1" }]
+concurrency: { group: explorer-applis, cancel-in-progress: false }
+jobs:
+  applis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 320
+    strategy:
+      fail-fast: false
+      matrix: { etape: [classements, recherche] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Applis de l'App Store (données publiques, sans IA)
+        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}", ETAPE: "${{ matrix.etape }}", MINUTES: "295" }
+        run: node scripts/explorer/applis.cjs

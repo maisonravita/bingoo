@@ -1,0 +1,2 @@
+-- Applis mobiles de l'Explorer (App Store, données publiques, collecte sans IA : workflow « Explorer – applis mobiles »)
+-- Table + RPC saas_mobiles_liste / saas_mobiles_categories : appliqués via MCP le 16/11/2026 (voir la base pour le texte exact)
