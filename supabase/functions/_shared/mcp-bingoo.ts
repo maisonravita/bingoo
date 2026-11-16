@@ -40,6 +40,14 @@ const outils = (niches: string[]) => [
     inputSchema: { type: "object", properties: { type: { type: "string", enum: ["encaisse", "mois", "trimestre", "revenu", "jeunes"] }, nombre: { type: "number" } }, required: ["type"] } },
   { name: "saas_a_vendre", description: "Les SaaS à vendre : prix demandé, revenu mensuel (vérifié ou déclaré), multiple, offres reçues, message du vendeur, lien pour faire une offre.", inputSchema: { type: "object", properties: { nombre: { type: "number" } } } },
   { name: "suivre_saas", description: "Ajoute un SaaS aux suivis du compte Bingoo! : alerte chaque lundi quand ses prix, son recrutement ou ses nouveautés bougent.", inputSchema: { type: "object", properties: { domaine: { type: "string" } }, required: ["domaine"] } },
+  { name: "chercher_applis", description: "Cherche des applis mobiles (App Store, hors jeux) : nom, éditeur, catégorie, note, nombre d'avis, prix, abonnement ou non, et meilleur rang dans le classement « meilleures recettes » de leur catégorie (Apple ne publie pas les revenus : ce rang est le seul signal public).",
+    inputSchema: { type: "object", properties: {
+      texte: { type: "string", description: "Mots-clés cherchés dans le nom, l'éditeur et la description, ex. « calorie », « invoice »." },
+      categorie: { type: "string", description: "Catégorie App Store en français, ex. « Productivité », « Forme et santé », « Finance »." },
+      abonnement: { type: "boolean", description: "Seulement les applis avec un abonnement." },
+      tri: { type: "string", enum: ["avis", "revenus", "note", "recent"], description: "avis (les plus utilisées), revenus (meilleur rang recettes), note, recent (mises à jour récemment)." },
+      nombre: { type: "number", description: "Nombre de résultats (1 à 30, 10 par défaut)." },
+    } } },
   { name: "mes_suivis", description: "Les SaaS et catégories suivis par le compte Bingoo!.", inputSchema: { type: "object", properties: {} } },
 ];
 
@@ -87,6 +95,12 @@ async function appeler(admin: SupabaseClient, ws: string, nom: string, a: any) {
     if (!deja) await admin.from("saas_suivis").insert({ workspace_id: ws, saas_id: s.id });
     return { ok: true, message: `${s.nom} est suivi : alerte chaque lundi s'il bouge.`, lien_bingoo: lien(d) };
   }
+  if (nom === "chercher_applis") {
+    const { data, error } = await admin.rpc("saas_mobiles_liste", { p_q: a?.texte ? String(a.texte) : null, p_categorie: a?.categorie ? String(a.categorie) : null, p_tri: a?.tri ?? "avis", p_abonnement: a?.abonnement === true ? true : null, p_offset: 0 });
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []).slice(0, nb(a?.nombre, 10, 30));
+    return { total: rows[0]?.total ?? 0, applis: rows.map(({ total: _t, icone: _i, ...x }: any) => x) };
+  }
   if (nom === "mes_suivis") {
     const { data } = await admin.from("saas_suivis").select("categorie, saas:saas_id(nom, domaine)").eq("workspace_id", ws);
     return { suivis: (data ?? []).map((x: any) => x.saas ? { nom: x.saas.nom, domaine: x.saas.domaine, lien_bingoo: lien(x.saas.domaine) } : { categorie: x.categorie }) };
@@ -102,7 +116,7 @@ export async function mcpBingoo(req: Request, admin: SupabaseClient, cleChemin: 
   if (req.method !== "POST") return new Response("Connecteur Bingoo! : envoie des requêtes MCP en POST.", { status: 405, headers: { ...cors, Allow: "POST" } });
   const cle = cleChemin || (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
   const empreinte = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(cle)))].map((x) => x.toString(16).padStart(2, "0")).join("");
-  const { data: k } = cle ? await admin.from("saas_api_cles").select("id, workspace_id, appels, revoquee").eq("empreinte", empreinte).maybeSingle() : { data: null };
+  const { data: k } = cle ? await admin.from("saas_api_cles").select("id, workspace_id, appels, appels_mois, mois, revoquee").eq("empreinte", empreinte).maybeSingle() : { data: null };
   if (!k || k.revoquee) return json({ jsonrpc: "2.0", id: null, error: { code: -32001, message: "Clé Bingoo! invalide ou révoquée : crée-en une dans Bingoo!, menu « Demande à Bingoo! », onglet « Dans Claude ou ChatGPT »." } }, 401, cors);
   let corps: any; try { corps = await req.json(); } catch { return json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "JSON invalide" } }, 400, cors); }
   const { data: microListe } = await admin.from("saas_micro").select("slug").order("ordre");
@@ -115,8 +129,11 @@ export async function mcpBingoo(req: Request, admin: SupabaseClient, cleChemin: 
       if (m.method === "ping") return { jsonrpc: "2.0", id: m.id, result: {} };
       if (m.method === "tools/list") return { jsonrpc: "2.0", id: m.id, result: { tools: outils(niches) } };
       if (m.method === "tools/call") {
-        await admin.from("saas_api_cles").update({ appels: (k.appels ?? 0) + 1, dernier_usage: new Date().toISOString() }).eq("id", k.id);
-        if ((k.appels ?? 0) > 5000) throw new Error("Limite d'appels atteinte pour cette clé : écris à bingoo@maisonravita.fr.");
+        // 5 000 questions par mois et par clé (le compteur repart à zéro chaque mois)
+        const mois = new Date().toISOString().slice(0, 7);
+        const ceMois = k.mois === mois ? (k.appels_mois ?? 0) : 0;
+        if (ceMois >= 5000) throw new Error("Limite de 5 000 questions ce mois-ci pour cette clé : elle repart le 1er du mois prochain.");
+        await admin.from("saas_api_cles").update({ appels: (k.appels ?? 0) + 1, appels_mois: ceMois + 1, mois, dernier_usage: new Date().toISOString() }).eq("id", k.id);
         const r = await appeler(admin, k.workspace_id, m.params?.name, m.params?.arguments ?? {});
         return { jsonrpc: "2.0", id: m.id, result: { content: [{ type: "text", text: JSON.stringify(r) }], structuredContent: r } };
       }
