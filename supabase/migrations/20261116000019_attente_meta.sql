@@ -13,3 +13,4 @@ select 1;
 -- Audit page par page :
 -- - saas_mobiles_liste / saas_stats_entete : nombre d'applis exact (count) au lieu de l'estimation ; VACUUM saas et saas_mobiles.
 -- - cible : 4 222 SaaS prennent la cible déclarée sur TrustMRR (B2B/B2C) ; trigger saas_cible pour la suite ; sauvegarde public._cible_avant.
+-- Sante 16/11 soir : le contrôle Pubs Meta passe en information tant que la collecte des pubs est en pause (bingoo-explorer-pubs inactif).
