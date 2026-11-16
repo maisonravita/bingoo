@@ -74,13 +74,13 @@ export default function Explorer({ domaine: fixe }) {
   if (ws && !estPaye(ws)) {
     if (!d) return <><Onglets actif="liste" /><Liste /></>;
     if (d === "valider") return <><Onglets actif="valider" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><ValiderIdee /></Suspense></>;
-    if (d === "valider") return <><Onglets actif="valider" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><ValiderIdee /></Suspense></>;
-  if (d === "applis") return <><Onglets actif="applis" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><ApplisMobiles /></Suspense></>;
+    if (d === "applis") return <><Onglets actif="applis" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><ApplisMobiles /></Suspense></>;
     if (["niches", "classement", "marche", "chiffres"].includes(d)) return <><Onglets actif={d} />{d === "niches" ? <Niches /> : d === "classement" ? <Classement /> : d === "marche" ? <Marche /> : <ChiffresSaas />}</>;
     if (d === "lancer") return <Navigate to="/abonnement" replace />;
     if (d.includes(".")) return <FicheApercu domaine={d} />;
     if (d !== "trouver") return <Navigate to="/explorer/trouver" replace />;
   }
+  if (d === "valider") return <><Onglets actif="valider" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><ValiderIdee /></Suspense></>;
   if (d === "applis") return <><Onglets actif="applis" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><ApplisMobiles /></Suspense></>;
   if (d === "bouge") return <><Onglets actif="bouge" /><Fil /></>;
   if (d === "suivis") return <><Onglets actif="suivis" /><Suivis /></>;
