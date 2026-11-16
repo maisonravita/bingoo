@@ -24,3 +24,13 @@ create or replace function public.saas_accueil_vitrine() returns json language s
     ));
 $$;
 grant execute on function public.saas_accueil_vitrine() to anon, authenticated;
+
+-- Cache : le calcul prend ~6 s, il est fait toutes les 3 heures et la page lit le résultat.
+alter function public.saas_accueil_vitrine() rename to saas_accueil_vitrine_calc;
+revoke execute on function public.saas_accueil_vitrine_calc() from anon, authenticated, public;
+create table if not exists public.accueil_cache (id int primary key, data json not null, maj timestamptz not null default now());
+alter table public.accueil_cache enable row level security;
+insert into public.accueil_cache(id, data) values (1, public.saas_accueil_vitrine_calc()) on conflict (id) do update set data = excluded.data, maj = now();
+create or replace function public.saas_accueil_vitrine() returns json language sql stable security definer set search_path = public as $$ select data from accueil_cache where id = 1 $$;
+grant execute on function public.saas_accueil_vitrine() to anon, authenticated;
+select cron.schedule('bingoo-accueil-vitrine', '17 */3 * * *', $$insert into public.accueil_cache(id, data) values (1, public.saas_accueil_vitrine_calc()) on conflict (id) do update set data = excluded.data, maj = now()$$);

@@ -12,9 +12,14 @@ const pct = (n) => `${Number(n) > 0 ? "+" : ""}${Number(n).toLocaleString("fr-FR
 // Les mois de la courbe : le dernier est le mois complet précédent
 const moisDe = (k) => { const d = new Date(); return Array.from({ length: k }, (_, i) => { const m = (d.getMonth() - (k - i) + 24) % 12; return MOIS[m]; }); };
 
+// Un seul appel partagé par les deux sections (données mises en cache côté base toutes les 3 heures)
+let promesse = null;
 function useVitrine() {
   const [v, setV] = useState(null);
-  useEffect(() => { supabase.rpc("saas_accueil_vitrine").then(({ data }) => setV(data ?? null)); }, []);
+  useEffect(() => {
+    promesse ??= supabase.rpc("saas_accueil_vitrine").then(({ data }) => data ?? null, () => null);
+    let ok = true; promesse.then((d) => ok && setV(d)); return () => { ok = false; };
+  }, []);
   return v;
 }
 
