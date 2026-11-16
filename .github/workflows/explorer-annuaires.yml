@@ -1,0 +1,16 @@
+name: Explorer – annuaires
+on:
+  workflow_dispatch:
+  schedule: [{ cron: "50 3 * * 3" }]
+concurrency: { group: explorer-annuaires, cancel-in-progress: false }
+jobs:
+  annuaires:
+    runs-on: ubuntu-latest
+    timeout-minutes: 320
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Applis web des annuaires de lancement (sans IA, robots.txt respecté)
+        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}", MINUTES: "300" }
+        run: node scripts/explorer/annuaires.cjs
