@@ -128,7 +128,7 @@ export default function Landing() {
   const go = () => commencer(nav);
   const nb = useNbSaas();
   return (
-    <div className="min-h-full bg-[#FAF9F6] text-ink">
+    <div className="min-h-full bg-white text-ink">
       <style>{`@keyframes kspin{to{transform:rotate(360deg)}}@keyframes land-in{from{opacity:0;transform:translateY(10px)}}.land-in{animation:land-in .45s ease-out both}@keyframes marquee{to{transform:translateX(-50%)}}.marquee-track{animation:marquee 32s linear infinite}.marquee:hover .marquee-track{animation-play-state:paused}@media (prefers-reduced-motion: reduce){.marquee-track{animation:none;flex-wrap:wrap;width:auto;justify-content:center}}`}</style>
 
       {/* Menu flottant sombre, en pilule */}

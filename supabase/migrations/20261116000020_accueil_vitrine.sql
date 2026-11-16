@@ -34,3 +34,8 @@ insert into public.accueil_cache(id, data) values (1, public.saas_accueil_vitrin
 create or replace function public.saas_accueil_vitrine() returns json language sql stable security definer set search_path = public as $$ select data from accueil_cache where id = 1 $$;
 grant execute on function public.saas_accueil_vitrine() to anon, authenticated;
 select cron.schedule('bingoo-accueil-vitrine', '17 */3 * * *', $$insert into public.accueil_cache(id, data) values (1, public.saas_accueil_vitrine_calc()) on conflict (id) do update set data = excluded.data, maj = now()$$);
+
+-- Vitrine : seulement des courbes qui montent vraiment (dernier mois ≥ 85 % du record, et plus haut qu'il y a 6 mois).
+-- Appliqué via MCP en remplaçant le filtre « v » de saas_accueil_vitrine_calc :
+--   and (courbe->>-1)::numeric >= 0.85 * (select max(x::numeric) from jsonb_array_elements_text(courbe) x)
+--   and (courbe->>-1)::numeric > (courbe->>-6)::numeric

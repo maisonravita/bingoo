@@ -7,7 +7,7 @@ import CompanyLogo from "./CompanyLogo";
 // et « Bingoo! dans ton IA » (questions qui se tapent toutes seules, avec de vraies réponses).
 const JK = { fontFamily: "'Plus Jakarta Sans', Geist, system-ui, sans-serif" };
 const MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
-const dollars = (n) => `${Math.round(Number(n) || 0).toLocaleString("fr-FR")} $`;
+const dollars = (n) => `${Math.round(Number(n) || 0).toLocaleString("fr-FR").replace(/\s/g, " ")} $`;
 const pct = (n) => `${Number(n) > 0 ? "+" : ""}${Number(n).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %`;
 // Les mois de la courbe : le dernier est le mois complet précédent
 const moisDe = (k) => { const d = new Date(); return Array.from({ length: k }, (_, i) => { const m = (d.getMonth() - (k - i) + 24) % 12; return MOIS[m]; }); };
