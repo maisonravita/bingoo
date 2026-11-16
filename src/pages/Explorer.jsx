@@ -459,7 +459,7 @@ function RapportCote({ s, lancer }) {
   const [bad, setBad] = useState(false);
   const mrr = Number(s.succes?.mrr ?? 0) || Number(s.succes?.revenu_30j ?? 0) || (s.succes?.montant ? Number(s.succes.montant) / 12 : 0);
   const verifie = s.succes?.type === "revenu_verifie";
-  const cible = /b2b/i.test(s.cible ?? "") ? "B2B" : /b2c/i.test(s.cible ?? "") ? "B2C" : null;
+  const cible = /b2b|entreprise|professionnel|équipe|agence|commerç|business/i.test(s.cible ?? "") ? "B2B" : /b2c|particulier|grand public|consommateur|personnes|parents|étudiant/i.test(s.cible ?? "") ? "B2C" : null;
   return (
     <div className="w-full lg:w-[360px] shrink-0 rounded-2xl border border-line bg-white p-3">
       <div className="aspect-[16/10] overflow-hidden rounded-xl border border-line bg-paper">
