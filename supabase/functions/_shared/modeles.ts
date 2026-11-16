@@ -15,6 +15,10 @@ export function modeleDe(p: any): string | null {
   // Outil d'écriture par IA : le cœur du produit est un texte écrit par l'IA (CV, posts, articles, guides, réponses…)
   const ecriture = /\bia\b|intelligence artificielle/.test(t) ? n(/r[ée]dig|g[ée]n[èeé]r|[ée]cri(t|re|ture|vain)|reformul|\bcv\b|lettres? de motivation|\bposts?\b|articles?\b|newsletters?\b|copywrit|textes?\b|guides?\b/g) : 0;
   const best = Math.max(reservation, devis);
+  // Appli grand public ou communauté (sport, progression, habitudes, révisions…) : pas un modèle de réservation ou de devis,
+  // même si elle parle de « séances » ; le générateur libre la conçoit pour la personne elle-même
+  const grandPublic = n(/entra[iî]nements?|progression|objectifs?|d[ée]fis?|classements?|communaut|coureurs?|course à pied|musculation|habitudes?|r[ée]visions?|nutrition|calories|journal|records?|motivation|apprentissage/g);
+  if (grandPublic >= 4 && grandPublic >= best) return null;
   if (ecriture >= 3 && ecriture > best) return "ecriture";
   // Une mention en passant (« facturation », « une séance ») ne fait pas d'un logiciel de fidélité un outil de devis
   if (best < 3) return null;
