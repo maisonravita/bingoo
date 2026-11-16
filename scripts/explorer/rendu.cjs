@@ -18,6 +18,15 @@ async function q(sql, n = 0) {
   if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
   return r.json();
 }
+// Base gratuite Supabase limitée à 500 Mo : la collecte s'arrête d'elle-même au-delà de 470 Mo
+let pleine = false, vuTaille = 0;
+async function basePleine() {
+  if (pleine || Date.now() - vuTaille < 120_000) return pleine;
+  vuTaille = Date.now();
+  const r = await q(`select pg_database_size(current_database()) / 1048576 as mo`).catch(() => null);
+  if (r?.[0]?.mo > 470) { pleine = true; console.log("Base presque pleine (", r[0].mo, "Mo) : collecte arrêtée"); }
+  return pleine;
+}
 const lit = (v) => (v == null ? "null" : "'" + String(v).replace(/'/g, "''") + "'");
 
 // Même règle que la base (une seule source : saas-base.ts)
@@ -81,7 +90,7 @@ const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").
   };
   let i = 0, recharge = null;
   const travail = async () => {
-    while (Date.now() < FIN) {
+    while (Date.now() < FIN && !(await basePleine())) {
       if (i >= rows.length) {
         if (!recharge) recharge = encore().then((n) => { rows = rows.concat(n); recharge = null; return n.length; });
         if (!(await recharge) && i >= rows.length) break;

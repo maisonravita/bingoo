@@ -17,6 +17,15 @@ async function q(sql, n = 0) {
   return r.json();
 }
 const dormir = (ms) => new Promise((ok) => setTimeout(ok, ms));
+// Base gratuite Supabase limitée à 500 Mo : la collecte s'arrête d'elle-même au-delà de 470 Mo
+let pleine = false, vuTaille = 0;
+async function basePleine() {
+  if (pleine || Date.now() - vuTaille < 120_000) return pleine;
+  vuTaille = Date.now();
+  const r = await q(`select pg_database_size(current_database()) / 1048576 as mo`).catch(() => null);
+  if (r?.[0]?.mo > 470) { pleine = true; console.log("Base presque pleine (", r[0].mo, "Mo) : collecte arrêtée"); }
+  return pleine;
+}
 const lit = (v) => (v == null || v === "" ? "null" : "'" + String(v).replace(/'/g, "''") + "'");
 // Apple limite à environ 20 appels par minute : une pause régulière, plus longue si Apple répond « trop d'appels »
 let dernier = 0;
@@ -74,7 +83,7 @@ async function fiches(force = false) {
   tous.forEach((id) => faits.add(id));
   console.log("fiches à lire :", tous.length, "(", ids.size, "repérées )");
   for (let i = 0; i < tous.length; i += 150) {
-    if (Date.now() > FIN) break;
+    if (Date.now() > FIN || await basePleine()) break;
     const j = await apple(`https://itunes.apple.com/lookup?id=${tous.slice(i, i + 150).join(",")}&country=us`);
     const lignes = [];
     for (const r of j?.results ?? []) {

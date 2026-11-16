@@ -31,6 +31,15 @@ async function q(sql, n = 0) {
   return r.json();
 }
 const dormir = (ms) => new Promise((ok) => setTimeout(ok, ms));
+// Base gratuite Supabase limitée à 500 Mo : la collecte s'arrête d'elle-même au-delà de 470 Mo
+let pleine = false, vuTaille = 0;
+async function basePleine() {
+  if (pleine || Date.now() - vuTaille < 120_000) return pleine;
+  vuTaille = Date.now();
+  const r = await q(`select pg_database_size(current_database()) / 1048576 as mo`).catch(() => null);
+  if (r?.[0]?.mo > 470) { pleine = true; console.log("Base presque pleine (", r[0].mo, "Mo) : collecte arrêtée"); }
+  return pleine;
+}
 const lit = (v) => "'" + String(v).replace(/'/g, "''") + "'";
 async function texte(url) {
   try {
@@ -80,7 +89,7 @@ async function annuaire([site, motif]) {
       on conflict (domaine) do nothing`).then((x) => (total += l.length)).catch((e) => console.error(site, "écriture", e.message));
   };
   for (const p of pages) {
-    if (Date.now() > FIN) break;
+    if (Date.now() > FIN || await basePleine()) break;
     const h = await texte(p);
     await dormir(1000);
     if (!h) continue;
