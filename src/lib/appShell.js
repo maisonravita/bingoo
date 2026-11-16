@@ -95,7 +95,7 @@ if (B.verif) {
   items.forEach(({ id, col, x }, i) => { const d = {}; for (const [k, v] of Object.entries(x)) if (k !== "ref" && k !== "id" && k !== "cree_le") d[k] = typeof v === "string" && refs.has(v) && /_id$/.test(k) ? refs.get(v) : v; const c = typeof x.cree_le === "string" && !isNaN(Date.parse(x.cree_le)) ? new Date(Date.parse(x.cree_le.length === 10 ? x.cree_le + "T10:00:00Z" : x.cree_le)).toISOString() : new Date(Date.now() - i * 25e6).toISOString(); (VSTORE[col] ??= []).push({ ...d, id, created_at: c, updated_at: null }); });
 }
 async function verifCall(action, b) {
-  if (action === "public-list") action = "list"; else if (action === "public-add") action = "add"; else if (action === "public-info") return { nom: "Atelier Exemple" };
+  if (action === "public-list") action = "list"; else if (action === "public-add") action = "add"; else if (action === "public-ia") action = "ia"; else if (action === "public-info") return { nom: "Atelier Exemple" };
   const L = VSTORE[b.col] ??= [];
   if (action === "list") return L.filter((x) => Object.entries(b.where ?? {}).every(([k, v]) => String(x[k]) === String(v))).slice().reverse();
   if (action === "get") { const r = L.find((x) => x.id === b.id); if (!r) throw new Error("Élément introuvable"); return r; }
@@ -239,6 +239,31 @@ ui.Calendrier = function Calendrier({ lignes = [], champ = "date", rendu, onClic
 // Courbe (évolution dans le temps) et anneau (répartition)
 ui.Ligne = ({ donnees = [], hauteur = 180 }) => { const n = donnees.length; if (!n) return html\`<\${ui.Empty}/>\`; const m = Math.max(1, ...donnees.map((d) => Number(d.valeur) || 0)); const W = 600, H = hauteur; const pt = (d, i) => [n === 1 ? W / 2 : (i / (n - 1)) * W, H - 8 - ((Number(d.valeur) || 0) / m) * (H - 24)]; const pts = donnees.map(pt); const ligne = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" "); return html\`<div data-vide=\${donnees.some((d) => Number(d.valeur) > 0) ? null : "1"}><svg viewBox=\${"0 0 " + W + " " + H} class="w-full" preserveAspectRatio="none" style=\${"height:" + H + "px"}><path d=\${ligne + " L" + W + " " + H + " L0 " + H + " Z"} fill="var(--c)" opacity=".1"/><path d=\${ligne} fill="none" stroke="var(--c)" stroke-width="2.5" vector-effect="non-scaling-stroke"/></svg><div class="mt-1 flex justify-between text-[11px] text-slate-400">\${donnees.filter((_, i) => n <= 7 || i % Math.ceil(n / 6) === 0 || i === n - 1).map((d) => html\`<span>\${d.label}</span>\`)}</div></div>\`; };
 ui.Donut = ({ donnees = [] }) => { const t = donnees.reduce((a, d) => a + (Number(d.valeur) || 0), 0) || 1; let a0 = 0; const op = [1, .7, .48, .3, .18, .1]; return html\`<div data-vide=\${donnees.some((d) => Number(d.valeur) > 0) ? null : "1"} class="flex items-center gap-5"><svg viewBox="0 0 42 42" class="w-32 h-32 -rotate-90">\${donnees.map((d, i) => { const v = (Number(d.valeur) || 0) / t * 100; const el = html\`<circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--c)" stroke-opacity=\${op[i % op.length]} stroke-width="6" stroke-dasharray=\${v + " " + (100 - v)} stroke-dashoffset=\${-a0}/>\`; a0 += v; return el; })}</svg><ul class="space-y-1 text-sm">\${donnees.map((d, i) => html\`<li class="flex items-center gap-2"><span class="w-2.5 h-2.5 shrink-0 rounded-full bg-[var(--c)]" style=\${"opacity:" + op[i % op.length]}/><span class="min-w-0">\${d.label}</span><span class="shrink-0 whitespace-nowrap text-slate-400">\${Math.round((Number(d.valeur) || 0) / t * 100)} %</span></li>\`)}</ul></div>\`; };
+// Chrono et minuteur (séances de sport, révisions, recettes, travail) : bip et vibration à la fin du minuteur
+ui.Chrono = ({ mode = "chrono", duree = 60, titre, onFin, onStop }) => {
+  const [t, setT] = useState(mode === "minuteur" ? Number(duree) || 60 : 0), [on, setOn] = useState(false), ref = useRef(null);
+  useEffect(() => { if (!on) return; const id = setInterval(() => setT((x) => mode === "minuteur" ? Math.max(0, x - 1) : x + 1), 1000); return () => clearInterval(id); }, [on]);
+  useEffect(() => { if (mode === "minuteur" && on && t === 0) { setOn(false); try { const a = new (window.AudioContext || window.webkitAudioContext)(), o = a.createOscillator(); o.connect(a.destination); o.frequency.value = 880; o.start(); o.stop(a.currentTime + 0.6); } catch {} try { navigator.vibrate?.([300, 120, 300]); } catch {} onFin?.(); } }, [t, on]);
+  const mm = String(Math.floor(t / 60)).padStart(2, "0"), ss = String(t % 60).padStart(2, "0");
+  const remise = () => { setOn(false); if (mode !== "minuteur" && t > 0) onStop?.(t); setT(mode === "minuteur" ? Number(duree) || 60 : 0); };
+  return h("div", { class: "rounded-2xl border border-slate-200 bg-white p-5 text-center" },
+    titre ? h("p", { class: "text-sm font-semibold text-slate-500" }, titre) : null,
+    h("p", { class: "mt-1 font-mono text-5xl font-bold tabular-nums text-slate-900" }, mm + ":" + ss),
+    h("div", { class: "mt-4 flex justify-center gap-2" },
+      h("button", { type: "button", onClick: () => setOn(!on), class: "rounded-xl bg-[var(--c)] px-5 py-2.5 text-sm font-semibold text-white" }, on ? "Pause" : t && (mode !== "minuteur" || t < (Number(duree) || 60)) ? "Reprendre" : "Démarrer"),
+      h("button", { type: "button", onClick: remise, class: "rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700" }, mode === "minuteur" ? "Remettre" : "Terminer")));
+};
+// Classement d'une collection partagée : total d'un champ par membre (ou nombre d'éléments), le compte connecté mis en avant
+ui.Classement = ({ lignes = [], champ, unite = "", titre, max = 10 }) => {
+  const par = {}; for (const r of lignes) { const k = r._auteur_id ?? r._auteur ?? "?"; const x = par[k] ??= { nom: r._auteur ?? "Membre", moi: !!r._moi, total: 0 }; x.total += champ ? Number(r[champ]) || 0 : 1; if (r._moi) x.moi = true; }
+  const L = Object.values(par).sort((a, b) => b.total - a.total).slice(0, max);
+  if (!L.length) return h(ui.Empty, { texte: "Personne pour l'instant : soyez le premier !" });
+  return h("div", { class: "rounded-2xl border border-slate-200 bg-white" }, titre ? h("p", { class: "border-b border-slate-100 px-4 py-3 font-semibold" }, titre) : null,
+    L.map((x, i) => h("div", { key: x.nom + i, class: "flex items-center gap-3 border-b border-slate-100 px-4 py-2.5 last:border-0" + (x.moi ? " bg-[var(--c)]/[.06]" : "") },
+      h("span", { class: "w-6 text-center font-bold " + (i < 3 ? "text-[var(--c)]" : "text-slate-400") }, String(i + 1)),
+      h("span", { class: "flex-1 font-medium" }, x.nom + (x.moi ? " (vous)" : "")),
+      h("span", { class: "font-semibold tabular-nums" }, (Math.round(x.total * 10) / 10).toLocaleString("fr-FR") + (unite ? " " + unite : "")))));
+};
 ui.Progress = ({ valeur = 0, max = 100, label }) => html\`<div>\${label && html\`<div class="flex justify-between text-xs text-slate-500 mb-1"><span>\${label}</span><span>\${Math.round(valeur / (max || 1) * 100)} %</span></div>\`}<div class="h-2 rounded-full bg-slate-100"><div class="h-2 rounded-full bg-[var(--c)]" style=\${"width:" + Math.min(100, valeur / (max || 1) * 100) + "%"}/></div></div>\`;
 
 // Mes données : export et import Excel (CSV) de chaque type de données, pour démarrer avec ses vraies données
@@ -332,12 +357,13 @@ async function pdf(d = {}) {
 }
 const ia = (consigne, o = {}) => call("ia", { consigne, texte: o.texte ?? "", json: !!o.json }).then((r) => r.resultat);
 const ctx = { html, h, Fragment, useState, useEffect, useMemo, useRef, useCallback, ui, fmt, db, useCollection, toast, go, Icone, ia, email, annulerEmail, emailsEnvoyes, pdf, lienAgenda };
+const iaPublic = (consigne, o = {}) => call("public-ia", { page: PAGE?.id, espace: PAGE?.espace, consigne, texte: o.texte ?? "", json: !!o.json }).then((r) => r.resultat);
 const ctxPublic = { ...ctx, db: dbPublic, useCollection: mkUseCollection(dbPublic), ia: refuse, email: refuse, annulerEmail: refuse, emailsEnvoyes: refuse, lienAgenda: refuse, go: () => {} };
 const ECRANS = (S.ecrans ?? []).filter((e) => e.code).map((e) => {
   let Comp;
   try {
     const f = new Function("ctx", "const {html,h,Fragment,useState,useEffect,useMemo,useRef,useCallback,ui,fmt,db,useCollection,toast,go,Icone,ia,email,annulerEmail,emailsEnvoyes,pdf,lienAgenda,user,params}=ctx;\\n" + e.code + "\\n;return typeof Ecran==='function'?Ecran:null;");
-    Comp = (props) => { const C = useMemo(() => f({ ...(e.public ? ctxPublic : ctx), user: e.public ? null : props.user, params: props.params }), [props.params]); return C ? h(C, props) : html\`<\${Casse} titre=\${e.titre}/>\`; };
+    Comp = (props) => { const C = useMemo(() => f({ ...(e.public ? { ...ctxPublic, ia: e.ia ? iaPublic : refuse } : ctx), user: e.public ? null : props.user, params: props.params }), [props.params]); return C ? h(C, props) : html\`<\${Casse} titre=\${e.titre}/>\`; };
   } catch (err) { console.error(e.id, err); Comp = () => html\`<\${Casse} titre=\${e.titre}/>\`; }
   return { ...e, Comp };
 });

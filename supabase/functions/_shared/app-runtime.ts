@@ -65,6 +65,8 @@ const propre = (d: unknown) => {
   return o;
 };
 const ligne = (r: any) => ({ ...(r.data ?? {}), id: r.id, created_at: r.at, updated_at: r.maj });
+// Champs calculés par le serveur (auteur d'un élément partagé) : jamais enregistrés tels quels
+const sansCalcul = (d: any) => { const { _auteur, _auteur_id, _moi, ...x } = d ?? {}; return x; };
 
 async function session(admin: SupabaseClient, user: any) {
   const jeton = hex(crypto.getRandomValues(new Uint8Array(32)));
@@ -161,7 +163,9 @@ export function recalerDemo(demo: Record<string, unknown[]>, ancre?: string | nu
 
 // Données d'exemple : chaque nouvel espace démarre avec une application vivante
 async function semer(admin: SupabaseClient, app: any, userId: string) {
-  const demo = recalerDemo((app.spec?.demo ?? {}) as Record<string, unknown[]>, app.spec?.demo_ancre);
+  // Collections « communauté » : jamais d'exemples (ils apparaîtraient chez tous les membres comme de faux membres)
+  const partage = new Set(((app.spec?.collections ?? []) as any[]).filter((c) => c?.partage === true).map((c) => c.nom));
+  const demo = Object.fromEntries(Object.entries(recalerDemo((app.spec?.demo ?? {}) as Record<string, unknown[]>, app.spec?.demo_ancre)).filter(([k]) => !partage.has(k)));
   // Les liens entre exemples (client_id: "c1") pointent vers le champ ref : on les remplace par les vrais identifiants
   const refs = new Map<string, string>();
   const items = Object.entries(demo).flatMap(([col, xs]) => /^[a-z][a-z0-9_]{0,39}$/.test(col) && Array.isArray(xs)
@@ -296,7 +300,7 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
     }
 
     // ---- Pages publiques (réservation, formulaire, avis…) : ouvertes sans compte par les clients d'un utilisateur de l'app
-    if (action === "public-info" || action === "public-list" || action === "public-add") {
+    if (action === "public-info" || action === "public-list" || action === "public-add" || action === "public-ia") {
       const page = ((app.spec as any)?.ecrans ?? []).find((e: any) => e.public && e.id === String(b.page ?? ""));
       const espace = String(b.espace ?? "");
       if (!page || !/^[0-9a-f-]{36}$/.test(espace)) throw new Err(404, "Page introuvable");
@@ -304,6 +308,28 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
       if (!t || (t.espace_id && t.espace_id !== t.id)) throw new Err(404, "Page introuvable");
       if (!etat(app, t).acces) throw new Err(402, "Cette page n'est pas disponible pour le moment");
       if (action === "public-info") return { status: 200, body: { nom: t.nom ?? "" } };
+      // Outil IA public (générateur, correcteur, coach…) : seulement si la page le déclare, plafonné par visiteur et par application chaque jour
+      if (action === "public-ia") {
+        if (page.ia !== true) throw new Err(403, "IA non disponible sur cette page");
+        const consigne = String(b.consigne ?? "").trim().slice(0, 1500);
+        const texte = String(b.texte ?? "").slice(0, 6000);
+        if (!consigne) throw new Err(400, "Consigne vide");
+        const { data: w } = await admin.from("workspaces").select("plan").eq("id", app.workspace_id).maybeSingle();
+        const mois = (await admin.rpc("saas_app_ia_mois", { p_app: app.id })).data ?? 0;
+        if (mois >= (IA_INCLUSE[w?.plan ?? ""] ?? 300)) throw new Err(429, "L'outil a atteint sa limite du mois, revenez bientôt.");
+        const h = await sha(`${app.id}:ia:${(req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim()}`);
+        const visiteur = `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
+        const ok = (await admin.rpc("saas_app_ia_compter", { p_app: app.id, p_user: visiteur, p_max_user: 8, p_max_app: 300 })).data;
+        if (!ok) throw new Err(429, "Limite d'utilisation atteinte pour aujourd'hui : créez un compte pour continuer.");
+        const { ask, askJson } = await import("./core.ts");
+        const { aiCtx } = await import("./ai-ctx.ts");
+        const prompt = `Tu es l'outil en ligne « ${String((app.spec as any)?.nom ?? "").slice(0, 60)} » (${String((app.spec as any)?.pitch ?? "").slice(0, 200)}), page « ${String(page.titre ?? "").slice(0, 40)} ».
+Réponds en français, directement, sans préambule. Refuse poliment toute demande sans rapport avec cet outil.
+Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\n"""` : ""}`;
+        const ctxIa = { ws: null, feature: `app/ia-public/${slug}`.slice(0, 60), live: true };
+        if (b.json) return { status: 200, body: { resultat: await aiCtx.run(ctxIa, () => askJson<unknown>(prompt + "\nRéponds uniquement en JSON valide.", { fast: true, maxTokens: 1800 })) } };
+        return { status: 200, body: { resultat: (await aiCtx.run(ctxIa, () => ask(prompt, { fast: true, maxTokens: 1800 }))).trim() } };
+      }
       const col = colOk(b.col);
       const def = ((app.spec as any)?.collections ?? []).find((c: any) => c.nom === col) ?? { champs: [] };
       if (action === "public-list") {
@@ -457,6 +483,16 @@ export async function appApi(admin: SupabaseClient, req: Request, slug: string, 
     const user = { id: u0.id, email: u0.email, nom: u0.nom, role: u0.role ?? "admin" };
     const et = etat(app, titulaire);
     const rows = () => admin.from("saas_app_rows").select("id, data, at, maj").eq("app_id", app.id).eq("espace_id", espace);
+    // Collections « communauté » (partage: true) : lisibles par tous les comptes de l'application (classements, défis, fil, entraide),
+    // chacun ne modifie et ne supprime que ce qu'il a publié ; seuls le prénom de l'auteur et ses données publiées sont visibles, jamais son e-mail
+    const partagee = (col: string) => !!((app.spec as any)?.collections ?? []).find((c: any) => c.nom === col && c.partage === true);
+    const rowsPartage = () => admin.from("saas_app_rows").select("id, data, at, maj, espace_id, user_id").eq("app_id", app.id);
+    const auteurs = async (xs: any[]) => {
+      const ids = [...new Set(xs.map((r) => r.user_id).filter(Boolean))];
+      const { data } = ids.length ? await admin.from("saas_app_users").select("id, nom, email").eq("app_id", app.id).in("id", ids.slice(0, 1000)) : { data: [] };
+      const noms = new Map((data ?? []).map((u: any) => [u.id, (String(u.nom ?? "").trim().split(/\s+/)[0] || String(u.email ?? "").split("@")[0].replace(/[._-]+/g, " ").split(" ")[0] || "Membre").slice(0, 30)]));
+      return xs.map((r) => ({ ...ligne(r), _auteur: noms.get(r.user_id) ?? "Membre", _auteur_id: r.user_id, _moi: r.espace_id === espace }));
+    };
     if (!u0.vu_at || Date.now() - new Date(u0.vu_at).getTime() > 3600e3) await admin.from("saas_app_users").update({ vu_at: new Date().toISOString() }).eq("id", u0.id);
 
     if (action === "me") return { status: 200, body: { user, ...et, espace, variante: titulaire.variante ?? "A" } };
@@ -656,6 +692,17 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
     }
 
     // ---- Données de l'espace
+    if (action === "list" && partagee(colOk(b.col))) {
+      let q = rowsPartage().eq("col", colOk(b.col));
+      for (const [k, v] of Object.entries(b.where ?? {}).slice(0, 5)) if (/^[a-z][a-z0-9_]{0,39}$/.test(k) && ["string", "number", "boolean"].includes(typeof v)) q = q.eq(`data->>${k}`, String(v));
+      const { data } = await q.order("at", { ascending: false }).limit(Math.min(1000, Number(b.limit) || 500));
+      return { status: 200, body: await auteurs(data ?? []) };
+    }
+    if (action === "get" && partagee(colOk(b.col))) {
+      const { data } = await rowsPartage().eq("col", colOk(b.col)).eq("id", String(b.id)).maybeSingle();
+      if (!data) throw new Err(404, "Élément introuvable");
+      return { status: 200, body: (await auteurs([data]))[0] };
+    }
     if (action === "list") {
       let q = rows().eq("col", colOk(b.col));
       for (const [k, v] of Object.entries(b.where ?? {}).slice(0, 5)) if (/^[a-z][a-z0-9_]{0,39}$/.test(k) && ["string", "number", "boolean"].includes(typeof v)) q = q.eq(`data->>${k}`, String(v));
@@ -672,14 +719,14 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       const { count } = await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("espace_id", espace);
       if ((count ?? 0) >= LIM.rows) throw new Err(403, "Limite de données atteinte pour cet espace");
       await verifierQuota(admin, app, titulaire, espace, col);
-      const { data } = await admin.from("saas_app_rows").insert({ app_id: app.id, user_id: user.id, espace_id: espace, col, data: propre(b.data) }).select("id, data, at, maj").single();
-      return { status: 200, body: ligne(data) };
+      const { data } = await admin.from("saas_app_rows").insert({ app_id: app.id, user_id: user.id, espace_id: espace, col, data: sansCalcul(propre(b.data)) }).select("id, data, at, maj, espace_id, user_id").single();
+      return { status: 200, body: partagee(col) ? (await auteurs([data]))[0] : ligne(data) };
     }
     if (action === "update") {
       const col = colOk(b.col);
       const { data: cur } = await rows().eq("col", col).eq("id", String(b.id)).maybeSingle();
       if (!cur) throw new Err(404, "Élément introuvable");
-      const { data } = await admin.from("saas_app_rows").update({ data: propre({ ...(cur.data as object), ...propre(b.data) }), maj: new Date().toISOString() }).eq("id", cur.id).select("id, data, at, maj").single();
+      const { data } = await admin.from("saas_app_rows").update({ data: sansCalcul(propre({ ...(cur.data as object), ...propre(b.data) })), maj: new Date().toISOString() }).eq("id", cur.id).select("id, data, at, maj").single();
       return { status: 200, body: ligne(data) };
     }
     if (action === "remove") {
