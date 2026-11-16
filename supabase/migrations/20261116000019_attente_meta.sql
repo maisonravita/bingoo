@@ -6,3 +6,7 @@
 -- - 51 niches retrouvées par mots-clés.
 -- - cron bingoo-explorer-trustmrr : toutes les 15 min au lieu de chaque minute.
 select 1;
+-- Passe « zéro erreur » :
+-- - index saas_a_vendre_idx : la page Acheter / vendre passait en erreur 500 après 8,5 s, maintenant 0,3 s.
+-- - 120 fiches avec codes HTML restants décodées ; suffixes de société (Inc., LLC, GmbH, Ltd) retirés des noms.
+-- - cron bingoo-explorer-pubs en pause jusqu'au nouveau jeton Meta (il échouait toutes les 10 min).

@@ -99,7 +99,10 @@ export function verdictSansIa(texte: string, tarifs: string, prixUrl: string) {
 
 export function lectureSansIa(s: { nom?: string | null; domaine: string; categorie?: string | null }, home: string, tarifs: string) {
   const meta = (n: string) => home.match(new RegExp(`<meta[^>]+(?:name|property)=["']${n}["'][^>]*content=["']([^"']{10,400})["']`, "i"))?.[1] ?? home.match(new RegExp(`<meta[^>]+content=["']([^"']{10,400})["'][^>]*(?:name|property)=["']${n}["']`, "i"))?.[1] ?? null;
-  const decode = (t: string) => t.replace(/&amp;/g, "&").replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  const NOMMES: Record<string, string> = { amp: "&", apos: "'", quot: '"', nbsp: " ", lt: "<", gt: ">", hellip: "…", eacute: "é", egrave: "è", ecirc: "ê", agrave: "à", acirc: "â", icirc: "î", ocirc: "ô", ugrave: "ù", uuml: "ü", ccedil: "ç", euro: "€", copy: "©", reg: "®", trade: "™", middot: "·", deg: "°", rsquo: "’", lsquo: "‘", ldquo: "“", rdquo: "”", ndash: "–", mdash: "—" };
+  const decode = (t: string) => t.replace(/&#x([0-9a-f]+);/gi, (_, h) => { try { return String.fromCodePoint(parseInt(h, 16)); } catch { return " "; } })
+    .replace(/&#(\d+);/g, (_, d) => { try { return String.fromCodePoint(Number(d)); } catch { return " "; } })
+    .replace(/&([a-z]+);/gi, (m, n) => NOMMES[n.toLowerCase()] ?? m).replace(/\s+/g, " ").trim();
   const t = tarifs.replace(/\s+/g, " ");
   // Prix mensuels affichés : « $19/mo », « 19 € / mois », « €9 per month »
   const prix: { v: number; dev: string }[] = [];
