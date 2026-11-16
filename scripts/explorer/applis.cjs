@@ -40,7 +40,8 @@ const noter = (id, rang, pays, cat) => {
 
 async function classements() {
   for (const pays of PAYS) for (const [g, cat] of Object.entries(GENRES)) for (const type of ["topgrossingapplications", "topfreeapplications", "toppaidapplications"]) {
-    if (Date.now() > FIN - 60 * 60_000) return; // garder une heure pour les fiches
+    if (Date.now() > FIN - 20 * 60_000) return; // garder 20 minutes pour les dernières fiches
+    await fiches();
     const j = await apple(`https://itunes.apple.com/${pays}/rss/${type}/limit=200/genre=${g}/json`);
     const e = j?.feed?.entry ?? [];
     e.forEach((x, k) => { const id = Number(x?.id?.attributes?.["im:id"]); if (id) noter(id, type === "topgrossingapplications" ? k + 1 : null, pays, cat); });
@@ -48,7 +49,8 @@ async function classements() {
 }
 async function recherches() {
   for (const mot of MOTS) for (const pays of ["us", "fr", "gb"]) {
-    if (Date.now() > FIN - 60 * 60_000) return;
+    if (Date.now() > FIN - 20 * 60_000) return;
+    await fiches();
     const j = await apple(`https://itunes.apple.com/search?term=${encodeURIComponent(mot)}&entity=software&limit=200&country=${pays}`);
     for (const r of j?.results ?? []) if (r.trackId) noter(r.trackId, null, null, null);
   }
@@ -57,11 +59,13 @@ async function recherches() {
 const NOMS_PAYS = { us: "États-Unis", gb: "Royaume-Uni", fr: "France", de: "Allemagne", ca: "Canada", au: "Australie", es: "Espagne", it: "Italie", nl: "Pays-Bas", br: "Brésil", mx: "Mexique", jp: "Japon", kr: "Corée du Sud", in: "Inde", se: "Suède", ch: "Suisse", be: "Belgique", at: "Autriche", ie: "Irlande", nz: "Nouvelle-Zélande", sg: "Singapour", dk: "Danemark", no: "Norvège", fi: "Finlande", pl: "Pologne", pt: "Portugal" };
 const GENRE_FR = Object.fromEntries(Object.entries({ Business: 6000, Weather: 6001, Utilities: 6002, Travel: 6003, Sports: 6004, "Social Networking": 6005, Reference: 6006, Productivity: 6007, "Photo & Video": 6008, News: 6009, Navigation: 6010, Music: 6011, Lifestyle: 6012, "Health & Fitness": 6013, Finance: 6015, Entertainment: 6016, Education: 6017, Books: 6018, Medical: 6020, "Food & Drink": 6023, Shopping: 6024, "Developer Tools": 6026, "Graphics & Design": 6027 }).map(([k, v]) => [k, GENRES[v]]));
 
-async function fiches() {
-  const deja = new Set((await q(`select id from public.saas_mobiles where vu_at > now() - interval '7 days'`)).map((x) => Number(x.id)));
-  const tous = [...ids.keys()].filter((id) => !deja.has(id) || ids.get(id).rang);
+let deja = null, faits = new Set(), gardees = 0;
+async function fiches(force = false) {
+  if (!deja) deja = new Set((await q(`select id from public.saas_mobiles where vu_at > now() - interval '7 days'`)).map((x) => Number(x.id)));
+  const tous = [...ids.keys()].filter((id) => !faits.has(id) && (!deja.has(id) || ids.get(id).rang));
+  if (!force && tous.length < 3000) return;
+  tous.forEach((id) => faits.add(id));
   console.log("fiches à lire :", tous.length, "(", ids.size, "repérées )");
-  let gardees = 0;
   for (let i = 0; i < tous.length; i += 150) {
     if (Date.now() > FIN) break;
     const j = await apple(`https://itunes.apple.com/lookup?id=${tous.slice(i, i + 150).join(",")}&country=us`);
@@ -86,9 +90,8 @@ async function fiches() {
           rang_revenus = coalesce(excluded.rang_revenus, saas_mobiles.rang_revenus), rang_pays = coalesce(excluded.rang_pays, saas_mobiles.rang_pays), rang_categorie = coalesce(excluded.rang_categorie, saas_mobiles.rang_categorie)`)
         .then(() => (gardees += lignes.length)).catch((e) => console.error("écriture", e.message));
     }
-    if (i % 3000 === 0) console.log("lu", i, "gardées", gardees);
   }
-  console.log("applis gardées :", gardees);
+  console.log("applis gardées jusqu'ici :", gardees);
 }
 
 (async () => {
@@ -96,5 +99,5 @@ async function fiches() {
   console.log("après classements :", ids.size);
   if (process.env.ETAPE !== "classements") await recherches();
   console.log("après recherches :", ids.size);
-  await fiches();
+  await fiches(true);
 })().catch((e) => { console.error(e); process.exit(1); });
