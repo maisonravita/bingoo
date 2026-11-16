@@ -119,13 +119,17 @@ export async function saasLire(id: string) {
   const { data: s } = await admin.from("saas").select("*").eq("id", id).single();
   if (!s) return null;
   const site = `https://${s.domaine}`;
+  // Accueil affiché par un vrai navigateur (workflow « Explorer – rendu ») pour les sites en JavaScript : utilisé une fois puis effacé
+  const accRendu = s.accueil_rendu ? String(s.accueil_rendu) : "";
+  if (accRendu) await admin.from("saas").update({ accueil_rendu: null }).eq("id", id);
   const f = await lireSite(site, s.nom ?? s.domaine);
-  if (!f.lisible) {
+  if (!f.lisible && !accRendu) {
     const essais = (s.essais ?? 0) + 1;
     await admin.from("saas").update({ essais, lu_at: new Date().toISOString(), ...(essais >= 3 ? { statut: "illisible" } : {}) }).eq("id", id);
     return { id, statut: "illisible" };
   }
-  const home = (await fetchHtml(site).catch(() => "")).slice(0, 400_000);
+  const brutHome = f.lisible ? (await fetchHtml(site).catch(() => "")).slice(0, 400_000) : "";
+  const home = accRendu && textOf(accRendu).length > textOf(brutHome).length ? accRendu : brutHome;
   const texteHome = textOf(home);
   // Début de l'accueil (l'offre) et fin (pied de page : adresse, mentions légales, pour le pays)
   const accueil = texteHome.slice(0, 2000) + (texteHome.length > 2700 ? `\n[…]\n${texteHome.slice(-600)}` : "");
