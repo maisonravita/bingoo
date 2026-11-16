@@ -47,7 +47,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with: { name: bundles, path: bundles/ }
       - uses: supabase/setup-cli@v1
-        with: { version: latest }
+        with: { version: 3.1.0 }  # version fixée : « latest » interroge l'API GitHub et échoue parfois (limite de requêtes)
       - name: Déploiement des fonctions
         run: |
           if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then echo "Secret SUPABASE_ACCESS_TOKEN absent : déploiement ignoré" >> $GITHUB_STEP_SUMMARY; exit 0; fi
@@ -94,7 +94,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with: { name: bundles, path: bundles/ }
       - uses: supabase/setup-cli@v1
-        with: { version: latest }
+        with: { version: 3.1.0 }  # version fixée : « latest » interroge l'API GitHub et échoue parfois (limite de requêtes)
       - name: Écart entre la fonction k en ligne et le dépôt
         run: |
           if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then exit 0; fi

@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
       - uses: supabase/setup-cli@v1
-        with: { version: latest }
+        with: { version: 3.1.0 }  # version fixée : « latest » interroge l'API GitHub et échoue parfois (limite de requêtes)
       - name: Sauvegarder la version en ligne
         if: inputs.mode == 'sauvegarder'
         run: |
