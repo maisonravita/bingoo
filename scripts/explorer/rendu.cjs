@@ -43,9 +43,19 @@ async function interdit(domaine) {
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 (async () => {
-  const rows = await q(`select id, domaine from public.saas where statut = 'a_lire' and succes is null and accueil_rendu_at is null
+  // Tranche interrompue (job arrêté) : ses candidats reviennent dans la file au bout de 6 heures
+  await q(`update public.saas_candidats set statut = 'erreur' where statut = 'rendu_en_cours' and at < now() - interval '6 hours' and abs(hashtext(domaine)) % ${PARTS} = ${PART}`).catch(() => {});
+  // D'abord les fiches en attente de la base, puis les sites écartés au premier tri sans navigateur (saas_candidats « erreur » / « non »)
+  let rows = await q(`select id, domaine from public.saas where statut = 'a_lire' and succes is null and accueil_rendu_at is null
     and abs(hashtext(id::text)) % ${PARTS} = ${PART} order by created_at desc limit ${MAX}`);
-  console.log(`tranche ${PART}/${PARTS} : ${rows.length} sites`);
+  const encore = async () => {
+    if (rows.length >= MAX || Date.now() > FIN) return [];
+    const c = await q(`update public.saas_candidats set statut = 'rendu_en_cours', at = now() where domaine in (
+      select domaine from public.saas_candidats where statut in ('erreur', 'non') and abs(hashtext(domaine)) % ${PARTS} = ${PART}
+      order by rang limit 600 for update skip locked) returning domaine`).catch(() => []);
+    return c.map((x) => ({ id: null, domaine: x.domaine }));
+  };
+  console.log(`tranche ${PART}/${PARTS} : ${rows.length} fiches en attente, puis candidats`);
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ locale: "fr-FR", userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36 BingooBot/1.0 (+https://kairo.maisonravita.fr/#/retrait)" });
   await ctx.route("**/*", (r) => (["image", "media", "font"].includes(r.request().resourceType()) ? r.abort() : r.continue()));
@@ -53,16 +63,30 @@ const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").
   let lot = [];
   const vider = async () => {
     if (!lot.length) return;
-    const l = lot; lot = [];
+    const tout = lot; lot = [];
+    const cand = tout.filter((x) => !x.id), l = tout.filter((x) => x.id);
+    if (cand.length) {
+      const sa = cand.filter((x) => x.statut === "saas");
+      if (sa.length) await q(`insert into public.saas (domaine, source, statut, essais, accueil_rendu, accueil_rendu_at)
+        values ${sa.map((x) => `(${lit(x.domaine)}, 'decouverte:rendu', 'a_lire', 0, ${lit(x.rendu)}, now())`).join(",")}
+        on conflict (domaine) do nothing`).catch((e) => console.error("ajout", e.message));
+      await q(`update public.saas_candidats c set statut = v.s, at = now() from (values ${cand.map((x) => `(${lit(x.domaine)}, ${lit("rendu_" + x.statut)})`).join(",")}) v(d, s) where c.domaine = v.d`).catch((e) => console.error("candidats", e.message));
+    }
+    if (!l.length) return;
     const v = l.map((x) => `(${lit(x.id)}::uuid, ${lit(x.statut)}, ${lit(x.rendu)})`).join(",");
     await q(`update public.saas s set accueil_rendu_at = now(), accueil_rendu = coalesce(v.rendu, s.accueil_rendu),
       statut = case when v.statut = 'pas_saas' then 'pas_saas' else s.statut end,
       essais = case when v.statut = 'saas' then 0 else s.essais end
       from (values ${v}) v(id, statut, rendu) where s.id = v.id and s.statut = 'a_lire'`).catch((e) => console.error("écriture", e.message));
   };
-  let i = 0;
+  let i = 0, recharge = null;
   const travail = async () => {
-    while (i < rows.length && Date.now() < FIN) {
+    while (Date.now() < FIN) {
+      if (i >= rows.length) {
+        if (!recharge) recharge = encore().then((n) => { rows = rows.concat(n); recharge = null; return n.length; });
+        if (!(await recharge) && i >= rows.length) break;
+        continue;
+      }
       const r = rows[i++];
       let statut = "vu", rendu = null;
       if (!(await interdit(r.domaine))) {
@@ -86,7 +110,7 @@ const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").
         await p.close().catch(() => {});
       }
       res[statut]++;
-      lot.push({ id: r.id, statut, rendu });
+      lot.push({ id: r.id, domaine: r.domaine, statut, rendu });
       if (lot.length >= 25) await vider();
     }
   };

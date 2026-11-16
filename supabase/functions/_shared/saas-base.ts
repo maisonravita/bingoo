@@ -225,7 +225,11 @@ export async function saasDecouvertesLire(maxMs = 50_000, part = 0, parts = 1) {
   const t0 = Date.now();
   // Plusieurs lecteurs en parallèle (part 0..parts-1) : chacun prend sa tranche de la même liste, sans doublon
   parts = Math.max(1, Math.min(8, parts | 0)); part = Math.max(0, Math.min(parts - 1, part | 0));
-  const { data: tout } = await admin.from("saas").select("id, essais").eq("statut", "a_lire").is("succes", null).lt("essais", 3).order("created_at", { ascending: false }).limit(15 * parts);
+  // D'abord les fiches dont l'accueil a été affiché par le navigateur (texte gardé en attendant la lecture)
+  const { data: rendus } = await admin.from("saas").select("id, essais").eq("statut", "a_lire").not("accueil_rendu", "is", null).lt("essais", 3).order("accueil_rendu_at", { ascending: true }).limit(15 * parts);
+  const { data: autres } = (rendus?.length ?? 0) >= 15 * parts ? { data: [] } : await admin.from("saas").select("id, essais").eq("statut", "a_lire").is("succes", null).lt("essais", 3).order("created_at", { ascending: false }).limit(15 * parts);
+  const vus = new Set((rendus ?? []).map((x) => x.id));
+  const tout = [...(rendus ?? []), ...(autres ?? []).filter((x) => !vus.has(x.id))];
   const data = (tout ?? []).slice(part * 15, part * 15 + 15);
   const out = { lus: 0, ok: 0, pas_saas: 0, autres: 0 };
   const ids = (data ?? []).map((x) => x.id);

@@ -16,5 +16,5 @@ jobs:
         with: { node-version: 20 }
       - run: npm i --no-save playwright@1.48.2 && npx playwright install --with-deps chromium
       - name: Accueils affichés par un vrai navigateur
-        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}", PART: "${{ matrix.part }}", PARTS: "10", MAX: "6000", PAR: "6", MINUTES: "290" }
+        env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}", PART: "${{ matrix.part }}", PARTS: "10", MAX: "40000", PAR: "6", MINUTES: "290" }
         run: node scripts/explorer/rendu.cjs
