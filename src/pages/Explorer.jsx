@@ -2943,8 +2943,8 @@ export function TrouveTonSaas() {
         <div>
           <div className="text-center">
             <div>
-              <h1 className="text-[32px] sm:text-[44px] font-black leading-tight tracking-tight" style={HF}>{debloque ? "Tes 3 SaaS en tendance" : ap?.n ? `${Number(ap.n).toLocaleString("fr-FR")} SaaS${r.secteurs?.length === 1 ? ` ${r.secteurs[0].split(" ")[0].toLowerCase()}` : ""} gagnent déjà de l'argent` : "Tes SaaS à succès"}</h1>
-              <p className="mx-auto mt-2 max-w-2xl text-[15px] text-ink-soft">{debloque ? "Ils encaissent déjà, vérifié chez leur outil de paiement, leur revenu monte en ce moment, et ils trouvent leurs clients comme tu veux le faire." : "Ils encaissent déjà, vérifié chez leur outil de paiement, et ils trouvent leurs clients comme tu veux le faire. Choisis celui que tu veux lancer."}</p>
+              <h1 className="text-[32px] sm:text-[44px] font-black leading-tight tracking-tight" style={HF}>{debloque ? ((res ?? []).slice(0, 3).every((x) => Number(x.croissance) > 0) ? "Tes 3 SaaS en tendance" : "Tes 3 SaaS") : ap?.n ? `${Number(ap.n).toLocaleString("fr-FR")} SaaS${r.secteurs?.length === 1 ? ` ${r.secteurs[0].split(" ")[0].toLowerCase()}` : ""} gagnent déjà de l'argent` : "Tes SaaS à succès"}</h1>
+              <p className="mx-auto mt-2 max-w-2xl text-[15px] text-ink-soft">{debloque ? `Ils encaissent déjà, vérifié chez leur outil de paiement${(res ?? []).slice(0, 3).every((x) => Number(x.croissance) > 0) ? ", leur revenu monte en ce moment," : ","} et ils trouvent leurs clients comme tu veux le faire.` : "Ils encaissent déjà, vérifié chez leur outil de paiement, et ils trouvent leurs clients comme tu veux le faire. Choisis celui que tu veux lancer."}</p>
             </div>
           </div>
           {resume.length > 0 && <div className="mt-4 flex flex-wrap justify-center gap-1.5">{resume.map((x) => <span key={x} className="rounded-full bg-white border border-line px-3 py-1 text-[12.5px] text-ink-soft">{x}</span>)}<button onClick={() => setR({ ...r, etape: 0 })} className="rounded-full px-3 py-1 text-[12.5px] font-semibold text-accent-dark hover:underline">Changer mes réponses</button></div>}
@@ -3636,7 +3636,7 @@ function CommentIlSeFaitConnaitre({ s }) {
   const tuiles = [
     ["Trafic", s.visiteurs ? `${milliers(Number(s.visiteurs))} visites par mois` : "Non publié", s.visiteurs && s.mrr ? `soit ${String(Math.round((s.mrr / s.visiteurs) * 100) / 100).replace(".", ",")} $ de revenu par visite` : ""],
     ["Visibilité sur Google", s.autorite != null ? `Autorité ${Math.round(s.autorite)}/100` : "Non mesurée", s.autorite != null ? (s.autorite < 20 ? "Faible : la place est à prendre sur Google" : s.autorite < 45 ? "Moyenne : battable avec du contenu régulier" : "Forte : difficile à dépasser sur Google") : ""],
-    ["Pub payante", s.pubs_actives ? `${s.pubs_actives} pubs Meta actives` : pub.length ? pub.map(nomCanal).join(", ") : "Aucune déclarée", pub.length || s.pubs_actives ? "Il paie pour se montrer : regarde ses pubs pour t'en inspirer" : "Il grandit sans pub : tu peux faire pareil"],
+    ["Pub payante", s.pubs_actives ? `${s.pubs_actives} pubs Meta actives` : pub.length ? pub.map(nomCanal).join(", ") : "Aucune déclarée", pub.length || s.pubs_actives ? "Il paie pour se montrer : regarde ses pubs pour t'en inspirer" : Number(s.croissance ?? s.crois) > 0 ? "Il grandit sans pub : tu peux faire pareil" : "Pas de pub repérée chez lui"],
     ["Ce qui marche sans payer", orga.length ? orga.slice(0, 4).map(nomCanal).join(", ") : "Non précisé", orga.length ? "Déclaré par le fondateur" : ""],
   ];
   return (

@@ -1,3 +1,14 @@
+// « depuis l'Allemagne », « depuis les États-Unis », « depuis la France », « depuis Singapour »
+const SANS_ARTICLE = /^(Singapour|Malte|Chypre|Monaco|Hong Kong|Taïwan|Israël|Cuba|Madagascar|Maurice)$/;
+const PLURIEL = /^(États-Unis|Émirats arabes unis|Pays-Bas|Philippines|Seychelles)$/;
+const MASC = /^(Canada|Royaume-Uni|Japon|Brésil|Mexique|Portugal|Danemark|Luxembourg|Maroc|Sénégal|Nigeria|Kenya|Pakistan|Vietnam|Chili|Pérou|Liban|Qatar|Koweït|Bangladesh|Népal|Cameroun|Ghana|Gabon|Togo|Bénin|Niger|Mali|Burkina Faso|Tchad|Rwanda|Zimbabwe|Venezuela|Paraguay|Uruguay|Panama|Costa Rica|Guatemala|Honduras|Salvador|Nicaragua|Groenland|Kazakhstan|Kirghizistan|Ouzbékistan|Tadjikistan|Turkménistan|Monténégro|Kosovo|Liechtenstein|Sri Lanka|Cambodge|Laos|Myanmar|Yémen|Oman|Bahreïn|Soudan|Mozambique|Malawi|Botswana|Lesotho|Swaziland|Zimbabwe)$/;
+export function depuisPays(n) {
+  if (SANS_ARTICLE.test(n)) return n;
+  if (PLURIEL.test(n)) return `les ${n}`;
+  if (/^[AEIOUYÉÈÊÂÎÔ]/i.test(n)) return `l'${n}`;
+  if (MASC.test(n)) return `le ${n}`;
+  return `la ${n}`;
+}
 // L'angle de « ta version » : choisi par Bingoo! sans IA, à partir des vraies données du SaaS et des réponses.
 // Puis les 10 premiers clients : où les trouver et quoi leur dire, selon cet angle et ce que la personne refuse de faire.
 import { nomCanal } from "./plan30";
@@ -27,7 +38,7 @@ export function angleDe(s, r, force) {
   }
   if (type === "france") {
     const ou = nomPays(s.pays);
-    return { type, court: "en français", titre: `${s.nom}, version française`, phrase: `${chiffre}${ou ? ` depuis ${ou}` : ""}${s.sans_fr ? ", et Bingoo! n'a repéré aucun équivalent français" : ""}. Ta version : la même chose, en français, pour les clients français, avec un support en français et des prix en euros.`, brief: "Version française : tout en français, pour les clients français (TVA, euros, RGPD, support en français), prix adapté au marché français." };
+    return { type, court: "en français", titre: `${s.nom}, version française`, phrase: `${chiffre}${ou ? ` depuis ${depuisPays(ou)}` : ""}${s.sans_fr ? ", et Bingoo! n'a repéré aucun équivalent français" : ""}. Ta version : la même chose, en français, pour les clients français, avec un support en français et des prix en euros.`, brief: "Version française : tout en français, pour les clients français (TVA, euros, RGPD, support en français), prix adapté au marché français." };
   }
   return { type: "simple", court: "plus simple et moins cher", titre: `${s.nom}, en plus simple`, phrase: `${chiffre}. Ta version : l'essentiel de ce qu'il fait, plus simple à prendre en main et moins cher, pour les indépendants et les petites structures.`, brief: "Version plus simple : seulement le cœur du produit, prise en main en 5 minutes, prix plus bas, pour les indépendants et petites structures." };
 }
