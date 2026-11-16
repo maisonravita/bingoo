@@ -285,6 +285,16 @@ export async function iaSolde(): Promise<{ credit: number; depense: number; rest
   const depense = (u ?? []).reduce((a: number, r: { cost_eur: number | null }) => a + Number(r.cost_eur ?? 0), 0) * 1.15;
   return { credit, depense: Math.round(depense * 100) / 100, restant: Math.round((credit - depense) * 100) / 100, reserve: Number(v("ia_reserve_eur") ?? 3) };
 }
+/** Prévient Jean par e-mail (adresse dans app_secrets « ia_alerte_email »). Ne bloque jamais l'appelant. */
+export async function alerteJean(sujet: string, texte: string) {
+  try {
+    const { data: to } = await admin.from("app_secrets").select("value").eq("name", "ia_alerte_email").maybeSingle();
+    const key = env("RESEND_API_KEY"), dom = PLATFORM_DOMAIN();
+    if (!to?.value || !key || !dom) return;
+    await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: JSON.stringify({ from: `Bingoo! <alertes@${dom}>`, to: [to.value], subject: sujet, text: texte }) });
+  } catch (_) { /* une alerte ratée ne doit rien casser */ }
+}
 async function alerteSolde(niveau: string, restant: number) {
   const nom = `ia_alerte_${niveau}`;
   const { data: deja } = await admin.from("app_secrets").select("value").eq("name", nom).maybeSingle();
@@ -294,16 +304,19 @@ async function alerteSolde(niveau: string, restant: number) {
   const { data: to } = await admin.from("app_secrets").select("value").eq("name", "ia_alerte_email").maybeSingle();
   const key = env("RESEND_API_KEY"), dom = PLATFORM_DOMAIN();
   if (!to?.value || !key || !dom) return;
-  const texte = niveau === "stop"
+  const texte = niveau === "bas"
+    ? `Il reste environ ${restant.toFixed(2)} € de crédit IA, soit à peu près une construction de SaaS. Recharge le compte Anthropic dès le prochain abonnement encaissé, puis dis-le à Claude pour mettre le compteur à jour.`
+    : niveau === "stop"
     ? `Le crédit IA de Bingoo! est presque vide (${restant.toFixed(2)} € restants) : toute l'IA est en pause pour ne pas atteindre zéro. Recharge le compte Anthropic, puis dis-le à Claude pour relancer.`
     : `Il reste ${restant.toFixed(2)} € de crédit IA : les tâches de fond (lecture et classement des SaaS) sont en pause, seules les demandes des utilisateurs passent encore.`;
   await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${key}`, "content-type": "application/json" },
-    body: JSON.stringify({ from: `Bingoo! <alertes@${dom}>`, to: [to.value], subject: niveau === "stop" ? "Bingoo! : crédit IA presque vide, IA en pause" : "Bingoo! : crédit IA bas, tâches de fond en pause", text: texte }) }).catch(() => null);
+    body: JSON.stringify({ from: `Bingoo! <alertes@${dom}>`, to: [to.value], subject: niveau === "bas" ? "Bingoo! : moins d'1 € de crédit IA, pense à recharger" : niveau === "stop" ? "Bingoo! : crédit IA presque vide, IA en pause" : "Bingoo! : crédit IA bas, tâches de fond en pause", text: texte }) }).catch(() => null);
 }
 async function gardeCredit(live: boolean) {
   if (Date.now() - soldeCache.at > 30000) soldeCache = { at: Date.now(), restant: (await iaSolde().catch(() => null))?.restant ?? null };
   const r = soldeCache.restant;
   if (r == null) return;
+  if (r <= 1 && r > 0.5) await alerteSolde("bas", r);
   if (r <= 0.5) { await alerteSolde("stop", r); throw new HttpError(503, "Bingoo! fait une courte pause de maintenance sur l'IA. Réessaie un peu plus tard."); }
   const { data } = await admin.from("app_secrets").select("value").eq("name", "ia_reserve_eur").maybeSingle();
   const reserve = Number(data?.value ?? 3);

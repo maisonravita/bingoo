@@ -195,7 +195,7 @@ export default function Landing() {
             <ol className="relative mt-12 space-y-16 lg:pl-16">
               <span className="fx-rail hidden lg:block" aria-hidden><span id="fx-rail" style={{ transform: "scaleY(0)" }} /></span>
               {[
-                ["Réponds à quelques questions", "Ton continent, le revenu que tu espères, ton temps, ton budget, comment tu veux trouver tes clients et ce que tu refuses de faire. Pendant que tu réponds, tu vois combien de SaaS vérifiés collent déjà à tes réponses.", null],
+                ["Réponds à quelques questions", "Ton continent, le revenu que tu vises, à qui tu veux vendre, ton temps, comment tu veux trouver tes clients et les secteurs qui t'attirent. Pendant que tu réponds, tu vois combien de SaaS vérifiés collent déjà à tes réponses.", null],
                 ["Tes 3 SaaS en tendance", "Des SaaS qui encaissent déjà, revenus vérifiés chez leur outil de paiement, dont le revenu monte en ce moment. Pour chacun, sa tendance, sa visibilité et ta version : en français, pour un métier, ou plus simple.", "version"],
                 ["Bingoo! construit ta version", "Ton site, les comptes de tes clients, l'abonnement avec ton Stripe, ton domaine. À ton nom, avec tes mots et ton design, en ligne en une journée.", "video"],
                 ["Ton plan pour tes 10 premiers clients", "Bingoo! trouve les établissements qui ont le problème dans ton département, te prépare le message, et t'envoie chaque matin l'étape du jour. Les trouver, c'est Bingoo! ; les convaincre, c'est toi.", "prospects"],
@@ -214,7 +214,7 @@ export default function Landing() {
                   ) : (
                     <Fenetre titre="Trouver mon SaaS"><div className="bg-[#FAF9F6] p-6 sm:p-8">
                       <div className="mb-4 flex gap-1.5" aria-hidden>{Array.from({ length: 8 }, (_, k) => <span key={k} className={cx("h-1.5 flex-1 rounded-full", k === 0 ? "bg-gradient-to-r from-accent to-[#9B6BFF]" : "bg-line")} />)}</div>
-                      <p className="text-[14px] text-ink-faint">Question 1 sur 8</p>
+                      <p className="text-[14px] text-ink-faint">Question 5 sur 6</p>
                       <p className="mt-2 text-[24px] sm:text-[30px] leading-tight text-ink" style={SERIF}>Comment te vois-tu trouver tes clients ?</p>
                       <div className="mt-5 grid sm:grid-cols-2 gap-2">{["Écrire et être trouvé sur Google", "Publier sur les réseaux", "Contacter les gens directement", "Bouche-à-oreille et affiliation"].map((x) => <span key={x} className={cx("rounded-xl border-2 px-4 py-3 text-[15px] font-semibold transition", x.startsWith("Écrire") ? "border-ink bg-ink text-white" : "border-line bg-white")}>{x}</span>)}</div>
                       <p className="mt-5 rounded-xl bg-white border border-line px-4 py-3 text-[14.5px]"><b>{demo ? Number(demo.n).toLocaleString("fr-FR") : "…"}</b> SaaS au revenu vérifié collent déjà à tes réponses. Dont <b>{demo ? Number(demo.tendance).toLocaleString("fr-FR") : "…"}</b> en tendance.</p>

@@ -1,7 +1,7 @@
 // Croissance : préchauffage, boîte mail, équipe, CRM, agenda, abonnements Stripe.
 import nodemailer from "npm:nodemailer@6.9.16";
 import { HttpError } from "./http.ts";
-import { admin, env, log, PACKS, PERIODES, PLANS, VENTE, type Prospect, type Workspace } from "./core.ts";
+import { admin, alerteJean, env, log, PACKS, PERIODES, PLANS, VENTE, type Prospect, type Workspace } from "./core.ts";
 
 const APP = (ws: Workspace) => (ws.app_url || env("APP_URL", "https://kairo.maisonravita.fr")).replace(/\/$/, "");
 const today = () => new Date().toISOString().slice(0, 10);
@@ -509,6 +509,9 @@ export async function stripeWebhook(req: Request) {
     }
     await admin.from("workspaces").update({ plan, plan_status: "active", stripe_subscription: String(o.subscription ?? ""), stripe_customer: String(o.customer ?? ""), trial_ends: null, ...(PERIODES[String(o.metadata?.periode ?? "")] ? { periode: String(o.metadata.periode) } : {}), ...(o.metadata?.fondateur === "1" ? { founder_price: true } : {}) }).eq("id", id);
     await log(id, "abonnement", `Abonnement ${PLANS[o.metadata?.plan]?.label ?? ""} activé`);
+    { const montant = Number(o.amount_total ?? 0) / 100; const { data: w } = await admin.from("workspaces").select("name").eq("id", id).maybeSingle();
+      await alerteJean(`Bingoo! : nouvel abonnement ${PLANS[o.metadata?.plan]?.label ?? ""} (${montant.toLocaleString("fr-FR")} €)`,
+        `${w?.name ?? "Un client"} vient de s'abonner à ${PLANS[o.metadata?.plan]?.label ?? "Bingoo!"} (${PERIODES[String(o.metadata?.periode ?? "")]?.label ?? "1 mois"}, ${montant.toLocaleString("fr-FR")} € encaissés).\n\nPense à recharger le crédit IA avec une partie de ce paiement pour que sa version puisse être construite, puis dis-le à Claude pour mettre le compteur à jour.`); }
   } else if (ev.type.startsWith("customer.subscription.")) {
     const status = ev.type === "customer.subscription.deleted" ? "canceled" : String(o.status ?? "active");
     const end = o.current_period_end ?? o.items?.data?.[0]?.current_period_end;
@@ -517,6 +520,7 @@ export async function stripeWebhook(req: Request) {
   } else if (ev.type === "checkout.session.async_payment_succeeded") {
     await admin.from("workspaces").update({ plan_status: "active", trial_ends: null }).eq("id", id).neq("plan", "fondateur");
     await log(id, "abonnement", "Paiement confirmé : abonnement activé");
+    await alerteJean("Bingoo! : nouvel abonnement (paiement confirmé)", "Un paiement différé vient d'être confirmé : l'abonnement est actif. Pense à recharger le crédit IA avec une partie de ce paiement, puis dis-le à Claude.");
   } else if (ev.type === "checkout.session.async_payment_failed") {
     await admin.from("workspaces").update({ plan_status: "incomplete_expired" }).eq("id", id).neq("plan", "fondateur");
     await log(id, "abonnement", "Le paiement n'a pas abouti : choisis à nouveau ta formule");
