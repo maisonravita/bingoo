@@ -1342,10 +1342,10 @@ function Lancer() {
       {!p ? (
         <div className="mt-4 rounded-3xl border border-line bg-white p-8">
           <p className="text-[13px] font-bold uppercase tracking-wide text-accent-dark">Lancer ma version</p>
-          <h1 className="mt-2 text-[32px] sm:text-[42px] font-black leading-[1.05] text-ink" style={HF}>{nomInspi} marche. Lance ta version, à ton nom.</h1>
+          <h1 className="mt-2 text-[32px] sm:text-[42px] font-black leading-[1.05] text-ink" style={HF}>{nomInspi ? `${nomInspi} marche. Lance ta version, à ton nom.` : "Lance ton SaaS, à ton nom."}</h1>
           {angleType && saas && <p className="mt-3 inline-block rounded-lg bg-accent-soft px-3 py-1.5 text-[15px] font-semibold text-accent-dark">Ta version : {angleDe(saas, { metier: angleMetier }, angleType).court}</p>}
-          <p className="mt-3 max-w-2xl text-ink-soft text-[16px]">Bingoo! construit ta version de {nomInspi} et la met en ligne : ton site, les comptes de tes clients, l'abonnement avec ton Stripe, ton domaine. D'abord, il prépare ton projet en une à deux minutes : chaque fonctionnalité et ton équivalent, tes prix face aux siens et ton plan sur 12 mois. Ensuite, un clic pour construire.</p>
-          <p className="mt-3 text-[13px] text-ink-faint">Concurrence loyale : les mêmes fonctionnalités, mais ton nom, tes mots et ton design. Reprendre la marque, les textes mot pour mot ou le design de {nomInspi} exposerait à des poursuites.</p>
+          <p className="mt-3 max-w-2xl text-ink-soft text-[16px]">Bingoo! construit {nomInspi ? `ta version de ${nomInspi}` : "ton SaaS"} et la met en ligne : ton site, les comptes de tes clients, l'abonnement avec ton Stripe, ton domaine. D'abord, il prépare ton projet en une à deux minutes : chaque fonctionnalité et ton équivalent, tes prix face aux siens et ton plan sur 12 mois. Ensuite, un clic pour construire.</p>
+          <p className="mt-3 text-[13px] text-ink-faint">Concurrence loyale : les mêmes fonctionnalités, mais ton nom, tes mots et ton design. Reprendre la marque, les textes mot pour mot ou le design {nomInspi ? `de ${nomInspi}` : "d'un concurrent"} exposerait à des poursuites.</p>
           {autre?.deja && <div className={cx("mt-5 max-w-2xl rounded-xl px-4 py-3 text-[14px]", bloque ? "bg-paper border border-line text-ink-soft" : "bg-accent-soft text-ink")}>
             <b className="text-ink">Ton abonnement comprend un SaaS, et le tien est déjà construit.</b> Un autre SaaS coûte {COUT_AUTRE} crédits, et ton premier reste en ligne.{bloque ? ` Il te manque ${COUT_AUTRE - autre.solde} crédits.` : ` Tu as ${autre.solde} crédits.`}
           </div>}
