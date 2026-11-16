@@ -23,6 +23,7 @@ export { toolsIn, toolsNamed, atsIn, careersLink, roleMatch } from "./${S}/tech-
 export { orgOf } from "./${S}/iporg.ts";
 export { slugs } from "./${S}/deep.ts";
 export { invitesToday, officeHours } from "./${S}/linkedin-auto.ts";
+export { masquer, MASQUE, PAYANT_SEUL, QUOTA_GRATUIT } from "./${S}/mcp-bingoo.ts";
 `;
 const stubs = {
   name: "stubs",
@@ -227,6 +228,21 @@ await test("LinkedIn : seulement en semaine, de 9 h à 18 h 30 heure de Paris", 
   assert.equal(T.officeHours(new Date("2026-11-10T07:30:00Z")), false);  // mardi 8 h 30
   assert.equal(T.officeHours(new Date("2026-11-10T17:45:00Z")), false);  // mardi 18 h 45
   assert.equal(T.officeHours(new Date("2026-11-14T10:00:00Z")), false);  // samedi
+});
+
+await test("Connecteur gratuit : les revenus sont masqués partout, le reste reste lisible", () => {
+  const r = T.masquer({ total: 3, saas: [{ domaine: "a.com", nom: "A", mrr: 582, croissance_30j: 13.9, encaisse_30j: 1200, canaux: ["seo"], trustmrr: { mrr: 1 } }], niches: [{ nom: "Facturation", saas: 12, revenu_median_mois: 500, croissance_mediane_30j: null }] });
+  assert.equal(r.saas[0].mrr, T.MASQUE);
+  assert.equal(r.saas[0].croissance_30j, T.MASQUE);
+  assert.equal(r.saas[0].trustmrr, T.MASQUE);
+  assert.equal(r.saas[0].nom, "A");
+  assert.deepEqual(r.saas[0].canaux, ["seo"]);
+  assert.equal(r.total, 3);
+  assert.equal(r.niches[0].saas, 12);
+  assert.equal(r.niches[0].revenu_median_mois, T.MASQUE);
+  assert.equal(r.niches[0].croissance_mediane_30j, null);
+  assert.ok(T.PAYANT_SEUL.has("classement") && T.PAYANT_SEUL.has("saas_a_vendre"));
+  assert.equal(T.QUOTA_GRATUIT, 20);
 });
 
 console.log(`\n${ok} réussi${ok > 1 ? "s" : ""}, ${ko} échec${ko > 1 ? "s" : ""}`);

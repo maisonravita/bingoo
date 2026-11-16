@@ -3795,6 +3795,9 @@ function Connecteur() {
   const base = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/t/mcp`;
   const charger = () => supabase.from("saas_api_cles").select("id, nom, debut, created_at, dernier_usage, appels, revoquee").eq("workspace_id", ws.id).order("created_at", { ascending: false }).then(({ data }) => setCles(data ?? []));
   useEffect(() => { charger(); }, [ws.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [paye, setPaye] = useState(null);
+  useEffect(() => { supabase.rpc("saas_acces").then(({ data }) => setPaye(!!data)); }, [ws.id]);
+  const nav = useNavigate();
   const { session } = useWs();
   const creer = async () => {
     if (estInvite(session)) return demanderCompte("Ton adresse de connecteur est rattachée à ton compte.");
@@ -3819,12 +3822,22 @@ function Connecteur() {
       <div className="mt-6 rounded-3xl bg-ink text-white p-6">
         <p className="text-[18px] font-bold">1. Crée ton adresse personnelle</p>
         <p className="text-[13.5px] text-white/65">Elle donne accès à Bingoo! en ton nom : ne la partage pas. Tu peux la révoquer à tout moment.</p>
+        {paye === false && (
+          <div className="mt-4 rounded-2xl bg-white/10 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="font-bold">Offre gratuite : 20 questions par mois pour essayer</p>
+              <p className="text-[13px] text-white/70">Ton IA voit les SaaS, les niches, les applis et peut valider une idée, mais les revenus, la croissance et le trafic restent masqués. Le classement et les SaaS à vendre sont réservés aux abonnés.</p>
+            </div>
+            <button onClick={() => nav("/abonnement")} className="shrink-0 rounded-xl bg-white text-ink px-4 py-2.5 font-bold">Tout débloquer</button>
+          </div>
+        )}
+        {paye && <p className="mt-3 text-[13px] text-white/70">Ton abonnement inclut 5 000 questions par mois, avec tous les chiffres.</p>}
         {nouvelle ? (
           <div className="mt-4">
             <div className="flex gap-2"><input readOnly value={nouvelle} onFocus={(e) => e.target.select()} className="flex-1 min-w-0 rounded-xl bg-white text-ink px-3 py-2.5 text-[13.5px] font-mono" /><button onClick={() => copier(nouvelle)} className="rounded-xl bg-accent px-4 py-2.5 font-semibold">Copier</button></div>
             <p className="mt-2 text-[12.5px] text-[#FDE68A]">Copie-la maintenant : Bingoo! ne la réaffichera pas.</p>
           </div>
-        ) : <button onClick={creer} disabled={busy} className="mt-4 rounded-xl bg-accent px-5 py-3 font-bold disabled:opacity-60">{busy ? "Création…" : "Créer mon adresse de connecteur"}</button>}
+        ) : <button onClick={creer} disabled={busy} className="mt-4 rounded-xl bg-accent px-5 py-3 font-bold disabled:opacity-60">{busy ? "Création…" : paye === false ? "Créer mon adresse (essai gratuit)" : "Créer mon adresse de connecteur"}</button>}
       </div>
 
       <h2 className="mt-8 text-[18px] font-bold">2. Ajoute-la à ton IA</h2>

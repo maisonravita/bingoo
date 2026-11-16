@@ -11,7 +11,8 @@ const TRIS = ["croissance", "revenu", "encaisse", "copiable", "recent"];
 const INSTRUCTIONS = `Bingoo! est une base de SaaS avec leurs revenus VÉRIFIÉS chez leur outil de paiement (Stripe, Dodo, Lemon Squeezy… via TrustMRR) : MRR, argent encaissé, croissance, abonnés, visiteurs, comment ils trouvent leurs clients, à qui ils vendent, taille de l'équipe, niches précises, SaaS à vendre.
 Pour « trouve-moi des SaaS qui scalent dans X » : appelle lister_niches si tu ne connais pas le slug de la niche, puis chercher_saas (tri « croissance », verifie=true). Donne toujours le revenu vérifié et la croissance, et le lien Bingoo! de chaque SaaS.
 « mrr » est en dollars par mois. Une croissance très forte sur un petit revenu est fragile : dis-le. Un revenu vérifié n'est pas un bénéfice : il ne dit rien des marges.
-Pour suivre un SaaS (alerte chaque lundi quand ses prix, son recrutement ou ses nouveautés bougent) : suivre_saas.`;
+Pour suivre un SaaS (alerte chaque lundi quand ses prix, son recrutement ou ses nouveautés bougent) : suivre_saas.
+Si une réponse contient « offre: gratuite », les chiffres marqués « réservé aux abonnés Bingoo! » sont masqués : ne les invente jamais, dis-le à l'utilisateur et donne-lui le lien d'abonnement.`;
 
 const outils = (niches: string[]) => [
   { name: "chercher_saas", description: "Cherche des SaaS dans Bingoo! avec des filtres. Renvoie pour chacun : revenu mensuel vérifié (mrr, en $), croissance sur 30 jours (%), argent encaissé sur 30 jours, abonnés, visiteurs, canaux d'acquisition, cible, équipe, niche, lien Bingoo!.",
@@ -53,6 +54,20 @@ const outils = (niches: string[]) => [
   { name: "mes_favoris", description: "Les SaaS et applis mobiles mis en favoris (cœur) dans le compte Bingoo!, avec leur revenu, prix, catégorie, note et lien.", inputSchema: { type: "object", properties: {} } },
   { name: "mes_suivis", description: "Les SaaS et catégories suivis par le compte Bingoo!.", inputSchema: { type: "object", properties: {} } },
 ];
+
+// Comptes gratuits : 20 questions par mois et par espace, revenus et chiffres d'affaires masqués (comme la vitrine du site).
+export const QUOTA_GRATUIT = 20;
+export const QUOTA_PAYANT = 5000;
+const ABONNEMENT = `${SITE}/#/abonnement`;
+export const MASQUE = "réservé aux abonnés Bingoo!";
+const CHIFFRES = new Set(["mrr", "mrr_declare", "mrr_min", "croissance_30j", "croissance_mrr_30j", "croissance_3_mois", "crois", "encaisse_30j", "abonnes", "visiteurs_30j", "succes", "trustmrr", "estimation", "revenu_par_jour_30j", "courbe_mensuelle", "revenu_median_mois", "revenu_cumule_mois", "croissance_mediane_30j", "avec_revenu_verifie", "prix_vente", "rang_web", "preuve", "revenu", "montant", "multiple", "copiable_raisons"]);
+export function masquer(v: any): any {
+  if (Array.isArray(v)) return v.map(masquer);
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, CHIFFRES.has(k) ? (x == null ? null : MASQUE) : masquer(x)]));
+  return v;
+}
+// Ce que l'offre gratuite ne fait pas du tout : tout le contenu est un revenu.
+export const PAYANT_SEUL = new Set(["classement", "saas_a_vendre"]);
 
 const lien = (d: string) => `${SITE}/#/explorer/${d}`;
 const nb = (v: unknown, def: number, max: number) => Math.max(1, Math.min(max, Math.round(Number(v ?? def)) || def));
@@ -143,12 +158,25 @@ export async function mcpBingoo(req: Request, admin: SupabaseClient, cleChemin: 
       if (m.method === "ping") return { jsonrpc: "2.0", id: m.id, result: {} };
       if (m.method === "tools/list") return { jsonrpc: "2.0", id: m.id, result: { tools: outils(niches) } };
       if (m.method === "tools/call") {
-        // 5 000 questions par mois et par clé (le compteur repart à zéro chaque mois)
+        // L'abonnement est vérifié à chaque question : un abonnement terminé repasse aussitôt en offre gratuite.
+        const { data: paye } = await admin.rpc("saas_cle_payante", { p_ws: k.workspace_id });
         const mois = new Date().toISOString().slice(0, 7);
         const ceMois = k.mois === mois ? (k.appels_mois ?? 0) : 0;
-        if (ceMois >= 5000) throw new Error("Limite de 5 000 questions ce mois-ci pour cette clé : elle repart le 1er du mois prochain.");
+        if (paye) {
+          if (ceMois >= QUOTA_PAYANT) throw new Error(`Limite de ${QUOTA_PAYANT} questions ce mois-ci pour cette clé : elle repart le 1er du mois prochain.`);
+        } else {
+          if (PAYANT_SEUL.has(m.params?.name)) throw new Error(`Cet outil est réservé aux abonnés Bingoo! (offre gratuite : revenus masqués). Pour tout débloquer : ${ABONNEMENT}`);
+          // quota compté sur tout l'espace, pour qu'une nouvelle clé ne remette pas le compteur à zéro
+          const { data: cles } = await admin.from("saas_api_cles").select("appels_mois, mois").eq("workspace_id", k.workspace_id);
+          const total = (cles ?? []).reduce((t: number, c: any) => t + (c.mois === mois ? c.appels_mois ?? 0 : 0), 0);
+          if (total >= QUOTA_GRATUIT) throw new Error(`Les ${QUOTA_GRATUIT} questions gratuites de ce mois sont utilisées. Elles reviennent le 1er du mois prochain, ou tout de suite avec un abonnement Bingoo! : ${ABONNEMENT}`);
+        }
         await admin.from("saas_api_cles").update({ appels: (k.appels ?? 0) + 1, appels_mois: ceMois + 1, mois, dernier_usage: new Date().toISOString() }).eq("id", k.id);
-        const r = await appeler(admin, k.workspace_id, m.params?.name, m.params?.arguments ?? {});
+        let a = m.params?.arguments ?? {};
+        // sans abonnement, pas de filtre ni de tri par revenu (ils révéleraient les chiffres masqués)
+        if (!paye && m.params?.name === "chercher_saas") { const { mrr_min: _a, mrr_max: _b, croissance_min: _c, ...reste } = a; a = { ...reste, tri: ["copiable", "recent"].includes(reste.tri) ? reste.tri : undefined }; }
+        let r = await appeler(admin, k.workspace_id, m.params?.name, a);
+        if (!paye) r = { offre: "gratuite", a_savoir: `Offre gratuite : ${QUOTA_GRATUIT} questions par mois, revenus, croissance et trafic masqués (« ${MASQUE} »). Dis-le à l'utilisateur et donne-lui ce lien pour tout voir : ${ABONNEMENT}`, ...masquer(r) };
         return { jsonrpc: "2.0", id: m.id, result: { content: [{ type: "text", text: JSON.stringify(r) }], structuredContent: r } };
       }
       if (m.method === "resources/list") return { jsonrpc: "2.0", id: m.id, result: { resources: [] } };
