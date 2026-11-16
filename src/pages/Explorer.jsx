@@ -110,13 +110,13 @@ export default function Explorer({ domaine: fixe }) {
 
 // 6 entrées. Les pages marquées « cachée » restent ouvertes par lien mais ne s'affichent pas dans les sous-onglets
 const RUBRIQUES = [
-  ["Trouver mon SaaS", [["trouver", "Trouver mon SaaS", "/explorer/trouver"]]],
-  ["À lancer", [["copier", "À lancer", "/explorer/copier"], ["chiffres", "Chiffres d'un SaaS", "/explorer/chiffres"]]],
+  ["Explorer les SaaS", [["liste", "Tous les SaaS", "/explorer"], ["trouver", "Trouver mon SaaS", "/explorer/trouver"], ["copier", "À lancer", "/explorer/copier"], ["niches", "Par niche", "/explorer/niches"], ["classement", "Classement", "/explorer/classement"], ["marche", "Ce qui monte", "/explorer/marche"],
+    ["chiffres", "Chiffres d'un SaaS", "/explorer/chiffres", true], ["carte", "L'archipel", "/explorer/carte", true], ["idees", "Idées et réussites", "/explorer/idees", true], ["pubs", "Pubs et e-mails", "/explorer/pubs", true], ["suivis", "Mes suivis", "/explorer/suivis", true], ["bouge", "Ce qui a bougé", "/explorer/bouge", true], ["createurs", "Mes SaaS", "/explorer/createurs", true]]],
+  ["Applis mobiles", [["applis", "Applis mobiles", "/explorer/applis"]]],
+  ["Valider une idée", [["valider", "Valider une idée", "/explorer/valider"]]],
+  ["Mes favoris", [["favoris", "Mes favoris", "/explorer/favoris"]]],
   ["Demande à Bingoo!", [["demande", "Demande à Bingoo!", "/explorer/demande"], ["connecteur", "Dans Claude ou ChatGPT", "/explorer/connecteur"]]],
-  ["Mes SaaS", [["createurs", "Mes SaaS", "/explorer/createurs"]]],
   ["Acheter / vendre", [["vendre", "À vendre", "/explorer/vendre"], ["bourse", "Construits sur Bingoo!", "/explorer/bourse", true], ["racheter", "SaaS qui s'endorment", "/explorer/racheter", true]]],
-  ["Explorer les SaaS", [["liste", "Tous les SaaS", "/explorer"], ["niches", "Par niche", "/explorer/niches"], ["classement", "Classement", "/explorer/classement"], ["marche", "Ce qui monte", "/explorer/marche"], ["applis", "Applis mobiles", "/explorer/applis"], ["valider", "Valider une idée", "/explorer/valider"], ["favoris", "Mes favoris", "/explorer/favoris"],
-    ["carte", "L'archipel", "/explorer/carte", true], ["idees", "Idées et réussites", "/explorer/idees", true], ["pubs", "Pubs et e-mails", "/explorer/pubs", true], ["suivis", "Mes suivis", "/explorer/suivis", true], ["bouge", "Ce qui a bougé", "/explorer/bouge", true]]],
 ];
 // Pages qui dépendent de contenus encore rares : cachées tant qu'elles sont vides (sauf si on y est)
 let VIDES = null;
@@ -127,7 +127,7 @@ function Onglets({ actif, trouver }) {
   useEffect(() => { chargerVides().then(setVides); }, []);
   const { session: sess0, ws: ws0 } = useWs();
   const libre = !estInvite(sess0) && !estPaye(ws0);
-  const RUBS = libre ? RUBRIQUES.filter(([l]) => ["Trouver mon SaaS", "Explorer les SaaS"].includes(l)).map(([l, pages]) => [l, l === "Explorer les SaaS" ? pages.filter(([k]) => ["liste", "niches", "classement", "marche", "applis", "valider", "favoris"].includes(k)) : pages]) : RUBRIQUES;
+  const RUBS = libre ? RUBRIQUES.filter(([l]) => ["Explorer les SaaS", "Applis mobiles", "Valider une idée", "Mes favoris"].includes(l)).map(([l, pages]) => [l, l === "Explorer les SaaS" ? pages.filter(([k]) => ["liste", "trouver", "niches", "classement", "marche"].includes(k)) : pages]) : RUBRIQUES;
   const rub = RUBS.find(([, pages]) => pages.some(([k]) => k === actif)) ?? RUBS[0];
   const [guide, setGuide] = useState(guideActif);
   const [etape, setEtape] = useState(1);

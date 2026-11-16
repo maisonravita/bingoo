@@ -49,6 +49,11 @@ export default function MonSaas({ page }) {
       {page === "mon-saas" && <Accueil m={m} charger={charger} />}
       {page === "clients" && <Clients m={m} />}
       {page === "methodes" && <CeQuiMarche m={m} />}
+      {["tiktok", "video"].includes(page) && (
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-5 flex gap-4 text-[14px]">
+          {[["video", "Vidéo pub", "/explorer/video"], ["tiktok", "TikTok", "/explorer/tiktok"]].map(([k, l, to]) => <button key={k} onClick={() => nav(to)} className={k === page ? "border-b-2 border-accent pb-1 font-semibold" : "border-b-2 border-transparent pb-1 text-ink-soft hover:text-ink"}>{l}</button>)}
+        </div>
+      )}
       {page === "tiktok" && <TikTok m={m} />}
       {page === "video" && <Video m={m} />}
       {page === "reglages-saas" && <Reglages m={m} charger={charger} />}

@@ -11,6 +11,9 @@ import Feedback from "./Feedback";
 
 const ICONS = {
   today: <path d="M4 12h3l3-7 4 14 3-7h3" />,
+  phone: <><rect x="6.5" y="3" width="11" height="18" rx="2.5" /><path d="M11 17.5h2" /></>,
+  heart: <path d="M12 20s-7-4.4-8.7-8.7C2.1 8.1 4.2 5 7.3 5c1.9 0 3.4 1 4.7 2.8C13.3 6 14.8 5 16.7 5c3.1 0 5.2 3.1 4 6.3C19 15.6 12 20 12 20z" />,
+  shield: <><path d="M12 3 5 6v5.5c0 4.2 2.9 7.6 7 9.5 4.1-1.9 7-5.3 7-9.5V6z" /><path d="m9 12 2 2 4-4" /></>,
   check: <><rect x="3.5" y="5" width="17" height="14" rx="2.5" /><path d="m4 7 8 6 8-6" /></>,
   inbox: <><path d="M3.5 13.5 6 5h12l2.5 8.5V19H3.5z" /><path d="M3.5 13.5H9l1 2h4l1-2h5.5" /></>,
   list: <><path d="M8 6h12M8 12h12M8 18h12" /><circle cx="4" cy="6" r="1" /><circle cx="4" cy="12" r="1" /><circle cx="4" cy="18" r="1" /></>,
@@ -86,7 +89,7 @@ function Anneau({ pct, lettre, size = 42 }) {
     </span>
   );
 }
-function MenuCompte({ ws, list, select, credits, invite, onAvis, onClose }) {
+function MenuCompte({ ws, list, select, credits, invite, isAdmin, onAvis, onClose }) {
   const ref = useRef(null);
   useEffect(() => {
     const h = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
@@ -115,7 +118,8 @@ function MenuCompte({ ws, list, select, credits, invite, onAvis, onClose }) {
         <p className="text-[13px] text-ink-soft">{invite ? "Sans compte" : `Formule ${FORMULE[ws.plan] ?? ws.plan}${ws.plan === "explorer_pro" && ws.periode ? ` · ${DUREE_F[ws.periode] ?? ""}` : ""}`}</p>
       </div>
       <div className="mt-1.5 py-1">
-        {!invite && <><L to="/reglages">Paramètres</L><L to="/abonnement">Abonnement</L><L to="/abonnement#credits">Acheter des crédits</L></>}
+        {!invite && <><L to="/explorer/reglages-saas">Réglages du SaaS</L><L to="/reglages">Paramètres</L><L to="/abonnement">Abonnement</L><L to="/abonnement#credits">Acheter des crédits</L>
+          {["business", "fondateur"].includes(ws.plan) && <L to="/equipe">Équipe</L>}{isAdmin && <L to="/admin">Administration</L>}</>}
         <label className="flex items-center justify-between gap-3 rounded-lg px-3 py-1.5 text-[14.5px] hover:bg-paper">Langue
           <select aria-label="Langue du site" value={langueActuelle()} onChange={(e) => choisirLangue(e.target.value)} className="rounded-md border border-line bg-white px-2 py-1 text-[13px]">{LANGUES.map(([code, nom]) => <option key={code} value={code}>{nom}</option>)}</select>
         </label>
@@ -135,7 +139,7 @@ function MenuCompte({ ws, list, select, credits, invite, onAvis, onClose }) {
 }
 
 // L'interface après paiement, dans l'esprit de l'administration Shopify : barre noire en haut, menu gris clair, fond gris doux, cartes blanches.
-function AppShell({ ws, list, select, invite, sections, bas, bandeau, extra, menuMobile, onAvis, children }) {
+function AppShell({ ws, list, select, invite, sections, bas, bandeau, extra, menuMobile, onAvis, children , isAdmin }) {
   const loc = useLocation();
   const nav = useNavigate();
   const credits = useCredits(ws, invite);
@@ -188,7 +192,7 @@ function AppShell({ ws, list, select, invite, sections, bas, bandeau, extra, men
                 <span className="grid h-7 w-7 place-items-center rounded-md text-[12.5px] font-black text-white" style={{ background: couleur }}>{nomSaas.trim().charAt(0).toUpperCase()}</span>
                 <span className="hidden max-w-[160px] truncate text-[13px] font-semibold lg:block">{nomSaas}</span>
               </button>
-              {compte && <div className="text-ink"><MenuCompte ws={ws} list={list} select={select} credits={credits} invite={invite} onAvis={onAvis} onClose={() => setCompte(false)} /></div>}
+              {compte && <div className="text-ink"><MenuCompte ws={ws} list={list} select={select} credits={credits} invite={invite} isAdmin={isAdmin} onAvis={onAvis} onClose={() => setCompte(false)} /></div>}
             </div>
           )}
         </div>
@@ -217,7 +221,7 @@ function AppShell({ ws, list, select, invite, sections, bas, bandeau, extra, men
             <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-[#EBEBEB]"><div className="h-full rounded-full bg-[#1A1A1A] transition-all duration-700" style={{ width: `${pct ?? 0}%` }} /></div>
           </NavLink>
         )}
-        <div className="flex flex-col gap-px border-t border-[#D4D4D4] pt-2">{bas.map(lien)}</div>
+        {bas.length > 0 && <div className="flex flex-col gap-px border-t border-[#D4D4D4] pt-2">{bas.map(lien)}</div>}
       </aside>
 
       <div className={cx("md:pt-14 transition-[padding] duration-200", replie ? "md:pl-[64px]" : "md:pl-[240px]")}>
@@ -229,36 +233,28 @@ function AppShell({ ws, list, select, invite, sections, bas, bandeau, extra, men
   );
 }
 
-// Les rubriques : son SaaS d'abord, puis découvrir, puis le compte
-function rubriques(ws, invite, isAdmin) {
-  const decouvrir = [
-    { to: "/explorer/trouver", label: "Trouver mon SaaS", icon: "target" },
-    { to: "/explorer/copier", label: "À lancer", icon: "flag", also: ["/explorer/chiffres"] },
-    { to: "/explorer/demande", label: "Demande à Bingoo!", icon: "spark", also: ["/explorer/connecteur"] },
+// Les rubriques : son SaaS d'abord, puis trouver une idée. Le compte (crédits, abonnement, paramètres, aide) est dans le menu du nom, en haut.
+function rubriques(ws, invite) {
+  const trouver = [
+    { to: "/explorer", label: "Explorer les SaaS", icon: "list", also: ["/explorer/trouver", "/explorer/copier", "/explorer/chiffres", "/explorer/niches", "/explorer/classement", "/explorer/marche", "/explorer/carte", "/explorer/idees", "/explorer/pubs", "/explorer/suivis", "/explorer/bouge", "/explorer/createurs", "/explorer/demande", "/explorer/connecteur"] },
+    { to: "/explorer/applis", label: "Applis mobiles", icon: "phone" },
+    { to: "/explorer/valider", label: "Valider une idée", icon: "shield" },
     { to: "/explorer/vendre", label: "Acheter / vendre", icon: "doc", also: ["/explorer/bourse", "/explorer/racheter"] },
-    { to: "/explorer", label: "Explorer les SaaS", icon: "list", also: ["/explorer/niches", "/explorer/classement", "/explorer/marche", "/explorer/carte", "/explorer/idees", "/explorer/pubs", "/explorer/suivis", "/explorer/bouge", "/explorer/createurs"] },
+    { to: "/explorer/favoris", label: "Mes favoris", icon: "heart" },
   ];
-  if (invite) return { sections: [{ items: decouvrir.slice(0, 1) }], bas: [{ to: "/aide", label: "Aide", icon: "help" }] };
+  if (invite) return { sections: [{ items: [{ to: "/explorer/trouver", label: "Trouver mon SaaS", icon: "target" }] }], bas: [] };
   return {
     sections: [
-      { items: [
-        { to: "/explorer/mon-saas", label: "Accueil", icon: "today" },
+      { titre: "Mon SaaS", items: [
+        { to: "/explorer/mon-saas", label: "Accueil", icon: "today", also: ["/explorer/reglages-saas"] },
         { to: "/explorer/atelier", label: "Atelier", icon: "chat" },
-        { to: "/explorer/clients", label: "Premiers clients", icon: "users" },
-        { to: "/explorer/methodes", label: "Ce qui marche", icon: "funnel" },
-        { to: "/explorer/tiktok", label: "TikTok", icon: "tiktok" },
-        { to: "/explorer/video", label: "Vidéo pub", icon: "video" },
+        { to: "/explorer/clients", label: "Premiers clients", icon: "users", also: ["/explorer/methodes"] },
+        { to: "/explorer/video", label: "Vidéo pub et TikTok", icon: "video", also: ["/explorer/tiktok"] },
         { to: "/explorer/dossier", label: "Mon dossier", icon: "doc", also: ["/explorer/lancer"] },
       ] },
-      { titre: "Découvrir", items: decouvrir },
-      { titre: "Compte", items: [
-        { to: "/abonnement#credits", label: "Crédits", icon: "coins" },
-        { to: "/abonnement", label: "Abonnement", icon: "card" },
-        ...(["business", "fondateur"].includes(ws.plan) ? [{ to: "/equipe", label: "Équipe", icon: "users" }] : []),
-        ...(isAdmin ? [{ to: "/admin", label: "Administration", icon: "chart" }] : []),
-      ] },
+      { titre: "Trouver", items: trouver },
     ],
-    bas: [{ to: "/explorer/reglages-saas", label: "Réglages du SaaS", icon: "cog" }, { to: "/reglages", label: "Paramètres", icon: "user" }, { to: "/aide", label: "Aide", icon: "help" }],
+    bas: [],
   };
 }
 
@@ -282,7 +278,7 @@ export default function Layout({ children }) {
   }, [ws.id]);
   useEffect(() => setMore(false), [loc.pathname]);
   useEffect(() => { supabase.rpc("is_admin").then(({ data }) => setIsAdmin(!!data)); }, []);
-  const { sections, bas } = rubriques(ws, invite, isAdmin);
+  const { sections, bas } = rubriques(ws, invite);
   const isOn = (n) => loc.pathname === n.to.split("#")[0] || (n.also ?? []).includes(loc.pathname);
 
   // Téléphone : un bouton « 3 traits » qui ouvre le menu (mêmes rubriques que sur ordinateur)
@@ -385,7 +381,7 @@ export default function Layout({ children }) {
           <nav className="ml-4 hidden md:flex items-center gap-1 text-[14px] font-medium">
             <NavLink to="/explorer/trouver" className={({ isActive }) => cx("rounded-xl px-3 py-2", isActive ? "text-ink" : "text-ink-soft hover:text-ink")}>Trouver mon SaaS</NavLink>
             {invite ? <button onClick={() => demanderCompte("Crée ton compte gratuit pour explorer les SaaS qui marchent.")} className="rounded-xl px-3 py-2 text-ink-soft hover:text-ink">Explorer les SaaS</button>
-              : <NavLink to="/explorer" end className={({ isActive }) => cx("rounded-xl px-3 py-2", isActive ? "text-ink" : "text-ink-soft hover:text-ink")}>Explorer les SaaS</NavLink>}
+              : <>{[["/explorer", "Explorer les SaaS"], ["/explorer/applis", "Applis mobiles"], ["/explorer/valider", "Valider une idée"], ["/explorer/favoris", "Mes favoris"]].map(([to, l]) => <NavLink key={to} to={to} end className={({ isActive }) => cx("rounded-xl px-3 py-2", isActive ? "text-ink" : "text-ink-soft hover:text-ink")}>{l}</NavLink>)}</>}
           </nav>
           <div className="flex-1" />
           <NavLink to="/aide" className="hidden sm:block rounded-xl px-3 py-2 text-[14px] font-medium text-ink-soft hover:text-ink">Aide</NavLink>
@@ -404,7 +400,7 @@ export default function Layout({ children }) {
   );
   return (
     <>
-      <AppShell ws={ws} list={list} select={select} invite={invite} sections={sections} bas={bas} bandeau={bandeau} extra={extra} menuMobile={menu} onAvis={() => setFb(true)}>
+      <AppShell ws={ws} list={list} select={select} invite={invite} isAdmin={isAdmin} sections={sections} bas={bas} bandeau={bandeau} extra={extra} menuMobile={menu} onAvis={() => setFb(true)}>
         {children}
       </AppShell>
       {basMobile}
