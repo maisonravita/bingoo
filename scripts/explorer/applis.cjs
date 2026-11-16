@@ -20,10 +20,11 @@ const dormir = (ms) => new Promise((ok) => setTimeout(ok, ms));
 // Arrêt automatique : base gratuite Supabase limitée à 500 Mo (arrêt à 470 Mo) et objectif de 80 000 SaaS et applis (PLAFOND)
 let pleine = false, vuTaille = 0;
 async function basePleine() {
-  if (pleine || Date.now() - vuTaille < 120_000) return pleine;
+  if (pleine || Date.now() - vuTaille < 600_000) return pleine;
   vuTaille = Date.now();
-  const r = await q(`select pg_database_size(current_database()) / 1048576 as mo,
-    (select count(*) from public.saas where statut = 'ok') + (select count(*) from public.saas_mobiles) as total`).catch(() => null);
+  // Mesure légère (estimations de Postgres, pas de comptage complet) : la base gratuite reste rapide pour les utilisateurs
+  const r = await q(`select (select sum(pg_total_relation_size(oid)) from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r') / 1048576 + 60 as mo,
+    (select count(*) from public.saas where statut = 'ok') + (select reltuples::int from pg_class where oid = 'public.saas_mobiles'::regclass) as total`).catch(() => null);
   const plafond = Number(process.env.PLAFOND || 80000);
   if (r?.[0]?.mo > 470) { pleine = true; console.log("Base presque pleine (", r[0].mo, "Mo) : collecte arrêtée"); }
   if (process.env.ETAPE !== "captures" && r?.[0]?.total >= plafond) { pleine = true; console.log("Objectif atteint (", r[0].total, "SaaS et applis) : collecte arrêtée"); }
