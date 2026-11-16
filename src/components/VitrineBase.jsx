@@ -35,19 +35,21 @@ export function Badge({ children, sombre = false }) {
 
 // Courbe de revenu en SVG, avec aire dégradée
 function Courbe({ valeurs, hauteur = 220, id = "c", etiquettes = true }) {
-  const w = 600, h = hauteur, pb = etiquettes ? 26 : 4, pt = 10;
+  const w = 600, h = hauteur, pb = 4, pt = 10;
   const max = Math.max(...valeurs, 1);
   const pts = valeurs.map((v, i) => [valeurs.length === 1 ? w / 2 : (i / (valeurs.length - 1)) * w, pt + (1 - v / max) * (h - pb - pt)]);
   const ligne = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
   const mois = moisDe(valeurs.length);
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="block w-full" preserveAspectRatio="none" style={{ height: hauteur }} aria-hidden>
+    <div>
+    <svg viewBox={`0 0 ${w} ${h}`} className="block w-full" preserveAspectRatio="none" style={{ height: hauteur - pb + 4 }} aria-hidden>
       <defs><linearGradient id={`g-${id}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#E0531F" stopOpacity=".28" /><stop offset="1" stopColor="#E0531F" stopOpacity="0" /></linearGradient></defs>
       {[0.25, 0.5, 0.75].map((y) => <line key={y} x1="0" x2={w} y1={pt + y * (h - pb - pt)} y2={pt + y * (h - pb - pt)} stroke="#000" strokeOpacity=".06" strokeDasharray="4 6" />)}
       <path d={`${ligne} L${w},${h - pb} L0,${h - pb} Z`} fill={`url(#g-${id})`} />
       <path d={ligne} fill="none" stroke="#E0531F" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      {etiquettes && mois.map((m, i) => (i % Math.ceil(mois.length / 6) === 0 || i === mois.length - 1) && <text key={i} x={pts[i][0]} y={h - 6} fontSize="13" fill="#8A8FA3" textAnchor={i === 0 ? "start" : i === mois.length - 1 ? "end" : "middle"}>{m}</text>)}
     </svg>
+    {etiquettes && <div className="mt-1.5 flex justify-between text-[12px] text-ink-faint" aria-hidden>{mois.map((m, i) => (i % Math.ceil(mois.length / 6) === 0 || i === mois.length - 1) && <span key={i}>{m}</span>)}</div>}
+    </div>
   );
 }
 
