@@ -18,13 +18,16 @@ async function q(sql, n = 0) {
   if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
   return r.json();
 }
-// Base gratuite Supabase limitée à 500 Mo : la collecte s'arrête d'elle-même au-delà de 470 Mo
+// Arrêt automatique : base gratuite Supabase limitée à 500 Mo (arrêt à 470 Mo) et objectif de 80 000 SaaS et applis (PLAFOND)
 let pleine = false, vuTaille = 0;
 async function basePleine() {
   if (pleine || Date.now() - vuTaille < 120_000) return pleine;
   vuTaille = Date.now();
-  const r = await q(`select pg_database_size(current_database()) / 1048576 as mo`).catch(() => null);
+  const r = await q(`select pg_database_size(current_database()) / 1048576 as mo,
+    (select count(*) from public.saas where statut = 'ok') + (select count(*) from public.saas_mobiles) as total`).catch(() => null);
+  const plafond = Number(process.env.PLAFOND || 80000);
   if (r?.[0]?.mo > 470) { pleine = true; console.log("Base presque pleine (", r[0].mo, "Mo) : collecte arrêtée"); }
+  if (r?.[0]?.total >= plafond) { pleine = true; console.log("Objectif atteint (", r[0].total, "SaaS et applis) : collecte arrêtée"); }
   return pleine;
 }
 const lit = (v) => (v == null ? "null" : "'" + String(v).replace(/'/g, "''") + "'");
