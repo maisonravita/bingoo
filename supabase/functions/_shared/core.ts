@@ -44,7 +44,7 @@ export function knowledgeOf(ws: { knowledge?: string }) {
 export const PLANS: Record<string, { label: string; price: number; factor: number; seats: number; credits: number; ai: number; quota: number }> = {
   essai: { label: "Aperçu gratuit", price: 0, factor: 0.5, seats: 1, credits: 15, ai: 2, quota: 20 },
   // Veille du marché SaaS, sans prospection (pas d'envoi, pas de tâches de prospection de nuit)
-  explorer: { label: "Trouver", price: 19.99, factor: 0.5, seats: 1, credits: 0, ai: 1, quota: 0 },
+  explorer: { label: "Trouver", price: 9.99, factor: 0.5, seats: 1, credits: 0, ai: 1, quota: 0 },
   explorer_pro: { label: "Lancer", price: 24.99, factor: 0.5, seats: 1, credits: 0, ai: 4, quota: 0 },
   business: { label: "Lancer à plusieurs", price: 69.99, factor: 1, seats: 3, credits: 0, ai: 12, quota: 0 },
   // Anciennes formules (prospection), plus vendues
@@ -76,6 +76,7 @@ export async function limiteMois(wsId: string, plan: string | null | undefined, 
   const max = limitesDe(plan)[k];
   const utilise = await utiliseMois(wsId, k);
   if (max <= 0) throw new HttpError(402, "Cette fonction est comprise dans la formule Lancer.");
+  if (max === 0) throw new HttpError(402, k === "construire" || k === "modifier" ? "La construction de ton SaaS est incluse dans l'offre Lancer. Passe à Lancer depuis Abonnement pour que Bingoo! construise ta version." : `Ça fait partie de l'offre Lancer : passe à Lancer depuis Abonnement.`);
   if (utilise >= max) throw new HttpError(402, `Tu as utilisé tes ${max} ${NOMS_LIMITE[k]} du mois. Ça repart le 1er du mois${k === "modifier" || k === "construire" ? ", ou continue avec tes crédits" : ""}.`);
   return { utilise, max };
 }
@@ -89,7 +90,12 @@ export const PERIODES: Record<string, { label: string; mois: number; parMois: nu
   trimestre: { label: "3 mois", mois: 3, parMois: 16.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Moins cher chaque mois", "Facturé tous les 3 mois"] },
   an: { label: "12 mois", mois: 12, parMois: 9.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Le prix le plus bas par mois", "Changer de SaaS une fois dans l'année", "Réponse prioritaire par e-mail"] },
 };
-export const VENTE = ["explorer_pro"];
+export const VENTE = ["explorer_pro", "explorer"];
+/** « Trouver » : seulement les chiffres (pas de construction), au mois, sans engagement. Les autres formules suivent PERIODES. */
+export const PERIODES_PAR_PLAN: Record<string, typeof PERIODES> = {
+  explorer: { mois: { label: "1 mois", mois: 1, parMois: 9.99, inclus: ["Tous les revenus vérifiés, la croissance et le trafic", "Le classement et les SaaS à vendre", "Valider une idée, les applis, les niches", "Le connecteur Claude / ChatGPT (5 000 questions par mois)", "Sans engagement"] } },
+};
+export const periodesDe = (plan: string) => PERIODES_PAR_PLAN[plan] ?? PERIODES;
 export const VEILLE_SEULE = ["explorer", "explorer_pro", "business"];
 type PlanFields = { plan?: string; plan_status?: string; trial_ends?: string | null };
 /** Bloque les actions payantes quand l'essai est fini ou que l'abonnement n'est plus réglé. */

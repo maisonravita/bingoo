@@ -1,7 +1,7 @@
 // Croissance : préchauffage, boîte mail, équipe, CRM, agenda, abonnements Stripe.
 import nodemailer from "npm:nodemailer@6.9.16";
 import { HttpError } from "./http.ts";
-import { admin, alerteJean, env, log, PACKS, PERIODES, PLANS, VENTE, type Prospect, type Workspace } from "./core.ts";
+import { admin, alerteJean, env, log, PACKS, PERIODES, periodesDe, PLANS, VENTE, type Prospect, type Workspace } from "./core.ts";
 
 const APP = (ws: Workspace) => (ws.app_url || env("APP_URL", "https://kairo.maisonravita.fr")).replace(/\/$/, "");
 const today = () => new Date().toISOString().slice(0, 10);
@@ -376,7 +376,7 @@ async function stripe(path: string, params?: Record<string, string>, method = "P
 }
 
 export function plans() {
-  return Object.entries(PLANS).filter(([k]) => VENTE.includes(k)).map(([key, p]) => ({ key, ...p, periodes: Object.entries(PERIODES).map(([k, x]) => ({ key: k, ...x, total: Math.round(x.parMois * x.mois * 100) / 100 })) }));
+  return Object.entries(PLANS).filter(([k]) => VENTE.includes(k)).map(([key, p]) => ({ key, ...p, periodes: Object.entries(periodesDe(key)).map(([k, x]) => ({ key: k, ...x, total: Math.round(x.parMois * x.mois * 100) / 100 })) }));
 }
 
 export const ANNUAL_OFF = 0.2;
@@ -390,7 +390,7 @@ export async function founderSlots() {
 export async function checkout(ws: Workspace, userId: string, planKey: string, yearly = false, periodeKey = "mois", retour = "") {
   await requireAdmin(ws.id, userId);
   const p = PLANS[planKey];
-  if (!p || !p.price) throw new HttpError(400, "Formule inconnue");
+  if (!p || !p.price || !VENTE.includes(planKey)) throw new HttpError(400, "Formule inconnue");
   let customer = ws.stripe_customer;
   if (!customer) {
     const { data: u } = await admin.auth.admin.getUserById(userId);
@@ -402,8 +402,9 @@ export async function checkout(ws: Workspace, userId: string, planKey: string, y
   // Prix fondateur : 19 € à vie tant qu'il reste des places (vérifié au paiement, pas seulement à l'affichage)
   const { FOUNDER } = await import("./core.ts");
   // Durée choisie (1, 3 ou 12 mois) ; les anciennes demandes « annuel » valent 12 mois
-  const per = PERIODES[yearly ? "an" : periodeKey] ?? PERIODES.mois;
-  const perKey = Object.keys(PERIODES).find((k) => PERIODES[k] === per) ?? "mois";
+  const grille = periodesDe(planKey);
+  const per = grille[yearly ? "an" : periodeKey] ?? grille.mois;
+  const perKey = Object.keys(grille).find((k) => grille[k] === per) ?? "mois";
   const fondateur = planKey === FOUNDER.plan && per.mois === 1 && ((ws as { founder_price?: boolean }).founder_price || (await founderSlots()).left > 0);
   const total = fondateur ? FOUNDER.price : Math.round(per.parMois * per.mois * 100) / 100;
   const s = await stripe("/checkout/sessions", {

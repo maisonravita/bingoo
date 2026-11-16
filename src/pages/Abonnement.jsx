@@ -257,6 +257,22 @@ export default function Abonnement() {
       <ChoixFormule periodes={plans.find((p) => p.key === "explorer_pro")?.periodes} fondateur={fond && (ws.founder_price || fond.left > 0) ? fond.price : null}
         actuelle={ws.plan === "explorer_pro" && ["active", "trialing", "past_due"].includes(ws.plan_status) ? (ws.periode ?? "mois") : null}
         busy={busy} onChoisir={(k) => go("billing-checkout", "explorer_pro", undefined, k)} />
+      {(() => {
+        const t = plans.find((p) => p.key === "explorer");
+        if (!t) return null;
+        const actif = ws.plan === "explorer" && ["active", "trialing", "past_due"].includes(ws.plan_status);
+        const prix = t.periodes?.[0]?.parMois ?? t.price;
+        return (
+          <Card className="mt-6 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="font-semibold">Juste les chiffres : Trouver, {String(prix).replace(".", ",")} € HT par mois</p>
+              <p className="text-sm text-ink-soft mt-1">Tous les revenus vérifiés, la croissance, le trafic, le classement, les SaaS à vendre et le connecteur Claude / ChatGPT. Sans construction de SaaS : pour ça, c'est Lancer. Sans engagement.</p>
+            </div>
+            {actif ? <span className="shrink-0 rounded-xl bg-good/10 text-good px-4 py-2.5 text-sm font-semibold">Ta formule actuelle</span>
+              : <button disabled={!!busy} onClick={() => go("billing-checkout", "explorer", undefined, "mois")} className="shrink-0 rounded-xl border-2 border-ink bg-white px-4 py-2.5 text-sm font-bold hover:bg-paper disabled:opacity-50">Choisir Trouver</button>}
+          </Card>
+        );
+      })()}
       <Card className="mt-6 p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4 bg-paper/50">
         <div><p className="font-semibold">Plusieurs SaaS, une équipe, un incubateur ?</p><p className="text-sm text-ink-soft mt-1">Formule sur devis : utilisateurs et SaaS sur mesure, accompagnement au lancement.</p></div>
         <a href={`mailto:${CONTACT}?subject=${encodeURIComponent("Bingoo! Entreprise : demande de devis")}`} className="inline-flex justify-center rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold hover:border-ink-faint">Nous écrire</a>
