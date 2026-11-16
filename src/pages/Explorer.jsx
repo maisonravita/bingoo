@@ -2832,7 +2832,7 @@ export function TrouveTonSaas() {
   const lib = (k, v, i = 1) => QK(k).opts.find((o) => o[0] === (v ?? ""))?.[i];
   const resume = [
     r.continent ? CONTINENTS[r.continent] : null,
-    r.canaux.map((c) => lib("canaux", c)?.toLowerCase()).filter(Boolean).join(", "),
+    ((t) => t ? t[0].toUpperCase() + t.slice(1) : "")(r.canaux.map((c) => lib("canaux", c)?.toLowerCase()).filter(Boolean).join(", ")),
     r.refus?.length ? `Sans : ${r.refus.map((c) => lib("refus", c)?.toLowerCase()).join(", ")}` : null,
     lib("temps", r.temps) && `${lib("temps", r.temps)} par semaine`,
     r.audience === "B2B" ? "Aux professionnels" : r.audience === "B2C" ? "Aux particuliers" : r.audience === "" ? "Pros et particuliers" : null, r.objectif ? `${Number(r.objectif).toLocaleString("fr-FR")} € par mois visés` : null, r.secteurs.join(", "),
