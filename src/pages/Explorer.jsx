@@ -261,9 +261,9 @@ function Liste({ copier: copierPage = false }) {
           {copierPage && <button onClick={() => navDem("/explorer/trouver")} className="mt-2 mb-1 inline-flex items-center gap-2 rounded-full bg-accent-soft text-accent-dark px-3.5 py-1.5 text-[13.5px] font-semibold hover:bg-accent-soft/70">{parcours?.etape === 3 ? "Mes SaaS sur mesure" : "Trouve le tien en quelques questions"} →</button>}
           {copierPage ? <p className="text-ink-soft text-[15px] max-w-3xl">Des SaaS au revenu prouvé, tenus par de petites équipes, avec un prix simple, et souvent sans équivalent en France. Choisis-en un, puis « Lancer ma version » : Bingoo! le construit à ton nom.</p> : <p className="text-ink-soft text-[15px]">{stats ? `${stats.total.toLocaleString("fr-FR")} logiciels suivis, dans ${stats.cats.length} catégories et ${stats.pays.length} pays` : "…"}</p>}
         </div>
-        <form onSubmit={(e) => { e.preventDefault(); if (ajout.trim().length > 3) nav(`/explorer/chiffres?u=${encodeURIComponent(ajout.trim())}`); }} className="flex gap-2">
-          <input value={ajout} onChange={(e) => setAjout(e.target.value)} placeholder="Combien gagne… (colle une adresse)" className="w-64 rounded-xl border border-line bg-white px-3 py-2.5 text-[14px] outline-none focus:border-ink" />
-          <button className="rounded-xl bg-ink text-white px-4 py-2.5 text-[14px] font-semibold">Voir ses chiffres</button>
+        <form onSubmit={(e) => { e.preventDefault(); if (ajout.trim().length > 3) nav(`/explorer/chiffres?u=${encodeURIComponent(ajout.trim())}`); }} className="flex w-full sm:w-auto gap-2">
+          <input value={ajout} onChange={(e) => setAjout(e.target.value)} placeholder="Combien gagne… (colle une adresse)" className="min-w-0 flex-1 sm:flex-none sm:w-64 rounded-xl border border-line bg-white px-3 py-2.5 text-[14px] outline-none focus:border-ink" />
+          <button className="shrink-0 whitespace-nowrap rounded-xl bg-ink text-white px-4 py-2.5 text-[14px] font-semibold">Voir ses chiffres</button>
         </form>
       </div>
 
