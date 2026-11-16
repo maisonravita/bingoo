@@ -54,7 +54,16 @@ function Carte({ entete, badge, sousTitre, description, tags, visuel, chiffres, 
 
 const Tag = ({ children, fonce }) => <span className={cx("rounded-full px-2.5 py-1 text-[12px] font-semibold", fonce ? "bg-ink text-white" : "bg-accent/10 text-accent-dark")}>{children}</span>;
 
-export function CarteSaas({ s, ouvrir, debloquer }) {
+// Sans IA, certains noms sont la phrase d'accroche du site : on affiche alors le nom tiré de l'adresse (fireworks.ai → Fireworks)
+const nomDe = (s) => {
+  const n = String(s.nom ?? "").trim();
+  if (n && n.split(/\s+/).length <= 4 && n.length <= 32) return n;
+  const base = String(s.domaine ?? "").split(".")[0];
+  return base ? base.charAt(0).toUpperCase() + base.slice(1) : n;
+};
+
+export function CarteSaas({ s: brut, ouvrir, debloquer }) {
+  const s = { ...brut, nom: nomDe(brut) };
   const mrr = Number(s.succes?.mrr ?? 0) || Number(s.succes?.revenu_30j ?? 0) || (s.succes?.montant ? Number(s.succes.montant) / 12 : 0);
   const verifie = s.succes?.type === "revenu_verifie";
   const cible = cibleDe(s.cible);
