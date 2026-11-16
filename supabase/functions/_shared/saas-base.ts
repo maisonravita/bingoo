@@ -85,6 +85,8 @@ export function verdictSansIa(texte: string, tarifs: string, prixUrl: string) {
   const connexion = /log ?in|sign ?in|se connecter|connexion|dashboard|tableau de bord/i.test(t);
   if (boutique && !recurrent) return "pas_saas";
   if (inscription && (recurrent || !!prixUrl)) return "saas";
+  // Outil en ligne sans prix affiché (idée récente, gratuit, en lancement) : inscription ET espace connecté suffisent
+  if (inscription && connexion && !boutique) return "saas";
   // Aucun signe : souvent un site affiché en JavaScript (page vide sans navigateur) → mis de côté, pas écarté
   return connexion || inscription || recurrent ? "doute" : "vide";
 }
