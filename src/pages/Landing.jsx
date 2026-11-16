@@ -6,8 +6,9 @@ import Logo from "../components/Logo";
 import { cx } from "../lib/utils";
 import { legalReady } from "./Legal";
 import ResultatsBingoo from "../components/ResultatsBingoo";
-import { Fenetre, ApercuTendance, ApercuVersion, ApercuFiche, ApercuProspects, ApercuSemaine } from "../components/VitrineAccueil";
+import { Fenetre, ApercuTendance, ApercuVersion, ApercuProspects, ApercuSemaine } from "../components/VitrineAccueil";
 import { supabase } from "../lib/supabase";
+import { BaseSaaS, BingooIA } from "../components/VitrineBase";
 
 // Page d'accueil publique de Bingoo! : épurée, et chaque promesse adossée à une preuve.
 // Deux preuves seulement : l'application filmée sur un vrai compte, et l'essai en direct sur le site du visiteur.
@@ -25,7 +26,7 @@ const ICONES = {
   pub: ico(<><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z" /><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" /></>),
   verifie: ico(<><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z" /><path d="m9 12 2 2 4-4" /></>),
 };
-const MENU = [["Comment ça marche", "#comment"], ["Les SaaS en tendance", "#tendances"], ["Tes premiers clients", "#clients"], ["Questions", "#faq"]];
+const MENU = [["La base", "#base"], ["Comment ça marche", "#comment"], ["Dans ton IA", "#ia"], ["Tes clients", "#clients"], ["Questions", "#faq"]];
 
 // Nombre de SaaS suivis dans la base Explorer (vue publique), affiché tel quel
 function useNbSaas() {
@@ -130,21 +131,19 @@ export default function Landing() {
     <div className="min-h-full bg-[#FAF9F6] text-ink">
       <style>{`@keyframes kspin{to{transform:rotate(360deg)}}@keyframes land-in{from{opacity:0;transform:translateY(10px)}}.land-in{animation:land-in .45s ease-out both}@keyframes marquee{to{transform:translateX(-50%)}}.marquee-track{animation:marquee 32s linear infinite}.marquee:hover .marquee-track{animation-play-state:paused}@media (prefers-reduced-motion: reduce){.marquee-track{animation:none;flex-wrap:wrap;width:auto;justify-content:center}}`}</style>
 
-      {/* Haut de page : fond clair, menu blanc */}
-        <header className="fx-entete sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-black/[.04]">
-          <div className="mx-auto max-w-[1280px] h-[72px] px-4 sm:px-8 flex items-center justify-between gap-4" style={JK}>
-            <div className="flex items-center gap-12">
-              <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Bingoo!"><Logo height={34} /></button>
-              <nav className="hidden lg:flex items-center gap-9 text-[16px] font-medium text-ink whitespace-nowrap">
-                {MENU.map(([t, href]) => <a key={t} href={href} onClick={scrollTo(href.slice(1))} className="py-4 hover:opacity-70">{t}</a>)}
-              </nav>
-            </div>
-            <div className="flex items-center gap-2.5 sm:gap-4 text-[15px] sm:text-[16px] font-medium whitespace-nowrap">
-              <button onClick={() => nav("/connexion?mode=login")} className="rounded-full border border-ink/80 px-4 sm:px-6 py-2 sm:py-2.5 hover:bg-black/[.04] transition">Se connecter</button>
-              <button onClick={go} className="rounded-full bg-[#1B1D2A] text-white px-4 sm:px-6 py-2 sm:py-2.5 hover:bg-black transition">Commencer</button>
-            </div>
+      {/* Menu flottant sombre, en pilule */}
+      <header className="fx-entete sticky top-0 z-30 px-3 sm:px-6 pt-3" style={JK}>
+        <div className="mx-auto flex h-[60px] max-w-[1180px] items-center justify-between gap-3 rounded-full bg-[#15171F]/95 pl-5 pr-2 text-white shadow-[0_18px_40px_-22px_rgba(0,0,0,.7)] backdrop-blur border border-white/[.06]">
+          <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Bingoo!" className="shrink-0"><Logo height={28} inverse /></button>
+          <nav className="hidden lg:flex items-center gap-1 text-[14.5px] font-medium whitespace-nowrap">
+            {MENU.map(([t, href]) => <a key={t} href={href} onClick={scrollTo(href.slice(1))} className="rounded-full px-3.5 py-2 text-white/75 hover:bg-white/10 hover:text-white transition">{t}</a>)}
+          </nav>
+          <div className="flex items-center gap-1.5 sm:gap-2 text-[14px] sm:text-[15px] font-semibold whitespace-nowrap">
+            <button onClick={() => nav("/connexion?mode=login")} className="rounded-full px-3 sm:px-4 py-2.5 text-white/80 hover:text-white hover:bg-white/10 transition">Se connecter</button>
+            <button onClick={go} className="rounded-full bg-white text-[#15171F] px-4 sm:px-5 py-2.5 hover:bg-white/90 transition">Commencer</button>
           </div>
-        </header>
+        </div>
+      </header>
       <div className="bg-white">
 
         <div className="px-0 sm:px-8">
@@ -186,6 +185,8 @@ export default function Landing() {
         <div className="mx-auto max-w-[1440px] bg-white">
 
         {/* La preuve : ce qu'encaissent les SaaS lancés avec Bingoo! (s'affiche dès 3 SaaS avec des clients payants) */}
+        <BaseSaaS go={go} nb={nb} />
+
         <ResultatsBingoo className="px-5 sm:px-10 lg:px-20 py-14 border-t border-black/[.07] mx-auto max-w-[1180px]" />
 
         {/* 1. Comment ça marche : 4 étapes, chacune montrée dans la vraie application */}
@@ -226,29 +227,7 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* 2. Ce que Bingoo! montre sur chaque SaaS : tendance, visibilité, pub, revenus vérifiés */}
-        <section id="tendances" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07] bg-[#FAF9F6]">
-          <div className="mx-auto max-w-[1180px] grid lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.3fr)] gap-10 lg:gap-14 items-center">
-            <div>
-              <h2 className="text-[38px] sm:text-[52px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>On ne te donne pas une idée. On te montre ce qui encaisse.</h2>
-              <p className="mt-5 text-[17px] leading-[1.55] text-ink-soft">{nb ? <><b className="text-ink">{nb.toLocaleString("fr-FR")}</b> SaaS et applis suivis</> : "Des dizaines de milliers de SaaS et d'applis suivis"}, et pour chacun :</p>
-              <ul className="mt-6 space-y-5">
-                {[
-                  [ICONES.tendance, "Leur tendance", "Leur revenu sur 30 jours : tu pars de ce qui monte."],
-                  [ICONES.oeil, "Leur visibilité", "Visites, revenu par visite, place sur Google : tu vois où la place est à prendre."],
-                  [ICONES.pub, "Ton idée, validée", "Concurrents, revenus et applis du même type : un score sur 100, chaque point expliqué par un vrai chiffre."],
-                  [ICONES.verifie, "Leurs vrais revenus", "Vérifiés chez leur outil de paiement, jamais estimés."],
-                ].map(([ic, h, d]) => (
-                  <li key={h} className="flex gap-4">
-                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl fx-pastille text-white">{ic}</span>
-                    <div><p className="text-[17px] font-bold text-ink">{h}</p><p className="mt-0.5 text-[15px] leading-snug text-ink-soft">{d}</p></div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <figure><ApercuFiche /><figcaption className="mt-2.5 text-[13px] text-ink-faint">La fiche d'un SaaS, avec ses vrais chiffres.</figcaption></figure>
-          </div>
-        </section>
+        <BingooIA go={go} />
 
         {/* 3. Tes premiers clients */}
         <section id="clients" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
@@ -323,7 +302,7 @@ export default function Landing() {
       <footer className="bg-white">
         <div className="fx-filet" aria-hidden />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid grid-cols-2 md:grid-cols-3 gap-8 text-[15px]">
-          <div><p className="font-bold">Produit</p><ul className="mt-4 space-y-2.5 text-ink-soft">{[["comment", "Comment ça marche"], ["tendances", "Les SaaS en tendance"], ["clients", "Tes premiers clients"]].map(([id, l]) => <li key={id}><a href={`#${id}`} onClick={scrollTo(id)} className="hover:text-ink">{l}</a></li>)}</ul></div>
+          <div><p className="font-bold">Produit</p><ul className="mt-4 space-y-2.5 text-ink-soft">{[["base", "La base de SaaS"], ["comment", "Comment ça marche"], ["ia", "Bingoo! dans ton IA"], ["clients", "Tes premiers clients"]].map(([id, l]) => <li key={id}><a href={`#${id}`} onClick={scrollTo(id)} className="hover:text-ink">{l}</a></li>)}</ul></div>
           <div><p className="font-bold">Les SaaS</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="/saas" className="hover:text-ink">Tous les SaaS suivis : prix et alternatives</a></li><li><a href="#faq" onClick={scrollTo("faq")} className="hover:text-ink">Questions fréquentes</a></li><li><a href={`mailto:bingoo@maisonravita.fr?subject=${encodeURIComponent("Corriger ou retirer une fiche")}`} title="Écris-nous depuis une adresse de ton domaine : correction ou retrait sous 72 heures." className="hover:text-ink">Corriger ou retirer une fiche</a></li></ul></div>
           <div><p className="font-bold">Compte et légal</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><button onClick={() => nav("/connexion?mode=login")} className="hover:text-ink">Connexion</button></li><li><button onClick={go} className="hover:text-ink">Créer un compte</button></li>{legalReady && <><li><a href="#/mentions-legales" className="hover:text-ink">Mentions légales</a></li><li><a href="#/confidentialite" className="hover:text-ink">Confidentialité</a></li><li><a href="#/conditions" className="hover:text-ink">Conditions</a></li></>}<li><a href="#/opposition" className="hover:text-ink">Ne plus être contacté</a></li></ul></div>
         </div>
