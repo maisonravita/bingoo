@@ -12,8 +12,8 @@ const EXEMPLES = ["Un outil de facturation et de devis pour les freelances", "Un
 export function noter(r) {
   const lignes = [];
   let demande;
-  if (r.avec_revenu >= 10) { demande = 40; lignes.push([40, 40, `Demande prouvée : ${r.avec_revenu} concurrents encaissent déjà (revenu médian ${$(r.mrr_median)} par mois, jusqu'à ${$(r.mrr_max)}).`]); }
-  else if (r.avec_revenu >= 3) { demande = 28; lignes.push([28, 40, `Demande réelle mais encore petite : ${r.avec_revenu} concurrents encaissent (revenu médian ${$(r.mrr_median)} par mois).`]); }
+  if (r.avec_revenu >= 10 && (r.mrr_1000 ?? 0) >= 3) { demande = 40; lignes.push([40, 40, `Demande prouvée : ${r.avec_revenu} concurrents encaissent déjà (revenu médian ${$(r.mrr_median)} par mois, jusqu'à ${$(r.mrr_max)}).`]); }
+  else if (r.avec_revenu >= 3) { demande = 28; lignes.push([28, 40, `Demande réelle mais encore petite : ${r.avec_revenu} concurrents encaissent (revenu médian ${$(r.mrr_median)} par mois${(r.mrr_1000 ?? 0) ? `, ${r.mrr_1000} dépasse${r.mrr_1000 > 1 ? "nt" : ""} 1 000 $` : ", aucun ne dépasse 1 000 $"}).`]); }
   else if (r.avec_revenu >= 1) { demande = 15; lignes.push([15, 40, `Peu de preuves : ${r.avec_revenu} concurrent${r.avec_revenu > 1 ? "s" : ""} avec un revenu vérifié (jusqu'à ${$(r.mrr_max)} par mois).`]); }
   else if (r.applis_recettes >= 5) { demande = 25; lignes.push([25, 40, `Pas de revenu vérifié sur le web, mais ${r.applis_recettes} applis du même type sont dans les classements de recettes de l'App Store : le marché est surtout sur mobile.`]); }
   else { demande = 0; lignes.push([0, 40, "Aucun concurrent avec un revenu vérifié : personne n'a encore prouvé qu'on paie pour ça."]); }
