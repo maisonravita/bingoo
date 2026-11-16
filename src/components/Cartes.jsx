@@ -35,7 +35,7 @@ function Anneau({ valeur, max, libelle, texte }) {
 
 function Carte({ entete, badge, sousTitre, description, tags, visuel, chiffres, favori, ouvrir, libelleOuvrir = "Ouvrir la fiche" }) {
   return (
-    <div className="flex flex-col rounded-2xl border border-line bg-white p-4 hover:border-ink/25 transition">
+    <div className="min-w-0 flex flex-col rounded-2xl border border-line bg-white p-4 hover:border-ink/25 transition">
       <div className="flex items-center gap-2.5 min-w-0">{entete}<div className="ml-auto shrink-0">{badge}</div></div>
       {sousTitre}
       <div className="mt-3 border-t border-line pt-3">

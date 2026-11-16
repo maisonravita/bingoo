@@ -321,7 +321,7 @@ function Liste({ copier: copierPage = false }) {
       {(() => { const liste = ia ? ia.resultats : rows; return !liste ? <div className="py-20 grid place-items-center"><Spinner /></div> : !liste.length ? (
         <p className="py-16 text-center text-ink-soft">Aucun SaaS ne correspond. Élargis les filtres, ou ajoute le logiciel que tu cherches.</p>
       ) : vue === "cartes" ? (
-        <div className="mt-3 grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {(vitrine ? liste.slice(0, 20) : liste).map((s) => <CarteSaas key={s.id ?? s.domaine} s={s} ouvrir={() => nav(`/explorer/${s.domaine}`)} debloquer={() => nav("/abonnement")} />)}
         </div>
       ) : (
@@ -1147,7 +1147,7 @@ function Niches() {
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chercher une niche" className="ml-auto w-full sm:w-56 rounded-xl border border-line bg-white px-3 py-2 text-[14px] outline-none focus:border-ink" />
       </div>
       {!d ? <div className="py-16 grid place-items-center"><Spinner /></div> : (
-        <div className="mt-4 grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {liste.map((x, i) => (
             <button key={x.slug} onClick={() => nav(`/explorer/niches?n=${x.slug}`)} className="group text-left flex flex-col rounded-2xl border border-line bg-white p-5 hover:border-ink/25 transition">
               <div className="flex items-start gap-3">
@@ -3719,7 +3719,7 @@ function DemandeBingoo() {
         <form onSubmit={(e) => { e.preventDefault(); demander(); }} className="mt-5 flex items-center gap-2 rounded-2xl border border-line bg-white p-2 pl-4 shadow-[0_18px_50px_-30px_rgba(15,23,42,.45)] focus-within:border-ink">
           <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-ink-faint" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
           <input value={q} onChange={(e) => setQ(e.target.value)} autoFocus placeholder="Trouve-moi des SaaS de facturation qui scalent en ce moment" className="flex-1 min-w-0 bg-transparent py-2.5 text-[16px] outline-none" />
-          <button disabled={busy || q.trim().length < 4} className="shrink-0 rounded-xl bg-ink text-white px-5 py-2.5 text-[14.5px] font-bold disabled:opacity-40">{busy ? "Recherche…" : "Demander"}</button>
+          <button disabled={busy || q.trim().length < 4} className="shrink-0 rounded-xl bg-ink text-white px-4 sm:px-5 py-2.5 text-[14px] sm:text-[14.5px] font-bold disabled:opacity-40">{busy ? "Recherche…" : "Demander"}</button>
         </form>
         {r && <button onClick={() => { setR(null); setQ(""); setLu([]); }} className="mt-3 text-[13.5px] font-semibold text-ink-soft hover:text-ink">Nouvelle question</button>}
       </div>
@@ -3904,7 +3904,7 @@ function PageCopier() {
       <p className="mt-5 text-[13px] text-ink-faint tnum">{d ? `${Number(d.total).toLocaleString("fr-FR")} SaaS à lancer` : "Recherche…"}</p>
       <div className="mt-2 flex justify-end"><div className="inline-flex rounded-lg border border-line bg-white p-0.5 text-[12.5px] font-semibold">{[["cartes", "Cartes"], ["tableau", "Tableau"]].map(([k, l]) => <button key={k} onClick={() => choisirVue(k)} className={cx("rounded-md px-2.5 py-1", vue === k ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}</div></div>
       {d && d.rows.length > 0 && vue === "cartes" ? (
-        <div className="mt-3 grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {d.rows.map((x) => <CarteSaas key={x.domaine} s={{ ...x, description: resumeFr(x), succes: x.mrr > 0 ? { mrr: x.mrr, type: x.type_preuve } : null, cible: x.cible || x.audience }} ouvrir={() => nav(`/explorer/${x.domaine}`)} />)}
         </div>
       ) : (

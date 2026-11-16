@@ -59,7 +59,7 @@ export default function ApplisMobiles() {
         : (
           <>
             <p className="mt-4 text-[13px] text-ink-faint">{Number(total).toLocaleString("fr-FR")} applis</p>
-            <div className="mt-2 grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {rows.map((a) => <CarteAppli key={a.id} a={a} />)}
             </div>
             <div className="mt-5 flex justify-center gap-2">

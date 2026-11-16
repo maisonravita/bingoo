@@ -40,7 +40,7 @@ export default function MesFavoris() {
           </div>
         </div>
       ) : (
-        <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {liste.map((x) => (
             <div key={`${x.type}-${x.id}`} role="button" tabIndex={0} onClick={() => (x.type === "saas" ? nav(`/explorer/${x.domaine}`) : window.open(x.url, "_blank", "noopener"))}
               className="cursor-pointer rounded-2xl border border-line bg-white p-4 hover:border-ink/30 flex flex-col">
