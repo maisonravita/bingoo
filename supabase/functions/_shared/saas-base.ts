@@ -78,6 +78,8 @@ const categorieSansIa = (t: string) => CAT_MOTS.find(([re]) => re.test(t))?.[1] 
 /** Sans IA : est-ce un SaaS ? « saas » si on voit une inscription en ligne ET des tarifs récurrents ou une page de tarifs ;
  *  « pas_saas » pour une boutique ou un site sans aucun de ces signes ; sinon « doute » (relu plus tard). */
 // Signes d'un site qui n'est pas un logiciel, et signes qu'il en est un (lecture sans IA)
+// Jamais dans Bingoo!, même si la page parle de logiciel (pages piratées de jeux d'argent, contenu adulte).
+export const INTERDIT = /\b(porn\w*|xxx|hentai\w*|nudes|togel\w*|slot gacor|gacor\w*|casino|toto (macau|hk|4d)|keluaran|pengeluaran|nsfw|uncensored|escort)\b/i;
 const PAS_LOGICIEL = /\b(forums?|magazine|news(paper)?|novels?|manga|comics?|journal of|peer.?review|universit\w*|college|actualit\w*|recipes?|beauty|fashion|casino|betting|porn\w*|adult|escort|church|lottery|horoscope|lyrics|torrent|leak\w*|awards?|business directory|annuaire|wiki|clinic|hospital\w*|hotels?|airlines?|museum\w*|podcast|radio|tv shows?|movies?|films? en streaming|mmorpg|multijoueur|multiplayer|fan site|supporters|official website|site officiel|recette\w*|for sale|restaurants)\b/i;
 const LOGICIEL = /(software|platform|\bapps?\b|\btools?\b|saas|dashboard|automat|\bapi\b|plateforme|logiciel|\boutils?\b|\bcrm\b|builder|generator|tracker|analytics|scheduling|booking|management|\bmanage\b|workflow|integration|\bai\b|\bia\b|\bcreate|\bbuild|hosting|upload|calculator|\bsystem\b|your own|sign.?up|\bengine\b|\bsdk\b)/i;
 
@@ -180,7 +182,7 @@ prix_entree (prix le plus bas d'une formule d'ABONNEMENT payante, nombre ; null 
     // et on met de côté une fiche sans description ni prix (rien à montrer)
     if (!(s.succes || s.trustmrr || String(s.source ?? "").startsWith("ajout:"))) {
       const txt = `${a?.nom ?? ""} ${a?.description ?? ""}`;
-      if (PAS_LOGICIEL.test(txt) && !LOGICIEL.test(txt)) { await admin.from("saas").update({ statut: "pas_saas", lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "pas_saas" }; }
+      if (INTERDIT.test(txt) || (PAS_LOGICIEL.test(txt) && !LOGICIEL.test(txt))) { await admin.from("saas").update({ statut: "pas_saas", lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "pas_saas" }; }
       if (!String(a?.description ?? "").trim() && !(a as any)?.prix_entree && !a?.gratuit) { await admin.from("saas").update({ essais: 3, lu_at: new Date().toISOString() }).eq("id", id); return { id, statut: "erreur" }; }
     }
   }

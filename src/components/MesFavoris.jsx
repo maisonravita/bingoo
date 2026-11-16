@@ -58,7 +58,7 @@ export default function MesFavoris() {
               <div className="mt-auto pt-3 flex items-center gap-2 text-[13px]">
                 {x.type === "saas" ? (
                   <>
-                    <span className="font-bold tnum">{x.mrr > 0 ? `${$(x.mrr)}/mois vérifiés` : <span className="font-normal text-ink-faint">pas de revenu public</span>}</span>
+                    <span className="font-bold tnum">{x.mrr > 0 ? `${$(x.mrr)}/mois vérifiés` : <span className="font-normal text-ink-faint">{x.vitrine ? "🔒 abonnés" : "pas de revenu public"}</span>}</span>
                     <button onClick={(e) => { e.stopPropagation(); nav(`/explorer/lancer?d=${x.domaine}`); }} className="ml-auto rounded-lg bg-accent text-white px-3 py-1.5 text-[12.5px] font-bold hover:bg-accent-dark">Lancer ma version</button>
                   </>
                 ) : (

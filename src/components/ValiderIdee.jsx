@@ -96,7 +96,7 @@ export default function ValiderIdee() {
                 <div key={x.domaine} role="button" tabIndex={0} onClick={() => nav(`/explorer/${x.domaine}`)} onKeyDown={(e) => e.key === "Enter" && nav(`/explorer/${x.domaine}`)} className="cursor-pointer w-full text-left flex items-center gap-3 px-5 py-3 border-t border-line hover:bg-paper/60">
                   <div className="min-w-0 flex-1"><p className="font-semibold truncate">{x.nom}</p><p className="text-[12.5px] text-ink-faint truncate">{x.description}</p></div>
                   <Favori id={x.id} nom={x.nom} />
-                  <span className="w-28 text-right text-[13.5px] font-bold tnum">{x.mrr > 0 ? `${$(x.mrr)}/mois` : <span className="text-ink-faint font-normal">pas de revenu public</span>}</span>
+                  <span className="w-28 text-right text-[13.5px] font-bold tnum">{r.verrouille ? <span className="text-ink-faint font-normal">🔒 abonnés</span> : x.mrr > 0 ? `${$(x.mrr)}/mois` : <span className="text-ink-faint font-normal">pas de revenu public</span>}</span>
                 </div>
               ))}
             </div>

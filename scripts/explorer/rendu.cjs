@@ -113,7 +113,8 @@ const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").
               return { titre: document.title || "", desc: m('meta[name="description"]') || m('meta[property="og:description"]'), texte: document.body ? document.body.innerText : "" };
             });
             const texte = d.texte.replace(/[ \t]+/g, " ").replace(/\s*\n\s*/g, "\n").slice(0, 6000);
-            const v = verdictSansIa(`${d.titre}\n${d.desc}\n${texte}`, "", "");
+            const interdit = /\b(porn\w*|xxx|hentai\w*|nudes|togel\w*|slot gacor|gacor\w*|casino|toto (macau|hk|4d)|keluaran|pengeluaran|nsfw|uncensored|escort)\b/i.test(`${d.titre}\n${d.desc}`);
+            const v = interdit ? "pas_saas" : verdictSansIa(`${d.titre}\n${d.desc}\n${texte}`, "", "");
             if (v === "saas") {
               statut = "saas";
               rendu = `<html><head><title>${esc(d.titre)}</title><meta name="description" content="${esc(d.desc)}"></head><body>${esc(texte).replace(/\n/g, "<br>\n")}</body></html>`;
