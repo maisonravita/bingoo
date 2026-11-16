@@ -8,6 +8,7 @@ const court = (v: unknown, n: number) => String(v ?? "").replace(/\s+/g, " ").tr
 export type ScriptVideo = {
   accroche: string; probleme: string; presentation: string;
   ecrans: { titre: string; detail: string }[]; benefices: string[]; appel: string;
+  couleur?: string; note?: string;
 };
 
 export async function saasVideoScript(spec: any, angle = "", ctx: { scan?: any; cible?: any } = {}): Promise<ScriptVideo> {
@@ -39,4 +40,32 @@ Clés du JSON :
   };
   if (!s.ecrans.length) throw new Error("Le scénario de la vidéo n'a pas pu être écrit, réessaie");
   return s;
+}
+
+/** Retouche à la demande : le créateur écrit ce qu'il veut changer, l'IA réécrit le scénario existant en gardant le même gabarit. */
+export async function saasVideoRetouche(spec: any, script: ScriptVideo, demande: string): Promise<ScriptVideo> {
+  const ecrans = (spec.ecrans ?? []).filter((e: any) => !e.public).map((e: any) => e.titre).join(" ; ");
+  const prompt = `Voici le scénario actuel d'une vidéo publicitaire de 20 secondes en motion design (texte animé, pas de voix) pour le logiciel « ${spec.nom} » (${spec.pitch ?? ""}).
+Scénario actuel (JSON) : ${JSON.stringify({ accroche: script.accroche, probleme: script.probleme, presentation: script.presentation, ecrans: script.ecrans, benefices: script.benefices, appel: script.appel, couleur: script.couleur ?? spec.couleur ?? null })}
+Écrans qui existent vraiment : ${ecrans}
+
+Le créateur demande : « ${demande} »
+
+Applique sa demande en changeant le moins possible le reste. Tu peux changer les textes, le ton, l'ordre des écrans (parmi la liste), les bénéfices, l'appel à l'action et la couleur principale (code hexadécimal, seulement s'il le demande).
+Tu ne peux pas : ajouter une voix, une vraie personne, un logo d'une autre marque, de la musique précise, des écrans qui n'existent pas, des chiffres ou des avis inventés. Si une partie de la demande est impossible, fais le reste et explique-le dans « note » en une phrase courte, en tutoyant ; sinon note est vide.
+Règles : français, tutoiement, phrases très courtes, pas d'emoji. Limites : accroche 45 caractères, probleme 55, presentation 60, ecrans 3 objets { titre 22, detail 40 }, benefices 3 de 30, appel 32.
+Réponds avec le JSON complet : accroche, probleme, presentation, ecrans, benefices, appel, couleur, note.`;
+  const x = await askJson<any>(prompt, { maxTokens: 900 });
+  const ec = (Array.isArray(x.ecrans) ? x.ecrans : []).slice(0, 3).map((e: any) => ({ titre: court(e?.titre, 24), detail: court(e?.detail, 44) })).filter((e: any) => e.titre);
+  const couleur = /^#[0-9a-f]{6}$/i.test(String(x.couleur ?? "")) ? String(x.couleur) : script.couleur;
+  return {
+    accroche: court(x.accroche, 50) || script.accroche,
+    probleme: court(x.probleme, 60) || script.probleme,
+    presentation: court(x.presentation, 66) || script.presentation,
+    ecrans: ec.length ? ec : script.ecrans,
+    benefices: (Array.isArray(x.benefices) ? x.benefices : []).slice(0, 3).map((b: unknown) => court(b, 34)).filter(Boolean).length ? (x.benefices as unknown[]).slice(0, 3).map((b) => court(b, 34)).filter(Boolean) : script.benefices,
+    appel: court(x.appel, 36) || script.appel,
+    ...(couleur ? { couleur } : {}),
+    ...(court(x.note, 200) ? { note: court(x.note, 200) } : {}),
+  };
 }

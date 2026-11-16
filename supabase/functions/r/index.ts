@@ -734,6 +734,29 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       throw e;
     }
   },
+  // Retouche d'une vidéo à la demande (« plus drôle », « pour les boulangers », « en bleu ») : nouvelle version, 3 crédits
+  async "saas-video-retouche"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const demande = String(b.demande ?? "").trim().slice(0, 400);
+    if (demande.length < 3) throw new HttpError(400, "Écris ce que tu veux changer dans la vidéo");
+    const { data: v0 } = await admin.from("saas_videos").select("id, app_id, format, script").eq("id", String(b.video_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    if (!v0) throw new HttpError(404, "Vidéo introuvable");
+    const { data: app } = await admin.from("saas_apps").select("id, spec").eq("id", v0.app_id).eq("workspace_id", ws.id).maybeSingle();
+    if (!app?.spec) throw new HttpError(404, "Ton SaaS doit d'abord être construit");
+    await quota(ws.id, "video_retouche", 20);
+    await creditsDepenser(ws.id, COUT_CREDITS.video_retouche, "Retouche de vidéo");
+    try {
+      setAi({ ws: ws.id, live: true, feature: "video" });
+      const { saasVideoRetouche } = await import("../_shared/app-video.ts");
+      const script = await saasVideoRetouche(app.spec, v0.script, demande);
+      const { data: v } = await admin.from("saas_videos").insert({ app_id: app.id, workspace_id: ws.id, format: v0.format, script }).select("id, format, script, at").single();
+      await log(ws.id, "video", `Vidéo retouchée : ${demande.slice(0, 80)}`);
+      return v;
+    } catch (e) {
+      await creditsRendre(ws.id, COUT_CREDITS.video_retouche, "Retouche échouée : crédits rendus");
+      throw e;
+    }
+  },
   // TikTok : comptes et vidéos réels à étudier + formats adaptés au SaaS (cache 14 jours ; « refaire » limité)
   async "saas-tiktok"(req, b) {
     const { ws } = await membreOuCron(req, b.workspace_id);

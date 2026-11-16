@@ -22,6 +22,8 @@ export default function VideoPub({ app, lien, nu = false, angleInitial = "" }) {
   const [solde, setSolde] = useState(null);
   const [angle, setAngle] = useState(angleInitial);
   const [busy, setBusy] = useState(false);
+  const [demande, setDemande] = useState("");
+  const [retouche, setRetouche] = useState(false);
   const [export_, setExport] = useState(null);
   const [lecture, setLecture] = useState(true);
   const canvas = useRef(null);
@@ -63,7 +65,7 @@ export default function VideoPub({ app, lien, nu = false, angleInitial = "" }) {
   const graine = graineDe(app.slug ?? app.spec?.nom);
   useEffect(() => { charger(); preparerPolice(police); }, [app.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const opts = { nom: app.spec?.nom ?? "Mon SaaS", couleur: app.spec?.couleur ?? "#4F46E5", lien: lienCourt(lien), images, style, police, graine };
+  const opts = { nom: app.spec?.nom ?? "Mon SaaS", couleur: sel?.script?.couleur ?? app.spec?.couleur ?? "#4F46E5", lien: lienCourt(lien), images, style, police, graine };
   const [W, H] = FORMATS[format];
   const dessinerA = (t) => { const c = canvas.current; if (c && sel) dessiner(c.getContext("2d"), W, H, t, sel.script, opts); };
 
@@ -84,6 +86,17 @@ export default function VideoPub({ app, lien, nu = false, angleInitial = "" }) {
       setVideos((l) => [v, ...(l ?? [])]); setSel(v); setSolde((s) => (s ?? cout) - cout); setLecture(true); window.dispatchEvent(new Event("bingoo-credits"));
       toast("Ta vidéo est prête : 10 crédits utilisés");
     } catch (e) { toast(e.message, "bad"); } finally { setBusy(false); }
+  };
+  const coutRetouche = 3;
+  const retoucher = async () => {
+    if (!sel || demande.trim().length < 3) return;
+    if ((solde ?? 0) < coutRetouche) { nav("/abonnement#credits"); return; }
+    setRetouche(true);
+    try {
+      const v = await fn("r/saas-video-retouche", { workspace_id: ws.id, video_id: sel.id, demande: demande.trim() });
+      setVideos((l) => [v, ...(l ?? [])]); setSel(v); setSolde((s) => (s ?? coutRetouche) - coutRetouche); setLecture(true); setDemande(""); window.dispatchEvent(new Event("bingoo-credits"));
+      toast(v.script?.note ? "Vidéo retouchée, avec une remarque" : `Vidéo retouchée : ${coutRetouche} crédits utilisés`);
+    } catch (e) { toast(e.message, "bad"); } finally { setRetouche(false); }
   };
   const telecharger = async () => {
     setExport(0);
@@ -154,6 +167,19 @@ export default function VideoPub({ app, lien, nu = false, angleInitial = "" }) {
               <p className="text-white/55">{sel.script.ecrans.map((e) => e.titre).join(" · ")}</p>
               <p className="text-white/55">{sel.script.benefices.join(" · ")}</p>
               <p className="text-[#F6A06B] font-semibold">{sel.script.appel}</p>
+              {sel.script.note && <p className="pt-1 text-[12.5px] text-white/60">Remarque : {sel.script.note}</p>}
+            </div>
+          )}
+          {sel && (
+            <div className="rounded-xl border border-white/10 p-4">
+              <p className="font-semibold text-[14.5px]">Demande ce que tu veux changer</p>
+              <p className="mt-0.5 text-[12.5px] text-white/50">Bingoo! retouche ta vidéo selon ta demande et la garde comme nouvelle version : l'ancienne reste disponible.</p>
+              <textarea value={demande} onChange={(e) => setDemande(e.target.value)} maxLength={400} rows={2} placeholder="Ex. : plus drôle, parle aux boulangers, termine par « 14 jours d'essai gratuit », en bleu marine…"
+                className="mt-2 w-full resize-none rounded-lg bg-white/10 border border-white/10 px-3 py-2.5 text-[14px] placeholder:text-white/35 outline-none focus:border-white/30" />
+              <div className="mt-2 flex flex-wrap gap-1.5">{["Plus drôle", "Plus sérieux", "Accroche plus forte", "Parle aux artisans", "Termine par un essai gratuit"].map((x) => <button key={x} onClick={() => setDemande((d) => d ? `${d}, ${x.toLowerCase()}` : x)} className="rounded-full bg-white/10 px-2.5 py-1 text-[12px] text-white/75 hover:bg-white/20">{x}</button>)}</div>
+              <button onClick={retoucher} disabled={retouche || demande.trim().length < 3} className="mt-3 rounded-xl bg-white text-ink px-5 py-2.5 text-[14px] font-bold hover:bg-white/90 disabled:opacity-50">
+                {retouche ? "Bingoo! retouche ta vidéo…" : (solde ?? 0) < coutRetouche ? `Recharger mes crédits (il en faut ${coutRetouche})` : `Retoucher · ${coutRetouche} crédits`}
+              </button>
             </div>
           )}
           <div className="rounded-xl border border-white/10 p-4">

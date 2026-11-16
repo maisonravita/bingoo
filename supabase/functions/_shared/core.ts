@@ -242,7 +242,7 @@ export const PACKS: Record<string, { label: string; price: number; credit: numbe
   c150: { label: "150 crédits", price: 49.99, credit: 0, work: "2 autres SaaS et 3 vidéos pub", credits: 150 },
 };
 /** Ce que coûte chaque action en crédits Bingoo! */
-export const COUT_CREDITS = { modification: 1, video: 10, saas: 60 };
+export const COUT_CREDITS = { modification: 1, video: 10, video_retouche: 3, saas: 60 };
 export async function creditsSolde(wsId: string): Promise<number> {
   const { data } = await admin.rpc("credits_solde", { p_ws: wsId });
   return Number(data ?? 0);
