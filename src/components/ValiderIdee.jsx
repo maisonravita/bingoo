@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { cx } from "../lib/utils";
+import Favori from "./Favori";
 
 // Valider une idée, sans IA : Bingoo! cherche les concurrents dans sa base (SaaS au revenu vérifié + applis mobiles),
 // puis calcule un score sur 100 à partir de chiffres réels. Chaque point du score est expliqué.
@@ -87,10 +88,11 @@ export default function ValiderIdee() {
             <div className="rounded-2xl border border-line bg-white overflow-hidden">
               <p className="px-5 pt-4 pb-2 font-bold text-[16px]">Les concurrents les plus proches</p>
               {r.top.map((x) => (
-                <button key={x.domaine} onClick={() => nav(`/explorer/${x.domaine}`)} className="w-full text-left flex items-center gap-3 px-5 py-3 border-t border-line hover:bg-paper/60">
+                <div key={x.domaine} role="button" tabIndex={0} onClick={() => nav(`/explorer/${x.domaine}`)} onKeyDown={(e) => e.key === "Enter" && nav(`/explorer/${x.domaine}`)} className="cursor-pointer w-full text-left flex items-center gap-3 px-5 py-3 border-t border-line hover:bg-paper/60">
                   <div className="min-w-0 flex-1"><p className="font-semibold truncate">{x.nom}</p><p className="text-[12.5px] text-ink-faint truncate">{x.description}</p></div>
+                  <Favori id={x.id} nom={x.nom} />
                   <span className="w-28 text-right text-[13.5px] font-bold tnum">{x.mrr > 0 ? `${$(x.mrr)}/mois` : <span className="text-ink-faint font-normal">pas de revenu public</span>}</span>
-                </button>
+                </div>
               ))}
             </div>
           )}
@@ -98,10 +100,11 @@ export default function ValiderIdee() {
             <div className="rounded-2xl border border-line bg-white overflow-hidden">
               <p className="px-5 pt-4 pb-2 font-bold text-[16px]">Sur mobile</p>
               {r.top_applis.map((x) => (
-                <a key={x.url} href={x.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-5 py-3 border-t border-line hover:bg-paper/60">
+                <div key={x.url} role="link" tabIndex={0} onClick={() => window.open(x.url, "_blank", "noopener")} className="cursor-pointer flex items-center gap-3 px-5 py-3 border-t border-line hover:bg-paper/60">
                   <p className="flex-1 min-w-0 font-semibold truncate">{x.nom}</p>
+                  <Favori type="appli" id={x.id} nom={x.nom} />
                   <span className="text-[13px] text-ink-soft tnum">{x.note != null ? `${Number(x.note).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} ★` : ""} · {Number(x.avis ?? 0).toLocaleString("fr-FR")} avis{x.rang_revenus ? ` · ${x.rang_revenus}ᵉ des recettes` : ""}</span>
-                </a>
+                </div>
               ))}
             </div>
           )}

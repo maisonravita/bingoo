@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { cx } from "../lib/utils";
+import Favori from "./Favori";
 
 // Explorer → Applis mobiles : les applis de l'App Store (hors jeux), lues sans IA dans les données publiques d'Apple.
 // Apple ne publie aucun revenu : le seul signal est le rang dans le classement « meilleures recettes » de sa catégorie.
@@ -59,13 +60,14 @@ export default function ApplisMobiles() {
             <p className="mt-4 text-[13px] text-ink-faint">{Number(total).toLocaleString("fr-FR")} applis</p>
             <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {rows.map((a) => (
-                <a key={a.id} href={a.url} target="_blank" rel="noopener noreferrer" className="rounded-2xl border border-line bg-white p-4 hover:border-ink/30 flex flex-col">
+                <div key={a.id} role="link" tabIndex={0} onClick={() => window.open(a.url, "_blank", "noopener")} onKeyDown={(e) => e.key === "Enter" && window.open(a.url, "_blank", "noopener")} className="cursor-pointer rounded-2xl border border-line bg-white p-4 hover:border-ink/30 flex flex-col">
                   <div className="flex items-start gap-3">
                     {a.icone ? <img src={a.icone} alt="" loading="lazy" className="w-12 h-12 rounded-xl border border-line shrink-0" /> : <span className="w-12 h-12 rounded-xl bg-paper shrink-0" />}
                     <div className="min-w-0 flex-1">
                       <p className="font-bold text-[15.5px] leading-tight truncate">{a.nom}</p>
                       <p className="text-[12.5px] text-ink-faint truncate">{a.editeur}</p>
                     </div>
+                    <Favori type="appli" id={a.id} nom={a.nom} />
                   </div>
                   <div className="mt-2.5 flex flex-wrap gap-1.5 text-[12px] font-semibold">
                     {a.categorie && <span className="rounded-full bg-accent/10 text-accent-dark px-2.5 py-0.5">{a.categorie}</span>}
@@ -78,7 +80,7 @@ export default function ApplisMobiles() {
                     <div className="rounded-xl bg-paper py-2"><p className="font-black tnum text-[16px]">{nb(a.avis)}</p><p className="text-[11px] text-ink-faint">avis</p></div>
                     <div className="rounded-xl bg-paper py-2"><p className="font-black tnum text-[14px] leading-[24px]">{prixDe(a)}</p><p className="text-[11px] text-ink-faint">à l'achat</p></div>
                   </div>
-                </a>
+                </div>
               ))}
             </div>
             <div className="mt-5 flex justify-center gap-2">

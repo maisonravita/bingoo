@@ -21,6 +21,8 @@ const Revelation = lazy(() => charger(() => import("./Revelation")));
 const MonSaas = lazy(() => charger(() => import("./MonSaas")));
 const ApplisMobiles = lazy(() => charger(() => import("../components/ApplisMobiles")));
 const ValiderIdee = lazy(() => charger(() => import("../components/ValiderIdee")));
+const MesFavoris = lazy(() => charger(() => import("../components/MesFavoris")));
+import Favori from "../components/Favori";
 import { cleIcone, iconePng } from "../lib/appIcone";
 import qrcode from "qrcode-generator";
 import { cx } from "../lib/utils";
@@ -73,6 +75,7 @@ export default function Explorer({ domaine: fixe }) {
   // la fiche complète, les pubs, la veille et la construction sont réservées à l'abonnement
   if (ws && !estPaye(ws)) {
     if (!d) return <><Onglets actif="liste" /><Liste /></>;
+    if (d === "favoris") return <><Onglets actif="favoris" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><MesFavoris /></Suspense></>;
     if (d === "valider") return <><Onglets actif="valider" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><ValiderIdee /></Suspense></>;
     if (d === "applis") return <><Onglets actif="applis" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><ApplisMobiles /></Suspense></>;
     if (["niches", "classement", "marche", "chiffres"].includes(d)) return <><Onglets actif={d} />{d === "niches" ? <Niches /> : d === "classement" ? <Classement /> : d === "marche" ? <Marche /> : <ChiffresSaas />}</>;
@@ -80,6 +83,7 @@ export default function Explorer({ domaine: fixe }) {
     if (d.includes(".")) return <FicheApercu domaine={d} />;
     if (d !== "trouver") return <Navigate to="/explorer/trouver" replace />;
   }
+  if (d === "favoris") return <><Onglets actif="favoris" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><MesFavoris /></Suspense></>;
   if (d === "valider") return <><Onglets actif="valider" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><ValiderIdee /></Suspense></>;
   if (d === "applis") return <><Onglets actif="applis" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><ApplisMobiles /></Suspense></>;
   if (d === "bouge") return <><Onglets actif="bouge" /><Fil /></>;
@@ -111,7 +115,7 @@ const RUBRIQUES = [
   ["Demande à Bingoo!", [["demande", "Demande à Bingoo!", "/explorer/demande"], ["connecteur", "Dans Claude ou ChatGPT", "/explorer/connecteur"]]],
   ["Mes SaaS", [["createurs", "Mes SaaS", "/explorer/createurs"]]],
   ["Acheter / vendre", [["vendre", "À vendre", "/explorer/vendre"], ["bourse", "Construits sur Bingoo!", "/explorer/bourse", true], ["racheter", "SaaS qui s'endorment", "/explorer/racheter", true]]],
-  ["Explorer les SaaS", [["liste", "Tous les SaaS", "/explorer"], ["niches", "Par niche", "/explorer/niches"], ["classement", "Classement", "/explorer/classement"], ["marche", "Ce qui monte", "/explorer/marche"], ["applis", "Applis mobiles", "/explorer/applis"], ["valider", "Valider une idée", "/explorer/valider"],
+  ["Explorer les SaaS", [["liste", "Tous les SaaS", "/explorer"], ["niches", "Par niche", "/explorer/niches"], ["classement", "Classement", "/explorer/classement"], ["marche", "Ce qui monte", "/explorer/marche"], ["applis", "Applis mobiles", "/explorer/applis"], ["valider", "Valider une idée", "/explorer/valider"], ["favoris", "Mes favoris", "/explorer/favoris"],
     ["carte", "L'archipel", "/explorer/carte", true], ["idees", "Idées et réussites", "/explorer/idees", true], ["pubs", "Pubs et e-mails", "/explorer/pubs", true], ["suivis", "Mes suivis", "/explorer/suivis", true], ["bouge", "Ce qui a bougé", "/explorer/bouge", true]]],
 ];
 // Pages qui dépendent de contenus encore rares : cachées tant qu'elles sont vides (sauf si on y est)
@@ -123,7 +127,7 @@ function Onglets({ actif, trouver }) {
   useEffect(() => { chargerVides().then(setVides); }, []);
   const { session: sess0, ws: ws0 } = useWs();
   const libre = !estInvite(sess0) && !estPaye(ws0);
-  const RUBS = libre ? RUBRIQUES.filter(([l]) => ["Trouver mon SaaS", "Explorer les SaaS"].includes(l)).map(([l, pages]) => [l, l === "Explorer les SaaS" ? pages.filter(([k]) => ["liste", "niches", "classement", "marche", "applis", "valider"].includes(k)) : pages]) : RUBRIQUES;
+  const RUBS = libre ? RUBRIQUES.filter(([l]) => ["Trouver mon SaaS", "Explorer les SaaS"].includes(l)).map(([l, pages]) => [l, l === "Explorer les SaaS" ? pages.filter(([k]) => ["liste", "niches", "classement", "marche", "applis", "valider", "favoris"].includes(k)) : pages]) : RUBRIQUES;
   const rub = RUBS.find(([, pages]) => pages.some(([k]) => k === actif)) ?? RUBS[0];
   const [guide, setGuide] = useState(guideActif);
   const [etape, setEtape] = useState(1);
@@ -322,7 +326,7 @@ function Liste({ copier: copierPage = false }) {
                 <label onClick={(e) => e.stopPropagation()} title="Comparer" className="self-start pt-3 flex justify-center cursor-pointer"><input type="checkbox" checked={sel.includes(s.domaine)} onChange={() => basculer(s.domaine)} className="h-4 w-4 accent-[#15161A]" /></label>
                 <div className="min-w-0 flex items-start gap-3">
                   <CompanyLogo name={s.nom} url={`https://${s.domaine}`} className="w-10 h-10 shrink-0" pad="p-1.5" />
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="font-bold truncate">{s.nom} <span className="font-normal">{drapeau(s.pays)}</span> <span className="text-[12.5px] font-normal text-ink-faint">{s.categorie}</span></p>
                     {s.description ? <p className="text-[13.5px] text-ink-soft line-clamp-1">{s.description}</p> : <p className="text-[13px] text-ink-faint italic">Description en cours de lecture</p>}
                     <div className="mt-1 flex flex-wrap gap-1.5 text-[11.5px]">
@@ -333,6 +337,7 @@ function Liste({ copier: copierPage = false }) {
                       {etiquettes(s).slice(0, 2).map((t) => <button key={t} type="button" onClick={(e) => { e.stopPropagation(); setIa(null); set("tag", t); }} className="text-ink-faint hover:text-accent-dark">#{t.replace(/\s+/g, "-")}</button>)}
                     </div>
                   </div>
+                  <Favori id={s.id} nom={s.nom} />
                 </div>
                 <div className="col-start-2 lg:col-start-auto text-[13px] min-w-0">
                   {s.vitrine ? <Floute i={i} />
@@ -521,7 +526,7 @@ function Fiche({ domaine }) {
           )}
           {etiquettes(s).length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{etiquettes(s).map((t) => <span key={t} className="rounded-full bg-paper px-2.5 py-1 text-[12.5px]">{t}</span>)}</div>}
         </div>
-        <div className="flex flex-col gap-2"><BoutonSuivre saasId={s.id} />
+        <div className="flex flex-col gap-2"><Favori grand id={s.id} nom={s.nom} /><BoutonSuivre saasId={s.id} />
           <button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className="rounded-xl bg-accent text-white px-4 py-2.5 text-[14px] font-bold hover:bg-accent-dark">Lancer ma version</button></div>
       </div>
 
