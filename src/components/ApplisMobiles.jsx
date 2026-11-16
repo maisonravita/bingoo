@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { cx } from "../lib/utils";
-import Favori from "./Favori";
+import { CarteAppli } from "./Cartes";
 
 // Explorer → Applis mobiles : les applis de l'App Store (hors jeux), lues sans IA dans les données publiques d'Apple.
 // Apple ne publie aucun revenu : le seul signal est le rang dans le classement « meilleures recettes » de sa catégorie.
@@ -58,30 +58,8 @@ export default function ApplisMobiles() {
         : (
           <>
             <p className="mt-4 text-[13px] text-ink-faint">{Number(total).toLocaleString("fr-FR")} applis</p>
-            <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {rows.map((a) => (
-                <div key={a.id} role="link" tabIndex={0} onClick={() => window.open(a.url, "_blank", "noopener")} onKeyDown={(e) => e.key === "Enter" && window.open(a.url, "_blank", "noopener")} className="cursor-pointer rounded-2xl border border-line bg-white p-4 hover:border-ink/30 flex flex-col">
-                  <div className="flex items-start gap-3">
-                    {a.icone ? <img src={a.icone} alt="" loading="lazy" className="w-12 h-12 rounded-xl border border-line shrink-0" /> : <span className="w-12 h-12 rounded-xl bg-paper shrink-0" />}
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold text-[15.5px] leading-tight truncate">{a.nom}</p>
-                      <p className="text-[12.5px] text-ink-faint truncate">{a.editeur}</p>
-                    </div>
-                    <Favori type="appli" id={a.id} nom={a.nom} />
-                  </div>
-                  <div className="mt-2.5 flex flex-wrap gap-1.5 text-[12px] font-semibold">
-                    {a.categorie && <span className="rounded-full bg-accent/10 text-accent-dark px-2.5 py-0.5">{a.categorie}</span>}
-                    {a.abonnement && <span className="rounded-full bg-ink text-white px-2.5 py-0.5">Abonnement</span>}
-                    {a.rang_revenus && <span className="rounded-full bg-[#FEF3C7] text-[#92400E] px-2.5 py-0.5">{a.rang_revenus}ᵉ des recettes · {a.rang_pays}</span>}
-                  </div>
-                  {a.description && <p className="mt-2.5 text-[13.5px] text-ink-soft line-clamp-3">{a.description}</p>}
-                  <div className="mt-auto pt-3 grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-xl bg-paper py-2"><p className="font-black tnum text-[16px]">{a.note != null ? `${Number(a.note).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} ★` : "—"}</p><p className="text-[11px] text-ink-faint">note</p></div>
-                    <div className="rounded-xl bg-paper py-2"><p className="font-black tnum text-[16px]">{nb(a.avis)}</p><p className="text-[11px] text-ink-faint">avis</p></div>
-                    <div className="rounded-xl bg-paper py-2"><p className="font-black tnum text-[14px] leading-[24px]">{prixDe(a)}</p><p className="text-[11px] text-ink-faint">à l'achat</p></div>
-                  </div>
-                </div>
-              ))}
+            <div className="mt-2 grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              {rows.map((a) => <CarteAppli key={a.id} a={a} />)}
             </div>
             <div className="mt-5 flex justify-center gap-2">
               {page > 0 && <button onClick={() => setPage(page - 1)} className="rounded-xl border border-line bg-white px-4 py-2 font-semibold">Précédentes</button>}

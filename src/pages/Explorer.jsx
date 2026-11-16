@@ -23,6 +23,7 @@ const ApplisMobiles = lazy(() => charger(() => import("../components/ApplisMobil
 const ValiderIdee = lazy(() => charger(() => import("../components/ValiderIdee")));
 const MesFavoris = lazy(() => charger(() => import("../components/MesFavoris")));
 import Favori from "../components/Favori";
+import { CarteSaas } from "../components/Cartes";
 import { cleIcone, iconePng } from "../lib/appIcone";
 import qrcode from "qrcode-generator";
 import { cx } from "../lib/utils";
@@ -183,6 +184,9 @@ function Liste({ copier: copierPage = false }) {
   useEffect(() => { try { if (guideActif()) { localStorage.setItem("bingoo-guide", "en_cours"); localStorage.setItem("bingoo-parcours-vu", "1"); navDem("/explorer/trouver"); } } catch { /* stockage indisponible */ } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const nav = useNavigate();
   const { ws } = useWs();
+  // Affichage en cartes (par défaut) ou en tableau, gardé d'une visite à l'autre
+  const [vue, setVueL] = useState(() => { try { return localStorage.getItem("bingoo-vue-liste") || "cartes"; } catch { return "cartes"; } });
+  const choisirVue = (v) => { setVueL(v); try { localStorage.setItem("bingoo-vue-liste", v); } catch { /* stockage indisponible */ } };
   const toast = useToast();
   const loc = useLocation();
   const [toutesNiches, setToutesNiches] = useState(false);
@@ -217,7 +221,7 @@ function Liste({ copier: copierPage = false }) {
   const vitrine = !!rows?.[0]?.vitrine;
 
   useEffect(() => {
-    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes, estimation, genre, copiable, copiable_raisons, preuve_ancienne, created_at, constructible, en_decollage", { count: "exact" });
+    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes, estimation, genre, copiable, copiable_raisons, preuve_ancienne, created_at, constructible, en_decollage, vitrine, image, cible", { count: "exact" });
     if (f.tag) q = q.contains("tags", [f.tag]);
     if (f.q.trim()) q = q.or(`nom.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,domaine.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,description.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%`);
     if (f.categorie) q = q.eq("categorie", f.categorie);
@@ -310,9 +314,16 @@ function Liste({ copier: copierPage = false }) {
           <button onClick={() => setIa(null)} className="underline text-ink-soft">Effacer</button>
         </div>
       ) : <div className="mt-4 flex items-center justify-between gap-2"><p className="text-[13px] text-ink-faint">{rows ? vitrine ? "Vitrine gratuite : les SaaS qui gagnent le plus" : `${total.toLocaleString("fr-FR")} résultat${total > 1 ? "s" : ""}` : ""}{f.tag ? ` · niche « ${f.tag} »` : ""}</p>
-        {rows?.length > 0 && !vitrine && <button onClick={() => exporter(rows)} className="text-[13px] font-semibold underline">Exporter (CSV)</button>}</div>}
+        <div className="flex items-center gap-3">
+          <div className="inline-flex rounded-lg border border-line bg-white p-0.5 text-[12.5px] font-semibold">{[["cartes", "Cartes"], ["tableau", "Tableau"]].map(([k, l]) => <button key={k} onClick={() => choisirVue(k)} className={cx("rounded-md px-2.5 py-1", vue === k ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}</div>
+          {rows?.length > 0 && !vitrine && <button onClick={() => exporter(rows)} className="text-[13px] font-semibold underline">Exporter (CSV)</button>}
+        </div></div>}
       {(() => { const liste = ia ? ia.resultats : rows; return !liste ? <div className="py-20 grid place-items-center"><Spinner /></div> : !liste.length ? (
         <p className="py-16 text-center text-ink-soft">Aucun SaaS ne correspond. Élargis les filtres, ou ajoute le logiciel que tu cherches.</p>
+      ) : vue === "cartes" ? (
+        <div className="mt-3 grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {(vitrine ? liste.slice(0, 20) : liste).map((s) => <CarteSaas key={s.id ?? s.domaine} s={s} ouvrir={() => nav(`/explorer/${s.domaine}`)} debloquer={() => nav("/abonnement")} />)}
+        </div>
       ) : (
         <div className="mt-2 rounded-2xl border border-line bg-white overflow-hidden">
           <div className="hidden lg:grid grid-cols-[28px_1fr_190px_110px_120px] gap-4 px-5 py-2 border-b border-line bg-paper/60 text-[11.5px] font-semibold text-ink-faint">
