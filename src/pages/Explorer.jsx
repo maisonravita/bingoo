@@ -221,7 +221,7 @@ function Liste({ copier: copierPage = false }) {
   const vitrine = !!rows?.[0]?.vitrine;
 
   useEffect(() => {
-    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes, estimation, genre, copiable, copiable_raisons, preuve_ancienne, created_at, constructible, en_decollage, vitrine, image, cible", { count: "exact" });
+    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes, estimation, genre, copiable, copiable_raisons, preuve_ancienne, created_at, constructible, en_decollage, vitrine, image, cible", { count: "estimated" });
     if (f.tag) q = q.contains("tags", [f.tag]);
     if (f.q.trim()) q = q.or(`nom.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,domaine.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,description.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%`);
     if (f.categorie) q = q.eq("categorie", f.categorie);
