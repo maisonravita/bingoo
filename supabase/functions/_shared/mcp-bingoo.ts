@@ -48,6 +48,8 @@ const outils = (niches: string[]) => [
       tri: { type: "string", enum: ["avis", "revenus", "note", "recent"], description: "avis (les plus utilisées), revenus (meilleur rang recettes), note, recent (mises à jour récemment)." },
       nombre: { type: "number", description: "Nombre de résultats (1 à 30, 10 par défaut)." },
     } } },
+  { name: "valider_idee", description: "Confronte une idée de SaaS ou d'appli aux chiffres réels de Bingoo! : nombre de concurrents, combien ont un revenu vérifié, revenu médian et maximum, prix médian, croissance, applis mobiles du même type, et les concurrents les plus proches. Donne ensuite ton propre verdict à partir de ces chiffres.",
+    inputSchema: { type: "object", properties: { idee: { type: "string", description: "L'idée en une phrase, ex. « facturation pour freelances »." } }, required: ["idee"] } },
   { name: "mes_suivis", description: "Les SaaS et catégories suivis par le compte Bingoo!.", inputSchema: { type: "object", properties: {} } },
 ];
 
@@ -100,6 +102,11 @@ async function appeler(admin: SupabaseClient, ws: string, nom: string, a: any) {
     if (error) throw new Error(error.message);
     const rows = (data ?? []).slice(0, nb(a?.nombre, 10, 30));
     return { total: rows[0]?.total ?? 0, applis: rows.map(({ total: _t, icone: _i, ...x }: any) => x) };
+  }
+  if (nom === "valider_idee") {
+    const { data, error } = await admin.rpc("saas_valider_idee", { p_texte: String(a?.idee ?? "").slice(0, 500) });
+    if (error) throw new Error(error.message);
+    return { ...data, top: (data?.top ?? []).map((s: any) => ({ ...s, lien_bingoo: lien(s.domaine) })) };
   }
   if (nom === "mes_suivis") {
     const { data } = await admin.from("saas_suivis").select("categorie, saas:saas_id(nom, domaine)").eq("workspace_id", ws);

@@ -20,6 +20,7 @@ const VideoPub = lazy(() => charger(() => import("../components/VideoPub")));
 const Revelation = lazy(() => charger(() => import("./Revelation")));
 const MonSaas = lazy(() => charger(() => import("./MonSaas")));
 const ApplisMobiles = lazy(() => charger(() => import("../components/ApplisMobiles")));
+const ValiderIdee = lazy(() => charger(() => import("../components/ValiderIdee")));
 import { cleIcone, iconePng } from "../lib/appIcone";
 import qrcode from "qrcode-generator";
 import { cx } from "../lib/utils";
@@ -72,7 +73,9 @@ export default function Explorer({ domaine: fixe }) {
   // la fiche complète, les pubs, la veille et la construction sont réservées à l'abonnement
   if (ws && !estPaye(ws)) {
     if (!d) return <><Onglets actif="liste" /><Liste /></>;
-    if (d === "applis") return <><Onglets actif="applis" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><ApplisMobiles /></Suspense></>;
+    if (d === "valider") return <><Onglets actif="valider" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><ValiderIdee /></Suspense></>;
+    if (d === "valider") return <><Onglets actif="valider" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><ValiderIdee /></Suspense></>;
+  if (d === "applis") return <><Onglets actif="applis" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><ApplisMobiles /></Suspense></>;
     if (["niches", "classement", "marche", "chiffres"].includes(d)) return <><Onglets actif={d} />{d === "niches" ? <Niches /> : d === "classement" ? <Classement /> : d === "marche" ? <Marche /> : <ChiffresSaas />}</>;
     if (d === "lancer") return <Navigate to="/abonnement" replace />;
     if (d.includes(".")) return <FicheApercu domaine={d} />;
@@ -108,7 +111,7 @@ const RUBRIQUES = [
   ["Demande à Bingoo!", [["demande", "Demande à Bingoo!", "/explorer/demande"], ["connecteur", "Dans Claude ou ChatGPT", "/explorer/connecteur"]]],
   ["Mes SaaS", [["createurs", "Mes SaaS", "/explorer/createurs"]]],
   ["Acheter / vendre", [["vendre", "À vendre", "/explorer/vendre"], ["bourse", "Construits sur Bingoo!", "/explorer/bourse", true], ["racheter", "SaaS qui s'endorment", "/explorer/racheter", true]]],
-  ["Explorer les SaaS", [["liste", "Tous les SaaS", "/explorer"], ["niches", "Par niche", "/explorer/niches"], ["classement", "Classement", "/explorer/classement"], ["marche", "Ce qui monte", "/explorer/marche"], ["applis", "Applis mobiles", "/explorer/applis"],
+  ["Explorer les SaaS", [["liste", "Tous les SaaS", "/explorer"], ["niches", "Par niche", "/explorer/niches"], ["classement", "Classement", "/explorer/classement"], ["marche", "Ce qui monte", "/explorer/marche"], ["applis", "Applis mobiles", "/explorer/applis"], ["valider", "Valider une idée", "/explorer/valider"],
     ["carte", "L'archipel", "/explorer/carte", true], ["idees", "Idées et réussites", "/explorer/idees", true], ["pubs", "Pubs et e-mails", "/explorer/pubs", true], ["suivis", "Mes suivis", "/explorer/suivis", true], ["bouge", "Ce qui a bougé", "/explorer/bouge", true]]],
 ];
 // Pages qui dépendent de contenus encore rares : cachées tant qu'elles sont vides (sauf si on y est)
@@ -120,7 +123,7 @@ function Onglets({ actif, trouver }) {
   useEffect(() => { chargerVides().then(setVides); }, []);
   const { session: sess0, ws: ws0 } = useWs();
   const libre = !estInvite(sess0) && !estPaye(ws0);
-  const RUBS = libre ? RUBRIQUES.filter(([l]) => ["Trouver mon SaaS", "Explorer les SaaS"].includes(l)).map(([l, pages]) => [l, l === "Explorer les SaaS" ? pages.filter(([k]) => ["liste", "niches", "classement", "marche", "applis"].includes(k)) : pages]) : RUBRIQUES;
+  const RUBS = libre ? RUBRIQUES.filter(([l]) => ["Trouver mon SaaS", "Explorer les SaaS"].includes(l)).map(([l, pages]) => [l, l === "Explorer les SaaS" ? pages.filter(([k]) => ["liste", "niches", "classement", "marche", "applis", "valider"].includes(k)) : pages]) : RUBRIQUES;
   const rub = RUBS.find(([, pages]) => pages.some(([k]) => k === actif)) ?? RUBS[0];
   const [guide, setGuide] = useState(guideActif);
   const [etape, setEtape] = useState(1);

@@ -14,3 +14,5 @@ create index if not exists saas_mobiles_cat_idx on public.saas_mobiles (categori
 -- exécutables par authenticated et service_role (texte complet dans la base).
 -- Connecteur : quota mensuel par clé
 alter table public.saas_api_cles add column if not exists appels_mois integer default 0, add column if not exists mois text;
+-- Validateur d'idée sans IA : saas_valider_idee(p_texte) (security definer, authenticated + service_role) et index plein texte
+-- saas_ok_texte_idx / saas_mobiles_texte_idx (texte complet dans la base).
