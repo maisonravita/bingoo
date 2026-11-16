@@ -19,12 +19,14 @@ async function q(sql) {
   const iRang = tete.indexOf("GlobalRank"), iDom = tete.indexOf("Domain"), iSub = tete.indexOf("RefSubNets");
   if (iRang < 0 || iDom < 0) throw new Error("Colonnes inattendues : " + lignes[0]);
   const jour = new Date().toISOString().slice(0, 10);
-  const vus = [];
+  const vus = [], meilleur = new Map();
   for (let k = 1; k < lignes.length; k++) {
     const c = lignes[k].split(",");
     const id = parDom.get(String(c[iDom] ?? "").toLowerCase().replace(/^www\./, ""));
-    if (id) vus.push(`('${id}', '${jour}', ${Number(c[iRang])}, ${Number(c[iSub]) || "null"})`);
+    // Un même SaaS peut apparaître sous plusieurs adresses (www., sous-domaine) : on garde son meilleur rang
+    if (id && !(meilleur.has(id) && meilleur.get(id).rang <= Number(c[iRang]))) meilleur.set(id, { rang: Number(c[iRang]), sub: Number(c[iSub]) || "null" });
   }
+  for (const [id, v] of meilleur) vus.push(`('${id}', '${jour}', ${v.rang}, ${v.sub})`);
   console.log("dans le Majestic Million :", vus.length, "sur", lignes.length - 1, "sites");
   for (let i = 0; i < vus.length; i += 500)
     await q(`insert into public.saas_notoriete (saas_id, jour, rang, sous_reseaux) values ${vus.slice(i, i + 500).join(",")} on conflict (saas_id, jour) do update set rang = excluded.rang, sous_reseaux = excluded.sous_reseaux`);
