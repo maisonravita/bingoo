@@ -82,8 +82,14 @@ const TOUTES = [...(await (await fetch(`${SITE}/sitemap-apps.xml`)).text()).matc
       for (let i = 0; i < n; i++) {
         const l = liens.nth(i); const nom = (await l.innerText().catch(() => "")).trim();
         if (!nom || /équipe|mes données|installer|déconnexion|se déconnecter/i.test(nom)) continue;
-        await l.click({ timeout: 5000 }).catch(() => null); await page.waitForTimeout(1500);
-        const txt = await cadre.locator("main").innerText().catch(() => "");
+        await l.click({ timeout: 5000 }).catch(() => null);
+        // L'écran charge ses données de démo : on lui laisse jusqu'à 8 s avant de le déclarer vide
+        let txt = "";
+        for (let essai = 0; essai < 16; essai++) {
+          await page.waitForTimeout(500);
+          txt = await cadre.locator("main").innerText().catch(() => "");
+          if (txt.trim().length >= 40 && !/Chargement…?\s*$/.test(txt.trim())) break;
+        }
         if (/Cet écran n'a pas pu|a rencontré un problème|Erreur dans l'écran/i.test(txt) || txt.trim().length < 40) vides.push(nom);
       }
       await page.close();
