@@ -18,6 +18,11 @@ export function noter(r) {
   else if (r.avec_revenu >= 1) { demande = 15; lignes.push([15, 40, `Peu de preuves : ${r.avec_revenu} concurrent${r.avec_revenu > 1 ? "s" : ""} avec un revenu vérifié (jusqu'à ${$(r.mrr_max)} par mois).`]); }
   else if (r.applis_recettes >= 5) { demande = 25; lignes.push([25, 40, `Pas de revenu vérifié sur le web, mais ${r.applis_recettes} applis du même type sont dans les classements de recettes de l'App Store : le marché est surtout sur mobile.`]); }
   else { demande = 0; lignes.push([0, 40, "Aucun concurrent avec un revenu vérifié : personne n'a encore prouvé qu'on paie pour ça."]); }
+  // Le marché mobile compte aussi : beaucoup d'applis du même type dans les classements de recettes = des gens paient
+  if (r.applis_recettes >= 10 && demande < 32) {
+    lignes[0] = [32, 40, `${lignes[0][2]} Mais sur mobile, ${r.applis_recettes} applis du même type sont dans les classements de recettes de l'App Store : le marché paie, surtout en appli.`];
+    demande = 32;
+  }
   const c = r.concurrents;
   const conc = c === 0 ? 8 : c <= 2 ? 18 : c <= 30 ? 25 : c <= 80 ? 15 : 8;
   lignes.push([conc, 25, c === 0 ? "Aucun SaaS du même type dans la base : soit un vrai vide, soit pas de marché." : c <= 2 ? `Seulement ${c} SaaS du même type : la place est libre, mais le marché est peu testé.` : c <= 30 ? `${c} SaaS du même type : assez pour prouver le marché, pas trop pour se faire une place.` : `${c} SaaS du même type : marché encombré, il te faut un angle précis (une niche, un pays, un métier).`]);

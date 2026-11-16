@@ -4,3 +4,5 @@ create index if not exists saas_pubs_at_idx on public.saas (pubs_at) where pubs_
 alter function public.saas_difficulte(text, int) set search_path = public;
 alter function public.saas_estimations() set search_path = public;
 drop index if exists public.saas_mobiles_rang_idx;
+-- Tests du 16/11 après-midi : recherche d'applis par l'index plein texte (de > 8 s à 0,2 s),
+-- validateur : ~110 mots français traduits en anglais (habitude → habit, suivi → tracker…) et pluriels reconnus.
