@@ -313,7 +313,15 @@ function Liste({ copier: copierPage = false }) {
           {ia.categorie_suggeree && !f.categorie && <button onClick={() => { set("categorie", ia.categorie_suggeree); setIa(null); }} className="rounded-md border border-line bg-white px-2 py-0.5 hover:border-ink">Voir toute la catégorie {ia.categorie_suggeree}</button>}
           <button onClick={() => setIa(null)} className="underline text-ink-soft">Effacer</button>
         </div>
-      ) : <div className="mt-4 flex items-center justify-between gap-2"><p className="text-[13px] text-ink-faint">{rows ? vitrine ? "Vitrine gratuite : les SaaS qui gagnent le plus" : `${total.toLocaleString("fr-FR")} résultat${total > 1 ? "s" : ""}` : ""}{f.tag ? ` · niche « ${f.tag} »` : ""}</p>
+      ) : <div className="mt-4 flex items-center justify-between gap-2"><p className="text-[13px] text-ink-faint">{rows ? vitrine ? "Vitrine gratuite : les SaaS qui gagnent le plus" : (() => {
+            // Le nombre renvoyé par la base est une estimation : sans filtre (ou avec seulement une catégorie ou un pays), on prend le compte exact de l'en-tête.
+            const autres = f.tag || f.q.trim() || f.prixMax || f.gratuit || f.recrute || f.succes || f.decollage || f.copier || f.genre || f.actif;
+            let n = total, exact = false;
+            if (stats && !autres && !f.categorie && !f.pays) { n = stats.total; exact = true; }
+            else if (stats && !autres && f.categorie && !f.pays) { const c = (stats.cats ?? []).find(([k]) => k === f.categorie); if (c) { n = c[1]; exact = true; } }
+            else if (stats && !autres && f.pays && !f.categorie) { const c = (stats.pays ?? []).find(([k]) => k === f.pays); if (c) { n = c[1]; exact = true; } }
+            return `${exact ? "" : "environ "}${n.toLocaleString("fr-FR")} résultat${n > 1 ? "s" : ""}`;
+          })() : ""}{f.tag ? ` · niche « ${f.tag} »` : ""}</p>
         <div className="flex items-center gap-3">
           <div className="inline-flex rounded-lg border border-line bg-white p-0.5 text-[12.5px] font-semibold">{[["cartes", "Cartes"], ["tableau", "Tableau"]].map(([k, l]) => <button key={k} onClick={() => choisirVue(k)} className={cx("rounded-md px-2.5 py-1", vue === k ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}</div>
           {rows?.length > 0 && !vitrine && <button onClick={() => exporter(rows)} className="text-[13px] font-semibold underline">Exporter (CSV)</button>}
@@ -1925,7 +1933,7 @@ export function ReglagesApp({ app, onChange, projet, initial, nu = false, onglet
         {[[ch?.visites_30j ?? "—", "visites (30 j)"], [ch?.comptes ?? "—", "inscrits"], [ch?.essais ?? "—", "en essai"], [ch?.abonnes ?? "—", "abonnés"], [ch ? eurs(ch.mrr) : "—", "revenu mensuel"]].map(([v, l]) => <div key={l} className="bg-ink px-4 py-3"><p className="text-[22px] font-black tnum" style={HF}>{v}</p><p className="text-[12px] text-white/50">{l}</p></div>)}
       </div>
       {ch?.quota && <p className="px-4 pt-2.5 text-[12.5px] text-white/50">Ce mois-ci : {ch.quota.constructions}/{ch.quota.construire} construction{ch.quota.construire > 1 ? "s" : ""} · {ch.quota.modifications}/{ch.quota.modifier} modifications</p>}
-      <div className="flex gap-1 overflow-x-auto px-3 pt-3 border-b border-white/10">
+      <div className="flex gap-1 overflow-x-auto sm:flex-wrap px-3 pt-3 border-b border-white/10">
         {ONGLETS_APP.map(([k, l]) => <button key={k} onClick={() => setOnglet(k)} className={cx("shrink-0 rounded-t-lg px-3 py-2 text-[13.5px] font-semibold", onglet === k ? "bg-white/10 text-white" : "text-white/55 hover:text-white")}>{l}</button>)}
       </div>
       <div className="p-4 sm:p-5">
@@ -3846,7 +3854,7 @@ function Connecteur() {
       ))}</div>
 
       <h2 className="mt-8 text-[18px] font-bold">3. Demande-lui</h2>
-      <div className="mt-3 flex flex-wrap gap-2">{["Trouve-moi 3 SaaS de facturation qui scalent en ce moment, avec leur revenu vérifié", "Quelles niches de SaaS grandissent le plus ce mois-ci ?", "Donne-moi la fiche complète de url2pin.com et dis-moi si je peux le copier", "Quels SaaS sont à vendre pour moins de 50 000 $ ?", "Suis les 5 SaaS TikTok qui encaissent le plus"].map((x) => <button key={x} onClick={() => copier(x)} title="Copier la question" className="rounded-full border border-line bg-white px-3.5 py-1.5 text-[13.5px] text-left hover:border-ink">« {x} »</button>)}</div>
+      <div className="mt-3 flex flex-wrap gap-2">{["Trouve-moi 3 SaaS de facturation qui scalent en ce moment, avec leur revenu vérifié", "Quelles niches de SaaS grandissent le plus ce mois-ci ?", "Donne-moi la fiche complète de url2pin.com et dis-moi si je peux lancer ma version", "Quels SaaS sont à vendre pour moins de 50 000 $ ?", "Suis les 5 SaaS TikTok qui encaissent le plus"].map((x) => <button key={x} onClick={() => copier(x)} title="Copier la question" className="rounded-full border border-line bg-white px-3.5 py-1.5 text-[13.5px] text-left hover:border-ink">« {x} »</button>)}</div>
       <p className="mt-3 text-[12.5px] text-ink-faint">Tes questions passent par ton IA : Bingoo! ne fait que lui donner les chiffres, sans coût pour toi.</p>
 
       {cles?.length > 0 && <>
@@ -4005,20 +4013,20 @@ function AchatVente() {
       {vue === "vendre" ? (!l ? <div className="py-16 grid place-items-center"><Spinner /></div> : !l.length ? (
         <div className="mt-4 rounded-2xl border border-line bg-white p-6"><p className="font-bold">Rien à vendre pour l'instant.</p><p className="mt-1 text-ink-soft">Les SaaS mis en vente sur TrustMRR apparaissent ici au fil de leur relecture. Tu peux aussi être le premier à publier une annonce.</p></div>
       ) : (
-        <div className="mt-4 grid md:grid-cols-2 gap-4">{visibles.map((x) => (
-          <div key={x.source + x.id} className="rounded-2xl border border-line bg-white p-5 flex flex-col">
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">{visibles.map((x) => (
+          <div key={x.source + x.id} className="min-w-0 rounded-2xl border border-line bg-white p-5 flex flex-col">
             <div className="flex items-start gap-3">
               <CompanyLogo name={x.nom} url={`https://${x.domaine}`} className="w-11 h-11" pad="p-1.5" />
               <div className="min-w-0 flex-1">
                 <p className="font-bold text-[16px] truncate">{x.nom} <span className="font-normal">{drapeau(x.pays)}</span></p>
                 <p className="text-[12.5px] text-ink-faint truncate">{[x.categorie, x.domaine].filter(Boolean).join(", ")}</p>
               </div>
-              <span className={cx("rounded-md px-2 py-0.5 text-[11.5px] font-semibold", x.source === "trustmrr" ? "bg-[#E0E7FF] text-[#3730A3]" : "bg-accent-soft text-accent-dark")}>{x.source === "trustmrr" ? "En vente sur TrustMRR" : x.moi ? "Mon annonce" : "Annonce Bingoo!"}</span>
+              <span className={cx("shrink-0 rounded-md px-2 py-0.5 text-[11.5px] font-semibold", x.source === "trustmrr" ? "bg-[#E0E7FF] text-[#3730A3]" : "bg-accent-soft text-accent-dark")}>{x.source === "trustmrr" ? "En vente sur TrustMRR" : x.moi ? "Mon annonce" : "Annonce Bingoo!"}</span>
             </div>
             <div className="mt-4 grid grid-cols-3 gap-3">
               <div><p className="text-[11.5px] text-ink-faint">Prix demandé</p><p className="text-[20px] font-black tnum" style={HF}>{x.prix ? dollar(x.prix) : "À discuter"}</p></div>
               <div><p className="text-[11.5px] text-ink-faint">Revenu par mois</p><p className="text-[20px] font-black tnum" style={HF}>{x.mrr ? dollar(x.mrr) : x.mrr_declare ? dollar(x.mrr_declare) : "–"}</p><p className="text-[11px] text-ink-faint">{x.mrr ? "vérifié" : x.mrr_declare ? "déclaré par le vendeur" : ""}</p></div>
-              <div><p className="text-[11.5px] text-ink-faint">Multiple</p><p className="text-[20px] font-black tnum" style={HF}>{(parseFloat(x.multiple) > 0 ? String(x.multiple).replace(".", ",").replace(/x$/i, " ×") : null) ?? (Number(x.prix) > 0 && (x.mrr || x.mrr_declare) ? `${(x.prix / ((x.mrr || x.mrr_declare) * 12)).toLocaleString("fr-FR", { maximumFractionDigits: 1 })}×` : "–")}</p><p className="text-[11px] text-ink-faint">du revenu annuel</p></div>
+              <div><p className="text-[11.5px] text-ink-faint">Multiple</p><p className="text-[20px] font-black tnum" style={HF}>{/* calculé ici à partir du prix et du revenu affichés, pour que les trois chiffres de la carte restent cohérents */}{Number(x.prix) > 0 && (x.mrr || x.mrr_declare) > 0 ? `${(x.prix / ((x.mrr || x.mrr_declare) * 12)).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} ×` : parseFloat(x.multiple) > 0 ? String(x.multiple).replace(".", ",").replace(/x$/i, " ×") : "–"}</p><p className="text-[11px] text-ink-faint">du revenu annuel</p></div>
             </div>
             {x.message && <p className="mt-3 text-[13.5px] text-ink-soft line-clamp-3">« {x.message} »</p>}
             {x.offres != null && <p className="mt-2 text-[12.5px] text-ink-faint">{x.offres} offre{x.offres > 1 ? "s" : ""} déjà reçue{x.offres > 1 ? "s" : ""}{x.depuis ? `, en vente depuis le ${new Date(x.depuis).toLocaleDateString("fr-FR")}` : ""}</p>}

@@ -12,6 +12,7 @@ const INSTRUCTIONS = `Bingoo! est une base de SaaS avec leurs revenus VÉRIFIÉS
 Pour « trouve-moi des SaaS qui scalent dans X » : appelle lister_niches si tu ne connais pas le slug de la niche, puis chercher_saas (tri « croissance », verifie=true). Donne toujours le revenu vérifié et la croissance, et le lien Bingoo! de chaque SaaS.
 « mrr » est en dollars par mois. Une croissance très forte sur un petit revenu est fragile : dis-le. Un revenu vérifié n'est pas un bénéfice : il ne dit rien des marges.
 Pour suivre un SaaS (alerte chaque lundi quand ses prix, son recrutement ou ses nouveautés bougent) : suivre_saas.
+N'emploie jamais les mots « copie » ou « copier » : on parle de « lancer sa version » d'un SaaS (mêmes fonctionnalités, son nom, ses mots, son design).
 Si une réponse contient « offre: gratuite », les chiffres marqués « réservé aux abonnés Bingoo! » sont masqués : ne les invente jamais, dis-le à l'utilisateur et donne-lui le lien d'abonnement.`;
 
 const outils = (niches: string[]) => [
@@ -30,10 +31,10 @@ const outils = (niches: string[]) => [
       recent: { type: "boolean", description: "Seulement ceux créés il y a moins de 12 mois." },
       a_vendre: { type: "boolean", description: "Seulement ceux mis en vente." },
       sans_concurrent_francais: { type: "boolean", description: "Niches sans SaaS français repéré." },
-      tri: { type: "string", enum: TRIS, description: "croissance (qui scalent), revenu, encaisse (argent encaissé sur 30 jours), copiable (facile à copier), recent." },
+      tri: { type: "string", enum: TRIS, description: "croissance (qui scalent), revenu, encaisse (argent encaissé sur 30 jours), copiable (le plus facile à lancer soi-même), recent." },
       nombre: { type: "number", description: "Nombre de résultats (1 à 50, 10 par défaut)." },
     } } },
-  { name: "fiche_saas", description: "Tout ce que Bingoo! sait d'un SaaS : revenus vérifiés par période (24 h à depuis le début), revenu par mois, croissance, abonnés, visiteurs, marge, prix, formules, version gratuite, promesse, cible, équipe, financement, technologies, canaux d'acquisition, mise en vente, et ce qui le rend facile ou non à copier.",
+  { name: "fiche_saas", description: "Tout ce que Bingoo! sait d'un SaaS : revenus vérifiés par période (24 h à depuis le début), revenu par mois, croissance, abonnés, visiteurs, marge, prix, formules, version gratuite, promesse, cible, équipe, financement, technologies, canaux d'acquisition, mise en vente, et ce qui le rend facile ou non à lancer soi-même.",
     inputSchema: { type: "object", properties: { domaine: { type: "string", description: "Adresse du SaaS, ex. url2pin.com" } }, required: ["domaine"] } },
   { name: "lister_niches", description: "Les micro-niches de SaaS (ex. « Humaniser les textes IA », « Pinterest ») avec, pour chacune : nombre de SaaS, nombre avec un revenu vérifié, revenu médian, revenu cumulé, croissance médiane, concurrents français, le plus gros SaaS.",
     inputSchema: { type: "object", properties: { tri: { type: "string", enum: ["rentables", "croissance", "mediane", "sans_fr"], description: "Ordre." }, nombre: { type: "number" } } } },
@@ -81,7 +82,7 @@ async function appeler(admin: SupabaseClient, ws: string, nom: string, a: any) {
     p.nombre = nb(a?.nombre, 10, 50);
     const { data, error } = await admin.rpc("saas_recherche", { p });
     if (error) throw new Error(error.message);
-    return { total: data.total, saas: (data.saas ?? []).map((s: any) => ({ ...s, lien_bingoo: lien(s.domaine), copier: `${SITE}/#/explorer/lancer?d=${s.domaine}` })) };
+    return { total: data.total, saas: (data.saas ?? []).map((s: any) => ({ ...s, lien_bingoo: lien(s.domaine), lancer_ma_version: `${SITE}/#/explorer/lancer?d=${s.domaine}` })) };
   }
   if (nom === "fiche_saas") {
     const d = String(a?.domaine ?? "").trim().replace(/^https?:\/\//i, "").replace(/^www\./i, "").split(/[/?#]/)[0].toLowerCase();
@@ -89,7 +90,7 @@ async function appeler(admin: SupabaseClient, ws: string, nom: string, a: any) {
     if (!s || ["pas_saas", "doublon"].includes(s.statut)) return { trouve: false, message: `${d} n'est pas dans Bingoo!. On peut l'ajouter depuis ${SITE}/#/explorer/chiffres?u=${d}` };
     const t = s.trustmrr ?? {};
     const { jours: _j, lu_at: _l, captures: _c, ...trustmrr } = t;
-    return { ...s, trustmrr, revenu_par_jour_30j: t.jours ?? null, courbe_mensuelle: s.succes?.courbe ?? null, lien_bingoo: lien(d), copier: `${SITE}/#/explorer/lancer?d=${d}` };
+    return { ...s, trustmrr, revenu_par_jour_30j: t.jours ?? null, courbe_mensuelle: s.succes?.courbe ?? null, lien_bingoo: lien(d), lancer_ma_version: `${SITE}/#/explorer/lancer?d=${d}` };
   }
   if (nom === "lister_niches") {
     const { data } = await admin.rpc("saas_micro_stats");
@@ -103,7 +104,7 @@ async function appeler(admin: SupabaseClient, ws: string, nom: string, a: any) {
   }
   if (nom === "saas_a_vendre") {
     const { data } = await admin.rpc("saas_a_vendre", { ws });
-    return { a_vendre: (data ?? []).slice(0, nb(a?.nombre, 20, 100)).map((x: any) => ({ nom: x.nom, domaine: x.domaine, ou: x.source === "trustmrr" ? "TrustMRR" : "annonce Bingoo!", prix_demande: x.prix, mrr: x.mrr ?? x.mrr_declare, revenu: x.mrr ? "vérifié" : x.mrr_declare ? "déclaré" : null, multiple: x.multiple, offres_recues: x.offres, message: x.message, faire_une_offre: x.offre_url ?? `${SITE}/#/explorer/vendre` })) };
+    return { a_vendre: (data ?? []).slice(0, nb(a?.nombre, 20, 100)).map((x: any) => ({ nom: x.nom, domaine: x.domaine, ou: x.source === "trustmrr" ? "TrustMRR" : "annonce Bingoo!", prix_demande: x.prix, mrr: x.mrr ?? x.mrr_declare, revenu: x.mrr ? "vérifié" : x.mrr_declare ? "déclaré" : null, multiple_revenu_annuel: x.prix && (x.mrr ?? x.mrr_declare) ? Math.round((x.prix / ((x.mrr ?? x.mrr_declare) * 12)) * 10) / 10 : x.multiple, offres_recues: x.offres, message: x.message, faire_une_offre: x.offre_url ?? `${SITE}/#/explorer/vendre` })) };
   }
   if (nom === "suivre_saas") {
     const d = String(a?.domaine ?? "").trim().replace(/^https?:\/\//i, "").replace(/^www\./i, "").split(/[/?#]/)[0].toLowerCase();
@@ -127,7 +128,7 @@ async function appeler(admin: SupabaseClient, ws: string, nom: string, a: any) {
   if (nom === "mes_favoris") {
     const { data } = await admin.from("saas_favoris").select("created_at, saas:saas_id(nom, domaine, description, categorie, prix_entree_eur, succes), appli:mobile_id(nom, editeur, categorie, note, avis, rang_revenus, url)").eq("workspace_id", ws).order("created_at", { ascending: false });
     return { favoris: (data ?? []).map((x: any) => x.saas
-      ? { type: "saas", nom: x.saas.nom, domaine: x.saas.domaine, description: x.saas.description, categorie: x.saas.categorie, prix_entree_eur: x.saas.prix_entree_eur, mrr: x.saas.succes?.mrr ?? null, lien_bingoo: lien(x.saas.domaine), copier: `${SITE}/#/explorer/lancer?d=${x.saas.domaine}` }
+      ? { type: "saas", nom: x.saas.nom, domaine: x.saas.domaine, description: x.saas.description, categorie: x.saas.categorie, prix_entree_eur: x.saas.prix_entree_eur, mrr: x.saas.succes?.mrr ?? null, lien_bingoo: lien(x.saas.domaine), lancer_ma_version: `${SITE}/#/explorer/lancer?d=${x.saas.domaine}` }
       : { type: "appli", ...x.appli }) };
   }
   if (nom === "mes_suivis") {

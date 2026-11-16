@@ -10,3 +10,6 @@ select 1;
 -- - index saas_a_vendre_idx : la page Acheter / vendre passait en erreur 500 après 8,5 s, maintenant 0,3 s.
 -- - 120 fiches avec codes HTML restants décodées ; suffixes de société (Inc., LLC, GmbH, Ltd) retirés des noms.
 -- - cron bingoo-explorer-pubs en pause jusqu'au nouveau jeton Meta (il échouait toutes les 10 min).
+-- Audit page par page :
+-- - saas_mobiles_liste / saas_stats_entete : nombre d'applis exact (count) au lieu de l'estimation ; VACUUM saas et saas_mobiles.
+-- - cible : 4 222 SaaS prennent la cible déclarée sur TrustMRR (B2B/B2C) ; trigger saas_cible pour la suite ; sauvegarde public._cible_avant.
