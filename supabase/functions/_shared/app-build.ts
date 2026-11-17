@@ -188,7 +188,7 @@ Collections : ${(s.collections ?? []).slice(0, 6).map((c: any) => `${c.nom} : ${
     couleur: /^#[0-9a-f]{6}$/i.test(s.couleur ?? "") ? s.couleur : "#4F46E5",
     // Allure propre à chaque SaaS : deux SaaS construits ne doivent pas se ressembler
     ...(["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique"].includes(s.style) ? { style: s.style } : {}),
-    interface: ["gestion", "appli", "outil", "contenu", "communaute", "apprentissage"].includes(s.interface) ? s.interface : (modele ? "gestion" : "gestion"),
+    interface: ["gestion", "appli", "outil", "contenu", "communaute", "apprentissage"].includes(s.interface) ? s.interface : (modele === "ecriture" ? "outil" : "gestion"),
     disposition: ["barre", "haut", "onglets"].includes(s.disposition) ? s.disposition : (["appli", "communaute", "apprentissage"].includes(s.interface) ? "onglets" : ["outil", "contenu"].includes(s.interface) ? "haut" : "barre"),
     forme: ["carre", "arrondi", "pilule"].includes(s.forme) ? s.forme : "arrondi",
     fond: ["blanc", "creme", "gris", "sombre"].includes(s.fond) ? s.fond : "blanc",
