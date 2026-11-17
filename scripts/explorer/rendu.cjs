@@ -113,7 +113,7 @@ const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").
               return { titre: document.title || "", desc: m('meta[name="description"]') || m('meta[property="og:description"]'), texte: document.body ? document.body.innerText : "" };
             });
             const texte = d.texte.replace(/[ \t]+/g, " ").replace(/\s*\n\s*/g, "\n").slice(0, 6000);
-            const interdit = /\b(porn\w*|xxx|hentai\w*|nudes|togel\w*|slot gacor|gacor\w*|casino|toto (macau|hk|4d)|keluaran|pengeluaran|nsfw|uncensored|escort)\b/i.test(`${d.titre}\n${d.desc}`);
+            const interdit = /\b(porn\w*|xxx|hentai\w*|nudes|togel\w*|slot gacor|gacor\w*|casinos?|toto (macau|hk|4d)|keluaran|paris sportifs?|sports? betting|bookmakers?|surebets?|value ?bets|jackpot\w*|lotter(y|ies)|loterie|slots? (online|en ligne|maxwin)|online slots|free slots|machines? à sous|pengeluaran|nsfw|uncensored|escort)\b/i.test(`${d.titre}\n${d.desc}`);
             const v = interdit ? "pas_saas" : verdictSansIa(`${d.titre}\n${d.desc}\n${texte}`, "", "");
             if (v === "saas") {
               statut = "saas";

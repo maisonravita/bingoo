@@ -923,7 +923,7 @@ Test décisif : un client qui paie la version de Bingoo! obtiendra-t-il ce pour 
 
 Pour chaque logiciel ci-dessous :
 - "constructible" : true seulement si Bingoo! peut en construire une version complète et utile avec ce qu'il sait faire ; dans le doute, false.
-- "fait" : ce qu'il fait, en français simple, en 15 mots maximum, qui commence par un verbe et donne envie, SANS jamais citer son nom, son site ni une marque.
+- "fait" : ce qu'il fait, en français simple, en 15 mots maximum, qui commence par un verbe conjugué à la 3e personne (« Gère », « Transforme », « Aide »), qui donne envie, SANS jamais citer son nom, son site ni une marque. Jamais de vouvoiement (ni « vous », « votre », « vos », ni impératif en « -ez ») : si besoin, tutoie (« ton », « ta », « tes »). Décris ce que fait VRAIMENT ce logiciel d'après sa description, jamais une phrase générique de sa catégorie.
 - "pour_qui" : ses clients en 8 mots maximum.
 
 ${lot.map((x, k) => `[R${k}] ${x.texte}${x.persona ? ` (clients : ${x.persona})` : ""}`).join("\n")}

@@ -79,7 +79,7 @@ const categorieSansIa = (t: string) => CAT_MOTS.find(([re]) => re.test(t))?.[1] 
  *  « pas_saas » pour une boutique ou un site sans aucun de ces signes ; sinon « doute » (relu plus tard). */
 // Signes d'un site qui n'est pas un logiciel, et signes qu'il en est un (lecture sans IA)
 // Jamais dans Bingoo!, même si la page parle de logiciel (pages piratées de jeux d'argent, contenu adulte).
-export const INTERDIT = /\b(porn\w*|xxx|hentai\w*|nudes|togel\w*|slot gacor|gacor\w*|casino|toto (macau|hk|4d)|keluaran|pengeluaran|nsfw|uncensored|escort)\b/i;
+export const INTERDIT = /\b(porn\w*|xxx|hentai\w*|nudes|togel\w*|slot gacor|gacor\w*|casinos?|toto (macau|hk|4d)|keluaran|paris sportifs?|sports? betting|bookmakers?|surebets?|value ?bets|jackpot\w*|lotter(y|ies)|loterie|slots? (online|en ligne|maxwin)|online slots|free slots|machines? à sous|pengeluaran|nsfw|uncensored|escort)\b/i;
 const PAS_LOGICIEL = /\b(forums?|magazine|news(paper)?|novels?|manga|comics?|journal of|peer.?review|universit\w*|college|actualit\w*|recipes?|beauty|fashion|casino|betting|porn\w*|adult|escort|church|lottery|horoscope|lyrics|torrent|leak\w*|awards?|business directory|annuaire|wiki|clinic|hospital\w*|hotels?|airlines?|museum\w*|podcast|radio|tv shows?|movies?|films? en streaming|mmorpg|multijoueur|multiplayer|fan site|supporters|official website|site officiel|recette\w*|for sale|restaurants)\b/i;
 const LOGICIEL = /(software|platform|\bapps?\b|\btools?\b|saas|dashboard|automat|\bapi\b|plateforme|logiciel|\boutils?\b|\bcrm\b|builder|generator|tracker|analytics|scheduling|booking|management|\bmanage\b|workflow|integration|\bai\b|\bia\b|\bcreate|\bbuild|hosting|upload|calculator|\bsystem\b|your own|sign.?up|\bengine\b|\bsdk\b)/i;
 
