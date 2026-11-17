@@ -27,3 +27,6 @@ select cron.schedule('bingoo-menage-logs', '23 4 * * *', $$delete from cron.job_
 
 -- Trouver mon SaaS : voir 20261117 « trouver_jamais_vide » (appliqué via MCP) — saas_pour_moi_coeur devient un repli
 -- autour de saas_pour_moi_strict (catégorie, puis canaux/refus, puis objectif/audience/métier).
+
+-- Contrôle de santé (appliqué via MCP) : bingoo_sante vérifie aussi que « Trouver mon SaaS » renvoie des résultats
+-- pour un profil courant, que le crédit IA reste au-dessus de 2 €, et prévient dès 420 Mo de base (au lieu de 470).
