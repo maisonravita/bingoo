@@ -56,17 +56,17 @@ export const PLANS: Record<string, { label: string; price: number; factor: numbe
 /** Limites de chaque formule, par mois (le 1er du mois remet tout à zéro). Au-delà : les crédits.
  *  Pensées pour que l'IA d'un abonné coûte toujours moins que son abonnement, même au prix annuel (9,99 €/mois).
  *  ia = plafond de dépense IA du mois pour l'espace, en euros (constructions comprises). */
-export const LIMITES: Record<string, { construire: number; modifier: number; tiktok: number; pareil: number; ia: number }> = {
-  explorer: { construire: 0, modifier: 0, tiktok: 0, pareil: 0, ia: 1 },
-  explorer_pro: { construire: 3, modifier: 30, tiktok: 4, pareil: 20, ia: 4 },
-  business: { construire: 10, modifier: 100, tiktok: 12, pareil: 60, ia: 12 },
-  fondateur: { construire: 10, modifier: 100, tiktok: 12, pareil: 60, ia: 12 },
+export const LIMITES: Record<string, { construire: number; modifier: number; tiktok: number; pareil: number; scripts: number; ia: number }> = {
+  explorer: { construire: 0, modifier: 0, tiktok: 0, pareil: 0, scripts: 0, ia: 1 },
+  explorer_pro: { construire: 3, modifier: 30, tiktok: 4, pareil: 20, scripts: 4, ia: 4 },
+  business: { construire: 10, modifier: 100, tiktok: 12, pareil: 60, scripts: 12, ia: 12 },
+  fondateur: { construire: 10, modifier: 100, tiktok: 12, pareil: 60, scripts: 12, ia: 12 },
 };
 export const limitesDe = (plan?: string | null) => LIMITES[plan ?? ""] ?? LIMITES.explorer;
 /** Ce qui compte pour chaque limite (le type d'activité enregistré) */
-export const ACTIVITE_LIMITE = { construire: "construire", modifier: "modifier_app", tiktok: "tiktok", pareil: "tiktok_pareil" } as const;
+export const ACTIVITE_LIMITE = { construire: "construire", modifier: "modifier_app", tiktok: "tiktok", pareil: "tiktok_pareil", scripts: "scripts_video" } as const;
 export type Limite = keyof typeof ACTIVITE_LIMITE;
-const NOMS_LIMITE: Record<Limite, string> = { construire: "constructions", modifier: "modifications", tiktok: "recherches TikTok", pareil: "scripts « Faire pareil »" };
+const NOMS_LIMITE: Record<Limite, string> = { construire: "constructions", modifier: "modifications", tiktok: "recherches TikTok", pareil: "scripts « Faire pareil »", scripts: "lots de 10 scripts vidéo" };
 export async function utiliseMois(wsId: string, k: Limite) {
   const { count } = await admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", wsId).eq("kind", ACTIVITE_LIMITE[k]).gte("created_at", monthStart());
   return count ?? 0;
@@ -86,7 +86,7 @@ export const FOUNDER = { plan: "explorer_pro", price: 19, places: 50 };
 /** Formule en vente : « Lancer », un seul SaaS par abonnement, payé au mois, au trimestre ou à l'année (prix affichés par mois).
  *  Plus la durée est longue, plus elle comprend de choses. Les anciennes formules (Trouver, Lancer à plusieurs) restent pour leurs abonnés. */
 export const PERIODES: Record<string, { label: string; mois: number; parMois: number; inclus: string[] }> = {
-  mois: { label: "1 mois", mois: 1, parMois: 24.99, inclus: ["Ton SaaS construit et en ligne, à ton nom", "Tes SaaS à succès, avec leur nom et leurs chiffres", "Ton plan sur 30 jours, avec l'étape du jour chaque matin par e-mail", "Tes 10 premiers clients : des établissements à contacter, trouvés pour toi", "L'assistant IA de ton SaaS"] },
+  mois: { label: "1 mois", mois: 1, parMois: 24.99, inclus: ["Ton SaaS construit et en ligne, à ton nom", "Tes SaaS à succès, avec leur nom et leurs chiffres", "Ton plan sur 30 jours, avec l'étape du jour chaque matin par e-mail", "Tes 10 premiers clients : des établissements à contacter, trouvés pour toi", "40 scripts de vidéos par mois, prêts à tourner", "L'assistant IA de ton SaaS"] },
   trimestre: { label: "3 mois", mois: 3, parMois: 16.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Moins cher chaque mois", "Facturé tous les 3 mois"] },
   an: { label: "12 mois", mois: 12, parMois: 9.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Le prix le plus bas par mois", "Changer de SaaS une fois dans l'année", "Réponse prioritaire par e-mail"] },
 };

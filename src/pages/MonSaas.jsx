@@ -5,7 +5,7 @@ import { Navigate, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { cx } from "../lib/utils";
-import { Spinner } from "../components/ui";
+import { Spinner, useToast } from "../components/ui";
 import { lienApp } from "../components/AppCadre";
 import { nomCanal as nomBrut } from "../lib/plan30";
 const nomCanal = (c) => { const n = nomBrut(c) ?? ""; return n.charAt(0).toUpperCase() + n.slice(1); };
@@ -718,6 +718,8 @@ function TikTok({ m }) {
         )}
       </Carte>
 
+      <ScriptsVideo m={m} />
+
       <Carte className="mt-4" titre="Vidéos qui marchent dans ta niche" sous={t?.niche ? `Ta niche : ${t.niche}. Trouvées sur TikTok et vérifiées une par une : regarde-les, puis fais pareil pour ton SaaS.` : "Trouvées sur TikTok et vérifiées une par une. Regarde-les, puis fais pareil pour ton SaaS."}>
         {!t ? <p className="text-[13.5px] text-[#616161]">Lance l'analyse TikTok pour les voir.</p>
           : !t.videos?.length ? <p className="text-[13.5px] text-[#616161]">Bingoo! n'a pas trouvé de vidéo TikTok qui parle vraiment à tes clients en tant que professionnels (il préfère ne rien te montrer que des vidéos hors sujet). Pars des idées de vidéos ci-dessus et inspire-toi des SaaS qui trouvent leurs clients sur TikTok, plus bas.</p>
@@ -754,6 +756,88 @@ function TikTok({ m }) {
         </Carte>
       </div>
     </>
+  );
+}
+
+// Scripts de vidéos prêts à tourner : texte mot à mot, plans, textes à l'écran, légende. 10 par lot.
+const NIVEAUX = { facile: ["Facile", "#E3F1DF", "#1F5C1F"], moyen: ["Moyen", "#FFF1D6", "#7A4D00"], ambitieux: ["Ambitieux", "#F4E8FF", "#5B2B91"] };
+function ScriptsVideo({ m }) {
+  const { ws } = useWs();
+  const toast = useToast();
+  const [d, setD] = useState(undefined);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const [ouvert, setOuvert] = useState(null);
+  const [filtre, setFiltre] = useState("tous");
+  useEffect(() => { fn("r/saas-scripts", { workspace_id: ws.id, app_id: m.app.id, lire: true }).then(setD, () => setD({ scripts: [] })); }, [m.app.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ecrire = async () => {
+    setBusy(true); setErr(null);
+    try { const r = await fn("r/saas-scripts", { workspace_id: ws.id, app_id: m.app.id }); setD(r); setOuvert(r.scripts?.[0]?.id ?? null); } catch (e) { setErr(e.message); } finally { setBusy(false); }
+  };
+  const cocher = async (x) => {
+    setD((o) => ({ ...o, scripts: o.scripts.map((y) => (y.id === x.id ? { ...y, tourne: !x.tourne } : y)) }));
+    fn("r/saas-scripts", { workspace_id: ws.id, app_id: m.app.id, tourne: { id: x.id, val: !x.tourne } }).catch(() => {});
+  };
+  const liste = (d?.scripts ?? []).filter((x) => filtre === "tous" || (filtre === "a_tourner" ? !x.tourne : x.tourne));
+  const nb = d?.scripts?.length ?? 0, faits = (d?.scripts ?? []).filter((x) => x.tourne).length;
+  return (
+    <Carte className="mt-4" titre="Tes scripts de vidéos, prêts à tourner"
+      sous={`Pour chaque vidéo : ce que tu dis mot à mot, les plans à filmer, les textes à l'écran et la légende. Prends ton téléphone et tourne.`}
+      actions={nb > 0 ? <Bouton principal disabled={busy} onClick={ecrire}>{busy ? "Écriture…" : "10 scripts de plus"}</Bouton> : null}>
+      {err && <ErreurIA err={err} garde={nb > 0} />}
+      {d === undefined ? <div className="py-10 grid place-items-center"><Spinner /></div> : nb === 0 ? (
+        <div className="rounded-xl bg-[#F7F7F7] p-6 text-center">
+          <p className="font-semibold">10 vidéos pour faire connaître {m.nom}</p>
+          <p className="mx-auto mt-1 max-w-md text-[13px] text-[#616161]">Bingoo! écrit 10 scripts complets pensés pour tes clients{m.app.spec?.cible_courte ? <> (<b>{m.app.spec.cible_courte.replace(/^pour /i, "")}</b>)</> : ""} : démo, avant / après, erreurs à éviter, coulisses… du plus facile au plus ambitieux. Jusqu'à 40 par mois.</p>
+          <Bouton principal className="mt-4" disabled={busy} onClick={ecrire}>{busy ? "Écriture des scripts…" : "Écrire mes 10 premiers scripts"}</Bouton>
+          <p className="mt-2 text-[12px] text-[#8A8A8A]">Compte environ 30 secondes. Tes scripts restent enregistrés ici.</p>
+        </div>
+      ) : (
+        <>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            {[["tous", `Tous (${nb})`], ["a_tourner", `À tourner (${nb - faits})`], ["tournes", `Tournés (${faits})`]].map(([k, l]) => (
+              <button key={k} onClick={() => setFiltre(k)} className={`rounded-full px-3 py-1 text-[12.5px] font-semibold ${filtre === k ? "bg-[#303030] text-white" : "bg-[#F1F1F1] text-[#303030] hover:bg-[#E3E3E3]"}`}>{l}</button>
+            ))}
+          </div>
+          <ul className="divide-y divide-[#EBEBEB] rounded-xl border border-[#EBEBEB]">
+            {liste.map((x) => {
+              const n = NIVEAUX[x.niveau] ?? NIVEAUX.moyen, o = ouvert === x.id;
+              return (
+                <li key={x.id} className="p-3">
+                  <div className="flex items-start gap-3">
+                    <button onClick={() => cocher(x)} title={x.tourne ? "Marquer à tourner" : "Marquer comme tournée"} className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border ${x.tourne ? "border-[#1F7A4D] bg-[#1F7A4D] text-white" : "border-[#C9C9C9] bg-white"}`}>{x.tourne && <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3"><path d="M4 10.5l4 4 8-9" /></svg>}</button>
+                    <button onClick={() => setOuvert(o ? null : x.id)} className="min-w-0 flex-1 text-left">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="rounded-md bg-[#F1F1F1] px-1.5 py-0.5 text-[11.5px] font-semibold">{x.format}</span>
+                        <span className="rounded-md px-1.5 py-0.5 text-[11.5px] font-semibold" style={{ background: n[1], color: n[2] }}>{n[0]}</span>
+                        <span className="text-[12px] text-[#8A8A8A]">{x.duree} s</span>
+                      </div>
+                      <p className={`mt-1 text-[13.5px] font-semibold leading-snug ${x.tourne ? "text-[#8A8A8A] line-through" : ""}`}>« {x.accroche} »</p>
+                    </button>
+                    <span className="mt-1 text-[12px] text-[#8A8A8A]">{o ? "▲" : "▼"}</span>
+                  </div>
+                  {o && (
+                    <div className="mt-3 grid gap-3 pl-8 md:grid-cols-2">
+                      <div className="rounded-lg bg-[#F7F7F7] p-3">
+                        <p className="text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A]">Ce que tu dis</p>
+                        <p className="mt-1 whitespace-pre-line text-[13.5px] leading-relaxed">{x.texte}</p>
+                      </div>
+                      <div className="space-y-3">
+                        <div><p className="text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A]">Les plans à filmer</p><ol className="mt-1 space-y-0.5 text-[13px] text-[#303030]">{x.plans.map((p, k) => <li key={k}>{k + 1}. {p}</li>)}</ol></div>
+                        {x.ecran?.length > 0 && <div><p className="text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A]">Textes à l'écran</p><div className="mt-1 flex flex-wrap gap-1.5">{x.ecran.map((t, k) => <span key={k} className="rounded-md bg-[#111] px-2 py-0.5 text-[12px] font-semibold text-white">{t}</span>)}</div></div>}
+                        <div><p className="text-[12px] font-semibold uppercase tracking-wide text-[#8A8A8A]">Légende</p><p className="mt-1 text-[13px] text-[#616161]">{x.legende}</p>
+                          <button onClick={() => { navigator.clipboard?.writeText(x.legende); toast("Légende prête à coller"); }} className="mt-1 text-[12.5px] font-semibold text-[#005BD3] hover:underline">Prendre la légende</button></div>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+            {liste.length === 0 && <li className="p-4 text-[13px] text-[#616161]">Rien ici pour l'instant.</li>}
+          </ul>
+        </>
+      )}
+    </Carte>
   );
 }
 
@@ -812,7 +896,7 @@ function VideosTikTok({ videos, m, deja }) {
                   {p.legende && <p className="mt-2 rounded-lg bg-white p-2 text-[12.5px] text-[#303030] ring-1 ring-[#EBEBEB]">{p.legende}</p>}
                   <div className="mt-2.5 flex flex-wrap gap-2">
                     <Bouton principal onClick={() => nav(`/explorer/video?angle=${encodeURIComponent(p.accroche)}`)}>En faire une vidéo animée</Bouton>
-                    <Bouton onClick={() => navigator.clipboard?.writeText(`${p.accroche}\n\n${p.deroule.map((d, k) => `${k + 1}. ${d}`).join("\n")}\n\n${p.legende}`).then(() => { setCopie(v.url); setTimeout(() => setCopie(null), 1600); })}>{copie === v.url ? "Copié" : "Copier le script"}</Bouton>
+                    <Bouton onClick={() => navigator.clipboard?.writeText(`${p.accroche}\n\n${p.deroule.map((d, k) => `${k + 1}. ${d}`).join("\n")}\n\n${p.legende}`).then(() => { setCopie(v.url); setTimeout(() => setCopie(null), 1600); })}>{copie === v.url ? "Prêt à coller" : "Prendre le script"}</Bouton>
                   </div>
                 </div>
               )}

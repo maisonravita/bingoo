@@ -4,7 +4,7 @@ import { cx } from "../lib/utils";
 
 // Repli si le serveur ne répond pas : mêmes valeurs que PERIODES dans supabase/functions/_shared/core.ts
 export const PERIODES_LOCAL = [
-  { key: "mois", label: "1 mois", mois: 1, parMois: 24.99, inclus: ["Ton SaaS construit et en ligne, à ton nom", "Tes SaaS à succès, avec leur nom et leurs chiffres", "Ton plan sur 30 jours, avec l'étape du jour chaque matin par e-mail", "Tes 10 premiers clients : des établissements à contacter, trouvés pour toi", "L'assistant IA de ton SaaS"] },
+  { key: "mois", label: "1 mois", mois: 1, parMois: 24.99, inclus: ["Ton SaaS construit et en ligne, à ton nom", "Tes SaaS à succès, avec leur nom et leurs chiffres", "Ton plan sur 30 jours, avec l'étape du jour chaque matin par e-mail", "Tes 10 premiers clients : des établissements à contacter, trouvés pour toi", "40 scripts de vidéos par mois, prêts à tourner", "L'assistant IA de ton SaaS"] },
   { key: "trimestre", label: "3 mois", mois: 3, parMois: 16.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Moins cher chaque mois", "Facturé tous les 3 mois"] },
   { key: "an", label: "12 mois", mois: 12, parMois: 9.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Le prix le plus bas par mois", "Changer de SaaS une fois dans l'année", "Réponse prioritaire par e-mail"] },
 ];

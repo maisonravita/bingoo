@@ -113,7 +113,7 @@ function Credits({ ai, packs, busy, onBuy, saas }) {
 // Crédits Bingoo! (formule Lancer) : une modification en plus, une vidéo pub, un autre SaaS
 const ACTIONS_CREDITS = [["Une modification en plus", "modification", "au-delà des 30 du mois"], ["Une vidéo pub de ton SaaS", "video", "20 s en motion design, 2 formats"], ["Un autre SaaS", "saas", "ton premier reste en ligne"]];
 // Ce que l'abonné a utilisé ce mois-ci, face aux limites de sa formule
-const LIGNES_MOIS = [["construire", "Constructions de SaaS", "Reconstruire ou repartir de zéro"], ["modifier", "Modifications dans l'Atelier", "Au-delà : 1 crédit la modification"], ["tiktok", "Recherches TikTok", "Vidéos et comptes à étudier"], ["pareil", "Scripts « Faire pareil »", "Une vidéo TikTok adaptée à ton SaaS"]];
+const LIGNES_MOIS = [["construire", "Constructions de SaaS", "Reconstruire ou repartir de zéro"], ["modifier", "Modifications dans l'Atelier", "Au-delà : 1 crédit la modification"], ["tiktok", "Recherches TikTok", "Vidéos et comptes à étudier"], ["pareil", "Scripts « Faire pareil »", "Une vidéo TikTok adaptée à ton SaaS"], ["scripts", "Lots de 10 scripts vidéo", "Prêts à tourner, 40 par mois"]];
 function MoisEnCours({ l }) {
   if (!l?.mois) return null;
   const ia = l.ia ?? { pct: 0 };

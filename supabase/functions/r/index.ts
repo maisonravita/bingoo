@@ -694,7 +694,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   async limites(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const lim = limitesDe(ws.plan);
-    const ks = ["construire", "modifier", "tiktok", "pareil"] as const;
+    const ks = ["construire", "modifier", "tiktok", "pareil", "scripts"] as const;
     const utilises = await Promise.all(ks.map((k) => utiliseMois(ws.id, k)));
     const [depense, budget] = await Promise.all([aiSpent(ws.id), aiBudget(ws.id)]);
     const fin = new Date(); fin.setUTCMonth(fin.getUTCMonth() + 1, 1); fin.setUTCHours(0, 0, 0, 0);
@@ -770,6 +770,33 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     setAi({ ws: ws.id, live: true, feature: "tiktok" });
     const { saasTikTok } = await import("../_shared/app-tiktok.ts");
     return await saasTikTok(app, pr?.data ?? null, !!b.refaire);
+  },
+  // Scripts de vidéos prêts à tourner : 10 par lot, gardés pour le SaaS ; « tourne » coche une vidéo déjà filmée (sans IA)
+  async "saas-scripts"(req, b) {
+    const { ws } = await membreOuCron(req, b.workspace_id);
+    const { data: app } = await admin.from("saas_apps").select("id, workspace_id, spec, projet_id").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    if (!app?.spec) throw new HttpError(404, "Ton SaaS doit d'abord être construit");
+    const { data: row } = await admin.from("saas_scripts").select("scripts, at").eq("app_id", app.id).maybeSingle();
+    const liste: any[] = Array.isArray(row?.scripts) ? row.scripts : [];
+    if (b.lire) return { scripts: liste, at: row?.at ?? null };
+    if (b.tourne) {
+      const id = String(b.tourne.id ?? "");
+      const maj = liste.map((x) => (x.id === id ? { ...x, tourne: !!b.tourne.val } : x));
+      await admin.from("saas_scripts").update({ scripts: maj }).eq("app_id", app.id);
+      return { scripts: maj, at: row?.at ?? null };
+    }
+    await quota(ws.id, "scripts_video", 6);
+    if (!req.headers.get("x-cron-key")) await limiteMois(ws.id, ws.plan, "scripts");
+    const { data: pr } = await admin.from("saas_projets").select("data").eq("id", app.projet_id).maybeSingle();
+    setAi({ ws: ws.id, live: true, feature: "tiktok" });
+    const { scriptsLot } = await import("../_shared/app-tiktok.ts");
+    const nouveaux = await scriptsLot(app, pr?.data ?? null, liste.map((x) => x.accroche));
+    if (!nouveaux.length) throw new HttpError(502, "Bingoo! n'a pas réussi à écrire les scripts cette fois. Réessaie dans un instant.");
+    await log(ws.id, "scripts_video", `${nouveaux.length} scripts de vidéos`);
+    const tout = [...nouveaux, ...liste].slice(0, 300);
+    const at = new Date().toISOString();
+    await admin.from("saas_scripts").upsert({ app_id: app.id, workspace_id: ws.id, scripts: tout, at });
+    return { scripts: tout, at };
   },
   async "saas-tiktok-vignettes"(req, b) {
     await membreOuCron(req, b.workspace_id);

@@ -174,3 +174,37 @@ JSON : { "videos": [{ "i": numéro sans le V, "note": 0-10, "type": "demo_outil|
   await admin.from("saas_tiktok").upsert({ app_id: app.id, workspace_id: app.workspace_id, data, at: new Date().toISOString() });
   return { ...data, at: new Date().toISOString() };
 }
+
+// 10 scripts de vidéos courtes prêts à tourner (face caméra ou écran), différents de ceux déjà écrits pour ce SaaS
+export async function scriptsLot(app: any, projet: any, deja: string[]) {
+  const spec = app.spec ?? {};
+  const qui = `« ${spec.nom ?? projet?.nom} » : ${spec.pitch ?? projet?.pitch ?? ""}. Ses clients (ceux qui paient l'abonnement) : ${court(spec.cible ?? projet?.cible, 200)}.`;
+  const evite = deja.slice(0, 60).map((a) => `- ${court(a, 90)}`).join("\n");
+  const x = await askJson<any>(`Tu écris des vidéos courtes (TikTok, Reels, Shorts) pour faire connaître un logiciel SaaS sans budget publicitaire. Le SaaS : ${qui}
+Écris 10 scripts complets, prêts à tourner avec un téléphone, qui parlent aux clients du SaaS de LEUR métier et de LEURS problèmes. Varie les formats (démo en 15 secondes, avant / après, 3 erreurs que…, POV, réponse à une question, coulisses, comparaison, mythe ou vérité, histoire d'un client type, astuce du jour) et les niveaux (facile, moyen, ambitieux).
+${evite ? `Déjà écrites, ne les refais pas et ne reprends pas leur accroche :\n${evite}\n` : ""}Pour chaque script :
+- titre : 6 mots au plus
+- format : 4 mots au plus
+- niveau : "facile", "moyen" ou "ambitieux"
+- accroche : la phrase dite ou affichée les 2 premières secondes, 70 caractères maximum
+- texte : ce que tu dis face caméra, mot à mot, 40 à 110 mots, phrases courtes, à l'oral
+- plans : 3 à 5 plans à filmer, dans l'ordre (ce qu'on voit à l'écran, concrètement)
+- ecran : 2 à 4 textes courts à afficher par-dessus la vidéo
+- legende : la légende à publier, avec 3 à 5 hashtags pertinents
+- duree : durée en secondes (nombre entre 10 et 60)
+Français, tutoiement, sans emoji, sans promesse de revenus ni de résultat chiffré, sans inventer de clients ou de chiffres réels.
+JSON : { "scripts": [ ... ] }`, { fast: true, maxTokens: 7000 });
+  const at = Date.now().toString(36);
+  const vus = new Set(deja.map((a) => a.toLowerCase().trim()));
+  return (Array.isArray(x?.scripts) ? x.scripts : []).slice(0, 10).map((s: any, i: number) => ({
+    id: `${at}-${i}`,
+    titre: court(s.titre, 60), format: court(s.format, 40),
+    niveau: ["facile", "moyen", "ambitieux"].includes(String(s.niveau)) ? String(s.niveau) : "moyen",
+    accroche: court(s.accroche, 90), texte: court(s.texte, 900),
+    plans: (Array.isArray(s.plans) ? s.plans : []).slice(0, 5).map((p: unknown) => court(p, 160)),
+    ecran: (Array.isArray(s.ecran) ? s.ecran : []).slice(0, 4).map((p: unknown) => court(p, 80)),
+    legende: court(s.legende, 320),
+    duree: Math.max(10, Math.min(60, Number(s.duree) || 30)),
+    tourne: false,
+  })).filter((s: any) => s.accroche && s.texte && !vus.has(s.accroche.toLowerCase()));
+}
