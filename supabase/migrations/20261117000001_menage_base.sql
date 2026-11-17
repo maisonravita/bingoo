@@ -24,3 +24,6 @@ select cron.schedule('bingoo-menage-logs', '23 4 * * *', $$delete from cron.job_
 -- Accueil (appliqué via MCP) : la vitrine « La base de SaaS » ne montre que des SaaS que Bingoo! sait construire
 -- (constructible et constructible_ia non refusé), puisque sa tuile propose de « lancer ta version ». Les questions
 -- de « Bingoo! dans ton IA » restent sur toute la base.
+
+-- Trouver mon SaaS : voir 20261117 « trouver_jamais_vide » (appliqué via MCP) — saas_pour_moi_coeur devient un repli
+-- autour de saas_pour_moi_strict (catégorie, puis canaux/refus, puis objectif/audience/métier).

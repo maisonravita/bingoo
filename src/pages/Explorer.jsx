@@ -3069,10 +3069,10 @@ function PlanChiffre({ r, ap, onSuite }) {
         <p className="text-[48px] sm:text-[60px] font-black leading-none tracking-tight tnum fx-texte" style={HF}>{objectif.toLocaleString("fr-FR")} €</p>
         <p className="mt-3 text-[16px]">il te faut environ <b className="tnum">{clients.toLocaleString("fr-FR")} clients</b> à {prix} € par mois{r.audience === "B2B" ? ", le prix courant d'un outil pour les pros" : r.audience === "B2C" ? ", le prix courant d'une appli grand public" : ""}.</p>
         <div className="mt-8 space-y-3 text-left">{parts.map(([c, n]) => (
-          <div key={c} className="flex items-center gap-3 text-[14.5px]">
-            <span className="w-44 shrink-0 font-semibold">{NOM_CANAL[c] ?? c}</span>
-            <span className="relative h-2.5 flex-1 rounded-full bg-paper"><span className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-accent to-[#9B6BFF]" style={{ width: `${Math.max(8, (n / clients) * 100)}%` }} /></span>
-            <b className="w-24 shrink-0 text-right tnum">{n.toLocaleString("fr-FR")} clients</b>
+          <div key={c} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[14.5px] sm:flex-nowrap">
+            <span className="min-w-0 flex-1 font-semibold sm:w-44 sm:flex-none sm:shrink-0">{NOM_CANAL[c] ?? c}</span>
+            <span className="relative order-last h-2.5 w-full rounded-full bg-paper sm:order-none sm:w-auto sm:flex-1"><span className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-accent to-[#9B6BFF]" style={{ width: `${Math.max(8, (n / clients) * 100)}%` }} /></span>
+            <b className="shrink-0 text-right tnum sm:w-24">{n.toLocaleString("fr-FR")} clients</b>
           </div>
         ))}</div>
         {!voulus.length && <p className="mt-3 text-[12.5px] text-ink-faint">Tirés des façons de trouver des clients que tu n'as pas refusées.</p>}
@@ -3187,11 +3187,10 @@ function Debloquer({ total, tendance, mediane, invite, r }) {
       <ChoixFormule periodes={periodes} fondateur={prixFondateur} busy={busy} onChoisir={payer} />
     </section>
   );
-  const faux = [["Outil de réservation", "2 4•• $"], ["Assistant de facturation", "1 8•• $"], ["Extension de prospection", "3 1•• $"]];
   const bandeau = (
     <div className="mt-8 fx-halo rounded-3xl"><div className="rounded-3xl bg-white p-5 sm:p-7 flex flex-wrap items-center gap-5">
       <div className="flex-1 min-w-[260px]">
-        <h2 className="text-[22px] sm:text-[26px] font-black leading-tight" style={HF}>{liste?.length ? `${Number(total || liste.length).toLocaleString("fr-FR")} SaaS à succès pour toi` : "Tes 3 SaaS sont prêts"}</h2>
+        <h2 className="text-[22px] sm:text-[26px] font-black leading-tight" style={HF}>{`${Number(total || liste?.length || 0).toLocaleString("fr-FR")} SaaS à succès pour toi`}</h2>
         <p className="mt-1.5 text-[14.5px] text-ink-soft">{total ? <>Bingoo! a trouvé <b className="text-ink">{Number(total).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié qui collent à tes réponses{tendance ? <>, dont <b className="text-ink">{Number(tendance).toLocaleString("fr-FR")}</b> en tendance</> : null}{mediane ? <>, revenu médian {dollar(mediane)} par mois</> : null}. </> : null}Leur nom, leur fiche, ta version, ton plan et tes premiers clients s'affichent dès ton paiement reçu.</p>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -3201,8 +3200,10 @@ function Debloquer({ total, tendance, mediane, invite, r }) {
     </div></div>
   );
   if (liste === undefined) return <div className="py-16 grid place-items-center"><Spinner /></div>;
+  const elargi = liste?.length && (r.secteurs ?? []).length > 0 && !liste.some((x) => (r.secteurs ?? []).includes(x.categorie));
   if (liste?.length) return (
     <>
+      {elargi && <p className="mt-6 rounded-2xl bg-paper px-4 py-3 text-center text-[14px] text-ink-soft">Aucun SaaS de {(r.secteurs ?? []).length > 1 ? "tes secteurs" : `« ${r.secteurs[0]} »`} ne coche encore toutes tes réponses : voici les plus proches dans d'autres secteurs.</p>}
       {liste[0]?.clair ? (
         <>
           <div className="mt-8 grid items-center gap-5 lg:grid-cols-[1fr_1.55fr_1fr]">
@@ -3229,22 +3230,13 @@ function Debloquer({ total, tendance, mediane, invite, r }) {
       <ResultatsBingoo className="mt-8" />
     </>
   );
-  // Repli (liste floutée indisponible) : l'aperçu chiffré et trois cartes d'illustration
+  // Rien à montrer : on le dit franchement, sans fausses cartes ni bouton de paiement
   return (
-    <>
-      <div className="mt-6 grid md:grid-cols-3 gap-4" aria-hidden>
-        {faux.map(([nom, m]) => (
-          <div key={nom} className="pointer-events-none select-none blur-[7px] rounded-2xl border border-line bg-white p-5">
-            <div className="flex items-center gap-3"><span className="h-11 w-11 rounded-xl bg-accent-soft" /><div className="flex-1"><p className="font-bold">{nom}</p><p className="text-[12.5px] text-ink-faint">Catégorie</p></div><p className="font-black">{m}</p></div>
-            <p className="mt-3 rounded-full bg-[#FEF3F2] px-2.5 py-1 text-[12.5px] w-fit">En pleine tendance</p>
-            <p className="mt-3 text-[14px] text-ink-soft">Un SaaS qui gagne déjà de l'argent, tenu par une petite équipe, avec un prix simple.</p>
-          </div>
-        ))}
-      </div>
-      {bandeau}
-      {formules}
-      <ResultatsBingoo className="mt-8" />
-    </>
+    <div className="mt-8 rounded-3xl border border-line bg-white p-6 sm:p-8 text-center">
+      <p className="text-[20px] font-black" style={HF}>{liste === null ? "Tes résultats n'ont pas pu se charger." : "Aucun SaaS ne colle encore à toutes tes réponses."}</p>
+      <p className="mx-auto mt-2 max-w-[520px] text-[15px] text-ink-soft">{liste === null ? "Recharge la page dans un instant : tes réponses sont gardées." : "Utilise « Changer mes réponses » en haut de la page : retire un secteur ou une façon de trouver tes clients, et Bingoo! cherche à nouveau."}</p>
+      <button onClick={() => (liste === null ? window.location.reload() : window.scrollTo({ top: 0, behavior: "smooth" }))} className="mt-5 rounded-xl bg-ink px-6 py-3 font-bold text-white hover:bg-black">{liste === null ? "Recharger" : "Changer mes réponses"}</button>
+    </div>
   );
 }
 // Les formules en vente et le prix fondateur (serveur), avec repli sur les valeurs locales
