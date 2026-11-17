@@ -97,7 +97,13 @@ const Tuile = ({ m, size = "h-9 w-9 text-[16px] rounded-[10px]" }) => m.app?.spe
   : <span className={cx("grid shrink-0 place-items-center font-black text-white", size)} style={{ background: `linear-gradient(140deg, ${m.couleur}, ${m.couleur}cc)` }}>{m.nom.charAt(0).toUpperCase()}</span>;
 
 // ---------------------------------------------------------------- Identité : logo, couleur et style du SaaS (changés en direct, sans IA)
-const STYLES_SAAS = [["moderne", "Moderne", "Clair, aperçu à côté du titre"], ["doux", "Doux", "Fond teinté, tout en douceur"], ["sombre", "Sombre", "Accueil et menu sombres"], ["editorial", "Éditorial", "Titres à empattement, chic"], ["vif", "Vif", "Dégradé et menu à ta couleur"]];
+const STYLES_SAAS = [["moderne", "Moderne", "Clair, aperçu à côté du titre"], ["doux", "Doux", "Fond teinté, tout en douceur"], ["sombre", "Sombre", "Accueil et menu sombres"], ["editorial", "Éditorial", "Titres à empattement, chic"], ["vif", "Vif", "Dégradé et menu à ta couleur"],
+  ["rond", "Rond", "Très amical, grand public"], ["tech", "Tech", "Titres géométriques, menu sombre"], ["elegant", "Élégant", "Haut de gamme, titres raffinés"], ["sport", "Sport", "Énergique, titres condensés"], ["geometrique", "Géométrique", "Jeune et épuré"]];
+const POLICE_SAAS = { editorial: "Fraunces, serif", elegant: "'Playfair Display', serif", sport: "'Barlow Condensed', sans-serif", tech: "'Space Grotesk', sans-serif", rond: "Nunito, sans-serif", geometrique: "Outfit, sans-serif" };
+// Mise en page, forme et fond : chaque SaaS peut avoir sa propre allure (changées en direct, sans IA)
+const DISPOS_SAAS = [["barre", "Menu à gauche", "Outil de travail sur ordinateur"], ["haut", "Menu en haut", "Appli simple, peu d'écrans"], ["onglets", "Onglets en bas", "Appli surtout sur téléphone"]];
+const FORMES_SAAS = [["carre", "Carré"], ["arrondi", "Arrondi"], ["pilule", "Pilule"]];
+const FONDS_SAAS = [["blanc", "Blanc", "#FFFFFF"], ["creme", "Crème", "#FAF7F2"], ["gris", "Gris", "#EEF1F5"], ["sombre", "Sombre", "#0E1116"]];
 const NUANCES = ["#E8571C", "#DC2626", "#DB2777", "#7C3AED", "#4F46E5", "#2563EB", "#0891B2", "#0F766E", "#16A34A", "#CA8A04", "#1F2937"];
 // Logo redimensionné dans le navigateur (512 px au plus, PNG) avant l'envoi
 const reduireLogo = (fichier) => new Promise((ok, ko) => {
@@ -267,16 +273,34 @@ function Identite({ m, charger }) {
           <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
             {STYLES_SAAS.map(([k, t, d]) => (
               <button key={k} onClick={() => envoyer("style", { style: k })} className={cx("rounded-xl p-2 text-left ring-1 transition", style === k ? "ring-2 ring-[#303030]" : "ring-[#EBEBEB] hover:ring-[#B5B5B5]")}>
-                <span className="flex h-14 overflow-hidden rounded-lg ring-1 ring-black/5" style={{ background: k === "sombre" ? "#0f172a" : k === "vif" ? `linear-gradient(150deg, ${m.couleur}, #0f172a)` : k === "doux" ? `${m.couleur}12` : "#fff" }}>
-                  <span className="w-1/3" style={{ background: k === "sombre" ? "#1e293b" : k === "vif" ? m.couleur : k === "doux" ? `${m.couleur}22` : "#F1F5F9" }} />
-                  <span className="flex-1 p-1.5"><span className="block h-1.5 w-3/4 rounded" style={{ background: k === "sombre" || k === "vif" ? "#fff" : "#0f172a" }} /><span className="mt-1 block h-1 w-1/2 rounded bg-current opacity-30" /><span className="mt-1.5 block h-2.5 w-8 rounded" style={{ background: m.couleur }} /></span>
+                <span className="flex h-14 overflow-hidden rounded-lg ring-1 ring-black/5" style={{ background: ["sombre", "tech"].includes(k) ? "#0f172a" : ["vif", "sport"].includes(k) ? `linear-gradient(150deg, ${m.couleur}, #0f172a)` : ["doux", "rond"].includes(k) ? `${m.couleur}12` : "#fff" }}>
+                  <span className="w-1/3" style={{ background: ["sombre", "tech"].includes(k) ? "#1e293b" : ["vif", "sport"].includes(k) ? m.couleur : ["doux", "rond"].includes(k) ? `${m.couleur}22` : "#F1F5F9" }} />
+                  <span className="flex-1 p-1.5"><span className="block h-1.5 w-3/4 rounded" style={{ background: k === "sombre" || ["vif", "sport"].includes(k) ? "#fff" : "#0f172a" }} /><span className="mt-1 block h-1 w-1/2 rounded bg-current opacity-30" /><span className="mt-1.5 block h-2.5 w-8 rounded" style={{ background: m.couleur }} /></span>
                 </span>
-                <span className={cx("mt-1.5 block text-[12.5px] font-semibold", k === "editorial" && "font-serif")}>{t}</span>
+                <span className="mt-1.5 block text-[12.5px] font-semibold" style={POLICE_SAAS[k] ? { fontFamily: POLICE_SAAS[k] } : undefined}>{t}</span>
                 <span className="block text-[11px] leading-tight text-[#8A8A8A]">{d}</span>
               </button>
             ))}
           </div>
           {!style && <p className="mt-2 text-[12px] text-[#8A8A8A]">Bingoo! a choisi un style pour toi : choisis-en un pour le fixer.</p>}
+          <p className="mt-5 text-[12.5px] font-semibold text-[#616161]">Mise en page</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            {DISPOS_SAAS.map(([k, t, d]) => (
+              <button key={k} onClick={() => envoyer("disposition", { disposition: k })} className={cx("rounded-xl p-2 text-left ring-1 transition", (m.app.spec?.disposition ?? "barre") === k ? "ring-2 ring-[#303030]" : "ring-[#EBEBEB] hover:ring-[#B5B5B5]")}>
+                <span className="relative block h-12 overflow-hidden rounded-lg bg-[#F6F6F6] ring-1 ring-black/5">
+                  {k === "barre" && <span className="absolute inset-y-0 left-0 w-1/4" style={{ background: `${m.couleur}33` }} />}
+                  {k !== "barre" && <span className="absolute inset-x-0 top-0 h-2.5" style={{ background: `${m.couleur}33` }} />}
+                  {k === "onglets" && <span className="absolute inset-x-0 bottom-0 h-3" style={{ background: m.couleur }} />}
+                </span>
+                <span className="mt-1.5 block text-[12.5px] font-semibold">{t}</span>
+                <span className="block text-[11px] leading-tight text-[#8A8A8A]">{d}</span>
+              </button>
+            ))}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-x-8 gap-y-3">
+            <div><p className="text-[12.5px] font-semibold text-[#616161]">Forme</p><div className="mt-2 flex gap-1.5">{FORMES_SAAS.map(([k, t]) => <button key={k} onClick={() => envoyer("forme", { forme: k })} className={cx("px-3 py-1.5 text-[12.5px] font-semibold ring-1", k === "carre" ? "rounded-sm" : k === "pilule" ? "rounded-full" : "rounded-lg", (m.app.spec?.forme ?? "arrondi") === k ? "bg-[#303030] text-white ring-[#303030]" : "ring-[#EBEBEB] hover:ring-[#B5B5B5]")}>{t}</button>)}</div></div>
+            <div><p className="text-[12.5px] font-semibold text-[#616161]">Fond</p><div className="mt-2 flex gap-1.5">{FONDS_SAAS.map(([k, t, c]) => <button key={k} title={t} onClick={() => envoyer("fond", { fond: k })} className={cx("flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold ring-1", (m.app.spec?.fond ?? "blanc") === k ? "ring-2 ring-[#303030]" : "ring-[#EBEBEB] hover:ring-[#B5B5B5]")}><span className="h-3.5 w-3.5 rounded-full ring-1 ring-black/10" style={{ background: c }} />{t}</button>)}</div></div>
+          </div>
         </div>
       </div>
       {err && <p className="mt-3 text-[12.5px] text-[#B42318]">{err}</p>}

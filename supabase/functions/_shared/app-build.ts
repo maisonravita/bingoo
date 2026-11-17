@@ -109,6 +109,11 @@ export async function saasConstruire(appId: string, lancerEcran: (ecranId: strin
   const { modeleDe, FAIT, PERSO, SPEC } = await import("./modeles.ts");
   const modele = modeleDe(p);
   const FAIT_MODELE = modele ? (FAIT as Record<string, string>)[modele] : "";
+  // Deux SaaS construits ne doivent pas se ressembler : palette variée, et pas les couleurs ni les allures des derniers construits
+  const { data: recents } = await admin.from("saas_apps").select("spec").neq("id", appId).not("statut", "in", "(remplace,retire,erreur)").order("maj", { ascending: false }).limit(8);
+  const couleursPrises = (recents ?? []).map((r: any) => r.spec?.couleur).filter(Boolean);
+  const allluresPrises = (recents ?? []).map((r: any) => [r.spec?.style, r.spec?.disposition].filter(Boolean).join("/")).filter(Boolean);
+  const PALETTE = ["#C2410C", "#B91C1C", "#BE185D", "#7E22CE", "#4338CA", "#1D4ED8", "#0369A1", "#0E7490", "#15803D", "#4D7C0F", "#A16207", "#9A3412", "#334155", "#1E293B", "#9F1239", "#6D28D9"];
   const s = await askJson<any>(`Tu conçois la première version d'une application web (SaaS) qui va être générée automatiquement et mise en ligne. Elle peut être de tout genre : outil de gestion pour des professionnels, mais aussi appli grand public (sport et entraînement, nutrition, bien-être, apprentissage et révisions, organisation perso, famille, loisirs, finances perso), outil IA de texte, ou communauté. Pour une appli grand public, l'utilisateur est la personne elle-même (ses séances, ses objectifs, sa progression), pas une entreprise qui gère des clients.${modele ? `\n${FAIT_MODELE}` : ""}
 SaaS : « ${p.nom} » — ${p.pitch}
 Pour : ${p.cible}
@@ -121,7 +126,11 @@ ${p.scan.formules ? `Logique des formules : ${p.scan.formules}\n` : ""}Vocabulai
 Les écrans reprennent les modules les plus importants de cette fiche (un écran par module, mêmes données, même parcours), avec nos noms et nos mots.
 ` : ""}
 Rends un objet JSON compact :
-- couleur : couleur de marque en hexadécimal (#xxxxxx), assez foncée pour du texte blanc dessus, PAS celle de ${p.inspire?.nom ?? "l'inspiration"}.
+- couleur : couleur de marque en hexadécimal (#xxxxxx), assez foncée pour du texte blanc dessus, PAS celle de ${p.inspire?.nom ?? "l'inspiration"}. Choisis-la dans cette palette, celle qui raconte le mieux le métier ou l'ambiance : ${PALETTE.join(", ")}. Couleurs déjà prises par les derniers SaaS construits, à ÉVITER ainsi que leurs voisines (surtout les verts canard et bleu-vert foncés, beaucoup trop vus) : ${couleursPrises.join(", ") || "aucune"}.
+- style : l'allure de l'application, UN parmi moderne (net, Inter), doux (arrondi, chaleureux), sombre (menu foncé), editorial (titres à empattement, posé), vif (couleurs franches), rond (très amical, grand public), tech (outil technique, titres géométriques), elegant (haut de gamme, titres raffinés), sport (énergique, titres condensés), geometrique (jeune, épuré). Choisis selon le public et le métier, pas au hasard, et pas une allure déjà prise par les derniers SaaS construits (${allluresPrises.join(", ") || "aucune"}) sauf si c'est vraiment la seule qui convient.
+- disposition : barre (menu à gauche, outil de travail sur ordinateur), haut (menu en haut, appli simple à peu d'écrans), onglets (onglets en bas sur téléphone, appli grand public utilisée surtout sur mobile).
+- forme : carre (sobre, professionnel), arrondi (équilibré), pilule (doux, grand public).
+- fond : blanc, creme (chaleureux), gris (outil dense), sombre (soirée, sport, musique, tech ; à éviter pour un outil de gestion classique).
 - slogan : titre du site, 8 mots au plus, percutant ; cible_courte : 5 mots (« Pour les … »).
 - pitch_site : la phrase sous le titre du site, 35 mots au plus. Elle ne promet QUE ce que cette première version fait vraiment (écrans, pages publiques, IA texte) : pas de synchronisation d'agenda, d'envoi de SMS, d'intégration à un autre logiciel ni de chiffres inventés. Les atouts suivent la même règle.
 - formules : reprends EXACTEMENT ces formules (même nom, même prix, même « pour ») : ${JSON.stringify((p.formules ?? []).slice(0, 3).map((f: any) => ({ nom: f.nom, prix: f.prix, pour: f.pour })))}, avec pour chacune « inclus » : 3 à 5 avantages qui ne citent QUE ce que cette première version fait vraiment (ses écrans, ses pages publiques, l'IA texte, les e-mails, le paiement par carte, le nombre d'utilisateurs). Interdits : « dès disponible », API, images, vidéo, import de fichiers, chiffrement, modèle d'IA au choix, intégrations, application mobile, recherche web.
@@ -143,6 +152,11 @@ Collections : ${(s.collections ?? []).slice(0, 6).map((c: any) => `${c.nom} : ${
   const spec: any = {
     nom: p.nom, pitch: p.pitch, cible: p.cible, probleme: p.probleme,
     couleur: /^#[0-9a-f]{6}$/i.test(s.couleur ?? "") ? s.couleur : "#4F46E5",
+    // Allure propre à chaque SaaS : deux SaaS construits ne doivent pas se ressembler
+    ...(["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique"].includes(s.style) ? { style: s.style } : {}),
+    disposition: ["barre", "haut", "onglets"].includes(s.disposition) ? s.disposition : "barre",
+    forme: ["carre", "arrondi", "pilule"].includes(s.forme) ? s.forme : "arrondi",
+    fond: ["blanc", "creme", "gris", "sombre"].includes(s.fond) ? s.fond : "blanc",
     slogan: String(s.slogan ?? p.pitch ?? "").slice(0, 90), cible_courte: String(s.cible_courte ?? "").slice(0, 60),
     ...(s.pitch_site ? { pitch: String(s.pitch_site).slice(0, 300) } : {}),
     ...(s.probleme_site ? { probleme: String(s.probleme_site).slice(0, 320) } : {}),

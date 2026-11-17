@@ -515,12 +515,15 @@ export async function appLancementFait(appId: string, cle: string, fait: boolean
 }
 
 // ---------------------------------------------------------------- Identité visuelle : logo, couleur, style (choisis par le créateur)
-const STYLES_OK = ["moderne", "doux", "sombre", "editorial", "vif"];
+const STYLES_OK = ["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique"];
 export async function appIdentite(appId: string, b: any) {
   const { data: app } = await admin.from("saas_apps").select("slug, spec, brouillon, version").eq("id", appId).single();
   const patch: Record<string, unknown> = {};
   if (b.couleur !== undefined) { if (!/^#[0-9a-f]{6}$/i.test(String(b.couleur))) throw new HttpError(400, "Couleur invalide"); patch.couleur = String(b.couleur); }
   if (b.style !== undefined) { if (!STYLES_OK.includes(String(b.style))) throw new HttpError(400, "Style inconnu"); patch.style = String(b.style); }
+  if (b.disposition !== undefined) { if (!["barre", "haut", "onglets"].includes(String(b.disposition))) throw new HttpError(400, "Mise en page inconnue"); patch.disposition = String(b.disposition); }
+  if (b.forme !== undefined) { if (!["carre", "arrondi", "pilule"].includes(String(b.forme))) throw new HttpError(400, "Forme inconnue"); patch.forme = String(b.forme); }
+  if (b.fond !== undefined) { if (!["blanc", "creme", "gris", "sombre"].includes(String(b.fond))) throw new HttpError(400, "Fond inconnu"); patch.fond = String(b.fond); }
   if (b.logo === null) patch.logo = null;
   else if (b.logo !== undefined) {
     // Image seulement (PNG, JPEG, WebP), redimensionnée par le navigateur ; pas de SVG (il pourrait contenir du code)

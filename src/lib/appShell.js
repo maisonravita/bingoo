@@ -19,14 +19,21 @@ export const STYLES = {
   sombre: { label: "Sombre", police: "Manrope", titres: "Manrope", menu: "sombre", hero: "sombre" },
   editorial: { label: "Éditorial", police: "Inter", titres: "Fraunces", menu: "clair", hero: "cote" },
   vif: { label: "Vif", police: "DM Sans", titres: "DM Sans", menu: "couleur", hero: "degrade" },
+  rond: { label: "Rond", police: "Nunito", titres: "Nunito", menu: "teinte", hero: "centre" },
+  tech: { label: "Tech", police: "Inter", titres: "Space Grotesk", menu: "sombre", hero: "sombre" },
+  elegant: { label: "Élégant", police: "Inter", titres: "Playfair Display", menu: "clair", hero: "centre" },
+  sport: { label: "Sport", police: "Barlow", titres: "Barlow Condensed", menu: "couleur", hero: "degrade" },
+  geometrique: { label: "Géométrique", police: "Outfit", titres: "Outfit", menu: "clair", hero: "cote" },
 };
+// Les SaaS sans style choisi gardent celui qu'ils avaient (calculé sur les 5 styles d'origine)
+const STYLES_ORIGINE = ["moderne", "doux", "sombre", "editorial", "vif"];
 export function styleDe(spec) {
   if (spec?.style && STYLES[spec.style]) return spec.style;
-  const k = Object.keys(STYLES); let h = 0;
+  const k = STYLES_ORIGINE; let h = 0;
   for (const c of String(spec?.nom ?? "")) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return k[h % k.length];
 }
-const policeUrl = (st) => "https://fonts.googleapis.com/css2?" + [...new Set([st.police, st.titres])].map((p) => "family=" + p.replace(/ /g, "+") + (p === "Fraunces" ? ":opsz,wght@9..144,500;9..144,700" : ":wght@400;500;600;700;800")).join("&") + "&display=swap";
+const policeUrl = (st) => "https://fonts.googleapis.com/css2?" + [...new Set([st.police, st.titres])].map((p) => "family=" + p.replace(/ /g, "+") + (p === "Fraunces" ? ":opsz,wght@9..144,500;9..144,700" : p === "Playfair Display" ? ":wght@500;700;800" : ":wght@400;500;600;700;800")).join("&") + "&display=swap";
 
 export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null, capture = null }) {
   // Capture (vidéo pub) : mêmes données d'exemple que la vérification, aucune requête au serveur
@@ -37,6 +44,13 @@ export function appHtml({ spec, slug, api, token = null, apercu = false, paiemen
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js"></script>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${policeUrl(STYLES[styleDe(spec)])}">
 <style>:root{--c:${/^#[0-9a-f]{6}$/i.test(spec.couleur ?? "") ? spec.couleur : "#4F46E5"};--fh:"${STYLES[styleDe(spec)].titres}",ui-sans-serif,system-ui,sans-serif}body{font-family:"${STYLES[styleDe(spec)].police}",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:#F8FAFC;color:#0F172A}h1,h2,h3,.fh{font-family:var(--fh)}.menu-fonce [class~="text-slate-600"],.menu-fonce [class~="text-slate-500"]{color:rgba(255,255,255,.72)}.menu-fonce [class~="text-slate-400"]{color:rgba(255,255,255,.55)}.menu-fonce [class~="bg-slate-50"]{background:rgba(255,255,255,.08)}.menu-fonce [class~="border-slate-100"]{border-color:rgba(255,255,255,.12)}.menu-fonce [class~="hover:bg-slate-50"]:hover,.menu-fonce [class~="hover:bg-slate-100"]:hover{background:rgba(255,255,255,.1)}.menu-fonce a{color:inherit}
+.forme-carre .rounded-2xl,.forme-carre .rounded-xl,.forme-carre .rounded-3xl{border-radius:.375rem}.forme-carre .rounded-lg{border-radius:.25rem}
+.forme-pilule .rounded-2xl{border-radius:1.5rem}.forme-pilule .rounded-xl{border-radius:1.1rem}.forme-pilule button.rounded-xl,.forme-pilule button.rounded-lg,.forme-pilule a.rounded-xl{border-radius:999px}
+.fond-creme{background:#FAF7F2}.fond-creme main [class~="bg-slate-50"]{background:#F3EEE6}
+.fond-gris{background:#EEF1F5}
+.fond-sombre{background:#0E1116;color:#E5E7EB}.fond-sombre [class~="bg-white"]{background:#161A22}.fond-sombre [class~="bg-slate-50"],.fond-sombre [class~="bg-slate-100"]{background:#1C212B}.fond-sombre [class*="border-slate-"]{border-color:#262C38}
+.fond-sombre [class~="text-slate-900"],.fond-sombre [class~="text-slate-800"]{color:#F1F5F9}.fond-sombre [class~="text-slate-700"],.fond-sombre [class~="text-slate-600"]{color:#CBD5E1}.fond-sombre [class~="text-slate-500"],.fond-sombre [class~="text-slate-400"]{color:#94A3B8}
+.fond-sombre input,.fond-sombre select,.fond-sombre textarea{background:#0E1116;color:#F1F5F9;border-color:#2B3240}.fond-sombre [class~="hover:bg-slate-50"]:hover,.fond-sombre [class~="hover:bg-slate-100"]:hover{background:#222836}
 main section{max-width:100%;overflow-x:auto}.anim{animation:a .18s ease-out}@keyframes barre{from{width:0}to{width:100%}}@keyframes a{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}</style>
 </head><body><div id="root"><div style="min-height:100vh;display:grid;place-items:center;color:#94A3B8;font-size:14px">Chargement…</div></div>
 <script>window.__BOOT=${safe(boot)};</script>
@@ -660,8 +674,17 @@ function Appli({ user, etat, onLogout, tour, onFinTour }) {
   const Agenda = () => S.agenda?.collection ? html\`<button class="w-full text-left rounded-xl px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 flex items-center gap-2" onClick=\${async () => { try { const u = await lienAgenda(); try { await navigator.clipboard.writeText(u); toast("Lien copié : colle-le dans Google Agenda (Autres agendas → À partir de l'URL) ou Outlook"); } catch (x) { prompt("Collez ce lien dans votre agenda (Google Agenda : Autres agendas → À partir de l'URL) :", u); } } catch (x) { toast(x.message, "bad"); } }}><\${Icone} nom="agenda" class="w-4 h-4"/>Ajouter à mon agenda</button>\` : null;
   const Partage = () => PUBLIQUES.length && etat.espace ? html\`<div class="rounded-xl bg-slate-50 p-3 text-sm"><p class="text-xs font-semibold text-slate-500 mb-1.5">À partager à vos clients</p>\${PUBLIQUES.map((e) => html\`<div class="flex items-center gap-1.5 py-1"><a href=\${lienPage(e)} target="_blank" rel="noopener" class="flex-1 truncate font-medium text-[var(--c)] hover:underline">\${e.titre} ↗</a><button title="Copier le lien" class="text-slate-400 hover:text-slate-700" onClick=\${() => { try { navigator.clipboard.writeText(lienPage(e)).then(() => toast("Lien copié"), () => prompt("Copiez ce lien :", lienPage(e))); } catch (x) { prompt("Copiez ce lien :", lienPage(e)); } }}>⧉</button></div>\`)}</div>\` : null;
   const Nav = () => html\`<nav class="space-y-0.5">\${[...PRIVES, { id: "_equipe", titre: "Équipe", icone: "contacts", sep: true }, ...((S.collections ?? []).length ? [{ id: "_donnees", titre: "Mes données", icone: "fichier" }] : [])].map((e) => html\`<button onClick=\${() => nav(e.id)} class=\${cls("w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium", e.sep && "mt-3", e.id === E?.id ? (MENU_FONCE ? "bg-white/15 text-white" : "bg-[var(--c)]/10 text-[var(--c)]") : (MENU_FONCE ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-slate-600 hover:bg-slate-100"))}><\${Icone} nom=\${e.icone} class="w-[18px] h-[18px]"/>\${e.titre}</button>\`)}</nav>\`;
-  return html\`<div class="min-h-screen lg:flex">
-    <aside class=\${cls("w-60 shrink-0 p-4 flex-col gap-6 lg:flex lg:sticky lg:top-0 lg:h-screen", MENU_FONCE ? "menu-fonce" : "", STY.menu === "sombre" ? "bg-slate-900 text-slate-200" : STY.menu === "couleur" ? "bg-[var(--c)] text-white" : STY.menu === "teinte" ? "border-r border-slate-200" : "bg-white border-r border-slate-200", menu ? "flex fixed inset-y-0 left-0 z-40" : "hidden")} style=\${STY.menu === "teinte" ? "background:color-mix(in srgb,var(--c) 6%,white)" : ""}>
+  const DISPO = ["haut", "onglets"].includes(S.disposition) ? S.disposition : "barre";
+  const ITEMS = [...PRIVES, { id: "_equipe", titre: "Équipe", icone: "contacts" }, ...((S.collections ?? []).length ? [{ id: "_donnees", titre: "Mes données", icone: "fichier" }] : [])];
+  const Entete = () => html\`<header class="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur"><div class="max-w-6xl mx-auto flex h-14 items-center gap-3 px-4 sm:px-8">
+      <div class="flex shrink-0 items-center gap-2 font-bold"><\${Logo}/>\${S.nom}</div>
+      <nav class="hidden md:flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">\${ITEMS.map((e) => html\`<button onClick=\${() => nav(e.id)} class=\${cls("shrink-0 rounded-xl px-3 py-1.5 text-sm font-medium", e.id === E?.id ? "bg-[var(--c)]/10 text-[var(--c)]" : "text-slate-600 hover:bg-slate-100")}>\${e.titre}</button>\`)}</nav>
+      <div class="ml-auto flex items-center gap-2"><button onClick=\${() => nav("_compte")} class="grid h-9 w-9 place-items-center rounded-full bg-[var(--c)] text-sm font-bold text-white" title=\${user.nom}>\${String(user.nom || "?").slice(0, 1).toUpperCase()}</button><button class="md:hidden" onClick=\${() => setMenu(true)}><\${Icone} nom="menu"/></button></div>
+    </div></header>\`;
+  const Onglets = () => html\`<nav class="md:hidden fixed inset-x-0 bottom-0 z-30 grid border-t border-slate-200 bg-white/95 backdrop-blur" style=\${"grid-template-columns:repeat(" + (Math.min(4, PRIVES.length) + 1) + ",1fr);padding-bottom:env(safe-area-inset-bottom)"}>\${PRIVES.slice(0, 4).map((e) => html\`<button onClick=\${() => nav(e.id)} class=\${cls("flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium", e.id === E?.id ? "text-[var(--c)]" : "text-slate-500")}><\${Icone} nom=\${e.icone} class="w-5 h-5"/><span class="max-w-full truncate px-1">\${e.titre}</span></button>\`)}<button onClick=\${() => setMenu(true)} class="flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-slate-500"><\${Icone} nom="menu" class="w-5 h-5"/>Plus</button></nav>\`;
+  return html\`<div class=\${cls("min-h-screen", DISPO === "barre" && "lg:flex", "forme-" + (["carre", "pilule"].includes(S.forme) ? S.forme : "arrondi"), ["creme", "gris", "sombre"].includes(S.fond) && "fond-" + S.fond)}>
+    \${DISPO !== "barre" && html\`<\${Entete}/>\`}
+    <aside class=\${cls("w-60 shrink-0 p-4 flex-col gap-6", DISPO === "barre" && "lg:flex lg:sticky lg:top-0 lg:h-screen", MENU_FONCE ? "menu-fonce" : "", STY.menu === "sombre" ? "bg-slate-900 text-slate-200" : STY.menu === "couleur" ? "bg-[var(--c)] text-white" : STY.menu === "teinte" ? "border-r border-slate-200" : "bg-white border-r border-slate-200", menu ? "flex fixed inset-y-0 left-0 z-40" : "hidden")} style=\${STY.menu === "teinte" ? "background:color-mix(in srgb,var(--c) 6%,white)" : ""}>
       <div class="flex items-center gap-2 font-bold"><\${Logo} clair=\${MENU_FONCE}/>\${S.nom}</div>
       <\${Nav}/>
       <\${Partage}/>
@@ -670,9 +693,10 @@ function Appli({ user, etat, onLogout, tour, onFinTour }) {
       <div class=\${cls(etat.payant ? "" : "mt-auto", "border-t border-slate-100 pt-3 text-sm")}><button onClick=\${() => nav("_compte")} class="block w-full text-left hover:text-[var(--c)]"><p class="font-medium truncate">\${user.nom}</p></button><p class="text-slate-400 text-xs truncate">\${/@demo\\.local$/.test(user.email) ? "Compte de démonstration" : user.email}</p><button onClick=\${onLogout} class="mt-2 flex items-center gap-1.5 text-slate-500 hover:text-slate-800"><\${Icone} nom="sortie" class="w-4 h-4"/>Se déconnecter</button></div>
     </aside>
     \${menu && html\`<div class="fixed inset-0 z-30 bg-slate-900/30 lg:hidden" onClick=\${() => setMenu(false)}/>\`}
-    <main class="flex-1 min-w-0"><div class="lg:hidden flex items-center justify-between bg-white border-b border-slate-200 px-4 py-3"><button onClick=\${() => setMenu(true)}><\${Icone} nom="menu"/></button><span class="font-bold">\${S.nom}</span><span class="w-5"/></div>
+    <main class=\${cls("flex-1 min-w-0", DISPO === "onglets" && "pb-20 md:pb-0")}><div class=\${cls("lg:hidden flex items-center justify-between bg-white border-b border-slate-200 px-4 py-3", DISPO !== "barre" && "!hidden")}><button onClick=\${() => setMenu(true)}><\${Icone} nom="menu"/></button><span class="font-bold">\${S.nom}</span><span class="w-5"/></div>
       \${user.role === "lecture" && html\`<div class="bg-amber-50 text-amber-800 text-sm px-5 py-2">Accès en lecture seule : vous voyez tout, mais vous ne pouvez rien modifier.</div>\`}
       <div class="max-w-6xl mx-auto p-5 sm:p-8">\${!tour && E?.id === PRIVES[0]?.id && html\`<\${PremiersPas} user=\${user} publiques=\${PUBLIQUES} lien=\${lienPage}/>\`}\${E ? html\`<\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} key=\${E.id + JSON.stringify(cur.params)} user=\${user} params=\${cur.params} etat=\${etat}/></\${Garde}>\` : null}</div></main>
+    \${DISPO === "onglets" && html\`<\${Onglets}/>\`}
     \${tour && html\`<\${Tour} onFin=\${onFinTour}/>\`}
     <div class="fixed bottom-4 right-4 z-50 space-y-2">\${toasts.map((t) => html\`<div class=\${cls("anim rounded-xl px-4 py-2.5 text-sm text-white shadow-lg", t.type === "bad" ? "bg-red-600" : "bg-slate-900")}>\${t.msg}</div>\`)}</div>
   </div>\`;
