@@ -31,6 +31,10 @@ Variables déjà disponibles (ne les redéclare pas) :
   ui.Modal({ open, onClose, titre, actions }), ui.Table({ colonnes: [{ cle, label, rendu?(ligne) }], lignes, onClick?(ligne), vide }), ui.Empty({ texte, action }), ui.Loading(), ui.Tabs({ valeur, onChange, onglets: [[v, l]] }), ui.Bar({ donnees: [{ label, valeur }] }), ui.Ligne({ donnees: [{ label, valeur }] }) (évolution dans le temps), ui.Donut({ donnees: [{ label, valeur }] }) (répartition), ui.Progress({ valeur, max, label }),
   ui.Calendrier({ lignes, champ: "date", rendu?(ligne), onClick?(ligne), onJour?(dateISO) }) (vue du mois, pour tout ce qui est daté), ui.Kanban({ colonnes: [[valeur, libellé], …], lignes, champ: "statut", onDeplacer(id, valeur), rendu?(ligne), onClick?(ligne) }) (suivi par étapes, glisser-déposer), ui.Icone({ nom, class }) avec nom parmi ${ICONES.join(", ")}.
   ui.Chrono({ mode: "chrono"|"minuteur", duree (secondes, pour le minuteur), titre, onFin(), onStop(secondes) }) : chrono ou minuteur avec bip à la fin (séance de sport, révision, recette, temps de travail) ; enregistre la durée avec onStop.
+  ui.Liste({ lignes, rendu(ligne) → { emoji?, titre, sous?, droite?, couleur? }, onClick?(ligne), vide }) : liste aérée façon appli mobile (au lieu d'un tableau).
+  ui.Galerie({ lignes, rendu(ligne) → { emoji?, image?, titre, sous?, etiquette? }, onClick?(ligne), colonnes?: 2|3|4, vide }) : grille de cartes visuelles (catalogue, recettes, leçons).
+  ui.Fil({ lignes, rendu(ligne) → { auteur, date?, texte, image?, emoji? }, actions?(ligne), vide }) : fil de publications façon réseau social.
+  ui.Anneau({ valeur, max, label, sous?, taille?: "petit"|"grand" }) : anneau de progression (objectif du jour, de la semaine).
   ui.Classement({ lignes, champ (nombre à additionner par membre ; sans champ = nombre d'éléments), unite, titre, max }) : classement des membres sur une collection COMMUNAUTÉ.
 - Collections COMMUNAUTÉ (marquées ainsi plus bas) : partagées entre TOUS les comptes de l'application (fil, défis, classements, entraide, recettes ou parcours partagés). Chaque élément y a en plus _auteur (prénom de son auteur), _auteur_id et _moi (true si c'est le compte connecté). N'affiche modifier et supprimer que si _moi ; n'écris jamais ces trois champs. Les autres collections restent privées à chaque compte.
 - Tailwind CSS est chargé. Couleur de la marque : classes bg-[var(--c)], text-[var(--c)], border-[var(--c)]. Grilles : grid sm:grid-cols-2 lg:grid-cols-4 gap-4.
@@ -82,11 +86,33 @@ Collections (données) : ${(spec.collections ?? []).map((c: any) => `${c.nom} ($
 Pages publiques (pour les clients de l'utilisateur, sans compte ; leur lien à partager est déjà affiché dans le menu de l'application) : ${(spec.ecrans ?? []).filter((e: any) => e.public).map((e: any) => `${e.titre} (enregistre dans ${e.ecriture ?? "rien"})`).join(" ; ")}. Dans l'application, les éléments reçus par ces pages ont le champ _public = true : signale-les (badge « Reçu en ligne »).` : ""}`;
 }
 
+// Chaque type d'interface a ses codes : une appli de sport ou un outil ne doit pas ressembler à un CRM
+const GENRES_UI: Record<string, string> = {
+  appli: `TYPE D'INTERFACE : APPLI DU QUOTIDIEN (comme une appli mobile soignée, PAS un logiciel de gestion).
+- INTERDIT : ui.Table, rangées de 4 ui.Stat, ui.Kanban, mots « gestion », « fiches », « exporter ». La règle « tableau + graphique sur un tableau de bord » ne s'applique PAS.
+- Écran d'accueil = « Aujourd'hui » : un grand titre qui salue (« Bonjour {prénom} »), LA prochaine action en grosse carte colorée (bg-[var(--c)] text-white, gros bouton), la progression du jour ou de la semaine avec ui.Anneau, puis les derniers éléments avec ui.Liste.
+- Les listes : ui.Liste (lignes aérées avec emoji, titre, sous-titre, valeur à droite), jamais de tableau. Les ajouts : un gros bouton rond ou plein, une modale courte avec 2 à 4 champs.
+- Mise en page étroite et centrée (max-w-2xl mx-auto), gros textes (text-2xl à text-4xl pour les chiffres clés), beaucoup d'espace, emoji pour l'ambiance.`,
+  outil: `TYPE D'INTERFACE : OUTIL À UNE FONCTION (comme un bon outil en ligne, PAS un logiciel de gestion).
+- INTERDIT : ui.Table, rangées de ui.Stat, ui.Kanban. La règle « tableau + graphique » ne s'applique PAS.
+- Écran principal : un titre clair, UNE grande zone de saisie (ui.Textarea ou quelques champs) et un gros bouton d'action, puis le résultat en grand dans une belle carte (bouton Copier, Recommencer). L'historique des résultats passés en ui.Liste plus bas ou sur un autre écran.
+- Mise en page centrée (max-w-3xl mx-auto), généreuse, focalisée sur l'action.`,
+  contenu: `TYPE D'INTERFACE : CONTENU ET CATALOGUE (comme une belle bibliothèque, PAS un logiciel de gestion).
+- INTERDIT : ui.Table comme vue principale, rangées de ui.Stat. La règle « tableau + graphique » ne s'applique PAS.
+- Vue principale : ui.Galerie (grille de cartes avec grand emoji ou image, titre, sous-titre, étiquette), une barre de recherche et des filtres en pastilles au-dessus. Un clic ouvre une fiche détaillée en grand (modale ou écran), mise en page éditoriale.`,
+  communaute: `TYPE D'INTERFACE : COMMUNAUTÉ (comme un réseau social simple, PAS un logiciel de gestion).
+- INTERDIT : ui.Table, rangées de ui.Stat. La règle « tableau + graphique » ne s'applique PAS.
+- Vue principale : ui.Fil (publications avec auteur, date, texte, réactions), une zone « Quoi de neuf ? » en haut pour publier, ui.Classement pour les défis. Mise en page centrée (max-w-2xl mx-auto).`,
+  apprentissage: `TYPE D'INTERFACE : APPRENTISSAGE (comme une appli d'apprentissage ludique, PAS un logiciel de gestion).
+- INTERDIT : ui.Table, rangées de ui.Stat. La règle « tableau + graphique » ne s'applique PAS.
+- Accueil : la série du jour et la progression (ui.Anneau, niveaux), une grosse carte « Continuer ». Les exercices : une question à la fois en grand, réponses en gros boutons, retour immédiat (vert/rouge), score à la fin. Les leçons en ui.Galerie ou ui.Liste.`,
+};
 async function ecrire(spec: any, e: any, demande = "", actuel = "") {
   const consigne = actuel
     ? `Voici le code actuel de l'écran « ${e.titre} » (${e.id}) :\n\`\`\`js\n${actuel}\n\`\`\`\nModification demandée par l'utilisateur : ${demande}\nRéécris l'écran complet avec cette modification, sans rien casser du reste.`
     : `Écris l'écran « ${e.titre} » (id ${e.id}). Ce qu'il doit faire : ${e.but}\nFonctions à couvrir : ${(e.fonctions ?? []).join(" ; ")}${demande ? `\nPrécision de l'utilisateur : ${demande}` : ""}`;
-  const prompt = `${DOC}${e.public ? DOC_PUBLIC(e) : ""}\n\n${contexteSpec(spec)}\n\n${consigne}\n\nRéponds uniquement avec le code dans un bloc \`\`\`js.`;
+  const genre = !e.public && GENRES_UI[spec.interface] ? `\n\n${GENRES_UI[spec.interface]}` : "";
+  const prompt = `${DOC}${e.public ? DOC_PUBLIC(e) : ""}${genre}\n\n${contexteSpec(spec)}\n\n${consigne}\n\nRéponds uniquement avec le code dans un bloc \`\`\`js.`;
   let code = extraire(await ask(prompt, { maxTokens: 12000, system: "Tu es un excellent développeur front-end. Tu écris du code Preact + htm propre, robuste et lisible, avec une interface soignée." }));
   let err = erreurSyntaxe(code);
   if (err || !/function\s+Ecran\s*\(/.test(code)) {
@@ -128,6 +154,14 @@ Les écrans reprennent les modules les plus importants de cette fiche (un écran
 Rends un objet JSON compact :
 - couleur : couleur de marque en hexadécimal (#xxxxxx), assez foncée pour du texte blanc dessus, PAS celle de ${p.inspire?.nom ?? "l'inspiration"}. Choisis-la dans cette palette, celle qui raconte le mieux le métier ou l'ambiance : ${PALETTE.join(", ")}. Couleurs déjà prises par les derniers SaaS construits, à ÉVITER ainsi que leurs voisines (surtout les verts canard et bleu-vert foncés, beaucoup trop vus) : ${couleursPrises.join(", ") || "aucune"}.
 - style : l'allure de l'application, UN parmi moderne (net, Inter), doux (arrondi, chaleureux), sombre (menu foncé), editorial (titres à empattement, posé), vif (couleurs franches), rond (très amical, grand public), tech (outil technique, titres géométriques), elegant (haut de gamme, titres raffinés), sport (énergique, titres condensés), geometrique (jeune, épuré). Choisis selon le public et le métier, pas au hasard, et pas une allure déjà prise par les derniers SaaS construits (${allluresPrises.join(", ") || "aucune"}) sauf si c'est vraiment la seule qui convient.
+- interface : le TYPE d'interface, qui décide de tout l'aspect des écrans, UN parmi :
+  gestion (outil de travail pour des pros : listes de clients, dossiers, suivi ; tableaux et statistiques autorisés),
+  appli (appli du quotidien pour une personne : sport, santé, habitudes, budget perso, famille ; écran « Aujourd'hui », grosses actions, cartes, progression, AUCUN tableau),
+  outil (outil à une fonction principale : générateur, calculateur, correcteur, convertisseur ; une grande zone de saisie et un beau résultat),
+  contenu (catalogue, recettes, bibliothèque, collection, annonces : galerie de cartes avec images ou emoji, recherche, fiches détaillées),
+  communaute (fil d'activité, publications, profils, défis entre membres),
+  apprentissage (cours, révisions, quiz, cartes mémoire, progression par niveaux).
+  Ne choisis gestion QUE pour un logiciel de travail destiné à des professionnels.
 - disposition : barre (menu à gauche, outil de travail sur ordinateur), haut (menu en haut, appli simple à peu d'écrans), onglets (onglets en bas sur téléphone, appli grand public utilisée surtout sur mobile).
 - forme : carre (sobre, professionnel), arrondi (équilibré), pilule (doux, grand public).
 - fond : blanc, creme (chaleureux), gris (outil dense), sombre (soirée, sport, musique, tech ; à éviter pour un outil de gestion classique).
@@ -138,7 +172,7 @@ Rends un objet JSON compact :
 - atouts : 6 objets titre + texte (une phrase courte), tirés des fonctionnalités.
 - faq : 4 à 6 objets q + r : les questions que se posent les futurs clients avant d'acheter${p.scan?.objections?.length ? ` (inspire-toi de : ${p.scan.objections.map((o: any) => o.q).join(" ; ")})` : ""}, réponses honnêtes en 1 à 2 phrases avec nos mots, qui ne promettent que ce que fait cette version. Pas de question sur l'essai, l'engagement, la sécurité des données ni l'équipe (déjà présentes).
 - collections : 2 à 5 objets nom (snake_case, pluriel), label, partage (true seulement pour une collection COMMUNAUTÉ partagée entre tous les comptes : fil d'activité, défis, classement, entraide, contenus partagés ; false sinon, c'est le cas général), champs : 4 à 8 objets nom (snake_case) + type (texte|nombre|montant|date|choix|booleen|email|telephone|lien) + valeurs (pour choix seulement). Les liens entre collections : un champ <collection>_id de type texte.
-- ecrans : 4 à 6 objets id (snake_case court), titre (2 mots au plus), icone (parmi ${ICONES.join(", ")}), but (une phrase), fonctions (3 à 5 éléments courts). Le premier écran est « Tableau de bord » (indicateurs et activité récente). Couvre le cœur du MVP ; pas d'écran de connexion, de paiement ni de réglages de compte (le gabarit les gère). L'application dispose d'une IA intégrée (rédiger, reformuler, résumer, analyser, générer un document) : si le SaaS d'origine repose sur l'IA, l'écran principal doit la faire fonctionner pour de vrai (saisie → résultat → sauvegarde dans une collection). Elle ne sait pas produire d'images, de vidéos ni de sons, ni se connecter à des services extérieurs. L'application sait aussi envoyer de vrais e-mails aux clients de l'utilisateur (tout de suite, planifiés ou répétés : confirmations, rappels, relances), générer des PDF (devis, factures, contrats), stocker des photos et fichiers, et publier un agenda abonnable : prévois les écrans qui s'en servent quand le SaaS d'origine le fait.
+- ecrans : 4 à 6 objets id (snake_case court), titre (2 mots au plus), icone (parmi ${ICONES.join(", ")}), but (une phrase), fonctions (3 à 5 éléments courts). Le premier écran dépend du type d'interface : « Tableau de bord » (indicateurs et activité récente) pour gestion ; « Aujourd'hui » pour appli ; l'outil lui-même (« Créer », « Générer »…) pour outil ; « Découvrir » ou le catalogue pour contenu ; « Fil » pour communaute ; « Apprendre » pour apprentissage. Les titres et le vocabulaire des écrans suivent le type (pas de « Gestion des… » hors gestion). Couvre le cœur du MVP ; pas d'écran de connexion, de paiement ni de réglages de compte (le gabarit les gère). L'application dispose d'une IA intégrée (rédiger, reformuler, résumer, analyser, générer un document) : si le SaaS d'origine repose sur l'IA, l'écran principal doit la faire fonctionner pour de vrai (saisie → résultat → sauvegarde dans une collection). Elle ne sait pas produire d'images, de vidéos ni de sons, ni se connecter à des services extérieurs. L'application sait aussi envoyer de vrais e-mails aux clients de l'utilisateur (tout de suite, planifiés ou répétés : confirmations, rappels, relances), générer des PDF (devis, factures, contrats), stocker des photos et fichiers, et publier un agenda abonnable : prévois les écrans qui s'en servent quand le SaaS d'origine le fait.
 - agenda : null, ou { collection, champ_date, champ_heure (ou null), duree (nombre de minutes, ou nom du champ de durée), champs_titre (1 à 2 champs) } si l'application gère des rendez-vous, des événements, des échéances ou des interventions datées : l'utilisateur pourra s'abonner à cet agenda depuis Google Agenda ou Outlook.
 - pages_publiques : 0 à 2 objets id (snake_case court), titre (3 mots au plus), but (une phrase), fonctions (3 à 5), lecture (collections que la page montre au visiteur, ex. créneaux, prestations, témoignages publiés ; peut être vide), ecriture (UNE collection où la page enregistre ce que le visiteur envoie : réservation, demande, témoignage, commande, inscription, réponse ; peut être null), ia (true si la page est un OUTIL IA gratuit utilisable sans compte : générateur, correcteur, mini-coach, simulateur de texte ; il donne envie de créer un compte). Une page publique est ouverte par les clients de l'utilisateur, sans compte, depuis un lien qu'il partage. N'en mets que si le SaaS sert à recevoir quelque chose de ces clients (prise de rendez-vous, formulaire, avis, devis, commande, inscription, sondage) ou si un outil IA gratuit sert de vitrine à l'application ; sinon une liste vide. Dans ce cas, ne crée PAS d'écran de l'application qui imite cette page : l'application affiche déjà son lien à partager.
 Les données d'exemple sont produites à part : ne mets pas de clé demo.`, { maxTokens: 9000 });
@@ -154,7 +188,8 @@ Collections : ${(s.collections ?? []).slice(0, 6).map((c: any) => `${c.nom} : ${
     couleur: /^#[0-9a-f]{6}$/i.test(s.couleur ?? "") ? s.couleur : "#4F46E5",
     // Allure propre à chaque SaaS : deux SaaS construits ne doivent pas se ressembler
     ...(["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique"].includes(s.style) ? { style: s.style } : {}),
-    disposition: ["barre", "haut", "onglets"].includes(s.disposition) ? s.disposition : "barre",
+    interface: ["gestion", "appli", "outil", "contenu", "communaute", "apprentissage"].includes(s.interface) ? s.interface : (modele ? "gestion" : "gestion"),
+    disposition: ["barre", "haut", "onglets"].includes(s.disposition) ? s.disposition : (["appli", "communaute", "apprentissage"].includes(s.interface) ? "onglets" : ["outil", "contenu"].includes(s.interface) ? "haut" : "barre"),
     forme: ["carre", "arrondi", "pilule"].includes(s.forme) ? s.forme : "arrondi",
     fond: ["blanc", "creme", "gris", "sombre"].includes(s.fond) ? s.fond : "blanc",
     slogan: String(s.slogan ?? p.pitch ?? "").slice(0, 90), cible_courte: String(s.cible_courte ?? "").slice(0, 60),
