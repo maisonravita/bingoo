@@ -871,6 +871,33 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     return { ...envois, relances: (bloquees ?? []).length };
   },
   async "saas-recap-mensuel"(req, b) { await cron(req); const { saasRecapMensuel } = await import("../_shared/saas-base.ts"); return await saasRecapMensuel(b.workspace_id ? String(b.workspace_id) : undefined, !!b.apercu); },
+  // Fiches rangées dans « Autre » : l'IA choisit la bonne catégorie (ou confirme « Autre »), une seule fois par fiche
+  async "saas-categories-autre"(req) {
+    await cron(req);
+    setAi({ ws: null, feature: "explorer/categories" });
+    const { askJson } = await import("../_shared/core.ts");
+    const CATS = ["Réseaux sociaux et contenu", "Marketing et SEO", "Gestion de projet", "IA et automatisation", "Développeurs et no-code", "Paiement et finance", "Éducation et formation", "Données et analytics", "Collaboration et documents", "E-commerce", "CRM et ventes", "Santé", "Sécurité et conformité", "Paie et RH", "Immobilier", "Commerce et restauration", "Recrutement", "Facturation et comptabilité", "Support client", "Juridique", "Événements", "Prospection et emailing", "Logistique et transport", "Agences et freelances", "BTP et artisans", "Autre"];
+    const { data } = await admin.rpc("saas_autre_a_faire", { lim: 50 });
+    const rows = (data ?? []) as { id: string; nom: string; texte: string }[];
+    if (!rows.length) return { faits: 0, restant: 0 };
+    let faits = 0;
+    const lots = [rows.slice(0, 25), rows.slice(25)].filter((l) => l.length);
+    await Promise.all(lots.map(async (lot) => {
+      const r = await askJson<{ saas: { i: number; categorie: string }[] }>(`Range chaque logiciel dans UNE catégorie de cette liste, selon ce qu'il fait pour ses clients : ${CATS.join(" | ")}
+Mets « Autre » seulement si aucune ne convient vraiment.
+${lot.map((x, k) => `${k}. ${x.nom} : ${String(x.texte ?? "").slice(0, 260)}`).join("\n")}
+Réponds en JSON : {"saas": [{"i": 0, "categorie": "texte exact de la liste"}]}`, { fast: true, maxTokens: 1800 }).catch(() => ({ saas: [] }));
+      for (const x of (Array.isArray(r?.saas) ? r.saas : [])) {
+        const row = lot[Number(x.i)];
+        if (!row) continue;
+        const cat = CATS.includes(x.categorie) ? x.categorie : "Autre";
+        if (cat !== "Autre") await admin.from("saas").update({ categorie: cat }).eq("id", row.id);
+        await admin.from("_autre_vu").upsert({ id: row.id });
+        faits++;
+      }
+    }));
+    return { faits, lus: rows.length };
+  },
   async "saas-niches"(req) { await cron(req); const { saasNiches } = await import("../_shared/saas-base.ts"); return await saasNiches(); },
   async "saas-tags"(req) { await cron(req); const { saasTags, saasEmailsAClasser } = await import("../_shared/saas-base.ts"); await saasEmailsAClasser().catch(() => null); return await saasTags(); },
   // Explorer (clé cron) : relevés de nuit et amorçage de la base
