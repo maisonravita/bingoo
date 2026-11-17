@@ -50,6 +50,7 @@ export function appHtml({ spec, slug, api, token = null, apercu = false, paiemen
 .fond-gris{background:#EEF1F5}
 .fond-sombre{background:#0E1116;color:#E5E7EB}.fond-sombre [class~="bg-white"]{background:#161A22}.fond-sombre [class~="bg-slate-50"],.fond-sombre [class~="bg-slate-100"]{background:#1C212B}.fond-sombre [class*="border-slate-"]{border-color:#262C38}
 .fond-sombre [class~="text-slate-900"],.fond-sombre [class~="text-slate-800"]{color:#F1F5F9}.fond-sombre [class~="text-slate-700"],.fond-sombre [class~="text-slate-600"]{color:#CBD5E1}.fond-sombre [class~="text-slate-500"],.fond-sombre [class~="text-slate-400"]{color:#94A3B8}
+.fond-sombre [class*="bg-white/"]{background:rgba(22,26,34,.92)}.fond-sombre [class*="hover:bg-slate-100"]:hover{background:#222836}
 .fond-sombre input,.fond-sombre select,.fond-sombre textarea{background:#0E1116;color:#F1F5F9;border-color:#2B3240}.fond-sombre [class~="hover:bg-slate-50"]:hover,.fond-sombre [class~="hover:bg-slate-100"]:hover{background:#222836}
 main section{max-width:100%;overflow-x:auto}.anim{animation:a .18s ease-out}@keyframes barre{from{width:0}to{width:100%}}@keyframes a{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}</style>
 </head><body><div id="root"><div style="min-height:100vh;display:grid;place-items:center;color:#94A3B8;font-size:14px">Chargement…</div></div>
