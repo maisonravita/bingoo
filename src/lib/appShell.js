@@ -427,8 +427,42 @@ const Logo = ({ taille = "w-8 h-8", clair = false }) => S.logo
 // Icône d'une fonctionnalité, devinée d'après ses mots
 const ICONE_MOTS = [["agenda", "planning|agenda|rendez|réserv|calend|créneau|séance"], ["graphique", "tableau de bord|statist|chiffre|analy|rapport|suivi"], ["contacts", "client|équipe|membre|contact|patient|élève|candidat"], ["mail", "e-mail|mail|relance|newsletter|notif"], ["fichier", "facture|devis|pdf|document|contrat|attestation"], ["panier", "paiement|vente|commande|boutique|encaiss|stripe"], ["message", "message|chat|avis|commentaire|support|réponse|assistant|question|conversation|échange|discussion"], ["reglages", "limite|règle|paramètr|contrôle|effac|supprim|confidenti|sécur|privé|accès|droit|légal"], ["horloge", "temps|heure|récurr|automati|rappel"], ["etoile", "avis|note|qualité|premium"], ["carte", "lien|page|site|en ligne|partag"], ["tag", "prix|tarif|prestation|catalogue|produit"]];
 const iconeDe = (t, t2) => { const x = String(t ?? "").toLowerCase(); const r = (ICONE_MOTS.find(([, m]) => m.split("|").some((w) => x.includes(w))) ?? ["liste"])[0]; return r === "liste" && t2 ? iconeDe(t2) : r; };
+// Aperçu d'une appli grand public, d'un outil ou d'un catalogue : pas une fenêtre de logiciel de gestion
+const EMOJIS_APERCU = ["🔥", "⭐", "🎯", "✅", "📌", "💡", "🌿", "⚡"];
+function ApercuAppli() {
+  const ecr = (S.ecrans ?? []).filter((e) => !e.public);
+  const cols = Object.entries(S.demo ?? {}).filter(([, xs]) => Array.isArray(xs) && xs.length > 1).sort((a, b) => b[1].length - a[1].length);
+  const xs = cols[0]?.[1] ?? [];
+  const texte = (x) => { const k = Object.keys(x ?? {}).find((c) => /^(nom|titre|name|libelle)$/.test(c)) ?? Object.keys(x ?? {}).find((c) => typeof x[c] === "string" && x[c].length > 3 && x[c].length < 60 && !/date|email|_id|statut/.test(c)); return k ? String(joli(x[k])).slice(0, 40) : ""; };
+  const sous = (x) => { const k = Object.keys(x ?? {}).find((c) => /date|_le$/.test(c)) ?? Object.keys(x ?? {}).find((c) => typeof x[c] === "number"); return k ? String(joli(x[k])).slice(0, 24) : ""; };
+  const items = xs.filter((x) => texte(x)).slice(0, 6);
+  const I = S.interface;
+  if (I === "contenu") return h("div", { class: "rounded-3xl bg-white p-4 shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/10 text-left" },
+    h("div", { class: "flex items-center gap-2" }, h("div", { class: "flex-1 rounded-full bg-slate-100 px-4 py-2 text-[12px] text-slate-400" }, "Rechercher…"), h("span", { class: "rounded-full bg-[var(--c)] px-3 py-1.5 text-[11px] font-semibold text-white" }, ecr[0]?.titre ?? "Découvrir")),
+    h("div", { class: "mt-3 grid grid-cols-3 gap-2.5" }, items.map((x, i) => h("div", { key: i, class: "overflow-hidden rounded-2xl ring-1 ring-slate-200" },
+      h("div", { class: "grid aspect-[4/3] place-items-center text-3xl", style: "background:linear-gradient(135deg,color-mix(in srgb,var(--c) 20%,#fff),color-mix(in srgb,var(--c) 6%,#fff))" }, EMOJIS_APERCU[i % 8]),
+      h("p", { class: "truncate px-2 py-1.5 text-[11px] font-semibold text-slate-800" }, texte(x))))));
+  if (I === "outil") return h("div", { class: "mx-auto max-w-lg rounded-3xl bg-white p-5 shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/10 text-left" },
+    h("p", { class: "text-[15px] font-bold text-slate-900" }, ecr[0]?.titre ?? S.nom),
+    h("div", { class: "mt-3 space-y-2" }, (ecr[0]?.fonctions ?? ["Votre demande"]).slice(0, 3).map((f, i) => h("div", { key: i, class: "rounded-xl bg-slate-50 px-3 py-2.5 text-[12px] text-slate-500 ring-1 ring-slate-200" }, String(f).slice(0, 48)))),
+    h("div", { class: "mt-3 rounded-xl bg-[var(--c)] py-2.5 text-center text-[13px] font-semibold text-white" }, "Calculer / Générer"),
+    h("div", { class: "mt-4 rounded-2xl p-4", style: "background:color-mix(in srgb,var(--c) 8%,#fff)" }, h("p", { class: "text-[11px] font-semibold uppercase tracking-wide text-[var(--c)]" }, "Résultat"),
+      h("p", { class: "mt-1 text-[22px] font-extrabold text-slate-900" }, sous(items[0]) || "✓"), h("p", { class: "text-[12px] text-slate-500" }, texte(items[0]) || S.slogan)));
+  // appli, communauté, apprentissage : un téléphone
+  const tabs = ecr.slice(0, 4);
+  return h("div", { class: "mx-auto w-[270px] rounded-[2.4rem] bg-slate-900 p-2.5 shadow-2xl shadow-slate-900/30" },
+    h("div", { class: "overflow-hidden rounded-[1.9rem] bg-white text-left" },
+      h("div", { class: "px-4 pt-5" }, h("p", { class: "text-[11px] text-slate-400" }, I === "communaute" ? "Fil" : I === "apprentissage" ? "Ta série du jour" : "Aujourd'hui"),
+        h("p", { class: "text-[18px] font-extrabold text-slate-900" }, I === "communaute" ? "Quoi de neuf ?" : "Bonjour 👋"),
+        h("div", { class: "mt-3 rounded-2xl bg-[var(--c)] p-3.5 text-white" }, h("p", { class: "text-[10px] font-semibold uppercase opacity-80" }, "À faire maintenant"), h("p", { class: "mt-0.5 text-[14px] font-bold leading-snug" }, (EMOJIS_APERCU[0] + " ") + (texte(items[0]) || ecr[0]?.titre || "")),
+          h("div", { class: "mt-2.5 rounded-xl bg-white/20 py-1.5 text-center text-[11px] font-semibold" }, "C'est parti")),
+        h("div", { class: "mt-3 flex items-center gap-3 rounded-2xl bg-slate-50 p-3" }, h(ui.Anneau, { valeur: 68, max: 100, taille: "petit" }), h("div", null, h("p", { class: "text-[12px] font-bold text-slate-900" }, "Cette semaine"), h("p", { class: "text-[11px] text-slate-500" }, "Belle progression"))),
+        h("div", { class: "mt-3 space-y-2 pb-3" }, items.slice(1, 4).map((x, i) => h("div", { key: i, class: "flex items-center gap-2.5" }, h("span", { class: "grid h-8 w-8 place-items-center rounded-xl text-[15px]", style: "background:color-mix(in srgb,var(--c) 12%,transparent)" }, EMOJIS_APERCU[(i + 1) % 8]), h("span", { class: "min-w-0 flex-1" }, h("span", { class: "block truncate text-[12px] font-semibold text-slate-800" }, texte(x)), h("span", { class: "block truncate text-[10px] text-slate-400" }, sous(x))))))),
+      h("div", { class: "grid border-t border-slate-100", style: "grid-template-columns:repeat(" + (tabs.length || 1) + ",1fr)" }, tabs.map((e, i) => h("div", { key: e.id, class: "flex flex-col items-center gap-0.5 py-2 text-[9px] font-medium " + (i === 0 ? "text-[var(--c)]" : "text-slate-400") }, h(Icone, { nom: e.icone ?? iconeDe(e.titre), class: "w-4 h-4" }), h("span", { class: "max-w-full truncate px-0.5" }, e.titre))))));
+}
 // Aperçu du produit (page d'accueil) : construit avec les vrais écrans et les données d'exemple du SaaS
 function Apercu() {
+  if (S.interface && S.interface !== "gestion") return h(ApercuAppli);
   const ecr = (S.ecrans ?? []).filter((e) => !e.public).slice(0, 6);
   // Une collection à une seule ligne (réglages, fiche de l'entreprise) n'est pas une donnée à compter
   const cols = Object.entries(S.demo ?? {}).filter(([, xs]) => Array.isArray(xs) && xs.length > 1);
