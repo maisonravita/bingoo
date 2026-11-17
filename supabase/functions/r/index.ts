@@ -874,7 +874,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   // Fiches rangées dans « Autre » : l'IA choisit la bonne catégorie (ou confirme « Autre »), une seule fois par fiche
   async "saas-categories-autre"(req) {
     await cron(req);
-    setAi({ ws: null, feature: "explorer/categories" });
+    setAi({ ws: null, feature: "base/categories" }); // hors « explorer/ » : ce passage unique a le droit à l IA même catalogue coupé
     const { askJson } = await import("../_shared/core.ts");
     const CATS = ["Réseaux sociaux et contenu", "Marketing et SEO", "Gestion de projet", "IA et automatisation", "Développeurs et no-code", "Paiement et finance", "Éducation et formation", "Données et analytics", "Collaboration et documents", "E-commerce", "CRM et ventes", "Santé", "Sécurité et conformité", "Paie et RH", "Immobilier", "Commerce et restauration", "Recrutement", "Facturation et comptabilité", "Support client", "Juridique", "Événements", "Prospection et emailing", "Logistique et transport", "Agences et freelances", "BTP et artisans", "Autre"];
     const { data } = await admin.rpc("saas_autre_a_faire", { lim: 50 });
