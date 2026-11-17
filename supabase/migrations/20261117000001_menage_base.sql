@@ -20,3 +20,7 @@ select cron.schedule('bingoo-menage-logs', '23 4 * * *', $$delete from cron.job_
 -- * 160 phrases « fait » au vouvoiement passées au tutoiement (sauvegarde _fait_avant).
 -- * Descriptions vides : reprises depuis la proposition TrustMRR ou la phrase « fait » quand elles existent ;
 --   les autres fiches sans aucun texte repartent en lecture (statut a_lire, sauvegarde _sans_desc).
+
+-- Accueil (appliqué via MCP) : la vitrine « La base de SaaS » ne montre que des SaaS que Bingoo! sait construire
+-- (constructible et constructible_ia non refusé), puisque sa tuile propose de « lancer ta version ». Les questions
+-- de « Bingoo! dans ton IA » restent sur toute la base.
