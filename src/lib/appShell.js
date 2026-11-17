@@ -431,7 +431,10 @@ const iconeDe = (t, t2) => { const x = String(t ?? "").toLowerCase(); const r = 
 const EMOJIS_APERCU = ["🔥", "⭐", "🎯", "✅", "📌", "💡", "🌿", "⚡"];
 function ApercuAppli() {
   const ecr = (S.ecrans ?? []).filter((e) => !e.public);
-  const cols = Object.entries(S.demo ?? {}).filter(([, xs]) => Array.isArray(xs) && xs.length > 1).sort((a, b) => b[1].length - a[1].length);
+  // Les données de la personne elle-même (pas une collection communauté), celles qui ressemblent à des actions d'abord
+  const partage = new Set((S.collections ?? []).filter((c) => c.partage === true).map((c) => c.nom));
+  const poids = (k) => (partage.has(k) ? 100 : 0) + (/seance|session|tache|plan|semaine|lecon|exercice|recette|habitude|objectif|entrainement|journal|depense/.test(k) ? 0 : 10);
+  const cols = Object.entries(S.demo ?? {}).filter(([, xs]) => Array.isArray(xs) && xs.length > 1).sort((a, b) => poids(a[0]) - poids(b[0]) || b[1].length - a[1].length);
   const xs = cols[0]?.[1] ?? [];
   const texte = (x) => { const k = Object.keys(x ?? {}).find((c) => /^(nom|titre|name|libelle)$/.test(c)) ?? Object.keys(x ?? {}).find((c) => typeof x[c] === "string" && x[c].length > 3 && x[c].length < 60 && !/date|email|_id|statut/.test(c)); return k ? String(joli(x[k])).slice(0, 40) : ""; };
   const sous = (x) => { const k = Object.keys(x ?? {}).find((c) => /date|_le$/.test(c)) ?? Object.keys(x ?? {}).find((c) => typeof x[c] === "number"); return k ? String(joli(x[k])).slice(0, 24) : ""; };
@@ -451,7 +454,7 @@ function ApercuAppli() {
   // appli, communauté, apprentissage : un téléphone
   const tabs = ecr.slice(0, 4);
   return h("div", { class: "mx-auto w-[270px] rounded-[2.4rem] bg-slate-900 p-2.5 shadow-2xl shadow-slate-900/30" },
-    h("div", { class: "overflow-hidden rounded-[1.9rem] bg-white text-left" },
+    h("div", { class: "overflow-hidden rounded-[1.9rem] bg-white text-left text-slate-900" },
       h("div", { class: "px-4 pt-5" }, h("p", { class: "text-[11px] text-slate-400" }, I === "communaute" ? "Fil" : I === "apprentissage" ? "Ta série du jour" : "Aujourd'hui"),
         h("p", { class: "text-[18px] font-extrabold text-slate-900" }, I === "communaute" ? "Quoi de neuf ?" : "Bonjour 👋"),
         h("div", { class: "mt-3 rounded-2xl bg-[var(--c)] p-3.5 text-white" }, h("p", { class: "text-[10px] font-semibold uppercase opacity-80" }, "À faire maintenant"), h("p", { class: "mt-0.5 text-[14px] font-bold leading-snug" }, (EMOJIS_APERCU[0] + " ") + (texte(items[0]) || ecr[0]?.titre || "")),
