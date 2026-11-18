@@ -93,7 +93,7 @@ async function analyserPage(t, url) {
       scripts: nr?.summary?.scripts_analyzed ?? null, compte: nr?.summary?.counts ?? null,
       routes: items(routes).map((x) => court(x.path ?? x.route ?? x.value ?? x.pattern ?? JSON.stringify(x), 120)).slice(0, 80),
       api: items(endpoints).map((x) => court([x.method, x.path ?? x.url ?? x.value].filter(Boolean).join(" "), 140)).slice(0, 80),
-      techno: items(inferences).map((x) => court(x.name ?? x.vendor ?? x.kind ?? JSON.stringify(x), 100)).slice(0, 60),
+      techno: [...new Set(items(inferences).filter((x) => /vendor_fingerprint|bundle_runtime/.test(x.kind ?? "")).map((x) => court(x.value ?? x.name, 60)).filter(Boolean))].slice(0, 30),
       erreurs: [page?.erreur, bundle?.erreur ?? bundle?.code].filter(Boolean),
     },
     accessibilite: court(JSON.stringify(page?.normalized_result?.accessibility ?? page?.normalized_result?.accessibility_nodes ?? "").slice(0, 4000), 4000),

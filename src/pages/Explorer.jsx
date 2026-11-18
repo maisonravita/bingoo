@@ -623,6 +623,7 @@ function Fiche({ domaine }) {
 
       {dort?.score >= 35 && <BlocEndormi d={dort} s={s} />}
       {hist && hist.statut !== "en_cours" && <section className="mt-4"><Histoire h={hist} /></section>}
+      <Decortiquer s={s} ws={ws} />
       {!hist && <button onClick={() => fn("r/saas-histoire-demande", { workspace_id: ws.id, domaine }).then((r) => {
         if (r?.statut !== "en_cours") { if (r?.statut === "ok") supabase.rpc("saas_fiche", { ws: ws.id, d: domaine }).then(({ data: d2 }) => setHist(d2?.histoire ?? null)); return; }
         setHist({ statut: "en_cours" });
@@ -4278,6 +4279,64 @@ function ChiffresSaas() {
 }
 
 // Fiche pas encore lue par Bingoo! : on montre ce que TrustMRR publie (chiffres Stripe), sans afficher de « Non » qu'on n'a pas vérifié
+// « Décortiquer ce SaaS » : analyse REA de ses pages publiques, résumée en français
+function Decortiquer({ s, ws }) {
+  const toast = useToast();
+  const [d, setD] = useState(undefined);
+  const lire = () => fn("r/saas-decortiquer", { workspace_id: ws.id, domaine: s.domaine, lire: true }).then(setD, () => setD(null));
+  useEffect(() => { if (ws?.id) lire(); }, [s.domaine, ws?.id]);
+  useEffect(() => {
+    if (!d || !["attente", "en_cours", "analyse"].includes(d.statut)) return;
+    const t = setInterval(lire, 20000); return () => clearInterval(t);
+  }, [d?.statut]);
+  if (d === undefined) return null;
+  const r = d?.resultat;
+  const enCours = ["attente", "en_cours", "analyse"].includes(d?.statut);
+  const lancer = () => fn("r/saas-decortiquer", { workspace_id: ws.id, domaine: s.domaine }).then(setD, (e) => toast(e.message, "bad"));
+  if (!r) return (
+    <section className="mt-4 rounded-2xl bg-white border border-line p-5">
+      <h2 className="font-bold">Décortiquer {s.nom}</h2>
+      <p className="mt-1 text-[13.5px] text-ink-soft">Bingoo! ouvre ses pages publiques dans un vrai navigateur et relève ses fonctionnalités, ses écrans, son parcours d'inscription et sa technique. Tu sais ce qu'il faut pour lancer ta version.</p>
+      {enCours
+        ? <p className="mt-3 flex items-center gap-2 text-[13.5px] text-ink-soft"><span className="h-2 w-2 rounded-full bg-accent animate-pulse" />{d.statut === "analyse" ? "Analyse terminée, Bingoo! rédige le résumé…" : "Analyse en cours, compte 10 à 20 minutes. Tu peux quitter la page."}</p>
+        : <button onClick={lancer} className="mt-3 rounded-xl bg-ink text-white px-4 py-2.5 text-[14px] font-semibold">Décortiquer {s.nom}</button>}
+    </section>
+  );
+  return (
+    <section className="mt-4 rounded-2xl bg-white border border-line p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-bold">{s.nom} décortiqué</h2>
+        <p className="text-[12px] text-ink-faint">{r.source?.pages?.length ?? 0} pages · {r.source?.routes ?? 0} écrans · {r.source?.api ?? 0} appels relevés{d.fait_at ? ` · ${new Date(d.fait_at).toLocaleDateString("fr-FR")}` : ""}</p>
+      </div>
+      {r.resume && <p className="mt-2 text-[14.5px]">{r.resume}</p>}
+      <div className="mt-4 grid lg:grid-cols-2 gap-4">
+        <div>
+          <h3 className="font-semibold text-[14px]">Fonctionnalités</h3>
+          <ul className="mt-2 space-y-2">{(r.fonctionnalites ?? []).map((f, i) => (
+            <li key={i} className="rounded-xl bg-paper px-3 py-2"><p className="text-[14px] font-semibold">{f.nom}</p><p className="text-[13px] text-ink-soft">{f.detail}</p>{f.preuve && <p className="mt-0.5 font-mono text-[11.5px] text-ink-faint break-all">{f.preuve}</p>}</li>
+          ))}</ul>
+        </div>
+        <div className="space-y-4">
+          {r.parcours?.length > 0 && <div><h3 className="font-semibold text-[14px]">Parcours client</h3><ol className="mt-2 space-y-1.5 list-decimal pl-5 text-[13.5px]">{r.parcours.map((x, i) => <li key={i}>{x}</li>)}</ol></div>}
+          {r.tarifs?.length > 0 && <div><h3 className="font-semibold text-[14px]">Tarifs</h3><div className="mt-2 grid sm:grid-cols-2 gap-2">{r.tarifs.map((t, i) => <div key={i} className="rounded-xl bg-paper px-3 py-2"><p className="text-[13.5px] font-semibold">{t.formule} · {t.prix}</p><p className="text-[12.5px] text-ink-soft">{t.inclus}</p></div>)}</div></div>}
+          {r.arguments?.length > 0 && <div><h3 className="font-semibold text-[14px]">Ce qu'il met en avant</h3><ul className="mt-2 space-y-1 text-[13.5px] list-disc pl-5">{r.arguments.map((x, i) => <li key={i}>{x}</li>)}</ul></div>}
+          {(r.technologies?.length > 0 || r.integrations?.length > 0) && <div><h3 className="font-semibold text-[14px]">Technique et intégrations</h3><div className="mt-2 flex flex-wrap gap-1.5">{[...(r.technologies ?? []), ...(r.integrations ?? [])].map((x) => <span key={x} className="rounded-md bg-paper px-2 py-1 text-[12.5px]">{x}</span>)}</div></div>}
+        </div>
+      </div>
+      {r.plan && (
+        <div className="mt-5 rounded-xl border border-accent/40 bg-accent/5 p-4">
+          <h3 className="font-semibold text-[14px]">Ta version</h3>
+          <div className="mt-2 grid sm:grid-cols-2 gap-4 text-[13.5px]">
+            <div><p className="font-semibold">Pour démarrer</p><ul className="mt-1 list-disc pl-5 space-y-1">{(r.plan.indispensables ?? []).map((x, i) => <li key={i}>{x}</li>)}</ul></div>
+            <div><p className="font-semibold">Pour faire mieux</p><ul className="mt-1 list-disc pl-5 space-y-1">{(r.plan.pour_faire_mieux ?? []).map((x, i) => <li key={i}>{x}</li>)}</ul></div>
+          </div>
+        </div>
+      )}
+      <p className="mt-4 text-[11.5px] text-ink-faint">Relevé par REA sur les pages publiques de {s.nom}. On décrit ce que fait le logiciel, jamais son code, ses textes ou ses visuels, qui restent à son éditeur : ta version doit avoir les tiens.</p>
+    </section>
+  );
+}
+
 function FicheTrustmrr({ s }) {
   const su = s.succes ?? {};
   const tuiles = s.trustmrr ? [] : [

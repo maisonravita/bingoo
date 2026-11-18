@@ -798,6 +798,21 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     await admin.from("saas_scripts").upsert({ app_id: app.id, workspace_id: ws.id, scripts: tout, at });
     return { scripts: tout, at };
   },
+  // Décortiquer un SaaS (analyse REA de ses pages publiques, partagée par domaine, relue après 30 jours)
+  async "saas-decortiquer"(req, b) {
+    const { ws } = await membreOuCron(req, b.workspace_id);
+    const { domaineNet } = await import("../_shared/decortiquer.ts");
+    const domaine = domaineNet(b.domaine);
+    if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domaine)) throw new HttpError(400, "Adresse de site invalide");
+    const { data: row } = await admin.from("saas_decortique").select("statut, resultat, fait_at, at, erreur").eq("domaine", domaine).maybeSingle();
+    const frais = row?.statut === "fait" && row.fait_at && Date.now() - Date.parse(row.fait_at) < 30 * 864e5;
+    if (b.lire || frais || ["attente", "en_cours", "analyse"].includes(row?.statut ?? "")) return { domaine, statut: row?.statut ?? null, resultat: row?.resultat ?? null, fait_at: row?.fait_at ?? null };
+    await quota(ws.id, "decortiquer", 4);
+    await admin.from("saas_decortique").upsert({ domaine, statut: "attente", essais: 0, at: new Date().toISOString(), demande_par: ws.id, erreur: null });
+    await log(ws.id, "decortiquer", `Analyse REA de ${domaine}`);
+    return { domaine, statut: "attente", resultat: row?.resultat ?? null, fait_at: row?.fait_at ?? null };
+  },
+  async "saas-decortiquer-synthese"(req) { await cron(req); const { syntheseCron } = await import("../_shared/decortiquer.ts"); return await syntheseCron(); },
   async "saas-tiktok-vignettes"(req, b) {
     await membreOuCron(req, b.workspace_id);
     const { vignettes } = await import("../_shared/app-tiktok.ts");
