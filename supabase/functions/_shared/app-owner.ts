@@ -148,7 +148,7 @@ export async function appDomaine(appId: string, brut: unknown) {
     await admin.from("saas_apps").update({ domaine: null, domaine_statut: null }).eq("id", appId);
   }
   if (!d) return { domaine: null };
-  if (!/^([a-z0-9-]+\.)+[a-z]{2,}$/.test(d) || /maisonravita\.fr$|vercel\.app$/.test(d)) throw new HttpError(400, "Nom de domaine invalide");
+  if (!/^([a-z0-9-]+\.)+[a-z]{2,}$/.test(d) || /maisonravita\.fr$|bingoo\.fr$|vercel\.app$/.test(d)) throw new HttpError(400, "Nom de domaine invalide");
   const { data: pris } = await admin.from("saas_apps").select("id").eq("domaine", d).neq("id", appId).maybeSingle();
   if (pris) throw new HttpError(409, "Ce nom de domaine est déjà utilisé par une autre application");
   const r = await vercel("/v10/projects/{p}/domains", "POST", { name: d });

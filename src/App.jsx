@@ -75,7 +75,7 @@ function Gate() {
 
 // Un nom de domaine qui n'est pas celui de Bingoo! : c'est le domaine d'un SaaS construit par Bingoo!, on n'affiche que lui
 const HOTE = window.location.hostname;
-const DOMAINE_APP = /(^|\.)maisonravita\.fr$|\.vercel\.app$|^localhost$|^127\.0\.0\.1$/.test(HOTE) ? null : HOTE;
+const DOMAINE_APP = /(^|\.)maisonravita\.fr$|(^|\.)bingoo\.fr$|\.vercel\.app$|^localhost$|^127\.0\.0\.1$/.test(HOTE) ? null : HOTE;
 
 export default function App() {
   if (DOMAINE_APP) return <Suspense fallback={<Splash />}><PublicApp domaine={DOMAINE_APP} /></Suspense>;
