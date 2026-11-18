@@ -125,6 +125,9 @@ async function verifCall(action, b) {
   return {};
 }
 const VERRS = [];
+// Image introuvable (lien mort, exemple inventé) : remplacée par un fond doux plutôt qu'une icône cassée
+const IMG_VIDE = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eef2f7"/><stop offset="1" stop-color="#dfe6ef"/></linearGradient></defs><rect width="400" height="300" fill="url(#g)"/><circle cx="200" cy="138" r="34" fill="none" stroke="#b6c2d2" stroke-width="8"/><path d="M150 214h100" stroke="#b6c2d2" stroke-width="8" stroke-linecap="round"/></svg>');
+addEventListener("error", (e) => { const t = e.target; if (t && t.tagName === "IMG" && !t.dataset.vide) { t.dataset.vide = "1"; t.src = IMG_VIDE; } }, true);
 if (B.verif) {
   addEventListener("error", (e) => VERRS.push(String(e.message ?? e)));
   addEventListener("unhandledrejection", (e) => VERRS.push(String(e.reason?.message ?? e.reason)));
@@ -439,6 +442,14 @@ function ApercuAppli() {
   const texte = (x) => { const k = Object.keys(x ?? {}).find((c) => /^(nom|titre|name|libelle)$/.test(c)) ?? Object.keys(x ?? {}).find((c) => typeof x[c] === "string" && x[c].length > 3 && x[c].length < 60 && !/date|email|_id|statut/.test(c)); return k ? String(joli(x[k])).slice(0, 40) : ""; };
   const sous = (x) => { const k = Object.keys(x ?? {}).find((c) => /date|_le$/.test(c)) ?? Object.keys(x ?? {}).find((c) => typeof x[c] === "number"); return k ? String(joli(x[k])).slice(0, 24) : ""; };
   const items = xs.filter((x) => texte(x)).slice(0, 6);
+  // Résultat d'un outil : un chiffre calculé (rendement, score, total…) plutôt qu'une date de création
+  const resultat = (x) => {
+    const ks = Object.keys(x ?? {}).filter((c) => typeof x[c] === "number");
+    const k = ks.find((c) => /rendement|taux|score|resultat|total|net|cash|marge|montant|economie|gain/.test(c)) ?? ks.find((c) => !/_id|annee|duree|nb_|quantite|portion/.test(c));
+    if (!k) return "";
+    const v = x[k], pct = /rendement|taux|pourcent|marge/.test(k);
+    return (pct ? (Math.round(v * 10) / 10).toLocaleString("fr-FR") + " %" : Math.round(v).toLocaleString("fr-FR") + (/montant|total|cash|net|prix|economie|gain/.test(k) ? " €" : "")) + "";
+  };
   const I = S.interface;
   if (I === "contenu") return h("div", { class: "rounded-3xl bg-white p-4 shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/10 text-left" },
     h("div", { class: "flex items-center gap-2" }, h("div", { class: "flex-1 rounded-full bg-slate-100 px-4 py-2 text-[12px] text-slate-400" }, "Rechercher…"), h("span", { class: "rounded-full bg-[var(--c)] px-3 py-1.5 text-[11px] font-semibold text-white" }, ecr[0]?.titre ?? "Découvrir")),
@@ -450,7 +461,7 @@ function ApercuAppli() {
     h("div", { class: "mt-3 space-y-2" }, (ecr[0]?.fonctions ?? ["Votre demande"]).slice(0, 3).map((f, i) => h("div", { key: i, class: "rounded-xl bg-slate-50 px-3 py-2.5 text-[12px] text-slate-500 ring-1 ring-slate-200" }, String(f).slice(0, 48)))),
     h("div", { class: "mt-3 rounded-xl bg-[var(--c)] py-2.5 text-center text-[13px] font-semibold text-white" }, "Calculer / Générer"),
     h("div", { class: "mt-4 rounded-2xl p-4", style: "background:color-mix(in srgb,var(--c) 8%,#fff)" }, h("p", { class: "text-[11px] font-semibold uppercase tracking-wide text-[var(--c)]" }, "Résultat"),
-      h("p", { class: "mt-1 text-[22px] font-extrabold text-slate-900" }, sous(items[0]) || "✓"), h("p", { class: "text-[12px] text-slate-500" }, texte(items[0]) || S.slogan)));
+      h("p", { class: "mt-1 text-[22px] font-extrabold text-slate-900" }, resultat(items[0]) || sous(items[0]) || "✓"), h("p", { class: "text-[12px] text-slate-500" }, texte(items[0]) || S.slogan)));
   // appli, communauté, apprentissage : un téléphone
   const tabs = ecr.slice(0, 4);
   return h("div", { class: "mx-auto w-[270px] rounded-[2.4rem] bg-slate-900 p-2.5 shadow-2xl shadow-slate-900/30" },

@@ -124,6 +124,14 @@ async function ecrire(spec: any, e: any, demande = "", actuel = "") {
 
 // Étape 1 (une invocation) : la spec, écrite dans le brouillon. Étape 2 : un appel par écran, chacun dans sa propre invocation
 // (une invocation est limitée à environ 150 secondes, un écran en prend 40 à 90).
+// L'IA ne peut pas héberger d'images : un lien d'image inventé (exemple.fr, photo.jpg…) s'afficherait cassé dans la démo
+function sansFaussesImages(v: any): any {
+  if (typeof v === "string") return /^https?:\/\/\S+\.(jpe?g|png|webp|gif|avif)(\?\S*)?$/i.test(v) || /^https?:\/\/(www\.)?(exemple|example|placeholder|via\.placeholder|images\.exemple)\./i.test(v) ? "" : v;
+  if (Array.isArray(v)) return v.map(sansFaussesImages);
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, sansFaussesImages(x)]));
+  return v;
+}
+
 export async function saasConstruire(appId: string, lancerEcran: (ecranId: string) => Promise<void>) {
   const { data: app } = await admin.from("saas_apps").select("id, projet_id").eq("id", appId).single();
   const { data: pr } = await admin.from("saas_projets").select("data").eq("id", app!.projet_id).single();
@@ -203,7 +211,7 @@ Collections : ${(s.collections ?? []).slice(0, 6).map((c: any) => `${c.nom} : ${
       : (p.formules ?? []).slice(0, 3)),
     collections: (s.collections ?? []).slice(0, 6),
     ecrans: (s.ecrans ?? []).slice(0, 6).map((e: any, i: number) => ({ id: slugify(String(e.id ?? `ecran-${i}`)).replace(/-/g, "_") || `ecran_${i}`, titre: String(e.titre ?? `Écran ${i + 1}`).slice(0, 24), icone: ICONES.includes(e.icone) ? e.icone : "liste", but: e.but, fonctions: e.fonctions })),
-    demo: (demo && typeof demo === "object" && !Array.isArray(demo) ? (demo.demo ?? demo) : {}) as any,
+    demo: sansFaussesImages(demo && typeof demo === "object" && !Array.isArray(demo) ? (demo.demo ?? demo) : {}) as any,
     agenda: s.agenda?.collection && s.agenda?.champ_date ? { collection: String(s.agenda.collection), champ_date: String(s.agenda.champ_date), champ_heure: s.agenda.champ_heure ? String(s.agenda.champ_heure) : null, duree: s.agenda.duree ?? 60, champs_titre: (Array.isArray(s.agenda.champs_titre) ? s.agenda.champs_titre : [s.agenda.champs_titre]).filter(Boolean).slice(0, 2) } : null,
   };
   // Pages publiques (réservation, formulaire, avis…) : écrites comme des écrans, servies sans compte
