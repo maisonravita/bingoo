@@ -170,6 +170,15 @@ const routes2: Record<string, (req: Request, b: Record<string, unknown>) => Prom
     const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ from, to: [to], subject: `Alerte plateforme : ${list.length} incident${list.length > 1 ? "s" : ""}`, text }) });
     return { incidents: list.length, emailed: r.ok };
   },
+  // Petit appel IA de contrôle (toutes les 2 h) : le bilan de santé « L'IA répond » mesure la disponibilité réelle
+  // de l'IA, et non l'absence d'utilisateurs. Coût : une poignée de jetons sur le modèle rapide.
+  async "ia-ping"(req) {
+    if ((req.headers.get("x-cron-key") ?? "") !== (await secret("cron_key"))) throw new HttpError(401, "Clé invalide");
+    setAi({ feature: "sante/ping", essential: true, live: true });
+    const { ask } = await import("../_shared/core.ts");
+    const r = await ask("Réponds uniquement par le mot : ok", { fast: true, maxTokens: 5 });
+    return { ok: /ok/i.test(r) };
+  },
   // Pilote automatique de l'espace (remplace k/autopilot) : envois, relances, réserve de brouillons, rappels
   async autopilot(req) {
     if ((req.headers.get("x-cron-key") ?? "") !== (await secret("cron_key"))) throw new HttpError(401, "Clé invalide");

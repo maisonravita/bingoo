@@ -14,7 +14,10 @@ const verif = (c, m) => { if (!c) throw new Error(m); };
 
 // 1) Bilan de santé côté base
 await etape("Bilan de santé de la base", async () => {
-  const r = await fetch(`${SB}/rest/v1/rpc/bingoo_sante`, { method: "POST", headers: { apikey: ANON, authorization: `Bearer ${ANON}`, "content-type": "application/json" }, body: "{}" });
+  // Un second essai 30 s plus tard : une requête peut dépasser son temps limite quand les tâches de fond chargent la base
+  const appel = () => fetch(`${SB}/rest/v1/rpc/bingoo_sante`, { method: "POST", headers: { apikey: ANON, authorization: `Bearer ${ANON}`, "content-type": "application/json" }, body: "{}" });
+  let r = await appel();
+  if (!r.ok) { console.log(`   · HTTP ${r.status}, nouvel essai dans 30 s`); await new Promise((ok) => setTimeout(ok, 30000)); r = await appel(); }
   verif(r.ok, `HTTP ${r.status}`);
   const { checks } = await r.json();
   for (const c of checks) {
