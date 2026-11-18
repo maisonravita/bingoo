@@ -41,7 +41,7 @@ parcours (5 à 8 étapes, de l'arrivée sur le site à l'utilisation payante, ch
 tarifs (liste {formule, prix, inclus} si visibles, sinon liste vide),
 arguments (3 à 6 arguments de vente qu'ils mettent en avant, reformulés),
 integrations (liste de noms d'outils connectés, si visibles),
-technologies (liste courte, d'après le relevé REA),
+technologies (liste courte de noms de technologies, ex. React, Next.js, Stripe, d'après le relevé REA ; jamais de libellé interne de l'outil comme vendor_fingerprint, ni de route ; liste vide si rien de sûr),
 plan (objet {indispensables : 5 à 7 fonctions pour une première version, pour_faire_mieux : 3 à 5 idées pour te démarquer}).`, { maxTokens: 3500 });
   const resultat = { ...r, source: { outil: "REA", pages: pages.map((p) => p.url), routes: routes.length, api: api.length } };
   await admin.from("saas_decortique").update({ statut: "fait", resultat, fait_at: new Date().toISOString(), erreur: null }).eq("domaine", domaine);
