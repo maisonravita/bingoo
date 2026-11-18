@@ -3,7 +3,7 @@
 import { createRequire } from "node:module";
 const { chromium, devices } = createRequire(import.meta.url)("playwright");
 
-const SITE = process.env.SITE || "https://kairo.maisonravita.fr";
+const SITE = process.env.SITE || "https://bingoo.fr";
 const SB = "https://fbsjbnnmzazylmquzryo.supabase.co";
 const ANON = process.env.ANON || (await import("node:fs")).readFileSync(".env.production", "utf8").match(/VITE_SUPABASE_ANON_KEY=(\S+)/)[1];
 // Le SaaS livré le plus récent (lu dans le plan du site) : le test suit les SaaS réellement en ligne
