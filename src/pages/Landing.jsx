@@ -184,6 +184,23 @@ export default function Landing() {
       <main className="bg-white">
         <div className="mx-auto max-w-[1440px] bg-white">
 
+        {/* Bingoo! en 30 secondes : la vidéo verticale (format TikTok / Reels) */}
+        <section id="video-30s" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-20 border-t border-black/[.07]">
+          <div className="mx-auto grid max-w-[1180px] items-center gap-10 lg:grid-cols-[1fr_380px] lg:gap-16">
+            <div>
+              <p className="text-[13px] font-semibold uppercase tracking-[.14em] text-accent">En 30 secondes</p>
+              <h2 className="mt-3 max-w-[620px] text-[34px] sm:text-[48px] leading-[1.06] tracking-[-.03em] text-ink" style={SERIF}>Pas d'idée géniale. Pas de code. Juste un SaaS qui marche.</h2>
+              <ul className="mt-7 space-y-3 text-[17px] text-[#3A3F55]">
+                {["Tu choisis un SaaS qui encaisse déjà, avec ses vrais chiffres", "Bingoo! construit ta version : site, comptes clients, paiements", "Puis il t'aide à trouver tes premiers clients, chaque matin"].map((x) => <li key={x} className="flex items-start gap-2.5"><span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-accent" />{x}</li>)}
+              </ul>
+              <button onClick={go} className="mt-8 inline-flex items-center gap-2 rounded-full bg-ink px-7 py-3.5 text-[16px] font-bold text-white hover:bg-black transition">Commencer</button>
+            </div>
+            <div className="mx-auto w-full max-w-[340px] lg:max-w-none">
+              <div className="rounded-[2.2rem] bg-[#111] p-2.5 shadow-[0_30px_80px_-30px_rgba(20,20,40,.55)]"><div className="overflow-hidden rounded-[1.8rem]"><VideoAuto src="/bingoo-30s.mp4" poster="/bingoo-30s.jpg" /></div></div>
+            </div>
+          </div>
+        </section>
+
         {/* La preuve : ce qu'encaissent les SaaS lancés avec Bingoo! (s'affiche dès 3 SaaS avec des clients payants) */}
         <BaseSaaS go={go} nb={nb} />
 
