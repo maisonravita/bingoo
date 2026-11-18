@@ -2909,8 +2909,8 @@ export function TrouveTonSaas() {
                 <Jauge valeur={r.objectif ?? OBJ_DEFAUT} onChange={(v) => setR({ ...r, objectif: v })} />
               ) : Q.secteurs ? (
                 <div className="mt-9 grid sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">{SECTEURS.map((c) => { const st = statsSect?.[c]; const on = choisi("secteurs", c); return (
-                  <button key={c} type="button" onClick={() => basculer("secteurs", c)} className={cx("flex items-center gap-4 rounded-3xl border bg-white px-4 py-4 text-left shadow-[0_1px_2px_rgba(16,24,40,.04)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-28px_rgba(21,23,42,.45)]", on ? "border-transparent ring-2 ring-accent" : "border-line")}>
-                    <span className="flex shrink-0 -space-x-4">{(st?.logos ?? []).slice(0, 3).map((d, i) => <span key={d} className="grid h-11 w-11 place-items-center overflow-hidden rounded-xl border-2 border-white bg-white shadow-sm" style={{ zIndex: 3 - i }}><CompanyLogo name={d} url={`https://${d}`} className="h-full w-full" pad="p-1" /></span>)}{!st?.logos?.length && <span className="h-12 w-12 rounded-xl bg-paper" />}</span>
+                  <button key={c} type="button" onClick={() => basculer("secteurs", c)} className={cx("flex items-center gap-3 rounded-3xl border bg-white px-4 py-4 text-left shadow-[0_1px_2px_rgba(16,24,40,.04)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-28px_rgba(21,23,42,.45)]", on ? "border-transparent ring-2 ring-accent" : "border-line")}>
+                    <span className="flex shrink-0 -space-x-4">{(st?.logos ?? []).slice(0, 2).map((d, i) => <span key={d} className="grid h-11 w-11 place-items-center overflow-hidden rounded-xl border-2 border-white bg-white shadow-sm" style={{ zIndex: 3 - i }}><CompanyLogo name={d} url={`https://${d}`} className="h-full w-full" pad="p-1" /></span>)}{!st?.logos?.length && <span className="h-12 w-12 rounded-xl bg-paper" />}</span>
                     <span className="min-w-0 flex-1"><span className="block font-bold text-[15.5px] leading-tight line-clamp-2">{c}</span>
                       <span className="mt-0.5 block text-[13.5px] text-ink-soft">{st ? `${Number(st.n).toLocaleString("fr-FR")} SaaS` : "…"}</span>
                       {st?.top ? <span className="block whitespace-nowrap text-[13.5px] font-bold text-good">n°1 · {dollar(st.top)}/mois</span> : null}</span>
@@ -2944,7 +2944,7 @@ export function TrouveTonSaas() {
         <div>
           <div className="text-center">
             <div>
-              <h1 className="text-[32px] sm:text-[44px] font-black leading-tight tracking-tight" style={HF}>{debloque ? ((res ?? []).slice(0, 3).every((x) => Number(x.croissance) > 0) ? "Tes 3 SaaS en tendance" : "Tes 3 SaaS") : ap?.n ? `${Number(ap.n).toLocaleString("fr-FR")} SaaS${r.secteurs?.length === 1 ? ` ${r.secteurs[0].split(" ")[0].toLowerCase()}` : ""} gagnent déjà de l'argent` : "Tes SaaS à succès"}</h1>
+              <h1 className="text-[32px] sm:text-[44px] font-black leading-tight tracking-tight" style={HF}>{debloque ? ((res ?? []).slice(0, 3).every((x) => Number(x.croissance) > 0) ? "Tes 3 SaaS en tendance" : "Tes 3 SaaS") : ap?.n ? `${Number(ap.n).toLocaleString("fr-FR")} SaaS gagne${Number(ap.n) > 1 ? "nt" : ""} déjà de l'argent` : "Tes SaaS à succès"}</h1>
               <p className="mx-auto mt-2 max-w-2xl text-[15px] text-ink-soft">{debloque ? `Ils encaissent déjà, vérifié chez leur outil de paiement${(res ?? []).slice(0, 3).every((x) => Number(x.croissance) > 0) ? ", leur revenu monte en ce moment," : ","} et ils trouvent leurs clients comme tu veux le faire.` : "Ils encaissent déjà, vérifié chez leur outil de paiement, et ils trouvent leurs clients comme tu veux le faire. Choisis celui que tu veux lancer."}</p>
             </div>
           </div>
@@ -3143,7 +3143,7 @@ function CarteClaire({ x, onLancer, busy }) {
         {x.sans_local && <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[12px] font-semibold text-accent-dark">Pas d'équivalent en français</span>}
       </div>
       <div className="mt-4 grid grid-cols-3 gap-2 rounded-2xl border border-line p-3">
-        <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:gap-2.5"><span className="grid h-11 w-11 sm:h-12 sm:w-12 shrink-0 place-items-center rounded-full border-[3px] border-accent text-[16px] font-black tnum" style={HF}>{x.copiable != null ? Math.max(1, Math.min(10, Math.round(10 - x.copiable / 10))) : "–"}</span><span className="text-[11px] font-bold uppercase leading-tight tracking-wide text-ink-faint">Difficulté<br /><span className="normal-case font-normal">sur 10</span></span></div>
+        <div className="flex min-w-0 flex-col items-start gap-1.5"><span className="grid h-11 w-11 sm:h-12 sm:w-12 shrink-0 place-items-center rounded-full border-[3px] border-accent text-[16px] font-black tnum" style={HF}>{x.copiable != null ? Math.max(1, Math.min(10, Math.round(10 - x.copiable / 10))) : "–"}</span><span className="text-[11px] font-bold uppercase leading-tight tracking-wide text-ink-faint">Difficulté<br /><span className="normal-case font-normal">sur 10</span></span></div>
         <div className="min-w-0"><p className="text-[11px] font-bold uppercase tracking-wide text-ink-faint">Trafic</p><p className="mt-1 text-[15px] font-black tnum" style={HF}>{x.rang_web ? `N° ${Number(x.rang_web).toLocaleString("fr-FR")}` : "faible"}</p><p className="text-[11px] text-ink-faint">mondial</p></div>
         <div className="min-w-0"><p className="text-[11px] font-bold uppercase tracking-wide text-ink-faint"><span className="sm:hidden">Revenu</span><span className="hidden sm:inline">Revenu mensuel</span></p>{Array.isArray(x.courbe) && x.courbe.length > 2 ? <Sparkline pts={x.courbe.filter((p) => p.m !== new Date().toISOString().slice(0, 7)).slice(-8).map((p) => ({ n: Number(p.v) || 0 }))} h={34} /> : <p className="mt-1 text-[15px] font-black tnum" style={HF}>{dollar(x.mrr)}</p>}</div>
       </div>
@@ -3195,7 +3195,7 @@ function Debloquer({ total, tendance, mediane, invite, r }) {
       </div>
       <div className="flex flex-wrap gap-2">
         <button onClick={() => (invite ? demanderCompte("Crée ton compte gratuit pour explorer les SaaS qui marchent.") : nav("/explorer"))} className="rounded-xl border border-line bg-white px-5 py-3.5 font-bold hover:border-ink">Explorer gratuitement</button>
-        <button onClick={debloquer} disabled={busy} className="fx-brille rounded-xl bg-accent text-white px-6 py-3.5 font-bold hover:bg-accent-dark disabled:opacity-60">{liste?.length > 1 ? `Débloquer les ${Math.max(liste.length, Number(total || 0)) - 1} autres` : "Débloquer mes résultats"}</button>
+        <button onClick={debloquer} disabled={busy} className="fx-brille rounded-xl bg-accent text-white px-6 py-3.5 font-bold hover:bg-accent-dark disabled:opacity-60">{liste?.length > 1 ? (Math.max(liste.length, Number(total || 0)) - 1 > 1 ? `Débloquer les ${Math.max(liste.length, Number(total || 0)) - 1} autres` : "Débloquer l'autre") : "Débloquer mes résultats"}</button>
       </div>
     </div></div>
   );
