@@ -257,6 +257,7 @@ export default function Abonnement() {
       <ChoixFormule periodes={plans.find((p) => p.key === "explorer_pro")?.periodes} fondateur={fond && (ws.founder_price || fond.left > 0) ? fond.price : null}
         actuelle={ws.plan === "explorer_pro" && ["active", "trialing", "past_due"].includes(ws.plan_status) ? (ws.periode ?? "mois") : null}
         busy={busy} onChoisir={(k) => go("billing-checkout", "explorer_pro", undefined, k)} />
+      <p className="mt-3 text-[12.5px] text-ink-faint">En payant, tu acceptes les <a href="#/conditions" className="underline hover:text-ink">conditions générales</a> et tu demandes l'accès immédiat. Particulier : tu peux te rétracter sous 14 jours, seul le temps déjà utilisé est retenu.</p>
       {(() => {
         const t = plans.find((p) => p.key === "explorer");
         if (!t) return null;
