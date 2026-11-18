@@ -220,6 +220,10 @@ export async function aiSpent(wsId: string | null, since = wsId ? monthStart() :
   const { data } = await admin.rpc("ai_spent", { p_ws: wsId, p_since: since });
   return Number(data ?? 0);
 }
+export async function aiSpentUsage(wsId: string) {
+  const { data } = await admin.rpc("ai_spent_usage", { p_ws: wsId, p_since: monthStart() });
+  return Number(data ?? 0);
+}
 /** Budget IA mensuel d'un espace (réglage propre à l'espace, sinon celui de son offre). */
 export async function aiBudget(wsId: string) {
   const { data: w } = await admin.from("workspaces").select("plan, ai_budget_eur").eq("id", wsId).single();
@@ -396,7 +400,8 @@ export async function aiGuard() {
     if (spent >= budget * 2.5 + extra) throw new HttpError(402, "Tu as atteint la limite d'utilisation de l'IA de ce mois. Elle repart le 1er du mois.");
     return;
   }
-  const [spent, budget] = await Promise.all([aiSpent(ws), aiBudget(ws)]);
+  // Les constructions ont leur propre quota : elles ne comptent pas dans l'enveloppe des autres usages
+  const [spent, budget] = await Promise.all([aiSpentUsage(ws), aiBudget(ws)]);
   if (spent >= budget) {
     // Au-delà de l'enveloppe : on puise dans les recharges achetées, s'il en reste
     const extra = await aiBalance(ws);
