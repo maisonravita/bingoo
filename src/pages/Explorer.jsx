@@ -3217,7 +3217,7 @@ function Debloquer({ total, tendance, mediane, invite, r }) {
           <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/90 px-4 py-3 backdrop-blur">
             <div className="mx-auto flex max-w-3xl gap-3">
               <button onClick={() => (invite ? demanderCompte("Crée ton compte gratuit pour explorer les SaaS qui marchent.") : nav("/explorer"))} className="flex-1 rounded-2xl border border-line bg-white py-3.5 text-[15px] font-bold hover:border-ink">Explorer gratuitement</button>
-              <button onClick={debloquer} disabled={busy} className="fx-brille flex-[2] rounded-2xl bg-accent py-3.5 text-[15.5px] font-bold text-white hover:bg-accent-dark disabled:opacity-60"><span className="inline-flex items-center gap-2"><Cadenas />Débloquer les {Math.max(liste.length, Number(total || 0)) - 1} autres</span></button>
+              <button onClick={debloquer} disabled={busy} className="fx-brille flex-[2] rounded-2xl bg-accent py-3.5 text-[15.5px] font-bold text-white hover:bg-accent-dark disabled:opacity-60"><span className="inline-flex items-center gap-2"><Cadenas />{Math.max(liste.length, Number(total || 0)) - 1 > 1 ? `Débloquer les ${Math.max(liste.length, Number(total || 0)) - 1} autres` : "Débloquer l'autre"}</span></button>
             </div>
           </div>
         </>
