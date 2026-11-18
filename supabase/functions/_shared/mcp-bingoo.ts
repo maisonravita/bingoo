@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-explicit-any
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.45.4";
 
-const SITE = "https://kairo.maisonravita.fr";
+const SITE = "https://bingoo.fr";
 const CANAUX = ["seo", "reseaux", "prospection", "pub", "bouche"];
 const TRIS = ["croissance", "revenu", "encaisse", "copiable", "recent"];
 

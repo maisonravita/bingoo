@@ -213,7 +213,7 @@ const FORUMS = [
   { nom: "Expat.com · Paris (FR)", url: "https://www.expat.com/fr/forum/europe/france/paris/" },
   { nom: "Expat.com · France (FR)", url: "https://www.expat.com/fr/forum/europe/france/" },
 ];
-const UA = { "User-Agent": "Mozilla/5.0 (compatible; BingooVeille/1.0; +https://kairo.maisonravita.fr)", "Accept-Language": "fr,en;q=0.8" };
+const UA = { "User-Agent": "Mozilla/5.0 (compatible; BingooVeille/1.0; +https://bingoo.fr)", "Accept-Language": "fr,en;q=0.8" };
 async function page(u: string) {
   const r = await fetch(u, { headers: UA, signal: AbortSignal.timeout(15000) }).catch(() => null);
   return r?.ok ? await r.text() : "";

@@ -362,7 +362,7 @@ export async function spyDigest() {
       }
       const to = await teamAddress(w);
       if (!to) continue;
-      const base = String(w.app_url || Deno.env.get("APP_URL") || "https://kairo.maisonravita.fr").replace(/\/$/, "");
+      const base = String(w.app_url || Deno.env.get("APP_URL") || "https://bingoo.fr").replace(/\/$/, "");
       const link = `${base}/#/espion`;
       const reports = (week ?? []).filter((a) => a.kind === "veille").length;
       // Tes 3 entreprises à contacter aujourd'hui (choisies par le Radar ce matin)

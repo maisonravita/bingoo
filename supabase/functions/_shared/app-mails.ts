@@ -6,7 +6,7 @@ import { admin, env, PLATFORM_DOMAIN } from "./core.ts";
 import { resend } from "./mail.ts";
 import { HttpError } from "./http.ts";
 
-const lien = (app: any, slug: string) => app.domaine_statut === "ok" && app.domaine ? `https://${app.domaine}/` : `https://kairo.maisonravita.fr/#/app/${slug}`;
+const lien = (app: any, slug: string) => app.domaine_statut === "ok" && app.domaine ? `https://${app.domaine}/` : `https://bingoo.fr/#/app/${slug}`;
 const esc = (s: string) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 const T = `${Deno.env.get("SUPABASE_URL")}/functions/v1/t/app`;
 

@@ -49,7 +49,7 @@ export type Fiche = {
 /** Règles robots.txt du site pour tous les robots (« User-agent: * ») : chemins interdits. Lecture courte, en cas d'échec rien n'est interdit. */
 export async function robots(site: string) {
   try {
-    const r = await fetch(new URL("/robots.txt", site).href, { signal: AbortSignal.timeout(6000), headers: { "user-agent": "BingooBot/1.0 (+https://kairo.maisonravita.fr/#/retrait)" } });
+    const r = await fetch(new URL("/robots.txt", site).href, { signal: AbortSignal.timeout(6000), headers: { "user-agent": "BingooBot/1.0 (+https://bingoo.fr/#/retrait)" } });
     if (!r.ok) return [] as string[];
     const lignes = (await r.text()).slice(0, 100_000).split(/\r?\n/).map((l) => l.replace(/#.*/, "").trim());
     const interdit: string[] = []; let pourTous = false, vuRegle = false;

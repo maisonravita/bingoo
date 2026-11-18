@@ -3,7 +3,7 @@ import nodemailer from "npm:nodemailer@6.9.16";
 import { HttpError } from "./http.ts";
 import { admin, alerteJean, env, log, PACKS, PERIODES, periodesDe, PLANS, VENTE, type Prospect, type Workspace } from "./core.ts";
 
-const APP = (ws: Workspace) => (ws.app_url || env("APP_URL", "https://kairo.maisonravita.fr")).replace(/\/$/, "");
+const APP = (ws: Workspace) => (ws.app_url || env("APP_URL", "https://bingoo.fr")).replace(/\/$/, "");
 const today = () => new Date().toISOString().slice(0, 10);
 
 // =====================================================================

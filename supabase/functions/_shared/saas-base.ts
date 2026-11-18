@@ -378,7 +378,7 @@ export async function saasAlertes(seulement?: string) {
   const { data: pubs } = await admin.from("saas_pubs").select("saas_id, titre, body").gte("started", depuis.slice(0, 10)).limit(3000);
   const { data: noms } = await admin.from("saas").select("id, nom, domaine").in("id", [...new Set([...(mails ?? []), ...(pubs ?? [])].map((x) => x.saas_id).filter(Boolean))]);
   const nomDe = new Map(((noms ?? []) as { id: string; nom: string; domaine: string }[]).map((x) => [x.id, x]));
-  const site = "https://kairo.maisonravita.fr";
+  const site = "https://bingoo.fr";
   // Jumeau : nouveautés du SaaS d'inspiration de chaque SaaS construit, encore à traiter
   const { data: sgs } = await admin.from("saas_app_suggestions").select("titre, detail, type, at, app:app_id(workspace_id, spec, projet:projet_id(data))").eq("statut", "nouvelle").gte("at", depuis).limit(2000);
   const jumeaux = new Map<string, { titre: string; type: string; app: string; insp: string; domaine: string }[]>();
@@ -613,7 +613,7 @@ export async function paysWikidata(domaines: string[]) {
   ?pays wdt:P297 ?code . }`;
   // POST : la liste des adresses dépasse la longueur permise dans une adresse GET
   const r = await fetch("https://query.wikidata.org/sparql", { method: "POST", body: new URLSearchParams({ query: q, format: "json" }),
-    headers: { "user-agent": "BingooBot/1.0 (+https://kairo.maisonravita.fr/#/retrait; bingoo@maisonravita.fr)", accept: "application/sparql-results+json", "content-type": "application/x-www-form-urlencoded" }, signal: AbortSignal.timeout(30000) })
+    headers: { "user-agent": "BingooBot/1.0 (+https://bingoo.fr/#/retrait; bingoo@maisonravita.fr)", accept: "application/sparql-results+json", "content-type": "application/x-www-form-urlencoded" }, signal: AbortSignal.timeout(30000) })
     .then(async (x) => { if (!x.ok) { console.error("wikidata", x.status, (await x.text()).slice(0, 300)); return null; } return x.json(); }).catch((e) => { console.error("wikidata", String(e)); return null; });
   const parDom = new Map<string, { siege: Set<string>; pays: Set<string> }>();
   for (const b of (r?.results?.bindings ?? []) as { site: { value: string }; code: { value: string }; src: { value: string } }[]) {
@@ -743,7 +743,7 @@ export async function explorerMail(d: Record<string, unknown>, text: string, htm
     const liens = [...html.matchAll(/href=["'](https?:\/\/[^"']+)["']/gi)].map((m) => m[1].replace(/&amp;/g, "&"));
     const lien = liens.find((u) => /(confirm|valid|verif|activ|subscribe|optin|opt-in)/i.test(u) && (() => { try { const h = new URL(u).hostname; return (s && racine(h) === racine(s.domaine)) || ESP.test(h); } catch { return false; } })());
     let suivi = false;
-    if (lien) suivi = await fetch(lien, { redirect: "follow", signal: AbortSignal.timeout(15000), headers: { "user-agent": "BingooBot/1.0 (+https://kairo.maisonravita.fr/#/retrait)" } }).then((r) => r.ok).catch(() => false);
+    if (lien) suivi = await fetch(lien, { redirect: "follow", signal: AbortSignal.timeout(15000), headers: { "user-agent": "BingooBot/1.0 (+https://bingoo.fr/#/retrait)" } }).then((r) => r.ok).catch(() => false);
     await admin.from("saas_emails").insert({ saas_id: s?.id ?? null, from_email: fromEmail.slice(0, 200), from_name: fromName.slice(0, 120), subject: sujet.slice(0, 300), kind: "confirmation", resume: suivi ? "Inscription confirmée" : "Lien de confirmation non suivi", body: "" });
     if (s && suivi) await admin.from("saas").update({ newsletter_statut: "inscrit" }).eq("id", s.id);
     return { confirmation: true, suivi, saas: s?.nom ?? null };
@@ -909,7 +909,7 @@ Rends {"formules": [2 ou 3 objets nom + prix (euros par mois, nombre) + pour + i
 /** Trois jours après l'inscription, si rien n'est encore lancé : les 3 SaaS à copier faits pour ce compte (sans IA). */
 export async function saasRelanceJ3(seulement?: string) {
   const { teamAddress, sendSystem } = await import("./mail.ts");
-  const site = "https://kairo.maisonravita.fr";
+  const site = "https://bingoo.fr";
   let q = admin.from("workspaces").select("*").or("profile->>mode.eq.explorer,plan.in.(explorer,explorer_pro,business)");
   q = seulement ? q.eq("id", seulement) : q.gte("created_at", new Date(Date.now() - 4 * 864e5).toISOString()).lt("created_at", new Date(Date.now() - 3 * 864e5).toISOString());
   const { data: wss } = await q.limit(500);
@@ -946,7 +946,7 @@ ${top.map((x, i) => `<div style="border:1px solid #E7E5E4;border-radius:14px;pad
  *  dont ils se sont inspirés (revenu vérifié et croissance), et UNE action concrète choisie par des règles simples. */
 export async function saasRecapMensuel(seulement?: string, apercu = false) {
   const { teamAddress, sendSystem } = await import("./mail.ts");
-  const site = "https://kairo.maisonravita.fr";
+  const site = "https://bingoo.fr";
   const debut = new Date(); debut.setUTCDate(1); debut.setUTCHours(0, 0, 0, 0); debut.setUTCMonth(debut.getUTCMonth() - 1);
   const fin = new Date(debut); fin.setUTCMonth(fin.getUTCMonth() + 1);
   const mois = debut.toLocaleDateString("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" });

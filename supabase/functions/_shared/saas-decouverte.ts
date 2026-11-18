@@ -123,7 +123,7 @@ const PLATEFORMES = /(^|\.)(google|notion|gumroad|whop|stripe|lemonsqueezy|carrd
 
 /** Ajoute à la file les startups du plan du site TrustMRR (nouvelles seulement). */
 export async function trustmrrPlan() {
-  const r = await safeFetchText(`${TM}/startup-sitemap.xml`, { headers: { "user-agent": "BingooBot/1.0 (+https://kairo.maisonravita.fr)" } }, 6_000_000, 30000);
+  const r = await safeFetchText(`${TM}/startup-sitemap.xml`, { headers: { "user-agent": "BingooBot/1.0 (+https://bingoo.fr)" } }, 6_000_000, 30000);
   if (!r.ok) throw new Error(`TrustMRR ${r.status}`);
   const slugs = [...new Set([...r.text.matchAll(/<loc>https:\/\/trustmrr\.com\/startup\/([a-z0-9-]+)<\/loc>/g)].map((m) => m[1]))];
   let ajoutes = 0;
@@ -239,7 +239,7 @@ export async function trustmrrLire(n = 40, maxMs = 100_000, seul?: string) {
       const slug = slugs[i++];
       const at = new Date().toISOString();
       try {
-        const r = await safeFetchText(`${TM}/startup/${slug}.md`, { headers: { "user-agent": "BingooBot/1.0 (+https://kairo.maisonravita.fr)", accept: "text/markdown,text/plain" } }, 400_000, 12000);
+        const r = await safeFetchText(`${TM}/startup/${slug}.md`, { headers: { "user-agent": "BingooBot/1.0 (+https://bingoo.fr)", accept: "text/markdown,text/plain" } }, 400_000, 12000);
         // Trop de requêtes : TrustMRR demande de ralentir, on s'arrête là et on reprendra ces fiches au prochain passage
         if (r.status === 429 || r.status === 503) { freine = true; res.push({ slug, statut: "a_lire", mrr: null, domaine: null, at }); break; }
         if (!r.ok) { res.push({ slug, statut: r.status === 404 ? "absent" : "erreur", mrr: null, domaine: null, at }); continue; }
@@ -341,7 +341,7 @@ export async function trustmrrPourDomaine(domaine: string) {
     // Pas encore dans la file : on essaie les adresses TrustMRR les plus probables (nom du site)
     const base = d.split(".")[0];
     for (const slug of [...new Set([base, d.replace(/\./g, "-"), base.replace(/^(get|try|use)/, "")])].filter((x) => /^[a-z0-9-]{2,}$/.test(x))) {
-      const r = await safeFetchText(`${TM}/startup/${slug}.md`, { headers: { "user-agent": "BingooBot/1.0 (+https://kairo.maisonravita.fr)", accept: "text/markdown,text/plain" } }, 400_000, 10000).catch(() => null);
+      const r = await safeFetchText(`${TM}/startup/${slug}.md`, { headers: { "user-agent": "BingooBot/1.0 (+https://bingoo.fr)", accept: "text/markdown,text/plain" } }, 400_000, 10000).catch(() => null);
       if (!r?.ok) continue;
       const site = trustmrrFiche(r.text, slug).site;
       let hote = ""; try { hote = site ? new URL(site).hostname.replace(/^www\./, "").toLowerCase() : ""; } catch { /* adresse illisible */ }

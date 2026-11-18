@@ -5,7 +5,7 @@ import { admin } from "./core.ts";
 import { safeFetchText } from "./safefetch.ts";
 import { autorise, robots } from "./marche-saas.ts";
 
-const UA = "BingooBot/1.0 (+https://kairo.maisonravita.fr/#/retrait)";
+const UA = "BingooBot/1.0 (+https://bingoo.fr/#/retrait)";
 const UTILE = /\/(features?|fonctionnalit[eé]s?|product|products|produit|produits|integrations?|int[eé]grations?|apps?|marketplace|solutions?|use-cases?|cas-d-usage|platform|plateforme|ai|ia|automations?|templates?|modules?|tools?|outils)(\/|$)/i;
 const BRUIT = /\/(blog|news|actualit|press|presse|help|aide|support|docs?|documentation|academy|learn|careers?|jobs?|carrieres?|legal|privacy|terms|cgu|cgv|customers?|clients?|case-stud|temoignages?|webinars?|events?|glossary|glossaire|compare|vs|alternatives?|author|tag|category|partners?|affiliates?|login|signup)(\/|$)/i;
 const LANGUE = /^\/([a-z]{2}(-[a-z]{2})?)(\/|$)/i;

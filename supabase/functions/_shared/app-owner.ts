@@ -36,7 +36,7 @@ export async function appPaiement(appId: string, b: any) {
 // ---------------------------------------------------------------- Connexion Stripe en un clic (Stripe Connect, comptes Standard)
 // Le fondateur se connecte à son compte Stripe (ou en crée un) sur stripe.com, sans chercher de clé secrète.
 // L'argent de ses abonnés arrive sur SON compte ; Bingoo! ne prend aucune commission. Le collage de clé reste possible en repli.
-const SITE = "https://kairo.maisonravita.fr";
+const SITE = "https://bingoo.fr";
 async function hmac(texte: string) {
   const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   return btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(texte))))).replace(/[+/=]/g, (c) => ({ "+": "-", "/": "_", "=": "" }[c] as string));
@@ -485,7 +485,7 @@ export async function appPhotoDuJour(appId: string) {
       const { sendSystem, teamAddress } = await import("./mail.ts");
       const { data: w } = await admin.from("workspaces").select("*").eq("id", app!.workspace_id).single();
       const to = await teamAddress(w as never);
-      if (to) await sendSystem({ to, subject: jalons[0], text: `${jalons.join("\n")}\n\nRevenu mensuel vérifié : ${Math.round(m)} €, ${abonnes} abonné${(abonnes ?? 0) > 1 ? "s" : ""}.\n\nVoir ton SaaS : https://kairo.maisonravita.fr/#/explorer/createurs\n\nBingoo!`, key: `jalon-${appId}-${new Date().toISOString().slice(0, 10)}` });
+      if (to) await sendSystem({ to, subject: jalons[0], text: `${jalons.join("\n")}\n\nRevenu mensuel vérifié : ${Math.round(m)} €, ${abonnes} abonné${(abonnes ?? 0) > 1 ? "s" : ""}.\n\nVoir ton SaaS : https://bingoo.fr/#/explorer/createurs\n\nBingoo!`, key: `jalon-${appId}-${new Date().toISOString().slice(0, 10)}` });
     } catch (e) { console.error("jalon", e); }
   }
   return { mrr: m, jalons };

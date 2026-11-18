@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
     const { appDesabonner } = await import("../_shared/app-mails.ts");
     const ok = await appDesabonner(ad[1], new URL(req.url).searchParams.get("t") ?? "");
     if (req.method === "POST") return new Response(null, { status: ok ? 200 : 404, headers: cors });
-    return Response.redirect(`https://kairo.maisonravita.fr/#/desabonne?app=${ad[1]}&ok=${ok ? 1 : 0}`, 302);
+    return Response.redirect(`https://bingoo.fr/#/desabonne?app=${ad[1]}&ok=${ok ? 1 : 0}`, 302);
   }
   const af = path.match(/\/app\/([a-z0-9-]+)\/(manifest|icone\.svg|badge\.svg)$/);
   if (req.method === "GET" && af) {

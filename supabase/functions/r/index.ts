@@ -145,7 +145,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       const { data: mrr } = await admin.rpc("saas_app_mrr", { p_app: u.app_id });
       const { count } = await admin.from("saas_app_users").select("id", { count: "exact", head: true }).eq("app_id", u.app_id).in("abonnement->>statut", ["active", "past_due"]);
       const montant = Number(u.abonnement?.montant ?? 0);
-      const text = `Bravo !\n\nUn nouveau client vient de s'abonner à ${nom}${montant ? ` (${montant} € par mois)` : ""}.\n\n${nom} a maintenant ${count ?? 1} client${(count ?? 1) > 1 ? "s" : ""} payant${(count ?? 1) > 1 ? "s" : ""} et encaisse ${Math.round(Number(mrr ?? 0))} € par mois.\n\nVoir tes clients : https://kairo.maisonravita.fr/#/explorer/createurs\n\nBingoo!`;
+      const text = `Bravo !\n\nUn nouveau client vient de s'abonner à ${nom}${montant ? ` (${montant} € par mois)` : ""}.\n\n${nom} a maintenant ${count ?? 1} client${(count ?? 1) > 1 ? "s" : ""} payant${(count ?? 1) > 1 ? "s" : ""} et encaisse ${Math.round(Number(mrr ?? 0))} € par mois.\n\nVoir tes clients : https://bingoo.fr/#/explorer/createurs\n\nBingoo!`;
       try { await sendSystem({ to, subject: `🎉 Nouveau client sur ${nom} !`, text, key: `client-${u.id}` }); envoyes++; } catch (_) { /* déjà marqué : pas de doublon */ }
     }
     return { envoyes };
@@ -168,7 +168,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       const { data: ps } = await admin.from("saas_prospects_lancement").select("etat").eq("workspace_id", l.workspace_id).eq("domaine", l.domaine);
       const n = (k: string) => (ps ?? []).filter((p) => p.etat === k).length;
       const bilan = ps?.length ? `\nOù tu en es : ${ps.length} prospects, ${(ps ?? []).filter((p) => p.etat && p.etat !== "non").length} contactés, ${n("essai")} en essai, ${n("payant")} payants.\n` : "";
-      const lien = "https://kairo.maisonravita.fr/#/explorer/trouver";
+      const lien = "https://bingoo.fr/#/explorer/trouver";
       const text = `Bonjour,\n\n${e.j} sur 7 de ta semaine pour trouver tes 10 premiers clients (${l.titre}).\n\nAujourd'hui : ${e.titre}\n${e.actions.map((a) => `- ${a}`).join("\n")}\n${bilan}\nTout est prêt dans Bingoo! (tes prospects, tes messages à copier) : ${lien}\n\nUne étape par jour, c'est tout. À demain.\nBingoo!\n\nTu ne veux plus ces e-mails ? Décoche « Recevoir l'étape chaque matin » dans ta semaine, sur Bingoo!.`;
       try {
         await sendSystem({ to, subject: `${e.j} : ${e.titre} (tes 10 premiers clients)`, text, key: `semaine-${l.id}-${jour}` });
@@ -594,7 +594,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const { sendSystem, teamAddress } = await import("../_shared/mail.ts");
     const to = await teamAddress(wd as never);
     const resume = offre != null ? `Offre de ${offre.toLocaleString("fr-FR")} € pour ${nom}${texte ? ` : « ${texte.slice(0, 300)} »` : ""}` : `« ${texte.slice(0, 500)} »`;
-    if (to) await sendSystem({ to, subject: `Bourse Bingoo! · ${nom} : ${offre != null ? "nouvelle offre" : "nouveau message"} de ${ws.name ?? "un membre"}`, text: `${ws.name ?? "Un membre de Bingoo!"} t'écrit à propos de ${nom} (en vente à ${bo.prix} €) :\n\n${resume}\n\nRéponds dans Bingoo! : https://kairo.maisonravita.fr/#/explorer/bourse\n\nBingoo!`, key: `bourse-${bo.id}-${acheteur}-${Date.now()}` }).catch((e) => console.error("bourse mail", e));
+    if (to) await sendSystem({ to, subject: `Bourse Bingoo! · ${nom} : ${offre != null ? "nouvelle offre" : "nouveau message"} de ${ws.name ?? "un membre"}`, text: `${ws.name ?? "Un membre de Bingoo!"} t'écrit à propos de ${nom} (en vente à ${bo.prix} €) :\n\n${resume}\n\nRéponds dans Bingoo! : https://bingoo.fr/#/explorer/bourse\n\nBingoo!`, key: `bourse-${bo.id}-${acheteur}-${Date.now()}` }).catch((e) => console.error("bourse mail", e));
     await admin.from("activity").insert({ workspace_id: dest, kind: "bourse", summary: `${offre != null ? "Offre" : "Message"} sur la bourse : ${nom}` });
     return { ok: true };
   },
@@ -618,7 +618,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const { data: wd } = await admin.from("workspaces").select("*").eq("id", m.acheteur_ws).single();
     const { sendSystem, teamAddress } = await import("../_shared/mail.ts");
     const to = await teamAddress(wd as never);
-    if (to) await sendSystem({ to, subject: `Bourse Bingoo! · ${nom} : ton offre est ${ok ? "acceptée" : "refusée"}`, text: `Ton offre de ${m.offre} € pour ${nom} est ${ok ? "acceptée. Organise le paiement avec le vendeur dans la conversation : il transfère ensuite l'application sur ton espace" : "refusée. Tu peux en proposer une autre dans la conversation"}.\n\nhttps://kairo.maisonravita.fr/#/explorer/bourse\n\nBingoo!` }).catch(() => null);
+    if (to) await sendSystem({ to, subject: `Bourse Bingoo! · ${nom} : ton offre est ${ok ? "acceptée" : "refusée"}`, text: `Ton offre de ${m.offre} € pour ${nom} est ${ok ? "acceptée. Organise le paiement avec le vendeur dans la conversation : il transfère ensuite l'application sur ton espace" : "refusée. Tu peux en proposer une autre dans la conversation"}.\n\nhttps://bingoo.fr/#/explorer/bourse\n\nBingoo!` }).catch(() => null);
     await log(ws.id, "bourse", `Offre ${ok ? "acceptée" : "refusée"} : ${nom} ${m.offre} €`);
     return { ok: true };
   },
