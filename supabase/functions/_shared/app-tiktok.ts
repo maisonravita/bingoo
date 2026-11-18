@@ -192,7 +192,7 @@ ${evite ? `Déjà écrites, ne les refais pas et ne reprends pas leur accroche :
 - ecran : 2 à 4 textes courts à afficher par-dessus la vidéo
 - legende : la légende à publier, avec 3 à 5 hashtags pertinents
 - duree : durée en secondes (nombre entre 10 et 60)
-Français, tutoiement, sans emoji, sans promesse de revenus ni de résultat chiffré, sans inventer de clients ou de chiffres réels.
+Français, tutoiement partout (accroche, texte, écran et légende : jamais de « vous »), sans emoji, sans promesse de revenus ni de résultat chiffré, sans inventer de clients ou de chiffres réels.
 JSON : { "scripts": [ ... ] }`, { fast: true, maxTokens: 7000 });
   const at = Date.now().toString(36);
   const vus = new Set(deja.map((a) => a.toLowerCase().trim()));
