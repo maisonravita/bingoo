@@ -3376,7 +3376,8 @@ export function PremiersClients({ s, a, r, app }) {
   const chargerCibles = async (refaire = false) => {
     setCbBusy(true);
     try { setCb(await fn("r/saas-cibles", { workspace_id: ws.id, domaine: s.domaine, angle: a.brief, ...(refaire ? { refaire: true } : {}) })); }
-    catch (err) { toast(err.message, "bad"); } finally { setCbBusy(false); }
+    // Préparation automatique à l'affichage : un échec (IA en pause) ne s'affiche pas en erreur, la section reste simplement à préparer
+    catch (err) { if (refaire) toast(err.message, "bad"); } finally { setCbBusy(false); }
   };
   useEffect(() => { setCb(null); chargerCibles(); }, [s.domaine, ws.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const semaine = semaineClients(s, a, r, cb);
