@@ -47,7 +47,9 @@ function Gate() {
   }
   // Visiteur : la page d'accueil ; la connexion et l'inscription sont sur /connexion
   if (!session && loc.pathname === "/" && !pendingJoin) return <Landing />;
-  if (!session && !pendingJoin && loc.pathname.startsWith("/explorer")) return <EntreeInvite repli={<Auth />} />;
+  // « Se connecter » depuis une visite sans compte : la page de connexion, sans recréer de session invité
+  let veutConnexion = false; try { veutConnexion = localStorage.getItem("bingoo-connexion") === "1"; if (session && !estInvite(session)) localStorage.removeItem("bingoo-connexion"); } catch { /* stockage indisponible */ }
+  if (!session && !pendingJoin && loc.pathname.startsWith("/explorer") && !veutConnexion) return <EntreeInvite repli={<Auth />} />;
   if (!session) return <Auth invited={!!pendingJoin} />;
   if (pendingJoin) return <Join token={pendingJoin} />;
   // Nouvelle inscription : le TrendTrack des SaaS (une question, l'adresse du SaaS)

@@ -10,7 +10,7 @@ export const COMPTE_REQUIS = /^Crée ton compte/;
 export const demanderCompte = (raison) => window.dispatchEvent(new CustomEvent("bingoo-compte", { detail: raison ?? null }));
 
 export async function commencer(nav) {
-  try { localStorage.setItem("bingoo-guide", "en_cours"); } catch { /* stockage indisponible */ }
+  try { localStorage.setItem("bingoo-guide", "en_cours"); localStorage.removeItem("bingoo-connexion"); } catch { /* stockage indisponible */ }
   // Déjà connecté (compte ou visite précédente) : on ne remplace jamais la session en cours
   const { data } = await supabase.auth.getSession();
   if (data.session) return nav("/explorer/trouver");
