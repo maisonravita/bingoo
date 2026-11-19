@@ -38,6 +38,43 @@ const membreOuCron = async (req: Request, wsId: string) => {
 };
 const cron = async (req: Request) => { if ((req.headers.get("x-cron-key") ?? "") !== await secret("cron_key")) throw new HttpError(401, "Clé invalide"); };
 
+// Vérifie « Bingoo! sait-il le construire ? » pour un lot de SaaS (fiche « fait / pour qui » en français comprise)
+async function verifierLot(lot: { id: string; nom: string; domaine: string; texte: string; persona: string | null }[]) {
+  const { askJson } = await import("../_shared/core.ts");
+    const r = await askJson<{ saas: { ref: string; debut: string; constructible: boolean; fait: string; pour_qui: string }[] }>(`Bingoo! construit des applications web, de gestion ou grand public : comptes utilisateurs, suivi personnel et progression (séances de sport, nutrition, objectifs, habitudes, révisions, budget perso) avec graphiques, chrono et minuteur, coach ou assistant IA qui écrit des programmes, plans et conseils en texte, communauté entre utilisateurs de l'application (fil, défis, classements, entraide, contenus partagés), outils IA de texte gratuits sans compte, formulaires, listes et tableaux, fiches clients, agenda et réservation en ligne, devis et factures simples, tableaux de bord, pages publiques (réservation, formulaire, avis), e-mails automatiques simples, abonnements payés par Stripe, et une IA qui écrit, résume ou analyse du TEXTE saisi par l'utilisateur.
+
+Bingoo! NE sait PAS construire : un agent IA qui agit seul sur d'autres plateformes (prospection, envoi en masse, LinkedIn, réseaux sociaux, publication automatique), une intégration profonde avec un autre logiciel (Shopify, Gmail, Outlook, Word, Excel, GitHub, logiciels comptables, caisses, banques), des données achetées ou aspirées (contacts, marchés, Google, cotes), la génération d'images, de vidéos, de sons, de BD ou de livres, une appli mobile, de bureau ou une extension, un produit physique, une caisse ou du matériel, un service humain (agence, conseil, équipe d'assistance, cours avec des experts), une marketplace qui met en relation des vendeurs et des acheteurs, un réseau social dont la valeur vient de millions de membres déjà présents, la synchronisation avec une montre, un capteur, le GPS ou Strava, la finance, le trading, l'assurance, les remboursements de santé, un outil pour créer des logiciels, ni un produit dont la valeur vient d'une IA particulière : chatbot « sans filtre », « non censuré » ou « uncensored », compagnon ou personnage IA, modèle entraîné sur des données spéciales, choix entre plusieurs modèles d'IA, confidentialité technique poussée (chiffrement de bout en bout, rien n'est stocké).
+Ce qui EST faisable, même si ça paraît ambitieux : prendre des réservations et des rendez-vous, encaisser par carte (Stripe), vendre des billets ou des inscriptions avec un QR code, un mini-site ou une page publique de l'entreprise, une collecte de dons, des cours ou quiz en ligne dont le contenu est saisi par l'utilisateur, un planning d'équipe, des devis, factures et contrats en PDF, une gestion de chantiers ou de projets, un CRM, un service client par tickets, une newsletter simple.
+Test décisif : un client qui paie la version de Bingoo! obtiendra-t-il ce pour quoi il paie le SaaS d'origine ? Si la raison principale d'acheter le SaaS d'origine est une chose de la liste ci-dessus, alors false, même si le reste (comptes, historique, abonnement) est faisable.
+
+Pour chaque logiciel ci-dessous :
+- "constructible" : true seulement si Bingoo! peut en construire une version complète et utile avec ce qu'il sait faire ; dans le doute, false.
+- "fait" : ce qu'il fait, en français simple, en 15 mots maximum, qui commence par un verbe conjugué à la 3e personne (« Gère », « Transforme », « Aide »), qui donne envie, SANS jamais citer son nom, son site ni une marque. Jamais de vouvoiement (ni « vous », « votre », « vos », ni impératif en « -ez ») : si besoin, tutoie (« ton », « ta », « tes »). Décris ce que fait VRAIMENT ce logiciel d'après sa description, jamais une phrase générique de sa catégorie.
+- "pour_qui" : ses clients en 8 mots maximum.
+
+${lot.map((x, k) => `[R${k}] ${x.texte}${x.persona ? ` (clients : ${x.persona})` : ""}`).join("\n")}
+
+Réponds en JSON, une entrée par logiciel, avec sa référence exacte (R0, R1…) et "debut" = ses 3 premiers mots recopiés à l'identique : {"saas": [{"ref": "R0", "debut": "...", "constructible": true, "fait": "...", "pour_qui": "..."}]}`, { fast: true, maxTokens: 1500 });
+    // Chaque réponse est rattachée par sa référence ; si les références ne correspondent pas exactement au lot, on jette tout (pas de description collée sur le mauvais SaaS)
+    const rep = (r?.saas ?? []) as { ref: string; constructible: boolean; fait: string; pour_qui: string }[];
+    const refs = rep.map((x) => String(x.ref ?? "").trim().toUpperCase());
+    const attendues = lot.map((_, k) => `R${k}`);
+    if (refs.length !== lot.length || new Set(refs).size !== refs.length || !refs.every((x) => attendues.includes(x))) return { faits: 0, ecartes: 0, rejete: "références incohérentes" };
+    let faits = 0, ecartes = 0;
+    for (const x of rep) {
+      const s0 = lot[Number(String(x.ref).trim().toUpperCase().slice(1))];
+      if (!s0) continue;
+      // Contrôle : la réponse doit recopier le début du bon texte, sinon elle décrit un autre SaaS (elle sera refaite au prochain passage)
+      const norm = (t: string) => String(t ?? "").toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g, " ").trim();
+      const d = norm((x as { debut?: string }).debut ?? "").split(" ").slice(0, 2).join(" ");
+      if (!d || !norm(s0.texte).startsWith(d)) { ecartes++; continue; }
+      const nettoie = (t: string) => String(t ?? "").replaceAll(s0.nom, "ce SaaS").slice(0, 200).trim();
+      await admin.from("saas").update({ constructible_ia: x.constructible === true, pitch_fr: { fait: nettoie(x.fait), pour_qui: nettoie(x.pour_qui), verifie: new Date().toISOString() } }).eq("id", s0.id);
+      faits++;
+    }
+  return { faits, ecartes, rejete: null as string | null };
+}
+
 // Prépare un projet « Lancer ma version » : tout de suite à la demande (p_id), ou le suivant en attente (tâche minute)
 async function demarrerLancement(pid: string | null) {
   const { data, error } = await admin.rpc("saas_prendre_lancement", { p_id: pid }).maybeSingle();
@@ -307,7 +344,18 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     // Vérifié « Bingoo! ne sait pas le construire » (agent IA, IA sans filtre, intégration profonde…) : refusé avant toute dépense
     // Règle n° 1 : Bingoo! ne lance QUE ce qu'il a vérifié savoir construire en entier (sinon le client paie pour un SaaS qui ne peut pas marcher)
     if (s.constructible_ia === false) throw new HttpError(400, `Bingoo! ne peut pas construire une version qui marche vraiment de ${s.nom ?? domaine} : son cœur repose sur une technologie que Bingoo! ne sait pas faire. Choisis un autre SaaS dans tes résultats.`);
-    if (s.constructible_ia !== true) throw new HttpError(400, `${s.nom ?? domaine} n'a pas encore été vérifié par Bingoo! : choisis un SaaS dans tes résultats, ils sont tous vérifiés.`);
+    // Pas encore vérifié : vérifié tout de suite (quelques secondes), au lieu d'attendre la file de nuit
+    if (s.constructible_ia == null) {
+      const { data: f } = await admin.from("saas").select("description, cible").eq("id", s.id).single();
+      const texte = String(f?.description ?? "").trim();
+      if (texte.length >= 25) {
+        setAi({ ws: ws.id, feature: "explorer/verif-lancer", live: true });
+        await verifierLot([{ id: s.id, nom: s.nom ?? domaine, domaine, texte, persona: f?.cible ?? null }]).catch((e) => console.error("verif-lancer", e?.message));
+        ({ data: s } = await admin.from("saas").select("id, nom, statut, constructible_ia").eq("domaine", domaine).maybeSingle());
+      }
+      if (s?.constructible_ia === false) throw new HttpError(400, `Bingoo! vient de vérifier ${s.nom ?? domaine} : son cœur repose sur une technologie que Bingoo! ne sait pas faire, ta version ne marcherait pas vraiment. Choisis un autre SaaS.`);
+    }
+    if (!s || s.constructible_ia !== true) throw new HttpError(400, `Bingoo! n'a pas pu vérifier ${domaine} pour l'instant : réessaie dans une minute ou choisis un autre SaaS.`);
     const { data, error } = await admin.rpc("saas_preparer_lancement", {
       p_workspace: ws.id, p_saas: s.id, p_angle: typeof b.angle === "string" ? b.angle.slice(0, 400) : null,
     }).single();
@@ -1015,37 +1063,8 @@ Réponds en JSON : {"saas": [{"i": 0, "categorie": "texte exact de la liste"}]}`
     for (const v of vides) await admin.from("saas").update({ constructible_ia: false, pitch_fr: { fait: null, pour_qui: null, verifie: new Date().toISOString(), sans_texte: true } }).eq("id", v.id);
     const lot = tous.filter((x) => !vides.includes(x));
     if (!lot.length) return { faits: 0, sans_texte: vides.length };
-    const r = await askJson<{ saas: { ref: string; debut: string; constructible: boolean; fait: string; pour_qui: string }[] }>(`Bingoo! construit des applications web, de gestion ou grand public : comptes utilisateurs, suivi personnel et progression (séances de sport, nutrition, objectifs, habitudes, révisions, budget perso) avec graphiques, chrono et minuteur, coach ou assistant IA qui écrit des programmes, plans et conseils en texte, communauté entre utilisateurs de l'application (fil, défis, classements, entraide, contenus partagés), outils IA de texte gratuits sans compte, formulaires, listes et tableaux, fiches clients, agenda et réservation en ligne, devis et factures simples, tableaux de bord, pages publiques (réservation, formulaire, avis), e-mails automatiques simples, abonnements payés par Stripe, et une IA qui écrit, résume ou analyse du TEXTE saisi par l'utilisateur.
-
-Bingoo! NE sait PAS construire : un agent IA qui agit seul sur d'autres plateformes (prospection, envoi en masse, LinkedIn, réseaux sociaux, publication automatique), une intégration profonde avec un autre logiciel (Shopify, Gmail, Outlook, Word, Excel, GitHub, logiciels comptables, caisses, banques), des données achetées ou aspirées (contacts, marchés, Google, cotes), la génération d'images, de vidéos, de sons, de BD ou de livres, une appli mobile, de bureau ou une extension, un produit physique, une caisse ou du matériel, un service humain (agence, conseil, équipe d'assistance, cours avec des experts), une marketplace qui met en relation des vendeurs et des acheteurs, un réseau social dont la valeur vient de millions de membres déjà présents, la synchronisation avec une montre, un capteur, le GPS ou Strava, la finance, le trading, l'assurance, les remboursements de santé, un outil pour créer des logiciels, ni un produit dont la valeur vient d'une IA particulière : chatbot « sans filtre », « non censuré » ou « uncensored », compagnon ou personnage IA, modèle entraîné sur des données spéciales, choix entre plusieurs modèles d'IA, confidentialité technique poussée (chiffrement de bout en bout, rien n'est stocké).
-Ce qui EST faisable, même si ça paraît ambitieux : prendre des réservations et des rendez-vous, encaisser par carte (Stripe), vendre des billets ou des inscriptions avec un QR code, un mini-site ou une page publique de l'entreprise, une collecte de dons, des cours ou quiz en ligne dont le contenu est saisi par l'utilisateur, un planning d'équipe, des devis, factures et contrats en PDF, une gestion de chantiers ou de projets, un CRM, un service client par tickets, une newsletter simple.
-Test décisif : un client qui paie la version de Bingoo! obtiendra-t-il ce pour quoi il paie le SaaS d'origine ? Si la raison principale d'acheter le SaaS d'origine est une chose de la liste ci-dessus, alors false, même si le reste (comptes, historique, abonnement) est faisable.
-
-Pour chaque logiciel ci-dessous :
-- "constructible" : true seulement si Bingoo! peut en construire une version complète et utile avec ce qu'il sait faire ; dans le doute, false.
-- "fait" : ce qu'il fait, en français simple, en 15 mots maximum, qui commence par un verbe conjugué à la 3e personne (« Gère », « Transforme », « Aide »), qui donne envie, SANS jamais citer son nom, son site ni une marque. Jamais de vouvoiement (ni « vous », « votre », « vos », ni impératif en « -ez ») : si besoin, tutoie (« ton », « ta », « tes »). Décris ce que fait VRAIMENT ce logiciel d'après sa description, jamais une phrase générique de sa catégorie.
-- "pour_qui" : ses clients en 8 mots maximum.
-
-${lot.map((x, k) => `[R${k}] ${x.texte}${x.persona ? ` (clients : ${x.persona})` : ""}`).join("\n")}
-
-Réponds en JSON, une entrée par logiciel, avec sa référence exacte (R0, R1…) et "debut" = ses 3 premiers mots recopiés à l'identique : {"saas": [{"ref": "R0", "debut": "...", "constructible": true, "fait": "...", "pour_qui": "..."}]}`, { fast: true, maxTokens: 1500 });
-    // Chaque réponse est rattachée par sa référence ; si les références ne correspondent pas exactement au lot, on jette tout (pas de description collée sur le mauvais SaaS)
-    const rep = (r?.saas ?? []) as { ref: string; constructible: boolean; fait: string; pour_qui: string }[];
-    const refs = rep.map((x) => String(x.ref ?? "").trim().toUpperCase());
-    const attendues = lot.map((_, k) => `R${k}`);
-    if (refs.length !== lot.length || new Set(refs).size !== refs.length || !refs.every((x) => attendues.includes(x))) return { faits: 0, rejete: "références incohérentes", recu: refs.length, attendu: lot.length };
-    let faits = 0, ecartes = 0;
-    for (const x of rep) {
-      const s0 = lot[Number(String(x.ref).trim().toUpperCase().slice(1))];
-      if (!s0) continue;
-      // Contrôle : la réponse doit recopier le début du bon texte, sinon elle décrit un autre SaaS (elle sera refaite au prochain passage)
-      const norm = (t: string) => String(t ?? "").toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g, " ").trim();
-      const d = norm((x as { debut?: string }).debut ?? "").split(" ").slice(0, 2).join(" ");
-      if (!d || !norm(s0.texte).startsWith(d)) { ecartes++; continue; }
-      const nettoie = (t: string) => String(t ?? "").replaceAll(s0.nom, "ce SaaS").slice(0, 200).trim();
-      await admin.from("saas").update({ constructible_ia: x.constructible === true, pitch_fr: { fait: nettoie(x.fait), pour_qui: nettoie(x.pour_qui), verifie: new Date().toISOString() } }).eq("id", s0.id);
-      faits++;
-    }
+    const { faits, ecartes, rejete } = await verifierLot(lot);
+    if (rejete) return { faits: 0, rejete };
     return { faits, ecartes };
   },
   async "saas-trafic-maj"(req) { await cron(req); const { traficMaj } = await import("../_shared/saas-decouverte.ts"); return await traficMaj(); },
