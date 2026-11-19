@@ -19,6 +19,36 @@ const lit = (v) => "'" + String(v).replace(/'/g, "''") + "'";
 // La coque des SaaS (src/lib/appShell.js) est regroupée en un module importable par Node
 execFileSync("npx", ["esbuild", "src/lib/appShell.js", "--bundle", "--format=esm", "--platform=node", "--outfile=/tmp/appShell.verif.mjs", "--log-level=warning"], { stdio: "inherit" });
 const { appHtml } = await import("/tmp/appShell.verif.mjs");
+execFileSync("npx", ["esbuild", "supabase/functions/_shared/familles.ts", "--bundle", "--format=esm", "--platform=node", "--outfile=/tmp/familles.verif.mjs", "--log-level=warning"], { stdio: "inherit" });
+const { FAMILLES } = await import("/tmp/familles.verif.mjs");
+
+// Contrôle de fidélité (sans IA) : le SaaS ressemble-t-il à sa famille de logiciel, ou à un logiciel de gestion habillé ?
+// Seulement pour les SaaS conçus avec une famille (les plus anciens ne sont pas concernés). Chaque écart part en réparation avec sa consigne.
+const SIGNATURE = {
+  edition: [/ui\.Editeur/, "un vrai éditeur de documents (ui.Editeur) au cœur de l'écran, avec la liste des pages ou documents à côté"],
+  ia: [/ui\.Chat|\bia\(/, "l'interaction IA du produit (ui.Chat pour une conversation, ou une grande zone de saisie avec un résultat généré par ia())"],
+  projets: [/ui\.Kanban/, "un tableau de colonnes personnalisables et de cartes déplaçables (ui.Kanban avec les colonnes du tableau ouvert)"],
+  communaute: [/ui\.Fil/, "un fil de publications des membres (ui.Fil) avec une zone pour publier"],
+  contenu: [/ui\.Galerie/, "une galerie de cartes (ui.Galerie) avec recherche et filtres"],
+  reservation: [/ui\.Calendrier|ui\.Creneaux/, "un vrai calendrier des réservations (ui.Calendrier)"],
+};
+function fidelite(spec) {
+  const f = spec?.famille, F = FAMILLES[f]; if (!F) return {};
+  const ecrans = (spec.ecrans ?? []).filter((e) => !e.public && e.code), out = {};
+  const ref = spec.nature?.espace_principal ? ` L'espace principal du produit d'origine : ${spec.nature.espace_principal}.` : "";
+  const premier = ecrans[0];
+  if (premier && !["gestion", "analyse"].includes(f)) {
+    const stats = (premier.code.match(/ui\.Stat\b/g) ?? []).length;
+    if (/tableau de bord/i.test(premier.titre ?? "") || /ui\.Table\b/.test(premier.code) || stats >= 3)
+      out[premier.id] = `Fidélité : cet écran d'accueil ressemble à un logiciel de gestion (tableau ou rangée d'indicateurs). Pour un logiciel de la famille « ${F.label} », le premier écran est : ${F.accueil}.${ref} Réécris-le comme cet espace principal, sans ui.Table ni rangée de ui.Stat, et change son titre s'il dit « Tableau de bord ».`;
+  }
+  const sig = SIGNATURE[f];
+  if (sig && !ecrans.some((e) => sig[0].test(e.code)) && premier && !out[premier.id])
+    out[premier.id] = `Fidélité : il manque ce qui définit un logiciel de la famille « ${F.label} » : ${sig[1]}.${ref} Ajoute-le à cet écran, il doit vraiment fonctionner et enregistrer ses données.`;
+  for (const e of ecrans.slice(1)) if (!["gestion", "analyse", "crm", "reservation"].includes(f) && /ui\.Table\b/.test(e.code) && !out[e.id])
+    out[e.id] = `Fidélité : un tableau de données n'a pas sa place dans un logiciel de la famille « ${F.label} ». Remplace ui.Table par les composants de la famille (${F.guide.split("\n")[1]?.slice(2, 220) ?? ""}).`;
+  return out;
+}
 
 const apps = await q(`select id, workspace_id, slug, version, spec from saas_apps where statut = 'pret'
   ${SLUG ? `and slug = ${lit(SLUG)}` : BLANC ? "" : `and (verif is null or coalesce((verif->>'version')::int, -1) <> version) and maj < now() - interval '1 minute'`}
@@ -48,6 +78,9 @@ for (const a of apps) {
     await ctx.close();
   } catch (e) { console.log("  page impossible à ouvrir :", String(e?.message ?? e).slice(0, 200)); }
   if (!resultats) { console.log(`✗ ${a.slug} : la vérification n'a pas abouti (coque qui ne démarre pas)`); casses++; continue; }
+  // Un écran qui s'affiche bien mais trahit sa famille est aussi à reprendre
+  const fid = fidelite(a.spec);
+  resultats.resultats = resultats.resultats.map((r) => r.ok && fid[r.id] ? { ...r, ok: false, erreur: fid[r.id] } : r);
   const ko = resultats.resultats.filter((r) => !r.ok);
   total++; if (ko.length) casses++;
   console.log(`${ko.length ? "✗" : "✓"} ${a.slug} (${a.spec?.nom}) : ${resultats.resultats.length - ko.length}/${resultats.ecrans} écrans bons en ${Math.round((Date.now() - t0) / 1000)} s`);
