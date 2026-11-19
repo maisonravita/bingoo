@@ -313,9 +313,12 @@ function PasEncore() {
   return (
     <Carte className="mx-auto mt-10 max-w-lg text-center">
       <div className="py-6">
-        <h1 className="text-[20px] font-bold">Ton SaaS n'est pas encore construit</h1>
-        <p className="mt-1 text-[13.5px] text-[#616161]">Choisis un SaaS qui marche déjà : Bingoo! construit ta version et la met en ligne.</p>
-        <NavLink to="/explorer/trouver" className="mt-4 inline-block rounded-lg bg-[#303030] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1A1A1A]">Trouver mon SaaS</NavLink>
+        <h1 className="text-[20px] font-bold">Construis ton premier SaaS</h1>
+        <p className="mt-1 text-[13.5px] text-[#616161]">Pars d'un SaaS qui marche déjà, et lance ta version à la hauteur de tes concurrents.</p>
+        <div className="mt-5 grid gap-2 text-left">
+          <NavLink to="/explorer/connecteur" className="rounded-xl bg-[#303030] px-4 py-3 text-white hover:bg-[#1A1A1A]"><span className="block text-[14px] font-semibold">Construire avec mon IA</span><span className="block text-[12.5px] text-white/75">Ton Claude ou ton ChatGPT construit avec Bingoo!, écran par écran, sans limite.</span></NavLink>
+          <NavLink to="/explorer/trouver" className="rounded-xl border border-[#E3E3E3] px-4 py-3 hover:bg-[#FAFAFA]"><span className="block text-[14px] font-semibold">Bingoo! le construit pour moi</span><span className="block text-[12.5px] text-[#616161]">Pas d'IA à toi ? Choisis un SaaS, Bingoo! construit ta version en quelques minutes.</span></NavLink>
+        </div>
       </div>
     </Carte>
   );
@@ -364,7 +367,7 @@ function Accueil({ m, charger }) {
       <Tete icone={<Tuile m={m} />} titre={m.nom}
         sous={<span className="inline-flex flex-wrap items-center gap-x-2"><span className="inline-flex items-center gap-1.5 rounded-full bg-[#CDFEE1] px-2 py-0.5 text-[12px] font-semibold text-[#0C5132]"><span className="h-1.5 w-1.5 rounded-full bg-[#29845A]" />En ligne</span>
           <button onClick={() => navigator.clipboard?.writeText(lien).then(() => { setCopie(true); setTimeout(() => setCopie(false), 1600); })} className="truncate hover:text-[#1A1A1A] hover:underline">{copie ? "Lien copié" : lien.replace(/^https?:\/\//, "")}</button></span>}
-        actions={<><Bouton onClick={() => window.open(lien, "_blank", "noopener")}>Voir mon SaaS</Bouton><Bouton principal onClick={() => nav("/explorer/atelier")}>Ouvrir l'atelier</Bouton></>} />
+        actions={<><Bouton onClick={() => window.open(lien, "_blank", "noopener")}>Voir mon SaaS</Bouton><Bouton onClick={() => nav("/explorer/connecteur")}>Faire évoluer avec mon IA</Bouton><Bouton principal onClick={() => nav("/explorer/atelier")}>Ouvrir l'atelier</Bouton></>} />
 
       <Carte pad={false}>
         <div className="grid grid-cols-2 divide-[#EBEBEB] lg:grid-cols-4 lg:divide-x">

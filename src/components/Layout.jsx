@@ -247,6 +247,7 @@ function rubriques(ws, invite) {
     sections: [
       { titre: "Mon SaaS", items: [
         { to: "/explorer/mon-saas", label: "Accueil", icon: "today", also: ["/explorer/reglages-saas"] },
+        { to: "/explorer/connecteur", label: "Construire avec mon IA", icon: "spark" },
         { to: "/explorer/atelier", label: "Atelier", icon: "chat" },
         { to: "/explorer/clients", label: "Premiers clients", icon: "users", also: ["/explorer/methodes"] },
         { to: "/explorer/video", label: "Vidéo pub et TikTok", icon: "video", also: ["/explorer/tiktok"] },
@@ -349,7 +350,7 @@ export default function Layout({ children }) {
   const basMobile = (
     <nav aria-label="Navigation mobile" hidden={invite} className="md:hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
       <div className="grid grid-cols-4">
-        {[["/explorer/mon-saas", "Mon SaaS", "today"], ["/explorer/atelier", "Atelier", "chat"], ["/explorer/clients", "Clients", "users"], ["/explorer", "Explorer", "list"]].map(([to, l, ic]) => (
+        {[["/explorer/mon-saas", "Mon SaaS", "today"], ["/explorer/connecteur", "Mon IA", "spark"], ["/explorer/clients", "Clients", "users"], ["/explorer", "Explorer", "list"]].map(([to, l, ic]) => (
           <NavLink key={to} to={to} end={to === "/explorer"} className={({ isActive }) => cx("relative flex flex-col items-center gap-0.5 py-2.5 text-[11.5px] font-semibold", isActive ? "text-[#E8571C]" : "text-ink-soft")}><Icon name={ic} />{l}</NavLink>
         ))}
       </div>
