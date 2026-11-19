@@ -8,7 +8,8 @@ const SITE = "https://bingoo.fr";
 const CANAUX = ["seo", "reseaux", "prospection", "pub", "bouche"];
 const TRIS = ["croissance", "revenu", "encaisse", "copiable", "recent"];
 
-const INSTRUCTIONS = `Bingoo! est une base de SaaS avec leurs revenus VÉRIFIÉS chez leur outil de paiement (Stripe, Dodo, Lemon Squeezy… via TrustMRR) : MRR, argent encaissé, croissance, abonnés, visiteurs, comment ils trouvent leurs clients, à qui ils vendent, taille de l'équipe, niches précises, SaaS à vendre.
+const INSTRUCTIONS = `Bingoo! sert aussi à CONSTRUIRE et mettre en ligne un SaaS avec l'utilisateur : quand il veut lancer sa version d'un SaaS ou créer un logiciel, appelle guide_construction, puis preparer_saas, propose ta conception, puis creer_saas et ecrire_ecran pour chaque écran ; termine en donnant l'adresse du SaaS en ligne, et corrige avec voir_saas ce que le robot de vérification signale.
+Bingoo! est une base de SaaS avec leurs revenus VÉRIFIÉS chez leur outil de paiement (Stripe, Dodo, Lemon Squeezy… via TrustMRR) : MRR, argent encaissé, croissance, abonnés, visiteurs, comment ils trouvent leurs clients, à qui ils vendent, taille de l'équipe, niches précises, SaaS à vendre.
 Pour « trouve-moi des SaaS qui scalent dans X » : appelle lister_niches si tu ne connais pas le slug de la niche, puis chercher_saas (tri « croissance », verifie=true). Donne toujours le revenu vérifié et la croissance, et le lien Bingoo! de chaque SaaS.
 « mrr » est en dollars par mois. Une croissance très forte sur un petit revenu est fragile : dis-le. Un revenu vérifié n'est pas un bénéfice : il ne dit rien des marges.
 Pour suivre un SaaS (alerte chaque lundi quand ses prix, son recrutement ou ses nouveautés bougent) : suivre_saas.

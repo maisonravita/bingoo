@@ -481,6 +481,7 @@ function RapportCote({ s, lancer }) {
       </div>
       {(s.categorie || cible) && <div className="mt-2.5 flex flex-wrap gap-1.5">{s.categorie && <span className="rounded-full bg-accent/10 text-accent-dark px-2.5 py-1 text-[12px] font-semibold">{s.categorie}</span>}{cible && <span className="rounded-full bg-ink text-white px-2.5 py-1 text-[12px] font-semibold">{cible}</span>}</div>}
       <button onClick={lancer} className="mt-3 w-full rounded-xl bg-accent text-white px-4 py-3 text-[15px] font-bold hover:bg-accent-dark">Lancer ma version</button>
+      <button onClick={() => { window.location.hash = `#/explorer/connecteur?saas=${s.id}&nom=${encodeURIComponent(s.nom ?? "")}`; }} className="mt-2 w-full rounded-xl border border-ink/15 bg-white px-4 py-2.5 text-[14px] font-bold hover:border-ink/40">Construire avec mon IA</button>
       <div className="mt-2 grid grid-cols-2 gap-2"><Favori grand id={s.id} nom={s.nom} className="w-full px-2" /><BoutonSuivre saasId={s.id} /></div>
       <a href={`https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=ALL&q=${encodeURIComponent(s.nom || s.domaine)}`} target="_blank" rel="noopener noreferrer" className="mt-2 block rounded-xl border border-line bg-white px-3 py-2.5 text-center text-[13.5px] font-semibold hover:border-ink">Voir ses pubs Facebook et Instagram ↗</a>
     </div>
@@ -3809,6 +3810,9 @@ function Connecteur() {
     setNouvelle(`${base}/${data}`); charger();
   };
   const copier = async (t) => { try { await navigator.clipboard.writeText(t); toast("Copié", "good"); } catch { toast("Sélectionne le texte pour le copier"); } };
+  // Arrivé depuis la fiche d'un SaaS (« Construire avec mon IA ») : la demande à coller dans son IA, toute prête
+  const demandePrete = (() => { const q = new URLSearchParams((window.location.hash.split("?")[1]) ?? ""); const id = q.get("saas"); if (!id) return null; const nom = q.get("nom") || "ce SaaS";
+    return { nom, texte: `Avec Bingoo!, prépare le SaaS ${id} (${nom}) avec preparer_saas, lis guide_construction, puis construis MA propre version : un nom et une identité originaux, mais la même logique, les mêmes parcours et les mêmes interactions que ${nom}. Propose-moi d'abord ta conception (nom, écrans, données), puis crée-la et écris chaque écran jusqu'à la mise en ligne.` }; })();
   const revoquer = async (id) => { await supabase.from("saas_api_cles").update({ revoquee: true }).eq("id", id); toast("Clé révoquée : l'IA qui l'utilisait n'a plus accès", "good"); charger(); };
   const etapes = [
     ["Claude (site ou application)", ["Ouvre Paramètres, puis Connecteurs.", "Choisis « Ajouter un connecteur personnalisé ».", "Nomme-le Bingoo! et colle ton adresse ci-dessus.", "Dans une conversation, active Bingoo! dans le menu des outils."]],
@@ -3817,8 +3821,25 @@ function Connecteur() {
   ];
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      <h1 className="text-[32px] sm:text-[44px] font-black leading-[1.02] tracking-tight" style={HF}>Bingoo! dans ton Claude ou ton ChatGPT</h1>
-      <p className="mt-2 text-[15.5px] text-ink-soft max-w-2xl">Connecte Bingoo! à ton IA, puis demande-lui en une phrase : « trouve-moi 3 SaaS de facturation qui scalent en ce moment ». Elle répond avec les revenus vérifiés, la croissance, comment ils trouvent leurs clients, et peut les ajouter à tes suivis.</p>
+      <h1 className="text-[32px] sm:text-[44px] font-black leading-[1.02] tracking-tight" style={HF}>Construis tes SaaS avec ton IA</h1>
+      <p className="mt-2 text-[15.5px] text-ink-soft max-w-2xl">Connecte Bingoo! à ton Claude ou ton ChatGPT. Ton IA trouve avec Bingoo! un SaaS qui marche déjà, puis construit TA version avec toi, écran par écran, sans limite. Bingoo! l'héberge, la vérifie et la met en ligne.</p>
+      <div className="mt-5 grid sm:grid-cols-3 gap-3">
+        {[["Trouver", "« Trouve-moi 3 SaaS de facturation qui scalent en ce moment »", "Revenus vérifiés, croissance, niches, validation d'idée."], ["Construire", "« Construis ma version d'un outil de prise de notes, avec un assistant IA »", "Ton IA conçoit et écrit chaque écran avec le kit de Bingoo!. Le SaaS se met en ligne tout seul."], ["Améliorer", "« Ajoute un tableau de bord des ventes à mon SaaS Feuillet »", "Ton IA reprend ton SaaS, corrige ce que le robot signale et publie la nouvelle version."]].map(([t, ex, d]) => (
+          <div key={t} className="rounded-2xl border border-line bg-white p-4">
+            <p className="font-bold">{t}</p>
+            <p className="mt-1 text-[13.5px] italic text-ink">{ex}</p>
+            <p className="mt-2 text-[12.5px] text-ink-soft">{d}</p>
+          </div>
+        ))}
+      </div>
+      {demandePrete && (
+        <div className="mt-5 rounded-2xl border-2 border-accent/40 bg-accent/5 p-4">
+          <p className="font-bold">Ta demande pour lancer ta version de {demandePrete.nom}</p>
+          <p className="mt-2 rounded-xl bg-white border border-line p-3 text-[14px] italic">{demandePrete.texte}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2"><button onClick={() => copier(demandePrete.texte)} className="rounded-xl bg-accent text-white px-4 py-2 text-[14px] font-bold">Copier la demande</button><span className="text-[12.5px] text-ink-soft">Colle-la dans ton Claude ou ton ChatGPT une fois Bingoo! connecté (étapes ci-dessous).</span></div>
+        </div>
+      )}
+      <p className="mt-3 text-[12.5px] text-ink-soft max-w-2xl">Pas d'IA à toi ? Bingoo! construit aussi tout seul : bouton « Lancer ma version » sur chaque SaaS. Construire avec ton IA demande l'abonnement « Lancer » et compte comme une construction du mois.</p>
 
       <div className="mt-6 rounded-3xl bg-ink text-white p-6">
         <p className="text-[18px] font-bold">1. Crée ton adresse personnelle</p>
