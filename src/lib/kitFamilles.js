@@ -108,4 +108,55 @@ ui.Chat = ({ messages = [], onEnvoyer, enCours, suggestions = [], placeholder = 
       h("textarea", { ref: zone, rows: 1, value: t, placeholder, class: "flex-1 resize-none bg-transparent text-[15px] leading-6 outline-none max-h-40", onInput: (e) => { setT(e.target.value); ajuster(e.target); }, onKeyDown: (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); envoyer(); } } }),
       h("button", { onClick: () => envoyer(), disabled: !t.trim() || enCours, class: "grid w-9 h-9 shrink-0 place-items-center rounded-xl bg-[var(--c)] text-white disabled:opacity-40", title: "Envoyer" }, "↑"))));
 };
+
+// Formulaires interactifs : le constructeur (questions, types, options, obligatoire, ordre) et le lecteur une question à la fois
+const TYPES_Q = [["texte", "Réponse courte"], ["long", "Paragraphe"], ["choix", "Choix unique"], ["multiple", "Choix multiples"], ["note", "Note de 1 à 5"], ["nps", "Recommandation de 0 à 10"], ["oui_non", "Oui ou non"], ["email", "E-mail"], ["nombre", "Nombre"], ["date", "Date"]];
+const versQuestions = (v) => (Array.isArray(v) ? v : []).map((q, k) => ({ id: q.id || "q" + (k + 1), type: TYPES_Q.some((t) => t[0] === q.type) ? q.type : "texte", titre: String(q.titre ?? q.label ?? ""), aide: String(q.aide ?? ""), options: Array.isArray(q.options) ? q.options.map(String) : [], obligatoire: !!q.obligatoire }));
+ui.ConstructeurFormulaire = ({ value, onChange }) => {
+  const qs = versQuestions(value), [ouv, setOuv] = useState(qs[0]?.id ?? null);
+  const pub = (n) => onChange?.(n);
+  const maj = (i, d) => pub(qs.map((q, k) => k === i ? { ...q, ...d } : q));
+  const ajouter = (type) => { const q = { id: nid(), type, titre: "", aide: "", options: ["choix", "multiple"].includes(type) ? ["Option 1", "Option 2"] : [], obligatoire: false }; pub([...qs, q]); setOuv(q.id); };
+  const bouger = (i, d) => { const j = i + d; if (j < 0 || j >= qs.length) return; const n = [...qs]; const [x] = n.splice(i, 1); n.splice(j, 0, x); pub(n); };
+  return h("div", { class: "space-y-3" },
+    qs.map((q, i) => h("div", { key: q.id, class: cls("rounded-2xl border bg-white", ouv === q.id ? "border-[var(--c)] ring-2 ring-[var(--c)]/15" : "border-slate-200") },
+      h("button", { class: "flex w-full items-center gap-3 px-4 py-3 text-left", onClick: () => setOuv(ouv === q.id ? null : q.id) },
+        h("span", { class: "grid w-7 h-7 shrink-0 place-items-center rounded-lg bg-[var(--c)]/10 text-[var(--c)] text-xs font-bold" }, i + 1),
+        h("span", { class: "flex-1 min-w-0" }, h("span", { class: "block truncate font-medium" }, q.titre || "Question sans titre"), h("span", { class: "block text-xs text-slate-400" }, (TYPES_Q.find((t) => t[0] === q.type) || [])[1] + (q.obligatoire ? " · obligatoire" : ""))),
+        h("span", { class: "text-slate-300" }, ouv === q.id ? "▴" : "▾")),
+      ouv === q.id && h("div", { class: "space-y-3 border-t border-slate-100 px-4 py-4" },
+        h(ui.Input, { label: "Question", value: q.titre, placeholder: "Ex. Comment avez-vous connu notre service ?", onInput: (v) => maj(i, { titre: v }) }),
+        h(ui.Input, { label: "Aide (facultatif)", value: q.aide, onInput: (v) => maj(i, { aide: v }) }),
+        h("div", { class: "grid sm:grid-cols-2 gap-3" }, h(ui.Select, { label: "Type de réponse", value: q.type, options: TYPES_Q, onChange: (v) => maj(i, { type: v, options: ["choix", "multiple"].includes(v) && !q.options.length ? ["Option 1", "Option 2"] : q.options }) }),
+          h("label", { class: "flex items-center gap-2 self-end pb-2 text-sm" }, h("input", { type: "checkbox", checked: q.obligatoire, onChange: () => maj(i, { obligatoire: !q.obligatoire }), class: "accent-[var(--c)] w-4 h-4" }), "Réponse obligatoire")),
+        ["choix", "multiple"].includes(q.type) && h("div", { class: "space-y-2" }, h("p", { class: "text-xs font-medium text-slate-500" }, "Options"),
+          q.options.map((o, k) => h("div", { key: k, class: "flex gap-2" }, h("input", { class: champ, value: o, onInput: (e) => maj(i, { options: q.options.map((x, j) => j === k ? e.target.value : x) }) }), h("button", { class: "px-2 text-slate-400 hover:text-red-600", title: "Retirer", onClick: () => maj(i, { options: q.options.filter((_, j) => j !== k) }) }, "×"))),
+          h(ui.Button, { variant: "ghost", onClick: () => maj(i, { options: [...q.options, "Option " + (q.options.length + 1)] }) }, "+ Ajouter une option")),
+        h("div", { class: "flex flex-wrap gap-2 pt-1" }, h(ui.Button, { variant: "secondary", onClick: () => bouger(i, -1), disabled: i === 0 }, "Monter"), h(ui.Button, { variant: "secondary", onClick: () => bouger(i, 1), disabled: i === qs.length - 1 }, "Descendre"), h(ui.Button, { variant: "secondary", onClick: () => { const c = { ...q, id: nid() }; pub([...qs.slice(0, i + 1), c, ...qs.slice(i + 1)]); setOuv(c.id); } }, "Dupliquer"), h(ui.Button, { variant: "danger", onClick: () => pub(qs.filter((_, k) => k !== i)) }, "Supprimer"))))),
+    h("div", { class: "rounded-2xl border border-dashed border-slate-300 p-4" }, h("p", { class: "text-sm font-medium mb-2" }, "Ajouter une question"),
+      h("div", { class: "flex flex-wrap gap-2" }, TYPES_Q.map(([t, l]) => h("button", { key: t, onClick: () => ajouter(t), class: "rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm hover:border-[var(--c)] hover:text-[var(--c)]" }, l)))));
+};
+ui.Questionnaire = ({ questions, onTerminer, titre, intro, merci = "Merci, vos réponses sont bien envoyées.", apercu }) => {
+  const qs = versQuestions(questions), [i, setI] = useState(-1), [rep, setRep] = useState({}), [fini, setFini] = useState(false), [busy, setBusy] = useState(false);
+  const q = qs[i], v = q ? rep[q.id] : null;
+  const valide = (q, v) => !q.obligatoire || (Array.isArray(v) ? v.length > 0 : v !== undefined && v !== null && String(v).trim() !== "");
+  const ok = q ? valide(q, v) && (q.type !== "email" || !v || (String(v).includes("@") && String(v).includes("."))) : true;
+  const suivant = async () => { if (!ok) { toast(q.type === "email" && v ? "Adresse e-mail invalide" : "Cette réponse est obligatoire", "bad"); return; } if (i < qs.length - 1) { setI(i + 1); return; } if (apercu) { setFini(true); return; } setBusy(true); try { await onTerminer?.(qs.map((x) => ({ id: x.id, question: x.titre, type: x.type, reponse: rep[x.id] ?? null })), rep); setFini(true); } catch (e) { toast(e.message, "bad"); } finally { setBusy(false); } };
+  const poser = (val, auto) => { setRep({ ...rep, [q.id]: val }); if (auto) setTimeout(() => setI((k) => k < qs.length - 1 ? k + 1 : k), 260); };
+  if (!qs.length) return h(ui.Empty, { texte: "Ce formulaire n'a pas encore de question." });
+  if (fini) return h("div", { class: "max-w-xl mx-auto py-20 text-center" }, h("div", { class: "mx-auto grid w-14 h-14 place-items-center rounded-full bg-emerald-100 text-emerald-600 text-2xl" }, "✓"), h("p", { class: "mt-4 text-2xl font-bold" }, merci));
+  if (i < 0) return h("div", { class: "max-w-xl mx-auto py-16" }, h("h1", { class: "text-3xl sm:text-4xl font-bold tracking-tight" }, titre || "Quelques questions"), intro && h("p", { class: "mt-3 text-lg text-slate-500" }, intro), h("p", { class: "mt-2 text-sm text-slate-400" }, qs.length + " question" + (qs.length > 1 ? "s" : "") + " · moins de " + Math.max(1, Math.ceil(qs.length / 3)) + " min"), h("div", { class: "mt-8" }, h(ui.Button, { onClick: () => setI(0) }, "Commencer")));
+  const bouton = (actif, contenu, onClick, k) => h("button", { key: k, onClick, class: cls("rounded-xl border-2 px-4 py-3 text-left text-[15px] transition", actif ? "border-[var(--c)] bg-[var(--c)]/10 font-medium" : "border-slate-200 bg-white hover:border-slate-300") }, contenu);
+  const champQ = q.type === "long" ? h("textarea", { class: champ + " text-lg", rows: 4, value: v ?? "", onInput: (e) => setRep({ ...rep, [q.id]: e.target.value }) })
+    : q.type === "choix" ? h("div", { class: "grid gap-2" }, q.options.map((o, k) => bouton(v === o, h("span", null, h("span", { class: "mr-3 inline-grid w-6 h-6 place-items-center rounded-md border border-slate-300 text-xs" }, String.fromCharCode(65 + k)), o), () => poser(o, true), k)))
+    : q.type === "multiple" ? h("div", { class: "grid gap-2" }, q.options.map((o, k) => { const l = Array.isArray(v) ? v : []; return bouton(l.includes(o), (l.includes(o) ? "☑ " : "☐ ") + o, () => poser(l.includes(o) ? l.filter((x) => x !== o) : [...l, o]), k); }))
+    : q.type === "oui_non" ? h("div", { class: "flex gap-3" }, ["Oui", "Non"].map((o) => bouton(v === o, o, () => poser(o, true), o)))
+    : q.type === "note" ? h("div", { class: "flex gap-2" }, [1, 2, 3, 4, 5].map((n) => h("button", { key: n, onClick: () => poser(n, true), class: cls("text-4xl transition", (v ?? 0) >= n ? "text-amber-400" : "text-slate-200 hover:text-amber-200") }, "★")))
+    : q.type === "nps" ? h("div", null, h("div", { class: "grid grid-cols-11 gap-1.5" }, Array.from({ length: 11 }, (_, n) => h("button", { key: n, onClick: () => poser(n, true), class: cls("rounded-lg border-2 py-2.5 text-sm font-semibold", v === n ? "border-[var(--c)] bg-[var(--c)] text-white" : "border-slate-200 bg-white hover:border-slate-300") }, n))), h("div", { class: "mt-2 flex justify-between text-xs text-slate-400" }, h("span", null, "Pas du tout probable"), h("span", null, "Très probable")))
+    : h("input", { class: champ + " text-lg", type: q.type === "email" ? "email" : q.type === "nombre" ? "number" : q.type === "date" ? "date" : "text", value: v ?? "", onInput: (e) => setRep({ ...rep, [q.id]: e.target.value }), onKeyDown: (e) => { if (e.key === "Enter") suivant(); } });
+  return h("div", { class: "max-w-xl mx-auto py-10 min-h-[60vh] flex flex-col" },
+    h("div", { class: "h-1.5 rounded-full bg-slate-100 overflow-hidden" }, h("div", { class: "h-full bg-[var(--c)] transition-all", style: "width:" + Math.round(((i + 1) / qs.length) * 100) + "%" })),
+    h("div", { key: q.id, class: "anim flex-1 pt-12" }, h("p", { class: "text-sm font-semibold text-[var(--c)]" }, (i + 1) + " → " + qs.length), h("h2", { class: "mt-2 text-2xl sm:text-3xl font-bold tracking-tight" }, q.titre || "Question", q.obligatoire && h("span", { class: "text-[var(--c)]" }, " *")), q.aide && h("p", { class: "mt-2 text-slate-500" }, q.aide), h("div", { class: "mt-6" }, champQ)),
+    h("div", { class: "mt-8 flex items-center gap-3" }, h(ui.Button, { onClick: suivant, disabled: busy }, busy ? "Envoi…" : i === qs.length - 1 ? "Envoyer" : "OK →"), i > 0 && h("button", { class: "text-sm text-slate-400 hover:text-slate-700", onClick: () => setI(i - 1) }, "← Précédente")));
+};
 `;
