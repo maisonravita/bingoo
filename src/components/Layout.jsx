@@ -184,7 +184,7 @@ function AppShell({ ws, list, select, invite, sections, bas, bandeau, extra, men
         <div className="flex items-center gap-2">
           <NavLink to="/explorer/demande" className="hidden lg:flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] font-semibold text-white/85 hover:bg-white/10"><Icon name="spark" className="h-4 w-4 text-[#F6A06B]" />Demander</NavLink>
           {invite ? <>
-            <button onClick={() => supabase.auth.signOut()} className="whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-semibold text-white/85 hover:bg-white/10">Se connecter</button>
+            <button onClick={() => supabase.auth.signOut().finally(() => { window.location.hash = "#/connexion?mode=login"; })} className="whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-semibold text-white/85 hover:bg-white/10">Se connecter</button>
             <button onClick={() => demanderCompte("Garde tes résultats et reviens quand tu veux.")} className="whitespace-nowrap rounded-lg bg-white px-3 py-1.5 text-[13px] font-semibold text-[#1A1A1A] hover:bg-white/90">Créer mon compte</button>
           </> : (
             <div className="relative">
@@ -386,11 +386,11 @@ export default function Layout({ children }) {
           <div className="flex-1" />
           <NavLink to="/aide" className="hidden sm:block rounded-xl px-3 py-2 text-[14px] font-medium text-ink-soft hover:text-ink">Aide</NavLink>
           {invite ? <>
-            <button onClick={() => supabase.auth.signOut()} className="whitespace-nowrap rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper">Se connecter</button>
+            <button onClick={() => supabase.auth.signOut().finally(() => { window.location.hash = "#/connexion?mode=login"; })} className="whitespace-nowrap rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper">Se connecter</button>
             <button onClick={() => demanderCompte("Garde tes résultats et reviens quand tu veux.")} className="hidden sm:block whitespace-nowrap rounded-xl bg-ink px-4 py-2 text-[14px] font-semibold text-white hover:bg-ink/85">Créer mon compte</button>
           </> : <>
             <span className="hidden sm:block max-w-[200px] truncate text-[13.5px] text-ink-soft">{session?.user?.email}</span>
-            <button onClick={() => supabase.auth.signOut()} className="whitespace-nowrap rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper">Se déconnecter</button>
+            <button onClick={() => supabase.auth.signOut().finally(() => { window.location.hash = "#/connexion?mode=login"; })} className="whitespace-nowrap rounded-xl border border-line px-3.5 py-2 text-[14px] font-medium hover:bg-paper">Se déconnecter</button>
           </>}
         </div>
       </header>
