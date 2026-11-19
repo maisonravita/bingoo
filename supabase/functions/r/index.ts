@@ -1067,6 +1067,8 @@ Réponds en JSON : {"saas": [{"i": 0, "categorie": "texte exact de la liste"}]}`
     if (rejete) return { faits: 0, rejete };
     return { faits, ecartes };
   },
+  // Test interne des outils « Construire avec mon IA » (clé de service seulement) : mêmes fonctions que le connecteur, sur l'espace donné
+  async "mcp-construire-test"(req, b) { await cron(req); const { appelerConstruire } = await import("../_shared/mcp-construire.ts"); return await appelerConstruire(String(b.workspace_id), String(b.outil), b.arguments ?? {}); },
   async "saas-app-surveillance"(req) { await cron(req); const { surveillanceCron } = await import("../_shared/app-surveillance.ts"); return await surveillanceCron(); },
   async "saas-trafic-maj"(req) { await cron(req); const { traficMaj } = await import("../_shared/saas-decouverte.ts"); return await traficMaj(); },
   async "saas-decouvrir-import"(req, b) { await cron(req); const { decouvrirImport } = await import("../_shared/saas-decouverte.ts"); return await decouvrirImport(Math.max(1, Number(b.debut ?? 1)), Math.min(1_000_001, Number(b.fin ?? 100_001))); },

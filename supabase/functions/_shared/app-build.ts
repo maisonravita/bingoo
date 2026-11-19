@@ -6,9 +6,9 @@
 import { admin, ask, askJson } from "./core.ts";
 import { sansIdentite } from "./identite.ts";
 
-const ICONES = ["accueil", "liste", "contacts", "agenda", "graphique", "reglages", "fichier", "boite", "mail", "carte", "tag", "etoile", "horloge", "panier", "message"];
+export const ICONES = ["accueil", "liste", "contacts", "agenda", "graphique", "reglages", "fichier", "boite", "mail", "carte", "tag", "etoile", "horloge", "panier", "message"];
 
-const DOC = `Tu écris UN écran d'une application web en Preact avec htm (pas de JSX, pas de build). Le code est évalué tel quel.
+export const DOC = `Tu écris UN écran d'une application web en Preact avec htm (pas de JSX, pas de build). Le code est évalué tel quel.
 Écris exactement une fonction nommée Ecran (function Ecran(props) { ... }) et, si besoin, de petites fonctions d'aide au-dessus. Pas d'import, pas d'export.
 Variables déjà disponibles (ne les redéclare pas) :
 - html : gabarit htm. Composant : html\`<\${ui.Card} titre="…">…</\${ui.Card}>\`. Attributs : class=, onClick=, onInput=, value=. Listes : \${rows.map((r) => html\`<li key=\${r.id}>…</li>\`)}.
@@ -49,7 +49,7 @@ Le tableau ui.Table ajoute déjà tout seul la recherche, le tri, l'export et la
 Règles : tout en français, vouvoiement (« vous », « votre », « Ajoutez… ») ; un vrai écran utile et complet (création, modification, suppression confirmée par if (!await demander("Supprimer … ?", { ok: "Supprimer", danger: true })) return; (jamais confirm ni alert : fenêtres intégrées demander(message, { ok, danger }) → Promise<boolean> et avertir(message)), recherche ou filtres quand c'est utile, états vides) ; calcule les indicateurs à partir des données ; jamais de fausses données en dur (les données d'exemple sont déjà dans la base) ; pas de fetch, pas de localStorage, pas de window.parent ; code compact : 180 lignes au plus, pas de commentaires, pas de répétition (factorise les formulaires dans une petite fonction).`;
 
 // Page publique : ouverte par les clients de l'utilisateur, sans compte
-const DOC_PUBLIC = (e: any) => `
+export const DOC_PUBLIC = (e: any) => `
 
 IMPORTANT : cet écran est une PAGE PUBLIQUE, ouverte sans compte par les clients de l'utilisateur (lien qu'il leur partage). Pas de menu autour : la page se suffit à elle-même.
 - user vaut null. props.espace : nom de l'entreprise de l'utilisateur s'il est connu (peut être vide).
@@ -68,7 +68,7 @@ export function nouveauSlug(nom: string) {
 const etape = (id: string, t: string) => admin.from("saas_apps").update({ etape: t, maj: new Date().toISOString() }).eq("id", id);
 
 // Le code doit au moins se lire (une erreur de syntaxe casserait l'écran)
-function erreurSyntaxe(code: string): string | null {
+export function erreurSyntaxe(code: string): string | null {
   try { new Function("ctx", code); return null; } catch (e) { return e instanceof SyntaxError ? e.message : null; }
 }
 function extraire(t: string) {

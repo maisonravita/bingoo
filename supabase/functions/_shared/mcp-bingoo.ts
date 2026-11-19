@@ -157,7 +157,7 @@ export async function mcpBingoo(req: Request, admin: SupabaseClient, cleChemin: 
     try {
       if (m.method === "initialize") return { jsonrpc: "2.0", id: m.id, result: { protocolVersion: m.params?.protocolVersion ?? "2025-03-26", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "Bingoo!", version: "1.0.0" }, instructions: INSTRUCTIONS } };
       if (m.method === "ping") return { jsonrpc: "2.0", id: m.id, result: {} };
-      if (m.method === "tools/list") return { jsonrpc: "2.0", id: m.id, result: { tools: outils(niches) } };
+      if (m.method === "tools/list") { const { OUTILS_CONSTRUIRE } = await import("./mcp-construire.ts"); return { jsonrpc: "2.0", id: m.id, result: { tools: [...outils(niches), ...OUTILS_CONSTRUIRE] } }; }
       if (m.method === "tools/call") {
         // L'abonnement est vérifié à chaque question : un abonnement terminé repasse aussitôt en offre gratuite.
         const { data: paye } = await admin.rpc("saas_cle_payante", { p_ws: k.workspace_id });
@@ -176,6 +176,12 @@ export async function mcpBingoo(req: Request, admin: SupabaseClient, cleChemin: 
         let a = m.params?.arguments ?? {};
         // sans abonnement, pas de filtre ni de tri par revenu (ils révéleraient les chiffres masqués)
         if (!paye && m.params?.name === "chercher_saas") { const { mrr_min: _a, mrr_max: _b, croissance_min: _c, ...reste } = a; a = { ...reste, tri: ["copiable", "recent"].includes(reste.tri) ? reste.tri : undefined }; }
+        // Outils de construction (mode « Construire avec mon IA ») : réservés aux abonnés qui peuvent construire, contrôlé dans l'outil
+        const { OUTILS_CONSTRUIRE_NOMS, appelerConstruire } = await import("./mcp-construire.ts");
+        if (OUTILS_CONSTRUIRE_NOMS.has(m.params?.name)) {
+          const rc = await appelerConstruire(k.workspace_id, m.params.name, a);
+          return { jsonrpc: "2.0", id: m.id, result: { content: [{ type: "text", text: JSON.stringify(rc) }], structuredContent: rc } };
+        }
         let r = await appeler(admin, k.workspace_id, m.params?.name, a);
         if (!paye) r = { offre: "gratuite", a_savoir: `Offre gratuite : ${QUOTA_GRATUIT} questions par mois, revenus, croissance et trafic masqués (« ${MASQUE} »). Dis-le à l'utilisateur et donne-lui ce lien pour tout voir : ${ABONNEMENT}`, ...masquer(r) };
         return { jsonrpc: "2.0", id: m.id, result: { content: [{ type: "text", text: JSON.stringify(r) }], structuredContent: r } };
