@@ -159,4 +159,47 @@ ui.Questionnaire = ({ questions, onTerminer, titre, intro, merci = "Merci, vos r
     h("div", { key: q.id, class: "anim flex-1 pt-12" }, h("p", { class: "text-sm font-semibold text-[var(--c)]" }, (i + 1) + " → " + qs.length), h("h2", { class: "mt-2 text-2xl sm:text-3xl font-bold tracking-tight" }, q.titre || "Question", q.obligatoire && h("span", { class: "text-[var(--c)]" }, " *")), q.aide && h("p", { class: "mt-2 text-slate-500" }, q.aide), h("div", { class: "mt-6" }, champQ)),
     h("div", { class: "mt-8 flex items-center gap-3" }, h(ui.Button, { onClick: suivant, disabled: busy }, busy ? "Envoi…" : i === qs.length - 1 ? "Envoyer" : "OK →"), i > 0 && h("button", { class: "text-sm text-slate-400 hover:text-slate-700", onClick: () => setI(i - 1) }, "← Précédente")));
 };
+
+// Vitrine de créateur (page de liens, boutique, profil) : l'affichage public et son éditeur avec aperçu en direct sur téléphone
+const TYPES_V = [["lien", "Lien"], ["produit", "Produit ou offre"], ["titre", "Titre de section"], ["texte", "Texte"], ["video", "Vidéo (lien)"]];
+const versVitrine = (v) => { const x = v && typeof v === "object" ? v : {}; return { profil: { nom: "", bio: "", photo: null, emoji: "✨", ...(x.profil || {}) }, theme: ["clair", "sombre", "couleur"].includes(x.theme) ? x.theme : "clair", blocs: (Array.isArray(x.blocs) ? x.blocs : []).map((b, k) => ({ id: b.id || "b" + (k + 1), type: TYPES_V.some((t) => t[0] === b.type) ? b.type : "lien", titre: String(b.titre ?? ""), texte: String(b.texte ?? ""), url: String(b.url ?? ""), prix: b.prix ?? "", image: b.image || null, actif: b.actif !== false })) }; };
+ui.Vitrine = ({ value, onAcheter, onClic }) => {
+  const v = versVitrine(value), sombre = v.theme === "sombre", coul = v.theme === "couleur";
+  const fond = sombre ? "bg-slate-950 text-white" : coul ? "bg-[var(--c)] text-white" : "bg-slate-50 text-slate-900";
+  const carte = sombre ? "bg-white/10 hover:bg-white/15" : coul ? "bg-white/15 hover:bg-white/25" : "bg-white hover:shadow-md border border-slate-200";
+  const ouvrir = (b) => { onClic?.(b); if (b.url) window.open(b.url, "_blank", "noopener"); };
+  return h("div", { class: cls("min-h-full px-5 py-10", fond) }, h("div", { class: "mx-auto max-w-md text-center" },
+    v.profil.photo?.url ? h("img", { src: v.profil.photo.url, class: "mx-auto w-24 h-24 rounded-full object-cover ring-4 ring-white/30" }) : h("div", { class: cls("mx-auto grid w-24 h-24 place-items-center rounded-full text-4xl", sombre || coul ? "bg-white/15" : "bg-[var(--c)]/10") }, v.profil.emoji || "✨"),
+    h("h1", { class: "mt-4 text-2xl font-bold tracking-tight" }, v.profil.nom || "Votre nom"), v.profil.bio && h("p", { class: cls("mt-2 text-[15px] leading-6", sombre || coul ? "text-white/80" : "text-slate-600") }, v.profil.bio),
+    h("div", { class: "mt-8 space-y-3 text-left" }, v.blocs.filter((b) => b.actif).map((b) =>
+      b.type === "titre" ? h("p", { key: b.id, class: cls("pt-4 text-xs font-semibold uppercase tracking-widest text-center", sombre || coul ? "text-white/70" : "text-slate-500") }, b.titre)
+      : b.type === "texte" ? h("p", { key: b.id, class: cls("text-center text-[15px] leading-6", sombre || coul ? "text-white/85" : "text-slate-600") }, b.texte)
+      : b.type === "produit" ? h("div", { key: b.id, class: cls("overflow-hidden rounded-2xl transition", carte) }, b.image?.url && h("img", { src: b.image.url, class: "w-full aspect-[16/9] object-cover" }), h("div", { class: "p-4" }, h("div", { class: "flex items-start justify-between gap-3" }, h("p", { class: "font-semibold" }, b.titre || "Produit"), b.prix !== "" && h("p", { class: "font-bold tabular-nums shrink-0" }, fmt.eur(Number(b.prix) || 0))), b.texte && h("p", { class: cls("mt-1 text-sm", sombre || coul ? "text-white/75" : "text-slate-500") }, b.texte), h("button", { onClick: () => onAcheter ? onAcheter(b) : ouvrir(b), class: cls("mt-3 w-full rounded-xl py-2.5 text-sm font-semibold", sombre || coul ? "bg-white text-slate-900" : "bg-[var(--c)] text-white") }, Number(b.prix) ? "Acheter" : "Je veux")))
+      : h("button", { key: b.id, onClick: () => ouvrir(b), class: cls("flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-4 text-[15px] font-semibold transition", carte) }, b.type === "video" ? "▶ " : "", b.titre || b.url || "Lien"))),
+    h("p", { class: cls("mt-10 text-xs", sombre || coul ? "text-white/50" : "text-slate-400") }, "Fait avec " + (S?.nom || "nous"))));
+};
+ui.EditeurVitrine = ({ value, onChange }) => {
+  const v = versVitrine(value), [ouv, setOuv] = useState(null);
+  const pub = (n) => onChange?.({ ...v, ...n });
+  const maj = (i, d) => pub({ blocs: v.blocs.map((b, k) => k === i ? { ...b, ...d } : b) });
+  const ajouter = (type) => { const b = { id: nid(), type, titre: type === "titre" ? "Nouvelle section" : "", texte: "", url: "", prix: type === "produit" ? 19 : "", image: null, actif: true }; pub({ blocs: [...v.blocs, b] }); setOuv(b.id); };
+  const bouger = (i, d) => { const j = i + d; if (j < 0 || j >= v.blocs.length) return; const n = [...v.blocs]; const [x] = n.splice(i, 1); n.splice(j, 0, x); pub({ blocs: n }); };
+  return h("div", { class: "grid lg:grid-cols-[1fr_380px] gap-6 items-start" },
+    h("div", { class: "space-y-4" },
+      h(ui.Card, { titre: "Profil" }, h("div", { class: "grid sm:grid-cols-[80px_1fr] gap-3" }, h(ui.Input, { label: "Emoji", value: v.profil.emoji, onInput: (x) => pub({ profil: { ...v.profil, emoji: x } }) }), h(ui.Input, { label: "Nom affiché", value: v.profil.nom, onInput: (x) => pub({ profil: { ...v.profil, nom: x } }) })),
+        h("div", { class: "mt-3 space-y-3" }, h(ui.Textarea, { label: "Présentation", rows: 2, value: v.profil.bio, onInput: (x) => pub({ profil: { ...v.profil, bio: x } }) }), h(ui.Fichier, { label: "Photo", accept: "image/*", value: v.profil.photo, onChange: (f) => pub({ profil: { ...v.profil, photo: f } }) }),
+          h("div", null, h("p", { class: "text-xs font-medium text-slate-500 mb-1" }, "Thème"), h(ui.Tabs, { valeur: v.theme, onChange: (t) => pub({ theme: t }), onglets: [["clair", "Clair"], ["sombre", "Sombre"], ["couleur", "Couleur"]] })))),
+      h("div", { class: "space-y-2" }, v.blocs.map((b, i) => h("div", { key: b.id, class: cls("rounded-2xl border bg-white", ouv === b.id ? "border-[var(--c)]" : "border-slate-200", !b.actif && "opacity-60") },
+        h("div", { class: "flex items-center gap-3 px-4 py-3" }, h("button", { class: "flex-1 min-w-0 text-left", onClick: () => setOuv(ouv === b.id ? null : b.id) }, h("span", { class: "block truncate font-medium" }, b.titre || b.texte || (TYPES_V.find((t) => t[0] === b.type) || [])[1]), h("span", { class: "block text-xs text-slate-400" }, (TYPES_V.find((t) => t[0] === b.type) || [])[1] + (b.type === "produit" && b.prix !== "" ? " · " + fmt.eur(Number(b.prix) || 0) : ""))),
+          h("button", { class: "text-slate-400 hover:text-slate-700 px-1", title: "Monter", onClick: () => bouger(i, -1) }, "↑"), h("button", { class: "text-slate-400 hover:text-slate-700 px-1", title: "Descendre", onClick: () => bouger(i, 1) }, "↓"),
+          h("label", { class: "flex items-center gap-1 text-xs text-slate-500" }, h("input", { type: "checkbox", checked: b.actif, onChange: () => maj(i, { actif: !b.actif }), class: "accent-[var(--c)]" }), "Visible")),
+        ouv === b.id && h("div", { class: "space-y-3 border-t border-slate-100 px-4 py-4" },
+          b.type !== "texte" && h(ui.Input, { label: b.type === "titre" ? "Titre de la section" : "Titre", value: b.titre, onInput: (x) => maj(i, { titre: x }) }),
+          ["texte", "produit"].includes(b.type) && h(ui.Textarea, { label: b.type === "produit" ? "Description" : "Texte", rows: 2, value: b.texte, onInput: (x) => maj(i, { texte: x }) }),
+          b.type === "produit" && h("div", { class: "grid sm:grid-cols-2 gap-3" }, h(ui.Input, { label: "Prix (€)", type: "number", value: b.prix, onInput: (x) => maj(i, { prix: x }) }), h(ui.Fichier, { label: "Image", accept: "image/*", value: b.image, onChange: (f) => maj(i, { image: f }) })),
+          ["lien", "video", "produit"].includes(b.type) && h(ui.Input, { label: b.type === "produit" ? "Lien de paiement ou de commande" : "Adresse (https://…)", value: b.url, onInput: (x) => maj(i, { url: x }) }),
+          h("div", { class: "flex justify-end" }, h(ui.Button, { variant: "danger", onClick: () => pub({ blocs: v.blocs.filter((_, k) => k !== i) }) }, "Retirer")))))),
+      h("div", { class: "rounded-2xl border border-dashed border-slate-300 p-4" }, h("p", { class: "text-sm font-medium mb-2" }, "Ajouter"), h("div", { class: "flex flex-wrap gap-2" }, TYPES_V.map(([t, l]) => h("button", { key: t, onClick: () => ajouter(t), class: "rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm hover:border-[var(--c)] hover:text-[var(--c)]" }, "+ " + l))))),
+    h("div", { class: "lg:sticky lg:top-6" }, h("p", { class: "mb-2 text-center text-xs font-medium text-slate-500" }, "Aperçu en direct"), h("div", { class: "mx-auto w-[340px] h-[640px] overflow-y-auto rounded-[2.5rem] border-[10px] border-slate-900 shadow-xl bg-white" }, h(ui.Vitrine, { value: v }))));
+};
 `;

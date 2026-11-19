@@ -105,7 +105,7 @@ export const FAMILLES: Record<string, Famille> = {
     label: "Contenu, catalogue et vitrine", quand: "catalogue, bibliothèque, recettes, annonces, boutique de créateur, page vitrine, lien unique",
     interface: "contenu", disposition: "haut", accueil: "la galerie elle-même ou la vitrine publique telle que les visiteurs la voient",
     guide: `FAMILLE : CONTENU, CATALOGUE ET VITRINE.
-- Le cœur : ui.Galerie (cartes avec grande image ou emoji, titre, sous-titre, étiquette), recherche et filtres en pastilles, fiche détaillée en grand, mise en page éditoriale. Pour une boutique ou une vitrine de créateur : l'éditeur de la vitrine (blocs de liens, produits, profil) avec un aperçu en direct de la page publique.
+- Le cœur : ui.Galerie (cartes avec grande image ou emoji, titre, sous-titre, étiquette), recherche et filtres en pastilles, fiche détaillée en grand, mise en page éditoriale. Pour une boutique ou une vitrine de créateur (page de liens, offres, produits numériques) : l'écran principal est ui.EditeurVitrine (aperçu en direct), la page publique affiche ui.Vitrine, et un écran suit les clics et les ventes.
 - ${SANS_GESTION}`,
   },
 };

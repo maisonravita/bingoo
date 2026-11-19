@@ -245,6 +245,19 @@ await test("Connecteur gratuit : les revenus sont masqués partout, le reste res
   assert.equal(T.QUOTA_GRATUIT, 20);
 });
 
+// La coque des SaaS livrés (avec toutes les briques du kit) doit se lire sans erreur : une parenthèse en trop casserait tous les SaaS en ligne
+await test("la coque générée des SaaS livrés est du JavaScript valide", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const out = join(dir, "shell.mjs");
+  await build({ entryPoints: ["src/lib/appShell.js"], bundle: true, format: "esm", platform: "node", outfile: out, logLevel: "silent" });
+  const { appHtml } = await import(pathToFileURL(out).href);
+  const html = appHtml({ spec: { nom: "Test", couleur: "#334155", ecrans: [{ id: "a", titre: "A", code: "function Ecran(){return html`<div/>`}" }], collections: [], demo: {} }, slug: "test", api: "https://exemple.invalid" });
+  const i = html.indexOf('<script type="module">') + 22, mod = join(dir, "module.mjs");
+  writeFileSync(mod, html.slice(i, html.indexOf("</script>", i)));
+  const r = spawnSync(process.execPath, ["--check", mod], { encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr.split("\n").slice(0, 6).join("\n"));
+});
+
 console.log(`\n${ok} réussi${ok > 1 ? "s" : ""}, ${ko} échec${ko > 1 ? "s" : ""}`);
 writeFileSync(join(dir, "done"), "");
 process.exit(ko ? 1 : 0);
