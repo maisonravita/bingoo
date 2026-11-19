@@ -261,19 +261,6 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   async "saas-lancer"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     if (ws.plan === "explorer") throw new HttpError(402, "« Lancer le même » est dans la formule Lancer.");
-    // REA : chaque SaaS lancé est ajouté automatiquement à la file d'analyse.
-    // Si une analyse récente existe ou est déjà en cours, on la conserve : ne pas remettre
-    // à zéro les essais ni interrompre le travail du navigateur GitHub Actions.
-    const domaineRea = String(b.domaine ?? "").toLowerCase().trim().replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0];
-    const { data: reaExistante } = await admin.from("saas_decortique")
-      .select("statut, fait_at").eq("domaine", domaineRea).maybeSingle();
-    const reaFraiche = reaExistante?.statut === "fait" && reaExistante.fait_at
-      && Date.now() - Date.parse(reaExistante.fait_at) < 30 * 864e5;
-    if (!reaFraiche && !["attente", "en_cours", "analyse"].includes(reaExistante?.statut ?? "")) {
-      await admin.from("saas_decortique").upsert({
-        domaine: domaineRea, statut: "attente", essais: 0, at: new Date().toISOString(), demande_par: ws.id, erreur: null,
-      });
-    }
     // Déjà un SaaS construit : pas de préparation (payante en IA) sans le droit d'en construire un autre
     const au = await autreSaas(ws as { id: string; periode?: string });
     if (au.deja && !au.changement) { const solde = await creditsSolde(ws.id); if (solde < COUT_CREDITS.saas) throw new HttpError(402, MSG_AUTRE(solde)); }
@@ -291,6 +278,17 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     // Règle n° 1 : Bingoo! ne lance QUE ce qu'il a vérifié savoir construire en entier (sinon le client paie pour un SaaS qui ne peut pas marcher)
     if (s.constructible_ia === false) throw new HttpError(400, `Bingoo! ne peut pas construire une version qui marche vraiment de ${s.nom ?? domaine} : son cœur repose sur une technologie que Bingoo! ne sait pas faire. Choisis un autre SaaS dans tes résultats.`);
     if (s.constructible_ia !== true) throw new HttpError(400, `${s.nom ?? domaine} n'a pas encore été vérifié par Bingoo! : choisis un SaaS dans tes résultats, ils sont tous vérifiés.`);
+    // REA : on ne lance l'analyse qu'après validation du domaine et de la constructibilité.
+    // Une analyse récente ou déjà en cours est conservée, sans remettre ses essais à zéro.
+    const { data: reaExistante } = await admin.from("saas_decortique")
+      .select("statut, fait_at").eq("domaine", domaine).maybeSingle();
+    const reaFraiche = reaExistante?.statut === "fait" && reaExistante.fait_at
+      && Date.now() - Date.parse(reaExistante.fait_at) < 30 * 864e5;
+    if (!reaFraiche && !["attente", "en_cours", "analyse"].includes(reaExistante?.statut ?? "")) {
+      await admin.from("saas_decortique").upsert({
+        domaine, statut: "attente", essais: 0, at: new Date().toISOString(), demande_par: ws.id, erreur: null,
+      });
+    }
     // Double lancement (double clic, page rechargée) : on rend la préparation déjà en cours ou prête depuis moins de 30 min, sans repayer l'IA
     const { data: recent } = await admin.from("saas_projets").select("id, statut").eq("workspace_id", ws.id).eq("saas_id", s.id).in("statut", ["en_cours", "pret"]).gte("at", new Date(Date.now() - 30 * 60e3).toISOString()).order("at", { ascending: false }).limit(1);
     if (recent?.[0]) return { id: recent[0].id, statut: recent[0].statut };
