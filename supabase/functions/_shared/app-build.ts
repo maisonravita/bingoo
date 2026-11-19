@@ -143,7 +143,9 @@ export async function saasConstruire(appId: string, lancerEcran: (ecranId: strin
   // Métier connu : modèle fait main (écrans soignés et testés), l'IA n'adapte que le vocabulaire, les offres et les textes
   const { modeleDe, FAIT, PERSO, SPEC } = await import("./modeles.ts");
   // Les projets analysés utilisent les écrans de leur fiche produit.
-  const modele = (p.analyse_sources || p.analyse_rea) ? null : modeleDe(p);
+  // Métier reconnu (rendez-vous, devis/factures, écriture IA) : modèle fait main et testé, même après une analyse REA ;
+  // les fonctions relevées en plus sont ajoutées ensuite comme écrans promis (ajouterEcransPromis)
+  const modele = modeleDe(p);
   const FAIT_MODELE = modele ? (FAIT as Record<string, string>)[modele] : "";
   // Deux SaaS construits ne doivent pas se ressembler : palette variée, et pas les couleurs ni les allures des derniers construits
   const { data: recents } = await admin.from("saas_apps").select("spec").neq("id", appId).not("statut", "in", "(remplace,retire,erreur)").order("maj", { ascending: false }).limit(8);
