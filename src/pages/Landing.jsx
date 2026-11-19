@@ -161,7 +161,7 @@ export default function Landing() {
             <button onClick={go} className="hero-in fx-brille mt-9 inline-flex items-center justify-center gap-2 rounded-full bg-accent px-10 py-4 text-[18px] font-bold text-white shadow-[0_14px_40px_-16px_rgba(226,85,35,.8)] hover:bg-accent-dark transition" style={{ ...JK, animationDelay: ".2s" }}>Commencer <Arrow className="h-4 w-4" /></button>
             <p className="hero-in mt-3 text-[14px] text-[#5B6075]" style={{ ...JK, animationDelay: ".22s" }}>Quelques questions, sans compte, et tu vois combien de SaaS collent à ton profil.</p>
             <div className="hero-in mx-auto mt-7 flex w-fit flex-col sm:w-auto sm:flex-row sm:flex-wrap items-start sm:items-center justify-center gap-x-5 gap-y-2 text-left text-[15px] text-[#5B6075]" style={{ ...JK, animationDelay: ".25s" }}>
-              {["Des SaaS qui encaissent déjà, revenus vérifiés chez Stripe", "Ta version construite et mise en ligne pour toi", "Des établissements à contacter, trouvés pour toi"].map((x) => <span key={x} className="inline-flex items-start gap-1.5"><Check className="h-4 w-4 mt-[3px] shrink-0 text-accent" />{x}</span>)}
+              {["Des SaaS qui encaissent déjà, revenus vérifiés chez Stripe", "Ta version construite pour toi, ou avec ton IA", "Des établissements à contacter, trouvés pour toi"].map((x) => <span key={x} className="inline-flex items-start gap-1.5"><Check className="h-4 w-4 mt-[3px] shrink-0 text-accent" />{x}</span>)}
             </div>
             <form onSubmit={(e) => { e.preventDefault(); const u = e.currentTarget.site.value.trim().replace(/^https?:\/\//i, ""); if (u) nav(`/marche?u=${encodeURIComponent(u)}`); }}
               className="hero-in mx-auto mt-8 flex max-w-[520px] items-stretch gap-2 rounded-full border border-black/[.08] bg-white p-1.5" style={{ ...JK, animationDelay: ".28s" }}>
@@ -215,7 +215,7 @@ export default function Landing() {
               {[
                 ["Réponds à quelques questions", "Ton continent, le revenu que tu vises, à qui tu veux vendre, ton temps, comment tu veux trouver tes clients et les secteurs qui t'attirent. Pendant que tu réponds, tu vois combien de SaaS vérifiés collent déjà à tes réponses.", null],
                 ["Tes 3 SaaS en tendance", "Des SaaS qui encaissent déjà, revenus vérifiés chez leur outil de paiement, dont le revenu monte en ce moment. Pour chacun, sa tendance, sa visibilité et ta version : en français, pour un métier, ou plus simple.", "version"],
-                ["Bingoo! construit ta version", "Ton site, les comptes de tes clients, l'abonnement avec ton Stripe, ton domaine. À ton nom, avec tes mots et ton design, en ligne en une journée.", "video"],
+                ["Bingoo! construit ta version, ou ton IA avec lui", "En un clic, Bingoo! construit ton site, les comptes de tes clients, l'abonnement avec ton Stripe, ton domaine. À ton nom, avec tes mots et ton design. Tu utilises Claude ou ChatGPT ? Branche-le à Bingoo! et construis ta version avec lui, écran par écran, sans limite : Bingoo! l'héberge et la met en ligne.", "video"],
                 ["Ton plan pour tes 10 premiers clients", "Bingoo! trouve les établissements qui ont le problème dans ton département, te prépare le message, et t'envoie chaque matin l'étape du jour. Les trouver, c'est Bingoo! ; les convaincre, c'est toi.", "prospects"],
               ].map(([h, d, img], i) => (
                 <li key={h} className="relative grid lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.5fr)] gap-6 lg:gap-12 items-center">
