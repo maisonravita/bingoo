@@ -246,11 +246,12 @@ Collections : ${(s.collections ?? []).slice(0, 8).map((c: any) => `${c.nom} : ${
     const { data: fin } = await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: e0.id, p_code: e0.code, p_ok: true });
     if (fin === "pret") { await verifierPromesses(appId).catch((x) => console.error("promesses", x)); await corrigerAccroche(appId).catch((x) => console.error("accroche", x)); }
     // Écrans ajoutés au modèle pour tenir les promesses du site : écrits comme dans une construction classique
-    for (const e of aEcrire) await lancerEcran(e.id);
+    await Promise.all(aEcrire.map((e: any) => lancerEcran(e.id)));
     return;
   }
   await admin.from("saas_apps").update({ brouillon: spec, etape: `Écriture des écrans (0/${spec.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
-  for (const e of spec.ecrans) await lancerEcran(e.id);
+  // En parallèle : écrits un par un, 8 à 10 écrans dépassent la durée maximale d'une invocation (la construction restait bloquée)
+  await Promise.all(spec.ecrans.map((e: any) => lancerEcran(e.id)));
 }
 
 async function inspireDe(appId: string) {
