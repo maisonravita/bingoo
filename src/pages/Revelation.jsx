@@ -156,7 +156,7 @@ function Vedette({ s, visible, onConstruire }) {
 
 // ---------------------------------------------------------------- L'atelier, comme Lovable : la conversation à gauche, le SaaS qui se construit à droite.
 // Une fois en ligne, le créateur demande ses changements dans la conversation et les voit apparaître dans l'aperçu.
-const LECTURE = (nom) => [`Je lis le site de ${nom}`, "Je lis ses prix et ses formules", "Je repère ses fonctionnalités clés", "Je choisis un nom et un angle pour ta version"];
+const LECTURE = (nom) => [`Analyse des pages publiques de ${nom} avec REA`, "Préparation de la fiche produit et du projet"];
 // Ce que Bingoo! a réellement décidé pour ta version, présenté comme sa réflexion (questions qu'il se pose, puis sa réponse)
 function penseDe(p) {
   if (!p) return null;
@@ -201,7 +201,6 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   const [projet, setProjet] = useState(c.projet ?? null);
   const [app, setApp] = useState(pretDeja ? c.app : null);
   const [erreur, setErreur] = useState(null);
-  const [tic, setTic] = useState(0);
   const [essai, setEssai] = useState(0);
   const [echanges, setEchanges] = useState([]); // modifications demandées après la mise en ligne
   const [demande, setDemande] = useState("");
@@ -217,7 +216,6 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   const angle = useRef(null);
   const fil = useRef(null);
 
-  useEffect(() => { const t = setInterval(() => setTic((x) => x + 1), 6500); return () => clearInterval(t); }, []);
   useEffect(() => {
     if (questions) return;
     if (lance.current) return; lance.current = true;
@@ -232,14 +230,19 @@ export function Chantier({ ws, nav, init, atelier = false }) {
           if (deja?.[0]) p = { id: deja[0].id, ...deja[0].data };
           else {
             const { id } = await fn("r/saas-lancer", { workspace_id: ws.id, domaine: c.domaine, angle: angle.current });
-            for (let i = 0; i < 90 && vivant; i++) {
-              await attendre(3500);
-              if (i === 8) setEtape(1);
+            setEtape(0);
+            const finPreparation = Date.now() + 38 * 60_000;
+            let intervalle = 3500;
+            while (Date.now() < finPreparation && vivant) {
+              await attendre(intervalle);
+              if (!vivant) return;
               const { data } = await supabase.from("saas_projets").select("data, statut, erreur").eq("id", id).maybeSingle();
               if (data?.statut === "pret") { p = { id, ...data.data }; break; }
+              if (data?.statut === "en_cours") setEtape(1);
+              intervalle = data?.statut === "attente_analyse" ? 12_000 : 3500;
               if (data?.statut === "erreur") throw new Error(data.erreur || "La préparation a échoué.");
             }
-            if (!p) throw new Error("C'est plus long que prévu.");
+            if (!p) throw new Error("La préparation prend plus de temps que prévu. Tu peux revenir la consulter.");
           }
           if (!vivant) return;
           const garde = { id: p.id, nom: p.nom, pitch: p.pitch, cible: p.cible, pense: penseDe(p) };
@@ -306,7 +309,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   if (!c.domaine && !(atelier && c.app)) return <Navigate to="/explorer/copier" replace />;
   const lect = LECTURE(c.nom);
   const lignes = [
-    ...lect.slice(0, etape >= 1 ? lect.length : Math.min(lect.length, 1 + tic)).map((t, i) => ({ k: `l${i}`, t, ok: etape >= 1 || i < Math.min(lect.length, tic) })),
+    ...lect.slice(0, etape >= 1 ? lect.length : 1).map((t, i) => ({ k: `l${i}`, t, ok: etape > i })),
     ...(etape >= 2 ? ecrans.map((e, i) => ({ k: `e${e.id}`, t: i < ecrits ? <>Écran « {e.titre} » écrit</> : <>J'écris l'écran « {e.titre} »</>, ok: i < ecrits })).filter((x, i) => i <= ecrits) : []),
     ...(etape >= 3 ? [{ k: "v", t: "Je vérifie chaque écran avec des données d'exemple", ok: fini }] : []),
   ];
