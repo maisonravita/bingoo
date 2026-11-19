@@ -50,8 +50,16 @@ async function demarrerLancement(pid: string | null) {
       if (source.statut !== "ok") await saasLire(data.saas_id);
       await saasLancer(data.workspace_id, data.domaine, data.id, data.angle, data.resultat, true);
     })().catch(async (e) => {
+      const msg = String(e?.message ?? e);
+      // Site illisible sans navigateur (page rendue en JavaScript, protection anti-robots) : le projet attend REA,
+      // qui ouvre la page dans Chrome ; la tâche minute le reprend dès que la synthèse arrive
+      if (!data.resultat && /Aucune page publique/.test(msg)) {
+        const { data: pr } = await admin.from("saas_projets").select("data").eq("id", data.id).single();
+        await admin.from("saas_projets").update({ statut: "attente_analyse", data: { ...(pr?.data ?? {}), pages_illisibles: true } }).eq("id", data.id).eq("statut", "en_cours");
+        return;
+      }
       const { error } = await admin.from("saas_projets")
-        .update({ statut: "erreur", erreur: String(e?.message ?? e).slice(0, 300) })
+        .update({ statut: "erreur", erreur: msg.slice(0, 300) })
         .eq("id", data.id).eq("statut", "en_cours");
       if (error) console.error("saas-lancement-cron", error.message);
     });
