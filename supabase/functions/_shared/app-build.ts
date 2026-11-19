@@ -32,6 +32,8 @@ Variables déjà disponibles (ne les redéclare pas) :
   ui.Modal({ open, onClose, titre, actions }), ui.Table({ colonnes: [{ cle, label, rendu?(ligne) }], lignes, onClick?(ligne), vide }), ui.Empty({ texte, action }), ui.Loading(), ui.Tabs({ valeur, onChange, onglets: [[v, l]] }), ui.Bar({ donnees: [{ label, valeur }] }), ui.Ligne({ donnees: [{ label, valeur }] }) (évolution dans le temps), ui.Donut({ donnees: [{ label, valeur }] }) (répartition), ui.Progress({ valeur, max, label }),
   ui.Calendrier({ lignes, champ: "date", rendu?(ligne), onClick?(ligne), onJour?(dateISO) }) (vue du mois, pour tout ce qui est daté), ui.Kanban({ colonnes: [[valeur, libellé], …], lignes, champ: "statut", onDeplacer(id, valeur), rendu?(ligne), onClick?(ligne) }) (suivi par étapes, glisser-déposer), ui.Icone({ nom, class }) avec nom parmi ${ICONES.join(", ")}.
   ui.Creneaux({ duree (minutes), pris: réservations déjà prises (champ "debut" en date-heure ISO, et "duree" si elle varie), horaires?: { 1: [["09:00","12:00"],["14:00","18:00"]], … 7: [] } (1 = lundi), valeur, onChange(debutISO) }) : les VRAIS créneaux libres des jours à venir (sans les créneaux pris ni passés), à cliquer. À utiliser pour toute prise de rendez-vous ou réservation, à la place d'un champ date et d'un champ heure.
+  ui.Editeur({ value, onChange(blocs), placeholder?, lectureSeule? }) : VRAI éditeur de documents en blocs (titres, listes, cases à cocher, citations, code, séparateurs, menu « / », raccourcis # - [] >, Entrée et Retour arrière naturels, options de bloc). value = tableau de blocs { id, type, texte, fait } (ou un texte) : enregistre-le tel quel dans un champ json de l'élément (onChange est déjà différé de 400 ms). ui.texteDe(blocs) → le texte brut du document (recherche, IA, PDF, copie).
+  ui.Chat({ messages: [{ role: "user"|"assistant", texte }], onEnvoyer(texte) → Promise, enCours, suggestions?: [phrases de départ], accueil?, nomIA?, placeholder? }) : conversation complète avec l'IA (bulles, suggestions, Entrée pour envoyer, indicateur d'écriture, copier). Dans onEnvoyer : ajoute le message, appelle ia() avec l'historique récent dans la consigne, ajoute la réponse, et enregistre la conversation dans une collection.
   ui.Chrono({ mode: "chrono"|"minuteur", duree (secondes, pour le minuteur), titre, onFin(), onStop(secondes) }) : chrono ou minuteur avec bip à la fin (séance de sport, révision, recette, temps de travail) ; enregistre la durée avec onStop.
   ui.Liste({ lignes, rendu(ligne) → { emoji?, titre, sous?, droite?, couleur? }, onClick?(ligne), vide }) : liste aérée façon appli mobile (au lieu d'un tableau).
   ui.Galerie({ lignes, rendu(ligne) → { emoji?, image?, titre, sous?, etiquette? }, onClick?(ligne), colonnes?: 2|3|4, vide }) : grille de cartes visuelles (catalogue, recettes, leçons).
@@ -40,7 +42,7 @@ Variables déjà disponibles (ne les redéclare pas) :
   ui.Classement({ lignes, champ (nombre à additionner par membre ; sans champ = nombre d'éléments), unite, titre, max }) : classement des membres sur une collection COMMUNAUTÉ.
 - Collections COMMUNAUTÉ (marquées ainsi plus bas) : partagées entre TOUS les comptes de l'application (fil, défis, classements, entraide, recettes ou parcours partagés). Chaque élément y a en plus _auteur (prénom de son auteur), _auteur_id et _moi (true si c'est le compte connecté). N'affiche modifier et supprimer que si _moi ; n'écris jamais ces trois champs. Les autres collections restent privées à chaque compte.
 - Tailwind CSS est chargé. Couleur de la marque : classes bg-[var(--c)], text-[var(--c)], border-[var(--c)]. Grilles : grid sm:grid-cols-2 lg:grid-cols-4 gap-4.
-Le tableau ui.Table ajoute déjà tout seul la recherche, le tri, l'export et la pagination, et met en forme dates, nombres et statuts : ne les refais pas. Choisis la bonne vue : un calendrier pour ce qui est daté, des colonnes Kanban pour ce qui avance par étapes, un tableau pour le reste, et au moins un graphique sur un tableau de bord.
+Le tableau ui.Table ajoute déjà tout seul la recherche, le tri, l'export et la pagination, et met en forme dates, nombres et statuts : ne les refais pas. Choisis les composants de la FAMILLE du logiciel (consignes de famille plus bas) : un éditeur pour un outil d'écriture, des cartes pour un outil de projets, une conversation pour un assistant IA, un calendrier pour ce qui est daté. Un tableau ou des indicateurs seulement là où la famille les prévoit.
 Règles : tout en français, vouvoiement (« vous », « votre », « Ajoutez… ») ; un vrai écran utile et complet (création, modification, suppression confirmée par if (!await demander("Supprimer … ?", { ok: "Supprimer", danger: true })) return; (jamais confirm ni alert : fenêtres intégrées demander(message, { ok, danger }) → Promise<boolean> et avertir(message)), recherche ou filtres quand c'est utile, états vides) ; calcule les indicateurs à partir des données ; jamais de fausses données en dur (les données d'exemple sont déjà dans la base) ; pas de fetch, pas de localStorage, pas de window.parent ; code compact : 180 lignes au plus, pas de commentaires, pas de répétition (factorise les formulaires dans une petite fonction).`;
 
 // Page publique : ouverte par les clients de l'utilisateur, sans compte
@@ -82,7 +84,7 @@ function exemplesDe(spec: any) {
 }
 function contexteSpec(spec: any) {
   return `Application « ${spec.nom} » : ${spec.pitch}
-Pour : ${spec.cible ?? ""}
+Pour : ${spec.cible ?? ""}${spec.nature?.espace_principal ? `\nEspace principal du produit (ce qui le définit) : ${spec.nature.espace_principal}. Interactions caractéristiques : ${(spec.nature.interactions ?? []).join(" ; ")}.` : ""}
 Collections (données) : ${(spec.collections ?? []).map((c: any) => `${c.nom} (${c.label}${c.partage === true ? ", COMMUNAUTÉ : partagée entre tous les membres" : ""}) : ${(c.champs ?? []).map((x: any) => `${x.nom} ${x.type}${x.valeurs ? ` [${x.valeurs.join("|")}]` : ""}`).join(", ")}`).join(" ; ")}${exemplesDe(spec)}
 Écrans de l'application (id : titre) : ${(spec.ecrans ?? []).filter((e: any) => !e.public).map((e: any) => `${e.id} : ${e.titre}`).join(" ; ")}${(spec.ecrans ?? []).some((e: any) => e.public) ? `
 Pages publiques (pour les clients de l'utilisateur, sans compte ; leur lien à partager est déjà affiché dans le menu de l'application) : ${(spec.ecrans ?? []).filter((e: any) => e.public).map((e: any) => `${e.titre} (enregistre dans ${e.ecriture ?? "rien"})`).join(" ; ")}. Dans l'application, les éléments reçus par ces pages ont le champ _public = true : signale-les (badge « Reçu en ligne »).` : ""}`;
@@ -113,7 +115,9 @@ async function ecrire(spec: any, e: any, demande = "", actuel = "") {
   const consigne = actuel
     ? `Voici le code actuel de l'écran « ${e.titre} » (${e.id}) :\n\`\`\`js\n${actuel}\n\`\`\`\nModification demandée par l'utilisateur : ${demande}\nRéécris l'écran complet avec cette modification, sans rien casser du reste.`
     : `Écris l'écran « ${e.titre} » (id ${e.id}). Ce qu'il doit faire : ${e.but}\nFonctions à couvrir : ${(e.fonctions ?? []).join(" ; ")}${demande ? `\nPrécision de l'utilisateur : ${demande}` : ""}`;
-  const genre = !e.public && GENRES_UI[spec.interface] ? `\n\n${GENRES_UI[spec.interface]}` : "";
+  const { FAMILLES } = await import("./familles.ts");
+  const guide = FAMILLES[spec.famille]?.guide ?? GENRES_UI[spec.interface] ?? FAMILLES.gestion.guide;
+  const genre = !e.public ? `\n\n${guide}` : "";
   const prompt = `${DOC}${e.public ? DOC_PUBLIC(e) : ""}${genre}\n\n${contexteSpec(spec)}\n\n${consigne}\n\nRéponds uniquement avec le code dans un bloc \`\`\`js.`;
   let code = extraire(await ask(prompt, { maxTokens: 12000, system: "Tu es un excellent développeur front-end. Tu écris du code Preact + htm propre, robuste et lisible, avec une interface soignée." }));
   let err = erreurSyntaxe(code);
@@ -146,7 +150,14 @@ export async function saasConstruire(appId: string, lancerEcran: (ecranId: strin
   // Les projets analysés utilisent les écrans de leur fiche produit.
   // Métier reconnu (rendez-vous, devis/factures, écriture IA) : modèle fait main et testé, même après une analyse REA ;
   // les fonctions relevées en plus sont ajoutées ensuite comme écrans promis (ajouterEcransPromis)
-  const modele = modeleDe(p);
+  // Famille du produit d'origine (analyse de ses pages publiques), sinon déduite de ses mots : elle décide de l'interface
+  const { FAMILLES, CHOIX_FAMILLES, familleParDefaut, MODELES_DE_FAMILLE } = await import("./familles.ts");
+  const nature = p.scan?.nature ?? null;
+  const texteProduit = [p.inspire?.categorie, p.pitch, p.cible, p.probleme, ...(p.mvp ?? []).map((m: any) => m?.fonction)].join(" ");
+  const famille0 = FAMILLES[nature?.famille] ? nature.famille : familleParDefaut(texteProduit);
+  // Un modèle fait main ne s'impose qu'à un produit de sa famille (avant : tout produit qui parlait de rendez-vous devenait le même logiciel)
+  const modeleBrut = modeleDe(p);
+  const modele = modeleBrut && (MODELES_DE_FAMILLE[famille0] ?? []).includes(modeleBrut) ? modeleBrut : null;
   const FAIT_MODELE = modele ? (FAIT as Record<string, string>)[modele] : "";
   // Deux SaaS construits ne doivent pas se ressembler : palette variée, et pas les couleurs ni les allures des derniers construits
   const { data: recents } = await admin.from("saas_apps").select("spec").neq("id", appId).not("statut", "in", "(remplace,retire,erreur)").order("maj", { ascending: false }).limit(8);
@@ -163,18 +174,20 @@ ${p.scan?.modules?.length ? `Fiche produit de ${p.inspire?.nom ?? "l'original"} 
 Parcours d'un nouveau client : ${(p.scan.parcours ?? []).join(" → ")}
 ${p.scan.formules ? `Logique des formules : ${p.scan.formules}\n` : ""}Vocabulaire du métier : ${(p.scan.vocabulaire ?? []).join(", ")}
 Les écrans reprennent les modules les plus importants de cette fiche (un écran par module, mêmes données, même parcours), avec nos noms et nos mots.
+` : ""}${nature?.espace_principal ? `NATURE DU PRODUIT D'ORIGINE (à respecter : c'est ce qui en fait ce produit et pas un autre)
+- Famille : ${nature.famille}
+- Espace principal : ${nature.espace_principal}
+- Interactions caractéristiques : ${(nature.interactions ?? []).join(" ; ")}
+- Navigation : ${(nature.navigation ?? []).join(" → ")}${(nature.public ?? []).length ? `
+- Côté visiteurs : ${nature.public.join(" ; ")}` : ""}
+Le premier écran EST cet espace principal, et les interactions caractéristiques doivent exister vraiment dans les écrans. Ce n'est pas un logiciel de gestion habillé.
 ` : ""}
 Rends un objet JSON compact :
 - couleur : couleur de marque en hexadécimal (#xxxxxx), assez foncée pour du texte blanc dessus, PAS celle de ${p.inspire?.nom ?? "l'inspiration"}. Choisis-la dans cette palette, celle qui raconte le mieux le métier ou l'ambiance : ${PALETTE.join(", ")}. Couleurs déjà prises par les derniers SaaS construits, à ÉVITER ainsi que leurs voisines (surtout les verts canard et bleu-vert foncés, beaucoup trop vus) : ${couleursPrises.join(", ") || "aucune"}.
 - style : l'allure de l'application, UN parmi moderne (net, Inter), doux (arrondi, chaleureux), sombre (menu foncé), editorial (titres à empattement, posé), vif (couleurs franches), rond (très amical, grand public), tech (outil technique, titres géométriques), elegant (haut de gamme, titres raffinés), sport (énergique, titres condensés), geometrique (jeune, épuré). Choisis selon le public et le métier, pas au hasard, et pas une allure déjà prise par les derniers SaaS construits (${allluresPrises.join(", ") || "aucune"}) sauf si c'est vraiment la seule qui convient.
-- interface : le TYPE d'interface, qui décide de tout l'aspect des écrans, UN parmi :
-  gestion (outil de travail pour des pros : listes de clients, dossiers, suivi ; tableaux et statistiques autorisés),
-  appli (appli du quotidien pour une personne : sport, santé, habitudes, budget perso, famille ; écran « Aujourd'hui », grosses actions, cartes, progression, AUCUN tableau),
-  outil (outil à une fonction principale : générateur, calculateur, correcteur, convertisseur ; une grande zone de saisie et un beau résultat),
-  contenu (catalogue, recettes, bibliothèque, collection, annonces : galerie de cartes avec images ou emoji, recherche, fiches détaillées),
-  communaute (fil d'activité, publications, profils, défis entre membres),
-  apprentissage (cours, révisions, quiz, cartes mémoire, progression par niveaux).
-  Ne choisis gestion QUE pour un logiciel de travail destiné à des professionnels.
+- famille : la FAMILLE de logiciel, qui décide de tout l'aspect et de toute la logique des écrans, UNE parmi :
+  ${CHOIX_FAMILLES}.
+  Famille la plus probable d'après l'analyse : ${famille0}. Garde-la sauf erreur évidente. Ne choisis gestion QUE pour un logiciel qui suit des dossiers, des clients ou des stocks.
 - disposition : barre (menu à gauche, outil de travail sur ordinateur), haut (menu en haut, appli simple à peu d'écrans), onglets (onglets en bas sur téléphone, appli grand public utilisée surtout sur mobile).
 - forme : carre (sobre, professionnel), arrondi (équilibré), pilule (doux, grand public).
 - fond : blanc, creme (chaleureux), gris (outil dense), sombre (soirée, sport, musique, tech ; à éviter pour un outil de gestion classique).
@@ -184,8 +197,8 @@ Rends un objet JSON compact :
 - probleme_site : le problème des clients, en 2 phrases au plus, à la 2e personne ou sur « les » clients : AUCUN chiffre, AUCUN nom de logiciel, de marque ou de concurrent (ni le nôtre), aucune revendication de clients ou de succès.
 - atouts : 6 objets titre + texte (une phrase courte), tirés des fonctionnalités.
 - faq : 4 à 6 objets q + r : les questions que se posent les futurs clients avant d'acheter${p.scan?.objections?.length ? ` (inspire-toi de : ${p.scan.objections.map((o: any) => o.q).join(" ; ")})` : ""}, réponses honnêtes en 1 à 2 phrases avec nos mots, qui ne promettent que ce que fait cette version. Pas de question sur l'essai, l'engagement, la sécurité des données ni l'équipe (déjà présentes).
-- collections : 2 à 5 objets nom (snake_case, pluriel), label, partage (true seulement pour une collection COMMUNAUTÉ partagée entre tous les comptes : fil d'activité, défis, classement, entraide, contenus partagés ; false sinon, c'est le cas général), champs : 4 à 8 objets nom (snake_case) + type (texte|nombre|montant|date|choix|booleen|email|telephone|lien) + valeurs (pour choix seulement). Les liens entre collections : un champ <collection>_id de type texte.
-- ecrans : 5 à 8 objets id (snake_case court), titre (2 mots au plus), icone (parmi ${ICONES.join(", ")}), but (une phrase), fonctions (3 à 5 éléments courts). Le premier écran dépend du type d'interface : « Tableau de bord » (indicateurs et activité récente) pour gestion ; « Aujourd'hui » pour appli ; l'outil lui-même (« Créer », « Générer »…) pour outil ; « Découvrir » ou le catalogue pour contenu ; « Fil » pour communaute ; « Apprendre » pour apprentissage. Les titres et le vocabulaire des écrans suivent le type (pas de « Gestion des… » hors gestion). Couvre TOUTES les fonctions importantes du SaaS d'origine (les modules du projet, dans l'ordre), pas seulement un MVP minimal. Si le SaaS d'origine prend des rendez-vous ou des réservations : un écran « Disponibilités » (heures d'ouverture par jour de la semaine, avec une collection disponibilites : jour 1 à 7, debut, fin) et une page publique de réservation. Pas d'écran de connexion, de paiement ni de réglages de compte (le gabarit les gère). L'application dispose d'une IA intégrée (rédiger, reformuler, résumer, analyser, générer un document) : si le SaaS d'origine repose sur l'IA, l'écran principal doit la faire fonctionner pour de vrai (saisie → résultat → sauvegarde dans une collection). Elle ne sait pas produire d'images, de vidéos ni de sons, ni se connecter à des services extérieurs. L'application sait aussi envoyer de vrais e-mails aux clients de l'utilisateur (tout de suite, planifiés ou répétés : confirmations, rappels, relances), générer des PDF (devis, factures, contrats), stocker des photos et fichiers, et publier un agenda abonnable : prévois les écrans qui s'en servent quand le SaaS d'origine le fait.
+- collections : 2 à 5 objets nom (snake_case, pluriel), label, partage (true seulement pour une collection COMMUNAUTÉ partagée entre tous les comptes : fil d'activité, défis, classement, entraide, contenus partagés ; false sinon, c'est le cas général), champs : 4 à 8 objets nom (snake_case) + type (texte|nombre|montant|date|choix|booleen|email|telephone|lien|json : contenu structuré comme les blocs d'un document, les questions d'un formulaire, les étapes d'un scénario, une liste de cases) + valeurs (pour choix seulement). Les liens entre collections : un champ <collection>_id de type texte.
+- ecrans : 5 à 8 objets id (snake_case court), titre (2 mots au plus), icone (parmi ${ICONES.join(", ")}), but (une phrase), fonctions (3 à 5 éléments courts). Le premier écran est celui de la famille choisie (voir la liste des familles : premier écran = …), c'est-à-dire l'espace principal du produit d'origine ; un « Tableau de bord » d'indicateurs n'est le premier écran QUE pour gestion et analyse. Les titres et le vocabulaire des écrans suivent la famille (pas de « Gestion des… » hors gestion). Chaque écran reprend une partie de la navigation du produit d'origine, avec ses interactions caractéristiques. Couvre TOUTES les fonctions importantes du SaaS d'origine (les modules du projet, dans l'ordre), pas seulement un MVP minimal. Si le SaaS d'origine prend des rendez-vous ou des réservations : un écran « Disponibilités » (heures d'ouverture par jour de la semaine, avec une collection disponibilites : jour 1 à 7, debut, fin) et une page publique de réservation. Pas d'écran de connexion, de paiement ni de réglages de compte (le gabarit les gère). L'application dispose d'une IA intégrée (rédiger, reformuler, résumer, analyser, générer un document) : si le SaaS d'origine repose sur l'IA, l'écran principal doit la faire fonctionner pour de vrai (saisie → résultat → sauvegarde dans une collection). Elle ne sait pas produire d'images, de vidéos ni de sons, ni se connecter à des services extérieurs. L'application sait aussi envoyer de vrais e-mails aux clients de l'utilisateur (tout de suite, planifiés ou répétés : confirmations, rappels, relances), générer des PDF (devis, factures, contrats), stocker des photos et fichiers, et publier un agenda abonnable : prévois les écrans qui s'en servent quand le SaaS d'origine le fait.
 - agenda : null, ou { collection, champ_date, champ_heure (ou null), duree (nombre de minutes, ou nom du champ de durée), champs_titre (1 à 2 champs) } si l'application gère des rendez-vous, des événements, des échéances ou des interventions datées : l'utilisateur pourra s'abonner à cet agenda depuis Google Agenda ou Outlook.
 - pages_publiques : 0 à 2 objets id (snake_case court), titre (3 mots au plus), but (une phrase), fonctions (3 à 5), lecture (collections que la page montre au visiteur, ex. créneaux, prestations, témoignages publiés ; peut être vide), ecriture (UNE collection où la page enregistre ce que le visiteur envoie : réservation, demande, témoignage, commande, inscription, réponse ; peut être null), ia (true si la page est un OUTIL IA gratuit utilisable sans compte : générateur, correcteur, mini-coach, simulateur de texte ; il donne envie de créer un compte). Une page publique est ouverte par les clients de l'utilisateur, sans compte, depuis un lien qu'il partage. N'en mets que si le SaaS sert à recevoir quelque chose de ces clients (prise de rendez-vous, formulaire, avis, devis, commande, inscription, sondage) ou si un outil IA gratuit sert de vitrine à l'application ; sinon une liste vide. Dans ce cas, ne crée PAS d'écran de l'application qui imite cette page : l'application affiche déjà son lien à partager.
 Les données d'exemple sont produites à part : ne mets pas de clé demo.`, { maxTokens: 16000 });
@@ -200,8 +213,9 @@ Les données d'exemple sont produites à part : ne mets pas de clé demo.`, { ma
     couleur: /^#[0-9a-f]{6}$/i.test(s.couleur ?? "") ? s.couleur : "#4F46E5",
     // Allure propre à chaque SaaS : deux SaaS construits ne doivent pas se ressembler
     ...(["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique"].includes(s.style) ? { style: s.style } : {}),
-    interface: ["gestion", "appli", "outil", "contenu", "communaute", "apprentissage"].includes(s.interface) ? s.interface : (modele === "ecriture" ? "outil" : "gestion"),
-    disposition: ["barre", "haut", "onglets"].includes(s.disposition) ? s.disposition : (["appli", "communaute", "apprentissage"].includes(s.interface) ? "onglets" : ["outil", "contenu"].includes(s.interface) ? "haut" : "barre"),
+    famille: FAMILLES[s.famille] ? s.famille : famille0,
+    interface: FAMILLES[FAMILLES[s.famille] ? s.famille : famille0].interface,
+    disposition: ["barre", "haut", "onglets"].includes(s.disposition) ? s.disposition : FAMILLES[FAMILLES[s.famille] ? s.famille : famille0].disposition,
     forme: ["carre", "arrondi", "pilule"].includes(s.forme) ? s.forme : "arrondi",
     fond: ["blanc", "creme", "gris", "sombre"].includes(s.fond) ? s.fond : "blanc",
     slogan: String(s.slogan ?? p.pitch ?? "").slice(0, 90), cible_courte: String(s.cible_courte ?? "").slice(0, 60),
@@ -216,6 +230,7 @@ Les données d'exemple sont produites à part : ne mets pas de clé demo.`, { ma
     collections: (s.collections ?? []).slice(0, 8),
     ecrans: (s.ecrans ?? []).slice(0, 8).map((e: any, i: number) => ({ id: slugify(String(e.id ?? `ecran-${i}`)).replace(/-/g, "_") || `ecran_${i}`, titre: String(e.titre ?? `Écran ${i + 1}`).slice(0, 24), icone: ICONES.includes(e.icone) ? e.icone : "liste", but: e.but, fonctions: e.fonctions })),
     demo: sansFaussesImages(demo && typeof demo === "object" && !Array.isArray(demo) ? (demo.demo ?? demo) : {}) as any,
+    ...(nature?.espace_principal ? { nature: { espace_principal: String(nature.espace_principal).slice(0, 300), interactions: (nature.interactions ?? []).slice(0, 6).map((x: any) => String(x).slice(0, 160)) } } : {}),
     agenda: s.agenda?.collection && s.agenda?.champ_date ? { collection: String(s.agenda.collection), champ_date: String(s.agenda.champ_date), champ_heure: s.agenda.champ_heure ? String(s.agenda.champ_heure) : null, duree: s.agenda.duree ?? 60, champs_titre: (Array.isArray(s.agenda.champs_titre) ? s.agenda.champs_titre : [s.agenda.champs_titre]).filter(Boolean).slice(0, 2) } : null,
   };
   // Pages publiques (réservation, formulaire, avis…) : écrites comme des écrans, servies sans compte

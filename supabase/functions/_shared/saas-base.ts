@@ -838,8 +838,17 @@ Rends un objet JSON :
  "formules": "ce qui change d'une formule à l'autre (limites, options, nombre d'utilisateurs), une à trois phrases ; chaîne vide si inconnu",
  "objections": 4 à 6 objets { "q": "une question qu'un futur client se pose avant d'acheter ce type de logiciel", "r": "une réponse honnête, générique, 1 à 2 phrases" },
  "vocabulaire": ["8 à 15 mots du métier des clients"],
- "style": { "theme": "clair|sombre", "densite": "aere|dense", "ton": "3 mots" }
-}`, { fast: true, maxTokens: 7000 }).catch(() => null);
+ "style": { "theme": "clair|sombre", "densite": "aere|dense", "ton": "3 mots" },
+ "nature": {
+   "famille": "UNE parmi : gestion, reservation, crm, projets, edition, ia, communaute, apprentissage, perso, automatisation, analyse, contenu (la catégorie de logiciel à laquelle ce produit appartient VRAIMENT : un outil de prise de notes = edition, un tableau de tâches = projets, un outil d'écriture IA = ia, une boutique de créateur = contenu ; gestion seulement pour un logiciel de suivi de dossiers)",
+   "espace_principal": "l'endroit où l'utilisateur passe son temps et ce qu'il y fait (ex. « un éditeur de pages en blocs », « un tableau de colonnes et de cartes déplaçables », « une conversation avec l'IA », « un constructeur de formulaires puis un lecteur une question à la fois », « un calendrier de réservations »), une phrase",
+   "interactions": ["3 à 6 interactions caractéristiques de ce type de produit attestées par les sources (ex. glisser une carte, taper / pour insérer un bloc, réserver un créneau libre)"],
+   "navigation": ["les 4 à 7 grandes parties du produit dans l'ordre du menu, avec nos mots"],
+   "public": ["ce que voient les visiteurs sans compte, s'il y en a (page de réservation, formulaire partagé, vitrine…)"],
+   "inconnu": ["ce que les sources publiques ne permettent pas de connaître (écrans internes, réglages…)"]
+ }
+}
+Pour « nature », ne décris que ce que les sources attestent ou ce qui découle évidemment de la catégorie : n'invente pas d'écrans internes que tu n'as pas vus, mets-les dans « inconnu ».`, { fast: true, maxTokens: 7000 }).catch(() => null);
   if (lancementPlanifie && (!Array.isArray(scan?.modules) || !scan.modules.some((m: any) => m?.nom && m?.fait))) {
     throw new Error("La fiche produit n’a pas pu être préparée à partir des sources publiques. Tu peux relancer la préparation.");
   }
@@ -912,7 +921,7 @@ Rends {"formules": [2 ou 3 objets nom + prix (euros par mois, nombre) + pour + i
     `Comptes utilisateurs avec e-mail et mot de passe, abonnement mensuel avec les formules : ${(p.formules ?? []).map((f) => `${f.nom} à ${f.prix} € par mois (${(f.inclus ?? []).join(", ")})`).join(" ; ")}. Essai gratuit de 14 jours.`,
     `Ajoute une page d'accueil publique qui présente le produit et les prix, des mentions légales et une politique de confidentialité conformes au RGPD.`,
   ].join("\n");
-  const data = { ...p, construction, ...(lancementPlanifie ? { analyse_sources: analyseRea != null ? "rea" : "pages_publiques" } : {}), ...(scan?.modules?.length ? { scan: { modules: scan.modules.slice(0, 10), parcours: (scan.parcours ?? []).slice(0, 6), formules: String(scan.formules ?? "").slice(0, 400), objections: (scan.objections ?? []).slice(0, 6), vocabulaire: (scan.vocabulaire ?? []).slice(0, 15), style: scan.style ?? null, pages: choisies.length + 2 } } : {}), inspire: { nom: s.nom, domaine: s.domaine, categorie: s.categorie, prix: s.prix_entree_eur, usage: ["usage", "commission"].includes(s.modele_prix ?? "") ? s.prix_affiche : null }, marche: { mediane, prix: prixMarche, concurrents: (conc ?? []).length },
+  const data = { ...p, construction, ...(lancementPlanifie ? { analyse_sources: analyseRea != null ? "rea" : "pages_publiques" } : {}), ...(scan?.modules?.length ? { scan: { modules: scan.modules.slice(0, 10), parcours: (scan.parcours ?? []).slice(0, 6), formules: String(scan.formules ?? "").slice(0, 400), objections: (scan.objections ?? []).slice(0, 6), vocabulaire: (scan.vocabulaire ?? []).slice(0, 15), style: scan.style ?? null, nature: scan.nature && typeof scan.nature === "object" ? scan.nature : null, pages: choisies.length + 2 } } : {}), inspire: { nom: s.nom, domaine: s.domaine, categorie: s.categorie, prix: s.prix_entree_eur, usage: ["usage", "commission"].includes(s.modele_prix ?? "") ? s.prix_affiche : null }, marche: { mediane, prix: prixMarche, concurrents: (conc ?? []).length },
     plan: { prix_moyen: prixMoyen, couts_fixes: couts, mois, equilibre: mois.find((x) => x.resultat > 0)?.mois ?? null } };
   if (projetId) {
     let miseAJour = admin.from("saas_projets").update({ data, statut: "pret" }).eq("id", projetId);
