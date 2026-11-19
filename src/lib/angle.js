@@ -73,6 +73,8 @@ const CAT_FR = {
 };
 export const enFrancais = (s) => /^fr$/i.test(s.langue ?? "") || (/^FR$/.test(s.pays ?? "") && !/\b(the|and|your|with|for)\b/i.test(s.description ?? ""));
 export function resumeFr(s) {
+  // La description française du catalogue (ce qu'il fait, pour qui) passe avant tout
+  if (s.pitch_fr?.fait) return `${s.pitch_fr.fait.replace(/\.$/, "")}${s.pitch_fr.pour_qui ? `. Pour : ${s.pitch_fr.pour_qui.charAt(0).toLowerCase()}${s.pitch_fr.pour_qui.slice(1)}` : ""}${s.prix_entree_eur ? `, à partir de ${Math.round(s.prix_entree_eur)} € par mois` : ""}.`;
   if (enFrancais(s) && s.description) return s.description;
   const qui = /B2B/i.test(s.audience ?? "") && /B2C/i.test(s.audience ?? "") || /both/i.test(s.audience ?? "") ? "vendu aux pros et aux particuliers" : /B2C/i.test(s.audience ?? "") ? "vendu aux particuliers" : "vendu aux professionnels";
   const prix = s.prix_entree_eur ? `, à partir de ${Math.round(s.prix_entree_eur)} € par mois` : "";

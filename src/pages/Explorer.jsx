@@ -3276,7 +3276,10 @@ function Paquet({ res, r }) {
           {ANGLES.map(([k, l]) => <button key={k} onClick={() => setForces({ ...forces, [s.domaine]: k })} className={cx("rounded-full border px-3 py-1.5 text-[13px] font-medium", a.type === k ? "bg-ink text-white border-ink" : "bg-white border-line hover:border-ink-faint")}>{l}</button>)}
           {a.type === "metier" && <input value={metierLibre} onChange={(e) => setMetierLibre(e.target.value.slice(0, 60))} placeholder="Quel métier ?" className="rounded-full border border-line bg-white px-3 py-1.5 text-[13px] outline-none focus:border-ink w-44" />}
         </div>
-        <button onClick={() => nav(lienLancer(s, a))} className="mt-5 rounded-xl bg-accent text-white px-6 py-3.5 font-bold hover:bg-accent-dark">Bingoo! construit ma version</button>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button onClick={() => nav(lienLancer(s, a))} className="rounded-xl bg-accent text-white px-6 py-3.5 font-bold hover:bg-accent-dark">Bingoo! construit ma version</button>
+          <button onClick={() => nav(`/explorer/connecteur?domaine=${encodeURIComponent(s.domaine)}&nom=${encodeURIComponent(s.nom ?? s.domaine)}`)} className="rounded-xl border border-ink/15 bg-white px-6 py-3.5 font-bold hover:border-ink/40">Construire avec mon IA</button>
+        </div>
       </section>
       <CommentIlSeFaitConnaitre s={s} />
       <section className="mt-6 rounded-3xl border border-line bg-white overflow-hidden">
