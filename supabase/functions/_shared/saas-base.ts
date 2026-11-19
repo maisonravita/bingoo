@@ -839,7 +839,7 @@ Rends un objet JSON :
  "objections": 4 à 6 objets { "q": "une question qu'un futur client se pose avant d'acheter ce type de logiciel", "r": "une réponse honnête, générique, 1 à 2 phrases" },
  "vocabulaire": ["8 à 15 mots du métier des clients"],
  "style": { "theme": "clair|sombre", "densite": "aere|dense", "ton": "3 mots" }
-}`, { fast: true, maxTokens: 3000 }).catch(() => null);
+}`, { fast: true, maxTokens: 7000 }).catch(() => null);
   if (lancementPlanifie && (!Array.isArray(scan?.modules) || !scan.modules.some((m: any) => m?.nom && m?.fait))) {
     throw new Error("La fiche produit n’a pas pu être préparée à partir des sources publiques. Tu peux relancer la préparation.");
   }
