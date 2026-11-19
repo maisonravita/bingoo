@@ -816,10 +816,15 @@ export async function saasLancer(wsId: string, domaine: string, projetId?: strin
   const [txtPrix, ...autres] = await Promise.all([s.prix_rendu ? Promise.resolve(String(s.prix_rendu)) : lirePage(lien), ...choisies.map((u) => lirePage(u).catch(() => ""))]);
   const pages = `${txtAccueil.slice(0, 5000)}\n---\n${txtPrix.slice(0, 4000)}`;
   const toutes = [`ACCUEIL\n${txtAccueil.slice(0, 5000)}`, `TARIFS\n${txtPrix.slice(0, 4000)}`, ...autres.map((x, i) => x.trim() ? `${choisies[i]}\n${x.slice(0, 3500)}` : "").filter(Boolean)].join("\n---\n").slice(0, 30000);
+  // Décortiqué par REA (écrans et appels de l'application relevés dans le navigateur) : liste plus complète des fonctions à égaler
+  const { data: dec } = await admin.from("saas_decortique").select("resultat, rea").eq("domaine", s.domaine).eq("statut", "fait").maybeSingle();
+  const rr: any = dec?.resultat ?? null;
+  const routesRea = [...new Set(((dec?.rea as any)?.pages ?? []).flatMap((p: any) => p?.rea?.routes ?? []))].slice(0, 80);
+  const extraRea = rr ? `\n---\nRELEVÉ DE L'APPLICATION (REA)\nFonctions : ${(rr.fonctionnalites ?? []).map((f: any) => `${f.nom} : ${f.detail}`).join(" | ")}\nParcours : ${(rr.parcours ?? []).join(" | ")}\nÉcrans relevés : ${routesRea.join(" , ")}`.slice(0, 9000) : "";
   // Fiche produit, avec nos mots : ce qu'il faut égaler (modules, données, parcours, logique des formules, objections)
   setAi({ ws: wsId, feature: "explorer/lancer", live: true });
   const scan = await askJson<any>(`Voici les pages publiques de ${s.nom} (${s.domaine}), un logiciel en ligne. Décris le PRODUIT pour qu'une petite équipe puisse construire un équivalent qui fait la même chose, avec SES PROPRES MOTS : ne recopie aucune phrase, aucun slogan, aucun nom de fonctionnalité déposé, aucun nom de marque.
-${toutes}
+${toutes}${extraRea}
 
 Rends un objet JSON :
 {

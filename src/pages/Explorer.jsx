@@ -4282,6 +4282,7 @@ function ChiffresSaas() {
 // « Décortiquer ce SaaS » : analyse REA de ses pages publiques, résumée en français
 function Decortiquer({ s, ws }) {
   const toast = useToast();
+  const nav = useNavigate();
   const [d, setD] = useState(undefined);
   const lire = () => fn("r/saas-decortiquer", { workspace_id: ws.id, domaine: s.domaine, lire: true }).then(setD, () => setD(null));
   useEffect(() => { if (ws?.id) lire(); }, [s.domaine, ws?.id]);
@@ -4325,14 +4326,17 @@ function Decortiquer({ s, ws }) {
       </div>
       {r.plan && (
         <div className="mt-5 rounded-xl border border-accent/40 bg-accent/5 p-4">
-          <h3 className="font-semibold text-[14px]">Ta version</h3>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="font-semibold text-[14px]">Ta version</h3>
+            <button onClick={() => nav(`/explorer/lancer?d=${s.domaine}`)} className="rounded-xl bg-accent text-white px-4 py-2 text-[13.5px] font-bold hover:bg-accent-dark">Lancer ma version avec ces fonctions</button>
+          </div>
           <div className="mt-2 grid sm:grid-cols-2 gap-4 text-[13.5px]">
             <div><p className="font-semibold">Pour démarrer</p><ul className="mt-1 list-disc pl-5 space-y-1">{(r.plan.indispensables ?? []).map((x, i) => <li key={i}>{x}</li>)}</ul></div>
             <div><p className="font-semibold">Pour faire mieux</p><ul className="mt-1 list-disc pl-5 space-y-1">{(r.plan.pour_faire_mieux ?? []).map((x, i) => <li key={i}>{x}</li>)}</ul></div>
           </div>
         </div>
       )}
-      <p className="mt-4 text-[11.5px] text-ink-faint">Relevé par REA sur les pages publiques de {s.nom}. On décrit ce que fait le logiciel, jamais son code, ses textes ou ses visuels, qui restent à son éditeur : ta version doit avoir les tiens.</p>
+      <p className="mt-4 text-[11.5px] text-ink-faint">Relevé par REA sur les pages publiques de {s.nom}. Ta version reprend toutes ces fonctions, avec son propre code, ses propres textes et son propre design.</p>
     </section>
   );
 }
