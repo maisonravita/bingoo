@@ -38,6 +38,29 @@ const membreOuCron = async (req: Request, wsId: string) => {
 };
 const cron = async (req: Request) => { if ((req.headers.get("x-cron-key") ?? "") !== await secret("cron_key")) throw new HttpError(401, "Clé invalide"); };
 
+// Prépare un projet « Lancer ma version » : tout de suite à la demande (p_id), ou le suivant en attente (tâche minute)
+async function demarrerLancement(pid: string | null) {
+  const { data, error } = await admin.rpc("saas_prendre_lancement", { p_id: pid }).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return { id: null };
+    const travail = (async () => {
+      const { saasLancer, saasLire } = await import("../_shared/saas-base.ts");
+      const { data: source, error: lecture } = await admin.from("saas").select("statut").eq("id", data.saas_id).single();
+      if (lecture) throw new Error(lecture.message);
+      if (source.statut !== "ok") await saasLire(data.saas_id);
+      await saasLancer(data.workspace_id, data.domaine, data.id, data.angle, data.resultat, true);
+    })().catch(async (e) => {
+      const { error } = await admin.from("saas_projets")
+        .update({ statut: "erreur", erreur: String(e?.message ?? e).slice(0, 300) })
+        .eq("id", data.id).eq("statut", "en_cours");
+      if (error) console.error("saas-lancement-cron", error.message);
+    });
+    // deno-lint-ignore no-explicit-any
+    const rt = (globalThis as any).EdgeRuntime;
+    if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
+    return { id: data.id };
+}
+
 // deno-lint-ignore no-explicit-any
 const routes: Record<string, (req: Request, b: any) => Promise<unknown>> = {
   async "radar-scan"(req, b) {
@@ -282,29 +305,13 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     }).single();
     if (error || !data) throw new Error(error?.message ?? "La préparation n’a pas été enregistrée.");
     if (data.nouveau) await log(ws.id, "lancer", `Projet de SaaS concurrent de ${s.nom ?? domaine}`);
+    // Démarre tout de suite (sans attendre la tâche minute) ; REA continue en arrière-plan pour les prochains lancements
+    if (data.statut === "attente_analyse") { await demarrerLancement(data.id).catch((e) => console.error("saas-lancer", e?.message)); return { id: data.id, statut: "en_cours" }; }
     return { id: data.id, statut: data.statut };
   },
   async "saas-lancement-cron"(req) {
     await cron(req);
-    const { data, error } = await admin.rpc("saas_prendre_lancement").maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!data) return { id: null };
-    const travail = (async () => {
-      const { saasLancer, saasLire } = await import("../_shared/saas-base.ts");
-      const { data: source, error: lecture } = await admin.from("saas").select("statut").eq("id", data.saas_id).single();
-      if (lecture) throw new Error(lecture.message);
-      if (source.statut !== "ok") await saasLire(data.saas_id);
-      await saasLancer(data.workspace_id, data.domaine, data.id, data.angle, data.resultat, true);
-    })().catch(async (e) => {
-      const { error } = await admin.from("saas_projets")
-        .update({ statut: "erreur", erreur: String(e?.message ?? e).slice(0, 300) })
-        .eq("id", data.id).eq("statut", "en_cours");
-      if (error) console.error("saas-lancement-cron", error.message);
-    });
-    // deno-lint-ignore no-explicit-any
-    const rt = (globalThis as any).EdgeRuntime;
-    if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
-    return { id: data.id };
+    return await demarrerLancement(null);
   },
   // Banc d'essai interne (clé des tâches planifiées) : prépare le projet d'une copie dans un espace de test
   async "saas-qa-lancer"(req, b) {
