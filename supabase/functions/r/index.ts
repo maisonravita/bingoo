@@ -319,7 +319,10 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   },
   async "saas-lancement-cron"(req) {
     await cron(req);
-    return await demarrerLancement(null);
+    // Jusqu'à 4 projets par passage : plusieurs membres qui lancent en même temps ne font pas la queue minute par minute
+    const ids: string[] = [];
+    for (let i = 0; i < 4; i++) { const r = await demarrerLancement(null); if (!r.id) break; ids.push(r.id); }
+    return { ids };
   },
   // Banc d'essai interne (clé des tâches planifiées) : prépare le projet d'une copie dans un espace de test
   async "saas-qa-lancer"(req, b) {
