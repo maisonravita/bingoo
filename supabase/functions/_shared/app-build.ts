@@ -185,14 +185,13 @@ Rends un objet JSON compact :
 - ecrans : 5 à 8 objets id (snake_case court), titre (2 mots au plus), icone (parmi ${ICONES.join(", ")}), but (une phrase), fonctions (3 à 5 éléments courts). Le premier écran dépend du type d'interface : « Tableau de bord » (indicateurs et activité récente) pour gestion ; « Aujourd'hui » pour appli ; l'outil lui-même (« Créer », « Générer »…) pour outil ; « Découvrir » ou le catalogue pour contenu ; « Fil » pour communaute ; « Apprendre » pour apprentissage. Les titres et le vocabulaire des écrans suivent le type (pas de « Gestion des… » hors gestion). Couvre TOUTES les fonctions importantes du SaaS d'origine (les modules du projet, dans l'ordre), pas seulement un MVP minimal. Si le SaaS d'origine prend des rendez-vous ou des réservations : un écran « Disponibilités » (heures d'ouverture par jour de la semaine, avec une collection disponibilites : jour 1 à 7, debut, fin) et une page publique de réservation. Pas d'écran de connexion, de paiement ni de réglages de compte (le gabarit les gère). L'application dispose d'une IA intégrée (rédiger, reformuler, résumer, analyser, générer un document) : si le SaaS d'origine repose sur l'IA, l'écran principal doit la faire fonctionner pour de vrai (saisie → résultat → sauvegarde dans une collection). Elle ne sait pas produire d'images, de vidéos ni de sons, ni se connecter à des services extérieurs. L'application sait aussi envoyer de vrais e-mails aux clients de l'utilisateur (tout de suite, planifiés ou répétés : confirmations, rappels, relances), générer des PDF (devis, factures, contrats), stocker des photos et fichiers, et publier un agenda abonnable : prévois les écrans qui s'en servent quand le SaaS d'origine le fait.
 - agenda : null, ou { collection, champ_date, champ_heure (ou null), duree (nombre de minutes, ou nom du champ de durée), champs_titre (1 à 2 champs) } si l'application gère des rendez-vous, des événements, des échéances ou des interventions datées : l'utilisateur pourra s'abonner à cet agenda depuis Google Agenda ou Outlook.
 - pages_publiques : 0 à 2 objets id (snake_case court), titre (3 mots au plus), but (une phrase), fonctions (3 à 5), lecture (collections que la page montre au visiteur, ex. créneaux, prestations, témoignages publiés ; peut être vide), ecriture (UNE collection où la page enregistre ce que le visiteur envoie : réservation, demande, témoignage, commande, inscription, réponse ; peut être null), ia (true si la page est un OUTIL IA gratuit utilisable sans compte : générateur, correcteur, mini-coach, simulateur de texte ; il donne envie de créer un compte). Une page publique est ouverte par les clients de l'utilisateur, sans compte, depuis un lien qu'il partage. N'en mets que si le SaaS sert à recevoir quelque chose de ces clients (prise de rendez-vous, formulaire, avis, devis, commande, inscription, sondage) ou si un outil IA gratuit sert de vitrine à l'application ; sinon une liste vide. Dans ce cas, ne crée PAS d'écran de l'application qui imite cette page : l'application affiche déjà son lien à partager.
-Les données d'exemple sont produites à part : ne mets pas de clé demo.`, { maxTokens: 9000 });
+Les données d'exemple sont produites à part : ne mets pas de clé demo.`, { maxTokens: 16000 });
 
   // Données d'exemple à part (modèle rapide) : la conception reste courte et ne dépasse jamais la durée d'une invocation
   // Le modèle Écriture demande aussi 7 textes d'exemple complets : plus de place, sinon la réponse est coupée
   const perso = modele ? await askJson<any>(PERSO[modele](p), { fast: true, maxTokens: modele === "ecriture" ? 7000 : 2000 }).catch(() => ({})) : null;
-  const demo = modele ? {} : await askJson<any>(`Application « ${p.nom} » : ${p.pitch}
-Collections : ${(s.collections ?? []).slice(0, 8).map((c: any) => `${c.nom} : ${(c.champs ?? []).map((x: any) => `${x.nom} ${x.type}${x.valeurs ? ` [${x.valeurs.join("|")}]` : ""}`).join(", ")}`).join(" ; ")}
-Écris les données d'exemple de cette application. Rends un objet JSON { <collection> : 12 éléments réalistes en français (entreprises, personnes, séances ou contenus fictifs selon l'application, montants cohérents, dates réparties entre ${new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10)} et ${new Date(Date.now() + 90 * 864e5).toISOString().slice(0, 10)}, aujourd'hui = ${new Date().toISOString().slice(0, 10)}) } ; les champs <collection>_id pointent vers le champ « ref » (ex. "c1") que tu ajoutes à chaque élément.`, { fast: true, maxTokens: 12000 }).catch(() => ({}));
+  // Données d'exemple : écrites dans une invocation à part (saasDemoPuisEcrans), la conception seule tient déjà près de 2 minutes
+  const demo = {};
   const spec: any = {
     nom: p.nom, pitch: p.pitch, cible: p.cible, probleme: p.probleme,
     couleur: /^#[0-9a-f]{6}$/i.test(s.couleur ?? "") ? s.couleur : "#4F46E5",
@@ -249,9 +248,27 @@ Collections : ${(s.collections ?? []).slice(0, 8).map((c: any) => `${c.nom} : ${
     await Promise.all(aEcrire.map((e: any) => lancerEcran(e.id)));
     return;
   }
-  await admin.from("saas_apps").update({ brouillon: spec, etape: `Écriture des écrans (0/${spec.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
+  await admin.from("saas_apps").update({ brouillon: spec, etape: `Données d'exemple`, maj: new Date().toISOString() }).eq("id", appId);
+  // Données d'exemple puis écrans : dans une autre invocation (limite de durée d'une invocation)
+  await lancerEcran("__demo");
+  return;
   // En parallèle : écrits un par un, 8 à 10 écrans dépassent la durée maximale d'une invocation (la construction restait bloquée)
   await Promise.all(spec.ecrans.map((e: any) => lancerEcran(e.id)));
+}
+
+/** Étape 1 bis (invocation à part) : données d'exemple de l'application, puis écriture de tous les écrans en parallèle. */
+export async function saasDemoPuisEcrans(appId: string, lancerEcran: (ecranId: string) => Promise<void>) {
+  const { data: app } = await admin.from("saas_apps").select("brouillon").eq("id", appId).single();
+  const sp = app?.brouillon as any;
+  if (!sp?.ecrans?.length) return;
+  const p = { nom: sp.nom, pitch: sp.pitch };
+  const s = { collections: sp.collections ?? [] };
+  const demo = await askJson<any>(`Application « ${p.nom} » : ${p.pitch}
+Collections : ${(s.collections ?? []).slice(0, 8).map((c: any) => `${c.nom} : ${(c.champs ?? []).map((x: any) => `${x.nom} ${x.type}${x.valeurs ? ` [${x.valeurs.join("|")}]` : ""}`).join(", ")}`).join(" ; ")}
+Écris les données d'exemple de cette application. Rends un objet JSON { <collection> : 12 éléments réalistes en français (entreprises, personnes, séances ou contenus fictifs selon l'application, montants cohérents, dates réparties entre ${new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10)} et ${new Date(Date.now() + 90 * 864e5).toISOString().slice(0, 10)}, aujourd'hui = ${new Date().toISOString().slice(0, 10)}) } ; les champs <collection>_id pointent vers le champ « ref » (ex. "c1") que tu ajoutes à chaque élément.`, { fast: true, maxTokens: 12000 }).catch(() => ({}));
+  const d = sansFaussesImages(demo && typeof demo === "object" && !Array.isArray(demo) ? (demo.demo ?? demo) : {}) as any;
+  await admin.from("saas_apps").update({ brouillon: { ...sp, demo: d }, etape: `Écriture des écrans (0/${sp.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
+  await Promise.all(sp.ecrans.map((e: any) => lancerEcran(e.id)));
 }
 
 async function inspireDe(appId: string) {
