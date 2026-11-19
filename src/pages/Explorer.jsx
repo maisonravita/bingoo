@@ -1275,8 +1275,8 @@ function Parcours({ etape }) {
 }
 
 // Ce que la version construite par Bingoo! fera, et ce qu'elle ne fera pas encore
-const FERA = ["Site, comptes de tes clients, essai gratuit et abonnements (ton Stripe)", "Écrans de gestion avec leurs données, recherche et filtres", "Pages publiques sans compte : réservation, formulaire, avis, commande", "Vrais e-mails : confirmations, rappels planifiés, relances", "Documents PDF (devis, factures, contrats), photos et fichiers", "Assistant IA qui rédige, résume et analyse", "Agenda à ajouter dans Google Agenda ou Outlook"];
-const FERA_PAS = ["Vidéo, image ou son générés", "Appli mobile native ou extension de navigateur", "SMS", "Synchronisation avec Google, Outlook ou un autre logiciel"];
+const FERA = ["Site, comptes de tes clients, essai gratuit et abonnements (ton Stripe)", "Les écrans propres à son type de logiciel : éditeur de documents, tableau de projets, formulaires, toile de création, vitrine, assistant IA, agenda…", "Pages publiques sans compte : réservation, formulaire, avis, commande", "Vrais e-mails : confirmations, rappels planifiés, relances", "Documents PDF (devis, factures, contrats), photos et fichiers", "Assistant IA qui rédige, résume et analyse", "Agenda à ajouter dans Google Agenda ou Outlook"];
+const FERA_PAS = ["Vidéo, image ou son générés", "Appli mobile native ou extension de navigateur", "SMS", "Synchronisation dans les deux sens avec Google, Outlook ou un autre logiciel"];
 function CeQueTaCopieFera({ saas, compact = false }) {
   return (
     <div className={cx("rounded-2xl border p-4", saas?.constructible === false ? "border-[#FED7AA] bg-[#FFF7ED]" : "border-line bg-white")}>
@@ -1362,6 +1362,7 @@ function Lancer() {
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <button onClick={generer} disabled={busy || autre === null} className={cx("rounded-xl px-7 py-3.5 font-bold disabled:opacity-60", bloque ? "bg-line text-ink-faint cursor-pointer hover:bg-line" : "bg-accent text-white hover:bg-accent-dark")}>{busy ? "Préparation de ton projet… (une à deux minutes)" : niv(ws) < 2 ? "Disponible avec la formule Lancer" : bloque ? "Préparer mon projet" : autre?.deja ? `Préparer mon projet · ${COUT_AUTRE} crédits` : "Préparer mon projet"}</button>
             {bloque && <a href="#/abonnement#credits" className="rounded-xl bg-ink px-5 py-3.5 font-bold text-white hover:opacity-90">Recharger des crédits</a>}
+            {saas?.id && <a href={`#/explorer/connecteur?saas=${saas.id}&nom=${encodeURIComponent(saas.nom ?? "")}`} className="rounded-xl border border-ink/15 bg-white px-5 py-3.5 font-bold hover:border-ink/40">Construire avec mon IA</a>}
           </div>
         </div>
       ) : null}
