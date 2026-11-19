@@ -48,11 +48,13 @@ export function specReservation(perso: any) {
     { id: "rendezvous", titre: V.rdvs.slice(0, 24), icone: "liste", but: "Suivez chaque " + V.rdv.toLowerCase() + " par étape, de la demande au paiement." },
     { id: "clients", titre: V.clients.slice(0, 24), icone: "contacts", but: "Votre fichier " + V.clients.toLowerCase() + " avec leur historique et ce qu'ils vous ont rapporté." },
     { id: "prestations", titre: V.prestas.slice(0, 24), icone: "tag", but: "Vos offres, vos prix et vos durées." },
-    { id: "pub_reserver", titre: "Réserver en ligne", icone: "carte", but: "La page que vos " + V.clients.toLowerCase() + " utilisent pour réserver seuls, 24 h sur 24.", public: true, lecture: ["prestations", "rendezvous"], ecriture: "rendezvous" },
+    { id: "disponibilites", titre: "Disponibilités", icone: "horloge", but: "Vos heures d'ouverture : vos " + V.clients.toLowerCase() + " ne voient que les créneaux libres." },
+    { id: "pub_reserver", titre: "Réserver en ligne", icone: "carte", but: "La page que vos " + V.clients.toLowerCase() + " utilisent pour réserver seuls, 24 h sur 24 : seulement les vrais créneaux libres.", public: true, lecture: ["prestations", "rendezvous", "disponibilites"], ecriture: "rendezvous" },
   ].map((e) => ({ ...e, code: tete + code[e.id], ok: true, modele: "reservation" }));
 
   const collections = [
     { nom: "prestations", label: V.prestas, champs: [{ nom: "nom", type: "texte" }, { nom: "prix", type: "montant" }, { nom: "duree", type: "nombre" }, { nom: "description", type: "texte" }, { nom: "actif", type: "booleen" }] },
+    { nom: "disponibilites", label: "Disponibilités", champs: [{ nom: "jour", type: "nombre" }, { nom: "debut", type: "texte" }, { nom: "fin", type: "texte" }, { nom: "actif", type: "booleen" }] },
     { nom: "clients", label: V.clients, champs: [{ nom: "nom", type: "texte" }, { nom: "email", type: "email" }, { nom: "telephone", type: "telephone" }, { nom: "notes", type: "texte" }] },
     { nom: "rendezvous", label: V.rdvs, champs: [{ nom: "client_nom", type: "texte" }, { nom: "client_email", type: "email" }, { nom: "client_id", type: "texte" }, { nom: "prestation_id", type: "texte" }, { nom: "date", type: "date" }, { nom: "heure", type: "texte" }, { nom: "duree", type: "nombre" }, { nom: "intervenant", type: "texte" }, { nom: "statut", type: "choix", valeurs: ["demande", "confirme", "termine", "annule"] }, { nom: "montant", type: "montant" }, { nom: "notes", type: "texte" }] },
   ];
@@ -72,7 +74,7 @@ export function specReservation(perso: any) {
     rendezvous.push({ client_id: c.ref, client_nom: c.nom, client_email: c.email, prestation_id: p.ref, date: jour(d), heure: HEURES[Math.floor(hasard() * HEURES.length)], duree: p.duree, intervenant: inter[i % inter.length], statut, montant: p.prix, notes: "" });
   }
   return {
-    vocab: V, ecrans, collections, demo: { prestations, clients, rendezvous }, demo_ancre: jour(0),
+    vocab: V, ecrans, collections, demo: { prestations, clients, rendezvous, disponibilites: [1, 2, 3, 4, 5].flatMap((j) => [{ jour: j, debut: "09:00", fin: "12:00", actif: true }, { jour: j, debut: "14:00", fin: "18:00", actif: true }]) }, demo_ancre: jour(0),
     agenda: { collection: "rendezvous", champ_date: "date", champ_heure: "heure", duree: "duree", champs_titre: ["client_nom", "statut"] },
   };
 }
@@ -151,7 +153,7 @@ export function specDevis(perso: any) {
 
 export const FAIT = {
   ecriture: "Cette version fait exactement ceci, et rien d'autre : l'utilisateur choisit un type de texte, remplit quelques champs, et l'IA intégrée écrit le texte ; il l'ajuste en un clic (plus court, plus percutant, plus simple, en anglais), le modifie, le copie ou le télécharge en PDF ; tous ses textes sont rangés et cherchables, avec favoris et duplication ; une page « Mon style » où il décrit qui il est et colle un exemple de son écriture pour que l'IA écrive avec sa voix ; un tableau de bord de son activité ; l'équipe et l'abonnement. Les textes (pitch_site, atouts, formules) ne promettent RIEN d'autre (pas de publication automatique sur les réseaux, pas d'import de fichier ni de lecture de document, pas d'images, pas de détection de plagiat, pas de modèle d'IA au choix, pas d'extension de navigateur).",
-  reservation: "Cette version fait exactement ceci, et rien d'autre : un planning en calendrier, le suivi de chaque rendez-vous par étapes (à confirmer, confirmé, terminé, annulé), un fichier clients avec historique et chiffre d'affaires, les offres avec prix et durées, une page de réservation en ligne pour les clients avec e-mail de confirmation et rappel automatique par e-mail la veille, un tableau de bord du chiffre d'affaires, l'import et l'export Excel, l'équipe et l'abonnement. Les textes (pitch_site, atouts, formules) ne promettent RIEN d'autre (pas de SMS, pas de paiement ni d'acompte à la réservation, pas de factures PDF).",
+  reservation: "Cette version fait exactement ceci, et rien d'autre : un planning en calendrier, le suivi de chaque rendez-vous par étapes (à confirmer, confirmé, terminé, annulé), un fichier clients avec historique et chiffre d'affaires, les offres avec prix et durées, les heures d'ouverture par jour, une page de réservation en ligne où les clients ne voient que les vrais créneaux libres (selon les heures d'ouverture, la durée de l'offre et les rendez-vous déjà pris) avec e-mail de confirmation et rappel automatique par e-mail la veille, un tableau de bord du chiffre d'affaires, l'import et l'export Excel, l'équipe et l'abonnement. Les textes (pitch_site, atouts, formules) ne promettent RIEN d'autre (pas de SMS, pas de paiement ni d'acompte à la réservation, pas de factures PDF).",
   devis: "Cette version fait exactement ceci, et rien d'autre : un catalogue de prestations avec prix, des devis créés en un clic (lignes, TVA, total), envoyés par e-mail et téléchargeables en PDF, transformés en facture numérotée quand ils sont acceptés, des factures PDF avec mentions légales et IBAN, le suivi des paiements et des retards avec relance par e-mail en un clic, un fichier clients avec ce que chacun a rapporté et doit encore, une page en ligne où les clients demandent un devis, un tableau de bord (encaissé, reste à encaisser, taux d'acceptation), l'import et l'export Excel, l'équipe et l'abonnement. Les textes (pitch_site, atouts, formules) ne promettent RIEN d'autre (pas de signature électronique, pas de paiement en ligne des factures, pas de connexion à la banque ni à un logiciel comptable, pas de facture électronique Chorus Pro).",
 };
 
