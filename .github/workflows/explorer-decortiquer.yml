@@ -16,7 +16,7 @@ jobs:
         env: { SUPABASE_ACCESS_TOKEN: "${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}" }
         run: |
           n=$(curl -s -X POST "https://api.supabase.com/v1/projects/fbsjbnnmzazylmquzryo/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" -H "User-Agent: bingoo-ci" \
-            -d '{"query":"select count(*)::int n from public.saas_decortique where (statut = '"'"'attente'"'"' or (statut = '"'"'en_cours'"'"' and at < now() - interval '"'"'40 minutes'"'"')) and essais < 3"}' | python3 -c "import sys,json;print(json.load(sys.stdin)[0]['n'])" || echo 0)
+            -d '{"query":"select count(*)::int n from public.saas_decortique where (statut = '"'"'attente'"'"' or (statut = '"'"'en_cours'"'"' and at < now() - interval '"'"'12 minutes'"'"')) and essais < 3"}' | python3 -c "import sys,json;print(json.load(sys.stdin)[0]['n'])" || echo 0)
           echo "n=$n" >> "$GITHUB_OUTPUT"; echo "À décortiquer : $n"
       - name: REA (paquet npm officiel rea-agents)
         if: steps.file.outputs.n != '0'

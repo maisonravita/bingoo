@@ -265,8 +265,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const au = await autreSaas(ws as { id: string; periode?: string });
     if (au.deja && !au.changement) { const solde = await creditsSolde(ws.id); if (solde < COUT_CREDITS.saas) throw new HttpError(402, MSG_AUTRE(solde)); }
     await quota(ws.id, "lancer", 10);
-    // Une à deux minutes de travail : on répond tout de suite et on prépare le projet en tâche de fond (la page interroge la base)
-    const { saasLancer, saasAdd, saasLire, domaineDe } = await import("../_shared/saas-base.ts");
+    const { saasAdd, domaineDe } = await import("../_shared/saas-base.ts");
     const domaine = domaineDe(String(b.domaine ?? ""));
     if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domaine)) throw new HttpError(400, "Adresse de site invalide");
     // Un SaaS absent de la base y est ajouté, puis lu avant de préparer le projet
@@ -278,37 +277,34 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     // Règle n° 1 : Bingoo! ne lance QUE ce qu'il a vérifié savoir construire en entier (sinon le client paie pour un SaaS qui ne peut pas marcher)
     if (s.constructible_ia === false) throw new HttpError(400, `Bingoo! ne peut pas construire une version qui marche vraiment de ${s.nom ?? domaine} : son cœur repose sur une technologie que Bingoo! ne sait pas faire. Choisis un autre SaaS dans tes résultats.`);
     if (s.constructible_ia !== true) throw new HttpError(400, `${s.nom ?? domaine} n'a pas encore été vérifié par Bingoo! : choisis un SaaS dans tes résultats, ils sont tous vérifiés.`);
-    // REA : on ne lance l'analyse qu'après validation du domaine et de la constructibilité.
-    // Une analyse récente ou déjà en cours est conservée, sans remettre ses essais à zéro.
-    const { data: reaExistante } = await admin.from("saas_decortique")
-      .select("statut, fait_at").eq("domaine", domaine).maybeSingle();
-    const reaFraiche = reaExistante?.statut === "fait" && reaExistante.fait_at
-      && Date.now() - Date.parse(reaExistante.fait_at) < 30 * 864e5;
-    if (!reaFraiche && !["attente", "en_cours", "analyse"].includes(reaExistante?.statut ?? "")) {
-      await admin.from("saas_decortique").upsert({
-        domaine, statut: "attente", essais: 0, at: new Date().toISOString(), demande_par: ws.id, erreur: null,
-      });
-    }
-    // Double lancement (double clic, page rechargée) : on rend la préparation déjà en cours ou prête depuis moins de 30 min, sans repayer l'IA
-    const { data: recent } = await admin.from("saas_projets").select("id, statut").eq("workspace_id", ws.id).eq("saas_id", s.id).in("statut", ["en_cours", "pret"]).gte("at", new Date(Date.now() - 30 * 60e3).toISOString()).order("at", { ascending: false }).limit(1);
-    if (recent?.[0]) return { id: recent[0].id, statut: recent[0].statut };
-    const { data: row } = await admin.from("saas_projets").insert({ workspace_id: ws.id, saas_id: s.id, statut: "en_cours", data: { inspire: { nom: s.nom ?? domaine, domaine }, angle: typeof b.angle === "string" ? b.angle.slice(0, 400) : null } }).select("id").single();
-    await log(ws.id, "lancer", `Projet de SaaS concurrent de ${s.nom ?? domaine}`);
-    const sid = s.id, aLire = s.statut !== "ok";
+    const { data, error } = await admin.rpc("saas_preparer_lancement", {
+      p_workspace: ws.id, p_saas: s.id, p_angle: typeof b.angle === "string" ? b.angle.slice(0, 400) : null,
+    }).single();
+    if (error || !data) throw new Error(error?.message ?? "La préparation n’a pas été enregistrée.");
+    if (data.nouveau) await log(ws.id, "lancer", `Projet de SaaS concurrent de ${s.nom ?? domaine}`);
+    return { id: data.id, statut: data.statut };
+  },
+  async "saas-lancement-cron"(req) {
+    await cron(req);
+    const { data, error } = await admin.rpc("saas_prendre_lancement").maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) return { id: null };
     const travail = (async () => {
-      if (aLire) {
-        await saasLire(sid);
-        const { data: lu } = await admin.from("saas").select("statut").eq("id", sid).single();
-        if (lu?.statut !== "ok") throw new Error("Ce site n'a pas pu être lu comme un logiciel SaaS");
-      }
-      return saasLancer(ws.id, domaine, row!.id, typeof b.angle === "string" ? b.angle.slice(0, 400) : null);
+      const { saasLancer, saasLire } = await import("../_shared/saas-base.ts");
+      const { data: source, error: lecture } = await admin.from("saas").select("statut").eq("id", data.saas_id).single();
+      if (lecture) throw new Error(lecture.message);
+      if (source.statut !== "ok") await saasLire(data.saas_id);
+      await saasLancer(data.workspace_id, data.domaine, data.id, data.angle, data.resultat);
     })().catch(async (e) => {
-      await admin.from("saas_projets").update({ statut: "erreur", erreur: String(e?.message ?? e).slice(0, 300) }).eq("id", row!.id);
+      const { error } = await admin.from("saas_projets")
+        .update({ statut: "erreur", erreur: String(e?.message ?? e).slice(0, 300) })
+        .eq("id", data.id).eq("statut", "en_cours");
+      if (error) console.error("saas-lancement-cron", error.message);
     });
     // deno-lint-ignore no-explicit-any
     const rt = (globalThis as any).EdgeRuntime;
     if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
-    return { id: row!.id, statut: "en_cours" };
+    return { id: data.id };
   },
   // Banc d'essai interne (clé des tâches planifiées) : prépare le projet d'une copie dans un espace de test
   async "saas-qa-lancer"(req, b) {
