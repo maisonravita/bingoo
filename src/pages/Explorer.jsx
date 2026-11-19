@@ -1362,7 +1362,7 @@ function Lancer() {
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <button onClick={generer} disabled={busy || autre === null} className={cx("rounded-xl px-7 py-3.5 font-bold disabled:opacity-60", bloque ? "bg-line text-ink-faint cursor-pointer hover:bg-line" : "bg-accent text-white hover:bg-accent-dark")}>{busy ? "Préparation de ton projet… (une à deux minutes)" : niv(ws) < 2 ? "Disponible avec la formule Lancer" : bloque ? "Préparer mon projet" : autre?.deja ? `Préparer mon projet · ${COUT_AUTRE} crédits` : "Préparer mon projet"}</button>
             {bloque && <a href="#/abonnement#credits" className="rounded-xl bg-ink px-5 py-3.5 font-bold text-white hover:opacity-90">Recharger des crédits</a>}
-            {saas?.id && <a href={`#/explorer/connecteur?saas=${saas.id}&nom=${encodeURIComponent(saas.nom ?? "")}`} className="rounded-xl border border-ink/15 bg-white px-5 py-3.5 font-bold hover:border-ink/40">Construire avec mon IA</a>}
+            {d && <a href={`#/explorer/connecteur?domaine=${encodeURIComponent(d)}&nom=${encodeURIComponent(nomInspi || d)}`} className="rounded-xl border border-ink/15 bg-white px-5 py-3.5 font-bold hover:border-ink/40">Construire avec mon IA</a>}
           </div>
         </div>
       ) : null}
@@ -3812,7 +3812,7 @@ function Connecteur() {
   };
   const copier = async (t) => { try { await navigator.clipboard.writeText(t); toast("Copié", "good"); } catch { toast("Sélectionne le texte pour le copier"); } };
   // Arrivé depuis la fiche d'un SaaS (« Construire avec mon IA ») : la demande à coller dans son IA, toute prête
-  const demandePrete = (() => { const q = new URLSearchParams((window.location.hash.split("?")[1]) ?? ""); const id = q.get("saas"); if (!id) return null; const nom = q.get("nom") || "ce SaaS";
+  const demandePrete = (() => { const q = new URLSearchParams((window.location.hash.split("?")[1]) ?? ""); const id = q.get("saas") || q.get("domaine"); if (!id) return null; const nom = q.get("nom") || "ce SaaS";
     return { nom, texte: `Avec Bingoo!, prépare le SaaS ${id} (${nom}) avec preparer_saas, lis guide_construction, puis construis MA propre version : un nom et une identité originaux, mais la même logique, les mêmes parcours et les mêmes interactions que ${nom}. Propose-moi d'abord ta conception (nom, écrans, données), puis crée-la et écris chaque écran jusqu'à la mise en ligne.` }; })();
   const revoquer = async (id) => { await supabase.from("saas_api_cles").update({ revoquee: true }).eq("id", id); toast("Clé révoquée : l'IA qui l'utilisait n'a plus accès", "good"); charger(); };
   const etapes = [

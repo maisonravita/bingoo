@@ -14,7 +14,7 @@ const snake = (x: unknown, d: string) => String(x ?? "").normalize("NFD").replac
 
 export const OUTILS_CONSTRUIRE = [
   { name: "guide_construction", description: "À lire EN PREMIER avant de construire un SaaS avec Bingoo! : la marche à suivre, le format du SaaS, les 12 familles de logiciels et leurs règles d'interface, le kit de composants (ui.*, useCollection, email, pdf, ia…) et les règles de qualité. Sans argument.", inputSchema: { type: "object", properties: {} } },
-  { name: "preparer_saas", description: "Le dossier pour lancer sa propre version d'un SaaS du catalogue Bingoo! : ce que fait le produit d'origine, ses fonctions relevées sur ses pages publiques, ses prix, sa famille probable et le guide de cette famille. À appeler après avoir choisi un SaaS (chercher_saas, fiche_saas).", inputSchema: { type: "object", properties: { saas_id: { type: "string", description: "Identifiant du SaaS d'origine (champ id de chercher_saas)" } }, required: ["saas_id"] } },
+  { name: "preparer_saas", description: "Le dossier pour lancer sa propre version d'un SaaS du catalogue Bingoo! : ce que fait le produit d'origine, ses fonctions relevées sur ses pages publiques, ses prix, sa famille probable et le guide de cette famille. À appeler après avoir choisi un SaaS (chercher_saas, fiche_saas).", inputSchema: { type: "object", properties: { saas_id: { type: "string", description: "Identifiant du SaaS d'origine (champ id de chercher_saas) ou adresse de son site (ex. notion.so)" } }, required: ["saas_id"] } },
   { name: "creer_saas", description: "Crée le SaaS du membre dans Bingoo! (brouillon hébergé) : nom ORIGINAL, accroche, famille, couleur, collections de données, écrans et pages publiques. Compte comme une construction de l'abonnement. Ensuite, écrire chaque écran avec ecrire_ecran : le SaaS se met en ligne tout seul quand le dernier écran est écrit.", inputSchema: { type: "object", properties: {
     saas_id: { type: "string", description: "SaaS d'origine (facultatif)" }, nom: { type: "string", description: "Nom original, jamais celui du produit d'origine" }, pitch: { type: "string" }, cible: { type: "string" }, slogan: { type: "string" },
     famille: { type: "string", enum: Object.keys(FAMILLES) }, couleur: { type: "string", description: "#xxxxxx, assez foncée pour du texte blanc" },
@@ -97,8 +97,11 @@ export async function appelerConstruire(wsId: string, nom: string, a: any) {
   }
 
   if (nom === "preparer_saas") {
-    const { data: s } = await admin.from("saas").select("id, nom, domaine, description, categorie, cible, prix_entree_eur, formules, micro, pitch_fr, difficulte").eq("id", String(a?.saas_id ?? "")).maybeSingle();
-    if (!s) throw new Error("SaaS introuvable : prends l'id renvoyé par chercher_saas.");
+    // L'identifiant du catalogue, ou simplement l'adresse du site (notion.so)
+    const cle = String(a?.saas_id ?? a?.domaine ?? "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
+    const estId = /^[0-9a-f-]{36}$/.test(cle);
+    const { data: s } = await admin.from("saas").select("id, nom, domaine, description, categorie, cible, prix_entree_eur, formules, micro, pitch_fr, difficulte").eq(estId ? "id" : "domaine", cle).maybeSingle();
+    if (!s) throw new Error("SaaS introuvable : prends l'id renvoyé par chercher_saas, ou l'adresse exacte de son site.");
     const { data: d } = await admin.from("saas_decortique").select("statut, resultat, fait_at").eq("domaine", (s as any).domaine).maybeSingle();
     const r: any = (d as any)?.resultat ?? null;
     // Pas de relevé détaillé (ou trop ancien) : Bingoo! lance l'analyse des pages publiques du produit (quelques minutes)
@@ -131,7 +134,8 @@ export async function appelerConstruire(wsId: string, nom: string, a: any) {
       ecrans.push({ id: `pub_${snake(x?.id ?? x?.titre, "page")}`, titre: String(x?.titre ?? "Page publique").slice(0, 30), icone: "carte", but: String(x?.but ?? "").slice(0, 300), public: true, lecture, ecriture, ...(x?.ia === true ? { ia: true } : {}) });
     }
     const vus = new Set<string>(); for (const e of ecrans) { while (vus.has(e.id)) e.id += "_2"; vus.add(e.id); }
-    const { data: origine } = a?.saas_id ? await admin.from("saas").select("id, nom, domaine, categorie, prix_entree_eur").eq("id", String(a.saas_id)).maybeSingle() : { data: null };
+    const cleO = String(a?.saas_id ?? "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
+    const { data: origine } = cleO ? await admin.from("saas").select("id, nom, domaine, categorie, prix_entree_eur").eq(/^[0-9a-f-]{36}$/.test(cleO) ? "id" : "domaine", cleO).maybeSingle() : { data: null };
     const nomSaas = String(a?.nom ?? "").trim().slice(0, 40);
     if (!nomSaas) throw new Error("Donne un nom original au SaaS.");
     if (origine && nomSaas.toLowerCase().includes(String((origine as any).nom).toLowerCase())) throw new Error(`Le nom doit être original : pas « ${(origine as any).nom} ».`);
