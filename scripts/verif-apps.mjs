@@ -25,11 +25,11 @@ const { FAMILLES } = await import("/tmp/familles.verif.mjs");
 // Contrôle de fidélité (sans IA) : le SaaS ressemble-t-il à sa famille de logiciel, ou à un logiciel de gestion habillé ?
 // Seulement pour les SaaS conçus avec une famille (les plus anciens ne sont pas concernés). Chaque écart part en réparation avec sa consigne.
 const SIGNATURE = {
-  edition: [/ui\.Editeur/, "un vrai éditeur de documents (ui.Editeur) au cœur de l'écran, avec la liste des pages ou documents à côté"],
+  edition: [/ui\.(Editeur|Toile|ConstructeurFormulaire|EditeurVitrine)\b/, "le vrai espace de création du produit : un éditeur de documents (ui.Editeur), une toile de création graphique (ui.Toile) ou un constructeur de formulaires (ui.ConstructeurFormulaire), selon ce que fait le produit d'origine"],
   ia: [/ui\.Chat|\bia\(/, "l'interaction IA du produit (ui.Chat pour une conversation, ou une grande zone de saisie avec un résultat généré par ia())"],
   projets: [/ui\.Kanban/, "un tableau de colonnes personnalisables et de cartes déplaçables (ui.Kanban avec les colonnes du tableau ouvert)"],
   communaute: [/ui\.Fil/, "un fil de publications des membres (ui.Fil) avec une zone pour publier"],
-  contenu: [/ui\.Galerie/, "une galerie de cartes (ui.Galerie) avec recherche et filtres"],
+  contenu: [/ui\.(Galerie|EditeurVitrine|Vitrine)\b/, "une galerie de cartes (ui.Galerie) avec recherche et filtres"],
   reservation: [/ui\.Calendrier|ui\.Creneaux/, "un vrai calendrier des réservations (ui.Calendrier)"],
 };
 function fidelite(spec) {
