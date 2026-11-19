@@ -202,4 +202,71 @@ ui.EditeurVitrine = ({ value, onChange }) => {
       h("div", { class: "rounded-2xl border border-dashed border-slate-300 p-4" }, h("p", { class: "text-sm font-medium mb-2" }, "Ajouter"), h("div", { class: "flex flex-wrap gap-2" }, TYPES_V.map(([t, l]) => h("button", { key: t, onClick: () => ajouter(t), class: "rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm hover:border-[var(--c)] hover:text-[var(--c)]" }, "+ " + l))))),
     h("div", { class: "lg:sticky lg:top-6" }, h("p", { class: "mb-2 text-center text-xs font-medium text-slate-500" }, "Aperçu en direct"), h("div", { class: "mx-auto w-[340px] h-[640px] overflow-y-auto rounded-[2.5rem] border-[10px] border-slate-900 shadow-xl bg-white" }, h(ui.Vitrine, { value: v }))));
 };
+
+// Toile de création (visuels, posts, affiches, bannières) : textes, formes, images ; sélectionner, déplacer, redimensionner, calques, export PNG
+const FORMATS = [["post", "Post carré", 1080, 1080], ["story", "Story", 1080, 1920], ["affiche", "Affiche A4", 1240, 1754], ["banniere", "Bannière", 1500, 500], ["presentation", "Diapositive", 1920, 1080]];
+const POLICES = [["Inter, system-ui, sans-serif", "Moderne"], ["Georgia, serif", "Élégante"], ["'Courier New', monospace", "Machine"], ["Impact, 'Arial Black', sans-serif", "Impact"]];
+const TEINTES_T = ["#0f172a", "#ffffff", "#ef4444", "#f97316", "#eab308", "#22c55e", "#0ea5e9", "#6366f1", "#a855f7", "#ec4899", "#94a3b8"];
+const versToile = (v) => { const x = v && typeof v === "object" ? v : {}; return { largeur: Number(x.largeur) || 1080, hauteur: Number(x.hauteur) || 1080, fond: x.fond || "#ffffff", elements: (Array.isArray(x.elements) ? x.elements : []).map((e, k) => ({ id: e.id || "e" + (k + 1), type: ["texte", "rect", "cercle", "image"].includes(e.type) ? e.type : "texte", x: Number(e.x) || 0, y: Number(e.y) || 0, w: Number(e.w) || 300, h: Number(e.h) || 120, couleur: e.couleur || "#0f172a", texte: String(e.texte ?? ""), taille: Number(e.taille) || 64, police: e.police || POLICES[0][0], gras: !!e.gras, align: ["left", "center", "right"].includes(e.align) ? e.align : "center", src: e.src || "", opacite: e.opacite == null ? 1 : Number(e.opacite), arrondi: Number(e.arrondi) || 0 })) }; };
+const televerser = async (f) => { if (f.size > 4.5e6) throw new Error("Image trop lourde (4,5 Mo au plus)"); const data = await new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = ko; r.readAsDataURL(f); }); return await call("upload", { nom: f.name, type: f.type, data }); };
+const lignesTexte = (ctx, t, w) => { const out = []; String(t).split(NL).forEach((par) => { let l = ""; par.split(" ").forEach((m) => { const essai = l ? l + " " + m : m; if (ctx.measureText(essai).width > w && l) { out.push(l); l = m; } else l = essai; }); out.push(l); }); return out; };
+ui.Toile = ({ value, onChange, nomFichier = "visuel" }) => {
+  const [t, setT] = useState(() => versToile(value)), [sel, setSel] = useState(null), [edit, setEdit] = useState(null);
+  const zone = useRef(null), geste = useRef(null), minuteur = useRef(null), courant = useRef(t);
+  courant.current = t;
+  useEffect(() => { const v = versToile(value); if (JSON.stringify(v) !== JSON.stringify(courant.current) && !geste.current) setT(v); }, [JSON.stringify(value ?? null)]);
+  const pub = (n, tout) => { const x = { ...courant.current, ...n }; setT(x); courant.current = x; clearTimeout(minuteur.current); minuteur.current = setTimeout(() => onChange?.(courant.current), tout ? 0 : 350); };
+  const majE = (id, d) => pub({ elements: courant.current.elements.map((e) => e.id === id ? { ...e, ...d } : e) });
+  const el = t.elements.find((e) => e.id === sel);
+  const ajouter = (type, extra) => { const W = t.largeur, H = t.hauteur; const e = { id: nid(), type, x: W * 0.2, y: H * 0.35, w: W * 0.6, h: type === "texte" ? H * 0.12 : H * 0.3, couleur: type === "texte" ? "#0f172a" : TEINTES_T[6], texte: type === "texte" ? "Votre texte" : "", taille: Math.round(W / 14), police: POLICES[0][0], gras: type === "texte", align: "center", src: "", opacite: 1, arrondi: type === "rect" ? 24 : 0, ...(extra || {}) }; if (type === "cercle") { e.w = e.h = Math.min(W, H) * 0.35; e.x = (W - e.w) / 2; } pub({ elements: [...t.elements, e] }); setSel(e.id); };
+  const echelle = () => { const r = zone.current?.getBoundingClientRect(); return r ? t.largeur / r.width : 1; };
+  const debut = (e, id, mode) => { e.stopPropagation(); e.preventDefault(); setSel(id); setEdit(null); const x = t.elements.find((k) => k.id === id); geste.current = { id, mode, sx: e.clientX, sy: e.clientY, o: { ...x }, k: echelle() }; window.addEventListener("pointermove", bouge); window.addEventListener("pointerup", fin, { once: true }); };
+  const bouge = (e) => { const g = geste.current; if (!g) return; const dx = (e.clientX - g.sx) * g.k, dy = (e.clientY - g.sy) * g.k; if (g.mode === "deplacer") majE(g.id, { x: Math.round(g.o.x + dx), y: Math.round(g.o.y + dy) }); else { const w = Math.max(20, Math.round(g.o.w + dx)), hh = Math.max(20, Math.round(g.o.h + dy)); majE(g.id, g.o.type === "cercle" ? { w, h: w } : { w, h: hh }); } };
+  const fin = () => { window.removeEventListener("pointermove", bouge); geste.current = null; onChange?.(courant.current); };
+  const calque = (d) => { const i = t.elements.findIndex((e) => e.id === sel); const j = i + d; if (i < 0 || j < 0 || j >= t.elements.length) return; const n = [...t.elements]; const [x] = n.splice(i, 1); n.splice(j, 0, x); pub({ elements: n }); };
+  const exporter = async () => {
+    const c = document.createElement("canvas"); c.width = t.largeur; c.height = t.hauteur; const ctx = c.getContext("2d");
+    ctx.fillStyle = t.fond; ctx.fillRect(0, 0, c.width, c.height);
+    for (const e of t.elements) {
+      ctx.save(); ctx.globalAlpha = e.opacite;
+      if (e.type === "rect") { ctx.fillStyle = e.couleur; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(e.x, e.y, e.w, e.h, e.arrondi); else ctx.rect(e.x, e.y, e.w, e.h); ctx.fill(); }
+      else if (e.type === "cercle") { ctx.fillStyle = e.couleur; ctx.beginPath(); ctx.ellipse(e.x + e.w / 2, e.y + e.h / 2, e.w / 2, e.h / 2, 0, 0, Math.PI * 2); ctx.fill(); }
+      else if (e.type === "image" && e.src) { await new Promise((ok) => { const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => { const r = Math.max(e.w / im.width, e.h / im.height), sw = e.w / r, sh = e.h / r; ctx.drawImage(im, (im.width - sw) / 2, (im.height - sh) / 2, sw, sh, e.x, e.y, e.w, e.h); ok(); }; im.onerror = ok; im.src = e.src; }); }
+      else if (e.type === "texte") { ctx.fillStyle = e.couleur; ctx.font = (e.gras ? "700 " : "400 ") + e.taille + "px " + e.police; ctx.textBaseline = "top"; ctx.textAlign = e.align; const ax = e.align === "center" ? e.x + e.w / 2 : e.align === "right" ? e.x + e.w : e.x; lignesTexte(ctx, e.texte, e.w).forEach((l, k) => ctx.fillText(l, ax, e.y + k * e.taille * 1.2)); }
+      ctx.restore();
+    }
+    try { const a = document.createElement("a"); a.href = c.toDataURL("image/png"); a.download = nomFichier + ".png"; a.click(); toast("Image téléchargée"); } catch (x) { toast("Une image empêche l'export : remplacez-la par une image envoyée depuis votre ordinateur", "bad"); }
+  };
+  const k = 100 / t.largeur;
+  const style = (e) => "left:" + e.x * k + "%;top:" + (e.y / t.hauteur) * 100 + "%;width:" + e.w * k + "%;height:" + (e.h / t.hauteur) * 100 + "%;opacity:" + e.opacite;
+  const bouton = (l, f, actif, titre) => h("button", { onClick: f, title: titre || l, class: cls("rounded-lg px-2.5 py-1.5 text-sm", actif ? "bg-slate-900 text-white" : "hover:bg-slate-100") }, l);
+  return h("div", { class: "space-y-3" },
+    h("div", { class: "flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5" },
+      bouton("T Texte", () => ajouter("texte")), bouton("▭ Forme", () => ajouter("rect")), bouton("● Cercle", () => ajouter("cercle")),
+      h("label", { class: "rounded-lg px-2.5 py-1.5 text-sm hover:bg-slate-100 cursor-pointer" }, "🖼 Image", h("input", { type: "file", accept: "image/*", class: "hidden", onChange: async (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; try { const r = await televerser(f); ajouter("image", { src: r.url, couleur: "#000000" }); } catch (x) { toast(x.message, "bad"); } e.target.value = ""; } })),
+      h("span", { class: "mx-1 h-6 w-px bg-slate-200" }),
+      h("select", { class: "rounded-lg border-0 bg-transparent text-sm py-1.5", value: (FORMATS.find((f) => f[2] === t.largeur && f[3] === t.hauteur) || [""])[0], onChange: (e) => { const f = FORMATS.find((x) => x[0] === e.target.value); if (f) pub({ largeur: f[2], hauteur: f[3] }, true); } }, h("option", { value: "" }, t.largeur + " × " + t.hauteur), FORMATS.map(([id, l, w, hh]) => h("option", { key: id, value: id }, l + " (" + w + " × " + hh + ")"))),
+      h("label", { class: "flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-100 cursor-pointer" }, "Fond", h("input", { type: "color", value: t.fond, onInput: (e) => pub({ fond: e.target.value }), class: "w-6 h-6 rounded border-0 bg-transparent p-0" })),
+      h("span", { class: "flex-1" }), h(ui.Button, { onClick: exporter }, "Télécharger en PNG")),
+    el && h("div", { class: "flex flex-wrap items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1.5" },
+      h("div", { class: "flex gap-1 px-1" }, TEINTES_T.map((c) => h("button", { key: c, onClick: () => majE(el.id, { couleur: c }), class: cls("w-6 h-6 rounded-full border", el.couleur === c ? "ring-2 ring-offset-1 ring-slate-900" : "border-slate-200"), style: "background:" + c, title: c })), h("input", { type: "color", value: el.couleur, onInput: (e) => majE(el.id, { couleur: e.target.value }), class: "w-6 h-6 rounded border-0 bg-transparent p-0", title: "Autre couleur" })),
+      el.type === "texte" && h(Fragment, null, h("span", { class: "mx-1 h-6 w-px bg-slate-200" }), h("select", { class: "rounded-lg border-0 bg-transparent text-sm py-1.5", value: el.police, onChange: (e) => majE(el.id, { police: e.target.value }) }, POLICES.map(([v, l]) => h("option", { key: l, value: v }, l))),
+        h("input", { type: "number", min: 8, max: 600, value: el.taille, onInput: (e) => majE(el.id, { taille: Number(e.target.value) || 12 }), class: "w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm", title: "Taille" }),
+        bouton("G", () => majE(el.id, { gras: !el.gras }), el.gras, "Gras"), ["left", "center", "right"].map((a) => bouton(a === "left" ? "⟸" : a === "center" ? "≡" : "⟹", () => majE(el.id, { align: a }), el.align === a, "Alignement")), bouton("Modifier le texte", () => setEdit(el.id))),
+      el.type === "rect" && h("label", { class: "flex items-center gap-1 px-2 text-sm text-slate-500" }, "Arrondi", h("input", { type: "range", min: 0, max: Math.round(Math.min(el.w, el.h) / 2), value: el.arrondi, onInput: (e) => majE(el.id, { arrondi: Number(e.target.value) }) })),
+      h("label", { class: "flex items-center gap-1 px-2 text-sm text-slate-500" }, "Opacité", h("input", { type: "range", min: 10, max: 100, value: Math.round(el.opacite * 100), onInput: (e) => majE(el.id, { opacite: Number(e.target.value) / 100 }) })),
+      h("span", { class: "flex-1" }), bouton("Avancer", () => calque(1), false, "Passer devant"), bouton("Reculer", () => calque(-1), false, "Passer derrière"),
+      bouton("Dupliquer", () => { const c = { ...el, id: nid(), x: el.x + 30, y: el.y + 30 }; pub({ elements: [...t.elements, c] }); setSel(c.id); }), h("button", { class: "rounded-lg px-2.5 py-1.5 text-sm text-red-600 hover:bg-red-50", onClick: () => { pub({ elements: t.elements.filter((e) => e.id !== el.id) }); setSel(null); } }, "Supprimer")),
+    h("div", { class: "rounded-2xl bg-slate-100 p-4 sm:p-8 grid place-items-center", onPointerDown: () => { setSel(null); setEdit(null); } },
+      h("div", { ref: zone, class: "relative w-full shadow-lg overflow-hidden select-none", style: "max-width:" + Math.round(t.largeur >= t.hauteur ? 760 : Math.max(280, 620 * t.largeur / t.hauteur)) + "px;aspect-ratio:" + t.largeur + "/" + t.hauteur + ";background:" + t.fond + ";container-type:inline-size" },
+        t.elements.map((e) => h("div", { key: e.id, onPointerDown: (ev) => debut(ev, e.id, "deplacer"), onDblClick: () => e.type === "texte" && setEdit(e.id), class: cls("absolute cursor-move", sel === e.id && "outline outline-2 outline-sky-500"), style: style(e) },
+          e.type === "rect" ? h("div", { class: "w-full h-full", style: "background:" + e.couleur + ";border-radius:" + (e.arrondi * k) + "cqw" })
+          : e.type === "cercle" ? h("div", { class: "w-full h-full rounded-full", style: "background:" + e.couleur })
+          : e.type === "image" ? (e.src ? h("img", { src: e.src, draggable: false, class: "w-full h-full object-cover pointer-events-none" }) : h("div", { class: "w-full h-full bg-slate-200" }))
+          : edit === e.id ? h("textarea", { ref: (n) => { if (n && document.activeElement !== n) { n.focus(); n.select(); } }, value: e.texte, onPointerDown: (ev) => ev.stopPropagation(), onInput: (ev) => majE(e.id, { texte: ev.target.value }), onBlur: () => setEdit(null), class: "w-full h-full resize-none bg-white/70 outline-none", style: "color:" + e.couleur + ";font-family:" + e.police + ";font-weight:" + (e.gras ? 700 : 400) + ";font-size:" + e.taille * k + "cqw;line-height:1.2;text-align:" + e.align })
+          : h("div", { class: "w-full h-full whitespace-pre-wrap break-words", style: "color:" + e.couleur + ";font-family:" + e.police + ";font-weight:" + (e.gras ? 700 : 400) + ";font-size:" + e.taille * k + "cqw;line-height:1.2;text-align:" + e.align }, e.texte),
+          sel === e.id && h("div", { onPointerDown: (ev) => debut(ev, e.id, "taille"), class: "absolute -right-2 -bottom-2 w-4 h-4 rounded-full bg-white border-2 border-sky-500 cursor-nwse-resize", title: "Redimensionner" })))),
+      !t.elements.length && h("p", { class: "mt-4 text-sm text-slate-500" }, "Ajoutez un texte, une forme ou une image avec la barre ci-dessus.")),
+    h("p", { class: "text-xs text-slate-400" }, "Glissez pour déplacer, tirez le rond bleu pour redimensionner, double-cliquez un texte pour l'écrire."));
+};
 `;

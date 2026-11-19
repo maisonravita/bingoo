@@ -54,6 +54,7 @@ export const FAMILLES: Record<string, Famille> = {
 - Le cœur : un VRAI ÉDITEUR. Utilise ui.Editeur({ value, onChange }) : éditeur en blocs (titres, paragraphes, listes, cases à cocher, citations, séparateurs, menu « / »), la valeur est un tableau de blocs à enregistrer tel quel dans un champ de l'élément (type json). Enregistre automatiquement (onChange différé), affiche « Enregistré ».
 - Mise en page en deux parties : à gauche l'arborescence des pages ou documents (créer, renommer, ranger, favoris, recherche), à droite le document ouvert en grand, avec un titre éditable et une icône emoji.
 - Modèles de pages pour démarrer, aperçu, export PDF (pdf) ou copie du texte.
+- Création graphique (visuels, posts, affiches, présentations) : l'espace principal est ui.Toile ; à côté, la galerie des designs (ui.Galerie) avec « Nouveau design » par format, et des modèles de départ.
 - Constructeur de formulaires ou de sondages (façon formulaire interactif) : ui.ConstructeurFormulaire pour créer, un aperçu avec ui.Questionnaire apercu, la page publique qui affiche ui.Questionnaire et enregistre chaque réponse, et l'écran des réponses (une par une et en synthèse par question).
 - ${SANS_GESTION}`,
   },
