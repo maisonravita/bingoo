@@ -4307,7 +4307,7 @@ function Decortiquer({ s, ws }) {
     <section className="mt-4 rounded-2xl bg-white border border-line p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-bold">{s.nom} décortiqué</h2>
-        <p className="text-[12px] text-ink-faint">{r.source?.pages?.length ?? 0} pages · {r.source?.routes ?? 0} écrans · {r.source?.api ?? 0} appels relevés{d.fait_at ? ` · ${new Date(d.fait_at).toLocaleDateString("fr-FR")}` : ""}</p>
+        <p className="text-[12px] text-ink-faint">{[`${r.source?.pages?.length ?? 0} pages lues`, r.source?.routes ? `${r.source.routes} écrans relevés` : null, r.source?.api ? `${r.source.api} appels relevés` : null, d.fait_at ? new Date(d.fait_at).toLocaleDateString("fr-FR") : null].filter(Boolean).join(" · ")}</p>
       </div>
       {r.resume && <p className="mt-2 text-[14.5px]">{r.resume}</p>}
       <div className="mt-4 grid lg:grid-cols-2 gap-4">
@@ -4321,7 +4321,7 @@ function Decortiquer({ s, ws }) {
           {r.parcours?.length > 0 && <div><h3 className="font-semibold text-[14px]">Parcours client</h3><ol className="mt-2 space-y-1.5 list-decimal pl-5 text-[13.5px]">{r.parcours.map((x, i) => <li key={i}>{x}</li>)}</ol></div>}
           {r.tarifs?.length > 0 && <div><h3 className="font-semibold text-[14px]">Tarifs</h3><div className="mt-2 grid sm:grid-cols-2 gap-2">{r.tarifs.map((t, i) => <div key={i} className="rounded-xl bg-paper px-3 py-2"><p className="text-[13.5px] font-semibold">{t.formule} · {t.prix}</p><p className="text-[12.5px] text-ink-soft">{t.inclus}</p></div>)}</div></div>}
           {r.arguments?.length > 0 && <div><h3 className="font-semibold text-[14px]">Ce qu'il met en avant</h3><ul className="mt-2 space-y-1 text-[13.5px] list-disc pl-5">{r.arguments.map((x, i) => <li key={i}>{x}</li>)}</ul></div>}
-          {(r.technologies?.length > 0 || r.integrations?.length > 0) && <div><h3 className="font-semibold text-[14px]">Technique et intégrations</h3><div className="mt-2 flex flex-wrap gap-1.5">{[...(r.technologies ?? []), ...(r.integrations ?? [])].map((x) => <span key={x} className="rounded-md bg-paper px-2 py-1 text-[12.5px]">{x}</span>)}</div></div>}
+          {(r.technologies?.length > 0 || r.integrations?.length > 0) && <div><h3 className="font-semibold text-[14px]">Technique et intégrations</h3><div className="mt-2 flex flex-wrap gap-1.5">{[...(r.technologies ?? []), ...(r.integrations ?? [])].slice(0, 16).map((x) => <span key={x} className="rounded-md bg-paper px-2 py-1 text-[12.5px]">{x}</span>)}{(r.technologies?.length ?? 0) + (r.integrations?.length ?? 0) > 16 && <span className="px-1 py-1 text-[12.5px] text-ink-faint">et {(r.technologies?.length ?? 0) + (r.integrations?.length ?? 0) - 16} autres</span>}</div></div>}
         </div>
       </div>
       {r.plan && (
