@@ -1,0 +1,25 @@
+name: Vérification des SaaS livrés
+on:
+  workflow_dispatch:
+    inputs:
+      max: { description: "Nombre de SaaS au plus", required: false, default: "15" }
+      slug: { description: "Un seul SaaS (facultatif)", required: false, default: "" }
+      blanc: { description: "1 = mesurer sans rien modifier", required: false, default: "0" }
+  schedule: [{ cron: "*/10 * * * *" }]
+concurrency: { group: verif-apps, cancel-in-progress: false }
+jobs:
+  verif:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm i --no-save --ignore-scripts esbuild@0.24.0 playwright@1.48.2 && npx playwright install --with-deps chromium
+      - name: Vérifier
+        run: node scripts/verif-apps.mjs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}
+          MAX: ${{ github.event.inputs.max || '15' }}
+          SLUG: ${{ github.event.inputs.slug || '' }}
+          BLANC: ${{ github.event.inputs.blanc || '0' }}
