@@ -623,7 +623,6 @@ function Fiche({ domaine }) {
 
       {dort?.score >= 35 && <BlocEndormi d={dort} s={s} />}
       {hist && hist.statut !== "en_cours" && <section className="mt-4"><Histoire h={hist} /></section>}
-      <Decortiquer s={s} ws={ws} />
       {!hist && <button onClick={() => fn("r/saas-histoire-demande", { workspace_id: ws.id, domaine }).then((r) => {
         if (r?.statut !== "en_cours") { if (r?.statut === "ok") supabase.rpc("saas_fiche", { ws: ws.id, d: domaine }).then(({ data: d2 }) => setHist(d2?.histoire ?? null)); return; }
         setHist({ statut: "en_cours" });
