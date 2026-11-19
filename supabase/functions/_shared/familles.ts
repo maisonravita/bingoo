@@ -41,10 +41,9 @@ export const FAMILLES: Record<string, Famille> = {
     label: "Gestion de projets", quand: "tableaux de tâches, projets, sprints, suivi d'équipe, listes et cartes",
     interface: "appli", disposition: "barre", accueil: "« Tableaux » : la liste des tableaux, puis le tableau ouvert en colonnes",
     guide: `FAMILLE : GESTION DE PROJETS (façon tableau de cartes, PAS un logiciel de gestion).
-- Le cœur : des TABLEAUX (collection tableaux), chacun avec SES COLONNES personnalisables (collection colonnes : tableau_id, nom, ordre) que l'utilisateur ajoute, renomme, réordonne et supprime, et des CARTES (collection cartes : tableau_id, colonne_id, titre, description, responsable, echeance, etiquettes, ordre, cases).
-- ui.Kanban avec colonnes = les colonnes du tableau ouvert (pas une liste de statuts figée), champ "colonne_id", glisser-déposer qui enregistre la colonne.
-- Une carte s'ouvre en grand (ui.Modal) : description, responsable, échéance, étiquettes de couleur, liste de cases à cocher avec progression, commentaires.
-- Filtres en pastilles (responsable, étiquette, en retard), et une seconde vue : liste ou calendrier des échéances.
+- Le cœur : des TABLEAUX de colonnes et de cartes, que l'utilisateur organise librement (pas une liste de statuts figée).
+- Utilise ui.Tableau (colonnes personnalisables, cartes glissées, détail complet de carte, filtres) : un tableau = un élément de la collection tableaux (champ json contenu) ; l'écran principal montre la liste des tableaux et le tableau ouvert. Une vue « Mes tâches » (toutes les cartes de tous les tableaux qui me sont confiées, par échéance) et un calendrier des échéances complètent.
+- Le détail de carte, les filtres (responsable, étiquette, en retard) et la recherche sont déjà dans ui.Tableau.
 - ${SANS_GESTION}`,
   },
   edition: {
