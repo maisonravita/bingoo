@@ -14,7 +14,9 @@ export function modeleDe(p: any): string | null {
   const devis = n(/\bdevis\b|factur|\bquotes?\b|invoic|estimat|bons? de commande|acomptes?|relances? de paiement|impay/g);
   // Outil d'écriture par IA : le cœur du produit est un texte écrit par l'IA (CV, posts, articles, guides, réponses…)
   const ecriture = /\bia\b|intelligence artificielle/.test(t) ? n(/r[ée]dig|g[ée]n[èeé]r|[ée]cri(t|re|ture|vain)|reformul|\bcv\b|lettres? de motivation|\bposts?\b|articles?\b|newsletters?\b|copywrit|textes?\b|guides?\b/g) : 0;
-  const best = Math.max(reservation, devis);
+  // CRM : suivi de prospects, d'affaires (pipeline) et de relances commerciales
+  const crm = n(/\bcrm\b|prospect|pipeline|\bleads?\b|opportunit|affaires? (en cours|commerciales?)|suivi commercial|relances? (commerciales?|clients?)|cycle de vente|force de vente|fichier clients?|portefeuille clients?/g);
+  const best = Math.max(reservation, devis, crm);
   // Appli grand public ou communauté (sport, progression, habitudes, révisions…) : pas un modèle de réservation ou de devis,
   // même si elle parle de « séances » ; le générateur libre la conçoit pour la personne elle-même
   const grandPublic = n(/entra[iî]nements?|progression|objectifs?|d[ée]fis?|classements?|communaut|coureurs?|course à pied|musculation|habitudes?|r[ée]visions?|nutrition|calories|journal|records?|motivation|apprentissage/g);
@@ -22,6 +24,7 @@ export function modeleDe(p: any): string | null {
   if (ecriture >= 3 && ecriture > best) return "ecriture";
   // Une mention en passant (« facturation », « une séance ») ne fait pas d'un logiciel de fidélité un outil de devis
   if (best < 3) return null;
+  if (crm >= best && crm > devis && crm > reservation) return "crm";
   return devis > reservation ? "devis" : "reservation";
 }
 
@@ -153,6 +156,7 @@ export function specDevis(perso: any) {
 }
 
 export const FAIT = {
+  crm: "Cette version fait exactement ceci, et rien d'autre : un fichier de contacts (prospects et clients) avec leur historique, un pipeline d'affaires par étapes à faire glisser (nouveau, qualifié, proposition, négociation, gagné, perdu) avec montants et prévision pondérée, des tâches et relances datées (liste et calendrier), l'envoi de vrais e-mails à un contact, un tableau de bord commercial, et un formulaire de contact en ligne qui crée le prospect et lui envoie une confirmation.",
   ecriture: "Cette version fait exactement ceci, et rien d'autre : l'utilisateur choisit un type de texte, remplit quelques champs, et l'IA intégrée écrit le texte ; il l'ajuste en un clic (plus court, plus percutant, plus simple, en anglais), le modifie, le copie ou le télécharge en PDF ; tous ses textes sont rangés et cherchables, avec favoris et duplication ; une page « Mon style » où il décrit qui il est et colle un exemple de son écriture pour que l'IA écrive avec sa voix ; un tableau de bord de son activité ; l'équipe et l'abonnement. Les textes (pitch_site, atouts, formules) ne promettent RIEN d'autre (pas de publication automatique sur les réseaux, pas d'import de fichier ni de lecture de document, pas d'images, pas de détection de plagiat, pas de modèle d'IA au choix, pas d'extension de navigateur).",
   reservation: "Cette version fait exactement ceci, et rien d'autre : un planning en calendrier, le suivi de chaque rendez-vous par étapes (à confirmer, confirmé, terminé, annulé), un fichier clients avec historique et chiffre d'affaires, les offres avec prix et durées, les heures d'ouverture par jour, une page de réservation en ligne où les clients ne voient que les vrais créneaux libres (selon les heures d'ouverture, la durée de l'offre et les rendez-vous déjà pris), le paiement en réservant par le lien de paiement de l'offre (Stripe, PayPal, SumUp…), une salle de visioconférence créée pour chaque rendez-vous des offres en visio, avec e-mail de confirmation et rappel automatique par e-mail la veille, un tableau de bord du chiffre d'affaires, l'import et l'export Excel, l'équipe et l'abonnement. Les textes (pitch_site, atouts, formules) ne promettent RIEN d'autre (pas de SMS, pas de paiement ni d'acompte à la réservation, pas de factures PDF).",
   devis: "Cette version fait exactement ceci, et rien d'autre : un catalogue de prestations avec prix, des devis créés en un clic (lignes, TVA, total), envoyés par e-mail et téléchargeables en PDF, transformés en facture numérotée quand ils sont acceptés, des factures PDF avec mentions légales et IBAN, le suivi des paiements et des retards avec relance par e-mail en un clic, un fichier clients avec ce que chacun a rapporté et doit encore, une page en ligne où les clients demandent un devis, un tableau de bord (encaissé, reste à encaisser, taux d'acceptation), l'import et l'export Excel, l'équipe et l'abonnement. Les textes (pitch_site, atouts, formules) ne promettent RIEN d'autre (pas de signature électronique, pas de paiement en ligne des factures, pas de connexion à la banque ni à un logiciel comptable, pas de facture électronique Chorus Pro).",
@@ -196,5 +200,49 @@ export function specEcriture(perso: any) {
 }
 
 // Aiguillage : personnalisation (IA rapide) et spec de chaque modèle
-export const PERSO: Record<string, (p: any) => string> = { reservation: PERSO_RESERVATION, devis: PERSO_DEVIS, ecriture: PERSO_ECRITURE };
-export const SPEC: Record<string, (perso: any) => any> = { reservation: specReservation, devis: specDevis, ecriture: specEcriture };
+
+export const PERSO_CRM = (p: any) => `Un CRM (suivi des prospects, des affaires et des relances) va être livré pour ce métier : « ${p.nom} » — ${p.pitch}. Pour : ${p.cible}.
+Rendez un objet JSON :
+- b2b : true si ce métier vend surtout à des entreprises, false s'il vend surtout à des particuliers
+- societes : si b2b, 14 noms d'entreprises fictives françaises crédibles pour ses prospects ; sinon []
+- affaires : 10 intitulés courts d'affaires typiques de ce métier (40 caractères max, ex. « Contrat de maintenance annuel »), chacun avec { titre, montant (euros HT, nombre réaliste) }
+- sources : 4 sources de prospects réalistes pour ce métier (ex. « Site web », « Recommandation », « Salon », « LinkedIn »)`;
+
+export function specCrm(perso: any) {
+  const code = MODELES_CODE.crm;
+  const ecrans = [
+    { id: "tableau_bord", titre: "Tableau de bord", icone: "graphique", but: "Ce que vous avez gagné, ce qui est en cours, votre taux de réussite et vos tâches du jour." },
+    { id: "pipeline", titre: "Pipeline", icone: "liste", but: "Vos affaires étape par étape, à faire glisser jusqu'à la signature." },
+    { id: "contacts", titre: "Contacts", icone: "contacts", but: "Vos prospects et clients, leurs affaires, et un e-mail en un clic." },
+    { id: "taches", titre: "Tâches", icone: "horloge", but: "Vos appels, relances et rendez-vous, en liste ou en calendrier." },
+    { id: "pub_contact", titre: "Formulaire de contact", icone: "mail", but: "La page où vos futurs clients vous écrivent : chaque message devient un prospect.", public: true, lecture: [], ecriture: "contacts" },
+  ].map((e) => ({ ...e, code: code[e.id], ok: true, modele: "crm" }));
+  const collections = [
+    { nom: "contacts", label: "Contacts", champs: [{ nom: "nom", type: "texte" }, { nom: "entreprise", type: "texte" }, { nom: "email", type: "email" }, { nom: "telephone", type: "telephone" }, { nom: "statut", type: "choix", valeurs: ["prospect", "client", "perdu"] }, { nom: "source", type: "texte" }, { nom: "derniere_action", type: "date" }, { nom: "notes", type: "texte" }] },
+    { nom: "affaires", label: "Affaires", champs: [{ nom: "titre", type: "texte" }, { nom: "contact_id", type: "texte" }, { nom: "contact_nom", type: "texte" }, { nom: "montant", type: "montant" }, { nom: "etape", type: "choix", valeurs: ["nouveau", "qualifie", "proposition", "negociation", "gagne", "perdu"] }, { nom: "echeance", type: "date" }, { nom: "gagnee_le", type: "date" }, { nom: "notes", type: "texte" }] },
+    { nom: "taches", label: "Tâches", champs: [{ nom: "titre", type: "texte" }, { nom: "type", type: "choix", valeurs: ["appel", "email", "rdv", "relance", "autre"] }, { nom: "contact_id", type: "texte" }, { nom: "contact_nom", type: "texte" }, { nom: "date", type: "date" }, { nom: "fait", type: "booleen" }, { nom: "fait_le", type: "date" }, { nom: "notes", type: "texte" }] },
+  ];
+  let graine = 23; const hasard = () => { graine = (graine * 9301 + 49297) % 233280; return graine / 233280; };
+  const jour = (d: number) => { const x = new Date(); x.setUTCDate(x.getUTCDate() + d); return x.toISOString().slice(0, 10); };
+  const b2b = perso?.b2b !== false;
+  const societes = Array.isArray(perso?.societes) ? perso.societes.map((x: any) => String(typeof x === "string" ? x : x?.nom ?? "")) : [];
+  const sources = (Array.isArray(perso?.sources) && perso.sources.length ? perso.sources.map(String) : ["Site web", "Recommandation", "Salon", "LinkedIn"]).slice(0, 4);
+  const modeles = (Array.isArray(perso?.affaires) && perso.affaires.length ? perso.affaires : [{ titre: "Accompagnement annuel", montant: 4800 }, { titre: "Mission de conseil", montant: 2500 }, { titre: "Formule découverte", montant: 900 }, { titre: "Contrat de maintenance", montant: 3600 }, { titre: "Projet sur mesure", montant: 7500 }])
+    .map((x: any) => ({ titre: String(x?.titre ?? x ?? "").slice(0, 50), montant: Math.max(50, Math.round(Number(x?.montant) || 1500)) })).filter((x: any) => x.titre);
+  const sans = (x: string) => x.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z]+/g, ".");
+  const contacts = PRENOMS.slice(0, 14).map((n, i) => ({ ref: `c${i + 1}`, nom: n, entreprise: b2b ? String(societes[i] ?? "").slice(0, 60) : "", email: sans(n) + "@exemple.fr", telephone: `06 ${String(31 + i).padStart(2, "0")} ${String(20 + i * 5).slice(-2)} 47 ${String(10 + i * 3).slice(-2)}`, statut: i < 5 ? "client" : i === 13 ? "perdu" : "prospect", source: sources[i % sources.length], derniere_action: jour(-Math.round(hasard() * 40)), notes: i === 0 ? "Très bon client, recommande souvent." : "" }));
+  const affaires: any[] = [];
+  // Affaires gagnées sur 6 mois (pour le graphique), puis affaires en cours à chaque étape, et quelques pertes
+  for (let i = 0; i < 9; i++) { const c = contacts[i % 5], md = modeles[i % modeles.length], g = jour(-Math.round(5 + (i / 9) * 165 + hasard() * 10)); affaires.push({ titre: md.titre, contact_id: c.ref, contact_nom: c.nom, montant: Math.round(md.montant * (0.8 + hasard() * 0.5)), etape: "gagne", gagnee_le: g, echeance: g, notes: "" }); }
+  affaires.push({ ...affaires[0], gagnee_le: jour(-2), echeance: jour(-2), titre: modeles[1 % modeles.length].titre, montant: modeles[1 % modeles.length].montant });
+  const enCours = ["nouveau", "nouveau", "qualifie", "qualifie", "qualifie", "proposition", "proposition", "negociation", "negociation"];
+  enCours.forEach((e, i) => { const c = contacts[5 + (i % 8)], md = modeles[(i + 3) % modeles.length]; affaires.push({ titre: md.titre, contact_id: c.ref, contact_nom: c.nom, montant: Math.round(md.montant * (0.8 + hasard() * 0.5)), etape: e, echeance: jour(i === 7 ? -3 : 7 + Math.round(hasard() * 50)), notes: "" }); });
+  [12, 13].forEach((k, i) => { const c = contacts[k], md = modeles[(i + 5) % modeles.length]; affaires.push({ titre: md.titre, contact_id: c.ref, contact_nom: c.nom, montant: md.montant, etape: "perdu", echeance: jour(-20 - i * 30), notes: "Parti chez un concurrent moins cher." }); });
+  const T = [["Rappeler pour la proposition", "appel", 0], ["Envoyer la plaquette", "email", 0], ["Relancer après le devis", "relance", -3], ["Préparer le rendez-vous", "rdv", 2], ["Point mensuel", "appel", 5], ["Relance sans réponse", "relance", -6], ["Démonstration", "rdv", 9], ["Confirmer la date de signature", "appel", 1]];
+  const taches: any[] = T.map(([titre, type, d], i) => { const c = contacts[5 + i % 8]; return { titre: `${titre} — ${c.nom.split(" ")[0]}`, type, contact_id: c.ref, contact_nom: c.nom, date: jour(d as number), fait: false, notes: "" }; });
+  for (let i = 0; i < 10; i++) { const c = contacts[i % 14], d = -Math.round(2 + hasard() * 50); taches.push({ titre: `${["Appel de découverte", "Envoi du devis", "Relance", "Rendez-vous"][i % 4]} — ${c.nom.split(" ")[0]}`, type: ["appel", "email", "relance", "rdv"][i % 4], contact_id: c.ref, contact_nom: c.nom, date: jour(d), fait: true, fait_le: jour(d), notes: "" }); }
+  return { vocab: {}, ecrans, collections, demo: { contacts, affaires, taches }, demo_ancre: jour(0), agenda: { collection: "taches", champ_date: "date", champ_heure: null, duree: 30, champs_titre: ["titre"] } };
+}
+
+export const PERSO: Record<string, (p: any) => string> = { reservation: PERSO_RESERVATION, devis: PERSO_DEVIS, ecriture: PERSO_ECRITURE, crm: PERSO_CRM };
+export const SPEC: Record<string, (perso: any) => any> = { reservation: specReservation, devis: specDevis, ecriture: specEcriture, crm: specCrm };
