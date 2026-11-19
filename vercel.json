@@ -41,7 +41,51 @@
       "destination": "/api/article?a=:a"
     },
     {
-      "source": "/((?!api/|assets/|p/|a/|saas|blog|sitemap)[^.]*)",
+      "source": "/abonnement",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/abonnement/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/aide",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/aide/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/equipe",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/equipe/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/explorer",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/explorer/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/reglages",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/reglages/:path*",
       "destination": "/index.html"
     }
   ]
