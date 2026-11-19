@@ -788,7 +788,7 @@ type Projet = {
   risques: { risque: string; parade: string }[];
   hypotheses: { clients_mois_1: number; croissance_mensuelle_pct: number; churn_mensuel_pct: number; conversion_essai_pct: number };
 };
-export async function saasLancer(wsId: string, domaine: string, projetId?: string, angle?: string | null, analyseRea?: unknown) {
+export async function saasLancer(wsId: string, domaine: string, projetId?: string, angle?: string | null, analyseRea?: unknown, lancementPlanifie = false) {
   const { data: s } = await admin.from("saas").select("id, nom, domaine, categorie, description, cible, pays, prix_entree_eur, gratuit, essai, formules, recrute, postes, tags, methode, liens, prix_rendu, prix_affiche, modele_prix").eq("domaine", domaine.toLowerCase()).eq("statut", "ok").single();
   if (!s) throw new Error("SaaS introuvable");
   // Ce que fait le SaaS, lu sur ses pages publiques (accueil, tarifs) : la liste des fonctionnalités à égaler
@@ -814,10 +814,13 @@ export async function saasLancer(wsId: string, domaine: string, projetId?: strin
   }
   const choisies = candidats.sort((a, b) => b.score - a.score).map((x) => x.u).filter((u) => u !== lien).slice(0, 7);
   const [txtPrix, ...autres] = await Promise.all([s.prix_rendu ? Promise.resolve(String(s.prix_rendu)) : lirePage(lien), ...choisies.map((u) => lirePage(u).catch(() => ""))]);
+  if (lancementPlanifie && analyseRea == null && ![txtAccueil, txtPrix, ...autres].some((texte) => texte.trim().length >= 100)) {
+    throw new Error("Aucune page publique du produit n’a pu être lue. Tu peux relancer la préparation.");
+  }
   const pages = `${txtAccueil.slice(0, 5000)}\n---\n${txtPrix.slice(0, 4000)}`;
   const toutes = [`ACCUEIL\n${txtAccueil.slice(0, 5000)}`, `TARIFS\n${txtPrix.slice(0, 4000)}`, ...autres.map((x, i) => x.trim() ? `${choisies[i]}\n${x.slice(0, 3500)}` : "").filter(Boolean)].join("\n---\n").slice(0, 30000);
   // Le lancement planifié reçoit la synthèse validée lors de la prise en charge.
-  const dec = analyseRea == null
+  const dec = !lancementPlanifie && analyseRea == null
     ? (await admin.from("saas_decortique").select("resultat").eq("domaine", s.domaine).eq("statut", "fait").maybeSingle()).data
     : null;
   const rr: any = analyseRea ?? dec?.resultat;
@@ -837,8 +840,8 @@ Rends un objet JSON :
  "vocabulaire": ["8 à 15 mots du métier des clients"],
  "style": { "theme": "clair|sombre", "densite": "aere|dense", "ton": "3 mots" }
 }`, { fast: true, maxTokens: 3000 }).catch(() => null);
-  if (analyseRea != null && (!Array.isArray(scan?.modules) || !scan.modules.some((m: any) => m?.nom && m?.fait))) {
-    throw new Error("La fiche produit n’a pas pu être préparée à partir de l’analyse REA. Tu peux relancer la préparation.");
+  if (lancementPlanifie && (!Array.isArray(scan?.modules) || !scan.modules.some((m: any) => m?.nom && m?.fait))) {
+    throw new Error("La fiche produit n’a pas pu être préparée à partir des sources publiques. Tu peux relancer la préparation.");
   }
   const { data: h } = await admin.from("saas_histoires").select("annee_creation, chiffres, histoire, lecons").eq("saas_id", s.id).eq("statut", "ok").maybeSingle();
   const { data: conc } = await admin.from("saas").select("nom, pays, prix_entree_eur, gratuit, description").eq("statut", "ok").eq("categorie", s.categorie).neq("id", s.id).order("rang_web", { ascending: true, nullsFirst: false }).limit(12);
@@ -909,11 +912,11 @@ Rends {"formules": [2 ou 3 objets nom + prix (euros par mois, nombre) + pour + i
     `Comptes utilisateurs avec e-mail et mot de passe, abonnement mensuel avec les formules : ${(p.formules ?? []).map((f) => `${f.nom} à ${f.prix} € par mois (${(f.inclus ?? []).join(", ")})`).join(" ; ")}. Essai gratuit de 14 jours.`,
     `Ajoute une page d'accueil publique qui présente le produit et les prix, des mentions légales et une politique de confidentialité conformes au RGPD.`,
   ].join("\n");
-  const data = { ...p, construction, ...(analyseRea != null ? { analyse_rea: true } : {}), ...(scan?.modules?.length ? { scan: { modules: scan.modules.slice(0, 10), parcours: (scan.parcours ?? []).slice(0, 6), formules: String(scan.formules ?? "").slice(0, 400), objections: (scan.objections ?? []).slice(0, 6), vocabulaire: (scan.vocabulaire ?? []).slice(0, 15), style: scan.style ?? null, pages: choisies.length + 2 } } : {}), inspire: { nom: s.nom, domaine: s.domaine, categorie: s.categorie, prix: s.prix_entree_eur, usage: ["usage", "commission"].includes(s.modele_prix ?? "") ? s.prix_affiche : null }, marche: { mediane, prix: prixMarche, concurrents: (conc ?? []).length },
+  const data = { ...p, construction, ...(lancementPlanifie ? { analyse_sources: analyseRea != null ? "rea" : "pages_publiques" } : {}), ...(scan?.modules?.length ? { scan: { modules: scan.modules.slice(0, 10), parcours: (scan.parcours ?? []).slice(0, 6), formules: String(scan.formules ?? "").slice(0, 400), objections: (scan.objections ?? []).slice(0, 6), vocabulaire: (scan.vocabulaire ?? []).slice(0, 15), style: scan.style ?? null, pages: choisies.length + 2 } } : {}), inspire: { nom: s.nom, domaine: s.domaine, categorie: s.categorie, prix: s.prix_entree_eur, usage: ["usage", "commission"].includes(s.modele_prix ?? "") ? s.prix_affiche : null }, marche: { mediane, prix: prixMarche, concurrents: (conc ?? []).length },
     plan: { prix_moyen: prixMoyen, couts_fixes: couts, mois, equilibre: mois.find((x) => x.resultat > 0)?.mois ?? null } };
   if (projetId) {
     let miseAJour = admin.from("saas_projets").update({ data, statut: "pret" }).eq("id", projetId);
-    if (analyseRea != null) miseAJour = miseAJour.eq("statut", "en_cours");
+    if (lancementPlanifie) miseAJour = miseAJour.eq("statut", "en_cours");
     const { error } = await miseAJour;
     if (error) throw new Error(error.message);
     return { id: projetId, ...data };

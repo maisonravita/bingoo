@@ -294,7 +294,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       const { data: source, error: lecture } = await admin.from("saas").select("statut").eq("id", data.saas_id).single();
       if (lecture) throw new Error(lecture.message);
       if (source.statut !== "ok") await saasLire(data.saas_id);
-      await saasLancer(data.workspace_id, data.domaine, data.id, data.angle, data.resultat);
+      await saasLancer(data.workspace_id, data.domaine, data.id, data.angle, data.resultat, true);
     })().catch(async (e) => {
       const { error } = await admin.from("saas_projets")
         .update({ statut: "erreur", erreur: String(e?.message ?? e).slice(0, 300) })
