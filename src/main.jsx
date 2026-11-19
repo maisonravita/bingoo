@@ -13,7 +13,7 @@ if (!import.meta.env.VITE_HASH_ROUTER && window.location.hash.startsWith("#/")) 
   try { window.history.replaceState(null, "", window.location.hash.slice(1)); } catch { /* navigateur ancien */ }
 }
 // Liens directs sans ancre (bingoo.fr/explorer/cal.com) quand le site utilise les ancres : convertis en « /#/explorer/cal.com »
-if (import.meta.env.VITE_HASH_ROUTER && /^\/(abonnement|admin|aide|equipe|explorer|reglages)(\/|$)/.test(window.location.pathname) && !window.location.hash) {
+if (import.meta.env.VITE_HASH_ROUTER && /^\/(abonnement|admin|aide|app|equipe|explorer|reglages)(\/|$)/.test(window.location.pathname) && !window.location.hash) {
   try { window.history.replaceState(null, "", "/#" + window.location.pathname + window.location.search); } catch { /* navigateur ancien */ }
 }
 // Lien de parrainage (?parrain=code) : gardé jusqu'à la création du compte

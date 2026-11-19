@@ -73,6 +73,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/app/:path*",
+      "destination": "/index.html"
+    },
+    {
       "source": "/explorer",
       "destination": "/index.html"
     },

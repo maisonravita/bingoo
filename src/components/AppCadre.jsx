@@ -4,6 +4,19 @@ import { charger } from "../lib/charger";
 // Le gabarit des applications (lourd) n'est chargé que lorsqu'une application s'affiche : la page d'accueil reste légère
 let gabarit = null;
 const chargerGabarit = () => (gabarit ??= charger(() => import("../lib/appShell")));
+// Bingoo! a pu être mis à jour pendant que la page restait ouverte : la coque des SaaS (et ses briques) serait alors périmée,
+// et un SaaS construit avec les nouvelles briques s'afficherait vide. Une fois par visite, on compare au site en ligne et on recharge si besoin.
+let versionVue = false;
+async function verifierVersion() {
+  if (versionVue || import.meta.env.DEV) return; versionVue = true;
+  try {
+    const actuel = document.querySelector('script[type="module"][src*="/assets/index-"]')?.getAttribute("src");
+    if (!actuel) return;
+    const html = await (await fetch(`/?v=${Date.now()}`, { cache: "no-store" })).text();
+    const enLigne = html.match(/\/assets\/index-[\w-]+\.js/)?.[0];
+    if (enLigne && !actuel.endsWith(enLigne) && sessionStorage.getItem("bingoo-recharge") !== enLigne) { sessionStorage.setItem("bingoo-recharge", enLigne); window.location.reload(); }
+  } catch { /* hors ligne : on garde la version chargée */ }
+}
 
 // Un SaaS construit par Bingoo!, affiché dans un cadre isolé : sandbox SANS allow-same-origin, donc le code généré
 // ne peut lire ni la session Bingoo!, ni le stockage du site. La session de l'application est gardée ici, par application.
@@ -26,6 +39,7 @@ function variante(slug, ab) {
 
 export default function AppCadre({ slug, spec, version, paiement, domaine, ab, articles, className, apercu = false, retourPaiement = false, invite = null, tour = false, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null, capture = null }) {
   const [shell, setShell] = useState(null);
+  useEffect(() => { verifierVersion(); }, []);
   useEffect(() => { let vivant = true; chargerGabarit().then((m) => { if (vivant) setShell(() => m.appHtml); }); return () => { vivant = false; }; }, []);
   const doc = useMemo(() => !shell ? null : shell({ spec, slug, api: API, token: tour ? null : lire(slug), apercu, paiement, retour: lienApp(slug, domaine), retourPaiement, ab, variante: variante(slug, ab), invite, tour, articles: articles ?? [], blog: blogApp(slug, domaine), source, ecran, validation, precommande, verif, page, capture }), [shell, slug, version, capture?.join(","), validation?.inscrits, paiement?.actif, paiement?.essai_jours, paiement?.modele, ab?.actif, ab?.ecart, tour]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
