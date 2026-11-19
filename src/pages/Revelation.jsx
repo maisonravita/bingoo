@@ -156,7 +156,7 @@ function Vedette({ s, visible, onConstruire }) {
 
 // ---------------------------------------------------------------- L'atelier, comme Lovable : la conversation à gauche, le SaaS qui se construit à droite.
 // Une fois en ligne, le créateur demande ses changements dans la conversation et les voit apparaître dans l'aperçu.
-const LECTURE = (nom) => [`Analyse des pages publiques de ${nom} avec REA`, "Préparation de la fiche produit et du projet"];
+const LECTURE = (nom) => [`Analyse des pages publiques de ${nom}`, "Lecture des sources et préparation de la fiche produit"];
 // Ce que Bingoo! a réellement décidé pour ta version, présenté comme sa réflexion (questions qu'il se pose, puis sa réponse)
 function penseDe(p) {
   if (!p) return null;
