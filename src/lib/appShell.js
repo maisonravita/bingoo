@@ -285,8 +285,38 @@ ui.Anneau = ({ valeur = 0, max = 100, label, sous, taille = "grand" }) => { cons
       h("circle", { cx: T / 2, cy: T / 2, r: R, fill: "none", stroke: "var(--c)", "stroke-width": W, "stroke-linecap": "round", "stroke-dasharray": C, "stroke-dashoffset": C * (1 - p), style: "transition:stroke-dashoffset .6s" })),
     h("div", { class: "absolute inset-0 grid place-items-center" }, h("span", { class: g ? "text-3xl font-bold" : "text-base font-bold" }, Math.round(p * 100) + "%"))),
     label ? h("p", { class: "mt-2 font-semibold" }, label) : null, sous ? h("p", { class: "text-sm text-slate-500" }, sous) : null); };
+// Créneaux libres (prise de rendez-vous) : jours à venir, heures d'ouverture, sans les créneaux déjà pris ni passés
+// horaires : { 1: [["09:00","12:00"],["14:00","18:00"]], … } (1 = lundi … 7 = dimanche) ; pris : réservations existantes
+const HORAIRES_DEFAUT = { 1: [["09:00", "12:00"], ["14:00", "18:00"]], 2: [["09:00", "12:00"], ["14:00", "18:00"]], 3: [["09:00", "12:00"], ["14:00", "18:00"]], 4: [["09:00", "12:00"], ["14:00", "18:00"]], 5: [["09:00", "12:00"], ["14:00", "18:00"]] };
+const debutDe = (x, champ) => { const v = x?.[champ] ?? x?.debut ?? x?.date_heure ?? (x?.date && x?.heure ? x.date + "T" + x.heure : x?.date); const t = v ? Date.parse(String(v).length <= 10 ? v + "T00:00" : v) : NaN; return isNaN(t) ? null : t; };
+ui.Creneaux = function Creneaux({ duree = 60, pas, pris = [], champ = "debut", horaires, jours = 21, delaiMin = 60, valeur, onChange }) {
+  const H = horaires && Object.keys(horaires).length ? horaires : HORAIRES_DEFAUT;
+  const d = Math.max(5, Number(duree) || 60), P = Math.max(5, Number(pas) || Math.min(d, 30)) * 60e3;
+  const occupes = pris.map((x) => { const t = debutDe(x, champ); if (t == null) return null; const dd = Number(x.duree ?? x.duree_min ?? d) || d; return [t, t + dd * 60e3]; }).filter(Boolean);
+  const min = Date.now() + delaiMin * 60e3;
+  const liste = [];
+  for (let i = 0; i < jours; i++) {
+    const j = new Date(); j.setHours(0, 0, 0, 0); j.setDate(j.getDate() + i);
+    const plages = H[((j.getDay() + 6) % 7) + 1] ?? [];
+    const cr = [];
+    for (const [a, b] of plages) {
+      const [ha, ma] = String(a).split(":").map(Number), [hb, mb] = String(b).split(":").map(Number);
+      const s0 = new Date(j); s0.setHours(ha, ma || 0); const fin = new Date(j); fin.setHours(hb, mb || 0);
+      for (let t = s0.getTime(); t + d * 60e3 <= fin.getTime(); t += P) if (t >= min && !occupes.some(([o0, o1]) => t < o1 && t + d * 60e3 > o0)) cr.push(t);
+    }
+    if (cr.length) liste.push({ jour: j, cr });
+  }
+  const [k, setK] = useState(0);
+  if (!liste.length) return h(ui.Empty, { texte: "Aucun créneau libre pour l'instant." });
+  const J = liste[Math.min(k, liste.length - 1)];
+  const loc = (t) => { const x = new Date(t); return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0") + "T" + String(x.getHours()).padStart(2, "0") + ":" + String(x.getMinutes()).padStart(2, "0"); };
+  return h("div", { class: "space-y-3" },
+    h("div", { class: "flex gap-2 overflow-x-auto pb-1" }, liste.slice(0, 14).map((x, i) => h("button", { type: "button", key: i, onClick: () => setK(i), class: cls("shrink-0 rounded-xl border px-3 py-2 text-center text-sm", i === Math.min(k, liste.length - 1) ? "border-[var(--c)] bg-[var(--c)] text-white" : "border-slate-200 bg-white hover:border-slate-300") },
+      h("span", { class: "block text-[11px] uppercase opacity-80" }, x.jour.toLocaleDateString("fr-FR", { weekday: "short" })), h("span", { class: "block font-semibold" }, x.jour.toLocaleDateString("fr-FR", { day: "numeric", month: "short" }))))),
+    h("div", { class: "grid grid-cols-3 sm:grid-cols-4 gap-2" }, J.cr.map((t) => { const v = loc(t); return h("button", { type: "button", key: t, onClick: () => onChange?.(v), class: cls("rounded-xl border px-2 py-2 text-sm font-semibold tabular-nums", valeur === v ? "border-[var(--c)] bg-[var(--c)] text-white" : "border-slate-200 bg-white hover:border-[var(--c)]") }, new Date(t).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })); })));
+};
 // Chrono et minuteur (séances de sport, révisions, recettes, travail) : bip et vibration à la fin du minuteur
-ui.Chrono = ({ mode = "chrono", duree = 60, titre, onFin, onStop }) => {
+ui.Chrono =({ mode = "chrono", duree = 60, titre, onFin, onStop }) => {
   const [t, setT] = useState(mode === "minuteur" ? Number(duree) || 60 : 0), [on, setOn] = useState(false), ref = useRef(null);
   useEffect(() => { if (!on) return; const id = setInterval(() => setT((x) => mode === "minuteur" ? Math.max(0, x - 1) : x + 1), 1000); return () => clearInterval(id); }, [on]);
   useEffect(() => { if (mode === "minuteur" && on && t === 0) { setOn(false); try { const a = new (window.AudioContext || window.webkitAudioContext)(), o = a.createOscillator(); o.connect(a.destination); o.frequency.value = 880; o.start(); o.stop(a.currentTime + 0.6); } catch {} try { navigator.vibrate?.([300, 120, 300]); } catch {} onFin?.(); } }, [t, on]);
