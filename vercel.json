@@ -39,6 +39,10 @@
     {
       "source": "/blog/:a",
       "destination": "/api/article?a=:a"
+    },
+    {
+      "source": "/((?!api/|assets/|p/|a/|saas|blog|sitemap)[^.]*)",
+      "destination": "/index.html"
     }
   ]
 }
