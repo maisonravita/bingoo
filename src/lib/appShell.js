@@ -64,6 +64,8 @@ const html = htm.bind(h);
 ${CODE_DEMANDER}
 window.demander = demander; window.avertir = avertir;
 const B = window.__BOOT, S = B.spec;
+// Atouts de la page de présentation : ceux fournis, sinon les écrans du SaaS (titre et rôle), pour ne jamais laisser la section vide
+const ATOUTS = (Array.isArray(S.atouts) && S.atouts.length ? S.atouts : (S.ecrans ?? []).filter((e) => !e.public && e.but).slice(0, 6).map((e) => ({ titre: e.titre, texte: e.but, icone: e.icone })));
 // Session : gardée par la page Bingoo! qui encadre l'app (cadre isolé), ou dans le navigateur quand l'app tourne seule (code téléchargé)
 const SEULE = window.parent === window;
 let token = B.token;
@@ -474,6 +476,21 @@ function ApercuAppli() {
   const texte = (x) => { const k = Object.keys(x ?? {}).find((c) => /^(nom|titre|name|libelle)$/.test(c)) ?? Object.keys(x ?? {}).find((c) => typeof x[c] === "string" && x[c].length > 3 && x[c].length < 60 && !/date|email|_id|statut/.test(c)); return k ? String(joli(x[k])).slice(0, 40) : ""; };
   const sous = (x) => { const k = Object.keys(x ?? {}).find((c) => /date|_le$/.test(c)) ?? Object.keys(x ?? {}).find((c) => typeof x[c] === "number"); return k ? String(joli(x[k])).slice(0, 24) : ""; };
   const items = xs.filter((x) => texte(x)).slice(0, 6);
+  // Outils d'édition et de projets : l'aperçu montre leur vrai espace de travail (document ouvert, tableau de cartes), pas une appli « Aujourd'hui »
+  const blocsDe = (x) => Object.values(x ?? {}).find((v) => Array.isArray(v) && v.length && v[0] && typeof v[0] === "object" && "texte" in v[0]);
+  const tableauDe = (x) => Object.values(x ?? {}).find((v) => v && typeof v === "object" && Array.isArray(v.colonnes) && Array.isArray(v.cartes));
+  const avecBlocs = xs.find(blocsDe), avecTableau = xs.find(tableauDe);
+  const fenetre = (enfant) => h("div", { class: "mx-auto max-w-2xl overflow-hidden rounded-2xl bg-white text-left shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/10" },
+    h("div", { class: "flex items-center gap-1.5 border-b border-slate-100 px-4 py-2.5" }, ["#f87171", "#fbbf24", "#34d399"].map((c) => h("span", { key: c, class: "h-2.5 w-2.5 rounded-full", style: "background:" + c })), h("span", { class: "ml-3 text-[11px] text-slate-400" }, S.nom)), enfant);
+  if (S.famille === "projets" && avecTableau) { const t = tableauDe(avecTableau); return fenetre(h("div", { class: "flex gap-3 overflow-hidden bg-slate-50 p-4" }, t.colonnes.slice(0, 3).map((c) => h("div", { key: c.id ?? c.nom, class: "w-1/3 min-w-0 rounded-xl bg-slate-100 p-2" }, h("p", { class: "px-1 pb-2 text-[12px] font-bold text-slate-700" }, c.nom),
+    t.cartes.filter((k) => k.colonne === c.id).slice(0, 3).map((k, i) => h("div", { key: i, class: "mb-2 rounded-lg bg-white p-2 text-[11.5px] font-medium shadow-sm ring-1 ring-slate-200" }, (k.etiquettes ?? []).length > 0 && h("span", { class: "mb-1 block h-1 w-6 rounded-full bg-[var(--c)]" }), k.titre)))))); }
+  if (S.famille === "edition" && avecBlocs) return fenetre(h("div", { class: "grid grid-cols-[150px_1fr]" },
+    h("div", { class: "space-y-1 border-r border-slate-100 bg-slate-50/60 p-3" }, xs.slice(0, 5).map((x, i) => h("p", { key: i, class: cls("truncate rounded-md px-2 py-1 text-[11.5px]", x === avecBlocs ? "bg-white font-semibold text-slate-900 shadow-sm" : "text-slate-500") }, (x.icone ? x.icone + " " : "") + (texte(x) || "Page")))),
+    h("div", { class: "p-5" }, h("p", { class: "text-[20px] font-extrabold text-slate-900" }, (avecBlocs.icone ? avecBlocs.icone + " " : "") + texte(avecBlocs)),
+      h("div", { class: "mt-2 space-y-1" }, blocsDe(avecBlocs).slice(0, 7).map((b, i) => b.type === "h1" || b.type === "h2" ? h("p", { key: i, class: "pt-1 text-[14px] font-bold text-slate-900" }, b.texte)
+        : b.type === "todo" ? h("p", { key: i, class: cls("text-[12px]", b.fait ? "text-slate-400 line-through" : "text-slate-700") }, (b.fait ? "☑ " : "☐ ") + b.texte)
+        : b.type === "quote" ? h("p", { key: i, class: "border-l-2 border-[var(--c)] pl-2 text-[12px] italic text-slate-500" }, b.texte)
+        : h("p", { key: i, class: "text-[12px] text-slate-700" }, (b.type === "ul" ? "• " : "") + b.texte))))));
   // Résultat d'un outil : un chiffre calculé (rendement, score, total…) plutôt qu'une date de création
   const resultat = (x) => {
     const ks = Object.keys(x ?? {}).filter((c) => typeof x[c] === "number");
@@ -648,7 +665,7 @@ function Visite() {
 }
 // Formules équilibrées : chaque formule annonce au moins 3 avantages (les suivantes reprennent la précédente)
 function formulesPleines(f) {
-  const atouts = (S.atouts ?? []).map((a) => a.titre).filter(Boolean);
+  const atouts = ATOUTS.map((a) => a.titre).filter(Boolean);
   return f.map((x, i) => {
     let inclus = [...(x.inclus ?? [])];
     if (i > 0 && inclus.length < 3) inclus = ["Tout ce que contient " + f[i - 1].nom, ...inclus];
@@ -659,12 +676,12 @@ function formulesPleines(f) {
 
 function Site({ onAuth }) {
   const f = formulesPleines(S.formules ?? []);
-  const icones = iconesUniques(S.atouts ?? []);
+  const icones = iconesUniques(ATOUTS);
   const probleme = sansRevendication(S.probleme);
   useEffect(() => { if (!B.apercu) call("vue", { variante: VARIANTE, source: B.source }).catch(() => {}); }, []);
   const ecr = (S.ecrans ?? []).filter((e) => !e.public && e.but);
   const col0 = ((S.collections ?? [])[0]?.label ?? "vos données").toLowerCase();
-  const etapes = [["Créez votre compte", "En une minute, sans carte bancaire" + (ESSAI ? " : " + ESSAI + " jours pour tout essayer." : ".")], ["Ajoutez vos " + col0, "Importez ou saisissez ce que vous avez déjà, tout est rangé au même endroit."], [(S.atouts ?? [])[0]?.titre ?? "Gagne du temps", ((S.atouts ?? [])[0]?.texte ?? "Le reste se fait tout seul, vous vous concentrez sur votre métier.")]];
+  const etapes = [["Créez votre compte", "En une minute, sans carte bancaire" + (ESSAI ? " : " + ESSAI + " jours pour tout essayer." : ".")], ["Ajoutez vos " + col0, "Importez ou saisissez ce que vous avez déjà, tout est rangé au même endroit."], [ATOUTS[0]?.titre ?? "Gagne du temps", (ATOUTS[0]?.texte ?? "Le reste se fait tout seul, vous vous concentrez sur votre métier.")]];
   const faq = [...(S.faq ?? []).filter((x) => x?.q && x?.r).map((x) => [x.q, x.r]), ["Est-ce que je peux essayer gratuitement ?", ESSAI ? "Oui : " + ESSAI + " jours d'essai, sans carte bancaire. Vous ne payez que si vous continuez." : "Oui, vous pouvez créer votre compte et découvrir l'outil avant de vous abonner."], ["Je suis engagé sur combien de temps ?", "Sur aucune durée : vous arrêtez quand vous voulez, en un clic depuis votre compte."], ["Mes données sont-elles en sécurité ?", "Elles sont hébergées en Europe, sauvegardées, et vous pouvez les exporter ou les supprimer à tout moment."], ["Je peux inviter mon équipe ?", "Oui, invitez vos collaborateurs et choisissez ce que chacun peut voir ou modifier."]];
   const hero = STY.hero ?? "cote";
   const fonce = hero === "sombre" || hero === "degrade";
@@ -681,7 +698,7 @@ function Site({ onAuth }) {
   \${probleme && html\`<section class="py-20"><div class="max-w-3xl mx-auto px-5 text-center"><p class="text-sm font-semibold text-[var(--c)] uppercase tracking-wide">Le problème</p><p class="fh mt-3 text-2xl sm:text-3xl font-semibold leading-snug">\${probleme}</p></div></section>\`}
   \${html\`<\${Visite}/>\`}
   <section id="fonctions" class=\${cls("py-20", VAR_PAGE === 0 ? "bg-slate-50" : VAR_PAGE === 1 ? "bg-white border-y border-slate-100" : "bg-[var(--c)]/[0.04]")}><div class="max-w-6xl mx-auto px-5"><p class="text-center text-sm font-semibold text-[var(--c)] uppercase tracking-wide">Fonctionnalités</p><h2 class="mt-2 text-3xl sm:text-4xl font-bold text-center tracking-tight">Tout ce qu'il vous faut, au même endroit</h2>
-    <div class="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">\${(S.atouts ?? []).map((a, k) => html\`<div class=\${cls("rounded-2xl p-6 transition", VAR_PAGE === 1 ? "bg-transparent border-l-4 border-[var(--c)] rounded-none pl-5" : "bg-white border border-slate-200/80", VAR_PAGE === 2 && k === 0 && "sm:col-span-2 lg:row-span-2 bg-[var(--c)]/5", "hover:shadow-lg hover:shadow-slate-900/5")}><span class="w-11 h-11 rounded-xl bg-[var(--c)]/10 text-[var(--c)] grid place-items-center"><\${Icone} nom=\${icones[k]}/></span><p class="mt-4 font-semibold text-[17px]">\${a.titre}</p><p class="mt-1.5 text-slate-500 text-[15px] leading-relaxed">\${a.texte}</p></div>\`)}</div></div></section>
+    <div class="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">\${ATOUTS.map((a, k) => html\`<div class=\${cls("rounded-2xl p-6 transition", VAR_PAGE === 1 ? "bg-transparent border-l-4 border-[var(--c)] rounded-none pl-5" : "bg-white border border-slate-200/80", VAR_PAGE === 2 && k === 0 && "sm:col-span-2 lg:row-span-2 bg-[var(--c)]/5", "hover:shadow-lg hover:shadow-slate-900/5")}><span class="w-11 h-11 rounded-xl bg-[var(--c)]/10 text-[var(--c)] grid place-items-center"><\${Icone} nom=\${icones[k]}/></span><p class="mt-4 font-semibold text-[17px]">\${a.titre}</p><p class="mt-1.5 text-slate-500 text-[15px] leading-relaxed">\${a.texte}</p></div>\`)}</div></div></section>
   <section class=\${cls("py-20", VAR_PAGE === 1 && "bg-slate-950 text-white")}><div class="max-w-6xl mx-auto px-5"><h2 class="text-3xl sm:text-4xl font-bold text-center tracking-tight">Prêt en 3 étapes</h2>
     <div class="mt-12 grid md:grid-cols-3 gap-8">\${etapes.map(([t, d], i) => html\`<div><span class="fh text-5xl font-extrabold text-[var(--c)]/25">\${"0" + (i + 1)}</span><p class="mt-2 font-semibold text-lg">\${t}</p><p class=\${cls("mt-1", VAR_PAGE === 1 ? "text-white/60" : "text-slate-500")}>\${d}</p></div>\`)}</div>
     \${ecr.length > 1 && html\`<div class="mt-16 grid sm:grid-cols-2 gap-x-10 gap-y-5 max-w-4xl mx-auto">\${ecr.slice(0, 8).map((e) => html\`<div class="flex gap-3"><span class="mt-0.5 w-8 h-8 shrink-0 rounded-lg bg-[var(--c)]/10 text-[var(--c)] grid place-items-center"><\${Icone} nom=\${e.icone ?? iconeDe(e.titre)} class="w-4 h-4"/></span><div><p class="font-semibold">\${e.titre}</p><p class=\${cls("text-sm", VAR_PAGE === 1 ? "text-white/60" : "text-slate-500")}>\${e.but}</p></div></div>\`)}</div>\`}</div></section>
@@ -735,7 +752,7 @@ function Precommande() {
     \${V.inscrits >= 5 && html\`<p class="mt-3 text-sm text-slate-400">\${V.inscrits} personnes attendent déjà l'ouverture</p>\`}
   </section>
   \${S.probleme && html\`<section class="bg-slate-50 py-14"><div class="max-w-3xl mx-auto px-5 text-center"><p class="text-sm font-semibold text-[var(--c)] uppercase tracking-wide">Le problème</p><p class="mt-3 text-2xl font-semibold leading-snug">\${S.probleme}</p></div></section>\`}
-  \${(S.atouts ?? []).length > 0 && html\`<section class="max-w-6xl mx-auto px-5 py-16"><h2 class="text-3xl font-bold text-center">Ce que \${S.nom} va faire pour vous</h2><div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">\${S.atouts.map((a) => html\`<div class="rounded-2xl border border-slate-200 p-5"><p class="font-semibold">\${a.titre}</p><p class="mt-1 text-sm text-slate-500">\${a.texte}</p></div>\`)}</div></section>\`}
+  \${ATOUTS.length > 0 && html\`<section class="max-w-6xl mx-auto px-5 py-16"><h2 class="text-3xl font-bold text-center">Ce que \${S.nom} va faire pour vous</h2><div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">\${S.atouts.map((a) => html\`<div class="rounded-2xl border border-slate-200 p-5"><p class="font-semibold">\${a.titre}</p><p class="mt-1 text-sm text-slate-500">\${a.texte}</p></div>\`)}</div></section>\`}
   \${f.length > 0 && PAY.actif && html\`<section class="bg-slate-50 py-16"><div class="max-w-5xl mx-auto px-5"><h2 class="text-3xl font-bold text-center">Réservez votre prix de lancement</h2><p class="mt-2 text-center text-slate-500">\${UNIQUE ? "Paiement unique, accès à vie." : "Vous payez votre premier mois aujourd'hui, avec la remise des premiers clients."}</p>
     <div class=\${"mt-10 grid gap-4 " + (f.length > 2 ? "md:grid-cols-3" : "md:grid-cols-2")}>\${f.map((x, i) => html\`<div class="rounded-2xl p-5 border bg-white border-slate-200"><p class="font-semibold">\${x.nom}</p><p class="mt-1"><span class="text-3xl font-extrabold">\${fmt.eur(reduit(x.prix))}</span>\${remise ? html\` <span class="text-slate-400 line-through">\${fmt.eur(x.prix)}</span>\` : ""}<span class="text-sm text-slate-400">\${UNIQUE ? " une fois" : " le 1er mois"}</span></p><p class="text-sm text-slate-500">\${x.pour}</p><ul class="mt-3 space-y-1.5 text-sm">\${(x.inclus ?? []).map((t) => html\`<li class="flex gap-2"><span class="text-[var(--c)]"><\${Icone} nom="check" class="w-4 h-4"/></span>\${t}</li>\`)}</ul><\${ui.Button} class="w-full mt-5" disabled=\${busy !== null} onClick=\${() => precommander(i)}>\${busy === i ? "Redirection…" : "Précommander"}</\${ui.Button}></div>\`)}</div></div></section>\`}
   <footer class="max-w-6xl mx-auto px-5 py-10 text-sm text-slate-400 flex justify-between"><span>© \${new Date().getFullYear()} \${S.nom}</span><span>Construit avec Bingoo!</span></footer></div>\`;

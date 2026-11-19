@@ -24,11 +24,14 @@ export const OUTILS_CONSTRUIRE = [
     ecrans: { type: "array", description: "Écrans de l'application, le premier est l'espace principal du produit", items: { type: "object", properties: { id: { type: "string" }, titre: { type: "string" }, icone: { type: "string", enum: ICONES }, but: { type: "string" } } } },
     pages_publiques: { type: "array", description: "Pages ouvertes sans compte par les clients du membre (réservation, formulaire, vitrine…)", items: { type: "object", properties: { id: { type: "string" }, titre: { type: "string" }, but: { type: "string" }, lecture: { type: "array", items: { type: "string" } }, ecriture: { type: "string" }, ia: { type: "boolean" } } } },
     demo: { type: "object", description: "Données d'exemple : { <collection>: [ 6 à 12 éléments réalistes ] }" },
+    atouts: { type: "array", description: "3 à 6 atouts pour la page de présentation : { titre (5 mots), texte (une phrase concrète) }", items: { type: "object", properties: { titre: { type: "string" }, texte: { type: "string" } } } },
+    faq: { type: "array", description: "3 à 5 questions fréquentes : { q, r }", items: { type: "object", properties: { q: { type: "string" }, r: { type: "string" } } } },
   }, required: ["nom", "pitch", "famille", "collections", "ecrans"] } },
   { name: "ecrire_ecran", description: "Enregistre le code d'un écran (une fonction Ecran en Preact + htm, voir guide_construction). Bingoo! vérifie la syntaxe et retire toute trace du produit d'origine. Sert aussi à améliorer un écran d'un SaaS déjà en ligne (nouvelle version publiée aussitôt, puis revérifiée par le robot).", inputSchema: { type: "object", properties: { app_id: { type: "string" }, ecran_id: { type: "string" }, code: { type: "string" } }, required: ["app_id", "ecran_id", "code"] } },
   { name: "modifier_saas", description: "Fait évoluer un SaaS du membre, sans limite : identité (nom, accroche, couleur, style, formules), nouvelles collections ou nouveaux champs, nouveaux écrans ou pages publiques (avec leur code), écrans retirés, renommés ou réordonnés, données d'exemple. Les changements d'un SaaS en ligne sont publiés aussitôt (nouvelle version revérifiée par le robot). Pour réécrire un écran existant, utilise ecrire_ecran.", inputSchema: { type: "object", properties: {
     app_id: { type: "string" }, nom: { type: "string" }, pitch: { type: "string" }, slogan: { type: "string" }, couleur: { type: "string" }, style: { type: "string" },
     formules: { type: "array", items: { type: "object" } },
+    atouts: { type: "array", items: { type: "object", description: "{ titre, texte }" } }, faq: { type: "array", items: { type: "object", description: "{ q, r }" } },
     ajouter_collections: { type: "array", items: { type: "object", description: "{ nom, label, partage?, champs: [{ nom, type, valeurs? }] }" } },
     ajouter_champs: { type: "array", items: { type: "object", description: "{ collection, champs: [{ nom, type, valeurs? }] }" } },
     ajouter_ecrans: { type: "array", items: { type: "object", description: "{ id, titre, icone, but, code, public?: true, lecture?: [collections], ecriture?: collection } : le code est obligatoire" } },
@@ -146,6 +149,8 @@ export async function appelerConstruire(wsId: string, nom: string, a: any) {
       famille, interface: F.interface, disposition: F.disposition, forme: "arrondi", fond: "blanc",
       formules: (Array.isArray(a?.formules) ? a.formules : []).slice(0, 3).filter((f: any) => f?.nom).map((f: any) => ({ nom: String(f.nom).slice(0, 40), prix: Number(f.prix) || 0, pour: String(f.pour ?? "").slice(0, 120), inclus: (Array.isArray(f.inclus) ? f.inclus : []).slice(0, 5).map((x: any) => String(x).slice(0, 90)) })),
       collections, ecrans, demo, construit_par: "ia_membre",
+      atouts: (Array.isArray(a?.atouts) ? a.atouts : []).slice(0, 6).filter((x: any) => x?.titre).map((x: any) => ({ titre: String(x.titre).slice(0, 50), texte: String(x.texte ?? "").slice(0, 200) })),
+      faq: (Array.isArray(a?.faq) ? a.faq : []).slice(0, 6).filter((x: any) => x?.q && x?.r).map((x: any) => ({ q: String(x.q).slice(0, 140), r: String(x.r).slice(0, 400) })),
     };
     const spec = origine ? sansIdentite(spec0, { nom: (origine as any).nom, domaine: (origine as any).domaine }, nomSaas).valeur : spec0;
     await limiteMois(wsId, ws?.plan, "construire");
@@ -184,6 +189,8 @@ export async function appelerConstruire(wsId: string, nom: string, a: any) {
     if (a?.slogan) { s.slogan = String(a.slogan).slice(0, 90); fait.push("slogan"); }
     if (/^#[0-9a-f]{6}$/i.test(a?.couleur ?? "")) { s.couleur = a.couleur; fait.push("couleur"); }
     if (a?.style) { s.style = String(a.style).slice(0, 20); fait.push("style"); }
+    if (Array.isArray(a?.atouts)) { s.atouts = a.atouts.slice(0, 6).filter((x: any) => x?.titre).map((x: any) => ({ titre: String(x.titre).slice(0, 50), texte: String(x.texte ?? "").slice(0, 200) })); fait.push("atouts"); }
+    if (Array.isArray(a?.faq)) { s.faq = a.faq.slice(0, 6).filter((x: any) => x?.q && x?.r).map((x: any) => ({ q: String(x.q).slice(0, 140), r: String(x.r).slice(0, 400) })); fait.push("questions fréquentes"); }
     if (Array.isArray(a?.formules)) { s.formules = a.formules.slice(0, 3).filter((f: any) => f?.nom).map((f: any) => ({ nom: String(f.nom).slice(0, 40), prix: Number(f.prix) || 0, pour: String(f.pour ?? "").slice(0, 120), inclus: (Array.isArray(f.inclus) ? f.inclus : []).slice(0, 5).map((x: any) => String(x).slice(0, 90)) })); fait.push("formules"); }
     s.collections = Array.isArray(s.collections) ? s.collections : [];
     for (const [i, c] of (Array.isArray(a?.ajouter_collections) ? a.ajouter_collections : []).entries()) { const n = colDe(c, s.collections.length + i); if (s.collections.some((x: any) => x.nom === n.nom)) throw new Error(`La collection ${n.nom} existe déjà : utilise ajouter_champs.`); s.collections.push(n); fait.push(`collection ${n.nom}`); }
