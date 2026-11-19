@@ -261,6 +261,19 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   async "saas-lancer"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     if (ws.plan === "explorer") throw new HttpError(402, "« Lancer le même » est dans la formule Lancer.");
+    // REA : chaque SaaS lancé est ajouté automatiquement à la file d'analyse.
+    // Si une analyse récente existe ou est déjà en cours, on la conserve : ne pas remettre
+    // à zéro les essais ni interrompre le travail du navigateur GitHub Actions.
+    const domaineRea = String(b.domaine ?? "").toLowerCase().trim().replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0];
+    const { data: reaExistante } = await admin.from("saas_decortique")
+      .select("statut, fait_at").eq("domaine", domaineRea).maybeSingle();
+    const reaFraiche = reaExistante?.statut === "fait" && reaExistante.fait_at
+      && Date.now() - Date.parse(reaExistante.fait_at) < 30 * 864e5;
+    if (!reaFraiche && !["attente", "en_cours", "analyse"].includes(reaExistante?.statut ?? "")) {
+      await admin.from("saas_decortique").upsert({
+        domaine: domaineRea, statut: "attente", essais: 0, at: new Date().toISOString(), demande_par: ws.id, erreur: null,
+      });
+    }
     // Déjà un SaaS construit : pas de préparation (payante en IA) sans le droit d'en construire un autre
     const au = await autreSaas(ws as { id: string; periode?: string });
     if (au.deja && !au.changement) { const solde = await creditsSolde(ws.id); if (solde < COUT_CREDITS.saas) throw new HttpError(402, MSG_AUTRE(solde)); }
