@@ -44,7 +44,7 @@ export function specReservation(perso: any) {
   const code = MODELES_CODE.reservation;
   const ecrans = [
     { id: "tableau_bord", titre: "Tableau de bord", icone: "graphique", but: "Votre chiffre d'affaires, vos demandes à confirmer et vos prochains " + V.rdvs.toLowerCase() + "." },
-    { id: "planning", titre: "Planning", icone: "agenda", but: "Le calendrier du mois : ajoute et déplace vos " + V.rdvs.toLowerCase() + " en un clic." },
+    { id: "planning", titre: "Planning", icone: "agenda", but: "Le calendrier du mois : ajoutez et déplacez vos " + V.rdvs.toLowerCase() + " en un clic." },
     { id: "rendezvous", titre: V.rdvs.slice(0, 24), icone: "liste", but: "Suivez chaque " + V.rdv.toLowerCase() + " par étape, de la demande au paiement." },
     { id: "clients", titre: V.clients.slice(0, 24), icone: "contacts", but: "Votre fichier " + V.clients.toLowerCase() + " avec leur historique et ce qu'ils vous ont rapporté." },
     { id: "prestations", titre: V.prestas.slice(0, 24), icone: "tag", but: "Vos offres, vos prix et vos durées." },
@@ -62,7 +62,8 @@ export function specReservation(perso: any) {
   // Données d'exemple vivantes : 3 mois d'activité cohérente (le passé est terminé, l'avenir est confirmé ou à confirmer)
   const prestations = (Array.isArray(perso?.prestations) && perso.prestations.length ? perso.prestations : [{ nom: "Prestation standard", prix: 60, duree: 60, description: "La formule la plus demandée." }, { nom: "Prestation longue", prix: 110, duree: 120, description: "Pour les besoins plus importants." }])
     .slice(0, 6).map((x: any, i: number) => ({ ref: `p${i + 1}`, nom: String(x.nom ?? "").slice(0, 60), prix: Number(x.prix) || 50, duree: Number(x.duree) || 60, description: String(x.description ?? "").slice(0, 200), actif: true }));
-  const inter = (Array.isArray(perso?.intervenants) && perso.intervenants.length ? perso.intervenants : ["Julie Mercier", "Karim Benali", "Pauline Roche"]).slice(0, 3).map(String);
+  const inter = (Array.isArray(perso?.intervenants) && perso.intervenants.length ? perso.intervenants : ["Julie Mercier", "Karim Benali", "Pauline Roche"]).slice(0, 3).map((x: any) => typeof x === "string" ? x : String(x?.nom ?? x?.name ?? "")).filter(Boolean);
+  if (!inter.length) inter.push("Julie Mercier");
   const clients = PRENOMS.slice(0, 15).map((n, i) => ({ ref: `c${i + 1}`, nom: n, email: n.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ /g, ".") + "@exemple.fr", telephone: `06 ${String(12 + i).padStart(2, "0")} ${String(34 + i * 3).slice(-2)} 56 ${String(70 + i).slice(-2)}`, notes: i % 4 === 0 ? "Client fidèle, préfère le matin." : "" }));
   let graine = 7; const hasard = () => { graine = (graine * 9301 + 49297) % 233280; return graine / 233280; };
   const jour = (d: number) => { const x = new Date(); x.setUTCDate(x.getUTCDate() + d); return x.toISOString().slice(0, 10); };
