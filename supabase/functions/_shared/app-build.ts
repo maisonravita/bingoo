@@ -306,7 +306,11 @@ export async function saasEcrireEcran(appId: string, ecranId: string) {
   const spec = app?.brouillon as any;
   const e = spec?.ecrans?.find((x: any) => x.id === ecranId);
   if (!e) return;
-  const r = await ecrire(spec, e).catch((x) => { console.error("ecran", ecranId, x); return { code: "", ok: false }; });
+  let pause = false;
+  const r = await ecrire(spec, e).catch((x) => { console.error("ecran", ecranId, x); if (/plafond|pause de sécurité|crédit ia/i.test(String(x?.message ?? x))) pause = true; return { code: "", ok: false }; });
+  // Plafond d'IA atteint en pleine construction : l'écran n'est PAS retiré (avant, un SaaS pouvait perdre son écran principal) ;
+  // la construction se met en pause et le surveillant (saas-app-envois) la reprend dès que l'IA est de nouveau disponible
+  if (pause) { await admin.from("saas_apps").update({ etape: "En pause : reprise automatique dès que possible", maj: new Date().toISOString() }).eq("id", appId); return; }
   r.code = await inspireDe(appId).then((o) => sansIdentite(r.code, o, spec.nom).valeur);
   const { data: fin } = await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: ecranId, p_code: r.code, p_ok: r.ok });
   if (fin === "pret") { await verifierPromesses(appId).catch((x) => console.error("promesses", x)); await corrigerAccroche(appId).catch((x) => console.error("accroche", x)); }

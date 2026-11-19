@@ -982,8 +982,15 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const { appEnvoisCron } = await import("../_shared/app-mails.ts");
     const envois = await appEnvoisCron();
     // Constructions bloquées (invocation coupée en route) : relancées une fois, puis signalées
-    const { data: bloquees } = await admin.from("saas_apps").select("id, projet_id, workspace_id, etape").eq("statut", "en_cours").lt("maj", new Date(Date.now() - 11 * 60e3).toISOString()).limit(5);
+    const { data: bloquees } = await admin.from("saas_apps").select("id, projet_id, workspace_id, etape").eq("statut", "en_cours").not("etape", "like", "En pause%").lt("maj", new Date(Date.now() - 11 * 60e3).toISOString()).limit(5);
     const cle = await secret("cron_key");
+    // Constructions en pause (plafond d'IA atteint) : on relance les écrans encore vides toutes les 15 minutes ; s'il est encore atteint, elles restent en pause
+    const { data: pauses } = await admin.from("saas_apps").select("id, workspace_id, brouillon").eq("statut", "en_cours").like("etape", "En pause%").lt("maj", new Date(Date.now() - 15 * 60e3).toISOString()).limit(5);
+    for (const a of (pauses ?? []) as any[]) {
+      const vides = ((a.brouillon?.ecrans ?? []) as any[]).filter((e) => !e.code).map((e) => e.id);
+      await admin.from("saas_apps").update({ etape: `Reprise de l'écriture des écrans (${vides.length} restants)`, maj: new Date().toISOString() }).eq("id", a.id);
+      for (const ecran of vides) await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/r/saas-app-ecran`, { method: "POST", headers: { "content-type": "application/json", "x-cron-key": cle }, body: JSON.stringify({ app_id: a.id, ecran, ws: a.workspace_id }) }).catch(() => null);
+    }
     for (const a of (bloquees ?? []) as any[]) {
       if (/2e essai/.test(a.etape ?? "")) { await admin.from("saas_apps").update({ statut: "erreur", erreur: "La construction n'a pas abouti. Relance-la : la plupart du temps, le deuxième passage réussit.", etape: null }).eq("id", a.id); continue; }
       await admin.from("saas_apps").update({ etape: "Démarrage (2e essai)", maj: new Date(Date.now() - 11 * 60e3).toISOString() }).eq("id", a.id);
