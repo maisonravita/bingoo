@@ -509,7 +509,8 @@ function Apercu() {
   if (S.interface && S.interface !== "gestion") return h(ApercuAppli);
   const ecr = (S.ecrans ?? []).filter((e) => !e.public).slice(0, 6);
   // Une collection à une seule ligne (réglages, fiche de l'entreprise) n'est pas une donnée à compter
-  const cols = Object.entries(S.demo ?? {}).filter(([, xs]) => Array.isArray(xs) && xs.length > 1);
+  // Réglages (heures d'ouverture, paramètres) : ce ne sont pas des chiffres d'activité à afficher
+  const cols = Object.entries(S.demo ?? {}).filter(([k, xs]) => Array.isArray(xs) && xs.length > 1 && !/dispo|horaire|reglage|parametre|entreprise/.test(k));
   const label = (k) => ((S.collections ?? []).find((c) => c.nom === k)?.label) ?? (k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, " "));
   const [k0, xs0] = cols.sort((a, b) => b[1].length - a[1].length)[0] ?? ["", []];
   // Champs parlants d'abord (la base range les clés par longueur) : nom ou numéro, puis date, puis montant ; jamais un champ souvent vide
@@ -584,8 +585,79 @@ const LiensLegaux = ({ class: c = "" }) => html\`<span class=\${cls("flex flex-w
 
 // Jamais de chiffres de succès dans la bouche du SaaS (ils venaient du SaaS modèle) : on retire ces phrases à l'affichage
 const sansRevendication = (t) => String(t ?? "").split(/(?<=[.!?])\\s+/).filter((ph) => !/revendique|cela prouve|ce qui prouve|\\d[\\d\\s.,]*\\s*(?:\\+\\s*)?(?:000|k|millions?)?\\s*(?:clients?|entreprises?|utilisateurs?|abonnés?|prestations?|réservations?|commandes?|membres?|€|euros?|dollars?|\\$)/i.test(ph)).join(" ").trim();
+// ---------------------------------------------------------------- Page d'accueil : le produit montré écran par écran
+// Variante de mise en page propre à chaque SaaS (deux SaaS ne se ressemblent pas) : dérivée de son nom
+const GRAINE = [...String(S.nom ?? "")].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
+const VAR_PAGE = GRAINE % 3;
+// Une icône différente par fonctionnalité : la mieux adaptée encore libre, sinon une icône de réserve
+const ICONES_RESERVE = ["etoile", "carte", "horloge", "message", "tag", "fichier", "graphique", "contacts", "panier", "mail", "reglages", "agenda"];
+function iconesUniques(items) {
+  const prises = new Set();
+  return items.map((x) => {
+    let n = iconeDe(x.titre, x.texte);
+    if (prises.has(n)) n = ICONES_RESERVE.find((r) => !prises.has(r)) ?? n;
+    prises.add(n);
+    return n;
+  });
+}
+// Collection affichée par un écran : celle dont le nom apparaît dans l'identifiant ou le titre de l'écran
+function collectionDe(e) {
+  if (/planning|agenda|calend/i.test(String(e.id) + " " + e.titre) && S.agenda?.collection && (S.demo ?? {})[S.agenda.collection]) return S.agenda.collection;
+  const cols = Object.entries(S.demo ?? {}).filter(([, xs]) => Array.isArray(xs) && xs.length);
+  const t = (String(e.id ?? "") + " " + String(e.titre ?? "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return (cols.find(([k]) => t.includes(k.replace(/s$/, ""))) ?? cols.find(([k]) => k.length > 3 && t.includes(k.slice(0, 4))) ?? [])[0];
+}
+// Maquette d'un écran avec les vraies données d'exemple : calendrier, colonnes ou liste selon l'écran
+function MiniEcran({ e }) {
+  const k = collectionDe(e), xs = (S.demo ?? {})[k] ?? [];
+  const champ = (x, re) => Object.keys(x ?? {}).find((c) => re.test(c) && x[c] !== "" && x[c] != null);
+  const titreDe = (x) => { const c = champ(x, /^(nom|titre|name|client_nom|libelle)$/) ?? champ(x, /nom|titre|client/); return c ? String(joli(x[c])).slice(0, 30) : ""; };
+  const montantDe = (x) => { const c = champ(x, /montant|prix|total|tarif/); return c && typeof x[c] === "number" ? fmt.eur(x[c]) : ""; };
+  const dateBrute = (x) => { const c = champ(x, /^date$|date|debut|echeance/); return c ? String(x[c]).slice(0, 10) : ""; };
+  const dateDe = (x) => { const d = dateBrute(x); return /^\\d{4}-\\d{2}-\\d{2}$/.test(d) ? new Date(d + "T12:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) : d; };
+  const t = (String(e.id) + " " + e.titre).toLowerCase();
+  const cadre = (corps) => h("div", { class: "rounded-2xl bg-white shadow-xl shadow-slate-900/10 ring-1 ring-slate-900/10 overflow-hidden text-left" },
+    h("div", { class: "flex items-center justify-between border-b border-slate-100 px-4 py-3" }, h("span", { class: "flex items-center gap-2 text-[13px] font-bold text-slate-900" }, h(Icone, { nom: e.icone ?? iconeDe(e.titre), class: "w-4 h-4 text-[var(--c)]" }), e.titre), h("span", { class: "rounded-lg bg-[var(--c)] px-2.5 py-1 text-[11px] font-semibold text-white" }, "Ajouter")),
+    h("div", { class: "p-4" }, corps));
+  if (/planning|agenda|calend/.test(t)) {
+    const jours = ["L", "M", "M", "J", "V", "S", "D"], parJour = {};
+    for (const x of xs) { const d = dateBrute(x); if (d) { const j = (new Date(d + "T12:00").getDay() + 6) % 7; (parJour[j] ??= []).push(x); } }
+    return cadre(h("div", { class: "grid grid-cols-7 gap-1.5" }, jours.map((j, i) => h("div", { key: i, class: "min-h-[120px] rounded-lg bg-slate-50 p-1.5" }, h("p", { class: "text-center text-[10px] font-semibold text-slate-400" }, j),
+      (parJour[i] ?? []).slice(0, 3).map((x, n) => h("div", { key: n, class: "mt-1 truncate rounded-md px-1.5 py-1 text-[9.5px] font-medium text-white", style: "background:var(--c);opacity:" + (1 - n * 0.22) }, titreDe(x)))))));
+  }
+  const statuts = [...new Set(xs.map((x) => x?.statut).filter((v) => typeof v === "string"))].slice(0, 3);
+  if (statuts.length >= 2) return cadre(h("div", { class: "grid gap-2", style: "grid-template-columns:repeat(" + statuts.length + ",1fr)" }, statuts.map((st) => h("div", { key: st, class: "rounded-xl bg-slate-50 p-2" },
+    h("p", { class: "text-[10px] font-semibold uppercase tracking-wide text-slate-400" }, String(joli(st)).slice(0, 16)),
+    xs.filter((x) => x.statut === st).slice(0, 3).map((x, n) => h("div", { key: n, class: "mt-1.5 rounded-lg bg-white p-2 ring-1 ring-slate-200/70" }, h("p", { class: "truncate text-[11px] font-semibold text-slate-800" }, titreDe(x)), h("p", { class: "text-[10px] text-slate-500" }, [dateDe(x), montantDe(x)].filter(Boolean).join(" · "))))))));
+  return cadre(h("div", { class: "divide-y divide-slate-100" }, xs.filter((x) => titreDe(x)).slice(0, 5).map((x, n) => h("div", { key: n, class: "flex items-center gap-3 py-2" },
+    h("span", { class: "grid h-8 w-8 shrink-0 place-items-center rounded-full text-[12px] font-bold text-[var(--c)]", style: "background:color-mix(in srgb,var(--c) 12%,#fff)" }, titreDe(x)[0] ?? "•"),
+    h("span", { class: "min-w-0 flex-1" }, h("span", { class: "block truncate text-[12px] font-semibold text-slate-800" }, titreDe(x)), h("span", { class: "block text-[10.5px] text-slate-400" }, dateDe(x))),
+    h("span", { class: "text-[12px] font-semibold text-slate-700 tabular-nums" }, montantDe(x))))));
+}
+// Les écrans clés, un par bloc, texte et maquette en alternance
+function Visite() {
+  const ecr = (S.ecrans ?? []).filter((e) => !e.public && e.but && collectionDe(e)).slice(0, 3);
+  if (!ecr.length) return null;
+  return html\`<section class="py-20"><div class="max-w-6xl mx-auto px-5 space-y-20">\${ecr.map((e, i) => html\`<div class=\${cls("grid lg:grid-cols-2 gap-10 items-center", i % 2 === 1 && "lg:[&>*:first-child]:order-2")}>
+    <div><span class="inline-flex items-center gap-2 rounded-full bg-[var(--c)]/10 px-3 py-1 text-sm font-semibold text-[var(--c)]"><\${Icone} nom=\${e.icone ?? iconeDe(e.titre)} class="w-4 h-4"/>\${e.titre}</span>
+      <h3 class="fh mt-4 text-2xl sm:text-3xl font-bold tracking-tight leading-snug">\${e.but}</h3>
+      \${(e.fonctions ?? []).length > 0 && html\`<ul class="mt-5 space-y-2 text-slate-600">\${e.fonctions.slice(0, 4).map((t) => html\`<li class="flex gap-2"><span class="mt-0.5 text-[var(--c)]"><\${Icone} nom="check" class="w-4 h-4"/></span>\${t}</li>\`)}</ul>\`}</div>
+    <\${MiniEcran} e=\${e}/></div>\`)}</div></section>\`;
+}
+// Formules équilibrées : chaque formule annonce au moins 3 avantages (les suivantes reprennent la précédente)
+function formulesPleines(f) {
+  const atouts = (S.atouts ?? []).map((a) => a.titre).filter(Boolean);
+  return f.map((x, i) => {
+    let inclus = [...(x.inclus ?? [])];
+    if (i > 0 && inclus.length < 3) inclus = ["Tout ce que contient " + f[i - 1].nom, ...inclus];
+    for (const a of atouts) { if (inclus.length >= 3) break; if (!inclus.some((t) => t.toLowerCase().includes(a.toLowerCase().slice(0, 12)))) inclus.push(a); }
+    return { ...x, inclus };
+  });
+}
+
 function Site({ onAuth }) {
-  const f = S.formules ?? [];
+  const f = formulesPleines(S.formules ?? []);
+  const icones = iconesUniques(S.atouts ?? []);
   const probleme = sansRevendication(S.probleme);
   useEffect(() => { if (!B.apercu) call("vue", { variante: VARIANTE, source: B.source }).catch(() => {}); }, []);
   const ecr = (S.ecrans ?? []).filter((e) => !e.public && e.but);
@@ -605,11 +677,12 @@ function Site({ onAuth }) {
     : html\`<section class="max-w-6xl mx-auto px-5 pt-12 pb-16 text-center"><\${Pastille}/><h1 class="mt-5 text-4xl sm:text-6xl font-extrabold tracking-tight max-w-4xl mx-auto leading-[1.04]">\${S.slogan ?? S.pitch}</h1><p class=\${cls("mt-5 text-lg max-w-2xl mx-auto", fonce ? "text-white/75" : "text-slate-500")}>\${S.pitch}</p><\${Boutons} centre/><div class="mt-14 max-w-4xl mx-auto"><\${Apercu}/></div></section>\`}
   </div>
   \${probleme && html\`<section class="py-20"><div class="max-w-3xl mx-auto px-5 text-center"><p class="text-sm font-semibold text-[var(--c)] uppercase tracking-wide">Le problème</p><p class="fh mt-3 text-2xl sm:text-3xl font-semibold leading-snug">\${probleme}</p></div></section>\`}
-  <section id="fonctions" class="bg-slate-50 py-20"><div class="max-w-6xl mx-auto px-5"><p class="text-center text-sm font-semibold text-[var(--c)] uppercase tracking-wide">Fonctionnalités</p><h2 class="mt-2 text-3xl sm:text-4xl font-bold text-center tracking-tight">Tout ce qu'il vous faut, au même endroit</h2>
-    <div class="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">\${(S.atouts ?? []).map((a) => html\`<div class="rounded-2xl bg-white border border-slate-200/80 p-6 hover:shadow-lg hover:shadow-slate-900/5 transition"><span class="w-11 h-11 rounded-xl bg-[var(--c)]/10 text-[var(--c)] grid place-items-center"><\${Icone} nom=\${iconeDe(a.titre, a.texte)}/></span><p class="mt-4 font-semibold text-[17px]">\${a.titre}</p><p class="mt-1.5 text-slate-500 text-[15px] leading-relaxed">\${a.texte}</p></div>\`)}</div></div></section>
-  <section class="py-20"><div class="max-w-6xl mx-auto px-5"><h2 class="text-3xl sm:text-4xl font-bold text-center tracking-tight">Prêt en 3 étapes</h2>
-    <div class="mt-12 grid md:grid-cols-3 gap-8">\${etapes.map(([t, d], i) => html\`<div><span class="fh text-5xl font-extrabold text-[var(--c)]/25">\${"0" + (i + 1)}</span><p class="mt-2 font-semibold text-lg">\${t}</p><p class="mt-1 text-slate-500">\${d}</p></div>\`)}</div>
-    \${ecr.length > 1 && html\`<div class="mt-16 grid sm:grid-cols-2 gap-x-10 gap-y-5 max-w-4xl mx-auto">\${ecr.slice(0, 8).map((e) => html\`<div class="flex gap-3"><span class="mt-0.5 w-8 h-8 shrink-0 rounded-lg bg-[var(--c)]/10 text-[var(--c)] grid place-items-center"><\${Icone} nom=\${e.icone ?? iconeDe(e.titre)} class="w-4 h-4"/></span><div><p class="font-semibold">\${e.titre}</p><p class="text-sm text-slate-500">\${e.but}</p></div></div>\`)}</div>\`}</div></section>
+  \${html\`<\${Visite}/>\`}
+  <section id="fonctions" class=\${cls("py-20", VAR_PAGE === 0 ? "bg-slate-50" : VAR_PAGE === 1 ? "bg-white border-y border-slate-100" : "bg-[var(--c)]/[0.04]")}><div class="max-w-6xl mx-auto px-5"><p class="text-center text-sm font-semibold text-[var(--c)] uppercase tracking-wide">Fonctionnalités</p><h2 class="mt-2 text-3xl sm:text-4xl font-bold text-center tracking-tight">Tout ce qu'il vous faut, au même endroit</h2>
+    <div class="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">\${(S.atouts ?? []).map((a, k) => html\`<div class=\${cls("rounded-2xl p-6 transition", VAR_PAGE === 1 ? "bg-transparent border-l-4 border-[var(--c)] rounded-none pl-5" : "bg-white border border-slate-200/80", VAR_PAGE === 2 && k === 0 && "sm:col-span-2 lg:row-span-2 bg-[var(--c)]/5", "hover:shadow-lg hover:shadow-slate-900/5")}><span class="w-11 h-11 rounded-xl bg-[var(--c)]/10 text-[var(--c)] grid place-items-center"><\${Icone} nom=\${icones[k]}/></span><p class="mt-4 font-semibold text-[17px]">\${a.titre}</p><p class="mt-1.5 text-slate-500 text-[15px] leading-relaxed">\${a.texte}</p></div>\`)}</div></div></section>
+  <section class=\${cls("py-20", VAR_PAGE === 1 && "bg-slate-950 text-white")}><div class="max-w-6xl mx-auto px-5"><h2 class="text-3xl sm:text-4xl font-bold text-center tracking-tight">Prêt en 3 étapes</h2>
+    <div class="mt-12 grid md:grid-cols-3 gap-8">\${etapes.map(([t, d], i) => html\`<div><span class="fh text-5xl font-extrabold text-[var(--c)]/25">\${"0" + (i + 1)}</span><p class="mt-2 font-semibold text-lg">\${t}</p><p class=\${cls("mt-1", VAR_PAGE === 1 ? "text-white/60" : "text-slate-500")}>\${d}</p></div>\`)}</div>
+    \${ecr.length > 1 && html\`<div class="mt-16 grid sm:grid-cols-2 gap-x-10 gap-y-5 max-w-4xl mx-auto">\${ecr.slice(0, 8).map((e) => html\`<div class="flex gap-3"><span class="mt-0.5 w-8 h-8 shrink-0 rounded-lg bg-[var(--c)]/10 text-[var(--c)] grid place-items-center"><\${Icone} nom=\${e.icone ?? iconeDe(e.titre)} class="w-4 h-4"/></span><div><p class="font-semibold">\${e.titre}</p><p class=\${cls("text-sm", VAR_PAGE === 1 ? "text-white/60" : "text-slate-500")}>\${e.but}</p></div></div>\`)}</div>\`}</div></section>
   \${f.length > 0 && html\`<section id="tarifs" class="bg-slate-50 py-20"><div class="max-w-5xl mx-auto px-5"><h2 class="text-3xl sm:text-4xl font-bold text-center tracking-tight">Des prix simples</h2><p class="mt-2 text-center text-slate-500">Sans engagement\${ESSAI ? ", " + ESSAI + " jours d'essai gratuit" : ""}.</p><div class=\${"mt-10 grid gap-4 " + (f.length > 2 ? "md:grid-cols-3" : "md:grid-cols-2")}>\${f.map((x, i) => html\`<div class=\${cls("rounded-2xl p-6 border flex flex-col", i === 1 ? "bg-slate-900 text-white border-slate-900 shadow-xl" : "bg-white border-slate-200")}>\${i === 1 && html\`<span class="self-start mb-3 rounded-full bg-[var(--c)] px-2.5 py-0.5 text-xs font-semibold text-white">Le plus choisi</span>\`}<p class="font-semibold">\${x.nom}</p><p class="mt-2"><span class="fh text-4xl font-extrabold">\${x.prix} €</span><span class=\${i === 1 ? "text-white/60" : "text-slate-400"}> /mois</span></p><p class=\${cls("mt-2 text-sm", i === 1 ? "text-white/70" : "text-slate-500")}>\${x.pour}</p><ul class="mt-4 space-y-2 text-sm flex-1">\${(x.inclus ?? []).map((t) => html\`<li class="flex gap-2"><span class="text-[var(--c)]"><\${Icone} nom="check" class="w-4 h-4"/></span>\${t}</li>\`)}</ul><\${ui.Button} class=\${cls("mt-6 w-full", i !== 1 && "!bg-white !text-slate-900 !border !border-slate-200")} onClick=\${() => onAuth("signup")}>Essayer \${ESSAI ? ESSAI + " jours" : "maintenant"}</\${ui.Button}></div>\`)}</div></div></section>\`}
   <section id="faq" class="py-20"><div class="max-w-3xl mx-auto px-5"><h2 class="text-3xl font-bold text-center tracking-tight">Questions fréquentes</h2><div class="mt-8 divide-y divide-slate-200 border-y border-slate-200">\${faq.map(([q, r]) => html\`<details class="group py-4"><summary class="flex cursor-pointer list-none items-center justify-between font-semibold">\${q}<span class="text-slate-400 group-open:rotate-45 transition text-xl leading-none">+</span></summary><p class="mt-2 text-slate-500">\${r}</p></details>\`)}</div></div></section>
   \${(B.articles ?? []).length > 0 && html\`<section class="max-w-6xl mx-auto px-5 pb-16"><h2 class="text-2xl font-bold">Ressources</h2><div class="mt-6 grid md:grid-cols-3 gap-4">\${B.articles.map((a) => html\`<a href=\${(B.blog ?? "") + a.slug} target="_blank" rel="noopener" class="block rounded-2xl border border-slate-200 p-5 hover:border-[var(--c)]"><p class="font-semibold">\${a.titre}</p><p class="mt-1 text-sm text-slate-500">\${a.resume ?? ""}</p></a>\`)}</div></section>\`}
