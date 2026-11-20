@@ -279,12 +279,25 @@ export async function appPrixSuggeres(appId: string, suggestionId: string) {
 
 /** Aperçu d'une modification : la mettre en ligne, ou l'abandonner. */
 export async function appBrouillon(appId: string, valider: boolean) {
-  const { data: app } = await admin.from("saas_apps").select("spec, brouillon, version, statut").eq("id", appId).single();
+  const { data: app } = await admin.from("saas_apps").select("spec, brouillon, version, statut, verif").eq("id", appId).single();
   const b = app?.brouillon as any;
   if (!b?._modif) throw new HttpError(404, "Aucune modification en attente");
   if (valider) {
     const { _modif, ...spec } = b;
-    await admin.from("saas_apps").update({ spec, brouillon: null, version: (app!.version ?? 1) + 1, maj: new Date().toISOString() }).eq("id", appId);
+    // Le robot de l'atelier : chaque modification mise en ligne est retestée écran par écran, comme à la construction.
+    // Si elle casse un écran qui marchait (et que les corrections offertes n'y arrivent pas), la version d'avant revient
+    // toute seule et la modification est rendue (r/saas-app-verif).
+    const liste = (_modif.liste ?? [_modif]) as any[];
+    const avantEcrans = ((app!.spec as any)?.ecrans ?? []) as any[];
+    const changes = ((spec.ecrans ?? []) as any[]).filter((e) => { const o = avantEcrans.find((x) => x.id === e.id); return !o || o.code !== e.code; }).map((e) => e.id);
+    const titre = liste.map((x) => x.titre).filter(Boolean).join(" · ").slice(0, 200) || "ta modification";
+    const n = (spec.ecrans ?? []).length, maintenant = new Date().toISOString();
+    const vf = (app!.verif ?? {}) as any;
+    const verif = { phase: "en_cours", version: null, essais: {}, en_reparation: [], passages: 0, ok: false, offerts: vf.offerts ?? {},
+      journal: [...(vf.journal ?? []).slice(-20), { at: maintenant, t: `Modification mise en ligne (${titre}). Je reteste les ${n} écrans comme un vrai utilisateur.`, type: "info" }],
+      mesure: { ...(vf.mesure ?? {}), atelier_debut: maintenant },
+      atelier: { version_avant: app!.version ?? 1, ecrans: changes, titre, debut: liste[0]?.at ?? maintenant, reste_avant: vf.reste ?? [] } };
+    await admin.from("saas_apps").update({ spec, brouillon: null, version: (app!.version ?? 1) + 1, verif, maj: maintenant }).eq("id", appId);
     const ids = (_modif.liste ?? [_modif]).map((x: any) => x.suggestion).filter(Boolean);
     if (ids.length) await admin.from("saas_app_suggestions").update({ statut: "ajoutee" }).in("id", ids).eq("app_id", appId);
   } else await admin.from("saas_apps").update({ brouillon: null }).eq("id", appId);

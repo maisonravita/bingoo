@@ -594,7 +594,29 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const fini = boucle && !aReparer.length && !enRep.length;
     // Écrans de modèles faits main en échec : ni l'IA ni le membre ne peuvent les réparer, l'équipe s'en charge (alerte admin, sous 24 h)
     const parEquipe = (r: any) => !!ecrans.find((e) => e.id === r.id)?.modele;
-    if (fini) {
+    // Robot de l'atelier : une modification qui casse un écran qui marchait est annulée toute seule, et rendue au membre
+    const atelier = fini ? (avant.atelier ?? null) : null;
+    let retour = false;
+    if (atelier) {
+      const casses = restants.filter((r: any) => !(atelier.reste_avant ?? []).includes(r.id));
+      if (casses.length) {
+        const { data: v } = await admin.from("saas_app_versions").select("spec").eq("app_id", app.id).eq("version", Number(atelier.version_avant)).maybeSingle();
+        if (v?.spec) {
+          await admin.from("saas_apps").update({ spec: v.spec, version: (app.version ?? 1) + 1, maj: new Date().toISOString() }).eq("id", app.id);
+          // Rendu : les modifications du mois comptées et les crédits payés pour cette demande
+          const depuis = String(atelier.debut ?? avant.mesure?.atelier_debut ?? new Date().toISOString());
+          const depuisLarge = new Date(new Date(depuis).getTime() - 10 * 60e3).toISOString();
+          await admin.from("activity").delete().eq("workspace_id", ws.id).eq("kind", "modifier_app").gte("created_at", depuisLarge);
+          const { data: cr } = await admin.from("credits").select("delta").eq("workspace_id", ws.id).in("motif", ["Modification en plus", "Écran en plus (atelier)"]).gte("at", depuisLarge);
+          const payes = -(cr ?? []).reduce((t: number, x: any) => t + Math.min(0, Number(x.delta ?? 0)), 0);
+          if (payes > 0) await creditsRendre(ws.id, payes, "Modification annulée par le robot : crédits rendus");
+          noter(`La modification « ${atelier.titre} » cassait ${casses.map((r: any) => `« ${titre(r.id)} »`).join(", ")}. J'ai remis automatiquement la version d'avant : ${spec.nom ?? "ton app"} fonctionne comme avant. La modification t'est rendue${payes ? ` (${payes} crédit${payes > 1 ? "s" : ""} compris)` : ""} : reformule-la ou demande-la autrement.`, "probleme");
+          await log(ws.id, "app_reglage", `Robot de l'atelier : modification annulée (${casses.length} écran(s) cassé(s)), version ${atelier.version_avant} remise`);
+          retour = true;
+        }
+      } else noter(`Modification testée : les ${resultats.length} écrans fonctionnent${restants.length ? ` (sauf ${restants.length} déjà en souci avant)` : ""}. Elle reste en ligne.`, "ok");
+    }
+    if (fini && !atelier) {
       const equipe = restants.filter(parEquipe), membre = restants.filter((r: any) => !parEquipe(r));
       if (!restants.length) noter(spec.type === "site" ? `Tout est propre : ton espace gérant (${resultats.length} écrans) a été testé et fonctionne. Ton site est prêt.` : `Tout est propre : les ${resultats.length} écrans ont été testés et fonctionnent. Ton SaaS est prêt.`, "ok");
       else {
@@ -620,7 +642,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
         }
       } catch (e) { console.error("mail fin de vérification", e); }
     }
-    const verif = { ...avant, version: app.version, at: new Date().toISOString(), resultats, essais, passages, journal: journal.slice(-40), mesure,
+    const verif = { ...avant, version: app.version, at: new Date().toISOString(), resultats, essais, passages, journal: journal.slice(-40), mesure, ...(atelier ? { atelier: null, dernier_atelier: { ...atelier, annule: retour, at: new Date().toISOString() } } : {}),
       en_reparation: [...enRep, ...aReparer.map((r: any) => r.id)], repare: aReparer.map((r: any) => r.id),
       phase: boucle ? (fini ? "fini" : "en_cours") : (avant.phase ?? "fini"), ok: resultats.every((r: any) => r.ok), reste: fini ? restants.map((r: any) => r.id) : (avant.reste ?? []).filter((id: string) => !resultats.some((r: any) => r.id === id && r.ok)) };
     await admin.from("saas_apps").update({ verif }).eq("id", app.id);
