@@ -329,7 +329,14 @@ async function gardeCredit(live: boolean) {
   const r = soldeCache.restant;
   if (r == null) return;
   if (r <= 1 && r > 0.5) await alerteSolde("bas", r);
-  if (r <= 0.5) { await alerteSolde("stop", r); throw new HttpError(503, "Bingoo! fait une courte pause de maintenance sur l'IA. Réessaie un peu plus tard."); }
+  if (r <= 0.5) {
+    await alerteSolde("stop", r);
+    // Décision de Jean (20 nov.) : la pause automatique ne bloque plus les clients (interrupteur « ia_sans_limite » = 1 dans app_secrets).
+    // Les demandes des utilisateurs passent jusqu'au vrai solde Anthropic ; seules les tâches de fond restent en pause.
+    const { data: sl } = await admin.from("app_secrets").select("value").eq("name", "ia_sans_limite").maybeSingle();
+    if (!(sl?.value === "1" && live)) throw new HttpError(503, "Bingoo! fait une courte pause de maintenance sur l'IA. Réessaie un peu plus tard.");
+    return;
+  }
   const { data } = await admin.from("app_secrets").select("value").eq("name", "ia_reserve_eur").maybeSingle();
   const reserve = Number(data?.value ?? 3);
   if (r <= reserve && !live) { await alerteSolde("reserve", r); throw new HttpError(503, "Tâches IA de fond en pause : crédit réservé aux utilisateurs."); }
@@ -485,7 +492,7 @@ export async function ask(prompt: string, opts: AskOpts = {}): Promise<string> {
       await admin.from("app_secrets").upsert({ name: "ia_credit_epuise_at", value: new Date().toISOString() }).then(() => null, () => null);
       soldeCache = { at: Date.now(), restant: 0 };
       await alerteSolde("stop", 0).catch(() => null);
-      throw new HttpError(402, "Crédit IA épuisé : recharge le compte Anthropic pour continuer");
+      throw new HttpError(503, "Bingoo! fait une courte pause de maintenance sur l'IA. Réessaie un peu plus tard."); // Jean est prévenu par e-mail
     }
     throw new HttpError(502, "IA : " + msg);
   }
