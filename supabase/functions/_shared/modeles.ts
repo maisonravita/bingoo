@@ -46,14 +46,14 @@ export function specReservation(perso: any) {
   const tete = `const V = ${JSON.stringify(V)};\n`;
   const code = MODELES_CODE.reservation;
   const ecrans = [
-    { id: "tableau_bord", titre: "Tableau de bord", icone: "graphique", but: "Votre chiffre d'affaires, vos demandes à confirmer et vos prochains " + V.rdvs.toLowerCase() + "." },
     { id: "planning", titre: "Planning", icone: "agenda", but: "Le calendrier du mois : ajoutez et déplacez vos " + V.rdvs.toLowerCase() + " en un clic." },
+    { id: "tableau_bord", titre: "Tableau de bord", icone: "graphique", but: "Votre chiffre d'affaires, vos demandes à confirmer et vos prochains " + V.rdvs.toLowerCase() + "." },
     { id: "rendezvous", titre: V.rdvs.slice(0, 24), icone: "liste", but: "Suivez chaque " + V.rdv.toLowerCase() + " par étape, de la demande au paiement." },
     { id: "clients", titre: V.clients.slice(0, 24), icone: "contacts", but: "Votre fichier " + V.clients.toLowerCase() + " avec leur historique et ce qu'ils vous ont rapporté." },
     { id: "prestations", titre: V.prestas.slice(0, 24), icone: "tag", but: "Vos offres, vos prix et vos durées." },
     { id: "disponibilites", titre: "Disponibilités", icone: "horloge", but: "Vos heures d'ouverture : vos " + V.clients.toLowerCase() + " ne voient que les créneaux libres." },
     { id: "pub_reserver", titre: "Réserver en ligne", icone: "carte", but: "La page que vos " + V.clients.toLowerCase() + " utilisent pour réserver seuls, 24 h sur 24 : seulement les vrais créneaux libres.", public: true, lecture: ["prestations", "rendezvous", "disponibilites"], ecriture: "rendezvous" },
-  ].map((e) => ({ ...e, code: tete + code[e.id], ok: true, modele: "reservation" }));
+  ].map((e) => code[e.id] ? ({ ...e, code: tete + code[e.id], ok: true, modele: "reservation" }) : e); // écran sans code fait main : écrit par l'IA comme les autres, jamais livré vide
 
   const collections = [
     { nom: "prestations", label: V.prestas, champs: [{ nom: "nom", type: "texte" }, { nom: "prix", type: "montant" }, { nom: "duree", type: "nombre" }, { nom: "description", type: "texte" }, { nom: "actif", type: "booleen" }] },
@@ -106,7 +106,7 @@ export function specDevis(perso: any) {
     { id: "catalogue", titre: V.prestas.slice(0, 24), icone: "tag", but: "Votre catalogue de " + V.prestas.toLowerCase() + " et vos prix, pour remplir un devis sans rien ressaisir." },
     { id: "entreprise", titre: "Mon entreprise", icone: "reglages", but: "Vos coordonnées, votre SIRET, votre IBAN et vos mentions, repris sur chaque document." },
     { id: "pub_demande", titre: "Demander un devis", icone: "carte", but: "La page où vos " + V.clients.toLowerCase() + " demandent un devis en ligne, 24 h sur 24.", public: true, lecture: ["catalogue"], ecriture: "devis" },
-  ].map((e) => ({ ...e, code: tete + code[e.id], ok: true, modele: "devis" }));
+  ].map((e) => code[e.id] ? ({ ...e, code: tete + code[e.id], ok: true, modele: "devis" }) : e); // écran sans code fait main : écrit par l'IA comme les autres, jamais livré vide
   const L = { nom: "lignes", type: "texte" };
   const collections = [
     { nom: "clients", label: V.clients, champs: [{ nom: "nom", type: "texte" }, { nom: "entreprise", type: "texte" }, { nom: "email", type: "email" }, { nom: "telephone", type: "telephone" }, { nom: "adresse", type: "texte" }, { nom: "notes", type: "texte" }] },
@@ -186,7 +186,7 @@ export function specEcriture(perso: any) {
     { id: "creer", titre: "Créer", icone: "message", but: "Remplissez l'essentiel, l'IA écrit votre texte, vous l'ajustez en un clic." },
     { id: "documents", titre: V.docs.slice(0, 24), icone: "boite", but: "Tous vos textes, rangés, cherchables, à copier ou télécharger en PDF." },
     { id: "profil", titre: "Mon style", icone: "reglages", but: "Qui vous êtes et un exemple de votre écriture, pour que l'IA écrive avec votre voix." },
-  ].map((e) => ({ ...e, code: tete + code[e.id], ok: true, modele: "ecriture" }));
+  ].map((e) => code[e.id] ? ({ ...e, code: tete + code[e.id], ok: true, modele: "ecriture" }) : e); // écran sans code fait main : écrit par l'IA comme les autres, jamais livré vide
   const collections = [
     { nom: "documents", label: V.docs.replace(/^mes\s+/i, ""), champs: [{ nom: "titre", type: "texte" }, { nom: "type", type: "choix", valeurs: types.map((t: any) => t.id) }, { nom: "contenu", type: "texte" }, { nom: "ton", type: "texte" }, { nom: "mots", type: "nombre" }, { nom: "favori", type: "booleen" }] },
     { nom: "profil", label: "Mon style", champs: [{ nom: "a_propos", type: "texte" }, { nom: "ton", type: "texte" }, { nom: "langue", type: "texte" }, { nom: "exemples", type: "texte" }] },

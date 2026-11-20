@@ -25,6 +25,7 @@ export { slugs } from "./${S}/deep.ts";
 export { invitesToday, officeHours } from "./${S}/linkedin-auto.ts";
 export { masquer, MASQUE, PAYANT_SEUL, QUOTA_GRATUIT } from "./${S}/mcp-bingoo.ts";
 export { alignerCode, couvrirDemo } from "./${S}/contrat-donnees.ts";
+export { specReservation, specDevis, specEcriture } from "./${S}/modeles.ts";
 `;
 const stubs = {
   name: "stubs",
@@ -292,6 +293,12 @@ await test("couverture des exemples : un statut filtré par l'écran existe dans
   if (!r.demo.affaires.some((a) => a.etape === "Proposition")) throw new Error("valeur disparue");
   const r2 = T.couvrirDemo({ demo: { champs: [{ type: "texte" }, { type: "texte" }] }, ecrans: [{ code: `if (c.type === "choix")` }] });
   if (r2.ajouts.length) throw new Error("valeur technique ajoutée");
+});
+await test("modèles faits main : chaque écran a son code (jamais d'écran livré vide)", () => {
+  for (const [n, f] of [["reservation", T.specReservation], ["devis", T.specDevis], ["ecriture", T.specEcriture]]) {
+    const sp = f({ vocab: {} });
+    for (const e of sp.ecrans) if (e.modele && (!e.code || /\nundefined\s*$/.test(e.code) || !/function\s+Ecran/.test(e.code))) throw new Error(n + " : écran " + e.id + " sans code");
+  }
 });
 console.log(`\n${ok} réussi${ok > 1 ? "s" : ""}, ${ko} échec${ko > 1 ? "s" : ""}`);
 writeFileSync(join(dir, "done"), "");
