@@ -443,7 +443,8 @@ function Accueil({ m, charger }) {
 function PlanSite({ m }) {
   const toast = useToast();
   const sp = m.app.spec ?? {}, st = sp.site ?? {};
-  const lien = lienApp(m.app.slug, m.app.domaine_statut === "ok" ? m.app.domaine : null);
+  // Le lien à partager : son domaine, sinon la page du site sur Bingoo! (avec son titre et son aperçu de partage)
+  const lien = m.app.domaine_statut === "ok" && m.app.domaine ? `https://${m.app.domaine}/` : `https://www.bingoo.fr/s/${m.app.slug}`;
   const cle = "bingoo-plan-site-" + m.app.id;
   const [faits, setFaits] = useState(() => lire(cle) ?? []);
   const cocher = (k) => { const n = faits.includes(k) ? faits.filter((x) => x !== k) : [...faits, k]; setFaits(n); try { localStorage.setItem(cle, JSON.stringify(n)); } catch { /* stockage indisponible */ } };
@@ -458,6 +459,7 @@ function PlanSite({ m }) {
     ["quartier", "Publie dans les groupes de ton quartier", "Groupes Facebook de ta ville (« Tu es de " + (ville || "ta ville") + " si… », entraide, bons plans), Nextdoor, le panneau de ta boulangerie. Une publication simple, avec une photo de toi au travail.", `Bonjour à tous ! Je suis ${metier || "…"}${ou} et je viens de lancer mon activité. ${sp.pitch ?? ""} Toutes les infos et les prix sont sur mon site : ${lien} N'hésitez pas si vous avez des questions !`],
     ["reseaux", "Mets ton lien partout", "Dans ta bio Instagram, ta page Facebook, ton statut WhatsApp, ta signature d'e-mail. Chaque endroit où l'on te croise doit mener à ton site."],
     ["flyers", "Imprime 50 flyers ou cartes", "Dépose-les chez les commerçants voisins qui touchent les mêmes clients (et propose-leur de faire pareil chez toi). Texte prêt pour le flyer :", `${sp.nom}\n${st.metier || ""}${ou}\n${sp.slogan ?? ""}\n${st.cta || "Contact"} : ${lien}`],
+    ["local", "Soigne ton référencement local", "Google classe mieux un " + "professionnel dont le nom, l'adresse (ou la zone) et le téléphone sont écrits exactement pareil partout : ton site, ta fiche Google, tes réseaux, les annuaires. Garde aussi " + (ville ? "« " + ville + " »" : "ta ville") + " dans ton accroche et tes services (atelier : « ajoute " + (ville || "ma ville") + " dans l'accroche »).", `${sp.nom}\n${st.metier || ""}${ou}\n${"Téléphone : à recopier à l'identique partout"}\n${lien}`],
     ["annuaires", "Inscris-toi dans les annuaires gratuits", "PagesJaunes, l'annuaire de ta mairie, les sites de ton métier. Chaque inscription avec le lien de ton site t'aide aussi à monter sur Google.", null, { l: "PagesJaunes pro", href: "https://www.solocal.com/" }],
     ["avis", "Demande un avis Google à chaque client content", "Les vrais avis sont ce qui fait choisir quelqu'un plutôt qu'un autre près de chez soi. Demande-le le jour même, avec ce message.", `Merci encore pour votre confiance ! Si vous avez été satisfait, un petit avis sur Google m'aiderait énormément à me faire connaître : il suffit de chercher « ${sp.nom} » sur Google Maps. Merci 🙏`],
     ["reponse", "Réponds à chaque demande en moins d'une heure", "Tu reçois chaque demande de ton site par e-mail. Une réponse rapide, c'est souvent le client gagné : celui qui répond le premier l'emporte.", null, { l: "Mes demandes", href: lien }],

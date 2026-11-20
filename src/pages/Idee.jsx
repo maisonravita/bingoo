@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { fn } from "../lib/supabase";
+import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { cx } from "../lib/utils";
 import { demanderCompte, estInvite } from "../lib/invite";
@@ -34,8 +34,13 @@ function MaquetteSite({ nom, ap }) {
         <p className="mx-auto mt-1.5 max-w-sm text-[11px] text-ink-soft line-clamp-2">{ap.pitch}</p>
         <span className="mt-3 inline-block rounded-full px-4 py-1.5 text-[11px] font-bold text-white" style={{ background: COULEUR }}>{ap.cta}</span>
       </div>
-      <div className="grid grid-cols-3 gap-2 px-4 pb-3">{sv.slice(0, 3).map((x, i) => <div key={i} className="rounded-xl border border-line p-2"><p className="truncate text-[10.5px] font-bold">{x.titre}</p><p className="mt-0.5 text-[10px]" style={{ color: COULEUR }}>{x.prix}</p></div>)}</div>
-      <div className="mx-4 mb-4 rounded-xl bg-[#FAFAF8] p-2.5"><p className="text-[10.5px] font-bold">{ap.cta}</p><div className="mt-1.5 grid grid-cols-2 gap-1.5"><div className="h-5 rounded-md border border-line bg-white" /><div className="h-5 rounded-md border border-line bg-white" /><div className="col-span-2 h-8 rounded-md border border-line bg-white" /></div></div>
+      {ap.modele === "portfolio"
+        ? <div className="grid grid-cols-3 gap-2 px-4 pb-3">{sv.slice(0, 3).map((x, i) => <div key={i} className="overflow-hidden rounded-xl border border-line"><div className="h-14" style={{ background: ["#FDE7D9", "#E7E4F7", "#DDF0E8"][i % 3] }} /><p className="truncate px-2 py-1 text-[10px] font-bold">{x.titre}</p></div>)}</div>
+        : ap.modele === "lancement"
+          ? <div className="mx-4 mb-3 flex gap-1.5 rounded-full border border-line bg-white p-1"><div className="h-6 flex-1 rounded-full bg-[#FAFAF8]" /><span className="rounded-full px-3 py-1 text-[10px] font-bold text-white" style={{ background: COULEUR }}>{ap.cta}</span></div>
+          : <div className="grid grid-cols-3 gap-2 px-4 pb-3">{sv.slice(0, 3).map((x, i) => <div key={i} className="rounded-xl border border-line p-2"><p className="truncate text-[10.5px] font-bold">{x.titre}</p><p className="mt-0.5 text-[10px]" style={{ color: COULEUR }}>{x.prix}</p></div>)}</div>}
+      {ap.modele === "lancement" ? <div className="mx-4 mb-4 grid grid-cols-3 gap-2">{sv.slice(0, 3).map((x, i) => <div key={i} className="rounded-xl bg-[#FAFAF8] p-2"><p className="truncate text-[10px] font-bold">{x.titre}</p></div>)}</div>
+        : <div className="mx-4 mb-4 rounded-xl bg-[#FAFAF8] p-2.5"><p className="text-[10.5px] font-bold">{ap.cta}</p><div className="mt-1.5 grid grid-cols-2 gap-1.5"><div className="h-5 rounded-md border border-line bg-white" /><div className="h-5 rounded-md border border-line bg-white" /><div className="col-span-2 h-8 rounded-md border border-line bg-white" /></div></div>}
     </div>
   );
 }
@@ -82,6 +87,27 @@ function Maquette({ nom, principal, ecrans }) {
       </div>
     </div>
   );
+}
+
+// Le prix, dit AVANT de construire : ce que ça coûte à ce membre-là (compris dans sa formule, crédits, ou la formule à prendre)
+const euros = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ",")) + " €";
+function Prix({ ws, type }) {
+  const [t, setT] = useState(null), [deja, setDeja] = useState(null);
+  useEffect(() => {
+    fn("plans").then(setT).catch(() => setT({}));
+    if (ws?.id) supabase.from("saas_apps").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).not("statut", "in", "(remplace,erreur,validation,retire)").then(({ count }) => setDeja((count ?? 0) > 0));
+  }, [ws?.id]);
+  if (!t) return null;
+  const site = type === "site";
+  const mois = (k) => (t.plans ?? []).find((p) => p.key === k)?.periodes?.find((x) => x.key === "mois")?.parMois;
+  const fondateur = t.fondateur?.left > 0 ? t.fondateur.price : null;
+  const lancer = fondateur ?? mois("explorer_pro") ?? 24.99;
+  let txt;
+  if (paye(ws, type)) txt = deja ? <>Tu as déjà un {site ? "site ou un SaaS" : "SaaS"} en ligne : celui-ci coûte <b>60 crédits</b>, le premier reste en ligne.</> : <><b>Compris dans ta formule</b> : c'est {site ? "ton site" : "ton SaaS"} de l'abonnement, sans rien payer de plus.</>;
+  else if (!site && ws?.plan === "site" && actif(ws)) txt = <>Ta formule Site construit des sites. Pour {type === "app" ? "une app" : "un SaaS"}, passe à la formule Lancer : <b>{euros(lancer)} par mois</b>.</>;
+  else if (site) txt = <>Formule Site : <b>{euros(mois("site") ?? 9.99)} par mois</b>, sans engagement, ton nom de domaine compris.</>;
+  else txt = <>Formule Lancer : <b>{euros(lancer)} par mois{fondateur ? ", prix fondateur à vie" : ""}</b>, sans engagement. {type === "app" ? "Ton app" : "Ton SaaS"} est compris dans l'abonnement.</>;
+  return <p className="w-full rounded-xl bg-[#F7F7F5] px-3 py-2 text-[13.5px]">{txt}</p>;
 }
 
 export default function Idee() {
@@ -178,8 +204,9 @@ export default function Idee() {
               <div>{site ? <MaquetteSite nom={nom || ap.nom} ap={ap} /> : idee.type === "app" ? <MaquetteTel nom={nom || ap.nom} principal={ap.principal} ecrans={ap.ecrans} /> : <Maquette nom={nom || ap.nom} principal={ap.principal} ecrans={ap.ecrans} />}<p className="mt-2 text-center text-[12px] text-ink-faint">{site ? "Maquette de ta page d'accueil : le vrai design, tes couleurs et tes textes sont faits à la construction." : "Maquette de l'écran principal : le vrai design est fait à la construction."}</p></div>
             </div>
             <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-line pt-5">
+              <Prix ws={ws} type={idee.type} />
               <button disabled={busy || nom.trim().length < 2} onClick={() => lancer("idee")} className="rounded-full bg-accent px-7 py-3.5 text-[16px] font-bold text-white shadow-[0_12px_30px_-14px_rgba(226,85,35,.9)] disabled:opacity-50">{busy ? "Un instant…" : `Construire ${nom.trim() || ap.nom}`}</button>
-              <p className="text-[13px] text-ink-soft">{site ? <>Bingoo! écrit tes textes, met ton site en ligne et teste ton espace gérant. <b className="text-ink">9,99 € par mois</b>, sans engagement, ton nom de domaine compris. Tu vérifies ensuite tes prix et tes horaires.</> : <>Bingoo! le construit, teste chaque écran comme un vrai utilisateur, corrige, puis le met en ligne.{idee.type === "app" ? " Tu l'essaies ensuite sur ton téléphone dans Expo Go (gratuit). La publication sur l'App Store et Google Play arrive bientôt." : ""}</>}</p>
+              <p className="text-[13px] text-ink-soft">{site ? <>Bingoo! écrit tes textes, met ton site en ligne et teste ton espace gérant. Tu vérifies ensuite tes prix et tes horaires.</> : <>Bingoo! le construit, teste chaque écran comme un vrai utilisateur, corrige, puis le met en ligne.{idee.type === "app" ? " Tu l'essaies ensuite sur ton téléphone dans Expo Go (gratuit). La publication sur l'App Store et Google Play arrive bientôt." : ""}</>}</p>
             </div>
           </section>
         </>

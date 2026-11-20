@@ -17,6 +17,10 @@
       "destination": "/api/app?app=:app"
     },
     {
+      "source": "/s/:app",
+      "destination": "/api/site?slug=:app"
+    },
+    {
       "source": "/sitemap-apps.xml",
       "destination": "/api/app?sitemap=1"
     },

@@ -1,6 +1,7 @@
 function Ecran() {
-  const D = useCollection("demandes"), S = useCollection("services"), H = useCollection("horaires"), I = useCollection("infos");
-  if (D.loading || S.loading || H.loading || I.loading) return html`<${ui.Loading}/>`;
+  const D = useCollection("demandes"), S = useCollection("services"), H = useCollection("horaires"), I = useCollection("infos"), R = useCollection("realisations");
+  if (D.loading || S.loading || H.loading || I.loading || R.loading) return html`<${ui.Loading}/>`;
+  const portfolio = V.modele === "portfolio";
   const nouvelles = D.rows.filter((d) => d.statut === "nouvelle" || !d.statut);
   const semaine = D.rows.filter((d) => String(d.created_at).slice(0, 10) >= decale(-7)).length;
   const avant = D.rows.filter((d) => { const j = String(d.created_at).slice(0, 10); return j >= decale(-14) && j < decale(-7); }).length;
@@ -10,8 +11,9 @@ function Ecran() {
   const aFaire = [
     [!inf.telephone && !inf.email, "Ajoutez votre téléphone ou votre e-mail", "Vos visiteurs pourront vous joindre directement.", "infos"],
     [!inf.adresse && !inf.zone, "Indiquez votre adresse ou votre zone", "Pour que vos clients sachent où vous trouver.", "infos"],
-    [!inf.prix_verifies, "Vérifiez vos prix", "Proposés à la construction : mettez vos vrais tarifs.", "services"],
-    [!ouverts, "Indiquez vos horaires", "Aucun jour d'ouverture n'est renseigné.", "infos"],
+    [S.rows.length > 0 && !inf.prix_verifies, "Vérifiez vos prix", "Proposés à la construction : mettez vos vrais tarifs.", "services"],
+    [V.horaires !== false && !ouverts, "Indiquez vos horaires", "Aucun jour d'ouverture n'est renseigné.", "infos"],
+    [portfolio && R.rows.filter((r) => r.image).length < 3, "Ajoutez vos réalisations avec leurs photos", "Trois projets au moins : c'est ce que vos visiteurs regardent d'abord.", "realisations"],
   ].filter((x) => x[0]);
   const recentes = [...D.rows].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 5);
   return html`<div class="anim">
@@ -20,7 +22,7 @@ function Ecran() {
       <${Kpi} icone="message" label="Demandes à traiter" valeur=${nouvelles.length}/>
       <${Kpi} icone="graphique" label="Reçues ces 7 jours" valeur=${semaine} tendance=${evol(semaine, avant)}/>
       <${Kpi} icone="tag" label="Services en ligne" valeur=${enLigne}/>
-      <${Kpi} icone="horloge" label="Jours d'ouverture" valeur=${ouverts + " / 7"}/>
+      ${portfolio ? html`<${Kpi} icone="etoile" label="Réalisations en ligne" valeur=${R.rows.filter((r) => r.visible !== false).length}/>` : html`<${Kpi} icone="horloge" label="Jours d'ouverture" valeur=${ouverts + " / 7"}/>`}
     </div>
     <div class="mt-4 grid gap-4 lg:grid-cols-3">
       <${Carte} titre="Dernières demandes" classe="lg:col-span-2" actions=${html`<button onClick=${() => go("demandes")} class="text-sm font-medium text-[var(--c)]">Tout voir →</button>`}>

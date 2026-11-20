@@ -111,7 +111,12 @@ if (!CONSTRUIRE) {
 } else {
   // 4) Une vraie construction, dans un espace neuf (un SaaS par abonnement), photographiée jusqu'à la fin de la vérification
   // CONSTRUIRE=site : un site web né d'une idée (étape 2), formule Site
-  const SITE_IDEE = { texte: "Le site de mon activité de coiffeuse à domicile à Lyon", apercu: { type: "site", nom: "Coupe Chez Vous", pitch: "Coiffeuse à domicile à Lyon : coupes, couleurs et brushings chez vous, sur rendez-vous.", cible: "Familles et particuliers lyonnais", metier: "Coiffeuse à domicile", accroche: "Votre coiffeuse vient chez vous", cta: "Prendre rendez-vous", ecrans: [{ titre: "Accueil", role: "L'accroche et le bouton de rendez-vous" }, { titre: "Services et tarifs", role: "Les prestations et leurs prix" }, { titre: "Contact", role: "Le formulaire de demande" }, { titre: "Espace gérant", role: "Les demandes reçues" }], services: [], plus_tard: [], limites: [] } };
+  // Trois modèles de site : DOMAINE=portfolio ou lancement (sinon la vitrine)
+  const SITES = {
+    portfolio: { texte: "Le portfolio de mon activité de photographe de mariage à Bordeaux", apercu: { type: "site", modele: "portfolio", nom: "Atelier Lumen", pitch: "Photographe de mariage et de famille à Bordeaux.", cible: "Futurs mariés et familles", metier: "Photographe de mariage", accroche: "Vos souvenirs en lumière naturelle", cta: "Parler de mon projet", ecrans: [{ titre: "Accueil", role: "L'accroche" }, { titre: "Réalisations", role: "Les photos" }, { titre: "Contact", role: "Le formulaire" }, { titre: "Espace gérant", role: "Projets et demandes" }], services: [], plus_tard: [], limites: [] } },
+    lancement: { texte: "Une page pour annoncer mon appli de repas de la semaine et recueillir les e-mails avant le lancement", apercu: { type: "site", modele: "lancement", nom: "Mealo", pitch: "Une appli qui prépare vos menus et votre liste de courses.", cible: "Familles pressées", metier: "Appli de repas", accroche: "Vos repas de la semaine en 2 minutes", cta: "Être prévenu", ecrans: [{ titre: "Accueil", role: "L'inscription" }, { titre: "Comment ça marche", role: "Les étapes" }, { titre: "Espace gérant", role: "Les inscrits" }], services: [], plus_tard: [], limites: [] } },
+  };
+  const SITE_IDEE = SITES[process.env.DOMAINE] ?? { texte: "Le site de mon activité de coiffeuse à domicile à Lyon", apercu: { type: "site", nom: "Coupe Chez Vous", pitch: "Coiffeuse à domicile à Lyon : coupes, couleurs et brushings chez vous, sur rendez-vous.", cible: "Familles et particuliers lyonnais", metier: "Coiffeuse à domicile", accroche: "Votre coiffeuse vient chez vous", cta: "Prendre rendez-vous", ecrans: [{ titre: "Accueil", role: "L'accroche et le bouton de rendez-vous" }, { titre: "Services et tarifs", role: "Les prestations et leurs prix" }, { titre: "Contact", role: "Le formulaire de demande" }, { titre: "Espace gérant", role: "Les demandes reçues" }], services: [], plus_tard: [], limites: [] } };
   const cible = CONSTRUIRE === "site" ? { idee: true, domaine: "idee.bingoo.fr", nom: SITE_IDEE.apercu.nom, categorie: "", ideeTexte: SITE_IDEE.texte, type: "site", reponses: [], apercu: SITE_IDEE.apercu }
     : CONSTRUIRE === "ia"
     ? { domaine: process.env.DOMAINE || "circle.so", nom: "Circle", categorie: "Communauté" }
@@ -139,6 +144,10 @@ if (!CONSTRUIRE) {
   console.log(JSON.stringify(a?.verif?.mesure ?? null), (a?.verif?.journal ?? []).map((j) => j.t).join("\n"));
   // Le site en ligne tel que le voit un visiteur, puis le plan « premiers clients » du commerce
   if (CONSTRUIRE === "site" && a?.slug) {
+    // Référencement : les balises que lisent Google et les aperçus de partage, sur le lien à partager /s/<site>
+    const html = await (await fetch(`${SITE}/s/${a.slug}`)).text();
+    const balises = (html.match(/<title>[^<]*<\/title>|<meta (?:name|property)="(?:description|og:[a-z:_]+|twitter:[a-z]+)"[^>]*>|<script type="application\/ld\+json">[\s\S]*?<\/script>/g) ?? []).join("\n");
+    fs.writeFileSync(`${DOSSIER}/site-balises.txt`, balises); console.log("Balises du site :\n" + balises);
     for (const [nom, vp] of [["site-en-ligne", { width: 1440, height: 900 }], ["site-en-ligne-mobile", { width: 390, height: 844 }]]) {
       const c2 = await browser.newContext({ viewport: vp, locale: "fr-FR" }); const p2 = await c2.newPage();
       await p2.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p2.waitForTimeout(8000);

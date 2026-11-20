@@ -385,22 +385,43 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       if (sp.type !== "site") throw new Err(404, "Page introuvable");
       const proprio = await proprioSite(admin, app.id);
       if (action === "site-info") {
-        const COLS_SITE = ["services", "horaires", "infos"];
+        const COLS_SITE = ["services", "horaires", "infos", "realisations"];
         let par: Record<string, any[]> = {};
+        let inscrits: number | null = null;
         if (proprio) {
-          const { data } = await admin.from("saas_app_rows").select("id, col, data, at").eq("app_id", app.id).eq("espace_id", proprio.id).in("col", COLS_SITE).limit(200);
+          const { data } = await admin.from("saas_app_rows").select("id, col, data, at").eq("app_id", app.id).eq("espace_id", proprio.id).in("col", COLS_SITE).limit(300);
           for (const r of (data ?? []) as any[]) (par[r.col] ??= []).push({ ...(r.data ?? {}), id: r.id });
-        } else par = Object.fromEntries(COLS_SITE.map((c) => [c, ((sp.demo ?? {})[c] ?? []).map((x: any, i: number) => ({ ...x, id: `d${i}` }))]));
+        } else {
+          // Avant l'accès du gérant : seulement le vrai contenu de départ (jamais de projets ni d'inscrits d'exemple)
+          const semees = new Set(Array.isArray(sp.semer) ? sp.semer : ["services", "horaires", "infos"]);
+          par = Object.fromEntries(COLS_SITE.filter((c) => semees.has(c)).map((c) => [c, ((sp.demo ?? {})[c] ?? []).map((x: any, i: number) => ({ ...x, id: `d${i}` }))]));
+        }
+        // Page de lancement : le vrai nombre d'inscrits (affiché seulement à partir de 10)
+        if (sp.site?.modele === "lancement") { const { count } = await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("col", "inscrits"); inscrits = (count ?? 0) >= 10 ? count : null; }
         const nettoie = (x: any) => Object.fromEntries(Object.entries(x).filter(([k]) => !/^_|^ref$|^cree_le$/.test(k)));
         return { status: 200, body: {
           services: (par.services ?? []).filter((x) => x.visible !== false).sort((a, b) => (Number(a.ordre) || 0) - (Number(b.ordre) || 0)).slice(0, 30).map(nettoie),
           horaires: (par.horaires ?? []).sort((a, b) => (Number(a.jour) || 0) - (Number(b.jour) || 0)).slice(0, 7).map(nettoie),
           infos: nettoie((par.infos ?? [])[0] ?? {}),
+          realisations: (par.realisations ?? []).filter((x) => x.visible !== false && x.titre).sort((a, b) => (Number(a.ordre) || 0) - (Number(b.ordre) || 0)).slice(0, 40).map(nettoie),
+          inscrits,
         } };
       }
       // Demande envoyée depuis le site : rangée chez le gérant (ou mise de côté jusqu'à ce qu'il crée son accès), e-mail au gérant
       const d = (b.data && typeof b.data === "object" ? b.data : {}) as any;
       if (String(d.site_web ?? "").trim()) return { status: 200, body: { ok: true } }; // piège à robots
+      // Page de lancement : une inscription à la liste d'attente (une seule fois par adresse)
+      if (sp.site?.modele === "lancement") {
+        const email = String(d.email ?? "").trim().toLowerCase().slice(0, 160), prenom = String(d.prenom ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
+        if (!emailOk(email)) throw new Err(400, "Adresse e-mail invalide");
+        const ipL = await sha(`${app.id}:site:${(req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim()}`);
+        const { count: parIpL } = await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("col", "inscrits").eq("data->>_ip", ipL).gte("at", new Date(Date.now() - 3600e3).toISOString());
+        if ((parIpL ?? 0) >= 5) throw new Err(429, "Trop d'inscriptions depuis cette connexion, réessayez dans une heure");
+        const espaceL = proprio?.id ?? app.id;
+        const { count: deja } = await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("col", "inscrits").eq("data->>email", email);
+        if (!deja) await admin.from("saas_app_rows").insert({ app_id: app.id, user_id: espaceL, espace_id: espaceL, col: "inscrits", data: { email, ...(prenom ? { prenom } : {}), source, _public: true, _ip: ipL } });
+        return { status: 200, body: { ok: true } };
+      }
       const t = (x: unknown, n: number) => String(x ?? "").replace(/\s+/g, " ").trim().slice(0, n);
       const demande = { nom: t(d.nom, 80), email: t(d.email, 160).toLowerCase(), telephone: t(d.telephone, 30), service: t(d.service, 80), date_souhaitee: /^\d{4}-\d{2}-\d{2}$/.test(String(d.date_souhaitee ?? "")) ? String(d.date_souhaitee) : "", message: String(d.message ?? "").trim().slice(0, 2000), statut: "nouvelle" };
       if (!demande.nom) throw new Err(400, "Indiquez votre nom");
