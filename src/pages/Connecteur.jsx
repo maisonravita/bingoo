@@ -57,7 +57,7 @@ export default function Connecteur() {
   const [cible, setCible] = useState(""), [gerer, setGerer] = useState(false);
   // Adresse sur bingoo.fr (relayée vers la fonction t/mcp) : sur le domaine Supabase, la découverte OAuth de Claude
 // tombe sur la passerelle (401 « No API key ») et Claude croit qu'une connexion est requise.
-const base = "https://bingoo.fr/mcp";
+const base = "https://www.bingoo.fr/mcp"; // www : bingoo.fr redirige, et une redirection casse les requêtes POST des IA
   const charger = () => supabase.from("saas_api_cles").select("id, nom, debut, created_at, dernier_usage, appels, revoquee").eq("workspace_id", ws.id).order("created_at", { ascending: false }).then(({ data }) => setCles(data ?? []));
   useEffect(() => { if (ws?.id) charger(); }, [ws?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { supabase.rpc("saas_acces").then(({ data }) => setPaye(!!data)); }, [ws?.id]);
