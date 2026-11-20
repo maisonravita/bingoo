@@ -3806,6 +3806,7 @@ function Connecteur() {
   useEffect(() => { supabase.rpc("saas_acces").then(({ data }) => setPaye(!!data)); }, [ws.id]);
   const nav = useNavigate();
   const { session } = useWs();
+  const [cible, setCible] = useState("");
   const creer = async () => {
     if (estInvite(session)) return demanderCompte("Ton adresse de connecteur est rattachée à ton compte.");
     setBusy(true);
@@ -3816,7 +3817,7 @@ function Connecteur() {
   };
   const copier = async (t) => { try { await navigator.clipboard.writeText(t); toast("Copié", "good"); } catch { toast("Sélectionne le texte pour le copier"); } };
   // Arrivé depuis la fiche d'un SaaS (« Construire avec mon IA ») : la demande à coller dans son IA, toute prête
-  const demandePrete = (() => { const q = new URLSearchParams((window.location.hash.split("?")[1]) ?? ""); const id = q.get("saas") || q.get("domaine"); if (!id) return null; const nom = q.get("nom") || "ce SaaS";
+  const demandePrete = (() => { const q0 = new URLSearchParams((window.location.hash.split("?")[1]) ?? ""); let q = q0; try { if (q0.get("saas") || q0.get("domaine")) sessionStorage.setItem("bingoo_demande_ia", q0.toString()); else q = new URLSearchParams(sessionStorage.getItem("bingoo_demande_ia") ?? ""); } catch { /* stockage indisponible */ } const id = q.get("saas") || q.get("domaine") || (cible.trim() || null); if (!id) return null; const nom = q.get("nom") || (q.get("saas") || q.get("domaine") ? "ce SaaS" : cible.trim());
     return { nom, texte: `Avec Bingoo!, prépare le SaaS ${id} (${nom}) avec preparer_saas, lis guide_construction, puis construis MA propre version : un nom et une identité originaux, mais la même logique, les mêmes parcours et les mêmes interactions que ${nom}. Propose-moi d'abord ta conception (nom, écrans, données), puis crée-la et écris chaque écran jusqu'à la mise en ligne.` }; })();
   const revoquer = async (id) => { await supabase.from("saas_api_cles").update({ revoquee: true }).eq("id", id); toast("Clé révoquée : l'IA qui l'utilisait n'a plus accès", "good"); charger(); };
   const etapes = [
@@ -3837,6 +3838,13 @@ function Connecteur() {
           </div>
         ))}
       </div>
+      {!demandePrete && (
+        <div className="mt-5 rounded-2xl border-2 border-accent/40 bg-accent/5 p-4">
+          <p className="font-bold">Quel SaaS veux-tu que ton IA prenne comme modèle ?</p>
+          <input value={cible} onChange={(e) => setCible(e.target.value)} placeholder="Ex. calendly.com, notion.so, Tally…" className="mt-2 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-[14px]" />
+          <p className="mt-1.5 text-[12.5px] text-ink-soft">Bingoo! te prépare la demande à coller dans ton IA.</p>
+        </div>
+      )}
       {demandePrete && (
         <div className="mt-5 rounded-2xl border-2 border-accent/40 bg-accent/5 p-4">
           <p className="font-bold">Ta demande pour lancer ta version de {demandePrete.nom}</p>
