@@ -23,7 +23,7 @@ const dollars = (n) => Number(n).toLocaleString("fr-FR", { maximumFractionDigits
 function Maquette({ nom, principal, ecrans }) {
   const Bloc = ({ b }) => {
     const el = b.elements?.length ? b.elements : ["…", "…", "…"];
-    if (b.type === "kpi") return <div className="grid grid-cols-3 gap-2">{el.slice(0, 3).map((x) => <div key={x} className="rounded-lg border border-line bg-white p-2"><p className="text-[10px] text-ink-faint truncate">{x}</p><p className="text-[15px] font-black">{(x.length * 7) % 90 + 4}</p></div>)}</div>;
+    if (b.type === "kpi") return <div className="grid grid-cols-3 gap-2">{el.slice(0, 3).map((x) => <div key={x} className="rounded-lg border border-line bg-white p-2"><p className="text-[10px] text-ink-faint truncate">{x.replace(/^\d+[,.]?\d*\s*/, "")}</p><p className="text-[15px] font-black">{/\d+/.exec(x)?.[0] ?? (x.length % 9) + 2}</p></div>)}</div>;
     if (b.type === "calendrier") return <div className="grid grid-cols-7 gap-1">{Array.from({ length: 14 }, (_, i) => <div key={i} className={cx("h-7 rounded-md border border-line bg-white p-0.5 text-[8px] text-ink-faint", [2, 5, 9].includes(i) && "bg-[#FDECD8]")}>{i + 1}{[2, 5, 9].includes(i) && <span className="block truncate text-[#C2410C]">{el[i % el.length]}</span>}</div>)}</div>;
     if (b.type === "colonnes") return <div className="grid grid-cols-3 gap-2">{el.slice(0, 3).map((x, i) => <div key={x} className="rounded-lg bg-[#F1F0EC] p-1.5"><p className="mb-1 text-[10px] font-bold">{x}</p>{Array.from({ length: 2 - (i % 2) }, (_, k) => <div key={k} className="mb-1 h-5 rounded bg-white" />)}</div>)}</div>;
     if (b.type === "galerie") return <div className="grid grid-cols-3 gap-2">{el.slice(0, 3).map((x) => <div key={x} className="overflow-hidden rounded-lg border border-line bg-white"><div className="h-9 bg-[#F1F0EC]" /><p className="truncate px-1.5 py-1 text-[10px]">{x}</p></div>)}</div>;
@@ -120,7 +120,7 @@ export default function Idee() {
           )}
 
           <section className="mt-10 rounded-3xl border-2 border-ink bg-white p-5 sm:p-7">
-            <p className="text-[12px] font-bold uppercase tracking-[.14em] text-ink-faint">Ou ton idée telle quelle : l'aperçu de ta première version</p>
+            <p className="text-[12px] font-bold uppercase tracking-[.14em] text-ink-faint">{r.proches?.length ? "Ou ton idée telle quelle : l'aperçu de ta première version" : "L'aperçu de ta première version"}</p>
             <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_1.1fr]">
               <div>
                 <label className="text-[12.5px] font-semibold text-ink-soft" htmlFor="nom-idee">Son nom</label>
