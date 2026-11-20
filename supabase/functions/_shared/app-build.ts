@@ -3,6 +3,7 @@
 // 1. une spec (couleur, données, écrans, données d'exemple) ; 2. le code de chaque écran, en parallèle.
 // Le gabarit (src/lib/appShell.js) fournit navigation, comptes, composants et accès aux données.
 // deno-lint-ignore-file no-explicit-any
+import { alignerCode } from "./contrat-donnees.ts";
 import { admin, ask, askJson } from "./core.ts";
 import { sansIdentite } from "./identite.ts";
 
@@ -312,6 +313,8 @@ export async function saasEcrireEcran(appId: string, ecranId: string) {
   // la construction se met en pause et le surveillant (saas-app-envois) la reprend dès que l'IA est de nouveau disponible
   if (pause) { await admin.from("saas_apps").update({ etape: "En pause : reprise automatique dès que possible", maj: new Date().toISOString() }).eq("id", appId); return; }
   r.code = await inspireDe(appId).then((o) => sansIdentite(r.code, o, spec.nom).valeur);
+  // Contrat de données (sans IA) : champs et valeurs alignés sur les données du SaaS, première cause de blocs vides et de chiffres à 0
+  if (r.code) { const ct = alignerCode(r.code, spec); r.code = ct.code; if (ct.corrections.length || ct.alertes.length) console.log("contrat", ecranId, ct.corrections, ct.alertes); }
   const { data: fin } = await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: ecranId, p_code: r.code, p_ok: r.ok });
   if (fin === "pret") { await verifierPromesses(appId).catch((x) => console.error("promesses", x)); await corrigerAccroche(appId).catch((x) => console.error("accroche", x)); }
 }

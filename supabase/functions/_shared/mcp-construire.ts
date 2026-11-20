@@ -2,6 +2,7 @@
 // Bingoo! fournit le dossier (produit d'origine, famille, kit, règles), héberge, enregistre chaque écran, vérifie et met en ligne.
 // Aucun appel d'IA côté Bingoo! : l'IA du membre conçoit et écrit le code ; Bingoo! contrôle la syntaxe et l'identité, puis son robot vérifie.
 // deno-lint-ignore-file no-explicit-any
+import { alignerCode } from "./contrat-donnees.ts";
 import { admin, limitesDe, limiteMois } from "./core.ts";
 import { HttpError } from "./http.ts";
 import { FAMILLES, familleParDefaut } from "./familles.ts";
@@ -91,8 +92,12 @@ async function codeControle(app: any, spec: any, brut: unknown, id: string) {
   if (/\bfetch\s*\(|localStorage|window\.parent|document\.cookie|\beval\s*\(/.test(code)) throw new Error("Interdit dans un écran : fetch, localStorage, window.parent, document.cookie, eval. Utilise useCollection, db, email, pdf, ia.");
   const { data: pr } = await admin.from("saas_projets").select("data").eq("id", app.projet_id).maybeSingle();
   const ins = (pr?.data as any)?.inspire;
-  return ins ? sansIdentite(code, { nom: ins.nom, domaine: ins.domaine }, spec.nom).valeur : code;
+  // Contrat de données : champs et valeurs alignés sur les données du SaaS (sans IA) ; les doutes restants sont rendus à l'IA du membre
+  const ct = alignerCode(code, spec);
+  if (ct.alertes.length) DERNIERES_ALERTES.set(id, ct.alertes); else DERNIERES_ALERTES.delete(id);
+  return ins ? sansIdentite(ct.code, { nom: ins.nom, domaine: ins.domaine }, spec.nom).valeur : ct.code;
 }
+const DERNIERES_ALERTES = new Map<string, string[]>();
 const colDe = (c: any, i: number) => ({
   nom: snake(c?.nom, `donnees_${i + 1}`), label: String(c?.label ?? c?.nom ?? "").slice(0, 40), ...(c?.partage === true ? { partage: true } : {}),
   champs: (Array.isArray(c?.champs) ? c.champs : []).slice(0, 14).map((x: any, j: number) => ({ nom: snake(x?.nom, `champ_${j + 1}`), type: TYPES.includes(x?.type) ? x.type : "texte", ...(x?.type === "choix" && Array.isArray(x?.valeurs) ? { valeurs: x.valeurs.slice(0, 12).map(String) } : {}) })),
@@ -177,12 +182,14 @@ export async function appelerConstruire(wsId: string, nom: string, a: any) {
       const { data: fin } = await admin.rpc("saas_app_ecran_set", { p_app: app.id, p_id: a.ecran_id, p_code: propre, p_ok: true });
       const { data: apres } = await admin.from("saas_apps").select("brouillon, slug").eq("id", app.id).single();
       const restants = ((apres?.brouillon as any)?.ecrans ?? []).filter((e: any) => !e.code).map((e: any) => e.id);
-      return fin === "pret" ? { statut: "en_ligne", adresse: adresse(app.slug), suite: "Le SaaS est en ligne. Le robot de Bingoo! vérifie chaque écran dans les 10 minutes : appelle voir_saas ensuite pour corriger ce qu'il signale." } : { statut: "en_cours", ecrans_restants: restants };
+      const al = DERNIERES_ALERTES.get(String(a?.ecran_id)); const aVerifier = al ? { a_verifier: al } : {};
+      return fin === "pret" ? { ...aVerifier, statut: "en_ligne", adresse: adresse(app.slug), suite: "Le SaaS est en ligne. Le robot de Bingoo! vérifie chaque écran dans les 10 minutes : appelle voir_saas ensuite pour corriger ce qu'il signale." } : { ...aVerifier, statut: "en_cours", ecrans_restants: restants };
     }
     // SaaS déjà en ligne : nouvelle version de l'écran, publiée aussitôt (puis revérifiée par le robot)
     const nouvelle = { ...spec, ecrans: spec.ecrans.map((e: any) => e.id === a.ecran_id ? { ...e, code: propre, ok: true } : e) };
     await admin.from("saas_apps").update({ spec: nouvelle, version: (app.version ?? 1) + 1, maj: new Date().toISOString() }).eq("id", app.id);
-    return { statut: "mis_a_jour", adresse: adresse(app.slug), version: (app.version ?? 1) + 1 };
+    const al2 = DERNIERES_ALERTES.get(String(a?.ecran_id));
+    return { ...(al2 ? { a_verifier: al2 } : {}), statut: "mis_a_jour", adresse: adresse(app.slug), version: (app.version ?? 1) + 1 };
   }
 
   if (nom === "modifier_saas") {

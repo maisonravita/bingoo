@@ -24,6 +24,7 @@ export { orgOf } from "./${S}/iporg.ts";
 export { slugs } from "./${S}/deep.ts";
 export { invitesToday, officeHours } from "./${S}/linkedin-auto.ts";
 export { masquer, MASQUE, PAYANT_SEUL, QUOTA_GRATUIT } from "./${S}/mcp-bingoo.ts";
+export { alignerCode } from "./${S}/contrat-donnees.ts";
 `;
 const stubs = {
   name: "stubs",
@@ -258,6 +259,27 @@ await test("la coque générée des SaaS livrés est du JavaScript valide", asyn
   assert.equal(r.status, 0, r.stderr.split("\n").slice(0, 6).join("\n"));
 });
 
+
+await test("contrat de données : champ et valeur mal nommés corrigés sans IA", () => {
+  const spec = { collections: [{ nom: "loyers", champs: [{ nom: "montant_ttc", type: "nombre" }, { nom: "statut", type: "choix", options: ["payé", "en retard"] }] }],
+    demo: { loyers: [{ montant_ttc: 800, statut: "payé" }, { montant_ttc: 750, statut: "en retard" }] } };
+  const code = `function Ecran(){ const L = useCollection("loyers"); const recus = L.rows.filter((r) => r.statut === "paye"); const total = recus.reduce((a, r) => a + r.montantTTC, 0); return html\`<p>\${total}</p>\`; }`;
+  const r = T.alignerCode(code, spec);
+  if (!r.code.includes('r.statut === "payé"')) throw new Error("valeur non corrigée : " + r.code);
+  if (!r.code.includes("r.montant_ttc")) throw new Error("champ non corrigé : " + r.code);
+  if (r.code.includes(".reduce((a, r) => a + r.montant_ttc") === false) throw new Error("reduce cassé");
+});
+await test("contrat de données : ne touche ni au JavaScript, ni aux variables, ni aux champs justes", () => {
+  const spec = { collections: [{ nom: "taches", champs: [{ nom: "titre" }, { nom: "fait" }] }], demo: { taches: [{ titre: "A", fait: false }] } };
+  const code = `function Ecran(){ const T = useCollection("taches"); const faites = T.rows.filter((t) => t.fait).length; const total = T.rows.length; const titres = T.rows.map((t) => t.titre.toUpperCase()); return html\`<p>\${faites}/\${total}</p>\`; }`;
+  const r = T.alignerCode(code, spec);
+  if (r.code !== code) throw new Error("code modifié à tort : " + r.corrections.join(", "));
+});
+await test("contrat de données : valeur ambiguë signalée, jamais devinée", () => {
+  const spec = { collections: [{ nom: "devis", champs: [{ nom: "etat", options: ["brouillon", "envoyé", "signé"] }] }], demo: { devis: [{ etat: "envoyé" }] } };
+  const r = T.alignerCode(`const n = D.rows.filter((d) => d.etat === "accepte").length;`, spec);
+  if (!r.alertes.length || r.code.includes("signé")) throw new Error("devait signaler sans corriger");
+});
 console.log(`\n${ok} réussi${ok > 1 ? "s" : ""}, ${ko} échec${ko > 1 ? "s" : ""}`);
 writeFileSync(join(dir, "done"), "");
 process.exit(ko ? 1 : 0);
