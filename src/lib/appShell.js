@@ -44,10 +44,10 @@ export function policesDe(spec) {
 }
 const policeUrl = (st) => "https://fonts.googleapis.com/css2?" + [...new Set([st.police, st.titres])].map((p) => "family=" + p.replace(/ /g, "+") + (p === "Fraunces" ? ":opsz,wght@9..144,500;9..144,700" : p === "Playfair Display" || p === "Bebas Neue" || p === "DM Serif Display" ? (p === "Playfair Display" ? ":wght@500;700;800" : "") : ":wght@400;500;600;700;800")).join("&") + "&display=swap";
 
-export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null, capture = null }) {
+export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null, capture = null, essai = false }) {
   // Capture (vidéo pub) : mêmes données d'exemple que la vérification, aucune requête au serveur
   if (capture) verif = true;
-  const boot = { style: styleDe(spec), spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog, source, ecran, validation, precommande, verif, page, capture };
+  const boot = { style: styleDe(spec), spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog, source, ecran, validation, precommande, verif, page, capture, essai };
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${String(spec.nom ?? "Mon SaaS").replace(/[<&]/g, "")}</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js"></script>
@@ -61,7 +61,8 @@ export function appHtml({ spec, slug, api, token = null, apercu = false, paiemen
 .fond-sombre [class~="text-slate-900"],.fond-sombre [class~="text-slate-800"]{color:#F1F5F9}.fond-sombre [class~="text-slate-700"],.fond-sombre [class~="text-slate-600"]{color:#CBD5E1}.fond-sombre [class~="text-slate-500"],.fond-sombre [class~="text-slate-400"]{color:#94A3B8}
 .fond-sombre [class*="bg-white/"]{background:rgba(22,26,34,.92)}.fond-sombre [class*="hover:bg-slate-100"]:hover{background:#222836}
 .fond-sombre input,.fond-sombre select,.fond-sombre textarea{background:#0E1116;color:#F1F5F9;border-color:#2B3240}.fond-sombre [class~="hover:bg-slate-50"]:hover,.fond-sombre [class~="hover:bg-slate-100"]:hover{background:#222836}
-main section{max-width:100%;overflow-x:auto}.anim{animation:a .18s ease-out}@keyframes barre{from{width:0}to{width:100%}}@keyframes a{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}</style>
+main section{max-width:100%;overflow-x:auto}
+@media (max-width:640px){main table,main thead,main tbody,main tr,main td{display:block;width:100%}main thead{display:none}main tr{border:1px solid rgba(100,116,139,.22)!important;border-radius:14px;margin:0 0 10px;padding:4px 14px}main td{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:7px 0!important;border:0!important;text-align:right;min-height:0}main td:empty{display:none}main table{min-width:0!important;width:100%!important;table-layout:auto!important}main td,main td *{white-space:normal!important}main td>*{min-width:0;max-width:62%;margin-left:auto;text-align:right}main td:first-child>*{max-width:100%;margin-left:0;text-align:left}main td>div,main td>span{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px}main td:first-child>div,main td:first-child>span{justify-content:flex-start}main td[data-label]::before{content:attr(data-label);font-size:12px;font-weight:600;color:#64748B;text-align:left;flex-shrink:0;max-width:45%}main td:first-child{font-weight:600;text-align:left}main td:first-child::before{display:none}main .overflow-x-auto{margin-left:0!important;margin-right:0!important;overflow:visible}main section{overflow-x:visible}}.anim{animation:a .18s ease-out}@keyframes barre{from{width:0}to{width:100%}}@keyframes a{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}</style>
 </head><body><div id="root"><div style="min-height:100vh;display:grid;place-items:center;color:#94A3B8;font-size:14px">Chargement…</div></div>
 <script>window.__BOOT=${safe(boot)};</script>
 <script type="module">
@@ -92,7 +93,8 @@ const allerVers = (url) => { try { window.top.location.href = url; } catch (e) {
 
 // ---------------------------------------------------------------- Accès aux données (chaque compte ne voit que les siennes)
 async function call(action, body = {}) {
-  if (B.verif) return verifCall(action, body);
+  // Vérification et essai local (robot mobile) : données d'exemple en mémoire, aucune requête au serveur
+  if (B.verif || B.essai) return verifCall(action, body);
   const r = await fetch(B.api + "/" + B.slug + "/" + action, { method: "POST", headers: { "content-type": "application/json", ...(token ? { "x-app-token": token } : {}) }, body: JSON.stringify(body) });
   const d = await r.json().catch(() => ({}));
   if (r.status === 401 && action !== "login") { persist(null); bus.emit("auth"); }
@@ -116,7 +118,7 @@ function recaler(demo, ancre) {
   const profond = (v, n = 0) => n > 6 ? v : Array.isArray(v) ? v.map((y) => profond(y, n + 1)) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([c, y]) => [c, profond(y, n + 1)])) : dv(v);
   return Object.fromEntries(Object.entries(demo).map(([k, xs]) => [k, Array.isArray(xs) ? xs.map((x) => x && typeof x === "object" && !Array.isArray(x) ? profond(x) : x) : xs]));
 }
-if (B.verif) {
+if (B.verif || B.essai) {
   const refs = new Map(), items = [];
   for (const [col, xs] of Object.entries(recaler(S.demo ?? {}, S.demo_ancre))) for (const x of (Array.isArray(xs) ? xs : []).slice(0, 60)) { const id = "v" + (++VSEQ); if (x && x.ref != null) refs.set(String(x.ref), id); items.push({ id, col, x: x ?? {} }); }
   items.forEach(({ id, col, x }, i) => { const d = {}; for (const [k, v] of Object.entries(x)) if (k !== "ref" && k !== "id" && k !== "cree_le") d[k] = typeof v === "string" && refs.has(v) && /_id$/.test(k) ? refs.get(v) : v; const c = typeof x.cree_le === "string" && !isNaN(Date.parse(x.cree_le)) ? new Date(Date.parse(x.cree_le.length === 10 ? x.cree_le + "T10:00:00Z" : x.cree_le)).toISOString() : new Date(Date.now() - i * 25e6).toISOString(); (VSTORE[col] ??= []).push({ ...d, id, created_at: c, updated_at: null }); });
@@ -1012,12 +1014,12 @@ function Appli({ user, etat, onLogout, tour, onFinTour }) {
       <div class=\${cls(etat.payant ? "" : "mt-auto", "border-t border-slate-100 pt-3 text-sm flex items-center gap-2.5")}><button onClick=\${() => nav("_compte")} title="Mon compte" class="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl p-1 -m-1 text-left hover:bg-slate-500/10"><span class="grid w-9 h-9 shrink-0 place-items-center rounded-full bg-[var(--c)] text-xs font-bold text-white">\${String(user.nom || user.email || "?").trim().split(" ").filter(Boolean).map((x) => x[0]).join("").slice(0, 2).toUpperCase()}</span><span class="min-w-0"><span class="block font-medium truncate">\${user.nom}</span><span class="block text-xs opacity-60 truncate">\${/@demo\\.local$/.test(user.email) ? "Compte de démonstration" : user.role === "admin" || user.role === "owner" ? "Administrateur" : user.email}</span></span></button><button onClick=\${onLogout} title="Se déconnecter" aria-label="Se déconnecter" class="grid w-8 h-8 shrink-0 place-items-center rounded-lg opacity-60 hover:opacity-100 hover:bg-slate-500/10"><\${Icone} nom="sortie" class="w-4 h-4"/></button></div>
     </aside>
     \${menu && html\`<div class="fixed inset-0 z-30 bg-slate-900/30 lg:hidden" onClick=\${() => setMenu(false)}/>\`}
-    <main class=\${cls("flex-1 min-w-0 min-h-screen", !["creme", "gris", "sombre"].includes(S.fond) && "bg-[#F7F7F9]", DISPO === "onglets" && "pb-20 md:pb-0")}><div class=\${cls("lg:hidden flex items-center justify-between bg-white border-b border-slate-200 px-4 py-3", DISPO !== "barre" && "!hidden")}><button onClick=\${() => setMenu(true)}><\${Icone} nom="menu"/></button><span class="font-bold">\${S.nom}</span><span class="w-5"/></div>
+    <main class=\${cls("flex-1 min-w-0 min-h-screen", !["creme", "gris", "sombre"].includes(S.fond) && "bg-[#F7F7F9]", "pb-20 md:pb-0")}><div class=\${cls("lg:hidden flex items-center justify-between bg-white border-b border-slate-200 px-4 py-3", DISPO !== "barre" && "!hidden")}><button onClick=\${() => setMenu(true)}><\${Icone} nom="menu"/></button><span class="font-bold">\${S.nom}</span><span class="w-5"/></div>
       \${user.role === "lecture" && html\`<div class="bg-amber-50 text-amber-800 text-sm px-5 py-2">Accès en lecture seule : vous voyez tout, mais vous ne pouvez rien modifier.</div>\`}
       <div class="max-w-6xl mx-auto p-5 sm:p-8">\${!tour && E?.id === PRIVES[0]?.id && html\`<\${PremiersPas} user=\${user} publiques=\${PUBLIQUES} lien=\${lienPage}/>\`}\${E ? html\`<\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} key=\${E.id + JSON.stringify(cur.params)} user=\${user} params=\${cur.params} etat=\${etat}/></\${Garde}>\` : null}</div></main>
-    \${DISPO === "onglets" && html\`<\${Onglets}/>\`}
+    <\${Onglets}/>
     \${tour && html\`<\${Tour} onFin=\${onFinTour}/>\`}
-    <div class="fixed bottom-4 right-4 z-50 space-y-2">\${toasts.map((t) => html\`<div class=\${cls("anim rounded-xl px-4 py-2.5 text-sm text-white shadow-lg", t.type === "bad" ? "bg-red-600" : "bg-slate-900")}>\${t.msg}</div>\`)}</div>
+    <div class="fixed bottom-24 md:bottom-4 right-4 z-50 space-y-2">\${toasts.map((t) => html\`<div class=\${cls("anim rounded-xl px-4 py-2.5 text-sm text-white shadow-lg", t.type === "bad" ? "bg-red-600" : "bg-slate-900")}>\${t.msg}</div>\`)}</div>
   </div>\`;
 }
 
@@ -1109,6 +1111,8 @@ function Capture() {
 function Racine() {
   if (B.capture) return html\`<\${Capture}/>\`;
   if (B.verif) return html\`<\${Verif}/>\`;
+  // Essai local : l'application complète, connectée, avec les données d'exemple (robot mobile, captures sur téléphone)
+  if (B.essai) return html\`<\${Appli} user=\${{ id: "v", nom: "Camille Martin", email: "camille@exemple.fr", role: "admin" }} etat=\${{ acces: true }} onLogout=\${() => {}} tour=\${false} onFinTour=\${() => {}}/>\`;
   if (PAGE) return html\`<\${PagePublique}/>\`;
   if (B.validation && !(S.ecrans ?? []).length) return html\`<\${Precommande}/>\`;
   const [etat, setEtat] = useState(undefined), [auth, setAuth] = useState(B.invite ? "signup" : null), [tour, setTour] = useState(false);
@@ -1171,6 +1175,12 @@ function Racine() {
     el.addEventListener("keydown", touche); el.addEventListener("blur", sortie);
   }, true);
   if (window.parent !== window) window.parent.postMessage({ type: "bingoo-atelier-pret" }, "*");
+}
+// Téléphone : chaque cellule d'un tableau porte le nom de sa colonne (data-label), affiché quand le tableau devient des cartes
+{
+  let attente = null;
+  const etiqueter = () => { attente = null; for (const t of document.querySelectorAll("main table")) { const ths = [...t.querySelectorAll("thead th")].map((x) => x.textContent.replace(/[↑↓]/g, "").trim()); if (!ths.length) continue; for (const tr of t.querySelectorAll("tbody tr")) [...tr.children].forEach((td, i) => { const l = ths[i] ?? ""; if (td.getAttribute("data-label") !== l) l ? td.setAttribute("data-label", l) : td.removeAttribute("data-label"); }); } };
+  new MutationObserver(() => { if (!attente) attente = setTimeout(etiqueter, 60); }).observe(document.body, { childList: true, subtree: true });
 }
 render(html\`<\${Racine}/>\`, document.getElementById("root"));
 { const d = document.createElement("div"); document.body.appendChild(d); render(html\`<\${FenetreLegale}/>\`, d); }
