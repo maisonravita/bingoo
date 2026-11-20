@@ -125,21 +125,27 @@ if (!CONSTRUIRE) {
   const ws2 = await creerEspace(`Robot construction ${new Date().toISOString().slice(0, 16)}`);
   await q(`update workspaces set plan = ${lit(CONSTRUIRE === "site" ? "site" : "lancer_pro")}, plan_status = 'active', onboarded = true where id = ${lit(ws2)}`);
   const nomVoulu = CONSTRUIRE === "ia" ? "Cerclo" : CONSTRUIRE === "site" ? SITE_IDEE.apercu.nom : "Sublima";
-  const { ctx, page } = await ouvrir(ws2, {
+  let { ctx, page } = await ouvrir(ws2, {
     [`bingoo-reponses-${cible.domaine}`]: { nom: nomVoulu, clients: CONSTRUIRE === "ia" ? "Créateurs de communautés" : "Instituts de beauté", mieux: "", angle: `Nom souhaité, à utiliser tel quel : ${nomVoulu}` },
     "bingoo-chantier": { ...cible, ws: ws2, metier: CONSTRUIRE === "ia" ? "Créateurs de communautés" : "Institut de beauté" },
   });
   const t0 = Date.now();
   await page.goto(`${SITE}/?c=${t0}#/explorer/revelation`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
-  let n = 0, fin = false;
+  let n = 0, fin = false, figee = 0;
   while (Date.now() - t0 < 25 * 60e3 && !fin) {
     await page.waitForTimeout(20000);
-    await page.screenshot({ path: `${DOSSIER}/construction-${String(++n).padStart(2, "0")}.png` });
-    const texte = await page.evaluate(() => document.body.innerText);
+    // Délais bornés : une page figée (boucle infinie) ne doit pas bloquer le robot, elle doit être signalée
+    const borne = (p, ms, quoi) => Promise.race([p, new Promise((_, ko) => setTimeout(() => ko(new Error(`${quoi} : la page ne répond plus après ${ms / 1000} s`)), ms))]);
+    let texte = "";
+    try {
+      await borne(page.screenshot({ path: `${DOSSIER}/construction-${String(++n).padStart(2, "0")}.png`, timeout: 15000 }), 20000, "Capture");
+      texte = await borne(page.evaluate(() => document.body.innerText), 15000, "Lecture");
+    } catch (e) { console.log("⚠ PAGE FIGÉE :", e.message, "· URL", page.url()); figee = (figee ?? 0) + 1; }
     fin = /Tout est propre|Je livre ton SaaS|tests continuent en arrière-plan|La construction a échoué/.test(texte);
     // Ou la base le dit : vérification finie (le texte de la page varie selon le genre d'app)
-    if (!fin) { const [v] = await q(`select verif->>'phase' p, statut from saas_apps where workspace_id = ${lit(ws2)}`); fin = v?.p === "fini" || v?.statut === "erreur"; if (fin) { await page.waitForTimeout(4000); await page.screenshot({ path: `${DOSSIER}/construction-fin.png` }); } }
+    if (!fin) { const [v] = await q(`select verif->>'phase' p, statut from saas_apps where workspace_id = ${lit(ws2)}`); fin = v?.p === "fini" || v?.statut === "erreur"; if (fin && !figee) { await page.waitForTimeout(4000); await page.screenshot({ path: `${DOSSIER}/construction-fin.png`, timeout: 15000 }).catch(() => null); } }
   }
+  if (figee) { console.log(`⚠ La page de construction s'est figée ${figee} fois : bug à corriger côté Bingoo!`); fs.writeFileSync(`${DOSSIER}/PAGE-FIGEE.txt`, String(figee)); page = await ctx.newPage(); }
   console.log(`Construction ${fin ? "terminée" : "toujours en cours"} après ${Math.round((Date.now() - t0) / 1000)} s`);
   { const [v] = await q(`select verif->'journal' j, verif->>'at' quand from saas_apps where workspace_id = ${lit(ws2)}`); console.log("Vérification :", JSON.stringify(v ?? null)); }
   const [a] = await q(`select slug, statut, version, verif from saas_apps where workspace_id = ${lit(ws2)}`);
