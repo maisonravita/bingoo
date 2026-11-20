@@ -507,15 +507,15 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                 </button>
               </div>
             </div>
-            {conso ? (
-              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-[11.5px] text-ink-faint">
-                <span title="Chaque demande compte pour une modification ; au-delà, 1 crédit">Modifications : <b className="text-ink-soft tabular-nums">{conso.mod?.utilise ?? 0}/{conso.mod?.max ?? 30}</b> ce mois</span>
-                <span>Crédits : <b className="text-ink-soft tabular-nums">{conso.credits}</b></span>
-                <span className="flex items-center gap-1.5" title="Part de l'IA comprise dans ton abonnement, utilisée ce mois-ci">IA du mois <span className="inline-block h-1.5 w-14 overflow-hidden rounded-full bg-[#ECEAE4] align-middle"><span className={cx("block h-full rounded-full", conso.ia >= 90 ? "bg-[#B42318]" : conso.ia >= 70 ? "bg-[#E8A13A]" : "bg-[#1F7A4D]")} style={{ width: `${conso.ia}%` }} /></span><b className="text-ink-soft tabular-nums">{conso.ia} %</b></span>
-                <button type="button" onClick={() => nav("/abonnement")} className="underline-offset-2 hover:underline">Détail</button>
-                <span className="w-full">Double-clic sur un texte de l'aperçu pour le modifier : gratuit.{conso.repart ? ` Tout repart le ${new Date(conso.repart).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}.` : ""}</span>
-              </div>
-            ) : <p className="mt-1.5 px-1 text-[11.5px] text-ink-faint">30 modifications par mois incluses, puis 1 crédit chacune. Double-clic sur un texte de l'aperçu pour le modifier : gratuit.</p>}
+            {/* Seules les vraies limites de l'atelier : les modifications du mois, puis les crédits (l'IA consommée n'a pas à inquiéter le membre) */}
+            <div className="mt-1.5 px-1 text-[11.5px] leading-relaxed text-ink-faint">
+              {conso && <p>
+                Modifications : <b className="text-ink-soft tabular-nums">{conso.mod?.utilise ?? 0} sur {conso.mod?.max ?? 30}</b> ce mois
+                {conso.credits > 0 ? <> · ensuite <b className="text-ink-soft tabular-nums">{conso.credits}</b> crédit{conso.credits > 1 ? "s" : ""}</> : (conso.mod?.utilise ?? 0) >= (conso.mod?.max ?? 30) ? <> · <button type="button" onClick={() => nav("/abonnement")} className="font-semibold text-ink-soft underline">recharger des crédits</button></> : null}
+                {conso.repart ? <> · nouvelles modifications le {(() => { const d = new Date(conso.repart); return (d.getDate() === 1 ? "1er" : d.getDate()) + " " + d.toLocaleDateString("fr-FR", { month: "long" }); })()}</> : null}
+              </p>}
+              <p>Double-clic sur un texte de l'aperçu pour le modifier : gratuit, ne compte pas dans tes modifications.</p>
+            </div>
           </form>
         </section>
 
