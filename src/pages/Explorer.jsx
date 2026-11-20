@@ -14,6 +14,7 @@ import { Spinner, useToast } from "../components/ui";
 import CompanyLogo from "../components/CompanyLogo";
 import { LineChart } from "../components/Charts";
 import { lazy, Suspense } from "react";
+const Connecteur = lazy(() => import("./Connecteur"));
 const IsoMonde = lazy(() => charger(() => import("../components/IsoMonde")));
 import AppCadre, { API, blogApp, lienApp } from "../components/AppCadre";
 const VideoPub = lazy(() => charger(() => import("../components/VideoPub")));
@@ -106,7 +107,7 @@ export default function Explorer({ domaine: fixe }) {
   if (d === "trouver") return <><Onglets actif="trouver" trouver /><TrouveTonSaas /></>;
   if (d === "vendre") return <><Onglets actif="vendre" /><AchatVente /></>;
   if (d === "demande") return <><Onglets actif="demande" /><DemandeBingoo /></>;
-  if (d === "connecteur") return <><Onglets actif="connecteur" /><Connecteur /></>;
+  if (d === "connecteur") return <><Onglets actif="connecteur" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><Connecteur /></Suspense></>;
   if (d === "chiffres") return <><Onglets actif="chiffres" /><ChiffresSaas /></>;
   if (d === "comparer") return <Comparer />;
   return d ? <Fiche domaine={d} /> : <><Onglets actif="liste" /><Liste /></>;
@@ -3796,114 +3797,6 @@ function DemandeBingoo() {
           <p className="mt-6 rounded-xl bg-paper border border-line px-4 py-3 text-[13.5px]">Tu préfères demander directement à Claude ou ChatGPT ? <button onClick={() => nav("/explorer/connecteur")} className="font-semibold underline">Connecte Bingoo! à ton IA</button> : elle répondra avec ces mêmes chiffres.</p>
         </div>
       )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------- Connecteur : Bingoo! dans Claude, ChatGPT et tout client MCP
-function Connecteur() {
-  const { ws } = useWs();
-  const toast = useToast();
-  const [cles, setCles] = useState(null);
-  const [nouvelle, setNouvelle] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const base = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/t/mcp`;
-  const charger = () => supabase.from("saas_api_cles").select("id, nom, debut, created_at, dernier_usage, appels, revoquee").eq("workspace_id", ws.id).order("created_at", { ascending: false }).then(({ data }) => setCles(data ?? []));
-  useEffect(() => { charger(); }, [ws.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [paye, setPaye] = useState(null);
-  useEffect(() => { supabase.rpc("saas_acces").then(({ data }) => setPaye(!!data)); }, [ws.id]);
-  const nav = useNavigate();
-  const { session } = useWs();
-  const [cible, setCible] = useState("");
-  const [viaChamp] = useState(() => { try { const q = new URLSearchParams((window.location.hash.split("?")[1]) ?? ""); return !(q.get("saas") || q.get("domaine") || sessionStorage.getItem("bingoo_demande_ia")); } catch { return true; } });
-  const creer = async () => {
-    if (estInvite(session)) return demanderCompte("Ton adresse de connecteur est rattachée à ton compte.");
-    setBusy(true);
-    const { data, error } = await supabase.rpc("saas_api_cle_creer", { ws: ws.id, p_nom: "Claude" });
-    setBusy(false);
-    if (error) return toast(error.message, "bad");
-    setNouvelle(`${base}/${data}`); charger();
-  };
-  const copier = async (t) => { try { await navigator.clipboard.writeText(t); toast("Copié", "good"); } catch { toast("Sélectionne le texte pour le copier"); } };
-  // Arrivé depuis la fiche d'un SaaS (« Construire avec mon IA ») : la demande à coller dans son IA, toute prête
-  const demandePrete = (() => { const q0 = new URLSearchParams((window.location.hash.split("?")[1]) ?? ""); let q = q0; try { if (q0.get("saas") || q0.get("domaine")) sessionStorage.setItem("bingoo_demande_ia", q0.toString()); else q = new URLSearchParams(sessionStorage.getItem("bingoo_demande_ia") ?? ""); } catch { /* stockage indisponible */ } const id = q.get("saas") || q.get("domaine") || (cible.trim().length >= 3 ? cible.trim() : null); if (!id) return null; const nom = q.get("nom") || (q.get("saas") || q.get("domaine") ? "ce SaaS" : cible.trim());
-    return { nom, texte: `Avec Bingoo!, prépare le SaaS ${id} (${nom}) avec preparer_saas, lis guide_construction, puis construis MA propre version : un nom et une identité originaux, mais la même logique, les mêmes parcours et les mêmes interactions que ${nom}. Propose-moi d'abord ta conception (nom, écrans, données), puis crée-la et écris chaque écran jusqu'à la mise en ligne.` }; })();
-  const revoquer = async (id) => { await supabase.from("saas_api_cles").update({ revoquee: true }).eq("id", id); toast("Clé révoquée : l'IA qui l'utilisait n'a plus accès", "good"); charger(); };
-  const etapes = [
-    ["Claude (site ou application)", ["Ouvre Plug-ins dans le menu de gauche (ou Paramètres, puis Connecteurs).", "Clique sur « Ajouter », puis « Ajouter un connecteur personnalisé ».", "Nomme-le Bingoo! et colle ton adresse ci-dessus.", "Dans une conversation, active Bingoo! dans le menu des outils."]],
-    ["ChatGPT", ["Ouvre Paramètres, puis Applications et connecteurs.", "Active le mode développeur dans les paramètres avancés.", "Crée un connecteur, colle ton adresse, sans authentification.", "Choisis Bingoo! dans les outils d'une conversation."]],
-    ["Claude Code ou un autre client MCP", ["Ajoute un serveur MCP en HTTP avec ton adresse.", "Avec Claude Code : claude mcp add --transport http bingoo <ton adresse>"]],
-  ];
-  return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      <h1 className="text-[32px] sm:text-[44px] font-black leading-[1.02] tracking-tight" style={HF}>Construis tes SaaS avec ton IA</h1>
-      <p className="mt-2 text-[15.5px] text-ink-soft max-w-2xl">Connecte Bingoo! à ton Claude ou ton ChatGPT. Ton IA trouve avec Bingoo! un SaaS qui marche déjà, puis construit TA version avec toi, écran par écran, sans limite. Bingoo! l'héberge, la vérifie et la met en ligne.</p>
-      <div className="mt-5 grid sm:grid-cols-3 gap-3">
-        {[["Trouver", "« Trouve-moi 3 SaaS de facturation qui scalent en ce moment »", "Revenus vérifiés, croissance, niches, validation d'idée."], ["Construire", "« Construis ma version d'un outil de prise de notes, avec un assistant IA »", "Ton IA conçoit et écrit chaque écran avec le kit de Bingoo!. Le SaaS se met en ligne tout seul."], ["Améliorer", "« Ajoute un tableau de bord des ventes à mon SaaS Feuillet »", "Ton IA reprend ton SaaS, corrige ce que le robot signale et publie la nouvelle version."]].map(([t, ex, d]) => (
-          <div key={t} className="rounded-2xl border border-line bg-white p-4">
-            <p className="font-bold">{t}</p>
-            <p className="mt-1 text-[13.5px] italic text-ink">{ex}</p>
-            <p className="mt-2 text-[12.5px] text-ink-soft">{d}</p>
-          </div>
-        ))}
-      </div>
-      {(!demandePrete || viaChamp) && (
-        <div className="mt-5 rounded-2xl border-2 border-accent/40 bg-accent/5 p-4">
-          <p className="font-bold">Quel SaaS veux-tu que ton IA prenne comme modèle ?</p>
-          <input value={cible} onChange={(e) => setCible(e.target.value)} placeholder="Ex. calendly.com, notion.so, Tally…" className="mt-2 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-[14px]" />
-          <p className="mt-1.5 text-[12.5px] text-ink-soft">Bingoo! te prépare la demande à coller dans ton IA.</p>
-        </div>
-      )}
-      {demandePrete && (
-        <div className="mt-5 rounded-2xl border-2 border-accent/40 bg-accent/5 p-4">
-          <p className="font-bold">Ta demande pour lancer ta version de {demandePrete.nom}</p>
-          <p className="mt-2 rounded-xl bg-white border border-line p-3 text-[14px] italic">{demandePrete.texte}</p>
-          <div className="mt-3 flex flex-wrap items-center gap-2"><button onClick={() => copier(demandePrete.texte)} className="rounded-xl bg-accent text-white px-4 py-2 text-[14px] font-bold">Copier la demande</button><span className="text-[12.5px] text-ink-soft">Colle-la dans ton Claude ou ton ChatGPT une fois Bingoo! connecté (étapes ci-dessous).</span></div>
-        </div>
-      )}
-      <p className="mt-3 text-[12.5px] text-ink-soft max-w-2xl">Pas d'IA à toi ? Bingoo! construit aussi tout seul : bouton « Lancer ma version » sur chaque SaaS. Construire avec ton IA demande l'abonnement « Lancer » et compte comme une construction du mois.</p>
-
-      <div className="mt-6 rounded-3xl bg-ink text-white p-6">
-        <p className="text-[18px] font-bold">1. Crée ton adresse personnelle</p>
-        <p className="text-[13.5px] text-white/65">Elle donne accès à Bingoo! en ton nom : ne la partage pas. Tu peux la révoquer à tout moment.</p>
-        {paye === false && (
-          <div className="mt-4 rounded-2xl bg-white/10 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <p className="font-bold">Offre gratuite : 20 questions par mois pour essayer</p>
-              <p className="text-[13px] text-white/70">Ton IA voit les SaaS, les niches, les applis et peut valider une idée, mais les revenus, la croissance et le trafic restent masqués. Le classement et les SaaS à vendre sont réservés aux abonnés.</p>
-            </div>
-            <button onClick={() => nav("/abonnement")} className="shrink-0 rounded-xl bg-white text-ink px-4 py-2.5 font-bold">Tout débloquer</button>
-          </div>
-        )}
-        {paye && <p className="mt-3 text-[13px] text-white/70">Ton abonnement inclut 5 000 questions par mois, avec tous les chiffres.</p>}
-        {nouvelle ? (
-          <div className="mt-4">
-            <div className="flex gap-2"><input readOnly value={nouvelle} onFocus={(e) => e.target.select()} className="flex-1 min-w-0 rounded-xl bg-white text-ink px-3 py-2.5 text-[13.5px] font-mono" /><button onClick={() => copier(nouvelle)} className="rounded-xl bg-accent px-4 py-2.5 font-semibold">Copier</button></div>
-            <p className="mt-2 text-[12.5px] text-[#FDE68A]">Copie-la maintenant : Bingoo! ne la réaffichera pas.</p>
-          </div>
-        ) : <button onClick={creer} disabled={busy} className="mt-4 rounded-xl bg-accent px-5 py-3 font-bold disabled:opacity-60">{busy ? "Création…" : paye === false ? "Créer mon adresse (essai gratuit)" : "Créer mon adresse de connecteur"}</button>}
-      </div>
-
-      <h2 className="mt-8 text-[18px] font-bold">2. Ajoute-la à ton IA</h2>
-      <div className="mt-3 grid md:grid-cols-3 gap-3">{etapes.map(([t, l]) => (
-        <div key={t} className="rounded-2xl border border-line bg-white p-5"><p className="font-bold">{t}</p><ol className="mt-2 space-y-1.5 text-[13.5px] text-ink-soft list-decimal pl-4">{l.map((x) => <li key={x}>{x}</li>)}</ol></div>
-      ))}</div>
-
-      <h2 className="mt-8 text-[18px] font-bold">3. Demande-lui</h2>
-      <div className="mt-3 flex flex-wrap gap-2">{["Trouve-moi 3 SaaS de facturation qui scalent en ce moment, avec leur revenu vérifié", "Quelles niches de SaaS grandissent le plus ce mois-ci ?", "Donne-moi la fiche complète de url2pin.com et dis-moi si je peux lancer ma version", "Quels SaaS sont à vendre pour moins de 50 000 $ ?", "Suis les 5 SaaS TikTok qui encaissent le plus"].map((x) => <button key={x} onClick={() => copier(x)} title="Copier la question" className="rounded-full border border-line bg-white px-3.5 py-1.5 text-[13.5px] text-left hover:border-ink">« {x} »</button>)}</div>
-      <p className="mt-3 text-[12.5px] text-ink-faint">Tes questions passent par ton IA : Bingoo! ne fait que lui donner les chiffres, sans coût pour toi.</p>
-
-      {cles?.length > 0 && <>
-        <h2 className="mt-8 text-[18px] font-bold">Tes adresses</h2>
-        <div className="mt-3 rounded-2xl border border-line bg-white overflow-hidden">{cles.map((k) => (
-          <div key={k.id} className="px-5 py-3 border-b border-line last:border-0 flex flex-wrap items-center gap-3 text-[14px]">
-            <span className="font-mono text-[13px]">{k.debut}…</span>
-            <span className="text-ink-faint">créée le {new Date(k.created_at).toLocaleDateString("fr-FR")}</span>
-            <span className="text-ink-faint">{k.appels} appel{k.appels > 1 ? "s" : ""}{k.dernier_usage ? `, dernier le ${new Date(k.dernier_usage).toLocaleDateString("fr-FR")}` : ""}</span>
-            {k.revoquee ? <span className="ml-auto text-bad font-semibold">Révoquée</span> : <button onClick={() => revoquer(k.id)} className="ml-auto rounded-lg border border-line px-3 py-1 text-[13px] font-semibold hover:border-bad hover:text-bad">Révoquer</button>}
-          </div>
-        ))}</div>
-      </>}
     </div>
   );
 }
