@@ -54,6 +54,13 @@ const GUIDE = () => `MARCHE À SUIVRE
 6. Pour rivaliser vraiment : couvre les « indispensables » du plan_pour_rivaliser de preparer_saas, puis ajoute ce qui fait mieux (modifier_saas pour ajouter écrans, données et pages publiques). Ne t'arrête pas à une première version minimale : un membre attend un logiciel complet, au niveau de ses concurrents.
 Montre l'adresse du SaaS au membre à la fin.
 
+RÈGLES DE TRAVAIL
+- Rien d'inconnu n'est présenté comme connu : ce que le dossier ne montre pas (une fonction, un prix, une intégration), tu le dis au membre au lieu de l'inventer. Aucune fonction affichée qui ne marche pas pour de vrai.
+- Salle blanche : tu ne pars que de ce qu'un visiteur voit du produit d'origine (le dossier de preparer_saas, ses pages publiques). Jamais son code, ses textes ni son design.
+- Teste avant de dire « c'est prêt » : le robot de Bingoo! joue chaque écran comme un vrai utilisateur (il clique sur « Ajouter », remplit le formulaire, enregistre, et clique sur chaque bouton d'action). Chaque bouton doit faire quelque chose et chaque formulaire doit enregistrer. Lis son verdict avec voir_saas et corrige jusqu'à ce qu'il soit vert.
+- Si une décision revient au membre (nom, cible, prix, fonction à garder ou non), pose-lui la question en mots simples, avec 2 ou 3 choix, plutôt que de décider à sa place.
+- Si tu corriges deux fois le même écran sans que le verdict du robot change, arrête-toi et explique au membre ce qui bloque, au lieu de tourner en rond.
+
 FAMILLES (choisis celle du produit d'origine ; chacune a sa logique propre, un outil de notes n'est pas un logiciel de gestion)
 ${Object.entries(FAMILLES).map(([k, f]) => `## ${k} — ${f.label}\nQuand : ${f.quand}\nPremier écran : ${f.accueil}\n${f.guide}`).join("\n\n")}
 

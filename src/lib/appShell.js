@@ -198,7 +198,7 @@ const TEINTE = { vert: "bg-emerald-50 text-emerald-700", rouge: "bg-red-50 text-
 ui.Badge = ({ couleur = "gris", children }) => html\`<span class=\${cls("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium", TEINTE[couleur] ?? TEINTE.gris)}>\${children}</span>\`;
 ui.Empty = ({ texte = "Rien pour l'instant.", action }) => html\`<div data-vide="1" class="text-center py-10 text-slate-500"><p>\${texte}</p>\${action && html\`<div class="mt-3">\${action}</div>\`}</div>\`;
 ui.Loading = () => html\`<div class="py-10 grid place-items-center"><div class="w-6 h-6 rounded-full border-2 border-slate-200 border-t-[var(--c)] animate-spin"/></div>\`;
-ui.Tabs = ({ valeur, onChange, onglets = [] }) => html\`<div class="inline-flex rounded-xl bg-slate-100 p-1 text-sm">\${onglets.map((o) => { const [v, l] = Array.isArray(o) ? o : [o, o]; return html\`<button onClick=\${() => onChange?.(v)} class=\${cls("px-3 py-1.5 rounded-lg font-medium", valeur === v ? "bg-white shadow-sm" : "text-slate-500")}>\${l}</button>\`; })}</div>\`;
+ui.Tabs = ({ valeur, onChange, onglets = [] }) => html\`<div role="tablist" class="inline-flex rounded-xl bg-slate-100 p-1 text-sm">\${onglets.map((o) => { const [v, l] = Array.isArray(o) ? o : [o, o]; return html\`<button role="tab" aria-selected=\${valeur === v ? "true" : "false"} onClick=\${() => onChange?.(v)} class=\${cls("px-3 py-1.5 rounded-lg font-medium", valeur === v ? "bg-white shadow-sm" : "text-slate-500")}>\${l}</button>\`; })}</div>\`;
 ui.Bar = ({ donnees = [] }) => { const m = Math.max(1, ...donnees.map((d) => Number(d.valeur) || 0)); const vide = !donnees.some((d) => Number(d.valeur) > 0); return html\`<div data-vide=\${vide ? "1" : null} class="flex gap-2 h-44">\${donnees.map((d) => html\`<div class="flex-1 min-w-0 flex flex-col items-center gap-1"><div class="w-full flex-1 flex items-end"><div class="w-full rounded-t-lg bg-[var(--c)]/80" style=\${"height:" + Math.max(2, (Number(d.valeur) || 0) / m * 100) + "%"} title=\${d.valeur}/></div><span class="text-[11px] text-slate-500 truncate max-w-full">\${d.label}</span></div>\`)}</div>\`; };
 ui.Fichier = ({ label, value, onChange, accept = "image/*,application/pdf" }) => {
   const [busy, setBusy] = useState(false);
@@ -395,7 +395,7 @@ function PremiersPas({ user, publiques, lien }) {
 
 // ---------------------------------------------------------------- Écrans générés
 let nav = () => {};
-const go = (id, params) => nav(id, params);
+const go = (id, params) => { if (B.verif) VAPPELS.autre++; return nav(id, params); };
 // IA intégrée : ia("Résume ce texte", { texte }) → texte ; { json: true } → objet
 // E-mails aux clients de l'utilisateur : tout de suite, ou à une date (quand), éventuellement répétés (repeter : jour, semaine, mois)
 const email = (m) => call("mail", m ?? {}).then((r) => { if (r?.demo) toast("Démo : l'e-mail est simulé, rien n'est envoyé. Dans votre vrai compte, il part vraiment."); return r; });
