@@ -359,7 +359,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     // Nom choisi par le membre : gardé à part, il s'impose à la préparation et à la construction (jamais remplacé par l'IA)
     const nomChoisi = typeof b.nom === "string" ? b.nom.replace(/\s+/g, " ").trim().slice(0, 40) : "";
     // Lancé depuis la galerie de modèles : le modèle fait main choisi s'impose à la construction
-    const modeleForce = ["reservation", "devis", "crm", "ecriture", "projets"].includes(String(b.modele ?? "")) ? String(b.modele) : "";
+    const modeleForce = ["reservation", "devis", "crm", "ecriture", "projets", "support", "boutique", "formation", "recrutement", "reseaux", "formulaires", "notes"].includes(String(b.modele ?? "")) ? String(b.modele) : "";
     const couleurChoisie = /^#[0-9a-f]{6}$/i.test(String(b.couleur ?? "")) ? String(b.couleur) : "";
     // Allure choisie dans la galerie (ex. « nature » : menu vert foncé sur fond crème)
     const allureChoisie = ["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique", "nature"].includes(String(b.allure ?? "")) ? String(b.allure) : "";

@@ -56,8 +56,57 @@ export const MODELES = [
     fonctions: ["Types de textes sur mesure, avec leurs champs", "L'IA écrit, puis « plus court », « plus percutant »…", "Textes rangés, cherchables, en favoris", "Copie et téléchargement en PDF", "« Mon style » : l'IA écrit comme l'utilisateur"],
     couleur: "#7C3AED", exemple: "Plumeo, pour des posts LinkedIn",
   },
+  {
+    id: "support", titre: "Support client", ref: { domaine: "crisp.chat", nom: "Crisp", categorie: "Support client" },
+    accroche: "Chaque demande devient un ticket, on répond par e-mail sans quitter l'outil, et un centre d'aide répond à votre place.",
+    metiers: ["Logiciel en ligne", "Boutique en ligne", "Agence", "Syndic", "Service après-vente", "Association"],
+    fonctions: ["Tickets ouverts, en attente, résolus, avec priorité et personne assignée", "Réponse par vrai e-mail depuis le ticket, avec réponses types", "Centre d'aide public avec vos articles", "Formulaire public qui crée le ticket", "Temps de première réponse et demandes par catégorie"],
+    couleur: "#0E7490", exemple: "Aidely, pour un logiciel en ligne",
+  },
+  {
+    id: "boutique", titre: "Boutique en ligne", ref: { domaine: "shopify.com", nom: "Shopify", categorie: "E-commerce" },
+    accroche: "Une vitrine avec panier, des commandes suivies jusqu'à la livraison, et le client prévenu à chaque étape.",
+    metiers: ["Créatrice de bougies", "Épicerie fine", "Fleuriste", "Caviste", "Boutique de vêtements", "Librairie"],
+    fonctions: ["Vitrine publique avec panier et commande", "Commandes : nouvelle, en préparation, expédiée, livrée", "E-mail au client à chaque étape", "Produits, prix, stock et catégories", "Ventes, panier moyen et meilleurs produits"],
+    couleur: "#C2410C", exemple: "Lumio, pour une créatrice de bougies",
+  },
+  {
+    id: "formation", titre: "Formation en ligne", ref: { domaine: "thinkific.com", nom: "Thinkific", categorie: "Éducation et formation" },
+    accroche: "Vos formations découpées en leçons, un catalogue où l'on s'inscrit, et les leçons envoyées aux élèves par e-mail.",
+    metiers: ["Formateur indépendant", "Coach", "Professeur de yoga", "Photographe", "Organisme de formation", "Consultant"],
+    fonctions: ["Formations et leçons (texte, vidéo, durée) à réordonner", "Catalogue public avec programme et inscription", "Leçons envoyées aux inscrits par e-mail", "Suivi de la progression de chaque élève", "Inscriptions, revenus et taux d'achèvement"],
+    couleur: "#15803D", exemple: "Apprenti, pour un photographe formateur",
+  },
+  {
+    id: "recrutement", titre: "Recrutement", ref: { domaine: "teamtailor.com", nom: "Teamtailor", categorie: "Recrutement" },
+    accroche: "Vos offres sur une page carrières, et chaque candidat suivi étape par étape jusqu'à l'embauche.",
+    metiers: ["PME", "Restaurant", "Cabinet de recrutement", "Startup", "Commerce", "Association"],
+    fonctions: ["Page carrières publique où l'on postule", "Candidats en colonnes à faire glisser jusqu'à l'embauche", "Note, commentaires et lien vers le CV", "Convocation et refus par e-mail en un clic", "Entretiens à venir et sources des candidats"],
+    couleur: "#4338CA", exemple: "Embauche, pour une PME",
+  },
+  {
+    id: "reseaux", titre: "Réseaux sociaux", ref: { domaine: "buffer.com", nom: "Buffer", categorie: "Réseaux sociaux et contenu" },
+    accroche: "Le calendrier de toutes vos publications, l'IA pour les écrire, et un rappel le jour J avec le texte prêt à copier.",
+    metiers: ["Community manager", "Commerçant", "Coach", "Restaurant", "Agence de communication", "Créateur de contenu"],
+    fonctions: ["Calendrier du mois par réseau", "Publications écrites avec l'aide de l'IA", "Rappel par e-mail le jour J, texte prêt à copier", "Réserve d'idées", "Résultats : meilleur jour, meilleur réseau, meilleures publications"],
+    couleur: "#BE185D", exemple: "Postly, pour un community manager",
+  },
+  {
+    id: "formulaires", titre: "Formulaires et sondages", ref: { domaine: "tally.so", nom: "Tally", categorie: "Autre" },
+    accroche: "Des formulaires qu'on remplit une question à la fois, et les réponses en graphiques sans rien calculer.",
+    metiers: ["Avis clients", "Inscriptions à un événement", "Demandes de devis", "Sondage d'équipe", "Association", "École"],
+    fonctions: ["Constructeur de questions (choix, note, 0 à 10, date…)", "Aperçu avant de publier", "Page publique, une question à la fois", "Synthèse par question avec graphiques", "Réponses une par une et export tableur"],
+    couleur: "#111827", exemple: "Formo, pour recueillir des avis",
+  },
+  {
+    id: "notes", titre: "Notes et wiki", ref: { domaine: "notion.so", nom: "Notion", categorie: "Collaboration et documents" },
+    accroche: "Des pages qu'on écrit en blocs et qu'on range en arborescence : les notes et procédures de toute l'équipe.",
+    metiers: ["Équipe", "Agence", "Indépendant", "Association", "Étudiant", "Cabinet"],
+    fonctions: ["Éditeur en blocs avec menu « / »", "Pages et sous-pages, favoris, recherche", "Modèles de page", "Toutes les cases à cocher au même endroit", "Corbeille et export PDF"],
+    couleur: "#475569", exemple: "Carnet, pour une équipe",
+  },
 ];
-const COULEURS = ["#1F3D33", "#9F1239", "#C2410C", "#B45309", "#0F766E", "#15803D", "#0E7490", "#2563EB", "#4338CA", "#7C3AED", "#BE185D", "#111827"];
+const COULEURS = ["#1F3D33", "#475569", "#9F1239", "#C2410C", "#B45309", "#0F766E", "#15803D", "#0E7490", "#2563EB", "#4338CA", "#7C3AED", "#BE185D", "#111827"];
 
 export default function Modeles() {
   const { session, ws } = useWs();

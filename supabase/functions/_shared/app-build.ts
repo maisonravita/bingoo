@@ -218,7 +218,7 @@ Les données d'exemple sont produites à part : ne mets pas de clé demo.`, { ma
 
   // Données d'exemple à part (modèle rapide) : la conception reste courte et ne dépasse jamais la durée d'une invocation
   // Le modèle Écriture demande aussi 7 textes d'exemple complets : plus de place, sinon la réponse est coupée
-  const perso = modele ? await askJson<any>(PERSO[modele](p), { fast: true, maxTokens: modele === "ecriture" ? 7000 : modele === "projets" ? 6000 : 2000 }).catch(() => ({})) : null;
+  const perso = modele ? await askJson<any>(PERSO[modele](p), { fast: true, maxTokens: modele === "ecriture" ? 7000 : ["projets", "formation", "notes", "formulaires", "support"].includes(modele) ? 6000 : ["recrutement", "reseaux", "boutique"].includes(modele) ? 4000 : 2000 }).catch(() => ({})) : null;
   // Données d'exemple : écrites dans une invocation à part (saasDemoPuisEcrans), la conception seule tient déjà près de 2 minutes
   const demo = {};
   const spec: any = {

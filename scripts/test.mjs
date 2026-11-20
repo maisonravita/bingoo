@@ -25,7 +25,7 @@ export { slugs } from "./${S}/deep.ts";
 export { invitesToday, officeHours } from "./${S}/linkedin-auto.ts";
 export { masquer, MASQUE, PAYANT_SEUL, QUOTA_GRATUIT } from "./${S}/mcp-bingoo.ts";
 export { alignerCode, couvrirDemo } from "./${S}/contrat-donnees.ts";
-export { specReservation, specDevis, specEcriture, specCrm, specProjets } from "./${S}/modeles.ts";
+export { modeleDe, specReservation, specDevis, specEcriture, specCrm, specProjets, specSupport, specBoutique, specFormation, specRecrutement, specReseaux, specFormulaires, specNotes } from "./${S}/modeles.ts";
 `;
 const stubs = {
   name: "stubs",
@@ -295,10 +295,14 @@ await test("couverture des exemples : un statut filtré par l'écran existe dans
   if (r2.ajouts.length) throw new Error("valeur technique ajoutée");
 });
 await test("modèles faits main : chaque écran a son code (jamais d'écran livré vide)", () => {
-  for (const [n, f] of [["reservation", T.specReservation], ["devis", T.specDevis], ["ecriture", T.specEcriture], ["crm", T.specCrm], ["projets", T.specProjets]]) {
+  for (const [n, f] of [["reservation", T.specReservation], ["devis", T.specDevis], ["ecriture", T.specEcriture], ["crm", T.specCrm], ["projets", T.specProjets], ["support", T.specSupport], ["boutique", T.specBoutique], ["formation", T.specFormation], ["recrutement", T.specRecrutement], ["reseaux", T.specReseaux], ["formulaires", T.specFormulaires], ["notes", T.specNotes]]) {
     const sp = f({ vocab: {} });
-    for (const e of sp.ecrans) if (e.modele && (!e.code || /\nundefined\s*$/.test(e.code) || !/function\s+Ecran/.test(e.code))) throw new Error(n + " : écran " + e.id + " sans code");
+    for (const e of sp.ecrans) if (!e.modele || !e.code || /\nundefined\s*$/.test(e.code) || !/function\s+Ecran/.test(e.code)) throw new Error(n + " : écran " + e.id + " sans code");
   }
+});
+await test("modèles faits main : le bon modèle est reconnu à partir du projet", () => {
+  const cas = [["support", "Un helpdesk : les tickets de support client, un centre d'aide et des réponses aux clients par e-mail. Support client simple."], ["boutique", "Une boutique en ligne pour vendre en ligne : panier, commandes en ligne et stocks."], ["recrutement", "Recrutement simplifié : offres d'emploi, suivi des candidats, page carrières."], ["reseaux", "Planification des publications sur Instagram, LinkedIn et TikTok avec un calendrier éditorial."], ["formulaires", "Créez des formulaires et des sondages, questionnaires de satisfaction."], ["crm", "Un CRM : prospects, pipeline, leads et suivi commercial."]];
+  for (const [attendu, pitch] of cas) { const m = T.modeleDe({ pitch }); if (m !== attendu) throw new Error(attendu + " attendu, " + m + " reconnu"); }
 });
 console.log(`\n${ok} réussi${ok > 1 ? "s" : ""}, ${ko} échec${ko > 1 ? "s" : ""}`);
 writeFileSync(join(dir, "done"), "");

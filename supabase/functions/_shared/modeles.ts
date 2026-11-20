@@ -2,6 +2,8 @@
 // ils viennent d'un modèle soigné et testé. L'IA n'adapte que le vocabulaire, les offres et les textes au client.
 // deno-lint-ignore-file no-explicit-any
 import { MODELES_CODE } from "./modeles-code.ts";
+import { FAIT_PLUS, PERSO_BOUTIQUE, PERSO_FORMATION, PERSO_FORMULAIRES, PERSO_NOTES, PERSO_RECRUTEMENT, PERSO_RESEAUX, PERSO_SUPPORT, specBoutique, specFormation, specFormulaires, specNotes, specRecrutement, specReseaux, specSupport } from "./modeles-plus.ts";
+export { specBoutique, specFormation, specFormulaires, specNotes, specRecrutement, specReseaux, specSupport };
 
 /** Le modèle qui convient au projet, ou null (construction classique écran par écran). */
 // Chaque famille marque des points selon les mots du projet ; la plus présente l'emporte.
@@ -16,7 +18,19 @@ export function modeleDe(p: any): string | null {
   const ecriture = /\bia\b|intelligence artificielle/.test(t) ? n(/r[ée]dig|g[ée]n[èeé]r|[ée]cri(t|re|ture|vain)|reformul|\bcv\b|lettres? de motivation|\bposts?\b|articles?\b|newsletters?\b|copywrit|textes?\b|guides?\b/g) : 0;
   // CRM : suivi de prospects, d'affaires (pipeline) et de relances commerciales
   const crm = n(/\bcrm\b|prospect|pipeline|\bleads?\b|opportunit|affaires? (en cours|commerciales?)|suivi commercial|relances? (commerciales?|clients?)|cycle de vente|force de vente|fichier clients?|portefeuille clients?/g);
+  // Deuxième série de modèles (support, boutique, formation, recrutement, réseaux sociaux, formulaires, notes)
+  const autres: Record<string, number> = {
+    support: n(/\btickets? (de )?support|support client|service client|helpdesk|\bsav\b|centre d.aide|demandes? (des |de vos )?clients|r[ée]ponses? aux clients/g),
+    boutique: n(/boutique en ligne|e-?commerce|\bpaniers?\b|commandes? en ligne|vente en ligne|vendre en ligne|catalogue (de )?produits|\bstocks?\b|livraisons? (à|a) domicile|click.?and.?collect/g),
+    formation: n(/formations? en ligne|cours en ligne|\bcours\b|le[çc]ons?|modules? de formation|apprenants?|stagiaires?|formateurs?|programme de formation/g),
+    recrutement: n(/recrut|candidat|offres? d.emploi|embauch|page carri[èe]res?|entretiens? d.embauche|\bats\b/g),
+    reseaux: n(/r[ée]seaux sociaux|instagram|linkedin|tiktok|facebook|planifi\w* (de |des |vos )?(posts?|publications?)|calendrier [ée]ditorial|community manag|publications? programm/g),
+    formulaires: n(/formulaires?|sondages?|questionnaires?|enqu[êe]tes? de satisfaction|recueillir (des |les )?(avis|r[ée]ponses)/g),
+    notes: n(/prise de notes?|\bnotes?\b|\bwiki\b|documentation interne|base de connaissances? (interne|d.[ée]quipe)|pages? (de )?documentation/g),
+  };
+  const [autre1, score1] = Object.entries(autres).sort((x, y) => y[1] - x[1])[0];
   const best = Math.max(reservation, devis, crm);
+  if (score1 >= 3 && score1 > best && score1 > ecriture) return autre1;
   // Appli grand public ou communauté (sport, progression, habitudes, révisions…) : pas un modèle de réservation ou de devis,
   // même si elle parle de « séances » ; le générateur libre la conçoit pour la personne elle-même
   const grandPublic = n(/entra[iî]nements?|progression|objectifs?|d[ée]fis?|classements?|communaut|coureurs?|course à pied|musculation|habitudes?|r[ée]visions?|nutrition|calories|journal|records?|motivation|apprentissage/g);
@@ -156,7 +170,8 @@ export function specDevis(perso: any) {
   return { vocab: V, ecrans, collections, demo: { clients, catalogue: cat, devis, factures, entreprise }, demo_ancre: jour(0), agenda: { collection: "factures", champ_date: "echeance", champ_heure: null, duree: 30, champs_titre: ["numero", "client_nom"] } };
 }
 
-export const FAIT = {
+export const FAIT: Record<string, string> = {
+  ...FAIT_PLUS,
   crm: "Cette version fait exactement ceci, et rien d'autre : un fichier de contacts (prospects et clients) avec leur historique, un pipeline d'affaires par étapes à faire glisser (nouveau, qualifié, proposition, négociation, gagné, perdu) avec montants et prévision pondérée, des tâches et relances datées (liste et calendrier), l'envoi de vrais e-mails à un contact, un tableau de bord commercial, et un formulaire de contact en ligne qui crée le prospect et lui envoie une confirmation.",
   ecriture: "Cette version fait exactement ceci, et rien d'autre : l'utilisateur choisit un type de texte, remplit quelques champs, et l'IA intégrée écrit le texte ; il l'ajuste en un clic (plus court, plus percutant, plus simple, en anglais), le modifie, le copie ou le télécharge en PDF ; tous ses textes sont rangés et cherchables, avec favoris et duplication ; une page « Mon style » où il décrit qui il est et colle un exemple de son écriture pour que l'IA écrive avec sa voix ; un tableau de bord de son activité ; l'équipe et l'abonnement. Les textes (pitch_site, atouts, formules) ne promettent RIEN d'autre (pas de publication automatique sur les réseaux, pas d'import de fichier ni de lecture de document, pas d'images, pas de détection de plagiat, pas de modèle d'IA au choix, pas d'extension de navigateur).",
   reservation: "Cette version fait exactement ceci, et rien d'autre : un planning en calendrier, le suivi de chaque rendez-vous par étapes (à confirmer, confirmé, terminé, annulé), un fichier clients avec historique et chiffre d'affaires, les offres avec prix et durées, les heures d'ouverture par jour, une page de réservation en ligne où les clients ne voient que les vrais créneaux libres (selon les heures d'ouverture, la durée de l'offre et les rendez-vous déjà pris), le paiement en réservant par le lien de paiement de l'offre (Stripe, PayPal, SumUp…), une salle de visioconférence créée pour chaque rendez-vous des offres en visio, avec e-mail de confirmation et rappel automatique par e-mail la veille, un tableau de bord du chiffre d'affaires, l'import et l'export Excel, l'équipe et l'abonnement. Les textes (pitch_site, atouts, formules) ne promettent RIEN d'autre (pas de SMS, pas de paiement ni d'acompte à la réservation, pas de factures PDF).",
@@ -310,5 +325,5 @@ export function specProjets(perso: any) {
   return { vocab: V, ecrans, collections, demo: { tableaux, demandes: dm }, demo_ancre: jour(0), agenda: null, famille: "projets", disposition: "barre" };
 }
 
-export const PERSO: Record<string, (p: any) => string> = { reservation: PERSO_RESERVATION, devis: PERSO_DEVIS, ecriture: PERSO_ECRITURE, crm: PERSO_CRM, projets: PERSO_PROJETS };
-export const SPEC: Record<string, (perso: any) => any> = { reservation: specReservation, devis: specDevis, ecriture: specEcriture, crm: specCrm, projets: specProjets };
+export const PERSO: Record<string, (p: any) => string> = { reservation: PERSO_RESERVATION, devis: PERSO_DEVIS, ecriture: PERSO_ECRITURE, crm: PERSO_CRM, projets: PERSO_PROJETS, support: PERSO_SUPPORT, boutique: PERSO_BOUTIQUE, formation: PERSO_FORMATION, recrutement: PERSO_RECRUTEMENT, reseaux: PERSO_RESEAUX, formulaires: PERSO_FORMULAIRES, notes: PERSO_NOTES };
+export const SPEC: Record<string, (perso: any) => any> = { reservation: specReservation, devis: specDevis, ecriture: specEcriture, crm: specCrm, projets: specProjets, support: specSupport, boutique: specBoutique, formation: specFormation, recrutement: specRecrutement, reseaux: specReseaux, formulaires: specFormulaires, notes: specNotes };

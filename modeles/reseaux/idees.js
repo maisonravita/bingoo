@@ -1,0 +1,15 @@
+function Ecran() {
+  const I = useCollection("idees");
+  const [t, setT] = useState(""), [theme, setTheme] = useState("tous"), [busy, setBusy] = useState(false);
+  if (I.loading) return html`<${ui.Loading}/>`;
+  const themes = [...new Set(I.rows.map((x) => x.theme).filter(Boolean))];
+  const vus = I.rows.filter((x) => theme === "tous" || x.theme === theme).sort((a, b) => (a.utilisee ? 1 : 0) - (b.utilisee ? 1 : 0));
+  const ajouter = async () => { if (!t.trim()) { toast("Écrivez votre idée d'abord", "bad"); return; } await I.add({ texte: t.trim(), theme: theme !== "tous" ? theme : themes[0] ?? "Idée", utilisee: false }); setT(""); toast("Idée ajoutée"); };
+  const trouver = async () => { setBusy(true); try { const r = await ia("Propose 5 idées de publications courtes (60 caractères max chacune) pour mes réseaux sociaux, différentes de celles-ci : " + I.rows.map((x) => x.texte).join(" ; ") + ". Une idée par ligne, sans numéro ni tiret."); const L = String(r || "").split(/\n+/).map((x) => x.replace(/^[\s•\-\d.)]+/, "").trim()).filter(Boolean).slice(0, 5); for (const x of L) await I.add({ texte: x.slice(0, 120), theme: "IA", utilisee: false }); toast(L.length + " idées ajoutées"); } catch (e) { toast(e.message, "bad"); } finally { setBusy(false); } };
+  return html`<div class="anim">
+    <${Entete} titre="Idées" sous="Notez tout, transformez en publication quand vous voulez."><${Bouton} secondaire disabled=${busy} onClick=${trouver}>${busy ? "Recherche…" : "✦ 5 idées avec l'IA"}</${Bouton}></${Entete}>
+    <div class="mb-4 flex gap-2"><input value=${t} onInput=${(e) => setT(e.target.value)} onKeyDown=${(e) => e.key === "Enter" && ajouter()} placeholder="Une idée de publication…" class="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[var(--c)]"/><${Bouton} onClick=${ajouter}>Ajouter</${Bouton}></div>
+    ${themes.length > 1 && html`<div class="mb-4"><${Segments} valeur=${theme} onChange=${setTheme} options=${[["tous", "Toutes"], ...themes.map((x) => [x, x])]}/></div>`}
+    ${vus.length ? html`<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">${vus.map((x) => html`<div class=${"rounded-2xl border border-slate-200/70 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] " + (x.utilisee ? "opacity-60" : "")}><div class="flex items-start gap-2"><${Pill} ton=${x.utilisee ? "gris" : "violet"}>${x.utilisee ? "Utilisée" : x.theme || "Idée"}</${Pill}><span class="ml-auto"><${Menu} actions=${[["En faire une publication", async () => { await I.update(x.id, { utilisee: true }); go("publications"); }], [x.utilisee ? "Remettre de côté" : "Marquer utilisée", () => I.update(x.id, { utilisee: !x.utilisee })], ["Supprimer", () => I.remove(x.id), true]]}/></span></div><p class="mt-2 font-medium leading-snug">${x.texte}</p>${!x.utilisee && html`<button onClick=${async () => { await I.update(x.id, { utilisee: true }); go("publications"); }} class="mt-3 text-sm font-semibold text-[var(--c)]">Écrire la publication →</button>`}</div>`)}</div>` : html`<${Vide} icone="etoile" titre="Aucune idée pour l'instant" texte="Notez la première, ou demandez-en à l'IA."/>`}
+  </div>`;
+}
