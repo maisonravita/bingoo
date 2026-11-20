@@ -282,17 +282,19 @@ export const isTestSpace = (w: { plan?: string | null }) => w.plan === "fondateu
 
 // ---------------------------------------------------------------- Garde-fou du crédit IA (le compte Anthropic rechargé)
 // app_secrets : « ia_credit_eur » = ce qui a été mis sur le compte, « ia_credit_depuis » = date de la recharge,
-// « ia_reserve_eur » = ce qu'on garde pour les clients. Dépense comptée avec 15 % de marge (arrondis, recherches web).
+// « ia_reserve_eur » = ce qu'on garde pour les clients. Dépense comptée avec 30 % de marge (le compteur sous-estimait : compte vide le 20/11 alors qu'il annonçait 3 €).
 // Sous la réserve : seules les demandes des personnes connectées passent (construire, Atelier…), plus aucune tâche de fond.
 // Sous 0,50 € : tout s'arrête proprement, avant que le compte Anthropic ne soit à zéro.
 let soldeCache: { at: number; restant: number | null } = { at: 0, restant: null };
 export async function iaSolde(): Promise<{ credit: number; depense: number; restant: number; reserve: number } | null> {
-  const { data } = await admin.from("app_secrets").select("name, value").in("name", ["ia_credit_eur", "ia_credit_depuis", "ia_reserve_eur"]);
+  const { data } = await admin.from("app_secrets").select("name, value").in("name", ["ia_credit_eur", "ia_credit_depuis", "ia_reserve_eur", "ia_credit_epuise_at"]);
   const v = (k: string) => (data ?? []).find((x: { name: string }) => x.name === k)?.value ?? null;
   const credit = Number(v("ia_credit_eur")), depuis = v("ia_credit_depuis");
   if (!credit || !depuis) return null;
   const { data: u } = await admin.from("ai_usage").select("cost_eur").gte("at", depuis).limit(100000);
-  const depense = (u ?? []).reduce((a: number, r: { cost_eur: number | null }) => a + Number(r.cost_eur ?? 0), 0) * 1.15;
+  const depense = (u ?? []).reduce((a: number, r: { cost_eur: number | null }) => a + Number(r.cost_eur ?? 0), 0) * 1.3;
+  const epuise = v("ia_credit_epuise_at");
+  if (epuise && new Date(epuise).getTime() > new Date(depuis).getTime()) return { credit, depense: credit, restant: 0, reserve: Number(v("ia_reserve_eur") ?? 3) };
   return { credit, depense: Math.round(depense * 100) / 100, restant: Math.round((credit - depense) * 100) / 100, reserve: Number(v("ia_reserve_eur") ?? 3) };
 }
 /** Prévient Jean par e-mail (adresse dans app_secrets « ia_alerte_email »). Ne bloque jamais l'appelant. */
@@ -478,7 +480,13 @@ export async function ask(prompt: string, opts: AskOpts = {}): Promise<string> {
   }
   if (!r.ok) {
     const msg = r.data?.error?.message ?? `erreur ${r.status}`;
-    if (/credit balance/i.test(msg)) throw new HttpError(402, "Crédit IA épuisé : recharge le compte Anthropic pour continuer");
+    if (/credit balance/i.test(msg)) {
+      // Le vrai solde Anthropic fait foi : on note l'épuisement (compteur à zéro jusqu'à la prochaine recharge) et on prévient Jean une fois
+      await admin.from("app_secrets").upsert({ name: "ia_credit_epuise_at", value: new Date().toISOString() }).then(() => null, () => null);
+      soldeCache = { at: Date.now(), restant: 0 };
+      await alerteSolde("stop", 0).catch(() => null);
+      throw new HttpError(402, "Crédit IA épuisé : recharge le compte Anthropic pour continuer");
+    }
     throw new HttpError(502, "IA : " + msg);
   }
   const out = text(r.data);
