@@ -341,21 +341,17 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     if (!s) { await saasAdd([`https://${domaine}`], "lancer"); ({ data: s } = await admin.from("saas").select("id, nom, statut, constructible_ia").eq("domaine", domaine).maybeSingle()); }
     if (!s) throw new HttpError(400, "Ce site ne peut pas être ajouté");
     if (["pas_saas", "doublon", "retire"].includes(s.statut)) throw new HttpError(400, "Ce site n'est pas un logiciel SaaS lisible");
-    // Vérifié « Bingoo! ne sait pas le construire » (agent IA, IA sans filtre, intégration profonde…) : refusé avant toute dépense
-    // Règle n° 1 : Bingoo! ne lance QUE ce qu'il a vérifié savoir construire en entier (sinon le client paie pour un SaaS qui ne peut pas marcher)
-    if (s.constructible_ia === false) throw new HttpError(400, `Bingoo! ne peut pas construire une version qui marche vraiment de ${s.nom ?? domaine} : son cœur repose sur une technologie que Bingoo! ne sait pas faire. Choisis un autre SaaS dans tes résultats.`);
-    // Pas encore vérifié : vérifié tout de suite (quelques secondes), au lieu d'attendre la file de nuit
+    // 20 nov. 2026 : Bingoo! lance TOUS les SaaS de la base. Plus de refus : la meilleure version possible est construite,
+    // ce qui ne peut pas marcher à l'identique est adapté et annoncé, et le membre ajuste ensuite.
+    // Pas encore lu : lu tout de suite (quelques secondes) pour avoir sa fiche en français ; un échec ne bloque plus rien
     if (s.constructible_ia == null) {
       const { data: f } = await admin.from("saas").select("description, cible").eq("id", s.id).single();
       const texte = String(f?.description ?? "").trim();
       if (texte.length >= 25) {
         setAi({ ws: ws.id, feature: "explorer/verif-lancer", live: true });
         await verifierLot([{ id: s.id, nom: s.nom ?? domaine, domaine, texte, persona: f?.cible ?? null }]).catch((e) => console.error("verif-lancer", e?.message));
-        ({ data: s } = await admin.from("saas").select("id, nom, statut, constructible_ia").eq("domaine", domaine).maybeSingle());
       }
-      if (s?.constructible_ia === false) throw new HttpError(400, `Bingoo! vient de vérifier ${s.nom ?? domaine} : son cœur repose sur une technologie que Bingoo! ne sait pas faire, ta version ne marcherait pas vraiment. Choisis un autre SaaS.`);
     }
-    if (!s || s.constructible_ia !== true) throw new HttpError(400, `Bingoo! n'a pas pu vérifier ${domaine} pour l'instant : réessaie dans une minute ou choisis un autre SaaS.`);
     const { data, error } = await admin.rpc("saas_preparer_lancement", {
       p_workspace: ws.id, p_saas: s.id, p_angle: typeof b.angle === "string" ? b.angle.slice(0, 400) : null,
     }).single();

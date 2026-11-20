@@ -352,7 +352,7 @@ function Liste({ copier: copierPage = false }) {
                       {s.copiable >= 60 && <span title={(s.copiable_raisons ?? []).join(" · ")} className="rounded-md bg-[#DCFCE7] text-[#166534] px-1.5 py-0.5 font-semibold">Facile à lancer {s.copiable}</span>}
                       {s.en_decollage && <span className="rounded-md bg-accent-soft text-accent-dark px-1.5 py-0.5 font-semibold">En décollage</span>}
                       {s.genre === "app_web" && <span className="rounded-md bg-[#E0E7FF] text-[#3730A3] px-1.5 py-0.5">Appli web</span>}
-                      {s.constructible === false && <span className="text-ink-faint">construit en partie</span>}
+                      {s.constructible === false && <span className="text-ink-faint">version adaptée</span>}
                       {etiquettes(s).slice(0, 2).map((t) => <button key={t} type="button" onClick={(e) => { e.stopPropagation(); setIa(null); set("tag", t); }} className="text-ink-faint hover:text-accent-dark">#{t.replace(/\s+/g, "-")}</button>)}
                     </div>
                   </div>
@@ -1281,7 +1281,7 @@ function CeQueTaCopieFera({ saas, compact = false }) {
   return (
     <div className={cx("rounded-2xl border p-4", saas?.constructible === false ? "border-[#FED7AA] bg-[#FFF7ED]" : "border-line bg-white")}>
       <p className="font-bold text-[15px]">Ce que ta version fera dès le premier jour</p>
-      {saas?.constructible === false && <p className="mt-1 text-[13.5px] text-[#9A3412]">Attention : le cœur de {saas.nom} repose sur une technologie que Bingoo! ne construit pas encore. Ta version en reprendra la gestion et les pages, pas ce cœur-là.</p>}
+      {saas?.constructible === false && <p className="mt-1 text-[13.5px] text-[#9A3412]">Certaines fonctions de {saas.nom} (connexion à d'autres services, publication automatique, données achetées…) seront adaptées : Bingoo! construit la version la plus proche possible, et tu l'ajustes ensuite.</p>}
       <div className={cx("mt-2 grid gap-x-6 gap-y-1 text-[13.5px]", compact ? "" : "sm:grid-cols-2")}>
         <ul className="space-y-1">{FERA.map((t) => <li key={t} className="flex gap-1.5"><span className="text-[#15803D]">✓</span>{t}</li>)}</ul>
         <ul className="space-y-1 text-ink-soft"><li className="font-semibold text-ink">Pas encore :</li>{FERA_PAS.map((t) => <li key={t} className="flex gap-1.5"><span>–</span>{t}</li>)}</ul>
@@ -2885,7 +2885,7 @@ export function TrouveTonSaas() {
               {avant?.fini && r.etape === 0 ? <button onClick={() => aller({ ...r, etape: QUESTIONS.length })} className="font-semibold text-accent-dark hover:underline">Mes derniers résultats</button> : <span />}
             </div>
             <div className="mt-3 h-1.5 rounded-full bg-black/[.06] overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-accent via-[#F08A4B] to-[#9B6BFF] transition-all duration-500" style={{ width: `${((r.etape + 1) / QUESTIONS.length) * 100}%` }} /></div>
-            {ap && <div className="lg:hidden mt-4 flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-2.5" aria-live="polite"><span className="text-[22px] font-black tnum" style={HF}>{Number(ap.n ?? 0).toLocaleString("fr-FR")}</span><span className="text-[13px] leading-tight text-ink-soft">SaaS au revenu vérifié pour toi{ap.mediane ? <> · médiane <b className="text-ink">{dollar(ap.mediane)}</b>/mois</> : ""}</span><span className="ml-auto h-2 w-2 shrink-0 rounded-full bg-good" /></div>}
+            {ap && <div className="lg:hidden mt-4 flex items-center gap-3 rounded-2xl border border-line bg-white px-4 py-2.5" aria-live="polite"><span className="text-[13px] leading-tight text-ink-soft">Tes SaaS au revenu vérifié, triés par revenu{ap.mediane ? <> · médiane <b className="text-ink">{dollar(ap.mediane)}</b>/mois</> : ""}</span><span className="ml-auto h-2 w-2 shrink-0 rounded-full bg-good" /></div>}
             <div key={r.etape} className="land-in">
               <p className="mt-10 lg:mt-12 text-[13px] font-bold uppercase tracking-[.18em] text-accent-dark">{SURTITRES[Q.k] ?? "Ton projet"}</p>
               <h1 className="mt-2 leading-[1.04] tracking-[-.02em]" style={{ ...HF, fontWeight: 900, fontSize: "clamp(34px, 4.2vw, 54px)" }}>{Q.q}</h1>
@@ -2995,15 +2995,17 @@ function PanneauDirect({ ap, r, stats }) {
   const [lead, setLead] = useState([]);
   const cats = (r.secteurs ?? []).join("|");
   useEffect(() => { supabase.rpc("saas_leaders", { p_cats: r.secteurs ?? [] }).then(({ data }) => setLead(data ?? [])); }, [cats]); // eslint-disable-line react-hooks/exhaustive-deps
-  const filtres = [r.continent && CONTINENTS[r.continent], r.objectif && `${Number(r.objectif).toLocaleString("fr-FR")} €`, r.audience === "B2B" ? "pros" : r.audience === "B2C" ? "particuliers" : null, ...(r.secteurs ?? []).map((s) => s.split(" ")[0].toLowerCase()), "rentables"].filter(Boolean);
+  // Taille de la base entière : Bingoo! passe tout au crible (plus de petit chiffre filtré qui faisait croire à une base vide)
+  const [base, setBase] = useState(null);
+  useEffect(() => { supabase.rpc("saas_stats_entete").then(({ data }) => { if (data?.total) setBase(Number(data.total) + Number(data.applis ?? 0)); }); }, []);
+  const filtres = [r.objectif && `${Number(r.objectif).toLocaleString("fr-FR")} €`, r.audience === "B2B" ? "pros" : r.audience === "B2C" ? "particuliers" : null, ...(r.secteurs ?? []).map((s) => s.split(" ")[0].toLowerCase()), "rentables"].filter(Boolean);
   const pts = (x) => (Array.isArray(x.courbe) ? x.courbe : []).filter((p) => p.m !== new Date().toISOString().slice(0, 7)).slice(-8).map((p) => ({ n: Number(p.v) || 0 }));
   const flou = <span className="select-none rounded-md bg-good/10 px-2 py-0.5 text-[12px] font-bold text-good blur-[4px]" aria-hidden>12,4 k$/mois</span>;
   const [premier, ...autres] = lead;
   return (
     <aside className="hidden lg:block sticky top-20 mt-24 overflow-hidden rounded-[28px] border border-line bg-white shadow-[0_40px_80px_-50px_rgba(21,23,42,.55)]" aria-live="polite">
       <div className="flex flex-wrap items-center gap-1.5 border-b border-line px-5 py-4"><svg viewBox="0 0 24 24" className="h-4.5 w-4.5 text-ink-faint" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>{filtres.map((f) => <span key={f} className="rounded-lg bg-accent-soft px-2 py-1 text-[13px] font-semibold text-accent-dark">{f}</span>)}<span className="h-4 w-px animate-pulse bg-ink-faint" /></div>
-      <div className="px-5 pt-4">{ap && !ap.n && marche ? <><p className="flex items-baseline gap-2"><span className="text-[34px] font-black leading-none tnum" style={HF}>{marche.toLocaleString("fr-FR")}</span><span className="text-[14px] text-ink-soft">SaaS rentables dans ton domaine</span></p><p className="mt-1 text-[12.5px] text-ink-faint">Aucun ne colle encore à toutes tes réponses : élargis un critère pour en voir.</p></>
-        : <p className="flex items-baseline gap-2"><span className="text-[34px] font-black leading-none tnum" style={HF}>{ap ? Number(ap.n ?? 0).toLocaleString("fr-FR") : "…"}</span><span className="text-[14px] text-ink-soft">SaaS pour toi, triés par revenu</span></p>}</div>
+      <div className="px-5 pt-4"><p className="flex items-baseline gap-2"><span className="text-[34px] font-black leading-none tnum" style={HF}>{base ? base.toLocaleString("fr-FR") : "…"}</span><span className="text-[14px] text-ink-soft">SaaS passés au crible pour toi</span></p><p className="mt-1 text-[12.5px] text-ink-faint">Tes résultats sont triés par revenu. Bingoo! construit ta version de celui que tu choisis.</p></div>
       {premier && <div className="mx-4 mt-3 rounded-2xl bg-paper p-4"><p className="text-[11px] font-bold uppercase tracking-[.16em] text-ink-faint">{(r.secteurs ?? []).length ? "Meilleur de ton domaine" : "Meilleur résultat"}</p>
         <div className="mt-2 flex items-center gap-2.5"><CompanyLogo name={premier.nom} url={`https://${premier.domaine}`} className="h-9 w-9 shrink-0" pad="p-1" /><p className="min-w-0 flex-1 truncate font-bold text-[15.5px]">{premier.nom}</p></div>
         <div className="mt-2 flex items-end justify-between gap-3">{flou}<div className="w-32">{pts(premier).length > 2 && <Sparkline pts={pts(premier)} h={40} />}</div></div></div>}
@@ -3018,7 +3020,7 @@ function PreuveDirecte({ ap }) {
   const e = ap.exemple;
   return (
     <div className="mt-8 rounded-2xl border border-line bg-white px-5 py-4" aria-live="polite">
-      <p className="text-[15px]"><b className="tnum text-[18px]" style={HF}>{Number(ap.n).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié collent déjà à tes réponses{ap.mediane ? <>, avec un revenu médian de <b className="tnum">{dollar(ap.mediane)}</b> par mois</> : null}.{ap.tendance ? <> Dont <b className="tnum">{Number(ap.tendance).toLocaleString("fr-FR")}</b> en tendance : leur revenu monte ce mois-ci.</> : null}</p>
+      <p className="text-[15px]">Des SaaS au revenu vérifié collent déjà à tes réponses{ap.mediane ? <>, avec un revenu médian de <b className="tnum">{dollar(ap.mediane)}</b> par mois</> : null}.{ap.tendance ? <> Plusieurs sont en tendance : leur revenu monte ce mois-ci.</> : null}</p>
       {e && <p className="mt-1.5 text-[13.5px] text-ink-soft">Le plus gros d'entre eux encaisse <b className="text-ink">{dollar(e.mrr)}</b> par mois{e.croissance ? `, ${pct30(e.croissance)} en 30 jours` : ""}.</p>}
       {ap.tests >= 50 && <p className="mt-1 text-[12.5px] text-ink-faint">{Number(ap.tests).toLocaleString("fr-FR")} personnes ont déjà fait ce parcours.</p>}
     </div>
@@ -3195,7 +3197,7 @@ function Debloquer({ total, tendance, mediane, invite, r }) {
   const bandeau = (
     <div className="mt-8 fx-halo rounded-3xl"><div className="rounded-3xl bg-white p-5 sm:p-7 flex flex-wrap items-center gap-5">
       <div className="flex-1 min-w-[260px]">
-        <h2 className="text-[22px] sm:text-[26px] font-black leading-tight" style={HF}>{`${Number(total || liste?.length || 0).toLocaleString("fr-FR")} SaaS à succès pour toi`}</h2>
+        <h2 className="text-[22px] sm:text-[26px] font-black leading-tight" style={HF}>Tes SaaS à succès, prêts à être lancés</h2>
         <p className="mt-1.5 text-[14.5px] text-ink-soft">{total ? <>Bingoo! a trouvé <b className="text-ink">{Number(total).toLocaleString("fr-FR")}</b> SaaS au revenu vérifié qui collent à tes réponses{tendance ? <>, dont <b className="text-ink">{Number(tendance).toLocaleString("fr-FR")}</b> en tendance</> : null}{mediane ? <>, revenu médian {dollar(mediane)} par mois</> : null}. </> : null}Leur nom, leur fiche, ta version, ton plan et tes premiers clients s'affichent dès ton paiement reçu.</p>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -3988,7 +3990,7 @@ function LigneCopier({ x }) {
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[12px]">
           {canaux.map((c) => <span key={c} className="rounded-md bg-accent-soft/70 text-accent-dark px-2 py-0.5 font-medium">{c}</span>)}
           {infos.map((t) => <span key={t} className="text-ink-faint">{t}</span>)}
-          {x.constructible === false && <span className="text-ink-faint">construit en partie</span>}
+          {x.constructible === false && <span className="text-ink-faint">version adaptée</span>}
         </div>
       </div>
       <div className="hidden md:block">{pts.length > 2 && <Sparkline pts={pts} h={34} />}</div>
@@ -4660,7 +4662,7 @@ function Comparer() {
   const lignes = [
     ["Revenu prouvé", (s) => s.succes?.preuve ? <span className={preuveFaible(s.succes) ? "text-ink-soft" : "text-[#78350F]"}>{preuveFaible(s.succes) ? "" : ""}{s.succes.preuve}</span> : "—"],
     ["Facile à lancer", (s) => s.copiable != null ? <div><b>{s.copiable}/100</b>{(s.copiable_raisons ?? []).slice(0, 3).map((r) => <div key={r} className="text-[12.5px] text-ink-soft">{r}</div>)}</div> : "—"],
-    ["Bingoo! sait le construire", (s) => s.constructible === false ? <span className="text-[#9A3412]">En partie seulement</span> : s.constructible ? <span className="text-[#15803D]">Oui</span> : "—"],
+    ["Bingoo! sait le construire", (s) => s.constructible === false ? <span className="text-[#9A3412]">Oui, version adaptée</span> : s.constructible ? <span className="text-[#15803D]">Oui</span> : "—"],
     ["Niche", (s) => s.niche ?? "—"],
     ["Catégorie", (s) => s.categorie], ["Pays", (s) => s.pays ? `${drapeau(s.pays)} ${PAYS[s.pays] ?? s.pays}` : "—"],
     ["Prix d'entrée", (s) => s.prix_entree_eur != null ? `${s.prix_entree_eur} €/mois` : usage(s) ? `À l'usage : ${usage(s)}` : s.sur_devis ? "Sur devis" : "Non affiché"],
