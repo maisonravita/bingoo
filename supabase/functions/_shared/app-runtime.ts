@@ -184,6 +184,24 @@ async function semer(admin: SupabaseClient, app: any, userId: string) {
   if (rows.length) await admin.from("saas_app_rows").insert(rows);
 }
 
+/** Site : nombre de lignes d'une collection (chez le gérant et en attente de son accès), avec un filtre sur les données. */
+async function compterSite(admin: SupabaseClient, appId: string, col: string, filtre: Record<string, string>, depuis?: string) {
+  let a = admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", appId).eq("col", col);
+  let b = admin.from("saas_app_attente").select("id", { count: "exact", head: true }).eq("app_id", appId).eq("col", col);
+  for (const [k, v] of Object.entries(filtre)) { a = a.eq(`data->>${k}`, v); b = b.eq(`data->>${k}`, v); }
+  if (depuis) { a = a.gte("at", depuis); b = b.gte("at", depuis); }
+  const [x, y] = await Promise.all([a, b]);
+  return (x.count ?? 0) + (y.count ?? 0);
+}
+/** Site : range une demande ou une inscription chez le gérant, ou en attente de son accès. Une erreur n'est jamais tue. */
+async function rangerSite(admin: SupabaseClient, appId: string, proprio: any, col: string, data: Record<string, unknown>) {
+  const r = proprio
+    ? await admin.from("saas_app_rows").insert({ app_id: appId, user_id: proprio.id, espace_id: proprio.id, col, data }).select("id, data").single()
+    : await admin.from("saas_app_attente").insert({ app_id: appId, col, data }).select("id, data").single();
+  if (r.error || !r.data) { console.error("site ranger", r.error?.message); throw new Err(500, "L'envoi n'a pas abouti, réessayez dans un instant"); }
+  return r.data as { id: string; data: Record<string, unknown> };
+}
+
 /** Gérant d'un site : le premier compte titulaire (hors comptes de démonstration). */
 async function proprioSite(admin: SupabaseClient, appId: string) {
   const { data } = await admin.from("saas_app_users").select("id, email, nom, espace_id").eq("app_id", appId).eq("role", "admin").not("email", "like", "%@demo.local").order("at").limit(5);
@@ -397,7 +415,7 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
           par = Object.fromEntries(COLS_SITE.filter((c) => semees.has(c)).map((c) => [c, ((sp.demo ?? {})[c] ?? []).map((x: any, i: number) => ({ ...x, id: `d${i}` }))]));
         }
         // Page de lancement : le vrai nombre d'inscrits (affiché seulement à partir de 10)
-        if (sp.site?.modele === "lancement") { const { count } = await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("col", "inscrits"); inscrits = (count ?? 0) >= 10 ? count : null; }
+        if (sp.site?.modele === "lancement") { const n = await compterSite(admin, app.id, "inscrits", {}); inscrits = n >= 10 ? n : null; }
         const nettoie = (x: any) => Object.fromEntries(Object.entries(x).filter(([k]) => !/^_|^ref$|^cree_le$/.test(k)));
         return { status: 200, body: {
           services: (par.services ?? []).filter((x) => x.visible !== false).sort((a, b) => (Number(a.ordre) || 0) - (Number(b.ordre) || 0)).slice(0, 30).map(nettoie),
@@ -415,11 +433,8 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
         const email = String(d.email ?? "").trim().toLowerCase().slice(0, 160), prenom = String(d.prenom ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
         if (!emailOk(email)) throw new Err(400, "Adresse e-mail invalide");
         const ipL = await sha(`${app.id}:site:${(req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim()}`);
-        const { count: parIpL } = await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("col", "inscrits").eq("data->>_ip", ipL).gte("at", new Date(Date.now() - 3600e3).toISOString());
-        if ((parIpL ?? 0) >= 5) throw new Err(429, "Trop d'inscriptions depuis cette connexion, réessayez dans une heure");
-        const espaceL = proprio?.id ?? app.id;
-        const { count: deja } = await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("col", "inscrits").eq("data->>email", email);
-        if (!deja) await admin.from("saas_app_rows").insert({ app_id: app.id, user_id: espaceL, espace_id: espaceL, col: "inscrits", data: { email, ...(prenom ? { prenom } : {}), source, _public: true, _ip: ipL } });
+        if ((await compterSite(admin, app.id, "inscrits", { _ip: ipL }, new Date(Date.now() - 3600e3).toISOString())) >= 5) throw new Err(429, "Trop d'inscriptions depuis cette connexion, réessayez dans une heure");
+        if (!(await compterSite(admin, app.id, "inscrits", { email }))) await rangerSite(admin, app.id, proprio, "inscrits", { email, ...(prenom ? { prenom } : {}), source, _public: true, _ip: ipL });
         return { status: 200, body: { ok: true } };
       }
       const t = (x: unknown, n: number) => String(x ?? "").replace(/\s+/g, " ").trim().slice(0, n);
@@ -429,21 +444,18 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       if (demande.email && !emailOk(demande.email)) throw new Err(400, "Adresse e-mail invalide");
       const depuis = new Date(Date.now() - 3600e3).toISOString();
       const ip = await sha(`${app.id}:site:${(req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim()}`);
-      const { count: parIp } = await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("col", "demandes").eq("data->>_ip", ip).gte("at", depuis);
-      if ((parIp ?? 0) >= 5) throw new Err(429, "Trop d'envois depuis cette connexion, réessayez dans une heure");
-      const { count: total } = await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("col", "demandes").gte("at", depuis);
-      if ((total ?? 0) >= 60) throw new Err(429, "Trop d'envois en ce moment, réessayez dans une heure");
-      // Pas encore de gérant : la demande attend sous l'identifiant de l'app, elle sera rattachée à la création de son accès
-      const espace = proprio?.id ?? app.id;
-      const { data: r } = await admin.from("saas_app_rows").insert({ app_id: app.id, user_id: espace, espace_id: espace, col: "demandes", data: { ...Object.fromEntries(Object.entries(demande).filter(([, v]) => v !== "")), statut: "nouvelle", _public: true, _ip: ip } }).select("id, data").single();
+      if ((await compterSite(admin, app.id, "demandes", { _ip: ip }, depuis)) >= 5) throw new Err(429, "Trop d'envois depuis cette connexion, réessayez dans une heure");
+      if ((await compterSite(admin, app.id, "demandes", {}, depuis)) >= 60) throw new Err(429, "Trop d'envois en ce moment, réessayez dans une heure");
+      // Pas encore de gérant : la demande attend, elle sera rattachée à son espace à la création de son accès
+      const r = await rangerSite(admin, app.id, proprio, "demandes", { ...Object.fromEntries(Object.entries(demande).filter(([, v]) => v !== "")), statut: "nouvelle", _public: true, _ip: ip });
       const lignes = [`De : ${demande.nom}`, demande.email && `E-mail : ${demande.email}`, demande.telephone && `Téléphone : ${demande.telephone}`, demande.service && `Pour : ${demande.service}`, demande.date_souhaitee && `Date souhaitée : ${demande.date_souhaitee.split("-").reverse().join("/")}`, demande.message && `\n${demande.message}`].filter(Boolean).join("\n");
       try {
-        if (proprio) { const { mailDemandeSite } = await import("./app-mails.ts"); await mailDemandeSite(app, slug, proprio, r!.id, lignes, demande.nom); }
+        if (proprio) { const { mailDemandeSite } = await import("./app-mails.ts"); await mailDemandeSite(app, slug, proprio, r.id, lignes, demande.nom); }
         else {
           const { sendSystem, teamAddress } = await import("./mail.ts");
           const { data: w } = await admin.from("workspaces").select("*").eq("id", app.workspace_id).single();
           const to = w ? await teamAddress(w as any) : "";
-          if (to) await sendSystem({ to, subject: `Nouvelle demande sur ${sp.nom ?? "ton site"} : ${demande.nom}`, text: `Ton site vient de recevoir une demande.\n\n${lignes}\n\n${demande.email ? "Réponds directement à cette personne par e-mail. " : ""}Pour retrouver toutes tes demandes au même endroit, crée ton accès gérant : bouton « Espace gérant » en bas de ton site, avec cette adresse e-mail.\n\nBingoo!`, replyTo: emailOk(demande.email) ? demande.email : undefined, key: `site-${r!.id}` });
+          if (to) await sendSystem({ to, subject: `Nouvelle demande sur ${sp.nom ?? "ton site"} : ${demande.nom}`, text: `Ton site vient de recevoir une demande.\n\n${lignes}\n\n${demande.email ? "Réponds directement à cette personne par e-mail. " : ""}Pour retrouver toutes tes demandes au même endroit, crée ton accès gérant : bouton « Espace gérant » en bas de ton site, avec cette adresse e-mail.\n\nBingoo!`, replyTo: emailOk(demande.email) ? demande.email : undefined, key: `site-${r.id}` });
         }
       } catch (e) { console.error("site demande mail", e); }
       return { status: 200, body: { ok: true } };
@@ -546,7 +558,14 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       else {
         await semer(admin, app, u.id);
         // Site : les demandes reçues avant la création de l'accès gérant lui reviennent
-        if ((app.spec as any)?.type === "site") await admin.from("saas_app_rows").update({ user_id: u.id, espace_id: u.id }).eq("app_id", app.id).eq("espace_id", app.id);
+        if ((app.spec as any)?.type === "site") {
+          const { data: att } = await admin.from("saas_app_attente").select("id, col, data, at").eq("app_id", app.id).limit(2000);
+          if (att?.length) {
+            const { error: ea } = await admin.from("saas_app_rows").insert(att.map((x: any) => ({ app_id: app.id, user_id: u.id, espace_id: u.id, col: x.col, data: x.data, at: x.at })));
+            if (!ea) await admin.from("saas_app_attente").delete().in("id", att.map((x: any) => x.id));
+            else console.error("site rattachement", ea.message);
+          }
+        }
       }
       // Précommande payée avant l'ouverture : l'accès est activé (un mois, ou à vie en paiement unique)
       if (action === "signup") {
