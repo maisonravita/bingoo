@@ -1,21 +1,22 @@
 // App mobile (étape 3) : la coque native Expo autour de l'app du membre, publiée en « Snack » (sans compte Expo).
 // Le membre l'ouvre sur son téléphone dans Expo Go. La même coque servira à la compilation pour les stores (étape 4).
-// - Versions lues à chaque publication : le dernier SDK d'Expo et les modules natifs qui vont avec (jamais figés ici).
+// - SDK : celui de Snack (54 aujourd'hui, réglable) ; modules natifs aux versions de ce SDK, lues à chaque publication.
 // - La coque : l'app en plein écran (?natif=1 : pas de bandeau « installer »), écran de démarrage à la couleur de l'app,
 //   tirer pour recharger, bouton retour Android, écran « pas de connexion » avec « Réessayer », liens externes dans le navigateur.
 // deno-lint-ignore-file no-explicit-any
 
 const SNACK = "https://exp.host/--/api/v2";
 
+// SDK d'Expo : celui que Snack (et donc Expo Go par Snack) fait tourner, pas forcément le tout dernier publié par Expo.
+// Snack propose aujourd'hui les SDK 50 à 56 et ouvre en 54 : on suit son choix (réglable par SNACK_SDK sans redéployer le code).
+// Les modules natifs prennent les versions qui vont avec ce SDK (lues dans le paquet expo de cette version).
 async function versions() {
-  const r = await fetch(`${SNACK}/versions`).then((x) => x.json());
-  const sdks = Object.entries(r?.sdkVersions ?? {}).filter(([, v]: any) => !v?.isDeprecated && !v?.beta).map(([k]) => k).sort((a, b) => Number(b.split(".")[0]) - Number(a.split(".")[0]));
-  const sdk = sdks[0];
-  if (!sdk) throw new Error("Versions d'Expo introuvables");
+  const sdk = /^\d+\.0\.0$/.test(Deno.env.get("SNACK_SDK") ?? "") ? Deno.env.get("SNACK_SDK")! : "54.0.0";
   const majeur = sdk.split(".")[0];
   const mods = await fetch(`https://cdn.jsdelivr.net/npm/expo@${majeur}/bundledNativeModules.json`).then((x) => x.json()).catch(() => ({}));
-  const v = (p: string) => String(mods?.[p] ?? "*").replace(/^[~^]/, "");
-  return { sdk, deps: { "react-native-webview": v("react-native-webview"), "react-native-safe-area-context": v("react-native-safe-area-context"), "expo-status-bar": v("expo-status-bar") } };
+  // Versions telles qu'Expo les écrit (« ~3.0.9 ») : c'est ce que Snack recommande
+  const v = (p: string, d: string) => String(mods?.[p] ?? d);
+  return { sdk, deps: { "react-native-webview": v("react-native-webview", "13.15.0"), "react-native-safe-area-context": v("react-native-safe-area-context", "~5.6.0"), "expo-status-bar": v("expo-status-bar", "~3.0.9") } };
 }
 
 /** Le code de la coque (App.js), pour une app donnée. */
