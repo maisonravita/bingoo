@@ -371,7 +371,9 @@ export default function IleSaas({ d, onLieu, nuit, mode = "archipel", pays, ileD
   useEffect(() => {
     const el = boite.current; if (!el || !pret) return undefined;
     const W = () => el.clientWidth, H = () => el.clientHeight;
-    const rendu = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    let rendu;
+    // Certains navigateurs (accélération graphique coupée, trop de contextes 3D) refusent la 3D : on affiche le repli au lieu de casser la page
+    try { rendu = new THREE.WebGLRenderer({ antialias: true, alpha: true }); } catch (_) { setErreur(true); return undefined; }
     rendu.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     rendu.setSize(W(), H());
     rendu.shadowMap.enabled = true; rendu.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -631,7 +633,7 @@ export default function IleSaas({ d, onLieu, nuit, mode = "archipel", pays, ileD
   return (
     <div className="relative w-full h-full">
       <div ref={boite} className="absolute inset-0" />
-      {!pret && <div className="absolute inset-0 grid place-items-center text-white/80 text-[14px] font-semibold">{erreur ? "L'archipel n'a pas pu se charger : vérifie ta connexion et recharge la page." : "L'archipel se dessine…"}</div>}
+      {(!pret || erreur) && <div className="absolute inset-0 grid place-items-center px-6 text-center text-white/80 text-[14px] font-semibold">{erreur ? (pret ? "Ton navigateur n'affiche pas la 3D (accélération graphique désactivée). Active-la dans les réglages du navigateur, ou retrouve les mêmes SaaS dans « Explorer les SaaS »." : "L'archipel n'a pas pu se charger : vérifie ta connexion et recharge la page.") : "L'archipel se dessine…"}</div>}
       {labels.map((l) => {
         const lieu = lieux.find((x) => x.id === l.id);
         const on = survol === l.id;
