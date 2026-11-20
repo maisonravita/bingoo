@@ -933,7 +933,10 @@ function Verif() {
       const zeros = E.public ? [] : kpis.filter((k) => /\\d/.test(k.v) && !/[1-9]/.test(k.v)).map((k) => k.l);
       const vide = vides.length ? "Avec les données d'exemple, ce bloc reste vide : « " + vides.slice(0, 3).join(" », « ") + " ». Le calcul ne trouve rien : vérifie les noms exacts des collections et des champs des données d'exemple (et les valeurs de statut), et les dates (les exemples sont centrés sur aujourd'hui)." : null;
       const zero = zeros.length >= 2 || (zeros.length && zeros.length === kpis.length) ? "Avec les données d'exemple, ces chiffres clés affichent 0 : « " + zeros.slice(0, 4).join(" », « ") + " ». Vérifiez les noms des champs, les valeurs de statut et les filtres de dates utilisés dans le calcul." : null;
-      const erreur = VERRS[0] ?? (casse ? "L'écran ne se charge pas" : bizarre ? "Le texte affiché contient « " + bizarre + " »" : txt.trim().length < 30 ? "L'écran est presque vide" : [vide, zero].filter(Boolean).join(" ") || null);
+      // Boutons et pastilles sans aucun texte (ni icône, ni libellé) : le champ affiché n'existe pas dans les données
+      const muets = [...(zone?.querySelectorAll("button, [role=button], a") ?? [])].filter((el) => !el.innerText.trim() && !el.querySelector("svg, img, canvas, video, input") && !el.getAttribute("aria-label") && !el.getAttribute("title") && el.getBoundingClientRect().width > 44);
+      const muet = muets.length ? "Des boutons s'affichent sans aucun texte (" + muets.length + ") : le champ utilisé pour leur libellé n'existe pas (ou est vide) dans les données d'exemple. Vérifie le nom exact du champ affiché." : null;
+      const erreur = VERRS[0] ?? (casse ? "L'écran ne se charge pas" : bizarre ? "Le texte affiché contient « " + bizarre + " »" : txt.trim().length < 30 ? "L'écran est presque vide" : [vide, zero, muet].filter(Boolean).join(" ") || null);
       res.current.push({ id: E.id, ok: !erreur, erreur: erreur && String(erreur).slice(0, 700) });
       VERRS.length = 0;
       setI(i + 1);

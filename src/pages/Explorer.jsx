@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { demander } from "../lib/demander";
 import { charger } from "../lib/charger";
 import { indexChoisi } from "../lib/choix";
@@ -2793,6 +2793,9 @@ export function TrouveTonSaas() {
   // Retour de la page de paiement sans payer : on revient directement sur ses SaaS, pas à la première question
   const annule = /paiement=annule/.test(window.location.href) && !!avant?.fini;
   const [r, setR] = useState(() => ({ canaux: [], refus: [], secteurs: [], audience: null, ambition: null, profil: null, temps: null, ...(avant ?? {}), metier: "", etape: annule ? QUESTIONS.length : 0 }));
+  // Chaque nouvelle question s'affiche depuis le haut (sinon la page reste défilée, surtout sur mobile)
+  const etapeVue = useRef(null);
+  useEffect(() => { if (etapeVue.current !== null && etapeVue.current !== r.etape) { try { window.scrollTo({ top: 0, behavior: "smooth" }); document.querySelector("main")?.scrollTo?.({ top: 0, behavior: "smooth" }); } catch (_) { /* rien */ } } etapeVue.current = r.etape; }, [r.etape]);
   const [res, setRes] = useState(null);
   const [ap, setAp] = useState(null);
   const [planVu, setPlanVu] = useState(annule);
