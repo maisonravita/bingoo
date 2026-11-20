@@ -478,15 +478,15 @@ Un changement de couleur, d'allure, de nom, de textes du site ou de prix ne dema
   // 1. Réglages globaux
   const R = plan?.reglages && typeof plan.reglages === "object" ? plan.reglages : {};
   const ENUM: Record<string, string[]> = { style: ["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique"], fond: ["blanc", "creme", "gris", "sombre"], forme: ["carre", "arrondi", "pilule"], disposition: ["barre", "haut", "onglets"] };
-  if (/^#[0-9a-f]{6}$/i.test(String(R.couleur ?? ""))) { spec.couleur = R.couleur; faits.push("couleur"); }
-  for (const k of Object.keys(ENUM)) if (ENUM[k].includes(R[k])) { spec[k] = R[k]; faits.push(k === "style" ? "allure" : k); }
-  for (const [k, n, l] of [["nom", 40, "nom"], ["slogan", 90, "slogan"], ["pitch", 300, "accroche"], ["cible_courte", 60, "cible"]] as [string, number, string][]) if (typeof R[k] === "string" && R[k].trim()) { spec[k] = R[k].trim().slice(0, n); faits.push(l); }
+  if (/^#[0-9a-f]{6}$/i.test(String(R.couleur ?? "")) && String(R.couleur).toLowerCase() !== String(spec.couleur ?? "").toLowerCase()) { spec.couleur = R.couleur; faits.push("couleur"); }
+  for (const k of Object.keys(ENUM)) if (ENUM[k].includes(R[k]) && R[k] !== spec[k]) { spec[k] = R[k]; faits.push(k === "style" ? "allure" : k); }
+  for (const [k, n, l] of [["nom", 40, "nom"], ["slogan", 90, "slogan"], ["pitch", 300, "accroche"], ["cible_courte", 60, "cible"]] as [string, number, string][]) if (typeof R[k] === "string" && R[k].trim() && R[k].trim().slice(0, n) !== spec[k]) { spec[k] = R[k].trim().slice(0, n); faits.push(l); }
   // 2. Textes et prix du site
   const S = plan?.site && typeof plan.site === "object" ? plan.site : {};
-  if (typeof S.probleme === "string" && S.probleme.trim()) { spec.probleme = S.probleme.trim().slice(0, 320); faits.push("texte du site"); }
-  if (Array.isArray(S.atouts) && S.atouts.length) { spec.atouts = S.atouts.filter((x: any) => x?.titre).slice(0, 6).map((x: any) => ({ titre: String(x.titre).slice(0, 60), texte: String(x.texte ?? "").slice(0, 200) })); faits.push("atouts"); }
-  if (Array.isArray(S.faq) && S.faq.length) { spec.faq = S.faq.filter((x: any) => x?.q && x?.r).slice(0, 8).map((x: any) => ({ q: String(x.q).slice(0, 140), r: String(x.r).slice(0, 400) })); faits.push("questions fréquentes"); }
-  if (Array.isArray(S.formules) && S.formules.length) { const f = S.formules.filter((x: any) => x?.nom && Number.isFinite(Number(x.prix))).slice(0, 3).map((x: any) => ({ nom: String(x.nom).slice(0, 40), prix: Math.max(0, Number(x.prix)), pour: String(x.pour ?? "").slice(0, 120), inclus: (Array.isArray(x.inclus) ? x.inclus : []).slice(0, 5).map((y: unknown) => String(y).slice(0, 90)) })); if (f.length) { spec.formules = f; faits.push("formules et prix"); } }
+  if (typeof S.probleme === "string" && S.probleme.trim() && S.probleme.trim().slice(0, 320) !== spec.probleme) { spec.probleme = S.probleme.trim().slice(0, 320); faits.push("texte du site"); }
+  if (Array.isArray(S.atouts) && S.atouts.length && JSON.stringify(S.atouts) !== JSON.stringify(spec.atouts)) { spec.atouts = S.atouts.filter((x: any) => x?.titre).slice(0, 6).map((x: any) => ({ titre: String(x.titre).slice(0, 60), texte: String(x.texte ?? "").slice(0, 200) })); faits.push("atouts"); }
+  if (Array.isArray(S.faq) && S.faq.length && JSON.stringify(S.faq) !== JSON.stringify(spec.faq)) { spec.faq = S.faq.filter((x: any) => x?.q && x?.r).slice(0, 8).map((x: any) => ({ q: String(x.q).slice(0, 140), r: String(x.r).slice(0, 400) })); faits.push("questions fréquentes"); }
+  if (Array.isArray(S.formules) && S.formules.length) { const f = S.formules.filter((x: any) => x?.nom && Number.isFinite(Number(x.prix))).slice(0, 3).map((x: any) => ({ nom: String(x.nom).slice(0, 40), prix: Math.max(0, Number(x.prix)), pour: String(x.pour ?? "").slice(0, 120), inclus: (Array.isArray(x.inclus) ? x.inclus : []).slice(0, 5).map((y: unknown) => String(y).slice(0, 90)) })); const cle = (xs: any[]) => JSON.stringify((xs ?? []).map((x: any) => [x.nom, Number(x.prix), x.pour ?? "", x.inclus ?? []])); if (f.length && cle(f) !== cle(spec.formules)) { spec.formules = f; faits.push("formules et prix"); } }
   // 3. Structure : supprimer, renommer, réordonner (jamais le dernier écran privé)
   for (const id of (Array.isArray(plan?.supprimer) ? plan.supprimer : []).map(String)) {
     const e = spec.ecrans.find((x: any) => x.id === id);
