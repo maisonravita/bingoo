@@ -9,6 +9,58 @@ const PLAN = { essai: "Essai", demarrage: "Démarrage", solo: "Solo", pro: "Pro"
 
 const BUDGET = { essai: 4, solo: 6, pro: 14, equipe: 24, fondateur: 15 };
 const PRICE = { essai: 0, solo: 39, pro: 69, equipe: 109, fondateur: 0 };
+/** Crédit IA du compte Anthropic : ce qui reste, ce qui a été consommé, par jour / fonction / client, et la saisie d'une recharge. */
+function CreditIa() {
+  const [d, setD] = useState(null), [montant, setMontant] = useState(""), [occupe, setOccupe] = useState(false), [err, setErr] = useState(null);
+  const charger = () => supabase.rpc("admin_ia_credit").then(({ data, error }) => { if (error) setErr(error.message); else setD(data); });
+  useEffect(() => { charger(); const t = setInterval(charger, 60000); return () => clearInterval(t); }, []);
+  const appel = async (rpc, args) => { setOccupe(true); const { data, error } = await supabase.rpc(rpc, args); setOccupe(false); if (error) setErr(error.message); else { setErr(null); setD(data); } };
+  if (err && !d) return <Card className="p-5"><p className="text-sm text-bad">Crédit IA : {err}</p></Card>;
+  if (!d) return null;
+  const restant = Number(d.restant_reel ?? 0), credit = Number(d.credit ?? 0), pct = credit > 0 ? Math.max(0, Math.min(100, Math.round((restant / credit) * 100))) : 0;
+  const maxJour = Math.max(0.01, ...(d.par_jour ?? []).map((x) => Number(x.eur)));
+  const couleur = restant <= 1 ? "bg-bad" : restant <= credit * 0.3 ? "bg-[#E8A13A]" : "bg-good";
+  return (
+    <Card className="p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-semibold text-lg">Crédit IA (compte Anthropic)</h2>
+        <p className="text-xs text-ink-soft">Mis à jour chaque minute · recharge du {when(d.depuis)}</p>
+      </div>
+      <div className="mt-4 grid gap-4 sm:grid-cols-4">
+        <div><p className="text-xs text-ink-soft">Reste (estimé)</p><p className={cx("text-2xl font-bold tabular-nums", restant <= 1 && "text-bad")}>{d.epuise ? "0,00 €" : eur(restant)}</p></div>
+        <div><p className="text-xs text-ink-soft">Consommé depuis la recharge</p><p className="text-2xl font-bold tabular-nums">{eur(d.depense_reelle)}</p><p className="text-xs text-ink-faint">sur {eur(credit)}</p></div>
+        <div><p className="text-xs text-ink-soft">Aujourd'hui</p><p className="text-2xl font-bold tabular-nums">{eur(d.aujourdhui)}</p>{d.plafond_jour != null && <p className="text-xs text-ink-faint">plafond plateforme {eur(d.plafond_jour)}{d.sans_limite ? " (ne bloque pas les clients)" : ""}</p>}</div>
+        <div><p className="text-xs text-ink-soft">Compteur prudent (+30 %)</p><p className="text-2xl font-bold tabular-nums text-ink-soft">{eur(d.restant_compteur)}</p><p className="text-xs text-ink-faint">sous 0,50 € : tâches de fond en pause</p></div>
+      </div>
+      <div className="mt-3 h-2.5 rounded-full bg-paper overflow-hidden"><div className={cx("h-full rounded-full", couleur)} style={{ width: `${d.epuise ? 0 : pct}%` }} /></div>
+      {(d.epuise || restant <= 1) && <p className="mt-2 text-sm text-bad font-medium">Crédit presque vide : recharge le compte Anthropic, puis saisis le montant disponible ci-dessous.</p>}
+
+      <div className="mt-5 grid gap-5 lg:grid-cols-3">
+        <div>
+          <p className="text-sm font-semibold mb-2">14 derniers jours</p>
+          <div className="flex h-24 items-end gap-1">{(d.par_jour ?? []).map((x) => <div key={x.jour} title={`${new Date(x.jour).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} : ${eur(x.eur)}`} className="flex-1 rounded-t bg-ink/70 hover:bg-ink" style={{ height: `${Math.max(3, (Number(x.eur) / maxJour) * 100)}%` }} />)}</div>
+        </div>
+        <div>
+          <p className="text-sm font-semibold mb-2">Par fonction (depuis la recharge)</p>
+          <ul className="space-y-1 text-sm">{(d.par_fonction ?? []).map((x) => <li key={x.fonction} className="flex justify-between gap-3"><span className="truncate text-ink-soft">{x.fonction} <span className="text-ink-faint">· {x.appels} appels</span></span><span className="tabular-nums">{eur(x.eur)}</span></li>)}</ul>
+        </div>
+        <div>
+          <p className="text-sm font-semibold mb-2">Par client (depuis la recharge)</p>
+          <ul className="space-y-1 text-sm">{(d.par_client ?? []).map((x, i) => <li key={i} className="flex justify-between gap-3"><span className="truncate text-ink-soft">{x.nom || "Espace sans nom"}</span><span className="tabular-nums">{eur(x.eur)}</span></li>)}</ul>
+        </div>
+      </div>
+
+      <div className="mt-5 flex flex-wrap items-end gap-3 border-t border-line pt-4">
+        <label className="text-sm"><span className="block text-xs text-ink-soft mb-1">J'ai rechargé : montant disponible maintenant sur Anthropic (€)</span>
+          <input type="number" min="1" step="0.01" value={montant} onChange={(e) => setMontant(e.target.value)} placeholder="Ex. 10" className="w-40 rounded-lg border border-line px-3 py-1.5" /></label>
+        <Button disabled={occupe || !(Number(montant) > 0)} onClick={() => appel("admin_ia_recharge", { p_montant: Number(montant) }).then(() => setMontant(""))}>Enregistrer la recharge</Button>
+        <label className="ml-auto flex items-center gap-2 text-sm"><input type="checkbox" checked={!!d.sans_limite} disabled={occupe} onChange={(e) => appel("admin_ia_sans_limite", { p_actif: e.target.checked })} />Ne jamais bloquer les clients (seules leurs propres limites comptent)</label>
+      </div>
+      {err && <p className="mt-2 text-sm text-bad">{err}</p>}
+    </Card>
+  );
+}
+
 /** Coût IA réel (mesuré à chaque appel) : par espace, budget, marge, fonctions les plus coûteuses. */
 function AiCosts({ rows }) {
   if (!rows) return null;
@@ -185,6 +237,7 @@ export default function Admin() {
       <Pilotes />
       <Usage />
 
+      <CreditIa />
       <AiCosts rows={ai} plans={ws} />
 
       <Card className={cx("p-5", inc?.length ? "border-bad/40" : "")}>
