@@ -473,7 +473,7 @@ Rends un objet JSON avec SEULEMENT ce que la demande change :
 - renommer : [{ id, titre (2 mots), icone (parmi ${ICONES.join(", ")}) }]
 - ordre : la liste complète des ids dans le nouvel ordre, ou null
 - ecrans : écrans à écrire, au plus 4 : [{ id (id existant à modifier, ou "nouveau"), consigne (ce qu'il faut faire sur cet écran, précis) }]
-Un changement de couleur, d'allure, de nom, de textes du site ou de prix ne demande AUCUN écran. Rends {} pour ce qui ne change pas.`, { fast: true, maxTokens: 2500 }).catch(() => ({ ecrans: [{ id: ecranId, consigne: demande }] }));
+Un changement de couleur, d'allure, de nom, de textes du site ou de prix ne demande AUCUN écran. Rends {} pour ce qui ne change pas.`, { fast: true, maxTokens: 2500 }).catch((x) => { console.error("atelier plan", x?.message ?? x); if (/pause|plafond|crédit/i.test(String(x?.message ?? x))) throw x; return { ecrans: [{ id: ecranId, consigne: demande }] }; });
   const faits: string[] = [], rates: string[] = [];
   // 1. Réglages globaux
   const R = plan?.reglages && typeof plan.reglages === "object" ? plan.reglages : {};
@@ -528,7 +528,7 @@ Un changement de couleur, d'allure, de nom, de textes du site ou de prix ne dema
       }
       e.code = sansIdentite(e.code, await inspireDe(appId), spec.nom).valeur;
       dernier = e;
-    } catch (_) { rates.push(`écran « ${e?.titre ?? t.consigne.slice(0, 30)} » : à reformuler`); }
+    } catch (x) { console.error("atelier écran", (x as any)?.message ?? x); if (/pause|plafond|crédit/i.test(String((x as any)?.message ?? x))) throw x; rates.push(`écran « ${e?.titre ?? t.consigne.slice(0, 30)} » : à reformuler`); }
   }
   if (!faits.length) throw new Error(rates[0] ? `Rien n'a pu être fait (${rates.join(" ; ")}). Reformule ta demande.` : "La modification n'a pas pu être écrite correctement, reformule ta demande");
   const m = { demande, ecran: dernier?.id ?? null, titre: faits.join(", ").slice(0, 300), faits, rates, nouveau: false, suggestion, at: new Date().toISOString() };
