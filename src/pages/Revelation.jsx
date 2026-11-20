@@ -245,7 +245,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
           const voulu = (rep.nom ?? "").trim();
           if (deja?.[0] && (!voulu || deja[0].data?.nom === voulu)) p = { id: deja[0].id, ...deja[0].data };
           else {
-            const { id } = await fn("r/saas-lancer", { workspace_id: ws.id, domaine: c.domaine, angle: angle.current, nom: (rep.nom ?? "").trim() || null, modele: c.modele ?? null, couleur: c.couleur ?? null });
+            const { id } = await fn("r/saas-lancer", { workspace_id: ws.id, domaine: c.domaine, angle: angle.current, nom: (rep.nom ?? "").trim() || null, modele: c.modele ?? null, couleur: c.couleur ?? null, allure: c.allure ?? null });
             setEtape(0);
             const finPreparation = Date.now() + 38 * 60_000;
             let intervalle = 3500;

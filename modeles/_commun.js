@@ -1,4 +1,7 @@
-// --- Éléments de design partagés du modèle Réservation (style « Sublima ») ---
+// --- Éléments de design partagés par tous les modèles faits main (style « Sublima ») ---
+const ilya = (d) => { const m = Math.round((Date.now() - new Date(d).getTime()) / 60000); return !isFinite(m) ? "" : m < 60 ? "Il y a " + Math.max(1, m) + " min" : m < 1440 ? "Il y a " + Math.round(m / 60) + " h" : m < 2880 ? "Hier" : "Il y a " + Math.round(m / 1440) + " j"; };
+function Onglets({ valeur, onChange, options }) { return html`<div role="tablist" class="flex gap-5 border-b border-slate-100 text-sm">${options.map(([k, l]) => html`<button role="tab" aria-selected=${valeur === k ? "true" : "false"} onClick=${() => onChange(k)} class=${"-mb-px border-b-2 pb-2 font-medium transition " + (valeur === k ? "border-[var(--c)] text-[var(--c)]" : "border-transparent text-slate-500 hover:text-slate-800")}>${l}</button>`)}</div>`; }
+function TitreCarte({ icone, titre, sous, children }) { return html`<div class="mb-4 flex items-start justify-between gap-3"><div class="flex items-start gap-3">${icone && html`<span class="grid w-10 h-10 shrink-0 place-items-center rounded-full bg-[var(--c)] text-white"><${Icone} nom=${icone} class="w-5 h-5"/></span>`}<div><h2 class="text-lg font-bold leading-tight">${titre}</h2>${sous && html`<p class="text-sm text-slate-500">${sous}</p>`}</div></div>${children}</div>`; }
 const INI = (n) => String(n || "?").trim().split(" ").filter(Boolean).map((x) => x[0]).join("").slice(0, 2).toUpperCase();
 const TEINTES = ["#F43F5E", "#8B5CF6", "#0EA5E9", "#10B981", "#F59E0B", "#6366F1", "#EC4899", "#14B8A6"];
 const teinte = (n) => { let h = 0; for (const c of String(n || "")) h = (h * 31 + c.charCodeAt(0)) >>> 0; return TEINTES[h % TEINTES.length]; };

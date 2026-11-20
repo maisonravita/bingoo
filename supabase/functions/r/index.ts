@@ -361,10 +361,12 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     // Lancé depuis la galerie de modèles : le modèle fait main choisi s'impose à la construction
     const modeleForce = ["reservation", "devis", "crm", "ecriture", "projets"].includes(String(b.modele ?? "")) ? String(b.modele) : "";
     const couleurChoisie = /^#[0-9a-f]{6}$/i.test(String(b.couleur ?? "")) ? String(b.couleur) : "";
-    if (nomChoisi || modeleForce || couleurChoisie) {
+    // Allure choisie dans la galerie (ex. « nature » : menu vert foncé sur fond crème)
+    const allureChoisie = ["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique", "nature"].includes(String(b.allure ?? "")) ? String(b.allure) : "";
+    if (nomChoisi || modeleForce || couleurChoisie || allureChoisie) {
       const { data: pj } = await admin.from("saas_projets").select("data, statut").eq("id", data.id).single();
       const d0 = (pj?.data ?? {}) as Record<string, unknown>;
-      await admin.from("saas_projets").update({ data: { ...d0, ...(nomChoisi ? { nom_choisi: nomChoisi, ...(pj?.statut === "pret" ? { nom: nomChoisi } : {}) } : {}), ...(modeleForce ? { modele_force: modeleForce } : {}), ...(couleurChoisie ? { couleur_choisie: couleurChoisie } : {}) } }).eq("id", data.id);
+      await admin.from("saas_projets").update({ data: { ...d0, ...(nomChoisi ? { nom_choisi: nomChoisi, ...(pj?.statut === "pret" ? { nom: nomChoisi } : {}) } : {}), ...(modeleForce ? { modele_force: modeleForce } : {}), ...(couleurChoisie ? { couleur_choisie: couleurChoisie } : {}), ...(allureChoisie ? { allure_choisie: allureChoisie } : {}) } }).eq("id", data.id);
     }
     if (data.nouveau) await log(ws.id, "lancer", `Projet de SaaS concurrent de ${s.nom ?? domaine}`);
     // Démarre tout de suite (sans attendre la tâche minute) ; REA continue en arrière-plan pour les prochains lancements

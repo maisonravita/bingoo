@@ -226,7 +226,7 @@ Les données d'exemple sont produites à part : ne mets pas de clé demo.`, { ma
     // Couleur choisie par le membre (galerie de modèles) : elle passe avant celle de la conception
     couleur: /^#[0-9a-f]{6}$/i.test(p.couleur_choisie ?? "") ? p.couleur_choisie : /^#[0-9a-f]{6}$/i.test(s.couleur ?? "") ? s.couleur : "#4F46E5",
     // Allure propre à chaque SaaS : deux SaaS construits ne doivent pas se ressembler
-    ...(["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique"].includes(s.style) ? { style: s.style } : {}),
+    ...(["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique", "nature"].includes(p.allure_choisie) ? { style: p.allure_choisie } : ["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique"].includes(s.style) ? { style: s.style } : {}),
     famille: FAMILLES[s.famille] ? s.famille : famille0,
     interface: FAMILLES[FAMILLES[s.famille] ? s.famille : famille0].interface,
     disposition: ["barre", "haut", "onglets"].includes(s.disposition) ? s.disposition : FAMILLES[FAMILLES[s.famille] ? s.famille : famille0].disposition,
@@ -511,7 +511,7 @@ Un changement de couleur, de police, d'allure, de nom, de textes du site ou de p
   const faits: string[] = [], rates: string[] = [];
   // 1. Réglages globaux
   const R = plan?.reglages && typeof plan.reglages === "object" ? plan.reglages : {};
-  const ENUM: Record<string, string[]> = { style: ["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique"], fond: ["blanc", "creme", "gris", "sombre"], forme: ["carre", "arrondi", "pilule"], disposition: ["barre", "haut", "onglets"] };
+  const ENUM: Record<string, string[]> = { style: ["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique", "nature"], fond: ["blanc", "creme", "gris", "sombre"], forme: ["carre", "arrondi", "pilule"], disposition: ["barre", "haut", "onglets"] };
   if (/^#[0-9a-f]{6}$/i.test(String(R.couleur ?? "")) && String(R.couleur).toLowerCase() !== String(spec.couleur ?? "").toLowerCase()) { spec.couleur = R.couleur; faits.push("couleur"); }
   for (const k of Object.keys(ENUM)) if (ENUM[k].includes(R[k]) && R[k] !== spec[k]) { spec[k] = R[k]; faits.push(k === "style" ? "allure" : k); }
   for (const [k, l] of [["police", "police du texte"], ["police_titres", "police des titres"]] as [string, string][]) if (POLICES_ATELIER.includes(R[k]) && R[k] !== spec[k]) { spec[k] = R[k]; faits.push(l + " : " + R[k]); }

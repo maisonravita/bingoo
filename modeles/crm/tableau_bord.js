@@ -13,14 +13,18 @@ function Ecran() {
   const parMois = Array.from({ length: 6 }, (_, i) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 5 + i); const k = d.toISOString().slice(0, 7); return { label: d.toLocaleDateString("fr-FR", { month: "short" }), valeur: gagnees.filter((a) => String(a.gagnee_le ?? "").slice(0, 7) === k).reduce((s, a) => s + (Number(a.montant) || 0), 0) }; });
   const ETAPES = [["nouveau", "Nouveau"], ["qualifie", "Qualifié"], ["proposition", "Proposition"], ["negociation", "Négociation"]];
   const parEtape = ETAPES.map(([v, l]) => ({ label: l, valeur: ouvertes.filter((a) => a.etape === v).length })).filter((x) => x.valeur);
+  // Tendances : ce mois-ci comparé au mois dernier
+  const moisAvant = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 7); })();
+  const gagneAvant = gagnees.filter((a) => String(a.gagnee_le ?? "").slice(0, 7) === moisAvant).reduce((s, a) => s + (Number(a.montant) || 0), 0);
+  const evo = (a, b) => (b > 0 ? ((a - b) / b) * 100 : null);
   const faire = (t) => T.update(t.id, { fait: true, fait_le: auj }).then(() => toast("Tâche terminée"));
   if (A.loading || T.loading) return html`<${ui.Loading}/>`;
   return html`<${ui.Page} titre="Tableau de bord" sous=${"Votre activité commerciale, " + new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })} actions=${html`<${ui.Button} icone="graphique" onClick=${() => go("pipeline")}>Voir le pipeline</${ui.Button}>`}>
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <${ui.Stat} label="Gagné ce mois-ci" valeur=${fmt.eur(gagneMois)} icone="panier"/>
+      <${ui.Stat} label="Gagné ce mois-ci" valeur=${fmt.eur(gagneMois)} icone="panier" tendance=${evo(gagneMois, gagneAvant)}/>
       <${ui.Stat} label="Pipeline pondéré" valeur=${fmt.eur(pondere)} sous=${ouvertes.length + " affaires en cours"} icone="graphique"/>
       <${ui.Stat} label="Taux de réussite" valeur=${taux + " %"} sous=${gagnees.length + " gagnées sur " + tranchees.length} icone="etoile"/>
-      <${ui.Stat} label="Tâches en retard" valeur=${retard.length} sous=${aFaire.length + " à faire au total"} icone="horloge"/>
+      <${ui.Stat} label="Tâches en retard" valeur=${retard.length} sous=${aFaire.length + " à faire au total"} icone="horloge" inverse=${true}/>
     </div>
     <div class="mt-4 grid lg:grid-cols-3 gap-4">
       <${ui.Card} class="lg:col-span-2" titre="Affaires gagnées par mois"><${ui.Bar} donnees=${parMois}/></${ui.Card}>

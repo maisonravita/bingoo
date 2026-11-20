@@ -3,11 +3,13 @@ import fs from "fs";
 import path from "path";
 const racine = new URL("../modeles/", import.meta.url).pathname;
 const out = {};
+// modeles/_commun.js : éléments de design partagés par TOUS les modèles (cartes d'indicateurs, avatars, menus « ⋯ »…)
+const global = fs.existsSync(path.join(racine, "_commun.js")) ? fs.readFileSync(path.join(racine, "_commun.js"), "utf8") + "\n" : "";
 for (const m of fs.readdirSync(racine)) {
   const dir = path.join(racine, m);
   if (!fs.statSync(dir).isDirectory()) continue;
   // _commun.js (facultatif) : éléments de design partagés, ajoutés en tête de chaque écran du modèle
-  const commun = fs.existsSync(path.join(dir, "_commun.js")) ? fs.readFileSync(path.join(dir, "_commun.js"), "utf8") + "\n" : "";
+  const commun = global + (fs.existsSync(path.join(dir, "_commun.js")) ? fs.readFileSync(path.join(dir, "_commun.js"), "utf8") + "\n" : "");
   out[m] = Object.fromEntries(fs.readdirSync(dir).filter((f) => f.endsWith(".js") && !f.startsWith("_")).map((f) => [f.replace(/\.js$/, ""), commun + fs.readFileSync(path.join(dir, f), "utf8")]));
 }
 fs.writeFileSync(new URL("../supabase/functions/_shared/modeles-code.ts", import.meta.url).pathname, `// Généré par scripts/modeles.mjs : ne pas modifier à la main (modifier modeles/<modele>/*.js puis relancer le script)\nexport const MODELES_CODE: Record<string, Record<string, string>> = ${JSON.stringify(out)};\n`);

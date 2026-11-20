@@ -22,6 +22,13 @@ export const MODELES = [
     couleur: "#9F1239", exemple: "Salonia, pour un salon de coiffure",
   },
   {
+    id: "beaute", modele: "reservation", allure: "nature", titre: "Institut de beauté", ref: { domaine: "planity.com", nom: "Planity", categorie: "Commerce et restauration" },
+    accroche: "La même réservation en ligne, habillée comme un spa : vert profond, fond crème, tout en douceur.",
+    metiers: ["Institut de beauté", "Spa", "Onglerie", "Massage bien-être", "Esthéticienne à domicile", "Barbier"],
+    fonctions: ["Réservation en 3 étapes : soin, date, créneau libre", "Planning du mois et de la semaine", "Carte des soins avec prix et durées", "Clientes VIP, historique et export", "Tableau de bord : chiffre d'affaires, annulations, répartition"],
+    couleur: "#1F3D33", exemple: "Sublima, pour un institut de beauté",
+  },
+  {
     id: "devis", titre: "Devis et factures", ref: { domaine: "henrri.com", nom: "Henrri", categorie: "Facturation et comptabilité" },
     accroche: "Un devis propre en une minute, transformé en facture quand il est accepté, et les retards relancés tout seuls.",
     metiers: ["Électricien", "Plombier", "Graphiste", "Consultant", "Traiteur", "Agence"],
@@ -50,7 +57,7 @@ export const MODELES = [
     couleur: "#7C3AED", exemple: "Plumeo, pour des posts LinkedIn",
   },
 ];
-const COULEURS = ["#9F1239", "#C2410C", "#B45309", "#0F766E", "#15803D", "#0E7490", "#2563EB", "#4338CA", "#7C3AED", "#BE185D", "#111827"];
+const COULEURS = ["#1F3D33", "#9F1239", "#C2410C", "#B45309", "#0F766E", "#15803D", "#0E7490", "#2563EB", "#4338CA", "#7C3AED", "#BE185D", "#111827"];
 
 export default function Modeles() {
   const { session, ws } = useWs();
@@ -64,7 +71,7 @@ export default function Modeles() {
     if (!f.metier.trim()) { setErr("Dis-nous pour quel métier ou quel public."); return; }
     // Le parcours habituel reprend ces réponses : nom choisi, métier visé, modèle imposé
     ecrire(`bingoo-reponses-${m.ref.domaine}`, { nom: f.nom.trim(), clients: f.metier.trim(), mieux: `Couleur principale ${f.couleur}`, angle: [f.nom.trim() && `Nom souhaité, à utiliser tel quel : ${f.nom.trim()}`, `Clients visés : ${f.metier.trim()}`, `Couleur principale : ${f.couleur}`].filter(Boolean).join(". ") });
-    ecrire(CLE_CHANTIER, { ...m.ref, ws: ws.id, modele: m.id, metier: f.metier.trim(), couleur: f.couleur });
+    ecrire(CLE_CHANTIER, { ...m.ref, ws: ws.id, modele: m.modele ?? m.id, allure: m.allure ?? null, metier: f.metier.trim(), couleur: f.couleur });
     if (paye(ws)) { nav("/explorer/revelation"); return; }
     setBusy(true);
     try { const { url } = await fn("billing-checkout", { workspace_id: ws.id, plan: "explorer_pro", periode: "mois", retour: "revelation" }); if (url) { window.location.href = url; return; } nav("/explorer/revelation"); }
