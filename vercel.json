@@ -5,6 +5,14 @@
   "framework": null,
   "rewrites": [
     {
+      "source": "/mcp",
+      "destination": "https://fbsjbnnmzazylmquzryo.supabase.co/functions/v1/t/mcp"
+    },
+    {
+      "source": "/mcp/:cle",
+      "destination": "https://fbsjbnnmzazylmquzryo.supabase.co/functions/v1/t/mcp/:cle"
+    },
+    {
       "source": "/p/:app",
       "destination": "/api/app?app=:app"
     },
