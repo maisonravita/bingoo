@@ -32,8 +32,9 @@ function AlertesAdmin() {
 }
 
 function MesuresConstruction() {
-  const [d, setD] = useState(null), [jours, setJours] = useState(30);
-  useEffect(() => { setD(null); supabase.rpc("admin_mesures_construction", { p_jours: jours }).then(({ data }) => setD(data ?? [])); }, [jours]);
+  const [d, setD] = useState(null), [jours, setJours] = useState(30), [ent, setEnt] = useState(null);
+  useEffect(() => { setD(null); supabase.rpc("admin_mesures_construction", { p_jours: jours }).then(({ data }) => setD(data ?? [])); supabase.rpc("admin_mesures_entrees", { p_jours: jours }).then(({ data }) => setEnt(data ?? [])); }, [jours]);
+  const NOM_ENTREE = { idee: "Idée libre (page d'accueil)", modele: "Galerie de modèles", explorer: "Explorer les SaaS" };
   return (
     <Card className="p-5">
       <div className="flex flex-wrap items-center gap-3"><h2 className="font-bold text-[16px]">Qualité des constructions</h2><span className="text-[13px] text-ink-soft">Robot de Bingoo! : test → correction → livraison</span>
@@ -44,6 +45,8 @@ function MesuresConstruction() {
             <tr key={x.famille} className="border-b border-line/60 last:border-0"><td className="py-2 pr-3 font-semibold">{x.famille}</td><td className="py-2 pr-3 text-right tnum">{n}</td><td className={cx("py-2 pr-3 text-right tnum font-semibold", n && x.premier_ok / n >= 0.8 ? "text-good" : "text-bad")}>{n ? Math.round((x.premier_ok / n) * 100) : 0} %</td><td className="py-2 pr-3 text-right tnum">{x.ecrans_ko_premier ?? "—"}</td><td className="py-2 pr-3 text-right tnum">{x.essais}</td><td className="py-2 pr-3 text-right tnum">{Number(x.cout ?? 0).toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 3 })}</td><td className="py-2 text-right tnum">{fin ? Math.round((x.final_ok / fin) * 100) + " %" : "—"}{x.en_cours ? <span className="ml-1 text-ink-faint">({x.en_cours} en cours)</span> : null}</td></tr>
           ); })}</tbody></table></div>
       )}
+      {ent?.length > 0 && <div className="mt-5 overflow-x-auto"><p className="mb-1 text-[13px] font-semibold">Par porte d'entrée : quel parcours pousser</p><table className="w-full text-[13.5px]"><thead><tr className="text-left text-[12px] text-ink-faint border-b border-line"><th className="py-2 pr-3 font-medium">Entrée</th><th className="py-2 pr-3 font-medium text-right">Aperçus</th><th className="py-2 pr-3 font-medium text-right">Refusées</th><th className="py-2 pr-3 font-medium text-right">Projets</th><th className="py-2 pr-3 font-medium text-right">Constructions</th><th className="py-2 font-medium text-right">Livrées sans défaut</th></tr></thead>
+        <tbody>{ent.map((x) => <tr key={x.entree} className="border-b border-line/60 last:border-0"><td className="py-2 pr-3 font-semibold">{NOM_ENTREE[x.entree] ?? x.entree}</td><td className="py-2 pr-3 text-right tnum">{x.apercus ?? "—"}</td><td className="py-2 pr-3 text-right tnum">{x.refus ?? "—"}</td><td className="py-2 pr-3 text-right tnum">{x.projets}</td><td className="py-2 pr-3 text-right tnum">{x.constructions}{x.projets ? <span className="ml-1 text-ink-faint">({Math.round((x.constructions / x.projets) * 100)} %)</span> : null}</td><td className="py-2 text-right tnum">{x.livrees_ok}</td></tr>)}</tbody></table></div>}
     </Card>
   );
 }

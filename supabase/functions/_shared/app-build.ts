@@ -582,14 +582,17 @@ Un changement de couleur, de police, d'allure, de nom, de textes du site ou de p
 /** Fin de l'écriture : Bingoo! ne dit pas encore « prêt ». La boucle tester → corriger commence (robot, puis saas-app-verif),
  *  et le journal ne contient que de vrais événements, affichés au membre en direct. */
 export async function demarrerVerification(appId: string) {
-  const { data: a } = await admin.from("saas_apps").select("spec, version").eq("id", appId).single();
+  const { data: a } = await admin.from("saas_apps").select("spec, version, projet_id").eq("id", appId).single();
   const sp = (a?.spec ?? {}) as any;
+  // Par où le membre est entré (idée libre, galerie de modèles, exploration des SaaS) : mesuré pour savoir quel parcours pousser
+  const { data: pj } = await admin.from("saas_projets").select("data").eq("id", a?.projet_id ?? "").maybeSingle();
+  const entree = (pj?.data as any)?.entree ?? ((pj?.data as any)?.modele_force ? "modele" : "explorer");
   const n = (sp.ecrans ?? []).length;
   const maintenant = new Date().toISOString();
   await admin.from("saas_apps").update({ verif: {
     phase: "en_cours", version: null, essais: {}, en_reparation: [], passages: 0, ok: false,
     journal: [{ at: maintenant, t: `Les ${n} écrans sont écrits. Je les teste un par un, comme un vrai utilisateur.`, type: "info" }],
-    mesure: { debut: maintenant, famille: sp.famille ?? null, modele: sp.modele ?? null, ecrans: n, essais: 0, cout: 0 },
+    mesure: { debut: maintenant, famille: sp.famille ?? null, modele: sp.modele ?? null, entree, ecrans: n, essais: 0, cout: 0 },
   } }).eq("id", appId);
 }
 

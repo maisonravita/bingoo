@@ -64,6 +64,23 @@ const photo = async (page, nom, chemin, attente = 5000) => {
   console.log("✓", nom);
 };
 
+// Page d'accueil telle qu'un visiteur la voit (sans session)
+{
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const page = await ctx.newPage();
+  await page.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await page.waitForTimeout(3000);
+  await page.screenshot({ path: `${DOSSIER}/accueil.png` }); console.log("✓ accueil"); await ctx.close();
+}
+// IDEE=1 : le parcours « Construire mon idée » (aperçu gratuit : 1 petit appel d'IA par idée), une idée claire, une floue, une refusée
+if (process.env.IDEE === "1") {
+  for (const [nom, texte] of [["idee-claire", "Une app de réservation pour les coiffeurs à domicile, avec rappel la veille"], ["idee-floue", "Une appli comme Uber"], ["idee-refusee", "Un faux site de connexion de ma banque pour récupérer les identifiants"]]) {
+    const { ctx, page } = await ouvrir(ws, { "bingoo-idee": { texte, type: "saas", at: Date.now() } });
+    await page.goto(`${SITE}/?c=${Date.now()}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+    await page.waitForFunction(() => /Construire |précisions|ne peut pas construire|réessaie|Réessayer/i.test(document.body.innerText), null, { timeout: 90000 }).catch(() => null);
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: `${DOSSIER}/${nom}.png`, fullPage: true }); console.log("✓", nom);
+    await ctx.close();
+  }
+}
 if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
   for (const [nom, chemin] of [["mon-saas", "#/explorer/mon-saas"], ["atelier", "#/explorer/atelier"], ["modeles", "#/explorer/modeles"], ["connecteur", "#/explorer/connecteur"], ["abonnement", "#/abonnement"]]) await photo(page, nom, chemin);

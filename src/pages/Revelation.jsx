@@ -224,7 +224,8 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   const lance = useRef(false);
   const parCredits = useRef(false); // l'utilisateur a accepté de payer ce SaaS supplémentaire en crédits
   // 3 questions avant de construire (facultatives) : le SaaS devient le sien, pas un SaaS généré
-  const [questions, setQuestions] = useState(() => !(atelier || pretDeja || c.projet?.id));
+  // Idée libre : le nom et la cible viennent déjà de l'aperçu validé, pas de questions en plus
+  const [questions, setQuestions] = useState(() => !(atelier || pretDeja || c.projet?.id || c.idee));
   // Réponses gardées dans le navigateur : elles survivent à un rechargement ou à un retour de paiement
   const cleRep = "bingoo-reponses-" + (c.domaine ?? "");
   // L'idée écrite sur la page d'accueil devient « ce que je veux faire mieux » (modifiable)
@@ -246,9 +247,12 @@ export function Chantier({ ws, nav, init, atelier = false }) {
           const { data: deja } = await supabase.from("saas_projets").select("id, data, statut").eq("workspace_id", ws.id).eq("data->inspire->>domaine", c.domaine).eq("statut", "pret").order("at", { ascending: false }).limit(1);
           // Un projet déjà prêt n'est repris que s'il porte le nom choisi (sinon on prépare celui que le membre vient de nommer)
           const voulu = (rep.nom ?? "").trim();
-          if (deja?.[0] && (!voulu || deja[0].data?.nom === voulu)) p = { id: deja[0].id, ...deja[0].data };
+          if (!c.idee && deja?.[0] && (!voulu || deja[0].data?.nom === voulu)) p = { id: deja[0].id, ...deja[0].data };
           else {
-            const { id } = await fn("r/saas-lancer", { workspace_id: ws.id, domaine: c.domaine, angle: angle.current, nom: (rep.nom ?? "").trim() || null, modele: c.modele ?? null, couleur: c.couleur ?? null, allure: c.allure ?? null });
+            // Idée libre (page d'accueil) : le projet part de l'idée et de l'aperçu validé, sans SaaS d'origine
+            const { id } = c.idee
+              ? await fn("r/saas-lancer-idee", { workspace_id: ws.id, texte: c.ideeTexte, type: c.type ?? "saas", reponses: c.reponses ?? [], apercu: c.apercu, nom: (rep.nom ?? "").trim() || c.apercu?.nom || null })
+              : await fn("r/saas-lancer", { workspace_id: ws.id, domaine: c.domaine, angle: angle.current, nom: (rep.nom ?? "").trim() || null, modele: c.modele ?? null, couleur: c.couleur ?? null, allure: c.allure ?? null });
             setEtape(0);
             const finPreparation = Date.now() + 38 * 60_000;
             let intervalle = 3500;
@@ -404,7 +408,8 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   }, [robotActif]); // eslint-disable-line react-hooks/exhaustive-deps
   // Dans l'atelier, le SaaS existe déjà : pas besoin du SaaS d'origine (un SaaS lancé depuis une idée n'en a pas)
   if (!c.domaine && !(atelier && c.app)) return <Navigate to="/explorer/copier" replace />;
-  const lect = LECTURE(c.nom);
+  // Lignes de préparation : jamais « analyse des pages de… » pour une idée (il n'y a pas de SaaS d'origine)
+  const lect = c.idee ? ["Lecture de ton idée et de ton aperçu", "Préparation du plan : écrans, données, formules"] : LECTURE(c.nom);
   const lignes = [
     ...lect.slice(0, etape >= 1 ? lect.length : 1).map((t, i) => ({ k: `l${i}`, t, ok: etape > i })),
     ...(etape >= 2 ? ecrans.map((e, i) => ({ k: `e${e.id}`, t: i < ecrits ? <>Écran « {e.titre} » écrit</> : <>J'écris l'écran « {e.titre} »</>, ok: i < ecrits })).filter((x, i) => i <= ecrits) : []),
@@ -456,9 +461,9 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                 </div>
               </Bingoo>
             ) : <>
-            <Moi>Construis ma version de {c.nom}</Moi>
+            <Moi>{c.idee ? <>Construis mon idée : {c.ideeTexte}</> : <>Construis ma version de {c.nom}</>}</Moi>
             <Bingoo>
-              <p>C'est parti. {c.nom} gagne déjà de l'argent : je construis ta version, avec ton nom, tes mots et ton design.</p>
+              <p>{c.idee ? <>C'est parti : je construis {c.apercu?.nom ?? "ton idée"}, avec les {c.apercu?.ecrans?.length ?? ""} écrans de ton aperçu, puis je les teste un par un.</> : <>C'est parti. {c.nom} gagne déjà de l'argent : je construis ta version, avec ton nom, tes mots et ton design.</>}</p>
               <div className="mt-3 rounded-xl border border-line bg-[#FCFBF9] p-3">
                 <div className="mb-2 flex items-center justify-between text-[12.5px] text-ink-soft"><span className="font-semibold text-ink">Construction</span><span className="tnum">{Math.round(pct)} %</span></div>
                 <div className="mb-3 h-1 overflow-hidden rounded-full bg-[#ECEAE4]"><div className="h-full rounded-full bg-[#E8571C] transition-all duration-[1500ms]" style={{ width: `${pct}%` }} /></div>

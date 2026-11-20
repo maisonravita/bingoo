@@ -450,6 +450,40 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     }
     throw new HttpError(400, "Action inconnue");
   },
+  // Construire à partir d'une idée libre : l'aperçu gratuit (modération, questions si l'idée est floue, écrans, maquette, limites, SaaS proches)
+  async "saas-idee-apercu"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    await quota(ws.id, "idee_apercu", 12);
+    const { ideeApercu } = await import("../_shared/idee.ts");
+    const r = await ideeApercu(ws.id, String(b.texte ?? ""), String(b.type ?? "saas"), Array.isArray(b.reponses) ? b.reponses : []);
+    if ((r as any).apercu) await log(ws.id, "idee_apercu", `Aperçu d'idée : ${String(b.texte ?? "").slice(0, 120)}`);
+    else if ((r as any).refus) await log(ws.id, "idee_refus", `Idée refusée : ${String(b.texte ?? "").slice(0, 160)}`);
+    return r;
+  },
+  // Le projet né d'une idée (même suite qu'un projet « concurrent » : questions, paiement, construction, vérification)
+  async "saas-lancer-idee"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    if (ws.plan === "explorer") throw new HttpError(402, "« Construire mon idée » est dans la formule Lancer.");
+    const au = await autreSaas(ws as { id: string; periode?: string });
+    if (au.deja && !au.changement) { const solde = await creditsSolde(ws.id); if (solde < COUT_CREDITS.saas) throw new HttpError(402, MSG_AUTRE(solde)); }
+    await quota(ws.id, "lancer", 10);
+    const texte = String(b.texte ?? "").trim().slice(0, 400), apercu = b.apercu && typeof b.apercu === "object" ? b.apercu : null;
+    if (texte.length < 6 || !apercu?.nom || !Array.isArray(apercu.ecrans)) throw new HttpError(400, "Idée ou aperçu manquant : refais l'aperçu de ton idée");
+    const { DOMAINE_IDEE, saasLancerIdee } = await import("../_shared/idee.ts");
+    // Le SaaS « support » (invisible) des projets nés d'une idée
+    let { data: s } = await admin.from("saas").select("id").eq("domaine", DOMAINE_IDEE).maybeSingle();
+    if (!s) ({ data: s } = await admin.from("saas").insert({ domaine: DOMAINE_IDEE, nom: "Idée libre", statut: "retire" }).select("id").single());
+    const nomChoisi = typeof b.nom === "string" && b.nom.trim() ? b.nom.replace(/\s+/g, " ").trim().slice(0, 40) : String(apercu.nom).slice(0, 40);
+    const reponses = (Array.isArray(b.reponses) ? b.reponses : []).slice(0, 3).map((x: any) => ({ q: String(x?.q ?? "").slice(0, 140), r: String(x?.r ?? "").slice(0, 160) }));
+    const { data: pj, error } = await admin.from("saas_projets").insert({ workspace_id: ws.id, saas_id: s!.id, statut: "en_cours", data: { entree: "idee", nom_choisi: nomChoisi, idee: { texte, type: String(b.type ?? "saas"), reponses, apercu } } }).select("id").single();
+    if (error || !pj) throw new HttpError(500, error?.message ?? "Le projet n'a pas été enregistré");
+    await log(ws.id, "lancer", `Projet né d'une idée : ${texte.slice(0, 120)}`);
+    const travail = saasLancerIdee(ws.id, pj.id).catch(async (e) => { console.error("lancer-idee", e); await admin.from("saas_projets").update({ statut: "erreur", erreur: "La préparation de ton idée a échoué, réessaie." }).eq("id", pj.id); });
+    // deno-lint-ignore no-explicit-any
+    const rt = (globalThis as any).EdgeRuntime;
+    if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
+    return { id: pj.id, statut: "en_cours" };
+  },
   async "saas-construire"(req, b) {
     const { ws } = await membreOuCron(req, b.workspace_id);
     if (ws.plan === "explorer") throw new HttpError(402, "« Construire mon SaaS » est dans la formule Lancer.");

@@ -4,6 +4,7 @@ on:
     inputs:
       construire: { description: "Vraie construction à photographier : vide, modele ou ia (consomme du crédit IA)", required: false, default: "" }
       domaine: { description: "SaaS d'origine pour une construction ia (facultatif)", required: false, default: "" }
+      idee: { description: "1 = photographier aussi le parcours « Construire mon idée » (aperçus : petits appels d'IA)", required: false, default: "0" }
 permissions:
   contents: write
 jobs:
@@ -21,6 +22,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}
           CONSTRUIRE: ${{ github.event.inputs.construire }}
           DOMAINE: ${{ github.event.inputs.domaine }}
+          IDEE: ${{ github.event.inputs.idee }}
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: captures, path: captures, retention-days: 7 }

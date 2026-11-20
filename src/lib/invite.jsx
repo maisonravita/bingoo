@@ -9,15 +9,15 @@ export const estInvite = (session) => session?.user?.is_anonymous === true;
 export const COMPTE_REQUIS = /^Crée ton compte/;
 export const demanderCompte = (raison) => window.dispatchEvent(new CustomEvent("bingoo-compte", { detail: raison ?? null }));
 
-export async function commencer(nav) {
+export async function commencer(nav, chemin = "/explorer/trouver") {
   try { localStorage.setItem("bingoo-guide", "en_cours"); localStorage.removeItem("bingoo-connexion"); } catch { /* stockage indisponible */ }
   // Déjà connecté (compte ou visite précédente) : on ne remplace jamais la session en cours
   const { data } = await supabase.auth.getSession();
-  if (data.session) return nav("/explorer/trouver");
+  if (data.session) return nav(chemin);
   const { error } = await supabase.auth.signInAnonymously();
   // Connexion sans compte désactivée côté Supabase : on retombe sur l'inscription classique
   if (error) nav("/connexion");
-  else nav("/explorer/trouver");
+  else nav(chemin);
 }
 
 const champ = "w-full rounded-xl border border-line bg-white px-3.5 py-3 text-[15px] outline-none focus:border-accent focus:ring-4 focus:ring-accent/15";
