@@ -7,6 +7,9 @@
 // Injecté tel quel dans la coque (String.raw : ni accent grave ni dollar-accolade dans ce code).
 export const CODE_VERIF_GESTES = String.raw`
 const VAPPELS = { add: 0, update: 0, remove: 0, autre: 0 };
+// Messages d'erreur (toast « bad ») de l'écran : en vérification, ils ne s'affichent pas, on les compte
+const VREFUS = { n: 0, branche: false };
+const VTOASTS = { n: 0 };
 const gPause = (ms) => new Promise((r) => setTimeout(r, ms));
 const gVisible = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== "hidden"; };
 const gLibelle = (el) => String(el.innerText || el.getAttribute("aria-label") || el.getAttribute("title") || "").replace(/\s+/g, " ").trim().slice(0, 40);
@@ -31,11 +34,11 @@ async function gCliquer(el, ms) {
   let mut = 0; const e0 = gEtat();
   const obs = new MutationObserver((l) => { mut += l.length; });
   obs.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true });
-  const avant = { ...VAPPELS }, v0 = VERRS.length, h0 = location.hash;
+  const avant = { ...VAPPELS }, v0 = VERRS.length, h0 = location.hash, t0 = VTOASTS.n;
   try { el.click(); } catch (e) { VERRS.push(String(e && e.message || e)); }
   await gPause(ms);
   obs.disconnect();
-  const appels = Object.keys(VAPPELS).some((k) => VAPPELS[k] !== avant[k]) || location.hash !== h0 || gEtat() !== e0;
+  const appels = Object.keys(VAPPELS).some((k) => VAPPELS[k] !== avant[k]) || location.hash !== h0 || gEtat() !== e0 || VTOASTS.n !== t0;
   const erreur = VERRS.length > v0 ? VERRS.splice(v0).join(" ").slice(0, 200) : null;
   return { mut, appels, erreur };
 }
@@ -78,6 +81,7 @@ async function gRemplir(racine) {
 const gGroupe = (b) => { const p = b.parentElement; return !!p && [...p.children].filter((c) => c.tagName === "BUTTON" || c.getAttribute("role") === "button" || c.getAttribute("role") === "tab").length >= 3; };
 
 async function gestesEcran(zone) {
+  if (!VREFUS.branche) { VREFUS.branche = true; bus.on("toast", (t) => { VTOASTS.n++; if (t && t.type === "bad") VREFUS.n++; }); }
   const pbs = [];
   const boutons = () => [...zone.querySelectorAll("button, [role=button]")].filter((b) => gVisible(b) && !b.disabled && !G_EVITER.test(gLibelle(b)));
   const teste = new Set();
@@ -99,7 +103,7 @@ async function gestesEcran(zone) {
         const form = racine.tagName === "FORM" ? racine : racine.querySelector("form");
         if (ok && !(form && form.checkValidity && !form.checkValidity())) {
           // Refus de l'écran (message en rouge, alerte, mot « obligatoire »…) : nos valeurs d'essai ne conviennent pas, ce n'est pas une panne
-          const nRefus = () => (document.body.innerText.match(new RegExp(G_REFUS.source, "gi")) || []).length + document.querySelectorAll(".bg-red-600, .bg-red-500, .text-red-600, .text-red-700, .text-rose-600, [role=alert]").length;
+          const nRefus = () => (document.body.innerText.match(new RegExp(G_REFUS.source, "gi")) || []).length + document.querySelectorAll(".bg-red-600, .bg-red-500, .text-red-600, .text-red-700, .text-rose-600, [role=alert]").length + VREFUS.n;
           const refus0 = nRefus();
           const r2 = await gCliquer(ok, 800);
           if (r2.erreur) pbs.push("Le formulaire ouvert par « " + nom + " » renvoie une erreur à l'enregistrement : " + r2.erreur);
