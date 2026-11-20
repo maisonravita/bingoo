@@ -95,7 +95,49 @@ if (["1", "site", "app"].includes(process.env.IDEE)) {
     await ctx.close();
   }
 }
-if (!CONSTRUIRE) {
+if (CONSTRUIRE === "atelier") {
+  // Robot de l'atelier, de bout en bout sur le dernier site construit par le robot :
+  // DOMAINE=casse : une modification qui casse l'écran « Demandes » est mise en ligne par le vrai bouton (endpoint) ;
+  //   le robot doit la tester, voir l'écran cassé, remettre la version d'avant et rendre la modification.
+  // DOMAINE=texte : une modification sans danger (un titre d'écran) doit être testée et rester en ligne.
+  const CAS = process.env.DOMAINE === "texte" ? "texte" : "casse";
+  const [a0] = await q(`select a.id, a.slug, a.workspace_id ws, a.version, a.spec from saas_apps a join members m on m.workspace_id = a.workspace_id
+    where m.user_id = ${lit(uid)} and a.spec->>'type' = 'site' and a.statut = 'pret' order by a.maj desc limit 1`);
+  if (!a0) throw new Error("Aucun site du robot à modifier");
+  const spec = a0.spec, cible = (spec.ecrans ?? []).find((e) => e.id === "demandes") ?? spec.ecrans[1];
+  const avant = { version: a0.version, code: cible.code, titre: cible.titre };
+  const br = structuredClone(spec);
+  const e2 = br.ecrans.find((e) => e.id === cible.id);
+  if (CAS === "casse") e2.code = "export default function Ecran() { const lignes = null; return lignes.map((x) => x); }";
+  else e2.titre = (cible.titre === "Mes demandes" ? "Demandes" : "Mes demandes");
+  br._modif = { demande: CAS === "casse" ? "Test du robot : écran cassé exprès" : "Renommer l'écran", titre: CAS === "casse" ? `écran « ${cible.titre} » modifié (cassé exprès pour le test)` : `écran renommé « ${e2.titre} »`, faits: ["test"], rates: [], at: new Date().toISOString() };
+  await q(`update saas_apps set brouillon = ${lit(JSON.stringify(br))}::jsonb where id = ${lit(a0.id)}`);
+  const rep = await fetch(`${SB}/functions/v1/r/saas-app-reglages`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: a0.ws, app_id: a0.id, quoi: "brouillon-valider" }) });
+  console.log(`Cas ${CAS} sur ${a0.slug} (v${a0.version}) : mise en ligne →`, rep.status, (await rep.text()).slice(0, 120));
+  const { ctx, page } = await ouvrir(a0.ws);
+  await page.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+  const t0 = Date.now(); let fin = null, n = 0;
+  while (Date.now() - t0 < 14 * 60e3) {
+    await page.waitForTimeout(20000);
+    const [v] = await q(`select version, verif->'dernier_atelier' d, verif->>'phase' p, (select jsonb_agg(x->>'t') from jsonb_array_elements(verif->'journal') x) j, spec from saas_apps where id = ${lit(a0.id)}`);
+    if (++n % 3 === 1) await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-${String(n).padStart(2, "0")}.png` }).catch(() => null);
+    if (v?.d) { fin = v; break; }
+  }
+  if (!fin) { console.log("✗ Le robot n'a pas conclu en 14 min"); process.exitCode = 1; }
+  else {
+    const e3 = fin.spec.ecrans.find((e) => e.id === cible.id);
+    const remis = e3.code === avant.code;
+    console.log(`Conclusion : annulée=${fin.d.annule} · version ${avant.version} → ${fin.version} · code d'origine remis=${remis} · titre=${e3.titre}`);
+    console.log("Journal :\n" + (fin.j ?? []).slice(-4).join("\n"));
+    const attendu = CAS === "casse" ? fin.d.annule === true && remis : fin.d.annule === false && e3.titre !== avant.titre;
+    console.log(attendu ? "✓ ROBOT DE L'ATELIER : comportement attendu" : "✗ ROBOT DE L'ATELIER : comportement inattendu");
+    if (!attendu) process.exitCode = 1;
+    await page.reload({ waitUntil: "networkidle" }).catch(() => null); await page.waitForTimeout(6000);
+    await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
+    if (CAS === "texte") await q(`update saas_apps set brouillon = null where id = ${lit(a0.id)}`);
+  }
+  await ctx.close();
+} else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
   for (const [nom, chemin] of [["mon-saas", "#/explorer/mon-saas"], ["atelier", "#/explorer/atelier"], ["modeles", "#/explorer/modeles"], ["connecteur", "#/explorer/connecteur"], ["abonnement", "#/abonnement"]]) await photo(page, nom, chemin);
   // L'app sur téléphone : le QR code direct, puis la coque Expo publiée (vrai Snack) et son QR code
