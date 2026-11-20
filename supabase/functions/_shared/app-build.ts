@@ -449,6 +449,8 @@ Réécris en français naturel, au même ton : pitch (35 mots au plus, garde tou
 
 /** Modifie un écran à la demande (ou en ajoute un si ecranId = "nouveau"). */
 // La modification s'écrit dans le brouillon (aperçu) : le créateur la voit, puis la met en ligne ou l'abandonne.
+// Mêmes polices que POLICES dans src/lib/appShell.js (la coque les charge)
+const POLICES_ATELIER = ["Inter", "Plus Jakarta Sans", "Manrope", "DM Sans", "Nunito", "Space Grotesk", "Outfit", "Poppins", "Montserrat", "Raleway", "Lato", "Open Sans", "Roboto", "Work Sans", "Sora", "Lexend", "Barlow", "Barlow Condensed", "Rubik", "Quicksand", "Fraunces", "Playfair Display", "Lora", "Merriweather", "DM Serif Display", "Cormorant Garamond", "Bebas Neue", "Oswald", "Archivo", "Urbanist"];
 /** Atelier : une demande en langage courant, exécutée en entier (réglages, textes du site, prix, écrans à modifier, ajouter,
  *  supprimer, renommer, réordonner). Le premier écran écrit est compris dans la modification ; chaque écran en plus est payé
  *  par « payer » (modification du mois ou 1 crédit). S'il n'y a plus de quoi payer, Bingoo! s'arrête et le dit. */
@@ -462,24 +464,25 @@ export async function saasModifierEcran(appId: string, ecranId: string, demande:
   const ecrans0 = (spec.ecrans ?? []) as any[];
   const plan = await askJson<any>(`Tu es l'atelier de Bingoo! : tu transformes la demande d'un utilisateur sur SON SaaS en actions précises.
 SaaS « ${spec.nom} » — ${spec.pitch ?? ""}
-Réglages actuels : couleur ${spec.couleur}, style ${spec.style ?? "moderne"}, fond ${spec.fond ?? "blanc"}, forme ${spec.forme ?? "arrondi"}, disposition ${spec.disposition ?? "barre"}, slogan « ${spec.slogan ?? ""} », cible « ${spec.cible_courte ?? ""} ».
+Réglages actuels : police ${spec.police ?? "celle de l'allure"}, police des titres ${spec.police_titres ?? spec.police ?? "celle de l'allure"}, couleur ${spec.couleur}, style ${spec.style ?? "moderne"}, fond ${spec.fond ?? "blanc"}, forme ${spec.forme ?? "arrondi"}, disposition ${spec.disposition ?? "barre"}, slogan « ${spec.slogan ?? ""} », cible « ${spec.cible_courte ?? ""} ».
 Site : problème « ${spec.probleme ?? ""} » ; atouts ${JSON.stringify((spec.atouts ?? []).slice(0, 6))} ; FAQ ${JSON.stringify((spec.faq ?? []).slice(0, 6))} ; formules ${JSON.stringify((spec.formules ?? []).slice(0, 3))}.
 Écrans (dans l'ordre) : ${ecrans0.map((x) => `${x.id} « ${x.titre} »${x.public ? " (page publique)" : ""}`).join(", ")}.
 ${ecranId !== "nouveau" ? `L'utilisateur a désigné l'écran : ${ecranId}.\n` : ""}Demande : « ${demande} »
 Rends un objet JSON avec SEULEMENT ce que la demande change :
-- reglages : { couleur (#xxxxxx assez foncé pour du texte blanc ; rose = #BE185D), style (moderne|doux|sombre|editorial|vif|rond|tech|elegant|sport|geometrique), fond (blanc|creme|gris|sombre), forme (carre|arrondi|pilule), disposition (barre|haut|onglets), nom (40 car.), slogan (8 mots), pitch (35 mots), cible_courte (5 mots) }
+- reglages : { couleur (#xxxxxx assez foncé pour du texte blanc ; rose = #BE185D), style (moderne|doux|sombre|editorial|vif|rond|tech|elegant|sport|geometrique), fond (blanc|creme|gris|sombre), forme (carre|arrondi|pilule), disposition (barre|haut|onglets), police (police du texte, parmi ${POLICES_ATELIER.join(", ")}), police_titres (police des titres, même liste ; si l'utilisateur demande juste « une autre police », choisis-en une nettement différente de l'actuelle et mets la même dans police et police_titres), nom (40 car.), slogan (8 mots), pitch (35 mots), cible_courte (5 mots) }
 - site : { probleme (2 phrases), atouts (liste COMPLÈTE de 3 à 6 { titre, texte }), faq (liste COMPLÈTE de { q, r }), formules (liste COMPLÈTE de 1 à 3 { nom, prix (nombre, euros par mois), pour, inclus (3 à 5) }) }
 - supprimer : ids d'écrans à retirer
 - renommer : [{ id, titre (2 mots), icone (parmi ${ICONES.join(", ")}) }]
 - ordre : la liste complète des ids dans le nouvel ordre, ou null
 - ecrans : écrans à écrire, au plus 4 : [{ id (id existant à modifier, ou "nouveau"), consigne (ce qu'il faut faire sur cet écran, précis) }]
-Un changement de couleur, d'allure, de nom, de textes du site ou de prix ne demande AUCUN écran. Rends {} pour ce qui ne change pas.`, { fast: true, maxTokens: 2500 }).catch((x) => { console.error("atelier plan", x?.message ?? x); if (/pause|plafond|crédit/i.test(String(x?.message ?? x))) throw x; return { ecrans: [{ id: ecranId, consigne: demande }] }; });
+Un changement de couleur, de police, d'allure, de nom, de textes du site ou de prix ne demande AUCUN écran. Rends {} pour ce qui ne change pas.`, { fast: true, maxTokens: 2500 }).catch((x) => { console.error("atelier plan", x?.message ?? x); if (/pause|plafond|crédit/i.test(String(x?.message ?? x))) throw x; return { ecrans: [{ id: ecranId, consigne: demande }] }; });
   const faits: string[] = [], rates: string[] = [];
   // 1. Réglages globaux
   const R = plan?.reglages && typeof plan.reglages === "object" ? plan.reglages : {};
   const ENUM: Record<string, string[]> = { style: ["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique"], fond: ["blanc", "creme", "gris", "sombre"], forme: ["carre", "arrondi", "pilule"], disposition: ["barre", "haut", "onglets"] };
   if (/^#[0-9a-f]{6}$/i.test(String(R.couleur ?? "")) && String(R.couleur).toLowerCase() !== String(spec.couleur ?? "").toLowerCase()) { spec.couleur = R.couleur; faits.push("couleur"); }
   for (const k of Object.keys(ENUM)) if (ENUM[k].includes(R[k]) && R[k] !== spec[k]) { spec[k] = R[k]; faits.push(k === "style" ? "allure" : k); }
+  for (const [k, l] of [["police", "police du texte"], ["police_titres", "police des titres"]] as [string, string][]) if (POLICES_ATELIER.includes(R[k]) && R[k] !== spec[k]) { spec[k] = R[k]; faits.push(l + " : " + R[k]); }
   for (const [k, n, l] of [["nom", 40, "nom"], ["slogan", 90, "slogan"], ["pitch", 300, "accroche"], ["cible_courte", 60, "cible"]] as [string, number, string][]) if (typeof R[k] === "string" && R[k].trim() && R[k].trim().slice(0, n) !== spec[k]) { spec[k] = R[k].trim().slice(0, n); faits.push(l); }
   // 2. Textes et prix du site
   const S = plan?.site && typeof plan.site === "object" ? plan.site : {};

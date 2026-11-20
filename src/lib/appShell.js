@@ -35,7 +35,13 @@ export function styleDe(spec) {
   for (const c of String(spec?.nom ?? "")) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return k[h % k.length];
 }
-const policeUrl = (st) => "https://fonts.googleapis.com/css2?" + [...new Set([st.police, st.titres])].map((p) => "family=" + p.replace(/ /g, "+") + (p === "Fraunces" ? ":opsz,wght@9..144,500;9..144,700" : p === "Playfair Display" ? ":wght@500;700;800" : ":wght@400;500;600;700;800")).join("&") + "&display=swap";
+/** Polices proposées à l'atelier (« change la police ») : remplacent celles de l'allure, texte et/ou titres */
+export const POLICES = ["Inter", "Plus Jakarta Sans", "Manrope", "DM Sans", "Nunito", "Space Grotesk", "Outfit", "Poppins", "Montserrat", "Raleway", "Lato", "Open Sans", "Roboto", "Work Sans", "Sora", "Lexend", "Barlow", "Barlow Condensed", "Rubik", "Quicksand", "Fraunces", "Playfair Display", "Lora", "Merriweather", "DM Serif Display", "Cormorant Garamond", "Bebas Neue", "Oswald", "Archivo", "Urbanist"];
+export function policesDe(spec) {
+  const st = STYLES[styleDe(spec)];
+  return { ...st, police: POLICES.includes(spec?.police) ? spec.police : st.police, titres: POLICES.includes(spec?.police_titres) ? spec.police_titres : POLICES.includes(spec?.police) ? spec.police : st.titres };
+}
+const policeUrl = (st) => "https://fonts.googleapis.com/css2?" + [...new Set([st.police, st.titres])].map((p) => "family=" + p.replace(/ /g, "+") + (p === "Fraunces" ? ":opsz,wght@9..144,500;9..144,700" : p === "Playfair Display" || p === "Bebas Neue" || p === "DM Serif Display" ? (p === "Playfair Display" ? ":wght@500;700;800" : "") : ":wght@400;500;600;700;800")).join("&") + "&display=swap";
 
 export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null, capture = null }) {
   // Capture (vidéo pub) : mêmes données d'exemple que la vérification, aucune requête au serveur
@@ -44,8 +50,8 @@ export function appHtml({ spec, slug, api, token = null, apercu = false, paiemen
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${String(spec.nom ?? "Mon SaaS").replace(/[<&]/g, "")}</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js"></script>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${policeUrl(STYLES[styleDe(spec)])}">
-<style>:root{--c:${/^#[0-9a-f]{6}$/i.test(spec.couleur ?? "") ? spec.couleur : "#4F46E5"};--fh:"${STYLES[styleDe(spec)].titres}",ui-sans-serif,system-ui,sans-serif}body{font-family:"${STYLES[styleDe(spec)].police}",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:#F8FAFC;color:#0F172A}h1,h2,h3,.fh{font-family:var(--fh)}.menu-fonce [class~="text-slate-600"],.menu-fonce [class~="text-slate-500"]{color:rgba(255,255,255,.72)}.menu-fonce [class~="text-slate-400"]{color:rgba(255,255,255,.55)}.menu-fonce [class~="bg-slate-50"]{background:rgba(255,255,255,.08)}.menu-fonce [class~="border-slate-100"]{border-color:rgba(255,255,255,.12)}.menu-fonce [class~="hover:bg-slate-50"]:hover,.menu-fonce [class~="hover:bg-slate-100"]:hover{background:rgba(255,255,255,.1)}.menu-fonce a{color:inherit}
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${policeUrl(policesDe(spec))}">
+<style>:root{--c:${/^#[0-9a-f]{6}$/i.test(spec.couleur ?? "") ? spec.couleur : "#4F46E5"};--fh:"${policesDe(spec).titres}",ui-sans-serif,system-ui,sans-serif}body{font-family:"${policesDe(spec).police}",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:#F8FAFC;color:#0F172A}h1,h2,h3,.fh{font-family:var(--fh)}.menu-fonce [class~="text-slate-600"],.menu-fonce [class~="text-slate-500"]{color:rgba(255,255,255,.72)}.menu-fonce [class~="text-slate-400"]{color:rgba(255,255,255,.55)}.menu-fonce [class~="bg-slate-50"]{background:rgba(255,255,255,.08)}.menu-fonce [class~="border-slate-100"]{border-color:rgba(255,255,255,.12)}.menu-fonce [class~="hover:bg-slate-50"]:hover,.menu-fonce [class~="hover:bg-slate-100"]:hover{background:rgba(255,255,255,.1)}.menu-fonce a{color:inherit}
 .forme-carre .rounded-2xl,.forme-carre .rounded-xl,.forme-carre .rounded-3xl{border-radius:.375rem}.forme-carre .rounded-lg{border-radius:.25rem}
 .forme-pilule .rounded-2xl{border-radius:1.5rem}.forme-pilule .rounded-xl{border-radius:1.1rem}.forme-pilule button.rounded-xl,.forme-pilule button.rounded-lg,.forme-pilule a.rounded-xl{border-radius:999px}
 .fond-creme{background:#FAF7F2}.fond-creme main [class~="bg-slate-50"]{background:#F3EEE6}
