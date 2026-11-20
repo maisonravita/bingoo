@@ -141,7 +141,7 @@ if (!CONSTRUIRE) {
     if (!fin) { const [v] = await q(`select verif->>'phase' p, statut from saas_apps where workspace_id = ${lit(ws2)}`); fin = v?.p === "fini" || v?.statut === "erreur"; if (fin) { await page.waitForTimeout(4000); await page.screenshot({ path: `${DOSSIER}/construction-fin.png` }); } }
   }
   console.log(`Construction ${fin ? "terminée" : "toujours en cours"} après ${Math.round((Date.now() - t0) / 1000)} s`);
-  { const [v] = await q(`select verif->'journal' j, verif->>'at' at from saas_apps where workspace_id = ${lit(ws2)}`); console.log("Vérification :", JSON.stringify(v ?? null)); }
+  { const [v] = await q(`select verif->'journal' j, verif->>'at' quand from saas_apps where workspace_id = ${lit(ws2)}`); console.log("Vérification :", JSON.stringify(v ?? null)); }
   const [a] = await q(`select slug, statut, version, verif from saas_apps where workspace_id = ${lit(ws2)}`);
   fs.writeFileSync(`${DOSSIER}/resultat.json`, JSON.stringify({ duree_s: Math.round((Date.now() - t0) / 1000), app: a ?? null }, null, 2));
   console.log(JSON.stringify(a?.verif?.mesure ?? null), (a?.verif?.journal ?? []).map((j) => j.t).join("\n"));
