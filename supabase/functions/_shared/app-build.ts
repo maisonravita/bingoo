@@ -452,10 +452,38 @@ Réécris en français naturel, au même ton : pitch (35 mots au plus, garde tou
 // Mêmes polices que POLICES dans src/lib/appShell.js (la coque les charge)
 const POLICES_ALLURE: Record<string, [string, string]> = { moderne: ["Inter", "Inter"], doux: ["Plus Jakarta Sans", "Plus Jakarta Sans"], sombre: ["Manrope", "Manrope"], editorial: ["Inter", "Fraunces"], vif: ["DM Sans", "DM Sans"], rond: ["Nunito", "Nunito"], tech: ["Inter", "Space Grotesk"], elegant: ["Inter", "Playfair Display"], sport: ["Barlow", "Barlow Condensed"], geometrique: ["Outfit", "Outfit"] };
 const POLICES_ATELIER = ["Inter", "Plus Jakarta Sans", "Manrope", "DM Sans", "Nunito", "Space Grotesk", "Outfit", "Poppins", "Montserrat", "Raleway", "Lato", "Open Sans", "Roboto", "Work Sans", "Sora", "Lexend", "Barlow", "Barlow Condensed", "Rubik", "Quicksand", "Fraunces", "Playfair Display", "Lora", "Merriweather", "DM Serif Display", "Cormorant Garamond", "Bebas Neue", "Oswald", "Archivo", "Urbanist"];
+/** Atelier, « modifier un texte » : le texte cliqué dans l'aperçu est remplacé tel quel, sans IA (gratuit, instantané).
+ *  Ordre : textes du site, puis l'écran où il a été cliqué, puis les autres écrans, puis les données d'exemple.
+ *  Rend { ok: false } s'il n'est pas trouvé (texte calculé à l'affichage) : l'atelier passe alors par l'IA. */
+export async function saasModifierTexte(appId: string, avant0: string, apres0: string, ecranId: string | null) {
+  const net = (x: unknown) => String(x ?? "").replace(/\s+/g, " ").trim();
+  const avant = net(avant0).slice(0, 500);
+  // Le nouveau texte ne doit rien casser dans le code de l'écran : pas de guillemets droits, accents graves, accolades, chevrons ni barres obliques inverses
+  const apres = net(apres0).slice(0, 500).replace(/'/g, "’").replace(/"/g, "”").replace(/[`$<>{}\\]/g, "");
+  if (avant.length < 2 || avant === apres) return { ok: true, n: 0 };
+  const { data: app } = await admin.from("saas_apps").select("spec, brouillon, version").eq("id", appId).single();
+  const spec = structuredClone(app?.spec ?? {}) as any;
+  let n = 0;
+  const profond = (v: any): any => typeof v === "string" ? (v.includes(avant) ? (n++, v.split(avant).join(apres)) : v) : Array.isArray(v) ? v.map(profond) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, y]) => [k, profond(y)])) : v;
+  for (const k of ["nom", "slogan", "pitch", "probleme", "cible_courte", "cible", "atouts", "faq", "formules"]) if (spec[k] != null) spec[k] = profond(spec[k]);
+  if (!n) {
+    const ident = (c: string | undefined) => !!c && /[A-Za-z0-9_$]/.test(c);
+    const dansCode = (code: string) => { let out = "", i = 0, k = 0; while ((k = code.indexOf(avant, i)) >= 0) { if (!ident(code[k - 1]) && !ident(code[k + avant.length])) { out += code.slice(i, k) + apres; n++; } else out += code.slice(i, k + avant.length); i = k + avant.length; } return out + code.slice(i); };
+    const ordre = [...(spec.ecrans ?? [])].sort((a: any, b: any) => (b.id === ecranId ? 1 : 0) - (a.id === ecranId ? 1 : 0));
+    for (const e of ordre) { if (typeof e.code !== "string") continue; const c = dansCode(e.code); if (n) { e.code = c; e.modifie = true; break; } }
+  }
+  if (!n && spec.demo) spec.demo = profond(spec.demo);
+  if (!n) return { ok: false, n: 0 };
+  const b = app?.brouillon as any;
+  await admin.from("saas_apps").update({ spec, ...(b?._modif ? { brouillon: { ...spec, _modif: b._modif } } : {}), version: (app?.version ?? 0) + 1, maj: new Date().toISOString() }).eq("id", appId);
+  return { ok: true, n };
+}
+
 /** Atelier : une demande en langage courant, exécutée en entier (réglages, textes du site, prix, écrans à modifier, ajouter,
  *  supprimer, renommer, réordonner). Le premier écran écrit est compris dans la modification ; chaque écran en plus est payé
  *  par « payer » (modification du mois ou 1 crédit). S'il n'y a plus de quoi payer, Bingoo! s'arrête et le dit. */
-export async function saasModifierEcran(appId: string, ecranId: string, demande: string, suggestion: string | null = null, payer: (() => Promise<boolean>) | null = null) {
+export async function saasModifierEcran(appId: string, ecranId: string, demande: string, suggestion: string | null = null, payer: (() => Promise<boolean>) | null = null, extra: { images?: string[]; element?: string | null } = {}) {
+  const images = (extra.images ?? []).slice(0, 4), element = extra.element ? String(extra.element).slice(0, 400) : null;
   // Une modification déjà en attente d'aperçu : la nouvelle s'ajoute par-dessus (on met en ligne le tout)
   const { data: app } = await admin.from("saas_apps").select("spec, brouillon, version").eq("id", appId).single();
   const enAttente = (app?.brouillon as any)?._modif ? (app!.brouillon as any) : null;
@@ -468,15 +496,16 @@ SaaS « ${spec.nom} » — ${spec.pitch ?? ""}
 Réglages actuels : police du texte ${spec.police ?? (POLICES_ALLURE[spec.style] ?? POLICES_ALLURE.moderne)[0]}, police des titres ${spec.police_titres ?? spec.police ?? (POLICES_ALLURE[spec.style] ?? POLICES_ALLURE.moderne)[1]}, couleur ${spec.couleur}, style ${spec.style ?? "moderne"}, fond ${spec.fond ?? "blanc"}, forme ${spec.forme ?? "arrondi"}, disposition ${spec.disposition ?? "barre"}, slogan « ${spec.slogan ?? ""} », cible « ${spec.cible_courte ?? ""} ».
 Site : problème « ${spec.probleme ?? ""} » ; atouts ${JSON.stringify((spec.atouts ?? []).slice(0, 6))} ; FAQ ${JSON.stringify((spec.faq ?? []).slice(0, 6))} ; formules ${JSON.stringify((spec.formules ?? []).slice(0, 3))}.
 Écrans (dans l'ordre) : ${ecrans0.map((x) => `${x.id} « ${x.titre} »${x.public ? " (page publique)" : ""}`).join(", ")}.
-${ecranId !== "nouveau" ? `L'utilisateur a désigné l'écran : ${ecranId}.\n` : ""}Demande : « ${demande} »
+${ecranId !== "nouveau" ? `L'utilisateur a désigné l'écran : ${ecranId}.\n` : ""}${element ? `L'utilisateur a POINTÉ cet élément dans l'aperçu, la demande porte sur lui : ${element}\n` : ""}${images.length ? `Images jointes par l'utilisateur (tu les vois, dans cet ordre) : ${images.map((u, i) => `${i + 1}) ${u}`).join(" ; ")}.
+Selon la demande : son logo → reglages.logo = l'adresse ; une image à afficher en haut de la page d'accueil → site.image_accueil = l'adresse ; une image à mettre dans un écran → la consigne de cet écran avec l'adresse exacte à utiliser dans une balise img ; une capture d'un modèle à imiter → traduis-la en réglages précis (couleur hexadécimale, police, fond, allure, menu) et en consignes d'écrans détaillées (disposition, éléments, ordre).\n` : ""}Demande : « ${demande} »
 Rends un objet JSON avec SEULEMENT ce que la demande change :
 - reglages : { couleur (#xxxxxx assez foncé pour du texte blanc ; rose = #BE185D), style (moderne|doux|sombre|editorial|vif|rond|tech|elegant|sport|geometrique), fond (blanc|creme|gris|sombre), forme (carre|arrondi|pilule), disposition (barre|haut|onglets), police (police du texte, parmi ${POLICES_ATELIER.join(", ")}), police_titres (police des titres, même liste ; si l'utilisateur demande juste « une autre police », choisis-en une nettement différente des DEUX actuelles et mets la même dans police et police_titres), nom (40 car.), slogan (8 mots), pitch (35 mots), cible_courte (5 mots) }
-- site : { probleme (2 phrases), atouts (liste COMPLÈTE de 3 à 6 { titre, texte }), faq (liste COMPLÈTE de { q, r }), formules (liste COMPLÈTE de 1 à 3 { nom, prix (nombre, euros par mois), pour, inclus (3 à 5) }) }
+- site : { image_accueil (adresse d'une image jointe, ou null pour la retirer), probleme (2 phrases), atouts (liste COMPLÈTE de 3 à 6 { titre, texte }), faq (liste COMPLÈTE de { q, r }), formules (liste COMPLÈTE de 1 à 3 { nom, prix (nombre, euros par mois), pour, inclus (3 à 5) }) }
 - supprimer : ids d'écrans à retirer
 - renommer : [{ id, titre (2 mots), icone (parmi ${ICONES.join(", ")}) }]
 - ordre : la liste complète des ids dans le nouvel ordre, ou null
 - ecrans : écrans à écrire, au plus 4 : [{ id (id existant à modifier, ou "nouveau"), consigne (ce qu'il faut faire sur cet écran, précis) }]
-Un changement de couleur, de police, d'allure, de nom, de textes du site ou de prix ne demande AUCUN écran. Rends {} pour ce qui ne change pas.`, { fast: true, maxTokens: 2500 }).catch((x) => { console.error("atelier plan", x?.message ?? x); if (/pause|plafond|crédit/i.test(String(x?.message ?? x))) throw x; return { ecrans: [{ id: ecranId, consigne: demande }] }; });
+Un changement de couleur, de police, d'allure, de nom, de textes du site ou de prix ne demande AUCUN écran. Rends {} pour ce qui ne change pas.`, { fast: true, maxTokens: 2500, images }).catch((x) => { console.error("atelier plan", x?.message ?? x); if (/pause|plafond|crédit/i.test(String(x?.message ?? x))) throw x; return { ecrans: [{ id: ecranId, consigne: demande }] }; });
   const faits: string[] = [], rates: string[] = [];
   // 1. Réglages globaux
   const R = plan?.reglages && typeof plan.reglages === "object" ? plan.reglages : {};
@@ -485,8 +514,11 @@ Un changement de couleur, de police, d'allure, de nom, de textes du site ou de p
   for (const k of Object.keys(ENUM)) if (ENUM[k].includes(R[k]) && R[k] !== spec[k]) { spec[k] = R[k]; faits.push(k === "style" ? "allure" : k); }
   for (const [k, l] of [["police", "police du texte"], ["police_titres", "police des titres"]] as [string, string][]) if (POLICES_ATELIER.includes(R[k]) && R[k] !== spec[k]) { spec[k] = R[k]; faits.push(l + " : " + R[k]); }
   for (const [k, n, l] of [["nom", 40, "nom"], ["slogan", 90, "slogan"], ["pitch", 300, "accroche"], ["cible_courte", 60, "cible"]] as [string, number, string][]) if (typeof R[k] === "string" && R[k].trim() && R[k].trim().slice(0, n) !== spec[k]) { spec[k] = R[k].trim().slice(0, n); faits.push(l); }
+  if (typeof R.logo === "string" && images.includes(R.logo) && R.logo !== spec.logo) { spec.logo = R.logo; faits.push("logo"); }
   // 2. Textes et prix du site
   const S = plan?.site && typeof plan.site === "object" ? plan.site : {};
+  if (typeof S.image_accueil === "string" && images.includes(S.image_accueil) && S.image_accueil !== spec.image_accueil) { spec.image_accueil = S.image_accueil; faits.push("image de l'accueil"); }
+  else if (S.image_accueil === null && spec.image_accueil) { delete spec.image_accueil; faits.push("image de l'accueil retirée"); }
   if (typeof S.probleme === "string" && S.probleme.trim() && S.probleme.trim().slice(0, 320) !== spec.probleme) { spec.probleme = S.probleme.trim().slice(0, 320); faits.push("texte du site"); }
   if (Array.isArray(S.atouts) && S.atouts.length && JSON.stringify(S.atouts) !== JSON.stringify(spec.atouts)) { spec.atouts = S.atouts.filter((x: any) => x?.titre).slice(0, 6).map((x: any) => ({ titre: String(x.titre).slice(0, 60), texte: String(x.texte ?? "").slice(0, 200) })); faits.push("atouts"); }
   if (Array.isArray(S.faq) && S.faq.length && JSON.stringify(S.faq) !== JSON.stringify(spec.faq)) { spec.faq = S.faq.filter((x: any) => x?.q && x?.r).slice(0, 8).map((x: any) => ({ q: String(x.q).slice(0, 140), r: String(x.r).slice(0, 400) })); faits.push("questions fréquentes"); }
@@ -510,7 +542,7 @@ Un changement de couleur, de police, d'allure, de nom, de textes du site ou de p
   }
   // 4. Écrans à écrire : le premier est compris, chaque écran en plus est payé (modification du mois ou crédit)
   let aEcrire = (Array.isArray(plan?.ecrans) ? plan.ecrans : []).filter((x: any) => x?.consigne).slice(0, 4).map((x: any) => ({ id: String(x.id ?? "nouveau"), consigne: String(x.consigne).slice(0, 1200) }));
-  if (!faits.length && !aEcrire.length) aEcrire = [{ id: ecranId, consigne: demande }];
+  if (!faits.length && !aEcrire.length) aEcrire = [{ id: ecranId, consigne: (element ? `Sur l'élément ${element} : ` : "") + demande }];
   let dernier: any = null;
   for (const [i, t] of aEcrire.entries()) {
     if (i > 0 && payer && !(await payer())) { rates.push(`${aEcrire.length - i} écran(s) non faits : plus de modifications ni de crédits`); break; }

@@ -208,6 +208,13 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   const [occupe, setOccupe] = useState(false);
   const [vue, setVue] = useState("ordi");
   const [cle, setCle] = useState(0);
+  // Outils de l'atelier : modifier un texte en cliquant dessus, pointer un élément, joindre des images, revenir en arrière
+  const [outil, setOutil] = useState(null); // null | "texte" | "pointer"
+  const [element, setElement] = useState(null); // { description, ecran }
+  const [jointes, setJointes] = useState([]); // [{ url, nom }]
+  const [envoiImage, setEnvoiImage] = useState(false);
+  const [versions, setVersions] = useState(null);
+  const cadreRef = useRef(null), fichierRef = useRef(null), saisieRef = useRef(null);
   const lance = useRef(false);
   const parCredits = useRef(false); // l'utilisateur a accepté de payer ce SaaS supplémentaire en crédits
   // 3 questions avant de construire (facultatives) : le SaaS devient le sien, pas un SaaS généré
@@ -258,7 +265,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
         if (!atelier && (!ex || ex.statut === "erreur")) await fn("r/saas-construire", { workspace_id: ws.id, projet_id: p.id, ...(parCredits.current ? { credits: true } : {}) });
         for (let i = 0; i < 240 && vivant; i++) {
           await attendre(3000);
-          const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut").eq("projet_id", p.id).maybeSingle();
+          const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version").eq("projet_id", p.id).maybeSingle();
           if (!data) continue;
           setApp(data);
           if (/Vérif/i.test(data.etape ?? "")) setEtape(3);
@@ -285,25 +292,79 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   const pct = fini ? 100 : Math.min(96, [8, 24, 40, 86, 94][etape] + (etape === 2 && ecrans.length ? (ecrits / ecrans.length) * 44 : 0));
   useEffect(() => { fil.current?.scrollTo({ top: fil.current.scrollHeight, behavior: "smooth" }); });
 
+  // L'aperçu reçoit l'outil choisi (à chaque changement et à chaque rechargement)
+  const pousserOutil = (m = outil) => { try { cadreRef.current?.contentWindow?.postMessage({ type: "bingoo-atelier-mode", mode: m }, "*"); } catch (_) { /* aperçu pas prêt */ } };
+  useEffect(() => { pousserOutil(); }, [outil, cle]); // eslint-disable-line react-hooks/exhaustive-deps
+  const recharger = async () => { const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version").eq("id", app.id).maybeSingle(); if (data) setApp(data); setCle((k) => k + 1); };
+  // Messages de l'aperçu : un texte modifié sur place, ou un élément pointé
+  useEffect(() => {
+    const ecoute = async (e) => {
+      if (e.source !== cadreRef.current?.contentWindow) return;
+      const d = e.data ?? {};
+      if (d.type === "bingoo-atelier-pret") { pousserOutil(); return; }
+      if (d.type === "bingoo-atelier-element") { setElement({ description: String(d.description ?? "").slice(0, 300), ecran: String(d.ecran ?? "") }); setOutil(null); setTimeout(() => saisieRef.current?.focus(), 50); return; }
+      if (d.type === "bingoo-atelier-texte" && app) {
+        const avant = String(d.avant ?? ""), apres = String(d.apres ?? "");
+        const n = echanges.length, versionAvant = app.version;
+        setEchanges((l) => [...l, { moi: `Texte : « ${avant.slice(0, 60)} » → « ${apres.slice(0, 60)} »`, etat: "encours" }]);
+        try {
+          const r = await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "texte", avant, apres, ecran: d.ecran });
+          if (r?.ok && r.n) { setEchanges((l) => l.map((x, k) => (k === n ? { ...x, etat: "ok", faits: ["texte modifié (gratuit)"], versionAvant } : x))); await recharger(); }
+          else { setEchanges((l) => l.filter((_, k) => k !== n)); envoyer(`Remplace le texte « ${avant} » par « ${apres} »`, String(d.ecran ?? "").startsWith("_") ? "" : d.ecran); }
+        } catch (x) { setEchanges((l) => l.map((y, k) => (k === n ? { ...y, etat: "ko", erreur: x.message } : y))); }
+      }
+    };
+    addEventListener("message", ecoute);
+    return () => removeEventListener("message", ecoute);
+  }); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Revenir à la version d'avant une modification (ou à une version de l'historique)
+  const restaurer = async (version) => {
+    if (!app || occupe) return;
+    setOccupe(true);
+    try { await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "restaurer", version }); setVersions(null); setEchanges((l) => [...l, { moi: `Revenir à la version ${version}`, etat: "ok", faits: [`version ${version} remise en ligne`] }]); await recharger(); }
+    catch (x) { setEchanges((l) => [...l, { moi: `Revenir à la version ${version}`, etat: "ko", erreur: x.message }]); }
+    finally { setOccupe(false); }
+  };
+  const ouvrirHistorique = async () => { if (versions) { setVersions(null); return; } try { setVersions(await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "versions" })); } catch (_) { setVersions([]); } };
+
+  // Image jointe : réduite dans le navigateur (1600 px au plus), puis déposée chez Bingoo!
+  const joindre = async (fichiers) => {
+    for (const f of [...(fichiers ?? [])].slice(0, 4 - jointes.length)) {
+      if (!/^image\/(png|jpeg|webp)$/.test(f.type)) { alert("Image PNG, JPG ou WebP seulement."); continue; }
+      setEnvoiImage(true);
+      try {
+        const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = URL.createObjectURL(f); });
+        const k = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement("canvas");
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        const data = c.toDataURL(f.type === "image/png" ? "image/png" : "image/jpeg", 0.88);
+        const r = await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "image", image: data });
+        setJointes((l) => [...l, { url: r.url, nom: f.name }]);
+      } catch (x) { alert(x.message ?? "Image non envoyée"); } finally { setEnvoiImage(false); }
+    }
+  };
+
   // Une modification demandée dans la conversation : écrite, puis mise en ligne, puis l'aperçu se recharge
-  const envoyer = async (texte) => {
+  const envoyer = async (texte, ecranForce) => {
     const t = (texte ?? demande).trim();
-    if (t.length < 5 || occupe || !app) return;
+    if (t.length < 3 || occupe || !app) return;
     const n = echanges.length;
-    setEchanges((l) => [...l, { moi: t, etat: "encours" }]); setDemande(""); setOccupe(true);
+    const imgs = jointes, el = element, versionAvant = app.version;
+    setEchanges((l) => [...l, { moi: t, images: imgs, element: el?.description, etat: "encours" }]); setDemande(""); setJointes([]); setElement(null); setOccupe(true);
     const maj = (o) => setEchanges((l) => l.map((x, k) => (k === n ? { ...x, ...o } : x)));
     try {
-      const r = await fn("r/saas-app-modifier", { workspace_id: ws.id, app_id: app.id, ecran: ecran || "nouveau", demande: t });
+      const cibleEcran = ecranForce ?? (el?.ecran && el.ecran !== "_site" && !el.ecran.startsWith("_") ? el.ecran : ecran) ?? "";
+      const r = await fn("r/saas-app-modifier", { workspace_id: ws.id, app_id: app.id, ecran: cibleEcran || "nouveau", demande: t, images: imgs.map((x) => x.url), element: el?.description ?? null });
       for (let i = 0; i < 80; i++) {
         await attendre(3000);
-        const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut").eq("id", app.id).maybeSingle();
+        const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version").eq("id", app.id).maybeSingle();
         if (data && data.statut !== "en_cours") {
           if (data.erreur) throw new Error(data.erreur);
           const fait = data.brouillon?._modif ?? null;
           if (data.brouillon?._modif) await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "brouillon-valider" });
-          const { data: frais } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut").eq("id", app.id).maybeSingle();
+          const { data: frais } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version").eq("id", app.id).maybeSingle();
           setApp(frais ?? data); setCle((k) => k + 1);
-          maj({ etat: "ok", credit: r?.credit, faits: fait?.faits ?? [], rates: fait?.rates ?? [] });
+          maj({ etat: "ok", credit: r?.credit, faits: fait?.faits ?? [], rates: fait?.rates ?? [], versionAvant });
           return;
         }
       }
@@ -391,10 +452,10 @@ export function Chantier({ ws, nav, init, atelier = false }) {
             )}
             {echanges.map((x, i) => (
               <div key={i} className="space-y-5">
-                <Moi>{x.moi}</Moi>
+                <Moi>{x.element && <span className="mb-1 block text-[12px] text-ink-soft">◎ {x.element}</span>}{x.moi}{x.images?.length > 0 && <span className="mt-1.5 flex gap-1.5">{x.images.map((m) => <img key={m.url} src={m.url} alt="" className="h-12 w-12 rounded-lg object-cover" />)}</span>}</Moi>
                 <Bingoo>
                   {x.etat === "encours" ? <p className="flex items-center gap-2.5 text-ink-soft"><Coche ok={false} />Je modifie ton SaaS… (une à deux minutes)</p>
-                    : x.etat === "ok" ? <div><p className="flex items-center gap-2.5"><Coche ok />C'est en ligne, regarde l'aperçu.{x.credit ? " (1 crédit utilisé)" : ""}</p>{x.faits?.length > 0 && <ul className="mt-1.5 ml-8 list-disc text-[13.5px] text-ink-soft">{x.faits.map((f) => <li key={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</li>)}</ul>}{x.rates?.length > 0 && <p className="mt-1 ml-8 text-[13px] text-[#9A3412]">{x.rates.join(" ; ")}</p>}</div>
+                    : x.etat === "ok" ? <div><p className="flex items-center gap-2.5"><Coche ok />C'est en ligne, regarde l'aperçu.{x.credit ? " (1 crédit utilisé)" : ""}</p>{x.faits?.length > 0 && <ul className="mt-1.5 ml-8 list-disc text-[13.5px] text-ink-soft">{x.faits.map((f) => <li key={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</li>)}</ul>}{x.rates?.length > 0 && <p className="mt-1 ml-8 text-[13px] text-[#9A3412]">{x.rates.join(" ; ")}</p>}{x.versionAvant && <button onClick={() => restaurer(x.versionAvant)} disabled={occupe} className="mt-1.5 ml-8 text-[12.5px] font-semibold text-ink-soft underline-offset-2 hover:underline disabled:opacity-40">↶ Annuler cette modification</button>}</div>
                       : <p className="text-[#B42318]">{x.erreur}</p>}
                 </Bingoo>
               </div>
@@ -416,7 +477,12 @@ export function Chantier({ ws, nav, init, atelier = false }) {
           {/* La zone de saisie */}
           <form onSubmit={(e) => { e.preventDefault(); envoyer(); }} className="shrink-0 border-t border-line p-3">
             <div className={cx("rounded-2xl border bg-white p-2.5 transition", fini ? "border-line focus-within:border-ink-faint focus-within:shadow-[0_8px_30px_-18px_rgba(21,23,42,.4)]" : "border-line opacity-60")}>
-              <textarea value={demande} onChange={(e) => setDemande(e.target.value)} disabled={!fini || occupe} rows={2}
+              {(element || jointes.length > 0 || envoiImage) && <div className="mb-1.5 flex flex-wrap items-center gap-1.5 px-1">
+                {element && <span className="flex max-w-full items-center gap-1.5 rounded-lg bg-[#FFF1EA] px-2 py-1 text-[12px] text-[#9A3412]"><span className="truncate">◎ {element.description}</span><button type="button" aria-label="Retirer l'élément" onClick={() => setElement(null)} className="font-bold">×</button></span>}
+                {jointes.map((m) => <span key={m.url} className="relative"><img src={m.url} alt={m.nom} className="h-10 w-10 rounded-lg object-cover ring-1 ring-line" /><button type="button" aria-label="Retirer l'image" onClick={() => setJointes((l) => l.filter((y) => y.url !== m.url))} className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-ink text-[10px] text-white">×</button></span>)}
+                {envoiImage && <span className="text-[12px] text-ink-faint">Image en cours d'envoi…</span>}
+              </div>}
+              <textarea ref={saisieRef} value={demande} onChange={(e) => setDemande(e.target.value)} disabled={!fini || occupe} rows={2}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); envoyer(); } }}
                 placeholder={fini ? `Demande un changement à Bingoo!…` : "Tu pourras demander des changements dès que ton SaaS est en ligne"}
                 className="block w-full resize-none bg-transparent px-1.5 text-[14.5px] outline-none placeholder:text-ink-faint" />
@@ -425,13 +491,17 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                   <option value="">Où : Bingoo! choisit</option>
                   {ecrans.map((e) => <option key={e.id} value={e.id}>Où : {e.titre}</option>)}
                 </select>
+                <input ref={fichierRef} type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden" onChange={(e) => { joindre(e.target.files); e.target.value = ""; }} />
+                <button type="button" onClick={() => fichierRef.current?.click()} disabled={!fini || occupe || jointes.length >= 4} title="Joindre une image : ton logo, une photo, ou une capture d'un site à imiter" aria-label="Joindre une image" className="grid h-8 w-8 place-items-center rounded-lg text-ink-soft hover:bg-[#F1EFEA] disabled:opacity-30">
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.5l-8.5 8.5a6 6 0 0 1-8.5-8.5l9-9a4 4 0 0 1 5.7 5.7l-9 9a2 2 0 0 1-2.8-2.8l8.4-8.4" /></svg>
+                </button>
                 <div className="flex-1" />
-                <button type="submit" disabled={!fini || occupe || demande.trim().length < 5} aria-label="Envoyer" className="grid h-8 w-8 place-items-center rounded-full bg-ink text-white disabled:opacity-30">
+                <button type="submit" disabled={!fini || occupe || demande.trim().length < 3} aria-label="Envoyer" className="grid h-8 w-8 place-items-center rounded-full bg-ink text-white disabled:opacity-30">
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
                 </button>
               </div>
             </div>
-            <p className="mt-1.5 px-1 text-[11.5px] text-ink-faint">30 modifications par mois incluses, puis 1 crédit chacune.</p>
+            <p className="mt-1.5 px-1 text-[11.5px] text-ink-faint">30 modifications par mois incluses, puis 1 crédit chacune. Modifier un texte en cliquant dessus est gratuit.</p>
           </form>
         </section>
 
@@ -441,13 +511,22 @@ export function Chantier({ ws, nav, init, atelier = false }) {
             <div className="flex rounded-lg border border-line bg-white p-0.5 text-[12.5px] font-semibold">
               {[["ordi", "Ordinateur"], ["tel", "Téléphone"]].map(([k, l]) => <button key={k} onClick={() => setVue(k)} className={cx("rounded-md px-2.5 py-1", vue === k ? "bg-ink text-white" : "text-ink-soft")}>{l}</button>)}
             </div>
-            <div className="min-w-0 flex-1 truncate rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] text-ink-faint">{fini ? lien.replace(/^https?:\/\//, "") : "Aperçu en construction…"}</div>
+            <div className="flex rounded-lg border border-line bg-white p-0.5 text-[12.5px] font-semibold">
+              {[["texte", "✎ Modifier un texte", "Clique sur un texte de l'aperçu pour le réécrire sur place (gratuit)"], ["pointer", "◎ Pointer", "Clique sur un élément de l'aperçu, puis dis ce que tu veux changer"]].map(([k, l, t]) => <button key={k} title={t} disabled={!fini || occupe} onClick={() => setOutil((o) => (o === k ? null : k))} className={cx("rounded-md px-2.5 py-1 disabled:opacity-40", outil === k ? "bg-[#E8571C] text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
+            </div>
+            <div className="relative">
+              <button onClick={ouvrirHistorique} disabled={!fini} className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[12.5px] font-semibold text-ink-soft hover:text-ink disabled:opacity-40">Historique</button>
+              {versions && <div className="absolute right-0 top-10 z-20 w-64 rounded-xl border border-line bg-white p-1.5 shadow-xl">
+                {versions.length ? versions.map((v) => <button key={v.version} onClick={() => restaurer(v.version)} disabled={occupe} className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-[12.5px] hover:bg-[#F7F5F1]"><span>Version {v.version}</span><span className="text-ink-faint">{new Date(v.at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span></button>) : <p className="px-2.5 py-2 text-[12.5px] text-ink-faint">Pas encore d'ancienne version.</p>}
+              </div>}
+            </div>
+            <div className="min-w-0 flex-1 truncate rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] text-ink-faint">{outil === "texte" ? "Clique sur un texte de l'aperçu pour le modifier" : outil === "pointer" ? "Clique sur l'élément à changer" : fini ? lien.replace(/^https?:\/\//, "") : "Aperçu en construction…"}</div>
             <button onClick={() => setCle((k) => k + 1)} disabled={!fini} aria-label="Recharger l'aperçu" className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-white text-ink-soft hover:text-ink disabled:opacity-40">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" /></svg>
             </button>
           </div>
           <div className={cx("relative mx-auto min-h-0 w-full flex-1 overflow-hidden rounded-xl border border-line bg-white shadow-[0_30px_80px_-50px_rgba(21,23,42,.5)] transition-[max-width] duration-500", vue === "tel" ? "max-w-[390px]" : "max-w-none")}>
-            {fini ? <iframe key={cle} title={`Aperçu de ${nom}`} src={lien} className="absolute inset-0 h-full w-full border-0" />
+            {fini ? <iframe ref={cadreRef} key={cle} title={`Aperçu de ${nom}`} src={lien} onLoad={() => pousserOutil()} className={cx("absolute inset-0 h-full w-full border-0", outil && "ring-2 ring-inset ring-[#E8571C]")} />
               : <Assemblage nom={nom} couleur={couleur} ecrans={ecrans} ecrits={ecrits} etape={etape} />}
             {occupe && <div className="absolute inset-x-0 top-0 h-1 overflow-hidden bg-[#ECEAE4]"><div className="h-full w-1/3 animate-[barre_1.2s_ease-in-out_infinite] bg-[#E8571C]" /></div>}
           </div>

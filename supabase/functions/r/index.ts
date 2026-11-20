@@ -589,6 +589,26 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const { data: app } = await admin.from("saas_apps").select("id").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
     if (!app) throw new HttpError(404, "Application introuvable");
     const o = await import("../_shared/app-owner.ts");
+    // Atelier : texte modifié en cliquant dessus dans l'aperçu (sans IA, gratuit ; limité par jour contre les abus)
+    if (b.quoi === "texte") {
+      await quota(ws.id, "texte_app", 300);
+      const { saasModifierTexte } = await import("../_shared/app-build.ts");
+      const r = await saasModifierTexte(app.id, String(b.avant ?? ""), String(b.apres ?? ""), b.ecran ? String(b.ecran) : null);
+      if (r.n) await log(ws.id, "texte_app", `Texte modifié : « ${String(b.avant ?? "").slice(0, 40)} »`);
+      return r;
+    }
+    // Atelier : image jointe (logo, photo, capture d'un modèle) → adresse publique utilisable par l'atelier
+    if (b.quoi === "image") {
+      await quota(ws.id, "image_app", 60);
+      const m = String(b.image ?? "").match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/);
+      if (!m || m[2].length > 3_000_000) throw new HttpError(400, "Image invalide (PNG, JPG ou WebP, 2 Mo au plus)");
+      const { data: a2 } = await admin.from("saas_apps").select("slug").eq("id", app.id).single();
+      const bin = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
+      const chemin = `images/${a2?.slug ?? app.id}-${crypto.randomUUID().slice(0, 8)}.${m[1] === "jpeg" ? "jpg" : m[1]}`;
+      const { error } = await admin.storage.from("apps").upload(chemin, bin, { contentType: `image/${m[1]}`, upsert: false, cacheControl: "31536000" });
+      if (error) throw new HttpError(500, `Stockage : ${error.message}`);
+      return { url: admin.storage.from("apps").getPublicUrl(chemin).data.publicUrl };
+    }
     if (b.quoi === "paiement") { await log(ws.id, "app_reglage", "Encaissement de l'application modifié"); return await o.appPaiement(app.id, b); }
     if (b.quoi === "stripe-connect") return await o.stripeConnectLien(app.id, ws.id);
     if (b.quoi === "domaine") { await log(ws.id, "app_reglage", `Nom de domaine : ${String(b.domaine ?? "retiré").slice(0, 80)}`); return await o.appDomaine(app.id, b.domaine); }
@@ -772,7 +792,11 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       try { await quotaMois(ws.id, ws.plan, "modifier"); await log(ws.id, "modifier_app", "Écran en plus dans la même demande"); return true; }
       catch (_) { try { await creditsDepenser(ws.id, COUT_CREDITS.modification, "Écran en plus (atelier)"); return true; } catch (_) { return false; } }
     };
-    const travail = saasModifierEcran(app.id, String(b.ecran ?? "nouveau"), demande, b.suggestion ? String(b.suggestion) : null, payer).catch(async (e) => {
+    // Images jointes : seulement celles déposées par l'atelier (stockage de Bingoo!)
+    const base = admin.storage.from("apps").getPublicUrl("images/").data.publicUrl;
+    const images = (Array.isArray(b.images) ? b.images : []).map(String).filter((u: string) => u.startsWith(base)).slice(0, 4);
+    const element = typeof b.element === "string" ? b.element.slice(0, 400) : null;
+    const travail = saasModifierEcran(app.id, String(b.ecran ?? "nouveau"), demande, b.suggestion ? String(b.suggestion) : null, payer, { images, element }).catch(async (e) => {
       if (parCredit) await creditsRendre(ws.id, COUT_CREDITS.modification, "Modification échouée : crédit rendu");
       await admin.from("saas_apps").update({ statut: "pret", etape: null, erreur: String(e?.message ?? e).slice(0, 300) }).eq("id", app.id);
     });

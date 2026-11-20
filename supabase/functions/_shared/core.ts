@@ -189,7 +189,7 @@ export async function quota(workspaceId: string, kind: string, max: number, want
 const WRITE_MODEL = () => env("ANTHROPIC_MODEL", "claude-sonnet-5-5");
 const FAST_MODEL = () => env("ANTHROPIC_FAST_MODEL", "claude-haiku-5-5");
 type Block = { type: string; text?: string };
-export type AskOpts = { fast?: boolean; maxTokens?: number; system?: string; tools?: unknown[]; sources?: string[] };
+export type AskOpts = { fast?: boolean; maxTokens?: number; system?: string; tools?: unknown[]; sources?: string[]; images?: string[] };
 
 // ---------------------------------------------------------------- Coût IA : mesure, budgets, garde-fous
 // Prix en dollars par million de jetons (entrée, sortie), modifiables via le secret AI_PRICES (JSON). Recherche web : par requête.
@@ -455,7 +455,8 @@ export async function ask(prompt: string, opts: AskOpts = {}): Promise<string> {
     model: opts.fast ? FAST_MODEL() : WRITE_MODEL(),
     max_tokens: Math.max(opts.maxTokens ?? 1500, 1500),
     system: opts.system ?? "Tu es un expert en développement commercial B2B en France. Réponds en français.",
-    messages: [{ role: "user", content: prompt }],
+    // Images jointes (adresses publiques) : l'IA les voit avant de lire la demande
+    messages: [{ role: "user", content: opts.images?.length ? [...opts.images.slice(0, 4).map((url) => ({ type: "image", source: { type: "url", url } })), { type: "text", text: prompt }] : prompt }],
   };
   if (opts.tools?.length) base.tools = opts.tools;
   const text = (d: { content?: Block[] }) => (d.content ?? []).filter((b) => b.type === "text").map((b) => b.text ?? "").join("").trim();

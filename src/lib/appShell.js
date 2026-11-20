@@ -535,6 +535,8 @@ function ApercuAppli() {
 }
 // Aperçu du produit (page d'accueil) : construit avec les vrais écrans et les données d'exemple du SaaS
 function Apercu() {
+  // Image choisie dans l'atelier pour le haut de la page d'accueil
+  if (S.image_accueil) return html\`<img src=\${S.image_accueil} alt=\${S.nom} class="w-full max-h-[560px] object-cover rounded-2xl shadow-2xl ring-1 ring-black/5"/>\`;
   if (S.interface && S.interface !== "gestion") return h(ApercuAppli);
   const ecr = (S.ecrans ?? []).filter((e) => !e.public).slice(0, 6);
   // Une collection à une seule ligne (réglages, fiche de l'entreprise) n'est pas une donnée à compter
@@ -877,6 +879,7 @@ function Appli({ user, etat, onLogout, tour, onFinTour }) {
   const [cur, setCur] = useState({ id: PRIVES.some((e) => e.id === B.ecran) ? B.ecran : PRIVES[0]?.id, params: null }), [menu, setMenu] = useState(false), [toasts, setToasts] = useState([]);
   nav = (id, params = null) => { if (id === "_abonnement" || id === "_equipe" || id === "_compte" || id === "_donnees" || PRIVES.some((e) => e.id === id)) { setCur({ id, params }); setMenu(false); } };
   useEffect(() => bus.on("toast", (t) => { setToasts((x) => [...x, t]); setTimeout(() => setToasts((x) => x.filter((y) => y.id !== t.id)), 3000); }), []);
+  window.__bingooEcran = cur.id; // l'atelier sait sur quel écran un texte a été cliqué
   const E = cur.id === "_abonnement" ? { id: "_abonnement", titre: "Mon abonnement", Comp: Abonnement } : cur.id === "_equipe" ? { id: "_equipe", titre: "Équipe", Comp: Equipe } : cur.id === "_compte" ? { id: "_compte", titre: "Mon compte", Comp: Compte } : cur.id === "_donnees" ? { id: "_donnees", titre: "Mes données", Comp: Donnees } : PRIVES.find((e) => e.id === cur.id) ?? PRIVES[0];
   if (!etat.acces) return html\`<\${Paywall} etat=\${etat} onLogout=\${onLogout}/>\`;
   const lienPage = (e) => (B.retour || location.href.split("?")[0]).split("?")[0] + "?page=" + e.id + "&e=" + etat.espace;
@@ -1020,6 +1023,42 @@ function Racine() {
   if (etat) return html\`<\${Appli} user=\${etat.user} etat=\${etat} tour=\${tour} onFinTour=\${finTour} onLogout=\${tour ? finTour : sortir}/>\`;
   if (auth) return html\`<\${Auth} mode=\${auth} onDone=\${ok} onBack=\${() => setAuth(null)}/>\`;
   return html\`<\${Site} onAuth=\${ouvrir}/>\`;
+}
+// Outils de l'atelier de Bingoo! : dans l'aperçu de l'atelier, le parent active « modifier un texte » ou « pointer un élément »
+{
+  let mode = null, parent = null, cible = null;
+  const cadre = document.createElement("div");
+  cadre.style.cssText = "position:fixed;pointer-events:none;z-index:2147483646;border:2px solid #E8571C;border-radius:6px;background:rgba(232,87,28,.07);display:none";
+  document.body.appendChild(cadre);
+  const permis = (o) => { try { const hst = new URL(o).hostname; return ["bingoo.fr", "maisonravita.fr", "localhost", "127.0.0.1"].some((d) => hst === d || hst.endsWith("." + d)); } catch (e) { return false; } };
+  const envoyer = (m) => { if (parent) window.parent.postMessage(m, parent); };
+  const texteDirect = (el) => [...el.childNodes].filter((x) => x.nodeType === 3).map((x) => x.textContent).join(" ").replace(/ +/g, " ").trim();
+  const montrer = (el) => { if (!el) { cadre.style.display = "none"; return; } const r = el.getBoundingClientRect(); Object.assign(cadre.style, { display: "block", left: r.left - 3 + "px", top: r.top - 3 + "px", width: r.width + 6 + "px", height: r.height + 6 + "px" }); };
+  const cibleTexte = (el) => { for (let x = el, i = 0; x && i < 4; x = x.parentElement, i++) { if (["INPUT", "TEXTAREA", "SELECT"].includes(x.tagName)) return null; if (texteDirect(x)) return x; } return null; };
+  const decrire = (el) => {
+    const t = (el.innerText || el.getAttribute("aria-label") || el.getAttribute("placeholder") || el.getAttribute("alt") || "").replace(/ +/g, " ").trim().slice(0, 90);
+    const nature = el.closest("button,a") ? "bouton" : el.tagName === "IMG" ? "image" : /^H[1-4]$/.test(el.tagName) ? "titre" : el.closest("table") ? "tableau" : el.closest("form") ? "élément de formulaire" : el.closest("nav,aside") ? "menu" : "bloc";
+    const sec = el.closest("section,div.rounded-2xl,div.rounded-xl"); const titre = sec && sec.querySelector("h1,h2,h3"); const ou = titre && titre !== el ? " dans la partie « " + titre.innerText.trim().slice(0, 50) + " »" : "";
+    return nature + (t ? " « " + t + " »" : "") + ou;
+  };
+  addEventListener("message", (e) => { if (e.source !== window.parent || !permis(e.origin) || e.data?.type !== "bingoo-atelier-mode") return; parent = e.origin; mode = e.data.mode || null; cible = null; montrer(null); document.body.style.cursor = mode ? (mode === "texte" ? "text" : "crosshair") : ""; });
+  addEventListener("mousemove", (e) => { if (!mode) return; const el = mode === "texte" ? cibleTexte(e.target) : e.target; cible = el; montrer(el); }, true);
+  addEventListener("scroll", () => { if (mode && cible) montrer(cible); }, true);
+  const bloquer = (e) => { if (!mode) return false; e.preventDefault(); e.stopPropagation(); return true; };
+  addEventListener("mousedown", bloquer, true);
+  addEventListener("click", (e) => {
+    if (!bloquer(e)) return;
+    if (mode === "pointer") { envoyer({ type: "bingoo-atelier-element", description: decrire(e.target), ecran: window.__bingooEcran || "_site" }); return; }
+    const el = cibleTexte(e.target); if (!el) return;
+    const avant = texteDirect(el); const m0 = mode; mode = null; montrer(null); document.body.style.cursor = "";
+    const fin = (garder) => { el.contentEditable = "false"; el.removeEventListener("keydown", touche); el.removeEventListener("blur", sortie); mode = m0; const apres = texteDirect(el); if (garder && apres && apres !== avant) envoyer({ type: "bingoo-atelier-texte", avant, apres, ecran: window.__bingooEcran || "_site" }); else if (!garder) el.innerText = avant; };
+    const touche = (k) => { if (k.key === "Enter" && !k.shiftKey) { k.preventDefault(); el.blur(); } if (k.key === "Escape") { k.preventDefault(); fin(false); } };
+    const sortie = () => fin(true);
+    if (el.children.length) { const apres = window.prompt("Nouveau texte :", avant); mode = m0; if (apres != null && apres.trim() && apres.trim() !== avant) envoyer({ type: "bingoo-atelier-texte", avant, apres: apres.trim(), ecran: window.__bingooEcran || "_site" }); return; }
+    el.contentEditable = "true"; el.focus(); const sel = getSelection(); const rg = document.createRange(); rg.selectNodeContents(el); sel.removeAllRanges(); sel.addRange(rg);
+    el.addEventListener("keydown", touche); el.addEventListener("blur", sortie);
+  }, true);
+  if (window.parent !== window) window.parent.postMessage({ type: "bingoo-atelier-pret" }, "*");
 }
 render(html\`<\${Racine}/>\`, document.getElementById("root"));
 { const d = document.createElement("div"); document.body.appendChild(d); render(html\`<\${FenetreLegale}/>\`, d); }
