@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { charger } from "../lib/charger";
 
 // Le gabarit des applications (lourd) n'est chargé que lorsqu'une application s'affiche : la page d'accueil reste légère
@@ -51,6 +51,20 @@ export default function AppCadre({ slug, spec, version, paiement, domaine, ab, a
     window.addEventListener("message", ecoute);
     return () => window.removeEventListener("message", ecoute);
   }, [slug]);
+  // Atelier : l'aperçu de l'atelier affiche cette page dans un cadre, et l'application est encore dans un cadre ici.
+  // On relaie donc les messages des outils de l'atelier dans les deux sens (atelier ↔ application).
+  const cadre = useRef(null);
+  useEffect(() => {
+    if (window.parent === window) return;
+    const relais = (e) => {
+      const d = e.data;
+      if (!d?.type || !String(d.type).startsWith("bingoo-atelier")) return;
+      if (e.source === window.parent && e.origin === window.location.origin) cadre.current?.contentWindow?.postMessage(d, "*");
+      else if (cadre.current && e.source === cadre.current.contentWindow) window.parent.postMessage(d, window.location.origin);
+    };
+    window.addEventListener("message", relais);
+    return () => window.removeEventListener("message", relais);
+  }, []);
   if (!doc) return <div className={className} />;
-  return <iframe key={`${slug}-${version}-${tour ? 1 : 0}`} title={spec?.nom ?? "Application"} srcDoc={doc} sandbox={verif || capture ? "allow-scripts" : "allow-scripts allow-forms allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"} className={className} />;
+  return <iframe ref={cadre} key={`${slug}-${version}-${tour ? 1 : 0}`} title={spec?.nom ?? "Application"} srcDoc={doc} sandbox={verif || capture ? "allow-scripts" : "allow-scripts allow-forms allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"} className={className} />;
 }

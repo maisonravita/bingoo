@@ -289,6 +289,8 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   const nom = projet?.nom ?? spec?.nom ?? null;
   const fini = etape >= 5;
   const lien = app?.slug ? lienApp(app.slug, app.domaine_statut === "ok" ? app.domaine : null) : "";
+  // L'aperçu passe toujours par Bingoo! (même avec un nom de domaine) : les outils de l'atelier ne parlent qu'à Bingoo!
+  const lienApercu = app?.slug ? lienApp(app.slug, null) : "";
   const pct = fini ? 100 : Math.min(96, [8, 24, 40, 86, 94][etape] + (etape === 2 && ecrans.length ? (ecrits / ecrans.length) * 44 : 0));
   useEffect(() => { fil.current?.scrollTo({ top: fil.current.scrollHeight, behavior: "smooth" }); });
 
@@ -501,7 +503,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                 </button>
               </div>
             </div>
-            <p className="mt-1.5 px-1 text-[11.5px] text-ink-faint">30 modifications par mois incluses, puis 1 crédit chacune. Modifier un texte en cliquant dessus est gratuit.</p>
+            <p className="mt-1.5 px-1 text-[11.5px] text-ink-faint">30 modifications par mois incluses, puis 1 crédit chacune. Double-clic sur un texte de l'aperçu pour le modifier : gratuit.</p>
           </form>
         </section>
 
@@ -512,7 +514,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
               {[["ordi", "Ordinateur"], ["tel", "Téléphone"]].map(([k, l]) => <button key={k} onClick={() => setVue(k)} className={cx("rounded-md px-2.5 py-1", vue === k ? "bg-ink text-white" : "text-ink-soft")}>{l}</button>)}
             </div>
             <div className="flex rounded-lg border border-line bg-white p-0.5 text-[12.5px] font-semibold">
-              {[["texte", "✎ Modifier un texte", "Clique sur un texte de l'aperçu pour le réécrire sur place (gratuit)"], ["pointer", "◎ Pointer", "Clique sur un élément de l'aperçu, puis dis ce que tu veux changer"]].map(([k, l, t]) => <button key={k} title={t} disabled={!fini || occupe} onClick={() => setOutil((o) => (o === k ? null : k))} className={cx("rounded-md px-2.5 py-1 disabled:opacity-40", outil === k ? "bg-[#E8571C] text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
+              {[["texte", "✎ Modifier un texte", "Clique sur un texte de l'aperçu pour le réécrire sur place (gratuit). Astuce : un double-clic sur un texte marche aussi"], ["pointer", "◎ Pointer", "Clique sur un élément de l'aperçu, puis dis ce que tu veux changer"]].map(([k, l, t]) => <button key={k} title={t} disabled={!fini || occupe} onClick={() => setOutil((o) => (o === k ? null : k))} className={cx("rounded-md px-2.5 py-1 disabled:opacity-40", outil === k ? "bg-[#E8571C] text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
             </div>
             <div className="relative">
               <button onClick={ouvrirHistorique} disabled={!fini} className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[12.5px] font-semibold text-ink-soft hover:text-ink disabled:opacity-40">Historique</button>
@@ -526,7 +528,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
             </button>
           </div>
           <div className={cx("relative mx-auto min-h-0 w-full flex-1 overflow-hidden rounded-xl border border-line bg-white shadow-[0_30px_80px_-50px_rgba(21,23,42,.5)] transition-[max-width] duration-500", vue === "tel" ? "max-w-[390px]" : "max-w-none")}>
-            {fini ? <iframe ref={cadreRef} key={cle} title={`Aperçu de ${nom}`} src={lien} onLoad={() => pousserOutil()} className={cx("absolute inset-0 h-full w-full border-0", outil && "ring-2 ring-inset ring-[#E8571C]")} />
+            {fini ? <iframe ref={cadreRef} key={cle} title={`Aperçu de ${nom}`} src={lienApercu} onLoad={() => pousserOutil()} className={cx("absolute inset-0 h-full w-full border-0", outil && "ring-2 ring-inset ring-[#E8571C]")} />
               : <Assemblage nom={nom} couleur={couleur} ecrans={ecrans} ecrits={ecrits} etape={etape} />}
             {occupe && <div className="absolute inset-x-0 top-0 h-1 overflow-hidden bg-[#ECEAE4]"><div className="h-full w-1/3 animate-[barre_1.2s_ease-in-out_infinite] bg-[#E8571C]" /></div>}
           </div>

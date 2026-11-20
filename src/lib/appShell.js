@@ -1041,16 +1041,19 @@ function Racine() {
     const sec = el.closest("section,div.rounded-2xl,div.rounded-xl"); const titre = sec && sec.querySelector("h1,h2,h3"); const ou = titre && titre !== el ? " dans la partie « " + titre.innerText.trim().slice(0, 50) + " »" : "";
     return nature + (t ? " « " + t + " »" : "") + ou;
   };
-  addEventListener("message", (e) => { if (e.source !== window.parent || !permis(e.origin) || e.data?.type !== "bingoo-atelier-mode") return; parent = e.origin; mode = e.data.mode || null; cible = null; montrer(null); document.body.style.cursor = mode ? (mode === "texte" ? "text" : "crosshair") : ""; });
+  let atelier = false, temporaire = false;
+  addEventListener("message", (e) => { if (e.source !== window.parent || !permis(e.origin) || e.data?.type !== "bingoo-atelier-mode") return; parent = e.origin; atelier = true; mode = e.data.mode || null; cible = null; montrer(null); document.body.style.cursor = mode ? (mode === "texte" ? "text" : "crosshair") : ""; });
   addEventListener("mousemove", (e) => { if (!mode) return; const el = mode === "texte" ? cibleTexte(e.target) : e.target; cible = el; montrer(el); }, true);
   addEventListener("scroll", () => { if (mode && cible) montrer(cible); }, true);
   const bloquer = (e) => { if (!mode) return false; e.preventDefault(); e.stopPropagation(); return true; };
   addEventListener("mousedown", bloquer, true);
+  // Dans l'atelier, un double-clic sur un texte le rend modifiable, même sans choisir l'outil
+  addEventListener("dblclick", (e) => { if (!atelier || mode) return; const el = cibleTexte(e.target); if (!el) return; e.preventDefault(); e.stopPropagation(); mode = "texte"; temporaire = true; el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })); }, true);
   addEventListener("click", (e) => {
     if (!bloquer(e)) return;
     if (mode === "pointer") { envoyer({ type: "bingoo-atelier-element", description: decrire(e.target), ecran: window.__bingooEcran || "_site" }); return; }
     const el = cibleTexte(e.target); if (!el) return;
-    const avant = texteDirect(el); const m0 = mode; mode = null; montrer(null); document.body.style.cursor = "";
+    const avant = texteDirect(el); const m0 = temporaire ? null : mode; temporaire = false; mode = null; montrer(null); document.body.style.cursor = "";
     const fin = (garder) => { el.contentEditable = "false"; el.removeEventListener("keydown", touche); el.removeEventListener("blur", sortie); mode = m0; const apres = texteDirect(el); if (garder && apres && apres !== avant) envoyer({ type: "bingoo-atelier-texte", avant, apres, ecran: window.__bingooEcran || "_site" }); else if (!garder) el.innerText = avant; };
     const touche = (k) => { if (k.key === "Enter" && !k.shiftKey) { k.preventDefault(); el.blur(); } if (k.key === "Escape") { k.preventDefault(); fin(false); } };
     const sortie = () => fin(true);
