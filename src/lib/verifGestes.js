@@ -91,14 +91,17 @@ async function gestesEcran(zone) {
   if (creer) {
     const nom = gLibelle(creer) || "Ajouter"; teste.add(nom);
     const add0 = VAPPELS.add + VAPPELS.update;
+    const lesCadres = () => [...document.querySelectorAll("form, [role=dialog], [aria-modal=true], .fixed")].filter((f) => gVisible(f) && f.querySelector("input, textarea, select"));
+    const cadres0 = new Set(lesCadres()), nav0 = VAPPELS.autre;
     const r = await gCliquer(creer, 550);
     if (r.erreur) pbs.push("Une erreur survient quand on clique sur « " + nom + " » : " + r.erreur);
     else if (!r.mut && !r.appels) pbs.push("Le bouton « " + nom + " » ne fait rien quand on clique dessus.");
-    else if (VAPPELS.add + VAPPELS.update === add0) {
-      const cadres = [...document.querySelectorAll("form, [role=dialog], [aria-modal=true], .fixed")].filter((f) => gVisible(f) && f.querySelector("input, textarea, select"));
-      const racine = cadres.length ? cadres[cadres.length - 1] : zone;
-      if (await gRemplir(racine)) {
-        const cands = [...racine.querySelectorAll("button, [type=submit]")].filter((b) => gVisible(b) && !b.disabled && !G_EVITER.test(gLibelle(b))).reverse();
+    else if (VAPPELS.add + VAPPELS.update === add0 && VAPPELS.autre === nav0) {
+      // On ne juge l'enregistrement que si le clic a ouvert un formulaire (fenêtre ou zone nouvelle) ; un passage à un autre écran n'est pas un formulaire
+      const nouveaux = lesCadres().filter((f) => !cadres0.has(f));
+      const racine = nouveaux.length ? nouveaux[nouveaux.length - 1] : null;
+      if (racine && await gRemplir(racine)) {
+        const cands = [...racine.querySelectorAll("button, [type=submit]")].filter((b) => b !== creer && gVisible(b) && !b.disabled && !G_EVITER.test(gLibelle(b)) && gLibelle(b).length <= 30).reverse();
         const ok = cands.find((b) => G_VALIDER.test(gLibelle(b))) || cands.find((b) => b.type === "submit" && gLibelle(b).length > 1);
         const form = racine.tagName === "FORM" ? racine : racine.querySelector("form");
         if (ok && !(form && form.checkValidity && !form.checkValidity())) {
