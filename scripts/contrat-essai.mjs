@@ -13,7 +13,7 @@ async function q(sql) {
 execFileSync("npx", ["esbuild", "src/lib/appShell.js", "--bundle", "--format=esm", "--platform=node", "--outfile=/tmp/appShell.c.mjs", "--log-level=warning"], { stdio: "inherit" });
 execFileSync("npx", ["esbuild", "supabase/functions/_shared/contrat-donnees.ts", "--bundle", "--format=esm", "--platform=node", "--outfile=/tmp/contrat.c.mjs", "--log-level=warning"], { stdio: "inherit" });
 const { appHtml } = await import("/tmp/appShell.c.mjs");
-const { alignerCode } = await import("/tmp/contrat.c.mjs");
+const { alignerCode, couvrirDemo } = await import("/tmp/contrat.c.mjs");
 const versions = await q(`select distinct on (v.app_id) v.app_id, a.slug, v.version, v.spec from saas_app_versions v join saas_apps a on a.id = v.app_id where v.spec ? 'ecrans' order by v.app_id, v.version asc`);
 const actuels = await q(`select id app_id, slug, 0 version, spec from saas_apps where statut = 'pret' and spec->>'famille' is not null`);
 let page = "";
@@ -39,7 +39,8 @@ for (const v of [...versions, ...actuels]) {
   const spec = v.spec;
   const corr = [], alertes = [];
   const spec2 = { ...spec, ecrans: (spec.ecrans ?? []).map((e) => { if (!e.code) return e; const c = alignerCode(e.code, spec); corr.push(...c.corrections.map((x) => `${e.id}: ${x}`)); alertes.push(...c.alertes.map((x) => `${e.id}: ${x}`)); return { ...e, code: c.code }; }) };
-  if (!corr.length && !alertes.length) { console.log(`= ${v.slug} v${v.version} : rien à corriger`); continue; }
+  const cv = couvrirDemo(spec2); spec2.demo = cv.demo; corr.push(...cv.ajouts.map((x) => `exemples: ${x}`));
+  if (!corr.length) { console.log(`= ${v.slug} v${v.version} : rien à corriger`); continue; }
   const ko1 = await verifier(spec, v.slug);
   const ko2 = corr.length ? await verifier(spec2, v.slug) : ko1;
   avant += ko1.length; apres += ko2.length; nCorr += corr.length;

@@ -24,7 +24,7 @@ export { orgOf } from "./${S}/iporg.ts";
 export { slugs } from "./${S}/deep.ts";
 export { invitesToday, officeHours } from "./${S}/linkedin-auto.ts";
 export { masquer, MASQUE, PAYANT_SEUL, QUOTA_GRATUIT } from "./${S}/mcp-bingoo.ts";
-export { alignerCode } from "./${S}/contrat-donnees.ts";
+export { alignerCode, couvrirDemo } from "./${S}/contrat-donnees.ts";
 `;
 const stubs = {
   name: "stubs",
@@ -279,6 +279,19 @@ await test("contrat de données : valeur ambiguë signalée, jamais devinée", (
   const spec = { collections: [{ nom: "devis", champs: [{ nom: "etat", options: ["brouillon", "envoyé", "signé"] }] }], demo: { devis: [{ etat: "envoyé" }] } };
   const r = T.alignerCode(`const n = D.rows.filter((d) => d.etat === "accepte").length;`, spec);
   if (!r.alertes.length || r.code.includes("signé")) throw new Error("devait signaler sans corriger");
+});
+await test("contrat de données : le vocabulaire (V.tons) n'est jamais pris pour un champ", () => {
+  const spec = { collections: [{ nom: "textes", champs: [{ nom: "ton" }] }], demo: { textes: [{ ton: "pro" }] } };
+  const code = `const V = { tons: ["pro"] }; function Ecran(){ return V.tons.map((t) => t); }`;
+  if (T.alignerCode(code, spec).code !== code) throw new Error("V.tons réécrit");
+});
+await test("couverture des exemples : un statut filtré par l'écran existe dans les données d'exemple", () => {
+  const spec = { demo: { affaires: [{ etape: "Gagnée" }, { etape: "Proposition" }, { etape: "Proposition" }, { etape: "Qualification" }] }, ecrans: [{ code: `const perdues = A.rows.filter((a) => a.etape === "Perdue");` }] };
+  const r = T.couvrirDemo(spec);
+  if (!r.demo.affaires.some((a) => a.etape === "Perdue")) throw new Error("pas ajouté");
+  if (!r.demo.affaires.some((a) => a.etape === "Proposition")) throw new Error("valeur disparue");
+  const r2 = T.couvrirDemo({ demo: { champs: [{ type: "texte" }, { type: "texte" }] }, ecrans: [{ code: `if (c.type === "choix")` }] });
+  if (r2.ajouts.length) throw new Error("valeur technique ajoutée");
 });
 console.log(`\n${ok} réussi${ok > 1 ? "s" : ""}, ${ko} échec${ko > 1 ? "s" : ""}`);
 writeFileSync(join(dir, "done"), "");
