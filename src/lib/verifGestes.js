@@ -11,7 +11,7 @@ const gPause = (ms) => new Promise((r) => setTimeout(r, ms));
 const gVisible = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== "hidden"; };
 const gLibelle = (el) => String(el.innerText || el.getAttribute("aria-label") || el.getAttribute("title") || "").replace(/\s+/g, " ").trim().slice(0, 40);
 // Jamais cliqués : ce qui détruit, quitte, télécharge, copie, imprime ou ouvre un autre site
-const G_EVITER = /supprim|effac|retir|d[ée]connex|quitter|annuler|fermer|r[ée]initialis|vider|copier|export|t[ée]l[ée]charg|imprim|partag|pdf|csv|stripe|payer|abonn|google|outlook|ical/i;
+const G_EVITER = /supprim|effac|retir|d[ée]connex|quitter|annuler|fermer|r[ée]initialis|recommencer|vider|^[✕×x]$|copier|export|t[ée]l[ée]charg|imprim|partag|pdf|csv|stripe|payer|abonn|google|outlook|ical/i;
 const G_CREER = /^\+|^(ajouter|nouveau|nouvelle|cr[ée]er|ajout|r[ée]server|prendre rendez|d[ée]marrer|commencer)/i;
 const G_VALIDER = /enregistr|ajouter|cr[ée]er|valider|envoyer|confirmer|r[ée]server|sauvegard|publier|^ok$|terminer|continuer/i;
 const G_REFUS = /obligatoire|requis|invalide|renseign|au moins|format/i;
@@ -41,21 +41,23 @@ async function gCliquer(el, ms) {
 }
 function gEchap() { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); }
 
+let gRang = 0;
 function gValeur(el) {
-  const t = String(el.type || "").toLowerCase(), now = new Date().toISOString();
+  const t = String(el.type || "").toLowerCase(), now = new Date(Date.now() + gRang * 864e5).toISOString();
+  gRang++;
   if (el.tagName === "SELECT") { const o = [...el.options].find((o) => o.value && !o.disabled); return o ? o.value : null; }
   if (t === "email") return "essai@exemple.fr";
   if (t === "number") return String(el.min && Number(el.min) > 0 ? el.min : 12);
   if (t === "date") return now.slice(0, 10);
   if (t === "datetime-local") return now.slice(0, 16);
   if (t === "month") return now.slice(0, 7);
-  if (t === "time") return "10:30";
+  if (t === "time") return String(9 + (gRang % 8)).padStart(2, "0") + ":00";
   if (t === "tel") return "0612345678";
   if (t === "url") return "https://exemple.fr";
   return "Essai Bingoo";
 }
 async function gRemplir(racine) {
-  let n = 0;
+  let n = 0; gRang = 0;
   for (const el of racine.querySelectorAll("input, textarea, select")) {
     const t = String(el.type || "").toLowerCase();
     if (!gVisible(el) || el.disabled || el.readOnly || ["hidden", "file", "checkbox", "radio", "submit", "button", "range", "color", "search"].includes(t)) continue;
@@ -92,11 +94,12 @@ async function gestesEcran(zone) {
       const cadres = [...document.querySelectorAll("form, [role=dialog], [aria-modal=true], .fixed")].filter((f) => gVisible(f) && f.querySelector("input, textarea, select"));
       const racine = cadres.length ? cadres[cadres.length - 1] : zone;
       if (await gRemplir(racine)) {
-        const ok = [...racine.querySelectorAll("button, [type=submit]")].filter((b) => gVisible(b) && !b.disabled && !G_EVITER.test(gLibelle(b)))
-          .reverse().find((b) => b.type === "submit" || G_VALIDER.test(gLibelle(b)));
+        const cands = [...racine.querySelectorAll("button, [type=submit]")].filter((b) => gVisible(b) && !b.disabled && !G_EVITER.test(gLibelle(b))).reverse();
+        const ok = cands.find((b) => G_VALIDER.test(gLibelle(b))) || cands.find((b) => b.type === "submit" && gLibelle(b).length > 1);
         const form = racine.tagName === "FORM" ? racine : racine.querySelector("form");
         if (ok && !(form && form.checkValidity && !form.checkValidity())) {
-          const nRefus = () => (document.body.innerText.match(new RegExp(G_REFUS.source, "gi")) || []).length;
+          // Refus de l'écran (message en rouge, alerte, mot « obligatoire »…) : nos valeurs d'essai ne conviennent pas, ce n'est pas une panne
+          const nRefus = () => (document.body.innerText.match(new RegExp(G_REFUS.source, "gi")) || []).length + document.querySelectorAll(".bg-red-600, .bg-red-500, .text-red-600, .text-red-700, .text-rose-600, [role=alert]").length;
           const refus0 = nRefus();
           const r2 = await gCliquer(ok, 800);
           if (r2.erreur) pbs.push("Le formulaire ouvert par « " + nom + " » renvoie une erreur à l'enregistrement : " + r2.erreur);
@@ -107,7 +110,9 @@ async function gestesEcran(zone) {
     await gFermer();
   }
 
-  // 2. Les autres boutons d'action doivent faire quelque chose (pas de bouton décoratif)
+  // 2. Les autres boutons d'action doivent faire quelque chose (pas de bouton décoratif) ; les champs de l'écran sont d'abord remplis,
+  // comme le ferait l'utilisateur avant de cliquer sur « Calculer », « Générer »…
+  await gRemplir(zone);
   const morts = [];
   for (const b of boutons().slice(0, 12)) {
     const nom = gLibelle(b);
