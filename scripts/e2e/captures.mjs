@@ -118,7 +118,7 @@ if (!CONSTRUIRE) {
     : { domaine: "planity.com", nom: "Planity", categorie: "Commerce et restauration", modele: "reservation", couleur: "#1F3D33", allure: "nature" };
   const ws2 = await creerEspace(`Robot construction ${new Date().toISOString().slice(0, 16)}`);
   await q(`update workspaces set plan = ${lit(CONSTRUIRE === "site" ? "site" : "lancer_pro")}, plan_status = 'active', onboarded = true where id = ${lit(ws2)}`);
-  const nomVoulu = CONSTRUIRE === "ia" ? "Cerclo" : "Sublima";
+  const nomVoulu = CONSTRUIRE === "ia" ? "Cerclo" : CONSTRUIRE === "site" ? SITE_IDEE.apercu.nom : "Sublima";
   const { ctx, page } = await ouvrir(ws2, {
     [`bingoo-reponses-${cible.domaine}`]: { nom: nomVoulu, clients: CONSTRUIRE === "ia" ? "Créateurs de communautés" : "Instituts de beauté", mieux: "", angle: `Nom souhaité, à utiliser tel quel : ${nomVoulu}` },
     "bingoo-chantier": { ...cible, ws: ws2, metier: CONSTRUIRE === "ia" ? "Créateurs de communautés" : "Institut de beauté" },
@@ -133,6 +133,7 @@ if (!CONSTRUIRE) {
     fin = /Tout est propre|Je livre ton SaaS|tests continuent en arrière-plan|La construction a échoué/.test(texte);
   }
   console.log(`Construction ${fin ? "terminée" : "toujours en cours"} après ${Math.round((Date.now() - t0) / 1000)} s`);
+  { const [v] = await q(`select verif->'journal' j, verif->>'at' at from saas_apps where workspace_id = ${lit(ws2)}`); console.log("Vérification :", JSON.stringify(v ?? null)); }
   const [a] = await q(`select slug, statut, version, verif from saas_apps where workspace_id = ${lit(ws2)}`);
   fs.writeFileSync(`${DOSSIER}/resultat.json`, JSON.stringify({ duree_s: Math.round((Date.now() - t0) / 1000), app: a ?? null }, null, 2));
   console.log(JSON.stringify(a?.verif?.mesure ?? null), (a?.verif?.journal ?? []).map((j) => j.t).join("\n"));
