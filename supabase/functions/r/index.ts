@@ -358,10 +358,13 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     if (error || !data) throw new Error(error?.message ?? "La préparation n’a pas été enregistrée.");
     // Nom choisi par le membre : gardé à part, il s'impose à la préparation et à la construction (jamais remplacé par l'IA)
     const nomChoisi = typeof b.nom === "string" ? b.nom.replace(/\s+/g, " ").trim().slice(0, 40) : "";
-    if (nomChoisi) {
+    // Lancé depuis la galerie de modèles : le modèle fait main choisi s'impose à la construction
+    const modeleForce = ["reservation", "devis", "crm", "ecriture", "projets"].includes(String(b.modele ?? "")) ? String(b.modele) : "";
+    const couleurChoisie = /^#[0-9a-f]{6}$/i.test(String(b.couleur ?? "")) ? String(b.couleur) : "";
+    if (nomChoisi || modeleForce || couleurChoisie) {
       const { data: pj } = await admin.from("saas_projets").select("data, statut").eq("id", data.id).single();
       const d0 = (pj?.data ?? {}) as Record<string, unknown>;
-      await admin.from("saas_projets").update({ data: { ...d0, nom_choisi: nomChoisi, ...(pj?.statut === "pret" ? { nom: nomChoisi } : {}) } }).eq("id", data.id);
+      await admin.from("saas_projets").update({ data: { ...d0, ...(nomChoisi ? { nom_choisi: nomChoisi, ...(pj?.statut === "pret" ? { nom: nomChoisi } : {}) } : {}), ...(modeleForce ? { modele_force: modeleForce } : {}), ...(couleurChoisie ? { couleur_choisie: couleurChoisie } : {}) } }).eq("id", data.id);
     }
     if (data.nouveau) await log(ws.id, "lancer", `Projet de SaaS concurrent de ${s.nom ?? domaine}`);
     // Démarre tout de suite (sans attendre la tâche minute) ; REA continue en arrière-plan pour les prochains lancements

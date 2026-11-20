@@ -169,7 +169,8 @@ export async function saasConstruire(appId: string, lancerEcran: (ecranId: strin
   const famille0 = FAMILLES[nature?.famille] ? nature.famille : familleParDefaut(texteProduit);
   // Un modèle fait main ne s'impose qu'à un produit de sa famille (avant : tout produit qui parlait de rendez-vous devenait le même logiciel)
   const modeleBrut = modeleDe(p);
-  const modele = modeleBrut && (MODELES_DE_FAMILLE[famille0] ?? []).includes(modeleBrut) ? modeleBrut : (MODELE_DE_LA_FAMILLE[famille0] ?? null);
+  // Lancé depuis la galerie de modèles : le modèle choisi par le membre passe avant tout
+  const modele = SPEC[p.modele_force] ? String(p.modele_force) : modeleBrut && (MODELES_DE_FAMILLE[famille0] ?? []).includes(modeleBrut) ? modeleBrut : (MODELE_DE_LA_FAMILLE[famille0] ?? null);
   const FAIT_MODELE = modele ? (FAIT as Record<string, string>)[modele] : "";
   // Deux SaaS construits ne doivent pas se ressembler : palette variée, et pas les couleurs ni les allures des derniers construits
   const { data: recents } = await admin.from("saas_apps").select("spec").neq("id", appId).not("statut", "in", "(remplace,retire,erreur)").order("maj", { ascending: false }).limit(8);
@@ -222,7 +223,8 @@ Les données d'exemple sont produites à part : ne mets pas de clé demo.`, { ma
   const demo = {};
   const spec: any = {
     nom: p.nom, pitch: p.pitch, cible: p.cible, probleme: p.probleme,
-    couleur: /^#[0-9a-f]{6}$/i.test(s.couleur ?? "") ? s.couleur : "#4F46E5",
+    // Couleur choisie par le membre (galerie de modèles) : elle passe avant celle de la conception
+    couleur: /^#[0-9a-f]{6}$/i.test(p.couleur_choisie ?? "") ? p.couleur_choisie : /^#[0-9a-f]{6}$/i.test(s.couleur ?? "") ? s.couleur : "#4F46E5",
     // Allure propre à chaque SaaS : deux SaaS construits ne doivent pas se ressembler
     ...(["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique"].includes(s.style) ? { style: s.style } : {}),
     famille: FAMILLES[s.famille] ? s.famille : famille0,

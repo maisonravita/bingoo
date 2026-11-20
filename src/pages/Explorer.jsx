@@ -18,6 +18,7 @@ const IsoMonde = lazy(() => charger(() => import("../components/IsoMonde")));
 import AppCadre, { API, blogApp, lienApp } from "../components/AppCadre";
 const VideoPub = lazy(() => charger(() => import("../components/VideoPub")));
 const Revelation = lazy(() => charger(() => import("./Revelation")));
+const Modeles = lazy(() => charger(() => import("./Modeles")));
 const MonSaas = lazy(() => charger(() => import("./MonSaas")));
 const ApplisMobiles = lazy(() => charger(() => import("../components/ApplisMobiles")));
 const ValiderIdee = lazy(() => charger(() => import("../components/ValiderIdee")));
@@ -67,6 +68,8 @@ export default function Explorer({ domaine: fixe }) {
   const d = fixe ?? domaine;
   const { session, ws } = useWs();
   // Sans compte, on ne peut pas explorer Bingoo! : seul le parcours « Trouver mon SaaS » est ouvert
+  // Galerie de modèles : ouverte à tous (l'invité crée son compte au moment de lancer)
+  if (d === "modeles") return <><Onglets actif="modeles" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><Modeles /></Suspense></>;
   if (estInvite(session) && d !== "trouver") return <Navigate to="/explorer/trouver" replace />;
   // Après le paiement : le flou disparaît, puis Bingoo! construit le SaaS choisi
   if (d === "revelation") return <Suspense fallback={null}><Revelation paramsDe={paramsDe} /></Suspense>;
@@ -111,7 +114,7 @@ export default function Explorer({ domaine: fixe }) {
 
 // 6 entrées. Les pages marquées « cachée » restent ouvertes par lien mais ne s'affichent pas dans les sous-onglets
 const RUBRIQUES = [
-  ["Explorer les SaaS", [["liste", "Tous les SaaS", "/explorer"], ["trouver", "Trouver mon SaaS", "/explorer/trouver"], ["copier", "À lancer", "/explorer/copier"], ["niches", "Par niche", "/explorer/niches"], ["classement", "Classement", "/explorer/classement"], ["marche", "Ce qui monte", "/explorer/marche"],
+  ["Explorer les SaaS", [["liste", "Tous les SaaS", "/explorer"], ["trouver", "Trouver mon SaaS", "/explorer/trouver"], ["modeles", "Partir d'un modèle", "/explorer/modeles"], ["copier", "À lancer", "/explorer/copier"], ["niches", "Par niche", "/explorer/niches"], ["classement", "Classement", "/explorer/classement"], ["marche", "Ce qui monte", "/explorer/marche"],
     ["chiffres", "Chiffres d'un SaaS", "/explorer/chiffres", true], ["carte", "L'archipel", "/explorer/carte", true], ["idees", "Idées et réussites", "/explorer/idees", true], ["pubs", "Pubs et e-mails", "/explorer/pubs", true], ["suivis", "Mes suivis", "/explorer/suivis", true], ["bouge", "Ce qui a bougé", "/explorer/bouge", true], ["createurs", "Mes SaaS", "/explorer/createurs", true]]],
   ["Applis mobiles", [["applis", "Applis mobiles", "/explorer/applis"]]],
   ["Valider une idée", [["valider", "Valider une idée", "/explorer/valider"]]],

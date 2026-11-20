@@ -237,12 +237,13 @@ function AppShell({ ws, list, select, invite, sections, bas, bandeau, extra, men
 function rubriques(ws, invite) {
   const trouver = [
     { to: "/explorer", label: "Explorer les SaaS", icon: "list", also: ["/explorer/trouver", "/explorer/copier", "/explorer/chiffres", "/explorer/niches", "/explorer/classement", "/explorer/marche", "/explorer/carte", "/explorer/idees", "/explorer/pubs", "/explorer/suivis", "/explorer/bouge", "/explorer/createurs", "/explorer/demande", "/explorer/connecteur"] },
+    { to: "/explorer/modeles", label: "Partir d'un modèle", icon: "spark" },
     { to: "/explorer/applis", label: "Applis mobiles", icon: "phone" },
     { to: "/explorer/valider", label: "Valider une idée", icon: "shield" },
     { to: "/explorer/vendre", label: "Acheter / vendre", icon: "doc", also: ["/explorer/bourse", "/explorer/racheter"] },
     { to: "/explorer/favoris", label: "Mes favoris", icon: "heart" },
   ];
-  if (invite) return { sections: [{ items: [{ to: "/explorer/trouver", label: "Trouver mon SaaS", icon: "target" }] }], bas: [] };
+  if (invite) return { sections: [{ items: [{ to: "/explorer/trouver", label: "Trouver mon SaaS", icon: "target" }, { to: "/explorer/modeles", label: "Partir d'un modèle", icon: "spark" }] }], bas: [] };
   return {
     sections: [
       { titre: "Mon SaaS", items: [
@@ -381,6 +382,7 @@ export default function Layout({ children }) {
           <NavLink to="/explorer/trouver"><Logo /></NavLink>
           <nav className="ml-4 hidden md:flex items-center gap-1 text-[14px] font-medium">
             <NavLink to="/explorer/trouver" className={({ isActive }) => cx("rounded-xl px-3 py-2", isActive ? "text-ink" : "text-ink-soft hover:text-ink")}>Trouver mon SaaS</NavLink>
+            <NavLink to="/explorer/modeles" className={({ isActive }) => cx("rounded-xl px-3 py-2", isActive ? "text-ink" : "text-ink-soft hover:text-ink")}>Modèles</NavLink>
             {invite ? <button onClick={() => demanderCompte("Crée ton compte gratuit pour explorer les SaaS qui marchent.")} className="rounded-xl px-3 py-2 text-ink-soft hover:text-ink">Explorer les SaaS</button>
               : <>{[["/explorer", "Explorer les SaaS"], ["/explorer/applis", "Applis mobiles"], ["/explorer/valider", "Valider une idée"], ["/explorer/favoris", "Mes favoris"]].map(([to, l]) => <NavLink key={to} to={to} end className={({ isActive }) => cx("rounded-xl px-3 py-2", isActive ? "text-ink" : "text-ink-soft hover:text-ink")}>{l}</NavLink>)}</>}
           </nav>
