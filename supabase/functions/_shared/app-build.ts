@@ -502,7 +502,9 @@ Site : problème « ${spec.probleme ?? ""} » ; atouts ${JSON.stringify((spec.at
 Écrans (dans l'ordre) : ${ecrans0.map((x) => `${x.id} « ${x.titre} »${x.public ? " (page publique)" : ""}`).join(", ")}.
 ${ecranId !== "nouveau" ? `L'utilisateur a désigné l'écran : ${ecranId}.\n` : ""}${element ? `L'utilisateur a POINTÉ cet élément dans l'aperçu, la demande porte sur lui : ${element}\n` : ""}${images.length ? `Images jointes par l'utilisateur (tu les vois, dans cet ordre) : ${images.map((u, i) => `${i + 1}) ${u}`).join(" ; ")}.
 Selon la demande : son logo → reglages.logo = l'adresse ; une image à afficher en haut de la page d'accueil → site.image_accueil = l'adresse ; une image à mettre dans un écran → la consigne de cet écran avec l'adresse exacte à utiliser dans une balise img ; une capture d'un modèle à imiter → traduis-la en réglages précis (couleur hexadécimale, police, fond, allure, menu) et en consignes d'écrans détaillées (disposition, éléments, ordre).\n` : ""}Demande : « ${demande} »
-Rends un objet JSON avec SEULEMENT ce que la demande change :
+${spec.type === "site" ? `C'EST UN SITE WEB (vitrine d'un professionnel) : page d'accueil avec accroche (reglages.slogan), phrase sous le titre (reglages.pitch), bouton « ${spec.site?.cta ?? ""} », points forts ${JSON.stringify(spec.site?.points_forts ?? [])}, étapes « comment ça se passe » ${JSON.stringify(spec.site?.etapes ?? [])}, à propos ${JSON.stringify(spec.site?.apropos ?? {})}, questions ${JSON.stringify((spec.faq ?? []).slice(0, 6))}. Les services, prix, horaires et coordonnées se modifient par le gérant dans son espace (écrans Services et Horaires et contact) : dis-le dans impossible avec cette alternative si on te le demande. Les écrans listés plus bas sont l'espace gérant.
+Pour changer les textes du site, rends aussi site_web : { cta (3 mots), points_forts (liste COMPLÈTE de 3 { titre, texte, icone parmi ${ICONES.join(", ")} }), etapes (liste COMPLÈTE de 3 { titre, texte }), apropos ({ titre, texte }) } — seulement ce qui change. Jamais d'avis client, de chiffre, d'année d'expérience ni de label inventés. Pas de nouvelle section ni de page en plus : un site Bingoo! a ces parties-là.
+` : ""}Rends un objet JSON avec SEULEMENT ce que la demande change :
 - reglages : { couleur (#xxxxxx assez foncé pour du texte blanc ; rose = #BE185D), style (moderne|doux|sombre|editorial|vif|rond|tech|elegant|sport|geometrique), fond (blanc|creme|gris|sombre), forme (carre|arrondi|pilule), disposition (barre|haut|onglets), police (police du texte, parmi ${POLICES_ATELIER.join(", ")}), police_titres (police des titres, même liste ; si l'utilisateur demande juste « une autre police », choisis-en une nettement différente des DEUX actuelles et mets la même dans police et police_titres), nom (40 car.), slogan (8 mots), pitch (35 mots), cible_courte (5 mots) }
 - site : { image_accueil (adresse d'une image jointe, ou null pour la retirer), probleme (2 phrases), atouts (liste COMPLÈTE de 3 à 6 { titre, texte }), faq (liste COMPLÈTE de { q, r }), formules (liste COMPLÈTE de 1 à 3 { nom, prix (nombre, euros par mois), pour, inclus (3 à 5) }) }
 - supprimer : ids d'écrans à retirer
@@ -514,7 +516,7 @@ LIMITES : les SaaS de Bingoo! envoient de vrais e-mails (tout de suite ou progra
 Un changement de couleur, de police, d'allure, de nom, de textes du site ou de prix ne demande AUCUN écran. Rends {} pour ce qui ne change pas.`, { fast: true, maxTokens: 2500, images }).catch((x) => { console.error("atelier plan", x?.message ?? x); if (/pause|plafond|crédit/i.test(String(x?.message ?? x))) throw x; return { ecrans: [{ id: ecranId, consigne: demande }] }; });
   const faits: string[] = [], rates: string[] = [];
   // 0. Limites : ce que Bingoo! ne sait pas faire est dit clairement, avec l'alternative faite à la place
-  for (const x of (Array.isArray(plan?.impossible) ? plan.impossible : []).slice(0, 3)) if (x?.demande) rates.push(`${String(x.demande).slice(0, 120)} : impossible dans un SaaS Bingoo!${x.alternative ? ` ; à la place : ${String(x.alternative).slice(0, 160)}` : ""}`);
+  for (const x of (Array.isArray(plan?.impossible) ? plan.impossible : []).slice(0, 3)) if (x?.demande) rates.push(`${String(x.demande).slice(0, 120)} : impossible dans ${spec.type === "site" ? "un site" : "un SaaS"} Bingoo!${x.alternative ? ` ; à la place : ${String(x.alternative).slice(0, 160)}` : ""}`);
   // 1. Réglages globaux
   const R = plan?.reglages && typeof plan.reglages === "object" ? plan.reglages : {};
   const ENUM: Record<string, string[]> = { style: ["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique", "nature"], fond: ["blanc", "creme", "gris", "sombre"], forme: ["carre", "arrondi", "pilule"], disposition: ["barre", "haut", "onglets"] };
@@ -531,6 +533,16 @@ Un changement de couleur, de police, d'allure, de nom, de textes du site ou de p
   if (Array.isArray(S.atouts) && S.atouts.length && JSON.stringify(S.atouts) !== JSON.stringify(spec.atouts)) { spec.atouts = S.atouts.filter((x: any) => x?.titre).slice(0, 6).map((x: any) => ({ titre: String(x.titre).slice(0, 60), texte: String(x.texte ?? "").slice(0, 200) })); faits.push("atouts"); }
   if (Array.isArray(S.faq) && S.faq.length && JSON.stringify(S.faq) !== JSON.stringify(spec.faq)) { spec.faq = S.faq.filter((x: any) => x?.q && x?.r).slice(0, 8).map((x: any) => ({ q: String(x.q).slice(0, 140), r: String(x.r).slice(0, 400) })); faits.push("questions fréquentes"); }
   if (Array.isArray(S.formules) && S.formules.length) { const f = S.formules.filter((x: any) => x?.nom && Number.isFinite(Number(x.prix))).slice(0, 3).map((x: any) => ({ nom: String(x.nom).slice(0, 40), prix: Math.max(0, Number(x.prix)), pour: String(x.pour ?? "").slice(0, 120), inclus: (Array.isArray(x.inclus) ? x.inclus : []).slice(0, 5).map((y: unknown) => String(y).slice(0, 90)) })); const cle = (xs: any[]) => JSON.stringify((xs ?? []).map((x: any) => [x.nom, Number(x.prix), x.pour ?? "", x.inclus ?? []])); if (f.length && cle(f) !== cle(spec.formules)) { spec.formules = f; faits.push("formules et prix"); } }
+  // 2 bis. Site web : ses textes propres (bouton, points forts, étapes, à propos)
+  const W = spec.type === "site" && plan?.site_web && typeof plan.site_web === "object" ? plan.site_web : null;
+  if (W) {
+    const c = (x: unknown, n: number) => String(x ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+    spec.site = { ...(spec.site ?? {}) };
+    if (c(W.cta, 28) && c(W.cta, 28) !== spec.site.cta) { spec.site.cta = c(W.cta, 28); faits.push("bouton du site"); }
+    if (Array.isArray(W.points_forts) && W.points_forts.length) { spec.site.points_forts = W.points_forts.filter((x: any) => x?.titre).slice(0, 3).map((x: any) => ({ titre: c(x.titre, 50), texte: c(x.texte, 200), icone: ICONES.includes(x.icone) ? x.icone : "etoile" })); faits.push("points forts"); }
+    if (Array.isArray(W.etapes) && W.etapes.length) { spec.site.etapes = W.etapes.filter((x: any) => x?.titre).slice(0, 3).map((x: any) => ({ titre: c(x.titre, 40), texte: c(x.texte, 200) })); faits.push("étapes"); }
+    if (W.apropos && typeof W.apropos === "object" && c(W.apropos.texte, 700)) { spec.site.apropos = { titre: c(W.apropos.titre, 60) || spec.site.apropos?.titre || "À propos", texte: c(W.apropos.texte, 700) }; faits.push("à propos"); }
+  }
   // 3. Structure : supprimer, renommer, réordonner (jamais le dernier écran privé)
   for (const id of (Array.isArray(plan?.supprimer) ? plan.supprimer : []).map(String)) {
     const e = spec.ecrans.find((x: any) => x.id === id);
@@ -583,9 +595,10 @@ Un changement de couleur, de police, d'allure, de nom, de textes du site ou de p
 /** Réparation après la vérification : l'écran plante ou n'a pas été écrit ; on le réécrit avec l'erreur constatée. */
 /** Fin de l'écriture : Bingoo! ne dit pas encore « prêt ». La boucle tester → corriger commence (robot, puis saas-app-verif),
  *  et le journal ne contient que de vrais événements, affichés au membre en direct. */
-export async function demarrerVerification(appId: string) {
+export async function demarrerVerification(appId: string, specAvant: any = null) {
   const { data: a } = await admin.from("saas_apps").select("spec, version, projet_id").eq("id", appId).single();
-  const sp = (a?.spec ?? {}) as any;
+  // specAvant : la spec qui va être mise en ligne (la vérification est alors posée AVANT, la page ne voit jamais « en ligne » sans test)
+  const sp = (specAvant ?? a?.spec ?? {}) as any;
   // Par où le membre est entré (idée libre, galerie de modèles, exploration des SaaS) : mesuré pour savoir quel parcours pousser
   const { data: pj } = await admin.from("saas_projets").select("data").eq("id", a?.projet_id ?? "").maybeSingle();
   const entree = (pj?.data as any)?.entree ?? ((pj?.data as any)?.modele_force ? "modele" : "explorer");

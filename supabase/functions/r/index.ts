@@ -581,9 +581,9 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const parEquipe = (r: any) => !!ecrans.find((e) => e.id === r.id)?.modele;
     if (fini) {
       const equipe = restants.filter(parEquipe), membre = restants.filter((r: any) => !parEquipe(r));
-      if (!restants.length) noter(`Tout est propre : les ${resultats.length} écrans ont été testés et fonctionnent. Ton SaaS est prêt.`, "ok");
+      if (!restants.length) noter(spec.type === "site" ? `Tout est propre : ton espace gérant (${resultats.length} écrans) a été testé et fonctionne. Ton site est prêt.` : `Tout est propre : les ${resultats.length} écrans ont été testés et fonctionnent. Ton SaaS est prêt.`, "ok");
       else {
-        if (membre.length) noter(`Je livre ton SaaS, mais ${membre.length} écran${membre.length > 1 ? "s ne fonctionnent" : " ne fonctionne"} pas encore bien : ${membre.map((r: any) => `« ${titre(r.id)} »`).join(", ")}${budgetAtteint ? " (budget de corrections atteint)" : ` (${ESSAIS} essais sans succès)`}. Un clic sur « Corriger · offert » le relance, sans rien te coûter.`, "reste");
+        if (membre.length) noter(`Je livre ton ${spec.type === "site" ? "site" : "SaaS"}, mais ${membre.length} écran${membre.length > 1 ? "s ne fonctionnent" : " ne fonctionne"} pas encore bien : ${membre.map((r: any) => `« ${titre(r.id)} »`).join(", ")}${budgetAtteint ? " (budget de corrections atteint)" : ` (${ESSAIS} essais sans succès)`}. Un clic sur « Corriger · offert » le relance, sans rien te coûter.`, "reste");
         if (equipe.length) noter(`${equipe.map((r: any) => `« ${titre(r.id)} »`).join(", ")} : un souci de données que je ne peux pas corriger seul. L'équipe Bingoo! est prévenue et le corrige sous 24 h.`, "reste");
         for (const r of equipe) await admin.from("admin_alertes").insert({ workspace_id: ws.id, app_id: app.id, ecran: r.id, texte: `Écran fait main « ${titre(r.id)} » (${spec.modele ?? "?"}) en échec à la livraison : ${String(r.erreur ?? "").slice(0, 400)}` }).then(() => null, () => null);
       }
@@ -599,7 +599,9 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
             subject: restants.length ? `${nom} est en ligne, avec ${restants.length} écran${restants.length > 1 ? "s" : ""} à corriger` : `${nom} est prêt : testé et en ligne`,
             text: restants.length
               ? `Bonjour,\n\n${nom} est en ligne. Bingoo! a testé chaque écran comme un vrai utilisateur : ${resultats.length - restants.length} sur ${resultats.length} fonctionnent.\n\nÀ corriger : ${restants.map((r: any) => titre(r.id)).join(", ")}.${membre.length ? "\nUn clic sur « Corriger · offert » dans ton atelier relance la correction, sans rien te coûter." : ""}${equipe.length ? "\nL'équipe Bingoo! s'occupe du reste sous 24 h." : ""}\n\nTon SaaS : ${lien}\n\nÀ tout de suite,\nBingoo!`
-              : `Bonjour,\n\n${nom} est prêt. Bingoo! a testé les ${resultats.length} écrans comme un vrai utilisateur : tout fonctionne.\n\nTon SaaS : ${lien}\n\nProchaine étape : tes premiers clients, le plan t'attend dans Bingoo!.\n\nÀ tout de suite,\nBingoo!` });
+              : spec.type === "site"
+                ? `Bonjour,\n\nTon site ${nom} est en ligne. Bingoo! a testé ton espace gérant comme un vrai utilisateur : tout fonctionne.\n\nÀ faire maintenant :\n1. Ouvre ton site et clique sur « Espace gérant » en bas de page pour créer ton accès (avec cette adresse e-mail).\n2. Vérifie tes prix, tes horaires et ajoute ton téléphone : les prix ont été proposés à la construction.\n3. Suis ton plan « Premiers clients » : ${lien.replace("mon-saas", "clients")}\n\nÀ tout de suite,\nBingoo!`
+                : `Bonjour,\n\n${nom} est prêt. Bingoo! a testé les ${resultats.length} écrans comme un vrai utilisateur : tout fonctionne.\n\nTon SaaS : ${lien}\n\nProchaine étape : tes premiers clients, le plan t'attend dans Bingoo!.\n\nÀ tout de suite,\nBingoo!` });
         }
       } catch (e) { console.error("mail fin de vérification", e); }
     }

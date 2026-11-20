@@ -159,7 +159,7 @@ function Vedette({ s, visible, onConstruire }) {
 const LECTURE = (nom) => [`Analyse des pages publiques de ${nom}`, "Lecture des sources et préparation de la fiche produit"];
 // Ce que Bingoo! a réellement décidé pour ta version, présenté comme sa réflexion (questions qu'il se pose, puis sa réponse)
 function penseDe(p) {
-  if (!p) return null;
+  if (!p || p.type === "site") return null;
   const l = [];
   if (p.cible) l.push({ q: "Qui paie déjà pour ce genre d'outil ?", r: [p.cible] });
   if (p.probleme) l.push({ q: "Quel problème il règle vraiment ?", r: [p.probleme] });
@@ -188,7 +188,8 @@ function Reflexion({ pense, enCours }) {
     </div>
   );
 }
-const IDEES = ["Ajoute une page de tarifs", "Ajoute un tableau de bord de mes ventes", "Ajoute une page d'aide pour mes clients"];
+const IDEES_SAAS = ["Ajoute une page de tarifs", "Ajoute un tableau de bord de mes ventes", "Ajoute une page d'aide pour mes clients"];
+const IDEES_SITE = ["Change la couleur du site", "Rends l'accroche plus chaleureuse", "Ajoute une question sur les délais"];
 // Un vrai problème trouvé par le robot (journal de vérification) : pastille orange, pas une coche verte
 const Alerte = () => <span className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full bg-[#FDECD8] text-[11px] font-black text-[#C2410C]">!</span>;
 const Coche = ({ ok }) => ok
@@ -279,11 +280,13 @@ export function Chantier({ ws, nav, init, atelier = false }) {
         let debutVerif = null;
         for (let i = 0; i < 640 && vivant; i++) {
           await attendre(3000);
-          const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif").eq("projet_id", p.id).maybeSingle();
+          const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif, maj").eq("projet_id", p.id).maybeSingle();
           if (!data) continue;
           setApp(data);
           if (/Vérif/i.test(data.etape ?? "")) setEtape(3);
           if (data.statut === "pret" && data.spec?.ecrans?.length) {
+            // Mise en ligne toute fraîche, vérification pas encore posée : on attend un peu (jamais « prêt » sans test)
+            if (!data.verif?.phase && Date.now() - new Date(data.maj ?? 0).getTime() < 90_000) continue;
             if (data.verif?.phase === "en_cours") { debutVerif ??= Date.now(); if (Date.now() - debutVerif < 20 * 60e3) { setEtape(3); continue; } }
             setEtape(5); return;
           }
@@ -300,6 +303,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   }, [essai, questions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const spec = app?.spec?.ecrans?.length ? app.spec : app?.brouillon;
+  const estSite = spec?.type === "site" || c.type === "site";
   const ecrans = (spec?.ecrans ?? []).filter((e) => !e.public);
   const ecrits = (() => { const m = /\((\d+)\/(\d+)\)/.exec(app?.etape ?? ""); return m ? Number(m[1]) : etape >= 3 ? ecrans.length : 0; })();
   const couleur = spec?.couleur ?? "#E8571C";
@@ -443,7 +447,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
             {atelier ? (
               <Bingoo>
                 <p>Bienvenue dans l'atelier de <b>{nom ?? "ton SaaS"}</b>. {fini ? "Essaie-le à droite, puis dis-moi ce que tu veux changer, en une phrase." : "J'ouvre ton SaaS…"}</p>
-                {fini && <div className="mt-3 flex flex-wrap gap-1.5">{IDEES.map((x) => <button key={x} onClick={() => { setEcran(""); envoyer(x); }} disabled={occupe} className="rounded-full border border-line bg-white px-3 py-1.5 text-[12.5px] font-medium hover:border-ink-faint disabled:opacity-50">{x}</button>)}</div>}
+                {fini && <div className="mt-3 flex flex-wrap gap-1.5">{(estSite ? IDEES_SITE : IDEES_SAAS).map((x) => <button key={x} onClick={() => { setEcran(""); envoyer(x); }} disabled={occupe} className="rounded-full border border-line bg-white px-3 py-1.5 text-[12.5px] font-medium hover:border-ink-faint disabled:opacity-50">{x}</button>)}</div>}
               </Bingoo>
             ) : <>
             {questions ? (
@@ -492,9 +496,9 @@ export function Chantier({ ws, nav, init, atelier = false }) {
             </>}
             {fini && !atelier && (
               <Bingoo>
-                <p><b>{nom} est en ligne.</b> Essaie-le à droite : crée un compte, ajoute des données, clique partout. C'est ton vrai SaaS.</p>
+                <p>{estSite ? <><b>{nom} est en ligne.</b> C'est ton vrai site, à droite. En bas de page, « Espace gérant » : crée ton accès avec l'adresse e-mail de ton compte, puis vérifie tes prix et ajoute ton téléphone. Les demandes de tes visiteurs t'arrivent par e-mail.</> : <><b>{nom} est en ligne.</b> Essaie-le à droite : crée un compte, ajoute des données, clique partout. C'est ton vrai SaaS.</>}</p>
                 <p className="mt-1.5">Dis-moi ce que tu veux changer, en une phrase.</p>
-                <div className="mt-3 flex flex-wrap gap-1.5">{IDEES.map((x) => <button key={x} onClick={() => { setEcran(""); envoyer(x); }} disabled={occupe} className="rounded-full border border-line bg-white px-3 py-1.5 text-[12.5px] font-medium hover:border-ink-faint disabled:opacity-50">{x}</button>)}</div>
+                <div className="mt-3 flex flex-wrap gap-1.5">{(estSite ? IDEES_SITE : IDEES_SAAS).map((x) => <button key={x} onClick={() => { setEcran(""); envoyer(x); }} disabled={occupe} className="rounded-full border border-line bg-white px-3 py-1.5 text-[12.5px] font-medium hover:border-ink-faint disabled:opacity-50">{x}</button>)}</div>
               </Bingoo>
             )}
             {echanges.map((x, i) => (
