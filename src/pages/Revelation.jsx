@@ -299,10 +299,11 @@ export function Chantier({ ws, nav, init, atelier = false }) {
         const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut").eq("id", app.id).maybeSingle();
         if (data && data.statut !== "en_cours") {
           if (data.erreur) throw new Error(data.erreur);
+          const fait = data.brouillon?._modif ?? null;
           if (data.brouillon?._modif) await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "brouillon-valider" });
           const { data: frais } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut").eq("id", app.id).maybeSingle();
           setApp(frais ?? data); setCle((k) => k + 1);
-          maj({ etat: "ok", credit: r?.credit });
+          maj({ etat: "ok", credit: r?.credit, faits: fait?.faits ?? [], rates: fait?.rates ?? [] });
           return;
         }
       }
@@ -393,7 +394,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                 <Moi>{x.moi}</Moi>
                 <Bingoo>
                   {x.etat === "encours" ? <p className="flex items-center gap-2.5 text-ink-soft"><Coche ok={false} />Je modifie ton SaaS… (une à deux minutes)</p>
-                    : x.etat === "ok" ? <p className="flex items-center gap-2.5"><Coche ok />C'est en ligne, regarde l'aperçu.{x.credit ? " (1 crédit utilisé)" : ""}</p>
+                    : x.etat === "ok" ? <div><p className="flex items-center gap-2.5"><Coche ok />C'est en ligne, regarde l'aperçu.{x.credit ? " (1 crédit utilisé)" : ""}</p>{x.faits?.length > 0 && <ul className="mt-1.5 ml-8 list-disc text-[13.5px] text-ink-soft">{x.faits.map((f) => <li key={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</li>)}</ul>}{x.rates?.length > 0 && <p className="mt-1 ml-8 text-[13px] text-[#9A3412]">{x.rates.join(" ; ")}</p>}</div>
                       : <p className="text-[#B42318]">{x.erreur}</p>}
                 </Bingoo>
               </div>
@@ -421,7 +422,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                 className="block w-full resize-none bg-transparent px-1.5 text-[14.5px] outline-none placeholder:text-ink-faint" />
               <div className="mt-1.5 flex items-center gap-2">
                 <select value={ecran} onChange={(e) => setEcran(e.target.value)} disabled={!fini} className="min-w-0 max-w-[60%] truncate rounded-lg border border-line bg-[#FCFBF9] px-2 py-1 text-[12.5px] text-ink-soft">
-                  <option value="">Où : un nouvel écran</option>
+                  <option value="">Où : Bingoo! choisit</option>
                   {ecrans.map((e) => <option key={e.id} value={e.id}>Où : {e.titre}</option>)}
                 </select>
                 <div className="flex-1" />

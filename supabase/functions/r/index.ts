@@ -766,7 +766,13 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     await log(ws.id, "modifier_app", `Modification : ${demande.slice(0, 120)}`);
     const { saasModifierEcran } = await import("../_shared/app-build.ts");
     await admin.from("saas_apps").update({ statut: "en_cours", etape: "Modification en cours", erreur: null, maj: new Date().toISOString() }).eq("id", app.id);
-    const travail = saasModifierEcran(app.id, String(b.ecran ?? "nouveau"), demande, b.suggestion ? String(b.suggestion) : null).catch(async (e) => {
+    // Chaque écran en plus dans la même demande : une modification du mois, sinon 1 crédit (dans la limite de ce que le membre a)
+    const payer = async () => {
+      if (req.headers.get("x-cron-key")) return true;
+      try { await quotaMois(ws.id, ws.plan, "modifier"); await log(ws.id, "modifier_app", "Écran en plus dans la même demande"); return true; }
+      catch (_) { try { await creditsDepenser(ws.id, COUT_CREDITS.modification, "Écran en plus (atelier)"); return true; } catch (_) { return false; } }
+    };
+    const travail = saasModifierEcran(app.id, String(b.ecran ?? "nouveau"), demande, b.suggestion ? String(b.suggestion) : null, payer).catch(async (e) => {
       if (parCredit) await creditsRendre(ws.id, COUT_CREDITS.modification, "Modification échouée : crédit rendu");
       await admin.from("saas_apps").update({ statut: "pret", etape: null, erreur: String(e?.message ?? e).slice(0, 300) }).eq("id", app.id);
     });

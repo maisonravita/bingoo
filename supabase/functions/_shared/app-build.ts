@@ -449,54 +449,89 @@ Réécris en français naturel, au même ton : pitch (35 mots au plus, garde tou
 
 /** Modifie un écran à la demande (ou en ajoute un si ecranId = "nouveau"). */
 // La modification s'écrit dans le brouillon (aperçu) : le créateur la voit, puis la met en ligne ou l'abandonne.
-export async function saasModifierEcran(appId: string, ecranId: string, demande: string, suggestion: string | null = null) {
+/** Atelier : une demande en langage courant, exécutée en entier (réglages, textes du site, prix, écrans à modifier, ajouter,
+ *  supprimer, renommer, réordonner). Le premier écran écrit est compris dans la modification ; chaque écran en plus est payé
+ *  par « payer » (modification du mois ou 1 crédit). S'il n'y a plus de quoi payer, Bingoo! s'arrête et le dit. */
+export async function saasModifierEcran(appId: string, ecranId: string, demande: string, suggestion: string | null = null, payer: (() => Promise<boolean>) | null = null) {
   // Une modification déjà en attente d'aperçu : la nouvelle s'ajoute par-dessus (on met en ligne le tout)
   const { data: app } = await admin.from("saas_apps").select("spec, brouillon, version").eq("id", appId).single();
   const enAttente = (app?.brouillon as any)?._modif ? (app!.brouillon as any) : null;
   const spec = structuredClone(enAttente ?? (app?.spec ?? {})) as any;
   const avant = enAttente?._modif?.liste ?? (enAttente?._modif ? [enAttente._modif] : []);
   delete spec._modif;
-  // Demande sur l'ensemble du SaaS (couleur, allure, nom, accroche…) : on change ces réglages, sans écrire d'écran.
-  // Avant, « mets mon SaaS en rose » créait un nouvel écran et la couleur ne changeait pas.
-  const g = await askJson<any>(`SaaS « ${spec.nom} ». Réglages actuels : couleur ${spec.couleur}, style ${spec.style ?? "moderne"}, fond ${spec.fond ?? "blanc"}, forme ${spec.forme ?? "arrondi"}, disposition ${spec.disposition ?? "barre"}, slogan « ${spec.slogan ?? ""} », accroche « ${spec.pitch ?? ""} », cible « ${spec.cible_courte ?? ""} ».
-Écrans : ${(spec.ecrans ?? []).map((x: any) => `${x.id} (${x.titre})`).join(", ")}.
-Demande de l'utilisateur : « ${demande} »
-Rends un objet JSON :
-- reglages : les réglages globaux que la demande change, sinon {} : couleur (hexadécimal #xxxxxx, assez foncé pour du texte blanc dessus ; « rose » = #BE185D, « rose clair » = #DB2777…), style (moderne|doux|sombre|editorial|vif|rond|tech|elegant|sport|geometrique), fond (blanc|creme|gris|sombre), forme (carre|arrondi|pilule), disposition (barre|haut|onglets), nom (40 caractères max), slogan (8 mots max), pitch (35 mots max), cible_courte (5 mots).
-- ecran : true si la demande demande AUSSI de changer ou d'ajouter le contenu d'un écran (fonction, bouton, champ, page), false si elle ne touche qu'aux réglages globaux.
-- ecran_vise : l'id de l'écran existant concerné si la demande en vise un, sinon null.`, { fast: true, maxTokens: 400 }).catch(() => ({ reglages: {}, ecran: true, ecran_vise: null }));
-  const R = (g?.reglages && typeof g.reglages === "object") ? g.reglages : {};
+  const ecrans0 = (spec.ecrans ?? []) as any[];
+  const plan = await askJson<any>(`Tu es l'atelier de Bingoo! : tu transformes la demande d'un utilisateur sur SON SaaS en actions précises.
+SaaS « ${spec.nom} » — ${spec.pitch ?? ""}
+Réglages actuels : couleur ${spec.couleur}, style ${spec.style ?? "moderne"}, fond ${spec.fond ?? "blanc"}, forme ${spec.forme ?? "arrondi"}, disposition ${spec.disposition ?? "barre"}, slogan « ${spec.slogan ?? ""} », cible « ${spec.cible_courte ?? ""} ».
+Site : problème « ${spec.probleme ?? ""} » ; atouts ${JSON.stringify((spec.atouts ?? []).slice(0, 6))} ; FAQ ${JSON.stringify((spec.faq ?? []).slice(0, 6))} ; formules ${JSON.stringify((spec.formules ?? []).slice(0, 3))}.
+Écrans (dans l'ordre) : ${ecrans0.map((x) => `${x.id} « ${x.titre} »${x.public ? " (page publique)" : ""}`).join(", ")}.
+${ecranId !== "nouveau" ? `L'utilisateur a désigné l'écran : ${ecranId}.\n` : ""}Demande : « ${demande} »
+Rends un objet JSON avec SEULEMENT ce que la demande change :
+- reglages : { couleur (#xxxxxx assez foncé pour du texte blanc ; rose = #BE185D), style (moderne|doux|sombre|editorial|vif|rond|tech|elegant|sport|geometrique), fond (blanc|creme|gris|sombre), forme (carre|arrondi|pilule), disposition (barre|haut|onglets), nom (40 car.), slogan (8 mots), pitch (35 mots), cible_courte (5 mots) }
+- site : { probleme (2 phrases), atouts (liste COMPLÈTE de 3 à 6 { titre, texte }), faq (liste COMPLÈTE de { q, r }), formules (liste COMPLÈTE de 1 à 3 { nom, prix (nombre, euros par mois), pour, inclus (3 à 5) }) }
+- supprimer : ids d'écrans à retirer
+- renommer : [{ id, titre (2 mots), icone (parmi ${ICONES.join(", ")}) }]
+- ordre : la liste complète des ids dans le nouvel ordre, ou null
+- ecrans : écrans à écrire, au plus 4 : [{ id (id existant à modifier, ou "nouveau"), consigne (ce qu'il faut faire sur cet écran, précis) }]
+Un changement de couleur, d'allure, de nom, de textes du site ou de prix ne demande AUCUN écran. Rends {} pour ce qui ne change pas.`, { fast: true, maxTokens: 2500 }).catch(() => ({ ecrans: [{ id: ecranId, consigne: demande }] }));
+  const faits: string[] = [], rates: string[] = [];
+  // 1. Réglages globaux
+  const R = plan?.reglages && typeof plan.reglages === "object" ? plan.reglages : {};
   const ENUM: Record<string, string[]> = { style: ["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique"], fond: ["blanc", "creme", "gris", "sombre"], forme: ["carre", "arrondi", "pilule"], disposition: ["barre", "haut", "onglets"] };
-  const changes: string[] = [];
-  if (/^#[0-9a-f]{6}$/i.test(String(R.couleur ?? ""))) { spec.couleur = R.couleur; changes.push("couleur"); }
-  for (const k of Object.keys(ENUM)) if (ENUM[k].includes(R[k])) { spec[k] = R[k]; changes.push(k); }
-  for (const [k, n] of [["nom", 40], ["slogan", 90], ["pitch", 300], ["cible_courte", 60]] as [string, number][]) if (typeof R[k] === "string" && R[k].trim()) { spec[k] = R[k].trim().slice(0, n); changes.push(k); }
-  if (changes.length && g?.ecran !== true) {
-    const m = { demande, ecran: null, titre: "Réglages : " + changes.join(", "), nouveau: false, suggestion, at: new Date().toISOString() };
-    spec._modif = { ...m, liste: [...avant.map(({ liste: _l, ...x }: any) => x), m] };
-    await admin.from("saas_apps").update({ brouillon: spec, statut: "pret", etape: null, erreur: null, maj: new Date().toISOString() }).eq("id", appId);
-    return;
+  if (/^#[0-9a-f]{6}$/i.test(String(R.couleur ?? ""))) { spec.couleur = R.couleur; faits.push("couleur"); }
+  for (const k of Object.keys(ENUM)) if (ENUM[k].includes(R[k])) { spec[k] = R[k]; faits.push(k === "style" ? "allure" : k); }
+  for (const [k, n, l] of [["nom", 40, "nom"], ["slogan", 90, "slogan"], ["pitch", 300, "accroche"], ["cible_courte", 60, "cible"]] as [string, number, string][]) if (typeof R[k] === "string" && R[k].trim()) { spec[k] = R[k].trim().slice(0, n); faits.push(l); }
+  // 2. Textes et prix du site
+  const S = plan?.site && typeof plan.site === "object" ? plan.site : {};
+  if (typeof S.probleme === "string" && S.probleme.trim()) { spec.probleme = S.probleme.trim().slice(0, 320); faits.push("texte du site"); }
+  if (Array.isArray(S.atouts) && S.atouts.length) { spec.atouts = S.atouts.filter((x: any) => x?.titre).slice(0, 6).map((x: any) => ({ titre: String(x.titre).slice(0, 60), texte: String(x.texte ?? "").slice(0, 200) })); faits.push("atouts"); }
+  if (Array.isArray(S.faq) && S.faq.length) { spec.faq = S.faq.filter((x: any) => x?.q && x?.r).slice(0, 8).map((x: any) => ({ q: String(x.q).slice(0, 140), r: String(x.r).slice(0, 400) })); faits.push("questions fréquentes"); }
+  if (Array.isArray(S.formules) && S.formules.length) { const f = S.formules.filter((x: any) => x?.nom && Number.isFinite(Number(x.prix))).slice(0, 3).map((x: any) => ({ nom: String(x.nom).slice(0, 40), prix: Math.max(0, Number(x.prix)), pour: String(x.pour ?? "").slice(0, 120), inclus: (Array.isArray(x.inclus) ? x.inclus : []).slice(0, 5).map((y: unknown) => String(y).slice(0, 90)) })); if (f.length) { spec.formules = f; faits.push("formules et prix"); } }
+  // 3. Structure : supprimer, renommer, réordonner (jamais le dernier écran privé)
+  for (const id of (Array.isArray(plan?.supprimer) ? plan.supprimer : []).map(String)) {
+    const e = spec.ecrans.find((x: any) => x.id === id);
+    if (!e || (!e.public && spec.ecrans.filter((x: any) => !x.public).length <= 1)) continue;
+    spec.ecrans = spec.ecrans.filter((x: any) => x.id !== id); faits.push(`« ${e.titre} » retiré`);
   }
-  // « Où : un nouvel écran » laissé par défaut alors que la demande vise un écran existant : on modifie cet écran
-  if (ecranId === "nouveau" && g?.ecran_vise && (spec.ecrans ?? []).some((x: any) => x.id === g.ecran_vise && !x.public)) ecranId = String(g.ecran_vise);
-  let e = (spec.ecrans ?? []).find((x: any) => x.id === ecranId);
-  if (ecranId === "nouveau") {
-    const n = await askJson<any>(`${contexteSpec(spec)}\nL'utilisateur veut un nouvel écran : ${demande}\nRends un objet JSON id (snake_case court, différent des écrans existants), titre (2 mots au plus), icone (parmi ${ICONES.join(", ")}), but, fonctions (3 à 6), collection (null, ou un nouvel objet nom + label + champs si l'écran a besoin de données qui n'existent pas encore).`, { fast: true });
-    e = { id: slugify(String(n.id ?? "ecran")).replace(/-/g, "_"), titre: String(n.titre ?? "Nouvel écran").slice(0, 24), icone: ICONES.includes(n.icone) ? n.icone : "liste", but: n.but, fonctions: n.fonctions };
-    if ((spec.ecrans ?? []).some((x: any) => x.id === e.id)) e.id += "_2";
-    if (n.collection?.nom && !(spec.collections ?? []).some((c: any) => c.nom === n.collection.nom)) spec.collections = [...(spec.collections ?? []), n.collection];
-    spec.ecrans = [...(spec.ecrans ?? []), e];
-    const r = await ecrire(spec, e);
-    Object.assign(e, r);
-  } else {
-    if (!e) throw new Error("Écran introuvable");
-    const r = await ecrire(spec, e, demande, e.code);
-    if (!r.ok) throw new Error("La modification n'a pas pu être écrite correctement, reformule ta demande");
-    // Écran personnalisé à la demande de l'utilisateur : les mises à jour du modèle ne l'écraseront plus
-    Object.assign(e, r, { modifie: true });
+  for (const r of Array.isArray(plan?.renommer) ? plan.renommer : []) {
+    const e = spec.ecrans.find((x: any) => x.id === String(r?.id ?? "")); if (!e) continue;
+    if (r.titre) { faits.push(`« ${e.titre} » renommé « ${String(r.titre).slice(0, 24)} »`); e.titre = String(r.titre).slice(0, 24); }
+    if (ICONES.includes(r.icone)) e.icone = r.icone;
   }
-  e.code = sansIdentite(e.code, await inspireDe(appId), spec.nom).valeur;
-  const m = { demande, ecran: e.id, titre: e.titre, nouveau: ecranId === "nouveau", suggestion, at: new Date().toISOString() };
+  if (Array.isArray(plan?.ordre) && plan.ordre.length) {
+    const rang = new Map(plan.ordre.map((id: unknown, i: number) => [String(id), i]));
+    const avantOrdre = spec.ecrans.map((x: any) => x.id).join();
+    spec.ecrans = [...spec.ecrans].sort((x: any, y: any) => (rang.get(x.id) ?? 99) - (rang.get(y.id) ?? 99));
+    if (spec.ecrans.map((x: any) => x.id).join() !== avantOrdre) faits.push("ordre des écrans");
+  }
+  // 4. Écrans à écrire : le premier est compris, chaque écran en plus est payé (modification du mois ou crédit)
+  let aEcrire = (Array.isArray(plan?.ecrans) ? plan.ecrans : []).filter((x: any) => x?.consigne).slice(0, 4).map((x: any) => ({ id: String(x.id ?? "nouveau"), consigne: String(x.consigne).slice(0, 1200) }));
+  if (!faits.length && !aEcrire.length) aEcrire = [{ id: ecranId, consigne: demande }];
+  let dernier: any = null;
+  for (const [i, t] of aEcrire.entries()) {
+    if (i > 0 && payer && !(await payer())) { rates.push(`${aEcrire.length - i} écran(s) non faits : plus de modifications ni de crédits`); break; }
+    let e = spec.ecrans.find((x: any) => x.id === t.id);
+    try {
+      if (!e) {
+        const n = await askJson<any>(`${contexteSpec(spec)}\nL'utilisateur veut un nouvel écran : ${t.consigne}\nRends un objet JSON id (snake_case court, différent des écrans existants), titre (2 mots au plus), icone (parmi ${ICONES.join(", ")}), but, fonctions (3 à 6), collection (null, ou un nouvel objet nom + label + champs [{ nom, type }] si l'écran a besoin de nouvelles données).`, { fast: true, maxTokens: 1200 });
+        e = { id: slugify(String(n.id ?? "ecran")).replace(/-/g, "_") || "ecran", titre: String(n.titre ?? "Nouvel écran").slice(0, 24), icone: ICONES.includes(n.icone) ? n.icone : "liste", but: n.but, fonctions: n.fonctions };
+        while (spec.ecrans.some((x: any) => x.id === e.id)) e.id += "_2";
+        if (n.collection?.nom && !(spec.collections ?? []).some((c: any) => c.nom === n.collection.nom)) spec.collections = [...(spec.collections ?? []), n.collection];
+        const r = await ecrire(spec, e);
+        if (!r.ok || !r.code) throw new Error("écrit incorrectement");
+        Object.assign(e, r); spec.ecrans = [...spec.ecrans, e]; faits.push(`écran « ${e.titre} » ajouté`);
+      } else {
+        const r = await ecrire(spec, e, t.consigne, e.code);
+        if (!r.ok) throw new Error("écrit incorrectement");
+        // Écran personnalisé à la demande de l'utilisateur : les mises à jour du modèle ne l'écraseront plus
+        Object.assign(e, r, { modifie: true }); faits.push(`écran « ${e.titre} » modifié`);
+      }
+      e.code = sansIdentite(e.code, await inspireDe(appId), spec.nom).valeur;
+      dernier = e;
+    } catch (_) { rates.push(`écran « ${e?.titre ?? t.consigne.slice(0, 30)} » : à reformuler`); }
+  }
+  if (!faits.length) throw new Error(rates[0] ? `Rien n'a pu être fait (${rates.join(" ; ")}). Reformule ta demande.` : "La modification n'a pas pu être écrite correctement, reformule ta demande");
+  const m = { demande, ecran: dernier?.id ?? null, titre: faits.join(", ").slice(0, 300), faits, rates, nouveau: false, suggestion, at: new Date().toISOString() };
   spec._modif = { ...m, liste: [...avant.map(({ liste: _l, ...x }: any) => x), m] };
   await admin.from("saas_apps").update({ brouillon: spec, statut: "pret", etape: null, erreur: null, maj: new Date().toISOString() }).eq("id", appId);
 }
