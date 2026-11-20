@@ -121,7 +121,7 @@ function useEffetsPage() {
 // Le nouveau point d'entrée : on écrit son idée, on choisit ce qu'on construit (une app, un site, un SaaS),
 // puis on continue dans le parcours habituel (les questions) avec cette idée en tête
 const TYPES_IDEE = [["saas", "Mon SaaS", "M4 6h16v12H4z M4 10h16"], ["site", "Mon site web", "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M3 12h18 M12 3c3 3.5 3 14.5 0 18 M12 3c-3 3.5-3 14.5 0 18"], ["app", "Mon app mobile", "M8 3h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M11 18h2"]];
-const EXEMPLES_IDEE = ["Une app de réservation pour les coiffeurs", "Un CRM simple pour les agents immobiliers", "Un site de commande pour une boulangerie"];
+const EXEMPLES_IDEE = { saas: ["Une app de réservation pour les coiffeurs", "Un CRM simple pour les agents immobiliers", "Un outil de devis pour les artisans"], site: ["Le site de mon salon de coiffure à Lyon", "Un site pour mon activité de plombier", "Le site de ma pizzeria avec les réservations"], app: ["Une app pour suivre mes séances de sport", "Une app de recettes de la semaine", "Une app pour gérer mon budget"] };
 function IdeeHero({ nav }) {
   const [texte, setTexte] = useState(""), [type, setType] = useState("saas"), [busy, setBusy] = useState(false);
   const zone = useRef(null);
@@ -140,13 +140,13 @@ function IdeeHero({ nav }) {
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {TYPES_IDEE.map(([k, l, d]) => (
           <button key={k} type="button" aria-pressed={type === k} onClick={() => setType(k)} className={cx("inline-flex items-center gap-1.5 rounded-full border px-3 sm:px-3.5 py-1.5 sm:py-2 text-[13px] sm:text-[14px] font-semibold transition", type === k ? "border-[#1E2030] bg-[#1E2030] text-white" : "border-black/[.1] bg-white text-[#3A3F55] hover:border-black/25")}>
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={d} /></svg>{l}{k !== "saas" && <span className={cx("rounded-full px-1.5 py-px text-[10px] font-bold uppercase tracking-wide", type === k ? "bg-white/20 text-white" : "bg-[#FDECD8] text-[#C2410C]")}>bientôt</span>}
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={d} /></svg>{l}{k === "app" && <span className={cx("rounded-full px-1.5 py-px text-[10px] font-bold uppercase tracking-wide", type === k ? "bg-white/20 text-white" : "bg-[#FDECD8] text-[#C2410C]")}>bientôt</span>}
           </button>
         ))}
         <button type="submit" disabled={busy} className="w-full sm:w-auto sm:ml-auto inline-flex items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 sm:py-2.5 text-[15px] font-bold text-white shadow-[0_10px_30px_-12px_rgba(226,85,35,.8)] transition hover:brightness-110 disabled:opacity-60">{busy ? "Un instant…" : <>Construire mon idée <Arrow /></>}</button>
       </div>
-      {type !== "saas" && <p className="mt-2 px-1 text-[12.5px] text-[#5B6075]">{type === "app" ? "L'app mobile native arrive bientôt. En attendant, Bingoo! construit ta version web, utilisable sur téléphone." : "Le site vitrine seul arrive bientôt. En attendant, Bingoo! construit ton logiciel avec son site de présentation."}</p>}
-      {!texte && <div className="mt-3 flex flex-wrap gap-1.5 border-t border-black/[.06] px-1 pt-3">{EXEMPLES_IDEE.map((x) => <button key={x} type="button" onClick={() => { setTexte(x); zone.current?.focus(); }} className="rounded-full bg-[#F4F4F1] px-3 py-1.5 text-[13px] text-[#5B6075] hover:bg-[#ECECE7]">{x}</button>)}</div>}
+      {type !== "saas" && <p className="mt-2 px-1 text-[12.5px] text-[#5B6075]">{type === "app" ? "L'app mobile native arrive bientôt. En attendant, Bingoo! construit ta version web, utilisable sur téléphone." : "Ton site en ligne en quelques minutes : tes services, tes prix, tes horaires et un formulaire de demande. 9,99 € par mois."}</p>}
+      {!texte && <div className="mt-3 flex flex-wrap gap-1.5 border-t border-black/[.06] px-1 pt-3">{EXEMPLES_IDEE[type].map((x) => <button key={x} type="button" onClick={() => { setTexte(x); zone.current?.focus(); }} className="rounded-full bg-[#F4F4F1] px-3 py-1.5 text-[13px] text-[#5B6075] hover:bg-[#ECECE7]">{x}</button>)}</div>}
     </form>
   );
 }

@@ -71,18 +71,21 @@ const photo = async (page, nom, chemin, attente = 5000) => {
   await page.screenshot({ path: `${DOSSIER}/accueil.png` }); console.log("✓ accueil"); await ctx.close();
 }
 // IDEE=1 : le parcours « Construire mon idée » (aperçu gratuit : 1 petit appel d'IA par idée), une idée claire, une floue, une refusée
-if (process.env.IDEE === "1") {
-  for (const [nom, texte] of [["idee-claire", "Une app de réservation pour les coiffeurs à domicile, avec rappel la veille"], ["idee-floue", "Une appli comme Uber"], ["idee-refusee", "Un faux site de connexion de ma banque pour récupérer les identifiants"]]) {
-    const { ctx, page } = await ouvrir(ws, { "bingoo-idee": { texte, type: "saas", at: Date.now() } });
+if (process.env.IDEE === "1" || process.env.IDEE === "site") {
+  const IDEES_SAAS = [["idee-claire", "Une app de réservation pour les coiffeurs à domicile, avec rappel la veille"], ["idee-floue", "Une appli comme Uber"], ["idee-refusee", "Un faux site de connexion de ma banque pour récupérer les identifiants"]].map(([n, t]) => [n, t, "saas"]);
+  // Sites web (étape 2) : une idée claire et une floue
+  const IDEES_SITE = [["site-claire", "Le site de mon salon de coiffure à domicile à Lyon"], ["site-floue", "Un beau site pour mon entreprise"]].map(([n, t]) => [n, t, "site"]);
+  for (const [nom, texte, type] of [...(process.env.IDEE === "site" ? [] : IDEES_SAAS), ...IDEES_SITE]) {
+    const { ctx, page } = await ouvrir(ws, { "bingoo-idee": { texte, type, at: Date.now() } });
     await page.goto(`${SITE}/?c=${Date.now()}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
-    const pret = () => page.waitForFunction(() => !/étudie ton idée|prépare l'aperçu/i.test(document.body.innerText) && /Construire \S+ \S|précisions|ne peut pas construire|réessaie|Réessayer/i.test(document.querySelector("main")?.innerText ?? document.body.innerText), null, { timeout: 120000 }).catch(() => null);
+    const pret = () => page.waitForFunction(() => !/étudie ton idée|prépare l'aperçu/i.test(document.body.innerText) && /Construire \S+ \S|Le nom affiché|précisions|ne peut pas construire|réessaie|Réessayer/i.test(document.querySelector("main")?.innerText ?? document.body.innerText), null, { timeout: 120000 }).catch(() => null);
     await pret(); await page.waitForTimeout(1500);
     await page.screenshot({ path: `${DOSSIER}/${nom}.png`, fullPage: true }); console.log("✓", nom);
     // Questions de clarification : le robot répond (premier choix) pour photographier aussi l'aperçu qui suit
     if (await page.getByText("Voir mon aperçu").count()) {
       for (const g of await page.locator("section, div").filter({ has: page.locator("input[placeholder='Ou écris ta réponse…']") }).locator("button[aria-pressed]").all()) { await g.click().catch(() => null); }
       await page.getByText("Voir mon aperçu").click().catch(() => null);
-      await page.waitForFunction(() => !/étudie ton idée|prépare l'aperçu/i.test(document.body.innerText) && /Son nom|réessaie/i.test(document.body.innerText), null, { timeout: 120000 }).catch(() => null); await page.waitForTimeout(1500);
+      await page.waitForFunction(() => !/étudie ton idée|prépare l'aperçu/i.test(document.body.innerText) && /Son nom|Le nom affiché|réessaie/i.test(document.body.innerText), null, { timeout: 120000 }).catch(() => null); await page.waitForTimeout(1500);
       await page.screenshot({ path: `${DOSSIER}/${nom}-apercu.png`, fullPage: true }); console.log("✓", nom, "aperçu");
     }
     await ctx.close();
@@ -97,11 +100,14 @@ if (!CONSTRUIRE) {
   await ctx.close();
 } else {
   // 4) Une vraie construction, dans un espace neuf (un SaaS par abonnement), photographiée jusqu'à la fin de la vérification
-  const cible = CONSTRUIRE === "ia"
+  // CONSTRUIRE=site : un site web né d'une idée (étape 2), formule Site
+  const SITE_IDEE = { texte: "Le site de mon activité de coiffeuse à domicile à Lyon", apercu: { type: "site", nom: "Coupe Chez Vous", pitch: "Coiffeuse à domicile à Lyon : coupes, couleurs et brushings chez vous, sur rendez-vous.", cible: "Familles et particuliers lyonnais", metier: "Coiffeuse à domicile", accroche: "Votre coiffeuse vient chez vous", cta: "Prendre rendez-vous", ecrans: [{ titre: "Accueil", role: "L'accroche et le bouton de rendez-vous" }, { titre: "Services et tarifs", role: "Les prestations et leurs prix" }, { titre: "Contact", role: "Le formulaire de demande" }, { titre: "Espace gérant", role: "Les demandes reçues" }], services: [], plus_tard: [], limites: [] } };
+  const cible = CONSTRUIRE === "site" ? { idee: true, domaine: "idee.bingoo.fr", nom: SITE_IDEE.apercu.nom, categorie: "", ideeTexte: SITE_IDEE.texte, type: "site", reponses: [], apercu: SITE_IDEE.apercu }
+    : CONSTRUIRE === "ia"
     ? { domaine: process.env.DOMAINE || "circle.so", nom: "Circle", categorie: "Communauté" }
     : { domaine: "planity.com", nom: "Planity", categorie: "Commerce et restauration", modele: "reservation", couleur: "#1F3D33", allure: "nature" };
   const ws2 = await creerEspace(`Robot construction ${new Date().toISOString().slice(0, 16)}`);
-  await q(`update workspaces set plan = 'lancer_pro', plan_status = 'active', onboarded = true where id = ${lit(ws2)}`);
+  await q(`update workspaces set plan = ${lit(CONSTRUIRE === "site" ? "site" : "lancer_pro")}, plan_status = 'active', onboarded = true where id = ${lit(ws2)}`);
   const nomVoulu = CONSTRUIRE === "ia" ? "Cerclo" : "Sublima";
   const { ctx, page } = await ouvrir(ws2, {
     [`bingoo-reponses-${cible.domaine}`]: { nom: nomVoulu, clients: CONSTRUIRE === "ia" ? "Créateurs de communautés" : "Instituts de beauté", mieux: "", angle: `Nom souhaité, à utiliser tel quel : ${nomVoulu}` },
@@ -120,6 +126,18 @@ if (!CONSTRUIRE) {
   const [a] = await q(`select slug, statut, version, verif from saas_apps where workspace_id = ${lit(ws2)}`);
   fs.writeFileSync(`${DOSSIER}/resultat.json`, JSON.stringify({ duree_s: Math.round((Date.now() - t0) / 1000), app: a ?? null }, null, 2));
   console.log(JSON.stringify(a?.verif?.mesure ?? null), (a?.verif?.journal ?? []).map((j) => j.t).join("\n"));
+  // Le site en ligne tel que le voit un visiteur, puis le plan « premiers clients » du commerce
+  if (CONSTRUIRE === "site" && a?.slug) {
+    for (const [nom, vp] of [["site-en-ligne", { width: 1440, height: 900 }], ["site-en-ligne-mobile", { width: 390, height: 844 }]]) {
+      const c2 = await browser.newContext({ viewport: vp, locale: "fr-FR" }); const p2 = await c2.newPage();
+      await p2.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p2.waitForTimeout(8000);
+      const f = p2.frames().find((x) => x !== p2.mainFrame());
+      if (f) { const h = await f.evaluate(() => document.body.scrollHeight).catch(() => 0); if (h > vp.height) await p2.setViewportSize({ width: vp.width, height: Math.min(h + 80, 9000) }); await p2.waitForTimeout(1500); }
+      await p2.screenshot({ path: `${DOSSIER}/${nom}.png`, fullPage: true }); console.log("✓", nom); await c2.close();
+    }
+    await photo(page, "site-premiers-clients", "#/explorer/clients");
+    await photo(page, "site-mon-saas", "#/explorer/mon-saas");
+  }
   await ctx.close();
 }
 await browser.close();

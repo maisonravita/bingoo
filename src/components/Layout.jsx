@@ -65,7 +65,7 @@ function WsSwitch({ ws, list, select, className }) {
 }
 
 // ---------------------------------------------------------------- Bingoo! : barre latérale fixe + barre du haut (recherche, compte et crédits)
-const FORMULE = { explorer_pro: "Lancer", lancer_pro: "Lancer Pro", business: "Business", fondateur: "Fondateur", explorer: "Trouver", essai: "Sans formule" };
+const FORMULE = { site: "Site", explorer_pro: "Lancer", lancer_pro: "Lancer Pro", business: "Business", fondateur: "Fondateur", explorer: "Trouver", essai: "Sans formule" };
 const DUREE_F = { mois: "1 mois", trimestre: "3 mois", an: "12 mois" };
 function useCredits(ws, invite) {
   const loc = useLocation();
@@ -359,7 +359,7 @@ export default function Layout({ children }) {
   );
   // Avant le paiement : le parcours seul (questions, SaaS floutés, paiement), sans le menu de l'application.
   // Après le paiement : la révélation et l'atelier en plein écran, sinon l'interface complète.
-  const paye = ws.plan === "fondateur" || (["explorer", "explorer_pro", "lancer_pro", "business", "solo", "pro"].includes(ws.plan) && ["active", "trialing", "past_due"].includes(ws.plan_status));
+  const paye = ws.plan === "fondateur" || (["explorer", "explorer_pro", "lancer_pro", "business", "solo", "pro", "site"].includes(ws.plan) && ["active", "trialing", "past_due"].includes(ws.plan_status));
   if (bloque && !["/abonnement", "/aide", "/reglages"].includes(loc.pathname)) return (
     <div className="min-h-screen grid place-items-center bg-[#F1F1F1] p-6">
       {extra}

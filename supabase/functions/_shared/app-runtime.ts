@@ -9,7 +9,7 @@ import type { SupabaseClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const LIM = { inscriptionsParHeure: 15, rows: 20000, taille: 20000, mailsJourEspace: 100, mailsJourApp: 1000, fichiersEspace: 500, octetsFichier: 4_500_000 };
 // Appels à l'IA intégrée inclus chaque mois par application, selon la formule du créateur (au-delà : sa propre clé)
-const IA_INCLUSE: Record<string, number> = { explorer_pro: 300, lancer_pro: 1000, business: 3000, fondateur: 3000 };
+const IA_INCLUSE: Record<string, number> = { explorer_pro: 300, lancer_pro: 1000, business: 3000, fondateur: 3000, site: 100 };
 const emailOk = (e: unknown) => /^[^@\s<>"]+@[^@\s<>"]+\.[a-z]{2,}$/i.test(String(e ?? "").trim());
 const hex32 = () => hex(crypto.getRandomValues(new Uint8Array(16)));
 
@@ -167,7 +167,9 @@ export function recalerDemo(demo: Record<string, unknown[]>, ancre?: string | nu
 async function semer(admin: SupabaseClient, app: any, userId: string) {
   // Collections « communauté » : jamais d'exemples (ils apparaîtraient chez tous les membres comme de faux membres)
   const partage = new Set(((app.spec?.collections ?? []) as any[]).filter((c) => c?.partage === true).map((c) => c.nom));
-  const demo = Object.fromEntries(Object.entries(recalerDemo((app.spec?.demo ?? {}) as Record<string, unknown[]>, app.spec?.demo_ancre)).filter(([k]) => !partage.has(k)));
+  // Site : seulement son vrai contenu de départ (services, horaires, coordonnées), jamais de fausses demandes de clients
+  const semees = Array.isArray(app.spec?.semer) ? new Set(app.spec.semer as string[]) : null;
+  const demo = Object.fromEntries(Object.entries(recalerDemo((app.spec?.demo ?? {}) as Record<string, unknown[]>, app.spec?.demo_ancre)).filter(([k]) => !partage.has(k) && (!semees || semees.has(k))));
   // Les liens entre exemples (client_id: "c1") pointent vers le champ ref : on les remplace par les vrais identifiants
   const refs = new Map<string, string>();
   const items = Object.entries(demo).flatMap(([col, xs]) => /^[a-z][a-z0-9_]{0,39}$/.test(col) && Array.isArray(xs)
@@ -180,6 +182,12 @@ async function semer(admin: SupabaseClient, app: any, userId: string) {
     return { id, app_id: app.id, user_id: userId, espace_id: userId, col, data, at: cree ?? new Date(Date.now() - i * 3600e3 * 7).toISOString() };
   });
   if (rows.length) await admin.from("saas_app_rows").insert(rows);
+}
+
+/** Gérant d'un site : le premier compte titulaire (hors comptes de démonstration). */
+async function proprioSite(admin: SupabaseClient, appId: string) {
+  const { data } = await admin.from("saas_app_users").select("id, email, nom, espace_id").eq("app_id", appId).eq("role", "admin").not("email", "like", "%@demo.local").order("at").limit(5);
+  return ((data ?? []) as any[]).find((u) => !u.espace_id || u.espace_id === u.id) ?? null;
 }
 
 // ---------------------------------------------------------------- Équipes : places selon la formule
@@ -371,6 +379,55 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       return { status: 200, body: ligne(r) };
     }
 
+    // ---- Site web (spec.type « site ») : son contenu vivant (services, horaires, coordonnées) et son formulaire de demande
+    if (action === "site-info" || action === "site-contact") {
+      const sp = (app.spec ?? {}) as any;
+      if (sp.type !== "site") throw new Err(404, "Page introuvable");
+      const proprio = await proprioSite(admin, app.id);
+      if (action === "site-info") {
+        const COLS_SITE = ["services", "horaires", "infos"];
+        let par: Record<string, any[]> = {};
+        if (proprio) {
+          const { data } = await admin.from("saas_app_rows").select("id, col, data, at").eq("app_id", app.id).eq("espace_id", proprio.id).in("col", COLS_SITE).limit(200);
+          for (const r of (data ?? []) as any[]) (par[r.col] ??= []).push({ ...(r.data ?? {}), id: r.id });
+        } else par = Object.fromEntries(COLS_SITE.map((c) => [c, ((sp.demo ?? {})[c] ?? []).map((x: any, i: number) => ({ ...x, id: `d${i}` }))]));
+        const nettoie = (x: any) => Object.fromEntries(Object.entries(x).filter(([k]) => !/^_|^ref$|^cree_le$/.test(k)));
+        return { status: 200, body: {
+          services: (par.services ?? []).filter((x) => x.visible !== false).sort((a, b) => (Number(a.ordre) || 0) - (Number(b.ordre) || 0)).slice(0, 30).map(nettoie),
+          horaires: (par.horaires ?? []).sort((a, b) => (Number(a.jour) || 0) - (Number(b.jour) || 0)).slice(0, 7).map(nettoie),
+          infos: nettoie((par.infos ?? [])[0] ?? {}),
+        } };
+      }
+      // Demande envoyée depuis le site : rangée chez le gérant (ou mise de côté jusqu'à ce qu'il crée son accès), e-mail au gérant
+      const d = (b.data && typeof b.data === "object" ? b.data : {}) as any;
+      if (String(d.site_web ?? "").trim()) return { status: 200, body: { ok: true } }; // piège à robots
+      const t = (x: unknown, n: number) => String(x ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+      const demande = { nom: t(d.nom, 80), email: t(d.email, 160).toLowerCase(), telephone: t(d.telephone, 30), service: t(d.service, 80), date_souhaitee: /^\d{4}-\d{2}-\d{2}$/.test(String(d.date_souhaitee ?? "")) ? String(d.date_souhaitee) : "", message: String(d.message ?? "").trim().slice(0, 2000), statut: "nouvelle" };
+      if (!demande.nom) throw new Err(400, "Indiquez votre nom");
+      if (!emailOk(demande.email) && demande.telephone.replace(/\D/g, "").length < 9) throw new Err(400, "Indiquez votre e-mail ou votre téléphone pour qu'on puisse vous répondre");
+      if (demande.email && !emailOk(demande.email)) throw new Err(400, "Adresse e-mail invalide");
+      const depuis = new Date(Date.now() - 3600e3).toISOString();
+      const ip = await sha(`${app.id}:site:${(req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim()}`);
+      const { count: parIp } = await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("col", "demandes").eq("data->>_ip", ip).gte("at", depuis);
+      if ((parIp ?? 0) >= 5) throw new Err(429, "Trop d'envois depuis cette connexion, réessayez dans une heure");
+      const { count: total } = await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("col", "demandes").gte("at", depuis);
+      if ((total ?? 0) >= 60) throw new Err(429, "Trop d'envois en ce moment, réessayez dans une heure");
+      // Pas encore de gérant : la demande attend sous l'identifiant de l'app, elle sera rattachée à la création de son accès
+      const espace = proprio?.id ?? app.id;
+      const { data: r } = await admin.from("saas_app_rows").insert({ app_id: app.id, user_id: espace, espace_id: espace, col: "demandes", data: { ...Object.fromEntries(Object.entries(demande).filter(([, v]) => v !== "")), statut: "nouvelle", _public: true, _ip: ip } }).select("id, data").single();
+      const lignes = [`De : ${demande.nom}`, demande.email && `E-mail : ${demande.email}`, demande.telephone && `Téléphone : ${demande.telephone}`, demande.service && `Pour : ${demande.service}`, demande.date_souhaitee && `Date souhaitée : ${demande.date_souhaitee.split("-").reverse().join("/")}`, demande.message && `\n${demande.message}`].filter(Boolean).join("\n");
+      try {
+        if (proprio) { const { mailDemandeSite } = await import("./app-mails.ts"); await mailDemandeSite(app, slug, proprio, r!.id, lignes, demande.nom); }
+        else {
+          const { sendSystem, teamAddress } = await import("./mail.ts");
+          const { data: w } = await admin.from("workspaces").select("*").eq("id", app.workspace_id).single();
+          const to = w ? await teamAddress(w as any) : "";
+          if (to) await sendSystem({ to, subject: `Nouvelle demande sur ${sp.nom ?? "ton site"} : ${demande.nom}`, text: `Ton site vient de recevoir une demande.\n\n${lignes}\n\n${demande.email ? "Réponds directement à cette personne par e-mail. " : ""}Pour retrouver toutes tes demandes au même endroit, crée ton accès gérant : bouton « Espace gérant » en bas de ton site, avec cette adresse e-mail.\n\nBingoo!`, replyTo: emailOk(demande.email) ? demande.email : undefined, key: `site-${r!.id}` });
+        }
+      } catch (e) { console.error("site demande mail", e); }
+      return { status: 200, body: { ok: true } };
+    }
+
     // ---- Validation avant construction : liste d'attente et précommandes (sans compte)
     if (action === "liste" || action === "precommande") {
       if (!(app as any).validation?.actif) throw new Err(400, "Les inscriptions sont fermées");
@@ -432,6 +489,16 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
         if (!u || !egal(await pbkdf2(pass, salt), h)) throw new Err(401, "E-mail ou mot de passe incorrect");
         return { status: 200, body: await session(admin, u) };
       }
+      // Site web : un seul espace, celui du gérant (le membre Bingoo!, avec l'une des adresses de son compte) ; ensuite seulement sur invitation
+      const estSite = (app.spec as any)?.type === "site";
+      if (estSite && action === "signup" && !b.invite) {
+        if (await proprioSite(admin, app.id)) throw new Err(403, "L'espace gérant de ce site existe déjà : connectez-vous, ou demandez une invitation au gérant.");
+        const { data: ms } = await admin.from("members").select("email").eq("workspace_id", app.workspace_id);
+        const { data: w } = await admin.from("workspaces").select("*").eq("id", app.workspace_id).single();
+        const { teamAddress } = await import("./mail.ts");
+        const permis = new Set([...(ms ?? []).map((m: any) => String(m.email ?? "").toLowerCase()), String(w ? await teamAddress(w as any) : "").toLowerCase()].filter(Boolean));
+        if (!permis.has(email)) throw new Err(403, "L'espace gérant se crée avec l'adresse e-mail de ton compte Bingoo!.");
+      }
       // Anti-abus : nombre d'inscriptions par adresse IP et par heure (l'adresse est gardée hachée)
       const ip = await sha(`${app.id}:${(req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim()}`);
       const { count } = await admin.from("saas_app_users").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("ip", ip).gte("at", new Date(Date.now() - 3600e3).toISOString());
@@ -455,7 +522,11 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       }).select("id, email, nom").single();
       if (error) throw new Err(409, "Un compte existe déjà avec cette adresse");
       if (invite) await admin.from("saas_app_invites").update({ utilise_at: new Date().toISOString() }).eq("code", invite.code);
-      else await semer(admin, app, u.id);
+      else {
+        await semer(admin, app, u.id);
+        // Site : les demandes reçues avant la création de l'accès gérant lui reviennent
+        if ((app.spec as any)?.type === "site") await admin.from("saas_app_rows").update({ user_id: u.id, espace_id: u.id }).eq("app_id", app.id).eq("espace_id", app.id);
+      }
       // Précommande payée avant l'ouverture : l'accès est activé (un mois, ou à vie en paiement unique)
       if (action === "signup") {
         const { data: pc } = await admin.from("saas_app_liste").select("formule, montant, paye_at").eq("app_id", app.id).eq("email", email).eq("precommande", true).maybeSingle();

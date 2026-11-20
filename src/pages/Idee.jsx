@@ -15,9 +15,30 @@ const CLE_CHANTIER = "bingoo-chantier";
 const DOMAINE_IDEE = "idee.bingoo.fr";
 const lire = (k) => { try { return JSON.parse(localStorage.getItem(k) ?? "null"); } catch { return null; } };
 const ecrire = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch { /* stockage indisponible */ } };
-const paye = (ws) => ws?.plan === "fondateur" || (["explorer", "explorer_pro", "lancer_pro", "business", "solo", "pro"].includes(ws?.plan) && ["active", "trialing", "past_due"].includes(ws?.plan_status));
+const actif = (ws) => ["active", "trialing", "past_due"].includes(ws?.plan_status);
+// Un SaaS demande Lancer (ou plus) ; un site, la formule Site ou n'importe quelle formule qui construit
+const paye = (ws, type) => ws?.plan === "fondateur" || (actif(ws) && (["explorer_pro", "lancer_pro", "business", "solo", "pro"].includes(ws?.plan) || (type === "site" && ws?.plan === "site")));
 const COULEUR = "#E8571C";
 const dollars = (n) => Number(n).toLocaleString("fr-FR", { maximumFractionDigits: 0 }) + " $";
+
+// Maquette de la page d'accueil d'un site : en-tête, accroche, bouton, services et prix (tirés de l'aperçu)
+function MaquetteSite({ nom, ap }) {
+  const sv = ap.services?.length ? ap.services : [{ titre: "…", prix: "" }, { titre: "…", prix: "" }, { titre: "…", prix: "" }];
+  return (
+    <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-[0_20px_50px_-30px_rgba(20,20,40,.4)]">
+      <div className="flex items-center gap-1.5 border-b border-line bg-[#FAFAF8] px-3 py-2"><span className="h-2 w-2 rounded-full bg-[#FF5F57]" /><span className="h-2 w-2 rounded-full bg-[#FEBC2E]" /><span className="h-2 w-2 rounded-full bg-[#28C840]" /><span className="ml-2 flex-1 truncate rounded-md bg-white px-2 py-0.5 text-[10.5px] text-ink-faint">{(nom || "mon-site").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "")}.fr</span></div>
+      <div className="flex items-center justify-between px-4 py-2.5"><p className="flex items-center gap-1.5 text-[12px] font-bold"><span className="grid h-5 w-5 place-items-center rounded-md text-[10px] text-white" style={{ background: COULEUR }}>{nom.charAt(0)}</span>{nom}</p><div className="hidden gap-3 text-[10px] text-ink-faint sm:flex"><span>Services</span><span>À propos</span><span>Contact</span></div><span className="rounded-full px-2.5 py-1 text-[10px] font-bold text-white" style={{ background: COULEUR }}>{ap.cta}</span></div>
+      <div className="px-5 pb-6 pt-4 text-center" style={{ background: "linear-gradient(180deg,#FFF4EC,#fff)" }}>
+        <p className="mx-auto inline-block rounded-full bg-white px-2.5 py-0.5 text-[10px] font-semibold" style={{ color: COULEUR }}>{ap.metier}</p>
+        <p className="mx-auto mt-2 max-w-sm text-[19px] font-black leading-tight" style={HF}>{ap.accroche || ap.pitch}</p>
+        <p className="mx-auto mt-1.5 max-w-sm text-[11px] text-ink-soft line-clamp-2">{ap.pitch}</p>
+        <span className="mt-3 inline-block rounded-full px-4 py-1.5 text-[11px] font-bold text-white" style={{ background: COULEUR }}>{ap.cta}</span>
+      </div>
+      <div className="grid grid-cols-3 gap-2 px-4 pb-3">{sv.slice(0, 3).map((x, i) => <div key={i} className="rounded-xl border border-line p-2"><p className="truncate text-[10.5px] font-bold">{x.titre}</p><p className="mt-0.5 text-[10px]" style={{ color: COULEUR }}>{x.prix}</p></div>)}</div>
+      <div className="mx-4 mb-4 rounded-xl bg-[#FAFAF8] p-2.5"><p className="text-[10.5px] font-bold">{ap.cta}</p><div className="mt-1.5 grid grid-cols-2 gap-1.5"><div className="h-5 rounded-md border border-line bg-white" /><div className="h-5 rounded-md border border-line bg-white" /><div className="col-span-2 h-8 rounded-md border border-line bg-white" /></div></div>
+    </div>
+  );
+}
 
 // Maquette fil de fer de l'écran principal, dessinée à partir des blocs de l'aperçu (aucun appel d'IA en plus)
 function Maquette({ nom, principal, ecrans }) {
@@ -72,10 +93,13 @@ export default function Idee() {
       ecrire(`bingoo-reponses-${proche.domaine}`, { nom: "", clients: ap?.cible ?? "", mieux: idee.texte, angle: `Ce que je veux faire mieux : ${idee.texte}` });
       ecrire(CLE_CHANTIER, { domaine: proche.domaine, nom: proche.nom, categorie: "", ws: ws.id });
     }
-    if (paye(ws)) { nav("/explorer/revelation"); return; }
+    const site = quoi === "idee" && idee.type === "site";
+    if (paye(ws, site ? "site" : "saas")) { nav("/explorer/revelation"); return; }
+    // Site : sa propre formule, moins chère (9,99 € par mois) ; SaaS : Lancer
+    const plan = site ? "site" : "explorer_pro";
     setBusy(true);
-    try { const { url } = await fn("billing-checkout", { workspace_id: ws.id, plan: "explorer_pro", periode: "mois", retour: "revelation" }); if (url) { window.location.href = url; return; } nav("/explorer/revelation"); }
-    catch { nav("/abonnement?formule=explorer_pro&periode=mois"); }
+    try { const { url } = await fn("billing-checkout", { workspace_id: ws.id, plan, periode: "mois", retour: "revelation" }); if (url) { window.location.href = url; return; } nav("/explorer/revelation"); }
+    catch { nav(`/abonnement?formule=${plan}&periode=mois`); }
     finally { setBusy(false); }
   };
 
@@ -85,7 +109,7 @@ export default function Idee() {
       <h1 className="mt-2 text-[28px] sm:text-[38px] font-black leading-[1.08] tracking-tight" style={HF}>« {idee.texte} »</h1>
       <button onClick={() => { ecrire("bingoo-idee", null); nav("/accueil"); }} className="mt-2 text-[13.5px] font-semibold text-ink-soft underline-offset-4 hover:underline">Changer d'idée</button>
 
-      {etat === "charge" && <div className="mt-10 flex items-center gap-3 rounded-2xl border border-line bg-white p-6"><span className="h-5 w-5 animate-spin rounded-full border-2 border-line border-t-accent" /><span className="text-[15px] text-ink-soft">Bingoo! étudie ton idée et cherche ce qui marche déjà sur ce créneau…</span></div>}
+      {etat === "charge" && <div className="mt-10 flex items-center gap-3 rounded-2xl border border-line bg-white p-6"><span className="h-5 w-5 animate-spin rounded-full border-2 border-line border-t-accent" /><span className="text-[15px] text-ink-soft">{idee.type === "site" ? "Bingoo! étudie ton idée et prépare l'aperçu de ton site…" : "Bingoo! étudie ton idée et cherche ce qui marche déjà sur ce créneau…"}</span></div>}
       {etat === "erreur" && <div className="mt-10 rounded-2xl border border-bad/30 bg-bad/5 p-6"><p className="font-semibold">{err}</p><button onClick={() => charger(reponses)} className="mt-3 rounded-xl bg-ink px-4 py-2 font-bold text-white">Réessayer</button></div>}
       {etat === "refus" && <div className="mt-10 rounded-2xl border border-bad/30 bg-bad/5 p-6"><p className="text-[17px] font-bold">Bingoo! ne peut pas construire cette idée.</p><p className="mt-1 text-ink-soft">{r.refus}</p><button onClick={() => { ecrire("bingoo-idee", null); nav("/accueil"); }} className="mt-4 rounded-xl bg-ink px-4 py-2 font-bold text-white">Écrire une autre idée</button></div>}
 
@@ -103,7 +127,7 @@ export default function Idee() {
         </div>
       )}
 
-      {etat === "apercu" && r?.apercu && (() => { const ap = r.apercu; return (
+      {etat === "apercu" && r?.apercu && (() => { const ap = r.apercu, site = idee.type === "site"; return (
         <>
           {r.proches?.length > 0 && (
             <section className="mt-8">
@@ -123,20 +147,20 @@ export default function Idee() {
             <p className="text-[12px] font-bold uppercase tracking-[.14em] text-ink-faint">{r.proches?.length ? "Ou ton idée telle quelle : l'aperçu de ta première version" : "L'aperçu de ta première version"}</p>
             <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_1.1fr]">
               <div>
-                <label className="text-[12.5px] font-semibold text-ink-soft" htmlFor="nom-idee">Son nom</label>
+                <label className="text-[12.5px] font-semibold text-ink-soft" htmlFor="nom-idee">{site ? "Le nom affiché sur ton site" : "Son nom"}</label>
                 <input id="nom-idee" value={nom} onChange={(e) => setNom(e.target.value.slice(0, 40))} className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-[22px] font-black outline-none focus:border-ink" style={HF} />
                 <p className="mt-3 text-[15px]">{ap.pitch}</p>
                 <p className="mt-1 text-[13.5px] text-ink-soft">Pour : {ap.cible}</p>
-                <p className="mt-5 text-[13px] font-bold">Ce que Bingoo! construit maintenant ({ap.ecrans.length} écrans)</p>
+                <p className="mt-5 text-[13px] font-bold">{site ? `Ce que Bingoo! construit maintenant (${ap.ecrans.length} parties)` : `Ce que Bingoo! construit maintenant (${ap.ecrans.length} écrans)`}</p>
                 <ol className="mt-2 space-y-1.5">{ap.ecrans.map((e, i) => <li key={e.titre} className="flex gap-2.5 text-[14px]"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-paper text-[11px] font-bold">{i + 1}</span><span><b>{e.titre}</b> <span className="text-ink-soft">— {e.role}</span></span></li>)}</ol>
                 {ap.plus_tard?.length > 0 && <><p className="mt-5 text-[13px] font-bold">Ensuite, dans l'atelier</p><p className="mt-1 text-[13.5px] text-ink-soft">{ap.plus_tard.join(" · ")}</p></>}
                 {ap.limites?.length > 0 && <div className="mt-5 rounded-xl bg-[#FFF7F0] p-3"><p className="text-[13px] font-bold text-[#C2410C]">Fait autrement</p><ul className="mt-1 space-y-1">{ap.limites.map((l) => <li key={l.demande} className="text-[13.5px]"><span className="line-through decoration-[#C2410C]/50">{l.demande}</span> → {l.alternative}</li>)}</ul></div>}
               </div>
-              <div><Maquette nom={nom || ap.nom} principal={ap.principal} ecrans={ap.ecrans} /><p className="mt-2 text-center text-[12px] text-ink-faint">Maquette de l'écran principal : le vrai design est fait à la construction.</p></div>
+              <div>{site ? <MaquetteSite nom={nom || ap.nom} ap={ap} /> : <Maquette nom={nom || ap.nom} principal={ap.principal} ecrans={ap.ecrans} />}<p className="mt-2 text-center text-[12px] text-ink-faint">{site ? "Maquette de ta page d'accueil : le vrai design, tes couleurs et tes textes sont faits à la construction." : "Maquette de l'écran principal : le vrai design est fait à la construction."}</p></div>
             </div>
             <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-line pt-5">
               <button disabled={busy || nom.trim().length < 2} onClick={() => lancer("idee")} className="rounded-full bg-accent px-7 py-3.5 text-[16px] font-bold text-white shadow-[0_12px_30px_-14px_rgba(226,85,35,.9)] disabled:opacity-50">{busy ? "Un instant…" : `Construire ${nom.trim() || ap.nom}`}</button>
-              <p className="text-[13px] text-ink-soft">Bingoo! le construit, teste chaque écran comme un vrai utilisateur, corrige, puis le met en ligne.{idee.type === "app" ? " L'app mobile native arrive bientôt : en attendant, tu as ta version web, utilisable sur téléphone." : idee.type === "site" ? " Le site vitrine seul arrive bientôt : en attendant, ton logiciel a déjà son site de présentation." : ""}</p>
+              <p className="text-[13px] text-ink-soft">{site ? <>Bingoo! écrit tes textes, met ton site en ligne et teste ton espace gérant. <b className="text-ink">9,99 € par mois</b>, sans engagement, ton nom de domaine compris. Tu vérifies ensuite tes prix et tes horaires.</> : <>Bingoo! le construit, teste chaque écran comme un vrai utilisateur, corrige, puis le met en ligne.{idee.type === "app" ? " L'app mobile native arrive bientôt : en attendant, tu as ta version web, utilisable sur téléphone." : ""}</>}</p>
             </div>
           </section>
         </>

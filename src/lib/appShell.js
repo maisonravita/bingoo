@@ -589,7 +589,8 @@ function Apercu() {
 const LG = S.legal ?? {};
 const EDITEUR = LG.editeur || S.nom;
 const MANQUE = (v, t) => v ? v : html\`<span class="rounded bg-amber-100 px-1 text-amber-800">\${t} à compléter</span>\`;
-const DOCS = { mentions: "Mentions légales", cgv: "Conditions générales de vente", confidentialite: "Politique de confidentialité" };
+// Site web : pas de vente en ligne, donc pas de conditions générales de vente
+const DOCS = S.type === "site" ? { mentions: "Mentions légales", confidentialite: "Politique de confidentialité" } : { mentions: "Mentions légales", cgv: "Conditions générales de vente", confidentialite: "Politique de confidentialité" };
 function DocLegal({ k }) {
   const P = ({ children }) => html\`<p class="mt-2 text-[14.5px] leading-relaxed text-slate-600">\${children}</p>\`;
   const T = ({ children }) => html\`<h3 class="mt-6 text-[15px] font-semibold text-slate-900">\${children}</h3>\`;
@@ -609,6 +610,13 @@ function DocLegal({ k }) {
     <\${T}>7. Droit de rétractation<//><\${P}>Le client consommateur dispose de 14 jours pour se rétracter à compter de la souscription. En demandant l'accès immédiat au service, il accepte qu'il commence avant la fin de ce délai ; s'il se rétracte, il paie la part du service déjà fournie.<//>
     <\${T}>8. Données et responsabilité<//><\${P}>Le client reste propriétaire des données qu'il saisit et peut les exporter à tout moment. \${EDITEUR} met tout en œuvre pour assurer la disponibilité du service, sans pouvoir garantir une disponibilité totale ; sa responsabilité est limitée au montant payé sur les 12 derniers mois.<//>
     <\${T}>9. Litiges<//><\${P}>En cas de difficulté, contacte d'abord \${MANQUE(LG.email, "E-mail")}. Le client consommateur peut recourir gratuitement au médiateur de la consommation : \${MANQUE(LG.mediateur, "Médiateur")}. Ces conditions sont soumises au droit français.<//></div>\`;
+  if (S.type === "site") return html\`<div>
+    <\${T}>Responsable du traitement<//><\${P}>\${MANQUE(LG.editeur, "Nom ou raison sociale")}, \${MANQUE(LG.adresse, "Adresse")}, joignable à \${MANQUE(LG.email, "E-mail")}.<//>
+    <\${T}>Données collectées<//><\${P}>Seulement ce que vous écrivez dans le formulaire de demande : votre nom, votre e-mail ou votre téléphone, le service qui vous intéresse, la date souhaitée et votre message. Les visites du site sont comptées sans cookie publicitaire.<//>
+    <\${T}>Pourquoi<//><\${P}>Pour répondre à votre demande et, si vous devenez client, pour assurer le service demandé. Vos coordonnées ne servent à rien d'autre : pas de prospection, pas de revente.<//>
+    <\${T}>Combien de temps<//><\${P}>3 ans après notre dernier échange, puis elles sont supprimées.<//>
+    <\${T}>Qui y a accès<//><\${P}>\${EDITEUR} et ses prestataires techniques, qui agissent sur ses instructions : Bingoo! (fonctionnement du site), Supabase (hébergement des données, à Paris), Vercel (hébergement du site, États-Unis, encadré par les clauses contractuelles types de la Commission européenne), Resend (envoi des e-mails).<//>
+    <\${T}>Vos droits<//><\${P}>Vous pouvez accéder à vos données, les corriger ou les faire supprimer, et vous opposer à leur traitement, en écrivant à \${MANQUE(LG.email, "E-mail")}. Vous pouvez aussi saisir la CNIL (cnil.fr).<//></div>\`;
   return html\`<div>
     <\${T}>Responsable du traitement<//><\${P}>\${MANQUE(LG.editeur, "Nom ou raison sociale")}, \${MANQUE(LG.adresse, "Adresse")}, joignable à \${MANQUE(LG.email, "E-mail")}.<//>
     <\${T}>Données collectées<//><\${P}>Votre nom et votre e-mail (compte), les données que vous saisissez dans le service, votre historique d'utilisation et, si vous vous abonnez, les informations de facturation. Le paiement par carte est traité par Stripe : \${S.nom} ne voit ni ne conserve votre numéro de carte. Les visites du site sont comptées sans cookie publicitaire.<//>
@@ -735,6 +743,90 @@ function Site({ onAuth }) {
   <footer class="border-t border-slate-100"><div class="max-w-6xl mx-auto px-5 py-8 text-sm text-slate-400 flex flex-wrap items-center justify-between gap-3"><span class="flex items-center gap-2 font-semibold text-slate-600"><\${Logo} taille="w-6 h-6"/>\${S.nom}</span><\${LiensLegaux}/><span>© \${new Date().getFullYear()} \${S.nom} · Construit avec Bingoo!</span></div></footer></div>\`;
 }
 
+// ---------------------------------------------------------------- Site web (spec.type « site ») : la vitrine d'un professionnel
+// Textes écrits à la construction (S.site), services, horaires et coordonnées vivants (modifiables dans l'espace gérant)
+const SITE = S.site ?? {};
+const JOURS_S = ["", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+const heureS = (x) => String(x || "").replace(/^0/, "").replace(":00", " h").replace(":", " h ");
+const prixS = (s) => s.prix == null || s.prix === "" || !(Number(s.prix) > 0) ? "Sur devis" : (s.prix_texte ? "À partir de " : "") + fmt.eur(s.prix);
+const lienTel = (t) => "tel:" + String(t || "").replace(/[^\\d+]/g, "");
+function SiteVitrine({ onAuth }) {
+  const [d, setD] = useState(null), [envoi, setEnvoi] = useState(null), [f, setF] = useState({ nom: "", email: "", telephone: "", service: "", date_souhaitee: "", message: "", site_web: "" }), [busy, setBusy] = useState(false), [err, setErr] = useState("");
+  useEffect(() => {
+    if (!B.apercu) call("vue", { variante: "A", source: B.source }).catch(() => {});
+    call("site-info").then(setD, () => setD({ services: S.demo?.services ?? [], horaires: S.demo?.horaires ?? [], infos: (S.demo?.infos ?? [])[0] ?? {} }));
+  }, []);
+  const services = d?.services ?? [], horaires = d?.horaires ?? [], inf = d?.infos ?? {};
+  const auj = ((new Date().getDay() + 6) % 7) + 1;
+  const hAuj = horaires.find((h) => Number(h.jour) === auj);
+  const ouvertAuj = hAuj?.ouvert ? "Ouvert aujourd'hui · " + heureS(hAuj.debut) + " – " + heureS(hAuj.fin) : horaires.length ? "Fermé aujourd'hui" : "";
+  const avecDate = SITE.demande === "rdv" || SITE.demande === "reservation";
+  const hero = STY.hero ?? "cote";
+  const fonce = hero === "sombre" || hero === "degrade";
+  const choisir = (s) => { setF((x) => ({ ...x, service: s.titre })); document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" }); };
+  const envoyer = async (e) => {
+    e.preventDefault(); setErr("");
+    if (!f.nom.trim()) { setErr("Indiquez votre nom."); return; }
+    if (!f.email.trim() && !f.telephone.trim()) { setErr("Indiquez votre e-mail ou votre téléphone pour qu'on puisse vous répondre."); return; }
+    setBusy(true);
+    try { await call("site-contact", { data: f }); setEnvoi(f.nom.split(" ")[0]); } catch (x) { setErr(x.message); } finally { setBusy(false); }
+  };
+  const Cta = ({ grand, clair }) => html\`<a href="#contact" class=\${cls("inline-flex items-center justify-center rounded-full font-semibold transition hover:brightness-110", grand ? "px-7 py-3.5 text-base" : "px-4 py-2 text-sm", clair ? "bg-white text-slate-900" : "bg-[var(--c)] text-white shadow-lg shadow-[var(--c)]/25")}>\${SITE.cta || "Me contacter"}</a>\`;
+  const titreSection = (sur, titre) => html\`<p class="text-sm font-semibold uppercase tracking-wide text-[var(--c)]">\${sur}</p><h2 class="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">\${titre}</h2>\`;
+  const Express = () => S.image_accueil ? html\`<img src=\${S.image_accueil} alt=\${S.nom} class="w-full max-h-[480px] object-cover rounded-3xl shadow-2xl ring-1 ring-black/5"/>\` : html\`<div class="rounded-3xl bg-white p-6 text-left text-slate-900 shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/5">
+    \${ouvertAuj && html\`<p class=\${cls("inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold", hAuj?.ouvert ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600")}><span class=\${cls("h-2 w-2 rounded-full", hAuj?.ouvert ? "bg-emerald-500" : "bg-slate-400")}></span>\${ouvertAuj}</p>\`}
+    <div class="mt-4 divide-y divide-slate-100">\${services.slice(0, 4).map((s) => html\`<div class="flex items-baseline justify-between gap-4 py-3"><div class="min-w-0"><p class="truncate font-semibold">\${s.titre}</p>\${s.duree && html\`<p class="text-xs text-slate-400">\${s.duree}</p>\`}</div><p class="shrink-0 font-bold text-[var(--c)]">\${prixS(s)}</p></div>\`)}</div>
+    \${(inf.zone || inf.adresse) && html\`<p class="mt-3 flex items-center gap-2 text-sm text-slate-500"><\${Icone} nom="carte" class="w-4 h-4"/>\${inf.adresse || inf.zone}</p>\`}
+    <a href="#contact" class="mt-5 block rounded-2xl bg-[var(--c)] py-3 text-center font-semibold text-white hover:brightness-110">\${SITE.cta || "Me contacter"}</a></div>\`;
+  const fondHero = hero === "sombre" ? "background:radial-gradient(1000px 460px at 50% -12%,color-mix(in srgb,var(--c) 60%,transparent),transparent),color-mix(in srgb,var(--c) 16%,#07070c)" : hero === "degrade" ? "background-image:radial-gradient(1200px 500px at 80% -10%,rgba(255,255,255,.28),transparent),linear-gradient(160deg,var(--c),#0f172a)" : "background:linear-gradient(180deg,color-mix(in srgb,var(--c) 8%,white),white)";
+  const Pastille = () => html\`<p class=\${cls("inline-block rounded-full px-3 py-1 text-sm font-semibold", fonce ? "bg-white/15 text-white" : "bg-[var(--c)]/10 text-[var(--c)]")}>\${SITE.metier}\${SITE.ville ? " · " + SITE.ville : ""}</p>\`;
+  const nav = [["#services", "Services"], ["#apropos", "À propos"], ["#infos", "Infos pratiques"], ...((S.faq ?? []).length ? [["#faq", "Questions"]] : [])];
+  const reseaux = [["instagram", "Instagram"], ["facebook", "Facebook"]].filter(([k]) => /^https?:\\/\\//.test(inf[k] ?? ""));
+  return html\`<div class=\${cls("min-h-screen scroll-smooth", S.fond === "creme" ? "bg-[#FAF7F2]" : "bg-white")}>
+  <div class=\${cls(fonce && "text-white")} style=\${fondHero}>
+    <header class="max-w-6xl mx-auto px-5 py-5 flex items-center justify-between gap-4"><a href="#" class="flex items-center gap-2.5 font-bold text-lg"><\${Logo} clair=\${fonce}/>\${S.nom}</a>
+      <nav class=\${cls("hidden md:flex gap-6 text-sm font-medium", fonce ? "text-white/75" : "text-slate-500")}>\${nav.map(([h, l]) => html\`<a href=\${h} class="hover:opacity-80">\${l}</a>\`)}</nav>
+      <div class="hidden sm:flex items-center gap-3">\${inf.telephone && html\`<a href=\${lienTel(inf.telephone)} class=\${cls("text-sm font-semibold", fonce ? "text-white" : "text-slate-700")}>\${inf.telephone}</a>\`}<\${Cta} clair=\${hero === "degrade"}/></div>\${inf.telephone && html\`<a href=\${lienTel(inf.telephone)} class="sm:hidden rounded-full bg-[var(--c)] px-4 py-2 text-sm font-semibold text-white">Appeler</a>\`}</header>
+    \${hero === "centre" || hero === "degrade"
+      ? html\`<section class="max-w-4xl mx-auto px-5 pt-10 pb-20 text-center"><\${Pastille}/><h1 class="mt-5 text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.05]">\${S.slogan}</h1><p class=\${cls("mt-5 text-lg max-w-2xl mx-auto", fonce ? "text-white/80" : "text-slate-500")}>\${S.pitch}</p><div class="mt-8 flex flex-wrap justify-center gap-3"><\${Cta} grand clair=\${hero === "degrade"}/><a href="#services" class=\${cls("inline-flex items-center rounded-full px-7 py-3.5 text-base font-semibold", fonce ? "bg-white/10 text-white ring-1 ring-white/25" : "bg-white text-slate-800 ring-1 ring-slate-200")}>Voir les services et les prix</a></div>\${ouvertAuj && html\`<p class=\${cls("mt-5 text-sm", fonce ? "text-white/60" : "text-slate-400")}>\${ouvertAuj}\${inf.zone ? " · " + inf.zone : ""}</p>\`}<div class="mt-12 max-w-md mx-auto"><\${Express}/></div></section>\`
+      : html\`<section class="max-w-6xl mx-auto px-5 pt-8 pb-20 grid lg:grid-cols-[1.1fr_.9fr] gap-12 items-center"><div><\${Pastille}/><h1 class="mt-5 text-4xl sm:text-[56px] font-extrabold tracking-tight leading-[1.04]">\${S.slogan}</h1><p class=\${cls("mt-5 text-lg", fonce ? "text-white/80" : "text-slate-500")}>\${S.pitch}</p><div class="mt-8 flex flex-wrap gap-3"><\${Cta} grand/><a href="#services" class=\${cls("inline-flex items-center rounded-full px-7 py-3.5 text-base font-semibold", fonce ? "bg-white/10 text-white ring-1 ring-white/25" : "bg-white text-slate-800 ring-1 ring-slate-200")}>Services et prix</a></div></div><\${Express}/></section>\`}
+  </div>
+  \${(SITE.points_forts ?? []).length > 0 && html\`<section class="py-16"><div class="max-w-6xl mx-auto px-5 grid gap-5 md:grid-cols-3">\${SITE.points_forts.map((p) => html\`<div class="rounded-3xl bg-white p-6 ring-1 ring-slate-200/80"><span class="grid h-11 w-11 place-items-center rounded-2xl bg-[var(--c)]/10 text-[var(--c)]"><\${Icone} nom=\${p.icone || "etoile"}/></span><p class="mt-4 text-lg font-semibold">\${p.titre}</p><p class="mt-1 text-slate-500 leading-relaxed">\${p.texte}</p></div>\`)}</div></section>\`}
+  <section id="services" class="py-20 bg-slate-50 scroll-mt-4"><div class="max-w-6xl mx-auto px-5">\${titreSection("Services et tarifs", "Ce que je vous propose")}
+    <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">\${services.map((s) => html\`<div class="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-slate-200/80 transition hover:shadow-xl hover:shadow-slate-900/5"><div class="flex items-start justify-between gap-3"><p class="text-lg font-semibold leading-snug">\${s.titre}</p>\${s.duree && html\`<span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">\${s.duree}</span>\`}</div><p class="mt-2 flex-1 text-slate-500 leading-relaxed">\${s.description}</p><div class="mt-5 flex items-center justify-between gap-3"><p class="text-xl font-extrabold text-[var(--c)]">\${prixS(s)}</p><button onClick=\${() => choisir(s)} class="rounded-full border border-slate-200 px-4 py-1.5 text-sm font-semibold hover:border-[var(--c)] hover:text-[var(--c)]">Choisir</button></div></div>\`)}</div>
+    \${!services.length && html\`<p class="mt-8 text-slate-500">Les services arrivent bientôt. Écrivez-moi pour en savoir plus.</p>\`}</div></section>
+  \${(SITE.etapes ?? []).length > 0 && html\`<section class="py-20"><div class="max-w-6xl mx-auto px-5">\${titreSection("Simple", "Comment ça se passe")}<div class="mt-10 grid gap-8 md:grid-cols-3">\${SITE.etapes.map((e, i) => html\`<div><span class="fh text-5xl font-extrabold text-[var(--c)]/25">0\${i + 1}</span><p class="mt-2 text-lg font-semibold">\${e.titre}</p><p class="mt-1 text-slate-500">\${e.texte}</p></div>\`)}</div></div></section>\`}
+  \${SITE.apropos?.texte && html\`<section id="apropos" class="py-20 scroll-mt-4"><div class="max-w-5xl mx-auto px-5 grid gap-10 md:grid-cols-[.8fr_1.2fr] items-center"><div class="grid aspect-square max-w-xs place-items-center rounded-[2.5rem] text-7xl font-extrabold text-white" style="background:linear-gradient(150deg,var(--c),color-mix(in srgb,var(--c) 55%,#0f172a))">\${(S.nom ?? "S")[0]}</div><div>\${titreSection("À propos", SITE.apropos.titre)}<p class="mt-5 text-lg leading-relaxed text-slate-600 whitespace-pre-line">\${SITE.apropos.texte}</p></div></div></section>\`}
+  <section id="infos" class="py-20 bg-slate-50 scroll-mt-4"><div class="max-w-6xl mx-auto px-5">\${titreSection("Infos pratiques", "Quand et où me trouver")}
+    <div class="mt-10 grid gap-5 lg:grid-cols-2">
+      <div class="rounded-3xl bg-white p-6 ring-1 ring-slate-200/80"><p class="font-semibold flex items-center gap-2"><\${Icone} nom="horloge" class="w-5 h-5 text-[var(--c)]"/>Horaires</p><div class="mt-3 divide-y divide-slate-100">\${[1, 2, 3, 4, 5, 6, 7].map((j) => { const h = horaires.find((x) => Number(x.jour) === j); return html\`<div class=\${cls("flex justify-between py-2 text-[15px]", j === auj && "font-semibold text-slate-900")}><span>\${JOURS_S[j]}\${j === auj ? " (aujourd'hui)" : ""}</span><span class=\${h?.ouvert ? "" : "text-slate-400"}>\${h?.ouvert ? heureS(h.debut) + " – " + heureS(h.fin) : "Fermé"}</span></div>\`; })}</div></div>
+      <div class="rounded-3xl bg-white p-6 ring-1 ring-slate-200/80"><p class="font-semibold flex items-center gap-2"><\${Icone} nom="carte" class="w-5 h-5 text-[var(--c)]"/>Me joindre</p><div class="mt-3 space-y-3 text-[15px]">
+        \${inf.adresse && html\`<p><span class="block text-xs text-slate-400">Adresse</span>\${inf.adresse}</p>\`}
+        \${inf.zone && html\`<p><span class="block text-xs text-slate-400">Zone d'intervention</span>\${inf.zone}</p>\`}
+        \${inf.telephone && html\`<p><span class="block text-xs text-slate-400">Téléphone</span><a class="font-semibold text-[var(--c)]" href=\${lienTel(inf.telephone)}>\${inf.telephone}</a></p>\`}
+        \${inf.email && html\`<p><span class="block text-xs text-slate-400">E-mail</span><a class="font-semibold text-[var(--c)]" href=\${"mailto:" + inf.email}>\${inf.email}</a></p>\`}
+        \${reseaux.length > 0 && html\`<p class="flex gap-3">\${reseaux.map(([k, l]) => html\`<a href=\${inf[k]} target="_blank" rel="noopener" class="rounded-full border border-slate-200 px-3 py-1 text-sm font-medium hover:border-[var(--c)]">\${l}</a>\`)}</p>\`}
+        <a href="#contact" class="inline-flex rounded-full bg-[var(--c)] px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110">\${SITE.cta || "Me contacter"}</a></div></div>
+    </div></div></section>
+  \${(S.faq ?? []).length > 0 && html\`<section id="faq" class="py-20 scroll-mt-4"><div class="max-w-3xl mx-auto px-5"><h2 class="text-3xl font-bold text-center tracking-tight">Questions fréquentes</h2><div class="mt-8 divide-y divide-slate-200 border-y border-slate-200">\${S.faq.map((x) => html\`<details class="group py-4"><summary class="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold">\${x.q}<span class="text-slate-400 group-open:rotate-45 transition text-xl leading-none">+</span></summary><p class="mt-2 text-slate-500">\${x.r}</p></details>\`)}</div></div></section>\`}
+  <section id="contact" class="px-5 pb-20 scroll-mt-4"><div class="max-w-5xl mx-auto grid overflow-hidden rounded-[2rem] bg-white ring-1 ring-slate-200 shadow-2xl shadow-slate-900/10 md:grid-cols-[.85fr_1.15fr]">
+    <div class="p-8 text-white" style="background:linear-gradient(160deg,var(--c),color-mix(in srgb,var(--c) 50%,#0f172a))"><h2 class="text-3xl font-bold tracking-tight">\${SITE.cta || "Me contacter"}</h2><p class="mt-3 text-white/80">Remplissez ce formulaire : je vous réponds au plus vite\${inf.telephone ? ", ou appelez-moi directement" : ""}.</p>\${inf.telephone && html\`<a href=\${lienTel(inf.telephone)} class="mt-6 inline-block text-2xl font-bold">\${inf.telephone}</a>\`}\${ouvertAuj && html\`<p class="mt-6 text-sm text-white/70">\${ouvertAuj}</p>\`}</div>
+    \${envoi ? html\`<div class="grid place-items-center p-10 text-center"><div><span class="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-50 text-emerald-600"><\${Icone} nom="check"/></span><p class="mt-4 text-2xl font-bold">Merci \${envoi} !</p><p class="mt-2 text-slate-500">Votre demande est bien envoyée. Je vous réponds très vite.</p></div></div>\`
+      : html\`<form onSubmit=\${envoyer} class="grid gap-3 p-8 sm:grid-cols-2">
+        <label class="text-sm font-medium">Votre nom<input required value=\${f.nom} onInput=\${(e) => setF({ ...f, nom: e.target.value })} class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-[var(--c)]"/></label>
+        <label class="text-sm font-medium">Téléphone<input type="tel" value=\${f.telephone} onInput=\${(e) => setF({ ...f, telephone: e.target.value })} class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-[var(--c)]"/></label>
+        <label class="text-sm font-medium sm:col-span-2">E-mail<input type="email" value=\${f.email} onInput=\${(e) => setF({ ...f, email: e.target.value })} class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-[var(--c)]"/></label>
+        \${services.length > 0 && html\`<label class=\${cls("text-sm font-medium", !avecDate && "sm:col-span-2")}>Service<select value=\${f.service} onChange=\${(e) => setF({ ...f, service: e.target.value })} class="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none focus:border-[var(--c)]"><option value="">Choisir…</option>\${services.map((s) => html\`<option value=\${s.titre}>\${s.titre}</option>\`)}</select></label>\`}
+        \${avecDate && html\`<label class="text-sm font-medium">Date souhaitée<input type="date" min=\${new Date().toISOString().slice(0, 10)} value=\${f.date_souhaitee} onInput=\${(e) => setF({ ...f, date_souhaitee: e.target.value })} class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-[var(--c)]"/></label>\`}
+        <label class="text-sm font-medium sm:col-span-2">\${SITE.demande === "devis" ? "Votre besoin" : "Message"}<textarea rows="4" value=\${f.message} onInput=\${(e) => setF({ ...f, message: e.target.value })} placeholder=\${SITE.demande === "devis" ? "Décrivez votre projet : ce qu'il faut faire, où, pour quand…" : ""} class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-[var(--c)]"></textarea></label>
+        <input tabindex="-1" autocomplete="off" aria-hidden="true" value=\${f.site_web} onInput=\${(e) => setF({ ...f, site_web: e.target.value })} style="position:absolute;left:-9999px;width:1px;height:1px"/>
+        \${err && html\`<p class="text-sm text-red-600 sm:col-span-2">\${err}</p>\`}
+        <div class="sm:col-span-2 flex flex-wrap items-center gap-3"><button type="submit" disabled=\${busy} class="rounded-full bg-[var(--c)] px-7 py-3 font-semibold text-white hover:brightness-110 disabled:opacity-60">\${busy ? "Envoi…" : "Envoyer ma demande"}</button><p class="text-xs text-slate-400">Vos coordonnées servent seulement à vous répondre. <button type="button" class="underline" onClick=\${() => bus.emit("doc", "confidentialite")}>En savoir plus</button></p></div>
+      </form>\`}
+  </div></section>
+  <footer class="border-t border-slate-100"><div class="max-w-6xl mx-auto px-5 py-8 text-sm text-slate-400 flex flex-wrap items-center justify-between gap-3"><span class="flex items-center gap-2 font-semibold text-slate-600"><\${Logo} taille="w-6 h-6"/>\${S.nom}</span><\${LiensLegaux}/><span class="flex items-center gap-4"><button onClick=\${() => onAuth("login")} class="hover:text-slate-700 hover:underline">Espace gérant</button><span>Site créé avec Bingoo!</span></span></div></footer>
+</div>\`;
+}
 
 function Auth({ mode: m0, onDone, onBack }) {
   const [mode, setMode] = useState(m0 === "login" ? "login" : "signup");
@@ -742,15 +834,16 @@ function Auth({ mode: m0, onDone, onBack }) {
   const submit = async (e) => { e.preventDefault(); setBusy(true); setErr(""); try { onDone(await call(mode, { ...f, variante: VARIANTE, source: B.source, invite: mode === "signup" ? B.invite : null })); } catch (x) { setErr(x.message); } finally { setBusy(false); } };
   return html\`<div class="min-h-screen grid place-items-center p-5 bg-slate-50"><form onSubmit=\${submit} class="anim w-full max-w-sm bg-white rounded-2xl border border-slate-200 p-6 space-y-3">
     <button type="button" onClick=\${onBack} class="text-sm text-slate-400 hover:text-slate-700">← \${S.nom}</button>
-    <h1 class="text-xl font-bold">\${mode === "signup" ? (B.invite ? "Rejoignez votre équipe" : "Créez votre compte") : "Content de vous revoir"}</h1>
+    <h1 class="text-xl font-bold">\${S.type === "site" && !B.invite ? (mode === "signup" ? "Créer votre accès gérant" : "Espace gérant") : mode === "signup" ? (B.invite ? "Rejoignez votre équipe" : "Créez votre compte") : "Content de vous revoir"}</h1>
+    \${S.type === "site" && !B.invite && html\`<p class="text-sm text-slate-500">\${mode === "signup" ? "La première fois, créez votre accès avec l'adresse e-mail de votre compte Bingoo!." : "Vos demandes, vos services, vos horaires et vos coordonnées."}</p>\`}
     \${B.invite && mode === "signup" && html\`<p class="text-sm text-slate-500">Vous avez été invité sur \${S.nom}. Créez votre compte pour retrouver les données de votre équipe.</p>\`}
     \${mode === "signup" && html\`<\${ui.Input} label="Votre nom" value=\${f.nom} onInput=\${(v) => setF({ ...f, nom: v })}/>\`}
     <\${ui.Input} label="E-mail" type="email" required value=\${f.email} onInput=\${(v) => setF({ ...f, email: v })}/>
     <\${ui.Input} label="Mot de passe" type="password" required value=\${f.password} onInput=\${(v) => setF({ ...f, password: v })} placeholder=\${mode === "signup" ? "8 caractères au moins" : ""}/>
     \${err && html\`<p class="text-sm text-red-600">\${err}</p>\`}
     <\${ui.Button} type="submit" class="w-full !py-2.5" disabled=\${busy}>\${busy ? "…" : mode === "signup" ? "Créer mon compte" : "Se connecter"}</\${ui.Button}>
-    \${mode === "signup" && html\`<p class="text-xs text-slate-400 text-center">En créant votre compte, vous acceptez les <button type="button" class="underline" onClick=\${() => bus.emit("doc", "cgv")}>conditions générales</button> et la <button type="button" class="underline" onClick=\${() => bus.emit("doc", "confidentialite")}>politique de confidentialité</button>.</p>\`}
-    <p class="text-sm text-center text-slate-500">\${mode === "signup" ? "Déjà un compte ? " : "Pas encore de compte ? "}<button type="button" class="font-semibold text-[var(--c)]" onClick=\${() => setMode(mode === "signup" ? "login" : "signup")}>\${mode === "signup" ? "Se connecter" : "Créer un compte"}</button></p>
+    \${mode === "signup" && S.type !== "site" && html\`<p class="text-xs text-slate-400 text-center">En créant votre compte, vous acceptez les <button type="button" class="underline" onClick=\${() => bus.emit("doc", "cgv")}>conditions générales</button> et la <button type="button" class="underline" onClick=\${() => bus.emit("doc", "confidentialite")}>politique de confidentialité</button>.</p>\`}
+    <p class="text-sm text-center text-slate-500">\${mode === "signup" ? "Déjà un compte ? " : S.type === "site" ? "Première fois ? " : "Pas encore de compte ? "}<button type="button" class="font-semibold text-[var(--c)]" onClick=\${() => setMode(mode === "signup" ? "login" : "signup")}>\${mode === "signup" ? "Se connecter" : S.type === "site" ? "Créer mon accès" : "Créer un compte"}</button></p>
   </form></div>\`;
 }
 
@@ -1038,7 +1131,7 @@ function Racine() {
   if (etat === undefined) return html\`<\${ui.Loading}/>\`;
   if (etat) return html\`<\${Appli} user=\${etat.user} etat=\${etat} tour=\${tour} onFinTour=\${finTour} onLogout=\${tour ? finTour : sortir}/>\`;
   if (auth) return html\`<\${Auth} mode=\${auth} onDone=\${ok} onBack=\${() => setAuth(null)}/>\`;
-  return html\`<\${Site} onAuth=\${ouvrir}/>\`;
+  return S.type === "site" ? html\`<\${SiteVitrine} onAuth=\${ouvrir}/>\` : html\`<\${Site} onAuth=\${ouvrir}/>\`;
 }
 // Outils de l'atelier de Bingoo! : dans l'aperçu de l'atelier, le parent active « modifier un texte » ou « pointer un élément »
 {

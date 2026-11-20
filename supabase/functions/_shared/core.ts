@@ -49,6 +49,8 @@ export const PLANS: Record<string, { label: string; price: number; factor: numbe
   business: { label: "Lancer à plusieurs", price: 69.99, factor: 1, seats: 3, credits: 0, ai: 12, quota: 0 },
   // 20 nov. 2026 : formule supérieure de Lancer, toujours un seul SaaS, pour ceux qui modifient beaucoup
   lancer_pro: { label: "Lancer Pro", price: 39.99, factor: 1, seats: 1, credits: 0, ai: 10, quota: 0 },
+  // 20 nov. 2026 : un site web (vitrine d'un commerce, d'un artisan, d'un indépendant), sans les données ni les outils SaaS
+  site: { label: "Site", price: 9.99, factor: 0.5, seats: 1, credits: 0, ai: 2, quota: 0 },
   // Anciennes formules (prospection), plus vendues
   solo: { label: "Solo", price: 39.99, factor: 1, seats: 1, credits: 140, ai: 6, quota: 100 },
   pro: { label: "Pro (prospection)", price: 69.99, factor: 2, seats: 2, credits: 420, ai: 14, quota: 300 },
@@ -63,6 +65,7 @@ export const LIMITES: Record<string, { construire: number; modifier: number; tik
   explorer_pro: { construire: 3, modifier: 30, tiktok: 4, pareil: 20, scripts: 4, ia: 4 },
   business: { construire: 10, modifier: 100, tiktok: 12, pareil: 60, scripts: 12, ia: 12 },
   lancer_pro: { construire: 3, modifier: 100, tiktok: 8, pareil: 40, scripts: 8, ia: 10 },
+  site: { construire: 2, modifier: 30, tiktok: 0, pareil: 0, scripts: 0, ia: 2 },
   fondateur: { construire: 10, modifier: 100, tiktok: 12, pareil: 60, scripts: 12, ia: 12 },
 };
 export const limitesDe = (plan?: string | null) => LIMITES[plan ?? ""] ?? LIMITES.explorer;
@@ -93,7 +96,7 @@ export const PERIODES: Record<string, { label: string; mois: number; parMois: nu
   trimestre: { label: "3 mois", mois: 3, parMois: 16.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Moins cher chaque mois", "Facturé tous les 3 mois"] },
   an: { label: "12 mois", mois: 12, parMois: 9.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Le prix le plus bas par mois", "Changer de SaaS une fois dans l'année", "Réponse prioritaire par e-mail"] },
 };
-export const VENTE = ["explorer_pro", "lancer_pro", "explorer"];
+export const VENTE = ["explorer_pro", "lancer_pro", "explorer", "site"];
 /** « Trouver » : seulement les chiffres (pas de construction), au mois, sans engagement. Les autres formules suivent PERIODES. */
 export const PERIODES_PAR_PLAN: Record<string, typeof PERIODES> = {
   explorer: { mois: { label: "1 mois", mois: 1, parMois: 9.99, inclus: ["Tous les revenus vérifiés, la croissance et le trafic", "Le classement et les SaaS à vendre", "Valider une idée, les applis, les niches", "Le connecteur Claude / ChatGPT (5 000 questions par mois)", "Sans engagement"] } },
@@ -104,8 +107,16 @@ PERIODES_PAR_PLAN.lancer_pro = {
   trimestre: { label: "3 mois", mois: 3, parMois: 29.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Moins cher chaque mois", "Facturé tous les 3 mois"] },
   an: { label: "12 mois", mois: 12, parMois: 19.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Le prix le plus bas par mois", "Changer de SaaS une fois dans l'année", "Réponse prioritaire par e-mail"] },
 };
+// Site : moins cher qu'un SaaS (pas de données de marché, pas de comptes clients ni d'abonnements à gérer)
+PERIODES_PAR_PLAN.site = {
+  mois: { label: "1 mois", mois: 1, parMois: 9.99, inclus: ["Ton site en ligne, à ton nom", "Les demandes de tes clients reçues par e-mail et rangées", "Tes services, tes prix et tes horaires modifiables à tout moment", "Ton nom de domaine branché", "Ton plan pour tes premiers clients du quartier", "30 modifications par mois dans l'atelier"] },
+  trimestre: { label: "3 mois", mois: 3, parMois: 7.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Moins cher chaque mois", "Facturé tous les 3 mois"] },
+  an: { label: "12 mois", mois: 12, parMois: 5.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Le prix le plus bas par mois", "Réponse prioritaire par e-mail"] },
+};
+/** Formules qui permettent de construire un SaaS (la formule Site ne construit que des sites) */
+export const CONSTRUIT_SAAS = ["explorer_pro", "lancer_pro", "business", "fondateur"];
 export const periodesDe = (plan: string) => PERIODES_PAR_PLAN[plan] ?? PERIODES;
-export const VEILLE_SEULE = ["explorer", "explorer_pro", "lancer_pro", "business"];
+export const VEILLE_SEULE = ["explorer", "explorer_pro", "lancer_pro", "business", "site"];
 type PlanFields = { plan?: string; plan_status?: string; trial_ends?: string | null };
 /** Bloque les actions payantes quand l'essai est fini ou que l'abonnement n'est plus réglé. */
 export function assertPlan(ws: PlanFields) {

@@ -944,7 +944,7 @@ Rends {"formules": [2 ou 3 objets nom + prix (euros par mois, nombre) + pour + i
 export async function saasRelanceJ3(seulement?: string) {
   const { teamAddress, sendSystem } = await import("./mail.ts");
   const site = "https://bingoo.fr";
-  let q = admin.from("workspaces").select("*").or("profile->>mode.eq.explorer,plan.in.(explorer,explorer_pro,lancer_pro,business)");
+  let q = admin.from("workspaces").select("*").or("profile->>mode.eq.explorer,plan.in.(explorer,explorer_pro,lancer_pro,business,site)");
   q = seulement ? q.eq("id", seulement) : q.gte("created_at", new Date(Date.now() - 4 * 864e5).toISOString()).lt("created_at", new Date(Date.now() - 3 * 864e5).toISOString());
   const { data: wss } = await q.limit(500);
   let envoyes = 0;

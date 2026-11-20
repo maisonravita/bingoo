@@ -34,7 +34,7 @@ function AlertesAdmin() {
 function MesuresConstruction() {
   const [d, setD] = useState(null), [jours, setJours] = useState(30), [ent, setEnt] = useState(null);
   useEffect(() => { setD(null); supabase.rpc("admin_mesures_construction", { p_jours: jours }).then(({ data }) => setD(data ?? [])); supabase.rpc("admin_mesures_entrees", { p_jours: jours }).then(({ data }) => setEnt(data ?? [])); }, [jours]);
-  const NOM_ENTREE = { idee: "Idée libre (page d'accueil)", modele: "Galerie de modèles", explorer: "Explorer les SaaS" };
+  const NOM_ENTREE = { site: "Idée de site web (page d'accueil)", idee: "Idée libre (page d'accueil)", modele: "Galerie de modèles", explorer: "Explorer les SaaS" };
   return (
     <Card className="p-5">
       <div className="flex flex-wrap items-center gap-3"><h2 className="font-bold text-[16px]">Qualité des constructions</h2><span className="text-[13px] text-ink-soft">Robot de Bingoo! : test → correction → livraison</span>

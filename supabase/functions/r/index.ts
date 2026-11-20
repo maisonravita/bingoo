@@ -328,7 +328,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   },
   async "saas-lancer"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
-    if (ws.plan === "explorer") throw new HttpError(402, "« Lancer le même » est dans la formule Lancer.");
+    if (ws.plan === "explorer" || ws.plan === "site") throw new HttpError(402, "« Lancer le même » est dans la formule Lancer.");
     // Déjà un SaaS construit : pas de préparation (payante en IA) sans le droit d'en construire un autre
     const au = await autreSaas(ws as { id: string; periode?: string });
     if (au.deja && !au.changement) { const solde = await creditsSolde(ws.id); if (solde < COUT_CREDITS.saas) throw new HttpError(402, MSG_AUTRE(solde)); }
@@ -456,14 +456,18 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     await quota(ws.id, "idee_apercu", 12);
     const { ideeApercu } = await import("../_shared/idee.ts");
     const r = await ideeApercu(ws.id, String(b.texte ?? ""), String(b.type ?? "saas"), Array.isArray(b.reponses) ? b.reponses : []);
-    if ((r as any).apercu) await log(ws.id, "idee_apercu", `Aperçu d'idée : ${String(b.texte ?? "").slice(0, 120)}`);
-    else if ((r as any).refus) await log(ws.id, "idee_refus", `Idée refusée : ${String(b.texte ?? "").slice(0, 160)}`);
+    // Mesuré par entrée : idée de SaaS ou idée de site
+    const pre = String(b.type ?? "") === "site" ? "site" : "idee";
+    if ((r as any).apercu) await log(ws.id, `${pre}_apercu`, `Aperçu d'idée : ${String(b.texte ?? "").slice(0, 120)}`);
+    else if ((r as any).refus) await log(ws.id, `${pre}_refus`, `Idée refusée : ${String(b.texte ?? "").slice(0, 160)}`);
     return r;
   },
   // Le projet né d'une idée (même suite qu'un projet « concurrent » : questions, paiement, construction, vérification)
   async "saas-lancer-idee"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     if (ws.plan === "explorer") throw new HttpError(402, "« Construire mon idée » est dans la formule Lancer.");
+    // La formule Site construit des sites, pas des SaaS
+    if (ws.plan === "site" && String(b.type ?? "saas") !== "site") throw new HttpError(402, "Ta formule Site construit des sites web. Pour un SaaS, passe à la formule Lancer.");
     const au = await autreSaas(ws as { id: string; periode?: string });
     if (au.deja && !au.changement) { const solde = await creditsSolde(ws.id); if (solde < COUT_CREDITS.saas) throw new HttpError(402, MSG_AUTRE(solde)); }
     await quota(ws.id, "lancer", 10);
@@ -475,7 +479,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     if (!s) ({ data: s } = await admin.from("saas").insert({ domaine: DOMAINE_IDEE, nom: "Idée libre", statut: "retire" }).select("id").single());
     const nomChoisi = typeof b.nom === "string" && b.nom.trim() ? b.nom.replace(/\s+/g, " ").trim().slice(0, 40) : String(apercu.nom).slice(0, 40);
     const reponses = (Array.isArray(b.reponses) ? b.reponses : []).slice(0, 3).map((x: any) => ({ q: String(x?.q ?? "").slice(0, 140), r: String(x?.r ?? "").slice(0, 160) }));
-    const { data: pj, error } = await admin.from("saas_projets").insert({ workspace_id: ws.id, saas_id: s!.id, statut: "en_cours", data: { entree: "idee", nom_choisi: nomChoisi, idee: { texte, type: String(b.type ?? "saas"), reponses, apercu } } }).select("id").single();
+    const { data: pj, error } = await admin.from("saas_projets").insert({ workspace_id: ws.id, saas_id: s!.id, statut: "en_cours", data: { entree: String(b.type ?? "") === "site" ? "site" : "idee", nom_choisi: nomChoisi, idee: { texte, type: String(b.type ?? "saas"), reponses, apercu } } }).select("id").single();
     if (error || !pj) throw new HttpError(500, error?.message ?? "Le projet n'a pas été enregistré");
     await log(ws.id, "lancer", `Projet né d'une idée : ${texte.slice(0, 120)}`);
     const travail = saasLancerIdee(ws.id, pj.id).catch(async (e) => { console.error("lancer-idee", e); await admin.from("saas_projets").update({ statut: "erreur", erreur: "La préparation de ton idée a échoué, réessaie." }).eq("id", pj.id); });
@@ -489,6 +493,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     if (ws.plan === "explorer") throw new HttpError(402, "« Construire mon SaaS » est dans la formule Lancer.");
     const { data: pr } = await admin.from("saas_projets").select("id, data, statut").eq("id", String(b.projet_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
     if (!pr || pr.statut !== "pret") throw new HttpError(404, "Projet introuvable");
+    if (ws.plan === "site" && (pr.data as any)?.idee?.type !== "site") throw new HttpError(402, "Ta formule Site construit des sites web. Pour un SaaS, passe à la formule Lancer.");
     const { data: ex } = await admin.from("saas_apps").select("id, statut, maj, etape").eq("projet_id", pr.id).maybeSingle();
     if (ex?.statut === "en_cours" && Date.now() - new Date(ex.maj).getTime() < 10 * 60e3) return { id: ex.id, statut: "en_cours" };
     // Un seul SaaS par abonnement (toutes formules) : un autre SaaS = 60 crédits, sauf le changement annuel de la durée 12 mois (il remplace le premier)
@@ -733,7 +738,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     }
     if (b.quoi === "ia-etat") {
       const [{ data: sec }, { data: mois }] = await Promise.all([admin.from("saas_app_secrets").select("ia_cle, maj").eq("app_id", app.id).maybeSingle(), admin.rpc("saas_app_ia_mois", { p_app: app.id })]);
-      const inclus = ({ explorer_pro: 300, lancer_pro: 1000, business: 3000, fondateur: 3000 } as Record<string, number>)[ws.plan] ?? 300;
+      const inclus = ({ explorer_pro: 300, lancer_pro: 1000, business: 3000, fondateur: 3000, site: 100 } as Record<string, number>)[ws.plan] ?? 300;
       return { cle: sec?.ia_cle ? `${sec.ia_cle.slice(0, 10)}…${sec.ia_cle.slice(-4)}` : null, maj: sec?.maj ?? null, mois: mois ?? 0, inclus };
     }
     if (b.quoi === "ia-cle") {
@@ -1079,7 +1084,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   },
   async "saas-clients"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
-    if (ws.plan === "explorer") throw new HttpError(402, "« Qui démarcher » est dans la formule Lancer.");
+    if (ws.plan === "explorer" || ws.plan === "site") throw new HttpError(402, "« Qui démarcher » est dans la formule Lancer.");
     await quota(ws.id, "recherche", 200);
     const { saasClients } = await import("../_shared/saas-base.ts");
     return await saasClients({ domaine: b.domaine ? String(b.domaine) : null, categorie: b.categorie ? String(b.categorie) : null, tag: b.tag ? String(b.tag) : null });
@@ -1087,7 +1092,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   // Explorer → prospection : un segment de clients devient une cible de l'espace (Radar et Mission la prospectent ensuite)
   async "saas-cible-ajouter"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
-    if (["explorer", "explorer_pro", "lancer_pro", "business"].includes(String(ws.plan))) throw new HttpError(402, "La prospection ne fait pas partie de ta formule : tu peux noter ces segments et les démarcher avec ton outil.");
+    if (["explorer", "explorer_pro", "lancer_pro", "business", "site"].includes(String(ws.plan))) throw new HttpError(402, "La prospection ne fait pas partie de ta formule : tu peux noter ces segments et les démarcher avec ton outil.");
     const x = (b.segment ?? {}) as Record<string, unknown>;
     const naf = (Array.isArray(x.naf) ? x.naf : []).map(String).filter((n) => /^\d{2}\.\d{2}[A-Z]$/.test(n)).slice(0, 4);
     if (!x.label || !naf.length) throw new HttpError(400, "Segment incomplet");

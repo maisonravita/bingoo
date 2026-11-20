@@ -15,7 +15,7 @@ const HF = { fontFamily: "var(--font-titre)" };
 const CLE_CHOIX = "bingoo-choix";
 const CLE_CHANTIER = "bingoo-chantier";
 const dollar = (n) => n == null ? "—" : n >= 1e4 ? `${Math.round(n / 1e3)} k$` : `${Math.round(n).toLocaleString("fr-FR")} $`;
-const paye = (ws) => ws?.plan === "fondateur" || (["explorer", "explorer_pro", "lancer_pro", "business", "solo", "pro"].includes(ws?.plan) && ["active", "trialing", "past_due"].includes(ws?.plan_status));
+const paye = (ws) => ws?.plan === "fondateur" || (["explorer", "explorer_pro", "lancer_pro", "business", "solo", "pro", "site"].includes(ws?.plan) && ["active", "trialing", "past_due"].includes(ws?.plan_status));
 const lire = (k) => { try { return JSON.parse(localStorage.getItem(k) ?? "null"); } catch { return null; } };
 const ecrire = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch { /* stockage indisponible */ } };
 const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -409,7 +409,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   // Dans l'atelier, le SaaS existe déjà : pas besoin du SaaS d'origine (un SaaS lancé depuis une idée n'en a pas)
   if (!c.domaine && !(atelier && c.app)) return <Navigate to="/explorer/copier" replace />;
   // Lignes de préparation : jamais « analyse des pages de… » pour une idée (il n'y a pas de SaaS d'origine)
-  const lect = c.idee ? ["Lecture de ton idée et de ton aperçu", "Préparation du plan : écrans, données, formules"] : LECTURE(c.nom);
+  const lect = c.idee && c.type === "site" ? ["Lecture de ton idée et de ton aperçu", "Écriture des textes de ton site : accroche, services, prix, horaires"] : c.idee ? ["Lecture de ton idée et de ton aperçu", "Préparation du plan : écrans, données, formules"] : LECTURE(c.nom);
   const lignes = [
     ...lect.slice(0, etape >= 1 ? lect.length : 1).map((t, i) => ({ k: `l${i}`, t, ok: etape > i })),
     ...(etape >= 2 ? ecrans.map((e, i) => ({ k: `e${e.id}`, t: i < ecrits ? <>Écran « {e.titre} » écrit</> : <>J'écris l'écran « {e.titre} »</>, ok: i < ecrits })).filter((x, i) => i <= ecrits) : []),
@@ -463,7 +463,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
             ) : <>
             <Moi>{c.idee ? <>Construis mon idée : {c.ideeTexte}</> : <>Construis ma version de {c.nom}</>}</Moi>
             <Bingoo>
-              <p>{c.idee ? <>C'est parti : je construis {c.apercu?.nom ?? "ton idée"}, avec les {c.apercu?.ecrans?.length ?? ""} écrans de ton aperçu, puis je les teste un par un.</> : <>C'est parti. {c.nom} gagne déjà de l'argent : je construis ta version, avec ton nom, tes mots et ton design.</>}</p>
+              <p>{c.idee && c.type === "site" ? <>C'est parti : j'écris les textes de {c.apercu?.nom ?? "ton site"}, je le mets en ligne, puis je teste ton espace gérant (demandes, services, horaires). Ensuite, vérifie tes prix : ils sont proposés, à toi de mettre les vrais.</> : c.idee ? <>C'est parti : je construis {c.apercu?.nom ?? "ton idée"}, avec les {c.apercu?.ecrans?.length ?? ""} écrans de ton aperçu, puis je les teste un par un.</> : <>C'est parti. {c.nom} gagne déjà de l'argent : je construis ta version, avec ton nom, tes mots et ton design.</>}</p>
               <div className="mt-3 rounded-xl border border-line bg-[#FCFBF9] p-3">
                 <div className="mb-2 flex items-center justify-between text-[12.5px] text-ink-soft"><span className="font-semibold text-ink">Construction</span><span className="tnum">{Math.round(pct)} %</span></div>
                 <div className="mb-3 h-1 overflow-hidden rounded-full bg-[#ECEAE4]"><div className="h-full rounded-full bg-[#E8571C] transition-all duration-[1500ms]" style={{ width: `${pct}%` }} /></div>

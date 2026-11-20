@@ -51,7 +51,7 @@ const preuveFaible = (su) => (su?.type === "revenu_verifie" && Number(su.montant
 const TRIS = [["copiable", "Les plus faciles à lancer"], ["succes_montant", "Plus gros revenu prouvé"], ["score_croissance", "En croissance"], ["postes", "Qui recrutent le plus"], ["nouveaute", "Nouveautés récentes"], ["rang_web", "Les plus connus"], ["prix_entree_eur", "Prix d'entrée"], ["created_at", "Ajoutés récemment"]];
 const PAGE = 48;
 // Niveau de formule pour Explorer : 1 = Starter, 2 = Pro, 3 = Business (et anciennes formules, aperçu, fondateur)
-const niv = (ws) => (ws?.plan === "explorer" ? 1 : ws?.plan === "explorer_pro" || ws?.plan === "lancer_pro" ? 2 : 3);
+const niv = (ws) => (ws?.plan === "explorer" || ws?.plan === "site" ? 1 : ws?.plan === "explorer_pro" || ws?.plan === "lancer_pro" ? 2 : 3);
 function Verrou({ titre, texte, formule = "Pro", sombre = false }) {
   const nav = useNavigate();
   return (
@@ -78,7 +78,7 @@ export default function Explorer({ domaine: fixe }) {
   // Après le paiement : le flou disparaît, puis Bingoo! construit le SaaS choisi
   if (d === "revelation") return <Suspense fallback={null}><Revelation paramsDe={paramsDe} /></Suspense>;
   // L'espace de son SaaS : accueil, atelier (plein écran), premiers clients, vidéo pub, réglages, dossier
-  if (["mon-saas", "atelier", "clients", "methodes", "tiktok", "video", "reglages-saas", "dossier"].includes(d) && ws && estPaye(ws)) return <Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><MonSaas page={d} /></Suspense>;
+  if (["mon-saas", "atelier", "clients", "methodes", "tiktok", "video", "reglages-saas", "dossier"].includes(d) && ws && (estPaye(ws) || (ws.plan === "site" && ["active", "trialing", "past_due"].includes(ws.plan_status)))) return <Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><MonSaas page={d} /></Suspense>;
   // Avant le paiement, avec un compte gratuit : explorer est ouvert (liste, niches, classement, ce qui monte, chiffres),
   // la fiche complète, les pubs, la veille et la construction sont réservées à l'abonnement
   if (ws && !estPaye(ws)) {

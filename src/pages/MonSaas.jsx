@@ -438,8 +438,60 @@ function Accueil({ m, charger }) {
   );
 }
 
+// ---------------------------------------------------------------- Premiers clients d'un SITE : le plan du commerce de proximité
+// 10 étapes concrètes, chacune avec le texte prêt à copier (fiche Google, message à l'entourage, groupes du quartier, flyer, avis)
+function PlanSite({ m }) {
+  const toast = useToast();
+  const sp = m.app.spec ?? {}, st = sp.site ?? {};
+  const lien = lienApp(m.app.slug, m.app.domaine_statut === "ok" ? m.app.domaine : null);
+  const cle = "bingoo-plan-site-" + m.app.id;
+  const [faits, setFaits] = useState(() => lire(cle) ?? []);
+  const cocher = (k) => { const n = faits.includes(k) ? faits.filter((x) => x !== k) : [...faits, k]; setFaits(n); try { localStorage.setItem(cle, JSON.stringify(n)); } catch { /* stockage indisponible */ } };
+  const copier = (t) => { navigator.clipboard?.writeText(t).then(() => toast("Copié"), () => toast("Sélectionne le texte pour le copier", "bad")); };
+  const metier = (st.metier || "").toLowerCase(), ville = st.ville || "", ou = ville ? ` à ${ville}` : "";
+  const services = (sp.demo?.services ?? []).slice(0, 4).map((x) => x.titre).join(", ").toLowerCase();
+  const etapes = [
+    ["verifier", "Vérifie ton site", "Tes prix, tes horaires, ton téléphone et ta zone : c'est la première chose que regardent tes futurs clients. Ouvre ton site, clique sur « Espace gérant » en bas de page.", null, { l: "Ouvrir mon site", href: lien }],
+    ["domaine", "Branche ton nom de domaine", "Un site en ton nom (ex. " + (sp.nom || "monsite").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "") + ".fr) inspire confiance et se retient. C'est compris dans ta formule.", null, { l: "Réglages", to: "/explorer/reglages-saas" }],
+    ["google", "Crée ta fiche Google", "La moitié des clients d'un " + (metier || "professionnel") + " te trouvent sur Google Maps. Gratuit, 15 minutes : mets ton site, tes horaires et cette description.", `${sp.nom} : ${metier}${ou}. ${sp.pitch ?? ""} ${services ? "Services : " + services + "." : ""} Demande en ligne : ${lien}`, { l: "Google Business Profile", href: "https://www.google.com/business/" }],
+    ["entourage", "Préviens 20 personnes de ton entourage", "Famille, amis, anciens clients, voisins : les premiers clients viennent presque toujours de là. Envoie-leur ce message un par un (pas en groupe), par SMS ou WhatsApp.", `Coucou ! Je lance mon activité de ${metier || "…"}${ou} 🎉 Mon site est en ligne : ${lien}\nSi tu connais quelqu'un que ça peut intéresser, tu peux lui transférer ? Ça m'aiderait beaucoup. Merci !`],
+    ["quartier", "Publie dans les groupes de ton quartier", "Groupes Facebook de ta ville (« Tu es de " + (ville || "ta ville") + " si… », entraide, bons plans), Nextdoor, le panneau de ta boulangerie. Une publication simple, avec une photo de toi au travail.", `Bonjour à tous ! Je suis ${metier || "…"}${ou} et je viens de lancer mon activité. ${sp.pitch ?? ""} Toutes les infos et les prix sont sur mon site : ${lien} N'hésitez pas si vous avez des questions !`],
+    ["reseaux", "Mets ton lien partout", "Dans ta bio Instagram, ta page Facebook, ton statut WhatsApp, ta signature d'e-mail. Chaque endroit où l'on te croise doit mener à ton site."],
+    ["flyers", "Imprime 50 flyers ou cartes", "Dépose-les chez les commerçants voisins qui touchent les mêmes clients (et propose-leur de faire pareil chez toi). Texte prêt pour le flyer :", `${sp.nom}\n${st.metier || ""}${ou}\n${sp.slogan ?? ""}\n${st.cta || "Contact"} : ${lien}`],
+    ["annuaires", "Inscris-toi dans les annuaires gratuits", "PagesJaunes, l'annuaire de ta mairie, les sites de ton métier. Chaque inscription avec le lien de ton site t'aide aussi à monter sur Google.", null, { l: "PagesJaunes pro", href: "https://www.solocal.com/" }],
+    ["avis", "Demande un avis Google à chaque client content", "Les vrais avis sont ce qui fait choisir un " + (metier || "professionnel") + " plutôt qu'un autre. Demande-le le jour même, avec ce message.", `Merci encore pour votre confiance ! Si vous avez été satisfait, un petit avis sur Google m'aiderait énormément à me faire connaître : il suffit de chercher « ${sp.nom} » sur Google Maps. Merci 🙏`],
+    ["reponse", "Réponds à chaque demande en moins d'une heure", "Tu reçois chaque demande de ton site par e-mail. Une réponse rapide, c'est souvent le client gagné : celui qui répond le premier l'emporte.", null, { l: "Mes demandes", href: lien }],
+  ];
+  const n = faits.length;
+  return (
+    <>
+      <Tete titre="Premiers clients" sous={`Ton plan pour remplir l'agenda de ${m.nom} : 10 étapes, la plupart prennent moins de 15 minutes.`} />
+      <Carte className="mb-4" titre={`${n} / ${etapes.length} étapes faites`}>
+        <div className="h-2 overflow-hidden rounded-full bg-[#EDEDED]"><div className="h-full rounded-full bg-accent transition-all" style={{ width: `${(n / etapes.length) * 100}%` }} /></div>
+      </Carte>
+      <div className="space-y-3">{etapes.map(([k, titre, texte, modele, lienEt], i) => { const fait = faits.includes(k); return (
+        <Carte key={k} className={fait ? "opacity-70" : ""}>
+          <div className="flex items-start gap-3">
+            <button onClick={() => cocher(k)} aria-pressed={fait} aria-label={fait ? "Marquer à faire" : "Marquer fait"} className={cx("mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 text-[12px] font-bold", fait ? "border-accent bg-accent text-white" : "border-[#CFCFCF] text-[#8A8A8A]")}>{fait ? "✓" : i + 1}</button>
+            <div className="min-w-0 flex-1">
+              <p className={cx("font-semibold text-[15px]", fait && "line-through")}>{titre}</p>
+              <p className="mt-0.5 text-[13.5px] text-[#616161]">{texte}</p>
+              {modele && <div className="mt-2 rounded-xl bg-[#F7F7F5] p-3"><p className="whitespace-pre-line text-[13.5px]">{modele}</p><button onClick={() => copier(modele)} className="mt-2 rounded-lg border border-[#DADADA] bg-white px-3 py-1 text-[12.5px] font-semibold hover:border-[#303030]">Copier le texte</button></div>}
+              {lienEt && (lienEt.href ? <a href={lienEt.href} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[13px] font-semibold text-accent-dark hover:underline">{lienEt.l} →</a> : <NavLink to={lienEt.to} className="mt-2 inline-block text-[13px] font-semibold text-accent-dark hover:underline">{lienEt.l} →</NavLink>)}
+            </div>
+          </div>
+        </Carte>
+      ); })}</div>
+    </>
+  );
+}
+
 // ---------------------------------------------------------------- Premiers clients : le plan jour par jour, à partir du SaaS modèle
 function Clients({ m }) {
+  if (m.app?.spec?.type === "site") return <PlanSite m={m} />;
+  return <ClientsSaas m={m} />;
+}
+function ClientsSaas({ m }) {
   const [s, setS] = useState(undefined);
   useEffect(() => {
     if (!m.domaine) { setS(null); return; }

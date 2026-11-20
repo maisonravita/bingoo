@@ -226,6 +226,12 @@ export async function mailRecu(app: any, slug: string, titulaire: { id: string; 
   await envoyerBrut(app, titulaire.email, `Nouveau : ${String(page.titre ?? "page publique").slice(0, 60)}`, `Votre page « ${page.titre} » vient de recevoir un envoi.\n\n${lignes}`, "Ouvrir mon espace", lien(app, slug), `recu-${rowId}`, null, "E-mail envoyé à chaque envoi reçu par tes pages publiques.");
 }
 
+/** Site web : une demande vient d'arriver par le formulaire, au gérant (il répond directement à la personne). */
+export async function mailDemandeSite(app: any, slug: string, gerant: { email: string }, rowId: string, lignes: string, nom: string) {
+  if (!gerant?.email || /@demo\.local$/.test(gerant.email)) return;
+  await envoyerBrut(app, gerant.email, `Nouvelle demande de ${nom.slice(0, 60)}`, `Votre site vient de recevoir une demande.\n\n${lignes}\n\nRépondez-lui vite : une réponse dans l'heure fait souvent la différence.`, "Voir mes demandes", lien(app, slug), `site-${rowId}`, null, "E-mail envoyé à chaque demande reçue par votre site.");
+}
+
 /** E-mails des utilisateurs d'une app à leurs propres clients (confirmations, rappels, relances), immédiats ou planifiés.
  *  Au nom de l'utilisateur (réponse vers son adresse), depuis le domaine de l'app ; les répétitions se replanifient. */
 export async function appEnvoisCron(max = 200, seul?: string) {
