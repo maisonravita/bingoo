@@ -9,6 +9,7 @@ const HTM = "https://esm.sh/htm@3.1.1";
 
 import { CODE_DEMANDER } from "./demander";
 import { CODE_KIT_FAMILLES } from "./kitFamilles";
+import { CODE_VERIF_GESTES } from "./verifGestes";
 
 const safe = (o) => JSON.stringify(o).replace(/</g, "\\u003c").replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029");
 
@@ -113,6 +114,7 @@ if (B.verif) {
   items.forEach(({ id, col, x }, i) => { const d = {}; for (const [k, v] of Object.entries(x)) if (k !== "ref" && k !== "id" && k !== "cree_le") d[k] = typeof v === "string" && refs.has(v) && /_id$/.test(k) ? refs.get(v) : v; const c = typeof x.cree_le === "string" && !isNaN(Date.parse(x.cree_le)) ? new Date(Date.parse(x.cree_le.length === 10 ? x.cree_le + "T10:00:00Z" : x.cree_le)).toISOString() : new Date(Date.now() - i * 25e6).toISOString(); (VSTORE[col] ??= []).push({ ...d, id, created_at: c, updated_at: null }); });
 }
 async function verifCall(action, b) {
+  if (VAPPELS[action] != null) VAPPELS[action]++; else if (!/^(list|get|public-info)$/.test(action)) VAPPELS.autre++;
   if (action === "public-list") action = "list"; else if (action === "public-add") action = "add"; else if (action === "public-ia") action = "ia"; else if (action === "public-info") return { nom: "Atelier Exemple" };
   const L = VSTORE[b.col] ??= [];
   if (action === "list") return L.filter((x) => Object.entries(b.where ?? {}).every(([k, v]) => String(x[k]) === String(v))).slice().reverse();
@@ -128,6 +130,7 @@ async function verifCall(action, b) {
   return {};
 }
 const VERRS = [];
+${CODE_VERIF_GESTES}
 // Image introuvable (lien mort, exemple inventé) : remplacée par un fond doux plutôt qu'une icône cassée
 const IMG_VIDE = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eef2f7"/><stop offset="1" stop-color="#dfe6ef"/></linearGradient></defs><rect width="400" height="300" fill="url(#g)"/><circle cx="200" cy="138" r="34" fill="none" stroke="#b6c2d2" stroke-width="8"/><path d="M150 214h100" stroke="#b6c2d2" stroke-width="8" stroke-linecap="round"/></svg>');
 addEventListener("error", (e) => { const t = e.target; if (t && t.tagName === "IMG" && !t.dataset.vide) { t.dataset.vide = "1"; t.src = IMG_VIDE; } }, true);
@@ -921,7 +924,7 @@ function Verif() {
       try { parent.postMessage({ type: "bingoo-verif", slug: B.slug, resultats: res.current, ecrans: (S.ecrans ?? []).length }, "*"); } catch (x) {}
       return;
     }
-    const t = setTimeout(() => {
+    const t = setTimeout(async () => {
       const txt = document.getElementById("verif-zone")?.innerText ?? "";
       const casse = txt.includes("n'a pas pu être chargé");
       const bizarre = (/\\bNaN\\b|\\bundefined\\b|\\[object Object\\]|Invalid Date/.exec(txt) ?? [])[0];
@@ -936,8 +939,11 @@ function Verif() {
       // Boutons et pastilles sans aucun texte (ni icône, ni libellé) : le champ affiché n'existe pas dans les données
       const muets = [...(zone?.querySelectorAll("button, [role=button], a") ?? [])].filter((el) => !el.innerText.trim() && !el.querySelector("svg, img, canvas, video, input") && !el.getAttribute("aria-label") && !el.getAttribute("title") && el.getBoundingClientRect().width > 44);
       const muet = muets.length ? "Des boutons s'affichent sans aucun texte (" + muets.length + ") : le champ utilisé pour leur libellé n'existe pas (ou est vide) dans les données d'exemple. Vérifie le nom exact du champ affiché." : null;
-      const erreur = VERRS[0] ?? (casse ? "L'écran ne se charge pas" : bizarre ? "Le texte affiché contient « " + bizarre + " »" : txt.trim().length < 30 ? "L'écran est presque vide" : [vide, zero, muet].filter(Boolean).join(" ") || null);
-      res.current.push({ id: E.id, ok: !erreur, erreur: erreur && String(erreur).slice(0, 700) });
+      let erreur = VERRS[0] ?? (casse ? "L'écran ne se charge pas" : bizarre ? "Le texte affiché contient « " + bizarre + " »" : txt.trim().length < 30 ? "L'écran est presque vide" : [vide, zero, muet].filter(Boolean).join(" ") || null);
+      // Écran bien rempli : on le teste maintenant comme un vrai utilisateur (créer, enregistrer, cliquer sur chaque action)
+      let gestes = null;
+      if (!erreur && zone) { try { const pbs = await gestesEcran(zone); gestes = pbs.length ? pbs : []; if (pbs.length) erreur = "En testant l'écran comme un utilisateur : " + pbs.join(" "); } catch (x) { gestes = null; } }
+      res.current.push({ id: E.id, ok: !erreur, erreur: erreur && String(erreur).slice(0, 700), gestes: gestes != null });
       VERRS.length = 0;
       setI(i + 1);
     }, 1400);

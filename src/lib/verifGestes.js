@@ -1,0 +1,111 @@
+// Gestes d'un vrai utilisateur, joués par le robot avant livraison sur chaque écran d'un SaaS livré (mode vérification,
+// données d'exemple en mémoire). Idée reprise de Craft Anything (parcours scriptés), réécrite pour la coque Bingoo! :
+// on ne se contente plus de voir l'écran rempli, on vérifie qu'il marche quand on clique.
+// - « Ajouter / Nouveau / Créer… » : le bouton réagit, le formulaire se remplit et l'enregistrement a bien lieu ;
+// - les autres boutons d'action font quelque chose (pas de bouton décoratif) ;
+// - aucune erreur ne survient pendant ces gestes.
+// Injecté tel quel dans la coque (String.raw : ni accent grave ni dollar-accolade dans ce code).
+export const CODE_VERIF_GESTES = String.raw`
+const VAPPELS = { add: 0, update: 0, remove: 0, autre: 0 };
+const gPause = (ms) => new Promise((r) => setTimeout(r, ms));
+const gVisible = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== "hidden"; };
+const gLibelle = (el) => String(el.innerText || el.getAttribute("aria-label") || el.getAttribute("title") || "").replace(/\s+/g, " ").trim().slice(0, 40);
+// Jamais cliqués : ce qui détruit, quitte, télécharge, copie, imprime ou ouvre un autre site
+const G_EVITER = /supprim|effac|retir|d[ée]connex|quitter|annuler|fermer|r[ée]initialis|vider|copier|export|t[ée]l[ée]charg|imprim|partag|pdf|csv|stripe|payer|abonn|google|outlook|ical/i;
+const G_CREER = /^\+|^(ajouter|nouveau|nouvelle|cr[ée]er|ajout|r[ée]server|prendre rendez|d[ée]marrer|commencer)/i;
+const G_VALIDER = /enregistr|ajouter|cr[ée]er|valider|envoyer|confirmer|r[ée]server|sauvegard|publier|^ok$|terminer|continuer/i;
+const G_REFUS = /obligatoire|requis|invalide|renseign|au moins|format/i;
+
+async function gCliquer(el, ms) {
+  let mut = 0;
+  const obs = new MutationObserver((l) => { mut += l.length; });
+  obs.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true });
+  const avant = { ...VAPPELS }, v0 = VERRS.length, h0 = location.hash;
+  try { el.click(); } catch (e) { VERRS.push(String(e && e.message || e)); }
+  await gPause(ms);
+  obs.disconnect();
+  const appels = Object.keys(VAPPELS).some((k) => VAPPELS[k] !== avant[k]) || location.hash !== h0;
+  const erreur = VERRS.length > v0 ? VERRS.splice(v0).join(" ").slice(0, 200) : null;
+  return { mut, appels, erreur };
+}
+function gEchap() { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); }
+
+function gValeur(el) {
+  const t = String(el.type || "").toLowerCase(), now = new Date().toISOString();
+  if (el.tagName === "SELECT") { const o = [...el.options].find((o) => o.value && !o.disabled); return o ? o.value : null; }
+  if (t === "email") return "essai@exemple.fr";
+  if (t === "number") return String(el.min && Number(el.min) > 0 ? el.min : 12);
+  if (t === "date") return now.slice(0, 10);
+  if (t === "datetime-local") return now.slice(0, 16);
+  if (t === "month") return now.slice(0, 7);
+  if (t === "time") return "10:30";
+  if (t === "tel") return "0612345678";
+  if (t === "url") return "https://exemple.fr";
+  return "Essai Bingoo";
+}
+async function gRemplir(racine) {
+  let n = 0;
+  for (const el of racine.querySelectorAll("input, textarea, select")) {
+    const t = String(el.type || "").toLowerCase();
+    if (!gVisible(el) || el.disabled || el.readOnly || ["hidden", "file", "checkbox", "radio", "submit", "button", "range", "color", "search"].includes(t)) continue;
+    if (el.tagName !== "SELECT" && el.value) continue;
+    const v = gValeur(el); if (v == null) continue;
+    const proto = el.tagName === "SELECT" ? HTMLSelectElement.prototype : el.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(proto, "value").set.call(el, v);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+    n++;
+  }
+  await gPause(120);
+  return n;
+}
+// Les boutons groupés par 3 ou plus (onglets, filtres, segments) ne sont pas jugés : celui qui est déjà actif ne change rien, c'est normal
+const gGroupe = (b) => { const p = b.parentElement; return !!p && [...p.children].filter((c) => c.tagName === "BUTTON" || c.getAttribute("role") === "button" || c.getAttribute("role") === "tab").length >= 3; };
+
+async function gestesEcran(zone) {
+  const pbs = [];
+  const boutons = () => [...zone.querySelectorAll("button, [role=button]")].filter((b) => gVisible(b) && !b.disabled && !G_EVITER.test(gLibelle(b)));
+  const teste = new Set();
+
+  // 1. Créer quelque chose : le geste principal de presque tous les SaaS
+  const creer = boutons().find((b) => G_CREER.test(gLibelle(b)) && !b.closest("form"));
+  if (creer) {
+    const nom = gLibelle(creer) || "Ajouter"; teste.add(nom);
+    const add0 = VAPPELS.add + VAPPELS.update;
+    const r = await gCliquer(creer, 550);
+    if (r.erreur) pbs.push("Une erreur survient quand on clique sur « " + nom + " » : " + r.erreur);
+    else if (!r.mut && !r.appels) pbs.push("Le bouton « " + nom + " » ne fait rien quand on clique dessus.");
+    else if (VAPPELS.add + VAPPELS.update === add0) {
+      const cadres = [...document.querySelectorAll("form, [role=dialog], [aria-modal=true], .fixed")].filter((f) => gVisible(f) && f.querySelector("input, textarea, select"));
+      const racine = cadres.length ? cadres[cadres.length - 1] : zone;
+      if (await gRemplir(racine)) {
+        const ok = [...racine.querySelectorAll("button, [type=submit]")].filter((b) => gVisible(b) && !b.disabled && !G_EVITER.test(gLibelle(b)))
+          .reverse().find((b) => b.type === "submit" || G_VALIDER.test(gLibelle(b)));
+        const form = racine.tagName === "FORM" ? racine : racine.querySelector("form");
+        if (ok && !(form && form.checkValidity && !form.checkValidity())) {
+          const r2 = await gCliquer(ok, 800);
+          if (r2.erreur) pbs.push("Le formulaire ouvert par « " + nom + " » renvoie une erreur à l'enregistrement : " + r2.erreur);
+          else if (VAPPELS.add + VAPPELS.update === add0 && !G_REFUS.test(racine.innerText || "")) pbs.push("Le formulaire ouvert par « " + nom + " » est rempli puis validé (« " + (gLibelle(ok) || "Enregistrer") + " »), mais rien n'est enregistré.");
+        }
+      }
+    }
+    gEchap(); await gPause(200);
+  }
+
+  // 2. Les autres boutons d'action doivent faire quelque chose (pas de bouton décoratif)
+  const morts = [];
+  for (const b of boutons().slice(0, 12)) {
+    const nom = gLibelle(b);
+    if (!nom || teste.has(nom) || gGroupe(b) || b.closest("form") || b.getAttribute("aria-pressed") === "true" || b.getAttribute("aria-selected") === "true") continue;
+    if (!b.isConnected) continue;
+    teste.add(nom);
+    const r = await gCliquer(b, 350);
+    if (r.erreur) pbs.push("Une erreur survient quand on clique sur « " + nom + " » : " + r.erreur);
+    else if (!r.mut && !r.appels) morts.push(nom);
+    gEchap(); await gPause(120);
+    if (teste.size >= 8) break;
+  }
+  if (morts.length) pbs.push("Ces boutons ne font rien quand on clique dessus : « " + morts.slice(0, 4).join(" », « ") + " ». Branche-les sur une vraie action, ou retire-les.");
+  return pbs;
+}
+`;

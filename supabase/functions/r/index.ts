@@ -985,9 +985,15 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const { data: bloquees } = await admin.from("saas_apps").select("id, projet_id, workspace_id, etape").eq("statut", "en_cours").not("etape", "like", "En pause%").lt("maj", new Date(Date.now() - 11 * 60e3).toISOString()).limit(5);
     const cle = await secret("cron_key");
     // Constructions en pause (plafond d'IA atteint) : on relance les écrans encore vides toutes les 15 minutes ; s'il est encore atteint, elles restent en pause
-    const { data: pauses } = await admin.from("saas_apps").select("id, workspace_id, brouillon").eq("statut", "en_cours").like("etape", "En pause%").lt("maj", new Date(Date.now() - 15 * 60e3).toISOString()).limit(5);
+    const { data: pauses } = await admin.from("saas_apps").select("id, workspace_id, brouillon, etape").eq("statut", "en_cours").like("etape", "En pause%").lt("maj", new Date(Date.now() - 15 * 60e3).toISOString()).limit(5);
+    // L'IA est-elle disponible ? (plafond du jour atteint ou compte vide : on attend sans relancer, sans compter de tour)
+    const { iaSolde } = await import("../_shared/core.ts");
+    const { data: plaf } = await admin.from("app_secrets").select("value").eq("name", "ia_plafond_jour").maybeSingle();
+    const plafond = Number(plaf?.value ?? 0), soldeIa = await iaSolde().catch(() => null);
+    const iaBloquee = (plafond > 0 && (await aiSpent(null)) >= plafond) || (soldeIa != null && soldeIa.restant <= 0);
     for (const a of (pauses ?? []) as any[]) {
       const vides = ((a.brouillon?.ecrans ?? []) as any[]).filter((e) => !e.code).map((e) => e.id);
+      if (iaBloquee) { await admin.from("saas_apps").update({ maj: new Date().toISOString() }).eq("id", a.id); continue; }
       await admin.from("saas_apps").update({ etape: `Reprise de l'écriture des écrans (${vides.length} restants)`, maj: new Date().toISOString() }).eq("id", a.id);
       for (const ecran of vides) await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/r/saas-app-ecran`, { method: "POST", headers: { "content-type": "application/json", "x-cron-key": cle }, body: JSON.stringify({ app_id: a.id, ecran, ws: a.workspace_id }) }).catch(() => null);
     }

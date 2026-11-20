@@ -73,7 +73,7 @@ for (const a of apps) {
     await p.exposeFunction("__resultat", (r) => { resultats = r; });
     await p.addInitScript(() => addEventListener("message", (e) => { if (e.data?.type === "bingoo-verif") window.__resultat(e.data); }));
     await p.goto(`http://localhost:${port}/`, { waitUntil: "domcontentloaded", timeout: 60000 });
-    const fin = Date.now() + 25000 + (a.spec?.ecrans?.length ?? 8) * 2500;
+    const fin = Date.now() + 25000 + (a.spec?.ecrans?.length ?? 8) * 9000;
     while (!resultats && Date.now() < fin) await p.waitForTimeout(500);
     await ctx.close();
   } catch (e) { console.log("  page impossible à ouvrir :", String(e?.message ?? e).slice(0, 200)); }
