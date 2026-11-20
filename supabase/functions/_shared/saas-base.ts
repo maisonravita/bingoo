@@ -906,7 +906,12 @@ Rends {"formules": [2 ou 3 objets nom + prix (euros par mois, nombre) + pour + i
   // Garde-fou : un nom qui ressemble à l'original ou à un concurrent est remplacé
   const { ressemble } = await import("./identite.ts");
   const prisDeja = [s.nom, s.domaine, ...(conc ?? []).map((c) => c.nom)].filter(Boolean) as string[];
-  for (let essai = 0; essai < 2 && (!p.nom || prisDeja.some((x) => ressemble(p.nom, x))); essai++) {
+  // Nom choisi par le membre (« Comment veux-tu l'appeler ? ») : utilisé tel quel, jamais remplacé par un nom de l'IA,
+  // sauf s'il reprend le nom du SaaS d'origine (risque juridique pour le membre)
+  const { data: avant } = projetId ? await admin.from("saas_projets").select("data").eq("id", projetId).maybeSingle() : { data: null };
+  const voulu = String((avant?.data as any)?.nom_choisi ?? "").trim().slice(0, 40) || /Nom souhaité, à utiliser tel quel : (.{1,40}?)(?:\. (?:Clients visés|Ce que je veux faire mieux)|$)/.exec(String(angle ?? ""))?.[1]?.trim();
+  if (voulu && !ressemble(voulu, s.nom ?? "") && !ressemble(voulu, s.domaine ?? "")) p.nom = voulu;
+  for (let essai = 0; essai < 2 && !(voulu && p.nom === voulu) && (!p.nom || prisDeja.some((x) => ressemble(p.nom, x))); essai++) {
     const r = await askJson<{ nom: string }>(`Propose un nom de marque original, court et facile à retenir, pour ce SaaS : ${p.pitch}. Il ne doit ressembler à aucun de ces noms : ${prisDeja.join(", ")}${p.nom ? `, ni à ${p.nom}` : ""}. Clé : nom.`, { fast: true }).catch(() => ({ nom: "" }));
     if (r.nom) p.nom = String(r.nom).trim().slice(0, 40);
   }
@@ -921,7 +926,7 @@ Rends {"formules": [2 ou 3 objets nom + prix (euros par mois, nombre) + pour + i
     `Comptes utilisateurs avec e-mail et mot de passe, abonnement mensuel avec les formules : ${(p.formules ?? []).map((f) => `${f.nom} à ${f.prix} € par mois (${(f.inclus ?? []).join(", ")})`).join(" ; ")}. Essai gratuit de 14 jours.`,
     `Ajoute une page d'accueil publique qui présente le produit et les prix, des mentions légales et une politique de confidentialité conformes au RGPD.`,
   ].join("\n");
-  const data = { ...p, construction, ...(lancementPlanifie ? { analyse_sources: analyseRea != null ? "rea" : "pages_publiques" } : {}), ...(scan?.modules?.length ? { scan: { modules: scan.modules.slice(0, 10), parcours: (scan.parcours ?? []).slice(0, 6), formules: String(scan.formules ?? "").slice(0, 400), objections: (scan.objections ?? []).slice(0, 6), vocabulaire: (scan.vocabulaire ?? []).slice(0, 15), style: scan.style ?? null, nature: scan.nature && typeof scan.nature === "object" ? scan.nature : null, pages: choisies.length + 2 } } : {}), inspire: { nom: s.nom, domaine: s.domaine, categorie: s.categorie, prix: s.prix_entree_eur, usage: ["usage", "commission"].includes(s.modele_prix ?? "") ? s.prix_affiche : null }, marche: { mediane, prix: prixMarche, concurrents: (conc ?? []).length },
+  const data = { ...p, ...(voulu ? { nom_choisi: voulu } : {}), construction, ...(lancementPlanifie ? { analyse_sources: analyseRea != null ? "rea" : "pages_publiques" } : {}), ...(scan?.modules?.length ? { scan: { modules: scan.modules.slice(0, 10), parcours: (scan.parcours ?? []).slice(0, 6), formules: String(scan.formules ?? "").slice(0, 400), objections: (scan.objections ?? []).slice(0, 6), vocabulaire: (scan.vocabulaire ?? []).slice(0, 15), style: scan.style ?? null, nature: scan.nature && typeof scan.nature === "object" ? scan.nature : null, pages: choisies.length + 2 } } : {}), inspire: { nom: s.nom, domaine: s.domaine, categorie: s.categorie, prix: s.prix_entree_eur, usage: ["usage", "commission"].includes(s.modele_prix ?? "") ? s.prix_affiche : null }, marche: { mediane, prix: prixMarche, concurrents: (conc ?? []).length },
     plan: { prix_moyen: prixMoyen, couts_fixes: couts, mois, equilibre: mois.find((x) => x.resultat > 0)?.mois ?? null } };
   if (projetId) {
     let miseAJour = admin.from("saas_projets").update({ data, statut: "pret" }).eq("id", projetId);

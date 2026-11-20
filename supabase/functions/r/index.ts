@@ -356,6 +356,13 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       p_workspace: ws.id, p_saas: s.id, p_angle: typeof b.angle === "string" ? b.angle.slice(0, 400) : null,
     }).single();
     if (error || !data) throw new Error(error?.message ?? "La préparation n’a pas été enregistrée.");
+    // Nom choisi par le membre : gardé à part, il s'impose à la préparation et à la construction (jamais remplacé par l'IA)
+    const nomChoisi = typeof b.nom === "string" ? b.nom.replace(/\s+/g, " ").trim().slice(0, 40) : "";
+    if (nomChoisi) {
+      const { data: pj } = await admin.from("saas_projets").select("data, statut").eq("id", data.id).single();
+      const d0 = (pj?.data ?? {}) as Record<string, unknown>;
+      await admin.from("saas_projets").update({ data: { ...d0, nom_choisi: nomChoisi, ...(pj?.statut === "pret" ? { nom: nomChoisi } : {}) } }).eq("id", data.id);
+    }
     if (data.nouveau) await log(ws.id, "lancer", `Projet de SaaS concurrent de ${s.nom ?? domaine}`);
     // Démarre tout de suite (sans attendre la tâche minute) ; REA continue en arrière-plan pour les prochains lancements
     if (data.statut === "attente_analyse") { await demarrerLancement(data.id).catch((e) => console.error("saas-lancer", e?.message)); return { id: data.id, statut: "en_cours" }; }
@@ -379,7 +386,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     if (s.statut !== "ok") await saasLire(s.id);
     const ws = String(b.workspace_id);
     const { data: row } = await admin.from("saas_projets").insert({ workspace_id: ws, saas_id: s.id, statut: "en_cours", data: { inspire: { nom: s.nom ?? domaine, domaine }, angle: typeof b.angle === "string" ? b.angle.slice(0, 400) : null } }).select("id").single();
-    const travail = saasLancer(ws, domaine, row!.id).catch(async (e) => { await admin.from("saas_projets").update({ statut: "erreur", erreur: String(e?.message ?? e).slice(0, 300) }).eq("id", row!.id); });
+    const travail = saasLancer(ws, domaine, row!.id, typeof b.angle === "string" ? b.angle : null).catch(async (e) => { await admin.from("saas_projets").update({ statut: "erreur", erreur: String(e?.message ?? e).slice(0, 300) }).eq("id", row!.id); });
     // deno-lint-ignore no-explicit-any
     const rt = (globalThis as any).EdgeRuntime;
     if (rt?.waitUntil) rt.waitUntil(travail); else await travail;

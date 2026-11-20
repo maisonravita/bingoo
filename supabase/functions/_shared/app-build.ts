@@ -152,6 +152,8 @@ export async function saasConstruire(appId: string, lancerEcran: (ecranId: strin
   const { data: app } = await admin.from("saas_apps").select("id, projet_id").eq("id", appId).single();
   const { data: pr } = await admin.from("saas_projets").select("data").eq("id", app!.projet_id).single();
   const p = (pr?.data ?? {}) as any;
+  // Le nom choisi par le membre est celui du SaaS, toujours
+  if (typeof p.nom_choisi === "string" && p.nom_choisi.trim()) p.nom = p.nom_choisi.trim().slice(0, 40);
   const { data: av } = await admin.from("saas_apps").select("etape").eq("id", appId).single();
   const suffixe = /2e essai/.test(String(av?.etape ?? "")) ? " (2e essai)" : "";
   await etape(appId, `Conception des données et des écrans${suffixe}`);

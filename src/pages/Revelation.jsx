@@ -212,8 +212,11 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   const parCredits = useRef(false); // l'utilisateur a accepté de payer ce SaaS supplémentaire en crédits
   // 3 questions avant de construire (facultatives) : le SaaS devient le sien, pas un SaaS généré
   const [questions, setQuestions] = useState(() => !(atelier || pretDeja || c.projet?.id));
-  const [rep, setRep] = useState({ nom: "", clients: "", mieux: "" });
-  const angle = useRef(null);
+  // Réponses gardées dans le navigateur : elles survivent à un rechargement ou à un retour de paiement
+  const cleRep = "bingoo-reponses-" + (c.domaine ?? "");
+  const [rep, setRepEtat] = useState(() => ({ nom: "", clients: "", mieux: "", ...(lire(cleRep) ?? {}) }));
+  const setRep = (x) => { setRepEtat(x); ecrire(cleRep, x); };
+  const angle = useRef((() => { const r0 = lire("bingoo-reponses-" + (c.domaine ?? "")); return r0?.angle ?? null; })());
   const fil = useRef(null);
 
   useEffect(() => {
@@ -227,9 +230,11 @@ export function Chantier({ ws, nav, init, atelier = false }) {
         if (atelier && !p?.id) throw new Error("Ton SaaS est introuvable.");
         if (!p?.id) {
           const { data: deja } = await supabase.from("saas_projets").select("id, data, statut").eq("workspace_id", ws.id).eq("data->inspire->>domaine", c.domaine).eq("statut", "pret").order("at", { ascending: false }).limit(1);
-          if (deja?.[0]) p = { id: deja[0].id, ...deja[0].data };
+          // Un projet déjà prêt n'est repris que s'il porte le nom choisi (sinon on prépare celui que le membre vient de nommer)
+          const voulu = (rep.nom ?? "").trim();
+          if (deja?.[0] && (!voulu || deja[0].data?.nom === voulu)) p = { id: deja[0].id, ...deja[0].data };
           else {
-            const { id } = await fn("r/saas-lancer", { workspace_id: ws.id, domaine: c.domaine, angle: angle.current });
+            const { id } = await fn("r/saas-lancer", { workspace_id: ws.id, domaine: c.domaine, angle: angle.current, nom: (rep.nom ?? "").trim() || null });
             setEtape(0);
             const finPreparation = Date.now() + 38 * 60_000;
             let intervalle = 3500;
@@ -351,7 +356,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                   ))}
                 </div>
                 <div className="mt-3 flex gap-2">
-                  <button onClick={() => { const t = [rep.nom.trim() && `Nom souhaité, à utiliser tel quel : ${rep.nom.trim()}`, rep.clients.trim() && `Clients visés : ${rep.clients.trim()}`, rep.mieux.trim() && `Ce que je veux faire mieux : ${rep.mieux.trim()}`].filter(Boolean).join(". "); angle.current = t || null; setQuestions(false); }} className="rounded-lg bg-[#E8571C] px-4 py-2 text-[13px] font-semibold text-white">Construire ma version</button>
+                  <button onClick={() => { const t = [rep.nom.trim() && `Nom souhaité, à utiliser tel quel : ${rep.nom.trim()}`, rep.clients.trim() && `Clients visés : ${rep.clients.trim()}`, rep.mieux.trim() && `Ce que je veux faire mieux : ${rep.mieux.trim()}`].filter(Boolean).join(". "); angle.current = t || null; setRep({ ...rep, angle: t || null }); setQuestions(false); }} className="rounded-lg bg-[#E8571C] px-4 py-2 text-[13px] font-semibold text-white">Construire ma version</button>
                   <button onClick={() => { angle.current = null; setQuestions(false); }} className="rounded-lg px-3 py-2 text-[13px] font-semibold text-ink-soft hover:text-ink">Passer</button>
                 </div>
               </Bingoo>
