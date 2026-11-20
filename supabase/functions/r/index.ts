@@ -628,7 +628,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     }
     if (b.quoi === "ia-etat") {
       const [{ data: sec }, { data: mois }] = await Promise.all([admin.from("saas_app_secrets").select("ia_cle, maj").eq("app_id", app.id).maybeSingle(), admin.rpc("saas_app_ia_mois", { p_app: app.id })]);
-      const inclus = ({ explorer_pro: 300, business: 3000, fondateur: 3000 } as Record<string, number>)[ws.plan] ?? 300;
+      const inclus = ({ explorer_pro: 300, lancer_pro: 1000, business: 3000, fondateur: 3000 } as Record<string, number>)[ws.plan] ?? 300;
       return { cle: sec?.ia_cle ? `${sec.ia_cle.slice(0, 10)}…${sec.ia_cle.slice(-4)}` : null, maj: sec?.maj ?? null, mois: mois ?? 0, inclus };
     }
     if (b.quoi === "ia-cle") {
@@ -971,7 +971,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   // Explorer → prospection : un segment de clients devient une cible de l'espace (Radar et Mission la prospectent ensuite)
   async "saas-cible-ajouter"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
-    if (["explorer", "explorer_pro", "business"].includes(String(ws.plan))) throw new HttpError(402, "La prospection ne fait pas partie de ta formule : tu peux noter ces segments et les démarcher avec ton outil.");
+    if (["explorer", "explorer_pro", "lancer_pro", "business"].includes(String(ws.plan))) throw new HttpError(402, "La prospection ne fait pas partie de ta formule : tu peux noter ces segments et les démarcher avec ton outil.");
     const x = (b.segment ?? {}) as Record<string, unknown>;
     const naf = (Array.isArray(x.naf) ? x.naf : []).map(String).filter((n) => /^\d{2}\.\d{2}[A-Z]$/.test(n)).slice(0, 4);
     if (!x.label || !naf.length) throw new HttpError(400, "Segment incomplet");

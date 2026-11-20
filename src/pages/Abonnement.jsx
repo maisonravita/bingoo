@@ -13,9 +13,10 @@ const eur = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", 
 const FEATURES = {
   explorer: ["Tes SaaS en tendance débloqués, avec leurs vrais revenus", "Leur visibilité, leur pub et leurs canaux", "Ton plan sur 30 jours", "Ton plan pour tes 10 premiers clients, avec des établissements à contacter", "L'étape du jour chaque matin par e-mail", "Toute la base SaaS et 10 SaaS suivis"],
   explorer_pro: ["Tout Trouver", "3 SaaS construits par mois, à ton nom (30 modifications)", "En ligne avec ton domaine, branché à ton Stripe", "SaaS et catégories suivis sans limite", "Les SaaS à vendre et à racheter", "1 000 réponses de l'assistant IA de tes SaaS par mois"],
+  lancer_pro: ["Tout Lancer", "100 modifications par mois dans l'atelier (au lieu de 30)", "1 000 réponses de l'assistant IA de ton SaaS par mois", "Tes 10 premiers clients en 7 jours compris"],
   business: ["Tout Lancer", "10 SaaS construits par mois (100 modifications)", "3 000 réponses de l'assistant IA de tes SaaS par mois", "3 utilisateurs", "Export CSV des listes", "Support prioritaire"],
 };
-const VEILLE = ["explorer", "explorer_pro", "business"];
+const VEILLE = ["explorer", "explorer_pro", "lancer_pro", "business"];
 const CONTACT = "bingoo@maisonravita.fr";
 
 /** Prospects contactés ce mois-ci : le quota de la formule, le report, les recharges, et le bouton +100. */
@@ -219,10 +220,17 @@ export default function Abonnement() {
 
   const go = async (route, plan, pack, periode) => {
     setBusy(periode ?? plan ?? pack ?? route);
-    try { const r = await fn(route, { workspace_id: ws.id, plan, yearly, pack, periode }); window.location.href = r.url; }
+    try {
+      const r = await fn(route, { workspace_id: ws.id, plan, yearly, pack, periode });
+      // Changement de formule sur place (Lancer → Lancer Pro) : pas de page de paiement, la différence est facturée au prorata
+      if (r?.change) { toast("C'est fait : tu es passé à Lancer Pro."); setTimeout(() => window.location.reload(), 900); return; }
+      window.location.href = r.url;
+    }
     catch (e) { toast(e.message, "bad"); setBusy(null); }
   };
 
+  // Arrivée depuis l'atelier (« Passer à Lancer Pro ») : on amène directement à l'offre
+  useEffect(() => { if (loc.hash === "#lancer-pro" && plans.length) setTimeout(() => document.getElementById("lancer-pro")?.scrollIntoView({ behavior: "smooth", block: "center" }), 200); }, [loc.hash, plans.length]);
   // Arrivée depuis « Lancer celui-ci » : on ouvre directement le paiement de la formule demandée
   const formule = new URLSearchParams(loc.search).get("formule");
   const periodeVoulue = new URLSearchParams(loc.search).get("periode");
@@ -257,6 +265,23 @@ export default function Abonnement() {
       <ChoixFormule periodes={plans.find((p) => p.key === "explorer_pro")?.periodes} fondateur={fond && (ws.founder_price || fond.left > 0) ? fond.price : null}
         actuelle={ws.plan === "explorer_pro" && ["active", "trialing", "past_due"].includes(ws.plan_status) ? (ws.periode ?? "mois") : null}
         busy={busy} onChoisir={(k) => go("billing-checkout", "explorer_pro", undefined, k)} />
+      {(() => {
+        const lp = plans.find((p) => p.key === "lancer_pro");
+        if (!lp) return null;
+        const actif = ws.plan === "lancer_pro" && ["active", "trialing", "past_due"].includes(ws.plan_status);
+        const surLancer = ws.plan === "explorer_pro" && ["active", "trialing", "past_due"].includes(ws.plan_status);
+        const per = lp.periodes?.find((x) => x.key === (surLancer ? ws.periode ?? "mois" : "mois")) ?? lp.periodes?.[0];
+        return (
+          <Card id="lancer-pro" className="mt-6 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-2 border-[#E8571C]/40">
+            <div className="min-w-0">
+              <p className="font-semibold">Tu modifies beaucoup ton SaaS ? Lancer Pro, {eur(per?.parMois ?? lp.price)} € HT par mois</p>
+              <p className="text-sm text-ink-soft mt-1">Toujours un seul SaaS, avec <b>100 modifications par mois</b> dans l'atelier au lieu de 30, et 1 000 réponses de l'assistant IA de ton SaaS. {surLancer ? "Tu gardes ta durée ; la différence est facturée au prorata, sans repasser par le paiement." : ""}</p>
+            </div>
+            {actif ? <span className="shrink-0 rounded-xl bg-good/10 text-good px-4 py-2.5 text-sm font-semibold">Ta formule actuelle</span>
+              : <button disabled={!!busy} onClick={() => go("billing-checkout", "lancer_pro", undefined, surLancer ? ws.periode ?? "mois" : "mois")} className="shrink-0 rounded-xl bg-[#E8571C] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50">{surLancer ? "Passer à Lancer Pro" : "Choisir Lancer Pro"}</button>}
+          </Card>
+        );
+      })()}
       <p className="mt-3 text-[12.5px] text-ink-faint">En payant, tu acceptes les <a href="#/conditions" className="underline hover:text-ink">conditions générales</a> et tu demandes l'accès immédiat. Particulier : tu peux te rétracter sous 14 jours, seul le temps déjà utilisé est retenu.</p>
       {(() => {
         const t = plans.find((p) => p.key === "explorer");

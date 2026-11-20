@@ -15,7 +15,7 @@ const HF = { fontFamily: "var(--font-titre)" };
 const CLE_CHOIX = "bingoo-choix";
 const CLE_CHANTIER = "bingoo-chantier";
 const dollar = (n) => n == null ? "—" : n >= 1e4 ? `${Math.round(n / 1e3)} k$` : `${Math.round(n).toLocaleString("fr-FR")} $`;
-const paye = (ws) => ws?.plan === "fondateur" || (["explorer", "explorer_pro", "business", "solo", "pro"].includes(ws?.plan) && ["active", "trialing", "past_due"].includes(ws?.plan_status));
+const paye = (ws) => ws?.plan === "fondateur" || (["explorer", "explorer_pro", "lancer_pro", "business", "solo", "pro"].includes(ws?.plan) && ["active", "trialing", "past_due"].includes(ws?.plan_status));
 const lire = (k) => { try { return JSON.parse(localStorage.getItem(k) ?? "null"); } catch { return null; } };
 const ecrire = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch { /* stockage indisponible */ } };
 const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -462,6 +462,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                 <Bingoo>
                   {x.etat === "encours" ? <p className="flex items-center gap-2.5 text-ink-soft"><Coche ok={false} />Je modifie ton SaaS… (une à deux minutes)</p>
                     : x.etat === "ok" ? <div><p className="flex items-center gap-2.5"><Coche ok />C'est en ligne, regarde l'aperçu.{x.credit ? " (1 crédit utilisé)" : ""}</p>{x.faits?.length > 0 && <ul className="mt-1.5 ml-8 list-disc text-[13.5px] text-ink-soft">{x.faits.map((f) => <li key={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</li>)}</ul>}{x.rates?.length > 0 && <p className="mt-1 ml-8 text-[13px] text-[#9A3412]">{x.rates.join(" ; ")}</p>}{x.versionAvant && <button onClick={() => restaurer(x.versionAvant)} disabled={occupe} className="mt-1.5 ml-8 text-[12.5px] font-semibold text-ink-soft underline-offset-2 hover:underline disabled:opacity-40">↶ Annuler cette modification</button>}</div>
+                      : /modifications du mois|Il te faut \d+ crédit/.test(x.erreur ?? "") ? <QuotaAtteint plan={ws?.plan} nav={nav} erreur={x.erreur} />
                       : <p className="text-[#B42318]">{x.erreur}</p>}
                 </Bingoo>
               </div>
@@ -511,7 +512,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
             <div className="mt-1.5 px-1 text-[11.5px] leading-relaxed text-ink-faint">
               {conso && <p>
                 Modifications : <b className="text-ink-soft tabular-nums">{conso.mod?.utilise ?? 0} sur {conso.mod?.max ?? 30}</b> ce mois
-                {conso.credits > 0 ? <> · ensuite <b className="text-ink-soft tabular-nums">{conso.credits}</b> crédit{conso.credits > 1 ? "s" : ""}</> : (conso.mod?.utilise ?? 0) >= (conso.mod?.max ?? 30) ? <> · <button type="button" onClick={() => nav("/abonnement")} className="font-semibold text-ink-soft underline">recharger des crédits</button></> : null}
+                {conso.credits > 0 ? <> · ensuite <b className="text-ink-soft tabular-nums">{conso.credits}</b> crédit{conso.credits > 1 ? "s" : ""}</> : (conso.mod?.utilise ?? 0) >= (conso.mod?.max ?? 30) ? <> · {ws?.plan === "explorer_pro" ? <button type="button" onClick={() => nav("/abonnement#lancer-pro")} className="font-semibold text-[#E8571C] underline">passer à Lancer Pro (100 par mois)</button> : <button type="button" onClick={() => nav("/abonnement")} className="font-semibold text-ink-soft underline">recharger des crédits</button>}</> : null}
                 {conso.repart ? <> · nouvelles modifications le {(() => { const d = new Date(conso.repart); return (d.getDate() === 1 ? "1er" : d.getDate()) + " " + d.toLocaleDateString("fr-FR", { month: "long" }); })()}</> : null}
               </p>}
               <p>Double-clic sur un texte de l'aperçu pour le modifier : gratuit, ne compte pas dans tes modifications.</p>
@@ -545,6 +546,21 @@ export function Chantier({ ws, nav, init, atelier = false }) {
             {occupe && <div className="absolute inset-x-0 top-0 h-1 overflow-hidden bg-[#ECEAE4]"><div className="h-full w-1/3 animate-[barre_1.2s_ease-in-out_infinite] bg-[#E8571C]" /></div>}
           </div>
         </section>
+      </div>
+    </div>
+  );
+}
+// Modifications du mois utilisées : on propose la formule supérieure (Lancer Pro), sinon des crédits
+function QuotaAtteint({ plan, nav, erreur }) {
+  const pro = plan === "lancer_pro" || plan === "business" || plan === "fondateur";
+  return (
+    <div className="rounded-xl border border-[#E8571C]/30 bg-[#FFF6F1] p-3">
+      <p className="font-semibold">{/crédit/.test(erreur) && !/modifications/.test(erreur) ? "Plus de modifications ni de crédits ce mois-ci." : "Tu as utilisé toutes tes modifications du mois."}</p>
+      {pro ? <p className="mt-1 text-[13.5px] text-ink-soft">Continue tout de suite avec des crédits (1 crédit par modification), ou attends le 1er du mois.</p>
+        : <p className="mt-1 text-[13.5px] text-ink-soft">Passe à <b>Lancer Pro</b> : <b>100 modifications par mois</b> au lieu de 30, pour 39,99 € HT par mois. Tu gardes ton SaaS et ta durée, la différence est facturée au prorata. Ou continue avec des crédits.</p>}
+      <div className="mt-2.5 flex flex-wrap gap-2">
+        {!pro && <button onClick={() => nav("/abonnement#lancer-pro")} className="rounded-lg bg-[#E8571C] px-3.5 py-2 text-[13px] font-semibold text-white">Passer à Lancer Pro</button>}
+        <button onClick={() => nav("/abonnement")} className="rounded-lg border border-line bg-white px-3.5 py-2 text-[13px] font-semibold">Recharger des crédits</button>
       </div>
     </div>
   );

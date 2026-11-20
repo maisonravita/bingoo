@@ -398,7 +398,11 @@ export async function checkout(ws: Workspace, userId: string, planKey: string, y
     customer = c.id;
     await admin.from("workspaces").update({ stripe_customer: customer }).eq("id", ws.id);
   }
-  if (ws.stripe_subscription && ["active", "trialing", "past_due"].includes(ws.plan_status)) return await portal(ws, userId);
+  if (ws.stripe_subscription && ["active", "trialing", "past_due"].includes(ws.plan_status)) {
+    // Déjà abonné à une autre formule en vente (Lancer → Lancer Pro) : on change l'abonnement en place, au prorata
+    if (planKey !== ws.plan && VENTE.includes(String(ws.plan))) return await changerFormule(ws, planKey, periodeKey);
+    return await portal(ws, userId);
+  }
   // Prix fondateur : 19 € à vie tant qu'il reste des places (vérifié au paiement, pas seulement à l'affichage)
   const { FOUNDER } = await import("./core.ts");
   // Durée choisie (1, 3 ou 12 mois) ; les anciennes demandes « annuel » valent 12 mois
@@ -425,6 +429,33 @@ export async function checkout(ws: Workspace, userId: string, planKey: string, y
     cancel_url: retour === "revelation" ? `${APP(ws)}/#/explorer/trouver?paiement=annule` : `${APP(ws)}/#/abonnement?paiement=annule`,
   });
   return { url: s.url };
+}
+
+/** Passage d'une formule à l'autre sans repasser par le paiement : même durée, prix de la nouvelle formule,
+ *  différence facturée tout de suite au prorata. Le webhook (metadata plan) confirme ensuite. */
+async function changerFormule(ws: Workspace, planKey: string, periodeKey: string) {
+  const p = PLANS[planKey];
+  const sub = await stripe(`/subscriptions/${ws.stripe_subscription}`, undefined, "GET");
+  const item = sub?.items?.data?.[0];
+  if (!item?.id) throw new HttpError(400, "Abonnement introuvable chez Stripe");
+  const grille = periodesDe(planKey);
+  const perKey = (ws as { periode?: string }).periode && grille[(ws as { periode?: string }).periode!] ? (ws as { periode?: string }).periode! : (grille[periodeKey] ? periodeKey : "mois");
+  const per = grille[perKey];
+  const prod = await stripe("/products", { name: `Bingoo! ${p.label} · ${per.label}` });
+  await stripe(`/subscriptions/${ws.stripe_subscription}`, {
+    "items[0][id]": item.id,
+    "items[0][price_data][currency]": "eur",
+    "items[0][price_data][product]": prod.id,
+    "items[0][price_data][unit_amount]": String(Math.round(per.parMois * per.mois * 100)),
+    "items[0][price_data][recurring][interval]": per.mois === 12 ? "year" : "month",
+    "items[0][price_data][recurring][interval_count]": per.mois === 3 ? "3" : "1",
+    "items[0][price_data][tax_behavior]": "exclusive",
+    proration_behavior: "always_invoice",
+    "metadata[plan]": planKey, "metadata[periode]": perKey, "metadata[workspace_id]": ws.id,
+  });
+  await admin.from("workspaces").update({ plan: planKey, periode: perKey }).eq("id", ws.id);
+  await log(ws.id, "abonnement", `Passage à ${p.label}`);
+  return { ok: true, change: planKey };
 }
 
 /** Achat d'une recharge IA (paiement unique). Créditée à la confirmation du paiement par Stripe. */

@@ -48,7 +48,7 @@ const preuveFaible = (su) => (su?.type === "revenu_verifie" && Number(su.montant
 const TRIS = [["copiable", "Les plus faciles à lancer"], ["succes_montant", "Plus gros revenu prouvé"], ["score_croissance", "En croissance"], ["postes", "Qui recrutent le plus"], ["nouveaute", "Nouveautés récentes"], ["rang_web", "Les plus connus"], ["prix_entree_eur", "Prix d'entrée"], ["created_at", "Ajoutés récemment"]];
 const PAGE = 48;
 // Niveau de formule pour Explorer : 1 = Starter, 2 = Pro, 3 = Business (et anciennes formules, aperçu, fondateur)
-const niv = (ws) => (ws?.plan === "explorer" ? 1 : ws?.plan === "explorer_pro" ? 2 : 3);
+const niv = (ws) => (ws?.plan === "explorer" ? 1 : ws?.plan === "explorer_pro" || ws?.plan === "lancer_pro" ? 2 : 3);
 function Verrou({ titre, texte, formule = "Pro", sombre = false }) {
   const nav = useNavigate();
   return (
@@ -872,7 +872,7 @@ function Clients({ domaine, categorie, tag, titre = "Qui démarcher dans cette n
   return (
     <section className="rounded-2xl bg-ink text-white p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h2 className="font-bold text-[17px]">{titre}</h2><p className="text-[13px] text-white/70">Les entreprises qui achètent ce genre de logiciel, comptées dans le registre officiel.{["explorer", "explorer_pro", "business"].includes(ws.plan) ? " Leurs codes d'activité te servent à les trouver dans ton outil de prospection." : " Ajoute-les à tes cibles : Bingoo! trouve le décideur et prépare les messages."}</p></div>
+        <div><h2 className="font-bold text-[17px]">{titre}</h2><p className="text-[13px] text-white/70">Les entreprises qui achètent ce genre de logiciel, comptées dans le registre officiel.{["explorer", "explorer_pro", "lancer_pro", "business"].includes(ws.plan) ? " Leurs codes d'activité te servent à les trouver dans ton outil de prospection." : " Ajoute-les à tes cibles : Bingoo! trouve le décideur et prépare les messages."}</p></div>
         {!r && <button onClick={voir} disabled={busy} className="shrink-0 rounded-xl bg-accent px-5 py-3 font-bold hover:bg-accent-dark disabled:opacity-60">{busy ? "Recherche…" : "Voir qui démarcher"}</button>}
       </div>
       {r && (r.segments?.length ? (
@@ -3026,7 +3026,7 @@ function PreuveDirecte({ ap }) {
     </div>
   );
 }
-export const estPaye = (ws) => ws?.plan === "fondateur" || (["explorer", "explorer_pro", "business", "solo", "pro"].includes(ws?.plan) && ["active", "trialing", "past_due"].includes(ws?.plan_status));
+export const estPaye = (ws) => ws?.plan === "fondateur" || (["explorer", "explorer_pro", "lancer_pro", "business", "solo", "pro"].includes(ws?.plan) && ["active", "trialing", "past_due"].includes(ws?.plan_status));
 // Avant paiement : le premier SaaS en clair (la preuve), les deux autres, le plan et le prompt une fois l'abonnement réglé.
 // Le serveur n'envoie que le premier tant que rien n'est payé : les cartes floutées sont factices.
 // La jauge du revenu espéré : glisser, voir le chiffre et ce qu'il représente en clients
