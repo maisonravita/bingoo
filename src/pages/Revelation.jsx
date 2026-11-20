@@ -466,9 +466,12 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                     <ul className="mt-2 space-y-1.5">{lignes.map((l) => <li key={l.k} className={cx("flex gap-2.5", l.long ? "items-start" : "items-center")}>{l.alerte ? <Alerte /> : <Coche ok />}<span className={cx("min-w-0", !l.long && "truncate")}>{l.t}</span></li>)}</ul></details>
                 ) : <ul className="space-y-1.5">{lignes.map((l) => <li key={l.k} className={cx("rise flex gap-2.5 text-[13.5px]", l.long ? "items-start" : "items-center")}>{l.alerte ? <Alerte /> : <Coche ok={l.ok} />}<span className={cx("min-w-0", !l.long && "truncate", !l.ok && !l.alerte && "text-ink-soft")}>{l.t}</span></li>)}</ul>}
                 {fini && (app?.verif?.reste ?? []).length > 0 && !occupe && (
-                  <div className="mt-3 flex flex-wrap gap-2">{app.verif.reste.map((id) => { const e = (app.spec?.ecrans ?? []).find((x) => x.id === id); const err = (app.verif.resultats ?? []).find((r) => r.id === id)?.erreur ?? ""; return e ? (
-                    <button key={id} onClick={() => envoyer(`Corrige l'écran « ${e.titre} » : ${String(err).slice(0, 300) || "il ne fonctionne pas correctement"}`, id)} className="rounded-lg border border-[#F5C9A8] bg-[#FFF7F0] px-3 py-1.5 text-[12.5px] font-semibold text-[#C2410C] hover:bg-[#FDECD8]">Corriger « {e.titre} » · offert</button>
-                  ) : null; })}</div>
+                  <div className="mt-3 flex flex-wrap gap-2">{app.verif.reste.map((id) => { const e = (app.spec?.ecrans ?? []).find((x) => x.id === id); const err = (app.verif.resultats ?? []).find((r) => r.id === id)?.erreur ?? ""; if (!e) return null;
+                    // Écran fait main : l'IA ne le réécrit pas, l'équipe est prévenue (alerte admin) : pas de bouton qui ne ferait rien
+                    if (e.modele) return <span key={id} className="rounded-lg bg-paper px-3 py-1.5 text-[12.5px] text-ink-soft">« {e.titre} » : signalé à l'équipe Bingoo!, corrigé sous 24 h</span>;
+                    if ((app.verif.offerts?.[id] ?? 0) >= 2) return <span key={id} className="rounded-lg bg-paper px-3 py-1.5 text-[12.5px] text-ink-soft">« {e.titre} » : décris le souci dans l'atelier</span>;
+                    return <button key={id} onClick={() => envoyer(`Corrige l'écran « ${e.titre} » : ${String(err).slice(0, 300) || "il ne fonctionne pas correctement"}`, id)} className="rounded-lg border border-[#F5C9A8] bg-[#FFF7F0] px-3 py-1.5 text-[12.5px] font-semibold text-[#C2410C] hover:bg-[#FDECD8]">Corriger « {e.titre} » · offert</button>;
+                  })}</div>
                 )}
                 {robotActif && app && <AppCadre key={robotActif} slug={app.slug} spec={app.spec} version={app.version} verif className="pointer-events-none absolute -left-[9999px] top-0 h-[800px] w-[1200px]" />}
               </div>

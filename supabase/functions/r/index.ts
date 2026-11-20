@@ -538,10 +538,31 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const restants = ko.filter((r: any) => !aReparer.includes(r));
     // Fin de la boucle : plus rien à corriger ni en cours de correction
     const fini = boucle && !aReparer.length && !enRep.length;
+    // Écrans de modèles faits main en échec : ni l'IA ni le membre ne peuvent les réparer, l'équipe s'en charge (alerte admin, sous 24 h)
+    const parEquipe = (r: any) => !!ecrans.find((e) => e.id === r.id)?.modele;
     if (fini) {
+      const equipe = restants.filter(parEquipe), membre = restants.filter((r: any) => !parEquipe(r));
       if (!restants.length) noter(`Tout est propre : les ${resultats.length} écrans ont été testés et fonctionnent. Ton SaaS est prêt.`, "ok");
-      else noter(`Je livre ton SaaS, mais ${restants.length} écran${restants.length > 1 ? "s ne fonctionnent" : " ne fonctionne"} pas encore bien : ${restants.map((r: any) => `« ${titre(r.id)} »`).join(", ")}${budgetAtteint ? " (budget de corrections atteint)" : restants.some((r: any) => ecrans.find((e) => e.id === r.id)?.modele) ? "" : ` (${ESSAIS} essais sans succès)`}. Décris le souci dans l'atelier : sa correction ne te coûte rien.`, "reste");
+      else {
+        if (membre.length) noter(`Je livre ton SaaS, mais ${membre.length} écran${membre.length > 1 ? "s ne fonctionnent" : " ne fonctionne"} pas encore bien : ${membre.map((r: any) => `« ${titre(r.id)} »`).join(", ")}${budgetAtteint ? " (budget de corrections atteint)" : ` (${ESSAIS} essais sans succès)`}. Un clic sur « Corriger · offert » le relance, sans rien te coûter.`, "reste");
+        if (equipe.length) noter(`${equipe.map((r: any) => `« ${titre(r.id)} »`).join(", ")} : un souci de données que je ne peux pas corriger seul. L'équipe Bingoo! est prévenue et le corrige sous 24 h.`, "reste");
+        for (const r of equipe) await admin.from("admin_alertes").insert({ workspace_id: ws.id, app_id: app.id, ecran: r.id, texte: `Écran fait main « ${titre(r.id)} » (${spec.modele ?? "?"}) en échec à la livraison : ${String(r.erreur ?? "").slice(0, 400)}` }).then(() => null, () => null);
+      }
       mesure.fin = new Date().toISOString(); mesure.ok = !restants.length;
+      // Le membre a pu fermer la page : un e-mail lui dit que c'est fini (une seule fois par construction)
+      try {
+        const { data: m } = await admin.from("members").select("email").eq("workspace_id", ws.id).eq("role", "owner").limit(1).maybeSingle();
+        if (m?.email) {
+          const nom = spec.nom ?? "Ton SaaS";
+          const lien = "https://www.bingoo.fr/#/explorer/mon-saas";
+          const { sendSystem } = await import("../_shared/mail.ts");
+          await sendSystem({ to: m.email, key: `verif-fin-${app.id}`,
+            subject: restants.length ? `${nom} est en ligne, avec ${restants.length} écran${restants.length > 1 ? "s" : ""} à corriger` : `${nom} est prêt : testé et en ligne`,
+            text: restants.length
+              ? `Bonjour,\n\n${nom} est en ligne. Bingoo! a testé chaque écran comme un vrai utilisateur : ${resultats.length - restants.length} sur ${resultats.length} fonctionnent.\n\nÀ corriger : ${restants.map((r: any) => titre(r.id)).join(", ")}.${membre.length ? "\nUn clic sur « Corriger · offert » dans ton atelier relance la correction, sans rien te coûter." : ""}${equipe.length ? "\nL'équipe Bingoo! s'occupe du reste sous 24 h." : ""}\n\nTon SaaS : ${lien}\n\nÀ tout de suite,\nBingoo!`
+              : `Bonjour,\n\n${nom} est prêt. Bingoo! a testé les ${resultats.length} écrans comme un vrai utilisateur : tout fonctionne.\n\nTon SaaS : ${lien}\n\nProchaine étape : tes premiers clients, le plan t'attend dans Bingoo!.\n\nÀ tout de suite,\nBingoo!` });
+        }
+      } catch (e) { console.error("mail fin de vérification", e); }
     }
     const verif = { ...avant, version: app.version, at: new Date().toISOString(), resultats, essais, passages, journal: journal.slice(-40), mesure,
       en_reparation: [...enRep, ...aReparer.map((r: any) => r.id)], repare: aReparer.map((r: any) => r.id),
@@ -822,7 +843,11 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     if (!app || app.statut !== "pret") throw new HttpError(404, "Application introuvable ou en cours de construction");
     await quota(ws.id, "modifier_app", 30);
     // Corriger un écran que le robot a livré en échec : c'est une erreur de Bingoo!, gratuite pour le membre
-    const gratuit = ((app.verif as any)?.reste ?? []).includes(String(b.ecran ?? ""));
+    // (seulement les écrans que le ROBOT a trouvés en échec, 2 corrections offertes par écran : jamais sur simple déclaration du membre)
+    const vf = (app.verif ?? {}) as any, ecranDemande = String(b.ecran ?? "");
+    const ecranFaitMain = !!((await admin.from("saas_apps").select("spec").eq("id", app.id).single()).data?.spec as any)?.ecrans?.find((e: any) => e.id === ecranDemande)?.modele;
+    const gratuit = (vf.reste ?? []).includes(ecranDemande) && !ecranFaitMain && (vf.offerts?.[ecranDemande] ?? 0) < 2;
+    if (gratuit) await admin.from("saas_apps").update({ verif: { ...vf, offerts: { ...(vf.offerts ?? {}), [ecranDemande]: (vf.offerts?.[ecranDemande] ?? 0) + 1 } } }).eq("id", app.id);
     // Au-delà des modifications du mois : 1 crédit par modification (si le créateur en a)
     let parCredit = false;
     if (!req.headers.get("x-cron-key") && !gratuit) {

@@ -12,6 +12,25 @@ const PRICE = { essai: 0, solo: 39, pro: 69, equipe: 109, fondateur: 0 };
 /** Crédit IA du compte Anthropic : ce qui reste, ce qui a été consommé, par jour / fonction / client, et la saisie d'une recharge. */
 // Qualité des constructions : réussite au premier test, essais de correction et coût, par modèle ou par famille.
 // C'est ce tableau qui dit quelles familles méritent un modèle fait main.
+// Écrans faits main livrés en échec : à corriger à la main sous 24 h (promis au membre)
+function AlertesAdmin() {
+  const [d, setD] = useState(null);
+  const charger = () => supabase.rpc("admin_alertes_liste").then(({ data }) => setD(data ?? []));
+  useEffect(() => { charger(); }, []);
+  if (!d?.length) return null;
+  return (
+    <Card className="p-5 border-[#F5C9A8] bg-[#FFF7F0]">
+      <h2 className="font-bold text-[16px]">À corriger sous 24 h ({d.length})</h2>
+      <div className="mt-3 divide-y divide-line">{d.map((a) => (
+        <div key={a.id} className="flex flex-wrap items-start gap-3 py-2.5 text-[13.5px]">
+          <div className="min-w-0 flex-1"><p className="font-semibold">{a.nom ?? a.app} · {a.client ?? "?"}</p><p className="text-ink-soft">{a.texte}</p><p className="text-[12px] text-ink-faint">{new Date(a.at).toLocaleString("fr-FR")} · {a.app}</p></div>
+          <Button variant="secondary" onClick={async () => { await supabase.rpc("admin_alerte_traitee", { p_id: a.id }); charger(); }}>Traité</Button>
+        </div>
+      ))}</div>
+    </Card>
+  );
+}
+
 function MesuresConstruction() {
   const [d, setD] = useState(null), [jours, setJours] = useState(30);
   useEffect(() => { setD(null); supabase.rpc("admin_mesures_construction", { p_jours: jours }).then(({ data }) => setD(data ?? [])); }, [jours]);
@@ -256,6 +275,7 @@ export default function Admin() {
       <Pilotes />
       <Usage />
 
+      <AlertesAdmin />
       <CreditIa />
       <MesuresConstruction />
       <AiCosts rows={ai} plans={ws} />
