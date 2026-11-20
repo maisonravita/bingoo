@@ -545,7 +545,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     }
     const verif = { ...avant, version: app.version, at: new Date().toISOString(), resultats, essais, passages, journal: journal.slice(-40), mesure,
       en_reparation: [...enRep, ...aReparer.map((r: any) => r.id)], repare: aReparer.map((r: any) => r.id),
-      phase: boucle ? (fini ? "fini" : "en_cours") : (avant.phase ?? "fini"), ok: resultats.every((r: any) => r.ok), reste: fini ? restants.map((r: any) => r.id) : (avant.reste ?? []) };
+      phase: boucle ? (fini ? "fini" : "en_cours") : (avant.phase ?? "fini"), ok: resultats.every((r: any) => r.ok), reste: fini ? restants.map((r: any) => r.id) : (avant.reste ?? []).filter((id: string) => !resultats.some((r: any) => r.id === id && r.ok)) };
     await admin.from("saas_apps").update({ verif }).eq("id", app.id);
     if (aReparer.length) {
       const cle = await secret("cron_key");
@@ -818,12 +818,14 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const { ws } = await membreOuCron(req, b.workspace_id);
     const demande = String(b.demande ?? "").trim().slice(0, 1500);
     if (demande.length < 5) throw new HttpError(400, "Décris la modification en une phrase au moins");
-    const { data: app } = await admin.from("saas_apps").select("id, statut").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    const { data: app } = await admin.from("saas_apps").select("id, statut, verif").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
     if (!app || app.statut !== "pret") throw new HttpError(404, "Application introuvable ou en cours de construction");
     await quota(ws.id, "modifier_app", 30);
+    // Corriger un écran que le robot a livré en échec : c'est une erreur de Bingoo!, gratuite pour le membre
+    const gratuit = ((app.verif as any)?.reste ?? []).includes(String(b.ecran ?? ""));
     // Au-delà des modifications du mois : 1 crédit par modification (si le créateur en a)
     let parCredit = false;
-    if (!req.headers.get("x-cron-key")) {
+    if (!req.headers.get("x-cron-key") && !gratuit) {
       try { await quotaMois(ws.id, ws.plan, "modifier"); }
       catch (e) {
         if ((e as HttpError).status !== 402) throw e;
@@ -835,12 +837,13 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     setAi({ ws: ws.id, live: true, feature: "construire/modifier" });
     const debutDemande = new Date().toISOString();
     let creditsEcrans = 0;
-    await log(ws.id, "modifier_app", `Modification : ${demande.slice(0, 120)}`);
+    // Une correction gratuite n'est pas comptée dans les modifications du mois (activité d'un autre type)
+    await log(ws.id, gratuit ? "corriger_app" : "modifier_app", `${gratuit ? "Correction offerte" : "Modification"} : ${demande.slice(0, 120)}`);
     const { saasModifierEcran } = await import("../_shared/app-build.ts");
     await admin.from("saas_apps").update({ statut: "en_cours", etape: "Modification en cours", erreur: null, maj: new Date().toISOString() }).eq("id", app.id);
     // Chaque écran en plus dans la même demande : une modification du mois, sinon 1 crédit (dans la limite de ce que le membre a)
     const payer = async () => {
-      if (req.headers.get("x-cron-key")) return true;
+      if (req.headers.get("x-cron-key") || gratuit) return true;
       try { await quotaMois(ws.id, ws.plan, "modifier"); await log(ws.id, "modifier_app", "Écran en plus dans la même demande"); return true; }
       catch (_) { try { await creditsDepenser(ws.id, COUT_CREDITS.modification, "Écran en plus (atelier)"); creditsEcrans++; return true; } catch (_) { return false; } }
     };

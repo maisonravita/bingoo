@@ -465,6 +465,11 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                   <details className="text-[13.5px]"><summary className="flex cursor-pointer list-none items-center gap-2.5"><Coche ok /><span>{verifTxt}</span><span className="ml-auto text-[12px] text-ink-faint">Détails</span></summary>
                     <ul className="mt-2 space-y-1.5">{lignes.map((l) => <li key={l.k} className={cx("flex gap-2.5", l.long ? "items-start" : "items-center")}>{l.alerte ? <Alerte /> : <Coche ok />}<span className={cx("min-w-0", !l.long && "truncate")}>{l.t}</span></li>)}</ul></details>
                 ) : <ul className="space-y-1.5">{lignes.map((l) => <li key={l.k} className={cx("rise flex gap-2.5 text-[13.5px]", l.long ? "items-start" : "items-center")}>{l.alerte ? <Alerte /> : <Coche ok={l.ok} />}<span className={cx("min-w-0", !l.long && "truncate", !l.ok && !l.alerte && "text-ink-soft")}>{l.t}</span></li>)}</ul>}
+                {fini && (app?.verif?.reste ?? []).length > 0 && !occupe && (
+                  <div className="mt-3 flex flex-wrap gap-2">{app.verif.reste.map((id) => { const e = (app.spec?.ecrans ?? []).find((x) => x.id === id); const err = (app.verif.resultats ?? []).find((r) => r.id === id)?.erreur ?? ""; return e ? (
+                    <button key={id} onClick={() => envoyer(`Corrige l'écran « ${e.titre} » : ${String(err).slice(0, 300) || "il ne fonctionne pas correctement"}`, id)} className="rounded-lg border border-[#F5C9A8] bg-[#FFF7F0] px-3 py-1.5 text-[12.5px] font-semibold text-[#C2410C] hover:bg-[#FDECD8]">Corriger « {e.titre} » · offert</button>
+                  ) : null; })}</div>
+                )}
                 {robotActif && app && <AppCadre key={robotActif} slug={app.slug} spec={app.spec} version={app.version} verif className="pointer-events-none absolute -left-[9999px] top-0 h-[800px] w-[1200px]" />}
               </div>
             </Bingoo>
