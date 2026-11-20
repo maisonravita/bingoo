@@ -202,7 +202,7 @@ export function BingooIA({ go }) {
           <div>
             <div className="flex lg:justify-start"><Badge sombre>Bingoo! dans ton IA</Badge></div>
             <h2 className="mt-6 text-[36px] sm:text-[52px] leading-[1.03] tracking-[-.035em]" style={{ fontWeight: 800 }}>Demande à ton IA.<br /><span className="fx-texte">Elle fouille dans Bingoo!</span></h2>
-            <p className="mt-5 max-w-[480px] text-[17px] leading-[1.55] text-white/70">Branche Bingoo! à Claude ou ChatGPT. Pose ta question comme tu la penses : ton IA cherche dans les SaaS suivis et te répond avec leurs vrais chiffres.</p>
+            <p className="mt-5 max-w-[480px] text-[17px] leading-[1.55] text-white/70">Branche Bingoo! à ton IA : Claude, ChatGPT, Le Chat, Gemini, Perplexity… Pose ta question comme tu la penses : ton IA cherche dans les SaaS suivis et te répond avec leurs vrais chiffres.</p>
             <button onClick={go} className="fx-brille mt-8 inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 text-[16px] font-bold text-[#15171F] hover:bg-white/90 transition">Brancher Bingoo! à mon IA</button>
             <p className="mt-3 text-[13px] text-white/50">Essai gratuit, sans carte. Les chiffres complets sont inclus dans les offres Trouver et Lancer.</p>
           </div>

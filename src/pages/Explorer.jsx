@@ -120,7 +120,7 @@ const RUBRIQUES = [
   ["Applis mobiles", [["applis", "Applis mobiles", "/explorer/applis"]]],
   ["Valider une idée", [["valider", "Valider une idée", "/explorer/valider"]]],
   ["Mes favoris", [["favoris", "Mes favoris", "/explorer/favoris"]]],
-  ["Demande à Bingoo!", [["demande", "Demande à Bingoo!", "/explorer/demande"], ["connecteur", "Dans Claude ou ChatGPT", "/explorer/connecteur"]]],
+  ["Demande à Bingoo!", [["demande", "Demande à Bingoo!", "/explorer/demande"], ["connecteur", "Dans mon IA (Claude, ChatGPT…)", "/explorer/connecteur"]]],
   ["Acheter / vendre", [["vendre", "À vendre", "/explorer/vendre"], ["bourse", "Construits sur Bingoo!", "/explorer/bourse", true], ["racheter", "SaaS qui s'endorment", "/explorer/racheter", true]]],
 ];
 // Pages qui dépendent de contenus encore rares : cachées tant qu'elles sont vides (sauf si on y est)
@@ -3752,7 +3752,7 @@ function DemandeBingoo() {
             ))}
           </div>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[13.5px] text-ink-soft">
-            <span>Tu préfères demander dans Claude ou ChatGPT ?</span>
+            <span>Tu préfères demander dans ton IA (Claude, ChatGPT, Le Chat, Gemini…) ?</span>
             <button onClick={() => nav("/explorer/connecteur")} className="font-semibold text-accent-dark hover:underline">Connecte Bingoo! à ton IA</button>
           </div>
         </div>
@@ -3794,7 +3794,7 @@ function DemandeBingoo() {
               </div>
             ))}</div>
           )}
-          <p className="mt-6 rounded-xl bg-paper border border-line px-4 py-3 text-[13.5px]">Tu préfères demander directement à Claude ou ChatGPT ? <button onClick={() => nav("/explorer/connecteur")} className="font-semibold underline">Connecte Bingoo! à ton IA</button> : elle répondra avec ces mêmes chiffres.</p>
+          <p className="mt-6 rounded-xl bg-paper border border-line px-4 py-3 text-[13.5px]">Tu préfères demander directement à ton IA (Claude, ChatGPT, Le Chat, Gemini…) ? <button onClick={() => nav("/explorer/connecteur")} className="font-semibold underline">Connecte Bingoo! à ton IA</button> : elle répondra avec ces mêmes chiffres.</p>
         </div>
       )}
     </div>

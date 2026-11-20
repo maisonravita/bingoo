@@ -6,14 +6,25 @@ import { useToast } from "../components/ui";
 import { demanderCompte, estInvite } from "../lib/invite";
 import { cx } from "../lib/utils";
 
-// « Construire avec mon IA » : Bingoo! branché sur le Claude ou le ChatGPT du membre (serveur MCP).
+// « Construire avec mon IA » : Bingoo! branché sur l'IA du membre (Claude, ChatGPT, Le Chat, Gemini, Perplexity, outils de code) (serveur MCP).
 // Un parcours en 3 étapes qui se cochent : créer son adresse, la brancher sur son IA, lui demander.
 const HF = { fontFamily: "var(--font-titre)" };
 
+// Assistants qui acceptent un connecteur MCP personnalisé (adresse seule, sans authentification), puis outils de code
 const IAS = [
   { id: "claude", nom: "Claude", note: "Site ou application", etapes: ["Ouvre Plug-ins dans le menu de gauche (ou Paramètres, puis Connecteurs).", "Clique sur « Ajouter », puis « Ajouter un connecteur personnalisé ».", "Nomme-le Bingoo! et colle ton adresse.", "Dans une conversation, active Bingoo! dans le menu des outils."] },
   { id: "chatgpt", nom: "ChatGPT", note: "Site ou application", etapes: ["Ouvre Paramètres, puis Applications et connecteurs.", "Active le mode développeur dans les paramètres avancés.", "Crée un connecteur, colle ton adresse, sans authentification.", "Choisis Bingoo! dans les outils d'une conversation."] },
-  { id: "code", nom: "Claude Code", note: "Ou tout client MCP", etapes: ["Dans ton terminal, ajoute Bingoo! comme serveur MCP :"], commande: true },
+  { id: "lechat", nom: "Le Chat", note: "Mistral, offre gratuite comprise", etapes: ["Dans le menu de gauche, ouvre Intelligence, puis Connecteurs.", "Clique sur « + Ajouter un connecteur », onglet « Connecteur MCP personnalisé ».", "Nomme-le bingoo (sans espace) et colle ton adresse.", "Dans une conversation, active Bingoo! dans la barre d'outils."] },
+  { id: "gemini", nom: "Gemini", note: "Selon les pays et les comptes", etapes: ["Sur gemini.google.com, ouvre Paramètres, puis Applications connectées.", "Sous « Applications personnalisées », choisis « Ajouter une application personnalisée ».", "Colle ton adresse et valide.", "Demande à Gemini d'utiliser Bingoo! dans ta conversation."], info: "Google ouvre cette option progressivement : si tu ne la vois pas encore, utilise une autre IA de la liste." },
+  { id: "perplexity", nom: "Perplexity", note: "Pro, Max ou Enterprise", etapes: ["Ouvre Paramètres, puis Connecteurs.", "Clique sur « + Connecteur personnalisé » et choisis « Distant ».", "Nomme-le Bingoo!, colle ton adresse, sans authentification.", "Active Bingoo! dans ta conversation."] },
+];
+const OUTILS_CODE = [
+  { id: "claude-code", nom: "Claude Code", commande: (a) => `claude mcp add --transport http bingoo ${a}` },
+  { id: "codex", nom: "Codex", commande: (a) => `codex mcp add bingoo --url ${a}` },
+  { id: "gemini-cli", nom: "Gemini CLI", commande: (a) => `gemini mcp add --transport http bingoo ${a}` },
+  { id: "cursor", nom: "Cursor", fichier: "~/.cursor/mcp.json", config: (a) => JSON.stringify({ mcpServers: { bingoo: { url: a } } }, null, 2) },
+  { id: "vscode", nom: "VS Code (Copilot)", fichier: ".vscode/mcp.json", config: (a) => JSON.stringify({ servers: { bingoo: { type: "http", url: a } } }, null, 2) },
+  { id: "windsurf", nom: "Windsurf", fichier: "~/.codeium/windsurf/mcp_config.json", config: (a) => JSON.stringify({ mcpServers: { bingoo: { serverUrl: a } } }, null, 2) },
 ];
 const EXEMPLES = [
   ["Trouver", "Trouve-moi 3 SaaS de facturation qui grandissent en ce moment, avec leur revenu vérifié"],
@@ -73,16 +84,16 @@ export default function Connecteur() {
   const revoquer = async (k) => { await supabase.from("saas_api_cles").update({ revoquee: true }).eq("id", k.id); toast("Adresse révoquée : l'IA qui l'utilisait n'a plus accès", "good"); charger(); };
   const marquerBranche = () => { setBranche(true); try { localStorage.setItem("bingoo-ia-branchee", "1"); } catch { /* stockage indisponible */ } };
   const adresse = nouvelle ?? (actives[0] ? `${base}/${actives[0].debut}…` : "");
-  const choix = IAS.find((x) => x.id === ia);
+  const choix = IAS.find((x) => x.id === ia) ?? null;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
       {/* En-tête : la promesse, et à quoi ça ressemble dans son IA */}
       <div className="grid gap-8 lg:grid-cols-[1.1fr_1fr] lg:items-center">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full bg-accent-soft px-3 py-1 text-[12.5px] font-bold text-accent-dark">✦ Avec Claude ou ChatGPT</span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-accent-soft px-3 py-1 text-[12.5px] font-bold text-accent-dark">✦ Avec Claude, ChatGPT, Le Chat, Gemini, Perplexity…</span>
           <h1 className="mt-4 text-[38px] sm:text-[52px] font-black leading-[1.02] tracking-tight" style={HF}>Ton IA construit.<br />Bingoo! met en ligne.</h1>
-          <p className="mt-4 max-w-xl text-[16.5px] leading-relaxed text-ink-soft">Branche Bingoo! sur ton IA en 2 minutes. Elle trouve un SaaS qui marche déjà, conçoit ta version avec toi, écran par écran, sans limite. Bingoo! l'héberge, la vérifie et la publie.</p>
+          <p className="mt-4 max-w-xl text-[16.5px] leading-relaxed text-ink-soft">Branche Bingoo! sur ton IA en 2 minutes, quelle qu'elle soit. Elle trouve un SaaS qui marche déjà, conçoit ta version avec toi, écran par écran, sans limite. Bingoo! l'héberge, la vérifie et la publie.</p>
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <a href="#etapes" className="rounded-full bg-ink px-6 py-3 text-[15px] font-bold text-white hover:bg-ink/90">{etape === 1 ? "Commencer" : etape === 2 ? "Continuer à l'étape 2" : "Voir ma demande"}</a>
             <button onClick={() => nav("/explorer/modeles")} className="text-[14px] font-semibold text-ink-soft underline-offset-4 hover:underline">Pas d'IA ? Bingoo! construit seul →</button>
@@ -131,17 +142,26 @@ export default function Connecteur() {
         </Etape>
 
         <Etape n={2} titre="Branche-la sur ton IA" sous="Une seule fois. Ensuite, Bingoo! est disponible dans toutes tes conversations." fait={aCle && (branche || utilisee)} actif={etape === 2}>
-          <div className="inline-flex flex-wrap rounded-2xl bg-paper p-1">{IAS.map((x) => (
-            <button key={x.id} onClick={() => setIa(x.id)} aria-pressed={ia === x.id} className={cx("rounded-xl px-4 py-2 text-left transition", ia === x.id ? "bg-white shadow-sm" : "hover:bg-white/60")}>
-              <span className="block text-[14px] font-bold">{x.nom}</span><span className="block text-[11.5px] text-ink-faint">{x.note}</span>
+          <div className="flex flex-wrap gap-1.5">{[...IAS, { id: "code", nom: "Outils de code", note: "Claude Code, Codex, Cursor…" }].map((x) => (
+            <button key={x.id} onClick={() => setIa(x.id)} aria-pressed={ia === x.id} className={cx("rounded-2xl border px-4 py-2 text-left transition", ia === x.id ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink-faint")}>
+              <span className="block text-[14px] font-bold">{x.nom}</span><span className={cx("block text-[11.5px]", ia === x.id ? "text-white/60" : "text-ink-faint")}>{x.note}</span>
             </button>
           ))}</div>
-          <ol className="mt-4 space-y-2.5">{choix.etapes.map((t, i) => (
-            <li key={t} className="flex gap-3 text-[14.5px]"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-paper text-[12px] font-bold">{i + 1}</span><span className="pt-0.5">{t}</span></li>
-          ))}</ol>
-          {choix.commande && <div className="mt-3 flex flex-col gap-2 sm:flex-row"><code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-xl bg-ink px-4 py-3 font-mono text-[13px] text-white">claude mcp add --transport http bingoo {nouvelle ?? "<ton adresse>"}</code><button onClick={() => copier(`claude mcp add --transport http bingoo ${nouvelle ?? "<ton adresse>"}`, "Commande copiée")} className="rounded-xl border border-line px-4 py-3 text-[14px] font-semibold">Copier</button></div>}
-          {nouvelle && !choix.commande && <button onClick={() => copier(nouvelle, "Adresse copiée")} className="mt-4 rounded-xl border border-line px-4 py-2 text-[13.5px] font-semibold hover:border-ink">Copier mon adresse</button>}
-          {!(branche || utilisee) && <button onClick={marquerBranche} disabled={!aCle} className={cx("mt-4 rounded-xl bg-ink px-4 py-2 text-[13.5px] font-bold text-white disabled:opacity-40", nouvelle && !choix.commande && "ml-2")}>C'est fait</button>}
+          {choix ? <>
+            <ol className="mt-5 space-y-2.5">{choix.etapes.map((t, i) => (
+              <li key={t} className="flex gap-3 text-[14.5px]"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-paper text-[12px] font-bold">{i + 1}</span><span className="pt-0.5">{t}</span></li>
+            ))}</ol>
+            {choix.info && <p className="mt-3 rounded-xl bg-paper px-3 py-2 text-[13px] text-ink-soft">{choix.info}</p>}
+          </> : (
+            <div className="mt-5 space-y-3">{OUTILS_CODE.map((o) => { const t = o.commande ? o.commande(nouvelle ?? "<ton adresse>") : o.config(nouvelle ?? "<ton adresse>"); return (
+              <div key={o.id} className="rounded-2xl border border-line p-3">
+                <div className="flex items-center gap-2"><p className="font-bold text-[14px]">{o.nom}</p>{o.fichier && <span className="font-mono text-[12px] text-ink-faint">dans {o.fichier}</span>}<button onClick={() => copier(t, o.commande ? "Commande copiée" : "Configuration copiée")} className="ml-auto rounded-lg border border-line px-3 py-1 text-[12.5px] font-semibold hover:border-ink">Copier</button></div>
+                <pre className="mt-2 overflow-x-auto rounded-xl bg-ink px-4 py-3 font-mono text-[12.5px] leading-relaxed text-white">{t}</pre>
+              </div>
+            ); })}<p className="text-[12.5px] text-ink-faint">Un autre outil compatible MCP (Zed, Cline, LM Studio…) ? Ajoute un serveur MCP « HTTP » avec ton adresse.</p></div>
+          )}
+          {nouvelle && choix && <button onClick={() => copier(nouvelle, "Adresse copiée")} className="mt-4 rounded-xl border border-line px-4 py-2 text-[13.5px] font-semibold hover:border-ink">Copier mon adresse</button>}
+          {!(branche || utilisee) && <button onClick={marquerBranche} disabled={!aCle} className={cx("mt-4 rounded-xl bg-ink px-4 py-2 text-[13.5px] font-bold text-white disabled:opacity-40", nouvelle && choix && "ml-2")}>C'est fait</button>}
           {!adresse && <p className="mt-3 text-[13px] text-ink-faint">Crée d'abord ton adresse à l'étape 1.</p>}
         </Etape>
 
