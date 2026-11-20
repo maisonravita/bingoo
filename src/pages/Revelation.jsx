@@ -24,6 +24,17 @@ const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
 const chantierDe = (ws) => { const c = lire(CLE_CHANTIER); return c && (!c.ws || c.ws === ws?.id) && !(c.projet && !c.ws) ? c : null; };
 
 
+/** Sous une modification mise en ligne : le résultat du robot de l'atelier (en cours, testée, ou annulée et rendue). */
+function TestAtelier({ x, verif }) {
+  if (x.publieA == null || !verif) return null;
+  const d = verif.dernier_atelier;
+  const conclu = d && !verif.atelier && String(d.at ?? "") >= x.publieA;
+  if (!conclu) return verif.atelier ? <p className="mt-1.5 ml-8 flex items-center gap-2 text-[13px] text-ink-soft"><span className="h-1.5 w-1.5 rounded-full bg-[#E8571C] pulse-dot" />Je teste la modification écran par écran, comme un vrai utilisateur…</p> : null;
+  if (!d.annule) return <p className="mt-1.5 ml-8 text-[13px] text-good">Testée : tous les écrans fonctionnent. Elle reste en ligne.</p>;
+  const msg = [...(verif.journal ?? [])].reverse().find((j) => j.type === "probleme" && /version d'avant/.test(j.t))?.t;
+  return <p className="mt-1.5 ml-8 rounded-lg bg-[#FFF7F0] px-3 py-2 text-[13px] text-[#9A3412]">{msg ?? "Cette modification cassait un écran : j'ai remis la version d'avant, et elle t'est rendue."}</p>;
+}
+
 export default function Revelation({ paramsDe }) {
   const { ws, reload } = useWs();
   const nav = useNavigate();
@@ -391,13 +402,27 @@ export function Chantier({ ws, nav, init, atelier = false }) {
           if (data.brouillon?._modif) await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "brouillon-valider" });
           const { data: frais } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif").eq("id", app.id).maybeSingle();
           setApp(frais ?? data); setCle((k) => k + 1);
-          maj({ etat: "ok", credit: r?.credit, faits: fait?.faits ?? [], rates: fait?.rates ?? [], versionAvant });
+          maj({ etat: "ok", credit: r?.credit, faits: fait?.faits ?? [], rates: fait?.rates ?? [], versionAvant, publieA: fait ? new Date(Date.now() - 5000).toISOString() : null });
           return;
         }
       }
       throw new Error("C'est plus long que prévu : l'aperçu se mettra à jour tout seul.");
     } catch (e) { maj({ etat: "ko", erreur: e.message }); } finally { setOccupe(false); }
   };
+
+  // Robot de l'atelier : pendant le test d'une modification, l'état est relu toutes les 4 s ; si la modification est
+  // annulée (elle cassait un écran), l'aperçu se recharge sur la version remise.
+  const testEnCours = !!app?.verif?.atelier && app?.verif?.phase === "en_cours";
+  useEffect(() => {
+    if (!testEnCours || !app?.id) return;
+    const t = setInterval(async () => {
+      const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif").eq("id", app.id).maybeSingle();
+      if (!data) return;
+      setApp(data);
+      if (!data.verif?.atelier && data.verif?.dernier_atelier?.annule) setCle((k) => k + 1);
+    }, 4000);
+    return () => clearInterval(t);
+  }, [testEnCours, app?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Le robot de Bingoo! : il ouvre chaque écran en coulisses, clique comme un utilisateur, et envoie le résultat.
   // Une seule fois par version et par passage ; il repasse dès qu'une correction arrive.
@@ -487,7 +512,6 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                     return <button key={id} onClick={() => envoyer(`Corrige l'écran « ${e.titre} » : ${String(err).slice(0, 300) || "il ne fonctionne pas correctement"}`, id)} className="rounded-lg border border-[#F5C9A8] bg-[#FFF7F0] px-3 py-1.5 text-[12.5px] font-semibold text-[#C2410C] hover:bg-[#FDECD8]">Corriger « {e.titre} » · offert</button>;
                   })}</div>
                 )}
-                {robotActif && app && <AppCadre key={robotActif} slug={app.slug} spec={app.spec} version={app.version} verif className="pointer-events-none absolute -left-[9999px] top-0 h-[800px] w-[1200px]" />}
               </div>
             </Bingoo>
             {projet?.nom && (
@@ -506,17 +530,22 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                 <div className="mt-3 flex flex-wrap gap-1.5">{(estSite ? IDEES_SITE : IDEES_SAAS).map((x) => <button key={x} onClick={() => { setEcran(""); envoyer(x); }} disabled={occupe} className="rounded-full border border-line bg-white px-3 py-1.5 text-[12.5px] font-medium hover:border-ink-faint disabled:opacity-50">{x}</button>)}</div>
               </Bingoo>
             )}
+            {!echanges.length && app?.verif && (app.verif.atelier || (app.verif.dernier_atelier?.annule && Date.now() - new Date(app.verif.dernier_atelier.at ?? 0).getTime() < 24 * 3600e3)) && (
+              <Bingoo><p className="font-semibold">Ta dernière modification</p><TestAtelier x={{ publieA: app.verif.atelier ? "" : String(app.verif.dernier_atelier?.at ?? "") }} verif={app.verif} /></Bingoo>
+            )}
             {echanges.map((x, i) => (
               <div key={i} className="space-y-5">
                 <Moi>{x.element && <span className="mb-1 block text-[12px] text-ink-soft">◎ {x.element}</span>}{x.moi}{x.images?.length > 0 && <span className="mt-1.5 flex gap-1.5">{x.images.map((m) => <img key={m.url} src={m.url} alt="" className="h-12 w-12 rounded-lg object-cover" />)}</span>}</Moi>
                 <Bingoo>
                   {x.etat === "encours" ? <p className="flex items-center gap-2.5 text-ink-soft"><Coche ok={false} />Je modifie ton SaaS… (une à deux minutes)</p>
-                    : x.etat === "ok" ? <div><p className="flex items-center gap-2.5"><Coche ok />C'est en ligne, regarde l'aperçu.{x.credit ? " (1 crédit utilisé)" : ""}</p>{x.faits?.length > 0 && <ul className="mt-1.5 ml-8 list-disc text-[13.5px] text-ink-soft">{x.faits.map((f) => <li key={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</li>)}</ul>}{x.rates?.length > 0 && <p className="mt-1 ml-8 text-[13px] text-[#9A3412]">{x.rates.join(" ; ")}</p>}{x.versionAvant && <button onClick={() => restaurer(x.versionAvant)} disabled={occupe} className="mt-1.5 ml-8 text-[12.5px] font-semibold text-ink-soft underline-offset-2 hover:underline disabled:opacity-40">↶ Annuler cette modification</button>}</div>
+                    : x.etat === "ok" ? <div><p className="flex items-center gap-2.5"><Coche ok />C'est en ligne, regarde l'aperçu.{x.credit ? " (1 crédit utilisé)" : ""}</p><TestAtelier x={x} verif={app?.verif} />{x.faits?.length > 0 && <ul className="mt-1.5 ml-8 list-disc text-[13.5px] text-ink-soft">{x.faits.map((f) => <li key={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</li>)}</ul>}{x.rates?.length > 0 && <p className="mt-1 ml-8 text-[13px] text-[#9A3412]">{x.rates.join(" ; ")}</p>}{x.versionAvant && <button onClick={() => restaurer(x.versionAvant)} disabled={occupe} className="mt-1.5 ml-8 text-[12.5px] font-semibold text-ink-soft underline-offset-2 hover:underline disabled:opacity-40">↶ Annuler cette modification</button>}</div>
                       : /modifications du mois|Il te faut \d+ crédit/.test(x.erreur ?? "") ? <QuotaAtteint plan={ws?.plan} nav={nav} erreur={x.erreur} />
                       : <p className="text-[#B42318]">{x.erreur}</p>}
                 </Bingoo>
               </div>
             ))}
+            {/* Le robot de Bingoo! (construction ET atelier) : toujours monté, hors de tout message, pour tester chaque version */}
+            {robotActif && app && <AppCadre key={robotActif} slug={app.slug} spec={app.spec} version={app.version} verif className="pointer-events-none absolute -left-[9999px] top-0 h-[800px] w-[1200px]" />}
             {erreur && (
               <Bingoo>
                 {/Un autre SaaS coûte/.test(erreur) ? <>

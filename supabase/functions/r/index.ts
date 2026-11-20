@@ -610,7 +610,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
           const { data: cr } = await admin.from("credits").select("delta").eq("workspace_id", ws.id).in("motif", ["Modification en plus", "Écran en plus (atelier)"]).gte("at", depuisLarge);
           const payes = -(cr ?? []).reduce((t: number, x: any) => t + Math.min(0, Number(x.delta ?? 0)), 0);
           if (payes > 0) await creditsRendre(ws.id, payes, "Modification annulée par le robot : crédits rendus");
-          noter(`La modification « ${atelier.titre} » cassait ${casses.map((r: any) => `« ${titre(r.id)} »`).join(", ")}. J'ai remis automatiquement la version d'avant : ${spec.nom ?? "ton app"} fonctionne comme avant. La modification t'est rendue${payes ? ` (${payes} crédit${payes > 1 ? "s" : ""} compris)` : ""} : reformule-la ou demande-la autrement.`, "probleme");
+          noter(`La modification (${atelier.titre}) cassait ${casses.map((r: any) => `« ${titre(r.id)} »`).join(", ")}. J'ai remis automatiquement la version d'avant : ${spec.nom ?? "ton app"} fonctionne comme avant. La modification t'est rendue${payes ? ` (${payes} crédit${payes > 1 ? "s" : ""} compris)` : ""} : reformule-la ou demande-la autrement.`, "probleme");
           await log(ws.id, "app_reglage", `Robot de l'atelier : modification annulée (${casses.length} écran(s) cassé(s)), version ${atelier.version_avant} remise`);
           retour = true;
         }
