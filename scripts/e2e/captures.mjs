@@ -75,9 +75,16 @@ if (process.env.IDEE === "1") {
   for (const [nom, texte] of [["idee-claire", "Une app de réservation pour les coiffeurs à domicile, avec rappel la veille"], ["idee-floue", "Une appli comme Uber"], ["idee-refusee", "Un faux site de connexion de ma banque pour récupérer les identifiants"]]) {
     const { ctx, page } = await ouvrir(ws, { "bingoo-idee": { texte, type: "saas", at: Date.now() } });
     await page.goto(`${SITE}/?c=${Date.now()}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
-    await page.waitForFunction(() => /Construire |précisions|ne peut pas construire|réessaie|Réessayer/i.test(document.body.innerText), null, { timeout: 90000 }).catch(() => null);
-    await page.waitForTimeout(1500);
+    const pret = () => page.waitForFunction(() => /Construire [^m]|précisions|ne peut pas construire|réessaie|Réessayer/i.test(document.body.innerText), null, { timeout: 90000 }).catch(() => null);
+    await pret(); await page.waitForTimeout(1500);
     await page.screenshot({ path: `${DOSSIER}/${nom}.png`, fullPage: true }); console.log("✓", nom);
+    // Questions de clarification : le robot répond (premier choix) pour photographier aussi l'aperçu qui suit
+    if (await page.getByText("Voir mon aperçu").count()) {
+      for (const g of await page.locator("section, div").filter({ has: page.locator("input[placeholder='Ou écris ta réponse…']") }).locator("button[aria-pressed]").all()) { await g.click().catch(() => null); }
+      await page.getByText("Voir mon aperçu").click().catch(() => null);
+      await page.waitForFunction(() => /Construire [^m]|réessaie/i.test(document.body.innerText), null, { timeout: 90000 }).catch(() => null); await page.waitForTimeout(1500);
+      await page.screenshot({ path: `${DOSSIER}/${nom}-apercu.png`, fullPage: true }); console.log("✓", nom, "aperçu");
+    }
     await ctx.close();
   }
 }
