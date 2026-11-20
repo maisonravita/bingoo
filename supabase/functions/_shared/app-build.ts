@@ -456,6 +456,29 @@ export async function saasModifierEcran(appId: string, ecranId: string, demande:
   const spec = structuredClone(enAttente ?? (app?.spec ?? {})) as any;
   const avant = enAttente?._modif?.liste ?? (enAttente?._modif ? [enAttente._modif] : []);
   delete spec._modif;
+  // Demande sur l'ensemble du SaaS (couleur, allure, nom, accroche…) : on change ces réglages, sans écrire d'écran.
+  // Avant, « mets mon SaaS en rose » créait un nouvel écran et la couleur ne changeait pas.
+  const g = await askJson<any>(`SaaS « ${spec.nom} ». Réglages actuels : couleur ${spec.couleur}, style ${spec.style ?? "moderne"}, fond ${spec.fond ?? "blanc"}, forme ${spec.forme ?? "arrondi"}, disposition ${spec.disposition ?? "barre"}, slogan « ${spec.slogan ?? ""} », accroche « ${spec.pitch ?? ""} », cible « ${spec.cible_courte ?? ""} ».
+Écrans : ${(spec.ecrans ?? []).map((x: any) => `${x.id} (${x.titre})`).join(", ")}.
+Demande de l'utilisateur : « ${demande} »
+Rends un objet JSON :
+- reglages : les réglages globaux que la demande change, sinon {} : couleur (hexadécimal #xxxxxx, assez foncé pour du texte blanc dessus ; « rose » = #BE185D, « rose clair » = #DB2777…), style (moderne|doux|sombre|editorial|vif|rond|tech|elegant|sport|geometrique), fond (blanc|creme|gris|sombre), forme (carre|arrondi|pilule), disposition (barre|haut|onglets), nom (40 caractères max), slogan (8 mots max), pitch (35 mots max), cible_courte (5 mots).
+- ecran : true si la demande demande AUSSI de changer ou d'ajouter le contenu d'un écran (fonction, bouton, champ, page), false si elle ne touche qu'aux réglages globaux.
+- ecran_vise : l'id de l'écran existant concerné si la demande en vise un, sinon null.`, { fast: true, maxTokens: 400 }).catch(() => ({ reglages: {}, ecran: true, ecran_vise: null }));
+  const R = (g?.reglages && typeof g.reglages === "object") ? g.reglages : {};
+  const ENUM: Record<string, string[]> = { style: ["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique"], fond: ["blanc", "creme", "gris", "sombre"], forme: ["carre", "arrondi", "pilule"], disposition: ["barre", "haut", "onglets"] };
+  const changes: string[] = [];
+  if (/^#[0-9a-f]{6}$/i.test(String(R.couleur ?? ""))) { spec.couleur = R.couleur; changes.push("couleur"); }
+  for (const k of Object.keys(ENUM)) if (ENUM[k].includes(R[k])) { spec[k] = R[k]; changes.push(k); }
+  for (const [k, n] of [["nom", 40], ["slogan", 90], ["pitch", 300], ["cible_courte", 60]] as [string, number][]) if (typeof R[k] === "string" && R[k].trim()) { spec[k] = R[k].trim().slice(0, n); changes.push(k); }
+  if (changes.length && g?.ecran !== true) {
+    const m = { demande, ecran: null, titre: "Réglages : " + changes.join(", "), nouveau: false, suggestion, at: new Date().toISOString() };
+    spec._modif = { ...m, liste: [...avant.map(({ liste: _l, ...x }: any) => x), m] };
+    await admin.from("saas_apps").update({ brouillon: spec, statut: "pret", etape: null, erreur: null, maj: new Date().toISOString() }).eq("id", appId);
+    return;
+  }
+  // « Où : un nouvel écran » laissé par défaut alors que la demande vise un écran existant : on modifie cet écran
+  if (ecranId === "nouveau" && g?.ecran_vise && (spec.ecrans ?? []).some((x: any) => x.id === g.ecran_vise && !x.public)) ecranId = String(g.ecran_vise);
   let e = (spec.ecrans ?? []).find((x: any) => x.id === ecranId);
   if (ecranId === "nouveau") {
     const n = await askJson<any>(`${contexteSpec(spec)}\nL'utilisateur veut un nouvel écran : ${demande}\nRends un objet JSON id (snake_case court, différent des écrans existants), titre (2 mots au plus), icone (parmi ${ICONES.join(", ")}), but, fonctions (3 à 6), collection (null, ou un nouvel objet nom + label + champs si l'écran a besoin de données qui n'existent pas encore).`, { fast: true });
