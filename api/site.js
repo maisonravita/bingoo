@@ -22,7 +22,9 @@ export function balises(pub, infos, url) {
   const lieu = st.ville ? ` à ${st.ville}` : "";
   const titre = (site ? `${s.nom} · ${st.metier || ""}${lieu}` : `${s.nom} · ${s.slogan || s.cible_courte || "logiciel en ligne"}`).replace(/\s+·\s*$/, "").slice(0, 70);
   const desc = String(s.pitch || s.slogan || "").replace(/\s+/g, " ").slice(0, 158);
-  const image = pub.icone || "";
+  const icone = pub.icone || "";
+  // Sans image fournie, l'image de partage est générée aux couleurs de l'app (api/og.js)
+  const image = icone || (pub.slug ? `${SITE}/api/og?slug=${encodeURIComponent(pub.slug)}&v=${encodeURIComponent(String(s.nom || "").length + "-" + (s.couleur || "").replace("#", ""))}` : "");
   const services = (infos?.services || []).filter((x) => x && x.titre);
   const h = (infos?.horaires || []).filter((x) => x && x.ouvert && JOURS[Number(x.jour)]);
   const i = infos?.infos || {};
@@ -40,8 +42,9 @@ export function balises(pub, infos, url) {
     `<link rel="canonical" href="${esc(url)}">`,
     `<meta property="og:type" content="website">`, `<meta property="og:locale" content="fr_FR">`, `<meta property="og:site_name" content="${esc(s.nom)}">`,
     `<meta property="og:title" content="${esc(titre)}">`, `<meta property="og:description" content="${esc(desc)}">`, `<meta property="og:url" content="${esc(url)}">`,
-    ...(image ? [`<meta property="og:image" content="${esc(image)}">`, `<link rel="icon" href="${esc(image)}">`, `<link rel="apple-touch-icon" href="${esc(image)}">`] : []),
-    `<meta name="twitter:card" content="summary">`, `<meta name="twitter:title" content="${esc(titre)}">`, `<meta name="twitter:description" content="${esc(desc)}">`,
+    ...(image ? [`<meta property="og:image" content="${esc(image)}">`, `<meta property="og:image:width" content="1200">`, `<meta property="og:image:height" content="630">`, `<meta name="twitter:image" content="${esc(image)}">`] : []),
+    ...(icone ? [`<link rel="icon" href="${esc(icone)}">`, `<link rel="apple-touch-icon" href="${esc(icone)}">`] : []),
+    `<meta name="twitter:card" content="${image ? "summary_large_image" : "summary"}">`, `<meta name="twitter:title" content="${esc(titre)}">`, `<meta name="twitter:description" content="${esc(desc)}">`,
     `<meta name="theme-color" content="${/^#[0-9a-f]{6}$/i.test(s.couleur || "") ? s.couleur : "#4F46E5"}">`,
     `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, "\\u003c")}</script>`,
   ].join("\n");
