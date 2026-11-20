@@ -398,7 +398,11 @@ export async function aiGuard() {
   if (cap > 0) {
     // Les tâches de fond s'arrêtent à 70 % du plafond pour laisser la place aux demandes des utilisateurs connectés
     const spent = await aiSpent(null);
-    if (spent >= cap || (!ctx.live && spent >= cap * 0.7)) throw new HttpError(503, "Pause de sécurité : le plafond quotidien d'IA de la plateforme est atteint. Reprise automatique dans la nuit (à minuit UTC).");
+    // « ia_sans_limite » = 1 : les demandes des utilisateurs ne sont plus arrêtées par le plafond de la plateforme
+    // (leur seule limite est la leur : modifications du mois, crédits, budget IA de leur formule). Les tâches de fond, si.
+    let sansLimite = false;
+    if (ctx.live && spent >= cap) { const { data: sl } = await admin.from("app_secrets").select("value").eq("name", "ia_sans_limite").maybeSingle(); sansLimite = sl?.value === "1"; }
+    if ((spent >= cap && !sansLimite) || (!ctx.live && spent >= cap * 0.7)) throw new HttpError(503, "Pause de sécurité : le plafond quotidien d'IA de la plateforme est atteint. Reprise automatique dans la nuit (à minuit UTC).");
   }
   // Construire, réparer, modifier un SaaS : déjà limités par les quotas mensuels de la formule
   // (3 ou 10 constructions, 30 ou 100 modifications) ; ils ne doivent pas s'arrêter à mi-chemin faute d'enveloppe.
