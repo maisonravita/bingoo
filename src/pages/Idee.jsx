@@ -115,7 +115,7 @@ export default function Idee() {
 
       {etat === "questions" && (
         <div className="mt-8 rounded-3xl border border-line bg-white p-6">
-          <p className="text-[18px] font-black" style={HF}>Deux précisions pour viser juste</p>
+          <p className="text-[18px] font-black" style={HF}>{r.questions.length > 1 ? "Deux précisions pour viser juste" : "Une précision pour viser juste"}</p>
           <p className="text-[14px] text-ink-soft">Ton idée peut partir dans plusieurs directions : dis-moi laquelle.</p>
           <div className="mt-5 space-y-5">{r.questions.map((q) => (
             <div key={q.q}><p className="font-semibold">{q.q}</p>
