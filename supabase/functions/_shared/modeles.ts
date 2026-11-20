@@ -71,8 +71,9 @@ export function specReservation(perso: any) {
   let graine = 7; const hasard = () => { graine = (graine * 9301 + 49297) % 233280; return graine / 233280; };
   const jour = (d: number) => { const x = new Date(); x.setUTCDate(x.getUTCDate() + d); return x.toISOString().slice(0, 10); };
   const rendezvous: any[] = [];
-  for (let i = 0; i < 48; i++) {
-    const d = Math.round(-60 + hasard() * 82); // de -60 à +22 jours
+  // Une activité qui grandit (plus de rendez-vous ces dernières semaines) : les tendances du tableau de bord sont réalistes et positives
+  for (let i = 0; i < 64; i++) {
+    const d = Math.round(-60 + Math.pow(hasard(), 0.62) * 82); // de -60 à +22 jours, plus dense vers aujourd'hui
     const p = prestations[Math.floor(hasard() * prestations.length)], c = clients[Math.floor(Math.pow(hasard(), 1.6) * clients.length)];
     const statut = d < 0 ? (hasard() < 0.9 ? "termine" : "annule") : (hasard() < 0.72 ? "confirme" : "demande");
     rendezvous.push({ client_id: c.ref, client_nom: c.nom, client_email: c.email, prestation_id: p.ref, date: jour(d), heure: HEURES[Math.floor(hasard() * HEURES.length)], duree: p.duree, intervenant: inter[i % inter.length], statut, montant: p.prix, notes: "" });
