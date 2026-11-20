@@ -118,6 +118,38 @@ function useEffetsPage() {
   }, []);
 }
 
+// Le nouveau point d'entrée : on écrit son idée, on choisit ce qu'on construit (une app, un site, un SaaS),
+// puis on continue dans le parcours habituel (les questions) avec cette idée en tête
+const TYPES_IDEE = [["saas", "Mon SaaS", "M4 6h16v12H4z M4 10h16"], ["app", "Mon app", "M8 3h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M11 18h2"], ["site", "Mon site web", "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M3 12h18 M12 3c3 3.5 3 14.5 0 18 M12 3c-3 3.5-3 14.5 0 18"]];
+const EXEMPLES_IDEE = ["Une app de réservation pour les coiffeurs", "Un CRM simple pour les agents immobiliers", "Un site de commande pour une boulangerie"];
+function IdeeHero({ nav }) {
+  const [texte, setTexte] = useState(""), [type, setType] = useState("saas"), [busy, setBusy] = useState(false);
+  const zone = useRef(null);
+  const lancer = async (e) => {
+    e?.preventDefault();
+    const t = texte.trim();
+    if (t.length < 4) { zone.current?.focus(); return; }
+    setBusy(true);
+    try { localStorage.setItem("bingoo-idee", JSON.stringify({ texte: t.slice(0, 300), type, at: Date.now() })); localStorage.removeItem("bingoo-parcours2"); } catch { /* stockage indisponible */ }
+    await commencer(nav);
+  };
+  return (
+    <form onSubmit={lancer} className="hero-in mx-auto mt-8 w-full max-w-[680px] rounded-[28px] border border-black/[.09] bg-white p-3 text-left shadow-[0_24px_60px_-28px_rgba(20,20,40,.35)]" style={{ ...JK, animationDelay: ".18s" }}>
+      <label htmlFor="idee" className="sr-only">Ton idée</label>
+      <textarea id="idee" ref={zone} value={texte} onChange={(e) => setTexte(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) lancer(e); }} rows={2} maxLength={300} placeholder="Écris ton idée…" className="block w-full resize-none bg-transparent px-3 pt-2 text-[16px] sm:text-[17px] sm:min-h-[84px] leading-relaxed outline-none placeholder:text-[#9A9EAE]" />
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {TYPES_IDEE.map(([k, l, d]) => (
+          <button key={k} type="button" aria-pressed={type === k} onClick={() => setType(k)} className={cx("inline-flex items-center gap-1.5 rounded-full border px-3 sm:px-3.5 py-1.5 sm:py-2 text-[13px] sm:text-[14px] font-semibold transition", type === k ? "border-[#1E2030] bg-[#1E2030] text-white" : "border-black/[.1] bg-white text-[#3A3F55] hover:border-black/25")}>
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={d} /></svg>{l}
+          </button>
+        ))}
+        <button type="submit" disabled={busy} className="w-full sm:w-auto sm:ml-auto inline-flex items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 sm:py-2.5 text-[15px] font-bold text-white shadow-[0_10px_30px_-12px_rgba(226,85,35,.8)] transition hover:brightness-110 disabled:opacity-60">{busy ? "Un instant…" : <>Construire mon idée <Arrow /></>}</button>
+      </div>
+      {!texte && <div className="mt-3 flex flex-wrap gap-1.5 border-t border-black/[.06] px-1 pt-3">{EXEMPLES_IDEE.map((x) => <button key={x} type="button" onClick={() => { setTexte(x); zone.current?.focus(); }} className="rounded-full bg-[#F4F4F1] px-3 py-1.5 text-[13px] text-[#5B6075] hover:bg-[#ECECE7]">{x}</button>)}</div>}
+    </form>
+  );
+}
+
 export default function Landing() {
   // Le compteur de la démonstration est le vrai : SaaS vérifiés que Bingoo! sait construire, et ceux qui sont en tendance
   const [demo, setDemo] = useState(null);
@@ -147,7 +179,7 @@ export default function Landing() {
       <div className="bg-white">
 
         <div className="px-0 sm:px-8">
-          <section className="relative overflow-hidden mx-auto max-w-[1440px] bg-white px-5 sm:px-10 pt-14 sm:pt-24 pb-16 sm:pb-20 text-center">
+          <section className="relative overflow-hidden mx-auto max-w-[1440px] bg-white px-5 sm:px-10 pt-8 sm:pt-24 pb-16 sm:pb-20 text-center">
             <div className="fx-grille" aria-hidden />
             <span className="fx-aurore h-[360px] w-[360px] bg-[#F6A06B] left-[8%] top-[60px]" aria-hidden />
             <span className="fx-aurore h-[320px] w-[320px] bg-[#9B6BFF] right-[8%] top-[140px]" style={{ animationDelay: "-6s" }} aria-hidden />
@@ -155,20 +187,15 @@ export default function Landing() {
             <h1 className="hero-in relative mx-auto max-w-[1180px]" style={JK}>
               <span className="block text-[32px] sm:text-[50px] lg:text-[66px] leading-[1.1] text-[#3A3F55]" style={{ fontWeight: 500, letterSpacing: "-.01em" }}>Créer un SaaS</span>
               <span className="mt-1 block text-[38px] sm:text-[60px] lg:text-[80px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>n'a jamais été <span className="fx-texte">aussi facile.</span></span>
-              <span className="mt-4 sm:mt-6 flex justify-center"><span className="sr-only">Bingoo!</span><Logo height="clamp(64px, 9vw, 112px)" className="!self-center" /></span>
+              <span className="mt-4 sm:mt-6 hidden sm:flex justify-center"><span className="sr-only">Bingoo!</span><Logo height="clamp(64px, 9vw, 112px)" className="!self-center" /></span>
             </h1>
-            <p className="hero-in mx-auto mt-7 max-w-[780px] text-[18px] sm:text-[22px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Bingoo! repère les SaaS en tendance qui encaissent déjà{nb ? <> (parmi <b>{nb.toLocaleString("fr-FR")}</b> suivis, revenus vérifiés)</> : null}. Ton IA (Claude, ChatGPT, Le Chat, Gemini…) se branche à Bingoo! et construit ta version à ton nom, à la hauteur de tes concurrents. Pas d'IA ? Bingoo! la construit pour toi.</p>
-            <button onClick={go} className="hero-in fx-brille mt-9 inline-flex items-center justify-center gap-2 rounded-full bg-accent px-10 py-4 text-[18px] font-bold text-white shadow-[0_14px_40px_-16px_rgba(226,85,35,.8)] hover:bg-accent-dark transition" style={{ ...JK, animationDelay: ".2s" }}>Commencer <Arrow className="h-4 w-4" /></button>
-            <p className="hero-in mt-3 text-[14px] text-[#5B6075]" style={{ ...JK, animationDelay: ".22s" }}>Quelques questions, sans compte, et tu vois combien de SaaS collent à ton profil. <button onClick={() => nav("/explorer/connecteur")} className="font-semibold text-ink underline underline-offset-2 hover:text-accent-dark">Ou branche directement ton IA</button></p>
-            <div className="hero-in mx-auto mt-7 flex w-fit flex-col sm:w-auto sm:flex-row sm:flex-wrap items-start sm:items-center justify-center gap-x-5 gap-y-2 text-left text-[15px] text-[#5B6075]" style={{ ...JK, animationDelay: ".25s" }}>
-              {["Des SaaS qui encaissent déjà, revenus vérifiés chez Stripe", "Ta version construite pour toi, ou avec ton IA", "Des établissements à contacter, trouvés pour toi"].map((x) => <span key={x} className="inline-flex items-start gap-1.5"><Check className="h-4 w-4 mt-[3px] shrink-0 text-accent" />{x}</span>)}
-            </div>
-            <form onSubmit={(e) => { e.preventDefault(); const u = e.currentTarget.site.value.trim().replace(/^https?:\/\//i, ""); if (u) nav(`/marche?u=${encodeURIComponent(u)}`); }}
-              className="hero-in mx-auto mt-8 flex max-w-[520px] items-stretch gap-2 rounded-full border border-black/[.08] bg-white p-1.5" style={{ ...JK, animationDelay: ".28s" }}>
-              <label className="sr-only" htmlFor="hero-site">L'adresse d'un SaaS</label>
-              <input id="hero-site" name="site" inputMode="url" autoComplete="url" placeholder="Ou regarde les chiffres d'un SaaS : monsaas.com" required className="min-w-0 flex-1 bg-transparent px-4 py-2.5 text-[15px] outline-none placeholder:text-[#8A8FA3]" />
-              <button type="submit" className="rounded-full border border-ink/80 px-5 py-2.5 text-[15px] font-semibold hover:bg-black/[.04] transition">Voir</button>
-            </form>
+            <p className="hero-in mx-auto mt-4 sm:mt-7 max-w-[720px] text-[16px] sm:text-[21px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Écris ton idée : Bingoo! la construit, la teste écran par écran et la met en ligne à ton nom.</p>
+            <IdeeHero nav={nav} />
+            <button onClick={go} className="hero-in group mx-auto mt-6 flex max-w-[680px] w-full items-center gap-4 rounded-2xl border border-black/[.08] bg-[#FAFAF7] px-5 py-4 text-left transition hover:border-black/20 hover:bg-white" style={{ ...JK, animationDelay: ".26s" }}>
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#1E2030] text-[20px] text-white">✦</span>
+              <span className="min-w-0 flex-1"><span className="block text-[16px] font-bold text-[#1E2030]">Pas d'idée ? Explore {nb ? <>plus de {(Math.floor(nb / 1000) * 1000).toLocaleString("fr-FR")}</> : "des milliers de"} SaaS et applis mobiles</span><span className="block text-[14px] text-[#5B6075]">Quelques questions, sans compte : tu vois ceux qui encaissent déjà, et Bingoo! construit ta version.</span></span>
+              <span className="shrink-0 text-[#1E2030] transition group-hover:translate-x-1"><Arrow className="h-5 w-5" /></span>
+            </button>
             <p className="mt-6 text-[12.5px] text-ink-faint">Aucun revenu n'est garanti : tu pars de SaaS qui encaissent déjà, et Bingoo! t'aide à faire pareil.</p>
             <p className="mt-6 text-[13.5px] text-ink-faint">En continuant, j'accepte les <a href="#/conditions" className="underline hover:text-ink">Conditions d'utilisation</a> et la <a href="#/confidentialite" className="underline hover:text-ink">Politique de confidentialité</a> de Bingoo!.</p>
             <FilmAuto />

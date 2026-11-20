@@ -227,7 +227,8 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   const [questions, setQuestions] = useState(() => !(atelier || pretDeja || c.projet?.id));
   // Réponses gardées dans le navigateur : elles survivent à un rechargement ou à un retour de paiement
   const cleRep = "bingoo-reponses-" + (c.domaine ?? "");
-  const [rep, setRepEtat] = useState(() => ({ nom: "", clients: "", mieux: "", ...(lire(cleRep) ?? {}) }));
+  // L'idée écrite sur la page d'accueil devient « ce que je veux faire mieux » (modifiable)
+  const [rep, setRepEtat] = useState(() => ({ nom: "", clients: "", mieux: (lire("bingoo-idee")?.texte ?? "").slice(0, 300), ...(lire(cleRep) ?? {}) }));
   const setRep = (x) => { setRepEtat(x); ecrire(cleRep, x); };
   const angle = useRef((() => { const r0 = lire("bingoo-reponses-" + (c.domaine ?? "")); return r0?.angle ?? null; })());
   const fil = useRef(null);

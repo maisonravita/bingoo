@@ -2790,13 +2790,15 @@ const lirePar = () => { try { return JSON.parse(localStorage.getItem("bingoo-par
 // Les personnes déjà venues avant ce mode ne le voient pas
 export const guideActif = () => { try { return localStorage.getItem("bingoo-guide") !== "fini" && !lirePar()?.fini && (localStorage.getItem("bingoo-guide") === "en_cours" || !localStorage.getItem("bingoo-parcours-vu")); } catch { return false; } };
 const finirGuide = () => { try { localStorage.setItem("bingoo-guide", "fini"); } catch { /* stockage indisponible */ } };
-const paramsDe = (r) => ({ continent: r.continent || null, langue: r.langue || null, categories: r.secteurs, canaux: r.canaux, refus: [...new Set([...(r.refus ?? []).filter((v) => !(r.canaux ?? []).includes(REFUS_CONTRAIRE[v])), ...(r.budget === "zero" ? ["pub"] : [])])], audience: r.audience || null, profil: r.profil ?? "aucun", ambition: ambitionDe(r), temps: r.temps ?? "moyen", metier: null, objectif: r.objectif != null ? Math.round(r.objectif * 1.08) : null });
+const paramsDe = (r) => ({ continent: r.continent || null, langue: r.langue || null, categories: r.secteurs, canaux: r.canaux, refus: [...new Set([...(r.refus ?? []).filter((v) => !(r.canaux ?? []).includes(REFUS_CONTRAIRE[v])), ...(r.budget === "zero" ? ["pub"] : [])])], audience: r.audience || null, profil: r.profil ?? "aucun", ambition: ambitionDe(r), temps: r.temps ?? "moyen", metier: r.idee || null, objectif: r.objectif != null ? Math.round(r.objectif * 1.08) : null });
 export function TrouveTonSaas() {
   const { ws, session, reload } = useWs();
   const avant = lirePar();
   // Retour de la page de paiement sans payer : on revient directement sur ses SaaS, pas à la première question
   const annule = /paiement=annule/.test(window.location.href) && !!avant?.fini;
-  const [r, setR] = useState(() => ({ canaux: [], refus: [], secteurs: [], audience: null, ambition: null, profil: null, temps: null, ...(avant ?? {}), metier: "", etape: annule ? QUESTIONS.length : 0 }));
+  // Arrivé depuis « Écris ton idée » (page d'accueil) : l'idée oriente la recherche, et on passe directement aux questions
+  const [idee] = useState(() => { try { const x = JSON.parse(localStorage.getItem("bingoo-idee") ?? "null"); return x?.texte && Date.now() - (x.at ?? 0) < 7 * 86400e3 ? x : null; } catch { return null; } });
+  const [r, setR] = useState(() => ({ canaux: [], refus: [], secteurs: [], audience: null, ambition: null, profil: null, temps: null, ...(avant ?? {}), ...(idee ? { idee: idee.texte, ...(!avant?.fini ? { but: "lancer" } : {}) } : {}), metier: "", etape: annule ? QUESTIONS.length : 0 }));
   // Chaque nouvelle question s'affiche depuis le haut (sinon la page reste défilée, surtout sur mobile)
   const etapeVue = useRef(null);
   useEffect(() => { if (etapeVue.current !== null && etapeVue.current !== r.etape) { try { window.scrollTo({ top: 0, behavior: "smooth" }); document.querySelector("main")?.scrollTo?.({ top: 0, behavior: "smooth" }); } catch (_) { /* rien */ } } etapeVue.current = r.etape; }, [r.etape]);
@@ -2849,6 +2851,7 @@ export function TrouveTonSaas() {
   ].filter(Boolean);
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+      {idee && <div className="relative z-[2] mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-accent/25 bg-accent-soft/40 px-4 py-3 text-[14.5px]"><span className="font-bold text-accent-dark">Ton idée{idee.type === "app" ? " d'app" : idee.type === "site" ? " de site" : " de SaaS"}</span><span className="min-w-0 flex-1 italic">« {idee.texte} »</span><span className="text-[13px] text-ink-soft">Bingoo! cherche ce qui encaisse déjà sur ce créneau, puis construit ta version.</span></div>}
       {!fini && r.etape === 0 && !r.but && !avant?.fini ? (
         <div className="mx-auto max-w-4xl pt-6 pb-16">
           <p className="text-[13px] font-bold uppercase tracking-[.18em] text-accent-dark">30 secondes chrono</p>
