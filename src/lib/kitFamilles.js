@@ -324,4 +324,59 @@ ui.Tableau = ({ value, onChange, membres = [] }) => {
         h("div", null, h("p", { class: "text-xs font-medium text-slate-500 mb-1" }, "Commentaires"), carte.commentaires.map((m, k) => h("div", { key: k, class: "mb-2 rounded-xl bg-slate-50 px-3 py-2 text-sm" }, h("p", { class: "text-xs text-slate-400" }, (m.auteur || "Vous") + " · " + fmt.dateHeure(m.at)), h("p", null, m.texte))),
           h("div", { class: "flex gap-2" }, h("input", { class: champ, placeholder: "Écrire un commentaire", value: com, onInput: (e) => setCom(e.target.value) }), h(ui.Button, { onClick: () => { if (!com.trim()) return; majC(carte.id, { commentaires: [...carte.commentaires, { texte: com.trim(), auteur: (typeof user !== "undefined" && user?.nom) || "Vous", at: new Date().toISOString() }] }); setCom(""); } }, "Envoyer"))))));
 };
+
+// ui.Formulaire : formulaire qui enregistre à coup sûr (état à jour champ par champ, champs obligatoires vérifiés, message clair)
+// champs : [{ nom, label, type: texte|long|nombre|date|heure|email|tel|choix|case, options, requis }]
+ui.Formulaire = ({ champs = [], valeur = {}, onEnregistrer, onAnnuler, libelle = "Enregistrer" }) => {
+  const [f, setF] = useState(() => ({ ...valeur }));
+  const [enCours, setEnCours] = useState(false);
+  const set = (k, v) => setF((x) => ({ ...x, [k]: v }));
+  const valider = async (e) => {
+    e?.preventDefault?.();
+    const manque = champs.filter((c) => c.requis && (f[c.nom] == null || String(f[c.nom]).trim() === "")).map((c) => c.label || c.nom);
+    if (manque.length) { toast("À remplir : " + manque.join(", "), "bad"); return; }
+    setEnCours(true);
+    try { await onEnregistrer?.(f); } catch (x) { toast(x?.message || "Enregistrement impossible", "bad"); } finally { setEnCours(false); }
+  };
+  const champ = (c) => {
+    const lab = (c.label || c.nom) + (c.requis ? " *" : ""), v = f[c.nom];
+    if (c.type === "long") return h(ui.Textarea, { key: c.nom, label: lab, value: v, onInput: (x) => set(c.nom, x) });
+    if (c.type === "choix") return h(ui.Select, { key: c.nom, label: lab, value: v ?? "", onChange: (x) => set(c.nom, x), options: [["", "—"], ...(c.options ?? []).map((o) => Array.isArray(o) ? o : [o, o])] });
+    if (c.type === "case") return h("label", { key: c.nom, class: "flex items-center gap-2 text-sm" }, h("input", { type: "checkbox", checked: !!v, onChange: (e) => set(c.nom, e.target.checked) }), lab);
+    const type = { nombre: "number", date: "date", heure: "time", email: "email", tel: "tel" }[c.type] || "text";
+    return h(ui.Input, { key: c.nom, label: lab, type, value: v, onInput: (x) => set(c.nom, x) });
+  };
+  return h("form", { onSubmit: valider, class: "space-y-3" }, champs.map(champ),
+    h("div", { class: "flex justify-end gap-2 pt-2" },
+      onAnnuler && h(ui.Button, { variant: "secondary", onClick: onAnnuler }, "Annuler"),
+      h(ui.Button, { type: "submit", disabled: enCours }, enCours ? "…" : libelle)));
+};
+
+// ui.Fiches : une collection complète, prête à l'emploi — liste (tableau ou cartes), recherche, ajout, modification, suppression confirmée.
+// À utiliser pour tout écran « liste + fiche » au lieu de réécrire formulaire et fenêtre (c'est là que naissent les boutons qui ne font rien).
+// props : col, champs (comme ui.Formulaire), colonnes (pour ui.Table, sinon les 4 premiers champs), rendu (carte personnalisée : (ligne) => vnode),
+// titre (nom d'un élément, ex. « client »), filtre (where), initial (valeurs par défaut d'un nouvel élément), vide, apres (après enregistrement)
+ui.Fiches = ({ col, champs = [], colonnes, rendu, titre = "élément", filtre, initial = {}, vide, apres }) => {
+  const C = useCollection(col, filtre);
+  const [fiche, setFiche] = useState(null), [q, setQ] = useState("");
+  const lignes = q.trim() ? C.rows.filter((r) => JSON.stringify(r).toLowerCase().includes(q.trim().toLowerCase())) : C.rows;
+  const enregistrer = async (d) => {
+    const { id, created_at, updated_at, ...data } = d;
+    const r = fiche?.id ? await C.update(fiche.id, data) : await C.add(data);
+    setFiche(null); toast(fiche?.id ? "Modifié" : "Ajouté"); apres?.(r);
+  };
+  const supprimer = async () => { if (!await demander("Supprimer définitivement ?", { ok: "Supprimer", danger: true })) return; await C.remove(fiche.id); setFiche(null); toast("Supprimé"); };
+  const cols = colonnes || champs.slice(0, 4).map((c) => ({ cle: c.nom, label: c.label || c.nom }));
+  if (C.loading) return h(ui.Loading, {});
+  return h("div", { class: "space-y-4" },
+    h("div", { class: "flex flex-wrap items-center gap-2" },
+      C.rows.length > 5 && h("input", { class: "flex-1 min-w-[180px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm", placeholder: "Rechercher…", value: q, onInput: (e) => setQ(e.target.value) }),
+      h("div", { class: "ml-auto" }, h(ui.Button, { onClick: () => setFiche({ ...initial }) }, "Ajouter : " + titre))),
+    rendu
+      ? (lignes.length ? h("div", { class: "grid sm:grid-cols-2 lg:grid-cols-3 gap-4" }, lignes.map((r) => h("button", { key: r.id, type: "button", onClick: () => setFiche({ ...r }), class: "text-left rounded-2xl border border-slate-200 bg-white p-4 hover:shadow-md transition" }, rendu(r)))) : h(ui.Empty, { texte: vide || "Rien pour l'instant : ajoutez le premier." }))
+      : h(ui.Card, {}, h(ui.Table, { colonnes: cols, lignes, onClick: (r) => setFiche({ ...r }), vide: vide || "Rien pour l'instant : ajoutez le premier." })),
+    h(ui.Modal, { open: !!fiche, onClose: () => setFiche(null), titre: fiche?.id ? "Modifier : " + titre : "Ajouter : " + titre },
+      fiche && h(ui.Formulaire, { key: fiche.id || "neuf", champs, valeur: fiche, onEnregistrer: enregistrer, onAnnuler: () => setFiche(null) }),
+      fiche?.id && h("div", { class: "mt-3 border-t border-slate-100 pt-3" }, h("button", { type: "button", class: "text-sm text-red-600 hover:underline", onClick: supprimer }, "Supprimer"))));
+};
 `;
