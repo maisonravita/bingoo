@@ -10,7 +10,8 @@ import fs from "node:fs";
 import crypto from "node:crypto";
 
 const REF = "fbsjbnnmzazylmquzryo", SB = `https://${REF}.supabase.co`, SITE = process.env.SITE || "https://www.bingoo.fr";
-const TOK = process.env.SUPABASE_ACCESS_TOKEN, EMAIL = "robot-captures@bingoo.fr";
+// Une adresse qui reçoit vraiment (domaine maisonravita.fr, réception par Resend) : les e-mails envoyés au robot sont vérifiables
+const TOK = process.env.SUPABASE_ACCESS_TOKEN, EMAIL = "robot-captures@maisonravita.fr";
 const SOURCE = process.env.DEMO_SOURCE || "pointa-6d37", CONSTRUIRE = process.env.CONSTRUIRE || "";
 const DOSSIER = "captures"; fs.mkdirSync(DOSSIER, { recursive: true });
 const lit = (v) => "'" + String(v).replace(/'/g, "''") + "'";
@@ -136,6 +137,8 @@ if (!CONSTRUIRE) {
     await page.screenshot({ path: `${DOSSIER}/construction-${String(++n).padStart(2, "0")}.png` });
     const texte = await page.evaluate(() => document.body.innerText);
     fin = /Tout est propre|Je livre ton SaaS|tests continuent en arrière-plan|La construction a échoué/.test(texte);
+    // Ou la base le dit : vérification finie (le texte de la page varie selon le genre d'app)
+    if (!fin) { const [v] = await q(`select verif->>'phase' p, statut from saas_apps where workspace_id = ${lit(ws2)}`); fin = v?.p === "fini" || v?.statut === "erreur"; if (fin) { await page.waitForTimeout(4000); await page.screenshot({ path: `${DOSSIER}/construction-fin.png` }); } }
   }
   console.log(`Construction ${fin ? "terminée" : "toujours en cours"} après ${Math.round((Date.now() - t0) / 1000)} s`);
   { const [v] = await q(`select verif->'journal' j, verif->>'at' at from saas_apps where workspace_id = ${lit(ws2)}`); console.log("Vérification :", JSON.stringify(v ?? null)); }
@@ -154,6 +157,20 @@ if (!CONSTRUIRE) {
       const f = p2.frames().find((x) => x !== p2.mainFrame());
       if (f) { const h = await f.evaluate(() => document.body.scrollHeight).catch(() => 0); if (h > vp.height) await p2.setViewportSize({ width: vp.width, height: Math.min(h + 80, 9000) }); await p2.waitForTimeout(1500); }
       await p2.screenshot({ path: `${DOSSIER}/${nom}.png`, fullPage: true }); console.log("✓", nom); await c2.close();
+    }
+    // L'espace gérant, vu par le gérant : il crée son accès (adresse de son compte Bingoo!), les demandes reçues avant l'attendent
+    const API = `${SB}/functions/v1/t/app/${a.slug}`;
+    const mdpG = crypto.randomBytes(15).toString("base64url");
+    let acces = await fetch(`${API}/signup`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: EMAIL, password: mdpG, nom: "Robot gérant" }) }).then((r) => r.json());
+    console.log("Accès gérant :", acces.token ? "créé" : JSON.stringify(acces).slice(0, 200));
+    if (acces.token) {
+      const c3 = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR", storageState: { cookies: [], origins: [{ origin: SITE, localStorage: [{ name: `bingoo-app:${a.slug}`, value: acces.token }] }] } });
+      const p3 = await c3.newPage();
+      for (const [nom, ecran] of [["site-gerant-accueil", ""], ["site-gerant-demandes", "demandes"]]) {
+        await p3.goto(`${SITE}/?c=${Date.now()}${ecran ? "&ecran=" + ecran : ""}#/app/${a.slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p3.waitForTimeout(7000);
+        await p3.screenshot({ path: `${DOSSIER}/${nom}.png` }); console.log("✓", nom);
+      }
+      await c3.close();
     }
     await photo(page, "site-premiers-clients", "#/explorer/clients");
     await photo(page, "site-mon-saas", "#/explorer/mon-saas");
