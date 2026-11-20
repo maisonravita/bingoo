@@ -28,7 +28,7 @@ const MesFavoris = lazy(() => charger(() => import("../components/MesFavoris")))
 import Favori from "../components/Favori";
 import { CarteSaas } from "../components/Cartes";
 import { cleIcone, iconePng } from "../lib/appIcone";
-import qrcode from "qrcode-generator";
+import AppTelephone from "../components/AppTelephone";
 import { cx } from "../lib/utils";
 import { lireQuestion } from "../lib/question";
 
@@ -2409,20 +2409,12 @@ function OngletMonde({ app, appel, agir, busy }) {
 }
 
 // 10. L'app sur téléphone : QR code pour l'ouvrir, icône, raccourcis, installation sur Android, iPhone et ordinateur
-function QR({ texte, taille = 168 }) {
-  const svg = useMemo(() => { const q = qrcode(0, "M"); q.addData(texte); q.make(); return q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); }, [texte]);
-  return <div className="rounded-xl bg-white p-2" style={{ width: taille, height: taille }} dangerouslySetInnerHTML={{ __html: svg }} />;
-}
 function OngletMobile({ app }) {
-  const dom = app.domaine_statut === "ok" ? app.domaine : null;
-  const lien = lienApp(app.slug, dom);
   const ecrans = (app.spec.ecrans ?? []).filter((e) => e.code).slice(0, 4);
+  const { ws } = useWs();
   return (
-    <div className="grid lg:grid-cols-[auto_1fr] gap-5 items-start">
-      <div className="flex flex-col items-center gap-2">
-        <QR texte={lien} />
-        <p className="text-[12px] text-white/55 text-center">Scanne avec ton téléphone<br />pour ouvrir {app.spec.nom}</p>
-      </div>
+    <div className="space-y-5">
+      <AppTelephone app={app} wsId={ws?.id} sombre />
       <div className="space-y-4">
         <Explication>{app.spec.nom} s'installe comme une vraie application, sur téléphone et sur ordinateur : son icône sur l'écran d'accueil, en plein écran, sans passer par l'App Store ni le Play Store. Tes clients n'ont rien à télécharger.</Explication>
         <div className="flex items-center gap-4">

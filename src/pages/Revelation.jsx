@@ -9,6 +9,7 @@ import { resumeFr } from "../lib/angle";
 import CompanyLogo from "../components/CompanyLogo";
 import Logo from "../components/Logo";
 import AppCadre, { lienApp } from "../components/AppCadre";
+import AppTelephone from "../components/AppTelephone";
 import { indexChoisi } from "../lib/choix";
 
 const HF = { fontFamily: "var(--font-titre)" };
@@ -304,6 +305,9 @@ export function Chantier({ ws, nav, init, atelier = false }) {
 
   const spec = app?.spec?.ecrans?.length ? app.spec : app?.brouillon;
   const estSite = spec?.type === "site" || c.type === "site";
+  const estApp = !!spec?.mobile || c.type === "app";
+  // App mobile : l'aperçu s'ouvre sur la vue téléphone
+  useEffect(() => { if (estApp) setVue("tel"); }, [estApp]); // eslint-disable-line react-hooks/exhaustive-deps
   const ecrans = (spec?.ecrans ?? []).filter((e) => !e.public);
   const ecrits = (() => { const m = /\((\d+)\/(\d+)\)/.exec(app?.etape ?? ""); return m ? Number(m[1]) : etape >= 3 ? ecrans.length : 0; })();
   const couleur = spec?.couleur ?? "#E8571C";
@@ -496,6 +500,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
             </>}
             {fini && !atelier && (
               <Bingoo>
+                {estApp && <div className="mb-3"><p className="mb-2"><b>{nom} est prête.</b> Essaie-la sur ton téléphone :</p><AppTelephone app={app} wsId={ws.id} /></div>}
                 <p>{estSite ? <><b>{nom} est en ligne.</b> C'est ton vrai site, à droite. En bas de page, « Espace gérant » : crée ton accès avec l'adresse e-mail de ton compte, puis vérifie tes prix et ajoute ton téléphone. Les demandes de tes visiteurs t'arrivent par e-mail.</> : <><b>{nom} est en ligne.</b> Essaie-le à droite : crée un compte, ajoute des données, clique partout. C'est ton vrai SaaS.</>}</p>
                 <p className="mt-1.5">Dis-moi ce que tu veux changer, en une phrase.</p>
                 <div className="mt-3 flex flex-wrap gap-1.5">{(estSite ? IDEES_SITE : IDEES_SAAS).map((x) => <button key={x} onClick={() => { setEcran(""); envoyer(x); }} disabled={occupe} className="rounded-full border border-line bg-white px-3 py-1.5 text-[12.5px] font-medium hover:border-ink-faint disabled:opacity-50">{x}</button>)}</div>

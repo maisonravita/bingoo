@@ -93,7 +93,7 @@ function exemplesDe(spec: any) {
   return l.length ? `\nDonnées d'exemple déjà chargées dans l'application (utilise exactement ces noms de champs et ces valeurs ; les dates sont recentrées sur aujourd'hui) :\n${l.join("\n")}` : "";
 }
 function contexteSpec(spec: any) {
-  return `Application « ${spec.nom} » : ${spec.pitch}
+  return `${spec.mobile ? "APP MOBILE : utilisée au téléphone (écran de 390 px de large, dans une coque native). Une seule colonne, gros boutons faciles au pouce, listes en cartes, jamais de ui.Table ni de grille de plus de 2 colonnes, pas de survol (hover) indispensable, modales courtes.\n" : ""}Application « ${spec.nom} » : ${spec.pitch}
 Pour : ${spec.cible ?? ""}${spec.nature?.espace_principal ? `\nEspace principal du produit (ce qui le définit) : ${spec.nature.espace_principal}. Interactions caractéristiques : ${(spec.nature.interactions ?? []).join(" ; ")}.` : ""}
 Collections (données) : ${(spec.collections ?? []).map((c: any) => `${c.nom} (${c.label}${c.partage === true ? ", COMMUNAUTÉ : partagée entre tous les membres" : ""}) : ${(c.champs ?? []).map((x: any) => `${x.nom} ${x.type}${x.valeurs ? ` [${x.valeurs.join("|")}]` : ""}`).join(", ")}`).join(" ; ")}${exemplesDe(spec)}
 Écrans de l'application (id : titre) : ${(spec.ecrans ?? []).filter((e: any) => !e.public).map((e: any) => `${e.id} : ${e.titre}`).join(" ; ")}${(spec.ecrans ?? []).some((e: any) => e.public) ? `
@@ -179,7 +179,8 @@ export async function saasConstruire(appId: string, lancerEcran: (ecranId: strin
   const couleursPrises = (recents ?? []).map((r: any) => r.spec?.couleur).filter(Boolean);
   const allluresPrises = (recents ?? []).map((r: any) => [r.spec?.style, r.spec?.disposition].filter(Boolean).join("/")).filter(Boolean);
   const PALETTE = ["#C2410C", "#B91C1C", "#BE185D", "#7E22CE", "#4338CA", "#1D4ED8", "#0369A1", "#0E7490", "#15803D", "#4D7C0F", "#A16207", "#9A3412", "#334155", "#1E293B", "#9F1239", "#6D28D9"];
-  const s = await askJson<any>(`Tu conçois la première version d'une application web (SaaS) qui va être générée automatiquement et mise en ligne. Elle peut être de tout genre : outil de gestion pour des professionnels, mais aussi appli grand public (sport et entraînement, nutrition, bien-être, apprentissage et révisions, organisation perso, famille, loisirs, finances perso), outil IA de texte, ou communauté. Pour une appli grand public, l'utilisateur est la personne elle-même (ses séances, ses objectifs, sa progression), pas une entreprise qui gère des clients.${modele ? `\n${FAIT_MODELE}` : ""}
+  const mobile = p.idee?.type === "app";
+  const s = await askJson<any>(`Tu conçois la première version d'une application web (SaaS) qui va être générée automatiquement et mise en ligne.${mobile ? " C'EST UNE APP MOBILE : elle s'utilise surtout au téléphone, dans une coque native (Expo) ; 4 à 6 écrans qui deviennent les onglets en bas, disposition onglets, rien de large." : ""} Elle peut être de tout genre : outil de gestion pour des professionnels, mais aussi appli grand public (sport et entraînement, nutrition, bien-être, apprentissage et révisions, organisation perso, famille, loisirs, finances perso), outil IA de texte, ou communauté. Pour une appli grand public, l'utilisateur est la personne elle-même (ses séances, ses objectifs, sa progression), pas une entreprise qui gère des clients.${modele ? `\n${FAIT_MODELE}` : ""}
 SaaS : « ${p.nom} » — ${p.pitch}
 Pour : ${p.cible}
 Besoin : ${p.probleme}
@@ -266,6 +267,8 @@ Les données d'exemple sont produites à part : ne mets pas de clé demo.`, { ma
     // Modèle propre à une famille (Projets) : la coque suit cette famille, quel que soit le choix de la conception
     if (m.famille && FAMILLES[m.famille]) Object.assign(spec, { famille: m.famille, interface: FAMILLES[m.famille].interface, disposition: m.disposition ?? FAMILLES[m.famille].disposition });
   }
+  // App mobile : onglets en bas, écrans pensés pour un écran de téléphone (même avec un modèle fait main)
+  if (mobile) Object.assign(spec, { mobile: true, disposition: "onglets" });
   // Promis sur le site = construit : un écran qui fait vraiment ce que le site promet (IA, relances, PDF) s'il manque
   await ajouterEcransPromis(spec, p).catch((x) => console.error("écrans promis", x));
   // Garde-fou : rien du SaaS d'origine (nom, domaine) dans ce que verront les clients

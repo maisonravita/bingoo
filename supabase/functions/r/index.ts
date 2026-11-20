@@ -450,6 +450,21 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     }
     throw new HttpError(400, "Action inconnue");
   },
+  // App mobile (étape 3) : la coque native Expo de l'app, publiée pour l'ouvrir dans Expo Go (republiée si l'app a changé de nom ou de couleur)
+  async "saas-app-expo"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { data: app } = await admin.from("saas_apps").select("id, slug, spec, statut, domaine, domaine_statut, mobile").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    if (!app || app.statut !== "pret") throw new HttpError(404, "Application introuvable ou pas encore en ligne");
+    const sp = (app.spec ?? {}) as any, m = (app.mobile ?? {}) as any;
+    const empreinte = [sp.nom, sp.couleur, app.domaine_statut === "ok" ? app.domaine : ""].join("|");
+    if (m.id && m.empreinte === empreinte && b.force !== true && Date.now() - new Date(m.at ?? 0).getTime() < 30 * 864e5) return m;
+    await quota(ws.id, "expo", 10);
+    const { publierCoque } = await import("../_shared/expo.ts");
+    const r = { ...(await publierCoque(app as any)), empreinte };
+    await admin.from("saas_apps").update({ mobile: { ...m, ...r } }).eq("id", app.id);
+    await log(ws.id, "app_expo", `Aperçu Expo Go de ${String(sp.nom ?? "").slice(0, 60)}`);
+    return r;
+  },
   // Construire à partir d'une idée libre : l'aperçu gratuit (modération, questions si l'idée est floue, écrans, maquette, limites, SaaS proches)
   async "saas-idee-apercu"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);

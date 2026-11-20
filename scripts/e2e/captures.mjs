@@ -71,11 +71,14 @@ const photo = async (page, nom, chemin, attente = 5000) => {
   await page.screenshot({ path: `${DOSSIER}/accueil.png` }); console.log("✓ accueil"); await ctx.close();
 }
 // IDEE=1 : le parcours « Construire mon idée » (aperçu gratuit : 1 petit appel d'IA par idée), une idée claire, une floue, une refusée
-if (process.env.IDEE === "1" || process.env.IDEE === "site") {
+if (["1", "site", "app"].includes(process.env.IDEE)) {
   const IDEES_SAAS = [["idee-claire", "Une app de réservation pour les coiffeurs à domicile, avec rappel la veille"], ["idee-floue", "Une appli comme Uber"], ["idee-refusee", "Un faux site de connexion de ma banque pour récupérer les identifiants"]].map(([n, t]) => [n, t, "saas"]);
   // Sites web (étape 2) : une idée claire et une floue
   const IDEES_SITE = [["site-claire", "Le site de mon salon de coiffure à domicile à Lyon"], ["site-floue", "Un beau site pour mon entreprise"]].map(([n, t]) => [n, t, "site"]);
-  for (const [nom, texte, type] of [...(process.env.IDEE === "site" ? [] : IDEES_SAAS), ...IDEES_SITE]) {
+  // Apps mobiles (étape 3)
+  const IDEES_APP = [["app-claire", "Une app pour suivre mes séances de sport et mes progrès"]].map(([n, t]) => [n, t, "app"]);
+  const LISTE = process.env.IDEE === "site" ? IDEES_SITE : process.env.IDEE === "app" ? IDEES_APP : [...IDEES_SAAS, ...IDEES_SITE, ...IDEES_APP];
+  for (const [nom, texte, type] of LISTE) {
     const { ctx, page } = await ouvrir(ws, { "bingoo-idee": { texte, type, at: Date.now() } });
     await page.goto(`${SITE}/?c=${Date.now()}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
     const pret = () => page.waitForFunction(() => !/étudie ton idée|prépare l'aperçu/i.test(document.body.innerText) && /Construire \S+ \S|Le nom affiché|précisions|ne peut pas construire|réessaie|Réessayer/i.test(document.querySelector("main")?.innerText ?? document.body.innerText), null, { timeout: 120000 }).catch(() => null);
@@ -94,6 +97,13 @@ if (process.env.IDEE === "1" || process.env.IDEE === "site") {
 if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
   for (const [nom, chemin] of [["mon-saas", "#/explorer/mon-saas"], ["atelier", "#/explorer/atelier"], ["modeles", "#/explorer/modeles"], ["connecteur", "#/explorer/connecteur"], ["abonnement", "#/abonnement"]]) await photo(page, nom, chemin);
+  // L'app sur téléphone : le QR code direct, puis la coque Expo publiée (vrai Snack) et son QR code
+  await photo(page, "app-telephone", "#/explorer/reglages-saas?onglet=mobile");
+  if (await page.getByText("Préparer l'aperçu Expo Go").count()) {
+    await page.getByText("Préparer l'aperçu Expo Go").click();
+    await page.waitForFunction(() => /Ouvrir dans Expo Go|ne répond pas|Expo :/.test(document.body.innerText), null, { timeout: 60000 }).catch(() => null);
+    await page.waitForTimeout(1500); await page.screenshot({ path: `${DOSSIER}/app-expo.png`, fullPage: true }); console.log("✓ app-expo");
+  }
   // L'admin : droits donnés le temps de la photo, puis retirés
   await q(`insert into admins (user_id) values (${lit(uid)}) on conflict do nothing`);
   try { await photo(page, "admin", "#/admin", 8000); } finally { await q(`delete from admins where user_id = ${lit(uid)}`); }

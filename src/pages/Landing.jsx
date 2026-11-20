@@ -140,12 +140,12 @@ function IdeeHero({ nav }) {
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {TYPES_IDEE.map(([k, l, d]) => (
           <button key={k} type="button" aria-pressed={type === k} onClick={() => setType(k)} className={cx("inline-flex items-center gap-1.5 rounded-full border px-3 sm:px-3.5 py-1.5 sm:py-2 text-[13px] sm:text-[14px] font-semibold transition", type === k ? "border-[#1E2030] bg-[#1E2030] text-white" : "border-black/[.1] bg-white text-[#3A3F55] hover:border-black/25")}>
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={d} /></svg>{l}{k === "app" && <span className={cx("rounded-full px-1.5 py-px text-[10px] font-bold uppercase tracking-wide", type === k ? "bg-white/20 text-white" : "bg-[#FDECD8] text-[#C2410C]")}>bientôt</span>}
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={d} /></svg>{l}
           </button>
         ))}
         <button type="submit" disabled={busy} className="w-full sm:w-auto sm:ml-auto inline-flex items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 sm:py-2.5 text-[15px] font-bold text-white shadow-[0_10px_30px_-12px_rgba(226,85,35,.8)] transition hover:brightness-110 disabled:opacity-60">{busy ? "Un instant…" : <>Construire mon idée <Arrow /></>}</button>
       </div>
-      {type !== "saas" && <p className="mt-2 px-1 text-[12.5px] text-[#5B6075]">{type === "app" ? "L'app mobile native arrive bientôt. En attendant, Bingoo! construit ta version web, utilisable sur téléphone." : "Ton site en ligne en quelques minutes : tes services, tes prix, tes horaires et un formulaire de demande. 9,99 € par mois."}</p>}
+      {type !== "saas" && <p className="mt-2 px-1 text-[12.5px] text-[#5B6075]">{type === "app" ? "Ton app pensée pour le téléphone, à essayer tout de suite dans Expo Go. La publication sur l'App Store et Google Play arrive bientôt." : "Ton site en ligne en quelques minutes : tes services, tes prix, tes horaires et un formulaire de demande. 9,99 € par mois."}</p>}
       {!texte && <div className="mt-3 flex flex-wrap gap-1.5 border-t border-black/[.06] px-1 pt-3">{EXEMPLES_IDEE[type].map((x) => <button key={x} type="button" onClick={() => { setTexte(x); zone.current?.focus(); }} className="rounded-full bg-[#F4F4F1] px-3 py-1.5 text-[13px] text-[#5B6075] hover:bg-[#ECECE7]">{x}</button>)}</div>}
     </form>
   );

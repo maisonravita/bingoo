@@ -40,9 +40,8 @@ function MaquetteSite({ nom, ap }) {
   );
 }
 
-// Maquette fil de fer de l'écran principal, dessinée à partir des blocs de l'aperçu (aucun appel d'IA en plus)
-function Maquette({ nom, principal, ecrans }) {
-  const Bloc = ({ b }) => {
+// Un bloc de la maquette (liste, chiffres, calendrier…), dessiné en fil de fer
+const Bloc = ({ b }) => {
     const el = b.elements?.length ? b.elements : ["…", "…", "…"];
     if (b.type === "kpi") return <div className="grid grid-cols-3 gap-2">{el.slice(0, 3).map((x) => <div key={x} className="rounded-lg border border-line bg-white p-2"><p className="text-[10px] text-ink-faint truncate">{x.replace(/^\d+[,.]?\d*\s*/, "")}</p><p className="text-[15px] font-black">{/\d+/.exec(x)?.[0] ?? (x.length % 9) + 2}</p></div>)}</div>;
     if (b.type === "calendrier") return <div className="grid grid-cols-7 gap-1">{Array.from({ length: 14 }, (_, i) => <div key={i} className={cx("h-7 rounded-md border border-line bg-white p-0.5 text-[8px] text-ink-faint", [2, 5, 9].includes(i) && "bg-[#FDECD8]")}>{i + 1}{[2, 5, 9].includes(i) && <span className="block truncate text-[#C2410C]">{el[i % el.length]}</span>}</div>)}</div>;
@@ -53,7 +52,27 @@ function Maquette({ nom, principal, ecrans }) {
     if (b.type === "chat") return <div className="space-y-1.5">{el.slice(0, 3).map((x, i) => <p key={x} className={cx("max-w-[80%] rounded-xl px-2 py-1 text-[10px]", i % 2 ? "ml-auto text-white" : "bg-[#F1F0EC]")} style={i % 2 ? { background: COULEUR } : null}>{x}</p>)}</div>;
     if (b.type === "editeur") return <div className="space-y-1 rounded-lg border border-line bg-white p-2">{el.slice(0, 3).map((x, i) => <p key={x} className={cx("truncate", i ? "text-[10px] text-ink-soft" : "text-[12px] font-bold")}>{x}</p>)}</div>;
     return <div className="divide-y divide-line rounded-lg border border-line bg-white">{el.slice(0, 4).map((x) => <div key={x} className="flex items-center gap-2 px-2 py-1.5"><span className="h-4 w-4 shrink-0 rounded-full bg-[#F1F0EC]" /><span className="min-w-0 flex-1 truncate text-[10.5px]">{x}</span><span className="h-2 w-8 rounded bg-[#F1F0EC]" /></div>)}</div>;
-  };
+};
+
+// Maquette d'une APP MOBILE : un téléphone, l'écran principal et les onglets en bas
+function MaquetteTel({ nom, principal, ecrans }) {
+  return (
+    <div className="mx-auto w-[270px] rounded-[2.6rem] bg-[#15161A] p-2.5 shadow-[0_30px_60px_-30px_rgba(20,20,40,.6)]">
+      <div className="relative overflow-hidden rounded-[2.1rem] bg-[#FAFAF8]">
+        <div className="flex items-center justify-between px-5 pt-3 text-[10px] font-semibold"><span>9:41</span><span className="h-4 w-16 rounded-full bg-[#15161A]" /><span>●●●</span></div>
+        <div className="space-y-3 px-3.5 pb-3 pt-3" style={{ minHeight: 420 }}>
+          <p className="flex items-center gap-1.5 text-[11px] font-bold text-ink-soft"><span className="grid h-5 w-5 place-items-center rounded-md text-[10px] text-white" style={{ background: COULEUR }}>{nom.charAt(0)}</span>{nom}</p>
+          <p className="text-[19px] font-black leading-tight" style={HF}>{principal.titre}</p>
+          {principal.blocs.slice(0, 3).map((b, i) => <div key={i}><p className="mb-1 text-[10.5px] font-semibold text-ink-soft">{b.titre}</p><Bloc b={b.type === "tableau" || b.type === "colonnes" ? { ...b, type: "liste" } : b} /></div>)}
+        </div>
+        <div className="grid border-t border-line bg-white" style={{ gridTemplateColumns: `repeat(${Math.min(5, ecrans.length) || 1},1fr)` }}>{ecrans.slice(0, 5).map((e, i) => <div key={e.titre} className="flex flex-col items-center gap-0.5 py-2"><span className="h-3.5 w-3.5 rounded-md" style={{ background: i === 0 ? COULEUR : "#D9D7D0" }} /><span className={cx("max-w-full truncate px-0.5 text-[8.5px] font-semibold", i === 0 ? "" : "text-ink-faint")} style={i === 0 ? { color: COULEUR } : null}>{e.titre}</span></div>)}</div>
+      </div>
+    </div>
+  );
+}
+
+// Maquette fil de fer de l'écran principal, dessinée à partir des blocs de l'aperçu (aucun appel d'IA en plus)
+function Maquette({ nom, principal, ecrans }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-line bg-[#FAFAF8] shadow-[0_20px_50px_-30px_rgba(20,20,40,.4)]">
       <div className="flex items-center gap-1.5 border-b border-line bg-white px-3 py-2"><span className="h-2 w-2 rounded-full bg-[#FF5F57]" /><span className="h-2 w-2 rounded-full bg-[#FEBC2E]" /><span className="h-2 w-2 rounded-full bg-[#28C840]" /><span className="ml-2 text-[11px] text-ink-faint">{nom}</span></div>
@@ -151,16 +170,16 @@ export default function Idee() {
                 <input id="nom-idee" value={nom} onChange={(e) => setNom(e.target.value.slice(0, 40))} className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-[22px] font-black outline-none focus:border-ink" style={HF} />
                 <p className="mt-3 text-[15px]">{ap.pitch}</p>
                 <p className="mt-1 text-[13.5px] text-ink-soft">Pour : {ap.cible}</p>
-                <p className="mt-5 text-[13px] font-bold">{site ? `Ce que Bingoo! construit maintenant (${ap.ecrans.length} parties)` : `Ce que Bingoo! construit maintenant (${ap.ecrans.length} écrans)`}</p>
+                <p className="mt-5 text-[13px] font-bold">{site ? `Ce que Bingoo! construit maintenant (${ap.ecrans.length} parties)` : idee.type === "app" ? `Ce que Bingoo! construit maintenant (${ap.ecrans.length} onglets)` : `Ce que Bingoo! construit maintenant (${ap.ecrans.length} écrans)`}</p>
                 <ol className="mt-2 space-y-1.5">{ap.ecrans.map((e, i) => <li key={e.titre} className="flex gap-2.5 text-[14px]"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-paper text-[11px] font-bold">{i + 1}</span><span><b>{e.titre}</b> <span className="text-ink-soft">— {e.role}</span></span></li>)}</ol>
                 {ap.plus_tard?.length > 0 && <><p className="mt-5 text-[13px] font-bold">Ensuite, dans l'atelier</p><p className="mt-1 text-[13.5px] text-ink-soft">{ap.plus_tard.join(" · ")}</p></>}
                 {ap.limites?.length > 0 && <div className="mt-5 rounded-xl bg-[#FFF7F0] p-3"><p className="text-[13px] font-bold text-[#C2410C]">Fait autrement</p><ul className="mt-1 space-y-1">{ap.limites.map((l) => <li key={l.demande} className="text-[13.5px]"><span className="line-through decoration-[#C2410C]/50">{l.demande}</span> → {l.alternative}</li>)}</ul></div>}
               </div>
-              <div>{site ? <MaquetteSite nom={nom || ap.nom} ap={ap} /> : <Maquette nom={nom || ap.nom} principal={ap.principal} ecrans={ap.ecrans} />}<p className="mt-2 text-center text-[12px] text-ink-faint">{site ? "Maquette de ta page d'accueil : le vrai design, tes couleurs et tes textes sont faits à la construction." : "Maquette de l'écran principal : le vrai design est fait à la construction."}</p></div>
+              <div>{site ? <MaquetteSite nom={nom || ap.nom} ap={ap} /> : idee.type === "app" ? <MaquetteTel nom={nom || ap.nom} principal={ap.principal} ecrans={ap.ecrans} /> : <Maquette nom={nom || ap.nom} principal={ap.principal} ecrans={ap.ecrans} />}<p className="mt-2 text-center text-[12px] text-ink-faint">{site ? "Maquette de ta page d'accueil : le vrai design, tes couleurs et tes textes sont faits à la construction." : "Maquette de l'écran principal : le vrai design est fait à la construction."}</p></div>
             </div>
             <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-line pt-5">
               <button disabled={busy || nom.trim().length < 2} onClick={() => lancer("idee")} className="rounded-full bg-accent px-7 py-3.5 text-[16px] font-bold text-white shadow-[0_12px_30px_-14px_rgba(226,85,35,.9)] disabled:opacity-50">{busy ? "Un instant…" : `Construire ${nom.trim() || ap.nom}`}</button>
-              <p className="text-[13px] text-ink-soft">{site ? <>Bingoo! écrit tes textes, met ton site en ligne et teste ton espace gérant. <b className="text-ink">9,99 € par mois</b>, sans engagement, ton nom de domaine compris. Tu vérifies ensuite tes prix et tes horaires.</> : <>Bingoo! le construit, teste chaque écran comme un vrai utilisateur, corrige, puis le met en ligne.{idee.type === "app" ? " L'app mobile native arrive bientôt : en attendant, tu as ta version web, utilisable sur téléphone." : ""}</>}</p>
+              <p className="text-[13px] text-ink-soft">{site ? <>Bingoo! écrit tes textes, met ton site en ligne et teste ton espace gérant. <b className="text-ink">9,99 € par mois</b>, sans engagement, ton nom de domaine compris. Tu vérifies ensuite tes prix et tes horaires.</> : <>Bingoo! le construit, teste chaque écran comme un vrai utilisateur, corrige, puis le met en ligne.{idee.type === "app" ? " Tu l'essaies ensuite sur ton téléphone dans Expo Go (gratuit). La publication sur l'App Store et Google Play arrive bientôt." : ""}</>}</p>
             </div>
           </section>
         </>

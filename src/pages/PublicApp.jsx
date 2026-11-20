@@ -11,7 +11,9 @@ export default function PublicApp({ slug, domaine }) {
   const [app, setApp] = useState(undefined);
   const [installer, setInstaller] = useState(null);
   // iPhone et iPad : pas d'installation automatique, on explique le geste (une fois, et jamais dans l'app installée)
-  const [ios, setIos] = useState(() => { try { return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.navigator.standalone && !localStorage.getItem("bingoo-ios-vu"); } catch { return false; } });
+  // Dans la coque native (app mobile Expo : ?natif=1), jamais de bandeau « installer l'application »
+  const [natif] = useState(() => param("natif") === "1");
+  const [ios, setIos] = useState(() => { try { return !natif && /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.navigator.standalone && !localStorage.getItem("bingoo-ios-vu"); } catch { return false; } });
   // Retour du paiement Stripe (?paiement=ok), invitation d'équipe (?invite=…), démo animée (?tour=1)
   const [ctx] = useState(() => ({ retour: param("paiement") === "ok", invite: param("invite"), tour: param("tour") === "1", ecran: param("ecran"), page: param("page") && param("e") ? { id: param("page"), espace: param("e") } : null, precommande: param("precommande"), source: param("src") || (document.referrer && !document.referrer.includes(window.location.host) ? (() => { try { return new URL(document.referrer).hostname.replace(/^www\./, "").split(".")[0]; } catch { return null; } })() : null) }));
   useEffect(() => {
@@ -50,7 +52,7 @@ export default function PublicApp({ slug, domaine }) {
           <button onClick={() => { setIos(false); try { localStorage.setItem("bingoo-ios-vu", "1"); } catch { /* stockage indisponible */ } }} className="text-[#64748B] text-[18px] leading-none">×</button>
         </div>
       )}
-      {installer && !app.validation && !ctx.page && (
+      {installer && !natif && !app.validation && !ctx.page && (
         <button onClick={async () => { installer.prompt(); await installer.userChoice.catch(() => null); setInstaller(null); }} className="fixed bottom-4 left-4 z-10 rounded-full bg-white/95 shadow-lg ring-1 ring-black/10 px-4 py-2.5 text-[13.5px] font-semibold text-[#0F172A]">⬇ Installer l'application</button>
       )}
     </>
