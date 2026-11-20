@@ -158,7 +158,9 @@ export function recalerDemo(demo: Record<string, unknown[]>, ancre?: string | nu
   const dec = Math.round((auj - (isNaN(a) ? jours[Math.floor(jours.length / 2)] : a)) / 864e5) * 864e5;
   if (!dec) return demo;
   const decaler = (v: unknown) => { if (typeof v !== "string") return v; const m = RE_JOUR.exec(v); if (!m) return v; const t = Date.parse(m[1] + "T12:00:00Z"); if (isNaN(t)) return v; return new Date(t + dec).toISOString().slice(0, 10) + (m[2] ?? ""); };
-  return Object.fromEntries(Object.entries(demo).map(([k, xs]) => [k, Array.isArray(xs) ? xs.map((x) => x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x as object).map(([c, v]) => [c, decaler(v)])) : x) : xs]));
+  // Jusque dans les champs json (cartes d'un tableau, blocs d'un document…) : leurs dates restent centrées sur aujourd'hui
+  const profond = (v: unknown, n = 0): unknown => n > 6 ? v : Array.isArray(v) ? v.map((y) => profond(y, n + 1)) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v as object).map(([c, y]) => [c, profond(y, n + 1)])) : decaler(v);
+  return Object.fromEntries(Object.entries(demo).map(([k, xs]) => [k, Array.isArray(xs) ? xs.map((x) => x && typeof x === "object" && !Array.isArray(x) ? profond(x) : x) : xs]));
 }
 
 // Données d'exemple : chaque nouvel espace démarre avec une application vivante

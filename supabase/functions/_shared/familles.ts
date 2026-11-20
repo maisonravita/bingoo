@@ -133,5 +133,9 @@ export function familleParDefaut(t: string): string {
 /** Modèles faits main compatibles avec chaque famille : un modèle ne s'impose plus à un produit d'une autre famille. */
 export const MODELES_DE_FAMILLE: Record<string, string[]> = {
   // L'écriture par IA n'est PAS un modèle pour un éditeur de documents ou de formulaires (Tally devenait un outil de rédaction)
-  reservation: ["reservation"], gestion: ["devis", "reservation"], crm: ["crm"], ia: ["ecriture"],
+  reservation: ["reservation"], gestion: ["devis", "reservation"], crm: ["crm"], ia: ["ecriture"], projets: ["projets"],
 };
+
+/** Modèle fait main imposé à toute la famille quand le produit en est (les mots du projet n'ont pas à le désigner) :
+ *  un outil de gestion de projets reçoit toujours le modèle Projets plutôt qu'un code entièrement écrit par l'IA. */
+export const MODELE_DE_LA_FAMILLE: Record<string, string> = { projets: "projets" };

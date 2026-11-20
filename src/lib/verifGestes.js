@@ -87,7 +87,8 @@ async function gestesEcran(zone) {
   const teste = new Set();
 
   // 1. Créer quelque chose : le geste principal de presque tous les SaaS
-  const creer = boutons().find((b) => G_CREER.test(gLibelle(b)) && !b.closest("form"));
+  // Un onglet déjà ouvert (« Nouvelles (3) ») n'est pas un bouton de création
+  const creer = boutons().find((b) => G_CREER.test(gLibelle(b)) && !b.closest("form") && b.getAttribute("role") !== "tab" && b.getAttribute("aria-selected") !== "true");
   if (creer) {
     const nom = gLibelle(creer) || "Ajouter"; teste.add(nom);
     const add0 = VAPPELS.add + VAPPELS.update;

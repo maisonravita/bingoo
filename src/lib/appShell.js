@@ -106,7 +106,8 @@ function recaler(demo, ancre) {
   const dec = Math.round((Date.parse(new Date().toISOString().slice(0, 10) + "T12:00:00Z") - (isNaN(a) ? jours[Math.floor(jours.length / 2)] : a)) / 864e5) * 864e5;
   if (!dec) return demo;
   const dv = (v) => { const m = typeof v === "string" && RJ.exec(v); if (!m) return v; const t = Date.parse(m[1] + "T12:00:00Z"); return isNaN(t) ? v : new Date(t + dec).toISOString().slice(0, 10) + (m[2] ?? ""); };
-  return Object.fromEntries(Object.entries(demo).map(([k, xs]) => [k, Array.isArray(xs) ? xs.map((x) => x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).map(([c, v]) => [c, dv(v)])) : x) : xs]));
+  const profond = (v, n = 0) => n > 6 ? v : Array.isArray(v) ? v.map((y) => profond(y, n + 1)) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([c, y]) => [c, profond(y, n + 1)])) : dv(v);
+  return Object.fromEntries(Object.entries(demo).map(([k, xs]) => [k, Array.isArray(xs) ? xs.map((x) => x && typeof x === "object" && !Array.isArray(x) ? profond(x) : x) : xs]));
 }
 if (B.verif) {
   const refs = new Map(), items = [];

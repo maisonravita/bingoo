@@ -161,13 +161,13 @@ export async function saasConstruire(appId: string, lancerEcran: (ecranId: strin
   // Métier reconnu (rendez-vous, devis/factures, écriture IA) : modèle fait main et testé, même après une analyse REA ;
   // les fonctions relevées en plus sont ajoutées ensuite comme écrans promis (ajouterEcransPromis)
   // Famille du produit d'origine (analyse de ses pages publiques), sinon déduite de ses mots : elle décide de l'interface
-  const { FAMILLES, CHOIX_FAMILLES, familleParDefaut, MODELES_DE_FAMILLE } = await import("./familles.ts");
+  const { FAMILLES, CHOIX_FAMILLES, familleParDefaut, MODELES_DE_FAMILLE, MODELE_DE_LA_FAMILLE } = await import("./familles.ts");
   const nature = p.scan?.nature ?? null;
   const texteProduit = [p.inspire?.categorie, p.pitch, p.cible, p.probleme, ...(p.mvp ?? []).map((m: any) => m?.fonction)].join(" ");
   const famille0 = FAMILLES[nature?.famille] ? nature.famille : familleParDefaut(texteProduit);
   // Un modèle fait main ne s'impose qu'à un produit de sa famille (avant : tout produit qui parlait de rendez-vous devenait le même logiciel)
   const modeleBrut = modeleDe(p);
-  const modele = modeleBrut && (MODELES_DE_FAMILLE[famille0] ?? []).includes(modeleBrut) ? modeleBrut : null;
+  const modele = modeleBrut && (MODELES_DE_FAMILLE[famille0] ?? []).includes(modeleBrut) ? modeleBrut : (MODELE_DE_LA_FAMILLE[famille0] ?? null);
   const FAIT_MODELE = modele ? (FAIT as Record<string, string>)[modele] : "";
   // Deux SaaS construits ne doivent pas se ressembler : palette variée, et pas les couleurs ni les allures des derniers construits
   const { data: recents } = await admin.from("saas_apps").select("spec").neq("id", appId).not("statut", "in", "(remplace,retire,erreur)").order("maj", { ascending: false }).limit(8);
@@ -215,7 +215,7 @@ Les données d'exemple sont produites à part : ne mets pas de clé demo.`, { ma
 
   // Données d'exemple à part (modèle rapide) : la conception reste courte et ne dépasse jamais la durée d'une invocation
   // Le modèle Écriture demande aussi 7 textes d'exemple complets : plus de place, sinon la réponse est coupée
-  const perso = modele ? await askJson<any>(PERSO[modele](p), { fast: true, maxTokens: modele === "ecriture" ? 7000 : 2000 }).catch(() => ({})) : null;
+  const perso = modele ? await askJson<any>(PERSO[modele](p), { fast: true, maxTokens: modele === "ecriture" ? 7000 : modele === "projets" ? 6000 : 2000 }).catch(() => ({})) : null;
   // Données d'exemple : écrites dans une invocation à part (saasDemoPuisEcrans), la conception seule tient déjà près de 2 minutes
   const demo = {};
   const spec: any = {
@@ -257,6 +257,8 @@ Les données d'exemple sont produites à part : ne mets pas de clé demo.`, { ma
     // Modèle fait main : écrans, collections, données vivantes et agenda viennent du modèle (déjà écrits et testés)
     const m = SPEC[modele](perso);
     Object.assign(spec, { ecrans: m.ecrans, collections: m.collections, demo: m.demo, demo_ancre: m.demo_ancre, agenda: m.agenda, modele, vocab: m.vocab });
+    // Modèle propre à une famille (Projets) : la coque suit cette famille, quel que soit le choix de la conception
+    if (m.famille && FAMILLES[m.famille]) Object.assign(spec, { famille: m.famille, interface: FAMILLES[m.famille].interface, disposition: m.disposition ?? FAMILLES[m.famille].disposition });
   }
   // Promis sur le site = construit : un écran qui fait vraiment ce que le site promet (IA, relances, PDF) s'il manque
   await ajouterEcransPromis(spec, p).catch((x) => console.error("écrans promis", x));

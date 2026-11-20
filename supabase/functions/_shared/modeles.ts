@@ -159,6 +159,7 @@ export const FAIT = {
   crm: "Cette version fait exactement ceci, et rien d'autre : un fichier de contacts (prospects et clients) avec leur historique, un pipeline d'affaires par étapes à faire glisser (nouveau, qualifié, proposition, négociation, gagné, perdu) avec montants et prévision pondérée, des tâches et relances datées (liste et calendrier), l'envoi de vrais e-mails à un contact, un tableau de bord commercial, et un formulaire de contact en ligne qui crée le prospect et lui envoie une confirmation.",
   ecriture: "Cette version fait exactement ceci, et rien d'autre : l'utilisateur choisit un type de texte, remplit quelques champs, et l'IA intégrée écrit le texte ; il l'ajuste en un clic (plus court, plus percutant, plus simple, en anglais), le modifie, le copie ou le télécharge en PDF ; tous ses textes sont rangés et cherchables, avec favoris et duplication ; une page « Mon style » où il décrit qui il est et colle un exemple de son écriture pour que l'IA écrive avec sa voix ; un tableau de bord de son activité ; l'équipe et l'abonnement. Les textes (pitch_site, atouts, formules) ne promettent RIEN d'autre (pas de publication automatique sur les réseaux, pas d'import de fichier ni de lecture de document, pas d'images, pas de détection de plagiat, pas de modèle d'IA au choix, pas d'extension de navigateur).",
   reservation: "Cette version fait exactement ceci, et rien d'autre : un planning en calendrier, le suivi de chaque rendez-vous par étapes (à confirmer, confirmé, terminé, annulé), un fichier clients avec historique et chiffre d'affaires, les offres avec prix et durées, les heures d'ouverture par jour, une page de réservation en ligne où les clients ne voient que les vrais créneaux libres (selon les heures d'ouverture, la durée de l'offre et les rendez-vous déjà pris), le paiement en réservant par le lien de paiement de l'offre (Stripe, PayPal, SumUp…), une salle de visioconférence créée pour chaque rendez-vous des offres en visio, avec e-mail de confirmation et rappel automatique par e-mail la veille, un tableau de bord du chiffre d'affaires, l'import et l'export Excel, l'équipe et l'abonnement. Les textes (pitch_site, atouts, formules) ne promettent RIEN d'autre (pas de SMS, pas de paiement ni d'acompte à la réservation, pas de factures PDF).",
+  projets: "Cette version fait exactement ceci, et rien d'autre : des tableaux de projets en colonnes personnalisables, avec des cartes que l'on fait glisser d'une colonne à l'autre ; chaque carte a une description, un responsable, une échéance, des étiquettes de couleur, une liste de sous-tâches et des commentaires ; recherche et filtres (personne, étiquette, en retard) ; modèles de tableaux pour démarrer, favoris, duplication et archivage ; « Mes tâches » qui rassemble les cartes de tous les tableaux par échéance ; un calendrier des échéances ; une vue d'avancement par projet et de charge par personne ; un formulaire en ligne où clients et collègues envoient des demandes, transformées en carte en un clic avec e-mail de confirmation ; l'équipe et l'abonnement. Les textes (pitch_site, atouts, formules) ne promettent RIEN d'autre (pas de diagramme de Gantt, pas de suivi du temps passé, pas de pièces jointes sur les cartes, pas de notifications en temps réel, pas d'automatisations, pas d'intégrations, pas d'application mobile).",
   devis: "Cette version fait exactement ceci, et rien d'autre : un catalogue de prestations avec prix, des devis créés en un clic (lignes, TVA, total), envoyés par e-mail et téléchargeables en PDF, transformés en facture numérotée quand ils sont acceptés, des factures PDF avec mentions légales et IBAN, le suivi des paiements et des retards avec relance par e-mail en un clic, un fichier clients avec ce que chacun a rapporté et doit encore, une page en ligne où les clients demandent un devis, un tableau de bord (encaissé, reste à encaisser, taux d'acceptation), l'import et l'export Excel, l'équipe et l'abonnement. Les textes (pitch_site, atouts, formules) ne promettent RIEN d'autre (pas de signature électronique, pas de paiement en ligne des factures, pas de connexion à la banque ni à un logiciel comptable, pas de facture électronique Chorus Pro).",
 };
 
@@ -244,5 +245,69 @@ export function specCrm(perso: any) {
   return { vocab: {}, ecrans, collections, demo: { contacts, affaires, taches }, demo_ancre: jour(0), agenda: { collection: "taches", champ_date: "date", champ_heure: null, duree: 30, champs_titre: ["titre"] } };
 }
 
-export const PERSO: Record<string, (p: any) => string> = { reservation: PERSO_RESERVATION, devis: PERSO_DEVIS, ecriture: PERSO_ECRITURE, crm: PERSO_CRM };
-export const SPEC: Record<string, (perso: any) => any> = { reservation: specReservation, devis: specDevis, ecriture: specEcriture, crm: specCrm };
+// ---------------------------------------------------------------- Modèle « Projets » (tableaux de cartes)
+export const PERSO_PROJETS = (p: any) => `Un outil de gestion de projets en tableaux de cartes va être livré pour ce produit : « ${p.nom} » — ${p.pitch}. Pour : ${p.cible}.
+Rendez un objet JSON :
+- vocab : { carte: le nom d'une carte au singulier dans ce métier (« Tâche », « Ticket », « Livrable », « Action »…), cartes: au pluriel, tableaux: le nom de la liste des tableaux (« Tableaux », « Projets », « Chantiers », « Dossiers »…) }
+- equipe : 5 prénoms et noms français (l'équipe qui utilise l'outil)
+- tableaux : 4 tableaux réalistes pour ce public : { nom (30 caractères max), emoji (un seul), description (une phrase), colonnes (4 ou 5 noms courts, de la première étape à « Terminé »), cartes : 10 objets { titre (60 caractères max, concret), description (une phrase, ou ""), colonne (numéro de la colonne, 1 = première), etiquette (« rouge » pour urgent, « orange », « jaune », « vert », « bleu », « violet », ou ""), cases (0 à 4 sous-tâches très courtes) } }, avec des cartes dans toutes les colonnes
+- modeles : 3 modèles de tableau pour démarrer, propres à ce métier : { nom (3 mots), emoji, colonnes (4 ou 5 noms), cartes (3 titres de cartes de départ) }
+- demandes : 5 demandes qu'un client ou un collègue pourrait envoyer par formulaire : { titre (50 caractères max), description (une ou deux phrases), nom (prénom et nom), priorite (« normale » ou « urgente ») }
+Tout en français, sans aucun nom de marque réelle. Majuscule au début de chaque mot de vocab.`;
+
+export function specProjets(perso: any) {
+  const V = { carte: "Tâche", cartes: "Tâches", tableaux: "Tableaux", ...(perso?.vocab ?? {}) } as any;
+  for (const k of ["carte", "cartes", "tableaux"]) V[k] = String(V[k] ?? "").slice(0, 24) || ({ carte: "Tâche", cartes: "Tâches", tableaux: "Tableaux" } as any)[k];
+  const court = (x: unknown, n: number) => String(x ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+  const emoji = (x: unknown, d: string) => { const e = String(x ?? "").trim(); return e && e.length <= 8 && !/[a-z0-9]/i.test(e) ? e : d; };
+  V.modeles = (Array.isArray(perso?.modeles) ? perso.modeles : []).slice(0, 3).map((m: any, i: number) => ({ id: "m" + (i + 1), nom: court(m?.nom, 30) || "Modèle " + (i + 1), emoji: emoji(m?.emoji, "📋"),
+    colonnes: (Array.isArray(m?.colonnes) ? m.colonnes : []).slice(0, 6).map((c: unknown) => court(c, 24)).filter(Boolean), cartes: (Array.isArray(m?.cartes) ? m.cartes : []).slice(0, 5).map((c: unknown) => court(c, 60)).filter(Boolean) }))
+    .filter((m: any) => m.colonnes.length >= 2);
+  if (!V.modeles.length) V.modeles = [{ id: "m1", nom: "Projet client", emoji: "🤝", colonnes: ["À cadrer", "À faire", "En cours", "En relecture", "Terminé"], cartes: ["Réunion de lancement", "Valider le planning", "Premier livrable"] }, { id: "m2", nom: "Sprint", emoji: "🏁", colonnes: ["Backlog", "À faire", "En cours", "À tester", "Terminé"], cartes: ["Définir les objectifs du sprint", "Répartir les tâches", "Démo de fin de sprint"] }];
+  const tete = `const V = ${JSON.stringify(V)};\n`;
+  const code = MODELES_CODE.projets;
+  const ecrans = [
+    { id: "tableaux", titre: V.tableaux.slice(0, 24), icone: "liste", but: "Vos projets en tableaux de cartes : glissez chaque " + V.carte.toLowerCase() + " de colonne en colonne jusqu'à « Terminé »." },
+    { id: "mes_taches", titre: "Mes tâches", icone: "check", but: "Tout ce qui vous attend, sur tous les tableaux, classé par échéance." },
+    { id: "calendrier", titre: "Calendrier", icone: "agenda", but: "Les échéances de tous vos projets sur un calendrier." },
+    { id: "avancement", titre: "Avancement", icone: "graphique", but: "Où en est chaque projet, qui porte quoi et ce qui prend du retard." },
+    { id: "demandes", titre: "Demandes", icone: "boite", but: "Les demandes reçues par votre formulaire, à transformer en " + V.cartes.toLowerCase() + " en un clic." },
+    { id: "pub_demande", titre: "Envoyer une demande", icone: "mail", but: "La page où vos clients et collègues vous envoient une demande, sans compte.", public: true, lecture: [], ecriture: "demandes" },
+  ].map((e) => code[e.id] ? ({ ...e, code: tete + code[e.id], ok: true, modele: "projets" }) : e); // écran sans code fait main : écrit par l'IA, jamais livré vide
+  const collections = [
+    { nom: "tableaux", label: V.tableaux, champs: [{ nom: "nom", type: "texte" }, { nom: "description", type: "texte" }, { nom: "emoji", type: "texte" }, { nom: "couleur", type: "texte" }, { nom: "contenu", type: "json" }, { nom: "favori", type: "booleen" }, { nom: "archive", type: "booleen" }] },
+    { nom: "demandes", label: "Demandes", champs: [{ nom: "titre", type: "texte" }, { nom: "description", type: "texte" }, { nom: "nom", type: "texte" }, { nom: "email", type: "email" }, { nom: "priorite", type: "choix", valeurs: ["normale", "urgente"] }, { nom: "statut", type: "choix", valeurs: ["nouvelle", "acceptee", "refusee"] }, { nom: "tableau_id", type: "texte" }, { nom: "traitee_le", type: "date" }] },
+  ];
+  // Données d'exemple vivantes : des projets en cours, des échéances autour d'aujourd'hui (quelques retards), des sous-tâches et des commentaires
+  let graine = 31; const hasard = () => { graine = (graine * 9301 + 49297) % 233280; return graine / 233280; };
+  const jour = (d: number) => { const x = new Date(); x.setUTCDate(x.getUTCDate() + d); return x.toISOString().slice(0, 10); };
+  const equipe = (Array.isArray(perso?.equipe) && perso.equipe.length >= 3 ? perso.equipe : ["Claire Martin", "Thomas Bernard", "Sophie Dubois", "Lucas Moreau", "Camille Laurent"]).slice(0, 6).map((x: any) => court(typeof x === "string" ? x : x?.nom, 40)).filter(Boolean);
+  const ETIQ = ["rouge", "orange", "jaune", "vert", "bleu", "violet"], COUL = ["#2563eb", "#7c3aed", "#ea580c", "#16a34a", "#db2777", "#0891b2"];
+  const base = Array.isArray(perso?.tableaux) && perso.tableaux.length ? perso.tableaux : [
+    { nom: "Lancement de la nouvelle offre", emoji: "🚀", description: "Tout ce qu'il faut pour lancer l'offre à la rentrée.", colonnes: ["Idées", "À faire", "En cours", "En relecture", "Terminé"], cartes: ["Définir le prix", "Rédiger la page de présentation", "Préparer l'e-mail d'annonce", "Choisir les visuels", "Tester le parcours d'achat", "Former l'équipe commerciale", "Planifier les publications", "Mettre à jour les CGV", "Lister les clients à prévenir", "Bilan de lancement"].map((t, i) => ({ titre: t, colonne: 1 + (i % 5) })) },
+    { nom: "Refonte du site", emoji: "🎨", description: "Nouveau site plus clair, plus rapide, mieux référencé.", colonnes: ["À faire", "En cours", "À valider", "Terminé"], cartes: ["Arborescence", "Maquette de l'accueil", "Textes des pages services", "Photos de l'équipe", "Formulaire de contact", "Optimiser la vitesse", "Redirections", "Mise en ligne"].map((t, i) => ({ titre: t, colonne: 1 + (i % 4) })) },
+  ];
+  const tableaux = base.slice(0, 4).map((b: any, bi: number) => {
+    const noms = (Array.isArray(b?.colonnes) ? b.colonnes : []).slice(0, 6).map((c: unknown) => court(c, 24)).filter(Boolean);
+    const colonnes = (noms.length >= 2 ? noms : ["À faire", "En cours", "Terminé"]).map((nom: string, i: number) => ({ id: "c" + (i + 1), nom }));
+    const nbc = colonnes.length;
+    const cartes = (Array.isArray(b?.cartes) ? b.cartes : []).slice(0, 14).map((c: any, i: number) => {
+      const k = Math.min(nbc, Math.max(1, Math.round(Number(c?.colonne) || 1))), fini = k === nbc, r = hasard();
+      // Terminées : échéance passée ; en cours : un peu de retard, beaucoup dans les 3 semaines, quelques-unes sans date
+      const echeance = fini ? jour(-Math.round(2 + r * 25)) : r < 0.18 ? jour(-Math.round(1 + hasard() * 6)) : r < 0.85 ? jour(Math.round(hasard() * 24)) : "";
+      const cases = (Array.isArray(c?.cases) ? c.cases : []).slice(0, 5).map((t: unknown) => court(t, 60)).filter(Boolean).map((texte: string, j: number) => ({ texte, fait: fini || (k > 1 && j < Math.floor((k - 1) / nbc * 4 + hasard() * 2)) }));
+      const responsable = i % 7 === 6 ? "" : equipe[(i + bi * 2) % equipe.length];
+      const commentaires = i % 4 === 1 && !fini ? [{ texte: ["Je m'en occupe cette semaine.", "J'ai une question sur ce point, on en parle demain ?", "Première version prête, à relire.", "Le client a validé, on peut avancer."][(i + bi) % 4], auteur: equipe[(i + bi + 1) % equipe.length], at: jour(-1 - (i % 3)) + "T09:" + String(10 + i * 3).slice(-2) + ":00Z" }] : [];
+      const etiq = ETIQ.includes(c?.etiquette) ? [c.etiquette] : [];
+      return { id: `k${bi + 1}_${i + 1}`, colonne: "c" + k, titre: court(c?.titre ?? c, 80) || "Carte " + (i + 1), description: court(c?.description, 300), responsable, echeance, etiquettes: etiq, cases, commentaires };
+    }).filter((c: any) => c.titre);
+    return { ref: `t${bi + 1}`, nom: court(b?.nom, 40) || "Projet " + (bi + 1), description: court(b?.description, 160), emoji: emoji(b?.emoji, ["🚀", "🎨", "📣", "🛠️"][bi % 4]), couleur: COUL[bi % COUL.length], contenu: { colonnes, cartes }, favori: bi === 0, archive: false };
+  });
+  const dm = (Array.isArray(perso?.demandes) && perso.demandes.length ? perso.demandes : [{ titre: "Mettre à jour la page tarifs", description: "Les nouveaux prix entrent en vigueur le mois prochain.", nom: "Julien Simon", priorite: "normale" }, { titre: "Corriger une erreur sur la facture", description: "Le montant de la remise n'apparaît pas.", nom: "Emma Michel", priorite: "urgente" }, { titre: "Ajouter un témoignage client", description: "Un client très content accepte d'être cité.", nom: "Hugo Lefebvre", priorite: "normale" }])
+    .slice(0, 6).map((d: any, i: number) => { const nom = court(d?.nom, 60) || PRENOMS[i]; const statut = i < 3 ? "nouvelle" : i === 3 ? "acceptee" : "refusee";
+      return { titre: court(d?.titre, 120) || "Demande " + (i + 1), description: court(d?.description, 500), nom, email: nom.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z]+/g, ".") + "@exemple.fr", priorite: d?.priorite === "urgente" ? "urgente" : "normale", statut, ...(statut === "acceptee" ? { tableau_id: "t1", traitee_le: jour(-3) } : statut === "refusee" ? { traitee_le: jour(-6) } : {}), cree_le: jour(-(i < 3 ? i : 4 + i)) }; });
+  return { vocab: V, ecrans, collections, demo: { tableaux, demandes: dm }, demo_ancre: jour(0), agenda: null, famille: "projets", disposition: "barre" };
+}
+
+export const PERSO: Record<string, (p: any) => string> = { reservation: PERSO_RESERVATION, devis: PERSO_DEVIS, ecriture: PERSO_ECRITURE, crm: PERSO_CRM, projets: PERSO_PROJETS };
+export const SPEC: Record<string, (perso: any) => any> = { reservation: specReservation, devis: specDevis, ecriture: specEcriture, crm: specCrm, projets: specProjets };
