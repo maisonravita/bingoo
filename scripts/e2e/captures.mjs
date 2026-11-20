@@ -37,7 +37,7 @@ const creerEspace = async (nom) => { const r = await fetch(`${SB}/rest/v1/rpc/cr
 // 2) Son espace (Lancer Pro) et un SaaS de démo déjà construit
 let [m] = await q(`select m.workspace_id id from members m join workspaces w on w.id = m.workspace_id where m.user_id = ${lit(uid)} and w.name = 'Robot captures' limit 1`);
 const ws = m?.id ?? await creerEspace("Robot captures");
-await q(`update workspaces set plan = 'lancer_pro', plan_status = 'active' where id = ${lit(ws)}`);
+await q(`update workspaces set plan = 'lancer_pro', plan_status = 'active', onboarded = true where id = ${lit(ws)}`);
 const [deja] = await q(`select id, slug from saas_apps where workspace_id = ${lit(ws)} limit 1`);
 if (!deja) {
   const slug = "demo-robot-" + crypto.randomBytes(2).toString("hex");
@@ -77,7 +77,7 @@ if (!CONSTRUIRE) {
     ? { domaine: process.env.DOMAINE || "circle.so", nom: "Circle", categorie: "Communauté" }
     : { domaine: "planity.com", nom: "Planity", categorie: "Commerce et restauration", modele: "reservation", couleur: "#1F3D33", allure: "nature" };
   const ws2 = await creerEspace(`Robot construction ${new Date().toISOString().slice(0, 16)}`);
-  await q(`update workspaces set plan = 'lancer_pro', plan_status = 'active' where id = ${lit(ws2)}`);
+  await q(`update workspaces set plan = 'lancer_pro', plan_status = 'active', onboarded = true where id = ${lit(ws2)}`);
   const nomVoulu = CONSTRUIRE === "ia" ? "Cerclo" : "Sublima";
   const { ctx, page } = await ouvrir(ws2, {
     [`bingoo-reponses-${cible.domaine}`]: { nom: nomVoulu, clients: CONSTRUIRE === "ia" ? "Créateurs de communautés" : "Instituts de beauté", mieux: "", angle: `Nom souhaité, à utiliser tel quel : ${nomVoulu}` },
