@@ -1213,6 +1213,16 @@ function Racine() {
   }, true);
   if (window.parent !== window) window.parent.postMessage({ type: "bingoo-atelier-pret" }, "*");
 }
+// Liens vers une partie de la page (#contact, #tarifs…) : l'app tourne dans un cadre isolé dont les adresses relatives
+// visent bingoo.fr ; sans ceci, un tel lien chargeait Bingoo! dans le cadre au lieu de faire défiler la page
+addEventListener("click", (e) => {
+  const a = e.target?.closest?.("a[href^='#']");
+  if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey) return;
+  e.preventDefault();
+  const id = decodeURIComponent(a.getAttribute("href").slice(1));
+  const cible = id ? document.getElementById(id) : null;
+  if (cible) cible.scrollIntoView({ behavior: "smooth", block: "start" }); else if (!id) window.scrollTo({ top: 0, behavior: "smooth" });
+});
 // Téléphone : chaque cellule d'un tableau porte le nom de sa colonne (data-label), affiché quand le tableau devient des cartes
 {
   let attente = null;

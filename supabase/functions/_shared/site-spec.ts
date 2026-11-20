@@ -59,8 +59,9 @@ export function specSite(c: any, p: any) {
   const V = { cta, demande: demandeType, metier, modele, horaires: modele === "vitrine" };
   const services = liste(c?.services).slice(0, 8).map((x: any, i: number) => ({
     titre: court(x?.titre, 60) || `Service ${i + 1}`, description: court(x?.description, 220),
-    prix: Number.isFinite(Number(x?.prix)) && Number(x.prix) > 0 ? Math.round(Number(x.prix) * 100) / 100 : null,
-    prix_texte: /partir/i.test(String(x?.prix_texte ?? "")) ? "à partir de" : "", duree: court(x?.duree, 20), ordre: i + 1, visible: true,
+    // Le prix peut arriver en texte (« 35 € », « à partir de 80 € ») : on garde le nombre
+    prix: (() => { const n = Number(String(x?.prix ?? "").replace(/\s/g, "").replace(",", ".").match(/\d+(\.\d+)?/)?.[0]); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null; })(),
+    prix_texte: /partir/i.test(String(x?.prix_texte ?? "") + " " + String(x?.prix ?? "")) ? "à partir de" : "", duree: court(x?.duree, 20), ordre: i + 1, visible: true,
   })).filter((x: any) => x.titre);
   if (!services.length && modele !== "lancement") services.push({ titre: "Premier rendez-vous", description: "Un premier échange pour comprendre votre besoin.", prix: null, prix_texte: "", duree: "", ordre: 1, visible: true });
   const H = liste(c?.horaires);
