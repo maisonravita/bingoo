@@ -493,13 +493,16 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   // les écrans qui plantent sont réécrits automatiquement (2 essais par écran au plus).
   async "saas-app-verif"(req, b) {
     const { ws } = await membreOuCron(req, b.workspace_id);
-    const { data: app } = await admin.from("saas_apps").select("id, version, verif, spec").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    const { data: app } = await admin.from("saas_apps").select("id, version, verif, spec, at").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
     if (!app) throw new HttpError(404, "Application introuvable");
+    // Décision de Jean (20 nov.) : plus de crédit IA dépensé à réparer les SaaS déjà livrés. La réparation automatique
+    // ne sert plus qu'à la livraison elle-même (SaaS construit il y a moins de 2 heures) ; ensuite on enregistre le résultat, sans rien réécrire.
+    const enLivraison = Date.now() - new Date(String(app.at ?? 0)).getTime() < 2 * 3600_000;
     const ids = new Set(((app.spec as any)?.ecrans ?? []).map((e: any) => e.id));
     const resultats = (Array.isArray(b.resultats) ? b.resultats : []).filter((r: any) => ids.has(r?.id)).map((r: any) => ({ id: String(r.id), ok: !!r.ok, erreur: r.erreur ? String(r.erreur).slice(0, 700) : null }));
     const avant = (app.verif ?? {}) as any;
     const essais: Record<string, number> = { ...(avant.essais ?? {}) };
-    const aReparer = resultats.filter((r: any) => !r.ok && (essais[r.id] ?? 0) < 2).slice(0, 4);
+    const aReparer = enLivraison ? resultats.filter((r: any) => !r.ok && (essais[r.id] ?? 0) < 2).slice(0, 4) : [];
     for (const r of aReparer) essais[r.id] = (essais[r.id] ?? 0) + 1;
     const verif = { version: app.version, at: new Date().toISOString(), resultats, essais, ok: resultats.every((r: any) => r.ok), repare: aReparer.map((r: any) => r.id) };
     await admin.from("saas_apps").update({ verif }).eq("id", app.id);
