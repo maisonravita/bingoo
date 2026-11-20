@@ -277,7 +277,7 @@ Les données d'exemple sont produites à part : ne mets pas de clé demo.`, { ma
     const faits = spec.ecrans.length - aEcrire.length;
     await admin.from("saas_apps").update({ brouillon: spec, etape: `Écriture des écrans (${faits}/${spec.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
     const { data: fin } = await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: e0.id, p_code: e0.code, p_ok: true });
-    if (fin === "pret") { await verifierPromesses(appId).catch((x) => console.error("promesses", x)); await corrigerAccroche(appId).catch((x) => console.error("accroche", x)); }
+    if (fin === "pret") { await verifierPromesses(appId).catch((x) => console.error("promesses", x)); await corrigerAccroche(appId).catch((x) => console.error("accroche", x)); await demarrerVerification(appId).catch((x) => console.error("verification", x)); }
     // Écrans ajoutés au modèle pour tenir les promesses du site : écrits comme dans une construction classique
     await Promise.all(aEcrire.map((e: any) => lancerEcran(e.id)));
     return;
@@ -326,7 +326,7 @@ export async function saasEcrireEcran(appId: string, ecranId: string) {
   // Contrat de données (sans IA) : champs et valeurs alignés sur les données du SaaS, première cause de blocs vides et de chiffres à 0
   if (r.code) { const ct = alignerCode(r.code, spec); r.code = ct.code; if (ct.corrections.length || ct.alertes.length) console.log("contrat", ecranId, ct.corrections, ct.alertes); }
   const { data: fin } = await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: ecranId, p_code: r.code, p_ok: r.ok });
-  if (fin === "pret") { await verifierPromesses(appId).catch((x) => console.error("promesses", x)); await corrigerAccroche(appId).catch((x) => console.error("accroche", x)); }
+  if (fin === "pret") { await verifierPromesses(appId).catch((x) => console.error("promesses", x)); await corrigerAccroche(appId).catch((x) => console.error("accroche", x)); await demarrerVerification(appId).catch((x) => console.error("verification", x)); }
 }
 
 /** Capacités promises par le site (accroche, atouts, formules) mais qu'aucun écran prévu n'utilise :
@@ -507,8 +507,12 @@ Rends un objet JSON avec SEULEMENT ce que la demande change :
 - renommer : [{ id, titre (2 mots), icone (parmi ${ICONES.join(", ")}) }]
 - ordre : la liste complète des ids dans le nouvel ordre, ou null
 - ecrans : écrans à écrire, au plus 4 : [{ id (id existant à modifier, ou "nouveau"), consigne (ce qu'il faut faire sur cet écran, précis) }]
+- impossible : [{ demande (la partie de la demande qui ne peut pas être faite), alternative (ce que tu fais à la place, et que tu mets dans les écrans) }], ou []
+LIMITES : les SaaS de Bingoo! envoient de vrais e-mails (tout de suite ou programmés), font des PDF, utilisent l'IA, stockent des fichiers et des images, ont des pages publiques et l'abonnement au SaaS par Stripe. Ils ne savent PAS : envoyer des SMS ou passer des appels, envoyer des notifications sur téléphone, encaisser un paiement par carte dans un écran (paiement des clients de l'utilisateur), faire de la visioconférence, se connecter à un autre service (Google Agenda, réseaux sociaux, logiciel comptable, WhatsApp…), publier automatiquement sur les réseaux, lire un code-barres. Si la demande en touche une, ne fais jamais semblant : mets-la dans impossible et fais l'alternative la plus proche (ex. rappel par SMS → rappel par e-mail programmé ; paiement en ligne → lien de paiement saisi par l'utilisateur et statut « payé »).
 Un changement de couleur, de police, d'allure, de nom, de textes du site ou de prix ne demande AUCUN écran. Rends {} pour ce qui ne change pas.`, { fast: true, maxTokens: 2500, images }).catch((x) => { console.error("atelier plan", x?.message ?? x); if (/pause|plafond|crédit/i.test(String(x?.message ?? x))) throw x; return { ecrans: [{ id: ecranId, consigne: demande }] }; });
   const faits: string[] = [], rates: string[] = [];
+  // 0. Limites : ce que Bingoo! ne sait pas faire est dit clairement, avec l'alternative faite à la place
+  for (const x of (Array.isArray(plan?.impossible) ? plan.impossible : []).slice(0, 3)) if (x?.demande) rates.push(`${String(x.demande).slice(0, 120)} : impossible dans un SaaS Bingoo!${x.alternative ? ` ; à la place : ${String(x.alternative).slice(0, 160)}` : ""}`);
   // 1. Réglages globaux
   const R = plan?.reglages && typeof plan.reglages === "object" ? plan.reglages : {};
   const ENUM: Record<string, string[]> = { style: ["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique", "nature"], fond: ["blanc", "creme", "gris", "sombre"], forme: ["carre", "arrondi", "pilule"], disposition: ["barre", "haut", "onglets"] };
@@ -575,6 +579,20 @@ Un changement de couleur, de police, d'allure, de nom, de textes du site ou de p
 }
 
 /** Réparation après la vérification : l'écran plante ou n'a pas été écrit ; on le réécrit avec l'erreur constatée. */
+/** Fin de l'écriture : Bingoo! ne dit pas encore « prêt ». La boucle tester → corriger commence (robot, puis saas-app-verif),
+ *  et le journal ne contient que de vrais événements, affichés au membre en direct. */
+export async function demarrerVerification(appId: string) {
+  const { data: a } = await admin.from("saas_apps").select("spec, version").eq("id", appId).single();
+  const sp = (a?.spec ?? {}) as any;
+  const n = (sp.ecrans ?? []).length;
+  const maintenant = new Date().toISOString();
+  await admin.from("saas_apps").update({ verif: {
+    phase: "en_cours", version: null, essais: {}, en_reparation: [], passages: 0, ok: false,
+    journal: [{ at: maintenant, t: `Les ${n} écrans sont écrits. Je les teste un par un, comme un vrai utilisateur.`, type: "info" }],
+    mesure: { debut: maintenant, famille: sp.famille ?? null, modele: sp.modele ?? null, ecrans: n, essais: 0, cout: 0 },
+  } }).eq("id", appId);
+}
+
 export async function saasReparerEcran(appId: string, ecranId: string, erreur: string) {
   const { data: app } = await admin.from("saas_apps").select("spec").eq("id", appId).single();
   const spec = app?.spec as any;

@@ -500,16 +500,52 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const { ws } = await membreOuCron(req, b.workspace_id);
     const { data: app } = await admin.from("saas_apps").select("id, version, verif, spec, at").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
     if (!app) throw new HttpError(404, "Application introuvable");
-    // Décision de Jean (20 nov.) : plus de crédit IA dépensé à réparer les SaaS déjà livrés. La réparation automatique
-    // ne sert plus qu'à la livraison elle-même (SaaS construit il y a moins de 2 heures) ; ensuite on enregistre le résultat, sans rien réécrire.
-    const enLivraison = Date.now() - new Date(String(app.at ?? 0)).getTime() < 2 * 3600_000;
-    const ids = new Set(((app.spec as any)?.ecrans ?? []).map((e: any) => e.id));
-    const resultats = (Array.isArray(b.resultats) ? b.resultats : []).filter((r: any) => ids.has(r?.id)).map((r: any) => ({ id: String(r.id), ok: !!r.ok, erreur: r.erreur ? String(r.erreur).slice(0, 700) : null }));
     const avant = (app.verif ?? {}) as any;
+    // Résultats d'une ancienne version (une correction est arrivée entre-temps) : ignorés, le robot repassera sur la nouvelle
+    if (b.version != null && Number(b.version) !== Number(app.version)) return avant;
+    const spec = (app.spec ?? {}) as any;
+    const ecrans: any[] = spec.ecrans ?? [];
+    const titre = (id: string) => ecrans.find((e) => e.id === id)?.titre ?? id;
+    const ids = new Set(ecrans.map((e) => e.id));
+    const resultats = (Array.isArray(b.resultats) ? b.resultats : []).filter((r: any) => ids.has(r?.id)).map((r: any) => ({ id: String(r.id), ok: !!r.ok, erreur: r.erreur ? String(r.erreur).slice(0, 700) : null }));
+    if (!resultats.length) return avant; // aucun écran testé : rien à conclure (jamais « tout est propre » sans test)
+    // Boucle de livraison : pendant la construction (phase « en_cours »), puis filet de sécurité 2 h après la livraison.
+    // Les corrections ne coûtent jamais rien au membre (ni modification ni crédit) : seul le budget de la plateforme est compté.
+    const boucle = avant.phase === "en_cours";
+    const filet = !boucle && Date.now() - new Date(String(app.at ?? 0)).getTime() < 2 * 3600_000;
+    const ESSAIS = 3, BUDGET = 0.5;
     const essais: Record<string, number> = { ...(avant.essais ?? {}) };
-    const aReparer = enLivraison ? resultats.filter((r: any) => !r.ok && (essais[r.id] ?? 0) < 2).slice(0, 4) : [];
+    const enRep: string[] = Array.isArray(avant.en_reparation) ? avant.en_reparation : [];
+    const ko = resultats.filter((r: any) => !r.ok && !enRep.includes(r.id));
+    const { data: u } = await admin.from("ai_usage").select("cost_eur").eq("feature", `construire/reparer/${app.id}`);
+    const cout = Math.round((u ?? []).reduce((t: number, x: any) => t + Number(x.cost_eur ?? 0), 0) * 1000) / 1000;
+    const budgetAtteint = cout >= BUDGET;
+    // Un écran de modèle fait main n'est jamais réécrit par l'IA : un souci y vient des données, il est signalé
+    const reparable = (r: any) => !ecrans.find((e) => e.id === r.id)?.modele && (essais[r.id] ?? 0) < ESSAIS;
+    const aReparer = (boucle || filet) && !budgetAtteint ? ko.filter(reparable).slice(0, 6) : [];
     for (const r of aReparer) essais[r.id] = (essais[r.id] ?? 0) + 1;
-    const verif = { version: app.version, at: new Date().toISOString(), resultats, essais, ok: resultats.every((r: any) => r.ok), repare: aReparer.map((r: any) => r.id) };
+    const journal: any[] = [...(avant.journal ?? [])];
+    const noter = (t: string, type = "info") => journal.push({ at: new Date().toISOString(), t, type });
+    const passages = (avant.passages ?? 0) + 1;
+    const mesure = { ...(avant.mesure ?? {}) };
+    if (boucle) {
+      if (!mesure.premier) mesure.premier = { ok: !ko.length, ko: ko.length, testes: resultats.length };
+      mesure.essais = Object.values(essais).reduce((t: number, n: any) => t + Number(n), 0);
+      mesure.cout = cout;
+      noter(ko.length ? `Test n° ${passages} : ${resultats.length - ko.length} écrans sur ${resultats.length} fonctionnent. ${ko.length} problème${ko.length > 1 ? "s" : ""} : ${ko.map((r: any) => `« ${titre(r.id)} »`).join(", ")}.` : `Test n° ${passages} : les ${resultats.length} écrans fonctionnent, avec leurs données et leurs boutons.`, ko.length ? "probleme" : "ok");
+      for (const r of aReparer) noter(`Je corrige « ${titre(r.id)} » (essai ${essais[r.id]}/${ESSAIS}) : ${String(r.erreur ?? "").replace(/\s+/g, " ").slice(0, 140)}`, "correction");
+    }
+    const restants = ko.filter((r: any) => !aReparer.includes(r));
+    // Fin de la boucle : plus rien à corriger ni en cours de correction
+    const fini = boucle && !aReparer.length && !enRep.length;
+    if (fini) {
+      if (!restants.length) noter(`Tout est propre : les ${resultats.length} écrans ont été testés et fonctionnent. Ton SaaS est prêt.`, "ok");
+      else noter(`Je livre ton SaaS, mais ${restants.length} écran${restants.length > 1 ? "s ne fonctionnent" : " ne fonctionne"} pas encore bien : ${restants.map((r: any) => `« ${titre(r.id)} »`).join(", ")}${budgetAtteint ? " (budget de corrections atteint)" : restants.some((r: any) => ecrans.find((e) => e.id === r.id)?.modele) ? "" : ` (${ESSAIS} essais sans succès)`}. Décris le souci dans l'atelier : sa correction ne te coûte rien.`, "reste");
+      mesure.fin = new Date().toISOString(); mesure.ok = !restants.length;
+    }
+    const verif = { ...avant, version: app.version, at: new Date().toISOString(), resultats, essais, passages, journal: journal.slice(-40), mesure,
+      en_reparation: [...enRep, ...aReparer.map((r: any) => r.id)], repare: aReparer.map((r: any) => r.id),
+      phase: boucle ? (fini ? "fini" : "en_cours") : (avant.phase ?? "fini"), ok: resultats.every((r: any) => r.ok), reste: fini ? restants.map((r: any) => r.id) : (avant.reste ?? []) };
     await admin.from("saas_apps").update({ verif }).eq("id", app.id);
     if (aReparer.length) {
       const cle = await secret("cron_key");
@@ -522,9 +558,18 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   },
   async "saas-app-reparer"(req, b) {
     await cron(req);
-    setAi({ ws: String(b.ws ?? ""), live: true, feature: "construire/reparer" });
+    const appId = String(b.app_id ?? ""), ecranId = String(b.ecran ?? "");
+    // Coût noté par SaaS : c'est lui qui borne le budget de corrections de la construction (jamais facturé au membre)
+    setAi({ ws: String(b.ws ?? ""), live: true, feature: `construire/reparer/${appId}` });
     const { saasReparerEcran } = await import("../_shared/app-build.ts");
-    const travail = saasReparerEcran(String(b.app_id ?? ""), String(b.ecran ?? ""), String(b.erreur ?? "")).catch((e) => console.error("reparer", e));
+    const travail = (async () => {
+      let ok = false;
+      try { ok = await saasReparerEcran(appId, ecranId, String(b.erreur ?? "")); } catch (e) { console.error("reparer", e); }
+      const { data: a } = await admin.from("saas_apps").select("spec").eq("id", appId).maybeSingle();
+      const t = ((a?.spec as any)?.ecrans ?? []).find((e: any) => e.id === ecranId)?.titre ?? ecranId;
+      // Vrai événement : la correction est finie (réussie ou non) ; le robot reteste alors TOUS les écrans, voisins compris
+      await admin.rpc("saas_verif_evt", { p_app: appId, p_texte: ok ? `« ${t} » réécrit. Je reteste tous les écrans, y compris ceux qui partagent ses données.` : `Je n'ai pas réussi à réécrire « ${t} » cette fois.`, p_retirer: ecranId, p_type: ok ? "correction" : "probleme" });
+    })();
     // deno-lint-ignore no-explicit-any
     const rt = (globalThis as any).EdgeRuntime;
     if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
@@ -788,6 +833,8 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       }
     }
     setAi({ ws: ws.id, live: true, feature: "construire/modifier" });
+    const debutDemande = new Date().toISOString();
+    let creditsEcrans = 0;
     await log(ws.id, "modifier_app", `Modification : ${demande.slice(0, 120)}`);
     const { saasModifierEcran } = await import("../_shared/app-build.ts");
     await admin.from("saas_apps").update({ statut: "en_cours", etape: "Modification en cours", erreur: null, maj: new Date().toISOString() }).eq("id", app.id);
@@ -795,14 +842,16 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const payer = async () => {
       if (req.headers.get("x-cron-key")) return true;
       try { await quotaMois(ws.id, ws.plan, "modifier"); await log(ws.id, "modifier_app", "Écran en plus dans la même demande"); return true; }
-      catch (_) { try { await creditsDepenser(ws.id, COUT_CREDITS.modification, "Écran en plus (atelier)"); return true; } catch (_) { return false; } }
+      catch (_) { try { await creditsDepenser(ws.id, COUT_CREDITS.modification, "Écran en plus (atelier)"); creditsEcrans++; return true; } catch (_) { return false; } }
     };
     // Images jointes : seulement celles déposées par l'atelier (stockage de Bingoo!)
     const base = admin.storage.from("apps").getPublicUrl("images/").data.publicUrl;
     const images = (Array.isArray(b.images) ? b.images : []).map(String).filter((u: string) => u.startsWith(base)).slice(0, 4);
     const element = typeof b.element === "string" ? b.element.slice(0, 400) : null;
     const travail = saasModifierEcran(app.id, String(b.ecran ?? "nouveau"), demande, b.suggestion ? String(b.suggestion) : null, payer, { images, element }).catch(async (e) => {
-      if (parCredit) await creditsRendre(ws.id, COUT_CREDITS.modification, "Modification échouée : crédit rendu");
+      // Une erreur de Bingoo! ne coûte rien au membre : crédits rendus ET modifications du mois rendues
+      if (parCredit || creditsEcrans) await creditsRendre(ws.id, COUT_CREDITS.modification * ((parCredit ? 1 : 0) + creditsEcrans), "Modification échouée : crédits rendus");
+      await admin.from("activity").delete().eq("workspace_id", ws.id).eq("kind", "modifier_app").gte("created_at", debutDemande);
       await admin.from("saas_apps").update({ statut: "pret", etape: null, erreur: String(e?.message ?? e).slice(0, 300) }).eq("id", app.id);
     });
     // deno-lint-ignore no-explicit-any

@@ -51,7 +51,7 @@ function fidelite(spec) {
 }
 
 const apps = await q(`select id, workspace_id, slug, version, spec from saas_apps where statut = 'pret'
-  ${SLUG ? `and slug = ${lit(SLUG)}` : BLANC ? "" : `and (verif is null or coalesce((verif->>'version')::int, -1) <> version) and maj < now() - interval '1 minute'`}
+  ${SLUG ? `and slug = ${lit(SLUG)}` : BLANC ? "" : `and (verif is null or coalesce((verif->>'version')::int, -1) <> version or (verif->>'phase' = 'en_cours' and jsonb_array_length(coalesce(verif->'en_reparation', '[]'::jsonb)) = 0)) and maj < now() - interval '1 minute'`}
   order by maj desc limit ${MAX}`);
 console.log(apps.length, "SaaS à vérifier");
 if (!apps.length) process.exit(0);
@@ -77,7 +77,12 @@ for (const a of apps) {
     while (!resultats && Date.now() < fin) await p.waitForTimeout(500);
     await ctx.close();
   } catch (e) { console.log("  page impossible à ouvrir :", String(e?.message ?? e).slice(0, 200)); }
-  if (!resultats) { console.log(`✗ ${a.slug} : la vérification n'a pas abouti (coque qui ne démarre pas)`); casses++; continue; }
+  if (!resultats) {
+    console.log(`✗ ${a.slug} : la vérification n'a pas abouti (coque qui ne démarre pas)`); casses++;
+    // Pendant la boucle de livraison, une application qui ne démarre pas est un vrai résultat : tous ses écrans partent en correction
+    if (!a.spec?.ecrans?.length) continue;
+    resultats = { ecrans: a.spec.ecrans.length, resultats: a.spec.ecrans.map((e) => ({ id: e.id, ok: false, erreur: "L'application ne démarre pas : la page reste blanche ou plante à l'ouverture." })) };
+  }
   // Un écran qui s'affiche bien mais trahit sa famille est aussi à reprendre
   const fid = fidelite(a.spec);
   resultats.resultats = resultats.resultats.map((r) => r.ok && fid[r.id] ? { ...r, ok: false, erreur: fid[r.id] } : r);
@@ -87,7 +92,7 @@ for (const a of apps) {
   for (const r of ko) console.log(`    - ${r.id} : ${String(r.erreur ?? "").slice(0, 220)}`);
   // Envoi à Bingoo! (clé interne lue dans la base, jamais affichée) : enregistre le résultat et lance la réparation
   if (BLANC) continue;
-  const corps = JSON.stringify({ workspace_id: a.workspace_id, app_id: a.id, resultats: resultats.resultats });
+  const corps = JSON.stringify({ workspace_id: a.workspace_id, app_id: a.id, version: a.version, resultats: resultats.resultats });
   await q(`select net.http_post(url := 'https://${REF}.supabase.co/functions/v1/r/saas-app-verif', body := ${lit(corps)}::jsonb,
     headers := jsonb_build_object('content-type', 'application/json', 'x-cron-key', (select value from app_secrets where name = 'cron_key')), timeout_milliseconds := 60000)`);
 }

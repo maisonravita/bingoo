@@ -8,7 +8,7 @@ import { cx } from "../lib/utils";
 import { resumeFr } from "../lib/angle";
 import CompanyLogo from "../components/CompanyLogo";
 import Logo from "../components/Logo";
-import { lienApp } from "../components/AppCadre";
+import AppCadre, { lienApp } from "../components/AppCadre";
 import { indexChoisi } from "../lib/choix";
 
 const HF = { fontFamily: "var(--font-titre)" };
@@ -189,6 +189,8 @@ function Reflexion({ pense, enCours }) {
   );
 }
 const IDEES = ["Ajoute une page de tarifs", "Ajoute un tableau de bord de mes ventes", "Ajoute une page d'aide pour mes clients"];
+// Un vrai problème trouvé par le robot (journal de vérification) : pastille orange, pas une coche verte
+const Alerte = () => <span className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full bg-[#FDECD8] text-[11px] font-black text-[#C2410C]">!</span>;
 const Coche = ({ ok }) => ok
   ? <span className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full bg-good/15 text-good"><svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5 9-10" /></svg></span>
   : <span className="h-[18px] w-[18px] shrink-0 animate-spin rounded-full border-2 border-line border-t-[#E8571C]" />;
@@ -267,13 +269,19 @@ export function Chantier({ ws, nav, init, atelier = false }) {
         setEtape(2);
         const { data: ex } = await supabase.from("saas_apps").select("statut").eq("projet_id", p.id).maybeSingle();
         if (!atelier && (!ex || ex.statut === "erreur")) await fn("r/saas-construire", { workspace_id: ws.id, projet_id: p.id, ...(parCredits.current ? { credits: true } : {}) });
-        for (let i = 0; i < 240 && vivant; i++) {
+        // La construction finie, Bingoo! teste et corrige avant de dire « prêt » (boucle de vérification, 20 minutes au plus ici ;
+        // au-delà, elle continue côté serveur et le SaaS reste en ligne)
+        let debutVerif = null;
+        for (let i = 0; i < 640 && vivant; i++) {
           await attendre(3000);
-          const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version").eq("projet_id", p.id).maybeSingle();
+          const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif").eq("projet_id", p.id).maybeSingle();
           if (!data) continue;
           setApp(data);
           if (/Vérif/i.test(data.etape ?? "")) setEtape(3);
-          if (data.statut === "pret" && data.spec?.ecrans?.length) { setEtape(5); return; }
+          if (data.statut === "pret" && data.spec?.ecrans?.length) {
+            if (data.verif?.phase === "en_cours") { debutVerif ??= Date.now(); if (Date.now() - debutVerif < 20 * 60e3) { setEtape(3); continue; } }
+            setEtape(5); return;
+          }
           if (data.statut === "erreur") throw new Error(data.erreur || "La construction a échoué.");
         }
         if (vivant) throw new Error("C'est plus long que prévu.");
@@ -301,7 +309,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   // L'aperçu reçoit l'outil choisi (à chaque changement et à chaque rechargement)
   const pousserOutil = (m = outil) => { try { cadreRef.current?.contentWindow?.postMessage({ type: "bingoo-atelier-mode", mode: m }, "*"); } catch (_) { /* aperçu pas prêt */ } };
   useEffect(() => { pousserOutil(); }, [outil, cle]); // eslint-disable-line react-hooks/exhaustive-deps
-  const recharger = async () => { const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version").eq("id", app.id).maybeSingle(); if (data) setApp(data); setCle((k) => k + 1); };
+  const recharger = async () => { const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif").eq("id", app.id).maybeSingle(); if (data) setApp(data); setCle((k) => k + 1); };
   // Messages de l'aperçu : un texte modifié sur place, ou un élément pointé
   useEffect(() => {
     const ecoute = async (e) => {
@@ -363,12 +371,12 @@ export function Chantier({ ws, nav, init, atelier = false }) {
       const r = await fn("r/saas-app-modifier", { workspace_id: ws.id, app_id: app.id, ecran: cibleEcran || "nouveau", demande: t, images: imgs.map((x) => x.url), element: el?.description ?? null });
       for (let i = 0; i < 80; i++) {
         await attendre(3000);
-        const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version").eq("id", app.id).maybeSingle();
+        const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif").eq("id", app.id).maybeSingle();
         if (data && data.statut !== "en_cours") {
           if (data.erreur) throw new Error(data.erreur);
           const fait = data.brouillon?._modif ?? null;
           if (data.brouillon?._modif) await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "brouillon-valider" });
-          const { data: frais } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version").eq("id", app.id).maybeSingle();
+          const { data: frais } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif").eq("id", app.id).maybeSingle();
           setApp(frais ?? data); setCle((k) => k + 1);
           maj({ etat: "ok", credit: r?.credit, faits: fait?.faits ?? [], rates: fait?.rates ?? [], versionAvant });
           return;
@@ -378,14 +386,32 @@ export function Chantier({ ws, nav, init, atelier = false }) {
     } catch (e) { maj({ etat: "ko", erreur: e.message }); } finally { setOccupe(false); }
   };
 
+  // Le robot de Bingoo! : il ouvre chaque écran en coulisses, clique comme un utilisateur, et envoie le résultat.
+  // Une seule fois par version et par passage ; il repasse dès qu'une correction arrive.
+  const robotFait = useRef(new Set());
+  const cleRobot = app?.statut === "pret" && app?.verif?.phase === "en_cours" && !(app.verif.en_reparation ?? []).length ? `${app.version}-${app.verif.passages ?? 0}` : null;
+  const robotActif = cleRobot && !robotFait.current.has(cleRobot) ? cleRobot : null;
+  useEffect(() => {
+    if (!robotActif || !app) return;
+    const ecoute = async (e) => {
+      if (e.data?.type !== "bingoo-verif" || e.data.slug !== app.slug || robotFait.current.has(robotActif)) return;
+      robotFait.current.add(robotActif);
+      try { await fn("r/saas-app-verif", { workspace_id: ws.id, app_id: app.id, version: app.version, resultats: e.data.resultats }); } catch { /* le robot du serveur repasse dans les 10 minutes */ }
+    };
+    window.addEventListener("message", ecoute);
+    return () => window.removeEventListener("message", ecoute);
+  }, [robotActif]); // eslint-disable-line react-hooks/exhaustive-deps
   // Dans l'atelier, le SaaS existe déjà : pas besoin du SaaS d'origine (un SaaS lancé depuis une idée n'en a pas)
   if (!c.domaine && !(atelier && c.app)) return <Navigate to="/explorer/copier" replace />;
   const lect = LECTURE(c.nom);
   const lignes = [
     ...lect.slice(0, etape >= 1 ? lect.length : 1).map((t, i) => ({ k: `l${i}`, t, ok: etape > i })),
     ...(etape >= 2 ? ecrans.map((e, i) => ({ k: `e${e.id}`, t: i < ecrits ? <>Écran « {e.titre} » écrit</> : <>J'écris l'écran « {e.titre} »</>, ok: i < ecrits })).filter((x, i) => i <= ecrits) : []),
-    ...(etape >= 3 ? [{ k: "v", t: "Je vérifie chaque écran avec des données d'exemple", ok: fini }] : []),
+    // Vérification : uniquement les vrais événements du robot et des corrections (jamais une animation scénarisée)
+    ...(etape >= 3 && app?.verif?.phase ? (app.verif.journal ?? []).map((j, i, L) => ({ k: `j${i}`, t: j.t, ok: j.type === "ok" || j.type === "correction" && i < L.length - 1 || app.verif.phase === "fini" && j.type !== "probleme" && j.type !== "reste", alerte: j.type === "probleme" || j.type === "reste", long: true })) : []),
+    ...(etape >= 3 && app?.verif?.phase === "en_cours" && (app.verif.journal ?? []).at(-1)?.type !== "info" ? [{ k: "attente", t: (app.verif.en_reparation ?? []).length ? "Correction en cours…" : "Je teste tous les écrans…", ok: false, long: true }] : []),
   ];
+  const verifTxt = app?.verif?.phase === "fini" ? ((app.verif.reste ?? []).length ? `Terminé : ${ecrans.length} écrans écrits et testés, ${(app.verif.reste ?? []).length} encore à corriger` : `Terminé : ${ecrans.length} écrans écrits et testés, tout fonctionne`) : app?.verif?.phase === "en_cours" ? `En ligne : ${ecrans.length} écrans écrits, les tests continuent en arrière-plan` : `Terminé : ${ecrans.length} écrans écrits`;
 
   return (
     <div className="flex h-screen flex-col bg-[#FAF9F6]">
@@ -396,7 +422,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
         <span className="grid h-7 w-7 place-items-center rounded-lg text-[13px] font-black text-white transition-colors duration-700" style={{ background: couleur }}>{(nom ?? c.nom ?? "?").charAt(0).toUpperCase()}</span>
         <p className="min-w-0 truncate font-semibold">{nom ?? `Ta version de ${c.nom}`}</p>
         <span className={cx("hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold", fini ? "bg-good/10 text-good" : "bg-accent-soft text-accent-dark")}>
-          <span className={cx("h-1.5 w-1.5 rounded-full pulse-dot", fini ? "bg-good" : "bg-[#E8571C]")} />{fini ? (occupe ? "Modification…" : "En ligne") : `Construction · ${Math.round(pct)} %`}
+          <span className={cx("h-1.5 w-1.5 rounded-full pulse-dot", fini ? "bg-good" : "bg-[#E8571C]")} />{fini ? (occupe ? "Modification…" : app?.verif?.phase === "en_cours" ? "En ligne · tests en cours" : "En ligne") : etape === 3 && app?.verif?.phase === "en_cours" ? ((app.verif.en_reparation ?? []).length ? "Bingoo! corrige" : "Bingoo! teste") : `Construction · ${Math.round(pct)} %`}
         </span>
         <div className="flex-1" />
         {fini && <a href={lien} target="_blank" rel="noreferrer" className="rounded-lg border border-line px-3 py-1.5 text-[13.5px] font-semibold hover:bg-paper">Ouvrir ↗</a>}
@@ -436,9 +462,10 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                 <div className="mb-2 flex items-center justify-between text-[12.5px] text-ink-soft"><span className="font-semibold text-ink">Construction</span><span className="tnum">{Math.round(pct)} %</span></div>
                 <div className="mb-3 h-1 overflow-hidden rounded-full bg-[#ECEAE4]"><div className="h-full rounded-full bg-[#E8571C] transition-all duration-[1500ms]" style={{ width: `${pct}%` }} /></div>
                 {fini ? (
-                  <details className="text-[13.5px]"><summary className="flex cursor-pointer list-none items-center gap-2.5"><Coche ok /><span>Terminé : {ecrans.length} écrans écrits et vérifiés</span><span className="ml-auto text-[12px] text-ink-faint">Détails</span></summary>
-                    <ul className="mt-2 space-y-1.5">{lignes.map((l) => <li key={l.k} className="flex items-center gap-2.5"><Coche ok /><span className="min-w-0 truncate">{l.t}</span></li>)}</ul></details>
-                ) : <ul className="space-y-1.5">{lignes.map((l) => <li key={l.k} className="rise flex items-center gap-2.5 text-[13.5px]"><Coche ok={l.ok} /><span className={cx("min-w-0 truncate", !l.ok && "text-ink-soft")}>{l.t}</span></li>)}</ul>}
+                  <details className="text-[13.5px]"><summary className="flex cursor-pointer list-none items-center gap-2.5"><Coche ok /><span>{verifTxt}</span><span className="ml-auto text-[12px] text-ink-faint">Détails</span></summary>
+                    <ul className="mt-2 space-y-1.5">{lignes.map((l) => <li key={l.k} className={cx("flex gap-2.5", l.long ? "items-start" : "items-center")}>{l.alerte ? <Alerte /> : <Coche ok />}<span className={cx("min-w-0", !l.long && "truncate")}>{l.t}</span></li>)}</ul></details>
+                ) : <ul className="space-y-1.5">{lignes.map((l) => <li key={l.k} className={cx("rise flex gap-2.5 text-[13.5px]", l.long ? "items-start" : "items-center")}>{l.alerte ? <Alerte /> : <Coche ok={l.ok} />}<span className={cx("min-w-0", !l.long && "truncate", !l.ok && !l.alerte && "text-ink-soft")}>{l.t}</span></li>)}</ul>}
+                {robotActif && app && <AppCadre key={robotActif} slug={app.slug} spec={app.spec} version={app.version} verif className="pointer-events-none absolute -left-[9999px] top-0 h-[800px] w-[1200px]" />}
               </div>
             </Bingoo>
             {projet?.nom && (

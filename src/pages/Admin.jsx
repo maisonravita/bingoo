@@ -10,6 +10,25 @@ const PLAN = { essai: "Essai", demarrage: "Démarrage", solo: "Solo", pro: "Pro"
 const BUDGET = { essai: 4, solo: 6, pro: 14, equipe: 24, fondateur: 15 };
 const PRICE = { essai: 0, solo: 39, pro: 69, equipe: 109, fondateur: 0 };
 /** Crédit IA du compte Anthropic : ce qui reste, ce qui a été consommé, par jour / fonction / client, et la saisie d'une recharge. */
+// Qualité des constructions : réussite au premier test, essais de correction et coût, par modèle ou par famille.
+// C'est ce tableau qui dit quelles familles méritent un modèle fait main.
+function MesuresConstruction() {
+  const [d, setD] = useState(null), [jours, setJours] = useState(30);
+  useEffect(() => { setD(null); supabase.rpc("admin_mesures_construction", { p_jours: jours }).then(({ data }) => setD(data ?? [])); }, [jours]);
+  return (
+    <Card className="p-5">
+      <div className="flex flex-wrap items-center gap-3"><h2 className="font-bold text-[16px]">Qualité des constructions</h2><span className="text-[13px] text-ink-soft">Robot de Bingoo! : test → correction → livraison</span>
+        <select value={jours} onChange={(e) => setJours(Number(e.target.value))} className="ml-auto rounded-lg border border-line bg-white px-2 py-1 text-[13px]"><option value={7}>7 jours</option><option value={30}>30 jours</option><option value={90}>90 jours</option></select></div>
+      {!d ? <div className="py-6 grid place-items-center"><Spinner /></div> : !d.length ? <p className="mt-3 text-[13.5px] text-ink-soft">Pas encore de construction mesurée : la mesure commence avec les prochaines constructions.</p> : (
+        <div className="mt-3 overflow-x-auto"><table className="w-full text-[13.5px]"><thead><tr className="text-left text-[12px] text-ink-faint border-b border-line"><th className="py-2 pr-3 font-medium">Modèle ou famille</th><th className="py-2 pr-3 font-medium text-right">Constructions</th><th className="py-2 pr-3 font-medium text-right">Bon au 1er test</th><th className="py-2 pr-3 font-medium text-right">Écrans ratés au 1er test</th><th className="py-2 pr-3 font-medium text-right">Essais de correction</th><th className="py-2 pr-3 font-medium text-right">Coût des corrections</th><th className="py-2 font-medium text-right">Livré sans défaut</th></tr></thead>
+          <tbody>{d.map((x) => { const n = Number(x.constructions) || 0, fin = n - (Number(x.en_cours) || 0); return (
+            <tr key={x.famille} className="border-b border-line/60 last:border-0"><td className="py-2 pr-3 font-semibold">{x.famille}</td><td className="py-2 pr-3 text-right tnum">{n}</td><td className={cx("py-2 pr-3 text-right tnum font-semibold", n && x.premier_ok / n >= 0.8 ? "text-good" : "text-bad")}>{n ? Math.round((x.premier_ok / n) * 100) : 0} %</td><td className="py-2 pr-3 text-right tnum">{x.ecrans_ko_premier ?? "—"}</td><td className="py-2 pr-3 text-right tnum">{x.essais}</td><td className="py-2 pr-3 text-right tnum">{Number(x.cout ?? 0).toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 3 })}</td><td className="py-2 text-right tnum">{fin ? Math.round((x.final_ok / fin) * 100) + " %" : "—"}{x.en_cours ? <span className="ml-1 text-ink-faint">({x.en_cours} en cours)</span> : null}</td></tr>
+          ); })}</tbody></table></div>
+      )}
+    </Card>
+  );
+}
+
 function CreditIa() {
   const [d, setD] = useState(null), [montant, setMontant] = useState(""), [occupe, setOccupe] = useState(false), [err, setErr] = useState(null);
   const charger = () => supabase.rpc("admin_ia_credit").then(({ data, error }) => { if (error) setErr(error.message); else setD(data); });
@@ -238,6 +257,7 @@ export default function Admin() {
       <Usage />
 
       <CreditIa />
+      <MesuresConstruction />
       <AiCosts rows={ai} plans={ws} />
 
       <Card className={cx("p-5", inc?.length ? "border-bad/40" : "")}>
