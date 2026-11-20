@@ -4,6 +4,8 @@ on:
     inputs:
       construire: { description: "Vraie construction à photographier : vide, modele ou ia (consomme du crédit IA)", required: false, default: "" }
       domaine: { description: "SaaS d'origine pour une construction ia (facultatif)", required: false, default: "" }
+permissions:
+  contents: write
 jobs:
   captures:
     runs-on: ubuntu-latest
@@ -22,3 +24,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: captures, path: captures, retention-days: 7 }
+      # Les images sont aussi poussées sur la branche « captures-robot » (lisible sans télécharger d'artefact)
+      - name: Publier sur la branche captures-robot
+        if: always()
+        run: |
+          cd captures && git init -q && git checkout -q -b captures-robot
+          git config user.name "bingoo-robot" && git config user.email "robot@bingoo.fr"
+          git add -A && git commit -q -m "Captures du $(date -u +%F\ %H:%M)" || exit 0
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" captures-robot
