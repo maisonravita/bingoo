@@ -3820,7 +3820,7 @@ function Connecteur() {
     return { nom, texte: `Avec Bingoo!, prépare le SaaS ${id} (${nom}) avec preparer_saas, lis guide_construction, puis construis MA propre version : un nom et une identité originaux, mais la même logique, les mêmes parcours et les mêmes interactions que ${nom}. Propose-moi d'abord ta conception (nom, écrans, données), puis crée-la et écris chaque écran jusqu'à la mise en ligne.` }; })();
   const revoquer = async (id) => { await supabase.from("saas_api_cles").update({ revoquee: true }).eq("id", id); toast("Clé révoquée : l'IA qui l'utilisait n'a plus accès", "good"); charger(); };
   const etapes = [
-    ["Claude (site ou application)", ["Ouvre Paramètres, puis Connecteurs.", "Choisis « Ajouter un connecteur personnalisé ».", "Nomme-le Bingoo! et colle ton adresse ci-dessus.", "Dans une conversation, active Bingoo! dans le menu des outils."]],
+    ["Claude (site ou application)", ["Ouvre Plug-ins dans le menu de gauche (ou Paramètres, puis Connecteurs).", "Clique sur « Ajouter », puis « Ajouter un connecteur personnalisé ».", "Nomme-le Bingoo! et colle ton adresse ci-dessus.", "Dans une conversation, active Bingoo! dans le menu des outils."]],
     ["ChatGPT", ["Ouvre Paramètres, puis Applications et connecteurs.", "Active le mode développeur dans les paramètres avancés.", "Crée un connecteur, colle ton adresse, sans authentification.", "Choisis Bingoo! dans les outils d'une conversation."]],
     ["Claude Code ou un autre client MCP", ["Ajoute un serveur MCP en HTTP avec ton adresse.", "Avec Claude Code : claude mcp add --transport http bingoo <ton adresse>"]],
   ];
