@@ -407,7 +407,7 @@ function PremiersPas({ user, publiques, lien }) {
   const [n0, setN0] = useState(null);
   const c0 = (S.collections ?? [])[0];
   useEffect(() => { if (c0) db.list(c0.nom).then((r) => setN0(r.length), () => setN0(0)); }, []);
-  if (cache || /@demo\\.local$/.test(user.email ?? "") || !c0) return null;
+  if (cache || S.type === "site" || /@demo\\.local$/.test(user.email ?? "") || !c0) return null;
   const cacher = () => { setCache(true); try { localStorage.setItem(cle, "1"); } catch (e) {} };
   const etapes = [[n0 > 0, "Ajoutez vos " + (/^[A-Z]{2,}/.test(c0.label) ? c0.label : c0.label.toLowerCase()), "Saisissez-en un ou importe votre fichier Excel.", () => nav("_donnees")], [false, "Invitez votre équipe", "Chacun a son accès, vous choisissez ce qu'il peut faire.", () => nav("_equipe")], ...(publiques[0] ? [[false, "Partagez « " + publiques[0].titre + " »", "Envoyez ce lien à vos clients.", () => { try { navigator.clipboard.writeText(lien(publiques[0])); toast("Lien copié"); } catch (e) {} }]] : [])];
   return html\`<div class="mb-6 rounded-2xl border border-[var(--c)]/20 bg-[var(--c)]/[0.04] p-5"><div class="flex items-start justify-between gap-3"><div><p class="font-semibold">Bienvenue sur \${S.nom}</p><p class="text-sm text-slate-500">Trois étapes pour bien démarrer.</p></div><button onClick=\${cacher} class="text-sm text-slate-400 hover:text-slate-700">Masquer</button></div>

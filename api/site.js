@@ -71,7 +71,7 @@ export default async function handler(req, res) {
     // Le contenu vivant d'un site (services, horaires, coordonnées) : celui que le gérant a saisi
     const infos = pub.spec?.type === "site" ? await fetch(`${URL_}/functions/v1/t/app/${app}/site-info`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).then((r) => (r.ok ? r.json() : null)).catch(() => null) : null;
     // Sans domaine : le lien partagé ouvre ensuite l'application elle-même
-    const avant = host ? "" : `<script>if(!location.hash||location.hash==="#/")history.replaceState(null,"","/#/app/${app}");</script>\n`;
+    const avant = host ? "" : `<script>if(!location.hash||location.hash==="#/")history.replaceState(null,"","/"+location.search+"#/app/${app}");</script>\n`;
     res.setHeader("Cache-Control", "public, s-maxage=600, stale-while-revalidate=86400");
     return res.end(injecter(index, balises(pub, infos, url), avant));
   } catch (e) {
