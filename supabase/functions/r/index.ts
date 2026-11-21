@@ -552,7 +552,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   // les écrans qui plantent sont réécrits automatiquement (2 essais par écran au plus).
   async "saas-app-verif"(req, b) {
     const { ws } = await membreOuCron(req, b.workspace_id);
-    const { data: app } = await admin.from("saas_apps").select("id, version, verif, spec, at").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    const { data: app } = await admin.from("saas_apps").select("id, version, verif, spec, at, slug, domaine, domaine_statut").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
     if (!app) throw new HttpError(404, "Application introuvable");
     const avant = (app.verif ?? {}) as any;
     // Résultats d'une ancienne version (une correction est arrivée entre-temps) : ignorés, le robot repassera sur la nouvelle
@@ -637,7 +637,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
             text: restants.length
               ? `Bonjour,\n\n${nom} est en ligne. Bingoo! a testé chaque écran comme un vrai utilisateur : ${resultats.length - restants.length} sur ${resultats.length} fonctionnent.\n\nÀ corriger : ${restants.map((r: any) => titre(r.id)).join(", ")}.${membre.length ? "\nUn clic sur « Corriger · offert » dans ton atelier relance la correction, sans rien te coûter." : ""}${equipe.length ? "\nL'équipe Bingoo! s'occupe du reste sous 24 h." : ""}\n\nTon SaaS : ${lien}\n\nÀ tout de suite,\nBingoo!`
               : spec.type === "site"
-                ? `Bonjour,\n\nTon site ${nom} est en ligne. Bingoo! a testé ton espace gérant comme un vrai utilisateur : tout fonctionne.\n\nÀ faire maintenant :\n1. Ouvre ton site et clique sur « Espace gérant » en bas de page pour créer ton accès (avec cette adresse e-mail).\n2. Vérifie tes prix, tes horaires et ajoute ton téléphone : les prix ont été proposés à la construction.\n3. Suis ton plan « Premiers clients » : ${lien.replace("mon-saas", "clients")}\n\nÀ tout de suite,\nBingoo!`
+                ? `Bonjour,\n\nTon site ${nom} est en ligne. Bingoo! a testé ton espace gérant comme un vrai utilisateur : tout fonctionne.\n\nÀ faire maintenant :\n1. Ouvre ton site (${app.domaine_statut === "ok" && app.domaine ? `https://${app.domaine}/` : `https://www.bingoo.fr/s/${app.slug}`}) et clique sur « Espace gérant » en bas de page pour créer ton accès (avec cette adresse e-mail).\n2. Vérifie tes prix, tes horaires et ajoute ton téléphone : les prix ont été proposés à la construction.\n3. Suis ton plan « Premiers clients » : ${lien.replace("mon-saas", "clients")}\n\nÀ tout de suite,\nBingoo!`
                 : `Bonjour,\n\n${nom} est prêt. Bingoo! a testé les ${resultats.length} écrans comme un vrai utilisateur : tout fonctionne.\n\nTon SaaS : ${lien}\n\nProchaine étape : tes premiers clients, le plan t'attend dans Bingoo!.\n\nÀ tout de suite,\nBingoo!` });
         }
       } catch (e) { console.error("mail fin de vérification", e); }
