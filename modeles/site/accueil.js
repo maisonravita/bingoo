@@ -25,7 +25,7 @@ function Ecran() {
       ${portfolio ? html`<${Kpi} icone="etoile" label="Réalisations en ligne" valeur=${R.rows.filter((r) => r.visible !== false).length}/>` : html`<${Kpi} icone="horloge" label="Jours d'ouverture" valeur=${ouverts + " / 7"}/>`}
     </div>
     <div class="mt-4 grid gap-4 lg:grid-cols-3">
-      <${Carte} titre="Dernières demandes" classe="lg:col-span-2" actions=${html`<button onClick=${() => go("demandes")} class="text-sm font-medium text-[var(--c)]">Tout voir →</button>`}>
+      <${Carte} titre="Dernières demandes" classe="lg:col-span-2" actions=${html`<button onClick=${() => go("demandes")} class="inline-flex min-h-6 items-center text-sm font-medium text-[var(--c)]">Tout voir →</button>`}>
         ${recentes.length ? html`<div class="divide-y divide-slate-100">${recentes.map((d) => html`<button onClick=${() => go("demandes", { ouvrir: d.id })} class="flex w-full items-center gap-3 py-2.5 text-left hover:bg-slate-50/70"><${Avatar} nom=${d.nom}/><div class="min-w-0 flex-1"><p class="truncate font-medium">${d.nom}</p><p class="truncate text-sm text-slate-500">${d.service || "Demande"}${d.date_souhaitee ? " · " + dateCourte(d.date_souhaitee) : ""}</p></div><span class="hidden sm:block shrink-0 text-xs text-slate-400">${ilya(d.created_at)}</span><${Pill} ton=${STATUTS_D[d.statut]?.[1] ?? "orange"}>${STATUTS_D[d.statut]?.[0] ?? "Nouvelle"}</${Pill}></button>`)}</div>`
           : html`<${Vide} icone="message" titre="Pas encore de demande" texte=${"Les demandes envoyées depuis votre site (bouton « " + V.cta + " ») arrivent ici et par e-mail."}/>`}
       </${Carte}>

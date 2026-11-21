@@ -56,47 +56,11 @@ export const FICHE_ECRANS = `RÈGLES D'ÉCRANS D'APPLICATION :
 
 // ---------------------------------------------------------------- Copy-lint français (plan ET robot)
 // Équivalent français de copy-lint.mjs / copy-tells.md (Taste) : ce qui trahit un texte écrit par une IA.
-const INTERDITS = ["révolutionnaire", "révolutionner", "sans effort", "de pointe", "incontournable", "booster", "propulser", "propulsez", "boostez",
-  "sublimer", "subliment", "sublimez", "transformer votre", "transformez votre", "inégalé", "inégalée", "ultime", "next-level", "game changer", "game-changer",
-  "synergie", "holistique", "écosystème", "véritable révolution", "solution clé en main", "expérience unique", "à la pointe"];
-const TOURNURES: [RegExp, string][] = [
-  [/à portée de (main|clic)/i, "« à portée de main »"],
-  [/en (quelques|un seul|deux|trois) clics?/i, "« en quelques clics »"],
-  [/que vous soyez .{1,60} ou /i, "« Que vous soyez… ou… »"],
-  [/dites adieu à/i, "« Dites adieu à… »"],
-  [/dans un monde (où|en constante)/i, "« Dans un monde où… »"],
-  [/ne cherchez plus/i, "« Ne cherchez plus »"],
-  [/(plus qu'un|bien plus qu'un) .{1,30}, (c'est|un)/i, "« Plus qu'un X, c'est un Y »"],
-  [/rejoignez (des milliers|plus de)/i, "« Rejoignez des milliers… »"],
-  [/(le résultat|la différence|le secret)\s*\?/i, "question-réponse (« Le résultat ? »)"],
-  [/au c(œ|oe)ur de/i, "« au cœur de »"],
-  [/fait simple|en toute simplicité/i, "« en toute simplicité »"],
-];
-const RESTES: [RegExp, string][] = [
-  [/\bje suis (une? )?(application|logiciel|site|plateforme|outil)\b/i, "reste de modèle (« Je suis application de… »)"],
-  [/\[(nom|votre nom|entreprise|ville|prénom)[^\]]*\]/i, "reste de modèle ([Nom])"],
-  [/lorem ipsum/i, "reste de modèle (lorem)"],
-  [/\{\{[^}]*\}\}/, "reste de modèle ({{…}})"],
-  [/\*\*[^*\n]{1,60}\*\*|(^|\n)#{1,3} /, "balisage Markdown visible"],
-  [/\b(bien sûr !|voici (votre|le|la|les) )/i, "reste de conversation"],
-];
-
+// Une seule source (src/lib/controlesDesign.js) : le plan, le robot de la page et le robot du serveur appliquent les mêmes règles
+import { lintFr as lintFrSource } from "../../../src/lib/controlesDesign.js";
 export type Accroc = { regle: string; extrait: string };
-
-/** Contrôle d'un texte (titre, accroche, paragraphe). `corps` : texte courant (les ! y sont interdits ; tolérés dans un bouton ou un titre court). */
-export function lintFr(texte: string, corps = true): Accroc[] {
-  const t = String(texte ?? "");
-  if (!t.trim()) return [];
-  const out: Accroc[] = [];
-  const bas = t.toLowerCase();
-  for (const m of INTERDITS) if (bas.includes(m)) out.push({ regle: `mot interdit « ${m} »`, extrait: extrait(t, bas.indexOf(m)) });
-  for (const [re, nom] of [...TOURNURES, ...RESTES]) { const r = re.exec(t); if (r) out.push({ regle: nom, extrait: extrait(t, r.index) }); }
-  const tirets = (t.match(/ — | – /g) ?? []).length;
-  if (tirets >= 2) out.push({ regle: `tirets cadratins en série (${tirets})`, extrait: extrait(t, t.indexOf("—") >= 0 ? t.indexOf("—") : t.indexOf("–")) });
-  if (corps && t.length > 40 && /[a-zà-ÿ]!(\s|$)|\s!(\s|$)/i.test(t)) out.push({ regle: "point d'exclamation dans le texte", extrait: extrait(t, t.indexOf("!")) });
-  return out;
-}
-const extrait = (t: string, i: number) => t.slice(Math.max(0, i - 25), i + 35).replace(/\s+/g, " ").trim();
+export const lintFr = (texte: string, corps = true): Accroc[] => lintFrSource(texte, corps);
+const INTERDITS = ["révolutionnaire", "sans effort", "de pointe", "incontournable", "booster", "propulser", "sublimer", "à la pointe"];
 
 /** Rappel court donné au plan (les mêmes règles que le contrôle du robot). */
 export const CONSIGNE_TEXTES_FR = `TEXTES (français, contrôlés par le robot) : jamais ${INTERDITS.slice(0, 8).map((m) => `« ${m} »`).join(", ")}, ni « à portée de main », « en quelques clics », « Que vous soyez… ou… », « Dites adieu à… », « au cœur de » ; pas de tirets cadratins en série ; pas de point d'exclamation dans les phrases ; aucun reste de modèle ([Nom], lorem, {{…}}, « Je suis application de… »). Écris des faits précis venus de la demande du membre.`;

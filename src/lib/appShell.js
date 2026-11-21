@@ -1,3 +1,4 @@
+import { lintFr, controlesDesign } from "./controlesDesign.js";
 // Gabarit des SaaS construits par Bingoo! : une page complète (site public, connexion, application) assemblée
 // à partir de la spec générée. Elle tourne dans un cadre isolé (sandbox sans same-origin) : le code généré
 // n'a accès ni à la session Bingoo!, ni au stockage du site. Les écrans sont écrits par l'IA avec Preact + htm ;
@@ -61,7 +62,7 @@ body,.fond-creme,.fond-gris{background:var(--ds-bg);color:var(--ds-fg)}
 [class~="text-slate-900"],[class~="text-slate-800"],[class~="text-slate-700"]{color:var(--ds-fg)}
 [class~="text-slate-600"],[class~="text-slate-500"],[class~="text-slate-400"]{color:var(--ds-mfg)}
 [class*="border-slate-"]{border-color:var(--ds-border)}
-[style*="var(--c)"][class~="text-white"],[style*="var(--c)"] [class~="text-white"]{color:var(--ds-onc)}
+[style*="var(--c)"][class~="text-white"],[style*="var(--c)"] [class~="text-white"],[class*="bg-[var(--c)]"][class~="text-white"],[class*="bg-[var(--c)]"] [class~="text-white"]{color:var(--ds-onc)}
 a,button,[role="button"],summary,label[for],select{cursor:pointer}
 :focus-visible{outline:2px solid ${ok(c.ring) ?? ok(c.primary)};outline-offset:2px}`;
 }
@@ -656,10 +657,10 @@ function FenetreLegale() {
   if (!k) return null;
   return html\`<div class="fixed inset-0 z-[60] bg-slate-900/40 grid place-items-center p-4" onClick=\${(e) => e.target === e.currentTarget && setK(null)}><div class="anim w-full max-w-2xl bg-white rounded-2xl shadow-xl max-h-[88vh] overflow-auto p-6 sm:p-8">
     <div class="flex items-start justify-between gap-4"><div><p class="text-sm font-semibold text-[var(--c)]">\${S.nom}</p><h2 class="text-2xl font-bold">\${DOCS[k]}</h2></div><button onClick=\${() => setK(null)} class="text-2xl leading-none text-slate-400 hover:text-slate-700">×</button></div>
-    <div class="mt-2 flex flex-wrap gap-2 text-sm">\${Object.entries(DOCS).filter(([x]) => x !== k).map(([x, t]) => html\`<button onClick=\${() => setK(x)} class="text-[var(--c)] hover:underline">\${t}</button>\`)}</div>
+    <div class="mt-2 flex flex-wrap gap-2 text-sm">\${Object.entries(DOCS).filter(([x]) => x !== k).map(([x, t]) => html\`<button onClick=\${() => setK(x)} class="inline-flex min-h-11 md:min-h-6 items-center text-[var(--c)] hover:underline">\${t}</button>\`)}</div>
     <\${DocLegal} k=\${k}/></div></div>\`;
 }
-const LiensLegaux = ({ class: c = "" }) => html\`<span class=\${cls("flex flex-wrap gap-x-4 gap-y-1", c)}>\${Object.entries(DOCS).map(([k, t]) => html\`<button onClick=\${() => bus.emit("doc", k)} class="hover:text-slate-700 hover:underline">\${t}</button>\`)}</span>\`;
+const LiensLegaux = ({ class: c = "" }) => html\`<span class=\${cls("flex flex-wrap gap-x-4 gap-y-1", c)}>\${Object.entries(DOCS).map(([k, t]) => html\`<button onClick=\${() => bus.emit("doc", k)} class="inline-flex min-h-11 md:min-h-6 items-center hover:text-slate-700 hover:underline">\${t}</button>\`)}</span>\`;
 
 // Jamais de chiffres de succès dans la bouche du SaaS (ils venaient du SaaS modèle) : on retire ces phrases à l'affichage
 const sansRevendication = (t) => String(t ?? "").split(/(?<=[.!?])\\s+/).filter((ph) => !/revendique|cela prouve|ce qui prouve|\\d[\\d\\s.,]*\\s*(?:\\+\\s*)?(?:000|k|millions?)?\\s*(?:clients?|entreprises?|utilisateurs?|abonnés?|prestations?|réservations?|commandes?|membres?|€|euros?|dollars?|\\$)/i.test(ph)).join(" ").trim();
@@ -809,7 +810,7 @@ function SiteVitrine({ onAuth }) {
     <div class="mt-4 divide-y divide-slate-100">\${services.slice(0, 4).map((s) => html\`<div class="flex items-baseline justify-between gap-4 py-3"><div class="min-w-0"><p class="truncate font-semibold">\${s.titre}</p>\${s.duree && html\`<p class="text-xs text-slate-400">\${s.duree}</p>\`}</div><p class="shrink-0 font-bold text-[var(--c)]">\${prixS(s)}</p></div>\`)}</div>
     \${(inf.zone || inf.adresse) && html\`<p class="mt-3 flex items-center gap-2 text-sm text-slate-500"><\${Icone} nom="carte" class="w-4 h-4"/>\${inf.adresse || inf.zone}</p>\`}
     <a href="#contact" class="mt-5 block rounded-2xl bg-[var(--c)] py-3 text-center font-semibold text-white hover:brightness-110">\${SITE.cta || "Me contacter"}</a></div>\`;
-  const fondHero = hero === "sombre" ? "background:radial-gradient(1000px 460px at 50% -12%,color-mix(in srgb,var(--c) 60%,transparent),transparent),color-mix(in srgb,var(--c) 16%,#07070c)" : hero === "degrade" ? "background-image:radial-gradient(1200px 500px at 80% -10%,rgba(255,255,255,.28),transparent),linear-gradient(160deg,var(--c),#0f172a)" : "background:linear-gradient(180deg,color-mix(in srgb,var(--c) 8%,white),white)";
+  const fondHero = hero === "sombre" ? "background:radial-gradient(1000px 460px at 50% -12%,color-mix(in srgb,var(--c) 60%,transparent),transparent),color-mix(in srgb,var(--c) 16%,#07070c)" : hero === "degrade" ? "background-image:radial-gradient(1200px 500px at 80% -10%,rgba(255,255,255,.28),transparent),linear-gradient(160deg,var(--c),#0f172a)" : "background:linear-gradient(180deg,color-mix(in srgb,var(--c) 8%,var(--ds-bg,white)),var(--ds-bg,white))";
   const Pastille = () => html\`<p class=\${cls("inline-block rounded-full px-3 py-1 text-sm font-semibold", fonce ? "bg-white/15 text-white" : "bg-[var(--c)]/10 text-[var(--c)]")}>\${SITE.metier}\${SITE.ville ? " · " + SITE.ville : ""}</p>\`;
   const nav = [...(portfolio ? [["#realisations", "Réalisations"]] : []), ...(services.length || !portfolio ? [["#services", portfolio ? "Prestations" : "Services"]] : []), ["#apropos", "À propos"], ["#infos", portfolio ? "Contact" : "Infos pratiques"], ...((S.faq ?? []).length ? [["#faq", "Questions"]] : [])];
   const vues = realisations.filter((r) => !cat || r.categorie === cat);
@@ -861,7 +862,7 @@ function SiteVitrine({ onAuth }) {
         <div class="sm:col-span-2 flex flex-wrap items-center gap-3"><button type="submit" disabled=\${busy} class="rounded-full bg-[var(--c)] px-7 py-3 font-semibold text-white hover:brightness-110 disabled:opacity-60">\${busy ? "Envoi…" : "Envoyer ma demande"}</button><p class="text-xs text-slate-400">Vos coordonnées servent seulement à vous répondre. <button type="button" class="underline" onClick=\${() => bus.emit("doc", "confidentialite")}>En savoir plus</button></p></div>
       </form>\`}
   </div></section>
-  <footer class="border-t border-slate-100"><div class="max-w-6xl mx-auto px-5 py-8 text-sm text-slate-400 flex flex-wrap items-center justify-between gap-3"><span class="flex items-center gap-2 font-semibold text-slate-600"><\${Logo} taille="w-6 h-6"/>\${S.nom}</span><\${LiensLegaux}/><span class="flex items-center gap-4"><button onClick=\${() => onAuth("login")} class="hover:text-slate-700 hover:underline">Espace gérant</button><span>Site créé avec Bingoo!</span></span></div></footer>
+  <footer class="border-t border-slate-100"><div class="max-w-6xl mx-auto px-5 py-8 text-sm text-slate-400 flex flex-wrap items-center justify-between gap-3"><span class="flex items-center gap-2 font-semibold text-slate-600"><\${Logo} taille="w-6 h-6"/>\${S.nom}</span><\${LiensLegaux}/><span class="flex items-center gap-4"><button onClick=\${() => onAuth("login")} class="inline-flex min-h-11 md:min-h-6 items-center hover:text-slate-700 hover:underline">Espace gérant</button><span>Site créé avec Bingoo!</span></span></div></footer>
 </div>\`;
 }
 
@@ -873,7 +874,7 @@ function SiteLancement({ onAuth }) {
   const hero = STY.hero ?? "degrade", fonce = hero === "sombre" || hero === "degrade" || hero === "cote";
   const inscrire = async (e) => { e.preventDefault(); setErr(""); if (!/^[^@\\s]+@[^@\\s]+\\.[a-z]{2,}$/i.test(f.email.trim())) { setErr("Adresse e-mail invalide."); return; } setBusy(true); try { await call("site-contact", { data: f, source: B.source }); setOk(true); } catch (x) { setErr(x.message); } finally { setBusy(false); } };
   const Form = ({ clair }) => ok ? html\`<div class=\${cls("rounded-2xl px-5 py-4 font-semibold", clair ? "bg-white/15 text-white" : "bg-emerald-50 text-emerald-700")}>C'est noté\${f.prenom ? ", " + f.prenom : ""} ! Vous serez parmi les premiers prévenus.</div>\`
-    : html\`<form onSubmit=\${inscrire} class="flex w-full max-w-xl flex-col gap-2 sm:flex-row"><input value=\${f.prenom} onInput=\${(e) => setF({ ...f, prenom: e.target.value })} placeholder="Prénom" class="rounded-full border border-slate-200 bg-white px-5 py-3.5 text-slate-900 outline-none focus:border-[var(--c)] sm:w-36"/><input type="email" required value=\${f.email} onInput=\${(e) => setF({ ...f, email: e.target.value })} placeholder="Votre e-mail" class="min-w-0 flex-1 rounded-full border border-slate-200 bg-white px-5 py-3.5 text-slate-900 outline-none focus:border-[var(--c)]"/><input tabindex="-1" autocomplete="off" aria-hidden="true" value=\${f.site_web} onInput=\${(e) => setF({ ...f, site_web: e.target.value })} style="position:absolute;left:-9999px;width:1px;height:1px"/><button disabled=\${busy} class=\${cls("rounded-full px-6 py-3.5 font-semibold transition hover:brightness-110 disabled:opacity-60", clair ? "bg-white text-slate-900" : "bg-[var(--c)] text-white")}>\${busy ? "…" : SITE.cta || "Être prévenu"}</button></form>\`;
+    : html\`<form onSubmit=\${inscrire} class="flex w-full max-w-xl flex-col gap-2 sm:flex-row"><input aria-label="Prénom" value=\${f.prenom} onInput=\${(e) => setF({ ...f, prenom: e.target.value })} placeholder="Prénom" class="rounded-full border border-slate-200 bg-white px-5 py-3.5 text-slate-900 outline-none focus:border-[var(--c)] sm:w-36"/><input aria-label="Adresse e-mail" type="email" required value=\${f.email} onInput=\${(e) => setF({ ...f, email: e.target.value })} placeholder="Votre e-mail" class="min-w-0 flex-1 rounded-full border border-slate-200 bg-white px-5 py-3.5 text-slate-900 outline-none focus:border-[var(--c)]"/><input tabindex="-1" autocomplete="off" aria-hidden="true" value=\${f.site_web} onInput=\${(e) => setF({ ...f, site_web: e.target.value })} style="position:absolute;left:-9999px;width:1px;height:1px"/><button disabled=\${busy} class=\${cls("rounded-full px-6 py-3.5 font-semibold transition hover:brightness-110 disabled:opacity-60", clair ? "bg-white text-slate-900" : "bg-[var(--c)] text-white")}>\${busy ? "…" : SITE.cta || "Être prévenu"}</button></form>\`;
   const Err = ({ clair }) => err ? html\`<p class=\${cls("mt-2 text-sm", clair ? "text-white/90" : "text-red-600")}>\${err}</p>\` : null;
   return html\`<div class="min-h-screen bg-white">
     <div class="text-white" style="background-image:radial-gradient(1200px 520px at 80% -10%,rgba(255,255,255,.22),transparent),linear-gradient(160deg,var(--c),#0f172a)">
@@ -886,7 +887,7 @@ function SiteLancement({ onAuth }) {
     \${SITE.apropos?.texte && html\`<section class="py-20"><div class="max-w-3xl mx-auto px-5 text-center"><h2 class="text-3xl font-bold tracking-tight">\${SITE.apropos.titre}</h2><p class="mt-5 text-lg leading-relaxed text-slate-600">\${SITE.apropos.texte}</p></div></section>\`}
     \${(S.faq ?? []).length > 0 && html\`<section class="py-20 bg-slate-50"><div class="max-w-3xl mx-auto px-5"><h2 class="text-3xl font-bold text-center tracking-tight">Questions fréquentes</h2><div class="mt-8 divide-y divide-slate-200 border-y border-slate-200">\${S.faq.map((x) => html\`<details class="group py-4"><summary class="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold">\${x.q}<span class="text-slate-400 group-open:rotate-45 transition text-xl leading-none">+</span></summary><p class="mt-2 text-slate-500">\${x.r}</p></details>\`)}</div></div></section>\`}
     <section class="px-5 py-20"><div class="max-w-4xl mx-auto rounded-[2rem] px-8 py-14 text-center text-white" style="background:linear-gradient(160deg,var(--c),color-mix(in srgb,var(--c) 50%,#0f172a))"><h2 class="text-3xl sm:text-4xl font-bold tracking-tight">Soyez prévenu en premier</h2><p class="mt-3 text-white/80">Un e-mail le jour du lancement, rien d'autre.</p><div class="mt-7 flex flex-col items-center"><\${Form} clair/><\${Err} clair/></div></div></section>
-    <footer class="border-t border-slate-100"><div class="max-w-6xl mx-auto px-5 py-8 text-sm text-slate-400 flex flex-wrap items-center justify-between gap-3"><span class="flex items-center gap-2 font-semibold text-slate-600"><\${Logo} taille="w-6 h-6"/>\${S.nom}</span><\${LiensLegaux}/><span class="flex items-center gap-4">\${inf.email && html\`<a href=\${"mailto:" + inf.email} class="hover:text-slate-700">\${inf.email}</a>\`}<button onClick=\${() => onAuth("login")} class="hover:text-slate-700 hover:underline">Espace gérant</button><span>Site créé avec Bingoo!</span></span></div></footer>
+    <footer class="border-t border-slate-100"><div class="max-w-6xl mx-auto px-5 py-8 text-sm text-slate-400 flex flex-wrap items-center justify-between gap-3"><span class="flex items-center gap-2 font-semibold text-slate-600"><\${Logo} taille="w-6 h-6"/>\${S.nom}</span><\${LiensLegaux}/><span class="flex items-center gap-4">\${inf.email && html\`<a href=\${"mailto:" + inf.email} class="hover:text-slate-700">\${inf.email}</a>\`}<button onClick=\${() => onAuth("login")} class="inline-flex min-h-11 md:min-h-6 items-center hover:text-slate-700 hover:underline">Espace gérant</button><span>Site créé avec Bingoo!</span></span></div></footer>
   </div>\`;
 }
 
@@ -895,7 +896,7 @@ function Auth({ mode: m0, onDone, onBack }) {
   const [f, setF] = useState({ email: "", password: "", nom: "" }), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
   const submit = async (e) => { e.preventDefault(); setBusy(true); setErr(""); try { onDone(await call(mode, { ...f, variante: VARIANTE, source: B.source, invite: mode === "signup" ? B.invite : null })); } catch (x) { setErr(x.message); } finally { setBusy(false); } };
   return html\`<div class="min-h-screen grid place-items-center p-5 bg-slate-50"><form onSubmit=\${submit} class="anim w-full max-w-sm bg-white rounded-2xl border border-slate-200 p-6 space-y-3">
-    <button type="button" onClick=\${onBack} class="text-sm text-slate-400 hover:text-slate-700">← \${S.nom}</button>
+    <button type="button" onClick=\${onBack} class="inline-flex min-h-11 md:min-h-6 items-center text-sm text-slate-500 hover:text-slate-700">← \${S.nom}</button>
     <h1 class="text-xl font-bold">\${S.type === "site" && !B.invite ? (mode === "signup" ? "Créer votre accès gérant" : "Espace gérant") : mode === "signup" ? (B.invite ? "Rejoignez votre équipe" : "Créez votre compte") : "Content de vous revoir"}</h1>
     \${S.type === "site" && !B.invite && html\`<p class="text-sm text-slate-500">\${mode === "signup" ? "La première fois, créez votre accès avec l'adresse e-mail de votre compte Bingoo!." : "Vos demandes, vos services, vos horaires et vos coordonnées."}</p>\`}
     \${B.invite && mode === "signup" && html\`<p class="text-sm text-slate-500">Vous avez été invité sur \${S.nom}. Créez votre compte pour retrouver les données de votre équipe.</p>\`}
@@ -1094,10 +1095,26 @@ function PagePublique() {
   return html\`<div class="min-h-screen bg-slate-50"><div class="max-w-3xl mx-auto px-4 py-8 sm:py-12"><\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} user=\${null} params=\${null} espace=\${info.nom ?? ""}/></\${Garde}><p class="mt-10 text-center text-xs text-slate-400">Propulsé par \${S.nom}</p></div></div>\`;
 }
 // Chaque écran est ouvert à tour de rôle avec les données d'exemple ; le résultat part à la page Bingoo! qui encadre l'app
+// Contrôles de finition (Taste + UI UX Pro Max, src/lib/controlesDesign.js), injectés tels quels
+const lintFr = (${lintFr.toString()});
+const controlesDesign = (${controlesDesign.toString()});
 function Verif() {
-  const [i, setI] = useState(0); const res = useRef([]);
+  // verif = "public" : seulement la page publique (robot du serveur, aux largeurs de téléphone)
+  const [i, setI] = useState(B.verif === "public" ? ECRANS.length : 0); const res = useRef([]);
   const E = ECRANS[i];
+  // Site avec système de design : après l'espace gérant, la page publique elle-même est contrôlée (à cette largeur)
+  const pub = !E && S.type === "site" && !!S.design && i === ECRANS.length;
   useEffect(() => {
+    if (pub) {
+      const t = setTimeout(() => {
+        try {
+          const pbs = controlesDesign(document.getElementById("verif-zone"), true, lintFr);
+          if (pbs.length) { const r0 = res.current[0]; const msg = "Page publique : " + pbs.join(" "); if (r0) { r0.ok = false; r0.erreur = String((r0.erreur ? r0.erreur + " " : "") + msg).slice(0, 700); } else res.current.push({ id: "_public", ok: false, erreur: msg.slice(0, 700) }); }
+        } catch (x) {}
+        setI(i + 1);
+      }, 1600);
+      return () => clearTimeout(t);
+    }
     if (!E) {
       for (const e of S.ecrans ?? []) if (!e.code) res.current.push({ id: e.id, ok: false, erreur: "Écran non écrit" });
       try { parent.postMessage({ type: "bingoo-verif", slug: B.slug, resultats: res.current, ecrans: (S.ecrans ?? []).length }, "*"); } catch (x) {}
@@ -1122,12 +1139,15 @@ function Verif() {
       // Écran bien rempli : on le teste maintenant comme un vrai utilisateur (créer, enregistrer, cliquer sur chaque action)
       let gestes = null;
       if (!erreur && zone) { try { const pbs = await gestesEcran(zone); gestes = pbs.length ? pbs : []; if (pbs.length) erreur = "En testant l'écran comme un utilisateur : " + pbs.join(" "); } catch (x) { gestes = null; } }
+      // Finition (projets construits avec un système de design seulement) : un échec passe par la même boucle de correction
+      if (!erreur && S.design && zone) { try { const pbs = controlesDesign(zone, false, lintFr); if (pbs.length) erreur = "Finition : " + pbs.join(" "); } catch (x) {} }
       res.current.push({ id: E.id, ok: !erreur, erreur: erreur && String(erreur).slice(0, 700), gestes: gestes != null });
       VERRS.length = 0;
       setI(i + 1);
     }, 1400);
     return () => clearTimeout(t);
   }, [i]);
+  if (pub) return html\`<div id="verif-zone"><\${SiteVitrine} onAuth=\${() => {}}/></div>\`;
   return E ? html\`<div id="verif-zone" class="p-6"><\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} user=\${{ id: "v", nom: "Test", email: "test@exemple.fr", role: "admin" }} params=\${null} etat=\${{ acces: true }}/></\${Garde}></div>\` : null;
 }
 // Vidéo pub : chaque écran demandé est affiché avec les données d'exemple, photographié, puis envoyé à la page Bingoo!

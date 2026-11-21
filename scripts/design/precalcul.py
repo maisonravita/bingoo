@@ -61,6 +61,16 @@ def variantes(requete):
             "palette_note": g(pal, "Notes")[:120],
             "polices": {"titres": g(typo, "Heading Font", "Inter"), "texte": g(typo, "Body Font", "Inter"), "humeur": g(typo, "Mood/Style Keywords")[:120]},
         })
+    for v in out:
+        c = v["couleurs"]
+        fonds = [c["background"], c.get("card") or c["background"], c.get("muted") or c["background"]]
+        avant = c["primary"]
+        c["primary"] = texte_sur(fonds, avant)
+        if c["primary"] != avant:
+            c["primary_origine"] = avant
+        # Texte posé sur la couleur principale : blanc ou noir, celui qui contraste le plus (4,5:1 au moins)
+        c["on_primary"] = "#FFFFFF" if _ratio("#FFFFFF", c["primary"]) >= _ratio("#000000", c["primary"]) else "#000000"
+        c["ring"] = c["primary"]
     return {
         "categorie": categorie,
         "motif": {"nom": g(landing, "Pattern Name"), "sections": g(landing, "Section Order"), "cta": g(landing, "Primary CTA Placement")},
@@ -70,6 +80,24 @@ def variantes(requete):
 
 def g(d, c, defaut=""):
     return (d.get(c) or defaut).strip()
+
+def _hex(c):
+    c = c.lstrip("#"); return tuple(int(c[i:i + 2], 16) for i in (0, 2, 4))
+def _vers_hex(t):
+    return "#" + "".join(f"{max(0, min(255, round(x))):02X}" for x in t)
+def _ratio(a, b):
+    la, lb = ds._relative_luminance(a), ds._relative_luminance(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+def texte_sur(fonds, couleur, cible=4.5):
+    """La couleur principale sert aussi de couleur de texte (liens, prix) sur le fond et les cartes : on l'assombrit
+    (ou l'éclaircit en mode sombre) en gardant sa teinte, jusqu'à 4,5:1 sur chacun d'eux."""
+    sombre = ds._relative_luminance(fonds[0]) < 0.2
+    c = _hex(couleur)
+    for _ in range(40):
+        if all(_ratio(_vers_hex(c), f) >= cible for f in fonds if f):
+            return _vers_hex(c)
+        c = tuple(x + (255 - x) * 0.08 for x in c) if sombre else tuple(x * 0.92 for x in c)
+    return _vers_hex(c)
 
 produits = list(csv.DictReader(open(os.path.join(RACINE, "vendor", "ui-ux-pro-max", "data", "products.csv"), encoding="utf-8")))
 resultat = {}

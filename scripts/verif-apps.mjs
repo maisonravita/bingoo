@@ -89,6 +89,36 @@ for (const a of apps) {
     if (!a.spec?.ecrans?.length) continue;
     resultats = { ecrans: a.spec.ecrans.length, resultats: a.spec.ecrans.map((e) => ({ id: e.id, ok: false, erreur: "L'application ne démarre pas : la page reste blanche ou plante à l'ouverture." })) };
   }
+  // Site avec système de design : la page publique à 390 et 320 px (débordements, chevauchements, zones tactiles), et
+  // les balises de partage sur la vraie adresse publique. Les problèmes vont sur l'écran d'accueil, comme au robot de la page.
+  if (a.spec?.type === "site" && a.spec?.design && !a.apercu && resultats?.resultats?.length) {
+    const pbs = [];
+    for (const largeur of [390, 320]) {
+      let pub = null;
+      try {
+        page = appHtml({ spec: a.spec, slug: a.slug, api: "https://exemple.invalid/api", verif: "public" });
+        const ctx = await browser.newContext({ viewport: { width: largeur, height: 800 }, locale: "fr-FR", isMobile: true, hasTouch: true });
+        const p = await ctx.newPage();
+        await p.exposeFunction("__resultat", (r) => { pub = r; });
+        await p.addInitScript(() => addEventListener("message", (e) => { if (e.data?.type === "bingoo-verif") window.__resultat(e.data); }));
+        await p.goto(`http://localhost:${port}/`, { waitUntil: "domcontentloaded", timeout: 60000 });
+        const fin = Date.now() + 30000;
+        while (!pub && Date.now() < fin) await p.waitForTimeout(400);
+        await ctx.close();
+      } catch (e) { console.log(`  page publique à ${largeur} px impossible à ouvrir :`, String(e?.message ?? e).slice(0, 120)); }
+      const r = (pub?.resultats ?? []).find((x) => x.id === "_public");
+      if (r?.erreur) pbs.push(`à ${largeur} px : ${r.erreur.replace(/^Page publique : /, "")}`);
+    }
+    try {
+      const h = await (await fetch(`https://www.bingoo.fr/s/${a.slug}`, { signal: AbortSignal.timeout(20000) })).text();
+      const manque = ["og:title", "og:description", "og:image", "description"].filter((n) => !new RegExp(`<meta (?:property|name)="${n}" content="[^"]+"`).test(h));
+      if (manque.length) pbs.push(`balises de partage absentes : ${manque.join(", ")}`);
+    } catch (e) { console.log("  adresse publique injoignable :", String(e?.message ?? e).slice(0, 80)); }
+    if (pbs.length) {
+      const r0 = resultats.resultats[0];
+      r0.ok = false; r0.erreur = String((r0.erreur ? r0.erreur + " " : "") + "Page publique " + pbs.join(" ; ")).slice(0, 700);
+    }
+  }
   // Un écran qui s'affiche bien mais trahit sa famille est aussi à reprendre
   const fid = fidelite(a.spec);
   resultats.resultats = resultats.resultats.map((r) => r.ok && fid[r.id] ? { ...r, ok: false, erreur: fid[r.id] } : r);

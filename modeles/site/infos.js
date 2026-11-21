@@ -23,7 +23,7 @@ function Ecran() {
       </${Carte}>`}
       <${Carte} titre="Coordonnées">
         <div class="grid gap-3 sm:grid-cols-2">${champ("telephone", "Téléphone", "06 12 34 56 78")}${champ("email", "E-mail de contact", "contact@exemple.fr")}<div class="sm:col-span-2">${champ("adresse", "Adresse (si vous recevez vos clients)", "12 rue de la Paix, 69002 Lyon")}</div><div class="sm:col-span-2">${champ("zone", "Zone d'intervention ou quartier", "Lyon et 15 km autour")}</div>${champ("instagram", "Instagram (lien)", "https://instagram.com/…")}${champ("facebook", "Facebook (lien)", "https://facebook.com/…")}</div>
-        <div class="mt-4 flex items-center gap-3"><${Bouton} disabled=${busy || !f} onClick=${enregistrer}>${busy ? "Enregistrement…" : "Enregistrer"}</${Bouton}>${f && html`<button onClick=${() => setF(null)} class="text-sm text-slate-500 hover:text-slate-800">Annuler</button>`}</div>
+        <div class="mt-4 flex items-center gap-3"><${Bouton} disabled=${busy || !f} onClick=${enregistrer}>${busy ? "Enregistrement…" : "Enregistrer"}</${Bouton}>${f && html`<button onClick=${() => setF(null)} class="inline-flex min-h-9 items-center px-2 text-sm text-slate-500 hover:text-slate-800">Annuler</button>`}</div>
       </${Carte}>
     </div>
   </div>`;
