@@ -809,7 +809,7 @@ function Site({ onAuth }) {
 const SITE = S.site ?? {};
 const JOURS_S = ["", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 const heureS = (x) => String(x || "").replace(/^0/, "").replace(":00", " h").replace(":", " h ");
-const prixS = (s) => s.prix == null || s.prix === "" || !(Number(s.prix) > 0) ? "Sur devis" : (s.prix_texte ? "À partir de " : "") + fmt.eur(s.prix);
+const prixS = (s) => s.mois && Number(s.prix) === 0 ? "Gratuit" : s.prix == null || s.prix === "" || !(Number(s.prix) > 0) ? "Sur devis" : (s.prix_texte ? "À partir de " : "") + fmt.eur(s.prix) + (s.mois ? " par mois" : "");
 const lienTel = (t) => "tel:" + String(t || "").replace(/[^\\d+]/g, "");
 const MOD = SITE.modele ?? "vitrine";
 // ---------------------------------------------------------------- Page écrite par le moteur (spec.site.page, site-gen.ts)
@@ -875,7 +875,9 @@ function SitePageGeneree({ onAuth, saas }) {
   const P = SITE.page, ref = useRef(null), [d, setD] = useState(null);
   useEffect(() => {
     if (!B.apercu) call("vue", { variante: "A", source: B.source }).catch(() => {});
-    call("site-info").then(setD, () => setD({ services: S.demo?.services ?? [], horaires: S.demo?.horaires ?? [], infos: (S.demo?.infos ?? [])[0] ?? {} }));
+    // SaaS : les « prestations » de la page sont ses formules d'abonnement (prix par mois)
+    if (saas) setD({ services: (S.formules ?? []).map((f) => ({ titre: f.nom, prix: f.prix, mois: true, description: [f.pour, ...(f.inclus ?? []).slice(0, 3)].filter(Boolean).join(" · ") })), horaires: [], infos: {} });
+    else call("site-info").then(setD, () => setD({ services: S.demo?.services ?? [], horaires: S.demo?.horaires ?? [], infos: (S.demo?.infos ?? [])[0] ?? {} }));
     const l = document.createElement("link"); l.rel = "stylesheet"; l.href = TASTE_CSS; document.head.appendChild(l);
     const st = document.createElement("style"); st.textContent = jetonsTaste(); document.head.appendChild(st);
     const r = document.documentElement; r.dataset.radius = r.dataset.radius || "soft"; r.dataset.buttons = r.dataset.buttons || "solid"; r.lang = "fr";
