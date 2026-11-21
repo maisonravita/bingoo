@@ -5,8 +5,13 @@ name: Bingoo CI
 
 on:
   push:
-    branches: ["**"]
+    branches: ["main"]   # seulement la branche principale (pas captures-robot, où le robot pousse ses images)
   workflow_dispatch:
+
+# Un nouvel envoi annule le passage en cours sur la même branche : le dernier état est de toute façon redéployé en entier
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   PROJECT_REF: fbsjbnnmzazylmquzryo
@@ -18,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22 }
+        with: { node-version: 22, cache: npm }   # dépendances gardées en cache entre deux passages
       - run: npm install --no-audit --no-fund
       - name: Tests automatiques
         run: node scripts/test.mjs
