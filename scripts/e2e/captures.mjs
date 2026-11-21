@@ -225,6 +225,21 @@ if (CONSTRUIRE === "atelier") {
     }
     await photo(page, "site-premiers-clients", "#/explorer/clients");
     await photo(page, "site-mon-saas", "#/explorer/mon-saas");
+    // Retour au design précédent (apparence seule) : couleur changée par le gérant, puis retour en un clic, puis annulation
+    const [{ id: idSite }] = await q(`select id from saas_apps where slug = ${lit(a.slug)}`);
+    const reglage = (corps) => fetch(`${SB}/functions/v1/r/saas-app-reglages`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: ws2, app_id: idSite, ...corps }) }).then(async (r) => [r.status, await r.text()]);
+    const etat = async () => (await q(`select spec->'design'->'couleurs'->>'primary' p, spec->>'couleur' c, spec->'site'->>'gabarit' g, jsonb_array_length(coalesce(spec->'designs_precedents','[]'::jsonb)) n, spec->'site'->>'cta' cta from saas_apps where slug = ${lit(a.slug)}`))[0];
+    const e0 = await etat(); console.log("Design 0 :", JSON.stringify(e0));
+    console.log("Couleur changée :", (await reglage({ quoi: "identite", couleur: "#0F766E" })).join(" ").slice(0, 80));
+    const e1 = await etat(); console.log("Design 1 :", JSON.stringify(e1));
+    console.log("Retour :", (await reglage({ quoi: "design-revenir" })).join(" ").slice(0, 120));
+    const e2 = await etat(); console.log("Design 2 :", JSON.stringify(e2));
+    console.log("Annulation du retour :", (await reglage({ quoi: "design-revenir" })).join(" ").slice(0, 60));
+    const e3 = await etat(); console.log("Design 3 :", JSON.stringify(e3));
+    const okDesign = e1.p === "#0F766E" && e1.n === 1 && e2.p === e0.p && e2.g === e0.g && e2.cta === e0.cta && e3.p === "#0F766E";
+    console.log(okDesign ? "✓ retour au design précédent" : "✗ retour au design précédent");
+    fs.writeFileSync(`${DOSSIER}/design-retour.json`, JSON.stringify({ ok: okDesign, e0, e1, e2, e3 }, null, 2));
+    await reglage({ quoi: "design-revenir" });
   }
   await ctx.close();
 }
