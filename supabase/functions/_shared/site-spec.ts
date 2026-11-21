@@ -111,6 +111,8 @@ export function specSite(c: any, p: any) {
     slogan: court(c?.accroche, 90) || p.nom, cible_courte: ville ? `${metier} · ${ville}` : metier,
     forme: "arrondi", fond: c?.style === "nature" ? "creme" : "blanc", famille: "gestion", interface: "gestion", disposition: "barre",
     site: {
+      // Gabarit de page : « taste » = kit Taste (layout-v4). Jamais écrit par l'IA : fixé par construireSite ou par les essais.
+      ...(["taste"].includes(c?.gabarit) ? { gabarit: c.gabarit } : {}),
       modele, metier, ville, cta, demande: demandeType,
       ...(modele === "lancement" ? { lancement: { quand: court(c?.lancement?.quand, 40) || "Bientôt", offre: court(c?.lancement?.offre, 140) } } : {}),
       points_forts: liste(c?.points_forts).slice(0, 3).map((x: any) => ({ titre: court(x?.titre, 50), texte: sansClaim(court(x?.texte, 200)), icone: ICONES.includes(x?.icone) ? x.icone : "etoile" })).filter((x: any) => x.titre),

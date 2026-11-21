@@ -829,6 +829,11 @@ function SiteVitrine({ onAuth }) {
     const prixMin = services.map((s) => Number(s.prix)).filter((n) => n > 0).sort((a, b) => a - b)[0];
     const faits = [[SITE.metier, "Métier"], [inf.zone || SITE.ville, "Où"], [prixMin ? "Dès " + fmt.eur(prixMin) : "", "Prestations"], [inf.telephone || inf.email || "", "Contact"]].filter(([v]) => v);
     const vuesT = realisations.filter((r) => !cat || r.categorie === cat);
+    // Moitié droite du premier écran : sa meilleure photo s'il en a une, sinon ses spécialités en grand (police du titre,
+    // couleur d'accent), sinon son initiale en monogramme. Jamais de photo qui n'est pas la sienne (portfolio = son travail).
+    const photoHaut = realisations.find((r) => r.image);
+    const specialites = [...new Set(services.map((s) => String(s.titre || "").split(/,| [–—-] |:|\\(/)[0].trim()).filter((t) => t && t.length <= 22).map((t) => t[0].toUpperCase() + t.slice(1)))].slice(0, 3);
+    const villeCourte = String(SITE.ville || "").split(/,| et /)[0].trim();
     const Bouton = ({ href, plein, children }) => html\`<a href=\${href} class=\${cls("inline-flex min-h-12 items-center justify-center rounded-full px-7 text-base font-semibold transition", plein ? "bg-[var(--c)] text-white hover:brightness-110" : "border border-slate-300 text-slate-900 hover:border-slate-500")}>\${children}</a>\`;
     const H2 = ({ children }) => html\`<h2 class="fh max-w-[18ch] text-[clamp(2rem,4vw,3.25rem)] font-semibold leading-[1.05] tracking-tight text-slate-900">\${children}</h2>\`;
     return html\`<div class="bg-white text-slate-900">
@@ -838,11 +843,16 @@ function SiteVitrine({ onAuth }) {
     <a href="#contact" class="inline-flex min-h-11 items-center rounded-full bg-[var(--c)] px-5 text-sm font-semibold text-white hover:brightness-110">\${SITE.cta || "Me contacter"}</a>
   </div></header>
   <main>
-    <section id="haut" class="pt-12 md:pt-[72px] pb-20 md:pb-[120px]"><div class=\${W}>
+    <section id="haut" class="pt-12 md:pt-[72px] pb-20 md:pb-[120px]"><div class=\${W}><div class="grid items-center gap-12 lg:grid-cols-[1.15fr_.85fr] lg:gap-16"><div>
       <p class="text-sm font-medium text-slate-500">\${[SITE.metier, SITE.ville].filter(Boolean).join(" · ")}</p>
-      <h1 class="fh mt-6 max-w-[16ch] text-[clamp(2.6rem,6.2vw,5.25rem)] font-semibold leading-[1.02] tracking-tight">\${S.slogan || S.nom}</h1>
+      <h1 class="fh mt-6 max-w-[16ch] text-[clamp(2.6rem,5.4vw,4.75rem)] font-semibold leading-[1.02] tracking-tight">\${S.slogan || S.nom}</h1>
       <p class="mt-8 max-w-[46ch] text-lg leading-relaxed text-slate-600 md:text-xl">\${S.pitch}</p>
       <div class="mt-10 flex flex-wrap gap-3"><\${Bouton} href="#contact" plein>\${SITE.cta || "Me contacter"}</\${Bouton}><\${Bouton} href=\${realisations.length ? "#travaux" : "#prestations"}>\${realisations.length ? "Voir les travaux" : "Prestations et prix"}</\${Bouton}></div>
+      </div>
+      <div class="hidden lg:block">\${photoHaut ? html\`<img src=\${photoHaut.image} alt=\${photoHaut.titre} class="aspect-[4/5] w-full object-cover"/>\`
+        : specialites.length >= 2 ? html\`<p class="fh text-[clamp(2.75rem,4.6vw,4.5rem)] font-semibold leading-[1.02] tracking-tight text-[var(--c)]">\${[...specialites, villeCourte].filter(Boolean).map((t) => html\`<span class="block break-words">\${t}.</span>\`)}</p>\`
+        : html\`<div><p class="fh text-[clamp(9rem,17vw,15rem)] font-semibold leading-none tracking-tight text-[var(--c)]">\${String(S.nom || "?").trim()[0].toUpperCase()}</p><p class="mt-6 text-sm font-medium uppercase tracking-wider text-slate-500">\${[SITE.metier, villeCourte].filter(Boolean).join(" · ")}</p></div>\`}</div>
+      </div>
       \${faits.length > 1 && html\`<dl class="mt-16 grid grid-cols-2 gap-x-8 gap-y-6 border-t border-slate-200 pt-8 md:mt-24 md:grid-cols-4">\${faits.map(([v, l]) => html\`<div><dt class="text-xs font-medium uppercase tracking-wider text-slate-500">\${l}</dt><dd class="mt-2 text-base font-medium text-slate-900 break-words">\${v}</dd></div>\`)}</dl>\`}
     </div></section>
     \${realisations.length > 0 && html\`<section id="travaux" class=\${cls(SEC, "bg-slate-50")}><div class=\${W}>
