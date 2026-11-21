@@ -77,7 +77,7 @@ Tout en français, tutoiement, phrases simples.`, { fast: true, maxTokens: 2500 
   if (!((v as any)?.top ?? []).length && (r?.mots_cles ?? []).length) ({ data: v } = await admin.rpc("saas_valider_idee", { p_texte: (r.mots_cles ?? []).slice(0, 3).join(" ") }));
   // La recherche par mots se trompe de sens (« entretien » de bureaux → entretien d'embauche) : avant de montrer un logiciel,
   // on vérifie qu'il fait vraiment le même métier pour les mêmes clients. Aucun plutôt qu'un hors-sujet.
-  const candidats = ((v as any)?.top ?? []).filter((s: any) => s?.domaine && s.domaine !== DOMAINE_IDEE).slice(0, 12);
+  const candidats = type !== "saas" ? [] : ((v as any)?.top ?? []).filter((s: any) => s?.domaine && s.domaine !== DOMAINE_IDEE).slice(0, 12);
   let gardes: any[] = [];
   if (candidats.length) {
     try {

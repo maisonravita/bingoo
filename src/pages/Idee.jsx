@@ -174,22 +174,8 @@ export default function Idee() {
 
       {etat === "apercu" && r?.apercu && (() => { const ap = r.apercu, site = idee.type === "site"; return (
         <>
-          {r.proches?.length > 0 && (
-            <section className="mt-8">
-              <p className="text-[18px] font-black" style={HF}>Ton idée ressemble à {r.proches.length > 1 ? `ces ${r.proches.length} logiciels qui existent déjà` : "ce logiciel qui existe déjà"}</p>
-              <p className="text-[14px] text-ink-soft">C'est une bonne nouvelle : le besoin existe. Tu peux t'en inspirer (Bingoo! reprend leur logique qui a fait ses preuves), ou construire ton idée telle quelle.</p>
-              <div className="mt-4 grid gap-3 md:grid-cols-3">{r.proches.map((s) => (
-                <div key={s.domaine} className="flex flex-col rounded-2xl border border-line bg-white p-4">
-                  <div className="flex items-center gap-3"><CompanyLogo name={s.nom} url={`https://${s.domaine}`} className="h-10 w-10" pad="p-1.5" /><div className="min-w-0"><p className="truncate font-bold">{s.nom}</p><p className="text-[12.5px] text-ink-faint">{s.mrr ? <span className="font-semibold text-good">{dollars(s.mrr)} par mois, vérifié</span> : s.domaine}</p></div></div>
-                  <p className="mt-2 flex-1 text-[13.5px] text-ink-soft line-clamp-3">{s.description}</p>
-                  <button disabled={busy} onClick={() => lancer("inspirer", s)} className="mt-3 rounded-xl border border-ink px-3 py-2 text-[13.5px] font-bold hover:bg-ink hover:text-white">M'en inspirer</button>
-                </div>
-              ))}</div>
-            </section>
-          )}
-
-          <section className="mt-10 rounded-3xl border-2 border-ink bg-white p-5 sm:p-7">
-            <p className="text-[12px] font-bold uppercase tracking-[.14em] text-ink-faint">{r.proches?.length ? "Ou ton idée telle quelle : l'aperçu de ta première version" : "L'aperçu de ta première version"}</p>
+          <section className="mt-8 rounded-3xl border-2 border-ink bg-white p-5 sm:p-7">
+            <p className="text-[12px] font-bold uppercase tracking-[.14em] text-ink-faint">L'aperçu de ta première version</p>
             <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_1.1fr]">
               <div>
                 <label className="text-[12.5px] font-semibold text-ink-soft" htmlFor="nom-idee">{site ? "Le nom affiché sur ton site" : "Son nom"}</label>
@@ -209,6 +195,21 @@ export default function Idee() {
               <p className="text-[13px] text-ink-soft">{site ? <>Bingoo! écrit tes textes, met ton site en ligne et teste ton espace gérant. Tu vérifies ensuite tes prix et tes horaires.</> : <>Bingoo! le construit, teste chaque écran comme un vrai utilisateur, corrige, puis le met en ligne.{idee.type === "app" ? " Tu l'essaies ensuite sur ton téléphone dans Expo Go (gratuit). La publication sur l'App Store et Google Play arrive bientôt." : ""}</>}</p>
             </div>
           </section>
+
+          {!site && idee.type !== "app" && r.proches?.length > 0 && (
+            <section className="mt-10">
+              <p className="text-[15px] font-bold">Pour t'inspirer, si tu veux : {r.proches.length > 1 ? `${r.proches.length} logiciels proches qui marchent déjà` : "un logiciel proche qui marche déjà"}</p>
+              <p className="text-[14px] text-ink-soft">Facultatif : ton idée se construit telle quelle avec le bouton ci-dessus. Tu peux aussi partir de leur logique, qui a fait ses preuves.</p>
+              <div className="mt-4 grid gap-3 md:grid-cols-3">{r.proches.map((s) => (
+                <div key={s.domaine} className="flex flex-col rounded-2xl border border-line bg-white p-4">
+                  <div className="flex items-center gap-3"><CompanyLogo name={s.nom} url={`https://${s.domaine}`} className="h-10 w-10" pad="p-1.5" /><div className="min-w-0"><p className="truncate font-bold">{s.nom}</p><p className="text-[12.5px] text-ink-faint">{s.mrr ? <span className="font-semibold text-good">{dollars(s.mrr)} par mois, vérifié</span> : s.domaine}</p></div></div>
+                  <p className="mt-2 flex-1 text-[13.5px] text-ink-soft line-clamp-3">{s.description}</p>
+                  <button disabled={busy} onClick={() => lancer("inspirer", s)} className="mt-3 rounded-xl border border-ink px-3 py-2 text-[13.5px] font-bold hover:bg-ink hover:text-white">M'en inspirer</button>
+                </div>
+              ))}</div>
+            </section>
+          )}
+
         </>
       ); })()}
     </div>
