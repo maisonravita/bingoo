@@ -832,6 +832,10 @@ function jetonsTaste() {
     + \`main>:is(section,.section):not(.hero):not(.section--hero)>:is(.wrap,.container),footer.closing>.wrap{height:auto!important}\`
     // Premier écran : au moins un écran, mais il grandit plutôt que de cacher son titre sous le header
     + \`main>:is(.hero,.section--hero){height:auto!important;min-height:min(100svh,920px);padding-top:calc(var(--nav) + var(--hgap))!important}main>:is(.hero,.section--hero)>.wrap{height:auto!important}.hero-split>:is(.hero-visual,[class*="span-"]:last-child){min-height:420px}\`
+    // « start-7 » est à la fois une colonne du kit Taste et un décalage Tailwind (inset-inline-start : 28 px) : on garde le sens du kit
+    + \`main [class*="start-"]{inset-inline-start:auto}\`
+    // SaaS : la page montre une maquette, pas une photo plein écran ; le premier écran prend la hauteur de son contenu
+    + \`.pg-saas main>:is(.hero,.section--hero){height:auto!important;min-height:0!important;padding-bottom:calc(var(--hgap) * 1.5)!important}.pg-saas .hero-split>:is(.hero-visual,[class*="span-"]:last-child){min-height:0;flex:none!important;height:auto!important}.pg-saas main>:is(.hero,.section--hero)>.wrap,.pg-saas .hero-text.hero-split{height:auto!important}\`
     + \`.bingoo-form{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))}.bingoo-form .plein{grid-column:1/-1}\`;
 }
 const DonneesSite = {
@@ -892,7 +896,7 @@ function SitePageGeneree({ onAuth, saas }) {
     const el = ref.current; if (!el || !d) return;
     el.querySelectorAll("[data-bingoo]").forEach((m) => { const C = DonneesSite[m.dataset.bingoo]; if (C) render(html\`<\${C} d=\${d}/>\`, m); });
   }, [d, contenu]);
-  return html\`<div class="min-h-screen" style="background:var(--p-bg);color:var(--p-ink)">
+  return html\`<div class=\${cls("min-h-screen", saas && "pg-saas")} style="background:var(--p-bg);color:var(--p-ink)">
     <div ref=\${ref}></div>
     <div class="bg-legal"><div class="wrap flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-6 t-small muted"><\${LiensLegaux}/><span class="flex flex-wrap items-center gap-x-6"><button onClick=\${() => onAuth("login")} class="inline-flex min-h-11 items-center hover:underline">\${saas ? "Se connecter" : "Espace gérant"}</button><span>Site créé avec Bingoo!</span></span></div></div>
   </div>\`;
