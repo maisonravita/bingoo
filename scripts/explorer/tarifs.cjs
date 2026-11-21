@@ -1,6 +1,7 @@
 // Explorer – tarifs : pour les SaaS dont la page de tarifs ne se lit qu'avec JavaScript, un vrai navigateur (Playwright)
 // affiche la page et en garde le texte (saas.prix_rendu). La fiche est ensuite relue par la tâche de nuit (lu_at remis à vide).
 const { chromium } = require("playwright");
+const court = (e) => String(e?.message ?? e).split(/[\n{:]/)[0].slice(0, 60); // journaux publics : jamais de données ni de requête
 const TOK = process.env.SUPABASE_ACCESS_TOKEN, REF = "fbsjbnnmzazylmquzryo";
 // Nouvel essai si la base est saturée (429, 5xx) ou en conflit avec un autre collecteur (deadlock, verrou)
 async function q(sql, n = 0) {
@@ -58,4 +59,4 @@ const lit = (v) => "'" + String(v).replace(/'/g, "''") + "'";
   }
   await browser.close();
   console.log("tarifs rendus :", ok, "/", rows.length);
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => { console.error("arrêt :", court(e)); process.exit(1); });

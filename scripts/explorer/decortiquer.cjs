@@ -40,6 +40,7 @@ async function onglet() {
 }
 
 // Résumés du contenu visible
+let nFiche = 0;
 const court = (s, n = 160) => String(s ?? "").replace(/\s+/g, " ").trim().slice(0, n);
 
 async function pagesProduit(t, origine) {
@@ -90,7 +91,7 @@ async function analyserPage(t, url) {
     if (!tache) break;
     const { domaine, prise } = tache;
     const bail = `domaine = ${lit(domaine)} and statut = 'en_cours' and at = ${lit(prise)}::timestamptz`;
-    console.log("→", domaine);
+    console.log("→ fiche", ++nFiche);
     try {
       await ouvrir(t, `https://${domaine}/`);
       const accueil = await evalue(t, "location.href");
@@ -107,16 +108,16 @@ async function analyserPage(t, url) {
             pages.push(await analyserPage(t, cible));
           }
         } catch (e) {
-          console.log("  Page ignorée :", e.message);
+          console.log("  page ignorée :", court(e));
         }
       }
       const releve = { outil: "REA (rea-agents 6.9.0)", origine, pages, analyse_at: new Date().toISOString() };
       await q(`update public.saas_decortique set statut = 'analyse', rea = ${lit(JSON.stringify(releve))}::jsonb, erreur = null, at = now() where ${bail}`);
       console.log("  ✓", pages.length, "pages publiques");
     } catch (e) {
-      console.log("  ✗", e.message);
+      console.log("  ✗", court(e));
       await q(`update public.saas_decortique set statut = case when essais >= 3 then 'erreur' else 'attente' end,
         erreur = ${lit(String(e.message).slice(0, 300))}, at = now() where ${bail}`);
     }
   }
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => { console.error("arrêt :", court(e)); process.exit(1); });

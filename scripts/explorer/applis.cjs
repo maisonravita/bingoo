@@ -4,6 +4,7 @@
 // 2. Recherche publique par mots-clés pour aller au-delà des classements.
 // 3. Fiche détaillée (nom, éditeur, note, avis, prix, description) par lots de 150, puis écriture dans saas_mobiles.
 // Les jeux sont écartés, ainsi que les applis avec moins de 5 avis (souvent abandonnées).
+const court = (e) => String(e?.message ?? e).split(/[\n{:]/)[0].slice(0, 60); // journaux publics : jamais de données ni de requête
 const TOK = process.env.SUPABASE_ACCESS_TOKEN, REF = "fbsjbnnmzazylmquzryo";
 const FIN = Date.now() + Number(process.env.MINUTES || 300) * 60_000;
 const PAYS = (process.env.PAYS || "us,gb,fr,de,ca,au,es,it,nl,br,mx,jp,kr,in,se,ch,be,at,ie,nz,sg,dk,no,fi,pl,pt").split(",");
@@ -108,7 +109,7 @@ async function fiches(force = false) {
         on conflict (id) do update set nom = excluded.nom, editeur = excluded.editeur, categorie = excluded.categorie, description = excluded.description, note = excluded.note, avis = excluded.avis,
           prix = excluded.prix, devise = excluded.devise, abonnement = excluded.abonnement, icone = excluded.icone, url = excluded.url, site = excluded.site, maj = excluded.maj, vu_at = now(), capture = coalesce(excluded.capture, saas_mobiles.capture),
           rang_revenus = coalesce(excluded.rang_revenus, saas_mobiles.rang_revenus), rang_pays = coalesce(excluded.rang_pays, saas_mobiles.rang_pays), rang_categorie = coalesce(excluded.rang_categorie, saas_mobiles.rang_categorie)`)
-        .then(() => (gardees += lignes.length)).catch((e) => console.error("écriture", e.message));
+        .then(() => (gardees += lignes.length)).catch((e) => console.error("écriture", court(e)));
     }
   }
   console.log("applis gardées jusqu'ici :", gardees);
@@ -123,7 +124,7 @@ async function captures() {
     if (Date.now() > FIN || await basePleine()) break;
     const j = await apple(`https://itunes.apple.com/lookup?id=${rows.slice(i, i + 150).map((x) => x.id).join(",")}&country=us`);
     const v = (j?.results ?? []).map((r) => [r.trackId, (r.screenshotUrls ?? [])[0] ?? (r.ipadScreenshotUrls ?? [])[0]]).filter(([id, u]) => id && u);
-    if (v.length) await q(`update public.saas_mobiles m set capture = v.u from (values ${v.map(([id, u]) => `(${id}::bigint, ${lit(u)})`).join(",")}) v(id, u) where m.id = v.id`).then(() => (faites += v.length)).catch((e) => console.error("capture", e.message));
+    if (v.length) await q(`update public.saas_mobiles m set capture = v.u from (values ${v.map(([id, u]) => `(${id}::bigint, ${lit(u)})`).join(",")}) v(id, u) where m.id = v.id`).then(() => (faites += v.length)).catch((e) => console.error("capture", court(e)));
   }
   console.log("captures ajoutées :", faites);
 }
@@ -135,4 +136,4 @@ async function captures() {
   if (process.env.ETAPE !== "classements") await recherches();
   console.log("après recherches :", ids.size);
   await fiches(true);
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => { console.error("arrêt :", court(e)); process.exit(1); });

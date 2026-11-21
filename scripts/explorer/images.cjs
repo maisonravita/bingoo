@@ -1,6 +1,7 @@
 // Explorer – images : l'image de présentation de chaque SaaS (balise og:image / twitter:image de sa page d'accueil),
 // pour les cartes de l'Explorer. Sans IA, sans navigateur : une simple lecture de la page, 10 sites à la fois.
 // Les SaaS de TrustMRR ont déjà leur capture (reprise à part) ; un site sans image garde un logo.
+const court = (e) => String(e?.message ?? e).split(/[\n{:]/)[0].slice(0, 60); // journaux publics : jamais de données ni de requête
 const TOK = process.env.SUPABASE_ACCESS_TOKEN, REF = "fbsjbnnmzazylmquzryo";
 const FIN = Date.now() + Number(process.env.MINUTES || 120) * 60_000;
 const UA = "Mozilla/5.0 (compatible; BingooBot/1.0; +https://kairo.maisonravita.fr/#/retrait)";
@@ -36,7 +37,7 @@ async function imageDe(domaine) {
   const vider = async () => {
     if (!lot.length) return;
     const l = lot; lot = [];
-    await q(`update public.saas s set image = v.u, image_at = now() from (values ${l.map((x) => `(${lit(x.id)}::uuid, ${lit(x.u)})`).join(",")}) v(id, u) where s.id = v.id`).catch((e) => console.error("écriture", e.message));
+    await q(`update public.saas s set image = v.u, image_at = now() from (values ${l.map((x) => `(${lit(x.id)}::uuid, ${lit(x.u)})`).join(",")}) v(id, u) where s.id = v.id`).catch((e) => console.error("écriture", court(e)));
   };
   const ouvrier = async () => {
     while (i < rows.length && Date.now() < FIN) {
@@ -50,4 +51,4 @@ async function imageDe(domaine) {
   await Promise.all(Array.from({ length: 10 }, ouvrier));
   await vider();
   console.log("images trouvées :", trouvees, "/", i);
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => { console.error("arrêt :", court(e)); process.exit(1); });

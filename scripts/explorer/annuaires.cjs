@@ -3,6 +3,7 @@
 // rythme doux (1 page par seconde et par annuaire), on garde l'adresse du site du produit et on l'ajoute aux candidats.
 // Le navigateur de « Explorer – rendu » vérifie ensuite que c'est bien un outil en ligne avant de l'ajouter à la base.
 // robots.txt est respecté : une page interdite n'est jamais ouverte.
+const court = (e) => String(e?.message ?? e).split(/[\n{:]/)[0].slice(0, 60); // journaux publics : jamais de données ni de requête
 const TOK = process.env.SUPABASE_ACCESS_TOKEN, REF = "fbsjbnnmzazylmquzryo";
 const FIN = Date.now() + Number(process.env.MINUTES || 300) * 60_000;
 const UA = "BingooBot/1.0 (+https://kairo.maisonravita.fr/#/retrait)";
@@ -90,7 +91,7 @@ async function annuaire([site, motif]) {
     if (!lot.length) return;
     const l = [...new Set(lot)]; lot = [];
     await q(`insert into public.saas_candidats (domaine, rang, statut, note, at) values ${l.map((d) => `(${lit(d)}, 0, 'erreur', null, now())`).join(",")}
-      on conflict (domaine) do nothing`).then((x) => (total += l.length)).catch((e) => console.error(site, "écriture", e.message));
+      on conflict (domaine) do nothing`).then((x) => (total += l.length)).catch((e) => console.error(site, "écriture", court(e)));
   };
   for (const p of pages) {
     if (Date.now() > FIN || await basePleine()) break;
@@ -111,5 +112,5 @@ async function annuaire([site, motif]) {
 
 (async () => {
   // Les annuaires en parallèle (chacun à son propre rythme doux)
-  await Promise.all(ANNUAIRES.map((a) => annuaire(a).catch((e) => console.error(a[0], e.message))));
-})().catch((e) => { console.error(e); process.exit(1); });
+  await Promise.all(ANNUAIRES.map((a) => annuaire(a).catch((e) => console.error(a[0], court(e)))));
+})().catch((e) => { console.error("arrêt :", court(e)); process.exit(1); });

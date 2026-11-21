@@ -2,6 +2,7 @@
 // classés par nombre de sous-réseaux qui les citent). Un relevé par jour, pour la courbe de la fiche.
 // Source : « Majestic Million CSV by Majestic 12 », licence Creative Commons Attribution 3.0 (attribution affichée dans la fiche).
 // Majestic demande de ne pas télécharger plus d'une fois par 24 heures : ce script tourne une fois par jour.
+const court = (e) => String(e?.message ?? e).split(/[\n{:]/)[0].slice(0, 60); // journaux publics : jamais de données ni de requête
 const TOK = process.env.SUPABASE_ACCESS_TOKEN, REF = "fbsjbnnmzazylmquzryo";
 // Nouvel essai si la base est saturée (429, 5xx) ou en conflit avec un autre collecteur (deadlock, verrou)
 async function q(sql, n = 0) {
@@ -36,4 +37,4 @@ async function q(sql, n = 0) {
   for (let i = 0; i < vus.length; i += 500)
     await q(`insert into public.saas_notoriete (saas_id, jour, rang, sous_reseaux) values ${vus.slice(i, i + 500).join(",")} on conflict (saas_id, jour) do update set rang = excluded.rang, sous_reseaux = excluded.sous_reseaux`);
   console.log("mis à jour :", (await q(`select public.saas_notoriete_maj() n`))[0]?.n);
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => { console.error("arrêt :", court(e)); process.exit(1); });

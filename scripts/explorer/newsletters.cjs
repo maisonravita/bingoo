@@ -5,6 +5,7 @@
 // - jamais de mot de passe, de création de compte, de demande de démo ou de contact, de case CGU, de captcha ;
 // - une case de consentement à recevoir la newsletter est cochée (c'est l'objet même de l'inscription).
 const { chromium } = require("playwright");
+const court = (e) => String(e?.message ?? e).split(/[\n{:]/)[0].slice(0, 60); // journaux publics : jamais de données ni de requête
 const TOK = process.env.SUPABASE_ACCESS_TOKEN, REF = "fbsjbnnmzazylmquzryo";
 const ADRESSE = "explorer-veille@maisonravita.fr";
 // Nouvel essai si la base est saturée (429, 5xx) ou en conflit avec un autre collecteur (deadlock, verrou)
@@ -104,8 +105,8 @@ const ANALYSE = (adresse) => {
     await page.close().catch(() => {});
     bilan[statut] = (bilan[statut] ?? 0) + 1;
     await q(`update public.saas set newsletter_at = now(), newsletter_statut = coalesce(nullif(newsletter_statut, ''), ${lit(statut)}) where id = ${lit(r.id)}`);
-    console.log(r.domaine, statut);
+    // (journal public : pas de domaine ligne par ligne, seulement le bilan)
   }
   await browser.close();
   console.log("bilan :", JSON.stringify(bilan));
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => { console.error("arrêt :", court(e)); process.exit(1); });

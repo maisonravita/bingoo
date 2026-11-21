@@ -8,6 +8,7 @@
 const fs = require("fs");
 const path = require("path");
 const { chromium } = require("playwright");
+const court = (e) => String(e?.message ?? e).split(/[\n{:]/)[0].slice(0, 60); // journaux publics : jamais de données ni de requête
 const TOK = process.env.SUPABASE_ACCESS_TOKEN, REF = "fbsjbnnmzazylmquzryo";
 const PART = Number(process.env.PART || 0), PARTS = Number(process.env.PARTS || 1), MAX = Number(process.env.MAX || 3000);
 const PAR = Number(process.env.PAR || 6), FIN = Date.now() + Number(process.env.MINUTES || 300) * 60_000;
@@ -82,15 +83,15 @@ const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").
       const sa = cand.filter((x) => x.statut === "saas");
       if (sa.length) await q(`insert into public.saas (domaine, source, statut, essais, accueil_rendu, accueil_rendu_at)
         values ${sa.map((x) => `(${lit(x.domaine)}, 'decouverte:rendu', 'a_lire', 0, ${lit(x.rendu)}, now())`).join(",")}
-        on conflict (domaine) do nothing`).catch((e) => console.error("ajout", e.message));
-      await q(`update public.saas_candidats c set statut = v.s, at = now() from (values ${cand.map((x) => `(${lit(x.domaine)}, ${lit("rendu_" + x.statut)})`).join(",")}) v(d, s) where c.domaine = v.d`).catch((e) => console.error("candidats", e.message));
+        on conflict (domaine) do nothing`).catch((e) => console.error("ajout", court(e)));
+      await q(`update public.saas_candidats c set statut = v.s, at = now() from (values ${cand.map((x) => `(${lit(x.domaine)}, ${lit("rendu_" + x.statut)})`).join(",")}) v(d, s) where c.domaine = v.d`).catch((e) => console.error("candidats", court(e)));
     }
     if (!l.length) return;
     const v = l.map((x) => `(${lit(x.id)}::uuid, ${lit(x.statut)}, ${lit(x.rendu)})`).join(",");
     await q(`update public.saas s set accueil_rendu_at = now(), accueil_rendu = coalesce(v.rendu, s.accueil_rendu),
       statut = case when v.statut = 'pas_saas' then 'pas_saas' else s.statut end,
       essais = case when v.statut = 'saas' then 0 else s.essais end
-      from (values ${v}) v(id, statut, rendu) where s.id = v.id and s.statut = 'a_lire'`).catch((e) => console.error("écriture", e.message));
+      from (values ${v}) v(id, statut, rendu) where s.id = v.id and s.statut = 'a_lire'`).catch((e) => console.error("écriture", court(e)));
   };
   let i = 0, recharge = null;
   const travail = async () => {
@@ -132,4 +133,4 @@ const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").
   await vider();
   await browser.close();
   console.log("résultat :", JSON.stringify(res));
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => { console.error("arrêt :", court(e)); process.exit(1); });
