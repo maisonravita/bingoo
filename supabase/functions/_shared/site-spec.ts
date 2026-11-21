@@ -43,7 +43,9 @@ Rends un objet JSON :
 - lancement : pour un lancement seulement, { quand (« Printemps 2027 », « Bientôt » : seulement ce que l'idée dit, sinon « Bientôt »), offre (un avantage pour les premiers inscrits si l'idée en parle, sinon "") } ; sinon null
 - apropos : { titre (5 mots), texte (3 phrases, à la première personne, sur la façon de travailler) }
 - faq : 4 à 6 objets { q, r } : les vraies questions des clients de ce métier (zone, délais, paiement, annulation…), réponses en 1 à 2 phrases, prudentes
-- horaires : (vide [] pour un portfolio ou un lancement) 7 objets { jour (1 = lundi … 7 = dimanche), ouvert (booléen), debut ("09:00"), fin ("18:30") } habituels pour ce métier
+- horaires : (vide [] pour un portfolio ou un lancement) 7 objets { jour (1 = lundi … 7 = dimanche), ouvert (booléen), debut ("09:00"), fin ("18:30"), debut2 et fin2 (2e plage le même jour, ex. le soir d'un restaurant : "19:30" et "22:00", sinon "") } : CEUX DE L'IDÉE s'ils y sont écrits, exactement, sinon habituels pour ce métier
+- telephone : le numéro SEULEMENT s'il est écrit dans l'idée, sinon ""
+- adresse : l'adresse postale SEULEMENT si elle est écrite dans l'idée (rue, code postal, ville), sinon ""
 - zone : la zone d'intervention ou le quartier si c'est un métier qui se déplace ou si l'idée le dit, sinon ""
 - demandes : 8 demandes d'exemple (fictives, pour tester l'espace gérant) { service (le titre d'un des services, ou "" pour un lancement), message (1 ou 2 phrases d'un client) } ; pour un lancement, ce sont des inscrits : { prenom, message: "" }
 RÈGLES D'HONNÊTETÉ (le site est en ligne tout de suite, au nom du membre) : AUCUN avis ni témoignage client, AUCUN chiffre de clients ou de satisfaction, AUCUNE année d'expérience, AUCUN diplôme, label, certification, assurance ou garantie que le membre n'a pas cités, AUCUN nom de marque. Pas d'adresse, de téléphone ni d'e-mail inventés (le gérant les ajoute).
@@ -68,8 +70,13 @@ export function specSite(c: any, p: any) {
   })).filter((x: any) => x.titre);
   if (!services.length && modele !== "lancement") services.push({ titre: "Premier rendez-vous", description: "Un premier échange pour comprendre votre besoin.", prix: null, prix_texte: "", duree: "", ordre: 1, visible: true });
   const H = liste(c?.horaires);
-  const horaires = [1, 2, 3, 4, 5, 6, 7].map((j) => { const x = H.find((y: any) => Number(y?.jour) === j) ?? {}; const ouvert = x.ouvert === undefined ? j <= 5 : !!x.ouvert; return { jour: j, ouvert, debut: hh(x.debut, "09:00"), fin: hh(x.fin, "18:00") }; });
-  const infos = [{ telephone: "", email: "", adresse: "", zone: court(c?.zone, 120) || court(c?.ville, 60), instagram: "", facebook: "" }];
+  const horaires = [1, 2, 3, 4, 5, 6, 7].map((j) => { const x = H.find((y: any) => Number(y?.jour) === j) ?? {}; const ouvert = x.ouvert === undefined ? j <= 5 : !!x.ouvert; const deux = ouvert && /^\d{1,2}:\d{2}$/.test(String(x.debut2 ?? "")) && /^\d{1,2}:\d{2}$/.test(String(x.fin2 ?? "")); return { jour: j, ouvert, debut: hh(x.debut, "09:00"), fin: hh(x.fin, "18:00"), ...(deux ? { debut2: hh(x.debut2, "19:00"), fin2: hh(x.fin2, "22:00") } : {}) }; });
+  // Téléphone et adresse : seulement s'ils sont écrits dans l'idée du membre (vérifié ici, jamais inventés par l'IA)
+  const ideeTxt = String(p?.idee?.texte ?? "") + " " + (Array.isArray(p?.idee?.reponses) ? p.idee.reponses.map((x: any) => x?.r ?? "").join(" ") : "");
+  const chiffres = (x: unknown) => String(x ?? "").replace(/\D/g, "");
+  const tel = chiffres(c?.telephone).length >= 10 && chiffres(ideeTxt).includes(chiffres(c?.telephone)) ? court(c?.telephone, 30) : "";
+  const adr = court(c?.adresse, 160), adrOk = adr && adr.split(/[ ,]+/).filter((m: string) => m.length > 3).every((m: string) => ideeTxt.toLowerCase().includes(m.toLowerCase()));
+  const infos = [{ telephone: tel, email: "", adresse: adrOk ? adr : "", zone: court(c?.zone, 120) || court(c?.ville, 60), instagram: "", facebook: "" }];
   const D = liste(c?.demandes).length ? liste(c.demandes) : services.map((s: any) => ({ service: s.titre, message: "Bonjour, je souhaiterais en savoir plus et connaître vos disponibilités." }));
   const statuts = ["nouvelle", "nouvelle", "nouvelle", "en_cours", "en_cours", "traitee", "traitee", "traitee"];
   const demandes = D.slice(0, 10).map((x: any, i: number) => {
@@ -96,7 +103,7 @@ export function specSite(c: any, p: any) {
   const collections = [
     { nom: "demandes", label: "Demandes", champs: [{ nom: "nom", type: "texte" }, { nom: "email", type: "email" }, { nom: "telephone", type: "telephone" }, { nom: "service", type: "texte" }, { nom: "date_souhaitee", type: "date" }, { nom: "message", type: "texte" }, { nom: "statut", type: "choix", valeurs: ["nouvelle", "en_cours", "traitee"] }, { nom: "note", type: "texte" }] },
     { nom: "services", label: "Services", champs: [{ nom: "titre", type: "texte" }, { nom: "description", type: "texte" }, { nom: "prix", type: "montant" }, { nom: "prix_texte", type: "texte" }, { nom: "duree", type: "texte" }, { nom: "ordre", type: "nombre" }, { nom: "visible", type: "booleen" }] },
-    { nom: "horaires", label: "Horaires", champs: [{ nom: "jour", type: "nombre" }, { nom: "ouvert", type: "booleen" }, { nom: "debut", type: "texte" }, { nom: "fin", type: "texte" }] },
+    { nom: "horaires", label: "Horaires", champs: [{ nom: "jour", type: "nombre" }, { nom: "ouvert", type: "booleen" }, { nom: "debut", type: "texte" }, { nom: "fin", type: "texte" }, { nom: "debut2", type: "texte" }, { nom: "fin2", type: "texte" }] },
     { nom: "realisations", label: "Réalisations", champs: [{ nom: "titre", type: "texte" }, { nom: "categorie", type: "texte" }, { nom: "description", type: "texte" }, { nom: "image", type: "lien" }, { nom: "lien", type: "lien" }, { nom: "visible", type: "booleen" }, { nom: "ordre", type: "nombre" }] },
     { nom: "inscrits", label: "Inscrits", champs: [{ nom: "prenom", type: "texte" }, { nom: "email", type: "email" }, { nom: "source", type: "texte" }] },
     { nom: "infos", label: "Coordonnées", champs: [{ nom: "telephone", type: "telephone" }, { nom: "email", type: "email" }, { nom: "adresse", type: "texte" }, { nom: "zone", type: "texte" }, { nom: "instagram", type: "lien" }, { nom: "facebook", type: "lien" }, { nom: "prix_verifies", type: "booleen" }] },

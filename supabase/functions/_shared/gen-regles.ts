@@ -63,6 +63,10 @@ Un formulaire n'existe QUE par son marqueur (contact ou inscription).
   ni mentions légales ni « Espace gérant » : Bingoo! ajoute sa ligne légale sous ta page.
 - Téléphone : tout tient à 390 et 320 px (grilles qui s'empilent, rien en largeur fixe au-delà de 100%).
 
+- Le h1 : 9 mots au plus. Aucun mot ni texte dans une forme décorative ou un cadre de taille fixe (il serait coupé) ;
+  un moment typographique est un élément de texte à part entière, qui passe à la ligne et tient à 320 px.
+- Polices : celles du thème seulement ; jamais de police à chasse fixe pour le texte courant.
+
 ## Visuels sans photo du membre
 Si aucune image n'est fournie : moment typographique (un mot ou une adresse en très grand), composition de formes CSS aux couleurs
 du thème, illustration SVG simple et calme, ou maquette d'écran construite en HTML/CSS (pour une appli ou un logiciel), jamais une
