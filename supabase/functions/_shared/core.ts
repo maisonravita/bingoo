@@ -496,9 +496,12 @@ export async function ask(prompt: string, opts: AskOpts = {}): Promise<string> {
   const run = async () => {
     let r = await call(base, key);
     if (r.ok) garder(r.data);
+    // Selon le modèle, « disabled » est refusé : Sonnet 5.5 coupe la réflexion préalable avec « between_tools »
+    // (sinon elle mange le budget de sortie et le temps de la fonction) ; en dernier recours, le réglage par défaut
     if (!r.ok && r.status === 400 && /thinking/i.test(r.data?.error?.message ?? "")) {
-      delete base.thinking;
+      base.thinking = { type: "between_tools" };
       r = await call(base, key);
+      if (!r.ok && r.status === 400 && /thinking/i.test(r.data?.error?.message ?? "")) { delete base.thinking; r = await call(base, key); }
     }
     for (let i = 0; i < 3 && r.ok && r.data?.stop_reason === "pause_turn"; i++) {
       base.messages = [{ role: "user", content: prompt }, { role: "assistant", content: r.data.content }];
