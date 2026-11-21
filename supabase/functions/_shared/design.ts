@@ -54,6 +54,15 @@ export type DesignChoisi = {
 };
 
 /** Tire une des 3 variantes : jamais celle des projets récents du même secteur ni des projets de ce membre, sinon la moins récente. */
+// Polices de titre neutres (lisibles mais sans caractère) : avec elles, une page générée ressemble à n'importe quel produit.
+// Elles sont remplacées automatiquement par une police de titre qui a de l'allure (toutes disponibles de 400 à 800 chez Google).
+const TITRES_NEUTRES = /^(inter|poppins|open sans|roboto|lato|montserrat|arial|helvetica|nunito sans|source sans 3|noto sans)$/i;
+const TITRES_CARACTERE = ["Fraunces", "Newsreader", "Playfair Display", "Literata", "Bricolage Grotesque", "Sora", "DM Serif Display"];
+export function titresAvecCaractere(titres: string, graine: string): string {
+  if (!TITRES_NEUTRES.test(String(titres ?? "").trim())) return titres;
+  let h = 0; for (const c of graine) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return TITRES_CARACTERE[h % TITRES_CARACTERE.length];
+}
 export function tirerDesign(categorie: string, dejaVues: { categorie?: string; variante?: number }[] = [], aleatoire = Math.random): DesignChoisi {
   const s = SYSTEMES[categorie] ?? SYSTEMES["SaaS (General)"];
   const n = s.variantes.length;
@@ -69,7 +78,7 @@ export function tirerDesign(categorie: string, dejaVues: { categorie?: string; v
   return {
     source: "ui-ux-pro-max", categorie: s.categorie, variante: i, style: v.style, mode: v.mode,
     // Texte courant jamais en chasse fixe (lisibilité) : une police de labeur à la place ; la police à chasse fixe reste pour les titres
-    couleurs: v.couleurs, polices: { titres: v.polices.titres, texte: /mono/i.test(v.polices.texte) ? (/mono/i.test(v.polices.titres) ? "Inter" : "Inter") : v.polices.texte },
+    couleurs: v.couleurs, polices: { titres: titresAvecCaractere(v.polices.titres, `${s.categorie}-${i}-${Math.floor(aleatoire() * 1e6)}`), texte: /mono/i.test(v.polices.texte) ? (/mono/i.test(v.polices.titres) ? "Inter" : "Inter") : v.polices.texte },
     motif: s.motif.nom, sections: s.motif.sections, eviter: s.eviter,
     ...(v.allure ? { allure: v.allure } : {}),
   };

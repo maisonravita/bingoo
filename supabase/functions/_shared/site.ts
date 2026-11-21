@@ -100,12 +100,15 @@ export async function vitrineSaaS(appId: string) {
     spec.slogan ? `Accroche choisie : ${spec.slogan}` : "",
     `Pour : ${spec.cible ?? ""}`,
     spec.probleme_site || spec.probleme ? `Le problème des clients : ${spec.probleme_site || spec.probleme}` : "",
-    `Ce que fait le logiciel, écran par écran : ${ecrans.map((e: any) => `${e.titre} (${court(e.but, 140)})`).join(" ; ")}`,
-    (spec.atouts ?? []).length ? `Atouts : ${(spec.atouts ?? []).map((a: any) => `${a.titre} : ${a.texte}`).join(" ; ")}` : "",
+    spec.nature?.espace_principal ? `Sa journée avec le logiciel : ${court(spec.nature.espace_principal, 400)}` : "",
+    (spec.nature?.interactions ?? []).length ? `Ce qu'il y fait vraiment : ${(spec.nature.interactions ?? []).slice(0, 5).join(" ; ")}` : "",
+    (spec.atouts ?? []).length ? `Ce qui change pour lui : ${(spec.atouts ?? []).slice(0, 4).map((a: any) => `${a.titre} (${a.texte})`).join(" ; ")}` : "",
   ].filter(Boolean).join("\n");
   const consignes = `Page de présentation d'un LOGICIEL EN LIGNE (SaaS) déjà construit, qui vend un essai gratuit.
 - Le bouton principal mène à l'essai : <a class="btn btn--primary" href="#essai">${court(spec.cta || "Essayer gratuitement", 30)}</a>. Le lien de connexion des clients existants : <a href="#connexion">Se connecter</a>, dans le header à droite. N'utilise aucun formulaire ni marqueur (pas de data-bingoo) : l'inscription se fait par ces liens.
-- Les visuels sont des MAQUETTES du vrai logiciel dessinées en HTML et CSS (fenêtre d'application, colonnes, lignes, étiquettes de statut), avec les vrais noms d'écrans et des éléments tirés des données d'exemple ci-dessous ; jamais une capture inventée d'un autre produit, jamais de chiffres d'activité présentés comme réels.
+- Raconte un USAGE, pas une liste de fonctions : à qui ça sert, à quel moment de sa journée, ce qui change pour lui. Jamais une grille qui passe en revue tous les écrans.
+- Les visuels sont des MAQUETTES du vrai logiciel dessinées en HTML et CSS (fenêtre d'application, colonnes, lignes, étiquettes de statut), avec des éléments tirés des données d'exemple ci-dessous. Montre 2 ou 3 moments clés, chacun EN GRAND dans sa propre section (l'espace principal dans le premier écran), jamais une rangée de petites maquettes de même taille. Écrans disponibles : ${ecrans.map((e: any) => `${e.titre} (${court(e.but, 100)})`).join(" ; ")}.
+- Jamais une capture inventée d'un autre produit, jamais de chiffres d'activité présentés comme réels ; pas d'effet de texte barré.
 - Les prix sont ceux des formules données (services) et rien d'autre, par mois ; « Sans carte bancaire » et « 14 jours d'essai » sont vrais et peuvent être dits.
 - Aucun avis, logo de client, nombre d'utilisateurs ou statistique de résultat.
 Données d'exemple du logiciel (pour remplir les maquettes) :
