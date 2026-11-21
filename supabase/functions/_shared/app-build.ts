@@ -332,6 +332,17 @@ export async function saasDemoPuisEcrans(appId: string, lancerEcran: (ecranId: s
 Collections : ${(s.collections ?? []).slice(0, 8).map((c: any) => `${c.nom} : ${(c.champs ?? []).map((x: any) => `${x.nom} ${x.type}${x.valeurs ? ` [${x.valeurs.join("|")}]` : ""}`).join(", ")}`).join(" ; ")}
 Écris les données d'exemple de cette application. Rends un objet JSON { <collection> : 12 éléments réalistes en français (entreprises, personnes, séances ou contenus fictifs selon l'application, montants cohérents, dates : la MOITIÉ dans la semaine en cours (dont 2 ou 3 aujourd'hui), pour que les vues du jour et de la semaine soient remplies, le reste entre ${new Date(Date.now() - 45 * 864e5).toISOString().slice(0, 10)} et ${new Date(Date.now() + 45 * 864e5).toISOString().slice(0, 10)}, aujourd'hui = ${new Date().toISOString().slice(0, 10)} ; statuts variés et cohérents avec la date : ce qui est passé est fini ou en retard, ce qui est à venir est prévu) } ; les champs <collection>_id pointent vers le champ « ref » (ex. "c1") que tu ajoutes à chaque élément.`, { fast: true, maxTokens: 12000 }).catch(() => ({}));
   const d = sansFaussesImages(demo && typeof demo === "object" && !Array.isArray(demo) ? (demo.demo ?? demo) : {}) as any;
+  // Une réponse incomplète (une seule collection remplie) vidait presque tous les écrans : on complète les collections manquantes
+  const manquent = (s.collections ?? []).slice(0, 8).filter((c: any) => !Array.isArray(d[c.nom]) || d[c.nom].length < 3);
+  if (manquent.length) {
+    const refs = Object.entries(d).filter(([, xs]) => Array.isArray(xs)).map(([k, xs]: [string, any]) => `${k} : ${(xs as any[]).map((x) => x?.ref).filter(Boolean).join(", ")}`).join(" ; ");
+    const suite = await askJson<any>(`Application « ${p.nom} » : ${p.pitch}
+Collections à remplir : ${manquent.map((c: any) => `${c.nom} : ${(c.champs ?? []).map((x: any) => `${x.nom} ${x.type}${x.valeurs ? ` [${x.valeurs.join("|")}]` : ""}`).join(", ")}`).join(" ; ")}
+${refs ? `Éléments déjà écrits (leurs « ref », pour les champs <collection>_id) : ${refs}\n` : ""}Rends un objet JSON { <collection> : 12 éléments réalistes en français }, chacun avec un champ « ref » unique ; la moitié des dates dans la semaine en cours (dont 2 ou 3 aujourd'hui = ${new Date().toISOString().slice(0, 10)}), le reste dans les 45 jours autour ; statuts cohérents avec la date.`, { fast: true, maxTokens: 12000 }).catch(() => ({}));
+    const d2 = sansFaussesImages(suite && typeof suite === "object" && !Array.isArray(suite) ? (suite.demo ?? suite) : {}) as any;
+    for (const c of manquent) if (Array.isArray(d2[c.nom]) && d2[c.nom].length) d[c.nom] = d2[c.nom];
+    console.log("demo complétée", manquent.map((c: any) => c.nom).join(","), Object.keys(d2).join(","));
+  }
   await admin.from("saas_apps").update({ brouillon: { ...sp, demo: d }, etape: `Écriture des écrans (0/${sp.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
   await Promise.all(sp.ecrans.map((e: any) => lancerEcran(e.id)));
 }
