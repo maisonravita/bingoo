@@ -29,7 +29,7 @@ const adminAuth = (path, method, body) => fetch(`${SB}/auth/v1/admin/${path}`, {
 const MDP = crypto.randomBytes(18).toString("base64url");
 let [u] = await q(`select id from auth.users where email = ${lit(EMAIL)}`);
 if (!u) u = await adminAuth("users", "POST", { email: EMAIL, password: MDP, email_confirm: true, user_metadata: { name: "Robot captures" } });
-else await adminAuth(`users/${u.id}`, "PUT", { password: MDP });
+else for (let k = 1; ; k++) { try { await adminAuth(`users/${u.id}`, "PUT", { password: MDP }); break; } catch (e) { if (k >= 3 || !/ 50[234] /.test(e.message)) throw e; console.log(`Service d'authentification lent (${e.message.slice(0, 40)}), nouvel essai dans 20 s`); await new Promise((r) => setTimeout(r, 20000)); } }
 const session = await (await fetch(`${SB}/auth/v1/token?grant_type=password`, { method: "POST", headers: { apikey: ANON, "content-type": "application/json" }, body: JSON.stringify({ email: EMAIL, password: MDP }) })).json();
 if (!session.access_token) throw new Error("Connexion du compte de test impossible");
 const uid = session.user.id;
