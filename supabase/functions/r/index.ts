@@ -774,7 +774,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       const r = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/r/saas-app-ecran`, { method: "POST", headers: { "content-type": "application/json", "x-cron-key": cle }, body: JSON.stringify({ app_id: appId, ecran, ws: b.ws }) });
       if (!r.ok) console.error("saas-app-ecran", r.status, await r.text());
     };
-    const travail = (b.ecran === "__page" ? import("../_shared/site.ts").then(async (m) => m.pageSurMesure(appId, (await import("../_shared/app-build.ts")).demarrerVerification)) : b.ecran === "__demo" ? saasDemoPuisEcrans(appId, lancerEcran) : saasEcrireEcran(appId, String(b.ecran ?? ""))).catch((e) => console.error("ecran", e));
+    const travail = (b.ecran === "__vitrine" ? import("../_shared/site.ts").then((m) => m.vitrineSaaS(appId)) : b.ecran === "__page" ? import("../_shared/site.ts").then(async (m) => m.pageSurMesure(appId, (await import("../_shared/app-build.ts")).demarrerVerification)) : b.ecran === "__demo" ? saasDemoPuisEcrans(appId, lancerEcran) : saasEcrireEcran(appId, String(b.ecran ?? ""))).catch((e) => console.error("ecran", e));
     // deno-lint-ignore no-explicit-any
     const rt = (globalThis as any).EdgeRuntime;
     if (rt?.waitUntil) rt.waitUntil(travail); else await travail;

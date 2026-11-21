@@ -22,6 +22,8 @@ type Plan = { nav: { mot: string; ancre: string }[]; sections: Section[]; images
 export type EntreePage = {
   nom: string; brief: string; modele: string; metier?: string; ville?: string; cta?: string; demande?: string;
   design: any; photosMembre?: string[]; services?: any[]; horaires?: any[]; infos?: any; faq?: any[];
+  /** Consignes propres au genre de projet (page de présentation d'un SaaS : boutons vers l'essai, maquettes des vrais écrans) */
+  consignes?: string;
 };
 export type PageGeneree = { sections: { id: string; html: string }[]; images: Record<string, { url: string; prompt: string }>; nav: Plan["nav"] };
 export type MesurePage = { modele: string; cout: number; images_eur: number; entree: number; sortie: number; appels: number; duree_s: number; corrections: number; journal: string[] };
@@ -39,7 +41,7 @@ export async function genererPage(e: EntreePage): Promise<{ page: PageGeneree; m
   const compteur: Compteur = { cout: 0, entree: 0, sortie: 0, appels: 0, modeles: {} };
   const store = aiCtx.getStore(); if (store) store.compteur = compteur;
   const typeP = typeDeProjet({ site: true, modele: e.modele, metier: e.metier, idee: e.brief });
-  const systeme = `${REGLES_PAGE}\n\n## Palette et polices imposées (système de design tiré pour ce membre)\n${texteDesign(e.design)}\n\n## Fiche du type de projet (${typeP})\n${FICHES[typeP] ?? ""}`;
+  const systeme = `${REGLES_PAGE}\n\n## Palette et polices imposées (système de design tiré pour ce membre)\n${texteDesign(e.design)}\n\n## Fiche du type de projet (${typeP})\n${FICHES[typeP] ?? ""}${e.consignes ? `\n\n## Ce projet\n${e.consignes}` : ""}`;
   const donnees = JSON.stringify({ nom: e.nom, modele: e.modele, metier: e.metier, ville: e.ville, bouton_principal: e.cta, demande: e.demande,
     services: (e.services ?? []).map((s: any) => ({ titre: s.titre, prix: s.prix, duree: s.duree })), horaires: e.horaires ?? [], coordonnees: e.infos ?? {}, faq: e.faq ?? [],
     photos_du_membre: (e.photosMembre ?? []).length });

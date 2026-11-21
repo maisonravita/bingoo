@@ -10,7 +10,7 @@ export type TypeProjet = "software" | "product" | "service" | "place";
 /** Taste §1 : le genre d'activité décide de tout. */
 export function typeDeProjet(p: { site?: boolean; modele?: string; metier?: string; idee?: string }): TypeProjet {
   if (!p.site) return "software";
-  if (p.modele === "lancement") return "software";
+  if (p.modele === "lancement" || p.modele === "saas") return "software";
   const t = `${p.metier ?? ""} ${p.idee ?? ""}`.toLowerCase();
   // Préfixes (pas de \b final : « boulangerie », « créatrice »…) ; un fabricant qui ouvre sa porte ou donne des cours est un lieu
   if (/(^|[^a-zà-ÿ])(caf[ée]s?\b|bars?\b|salons? de|barbi|boulang|p[âa]tiss|restaura|traiteur|h[ôo]tel|g[îi]te|chambres? d'h[ôo]te|boutique|magasin|fleuris|salle de sport|studio de (yoga|pilates|danse)|librair|[ée]picer|caviste|cave à)/.test(t)) return "place";

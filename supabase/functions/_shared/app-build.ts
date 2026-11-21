@@ -344,7 +344,8 @@ ${refs ? `Éléments déjà écrits (leurs « ref », pour les champs <collectio
     console.log("demo complétée", manquent.map((c: any) => c.nom).join(","), Object.keys(d2).join(","));
   }
   await admin.from("saas_apps").update({ brouillon: { ...sp, demo: d }, etape: `Écriture des écrans (0/${sp.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
-  await Promise.all(sp.ecrans.map((e: any) => lancerEcran(e.id)));
+  // La page de présentation du SaaS s'écrit en même temps que les écrans, par le moteur de pages (comme les sites)
+  await Promise.all([...sp.ecrans.map((e: any) => lancerEcran(e.id)), ...(sp.type !== "site" && !sp.mobile ? [lancerEcran("__vitrine")] : [])]);
 }
 
 async function inspireDe(appId: string) {

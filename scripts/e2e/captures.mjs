@@ -239,6 +239,17 @@ if (CONSTRUIRE === "spec") {
       }
     }
     console.log("✓ écrans du SaaS photographiés :", (titres ?? []).join(", "));
+    // La page de présentation telle que la voit un visiteur (moteur de pages), ordinateur puis téléphone
+    const [gv] = await q(`select spec->'gen' gen, jsonb_array_length(coalesce(spec->'site'->'page'->'sections','[]'::jsonb)) n from saas_apps where slug = ${lit(a.slug)}`);
+    console.log("Page de présentation :", JSON.stringify(gv));
+    fs.writeFileSync(`${DOSSIER}/vitrine-moteur.json`, JSON.stringify(gv, null, 2));
+    for (const [nom, vp] of [["vitrine", { width: 1440, height: 900 }], ["vitrine-mobile", { width: 390, height: 844 }]]) {
+      const c2 = await browser.newContext({ viewport: vp, locale: "fr-FR" }); const p2 = await c2.newPage();
+      await p2.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+      await p2.waitForTimeout(6000);
+      await p2.screenshot({ path: `${DOSSIER}/${nom}.png`, fullPage: true }).catch(() => null);
+      await c2.close(); console.log("✓", nom);
+    }
   }
   if (CONSTRUIRE === "site" && a?.slug) {
     // Référencement : les balises que lisent Google et les aperçus de partage, sur le lien à partager /s/<site>

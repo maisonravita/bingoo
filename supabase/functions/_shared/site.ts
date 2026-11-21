@@ -85,6 +85,48 @@ export async function pageSurMesure(appId: string, demarrerVerification: (id: st
   await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: e0.id, p_code: e0.code, p_ok: true });
 }
 
+/** Page de présentation d'un SaaS écrite par le moteur de pages (comme les sites) : en parallèle de l'écriture des écrans.
+ *  Elle s'enregistre sans écraser les écrans (saas_app_page_set) ; en cas d'échec, l'ancienne page de présentation reste. */
+export async function vitrineSaaS(appId: string) {
+  const { data: app } = await admin.from("saas_apps").select("brouillon, spec").eq("id", appId).single();
+  const spec = ((app?.brouillon ?? app?.spec) ?? null) as any;
+  if (!spec?.nom) return;
+  const court = (x: unknown, n: number) => String(x ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+  const ecrans = (spec.ecrans ?? []).filter((e: any) => !e.public);
+  const exemples = Object.entries(spec.demo ?? {}).filter(([, xs]) => Array.isArray(xs) && (xs as any[]).length).slice(0, 4)
+    .map(([k, xs]: [string, any]) => `${k} : ${(xs as any[]).slice(0, 3).map((x) => court(JSON.stringify(x), 180)).join(" | ")}`).join("\n");
+  const brief = [
+    `${spec.nom} : ${spec.pitch_site || spec.pitch || ""}`,
+    spec.slogan ? `Accroche choisie : ${spec.slogan}` : "",
+    `Pour : ${spec.cible ?? ""}`,
+    spec.probleme_site || spec.probleme ? `Le problème des clients : ${spec.probleme_site || spec.probleme}` : "",
+    `Ce que fait le logiciel, écran par écran : ${ecrans.map((e: any) => `${e.titre} (${court(e.but, 140)})`).join(" ; ")}`,
+    (spec.atouts ?? []).length ? `Atouts : ${(spec.atouts ?? []).map((a: any) => `${a.titre} : ${a.texte}`).join(" ; ")}` : "",
+  ].filter(Boolean).join("\n");
+  const consignes = `Page de présentation d'un LOGICIEL EN LIGNE (SaaS) déjà construit, qui vend un essai gratuit.
+- Le bouton principal mène à l'essai : <a class="btn btn--primary" href="#essai">${court(spec.cta || "Essayer gratuitement", 30)}</a>. Le lien de connexion des clients existants : <a href="#connexion">Se connecter</a>, dans le header à droite. N'utilise aucun formulaire ni marqueur (pas de data-bingoo) : l'inscription se fait par ces liens.
+- Les visuels sont des MAQUETTES du vrai logiciel dessinées en HTML et CSS (fenêtre d'application, colonnes, lignes, étiquettes de statut), avec les vrais noms d'écrans et des éléments tirés des données d'exemple ci-dessous ; jamais une capture inventée d'un autre produit, jamais de chiffres d'activité présentés comme réels.
+- Les prix sont ceux des formules données (services) et rien d'autre, par mois ; « Sans carte bancaire » et « 14 jours d'essai » sont vrais et peuvent être dits.
+- Aucun avis, logo de client, nombre d'utilisateurs ou statistique de résultat.
+Données d'exemple du logiciel (pour remplir les maquettes) :
+${exemples}`;
+  let page: any = null, gen: any;
+  try {
+    const { genererPage } = await import("./site-gen.ts");
+    const g = await genererPage({
+      nom: spec.nom, brief, modele: "saas", metier: court(spec.cible, 80), cta: court(spec.cta || "Essayer gratuitement", 30),
+      design: spec.design, faq: spec.faq, consignes,
+      services: (spec.formules ?? []).map((f: any) => ({ titre: f.nom, prix: `${f.prix} € par mois`, duree: f.pour })),
+    });
+    page = g.page; gen = { ...g.mesure, at: new Date().toISOString(), vitrine: true };
+  } catch (x) {
+    gen = { echec: String((x as Error)?.message ?? x).slice(0, 240), at: new Date().toISOString(), vitrine: true };
+    console.error("moteur de pages (SaaS)", x);
+  }
+  const { data: ou } = await admin.rpc("saas_app_page_set", { p_app: appId, p_page: page, p_gen: gen });
+  console.log("vitrine SaaS", appId, ou, page ? `${page.sections.length} sections` : "secours");
+}
+
 /** « Appliquer le nouveau design » (au clic du membre, jamais sans le prévenir) : un site existant reçoit le système de
  *  design actuel et, pour un portfolio, le gabarit Taste. L'apparence précédente est gardée (retour en un clic). */
 export async function appliquerNouveauDesign(appId: string) {

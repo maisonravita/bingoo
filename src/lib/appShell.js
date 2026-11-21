@@ -867,7 +867,7 @@ function FormulaireSite({ d, liste }) {
     <p class="t-small muted plein">Vos coordonnées servent seulement à vous répondre.</p>
   </form>\`;
 }
-function SitePageGeneree({ onAuth }) {
+function SitePageGeneree({ onAuth, saas }) {
   const P = SITE.page, ref = useRef(null), [d, setD] = useState(null);
   useEffect(() => {
     if (!B.apercu) call("vue", { variante: "A", source: B.source }).catch(() => {});
@@ -885,7 +885,8 @@ function SitePageGeneree({ onAuth }) {
     // Menu du téléphone : le bouton du header ouvre et ferme la liste des liens
     const t = el.querySelector(".nav__toggle"), nav = el.querySelector(".nav");
     if (t && nav) t.addEventListener("click", () => { const o = nav.classList.toggle("is-open"); t.setAttribute("aria-expanded", o ? "true" : "false"); });
-    el.querySelectorAll('a[href^="#"]').forEach((a) => a.addEventListener("click", (e) => { const c = el.querySelector(a.getAttribute("href") === "#" || a.getAttribute("href") === "#top" ? "main,section" : a.getAttribute("href")); if (c) { e.preventDefault(); c.scrollIntoView({ behavior: "smooth" }); nav?.classList.remove("is-open"); } }));
+    el.querySelectorAll('a[href="#essai"],a[href="#connexion"]').forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); e.stopImmediatePropagation(); onAuth(a.getAttribute("href") === "#essai" ? "signup" : "login"); }));
+    el.querySelectorAll('a[href^="#"]:not([href="#essai"]):not([href="#connexion"])').forEach((a) => a.addEventListener("click", (e) => { const c = el.querySelector(a.getAttribute("href") === "#" || a.getAttribute("href") === "#top" ? "main,section" : a.getAttribute("href")); if (c) { e.preventDefault(); c.scrollIntoView({ behavior: "smooth" }); nav?.classList.remove("is-open"); } }));
   }, [contenu]);
   useEffect(() => {
     const el = ref.current; if (!el || !d) return;
@@ -893,7 +894,7 @@ function SitePageGeneree({ onAuth }) {
   }, [d, contenu]);
   return html\`<div class="min-h-screen" style="background:var(--p-bg);color:var(--p-ink)">
     <div ref=\${ref}></div>
-    <div class="bg-legal"><div class="wrap flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-6 t-small muted"><\${LiensLegaux}/><span class="flex flex-wrap items-center gap-x-6"><button onClick=\${() => onAuth("login")} class="inline-flex min-h-11 items-center hover:underline">Espace gérant</button><span>Site créé avec Bingoo!</span></span></div></div>
+    <div class="bg-legal"><div class="wrap flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-6 t-small muted"><\${LiensLegaux}/><span class="flex flex-wrap items-center gap-x-6"><button onClick=\${() => onAuth("login")} class="inline-flex min-h-11 items-center hover:underline">\${saas ? "Se connecter" : "Espace gérant"}</button><span>Site créé avec Bingoo!</span></span></div></div>
   </div>\`;
 }
 function SiteVitrine({ onAuth }) {
@@ -1412,7 +1413,7 @@ function Racine() {
   if (etat === undefined) return html\`<\${ui.Loading}/>\`;
   if (etat) return html\`<\${Appli} user=\${etat.user} etat=\${etat} tour=\${tour} onFinTour=\${finTour} onLogout=\${tour ? finTour : sortir}/>\`;
   if (auth) return html\`<\${Auth} mode=\${auth} onDone=\${ok} onBack=\${() => setAuth(null)}/>\`;
-  return S.type === "site" ? html\`<\${SiteVitrine} onAuth=\${ouvrir}/>\` : html\`<\${Site} onAuth=\${ouvrir}/>\`;
+  return S.type === "site" ? html\`<\${SiteVitrine} onAuth=\${ouvrir}/>\` : (SITE.page?.sections ?? []).length ? html\`<\${SitePageGeneree} onAuth=\${ouvrir} saas/>\` : html\`<\${Site} onAuth=\${ouvrir}/>\`;
 }
 // Outils de l'atelier de Bingoo! : dans l'aperçu de l'atelier, le parent active « modifier un texte » ou « pointer un élément »
 {
