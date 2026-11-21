@@ -132,11 +132,32 @@ ${exemples}`;
 
 /** « Appliquer le nouveau design » (au clic du membre, jamais sans le prévenir) : un site existant reçoit le système de
  *  design actuel et, pour un portfolio, le gabarit Taste. L'apparence précédente est gardée (retour en un clic). */
+/** SaaS déjà livré : intérieur au gabarit Taste, police de titre avec du caractère, et page de présentation écrite par le moteur.
+ *  L'apparence d'avant (couleurs, polices, gabarit, page) est gardée : « Revenir au design précédent » la rend en un clic. */
+async function nouveauDesignSaaS(appId: string, app: any) {
+  const { garderApparence } = await import("./apparence.ts");
+  const { titresAvecCaractere } = await import("./design.ts");
+  if (app?.brouillon) throw new HttpError(409, "Une construction est en cours : réessaie quand elle est finie");
+  const avant = (app?.spec ?? {}) as any;
+  const d = avant.design?.couleurs ? { ...avant.design } : await choisirDesign(appId, String(avant.design?.categorie ?? avant.cible ?? avant.nom ?? ""));
+  d.polices = { ...(d.polices ?? {}), titres: titresAvecCaractere(d.polices?.titres ?? "Inter", `${appId}`) };
+  const n: any = { ...avant, design: d, gabarit_app: "taste" };
+  const spec = garderApparence(avant, n, "Nouveau design de Bingoo! appliqué");
+  await admin.from("saas_apps").update({ spec, version: (app?.version ?? 0) + 1, maj: new Date().toISOString() }).eq("id", appId);
+  // La page de présentation s'écrit en tâche de fond (moteur de pages, ~1 min) : l'aperçu se recharge quand elle est prête ;
+  // en cas d'échec l'ancienne page reste
+  const travail = vitrineSaaS(appId).catch((x) => console.error("nouveau design SaaS", x));
+  // deno-lint-ignore no-explicit-any
+  const rt = (globalThis as any).EdgeRuntime;
+  if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
+  return { ok: true, saas: true, page_en_cours: true };
+}
+
 export async function appliquerNouveauDesign(appId: string) {
   const { garderApparence } = await import("./apparence.ts");
   const { data: app } = await admin.from("saas_apps").select("spec, brouillon, version").eq("id", appId).single();
   const avant = (app?.spec ?? {}) as any;
-  if (avant.type !== "site") throw new HttpError(400, "Le nouveau design concerne les sites");
+  if (avant.type !== "site") return await nouveauDesignSaaS(appId, app);
   const d = await choisirDesign(appId, String(avant.design?.categorie ?? avant.site?.metier ?? ""));
   const n: any = { ...avant, design: d, couleur: d.couleurs?.primary ?? avant.couleur };
   delete n.design_avant;

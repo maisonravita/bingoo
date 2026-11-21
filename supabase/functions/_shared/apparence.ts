@@ -13,6 +13,8 @@ export function apparence(spec: Spec): Spec {
   const a: Spec = {};
   for (const k of CLES) if (spec?.[k] !== undefined) a[k] = structuredClone(spec[k]);
   a.gabarit = spec?.site?.gabarit ?? null;
+  // SaaS : le gabarit de l'intérieur et la page de présentation générée font partie de son allure (un site garde sa page)
+  if (spec?.type !== "site") { a.gabarit_app = spec?.gabarit_app ?? null; a.page = spec?.site?.page ?? null; }
   return a;
 }
 
@@ -31,7 +33,9 @@ function poser(spec: Spec, a: Spec): Spec {
   for (const k of CLES) { if (a[k] === undefined) delete n[k]; else n[k] = structuredClone(a[k]); }
   const site = { ...(n.site ?? {}) };
   if (a.gabarit) site.gabarit = a.gabarit; else delete site.gabarit;
-  if (n.site || a.gabarit) n.site = site;
+  if ("page" in a) { if (a.page) site.page = structuredClone(a.page); else delete site.page; }
+  if ("gabarit_app" in a) { if (a.gabarit_app) n.gabarit_app = a.gabarit_app; else delete n.gabarit_app; }
+  if (n.site || a.gabarit || a.page) n.site = site;
   return n;
 }
 
