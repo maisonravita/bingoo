@@ -75,7 +75,23 @@ Tout en français, tutoiement, phrases simples.`, { fast: true, maxTokens: 2500 
   // Trop de mots peuvent ne rien trouver : on réessaie avec l'idée seule, puis avec les mots-clés seuls
   if (!((v as any)?.top ?? []).length) ({ data: v } = await admin.rpc("saas_valider_idee", { p_texte: idee }));
   if (!((v as any)?.top ?? []).length && (r?.mots_cles ?? []).length) ({ data: v } = await admin.rpc("saas_valider_idee", { p_texte: (r.mots_cles ?? []).slice(0, 3).join(" ") }));
-  const proches = ((v as any)?.top ?? []).filter((s: any) => s?.domaine && s.domaine !== DOMAINE_IDEE).sort((a: any, b: any) => (Number(b.mrr) || 0) - (Number(a.mrr) || 0)).slice(0, 3)
+  // La recherche par mots se trompe de sens (« entretien » de bureaux → entretien d'embauche) : avant de montrer un logiciel,
+  // on vérifie qu'il fait vraiment le même métier pour les mêmes clients. Aucun plutôt qu'un hors-sujet.
+  const candidats = ((v as any)?.top ?? []).filter((s: any) => s?.domaine && s.domaine !== DOMAINE_IDEE).slice(0, 12);
+  let gardes: any[] = [];
+  if (candidats.length) {
+    try {
+      const j = await askJson<any>(`Idée d'un membre : « ${court(idee, 400)} »
+Ce que fera sa première version : ${apercu.pitch} (pour : ${apercu.cible}).
+Logiciels existants trouvés par mots-clés (souvent à tort, un mot pouvant avoir un autre sens) :
+${candidats.map((c: any, i: number) => `${i}. ${court(c.nom, 60)} : ${court(c.description, 220)}`).join("\n")}
+Garde SEULEMENT ceux qui rendent le même service au même type de clients que l'idée (un concurrent direct ou très proche, dont la logique peut inspirer l'idée). Au moindre doute, écarte-le.
+Rends {"garder": [numéros]} (liste vide si aucun ne convient).`, { fast: true, maxTokens: 200 });
+      const ok = new Set((Array.isArray(j?.garder) ? j.garder : []).map((x: unknown) => Number(x)));
+      gardes = candidats.filter((_: any, i: number) => ok.has(i));
+    } catch (e) { console.error("idee proches tri", String(e).slice(0, 200)); gardes = []; }
+  }
+  const proches = gardes.sort((a: any, b: any) => (Number(b.mrr) || 0) - (Number(a.mrr) || 0)).slice(0, 3)
     .map((s: any) => ({ domaine: s.domaine, nom: s.nom, mrr: s.mrr ?? null, description: court(s.description, 180) }));
   return { apercu, proches };
 }

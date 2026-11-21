@@ -1290,7 +1290,7 @@ function Verif() {
       // Avec les données d'exemple, un écran du SaaS doit être rempli : pas de bloc vide, pas de chiffres clés à zéro
       const zone = document.getElementById("verif-zone");
       const titreDe = (el) => { let n = el; for (let k = 0; n && k < 6; k++, n = n.parentElement) { const h = n.querySelector?.("h2, h3"); if (h && n.tagName === "SECTION") return h.textContent.trim(); } return ""; };
-      const vides = E.public ? [] : [...(zone?.querySelectorAll("[data-vide]") ?? [])].map((el) => titreDe(el) || "un bloc");
+      const vides = E.public ? [] : await gVidesReels(zone, titreDe);
       const kpis = [...(zone?.querySelectorAll("[data-kpi]") ?? [])].map((el) => ({ l: el.dataset.kpi, v: el.textContent.trim() }));
       const zeros = E.public ? [] : kpis.filter((k) => /\\d/.test(k.v) && !/[1-9]/.test(k.v)).map((k) => k.l);
       const vide = vides.length ? "Avec les données d'exemple, ce bloc reste vide : « " + vides.slice(0, 3).join(" », « ") + " ». Le calcul ne trouve rien : vérifie les noms exacts des collections et des champs des données d'exemple (et les valeurs de statut), et les dates (les exemples sont centrés sur aujourd'hui)." : null;

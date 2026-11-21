@@ -6,7 +6,7 @@
 // - aucune erreur ne survient pendant ces gestes.
 // Injecté tel quel dans la coque (String.raw : ni accent grave ni dollar-accolade dans ce code).
 export const CODE_VERIF_GESTES = String.raw`
-const VAPPELS = { add: 0, update: 0, remove: 0, autre: 0 };
+const VAPPELS = { add: 0, update: 0, remove: 0, ia: 0, autre: 0 };
 // Messages d'erreur (toast « bad ») de l'écran : en vérification, ils ne s'affichent pas, on les compte
 const VREFUS = { n: 0, branche: false };
 const VTOASTS = { n: 0 };
@@ -80,6 +80,18 @@ async function gRemplir(racine) {
 // Les boutons groupés par 3 ou plus (onglets, filtres, segments) ne sont pas jugés : celui qui est déjà actif ne change rien, c'est normal
 const gGroupe = (b) => { const p = b.parentElement; return !!p && [...p.children].filter((c) => c.tagName === "BUTTON" || c.getAttribute("role") === "button" || c.getAttribute("role") === "tab").length >= 3; };
 
+// Blocs vides avec les données d'exemple. Un bloc qui attend une analyse par l'IA (« Lancer l'analyse ») est vide par nature
+// avant le clic, et l'IA de vérification ne renvoie rien : s'il appelle bien l'IA quand on clique, ce n'est pas une panne.
+async function gVidesReels(zone, titreDe) {
+  const vides = [];
+  for (const el of [...(zone ? zone.querySelectorAll("[data-vide]") : [])]) {
+    const titre = titreDe(el) || "un bloc";
+    const b = [...el.querySelectorAll("button")].find((x) => gVisible(x) && !x.disabled && !G_EVITER.test(gLibelle(x)) && !G_CREER.test(gLibelle(x)));
+    if (b) { const ia0 = VAPPELS.ia; try { b.click(); } catch (e) {} await gPause(450); if (VAPPELS.ia > ia0) continue; }
+    vides.push(titre);
+  }
+  return vides;
+}
 async function gestesEcran(zone) {
   if (!VREFUS.branche) { VREFUS.branche = true; bus.on("toast", (t) => { VTOASTS.n++; if (t && t.type === "bad") VREFUS.n++; }); }
   const pbs = [];
