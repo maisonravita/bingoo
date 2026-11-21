@@ -51,7 +51,9 @@ export function controlesDesign(zone, page = false, lint = null) {
   const W = innerWidth, mobile = W <= 480;
   const vis = (el) => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); return r.width > 1 && r.height > 1 && cs.visibility !== "hidden" && cs.display !== "none" && Number(cs.opacity) > 0.05; };
   const court = (el) => (el.innerText || el.getAttribute("aria-label") || el.alt || "").replace(/\s+/g, " ").trim().slice(0, 40);
-  const rgb = (c) => { const m = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?/.exec(c || ""); return m ? [+m[1], +m[2], +m[3], m[4] == null ? 1 : +m[4]] : null; };
+  // Tailwind 4 rend ses couleurs en oklch() : on les convertit par un canevas (sinon un bouton rouge à texte blanc était lu « blanc sur blanc »)
+  const cnv = document.createElement("canvas"); cnv.width = cnv.height = 1; const cx2 = cnv.getContext("2d", { willReadFrequently: true });
+  const rgb = (c) => { const m = /^rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?/.exec(c || ""); if (m) return [+m[1], +m[2], +m[3], m[4] == null ? 1 : +m[4]]; if (!c || !cx2 || c === "transparent") return null; try { cx2.clearRect(0, 0, 1, 1); cx2.fillStyle = "rgba(0,0,0,0)"; cx2.fillStyle = c; cx2.fillRect(0, 0, 1, 1); const d = cx2.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2], d[3] / 255]; } catch (e) { return null; } };
   const lum = ([r, g, b]) => { const f = (x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
   const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
   // Fond réel : la première couleur opaque en remontant ; un dégradé compte pour toutes ses couleurs (on garde la pire) ;
