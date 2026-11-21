@@ -7,6 +7,7 @@ import { garderApparence } from "./apparence.ts";
 import { texteDesign } from "./design.ts";
 import { FICHES, FICHE_ECRANS, CONSIGNE_TEXTES_FR } from "./design-fiches.ts";
 import { choisirDesign } from "./site.ts";
+import { couvrirDemo } from "./gen-demo.ts";
 import { alignerCode } from "./contrat-donnees.ts";
 import { admin, ask, askJson } from "./core.ts";
 import { sansIdentite } from "./identite.ts";
@@ -343,6 +344,9 @@ ${refs ? `Éléments déjà écrits (leurs « ref », pour les champs <collectio
     for (const c of manquent) if (Array.isArray(d2[c.nom]) && d2[c.nom].length) d[c.nom] = d2[c.nom];
     console.log("demo complétée", manquent.map((c: any) => c.nom).join(","), Object.keys(d2).join(","));
   }
+  // Chaque statut, chaque période (passé, aujourd'hui, à venir) et chaque côté d'un booléen sont représentés : sinon un bloc
+  // « du jour » ou « en retard » restait vide au premier test, et les réécritures de l'écran ne pouvaient rien y faire
+  { const auj = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Paris" }); const cv = couvrirDemo(d, s.collections ?? [], auj); Object.assign(d, cv.demo); if (cv.changements) console.log("demo couverte", cv.changements); }
   await admin.from("saas_apps").update({ brouillon: { ...sp, demo: d }, etape: `Écriture des écrans (0/${sp.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
   // La page de présentation du SaaS s'écrit en même temps que les écrans, par le moteur de pages (comme les sites)
   await Promise.all([...sp.ecrans.map((e: any) => lancerEcran(e.id)), ...(sp.type !== "site" && !sp.mobile ? [lancerEcran("__vitrine")] : [])]);

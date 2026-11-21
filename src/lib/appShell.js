@@ -59,6 +59,7 @@ function cssDesign(spec) {
   return `:root{--ds-bg:${bg};--ds-fg:${fg};--ds-card:${card};--ds-muted:${muted};--ds-mfg:${mfg};--ds-border:${bord};--ds-onc:${onc}}
 body,.fond-creme,.fond-gris{background:var(--ds-bg);color:var(--ds-fg)}
 button{min-height:24px;min-width:24px}
+#root :is(.grid,[class*="grid-cols"],.flex)>:not(button,a,input,select,img,svg){min-width:0}#root main{overflow-wrap:break-word}
 [class~="bg-white"]{background:var(--ds-card)}[class~="bg-slate-50"],[class~="bg-slate-100"]{background:var(--ds-muted)}
 [class~="text-slate-900"],[class~="text-slate-800"],[class~="text-slate-700"]{color:var(--ds-fg)}
 [class~="text-slate-600"],[class~="text-slate-500"],[class~="text-slate-400"]{color:var(--ds-mfg)}
@@ -1476,6 +1477,9 @@ addEventListener("click", (e) => {
   const etiqueter = () => { attente = null; for (const t of document.querySelectorAll("main table")) { const ths = [...t.querySelectorAll("thead th")].map((x) => x.textContent.replace(/[↑↓]/g, "").trim()); if (!ths.length) continue; for (const tr of t.querySelectorAll("tbody tr")) [...tr.children].forEach((td, i) => { const l = ths[i] ?? ""; if (td.getAttribute("data-label") !== l) l ? td.setAttribute("data-label", l) : td.removeAttribute("data-label"); }); } };
   new MutationObserver(() => { if (!attente) attente = setTimeout(etiqueter, 60); }).observe(document.body, { childList: true, subtree: true });
 }
+// Un champ qui n'a qu'un texte indicatif (« Rechercher… ») reçoit ce texte comme nom accessible : un lecteur d'écran l'annonce
+// même une fois le champ rempli (le texte indicatif, lui, disparaît)
+new MutationObserver(() => { for (const el of document.querySelectorAll("input[placeholder]:not([aria-label]):not([aria-labelledby]),textarea[placeholder]:not([aria-label]):not([aria-labelledby])")) { if (!el.closest("label") && !(el.id && document.querySelector('label[for="' + el.id + '"]'))) el.setAttribute("aria-label", el.placeholder.replace(/[….]+$/, "").trim() || el.placeholder); } }).observe(document.getElementById("root"), { childList: true, subtree: true });
 render(html\`<\${Racine}/>\`, document.getElementById("root"));
 { const d = document.createElement("div"); document.body.appendChild(d); render(html\`<\${FenetreLegale}/>\`, d); }
 </script></body></html>`;

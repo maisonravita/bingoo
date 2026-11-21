@@ -575,9 +575,16 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const cout = Math.round((u ?? []).reduce((t: number, x: any) => t + Number(x.cost_eur ?? 0), 0) * 1000) / 1000;
     const budgetAtteint = cout >= BUDGET;
     // Un écran de modèle fait main n'est jamais réécrit par l'IA : un souci y vient des données, il est signalé
-    const reparable = (r: any) => !ecrans.find((e) => e.id === r.id)?.modele && (essais[r.id] ?? 0) < ESSAIS;
+    // Un écran qui retombe exactement sur la même panne après une réécriture n'est plus réécrit : la cause n'est pas dans son code
+    // (données, contrôle trop strict) et chaque essai coûte ; il est signalé à l'équipe comme les autres écrans non réparés
+    const cle = (x: unknown) => String(x ?? "").replace(/\s+/g, " ").slice(0, 160);
+    const dernieres: Record<string, string> = { ...(avant.dernieres ?? {}) };
+    const bloque = (r: any) => (essais[r.id] ?? 0) >= 1 && dernieres[r.id] === cle(r.erreur);
+    const reparable = (r: any) => !ecrans.find((e) => e.id === r.id)?.modele && (essais[r.id] ?? 0) < ESSAIS && !bloque(r);
+    for (const r of ko) if (bloque(r)) console.log("même panne après réécriture, on arrête", app.id, r.id);
     const aReparer = (boucle || filet) && !budgetAtteint ? ko.filter(reparable).slice(0, 6) : [];
     for (const r of aReparer) essais[r.id] = (essais[r.id] ?? 0) + 1;
+    for (const r of ko) dernieres[r.id] = cle(r.erreur);
     const journal: any[] = [...(avant.journal ?? [])];
     const noter = (t: string, type = "info") => journal.push({ at: new Date().toISOString(), t, type });
     const passages = (avant.passages ?? 0) + 1;
@@ -642,7 +649,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
         }
       } catch (e) { console.error("mail fin de vérification", e); }
     }
-    const verif = { ...avant, version: app.version, at: new Date().toISOString(), resultats, essais, passages, journal: journal.slice(-40), mesure, ...(atelier ? { atelier: null, dernier_atelier: { ...atelier, annule: retour, at: new Date().toISOString() } } : {}),
+    const verif = { ...avant, version: app.version, at: new Date().toISOString(), resultats, essais, dernieres, passages, journal: journal.slice(-40), mesure, ...(atelier ? { atelier: null, dernier_atelier: { ...atelier, annule: retour, at: new Date().toISOString() } } : {}),
       // Version remise : ses écrans en souci sont ceux d'avant la modification, pas ceux que la modification avait cassés
       ...(retour ? { reste_force: atelier.reste_avant ?? [] } : {}),
       en_reparation: [...enRep, ...aReparer.map((r: any) => r.id)], repare: aReparer.map((r: any) => r.id),

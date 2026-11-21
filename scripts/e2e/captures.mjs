@@ -179,7 +179,7 @@ if (CONSTRUIRE === "spec") {
   const ws2 = await creerEspace(`Robot construction ${new Date().toISOString().slice(0, 16)}`);
   await q(`update workspaces set plan = ${lit(CONSTRUIRE === "site" ? "site" : "lancer_pro")}, plan_status = 'active', onboarded = true where id = ${lit(ws2)}`);
   const nomVoulu = CONSTRUIRE === "ia" ? ({ "calendly.com": "Rendezo", "invoiceninja.com": "Facturo", "canny.io": "Avisio" }[process.env.DOMAINE ?? ""] ?? "Cerclo") : CONSTRUIRE === "site" ? SITE_IDEE.apercu.nom : "Sublima";
-  const TEXTE_IDEE = process.env.TEXTE_IDEE || "j'ai une conciergerie où je veux gérer l'entretien dans des bureaux avec mes équipes";
+  const TEXTE_IDEE = process.env.TEXTE_IDEE || (process.env.DOMAINE && !/\.[a-z]{2,}$/.test(process.env.DOMAINE) ? process.env.DOMAINE : "") || "j'ai une conciergerie où je veux gérer l'entretien dans des bureaux avec mes équipes";
   let { ctx, page } = CONSTRUIRE === "idee" ? await ouvrir(ws2, { "bingoo-idee": { texte: TEXTE_IDEE, type: "saas", at: Date.now() } }) : await ouvrir(ws2, {
     [`bingoo-reponses-${cible.domaine}`]: { nom: nomVoulu, clients: CONSTRUIRE === "ia" ? (process.env.DOMAINE ? "Indépendants et petites équipes" : "Créateurs de communautés") : "Instituts de beauté", mieux: "", angle: `Nom souhaité, à utiliser tel quel : ${nomVoulu}` },
     "bingoo-chantier": { ...cible, ws: ws2, metier: CONSTRUIRE === "ia" ? "Créateurs de communautés" : "Institut de beauté" },
