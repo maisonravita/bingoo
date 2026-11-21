@@ -1,6 +1,7 @@
 // Sites web (étape 2 de « Construire mon idée ») : construction (textes par l'IA, espace gérant fait main), voir site-spec.ts
 // deno-lint-ignore-file no-explicit-any
 import { categorieDesign, tirerDesign } from "./design.ts";
+import { photosLibres } from "./photos.ts";
 import { admin, askJson } from "./core.ts";
 import { promptSite, specSite } from "./site-spec.ts";
 export { promptSite, specSite };
@@ -28,6 +29,11 @@ export async function construireSite(appId: string, p: any, demarrerVerification
   const d = await choisirDesign(appId, String(c?.secteur_en ?? `${spec.site?.metier ?? ""}`));
   spec.design = d;
   spec.couleur = d.couleurs.primary;
+  // Portfolio sans photos du membre : photos libres d'ambiance pour l'en-tête (Wikimedia), créditées en pied de page
+  if (spec.site?.modele === "portfolio") {
+    const ph = await photosLibres(String(c?.secteur_en ?? spec.site?.metier ?? ""), 4).catch((x) => { console.error("photos libres", x); return []; });
+    if (ph.length >= 2) spec.photos_libres = ph;
+  }
   await admin.from("saas_apps").update({ brouillon: spec, etape: `Écriture des écrans (${spec.ecrans.length - 1}/${spec.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
   // La vérification est posée avant la mise en ligne : le site ne paraît jamais « prêt » sans avoir été testé
   await demarrerVerification(appId, spec).catch((x) => console.error("verification site", x));
