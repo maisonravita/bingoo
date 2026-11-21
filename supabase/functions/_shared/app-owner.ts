@@ -278,30 +278,37 @@ export async function appPrixSuggeres(appId: string, suggestionId: string) {
 }
 
 /** Aperçu d'une modification : la mettre en ligne, ou l'abandonner. */
+/** Atelier : « Mettre en ligne » ne publie plus directement. La modification part sur une version d'aperçu (le brouillon),
+ *  le robot la teste écran par écran (dans la page, sinon le robot du serveur), et elle n'est publiée que si tout passe
+ *  (r/saas-app-verif-brouillon → publierBrouillon). Les clients du membre ne voient jamais une version cassée. */
 export async function appBrouillon(appId: string, valider: boolean) {
-  const { data: app } = await admin.from("saas_apps").select("spec, brouillon, version, statut, verif").eq("id", appId).single();
+  const { data: app } = await admin.from("saas_apps").select("brouillon, verif").eq("id", appId).single();
   const b = app?.brouillon as any;
   if (!b?._modif) throw new HttpError(404, "Aucune modification en attente");
-  if (valider) {
-    const { _modif, ...spec } = b;
-    // Le robot de l'atelier : chaque modification mise en ligne est retestée écran par écran, comme à la construction.
-    // Si elle casse un écran qui marchait (et que les corrections offertes n'y arrivent pas), la version d'avant revient
-    // toute seule et la modification est rendue (r/saas-app-verif).
-    const liste = (_modif.liste ?? [_modif]) as any[];
-    const avantEcrans = ((app!.spec as any)?.ecrans ?? []) as any[];
-    const changes = ((spec.ecrans ?? []) as any[]).filter((e) => { const o = avantEcrans.find((x) => x.id === e.id); return !o || o.code !== e.code; }).map((e) => e.id);
-    const titre = liste.map((x) => x.titre).filter(Boolean).join(" · ").slice(0, 200) || "ta modification";
-    const n = (spec.ecrans ?? []).length, maintenant = new Date().toISOString();
-    const vf = (app!.verif ?? {}) as any;
-    const verif = { phase: "en_cours", version: null, essais: {}, en_reparation: [], passages: 0, ok: false, offerts: vf.offerts ?? {},
-      journal: [...(vf.journal ?? []).slice(-20), { at: maintenant, t: `Modification mise en ligne (${titre}). Je reteste les ${n} écrans comme un vrai utilisateur.`, type: "info" }],
-      mesure: { ...(vf.mesure ?? {}), atelier_debut: maintenant },
-      atelier: { version_avant: app!.version ?? 1, ecrans: changes, titre, debut: liste[0]?.at ?? maintenant, reste_avant: vf.reste ?? [] } };
-    await admin.from("saas_apps").update({ spec, brouillon: null, version: (app!.version ?? 1) + 1, verif, maj: maintenant }).eq("id", appId);
-    const ids = (_modif.liste ?? [_modif]).map((x: any) => x.suggestion).filter(Boolean);
-    if (ids.length) await admin.from("saas_app_suggestions").update({ statut: "ajoutee" }).in("id", ids).eq("app_id", appId);
-  } else await admin.from("saas_apps").update({ brouillon: null }).eq("id", appId);
-  return { ok: true };
+  if (!valider) { await admin.from("saas_apps").update({ brouillon: null }).eq("id", appId); return { ok: true }; }
+  if (b._test?.phase === "en_cours") return { ok: true, test: true };
+  const liste = (b._modif.liste ?? [b._modif]) as any[];
+  b._test = { phase: "en_cours", debut: new Date().toISOString(), essais: {}, en_reparation: [], passages: 0, reste_avant: (app?.verif as any)?.reste ?? [],
+    titre: liste.map((x) => x.titre).filter(Boolean).join(" · ").slice(0, 200) || "ta modification", depuis: liste[0]?.at ?? new Date().toISOString() };
+  await admin.from("saas_apps").update({ brouillon: b, maj: new Date().toISOString() }).eq("id", appId);
+  return { ok: true, test: true };
+}
+
+/** Publication d'une modification testée : la version d'aperçu devient la version en ligne, avec ses résultats de test. */
+export async function publierBrouillon(appId: string, resultats: any[], noteJournal: string) {
+  const { data: app } = await admin.from("saas_apps").select("spec, brouillon, version, verif").eq("id", appId).single();
+  const b = app?.brouillon as any;
+  if (!b?._modif) return false;
+  const { _modif, _test, ...spec } = b;
+  const vf = (app!.verif ?? {}) as any, version = (app!.version ?? 1) + 1, maintenant = new Date().toISOString();
+  const reste = resultats.filter((r) => !r.ok).map((r) => r.id);
+  const verif = { ...vf, phase: "fini", version, at: maintenant, resultats, reste, ok: !reste.length, en_reparation: [], atelier: null,
+    dernier_atelier: { titre: _test?.titre, annule: false, avant_publication: true, at: maintenant },
+    journal: [...(vf.journal ?? []), { at: maintenant, t: noteJournal, type: "ok" }].slice(-40) };
+  await admin.from("saas_apps").update({ spec, brouillon: null, version, verif, maj: maintenant }).eq("id", appId);
+  const ids = ((_modif.liste ?? [_modif]) as any[]).map((x: any) => x.suggestion).filter(Boolean);
+  if (ids.length) await admin.from("saas_app_suggestions").update({ statut: "ajoutee" }).in("id", ids).eq("app_id", appId);
+  return true;
 }
 
 // ---------------------------------------------------------------- Kit de lancement : articles (pages indexables), e-mails

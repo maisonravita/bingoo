@@ -658,6 +658,52 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     }
     return verif;
   },
+  // Robot de l'atelier, AVANT publication : résultats du test de la version d'aperçu (brouillon). Tout passe → publié.
+  // Un écran écrit par l'IA casse → corrigé dans l'aperçu (2 essais, offerts), puis retesté. Sinon → rien n'est publié,
+  // la modification est rendue (modifications du mois et crédits), et le membre le lit dans l'atelier.
+  async "saas-app-verif-brouillon"(req, b) {
+    const { ws } = await membreOuCron(req, b.workspace_id);
+    const { data: app } = await admin.from("saas_apps").select("id, version, verif, brouillon").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    if (!app) throw new HttpError(404, "Application introuvable");
+    const br = app.brouillon as any, t = br?._test;
+    if (!t || t.phase !== "en_cours") return { etat: "rien" };
+    // Résultats d'un passage déjà dépassé (une correction est arrivée entre-temps) : ignorés
+    if (b.passage != null && Number(b.passage) !== Number(t.passages ?? 0)) return { etat: "ancien" };
+    if ((t.en_reparation ?? []).length) return { etat: "reparation" };
+    const ecrans: any[] = br.ecrans ?? [];
+    const titre = (id: string) => ecrans.find((e) => e.id === id)?.titre ?? id;
+    const ids = new Set(ecrans.map((e) => e.id));
+    const resultats = (Array.isArray(b.resultats) ? b.resultats : []).filter((r: any) => ids.has(r?.id)).map((r: any) => ({ id: String(r.id), ok: !!r.ok, erreur: r.erreur ? String(r.erreur).slice(0, 700) : null }));
+    if (!resultats.length) return { etat: "rien" };
+    const casses = resultats.filter((r: any) => !r.ok && !(t.reste_avant ?? []).includes(r.id));
+    const { publierBrouillon } = await import("../_shared/app-owner.ts");
+    if (!casses.length) {
+      await publierBrouillon(app.id, resultats, `Modification testée avant publication (${t.titre}) : les ${resultats.length} écrans fonctionnent. Elle est en ligne.`);
+      await log(ws.id, "app_reglage", "Modification testée puis mise en ligne");
+      return { etat: "publie" };
+    }
+    const essais: Record<string, number> = { ...(t.essais ?? {}) };
+    const aReparer = casses.filter((r: any) => !ecrans.find((e) => e.id === r.id)?.modele && (essais[r.id] ?? 0) < 2).slice(0, 4);
+    if (aReparer.length === casses.length) {
+      for (const r of aReparer) essais[r.id] = (essais[r.id] ?? 0) + 1;
+      br._test = { ...t, essais, en_reparation: aReparer.map((r: any) => r.id), passages: (t.passages ?? 0) + 1, dernier: resultats };
+      await admin.from("saas_apps").update({ brouillon: br }).eq("id", app.id);
+      const cle = await secret("cron_key");
+      for (const r of aReparer) await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/r/saas-app-reparer`, { method: "POST", headers: { "content-type": "application/json", "x-cron-key": cle }, body: JSON.stringify({ app_id: app.id, ecran: r.id, erreur: r.erreur ?? "", ws: ws.id, apercu: true }) }).catch((e) => console.error("reparer apercu", e));
+      return { etat: "reparation" };
+    }
+    // Refus : rien n'est publié, la modification est rendue
+    const depuis = new Date(new Date(String(t.depuis ?? t.debut)).getTime() - 10 * 60e3).toISOString();
+    await admin.from("activity").delete().eq("workspace_id", ws.id).eq("kind", "modifier_app").gte("created_at", depuis);
+    const { data: cr } = await admin.from("credits").select("delta").eq("workspace_id", ws.id).in("motif", ["Modification en plus", "Écran en plus (atelier)"]).gte("at", depuis);
+    const payes = -(cr ?? []).reduce((n: number, x: any) => n + Math.min(0, Number(x.delta ?? 0)), 0);
+    if (payes > 0) await creditsRendre(ws.id, payes, "Modification non publiée (test raté) : crédits rendus");
+    const vf = (app.verif ?? {}) as any, maintenant = new Date().toISOString();
+    const texte = `La modification (${t.titre}) cassait ${casses.map((r: any) => `« ${titre(r.id)} »`).join(", ")} sur la version d'aperçu : je ne l'ai pas mise en ligne, tes clients n'ont rien vu. Elle t'est rendue${payes ? ` (${payes} crédit${payes > 1 ? "s" : ""} compris)` : ""} : reformule-la ou demande-la autrement.`;
+    await admin.from("saas_apps").update({ brouillon: null, verif: { ...vf, dernier_atelier: { titre: t.titre, annule: true, avant_publication: true, at: maintenant }, journal: [...(vf.journal ?? []), { at: maintenant, t: texte, type: "probleme" }].slice(-40) } }).eq("id", app.id);
+    await log(ws.id, "app_reglage", `Robot de l'atelier : modification non publiée (${casses.length} écran(s) cassé(s) sur l'aperçu)`);
+    return { etat: "refuse" };
+  },
   async "saas-app-reparer"(req, b) {
     await cron(req);
     const appId = String(b.app_id ?? ""), ecranId = String(b.ecran ?? "");
@@ -666,7 +712,14 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const { saasReparerEcran } = await import("../_shared/app-build.ts");
     const travail = (async () => {
       let ok = false;
-      try { ok = await saasReparerEcran(appId, ecranId, String(b.erreur ?? "")); } catch (e) { console.error("reparer", e); }
+      try { ok = await saasReparerEcran(appId, ecranId, String(b.erreur ?? ""), !!b.apercu); } catch (e) { console.error("reparer", e); }
+      if (b.apercu) {
+        // Correction dans l'aperçu finie : l'écran sort de la liste, le robot reteste l'aperçu
+        const { data: a3 } = await admin.from("saas_apps").select("brouillon").eq("id", appId).maybeSingle();
+        const br = a3?.brouillon as any;
+        if (br?._test) { br._test.en_reparation = (br._test.en_reparation ?? []).filter((x: string) => x !== ecranId); await admin.from("saas_apps").update({ brouillon: br, maj: new Date().toISOString() }).eq("id", appId); }
+        return;
+      }
       const { data: a } = await admin.from("saas_apps").select("spec").eq("id", appId).maybeSingle();
       const t = ((a?.spec as any)?.ecrans ?? []).find((e: any) => e.id === ecranId)?.titre ?? ecranId;
       // Vrai événement : la correction est finie (réussie ou non) ; le robot reteste alors TOUS les écrans, voisins compris

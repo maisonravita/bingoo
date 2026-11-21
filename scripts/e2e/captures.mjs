@@ -117,25 +117,27 @@ if (CONSTRUIRE === "atelier") {
   console.log(`Cas ${CAS} sur ${a0.slug} (v${a0.version}) : mise en ligne →`, rep.status, (await rep.text()).slice(0, 120));
   const { ctx, page } = await ouvrir(a0.ws);
   await page.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
-  const t0 = Date.now(); let fin = null, n = 0;
+  // Toutes les 3 s : la version EN LIGNE ne doit jamais contenir le code cassé (les clients du membre ne voient rien)
+  const t0 = Date.now(), debutIso = new Date(t0 - 2000).toISOString(); let fin = null, n = 0, vuCasse = 0, photo = 0;
   while (Date.now() - t0 < 14 * 60e3) {
-    await page.waitForTimeout(20000);
-    const [v] = await q(`select version, verif->'dernier_atelier' d, verif->>'phase' p, (select jsonb_agg(x->>'t') from jsonb_array_elements(verif->'journal') x) j, spec from saas_apps where id = ${lit(a0.id)}`);
-    if (++n % 3 === 1) await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-${String(n).padStart(2, "0")}.png` }).catch(() => null);
-    if (v?.d) { fin = v; break; }
+    await page.waitForTimeout(3000);
+    const [v] = await q(`select version, brouillon->'_test' t, verif->'dernier_atelier' d, position('lignes.map' in spec::text) > 0 casse_en_ligne, (select jsonb_agg(x->>'t') from jsonb_array_elements(verif->'journal') x) j, spec from saas_apps where id = ${lit(a0.id)}`);
+    if (v.casse_en_ligne) vuCasse++;
+    if (Date.now() - photo > 15000) { photo = Date.now(); await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-${String(++n).padStart(2, "0")}.png` }).catch(() => null); }
+    if (!v.t && v.d && String(v.d.at ?? "") >= debutIso) { fin = v; break; }
   }
   if (!fin) { console.log("✗ Le robot n'a pas conclu en 14 min"); process.exitCode = 1; }
   else {
     const e3 = fin.spec.ecrans.find((e) => e.id === cible.id);
-    const remis = e3.code === avant.code;
-    console.log(`Conclusion : annulée=${fin.d.annule} · version ${avant.version} → ${fin.version} · code d'origine remis=${remis} · titre=${e3.titre}`);
-    console.log("Journal :\n" + (fin.j ?? []).slice(-4).join("\n"));
-    const attendu = CAS !== "texte" ? fin.d.annule === true && !/lignes\.map/.test(e3.code) : fin.d.annule === false && e3.titre !== avant.titre;
+    const s3 = Math.round((Date.now() - t0) / 1000);
+    console.log(`Conclusion en ~${s3} s : annulée=${fin.d.annule} · avant publication=${fin.d.avant_publication} · version ${avant.version} → ${fin.version} · code cassé vu en ligne ${vuCasse} fois · titre=${e3.titre}`);
+    console.log("Journal :\n" + (fin.j ?? []).slice(-2).join("\n"));
+    const attendu = CAS !== "texte" ? fin.d.annule === true && fin.d.avant_publication === true && fin.version === avant.version && vuCasse === 0 && e3.code === avant.code
+      : fin.d.annule === false && fin.d.avant_publication === true && fin.version === avant.version + 1 && e3.titre !== avant.titre;
     console.log(attendu ? "✓ ROBOT DE L'ATELIER : comportement attendu" : "✗ ROBOT DE L'ATELIER : comportement inattendu");
     if (!attendu) process.exitCode = 1;
     await page.reload({ waitUntil: "networkidle" }).catch(() => null); await page.waitForTimeout(6000);
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
-    if (CAS === "texte") await q(`update saas_apps set brouillon = null where id = ${lit(a0.id)}`);
   }
   await ctx.close();
 } else if (!CONSTRUIRE) {

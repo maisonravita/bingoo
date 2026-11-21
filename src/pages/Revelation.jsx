@@ -1,6 +1,6 @@
 // Après le paiement : le flou disparaît, le SaaS choisi apparaît en grand, puis Bingoo! construit sa version en plein écran.
 // Une fois en ligne, le créateur entre dans l'interface complète de Bingoo!.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
@@ -25,14 +25,18 @@ const chantierDe = (ws) => { const c = lire(CLE_CHANTIER); return c && (!c.ws ||
 
 
 /** Sous une modification mise en ligne : le résultat du robot de l'atelier (en cours, testée, ou annulée et rendue). */
-function TestAtelier({ x, verif }) {
+function TestAtelier({ x, verif, apercu }) {
   if (x.publieA == null || !verif) return null;
   const d = verif.dernier_atelier;
-  const conclu = d && !verif.atelier && String(d.at ?? "") >= x.publieA;
-  if (!conclu) return verif.atelier ? <p className="mt-1.5 ml-8 flex items-center gap-2 text-[13px] text-ink-soft"><span className="h-1.5 w-1.5 rounded-full bg-[#E8571C] pulse-dot" />Je teste la modification écran par écran, comme un vrai utilisateur…</p> : null;
-  if (!d.annule) return <p className="mt-1.5 ml-8 text-[13px] text-good">Testée : tous les écrans fonctionnent. Elle reste en ligne.</p>;
-  const msg = [...(verif.journal ?? [])].reverse().find((j) => j.type === "probleme" && /version d'avant/.test(j.t))?.t;
-  return <p className="mt-1.5 ml-8 rounded-lg bg-[#FFF7F0] px-3 py-2 text-[13px] text-[#9A3412]">{msg ?? "Cette modification cassait un écran : j'ai remis la version d'avant, et elle t'est rendue."}</p>;
+  const enTest = apercu?._test?.phase === "en_cours";
+  const conclu = d && !enTest && !verif.atelier && String(d.at ?? "") >= x.publieA;
+  if (!conclu) {
+    if (enTest) return <p className="mt-1.5 ml-8 flex items-center gap-2 text-[13px] text-ink-soft"><span className="h-1.5 w-1.5 rounded-full bg-[#E8571C] pulse-dot" />{(apercu._test.en_reparation ?? []).length ? "Un écran a un souci sur la version d'aperçu : je le corrige avant de publier (offert)…" : "Je la teste sur une version d'aperçu, écran par écran. Elle ne sera mise en ligne que si tout fonctionne…"}</p>;
+    return verif.atelier ? <p className="mt-1.5 ml-8 flex items-center gap-2 text-[13px] text-ink-soft"><span className="h-1.5 w-1.5 rounded-full bg-[#E8571C] pulse-dot" />Je teste la modification écran par écran, comme un vrai utilisateur…</p> : null;
+  }
+  if (!d.annule) return <p className="mt-1.5 ml-8 text-[13px] text-good">{d.avant_publication ? "Testée sur la version d'aperçu : tous les écrans fonctionnent. Elle est en ligne, regarde l'aperçu." : "Testée : tous les écrans fonctionnent. Elle reste en ligne."}</p>;
+  const msg = [...(verif.journal ?? [])].reverse().find((j) => j.type === "probleme" && /version d'avant|pas mise en ligne/.test(j.t))?.t;
+  return <p className="mt-1.5 ml-8 rounded-lg bg-[#FFF7F0] px-3 py-2 text-[13px] text-[#9A3412]">{msg ?? "Cette modification cassait un écran : elle n'a pas été mise en ligne, et elle t'est rendue."}</p>;
 }
 
 export default function Revelation({ paramsDe }) {
@@ -412,14 +416,15 @@ export function Chantier({ ws, nav, init, atelier = false }) {
 
   // Robot de l'atelier : pendant le test d'une modification, l'état est relu toutes les 4 s ; si la modification est
   // annulée (elle cassait un écran), l'aperçu se recharge sur la version remise.
-  const testEnCours = !!app?.verif?.atelier && app?.verif?.phase === "en_cours";
+  const testEnCours = (!!app?.verif?.atelier && app?.verif?.phase === "en_cours") || app?.brouillon?._test?.phase === "en_cours";
   useEffect(() => {
     if (!testEnCours || !app?.id) return;
     const t = setInterval(async () => {
       const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif").eq("id", app.id).maybeSingle();
       if (!data) return;
       setApp(data);
-      if (!data.verif?.atelier && data.verif?.dernier_atelier?.annule) setCle((k) => k + 1);
+      // Fin du test : publiée (nouvelle version) ou annulée après publication → l'aperçu se recharge
+      if (!data.brouillon?._test && !data.verif?.atelier) setCle((k) => k + 1);
     }, 4000);
     return () => clearInterval(t);
   }, [testEnCours, app?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -427,14 +432,21 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   // Le robot de Bingoo! : il ouvre chaque écran en coulisses, clique comme un utilisateur, et envoie le résultat.
   // Une seule fois par version et par passage ; il repasse dès qu'une correction arrive.
   const robotFait = useRef(new Set());
-  const cleRobot = app?.statut === "pret" && app?.verif?.phase === "en_cours" && !(app.verif.en_reparation ?? []).length ? `${app.version}-${app.verif.passages ?? 0}` : null;
+  // Une modification de l'atelier en test sur sa version d'aperçu passe avant tout : le robot teste l'aperçu, pas la version en ligne
+  const testApercu = app?.brouillon?._test;
+  const apercuEnTest = testApercu?.phase === "en_cours" && !(testApercu.en_reparation ?? []).length;
+  const specApercu = useMemo(() => { if (!app?.brouillon?._test) return null; const { _modif, _test, ...sp } = app.brouillon; return sp; }, [app?.brouillon]); // eslint-disable-line no-unused-vars
+  const cleRobot = apercuEnTest ? `apercu-${testApercu.debut}-${testApercu.passages ?? 0}` : app?.statut === "pret" && !testApercu && app?.verif?.phase === "en_cours" && !(app.verif.en_reparation ?? []).length ? `${app.version}-${app.verif.passages ?? 0}` : null;
   const robotActif = cleRobot && !robotFait.current.has(cleRobot) ? cleRobot : null;
   useEffect(() => {
     if (!robotActif || !app) return;
     const ecoute = async (e) => {
       if (e.data?.type !== "bingoo-verif" || e.data.slug !== app.slug || robotFait.current.has(robotActif)) return;
       robotFait.current.add(robotActif);
-      try { await fn("r/saas-app-verif", { workspace_id: ws.id, app_id: app.id, version: app.version, resultats: e.data.resultats }); } catch { /* le robot du serveur repasse dans les 10 minutes */ }
+      try {
+        if (robotActif.startsWith("apercu-")) await fn("r/saas-app-verif-brouillon", { workspace_id: ws.id, app_id: app.id, passage: testApercu?.passages ?? 0, resultats: e.data.resultats });
+        else await fn("r/saas-app-verif", { workspace_id: ws.id, app_id: app.id, version: app.version, resultats: e.data.resultats });
+      } catch { /* le robot du serveur repasse dans les 10 minutes */ }
     };
     window.addEventListener("message", ecoute);
     return () => window.removeEventListener("message", ecoute);
@@ -530,22 +542,22 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                 <div className="mt-3 flex flex-wrap gap-1.5">{(estSite ? IDEES_SITE : IDEES_SAAS).map((x) => <button key={x} onClick={() => { setEcran(""); envoyer(x); }} disabled={occupe} className="rounded-full border border-line bg-white px-3 py-1.5 text-[12.5px] font-medium hover:border-ink-faint disabled:opacity-50">{x}</button>)}</div>
               </Bingoo>
             )}
-            {!echanges.length && app?.verif && (app.verif.atelier || (app.verif.dernier_atelier?.annule && Date.now() - new Date(app.verif.dernier_atelier.at ?? 0).getTime() < 24 * 3600e3)) && (
-              <Bingoo><p className="font-semibold">Ta dernière modification</p><TestAtelier x={{ publieA: app.verif.atelier ? "" : String(app.verif.dernier_atelier?.at ?? "") }} verif={app.verif} /></Bingoo>
+            {!echanges.length && app?.verif && (app.verif.atelier || app.brouillon?._test || (app.verif.dernier_atelier?.annule && Date.now() - new Date(app.verif.dernier_atelier.at ?? 0).getTime() < 24 * 3600e3)) && (
+              <Bingoo><p className="font-semibold">Ta dernière modification</p><TestAtelier x={{ publieA: app.verif.atelier || app.brouillon?._test ? "" : String(app.verif.dernier_atelier?.at ?? "") }} verif={app.verif} apercu={app.brouillon} /></Bingoo>
             )}
             {echanges.map((x, i) => (
               <div key={i} className="space-y-5">
                 <Moi>{x.element && <span className="mb-1 block text-[12px] text-ink-soft">◎ {x.element}</span>}{x.moi}{x.images?.length > 0 && <span className="mt-1.5 flex gap-1.5">{x.images.map((m) => <img key={m.url} src={m.url} alt="" className="h-12 w-12 rounded-lg object-cover" />)}</span>}</Moi>
                 <Bingoo>
                   {x.etat === "encours" ? <p className="flex items-center gap-2.5 text-ink-soft"><Coche ok={false} />Je modifie ton SaaS… (une à deux minutes)</p>
-                    : x.etat === "ok" ? <div><p className="flex items-center gap-2.5"><Coche ok />C'est en ligne, regarde l'aperçu.{x.credit ? " (1 crédit utilisé)" : ""}</p><TestAtelier x={x} verif={app?.verif} />{x.faits?.length > 0 && <ul className="mt-1.5 ml-8 list-disc text-[13.5px] text-ink-soft">{x.faits.map((f) => <li key={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</li>)}</ul>}{x.rates?.length > 0 && <p className="mt-1 ml-8 text-[13px] text-[#9A3412]">{x.rates.join(" ; ")}</p>}{x.versionAvant && <button onClick={() => restaurer(x.versionAvant)} disabled={occupe} className="mt-1.5 ml-8 text-[12.5px] font-semibold text-ink-soft underline-offset-2 hover:underline disabled:opacity-40">↶ Annuler cette modification</button>}</div>
+                    : x.etat === "ok" ? <div><p className="flex items-center gap-2.5"><Coche ok />{x.publieA ? "Modification écrite." : "C'est en ligne, regarde l'aperçu."}{x.credit ? " (1 crédit utilisé)" : ""}</p><TestAtelier x={x} verif={app?.verif} apercu={app?.brouillon} />{x.faits?.length > 0 && <ul className="mt-1.5 ml-8 list-disc text-[13.5px] text-ink-soft">{x.faits.map((f) => <li key={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</li>)}</ul>}{x.rates?.length > 0 && <p className="mt-1 ml-8 text-[13px] text-[#9A3412]">{x.rates.join(" ; ")}</p>}{x.versionAvant && <button onClick={() => restaurer(x.versionAvant)} disabled={occupe} className="mt-1.5 ml-8 text-[12.5px] font-semibold text-ink-soft underline-offset-2 hover:underline disabled:opacity-40">↶ Annuler cette modification</button>}</div>
                       : /modifications du mois|Il te faut \d+ crédit/.test(x.erreur ?? "") ? <QuotaAtteint plan={ws?.plan} nav={nav} erreur={x.erreur} />
                       : <p className="text-[#B42318]">{x.erreur}</p>}
                 </Bingoo>
               </div>
             ))}
             {/* Le robot de Bingoo! (construction ET atelier) : toujours monté, hors de tout message, pour tester chaque version */}
-            {robotActif && app && <AppCadre key={robotActif} slug={app.slug} spec={app.spec} version={app.version} verif className="pointer-events-none absolute -left-[9999px] top-0 h-[800px] w-[1200px]" />}
+            {robotActif && app && <AppCadre key={robotActif} slug={app.slug} spec={robotActif.startsWith("apercu-") && specApercu ? specApercu : app.spec} version={app.version} verif className="pointer-events-none absolute -left-[9999px] top-0 h-[800px] w-[1200px]" />}
             {erreur && (
               <Bingoo>
                 {/Un autre SaaS coûte/.test(erreur) ? <>

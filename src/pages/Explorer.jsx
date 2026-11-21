@@ -1732,7 +1732,7 @@ function Construire({ projet }) {
   // Modification en attente : l'aperçu montre la nouvelle version, à mettre en ligne ou à abandonner
   const attente = app?.statut !== "en_cours" && app?.brouillon?._modif ? app.brouillon : null;
   const decider = async (valider) => {
-    try { await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: valider ? "brouillon-valider" : "brouillon-annuler" }); await charger(); toast(valider ? "C'est en ligne" : "Modification abandonnée"); setVoirLigne(false); }
+    try { await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: valider ? "brouillon-valider" : "brouillon-annuler" }); await charger(); toast(valider ? "Je la teste sur une version d'aperçu : elle sera en ligne dans une minute si tout fonctionne" : "Modification abandonnée"); setVoirLigne(false); }
     catch (x) { toast(x.message, "bad"); }
   };
   return (

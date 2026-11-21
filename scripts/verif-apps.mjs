@@ -50,9 +50,15 @@ function fidelite(spec) {
   return out;
 }
 
-const apps = await q(`select id, workspace_id, slug, version, spec from saas_apps where statut = 'pret'
+const enLigne = await q(`select id, workspace_id, slug, version, spec from saas_apps where statut = 'pret'
   ${SLUG ? `and slug = ${lit(SLUG)}` : BLANC ? "" : `and (verif is null or coalesce((verif->>'version')::int, -1) <> version or (verif->>'phase' = 'en_cours' and jsonb_array_length(coalesce(verif->'en_reparation', '[]'::jsonb)) = 0)) and maj < now() - interval '1 minute'`}
   order by maj desc limit ${MAX}`);
+// Modifications de l'atelier en attente de test sur leur version d'aperçu (le membre a fermé la page) : testées ici,
+// et publiées seulement si tout passe (r/saas-app-verif-brouillon)
+const apercus = BLANC ? [] : (await q(`select id, workspace_id, slug, version, brouillon - '_modif' - '_test' as spec, coalesce((brouillon->'_test'->>'passages')::int, 0) passage from saas_apps
+  where brouillon->'_test'->>'phase' = 'en_cours' and jsonb_array_length(coalesce(brouillon->'_test'->'en_reparation', '[]'::jsonb)) = 0
+  ${SLUG ? `and slug = ${lit(SLUG)}` : `and maj < now() - interval '1 minute'`} limit ${MAX}`)).map((a) => ({ ...a, apercu: true }));
+const apps = [...apercus, ...enLigne];
 console.log(apps.length, "SaaS à vérifier");
 if (!apps.length) process.exit(0);
 
@@ -92,8 +98,9 @@ for (const a of apps) {
   for (const r of ko) console.log(`    - ${r.id} : ${String(r.erreur ?? "").slice(0, 220)}`);
   // Envoi à Bingoo! (clé interne lue dans la base, jamais affichée) : enregistre le résultat et lance la réparation
   if (BLANC) continue;
-  const corps = JSON.stringify({ workspace_id: a.workspace_id, app_id: a.id, version: a.version, resultats: resultats.resultats });
-  await q(`select net.http_post(url := 'https://${REF}.supabase.co/functions/v1/r/saas-app-verif', body := ${lit(corps)}::jsonb,
+  const corps = JSON.stringify(a.apercu ? { workspace_id: a.workspace_id, app_id: a.id, passage: a.passage, resultats: resultats.resultats } : { workspace_id: a.workspace_id, app_id: a.id, version: a.version, resultats: resultats.resultats });
+  if (a.apercu) console.log("    (version d'aperçu d'une modification de l'atelier)");
+  await q(`select net.http_post(url := 'https://${REF}.supabase.co/functions/v1/r/${a.apercu ? "saas-app-verif-brouillon" : "saas-app-verif"}', body := ${lit(corps)}::jsonb,
     headers := jsonb_build_object('content-type', 'application/json', 'x-cron-key', (select value from app_secrets where name = 'cron_key')), timeout_milliseconds := 60000)`);
 }
 await browser.close(); srv.close();
