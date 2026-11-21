@@ -861,6 +861,8 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     if (b.quoi === "brouillon-valider" || b.quoi === "brouillon-annuler") { await log(ws.id, "app_reglage", b.quoi === "brouillon-valider" ? "Modification mise en ligne" : "Modification abandonnée"); return await o.appBrouillon(app.id, b.quoi === "brouillon-valider"); }
     if (b.quoi === "textes") { await log(ws.id, "app_reglage", "Textes et prix modifiés"); return await o.appTextes(app.id, b); }
     if (b.quoi === "legal") { await log(ws.id, "app_reglage", "Informations légales modifiées"); return await o.appLegal(app.id, b); }
+    if (b.quoi === "designs") return await o.appDesigns(app.id);
+    if (b.quoi === "design-revenir") { await log(ws.id, "app_reglage", "Retour au design précédent"); return await o.appDesignRevenir(app.id); }
     if (b.quoi === "identite") { await log(ws.id, "app_reglage", "Logo, couleur ou style modifiés"); return await o.appIdentite(app.id, b); }
     if (b.quoi === "ab-resultats") return await o.appAbResultats(app.id);
     if (b.quoi === "lancement-fait") return await o.appLancementFait(app.id, String(b.cle ?? ""), !!b.fait);

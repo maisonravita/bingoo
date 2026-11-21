@@ -1,5 +1,6 @@
 // Réglages d'un SaaS construit par Bingoo!, côté créateur : encaissement (Stripe), nom de domaine (Vercel), chiffres.
 // deno-lint-ignore-file no-explicit-any
+import { garderApparence, revenirApparence, resumeApparences } from "./apparence.ts";
 import { admin, ask, askJson } from "./core.ts";
 import { HttpError } from "./http.ts";
 
@@ -556,7 +557,13 @@ export async function appIdentite(appId: string, b: any) {
     patch.logo = admin.storage.from("apps").getPublicUrl(chemin).data.publicUrl;
   }
   if (!Object.keys(patch).length) return { ok: true };
-  const appliquer = (sp: any) => { const n = { ...(sp ?? {}), ...patch }; if (n.logo === null) delete n.logo; return n; };
+  const appliquer = (sp: any) => {
+    const n = { ...(sp ?? {}), ...patch }; if (n.logo === null) delete n.logo;
+    // Système de design : la couleur choisie remplace la principale ; un autre fond ou une autre allure rend les réglages d'origine
+    if (patch.couleur && n.design?.couleurs) n.design = { ...n.design, couleurs: { ...n.design.couleurs, primary: patch.couleur, on_primary: "#FFFFFF", ring: patch.couleur } };
+    if ((patch.style || patch.fond) && n.design) { n.design_avant = n.design; delete n.design; }
+    return garderApparence(sp ?? {}, n, "Logo, couleur ou style modifiés");
+  };
   // Aussi dans le brouillon en cours (sinon sa mise en ligne effacerait le logo)
   await admin.from("saas_apps").update({ spec: appliquer(app!.spec), ...(app!.brouillon ? { brouillon: appliquer(app!.brouillon) } : {}), version: (app!.version ?? 0) + 1, maj: new Date().toISOString() }).eq("id", appId);
   return { ok: true, ...patch };
@@ -646,4 +653,19 @@ export async function appCroissance(appId: string) {
     }
   }
   return { ...ch, abonnes_30j: abonnes30, prix_moyen: Math.round(prixMoyen * 100) / 100, sources: (src ?? []).slice(0, 5), modele };
+}
+
+// Retour au design précédent en un clic (apparence seule : textes, prix et écrans restent tels quels)
+export async function appDesignRevenir(appId: string) {
+  const { data: app } = await admin.from("saas_apps").select("spec, brouillon, version").eq("id", appId).single();
+  const n = revenirApparence(app!.spec ?? {});
+  if (!n) throw new HttpError(400, "Aucun design précédent à rétablir");
+  const brouillon = app!.brouillon ? { ...app!.brouillon, ...Object.fromEntries(["design", "design_avant", "couleur", "style", "fond", "forme", "police", "police_titres", "disposition", "designs_precedents"].map((k) => [k, n[k]])), site: { ...(app!.brouillon.site ?? {}), ...(n.site?.gabarit ? { gabarit: n.site.gabarit } : {}) } } : null;
+  if (brouillon && !n.site?.gabarit) delete brouillon.site.gabarit;
+  await admin.from("saas_apps").update({ spec: n, ...(brouillon ? { brouillon } : {}), version: (app!.version ?? 0) + 1, maj: new Date().toISOString() }).eq("id", appId);
+  return { ok: true, designs: resumeApparences(n) };
+}
+export async function appDesigns(appId: string) {
+  const { data: app } = await admin.from("saas_apps").select("spec").eq("id", appId).single();
+  return { designs: resumeApparences(app!.spec ?? {}) };
 }

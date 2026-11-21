@@ -1,4 +1,7 @@
 // Règles du chantier design (décisions de Jean, 21 nov. 2026) :
+//  - Avant tout changement de design d'un site existant, l'apparence précédente est gardée (apparence.ts :
+//    garderApparence) et le membre peut y revenir en un clic (« Revenir au design précédent »).
+//  - Portfolio : moitié droite du premier écran jamais vide ; jamais de photo qui n'est pas celle du membre.
 //  - Coût : sites, au plus +0,01 € par construction (une construction coûte ~1 centime, un pourcentage n'a pas de sens) ;
 //    SaaS (~1 €), au plus +20 %.
 //  - Une évolution de design ne s'applique qu'aux NOUVELLES constructions (spec.design présent), ou au clic du membre ;

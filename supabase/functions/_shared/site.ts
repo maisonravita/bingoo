@@ -29,6 +29,9 @@ export async function construireSite(appId: string, p: any, demarrerVerification
   spec.design = d;
   spec.couleur = d.couleurs.primary;
   if (d.allure) spec.style = d.allure;
+  // Gabarit kit Taste : pour les nouveaux portfolios seulement (validé par Jean le 21/11 après comparaison).
+  // Les sites existants gardent leur gabarit ; un changement passe par garderApparence (retour en un clic).
+  if (spec.site?.modele === "portfolio") spec.site = { ...spec.site, gabarit: "taste" };
   // Portfolio sans photos du membre : le nom en grand (Taste : jamais de photos de bibliothèque en en-tête ni de personnes,
   // elles passeraient pour son travail). Les photos libres (photos.ts) restent réservées à des détails, plus tard.
   await admin.from("saas_apps").update({ brouillon: spec, etape: `Écriture des écrans (${spec.ecrans.length - 1}/${spec.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);

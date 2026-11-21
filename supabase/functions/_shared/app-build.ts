@@ -3,6 +3,7 @@
 // 1. une spec (couleur, données, écrans, données d'exemple) ; 2. le code de chaque écran, en parallèle.
 // Le gabarit (src/lib/appShell.js) fournit navigation, comptes, composants et accès aux données.
 // deno-lint-ignore-file no-explicit-any
+import { garderApparence } from "./apparence.ts";
 import { texteDesign } from "./design.ts";
 import { FICHES, FICHE_ECRANS, CONSIGNE_TEXTES_FR } from "./design-fiches.ts";
 import { choisirDesign } from "./site.ts";
@@ -534,6 +535,8 @@ Un changement de couleur, de police, d'allure, de nom, de textes du site ou de p
   const faits: string[] = [], rates: string[] = [];
   // 0. Limites : ce que Bingoo! ne sait pas faire est dit clairement, avec l'alternative faite à la place
   for (const x of (Array.isArray(plan?.impossible) ? plan.impossible : []).slice(0, 3)) if (x?.demande) rates.push(`${String(x.demande).slice(0, 120)} : impossible dans ${spec.type === "site" ? "un site" : "un SaaS"} Bingoo!${x.alternative ? ` ; à la place : ${String(x.alternative).slice(0, 160)}` : ""}`);
+  // Apparence avant modification : gardée pour le retour en un clic (apparence.ts)
+  const avantApparence = { ...spec };
   // 1. Réglages globaux
   const R = plan?.reglages && typeof plan.reglages === "object" ? plan.reglages : {};
   const ENUM: Record<string, string[]> = { style: ["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique", "nature"], fond: ["blanc", "creme", "gris", "sombre"], forme: ["carre", "arrondi", "pilule"], disposition: ["barre", "haut", "onglets"] };
@@ -569,6 +572,7 @@ Un changement de couleur, de police, d'allure, de nom, de textes du site ou de p
     if (Array.isArray(W.etapes) && W.etapes.length) { spec.site.etapes = W.etapes.filter((x: any) => x?.titre).slice(0, 3).map((x: any) => ({ titre: c(x.titre, 40), texte: c(x.texte, 200) })); faits.push("étapes"); }
     if (W.apropos && typeof W.apropos === "object" && c(W.apropos.texte, 700)) { spec.site.apropos = { titre: c(W.apropos.titre, 60) || spec.site.apropos?.titre || "À propos", texte: c(W.apropos.texte, 700) }; faits.push("à propos"); }
   }
+  { const g = garderApparence(avantApparence, spec, "Modification par l'atelier"); if (g.designs_precedents !== spec.designs_precedents) spec.designs_precedents = g.designs_precedents; }
   // 3. Structure : supprimer, renommer, réordonner (jamais le dernier écran privé)
   for (const id of (Array.isArray(plan?.supprimer) ? plan.supprimer : []).map(String)) {
     const e = spec.ecrans.find((x: any) => x.id === id);
