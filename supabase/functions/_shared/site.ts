@@ -50,7 +50,9 @@ export async function construireSite(appId: string, p: any, demarrerVerification
 
 /** Le moteur de pages est-il actif pour cette construction ? (secret GEN_SITES : on | robot | off) */
 async function genActif(appId: string) {
-  const mode = Deno.env.get("GEN_SITES") ?? "robot";
+  // Réglable sans redéploiement : app_secrets « gen_sites » (on | robot | off), sinon le secret GEN_SITES, sinon « robot »
+  const { data: r } = await admin.from("app_secrets").select("value").eq("name", "gen_sites").maybeSingle();
+  const mode = String(r?.value ?? Deno.env.get("GEN_SITES") ?? "robot");
   if (mode === "on") return true;
   if (mode !== "robot") return false;
   const { data } = await admin.from("saas_apps").select("workspaces(name)").eq("id", appId).maybeSingle();
