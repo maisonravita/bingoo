@@ -169,13 +169,13 @@ if (CONSTRUIRE === "atelier") {
   const SITE_IDEE = SITES[process.env.DOMAINE] ?? { texte: "Le site de mon activité de coiffeuse à domicile à Lyon", apercu: { type: "site", nom: "Coupe Chez Vous", pitch: "Coiffeuse à domicile à Lyon : coupes, couleurs et brushings chez vous, sur rendez-vous.", cible: "Familles et particuliers lyonnais", metier: "Coiffeuse à domicile", accroche: "Votre coiffeuse vient chez vous", cta: "Prendre rendez-vous", ecrans: [{ titre: "Accueil", role: "L'accroche et le bouton de rendez-vous" }, { titre: "Services et tarifs", role: "Les prestations et leurs prix" }, { titre: "Contact", role: "Le formulaire de demande" }, { titre: "Espace gérant", role: "Les demandes reçues" }], services: [], plus_tard: [], limites: [] } };
   const cible = CONSTRUIRE === "site" ? { idee: true, domaine: "idee.bingoo.fr", nom: SITE_IDEE.apercu.nom, categorie: "", ideeTexte: SITE_IDEE.texte, type: "site", reponses: [], apercu: SITE_IDEE.apercu }
     : CONSTRUIRE === "ia"
-    ? { domaine: process.env.DOMAINE || "circle.so", nom: "Circle", categorie: "Communauté" }
+    ? { domaine: process.env.DOMAINE || "circle.so", nom: (await q(`select coalesce(nom, split_part(domaine, '.', 1)) nom from saas where domaine = ${lit(process.env.DOMAINE || "circle.so")}`))[0]?.nom ?? "Circle", categorie: (await q(`select coalesce(categorie, '') c from saas where domaine = ${lit(process.env.DOMAINE || "circle.so")}`))[0]?.c || "Communauté" }
     : { domaine: "planity.com", nom: "Planity", categorie: "Commerce et restauration", modele: "reservation", couleur: "#1F3D33", allure: "nature" };
   const ws2 = await creerEspace(`Robot construction ${new Date().toISOString().slice(0, 16)}`);
   await q(`update workspaces set plan = ${lit(CONSTRUIRE === "site" ? "site" : "lancer_pro")}, plan_status = 'active', onboarded = true where id = ${lit(ws2)}`);
-  const nomVoulu = CONSTRUIRE === "ia" ? "Cerclo" : CONSTRUIRE === "site" ? SITE_IDEE.apercu.nom : "Sublima";
+  const nomVoulu = CONSTRUIRE === "ia" ? ({ "calendly.com": "Rendezo", "invoiceninja.com": "Facturo", "canny.io": "Avisio" }[process.env.DOMAINE ?? ""] ?? "Cerclo") : CONSTRUIRE === "site" ? SITE_IDEE.apercu.nom : "Sublima";
   let { ctx, page } = await ouvrir(ws2, {
-    [`bingoo-reponses-${cible.domaine}`]: { nom: nomVoulu, clients: CONSTRUIRE === "ia" ? "Créateurs de communautés" : "Instituts de beauté", mieux: "", angle: `Nom souhaité, à utiliser tel quel : ${nomVoulu}` },
+    [`bingoo-reponses-${cible.domaine}`]: { nom: nomVoulu, clients: CONSTRUIRE === "ia" ? (process.env.DOMAINE ? "Indépendants et petites équipes" : "Créateurs de communautés") : "Instituts de beauté", mieux: "", angle: `Nom souhaité, à utiliser tel quel : ${nomVoulu}` },
     "bingoo-chantier": { ...cible, ws: ws2, metier: CONSTRUIRE === "ia" ? "Créateurs de communautés" : "Institut de beauté" },
   });
   const t0 = Date.now();
@@ -191,6 +191,8 @@ if (CONSTRUIRE === "atelier") {
       texte = await borne(page.evaluate(() => document.body.innerText), 15000, "Lecture");
     } catch (e) { console.log("⚠ PAGE FIGÉE :", e.message, "· URL", page.url()); figee = (figee ?? 0) + 1; }
     fin = /Tout est propre|Je livre ton SaaS|tests continuent en arrière-plan|La construction a échoué/.test(texte);
+    // Les trois questions avant la construction : un membre clique « Construire ma version » (le nom voulu est déjà rempli)
+    if (!fin && /Construire ma version/.test(texte)) { const b = page.getByRole("button", { name: /Construire ma version/ }); if (await b.count().catch(() => 0)) { await b.first().click().catch(() => null); console.log("Clic : Construire ma version"); } }
     // Aucune app créée après 5 minutes : le parcours est bloqué avant la construction, on le dit (texte de la page) et on s'arrête
     if (!fin && Date.now() - t0 > 5 * 60e3) { const [x] = await q(`select count(*)::int n from saas_apps where workspace_id = ${lit(ws2)}`); if (!x?.n) { console.log("✗ BLOQUÉ AVANT LA CONSTRUCTION · URL", page.url(), "· page :", texte.replace(/\s+/g, " ").slice(0, 600)); break; } }
     // Ou la base le dit : vérification finie (le texte de la page varie selon le genre d'app)
