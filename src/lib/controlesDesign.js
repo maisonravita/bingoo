@@ -36,7 +36,7 @@ export function lintFr(texte, corps = true) {
   const out = [], bas = t.toLowerCase();
   for (const m of INTERDITS) { const i = bas.indexOf(m); if (i >= 0) out.push({ regle: "mot interdit « " + m + " »", extrait: ext(i) }); }
   for (const [re, nom] of REGLES) { const r = re.exec(t); if (r) out.push({ regle: nom, extrait: ext(r.index) }); }
-  const tirets = (t.match(/ — | – /g) ?? []).length;
+  const tirets = (t.replace(/(\d) [–—] (?=\d)/g, "$1-").match(/ — | – /g) ?? []).length;
   if (tirets >= 2) out.push({ regle: "tirets cadratins en série (" + tirets + ")", extrait: ext(Math.max(t.indexOf("—"), t.indexOf("–"))) });
   if (corps && t.length > 40 && /[a-zà-ÿ]!(\s|$)|\s!(\s|$)/i.test(t)) out.push({ regle: "point d'exclamation dans le texte", extrait: ext(t.indexOf("!")) });
   return out;
@@ -100,7 +100,7 @@ export function controlesDesign(zone, page = false, lint = null) {
 
   // Éléments qui se chevauchent (textes et boutons, hors parents/enfants)
   // (un menu ou une fenêtre ouverte recouvre la page par nature : exclus)
-  const blocs = tous.filter((el) => el.matches("h1, h2, h3, p, button, a[href], label, li") && court(el) && !el.closest("[role=menu], [role=dialog], [role=listbox], [aria-modal=true]")).slice(0, 160);
+  const blocs = tous.filter((el) => el.matches("h1, h2, h3, p, button, a[href], label, li") && court(el) && (el.innerText || "").trim() && !el.closest("[role=menu], [role=dialog], [role=listbox], [aria-modal=true]")).slice(0, 160);
   let chevauche = null;
   for (let i = 0; i < blocs.length && !chevauche; i++) for (let j = i + 1; j < blocs.length; j++) {
     const a = blocs[i], b = blocs[j];

@@ -58,6 +58,7 @@ function cssDesign(spec) {
   const bg = ok(c.background), fg = ok(c.foreground), card = ok(c.card) ?? bg, muted = ok(c.muted) ?? card, mfg = ok(c.muted_foreground) ?? fg, bord = ok(c.border) ?? muted, onc = ok(c.on_primary) ?? "#FFFFFF";
   return `:root{--ds-bg:${bg};--ds-fg:${fg};--ds-card:${card};--ds-muted:${muted};--ds-mfg:${mfg};--ds-border:${bord};--ds-onc:${onc}}
 body,.fond-creme,.fond-gris{background:var(--ds-bg);color:var(--ds-fg)}
+button{min-height:24px}
 [class~="bg-white"]{background:var(--ds-card)}[class~="bg-slate-50"],[class~="bg-slate-100"]{background:var(--ds-muted)}
 [class~="text-slate-900"],[class~="text-slate-800"],[class~="text-slate-700"]{color:var(--ds-fg)}
 [class~="text-slate-600"],[class~="text-slate-500"],[class~="text-slate-400"]{color:var(--ds-mfg)}
@@ -265,7 +266,7 @@ const joli = (v) => {
 };
 // Tableau : recherche, tri par colonne, export Excel (CSV) et pagination, pour tous les écrans
 // Cellules soignées : un avatar devant le nom (1re colonne), une pastille de couleur pour les statuts
-const TEINTES_AV = ["#F43F5E", "#8B5CF6", "#0EA5E9", "#10B981", "#F59E0B", "#6366F1", "#EC4899", "#14B8A6"];
+const TEINTES_AV = ["#BE123C", "#6D28D9", "#0369A1", "#047857", "#B45309", "#4F46E5", "#BE185D", "#0F766E"];
 const teinteAv = (n) => { let h = 0; for (const c of String(n || "")) h = (h * 31 + c.charCodeAt(0)) >>> 0; return TEINTES_AV[h % TEINTES_AV.length]; };
 const initiales = (n) => String(n || "?").trim().split(" ").filter(Boolean).map((x) => x[0]).join("").slice(0, 2).toUpperCase();
 const tonStatut = (v) => { const t = String(v).toLowerCase(); return /gagn|pay|actif|active|confirm|termin|livr|valid|resolu|résolu|client|publi|accept|fait/.test(t) ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : /attente|relanc|demande|prospect|brouillon|envoy|nouveau|ouvert|à venir|a venir|en cours/.test(t) ? "bg-amber-50 text-amber-700 ring-amber-200" : /perdu|annul|retard|refus|impay|inactif|ferm|bloqu/.test(t) ? "bg-rose-50 text-rose-700 ring-rose-200" : "bg-slate-100 text-slate-600 ring-slate-200"; };
