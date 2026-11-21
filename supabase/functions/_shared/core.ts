@@ -110,8 +110,7 @@ PERIODES_PAR_PLAN.lancer_pro = {
 // Site : moins cher qu'un SaaS (pas de données de marché, pas de comptes clients ni d'abonnements à gérer)
 PERIODES_PAR_PLAN.site = {
   mois: { label: "1 mois", mois: 1, parMois: 9.99, inclus: ["Ton site en ligne, hébergement inclus", "Les demandes de tes clients reçues par e-mail et rangées", "Tes services, tes prix et tes horaires modifiables à tout moment", "Le branchement de ton nom de domaine (le nom lui-même s'achète à part)", "Ton plan pour tes premiers clients du quartier", "30 modifications par mois dans l'atelier"] },
-  trimestre: { label: "3 mois", mois: 3, parMois: 7.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Moins cher chaque mois", "Facturé tous les 3 mois"] },
-  an: { label: "12 mois", mois: 12, parMois: 5.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Le prix le plus bas par mois", "Réponse prioritaire par e-mail"] },
+  an: { label: "12 mois", mois: 12, parMois: 7.99, inclus: ["Tout ce qu'il y a dans 1 mois", "95,88 € facturés une fois par an (2 € de moins chaque mois)", "Réponse prioritaire par e-mail"] },
 };
 /** Formules qui permettent de construire un SaaS (la formule Site ne construit que des sites) */
 export const CONSTRUIT_SAAS = ["explorer_pro", "lancer_pro", "business", "fondateur"];

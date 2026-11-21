@@ -19,9 +19,9 @@ export default function ChoixFormule({ periodes, fondateur, onChoisir, busy, act
         <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0 text-good" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z" /><path d="m9 12 2 2 4-4" /></svg>
         <p className="text-[15px]"><b>Ta version en ligne sous 14 jours, ou remboursé intégralement.</b> <span className="text-ink-soft">Sans engagement : tu arrêtes quand tu veux.</span></p>
       </div>
-      <div className="grid md:grid-cols-3 gap-4 items-stretch">
+      <div className={cx("grid gap-4 items-stretch", liste.length === 2 ? "md:grid-cols-2 md:max-w-3xl md:mx-auto" : "md:grid-cols-3")}>
         {liste.map((p) => {
-          const vedette = p.key === "trimestre";
+          const vedette = p.key === (liste.some((x) => x.key === "trimestre") ? "trimestre" : "an");
           const prixFondateur = p.key === "mois" && fondateur ? fondateur : null;
           const parMois = prixFondateur ?? p.parMois;
           const total = Math.round(parMois * p.mois * 100) / 100;

@@ -49,10 +49,14 @@ plan (objet {indispensables : 5 à 7 fonctions pour une première version, pour_
 }
 
 /** Tâche minute : résume les analyses REA arrivées (2 par passage). */
+// Toutes les heures, par lots : jusqu'à 20 fiches, dans un budget de 110 s (au lieu de 2 fiches chaque minute,
+// qui réveillait la base pour rien quand la file était vide)
 export async function syntheseCron() {
-  const { data } = await admin.from("saas_decortique").select("domaine").eq("statut", "analyse").order("at").limit(2);
+  const t0 = Date.now();
+  const { data } = await admin.from("saas_decortique").select("domaine").eq("statut", "analyse").order("at").limit(20);
   const out: Record<string, string> = {};
   for (const { domaine } of data ?? []) {
+    if (Date.now() - t0 > 110_000) break;
     try { await synthese(domaine); out[domaine] = "fait"; }
     catch (e) {
       out[domaine] = String((e as Error).message).slice(0, 120);
