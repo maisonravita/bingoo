@@ -66,5 +66,5 @@ export default function AppCadre({ slug, spec, version, paiement, domaine, ab, a
     return () => window.removeEventListener("message", relais);
   }, []);
   if (!doc) return <div className={className} />;
-  return <iframe ref={cadre} key={`${slug}-${version}-${tour ? 1 : 0}`} title={spec?.nom ?? "Application"} srcDoc={doc} sandbox={verif || capture ? "allow-scripts" : "allow-scripts allow-forms allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"} className={className} />;
+  return <iframe ref={cadre} key={`${slug}-${version}-${tour ? 1 : 0}`} title={spec?.nom ?? "Application"} srcDoc={doc} sandbox={verif || capture ? "allow-scripts allow-forms" : "allow-scripts allow-forms allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"} className={className} />;
 }
