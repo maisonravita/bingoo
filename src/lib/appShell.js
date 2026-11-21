@@ -842,7 +842,8 @@ function SitePageGeneree({ onAuth }) {
     const r = document.documentElement; r.dataset.radius = r.dataset.radius || "soft"; r.dataset.buttons = r.dataset.buttons || "solid"; r.lang = "fr";
     return () => { l.remove(); st.remove(); };
   }, []);
-  const contenu = useMemo(() => (P.sections ?? []).map((s) => s.html).join("\\n").replace(/src=("|')(IMG_\\d|PHOTO_\\d)\\1/g, (m, q, k) => P.images?.[k]?.url ? \`src=\${q}\${P.images[k].url}\${q}\` : m), []);
+  // Assemblage : le header, puis les sections dans <main id="top"> (les règles du kit en dépendent), puis la fin (footer.closing)
+  const contenu = useMemo(() => { const L = (P.sections ?? []).map((s) => ({ id: s.id, html: String(s.html).replace(/<\\/?main\\b[^>]*>/gi, "") })); const fin = L.filter((s) => /<footer\\b/i.test(s.html)), nav = L.filter((s) => s.id === "nav"); return [...nav.map((s) => s.html), '<main id="top">', ...L.filter((s) => s.id !== "nav" && !fin.includes(s)).map((s) => s.html), "</main>", ...fin.map((s) => s.html)].join("\\n").replace(/src=("|')(IMG_\\d|PHOTO_\\d)\\1/g, (m, q, k) => P.images?.[k]?.url ? \`src=\${q}\${P.images[k].url}\${q}\` : m); }, []);
   useEffect(() => {
     const el = ref.current; if (!el) return;
     el.innerHTML = contenu; nettoyerDom(el);
