@@ -1,0 +1,57 @@
+// Moteur de pages : les fonctions pures (sans réseau ni IA), testées à part : nettoyage du HTML écrit par l'IA,
+// contrôles d'honnêteté et de structure d'une section, remplacement d'un texte au clic dans l'atelier.
+import { lintFr } from "../../../src/lib/controlesDesign.js";
+
+// ---------------------------------------------------------------- Nettoyage (le cadre public est isolé, mais une page
+// écrite par l'IA ne doit contenir aucun code, aucun formulaire hors marqueurs et aucune ressource extérieure)
+const BALISES_INTERDITES = /<\/?(script|iframe|object|embed|form|input|select|textarea|link|meta|base|frame|frameset|applet|portal|noscript)\b[^>]*>/gi;
+export function nettoyer(html: string, imagesOk: Set<string>): string {
+  let h = String(html ?? "");
+  h = h.replace(/<script[\s\S]*?<\/script\s*>/gi, "").replace(/<noscript[\s\S]*?<\/noscript\s*>/gi, "");
+  h = h.replace(BALISES_INTERDITES, "");
+  h = h.replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+  h = h.replace(/(href|src|xlink:href|action|formaction|srcset)\s*=\s*("|')\s*(javascript|vbscript|data:text)[^"']*\2/gi, '$1="#"');
+  // Feuilles de style : pas d'import ni de ressource extérieure ni d'expression
+  h = h.replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gi, (_m, css) => `<style>${String(css).replace(/@import[^;]*;?/gi, "").replace(/url\(\s*(['"]?)(?!data:image\/)[^)]*\)/gi, "none").replace(/expression\s*\(/gi, "(").replace(/position\s*:\s*fixed/gi, "position:absolute")}</style>`);
+  h = h.replace(/style\s*=\s*("|')([^"']*)\1/gi, (_m, q, css) => `style=${q}${String(css).replace(/url\([^)]*\)/gi, "none").replace(/expression\s*\(/gi, "(")}${q}`);
+  // Images : seulement les jetons fournis (remplacés à l'affichage) ; une autre source est retirée
+  h = h.replace(/<img\b[^>]*>/gi, (tag) => { const s = tag.match(/\ssrc\s*=\s*("|')([^"']*)\1/i)?.[2] ?? ""; return imagesOk.has(s) ? tag : ""; });
+  // Liens extérieurs : seulement l'itinéraire OpenStreetMap, le téléphone et l'e-mail
+  h = h.replace(/href\s*=\s*("|')(https?:\/\/[^"']*)\1/gi, (m, q, u) => /^https:\/\/(www\.)?openstreetmap\.org\//.test(u) ? m : `href=${q}#${q}`);
+  return h.trim();
+}
+
+// ---------------------------------------------------------------- Contrôles d'une section (avant le robot du navigateur)
+const INVENTE = /(\d[\d\s.,]*\s*(clients?|avis|abonnés|utilisateurs|salons|familles|restaurants|commandes)\b|★|⭐|\b\d[,.]\d\s*\/\s*5\b|satisfaits?|recommandé par|élu |prix du |récompens|témoignage|ils nous font confiance|depuis (19|20)\d\d|\d+\s*ans d.expérience)/i;
+export function controlerSection(id: string, html: string, brief: string): string[] {
+  const pbs: string[] = [];
+  const texte = html.replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  if (!texte) pbs.push("La section est vide.");
+  const invente = texte.match(INVENTE)?.[0];
+  if (invente && !brief.toLowerCase().includes(invente.toLowerCase().trim())) pbs.push(`Information inventée interdite : « ${invente.trim()} » (ni avis, ni chiffres, ni récompenses qui ne sont pas dans le brief).`);
+  for (const m of texte.matchAll(/(\d+(?:[,.]\d+)?)\s*€/g)) if (!brief.replace(/\s/g, "").includes(m[1].replace(/\s/g, ""))) pbs.push(`Prix « ${m[0]} » absent du brief : utilise le marqueur data-bingoo="services" ou retire-le.`);
+  const lint = lintFr(texte, true);
+  if (lint.length) pbs.push(...lint.slice(0, 4).map((x) => `Texte : ${x.regle} (« ${x.extrait} »)`));
+  if (id !== "nav" && id !== "hero" && !/<h2\b/i.test(html) && !/<footer\b/i.test(html)) pbs.push("Il manque le h2 de la section.");
+  if (id !== "hero" && /<h1\b/i.test(html)) pbs.push("Un seul h1 sur la page : il est dans le premier écran.");
+  if (/(<button\b(?![^>]*nav__toggle))/i.test(html)) pbs.push("Pas de <button> : un lien .btn vers une ancre.");
+  return pbs;
+}
+
+/** Texte au clic : remplace un texte visible dans le HTML des sections (sans IA). Rend le nombre de remplacements. */
+export function remplacerTextePage(page: { sections: { id: string; html: string }[] }, avant: string, apres: string): number {
+  const ent = (x: string) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const variantes = [avant, ent(avant), ent(avant).replace(/ /g, "&nbsp;"), avant.replace(/ /g, "&nbsp;")];
+  let n = 0;
+  for (const s of page.sections ?? []) {
+    for (const v of variantes) {
+      if (!v || !s.html.includes(v)) continue;
+      // Seulement dans le texte, jamais dans une balise ou un attribut
+      s.html = s.html.replace(/(>[^<]*)/g, (seg) => seg.includes(v) ? (n++, seg.split(v).join(ent(apres))) : seg);
+      if (n) break;
+    }
+    if (n) break;
+  }
+  return n;
+}
+

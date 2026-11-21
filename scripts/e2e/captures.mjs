@@ -245,6 +245,14 @@ if (CONSTRUIRE === "atelier") {
     console.log(okDesign ? "✓ retour au design précédent" : "✗ retour au design précédent");
     fs.writeFileSync(`${DOSSIER}/design-retour.json`, JSON.stringify({ ok: okDesign, e0, e1, e2, e3 }, null, 2));
     await reglage({ quoi: "design-revenir" });
+    // « Appliquer le nouveau design » sur un site existant : l'ancien est gardé et le retour le rend
+    const n0 = await etat();
+    console.log("Nouveau design :", (await reglage({ quoi: "design-nouveau" })).join(" ").slice(0, 120));
+    const n1 = await etat();
+    console.log("Retour après nouveau design :", (await reglage({ quoi: "design-revenir" })).join(" ").slice(0, 60));
+    const n2 = await etat();
+    const okNouveau = n1.n === n0.n + 1 && n2.p === n0.p && n2.g === n0.g;
+    console.log(okNouveau ? "✓ nouveau design puis retour" : "✗ nouveau design puis retour", JSON.stringify({ n0, n1, n2 }));
   }
   await ctx.close();
 }

@@ -368,6 +368,14 @@ export function Chantier({ ws, nav, init, atelier = false }) {
     catch (x) { setEchanges((l) => [...l, { moi: `Revenir à la version ${version}`, etat: "ko", erreur: x.message }]); }
     finally { setOccupe(false); }
   };
+  // Nouveau design de Bingoo! (au clic, jamais sans prévenir) : l'ancien est gardé, « Revenir au design précédent » le rend
+  const nouveauDesign = async () => {
+    if (!app || occupe) return;
+    setOccupe(true);
+    try { const r = await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "design-nouveau" }); setVersions(null); setEchanges((l) => [...l, { moi: "Appliquer le nouveau design", etat: "ok", faits: [`nouveau design « ${r.style ?? ""} » (l'ancien est gardé : Historique → Revenir au design précédent)`] }]); await recharger(); }
+    catch (x) { setEchanges((l) => [...l, { moi: "Appliquer le nouveau design", etat: "ko", erreur: x.message }]); }
+    finally { setOccupe(false); }
+  };
   // Retour au design précédent : l'apparence seule, les textes et prix modifiés depuis restent (un second clic annule)
   const revenirDesign = async () => {
     if (!app || occupe) return;
@@ -632,6 +640,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
             <div className="relative">
               <button onClick={ouvrirHistorique} disabled={!fini} className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[12.5px] font-semibold text-ink-soft hover:text-ink disabled:opacity-40">Historique</button>
               {versions && <div className="absolute right-0 top-10 z-20 w-64 rounded-xl border border-line bg-white p-1.5 shadow-xl">
+                {app?.spec?.type === "site" && <button onClick={nouveauDesign} disabled={occupe} className="mb-1 flex w-full items-center rounded-lg px-2.5 py-2 text-left text-[12.5px] font-semibold hover:bg-[#F7F5F1]">Appliquer le nouveau design</button>}
                 {app?.spec?.designs_precedents?.length > 0 && <button onClick={revenirDesign} disabled={occupe} className="mb-1 flex w-full items-center justify-between rounded-lg border-b border-line px-2.5 py-2 text-left text-[12.5px] font-semibold hover:bg-[#F7F5F1]"><span>Revenir au design précédent</span><span className="font-normal text-ink-faint">{new Date(app.spec.designs_precedents[0].at).toLocaleString("fr-FR", { day: "numeric", month: "short" })}</span></button>}
                 {versions.length ? versions.map((v) => <button key={v.version} onClick={() => restaurer(v.version)} disabled={occupe} className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-[12.5px] hover:bg-[#F7F5F1]"><span>Version {v.version}</span><span className="text-ink-faint">{new Date(v.at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span></button>) : <p className="px-2.5 py-2 text-[12.5px] text-ink-faint">Pas encore d'ancienne version.</p>}
               </div>}

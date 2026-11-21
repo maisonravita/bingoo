@@ -2,6 +2,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { categorieDesign, tirerDesign } from "./design.ts";
 import { admin, askJson } from "./core.ts";
+import { HttpError } from "./http.ts";
 import { promptSite, specSite } from "./site-spec.ts";
 export { promptSite, specSite };
 
@@ -80,4 +81,21 @@ export async function pageSurMesure(appId: string, demarrerVerification: (id: st
   await demarrerVerification(appId, spec).catch((x) => console.error("verification site", x));
   const e0 = spec.ecrans[0];
   await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: e0.id, p_code: e0.code, p_ok: true });
+}
+
+/** « Appliquer le nouveau design » (au clic du membre, jamais sans le prévenir) : un site existant reçoit le système de
+ *  design actuel et, pour un portfolio, le gabarit Taste. L'apparence précédente est gardée (retour en un clic). */
+export async function appliquerNouveauDesign(appId: string) {
+  const { garderApparence } = await import("./apparence.ts");
+  const { data: app } = await admin.from("saas_apps").select("spec, brouillon, version").eq("id", appId).single();
+  const avant = (app?.spec ?? {}) as any;
+  if (avant.type !== "site") throw new HttpError(400, "Le nouveau design concerne les sites");
+  const d = await choisirDesign(appId, String(avant.design?.categorie ?? avant.site?.metier ?? ""));
+  const n: any = { ...avant, design: d, couleur: d.couleurs?.primary ?? avant.couleur };
+  delete n.design_avant;
+  if (d.allure) n.style = d.allure;
+  if (avant.site?.modele === "portfolio") n.site = { ...avant.site, gabarit: "taste" };
+  const spec = garderApparence(avant, n, "Nouveau design de Bingoo! appliqué");
+  await admin.from("saas_apps").update({ spec, version: (app?.version ?? 0) + 1, maj: new Date().toISOString() }).eq("id", appId);
+  return { ok: true, style: d.style, couleur: d.couleurs?.primary };
 }

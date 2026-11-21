@@ -862,6 +862,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     if (b.quoi === "textes") { await log(ws.id, "app_reglage", "Textes et prix modifiés"); return await o.appTextes(app.id, b); }
     if (b.quoi === "legal") { await log(ws.id, "app_reglage", "Informations légales modifiées"); return await o.appLegal(app.id, b); }
     if (b.quoi === "designs") return await o.appDesigns(app.id);
+    if (b.quoi === "design-nouveau") { await log(ws.id, "app_reglage", "Nouveau design appliqué"); const { appliquerNouveauDesign } = await import("../_shared/site.ts"); return await appliquerNouveauDesign(app.id); }
     if (b.quoi === "design-revenir") { await log(ws.id, "app_reglage", "Retour au design précédent"); return await o.appDesignRevenir(app.id); }
     if (b.quoi === "identite") { await log(ws.id, "app_reglage", "Logo, couleur ou style modifiés"); return await o.appIdentite(app.id, b); }
     if (b.quoi === "ab-resultats") return await o.appAbResultats(app.id);

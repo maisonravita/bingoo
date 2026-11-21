@@ -488,6 +488,8 @@ export async function saasModifierTexte(appId: string, avant0: string, apres0: s
   let n = 0;
   const profond = (v: any): any => typeof v === "string" ? (v.includes(avant) ? (n++, v.split(avant).join(apres)) : v) : Array.isArray(v) ? v.map(profond) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, y]) => [k, profond(y)])) : v;
   for (const k of ["nom", "slogan", "pitch", "probleme", "cible_courte", "cible", "atouts", "faq", "formules"]) if (spec[k] != null) spec[k] = profond(spec[k]);
+  // Page écrite par le moteur (site sur mesure) : le texte visible est dans le HTML des sections
+  if (spec.site?.page?.sections?.length) { const { remplacerTextePage } = await import("./site-gen.ts"); n += remplacerTextePage(spec.site.page, avant, apres); }
   if (!n) {
     const ident = (c: string | undefined) => !!c && /[A-Za-z0-9_$]/.test(c);
     const dansCode = (code: string) => { let out = "", i = 0, k = 0; while ((k = code.indexOf(avant, i)) >= 0) { if (!ident(code[k - 1]) && !ident(code[k + avant.length])) { out += code.slice(i, k) + apres; n++; } else out += code.slice(i, k + avant.length); i = k + avant.length; } return out + code.slice(i); };
@@ -522,6 +524,7 @@ ${ecranId !== "nouveau" ? `L'utilisateur a désigné l'écran : ${ecranId}.\n` :
 Selon la demande : son logo → reglages.logo = l'adresse ; une image à afficher en haut de la page d'accueil → site.image_accueil = l'adresse (elle remplace les photos d'ambiance) ; retirer les photos d'ambiance (libres de droits) → site.photos_libres = null ; une image à mettre dans un écran → la consigne de cet écran avec l'adresse exacte à utiliser dans une balise img ; une capture d'un modèle à imiter → traduis-la en réglages précis (couleur hexadécimale, police, fond, allure, menu) et en consignes d'écrans détaillées (disposition, éléments, ordre).\n` : ""}Demande : « ${demande} »
 ${spec.type === "site" ? `C'EST UN SITE WEB (vitrine d'un professionnel) : page d'accueil avec accroche (reglages.slogan), phrase sous le titre (reglages.pitch), bouton « ${spec.site?.cta ?? ""} », points forts ${JSON.stringify(spec.site?.points_forts ?? [])}, étapes « comment ça se passe » ${JSON.stringify(spec.site?.etapes ?? [])}, à propos ${JSON.stringify(spec.site?.apropos ?? {})}, questions ${JSON.stringify((spec.faq ?? []).slice(0, 6))}. Les services, prix, horaires et coordonnées se modifient par le gérant dans son espace (écrans Services et Horaires et contact) : dis-le dans impossible avec cette alternative si on te le demande. Les écrans listés plus bas sont l'espace gérant.
 Pour changer les textes du site, rends aussi site_web : { cta (3 mots), points_forts (liste COMPLÈTE de 3 { titre, texte, icone parmi ${ICONES.join(", ")} }), etapes (liste COMPLÈTE de 3 { titre, texte }), apropos ({ titre, texte }) } — seulement ce qui change. Jamais d'avis client, de chiffre, d'année d'expérience ni de label inventés. Pas de nouvelle section ni de page en plus : un site Bingoo! a ces parties-là.
+` : ""}${spec.site?.page?.sections?.length ? `LA PAGE DE CE SITE EST ÉCRITE SUR MESURE, en sections : ${spec.site.page.sections.map((x: any) => x.id).join(", ")}. Tout changement de contenu, de mise en page, d'image ou de section de la page passe par page : [{ action ("modifier"|"ajouter"|"supprimer"), id (id de la section), apres (pour ajouter : id de la section qui précède), consigne (précise, avec le texte voulu ; pour une image jointe, dis où la mettre) }] (au plus 4), et PAS par site_web ni ecrans.
 ` : ""}Rends un objet JSON avec SEULEMENT ce que la demande change :
 - reglages : { couleur (#xxxxxx assez foncé pour du texte blanc ; rose = #BE185D), style (moderne|doux|sombre|editorial|vif|rond|tech|elegant|sport|geometrique), fond (blanc|creme|gris|sombre), forme (carre|arrondi|pilule), disposition (barre|haut|onglets), police (police du texte, parmi ${POLICES_ATELIER.join(", ")}), police_titres (police des titres, même liste ; si l'utilisateur demande juste « une autre police », choisis-en une nettement différente des DEUX actuelles et mets la même dans police et police_titres), nom (40 car.), slogan (8 mots), pitch (35 mots), cible_courte (5 mots) }
 - site : { image_accueil (adresse d'une image jointe, ou null pour la retirer), probleme (2 phrases), atouts (liste COMPLÈTE de 3 à 6 { titre, texte }), faq (liste COMPLÈTE de { q, r }), formules (liste COMPLÈTE de 1 à 3 { nom, prix (nombre, euros par mois), pour, inclus (3 à 5) }) }
@@ -573,6 +576,11 @@ Un changement de couleur, de police, d'allure, de nom, de textes du site ou de p
     if (W.apropos && typeof W.apropos === "object" && c(W.apropos.texte, 700)) { spec.site.apropos = { titre: c(W.apropos.titre, 60) || spec.site.apropos?.titre || "À propos", texte: c(W.apropos.texte, 700) }; faits.push("à propos"); }
   }
   { const g = garderApparence(avantApparence, spec, "Modification par l'atelier"); if (g.designs_precedents !== spec.designs_precedents) spec.designs_precedents = g.designs_precedents; }
+  // 2 bis. Page écrite sur mesure : sections modifiées, ajoutées ou supprimées (mêmes règles et contrôles qu'à la construction)
+  if (spec.site?.page?.sections?.length && Array.isArray(plan?.page) && plan.page.length) {
+    try { const { retoucherPage } = await import("./site-gen.ts"); const r = await retoucherPage(spec, plan.page, images); faits.push(...r.faits); rates.push(...r.rates); }
+    catch (x) { rates.push(`Page : ${String((x as Error)?.message ?? x).slice(0, 120)}`); }
+  }
   // 3. Structure : supprimer, renommer, réordonner (jamais le dernier écran privé)
   for (const id of (Array.isArray(plan?.supprimer) ? plan.supprimer : []).map(String)) {
     const e = spec.ecrans.find((x: any) => x.id === id);
