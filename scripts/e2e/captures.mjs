@@ -95,7 +95,12 @@ if (["1", "site", "app"].includes(process.env.IDEE)) {
     await ctx.close();
   }
 }
-if (CONSTRUIRE === "atelier") {
+if (CONSTRUIRE === "spec") {
+  // Exporte la définition d'un SaaS (DOMAINE = son adresse courte) pour le photographier écran par écran hors ligne
+  const [x] = await q(`select spec from saas_apps where slug = ${lit(process.env.DOMAINE ?? "")}`);
+  fs.writeFileSync(`${DOSSIER}/spec.json`, JSON.stringify(x?.spec ?? null));
+  console.log("spec exportée :", x ? "oui" : "introuvable");
+} else if (CONSTRUIRE === "atelier") {
   // Robot de l'atelier, de bout en bout sur le dernier site construit par le robot :
   // DOMAINE=casse : une modification qui casse l'écran « Demandes » est mise en ligne par le vrai bouton (endpoint) ;
   //   le robot doit la tester, voir l'écran cassé, remettre la version d'avant et rendre la modification.
