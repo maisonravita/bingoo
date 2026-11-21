@@ -191,6 +191,8 @@ if (CONSTRUIRE === "atelier") {
       texte = await borne(page.evaluate(() => document.body.innerText), 15000, "Lecture");
     } catch (e) { console.log("⚠ PAGE FIGÉE :", e.message, "· URL", page.url()); figee = (figee ?? 0) + 1; }
     fin = /Tout est propre|Je livre ton SaaS|tests continuent en arrière-plan|La construction a échoué/.test(texte);
+    // Aucune app créée après 5 minutes : le parcours est bloqué avant la construction, on le dit (texte de la page) et on s'arrête
+    if (!fin && Date.now() - t0 > 5 * 60e3) { const [x] = await q(`select count(*)::int n from saas_apps where workspace_id = ${lit(ws2)}`); if (!x?.n) { console.log("✗ BLOQUÉ AVANT LA CONSTRUCTION · URL", page.url(), "· page :", texte.replace(/\s+/g, " ").slice(0, 600)); break; } }
     // Ou la base le dit : vérification finie (le texte de la page varie selon le genre d'app)
     if (!fin) { const [v] = await q(`select verif->>'phase' p, statut from saas_apps where workspace_id = ${lit(ws2)}`); fin = v?.p === "fini" || v?.statut === "erreur"; if (fin && !figee) { await page.waitForTimeout(4000); await page.screenshot({ path: `${DOSSIER}/construction-fin.png`, timeout: 15000 }).catch(() => null); } }
   }
