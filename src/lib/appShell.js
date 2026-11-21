@@ -819,6 +819,69 @@ function SiteVitrine({ onAuth }) {
   const nav = [...(portfolio ? [["#realisations", "Réalisations"]] : []), ...(services.length || !portfolio ? [["#services", portfolio ? "Prestations" : "Services"]] : []), ["#apropos", "À propos"], ["#infos", portfolio ? "Contact" : "Infos pratiques"], ...((S.faq ?? []).length ? [["#faq", "Questions"]] : [])];
   const vues = realisations.filter((r) => !cat || r.categorie === cat);
   const reseaux = [["instagram", "Instagram"], ["facebook", "Facebook"]].filter(([k]) => /^https?:\\/\\//.test(inf[k] ?? ""));
+  // Portfolio sur le kit Taste (layout-v4) : une section par écran, mêmes bords partout (1200 px, gouttières 48/24),
+  // contenu calé en haut (120 px, 96 sur téléphone), séparation par changement de fond seulement (ni ombre ni filet
+  // entre sections), un seul h2 par section ; en-tête « statement » (une phrase calme, deux boutons, des faits réels
+  // en pied) puisque le membre n'a pas encore ses photos ; la fin et le pied de page ne font qu'une section.
+  if (portfolio && SITE.gabarit === "taste") {
+    const W = "mx-auto w-full max-w-[1200px] px-6 md:px-12";
+    const SEC = "py-24 md:py-[120px] scroll-mt-16";
+    const prixMin = services.map((s) => Number(s.prix)).filter((n) => n > 0).sort((a, b) => a - b)[0];
+    const faits = [[SITE.metier, "Métier"], [inf.zone || SITE.ville, "Où"], [prixMin ? "Dès " + fmt.eur(prixMin) : "", "Prestations"], [inf.telephone || inf.email || "", "Contact"]].filter(([v]) => v);
+    const vuesT = realisations.filter((r) => !cat || r.categorie === cat);
+    const Bouton = ({ href, plein, children }) => html\`<a href=\${href} class=\${cls("inline-flex min-h-12 items-center justify-center rounded-full px-7 text-base font-semibold transition", plein ? "bg-[var(--c)] text-white hover:brightness-110" : "border border-slate-300 text-slate-900 hover:border-slate-500")}>\${children}</a>\`;
+    const H2 = ({ children }) => html\`<h2 class="fh max-w-[18ch] text-[clamp(2rem,4vw,3.25rem)] font-semibold leading-[1.05] tracking-tight text-slate-900">\${children}</h2>\`;
+    return html\`<div class="bg-white text-slate-900">
+  <header class="sticky top-0 z-30 bg-white"><div class=\${cls(W, "flex h-16 items-center justify-between gap-6")}>
+    <a href="#haut" class="flex items-center gap-2.5 font-semibold"><\${Logo} taille="w-7 h-7"/><span>\${S.nom}</span></a>
+    <nav class="hidden items-center gap-8 text-sm text-slate-600 md:flex">\${realisations.length > 0 && html\`<a href="#travaux" class="hover:text-slate-900">Travaux</a>\`}<a href="#prestations" class="hover:text-slate-900">Prestations</a><a href="#approche" class="hover:text-slate-900">Approche</a></nav>
+    <a href="#contact" class="inline-flex min-h-11 items-center rounded-full bg-[var(--c)] px-5 text-sm font-semibold text-white hover:brightness-110">\${SITE.cta || "Me contacter"}</a>
+  </div></header>
+  <main>
+    <section id="haut" class="pt-12 md:pt-[72px] pb-20 md:pb-[120px]"><div class=\${W}>
+      <p class="text-sm font-medium text-slate-500">\${[SITE.metier, SITE.ville].filter(Boolean).join(" · ")}</p>
+      <h1 class="fh mt-6 max-w-[16ch] text-[clamp(2.6rem,6.2vw,5.25rem)] font-semibold leading-[1.02] tracking-tight">\${S.slogan || S.nom}</h1>
+      <p class="mt-8 max-w-[46ch] text-lg leading-relaxed text-slate-600 md:text-xl">\${S.pitch}</p>
+      <div class="mt-10 flex flex-wrap gap-3"><\${Bouton} href="#contact" plein>\${SITE.cta || "Me contacter"}</\${Bouton}><\${Bouton} href=\${realisations.length ? "#travaux" : "#prestations"}>\${realisations.length ? "Voir les travaux" : "Prestations et prix"}</\${Bouton}></div>
+      \${faits.length > 1 && html\`<dl class="mt-16 grid grid-cols-2 gap-x-8 gap-y-6 border-t border-slate-200 pt-8 md:mt-24 md:grid-cols-4">\${faits.map(([v, l]) => html\`<div><dt class="text-xs font-medium uppercase tracking-wider text-slate-500">\${l}</dt><dd class="mt-2 text-base font-medium text-slate-900 break-words">\${v}</dd></div>\`)}</dl>\`}
+    </div></section>
+    \${realisations.length > 0 && html\`<section id="travaux" class=\${cls(SEC, "bg-slate-50")}><div class=\${W}>
+      <\${H2}>Travaux récents</\${H2}>
+      \${cats.length > 1 && html\`<div class="mt-8 flex flex-wrap gap-2">\${[["", "Tout"], ...cats.map((c) => [c, c])].map(([k, l]) => html\`<button onClick=\${() => setCat(k)} aria-pressed=\${cat === k ? "true" : "false"} class=\${cls("inline-flex min-h-11 items-center rounded-full px-5 text-sm font-medium", cat === k ? "bg-slate-900 text-white" : "bg-white text-slate-700 hover:text-slate-900")}>\${l}</button>\`)}</div>\`}
+      <div class="mt-10 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">\${vuesT.map((r) => html\`<button onClick=\${() => setGrand(r)} class="group text-left">\${r.image ? html\`<img src=\${r.image} alt=\${r.titre} loading="lazy" class="aspect-[4/5] w-full object-cover"/>\` : html\`<div class="grid aspect-[4/5] w-full place-items-center bg-white text-slate-400">\${r.titre}</div>\`}<p class="mt-4 font-medium text-slate-900 group-hover:underline">\${r.titre}</p>\${r.categorie && html\`<p class="mt-1 text-sm text-slate-500">\${r.categorie}</p>\`}</button>\`)}</div>
+    </div></section>\`}
+    <section id="prestations" class=\${cls(SEC, realisations.length > 0 ? "bg-white" : "bg-slate-50")}><div class=\${W}>
+      <\${H2}>Prestations et prix</\${H2}>
+      \${services.length ? html\`<ul class="mt-12">\${services.map((s) => html\`<li class="grid gap-3 border-t border-slate-200 py-7 md:grid-cols-[1fr_1.4fr_auto] md:gap-10"><p class="fh text-xl font-semibold md:text-2xl">\${s.titre}</p><p class="text-slate-600 leading-relaxed">\${s.description}\${s.duree ? html\`<span class="text-slate-500"> · \${s.duree}</span>\` : ""}</p><p class="text-lg font-semibold text-[var(--c)] md:text-right">\${prixS(s)}</p></li>\`)}</ul>\`
+        : html\`<p class="mt-10 max-w-[46ch] text-lg text-slate-600">Chaque projet est différent : écrivez-moi, je vous réponds avec un tarif adapté.</p>\`}
+    </div></section>
+    \${(SITE.apropos?.texte || (SITE.etapes ?? []).length > 0) && html\`<section id="approche" class=\${cls(SEC, realisations.length > 0 ? "bg-slate-50" : "bg-white")}><div class=\${cls(W, "grid gap-14 lg:grid-cols-[1fr_1fr] lg:gap-20")}>
+      <div><\${H2}>\${SITE.apropos?.titre || "Ma façon de travailler"}</\${H2}>\${SITE.apropos?.texte && html\`<p class="mt-8 max-w-[52ch] text-lg leading-relaxed text-slate-600 whitespace-pre-line">\${SITE.apropos.texte}</p>\`}</div>
+      \${(SITE.etapes ?? []).length > 0 && html\`<ol class="grid content-start gap-10 lg:pt-3">\${SITE.etapes.map((e, i) => html\`<li class="grid grid-cols-[3rem_1fr] gap-4"><span class="fh text-3xl font-semibold text-[var(--c)]">\${String(i + 1).padStart(2, "0")}</span><div><p class="text-lg font-semibold">\${e.titre}</p><p class="mt-2 text-slate-600 leading-relaxed">\${e.texte}</p></div></li>\`)}</ol>\`}
+      \${(S.faq ?? []).length > 0 && html\`<div class="lg:col-span-2"><p class="text-sm font-medium uppercase tracking-wider text-slate-500">Questions fréquentes</p><div class="mt-4">\${S.faq.map((q) => html\`<details class="border-t border-slate-200 py-5"><summary class="flex min-h-11 items-center font-medium">\${q.q}</summary><p class="mt-2 max-w-[70ch] text-slate-600 leading-relaxed">\${q.r}</p></details>\`)}</div></div>\`}
+    </div></section>\`}
+  </main>
+  <footer id="contact" class="scroll-mt-16 pt-24 md:pt-[120px] text-white" style="background:#0F172A"><div class=\${W}>
+    <div class="grid gap-14 lg:grid-cols-[1fr_1.2fr] lg:gap-20">
+      <div><h2 class="fh max-w-[14ch] text-[clamp(2rem,4vw,3.25rem)] font-semibold leading-[1.05] tracking-tight">\${SITE.cta || "Me contacter"}</h2><p class="mt-6 max-w-[40ch] text-lg text-white/75">Dites-moi ce que vous préparez : je vous réponds avec mes disponibilités et un tarif.</p>
+        <div class="mt-10 grid gap-3 text-white/85">\${inf.telephone && html\`<a href=\${lienTel(inf.telephone)} class="inline-flex min-h-11 items-center text-xl font-semibold text-white hover:underline">\${inf.telephone}</a>\`}\${inf.email && html\`<a href=\${"mailto:" + inf.email} class="inline-flex min-h-11 items-center break-all hover:underline">\${inf.email}</a>\`}\${(inf.zone || inf.adresse) && html\`<p>\${inf.adresse || inf.zone}</p>\`}</div></div>
+      \${envoi ? html\`<div class="rounded-2xl bg-white p-10 text-slate-900"><p class="fh text-3xl font-semibold">Merci \${envoi}.</p><p class="mt-3 text-slate-600">Votre demande est bien envoyée. Je vous réponds très vite.</p></div>\`
+        : html\`<form onSubmit=\${envoyer} class="grid gap-4 rounded-2xl bg-white p-6 text-slate-900 md:p-10 sm:grid-cols-2">
+          <label class="text-sm font-medium">Votre nom<input required value=\${f.nom} onInput=\${(e) => setF({ ...f, nom: e.target.value })} class="mt-1.5 min-h-12 w-full rounded-lg border border-slate-300 px-3 outline-none focus:border-[var(--c)]"/></label>
+          <label class="text-sm font-medium">Téléphone<input type="tel" value=\${f.telephone} onInput=\${(e) => setF({ ...f, telephone: e.target.value })} class="mt-1.5 min-h-12 w-full rounded-lg border border-slate-300 px-3 outline-none focus:border-[var(--c)]"/></label>
+          <label class="text-sm font-medium sm:col-span-2">E-mail<input type="email" value=\${f.email} onInput=\${(e) => setF({ ...f, email: e.target.value })} class="mt-1.5 min-h-12 w-full rounded-lg border border-slate-300 px-3 outline-none focus:border-[var(--c)]"/></label>
+          \${services.length > 0 && html\`<label class="text-sm font-medium sm:col-span-2">Prestation<select value=\${f.service} onChange=\${(e) => setF({ ...f, service: e.target.value })} class="mt-1.5 min-h-12 w-full rounded-lg border border-slate-300 bg-white px-3 outline-none focus:border-[var(--c)]"><option value="">Choisir…</option>\${services.map((s) => html\`<option value=\${s.titre}>\${s.titre}</option>\`)}</select></label>\`}
+          <label class="text-sm font-medium sm:col-span-2">\${SITE.demande === "devis" ? "Votre projet" : "Message"}<textarea rows="4" value=\${f.message} onInput=\${(e) => setF({ ...f, message: e.target.value })} class="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-[var(--c)]"></textarea></label>
+          <input tabindex="-1" autocomplete="off" aria-hidden="true" value=\${f.site_web} onInput=\${(e) => setF({ ...f, site_web: e.target.value })} style="position:absolute;left:-9999px;width:1px;height:1px"/>
+          \${err && html\`<p class="text-sm text-red-700 sm:col-span-2">\${err}</p>\`}
+          <div class="sm:col-span-2 flex flex-wrap items-center gap-4"><button type="submit" disabled=\${busy} class="inline-flex min-h-12 items-center rounded-full bg-[var(--c)] px-7 font-semibold text-white hover:brightness-110 disabled:opacity-60">\${busy ? "Envoi…" : "Envoyer ma demande"}</button><p class="text-xs text-slate-500">Vos coordonnées servent seulement à vous répondre. <button type="button" class="inline-flex min-h-11 items-center underline" onClick=\${() => bus.emit("doc", "confidentialite")}>En savoir plus</button></p></div>
+        </form>\`}
+    </div>
+    <div class="mt-24 flex flex-wrap items-center justify-between gap-x-8 gap-y-3 border-t border-white/15 py-8 text-sm text-white/70"><span class="font-semibold text-white">\${S.nom}</span><\${LiensLegaux} class="[&_button]:min-h-11 [&_button]:inline-flex [&_button]:items-center"/><span class="flex items-center gap-6"><button onClick=\${() => onAuth("login")} class="inline-flex min-h-11 items-center hover:text-white hover:underline">Espace gérant</button><span>Site créé avec Bingoo!</span></span></div>
+  </div></footer>
+  \${grand && html\`<div role="dialog" aria-modal="true" class="fixed inset-0 z-50 grid place-items-center bg-slate-950/85 p-4" onClick=\${() => setGrand(null)}><div class="max-h-[92vh] w-full max-w-4xl overflow-auto bg-white" onClick=\${(e) => e.stopPropagation()}>\${grand.image && html\`<img src=\${grand.image} alt=\${grand.titre} class="w-full object-contain"/>\`}<div class="p-6"><p class="fh text-2xl font-semibold">\${grand.titre}</p>\${grand.description && html\`<p class="mt-3 text-slate-600">\${grand.description}</p>\`}<button onClick=\${() => setGrand(null)} class="mt-6 inline-flex min-h-11 items-center rounded-full border border-slate-300 px-5 font-medium">Fermer</button></div></div></div>\`}
+</div>\`;
+  }
   return html\`<div class=\${cls("min-h-screen scroll-smooth", S.fond === "creme" ? "bg-[#FAF7F2]" : "bg-white")}>
   <div class=\${cls(fonce && "text-white")} style=\${fondHero}>
     <header class="max-w-6xl mx-auto px-5 py-5 flex items-center justify-between gap-4"><a href="#" class="flex items-center gap-2.5 font-bold text-lg"><\${Logo} clair=\${fonce}/>\${S.nom}</a>
