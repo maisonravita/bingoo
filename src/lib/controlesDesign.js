@@ -105,9 +105,13 @@ export function controlesDesign(zone, page = false, lint = null) {
   for (let i = 0; i < blocs.length && !chevauche; i++) for (let j = i + 1; j < blocs.length; j++) {
     const a = blocs[i], b = blocs[j];
     if (a.contains(b) || b.contains(a)) continue;
-    const r = a.getBoundingClientRect(), s = b.getBoundingClientRect();
-    const x = Math.min(r.right, s.right) - Math.max(r.left, s.left), y = Math.min(r.bottom, s.bottom) - Math.max(r.top, s.top);
-    if (x > 4 && y > 4 && x * y > 0.25 * Math.min(r.width * r.height, s.width * s.height)) { chevauche = "« " + court(a) + " » et « " + court(b) + " »"; break; }
+    // Ligne par ligne (getClientRects) : un lien qui passe à la ligne n'est pas un grand rectangle qui recouvre ses voisins
+    let touche = false;
+    for (const r of a.getClientRects()) { for (const t of b.getClientRects()) {
+      const x = Math.min(r.right, t.right) - Math.max(r.left, t.left), y = Math.min(r.bottom, t.bottom) - Math.max(r.top, t.top);
+      if (x > 4 && y > 4 && x * y > 0.25 * Math.min(r.width * r.height, t.width * t.height)) { touche = true; break; }
+    } if (touche) break; }
+    if (touche) { chevauche = "« " + court(a) + " » et « " + court(b) + " »"; break; }
   }
   if (chevauche) pbs.push("Éléments qui se chevauchent : " + chevauche + ".");
 
