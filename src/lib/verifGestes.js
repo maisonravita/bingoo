@@ -107,7 +107,7 @@ async function gestesEcran(zone) {
         const form = racine.tagName === "FORM" ? racine : racine.querySelector("form");
         if (ok && !(form && form.checkValidity && !form.checkValidity())) {
           // Refus de l'écran (message en rouge, alerte, mot « obligatoire »…) : nos valeurs d'essai ne conviennent pas, ce n'est pas une panne
-          const nRefus = () => (document.body.innerText.match(new RegExp(G_REFUS.source, "gi")) || []).length + document.querySelectorAll(".bg-red-600, .bg-red-500, .text-red-600, .text-red-700, .text-rose-600, [role=alert]").length + VREFUS.n;
+          const nRefus = () => VREFUS.n + (document.body.innerText.match(new RegExp(G_REFUS.source, "gi")) || []).length + document.querySelectorAll(".bg-red-600, .bg-red-500, .text-red-600, .text-red-700, .text-rose-600, [role=alert]").length + VREFUS.n;
           const refus0 = nRefus();
           const r2 = await gCliquer(ok, 800);
           if (r2.erreur) pbs.push("Le formulaire ouvert par « " + nom + " » renvoie une erreur à l'enregistrement : " + r2.erreur);
