@@ -99,13 +99,13 @@ function Prix({ ws, type }) {
   }, [ws?.id]);
   if (!t) return null;
   const site = type === "site";
-  const mois = (k) => (t.plans ?? []).find((p) => p.key === k)?.periodes?.find((x) => x.key === "mois")?.parMois;
+  const mois = (k, per = "mois") => (t.plans ?? []).find((p) => p.key === k)?.periodes?.find((x) => x.key === per)?.parMois;
   const fondateur = t.fondateur?.left > 0 ? t.fondateur.price : null;
   const lancer = fondateur ?? mois("explorer_pro") ?? 24.99;
   let txt;
   if (paye(ws, type)) txt = deja ? <>Tu as déjà un {site ? "site ou un SaaS" : "SaaS"} en ligne : celui-ci coûte <b>60 crédits</b>, le premier reste en ligne.</> : <><b>Compris dans ta formule</b> : c'est {site ? "ton site" : "ton SaaS"} de l'abonnement, sans rien payer de plus.</>;
   else if (!site && ws?.plan === "site" && actif(ws)) txt = <>Ta formule Site construit des sites. Pour {type === "app" ? "une app" : "un SaaS"}, passe à la formule Lancer : <b>{euros(lancer)} par mois</b>.</>;
-  else if (site) txt = <>Formule Site : <b>{euros(mois("site") ?? 9.99)} par mois</b>, sans engagement, ton nom de domaine compris.</>;
+  else if (site) txt = <>Formule Site : <b>{euros(mois("site") ?? 9.99)}/mois, hébergement inclus</b>, sans engagement{mois("site", "an") ? <> (ou {euros(mois("site", "an"))}/mois en payant l'année)</> : null}. Nom de domaine personnalisé en plus : tu l'achètes où tu veux, on le branche gratuitement.</>;
   else txt = <>Formule Lancer : <b>{euros(lancer)} par mois{fondateur ? ", prix fondateur à vie" : ""}</b>, sans engagement. {type === "app" ? "Ton app" : "Ton SaaS"} est compris dans l'abonnement.</>;
   return <p className="w-full rounded-xl bg-[#F7F7F5] px-3 py-2 text-[13.5px]">{txt}</p>;
 }
