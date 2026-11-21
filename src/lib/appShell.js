@@ -796,7 +796,7 @@ function jetonsTaste() {
     + \`main>:is(section,.section):not(.hero):not(.section--hero),footer.closing{height:auto!important;min-height:0!important}\`
     + \`main>:is(section,.section):not(.hero):not(.section--hero)>:is(.wrap,.container),footer.closing>.wrap{height:auto!important}\`
     // Premier écran : au moins un écran, mais il grandit plutôt que de cacher son titre sous le header
-    + \`main>:is(.hero,.section--hero){height:auto!important;min-height:100svh;padding-top:calc(var(--nav) + var(--hgap))!important}main>:is(.hero,.section--hero)>.wrap{height:auto!important}.hero-split>:is(.hero-visual,[class*="span-"]:last-child){min-height:420px}\`
+    + \`main>:is(.hero,.section--hero){height:auto!important;min-height:min(100svh,920px);padding-top:calc(var(--nav) + var(--hgap))!important}main>:is(.hero,.section--hero)>.wrap{height:auto!important}.hero-split>:is(.hero-visual,[class*="span-"]:last-child){min-height:420px}\`
     + \`.bingoo-form{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))}.bingoo-form .plein{grid-column:1/-1}\`;
 }
 const DonneesSite = {
