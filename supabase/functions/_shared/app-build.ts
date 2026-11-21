@@ -3,6 +3,9 @@
 // 1. une spec (couleur, données, écrans, données d'exemple) ; 2. le code de chaque écran, en parallèle.
 // Le gabarit (src/lib/appShell.js) fournit navigation, comptes, composants et accès aux données.
 // deno-lint-ignore-file no-explicit-any
+import { texteDesign } from "./design.ts";
+import { FICHES, FICHE_ECRANS, CONSIGNE_TEXTES_FR } from "./design-fiches.ts";
+import { choisirDesign } from "./site.ts";
 import { alignerCode } from "./contrat-donnees.ts";
 import { admin, ask, askJson } from "./core.ts";
 import { sansIdentite } from "./identite.ts";
@@ -97,7 +100,7 @@ function contexteSpec(spec: any) {
 Pour : ${spec.cible ?? ""}${spec.nature?.espace_principal ? `\nEspace principal du produit (ce qui le définit) : ${spec.nature.espace_principal}. Interactions caractéristiques : ${(spec.nature.interactions ?? []).join(" ; ")}.` : ""}
 Collections (données) : ${(spec.collections ?? []).map((c: any) => `${c.nom} (${c.label}${c.partage === true ? ", COMMUNAUTÉ : partagée entre tous les membres" : ""}) : ${(c.champs ?? []).map((x: any) => `${x.nom} ${x.type}${x.valeurs ? ` [${x.valeurs.join("|")}]` : ""}`).join(", ")}`).join(" ; ")}${exemplesDe(spec)}
 Écrans de l'application (id : titre) : ${(spec.ecrans ?? []).filter((e: any) => !e.public).map((e: any) => `${e.id} : ${e.titre}`).join(" ; ")}${(spec.ecrans ?? []).some((e: any) => e.public) ? `
-Pages publiques (pour les clients de l'utilisateur, sans compte ; leur lien à partager est déjà affiché dans le menu de l'application) : ${(spec.ecrans ?? []).filter((e: any) => e.public).map((e: any) => `${e.titre} (enregistre dans ${e.ecriture ?? "rien"})`).join(" ; ")}. Dans l'application, les éléments reçus par ces pages ont le champ _public = true : signale-les (badge « Reçu en ligne »).` : ""}`;
+Pages publiques (pour les clients de l'utilisateur, sans compte ; leur lien à partager est déjà affiché dans le menu de l'application) : ${(spec.ecrans ?? []).filter((e: any) => e.public).map((e: any) => `${e.titre} (enregistre dans ${e.ecriture ?? "rien"})`).join(" ; ")}. Dans l'application, les éléments reçus par ces pages ont le champ _public = true : signale-les (badge « Reçu en ligne »).` : ""}${spec.design?.couleurs ? `\n${texteDesign(spec.design)}\n${FICHE_ECRANS}` : ""}`;
 }
 
 // Chaque type d'interface a ses codes : une appli de sport ou un outil ne doit pas ressembler à un CRM
@@ -180,6 +183,8 @@ export async function saasConstruire(appId: string, lancerEcran: (ecranId: strin
   const allluresPrises = (recents ?? []).map((r: any) => [r.spec?.style, r.spec?.disposition].filter(Boolean).join("/")).filter(Boolean);
   const PALETTE = ["#C2410C", "#B91C1C", "#BE185D", "#7E22CE", "#4338CA", "#1D4ED8", "#0369A1", "#0E7490", "#15803D", "#4D7C0F", "#A16207", "#9A3412", "#334155", "#1E293B", "#9F1239", "#6D28D9"];
   const mobile = p.idee?.type === "app";
+  // Couleur ou allure choisie par le membre (galerie de modèles) : son choix passe avant le système de design
+  const choixMembre = /^#[0-9a-f]{6}$/i.test(p.couleur_choisie ?? "") || !!p.allure_choisie;
   const s = await askJson<any>(`Tu conçois la première version d'une application web (SaaS) qui va être générée automatiquement et mise en ligne.${mobile ? " C'EST UNE APP MOBILE : elle s'utilise surtout au téléphone, dans une coque native (Expo) ; 4 à 6 écrans qui deviennent les onglets en bas, disposition onglets, rien de large." : ""} Elle peut être de tout genre : outil de gestion pour des professionnels, mais aussi appli grand public (sport et entraînement, nutrition, bien-être, apprentissage et révisions, organisation perso, famille, loisirs, finances perso), outil IA de texte, ou communauté. Pour une appli grand public, l'utilisateur est la personne elle-même (ses séances, ses objectifs, sa progression), pas une entreprise qui gère des clients.${modele ? `\n${FAIT_MODELE}` : ""}
 SaaS : « ${p.nom} » — ${p.pitch}
 Pour : ${p.cible}
@@ -199,7 +204,7 @@ Les écrans reprennent les modules les plus importants de cette fiche (un écran
 Le premier écran EST cet espace principal, et les interactions caractéristiques doivent exister vraiment dans les écrans. Ce n'est pas un logiciel de gestion habillé.
 ` : ""}
 Rends un objet JSON compact :
-- couleur : couleur de marque en hexadécimal (#xxxxxx), assez foncée pour du texte blanc dessus, PAS celle de ${p.inspire?.nom ?? "l'inspiration"}. Choisis-la dans cette palette, celle qui raconte le mieux le métier ou l'ambiance : ${PALETTE.join(", ")}. Couleurs déjà prises par les derniers SaaS construits, à ÉVITER ainsi que leurs voisines (surtout les verts canard et bleu-vert foncés, beaucoup trop vus) : ${couleursPrises.join(", ") || "aucune"}.
+${choixMembre ? `- couleur : couleur de marque en hexadécimal (#xxxxxx), assez foncée pour du texte blanc dessus.` : `- secteur_en : 3 à 6 mots-clés EN ANGLAIS qui décrivent le secteur du produit (« invoicing freelancers accounting », « dental clinic appointments ») : ils servent à choisir le système de design (couleurs et polices imposées ensuite).`}
 - style : l'allure de l'application, UN parmi moderne (net, Inter), doux (arrondi, chaleureux), sombre (menu foncé), editorial (titres à empattement, posé), vif (couleurs franches), rond (très amical, grand public), tech (outil technique, titres géométriques), elegant (haut de gamme, titres raffinés), sport (énergique, titres condensés), geometrique (jeune, épuré). Choisis selon le public et le métier, pas au hasard, et pas une allure déjà prise par les derniers SaaS construits (${allluresPrises.join(", ") || "aucune"}) sauf si c'est vraiment la seule qui convient.
 - famille : la FAMILLE de logiciel, qui décide de tout l'aspect et de toute la logique des écrans, UNE parmi :
   ${CHOIX_FAMILLES}.
@@ -217,7 +222,11 @@ Rends un objet JSON compact :
 - ecrans : 5 à 8 objets id (snake_case court), titre (2 mots au plus), icone (parmi ${ICONES.join(", ")}), but (une phrase), fonctions (3 à 5 éléments courts). Le premier écran est celui de la famille choisie (voir la liste des familles : premier écran = …), c'est-à-dire l'espace principal du produit d'origine ; un « Tableau de bord » d'indicateurs n'est le premier écran QUE pour gestion et analyse. Les titres et le vocabulaire des écrans suivent la famille (pas de « Gestion des… » hors gestion). Chaque écran reprend une partie de la navigation du produit d'origine, avec ses interactions caractéristiques. Couvre TOUTES les fonctions importantes du SaaS d'origine (les modules du projet, dans l'ordre), pas seulement un MVP minimal. Si le SaaS d'origine prend des rendez-vous ou des réservations : un écran « Disponibilités » (heures d'ouverture par jour de la semaine, avec une collection disponibilites : jour 1 à 7, debut, fin) et une page publique de réservation. Pas d'écran de connexion, de paiement ni de réglages de compte (le gabarit les gère). L'application dispose d'une IA intégrée (rédiger, reformuler, résumer, analyser, générer un document) : si le SaaS d'origine repose sur l'IA, l'écran principal doit la faire fonctionner pour de vrai (saisie → résultat → sauvegarde dans une collection). Elle ne sait pas produire d'images, de vidéos ni de sons, ni se connecter à des services extérieurs. L'application sait aussi envoyer de vrais e-mails aux clients de l'utilisateur (tout de suite, planifiés ou répétés : confirmations, rappels, relances), générer des PDF (devis, factures, contrats), stocker des photos et fichiers, et publier un agenda abonnable : prévois les écrans qui s'en servent quand le SaaS d'origine le fait.
 - agenda : null, ou { collection, champ_date, champ_heure (ou null), duree (nombre de minutes, ou nom du champ de durée), champs_titre (1 à 2 champs) } si l'application gère des rendez-vous, des événements, des échéances ou des interventions datées : l'utilisateur pourra s'abonner à cet agenda depuis Google Agenda ou Outlook.
 - pages_publiques : 0 à 2 objets id (snake_case court), titre (3 mots au plus), but (une phrase), fonctions (3 à 5), lecture (collections que la page montre au visiteur, ex. créneaux, prestations, témoignages publiés ; peut être vide), ecriture (UNE collection où la page enregistre ce que le visiteur envoie : réservation, demande, témoignage, commande, inscription, réponse ; peut être null), ia (true si la page est un OUTIL IA gratuit utilisable sans compte : générateur, correcteur, mini-coach, simulateur de texte ; il donne envie de créer un compte). Une page publique est ouverte par les clients de l'utilisateur, sans compte, depuis un lien qu'il partage. N'en mets que si le SaaS sert à recevoir quelque chose de ces clients (prise de rendez-vous, formulaire, avis, devis, commande, inscription, sondage) ou si un outil IA gratuit sert de vitrine à l'application ; sinon une liste vide. Dans ce cas, ne crée PAS d'écran de l'application qui imite cette page : l'application affiche déjà son lien à partager.
-Les données d'exemple sont produites à part : ne mets pas de clé demo.`, { maxTokens: 16000 });
+Les données d'exemple sont produites à part : ne mets pas de clé demo.
+
+Pour le slogan, pitch_site, atouts et faq (la page de présentation) :
+${FICHES.software}
+${CONSIGNE_TEXTES_FR}`, { maxTokens: 16000 });
 
   // Données d'exemple à part (modèle rapide) : la conception reste courte et ne dépasse jamais la durée d'une invocation
   // Le modèle Écriture demande aussi 7 textes d'exemple complets : plus de place, sinon la réponse est coupée
@@ -231,6 +240,8 @@ Les données d'exemple sont produites à part : ne mets pas de clé demo.`, { ma
     // Allure propre à chaque SaaS : deux SaaS construits ne doivent pas se ressembler
     ...(["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique", "nature"].includes(p.allure_choisie) ? { style: p.allure_choisie } : ["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique"].includes(s.style) ? { style: s.style } : {}),
     famille: FAMILLES[s.famille] ? s.famille : famille0,
+    // Système de design (UI UX Pro Max) tiré sans répétition ; palette et polices imposées au rendu et aux écrans
+    ...(choixMembre ? {} : { design: await choisirDesign(appId, `${s.secteur_en ?? ""} ${p.inspire?.categorie ?? ""}`.trim() || String(p.nom ?? "")) }),
     interface: FAMILLES[FAMILLES[s.famille] ? s.famille : famille0].interface,
     disposition: ["barre", "haut", "onglets"].includes(s.disposition) ? s.disposition : FAMILLES[FAMILLES[s.famille] ? s.famille : famille0].disposition,
     forme: ["carre", "arrondi", "pilule"].includes(s.forme) ? s.forme : "arrondi",
@@ -250,6 +261,8 @@ Les données d'exemple sont produites à part : ne mets pas de clé demo.`, { ma
     ...(nature?.espace_principal ? { nature: { espace_principal: String(nature.espace_principal).slice(0, 300), interactions: (nature.interactions ?? []).slice(0, 6).map((x: any) => String(x).slice(0, 160)) } } : {}),
     agenda: s.agenda?.collection && s.agenda?.champ_date ? { collection: String(s.agenda.collection), champ_date: String(s.agenda.champ_date), champ_heure: s.agenda.champ_heure ? String(s.agenda.champ_heure) : null, duree: s.agenda.duree ?? 60, champs_titre: (Array.isArray(s.agenda.champs_titre) ? s.agenda.champs_titre : [s.agenda.champs_titre]).filter(Boolean).slice(0, 2) } : null,
   };
+  // La couleur de marque suit la palette du système de design (PDF, image de partage, e-mails)
+  if (spec.design?.couleurs?.primary) spec.couleur = spec.design.couleurs.primary;
   // Pages publiques (réservation, formulaire, avis…) : écrites comme des écrans, servies sans compte
   const cols = new Set(spec.collections.map((c: any) => c.nom));
   for (const [i, x] of (s.pages_publiques ?? []).slice(0, 2).entries()) {
@@ -523,8 +536,16 @@ Un changement de couleur, de police, d'allure, de nom, de textes du site ou de p
   // 1. Réglages globaux
   const R = plan?.reglages && typeof plan.reglages === "object" ? plan.reglages : {};
   const ENUM: Record<string, string[]> = { style: ["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique", "nature"], fond: ["blanc", "creme", "gris", "sombre"], forme: ["carre", "arrondi", "pilule"], disposition: ["barre", "haut", "onglets"] };
-  if (/^#[0-9a-f]{6}$/i.test(String(R.couleur ?? "")) && String(R.couleur).toLowerCase() !== String(spec.couleur ?? "").toLowerCase()) { spec.couleur = R.couleur; faits.push("couleur"); }
-  for (const k of Object.keys(ENUM)) if (ENUM[k].includes(R[k]) && R[k] !== spec[k]) { spec[k] = R[k]; faits.push(k === "style" ? "allure" : k); }
+  // Le membre garde la main sur le système de design : sa couleur remplace la principale (texte blanc dessus, comme
+  // l'exige la consigne « assez foncée ») ; un autre fond ou une autre allure lui rend les réglages d'origine
+  if (/^#[0-9a-f]{6}$/i.test(String(R.couleur ?? "")) && String(R.couleur).toLowerCase() !== String(spec.couleur ?? "").toLowerCase()) {
+    spec.couleur = R.couleur; faits.push("couleur");
+    if (spec.design?.couleurs) spec.design = { ...spec.design, couleurs: { ...spec.design.couleurs, primary: R.couleur, on_primary: "#FFFFFF", ring: R.couleur } };
+  }
+  for (const k of Object.keys(ENUM)) if (ENUM[k].includes(R[k]) && R[k] !== spec[k]) {
+    spec[k] = R[k]; faits.push(k === "style" ? "allure" : k);
+    if ((k === "fond" || k === "style") && spec.design) { spec.design_avant = spec.design; delete spec.design; }
+  }
   for (const [k, l] of [["police", "police du texte"], ["police_titres", "police des titres"]] as [string, string][]) if (POLICES_ATELIER.includes(R[k]) && R[k] !== spec[k]) { spec[k] = R[k]; faits.push(l + " : " + R[k]); }
   for (const [k, n, l] of [["nom", 40, "nom"], ["slogan", 90, "slogan"], ["pitch", 300, "accroche"], ["cible_courte", 60, "cible"]] as [string, number, string][]) if (typeof R[k] === "string" && R[k].trim() && R[k].trim().slice(0, n) !== spec[k]) { spec[k] = R[k].trim().slice(0, n); faits.push(l); }
   if (typeof R.logo === "string" && images.includes(R.logo) && R.logo !== spec.logo) { spec.logo = R.logo; faits.push("logo"); }

@@ -6,13 +6,13 @@
 // Textes et spec d'un site (sans accès au serveur : testable en local)
 // deno-lint-ignore-file no-explicit-any
 import { MODELES_CODE } from "./modeles-code.ts";
+import { FICHES, typeDeProjet, CONSIGNE_TEXTES_FR } from "./design-fiches.ts";
 
 const court = (x: unknown, n: number) => String(x ?? "").replace(/\s+/g, " ").trim().slice(0, n);
 const liste = (x: unknown) => (Array.isArray(x) ? x : []);
 const jour = (d: number) => { const x = new Date(); x.setUTCDate(x.getUTCDate() + d); return x.toISOString().slice(0, 10); };
 const instant = (d: number, h = 10) => jour(d) + "T" + String(h).padStart(2, "0") + ":" + String(((d * 13 + h * 7) % 60 + 60) % 60).padStart(2, "0") + ":00Z";
-const ICONES = ["accueil", "liste", "contacts", "agenda", "graphique", "reglages", "fichier", "boite", "mail", "carte", "tag", "etoile", "horloge", "panier", "message"];
-const PALETTE = ["#C2410C", "#B91C1C", "#BE185D", "#7E22CE", "#4338CA", "#1D4ED8", "#0369A1", "#0E7490", "#15803D", "#4D7C0F", "#A16207", "#9A3412", "#334155", "#1E293B", "#9F1239", "#6D28D9", "#1F3D33"];
+const ICONES = ["accueil", "liste", "contacts", "agenda", "graphique", "reglages", "fichier", "boite", "mail", "carte", "tag", "etoile", "horloge", "panier", "message"];const PALETTE = ["#C2410C", "#B91C1C", "#BE185D", "#7E22CE", "#4338CA", "#1D4ED8", "#0369A1", "#0E7490", "#15803D", "#4D7C0F", "#A16207", "#9A3412", "#334155", "#1E293B", "#9F1239", "#6D28D9", "#1F3D33"];
 const STYLES = ["moderne", "doux", "editorial", "elegant", "nature", "rond", "sport", "vif", "tech", "geometrique"];
 const NOMS = ["Claire Martin", "Thomas Bernard", "Sophie Dubois", "Lucas Moreau", "Camille Laurent", "Julien Simon", "Emma Michel", "Hugo Lefebvre", "Léa Garcia", "Nathan Roux"];
 const mel = (n: string) => n.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z]+/g, ".") + "@exemple.fr";
@@ -34,7 +34,7 @@ Rends un objet JSON :
 - cta : le texte du bouton principal, 3 mots au plus (« Prendre rendez-vous », « Demander un devis », « Réserver une table », « Me contacter »)
 - demande : la demande que le visiteur envoie, UNE parmi rdv (rendez-vous à une date), devis (description d'un besoin), reservation (une date et un nombre de personnes), message (simple prise de contact) ; pour un portfolio, devis ou message ; pour un lancement, inscription
 - cta : (rappel) pour un lancement, « Être prévenu » ou « Je m'inscris »
-- couleur : couleur de marque parmi ${PALETTE.join(", ")}, celle qui raconte le mieux le métier
+- secteur_en : 3 à 6 mots-clés EN ANGLAIS qui décrivent le secteur (« hair salon beauty home service », « wedding photographer portfolio », « meal planning app ») : ils servent à choisir le système de design (couleurs et polices sont ensuite imposées)
 - style : UN parmi ${STYLES.join(", ")} (elegant ou editorial pour le haut de gamme, nature pour le bien-être et le bio, doux ou rond pour les services aux familles, sport pour le sport, moderne par défaut)
 - points_forts : 3 objets { titre (4 mots), texte (une phrase), icone parmi ${ICONES.join(", ")} } : ce que le client y gagne
 - services : (vide [] pour un lancement) 3 à 8 objets { titre (5 mots au plus), description (une phrase), prix (nombre en euros, prix habituel en France, ou null si ça dépend vraiment du besoin), prix_texte ("à partir de" si le prix varie, sinon ""), duree ("45 min", "1 h 30" ou "" si ça n'a pas de sens) }
@@ -47,7 +47,10 @@ Rends un objet JSON :
 - zone : la zone d'intervention ou le quartier si c'est un métier qui se déplace ou si l'idée le dit, sinon ""
 - demandes : 8 demandes d'exemple (fictives, pour tester l'espace gérant) { service (le titre d'un des services, ou "" pour un lancement), message (1 ou 2 phrases d'un client) } ; pour un lancement, ce sont des inscrits : { prenom, message: "" }
 RÈGLES D'HONNÊTETÉ (le site est en ligne tout de suite, au nom du membre) : AUCUN avis ni témoignage client, AUCUN chiffre de clients ou de satisfaction, AUCUNE année d'expérience, AUCUN diplôme, label, certification, assurance ou garantie que le membre n'a pas cités, AUCUN nom de marque. Pas d'adresse, de téléphone ni d'e-mail inventés (le gérant les ajoute).
-Tout en français, vouvoiement des visiteurs.`;
+Tout en français, vouvoiement des visiteurs.
+
+${FICHES[typeDeProjet({ site: true, modele: ap.modele, metier: ap.metier, idee: idee.texte })]}
+${CONSIGNE_TEXTES_FR}`;
 }
 
 export function specSite(c: any, p: any) {

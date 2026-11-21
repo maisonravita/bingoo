@@ -38,9 +38,32 @@ export function styleDe(spec) {
 }
 /** Polices proposées à l'atelier (« change la police ») : remplacent celles de l'allure, texte et/ou titres */
 export const POLICES = ["Inter", "Plus Jakarta Sans", "Manrope", "DM Sans", "Nunito", "Space Grotesk", "Outfit", "Poppins", "Montserrat", "Raleway", "Lato", "Open Sans", "Roboto", "Work Sans", "Sora", "Lexend", "Barlow", "Barlow Condensed", "Rubik", "Quicksand", "Fraunces", "Playfair Display", "Lora", "Merriweather", "DM Serif Display", "Cormorant Garamond", "Bebas Neue", "Oswald", "Archivo", "Urbanist"];
+// Polices d'un système de design (UI UX Pro Max) : toute police Google au nom propre, choisie à la construction
+const policeDs = (p) => (typeof p === "string" && /^[A-Za-z0-9 ]{2,40}$/.test(p) ? p : null);
 export function policesDe(spec) {
   const st = STYLES[styleDe(spec)];
-  return { ...st, police: POLICES.includes(spec?.police) ? spec.police : st.police, titres: POLICES.includes(spec?.police_titres) ? spec.police_titres : POLICES.includes(spec?.police) ? spec.police : st.titres };
+  // L'atelier (« change la police ») garde la main : spec.police / police_titres passent avant le système de design
+  const ds = spec?.design?.polices ?? {};
+  const texte = POLICES.includes(spec?.police) ? spec.police : policeDs(ds.texte) ?? st.police;
+  const titres = POLICES.includes(spec?.police_titres) ? spec.police_titres : POLICES.includes(spec?.police) ? spec.police : policeDs(ds.titres) ?? st.titres;
+  return { ...st, police: texte, titres };
+}
+/** Couche « système de design » : les gris et blancs des gabarits prennent les couleurs de la palette (fond, texte, cartes,
+ *  zones discrètes, bordures) ; le texte posé sur la couleur principale prend la couleur prévue pour elle (contraste 4,5:1). */
+function cssDesign(spec) {
+  const c = spec?.design?.couleurs;
+  const ok = (x) => (/^#[0-9a-f]{6}$/i.test(x ?? "") ? x : null);
+  if (!c || !ok(c.primary) || !ok(c.background) || !ok(c.foreground)) return "";
+  const bg = ok(c.background), fg = ok(c.foreground), card = ok(c.card) ?? bg, muted = ok(c.muted) ?? card, mfg = ok(c.muted_foreground) ?? fg, bord = ok(c.border) ?? muted, onc = ok(c.on_primary) ?? "#FFFFFF";
+  return `:root{--ds-bg:${bg};--ds-fg:${fg};--ds-card:${card};--ds-muted:${muted};--ds-mfg:${mfg};--ds-border:${bord};--ds-onc:${onc}}
+body,.fond-creme,.fond-gris{background:var(--ds-bg);color:var(--ds-fg)}
+[class~="bg-white"]{background:var(--ds-card)}[class~="bg-slate-50"],[class~="bg-slate-100"]{background:var(--ds-muted)}
+[class~="text-slate-900"],[class~="text-slate-800"],[class~="text-slate-700"]{color:var(--ds-fg)}
+[class~="text-slate-600"],[class~="text-slate-500"],[class~="text-slate-400"]{color:var(--ds-mfg)}
+[class*="border-slate-"]{border-color:var(--ds-border)}
+[style*="var(--c)"][class~="text-white"],[style*="var(--c)"] [class~="text-white"]{color:var(--ds-onc)}
+a,button,[role="button"],summary,label[for],select{cursor:pointer}
+:focus-visible{outline:2px solid ${ok(c.ring) ?? ok(c.primary)};outline-offset:2px}`;
 }
 const policeUrl = (st) => "https://fonts.googleapis.com/css2?" + [...new Set([st.police, st.titres])].map((p) => "family=" + p.replace(/ /g, "+") + (p === "Fraunces" ? ":opsz,wght@9..144,500;9..144,700" : p === "Playfair Display" || p === "Bebas Neue" || p === "DM Serif Display" ? (p === "Playfair Display" ? ":wght@500;700;800" : "") : ":wght@400;500;600;700;800")).join("&") + "&display=swap";
 
@@ -52,7 +75,7 @@ export function appHtml({ spec, slug, api, token = null, apercu = false, paiemen
 <title>${String(spec.nom ?? "Mon SaaS").replace(/[<&]/g, "")}</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js"></script>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${policeUrl(policesDe(spec))}">
-<style>:root{--c:${/^#[0-9a-f]{6}$/i.test(spec.couleur ?? "") ? spec.couleur : "#4F46E5"};--fh:"${policesDe(spec).titres}",ui-sans-serif,system-ui,sans-serif}body{font-family:"${policesDe(spec).police}",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:#F8FAFC;color:#0F172A}h1,h2,h3,.fh{font-family:var(--fh)}.menu-fonce [class~="text-slate-600"],.menu-fonce [class~="text-slate-500"]{color:rgba(255,255,255,.72)}.menu-fonce [class~="text-slate-400"]{color:rgba(255,255,255,.55)}.menu-fonce [class~="bg-slate-50"]{background:rgba(255,255,255,.08)}.menu-fonce [class~="border-slate-100"]{border-color:rgba(255,255,255,.12)}.menu-fonce [class~="hover:bg-slate-50"]:hover,.menu-fonce [class~="hover:bg-slate-100"]:hover{background:rgba(255,255,255,.1)}.menu-fonce a{color:inherit}
+<style>:root{--c:${/^#[0-9a-f]{6}$/i.test(spec.design?.couleurs?.primary ?? "") ? spec.design.couleurs.primary : /^#[0-9a-f]{6}$/i.test(spec.couleur ?? "") ? spec.couleur : "#4F46E5"};--fh:"${policesDe(spec).titres}",ui-sans-serif,system-ui,sans-serif}body{font-family:"${policesDe(spec).police}",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:#F8FAFC;color:#0F172A}h1,h2,h3,.fh{font-family:var(--fh)}.menu-fonce [class~="text-slate-600"],.menu-fonce [class~="text-slate-500"]{color:rgba(255,255,255,.72)}.menu-fonce [class~="text-slate-400"]{color:rgba(255,255,255,.55)}.menu-fonce [class~="bg-slate-50"]{background:rgba(255,255,255,.08)}.menu-fonce [class~="border-slate-100"]{border-color:rgba(255,255,255,.12)}.menu-fonce [class~="hover:bg-slate-50"]:hover,.menu-fonce [class~="hover:bg-slate-100"]:hover{background:rgba(255,255,255,.1)}.menu-fonce a{color:inherit}
 .forme-carre .rounded-2xl,.forme-carre .rounded-xl,.forme-carre .rounded-3xl{border-radius:.375rem}.forme-carre .rounded-lg{border-radius:.25rem}
 .forme-pilule .rounded-2xl{border-radius:1.5rem}.forme-pilule .rounded-xl{border-radius:1.1rem}.forme-pilule button.rounded-xl,.forme-pilule button.rounded-lg,.forme-pilule a.rounded-xl{border-radius:999px}
 .fond-creme{background:#FAF7F2}.fond-creme main [class~="bg-slate-50"]{background:#F3EEE6}
@@ -63,7 +86,7 @@ export function appHtml({ spec, slug, api, token = null, apercu = false, paiemen
 .fond-sombre input,.fond-sombre select,.fond-sombre textarea{background:#0E1116;color:#F1F5F9;border-color:#2B3240}.fond-sombre [class~="hover:bg-slate-50"]:hover,.fond-sombre [class~="hover:bg-slate-100"]:hover{background:#222836}
 main section{max-width:100%;overflow-x:auto}
 @media (max-width:640px){main table,main thead,main tbody,main tr,main td{display:block;width:100%}main thead{display:none}main tr{border:1px solid rgba(100,116,139,.22)!important;border-radius:14px;margin:0 0 10px;padding:4px 14px}main td{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:7px 0!important;border:0!important;text-align:right;min-height:0}main td:empty{display:none}main table{min-width:0!important;width:100%!important;table-layout:auto!important}main td,main td *{white-space:normal!important}main td>*{min-width:0;max-width:62%;margin-left:auto;text-align:right}main td:first-child>*{max-width:100%;margin-left:0;text-align:left}main td>div,main td>span{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px}main td:first-child>div,main td:first-child>span{justify-content:flex-start}main td[data-label]::before{content:attr(data-label);font-size:12px;font-weight:600;color:#64748B;text-align:left;flex-shrink:0;max-width:45%}main td:first-child{font-weight:600;text-align:left}main td:first-child::before{display:none}main .overflow-x-auto{margin-left:0!important;margin-right:0!important;overflow:visible}main section{overflow-x:visible}}.anim{animation:a .18s ease-out}@keyframes barre{from{width:0}to{width:100%}}@keyframes a{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}</style>
-</head><body><div id="root"><div style="min-height:100vh;display:grid;place-items:center;color:#94A3B8;font-size:14px">Chargement…</div></div>
+<style>${cssDesign(spec)}</style></head><body><div id="root"><div style="min-height:100vh;display:grid;place-items:center;color:#94A3B8;font-size:14px">Chargement…</div></div>
 <script>window.__BOOT=${safe(boot)};</script>
 <script type="module">
 import { h, render, Fragment, Component } from "${PREACT}";
