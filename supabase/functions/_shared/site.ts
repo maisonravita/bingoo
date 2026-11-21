@@ -28,6 +28,7 @@ export async function construireSite(appId: string, p: any, demarrerVerification
   const d = await choisirDesign(appId, String(c?.secteur_en ?? `${spec.site?.metier ?? ""}`));
   spec.design = d;
   spec.couleur = d.couleurs.primary;
+  if (d.allure) spec.style = d.allure;
   // Portfolio sans photos du membre : le nom en grand (Taste : jamais de photos de bibliothèque en en-tête ni de personnes,
   // elles passeraient pour son travail). Les photos libres (photos.ts) restent réservées à des détails, plus tard.
   await admin.from("saas_apps").update({ brouillon: spec, etape: `Écriture des écrans (${spec.ecrans.length - 1}/${spec.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);

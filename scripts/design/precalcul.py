@@ -107,6 +107,23 @@ for p in produits:
     v["categorie"] = nom
     v["mots_cles"] = p.get("Keywords", "")[:200]
     resultat[nom] = v
+# Variantes maison : des versions déjà validées en ligne, gardées parmi les 3 tirables (décision de Jean, 21 nov. :
+# un nouveau membre ne doit jamais tomber sur moins beau qu'avant). Elles remplacent la variante indiquée.
+VARIANTES_MAISON = {
+    "Portfolio/Personal": (1, {
+        "style": "Bingoo! éditorial (rouge à empattement)", "mots": "editorial, serif headings, warm red, white, classic", "effets": "",
+        "mode": "light",
+        "couleurs": {"primary": "#B91C1C", "on_primary": "#FFFFFF", "secondary": "#FCA5A5", "accent": "#B91C1C", "on_accent": "#FFFFFF",
+                     "background": "#FFFFFF", "foreground": "#0F172A", "card": "#FFFFFF", "muted": "#F8FAFC", "muted_foreground": "#475569",
+                     "border": "#E2E8F0", "ring": "#B91C1C"},
+        "palette_note": "Version validée en ligne le 21 nov. 2026 (Atelier Lumen)",
+        "polices": {"titres": "Fraunces", "texte": "Inter", "humeur": "editorial, elegant, classic"},
+        "maison": True, "allure": "editorial",
+    }),
+}
+for cat, (i, v) in VARIANTES_MAISON.items():
+    if cat in resultat and len(resultat[cat]["variantes"]) > i:
+        resultat[cat]["variantes"][i] = v
 dest = os.path.join(RACINE, "supabase", "functions", "_shared", "design-systemes.json")
 json.dump(resultat, open(dest, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
 n3 = sum(1 for v in resultat.values() if len(v["variantes"]) == 3)

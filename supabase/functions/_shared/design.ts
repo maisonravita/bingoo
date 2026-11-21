@@ -1,3 +1,9 @@
+// Règles du chantier design (décisions de Jean, 21 nov. 2026) :
+//  - Coût : sites, au plus +0,01 € par construction (une construction coûte ~1 centime, un pourcentage n'a pas de sens) ;
+//    SaaS (~1 €), au plus +20 %.
+//  - Une évolution de design ne s'applique qu'aux NOUVELLES constructions (spec.design présent), ou au clic du membre ;
+//    jamais aux sites déjà en ligne sans prévenir (un membre peut avoir montré son site).
+//  - Aucune régression : une version déjà validée en ligne reste tirable (variantes maison, scripts/design/precalcul.py).
 // Système de design de chaque construction (UI UX Pro Max, licence MIT, vendor/ui-ux-pro-max).
 // Le générateur Python est exécuté hors ligne (scripts/design/precalcul.py) : 3 variantes par catégorie de produit,
 // rangées dans design-systemes.json. Ici, sans IA : trouver la catégorie, tirer une variante que ni ce membre ni les
@@ -8,6 +14,7 @@ type Variante = {
   style: string; mots: string; effets: string; mode: "light" | "dark";
   couleurs: Record<string, string>; palette_note: string;
   polices: { titres: string; texte: string; humeur: string };
+  allure?: string; maison?: boolean;
 };
 type Systeme = { categorie: string; mots_cles: string; motif: { nom: string; sections: string; cta: string }; eviter: string[]; variantes: Variante[] };
 const SYSTEMES = systemes as unknown as Record<string, Systeme>;
@@ -39,6 +46,8 @@ export type DesignChoisi = {
   source: "ui-ux-pro-max"; categorie: string; variante: number; style: string; mode: "light" | "dark";
   couleurs: Record<string, string>; polices: { titres: string; texte: string };
   motif: string; sections: string; eviter: string[];
+  // Variante maison : l'allure Bingoo! d'origine (mise en page de l'en-tête) qui va avec
+  allure?: string;
 };
 
 /** Tire une des 3 variantes : jamais celle des projets récents du même secteur ni des projets de ce membre, sinon la moins récente. */
@@ -58,6 +67,7 @@ export function tirerDesign(categorie: string, dejaVues: { categorie?: string; v
     source: "ui-ux-pro-max", categorie: s.categorie, variante: i, style: v.style, mode: v.mode,
     couleurs: v.couleurs, polices: { titres: v.polices.titres, texte: v.polices.texte },
     motif: s.motif.nom, sections: s.motif.sections, eviter: s.eviter,
+    ...(v.allure ? { allure: v.allure } : {}),
   };
 }
 
