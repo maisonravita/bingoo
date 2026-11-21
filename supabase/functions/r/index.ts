@@ -643,8 +643,11 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       } catch (e) { console.error("mail fin de vérification", e); }
     }
     const verif = { ...avant, version: app.version, at: new Date().toISOString(), resultats, essais, passages, journal: journal.slice(-40), mesure, ...(atelier ? { atelier: null, dernier_atelier: { ...atelier, annule: retour, at: new Date().toISOString() } } : {}),
+      // Version remise : ses écrans en souci sont ceux d'avant la modification, pas ceux que la modification avait cassés
+      ...(retour ? { reste_force: atelier.reste_avant ?? [] } : {}),
       en_reparation: [...enRep, ...aReparer.map((r: any) => r.id)], repare: aReparer.map((r: any) => r.id),
       phase: boucle ? (fini ? "fini" : "en_cours") : (avant.phase ?? "fini"), ok: resultats.every((r: any) => r.ok), reste: fini ? restants.map((r: any) => r.id) : (avant.reste ?? []).filter((id: string) => !resultats.some((r: any) => r.id === id && r.ok)) };
+    if ((verif as any).reste_force) { (verif as any).reste = (verif as any).reste_force; (verif as any).ok = !(verif as any).reste.length; delete (verif as any).reste_force; }
     await admin.from("saas_apps").update({ verif }).eq("id", app.id);
     if (aReparer.length) {
       const cle = await secret("cron_key");
