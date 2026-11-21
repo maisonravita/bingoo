@@ -58,7 +58,7 @@ function cssDesign(spec) {
   const bg = ok(c.background), fg = ok(c.foreground), card = ok(c.card) ?? bg, muted = ok(c.muted) ?? card, mfg = ok(c.muted_foreground) ?? fg, bord = ok(c.border) ?? muted, onc = ok(c.on_primary) ?? "#FFFFFF";
   return `:root{--ds-bg:${bg};--ds-fg:${fg};--ds-card:${card};--ds-muted:${muted};--ds-mfg:${mfg};--ds-border:${bord};--ds-onc:${onc}}
 body,.fond-creme,.fond-gris{background:var(--ds-bg);color:var(--ds-fg)}
-button{min-height:24px}
+button{min-height:24px;min-width:24px}
 [class~="bg-white"]{background:var(--ds-card)}[class~="bg-slate-50"],[class~="bg-slate-100"]{background:var(--ds-muted)}
 [class~="text-slate-900"],[class~="text-slate-800"],[class~="text-slate-700"]{color:var(--ds-fg)}
 [class~="text-slate-600"],[class~="text-slate-500"],[class~="text-slate-400"]{color:var(--ds-mfg)}
@@ -285,7 +285,7 @@ ui.Table = function Table({ colonnes = [], lignes = [], onClick, vide = "Rien po
   const pages = Math.max(1, Math.ceil(L.length / parPage)), P = Math.min(p, pages - 1), V = L.slice(P * parPage, P * parPage + parPage);
   const exporter = () => telecharger((S.nom ?? "export") + ".csv", [colonnes.map((c) => celluleCsv(c.label)).join(";"), ...L.map((l) => colonnes.map((c) => celluleCsv(brut(l, c))).join(";"))].join("\\n"));
   return html\`<div>
-    <div class="flex flex-wrap items-center gap-2 mb-3">\${lignes.length > 5 && html\`<input value=\${q} onInput=\${(e) => { setQ(e.target.value); setP(0); }} placeholder="Rechercher…" class="flex-1 min-w-[160px] rounded-xl border border-slate-200 px-3 py-1.5 text-sm outline-none focus:border-[var(--c)]"/>\`}<span class="ml-auto text-xs text-slate-400">\${L.length} ligne\${L.length > 1 ? "s" : ""}</span><button onClick=\${exporter} class="rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100">Exporter</button></div>
+    <div class="flex flex-wrap items-center gap-2 mb-3">\${lignes.length > 5 && html\`<input value=\${q} onInput=\${(e) => { setQ(e.target.value); setP(0); }} placeholder="Rechercher…" aria-label="Rechercher" class="flex-1 min-w-[160px] rounded-xl border border-slate-200 px-3 py-1.5 text-sm outline-none focus:border-[var(--c)]"/>\`}<span class="ml-auto text-xs text-slate-400">\${L.length} ligne\${L.length > 1 ? "s" : ""}</span><button onClick=\${exporter} class="rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100">Exporter</button></div>
     <div class="overflow-x-auto -mx-5"><table class="w-full text-sm"><thead><tr class="text-left text-xs text-slate-500 border-b border-slate-100">\${colonnes.map((c, i) => html\`<th class="px-5 py-2 font-medium whitespace-nowrap \${c.cle ? "cursor-pointer select-none hover:text-slate-800" : ""}" onClick=\${() => c.cle && setTri(tri?.i === i ? { i, sens: -tri.sens } : { i, sens: 1 })}>\${c.label}\${tri?.i === i ? (tri.sens > 0 ? " ↑" : " ↓") : ""}</th>\`)}</tr></thead>
     <tbody>\${V.map((l) => html\`<tr class=\${cls("border-b border-slate-50 last:border-0", onClick && "cursor-pointer hover:bg-slate-50/80")} onClick=\${() => onClick?.(l)}>\${colonnes.map((c, i) => html\`<td class="px-5 py-2.5">\${c.rendu ? c.rendu(l) : celluleJolie(c, l[c.cle], i)}</td>\`)}</tr>\`)}</tbody></table></div>
     \${!V.length && html\`<p class="py-6 text-center text-sm text-slate-400">Aucun résultat pour « \${q} ».</p>\`}
