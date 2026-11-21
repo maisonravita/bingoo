@@ -39,12 +39,8 @@ export async function construireSite(appId: string, p: any, demarrerVerification
   // Portfolio sans photos du membre : le nom en grand (Taste : jamais de photos de bibliothèque en en-tête ni de personnes,
   // elles passeraient pour son travail). Les photos libres (photos.ts) restent réservées à des détails, plus tard.
   await admin.from("saas_apps").update({ brouillon: spec, etape: surMesure ? "Écriture de la page sur mesure" : `Écriture des écrans (${spec.ecrans.length - 1}/${spec.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
-  if (surMesure) {
-    const e0s = spec.ecrans[0];
-    await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: e0s.id, p_code: e0s.code, p_ok: true });
-    await lancerEcran!("__page");
-    return;
-  }
+  // L'écran unique est marqué écrit seulement après la page (le marquer avant publierait le site tout de suite)
+  if (surMesure) { await lancerEcran!("__page"); return; }
   // La vérification est posée avant la mise en ligne : le site ne paraît jamais « prêt » sans avoir été testé
   await demarrerVerification(appId, spec).catch((x) => console.error("verification site", x));
   const e0 = spec.ecrans[0];
@@ -64,7 +60,8 @@ async function genActif(appId: string) {
 export async function pageSurMesure(appId: string, demarrerVerification: (id: string, spec?: any) => Promise<unknown>) {
   const { data: app } = await admin.from("saas_apps").select("brouillon, projet_id").eq("id", appId).single();
   const { data: pr } = await admin.from("saas_projets").select("data").eq("id", app!.projet_id).single();
-  const p = (pr?.data ?? {}) as any, spec = app!.brouillon as any, idee = p.idee ?? {};
+  const p = (pr?.data ?? {}) as any, spec = app?.brouillon as any, idee = p.idee ?? {};
+  if (!spec?.ecrans?.length) throw new Error("Brouillon du site introuvable pour la page sur mesure");
   try {
     const { genererPage } = await import("./site-gen.ts");
     const g = await genererPage({
@@ -81,4 +78,6 @@ export async function pageSurMesure(appId: string, demarrerVerification: (id: st
   }
   await admin.from("saas_apps").update({ brouillon: spec, etape: `Écriture des écrans (${spec.ecrans.length - 1}/${spec.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
   await demarrerVerification(appId, spec).catch((x) => console.error("verification site", x));
+  const e0 = spec.ecrans[0];
+  await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: e0.id, p_code: e0.code, p_ok: true });
 }
