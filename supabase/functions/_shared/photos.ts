@@ -9,9 +9,23 @@ const LICENCE_OK = /^(cc0|cc[ -]by(-sa)?[ -]\d|public domain|pd\b|pdm)/i;
 const PAS_UNE_PHOTO = /\b(painting|drawing|engraving|illustration|lithograph|poster|map|logo|icon|diagram|chart|scan|plan|coat of arms|flag|stamp|banknote|coin)\b/i;
 const sansHtml = (s: unknown) => String(s ?? "").replace(/<[^>]*>/g, " ").replace(/&[a-z#0-9]+;/gi, " ").replace(/\s+/g, " ").trim();
 
+// Mots qui décrivent l'activité, pas ce qu'on photographie (Commons cherche des fichiers qui contiennent TOUS les mots)
+const MOTS_VIDES = new Set(["portfolio", "app", "application", "service", "services", "home", "business", "online", "platform", "website", "site", "booking", "management", "software", "saas", "tool", "local", "small", "professional", "studio", "and", "for", "the"]);
+
+/** Recherche élargie pas à pas : tous les mots utiles, puis les 3 premiers, les 2 premiers, enfin chaque paire. */
 export async function photosLibres(requete: string, nombre = 4, min = 1600): Promise<PhotoLibre[]> {
-  const q = String(requete ?? "").replace(/[^\p{L}\p{N} -]/gu, " ").trim().slice(0, 80);
-  if (!q) return [];
+  const mots = String(requete ?? "").toLowerCase().replace(/[^\p{L}\p{N} -]/gu, " ").split(/\s+/).filter((m) => m.length > 2 && !MOTS_VIDES.has(m)).slice(0, 5);
+  if (!mots.length) return [];
+  const essais = [...new Set([mots.join(" "), mots.slice(0, 3).join(" "), mots.slice(0, 2).join(" "), ...mots.slice(1).map((m) => `${mots[0]} ${m}`), mots[0]])];
+  const out: PhotoLibre[] = [], vus = new Set<string>();
+  for (const q of essais) {
+    for (const ph of await rechercheCommons(q, nombre, min)) if (!vus.has(ph.page)) { vus.add(ph.page); out.push(ph); }
+    if (out.length >= nombre) break;
+  }
+  return out.slice(0, nombre);
+}
+
+async function rechercheCommons(q: string, nombre: number, min: number): Promise<PhotoLibre[]> {
   const u = "https://commons.wikimedia.org/w/api.php?" + new URLSearchParams({
     action: "query", format: "json", formatversion: "2", generator: "search", gsrnamespace: "6", gsrlimit: "40",
     gsrsearch: q + " filetype:bitmap -painting -paintings -drawing -engraving -illustration -lithograph -poster -map",
