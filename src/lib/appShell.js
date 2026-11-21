@@ -67,6 +67,39 @@ button{min-height:24px;min-width:24px}
 a,button,[role="button"],summary,label[for],select{cursor:pointer}
 :focus-visible{outline:2px solid ${ok(c.ring) ?? ok(c.primary)};outline-offset:2px}`;
 }
+// Gabarit Taste pour l'intérieur des SaaS : la même grammaire que les sites (hiérarchie typographique, filets, une seule couleur
+// d'action, aucune ombre ni pastille d'icône), pour qu'un SaaS ne ressemble plus au gabarit de gestion standard
+function cssTaste(spec) {
+  if (spec?.gabarit_app !== "taste") return "";
+  return `.gab-taste{--t-ink:var(--ds-fg,#14161a);--t-mut:var(--ds-mfg,#5d6270);--t-line:color-mix(in srgb,var(--t-ink) 11%,transparent);--t-bg:var(--ds-bg,#fbfaf8);background:var(--t-bg);color:var(--t-ink);letter-spacing:-.005em}
+.gab-taste main{padding-top:40px}
+.gab-taste .u-titre{font-family:var(--fh);font-size:clamp(30px,3.2vw,44px);line-height:1.04;font-weight:600;letter-spacing:-.025em}
+.gab-taste .u-sous{font-size:16px;color:var(--t-mut);margin-top:8px;max-width:60ch}
+.gab-taste .u-aside{background:var(--t-bg)!important;color:var(--t-ink);border-color:var(--t-line)!important}
+.gab-taste .u-aside > div:first-child{font-family:var(--fh);font-size:19px;letter-spacing:-.02em}
+.gab-taste .u-aside nav button{border-radius:8px;color:var(--t-mut);font-weight:500;position:relative}
+.gab-taste .u-aside nav button:hover{background:color-mix(in srgb,var(--t-ink) 5%,transparent);color:var(--t-ink)}
+.gab-taste .u-aside-cap > div:not(:first-child){border-radius:8px;color:var(--t-mut);position:relative}
+.gab-taste .u-aside-cap > div.u-actif{background:color-mix(in srgb,var(--t-ink) 6%,transparent);color:var(--t-ink)}
+.gab-taste .u-aside-cap > div.u-actif::before{content:"";position:absolute;left:-16px;top:8px;bottom:8px;width:3px;border-radius:2px;background:var(--c)}
+.gab-taste .u-aside nav button[class*="bg-[var(--c)]/10"]{background:color-mix(in srgb,var(--t-ink) 6%,transparent);color:var(--t-ink);font-weight:600}
+.gab-taste .u-aside nav button[class*="bg-[var(--c)]/10"]::before{content:"";position:absolute;left:-16px;top:8px;bottom:8px;width:3px;border-radius:2px;background:var(--c)}
+.gab-taste .u-card{box-shadow:none!important;border:1px solid var(--t-line)!important;border-radius:14px;padding:24px;background:var(--ds-card,#fff)}
+.gab-taste .u-card-t{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--t-mut)}
+.gab-taste .u-stat{box-shadow:none!important;border:0!important;border-top:1px solid var(--t-ink)!important;border-radius:0!important;background:transparent!important;padding:14px 2px 6px;display:block}
+.gab-taste .u-stat-i{display:none!important}
+.gab-taste .u-stat-v{font-family:var(--fh);font-size:clamp(34px,3vw,46px)!important;font-weight:600!important;letter-spacing:-.03em;line-height:1}
+.gab-taste .u-stat p.text-xs{font-size:13px;color:var(--t-mut)}
+.gab-taste button[class*="rounded-xl"]{border-radius:10px}
+.gab-taste button[class~="bg-white"][class*="border"]{background:transparent;border-color:color-mix(in srgb,var(--t-ink) 22%,transparent)}
+.gab-taste table thead tr{border-color:var(--t-ink)!important}
+.gab-taste table th{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--t-mut);font-weight:600}
+.gab-taste table td{padding-top:14px!important;padding-bottom:14px!important}
+.gab-taste table tbody tr{border-color:var(--t-line)!important}
+.gab-taste [class*="shadow-"]{box-shadow:none}
+.gab-taste [class*="divide-slate-1"] > *{border-color:var(--t-line)}
+.gab-taste .rounded-2xl[class*="border-slate-200"]{border-color:var(--t-line)}`;
+}
 const policeUrl = (st) => "https://fonts.googleapis.com/css2?" + [...new Set([st.police, st.titres])].map((p) => "family=" + p.replace(/ /g, "+") + (p === "Fraunces" ? ":opsz,wght@9..144,500;9..144,700" : p === "Playfair Display" || p === "Bebas Neue" || p === "DM Serif Display" ? (p === "Playfair Display" ? ":wght@500;700;800" : "") : ":wght@400;500;600;700;800")).join("&") + "&display=swap";
 
 export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null, capture = null, essai = false }) {
@@ -88,7 +121,7 @@ export function appHtml({ spec, slug, api, token = null, apercu = false, paiemen
 .fond-sombre input,.fond-sombre select,.fond-sombre textarea{background:#0E1116;color:#F1F5F9;border-color:#2B3240}.fond-sombre [class~="hover:bg-slate-50"]:hover,.fond-sombre [class~="hover:bg-slate-100"]:hover{background:#222836}
 main section{max-width:100%;overflow-x:auto}
 @media (max-width:640px){main table,main thead,main tbody,main tr,main td{display:block;width:100%}main thead{display:none}main tr{border:1px solid rgba(100,116,139,.22)!important;border-radius:14px;margin:0 0 10px;padding:4px 14px}main td{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:7px 0!important;border:0!important;text-align:right;min-height:0}main td:empty{display:none}main table{min-width:0!important;width:100%!important;table-layout:auto!important}main td,main td *{white-space:normal!important}main td>*{min-width:0;max-width:62%;margin-left:auto;text-align:right}main td:first-child>*{max-width:100%;margin-left:0;text-align:left}main td>div,main td>span{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px}main td:first-child>div,main td:first-child>span{justify-content:flex-start}main td[data-label]::before{content:attr(data-label);font-size:12px;font-weight:600;color:#64748B;text-align:left;flex-shrink:0;max-width:45%}main td:first-child{font-weight:600;text-align:left}main td:first-child::before{display:none}main .overflow-x-auto{margin-left:0!important;margin-right:0!important;overflow:visible}main section{overflow-x:visible}}.anim{animation:a .18s ease-out}@keyframes barre{from{width:0}to{width:100%}}@keyframes a{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}</style>
-<style>${cssDesign(spec)}</style></head><body><div id="root"><div style="min-height:100vh;display:grid;place-items:center;color:#94A3B8;font-size:14px">Chargement…</div></div>
+<style>${cssDesign(spec)}${cssTaste(spec)}</style></head><body><div id="root"><div style="min-height:100vh;display:grid;place-items:center;color:#94A3B8;font-size:14px">Chargement…</div></div>
 <script>window.__BOOT=${safe(boot)};</script>
 <script type="module">
 import { h, render, Fragment, Component } from "${PREACT}";
@@ -218,8 +251,8 @@ const Icone = ({ nom, class: c = "w-5 h-5" }) => html\`<svg class=\${c} viewBox=
 const cls = (...a) => a.filter(Boolean).join(" ");
 const ui = {};
 ui.Icone = Icone;
-ui.Page = ({ titre, sous, actions, children }) => html\`<div class="anim"><div class="flex flex-wrap items-end justify-between gap-3 mb-6"><div><h1 class="text-2xl font-bold tracking-tight">\${titre}</h1>\${sous && html\`<p class="text-slate-500 mt-0.5">\${sous}</p>\`}</div><div class="flex gap-2">\${actions}</div></div>\${children}</div>\`;
-ui.Card = ({ titre, actions, children, class: c }) => html\`<section class=\${cls("bg-white rounded-2xl border border-slate-200/70 p-5 shadow-[0_1px_2px_rgba(15,23,42,.04)]", c)}>\${(titre || actions) && html\`<div class="flex items-center justify-between mb-3"><h2 class="font-semibold">\${titre}</h2>\${actions}</div>\`}\${children}</section>\`;
+ui.Page = ({ titre, sous, actions, children }) => html\`<div class="anim"><div class="flex flex-wrap items-end justify-between gap-3 mb-6"><div><h1 class="u-titre text-2xl font-bold tracking-tight">\${titre}</h1>\${sous && html\`<p class="u-sous text-slate-500 mt-0.5">\${sous}</p>\`}</div><div class="flex gap-2">\${actions}</div></div>\${children}</div>\`;
+ui.Card = ({ titre, actions, children, class: c }) => html\`<section class=\${cls("u-card bg-white rounded-2xl border border-slate-200/70 p-5 shadow-[0_1px_2px_rgba(15,23,42,.04)]", c)}>\${(titre || actions) && html\`<div class="flex items-center justify-between mb-3"><h2 class="u-card-t font-semibold">\${titre}</h2>\${actions}</div>\`}\${children}</section>\`;
 ui.Button = ({ variant = "primary", onClick, type = "button", disabled, children, class: c, icone }) => html\`<button type=\${type} disabled=\${disabled} onClick=\${onClick} class=\${cls("inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold transition disabled:opacity-50", variant === "primary" && "bg-[var(--c)] text-white hover:brightness-110", variant === "secondary" && "bg-white border border-slate-200 hover:border-slate-300", variant === "danger" && "bg-red-600 text-white hover:bg-red-700", variant === "ghost" && "hover:bg-slate-100 text-slate-600", c)}>\${icone && html\`<\${Icone} nom=\${icone} class="w-4 h-4"/>\`}\${children}</button>\`;
 const champ = "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--c)] focus:ring-2 focus:ring-[var(--c)]/15";
 const Lab = ({ label, children }) => html\`<label class="block">\${label && html\`<span class="block text-xs font-medium text-slate-500 mb-1">\${label}</span>\`}\${children}</label>\`;
@@ -229,7 +262,7 @@ ui.Select = ({ label, value, onChange, options = [] }) => html\`<\${Lab} label=\
 ui.Modal = ({ open, onClose, titre, children, actions }) => { useEffect(() => { if (!open) return; const k = (e) => { if (e.key === "Escape") onClose?.(); }; addEventListener("keydown", k); return () => removeEventListener("keydown", k); }, [open, onClose]); return !open ? null : html\`<div class="fixed inset-0 z-50 bg-slate-900/40 grid place-items-center p-4" onClick=\${(e) => e.target === e.currentTarget && onClose?.()}><div role="dialog" aria-modal="true" aria-label=\${typeof titre === "string" ? titre : null} class="anim w-full max-w-lg bg-white rounded-2xl shadow-xl max-h-[90vh] overflow-auto"><div class="flex items-center justify-between px-5 pt-4"><h3 class="font-semibold text-lg">\${titre}</h3><button onClick=\${onClose} aria-label="Fermer" title="Fermer" class="text-slate-400 hover:text-slate-700"><\${Icone} nom="croix"/></button></div><div class="p-5 space-y-3">\${children}</div>\${actions && html\`<div class="px-5 pb-5 flex justify-end gap-2">\${actions}</div>\`}</div></div>\`; };
 ui.Table = ({ colonnes = [], lignes = [], onClick, vide = "Rien pour l'instant." }) => !lignes.length ? html\`<\${ui.Empty} texte=\${vide}/>\` : html\`<div class="overflow-x-auto -mx-5"><table class="w-full text-sm"><thead><tr class="text-left text-xs text-slate-500 border-b border-slate-100">\${colonnes.map((c) => html\`<th class="px-5 py-2 font-medium">\${c.label}</th>\`)}</tr></thead><tbody>\${lignes.map((l) => html\`<tr class=\${cls("border-b border-slate-50 last:border-0", onClick && "cursor-pointer hover:bg-slate-50")} onClick=\${() => onClick?.(l)}>\${colonnes.map((c) => html\`<td class="px-5 py-2.5">\${c.rendu ? c.rendu(l) : l[c.cle] ?? "—"}</td>\`)}</tr>\`)}</tbody></table></div>\`;
 // tendance : évolution en % (nombre) affichée ↑ / ↓ ; inverse : une baisse est une bonne nouvelle (annulations, retards)
-ui.Stat = ({ label, valeur, sous, icone, tendance, inverse }) => { const t = typeof tendance === "number" && isFinite(tendance) ? tendance : null, bon = t != null && (inverse ? t <= 0 : t >= 0); return html\`<div class="bg-white rounded-2xl border border-slate-200/70 p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] flex items-start gap-3">\${icone && html\`<span class="grid w-10 h-10 shrink-0 place-items-center rounded-xl bg-[var(--c)]/10 text-[var(--c)]"><\${Icone} nom=\${icone} class="w-5 h-5"/></span>\`}<div class="min-w-0"><p data-kpi=\${label} class="text-2xl font-bold leading-tight tabular-nums truncate">\${valeur}</p><p class="text-xs text-slate-500 truncate">\${label}</p>\${(t != null || sous) && html\`<div class="mt-1 flex flex-wrap items-center gap-x-2">\${t != null && html\`<span class=\${cls("text-xs font-semibold", bon ? "text-emerald-600" : "text-rose-600")}>\${t >= 0 ? "↑ +" : "↓ "}\${Math.round(t)} %</span>\`}\${sous && html\`<span class="text-xs text-slate-400">\${sous}</span>\`}</div>\`}</div></div>\`; };
+ui.Stat = ({ label, valeur, sous, icone, tendance, inverse }) => { const t = typeof tendance === "number" && isFinite(tendance) ? tendance : null, bon = t != null && (inverse ? t <= 0 : t >= 0); return html\`<div class="u-stat bg-white rounded-2xl border border-slate-200/70 p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] flex items-start gap-3">\${icone && html\`<span class="u-stat-i grid w-10 h-10 shrink-0 place-items-center rounded-xl bg-[var(--c)]/10 text-[var(--c)]"><\${Icone} nom=\${icone} class="w-5 h-5"/></span>\`}<div class="min-w-0"><p data-kpi=\${label} class="u-stat-v text-2xl font-bold leading-tight tabular-nums truncate">\${valeur}</p><p class="text-xs text-slate-500 truncate">\${label}</p>\${(t != null || sous) && html\`<div class="mt-1 flex flex-wrap items-center gap-x-2">\${t != null && html\`<span class=\${cls("text-xs font-semibold", bon ? "text-emerald-600" : "text-rose-600")}>\${t >= 0 ? "↑ +" : "↓ "}\${Math.round(t)} %</span>\`}\${sous && html\`<span class="text-xs text-slate-400">\${sous}</span>\`}</div>\`}</div></div>\`; };
 const TEINTE = { vert: "bg-emerald-50 text-emerald-700", rouge: "bg-red-50 text-red-700", orange: "bg-amber-50 text-amber-700", bleu: "bg-sky-50 text-sky-700", violet: "bg-violet-50 text-violet-700", gris: "bg-slate-100 text-slate-600" };
 ui.Badge = ({ couleur = "gris", children }) => html\`<span class=\${cls("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium", TEINTE[couleur] ?? TEINTE.gris)}>\${children}</span>\`;
 ui.Empty = ({ texte = "Rien pour l'instant.", action }) => html\`<div data-vide="1" class="text-center py-10 text-slate-500"><p>\${texte}</p>\${action && html\`<div class="mt-3">\${action}</div>\`}</div>\`;
@@ -507,7 +540,8 @@ class Garde extends Component {
 const STY = ${JSON.stringify(STYLES)}[B.style] ?? {};
 // Fond : celui choisi par le créateur, sinon celui de l'allure (ex. « nature » : crème)
 if (!S.fond && STY.fond) S.fond = STY.fond;
-const MENU_FONCE = STY.menu === "sombre" || STY.menu === "couleur";
+const GAB_TASTE = S.gabarit_app === "taste";
+const MENU_FONCE = !GAB_TASTE && (STY.menu === "sombre" || STY.menu === "couleur");
 // Logo du SaaS : l'image choisie par le créateur, sinon l'initiale sur sa couleur
 const Logo = ({ taille = "w-8 h-8", clair = false }) => S.logo
   ? html\`<img src=\${S.logo} alt=\${S.nom} class=\${cls(taille, "rounded-xl object-contain", clair ? "bg-white p-0.5" : "")}/>\`
@@ -1227,9 +1261,9 @@ function Appli({ user, etat, onLogout, tour, onFinTour }) {
       <div class="ml-auto flex items-center gap-2"><button onClick=\${() => nav("_compte")} class="grid h-9 w-9 place-items-center rounded-full bg-[var(--c)] text-sm font-bold text-white" title=\${user.nom}>\${String(user.nom || "?").slice(0, 1).toUpperCase()}</button><button class="md:hidden" onClick=\${() => setMenu(true)}><\${Icone} nom="menu"/></button></div>
     </div></header>\`;
   const Onglets = () => html\`<nav class="md:hidden fixed inset-x-0 bottom-0 z-30 grid border-t border-slate-200 bg-white/95 backdrop-blur" style=\${"grid-template-columns:repeat(" + (Math.min(4, PRIVES.length) + 1) + ",1fr);padding-bottom:env(safe-area-inset-bottom)"}>\${PRIVES.slice(0, 4).map((e) => html\`<button onClick=\${() => nav(e.id)} class=\${cls("flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium", e.id === E?.id ? "text-[var(--c)]" : "text-slate-500")}><\${Icone} nom=\${e.icone} class="w-5 h-5"/><span class="max-w-full truncate px-1">\${e.titre}</span></button>\`)}<button onClick=\${() => setMenu(true)} class="flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-slate-500"><\${Icone} nom="menu" class="w-5 h-5"/>Plus</button></nav>\`;
-  return html\`<div class=\${cls("min-h-screen", DISPO === "barre" && "lg:flex", "forme-" + (["carre", "pilule"].includes(S.forme) ? S.forme : "arrondi"), ["creme", "gris", "sombre"].includes(S.fond) && "fond-" + S.fond)}>
+  return html\`<div class=\${cls("min-h-screen", GAB_TASTE && "gab-taste", DISPO === "barre" && "lg:flex", "forme-" + (["carre", "pilule"].includes(S.forme) ? S.forme : "arrondi"), ["creme", "gris", "sombre"].includes(S.fond) && "fond-" + S.fond)}>
     \${DISPO !== "barre" && html\`<\${Entete}/>\`}
-    <aside class=\${cls("w-60 shrink-0 p-4 flex-col gap-6", DISPO === "barre" && "lg:flex lg:sticky lg:top-0 lg:h-screen", MENU_FONCE ? "menu-fonce" : "", STY.menu === "sombre" ? "bg-slate-900 text-slate-200" : STY.menu === "couleur" ? "bg-[var(--c)] text-white" : STY.menu === "teinte" ? "border-r border-slate-200" : "bg-white border-r border-slate-200", menu ? "flex fixed inset-y-0 left-0 z-40" : "hidden")} style=\${STY.menu === "teinte" ? "background:color-mix(in srgb,var(--c) 6%,white)" : ""}>
+    <aside class=\${cls("w-60 shrink-0 p-4 flex-col gap-6", DISPO === "barre" && "lg:flex lg:sticky lg:top-0 lg:h-screen", MENU_FONCE ? "menu-fonce" : "", GAB_TASTE ? "u-aside border-r border-slate-200" : STY.menu === "sombre" ? "bg-slate-900 text-slate-200" : STY.menu === "couleur" ? "bg-[var(--c)] text-white" : STY.menu === "teinte" ? "border-r border-slate-200" : "bg-white border-r border-slate-200", menu ? "flex fixed inset-y-0 left-0 z-40" : "hidden")} style=\${!GAB_TASTE && STY.menu === "teinte" ? "background:color-mix(in srgb,var(--c) 6%,white)" : ""}>
       <div class="flex items-center gap-2 font-bold"><\${Logo} clair=\${MENU_FONCE}/>\${S.nom}</div>
       <\${Nav}/>
       <\${Partage}/>
@@ -1345,10 +1379,10 @@ function Capture() {
   const ecran = html\`<\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} user=\${{ id: "v", nom: "Camille", email: "camille@exemple.fr", role: "admin" }} params=\${null} etat=\${{ acces: true }} espace="Atelier Exemple"/></\${Garde}>\`;
   if (E.public) return html\`<div id="cap" style="width:1280px;height:800px;overflow:hidden" class="bg-slate-50 text-slate-900"><div class="max-w-3xl mx-auto px-4 py-10">\${ecran}</div></div>\`;
   // Même allure que le vrai logiciel : menu (clair, teinté, sombre, couleur) et fond (blanc, crème, gris)
-  const fonce = STY.menu === "sombre" || STY.menu === "couleur";
-  return html\`<div id="cap" style="width:1280px;height:800px;overflow:hidden" class=\${cls("flex text-slate-900", ["creme", "gris", "sombre"].includes(S.fond) ? "fond-" + S.fond : "bg-[#F7F7F9]")}>
-    <aside class=\${cls("w-60 shrink-0 p-4", STY.menu === "sombre" ? "bg-slate-900" : STY.menu === "couleur" ? "bg-[var(--c)]" : "bg-white border-r border-slate-200")} style=\${STY.menu === "teinte" ? "background:color-mix(in srgb,var(--c) 6%,white)" : ""}><div class=\${cls("flex items-center gap-2 font-bold mb-6 px-2", fonce && "text-white")}><span class=\${cls("w-8 h-8 rounded-xl grid place-items-center", fonce ? "bg-white/15 text-white" : "bg-[var(--c)] text-white")}>\${(S.nom ?? "S")[0]}</span>\${S.nom}</div>
-      \${menu.map((e) => html\`<div class=\${cls("flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm mb-1", e.id === E.id ? (fonce ? "bg-white/15 text-white font-semibold" : "bg-[var(--c)]/10 text-[var(--c)] font-semibold") : fonce ? "text-white/70" : "text-slate-600")}><\${Icone} nom=\${e.icone} class="w-4 h-4"/>\${e.titre}</div>\`)}</aside>
+  const fonce = !GAB_TASTE && (STY.menu === "sombre" || STY.menu === "couleur");
+  return html\`<div id="cap" style="width:1280px;height:800px;overflow:hidden" class=\${cls("flex text-slate-900", GAB_TASTE && "gab-taste", ["creme", "gris", "sombre"].includes(S.fond) ? "fond-" + S.fond : "bg-[#F7F7F9]")}>
+    <aside class=\${cls("w-60 shrink-0 p-4", GAB_TASTE ? "u-aside u-aside-cap border-r border-slate-200" : STY.menu === "sombre" ? "bg-slate-900" : STY.menu === "couleur" ? "bg-[var(--c)]" : "bg-white border-r border-slate-200")} style=\${STY.menu === "teinte" ? "background:color-mix(in srgb,var(--c) 6%,white)" : ""}><div class=\${cls("flex items-center gap-2 font-bold mb-6 px-2", fonce && "text-white")}><span class=\${cls("w-8 h-8 rounded-xl grid place-items-center", fonce ? "bg-white/15 text-white" : "bg-[var(--c)] text-white")}>\${(S.nom ?? "S")[0]}</span>\${S.nom}</div>
+      \${menu.map((e) => html\`<div class=\${cls("flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm mb-1", e.id === E.id ? (fonce ? "bg-white/15 text-white font-semibold" : GAB_TASTE ? "u-actif font-semibold" : "bg-[var(--c)]/10 text-[var(--c)] font-semibold") : fonce ? "text-white/70" : "text-slate-600")}><\${Icone} nom=\${e.icone} class="w-4 h-4"/>\${e.titre}</div>\`)}</aside>
     <main class="flex-1 min-w-0 overflow-hidden p-8">\${ecran}</main></div>\`;
 }
 function Racine() {

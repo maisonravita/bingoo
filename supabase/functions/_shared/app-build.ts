@@ -125,13 +125,22 @@ const GENRES_UI: Record<string, string> = {
 - INTERDIT : ui.Table, rangées de ui.Stat. La règle « tableau + graphique » ne s'applique PAS.
 - Accueil : la série du jour et la progression (ui.Anneau, niveaux), une grosse carte « Continuer ». Les exercices : une question à la fois en grand, réponses en gros boutons, retour immédiat (vert/rouge), score à la fin. Les leçons en ui.Galerie ou ui.Liste.`,
 };
+// Composition d'un écran au gabarit Taste : ce qui distingue un vrai produit d'un gabarit de gestion
+const REGLES_TASTE_ECRAN = `COMPOSITION DE L'ÉCRAN (gabarit soigné, comme un produit haut de gamme, PAS un tableau de bord générique) :
+- UN élément dominant par écran : la chose sur laquelle l'utilisateur travaille (le planning de la semaine, la liste des dossiers du jour, l'éditeur, le fil…). Il vient en premier sous le titre et prend la plus grande place. Sur le premier écran, cet élément dominant est l'espace principal du produit.
+- Pas de rangée de 4 ui.Stat en haut de page. Au plus 3 chiffres clés, et seulement s'ils aident à décider ; ils viennent APRÈS l'élément dominant ou dans une colonne étroite à droite (grid lg:grid-cols-[1fr_320px]).
+- Mise en page : une colonne principale large et, au besoin, une colonne étroite. Jamais une grille de cartes toutes de la même taille, jamais deux cartes qui disent la même chose (ex. « Passages du jour » et « Retards » qui listent la même ligne).
+- Le titre de page (ui.Page titre) nomme ce qu'on fait ici ; le sous-titre est UNE phrase utile, calculée à partir des MÊMES données que ce qui est affiché (jamais « aucun » à côté d'une liste non vide).
+- Chaque chiffre affiché est calculé sur la même liste que celle affichée à l'écran : un total, un compteur et la liste correspondante sont toujours d'accord.
+- Couleur : la couleur de marque sert au bouton principal et à l'état actif, rien d'autre. Pas de pastille d'icône colorée devant les titres, pas d'emoji dans un outil professionnel.
+- Densité : des lignes aérées (py-3 à py-4), du texte à 14-15 px, les libellés secondaires en gris.`;
 async function ecrire(spec: any, e: any, demande = "", actuel = "") {
   const consigne = actuel
     ? `Voici le code actuel de l'écran « ${e.titre} » (${e.id}) :\n\`\`\`js\n${actuel}\n\`\`\`\nModification demandée par l'utilisateur : ${demande}\nRéécris l'écran complet avec cette modification, sans rien casser du reste.`
     : `Écris l'écran « ${e.titre} » (id ${e.id}). Ce qu'il doit faire : ${e.but}\nFonctions à couvrir : ${(e.fonctions ?? []).join(" ; ")}${demande ? `\nPrécision de l'utilisateur : ${demande}` : ""}`;
   const { FAMILLES } = await import("./familles.ts");
   const guide = FAMILLES[spec.famille]?.guide ?? GENRES_UI[spec.interface] ?? FAMILLES.gestion.guide;
-  const genre = !e.public ? `\n\n${guide}` : "";
+  const genre = !e.public ? `\n\n${guide}${spec.gabarit_app === "taste" ? `\n\n${REGLES_TASTE_ECRAN}` : ""}` : "";
   const prompt = `${DOC}${e.public ? DOC_PUBLIC(e) : ""}${genre}\n\n${contexteSpec(spec)}\n\n${consigne}\n\nRéponds uniquement avec le code dans un bloc \`\`\`js.`;
   let code = extraire(await ask(prompt, { maxTokens: 12000, system: "Tu es un excellent développeur front-end. Tu écris du code Preact + htm propre, robuste et lisible, avec une interface soignée." }));
   let err = erreurSyntaxe(code);
@@ -236,6 +245,8 @@ ${CONSIGNE_TEXTES_FR}`, { maxTokens: 16000 });
   const demo = {};
   const spec: any = {
     nom: p.nom, pitch: p.pitch, cible: p.cible, probleme: p.probleme,
+    // Intérieur au gabarit Taste (même grammaire que les sites) pour tout nouveau SaaS ; l'ancien gabarit reste celui des SaaS existants
+    gabarit_app: "taste",
     // Couleur choisie par le membre (galerie de modèles) : elle passe avant celle de la conception
     couleur: /^#[0-9a-f]{6}$/i.test(p.couleur_choisie ?? "") ? p.couleur_choisie : /^#[0-9a-f]{6}$/i.test(s.couleur ?? "") ? s.couleur : "#4F46E5",
     // Allure propre à chaque SaaS : deux SaaS construits ne doivent pas se ressembler
