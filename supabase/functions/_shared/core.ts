@@ -208,7 +208,7 @@ export async function quota(workspaceId: string, kind: string, max: number, want
 const WRITE_MODEL = () => env("ANTHROPIC_MODEL", "claude-sonnet-5-5");
 const FAST_MODEL = () => env("ANTHROPIC_FAST_MODEL", "claude-haiku-5-5");
 type Block = { type: string; text?: string };
-export type AskOpts = { fast?: boolean; maxTokens?: number; system?: string; tools?: unknown[]; sources?: string[]; images?: string[] };
+export type AskOpts = { fast?: boolean; maxTokens?: number; system?: string; cacheSystem?: boolean; tools?: unknown[]; sources?: string[]; images?: string[] };
 
 // ---------------------------------------------------------------- Coût IA : mesure, budgets, garde-fous
 // Prix en dollars par million de jetons (entrée, sortie), modifiables via le secret AI_PRICES (JSON). Recherche web : par requête.
@@ -226,6 +226,11 @@ export function aiCost(model: string, u: Usage) {
 }
 export async function aiRecord(model: string, u: Usage) {
   const ctx = aiCtx.getStore() ?? {};
+  if (ctx.compteur) {
+    const k = ctx.compteur; k.cout += aiCost(model, u); k.appels++;
+    k.entree += (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0); k.sortie += u.output_tokens ?? 0;
+    k.modeles[model] = (k.modeles[model] ?? 0) + 1;
+  }
   await admin.from("ai_usage").insert({
     workspace_id: ctx.ws ?? null, feature: (ctx.feature ?? "autre").slice(0, 80), model,
     input_tokens: (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0), output_tokens: u.output_tokens ?? 0,
@@ -473,7 +478,8 @@ export async function ask(prompt: string, opts: AskOpts = {}): Promise<string> {
   const base: Record<string, unknown> = {
     model: opts.fast ? FAST_MODEL() : WRITE_MODEL(),
     max_tokens: Math.max(opts.maxTokens ?? 1500, 1500),
-    system: opts.system ?? "Tu es un expert en développement commercial B2B en France. Réponds en français.",
+    // cacheSystem : consigne longue et identique d'un appel à l'autre (moteur de pages), relue à 10 % du prix
+    system: opts.system && opts.cacheSystem ? [{ type: "text", text: opts.system, cache_control: { type: "ephemeral" } }] : opts.system ?? "Tu es un expert en développement commercial B2B en France. Réponds en français.",
     // Images jointes (adresses publiques) : l'IA les voit avant de lire la demande
     messages: [{ role: "user", content: opts.images?.length ? [...opts.images.slice(0, 4).map((url) => ({ type: "image", source: { type: "url", url } })), { type: "text", text: prompt }] : prompt }],
   };

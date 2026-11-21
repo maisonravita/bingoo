@@ -32,6 +32,26 @@ export async function construireSite(appId: string, p: any, demarrerVerification
   // Gabarit kit Taste : pour les nouveaux portfolios seulement (validé par Jean le 21/11 après comparaison).
   // Les sites existants gardent leur gabarit ; un changement passe par garderApparence (retour en un clic).
   if (spec.site?.modele === "portfolio") spec.site = { ...spec.site, gabarit: "taste" };
+  // Moteur de pages sur mesure (chantier « façon Lovable ») : la page publique écrite par l'IA, le gabarit restant en secours.
+  // Activé par le secret GEN_SITES : "on" pour tous, "robot" (par défaut) pour les espaces du robot seulement, "off" jamais.
+  if (await genActif(appId)) {
+    await admin.from("saas_apps").update({ etape: "Écriture de la page sur mesure", maj: new Date().toISOString() }).eq("id", appId);
+    const idee = p.idee ?? {};
+    try {
+      const { genererPage } = await import("./site-gen.ts");
+      const g = await genererPage({
+        nom: spec.nom, brief: [idee.texte, ...(Array.isArray(idee.reponses) ? idee.reponses.map((x: any) => `${x.q} : ${x.r}`) : [])].filter(Boolean).join("\n") || String(spec.pitch ?? ""),
+        modele: spec.site?.modele, metier: spec.site?.metier, ville: spec.site?.ville, cta: spec.site?.cta, demande: spec.site?.demande,
+        design: spec.design, services: spec.demo?.services, horaires: spec.demo?.horaires, infos: (spec.demo?.infos ?? [])[0], faq: spec.faq,
+      });
+      spec.site = { ...spec.site, page: g.page };
+      spec.gen = { ...g.mesure, at: new Date().toISOString() };
+    } catch (x) {
+      // Gabarit de secours : jamais un site cassé ; la raison est gardée pour « Qualité des constructions »
+      spec.gen = { echec: String((x as Error)?.message ?? x).slice(0, 240), at: new Date().toISOString() };
+      console.error("moteur de pages", x);
+    }
+  }
   // Portfolio sans photos du membre : le nom en grand (Taste : jamais de photos de bibliothèque en en-tête ni de personnes,
   // elles passeraient pour son travail). Les photos libres (photos.ts) restent réservées à des détails, plus tard.
   await admin.from("saas_apps").update({ brouillon: spec, etape: `Écriture des écrans (${spec.ecrans.length - 1}/${spec.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
@@ -39,4 +59,13 @@ export async function construireSite(appId: string, p: any, demarrerVerification
   await demarrerVerification(appId, spec).catch((x) => console.error("verification site", x));
   const e0 = spec.ecrans[0];
   await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: e0.id, p_code: e0.code, p_ok: true });
+}
+
+/** Le moteur de pages est-il actif pour cette construction ? (secret GEN_SITES : on | robot | off) */
+async function genActif(appId: string) {
+  const mode = Deno.env.get("GEN_SITES") ?? "robot";
+  if (mode === "on") return true;
+  if (mode !== "robot") return false;
+  const { data } = await admin.from("saas_apps").select("workspaces(name)").eq("id", appId).maybeSingle();
+  return /^Robot construction/.test(String((data as any)?.workspaces?.name ?? ""));
 }

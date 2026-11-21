@@ -777,7 +777,89 @@ const heureS = (x) => String(x || "").replace(/^0/, "").replace(":00", " h").rep
 const prixS = (s) => s.prix == null || s.prix === "" || !(Number(s.prix) > 0) ? "Sur devis" : (s.prix_texte ? "À partir de " : "") + fmt.eur(s.prix);
 const lienTel = (t) => "tel:" + String(t || "").replace(/[^\\d+]/g, "");
 const MOD = SITE.modele ?? "vitrine";
+// ---------------------------------------------------------------- Page écrite par le moteur (spec.site.page, site-gen.ts)
+// Le HTML vient du serveur déjà nettoyé ; on le renettoie ici (aucun script, aucun attribut on*), on pose le CSS du kit Taste
+// le temps de la page publique, puis on monte les données vivantes dans les marqueurs data-bingoo (prestations, horaires,
+// formulaires, adresse, réalisations). Les mentions légales et l'accès gérant sont toujours ajoutés par Bingoo!.
+const TASTE_CSS = "https://bingoo.fr/taste-system.css";
+function nettoyerDom(racine) {
+  racine.querySelectorAll("script,iframe,object,embed,form,link,meta,base").forEach((x) => x.remove());
+  racine.querySelectorAll("*").forEach((el) => { for (const a of [...el.attributes]) if (/^on/i.test(a.name) || (/^(href|src)$/i.test(a.name) && /^\\s*(javascript|vbscript|data:text)/i.test(a.value))) el.removeAttribute(a.name); });
+}
+function jetonsTaste() {
+  const c = S.design?.couleurs ?? {}, pol = S.design?.polices ?? {}, ok = (x) => /^#[0-9a-f]{6}$/i.test(x ?? "") ? x : null;
+  const bg = ok(c.background) ?? "#ffffff", fg = ok(c.foreground) ?? "#111111", acc = ok(c.primary) ?? (S.couleur || "#1D4ED8"), onp = ok(c.on_primary) ?? "#ffffff";
+  return \`:root{--p-bg:\${bg};--p-surface:\${ok(c.muted) ?? "#f4f4f4"};--p-ink:\${fg};--p-muted:\${ok(c.muted_foreground) ?? "#5b5b5b"};--p-accent:\${acc};--p-accent-ink:\${onp};--p-action:\${acc};--p-action-ink:\${onp};--p-inv-bg:\${fg};--p-inv-ink:\${bg};\`
+    + \`--font-display:"\${pol.titres ?? "Inter"}",ui-serif,Georgia,serif;--font-text:"\${pol.texte ?? "Inter"}",ui-sans-serif,system-ui,sans-serif}\`
+    + \`.bg-legal{border-top:1px solid color-mix(in srgb,var(--p-ink) 14%,transparent)}\`
+    // Le contenu fixe la hauteur des sections (règle Taste : jamais de zone vide) ; seul le premier écran garde sa hauteur
+    + \`main>:is(section,.section):not(.hero):not(.section--hero),footer.closing{height:auto!important;min-height:0!important}\`
+    + \`main>:is(section,.section):not(.hero):not(.section--hero)>:is(.wrap,.container),footer.closing>.wrap{height:auto!important}\`
+    + \`.bingoo-form{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))}.bingoo-form .plein{grid-column:1/-1}\`;
+}
+const DonneesSite = {
+  services: ({ d }) => (d.services ?? []).length ? html\`<ul class="rows">\${d.services.map((s) => html\`<li class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 py-4" style="border-top:1px solid color-mix(in srgb,var(--p-ink) 12%,transparent)"><span><span class="t-card font-semibold">\${s.titre}</span>\${s.description && html\`<span class="block muted t-small mt-1">\${s.description}\${s.duree ? " · " + s.duree : ""}</span>\`}</span><span class="price font-semibold whitespace-nowrap">\${prixS(s)}</span></li>\`)}</ul>\` : null,
+  horaires: ({ d }) => (d.horaires ?? []).length ? html\`<dl class="hours">\${d.horaires.map((h) => html\`<dt>\${JOURS_S[Number(h.jour)] ?? ""}</dt><dd>\${h.ouvert ? heureS(h.debut) + " – " + heureS(h.fin) + (h.debut2 ? ", " + heureS(h.debut2) + " – " + heureS(h.fin2) : "") : "Fermé"}</dd>\`)}</dl>\` : null,
+  adresse: ({ d }) => { const a = d.infos?.adresse || d.infos?.zone; return a ? html\`<p><span class="block">\${a}</span><a class="link inline-flex min-h-11 items-center" href=\${"https://www.openstreetmap.org/search?query=" + encodeURIComponent(a)} target="_blank" rel="noopener">Itinéraire</a></p>\` : null; },
+  realisations: ({ d }) => (d.realisations ?? []).filter((r) => r.image).length ? html\`<div class="grid">\${d.realisations.filter((r) => r.image).slice(0, 12).map((r) => html\`<figure class="span-4"><img class="frame__img" src=\${r.image} alt=\${r.titre} loading="lazy" style="aspect-ratio:4/5;object-fit:cover;width:100%"/><figcaption class="t-small muted mt-2">\${r.titre}</figcaption></figure>\`)}</div>\` : null,
+  contact: ({ d }) => html\`<\${FormulaireSite} d=\${d}/>\`,
+  inscription: ({ d }) => html\`<\${FormulaireSite} d=\${d} liste/>\`,
+};
+function FormulaireSite({ d, liste }) {
+  const [f, setF] = useState({ nom: "", prenom: "", email: "", telephone: "", service: "", date_souhaitee: "", message: "", site_web: "" }), [fait, setFait] = useState(""), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
+  const avecDate = SITE.demande === "rdv" || SITE.demande === "reservation", inf = d.infos ?? {};
+  const champ = "mt-1.5 min-h-12 w-full rounded-lg px-3 outline-none", bord = "border:1px solid color-mix(in srgb,var(--p-ink) 25%,transparent);background:var(--p-bg);color:var(--p-ink)";
+  const envoyer = async (e) => {
+    e.preventDefault(); setErr("");
+    if (liste ? !f.email.trim() : !f.nom.trim()) { setErr(liste ? "Indiquez votre e-mail." : "Indiquez votre nom."); return; }
+    if (!liste && !f.email.trim() && !f.telephone.trim()) { setErr("Indiquez votre e-mail ou votre téléphone pour qu'on puisse vous répondre."); return; }
+    setBusy(true);
+    try { await call("site-contact", { data: liste ? { prenom: f.prenom, email: f.email, site_web: f.site_web } : f, source: B.source }); setFait(liste ? "Merci, vous êtes sur la liste. Vous serez prévenu à la sortie." : "Merci " + f.nom.split(" ")[0] + ", votre demande est bien envoyée. Réponse très vite."); }
+    catch (x) { setErr(x.message); } finally { setBusy(false); }
+  };
+  if (fait) return html\`<p class="t-lead" role="status">\${fait}</p>\`;
+  const L = (lib, cle, type = "text", large) => html\`<label class=\${cls("block text-[15px] font-medium", large && "plein")}>\${lib}<input type=\${type} value=\${f[cle]} onInput=\${(e) => setF({ ...f, [cle]: e.target.value })} class=\${champ} style=\${bord}/></label>\`;
+  return html\`<form onSubmit=\${envoyer} class="bingoo-form text-left">
+    \${liste ? html\`\${L("Prénom", "prenom")}\${L("E-mail", "email", "email")}\` : html\`\${L("Votre nom", "nom")}\${L("Téléphone", "telephone", "tel")}\${L("E-mail", "email", "email", true)}
+      \${(d.services ?? []).length > 0 && html\`<label class="block text-[15px] font-medium plein">Prestation<select value=\${f.service} onChange=\${(e) => setF({ ...f, service: e.target.value })} class=\${champ} style=\${bord}><option value="">Choisir…</option>\${d.services.map((s) => html\`<option value=\${s.titre}>\${s.titre}</option>\`)}</select></label>\`}
+      \${avecDate && L("Date souhaitée", "date_souhaitee", "date", true)}
+      <label class="block text-[15px] font-medium plein">Message<textarea rows="4" value=\${f.message} onInput=\${(e) => setF({ ...f, message: e.target.value })} class="mt-1.5 w-full rounded-lg px-3 py-2.5 outline-none" style=\${bord}></textarea></label>\`}
+    <input tabindex="-1" autocomplete="off" aria-hidden="true" value=\${f.site_web} onInput=\${(e) => setF({ ...f, site_web: e.target.value })} style="position:absolute;left:-9999px;width:1px;height:1px"/>
+    \${err && html\`<p class="text-sm plein" style="color:#b91c1c">\${err}</p>\`}
+    <div class="plein flex flex-wrap items-center gap-4"><button type="submit" disabled=\${busy} class="btn btn--primary">\${busy ? "Envoi…" : liste ? "M'inscrire" : (SITE.cta || "Envoyer ma demande")}</button>\${!liste && inf.telephone && html\`<a class="link inline-flex min-h-11 items-center" href=\${lienTel(inf.telephone)}>\${inf.telephone}</a>\`}</div>
+    <p class="t-small muted plein">Vos coordonnées servent seulement à vous répondre.</p>
+  </form>\`;
+}
+function SitePageGeneree({ onAuth }) {
+  const P = SITE.page, ref = useRef(null), [d, setD] = useState(null);
+  useEffect(() => {
+    if (!B.apercu) call("vue", { variante: "A", source: B.source }).catch(() => {});
+    call("site-info").then(setD, () => setD({ services: S.demo?.services ?? [], horaires: S.demo?.horaires ?? [], infos: (S.demo?.infos ?? [])[0] ?? {} }));
+    const l = document.createElement("link"); l.rel = "stylesheet"; l.href = TASTE_CSS; document.head.appendChild(l);
+    const st = document.createElement("style"); st.textContent = jetonsTaste(); document.head.appendChild(st);
+    const r = document.documentElement; r.dataset.radius = r.dataset.radius || "soft"; r.dataset.buttons = r.dataset.buttons || "solid"; r.lang = "fr";
+    return () => { l.remove(); st.remove(); };
+  }, []);
+  const contenu = useMemo(() => (P.sections ?? []).map((s) => s.html).join("\\n").replace(/src=("|')(IMG_\\d|PHOTO_\\d)\\1/g, (m, q, k) => P.images?.[k]?.url ? \`src=\${q}\${P.images[k].url}\${q}\` : m), []);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    el.innerHTML = contenu; nettoyerDom(el);
+    // Menu du téléphone : le bouton du header ouvre et ferme la liste des liens
+    const t = el.querySelector(".nav__toggle"), nav = el.querySelector(".nav");
+    if (t && nav) t.addEventListener("click", () => { const o = nav.classList.toggle("is-open"); t.setAttribute("aria-expanded", o ? "true" : "false"); });
+    el.querySelectorAll('a[href^="#"]').forEach((a) => a.addEventListener("click", (e) => { const c = el.querySelector(a.getAttribute("href") === "#" || a.getAttribute("href") === "#top" ? "main,section" : a.getAttribute("href")); if (c) { e.preventDefault(); c.scrollIntoView({ behavior: "smooth" }); nav?.classList.remove("is-open"); } }));
+  }, [contenu]);
+  useEffect(() => {
+    const el = ref.current; if (!el || !d) return;
+    el.querySelectorAll("[data-bingoo]").forEach((m) => { const C = DonneesSite[m.dataset.bingoo]; if (C) render(html\`<\${C} d=\${d}/>\`, m); });
+  }, [d, contenu]);
+  return html\`<div class="min-h-screen" style="background:var(--p-bg);color:var(--p-ink)">
+    <div ref=\${ref}></div>
+    <div class="bg-legal"><div class="wrap flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-6 t-small muted"><\${LiensLegaux}/><span class="flex flex-wrap items-center gap-x-6"><button onClick=\${() => onAuth("login")} class="inline-flex min-h-11 items-center hover:underline">Espace gérant</button><span>Site créé avec Bingoo!</span></span></div></div>
+  </div>\`;
+}
 function SiteVitrine({ onAuth }) {
+  if ((SITE.page?.sections ?? []).length) return html\`<\${SitePageGeneree} onAuth=\${onAuth}/>\`;
   if (MOD === "lancement") return html\`<\${SiteLancement} onAuth=\${onAuth}/>\`;
   const [d, setD] = useState(null), [envoi, setEnvoi] = useState(null), [f, setF] = useState({ nom: "", email: "", telephone: "", service: "", date_souhaitee: "", message: "", site_web: "" }), [busy, setBusy] = useState(false), [err, setErr] = useState("");
   useEffect(() => {
