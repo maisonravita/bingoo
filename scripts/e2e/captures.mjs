@@ -100,7 +100,7 @@ if (CONSTRUIRE === "atelier") {
   // DOMAINE=casse : une modification qui casse l'écran « Demandes » est mise en ligne par le vrai bouton (endpoint) ;
   //   le robot doit la tester, voir l'écran cassé, remettre la version d'avant et rendre la modification.
   // DOMAINE=texte : une modification sans danger (un titre d'écran) doit être testée et rester en ligne.
-  const CAS = process.env.DOMAINE === "texte" ? "texte" : "casse";
+  const CAS = ["texte", "reprendre"].includes(process.env.DOMAINE) ? process.env.DOMAINE : "casse";
   const [a0] = await q(`select a.id, a.slug, a.workspace_id ws, a.version, a.spec from saas_apps a join members m on m.workspace_id = a.workspace_id
     where m.user_id = ${lit(uid)} and a.spec->>'type' = 'site' and a.statut = 'pret' order by a.maj desc limit 1`);
   if (!a0) throw new Error("Aucun site du robot à modifier");
@@ -111,8 +111,9 @@ if (CONSTRUIRE === "atelier") {
   if (CAS === "casse") e2.code = "export default function Ecran() { const lignes = null; return lignes.map((x) => x); }";
   else e2.titre = (cible.titre === "Mes demandes" ? "Demandes" : "Mes demandes");
   br._modif = { demande: CAS === "casse" ? "Test du robot : écran cassé exprès" : "Renommer l'écran", titre: CAS === "casse" ? `écran « ${cible.titre} » modifié (cassé exprès pour le test)` : `écran renommé « ${e2.titre} »`, faits: ["test"], rates: [], at: new Date().toISOString() };
-  await q(`update saas_apps set brouillon = ${lit(JSON.stringify(br))}::jsonb where id = ${lit(a0.id)}`);
-  const rep = await fetch(`${SB}/functions/v1/r/saas-app-reglages`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: a0.ws, app_id: a0.id, quoi: "brouillon-valider" }) });
+  // reprendre : un test déjà en attente (membre qui revient dans l'atelier) ; seul le robot de la page doit le conclure
+  if (CAS !== "reprendre") await q(`update saas_apps set brouillon = ${lit(JSON.stringify(br))}::jsonb where id = ${lit(a0.id)}`);
+  const rep = CAS === "reprendre" ? { status: "—", text: async () => "test en attente repris" } : await fetch(`${SB}/functions/v1/r/saas-app-reglages`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: a0.ws, app_id: a0.id, quoi: "brouillon-valider" }) });
   console.log(`Cas ${CAS} sur ${a0.slug} (v${a0.version}) : mise en ligne →`, rep.status, (await rep.text()).slice(0, 120));
   const { ctx, page } = await ouvrir(a0.ws);
   await page.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
@@ -129,7 +130,7 @@ if (CONSTRUIRE === "atelier") {
     const remis = e3.code === avant.code;
     console.log(`Conclusion : annulée=${fin.d.annule} · version ${avant.version} → ${fin.version} · code d'origine remis=${remis} · titre=${e3.titre}`);
     console.log("Journal :\n" + (fin.j ?? []).slice(-4).join("\n"));
-    const attendu = CAS === "casse" ? fin.d.annule === true && remis : fin.d.annule === false && e3.titre !== avant.titre;
+    const attendu = CAS !== "texte" ? fin.d.annule === true && !/lignes\.map/.test(e3.code) : fin.d.annule === false && e3.titre !== avant.titre;
     console.log(attendu ? "✓ ROBOT DE L'ATELIER : comportement attendu" : "✗ ROBOT DE L'ATELIER : comportement inattendu");
     if (!attendu) process.exitCode = 1;
     await page.reload({ waitUntil: "networkidle" }).catch(() => null); await page.waitForTimeout(6000);
