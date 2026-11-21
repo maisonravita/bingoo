@@ -174,12 +174,23 @@ if (CONSTRUIRE === "atelier") {
   const ws2 = await creerEspace(`Robot construction ${new Date().toISOString().slice(0, 16)}`);
   await q(`update workspaces set plan = ${lit(CONSTRUIRE === "site" ? "site" : "lancer_pro")}, plan_status = 'active', onboarded = true where id = ${lit(ws2)}`);
   const nomVoulu = CONSTRUIRE === "ia" ? ({ "calendly.com": "Rendezo", "invoiceninja.com": "Facturo", "canny.io": "Avisio" }[process.env.DOMAINE ?? ""] ?? "Cerclo") : CONSTRUIRE === "site" ? SITE_IDEE.apercu.nom : "Sublima";
-  let { ctx, page } = await ouvrir(ws2, {
+  const TEXTE_IDEE = process.env.TEXTE_IDEE || "j'ai une conciergerie où je veux gérer l'entretien dans des bureaux avec mes équipes";
+  let { ctx, page } = CONSTRUIRE === "idee" ? await ouvrir(ws2, { "bingoo-idee": { texte: TEXTE_IDEE, type: "saas", at: Date.now() } }) : await ouvrir(ws2, {
     [`bingoo-reponses-${cible.domaine}`]: { nom: nomVoulu, clients: CONSTRUIRE === "ia" ? (process.env.DOMAINE ? "Indépendants et petites équipes" : "Créateurs de communautés") : "Instituts de beauté", mieux: "", angle: `Nom souhaité, à utiliser tel quel : ${nomVoulu}` },
     "bingoo-chantier": { ...cible, ws: ws2, metier: CONSTRUIRE === "ia" ? "Créateurs de communautés" : "Institut de beauté" },
   });
   const t0 = Date.now();
-  await page.goto(`${SITE}/?c=${t0}#/explorer/revelation`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+  if (CONSTRUIRE === "idee") {
+    // Le vrai parcours d'un membre : il écrit son idée sur l'accueil (SaaS), voit l'aperçu, clique « Construire … »
+    await page.goto(`${SITE}/?c=${t0}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+    const bouton = page.getByRole("button", { name: /^Construire / });
+    await bouton.first().waitFor({ timeout: 120000 }).catch(() => null);
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: `${DOSSIER}/idee-apercu.png`, fullPage: true }).catch(() => null);
+    console.log("Aperçu de l'idée :", (await page.evaluate(() => document.body.innerText)).replace(/\s+/g, " ").slice(0, 900));
+    await bouton.first().click().catch((e) => console.log("✗ bouton Construire introuvable", e.message));
+    await page.waitForTimeout(5000);
+  } else await page.goto(`${SITE}/?c=${t0}#/explorer/revelation`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
   let n = 0, fin = false, figee = 0;
   while (Date.now() - t0 < 25 * 60e3 && !fin) {
     await page.waitForTimeout(20000);
@@ -206,6 +217,24 @@ if (CONSTRUIRE === "atelier") {
   if (a?.slug) { const [g] = await q(`select spec->'gen' gen, jsonb_array_length(coalesce(spec->'site'->'page'->'sections','[]'::jsonb)) sections from saas_apps where slug = ${lit(a.slug)}`); console.log("Moteur de pages :", JSON.stringify(g)); fs.writeFileSync(`${DOSSIER}/moteur.json`, JSON.stringify(g, null, 2)); }
   console.log(JSON.stringify(a?.verif?.mesure ?? null), (a?.verif?.journal ?? []).map((j) => j.t).join("\n"));
   // Le site en ligne tel que le voit un visiteur, puis le plan « premiers clients » du commerce
+  // Un SaaS construit : chaque écran tel que le voit le membre dans « Mon SaaS » (ordinateur, puis téléphone)
+  if (["idee", "ia"].includes(CONSTRUIRE) && a?.slug) {
+    const [{ titres }] = await q(`select coalesce(json_agg(e->>'titre'), '[]') titres from saas_apps, jsonb_array_elements(spec->'ecrans') e where slug = ${lit(a.slug)} and coalesce((e->>'public')::boolean, false) = false`);
+    for (const [suffixe, vp] of [["", { width: 1440, height: 900 }], ["-mobile", { width: 390, height: 844 }]]) {
+      await page.setViewportSize(vp);
+      await page.goto(`${SITE}/?c=${Date.now()}#/explorer/mon-saas`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+      await page.waitForTimeout(8000);
+      const cadre = page.frameLocator("iframe").first();
+      for (const [i, t] of (titres ?? []).entries()) {
+        if (suffixe && i > 3) break;
+        const b = cadre.getByRole("button", { name: t, exact: true });
+        if (await b.count().catch(() => 0)) { await b.first().click({ timeout: 5000 }).catch(() => null); }
+        await page.waitForTimeout(2500);
+        await page.screenshot({ path: `${DOSSIER}/ecran-${String(i + 1).padStart(2, "0")}${suffixe}.png` }).catch(() => null);
+      }
+    }
+    console.log("✓ écrans du SaaS photographiés :", (titres ?? []).join(", "));
+  }
   if (CONSTRUIRE === "site" && a?.slug) {
     // Référencement : les balises que lisent Google et les aperçus de partage, sur le lien à partager /s/<site>
     const html = await (await fetch(`${SITE}/s/${a.slug}`)).text();
