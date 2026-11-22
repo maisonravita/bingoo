@@ -103,6 +103,8 @@ export async function vitrineSaaS(appId: string) {
     spec.nature?.espace_principal ? `Sa journée avec le logiciel : ${court(spec.nature.espace_principal, 400)}` : "",
     (spec.nature?.interactions ?? []).length ? `Ce qu'il y fait vraiment : ${(spec.nature.interactions ?? []).slice(0, 5).join(" ; ")}` : "",
     (spec.atouts ?? []).length ? `Ce qui change pour lui : ${(spec.atouts ?? []).slice(0, 4).map((a: any) => `${a.titre} (${a.texte})`).join(" ; ")}` : "",
+    // Les maquettes reprennent les données d'exemple (prix d'une prestation, montants) : elles font partie du brief vérifié
+    exemples ? `Données d'exemple du logiciel : ${exemples}` : "",
   ].filter(Boolean).join("\n");
   const consignes = `Page de présentation d'un LOGICIEL EN LIGNE (SaaS) déjà construit, qui vend un essai gratuit.
 - Le bouton principal mène à l'essai : <a class="btn btn--primary" href="#essai">${court(spec.cta || "Essayer gratuitement", 30)}</a>. Le lien de connexion des clients existants : <a href="#connexion">Se connecter</a>, dans le header à droite. N'utilise aucun formulaire ni marqueur (pas de data-bingoo) : l'inscription se fait par ces liens.

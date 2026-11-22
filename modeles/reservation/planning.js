@@ -21,6 +21,11 @@ function Ecran() {
   const jours = Array.from({ length: 7 }, (_, i) => { const d = new Date(lundi); d.setDate(lundi.getDate() + i); return d; });
   const H0 = 8, H1 = 20, PX = 52;
   const min = (h) => { const [a, b] = String(h || "0:0").split(":").map(Number); return (a || 0) * 60 + (b || 0); };
+  // Rendez-vous qui se chevauchent dans la journée : posés côte à côte (comme un agenda), jamais l'un sur l'autre
+  const colonnes = (rs) => { const tri = [...rs].sort((a, b) => min(a.heure) - min(b.heure)); const fin = (r) => min(r.heure) + (Number(r.duree) || 60); const out = []; let groupe = [], finGroupe = -1;
+    const fermer = () => { const nb = Math.max(1, ...groupe.map((g) => g.col + 1)); for (const g of groupe) out.push({ ...g, nb }); groupe = []; };
+    for (const r of tri) { if (groupe.length && min(r.heure) >= finGroupe) fermer(); const prises = groupe.filter((g) => fin(g.r) > min(r.heure)).map((g) => g.col); let col = 0; while (prises.includes(col)) col++; groupe.push({ r, col }); finGroupe = Math.max(finGroupe, fin(r)); if (groupe.length === 1) finGroupe = fin(r); }
+    if (groupe.length) fermer(); return out; };
   const titreSemaine = jours[0].toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) + " – " + jours[6].toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
   const COUL = { demande: "border-amber-300 bg-amber-50 text-amber-900", confirme: "border-[var(--c)]/30 bg-[var(--c)]/10 text-slate-900", termine: "border-slate-200 bg-slate-50 text-slate-500" };
   if (R.loading) return html`<${ui.Loading}/>`;
@@ -36,7 +41,7 @@ function Ecran() {
         <div class="relative grid grid-cols-[48px_repeat(7,1fr)]" style=${"height:" + (H1 - H0) * PX + "px"}>
           <div class="relative">${Array.from({ length: H1 - H0 }, (_, i) => html`<span class="absolute right-2 -translate-y-1/2 text-[11px] text-slate-400" style=${"top:" + i * PX + "px"}>${H0 + i}:00</span>`)}</div>
           ${jours.map((d) => { const j = jourISO(d); return html`<div class="relative border-l border-slate-100">${Array.from({ length: H1 - H0 }, (_, i) => html`<button aria-label=${"Ajouter le " + j + " à " + (H0 + i) + " h"} onClick=${() => setM({ ...vide, date: j, heure: String(H0 + i).padStart(2, "0") + ":00" })} class="absolute inset-x-0 border-t border-slate-100 hover:bg-[var(--c)]/5" style=${"top:" + i * PX + "px;height:" + PX + "px"}></button>`)}
-            ${visibles.filter((r) => r.date === j).map((r) => { const t = Math.max(0, min(r.heure) - H0 * 60), h = Math.max(24, ((Number(r.duree) || 60) / 60) * PX - 3); return html`<button onClick=${() => ouvrir(r)} class=${"absolute inset-x-1 overflow-hidden rounded-lg border px-1.5 py-1 text-left text-[11px] leading-tight shadow-sm " + (COUL[r.statut] ?? COUL.confirme)} style=${"top:" + (t / 60) * PX + "px;height:" + h + "px"}><p class="font-semibold truncate">${r.heure} ${r.client_nom}</p><p class="truncate opacity-75">${nomP(r.prestation_id)}</p></button>`; })}</div>`; })}
+            ${colonnes(visibles.filter((r) => r.date === j)).map(({ r, col, nb }) => { const t = Math.max(0, min(r.heure) - H0 * 60), h = Math.max(24, ((Number(r.duree) || 60) / 60) * PX - 3); return html`<button onClick=${() => ouvrir(r)} class=${"absolute overflow-hidden rounded-lg border px-1.5 py-1 text-left text-[11px] leading-tight shadow-sm " + (COUL[r.statut] ?? COUL.confirme)} style=${"top:" + (t / 60) * PX + "px;height:" + h + "px;left:calc(" + (col * 100 / nb) + "% + 2px);width:calc(" + (100 / nb) + "% - 4px)"}><p class="font-semibold truncate">${r.heure} ${r.client_nom}</p><p class="truncate opacity-75">${nomP(r.prestation_id)}</p></button>`; })}</div>`; })}
         </div>
       </div></div>
     </${Carte}>`}
