@@ -77,13 +77,11 @@ function useLectureAuto(ref) {
 }
 function FilmAuto() {
   const ref = useRef(null);
-  const [son, setSon] = useState(false);
   useLectureAuto(ref);
-  const basculer = () => { const v = ref.current; if (!v) return; v.muted = !v.muted; setSon(!v.muted); if (!v.muted) v.play().catch(() => {}); };
+  // Le film de 32 s (sans son) : l'idée, la construction en direct, un site qui te plaît, les SaaS qui marchent
   return (
     <div id="film" className="hero-in fx-halo mx-auto mt-10 sm:mt-12 max-w-[1100px] scroll-mt-24" style={{ animationDelay: ".3s" }}>
-      <video ref={ref} src="/film-lancement.mp4?v=3" poster="/film-lancement.jpg?v=3" muted loop playsInline preload="metadata" controls className="w-full block aspect-video rounded-2xl bg-white" />
-      <button onClick={basculer} className="absolute right-3 top-3 sm:right-4 sm:top-4 rounded-full bg-black/60 px-3.5 py-2 text-[13px] font-semibold text-white backdrop-blur hover:bg-black/75 transition"><span className="inline-flex items-center gap-1.5"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 10v4h4l5 4V6L8 10H4z" />{son ? <path d="M17 9a4 4 0 0 1 0 6" /> : <path d="m17 9 4 6M21 9l-4 6" />}</svg>{son ? "Couper le son" : "Mettre le son"}</span></button>
+      <video ref={ref} src="/film-lancement.mp4?v=4" poster="/film-lancement.jpg?v=4" muted loop playsInline preload="metadata" controls aria-label="Bingoo! en 32 secondes : tu écris ton idée, Bingoo! la construit sous tes yeux et la met en ligne" className="w-full block aspect-video rounded-2xl bg-white" />
     </div>
   );
 }
