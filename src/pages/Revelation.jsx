@@ -719,11 +719,19 @@ export function specEnDirect(b) {
 function EnDirect({ app, etape }) {
   const src = app?.brouillon ?? (app?.statut === "pret" ? app?.spec : null);
   const d = useMemo(() => specEnDirect(src), [src]);
+  // La section qui vient d'arriver (la première nouvelle depuis la dernière lecture), hors premier écran
+  const vues = useRef(new Set()), [ancre, setAncre] = useState(null);
+  useEffect(() => {
+    const ecrites = (src?.site?.page_live?.sections ?? []).filter((x) => x.html).map((x) => x.id);
+    const neuves = ecrites.filter((id) => !vues.current.has(id) && id !== "nav");
+    ecrites.forEach((id) => vues.current.add(id));
+    if (neuves.length) setAncre(neuves[0] === "hero" ? null : neuves[0]);
+  }, [src]);
   if (!d) return null;
   const n = (() => { const m = /\((\d+)\/(\d+)\)/.exec(app?.etape ?? ""); return m ? [Number(m[1]), Number(m[2])] : null; })();
   return (
     <div className="absolute inset-0">
-      <AppCadre key={d.cle} slug={app.slug} spec={d.spec} version={d.cle} apercu essai={d.quoi === "saas"} ecran={d.ecran} className="absolute inset-0 h-full w-full border-0" />
+      <AppCadre key={d.cle} slug={app.slug} spec={d.spec} version={d.cle} apercu essai={d.quoi === "saas"} ecran={d.ecran} ancre={d.quoi === "site" && d.cle.startsWith("p") ? ancre : null} className="absolute inset-0 h-full w-full border-0" />
       <div className="pointer-events-none absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-ink/90 px-4 py-2 text-[12.5px] font-semibold text-white shadow-xl">
         <span className="h-2 w-2 rounded-full bg-[#E8571C] pulse-dot" />
         {etape >= 3 ? "Bingoo! teste ta version…" : d.quoi === "site" ? (d.cle === "g" ? "Bingoo! prépare ta page…" : `Bingoo! écrit ta page${n ? ` · ${n[0]}/${n[1]} sections` : ""}`) : `Bingoo! écrit tes écrans${n ? ` · ${n[0]}/${n[1]}` : ""}`}

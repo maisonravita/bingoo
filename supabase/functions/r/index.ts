@@ -594,8 +594,20 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       const reste = String(r.erreur ?? "").replace(/\s*Emoji utilisé comme icône \(\d+\) : « [^»]*» ; utiliser une icône SVG\./g, "").replace(/^Finition :\s*$/, "").trim();
       return reste ? { ...r, erreur: reste } : { ...r, ok: true, erreur: null };
     };
-    const resultats = (Array.isArray(b.resultats) ? b.resultats : []).filter((r: any) => ids.has(r?.id)).map((r: any) => sansEmojiModele({ id: String(r.id), ok: !!r.ok, erreur: r.erreur ? String(r.erreur).slice(0, 700) : null }));
+    let resultats = (Array.isArray(b.resultats) ? b.resultats : []).filter((r: any) => ids.has(r?.id)).map((r: any) => sansEmojiModele({ id: String(r.id), ok: !!r.ok, erreur: r.erreur ? String(r.erreur).slice(0, 700) : null }));
     if (!resultats.length) return avant; // aucun écran testé : rien à conclure (jamais « tout est propre » sans test)
+    // Page sur mesure d'un site : ses défauts d'affichage (chevauchement, débordement) ne viennent pas de l'écran testé
+    // (souvent un écran fait main) mais de la page écrite par le moteur : c'est elle qui est corrigée, par le moteur de pages
+    let defautPage = "";
+    if (spec.type === "site" && (spec.site?.page?.sections ?? []).length) {
+      resultats = resultats.map((r: any) => {
+        const i = String(r.erreur ?? "").indexOf("Page publique : ");
+        if (i < 0) return r;
+        defautPage = String(r.erreur).slice(i + 16).trim();
+        const reste = String(r.erreur).slice(0, i).trim();
+        return reste ? { ...r, erreur: reste } : { ...r, ok: true, erreur: null };
+      });
+    }
     // Boucle de livraison : pendant la construction (phase « en_cours »), puis filet de sécurité 2 h après la livraison.
     // Les corrections ne coûtent jamais rien au membre (ni modification ni crédit) : seul le budget de la plateforme est compté.
     const boucle = avant.phase === "en_cours";
@@ -617,6 +629,9 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     for (const r of ko) if (bloque(r)) console.log("même panne après réécriture, on arrête", app.id, r.id);
     const aReparer = (boucle || filet) && !budgetAtteint ? ko.filter(reparable).slice(0, 6) : [];
     for (const r of aReparer) essais[r.id] = (essais[r.id] ?? 0) + 1;
+    const pageEnRep = enRep.includes("__page");
+    const reparerPage = !!defautPage && !pageEnRep && (boucle || filet) && !budgetAtteint && (essais.__page ?? 0) < 2;
+    if (reparerPage) essais.__page = (essais.__page ?? 0) + 1;
     for (const r of ko) dernieres[r.id] = cle(r.erreur);
     const journal: any[] = [...(avant.journal ?? [])];
     const noter = (t: string, type = "info") => journal.push({ at: new Date().toISOString(), t, type });
@@ -628,10 +643,12 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       mesure.cout = cout;
       noter(ko.length ? `Test n° ${passages} : ${resultats.length - ko.length} écrans sur ${resultats.length} fonctionnent. ${ko.length} problème${ko.length > 1 ? "s" : ""} : ${ko.map((r: any) => `« ${titre(r.id)} »`).join(", ")}.` : `Test n° ${passages} : les ${resultats.length} écrans fonctionnent, avec leurs données et leurs boutons.`, ko.length ? "probleme" : "ok");
       for (const r of aReparer) noter(`Je corrige « ${titre(r.id)} » (essai ${essais[r.id]}/${ESSAIS}) : ${String(r.erreur ?? "").replace(/\s+/g, " ").slice(0, 140)}`, "correction");
+      if (reparerPage) noter(`Je corrige l'affichage de ta page (essai ${essais.__page}/2) : ${defautPage.replace(/\s+/g, " ").slice(0, 140)}`, "correction");
+      else if (defautPage && !pageEnRep) noter(`Petit défaut d'affichage sur ta page, à revoir dans l'atelier : ${defautPage.replace(/\s+/g, " ").slice(0, 140)}`, "info");
     }
     const restants = ko.filter((r: any) => !aReparer.includes(r));
     // Fin de la boucle : plus rien à corriger ni en cours de correction
-    const fini = boucle && !aReparer.length && !enRep.length;
+    const fini = boucle && !aReparer.length && !enRep.length && !reparerPage;
     // Écrans de modèles faits main en échec : ni l'IA ni le membre ne peuvent les réparer, l'équipe s'en charge (alerte admin, sous 24 h)
     const parEquipe = (r: any) => !!ecrans.find((e) => e.id === r.id)?.modele;
     // Robot de l'atelier : une modification qui casse un écran qui marchait est annulée toute seule, et rendue au membre
@@ -685,7 +702,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const verif = { ...avant, version: app.version, at: new Date().toISOString(), resultats, essais, dernieres, passages, journal: journal.slice(-40), mesure, ...(atelier ? { atelier: null, dernier_atelier: { ...atelier, annule: retour, at: new Date().toISOString() } } : {}),
       // Version remise : ses écrans en souci sont ceux d'avant la modification, pas ceux que la modification avait cassés
       ...(retour ? { reste_force: atelier.reste_avant ?? [] } : {}),
-      en_reparation: [...enRep, ...aReparer.map((r: any) => r.id)], repare: aReparer.map((r: any) => r.id),
+      en_reparation: [...enRep, ...aReparer.map((r: any) => r.id), ...(reparerPage ? ["__page"] : [])], repare: aReparer.map((r: any) => r.id),
       phase: boucle ? (fini ? "fini" : "en_cours") : (avant.phase ?? "fini"), ok: resultats.every((r: any) => r.ok), reste: fini ? restants.map((r: any) => r.id) : (avant.reste ?? []).filter((id: string) => !resultats.some((r: any) => r.id === id && r.ok)) };
     if ((verif as any).reste_force) { (verif as any).reste = (verif as any).reste_force; (verif as any).ok = !(verif as any).reste.length; delete (verif as any).reste_force; }
     await admin.from("saas_apps").update({ verif }).eq("id", app.id);
@@ -695,6 +712,10 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
         await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/r/saas-app-reparer`, { method: "POST", headers: { "content-type": "application/json", "x-cron-key": cle }, body: JSON.stringify({ app_id: app.id, ecran: r.id, erreur: r.erreur ?? "", ws: ws.id }) }).catch((e) => console.error("reparer", e));
       }
       await log(ws.id, "reparer", `Vérification : ${aReparer.length} écran(s) en réparation`);
+    }
+    if (reparerPage) {
+      const cle2 = await secret("cron_key");
+      await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/r/saas-app-reparer-page`, { method: "POST", headers: { "content-type": "application/json", "x-cron-key": cle2 }, body: JSON.stringify({ app_id: app.id, defaut: defautPage, ws: ws.id }) }).catch((e) => console.error("reparer page", e));
     }
     return verif;
   },
@@ -743,6 +764,34 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     await admin.from("saas_apps").update({ brouillon: null, verif: { ...vf, dernier_atelier: { titre: t.titre, annule: true, avant_publication: true, at: maintenant }, journal: [...(vf.journal ?? []), { at: maintenant, t: texte, type: "probleme" }].slice(-40) } }).eq("id", app.id);
     await log(ws.id, "app_reglage", `Robot de l'atelier : modification non publiée (${casses.length} écran(s) cassé(s) sur l'aperçu)`);
     return { etat: "refuse" };
+  },
+  // Défaut d'affichage de la page sur mesure (vu par le robot) : les sections en cause sont réécrites par le moteur de pages
+  async "saas-app-reparer-page"(req, b) {
+    await cron(req);
+    const appId = String(b.app_id ?? ""), defaut = String(b.defaut ?? "").slice(0, 600);
+    setAi({ ws: String(b.ws ?? ""), live: true, feature: `construire/reparer/${appId}` });
+    const travail = (async () => {
+      let ok = false;
+      try {
+        const { data: a } = await admin.from("saas_apps").select("spec, version").eq("id", appId).maybeSingle();
+        const spec = a?.spec as any;
+        if (spec?.site?.page?.sections?.length) {
+          // Les sections qui contiennent les textes cités par le robot ; à défaut, le premier écran
+          const cites = [...defaut.matchAll(/«\s*([^»]{3,80}?)\s*»/g)].map((m) => m[1].toLowerCase());
+          const sans = (h: string) => h.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").toLowerCase();
+          let cibles = spec.site.page.sections.filter((x: any) => x.id !== "nav" && cites.some((c) => sans(x.html).includes(c))).map((x: any) => x.id);
+          if (!cibles.length) cibles = ["hero"];
+          const { retoucherPage } = await import("../_shared/site-gen.ts");
+          const r = await retoucherPage(spec, cibles.slice(0, 3).map((id: string) => ({ action: "modifier" as const, id, consigne: `Corrige ce défaut d'affichage repéré par le test automatique, SANS changer les textes, les prix ni l'ordre : ${defaut}. Rien ne doit se superposer à du texte (pas de position absolue sur du texte, pas de marge négative, pas de hauteur fixe qui coupe le contenu), rien ne doit dépasser de l'écran entre 360 et 1440 px de large (largeurs en %, max-width, retour à la ligne des longs mots).` })));
+          if (r.faits.length) { await admin.from("saas_apps").update({ spec, version: (a!.version ?? 1) + 1, maj: new Date().toISOString() }).eq("id", appId); ok = true; }
+        }
+      } catch (e) { console.error("reparer page", e); }
+      await admin.rpc("saas_verif_evt", { p_app: appId, p_texte: ok ? "Affichage de ta page corrigé. Je reteste tout." : "Je n'ai pas réussi à corriger l'affichage de ta page cette fois.", p_retirer: "__page", p_type: ok ? "correction" : "info" });
+    })();
+    // deno-lint-ignore no-explicit-any
+    const rt = (globalThis as any).EdgeRuntime;
+    if (rt?.waitUntil) rt.waitUntil(travail); else await travail;
+    return { ok: true };
   },
   async "saas-app-reparer"(req, b) {
     await cron(req);

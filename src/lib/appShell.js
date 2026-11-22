@@ -51,6 +51,14 @@ export function policesDe(spec) {
 }
 /** Couche « système de design » : les gris et blancs des gabarits prennent les couleurs de la palette (fond, texte, cartes,
  *  zones discrètes, bordures) ; le texte posé sur la couleur principale prend la couleur prévue pour elle (contraste 4,5:1). */
+const rgbHex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const lumRel = (h) => { const [r, g, b] = rgbHex(h).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+const contraste = (a, b) => { const x = lumRel(a), y = lumRel(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+function assezContraste(coul, vers, fonds, min = 4.6) {
+  let c = coul;
+  for (let k = 1; k <= 10 && fonds.some((f) => contraste(c, f) < min); k++) { const a = rgbHex(coul), b = rgbHex(vers); c = "#" + a.map((v, i) => Math.round(v + (b[i] - v) * k / 10).toString(16).padStart(2, "0")).join(""); }
+  return c;
+}
 function cssDesign(spec) {
   const c = spec?.design?.couleurs;
   const ok = (x) => (/^#[0-9a-f]{6}$/i.test(x ?? "") ? x : null);
@@ -58,7 +66,9 @@ function cssDesign(spec) {
   const bg = ok(c.background), fg = ok(c.foreground),
     // Fond clair : les verts, jaunes, oranges et gris clairs écrits par l'IA sont foncés d'un cran ; fond sombre : les couleurs
     // foncées (600-800) et les gris moyens sont éclaircis (contraste 4,5:1 minimum dans les deux cas)
-    claire = ((h) => (0.299 * parseInt(h.slice(1, 3), 16) + 0.587 * parseInt(h.slice(3, 5), 16) + 0.114 * parseInt(h.slice(5, 7), 16)) / 255 > 0.6)(ok(c.background)), card = ok(c.card) ?? bg, muted = ok(c.muted) ?? card, mfg = ok(c.muted_foreground) ?? fg, bord = ok(c.border) ?? muted, onc = ok(c.on_primary) ?? "#FFFFFF";
+    claire = ((h) => (0.299 * parseInt(h.slice(1, 3), 16) + 0.587 * parseInt(h.slice(3, 5), 16) + 0.114 * parseInt(h.slice(5, 7), 16)) / 255 > 0.6)(ok(c.background)), card = ok(c.card) ?? bg, muted = ok(c.muted) ?? card, bord = ok(c.border) ?? muted, onc = ok(c.on_primary) ?? "#FFFFFF";
+  // Texte discret : au moins 4,6:1 sur les cartes ET sur les zones discrètes (sinon rapproché de la couleur du texte)
+  const mfg = assezContraste(ok(c.muted_foreground) ?? fg, fg, [card, muted, bg]);
   return `:root{--ds-bg:${bg};--ds-fg:${fg};--ds-card:${card};--ds-muted:${muted};--ds-mfg:${mfg};--ds-border:${bord};--ds-onc:${onc}}
 body,.fond-creme,.fond-gris{background:var(--ds-bg);color:var(--ds-fg)}
 button{min-height:24px;min-width:24px}
@@ -107,10 +117,10 @@ function cssTaste(spec) {
 }
 const policeUrl = (st) => "https://fonts.googleapis.com/css2?" + [...new Set([st.police, st.titres])].map((p) => "family=" + p.replace(/ /g, "+") + (p === "Fraunces" ? ":opsz,wght@9..144,500;9..144,700" : p === "Playfair Display" || p === "Bebas Neue" || p === "DM Serif Display" ? (p === "Playfair Display" ? ":wght@500;700;800" : "") : ":wght@400;500;600;700;800")).join("&") + "&display=swap";
 
-export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null, capture = null, essai = false }) {
+export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null, capture = null, essai = false, ancre = null }) {
   // Capture (vidéo pub) : mêmes données d'exemple que la vérification, aucune requête au serveur
   if (capture) verif = true;
-  const boot = { style: styleDe(spec), spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog, source, ecran, validation, precommande, verif, page, capture, essai };
+  const boot = { style: styleDe(spec), spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog, source, ecran, validation, precommande, verif, page, capture, essai, ancre: typeof ancre === "string" && /^[a-z0-9-]{1,40}$/.test(ancre) ? ancre : null };
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${String(spec.nom ?? "Mon SaaS").replace(/[<&]/g, "")}</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js"></script>
@@ -893,6 +903,8 @@ function SitePageGeneree({ onAuth, saas }) {
   useEffect(() => {
     const el = ref.current; if (!el) return;
     el.innerHTML = contenu; nettoyerDom(el);
+    // Construction en direct : l'aperçu se place sur la section qui vient d'être écrite
+    if (B.ancre) setTimeout(() => el.querySelector("#" + B.ancre)?.scrollIntoView({ block: "start" }), 60);
     // Logo du membre : il remplace la marque dessinée (en-tête et pied de page)
     // Sans marque dessinée : le logo se place devant le nom, dans le lien du haut
     if (S.logo && !el.querySelector(".mark")) { const lien = el.querySelector(".nav__logo, header a[href='#top']:not(.skip-link)"); if (lien && !lien.querySelector("img")) lien.insertAdjacentHTML("afterbegin", '<span class="mark"></span>'); }
