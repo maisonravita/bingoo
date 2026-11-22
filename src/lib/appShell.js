@@ -1470,6 +1470,18 @@ function Capture() {
       \${menu.map((e) => html\`<div class=\${cls("flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm mb-1", e.id === E.id ? (fonce ? "bg-white/15 text-white font-semibold" : GAB_TASTE ? "u-actif font-semibold" : "bg-[var(--c)]/10 text-[var(--c)] font-semibold") : fonce ? "text-white/70" : "text-slate-600")}><\${Icone} nom=\${e.icone} class="w-4 h-4"/>\${e.titre}</div>\`)}</aside>
     <main class="flex-1 min-w-0 overflow-hidden p-8">\${ecran}</main></div>\`;
 }
+// Petit autocollant « Built by Bingoo! » (façon « Made in Bolt ») sur les pages publiques : lien vers Bingoo!, fermable
+// par le visiteur. Jamais pendant les tests ni les captures (il gênerait la vérification des chevauchements).
+function BadgeBingoo() {
+  const [vu, setVu] = useState(() => { try { return sessionStorage.getItem("bingoo-badge") !== "ferme"; } catch (e) { return true; } });
+  if (!vu || B.verif || B.capture || S.sans_badge) return null;
+  const fermer = () => { try { sessionStorage.setItem("bingoo-badge", "ferme"); } catch (e) {} setVu(false); };
+  return html\`<div style="position:fixed;right:16px;bottom:16px;z-index:2147483000;display:flex;align-items:center;border-radius:12px;background:#fff;box-shadow:0 8px 30px -8px rgba(15,23,42,.35),0 0 0 1px rgba(15,23,42,.08);font:600 13px/1 ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;color:#15161a">
+    <a href=\${"https://www.bingoo.fr/?ref=badge&s=" + encodeURIComponent(B.slug ?? "")} target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;padding:8px 12px 8px 8px;color:inherit;text-decoration:none">
+      <img src="https://www.bingoo.fr/icon-192.png" alt="" width="24" height="24" style="width:24px;height:24px;border-radius:6px"/><span>Built by <b style="color:#E8571C">Bingoo!</b></span></a>
+    <button onClick=\${fermer} aria-label="Masquer" style="display:grid;place-items:center;width:30px;align-self:stretch;border-left:1px solid rgba(15,23,42,.08);color:#9a9eae;font-size:15px;background:none;cursor:pointer">×</button>
+  </div>\`;
+}
 function Racine() {
   if (B.capture) return html\`<\${Capture}/>\`;
   if (B.verif) return html\`<\${Verif}/>\`;
@@ -1497,7 +1509,8 @@ function Racine() {
   if (etat === undefined) return html\`<\${ui.Loading}/>\`;
   if (etat) return html\`<\${Appli} user=\${etat.user} etat=\${etat} tour=\${tour} onFinTour=\${finTour} onLogout=\${tour ? finTour : sortir}/>\`;
   if (auth) return html\`<\${Auth} mode=\${auth} onDone=\${ok} onBack=\${() => setAuth(null)}/>\`;
-  return S.type === "site" ? html\`<\${SiteVitrine} onAuth=\${ouvrir}/>\` : (SITE.page?.sections ?? []).length ? html\`<\${SitePageGeneree} onAuth=\${ouvrir} saas/>\` : html\`<\${Site} onAuth=\${ouvrir}/>\`;
+  const pub = S.type === "site" ? html\`<\${SiteVitrine} onAuth=\${ouvrir}/>\` : (SITE.page?.sections ?? []).length ? html\`<\${SitePageGeneree} onAuth=\${ouvrir} saas/>\` : html\`<\${Site} onAuth=\${ouvrir}/>\`;
+  return html\`\${pub}<\${BadgeBingoo}/>\`;
 }
 // Outils de l'atelier de Bingoo! : dans l'aperçu de l'atelier, le parent active « modifier un texte » ou « pointer un élément »
 {
