@@ -524,9 +524,17 @@ export async function saasModifierTexte(appId: string, avant0: string, apres0: s
   const spec = structuredClone(app?.spec ?? {}) as any;
   let n = 0;
   const profond = (v: any): any => typeof v === "string" ? (v.includes(avant) ? (n++, v.split(avant).join(apres)) : v) : Array.isArray(v) ? v.map(profond) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, y]) => [k, profond(y)])) : v;
-  for (const k of ["nom", "slogan", "pitch", "probleme", "cible_courte", "cible", "atouts", "faq", "formules"]) if (spec[k] != null) spec[k] = profond(spec[k]);
+  // Double-clic dans un écran : c'est le texte de CET écran que le membre veut changer, avant tout autre endroit
+  const ecranCible = ecranId ? (spec.ecrans ?? []).find((e: any) => e.id === ecranId && typeof e.code === "string") : null;
+  const identC = (c: string | undefined) => !!c && /[A-Za-z0-9_$]/.test(c);
+  if (ecranCible && ecranCible.code.includes(avant)) {
+    let out = "", i = 0, k = 0;
+    while ((k = ecranCible.code.indexOf(avant, i)) >= 0) { if (!identC(ecranCible.code[k - 1]) && !identC(ecranCible.code[k + avant.length])) { out += ecranCible.code.slice(i, k) + apres; n++; } else out += ecranCible.code.slice(i, k + avant.length); i = k + avant.length; }
+    if (n) { ecranCible.code = out + ecranCible.code.slice(i); ecranCible.modifie = true; }
+  }
+  if (!n) for (const k of ["nom", "slogan", "pitch", "probleme", "cible_courte", "cible", "atouts", "faq", "formules"]) if (spec[k] != null) spec[k] = profond(spec[k]);
   // Page écrite par le moteur (site sur mesure) : le texte visible est dans le HTML des sections
-  if (spec.site?.page?.sections?.length) { const { remplacerTextePage } = await import("./site-gen.ts"); n += remplacerTextePage(spec.site.page, avant, apres); }
+  if (!n && spec.site?.page?.sections?.length) { const { remplacerTextePage } = await import("./site-gen.ts"); n += remplacerTextePage(spec.site.page, avant, apres); }
   if (!n) {
     const ident = (c: string | undefined) => !!c && /[A-Za-z0-9_$]/.test(c);
     const dansCode = (code: string) => { let out = "", i = 0, k = 0; while ((k = code.indexOf(avant, i)) >= 0) { if (!ident(code[k - 1]) && !ident(code[k + avant.length])) { out += code.slice(i, k) + apres; n++; } else out += code.slice(i, k + avant.length); i = k + avant.length; } return out + code.slice(i); };

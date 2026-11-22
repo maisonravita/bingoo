@@ -109,6 +109,9 @@ if (CONSTRUIRE === "spec") {
   const [a0] = await q(`select a.id from saas_apps a join members m on m.workspace_id = a.workspace_id where m.user_id = ${lit(uid)} and coalesce(a.spec->>'type','saas') <> 'site' and a.statut = 'pret' ${process.env.DOMAINE ? `and a.slug = ${lit(process.env.DOMAINE)}` : ""} order by a.at desc limit 1`);
   if (!a0) throw new Error("Aucun SaaS du robot");
   let a = await lire(a0.id); const ws = a.ws; const bilan = [];
+  // La page du membre reste ouverte : c'est son navigateur qui teste une modification avant de la publier
+  const { page: pm } = await ouvrir(ws, {});
+  const ouvrirAtelier = async () => { await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/revelation`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(4000); };
   const note = (ok, t) => { bilan.push(`${ok ? "✓" : "✗"} ${t}`); console.log(`${ok ? "✓" : "✗"} ${t}`); };
   const attendreFin = async (id, max = 300) => { for (let i = 0; i < max / 3; i++) { await new Promise((r) => setTimeout(r, 3000)); const x = await lire(id); if (x.statut !== "en_cours") return x; } return lire(id); };
   const photo = async (nom) => { const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p2 = await c2.newPage(); await p2.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p2.waitForTimeout(6000); await p2.screenshot({ path: `${DOSSIER}/${nom}.png` }).catch(() => null); await c2.close(); };
@@ -128,6 +131,7 @@ if (CONSTRUIRE === "spec") {
     const r = await appel("saas-app-modifier", { workspace_id: ws, app_id: a.id, ecran: e2.id, demande: "Ajoute en haut de cet écran un petit bandeau qui affiche le nombre total d'éléments de la liste principale", images: [], element: null });
     let x = await attendreFin(a.id);
     if (x.brouillon?._modif) { await appel("saas-app-reglages", { workspace_id: ws, app_id: a.id, quoi: "brouillon-valider" }); x = await lire(a.id); }
+    await ouvrirAtelier();
     // le robot de vérification de l'atelier conclut ensuite (annule si l'écran casse)
     let fin = null; for (let i = 0; i < 100 && !fin; i++) { await new Promise((r) => setTimeout(r, 6000)); const y = await lire(a.id); if (y.verif?.dernier_atelier?.at && new Date(y.verif.dernier_atelier.at).getTime() > t0) fin = y; }
     a = await lire(a.id);
@@ -139,6 +143,8 @@ if (CONSTRUIRE === "spec") {
     const r = await appel("saas-app-modifier", { workspace_id: ws, app_id: a.id, ecran: "_site", demande: "Sur la page de présentation, remplace le grand titre du haut par « Vos passages, prouvés en un clic »", images: [], element: null });
     let x = await attendreFin(a.id);
     if (x.brouillon?._modif) { await appel("saas-app-reglages", { workspace_id: ws, app_id: a.id, quoi: "brouillon-valider" }); x = await lire(a.id); }
+    await ouvrirAtelier();
+    for (let i = 0; i < 60; i++) { a = await lire(a.id); if (!a.brouillon && JSON.stringify(a.spec.site?.page ?? {}) !== h0) break; await new Promise((r) => setTimeout(r, 6000)); }
     a = await lire(a.id); const h1 = JSON.stringify(a.spec.site?.page ?? {});
     note(r.ok && h1 !== h0 && h1.includes("prouvés en un clic"), `Demande sur la page de présentation : ${h1.includes("prouvés en un clic") ? "titre remplacé" : "titre NON remplacé"} (${Math.round((Date.now() - t0) / 1000)} s) ${r.ok ? "" : r.t}`);
     await photo("atelier-1-page-modifiee");
