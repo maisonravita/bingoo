@@ -65,6 +65,15 @@ function grain() {
   g.putImageData(im, 0, 0); GRAIN = c; return c;
 }
 
+// Le logo du membre, toujours sur une plaque blanche (un logo sombre resterait invisible sur fond noir)
+let LOGO = null;
+function plaqueLogo(ctx, cx, cy, hauteur, u, ombre = true) {
+  if (!LOGO?.width) return false;
+  const k = LOGO.width / LOGO.height, h = hauteur, w = Math.min(h * k, h * 3.2), ih = Math.min(h, w / k), pad = h * 0.32;
+  ctx.save(); if (ombre) { ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = 40 * u; ctx.shadowOffsetY = 10 * u; }
+  rond(ctx, cx - w / 2 - pad, cy - h / 2 - pad, w + pad * 2, h + pad * 2, Math.min(h * 0.45, 40 * u)); ctx.fillStyle = "#fff"; ctx.fill(); ctx.restore();
+  ctx.drawImage(LOGO, cx - (ih * k) / 2, cy - ih / 2, ih * k, ih); return true;
+}
 // Contexte de dessin courant (posé à chaque image)
 let F = "system-ui", C = [79, 70, 229], CV = C, NOIR = true, INK = "#fff", INK2 = (a) => `rgba(255,255,255,${a})`;
 
@@ -341,6 +350,7 @@ const SCENES = {
     ctx.save(); ctx.beginPath(); ctx.arc(W / 2, H / 2, r, 0, 7); ctx.clip();
     const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, rgba(mix(C, [255, 255, 255], 0.12), 1)); g.addColorStop(1, rgba(mix(C, [0, 0, 0], 0.25), 1)); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
     const p = ressort(prog(t, 0.45, 1.2)), txt = e.texte || s.nom; ctx.font = `700 ${70 * u}px ${F}`;
+    if (LOGO?.width) { ctx.translate(W / 2, H / 2); ctx.scale(p, p); plaqueLogo(ctx, 0, 0, 130 * u, u); ctx.restore(); return; }
     const w = ctx.measureText(txt).width + 110 * u, h = 140 * u;
     ctx.translate(W / 2, H / 2); ctx.scale(p, p); rond(ctx, -w / 2, -h / 2, w, h, 26 * u); ctx.fillStyle = "#fff"; ctx.fill();
     ctx.fillStyle = rgba(mix(C, [0, 0, 0], lum(C) > 0.6 ? 0.55 : 0), 1); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(txt, 0, 4 * u); ctx.restore();
@@ -350,11 +360,17 @@ const SCENES = {
     const p = eo(prog(t, 0, 1)), T = 150 * u;
     ctx.save(); if ("filter" in ctx) ctx.filter = p < 0.98 ? `blur(${(1 - p) * 26 * u}px)` : "none"; ctx.globalAlpha *= p;
     const y = H / 2 - (vertical ? 70 : 50) * u;
+    if (LOGO?.width) { // son vrai logo, en grand, puis le nom plus petit
+      ctx.save(); ctx.shadowColor = rgba(CV, 0.7); ctx.shadowBlur = 120 * u; plaqueLogo(ctx, W / 2, y - 60 * u, 150 * u, u, false); ctx.restore();
+      ctx.fillStyle = INK; ctx.font = `800 ${(vertical ? 84 : 76) * u}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(s.nom, W / 2, y + 120 * u);
+      ctx.restore();
+    } else {
     ctx.shadowColor = rgba(CV, 0.8); ctx.shadowBlur = 90 * u; rond(ctx, W / 2 - T / 2, y - T - 30 * u, T, T, T * 0.26);
     const g = ctx.createLinearGradient(0, y - T - 30 * u, 0, y - 30 * u); g.addColorStop(0, rgba(mix(CV, [255, 255, 255], 0.2), 1)); g.addColorStop(1, rgba(C, 1)); ctx.fillStyle = g; ctx.fill(); ctx.shadowBlur = 0;
     ctx.fillStyle = lum(C) > 0.62 ? "#111" : "#fff"; ctx.font = `800 ${T * 0.52}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(String(s.nom || "?").trim()[0].toUpperCase(), W / 2, y - T / 2 - 26 * u);
     ctx.fillStyle = INK; ctx.font = `800 ${(vertical ? 120 : 110) * u}px ${F}`; ctx.fillText(s.nom, W / 2, y + 80 * u);
     ctx.restore();
+    }
     const q = eo(prog(t, 0.8, 1.5));
     if (e.texte) { ctx.save(); ctx.globalAlpha *= q; ctx.fillStyle = INK2(0.78); ctx.font = `600 ${50 * u}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(e.texte, W / 2, y + 200 * u); ctx.restore(); }
     if (s.lien) { ctx.save(); ctx.globalAlpha *= eo(prog(t, 1.1, 1.8)); ctx.font = `600 ${40 * u}px ${F}`; const lw = ctx.measureText(s.lien).width + 70 * u;
@@ -366,7 +382,8 @@ const SCENES = {
 /** Dessine l'image au temps t (secondes) d'une vidéo composée de scènes. */
 // Toujours une linéale très grasse et serrée (comme les pubs de référence), jamais la police à empattements du site
 export const POLICE_MOTION = "Inter Tight";
-export function dessinerScenes(ctx, W, H, t, script) {
+export function dessinerScenes(ctx, W, H, t, script, { logo = null } = {}) {
+  LOGO = logo;
   F = `"${POLICE_MOTION}", "Inter", "Helvetica Neue", Arial, system-ui, sans-serif`;
   serre(ctx, "-0.01em");
   C = hexRgb(script?.couleur); palette(script?.fond === "blanc" ? "blanc" : "noir");
@@ -400,6 +417,12 @@ export function dessinerScenes(ctx, W, H, t, script) {
       ctx.save(); ctx.fillStyle = rgba(C, 1); ctx.beginPath(); ctx.moveTo(x - W * 0.6, 0); ctx.lineTo(x, 0);
       ctx.bezierCurveTo(x + W * 0.25, H * 0.3, x - W * 0.25, H * 0.7, x, H); ctx.lineTo(x - W * 0.6, H); ctx.closePath(); ctx.fill(); ctx.restore();
     }
+  }
+  // Son logo en petit, en haut, pendant toute la vidéo (sauf l'aplat et la fin, où il est en grand)
+  if (LOGO?.width) {
+    let a = 0, de2 = 0;
+    for (const e of scenes) { const d = dureeScene(e); if (t >= de2 && t < de2 + d) a = ["aplat", "logo", "impact"].includes(e.type) ? 0 : Math.min(1, (t - de2) / 0.4, (de2 + d - t) / 0.3); de2 += d; }
+    if (a > 0.01) { ctx.save(); ctx.globalAlpha = a * 0.95; if ("filter" in ctx) ctx.filter = "none"; plaqueLogo(ctx, W / 2, (vertical ? 130 : 80) * u, 34 * u, u); ctx.restore(); }
   }
   // Barre de progression très discrète
   const tot = dureeTotale(script); palette(script?.fond === "blanc" ? "blanc" : "noir");

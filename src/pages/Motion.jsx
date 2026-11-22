@@ -10,7 +10,7 @@ import { AMBIANCES, ecouterMusique } from "../lib/musiqueVideo";
 import { dessinerScenes, dureeTotale } from "../lib/motion";
 
 const lire = (k) => { try { return JSON.parse(localStorage.getItem(k) ?? "null"); } catch { return null; } };
-const IDEES = ["Plus dynamique", "Fond blanc", "Accroche plus forte", "Ajoute un mot géant qui claque", "Mets-la en bleu marine", "Termine par mon site"];
+const IDEES = ["Ajoute mon logo", "Plus dynamique", "Fond blanc", "Accroche plus forte", "Ajoute un mot géant qui claque", "Mets-la en bleu marine", "Termine par mon site"];
 const EXEMPLES = ["Une vidéo pour présenter mon salon de barbier à Lyon", "Le teaser de l'ouverture de ma boulangerie le 3 décembre", "Une pub pour mon coaching sportif en ligne"];
 
 export default function Motion() {
@@ -26,7 +26,8 @@ export default function Motion() {
   const [musique, setMusique] = useState("energique");
   const [export_, setExport] = useState(null);
   const [ecoute, setEcoute] = useState(null);
-  const canvas = useRef(null), t0 = useRef(performance.now()), bas = useRef(null), lance = useRef(false);
+  const canvas = useRef(null), t0 = useRef(performance.now()), bas = useRef(null), lance = useRef(false), fichier = useRef(null);
+  const [logoImg, setLogoImg] = useState(null), [envoiLogo, setEnvoiLogo] = useState(false);
 
   // Les vidéos de l'espace ; une idée venue de l'accueil (type « vidéo ») est lancée tout de suite
   useEffect(() => {
@@ -43,6 +44,11 @@ export default function Motion() {
   useEffect(() => { bas.current?.scrollTo({ top: bas.current.scrollHeight, behavior: "smooth" }); }, [fil.length, busy]);
 
   const script = sel?.script;
+  // Le logo de la vidéo, chargé en image autorisée (sinon l'export serait bloqué par le navigateur)
+  useEffect(() => {
+    if (!script?.logo) { setLogoImg(null); return; }
+    const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => setLogoImg(im); im.onerror = () => setLogoImg(null); im.src = script.logo;
+  }, [script?.logo]);
   const police = script?.police ?? "Plus Jakarta Sans";
   useEffect(() => { preparerPolice(police); }, [police]);
   // La police des vidéos à scènes : Inter Tight, de 600 à 900 (chargée une fois)
@@ -57,7 +63,7 @@ export default function Motion() {
   const opts = { nom: script?.nom ?? "", couleur: script?.couleur ?? "#E8571C", lien: script?.lien ?? "", images: [], style, police, graine };
   // Nouvelles vidéos : suite de scènes (moteur « pub premium ») ; anciennes : gabarit fixe de 21 s
   const scenes = !!script?.scenes?.length, duree = scenes ? dureeTotale(script) : DUREE;
-  const dessinerA = (t) => { const c = canvas.current; if (!c || !script) return; if (scenes) dessinerScenes(c.getContext("2d"), W, H, t, script); else dessiner(c.getContext("2d"), W, H, t, script, opts); };
+  const dessinerA = (t) => { const c = canvas.current; if (!c || !script) return; if (scenes) dessinerScenes(c.getContext("2d"), W, H, t, script, { logo: logoImg }); else dessiner(c.getContext("2d"), W, H, t, script, opts); };
 
   // Lecture en boucle
   useEffect(() => {
@@ -66,18 +72,48 @@ export default function Motion() {
     const image = () => { dessinerA(((performance.now() - t0.current) / 1000) % duree); id = requestAnimationFrame(image); };
     id = requestAnimationFrame(image);
     return () => cancelAnimationFrame(id);
-  }, [sel?.id, format, export_, lecture]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sel?.id, format, export_, lecture, logoImg]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Le logo : réduit dans le navigateur (transparence gardée), sa couleur dominante relevée, puis posé dans la vidéo
+  const memoLogo = () => { try { return JSON.parse(localStorage.getItem("bingoo-motion-logo") ?? "null"); } catch { return null; } };
+  async function poserLogo(v, l) {
+    const n = await fn("r/video-logo", { workspace_id: ws.id, video_id: v.id, logo: l.url, couleur: l.couleur });
+    setVideos((x) => [n, ...(x ?? [])]); setSel(n); setLecture(true); return n;
+  }
+  async function choisirLogo(f) {
+    if (!f || !/^image\/(png|jpeg|webp)$/.test(f.type)) { alert("Logo en PNG, JPG ou WebP."); return; }
+    setEnvoiLogo(true);
+    const n = fil.length; setFil((l) => [...l, { moi: "Mon logo", logo: true, etat: "encours" }]);
+    try {
+      const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = URL.createObjectURL(f); });
+      const k = Math.min(1, 600 / Math.max(img.width, img.height)), c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      const g = c.getContext("2d"); g.drawImage(img, 0, 0, c.width, c.height);
+      // Couleur dominante parmi les pixels colorés (ni blanc, ni noir, ni transparent)
+      const d = g.getImageData(0, 0, c.width, c.height).data, seaux = {};
+      for (let i = 0; i < d.length; i += 16) { const [r, v, b, a] = [d[i], d[i + 1], d[i + 2], d[i + 3]]; const mx = Math.max(r, v, b), mn = Math.min(r, v, b); if (a < 200 || mx - mn < 60 || mx < 50) continue; const cle = `${r >> 4},${v >> 4},${b >> 4}`; (seaux[cle] ??= [0, 0, 0, 0]); seaux[cle][0] += r; seaux[cle][1] += v; seaux[cle][2] += b; seaux[cle][3]++; }
+      const top = Object.values(seaux).sort((a, b) => b[3] - a[3])[0];
+      const couleur = top ? "#" + top.slice(0, 3).map((x) => Math.round(x / top[3]).toString(16).padStart(2, "0")).join("") : null;
+      const r = await fn("r/saas-logo", { workspace_id: ws.id, image: c.toDataURL("image/png") });
+      const l = { url: r.url, couleur }; try { localStorage.setItem("bingoo-motion-logo", JSON.stringify(l)); } catch { /* stockage indisponible */ }
+      if (sel) await poserLogo(sel, l);
+      setFil((x) => x.map((y, k2) => (k2 === n ? { ...y, etat: "ok", texte: sel ? "Ton logo est dans la vidéo : en petit en haut, et en grand à la fin." : "Ton logo est prêt : il sera dans ta vidéo dès qu'elle est créée." } : y)));
+    } catch (e) { setFil((x) => x.map((y, k2) => (k2 === n ? { ...y, etat: "ko", erreur: e.message } : y))); }
+    finally { setEnvoiLogo(false); }
+  }
 
   // Une phrase : la première crée la vidéo, les suivantes la retouchent
   async function envoyer(texte, nouvelle = false) {
     const t = String(texte ?? saisie).trim();
     if (t.length < 3 || busy || !ws?.id) return;
+    // « Ajoute mon logo » : il faut le fichier, on ouvre le choix d'image
+    if (/\blogo\b/i.test(t) && t.length < 60 && !/(enl[eè]ve|retire|supprime|sans)/i.test(t)) { setSaisie(""); fichier.current?.click(); return; }
     const creer = nouvelle || !sel;
     const n = fil.length;
     setFil((l) => [...l, { moi: t, etat: "encours", creer }]); setSaisie(""); setBusy(true);
     try {
       const v = creer ? await fn("r/video-creer", { workspace_id: ws.id, texte: t, format }) : await fn("r/video-retouche", { workspace_id: ws.id, video_id: sel.id, demande: t, format });
       setVideos((l) => [v, ...(l ?? [])]); setSel(v); setLecture(true);
+      const lm = creer ? memoLogo() : null; if (lm?.url) await poserLogo(v, lm).catch(() => null);
       setFil((l) => l.map((x, k) => (k === n ? { ...x, etat: "ok", note: v.script?.note } : x)));
     } catch (e) {
       setFil((l) => l.map((x, k) => (k === n ? { ...x, etat: "ko", erreur: e.message } : x)));
@@ -112,7 +148,8 @@ export default function Motion() {
           {fil.map((x, i) => <div key={i} className="space-y-2">
             <p className="ml-auto w-fit max-w-[90%] rounded-2xl bg-[#F1EFEA] px-3.5 py-2">{x.moi}</p>
             <div className="flex gap-2.5"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#E8571C] text-[12px] font-black text-white">B</span>
-              <div className="pt-1">{x.etat === "encours" ? <p className="text-ink-soft">{x.creer ? "J'écris le scénario et je choisis le style…" : "Je retouche ta vidéo…"}</p>
+              <div className="pt-1">{x.etat === "encours" ? <p className="text-ink-soft">{x.logo ? "Je pose ton logo et je reprends sa couleur…" : x.creer ? "J'écris le scénario et je choisis le style…" : "Je retouche ta vidéo…"}</p>
+                : x.etat === "ok" && x.texte ? <p>{x.texte}</p>
                 : x.etat === "ok" ? <p>{x.creer ? "Ta vidéo est prête, elle joue à droite." : "C'est fait, regarde la nouvelle version."}{x.note ? <span className="mt-1 block text-ink-soft">Remarque : {x.note}</span> : null}</p>
                 : <p className="text-bad">{x.erreur}</p>}</div></div>
           </div>)}
@@ -129,8 +166,13 @@ export default function Motion() {
             <textarea value={saisie} onChange={(e) => setSaisie(e.target.value)} rows={2} disabled={busy} maxLength={800}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); envoyer(); } }}
               placeholder={sel ? "Demande un changement (ex. : fond blanc, plus court, change l'accroche)…" : "Ex. : une vidéo pour présenter mon salon de barbier"} className="block w-full resize-none bg-transparent px-1.5 text-[14.5px] outline-none placeholder:text-ink-faint" />
-            <div className="flex justify-end"><button type="submit" disabled={busy || saisie.trim().length < 3} aria-label="Envoyer" className="grid h-8 w-8 place-items-center rounded-full bg-ink text-white disabled:opacity-30">
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg></button></div>
+            <div className="flex items-center justify-between">
+              <input ref={fichier} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { choisirLogo(e.target.files?.[0]); e.target.value = ""; }} />
+              <button type="button" onClick={() => fichier.current?.click()} disabled={busy || envoiLogo} className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12.5px] font-semibold text-ink-soft hover:bg-[#F1EFEA] hover:text-ink disabled:opacity-40">
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.5l-8.5 8.5a6 6 0 0 1-8.5-8.5l9-9a4 4 0 0 1 5.7 5.7l-9 9a2 2 0 0 1-2.8-2.8l8.4-8.4" /></svg>{envoiLogo ? "Envoi du logo…" : script?.logo ? "Changer mon logo" : "Ajouter mon logo"}</button>
+              <button type="submit" disabled={busy || saisie.trim().length < 3} aria-label="Envoyer" className="grid h-8 w-8 place-items-center rounded-full bg-ink text-white disabled:opacity-30">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg></button>
+            </div>
           </div>
         </form>
       </section>

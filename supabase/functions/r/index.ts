@@ -1250,6 +1250,20 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     await log(ws.id, "video_libre_retouche", `Vidéo retouchée : ${demande.slice(0, 80)}`);
     return v;
   },
+  // Le logo du membre dans sa vidéo (nouvelle version) ; sa couleur dominante devient celle de la vidéo si elle est franche
+  async "video-logo"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { data: v0 } = await admin.from("saas_videos").select("id, format, script, texte").eq("id", String(b.video_id ?? "")).eq("workspace_id", ws.id).is("app_id", null).maybeSingle();
+    if (!v0) throw new HttpError(404, "Vidéo introuvable");
+    const base = admin.storage.from("apps").getPublicUrl("images/").data.publicUrl;
+    const logo = b.logo === null ? null : String(b.logo ?? "");
+    if (logo !== null && !(logo.startsWith(base) && /^[\w./:-]+$/.test(logo))) throw new HttpError(400, "Logo invalide");
+    const { couleurFranche } = await import("../_shared/app-video.ts");
+    const s0: any = v0.script ?? {};
+    const script = { ...s0, logo: logo ?? undefined, ...(logo && couleurFranche(b.couleur) ? { couleur: String(b.couleur) } : {}), note: undefined };
+    const { data: v } = await admin.from("saas_videos").insert({ app_id: null, workspace_id: ws.id, format: v0.format, script, texte: v0.texte }).select("id, format, script, texte, at").single();
+    return v;
+  },
   async "videos-libres"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const { data } = await admin.from("saas_videos").select("id, format, script, texte, at").eq("workspace_id", ws.id).is("app_id", null).order("at", { ascending: false }).limit(20);

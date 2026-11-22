@@ -183,7 +183,7 @@ if (["1", "site", "app"].includes(process.env.IDEE)) {
 }
 // CONSTRUIRE=motion : le produit « Vidéo motion design » : une phrase venue de l'accueil, la vidéo qui joue, une retouche, l'export
 if (CONSTRUIRE === "motion") {
-  const texte = process.env.TEXTE_IDEE || "Une vidéo pour présenter mon salon de barbier à Lyon, coupe homme 20 €";
+  const texte = process.env.TEXTE_IDEE || "Une pub pour mon salon de barbier Lame à Lyon, coupe homme 20 €, sur rendez-vous";
   const { ctx, page } = await ouvrir(ws, { "bingoo-idee": { texte, type: "video", at: Date.now() } });
   const t0 = Date.now();
   await page.goto(`${SITE}/?c=${t0}#/explorer/motion`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
@@ -192,6 +192,11 @@ if (CONSTRUIRE === "motion") {
   console.log(`Vidéo prête en ${Math.round((Date.now() - t0) / 1000)} s`);
   for (const k of [1, 2, 3, 4, 5, 6, 7, 8, 9]) { await page.waitForTimeout(2700); await page.screenshot({ path: `${DOSSIER}/motion-${k}.png` }).catch(() => null); }
   const scen = await page.evaluate(() => document.body.innerText).catch(() => ""); console.log("Page :", scen.replace(/\s+/g, " ").slice(0, 700));
+  // Son logo (dessiné à la volée, fond transparent) envoyé avec le trombone
+  const logo = await page.evaluate(() => { const c = document.createElement("canvas"); c.width = 520; c.height = 200; const g = c.getContext("2d"); g.fillStyle = "#0F3D2E"; g.beginPath(); g.arc(100, 100, 90, 0, 7); g.fill(); g.fillStyle = "#fff"; g.font = "800 90px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("L", 100, 106); g.fillStyle = "#0F3D2E"; g.font = "800 84px sans-serif"; g.textAlign = "left"; g.fillText("Lame", 210, 106); return c.toDataURL("image/png").split(",")[1]; });
+  await page.locator('input[type="file"]').setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: Buffer.from(logo, "base64") }).catch((e) => console.log("✗ logo", e.message));
+  await page.getByText("Ton logo est dans la vidéo").waitFor({ timeout: 60000 }).then(() => console.log("✓ Logo posé")).catch(() => console.log("✗ logo non posé"));
+  for (const k of [20, 21, 22, 23]) { await page.waitForTimeout(3100); await page.screenshot({ path: `${DOSSIER}/motion-${k}.png` }).catch(() => null); }
   // Une retouche dans la discussion
   await page.locator("textarea").first().fill("Fond blanc, et ajoute un mot géant qui claque").catch(() => null);
   await page.keyboard.press("Enter").catch(() => null);
