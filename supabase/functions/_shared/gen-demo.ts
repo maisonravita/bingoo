@@ -8,6 +8,8 @@ type Champ = { nom: string; type: string; valeurs?: string[] };
 type Collection = { nom: string; champs?: Champ[] };
 
 const JOUR = /^(\d{4}-\d{2}-\d{2})/;
+/** L'utilisateur connecté dans l'aperçu et pendant les tests (appShell : mode essai et vérification) */
+export const MOI = { nom: "Camille Martin", email: "camille@exemple.fr" };
 
 function decaler(jour: string, n: number): string {
   const d = new Date(jour + "T12:00:00Z");
@@ -64,6 +66,17 @@ export function couvrirDemo(demo: Record<string, any>, collections: Collection[]
           if (i < 0) break;
           xs[i][ch.nom] = v; pris.add(String(i)); changements++;
         }
+      }
+    }
+    // Écrans « Mes demandes », « Mon profil » : ils cherchent l'utilisateur connecté par son e-mail. L'aperçu et le robot
+    // se connectent en tant que Camille Martin (camille@exemple.fr) : deux éléments lui appartiennent, sinon ces blocs restent vides
+    const champsMail = (c.champs ?? []).filter((ch) => ch.type === "email" || /(^|_)e?mail$/i.test(ch.nom));
+    if (champsMail.length && !xs.some((x) => champsMail.some((ch) => String(x?.[ch.nom] ?? "").toLowerCase() === MOI.email))) {
+      const personnes = /profil|utilisateur|membre|compte|famille|eleve|élève|adherent|adhérent|salarie|salarié|employe|candidat|client/i.test(c.nom);
+      for (const k of personnes ? [0] : [0, 1]) {
+        for (const ch of champsMail) xs[k][ch.nom] = MOI.email;
+        if (personnes && "nom" in (xs[k] ?? {})) xs[k].nom = MOI.nom;
+        changements++;
       }
     }
     d[c.nom] = xs;

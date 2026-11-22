@@ -57,9 +57,12 @@ export type DesignChoisi = {
 // Polices de titre neutres (lisibles mais sans caractère) : avec elles, une page générée ressemble à n'importe quel produit.
 // Elles sont remplacées automatiquement par une police de titre qui a de l'allure (toutes disponibles de 400 à 800 chez Google).
 const TITRES_NEUTRES = /^(inter|poppins|open sans|roboto|lato|montserrat|arial|helvetica|nunito sans|source sans 3|noto sans)$/i;
+// Polices manuscrites ou décoratives : illisibles en titre d'un logiciel ou d'une page de vente
+const TITRES_DECORATIFS = /^(great vibes|dancing script|pacifico|satisfy|allura|parisienne|sacramento|lobster|caveat|kaushan script|alex brush|tangerine|cookie|courgette|amatic sc|shadows into light|indie flower)$/i;
 const TITRES_CARACTERE = ["Fraunces", "Newsreader", "Playfair Display", "Literata", "Bricolage Grotesque", "Sora", "DM Serif Display"];
 export function titresAvecCaractere(titres: string, graine: string): string {
-  if (!TITRES_NEUTRES.test(String(titres ?? "").trim())) return titres;
+  const t = String(titres ?? "").trim();
+  if (!TITRES_NEUTRES.test(t) && !TITRES_DECORATIFS.test(t)) return titres;
   let h = 0; for (const c of graine) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return TITRES_CARACTERE[h % TITRES_CARACTERE.length];
 }

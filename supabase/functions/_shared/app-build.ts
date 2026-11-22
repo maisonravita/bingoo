@@ -311,7 +311,8 @@ ${CONSIGNE_TEXTES_FR}`, { maxTokens: 16000 });
     const { data: fin } = await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: e0.id, p_code: e0.code, p_ok: true });
     if (fin === "pret") { await verifierPromesses(appId).catch((x) => console.error("promesses", x)); await corrigerAccroche(appId).catch((x) => console.error("accroche", x)); await demarrerVerification(appId).catch((x) => console.error("verification", x)); }
     // Écrans ajoutés au modèle pour tenir les promesses du site : écrits comme dans une construction classique
-    await Promise.all(aEcrire.map((e: any) => lancerEcran(e.id)));
+    // Page de présentation écrite par le moteur de pages, comme pour un SaaS écrit par l'IA
+    await Promise.all([...aEcrire.map((e: any) => lancerEcran(e.id)), ...(!spec.mobile ? [lancerEcran("__vitrine")] : [])]);
     return;
   }
   await admin.from("saas_apps").update({ brouillon: spec, etape: `Données d'exemple`, maj: new Date().toISOString() }).eq("id", appId);

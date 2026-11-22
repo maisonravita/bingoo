@@ -10,7 +10,7 @@ function Ecran(props) {
       setOk(true);
     } catch (x) { toast(x.message, "bad"); } finally { setBusy(false); }
   };
-  if (ok) return html`<div class="max-w-lg mx-auto text-center py-16 px-4"><span class="mx-auto grid w-14 h-14 place-items-center rounded-full bg-emerald-100 text-emerald-600 text-2xl">✓</span><h1 class="mt-4 text-2xl font-bold">Demande envoyée</h1><p class="mt-2 text-slate-500">Merci ! Un e-mail de confirmation vient de vous être envoyé. Vous serez prévenu dès que votre demande sera prise en charge.</p><button class="mt-6 text-sm text-[var(--c)] hover:underline" onClick=${() => { setF({ titre: "", description: "", nom: f.nom, email: f.email, priorite: "normale" }); setOk(false); }}>Envoyer une autre demande</button></div>`;
+  if (ok) return html`<div class="max-w-lg mx-auto text-center py-16 px-4"><span class="mx-auto grid w-14 h-14 place-items-center rounded-full bg-emerald-100 text-emerald-700 text-2xl">✓</span><h1 class="mt-4 text-2xl font-bold">Demande envoyée</h1><p class="mt-2 text-slate-500">Merci ! Un e-mail de confirmation vient de vous être envoyé. Vous serez prévenu dès que votre demande sera prise en charge.</p><button class="mt-6 text-sm text-[var(--c)] hover:underline" onClick=${() => { setF({ titre: "", description: "", nom: f.nom, email: f.email, priorite: "normale" }); setOk(false); }}>Envoyer une autre demande</button></div>`;
   return html`<div class="max-w-xl mx-auto py-10 px-4">
     <h1 class="text-3xl font-bold tracking-tight">Envoyer une demande</h1>
     <p class="mt-2 text-slate-500">${props.espace ? "L'équipe " + props.espace + " la reçoit" : "L'équipe la reçoit"} directement dans ses projets. Décrivez votre besoin en quelques lignes.</p>
