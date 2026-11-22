@@ -51,9 +51,14 @@ create or replace view public.saas_liste as
     NOT (( SELECT saas_acces()) OR coalesce(v.en_clair, false)) AS vitrine,
     s.image, s.cible, s.difficulte,
     (NOT ( SELECT saas_acces()) AND coalesce(v.en_clair, false)) AS libre
-   FROM saas s
-   LEFT JOIN saas_vitrine v ON v.id = s.id
-  WHERE s.statut = 'ok'::text AND ( SELECT saas_liste_ok()) AND (( SELECT saas_acces()) OR v.id IS NOT NULL);
+   FROM (
+     -- Abonné : toute la base ; compte gratuit : seulement la vitrine (490 lignes lues au lieu de 26 000)
+     SELECT s1.*, v1.ordre, v1.en_clair FROM saas s1 LEFT JOIN saas_vitrine v1 ON v1.id = s1.id WHERE ( SELECT saas_acces()) AND s1.statut = 'ok'::text
+     UNION ALL
+     SELECT s2.*, v2.ordre, v2.en_clair FROM saas_vitrine v2 JOIN saas s2 ON s2.id = v2.id WHERE NOT ( SELECT saas_acces()) AND s2.statut = 'ok'::text
+   ) s
+   CROSS JOIN LATERAL (SELECT s.ordre, s.en_clair) v
+  WHERE ( SELECT saas_liste_ok());
 
 -- La fiche complète aussi pour les SaaS en clair de la vitrine
 create or replace function public.saas_fiche(ws uuid, d text)
