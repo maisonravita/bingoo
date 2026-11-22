@@ -87,7 +87,7 @@ export default function Motion() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-56px)] min-h-[560px] flex-col lg:flex-row bg-[#FAF9F6]">
+    <div className="flex h-[calc(100vh-112px)] min-h-[560px] overflow-hidden rounded-2xl border border-line flex-col lg:flex-row bg-[#FAF9F6]">
       {/* La discussion */}
       <section className="flex min-h-0 w-full shrink-0 flex-col border-r border-line bg-white lg:w-[400px]">
         <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">

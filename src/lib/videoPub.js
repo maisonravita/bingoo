@@ -145,6 +145,15 @@ function probleme(ctx, s) {
   ctx.globalAlpha = alpha;
   // Pastille « ✕ »
   const p = ressort(prog(t, 0, 0.9)), r = 54 * u * p, cy = H / 2 - 170 * u;
+  // Vidéo libre : souvent une envie plutôt qu'un problème → une étincelle à la couleur de la marque, pas une croix rouge
+  if (script.genre === "libre") {
+    ctx.fillStyle = rgba(s.cv, 0.18); ctx.beginPath(); ctx.arc(W / 2, cy, r * 1.5, 0, 7); ctx.fill();
+    ctx.fillStyle = rgba(s.cv, 1); ctx.beginPath(); ctx.arc(W / 2, cy, r, 0, 7); ctx.fill();
+    ctx.strokeStyle = CLAIR ? "#fff" : "#07070C"; ctx.lineWidth = 9 * u; ctx.lineCap = "round"; const k = 22 * u * p;
+    ctx.beginPath(); ctx.moveTo(W / 2, cy - k); ctx.lineTo(W / 2, cy + k); ctx.moveTo(W / 2 - k, cy); ctx.lineTo(W / 2 + k, cy); ctx.stroke();
+    texteAnime(ctx, script.probleme || script.accroche, W / 2, H / 2 + 40 * u, { taille: 72 * u, poids: 700, largeur: W * 0.8, t: t - 0.2, couleur: TX2(0.92) });
+    return;
+  }
   ctx.fillStyle = "rgba(239,68,68,0.18)"; ctx.beginPath(); ctx.arc(W / 2, cy, r * 1.5, 0, 7); ctx.fill();
   ctx.fillStyle = "#EF4444"; ctx.beginPath(); ctx.arc(W / 2, cy, r, 0, 7); ctx.fill();
   ctx.strokeStyle = "#fff"; ctx.lineWidth = 10 * u; ctx.lineCap = "round"; const k = 20 * u * p;
