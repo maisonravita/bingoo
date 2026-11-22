@@ -1028,6 +1028,75 @@ function SiteVitrine({ onAuth }) {
   \${grand && html\`<div role="dialog" aria-modal="true" class="fixed inset-0 z-50 grid place-items-center bg-slate-950/85 p-4" onClick=\${() => setGrand(null)}><div class="max-h-[92vh] w-full max-w-4xl overflow-auto bg-white" onClick=\${(e) => e.stopPropagation()}>\${grand.image && html\`<img src=\${grand.image} alt=\${grand.titre} class="w-full object-contain"/>\`}<div class="p-6"><p class="fh text-2xl font-semibold">\${grand.titre}</p>\${grand.description && html\`<p class="mt-3 text-slate-600">\${grand.description}</p>\`}<button onClick=\${() => setGrand(null)} class="mt-6 inline-flex min-h-11 items-center rounded-full border border-slate-300 px-5 font-medium">Fermer</button></div></div></div>\`}
 </div>\`;
   }
+  // Gabarit éditorial (façon Bolt / Lovable) : en-tête sombre quadrillé, grand titre dont la fin passe en italique couleur,
+  // sections très aérées, alternance sombre / clair. Aucune donnée inventée : pas d'avis, pas de chiffres, pas de photo.
+  if (SITE.gabarit === "editorial") {
+    const W = "mx-auto w-full max-w-[1200px] px-6 md:px-10";
+    const SOMBRE = "background:radial-gradient(900px 520px at 85% -10%,color-mix(in srgb,var(--c) 30%,transparent),transparent),linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px) 0 0/80px 80px,linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px) 0 0/80px 80px,color-mix(in srgb,var(--c) 9%,#0d0c0b)";
+    const SOMBRE2 = "background:color-mix(in srgb,var(--c) 7%,#121110)";
+    const CLAIR = "background:color-mix(in srgb,var(--c) 4%,#faf8f4)";
+    const acc = String(S.slogan || S.pitch || S.nom || "");
+    const coupe = (() => { const i = Math.max(acc.lastIndexOf(", "), acc.lastIndexOf(" — "), acc.lastIndexOf(" : ")); if (i > 8 && i < acc.length - 6) return [acc.slice(0, i + 1), acc.slice(i + 1).replace(/^[\\s—:]+/, "")]; const m = acc.split(" "); const k = Math.ceil(m.length * 0.55); return m.length > 4 ? [m.slice(0, k).join(" "), m.slice(k).join(" ")] : [acc, ""]; })();
+    const Sur = ({ children, clair }) => html\`<p class=\${cls("text-[13px] font-semibold uppercase tracking-[.28em]", clair ? "text-[color-mix(in_srgb,var(--c)_70%,white)]" : "text-[var(--c)]")}>\${children}</p>\`;
+    const H2 = ({ children, clair }) => html\`<h2 class=\${cls("fh mt-5 max-w-[20ch] text-[clamp(2.3rem,4.6vw,4rem)] font-medium leading-[1.04] tracking-[-.015em]", clair ? "text-white" : "text-[#16140f]")}>\${children}</h2>\`;
+    const Pill = ({ href, plein, clair, children }) => html\`<a href=\${href} class=\${cls("inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-full px-8 text-[15px] font-semibold tracking-wide transition", plein ? "bg-[var(--c)] text-white hover:brightness-110" : clair ? "border border-white/25 text-white hover:border-white/60" : "border border-black/15 text-[#16140f] hover:border-black/40")}>\${children}</a>\`;
+    const pf = (SITE.points_forts ?? []).slice(0, 3), et = (SITE.etapes ?? []).slice(0, 4);
+    const champ = "mt-2 min-h-[52px] w-full rounded-xl border border-white/15 bg-white/[.04] px-4 text-white outline-none placeholder:text-white/30 focus:border-[var(--c)]";
+    return html\`<div class="min-h-screen scroll-smooth text-[#16140f]" style=\${CLAIR}>
+  <div class="text-white" style=\${SOMBRE}>
+    <header class=\${cls(W, "flex h-24 items-center justify-between gap-6")}>
+      <a href="#" class="flex items-center gap-3"><span class="grid h-11 w-11 place-items-center rounded-full border border-[var(--c)]/60 text-[var(--c)]">\${S.logo ? html\`<img src=\${S.logo} alt="" class="h-6 w-6 object-contain"/>\` : html\`<span class="fh text-lg">\${String(S.nom || "?").trim()[0].toUpperCase()}</span>\`}</span><span class="fh text-[22px] tracking-tight">\${S.nom}</span></a>
+      <nav class="hidden items-center gap-9 text-[15px] text-white/80 lg:flex">\${services.length > 0 && html\`<a href="#services" class="hover:text-white">Services</a>\`}\${et.length > 0 && html\`<a href="#methode" class="hover:text-white">Comment ça marche</a>\`}\${SITE.apropos?.texte && html\`<a href="#apropos" class="hover:text-white">À propos</a>\`}<a href="#contact" class="hover:text-white">Contact</a></nav>
+      <a href="#contact" class="inline-flex min-h-12 items-center rounded-full bg-[var(--c)] px-6 text-[15px] font-semibold text-white hover:brightness-110">\${SITE.cta || "Me contacter"}</a>
+    </header>
+    <section class=\${cls(W, "pb-24 pt-16 md:pb-32 md:pt-24")}>
+      \${(SITE.metier || SITE.ville) && html\`<p class="inline-flex items-center gap-3 rounded-full border border-[var(--c)]/45 px-5 py-2.5 text-[12.5px] font-semibold uppercase tracking-[.28em] text-[color-mix(in_srgb,var(--c)_75%,white)]"><\${Icone} nom="etoile" class="h-4 w-4"/>\${[SITE.metier, SITE.ville].filter(Boolean).join(" · ")}</p>\`}
+      <h1 class="fh mt-10 max-w-[17ch] text-[clamp(2.9rem,6.6vw,6rem)] font-medium leading-[1.02] tracking-[-.02em]">\${coupe[0]}\${coupe[1] && html\` <em class="block font-normal italic text-[var(--c)]">\${coupe[1]}</em>\`}</h1>
+      \${S.pitch && S.pitch !== acc && html\`<p class="mt-10 max-w-[48ch] text-[clamp(1.1rem,1.6vw,1.35rem)] font-light leading-relaxed text-white/70">\${S.pitch}</p>\`}
+      <div class="mt-12 flex flex-wrap gap-4"><\${Pill} href="#contact" plein>\${SITE.cta || "Me contacter"} <span aria-hidden="true">→</span></\${Pill}>\${services.length > 0 && html\`<\${Pill} href="#services" clair>Découvrir nos services</\${Pill}>\`}</div>
+      \${pf.length > 0 && html\`<ul class="mt-16 flex flex-wrap gap-x-10 gap-y-4 text-[15px] text-white/75">\${pf.map((p) => html\`<li class="flex items-center gap-3"><\${Icone} nom=\${p.icone || "etoile"} class="h-5 w-5 text-[var(--c)]"/>\${p.titre}</li>\`)}</ul>\`}
+    </section>
+  </div>
+  \${services.length > 0 && html\`<section id="services" class="scroll-mt-4 py-24 md:py-32"><div class=\${W}>
+    <\${Sur}>Nos services</\${Sur}><\${H2}>\${portfolio ? "Prestations" : "Ce que nous vous proposons"}</\${H2}>
+    <div class="mt-16 grid gap-6 md:grid-cols-2">\${services.map((s, i) => html\`<div class="flex flex-col rounded-[28px] border border-black/[.07] bg-white p-9 md:p-11">
+      <span class=\${cls("grid h-14 w-14 place-items-center rounded-2xl", i === 1 ? "bg-[var(--c)] text-white" : "bg-[var(--c)]/10 text-[var(--c)]")}><\${Icone} nom=\${["etoile", "tag", "agenda", "boite", "message", "carte"][i % 6]} class="h-6 w-6"/></span>
+      <p class="fh mt-8 text-[clamp(1.6rem,2.4vw,2.1rem)] font-medium leading-tight">\${s.titre}</p>
+      \${s.description && html\`<p class="mt-4 flex-1 text-[17px] font-light leading-relaxed text-black/60">\${s.description}</p>\`}
+      <div class="mt-8 flex items-end justify-between gap-4 border-t border-black/[.07] pt-6"><p class="fh text-[28px] font-medium text-[var(--c)]">\${prixS(s)}</p><button onClick=\${() => choisir(s)} class="text-[15px] font-semibold text-[#16140f] underline decoration-[var(--c)] decoration-2 underline-offset-4">Choisir</button></div>
+    </div>\`)}</div>
+  </div></section>\`}
+  \${et.length > 0 && html\`<section id="methode" class="scroll-mt-4 py-24 text-white md:py-32" style=\${SOMBRE2}><div class=\${W}>
+    <\${Sur} clair>Notre méthode</\${Sur}><\${H2} clair>Comment ça se passe</\${H2}>
+    <ol class=\${cls("mt-16 grid gap-10", et.length === 4 ? "md:grid-cols-4" : "md:grid-cols-3")}>\${et.map((e, i) => html\`<li class="border-t border-white/15 pt-8"><span class="fh text-[56px] font-normal italic leading-none text-[var(--c)]">\${String(i + 1).padStart(2, "0")}</span><p class="fh mt-6 text-2xl font-medium">\${e.titre}</p><p class="mt-3 text-[16px] font-light leading-relaxed text-white/65">\${e.texte}</p></li>\`)}</ol>
+  </div></section>\`}
+  \${pf.length > 0 && html\`<section class="py-24 md:py-32"><div class=\${W}>
+    <\${Sur}>Pourquoi nous</\${Sur}><\${H2}>Ce qui change pour vous</\${H2}>
+    <div class="mt-16 grid gap-5">\${pf.map((p) => html\`<div class="flex items-start gap-7 rounded-[28px] border border-black/[.07] bg-white p-8 md:p-10"><span class="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[var(--c)]/10 text-[var(--c)]"><\${Icone} nom=\${p.icone || "etoile"} class="h-6 w-6"/></span><div><p class="fh text-[26px] font-medium leading-tight">\${p.titre}</p><p class="mt-3 text-[17px] font-light leading-relaxed text-black/60">\${p.texte}</p></div></div>\`)}</div>
+  </div></section>\`}
+  \${SITE.apropos?.texte && html\`<section id="apropos" class="scroll-mt-4 border-t border-black/[.06] py-24 md:py-32"><div class=\${W}><\${Sur}>À propos</\${Sur}><\${H2}>\${SITE.apropos.titre || "Notre histoire"}</\${H2}><p class="mt-10 max-w-[62ch] whitespace-pre-line text-[19px] font-light leading-[1.8] text-black/65">\${SITE.apropos.texte}</p></div></section>\`}
+  <footer id="contact" class="scroll-mt-4 pt-24 text-white md:pt-32" style=\${SOMBRE2}><div class=\${W}>
+    <div class="grid gap-16 lg:grid-cols-[1fr_1.15fr]">
+      <div><\${Sur} clair>Contact</\${Sur}><\${H2} clair>Parlons de votre projet</\${H2}><p class="mt-8 max-w-[40ch] text-[18px] font-light leading-relaxed text-white/65">Dites-nous ce qu'il vous faut : nous revenons vers vous rapidement.</p>
+        <div class="mt-10 grid gap-3 text-[17px]">\${inf.telephone && html\`<a href=\${lienTel(inf.telephone)} class="hover:text-[var(--c)]">\${inf.telephone}</a>\`}\${inf.email && html\`<a href=\${"mailto:" + inf.email} class="break-all hover:text-[var(--c)]">\${inf.email}</a>\`}\${(inf.adresse || inf.zone) && html\`<p class="text-white/65">\${inf.adresse || inf.zone}</p>\`}</div></div>
+      \${envoi ? html\`<div class="rounded-[28px] border border-white/10 bg-white/[.03] p-10"><p class="fh text-4xl font-medium">Merci \${envoi}.</p><p class="mt-4 text-white/65">Votre demande est bien envoyée. Nous vous répondons très vite.</p></div>\`
+        : html\`<form onSubmit=\${envoyer} class="grid gap-5 rounded-[28px] border border-white/10 bg-white/[.03] p-7 md:p-10 sm:grid-cols-2">
+          <label class="text-sm text-white/70">Votre nom<input required value=\${f.nom} onInput=\${(e) => setF({ ...f, nom: e.target.value })} class=\${champ}/></label>
+          <label class="text-sm text-white/70">Téléphone<input type="tel" value=\${f.telephone} onInput=\${(e) => setF({ ...f, telephone: e.target.value })} class=\${champ}/></label>
+          <label class="text-sm text-white/70 sm:col-span-2">E-mail<input type="email" value=\${f.email} onInput=\${(e) => setF({ ...f, email: e.target.value })} class=\${champ}/></label>
+          \${services.length > 0 && html\`<label class="text-sm text-white/70 sm:col-span-2">Prestation<select value=\${f.service} onChange=\${(e) => setF({ ...f, service: e.target.value })} class=\${champ}><option value="" class="text-black">Choisir…</option>\${services.map((s) => html\`<option value=\${s.titre} class="text-black">\${s.titre}</option>\`)}</select></label>\`}
+          \${avecDate && html\`<label class="text-sm text-white/70 sm:col-span-2">Date souhaitée<input type="date" value=\${f.date_souhaitee} onInput=\${(e) => setF({ ...f, date_souhaitee: e.target.value })} class=\${champ}/></label>\`}
+          <label class="text-sm text-white/70 sm:col-span-2">\${SITE.demande === "devis" ? "Votre projet" : "Message"}<textarea rows="4" value=\${f.message} onInput=\${(e) => setF({ ...f, message: e.target.value })} class=\${cls(champ, "py-3")}></textarea></label>
+          <input tabindex="-1" autocomplete="off" aria-hidden="true" value=\${f.site_web} onInput=\${(e) => setF({ ...f, site_web: e.target.value })} style="position:absolute;left:-9999px;width:1px;height:1px"/>
+          \${err && html\`<p class="text-sm text-red-300 sm:col-span-2">\${err}</p>\`}
+          <button type="submit" disabled=\${busy} class="sm:col-span-2 inline-flex min-h-[56px] items-center justify-center gap-2 rounded-full bg-[var(--c)] px-8 text-[16px] font-semibold text-white hover:brightness-110 disabled:opacity-60">\${busy ? "Envoi…" : "Envoyer ma demande"}</button>
+          <p class="text-xs text-white/45 sm:col-span-2">Vos coordonnées servent seulement à vous répondre. <button type="button" class="underline" onClick=\${() => bus.emit("doc", "confidentialite")}>En savoir plus</button></p>
+        </form>\`}
+    </div>
+    <div class="mt-24 flex flex-wrap items-center justify-between gap-x-8 gap-y-4 border-t border-white/10 py-10 text-sm text-white/55"><span class="fh text-xl text-white">\${S.nom}</span><\${LiensLegaux}/><span class="flex items-center gap-6"><button onClick=\${() => onAuth("login")} class="hover:text-white">Espace gérant</button><span>Site créé avec Bingoo!</span></span></div>
+  </div></footer>
+</div>\`;
+  }
   return html\`<div class=\${cls("min-h-screen scroll-smooth", S.fond === "creme" ? "bg-[#FAF7F2]" : "bg-white")}>
   <div class=\${cls(fonce && "text-white")} style=\${fondHero}>
     <header class="max-w-6xl mx-auto px-5 py-5 flex items-center justify-between gap-4"><a href="#" class="flex items-center gap-2.5 font-bold text-lg"><\${Logo} clair=\${fonce}/>\${S.nom}</a>

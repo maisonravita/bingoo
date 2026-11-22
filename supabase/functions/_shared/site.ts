@@ -36,6 +36,8 @@ export async function construireSite(appId: string, p: any, demarrerVerification
   // Gabarit kit Taste : pour les nouveaux portfolios seulement (validé par Jean le 21/11 après comparaison).
   // Les sites existants gardent leur gabarit ; un changement passe par garderApparence (retour en un clic).
   if (spec.site?.modele === "portfolio") spec.site = { ...spec.site, gabarit: "taste" };
+  // Gabarit de secours des nouveaux sites vitrine : l'éditorial, le même que l'aperçu (22/11)
+  else if (spec.site?.modele !== "lancement") spec.site = { ...spec.site, gabarit: "editorial" };
   // Moteur de pages sur mesure (chantier « façon Lovable ») : la page publique écrite par l'IA dans sa propre invocation
   // (une invocation est limitée à ~150 s : textes + page ne tiennent pas ensemble). Le gabarit reste en secours.
   // Activé par le secret GEN_SITES : "on" pour tous, "robot" (par défaut) pour les espaces du robot seulement, "off" jamais.

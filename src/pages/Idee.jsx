@@ -43,7 +43,7 @@ const prixNombre = (p) => { const m = String(p ?? "").replace(/\s/g, "").match(/
 function specSite(nom, ap) {
   return {
     type: "site", nom, slogan: ap.accroche || "", pitch: ap.pitch || "", design: ap.design ?? undefined, couleur: ap.design?.couleurs?.primary ?? "#E8571C",
-    site: { metier: ap.metier || "", cta: ap.cta || "Me contacter", modele: ap.modele || "vitrine", demande: /devis/i.test(ap.cta ?? "") ? "devis" : /r[ée]serv/i.test(ap.cta ?? "") ? "reservation" : /rendez|rdv/i.test(ap.cta ?? "") ? "rdv" : "message", points_forts: ap.points_forts ?? [], etapes: ap.etapes ?? [] },
+    site: { gabarit: "editorial", metier: ap.metier || "", cta: ap.cta || "Me contacter", modele: ap.modele || "vitrine", demande: /devis/i.test(ap.cta ?? "") ? "devis" : /r[ée]serv/i.test(ap.cta ?? "") ? "reservation" : /rendez|rdv/i.test(ap.cta ?? "") ? "rdv" : "message", points_forts: ap.points_forts ?? [], etapes: ap.etapes ?? [] },
     demo: { services: (ap.services ?? []).map((x) => { const n = prixNombre(x.prix); return { titre: x.titre, prix: n, prix_texte: /partir/i.test(x.prix ?? "") }; }), horaires: [], infos: [{}] },
     ecrans: [],
   };
