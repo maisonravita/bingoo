@@ -16,7 +16,12 @@ const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } c
 export default function Decouvrir() {
   const nav = useNavigate();
   const [d, setD] = useState(null), [compte, setCompte] = useState(null);
-  useEffect(() => { supabase.rpc("saas_decouvrir").then(({ data }) => setD(data ?? { clairs: [], floutes: [], total: 0 })); }, []);
+  const [nb, setNb] = useState(null);
+  useEffect(() => {
+    supabase.rpc("saas_decouvrir").then(({ data }) => setD(data ?? { clairs: [], floutes: [], total: 0 }));
+    // Même compteur que l'accueil : SaaS et applis suivis
+    supabase.rpc("saas_stats_entete").then(({ data }) => { if (data?.total) setNb(Number(data.total) + Number(data.applis ?? 0)); });
+  }, []);
   // Un clic sur un SaaS : le compte d'abord, puis sa fiche (ou l'Explorer complet)
   const ouvrir = async (vers, quoi) => {
     ecrire("bingoo-depart", { vers, at: Date.now() });
@@ -24,7 +29,7 @@ export default function Decouvrir() {
     if (data.session && !data.session.user?.is_anonymous) { nav(vers); return; }
     setCompte({ vers, quoi });
   };
-  const total = d?.total ? Math.floor(d.total / 1000) * 1000 : null;
+  const total = nb ? Math.floor(nb / 1000) * 1000 : d?.total ? Math.floor(d.total / 1000) * 1000 : null;
   const geants = (d?.clairs ?? []).filter((s) => (s.difficulte ?? 0) >= 5 || Number(s.succes?.montant ?? 0) >= 1e9);
   const faciles = (d?.clairs ?? []).filter((s) => !geants.includes(s));
   const carte = (s) => <CarteSaas key={s.domaine} s={{ ...s, id: s.domaine, libre: true }} ouvrir={() => ouvrir(`/explorer/${s.domaine}`, `Crée ton compte gratuit pour ouvrir la fiche de ${s.nom} et construire ta version.`)} />;
@@ -49,10 +54,10 @@ export default function Decouvrir() {
 
         {!d ? <div className="mt-16 grid place-items-center"><span className="h-6 w-6 animate-spin rounded-full border-2 border-line border-t-accent" /></div> : <>
           {geants.length > 0 && <>{titre("Les géants, pour te donner l'échelle", "Impossibles à refaire seul, mais ils montrent ce que rapporte un logiciel. Chiffres en clair.")}
-            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{geants.map(carte)}</div></>}
+            <div className={`mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 ${geants.length === 4 ? "xl:grid-cols-4" : "xl:grid-cols-3"}`}>{geants.map(carte)}</div></>}
           {faciles.length > 0 && <>{titre("Faciles à lancer, et ils encaissent déjà", "Deux exemples en clair : revenu vérifié, prix, difficulté. Bingoo! sait construire ta version.")}
             <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{faciles.map(carte)}</div></>}
-          {titre(`Et ${d.total ? (d.total - d.clairs.length).toLocaleString("fr-FR") : "des milliers d'"} autres`, "Les plus rentables et les plus faciles à refaire sont réservés aux membres.")}
+          {titre(`Et ${total ? `plus de ${(total - 1000).toLocaleString("fr-FR")}` : "des milliers d'"} autres`, "Les plus rentables et les plus faciles à refaire sont réservés aux membres.")}
           <div className="relative mt-5">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {(d.floutes ?? []).slice(0, 12).map((f, i) => <CarteSaas key={i} s={{ id: `f${i}`, domaine: "exemple.com", nom: FAUX[i % FAUX.length], categorie: f.categorie, vitrine: true }} debloquer={() => ouvrir("/explorer", "Crée ton compte gratuit pour débloquer les SaaS qui marchent.")} />)}
