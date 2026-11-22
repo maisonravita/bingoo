@@ -114,10 +114,11 @@ function useEffetsPage() {
 // Le point d'entrée (façon Foundable) : un seul encadré pour l'idée OU l'adresse d'un site qui plaît.
 // Une adresse → Bingoo! lit ce site point par point (sans IA) et fait ta version, même style, ton nom, ton logo.
 // Une idée → Bingoo! la construit écran par écran sous tes yeux. Dans les deux cas : le compte d'abord.
-const TYPES_IDEE = [["saas", "Mon SaaS", "M4 6h16v12H4z M4 10h16"], ["site", "Mon site web", "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M3 12h18 M12 3c3 3.5 3 14.5 0 18 M12 3c-3 3.5-3 14.5 0 18"], ["app", "Mon app mobile", "M8 3h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M11 18h2"]];
-const EXEMPLES_IDEE = { saas: ["Une app de réservation pour les coiffeurs", "Un CRM simple pour les agents immobiliers", "notion.so"], site: ["Le site de mon salon de coiffure à Lyon", "Un site pour mon activité de plombier", "Le site de ma pizzeria avec les réservations"], app: ["Une app pour suivre mes séances de sport", "Une app de recettes de la semaine", "Une app pour gérer mon budget"] };
+const TYPES_IDEE = [["saas", "Mon SaaS", "M4 6h16v12H4z M4 10h16"], ["site", "Mon site web", "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M3 12h18 M12 3c3 3.5 3 14.5 0 18 M12 3c-3 3.5-3 14.5 0 18"], ["app", "Mon app mobile", "M8 3h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M11 18h2"], ["video", "Ma vidéo", "M4 5h16v14H4z M10 9l5 3-5 3z"]];
+const EXEMPLES_IDEE = { video: ["Une vidéo pour présenter mon salon de barbier", "Le teaser de l'ouverture de ma boulangerie", "Une pub animée pour mon coaching en ligne"], saas: ["Une app de réservation pour les coiffeurs", "Un CRM simple pour les agents immobiliers", "notion.so"], site: ["Le site de mon salon de coiffure à Lyon", "Un site pour mon activité de plombier", "Le site de ma pizzeria avec les réservations"], app: ["Une app pour suivre mes séances de sport", "Une app de recettes de la semaine", "Une app pour gérer mon budget"] };
 const typeDe = (t) => {
   const x = String(t ?? "").toLowerCase();
+  if (/\b(vid[ée]os?|motion|clip|teaser|reels?|tiktok|pub anim[ée]e|animation)\b/.test(x)) return "video";
   if (/\b(app|appli|application)s?\b[^.]{0,30}\b(mobile|téléphone|telephone|iphone|android|smartphone)\b|\bapp(li)? (mobile|iphone|android)\b|\bapplication mobile\b/.test(x)) return "app";
   if (/\b(site|sites|page|vitrine|landing|boutique en ligne|e-?shop|portfolio|blog)\b/.test(x) && !/\b(logiciel|saas|plateforme|outil|crm|tableau de bord)\b/.test(x)) return "site";
   return "saas";
@@ -169,8 +170,13 @@ const ETAPES_FLOU = {
   saas: ["Concevoir les données et les écrans", "Écrire chaque écran", "Tester comme un vrai utilisateur", "Mettre en ligne à ton nom"],
   site: ["Écrire tes textes", "Composer ta page d'accueil", "Préparer ton espace gérant", "Mettre en ligne à ton nom"],
   app: ["Concevoir les onglets de l'app", "Écrire chaque écran", "Tester sur téléphone", "Préparer l'essai dans Expo Go"],
+  video: ["Écrire le scénario", "Choisir tes couleurs et ta police", "Animer les 20 secondes", "Composer la musique"],
   url: ["Lire le site point par point", "Relever couleurs, polices et rubriques", "Construire ta version écran par écran", "Mettre en ligne à ton nom"],
 };
+// Vidéo : un lecteur vertical sombre avec un titre animé
+function ApercuVideo() {
+  return <div className="grid h-full min-h-[420px] place-items-center"><div className="flex aspect-[9/16] h-[420px] flex-col items-center justify-center gap-4 rounded-2xl p-6" style={{ background: "radial-gradient(400px 300px at 30% 20%,#E8571C88,transparent),#0B0B10" }}><span className="h-6 w-40 rounded bg-white/80" /><span className="h-6 w-28 rounded bg-white/60" /><span className="mt-4 h-2 w-24 rounded-full bg-[#E8571C]" /></div></div>;
+}
 // Ce qui se dessine derrière : un logiciel (menu et contenu), une page de site, ou un téléphone
 const Sk = ({ c = "", w }) => <div className={cx("flou-sk rounded", c)} style={w ? { width: w } : null} />;
 function ApercuLogiciel({ sombre }) {
@@ -226,7 +232,7 @@ function ChantierFlou({ texte, genre, children }) {
             <div className="rounded-xl border border-black/[.08] p-4"><p className="text-[13px] font-bold text-[#1E2030]">Construction</p><div className="mt-2 h-1.5 rounded-full bg-[#EEEDEA]"><div className="h-full w-[6%] rounded-full bg-accent" /></div>
               <ul className="mt-3 space-y-2.5">{etapes.map((e, i) => <li key={e} className="flex items-center gap-2.5 text-[13.5px] text-[#3A3F55]">{i === 0 ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#EEEDEA] border-t-accent" /> : <span className="h-4 w-4 rounded-full border-2 border-[#EEEDEA]" />}{e}</li>)}</ul></div>
           </div>
-          <div className="min-w-0 flex-1 p-4 sm:p-6">{genre === "app" ? <ApercuApp /> : genre === "site" || genre === "url" ? <ApercuSite /> : <ApercuLogiciel sombre={sombre} />}</div>
+          <div className="min-w-0 flex-1 p-4 sm:p-6">{genre === "video" ? <ApercuVideo /> : genre === "app" ? <ApercuApp /> : genre === "site" || genre === "url" ? <ApercuSite /> : <ApercuLogiciel sombre={sombre} />}</div>
         </div>
       </div>
       <div className="absolute inset-0 bg-[#15171F]/25" aria-hidden />
@@ -248,7 +254,7 @@ function IdeeHero({ nav }) {
     const t = texte.trim();
     if (t.length < 4) { zone.current?.focus(); return; }
     setBusy(true);
-    const vers = url ? "/explorer/copie" : "/explorer/idee";
+    const vers = url ? "/explorer/copie" : type === "video" ? "/explorer/motion" : "/explorer/idee";
     try {
       if (url) { localStorage.setItem("bingoo-copie", JSON.stringify({ url: t.slice(0, 200), at: Date.now() })); localStorage.removeItem("bingoo-idee"); }
       else { localStorage.setItem("bingoo-idee", JSON.stringify({ texte: t.slice(0, 300), type, at: Date.now() })); localStorage.removeItem("bingoo-copie"); }
@@ -276,7 +282,7 @@ function IdeeHero({ nav }) {
         <button type="submit" disabled={busy} className="w-full sm:w-auto sm:ml-auto inline-flex items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 sm:py-2.5 text-[15px] font-bold text-white shadow-[0_10px_30px_-12px_rgba(226,85,35,.8)] transition hover:brightness-110 disabled:opacity-60">{busy ? "Un instant…" : <>{url ? "Faire ma version" : "Construire mon idée"} <Arrow /></>}</button>
       </div>
       {url && <p className="mt-2 px-1 text-[12.5px] text-[#5B6075]">Bingoo! relève ses couleurs, ses polices et son organisation, puis construit ta version avec ton nom et ton logo. Jamais leurs textes, leurs images ni leur logo.</p>}
-      {!url && type !== "saas" && <p className="mt-2 px-1 text-[12.5px] text-[#5B6075]">{type === "app" ? "Ton app pensée pour le téléphone, à essayer tout de suite dans Expo Go. La publication sur l'App Store et Google Play arrive bientôt." : "Ton site en ligne en quelques minutes : tes services, tes prix, tes horaires et un formulaire de demande."}</p>}
+      {!url && type !== "saas" && <p className="mt-2 px-1 text-[12.5px] text-[#5B6075]">{type === "video" ? "20 secondes en motion design, à tes couleurs, avec une musique libre de droits : tu la retouches en discutant et tu la télécharges en vertical, carré ou paysage." : type === "app" ? "Ton app pensée pour le téléphone, à essayer tout de suite dans Expo Go. La publication sur l'App Store et Google Play arrive bientôt." : "Ton site en ligne en quelques minutes : tes services, tes prix, tes horaires et un formulaire de demande."}</p>}
       {!texte && <div className="mt-3 flex flex-wrap gap-1.5 border-t border-black/[.06] px-1 pt-3">{EXEMPLES_IDEE[type].map((x) => <button key={x} type="button" onClick={() => { setTexte(x); zone.current?.focus(); }} className="rounded-full bg-[#F4F4F1] px-3 py-1.5 text-[13px] text-[#5B6075] hover:bg-[#ECECE7]">{x}</button>)}</div>}
     </form>
   );

@@ -181,6 +181,33 @@ if (["1", "site", "app"].includes(process.env.IDEE)) {
     await ctx.close();
   }
 }
+// CONSTRUIRE=motion : le produit « Vidéo motion design » : une phrase venue de l'accueil, la vidéo qui joue, une retouche, l'export
+if (CONSTRUIRE === "motion") {
+  const texte = process.env.TEXTE_IDEE || "Une vidéo pour présenter mon salon de barbier à Lyon, coupe homme 20 €";
+  const { ctx, page } = await ouvrir(ws, { "bingoo-idee": { texte, type: "video", at: Date.now() } });
+  const t0 = Date.now();
+  await page.goto(`${SITE}/?c=${t0}#/explorer/motion`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+  await page.waitForTimeout(2500); await page.screenshot({ path: `${DOSSIER}/motion-0-ecriture.png` }).catch(() => null);
+  await page.locator("canvas").first().waitFor({ timeout: 90000 }).catch(() => console.log("✗ la vidéo n'est pas apparue"));
+  console.log(`Vidéo prête en ${Math.round((Date.now() - t0) / 1000)} s`);
+  for (const k of [1, 2, 3, 4, 5]) { await page.waitForTimeout(3600); await page.screenshot({ path: `${DOSSIER}/motion-${k}.png` }).catch(() => null); }
+  const scen = await page.evaluate(() => document.body.innerText).catch(() => ""); console.log("Page :", scen.replace(/\s+/g, " ").slice(0, 700));
+  // Une retouche dans la discussion
+  await page.locator("textarea").first().fill("Plus sobre, fond clair, et mets-la en bleu marine").catch(() => null);
+  await page.keyboard.press("Enter").catch(() => null);
+  const t1 = Date.now();
+  await page.getByText("C'est fait, regarde la nouvelle version.").waitFor({ timeout: 90000 }).catch(() => console.log("✗ retouche sans réponse"));
+  console.log(`Retouche en ${Math.round((Date.now() - t1) / 1000)} s`);
+  for (const k of [6, 7]) { await page.waitForTimeout(4200); await page.screenshot({ path: `${DOSSIER}/motion-${k}.png` }).catch(() => null); }
+  // Format paysage
+  await page.getByRole("button", { name: "16:9" }).click().catch(() => null); await page.waitForTimeout(5000); await page.screenshot({ path: `${DOSSIER}/motion-8-paysage.png` }).catch(() => null);
+  // Export dans le navigateur
+  const dl = page.waitForEvent("download", { timeout: 120000 }).catch(() => null);
+  await page.getByRole("button", { name: "Télécharger" }).click().catch(() => null);
+  const d = await dl;
+  if (d) { const f = `${DOSSIER}/motion-export-${d.suggestedFilename()}`; await d.saveAs(f).catch(() => null); console.log("✓ Export :", d.suggestedFilename(), fs.existsSync(f) ? fs.statSync(f).size + " octets" : "?"); } else console.log("✗ export sans fichier");
+  await ctx.close();
+}
 if (CONSTRUIRE === "spec") {
   // Exporte la définition d'un SaaS (DOMAINE = son adresse courte) pour le photographier écran par écran hors ligne
   const [x] = await q(`select spec from saas_apps where slug = ${lit(process.env.DOMAINE ?? "")}`);
@@ -317,7 +344,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);

@@ -187,6 +187,7 @@ export default function Idee() {
   const { ws, session } = useWs();
   const nav = useNavigate();
   const [idee] = useState(() => lire("bingoo-idee"));
+  useEffect(() => { if (idee?.type === "video") nav("/explorer/motion", { replace: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [etat, setEtat] = useState("charge"), [r, setR] = useState(null), [err, setErr] = useState(null);
   const [reponses, setReponses] = useState([]), [choix, setChoix] = useState({}), [nom, setNom] = useState(""), [busy, setBusy] = useState(false);
   const charger = async (rep = []) => {

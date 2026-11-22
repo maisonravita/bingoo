@@ -1215,6 +1215,45 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     }
     return res;
   },
+  // Vidéo motion design libre (sans SaaS) : une phrase → scénario + style ; animée et exportée dans le navigateur
+  async "video-creer"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const texte = String(b.texte ?? "").trim().slice(0, 800);
+    if (texte.length < 8) throw new HttpError(400, "Décris ta vidéo en une phrase : pour quoi, pour qui");
+    const format = ["paysage", "carre"].includes(b.format) ? b.format : "vertical";
+    await quota(ws.id, "video_libre", 15);
+    setAi({ ws: ws.id, live: true, feature: "video" });
+    const { videoLibre } = await import("../_shared/app-video.ts");
+    let sc: any;
+    try { sc = await videoLibre(texte); } catch (e) { if ((e as any)?.status === 400) throw new HttpError(400, (e as Error).message); throw e; }
+    const { categorieDesign, tirerDesign } = await import("../_shared/design.ts");
+    const d: any = tirerDesign(categorieDesign(String(sc.secteur_en ?? "") || texte));
+    const { secteur_en: _s, ...script } = sc;
+    const final = { ...script, couleur: d?.couleurs?.primary ?? "#E8571C", police: d?.polices?.titres ?? "Plus Jakarta Sans" };
+    const { data: v } = await admin.from("saas_videos").insert({ app_id: null, workspace_id: ws.id, format, script: final, texte }).select("id, format, script, texte, at").single();
+    await log(ws.id, "video_libre", `Vidéo : ${texte.slice(0, 80)}`);
+    return v;
+  },
+  async "video-retouche"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const demande = String(b.demande ?? "").trim().slice(0, 400);
+    if (demande.length < 3) throw new HttpError(400, "Écris ce que tu veux changer dans la vidéo");
+    const { data: v0 } = await admin.from("saas_videos").select("id, format, script, texte").eq("id", String(b.video_id ?? "")).eq("workspace_id", ws.id).is("app_id", null).maybeSingle();
+    if (!v0) throw new HttpError(404, "Vidéo introuvable");
+    await quota(ws.id, "video_libre_retouche", 40);
+    setAi({ ws: ws.id, live: true, feature: "video" });
+    const { videoLibreRetouche } = await import("../_shared/app-video.ts");
+    const script = await videoLibreRetouche(v0.script as any, demande);
+    const format = ["paysage", "carre", "vertical"].includes(b.format) ? b.format : v0.format;
+    const { data: v } = await admin.from("saas_videos").insert({ app_id: null, workspace_id: ws.id, format, script, texte: v0.texte }).select("id, format, script, texte, at").single();
+    await log(ws.id, "video_libre_retouche", `Vidéo retouchée : ${demande.slice(0, 80)}`);
+    return v;
+  },
+  async "videos-libres"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { data } = await admin.from("saas_videos").select("id, format, script, texte, at").eq("workspace_id", ws.id).is("app_id", null).order("at", { ascending: false }).limit(20);
+    return { videos: data ?? [] };
+  },
   async "saas-videos"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const { data } = await admin.from("saas_videos").select("id, format, script, at").eq("workspace_id", ws.id).eq("app_id", String(b.app_id ?? "")).order("at", { ascending: false }).limit(10);

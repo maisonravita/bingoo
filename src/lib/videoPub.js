@@ -250,6 +250,19 @@ function ecrans(ctx, s) {
   if (!e) return;
   const img = s.images?.[i] && s.images[i].width ? s.images[i] : null;
   const entree = easeOut(prog(lt, 0, 0.6)), sortie = i < liste.length - 1 ? easeInOut(prog(lt, par - 0.35, par)) : 0;
+  // Vidéo libre (pas un logiciel) : pas de fausse fenêtre d'application, un temps fort en grand autour d'un numéro
+  if (script.genre === "libre") {
+    const a = alpha * Math.min(entree, 1 - sortie), cx = W / 2, cy = H * (s.vertical ? 0.34 : 0.3), R = (s.vertical ? 150 : 120) * u;
+    ctx.save(); ctx.globalAlpha = a; ctx.translate((1 - entree) * 180 * u - sortie * 180 * u, 0);
+    ctx.strokeStyle = rgba(cv, 0.28); ctx.lineWidth = 3 * u; ctx.beginPath(); ctx.arc(cx, cy, R * 1.35, 0, 7); ctx.stroke();
+    ctx.strokeStyle = rgba(cv, 1); ctx.lineWidth = 10 * u; ctx.lineCap = "round"; ctx.beginPath(); ctx.arc(cx, cy, R * 1.35, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * easeOut(prog(lt, 0.1, par * 0.8))); ctx.stroke();
+    ctx.fillStyle = rgba(cv, 1); ctx.beginPath(); ctx.arc(cx, cy, R * ressort(prog(lt, 0, 0.7)), 0, 7); ctx.fill();
+    ctx.fillStyle = CLAIR ? "#fff" : "#07070C"; ctx.font = `800 ${R * 1.05}px ${POLICE}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(String(i + 1), cx, cy + 4 * u);
+    const ty = H * (s.vertical ? 0.58 : 0.62), larg = W * (s.vertical ? 0.84 : 0.7);
+    texteAnime(ctx, e.titre, cx, ty, { taille: (s.vertical ? 96 : s.carre ? 78 : 84) * u, largeur: larg, t: lt, decale: 0.05 });
+    if (e.detail) texteAnime(ctx, e.detail, cx, ty + (s.vertical ? 150 : 120) * u, { taille: (s.vertical ? 50 : 44) * u, poids: 600, largeur: larg, t: lt - 0.25, couleur: TX2(0.72), decale: 0.03 });
+    ctx.restore(); return;
+  }
   ctx.globalAlpha = alpha;
   // Une vraie capture garde ses proportions (16:10) : la fenêtre s'y adapte
   const empile = s.vertical || s.carre;

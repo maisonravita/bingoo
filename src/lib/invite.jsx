@@ -141,7 +141,7 @@ export function departEnAttente() {
     const dep = JSON.parse(localStorage.getItem("bingoo-depart") ?? "null");
     if (frais(dep) && /^\/explorer(\/[a-z0-9.-]+)?$/.test(dep.vers ?? "")) return dep.vers;
     if (frais(c) && (!frais(i) || c.at >= i.at)) return "/explorer/copie";
-    if (frais(i) && i.texte) return "/explorer/idee";
+    if (frais(i) && i.texte) return i.type === "video" ? "/explorer/motion" : "/explorer/idee";
   } catch { /* stockage indisponible */ }
   return null;
 }

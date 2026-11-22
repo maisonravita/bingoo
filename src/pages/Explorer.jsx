@@ -24,6 +24,7 @@ const MonSaas = lazy(() => charger(() => import("./MonSaas")));
 const ApplisMobiles = lazy(() => charger(() => import("../components/ApplisMobiles")));
 const IdeePage = lazy(() => charger(() => import("./Idee")));
 const CopiePage = lazy(() => charger(() => import("./Copie")));
+const MotionPage = lazy(() => charger(() => import("./Motion")));
 const ValiderIdee = lazy(() => charger(() => import("../components/ValiderIdee")));
 const MesFavoris = lazy(() => charger(() => import("../components/MesFavoris")));
 import Favori from "../components/Favori";
@@ -73,6 +74,7 @@ export default function Explorer({ domaine: fixe }) {
   // Sans compte, on ne peut pas explorer Bingoo! : seul le parcours « Trouver mon SaaS » est ouvert
   // Galerie de modèles : ouverte à tous (l'invité crée son compte au moment de lancer)
   // « Construire mon idée » (page d'accueil) : l'aperçu gratuit est ouvert à tous, le compte est demandé au moment de construire
+  if (d === "motion") return <Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><MotionPage /></Suspense>;
   if (d === "idee") return <Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><IdeePage /></Suspense>;
   if (d === "copie") return <Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><CopiePage /></Suspense>;
   if (d === "modeles") return <><Onglets actif="modeles" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><Modeles /></Suspense></>;

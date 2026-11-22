@@ -239,6 +239,7 @@ function rubriques(ws, invite) {
     { to: "/explorer", label: "Explorer les SaaS", icon: "list", also: ["/explorer/trouver", "/explorer/copier", "/explorer/chiffres", "/explorer/niches", "/explorer/classement", "/explorer/marche", "/explorer/carte", "/explorer/idees", "/explorer/pubs", "/explorer/suivis", "/explorer/bouge", "/explorer/createurs", "/explorer/demande", "/explorer/connecteur"] },
     { to: "/explorer/modeles", label: "Partir d'un modèle", icon: "spark" },
     { to: "/explorer/applis", label: "Applis mobiles", icon: "phone" },
+    { to: "/explorer/motion", label: "Vidéo motion design", icon: "video" },
     { to: "/explorer/valider", label: "Valider une idée", icon: "shield" },
     { to: "/explorer/vendre", label: "Acheter / vendre", icon: "doc", also: ["/explorer/bourse", "/explorer/racheter"] },
     { to: "/explorer/favoris", label: "Mes favoris", icon: "heart" },
