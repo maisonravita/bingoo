@@ -333,7 +333,7 @@ export default function Landing() {
             <IdeeHero nav={nav} />
             <button onClick={() => nav("/decouvrir")} className="hero-in group mx-auto mt-6 flex max-w-[680px] w-full items-center gap-4 rounded-2xl border border-black/[.08] bg-[#FAFAF7] px-5 py-4 text-left transition hover:border-black/20 hover:bg-white" style={{ ...JK, animationDelay: ".26s" }}>
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#1E2030] text-[20px] text-white">✦</span>
-              <span className="min-w-0 flex-1"><span className="block text-[16px] font-bold text-[#1E2030]">Pas d'idée ? Découvre les {nb ? (Math.floor(nb / 1000) * 1000).toLocaleString("fr-FR") : "milliers de"} SaaS qui marchent déjà</span><span className="block text-[14px] text-[#5B6075]">Choisis celui qui te plaît : Bingoo! construit ta version, à ton nom.</span></span>
+              <span className="min-w-0 flex-1"><span className="block text-[16px] font-bold text-[#1E2030]">Pas d'idée ? Découvre les {nb ? `${Math.floor(nb / 1000)}K` : "milliers de"} SaaS et applis qui marchent déjà</span><span className="block text-[14px] text-[#5B6075]">Choisis celui qui te plaît : Bingoo! construit ta version, à ton nom.</span></span>
               <span className="shrink-0 text-[#1E2030] transition group-hover:translate-x-1"><Arrow className="h-5 w-5" /></span>
             </button>
             <p className="mt-6 text-[12.5px] text-ink-faint">Aucun revenu n'est garanti : tu pars de SaaS qui encaissent déjà, et Bingoo! t'aide à faire pareil.</p>

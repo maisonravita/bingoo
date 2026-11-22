@@ -49,7 +49,7 @@ export default function Decouvrir() {
 
       <main className="mx-auto max-w-[1180px] px-4 sm:px-6 pb-24 pt-10 sm:pt-14">
         <p className="text-[13px] font-bold uppercase tracking-[.16em] text-accent">Pas d'idée ? Pars de ce qui marche</p>
-        <h1 className="mt-2 max-w-[820px] text-[34px] sm:text-[52px] font-bold leading-[1.05] tracking-[-.02em] text-[#1E2030]">{total ? `${total.toLocaleString("fr-FR")} SaaS qui gagnent déjà de l'argent.` : "Des milliers de SaaS qui gagnent déjà de l'argent."}</h1>
+        <h1 className="mt-2 max-w-[820px] text-[34px] sm:text-[52px] font-bold leading-[1.05] tracking-[-.02em] text-[#1E2030]">{total ? `${Math.floor(total / 1000)}K SaaS et applis, avec leurs revenus.` : "Des milliers de SaaS et d'applis, avec leurs revenus."}</h1>
         <p className="mt-3 max-w-[720px] text-[17px] leading-relaxed text-[#3A3F55]">Leurs revenus, leurs prix, et ce qu'il faut pour les refaire. Choisis celui qui te plaît : Bingoo! construit ta version, à ton nom.</p>
 
         {!d ? <div className="mt-16 grid place-items-center"><span className="h-6 w-6 animate-spin rounded-full border-2 border-line border-t-accent" /></div> : <>
@@ -57,7 +57,7 @@ export default function Decouvrir() {
             <div className={`mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 ${geants.length === 4 ? "xl:grid-cols-4" : "xl:grid-cols-3"}`}>{geants.map(carte)}</div></>}
           {faciles.length > 0 && <>{titre("Faciles à lancer, et ils encaissent déjà", "Deux exemples en clair : revenu vérifié, prix, difficulté. Bingoo! sait construire ta version.")}
             <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{faciles.map(carte)}</div></>}
-          {titre(`Et ${total ? `plus de ${(total - 1000).toLocaleString("fr-FR")}` : "des milliers d'"} autres`, "Les plus rentables et les plus faciles à refaire sont réservés aux membres.")}
+          {titre(`Et ${total ? `plus de ${Math.floor(total / 1000) - 1}K` : "des milliers d'"} autres`, "Les plus rentables et les plus faciles à refaire sont réservés aux membres.")}
           <div className="relative mt-5">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {(d.floutes ?? []).slice(0, 12).map((f, i) => <CarteSaas key={i} s={{ id: `f${i}`, domaine: "exemple.com", nom: FAUX[i % FAUX.length], categorie: f.categorie, vitrine: true }} debloquer={() => ouvrir("/explorer", "Crée ton compte gratuit pour débloquer les SaaS qui marchent.")} />)}
