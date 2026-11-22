@@ -49,7 +49,8 @@ function Gate() {
     return <Splash />;
   }
   // Visiteur : la page d'accueil ; la connexion et l'inscription sont sur /connexion
-  if (!session && loc.pathname === "/" && !pendingJoin) return <Landing />;
+  // Un visiteur déjà passé (session invité) qui revient sur bingoo.fr voit l'accueil, pas le questionnaire
+  if ((!session || estInvite(session)) && loc.pathname === "/" && !pendingJoin) return <Landing />;
   // « Se connecter » depuis une visite sans compte : la page de connexion, sans recréer de session invité
   let veutConnexion = false; try { veutConnexion = localStorage.getItem("bingoo-connexion") === "1"; if (session && !estInvite(session)) localStorage.removeItem("bingoo-connexion"); } catch { /* stockage indisponible */ }
   if (!session && !pendingJoin && loc.pathname.startsWith("/explorer") && !veutConnexion) return <EntreeInvite repli={<Auth />} />;
