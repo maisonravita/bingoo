@@ -71,6 +71,25 @@ const photo = async (page, nom, chemin, attente = 5000) => {
   await page.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await page.waitForTimeout(3000);
   await page.screenshot({ path: `${DOSSIER}/accueil.png` }); console.log("✓ accueil"); await ctx.close();
 }
+// CONSTRUIRE=gratuit : l'Explorer vu par un compte gratuit (un autre compte de test, sans abonnement)
+if (CONSTRUIRE === "gratuit") {
+  const E2 = "robot-gratuit@maisonravita.fr", M2 = crypto.randomBytes(18).toString("base64url");
+  let [u2] = await q(`select id from auth.users where email = ${lit(E2)}`);
+  if (!u2) u2 = await adminAuth("users", "POST", { email: E2, password: M2, email_confirm: true, user_metadata: { name: "Robot gratuit" } });
+  else await adminAuth(`users/${u2.id}`, "PUT", { password: M2 });
+  const s2 = await (await fetch(`${SB}/auth/v1/token?grant_type=password`, { method: "POST", headers: { apikey: ANON, "content-type": "application/json" }, body: JSON.stringify({ email: E2, password: M2 }) })).json();
+  let [m2] = await q(`select m.workspace_id id from members m where m.user_id = ${lit(s2.user.id)} limit 1`);
+  let w2 = m2?.id;
+  if (!w2) { const r = await fetch(`${SB}/rest/v1/rpc/create_workspace`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${s2.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ p_name: "Robot gratuit", p_website: "" }) }); w2 = await r.json(); }
+  await q(`update workspaces set plan = null, plan_status = null, onboarded = true where id = ${lit(w2)}`);
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR", storageState: { cookies: [], origins: [{ origin: SITE, localStorage: [{ name: `sb-${REF}-auth-token`, value: JSON.stringify(s2) }, { name: "kairo-ws", value: w2 }] }] } });
+  const page = await ctx.newPage();
+  for (const [nom, chemin] of [["gratuit-explorer", "#/explorer"], ["gratuit-fiche-geant", "#/explorer/salesforce.com"], ["gratuit-fiche-facile", "#/explorer/pmsuite.co"]]) {
+    await page.goto(`${SITE}/?c=${Date.now()}${chemin}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await page.waitForTimeout(5000);
+    await page.screenshot({ path: `${DOSSIER}/${nom}.png`, fullPage: nom === "gratuit-explorer" }); console.log("✓", nom);
+  }
+  await ctx.close();
+}
 // CONSTRUIRE=copie : l'accueil d'un visiteur qui colle une adresse, puis l'étape « compte » (avant toute construction)
 if (CONSTRUIRE === "copie") {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const page = await ctx.newPage();
@@ -237,6 +256,8 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
+} else if (CONSTRUIRE === "gratuit") {
+  console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
   for (const [nom, chemin] of [["mon-saas", "#/explorer/mon-saas"], ["atelier", "#/explorer/atelier"], ["modeles", "#/explorer/modeles"], ["connecteur", "#/explorer/connecteur"], ["abonnement", "#/abonnement"]]) await photo(page, nom, chemin);
