@@ -107,10 +107,12 @@ export async function scannerSite(entree: string): Promise<Scan> {
   fusion.sort((a, b) => b[1] - a[1]);
   // Variables de marque déclarées (--brand, --primary, --color-accent…) : le signal le plus fiable
   const marque = [...css.matchAll(/--(?:[a-z-]*-)?(?:brand|primary|accent)(?:-[a-z0-9]+)?\s*:\s*(#[0-9a-f]{3,8})\b/gi)].map((m) => hexRgb(m[1])).filter((c): c is Rgb => !!c);
+  // La variable de marque principale (--brand, --cal-brand, --primary, sans suffixe) l'emporte, même sobre (noir)
+  const principale = [...css.matchAll(/--(?:[a-z]+-)?(?:brand|primary)\s*:\s*(#[0-9a-f]{3,8})\b/gi)].map((m) => hexRgb(m[1])).find((c): c is Rgb => !!c && lum(c) < 0.75) ?? null;
   const marqueVive = marque.find((c) => sat(c) > 0.3 && lum(c) > 0.03 && lum(c) < 0.75);
   // Bouton principal noir (ou presque) : une marque sobre, gardée telle quelle
   const boutonSombre = boutons.find((c) => sat(c) < 0.15 && lum(c) < 0.06) ?? marque.find((c) => sat(c) < 0.15 && lum(c) < 0.06);
-  const primaire = (theme && sat(theme) > 0.3 ? theme : null) ?? marqueVive ?? boutons.find((c) => sat(c) > 0.3) ?? boutonSombre ?? fusion[0]?.[0] ?? null;
+  const primaire = (theme && sat(theme) > 0.3 ? theme : null) ?? principale ?? marqueVive ?? boutons.find((c) => sat(c) > 0.3) ?? boutonSombre ?? fusion[0]?.[0] ?? null;
   const fondBody = [...css.matchAll(/(?:^|[}\s,])(?:body|html|:root)\s*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-f]{3,8})/gi)].map((m) => hexRgb(m[1])).find(Boolean) ?? null;
   const texteBody = [...css.matchAll(/(?:^|[}\s,])body\s*\{[^}]*[^-]color\s*:\s*(#[0-9a-f]{3,8})/gi)].map((m) => hexRgb(m[1])).find(Boolean) ?? null;
   const fond: Rgb = fondBody ?? [255, 255, 255];

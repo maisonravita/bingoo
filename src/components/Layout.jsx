@@ -379,12 +379,12 @@ export default function Layout({ children }) {
       {bandeauPaiement}
       <header className="sticky top-0 z-40 border-b border-line/70 bg-white/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
-          <NavLink to="/explorer/trouver"><Logo /></NavLink>
-          <nav className="ml-4 hidden md:flex items-center gap-1 text-[14px] font-medium">
-            <NavLink to="/explorer/trouver" className={({ isActive }) => cx("rounded-xl px-3 py-2", isActive ? "text-ink" : "text-ink-soft hover:text-ink")}>Trouver mon SaaS</NavLink>
-            <NavLink to="/explorer/modeles" className={({ isActive }) => cx("rounded-xl px-3 py-2", isActive ? "text-ink" : "text-ink-soft hover:text-ink")}>Modèles</NavLink>
-            {invite ? <button onClick={() => demanderCompte("Crée ton compte gratuit pour explorer les SaaS qui marchent.")} className="rounded-xl px-3 py-2 text-ink-soft hover:text-ink">Explorer les SaaS</button>
-              : <>{[["/explorer", "Explorer les SaaS"], ["/explorer/applis", "Applis mobiles"], ["/explorer/valider", "Valider une idée"], ["/explorer/favoris", "Mes favoris"]].map(([to, l]) => <NavLink key={to} to={to} end className={({ isActive }) => cx("rounded-xl px-3 py-2", isActive ? "text-ink" : "text-ink-soft hover:text-ink")}>{l}</NavLink>)}</>}
+          <NavLink to="/accueil"><Logo /></NavLink>
+          {/* Même parcours que l'accueil : une idée (ou une adresse), les SaaS qui marchent, les modèles */}
+          <nav className="ml-4 hidden md:flex items-center gap-1 whitespace-nowrap text-[14px] font-medium">
+            {[["/accueil", "Nouvelle idée"], ["/explorer", "Explorer les SaaS"], ["/explorer/modeles", "Modèles"]].map(([to, l]) => invite && to === "/explorer"
+              ? <button key={to} onClick={() => demanderCompte("Crée ton compte gratuit pour explorer les SaaS qui marchent.")} className="rounded-xl px-3 py-2 text-ink-soft hover:text-ink">{l}</button>
+              : <NavLink key={to} to={to} end className={({ isActive }) => cx("rounded-xl px-3 py-2", isActive ? "text-ink" : "text-ink-soft hover:text-ink")}>{l}</NavLink>)}
           </nav>
           <div className="flex-1" />
           <NavLink to="/aide" className="hidden sm:block rounded-xl px-3 py-2 text-[14px] font-medium text-ink-soft hover:text-ink">Aide</NavLink>
