@@ -7,9 +7,9 @@ import Logo from "../components/Logo";
 import { cx } from "../lib/utils";
 import { legalReady } from "./Legal";
 import ResultatsBingoo from "../components/ResultatsBingoo";
-import { Fenetre, ApercuTendance, ApercuVersion, ApercuProspects, ApercuSemaine } from "../components/VitrineAccueil";
+import { Fenetre, ApercuSemaine } from "../components/VitrineAccueil";
 import { supabase } from "../lib/supabase";
-import { BaseSaaS, BingooIA } from "../components/VitrineBase";
+import { BingooIA } from "../components/VitrineBase";
 
 // Page d'accueil publique de Bingoo! : épurée, et chaque promesse adossée à une preuve.
 // Deux preuves seulement : l'application filmée sur un vrai compte, et l'essai en direct sur le site du visiteur.
@@ -27,7 +27,7 @@ const ICONES = {
   pub: ico(<><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z" /><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" /></>),
   verifie: ico(<><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z" /><path d="m9 12 2 2 4-4" /></>),
 };
-const MENU = [["La base", "#base"], ["Comment ça marche", "#comment"], ["Dans ton IA", "#ia"], ["Tes clients", "#clients"], ["Questions", "#faq"]];
+const MENU = [["Comment ça marche", "#comment"], ["Un site qui te plaît", "#copie"], ["Pas d'idée ?", "#idees"], ["Prix", "#prix"], ["Questions", "#faq"]];
 
 // Nombre de SaaS suivis dans la base Explorer (vue publique), affiché tel quel
 function useNbSaas() {
@@ -51,16 +51,15 @@ function useReveal() {
 
 /* ---------- La preuve : l'application filmée sur un vrai compte, en 4 onglets ---------- */
 const FAQ = [
-  ["Je ne sais pas coder, ça marche quand même ?", "Oui. Tu réponds à quelques questions, tu choisis ton SaaS, et Bingoo! construit ta version : le site, les comptes de tes clients, l'abonnement avec ton Stripe. Tu n'écris pas une ligne de code."],
-  ["Le SaaS est à moi ?", "Oui. Il est à ton nom et sur ton domaine, et l'argent de tes clients arrive directement sur ton compte Stripe : Bingoo! ne prend rien sur tes ventes. Tu peux télécharger son code à tout moment."],
-  ["En combien de temps ma version est en ligne ?", "Souvent en une journée. Si elle n'est pas en ligne dans les 14 jours qui suivent ton paiement, tu es remboursé."],
-  ["Combien ça coûte ?", "Explorer les SaaS est gratuit, avec les revenus masqués. L'offre Trouver débloque tous les chiffres pour 9,99 € HT par mois, sans engagement. L'offre Lancer, qui construit en plus ta version, coûte 24,99 € HT par mois sans engagement, 16,99 € par mois sur 3 mois ou 9,99 € par mois sur 12 mois. Tes clients te paient directement sur ton Stripe : Bingoo! ne prend rien sur tes ventes."],
-  ["Qu'est-ce que je vois avant de payer ?", "Tu réponds aux questions sans compte, et tu vois en direct combien de SaaS vérifiés collent à ton profil, leur revenu médian et combien sont en tendance. Les SaaS eux-mêmes, leurs chiffres et ta version se débloquent ensuite, sans engagement."],
-  ["Bingoo! garantit que mon SaaS va marcher ?", "Non, et personne ne peut le garantir. Bingoo! garantit une chose : ta version en ligne sous 14 jours, ou remboursé. Ensuite, Bingoo! te donne des SaaS qui ont fait leurs preuves, un plan et des contacts ; trouver des clients dépend du marché et de ce que tu fais chaque jour."],
-  ["Combien je vais gagner ?", "Personne ne peut te le promettre, et Bingoo! ne le fait pas. Ce qu'il fait : te faire partir de SaaS qui encaissent déjà (revenus vérifiés chez leur outil de paiement), construire ta version, et te donner chaque jour quoi faire pour trouver tes 10 premiers clients. Le reste dépend de toi."],
-  ["Comment Bingoo! trouve mes premiers clients ?", "Pour ta version, il cherche dans le registre public des entreprises les établissements de ton département qui ont le problème (par exemple 50 salons de coiffure à Paris), te prépare le message à envoyer et suit avec toi qui a répondu, qui essaie, qui paie. Tu envoies toi-même, depuis ton adresse."],
-  ["D'où viennent les chiffres ?", "Les revenus sont vérifiés directement chez l'outil de paiement des SaaS (Stripe et d'autres), via TrustMRR. La visibilité, les canaux et la pub viennent de leurs propres déclarations et de sources publiques. Chaque chiffre a sa source sur la fiche."],
-  ["Faire ma version d'un SaaS, c'est légal ?", "Faire la même chose qu'un autre, oui : c'est la concurrence. Bingoo! construit ta version avec ton nom, tes textes et ton design, et souvent un angle à toi (en français, pour un métier, plus simple). Reprendre la marque, les textes mot pour mot ou le design d'un autre, non."],
+  ["Je ne sais pas coder, ça marche quand même ?", "Oui. Tu décris ton idée en une phrase (ou tu colles l'adresse d'un site qui te plaît), et Bingoo! construit tout : les écrans, les comptes de tes clients, les paiements avec ton Stripe, la page de présentation. Tu n'écris pas une ligne de code."],
+  ["Qu'est-ce que Bingoo! peut construire ?", "Un logiciel en ligne (SaaS) avec ses comptes clients et ses abonnements, un site web pour ton activité, ou une app mobile à essayer tout de suite sur ton téléphone. Si une partie de ton idée ne peut pas marcher telle quelle, Bingoo! te le dit avant de construire et propose une autre façon de faire."],
+  ["Je vois quoi avant de payer ?", "Après ton inscription gratuite : l'aperçu de ton idée (son nom, ses écrans, une maquette de l'écran principal) et ce qui sera fait autrement. Tu paies seulement quand tu cliques sur « Construire »."],
+  ["Combien ça coûte ?", "Un SaaS ou une app : formule Lancer, 24,99 € par mois sans engagement, ou 19 € par mois à vie pour les 50 premiers membres. Un site web : formule Site, 9,99 € par mois, hébergement compris. Explorer les SaaS et voir l'aperçu de ton idée sont gratuits. Tes clients te paient directement sur ton Stripe : Bingoo! ne prend rien sur tes ventes."],
+  ["Ça prend combien de temps ?", "Quelques minutes pour un site, souvent moins d'une heure pour un SaaS : tu regardes Bingoo! écrire chaque écran, le tester comme un vrai client et corriger ce qui ne marche pas. Ensuite tu modifies ce que tu veux dans l'atelier, en une phrase ou d'un double-clic sur un texte."],
+  ["« Un site qui te plaît » : c'est légal ?", "Bingoo! reprend l'ambiance d'un site (ses couleurs, ses polices, l'organisation de ses pages), qui ne se protègent pas. Il ne reprend jamais ses textes, ses images, son nom ni son logo : ta version porte ton nom, ton logo et tes propres textes."],
+  ["Le SaaS est à moi ?", "Oui. Il est à ton nom, sur ton domaine si tu veux, et l'argent de tes clients arrive sur ton compte Stripe. Tu peux télécharger son code à tout moment."],
+  ["Bingoo! garantit que ça va marcher ?", "Non, et personne ne peut le garantir. Bingoo! construit un produit qui fonctionne et t'aide ensuite à trouver tes premiers clients ; le reste dépend du marché et de ce que tu fais chaque jour."],
+  ["D'où viennent les chiffres des SaaS ?", "Les revenus sont vérifiés directement chez l'outil de paiement des SaaS (Stripe et d'autres), via TrustMRR. Le reste vient de leurs pages publiques. Chaque chiffre a sa source sur la fiche."],
   ["Et si j'arrête mon abonnement ?", "Tu arrêtes quand tu veux. Ton SaaS est hébergé par Bingoo! tant que tu es abonné : avant d'arrêter, tu télécharges son code pour l'héberger ailleurs, et Bingoo! te prévient avant toute mise hors ligne."],
 ];
 
@@ -75,11 +74,6 @@ function useLectureAuto(ref) {
     io.observe(v);
     return () => io.disconnect();
   }, [ref]);
-}
-function VideoAuto({ src, poster }) {
-  const ref = useRef(null);
-  useLectureAuto(ref);
-  return <div className="fx-halo"><video ref={ref} src={src} poster={poster} muted loop playsInline preload="metadata" controls className="block w-full rounded-2xl bg-white" /></div>;
 }
 function FilmAuto() {
   const ref = useRef(null);
@@ -291,9 +285,6 @@ function IdeeHero({ nav }) {
 }
 
 export default function Landing() {
-  // Le compteur de la démonstration est le vrai : SaaS vérifiés que Bingoo! sait construire, et ceux qui sont en tendance
-  const [demo, setDemo] = useState(null);
-  useEffect(() => { supabase.rpc("saas_pour_moi_apercu", { p: {} }).then(({ data }) => setDemo(data ?? null)); }, []);
   const nav = useNavigate();
   useReveal();
   useEffetsPage();
@@ -327,7 +318,6 @@ export default function Landing() {
             <h1 className="hero-in relative mx-auto max-w-[1180px]" style={JK}>
               <span className="block text-[32px] sm:text-[50px] lg:text-[66px] leading-[1.1] text-[#3A3F55]" style={{ fontWeight: 500, letterSpacing: "-.01em" }}>Donne ton idée.</span>
               <span className="mt-1 block text-[38px] sm:text-[60px] lg:text-[80px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>Bingoo! <span className="fx-texte">la construit.</span></span>
-              <span className="mt-4 sm:mt-6 hidden sm:flex justify-center"><span className="sr-only">Bingoo!</span><Logo height="clamp(64px, 9vw, 112px)" className="!self-center" /></span>
             </h1>
             <p className="hero-in mx-auto mt-4 sm:mt-7 max-w-[720px] text-[16px] sm:text-[21px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Ton SaaS, ton site ou ton app : Bingoo! le crée écran par écran sous tes yeux, le teste et le met en ligne à ton nom.</p>
             <IdeeHero nav={nav} />
@@ -336,13 +326,8 @@ export default function Landing() {
               <span className="min-w-0 flex-1"><span className="block text-[16px] font-bold text-[#1E2030]">Pas d'idée ? Découvre les {nb ? (Math.floor(nb / 1000) * 1000).toLocaleString("fr-FR") : "milliers de"} SaaS et applis mobiles qui marchent déjà</span><span className="block text-[14px] text-[#5B6075]">Choisis celui qui te plaît : Bingoo! construit ta version, à ton nom.</span></span>
               <span className="shrink-0 text-[#1E2030] transition group-hover:translate-x-1"><Arrow className="h-5 w-5" /></span>
             </button>
-            <p className="mt-6 text-[12.5px] text-ink-faint">Aucun revenu n'est garanti : tu pars de SaaS qui encaissent déjà, et Bingoo! t'aide à faire pareil.</p>
             <p className="mt-6 text-[13.5px] text-ink-faint">En continuant, j'accepte les <a href="#/conditions" className="underline hover:text-ink">Conditions d'utilisation</a> et la <a href="#/confidentialite" className="underline hover:text-ink">Politique de confidentialité</a> de Bingoo!.</p>
             <FilmAuto />
-            <figure className="hero-in mx-auto mt-12 max-w-[1100px]" style={{ animationDelay: ".35s" }}>
-              <div id="fx-incline" style={{ transformOrigin: "50% 0%", willChange: "transform" }}><ApercuTendance /></div>
-              <figcaption className="mt-2.5 text-[13px] text-ink-faint">Le résultat après les questions. Vrais SaaS, revenus vérifiés relevés en novembre 2026.</figcaption>
-            </figure>
           </div>
           </section>
         </div>
@@ -351,107 +336,103 @@ export default function Landing() {
       <main className="bg-white">
         <div className="mx-auto max-w-[1440px] bg-white">
 
-        {/* Bingoo! en 30 secondes : la vidéo verticale (format TikTok / Reels) */}
-        <section id="video-30s" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-20 border-t border-black/[.07]">
-          <div className="mx-auto grid max-w-[1180px] items-center gap-10 lg:grid-cols-[1fr_380px] lg:gap-16">
-            <div>
-              <p className="text-[13px] font-semibold uppercase tracking-[.14em] text-accent">En 30 secondes</p>
-              <h2 className="mt-3 max-w-[620px] text-[34px] sm:text-[48px] leading-[1.06] tracking-[-.03em] text-ink" style={SERIF}>Pas d'idée géniale. Pas de code. Juste un SaaS qui marche.</h2>
-              <ul className="mt-7 space-y-3 text-[17px] text-[#3A3F55]">
-                {["Tu choisis un SaaS qui encaisse déjà, avec ses vrais chiffres", "Bingoo! construit ta version : site, comptes clients, paiements", "Puis il t'aide à trouver tes premiers clients, chaque matin"].map((x) => <li key={x} className="flex items-start gap-2.5"><span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-accent" />{x}</li>)}
-              </ul>
-              <button onClick={go} className="mt-8 inline-flex items-center gap-2 rounded-full bg-ink px-7 py-3.5 text-[16px] font-bold text-white hover:bg-black transition">Commencer</button>
-            </div>
-            <div className="mx-auto w-full max-w-[340px] lg:max-w-none">
-              <div className="rounded-[2.2rem] bg-[#111] p-2.5 shadow-[0_30px_80px_-30px_rgba(20,20,40,.55)]"><div className="overflow-hidden rounded-[1.8rem]"><VideoAuto src="/bingoo-30s.mp4" poster="/bingoo-30s.jpg" /></div></div>
-            </div>
-          </div>
-        </section>
-
-        {/* La preuve : ce qu'encaissent les SaaS lancés avec Bingoo! (s'affiche dès 3 SaaS avec des clients payants) */}
-        <BaseSaaS go={go} nb={nb} />
-
-        <ResultatsBingoo className="px-5 sm:px-10 lg:px-20 py-14 border-t border-black/[.07] mx-auto max-w-[1180px]" />
-
-        {/* 1. Comment ça marche : 4 étapes, chacune montrée dans la vraie application */}
+        {/* Comment ça marche : 3 étapes, montrées sur une vraie construction (Agendo, construit par le robot de Bingoo!) */}
         <section id="comment" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
           <div className="mx-auto max-w-[1180px]">
-            <h2 className="max-w-[900px] text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>De « je ne sais pas quoi lancer » à tes premiers paiements.</h2>
+            <p className="text-[13px] font-semibold uppercase tracking-[.14em] text-accent">Comment ça marche</p>
+            <h2 className="mt-3 max-w-[860px] text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Une phrase. Tu regardes Bingoo! construire. Tu mets en ligne.</h2>
             <ol className="relative mt-12 space-y-16 lg:pl-16">
               <span className="fx-rail hidden lg:block" aria-hidden><span id="fx-rail" style={{ transform: "scaleY(0)" }} /></span>
               {[
-                ["Réponds à quelques questions", "Ton continent, le revenu que tu vises, à qui tu veux vendre, ton temps, comment tu veux trouver tes clients et les secteurs qui t'attirent. Pendant que tu réponds, tu vois combien de SaaS vérifiés collent déjà à tes réponses.", null],
-                ["Tes 3 SaaS en tendance", "Des SaaS qui encaissent déjà, revenus vérifiés chez leur outil de paiement, dont le revenu monte en ce moment. Pour chacun, sa tendance, sa visibilité et ta version : en français, pour un métier, ou plus simple.", "version"],
-                ["Bingoo! construit ta version, ou ton IA avec lui", "En un clic, Bingoo! construit ton site, les comptes de tes clients, l'abonnement avec ton Stripe, ton domaine. À ton nom, avec tes mots et ton design. Tu utilises Claude, ChatGPT, Le Chat, Gemini ou Perplexity ? Branche-le à Bingoo! et construis ta version avec lui, écran par écran, sans limite : Bingoo! l'héberge et la met en ligne.", "video"],
-                ["Ton plan pour tes 10 premiers clients", "Bingoo! trouve les établissements qui ont le problème dans ton département, te prépare le message, et t'envoie chaque matin l'étape du jour. Les trouver, c'est Bingoo! ; les convaincre, c'est toi.", "prospects"],
+                ["Décris ton idée", "Un logiciel, un site ou une app mobile, en une phrase : « une app de réservation pour les coiffeurs ». Bingoo! te montre tout de suite son nom, ses écrans et une maquette. Si une partie ne peut pas marcher telle quelle, il te le dit avant de construire.", null],
+                ["Bingoo! le construit sous tes yeux", "Écran par écran, en direct : il écrit chaque écran, le teste comme un vrai client, corrige ce qui ne marche pas. Quelques minutes pour un site, souvent moins d'une heure pour un SaaS.", ["/accueil/construit-en-cours.jpg", "Une vraie construction en cours : Bingoo! écrit le sixième écran d'« Agendo », un logiciel de prise de rendez-vous."]],
+                ["Il est en ligne, à ton nom", "Ta page de présentation, les comptes de tes clients, l'abonnement branché à ton Stripe, ton domaine. Ensuite tu changes ce que tu veux dans l'atelier : une phrase, ou un double-clic sur un texte.", ["/accueil/construit-fini.jpg", "Le même logiciel, fini et en ligne : sa page de présentation et son intérieur, avec des données d'exemple."]],
               ].map(([h, d, img], i) => (
                 <li key={h} className="relative grid lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.5fr)] gap-6 lg:gap-12 items-center">
                   <div>
                     <span className="grid place-items-center h-9 w-9 rounded-full fx-pastille text-white font-bold tnum lg:absolute lg:-left-16 lg:z-[1] lg:ring-[6px] lg:ring-white">{i + 1}</span>
                     <p className="mt-4 text-[28px] sm:text-[34px] leading-tight text-ink" style={SERIF}>{h}</p>
                     <p className="mt-3 text-[16.5px] leading-relaxed text-ink-soft">{d}</p>
-                    {i === 0 && <button onClick={go} className="mt-6 inline-flex items-center gap-2 rounded-full bg-accent px-7 py-3.5 text-[16px] font-semibold text-white hover:bg-accent-dark transition">Commencer <Arrow className="h-4 w-4" /></button>}
+                    {i === 0 && <button onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); setTimeout(() => document.getElementById("idee")?.focus(), 500); }} className="mt-6 inline-flex items-center gap-2 rounded-full bg-accent px-7 py-3.5 text-[16px] font-semibold text-white hover:bg-accent-dark transition">Décrire mon idée <Arrow className="h-4 w-4" /></button>}
                   </div>
-                  {img === "video" ? (
-                    <figure><VideoAuto src="/demo-copie.mp4" poster="/demo-copie.jpg" /><figcaption className="mt-2.5 text-[13px] text-ink-faint">Un vrai SaaS construit par Bingoo! (prise de rendez-vous), avec ses données d'exemple. 35 secondes.</figcaption></figure>
-                  ) : img ? (
-                    <figure>{img === "version" ? <ApercuVersion /> : <ApercuProspects />}<figcaption className="mt-2.5 text-[13px] text-ink-faint">{img === "version" ? "Ta version, à partir d'un SaaS qui encaisse déjà." : "Aperçu avec des établissements d'exemple."}</figcaption></figure>
-                  ) : (
-                    <Fenetre titre="Trouver mon SaaS"><div className="bg-[#FAF9F6] p-6 sm:p-8">
-                      <div className="mb-4 flex gap-1.5" aria-hidden>{Array.from({ length: 8 }, (_, k) => <span key={k} className={cx("h-1.5 flex-1 rounded-full", k === 0 ? "bg-gradient-to-r from-accent to-[#9B6BFF]" : "bg-line")} />)}</div>
-                      <p className="text-[14px] text-ink-faint">Question 5 sur 6</p>
-                      <p className="mt-2 text-[24px] sm:text-[30px] leading-tight text-ink" style={SERIF}>Comment te vois-tu trouver tes clients ?</p>
-                      <div className="mt-5 grid sm:grid-cols-2 gap-2">{["Écrire et être trouvé sur Google", "Publier sur les réseaux", "Contacter les gens directement", "Bouche-à-oreille et affiliation"].map((x) => <span key={x} className={cx("rounded-xl border-2 px-4 py-3 text-[15px] font-semibold transition", x.startsWith("Écrire") ? "border-ink bg-ink text-white" : "border-line bg-white")}>{x}</span>)}</div>
-                      <p className="mt-5 rounded-xl bg-white border border-line px-4 py-3 text-[14.5px]"><b>{demo ? Number(demo.n).toLocaleString("fr-FR") : "…"}</b> SaaS au revenu vérifié collent déjà à tes réponses. Dont <b>{demo ? Number(demo.tendance).toLocaleString("fr-FR") : "…"}</b> en tendance.</p>
-                    </div></Fenetre>
-                  )}
+                  {img ? <figure><div className="fx-halo overflow-hidden rounded-2xl border border-line bg-white shadow-[0_30px_70px_-40px_rgba(21,23,42,.55)]"><img src={img[0]} alt={img[1]} loading="lazy" className="block w-full" /></div><figcaption className="mt-2.5 text-[13px] text-ink-faint">{img[1]}</figcaption></figure>
+                    : <Fenetre titre="Ton idée"><div className="bg-[#FAF9F6] p-6 sm:p-8">
+                      <p className="rounded-2xl border border-line bg-white px-4 py-3 text-[16px] text-ink">Une app de réservation pour les coiffeurs</p>
+                      <div className="mt-4 grid gap-2 sm:grid-cols-3">{["Planning", "Rendez-vous", "Clients", "Prestations", "Disponibilités", "Réserver en ligne"].map((e, k) => <span key={e} className="flex items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-[14px] font-semibold"><span className="grid h-5 w-5 place-items-center rounded-full bg-paper text-[11px]">{k + 1}</span>{e}</span>)}</div>
+                      <p className="mt-4 text-[13.5px] text-ink-soft">Son nom, ses écrans et une maquette, avant de construire.</p>
+                    </div></Fenetre>}
                 </li>
               ))}
             </ol>
           </div>
         </section>
 
-        <BingooIA go={go} />
-
-        {/* 3. Tes premiers clients */}
-        <section id="clients" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
-          <div className="mx-auto max-w-[1180px] grid lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.4fr)] gap-10 items-center">
+        {/* Un site qui te plaît */}
+        <section id="copie" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
+          <div className="mx-auto grid max-w-[1180px] items-center gap-10 lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.2fr)]">
             <div>
-              <h2 className="text-[38px] sm:text-[52px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Un SaaS sans clients ne rapporte rien. Bingoo! t'aide aussi à les trouver.</h2>
+              <p className="text-[13px] font-semibold uppercase tracking-[.14em] text-accent">Un site qui te plaît</p>
+              <h2 className="mt-3 text-[34px] sm:text-[48px] leading-[1.06] tracking-[-.03em] text-ink" style={SERIF}>Tu as vu un site qui te plaît ? Colle son adresse.</h2>
               <ul className="mt-6 space-y-3 text-[16px] text-ink-soft">
-                {["Une semaine, une étape par jour, cochée au fur et à mesure", "Les établissements à contacter, trouvés pour toi dans le registre public", "Le message prêt, adressé au dirigeant", "L'étape du jour chaque matin dans ta boîte mail", "Ton compteur : 0 / 10 clients payants"].map((x) => <li key={x} className="flex gap-2.5"><Check className="h-5 w-5 mt-0.5 shrink-0 text-accent" />{x}</li>)}
+                {["Bingoo! le lit point par point : ses couleurs, ses polices, ses rubriques, ce que c'est", "Tu choisis ton nom et tu ajoutes ton logo", "Bingoo! construit ta version, dans la même ambiance, avec tes propres textes"].map((x) => <li key={x} className="flex gap-2.5"><Check className="h-5 w-5 mt-0.5 shrink-0 text-accent" />{x}</li>)}
               </ul>
+              <p className="mt-5 text-[13.5px] text-ink-faint">Jamais leurs textes, leurs images, leur nom ni leur logo.</p>
             </div>
-            <figure><ApercuSemaine /></figure>
+            <figure><div className="overflow-hidden rounded-2xl border border-line bg-white shadow-[0_30px_70px_-40px_rgba(21,23,42,.55)]"><img src="/accueil/site-lu.jpg" alt="Ce que Bingoo! relève sur cal.com : type, couleurs, ambiance, rubriques, puis le nom et le logo de ta version." loading="lazy" className="block w-full" /></div><figcaption className="mt-2.5 text-[13px] text-ink-faint">Bingoo! vient de lire cal.com. Il reste à choisir ton nom.</figcaption></figure>
           </div>
         </section>
 
-        {/* Pourquoi Bingoo! */}
-        <section id="pourquoi" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
+        {/* Pas d'idée : les SaaS qui marchent */}
+        <section id="idees" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
+          <div className="mx-auto grid max-w-[1180px] items-center gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,.9fr)]">
+            <figure className="order-2 lg:order-1"><button onClick={() => nav("/decouvrir")} className="block w-full overflow-hidden rounded-2xl border border-line bg-white text-left shadow-[0_30px_70px_-40px_rgba(21,23,42,.55)] transition hover:-translate-y-0.5"><img src="/accueil/decouvrir.jpg" alt="La page des SaaS qui marchent : Salesforce, Stripe et d'autres, avec leur revenu." loading="lazy" className="block w-full" /></button></figure>
+            <div className="order-1 lg:order-2">
+              <p className="text-[13px] font-semibold uppercase tracking-[.14em] text-accent">Pas d'idée ?</p>
+              <h2 className="mt-3 text-[34px] sm:text-[48px] leading-[1.06] tracking-[-.03em] text-ink" style={SERIF}>Pars de ce qui marche déjà.</h2>
+              <p className="mt-5 text-[17px] leading-relaxed text-ink-soft">{nb ? (Math.floor(nb / 1000) * 1000).toLocaleString("fr-FR") : "Des milliers de"} SaaS et applis mobiles, avec leurs revenus vérifiés, leurs prix et ce qu'il faut pour les refaire. Choisis celui qui te plaît : Bingoo! construit ta version, à ton nom.</p>
+              <button onClick={() => nav("/decouvrir")} className="mt-7 inline-flex items-center gap-2 rounded-full bg-ink px-7 py-3.5 text-[16px] font-bold text-white hover:bg-black transition">Voir les SaaS qui marchent <Arrow className="h-4 w-4" /></button>
+            </div>
+          </div>
+        </section>
+
+        <ResultatsBingoo className="px-5 sm:px-10 lg:px-20 py-14 border-t border-black/[.07] mx-auto max-w-[1180px]" />
+
+        {/* Ensuite : tes premiers clients */}
+        <section id="clients" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
+          <div className="mx-auto max-w-[1180px] grid lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.4fr)] gap-10 items-center">
+            <div>
+              <p className="text-[13px] font-semibold uppercase tracking-[.14em] text-accent">Ensuite</p>
+              <h2 className="mt-3 text-[34px] sm:text-[48px] leading-[1.06] tracking-[-.03em] text-ink" style={SERIF}>En ligne, c'est bien. Avec des clients, c'est mieux.</h2>
+              <ul className="mt-6 space-y-3 text-[16px] text-ink-soft">
+                {["Les établissements à contacter, trouvés pour toi dans le registre public", "Le message prêt, adressé au dirigeant", "Une étape par jour, chaque matin dans ta boîte mail", "Ta vidéo de présentation et tes posts, faits par Bingoo!"].map((x) => <li key={x} className="flex gap-2.5"><Check className="h-5 w-5 mt-0.5 shrink-0 text-accent" />{x}</li>)}
+              </ul>
+            </div>
+            <figure><ApercuSemaine /><figcaption className="mt-2.5 text-[13px] text-ink-faint">Aperçu avec des établissements d'exemple.</figcaption></figure>
+          </div>
+        </section>
+
+        <BingooIA go={go} />
+
+        {/* Prix */}
+        <section id="prix" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
           <div className="mx-auto max-w-[1180px]">
-            <h2 className="max-w-[820px] text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ailleurs, une idée et un prompt. Ici, ton SaaS et tes clients.</h2>
-            <div className="mt-10 overflow-hidden rounded-2xl border border-line bg-white shadow-[0_30px_70px_-50px_rgba(21,23,42,.5)]">
-              <div className="fx-filet" aria-hidden />
-              <div className="grid grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)] sm:grid-cols-[minmax(0,.8fr)_minmax(0,1fr)_minmax(0,1fr)] bg-[#F6F5F3] text-[13px] font-bold uppercase tracking-wide">
-                <span className="px-4 sm:px-5 py-3 text-ink-faint" />
-                <span className="hidden sm:block px-4 sm:px-5 py-3 text-ink-soft">Ailleurs</span>
-                <span className="px-4 sm:px-5 py-3 text-accent-dark">Bingoo!</span>
-              </div>
+            <p className="text-[13px] font-semibold uppercase tracking-[.14em] text-accent">Prix</p>
+            <h2 className="mt-3 max-w-[820px] text-[34px] sm:text-[48px] leading-[1.06] tracking-[-.03em] text-ink" style={SERIF}>Gratuit pour voir. Tu paies quand tu construis.</h2>
+            <div className="mt-10 grid gap-4 md:grid-cols-3">
               {[
-                ["Quoi lancer", "Une liste d'idées", "Des SaaS qui encaissent déjà, revenus vérifiés"],
-                ["Pourquoi celui-là", "Un chiffre de « potentiel »", "Sa tendance, sa visibilité, ses canaux"],
-                ["Ton idée à toi", "Un avis d'IA", "Un score sur 100 expliqué par les SaaS et applis qui existent déjà"],
-                ["Le construire", "Un prompt à coller dans une IA", "Construit par Bingoo!, en ligne, branché à ton Stripe"],
-                ["Tes clients", "Débrouille-toi", "Établissements à contacter trouvés pour toi, message prêt"],
-                ["Tenir le rythme", "Seul", "L'étape du jour, chaque matin"],
-              ].map(([k, a2, b2]) => (
-                <div key={k} className="grid grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)] sm:grid-cols-[minmax(0,.8fr)_minmax(0,1fr)_minmax(0,1fr)] border-t border-line text-[14.5px] sm:text-[15.5px] leading-snug">
-                  <span className="px-4 sm:px-5 py-3.5 font-semibold text-ink">{k}<span className="sm:hidden mt-1 block text-[12.5px] font-normal text-ink-faint line-through">{a2}</span></span>
-                  <span className="hidden sm:block px-4 sm:px-5 py-3.5 text-ink-soft">{a2}</span>
-                  <span className="px-4 sm:px-5 py-3.5 text-ink bg-accent-soft/30 flex gap-2"><Check className="h-4 w-4 mt-0.5 shrink-0 text-accent" />{b2}</span>
+                ["Gratuit", "0 €", "Pour voir", ["L'aperçu de ton idée : nom, écrans, maquette", "La lecture d'un site qui te plaît", "Les SaaS qui marchent, en aperçu"]],
+                ["Site", "9,99 €", "par mois, hébergement compris", ["Ton site en ligne en quelques minutes", "Tes services, tes prix, ton formulaire", "Ton espace pour gérer les demandes"]],
+                ["Lancer", "24,99 €", "par mois · 19 € à vie pour les 50 premiers", ["Ton SaaS ou ton app, construit et testé", "Comptes clients et abonnements sur ton Stripe", "L'atelier, tes premiers clients, ta vidéo"]],
+              ].map(([t, p, sous, l], k) => (
+                <div key={t} className={cx("rounded-3xl border p-6", k === 2 ? "border-ink bg-ink text-white" : "border-line bg-white")}>
+                  <p className={cx("text-[14px] font-bold uppercase tracking-wide", k === 2 ? "text-[#F6A06B]" : "text-accent")}>{t}</p>
+                  <p className="mt-3 text-[40px] font-bold leading-none tnum" style={JK}>{p}</p>
+                  <p className={cx("mt-1.5 text-[13.5px]", k === 2 ? "text-white/70" : "text-ink-soft")}>{sous}</p>
+                  <ul className="mt-5 space-y-2.5 text-[15px]">{l.map((x) => <li key={x} className="flex gap-2"><Check className={cx("h-4 w-4 mt-1 shrink-0", k === 2 ? "text-[#F6A06B]" : "text-accent")} />{x}</li>)}</ul>
                 </div>
               ))}
             </div>
+            <p className="mt-4 text-[13.5px] text-ink-faint">Sans engagement. Tes clients te paient directement sur ton Stripe : Bingoo! ne prend rien sur tes ventes.</p>
           </div>
         </section>
 
@@ -475,9 +456,9 @@ export default function Landing() {
           <span className="fx-aurore h-[300px] w-[300px] bg-[#F6A06B] left-[18%] top-[40px]" aria-hidden />
           <span className="fx-aurore h-[280px] w-[280px] bg-[#9B6BFF] right-[18%] top-[120px]" style={{ animationDelay: "-5s" }} aria-hidden />
           <div className="relative z-[1] max-w-4xl mx-auto">
-          <p className="text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ton SaaS commence par quelques questions.</p>
-          <p className="mt-4 text-[18px] text-ink-soft">Sans compte pour commencer : tu vois tout de suite combien de SaaS en tendance collent à ton profil.</p>
-          <button onClick={go} className="fx-brille mt-8 inline-flex items-center gap-2 rounded-full bg-accent px-10 py-4 text-[18px] font-bold text-white hover:bg-accent-dark transition">Commencer <Arrow className="h-4 w-4" /></button>
+          <p className="text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ton idée mérite d'exister.</p>
+          <p className="mt-4 text-[18px] text-ink-soft">Écris-la en une phrase : Bingoo! te montre ce qu'il va construire, gratuitement.</p>
+          <button onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); setTimeout(() => document.getElementById("idee")?.focus(), 500); }} className="fx-brille mt-8 inline-flex items-center gap-2 rounded-full bg-accent px-10 py-4 text-[18px] font-bold text-white hover:bg-accent-dark transition">Décrire mon idée <Arrow className="h-4 w-4" /></button>
           </div>
         </section>
         </div>
@@ -486,14 +467,14 @@ export default function Landing() {
       <footer className="bg-white">
         <div className="fx-filet" aria-hidden />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid grid-cols-2 md:grid-cols-3 gap-8 text-[15px]">
-          <div><p className="font-bold">Produit</p><ul className="mt-4 space-y-2.5 text-ink-soft">{[["base", "La base de SaaS"], ["comment", "Comment ça marche"], ["ia", "Bingoo! dans ton IA"], ["clients", "Tes premiers clients"]].map(([id, l]) => <li key={id}><a href={`#${id}`} onClick={scrollTo(id)} className="hover:text-ink">{l}</a></li>)}</ul></div>
+          <div><p className="font-bold">Produit</p><ul className="mt-4 space-y-2.5 text-ink-soft">{[["comment", "Comment ça marche"], ["copie", "Un site qui te plaît"], ["idees", "Les SaaS qui marchent"], ["prix", "Prix"]].map(([id, l]) => <li key={id}><a href={`#${id}`} onClick={scrollTo(id)} className="hover:text-ink">{l}</a></li>)}</ul></div>
           <div><p className="font-bold">Les SaaS</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><a href="/saas" className="hover:text-ink">Tous les SaaS suivis : prix et alternatives</a></li><li><a href="#faq" onClick={scrollTo("faq")} className="hover:text-ink">Questions fréquentes</a></li><li><a href={`mailto:bingoo@maisonravita.fr?subject=${encodeURIComponent("Corriger ou retirer une fiche")}`} title="Écris-nous depuis une adresse de ton domaine : correction ou retrait sous 72 heures." className="hover:text-ink">Corriger ou retirer une fiche</a></li></ul></div>
           <div><p className="font-bold">Compte et légal</p><ul className="mt-4 space-y-2.5 text-ink-soft"><li><button onClick={() => nav("/connexion?mode=login")} className="hover:text-ink">Connexion</button></li><li><button onClick={go} className="hover:text-ink">Créer un compte</button></li>{legalReady && <><li><a href="#/mentions-legales" className="hover:text-ink">Mentions légales</a></li><li><a href="#/confidentialite" className="hover:text-ink">Confidentialité</a></li><li><a href="#/conditions" className="hover:text-ink">Conditions</a></li></>}<li><a href="#/opposition" className="hover:text-ink">Ne plus être contacté</a></li></ul></div>
         </div>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-10 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-8">
           <Logo height={34} />
           <label className="flex items-center gap-2 text-[13.5px] text-ink-soft"><select aria-label="Langue du site" value={langueActuelle()} onChange={(e) => choisirLangue(e.target.value)} className="rounded-lg border border-line bg-white px-2 py-1">{LANGUES.map(([c, l]) => <option key={c} value={c}>{l}</option>)}</select></label>
-          <p className="text-[13.5px] text-ink-faint">© {new Date().getFullYear()} Bingoo! · Les SaaS en tendance, le tien construit avec tes premiers clients</p>
+          <p className="text-[13.5px] text-ink-faint">© {new Date().getFullYear()} Bingoo! · Donne ton idée, Bingoo! la construit</p>
         </div>
       </footer>
     </div>
