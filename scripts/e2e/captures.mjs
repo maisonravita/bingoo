@@ -162,14 +162,15 @@ if (["1", "site", "app"].includes(process.env.IDEE)) {
   const IDEES_SITE = [["site-barber", "site pour les barber"], ["site-claire", "Le site de mon salon de coiffure à domicile à Lyon"], ["site-floue", "Un beau site pour mon entreprise"]].map(([n, t]) => [n, t, "site"]);
   // Apps mobiles (étape 3)
   const IDEES_APP = [["app-claire", "Une app pour suivre mes séances de sport et mes progrès"]].map(([n, t]) => [n, t, "app"]);
-  const LISTE = process.env.IDEE === "site" ? IDEES_SITE : process.env.IDEE === "app" ? IDEES_APP : [...IDEES_SAAS, ...IDEES_SITE, ...IDEES_APP];
+  const LISTE = process.env.IDEE === "site" ? IDEES_SITE : process.env.IDEE === "saas" ? [...IDEES_SAAS, ["idee-crm", "Un CRM simple pour les agents immobiliers"]] : process.env.IDEE === "app" ? IDEES_APP : [...IDEES_SAAS, ...IDEES_SITE, ...IDEES_APP];
   for (const [nom, texte, type] of LISTE) {
     const { ctx, page } = await ouvrir(ws, { "bingoo-idee": { texte, type, at: Date.now() } });
     await page.goto(`${SITE}/?c=${Date.now()}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
     const pret = () => page.waitForFunction(() => !/étudie ton idée|prépare l'aperçu/i.test(document.body.innerText) && /Construire \S+ \S|Le nom affiché|précisions|ne peut pas construire|réessaie|Réessayer/i.test(document.querySelector("main")?.innerText ?? document.body.innerText), null, { timeout: 120000 }).catch(() => null);
-    await pret(); await page.waitForTimeout(type === "site" ? 7000 : 1500);
+    await pret(); await page.waitForTimeout(type === "app" ? 1500 : 7000);
     await page.screenshot({ path: `${DOSSIER}/${nom}.png`, fullPage: true }); console.log("✓", nom);
     // Site : le vrai gabarit tourne dans un cadre ; on le fait défiler pour photographier la suite de la page
+    if (type === "saas") { await page.locator("iframe").first().screenshot({ path: `${DOSSIER}/${nom}-cadre.png` }).catch(() => null); }
     if (type === "site") { const f = page.frameLocator("iframe").first(); for (const [i, y] of [[2, 620], [3, 1240]]) { await f.locator("body").evaluate((b, y) => window.scrollTo(0, y), y).catch(() => null); await page.waitForTimeout(900); await page.locator("iframe").first().screenshot({ path: `${DOSSIER}/${nom}-${i}.png` }).catch(() => null); } }
     // Questions de clarification : le robot répond (premier choix) pour photographier aussi l'aperçu qui suit
     if (await page.getByText("Voir mon aperçu").count()) {
