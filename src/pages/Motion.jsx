@@ -45,13 +45,19 @@ export default function Motion() {
   const script = sel?.script;
   const police = script?.police ?? "Plus Jakarta Sans";
   useEffect(() => { preparerPolice(police); }, [police]);
+  // La police des vidéos à scènes : Inter Tight, de 600 à 900 (chargée une fois)
+  useEffect(() => {
+    if (document.getElementById("police-motion")) return;
+    const l = document.createElement("link"); l.id = "police-motion"; l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700;800;900&display=swap"; document.head.appendChild(l);
+    Promise.all(["600", "700", "800", "900"].map((p) => document.fonts.load(`${p} 80px "Inter Tight"`))).catch(() => {});
+  }, []);
   const graine = graineDe(script?.nom ?? sel?.id);
   const style = script?.style === "sobre" ? "sobre" : "percutant";
   const [W, H] = FORMATS[format];
   const opts = { nom: script?.nom ?? "", couleur: script?.couleur ?? "#E8571C", lien: script?.lien ?? "", images: [], style, police, graine };
   // Nouvelles vidéos : suite de scènes (moteur « pub premium ») ; anciennes : gabarit fixe de 21 s
   const scenes = !!script?.scenes?.length, duree = scenes ? dureeTotale(script) : DUREE;
-  const dessinerA = (t) => { const c = canvas.current; if (!c || !script) return; if (scenes) dessinerScenes(c.getContext("2d"), W, H, t, script, { police }); else dessiner(c.getContext("2d"), W, H, t, script, opts); };
+  const dessinerA = (t) => { const c = canvas.current; if (!c || !script) return; if (scenes) dessinerScenes(c.getContext("2d"), W, H, t, script); else dessiner(c.getContext("2d"), W, H, t, script, opts); };
 
   // Lecture en boucle
   useEffect(() => {

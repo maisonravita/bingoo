@@ -97,7 +97,8 @@ Icônes possibles : ${ICONES.join(", ")}.
 Chaque scène peut avoir "fond": "couleur" | "blanc" | "noir" (sinon le fond de la vidéo) et "transition": "vague" (une vague de couleur balaie l'écran).`;
 const REGLES = `Règles : 8 à 11 scènes, 20 à 30 secondes, rythme de pub TikTok (alterne textes, objets et un aplat ou un impact ; jamais deux « mots » de suite). Commence par une accroche forte (mots, rature ou impact). Finis par logo.
 Français, phrases très courtes, parle au spectateur. Aucun chiffre, avis, prix, résultat ou nombre de clients inventé : seulement ceux que la personne a écrits. Pas d'emoji, pas de vraie personne, pas de marque d'un autre.
-JSON : { "nom": nom de l'entreprise ou du projet s'il est donné, sinon un nom court et crédible, "fond": "noir" (pub premium, nuit, tech, luxe) ou "blanc" (frais, clair, pratique), "lien": adresse web ou @compte SEULEMENT s'il est écrit, sinon "", "secteur_en": 2 à 4 mots-clés anglais du secteur, "scenes": [...] }`;
+JSON : { "couleur": UNE couleur de marque franche et saturée en hexadécimal, qui colle au métier et se voit sur noir comme sur blanc (ex. rouge vif #E63946 pour un café, bleu électrique #2F5BFF pour une banque, vert franc #16A34A pour un primeur, or #D4A017 pour un barbier) ; jamais de violet par défaut ni de couleur terne,
+"nom": nom de l'entreprise ou du projet s'il est donné, sinon un nom court et crédible, "fond": "noir" (pub premium, nuit, tech, luxe) ou "blanc" (frais, clair, pratique), "lien": adresse web ou @compte SEULEMENT s'il est écrit, sinon "", "secteur_en": 2 à 4 mots-clés anglais du secteur, "scenes": [...] }`;
 
 const court2 = (v: unknown, n: number) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, n);
 function scenesNettes(liste: any[], texteSource: string): SceneVideo[] {
@@ -128,6 +129,13 @@ function scenesNettes(liste: any[], texteSource: string): SceneVideo[] {
   const sans = out.filter((x) => x.type !== "logo"), fin = out.findLast((x) => x.type === "logo") ?? { type: "logo", texte: "" };
   return [...sans.slice(0, 10), fin];
 }
+/** Une couleur de marque utilisable dans une pub : assez saturée, ni trop claire ni trop sombre */
+export function couleurFranche(h: unknown) {
+  if (!/^#[0-9a-f]{6}$/i.test(String(h ?? ""))) return false;
+  const n = parseInt(String(h).slice(1), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn, sat = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  return sat >= 0.5 && l >= 0.3 && l <= 0.68;
+}
 function lienNet(v: unknown) { const l = court2(v, 60); return /^(https?:\/\/|www\.|@)[^\s<>"]+$/i.test(l) || /^[a-z0-9-]+\.[a-z]{2,}(\/\S*)?$/i.test(l) ? l.replace(/^https?:\/\//, "") : ""; }
 
 export async function videoLibre(texte: string): Promise<ScriptLibre & { secteur_en?: string }> {
@@ -139,7 +147,7 @@ Si la demande n'a rien d'une vidéo pour une activité, un produit, un événeme
   if (x?.refus) throw Object.assign(new Error(court2(x.refus, 200)), { status: 400 });
   const scenes = scenesNettes(x?.scenes, texte);
   if (scenes.length < 4) throw new Error("Le scénario de la vidéo n'a pas pu être écrit, réessaie");
-  return { genre: "libre", nom: court2(x?.nom, 28) || "Ma marque", fond: x?.fond === "blanc" ? "blanc" : "noir", lien: lienNet(x?.lien), scenes, secteur_en: court2(x?.secteur_en, 60) };
+  return { genre: "libre", ...(couleurFranche(x?.couleur) ? { couleur: String(x.couleur) } : {}), nom: court2(x?.nom, 28) || "Ma marque", fond: x?.fond === "blanc" ? "blanc" : "noir", lien: lienNet(x?.lien), scenes, secteur_en: court2(x?.secteur_en, 60) };
 }
 
 export async function videoLibreRetouche(script: ScriptLibre, demande: string, texteSource = ""): Promise<ScriptLibre> {

@@ -47,6 +47,8 @@ function rond(ctx, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2);
   ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
 }
+// Lettres serrées pour les gros titres seulement (le petit texte garde son espacement, sinon les mots se collent)
+function serre(ctx, v) { try { ctx.letterSpacing = v; } catch { /* navigateur sans espacement de lettres */ } }
 // Taille de police pour qu'une ligne tienne dans la largeur
 function ajuste(ctx, texte, taille, largeur, poids = 800) { ctx.font = `${poids} ${taille}px ${F}`; const w = ctx.measureText(texte).width; return w > largeur ? taille * largeur / w : taille; }
 function coupe(ctx, texte, largeur) {
@@ -93,23 +95,24 @@ function fond(ctx, W, H, t, u) {
 // Mots qui arrivent un par un (flou → net, montée), le mot clé en couleur
 function motsAnimes(ctx, texte, accent, x, y, { taille, largeur, t, poids = 700, decale = 0.11, couleur = INK, aligne = "centre" }) {
   ctx.font = `${poids} ${taille}px ${F}`; ctx.textBaseline = "middle"; ctx.textAlign = "left";
-  const lignes = coupe(ctx, texte, largeur), inter = taille * 1.12, h = lignes.length * inter;
+  const gros = taille >= 90; serre(ctx, gros ? "-0.035em" : "-0.01em");
+  const lignes = coupe(ctx, texte, largeur), inter = taille * (gros ? 1.02 : 1.15), h = lignes.length * inter, espace = taille * 0.26;
   const acc = String(accent || "").toLowerCase().split(/\s+/).filter(Boolean);
   let i = 0;
   lignes.forEach((l, k) => {
-    const mots = l.split(" "), w = ctx.measureText(l).width; let cx = aligne === "centre" ? x - w / 2 : x; const cy = y - h / 2 + inter * (k + 0.5);
+    const mots = l.split(" "), w = mots.reduce((a, m) => a + ctx.measureText(m).width, 0) + espace * (mots.length - 1); let cx = aligne === "centre" ? x - w / 2 : x; const cy = y - h / 2 + inter * (k + 0.5);
     for (const m of mots) {
-      const p = eo(prog(t, i * decale, i * decale + 0.5)); const mw = ctx.measureText(m + " ").width;
+      const p = eo(prog(t, i * decale, i * decale + 0.5)); const mw = ctx.measureText(m).width + espace;
       if (p > 0) {
         const estAcc = acc.includes(m.toLowerCase().replace(/[.,!?;:«»"]/g, ""));
         ctx.save(); ctx.globalAlpha *= p; if ("filter" in ctx) ctx.filter = p < 0.98 ? `blur(${(1 - p) * 10 * (taille / 90)}px)` : "none";
         ctx.fillStyle = estAcc ? rgba(CV, 1) : couleur;
-        if (estAcc) ctx.font = `italic ${poids} ${taille}px ${F}`;
         ctx.fillText(m, cx, cy + (1 - p) * taille * 0.35); ctx.restore();
       }
       cx += mw; i++;
     }
   });
+  serre(ctx, "-0.01em");
   return { h, n: i };
 }
 function halo(ctx, x, y, rx, ry, a) {
@@ -123,10 +126,10 @@ const SCENES = {
   // Un mot géant qui claque (« tap », « done »)
   impact(ctx, s, e) {
     const { W, H, u, t } = s;
-    const p = ressort(prog(t, 0, 0.55)); ctx.font = `800 ${300 * u}px ${F}`;
-    const w = ctx.measureText(e.texte).width, k = Math.min(1, (W * 0.86) / Math.max(1, w));
+    const p = ressort(prog(t, 0, 0.55)); serre(ctx, "-0.05em"); ctx.font = `900 ${380 * u}px ${F}`;
+    const w = ctx.measureText(e.texte).width, k = Math.min(1, (W * 0.9) / Math.max(1, w));
     ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(k * (0.6 + 0.4 * p), k * (0.6 + 0.4 * p)); ctx.globalAlpha *= clamp(p * 1.5);
-    ctx.fillStyle = INK; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(e.texte, 0, 10 * u); ctx.restore();
+    ctx.fillStyle = INK; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(e.texte, 0, 10 * u); ctx.restore(); serre(ctx, "-0.01em");
   },
   // Cartes pastel empilées, comme des notifications (style Notion)
   liste(ctx, s, e) {
@@ -150,7 +153,26 @@ const SCENES = {
   // Cartes de choix côte à côte (À emporter / Livraison) : la seconde se fait choisir
   choix(ctx, s, e) {
     const { W, H, u, t, vertical } = s;
-    const items = (e.items ?? []).slice(0, 3), n = Math.max(1, items.length), w = Math.min((W * 0.86 - (n - 1) * 30 * u) / n, 360 * u), h = w * 0.95;
+    const items = (e.items ?? []).slice(0, 3), n = Math.max(1, items.length);
+    if (vertical) { // téléphone : les choix l'un sous l'autre, en grand
+      const w = W * 0.82, h = 190 * u, gap = 34 * u, y0 = H * 0.56 - ((n - 1) * (h + gap)) / 2, sel = Math.min(n - 1, 1), choisi = eo(prog(t, 1.4, 1.9));
+      if (e.texte) motsAnimes(ctx, e.texte, e.accent, W / 2, y0 - h / 2 - 130 * u, { taille: 84 * u, largeur: W * 0.86, t, decale: 0.06, poids: 800 });
+      items.forEach((x, i) => {
+        const p = ressort(prog(t, 0.2 + i * 0.2, 0.9 + i * 0.2)); if (p <= 0) return;
+        const bx = W / 2 - w / 2 + (1 - p) * 200 * u, by = y0 + i * (h + gap) - h / 2, on = i === sel && choisi > 0;
+        ctx.save(); ctx.globalAlpha *= clamp(p * 1.3); if (on) { ctx.shadowColor = rgba(CV, 0.6); ctx.shadowBlur = 60 * u; }
+        rond(ctx, bx, by, w, h, 40 * u); ctx.fillStyle = on ? rgba(CV, 1) : NOIR ? "rgba(255,255,255,.06)" : "#fff"; ctx.fill(); ctx.shadowBlur = 0;
+        ctx.strokeStyle = rgba(CV, on ? 1 : 0.5); ctx.lineWidth = 4 * u; ctx.stroke();
+        const fg = on ? (MODE === "couleur" ? rgba(C, 1) : lum(CV) > 0.62 ? "#111" : "#fff") : rgba(CV, 1);
+        ctx.beginPath(); ctx.arc(bx + h / 2 + 10 * u, by + h / 2, h * 0.3, 0, 7); ctx.fillStyle = on ? "rgba(255,255,255,.22)" : rgba(CV, 0.12); ctx.fill();
+        icone(ctx, x.icone, bx + h / 2 + 10 * u, by + h / 2, h * 0.32, fg, 2.2);
+        ctx.fillStyle = on ? fg : INK; ctx.font = `800 ${62 * u}px ${F}`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(x.texte, bx + h + 30 * u, by + h / 2 + 3 * u);
+        if (on) { ctx.font = `800 ${56 * u}px ${F}`; ctx.textAlign = "right"; ctx.fillText("✓", bx + w - 50 * u, by + h / 2 + 3 * u); }
+        ctx.restore();
+      });
+      return;
+    }
+    const w = Math.min((W * 0.86 - (n - 1) * 30 * u) / n, 360 * u), h = w * 0.95;
     const tot = n * w + (n - 1) * 30 * u, sel = Math.min(n - 1, 1), choisi = eo(prog(t, 1.4, 1.9));
     if (e.texte) motsAnimes(ctx, e.texte, e.accent, W / 2, H * (vertical ? 0.28 : 0.2), { taille: (vertical ? 74 : 64) * u, largeur: W * 0.84, t, decale: 0.06 });
     items.forEach((x, i) => {
@@ -194,8 +216,8 @@ const SCENES = {
         for (const m of l.split(" ")) { const reste = Math.max(0, nb - vu), part = m.slice(0, reste); ctx.fillStyle = acc.includes(m.replace(/[.,!?;:]/g, "")) ? rgba(CV, 1) : INK; ctx.fillText(part, x, y); x += ctx.measureText(m + " ").width; vu += m.length + 1; } });
       return;
     }
-    const len = String(e.texte || "").length, taille = (vertical ? (len > 40 ? 96 : 118) : len > 40 ? 84 : 104) * u;
-    const r = motsAnimes(ctx, e.texte, e.accent, W / 2, H / 2, { taille, largeur: W * (vertical ? 0.84 : 0.72), t, decale: 0.1 });
+    const len = String(e.texte || "").length, taille = (vertical ? (len > 36 ? 104 : len > 22 ? 124 : 150) : len > 36 ? 96 : len > 22 ? 118 : 140) * u;
+    const r = motsAnimes(ctx, e.texte, e.accent, W / 2, H / 2, { taille, poids: 800, largeur: W * (vertical ? 0.88 : 0.8), t, decale: 0.1 });
     if (e.trait) { // trait dessiné à la main sous la phrase
       const p = eio(prog(t, 0.25 + r.n * 0.1, 0.9 + r.n * 0.1)), y0 = H / 2 + r.h / 2 + 50 * u, x0 = W * 0.22, x1 = W * 0.78;
       ctx.save(); ctx.strokeStyle = rgba(CV, 1); ctx.lineWidth = 9 * u; ctx.lineCap = "round"; ctx.beginPath();
@@ -267,8 +289,8 @@ const SCENES = {
     const cible = Number(String(e.valeur ?? "").replace(/\s/g, "").replace(",", ".")) || 0, dec = /[.,]/.test(String(e.valeur ?? "")) ? 1 : 0;
     const v = cible * eo(prog(t, 0.15, 1.6)), txt = (dec ? v.toFixed(1).replace(".", ",") : Math.round(v).toLocaleString("fr-FR")) + (e.suffixe ? ` ${e.suffixe}` : "");
     const taille = (vertical ? 260 : 230) * u;
-    ctx.save(); ctx.font = `800 ${taille}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.shadowColor = rgba(CV, 0.55); ctx.shadowBlur = 70 * u; ctx.fillStyle = INK; ctx.fillText(txt, W / 2, H / 2 - 40 * u); ctx.restore();
+    ctx.save(); serre(ctx, "-0.04em"); ctx.font = `900 ${taille}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.shadowColor = rgba(CV, 0.55); ctx.shadowBlur = 70 * u; ctx.fillStyle = INK; ctx.fillText(txt, W / 2, H / 2 - 40 * u); serre(ctx, "-0.01em"); ctx.restore();
     const p = eo(prog(t, 1.2, 1.7)), lw = 340 * u * p;
     ctx.fillStyle = rgba(CV, 1); rond(ctx, W / 2 - lw / 2, H / 2 + taille * 0.42, lw, 10 * u, 5 * u); ctx.fill();
     if (e.legende) motsAnimes(ctx, e.legende, e.accent, W / 2, H / 2 + taille * 0.42 + 110 * u, { taille: 58 * u, largeur: W * 0.82, t: t - 1, poids: 600, couleur: INK2(0.82), decale: 0.06 });
@@ -342,11 +364,14 @@ const SCENES = {
 };
 
 /** Dessine l'image au temps t (secondes) d'une vidéo composée de scènes. */
-export function dessinerScenes(ctx, W, H, t, script, { police = "Plus Jakarta Sans" } = {}) {
-  F = `"${police}", "Plus Jakarta Sans", system-ui, sans-serif`;
+// Toujours une linéale très grasse et serrée (comme les pubs de référence), jamais la police à empattements du site
+export const POLICE_MOTION = "Inter Tight";
+export function dessinerScenes(ctx, W, H, t, script) {
+  F = `"${POLICE_MOTION}", "Inter", "Helvetica Neue", Arial, system-ui, sans-serif`;
+  serre(ctx, "-0.01em");
   C = hexRgb(script?.couleur); palette(script?.fond === "blanc" ? "blanc" : "noir");
   // En vertical (téléphone), tout est un peu plus grand : la vidéo se regarde sur un petit écran
-  const vertical = H > W * 1.2, u = (Math.min(W, H) / 1080) * (vertical ? 1.3 : 1);
+  const vertical = H > W * 1.2, u = (Math.min(W, H) / 1080) * (vertical ? 1.42 : 1.22);
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0; if ("filter" in ctx) ctx.filter = "none";
   fond(ctx, W, H, t, u);
   const scenes = (script?.scenes ?? []).filter((x) => SCENES[x?.type]);

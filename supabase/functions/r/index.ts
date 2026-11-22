@@ -1229,7 +1229,8 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const { categorieDesign, tirerDesign } = await import("../_shared/design.ts");
     const d: any = tirerDesign(categorieDesign(String(sc.secteur_en ?? "") || texte));
     const { secteur_en: _s, ...script } = sc;
-    const final = { ...script, couleur: d?.couleurs?.primary ?? "#E8571C", police: d?.polices?.titres ?? "Plus Jakarta Sans" };
+    // La couleur choisie par l'IA pour la pub (franche), sinon celle du système de design du métier
+    const final = { ...script, couleur: script.couleur ?? d?.couleurs?.primary ?? "#E8571C", police: d?.polices?.titres ?? "Plus Jakarta Sans" };
     const { data: v } = await admin.from("saas_videos").insert({ app_id: null, workspace_id: ws.id, format, script: final, texte }).select("id, format, script, texte, at").single();
     await log(ws.id, "video_libre", `Vidéo : ${texte.slice(0, 80)}`);
     return v;
