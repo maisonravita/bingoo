@@ -82,9 +82,9 @@ if (CONSTRUIRE === "gratuit") {
   let w2 = m2?.id;
   if (!w2) { const r = await fetch(`${SB}/rest/v1/rpc/create_workspace`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${s2.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ p_name: "Robot gratuit", p_website: "" }) }); w2 = await r.json(); }
   await q(`update workspaces set plan = 'essai', plan_status = 'trialing', onboarded = true where id = ${lit(w2)}`);
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR", storageState: { cookies: [], origins: [{ origin: SITE, localStorage: [{ name: `sb-${REF}-auth-token`, value: JSON.stringify(s2) }, { name: "kairo-ws", value: w2 }] }] } });
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR", storageState: { cookies: [], origins: [{ origin: SITE, localStorage: [{ name: `sb-${REF}-auth-token`, value: JSON.stringify(s2) }, { name: "kairo-ws", value: w2 }, { name: "bingoo-guide", value: "fini" }, { name: "bingoo-parcours-vu", value: "1" }, { name: "bingoo-vue-liste", value: "cartes" }] }] } });
   const page = await ctx.newPage();
-  for (const [nom, chemin] of [["gratuit-explorer", "#/explorer"], ["gratuit-fiche-geant", "#/explorer/salesforce.com"], ["gratuit-fiche-facile", "#/explorer/pmsuite.co"]]) {
+  for (const [nom, chemin] of [["gratuit-explorer", "#/explorer"], ["gratuit-tableau", "#/explorer?vue=tableau"], ["gratuit-fiche-geant", "#/explorer/salesforce.com"], ["gratuit-fiche-facile", "#/explorer/pmsuite.co"]]) {
     await page.goto(`${SITE}/?c=${Date.now()}${chemin}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await page.waitForTimeout(5000);
     await page.screenshot({ path: `${DOSSIER}/${nom}.png`, fullPage: nom === "gratuit-explorer" }); console.log("✓", nom);
   }
