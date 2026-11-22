@@ -362,7 +362,8 @@ const SCENES = {
     const y = H / 2 - (vertical ? 70 : 50) * u;
     if (LOGO?.width) { // son vrai logo, en grand, puis le nom plus petit
       ctx.save(); ctx.shadowColor = rgba(CV, 0.7); ctx.shadowBlur = 120 * u; plaqueLogo(ctx, W / 2, y - 60 * u, 150 * u, u, false); ctx.restore();
-      ctx.fillStyle = INK; ctx.font = `800 ${(vertical ? 84 : 76) * u}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(s.nom, W / 2, y + 120 * u);
+      // Un logo qui contient déjà le nom (plus large que haut) : pas de nom répété dessous
+      if (LOGO.width / LOGO.height < 1.6) { ctx.fillStyle = INK; ctx.font = `800 ${(vertical ? 84 : 76) * u}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(s.nom, W / 2, y + 120 * u); }
       ctx.restore();
     } else {
     ctx.shadowColor = rgba(CV, 0.8); ctx.shadowBlur = 90 * u; rond(ctx, W / 2 - T / 2, y - T - 30 * u, T, T, T * 0.26);
@@ -422,7 +423,7 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null } = {}) {
   if (LOGO?.width) {
     let a = 0, de2 = 0;
     for (const e of scenes) { const d = dureeScene(e); if (t >= de2 && t < de2 + d) a = ["aplat", "logo", "impact"].includes(e.type) ? 0 : Math.min(1, (t - de2) / 0.4, (de2 + d - t) / 0.3); de2 += d; }
-    if (a > 0.01) { ctx.save(); ctx.globalAlpha = a * 0.95; if ("filter" in ctx) ctx.filter = "none"; plaqueLogo(ctx, W / 2, (vertical ? 130 : 80) * u, 34 * u, u); ctx.restore(); }
+    if (a > 0.01 && LOGO?.width) { ctx.save(); ctx.globalAlpha = a * 0.95; if ("filter" in ctx) ctx.filter = "none"; const hl = 40 * u, kl = Math.min(LOGO.width / LOGO.height, 3.2); plaqueLogo(ctx, 40 * u + hl * 0.32 + (hl * kl) / 2, 40 * u + hl * 0.82, hl, u); ctx.restore(); }
   }
   // Barre de progression très discrète
   const tot = dureeTotale(script); palette(script?.fond === "blanc" ? "blanc" : "noir");

@@ -82,7 +82,7 @@ export type ScriptLibre = { genre: "libre"; nom: string; fond: "noir" | "blanc";
 const CATALOGUE = `Scènes possibles (type et champs, textes en français, très courts) :
 - mots { texte (≤ 48 car.), accent (1 à 2 mots du texte à mettre en couleur), style ("" ou "machine" = majuscules tapées lettre à lettre), trait (true = trait dessiné sous la phrase) } : la phrase choc
 - impact { texte (1 mot, ≤ 10 car.) } : un mot géant qui claque (« Tap. », « Prêt. »), souvent avec fond "couleur"
-- rature { texte_avant (≤ 24 car., la question), barre (≤ 24 car., ce qu'on barre), texte (≤ 28 car., la bonne réponse) }
+- rature { texte_avant (≤ 24 car., la question), barre (≤ 24 car., la mauvaise réponse ou l'ancienne façon, DIFFÉRENTE de la question), texte (≤ 28 car., la bonne réponse) } ex. « Le plus dur ? » / barré « Trouver un créneau » / « Réserver en 1 clic »
 - objet { objet ("carte" | "telephone" | "icone"), icone, texte (≤ 36 car., légende au-dessus), accent } : l'objet héros lumineux posé sur un halo
 - pilules { items: 2 à 3 { icone, texte (≤ 16 car.) }, texte (facultatif, titre ≤ 32 car.), accent } : petites pilules d'interface
 - choix { items: 2 à 3 { icone, texte (≤ 12 car.) }, texte (titre ≤ 32 car.), accent } : cartes de choix, la 2e se fait choisir
