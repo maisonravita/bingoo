@@ -71,6 +71,32 @@ const photo = async (page, nom, chemin, attente = 5000) => {
   await page.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await page.waitForTimeout(3000);
   await page.screenshot({ path: `${DOSSIER}/accueil.png` }); console.log("✓ accueil"); await ctx.close();
 }
+// CONSTRUIRE=audit : audit de la page d'accueil (ordinateur et téléphone) : vitesse, erreurs, débordements, images, vidéo
+if (CONSTRUIRE === "audit") {
+  for (const [nom, vp, mobile] of [["ordi", { width: 1440, height: 900 }, false], ["tel", { width: 390, height: 844 }, true]]) {
+    const ctx = await browser.newContext({ viewport: vp, isMobile: mobile, hasTouch: mobile, locale: "fr-FR" });
+    const p = await ctx.newPage(); const err = [], echecs = [];
+    p.on("console", (m) => { if (m.type() === "error") err.push(m.text().slice(0, 160)); });
+    p.on("pageerror", (e) => err.push("JS " + e.message.slice(0, 160)));
+    p.on("response", (r) => { if (r.status() >= 400) echecs.push(r.status() + " " + r.url().slice(0, 110)); });
+    const t0 = Date.now(); await p.goto(`${SITE}/?c=${t0}`, { waitUntil: "load", timeout: 60000 }); const charge = Date.now() - t0;
+    const lcp = await p.evaluate(() => new Promise((r) => { new PerformanceObserver((l) => { const e = l.getEntries(); r(Math.round(e[e.length - 1].startTime)); }).observe({ type: "largest-contentful-paint", buffered: true }); setTimeout(() => r(null), 3000); }));
+    await p.waitForTimeout(2000); await p.screenshot({ path: `${DOSSIER}/audit-${nom}-haut.jpg`, type: "jpeg", quality: 80 });
+    const info = await p.evaluate(async () => {
+      for (let y = 0; y < document.body.scrollHeight; y += 500) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 150)); }
+      const vw = window.innerWidth;
+      const deborde = [...document.querySelectorAll("body *")].filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && (r.right > vw + 2 || r.left < -2) && getComputedStyle(e).position !== "fixed" && !e.closest(".overflow-hidden,.fx-aurore"); }).slice(0, 8).map((e) => e.tagName + "." + String(e.className).slice(0, 60) + " → " + Math.round(e.getBoundingClientRect().right));
+      const imgs = [...document.images].filter((i) => i.complete && i.naturalWidth === 0).map((i) => i.src.slice(0, 90));
+      const petits = [...document.querySelectorAll("button, a")].filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height < 30 && e.innerText.trim(); }).map((e) => e.innerText.trim().slice(0, 30)).slice(0, 10);
+      const v = document.querySelector("video");
+      return { hauteur: document.body.scrollHeight, largeurPage: document.documentElement.scrollWidth, deborde, imgsCassees: imgs, petitsBoutons: petits, compteur: document.body.innerText.match(/Découvre les ([^S]+) SaaS/)?.[1], video: v ? { pret: v.readyState, duree: Math.round(v.duration), src: v.currentSrc.slice(-28) } : null, h2: [...document.querySelectorAll("h2")].map((h) => h.innerText.replace(/\s+/g, " ").slice(0, 60)) };
+    });
+    await p.evaluate(() => { document.querySelectorAll(".reveal").forEach((e) => e.classList.add("in")); window.scrollTo(0, 0); }); await p.waitForTimeout(800);
+    await p.screenshot({ path: `${DOSSIER}/audit-${nom}-page.jpg`, type: "jpeg", quality: 70, fullPage: true });
+    console.log("AUDIT " + JSON.stringify({ nom, charge, lcp, ...info, erreurs: err.slice(0, 8), echecs: echecs.slice(0, 8) }));
+    await ctx.close();
+  }
+}
 // CONSTRUIRE=gratuit : l'Explorer vu par un compte gratuit (un autre compte de test, sans abonnement)
 if (CONSTRUIRE === "gratuit") {
   // La page publique « Découvre les SaaS qui marchent », vue par un visiteur sans compte, puis le clic sur un SaaS
@@ -269,7 +295,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
