@@ -92,6 +92,10 @@ if (CONSTRUIRE === "gratuit") {
   await q(`update workspaces set plan = 'essai', plan_status = 'trialing', onboarded = true where id = ${lit(w2)}`);
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR", storageState: { cookies: [], origins: [{ origin: SITE, localStorage: [{ name: `sb-${REF}-auth-token`, value: JSON.stringify(s2) }, { name: "kairo-ws", value: w2 }, { name: "bingoo-guide", value: "fini" }, { name: "bingoo-parcours-vu", value: "1" }, { name: "bingoo-vue-liste", value: "cartes" }] }] } });
   const page = await ctx.newPage();
+  // « Tu viens sur Bingoo! pour quoi ? » : photographiée 2 s après l'ouverture, pour voir si les aperçus des cartes sont déjà là
+  { const t0 = Date.now(); await page.goto(`${SITE}/?c=${t0}#/explorer/trouver`, { waitUntil: "domcontentloaded", timeout: 60000 }).catch(() => null);
+    await page.getByText("Tu viens sur Bingoo!").waitFor({ timeout: 20000 }).catch(() => null); await page.waitForTimeout(2000);
+    await page.screenshot({ path: `${DOSSIER}/trouver-2s.png` }); console.log(`✓ trouver-2s (page affichée en ${Math.round((Date.now() - t0) / 100) / 10} s)`); }
   for (const [nom, chemin] of [["gratuit-explorer", "#/explorer"], ["gratuit-fiche-geant", "#/explorer/salesforce.com"], ["gratuit-fiche-facile", "#/explorer/pmsuite.co"]]) {
     await page.goto(`${SITE}/?c=${Date.now()}${chemin}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await page.waitForTimeout(5000);
     if (nom === "gratuit-explorer") await page.getByText(/Vitrine gratuite/).waitFor({ timeout: 30000 }).catch(() => console.log("✗ liste vide"));
