@@ -100,6 +100,66 @@ if (CONSTRUIRE === "spec") {
   const [x] = await q(`select spec from saas_apps where slug = ${lit(process.env.DOMAINE ?? "")}`);
   fs.writeFileSync(`${DOSSIER}/spec.json`, JSON.stringify(x?.spec ?? null));
   console.log("spec exportée :", x ? "oui" : "introuvable");
+} else if (CONSTRUIRE === "atelier-vrai") {
+  // L'atelier comme un membre, sur le dernier SaaS du robot (DOMAINE = son adresse courte, facultatif) :
+  // 1) texte changé au double-clic (gratuit), 2) demande en une phrase sur un écran, 3) demande sur la page de présentation,
+  // 4) « Appliquer le nouveau design » puis « Revenir au design précédent ». Chaque geste est vérifié en base.
+  const appel = async (route, corps) => { const r = await fetch(`${SB}/functions/v1/r/${route}`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify(corps) }); const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch {} return { ok: r.ok, status: r.status, j, t: t.slice(0, 200) }; };
+  const lire = async (id) => (await q(`select id, slug, statut, erreur, version, spec, brouillon, verif, workspace_id ws from saas_apps where id = ${lit(id)}`))[0];
+  const [a0] = await q(`select a.id from saas_apps a join members m on m.workspace_id = a.workspace_id where m.user_id = ${lit(uid)} and coalesce(a.spec->>'type','saas') <> 'site' and a.statut = 'pret' ${process.env.DOMAINE ? `and a.slug = ${lit(process.env.DOMAINE)}` : ""} order by a.at desc limit 1`);
+  if (!a0) throw new Error("Aucun SaaS du robot");
+  let a = await lire(a0.id); const ws = a.ws; const bilan = [];
+  const note = (ok, t) => { bilan.push(`${ok ? "✓" : "✗"} ${t}`); console.log(`${ok ? "✓" : "✗"} ${t}`); };
+  const attendreFin = async (id, max = 300) => { for (let i = 0; i < max / 3; i++) { await new Promise((r) => setTimeout(r, 3000)); const x = await lire(id); if (x.statut !== "en_cours") return x; } return lire(id); };
+  const photo = async (nom) => { const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p2 = await c2.newPage(); await p2.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p2.waitForTimeout(6000); await p2.screenshot({ path: `${DOSSIER}/${nom}.png` }).catch(() => null); await c2.close(); };
+  console.log("SaaS testé :", a.slug, "v" + a.version);
+  await photo("atelier-0-avant");
+  // 1) Texte au double-clic : le premier sous-titre d'écran trouvé dans le code
+  const e1 = (a.spec.ecrans ?? []).find((e) => !e.public && /sous="[^"]{8,}"/.test(e.code ?? ""));
+  if (e1) {
+    const avant = /sous="([^"]{8,})"/.exec(e1.code)[1], apres = "Texte changé par le robot de l'atelier";
+    const t0 = Date.now(); const r = await appel("saas-app-reglages", { workspace_id: ws, app_id: a.id, quoi: "texte", avant, apres, ecran: e1.id });
+    a = await lire(a.id); const code = (a.spec.ecrans ?? []).find((e) => e.id === e1.id)?.code ?? "";
+    note(r.ok && code.includes(apres) && !code.includes(`sous="${avant}"`), `Texte au double-clic sur « ${e1.titre} » (${Math.round((Date.now() - t0) / 100) / 10} s) ${r.ok ? "" : r.t}`);
+  } else note(false, "Aucun sous-titre d'écran à modifier");
+  // 2) Demande en une phrase sur un écran
+  const e2 = (a.spec.ecrans ?? []).find((e) => !e.public);
+  { const v0 = a.version, t0 = Date.now();
+    const r = await appel("saas-app-modifier", { workspace_id: ws, app_id: a.id, ecran: e2.id, demande: "Ajoute en haut de cet écran un petit bandeau qui affiche le nombre total d'éléments de la liste principale", images: [], element: null });
+    let x = await attendreFin(a.id);
+    if (x.brouillon?._modif) { await appel("saas-app-reglages", { workspace_id: ws, app_id: a.id, quoi: "brouillon-valider" }); x = await lire(a.id); }
+    // le robot de vérification de l'atelier conclut ensuite (annule si l'écran casse)
+    let fin = null; for (let i = 0; i < 100 && !fin; i++) { await new Promise((r) => setTimeout(r, 6000)); const y = await lire(a.id); if (y.verif?.dernier_atelier?.at && new Date(y.verif.dernier_atelier.at).getTime() > t0) fin = y; }
+    a = await lire(a.id);
+    note(r.ok && x.version > v0 && fin && !fin.verif.dernier_atelier.annule, `Demande sur l'écran « ${e2.titre} » : v${v0} → v${a.version}, testée par le robot ${fin ? (fin.verif.dernier_atelier.annule ? "et ANNULÉE (l'écran cassait)" : "et gardée") : "— pas de conclusion"} (${Math.round((Date.now() - t0) / 1000)} s) ${r.ok ? "" : r.t}`);
+  }
+  // 3) Demande sur la page de présentation générée
+  if ((a.spec.site?.page?.sections ?? []).length) {
+    const v0 = a.version, t0 = Date.now(); const h0 = JSON.stringify(a.spec.site.page);
+    const r = await appel("saas-app-modifier", { workspace_id: ws, app_id: a.id, ecran: "_site", demande: "Sur la page de présentation, remplace le grand titre du haut par « Vos passages, prouvés en un clic »", images: [], element: null });
+    let x = await attendreFin(a.id);
+    if (x.brouillon?._modif) { await appel("saas-app-reglages", { workspace_id: ws, app_id: a.id, quoi: "brouillon-valider" }); x = await lire(a.id); }
+    a = await lire(a.id); const h1 = JSON.stringify(a.spec.site?.page ?? {});
+    note(r.ok && h1 !== h0 && h1.includes("prouvés en un clic"), `Demande sur la page de présentation : ${h1.includes("prouvés en un clic") ? "titre remplacé" : "titre NON remplacé"} (${Math.round((Date.now() - t0) / 1000)} s) ${r.ok ? "" : r.t}`);
+    await photo("atelier-1-page-modifiee");
+  } else note(false, "Pas de page de présentation générée sur ce SaaS");
+  // 4) Nouveau design puis retour, sur le plus ancien SaaS du robot resté à l'ancien gabarit
+  const [vieux] = await q(`select a.id from saas_apps a join members m on m.workspace_id = a.workspace_id where m.user_id = ${lit(uid)} and coalesce(a.spec->>'type','saas') <> 'site' and a.statut = 'pret' and a.spec->>'gabarit_app' is null and coalesce((a.spec->>'mobile')::boolean,false) = false order by a.at desc limit 1`);
+  if (vieux) {
+    let v = await lire(vieux.id); const slugAvant = a.slug; a = v;
+    await photo("atelier-2-ancien-design");
+    const r = await appel("saas-app-reglages", { workspace_id: v.ws, app_id: v.id, quoi: "design-nouveau" });
+    let page = false; for (let i = 0; i < 50 && !page; i++) { await new Promise((r) => setTimeout(r, 5000)); v = await lire(v.id); page = (v.spec.site?.page?.sections ?? []).length > 0; }
+    note(r.ok && v.spec.gabarit_app === "taste" && page, `Nouveau design sur ${v.slug} : gabarit ${v.spec.gabarit_app ?? "—"}, police de titre ${v.spec.design?.polices?.titres}, page générée ${page ? "oui" : "non"} ${r.ok ? "" : r.t}`);
+    await photo("atelier-3-nouveau-design");
+    const r2 = await appel("saas-app-reglages", { workspace_id: v.ws, app_id: v.id, quoi: "design-revenir" });
+    v = await lire(v.id);
+    note(r2.ok && !v.spec.gabarit_app && !(v.spec.site?.page?.sections ?? []).length, `Retour au design précédent sur ${v.slug} : gabarit ${v.spec.gabarit_app ?? "ancien"}, page générée ${(v.spec.site?.page?.sections ?? []).length ? "encore là" : "retirée"} ${r2.ok ? "" : r2.t}`);
+    await photo("atelier-4-retour");
+    void slugAvant;
+  } else note(false, "Aucun SaaS à l'ancien gabarit pour tester le nouveau design");
+  fs.writeFileSync(`${DOSSIER}/atelier-bilan.txt`, bilan.join("\n"));
+  console.log("BILAN ATELIER\n" + bilan.join("\n"));
 } else if (CONSTRUIRE === "atelier") {
   // Robot de l'atelier, de bout en bout sur le dernier site construit par le robot :
   // DOMAINE=casse : une modification qui casse l'écran « Demandes » est mise en ligne par le vrai bouton (endpoint) ;
