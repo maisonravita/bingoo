@@ -21,7 +21,7 @@ jobs:
       - name: Site local
         if: ${{ github.event.inputs.local == '1' }}
         run: |
-          npm install --no-audit --no-fund && npm run build:site
+          npm install --no-audit --no-fund && npm run build:site && npm i --no-save playwright@1.48.2
           (npx vite preview -c vite.single.config.js --port 4173 --strictPort > /tmp/preview.log 2>&1 &)
           for i in $(seq 1 30); do curl -sf http://localhost:4173/ > /dev/null && break; sleep 1; done
           echo "SITE=http://localhost:4173" >> $GITHUB_ENV
