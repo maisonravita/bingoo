@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+const AppCadre = lazy(() => import("../components/AppCadre"));
 import { useNavigate } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
@@ -36,6 +37,30 @@ function useDesign(ap) {
 const dollars = (n) => Number(n).toLocaleString("fr-FR", { maximumFractionDigits: 0 }) + " $";
 
 // Maquette de la page d'accueil d'un site : en-tête, accroche, bouton, services et prix (tirés de l'aperçu)
+// L'aperçu d'un site : le VRAI gabarit des sites livrés par Bingoo!, avec les textes, services et le style de l'aperçu.
+// Aucune donnée inventée : pas d'avis, pas d'horaires, pas de chiffres ; le membre fait défiler sa future page.
+const prixNombre = (p) => { const m = String(p ?? "").replace(/\s/g, "").match(/(\d+(?:[.,]\d+)?)/); return m ? Number(m[1].replace(",", ".")) : null; };
+function specSite(nom, ap) {
+  return {
+    type: "site", nom, slogan: ap.accroche || "", pitch: ap.pitch || "", design: ap.design ?? undefined, couleur: ap.design?.couleurs?.primary ?? "#E8571C",
+    site: { metier: ap.metier || "", cta: ap.cta || "Me contacter", modele: ap.modele || "vitrine", demande: /devis/i.test(ap.cta ?? "") ? "devis" : /r[ée]serv/i.test(ap.cta ?? "") ? "reservation" : /rendez|rdv/i.test(ap.cta ?? "") ? "rdv" : "message", points_forts: ap.points_forts ?? [], etapes: ap.etapes ?? [] },
+    demo: { services: (ap.services ?? []).map((x) => { const n = prixNombre(x.prix); return { titre: x.titre, prix: n, prix_texte: /partir/i.test(x.prix ?? "") }; }), horaires: [], infos: [{}] },
+    ecrans: [],
+  };
+}
+function SiteReel({ nom, ap }) {
+  const spec = useMemo(() => specSite(nom, ap), [nom, ap]);
+  const slug = (nom || "mon-site").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "");
+  return (
+    <div className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-[0_30px_70px_-35px_rgba(20,20,40,.5)]">
+      <div className="flex items-center gap-1.5 border-b border-black/[.06] bg-[#F6F5F2] px-3 py-2"><span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" /><span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" /><span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" /><span className="ml-2 flex-1 truncate rounded-md bg-white px-2.5 py-0.5 text-[11px] text-[#9A9EAE]">{slug}.fr</span><span className="text-[10.5px] text-[#9A9EAE]">fais défiler ↓</span></div>
+      <Suspense fallback={<div className="h-[620px] animate-pulse bg-[#F6F5F2]" />}>
+        <AppCadre slug={"apercu-" + slug} spec={spec} version={JSON.stringify(spec).length} apercu className="h-[620px] w-full" />
+      </Suspense>
+    </div>
+  );
+}
+
 function MaquetteSite({ nom, ap }) {
   const { vars, T } = useDesign(ap);
   const sv = (ap.services?.length ? ap.services : [{ titre: "Ton premier service", prix: "" }, { titre: "Ton deuxième service", prix: "" }, { titre: "Ton troisième service", prix: "" }]).slice(0, 3);
@@ -227,7 +252,7 @@ export default function Idee() {
                 {ap.plus_tard?.length > 0 && <><p className="mt-5 text-[13px] font-bold">Ensuite, dans l'atelier</p><p className="mt-1 text-[13.5px] text-ink-soft">{ap.plus_tard.join(" · ")}</p></>}
                 {ap.limites?.length > 0 && <div className="mt-5 rounded-xl bg-[#FFF7F0] p-3"><p className="text-[13px] font-bold text-[var(--p)]">Fait autrement</p><ul className="mt-1 space-y-1">{ap.limites.map((l) => <li key={l.demande} className="text-[13.5px]"><span className="line-through decoration-[#C2410C]/50">{l.demande}</span> → {l.alternative}</li>)}</ul></div>}
               </div>
-              <div>{site ? <MaquetteSite nom={nom || ap.nom} ap={ap} /> : idee.type === "app" ? <MaquetteTel nom={nom || ap.nom} principal={ap.principal} ecrans={ap.ecrans} ap={ap} /> : <Maquette nom={nom || ap.nom} principal={ap.principal} ecrans={ap.ecrans} ap={ap} />}<p className="mt-2 text-center text-[12px] text-ink-faint">{site ? "Ta page d'accueil, avec le style choisi pour toi : la construction reprend ces couleurs et ces polices, et écrit tes vrais textes." : "Ton écran principal, avec le style choisi pour toi : la construction reprend ces couleurs et ces polices."}</p></div>
+              <div>{site ? <SiteReel nom={nom || ap.nom} ap={ap} /> : idee.type === "app" ? <MaquetteTel nom={nom || ap.nom} principal={ap.principal} ecrans={ap.ecrans} ap={ap} /> : <Maquette nom={nom || ap.nom} principal={ap.principal} ecrans={ap.ecrans} ap={ap} />}<p className="mt-2 text-center text-[12px] text-ink-faint">{site ? "Ta future page d'accueil, faite avec le gabarit des sites Bingoo! : fais-la défiler. Tu ajouteras ta photo, tes horaires et ton adresse ensuite." : "Ton écran principal, avec le style choisi pour toi : la construction reprend ces couleurs et ces polices."}</p></div>
             </div>
             <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-line pt-5">
               <Prix ws={ws} type={idee.type} />
@@ -255,4 +280,3 @@ export default function Idee() {
     </div>
   );
 }
-export { MaquetteSite, Maquette, MaquetteTel };
