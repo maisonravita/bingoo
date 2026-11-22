@@ -71,6 +71,23 @@ const photo = async (page, nom, chemin, attente = 5000) => {
   await page.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await page.waitForTimeout(3000);
   await page.screenshot({ path: `${DOSSIER}/accueil.png` }); console.log("✓ accueil"); await ctx.close();
 }
+// CONSTRUIRE=copie : l'accueil d'un visiteur qui colle une adresse, puis l'étape « compte » (avant toute construction)
+if (CONSTRUIRE === "copie") {
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const page = await ctx.newPage();
+  await page.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await page.waitForTimeout(2500);
+  await page.locator("#idee").fill(process.env.DOMAINE || "cal.com"); await page.waitForTimeout(600);
+  await page.screenshot({ path: `${DOSSIER}/accueil-adresse.png` }); console.log("✓ accueil-adresse");
+  await page.getByRole("button", { name: /Faire ma version/ }).click().catch((e) => console.log("✗ Faire ma version", e.message));
+  await page.waitForTimeout(1500); await page.screenshot({ path: `${DOSSIER}/accueil-compte.png` }); console.log("✓ accueil-compte :", (await page.evaluate(() => document.querySelector("form")?.innerText ?? "")).replace(/\s+/g, " ").slice(0, 200));
+  await page.setViewportSize({ width: 390, height: 844 }); await page.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await page.waitForTimeout(2500);
+  await page.screenshot({ path: `${DOSSIER}/accueil-mobile.png` }); await ctx.close();
+  // La lecture sans IA de plusieurs sites (logiciels, vitrines), résultats dans le journal
+  for (const u of (process.env.SCANS || "cal.com,notion.so,linear.app,www.boulangerie-paul.fr,alan.com,qonto.com").split(",")) {
+    const r = await fetch(`${SB}/functions/v1/r/site-scan`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: ws, url: u }) });
+    const j = await r.json().catch(() => ({}));
+    console.log(`SCAN ${u} → ${r.status}`, r.ok ? JSON.stringify({ nom: j.nom, type: j.type, couleurs: j.couleurs, mode: j.mode, polices: j.polices, rubriques: j.rubriques?.slice(0, 6), boutons: j.boutons?.slice(0, 3), css: j.css_lus }) : JSON.stringify(j).slice(0, 200));
+  }
+}
 // IDEE=1 : le parcours « Construire mon idée » (aperçu gratuit : 1 petit appel d'IA par idée), une idée claire, une floue, une refusée
 if (["1", "site", "app"].includes(process.env.IDEE)) {
   const IDEES_SAAS = [["idee-claire", "Une app de réservation pour les coiffeurs à domicile, avec rappel la veille"], ["idee-floue", "Une appli comme Uber"], ["idee-refusee", "Un faux site de connexion de ma banque pour récupérer les identifiants"]].map(([n, t]) => [n, t, "saas"]);
@@ -246,7 +263,7 @@ if (CONSTRUIRE === "spec") {
   await q(`update workspaces set plan = ${lit(CONSTRUIRE === "site" ? "site" : "lancer_pro")}, plan_status = 'active', onboarded = true where id = ${lit(ws2)}`);
   const nomVoulu = CONSTRUIRE === "ia" ? ({ "calendly.com": "Rendezo", "invoiceninja.com": "Facturo", "canny.io": "Avisio" }[process.env.DOMAINE ?? ""] ?? "Cerclo") : CONSTRUIRE === "site" ? SITE_IDEE.apercu.nom : "Sublima";
   const TEXTE_IDEE = process.env.TEXTE_IDEE || (process.env.DOMAINE && !/\.[a-z]{2,}$/.test(process.env.DOMAINE) ? process.env.DOMAINE : "") || "j'ai une conciergerie où je veux gérer l'entretien dans des bureaux avec mes équipes";
-  let { ctx, page } = CONSTRUIRE === "idee" ? await ouvrir(ws2, { "bingoo-idee": { texte: TEXTE_IDEE, type: "saas", at: Date.now() } }) : await ouvrir(ws2, {
+  let { ctx, page } = CONSTRUIRE === "idee" ? await ouvrir(ws2, { "bingoo-idee": { texte: TEXTE_IDEE, type: "saas", at: Date.now() } }) : CONSTRUIRE === "copie" ? await ouvrir(ws2, { "bingoo-copie": { url: process.env.DOMAINE || "cal.com", at: Date.now() } }) : await ouvrir(ws2, {
     [`bingoo-reponses-${cible.domaine}`]: { nom: nomVoulu, clients: CONSTRUIRE === "ia" ? (process.env.DOMAINE ? "Indépendants et petites équipes" : "Créateurs de communautés") : "Instituts de beauté", mieux: "", angle: `Nom souhaité, à utiliser tel quel : ${nomVoulu}` },
     "bingoo-chantier": { ...cible, ws: ws2, metier: CONSTRUIRE === "ia" ? "Créateurs de communautés" : "Institut de beauté" },
   });
@@ -260,6 +277,21 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/idee-apercu.png`, fullPage: true }).catch(() => null);
     console.log("Aperçu de l'idée :", (await page.evaluate(() => document.body.innerText)).replace(/\s+/g, " ").slice(0, 900));
     await bouton.first().click().catch((e) => console.log("✗ bouton Construire introuvable", e.message));
+    await page.waitForTimeout(5000);
+  } else if (CONSTRUIRE === "copie") {
+    // Le membre a collé l'adresse d'un site : Bingoo! le lit point par point, il donne son nom et son logo, puis construit
+    await page.goto(`${SITE}/?c=${t0}#/explorer/copie`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+    await page.waitForTimeout(2500); await page.screenshot({ path: `${DOSSIER}/copie-lecture.png`, fullPage: true }).catch(() => null);
+    await page.locator("#copie-nom").waitFor({ timeout: 90000 }).catch(() => null);
+    await page.waitForTimeout(800);
+    console.log("Lecture du site :", (await page.evaluate(() => document.body.innerText)).replace(/\s+/g, " ").slice(0, 1200));
+    await page.locator("#copie-nom").fill(process.env.NOM_COPIE || "Agendo").catch(() => null);
+    // Un logo (dessiné à la volée) envoyé comme le ferait le membre
+    const png = await page.evaluate(() => { const c = document.createElement("canvas"); c.width = c.height = 256; const g = c.getContext("2d"); g.fillStyle = "#0F766E"; g.beginPath(); g.arc(128, 128, 120, 0, 7); g.fill(); g.fillStyle = "#fff"; g.font = "bold 150px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("A", 128, 140); return c.toDataURL("image/png").split(",")[1]; });
+    await page.locator('input[type="file"]').setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: Buffer.from(png, "base64") }).catch((e) => console.log("✗ logo", e.message));
+    await page.getByAltText("Ton logo").waitFor({ timeout: 30000 }).catch(() => console.log("✗ logo non affiché"));
+    await page.screenshot({ path: `${DOSSIER}/copie-resultat.png`, fullPage: true }).catch(() => null);
+    await page.getByRole("button", { name: /^Construire / }).first().click().catch((e) => console.log("✗ bouton Construire", e.message));
     await page.waitForTimeout(5000);
   } else await page.goto(`${SITE}/?c=${t0}#/explorer/revelation`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
   let n = 0, fin = false, figee = 0;
@@ -289,7 +321,8 @@ if (CONSTRUIRE === "spec") {
   console.log(JSON.stringify(a?.verif?.mesure ?? null), (a?.verif?.journal ?? []).map((j) => j.t).join("\n"));
   // Le site en ligne tel que le voit un visiteur, puis le plan « premiers clients » du commerce
   // Un SaaS construit : chaque écran tel que le voit le membre dans « Mon SaaS » (ordinateur, puis téléphone)
-  if (["idee", "ia"].includes(CONSTRUIRE) && a?.slug) {
+  if (a?.slug && CONSTRUIRE === "copie") { const [d] = await q(`select spec->'design'->'couleurs'->>'primary' prim, spec->'design'->'polices' pol, spec->'design'->>'source_style' src, spec->>'logo' logo from saas_apps where slug = ${lit(a.slug)}`); console.log("STYLE APPLIQUÉ :", JSON.stringify(d)); }
+  if (["idee", "ia", "copie"].includes(CONSTRUIRE) && a?.slug) {
     const [{ titres }] = await q(`select coalesce(json_agg(e->>'titre'), '[]') titres from saas_apps, jsonb_array_elements(spec->'ecrans') e where slug = ${lit(a.slug)} and coalesce((e->>'public')::boolean, false) = false`);
     for (const [suffixe, vp] of [["", { width: 1440, height: 900 }], ["-mobile", { width: 390, height: 844 }]]) {
       await page.setViewportSize(vp);
