@@ -24,9 +24,9 @@ function Ecran() {
     </div>
     <div class="mt-4 grid gap-4 lg:grid-cols-3">
       <${Carte} titre="À traiter maintenant" classe="lg:col-span-2" actions=${html`<button onClick=${() => go("tickets")} class="text-sm font-medium text-[var(--c)]">Tout voir →</button>`}>
-        ${urgents.length ? html`<div class="divide-y divide-slate-100">${urgents.map((t) => html`<button onClick=${() => go("tickets", { ouvrir: t.id })} class="flex w-full items-center gap-3 py-2.5 text-left hover:bg-slate-50/70"><${Avatar} nom=${t.nom}/><div class="min-w-0 flex-1"><p class="truncate font-medium">${t.sujet}</p><p class="truncate text-sm text-slate-500">${t.nom} · ${t.categorie || "Autre"}</p></div><span class="hidden sm:block shrink-0 text-xs text-slate-400">${ilya(t.created_at)}</span><${Pill} ton=${PRIO[t.priorite]?.[1]}>${PRIO[t.priorite]?.[0] ?? "Normale"}</${Pill}></button>`)}</div>` : html`<${Vide} icone="check" titre="Aucun ticket ouvert" texte="Tout le monde a sa réponse. Bravo !"/>`}
+        ${urgents.length ? html`<div class="divide-y divide-slate-100">${urgents.map((t) => html`<button onClick=${() => go("tickets", { ouvrir: t.id })} class="flex w-full items-center gap-3 py-2.5 text-left hover:bg-slate-50/70"><${Avatar} nom=${t.nom}/><div class="min-w-0 flex-1"><p class="truncate font-medium">${t.sujet}</p><p class="truncate text-sm text-slate-500">${t.nom} · ${t.categorie || "Autre"}</p></div><span class="hidden sm:block shrink-0 text-xs text-slate-500">${ilya(t.created_at)}</span><${Pill} ton=${PRIO[t.priorite]?.[1]}>${PRIO[t.priorite]?.[0] ?? "Normale"}</${Pill}></button>`)}</div>` : html`<${Vide} icone="check" titre="Aucun ticket ouvert" texte="Tout le monde a sa réponse. Bravo !"/>`}
       </${Carte}>
-      <${Carte} titre="Par catégorie">${parCat.length ? html`<${ui.Donut} donnees=${parCat}/>` : html`<p class="text-sm text-slate-400">Pas de demande sur la période.</p>`}</${Carte}>
+      <${Carte} titre="Par catégorie">${parCat.length ? html`<${ui.Donut} donnees=${parCat}/>` : html`<p class="text-sm text-slate-500">Pas de demande sur la période.</p>`}</${Carte}>
     </div>
     <${Carte} titre="Demandes reçues par jour" classe="mt-4"><${ui.Bar} donnees=${parJour}/></${Carte}>
   </div>`;

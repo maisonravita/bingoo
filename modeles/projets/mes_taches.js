@@ -38,7 +38,7 @@ function Ecran(props) {
   const ligne = (c) => html`<div class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50">
     <button aria-label=${c.fini ? "Rouvrir la tâche" : "Marquer comme terminée"} title=${c.fini ? "Rouvrir" : "Terminer"} onClick=${() => basculer(c)} class=${"grid w-6 h-6 shrink-0 place-items-center rounded-full border-2 text-xs " + (c.fini ? "bg-emerald-500 border-emerald-500 text-white" : "border-slate-300 hover:border-[var(--c)] text-transparent hover:text-[var(--c)]")}>✓</button>
     <div class="min-w-0 flex-1 cursor-pointer" onClick=${() => go("tableaux", { tableau: c.tableau.id })}>
-      <p class=${"text-sm font-medium truncate " + (c.fini ? "line-through text-slate-400" : "")}>${c.titre}</p>
+      <p class=${"text-sm font-medium truncate " + (c.fini ? "line-through text-slate-500" : "")}>${c.titre}</p>
       <p class="text-xs text-slate-500 truncate">${c.tableau.emoji || "📋"} ${c.tableau.nom} · ${c.colonne_nom}${(c.cases ?? []).length ? " · ☑ " + c.cases.filter((k) => k.fait).length + "/" + c.cases.length : ""}</p>
     </div>
     ${c.responsable && html`<span title=${c.responsable} class="hidden sm:grid w-7 h-7 shrink-0 place-items-center rounded-full bg-[var(--c)] text-white text-[10px] font-bold">${c.responsable.split(" ").map((x) => x[0]).join("").slice(0, 2).toUpperCase()}</span>`}
@@ -51,7 +51,7 @@ function Ecran(props) {
       <label class="ml-auto flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" class="accent-[var(--c)] w-4 h-4" checked=${fini} onChange=${(e) => setFini(e.target.checked)}/>Afficher les terminées</label>
     </div>
     ${groupes.length ? html`<div class="space-y-5">${groupes.map((g) => html`<section>
-      <h2 class=${"mb-2 text-sm font-semibold " + g.couleur}>${g.titre} <span class="font-normal text-slate-400">${g.xs.length}</span></h2>
+      <h2 class=${"mb-2 text-sm font-semibold " + g.couleur}>${g.titre} <span class="font-normal text-slate-500">${g.xs.length}</span></h2>
       <div class="rounded-2xl bg-white border border-slate-200 divide-y divide-slate-100 overflow-hidden">${g.xs.map(ligne)}</div>
     </section>`)}</div>` : html`<${ui.Empty} texte=${filtre ? "Rien à faire pour " + filtre + " : tout est à jour." : "Aucune tâche pour l'instant. Ajoutez-en une, ou ouvrez un tableau."}/>`}
     <${ui.Modal} open=${!!m} onClose=${() => setM(null)} titre="Nouvelle tâche" actions=${html`<${ui.Button} variant="secondary" onClick=${() => setM(null)}>Annuler</${ui.Button}><${ui.Button} onClick=${ajouter}>Ajouter la tâche</${ui.Button}>`}>

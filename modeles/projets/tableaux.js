@@ -51,7 +51,7 @@ function Ecran(props) {
         <button onClick=${fermer} class="rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100">← ${V.tableaux}</button>
         <span class="grid w-10 h-10 place-items-center rounded-xl text-xl" style=${"background:" + (t.couleur || "#2563eb") + "22"}>${t.emoji || "📋"}</span>
         <div class="min-w-0 flex-1"><h1 class="text-xl font-bold tracking-tight truncate">${t.nom}</h1>${t.description && html`<p class="text-sm text-slate-500 truncate">${t.description}</p>`}</div>
-        <span class="text-xs text-slate-400 w-24 text-right">${etat}</span>
+        <span class="text-xs text-slate-500 w-24 text-right">${etat}</span>
         <button title=${t.favori ? "Retirer des favoris" : "Mettre en favori"} onClick=${() => T.update(t.id, { favori: !t.favori })} class=${"rounded-lg px-2.5 py-1.5 text-lg hover:bg-slate-100 " + (t.favori ? "text-amber-500" : "text-slate-300")}>★</button>
         <${ui.Button} variant="secondary" onClick=${() => setReglage({ ...t })}>Réglages</${ui.Button}>
       </div>

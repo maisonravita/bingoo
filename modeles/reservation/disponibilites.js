@@ -35,7 +35,7 @@ function Ecran() {
     <${Carte} titre="Jours">
       <div class="divide-y divide-slate-100">${JOURS.map((nom, i) => { const plages = D.rows.filter((p) => Number(p.jour) === i + 1).sort((a, b) => minutes(a.debut) - minutes(b.debut)); return html`<div class="py-3 flex flex-wrap items-center gap-2.5">
         <p class="w-28 font-medium">${nom}</p>
-        ${plages.length ? plages.map((p) => html`<span class=${"inline-flex items-center gap-1 rounded-full border pl-3.5 pr-1 py-1 text-sm " + (p.actif === false ? "border-slate-200 text-slate-400 line-through" : "border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,.05)]")}>
+        ${plages.length ? plages.map((p) => html`<span class=${"inline-flex items-center gap-1 rounded-full border pl-3.5 pr-1 py-1 text-sm " + (p.actif === false ? "border-slate-200 text-slate-500 line-through" : "border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,.05)]")}>
           <button onClick=${() => setM({ ...p })} class="font-medium tabular-nums">${p.debut} – ${p.fin}</button>
           <${Menu} actions=${[["Modifier", () => setM({ ...p })], [p.actif === false ? "Rouvrir cette plage" : "Mettre en pause", () => D.update(p.id, { actif: p.actif === false })], i < 5 && ["Copier sur la semaine", () => copierSurSemaine(i + 1)], ["Supprimer", () => supprimer(p), true]]}/></span>`) : html`<span class="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-500">Fermé</span>`}
         <button onClick=${() => setM({ jour: i + 1, debut: plages.length ? plages[plages.length - 1].fin : "09:00", fin: plages.length ? "19:00" : "12:00", actif: true })} class="ml-auto text-sm font-semibold text-[var(--c)] hover:underline">+ Plage</button>

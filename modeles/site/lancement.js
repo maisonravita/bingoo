@@ -16,7 +16,7 @@ function Ecran() {
     </div>
     <div class="mt-4 grid gap-4 lg:grid-cols-3">
       <${Carte} titre="Inscriptions par jour" classe="lg:col-span-2"><${ui.Bar} donnees=${parJour}/></${Carte}>
-      <${Carte} titre="D'où ils viennent">${sources.length ? html`<${ui.Donut} donnees=${sources}/>` : html`<p class="text-sm text-slate-400">Pas encore d'inscrit.</p>`}<p class="mt-3 text-xs text-slate-400">Ajoutez ?src=instagram (ou linkedin, newsletter…) à votre lien pour savoir ce qui marche.</p></${Carte}>
+      <${Carte} titre="D'où ils viennent">${sources.length ? html`<${ui.Donut} donnees=${sources}/>` : html`<p class="text-sm text-slate-500">Pas encore d'inscrit.</p>`}<p class="mt-3 text-xs text-slate-500">Ajoutez ?src=instagram (ou linkedin, newsletter…) à votre lien pour savoir ce qui marche.</p></${Carte}>
     </div>
     ${!inf.email && html`<button onClick=${() => go("infos")} class="mt-4 flex w-full items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left hover:border-[var(--c)]"><span class="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 border-slate-300"></span><span><span class="block text-sm font-semibold">Ajoutez votre e-mail de contact</span><span class="block text-xs text-slate-500">Vos futurs clients pourront vous écrire avant le lancement.</span></span></button>`}
   </div>`;

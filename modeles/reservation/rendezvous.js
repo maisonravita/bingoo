@@ -25,7 +25,7 @@ function Ecran() {
         <tbody class="divide-y divide-slate-50">${L.map((r) => html`<tr class="cursor-pointer hover:bg-slate-50/70" onClick=${() => setM({ ...r })}>
           <td class="px-5 py-3 whitespace-nowrap"><p class="font-semibold">${quand(r)}</p><p class="text-xs text-slate-500">${r.heure}</p></td>
           <td class="py-3"><div class="flex items-center gap-2.5"><${Avatar} nom=${r.client_nom}/><span class="font-medium">${r.client_nom}</span></div></td>
-          <td class="py-3 text-slate-600">${nomP(r.prestation_id)}${r.intervenant ? html`<span class="block text-xs text-slate-400">avec ${r.intervenant}</span>` : ""}</td>
+          <td class="py-3 text-slate-600">${nomP(r.prestation_id)}${r.intervenant ? html`<span class="block text-xs text-slate-500">avec ${r.intervenant}</span>` : ""}</td>
           <td class="py-3 text-slate-600 whitespace-nowrap">${(Number(r.duree) || 60) >= 60 ? Math.floor((Number(r.duree) || 60) / 60) + " h" + ((Number(r.duree) || 60) % 60 ? " " + ((Number(r.duree) || 60) % 60) : "") : r.duree + " min"}</td>
           <td class="py-3 text-right tabular-nums font-medium">${fmt.eur(r.montant)}</td>
           <td class="py-3 pl-6"><${Pastille} statut=${r.statut}/></td>
