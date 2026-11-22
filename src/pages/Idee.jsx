@@ -195,7 +195,7 @@ export default function Idee() {
         <>
           <section className="mt-8 rounded-3xl border-2 border-ink bg-white p-5 sm:p-7">
             <p className="text-[12px] font-bold uppercase tracking-[.14em] text-ink-faint">L'aperçu de ta première version</p>
-            <div className={cx("mt-4 grid grid-cols-1 gap-6 [&>*]:min-w-0", idee.type === "app" && "lg:grid-cols-[auto_1fr] lg:items-start")}>
+            <div className={cx("mt-4 grid grid-cols-1 gap-6 [&>*]:min-w-0", idee.type === "app" && "lg:grid-cols-[400px_minmax(0,1fr)] lg:items-start")}>
               <div>
                 <label className="text-[12.5px] font-semibold text-ink-soft" htmlFor="nom-idee">{site ? "Le nom affiché sur ton site" : "Son nom"}</label>
                 <input id="nom-idee" value={nom} onChange={(e) => setNom(e.target.value.slice(0, 40))} className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-[22px] font-black outline-none focus:border-ink" style={HF} />
