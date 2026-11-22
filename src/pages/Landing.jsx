@@ -123,6 +123,12 @@ function useEffetsPage() {
 // Une idée → Bingoo! la construit écran par écran sous tes yeux. Dans les deux cas : le compte d'abord.
 const TYPES_IDEE = [["saas", "Mon SaaS", "M4 6h16v12H4z M4 10h16"], ["site", "Mon site web", "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M3 12h18 M12 3c3 3.5 3 14.5 0 18 M12 3c-3 3.5-3 14.5 0 18"], ["app", "Mon app mobile", "M8 3h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M11 18h2"]];
 const EXEMPLES_IDEE = { saas: ["Une app de réservation pour les coiffeurs", "Un CRM simple pour les agents immobiliers", "notion.so"], site: ["Le site de mon salon de coiffure à Lyon", "Un site pour mon activité de plombier", "Le site de ma pizzeria avec les réservations"], app: ["Une app pour suivre mes séances de sport", "Une app de recettes de la semaine", "Une app pour gérer mon budget"] };
+const typeDe = (t) => {
+  const x = String(t ?? "").toLowerCase();
+  if (/\b(app|appli|application)s?\b[^.]{0,30}\b(mobile|téléphone|telephone|iphone|android|smartphone)\b|\bapp(li)? (mobile|iphone|android)\b|\bapplication mobile\b/.test(x)) return "app";
+  if (/\b(site|sites|page|vitrine|landing|boutique en ligne|e-?shop|portfolio|blog)\b/.test(x) && !/\b(logiciel|saas|plateforme|outil|crm|tableau de bord)\b/.test(x)) return "site";
+  return "saas";
+};
 const estAdresse = (t) => /^(https?:\/\/)?(www\.)?[a-z0-9][a-z0-9-]*(\.[a-z0-9-]+)*\.[a-z]{2,}(\/\S*)?$/i.test(String(t ?? "").trim());
 
 // Le compte, juste avant que Bingoo! commence : e-mail et mot de passe, ou connexion si on a déjà un compte
@@ -165,7 +171,10 @@ function CompteAvant({ quoi, onFini, onRetour }) {
 }
 
 function IdeeHero({ nav }) {
-  const [texte, setTexte] = useState(""), [type, setType] = useState("saas"), [busy, setBusy] = useState(false), [compte, setCompte] = useState(null);
+  const [texte, setTexte] = useState(""), [choix, setChoix] = useState(null), [busy, setBusy] = useState(false), [compte, setCompte] = useState(null);
+  // Le genre se lit dans la phrase (« un site… », « une app mobile… ») tant que le membre n'a pas choisi lui-même
+  const type = choix ?? typeDe(texte);
+  const setType = setChoix;
   const zone = useRef(null);
   const url = estAdresse(texte);
   const lancer = async (e) => {
