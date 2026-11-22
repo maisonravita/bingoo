@@ -31,6 +31,8 @@ jobs:
         if: always()
         run: |
           cd captures && git init -q && git checkout -q -b captures-robot
+          # Pas de déploiement Vercel pour cette branche d'images (le quota de mises en ligne est limité)
+          echo '{"git":{"deploymentEnabled":false}}' > vercel.json
           git config user.name "bingoo-robot" && git config user.email "robot@bingoo.fr"
           git add -A && git commit -q -m "Captures du $(date -u +%F\ %H:%M)" || exit 0
           git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" captures-robot

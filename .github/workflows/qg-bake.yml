@@ -17,6 +17,6 @@ jobs:
       - run: node scripts/qg-bake.mjs "${{ inputs.lat }}" "${{ inputs.lon }}" "${{ inputs.r }}"
       - name: Publier sur la branche qg-data
         run: |
-          cd qg-tiles && git init -q && git checkout -q -b qg-data && git add . \
+          cd qg-tiles && echo '{"git":{"deploymentEnabled":false}}' > vercel.json && git init -q && git checkout -q -b qg-data && git add . \
           && git -c user.name=bot -c user.email=bot@users.noreply.github.com commit -qm "tuiles" \
           && git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" qg-data

@@ -109,5 +109,11 @@
     "api/og.js": {
       "includeFiles": "api/_polices/**"
     }
+  },
+  "git": {
+    "deploymentEnabled": {
+      "*": false,
+      "main": true
+    }
   }
 }
