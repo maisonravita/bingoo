@@ -212,7 +212,9 @@ const SCENES = {
   mots(ctx, s, e) {
     const { W, H, u, t, vertical } = s;
     if (e.style === "machine") { // majuscules tapées lettre à lettre, le mot clé en couleur (style « Junior »)
-      const txt = String(e.texte ?? "").toUpperCase(), nb = Math.floor(txt.length * prog(t, 0.05, 0.05 + txt.length * 0.04)), taille = (vertical ? 110 : 96) * u;
+      const txt = String(e.texte ?? "").toUpperCase(), nb = Math.floor(txt.length * prog(t, 0.05, 0.05 + txt.length * 0.04));
+      // Le mot le plus long doit tenir sur une ligne
+      const long = txt.split(" ").sort((a, b) => b.length - a.length)[0] ?? "", taille = ajuste(ctx, long, (vertical ? 110 : 96) * u, W * 0.84);
       ctx.font = `800 ${taille}px ${F}`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
       const lignes = coupe(ctx, txt, W * 0.84), acc = String(e.accent ?? "").toUpperCase().split(/\s+/).filter(Boolean); let vu = 0;
       lignes.forEach((l, k) => { let x = W / 2 - ctx.measureText(l).width / 2; const y = H / 2 - ((lignes.length - 1) * taille * 1.06) / 2 + k * taille * 1.06;

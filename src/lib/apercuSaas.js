@@ -2,14 +2,14 @@
 // (cartes de chiffres, listes, calendrier, colonnes, courbe…) et affiché dans la vraie coque de l'application.
 // Aucune IA ici : le code de l'écran est fabriqué à partir des blocs de l'aperçu (données d'exemple de l'idée).
 
-const num = (t) => { const m = String(t ?? "").match(/^\s*([\d\s.,]+\s?(?:€|%|h|min)?)\s+(.*)$/); return m ? [m[1].trim(), m[2]] : [null, String(t ?? "")]; };
+const num = (t) => { const m = String(t ?? "").match(/^\s*([+-]?\s?\d[\d\s.,]*\s?(?:€|%|h|min|kg|km)?)\s+(.*)$/); return m ? [m[1].replace(/\s+(?=%)/, " ").trim(), m[2]] : [null, String(t ?? "")]; };
 const decoupe = (t) => { const [a, ...b] = String(t ?? "").split(/\s[·—-]\s|\s:\s/); return { titre: a.trim(), sous: b.join(" · ").trim() }; };
 
 function bloc(b, i) {
   const el = (b.elements ?? []).filter(Boolean).slice(0, 4), titre = b.titre || "";
   const jour = (k) => { const d = new Date(); d.setDate(d.getDate() + k * 2 - 1); return d.toISOString().slice(0, 10); };
   switch (b.type) {
-    case "kpi": return { g: "stats", items: el.map((x) => { const [v, l] = num(x); return { label: l || x, valeur: v ?? "—" }; }) };
+    case "kpi": return { g: "stats", items: el.map((x) => { const [v, l] = num(x); return v ? { label: l, valeur: v } : { label: "", valeur: x }; }) };
     case "graphique": return { g: "carte", titre, k: "ligne", donnees: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((label, j) => ({ label, valeur: [4, 6, 5, 8, 7, 10, 9][j] + (i % 3) })) };
     case "calendrier": return { g: "carte", titre, k: "calendrier", lignes: el.map((x, j) => ({ id: "c" + j, date: jour(j), titre: x })) };
     case "colonnes": return { g: "carte", titre, k: "kanban", colonnes: el.slice(0, 3), lignes: el.slice(0, 3).flatMap((c, j) => [{ id: `k${j}a`, statut: c, titre: `${titre || "Élément"} ${j * 2 + 1}` }, ...(j % 2 ? [] : [{ id: `k${j}b`, statut: c, titre: `${titre || "Élément"} ${j * 2 + 2}` }])]) };
