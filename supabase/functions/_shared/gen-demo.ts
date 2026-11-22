@@ -35,6 +35,8 @@ export function couvrirDemo(demo: Record<string, any>, collections: Collection[]
   const d: Record<string, any> = { ...demo };
   for (const c of collections ?? []) {
     const xs: any[] = Array.isArray(d[c.nom]) ? d[c.nom].map((x: any) => (x && typeof x === "object" ? { ...x } : x)) : [];
+    // Un emoji en tête d'un nom (« 🕯️ Bougie… ») passe pour une icône oubliée dans les listes : retiré des exemples
+    for (const x of xs) if (x && typeof x === "object") for (const [k, v] of Object.entries(x)) if (typeof v === "string" && /^\p{Extended_Pictographic}/u.test(v)) { x[k] = v.replace(/^(?:\p{Extended_Pictographic}|\uFE0F|\u200D)+\s*/u, ""); changements++; }
     if (xs.length < 3) continue;
     const pris = new Set<string>(); // une même ligne n'est modifiée qu'une fois par champ
     for (const ch of c.champs ?? []) {

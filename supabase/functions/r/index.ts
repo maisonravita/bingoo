@@ -561,7 +561,14 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const ecrans: any[] = spec.ecrans ?? [];
     const titre = (id: string) => ecrans.find((e) => e.id === id)?.titre ?? id;
     const ids = new Set(ecrans.map((e) => e.id));
-    const resultats = (Array.isArray(b.resultats) ? b.resultats : []).filter((r: any) => ids.has(r?.id)).map((r: any) => ({ id: String(r.id), ok: !!r.ok, erreur: r.erreur ? String(r.erreur).slice(0, 700) : null }));
+    // Écrans de modèles faits main : leurs emoji sont un choix de design relu par l'équipe (pastilles de tableaux, comme Trello),
+    // pas une icône oubliée ; la remarque est retirée, et l'écran passe si c'était sa seule remarque
+    const sansEmojiModele = (r: any) => {
+      if (r.ok || !ecrans.find((e) => e.id === r.id)?.modele) return r;
+      const reste = String(r.erreur ?? "").replace(/\s*Emoji utilisé comme icône \(\d+\) : « [^»]*» ; utiliser une icône SVG\./g, "").replace(/^Finition :\s*$/, "").trim();
+      return reste ? { ...r, erreur: reste } : { ...r, ok: true, erreur: null };
+    };
+    const resultats = (Array.isArray(b.resultats) ? b.resultats : []).filter((r: any) => ids.has(r?.id)).map((r: any) => sansEmojiModele({ id: String(r.id), ok: !!r.ok, erreur: r.erreur ? String(r.erreur).slice(0, 700) : null }));
     if (!resultats.length) return avant; // aucun écran testé : rien à conclure (jamais « tout est propre » sans test)
     // Boucle de livraison : pendant la construction (phase « en_cours »), puis filet de sécurité 2 h après la livraison.
     // Les corrections ne coûtent jamais rien au membre (ni modification ni crédit) : seul le budget de la plateforme est compté.

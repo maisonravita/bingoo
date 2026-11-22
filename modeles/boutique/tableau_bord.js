@@ -15,7 +15,7 @@ function Ecran() {
   const bas = P.rows.filter((p) => p.actif !== false && Number(p.stock) <= 5);
   const recentes = [...C.rows].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 5);
   return html`<div class="anim">
-    <${Entete} titre="Tableau de bord" sous="Vos ventes et ce qui attend d'être préparé."><select value=${jours} onChange=${(e) => setJours(Number(e.target.value))} class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"><option value="7">7 derniers jours</option><option value="30">30 derniers jours</option><option value="90">90 derniers jours</option></select><${Bouton} onClick=${() => go("commandes")}>Voir les commandes</${Bouton}></${Entete}>
+    <${Entete} titre="Tableau de bord" sous="Vos ventes et ce qui attend d'être préparé."><select aria-label="Période" value=${jours} onChange=${(e) => setJours(Number(e.target.value))} class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"><option value="7">7 derniers jours</option><option value="30">30 derniers jours</option><option value="90">90 derniers jours</option></select><${Bouton} onClick=${() => go("commandes")}>Voir les commandes</${Bouton}></${Entete}>
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <${Kpi} icone="panier" label="Chiffre d'affaires" valeur=${fmt.eur(ca(per))} tendance=${evol(ca(per), ca(prec))}/>
       <${Kpi} icone="boite" label="Commandes" valeur=${per.length} tendance=${evol(per.length, prec.length)}/>
