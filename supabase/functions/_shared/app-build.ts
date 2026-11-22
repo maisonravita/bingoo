@@ -254,7 +254,8 @@ ${CONSIGNE_TEXTES_FR}`, { maxTokens: 16000 });
     ...(["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique", "nature"].includes(p.allure_choisie) ? { style: p.allure_choisie } : ["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique"].includes(s.style) ? { style: s.style } : {}),
     famille: FAMILLES[s.famille] ? s.famille : famille0,
     // Système de design (UI UX Pro Max) tiré sans répétition ; palette et polices imposées au rendu et aux écrans
-    ...(choixMembre ? {} : { design: await choisirDesign(appId, `${s.secteur_en ?? ""} ${p.inspire?.categorie ?? ""}`.trim() || String(p.nom ?? "")) }),
+    // Le design montré dans l'aperçu de l'idée est celui qui est construit
+    ...(choixMembre ? {} : { design: (await import("./design.ts")).designNet(p.idee?.apercu?.design) ?? await choisirDesign(appId, `${s.secteur_en ?? ""} ${p.inspire?.categorie ?? ""}`.trim() || String(p.nom ?? "")) }),
     interface: FAMILLES[FAMILLES[s.famille] ? s.famille : famille0].interface,
     disposition: ["barre", "haut", "onglets"].includes(s.disposition) ? s.disposition : FAMILLES[FAMILLES[s.famille] ? s.famille : famille0].disposition,
     forme: ["carre", "arrondi", "pilule"].includes(s.forme) ? s.forme : "arrondi",

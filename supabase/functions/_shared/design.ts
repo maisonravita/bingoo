@@ -102,3 +102,20 @@ export function texteDesign(d: DesignChoisi): string {
 }
 
 export const NOMBRE_CATEGORIES = NOMS.length;
+
+/** Le design montré dans l'aperçu revient du navigateur avec le projet : il est revérifié avant d'être utilisé
+ *  (couleurs hexadécimales, polices au nom simple, catégorie connue), sinon on en tire un nouveau. */
+// deno-lint-ignore no-explicit-any
+export function designNet(d: any): DesignChoisi | null {
+  if (!d || typeof d !== "object" || !SYSTEMES[d.categorie]) return null;
+  const couleurs: Record<string, string> = {};
+  for (const [k, v] of Object.entries(d.couleurs ?? {})) { if (/^[a-z_]{2,24}$/.test(k) && /^#[0-9a-f]{6}$/i.test(String(v))) couleurs[k] = String(v); }
+  if (!couleurs.primary || !couleurs.background) return null;
+  const pol = (x: unknown) => /^[A-Za-z0-9 ]{2,40}$/.test(String(x ?? "")) ? String(x) : null;
+  const titres = pol(d.polices?.titres), texte = pol(d.polices?.texte);
+  if (!titres || !texte) return null;
+  const s = SYSTEMES[d.categorie];
+  const v = Number.isInteger(d.variante) && d.variante >= 0 && d.variante < s.variantes.length ? d.variante : 0;
+  return { source: "ui-ux-pro-max", categorie: s.categorie, variante: v, style: s.variantes[v].style, mode: d.mode === "dark" ? "dark" : "light",
+    couleurs, polices: { titres, texte }, motif: s.motif.nom, sections: s.motif.sections, eviter: s.eviter, ...(s.variantes[v].allure ? { allure: s.variantes[v].allure } : {}) };
+}
