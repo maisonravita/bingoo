@@ -1,6 +1,7 @@
 import { LANGUES, langueActuelle, choisirLangue } from "../lib/langue";
 import { commencer } from "../lib/invite";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
 import { cx } from "../lib/utils";
@@ -150,7 +151,7 @@ function CompteAvant({ quoi, onFini, onRetour }) {
     finally { setBusy(false); }
   };
   return (
-    <form onSubmit={envoyer} className="hero-in mx-auto mt-8 w-full max-w-[680px] rounded-[28px] border border-black/[.09] bg-white p-5 sm:p-7 text-left shadow-[0_24px_60px_-28px_rgba(20,20,40,.35)]" style={JK}>
+    <form onSubmit={envoyer} className="hero-in mx-auto w-full max-w-[560px] rounded-[28px] border border-black/[.09] bg-white p-5 sm:p-7 text-left shadow-[0_30px_80px_-24px_rgba(20,20,40,.45)]" style={JK}>
       <p className="text-[12px] font-bold uppercase tracking-[.14em] text-accent">Dernière étape avant de construire</p>
       <p className="mt-1.5 text-[24px] font-bold leading-tight text-[#1E2030]">{mode === "signup" ? "Crée ton compte gratuit" : "Connecte-toi"}</p>
       <p className="mt-1 text-[14.5px] text-[#5B6075]">{quoi}</p>
@@ -167,6 +168,49 @@ function CompteAvant({ quoi, onFini, onRetour }) {
       </div>
       {mode === "signup" && legalReady && <p className="mt-3 text-[12px] text-[#9A9EAE]">En créant ton compte, tu acceptes les <a href="#/conditions" className="underline">Conditions</a> et la <a href="#/confidentialite" className="underline">Politique de confidentialité</a>.</p>}
     </form>
+  );
+}
+
+// L'écran de construction, flouté derrière la carte d'inscription : la personne voit où elle va arriver.
+// Rien n'est construit tant que le compte n'existe pas, et l'écran ne prétend pas le contraire.
+const ETAPES_FLOU = {
+  saas: ["Concevoir les données et les écrans", "Écrire chaque écran", "Tester comme un vrai utilisateur", "Mettre en ligne à ton nom"],
+  site: ["Écrire tes textes", "Composer ta page d'accueil", "Préparer ton espace gérant", "Mettre en ligne à ton nom"],
+  app: ["Concevoir les onglets de l'app", "Écrire chaque écran", "Tester sur téléphone", "Préparer l'essai dans Expo Go"],
+  url: ["Lire le site point par point", "Relever couleurs, polices et rubriques", "Construire ta version écran par écran", "Mettre en ligne à ton nom"],
+};
+function ChantierFlou({ texte, genre, children }) {
+  const etapes = ETAPES_FLOU[genre] ?? ETAPES_FLOU.saas;
+  const sombre = "#15171F";
+  useEffect(() => { const o = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = o; }; }, []);
+  return createPortal(
+    <div className="fixed inset-0 z-[90] overflow-y-auto bg-white text-left" style={JK} role="dialog" aria-modal="true" aria-label="Crée ton compte pour lancer la construction">
+      <style>{`@keyframes flou-shim{0%{background-position:-400px 0}100%{background-position:400px 0}}.flou-sk{background:linear-gradient(90deg,#EEEDEA 0,#F7F6F3 40%,#EEEDEA 80%);background-size:800px 100%;animation:flou-shim 1.6s linear infinite}@media (prefers-reduced-motion: reduce){.flou-sk{animation:none}}`}</style>
+      <div aria-hidden className="pointer-events-none select-none absolute inset-0 flex flex-col" style={{ filter: "blur(3.5px)", transform: "scale(1.01)" }}>
+        <div className="flex h-14 shrink-0 items-center gap-3 border-b border-black/[.07] px-4"><Logo height={22} /><span className="h-6 w-6 rounded-md bg-accent" /><span className="text-[15px] font-bold text-[#1E2030]">Ta version</span><span className="rounded-full bg-[#FDECD8] px-2.5 py-0.5 text-[12px] font-semibold text-[#C2410C]">Construction</span></div>
+        <div className="flex min-h-0 flex-1">
+          <div className="hidden w-[400px] shrink-0 flex-col gap-4 border-r border-black/[.07] p-5 md:flex">
+            <p className="ml-auto max-w-[85%] rounded-2xl bg-[#F1F0EC] px-4 py-2.5 text-[14px] text-[#1E2030]">{texte}</p>
+            <p className="text-[14px] leading-relaxed text-[#3A3F55]"><span className="mr-2 inline-grid h-6 w-6 place-items-center rounded-full bg-accent text-[11px] font-bold text-white">B</span>Dès que ton compte est créé, je m'y mets écran par écran, sous tes yeux.</p>
+            <div className="rounded-xl border border-black/[.08] p-4"><p className="text-[13px] font-bold text-[#1E2030]">Construction</p><div className="mt-2 h-1.5 rounded-full bg-[#EEEDEA]"><div className="h-full w-[6%] rounded-full bg-accent" /></div>
+              <ul className="mt-3 space-y-2.5">{etapes.map((e, i) => <li key={e} className="flex items-center gap-2.5 text-[13.5px] text-[#3A3F55]">{i === 0 ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#EEEDEA] border-t-accent" /> : <span className="h-4 w-4 rounded-full border-2 border-[#EEEDEA]" />}{e}</li>)}</ul></div>
+          </div>
+          <div className="min-w-0 flex-1 p-4 sm:p-6">
+            <div className="flex h-full overflow-hidden rounded-2xl border border-black/[.08] bg-white">
+              <div className="w-44 shrink-0 space-y-3 p-4" style={{ background: genre === "site" || genre === "url" ? "#fff" : sombre }}>{Array.from({ length: 7 }, (_, i) => <div key={i} className={cx("h-3 rounded", genre === "site" || genre === "url" ? "flou-sk" : "bg-white/15")} style={{ width: `${60 + (i * 13) % 35}%` }} />)}</div>
+              <div className="min-w-0 flex-1 space-y-4 p-6">
+                <div className="flou-sk h-6 w-56 rounded-lg" />
+                <div className="grid grid-cols-3 gap-3">{[0, 1, 2].map((i) => <div key={i} className="space-y-2 rounded-xl border border-black/[.06] p-4"><div className="flou-sk h-3 w-20 rounded" /><div className="flou-sk h-6 w-24 rounded" /></div>)}</div>
+                {Array.from({ length: 5 }, (_, i) => <div key={i} className="flex items-center gap-3 rounded-xl border border-black/[.06] p-4"><div className="flou-sk h-8 w-8 rounded-full" /><div className="flou-sk h-3 flex-1 rounded" style={{ maxWidth: `${40 + i * 9}%` }} /><div className="flou-sk h-6 w-16 rounded-full" /></div>)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="absolute inset-0 bg-[#15171F]/25" aria-hidden />
+      <div className="relative z-[1] flex min-h-full items-center justify-center px-4 py-10">{children}</div>
+    </div>,
+    document.body,
   );
 }
 
@@ -194,7 +238,7 @@ function IdeeHero({ nav }) {
     if (data.session && !data.session.user?.is_anonymous) { nav(vers); return; }
     setCompte(vers);
   };
-  if (compte) return <CompteAvant quoi={url ? `Bingoo! va lire ${texte.trim().replace(/^https?:\/\//, "").replace(/\/$/, "")} point par point et construire ta version, à ton nom et avec ton logo.` : `Bingoo! va construire « ${texte.trim().slice(0, 80)}${texte.trim().length > 80 ? "…" : ""} » écran par écran, sous tes yeux.`} onRetour={() => setCompte(null)} onFini={() => nav(compte)} />;
+  if (compte) return <ChantierFlou texte={texte.trim()} genre={url ? "url" : type}><CompteAvant quoi={url ? `Bingoo! va lire ${texte.trim().replace(/^https?:\/\//, "").replace(/\/$/, "")} point par point et construire ta version, à ton nom et avec ton logo.` : `Bingoo! va construire « ${texte.trim().slice(0, 80)}${texte.trim().length > 80 ? "…" : ""} » écran par écran, sous tes yeux.`} onRetour={() => setCompte(null)} onFini={() => nav(compte)} /></ChantierFlou>;
   return (
     <form onSubmit={lancer} className="hero-in mx-auto mt-8 w-full max-w-[680px] rounded-[28px] border border-black/[.09] bg-white p-3 text-left shadow-[0_24px_60px_-28px_rgba(20,20,40,.35)]" style={{ ...JK, animationDelay: ".18s" }}>
       <label htmlFor="idee" className="sr-only">Ton idée, ou l'adresse d'un site qui te plaît</label>
