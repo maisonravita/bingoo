@@ -190,15 +190,15 @@ if (CONSTRUIRE === "motion") {
   await page.waitForTimeout(2500); await page.screenshot({ path: `${DOSSIER}/motion-0-ecriture.png` }).catch(() => null);
   await page.locator("canvas").first().waitFor({ timeout: 90000 }).catch(() => console.log("✗ la vidéo n'est pas apparue"));
   console.log(`Vidéo prête en ${Math.round((Date.now() - t0) / 1000)} s`);
-  for (const k of [1, 2, 3, 4, 5]) { await page.waitForTimeout(3600); await page.screenshot({ path: `${DOSSIER}/motion-${k}.png` }).catch(() => null); }
+  for (const k of [1, 2, 3, 4, 5, 6, 7, 8, 9]) { await page.waitForTimeout(2700); await page.screenshot({ path: `${DOSSIER}/motion-${k}.png` }).catch(() => null); }
   const scen = await page.evaluate(() => document.body.innerText).catch(() => ""); console.log("Page :", scen.replace(/\s+/g, " ").slice(0, 700));
   // Une retouche dans la discussion
-  await page.locator("textarea").first().fill("Plus sobre, fond clair, et mets-la en bleu marine").catch(() => null);
+  await page.locator("textarea").first().fill("Fond blanc, et ajoute un mot géant qui claque").catch(() => null);
   await page.keyboard.press("Enter").catch(() => null);
   const t1 = Date.now();
   await page.getByText("C'est fait, regarde la nouvelle version.").waitFor({ timeout: 90000 }).catch(() => console.log("✗ retouche sans réponse"));
   console.log(`Retouche en ${Math.round((Date.now() - t1) / 1000)} s`);
-  for (const k of [6, 7]) { await page.waitForTimeout(4200); await page.screenshot({ path: `${DOSSIER}/motion-${k}.png` }).catch(() => null); }
+  for (const k of [10, 11, 12, 13]) { await page.waitForTimeout(3300); await page.screenshot({ path: `${DOSSIER}/motion-${k}.png` }).catch(() => null); }
   // Format paysage
   await page.getByRole("button", { name: "16:9" }).click().catch(() => null); await page.waitForTimeout(5000); await page.screenshot({ path: `${DOSSIER}/motion-8-paysage.png` }).catch(() => null);
   // Export dans le navigateur

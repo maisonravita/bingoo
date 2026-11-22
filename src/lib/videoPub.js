@@ -336,7 +336,8 @@ export async function preparerPolice(police = "Plus Jakarta Sans") {
 }
 
 /** Enregistre la vidéo complète (temps réel), avec la musique choisie ; renvoie { blob, ext }. */
-export async function exporterVideo(canvas, dessinerA, onProgres, musique = null, graine = 0) {
+export async function exporterVideo(canvas, dessinerA, onProgres, musique = null, graine = 0, duree = DUREE) {
+  const DUREE_V = duree;
   const avecSon = !!musique;
   const types = avecSon
     ? ["video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4;codecs=avc1,mp4a.40.2", "video/mp4;codecs=avc1,opus", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"]
@@ -350,7 +351,7 @@ export async function exporterVideo(canvas, dessinerA, onProgres, musique = null
     const { jouerMusique } = await import("./musiqueVideo.js");
     ac = new (window.AudioContext || window.webkitAudioContext)();
     const dest = ac.createMediaStreamDestination();
-    jouerMusique(ac, dest, musique, DUREE + 0.2, ac.currentTime + 0.02, graine);
+    jouerMusique(ac, dest, musique, DUREE_V + 0.2, ac.currentTime + 0.02, graine);
     flux = new MediaStream([...image.getVideoTracks(), ...dest.stream.getAudioTracks()]);
   }
   const rec = new MediaRecorder(flux, { mimeType: type, videoBitsPerSecond: 8_000_000, ...(avecSon ? { audioBitsPerSecond: 160_000 } : {}) });
@@ -361,8 +362,8 @@ export async function exporterVideo(canvas, dessinerA, onProgres, musique = null
   await new Promise((ok) => {
     const image = () => {
       const t = (performance.now() - t0) / 1000;
-      dessinerA(Math.min(t, DUREE)); onProgres?.(Math.min(1, t / DUREE));
-      if (t < DUREE + 0.2) requestAnimationFrame(image); else ok();
+      dessinerA(Math.min(t, DUREE_V)); onProgres?.(Math.min(1, t / DUREE_V));
+      if (t < DUREE_V + 0.2) requestAnimationFrame(image); else ok();
     };
     requestAnimationFrame(image);
   });

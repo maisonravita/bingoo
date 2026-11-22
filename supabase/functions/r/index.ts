@@ -1243,7 +1243,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     await quota(ws.id, "video_libre_retouche", 40);
     setAi({ ws: ws.id, live: true, feature: "video" });
     const { videoLibreRetouche } = await import("../_shared/app-video.ts");
-    const script = await videoLibreRetouche(v0.script as any, demande);
+    const script = await videoLibreRetouche(v0.script as any, demande, String(v0.texte ?? ""));
     const format = ["paysage", "carre", "vertical"].includes(b.format) ? b.format : v0.format;
     const { data: v } = await admin.from("saas_videos").insert({ app_id: null, workspace_id: ws.id, format, script, texte: v0.texte }).select("id, format, script, texte, at").single();
     await log(ws.id, "video_libre_retouche", `Vidéo retouchée : ${demande.slice(0, 80)}`);

@@ -7,9 +7,10 @@ import { useWs } from "../lib/ws";
 import { cx } from "../lib/utils";
 import { DUREE, FORMATS, dessiner, exporterVideo, graineDe, preparerPolice } from "../lib/videoPub";
 import { AMBIANCES, ecouterMusique } from "../lib/musiqueVideo";
+import { dessinerScenes, dureeTotale } from "../lib/motion";
 
 const lire = (k) => { try { return JSON.parse(localStorage.getItem(k) ?? "null"); } catch { return null; } };
-const IDEES = ["Plus dynamique", "Plus sobre, fond clair", "Accroche plus forte", "Mets-la en bleu marine", "Termine par mon site"];
+const IDEES = ["Plus dynamique", "Fond blanc", "Accroche plus forte", "Ajoute un mot géant qui claque", "Mets-la en bleu marine", "Termine par mon site"];
 const EXEMPLES = ["Une vidéo pour présenter mon salon de barbier à Lyon", "Le teaser de l'ouverture de ma boulangerie le 3 décembre", "Une pub pour mon coaching sportif en ligne"];
 
 export default function Motion() {
@@ -48,13 +49,15 @@ export default function Motion() {
   const style = script?.style === "sobre" ? "sobre" : "percutant";
   const [W, H] = FORMATS[format];
   const opts = { nom: script?.nom ?? "", couleur: script?.couleur ?? "#E8571C", lien: script?.lien ?? "", images: [], style, police, graine };
-  const dessinerA = (t) => { const c = canvas.current; if (c && script) dessiner(c.getContext("2d"), W, H, t, script, opts); };
+  // Nouvelles vidéos : suite de scènes (moteur « pub premium ») ; anciennes : gabarit fixe de 21 s
+  const scenes = !!script?.scenes?.length, duree = scenes ? dureeTotale(script) : DUREE;
+  const dessinerA = (t) => { const c = canvas.current; if (!c || !script) return; if (scenes) dessinerScenes(c.getContext("2d"), W, H, t, script, { police }); else dessiner(c.getContext("2d"), W, H, t, script, opts); };
 
   // Lecture en boucle
   useEffect(() => {
     if (!script || export_ != null || !lecture) return;
     let id; t0.current = performance.now();
-    const image = () => { dessinerA(((performance.now() - t0.current) / 1000) % DUREE); id = requestAnimationFrame(image); };
+    const image = () => { dessinerA(((performance.now() - t0.current) / 1000) % duree); id = requestAnimationFrame(image); };
     id = requestAnimationFrame(image);
     return () => cancelAnimationFrame(id);
   }, [sel?.id, format, export_, lecture]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -75,11 +78,11 @@ export default function Motion() {
     } finally { setBusy(false); }
   }
 
-  const ecouter = () => { if (ecoute) { ecoute(); setEcoute(null); return; } if (musique === "aucune") return; const stop = ecouterMusique(musique, DUREE, graine); setEcoute(() => stop); setTimeout(() => setEcoute(null), DUREE * 1000); };
+  const ecouter = () => { if (ecoute) { ecoute(); setEcoute(null); return; } if (musique === "aucune") return; const stop = ecouterMusique(musique, duree, graine); setEcoute(() => stop); setTimeout(() => setEcoute(null), duree * 1000); };
   const telecharger = async () => {
     setExport(0);
     try {
-      const { blob, ext } = await exporterVideo(canvas.current, dessinerA, setExport, musique === "aucune" ? null : musique, graine);
+      const { blob, ext } = await exporterVideo(canvas.current, dessinerA, setExport, musique === "aucune" ? null : musique, graine, duree);
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
       a.download = `${String(script?.nom ?? "video").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-")}-${format}.${ext}`; a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
@@ -108,7 +111,9 @@ export default function Motion() {
                 : <p className="text-bad">{x.erreur}</p>}</div></div>
           </div>)}
           {sel && !fil.length && <p className="text-ink-soft">Dis-moi ce que tu veux changer : le ton, les textes, les couleurs, le fond clair ou sombre.</p>}
-          {script && <details className="rounded-xl border border-line p-3 text-[13px]"><summary className="cursor-pointer font-semibold">Le scénario</summary>
+          {script && scenes && <details className="rounded-xl border border-line p-3 text-[13px]"><summary className="cursor-pointer font-semibold">Le scénario · {script.scenes.length} scènes · {Math.round(duree)} s</summary>
+            <ol className="mt-2 list-decimal space-y-0.5 pl-5 text-ink-soft">{script.scenes.map((e, i) => <li key={i}>{e.texte || e.barre || (e.items ?? []).map((x) => x.texte ?? x).join(" · ") || e.valeur || script.nom}</li>)}</ol></details>}
+          {script && !scenes && <details className="rounded-xl border border-line p-3 text-[13px]"><summary className="cursor-pointer font-semibold">Le scénario</summary>
             <div className="mt-2 space-y-1"><p><b>{script.accroche}</b></p>{script.probleme && <p className="text-ink-soft">{script.probleme}</p>}<p className="text-ink-soft">{script.presentation}</p>
               <p className="text-ink-faint">{(script.ecrans ?? []).map((e) => e.titre).join(" · ")}</p><p className="text-ink-faint">{(script.benefices ?? []).join(" · ")}</p><p className="font-semibold text-[#E8571C]">{script.appel}</p></div></details>}
         </div>
@@ -117,7 +122,7 @@ export default function Motion() {
           <div className="rounded-2xl border border-line bg-[#FCFBF9] p-2 focus-within:border-ink/30">
             <textarea value={saisie} onChange={(e) => setSaisie(e.target.value)} rows={2} disabled={busy} maxLength={800}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); envoyer(); } }}
-              placeholder={sel ? "Demande un changement…" : "Ex. : une vidéo pour présenter mon salon de barbier"} className="block w-full resize-none bg-transparent px-1.5 text-[14.5px] outline-none placeholder:text-ink-faint" />
+              placeholder={sel ? "Demande un changement (ex. : fond blanc, plus court, change l'accroche)…" : "Ex. : une vidéo pour présenter mon salon de barbier"} className="block w-full resize-none bg-transparent px-1.5 text-[14.5px] outline-none placeholder:text-ink-faint" />
             <div className="flex justify-end"><button type="submit" disabled={busy || saisie.trim().length < 3} aria-label="Envoyer" className="grid h-8 w-8 place-items-center rounded-full bg-ink text-white disabled:opacity-30">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg></button></div>
           </div>
@@ -129,7 +134,7 @@ export default function Motion() {
         <div className={cx("relative overflow-hidden rounded-2xl bg-black shadow-[0_40px_120px_-40px_rgba(0,0,0,.8)] ring-1 ring-white/10", format === "vertical" ? "h-[min(68vh,640px)] aspect-[9/16]" : format === "carre" ? "h-[min(60vh,560px)] aspect-square" : "w-[min(100%,900px)] aspect-video")}>
           {script ? <canvas ref={canvas} width={W} height={H} className="h-full w-full" /> : <div className="grid h-full w-full place-items-center p-6 text-center text-[13.5px] text-white/45">{busy ? "Bingoo! écrit ta vidéo…" : videos == null ? "Chargement…" : "Ta vidéo apparaîtra ici."}</div>}
           {busy && <div className="absolute inset-x-0 top-0 h-1 overflow-hidden bg-white/10"><div className="h-full w-1/3 animate-[barre_1.2s_ease-in-out_infinite] bg-[#E8571C]" /></div>}
-          {export_ != null && <div className="absolute inset-x-0 bottom-0 bg-black/75 px-4 py-3 text-[12.5px]"><p className="font-semibold">Enregistrement… {Math.round(export_ * 100)} %</p><p className="text-white/55">Garde cet onglet ouvert ({DUREE} secondes).</p></div>}
+          {export_ != null && <div className="absolute inset-x-0 bottom-0 bg-black/75 px-4 py-3 text-[12.5px]"><p className="font-semibold">Enregistrement… {Math.round(export_ * 100)} %</p><p className="text-white/55">Garde cet onglet ouvert ({Math.round(duree)} secondes).</p></div>}
         </div>
         {script && <div className="flex flex-wrap items-center justify-center gap-2 text-[13px] font-semibold">
           <div className="flex gap-1 rounded-xl bg-white/10 p-1">{[["vertical", "9:16"], ["carre", "1:1"], ["paysage", "16:9"]].map(([k, l]) => <button key={k} disabled={export_ != null} onClick={() => setFormat(k)} className={cx("rounded-lg px-3 py-1.5", format === k ? "bg-white text-ink" : "text-white/70 hover:text-white")}>{l}</button>)}</div>
