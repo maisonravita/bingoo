@@ -24,7 +24,7 @@ function useMonSaas() {
   const { ws } = useWs();
   const [m, setM] = useState(undefined);
   const charger = async () => {
-    const { data } = await supabase.from("saas_apps").select("id, slug, spec, statut, version, verif, domaine, domaine_statut, paiement, icones, public, projet_id, saas_projets(id, data)")
+    const { data } = await supabase.from("saas_apps").select("id, slug, spec, brouillon, statut, version, verif, domaine, domaine_statut, paiement, icones, public, projet_id, saas_projets(id, data)")
       .eq("workspace_id", ws.id).not("statut", "in", "(remplace,retire)").order("at", { ascending: false }).limit(1);
     const a = data?.[0];
     if (!a) { setM(null); return null; }

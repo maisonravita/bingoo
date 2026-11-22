@@ -219,6 +219,12 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   const [etape, setEtape] = useState(pretDeja ? 5 : 0);
   const [projet, setProjet] = useState(c.projet ?? null);
   const [app, setApp] = useState(pretDeja ? c.app : null);
+  // Atelier : l'état complet de l'app (dont la modification en attente de test) est relu à l'ouverture ;
+  // sans ça, une modification validée restait « en test » pour toujours (le robot de vérification ne démarrait pas)
+  useEffect(() => {
+    if (!atelier || !c.app?.id) return;
+    supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif").eq("id", c.app.id).maybeSingle().then(({ data }) => { if (data) setApp((x) => ({ ...(x ?? {}), ...data })); });
+  }, [atelier, c.app?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [erreur, setErreur] = useState(null);
   const [essai, setEssai] = useState(0);
   const [echanges, setEchanges] = useState([]); // modifications demandées après la mise en ligne

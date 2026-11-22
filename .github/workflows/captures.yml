@@ -5,6 +5,7 @@ on:
       construire: { description: "Vraie construction à photographier : vide, modele ou ia (consomme du crédit IA)", required: false, default: "" }
       domaine: { description: "SaaS d'origine pour une construction ia (facultatif)", required: false, default: "" }
       idee: { description: "1 = photographier aussi le parcours « Construire mon idée » (aperçus : petits appels d'IA)", required: false, default: "0" }
+      local: { description: "1 = tester le site construit depuis main (servi par le robot) au lieu de bingoo.fr", required: false, default: "0" }
 permissions:
   contents: write
 jobs:
@@ -16,6 +17,14 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: npm i --no-save playwright@1.48.2 && npx playwright install --with-deps chromium
+      # Site construit depuis main et servi sur place (quand la mise en ligne Vercel est en retard ou bloquée)
+      - name: Site local
+        if: ${{ github.event.inputs.local == '1' }}
+        run: |
+          npm install --no-audit --no-fund && npm run build:site
+          (npx vite preview -c vite.single.config.js --port 4173 --strictPort > /tmp/preview.log 2>&1 &)
+          for i in $(seq 1 30); do curl -sf http://localhost:4173/ > /dev/null && break; sleep 1; done
+          echo "SITE=http://localhost:4173" >> $GITHUB_ENV
       - name: Photographier
         run: node scripts/e2e/captures.mjs
         env:
