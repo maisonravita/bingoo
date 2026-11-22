@@ -893,6 +893,8 @@ function SitePageGeneree({ onAuth, saas }) {
   useEffect(() => {
     const el = ref.current; if (!el) return;
     el.innerHTML = contenu; nettoyerDom(el);
+    // Logo du membre : il remplace la marque dessinée (en-tête et pied de page)
+    if (S.logo) el.querySelectorAll(".mark").forEach((m) => { const i = document.createElement("img"); i.src = S.logo; i.alt = ""; i.setAttribute("aria-hidden", "true"); i.style.cssText = "height:1.75em;width:auto;max-width:5em;object-fit:contain;display:inline-block;vertical-align:middle;margin-right:.45em;border-radius:6px"; m.replaceWith(i); });
     // Menu du téléphone : le bouton du header ouvre et ferme la liste des liens
     const t = el.querySelector(".nav__toggle"), nav = el.querySelector(".nav");
     if (t && nav) t.addEventListener("click", () => { const o = nav.classList.toggle("is-open"); t.setAttribute("aria-expanded", o ? "true" : "false"); });

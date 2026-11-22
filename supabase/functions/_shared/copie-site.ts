@@ -72,9 +72,12 @@ export async function scannerSite(entree: string): Promise<Scan> {
   // 3. Polices : Google Fonts d'abord, puis les font-family déclarées (la plus fréquente sur les titres, puis sur le texte)
   const familles = new Map<string, number>();
   for (const g of google) for (const f of g.matchAll(/family=([^&:]+)/g)) { const n = decodeURIComponent(f[1]).replace(/\+/g, " ").trim(); familles.set(n, (familles.get(n) ?? 0) + 5); }
-  const premiere = (decl: string) => decl.split(",").map((x) => x.trim().replace(/^["']|["']$/g, "")).find((x) => x && !GENERIQUES.test(x)) ?? null;
+  // Noms de polices « emballés » (Next.js : __Inter_d65c78, « Inter Fallback ») ramenés à leur vrai nom
+  const propre = (x: string) => x.trim().replace(/^["']|["']$/g, "").replace(/^__(.+?)_[0-9a-f]{5,}$/i, "$1").replace(/_/g, " ").replace(/\s+Fallback$/i, "").trim();
+  const premiere = (decl: string) => decl.split(",").map(propre).find((x) => x && !GENERIQUES.test(x)) ?? null;
   let polTitres: string | null = null;
   for (const m of css.matchAll(/(h1|h2|\.h1|\.title|\.heading|\.display)[^{]{0,80}\{[^}]*font-family\s*:\s*([^;}]+)/gi)) { const p = premiere(m[2]); if (p) { polTitres = p; break; } }
+  for (const m of css.matchAll(/@font-face\s*\{[^}]*font-family\s*:\s*([^;}]+)/gi)) { const p = premiere(m[1]); if (p) familles.set(p, (familles.get(p) ?? 0) + 2); }
   for (const m of css.matchAll(/font-family\s*:\s*([^;}]+)/gi)) { const p = premiere(m[1]); if (p && !/icon|awesome|material|glyph|swiper|slick/i.test(p)) familles.set(p, (familles.get(p) ?? 0) + 1); }
   const triees = [...familles.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n).filter((n) => n.length < 40);
   let polTexte = triees.find((n) => n !== polTitres) ?? triees[0] ?? null;
@@ -97,11 +100,17 @@ export async function scannerSite(entree: string): Promise<Scan> {
   const theme = hexRgb(meta(html, "theme-color"));
   const boutons: Rgb[] = [];
   for (const m of css.matchAll(/(button|\.btn|\.button|\.cta|\[type=.?submit|a\.primary|\.primary)[^{]{0,60}\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-f]{3,8})/gi)) { const c = hexRgb(m[2]); if (c) boutons.push(c); }
+  for (const m of html.matchAll(/<(?:a|button)\b[^>]*class=["'][^"']*\bbg-\[(#[0-9a-f]{3,8})\]/gi)) { const c = hexRgb(m[1]); if (c) boutons.push(c); }
   const vives = [...compte.entries()].map(([k, n]) => [hexRgb(k)!, n] as [Rgb, number]).filter(([c]) => sat(c) > 0.35 && lum(c) > 0.03 && lum(c) < 0.75).sort((a, b) => b[1] - a[1]);
   const fusion: [Rgb, number][] = [];
   for (const [c, n] of vives) { const f = fusion.find(([d]) => proche(c, d)); if (f) f[1] += n; else fusion.push([c, n]); }
   fusion.sort((a, b) => b[1] - a[1]);
-  const primaire = (theme && sat(theme) > 0.3 ? theme : null) ?? boutons.find((c) => sat(c) > 0.3) ?? fusion[0]?.[0] ?? null;
+  // Variables de marque déclarées (--brand, --primary, --color-accent…) : le signal le plus fiable
+  const marque = [...css.matchAll(/--(?:[a-z-]*-)?(?:brand|primary|accent)(?:-[a-z0-9]+)?\s*:\s*(#[0-9a-f]{3,8})\b/gi)].map((m) => hexRgb(m[1])).filter((c): c is Rgb => !!c);
+  const marqueVive = marque.find((c) => sat(c) > 0.3 && lum(c) > 0.03 && lum(c) < 0.75);
+  // Bouton principal noir (ou presque) : une marque sobre, gardée telle quelle
+  const boutonSombre = boutons.find((c) => sat(c) < 0.15 && lum(c) < 0.06) ?? marque.find((c) => sat(c) < 0.15 && lum(c) < 0.06);
+  const primaire = (theme && sat(theme) > 0.3 ? theme : null) ?? marqueVive ?? boutons.find((c) => sat(c) > 0.3) ?? boutonSombre ?? fusion[0]?.[0] ?? null;
   const fondBody = [...css.matchAll(/(?:^|[}\s,])(?:body|html|:root)\s*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-f]{3,8})/gi)].map((m) => hexRgb(m[1])).find(Boolean) ?? null;
   const texteBody = [...css.matchAll(/(?:^|[}\s,])body\s*\{[^}]*[^-]color\s*:\s*(#[0-9a-f]{3,8})/gi)].map((m) => hexRgb(m[1])).find(Boolean) ?? null;
   const fond: Rgb = fondBody ?? [255, 255, 255];
@@ -112,11 +121,11 @@ export async function scannerSite(entree: string): Promise<Scan> {
 
   // 5. Rubriques (menu), titres de sections, boutons d'action
   const zoneMenu = [...html.matchAll(/<(nav|header)[\s\S]*?<\/\1>/gi)].map((m) => m[0]).join(" ");
-  const textesLiens = (zone: string) => [...zone.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].map((m) => net(m[1])).filter((t) => t.length > 1 && t.length < 28 && !/^(fr|en|de|es|it|nl)$/i.test(t));
+  const textesLiens = (zone: string) => [...zone.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].map((m) => net(m[1]).replace(/\s*[→›»↗]+$/, "")).filter((t) => t.length > 1 && t.length < 28 && !/^(fr|en|de|es|it|nl)$/i.test(t));
   const uniq = (l: string[]) => [...new Map(l.map((x) => [x.toLowerCase(), x])).values()];
   const rubriques = uniq(textesLiens(zoneMenu)).slice(0, 8);
-  const titres = uniq([...html.matchAll(/<h[12]\b[^>]*>([\s\S]*?)<\/h[12]>/gi)].map((m) => net(m[1])).filter((t) => t.length > 2 && t.length < 110)).slice(0, 8);
-  const btn = uniq([...html.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/gi), ...html.matchAll(/<a\b[^>]*class=["'][^"']*(?:btn|button|cta)[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi)].map((m) => net(m[1])).filter((t) => t.length > 2 && t.length < 32)).slice(0, 6);
+  const titres = uniq([...html.matchAll(/<h[12]\b[^>]*>([\s\S]*?)<\/h[12]>/gi)].map((m) => net(m[1])).filter((t) => t.length > 5 && t.length < 70 && !/\d{1,2}[:h]\d{2}|\b(AM|PM)\b/.test(t))).slice(0, 8);
+  const btn = uniq([...html.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/gi), ...html.matchAll(/<a\b[^>]*class=["'][^"']*(?:btn|button|cta)[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi)].map((m) => net(m[1]).replace(/\s*[→›»↗]+$/, "")).filter((t) => t.length > 2 && t.length < 32 && !/cookie|accepter|refuser|personnaliser|continuer sans|accept|reject|decline|fermer|close|menu/i.test(t))).slice(0, 6);
 
   // 6. Type : logiciel en ligne, site vitrine, ou app mobile (indices visibles, sans IA)
   const tout = (titre + " " + description + " " + net(html.slice(0, 400_000)).slice(0, 60_000)).toLowerCase();
@@ -124,8 +133,10 @@ export async function scannerSite(entree: string): Promise<Scan> {
   const pSaas = n(/essai gratuit|free trial|tarifs|pricing|tableau de bord|dashboard|sign ?up|s'inscrire|inscription|log ?in|se connecter|connexion|api\b|intégrations?|integrations?|par mois|\/mois|per month|\/mo\b|logiciel|software|plateforme|platform/g);
   const pSite = n(/horaires|nous contacter|contactez|réserver|reservation|réservation|devis gratuit|notre équipe|nos services|adresse|téléphone|menu du jour|carte|rendez-vous|prendre rdv|galerie|portfolio/g);
   const pApp = n(/apps\.apple\.com|play\.google\.com|app store|google play|télécharger l'app|download the app/g);
-  const type: Scan["type"] = pApp >= 3 && pApp >= pSaas / 2 ? "app" : pSaas >= Math.max(3, pSite) ? "saas" : "site";
-  const indices = [pSaas && `${pSaas} indices de logiciel en ligne`, pSite && `${pSite} indices de site d'entreprise`, pApp && `${pApp} liens vers une app`].filter(Boolean) as string[];
+  const liensSaas = (html.match(/href=["'][^"']*(?:\/login|\/signin|\/sign-in|\/signup|\/sign-up|\/register|\/inscription|\/connexion|\/pricing|\/tarifs|\/\/app\.|\/dashboard|\/trial|\/demo)[^"']*["']/gi) ?? []).length;
+  const pSaas2 = pSaas + Math.min(12, liensSaas * 2);
+  const type: Scan["type"] = pApp >= 3 && pApp >= pSaas2 / 2 ? "app" : pSaas2 >= Math.max(3, pSite) ? "saas" : "site";
+  const indices = [pSaas2 && `${pSaas2} indices de logiciel en ligne`, pSite && `${pSite} indices de site d'entreprise`, pApp && `${pApp} liens vers une app`].filter(Boolean) as string[];
 
   return {
     domaine, url: base.toString(), nom, titre, description, type, indices,
