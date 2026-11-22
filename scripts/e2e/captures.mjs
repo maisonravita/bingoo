@@ -79,8 +79,17 @@ if (CONSTRUIRE === "copie") {
   await page.screenshot({ path: `${DOSSIER}/accueil-adresse.png` }); console.log("✓ accueil-adresse");
   await page.getByRole("button", { name: /Faire ma version/ }).click().catch((e) => console.log("✗ Faire ma version", e.message));
   await page.waitForTimeout(1500); await page.screenshot({ path: `${DOSSIER}/accueil-compte.png` }); console.log("✓ accueil-compte :", (await page.evaluate(() => document.querySelector("form")?.innerText ?? "")).replace(/\s+/g, " ").slice(0, 200));
+  // Une idée de site écrite en toutes lettres : le genre « Mon site web » se coche tout seul
+  await page.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await page.waitForTimeout(2000);
+  await page.locator("#idee").fill("je veux un site pour la vente de mes formations"); await page.waitForTimeout(600);
+  await page.locator("#idee").scrollIntoViewIfNeeded().catch(() => null); await page.screenshot({ path: `${DOSSIER}/accueil-idee-site.png` }); console.log("✓ accueil-idee-site");
   await page.setViewportSize({ width: 390, height: 844 }); await page.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await page.waitForTimeout(2500);
   await page.screenshot({ path: `${DOSSIER}/accueil-mobile.png` }); await ctx.close();
+  // Connecté : l'aperçu d'une idée de site, avec le choix du genre en haut
+  { const { ctx: c2, page: p2 } = await ouvrir(ws, { "bingoo-idee": { texte: "je veux un site pour la vente de mes formations", type: "site", at: Date.now() } });
+    await p2.goto(`${SITE}/?c=${Date.now()}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+    await p2.getByText(/Voir mon aperçu|Construire /).first().waitFor({ timeout: 90000 }).catch(() => null); await p2.waitForTimeout(1500);
+    await p2.screenshot({ path: `${DOSSIER}/idee-site-apercu.png`, fullPage: true }); console.log("✓ idee-site-apercu"); await c2.close(); }
   // La lecture sans IA de plusieurs sites (logiciels, vitrines), résultats dans le journal
   for (const u of (process.env.SCANS || "cal.com,notion.so,linear.app,www.boulangerie-paul.fr,alan.com,qonto.com").split(",")) {
     const r = await fetch(`${SB}/functions/v1/r/site-scan`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: ws, url: u }) });
