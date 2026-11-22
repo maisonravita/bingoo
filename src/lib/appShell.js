@@ -55,11 +55,13 @@ function cssDesign(spec) {
   const c = spec?.design?.couleurs;
   const ok = (x) => (/^#[0-9a-f]{6}$/i.test(x ?? "") ? x : null);
   if (!c || !ok(c.primary) || !ok(c.background) || !ok(c.foreground)) return "";
-  const bg = ok(c.background), fg = ok(c.foreground), card = ok(c.card) ?? bg, muted = ok(c.muted) ?? card, mfg = ok(c.muted_foreground) ?? fg, bord = ok(c.border) ?? muted, onc = ok(c.on_primary) ?? "#FFFFFF";
+  const bg = ok(c.background), fg = ok(c.foreground),
+    // Fond clair : les verts, jaunes, oranges et gris clairs écrits par l'IA sont foncés d'un cran (contraste 4,5:1 minimum)
+    claire = ((h) => (0.299 * parseInt(h.slice(1, 3), 16) + 0.587 * parseInt(h.slice(3, 5), 16) + 0.114 * parseInt(h.slice(5, 7), 16)) / 255 > 0.6)(ok(c.background)), card = ok(c.card) ?? bg, muted = ok(c.muted) ?? card, mfg = ok(c.muted_foreground) ?? fg, bord = ok(c.border) ?? muted, onc = ok(c.on_primary) ?? "#FFFFFF";
   return `:root{--ds-bg:${bg};--ds-fg:${fg};--ds-card:${card};--ds-muted:${muted};--ds-mfg:${mfg};--ds-border:${bord};--ds-onc:${onc}}
 body,.fond-creme,.fond-gris{background:var(--ds-bg);color:var(--ds-fg)}
 button{min-height:24px;min-width:24px}
-#root :is(.grid,[class*="grid-cols"],.flex)>:not(button,a,input,select,img,svg){min-width:0}#root main{overflow-wrap:break-word}
+#root :is(.grid,[class*="grid-cols"],.flex)>:not(button,a,input,select,img,svg){min-width:0}#root :is(main,#verif-zone){overflow-wrap:break-word}${claire ? `#root :is(main,#verif-zone) .text-green-500,#root :is(main,#verif-zone) .text-green-600{color:#15803d}#root :is(main,#verif-zone) .text-emerald-500,#root :is(main,#verif-zone) .text-emerald-600{color:#047857}#root :is(main,#verif-zone) .text-teal-500,#root :is(main,#verif-zone) .text-teal-600{color:#0f766e}#root :is(main,#verif-zone) .text-cyan-500,#root :is(main,#verif-zone) .text-cyan-600{color:#0e7490}#root :is(main,#verif-zone) .text-lime-500,#root :is(main,#verif-zone) .text-lime-600{color:#4d7c0f}#root :is(main,#verif-zone) .text-yellow-500,#root :is(main,#verif-zone) .text-yellow-600{color:#a16207}#root :is(main,#verif-zone) .text-amber-500,#root :is(main,#verif-zone) .text-amber-600{color:#b45309}#root :is(main,#verif-zone) .text-orange-500,#root :is(main,#verif-zone) .text-orange-600{color:#c2410c}#root :is(main,#verif-zone) .text-red-500{color:#b91c1c}#root :is(main,#verif-zone) .text-rose-500{color:#be123c}#root :is(main,#verif-zone) .text-pink-500{color:#be185d}#root :is(main,#verif-zone) .text-sky-500{color:#0369a1}#root :is(main,#verif-zone) .text-slate-400:not(:disabled){color:#64748b}#root :is(main,#verif-zone) .text-gray-400:not(:disabled){color:#6b7280}#root :is(main,#verif-zone) .text-zinc-400:not(:disabled){color:#71717a}#root :is(main,#verif-zone) .text-neutral-400:not(:disabled){color:#737373}#root :is(main,#verif-zone) .text-stone-400:not(:disabled){color:#78716c}` : ""}
 [class~="bg-white"]{background:var(--ds-card)}[class~="bg-slate-50"],[class~="bg-slate-100"]{background:var(--ds-muted)}
 [class~="text-slate-900"],[class~="text-slate-800"],[class~="text-slate-700"]{color:var(--ds-fg)}
 [class~="text-slate-600"],[class~="text-slate-500"],[class~="text-slate-400"]{color:var(--ds-mfg)}
@@ -1479,7 +1481,7 @@ addEventListener("click", (e) => {
 }
 // Un champ qui n'a qu'un texte indicatif (« Rechercher… ») reçoit ce texte comme nom accessible : un lecteur d'écran l'annonce
 // même une fois le champ rempli (le texte indicatif, lui, disparaît)
-new MutationObserver(() => { for (const el of document.querySelectorAll("input[placeholder]:not([aria-label]):not([aria-labelledby]),textarea[placeholder]:not([aria-label]):not([aria-labelledby])")) { if (!el.closest("label") && !(el.id && document.querySelector('label[for="' + el.id + '"]'))) el.setAttribute("aria-label", el.placeholder.replace(/[….]+$/, "").trim() || el.placeholder); } }).observe(document.getElementById("root"), { childList: true, subtree: true });
+new MutationObserver(() => { for (const el of document.querySelectorAll(".truncate:not([title])")) { const t = el.textContent.trim(); if (t) el.title = t; } for (const el of document.querySelectorAll("input[placeholder]:not([aria-label]):not([aria-labelledby]),textarea[placeholder]:not([aria-label]):not([aria-labelledby])")) { if (!el.closest("label") && !(el.id && document.querySelector('label[for="' + el.id + '"]'))) el.setAttribute("aria-label", el.placeholder.replace(/[….]+$/, "").trim() || el.placeholder); } }).observe(document.getElementById("root"), { childList: true, subtree: true });
 render(html\`<\${Racine}/>\`, document.getElementById("root"));
 { const d = document.createElement("div"); document.body.appendChild(d); render(html\`<\${FenetreLegale}/>\`, d); }
 </script></body></html>`;

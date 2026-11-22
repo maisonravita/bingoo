@@ -303,6 +303,8 @@ ${CONSIGNE_TEXTES_FR}`, { maxTokens: 16000 });
   Object.assign(spec, sansIdentite(visible, p.inspire ?? {}, p.nom).valeur);
   if (!spec.ecrans.length) throw new Error("La conception de l'application a échoué, réessaie");
   if (modele) {
+    // Écrans promis ajoutés au modèle : leurs collections reçoivent aussi des données d'exemple (sinon blocs vides au premier test)
+    spec.demo = await completerDemo(spec, { nom: spec.nom ?? p.nom, pitch: spec.pitch ?? p.pitch ?? "" }, { ...(spec.demo ?? {}) }).catch((x) => { console.error("demo modèle", x); return spec.demo; });
     // Tous les écrans sont déjà écrits : on met en ligne directement (même chemin que la fin d'une construction classique)
     const e0 = spec.ecrans[0];
     const aEcrire = spec.ecrans.filter((e: any) => !e.code);
@@ -324,17 +326,9 @@ ${CONSIGNE_TEXTES_FR}`, { maxTokens: 16000 });
 }
 
 /** Étape 1 bis (invocation à part) : données d'exemple de l'application, puis écriture de tous les écrans en parallèle. */
-export async function saasDemoPuisEcrans(appId: string, lancerEcran: (ecranId: string) => Promise<void>) {
-  const { data: app } = await admin.from("saas_apps").select("brouillon").eq("id", appId).single();
-  const sp = app?.brouillon as any;
-  if (!sp?.ecrans?.length) return;
-  const p = { nom: sp.nom, pitch: sp.pitch };
-  const s = { collections: sp.collections ?? [] };
-  const demo = await askJson<any>(`Application « ${p.nom} » : ${p.pitch}
-Collections : ${(s.collections ?? []).slice(0, 8).map((c: any) => `${c.nom} : ${(c.champs ?? []).map((x: any) => `${x.nom} ${x.type}${x.valeurs ? ` [${x.valeurs.join("|")}]` : ""}`).join(", ")}`).join(" ; ")}
-Écris les données d'exemple de cette application. Rends un objet JSON { <collection> : 12 éléments réalistes en français (entreprises, personnes, séances ou contenus fictifs selon l'application, montants cohérents, dates : la MOITIÉ dans la semaine en cours (dont 2 ou 3 aujourd'hui), pour que les vues du jour et de la semaine soient remplies, le reste entre ${new Date(Date.now() - 45 * 864e5).toISOString().slice(0, 10)} et ${new Date(Date.now() + 45 * 864e5).toISOString().slice(0, 10)}, aujourd'hui = ${new Date().toISOString().slice(0, 10)} ; statuts variés et cohérents avec la date : ce qui est passé est fini ou en retard, ce qui est à venir est prévu) } ; les champs <collection>_id pointent vers le champ « ref » (ex. "c1") que tu ajoutes à chaque élément.`, { fast: true, maxTokens: 12000 }).catch(() => ({}));
-  const d = sansFaussesImages(demo && typeof demo === "object" && !Array.isArray(demo) ? (demo.demo ?? demo) : {}) as any;
-  // Une réponse incomplète (une seule collection remplie) vidait presque tous les écrans : on complète les collections manquantes
+/** Données d'exemple complètes : collections manquantes écrites par l'IA (ex. une collection ajoutée par un écran promis
+ *  sur un modèle fait main), puis couverture de chaque statut, période et booléen, et de l'utilisateur de test. */
+async function completerDemo(s: any, p: { nom: string; pitch: string }, d: any) {
   const manquent = (s.collections ?? []).slice(0, 8).filter((c: any) => !Array.isArray(d[c.nom]) || d[c.nom].length < 3);
   if (manquent.length) {
     const refs = Object.entries(d).filter(([, xs]) => Array.isArray(xs)).map(([k, xs]: [string, any]) => `${k} : ${(xs as any[]).map((x) => x?.ref).filter(Boolean).join(", ")}`).join(" ; ");
@@ -348,6 +342,21 @@ ${refs ? `Éléments déjà écrits (leurs « ref », pour les champs <collectio
   // Chaque statut, chaque période (passé, aujourd'hui, à venir) et chaque côté d'un booléen sont représentés : sinon un bloc
   // « du jour » ou « en retard » restait vide au premier test, et les réécritures de l'écran ne pouvaient rien y faire
   { const auj = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Paris" }); const cv = couvrirDemo(d, s.collections ?? [], auj); Object.assign(d, cv.demo); if (cv.changements) console.log("demo couverte", cv.changements); }
+  return d;
+}
+
+export async function saasDemoPuisEcrans(appId: string, lancerEcran: (ecranId: string) => Promise<void>) {
+  const { data: app } = await admin.from("saas_apps").select("brouillon").eq("id", appId).single();
+  const sp = app?.brouillon as any;
+  if (!sp?.ecrans?.length) return;
+  const p = { nom: sp.nom, pitch: sp.pitch };
+  const s = { collections: sp.collections ?? [] };
+  const demo = await askJson<any>(`Application « ${p.nom} » : ${p.pitch}
+Collections : ${(s.collections ?? []).slice(0, 8).map((c: any) => `${c.nom} : ${(c.champs ?? []).map((x: any) => `${x.nom} ${x.type}${x.valeurs ? ` [${x.valeurs.join("|")}]` : ""}`).join(", ")}`).join(" ; ")}
+Écris les données d'exemple de cette application. Rends un objet JSON { <collection> : 12 éléments réalistes en français (entreprises, personnes, séances ou contenus fictifs selon l'application, montants cohérents, dates : la MOITIÉ dans la semaine en cours (dont 2 ou 3 aujourd'hui), pour que les vues du jour et de la semaine soient remplies, le reste entre ${new Date(Date.now() - 45 * 864e5).toISOString().slice(0, 10)} et ${new Date(Date.now() + 45 * 864e5).toISOString().slice(0, 10)}, aujourd'hui = ${new Date().toISOString().slice(0, 10)} ; statuts variés et cohérents avec la date : ce qui est passé est fini ou en retard, ce qui est à venir est prévu) } ; les champs <collection>_id pointent vers le champ « ref » (ex. "c1") que tu ajoutes à chaque élément.`, { fast: true, maxTokens: 12000 }).catch(() => ({}));
+  const d = sansFaussesImages(demo && typeof demo === "object" && !Array.isArray(demo) ? (demo.demo ?? demo) : {}) as any;
+  // Une réponse incomplète (une seule collection remplie) vidait presque tous les écrans : on complète les collections manquantes
+  await completerDemo(s, p, d);
   await admin.from("saas_apps").update({ brouillon: { ...sp, demo: d }, etape: `Écriture des écrans (0/${sp.ecrans.length})`, maj: new Date().toISOString() }).eq("id", appId);
   // La page de présentation du SaaS s'écrit en même temps que les écrans, par le moteur de pages (comme les sites)
   await Promise.all([...sp.ecrans.map((e: any) => lancerEcran(e.id)), ...(sp.type !== "site" && !sp.mobile ? [lancerEcran("__vitrine")] : [])]);

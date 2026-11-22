@@ -123,7 +123,7 @@ ${exemples}`;
     });
     page = g.page; gen = { ...g.mesure, at: new Date().toISOString(), vitrine: true };
   } catch (x) {
-    gen = { echec: String((x as Error)?.message ?? x).slice(0, 240), at: new Date().toISOString(), vitrine: true };
+    gen = { echec: String((x as Error)?.message ?? x).slice(0, 240), journal: ((x as any)?.journal ?? []).slice(-12), at: new Date().toISOString(), vitrine: true };
     console.error("moteur de pages (SaaS)", x);
   }
   const { data: ou } = await admin.rpc("saas_app_page_set", { p_app: appId, p_page: page, p_gen: gen });

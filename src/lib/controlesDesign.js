@@ -89,7 +89,8 @@ export function controlesDesign(zone, page = false, lint = null) {
   if (petits.length) pbs.push("Zone tactile trop petite (moins de " + mini + " px) : « " + court(petits[0]) + " ».");
 
   // Textes et badges coupés (texte qui dépasse de sa boîte sans retour à la ligne)
-  const coupes = textes.filter((el) => { const cs = getComputedStyle(el); return el.scrollWidth > el.clientWidth + 2 && (cs.overflowX === "hidden" || cs.overflowX === "clip" || cs.textOverflow === "ellipsis") && el.clientWidth > 0; });
+  // Un texte tronqué volontairement qui montre le texte entier au survol (title) n'est pas une panne
+  const coupes = textes.filter((el) => { const cs = getComputedStyle(el); return !el.closest("[title]") && el.scrollWidth > el.clientWidth + 2 && (cs.overflowX === "hidden" || cs.overflowX === "clip" || cs.textOverflow === "ellipsis") && el.clientWidth > 0; });
   if (coupes.length) pbs.push("Texte coupé : « " + court(coupes[0]) + " ».");
 
   // Images sans texte alternatif, champs sans libellé
