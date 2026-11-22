@@ -69,6 +69,15 @@ export function CarteSaas({ s: brut, ouvrir, debloquer }) {
   const cible = cibleDe(s.cible);
   // Difficulté de construction (1 = un week-end en solo, 10 = plusieurs mois), estimée à partir du produit
   const facile = s.difficulte ?? (s.copiable > 0 ? Math.max(1, Math.min(10, 11 - Math.round(s.copiable / 10))) : null);
+  // Partie gratuite : quelques SaaS en clair (badge « Aperçu gratuit »), les autres floutés avec un cadenas
+  if (s.vitrine) return (
+    <div className="relative">
+      <div className="pointer-events-none select-none blur-[7px]" aria-hidden><CarteSaas s={{ ...brut, vitrine: false, nom: "Un SaaS rentable", description: "Un logiciel qui encaisse déjà chaque mois, avec un prix simple et des clients fidèles." }} /></div>
+      <button onClick={() => debloquer?.()} className="absolute inset-0 grid place-items-center rounded-2xl bg-white/30">
+        <span className="rounded-2xl bg-white px-5 py-3 text-center shadow-[0_12px_30px_-12px_rgba(20,20,40,.45)]"><span className="block text-[22px]">🔒</span><span className="block text-[14px] font-bold">Débloquer ce SaaS</span><span className="block text-[12px] text-ink-soft">Nom, revenu, prix et plan pour le lancer</span></span>
+      </button>
+    </div>
+  );
   return (
     <Carte
       entete={<><CompanyLogo name={s.nom} url={`https://${s.domaine}`} className="w-10 h-10 shrink-0" pad="p-1.5" /><div className="min-w-0"><p className="font-bold text-[16px] leading-tight truncate">{s.nom}</p><p className="text-[12px] text-ink-faint truncate">{s.domaine}</p></div></>}
@@ -76,7 +85,7 @@ export function CarteSaas({ s: brut, ouvrir, debloquer }) {
         : mrr > 0 ? <span className="rounded-xl bg-paper px-2.5 py-1.5 text-[14px] font-black tnum">{$(mrr)} <span className="text-[11.5px] font-medium text-ink-faint">/mois</span></span> : null}
       sousTitre={(s.pays || mrr > 0) && <p className="mt-2 text-[12.5px] text-ink-soft">{drapeau(s.pays)} {mrr > 0 ? <span className={verifie ? "font-semibold text-[#166534]" : "text-ink-soft"}>{verifie ? "Revenu vérifié" : "Revenu public"}</span> : null}</p>}
       description={s.description}
-      tags={[s.categorie && <Tag key="c">{s.categorie}</Tag>, cible && <Tag key="b" fonce>{cible}</Tag>, s.en_decollage && <Tag key="d">En décollage</Tag>].filter(Boolean)}
+      tags={[s.libre && <Tag key="l" fonce>Aperçu gratuit</Tag>, s.categorie && <Tag key="c">{s.categorie}</Tag>, cible && <Tag key="b" fonce>{cible}</Tag>, s.en_decollage && <Tag key="d">En décollage</Tag>].filter(Boolean)}
       visuel={<Visuel src={s.image} nom={s.nom} url={`https://${s.domaine}`} />}
       chiffres={
         <div className="flex items-center gap-3">

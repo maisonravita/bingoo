@@ -227,10 +227,10 @@ function Liste({ copier: copierPage = false }) {
   const [sel, setSel] = useState([]);
   const basculer = (d) => setSel((x) => x.includes(d) ? x.filter((y) => y !== d) : x.length >= 4 ? x : [...x, d]);
   const set = (k, v) => { setPage(0); setF((x) => ({ ...x, [k]: v })); };
-  const vitrine = !!rows?.[0]?.vitrine;
+  const vitrine = !!rows?.some((x) => x.vitrine || x.libre);
 
   useEffect(() => {
-    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes, estimation, genre, copiable, copiable_raisons, preuve_ancienne, created_at, constructible, en_decollage, vitrine, image, cible, difficulte", { count: "estimated" });
+    let q = supabase.from("saas_liste").select("id, domaine, nom, categorie, description, pays, prix_entree_eur, prix_usage, gratuit, essai, sur_devis, recrute, postes, nouveaute, score_croissance, lu_at, tags, rang_web, succes, estimation, genre, copiable, copiable_raisons, preuve_ancienne, created_at, constructible, en_decollage, vitrine, image, cible, difficulte, libre", { count: "estimated" });
     if (f.tag) q = q.contains("tags", [f.tag]);
     if (f.q.trim()) q = q.or(`nom.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,domaine.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%,description.ilike.%${f.q.trim().replace(/[%,()]/g, "")}%`);
     if (f.categorie) q = q.eq("categorie", f.categorie);
@@ -349,6 +349,10 @@ function Liste({ copier: copierPage = false }) {
           {(vitrine ? liste.slice(0, 20) : liste).map((s, i) => {
             const faible = s.succes && (s.preuve_ancienne || preuveFaible(s.succes));
             return (
+              s.vitrine ? <button key={s.id} onClick={() => nav("/abonnement")} className="relative block w-full border-b border-line last:border-0 px-4 sm:px-5 py-3.5 text-left hover:bg-paper/50">
+                <span className="flex select-none items-center gap-3 blur-[6px]" aria-hidden><span className="h-10 w-10 shrink-0 rounded-xl bg-gradient-to-br from-accent-soft to-[#E9E1FF]" /><span className="min-w-0 flex-1"><span className="block font-bold">{["Saasify Pro", "Bookeasy", "Flowmate", "Clientio", "Postwise", "Invoicely"][i % 6]}</span><span className="block text-[13.5px] text-ink-soft">Un logiciel qui encaisse déjà chaque mois, avec un prix simple.</span></span><span className="font-bold">12 400 $/mois</span></span>
+                <span className="absolute inset-0 grid place-items-center"><span className="rounded-full bg-white px-4 py-1.5 text-[13px] font-bold shadow-sm">🔒 Débloquer · {s.categorie}</span></span>
+              </button> :
               <div key={s.id} role="button" tabIndex={0} onClick={() => nav(`/explorer/${s.domaine}`)} onKeyDown={(e) => e.key === "Enter" && nav(`/explorer/${s.domaine}`)}
                 className={cx("cursor-pointer grid grid-cols-[28px_1fr] lg:grid-cols-[28px_1fr_190px_110px_120px] gap-x-4 gap-y-2 px-4 sm:px-5 py-3.5 border-b border-line last:border-0 items-center hover:bg-paper/50", sel.includes(s.domaine) && "bg-accent-soft/30")}>
                 <label onClick={(e) => e.stopPropagation()} title="Comparer" className="self-start pt-3 flex justify-center cursor-pointer"><input type="checkbox" checked={sel.includes(s.domaine)} onChange={() => basculer(s.domaine)} className="h-4 w-4 accent-[#15161A]" /></label>
@@ -4305,7 +4309,7 @@ function Classement() {
   const [rows, setRows] = useState(undefined);
   useEffect(() => { setRows(undefined); supabase.rpc("saas_classement", { p_tri: tri }).then(({ data }) => setRows(data ?? [])); }, [tri]);
   const info = ONGLETS_CLASSEMENT.find((o) => o[0] === tri);
-  const vitrine = !!rows?.[0]?.vitrine;
+  const vitrine = !!rows?.some((x) => x.vitrine || x.libre);
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
       <p className="text-[12.5px] font-bold tracking-wider text-accent-dark">CLASSEMENT</p>
