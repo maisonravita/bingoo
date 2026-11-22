@@ -184,6 +184,26 @@ if (CONSTRUIRE === "spec") {
   const [x] = await q(`select spec from saas_apps where slug = ${lit(process.env.DOMAINE ?? "")}`);
   fs.writeFileSync(`${DOSSIER}/spec.json`, JSON.stringify(x?.spec ?? null));
   console.log("spec exportée :", x ? "oui" : "introuvable");
+} else if (CONSTRUIRE === "atelier-diag") {
+  // Diagnostic : la page du membre ouverte sur l'atelier d'un SaaS dont une modification attend son test
+  const [a0] = await q(`select a.id, a.slug, a.workspace_id ws, a.version, a.brouillon->'_test' t from saas_apps a where a.slug = ${lit(process.env.DOMAINE || "asso-pilote-6t0r")}`);
+  console.log("SaaS", a0.slug, "v" + a0.version, "test", JSON.stringify(a0.t));
+  await q(`update workspaces set plan = 'lancer_pro', plan_status = 'active', onboarded = true where id = ${lit(a0.ws)}`);
+  await q(`insert into members (workspace_id, user_id, role) values (${lit(a0.ws)}, ${lit(uid)}, 'owner') on conflict do nothing`).catch((e) => console.log("membre", e.message.slice(0, 120)));
+  const { page: pm } = await ouvrir(a0.ws, {});
+  const logs = []; pm.on("console", (m) => logs.push(m.type() + " " + m.text().slice(0, 200))); pm.on("pageerror", (e) => logs.push("ERREUR " + e.message.slice(0, 200)));
+  pm.on("request", (r) => { if (/verif-brouillon|saas-app-verif/.test(r.url())) logs.push("APPEL " + r.url().slice(-40)); });
+  await pm.addInitScript(() => { window.__msgs = []; window.addEventListener("message", (e) => { try { window.__msgs.push(String(e.data?.type) + ":" + String(e.data?.slug ?? "")); } catch {} }); });
+  await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+  for (let i = 0; i < 12; i++) {
+    await pm.waitForTimeout(10000);
+    const etat = await pm.evaluate(() => ({ url: location.hash, iframes: [...document.querySelectorAll("iframe")].map((f) => ({ gauche: Math.round(f.getBoundingClientRect().left), doc: (f.getAttribute("srcdoc") || "").length, titre: f.title })), msgs: (window.__msgs || []).slice(-6) }));
+    const [x] = await q(`select version, brouillon->'_test'->>'phase' ph, brouillon is null sans_brouillon from saas_apps where id = ${lit(a0.id)}`);
+    console.log(`t+${(i + 1) * 10}s`, JSON.stringify(etat), JSON.stringify(x));
+    if (x.sans_brouillon || x.ph !== "en_cours") break;
+  }
+  await pm.screenshot({ path: `${DOSSIER}/atelier-diag.png` });
+  console.log("JOURNAL\n" + logs.slice(-40).join("\n"));
 } else if (CONSTRUIRE === "atelier-vrai") {
   // L'atelier comme un membre, sur le dernier SaaS du robot (DOMAINE = son adresse courte, facultatif) :
   // 1) texte changé au double-clic (gratuit), 2) demande en une phrase sur un écran, 3) demande sur la page de présentation,
