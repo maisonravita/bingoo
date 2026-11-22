@@ -179,6 +179,45 @@ const ETAPES_FLOU = {
   app: ["Concevoir les onglets de l'app", "Écrire chaque écran", "Tester sur téléphone", "Préparer l'essai dans Expo Go"],
   url: ["Lire le site point par point", "Relever couleurs, polices et rubriques", "Construire ta version écran par écran", "Mettre en ligne à ton nom"],
 };
+// Ce qui se dessine derrière : un logiciel (menu et contenu), une page de site, ou un téléphone
+const Sk = ({ c = "", w }) => <div className={cx("flou-sk rounded", c)} style={w ? { width: w } : null} />;
+function ApercuLogiciel({ sombre }) {
+  return (
+    <div className="flex h-full overflow-hidden rounded-2xl border border-black/[.08] bg-white">
+      <div className="w-44 shrink-0 space-y-3 p-4" style={{ background: sombre }}>{Array.from({ length: 7 }, (_, i) => <div key={i} className="h-3 rounded bg-white/15" style={{ width: `${60 + (i * 13) % 35}%` }} />)}</div>
+      <div className="min-w-0 flex-1 space-y-4 p-6">
+        <Sk c="h-6" w="14rem" />
+        <div className="grid grid-cols-4 gap-3">{Array.from({ length: 8 }, (_, i) => <div key={i} className="space-y-2 rounded-xl border border-black/[.06] p-3"><Sk c="h-16 rounded-lg" /><Sk c="h-3" w="70%" /></div>)}</div>
+        <div className="grid grid-cols-[2fr_1fr] gap-3"><div className="rounded-xl border border-black/[.06] p-4"><Sk c="h-32 rounded-lg" /></div><div className="space-y-2 rounded-xl border border-black/[.06] p-4">{[0, 1, 2, 3].map((i) => <Sk key={i} c="h-4" />)}</div></div>
+      </div>
+    </div>
+  );
+}
+function ApercuSite() {
+  return (
+    <div className="h-full overflow-hidden rounded-2xl border border-black/[.08] bg-white">
+      <div className="flex items-center gap-1.5 border-b border-black/[.06] px-4 py-2.5"><span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" /><span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" /><span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" /><Sk c="ml-3 h-4" w="12rem" /></div>
+      <div className="flex items-center justify-between px-8 py-4"><Sk c="h-5" w="7rem" /><div className="flex gap-4">{[0, 1, 2].map((i) => <Sk key={i} c="h-3" w="4rem" />)}</div><div className="h-8 w-28 rounded-full bg-accent/70" /></div>
+      <div className="grid grid-cols-2 items-center gap-8 px-8 py-8"><div className="space-y-3"><Sk c="h-9" /><Sk c="h-9" w="80%" /><Sk c="h-4" w="90%" /><Sk c="h-4" w="70%" /><div className="h-10 w-40 rounded-full bg-accent/70" /></div><Sk c="h-56 rounded-2xl" /></div>
+      <div className="grid grid-cols-3 gap-4 px-8">{[0, 1, 2].map((i) => <div key={i} className="space-y-2 rounded-xl border border-black/[.06] p-4"><Sk c="h-24 rounded-lg" /><Sk c="h-4" w="60%" /><Sk c="h-3" w="40%" /></div>)}</div>
+    </div>
+  );
+}
+function ApercuApp() {
+  return (
+    <div className="flex h-full items-center justify-center gap-8">
+      {[0, 1].map((k) => (
+        <div key={k} className={cx("w-[250px] rounded-[2.4rem] bg-[#15161A] p-2.5", k && "hidden lg:block opacity-80")}>
+          <div className="space-y-3 rounded-[2rem] bg-[#FAFAF8] p-4" style={{ minHeight: 480 }}>
+            <Sk c="h-3" w="40%" /><Sk c="h-7" w="75%" /><Sk c="h-28 rounded-2xl" />
+            {[0, 1, 2].map((i) => <div key={i} className="flex items-center gap-2"><Sk c="h-9 w-9 rounded-xl" /><Sk c="h-3 flex-1" /></div>)}
+            <div className="grid grid-cols-4 gap-2 pt-6">{[0, 1, 2, 3].map((i) => <div key={i} className={cx("mx-auto h-5 w-5 rounded-md", i ? "bg-[#D9D7D0]" : "bg-accent/70")} />)}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 function ChantierFlou({ texte, genre, children }) {
   const etapes = ETAPES_FLOU[genre] ?? ETAPES_FLOU.saas;
   const sombre = "#15171F";
@@ -195,16 +234,7 @@ function ChantierFlou({ texte, genre, children }) {
             <div className="rounded-xl border border-black/[.08] p-4"><p className="text-[13px] font-bold text-[#1E2030]">Construction</p><div className="mt-2 h-1.5 rounded-full bg-[#EEEDEA]"><div className="h-full w-[6%] rounded-full bg-accent" /></div>
               <ul className="mt-3 space-y-2.5">{etapes.map((e, i) => <li key={e} className="flex items-center gap-2.5 text-[13.5px] text-[#3A3F55]">{i === 0 ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#EEEDEA] border-t-accent" /> : <span className="h-4 w-4 rounded-full border-2 border-[#EEEDEA]" />}{e}</li>)}</ul></div>
           </div>
-          <div className="min-w-0 flex-1 p-4 sm:p-6">
-            <div className="flex h-full overflow-hidden rounded-2xl border border-black/[.08] bg-white">
-              <div className="w-44 shrink-0 space-y-3 p-4" style={{ background: genre === "site" || genre === "url" ? "#fff" : sombre }}>{Array.from({ length: 7 }, (_, i) => <div key={i} className={cx("h-3 rounded", genre === "site" || genre === "url" ? "flou-sk" : "bg-white/15")} style={{ width: `${60 + (i * 13) % 35}%` }} />)}</div>
-              <div className="min-w-0 flex-1 space-y-4 p-6">
-                <div className="flou-sk h-6 w-56 rounded-lg" />
-                <div className="grid grid-cols-3 gap-3">{[0, 1, 2].map((i) => <div key={i} className="space-y-2 rounded-xl border border-black/[.06] p-4"><div className="flou-sk h-3 w-20 rounded" /><div className="flou-sk h-6 w-24 rounded" /></div>)}</div>
-                {Array.from({ length: 5 }, (_, i) => <div key={i} className="flex items-center gap-3 rounded-xl border border-black/[.06] p-4"><div className="flou-sk h-8 w-8 rounded-full" /><div className="flou-sk h-3 flex-1 rounded" style={{ maxWidth: `${40 + i * 9}%` }} /><div className="flou-sk h-6 w-16 rounded-full" /></div>)}
-              </div>
-            </div>
-          </div>
+          <div className="min-w-0 flex-1 p-4 sm:p-6">{genre === "app" ? <ApercuApp /> : genre === "site" || genre === "url" ? <ApercuSite /> : <ApercuLogiciel sombre={sombre} />}</div>
         </div>
       </div>
       <div className="absolute inset-0 bg-[#15171F]/25" aria-hidden />
