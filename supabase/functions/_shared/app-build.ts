@@ -277,6 +277,8 @@ ${CONSIGNE_TEXTES_FR}`, { maxTokens: 16000 });
   // La couleur de marque suit la palette du système de design (PDF, image de partage, e-mails)
   if (spec.design?.couleurs?.primary) spec.couleur = spec.design.couleurs.primary;
   if (spec.design?.allure) spec.style = spec.design.allure;
+  // « Un site qui te plaît » : sa palette et ses polices, et le logo du membre
+  if (p.source) { const { poserSource } = await import("./copie-site.ts"); poserSource(spec, p.source); }
   // Pages publiques (réservation, formulaire, avis…) : écrites comme des écrans, servies sans compte
   const cols = new Set(spec.collections.map((c: any) => c.nom));
   for (const [i, x] of (s.pages_publiques ?? []).slice(0, 2).entries()) {

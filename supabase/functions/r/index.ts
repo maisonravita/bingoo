@@ -363,10 +363,12 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const couleurChoisie = /^#[0-9a-f]{6}$/i.test(String(b.couleur ?? "")) ? String(b.couleur) : "";
     // Allure choisie dans la galerie (ex. « nature » : menu vert foncé sur fond crème)
     const allureChoisie = ["moderne", "doux", "sombre", "editorial", "vif", "rond", "tech", "elegant", "sport", "geometrique", "nature"].includes(String(b.allure ?? "")) ? String(b.allure) : "";
-    if (nomChoisi || modeleForce || couleurChoisie || allureChoisie) {
+    // « Un site qui te plaît » : son style relevé (palette, polices) et le logo du membre
+    const source = (await import("../_shared/copie-site.ts")).sourceNette(b.source);
+    if (nomChoisi || modeleForce || couleurChoisie || allureChoisie || source) {
       const { data: pj } = await admin.from("saas_projets").select("data, statut").eq("id", data.id).single();
       const d0 = (pj?.data ?? {}) as Record<string, unknown>;
-      await admin.from("saas_projets").update({ data: { ...d0, ...(nomChoisi ? { nom_choisi: nomChoisi, ...(pj?.statut === "pret" ? { nom: nomChoisi } : {}) } : {}), ...(modeleForce ? { modele_force: modeleForce } : {}), ...(couleurChoisie ? { couleur_choisie: couleurChoisie } : {}), ...(allureChoisie ? { allure_choisie: allureChoisie } : {}) } }).eq("id", data.id);
+      await admin.from("saas_projets").update({ data: { ...d0, ...(nomChoisi ? { nom_choisi: nomChoisi, ...(pj?.statut === "pret" ? { nom: nomChoisi } : {}) } : {}), ...(modeleForce ? { modele_force: modeleForce } : {}), ...(couleurChoisie ? { couleur_choisie: couleurChoisie } : {}), ...(allureChoisie ? { allure_choisie: allureChoisie } : {}), ...(source ? { source } : {}) } }).eq("id", data.id);
     }
     if (data.nouveau) await log(ws.id, "lancer", `Projet de SaaS concurrent de ${s.nom ?? domaine}`);
     // Démarre tout de suite (sans attendre la tâche minute) ; REA continue en arrière-plan pour les prochains lancements
@@ -465,6 +467,29 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     await log(ws.id, "app_expo", `Aperçu Expo Go de ${String(sp.nom ?? "").slice(0, 60)}`);
     return r;
   },
+  // « Un site qui te plaît » : lecture de sa page d'accueil sans IA (nom, type, couleurs, polices, rubriques, boutons)
+  async "site-scan"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    await quota(ws.id, "site_scan", 30);
+    const { scannerSite } = await import("../_shared/copie-site.ts");
+    try {
+      const r = await scannerSite(String(b.url ?? ""));
+      await log(ws.id, "site_scan", `Site lu : ${r.domaine} (${r.type})`);
+      return r;
+    } catch (e) { throw new HttpError(422, String((e as Error)?.message ?? e).slice(0, 220)); }
+  },
+  // Le logo du membre, envoyé avant la construction (il est posé sur son SaaS ou son site à la construction)
+  async "saas-logo"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    await quota(ws.id, "logo", 20);
+    const m = String(b.image ?? "").match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/);
+    if (!m || m[2].length > 1_500_000) throw new HttpError(400, "Logo invalide (PNG, JPG ou WebP, 1 Mo au plus)");
+    const bin = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
+    const chemin = `images/logo-${ws.id.slice(0, 8)}-${crypto.randomUUID().slice(0, 8)}.${m[1] === "jpeg" ? "jpg" : m[1]}`;
+    const { error } = await admin.storage.from("apps").upload(chemin, bin, { contentType: `image/${m[1]}`, upsert: false, cacheControl: "31536000" });
+    if (error) throw new HttpError(500, `Stockage : ${error.message}`);
+    return { url: admin.storage.from("apps").getPublicUrl(chemin).data.publicUrl };
+  },
   // Construire à partir d'une idée libre : l'aperçu gratuit (modération, questions si l'idée est floue, écrans, maquette, limites, SaaS proches)
   async "saas-idee-apercu"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
@@ -493,8 +518,9 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     let { data: s } = await admin.from("saas").select("id").eq("domaine", DOMAINE_IDEE).maybeSingle();
     if (!s) ({ data: s } = await admin.from("saas").insert({ domaine: DOMAINE_IDEE, nom: "Idée libre", statut: "retire" }).select("id").single());
     const nomChoisi = typeof b.nom === "string" && b.nom.trim() ? b.nom.replace(/\s+/g, " ").trim().slice(0, 40) : String(apercu.nom).slice(0, 40);
+    const source = (await import("../_shared/copie-site.ts")).sourceNette(b.source);
     const reponses = (Array.isArray(b.reponses) ? b.reponses : []).slice(0, 3).map((x: any) => ({ q: String(x?.q ?? "").slice(0, 140), r: String(x?.r ?? "").slice(0, 160) }));
-    const { data: pj, error } = await admin.from("saas_projets").insert({ workspace_id: ws.id, saas_id: s!.id, statut: "en_cours", data: { entree: String(b.type ?? "") === "site" ? "site" : "idee", nom_choisi: nomChoisi, idee: { texte, type: String(b.type ?? "saas"), reponses, apercu } } }).select("id").single();
+    const { data: pj, error } = await admin.from("saas_projets").insert({ workspace_id: ws.id, saas_id: s!.id, statut: "en_cours", data: { entree: String(b.type ?? "") === "site" ? "site" : "idee", nom_choisi: nomChoisi, idee: { texte, type: String(b.type ?? "saas"), reponses, apercu }, ...(source ? { source } : {}) } }).select("id").single();
     if (error || !pj) throw new HttpError(500, error?.message ?? "Le projet n'a pas été enregistré");
     await log(ws.id, "lancer", `Projet né d'une idée : ${texte.slice(0, 120)}`);
     const travail = saasLancerIdee(ws.id, pj.id).catch(async (e) => { console.error("lancer-idee", e); await admin.from("saas_projets").update({ statut: "erreur", erreur: "La préparation de ton idée a échoué, réessaie." }).eq("id", pj.id); });

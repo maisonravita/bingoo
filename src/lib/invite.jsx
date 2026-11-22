@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "./supabase";
 import { useWs } from "./ws";
 import { cx } from "./utils";
@@ -125,6 +126,33 @@ export function EspaceInvite() {
         await supabase.from("workspaces").update({ onboarded: true, profile: { ...(ws?.profile ?? {}), mode: "explorer", type: "saas", invite: true } }).eq("id", id);
         await reload();
         if (!/explorer/.test(window.location.hash + window.location.pathname)) window.location.hash = "#/explorer/trouver";
+      } catch (x) { setErr(x.message || "Erreur"); }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return <div className="min-h-screen grid place-items-center bg-paper text-ink-soft text-[15px]">{err ? <p>{err} <button onClick={() => window.location.reload()} className="underline">Réessayer</button></p> : "Bingoo! prépare ton espace…"}</div>;
+}
+
+// Idée ou adresse écrite sur l'accueil, puis compte créé : son espace est préparé tout seul et la construction démarre
+export function departEnAttente() {
+  try {
+    const i = JSON.parse(localStorage.getItem("bingoo-idee") ?? "null"), c = JSON.parse(localStorage.getItem("bingoo-copie") ?? "null");
+    const frais = (x) => x && Date.now() - Number(x.at ?? 0) < 2 * 864e5;
+    if (frais(c) && (!frais(i) || c.at >= i.at)) return "/explorer/copie";
+    if (frais(i) && i.texte) return "/explorer/idee";
+  } catch { /* stockage indisponible */ }
+  return null;
+}
+export function EspaceDepart({ vers }) {
+  const { ws, create, reload } = useWs();
+  const nav = useNavigate();
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    (async () => {
+      try {
+        const id = ws?.id ?? (await create("", ""));
+        await supabase.from("workspaces").update({ onboarded: true, profile: { ...(ws?.profile ?? {}), mode: "explorer", type: "saas" } }).eq("id", id);
+        nav(vers, { replace: true });
+        await reload();
       } catch (x) { setErr(x.message || "Erreur"); }
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

@@ -30,6 +30,8 @@ export async function construireSite(appId: string, p: any, demarrerVerification
   spec.design = d;
   spec.couleur = d.couleurs.primary;
   if (d.allure) spec.style = d.allure;
+  // « Un site qui te plaît » : sa palette et ses polices, et le logo du membre
+  if (p.source) { const { poserSource } = await import("./copie-site.ts"); poserSource(spec, p.source); }
   // Gabarit kit Taste : pour les nouveaux portfolios seulement (validé par Jean le 21/11 après comparaison).
   // Les sites existants gardent leur gabarit ; un changement passe par garderApparence (retour en un clic).
   if (spec.site?.modele === "portfolio") spec.site = { ...spec.site, gabarit: "taste" };

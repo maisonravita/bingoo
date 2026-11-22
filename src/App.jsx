@@ -20,7 +20,7 @@ import OnboardingExplorer from "./pages/OnboardingExplorer";
 import { Conditions, Confidentialite, legalReady, MentionsLegales, Opposition } from "./pages/Legal";
 import { supabase } from "./lib/supabase";
 import { charger } from "./lib/charger";
-import { EntreeInvite, EspaceInvite, estInvite } from "./lib/invite";
+import { EntreeInvite, EspaceInvite, EspaceDepart, departEnAttente, estInvite } from "./lib/invite";
 
 function Gate() {
   const { session, list, ws } = useWs();
@@ -54,6 +54,8 @@ function Gate() {
   if (pendingJoin) return <Join token={pendingJoin} />;
   // Nouvelle inscription : le TrendTrack des SaaS (une question, l'adresse du SaaS)
   if (estInvite(session) && (!ws || !ws.onboarded)) return <EspaceInvite />;
+  // Compte créé juste après avoir écrit une idée ou une adresse sur l'accueil : on file droit à la construction
+  if ((!ws || !ws.onboarded) && departEnAttente()) return <EspaceDepart vers={departEnAttente()} />;
   if (!ws || !ws.onboarded) return <OnboardingExplorer />;
   return (
     <Layout>

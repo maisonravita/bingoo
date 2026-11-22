@@ -268,8 +268,8 @@ export function Chantier({ ws, nav, init, atelier = false }) {
           else {
             // Idée libre (page d'accueil) : le projet part de l'idée et de l'aperçu validé, sans SaaS d'origine
             const { id } = c.idee
-              ? await fn("r/saas-lancer-idee", { workspace_id: ws.id, texte: c.ideeTexte, type: c.type ?? "saas", reponses: c.reponses ?? [], apercu: c.apercu, nom: (rep.nom ?? "").trim() || c.apercu?.nom || null })
-              : await fn("r/saas-lancer", { workspace_id: ws.id, domaine: c.domaine, angle: angle.current, nom: (rep.nom ?? "").trim() || null, modele: c.modele ?? null, couleur: c.couleur ?? null, allure: c.allure ?? null });
+              ? await fn("r/saas-lancer-idee", { workspace_id: ws.id, texte: c.ideeTexte, type: c.type ?? "saas", reponses: c.reponses ?? [], apercu: c.apercu, nom: (rep.nom ?? "").trim() || c.apercu?.nom || null, source: c.source ?? null })
+              : await fn("r/saas-lancer", { workspace_id: ws.id, domaine: c.domaine, angle: angle.current, nom: (rep.nom ?? "").trim() || null, modele: c.modele ?? null, couleur: c.couleur ?? null, allure: c.allure ?? null, source: c.source ?? null });
             setEtape(0);
             const finPreparation = Date.now() + 38 * 60_000;
             let intervalle = 3500;

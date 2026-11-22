@@ -23,6 +23,7 @@ const Modeles = lazy(() => charger(() => import("./Modeles")));
 const MonSaas = lazy(() => charger(() => import("./MonSaas")));
 const ApplisMobiles = lazy(() => charger(() => import("../components/ApplisMobiles")));
 const IdeePage = lazy(() => charger(() => import("./Idee")));
+const CopiePage = lazy(() => charger(() => import("./Copie")));
 const ValiderIdee = lazy(() => charger(() => import("../components/ValiderIdee")));
 const MesFavoris = lazy(() => charger(() => import("../components/MesFavoris")));
 import Favori from "../components/Favori";
@@ -73,6 +74,7 @@ export default function Explorer({ domaine: fixe }) {
   // Galerie de modèles : ouverte à tous (l'invité crée son compte au moment de lancer)
   // « Construire mon idée » (page d'accueil) : l'aperçu gratuit est ouvert à tous, le compte est demandé au moment de construire
   if (d === "idee") return <Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><IdeePage /></Suspense>;
+  if (d === "copie") return <Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><CopiePage /></Suspense>;
   if (d === "modeles") return <><Onglets actif="modeles" /><Suspense fallback={<div className="py-24 grid place-items-center"><Spinner /></div>}><Modeles /></Suspense></>;
   if (estInvite(session) && d !== "trouver") return <Navigate to="/explorer/trouver" replace />;
   // Après le paiement : le flou disparaît, puis Bingoo! construit le SaaS choisi
