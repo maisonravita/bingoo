@@ -111,16 +111,16 @@ if (CONSTRUIRE === "spec") {
   let a = await lire(a0.id); const ws = a.ws; const bilan = [];
   // La page du membre reste ouverte : c'est son navigateur qui teste une modification avant de la publier
   const { page: pm } = await ouvrir(ws, {});
-  const ouvrirAtelier = async () => { await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/revelation`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(4000); };
+  const ouvrirAtelier = async () => { await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(4000); };
   const note = (ok, t) => { bilan.push(`${ok ? "✓" : "✗"} ${t}`); console.log(`${ok ? "✓" : "✗"} ${t}`); };
   const attendreFin = async (id, max = 300) => { for (let i = 0; i < max / 3; i++) { await new Promise((r) => setTimeout(r, 3000)); const x = await lire(id); if (x.statut !== "en_cours") return x; } return lire(id); };
   const photo = async (nom) => { const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p2 = await c2.newPage(); await p2.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p2.waitForTimeout(6000); await p2.screenshot({ path: `${DOSSIER}/${nom}.png` }).catch(() => null); await c2.close(); };
   console.log("SaaS testé :", a.slug, "v" + a.version);
   await photo("atelier-0-avant");
   // 1) Texte au double-clic : le premier sous-titre d'écran trouvé dans le code
-  const e1 = (a.spec.ecrans ?? []).find((e) => !e.public && /sous="[^"]{8,}"/.test(e.code ?? ""));
+  const e1 = (a.spec.ecrans ?? []).find((e) => !e.public && /sous="(?!Texte du robot)[^"]{8,}"/.test(e.code ?? ""));
   if (e1) {
-    const avant = /sous="([^"]{8,})"/.exec(e1.code)[1], apres = "Texte changé par le robot de l'atelier";
+    const avant = /sous="((?!Texte du robot)[^"]{8,})"/.exec(e1.code)[1], apres = `Texte du robot ${new Date().toISOString().slice(11, 19)}`;
     const t0 = Date.now(); const r = await appel("saas-app-reglages", { workspace_id: ws, app_id: a.id, quoi: "texte", avant, apres, ecran: e1.id });
     a = await lire(a.id); const code = (a.spec.ecrans ?? []).find((e) => e.id === e1.id)?.code ?? "";
     note(r.ok && code.includes(apres) && !code.includes(`sous="${avant}"`), `Texte au double-clic sur « ${e1.titre} » (${Math.round((Date.now() - t0) / 100) / 10} s) ${r.ok ? "" : r.t}`);
