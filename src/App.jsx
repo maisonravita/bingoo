@@ -15,6 +15,7 @@ import Join, { JOIN_KEY } from "./pages/Join";
 import Explorer from "./pages/Explorer";
 const PublicRetrait = lazy(() => charger(() => import("./pages/PublicRetrait")));
 import Landing from "./pages/Landing";
+const Decouvrir = lazy(() => charger(() => import("./pages/Decouvrir")));
 const PublicApp = lazy(() => charger(() => import("./pages/PublicApp")));
 import OnboardingExplorer from "./pages/OnboardingExplorer";
 import { Conditions, Confidentialite, legalReady, MentionsLegales, Opposition } from "./pages/Legal";
@@ -32,6 +33,8 @@ function Gate() {
   }, [ws?.id, ws?.app_url]);
   if (loc.pathname === "/retrait") return <PublicRetrait />;
   if (loc.pathname === "/accueil") return <Landing />;
+  // « Pas d'idée ? » : les SaaS qui marchent, en public (quelques-uns en clair, le reste flouté)
+  if (loc.pathname === "/decouvrir") return <Suspense fallback={<Splash />}><Decouvrir /></Suspense>;
   if (loc.pathname.startsWith("/app/")) return <PublicApp slug={loc.pathname.split("/")[2] ?? ""} />;
   if (loc.pathname === "/desabonne") return <div className="min-h-screen grid place-items-center bg-paper p-6 text-center"><div><p className="text-[22px] font-black">{new URLSearchParams(loc.search).get("ok") === "1" ? "C'est noté." : "Lien expiré."}</p><p className="mt-2 text-ink-soft">{new URLSearchParams(loc.search).get("ok") === "1" ? "Tu ne recevras plus les relances ni les annonces de cette application. Les e-mails liés à ton compte et à ton paiement restent envoyés." : "Ce lien de désinscription n'est plus valable."}</p></div></div>;
   if (loc.pathname === "/opposition") return <Opposition />;

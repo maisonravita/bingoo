@@ -133,7 +133,7 @@ const typeDe = (t) => {
 const estAdresse = (t) => /^(https?:\/\/)?(www\.)?[a-z0-9][a-z0-9-]*(\.[a-z0-9-]+)*\.[a-z]{2,}(\/\S*)?$/i.test(String(t ?? "").trim());
 
 // Le compte, juste avant que Bingoo! commence : e-mail et mot de passe, ou connexion si on a déjà un compte
-function CompteAvant({ quoi, onFini, onRetour }) {
+export function CompteAvant({ quoi, onFini, onRetour, retourTexte = "← Modifier" }) {
   const [mode, setMode] = useState("signup"), [email, setEmail] = useState(""), [mdp, setMdp] = useState(""), [busy, setBusy] = useState(false), [msg, setMsg] = useState(null);
   const envoyer = async (e) => {
     e.preventDefault(); setBusy(true); setMsg(null);
@@ -163,7 +163,7 @@ function CompteAvant({ quoi, onFini, onRetour }) {
       {msg && <p className={cx("mt-3 rounded-xl px-3.5 py-2.5 text-[14px]", msg.ok ? "bg-[#EEF8F1] text-[#1F6B3A]" : "bg-[#FDF0EC] text-[#9A3412]")}>{msg.t}</p>}
       <button disabled={busy} className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-full bg-accent px-5 py-3.5 text-[16px] font-bold text-white shadow-[0_10px_30px_-12px_rgba(226,85,35,.8)] hover:brightness-110 disabled:opacity-60">{busy ? "Un instant…" : <>{mode === "signup" ? "Créer mon compte et lancer Bingoo!" : "Me connecter et lancer Bingoo!"} <Arrow /></>}</button>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[13.5px]">
-        <button type="button" onClick={onRetour} className="font-semibold text-[#5B6075] hover:text-[#1E2030]">← Modifier</button>
+        <button type="button" onClick={onRetour} className="font-semibold text-[#5B6075] hover:text-[#1E2030]">{retourTexte}</button>
         <button type="button" onClick={() => { setMode(mode === "signup" ? "login" : "signup"); setMsg(null); }} className="font-semibold text-[#1E2030] hover:underline">{mode === "signup" ? "J'ai déjà un compte" : "Créer un compte"}</button>
       </div>
       {mode === "signup" && legalReady && <p className="mt-3 text-[12px] text-[#9A9EAE]">En créant ton compte, tu acceptes les <a href="#/conditions" className="underline">Conditions</a> et la <a href="#/confidentialite" className="underline">Politique de confidentialité</a>.</p>}
@@ -331,7 +331,7 @@ export default function Landing() {
             </h1>
             <p className="hero-in mx-auto mt-4 sm:mt-7 max-w-[720px] text-[16px] sm:text-[21px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Ton SaaS, ton site ou ton app : Bingoo! le crée écran par écran sous tes yeux, le teste et le met en ligne à ton nom.</p>
             <IdeeHero nav={nav} />
-            <button onClick={() => commencer(nav, "/explorer")} className="hero-in group mx-auto mt-6 flex max-w-[680px] w-full items-center gap-4 rounded-2xl border border-black/[.08] bg-[#FAFAF7] px-5 py-4 text-left transition hover:border-black/20 hover:bg-white" style={{ ...JK, animationDelay: ".26s" }}>
+            <button onClick={() => nav("/decouvrir")} className="hero-in group mx-auto mt-6 flex max-w-[680px] w-full items-center gap-4 rounded-2xl border border-black/[.08] bg-[#FAFAF7] px-5 py-4 text-left transition hover:border-black/20 hover:bg-white" style={{ ...JK, animationDelay: ".26s" }}>
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#1E2030] text-[20px] text-white">✦</span>
               <span className="min-w-0 flex-1"><span className="block text-[16px] font-bold text-[#1E2030]">Pas d'idée ? Découvre les {nb ? (Math.floor(nb / 1000) * 1000).toLocaleString("fr-FR") : "milliers de"} SaaS qui marchent déjà</span><span className="block text-[14px] text-[#5B6075]">Choisis celui qui te plaît : Bingoo! construit ta version, à ton nom.</span></span>
               <span className="shrink-0 text-[#1E2030] transition group-hover:translate-x-1"><Arrow className="h-5 w-5" /></span>

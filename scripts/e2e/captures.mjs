@@ -73,6 +73,14 @@ const photo = async (page, nom, chemin, attente = 5000) => {
 }
 // CONSTRUIRE=gratuit : l'Explorer vu par un compte gratuit (un autre compte de test, sans abonnement)
 if (CONSTRUIRE === "gratuit") {
+  // La page publique « Découvre les SaaS qui marchent », vue par un visiteur sans compte, puis le clic sur un SaaS
+  { const c0 = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p0 = await c0.newPage();
+    await p0.goto(`${SITE}/?c=${Date.now()}#/decouvrir`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p0.waitForTimeout(5000);
+    await p0.screenshot({ path: `${DOSSIER}/decouvrir.png`, fullPage: true }); console.log("✓ decouvrir");
+    await p0.getByRole("button", { name: /Ouvrir la fiche/ }).first().click().catch((e) => console.log("✗ fiche", e.message)); await p0.waitForTimeout(1200);
+    await p0.screenshot({ path: `${DOSSIER}/decouvrir-compte.png` }); console.log("✓ decouvrir-compte");
+    await p0.setViewportSize({ width: 390, height: 844 }); await p0.goto(`${SITE}/?c=${Date.now()}#/decouvrir`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p0.waitForTimeout(4000);
+    await p0.screenshot({ path: `${DOSSIER}/decouvrir-mobile.png` }); await c0.close(); }
   const E2 = "robot-gratuit@maisonravita.fr", M2 = crypto.randomBytes(18).toString("base64url");
   let [u2] = await q(`select id from auth.users where email = ${lit(E2)}`);
   if (!u2) u2 = await adminAuth("users", "POST", { email: E2, password: M2, email_confirm: true, user_metadata: { name: "Robot gratuit" } });

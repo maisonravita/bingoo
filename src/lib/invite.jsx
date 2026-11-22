@@ -137,6 +137,9 @@ export function departEnAttente() {
   try {
     const i = JSON.parse(localStorage.getItem("bingoo-idee") ?? "null"), c = JSON.parse(localStorage.getItem("bingoo-copie") ?? "null");
     const frais = (x) => x && Date.now() - Number(x.at ?? 0) < 2 * 864e5;
+    // Depuis la page publique des SaaS : la fiche (ou l'Explorer) choisie avant l'inscription
+    const dep = JSON.parse(localStorage.getItem("bingoo-depart") ?? "null");
+    if (frais(dep) && /^\/explorer(\/[a-z0-9.-]+)?$/.test(dep.vers ?? "")) return dep.vers;
     if (frais(c) && (!frais(i) || c.at >= i.at)) return "/explorer/copie";
     if (frais(i) && i.texte) return "/explorer/idee";
   } catch { /* stockage indisponible */ }
