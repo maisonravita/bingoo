@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 const AppCadre = lazy(() => import("../components/AppCadre"));
 import { useNavigate } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
@@ -51,12 +51,24 @@ function specSite(nom, ap) {
 function SiteReel({ nom, ap }) {
   const spec = useMemo(() => specSite(nom, ap), [nom, ap]);
   const slug = (nom || "mon-site").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "");
+  // Rendu en largeur d'ordinateur (1280 px), réduit à la place disponible : on voit le site comme ses clients le verront
+  const boite = useRef(null), [k, setK] = useState(0.6);
+  useEffect(() => {
+    const el = boite.current; if (!el) return;
+    const o = new ResizeObserver(() => { const w = el.clientWidth; setK(w < 640 ? 1 : w / 1280); });
+    o.observe(el); return () => o.disconnect();
+  }, []);
+  const H = 600, large = k < 1;
   return (
     <div className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-[0_30px_70px_-35px_rgba(20,20,40,.5)]">
       <div className="flex items-center gap-1.5 border-b border-black/[.06] bg-[#F6F5F2] px-3 py-2"><span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" /><span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" /><span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" /><span className="ml-2 flex-1 truncate rounded-md bg-white px-2.5 py-0.5 text-[11px] text-[#9A9EAE]">{slug}.fr</span><span className="text-[10.5px] text-[#9A9EAE]">fais défiler ↓</span></div>
-      <Suspense fallback={<div className="h-[620px] animate-pulse bg-[#F6F5F2]" />}>
-        <AppCadre slug={"apercu-" + slug} spec={spec} version={JSON.stringify(spec).length} apercu className="h-[620px] w-full" />
-      </Suspense>
+      <div ref={boite} className="relative overflow-hidden" style={{ height: H }}>
+        <div style={large ? { width: 1280, height: H / k, transform: `scale(${k})`, transformOrigin: "0 0" } : { height: H }}>
+          <Suspense fallback={<div className="h-full animate-pulse bg-[#F6F5F2]" />}>
+            <AppCadre slug={"apercu-" + slug} spec={spec} version={JSON.stringify(spec).length} apercu className="h-full w-full" />
+          </Suspense>
+        </div>
+      </div>
     </div>
   );
 }
@@ -241,7 +253,7 @@ export default function Idee() {
         <>
           <section className="mt-8 rounded-3xl border-2 border-ink bg-white p-5 sm:p-7">
             <p className="text-[12px] font-bold uppercase tracking-[.14em] text-ink-faint">L'aperçu de ta première version</p>
-            <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_1.1fr]">
+            <div className={cx("mt-4 grid gap-6", !site && "lg:grid-cols-[1fr_1.1fr]")}>
               <div>
                 <label className="text-[12.5px] font-semibold text-ink-soft" htmlFor="nom-idee">{site ? "Le nom affiché sur ton site" : "Son nom"}</label>
                 <input id="nom-idee" value={nom} onChange={(e) => setNom(e.target.value.slice(0, 40))} className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-[22px] font-black outline-none focus:border-ink" style={HF} />
@@ -252,7 +264,7 @@ export default function Idee() {
                 {ap.plus_tard?.length > 0 && <><p className="mt-5 text-[13px] font-bold">Ensuite, dans l'atelier</p><p className="mt-1 text-[13.5px] text-ink-soft">{ap.plus_tard.join(" · ")}</p></>}
                 {ap.limites?.length > 0 && <div className="mt-5 rounded-xl bg-[#FFF7F0] p-3"><p className="text-[13px] font-bold text-[var(--p)]">Fait autrement</p><ul className="mt-1 space-y-1">{ap.limites.map((l) => <li key={l.demande} className="text-[13.5px]"><span className="line-through decoration-[#C2410C]/50">{l.demande}</span> → {l.alternative}</li>)}</ul></div>}
               </div>
-              <div>{site ? <SiteReel nom={nom || ap.nom} ap={ap} /> : idee.type === "app" ? <MaquetteTel nom={nom || ap.nom} principal={ap.principal} ecrans={ap.ecrans} ap={ap} /> : <Maquette nom={nom || ap.nom} principal={ap.principal} ecrans={ap.ecrans} ap={ap} />}<p className="mt-2 text-center text-[12px] text-ink-faint">{site ? "Ta future page d'accueil, faite avec le gabarit des sites Bingoo! : fais-la défiler. Tu ajouteras ta photo, tes horaires et ton adresse ensuite." : "Ton écran principal, avec le style choisi pour toi : la construction reprend ces couleurs et ces polices."}</p></div>
+              <div className={site ? "order-first" : ""}>{site ? <SiteReel nom={nom || ap.nom} ap={ap} /> : idee.type === "app" ? <MaquetteTel nom={nom || ap.nom} principal={ap.principal} ecrans={ap.ecrans} ap={ap} /> : <Maquette nom={nom || ap.nom} principal={ap.principal} ecrans={ap.ecrans} ap={ap} />}<p className="mt-2 text-center text-[12px] text-ink-faint">{site ? "Ta future page d'accueil, faite avec le gabarit des sites Bingoo! : fais-la défiler. Tu ajouteras ta photo, tes horaires et ton adresse ensuite." : "Ton écran principal, avec le style choisi pour toi : la construction reprend ces couleurs et ces polices."}</p></div>
             </div>
             <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-line pt-5">
               <Prix ws={ws} type={idee.type} />
