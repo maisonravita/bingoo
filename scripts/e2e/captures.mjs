@@ -51,8 +51,8 @@ if (!deja) {
 // 3) Le navigateur, déjà connecté
 const { chromium } = createRequire(import.meta.url)("playwright");
 const browser = await chromium.launch();
-const ouvrir = async (wsId, extra = {}) => {
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR", deviceScaleFactor: 1,
+const ouvrir = async (wsId, extra = {}, plus = {}) => {
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR", deviceScaleFactor: 1, ...plus,
     storageState: { cookies: [], origins: [{ origin: SITE, localStorage: [{ name: `sb-${REF}-auth-token`, value: JSON.stringify(session) }, { name: "kairo-ws", value: wsId }, ...Object.entries(extra).map(([name, v]) => ({ name, value: JSON.stringify(v) }))] }] } });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => console.log("   erreur JS :", e.message.slice(0, 160)));
@@ -214,6 +214,36 @@ if (CONSTRUIRE === "motion") {
   if (d) { const f = `${DOSSIER}/motion-export-${d.suggestedFilename()}`; await d.saveAs(f).catch(() => null); console.log("✓ Export :", d.suggestedFilename(), fs.existsSync(f) ? fs.statSync(f).size + " octets" : "?"); } else console.log("✗ export sans fichier");
   await ctx.close();
 }
+// CONSTRUIRE=film : le film de l'accueil, filmé pour de vrai (accueil → idée tapée → construction en direct → site en ligne)
+if (CONSTRUIRE === "film") {
+  const DIR = `${DOSSIER}/film`; fs.mkdirSync(DIR, { recursive: true });
+  const video = { recordVideo: { dir: DIR, size: { width: 1440, height: 900 } } };
+  const texte = process.env.TEXTE_IDEE || "Le site de mon salon de coiffure à domicile à Lyon";
+  const marques = {}; const t00 = Date.now(); const marque = (k) => { marques[k] = (Date.now() - t00) / 1000; console.log("FILM", k, marques[k]); };
+  // A. L'accueil, sans compte : on tape l'idée
+  { const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR", ...video }); const p = await c.newPage();
+    await p.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p.waitForTimeout(1800);
+    const z = p.locator("textarea").first(); await z.click().catch(() => null); await z.pressSequentially(texte, { delay: 55 }).catch(() => null); await p.waitForTimeout(1600);
+    const v = p.video(); await c.close(); if (v) fs.renameSync(await v.path(), `${DIR}/a-accueil.webm`); }
+  // B. Un vrai compte : l'aperçu de l'idée, « Construire », la construction en direct jusqu'à la mise en ligne
+  const ws3 = await creerEspace(`Robot film ${new Date().toISOString().slice(0, 16)}`);
+  await q(`update workspaces set plan = 'site', plan_status = 'active', onboarded = true where id = ${lit(ws3)}`);
+  const { ctx: c2, page: p2 } = await ouvrir(ws3, { "bingoo-idee": { texte, type: "site", at: Date.now() }, "bingoo-guide": "fini" }, video);
+  const tB = Date.now(); const rel = () => (Date.now() - tB) / 1000;
+  await p2.goto(`${SITE}/?c=${Date.now()}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+  const bouton = p2.getByRole("button", { name: /^Construire / }); await bouton.first().waitFor({ timeout: 120000 }).catch(() => null);
+  marques.apercu = rel(); await p2.waitForTimeout(6000); await p2.mouse.wheel(0, 500).catch(() => null); await p2.waitForTimeout(2500);
+  await bouton.first().click().catch(() => null); marques.construire = rel();
+  let slug = null;
+  for (let i = 0; i < 120; i++) { await p2.waitForTimeout(5000); const [a] = await q(`select slug, statut, verif->>'phase' ph from saas_apps where workspace_id = ${lit(ws3)}`); slug = a?.slug ?? slug; if (a?.ph === "fini" || a?.statut === "erreur") break; }
+  marques.fini = rel(); await p2.waitForTimeout(4000);
+  // C. Le site en ligne, comme un visiteur
+  if (slug) { await p2.goto(`${SITE}/?c=${Date.now()}#/app/${slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); marques.site = rel(); await p2.waitForTimeout(3500);
+    for (let k = 0; k < 14; k++) { await p2.mouse.wheel(0, 260).catch(() => null); await p2.waitForTimeout(450); } await p2.waitForTimeout(1500); }
+  marques.finB = rel();
+  const v2 = p2.video(); await c2.close(); if (v2) fs.renameSync(await v2.path(), `${DIR}/b-construction.webm`);
+  fs.writeFileSync(`${DIR}/marques.json`, JSON.stringify(marques, null, 2)); console.log("FILM marques", JSON.stringify(marques));
+}
 if (CONSTRUIRE === "spec") {
   // Exporte la définition d'un SaaS (DOMAINE = son adresse courte) pour le photographier écran par écran hors ligne
   const [x] = await q(`select spec from saas_apps where slug = ${lit(process.env.DOMAINE ?? "")}`);
@@ -350,7 +380,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
