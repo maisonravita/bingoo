@@ -2869,7 +2869,7 @@ export function TrouveTonSaas() {
               if (invite) return demanderCompte("Crée ton compte gratuit pour explorer les SaaS qui marchent.");
               navT(k === "verifier" ? "/explorer/chiffres" : "/explorer");
             }} className="group flex flex-col overflow-hidden rounded-3xl border border-line bg-white text-left shadow-[0_1px_2px_rgba(16,24,40,.04)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-28px_rgba(21,23,42,.45)]">
-              <span className="block h-36 border-b border-line bg-paper/70 p-4"><ApercuBut k={k} stats={statsSect} /></span>
+              <span className="flex h-36 w-full self-stretch items-center justify-center border-b border-line bg-paper/70 p-4"><ApercuBut k={k} stats={statsSect} /></span>
               <span className="flex items-start gap-4 p-5">
               <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-accent to-[#F08A4B] text-white shadow-[0_10px_24px_-12px_rgba(224,83,31,.8)] [&_svg]:h-6 [&_svg]:w-6">{IC[ic]}</span>
               <span className="min-w-0 flex-1"><span className="block font-bold text-[18px] leading-tight">{l}</span><span className="mt-1 block text-[14.5px] leading-snug text-ink-soft">{d}</span></span>
