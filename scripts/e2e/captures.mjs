@@ -156,7 +156,7 @@ if (CONSTRUIRE === "copie") {
   }
 }
 // IDEE=1 : le parcours « Construire mon idée » (aperçu gratuit : 1 petit appel d'IA par idée), une idée claire, une floue, une refusée
-if (["1", "site", "app"].includes(process.env.IDEE)) {
+if (["1", "site", "app", "saas"].includes(process.env.IDEE)) {
   const IDEES_SAAS = [["idee-claire", "Une app de réservation pour les coiffeurs à domicile, avec rappel la veille"], ["idee-floue", "Une appli comme Uber"], ["idee-refusee", "Un faux site de connexion de ma banque pour récupérer les identifiants"]].map(([n, t]) => [n, t, "saas"]);
   // Sites web (étape 2) : une idée claire et une floue
   const IDEES_SITE = [["site-barber", "site pour les barber"], ["site-claire", "Le site de mon salon de coiffure à domicile à Lyon"], ["site-floue", "Un beau site pour mon entreprise"]].map(([n, t]) => [n, t, "site"]);
