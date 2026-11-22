@@ -204,8 +204,8 @@ function Reflexion({ pense, enCours }) {
     </div>
   );
 }
-const IDEES_SAAS = ["Ajoute une page de tarifs", "Ajoute un tableau de bord de mes ventes", "Ajoute une page d'aide pour mes clients"];
-const IDEES_SITE = ["Change la couleur du site", "Rends l'accroche plus chaleureuse", "Ajoute une question sur les délais"];
+const IDEES_SAAS = ["Ajoute une page de tarifs", "Ajoute un tableau de bord de mes ventes", "Ajoute une page d'aide pour mes clients", "Ajoute un export CSV", "Change les couleurs"];
+const IDEES_SITE = ["Change la couleur du site", "Rends l'accroche plus chaleureuse", "Ajoute une question sur les délais", "Mets mes tarifs à jour", "Ajoute une section à propos"];
 // Un vrai problème trouvé par le robot (journal de vérification) : pastille orange, pas une coche verte
 const Alerte = () => <span className="grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full bg-[#FDECD8] text-[11px] font-black text-[#C2410C]">!</span>;
 const Coche = ({ ok }) => ok
@@ -230,7 +230,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   const [echanges, setEchanges] = useState([]); // modifications demandées après la mise en ligne
   const [demande, setDemande] = useState("");
   const [ecran, setEcran] = useState("");
-  const [occupe, setOccupe] = useState(false);
+  const [occupe, setOccupe] = useState(false), [modifEtape, setModifEtape] = useState("");
   const [vue, setVue] = useState("ordi");
   const [cle, setCle] = useState(0);
   // Outils de l'atelier : modifier un texte en cliquant dessus, pointer un élément, joindre des images, revenir en arrière
@@ -422,6 +422,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
       for (let i = 0; i < 80; i++) {
         await attendre(3000);
         const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif").eq("id", app.id).maybeSingle();
+        if (data?.etape) setModifEtape(data.etape);
         if (data && data.statut !== "en_cours") {
           if (data.erreur) throw new Error(data.erreur);
           const fait = data.brouillon?._modif ?? null;
@@ -433,7 +434,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
         }
       }
       throw new Error("C'est plus long que prévu : l'aperçu se mettra à jour tout seul.");
-    } catch (e) { maj({ etat: "ko", erreur: e.message }); } finally { setOccupe(false); }
+    } catch (e) { maj({ etat: "ko", erreur: e.message }); } finally { setOccupe(false); setModifEtape(""); }
   };
 
   // Robot de l'atelier : pendant le test d'une modification, l'état est relu toutes les 4 s ; si la modification est
@@ -602,6 +603,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                 {jointes.map((m) => <span key={m.url} className="relative"><img src={m.url} alt={m.nom} className="h-10 w-10 rounded-lg object-cover ring-1 ring-line" /><button type="button" aria-label="Retirer l'image" onClick={() => setJointes((l) => l.filter((y) => y.url !== m.url))} className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-ink text-[10px] text-white">×</button></span>)}
                 {envoiImage && <span className="text-[12px] text-ink-faint">Image en cours d'envoi…</span>}
               </div>}
+              {fini && !occupe && !demande && echanges.length > 0 && <div className="mb-1.5 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none]">{(estSite ? IDEES_SITE : IDEES_SAAS).map((x) => <button key={x} type="button" onClick={() => { setDemande(x); saisieRef.current?.focus(); }} className="shrink-0 rounded-full border border-line bg-white px-3 py-1 text-[12px] font-medium text-ink-soft hover:border-ink/30 hover:text-ink">{x}</button>)}</div>}
               <textarea ref={saisieRef} value={demande} onChange={(e) => setDemande(e.target.value)} disabled={!fini || occupe} rows={2}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); envoyer(); } }}
                 placeholder={fini ? `Demande un changement à Bingoo!…` : "Tu pourras demander des changements dès que ton SaaS est en ligne"}
@@ -658,8 +660,14 @@ export function Chantier({ ws, nav, init, atelier = false }) {
           </div>
           <div className={cx("relative mx-auto min-h-0 w-full flex-1 overflow-hidden rounded-xl border border-line bg-white shadow-[0_30px_80px_-50px_rgba(21,23,42,.5)] transition-[max-width] duration-500", vue === "tel" ? "max-w-[390px]" : "max-w-none")}>
             {fini ? <iframe ref={cadreRef} key={cle} title={`Aperçu de ${nom}`} src={lienApercu} onLoad={() => pousserOutil()} className={cx("absolute inset-0 h-full w-full border-0", outil && "ring-2 ring-inset ring-[#E8571C]")} />
-              : <Assemblage nom={nom} couleur={couleur} ecrans={ecrans} ecrits={ecrits} etape={etape} />}
+              : specEnDirect(app?.brouillon ?? (app?.statut === "pret" ? app?.spec : null)) ? <EnDirect app={app} etape={etape} /> : <Assemblage nom={nom} couleur={couleur} ecrans={ecrans} ecrits={ecrits} etape={etape} />}
             {occupe && <div className="absolute inset-x-0 top-0 h-1 overflow-hidden bg-[#ECEAE4]"><div className="h-full w-1/3 animate-[barre_1.2s_ease-in-out_infinite] bg-[#E8571C]" /></div>}
+            {occupe && fini && <div className="pointer-events-none absolute inset-0 grid place-items-center bg-white/45 backdrop-blur-[1.5px]">
+              <div className="flex max-w-[86%] items-center gap-3 rounded-2xl bg-ink/90 px-5 py-3.5 text-white shadow-2xl">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#E8571C] pulse-dot" />
+                <div className="min-w-0"><p className="text-[14px] font-semibold">Bingoo! applique ta demande</p><p className="truncate text-[12.5px] text-white/65">{modifEtape || "Je lis ta demande…"} · l'aperçu se met à jour tout seul</p></div>
+              </div>
+            </div>}
           </div>
         </section>
       </div>
@@ -690,6 +698,40 @@ const Bingoo = ({ children }) => (
 );
 
 // Pendant la construction : l'application s'assemble (sa couleur, son nom, chaque écran qui apparaît)
+// Construction en direct (façon Bolt) : la page se remplit section par section pendant que Bingoo! l'écrit.
+// Site : sections déjà écrites par le moteur + emplacements « en cours d'écriture » ; avant le plan, le brouillon dans le gabarit éditorial.
+// SaaS : l'application avec ses données d'exemple, limitée aux écrans déjà écrits, ouverte sur le dernier.
+const echap = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const enAttente = (a) => `<section id="${echap(a.id)}" style="padding:96px 24px;border-top:1px solid rgba(0,0,0,.06)"><div style="max-width:1100px;margin:0 auto"><p style="font:600 12px/1 system-ui,sans-serif;letter-spacing:.22em;text-transform:uppercase;color:#E8571C">● Bingoo! écrit cette section</p><p style="margin-top:16px;font:400 24px/1.45 system-ui,sans-serif;color:#9a9eae;max-width:52ch">${echap(a.attente)}</p><div style="margin-top:30px;display:grid;gap:12px"><div style="height:14px;width:72%;border-radius:8px;background:#ecebe6"></div><div style="height:14px;width:56%;border-radius:8px;background:#ecebe6"></div><div style="height:14px;width:64%;border-radius:8px;background:#ecebe6"></div></div></div></section>`;
+export function specEnDirect(b) {
+  if (!b?.nom) return null;
+  const { _modif, _test, ...sp } = b; // eslint-disable-line no-unused-vars
+  if (sp.type === "site") {
+    const live = sp.site?.page_live;
+    if (live?.sections?.some((x) => x.html)) return { spec: { ...sp, site: { ...sp.site, page_live: undefined, page: { sections: live.sections.map((x) => ({ id: x.id, html: x.html || enAttente(x) })), images: live.images ?? {}, nav: live.nav ?? [] } } }, cle: "p" + live.sections.filter((x) => x.html).length, quoi: "site" };
+    if ((sp.site?.page?.sections ?? []).length) return { spec: sp, cle: "fin", quoi: "site" };
+    return { spec: { ...sp, site: { ...sp.site, gabarit: sp.site?.modele === "portfolio" ? sp.site?.gabarit : "editorial", page: undefined } }, cle: "g", quoi: "site" };
+  }
+  const faits = (sp.ecrans ?? []).filter((e) => e.code);
+  if (!faits.some((e) => !e.public)) return null;
+  return { spec: { ...sp, ecrans: faits }, cle: "e" + faits.length, quoi: "saas", ecran: faits.filter((e) => !e.public).at(-1)?.id };
+}
+function EnDirect({ app, etape }) {
+  const src = app?.brouillon ?? (app?.statut === "pret" ? app?.spec : null);
+  const d = useMemo(() => specEnDirect(src), [src]);
+  if (!d) return null;
+  const n = (() => { const m = /\((\d+)\/(\d+)\)/.exec(app?.etape ?? ""); return m ? [Number(m[1]), Number(m[2])] : null; })();
+  return (
+    <div className="absolute inset-0">
+      <AppCadre key={d.cle} slug={app.slug} spec={d.spec} version={d.cle} apercu essai={d.quoi === "saas"} ecran={d.ecran} className="absolute inset-0 h-full w-full border-0" />
+      <div className="pointer-events-none absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-ink/90 px-4 py-2 text-[12.5px] font-semibold text-white shadow-xl">
+        <span className="h-2 w-2 rounded-full bg-[#E8571C] pulse-dot" />
+        {etape >= 3 ? "Bingoo! teste ta version…" : d.quoi === "site" ? (d.cle === "g" ? "Bingoo! prépare ta page…" : `Bingoo! écrit ta page${n ? ` · ${n[0]}/${n[1]} sections` : ""}`) : `Bingoo! écrit tes écrans${n ? ` · ${n[0]}/${n[1]}` : ""}`}
+      </div>
+    </div>
+  );
+}
+
 function Assemblage({ nom, couleur, ecrans, ecrits, etape }) {
   const sel = Math.max(0, Math.min(ecrans.length - 1, ecrits - 1));
   const vu = ecrans[sel];

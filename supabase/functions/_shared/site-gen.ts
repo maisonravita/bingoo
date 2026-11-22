@@ -24,7 +24,11 @@ export type EntreePage = {
   design: any; photosMembre?: string[]; services?: any[]; horaires?: any[]; infos?: any; faq?: any[];
   /** Consignes propres au genre de projet (page de présentation d'un SaaS : boutons vers l'essai, maquettes des vrais écrans) */
   consignes?: string;
+  /** Construction en direct : appelé à chaque étape (plan, images, chaque lot de sections écrit) avec la page en cours */
+  progres?: (p: PageEnCours) => Promise<unknown> | unknown;
 };
+/** La page pendant son écriture : sections écrites (dans l'ordre du plan) et sections encore attendues */
+export type PageEnCours = { sections: { id: string; html: string; attente?: string }[]; attente: { id: string; idee: string }[]; images: Record<string, { url: string; prompt: string }>; nav: { mot: string; ancre: string }[] };
 export type PageGeneree = { sections: { id: string; html: string }[]; images: Record<string, { url: string; prompt: string }>; nav: Plan["nav"] };
 export type MesurePage = { modele: string; cout: number; images_eur: number; entree: number; sortie: number; appels: number; duree_s: number; corrections: number; journal: string[] };
 
@@ -66,6 +70,11 @@ Choisis la mise en page de chaque section selon la fiche et les plans Taste, san
   plan.sections = plan.sections.slice(0, 8).map((s, i) => ({ ...s, id: (String(s.id || `s${i}`).toLowerCase().replace(/[^a-z0-9-]/g, "") || `s${i}`) }));
   if (plan.sections[0].id !== "hero") plan.sections[0].id = "hero";
   journal.push(`Plan : ${plan.sections.map((s) => s.id).join(", ")}`);
+  const ecrites = new Map<string, string>();
+  let imagesVues: PageGeneree["images"] = {};
+  // Jamais bloquant : une mise à jour en direct qui échoue ne gêne pas la construction
+  const signaler = async () => { if (!e.progres) return; try { const attente = plan.sections.filter((x) => !ecrites.has(x.id)).map((x) => ({ id: x.id, idee: String(x.idee ?? "").slice(0, 160) })); await e.progres({ sections: ["nav", ...plan.sections.map((x) => x.id)].map((id) => ecrites.has(id) ? { id, html: ecrites.get(id)! } : { id, html: "", attente: attente.find((a) => a.id === id)?.idee ?? "" }).filter((x) => x.html || x.id !== "nav"), attente, images: imagesVues, nav: plan.nav ?? [] }); } catch (x) { console.error("progres page", x); } };
+  await signaler();
 
   // 2. Images (fal.ai) : décor et ambiance seulement ; les photos du membre passent toujours avant
   const images: PageGeneree["images"] = {};
@@ -77,6 +86,7 @@ Choisis la mise en page de chaque section selon la fiche et les plans Taste, san
     journal.push(`Images : ${Object.keys(r.images).length} générée(s), ${r.cout.toFixed(3)} €`);
   }
   const jetons = new Set(Object.keys(images));
+  imagesVues = images; await signaler();
   const aide = Object.keys(images).length ? `Images disponibles (utilise exactement ces jetons comme src) : ${Object.entries(images).map(([k, v]) => `${k} (${v.prompt.slice(0, 80)})`).join(" ; ")}` : "Aucune image disponible : visuels typographiques, formes CSS, SVG ou maquettes HTML.";
 
   // 3. Écriture par lots de sections (le lot 1 écrit aussi le header)
@@ -91,9 +101,9 @@ ${retouches}
 Écris ${avecNav ? "le header (id nav) puis " : ""}ces sections, dans cet ordre : ${lot.map((s) => s.id).join(", ")}.
 Format : pour chacune, une ligne <!--section:ID--> puis son HTML. Rien d'autre (ni explication ni balise de code).
 ${avecNav ? "Le header : header.nav avec le logo (le nom), les mots du plan vers leurs ancres, le bouton principal, le bouton de menu .nav__toggle.\n" : ""}Chaque <section> porte son id ; la section closing est un footer.footer.closing id="contact".`, opts(9000));
-  const brutes = await Promise.all(lots.map((lot, i) => ecrire(lot, i === 0)));
+  // Chaque lot s'affiche dès qu'il est écrit (construction en direct), sans attendre les autres
+  const brutes = await Promise.all(lots.map((lot, i) => ecrire(lot, i === 0).then(async (b) => { for (const s of decoupe(b)) ecrites.set(s.id, nettoyer(s.html, jetons)); await signaler(); return b; })));
   budget();
-  const ecrites = new Map<string, string>();
   for (const b of brutes) for (const s of decoupe(b)) ecrites.set(s.id, nettoyer(s.html, jetons));
 
   // 4. Contrôles et corrections (3 essais par section, dans le budget)

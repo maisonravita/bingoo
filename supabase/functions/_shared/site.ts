@@ -76,6 +76,11 @@ export async function pageSurMesure(appId: string, demarrerVerification: (id: st
       nom: spec.nom, brief: [idee.texte, ...(Array.isArray(idee.reponses) ? idee.reponses.map((x: any) => `${x.q} : ${x.r}`) : [])].filter(Boolean).join("\n") || String(spec.pitch ?? ""),
       modele: spec.site?.modele, metier: spec.site?.metier, ville: spec.site?.ville, cta: spec.site?.cta, demande: spec.site?.demande,
       design: spec.design, services: spec.demo?.services, horaires: spec.demo?.horaires, infos: (spec.demo?.infos ?? [])[0], faq: spec.faq,
+      // Construction en direct : la page en cours est posée dans le brouillon, la page Bingoo! l'affiche section par section
+      progres: async (pl) => {
+        const n = pl.sections.filter((x) => x.id !== "nav" && x.html).length, tot = pl.sections.filter((x) => x.id !== "nav").length;
+        await admin.from("saas_apps").update({ brouillon: { ...spec, site: { ...spec.site, page_live: pl } }, etape: n ? `Écriture de la page (${n}/${tot})` : "Plan de la page", maj: new Date().toISOString() }).eq("id", appId);
+      },
     });
     spec.site = { ...spec.site, page: g.page };
     spec.gen = { ...g.mesure, at: new Date().toISOString() };

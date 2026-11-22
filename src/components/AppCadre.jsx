@@ -37,11 +37,11 @@ function variante(slug, ab) {
   try { let v = localStorage.getItem(`bingoo-ab:${slug}`); if (!v) { v = Math.random() < 0.5 ? "A" : "B"; localStorage.setItem(`bingoo-ab:${slug}`, v); } return v; } catch { return "A"; }
 }
 
-export default function AppCadre({ slug, spec, version, paiement, domaine, ab, articles, className, apercu = false, retourPaiement = false, invite = null, tour = false, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null, capture = null }) {
+export default function AppCadre({ slug, spec, version, paiement, domaine, ab, articles, className, apercu = false, retourPaiement = false, invite = null, tour = false, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null, capture = null, essai = false }) {
   const [shell, setShell] = useState(null);
   useEffect(() => { verifierVersion(); }, []);
   useEffect(() => { let vivant = true; chargerGabarit().then((m) => { if (vivant) setShell(() => m.appHtml); }); return () => { vivant = false; }; }, []);
-  const doc = useMemo(() => !shell ? null : shell({ spec, slug, api: API, token: tour ? null : lire(slug), apercu, paiement, retour: lienApp(slug, domaine), retourPaiement, ab, variante: variante(slug, ab), invite, tour, articles: articles ?? [], blog: blogApp(slug, domaine), source, ecran, validation, precommande, verif, page, capture }), [shell, slug, version, capture?.join(","), validation?.inscrits, paiement?.actif, paiement?.essai_jours, paiement?.modele, ab?.actif, ab?.ecart, tour]); // eslint-disable-line react-hooks/exhaustive-deps
+  const doc = useMemo(() => !shell ? null : shell({ spec, slug, api: API, token: tour ? null : lire(slug), apercu, paiement, retour: lienApp(slug, domaine), retourPaiement, ab, variante: variante(slug, ab), invite, tour, articles: articles ?? [], blog: blogApp(slug, domaine), source, ecran, validation, precommande, verif, page, capture, essai }), [shell, slug, version, essai, capture?.join(","), validation?.inscrits, paiement?.actif, paiement?.essai_jours, paiement?.modele, ab?.actif, ab?.ecart, tour]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const ecoute = (e) => {
       const d = e.data;
@@ -66,5 +66,5 @@ export default function AppCadre({ slug, spec, version, paiement, domaine, ab, a
     return () => window.removeEventListener("message", relais);
   }, []);
   if (!doc) return <div className={className} />;
-  return <iframe ref={cadre} key={`${slug}-${version}-${tour ? 1 : 0}`} title={spec?.nom ?? "Application"} srcDoc={doc} sandbox={verif || capture ? "allow-scripts allow-forms" : "allow-scripts allow-forms allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"} className={className} />;
+  return <iframe ref={cadre} key={`${slug}-${version}-${tour ? 1 : 0}`} title={spec?.nom ?? "Application"} srcDoc={doc} sandbox={verif || capture || essai ? "allow-scripts allow-forms" : "allow-scripts allow-forms allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"} className={className} />;
 }
