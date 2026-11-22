@@ -1,0 +1,2 @@
+-- Appliquée via MCP le 22/11 : saas_stats_entete (84 échecs par délai dépassé en 24 h) lit saas_stats_cache('entete'),
+-- recalculé chaque nuit par saas_stats_cache_maj() (appelée par saas_vitrine_maj). Ancien corps : saas_stats_entete_calcul().
