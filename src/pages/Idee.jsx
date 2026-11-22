@@ -62,8 +62,8 @@ function SiteReel({ nom, ap }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-[0_30px_70px_-35px_rgba(20,20,40,.5)]">
       <div className="flex items-center gap-1.5 border-b border-black/[.06] bg-[#F6F5F2] px-3 py-2"><span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" /><span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" /><span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" /><span className="ml-2 flex-1 truncate rounded-md bg-white px-2.5 py-0.5 text-[11px] text-[#9A9EAE]">{slug}.fr</span><span className="text-[10.5px] text-[#9A9EAE]">fais défiler ↓</span></div>
-      <div ref={boite} className="relative overflow-hidden" style={{ height: H }}>
-        <div style={large ? { width: 1280, height: H / k, transform: `scale(${k})`, transformOrigin: "0 0" } : { height: H }}>
+      <div ref={boite} className="relative w-full overflow-hidden" style={{ height: H }}>
+        <div className={large ? "absolute left-0 top-0" : ""} style={large ? { width: 1280, height: H / k, transform: `scale(${k})`, transformOrigin: "0 0" } : { height: H }}>
           <Suspense fallback={<div className="h-full animate-pulse bg-[#F6F5F2]" />}>
             <AppCadre slug={"apercu-" + slug} spec={spec} version={JSON.stringify(spec).length} apercu className="h-full w-full" />
           </Suspense>
@@ -253,7 +253,7 @@ export default function Idee() {
         <>
           <section className="mt-8 rounded-3xl border-2 border-ink bg-white p-5 sm:p-7">
             <p className="text-[12px] font-bold uppercase tracking-[.14em] text-ink-faint">L'aperçu de ta première version</p>
-            <div className={cx("mt-4 grid gap-6", !site && "lg:grid-cols-[1fr_1.1fr]")}>
+            <div className={cx("mt-4 grid grid-cols-1 gap-6 [&>*]:min-w-0", !site && "lg:grid-cols-[1fr_1.1fr]")}>
               <div>
                 <label className="text-[12.5px] font-semibold text-ink-soft" htmlFor="nom-idee">{site ? "Le nom affiché sur ton site" : "Son nom"}</label>
                 <input id="nom-idee" value={nom} onChange={(e) => setNom(e.target.value.slice(0, 40))} className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-[22px] font-black outline-none focus:border-ink" style={HF} />
