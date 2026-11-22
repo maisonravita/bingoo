@@ -740,27 +740,14 @@ function EnDirect({ app, etape }) {
   );
 }
 
-function Assemblage({ nom, couleur, ecrans, ecrits, etape }) {
-  const sel = Math.max(0, Math.min(ecrans.length - 1, ecrits - 1));
-  const vu = ecrans[sel];
+// Avant que la première version ne s'affiche : un simple état, sans fausse interface dessinée
+function Assemblage({ nom, etape }) {
   return (
-    <div className="absolute inset-0 grid grid-cols-[180px_1fr] max-sm:grid-cols-[110px_1fr]">
-      <div className="p-4 transition-colors duration-1000" style={{ background: etape >= 1 ? couleur : "#E2E8F0" }}>
-        <p className="mb-5 truncate text-[15px] font-black text-white">{nom ?? <span className="inline-block h-3.5 w-24 animate-pulse rounded bg-white/50" />}</p>
-        {(ecrans.length ? ecrans : Array.from({ length: 6 }, (_, i) => ({ id: i }))).slice(0, 9).map((e, i) => (
-          <div key={e.id} className={cx("mb-1 truncate rounded-lg px-2.5 py-2 text-[13px] text-white transition-all duration-500", i < ecrits ? "opacity-100" : "opacity-35", i === sel && i < ecrits && "bg-white/20 font-semibold")}>
-            {e.titre && i < ecrits ? e.titre : <span className="inline-block h-2.5 w-20 rounded bg-white/50 align-middle" />}
-          </div>
-        ))}
-      </div>
-      <div className="relative overflow-hidden p-6">
-        <div className="fx-grille opacity-40" aria-hidden />
-        <div className="relative">
-          {vu && ecrits > 0 ? <p key={vu.id} className="rise text-[22px] font-black">{vu.titre}</p> : <span className="block h-5 w-48 animate-pulse rounded bg-[#E2E8F0]" />}
-          <div className="mt-6 grid grid-cols-3 gap-3">{[0, 1, 2].map((k) => <div key={k} className="h-20 rounded-xl border border-line bg-white p-3"><span className="block h-2 w-14 rounded bg-[#E2E8F0]" /><span className="mt-3 block h-5 rounded animate-pulse" style={{ width: `${45 + k * 12}%`, background: ecrits > k ? couleur : "#E2E8F0", opacity: ecrits > k ? .85 : 1 }} /></div>)}</div>
-          <div className="mt-4 space-y-2.5">{[0, 1, 2, 3, 4].map((k) => <div key={k} className="flex h-12 items-center gap-3 rounded-xl border border-line bg-white px-4"><span className="h-2.5 rounded bg-[#E2E8F0]" style={{ width: `${26 + ((k * 13) % 30)}%` }} /><span className="ml-auto h-5 w-16 rounded-full transition-colors duration-700" style={{ background: ecrits > k + 1 ? `${couleur}33` : "#F1F5F9" }} /></div>)}</div>
-          <p className="mt-8 text-center text-[13px] text-ink-faint">{etape < 2 ? "Bingoo! conçoit ta version…" : `Écriture des écrans · ${Math.min(ecrits, ecrans.length)}/${ecrans.length || "…"}`}</p>
-        </div>
+    <div className="absolute inset-0 grid place-items-center bg-[#FAF9F6] p-6 text-center">
+      <div>
+        <span className="mx-auto block h-8 w-8 animate-spin rounded-full border-[3px] border-[#ECEAE4] border-t-[#E8571C]" />
+        <p className="mt-4 text-[16px] font-semibold">{etape < 1 ? "Bingoo! lit ton idée…" : `Bingoo! écrit ${nom ?? "ta version"}…`}</p>
+        <p className="mt-1 text-[13.5px] text-ink-faint">Ta page s'affiche ici dès que les premiers textes sont écrits.</p>
       </div>
     </div>
   );

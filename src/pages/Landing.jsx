@@ -7,7 +7,7 @@ import Logo from "../components/Logo";
 import { cx } from "../lib/utils";
 import { legalReady } from "./Legal";
 import ResultatsBingoo from "../components/ResultatsBingoo";
-import { Fenetre, ApercuSemaine } from "../components/VitrineAccueil";
+import { Fenetre } from "../components/VitrineAccueil";
 import { supabase } from "../lib/supabase";
 import { BingooIA } from "../components/VitrineBase";
 
@@ -166,74 +166,16 @@ export function CompteAvant({ quoi, onFini, onRetour, retourTexte = "← Modifie
 
 // L'écran de construction, flouté derrière la carte d'inscription : la personne voit où elle va arriver.
 // Rien n'est construit tant que le compte n'existe pas, et l'écran ne prétend pas le contraire.
-const ETAPES_FLOU = {
-  saas: ["Concevoir les données et les écrans", "Écrire chaque écran", "Tester comme un vrai utilisateur", "Mettre en ligne à ton nom"],
-  site: ["Écrire tes textes", "Composer ta page d'accueil", "Préparer ton espace gérant", "Mettre en ligne à ton nom"],
-  app: ["Concevoir les onglets de l'app", "Écrire chaque écran", "Tester sur téléphone", "Préparer l'essai dans Expo Go"],
-  video: ["Écrire le scénario", "Choisir tes couleurs et ta police", "Animer les 20 secondes", "Composer la musique"],
-  url: ["Lire le site point par point", "Relever couleurs, polices et rubriques", "Construire ta version écran par écran", "Mettre en ligne à ton nom"],
-};
 // Vidéo : un lecteur vertical sombre avec un titre animé
-function ApercuVideo() {
-  return <div className="grid h-full min-h-[420px] place-items-center"><div className="flex aspect-[9/16] h-[420px] flex-col items-center justify-center gap-4 rounded-2xl p-6" style={{ background: "radial-gradient(400px 300px at 30% 20%,#E8571C88,transparent),#0B0B10" }}><span className="h-6 w-40 rounded bg-white/80" /><span className="h-6 w-28 rounded bg-white/60" /><span className="mt-4 h-2 w-24 rounded-full bg-[#E8571C]" /></div></div>;
-}
-// Ce qui se dessine derrière : un logiciel (menu et contenu), une page de site, ou un téléphone
-const Sk = ({ c = "", w }) => <div className={cx("flou-sk rounded", c)} style={w ? { width: w } : null} />;
-function ApercuLogiciel({ sombre }) {
-  return (
-    <div className="flex h-full overflow-hidden rounded-2xl border border-black/[.08] bg-white">
-      <div className="w-44 shrink-0 space-y-3 p-4" style={{ background: sombre }}>{Array.from({ length: 7 }, (_, i) => <div key={i} className="h-3 rounded bg-white/15" style={{ width: `${60 + (i * 13) % 35}%` }} />)}</div>
-      <div className="min-w-0 flex-1 space-y-4 p-6">
-        <Sk c="h-6" w="14rem" />
-        <div className="grid grid-cols-4 gap-3">{Array.from({ length: 8 }, (_, i) => <div key={i} className="space-y-2 rounded-xl border border-black/[.06] p-3"><Sk c="h-16 rounded-lg" /><Sk c="h-3" w="70%" /></div>)}</div>
-        <div className="grid grid-cols-[2fr_1fr] gap-3"><div className="rounded-xl border border-black/[.06] p-4"><Sk c="h-32 rounded-lg" /></div><div className="space-y-2 rounded-xl border border-black/[.06] p-4">{[0, 1, 2, 3].map((i) => <Sk key={i} c="h-4" />)}</div></div>
-      </div>
-    </div>
-  );
-}
-function ApercuSite() {
-  return (
-    <div className="h-full overflow-hidden rounded-2xl border border-black/[.08] bg-white">
-      <div className="flex items-center gap-1.5 border-b border-black/[.06] px-4 py-2.5"><span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" /><span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" /><span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" /><Sk c="ml-3 h-4" w="12rem" /></div>
-      <div className="flex items-center justify-between px-8 py-4"><Sk c="h-5" w="7rem" /><div className="flex gap-4">{[0, 1, 2].map((i) => <Sk key={i} c="h-3" w="4rem" />)}</div><div className="h-8 w-28 rounded-full bg-accent/70" /></div>
-      <div className="grid grid-cols-2 items-center gap-8 px-8 py-8"><div className="space-y-3"><Sk c="h-9" /><Sk c="h-9" w="80%" /><Sk c="h-4" w="90%" /><Sk c="h-4" w="70%" /><div className="h-10 w-40 rounded-full bg-accent/70" /></div><Sk c="h-56 rounded-2xl" /></div>
-      <div className="grid grid-cols-3 gap-4 px-8">{[0, 1, 2].map((i) => <div key={i} className="space-y-2 rounded-xl border border-black/[.06] p-4"><Sk c="h-24 rounded-lg" /><Sk c="h-4" w="60%" /><Sk c="h-3" w="40%" /></div>)}</div>
-    </div>
-  );
-}
-function ApercuApp() {
-  return (
-    <div className="flex h-full items-center justify-center gap-8">
-      {[0, 1].map((k) => (
-        <div key={k} className={cx("w-[250px] rounded-[2.4rem] bg-[#15161A] p-2.5", k && "hidden lg:block opacity-80")}>
-          <div className="space-y-3 rounded-[2rem] bg-[#FAFAF8] p-4" style={{ minHeight: 480 }}>
-            <Sk c="h-3" w="40%" /><Sk c="h-7" w="75%" /><Sk c="h-28 rounded-2xl" />
-            {[0, 1, 2].map((i) => <div key={i} className="flex items-center gap-2"><Sk c="h-9 w-9 rounded-xl" /><Sk c="h-3 flex-1" /></div>)}
-            <div className="grid grid-cols-4 gap-2 pt-6">{[0, 1, 2, 3].map((i) => <div key={i} className={cx("mx-auto h-5 w-5 rounded-md", i ? "bg-[#D9D7D0]" : "bg-accent/70")} />)}</div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+// Derrière l'inscription : une vraie capture de Bingoo! en train de construire (jamais une maquette dessinée)
+const FOND_FLOU = { saas: "/accueil/construit-en-cours.jpg", app: "/accueil/construit-en-cours.jpg", site: "/accueil/construit-en-cours.jpg", url: "/accueil/site-lu.jpg", video: null };
 function ChantierFlou({ texte, genre, children }) {
-  const etapes = ETAPES_FLOU[genre] ?? ETAPES_FLOU.saas;
-  const sombre = "#15171F";
   useEffect(() => { const o = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = o; }; }, []);
   return createPortal(
     <div className="fixed inset-0 z-[90] overflow-y-auto bg-white text-left" style={JK} role="dialog" aria-modal="true" aria-label="Crée ton compte pour lancer la construction">
       <style>{`@keyframes flou-shim{0%{background-position:-400px 0}100%{background-position:400px 0}}.flou-sk{background:linear-gradient(90deg,#EEEDEA 0,#F7F6F3 40%,#EEEDEA 80%);background-size:800px 100%;animation:flou-shim 1.6s linear infinite}@media (prefers-reduced-motion: reduce){.flou-sk{animation:none}}`}</style>
-      <div aria-hidden className="pointer-events-none select-none absolute inset-0 flex flex-col" style={{ filter: "blur(3.5px)", transform: "scale(1.01)" }}>
-        <div className="flex h-14 shrink-0 items-center gap-3 border-b border-black/[.07] px-4"><Logo height={22} /><span className="h-6 w-6 rounded-md bg-accent" /><span className="text-[15px] font-bold text-[#1E2030]">Ta version</span><span className="rounded-full bg-[#FDECD8] px-2.5 py-0.5 text-[12px] font-semibold text-[#C2410C]">Construction</span></div>
-        <div className="flex min-h-0 flex-1">
-          <div className="hidden w-[400px] shrink-0 flex-col gap-4 border-r border-black/[.07] p-5 md:flex">
-            <p className="ml-auto max-w-[85%] rounded-2xl bg-[#F1F0EC] px-4 py-2.5 text-[14px] text-[#1E2030]">{texte}</p>
-            <p className="text-[14px] leading-relaxed text-[#3A3F55]"><span className="mr-2 inline-grid h-6 w-6 place-items-center rounded-full bg-accent text-[11px] font-bold text-white">B</span>Dès que ton compte est créé, je m'y mets écran par écran, sous tes yeux.</p>
-            <div className="rounded-xl border border-black/[.08] p-4"><p className="text-[13px] font-bold text-[#1E2030]">Construction</p><div className="mt-2 h-1.5 rounded-full bg-[#EEEDEA]"><div className="h-full w-[6%] rounded-full bg-accent" /></div>
-              <ul className="mt-3 space-y-2.5">{etapes.map((e, i) => <li key={e} className="flex items-center gap-2.5 text-[13.5px] text-[#3A3F55]">{i === 0 ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#EEEDEA] border-t-accent" /> : <span className="h-4 w-4 rounded-full border-2 border-[#EEEDEA]" />}{e}</li>)}</ul></div>
-          </div>
-          <div className="min-w-0 flex-1 p-4 sm:p-6">{genre === "video" ? <ApercuVideo /> : genre === "app" ? <ApercuApp /> : genre === "site" || genre === "url" ? <ApercuSite /> : <ApercuLogiciel sombre={sombre} />}</div>
-        </div>
+      <div aria-hidden className="pointer-events-none select-none absolute inset-0" style={{ filter: "blur(3.5px)", transform: "scale(1.02)", background: "#15171F" }}>
+        {FOND_FLOU[genre] !== null && <img src={FOND_FLOU[genre] ?? FOND_FLOU.saas} alt="" className="h-full w-full object-cover object-left-top" />}
       </div>
       <div className="absolute inset-0 bg-[#15171F]/25" aria-hidden />
       <div className="relative z-[1] flex min-h-full items-center justify-center px-4 py-10">{children}</div>
@@ -349,7 +291,7 @@ export default function Landing() {
               <span className="fx-rail hidden lg:block" aria-hidden><span id="fx-rail" style={{ transform: "scaleY(0)" }} /></span>
               {[
                 ["Décris ton idée", "Un logiciel, un site ou une app mobile, en une phrase : « une app de réservation pour les coiffeurs ». Bingoo! te montre tout de suite son nom, ses écrans et une maquette. Si une partie ne peut pas marcher telle quelle, il te le dit avant de construire.", null],
-                ["Bingoo! le construit sous tes yeux", "Écran par écran, en direct : il écrit chaque écran, le teste comme un vrai client, corrige ce qui ne marche pas. Quelques minutes pour un site, souvent moins d'une heure pour un SaaS.", ["/accueil/construit-en-cours.jpg", "Une vraie construction en cours : Bingoo! écrit le sixième écran d'« Agendo », un logiciel de prise de rendez-vous."]],
+                ["Bingoo! le construit sous tes yeux", "Écran par écran, en direct : il écrit chaque écran, le teste comme un vrai client, corrige ce qui ne marche pas. Quelques minutes pour un site, souvent moins d'une heure pour un SaaS.", ["/accueil/construit-en-cours.jpg", "Une vraie construction en cours : la page du site « Coupe Chez Vous » s'affiche pendant que Bingoo! l'écrit."]],
                 ["Il est en ligne, à ton nom", "Ta page de présentation, les comptes de tes clients, l'abonnement branché à ton Stripe, ton domaine. Ensuite tu changes ce que tu veux dans l'atelier : une phrase, ou un double-clic sur un texte.", ["/accueil/construit-fini.jpg", "Le même logiciel, fini et en ligne : sa page de présentation et son intérieur, avec des données d'exemple."]],
               ].map(([h, d, img], i) => (
                 <li key={h} className="relative grid lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.5fr)] gap-6 lg:gap-12 items-center">
@@ -411,7 +353,7 @@ export default function Landing() {
                 {["Les établissements à contacter, trouvés pour toi dans le registre public", "Le message prêt, adressé au dirigeant", "Une étape par jour, chaque matin dans ta boîte mail", "Ta vidéo de présentation et tes posts, faits par Bingoo!"].map((x) => <li key={x} className="flex gap-2.5"><Check className="h-5 w-5 mt-0.5 shrink-0 text-accent" />{x}</li>)}
               </ul>
             </div>
-            <figure><ApercuSemaine /><figcaption className="mt-2.5 text-[13px] text-ink-faint">Aperçu avec des établissements d'exemple.</figcaption></figure>
+            <figure><div className="overflow-hidden rounded-2xl border border-line bg-white shadow-[0_30px_70px_-40px_rgba(21,23,42,.55)]"><picture><source media="(max-width: 640px)" srcSet="/accueil/premiers-clients-tel.jpg" /><img src="/accueil/premiers-clients.jpg" alt="Le plan « Premiers clients » d'un vrai site construit par Bingoo! : chaque étape avec son texte prêt à copier." loading="lazy" className="block w-full" /></picture></div><figcaption className="mt-2.5 text-[13px] text-ink-faint">Le plan « Premiers clients » d'un vrai site construit par Bingoo!, avec ses textes prêts à copier.</figcaption></figure>
           </div>
         </section>
 

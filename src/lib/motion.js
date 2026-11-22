@@ -153,9 +153,7 @@ const SCENES = {
       ctx.save(); ctx.globalAlpha *= clamp(p * 1.3);
       ctx.shadowColor = "rgba(0,0,0,.18)"; ctx.shadowBlur = 30 * u; ctx.shadowOffsetY = 10 * u;
       rond(ctx, bx, y, w, h, 26 * u); ctx.fillStyle = rgba(teintes[i % 4], 1); ctx.fill(); ctx.shadowColor = "transparent";
-      rond(ctx, bx + 24 * u, y + 25 * u, 80 * u, 80 * u, 20 * u); ctx.fillStyle = rgba(encres[i % 4], 1); ctx.fill();
-      icone(ctx, x.icone, bx + 64 * u, y + 65 * u, 44 * u, "#fff", 2.2);
-      ctx.fillStyle = rgba(encres[i % 4], 1); ctx.font = `700 ${46 * u}px ${F}`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(x.texte, bx + 130 * u, y + h / 2 + 2 * u);
+      ctx.fillStyle = rgba(encres[i % 4], 1); ctx.font = `700 ${46 * u}px ${F}`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(x.texte, bx + 40 * u, y + h / 2 + 2 * u);
       ctx.restore();
     });
   },
@@ -173,15 +171,13 @@ const SCENES = {
         rond(ctx, bx, by, w, h, 40 * u); ctx.fillStyle = on ? rgba(CV, 1) : NOIR ? "rgba(255,255,255,.06)" : "#fff"; ctx.fill(); ctx.shadowBlur = 0;
         ctx.strokeStyle = rgba(CV, on ? 1 : 0.5); ctx.lineWidth = 4 * u; ctx.stroke();
         const fg = on ? (MODE === "couleur" ? rgba(C, 1) : lum(CV) > 0.62 ? "#111" : "#fff") : rgba(CV, 1);
-        ctx.beginPath(); ctx.arc(bx + h / 2 + 10 * u, by + h / 2, h * 0.3, 0, 7); ctx.fillStyle = on ? "rgba(255,255,255,.22)" : rgba(CV, 0.12); ctx.fill();
-        icone(ctx, x.icone, bx + h / 2 + 10 * u, by + h / 2, h * 0.32, fg, 2.2);
-        ctx.fillStyle = on ? fg : INK; ctx.font = `800 ${62 * u}px ${F}`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(x.texte, bx + h + 30 * u, by + h / 2 + 3 * u);
+        ctx.fillStyle = on ? fg : INK; ctx.font = `800 ${62 * u}px ${F}`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(x.texte, bx + 50 * u, by + h / 2 + 3 * u);
         if (on) { ctx.font = `800 ${56 * u}px ${F}`; ctx.textAlign = "right"; ctx.fillText("✓", bx + w - 50 * u, by + h / 2 + 3 * u); }
         ctx.restore();
       });
       return;
     }
-    const w = Math.min((W * 0.86 - (n - 1) * 30 * u) / n, 360 * u), h = w * 0.95;
+    const w = Math.min((W * 0.86 - (n - 1) * 30 * u) / n, 360 * u), h = w * 0.6;
     const tot = n * w + (n - 1) * 30 * u, sel = Math.min(n - 1, 1), choisi = eo(prog(t, 1.4, 1.9));
     if (e.texte) motsAnimes(ctx, e.texte, e.accent, W / 2, H * (vertical ? 0.28 : 0.2), { taille: (vertical ? 74 : 64) * u, largeur: W * 0.84, t, decale: 0.06 });
     items.forEach((x, i) => {
@@ -192,9 +188,7 @@ const SCENES = {
       rond(ctx, bx, by, w, h, 34 * u); ctx.fillStyle = on ? rgba(CV, 1) : NOIR ? "rgba(255,255,255,.06)" : "#fff"; ctx.fill(); ctx.shadowBlur = 0;
       ctx.strokeStyle = rgba(CV, on ? 1 : 0.55); ctx.lineWidth = 4 * u; ctx.stroke();
       const fg = on ? (MODE === "couleur" ? rgba(C, 1) : lum(CV) > 0.62 ? "#111" : "#fff") : rgba(CV, 1);
-      ctx.beginPath(); ctx.arc(bx + w / 2, by + h * 0.4, w * 0.2, 0, 7); ctx.fillStyle = on ? "rgba(255,255,255,.22)" : rgba(CV, 0.12); ctx.fill();
-      icone(ctx, x.icone, bx + w / 2, by + h * 0.4, w * 0.22, fg, 2.2);
-      ctx.fillStyle = fg; ctx.font = `800 ${Math.min(46 * u, w / 6.2)}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(String(x.texte).toUpperCase(), bx + w / 2, by + h * 0.78);
+      ctx.fillStyle = fg; ctx.font = `800 ${Math.min(56 * u, w / 5.5)}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(String(x.texte).toUpperCase(), bx + w / 2, by + h / 2);
       ctx.restore();
     });
   },
@@ -227,56 +221,21 @@ const SCENES = {
     }
     const len = String(e.texte || "").length, taille = (vertical ? (len > 36 ? 104 : len > 22 ? 124 : 150) : len > 36 ? 96 : len > 22 ? 118 : 140) * u;
     const r = motsAnimes(ctx, e.texte, e.accent, W / 2, H / 2, { taille, poids: 800, largeur: W * (vertical ? 0.88 : 0.8), t, decale: 0.1 });
-    if (e.trait) { // trait dessiné à la main sous la phrase
+    if (false && e.trait) { // (retiré : plus de trait dessiné)
       const p = eio(prog(t, 0.25 + r.n * 0.1, 0.9 + r.n * 0.1)), y0 = H / 2 + r.h / 2 + 50 * u, x0 = W * 0.22, x1 = W * 0.78;
       ctx.save(); ctx.strokeStyle = rgba(CV, 1); ctx.lineWidth = 9 * u; ctx.lineCap = "round"; ctx.beginPath();
       for (let k = 0; k <= 40 * p; k++) { const q = k / 40, x = x0 + (x1 - x0) * q, y = y0 + Math.sin(q * Math.PI) * -26 * u + q * 10 * u; k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
       ctx.stroke(); ctx.restore();
     }
   },
-  objet(ctx, s, e) {
-    const { W, H, u, t, vertical } = s;
-    const cy = H * (vertical ? 0.56 : 0.6), bob = Math.sin(t * 1.6) * 10 * u, ent = ressort(prog(t, 0, 0.9));
-    if (e.texte) motsAnimes(ctx, e.texte, e.accent, W / 2, H * (vertical ? 0.26 : 0.2), { taille: (vertical ? 76 : 64) * u, largeur: W * 0.84, t: t - 0.2, poids: 600, decale: 0.07 });
-    // Halo et plateau lumineux
-    halo(ctx, W / 2, cy + 190 * u, 520 * u, 110 * u, 0.55 * ent);
-    ctx.save(); ctx.globalAlpha *= ent; ctx.strokeStyle = rgba(mix(CV, [255, 255, 255], 0.5), 0.8); ctx.lineWidth = 3 * u;
-    ctx.beginPath(); ctx.ellipse(W / 2, cy + 190 * u, 380 * u, 70 * u, 0, 0, 7); ctx.stroke(); ctx.restore();
-    ctx.save(); ctx.translate(W / 2, cy + bob - (1 - ent) * 140 * u); ctx.globalAlpha *= clamp(ent * 1.4);
-    const sombre = mix(C, [0, 0, 0], 0.55), clair = mix(CV, [255, 255, 255], 0.15);
-    if (e.objet === "telephone") {
-      const w = 330 * u, h = 640 * u; ctx.rotate(-0.05 + Math.sin(t * 0.8) * 0.02);
-      ctx.shadowColor = rgba(CV, 0.6); ctx.shadowBlur = 80 * u; rond(ctx, -w / 2, -h / 2, w, h, 54 * u); ctx.fillStyle = "#0B0B0F"; ctx.fill(); ctx.shadowBlur = 0;
-      rond(ctx, -w / 2 + 14 * u, -h / 2 + 14 * u, w - 28 * u, h - 28 * u, 42 * u); const g = ctx.createLinearGradient(0, -h / 2, 0, h / 2); g.addColorStop(0, rgba(clair, 1)); g.addColorStop(1, rgba(sombre, 1)); ctx.fillStyle = g; ctx.fill();
-      ctx.fillStyle = "#fff"; ctx.font = `700 ${46 * u}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(s.nom, 0, -40 * u);
-      icone(ctx, e.icone, 0, 60 * u, 90 * u, "rgba(255,255,255,.9)", 1.8);
-      rond(ctx, -40 * u, -h / 2 + 30 * u, 80 * u, 22 * u, 11 * u); ctx.fillStyle = "#0B0B0F"; ctx.fill();
-    } else if (e.objet === "icone") {
-      const T = 300 * u * (0.85 + 0.15 * ent);
-      ctx.shadowColor = rgba(CV, 0.9); ctx.shadowBlur = 140 * u; rond(ctx, -T / 2, -T / 2, T, T, T * 0.24);
-      const g = ctx.createLinearGradient(-T / 2, -T / 2, T / 2, T / 2); g.addColorStop(0, "#2A2A31"); g.addColorStop(1, "#0D0D11"); ctx.fillStyle = g; ctx.fill(); ctx.shadowBlur = 0;
-      ctx.strokeStyle = "rgba(255,255,255,.14)"; ctx.lineWidth = 2 * u; ctx.stroke();
-      icone(ctx, e.icone, 0, 0, T * 0.5, "#fff", 1.9);
-    } else { // carte
-      const w = 620 * u, h = 390 * u, tilt = (1 - ent) * 0.25;
-      ctx.transform(1, 0, -0.18 - tilt, 1, 0, 0); ctx.scale(1, 0.62 + 0.38 * eo(prog(t, 0.2, 1.4)));
-      ctx.shadowColor = rgba(CV, 0.85); ctx.shadowBlur = 90 * u; rond(ctx, -w / 2, -h / 2, w, h, 34 * u);
-      const g = ctx.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2); g.addColorStop(0, rgba(clair, 1)); g.addColorStop(1, rgba(sombre, 1)); ctx.fillStyle = g; ctx.fill(); ctx.shadowBlur = 0;
-      const reflet = ctx.createLinearGradient(-w / 2 + ((t * 0.5) % 1.6 - 0.3) * w * 2, 0, -w / 2 + ((t * 0.5) % 1.6 - 0.3) * w * 2 + 160 * u, 0); reflet.addColorStop(0, "rgba(255,255,255,0)"); reflet.addColorStop(0.5, "rgba(255,255,255,.16)"); reflet.addColorStop(1, "rgba(255,255,255,0)");
-      ctx.fillStyle = reflet; ctx.fill();
-      rond(ctx, -w / 2 + 44 * u, -h / 2 + 50 * u, 70 * u, 52 * u, 10 * u); ctx.fillStyle = "rgba(255,255,255,.75)"; ctx.fill();
-      rond(ctx, w / 2 - 130 * u, h / 2 - 80 * u, 86 * u, 40 * u, 20 * u); ctx.fillStyle = "rgba(255,255,255,.35)"; ctx.fill();
-      ctx.beginPath(); ctx.arc(w / 2 - 66 * u, h / 2 - 60 * u, 15 * u, 0, 7); ctx.fillStyle = "#fff"; ctx.fill();
-      ctx.fillStyle = "#fff"; ctx.font = `700 ${40 * u}px ${F}`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(s.nom, -w / 2 + 44 * u, h / 2 - 60 * u);
-    }
-    ctx.restore();
-  },
+  // Plus d'objet dessiné : la légende seule, en grand (le visuel vient du logo, des photos ou des captures du membre)
+  objet(ctx, s, e) { SCENES.mots(ctx, s, { texte: e.texte || s.nom, accent: e.accent }); },
   pilules(ctx, s, e) {
     const { W, H, u, t, vertical } = s;
     const items = (e.items ?? []).slice(0, 3), n = Math.max(1, items.length), actif = Math.min(n - 1, Math.floor(t / (s.d / n)));
     const ph = (vertical ? 140 : 120) * u, gap = 30 * u, tp = (vertical ? 52 : 44) * u;
     ctx.font = `700 ${tp}px ${F}`;
-    const ws = items.map((x) => ph + 34 * u + ctx.measureText(x.texte).width + 40 * u);
+    const ws = items.map((x) => ctx.measureText(x.texte).width + 90 * u);
     const pile = vertical || ws.reduce((a, b) => a + b + gap, -gap) > W * 0.9;
     const tot = pile ? Math.max(...ws) : ws.reduce((a, b) => a + b + gap, -gap);
     items.forEach((x, i) => {
@@ -287,8 +246,7 @@ const SCENES = {
       if (on) { ctx.shadowColor = rgba(CV, 0.8); ctx.shadowBlur = 60 * u; }
       rond(ctx, px, py, w, ph, ph / 2); ctx.fillStyle = NOIR ? (on ? "rgba(30,30,38,.95)" : "rgba(22,22,28,.85)") : (on ? "#fff" : "rgba(255,255,255,.8)"); ctx.fill(); ctx.shadowBlur = 0;
       ctx.strokeStyle = on ? rgba(CV, 0.9) : NOIR ? "rgba(255,255,255,.14)" : "rgba(15,23,42,.10)"; ctx.lineWidth = (on ? 3 : 2) * u; ctx.stroke();
-      icone(ctx, x.icone, px + ph / 2 + 6 * u, py + ph / 2, ph * 0.42, on ? rgba(CV, 1) : INK2(0.75), 2.2); ctx.font = `700 ${tp}px ${F}`;
-      ctx.fillStyle = on ? INK : INK2(0.8); ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(x.texte, px + ph + 10 * u, py + ph / 2 + 2 * u);
+      ctx.fillStyle = on ? INK : INK2(0.8); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(x.texte, px + w / 2, py + ph / 2 + 2 * u);
       ctx.restore();
     });
     if (e.texte) motsAnimes(ctx, e.texte, e.accent, W / 2, H * (vertical ? 0.2 : 0.2), { taille: 64 * u, largeur: W * 0.84, t: t - 0.1, poids: 600, decale: 0.06 });
@@ -304,22 +262,7 @@ const SCENES = {
     ctx.fillStyle = rgba(CV, 1); rond(ctx, W / 2 - lw / 2, H / 2 + taille * 0.42, lw, 10 * u, 5 * u); ctx.fill();
     if (e.legende) motsAnimes(ctx, e.legende, e.accent, W / 2, H / 2 + taille * 0.42 + 110 * u, { taille: 58 * u, largeur: W * 0.82, t: t - 1, poids: 600, couleur: INK2(0.82), decale: 0.06 });
   },
-  barres(ctx, s, e) {
-    const { W, H, u, t, vertical } = s;
-    const n = 7, larg = Math.min(W * 0.82, 960 * u), bw = larg / n * 0.56, x0 = W / 2 - larg / 2, base = H * (vertical ? 0.6 : 0.68), hmax = H * (vertical ? 0.26 : 0.36);
-    const hs = [0.42, 0.58, 0.36, 0.9, 0.5, 0.66, 0.44], top = 3;
-    for (let i = 0; i < n; i++) {
-      const p = eo(prog(t, 0.1 + i * 0.07, 0.9 + i * 0.07)), h = hmax * hs[i] * p, x = x0 + (larg / n) * (i + 0.22);
-      ctx.save(); if (i === top) { ctx.shadowColor = rgba(CV, 1); ctx.shadowBlur = 70 * u * p; }
-      const g = ctx.createLinearGradient(0, base - h, 0, base);
-      if (i === top) { g.addColorStop(0, rgba(mix(CV, [255, 255, 255], 0.55), 1)); g.addColorStop(1, rgba(CV, 1)); } else { g.addColorStop(0, NOIR ? "rgba(255,255,255,.16)" : "rgba(15,23,42,.14)"); g.addColorStop(1, NOIR ? "rgba(255,255,255,.04)" : "rgba(15,23,42,.04)"); }
-      rond(ctx, x, base - h, bw, h, 12 * u); ctx.fillStyle = g; ctx.fill(); ctx.restore();
-    }
-    // Ligne pointillée qui balaie
-    const ly = base - hmax * hs[top] * 0.98, pl = eo(prog(t, 0.6, 1.6));
-    ctx.save(); ctx.setLineDash([10 * u, 12 * u]); ctx.strokeStyle = INK2(0.45); ctx.lineWidth = 3 * u; ctx.beginPath(); ctx.moveTo(x0, ly); ctx.lineTo(x0 + larg * pl, ly); ctx.stroke(); ctx.restore();
-    if (e.texte) motsAnimes(ctx, e.texte, e.accent, W / 2, H * (vertical ? 0.24 : 0.17), { taille: (vertical ? 80 : 70) * u, largeur: W * 0.84, t: t - 0.3, decale: 0.07 });
-  },
+  barres(ctx, s, e) { SCENES.mots(ctx, s, { texte: e.texte || s.nom, accent: e.accent }); },
   pastille(ctx, s, e) {
     const { W, H, u, t } = s;
     const p = ressort(prog(t, 0.05, 0.75)); ctx.font = `700 ${66 * u}px ${F}`;
@@ -365,11 +308,9 @@ const SCENES = {
       // Un logo qui contient déjà le nom (plus large que haut) : pas de nom répété dessous
       if (LOGO.width / LOGO.height < 1.6) { ctx.fillStyle = INK; ctx.font = `800 ${(vertical ? 84 : 76) * u}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(s.nom, W / 2, y + 120 * u); }
       ctx.restore();
-    } else {
-    ctx.shadowColor = rgba(CV, 0.8); ctx.shadowBlur = 90 * u; rond(ctx, W / 2 - T / 2, y - T - 30 * u, T, T, T * 0.26);
-    const g = ctx.createLinearGradient(0, y - T - 30 * u, 0, y - 30 * u); g.addColorStop(0, rgba(mix(CV, [255, 255, 255], 0.2), 1)); g.addColorStop(1, rgba(C, 1)); ctx.fillStyle = g; ctx.fill(); ctx.shadowBlur = 0;
-    ctx.fillStyle = lum(C) > 0.62 ? "#111" : "#fff"; ctx.font = `800 ${T * 0.52}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(String(s.nom || "?").trim()[0].toUpperCase(), W / 2, y - T / 2 - 26 * u);
-    ctx.fillStyle = INK; ctx.font = `800 ${(vertical ? 120 : 110) * u}px ${F}`; ctx.fillText(s.nom, W / 2, y + 80 * u);
+    } else { // sans logo envoyé : le nom seul, en grand (aucune pastille dessinée)
+    ctx.shadowColor = rgba(CV, 0.6); ctx.shadowBlur = 60 * u; serre(ctx, "-0.04em");
+    ctx.fillStyle = INK; ctx.font = `900 ${ajuste(ctx, s.nom, (vertical ? 150 : 140) * u, W * 0.86, 900)}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(s.nom, W / 2, y + 20 * u); serre(ctx, "-0.01em");
     ctx.restore();
     }
     const q = eo(prog(t, 0.8, 1.5));

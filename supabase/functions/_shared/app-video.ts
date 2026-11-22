@@ -75,27 +75,25 @@ Réponds avec le JSON complet : accroche, probleme, presentation, ecrans, benefi
 // mots qui arrivent un par un avec un mot clé en couleur, objet lumineux sur un halo, pilules d'interface, cartes de choix,
 // cartes empilées, chiffre qui compte, mot géant, phrase barrée, aplat couleur, logo final. Le navigateur dessine et exporte.
 const ICONES = ["check", "etoile", "coeur", "cadenas", "agenda", "horloge", "eclair", "lieu", "ciseaux", "lune", "panier", "message", "maison", "feuille", "tasse", "etincelle", "personne", "graphique", "euro", "telephone", "cadeau", "musique", "camion"];
-const TYPES = ["mots", "objet", "pilules", "compteur", "barres", "pastille", "cartes", "aplat", "logo", "impact", "liste", "choix", "rature"];
+const TYPES = ["mots", "pilules", "compteur", "pastille", "cartes", "aplat", "logo", "impact", "liste", "choix", "rature"];
 export type SceneVideo = Record<string, any> & { type: string };
 export type ScriptLibre = { genre: "libre"; nom: string; fond: "noir" | "blanc"; lien?: string; couleur?: string; police?: string; scenes: SceneVideo[]; note?: string };
 
 const CATALOGUE = `Scènes possibles (type et champs, textes en français, très courts) :
-- mots { texte (≤ 48 car.), accent (1 à 2 mots du texte à mettre en couleur), style ("" ou "machine" = majuscules tapées lettre à lettre), trait (true = trait dessiné sous la phrase) } : la phrase choc
+- mots { texte (≤ 48 car.), accent (1 à 2 mots du texte à mettre en couleur), style ("" ou "machine" = majuscules tapées lettre à lettre) } : la phrase choc
 - impact { texte (1 mot, ≤ 10 car.) } : un mot géant qui claque (« Tap. », « Prêt. »), souvent avec fond "couleur"
 - rature { texte_avant (≤ 24 car., la question), barre (≤ 24 car., la mauvaise réponse ou l'ancienne façon, DIFFÉRENTE de la question), texte (≤ 28 car., la bonne réponse) } ex. « Le plus dur ? » / barré « Trouver un créneau » / « Réserver en 1 clic »
-- objet { objet ("carte" | "telephone" | "icone"), icone, texte (≤ 36 car., légende au-dessus), accent } : l'objet héros lumineux posé sur un halo
-- pilules { items: 2 à 3 { icone, texte (≤ 16 car.) }, texte (facultatif, titre ≤ 32 car.), accent } : petites pilules d'interface
-- choix { items: 2 à 3 { icone, texte (≤ 12 car.) }, texte (titre ≤ 32 car.), accent } : cartes de choix, la 2e se fait choisir
-- liste { items: 2 à 4 { icone, texte (≤ 22 car.) }, texte (titre ≤ 32 car.), accent } : cartes pastel empilées comme des notifications
+- pilules { items: 2 à 3 { texte (≤ 16 car.) }, texte (facultatif, titre ≤ 32 car.), accent } : petites pastilles de texte qui s'allument une à une
+- choix { items: 2 à 3 { texte (≤ 12 car.) }, texte (titre ≤ 32 car.), accent } : cartes de choix, la 2e se fait choisir
+- liste { items: 2 à 4 { texte (≤ 22 car.) }, texte (titre ≤ 32 car.), accent } : cartes pastel empilées comme des notifications
 - cartes { items: 2 à 3 textes (≤ 18 car.) } : cartes de couleur qui s'empilent
 - compteur { valeur (un nombre ÉCRIT PAR LA PERSONNE, sinon n'utilise pas cette scène), suffixe (≤ 6 car., ex. €, ans, min), legende (≤ 30 car.) }
-- barres { texte (≤ 32 car.), accent } : graphique qui monte, une barre lumineuse (sans chiffres)
 - pastille { texte (1 à 2 mots) } : un mot dans une pastille de couleur qui pop
 - aplat { texte (le nom ou 1 à 3 mots) } : l'écran se remplit de la couleur de la marque
 - logo { texte (≤ 30 car., l'appel à l'action) } : TOUJOURS la dernière scène
-Icônes possibles : ${ICONES.join(", ")}.
+Aucun dessin, aucune icône, aucun objet illustré : uniquement du texte animé (le logo du membre est ajouté à part).
 Chaque scène peut avoir "fond": "couleur" | "blanc" | "noir" (sinon le fond de la vidéo) et "transition": "vague" (une vague de couleur balaie l'écran).`;
-const REGLES = `Règles : 8 à 11 scènes, 20 à 30 secondes, rythme de pub TikTok (alterne textes, objets et un aplat ou un impact ; jamais deux « mots » de suite). Commence par une accroche forte (mots, rature ou impact). Finis par logo.
+const REGLES = `Règles : 8 à 11 scènes, 20 à 30 secondes, rythme de pub TikTok (alterne textes, objets et un aplat ou un impact ; jamais deux « mots » de suite). Commence par une accroche forte (mots, rature ou impact). Finis par logo. Alterne fonds noir, blanc et couleur pour le rythme.
 Français, phrases très courtes, parle au spectateur. Aucun chiffre, avis, prix, résultat ou nombre de clients inventé : seulement ceux que la personne a écrits. Pas d'emoji, pas de vraie personne, pas de marque d'un autre.
 JSON : { "couleur": UNE couleur de marque franche et saturée en hexadécimal, qui colle au métier et se voit sur noir comme sur blanc (ex. rouge vif #E63946 pour un café, bleu électrique #2F5BFF pour une banque, vert franc #16A34A pour un primeur, or #D4A017 pour un barbier) ; jamais de violet par défaut ni de couleur terne,
 "nom": nom de l'entreprise ou du projet s'il est donné, sinon un nom court et crédible, "fond": "noir" (pub premium, nuit, tech, luxe) ou "blanc" (frais, clair, pratique), "lien": adresse web ou @compte SEULEMENT s'il est écrit, sinon "", "secteur_en": 2 à 4 mots-clés anglais du secteur, "scenes": [...] }`;

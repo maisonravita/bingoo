@@ -2983,12 +2983,8 @@ function ApercuBut({ k, stats }) {
   const nomDe = (d) => String(d ?? "").replace(/^www\./, "").split(".")[0].replace(/^./, (x) => x.toUpperCase());
   const logo = (d, cl = "h-9 w-9") => <span key={d} className={cx("grid shrink-0 place-items-center overflow-hidden rounded-xl border-2 border-white bg-white shadow-sm", cl)}><CompanyLogo name={d} url={`https://${d}`} className="h-full w-full" pad="p-1" /></span>;
   if (!c1) return null;
-  if (k === "lancer") return (
-    <span className="mx-auto block max-w-[260px] overflow-hidden rounded-xl border border-line bg-white shadow-sm">
-      <span className="flex items-center gap-1 border-b border-line px-2.5 py-1.5"><span className="h-2 w-2 rounded-full bg-[#FF5F57]" /><span className="h-2 w-2 rounded-full bg-[#FEBC2E]" /><span className="h-2 w-2 rounded-full bg-[#28C840]" /><span className="ml-2 rounded bg-paper px-2 text-[10px] text-ink-faint">tonsaas.fr</span></span>
-      <span className="block p-3"><span className="block h-2.5 w-2/3 rounded bg-ink/80" /><span className="mt-1.5 block h-2 w-5/6 rounded bg-line" /><span className="mt-2.5 inline-flex items-center gap-1 rounded-full bg-good/10 px-2 py-0.5 text-[10.5px] font-bold text-good"><span className="h-1.5 w-1.5 rounded-full bg-good" />En ligne · prêt à encaisser</span></span>
-    </span>
-  );
+  // Une vraie capture d'un SaaS construit par Bingoo! (pas de fenêtre dessinée)
+  if (k === "lancer") return <img src="/accueil/construit-fini.jpg" alt="Un SaaS construit par Bingoo!, en ligne" loading="lazy" className="mx-auto block h-full max-h-[112px] w-auto rounded-lg border border-line object-cover object-left-top shadow-sm" />;
   if (k === "idee") return (
     <span className="mx-auto flex max-w-[260px] items-center gap-3 rounded-2xl border border-line bg-white p-3 shadow-sm">{logo(c1[1].logos[0], "h-11 w-11")}<span className="min-w-0"><span className="block truncate text-[14px] font-bold">{nomDe(c1[1].logos[0])}</span><span className="block truncate text-[11px] text-ink-faint">{c1[0]}</span><span className="mt-0.5 inline-flex items-center gap-1 rounded-md bg-good/10 px-1.5 py-0.5 text-[12px] font-bold text-good"><span className="blur-[4px] select-none" aria-hidden>{dollar(c1[1].top)}</span>/mois 🔒</span></span></span>
   );
