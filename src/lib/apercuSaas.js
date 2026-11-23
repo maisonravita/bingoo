@@ -9,7 +9,14 @@ function bloc(b, i) {
   const el = (b.elements ?? []).filter(Boolean).slice(0, 4), titre = b.titre || "";
   const jour = (k) => { const d = new Date(); d.setDate(d.getDate() + k * 2 - 1); return d.toISOString().slice(0, 10); };
   switch (b.type) {
-    case "kpi": return { g: "stats", items: el.map((x) => { const [v, l] = num(x); return v ? { label: l, valeur: v } : { label: "", valeur: x }; }) };
+    case "kpi": {
+      // Un chiffre au début (« 48 séances ») ou après un libellé (« Série : 5 jours ») ; sans chiffre, ce n'est pas une carte de chiffre
+      const items = el.map((x) => { const [v, l] = num(x); if (v) return { label: l, valeur: v };
+        const m = String(x).match(/^(.{2,40}?)\s*[:—–-]\s*([+-]?\d[\d\s.,]*\s?(?:€|%|h|min|kg|km|jours?|j|séances?|cartes?|mots?)?)\s*(.*)$/i);
+        return m ? { label: (m[1] + (m[3] ? " " + m[3] : "")).trim(), valeur: m[2].trim() } : null; });
+      if (items.filter(Boolean).length >= 2) return { g: "stats", items: items.filter(Boolean) };
+      return { g: "carte", titre: titre || "En bref", k: "liste", lignes: el.map((x, j) => ({ id: "l" + j, ...decoupe(x) })) };
+    }
     case "graphique": return { g: "carte", titre, k: "ligne", donnees: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((label, j) => ({ label, valeur: [4, 6, 5, 8, 7, 10, 9][j] + (i % 3) })) };
     case "calendrier": return { g: "carte", titre, k: "calendrier", lignes: el.map((x, j) => ({ id: "c" + j, date: jour(j), titre: x })) };
     case "colonnes": return { g: "carte", titre, k: "kanban", colonnes: el.slice(0, 3), lignes: el.slice(0, 3).flatMap((c, j) => [{ id: `k${j}a`, statut: c, titre: `${titre || "Élément"} ${j * 2 + 1}` }, ...(j % 2 ? [] : [{ id: `k${j}b`, statut: c, titre: `${titre || "Élément"} ${j * 2 + 2}` }])]) };
