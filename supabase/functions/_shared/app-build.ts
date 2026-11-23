@@ -8,7 +8,7 @@ import { texteDesign } from "./design.ts";
 import { FICHES, FICHE_ECRANS, CONSIGNE_TEXTES_FR } from "./design-fiches.ts";
 import { choisirDesign } from "./site.ts";
 import { couvrirDemo } from "./gen-demo.ts";
-import { alignerCode } from "./contrat-donnees.ts";
+import { alignerCode, alignerCollectionsDemo, couvrirDemo as couvrirStatutsDemo } from "./contrat-donnees.ts";
 import { admin, ask, askJson } from "./core.ts";
 import { sansIdentite } from "./identite.ts";
 
@@ -705,6 +705,14 @@ export async function demarrerVerification(appId: string, specAvant: any = null)
   const { data: a } = await admin.from("saas_apps").select("spec, version, projet_id").eq("id", appId).single();
   // specAvant : la spec qui va être mise en ligne (la vérification est alors posée AVANT, la page ne voit jamais « en ligne » sans test)
   const sp = (specAvant ?? a?.spec ?? {}) as any;
+  // Avant le premier test : les données d'exemple sont alignées sur ce que les écrans lisent vraiment (sans IA).
+  // Première cause des ratés relevée : un bloc vide parce que la collection ou le statut lu n'existe pas dans les exemples.
+  if (!specAvant && sp.ecrans?.length && sp.demo) {
+    try {
+      const c1 = alignerCollectionsDemo(sp); const c2 = couvrirStatutsDemo({ ...sp, demo: c1.demo });
+      if (c1.renommes.length || c2.ajouts.length) { sp.demo = c2.demo; await admin.from("saas_apps").update({ spec: sp }).eq("id", appId); console.log("exemples alignés", [...c1.renommes, ...c2.ajouts].join(" ; ")); }
+    } catch (x) { console.error("alignement exemples", x); }
+  }
   // Par où le membre est entré (idée libre, galerie de modèles, exploration des SaaS) : mesuré pour savoir quel parcours pousser
   const { data: pj } = await admin.from("saas_projets").select("data").eq("id", a?.projet_id ?? "").maybeSingle();
   const entree = (pj?.data as any)?.entree ?? ((pj?.data as any)?.modele_force ? "modele" : "explorer");

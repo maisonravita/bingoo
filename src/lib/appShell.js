@@ -136,7 +136,7 @@ export function appHtml({ spec, slug, api, token = null, apercu = false, paiemen
 .fond-sombre [class*="bg-white/"]{background:rgba(22,26,34,.92)}.fond-sombre [class*="hover:bg-slate-100"]:hover{background:#222836}
 .fond-sombre input,.fond-sombre select,.fond-sombre textarea{background:#0E1116;color:#F1F5F9;border-color:#2B3240}.fond-sombre [class~="hover:bg-slate-50"]:hover,.fond-sombre [class~="hover:bg-slate-100"]:hover{background:#222836}
 main section{max-width:100%;overflow-x:auto}
-@media (max-width:640px){main table,main thead,main tbody,main tr,main td{display:block;width:100%}main thead{display:none}main tr{border:1px solid rgba(100,116,139,.22)!important;border-radius:14px;margin:0 0 10px;padding:4px 14px}main td{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:7px 0!important;border:0!important;text-align:right;min-height:0}main td:empty{display:none}main table{min-width:0!important;width:100%!important;table-layout:auto!important}main td,main td *{white-space:normal!important}main td>*{min-width:0;max-width:62%;margin-left:auto;text-align:right}main td:first-child>*{max-width:100%;margin-left:0;text-align:left}main td>div,main td>span{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px}main td:first-child>div,main td:first-child>span{justify-content:flex-start}main td[data-label]::before{content:attr(data-label);font-size:12px;font-weight:600;color:#64748B;text-align:left;flex-shrink:0;max-width:45%}main td:first-child{font-weight:600;text-align:left}main td:first-child::before{display:none}main .overflow-x-auto{margin-left:0!important;margin-right:0!important;overflow:visible}main section{overflow-x:visible}}.anim{animation:a .18s ease-out}@keyframes barre{from{width:0}to{width:100%}}@keyframes a{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}</style>
+@media (max-width:640px){main table,main thead,main tbody,main tr,main td{display:block;width:100%}main thead{display:none}main tr{border:1px solid rgba(100,116,139,.22)!important;border-radius:14px;margin:0 0 10px;padding:4px 14px}main td{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:7px 0!important;border:0!important;text-align:right;min-height:0}main td:empty{display:none}main table{min-width:0!important;width:100%!important;table-layout:auto!important}main td,main td *{white-space:normal!important}main td>*{min-width:0;max-width:62%;margin-left:auto;text-align:right}main td:first-child>*{max-width:100%;margin-left:0;text-align:left}main td>div,main td>span{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px}main td:first-child>div,main td:first-child>span{justify-content:flex-start}main td[data-label]::before{content:attr(data-label);font-size:12px;font-weight:600;color:#64748B;text-align:left;flex-shrink:0;max-width:45%}main td:first-child{font-weight:600;text-align:left}main td:first-child::before{display:none}main .overflow-x-auto{margin-left:0!important;margin-right:0!important;overflow:visible}main section{overflow-x:visible}}@media (max-width:480px){button:not(label button),[role=button]:not(label [role=button]){min-height:44px;min-width:44px}input:not([type=checkbox]):not([type=radio]):not(label input),select{min-height:44px}}.anim{animation:a .18s ease-out}@keyframes barre{from{width:0}to{width:100%}}@keyframes a{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}</style>
 <style>${cssDesign(spec)}${cssTaste(spec)}</style></head><body><div id="root"><div style="min-height:100vh;display:grid;place-items:center;color:#94A3B8;font-size:14px">Chargement…</div></div>
 <script>window.__BOOT=${safe(boot)};</script>
 <script type="module">
@@ -223,6 +223,35 @@ if (B.verif) {
   addEventListener("unhandledrejection", (e) => VERRS.push(String(e.reason?.message ?? e.reason)));
   const ce = console.error.bind(console); console.error = (...a) => { VERRS.push(a.map((x) => x?.message ?? String(x)).join(" ").slice(0, 300)); ce(...a); };
 }
+// Lisibilité garantie : un texte trop pâle sur son fond (moins de 4,5:1, ou 3:1 en grand) est foncé ou éclairci juste assez.
+// Le design choisi reste le même ; seuls les gris trop clairs (dates, compteurs, liens « Tout voir ») sont corrigés.
+const lisible = (() => {
+  const num = (c) => { const m = String(c || "").match(/[0-9.]+/g); return m && m.length >= 3 ? [+m[0], +m[1], +m[2], m[3] == null ? 1 : +m[3]] : null; };
+  const lum = (c) => { const f = (x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const fond = (el) => { for (let n = el; n && n.nodeType === 1; n = n.parentElement) { const cs = getComputedStyle(n); if (cs.backgroundImage && cs.backgroundImage !== "none") return null; const b = num(cs.backgroundColor); if (b && b[3] > 0.95) return b; } return [255, 255, 255, 1]; };
+  let attente = 0;
+  const passe = () => {
+    attente = 0;
+    const els = document.querySelectorAll("#root *"); let n = 0;
+    for (const el of els) {
+      if (n > 600) break;
+      if (!el.firstChild || el.dataset.lisible === "1" || el.closest("svg")) continue;
+      let texte = false; for (const k of el.childNodes) if (k.nodeType === 3 && k.textContent.trim().length > 1) { texte = true; break; }
+      if (!texte) continue; n++;
+      const cs = getComputedStyle(el), c = num(cs.color); if (!c || c[3] < 0.5) continue;
+      const f = fond(el); if (!f) continue;
+      const taille = parseFloat(cs.fontSize), seuil = taille >= 24 || (Number(cs.fontWeight) >= 700 && taille >= 18.66) ? 3.1 : 4.6;
+      if (ratio(c, f) >= seuil) continue;
+      const vers = lum(f) > 0.4 ? [0, 0, 0] : [255, 255, 255];
+      let k = 0.1, nc = c;
+      while (k <= 1) { nc = [0, 1, 2].map((i) => Math.round(c[i] + (vers[i] - c[i]) * k)); if (ratio(nc, f) >= seuil) break; k += 0.1; }
+      el.style.setProperty("color", "rgb(" + nc.join(",") + ")", "important"); el.dataset.lisible = "1";
+    }
+  };
+  return () => { if (!attente) attente = setTimeout(passe, 250); };
+})();
+addEventListener("load", () => { lisible(); try { new MutationObserver(lisible).observe(document.getElementById("root"), { childList: true, subtree: true }); } catch (e) {} });
 const bus = { l: {}, on(e, f) { (this.l[e] ??= new Set()).add(f); return () => this.l[e].delete(f); }, emit(e, x) { (this.l[e] ?? []).forEach((f) => f(x)); } };
 const db = {
   list: (col, where) => call("list", { col, where }),

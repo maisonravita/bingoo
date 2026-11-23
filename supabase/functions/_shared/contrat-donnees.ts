@@ -114,3 +114,21 @@ export function couvrirDemo(spec: Spec & { ecrans?: { code?: string }[] }) {
   }
   return { demo, ajouts };
 }
+
+// Noms de collections : l'écran lit useCollection("rendez_vous") alors que les exemples sont rangés sous « rendezvous » ou « rdv »
+// → le bloc restait vide. Les exemples sont renommés vers le nom que le code utilise (seulement s'il n'y a aucune ambiguïté).
+export function alignerCollectionsDemo(spec: Spec & { ecrans?: { code?: string }[] }) {
+  const demo: Record<string, any[]> = { ...(spec.demo ?? {}) };
+  const codes = (spec.ecrans ?? []).map((e) => String(e.code ?? "")).join("\n");
+  const lus = new Set<string>();
+  for (const m of codes.matchAll(/(?:useCollection|db\.(?:list|add|get|update|remove))\(\s*(["'])([a-z_][A-Za-z0-9_]{1,40})\1/g)) lus.add(m[2]);
+  const renommes: string[] = [];
+  for (const nom of lus) {
+    if (Array.isArray(demo[nom]) && demo[nom].length) continue;
+    const proches = Object.keys(demo).filter((k) => k !== nom && !lus.has(k) && Array.isArray(demo[k]) && demo[k].length && norme(k) === norme(nom));
+    if (proches.length !== 1) continue;
+    demo[nom] = demo[proches[0]]; delete demo[proches[0]];
+    renommes.push(`${proches[0]} → ${nom}`);
+  }
+  return { demo, renommes };
+}
