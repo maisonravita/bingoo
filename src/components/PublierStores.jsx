@@ -36,7 +36,7 @@ function Plateforme({ plat, etat, identifiant, agir, t }) {
         <p className={cx("font-bold", t.fort)}>{titre}</p>
         {derniere && <span className={cx("rounded-full px-2.5 py-1 text-[12px] font-bold", STATUT[derniere.statut]?.[1])}>{STATUT[derniere.statut]?.[0]} · n°{derniere.numero}</span>}
       </div>
-      <p className={cx("mt-1 text-[12.5px]", t.doux)}>Identifiant : <code className={cx("rounded bg-black/5 px-1.5 py-0.5", t.fort)}>{identifiant}</code></p>
+      <p className={cx("mt-1 text-[12.5px]", t.doux)}>Identifiant : <span className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[12.5px] font-semibold" style={{ color: t.sombre ? "#fff" : "#1E2030" }}>{identifiant}</span></p>
       {derniere?.message && <p className={cx("mt-2 text-[13px]", t.doux)}>{derniere.message}</p>}
       {derniere?.lien && <a href={derniere.lien} className="mt-1 inline-block text-[13px] font-semibold text-[#E8571C] underline underline-offset-2">Télécharger le fichier compilé</a>}
       {cle ? (
@@ -46,7 +46,7 @@ function Plateforme({ plat, etat, identifiant, agir, t }) {
           <button onClick={() => go("retirer")} disabled={!!busy} className="text-[13px] font-semibold text-bad underline underline-offset-2">Retirer</button>
           <button onClick={() => go("publier")} disabled={!!busy || enCours} className="ml-auto rounded-xl bg-[#E8571C] px-4 py-2 text-[14px] font-bold text-white hover:brightness-110 disabled:opacity-60">{busy === "publier" ? "Un instant…" : enCours ? "Publication en cours" : derniere?.statut === "envoyee" ? "Envoyer une mise à jour" : "Publier"}</button>
         </div>
-      ) : !ouvert && <button onClick={() => setOuvert(true)} className={cx("mt-3 rounded-xl px-4 py-2 text-[14px] font-bold ring-1", t.fort, "ring-current/20 hover:bg-black/5")}>Brancher mon compte</button>}
+      ) : !ouvert && <button onClick={() => setOuvert(true)} className="mt-3 rounded-xl border border-black/15 bg-white px-4 py-2 text-[14px] font-bold hover:bg-black/[.03]" style={{ color: "#1E2030" }}>Brancher mon compte</button>}
       {ouvert && (
         <div className="mt-3 rounded-xl bg-black/[.03] p-3">
           <ol className={cx("list-decimal space-y-1 pl-4 text-[13px]", t.doux)}>{ETAPES[plat].map((e, i) => <li key={i}>{e}</li>)}</ol>

@@ -52,7 +52,7 @@ export default function AppTelephone({ app, wsId, sombre = false }) {
         )}
         <p className={cx("mt-3 text-[12px]", t.doux)}>Expo Go sert à essayer. Pour l'App Store et Google Play, c'est juste en dessous.</p>
       </div>
-      <PublierStores app={app} wsId={wsId} t={t} />
+      <PublierStores app={app} wsId={wsId} t={{ ...t, sombre }} />
     </div>
   );
 }
