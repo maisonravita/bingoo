@@ -380,6 +380,9 @@ if (CONSTRUIRE === "spec") {
     console.log("cadre :", JSON.stringify(r).slice(0, 900));
   }
   await pi.screenshot({ path: `${DOSSIER}/diag-site.png`, fullPage: true });
+  // La grande vue (style choisi par défaut), section par section
+  const big = pi.locator("iframe").last(); const fb = pi.frameLocator("iframe").last();
+  for (const [i, y] of [[1, 0], [2, 700], [3, 1400], [4, 2100], [5, 2800]]) { await fb.locator("body").evaluate((b, y) => window.scrollTo(0, y), y).catch(() => null); await pi.waitForTimeout(900); await big.screenshot({ path: `${DOSSIER}/diag-site-${i}.png` }).catch(() => null); }
 } else if (CONSTRUIRE === "atelier-diag") {
   // Diagnostic : la page du membre ouverte sur l'atelier d'un SaaS dont une modification attend son test
   const [a0] = await q(`select a.id, a.slug, a.workspace_id ws, a.version, a.brouillon->'_test' t from saas_apps a where a.slug = ${lit(process.env.DOMAINE || "asso-pilote-6t0r")}`);
