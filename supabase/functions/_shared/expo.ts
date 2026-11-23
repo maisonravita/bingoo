@@ -106,6 +106,18 @@ const styles = StyleSheet.create({
 }
 
 /** Publie (ou republie) la coque de l'app en Snack : renvoie son identifiant et ses liens. */
+/** Ce qu'il faut au robot de compilation pour les stores : la même coque que dans Expo Go, ses versions et son identité. */
+export async function coquePourStores(app: { slug: string; spec: any; domaine?: string | null; domaine_statut?: string | null }) {
+  const s = app.spec ?? {};
+  const propre = app.domaine_statut === "ok" && app.domaine;
+  const url = propre ? `https://${app.domaine}/?natif=1` : `https://www.bingoo.fr/#/app/${app.slug}?natif=1`;
+  const hotes = ["bingoo.fr", "supabase.co", ...(propre ? [String(app.domaine)] : [])];
+  const nom = String(s.nom ?? "Mon app").slice(0, 30);
+  const couleur = /^#[0-9a-f]{6}$/i.test(s.couleur ?? "") ? s.couleur : "#4F46E5";
+  const { sdk, deps } = await versions();
+  return { nom, couleur, url, sdk, deps, icone: `https://fbsjbnnmzazylmquzryo.supabase.co/functions/v1/t/app/${app.slug}/icone.svg`, app_js: codeCoque({ nom, url, couleur, hotes }) };
+}
+
 export async function publierCoque(app: { slug: string; spec: any; domaine?: string | null; domaine_statut?: string | null }) {
   const s = app.spec ?? {};
   const propre = app.domaine_statut === "ok" && app.domaine;

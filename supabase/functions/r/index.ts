@@ -1,6 +1,8 @@
 // Fonction « r » : Bingoo! Radar, Espion et Studio (modules de croissance), séparée pour des mises à jour légères.
 import { HttpError, json, readJson, refuserInvite, wrap } from "../_shared/http.ts";
 import { admin, aiBudget, aiSpent, COUT_CREDITS, limiteMois, limitesDe, utiliseMois, creditsDepenser, creditsRendre, creditsSolde, log, quota, requireMember, setAi, type Prospect } from "../_shared/core.ts";
+// Identifiant de l'app sur les stores (bundle iOS = paquet Android) : fr.bingoo.<slug>, lettres et chiffres seulement
+const identifiantStore = (slug: string) => "fr.bingoo." + (String(slug).toLowerCase().replace(/[^a-z0-9]+/g, "").replace(/^[0-9]+/, "") || "app").slice(0, 40);
 import { radarCron, radarGetConfig, radarSetConfig, radarToProspect, scanRadar } from "../_shared/radar.ts";
 import { attreyForums, attreySearch } from "../_shared/attrey.ts";
 import { attreyMultiScan } from "../_shared/attrey-multicanal.ts";
@@ -470,6 +472,57 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     await admin.from("saas_apps").update({ mobile: { ...m, ...r } }).eq("id", app.id);
     await log(ws.id, "app_expo", `Aperçu Expo Go de ${String(sp.nom ?? "").slice(0, 60)}`);
     return r;
+  },
+  // Publication sur l'App Store et Google Play, avec les comptes du membre : clé API App Store Connect, compte de service Google Play.
+  // Jamais de mot de passe. Les clés vont dans le coffre chiffré ; on ne renvoie qu'un aperçu non secret.
+  async "saas-app-stores"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    const { data: app } = await admin.from("saas_apps").select("id, slug, spec, statut, domaine, domaine_statut").eq("id", String(b.app_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    if (!app) throw new HttpError(404, "Application introuvable");
+    const plat = b.plateforme === "ios" || b.plateforme === "android" ? b.plateforme : null;
+    const etat = async () => {
+      const { data: cles } = await admin.from("app_stores_cles").select("plateforme, apercu, at").eq("app_id", app.id);
+      const { data: pubs } = await admin.from("app_publications").select("id, plateforme, statut, identifiant, numero, message, lien, at, maj").eq("app_id", app.id).order("at", { ascending: false }).limit(10);
+      const de = (p: string) => ({ cle: (cles ?? []).find((c: any) => c.plateforme === p) ?? null, derniere: (pubs ?? []).find((x: any) => x.plateforme === p) ?? null });
+      return { ios: de("ios"), android: de("android"), identifiant: identifiantStore(app.slug) };
+    };
+    if (b.quoi === "etat" || !b.quoi) return await etat();
+    if (!plat) throw new HttpError(400, "Plateforme inconnue");
+    if (b.quoi === "cle") {
+      let secret = "", apercu = "";
+      if (plat === "ios") {
+        const issuer = String(b.issuer_id ?? "").trim(), cle = String(b.key_id ?? "").trim().toUpperCase(), equipe = String(b.team_id ?? "").trim().toUpperCase(), p8 = String(b.p8 ?? "").trim();
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(issuer)) throw new HttpError(400, "L'Issuer ID ressemble à 69a6de7e-…-… (dans App Store Connect › Utilisateurs et accès › Intégrations › Clés)");
+        if (!/^[A-Z0-9]{10}$/.test(cle)) throw new HttpError(400, "Le Key ID fait 10 caractères (lettres et chiffres)");
+        if (!/^[A-Z0-9]{10}$/.test(equipe)) throw new HttpError(400, "Le Team ID fait 10 caractères (dans developer.apple.com › Membership)");
+        if (!/-----BEGIN PRIVATE KEY-----[\s\S]+-----END PRIVATE KEY-----/.test(p8) || p8.length > 4000) throw new HttpError(400, "Le fichier .p8 n'est pas une clé privée App Store Connect");
+        secret = JSON.stringify({ issuer_id: issuer, key_id: cle, team_id: equipe, p8 }); apercu = `Clé ${cle} · équipe ${equipe}`;
+      } else {
+        let j: any = null; try { j = JSON.parse(String(b.json ?? "")); } catch { /* vérifié juste après */ }
+        if (j?.type !== "service_account" || !/@.+\.iam\.gserviceaccount\.com$/.test(String(j?.client_email ?? "")) || !/BEGIN PRIVATE KEY/.test(String(j?.private_key ?? ""))) throw new HttpError(400, "Ce fichier n'est pas la clé JSON d'un compte de service Google Cloud");
+        secret = JSON.stringify(j); apercu = String(j.client_email);
+      }
+      const { error } = await admin.rpc("stores_cle_poser", { p_app: app.id, p_plateforme: plat, p_secret: secret, p_apercu: apercu });
+      if (error) throw new HttpError(500, "La clé n'a pas pu être rangée, réessaie");
+      await log(ws.id, "app_stores_cle", `Clé ${plat === "ios" ? "App Store" : "Google Play"} enregistrée pour ${String((app.spec as any)?.nom ?? "").slice(0, 60)}`);
+      return await etat();
+    }
+    if (b.quoi === "retirer") { await admin.rpc("stores_cle_retirer", { p_app: app.id, p_plateforme: plat }); return await etat(); }
+    if (b.quoi === "publier") {
+      if (app.statut !== "pret") throw new HttpError(400, "L'application doit d'abord être en ligne");
+      const { data: cle } = await admin.from("app_stores_cles").select("app_id").eq("app_id", app.id).eq("plateforme", plat).maybeSingle();
+      if (!cle) throw new HttpError(400, plat === "ios" ? "Ajoute d'abord ta clé App Store Connect" : "Ajoute d'abord ton compte de service Google Play");
+      const { data: enCours } = await admin.from("app_publications").select("id").eq("app_id", app.id).eq("plateforme", plat).in("statut", ["attente", "construction"]).limit(1);
+      if (enCours?.length) throw new HttpError(409, "Une publication est déjà en cours pour cette plateforme");
+      await quota(ws.id, "stores", 6);
+      const { data: der } = await admin.from("app_publications").select("numero").eq("app_id", app.id).eq("plateforme", plat).order("numero", { ascending: false }).limit(1);
+      const { coquePourStores } = await import("../_shared/expo.ts");
+      const fichiers = await coquePourStores(app as any);
+      await admin.from("app_publications").insert({ app_id: app.id, workspace_id: ws.id, plateforme: plat, identifiant: identifiantStore(app.slug), numero: (der?.[0]?.numero ?? 0) + 1, fichiers, message: "En file : la compilation démarre dans les minutes qui viennent." });
+      await log(ws.id, "app_stores_publier", `Publication ${plat === "ios" ? "App Store" : "Google Play"} demandée pour ${String((app.spec as any)?.nom ?? "").slice(0, 60)}`);
+      return await etat();
+    }
+    throw new HttpError(400, "Action inconnue");
   },
   // « Un site qui te plaît » : lecture de sa page d'accueil sans IA (nom, type, couleurs, polices, rubriques, boutons)
   async "site-scan"(req, b) {

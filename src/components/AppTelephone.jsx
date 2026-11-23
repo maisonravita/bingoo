@@ -3,6 +3,7 @@ import qrcode from "qrcode-generator";
 import { fn } from "../lib/supabase";
 import { cx } from "../lib/utils";
 import { lienApp } from "./AppCadre";
+import PublierStores from "./PublierStores";
 
 // L'app sur son téléphone (étape 3) : tout de suite dans le navigateur, ou dans sa vraie coque native avec Expo Go.
 // La coque est publiée à la demande (un Snack Expo, sans compte), puis republiée seulement si le nom, la couleur ou le domaine changent.
@@ -49,8 +50,9 @@ export default function AppTelephone({ app, wsId, sombre = false }) {
             {err && <p className="mt-2 text-[13px] text-bad">{err}</p>}
           </div>
         )}
-        <p className={cx("mt-3 text-[12px]", t.doux)}>Expo Go sert à essayer. La publication sur l'App Store et Google Play arrive bientôt.</p>
+        <p className={cx("mt-3 text-[12px]", t.doux)}>Expo Go sert à essayer. Pour l'App Store et Google Play, c'est juste en dessous.</p>
       </div>
+      <PublierStores app={app} wsId={wsId} t={t} />
     </div>
   );
 }

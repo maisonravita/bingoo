@@ -1,0 +1,25 @@
+name: Publication sur les stores
+# Jamais sur une proposition de modification (pull_request) : seulement planifié ou lancé à la main.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: app-stores
+  cancel-in-progress: false
+jobs:
+  publier:
+    if: github.repository == 'maisonravita/bingoo'
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Publier la plus ancienne demande
+        run: node scripts/stores/publier.mjs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN2 || secrets.SUPABASE_ACCESS_TOKEN }}
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}

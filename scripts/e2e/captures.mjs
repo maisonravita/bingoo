@@ -281,6 +281,31 @@ if (CONSTRUIRE === "lien-public") {
     await p.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await etat(p, "createur");
     await p.evaluate((s) => { location.hash = `#/app/${s}`; }, a.slug); await etat(p, "createur-hash"); await c.close(); }
 }
+if (CONSTRUIRE === "stores") {
+  // Publication sur les stores, sur le SaaS de démo du robot : clés d'essai fabriquées sur place (sans valeur), file d'attente, nettoyage
+  const appel = async (route, corps) => { const r = await fetch(`${SB}/functions/v1/r/${route}`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify(corps) }); const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch {} return { ok: r.ok, j, t: t.slice(0, 160) }; };
+  const [a] = await q(`select id, slug from saas_apps where workspace_id = ${lit(ws)} and statut = 'pret' order by maj desc limit 1`);
+  const { page: pm } = await ouvrir(ws, { "bingoo-guide": "fini" });
+  await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/reglages-saas?onglet=mobile`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(5000);
+  const vu = await pm.getByText("Sur les stores").count(); console.log(vu ? "✓ bloc « Sur les stores » affiché" : "✗ bloc stores absent");
+  await pm.getByText("Sur les stores").scrollIntoViewIfNeeded().catch(() => null); await pm.screenshot({ path: `${DOSSIER}/stores-0.png` });
+  await pm.getByRole("button", { name: "Brancher mon compte" }).first().click().catch(() => null); await pm.waitForTimeout(800); await pm.screenshot({ path: `${DOSSIER}/stores-1.png` });
+  const mauvais = await appel("saas-app-stores", { workspace_id: ws, app_id: a.id, plateforme: "ios", quoi: "cle", issuer_id: "x", key_id: "y", team_id: "z", p8: "rien" });
+  console.log(!mauvais.ok ? "✓ clé mal formée refusée" : "✗ clé mal formée acceptée");
+  const p8 = crypto.generateKeyPairSync("ec", { namedCurve: "prime256v1" }).privateKey.export({ type: "pkcs8", format: "pem" });
+  const r1 = await appel("saas-app-stores", { workspace_id: ws, app_id: a.id, plateforme: "ios", quoi: "cle", issuer_id: crypto.randomUUID(), key_id: "TESTROBOT1", team_id: "TESTROBOT2", p8 });
+  console.log(r1.ok && r1.j?.ios?.cle?.apercu ? "✓ clé d'essai rangée, aperçu seul renvoyé" : `✗ clé : ${r1.t}`);
+  const fuite = JSON.stringify(r1.j ?? {}).includes("PRIVATE KEY"); console.log(fuite ? "✗ la clé revient au navigateur" : "✓ la clé ne revient jamais au navigateur");
+  const [cofre] = await q(`select count(*)::int n from app_stores_cles where app_id = ${lit(a.id)} and plateforme = 'ios'`); console.log(cofre.n === 1 ? "✓ clé dans le coffre" : "✗ coffre");
+  const r2 = await appel("saas-app-stores", { workspace_id: ws, app_id: a.id, plateforme: "ios", quoi: "publier" });
+  console.log(r2.ok && r2.j?.ios?.derniere?.statut === "attente" ? `✓ publication en file (${r2.j.identifiant}, n°${r2.j.ios.derniere.numero})` : `✗ publier : ${r2.t}`);
+  const r3 = await appel("saas-app-stores", { workspace_id: ws, app_id: a.id, plateforme: "ios", quoi: "publier" }); console.log(!r3.ok ? "✓ pas de double publication" : "✗ double publication");
+  await pm.reload({ waitUntil: "networkidle" }).catch(() => null); await pm.waitForTimeout(5000); await pm.getByText("Sur les stores").scrollIntoViewIfNeeded().catch(() => null); await pm.screenshot({ path: `${DOSSIER}/stores-2.png` });
+  // Nettoyage : la demande d'essai et la clé d'essai disparaissent
+  await q(`delete from app_publications where app_id = ${lit(a.id)}`);
+  const r4 = await appel("saas-app-stores", { workspace_id: ws, app_id: a.id, plateforme: "ios", quoi: "retirer" });
+  const [reste] = await q(`select count(*)::int n from vault.secrets where name like ${lit("stores:" + a.id + "%")}`); console.log(r4.ok && !r4.j?.ios?.cle && reste.n === 0 ? "✓ clé retirée du coffre" : "✗ retrait");
+}
 if (CONSTRUIRE === "spec") {
   // Exporte la définition d'un SaaS (DOMAINE = son adresse courte) pour le photographier écran par écran hors ligne
   const [x] = await q(`select spec from saas_apps where slug = ${lit(process.env.DOMAINE ?? "")}`);
@@ -622,7 +647,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
