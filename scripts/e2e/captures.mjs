@@ -362,7 +362,7 @@ if (CONSTRUIRE === "spec") {
   const { ctx: ci, page: pi } = await ouvrir(wsI, { "bingoo-idee": { texte: texteI, type: "saas", at: Date.now() } });
   await pi.goto(`${SITE}/?c=${Date.now()}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
   await pi.waitForFunction(() => /Construire \S+ \S|Le nom affiché|Son nom/.test(document.body.innerText) && !/étudie ton idée|prépare l'aperçu/i.test(document.body.innerText), null, { timeout: 150000 }).catch(() => null); await pi.waitForTimeout(8000);
-  console.log("galeries :", JSON.stringify(await pi.evaluate(() => { try { return (JSON.parse(localStorage.getItem("bingoo-idee"))?.apercu?.principal?.blocs ?? []).filter((b) => b.type === "galerie").map((b) => ({ el: b.elements, img: (b.images ?? []).map((x) => !!x) })); } catch (e) { return e.message; } })).slice(0, 300));
+  console.log("galeries :", JSON.stringify(await pi.evaluate(() => { try { return (JSON.parse(localStorage.getItem("bingoo-idee"))?.apercu?.principal?.blocs ?? []).filter((b) => b.type === "galerie").map((b) => ({ el: b.elements, img: (b.images ?? []).map((x) => x?.url ?? null) })); } catch (e) { return e.message; } })).slice(0, 900));
   const aPhotos = (await pi.getByText("créées par l'IA").count()) > 0;
   console.log(aPhotos === attendu ? `✓ ${nomF} : ${aPhotos ? "photos réelles (crédits affichés)" : "aucune photo inventée"}` : `✗ ${nomF} : photos=${aPhotos}`);
   await pi.screenshot({ path: `${DOSSIER}/${nomF}.png`, fullPage: true }); await ci.close();
