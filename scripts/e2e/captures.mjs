@@ -373,6 +373,10 @@ if (CONSTRUIRE === "spec") {
   await p.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p.waitForTimeout(2000);
   const v = p.getByText("De vrais SaaS, en ligne, pour tous les métiers"); await v.scrollIntoViewIfNeeded().catch(() => null); await p.waitForTimeout(2500);
   console.log((await v.count()) ? "✓ vitrine affichée" : "✗ pas de vitrine"); await p.screenshot({ path: `${DOSSIER}/vitrine-accueil.png` });
+  await p.locator('button[title="Partir de Tablio"]').first().click({ force: true }).catch(() => null); await p.waitForTimeout(1200);
+  const val = await p.locator("#idee").inputValue().catch(() => ""); console.log(/restaurant/.test(val) ? "✓ un clic sur la vitrine remplit l'idée" : `✗ idée non remplie (${val.slice(0, 60)})`);
+  await p.screenshot({ path: `${DOSSIER}/vitrine-clic.png` });
+  const large = await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 2); console.log(large ? "✗ débordement horizontal" : "✓ pas de débordement horizontal");
   for (const k of ["codunk", "wix", "webflow"]) {
     const r = await p.goto(`${SITE}/comparer/${k}/`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p.waitForTimeout(1200);
     const t = await p.title(); console.log(r?.status() === 200 && /Bingoo! ou/.test(t) ? `✓ /comparer/${k}/ : ${t}` : `✗ /comparer/${k}/ ${r?.status()} ${t}`);

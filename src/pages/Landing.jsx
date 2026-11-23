@@ -184,34 +184,37 @@ function ChantierFlou({ texte, genre, children }) {
   );
 }
 
-// Points de départ : de vrais rendus construits par Bingoo! (captures du robot), un clic remplit l'idée à adapter
-const DEPARTS = [
-  ["sport", "saas", "App de défis sportifs", "Une app de course à pied avec défis entre amis et classement de la semaine"],
-  ["photo", "site", "Site de photographe", "Le site de mon studio de photographe de mariage à Bordeaux"],
-  ["resto", "site", "Site de restaurant", "Le site de mon restaurant japonais à Nantes avec la carte"],
-  ["asso", "saas", "Gestion de club", "Un outil pour gérer les adhérents et les cotisations de mon club de foot"],
-  ["plombier", "site", "Site d'artisan", "Le site de mon entreprise de plomberie à Lille, dépannage 7j/7"],
-  ["langues", "app", "App de révision", "Une app pour réviser le vocabulaire anglais avec des cartes"],
+// Un clic sur un SaaS de la vitrine remplit l'idée (point de départ à adapter)
+const VITRINE = [
+  ["agendo", "Agendo", "Réservation en ligne", "Un outil de réservation en ligne pour les indépendants, avec rappel la veille"],
+  ["tablio", "Tablio", "Restaurant : tables et commandes", "Un outil pour gérer les réservations de tables et les commandes de mon restaurant"],
+  ["velofleet", "VéloFleet", "Location de vélos", "Un logiciel pour gérer ma flotte de vélos électriques en location"],
+  ["cliches", "Clichés", "Photographes de mariage", "Un outil pour suivre mes couples de mariés, de la demande à la galerie photo"],
+  ["chantierpro", "ChantierPro", "Suivi de chantiers", "Un outil pour suivre mes chantiers, tâche par tâche, avec le budget"],
+  ["asso-pilote", "Asso Pilote", "Associations", "Un outil pour gérer les adhérents et les cotisations de mon association"],
+  ["coachflow", "Coachflow", "Coachs sportifs", "Un outil pour gérer mes clients de coaching sportif, leurs séances et leurs paiements"],
+  ["cireze", "Cirèze", "Commandes et stock", "Un outil pour gérer mes commandes, mon stock et mes clients"],
+  ["coupe-mesure", "Coupe Mesure", "Salons de coiffure", "Une app de réservation pour mon salon de coiffure"],
+  ["menagio", "Ménagio", "Entreprises de ménage", "Un outil pour planifier et prouver les passages de mes agents de ménage"],
 ];
-// Vitrine : de vrais SaaS construits par Bingoo! (captures de leur page en ligne), qui défilent en continu
-const VITRINE = [["agendo", "Agendo", "Réservation en ligne"], ["tablio", "Tablio", "Restaurant : tables et commandes"], ["velofleet", "VéloFleet", "Location de vélos"], ["cliches", "Clichés", "Photographes de mariage"], ["chantierpro", "ChantierPro", "Suivi de chantiers"], ["asso-pilote", "Asso Pilote", "Associations"], ["coachflow", "Coachflow", "Coachs sportifs"], ["cireze", "Cirèze", "Commandes et stock"], ["coupe-mesure", "Coupe Mesure", "Salons de coiffure"], ["menagio", "Ménagio", "Entreprises de ménage"]];
-function Vitrine() {
+function Vitrine({ choisir }) {
   const rangee = (l, sens) => (
     <div className="vitrine-rang flex w-max gap-4" style={{ animation: `vitrine ${sens > 0 ? 70 : 80}s linear infinite${sens < 0 ? " reverse" : ""}` }}>
-      {[...l, ...l].map(([img, nom, quoi], i) => (
-        <figure key={img + i} aria-hidden={i >= l.length} className="w-[300px] sm:w-[380px] shrink-0 overflow-hidden rounded-2xl border border-black/[.08] bg-white shadow-[0_14px_34px_-24px_rgba(20,20,40,.55)]">
+      {[...l, ...l].map(([img, nom, quoi, idee], i) => (
+        <button type="button" key={img + i} tabIndex={i >= l.length ? -1 : 0} aria-hidden={i >= l.length} onClick={() => choisir?.(idee, "saas")} title={`Partir de ${nom}`} className="group w-[300px] sm:w-[380px] shrink-0 overflow-hidden rounded-2xl border border-black/[.08] bg-white text-left shadow-[0_14px_34px_-24px_rgba(20,20,40,.55)] transition hover:-translate-y-1 hover:shadow-[0_22px_44px_-24px_rgba(20,20,40,.6)]">
           <img src={`/vitrine/${img}.jpg`} alt={`${nom}, construit avec Bingoo!`} loading="lazy" className="aspect-[16/10] w-full object-cover object-top" />
-          <figcaption className="flex items-center justify-between gap-2 px-3.5 py-2.5"><b className="text-[14px] text-[#1E2030]">{nom}</b><span className="truncate text-[12.5px] text-[#5B6075]">{quoi}</span></figcaption>
-        </figure>
+          <span className="flex items-center justify-between gap-2 px-3.5 py-2.5"><b className="text-[14px] text-[#1E2030]">{nom}</b><span className="truncate text-[12.5px] text-[#5B6075] group-hover:hidden">{quoi}</span><span className="hidden text-[12.5px] font-semibold text-[#E8571C] group-hover:inline">Partir de celui-ci →</span></span>
+        </button>
       ))}
     </div>
   );
   return (
-    <section className="relative overflow-hidden py-14" aria-label="SaaS construits avec Bingoo!">
+    <section className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden pt-12 pb-4 text-left" aria-label="SaaS construits avec Bingoo!">
       <style>{"@keyframes vitrine{from{transform:translateX(0)}to{transform:translateX(-50%)}}@media (prefers-reduced-motion:reduce){.vitrine-rang{animation:none!important}}.vitrine-bande:hover .vitrine-rang{animation-play-state:paused}"}</style>
       <p className="text-center text-[13px] font-semibold uppercase tracking-[.16em] text-[#5B6075]" style={JK}>Construits avec Bingoo!</p>
-      <h2 className="mx-auto mt-2 max-w-[760px] px-4 text-center text-[28px] sm:text-[38px] font-bold leading-tight text-[#1E2030]" style={JK}>De vrais SaaS, en ligne, pour tous les métiers</h2>
-      <div className="vitrine-bande mt-9 space-y-4 [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]">
+      <h2 className="mx-auto mt-2 max-w-[760px] px-4 text-center text-[24px] sm:text-[32px] font-bold leading-tight text-[#1E2030]" style={JK}>De vrais SaaS, en ligne, pour tous les métiers</h2>
+      <p className="mx-auto mt-2 max-w-[640px] px-4 text-center text-[15px] text-[#5B6075]" style={JK}>Clique sur celui qui ressemble à ton projet : Bingoo! part de là et l'adapte à toi.</p>
+      <div className="vitrine-bande mt-7 space-y-4 [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]">
         {rangee(VITRINE.slice(0, 5), 1)}
         {rangee(VITRINE.slice(5), -1)}
       </div>
@@ -219,21 +222,6 @@ function Vitrine() {
   );
 }
 
-function PointsDeDepart({ choisir }) {
-  return (
-    <div className="hero-in mx-auto mt-8 w-full max-w-[980px] text-left" style={{ ...JK, animationDelay: ".24s" }}>
-      <p className="px-1 text-[13px] font-semibold text-[#5B6075]">Ou pars d'un point de départ, puis adapte-le à toi</p>
-      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {DEPARTS.map(([img, ty, titre, texte]) => (
-          <button key={img} type="button" onClick={() => choisir(texte, ty)} className="group overflow-hidden rounded-2xl border border-black/[.08] bg-white text-left shadow-[0_12px_30px_-22px_rgba(20,20,40,.5)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-22px_rgba(20,20,40,.55)]">
-            <div className="relative aspect-[16/10] overflow-hidden bg-[#F4F4F1]"><img src={`/depart/${img}.jpg`} alt={`Rendu réel : ${titre}`} loading="lazy" className={cx("absolute inset-0 h-full w-full object-top transition duration-500 group-hover:scale-[1.03]", ty === "app" ? "object-contain" : "object-cover")} /></div>
-            <div className="flex items-center justify-between gap-2 px-3.5 py-2.5"><span className="truncate text-[14px] font-bold text-[#1E2030]">{titre}</span><span className="shrink-0 rounded-full bg-[#F4F4F1] px-2 py-0.5 text-[11.5px] font-semibold text-[#5B6075]">{ty === "site" ? "Site" : ty === "app" ? "App" : "SaaS"}</span></div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function IdeeHero({ nav }) {
   const [texte, setTexte] = useState(""), [choix, setChoix] = useState(null), [busy, setBusy] = useState(false), [compte, setCompte] = useState(null);
@@ -278,7 +266,7 @@ function IdeeHero({ nav }) {
       {!url && type !== "saas" && <p className="mt-2 px-1 text-[12.5px] text-[#5B6075]">{type === "video" ? "20 secondes en motion design, à tes couleurs, avec une musique libre de droits : tu la retouches en discutant et tu la télécharges en vertical, carré ou paysage." : type === "app" ? "Ton app pensée pour le téléphone, à essayer tout de suite dans Expo Go. La publication sur l'App Store et Google Play arrive bientôt." : "Ton site en ligne en quelques minutes : tes services, tes prix, tes horaires et un formulaire de demande."}</p>}
       {!texte && <div className="mt-3 flex flex-wrap gap-1.5 border-t border-black/[.06] px-1 pt-3">{EXEMPLES_IDEE[type].map((x) => <button key={x} type="button" onClick={() => { setTexte(x); zone.current?.focus(); }} className="rounded-full bg-[#F4F4F1] px-3 py-1.5 text-[13px] text-[#5B6075] hover:bg-[#ECECE7]">{x}</button>)}</div>}
     </form>
-    <PointsDeDepart choisir={(t, ty) => { setTexte(t); setChoix(ty); zone.current?.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(() => zone.current?.focus(), 400); }} />
+    <Vitrine choisir={(t, ty) => { setTexte(t); setChoix(ty); zone.current?.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(() => zone.current?.focus(), 400); }} />
   </>);
 }
 
@@ -332,7 +320,6 @@ export default function Landing() {
       </div>
 
       <main className="bg-white">
-        <Vitrine />
         <div className="mx-auto max-w-[1440px] bg-white">
 
         {/* Comment ça marche : 3 étapes, montrées sur une vraie construction (Agendo, construit par le robot de Bingoo!) */}
