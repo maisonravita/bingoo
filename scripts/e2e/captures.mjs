@@ -406,11 +406,11 @@ if (CONSTRUIRE === "spec") {
   await p.screenshot({ path: `${DOSSIER}/vitrine-clic.png` });
   const vv = p.getByText("Des pubs en motion design, faites par Bingoo!"); await vv.scrollIntoViewIfNeeded().catch(() => null); await p.waitForTimeout(3500);
   const lues = await p.evaluate(() => [...document.querySelectorAll("video[poster^='/videos/']")].map((v) => v.currentTime > 0.5 && !v.paused));
-  console.log(lues.length === 10 && lues.slice(0, 4).every(Boolean) ? `✓ dix vidéos Bingoo!, ${lues.filter(Boolean).length} qui tournent à l'écran` : `✗ vidéos : ${JSON.stringify(lues)}`);
-  await p.screenshot({ path: `${DOSSIER}/videos-accueil-1.png` });
-  await p.getByText("Factur'Artisan").scrollIntoViewIfNeeded().catch(() => null); await p.waitForTimeout(3500);
-  const bas = await p.evaluate(() => [...document.querySelectorAll("video[poster^='/videos/']")].slice(4).map((v) => v.currentTime > 0.5 && !v.paused));
-  console.log(bas.some(Boolean) ? "✓ les vidéos du bas démarrent quand on y arrive" : `✗ vidéos du bas : ${JSON.stringify(bas)}`);
+  console.log(lues.length === 20 && lues.filter(Boolean).length >= 4 ? `✓ vingt cartes vidéo dans deux bandes, ${lues.filter(Boolean).length} qui tournent à l'écran` : `✗ vidéos : ${JSON.stringify(lues)}`);
+  const x0 = await p.evaluate(() => [...document.querySelectorAll(".videos-rang")].map((r) => r.getBoundingClientRect().x));
+  await p.waitForTimeout(3000);
+  const x1 = await p.evaluate(() => [...document.querySelectorAll(".videos-rang")].map((r) => r.getBoundingClientRect().x));
+  console.log(x0.length === 2 && x1[0] < x0[0] && x1[1] > x0[1] ? "✓ les deux bandes défilent, en sens inverse" : `✗ défilement : ${JSON.stringify([x0, x1])}`);
   await p.screenshot({ path: `${DOSSIER}/videos-accueil-2.png` });
   await p.screenshot({ path: `${DOSSIER}/videos-accueil.png` });
   const large = await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 2); console.log(large ? "✗ débordement horizontal" : "✓ pas de débordement horizontal");
