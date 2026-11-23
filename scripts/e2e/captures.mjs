@@ -333,7 +333,8 @@ if (CONSTRUIRE === "visiteur-apercu") {
     await p.getByRole("button", { name: /Construire mon idée/ }).click().catch(() => null);
     const btn = p.getByRole("button", { name: /^Construire / }).first();
     const vu = await btn.waitFor({ timeout: 90000 }).then(() => true).catch(() => false);
-    const compteDemande = await p.getByText(/Crée ton compte|Créer mon compte/).first().isVisible().catch(() => false);
+    await p.waitForTimeout(7000);
+    const compteDemande = await p.getByRole("heading", { name: /Crée ton compte/ }).first().isVisible().catch(() => false);
     console.log(vu ? `✓ aperçu affiché sans compte en ${Math.round((Date.now() - t0) / 1000)} s (${choix ? "site" : "SaaS"})` : "✗ pas d'aperçu sans compte", compteDemande ? "✗ compte demandé avant l'aperçu" : "");
     await p.screenshot({ path: `${DOSSIER}/visiteur-apercu-${choix ? "site" : "saas"}.png` });
     await btn.click().catch(() => null); await p.waitForTimeout(1500);
