@@ -5,6 +5,7 @@ on:
       max: { description: "Nombre de SaaS au plus", required: false, default: "15" }
       slug: { description: "Un seul SaaS (facultatif)", required: false, default: "" }
       blanc: { description: "1 = mesurer sans rien modifier", required: false, default: "0" }
+      debug: { description: "Diagnostic de lisibilité d'un mot affiché (facultatif)", required: false, default: "" }
   schedule: [{ cron: "*/10 * * * *" }]
 concurrency: { group: verif-apps, cancel-in-progress: false }
 jobs:
@@ -23,3 +24,4 @@ jobs:
           MAX: ${{ github.event.inputs.max || '15' }}
           SLUG: ${{ github.event.inputs.slug || '' }}
           BLANC: ${{ github.event.inputs.blanc || '0' }}
+          DEBUG_TEXTE: ${{ github.event.inputs.debug || '' }}

@@ -81,6 +81,8 @@ for (const a of apps) {
     await p.goto(`http://localhost:${port}/`, { waitUntil: "domcontentloaded", timeout: 60000 });
     const fin = Date.now() + 25000 + (a.spec?.ecrans?.length ?? 8) * 9000;
     while (!resultats && Date.now() < fin) await p.waitForTimeout(500);
+    // Diagnostic de lisibilité (DEBUG_TEXTE=mot) : couleurs calculées seulement, aucun contenu
+    if (process.env.DEBUG_TEXTE) console.log("  diagnostic :", JSON.stringify(await p.evaluate((mot) => [...document.querySelectorAll("#root *")].filter((el) => [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim() === mot)).slice(0, 4).map((el) => { const chaine = []; for (let n = el; n && n.nodeType === 1 && chaine.length < 6; n = n.parentElement) { const cs = getComputedStyle(n); chaine.push([cs.backgroundColor, cs.backgroundImage.slice(0, 60)]); } return { couleur: getComputedStyle(el).color, inline: el.style.color, lisible: el.dataset.lisible ?? null, fonds: chaine }; }), process.env.DEBUG_TEXTE)));
     await ctx.close();
   } catch (e) { console.log("  page impossible à ouvrir :", String(e?.message ?? e).slice(0, 200)); }
   if (!resultats) {
