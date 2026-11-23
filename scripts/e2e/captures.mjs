@@ -272,7 +272,11 @@ if (CONSTRUIRE === "lien-public") {
   const [a] = await q(`select a.slug, a.workspace_id from saas_apps a join workspaces w on w.id = a.workspace_id where w.name like 'Robot film%' and a.statut = 'pret' order by a.maj desc limit 1`);
   console.log("site :", a?.slug);
   const etat = async (p, nom) => { await p.waitForTimeout(6000); const r = await p.evaluate(() => ({ url: location.href.replace(location.origin, ""), atelier: !!document.querySelector('iframe[title^="Aperçu"]') || /Demander à Bingoo|Construction/.test(document.body.innerText.slice(0, 400)), titre: document.title, texte: document.body.innerText.replace(/\s+/g, " ").slice(0, 120) })); console.log(nom, JSON.stringify(r)); await p.screenshot({ path: `${DOSSIER}/lien-${nom}.png` }); };
-  { const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await c.newPage(); await p.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await etat(p, "visiteur"); await c.close(); }
+  { const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR", recordVideo: { dir: `${DOSSIER}/film`, size: { width: 1440, height: 900 } } }); const p = await c.newPage(); await p.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await etat(p, "visiteur");
+    // Le site en ligne filmé comme un visiteur le parcourt (pour le film de présentation)
+    const fr = p.frames().find((f) => f !== p.mainFrame()) ?? p.mainFrame();
+    for (let k = 0; k < 16; k++) { await p.mouse.move(720, 500); await p.mouse.wheel(0, 240).catch(() => null); await fr.evaluate(() => window.scrollBy(0, 240)).catch(() => null); await p.waitForTimeout(420); }
+    await p.waitForTimeout(1200); const v = p.video(); await c.close(); if (v) { fs.mkdirSync(`${DOSSIER}/film`, { recursive: true }); fs.renameSync(await v.path(), `${DOSSIER}/film/c-visiteur.webm`); console.log("✓ visite filmée"); } }
   { const { ctx: c, page: p } = await ouvrir(a.workspace_id, { "bingoo-guide": "fini" }); await p.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(5000);
     await p.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await etat(p, "createur");
     await p.evaluate((s) => { location.hash = `#/app/${s}`; }, a.slug); await etat(p, "createur-hash"); await c.close(); }
