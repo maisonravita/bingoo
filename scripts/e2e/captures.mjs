@@ -358,12 +358,15 @@ if (CONSTRUIRE === "spec") {
   }
   // Photos réelles dans l'aperçu d'une idée (espace neuf : limite du jour)
   const wsI = await creerEspace("Robot photos " + new Date().toISOString().slice(0, 16)); await q(`update workspaces set plan = 'lancer_pro', plan_status = 'active', onboarded = true where id = ${lit(wsI)}`);
-  const { ctx: ci, page: pi } = await ouvrir(wsI, { "bingoo-idee": { texte: "Un site de recettes végétariennes où chacun publie ses plats", type: "saas", at: Date.now() } });
+  for (const [nomF, texteI, attendu] of [["apercu-photos", "Une app où les randonneurs partagent leurs sorties en montagne avec photos", true], ["apercu-recettes", "Un site de recettes végétariennes où chacun publie ses plats", false]]) {
+  const { ctx: ci, page: pi } = await ouvrir(wsI, { "bingoo-idee": { texte: texteI, type: "saas", at: Date.now() } });
   await pi.goto(`${SITE}/?c=${Date.now()}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
   await pi.waitForFunction(() => /Construire \S+ \S|Le nom affiché|Son nom/.test(document.body.innerText) && !/étudie ton idée|prépare l'aperçu/i.test(document.body.innerText), null, { timeout: 150000 }).catch(() => null); await pi.waitForTimeout(8000);
   console.log("galeries :", JSON.stringify(await pi.evaluate(() => { try { return (JSON.parse(localStorage.getItem("bingoo-idee"))?.apercu?.principal?.blocs ?? []).filter((b) => b.type === "galerie").map((b) => ({ el: b.elements, img: (b.images ?? []).map((x) => !!x) })); } catch (e) { return e.message; } })).slice(0, 300));
-  console.log((await pi.getByText("via Wikimedia Commons").count()) ? "✓ photos réelles dans l'aperçu (crédits affichés)" : "✗ pas de photos dans l'aperçu");
-  await pi.screenshot({ path: `${DOSSIER}/apercu-photos.png`, fullPage: true }); await ci.close();
+  const aPhotos = (await pi.getByText("via Wikimedia Commons").count()) > 0;
+  console.log(aPhotos === attendu ? `✓ ${nomF} : ${aPhotos ? "photos réelles (crédits affichés)" : "aucune photo inventée"}` : `✗ ${nomF} : photos=${aPhotos}`);
+  await pi.screenshot({ path: `${DOSSIER}/${nomF}.png`, fullPage: true }); await ci.close();
+  }
 } else if (CONSTRUIRE === "atelier-diag") {
   // Diagnostic : la page du membre ouverte sur l'atelier d'un SaaS dont une modification attend son test
   const [a0] = await q(`select a.id, a.slug, a.workspace_id ws, a.version, a.brouillon->'_test' t from saas_apps a where a.slug = ${lit(process.env.DOMAINE || "asso-pilote-6t0r")}`);
