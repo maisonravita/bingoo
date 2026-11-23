@@ -235,7 +235,9 @@ const lisible = (() => {
   };
   const lum = (c) => { const f = (x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
   const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
-  const fond = (el) => { for (let n = el; n && n.nodeType === 1; n = n.parentElement) { const cs = getComputedStyle(n); if (cs.backgroundImage && cs.backgroundImage !== "none") return null; const b = num(cs.backgroundColor); if (b && b[3] > 0.95) return b; } return [255, 255, 255, 1]; };
+  // Même lecture du fond que le contrôle de finition : la première couleur assez opaque en remontant ; un dégradé compte pour toutes ses couleurs
+  const fond = (el) => { for (let n = el; n && n.nodeType === 1; n = n.parentElement) { const cs = getComputedStyle(n), bi = cs.backgroundImage; if (bi && bi !== "none") { if (bi.indexOf("url(") >= 0) return null; const st = (bi.match(/rgba?[(][^)]*[)]/g) || []).map(num).filter((c) => c && c[3] > 0.5); if (st.length) return st; } const b = num(cs.backgroundColor); if (b && b[3] > 0.9) return [b]; } return [[255, 255, 255, 1]]; };
+  const pire = (c, fs) => Math.min(...fs.map((f) => ratio(c, f)));
   let attente = 0;
   const passe = () => {
     attente = 0;
@@ -246,12 +248,17 @@ const lisible = (() => {
       let texte = false; for (const k of el.childNodes) if (k.nodeType === 3 && k.textContent.trim().length > 1) { texte = true; break; }
       if (!texte) continue; n++;
       const cs = getComputedStyle(el), c = num(cs.color); if (!c || c[3] < 0.5) continue;
-      const f = fond(el); if (!f) continue;
+      const fs = fond(el); if (!fs) continue;
       const taille = parseFloat(cs.fontSize), seuil = taille >= 24 || (Number(cs.fontWeight) >= 700 && taille >= 18.66) ? 3.1 : 4.6;
-      if (ratio(c, f) >= seuil) continue;
-      const vers = lum(f) > 0.4 ? [0, 0, 0] : [255, 255, 255];
-      let k = 0.1, nc = c;
-      while (k <= 1) { nc = [0, 1, 2].map((i) => Math.round(c[i] + (vers[i] - c[i]) * k)); if (ratio(nc, f) >= seuil) break; k += 0.1; }
+      if (pire(c, fs) >= seuil) continue;
+      // Vers le noir sur un fond clair, vers le blanc sur un fond foncé ; si le premier sens ne suffit pas, l'autre
+      const clair = fs.reduce((x, f) => x + lum(f), 0) / fs.length > 0.4;
+      let nc = null;
+      for (const vers of clair ? [[0, 0, 0], [255, 255, 255]] : [[255, 255, 255], [0, 0, 0]]) {
+        for (let k = 0.1; k <= 1.001; k += 0.1) { const t = [0, 1, 2].map((i) => Math.round(c[i] + (vers[i] - c[i]) * k)); if (pire(t, fs) >= seuil) { nc = t; break; } }
+        if (nc) break;
+      }
+      if (!nc) continue;
       el.style.setProperty("color", "rgb(" + nc.join(",") + ")", "important"); el.dataset.lisible = "1";
     }
   };
