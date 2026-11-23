@@ -244,7 +244,8 @@ const lisible = (() => {
     const els = document.querySelectorAll("#root *"); let n = 0;
     for (const el of els) {
       if (n > 600) break;
-      if (!el.firstChild || el.dataset.lisible === "1" || el.closest("svg")) continue;
+      // Jamais dans un bouton, un lien ou un onglet : leur couleur change avec leur état (choisi, survolé), elle ne doit pas être figée
+      if (!el.firstChild || el.dataset.lisible === "1" || el.closest("svg, button, a, [role=button], [role=tab], [aria-pressed], [aria-selected], select, input, textarea, label")) continue;
       let texte = false; for (const k of el.childNodes) if (k.nodeType === 3 && k.textContent.trim().length > 1) { texte = true; break; }
       if (!texte) continue; n++;
       const cs = getComputedStyle(el), c = num(cs.color); if (!c || c[3] < 0.5) continue;
