@@ -122,12 +122,30 @@ const CATALOGUE = `Scènes possibles (type et champs, textes en français, très
 - logo { texte (≤ 30 car., l'appel à l'action) } : TOUJOURS la dernière scène
 Aucun dessin, aucune icône, aucun objet illustré : uniquement du texte animé (le logo du membre est ajouté à part).
 Chaque scène peut avoir "fond": "couleur" | "blanc" | "noir" (sinon le fond de la vidéo) et "transition": "vague" (une vague de couleur balaie l'écran).`;
-const REGLES = `Règles : 8 à 11 scènes, 20 à 30 secondes, rythme de pub TikTok (alterne textes, objets et un aplat ou un impact ; jamais deux « mots » de suite). Commence par une accroche forte (mots, rature ou impact). Finis par logo. Alterne fonds noir, blanc et couleur pour le rythme.
+const REGLES = `Règles : 8 à 10 scènes, 20 à 24 secondes, rythme de pub TikTok (alterne textes, objets et un aplat ou un impact ; jamais deux « mots » de suite). Commence par une accroche forte (mots, rature ou impact). Finis par logo. Alterne fonds noir, blanc et couleur pour le rythme.
 Français, phrases très courtes, parle au spectateur. Aucun chiffre, avis, prix, résultat ou nombre de clients inventé : seulement ceux que la personne a écrits. Pas d'emoji, pas de vraie personne, pas de marque d'un autre.
 JSON : { "couleur": UNE couleur de marque franche et saturée en hexadécimal, qui colle au métier et se voit sur noir comme sur blanc (ex. rouge vif #E63946 pour un café, bleu électrique #2F5BFF pour une banque, vert franc #16A34A pour un primeur, or #D4A017 pour un barbier) ; jamais de violet par défaut ni de couleur terne,
 "nom": nom de l'entreprise ou du projet s'il est donné, sinon un nom court et crédible (1 à 3 mots), "fond": "noir" (pub premium, nuit, tech, luxe) ou "blanc" (frais, clair, pratique), "lien": adresse web ou @compte SEULEMENT s'il est écrit, sinon "", "secteur_en": 2 à 4 mots-clés anglais du secteur, "scenes": [...] }`;
 
 // Texte raccourci sans couper un mot en deux (« Depuis ton télépho » → « Depuis ton »)
+// Durées des scènes (les mêmes que le lecteur, src/lib/motion.js) : la vidéo tient en 24 secondes au plus
+const DUREES_V: Record<string, number> = { ecran_vitre: 3.2, ecran_zoom: 3.4, ecran_cascade: 3.2, ecran_defile: 3.4, ecran_split: 3, ecran_mur: 3, ecran_curseur: 3.4, ecran_telephone: 3.2, impact: 1.4, liste: 3.2, choix: 3, rature: 2.8, mots: 2.6, objet: 3.2, pilules: 3.2, compteur: 2.8, barres: 3, pastille: 1.8, cartes: 2.8, aplat: 2.2, logo: 3 };
+const dureeV = (e: any) => Math.max(1.4, Math.min(5, Number(e?.duree) || DUREES_V[e?.type] || 2.6));
+export function tenirDuree<T extends { type: string }>(scenes: T[], max = 24): T[] {
+  const l = [...scenes]; const total = () => l.reduce((a, e) => a + dureeV(e), 0);
+  // On garde l'accroche, le logo de fin et les vrais écrans en priorité ; on retire d'abord les scènes de texte en double
+  const garde: Record<string, number> = { logo: 99, impact: 3, rature: 3, liste: 2, pilules: 2, choix: 2, mots: 1, aplat: 1, pastille: 1, cartes: 1, objet: 1, compteur: 1, barres: 1 };
+  while (total() > max && l.length > 5) {
+    let pire = -1, note = Infinity;
+    for (let i = 1; i < l.length - 1; i++) {
+      const t = l[i].type, deja = l.slice(0, i).some((x) => x.type === t);
+      const n = (t.startsWith("ecran_") ? (l.filter((x) => x.type.startsWith("ecran_")).length > 4 ? 2.5 : 5) : garde[t] ?? 1) - (deja ? 1.5 : 0);
+      if (n <= note) { note = n; pire = i; }
+    }
+    if (pire < 0) break; l.splice(pire, 1);
+  }
+  return l;
+}
 const court2 = (v: unknown, n: number) => { const t = String(v ?? "").replace(/\s+/g, " ").trim(); if (t.length <= n) return t; const c = t.slice(0, n + 1), i = c.lastIndexOf(" "); return (i > n * 0.4 ? c.slice(0, i) : t.slice(0, n)).replace(/[\s,;:–-]+$/, ""); };
 // Nom de marque : jamais coupé au milieu d'un mot (« Boulangerie artisanale de Re »), ni fini par « de », « à »…
 const nomNet = (v: unknown, n = 28) => {
@@ -197,6 +215,7 @@ Si la demande n'a rien d'une vidéo pour une activité, un produit, un événeme
   // La construction tirée au sort est tenue : l'ouverture prévue passe en tête, et pas plus de deux scènes du même type
   if (!titresEcrans.length) { const k = scenes.findIndex((e) => e.type === ouverture); if (k > 0) scenes = [scenes[k], ...scenes.filter((_, j) => j !== k)]; }
   const vus: Record<string, number> = {}; scenes = scenes.filter((e) => e.type === "logo" || (vus[e.type] = (vus[e.type] ?? 0) + 1) <= 2);
+  scenes = tenirDuree(scenes);
   // L'allure proposée par l'IA une fois sur deux seulement : sinon elle prend presque toujours « nuit »
   const choisi = String(x?.look ?? "").split(/\s|:/)[0];
   const look = LOOKS_VIDEO[choisi] && Math.random() < 0.5 ? choisi : auHasard(Object.keys(LOOKS_VIDEO).filter((k) => k !== choisi));
@@ -215,5 +234,5 @@ Réponds avec le JSON complet : nom, fond, look, lien, couleur, note, scenes.`, 
   const scenes = scenesNettes(x?.scenes, `${texteSource} ${demande} ${JSON.stringify(script.scenes)}`, titresEcrans);
   const couleur = /^#[0-9a-f]{6}$/i.test(String(x?.couleur ?? "")) ? String(x.couleur) : script.couleur;
   const lk = String(x?.look ?? "").split(/\s|:/)[0];
-  return { ...script, ...(LOOKS_VIDEO[lk] ? { look: lk } : {}), nom: nomNet(x?.nom) || script.nom, fond: x?.fond === "blanc" ? "blanc" : x?.fond === "noir" ? "noir" : script.fond, lien: x?.lien !== undefined ? lienNet(x.lien) || script.lien : script.lien, scenes: scenes.length >= 4 ? scenes : script.scenes, ...(couleur ? { couleur } : {}), ...(court2(x?.note, 200) ? { note: court2(x.note, 200) } : { note: undefined }) };
+  return { ...script, ...(LOOKS_VIDEO[lk] ? { look: lk } : {}), nom: nomNet(x?.nom) || script.nom, fond: x?.fond === "blanc" ? "blanc" : x?.fond === "noir" ? "noir" : script.fond, lien: x?.lien !== undefined ? lienNet(x.lien) || script.lien : script.lien, scenes: tenirDuree(scenes.length >= 4 ? scenes : script.scenes), ...(couleur ? { couleur } : {}), ...(court2(x?.note, 200) ? { note: court2(x.note, 200) } : { note: undefined }) };
 }
