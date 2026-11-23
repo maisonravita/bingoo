@@ -37,11 +37,11 @@ function variante(slug, ab) {
   try { let v = localStorage.getItem(`bingoo-ab:${slug}`); if (!v) { v = Math.random() < 0.5 ? "A" : "B"; localStorage.setItem(`bingoo-ab:${slug}`, v); } return v; } catch { return "A"; }
 }
 
-export default function AppCadre({ slug, spec, version, paiement, domaine, ab, articles, className, apercu = false, retourPaiement = false, invite = null, tour = false, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null, capture = null, essai = false, ancre = null }) {
+export default function AppCadre({ enLigne = false, slug, spec, version, paiement, domaine, ab, articles, className, apercu = false, retourPaiement = false, invite = null, tour = false, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null, capture = null, essai = false, ancre = null }) {
   const [shell, setShell] = useState(null);
   useEffect(() => { verifierVersion(); }, []);
   useEffect(() => { let vivant = true; chargerGabarit().then((m) => { if (vivant) setShell(() => m.appHtml); }); return () => { vivant = false; }; }, []);
-  const doc = useMemo(() => !shell ? null : shell({ spec, slug, api: API, token: tour ? null : lire(slug), apercu, paiement, retour: lienApp(slug, domaine), retourPaiement, ab, variante: variante(slug, ab), invite, tour, articles: articles ?? [], blog: blogApp(slug, domaine), source, ecran, validation, precommande, verif, page, capture, essai, ancre }), [shell, slug, version, essai, ancre, capture?.join(","), validation?.inscrits, paiement?.actif, paiement?.essai_jours, paiement?.modele, ab?.actif, ab?.ecart, tour]); // eslint-disable-line react-hooks/exhaustive-deps
+  const doc = useMemo(() => !shell ? null : shell({ spec, slug, api: API, token: tour ? null : lire(slug), apercu, paiement, retour: lienApp(slug, domaine), retourPaiement, ab, variante: variante(slug, ab), invite, tour, articles: articles ?? [], blog: blogApp(slug, domaine), source, ecran, validation, precommande, verif, page, capture, essai, ancre, enLigne }), [shell, slug, version, essai, ancre, capture?.join(","), validation?.inscrits, paiement?.actif, paiement?.essai_jours, paiement?.modele, ab?.actif, ab?.ecart, tour]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const ecoute = (e) => {
       const d = e.data;

@@ -47,8 +47,8 @@ const PAGES = {
     lignes: [
       ["Point de départ", "Ton idée, un SaaS qui marche déjà, ou l'adresse d'un site qui te plaît", "Ton idée"],
       ["Idées de SaaS qui marchent déjà", "Plus de 100 000 SaaS et applis, avec leurs revenus", "Non"],
-      ["Avant de construire", "Trois vrais rendus de ta page, tu choisis ton style", "—"],
-      ["Vérification", "Un robot teste chaque écran comme un vrai utilisateur avant la mise en ligne", "—"],
+      ["Avant de construire", "Trois vrais rendus de ta page, tu choisis ton style", "Non annoncé sur leur site"],
+      ["Vérification", "Un robot teste chaque écran comme un vrai utilisateur avant la mise en ligne", "Non annoncé sur leur site"],
       ["Prix", BINGOO.prix, "Solo 29 €, Builder 49 €, Pro 99 € HT/mois [1]"],
       ["Frais sur les ventes", BINGOO.commission, "5,7 %, 4,7 % ou 3,7 % par vente selon la formule [1]"],
       ["Connecteurs", "Google Analytics, Meta Pixel, Tag Manager, Calendly, Mailchimp", "18 connecteurs annoncés [2]"],

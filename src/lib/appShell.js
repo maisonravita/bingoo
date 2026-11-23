@@ -118,10 +118,10 @@ function cssTaste(spec) {
 }
 const policeUrl = (st) => "https://fonts.googleapis.com/css2?" + [...new Set([st.police, st.titres])].map((p) => "family=" + p.replace(/ /g, "+") + (p === "Fraunces" ? ":opsz,wght@9..144,500;9..144,700" : p === "Playfair Display" || p === "Bebas Neue" || p === "DM Serif Display" ? (p === "Playfair Display" ? ":wght@500;700;800" : "") : ":wght@400;500;600;700;800")).join("&") + "&display=swap";
 
-export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null, capture = null, essai = false, ancre = null }) {
+export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null, capture = null, essai = false, ancre = null, enLigne = false }) {
   // Capture (vidéo pub) : mêmes données d'exemple que la vérification, aucune requête au serveur
   if (capture) verif = true;
-  const boot = { style: styleDe(spec), spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog, source, ecran, validation, precommande, verif, page, capture, essai, ancre: typeof ancre === "string" && /^[a-z0-9-]{1,40}$/.test(ancre) ? ancre : null };
+  const boot = { style: styleDe(spec), spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog, source, ecran, validation, precommande, verif, page, capture, essai, ancre: typeof ancre === "string" && /^[a-z0-9-]{1,40}$/.test(ancre) ? ancre : null, enLigne: !!enLigne };
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${String(spec.nom ?? "Mon SaaS").replace(/[<&]/g, "")}</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js"></script>
@@ -1503,8 +1503,9 @@ function BadgeBingoo() {
 // Connecteurs en un clic (Google Analytics, Google Tag Manager, Meta Pixel, Calendly, Mailchimp) : seulement sur la
 // vraie page en ligne (jamais en aperçu, en test ni dans le cadre de l'atelier) ; les traceurs attendent l'accord du
 // visiteur (bandeau cookies, refus aussi simple que l'accord, choix gardé par application)
-const CX = S.connecteurs ?? {}, EN_VRAI = !B.apercu && !B.verif && !B.capture && !B.essai && window.parent === window;
-const TRACEURS = EN_VRAI && !!(CX.ga || CX.gtm || CX.pixel);
+const CX = S.connecteurs ?? {}, EN_VRAI = !B.apercu && !B.verif && !B.capture && !B.essai && (B.enLigne || window.parent === window);
+// Dans la page publique de Bingoo!, c'est elle qui gère le bandeau et les traceurs ; ici seulement si l'appli est servie seule
+const TRACEURS = EN_VRAI && window.parent === window && !!(CX.ga || CX.gtm || CX.pixel);
 const CLE_COOKIES = "bingoo-cookies-" + (B.slug ?? "");
 const choixCookies = () => { try { return localStorage.getItem(CLE_COOKIES); } catch (e) { return null; } };
 let traceursCharges = false;

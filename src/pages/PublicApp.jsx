@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import AppCadre, { API } from "../components/AppCadre";
 import Splash from "../components/Splash";
+import { aDesTraceurs, chargerTraceurs, choixCookies, cleCookies } from "../lib/traceurs";
 
 // Page publique d'un SaaS construit par Bingoo! : #/app/<slug>, ou son propre nom de domaine. L'application en plein écran,
 // installable sur téléphone et ordinateur (manifeste servi par Bingoo!, service worker minimal).
@@ -38,13 +39,25 @@ export default function PublicApp({ slug, domaine }) {
     window.addEventListener("beforeinstallprompt", ecoute);
     return () => { els.forEach((x) => x.remove()); window.removeEventListener("beforeinstallprompt", ecoute); };
   }, [app?.slug]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Traceurs du créateur (Analytics, Pixel…) : sur la page en ligne seulement (jamais dans l'atelier), après accord
+  const enLigne = window.top === window;
+  const traceurs = enLigne && app && aDesTraceurs(app.spec?.connecteurs);
+  const [cookies, setCookies] = useState(null);
+  useEffect(() => { if (!traceurs) return; const c = choixCookies(app.slug); setCookies(c ?? "demande"); if (c === "oui") chargerTraceurs(app.spec.connecteurs); }, [traceurs, app?.slug]); // eslint-disable-line react-hooks/exhaustive-deps
+  const choisir = (v) => { try { localStorage.setItem(cleCookies(app.slug), v); } catch { /* stockage indisponible */ } setCookies(v); if (v === "oui") chargerTraceurs(app.spec.connecteurs); };
   if (app === undefined) return <Splash />;
   if (!app) return <div className="min-h-screen grid place-items-center bg-paper text-ink-soft p-6 text-center"><p>Cette application n'existe pas ou n'est plus en ligne.</p></div>;
   // Abonnement Bingoo! du créateur arrêté depuis plus de 5 jours : le service est mis en pause (rien n'est effacé)
   if (app.suspendu) return <div className="min-h-screen grid place-items-center bg-paper p-6 text-center"><div><p className="text-[20px] font-bold text-ink">{app.spec?.nom}</p><p className="mt-2 text-ink-soft">Ce service est momentanément indisponible. Reviens un peu plus tard.</p></div></div>;
   return (
     <>
-      <AppCadre page={ctx.page} slug={app.slug} spec={app.spec} version={app.version} paiement={app.paiement} domaine={app.domaine} ab={app.ab} articles={app.articles} retourPaiement={ctx.retour} invite={ctx.invite} tour={ctx.tour} source={ctx.source} ecran={ctx.ecran} validation={app.validation} precommande={ctx.precommande} className="fixed inset-0 w-full h-full border-0" />
+      <AppCadre enLigne={enLigne} page={ctx.page} slug={app.slug} spec={app.spec} version={app.version} paiement={app.paiement} domaine={app.domaine} ab={app.ab} articles={app.articles} retourPaiement={ctx.retour} invite={ctx.invite} tour={ctx.tour} source={ctx.source} ecran={ctx.ecran} validation={app.validation} precommande={ctx.precommande} className="fixed inset-0 w-full h-full border-0" />
+      {traceurs && cookies === "demande" && (
+        <div role="dialog" aria-label="Cookies" className="fixed inset-x-3 bottom-3 z-20 mx-auto max-w-[560px] rounded-2xl bg-white p-4 text-[14px] text-[#0F172A] shadow-xl ring-1 ring-black/10">
+          <p>Nous utilisons des cookies de mesure d'audience{app.spec.connecteurs.pixel ? " et de publicité" : ""} pour améliorer ce site. Vous pouvez accepter ou refuser.</p>
+          <div className="mt-3 flex justify-end gap-2"><button onClick={() => choisir("non")} className="rounded-lg border border-[#CBD5E1] bg-white px-4 py-2 font-semibold">Refuser</button><button onClick={() => choisir("oui")} className="rounded-lg bg-[#0F172A] px-4 py-2 font-semibold text-white">Accepter</button></div>
+        </div>
+      )}
       {ios && app.spec?.type !== "site" && !app.validation && !ctx.page && (
         <div className="fixed inset-x-3 bottom-3 z-10 rounded-2xl bg-white/97 shadow-xl ring-1 ring-black/10 p-3.5 text-[13.5px] text-[#0F172A] flex items-start gap-3">
           <span className="text-[22px]">📲</span>

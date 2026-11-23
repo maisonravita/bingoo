@@ -401,8 +401,9 @@ if (CONSTRUIRE === "spec") {
   await pv.getByRole("button", { name: "Accepter" }).click(); await pv.waitForTimeout(2500);
   const apres = await pv.evaluate(() => [...document.scripts].some((s) => /googletagmanager/.test(s.src)) && typeof window.gtag === "function");
   console.log(apres ? "✓ Google Analytics chargé après l'accord" : "✗ Google Analytics non chargé");
-  await pv.getByText("Recevoir nos nouvelles").first().click().catch(() => null); await pv.waitForTimeout(800);
-  console.log((await pv.getByText("Prendre rendez-vous").count()) && (await pv.locator('input[name="EMAIL"]').count()) ? "✓ boutons Calendly et Mailchimp" : "✗ boutons absents");
+  const fv = pv.frameLocator("iframe").first();
+  await fv.getByText("Recevoir nos nouvelles").first().click().catch(() => null); await pv.waitForTimeout(800);
+  console.log((await fv.getByText("📅 Prendre rendez-vous").count()) && (await fv.locator('input[name="EMAIL"]').count()) ? "✓ boutons Calendly et Mailchimp" : "✗ boutons absents");
   await pv.screenshot({ path: `${DOSSIER}/connecteurs-visiteur-2.png` }); await v.close();
   await appel("saas-app-reglages", { workspace_id: ws, app_id: a.id, quoi: "connecteurs", connecteurs: {} });
 } else if (CONSTRUIRE === "vitrine") {
