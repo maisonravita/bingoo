@@ -230,6 +230,15 @@ async function designsApercu(motsCles: string, wsId: string) {
     }
     if (out.length >= 3) break;
   }
+  // Trois polices de titre différentes : sinon on remplace les doublons par des polices de caractère
+  const { TITRES_CARACTERE } = await import("./design.ts");
+  const prises = new Set<string>();
+  for (let i = 0; i < out.length; i++) {
+    const p = out[i]?.polices?.titres;
+    if (p && !prises.has(p)) { prises.add(p); continue; }
+    const libre = (TITRES_CARACTERE as string[]).find((f) => !prises.has(f)) ?? "Fraunces";
+    prises.add(libre); out[i] = { ...out[i], polices: { ...out[i].polices, titres: libre } };
+  }
   // Une ambiance claire et une sombre au moins parmi les trois (le haut de page suit le mode du style)
   if (out.length === 3 && out.every((d) => d.mode === out[0].mode)) out[2] = { ...out[2], mode: out[0].mode === "dark" ? "light" : "dark" };
   return out;

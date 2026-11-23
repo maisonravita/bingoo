@@ -239,6 +239,9 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   const [jointes, setJointes] = useState([]); // [{ url, nom }]
   const [envoiImage, setEnvoiImage] = useState(false);
   const [versions, setVersions] = useState(null);
+  // File de demandes : écrites pendant que Bingoo! travaille, lancées une par une dès qu'il est libre
+  const [file, setFile] = useState([]);
+  const sauverRetouche = useRef(0);
   const cadreRef = useRef(null), fichierRef = useRef(null), saisieRef = useRef(null);
   // Ce que le membre a consommé : modifications du mois, crédits, part de son IA du mois
   const [conso, setConso] = useState(null);
@@ -350,7 +353,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
       if (e.source !== cadreRef.current?.contentWindow) return;
       const d = e.data ?? {};
       if (d.type === "bingoo-atelier-pret") { pousserOutil(); return; }
-      if (d.type === "bingoo-atelier-element") { setElement({ description: String(d.description ?? "").slice(0, 300), ecran: String(d.ecran ?? "") }); setOutil(null); setTimeout(() => saisieRef.current?.focus(), 50); return; }
+      if (d.type === "bingoo-atelier-element") { setElement({ description: String(d.description ?? "").slice(0, 300), ecran: String(d.ecran ?? ""), chemin: String(d.chemin ?? ""), signe: String(d.signe ?? ""), texte: !!d.texte, couleur: d.couleur, fond: d.fond, retouche: d.retouche ?? {} }); return; }
       if (d.type === "bingoo-atelier-texte" && app) {
         const avant = String(d.avant ?? ""), apres = String(d.apres ?? "");
         const n = echanges.length, versionAvant = app.version;
@@ -409,12 +412,18 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   };
 
   // Une modification demandée dans la conversation : écrite, puis mise en ligne, puis l'aperçu se recharge
-  const envoyer = async (texte, ecranForce) => {
+  const envoyer = async (texte, ecranForce, attendue) => {
     const t = (texte ?? demande).trim();
-    if (t.length < 3 || occupe || !app) return;
-    const n = echanges.length;
-    const imgs = jointes, el = element, versionAvant = app.version;
-    setEchanges((l) => [...l, { moi: t, images: imgs, element: el?.description, etat: "encours" }]); setDemande(""); setJointes([]); setElement(null); setOccupe(true);
+    if (t.length < 3 || !app) return;
+    const imgs = attendue ? attendue.images : jointes, el = attendue ? attendue.element : element;
+    // Bingoo! est occupé (ou construit encore) : la demande attend son tour dans la file
+    if (!attendue && (occupe || !fini || testEnCours)) {
+      setFile((f) => [...f, { texte: t, ecran: ecranForce ?? ecran, images: imgs, element: el }]); setDemande(""); setJointes([]); setElement(null); setOutil(null);
+      return;
+    }
+    if (occupe) return;
+    const n = echanges.length, versionAvant = app.version;
+    setEchanges((l) => [...l, { moi: t, images: imgs, element: el?.description, etat: "encours" }]); setDemande(""); setJointes([]); setElement(null); setOutil(null); setOccupe(true);
     const maj = (o) => setEchanges((l) => l.map((x, k) => (k === n ? { ...x, ...o } : x)));
     try {
       const cibleEcran = ecranForce ?? (el?.ecran && el.ecran !== "_site" && !el.ecran.startsWith("_") ? el.ecran : ecran) ?? "";
@@ -451,6 +460,31 @@ export function Chantier({ ws, nav, init, atelier = false }) {
     }, 4000);
     return () => clearInterval(t);
   }, [testEnCours, app?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // La file avance toute seule : dès que Bingoo! est libre (construction finie, rien en test), la demande suivante part
+  useEffect(() => {
+    if (!file.length || occupe || !fini || testEnCours || !app) return;
+    const [x, ...reste] = file; setFile(reste);
+    const ecr = x.ecran && !String(x.ecran).startsWith("_") ? x.ecran : (x.element?.ecran && !x.element.ecran.startsWith("_") ? x.element.ecran : "");
+    envoyer(x.texte, ecr, x);
+  }, [file, occupe, fini, testEnCours, app?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Outil Sélectionner : retouche directe de l'élément choisi, visible tout de suite, enregistrée sans IA
+  const retoucher = (patch) => {
+    if (!element?.chemin || !app) return;
+    const css = { ...(element.retouche ?? {}), ...patch };
+    for (const k of Object.keys(css)) if (css[k] == null || css[k] === false || (k === "echelle" && Math.abs(css[k] - 1) < 0.01)) delete css[k];
+    const el = { ...element, retouche: patch === null ? {} : css };
+    setElement(el);
+    const msg = { type: "bingoo-atelier-retouche", chemin: el.chemin, ecran: el.ecran || "_site", signe: el.signe, css: el.retouche };
+    try { cadreRef.current?.contentWindow?.postMessage(msg, "*"); } catch (_) { /* aperçu pas prêt */ }
+    clearTimeout(sauverRetouche.current);
+    sauverRetouche.current = setTimeout(async () => {
+      try { await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "retouche", chemin: msg.chemin, ecran: msg.ecran, signe: msg.signe, css: msg.css }); }
+      catch (x) { setEchanges((l) => [...l, { moi: "Retouche de l'élément", etat: "ko", erreur: x.message }]); }
+    }, 700);
+  };
+  const deselectionner = () => { setElement(null); try { cadreRef.current?.contentWindow?.postMessage({ type: "bingoo-atelier-deselect" }, "*"); } catch (_) { /* rien */ } };
 
   // Le robot de Bingoo! : il ouvre chaque écran en coulisses, clique comme un utilisateur, et envoie le résultat.
   // Une seule fois par version et par passage ; il repasse dès qu'une correction arrive.
@@ -598,15 +632,19 @@ export function Chantier({ ws, nav, init, atelier = false }) {
           {/* La zone de saisie */}
           <form onSubmit={(e) => { e.preventDefault(); envoyer(); }} className="shrink-0 border-t border-line p-3">
             <div className={cx("rounded-2xl border bg-white p-2.5 transition", fini ? "border-line focus-within:border-ink-faint focus-within:shadow-[0_8px_30px_-18px_rgba(21,23,42,.4)]" : "border-line opacity-60")}>
+              {file.length > 0 && <div className="mb-2 space-y-1 border-b border-line px-1 pb-2">
+                <p className="text-[11.5px] font-semibold uppercase tracking-wider text-ink-faint">En attente · {file.length}</p>
+                {file.map((x, i) => <div key={i} className="flex items-center gap-2 text-[13px]"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#F1EFEA] text-[11px] font-bold tabular-nums text-ink-soft">{i + 1}</span><span className="min-w-0 flex-1 truncate">{x.texte}</span><button type="button" aria-label="Retirer de la file" onClick={() => setFile((f) => f.filter((_, k) => k !== i))} className="text-ink-faint hover:text-ink">×</button></div>)}
+              </div>}
               {(element || jointes.length > 0 || envoiImage) && <div className="mb-1.5 flex flex-wrap items-center gap-1.5 px-1">
-                {element && <span className="flex max-w-full items-center gap-1.5 rounded-lg bg-[#FFF1EA] px-2 py-1 text-[12px] text-[#9A3412]"><span className="truncate">◎ {element.description}</span><button type="button" aria-label="Retirer l'élément" onClick={() => setElement(null)} className="font-bold">×</button></span>}
+                {element && <span className="flex max-w-full items-center gap-1.5 rounded-lg bg-[#FFF1EA] px-2 py-1 text-[12px] text-[#9A3412]"><span className="truncate">◎ {element.description}</span><button type="button" aria-label="Retirer l'élément" onClick={deselectionner} className="font-bold">×</button></span>}
                 {jointes.map((m) => <span key={m.url} className="relative"><img src={m.url} alt={m.nom} className="h-10 w-10 rounded-lg object-cover ring-1 ring-line" /><button type="button" aria-label="Retirer l'image" onClick={() => setJointes((l) => l.filter((y) => y.url !== m.url))} className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-ink text-[10px] text-white">×</button></span>)}
                 {envoiImage && <span className="text-[12px] text-ink-faint">Image en cours d'envoi…</span>}
               </div>}
               {fini && !occupe && !demande && echanges.length > 0 && <div className="mb-1.5 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none]">{(estSite ? IDEES_SITE : IDEES_SAAS).map((x) => <button key={x} type="button" onClick={() => { setDemande(x); saisieRef.current?.focus(); }} className="shrink-0 rounded-full border border-line bg-white px-3 py-1 text-[12px] font-medium text-ink-soft hover:border-ink/30 hover:text-ink">{x}</button>)}</div>}
-              <textarea ref={saisieRef} value={demande} onChange={(e) => setDemande(e.target.value)} disabled={!fini || occupe} rows={2}
+              <textarea ref={saisieRef} value={demande} onChange={(e) => setDemande(e.target.value)} disabled={!app} rows={2}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); envoyer(); } }}
-                placeholder={fini ? `Demande un changement à Bingoo!…` : "Tu pourras demander des changements dès que ton SaaS est en ligne"}
+                placeholder={!fini ? "Écris déjà ta première demande : Bingoo! la lance dès que la construction est finie" : occupe ? "Écris la suivante : elle attend son tour" : element ? "Que veux-tu changer sur cet élément ?" : `Demande un changement à Bingoo!…`}
                 className="block w-full resize-none bg-transparent px-1.5 text-[14.5px] outline-none placeholder:text-ink-faint" />
               <div className="mt-1.5 flex items-center gap-2">
                 <select value={ecran} onChange={(e) => setEcran(e.target.value)} disabled={!fini} className="min-w-0 max-w-[60%] truncate rounded-lg border border-line bg-[#FCFBF9] px-2 py-1 text-[12.5px] text-ink-soft">
@@ -618,7 +656,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.5l-8.5 8.5a6 6 0 0 1-8.5-8.5l9-9a4 4 0 0 1 5.7 5.7l-9 9a2 2 0 0 1-2.8-2.8l8.4-8.4" /></svg>
                 </button>
                 <div className="flex-1" />
-                <button type="submit" disabled={!fini || occupe || demande.trim().length < 3} aria-label="Envoyer" className="grid h-8 w-8 place-items-center rounded-full bg-ink text-white disabled:opacity-30">
+                <button type="submit" disabled={!app || demande.trim().length < 3} aria-label={occupe || !fini ? "Ajouter à la file" : "Envoyer"} title={occupe || !fini ? "Ajouter à la file : Bingoo! la lance dès qu'il est libre" : "Envoyer"} className="grid h-8 w-8 place-items-center rounded-full bg-ink text-white disabled:opacity-30">
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
                 </button>
               </div>
@@ -643,7 +681,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
               {[["ordi", "Ordinateur"], ["tel", "Téléphone"]].map(([k, l]) => <button key={k} onClick={() => setVue(k)} className={cx("rounded-md px-2.5 py-1", vue === k ? "bg-ink text-white" : "text-ink-soft")}>{l}</button>)}
             </div>
             <div className="flex rounded-lg border border-line bg-white p-0.5 text-[12.5px] font-semibold">
-              {[["texte", "✎ Modifier un texte", "Clique sur un texte de l'aperçu pour le réécrire sur place (gratuit). Astuce : un double-clic sur un texte marche aussi"], ["pointer", "◎ Pointer", "Clique sur un élément de l'aperçu, puis dis ce que tu veux changer"]].map(([k, l, t]) => <button key={k} title={t} disabled={!fini || occupe} onClick={() => setOutil((o) => (o === k ? null : k))} className={cx("rounded-md px-2.5 py-1 disabled:opacity-40", outil === k ? "bg-[#E8571C] text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
+              {[["texte", "✎ Modifier un texte", "Clique sur un texte de l'aperçu pour le réécrire sur place (gratuit). Astuce : un double-clic sur un texte marche aussi"], ["pointer", "◎ Sélectionner", "Clique sur un élément de l'aperçu : change sa couleur, sa taille, son texte, ou demande à Bingoo!"]].map(([k, l, t]) => <button key={k} title={t} disabled={!fini} onClick={() => { setOutil((o) => (o === k ? null : k)); if (outil === k) deselectionner(); }} className={cx("rounded-md px-2.5 py-1 disabled:opacity-40", outil === k ? "bg-[#E8571C] text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
             </div>
             <div className="relative">
               <button onClick={ouvrirHistorique} disabled={!fini} className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[12.5px] font-semibold text-ink-soft hover:text-ink disabled:opacity-40">Historique</button>
@@ -653,7 +691,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                 {versions.length ? versions.map((v) => <button key={v.version} onClick={() => restaurer(v.version)} disabled={occupe} className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-[12.5px] hover:bg-[#F7F5F1]"><span>Version {v.version}</span><span className="text-ink-faint">{new Date(v.at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span></button>) : <p className="px-2.5 py-2 text-[12.5px] text-ink-faint">Pas encore d'ancienne version.</p>}
               </div>}
             </div>
-            <div className="min-w-0 flex-1 truncate rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] text-ink-faint">{outil === "texte" ? "Clique sur un texte de l'aperçu pour le modifier" : outil === "pointer" ? "Clique sur l'élément à changer" : fini ? lien.replace(/^https?:\/\//, "") : "Aperçu en construction…"}</div>
+            <div className="min-w-0 flex-1 truncate rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] text-ink-faint">{outil === "texte" ? "Clique sur un texte de l'aperçu pour le modifier" : outil === "pointer" ? "Clique sur un élément de l'aperçu pour le sélectionner" : fini ? lien.replace(/^https?:\/\//, "") : "Aperçu en construction…"}</div>
             <button onClick={() => setCle((k) => k + 1)} disabled={!fini} aria-label="Recharger l'aperçu" className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-white text-ink-soft hover:text-ink disabled:opacity-40">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" /></svg>
             </button>
@@ -661,6 +699,9 @@ export function Chantier({ ws, nav, init, atelier = false }) {
           <div className={cx("relative mx-auto min-h-0 w-full flex-1 overflow-hidden rounded-xl border border-line bg-white shadow-[0_30px_80px_-50px_rgba(21,23,42,.5)] transition-[max-width] duration-500", vue === "tel" ? "max-w-[390px]" : "max-w-none")}>
             {fini ? <iframe ref={cadreRef} key={cle} title={`Aperçu de ${nom}`} src={lienApercu} onLoad={() => pousserOutil()} className={cx("absolute inset-0 h-full w-full border-0", outil && "ring-2 ring-inset ring-[#E8571C]")} />
               : specEnDirect(app?.brouillon ?? (app?.statut === "pret" ? app?.spec : null)) ? <EnDirect app={app} etape={etape} /> : <Assemblage nom={nom} couleur={couleur} ecrans={ecrans} ecrits={ecrits} etape={etape} />}
+            {fini && element?.chemin && <BarreSelection element={element} retoucher={retoucher} fermer={deselectionner}
+              editer={() => { try { cadreRef.current?.contentWindow?.postMessage({ type: "bingoo-atelier-editer" }, "*"); } catch (_) { /* rien */ } }}
+              demander={() => saisieRef.current?.focus()} />}
             {occupe && <div className="absolute inset-x-0 top-0 h-1 overflow-hidden bg-[#ECEAE4]"><div className="h-full w-1/3 animate-[barre_1.2s_ease-in-out_infinite] bg-[#E8571C]" /></div>}
             {occupe && fini && <div className="pointer-events-none absolute inset-0 grid place-items-center bg-white/45 backdrop-blur-[1.5px]">
               <div className="flex max-w-[86%] items-center gap-3 rounded-2xl bg-ink/90 px-5 py-3.5 text-white shadow-2xl">
@@ -671,6 +712,35 @@ export function Chantier({ ws, nav, init, atelier = false }) {
           </div>
         </section>
       </div>
+    </div>
+  );
+}
+// Barre de l'outil Sélectionner, au-dessus de l'aperçu : retouches directes (gratuites, sans IA) ou demande à Bingoo!
+function BarreSelection({ element, retoucher, fermer, editer, demander }) {
+  const r = element.retouche ?? {}, ech = r.echelle ?? 1;
+  const btn = "grid h-8 min-w-8 place-items-center rounded-lg px-2 text-[12.5px] font-semibold text-white/85 hover:bg-white/10 hover:text-white";
+  return (
+    <div className="absolute left-1/2 top-3 z-20 flex max-w-[calc(100%-24px)] -translate-x-1/2 items-center gap-0.5 rounded-xl bg-ink/95 p-1 text-white shadow-2xl ring-1 ring-black/10">
+      <span className="hidden max-w-[180px] truncate px-2 text-[12px] text-white/55 xl:block">{element.description}</span>
+      {element.texte && <button type="button" onClick={editer} className={btn} title="Réécrire ce texte sur place">✎ Texte</button>}
+      <label className={cx(btn, "cursor-pointer gap-1.5 !flex items-center")} title="Couleur du texte">
+        <span className="h-4 w-4 rounded-full ring-2 ring-white/30" style={{ background: r.couleur ?? element.couleur }} />Couleur
+        <input type="color" value={r.couleur ?? element.couleur ?? "#111111"} onChange={(e) => retoucher({ couleur: e.target.value })} className="sr-only" />
+      </label>
+      <label className={cx(btn, "cursor-pointer gap-1.5 !flex items-center")} title="Couleur du fond">
+        <span className="h-4 w-4 rounded ring-2 ring-white/30" style={{ background: r.fond ?? element.fond }} />Fond
+        <input type="color" value={r.fond ?? element.fond ?? "#ffffff"} onChange={(e) => retoucher({ fond: e.target.value })} className="sr-only" />
+      </label>
+      <span className="mx-0.5 h-5 w-px bg-white/15" />
+      <button type="button" onClick={() => retoucher({ echelle: Math.max(0.5, Math.round((ech - 0.1) * 100) / 100) })} className={btn} title="Plus petit">A−</button>
+      <span className="w-10 text-center text-[11.5px] tabular-nums text-white/60">{Math.round(ech * 100)} %</span>
+      <button type="button" onClick={() => retoucher({ echelle: Math.min(3, Math.round((ech + 0.1) * 100) / 100) })} className={btn} title="Plus grand">A+</button>
+      <button type="button" onClick={() => retoucher({ gras: !r.gras })} className={cx(btn, r.gras && "bg-white/15")} title="Gras"><b>G</b></button>
+      <button type="button" onClick={() => retoucher({ cache: !r.cache })} className={cx(btn, r.cache && "bg-white/15")} title="Masquer cet élément">{r.cache ? "Afficher" : "Masquer"}</button>
+      {Object.keys(r).length > 0 && <button type="button" onClick={() => retoucher(null)} className={btn} title="Annuler les retouches de cet élément">↺</button>}
+      <span className="mx-0.5 h-5 w-px bg-white/15" />
+      <button type="button" onClick={demander} className="rounded-lg bg-[#E8571C] px-3 py-1.5 text-[12.5px] font-semibold text-white hover:brightness-110">Demander à Bingoo!</button>
+      <button type="button" onClick={fermer} aria-label="Fermer la sélection" className={btn}>×</button>
     </div>
   );
 }

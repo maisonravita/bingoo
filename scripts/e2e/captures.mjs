@@ -249,6 +249,46 @@ if (CONSTRUIRE === "spec") {
   const [x] = await q(`select spec from saas_apps where slug = ${lit(process.env.DOMAINE ?? "")}`);
   fs.writeFileSync(`${DOSSIER}/spec.json`, JSON.stringify(x?.spec ?? null));
   console.log("spec exportée :", x ? "oui" : "introuvable");
+} else if (CONSTRUIRE === "selection") {
+  // Outil Sélectionner + file de demandes, dans le vrai atelier du SaaS de démo du robot (la version d'origine est remise à la fin)
+  const appel = async (route, corps) => { const r = await fetch(`${SB}/functions/v1/r/${route}`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify(corps) }); const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch {} return { ok: r.ok, j, t: t.slice(0, 200) }; };
+  const [a] = await q(`select id, slug, version from saas_apps where workspace_id = ${lit(ws)} and statut = 'pret' order by maj desc limit 1`);
+  const v0 = a.version; console.log("SaaS de démo :", a.slug, "v" + v0);
+  const { page: pm } = await ouvrir(ws, {});
+  await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(9000);
+  await pm.getByRole("button", { name: /Sélectionner/ }).click(); await pm.waitForTimeout(800);
+  const fr = pm.frameLocator('iframe[title^="Aperçu"]');
+  const titre = fr.locator("h1, h2").first(); await titre.click({ timeout: 15000 }); await pm.waitForTimeout(1200);
+  const barre = await pm.getByRole("button", { name: "Demander à Bingoo!" }).isVisible().catch(() => false);
+  console.log(barre ? "✓ barre de sélection affichée" : "✗ pas de barre de sélection");
+  await pm.screenshot({ path: `${DOSSIER}/selection-1.png` });
+  for (let i = 0; i < 3; i++) { await pm.getByRole("button", { name: "A+" }).click(); await pm.waitForTimeout(200); }
+  await pm.locator('input[type="color"]').first().fill("#e11d48"); await pm.getByRole("button", { name: "G", exact: true }).click(); await pm.waitForTimeout(2500);
+  await pm.screenshot({ path: `${DOSSIER}/selection-2.png` });
+  const [x] = await q(`select spec->'retouches' r from saas_apps where id = ${lit(a.id)}`);
+  console.log((x.r ?? []).length ? `✓ retouche enregistrée : ${JSON.stringify(x.r.at(-1).css)}` : "✗ retouche non enregistrée");
+  // Rechargée : la retouche doit être réappliquée toute seule
+  await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(9000);
+  const st = await fr.locator("h1, h2").first().evaluate((el) => { const c = getComputedStyle(el); return { couleur: c.color, taille: c.fontSize, gras: c.fontWeight }; }).catch((e) => ({ err: e.message.slice(0, 80) }));
+  console.log(/225, 29, 72/.test(st.couleur ?? "") ? `✓ retouche réappliquée après rechargement ${JSON.stringify(st)}` : `✗ retouche absente après rechargement ${JSON.stringify(st)}`);
+  await pm.screenshot({ path: `${DOSSIER}/selection-3.png` });
+  // File de demandes : la 2e est écrite pendant que Bingoo! applique la 1re
+  const saisie = pm.locator("textarea").first();
+  await saisie.fill("Ajoute sous le titre de cet écran une phrase courte qui souhaite la bienvenue"); await saisie.press("Enter"); await pm.waitForTimeout(2500);
+  await saisie.fill("Mets le bouton principal de cet écran en vert"); await saisie.press("Enter"); await pm.waitForTimeout(1500);
+  const enFile = await pm.getByText(/En attente · 1/).isVisible().catch(() => false);
+  console.log(enFile ? "✓ 2e demande en file pendant la 1re" : "✗ file non affichée");
+  await pm.screenshot({ path: `${DOSSIER}/file-1.png` });
+  const t0 = Date.now();
+  await pm.waitForFunction(() => !/En attente ·/.test(document.body.innerText) && !/Bingoo! applique ta demande/.test(document.body.innerText) && (document.body.innerText.match(/Mets le bouton principal/g) ?? []).length >= 1, null, { timeout: 600000, polling: 3000 }).catch(() => null);
+  await pm.waitForTimeout(4000);
+  const [y] = await q(`select version from saas_apps where id = ${lit(a.id)}`);
+  console.log(`${y.version >= v0 + 3 ? "✓" : "✗"} les deux demandes passées l'une après l'autre : v${v0} → v${y.version} (${Math.round((Date.now() - t0) / 1000)} s)`);
+  await pm.screenshot({ path: `${DOSSIER}/file-2.png` });
+  // Remise en état du SaaS de démo
+  const r = await appel("saas-app-reglages", { workspace_id: ws, app_id: a.id, quoi: "restaurer", version: v0 });
+  await q(`update saas_apps set spec = spec - 'retouches' where id = ${lit(a.id)}`);
+  console.log(r.ok ? "Démo remise en v" + v0 : "Remise en état : " + r.t);
 } else if (CONSTRUIRE === "atelier-diag") {
   // Diagnostic : la page du membre ouverte sur l'atelier d'un SaaS dont une modification attend son test
   const [a0] = await q(`select a.id, a.slug, a.workspace_id ws, a.version, a.brouillon->'_test' t from saas_apps a where a.slug = ${lit(process.env.DOMAINE || "asso-pilote-6t0r")}`);
@@ -380,7 +420,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film" || CONSTRUIRE === "selection") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);

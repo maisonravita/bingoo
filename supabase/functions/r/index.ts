@@ -891,6 +891,12 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       if (r.n) await log(ws.id, "texte_app", `Texte modifié : « ${String(b.avant ?? "").slice(0, 40)} »`);
       return r;
     }
+    // Atelier, outil Sélectionner : retouche directe d'un élément (couleur, fond, taille, gras, masqué), gratuite et sans IA
+    if (b.quoi === "retouche") {
+      await quota(ws.id, "retouche_app", 600);
+      const { saasRetouche } = await import("../_shared/app-build.ts");
+      return await saasRetouche(app.id, b);
+    }
     // Atelier : image jointe (logo, photo, capture d'un modèle) → adresse publique utilisable par l'atelier
     if (b.quoi === "image") {
       await quota(ws.id, "image_app", 60);

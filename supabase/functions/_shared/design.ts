@@ -59,7 +59,7 @@ export type DesignChoisi = {
 const TITRES_NEUTRES = /^(inter|poppins|open sans|roboto|lato|montserrat|arial|helvetica|nunito sans|source sans 3|noto sans)$/i;
 // Polices manuscrites ou décoratives : illisibles en titre d'un logiciel ou d'une page de vente
 const TITRES_DECORATIFS = /^(great vibes|dancing script|pacifico|satisfy|allura|parisienne|sacramento|lobster|caveat|kaushan script|alex brush|tangerine|cookie|courgette|amatic sc|shadows into light|indie flower)$/i;
-const TITRES_CARACTERE = ["Fraunces", "Newsreader", "Playfair Display", "Literata", "Bricolage Grotesque", "Sora", "DM Serif Display"];
+export const TITRES_CARACTERE = ["Fraunces", "Newsreader", "Playfair Display", "Literata", "Bricolage Grotesque", "Sora", "DM Serif Display"];
 export function titresAvecCaractere(titres: string, graine: string): string {
   const t = String(titres ?? "").trim();
   if (!TITRES_NEUTRES.test(t) && !TITRES_DECORATIFS.test(t)) return titres;

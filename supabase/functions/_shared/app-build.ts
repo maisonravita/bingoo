@@ -551,6 +551,24 @@ export async function saasModifierTexte(appId: string, avant0: string, apres0: s
   return { ok: true, n };
 }
 
+/** Outil Sélectionner de l'atelier : une retouche directe sur un élément, rangée dans spec.retouches et réappliquée à chaque affichage. */
+export async function saasRetouche(appId: string, b: any) {
+  const chemin = String(b.chemin ?? "").slice(0, 600);
+  if (!/^body > [a-z0-9]+:nth-of-type\(\d+\)( > [a-z0-9]+:nth-of-type\(\d+\))*$/.test(chemin)) throw new Error("Élément invalide");
+  const ecran = String(b.ecran ?? "_site").slice(0, 80), signe = String(b.signe ?? "").slice(0, 40);
+  const c = b.css && typeof b.css === "object" ? b.css : {}, coul = (x: unknown) => /^#[0-9a-f]{6}$/i.test(String(x ?? "")) ? String(x) : undefined;
+  const css: any = { couleur: coul(c.couleur), fond: coul(c.fond), echelle: Number(c.echelle) > 0 ? Math.min(3, Math.max(0.5, Math.round(Number(c.echelle) * 100) / 100)) : undefined, gras: c.gras === true || undefined, cache: c.cache === true || undefined };
+  for (const k of Object.keys(css)) if (css[k] === undefined || (k === "echelle" && css[k] === 1)) delete css[k];
+  const { data: app } = await admin.from("saas_apps").select("spec, brouillon, version").eq("id", appId).single();
+  const spec = structuredClone(app?.spec ?? {}) as any;
+  const l: any[] = (Array.isArray(spec.retouches) ? spec.retouches : []).filter((r: any) => !(r.chemin === chemin && (r.ecran ?? "_site") === ecran));
+  if (Object.keys(css).length) l.push({ chemin, ecran, signe, css });
+  spec.retouches = l.slice(-200);
+  const br = app?.brouillon as any;
+  await admin.from("saas_apps").update({ spec, ...(br?._modif ? { brouillon: { ...br, retouches: spec.retouches } } : {}), version: (app?.version ?? 0) + 1, maj: new Date().toISOString() }).eq("id", appId);
+  return { ok: true, n: spec.retouches.length };
+}
+
 /** Atelier : une demande en langage courant, exécutée en entier (réglages, textes du site, prix, écrans à modifier, ajouter,
  *  supprimer, renommer, réordonner). Le premier écran écrit est compris dans la modification ; chaque écran en plus est payé
  *  par « payer » (modification du mois ou 1 crédit). S'il n'y a plus de quoi payer, Bingoo! s'arrête et le dit. */
