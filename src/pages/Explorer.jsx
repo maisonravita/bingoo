@@ -1940,6 +1940,7 @@ export function ReglagesApp({ app, onChange, projet, initial, nu = false, onglet
       {o === "prix" && <OngletPrix {...props} />}
       {o === "emails" && <OngletEmails {...props} />}
       {o === "domaine" && <OngletDomaine {...props} />}
+      {o === "connecteurs" && <OngletConnecteurs {...props} />}
       {o === "monde" && <OngletMonde {...props} />}
       {o === "mobile" && <OngletMobile {...props} />}
       {o === "code" && <OngletCode {...props} />}
