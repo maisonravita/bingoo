@@ -199,6 +199,8 @@ if (CONSTRUIRE === "video-produit") {
   const [v] = await q(`select script from saas_videos where workspace_id = ${lit(ws)} and app_id is null order by at desc limit 1`);
   console.log(v?.script?.produit ? `✓ vidéo liée au SaaS ${v.script.produit.slug}, allure ${v.script.look}` : "✗ vidéo sans le SaaS");
   console.log("Scènes :", (v?.script?.scenes ?? []).map((x) => x.type + (x.ecran ? `(${x.ecran})` : "")).join(" › "));
+  // IDEE=carre ou paysage : la même vidéo exportée dans ce format
+  const FMT = { carre: "1:1", paysage: "16:9" }[process.env.IDEE ?? ""]; if (FMT) { await page.waitForTimeout(3000); await page.getByRole("button", { name: FMT, exact: true }).click().catch(() => console.log("✗ format")); console.log("Format :", FMT); }
   await page.waitForTimeout(9000);
   for (let k = 1; k <= 12; k++) { await page.waitForTimeout(2300); await page.locator("canvas").first().screenshot({ path: `${DOSSIER}/produit-${String(k).padStart(2, "0")}.png` }).catch(() => null); }
   // Le vrai fichier vidéo, exporté par le studio comme le ferait le membre
