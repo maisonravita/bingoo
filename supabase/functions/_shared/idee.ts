@@ -46,7 +46,7 @@ C'EST UNE APP MOBILE : elle s'utilise au téléphone, d'une main. 4 à 6 écrans
  "probleme": "le besoin de ces utilisateurs, 1 à 2 phrases",
  "famille": "UNE parmi : gestion, reservation, crm, projets, edition, ia, communaute, apprentissage, perso, automatisation, analyse, contenu",
  "ecrans": 5 à 8 objets { "titre": "2 mots", "role": "une phrase" } : la PREMIÈRE VERSION, bornée à l'essentiel, le premier écran étant l'espace principal,
- "principal": { "titre": "titre de l'écran principal", "blocs": 3 à 5 objets { "type": "kpi|liste|tableau|calendrier|colonnes|formulaire|galerie|graphique|chat|editeur", "titre": "2 à 4 mots", "elements": [3 ou 4 exemples très courts et réalistes], "photos_en": [seulement pour un bloc galerie : pour chaque élément, 2 ou 3 mots ANGLAIS décrivant une photo réelle de cet élément, ex. "chickpea curry bowl"] } } (l'écran principal montre d'abord CE QUE L'UTILISATEUR VIENT FAIRE : pour un produit grand public — recettes, cours, sport, communauté, révisions — commence par le contenu (galerie, fil, liste, calendrier), pas par des chiffres ; un bloc kpi seulement si l'écran est vraiment un tableau de bord, et chaque élément kpi commence par un chiffre d'exemple : « 12 cartes à réviser », « 340 € dépensés »),
+ "principal": { "titre": "titre de l'écran principal", "blocs": 3 à 5 objets { "type": "kpi|liste|tableau|calendrier|colonnes|formulaire|galerie|graphique|chat|editeur", "titre": "2 à 4 mots", "elements": [3 ou 4 exemples très courts et réalistes], "photos_en": [seulement pour un bloc galerie : pour chaque élément, une courte description ANGLAISE de l'image qui le montre (sujet, lieu, lumière), ex. "turquoise alpine lake below rocky peaks, summer morning"] } } (l'écran principal montre d'abord CE QUE L'UTILISATEUR VIENT FAIRE : pour un produit grand public — recettes, cours, sport, communauté, révisions — commence par le contenu (galerie, fil, liste, calendrier), pas par des chiffres ; un bloc kpi seulement si l'écran est vraiment un tableau de bord, et chaque élément kpi commence par un chiffre d'exemple : « 12 cartes à réviser », « 340 € dépensés »),
  "plus_tard": [3 à 5 fonctions utiles qui viendront ENSUITE, à demander dans l'atelier, et que Bingoo! SAIT faire (jamais une des limites ci-dessous : pas de SMS, de paiement par carte, de notification sur téléphone, de GPS, de connexion à un autre service)],
  "limites": [0 à 3 objets { "demande": "ce que l'idée demande et que Bingoo! ne sait pas faire", "alternative": "ce qui sera fait à la place" }],
  "mots_cles": [3 à 5 mots-clés en français pour chercher des logiciels proches],
@@ -204,23 +204,17 @@ Règles : aucun avis client, aucun chiffre ni année d'expérience inventés. To
 }
 
 
-/** Galeries de l'écran principal : une vraie photo libre (Wikimedia Commons, sans IA ni coût) par élément, avec son crédit. */
+/** Galeries de l'écran principal : une image IA par élément, décrite par l'IA de l'aperçu (modèle rapide, quelques
+ *  centimes au total). Restauration et métiers de bouche : aucune image inventée (choix de Jean du 23/11). */
 async function photosGaleries(apercu: any) {
-  const { photosLibres } = await import("./photos.ts");
-  // Restauration, recettes, plats : aucune photo inventée (des plats qui ne sont pas les siens tromperaient)
-  const { estAlimentaire } = await import("./gen-images.ts");
+  const { estAlimentaire, imagesPage } = await import("./gen-images.ts");
   if (estAlimentaire(`${apercu?.pitch ?? ""} ${apercu?.cible ?? ""} ${apercu?.metier ?? ""} ${apercu?.nom ?? ""}`)) return;
   const blocs = ((apercu?.principal?.blocs ?? []) as any[]).filter((b) => b?.type === "galerie");
   await Promise.all(blocs.map(async (b) => {
-    const mots: string[] = (Array.isArray(b.photos_en) ? b.photos_en : []).map((x: unknown) => String(x).slice(0, 60));
-    const vues = new Set<string>();
-    // Mots anglais de l'IA d'abord, sinon le titre de l'élément tel quel (Commons connaît aussi le français)
-    const essais = (b.elements ?? []).slice(0, 4).map((x: unknown, i: number) => [mots[i], String(x).split(/\s[·—-]\s|\s:\s/)[0]].filter(Boolean) as string[]);
-    // Une photo n'est gardée que si sa description reprend un mot de la recherche (sinon : un portrait pour « curry »…)
-    const parle = (ph: any, q: string) => { const t = `${ph.alt ?? ""} ${ph.page ?? ""}`.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); const mots = q.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((m) => m.length > 3); return mots.length > 0 && mots.filter((m) => t.includes(m)).length >= Math.min(2, mots.length); };
-    const trouvees = await Promise.all(essais.map(async (qs: string[]) => { for (const q of qs) { try { const l = (await photosLibres(q, 4, 800)).filter((ph) => parle(ph, q)); if (l.length) return l; } catch { /* suivant */ } } return []; }));
-    b.images = trouvees.map((l: any[]) => { const ph = l.find((x) => !vues.has(x.page)); if (!ph) return null; vues.add(ph.page); return { url: ph.url, auteur: ph.auteur, licence: ph.licence, page: ph.page }; });
-    console.log("aperçu photos", JSON.stringify({ essais, trouvees: trouvees.map((l: any[]) => l.length) }).slice(0, 400));
+    const desc: string[] = (Array.isArray(b.photos_en) ? b.photos_en : []).map((x: unknown) => String(x).slice(0, 200));
+    const demandes = (b.elements ?? []).slice(0, 4).map((x: unknown, i: number) => ({ id: `g${i}`, pour: String(x), prompt: `${desc[i] || String(x)} (${String(apercu?.secteur_en ?? "").slice(0, 60)})` }));
+    try { const r = await imagesPage(demandes, 0.2, { apercu: true }); b.images = demandes.map((d: any) => r.images[d.id] ? { url: r.images[d.id].url, ia: true } : null); }
+    catch (x) { console.error("aperçu images", String(x).slice(0, 200)); }
     delete b.photos_en;
   }));
 }
