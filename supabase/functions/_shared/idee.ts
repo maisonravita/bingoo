@@ -94,7 +94,8 @@ Rends {"garder": [numéros]} (liste vide si aucun ne convient).`, { fast: true, 
   }
   const proches = gardes.sort((a: any, b: any) => (Number(b.mrr) || 0) - (Number(a.mrr) || 0)).slice(0, 3)
     .map((s: any) => ({ domaine: s.domaine, nom: s.nom, mrr: s.mrr ?? null, description: court(s.description, 180) }));
-  return { apercu: { ...apercu, design: await designApercu(`${r?.secteur_en ?? ""} ${(r?.mots_cles ?? []).join(" ")}`, wsId) }, proches };
+  const ds = await designsApercu(`${r?.secteur_en ?? ""} ${(r?.mots_cles ?? []).join(" ")}`, wsId);
+  return { apercu: { ...apercu, design: ds[0], designs: ds }, proches };
 }
 
 /** Le projet complet à partir de l'idée (même forme que saasLancer), puis statut « pret » : la construction prend le relais. */
@@ -197,7 +198,8 @@ Règles : aucun avis client, aucun chiffre ni année d'expérience inventés. To
     plus_tard: (Array.isArray(r?.plus_tard) ? r.plus_tard : []).slice(0, 4).map((x: unknown) => court(x, 120)).filter((x: string) => x && !/paiement|acompte|panier|sms|avis|traduction|multilingue|espace (client|membre)|google|instagram|temps r[ée]el/i.test(x)),
     limites: (Array.isArray(r?.limites) ? r.limites : []).slice(0, 3).map((x: any) => ({ demande: court(x?.demande, 140), alternative: court(x?.alternative, 160) })).filter((x: any) => x.demande),
   };
-  return { apercu: { ...apercu, design: await designApercu(`${r?.secteur_en ?? ""} ${apercu.metier ?? ""}`, wsId) }, proches: [] };
+  const ds = await designsApercu(`${r?.secteur_en ?? ""} ${apercu.metier ?? ""}`, wsId);
+  return { apercu: { ...apercu, design: ds[0], designs: ds }, proches: [] };
 }
 
 
@@ -206,4 +208,16 @@ async function designApercu(motsCles: string, wsId: string) {
   const { categorieDesign, tirerDesign } = await import("./design.ts");
   const { data: siens } = await admin.from("saas_apps").select("spec->design").eq("workspace_id", wsId).order("maj", { ascending: false }).limit(10);
   return tirerDesign(categorieDesign(motsCles.trim()), (siens ?? []).map((x: any) => x.design).filter(Boolean));
+}
+/** Trois styles différents pour la même idée (le membre choisit en voyant les vrais rendus) ; le premier est celui par défaut. */
+async function designsApercu(motsCles: string, wsId: string) {
+  const { categorieDesign, tirerDesign } = await import("./design.ts");
+  const { data: siens } = await admin.from("saas_apps").select("spec->design").eq("workspace_id", wsId).order("maj", { ascending: false }).limit(10);
+  const vus: any[] = (siens ?? []).map((x: any) => x.design).filter(Boolean), cat = categorieDesign(motsCles.trim()), out: any[] = [];
+  for (let k = 0; k < 8 && out.length < 3; k++) {
+    const d: any = tirerDesign(cat, [...out, ...vus]);
+    const cle = (x: any) => `${x?.couleurs?.primary}|${x?.polices?.titres}`;
+    if (!out.some((o) => cle(o) === cle(d) || o?.couleurs?.primary === d?.couleurs?.primary)) out.push(d);
+  }
+  return out;
 }

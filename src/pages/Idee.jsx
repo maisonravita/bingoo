@@ -36,6 +36,30 @@ function specSite(nom, ap) {
 }
 // Aperçu d'un SaaS : la vraie coque des SaaS Bingoo! (menu, en-tête, style tiré) avec l'écran principal de l'idée,
 // écrit avec les vrais composants et des données d'exemple ; les autres écrans sont annoncés dans le menu.
+// Une des trois propositions de style : le VRAI rendu de la page (gabarit des sites, ou coque des SaaS), en petit
+function Vignette({ nom, ap, design, type, choisi, onClick, n }) {
+  const ap2 = useMemo(() => ({ ...ap, design }), [ap, design]);
+  const spec = useMemo(() => (type === "site" ? specSite(nom, ap2) : { ...specApercuSaas(nom, ap2), ...(type === "app" ? { mobile: true } : {}) }), [nom, ap2, type]);
+  const boite = useRef(null), [k, setK] = useState(0.22);
+  const L = type === "app" ? 390 : 1280, Hs = type === "app" ? 700 : 800;
+  useEffect(() => { const el = boite.current; if (!el) return; const o = new ResizeObserver(() => setK(el.clientWidth / L)); o.observe(el); return () => o.disconnect(); }, [L]);
+  const slug = `style-${n}-` + (nom || "x").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "");
+  return (
+    <button type="button" onClick={onClick} aria-pressed={choisi} className={cx("group relative block w-full overflow-hidden rounded-xl border-2 bg-white text-left transition", choisi ? "border-[#E8571C] shadow-[0_10px_30px_-12px_rgba(232,87,28,.6)]" : "border-line hover:border-ink/30")}>
+      <div ref={boite} className="pointer-events-none relative w-full overflow-hidden" style={{ height: Hs * k }}>
+        <div className="absolute left-0 top-0" style={{ width: L, height: Hs, transform: `scale(${k})`, transformOrigin: "0 0" }}>
+          <Suspense fallback={<div className="h-full animate-pulse bg-[#F6F5F2]" />}>
+            <AppCadre slug={slug} spec={spec} version={JSON.stringify(design).length + n} {...(type === "site" ? { apercu: true } : { essai: true })} className="h-full w-full" />
+          </Suspense>
+        </div>
+      </div>
+      <div className="flex items-center justify-between gap-2 border-t border-line px-3 py-2 text-[12.5px] font-semibold">
+        <span className="flex items-center gap-1.5"><span className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ background: design?.couleurs?.primary }} /><span className="truncate">Style {n + 1}{design?.polices?.titres ? ` · ${design.polices.titres}` : ""}</span></span>
+        <span className={cx("shrink-0 rounded-full px-2 py-0.5 text-[11px]", choisi ? "bg-[#E8571C] text-white" : "bg-[#F1EFEA] text-ink-soft")}>{choisi ? "Choisi" : "Choisir"}</span>
+      </div>
+    </button>
+  );
+}
 // Aperçu d'une app mobile : la vraie app (coque des apps Bingoo!, largeur de téléphone) avec l'écran principal de l'idée
 function TelReel({ nom, ap }) {
   const spec = useMemo(() => ({ ...specApercuSaas(nom, ap), mobile: true }), [nom, ap]);
@@ -143,6 +167,12 @@ export default function Idee() {
   if (!idee?.texte) return <div className="mx-auto max-w-xl px-4 py-20 text-center"><p className="text-[20px] font-bold">Écris d'abord ton idée.</p><button onClick={() => nav("/explorer/trouver")} className="mt-4 rounded-full bg-ink px-6 py-3 font-bold text-white">Explorer les SaaS qui marchent</button></div>;
 
   // Lancer : un compte, l'abonnement, puis la construction habituelle (questions, paiement, construction, vérification)
+  // Le style choisi devient celui de l'aperçu (et donc de la construction, qui reprend le design de l'aperçu)
+  const choisirStyle = (i) => setR((x) => {
+    const apercu = { ...x.apercu, design: x.apercu.designs[i] };
+    ecrire("bingoo-idee", { ...idee, apercu, proches: x.proches });
+    return { ...x, apercu };
+  });
   const lancer = async (quoi, proche) => {
     if (estInvite(session) || !ws) { demanderCompte("Crée ton compte gratuit pour construire ton idée."); return; }
     const ap = r?.apercu;
@@ -206,6 +236,10 @@ export default function Idee() {
                 {ap.plus_tard?.length > 0 && <><p className="mt-5 text-[13px] font-bold">Ensuite, dans l'atelier</p><p className="mt-1 text-[13.5px] text-ink-soft">{ap.plus_tard.join(" · ")}</p></>}
                 {ap.limites?.length > 0 && <div className="mt-5 rounded-xl bg-[#FFF7F0] p-3"><p className="text-[13px] font-bold text-[var(--p)]">Fait autrement</p><ul className="mt-1 space-y-1">{ap.limites.map((l) => <li key={l.demande} className="text-[13.5px]"><span className="line-through decoration-[#C2410C]/50">{l.demande}</span> → {l.alternative}</li>)}</ul></div>}
               </div>
+              {(ap.designs?.length ?? 0) > 1 && <div className="order-first">
+                <p className="mb-2 text-[14px] font-bold">Choisis ton style <span className="font-normal text-ink-faint">· trois vrais rendus de ta page, Bingoo! construit celui que tu choisis</span></p>
+                <div className={cx("grid gap-3", idee.type === "app" ? "grid-cols-3 max-w-[560px]" : "grid-cols-1 sm:grid-cols-3")}>{ap.designs.map((d, i) => <Vignette key={i} n={i} nom={nom || ap.nom} ap={ap} design={d} type={site ? "site" : idee.type === "app" ? "app" : "saas"} choisi={JSON.stringify(d) === JSON.stringify(ap.design)} onClick={() => choisirStyle(i)} />)}</div>
+              </div>}
               <div className="order-first">{site ? <SiteReel nom={nom || ap.nom} ap={ap} /> : idee.type === "app" ? <TelReel nom={nom || ap.nom} ap={ap} /> : <SaasReel nom={nom || ap.nom} ap={ap} />}<p className="mt-2 text-center text-[12px] text-ink-faint">{site ? "Ta future page d'accueil, faite avec le gabarit des sites Bingoo! : fais-la défiler. Tu ajouteras ta photo, tes horaires et ton adresse ensuite." : "Ton écran principal dans la vraie coque de ton SaaS, avec des données d'exemple : la construction écrit chaque écran pour de vrai, avec ces couleurs et ces polices."}</p></div>
             </div>
             <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-line pt-5">
