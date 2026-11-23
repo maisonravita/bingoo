@@ -316,7 +316,7 @@ if (CONSTRUIRE === "spec") {
   await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/mon-saas`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(6000);
   console.log((await pm.getByText("Contrôle de sécurité").count()) ? "✓ contrôle de sécurité affiché" : "✗ pas de contrôle de sécurité");
   await pm.screenshot({ path: `${DOSSIER}/mon-saas-visites.png`, fullPage: true });
-} else if (CONSTRUIRE === "quatre" || CONSTRUIRE === "photos") {
+} else if (CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site") {
   // Points de départ (accueil), remarques épinglées (atelier), logo de l'espace (Mon SaaS), photos réelles dans l'aperçu d'idée
   const appel = async (route, corps) => { const r = await fetch(`${SB}/functions/v1/r/${route}`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify(corps) }); const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch {} return { ok: r.ok, j, t: t.slice(0, 200) }; };
   { const c0 = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p0 = await c0.newPage();
@@ -367,6 +367,19 @@ if (CONSTRUIRE === "spec") {
   console.log(aPhotos === attendu ? `✓ ${nomF} : ${aPhotos ? "photos réelles (crédits affichés)" : "aucune photo inventée"}` : `✗ ${nomF} : photos=${aPhotos}`);
   await pi.screenshot({ path: `${DOSSIER}/${nomF}.png`, fullPage: true }); await ci.close();
   }
+} else if (CONSTRUIRE === "diag-site") {
+  // Diagnostic : l'aperçu d'une idée de site, couleurs calculées du haut de page dans chaque style
+  const wsI = await creerEspace("Robot diag " + new Date().toISOString().slice(0, 16)); await q(`update workspaces set plan = 'lancer_pro', plan_status = 'active', onboarded = true where id = ${lit(wsI)}`);
+  const { page: pi } = await ouvrir(wsI, { "bingoo-idee": { texte: process.env.TEXTE_IDEE || "un site pour mon salon de tatouage", type: "site", at: Date.now() } });
+  await pi.goto(`${SITE}/?c=${Date.now()}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+  await pi.waitForFunction(() => /Choisis ton style/.test(document.body.innerText), null, { timeout: 150000 }).catch(() => null); await pi.waitForTimeout(9000);
+  console.log("designs :", JSON.stringify(await pi.evaluate(() => { try { const a = JSON.parse(localStorage.getItem("bingoo-idee")).apercu; return { nom: a.nom, metier: a.metier, designs: (a.designs ?? []).map((d) => ({ mode: d.mode, c: d.couleurs, p: d.polices })) }; } catch (e) { return e.message; } })).slice(0, 1500));
+  for (const f of pi.frames()) {
+    if (f === pi.mainFrame()) continue;
+    const r = await f.evaluate(() => { const h = document.querySelector("h1"); if (!h) return null; const ch = []; for (let x = h; x && ch.length < 6; x = x.parentElement) { const s = getComputedStyle(x); ch.push(`${x.tagName}.${String(x.className).slice(0, 50)} c=${s.color} bg=${s.backgroundColor}`); } return { mode: window.__BOOT?.spec?.design?.mode, ch }; }).catch((e) => e.message.slice(0, 80));
+    console.log("cadre :", JSON.stringify(r).slice(0, 900));
+  }
+  await pi.screenshot({ path: `${DOSSIER}/diag-site.png`, fullPage: true });
 } else if (CONSTRUIRE === "atelier-diag") {
   // Diagnostic : la page du membre ouverte sur l'atelier d'un SaaS dont une modification attend son test
   const [a0] = await q(`select a.id, a.slug, a.workspace_id ws, a.version, a.brouillon->'_test' t from saas_apps a where a.slug = ${lit(process.env.DOMAINE || "asso-pilote-6t0r")}`);
