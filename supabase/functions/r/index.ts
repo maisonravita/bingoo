@@ -540,6 +540,8 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   async "espace-logo"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     if (b.logo === undefined) return { logo: await logoEspace(ws.id) };
+    // Le visiteur sans compte lit le logo (aucun) mais n'en pose pas
+    refuserInvite(req, "espace-logo-ecriture", []);
     const chemin = `espaces/${ws.id}/logo.json`;
     if (b.logo === null) { await admin.storage.from("apps").remove([chemin]); return { logo: null }; }
     await quota(ws.id, "logo", 20);
@@ -2536,6 +2538,6 @@ Deno.serve(wrap(async (req) => {
   if (name === "stripe-connect-retour" && req.method === "GET") return await (await import("../_shared/app-owner.ts")).stripeConnectRetour(new URL(req.url));
   if (req.method !== "POST") throw new HttpError(405, "POST attendu");
   // L'aperçu d'une idée et la lecture d'un site (sans IA) sont ouverts aux visiteurs sans compte : le compte vient au moment de construire
-  refuserInvite(req, name, ["saas-chiffres", "saas-bourse-lu", "saas-tendances", "saas-idee-apercu", "site-scan", "video-creer", "videos-libres"]);
+  refuserInvite(req, name, ["saas-chiffres", "saas-bourse-lu", "saas-tendances", "saas-idee-apercu", "site-scan", "video-creer", "videos-libres", "espace-logo"]);
   return json(await h(req, await readJson(req)));
 }));
