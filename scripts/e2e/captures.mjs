@@ -267,6 +267,16 @@ if (CONSTRUIRE === "film") {
   const v2 = p2.video(); await c2.close(); if (v2) fs.renameSync(await v2.path(), `${DIR}/b-construction.webm`);
   fs.writeFileSync(`${DIR}/marques.json`, JSON.stringify(marques, null, 2)); console.log("FILM marques", JSON.stringify(marques));
 }
+if (CONSTRUIRE === "lien-public") {
+  // Le lien public d'un site fini : vu par un visiteur, puis par son créateur connecté (qui sortait de l'atelier)
+  const [a] = await q(`select a.slug, a.workspace_id from saas_apps a join workspaces w on w.id = a.workspace_id where w.name like 'Robot film%' and a.statut = 'pret' order by a.maj desc limit 1`);
+  console.log("site :", a?.slug);
+  const etat = async (p, nom) => { await p.waitForTimeout(6000); const r = await p.evaluate(() => ({ url: location.href.replace(location.origin, ""), atelier: !!document.querySelector('iframe[title^="Aperçu"]') || /Demander à Bingoo|Construction/.test(document.body.innerText.slice(0, 400)), titre: document.title, texte: document.body.innerText.replace(/\s+/g, " ").slice(0, 120) })); console.log(nom, JSON.stringify(r)); await p.screenshot({ path: `${DOSSIER}/lien-${nom}.png` }); };
+  { const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await c.newPage(); await p.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await etat(p, "visiteur"); await c.close(); }
+  { const { ctx: c, page: p } = await ouvrir(a.workspace_id, { "bingoo-guide": "fini" }); await p.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(5000);
+    await p.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await etat(p, "createur");
+    await p.evaluate((s) => { location.hash = `#/app/${s}`; }, a.slug); await etat(p, "createur-hash"); await c.close(); }
+}
 if (CONSTRUIRE === "spec") {
   // Exporte la définition d'un SaaS (DOMAINE = son adresse courte) pour le photographier écran par écran hors ligne
   const [x] = await q(`select spec from saas_apps where slug = ${lit(process.env.DOMAINE ?? "")}`);
@@ -608,7 +618,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
