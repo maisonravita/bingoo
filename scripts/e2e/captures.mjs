@@ -298,6 +298,21 @@ if (CONSTRUIRE === "spec") {
   const r = await appel("saas-app-reglages", { workspace_id: ws, app_id: a.id, quoi: "restaurer", version: v0 });
   await q(`update saas_apps set spec = spec - 'retouches' where id = ${lit(a.id)}`);
   console.log(r.ok ? "Démo remise en v" + v0 : "Remise en état : " + r.t);
+} else if (CONSTRUIRE === "plan") {
+  // Mode plan de l'atelier (le plan seul, rien n'est modifié) + page Mon SaaS (visites, contrôle de sécurité)
+  const [a] = await q(`select id, version from saas_apps where workspace_id = ${lit(ws)} and statut = 'pret' order by maj desc limit 1`);
+  const { page: pm } = await ouvrir(ws, {});
+  await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(8000);
+  await pm.getByRole("button", { name: "Plan d'abord" }).click();
+  const saisie = pm.locator("textarea").first();
+  await saisie.fill("Ajoute une page où mes patients peuvent laisser un avis après leur séance"); await saisie.press("Enter");
+  await pm.waitForFunction(() => /Construire ce plan/.test(document.body.innerText), null, { timeout: 90000 }).catch(() => null); await pm.waitForTimeout(1000);
+  const [b] = await q(`select version from saas_apps where id = ${lit(a.id)}`);
+  console.log((await pm.getByText("Construire ce plan").count()) ? `✓ plan affiché, SaaS inchangé (v${a.version} → v${b.version})` : "✗ pas de plan");
+  await pm.screenshot({ path: `${DOSSIER}/plan-1.png` });
+  await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/mon-saas`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(6000);
+  console.log((await pm.getByText("Contrôle de sécurité").count()) ? "✓ contrôle de sécurité affiché" : "✗ pas de contrôle de sécurité");
+  await pm.screenshot({ path: `${DOSSIER}/mon-saas-visites.png`, fullPage: true });
 } else if (CONSTRUIRE === "atelier-diag") {
   // Diagnostic : la page du membre ouverte sur l'atelier d'un SaaS dont une modification attend son test
   const [a0] = await q(`select a.id, a.slug, a.workspace_id ws, a.version, a.brouillon->'_test' t from saas_apps a where a.slug = ${lit(process.env.DOMAINE || "asso-pilote-6t0r")}`);
@@ -429,7 +444,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film" || CONSTRUIRE === "selection") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
