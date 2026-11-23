@@ -156,13 +156,15 @@ if (CONSTRUIRE === "copie") {
   }
 }
 // IDEE=1 : le parcours « Construire mon idée » (aperçu gratuit : 1 petit appel d'IA par idée), une idée claire, une floue, une refusée
-if (["1", "site", "app", "saas"].includes(process.env.IDEE)) {
+if (["1", "site", "app", "saas", "varie"].includes(process.env.IDEE)) {
   const IDEES_SAAS = [["idee-claire", "Une app de réservation pour les coiffeurs à domicile, avec rappel la veille"], ["idee-floue", "Une appli comme Uber"], ["idee-refusee", "Un faux site de connexion de ma banque pour récupérer les identifiants"]].map(([n, t]) => [n, t, "saas"]);
   // Sites web (étape 2) : une idée claire et une floue
   const IDEES_SITE = [["site-barber", "site pour les barber"], ["site-claire", "Le site de mon salon de coiffure à domicile à Lyon"], ["site-floue", "Un beau site pour mon entreprise"]].map(([n, t]) => [n, t, "site"]);
   // Apps mobiles (étape 3)
   const IDEES_APP = [["app-claire", "Une app pour suivre mes séances de sport et mes progrès"]].map(([n, t]) => [n, t, "app"]);
-  const LISTE = process.env.IDEE === "site" ? IDEES_SITE : process.env.IDEE === "saas" ? [...IDEES_SAAS, ["idee-crm", "Un CRM simple pour les agents immobiliers"]] : process.env.IDEE === "app" ? IDEES_APP : [...IDEES_SAAS, ...IDEES_SITE, ...IDEES_APP];
+  // Grand test : dix idées très différentes (grand public, sport, gestion, création, local…), aucune ne doit ressembler à un CRM
+  const IDEES_VARIE = [["v-sport", "Une app de course à pied avec défis entre amis et classement de la semaine", "saas"], ["v-recettes", "Un site de recettes végétariennes où chacun publie ses plats", "saas"], ["v-cours", "Une plateforme de cours de guitare en ligne avec suivi des progrès", "saas"], ["v-asso", "Un outil pour gérer les adhérents et les cotisations de mon club de foot", "saas"], ["v-photo", "Le site de mon studio de photographe de mariage à Bordeaux", "site"], ["v-resto", "Le site de mon restaurant japonais à Nantes avec la carte", "site"], ["v-plombier", "Le site de mon entreprise de plomberie à Lille, dépannage 7j/7", "site"], ["v-budget", "Une app pour suivre mon budget du mois et mes dépenses", "app"], ["v-langues", "Une app pour réviser le vocabulaire anglais avec des cartes", "app"], ["v-ia", "Un outil qui écrit les annonces immobilières à partir de quelques infos", "saas"]];
+  const LISTE = process.env.IDEE === "varie" ? IDEES_VARIE : process.env.IDEE === "site" ? IDEES_SITE : process.env.IDEE === "saas" ? [...IDEES_SAAS, ["idee-crm", "Un CRM simple pour les agents immobiliers"]] : process.env.IDEE === "app" ? IDEES_APP : [...IDEES_SAAS, ...IDEES_SITE, ...IDEES_APP];
   for (const [nom, texte, type] of LISTE) {
     const { ctx, page } = await ouvrir(ws, { "bingoo-idee": { texte, type, at: Date.now() } });
     await page.goto(`${SITE}/?c=${Date.now()}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
@@ -267,6 +269,8 @@ if (CONSTRUIRE === "spec") {
   await pm.screenshot({ path: `${DOSSIER}/selection-1.png` });
   for (let i = 0; i < 3; i++) { await pm.getByRole("button", { name: "A+" }).click(); await pm.waitForTimeout(200); }
   await pm.locator('input[type="color"]').first().fill("#e11d48"); await pm.getByRole("button", { name: "G", exact: true }).click(); await pm.waitForTimeout(2500);
+  // L'enregistrement part 0,7 s après le dernier geste (la fonction peut mettre quelques secondes à démarrer)
+  for (let i = 0; i < 10; i++) { const [z] = await q(`select jsonb_array_length(coalesce(spec->'retouches','[]')) n from saas_apps where id = ${lit(a.id)}`); if (z.n > 0) break; await pm.waitForTimeout(1500); }
   await pm.screenshot({ path: `${DOSSIER}/selection-2.png` });
   const [x] = await q(`select spec->'retouches' r from saas_apps where id = ${lit(a.id)}`);
   console.log((x.r ?? []).length ? `✓ retouche enregistrée : ${JSON.stringify(x.r.at(-1).css)}` : "✗ retouche non enregistrée");
@@ -285,7 +289,7 @@ if (CONSTRUIRE === "spec") {
   console.log(enFile ? "✓ 2e demande en file pendant la 1re" : "✗ file non affichée");
   await pm.screenshot({ path: `${DOSSIER}/file-1.png` });
   const t0 = Date.now();
-  await pm.waitForFunction(() => !/En attente ·/.test(document.body.innerText) && !/Bingoo! applique ta demande/.test(document.body.innerText) && (document.body.innerText.match(/Mets le bouton principal/g) ?? []).length >= 1, null, { timeout: 600000, polling: 3000 }).catch(() => null);
+  await pm.waitForFunction(() => { const t = document.body.innerText; return !/en attente ·/i.test(t) && !/Bingoo! applique ta demande|Je modifie ton SaaS|Je la teste/.test(t) && /Mets le bouton principal/.test(t); }, null, { timeout: 900000, polling: 3000 }).catch(() => null);
   await pm.waitForTimeout(4000);
   const [y] = await q(`select version from saas_apps where id = ${lit(a.id)}`);
   console.log(`${y.version >= v0 + 3 ? "✓" : "✗"} les deux demandes passées l'une après l'autre : v${v0} → v${y.version} (${Math.round((Date.now() - t0) / 1000)} s)`);

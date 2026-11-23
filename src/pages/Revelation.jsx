@@ -743,10 +743,10 @@ export function Chantier({ ws, nav, init, atelier = false }) {
 // Barre de l'outil Sélectionner, au-dessus de l'aperçu : retouches directes (gratuites, sans IA) ou demande à Bingoo!
 function BarreSelection({ element, retoucher, fermer, editer, demander }) {
   const r = element.retouche ?? {}, ech = r.echelle ?? 1;
-  const btn = "grid h-8 min-w-8 place-items-center rounded-lg px-2 text-[12.5px] font-semibold text-white/85 hover:bg-white/10 hover:text-white";
+  const btn = "grid h-8 min-w-8 shrink-0 place-items-center whitespace-nowrap rounded-lg px-2 text-[12.5px] font-semibold text-white/85 hover:bg-white/10 hover:text-white";
   return (
-    <div className="absolute left-1/2 top-3 z-20 flex max-w-[calc(100%-24px)] -translate-x-1/2 items-center gap-0.5 rounded-xl bg-ink/95 p-1 text-white shadow-2xl ring-1 ring-black/10">
-      <span className="hidden max-w-[180px] truncate px-2 text-[12px] text-white/55 xl:block">{element.description}</span>
+    <div className="absolute left-1/2 top-3 z-20 flex max-w-[calc(100%-24px)] -translate-x-1/2 items-center gap-0.5 overflow-x-auto whitespace-nowrap rounded-xl bg-ink/95 p-1 text-white shadow-2xl ring-1 ring-black/10 [scrollbar-width:none]">
+      <span className="hidden max-w-[160px] shrink truncate px-2 text-[12px] text-white/55 2xl:block">{element.description}</span>
       {element.texte && <button type="button" onClick={editer} className={btn} title="Réécrire ce texte sur place">✎ Texte</button>}
       <label className={cx(btn, "cursor-pointer gap-1.5 !flex items-center")} title="Couleur du texte">
         <span className="h-4 w-4 rounded-full ring-2 ring-white/30" style={{ background: r.couleur ?? element.couleur }} />Couleur
@@ -758,13 +758,13 @@ function BarreSelection({ element, retoucher, fermer, editer, demander }) {
       </label>
       <span className="mx-0.5 h-5 w-px bg-white/15" />
       <button type="button" onClick={() => retoucher({ echelle: Math.max(0.5, Math.round((ech - 0.1) * 100) / 100) })} className={btn} title="Plus petit">A−</button>
-      <span className="w-10 text-center text-[11.5px] tabular-nums text-white/60">{Math.round(ech * 100)} %</span>
+      <span className="w-11 shrink-0 text-center text-[11.5px] tabular-nums text-white/60">{Math.round(ech * 100)} %</span>
       <button type="button" onClick={() => retoucher({ echelle: Math.min(3, Math.round((ech + 0.1) * 100) / 100) })} className={btn} title="Plus grand">A+</button>
       <button type="button" onClick={() => retoucher({ gras: !r.gras })} className={cx(btn, r.gras && "bg-white/15")} title="Gras"><b>G</b></button>
       <button type="button" onClick={() => retoucher({ cache: !r.cache })} className={cx(btn, r.cache && "bg-white/15")} title="Masquer cet élément">{r.cache ? "Afficher" : "Masquer"}</button>
       {Object.keys(r).length > 0 && <button type="button" onClick={() => retoucher(null)} className={btn} title="Annuler les retouches de cet élément">↺</button>}
       <span className="mx-0.5 h-5 w-px bg-white/15" />
-      <button type="button" onClick={demander} className="rounded-lg bg-[#E8571C] px-3 py-1.5 text-[12.5px] font-semibold text-white hover:brightness-110">Demander à Bingoo!</button>
+      <button type="button" onClick={demander} className="shrink-0 whitespace-nowrap rounded-lg bg-[#E8571C] px-3 py-1.5 text-[12.5px] font-semibold text-white hover:brightness-110">Demander à Bingoo!</button>
       <button type="button" onClick={fermer} aria-label="Fermer la sélection" className={btn}>×</button>
     </div>
   );
