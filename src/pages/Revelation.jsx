@@ -241,6 +241,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   const [versions, setVersions] = useState(null);
   // File de demandes : écrites pendant que Bingoo! travaille, lancées une par une dès qu'il est libre
   const [file, setFile] = useState([]);
+  const [modePlan, setModePlan] = useState(false); // mode plan : Bingoo! montre son plan avant de toucher au SaaS
   const sauverRetouche = useRef(0);
   const cadreRef = useRef(null), fichierRef = useRef(null), saisieRef = useRef(null);
   // Ce que le membre a consommé : modifications du mois, crédits, part de son IA du mois
@@ -417,6 +418,17 @@ export function Chantier({ ws, nav, init, atelier = false }) {
     if (t.length < 3 || !app) return;
     const imgs = attendue ? attendue.images : jointes, el = attendue ? attendue.element : element;
     // Bingoo! est occupé (ou construit encore) : la demande attend son tour dans la file
+    // Mode plan : d'abord le plan (gratuit, rien n'est modifié), le membre valide ensuite
+    if (!attendue && modePlan && fini) {
+      const n = echanges.length, ecr = ecranForce ?? ecran;
+      setEchanges((l) => [...l, { moi: t, images: imgs, element: el?.description, etat: "plan-encours" }]); setDemande(""); setJointes([]); setElement(null); setOutil(null);
+      try {
+        const p = await fn("r/saas-app-plan", { workspace_id: ws.id, app_id: app.id, demande: t, ecran: ecr || null, element: el?.description ?? null });
+        setEchanges((l) => l.map((x, k) => (k === n ? { ...x, etat: "plan", plan: p, attente: { texte: t, ecran: ecr, images: imgs, element: el } } : x)));
+      } catch (x) { setEchanges((l) => l.map((y, k) => (k === n ? { ...y, etat: "ko", erreur: x.message } : y))); }
+      return;
+    }
+    if (attendue && occupe) { setFile((f) => [...f, attendue]); return; }
     if (!attendue && (occupe || !fini || testEnCours)) {
       setFile((f) => [...f, { texte: t, ecran: ecranForce ?? ecran, images: imgs, element: el }]); setDemande(""); setJointes([]); setElement(null); setOutil(null);
       return;
@@ -604,9 +616,21 @@ export function Chantier({ ws, nav, init, atelier = false }) {
             )}
             {echanges.map((x, i) => (
               <div key={i} className="space-y-5">
-                <Moi>{x.element && <span className="mb-1 block text-[12px] text-ink-soft">◎ {x.element}</span>}{x.moi}{x.images?.length > 0 && <span className="mt-1.5 flex gap-1.5">{x.images.map((m) => <img key={m.url} src={m.url} alt="" className="h-12 w-12 rounded-lg object-cover" />)}</span>}</Moi>
+                <Moi>{x.element && <span className="mb-1 block text-[12px] text-ink-soft">◎ {x.element}</span>}{x.moi.split("\n\nPlan validé")[0]}{x.moi.includes("\n\nPlan validé") && <span className="mt-1 block text-[12px] text-ink-soft">selon le plan validé</span>}{x.images?.length > 0 && <span className="mt-1.5 flex gap-1.5">{x.images.map((m) => <img key={m.url} src={m.url} alt="" className="h-12 w-12 rounded-lg object-cover" />)}</span>}</Moi>
                 <Bingoo>
-                  {x.etat === "encours" ? <p className="flex items-center gap-2.5 text-ink-soft"><Coche ok={false} />Je modifie ton SaaS… (une à deux minutes)</p>
+                  {x.etat === "plan-encours" ? <p className="flex items-center gap-2.5 text-ink-soft"><Coche ok={false} />J'écris mon plan, sans rien toucher…</p>
+                    : x.etat === "plan" || x.etat === "plan-lance" ? <div className="rounded-xl border border-line bg-[#FCFBF9] p-3.5">
+                      <p className="text-[11.5px] font-semibold uppercase tracking-wider text-ink-faint">Mon plan</p>
+                      <p className="mt-1 font-medium">{x.plan.resume}</p>
+                      <ol className="mt-2 space-y-1 text-[13.5px] text-ink-soft">{x.plan.etapes.map((e, k) => <li key={k} className="flex gap-2"><span className="tabular-nums text-ink-faint">{k + 1}.</span><span>{e}</span></li>)}</ol>
+                      {x.plan.ecrans?.length > 0 && <p className="mt-2 text-[12.5px] text-ink-faint">Touché : {x.plan.ecrans.join(", ")}</p>}
+                      {x.plan.question && <p className="mt-2 text-[13.5px] text-[#9A3412]">{x.plan.question}</p>}
+                      {x.etat === "plan" ? <div className="mt-3 flex flex-wrap gap-2">
+                        <button onClick={() => { setEchanges((l) => l.map((y, k) => (k === i ? { ...y, etat: "plan-lance" } : y))); const a = x.attente; envoyer(`${a.texte}\n\nPlan validé par le membre, à suivre :\n${x.plan.etapes.map((e, k) => `${k + 1}. ${e}`).join("\n")}`, a.ecran || "", a); }} className="rounded-lg bg-ink px-3.5 py-1.5 text-[13px] font-semibold text-white">Construire ce plan</button>
+                        <button onClick={() => { setEchanges((l) => l.filter((_, k) => k !== i)); setDemande(x.attente.texte); saisieRef.current?.focus(); }} className="rounded-lg border border-line bg-white px-3.5 py-1.5 text-[13px] font-semibold">Changer ma demande</button>
+                      </div> : <p className="mt-2 text-[12.5px] text-ink-faint">Plan lancé ↓</p>}
+                    </div>
+                    : x.etat === "encours" ? <p className="flex items-center gap-2.5 text-ink-soft"><Coche ok={false} />Je modifie ton SaaS… (une à deux minutes)</p>
                     : x.etat === "ok" ? <div><p className="flex items-center gap-2.5"><Coche ok />{x.publieA ? "Modification écrite." : "C'est en ligne, regarde l'aperçu."}{x.credit ? " (1 crédit utilisé)" : ""}</p><TestAtelier x={x} verif={app?.verif} apercu={app?.brouillon} />{x.faits?.length > 0 && <ul className="mt-1.5 ml-8 list-disc text-[13.5px] text-ink-soft">{x.faits.map((f) => <li key={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</li>)}</ul>}{x.rates?.length > 0 && <p className="mt-1 ml-8 text-[13px] text-[#9A3412]">{x.rates.join(" ; ")}</p>}{x.versionAvant && <button onClick={() => restaurer(x.versionAvant)} disabled={occupe} className="mt-1.5 ml-8 text-[12.5px] font-semibold text-ink-soft underline-offset-2 hover:underline disabled:opacity-40">↶ Annuler cette modification</button>}</div>
                       : /modifications du mois|Il te faut \d+ crédit/.test(x.erreur ?? "") ? <QuotaAtteint plan={ws?.plan} nav={nav} erreur={x.erreur} />
                       : <p className="text-[#B42318]">{x.erreur}</p>}
@@ -655,6 +679,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                 <button type="button" onClick={() => fichierRef.current?.click()} disabled={!fini || occupe || jointes.length >= 4} title="Joindre une image : ton logo, une photo, ou une capture d'un site à imiter" aria-label="Joindre une image" className="grid h-8 w-8 place-items-center rounded-lg text-ink-soft hover:bg-[#F1EFEA] disabled:opacity-30">
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.5l-8.5 8.5a6 6 0 0 1-8.5-8.5l9-9a4 4 0 0 1 5.7 5.7l-9 9a2 2 0 0 1-2.8-2.8l8.4-8.4" /></svg>
                 </button>
+                <button type="button" onClick={() => setModePlan((v) => !v)} disabled={!fini} title="Mode plan : Bingoo! te montre ce qu'il va faire avant de toucher à ton SaaS (gratuit)" className={cx("rounded-lg px-2.5 py-1 text-[12.5px] font-semibold disabled:opacity-30", modePlan ? "bg-[#E8571C] text-white" : "text-ink-soft hover:bg-[#F1EFEA]")}>Plan d'abord</button>
                 <div className="flex-1" />
                 <button type="submit" disabled={!app || demande.trim().length < 3} aria-label={occupe || !fini ? "Ajouter à la file" : "Envoyer"} title={occupe || !fini ? "Ajouter à la file : Bingoo! la lance dès qu'il est libre" : "Envoyer"} className="grid h-8 w-8 place-items-center rounded-full bg-ink text-white disabled:opacity-30">
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>

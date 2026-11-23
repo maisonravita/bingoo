@@ -381,6 +381,11 @@ function Accueil({ m, charger }) {
         </div>
       </Carte>
 
+      {ch?.jours && <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <Visites ch={ch} />
+        <Securite s={ch.securite} nav={nav} />
+      </div>}
+
       <EnBref m={m} />
 
       <Carte className="mt-4" pad={false}>
@@ -975,5 +980,45 @@ function VideosTikTok({ videos, m, deja }) {
         );
       })}
     </div>
+  );
+}
+
+// Visites des 30 derniers jours, jour par jour, et leur provenance (vraies données de saas_app_visites)
+const NOMS_SOURCE = { direct: "Accès direct", tiktok: "TikTok", instagram: "Instagram", facebook: "Facebook", google: "Google", linkedin: "LinkedIn", x: "X", youtube: "YouTube" };
+function Visites({ ch }) {
+  const max = Math.max(1, ...ch.jours.map((j) => j.vues)), total = ch.visites_30j ?? 0;
+  const [survol, setSurvol] = useState(null);
+  const j = survol != null ? ch.jours[survol] : null;
+  return (
+    <Carte>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-[14px] font-semibold">Visites</h2>
+        <p className="text-[12.5px] text-[#616161] tnum">{j ? `${new Date(j.jour).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} · ${j.vues} visite${j.vues > 1 ? "s" : ""}` : `${total} sur 30 jours`}</p>
+      </div>
+      <div className="mt-4 flex h-28 items-end gap-[3px]" onMouseLeave={() => setSurvol(null)}>
+        {ch.jours.map((x, i) => <div key={x.jour} onMouseEnter={() => setSurvol(i)} className="flex h-full flex-1 items-end"><div className={cx("w-full rounded-t-[3px] transition-colors", survol === i ? "bg-[#E8571C]" : x.vues ? "bg-[#303030]" : "bg-[#EBEBEB]")} style={{ height: `${x.vues ? Math.max(6, (x.vues / max) * 100) : 4}%` }} /></div>)}
+      </div>
+      <div className="mt-1.5 flex justify-between text-[11.5px] text-[#8A8A8A]"><span>il y a 30 jours</span><span>aujourd'hui</span></div>
+      {total > 0 ? <ul className="mt-4 space-y-1.5 border-t border-[#EBEBEB] pt-3">
+        {ch.sources.map((x) => <li key={x.source} className="flex items-center gap-3 text-[13px]"><span className="w-28 truncate text-[#616161]">{NOMS_SOURCE[x.source] ?? x.source}</span><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#F1F1F1]"><div className="h-full rounded-full bg-[#303030]" style={{ width: `${(x.vues / total) * 100}%` }} /></div><span className="w-8 text-right tnum">{x.vues}</span></li>)}
+      </ul> : <p className="mt-4 border-t border-[#EBEBEB] pt-3 text-[13px] text-[#616161]">Pas encore de visite. Partage ton lien avec ?src=tiktok (ou instagram, google…) à la fin pour savoir d'où viennent tes visiteurs.</p>}
+    </Carte>
+  );
+}
+// Contrôle de sécurité du code livré (clés secrètes, scripts extérieurs, code dangereux, liens non sécurisés)
+function Securite({ s, nav }) {
+  if (!s) return null;
+  return (
+    <Carte>
+      <div className="flex items-center gap-2">
+        <span className={cx("grid h-6 w-6 place-items-center rounded-full text-white", s.ok ? "bg-[#29845A]" : "bg-[#C2410C]")}>{s.ok ? "✓" : "!"}</span>
+        <h2 className="text-[14px] font-semibold">Contrôle de sécurité</h2>
+      </div>
+      <p className="mt-1 text-[12.5px] text-[#616161]">{s.ok ? `Tout est propre : ${s.ecrans} écrans et sections relus.` : "Bingoo! a trouvé un point à corriger."}</p>
+      <ul className="mt-3 space-y-2">
+        {s.points.map((p) => <li key={p.k} className="flex gap-2.5 text-[13px]"><span className={cx("mt-0.5 font-bold", p.ok ? "text-[#29845A]" : "text-[#C2410C]")}>{p.ok ? "✓" : "✗"}</span><span>{p.t}{!p.ok && <span className="block text-[12px] text-[#8A8A8A]">Dans : {p.ou.join(", ")}</span>}</span></li>)}
+      </ul>
+      {!s.ok && <button onClick={() => nav("/explorer/atelier")} className="mt-3 rounded-lg bg-[#303030] px-3 py-1.5 text-[12.5px] font-semibold text-white">Corriger dans l'atelier</button>}
+    </Carte>
   );
 }

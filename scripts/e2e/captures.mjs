@@ -258,7 +258,9 @@ if (CONSTRUIRE === "spec") {
   await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(9000);
   await pm.getByRole("button", { name: /Sélectionner/ }).click(); await pm.waitForTimeout(800);
   const fr = pm.frameLocator('iframe[title^="Aperçu"]');
-  const titre = fr.locator("h1, h2").first(); await titre.click({ timeout: 15000 }); await pm.waitForTimeout(1200);
+  await pm.screenshot({ path: `${DOSSIER}/selection-0.png` });
+  const CIBLE = "h1:visible, h2:visible, h3:visible, p:visible";
+  const titre = fr.locator(CIBLE).first(); await titre.click({ timeout: 30000 }); await pm.waitForTimeout(1200);
   const barre = await pm.getByRole("button", { name: "Demander à Bingoo!" }).isVisible().catch(() => false);
   console.log(barre ? "✓ barre de sélection affichée" : "✗ pas de barre de sélection");
   await pm.screenshot({ path: `${DOSSIER}/selection-1.png` });
@@ -269,7 +271,7 @@ if (CONSTRUIRE === "spec") {
   console.log((x.r ?? []).length ? `✓ retouche enregistrée : ${JSON.stringify(x.r.at(-1).css)}` : "✗ retouche non enregistrée");
   // Rechargée : la retouche doit être réappliquée toute seule
   await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(9000);
-  const st = await fr.locator("h1, h2").first().evaluate((el) => { const c = getComputedStyle(el); return { couleur: c.color, taille: c.fontSize, gras: c.fontWeight }; }).catch((e) => ({ err: e.message.slice(0, 80) }));
+  const st = await fr.locator(CIBLE).first().evaluate((el) => { const c = getComputedStyle(el); return { couleur: c.color, taille: c.fontSize, gras: c.fontWeight }; }).catch((e) => ({ err: e.message.slice(0, 80) }));
   console.log(/225, 29, 72/.test(st.couleur ?? "") ? `✓ retouche réappliquée après rechargement ${JSON.stringify(st)}` : `✗ retouche absente après rechargement ${JSON.stringify(st)}`);
   await pm.screenshot({ path: `${DOSSIER}/selection-3.png` });
   // File de demandes : la 2e est écrite pendant que Bingoo! applique la 1re

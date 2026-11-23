@@ -171,6 +171,22 @@ export async function appDomaineVerifier(appId: string) {
   return { domaine: d, statut: ok ? "ok" : "attente", dns: consignes(d, p.d?.verification), registraire: ok ? null : await registraire(d) };
 }
 
+// ---------------------------------------------------------------- Contrôle de sécurité (sans IA) : ce qui se vérifie dans le code livré
+export function auditSecurite(spec: any) {
+  const ecrans = ((spec?.ecrans ?? []) as any[]).filter((e) => typeof e.code === "string");
+  const sections = ((spec?.site?.page?.sections ?? []) as any[]).map((x) => String(x.html ?? ""));
+  const tout = [...ecrans.map((e) => ({ ou: e.titre ?? e.id, code: e.code as string })), ...sections.map((c, i) => ({ ou: `section ${i + 1} de la page`, code: c }))];
+  const trouve = (re: RegExp) => tout.filter((x) => re.test(x.code)).map((x) => x.ou).slice(0, 4);
+  const regles: [string, string, RegExp][] = [
+    ["cles", "Aucune clé secrète dans le code", /(sk_(live|test)_[A-Za-z0-9]{8,}|AKIA[0-9A-Z]{16}|eyJ[A-Za-z0-9_-]{30,}\.[A-Za-z0-9_-]{20,}|(api[_-]?key|secret|password|mot_de_passe)\s*[:=]\s*["'][^"']{8,}["'])/i],
+    ["scripts", "Aucun script extérieur chargé", /<script[^>]+src\s*=|<iframe[^>]+src\s*=\s*["']https?:/i],
+    ["code", "Aucun code dangereux (eval, HTML injecté)", /\beval\s*\(|new\s+Function\s*\(|dangerouslySetInnerHTML|\.innerHTML\s*=|document\.write\s*\(/],
+    ["https", "Tous les liens sont sécurisés (https)", /["'(]http:\/\/(?!localhost|127\.0\.0\.1|www\.w3\.org)[^"')\s]+/],
+  ];
+  const points = regles.map(([k, t, re]) => { const ou = trouve(re); return { k, t, ok: ou.length === 0, ou }; });
+  return { ok: points.every((p) => p.ok), points, ecrans: tout.length };
+}
+
 // ---------------------------------------------------------------- Chiffres
 export async function appChiffres(appId: string) {
   const { data: app } = await admin.from("saas_apps").select("spec, paiement").eq("id", appId).single();
@@ -179,8 +195,14 @@ export async function appChiffres(appId: string) {
   const abonnes = (us ?? []).filter((u: any) => ["active", "past_due"].includes(u.abonnement?.statut));
   const essaiJours = Number((app?.paiement as any)?.essai_jours ?? 14);
   const essais = (us ?? []).filter((u: any) => !["active", "past_due"].includes(u.abonnement?.statut) && Date.now() - new Date(u.at).getTime() < essaiJours * 864e5).length;
-  const { data: vis } = await admin.from("saas_app_visites").select("vues").eq("app_id", appId).gte("jour", new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10));
+  const { data: vis } = await admin.from("saas_app_visites").select("jour, source, vues").eq("app_id", appId).gte("jour", new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10));
+  // Visites jour par jour (30 jours, jours sans visite compris) et d'où viennent les visiteurs
+  const parJour: Record<string, number> = {}, parSource: Record<string, number> = {};
+  for (const v of vis ?? []) { parJour[v.jour] = (parJour[v.jour] ?? 0) + Number(v.vues ?? 0); parSource[v.source ?? "direct"] = (parSource[v.source ?? "direct"] ?? 0) + Number(v.vues ?? 0); }
+  const jours = Array.from({ length: 30 }, (_, i) => { const j = new Date(Date.now() - (29 - i) * 864e5).toISOString().slice(0, 10); return { jour: j, vues: parJour[j] ?? 0 }; });
   return {
+    jours, sources: Object.entries(parSource).map(([source, vues]) => ({ source, vues })).sort((a, b) => b.vues - a.vues).slice(0, 6),
+    securite: auditSecurite(app?.spec),
     visites_30j: (vis ?? []).reduce((a: number, v: any) => a + Number(v.vues ?? 0), 0),
     essais,
     comptes: (us ?? []).length,
