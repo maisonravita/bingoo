@@ -27,7 +27,7 @@ const ICONES = {
   pub: ico(<><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z" /><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" /></>),
   verifie: ico(<><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z" /><path d="m9 12 2 2 4-4" /></>),
 };
-const MENU = [["Comment ça marche", "#comment"], ["Un site qui te plaît", "#copie"], ["Pas d'idée ?", "#idees"], ["Prix", "#prix"], ["Questions", "#faq"]];
+const MENU = [["Réalisations", "#realisations"], ["Comment ça marche", "#comment"], ["Un site qui te plaît", "#copie"], ["Pas d'idée ?", "#idees"], ["Prix", "#prix"], ["Questions", "#faq"]];
 
 // Nombre de SaaS suivis dans la base Explorer (vue publique), affiché tel quel
 function useNbSaas() {
@@ -267,13 +267,19 @@ function Vitrine({ choisir }) {
 }
 
 
-function IdeeHero({ nav }) {
+// Les cartes de la vitrine (SaaS, vidéos) remplissent le champ d'idée du haut de page
+const remplirIdee = (texte, genre) => window.dispatchEvent(new CustomEvent("bingoo-remplir", { detail: { texte, genre } }));
+function IdeeHero({ nav, nb }) {
   const [texte, setTexte] = useState(""), [choix, setChoix] = useState(null), [busy, setBusy] = useState(false), [compte, setCompte] = useState(null);
   // Le genre se lit dans la phrase (« un site… », « une app mobile… ») tant que le membre n'a pas choisi lui-même
   const type = choix ?? typeDe(texte);
   const setType = setChoix;
   const zone = useRef(null);
   const url = estAdresse(texte);
+  useEffect(() => {
+    const f = (e) => { setTexte(e.detail.texte); setChoix(e.detail.genre); zone.current?.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(() => zone.current?.focus(), 400); };
+    window.addEventListener("bingoo-remplir", f); return () => window.removeEventListener("bingoo-remplir", f);
+  }, []);
   const lancer = async (e) => {
     e?.preventDefault();
     const t = texte.trim();
@@ -310,8 +316,7 @@ function IdeeHero({ nav }) {
       {!url && type !== "saas" && <p className="mt-2 px-1 text-[12.5px] text-[#5B6075]">{type === "video" ? "20 secondes en motion design, à tes couleurs, avec une musique libre de droits : tu la retouches en discutant et tu la télécharges en vertical, carré ou paysage." : type === "app" ? "Ton app pensée pour le téléphone, à essayer tout de suite dans Expo Go. La publication sur l'App Store et Google Play arrive bientôt." : "Ton site en ligne en quelques minutes : tes services, tes prix, tes horaires et un formulaire de demande."}</p>}
       {!texte && <div className="mt-3 flex flex-wrap gap-1.5 border-t border-black/[.06] px-1 pt-3">{EXEMPLES_IDEE[type].map((x) => <button key={x} type="button" onClick={() => { setTexte(x); zone.current?.focus(); }} className="rounded-full bg-[#F4F4F1] px-3 py-1.5 text-[13px] text-[#5B6075] hover:bg-[#ECECE7]">{x}</button>)}</div>}
     </form>
-    <Vitrine choisir={(t, ty) => { setTexte(t); setChoix(ty); zone.current?.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(() => zone.current?.focus(), 400); }} />
-    <VideosVitrine nav={() => { setChoix("video"); setTexte("Une vidéo pour présenter mon activité"); zone.current?.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(() => zone.current?.focus(), 400); }} />
+    <p className="hero-in mt-4 text-[14.5px] text-[#5B6075]" style={{ ...JK, animationDelay: ".24s" }}>Pas d'idée ? <button type="button" onClick={() => nav("/decouvrir")} className="font-semibold text-[#1E2030] underline decoration-black/25 underline-offset-4 hover:decoration-black">Pars des {nb ? (Math.floor(nb / 1000) * 1000).toLocaleString("fr-FR") : "milliers de"} SaaS qui marchent déjà</button></p>
   </>);
 }
 
@@ -351,13 +356,7 @@ export default function Landing() {
               <span className="mt-1 block text-[38px] sm:text-[60px] lg:text-[80px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>Bingoo! <span className="fx-texte">la construit.</span></span>
             </h1>
             <p className="hero-in mx-auto mt-4 sm:mt-7 max-w-[720px] text-[16px] sm:text-[21px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Ton SaaS, ton site ou ton app : Bingoo! le crée écran par écran sous tes yeux, le teste et le met en ligne à ton nom.</p>
-            <IdeeHero nav={nav} />
-            <button onClick={() => nav("/decouvrir")} className="hero-in group mx-auto mt-6 flex max-w-[680px] w-full items-center gap-4 rounded-2xl border border-black/[.08] bg-[#FAFAF7] px-5 py-4 text-left transition hover:border-black/20 hover:bg-white" style={{ ...JK, animationDelay: ".26s" }}>
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#1E2030] text-[20px] text-white">✦</span>
-              <span className="min-w-0 flex-1"><span className="block text-[16px] font-bold text-[#1E2030]">Pas d'idée ? Découvre les {nb ? (Math.floor(nb / 1000) * 1000).toLocaleString("fr-FR") : "milliers de"} SaaS et applis mobiles qui marchent déjà</span><span className="block text-[14px] text-[#5B6075]">Choisis celui qui te plaît : Bingoo! construit ta version, à ton nom.</span></span>
-              <span className="shrink-0 text-[#1E2030] transition group-hover:translate-x-1"><Arrow className="h-5 w-5" /></span>
-            </button>
-            
+            <IdeeHero nav={nav} nb={nb} />
             <FilmAuto />
           </div>
           </section>
@@ -366,6 +365,12 @@ export default function Landing() {
 
       <main className="bg-white">
         <div className="mx-auto max-w-[1440px] bg-white">
+
+        {/* Ce que Bingoo! a vraiment construit : les SaaS, puis les vidéos */}
+        <div id="realisations" className="scroll-mt-24 border-t border-black/[.07] px-5 sm:px-10">
+          <Vitrine choisir={(t, ty) => remplirIdee(t, ty)} />
+          <VideosVitrine nav={() => remplirIdee("Une vidéo pour présenter mon activité", "video")} />
+        </div>
 
         {/* Comment ça marche : 3 étapes, montrées sur une vraie construction (Agendo, construit par le robot de Bingoo!) */}
         <section id="comment" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">

@@ -89,7 +89,7 @@ if (CONSTRUIRE === "audit") {
       const imgs = [...document.images].filter((i) => i.complete && i.naturalWidth === 0).map((i) => i.src.slice(0, 90));
       const petits = [...document.querySelectorAll("button, a")].filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height < 30 && e.innerText.trim(); }).map((e) => e.innerText.trim().slice(0, 30)).slice(0, 10);
       const v = document.querySelector("video");
-      return { hauteur: document.body.scrollHeight, largeurPage: document.documentElement.scrollWidth, deborde, imgsCassees: imgs, petitsBoutons: petits, compteur: document.body.innerText.match(/Découvre les ([^S]+) SaaS/)?.[1], video: v ? { pret: v.readyState, duree: Math.round(v.duration), src: v.currentSrc.slice(-28) } : null, h2: [...document.querySelectorAll("h2")].map((h) => h.innerText.replace(/\s+/g, " ").slice(0, 60)) };
+      return { hauteur: document.body.scrollHeight, largeurPage: document.documentElement.scrollWidth, deborde, imgsCassees: imgs, petitsBoutons: petits, compteur: document.body.innerText.match(/Pars des ([^S]+) SaaS/)?.[1], video: v ? { pret: v.readyState, duree: Math.round(v.duration), src: v.currentSrc.slice(-28) } : null, h2: [...document.querySelectorAll("h2")].map((h) => h.innerText.replace(/\s+/g, " ").slice(0, 60)) };
     });
     await p.evaluate(() => { document.querySelectorAll(".reveal").forEach((e) => e.classList.add("in")); window.scrollTo(0, 0); }); await p.waitForTimeout(800);
     await p.screenshot({ path: `${DOSSIER}/audit-${nom}-page.jpg`, type: "jpeg", quality: 70, fullPage: true });
