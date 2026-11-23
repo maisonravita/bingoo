@@ -213,7 +213,9 @@ async function photosGaleries(apercu: any) {
     const vues = new Set<string>();
     // Mots anglais de l'IA d'abord, sinon le titre de l'élément tel quel (Commons connaît aussi le français)
     const essais = (b.elements ?? []).slice(0, 4).map((x: unknown, i: number) => [mots[i], String(x).split(/\s[·—-]\s|\s:\s/)[0]].filter(Boolean) as string[]);
-    const trouvees = await Promise.all(essais.map(async (qs: string[]) => { for (const q of qs) { try { const l = await photosLibres(q, 3, 800); if (l.length) return l; } catch { /* suivant */ } } return []; }));
+    // Une photo n'est gardée que si sa description reprend un mot de la recherche (sinon : un portrait pour « curry »…)
+    const parle = (ph: any, q: string) => { const t = `${ph.alt ?? ""} ${ph.page ?? ""}`.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); return q.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((m) => m.length > 3).some((m) => t.includes(m)); };
+    const trouvees = await Promise.all(essais.map(async (qs: string[]) => { for (const q of qs) { try { const l = (await photosLibres(q, 4, 800)).filter((ph) => parle(ph, q)); if (l.length) return l; } catch { /* suivant */ } } return []; }));
     b.images = trouvees.map((l: any[]) => { const ph = l.find((x) => !vues.has(x.page)); if (!ph) return null; vues.add(ph.page); return { url: ph.url, auteur: ph.auteur, licence: ph.licence, page: ph.page }; });
     console.log("aperçu photos", JSON.stringify({ essais, trouvees: trouvees.map((l: any[]) => l.length) }).slice(0, 400));
     delete b.photos_en;

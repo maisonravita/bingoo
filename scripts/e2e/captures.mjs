@@ -100,7 +100,7 @@ if (CONSTRUIRE === "audit") {
 // CONSTRUIRE=gratuit : l'Explorer vu par un compte gratuit (un autre compte de test, sans abonnement)
 if (CONSTRUIRE === "gratuit") {
   // La page publique « Découvre les SaaS qui marchent », vue par un visiteur sans compte, puis le clic sur un SaaS
-  { const c0 = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p0 = await c0.newPage();
+  if (CONSTRUIRE === "quatre") { const c0 = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p0 = await c0.newPage();
     await p0.goto(`${SITE}/?c=${Date.now()}#/decouvrir`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p0.waitForTimeout(5000);
     await p0.screenshot({ path: `${DOSSIER}/decouvrir.png`, fullPage: true }); console.log("✓ decouvrir");
     await p0.getByRole("button", { name: /Ouvrir la fiche/ }).first().click().catch((e) => console.log("✗ fiche", e.message)); await p0.waitForTimeout(1200);
@@ -316,7 +316,7 @@ if (CONSTRUIRE === "spec") {
   await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/mon-saas`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(6000);
   console.log((await pm.getByText("Contrôle de sécurité").count()) ? "✓ contrôle de sécurité affiché" : "✗ pas de contrôle de sécurité");
   await pm.screenshot({ path: `${DOSSIER}/mon-saas-visites.png`, fullPage: true });
-} else if (CONSTRUIRE === "quatre") {
+} else if (CONSTRUIRE === "quatre" || CONSTRUIRE === "photos") {
   // Points de départ (accueil), remarques épinglées (atelier), logo de l'espace (Mon SaaS), photos réelles dans l'aperçu d'idée
   const appel = async (route, corps) => { const r = await fetch(`${SB}/functions/v1/r/${route}`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify(corps) }); const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch {} return { ok: r.ok, j, t: t.slice(0, 200) }; };
   { const c0 = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p0 = await c0.newPage();
@@ -326,6 +326,7 @@ if (CONSTRUIRE === "spec") {
     await p0.getByText("Site de restaurant").click().catch(() => null); await p0.waitForTimeout(1200);
     const v = await p0.locator("#idee").inputValue().catch(() => ""); console.log(/restaurant japonais/.test(v) ? "✓ un clic remplit l'idée" : "✗ idée non remplie");
     await p0.screenshot({ path: `${DOSSIER}/depart-2.png` }); await c0.close(); }
+  if (CONSTRUIRE === "quatre") {
   const [a] = await q(`select id, slug, version from saas_apps where workspace_id = ${lit(ws)} and statut = 'pret' order by maj desc limit 1`);
   const v0 = a.version;
   const { page: pm } = await ouvrir(ws, {});
@@ -354,6 +355,7 @@ if (CONSTRUIRE === "spec") {
   await pm.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(5000); await pm.screenshot({ path: `${DOSSIER}/logo-saas.png` });
   // Remise en état de la démo
   await appel("saas-app-reglages", { workspace_id: ws, app_id: a.id, quoi: "restaurer", version: v0 }); await appel("espace-logo", { workspace_id: ws, logo: null });
+  }
   // Photos réelles dans l'aperçu d'une idée (espace neuf : limite du jour)
   const wsI = await creerEspace("Robot photos " + new Date().toISOString().slice(0, 16)); await q(`update workspaces set plan = 'lancer_pro', plan_status = 'active', onboarded = true where id = ${lit(wsI)}`);
   const { ctx: ci, page: pi } = await ouvrir(wsI, { "bingoo-idee": { texte: "Un site de recettes végétariennes où chacun publie ses plats", type: "saas", at: Date.now() } });
@@ -493,7 +495,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
