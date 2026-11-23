@@ -239,7 +239,6 @@ async function designsApercu(motsCles: string, wsId: string) {
     const libre = (TITRES_CARACTERE as string[]).find((f) => !prises.has(f)) ?? "Fraunces";
     prises.add(libre); out[i] = { ...out[i], polices: { ...out[i].polices, titres: libre } };
   }
-  // Une ambiance claire et une sombre au moins parmi les trois (le haut de page suit le mode du style)
-  if (out.length === 3 && out.every((d) => d.mode === out[0].mode)) out[2] = { ...out[2], mode: out[0].mode === "dark" ? "light" : "dark" };
+  // (le mode n'est jamais forcé : une palette pensée en clair, passée en sombre, rendait les textes illisibles dans les applis)
   return out;
 }
