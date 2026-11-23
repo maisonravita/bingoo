@@ -226,7 +226,13 @@ if (B.verif) {
 // Lisibilité garantie : un texte trop pâle sur son fond (moins de 4,5:1, ou 3:1 en grand) est foncé ou éclairci juste assez.
 // Le design choisi reste le même ; seuls les gris trop clairs (dates, compteurs, liens « Tout voir ») sont corrigés.
 const lisible = (() => {
-  const num = (c) => { const m = String(c || "").match(/[0-9.]+/g); return m && m.length >= 3 ? [+m[0], +m[1], +m[2], m[3] == null ? 1 : +m[3]] : null; };
+  // Tailwind 4 rend ses couleurs en oklch() : elles passent par un canevas pour être lues en RVB (comme le contrôle de finition)
+  const cv = document.createElement("canvas"); cv.width = cv.height = 1; const cx = cv.getContext("2d", { willReadFrequently: true });
+  const num = (c) => {
+    c = String(c || ""); if (!c || c === "transparent") return null;
+    if (c.indexOf("rgb") === 0) { const m = c.match(/[0-9.]+/g); return m && m.length >= 3 ? [+m[0], +m[1], +m[2], m[3] == null ? 1 : +m[3]] : null; }
+    try { cx.clearRect(0, 0, 1, 1); cx.fillStyle = "#000"; cx.fillStyle = c; cx.fillRect(0, 0, 1, 1); const d = cx.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2], d[3] / 255]; } catch (e) { return null; }
+  };
   const lum = (c) => { const f = (x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
   const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
   const fond = (el) => { for (let n = el; n && n.nodeType === 1; n = n.parentElement) { const cs = getComputedStyle(n); if (cs.backgroundImage && cs.backgroundImage !== "none") return null; const b = num(cs.backgroundColor); if (b && b[3] > 0.95) return b; } return [255, 255, 255, 1]; };
