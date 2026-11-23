@@ -81,7 +81,7 @@ function FilmAuto() {
   // Le film de 32 s (sans son) : l'idée, la construction en direct, un site qui te plaît, les SaaS qui marchent
   return (
     <div id="film" className="hero-in fx-halo mx-auto mt-10 sm:mt-12 max-w-[1100px] scroll-mt-24" style={{ animationDelay: ".3s" }}>
-      <video ref={ref} src="/film-lancement.mp4?v=5" poster="/film-lancement.jpg?v=5" muted loop playsInline preload="metadata" controls aria-label="Une vraie construction filmée, accélérée : tu écris ton idée, Bingoo! la construit sous tes yeux, la teste et la met en ligne" className="w-full block aspect-video rounded-2xl bg-white" />
+      <video ref={ref} src="/film-lancement.mp4?v=6" poster="/film-lancement.jpg?v=6" muted loop playsInline preload="metadata" controls aria-label="Film de présentation de Bingoo! : tu écris ton idée, Bingoo! la construit sous tes yeux (vraie construction accélérée), puis ses SaaS, sites, apps et vidéos" className="w-full block aspect-video rounded-2xl bg-white" />
     </div>
   );
 }
