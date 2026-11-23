@@ -14,7 +14,7 @@ const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 const mix = (c, d, k) => c.map((v, i) => Math.round(v + (d[i] - v) * k));
 const lum = (c) => (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
 
-export const DUREES = { impact: 1.4, liste: 3.2, choix: 3, rature: 2.8, mots: 2.6, objet: 3.2, pilules: 3.2, compteur: 2.8, barres: 3, pastille: 1.8, cartes: 2.8, aplat: 2.2, logo: 3 };
+export const DUREES = { ecran_vitre: 3.2, ecran_zoom: 3.4, ecran_cascade: 3.2, ecran_defile: 3.4, ecran_split: 3, ecran_mur: 3, ecran_curseur: 3.4, ecran_telephone: 3.2, impact: 1.4, liste: 3.2, choix: 3, rature: 2.8, mots: 2.6, objet: 3.2, pilules: 3.2, compteur: 2.8, barres: 3, pastille: 1.8, cartes: 2.8, aplat: 2.2, logo: 3 };
 export const TYPES_SCENES = Object.keys(DUREES);
 export const dureeScene = (s) => clamp(Number(s?.duree) || DUREES[s?.type] || 2.6, 1.4, 5);
 export const dureeTotale = (script) => (script?.scenes ?? []).reduce((a, s) => a + dureeScene(s), 0) || 20;
@@ -81,6 +81,9 @@ let F = "system-ui", C = [79, 70, 229], CV = C, NOIR = true, INK = "#fff", INK2 
 // partout), editorial (crème, titres à empattements, casse normale, sans halo), minimal (blanc pur, sobre, sans halo)
 export const LOOKS = ["nuit", "pop", "editorial", "minimal"];
 let LOOK = "nuit";
+// Les vrais écrans du SaaS ou du site du membre (captures de son produit), par titre : { titre: image }
+let ECRANS = {}, ECRANS_L = [];
+const ecranDe = (titre, i = 0) => { const n = (x) => String(x ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); const k = Object.keys(ECRANS).find((x) => n(x) === n(titre)); return (k && ECRANS[k]) || ECRANS_L[i % Math.max(1, ECRANS_L.length)] || null; };
 export const policeMotion = (script) => ({ editorial: "Fraunces", minimal: "Plus Jakarta Sans" }[LOOKS.includes(script?.look) ? script.look : "nuit"] ?? "Inter Tight");
 const MAJ = (x) => (LOOK === "nuit" || LOOK === "pop" ? String(x ?? "").toUpperCase() : String(x ?? ""));
 
@@ -181,7 +184,112 @@ function listeAllure(ctx, s, e, courte = false) {
   });
 }
 
+// --- Scènes « produit » : de vraies captures du SaaS du membre, mises en mouvement (cadre, zoom, curseur, éventail…)
+function fenetre(ctx, img, x, y, w, h, u, { barre = true, ombre = true, rayon = 18 } = {}) {
+  const r = rayon * u, hb = barre ? Math.max(18 * u, h * 0.055) : 0;
+  ctx.save();
+  if (ombre) { ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = 60 * u; ctx.shadowOffsetY = 24 * u; }
+  rond(ctx, x, y, w, h, r); ctx.fillStyle = "#fff"; ctx.fill(); ctx.shadowColor = "transparent";
+  ctx.save(); rond(ctx, x, y, w, h, r); ctx.clip();
+  if (barre) { ctx.fillStyle = "#F1F1F4"; ctx.fillRect(x, y, w, hb); ["#FF5F57", "#FEBC2E", "#28C840"].forEach((c, i) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + hb * 0.6 + i * hb * 0.55, y + hb / 2, hb * 0.17, 0, Math.PI * 2); ctx.fill(); }); }
+  if (img) { const ih = h - hb, k = Math.max(w / img.width, ih / img.height); ctx.drawImage(img, x, y + hb, img.width * k, img.height * k); }
+  ctx.restore(); ctx.restore();
+}
+function legende(ctx, s, e, y) {
+  if (!e.texte) return;
+  motsAnimes(ctx, e.texte, e.accent, s.W / 2, y, { taille: (s.vertical ? 66 : 58) * s.u, largeur: s.W * 0.86, t: s.t, poids: LOOK === "minimal" ? 600 : 800, decale: 0.05 });
+}
+const SCENES_PRODUIT = {
+  // La fenêtre arrive penchée en perspective, puis se redresse
+  ecran_vitre(ctx, s, e) {
+    const { W, H, u, t, vertical } = s, img = ecranDe(e.ecran), p = eo(prog(t, 0.05, 1.1));
+    const w = W * (vertical ? 0.9 : 0.72), h = w * 0.625, x = W / 2 - w / 2, y = H * (vertical ? 0.5 : 0.55) - h / 2;
+    ctx.save(); ctx.translate(W / 2, y + h / 2); ctx.transform(1, (1 - p) * 0.18, (1 - p) * -0.35, 1, 0, 0); ctx.scale(0.8 + 0.2 * p, 0.8 + 0.2 * p); ctx.translate(-W / 2, -(y + h / 2));
+    fenetre(ctx, img, x, y, w, h, u); ctx.restore();
+    legende(ctx, s, e, y - (vertical ? 170 : 110) * u);
+  },
+  // Plein cadre, puis la caméra plonge sur une zone avec un cercle de mise en avant
+  ecran_zoom(ctx, s, e) {
+    const { W, H, u, t, d, vertical } = s, img = ecranDe(e.ecran);
+    const w = W * (vertical ? 0.92 : 0.8), h = w * 0.625, x = W / 2 - w / 2, y = H * 0.56 - h / 2;
+    const fx = e.zone === "gauche" ? 0.25 : e.zone === "droite" ? 0.75 : 0.5, fy = e.zone === "bas" ? 0.75 : e.zone === "haut" ? 0.3 : 0.5;
+    const z = 1 + 0.9 * eio(prog(t, 0.6, d - 0.4)), cx = x + w * fx, cy = y + h * fy;
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(z, z); ctx.translate(-cx, -cy); fenetre(ctx, img, x, y, w, h, u); ctx.restore();
+    const q = prog(t, 1.3, 2.1); if (q > 0) { ctx.save(); ctx.strokeStyle = rgba(C, 1); ctx.lineWidth = 6 * u; ctx.globalAlpha *= Math.min(1, q * 2); ctx.beginPath(); ctx.arc(cx, cy, (90 + 20 * Math.sin(t * 5)) * u * eo(q), 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+    legende(ctx, s, e, H * (vertical ? 0.17 : 0.13));
+  },
+  // Trois écrans en éventail, comme des cartes qu'on étale
+  ecran_cascade(ctx, s, e) {
+    const { W, H, u, t, vertical } = s;
+    const titres = Array.isArray(e.ecrans) && e.ecrans.length ? e.ecrans : [e.ecran];
+    const w = W * (vertical ? 0.72 : 0.5), h = w * 0.625;
+    [0, 1, 2].forEach((i) => {
+      const p = ressort(prog(t, 0.1 + i * 0.25, 0.9 + i * 0.25)); if (p <= 0) return;
+      const a = (i - 1) * 0.16 * p, dx = (i - 1) * W * (vertical ? 0.14 : 0.2) * p, dy = Math.abs(i - 1) * 40 * u * p;
+      ctx.save(); ctx.globalAlpha *= clamp(p * 1.5); ctx.translate(W / 2 + dx, H * 0.56 + dy); ctx.rotate(a); fenetre(ctx, ecranDe(titres[i] ?? titres[0], i), -w / 2, -h / 2, w, h, u); ctx.restore();
+    });
+    legende(ctx, s, e, H * (vertical ? 0.2 : 0.15));
+  },
+  // L'écran défile doucement dans son cadre, comme si on le parcourait
+  ecran_defile(ctx, s, e) {
+    const { W, H, u, t, d, vertical } = s, img = ecranDe(e.ecran);
+    const w = W * (vertical ? 0.86 : 0.66), h = vertical ? H * 0.56 : w * 0.62, x = W / 2 - w / 2, y = H * (vertical ? 0.36 : 0.32);
+    ctx.save(); ctx.shadowColor = "rgba(0,0,0,.3)"; ctx.shadowBlur = 50 * u; rond(ctx, x, y, w, h, 22 * u); ctx.fillStyle = "#fff"; ctx.fill(); ctx.restore();
+    if (img) { ctx.save(); rond(ctx, x, y, w, h, 22 * u); ctx.clip(); const k = (w / img.width) * 1.35, ih = img.height * k, iw = img.width * k, q = eio(prog(t, 0.3, d - 0.2)); ctx.drawImage(img, x - (iw - w) * q * 0.6, y - Math.max(0, ih - h) * q, iw, ih); ctx.restore(); }
+    legende(ctx, s, e, y - (vertical ? 120 : 90) * u);
+  },
+  // Texte d'un côté, l'écran qui glisse de l'autre et dépasse du cadre
+  ecran_split(ctx, s, e) {
+    const { W, H, u, t, vertical } = s, img = ecranDe(e.ecran), p = eo(prog(t, 0.15, 1));
+    if (vertical) {
+      const w = W * 1.05, h = w * 0.625; fenetre(ctx, img, W * 0.12 + (1 - p) * W * 0.6, H * 0.52, w, h, u);
+      if (e.texte) motsAnimes(ctx, e.texte, e.accent, W * 0.08, H * 0.3, { taille: 78 * u, largeur: W * 0.84, t, poids: 800, decale: 0.05, aligne: "gauche" });
+    } else {
+      const w = W * 0.62, h = w * 0.625; fenetre(ctx, img, W * 0.46 + (1 - p) * W * 0.4, H / 2 - h / 2, w, h, u);
+      if (e.texte) motsAnimes(ctx, e.texte, e.accent, W * 0.07, H / 2, { taille: 70 * u, largeur: W * 0.36, t, poids: 800, decale: 0.05, aligne: "gauche" });
+    }
+  },
+  // Un mur de tous ses écrans qui défilent en diagonale, le titre par-dessus
+  ecran_mur(ctx, s, e) {
+    const { W, H, u, t } = s; const n = Math.max(1, ECRANS_L.length), w = W * 0.42, h = w * 0.625, g = 24 * u;
+    ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(-0.18); ctx.translate(-W / 2, -H / 2);
+    for (let r = -2; r <= 3; r++) for (let c = -1; c <= 3; c++) {
+      const dx = ((t * (r % 2 ? 60 : -60) * u) % (w + g)), x = c * (w + g) + dx - (r % 2 ? 0 : w / 2), y = H / 2 + r * (h + g) - h / 2;
+      ctx.save(); ctx.globalAlpha *= 0.9; fenetre(ctx, ECRANS_L[(r * 3 + c + 99) % n] ?? null, x, y, w, h, u, { barre: false, ombre: false, rayon: 14 }); ctx.restore();
+    }
+    ctx.restore();
+    const v = ctx.createLinearGradient(0, H * 0.3, 0, H * 0.7); v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(0.5, NOIR ? "rgba(0,0,0,.7)" : "rgba(255,255,255,.8)"); v.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = v; ctx.fillRect(0, H * 0.3, W, H * 0.4);
+    legende(ctx, s, e, H / 2);
+  },
+  // Un curseur traverse l'écran, clique, et une étiquette apparaît
+  ecran_curseur(ctx, s, e) {
+    const { W, H, u, t, vertical } = s, img = ecranDe(e.ecran);
+    const w = W * (vertical ? 0.92 : 0.76), h = w * 0.625, x = W / 2 - w / 2, y = H * 0.56 - h / 2;
+    fenetre(ctx, img, x, y, w, h, u);
+    const q = eio(prog(t, 0.3, 1.5)), cx = x + w * (0.85 - 0.45 * q), cy = y + h * (0.9 - 0.45 * q), clic = prog(t, 1.5, 2.1);
+    if (clic > 0 && clic < 1) { ctx.save(); ctx.strokeStyle = rgba(C, 1 - clic); ctx.lineWidth = 4 * u; ctx.beginPath(); ctx.arc(cx, cy, 70 * u * clic, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+    ctx.save(); ctx.translate(cx, cy); const k = (clic > 0 && clic < 0.3 ? 0.85 : 1) * 1.6 * u; ctx.scale(k, k);
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 26); ctx.lineTo(7, 20); ctx.lineTo(12, 31); ctx.lineTo(17, 29); ctx.lineTo(12, 18); ctx.lineTo(21, 18); ctx.closePath();
+    ctx.fillStyle = "#111"; ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+    const et = ressort(prog(t, 1.8, 2.6)); if (et > 0 && e.etiquette) { ctx.save(); ctx.font = `800 ${40 * u}px ${F}`; const lw = ctx.measureText(e.etiquette).width + 50 * u; ctx.translate(cx + 40 * u, cy - 70 * u); ctx.scale(et, et); rond(ctx, 0, -32 * u, lw, 64 * u, 32 * u); ctx.fillStyle = rgba(C, 1); ctx.fill(); ctx.fillStyle = "#fff"; ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.fillText(e.etiquette, 25 * u, 2 * u); ctx.restore(); }
+    legende(ctx, s, e, H * (vertical ? 0.18 : 0.14));
+  },
+  // Un téléphone qui monte en tournant légèrement, l'écran (la partie principale de la capture) dedans
+  ecran_telephone(ctx, s, e) {
+    const { W, H, u, t, vertical } = s, img = ecranDe(e.ecran), p = ressort(prog(t, 0.05, 1));
+    const h = H * (vertical ? 0.6 : 0.78), w = h * 0.49, x = W / 2 - w / 2, y = H * (vertical ? 0.33 : 0.13);
+    ctx.save(); ctx.translate(W / 2, y + h / 2 + (1 - p) * H * 0.4); ctx.rotate((1 - p) * 0.25 - 0.04 * Math.sin(t)); ctx.translate(-W / 2, -(y + h / 2));
+    ctx.shadowColor = "rgba(0,0,0,.4)"; ctx.shadowBlur = 70 * u; ctx.shadowOffsetY = 30 * u; rond(ctx, x, y, w, h, 56 * u); ctx.fillStyle = "#111"; ctx.fill(); ctx.shadowColor = "transparent";
+    const b = 12 * u; ctx.save(); rond(ctx, x + b, y + b, w - 2 * b, h - 2 * b, 46 * u); ctx.clip(); ctx.fillStyle = "#fff"; ctx.fillRect(x, y, w, h);
+    if (img) { const ih = h - 2 * b, k = ih / img.height, iw = img.width * k; ctx.drawImage(img, x + b - (iw - (w - 2 * b)) * 0.62, y + b, iw, ih); }
+    ctx.restore(); rond(ctx, W / 2 - w * 0.17, y + b + 10 * u, w * 0.34, 26 * u, 13 * u); ctx.fillStyle = "#111"; ctx.fill(); ctx.restore();
+    if (e.texte) { if (vertical) legende(ctx, s, e, H * 0.17); else motsAnimes(ctx, e.texte, e.accent, W * 0.07, H / 2, { taille: 64 * u, largeur: W * 0.3, t, poids: 800, decale: 0.05, aligne: "gauche" }); }
+  },
+};
+
 const SCENES = {
+  ...Object.fromEntries(Object.entries(SCENES_PRODUIT).map(([k, f]) => [k, (ctx, s, e) => (ECRANS_L.length ? f(ctx, s, e) : SCENES.mots(ctx, s, { texte: e.texte || s.nom, accent: e.accent }))])),
   // Un mot géant qui claque (« tap », « done »)
   impact(ctx, s, e) {
     const { W, H, u, t } = s;
@@ -393,8 +501,8 @@ const SCENES = {
 /** Dessine l'image au temps t (secondes) d'une vidéo composée de scènes. */
 // Toujours une linéale très grasse et serrée (comme les pubs de référence), jamais la police à empattements du site
 export const POLICE_MOTION = "Inter Tight";
-export function dessinerScenes(ctx, W, H, t, script, { logo = null } = {}) {
-  LOGO = logo;
+export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = null } = {}) {
+  LOGO = logo; ECRANS = ecrans && typeof ecrans === "object" ? ecrans : {}; ECRANS_L = Object.values(ECRANS).filter(Boolean);
   LOOK = LOOKS.includes(script?.look) ? script.look : "nuit";
   F = `"${policeMotion(script)}", "Inter", "Helvetica Neue", Arial, system-ui, sans-serif`;
   serre(ctx, "-0.01em");

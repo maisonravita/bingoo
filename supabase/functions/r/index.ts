@@ -1366,13 +1366,20 @@ Clés JSON : resume (une phrase), etapes (2 à 6 étapes courtes et concrètes, 
     await quota(ws.id, "video_libre", 15);
     setAi({ ws: ws.id, live: true, feature: "video" });
     const { videoLibre } = await import("../_shared/app-video.ts");
+    // Son SaaS ou son site construit par Bingoo! : ses vrais écrans entrent dans la vidéo
+    let produit: { id: string; slug: string; titres: string[] } | null = null;
+    if (b.app_id) {
+      const { data: a } = await admin.from("saas_apps").select("id, slug, spec").eq("id", String(b.app_id)).eq("workspace_id", ws.id).maybeSingle();
+      const titres = ((a?.spec as any)?.ecrans ?? []).filter((e: any) => e?.code && e?.titre).map((e: any) => String(e.titre).slice(0, 40)).slice(0, 8);
+      if (a && titres.length) produit = { id: a.id, slug: a.slug, titres };
+    }
     let sc: any;
-    try { sc = await videoLibre(texte); } catch (e) { if ((e as any)?.status === 400) throw new HttpError(400, (e as Error).message); throw e; }
+    try { sc = await videoLibre(texte, produit?.titres ?? []); } catch (e) { if ((e as any)?.status === 400) throw new HttpError(400, (e as Error).message); throw e; }
     const { categorieDesign, tirerDesign } = await import("../_shared/design.ts");
     const d: any = tirerDesign(categorieDesign(String(sc.secteur_en ?? "") || texte));
     const { secteur_en: _s, ...script } = sc;
     // La couleur choisie par l'IA pour la pub (franche), sinon celle du système de design du métier
-    const final = { ...script, couleur: script.couleur ?? d?.couleurs?.primary ?? "#E8571C", police: d?.polices?.titres ?? "Plus Jakarta Sans" };
+    const final = { ...script, couleur: script.couleur ?? d?.couleurs?.primary ?? "#E8571C", police: d?.polices?.titres ?? "Plus Jakarta Sans", ...(produit ? { produit: { app_id: produit.id, slug: produit.slug } } : {}) };
     const { data: v } = await admin.from("saas_videos").insert({ app_id: null, workspace_id: ws.id, format, script: final, texte }).select("id, format, script, texte, at").single();
     await log(ws.id, "video_libre", `Vidéo : ${texte.slice(0, 80)}`);
     return v;
@@ -1386,7 +1393,10 @@ Clés JSON : resume (une phrase), etapes (2 à 6 étapes courtes et concrètes, 
     await quota(ws.id, "video_libre_retouche", 40);
     setAi({ ws: ws.id, live: true, feature: "video" });
     const { videoLibreRetouche } = await import("../_shared/app-video.ts");
-    const script = await videoLibreRetouche(v0.script as any, demande, String(v0.texte ?? ""));
+    let titres: string[] = [];
+    const pr = (v0.script as any)?.produit;
+    if (pr?.app_id) { const { data: a } = await admin.from("saas_apps").select("spec").eq("id", String(pr.app_id)).eq("workspace_id", ws.id).maybeSingle(); titres = ((a?.spec as any)?.ecrans ?? []).filter((e: any) => e?.code && e?.titre).map((e: any) => String(e.titre).slice(0, 40)).slice(0, 8); }
+    const script = await videoLibreRetouche(v0.script as any, demande, String(v0.texte ?? ""), titres);
     const format = ["paysage", "carre", "vertical"].includes(b.format) ? b.format : v0.format;
     const { data: v } = await admin.from("saas_videos").insert({ app_id: null, workspace_id: ws.id, format, script, texte: v0.texte }).select("id, format, script, texte, at").single();
     await log(ws.id, "video_libre_retouche", `Vidéo retouchée : ${demande.slice(0, 80)}`);

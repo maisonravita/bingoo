@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { envoyerLogo, lireLogoEspace, poserLogoEspace } from "../lib/logo";
-import { fn } from "../lib/supabase";
+import { fn, supabase } from "../lib/supabase";
+import AppCadre from "../components/AppCadre";
 import { useWs } from "../lib/ws";
 import { cx } from "../lib/utils";
 import { DUREE, FORMATS, dessiner, exporterVideo, graineDe, preparerPolice } from "../lib/videoPub";
@@ -29,18 +30,26 @@ export default function Motion() {
   const [ecoute, setEcoute] = useState(null);
   const canvas = useRef(null), t0 = useRef(performance.now()), bas = useRef(null), lance = useRef(false), fichier = useRef(null);
   const [logoImg, setLogoImg] = useState(null), [envoiLogo, setEnvoiLogo] = useState(false);
+  // Son SaaS ou son site construit par Bingoo! : ses vrais écrans peuvent entrer dans la vidéo
+  const [monApp, setMonApp] = useState(undefined), [avecProduit, setAvecProduit] = useState(true); // undefined : pas encore chargé
+  useEffect(() => {
+    if (!ws?.id) return;
+    supabase.from("saas_apps").select("id, slug, spec, version").eq("workspace_id", ws.id).eq("statut", "pret").order("at", { ascending: false }).limit(1)
+      .then(({ data }) => setMonApp(data?.[0] && (data[0].spec?.ecrans ?? []).some((e) => e.code) ? data[0] : null), () => setMonApp(null));
+  }, [ws?.id]);
 
   // Les vidéos de l'espace ; une idée venue de l'accueil (type « vidéo ») est lancée tout de suite
   useEffect(() => {
     if (!ws?.id) return;
     fn("r/videos-libres", { workspace_id: ws.id }).then((r) => { setVideos(r.videos ?? []); setSel((s) => s ?? r.videos?.[0] ?? null); }, () => setVideos([]));
     const i = lire("bingoo-idee");
+    if (monApp === undefined) return; // on attend de savoir s'il a un SaaS (ses écrans entrent dans la vidéo)
     if (!lance.current && i?.type === "video" && i.texte && Date.now() - Number(i.at ?? 0) < 2 * 864e5) {
       lance.current = true;
       try { localStorage.removeItem("bingoo-idee"); } catch { /* stockage indisponible */ }
       envoyer(i.texte, true);
     }
-  }, [ws?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ws?.id, monApp === undefined]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => ecoute?.(), [ecoute]);
   useEffect(() => { bas.current?.scrollTo({ top: bas.current.scrollHeight, behavior: "smooth" }); }, [fil.length, busy]);
 
@@ -50,6 +59,25 @@ export default function Motion() {
     if (!script?.logo) { setLogoImg(null); return; }
     const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => setLogoImg(im); im.onerror = () => setLogoImg(null); im.src = script.logo;
   }, [script?.logo]);
+  // Captures de ses écrans (avec les données d'exemple), une fois, dans un cadre caché ; rangées par titre
+  const [captures, setCaptures] = useState({});
+  const produit = script?.produit && monApp && script.produit.app_id === monApp.id ? monApp : null;
+  const titresVoulus = produit ? [...new Set((script.scenes ?? []).flatMap((e) => [e.ecran, ...(e.ecrans ?? [])]).filter(Boolean))] : [];
+  const normT = (x) => String(x ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const ecransApp = produit ? (produit.spec?.ecrans ?? []).filter((e) => e.code) : [];
+  const idsVoulus = produit ? [...new Set([...titresVoulus.map((ti) => ecransApp.find((e) => normT(e.titre) === normT(ti))?.id), ...ecransApp.filter((e) => !e.public).slice(0, 4).map((e) => e.id)].filter(Boolean))] : [];
+  const aCapturer = idsVoulus.filter((id) => !(id in captures));
+  useEffect(() => {
+    if (!produit) return;
+    const ecoute = (ev) => {
+      const d = ev.data; if (d?.slug !== produit.slug || d?.type !== "bingoo-capture") return;
+      if (!d.png) { setCaptures((m) => ({ ...m, [d.id]: null })); return; }
+      const im = new Image(); im.onload = () => { const cv = document.createElement("canvas"); cv.width = im.width || 1280; cv.height = im.height || 800; try { cv.getContext("2d").drawImage(im, 0, 0); setCaptures((m) => ({ ...m, [d.id]: cv })); } catch { setCaptures((m) => ({ ...m, [d.id]: null })); } };
+      im.onerror = () => setCaptures((m) => ({ ...m, [d.id]: null })); im.src = d.png;
+    };
+    window.addEventListener("message", ecoute); return () => window.removeEventListener("message", ecoute);
+  }, [produit?.slug]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ecransVideo = produit ? Object.fromEntries(ecransApp.filter((e) => captures[e.id]).map((e) => [e.titre, captures[e.id]])) : null;
   const police = policeMotion(script);
   useEffect(() => { preparerPolice(police); }, [police]);
   // La police des vidéos à scènes : Inter Tight, de 600 à 900 (chargée une fois)
@@ -64,7 +92,7 @@ export default function Motion() {
   const opts = { nom: script?.nom ?? "", couleur: script?.couleur ?? "#E8571C", lien: script?.lien ?? "", images: [], style, police, graine };
   // Nouvelles vidéos : suite de scènes (moteur « pub premium ») ; anciennes : gabarit fixe de 21 s
   const scenes = !!script?.scenes?.length, duree = scenes ? dureeTotale(script) : DUREE;
-  const dessinerA = (t) => { const c = canvas.current; if (!c || !script) return; if (scenes) dessinerScenes(c.getContext("2d"), W, H, t, script, { logo: logoImg }); else dessiner(c.getContext("2d"), W, H, t, script, opts); };
+  const dessinerA = (t) => { const c = canvas.current; if (!c || !script) return; if (scenes) dessinerScenes(c.getContext("2d"), W, H, t, script, { logo: logoImg, ecrans: ecransVideo }); else dessiner(c.getContext("2d"), W, H, t, script, opts); };
 
   // Lecture en boucle
   useEffect(() => {
@@ -73,7 +101,7 @@ export default function Motion() {
     const image = () => { dessinerA(((performance.now() - t0.current) / 1000) % duree); id = requestAnimationFrame(image); };
     id = requestAnimationFrame(image);
     return () => cancelAnimationFrame(id);
-  }, [sel?.id, format, export_, lecture, logoImg]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sel?.id, format, export_, lecture, logoImg, Object.keys(captures).length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Le logo : réduit dans le navigateur (transparence gardée), sa couleur dominante relevée, puis posé dans la vidéo
   // Le logo de l'espace d'abord, sinon celui gardé dans ce navigateur
@@ -108,7 +136,7 @@ export default function Motion() {
     const n = fil.length;
     setFil((l) => [...l, { moi: t, etat: "encours", creer }]); setSaisie(""); setBusy(true);
     try {
-      const v = creer ? await fn("r/video-creer", { workspace_id: ws.id, texte: t, format }) : await fn("r/video-retouche", { workspace_id: ws.id, video_id: sel.id, demande: t, format });
+      const v = creer ? await fn("r/video-creer", { workspace_id: ws.id, texte: t, format, ...(monApp && avecProduit ? { app_id: monApp.id } : {}) }) : await fn("r/video-retouche", { workspace_id: ws.id, video_id: sel.id, demande: t, format });
       setVideos((l) => [v, ...(l ?? [])]); setSel(v); setLecture(true);
       const lm = creer ? memoLogo() : null; if (lm?.url) await poserLogo(v, lm).catch(() => null);
       setFil((l) => l.map((x, k) => (k === n ? { ...x, etat: "ok", note: v.script?.note } : x)));
@@ -159,6 +187,10 @@ export default function Motion() {
         </div>
         <form onSubmit={(e) => { e.preventDefault(); envoyer(); }} className="border-t border-line p-3">
           {sel && !busy && !saisie && <div className="mb-1.5 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">{IDEES.map((x) => <button key={x} type="button" onClick={() => setSaisie(x)} className="shrink-0 rounded-full border border-line bg-white px-3 py-1 text-[12px] font-medium text-ink-soft hover:text-ink">{x}</button>)}</div>}
+          {monApp && !sel && <label className="mb-1.5 flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-[#FCFBF9] px-3 py-2 text-[13px]">
+            <input type="checkbox" checked={avecProduit} onChange={(e) => setAvecProduit(e.target.checked)} className="h-4 w-4 accent-[#E8571C]" />
+            <span>Montrer les vrais écrans de <b>{monApp.spec?.nom ?? "mon SaaS"}</b> dans la vidéo</span>
+          </label>}
           <div className="rounded-2xl border border-line bg-[#FCFBF9] p-2 focus-within:border-ink/30">
             <textarea value={saisie} onChange={(e) => setSaisie(e.target.value)} rows={2} disabled={busy} maxLength={800}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); envoyer(); } }}
@@ -177,6 +209,7 @@ export default function Motion() {
       {/* La vidéo */}
       <section className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-auto bg-[#111114] p-4 text-white">
         <div className={cx("relative overflow-hidden rounded-2xl bg-black shadow-[0_40px_120px_-40px_rgba(0,0,0,.8)] ring-1 ring-white/10", format === "vertical" ? "h-[min(68vh,640px)] aspect-[9/16]" : format === "carre" ? "h-[min(60vh,560px)] aspect-square" : "w-[min(100%,900px)] aspect-video")}>
+          {produit && aCapturer.length > 0 && <AppCadre slug={produit.slug} spec={produit.spec} version={produit.version ?? 1} capture={aCapturer} className="fixed -left-[9999px] top-0 w-[1280px] h-[800px] pointer-events-none" />}
           {script ? <canvas ref={canvas} width={W} height={H} className="h-full w-full" /> : <div className="grid h-full w-full place-items-center p-6 text-center text-[13.5px] text-white/45">{busy ? "Bingoo! écrit ta vidéo…" : videos == null ? "Chargement…" : "Ta vidéo apparaîtra ici."}</div>}
           {busy && <div className="absolute inset-x-0 top-0 h-1 overflow-hidden bg-white/10"><div className="h-full w-1/3 animate-[barre_1.2s_ease-in-out_infinite] bg-[#E8571C]" /></div>}
           {export_ != null && <div className="absolute inset-x-0 bottom-0 bg-black/75 px-4 py-3 text-[12.5px]"><p className="font-semibold">Enregistrement… {Math.round(export_ * 100)} %</p><p className="text-white/55">Garde cet onglet ouvert ({Math.round(duree)} secondes).</p></div>}

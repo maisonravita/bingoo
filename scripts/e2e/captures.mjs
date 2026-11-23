@@ -188,7 +188,20 @@ if (["1", "site", "app", "saas", "varie"].includes(process.env.IDEE)) {
   }
 }
 // CONSTRUIRE=motion : le produit « Vidéo motion design » : une phrase venue de l'accueil, la vidéo qui joue, une retouche, l'export
-if (CONSTRUIRE === "motion") {
+if (CONSTRUIRE === "video-produit") {
+  // Vidéo qui montre les vrais écrans du SaaS de démo du robot
+  const texte = process.env.TEXTE_IDEE || "Une pub pour présenter mon logiciel aux kinés et ostéos";
+  const { page } = await ouvrir(ws, { "bingoo-idee": { texte, type: "video", at: Date.now() } });
+  const t0 = Date.now();
+  await page.goto(`${SITE}/?c=${t0}#/explorer/motion`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+  await page.locator("canvas").first().waitFor({ timeout: 120000 }).catch(() => console.log("✗ la vidéo n'est pas apparue"));
+  console.log(`Vidéo prête en ${Math.round((Date.now() - t0) / 1000)} s`);
+  const [v] = await q(`select script from saas_videos where workspace_id = ${lit(ws)} and app_id is null order by at desc limit 1`);
+  console.log(v?.script?.produit ? `✓ vidéo liée au SaaS ${v.script.produit.slug}, allure ${v.script.look}` : "✗ vidéo sans le SaaS");
+  console.log("Scènes :", (v?.script?.scenes ?? []).map((x) => x.type + (x.ecran ? `(${x.ecran})` : "")).join(" › "));
+  await page.waitForTimeout(9000);
+  for (let k = 1; k <= 12; k++) { await page.waitForTimeout(2300); await page.locator("canvas").first().screenshot({ path: `${DOSSIER}/produit-${String(k).padStart(2, "0")}.png` }).catch(() => null); }
+} else if (CONSTRUIRE === "motion") {
   const texte = process.env.TEXTE_IDEE || "Une pub pour mon salon de barbier Lame à Lyon, coupe homme 20 €, sur rendez-vous";
   const { ctx, page } = await ouvrir(ws, { "bingoo-idee": { texte, type: "video", at: Date.now() } });
   const t0 = Date.now();
@@ -585,7 +598,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
