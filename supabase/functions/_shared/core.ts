@@ -64,7 +64,7 @@ export const PLANS: Record<string, { label: string; price: number; factor: numbe
 /** Ce que l'offre gratuite peut demander à l'IA : l'aperçu d'une idée, rien d'autre. */
 export const GRATUIT_IA = /^explorer\/idee-apercu$/;
 /** Aperçus d'idée offerts chaque mois sur l'offre gratuite. */
-export const APERCUS_GRATUITS = 3;
+export const APERCUS_GRATUITS = 2;
 export const LIMITES: Record<string, { construire: number; modifier: number; tiktok: number; pareil: number; scripts: number; ia: number }> = {
   explorer: { construire: 0, modifier: 0, tiktok: 0, pareil: 0, scripts: 0, ia: 1 },
   explorer_pro: { construire: 3, modifier: 30, tiktok: 4, pareil: 20, scripts: 4, ia: 4 },
@@ -419,7 +419,7 @@ export async function aiGuard() {
     const { data: wp } = await admin.from("workspaces").select("plan").eq("id", ws).maybeSingle();
     if (wp?.plan === "essai") {
       if (!GRATUIT_IA.test(String(ctx.feature ?? ""))) throw new HttpError(402, "Ça fait partie des offres payantes : choisis une offre dans Abonnement pour que Bingoo! s'en occupe.");
-      if ((await aiSpent(ws)) >= PLANS.essai.ai) throw new HttpError(402, "Tu as utilisé tes aperçus gratuits du mois. Ils reviennent le 1er du mois, ou choisis une offre pour construire tout de suite.");
+      if ((await aiSpent(ws)) + 0.008 > PLANS.essai.ai) throw new HttpError(402, "Tu as utilisé tes aperçus gratuits du mois. Ils reviennent le 1er du mois, ou choisis une offre pour construire tout de suite.");
     }
   }
   if (!ctx.live) {
