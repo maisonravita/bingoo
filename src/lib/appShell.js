@@ -1044,7 +1044,10 @@ function SiteVitrine({ onAuth }) {
   // sections très aérées, alternance sombre / clair. Aucune donnée inventée : pas d'avis, pas de chiffres, pas de photo.
   if (SITE.gabarit === "editorial") {
     const W = "mx-auto w-full max-w-[1200px] px-6 md:px-10";
-    const SOMBRE = "background:radial-gradient(900px 520px at 85% -10%,color-mix(in srgb,var(--c) 30%,transparent),transparent),linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px) 0 0/80px 80px,linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px) 0 0/80px 80px,color-mix(in srgb,var(--c) 9%,#0d0c0b)";
+    // Haut de page sombre (style en mode sombre) ou clair et lumineux (style en mode clair)
+    const NUIT = S.design?.mode === "dark";
+    const SOMBRE = NUIT ? "background:radial-gradient(900px 520px at 85% -10%,color-mix(in srgb,var(--c) 30%,transparent),transparent),linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px) 0 0/80px 80px,linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px) 0 0/80px 80px,color-mix(in srgb,var(--c) 9%,#0d0c0b)"
+      : "background:radial-gradient(900px 560px at 88% -10%,color-mix(in srgb,var(--c) 22%,transparent),transparent),radial-gradient(700px 420px at -5% 110%,color-mix(in srgb,var(--c) 12%,transparent),transparent),linear-gradient(rgba(22,20,15,.05) 1px,transparent 1px) 0 0/80px 80px,linear-gradient(90deg,rgba(22,20,15,.05) 1px,transparent 1px) 0 0/80px 80px,color-mix(in srgb,var(--c) 5%,#fbfaf7)";
     const SOMBRE2 = "background:color-mix(in srgb,var(--c) 7%,#121110)";
     const CLAIR = "background:color-mix(in srgb,var(--c) 4%,#faf8f4)";
     const acc = String(S.slogan || S.pitch || S.nom || "");
@@ -1055,18 +1058,18 @@ function SiteVitrine({ onAuth }) {
     const pf = (SITE.points_forts ?? []).slice(0, 3), et = (SITE.etapes ?? []).slice(0, 4);
     const champ = "mt-2 min-h-[52px] w-full rounded-xl border border-white/15 bg-white/[.04] px-4 text-white outline-none placeholder:text-white/30 focus:border-[var(--c)]";
     return html\`<div class="min-h-screen scroll-smooth text-[#16140f]" style=\${CLAIR}>
-  <div class="text-white" style=\${SOMBRE}>
+  <div class=\${NUIT ? "text-white" : "text-[#16140f]"} style=\${SOMBRE}>
     <header class=\${cls(W, "flex h-24 items-center justify-between gap-6")}>
       <a href="#" class="flex items-center gap-3"><span class="grid h-11 w-11 place-items-center rounded-full border border-[var(--c)]/60 text-[var(--c)]">\${S.logo ? html\`<img src=\${S.logo} alt="" class="h-6 w-6 object-contain"/>\` : html\`<span class="fh text-lg">\${String(S.nom || "?").trim()[0].toUpperCase()}</span>\`}</span><span class="fh text-[22px] tracking-tight">\${S.nom}</span></a>
-      <nav class="hidden items-center gap-9 text-[15px] text-white/80 lg:flex">\${services.length > 0 && html\`<a href="#services" class="hover:text-white">Services</a>\`}\${et.length > 0 && html\`<a href="#methode" class="hover:text-white">Comment ça marche</a>\`}\${SITE.apropos?.texte && html\`<a href="#apropos" class="hover:text-white">À propos</a>\`}<a href="#contact" class="hover:text-white">Contact</a></nav>
+      <nav class=\${cls("hidden items-center gap-9 text-[15px] lg:flex", NUIT ? "text-white/80" : "text-black/65")}>\${services.length > 0 && html\`<a href="#services" class=\${NUIT ? "hover:text-white" : "hover:text-black"}>Services</a>\`}\${et.length > 0 && html\`<a href="#methode" class=\${NUIT ? "hover:text-white" : "hover:text-black"}>Comment ça marche</a>\`}\${SITE.apropos?.texte && html\`<a href="#apropos" class=\${NUIT ? "hover:text-white" : "hover:text-black"}>À propos</a>\`}<a href="#contact" class=\${NUIT ? "hover:text-white" : "hover:text-black"}>Contact</a></nav>
       <a href="#contact" class="inline-flex min-h-12 items-center rounded-full bg-[var(--c)] px-6 text-[15px] font-semibold text-white hover:brightness-110">\${SITE.cta || "Me contacter"}</a>
     </header>
     <section class=\${cls(W, "pb-24 pt-16 md:pb-32 md:pt-24")}>
-      \${(SITE.metier || SITE.ville) && html\`<p class="inline-flex items-center gap-3 rounded-full border border-[var(--c)]/45 px-5 py-2.5 text-[12.5px] font-semibold uppercase tracking-[.28em] text-[color-mix(in_srgb,var(--c)_75%,white)]"><\${Icone} nom="etoile" class="h-4 w-4"/>\${[SITE.metier, SITE.ville].filter(Boolean).join(" · ")}</p>\`}
+      \${(SITE.metier || SITE.ville) && html\`<p class="inline-flex items-center gap-3 rounded-full border border-[var(--c)]/45 px-5 py-2.5 text-[12.5px] font-semibold uppercase tracking-[.28em] \${NUIT ? "text-[color-mix(in_srgb,var(--c)_75%,white)]" : "text-[var(--c)]"}"><\${Icone} nom="etoile" class="h-4 w-4"/>\${[SITE.metier, SITE.ville].filter(Boolean).join(" · ")}</p>\`}
       <h1 class="fh mt-10 max-w-[17ch] text-[clamp(2.9rem,6.6vw,6rem)] font-medium leading-[1.02] tracking-[-.02em]">\${coupe[0]}\${coupe[1] && html\` <em class="block font-normal italic text-[var(--c)]">\${coupe[1]}</em>\`}</h1>
-      \${S.pitch && S.pitch !== acc && html\`<p class="mt-10 max-w-[48ch] text-[clamp(1.1rem,1.6vw,1.35rem)] font-light leading-relaxed text-white/70">\${S.pitch}</p>\`}
-      <div class="mt-12 flex flex-wrap gap-4"><\${Pill} href="#contact" plein>\${SITE.cta || "Me contacter"} <span aria-hidden="true">→</span></\${Pill}>\${services.length > 0 && html\`<\${Pill} href="#services" clair>Découvrir nos services</\${Pill}>\`}</div>
-      \${pf.length > 0 && html\`<ul class="mt-16 flex flex-wrap gap-x-10 gap-y-4 text-[15px] text-white/75">\${pf.map((p) => html\`<li class="flex items-center gap-3"><\${Icone} nom=\${p.icone || "etoile"} class="h-5 w-5 text-[var(--c)]"/>\${p.titre}</li>\`)}</ul>\`}
+      \${S.pitch && S.pitch !== acc && html\`<p class=\${cls("mt-10 max-w-[48ch] text-[clamp(1.1rem,1.6vw,1.35rem)] font-light leading-relaxed", NUIT ? "text-white/70" : "text-black/60")}>\${S.pitch}</p>\`}
+      <div class="mt-12 flex flex-wrap gap-4"><\${Pill} href="#contact" plein>\${SITE.cta || "Me contacter"} <span aria-hidden="true">→</span></\${Pill}>\${services.length > 0 && html\`<\${Pill} href="#services" clair=\${NUIT}>Découvrir nos services</\${Pill}>\`}</div>
+      \${pf.length > 0 && html\`<ul class=\${cls("mt-16 flex flex-wrap gap-x-10 gap-y-4 text-[15px]", NUIT ? "text-white/75" : "text-black/65")}>\${pf.map((p) => html\`<li class="flex items-center gap-3"><\${Icone} nom=\${p.icone || "etoile"} class="h-5 w-5 text-[var(--c)]"/>\${p.titre}</li>\`)}</ul>\`}
     </section>
   </div>
   \${services.length > 0 && html\`<section id="services" class="scroll-mt-4 py-24 md:py-32"><div class=\${W}>

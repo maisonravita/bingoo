@@ -223,9 +223,14 @@ async function designsApercu(motsCles: string, wsId: string) {
   for (const c of cats) {
     for (let k = 0; k < 6 && out.length < 3; k++) {
       const d: any = tirerDesign(c, [...out, ...vus]);
+      const x = tl(d?.couleurs?.primary);
+      // Une couleur de marque presque noire ou grise ne se voit pas en accent : écartée
+      if (x.l < 0.22 || x.s < 0.18) continue;
       if (!out.some((o) => proches(o, d))) out.push(d);
     }
     if (out.length >= 3) break;
   }
+  // Une ambiance claire et une sombre au moins parmi les trois (le haut de page suit le mode du style)
+  if (out.length === 3 && out.every((d) => d.mode === out[0].mode)) out[2] = { ...out[2], mode: out[0].mode === "dark" ? "light" : "dark" };
   return out;
 }
