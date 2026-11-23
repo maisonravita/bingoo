@@ -214,10 +214,18 @@ async function designsApercu(motsCles: string, wsId: string) {
   const { categorieDesign, tirerDesign } = await import("./design.ts");
   const { data: siens } = await admin.from("saas_apps").select("spec->design").eq("workspace_id", wsId).order("maj", { ascending: false }).limit(10);
   const vus: any[] = (siens ?? []).map((x: any) => x.design).filter(Boolean), cat = categorieDesign(motsCles.trim()), out: any[] = [];
-  for (let k = 0; k < 8 && out.length < 3; k++) {
-    const d: any = tirerDesign(cat, [...out, ...vus]);
-    const cle = (x: any) => `${x?.couleurs?.primary}|${x?.polices?.titres}`;
-    if (!out.some((o) => cle(o) === cle(d) || o?.couleurs?.primary === d?.couleurs?.primary)) out.push(d);
+  // Teinte (0-360) et clarté de la couleur principale : deux propositions doivent se distinguer d'un coup d'œil
+  const tl = (h: string) => { const n = parseInt(String(h ?? "#888888").slice(1), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    let t = 0; if (d) t = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return { t: (t * 60 + 360) % 360, s: d, l: (mx + mn) / 2 }; };
+  const proches = (a: any, b: any) => { const x = tl(a?.couleurs?.primary), y = tl(b?.couleurs?.primary); const dt = Math.min(Math.abs(x.t - y.t), 360 - Math.abs(x.t - y.t)); return (a?.mode ?? "light") === (b?.mode ?? "light") && (dt < 35 || (x.s < 0.15 && y.s < 0.15)); };
+  // D'abord la catégorie du métier, puis des catégories voisines si ses variantes se ressemblent trop
+  const cats = [cat, "SaaS (General)", "Creative Agency", "Luxury/Premium Brand", "Beauty/Spa/Wellness Service", "Restaurant/Food Service"];
+  for (const c of cats) {
+    for (let k = 0; k < 6 && out.length < 3; k++) {
+      const d: any = tirerDesign(c, [...out, ...vus]);
+      if (!out.some((o) => proches(o, d))) out.push(d);
+    }
+    if (out.length >= 3) break;
   }
   return out;
 }
