@@ -206,9 +206,9 @@ function VideosVitrine({ nav }) {
       <h2 className="mx-auto mt-2 max-w-[760px] text-center text-[24px] sm:text-[32px] font-bold leading-tight text-[#1E2030]" style={JK}>Des pubs en motion design, faites par Bingoo!</h2>
       <p className="mx-auto mt-2 max-w-[640px] text-center text-[15px] text-[#5B6075]" style={JK}>Une phrase suffit : Bingoo! écrit le scénario, l'anime à tes couleurs, et tu la retouches en discutant.</p>
       <div className="mx-auto mt-7 grid max-w-[900px] grid-cols-3 gap-3 sm:gap-6">
-        {VIDEOS_VITRINE.map(([f, nom, quoi]) => (
+        {VIDEOS_VITRINE.map(([f, nom, quoi], i) => (
           <figure key={f} className="overflow-hidden rounded-2xl border border-black/[.08] bg-black shadow-[0_18px_40px_-26px_rgba(20,20,40,.7)]">
-            <video poster={`/videos/${f}.jpg`} autoPlay muted loop playsInline preload="metadata" className="aspect-[9/16] w-full object-cover" aria-label={`Vidéo ${nom}, créée avec Bingoo!`}><source src={`/videos/${f}.mp4`} type="video/mp4" /><source src={`/videos/${f}.webm`} type="video/webm" /></video>
+            <video onLoadedMetadata={(e) => { e.currentTarget.currentTime = [0, 9, 17][i] ?? 0; }} poster={`/videos/${f}.jpg`} autoPlay muted loop playsInline preload="metadata" className="aspect-[9/16] w-full object-cover" aria-label={`Vidéo ${nom}, créée avec Bingoo!`}><source src={`/videos/${f}.mp4`} type="video/mp4" /><source src={`/videos/${f}.webm`} type="video/webm" /></video>
             <figcaption className="flex flex-col gap-0.5 bg-white px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"><b className="text-[13.5px] text-[#1E2030]">{nom}</b><span className="truncate text-[12px] text-[#5B6075]">{quoi}</span></figcaption>
           </figure>
         ))}
