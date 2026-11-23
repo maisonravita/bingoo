@@ -367,6 +367,32 @@ if (CONSTRUIRE === "spec") {
   console.log(aPhotos === attendu ? `✓ ${nomF} : ${aPhotos ? "photos réelles (crédits affichés)" : "aucune photo inventée"}` : `✗ ${nomF} : photos=${aPhotos}`);
   await pi.screenshot({ path: `${DOSSIER}/${nomF}.png`, fullPage: true }); await ci.close();
   }
+} else if (CONSTRUIRE === "connecteurs") {
+  // Connecteurs : branchés par l'écran Réglages, vus par un visiteur (bandeau cookies, boutons), puis débranchés
+  const appel = async (route, corps) => { const r = await fetch(`${SB}/functions/v1/r/${route}`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify(corps) }); const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch {} return { ok: r.ok, j, t: t.slice(0, 200) }; };
+  const [a] = await q(`select id, slug, version from saas_apps where workspace_id = ${lit(ws)} and statut = 'pret' order by maj desc limit 1`);
+  const { page: pm } = await ouvrir(ws, {});
+  await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/reglages-saas?onglet=connecteurs`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(5000);
+  const champs = pm.locator("input.w-full"); 
+  await pm.locator('input[placeholder="G-ABC123XYZ"]').fill("G-BINGOOTEST1");
+  await pm.locator('input[placeholder="https://calendly.com/ton-nom"]').fill("https://calendly.com/bingoo-demo");
+  await pm.locator('input[placeholder^="https://xxx.us21"]').fill("https://bingoo.us21.list-manage.com/subscribe/post?u=abc123&id=def456");
+  await pm.getByRole("button", { name: "Enregistrer" }).click(); await pm.waitForTimeout(3000);
+  await pm.screenshot({ path: `${DOSSIER}/connecteurs-reglages.png`, fullPage: true });
+  const [x] = await q(`select spec->'connecteurs' c from saas_apps where id = ${lit(a.id)}`);
+  console.log(x.c?.ga ? `✓ connecteurs enregistrés ${JSON.stringify(x.c)}` : "✗ connecteurs non enregistrés");
+  const v = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const pv = await v.newPage();
+  await pv.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pv.waitForTimeout(5000);
+  const avant = await pv.evaluate(() => [...document.scripts].some((s) => /googletagmanager/.test(s.src)));
+  await pv.screenshot({ path: `${DOSSIER}/connecteurs-visiteur-1.png` });
+  console.log(!avant && (await pv.getByText("Accepter").count()) ? "✓ bandeau cookies, rien chargé avant l'accord" : `✗ bandeau ou chargement (avant=${avant})`);
+  await pv.getByRole("button", { name: "Accepter" }).click(); await pv.waitForTimeout(2500);
+  const apres = await pv.evaluate(() => [...document.scripts].some((s) => /googletagmanager/.test(s.src)) && typeof window.gtag === "function");
+  console.log(apres ? "✓ Google Analytics chargé après l'accord" : "✗ Google Analytics non chargé");
+  await pv.getByText("Recevoir nos nouvelles").first().click().catch(() => null); await pv.waitForTimeout(800);
+  console.log((await pv.getByText("Prendre rendez-vous").count()) && (await pv.locator('input[name="EMAIL"]').count()) ? "✓ boutons Calendly et Mailchimp" : "✗ boutons absents");
+  await pv.screenshot({ path: `${DOSSIER}/connecteurs-visiteur-2.png` }); await v.close();
+  await appel("saas-app-reglages", { workspace_id: ws, app_id: a.id, quoi: "connecteurs", connecteurs: {} });
 } else if (CONSTRUIRE === "vitrine") {
   // Vitrine de l'accueil : les vrais SaaS et sites construits par Bingoo! (espaces du robot), photographiés tels quels
   const apps = await q(`select a.slug, a.spec->>'nom' nom, coalesce(a.spec->>'type','saas') type from saas_apps a join members m on m.workspace_id = a.workspace_id where m.user_id = ${lit(uid)} and a.statut = 'pret' and jsonb_array_length(coalesce(a.spec->'ecrans','[]')) > 2 order by a.maj desc limit 30`);
@@ -528,7 +554,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);

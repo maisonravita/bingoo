@@ -917,6 +917,28 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       if (r.n) await log(ws.id, "texte_app", `Texte modifié : « ${String(b.avant ?? "").slice(0, 40)} »`);
       return r;
     }
+    // Connecteurs en un clic : identifiants publics seulement (jamais de clé secrète), vérifiés un par un
+    if (b.quoi === "connecteurs") {
+      const c = b.connecteurs && typeof b.connecteurs === "object" ? b.connecteurs : {};
+      const REGLES: Record<string, [RegExp, string]> = {
+        ga: [/^G-[A-Z0-9]{4,15}$/, "L'identifiant Google Analytics commence par G- (ex. G-ABC123XYZ)"],
+        gtm: [/^GTM-[A-Z0-9]{4,10}$/, "L'identifiant Google Tag Manager commence par GTM- (ex. GTM-AB12CD)"],
+        pixel: [/^\d{8,20}$/, "L'identifiant du Meta Pixel est une suite de chiffres"],
+        calendly: [/^https:\/\/calendly\.com\/[\w./-]+$/, "Le lien Calendly ressemble à https://calendly.com/ton-nom"],
+        mailchimp: [/^https:\/\/[\w-]+\.(us\d+\.)?list-manage\.com\/subscribe\/post\?[\w=&;.-]+$/, "Colle l'adresse du formulaire Mailchimp (…list-manage.com/subscribe/post?u=…&id=…)"],
+      };
+      const out: Record<string, string> = {};
+      for (const [k, [re, msg]] of Object.entries(REGLES)) {
+        const v = String(c[k] ?? "").trim().replace(/&amp;/g, "&");
+        if (!v) continue;
+        if (!re.test(v)) throw new HttpError(400, msg);
+        out[k] = v;
+      }
+      const { data: a } = await admin.from("saas_apps").select("spec, version").eq("id", app.id).single();
+      await admin.from("saas_apps").update({ spec: { ...(a?.spec as any), connecteurs: out }, version: (a?.version ?? 0) + 1, maj: new Date().toISOString() }).eq("id", app.id);
+      await log(ws.id, "app_reglage", `Connecteurs : ${Object.keys(out).join(", ") || "aucun"}`);
+      return { connecteurs: out };
+    }
     // Atelier : remarques épinglées sur des éléments de l'aperçu (rangées à part : elles ne changent pas le SaaS)
     if (b.quoi === "commentaires") {
       const chemin = `commentaires/${app.id}.json`;

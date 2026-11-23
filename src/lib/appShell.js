@@ -1500,6 +1500,44 @@ function BadgeBingoo() {
     <button onClick=\${fermer} aria-label="Masquer" style="display:grid;place-items:center;width:30px;align-self:stretch;border-left:1px solid rgba(15,23,42,.08);color:#9a9eae;font-size:15px;background:none;cursor:pointer">×</button>
   </div>\`;
 }
+// Connecteurs en un clic (Google Analytics, Google Tag Manager, Meta Pixel, Calendly, Mailchimp) : seulement sur la
+// vraie page en ligne (jamais en aperçu, en test ni dans le cadre de l'atelier) ; les traceurs attendent l'accord du
+// visiteur (bandeau cookies, refus aussi simple que l'accord, choix gardé par application)
+const CX = S.connecteurs ?? {}, EN_VRAI = !B.apercu && !B.verif && !B.capture && !B.essai && window.parent === window;
+const TRACEURS = EN_VRAI && !!(CX.ga || CX.gtm || CX.pixel);
+const CLE_COOKIES = "bingoo-cookies-" + (B.slug ?? "");
+const choixCookies = () => { try { return localStorage.getItem(CLE_COOKIES); } catch (e) { return null; } };
+let traceursCharges = false;
+function chargerTraceurs() {
+  if (traceursCharges || !TRACEURS) return; traceursCharges = true;
+  const script = (src, texte) => { const x = document.createElement("script"); if (src) { x.async = true; x.src = src; } if (texte) x.text = texte; document.head.appendChild(x); };
+  if (/^G-[A-Z0-9]{4,15}$/.test(CX.ga ?? "")) { script("https://www.googletagmanager.com/gtag/js?id=" + CX.ga); script(null, "window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','" + CX.ga + "');"); }
+  if (/^GTM-[A-Z0-9]{4,10}$/.test(CX.gtm ?? "")) script(null, "(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s);j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','" + CX.gtm + "');");
+  if (/^\\d{8,20}$/.test(CX.pixel ?? "")) script(null, "!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','" + CX.pixel + "');fbq('track','PageView');");
+}
+if (TRACEURS && choixCookies() === "oui") chargerTraceurs();
+function Connecteurs() {
+  const [cookies, setCookies] = useState(() => (TRACEURS ? choixCookies() : "sans"));
+  const [lettre, setLettre] = useState(false);
+  if (!EN_VRAI) return null;
+  const choisir = (v) => { try { localStorage.setItem(CLE_COOKIES, v); } catch (e) {} setCookies(v); if (v === "oui") chargerTraceurs(); };
+  const cal = /^https:\\/\\/calendly\\.com\\/[\\w./-]+$/.test(CX.calendly ?? "") ? CX.calendly : null;
+  const mc = /^https:\\/\\/[\\w-]+\\.(us\\d+\\.)?list-manage\\.com\\/subscribe\\/post\\?[\\w=&;.-]+$/.test(CX.mailchimp ?? "") ? CX.mailchimp : null;
+  const carte = "position:fixed;left:16px;z-index:2147482999;border-radius:14px;background:#fff;box-shadow:0 8px 30px -8px rgba(15,23,42,.35),0 0 0 1px rgba(15,23,42,.08);font:500 14px/1.4 ui-sans-serif,system-ui,sans-serif;color:#0f172a";
+  return html\`
+    \${(cal || mc) && html\`<div style=\${"position:fixed;left:16px;bottom:16px;z-index:2147482998;display:flex;gap:8px"}>
+      \${cal && html\`<a href=\${cal} target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;border-radius:999px;background:var(--c);color:#fff;padding:11px 16px;font:600 14px/1 ui-sans-serif,system-ui,sans-serif;text-decoration:none;box-shadow:0 10px 24px -10px rgba(15,23,42,.5)">📅 Prendre rendez-vous</a>\`}
+      \${mc && html\`<button onClick=\${() => setLettre((v) => !v)} style="border-radius:999px;background:#fff;color:#0f172a;padding:11px 16px;font:600 14px/1 ui-sans-serif,system-ui,sans-serif;box-shadow:0 10px 24px -10px rgba(15,23,42,.45),0 0 0 1px rgba(15,23,42,.08);cursor:pointer">✉️ Recevoir nos nouvelles</button>\`}
+    </div>\`}
+    \${mc && lettre && html\`<form action=\${mc} method="post" target="_blank" style=\${carte + ";bottom:72px;padding:16px;width:min(320px,calc(100vw - 32px))"}>
+      <p style="font-weight:700">Recevoir nos nouvelles</p><p style="margin-top:2px;color:#64748b;font-size:13px">Une adresse e-mail, désinscription en un clic.</p>
+      <input type="email" name="EMAIL" required placeholder="vous@exemple.fr" style="margin-top:10px;width:100%;border:1px solid #cbd5e1;border-radius:10px;padding:10px 12px;font-size:14px"/>
+      <button type="submit" style="margin-top:8px;width:100%;border-radius:10px;background:var(--c);color:#fff;padding:10px;font-weight:600;cursor:pointer">S'inscrire</button></form>\`}
+    \${TRACEURS && !cookies && html\`<div role="dialog" aria-label="Cookies" style=\${carte + ";bottom:16px;right:16px;max-width:560px;margin:0 auto;padding:16px 18px"}>
+      <p>Nous utilisons des cookies de mesure d'audience\${CX.pixel ? " et de publicité" : ""} pour améliorer ce site. Vous pouvez accepter ou refuser.</p>
+      <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end"><button onClick=\${() => choisir("non")} style="border-radius:10px;border:1px solid #cbd5e1;background:#fff;padding:9px 16px;font-weight:600;cursor:pointer">Refuser</button><button onClick=\${() => choisir("oui")} style="border-radius:10px;background:#0f172a;color:#fff;padding:9px 16px;font-weight:600;cursor:pointer">Accepter</button></div>
+    </div>\`}\`;
+}
 function Racine() {
   if (B.capture) return html\`<\${Capture}/>\`;
   if (B.verif) return html\`<\${Verif}/>\`;
@@ -1528,7 +1566,7 @@ function Racine() {
   if (etat) return html\`<\${Appli} user=\${etat.user} etat=\${etat} tour=\${tour} onFinTour=\${finTour} onLogout=\${tour ? finTour : sortir}/>\`;
   if (auth) return html\`<\${Auth} mode=\${auth} onDone=\${ok} onBack=\${() => setAuth(null)}/>\`;
   const pub = S.type === "site" ? html\`<\${SiteVitrine} onAuth=\${ouvrir}/>\` : (SITE.page?.sections ?? []).length ? html\`<\${SitePageGeneree} onAuth=\${ouvrir} saas/>\` : html\`<\${Site} onAuth=\${ouvrir}/>\`;
-  return html\`\${pub}<\${BadgeBingoo}/>\`;
+  return html\`\${pub}<\${BadgeBingoo}/><\${Connecteurs}/>\`;
 }
 // Outils de l'atelier de Bingoo! : dans l'aperçu de l'atelier, le parent active « modifier un texte » ou « pointer un élément »
 {

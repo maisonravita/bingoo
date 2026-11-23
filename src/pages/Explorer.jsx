@@ -1823,7 +1823,7 @@ function Construire({ projet }) {
 }
 
 // Réglages d'un SaaS construit, par onglets : jumeau, lancement, encaissement, prix testés, e-mails, domaine, monde et bourse, code
-export const ONGLETS_APP = [["croissance", "Croissance"], ["versions", "Versions"], ["ia", "Assistant IA"], ["jumeau", "Jumeau"], ["lancement", "Lancement"], ["encaisser", "Encaisser"], ["prix", "Prix testés"], ["emails", "E-mails"], ["domaine", "Domaine"], ["monde", "Monde et bourse"], ["mobile", "Mobile"], ["code", "Code"]];
+export const ONGLETS_APP = [["croissance", "Croissance"], ["versions", "Versions"], ["ia", "Assistant IA"], ["jumeau", "Jumeau"], ["lancement", "Lancement"], ["encaisser", "Encaisser"], ["prix", "Prix testés"], ["emails", "E-mails"], ["domaine", "Domaine"], ["connecteurs", "Connecteurs"], ["monde", "Monde et bourse"], ["mobile", "Mobile"], ["code", "Code"]];
 // ---------------------------------------------------------------- Plan de croissance : tes vrais chiffres, les paliers, et ce qui fait grandir le SaaS copié
 const PALIERS = [1000, 10000, 100000];
 const CANAL_ACTION = {
@@ -1964,6 +1964,7 @@ export function ReglagesApp({ app, onChange, projet, initial, nu = false, onglet
         {onglet === "prix" && <OngletPrix {...props} />}
         {onglet === "emails" && <OngletEmails {...props} />}
         {onglet === "domaine" && <OngletDomaine {...props} />}
+        {onglet === "connecteurs" && <OngletConnecteurs {...props} />}
         {onglet === "monde" && <OngletMonde {...props} />}
         {onglet === "mobile" && <OngletMobile {...props} />}
         {onglet === "code" && <OngletCode {...props} />}
@@ -2297,6 +2298,37 @@ function OngletEmails({ app, appel, agir, busy }) {
 }
 
 // Nom de domaine de l'app
+// Connecteurs en un clic : on colle un identifiant, Bingoo! branche le service sur la page en ligne
+const CONNECTEURS = [
+  ["ga", "Google Analytics", "Combien de visiteurs, d'où ils viennent, ce qu'ils regardent.", "G-ABC123XYZ", "Google Analytics → Administration → Flux de données → ID de mesure"],
+  ["pixel", "Meta Pixel", "Mesure tes pubs Facebook et Instagram, et recible tes visiteurs.", "123456789012345", "Meta Business → Gestionnaire d'événements → Sources de données → ID du pixel"],
+  ["gtm", "Google Tag Manager", "Pour brancher d'autres outils de mesure toi-même.", "GTM-AB12CD", "Tag Manager → en haut de l'espace de travail, l'ID GTM-…"],
+  ["calendly", "Calendly", "Un bouton « Prendre rendez-vous » qui ouvre ton agenda Calendly.", "https://calendly.com/ton-nom", "Calendly → ta page de réservation → copier le lien"],
+  ["mailchimp", "Mailchimp", "Un bouton « Recevoir nos nouvelles » qui inscrit tes visiteurs à ta liste.", "https://xxx.us21.list-manage.com/subscribe/post?u=…&id=…", "Mailchimp → Audience → Formulaires d'inscription → Formulaires intégrés → l'adresse dans action=\"…\""],
+];
+function OngletConnecteurs({ app, appel, agir, busy }) {
+  const [v, setV] = useState(() => ({ ...(app.spec?.connecteurs ?? {}) }));
+  const actifs = Object.keys(app.spec?.connecteurs ?? {}).length;
+  return (
+    <div className="max-w-2xl">
+      <p className="text-[13.5px] text-white/65">Colle un identifiant, Bingoo! branche le service sur ta page en ligne. Pour la mesure et la publicité, tes visiteurs voient un bandeau cookies : rien n'est mesuré sans leur accord.</p>
+      <div className="mt-4 space-y-3">
+        {CONNECTEURS.map(([k, nom, quoi, ex, ou]) => (
+          <div key={k} className="rounded-xl border border-white/10 bg-white/[.04] p-3.5">
+            <div className="flex items-center gap-2"><b className="text-[14px]">{nom}</b>{app.spec?.connecteurs?.[k] && <span className="rounded bg-[#15803D]/30 px-1.5 py-0.5 text-[11px] font-bold text-[#86EFAC]">branché</span>}</div>
+            <p className="mt-0.5 text-[12.5px] text-white/55">{quoi}</p>
+            <input value={v[k] ?? ""} onChange={(e) => setV((x) => ({ ...x, [k]: e.target.value }))} placeholder={ex} className={cx(champSombre, "mt-2")} />
+            <p className="mt-1 text-[11.5px] text-white/40">Où le trouver : {ou}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex items-center gap-3">
+        <button disabled={!!busy} onClick={() => agir("connecteurs", () => appel("connecteurs", { connecteurs: v }), "Connecteurs enregistrés : ils sont actifs sur ta page en ligne")} className={btnSombre}>Enregistrer</button>
+        <span className="text-[12.5px] text-white/45">{actifs ? `${actifs} branché${actifs > 1 ? "s" : ""}` : "Aucun branché pour l'instant"}</span>
+      </div>
+    </div>
+  );
+}
 function OngletDomaine({ app, appel, agir, busy }) {
   const [dom, setDom] = useState("");
   const [dns, setDns] = useState(null);
