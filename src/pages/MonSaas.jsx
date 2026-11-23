@@ -5,6 +5,7 @@ import { Navigate, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { fn, supabase } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { cx } from "../lib/utils";
+import { envoyerLogo, lireLogoEspace, poserLogoEspace } from "../lib/logo";
 import { Spinner, useToast } from "../components/ui";
 import { lienApp } from "../components/AppCadre";
 import { nomCanal as nomBrut } from "../lib/plan30";
@@ -383,7 +384,7 @@ function Accueil({ m, charger }) {
 
       {ch?.jours && <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <Visites ch={ch} />
-        <Securite s={ch.securite} nav={nav} />
+        <div className="space-y-4"><LogoEspace ws={ws} m={m} /><Securite s={ch.securite} nav={nav} /></div>
       </div>}
 
       <EnBref m={m} />
@@ -1019,6 +1020,30 @@ function Securite({ s, nav }) {
         {s.points.map((p) => <li key={p.k} className="flex gap-2.5 text-[13px]"><span className={cx("mt-0.5 font-bold", p.ok ? "text-[#29845A]" : "text-[#C2410C]")}>{p.ok ? "✓" : "✗"}</span><span>{p.t}{!p.ok && <span className="block text-[12px] text-[#8A8A8A]">Dans : {p.ou.join(", ")}</span>}</span></li>)}
       </ul>
       {!s.ok && <button onClick={() => nav("/explorer/atelier")} className="mt-3 rounded-lg bg-[#303030] px-3 py-1.5 text-[12.5px] font-semibold text-white">Corriger dans l'atelier</button>}
+    </Carte>
+  );
+}
+
+// Le logo de l'espace : un seul envoi, repris par son SaaS ou son site, ses vidéos et ses prochaines constructions
+function LogoEspace({ ws, m }) {
+  const [logo, setLogo] = useState(undefined), [envoi, setEnvoi] = useState(false), [msg, setMsg] = useState("");
+  useEffect(() => { lireLogoEspace(ws).then((l) => setLogo(l ?? (m.app?.spec?.logo ? { url: m.app.spec.logo } : null))); }, [ws.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const choisir = async (f) => {
+    setEnvoi(true); setMsg("");
+    try { const l = await envoyerLogo(ws, f); await poserLogoEspace(ws, l, { forcer: true }); setLogo(l); setMsg("Posé sur ton SaaS, tes vidéos et tes prochaines constructions."); }
+    catch (e) { setMsg(e.message); } finally { setEnvoi(false); }
+  };
+  return (
+    <Carte>
+      <div className="flex items-center gap-3">
+        <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-[#EBEBEB] bg-white">{logo?.url ? <img src={logo.url} alt="Ton logo" className="max-h-12 max-w-12 object-contain" /> : <span className="text-[11px] text-[#8A8A8A]">aucun</span>}</div>
+        <div className="min-w-0 flex-1"><h2 className="text-[14px] font-semibold">Ton logo</h2><p className="text-[12.5px] text-[#616161]">Un seul logo pour tout ton espace : SaaS, site et vidéos.</p></div>
+        <label className={cx("cursor-pointer rounded-lg border border-[#DCDCDC] bg-white px-3 py-1.5 text-[12.5px] font-semibold hover:bg-[#F7F7F7]", envoi && "pointer-events-none opacity-50")}>
+          {envoi ? "Envoi…" : logo?.url ? "Changer" : "Ajouter"}
+          <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) choisir(f); }} />
+        </label>
+      </div>
+      {msg && <p className="mt-2 text-[12.5px] text-[#616161]">{msg}</p>}
     </Carte>
   );
 }

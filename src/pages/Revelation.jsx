@@ -241,7 +241,9 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   const [versions, setVersions] = useState(null);
   // File de demandes : écrites pendant que Bingoo! travaille, lancées une par une dès qu'il est libre
   const [file, setFile] = useState([]);
-  const [modePlan, setModePlan] = useState(false); // mode plan : Bingoo! montre son plan avant de toucher au SaaS
+  const [modePlan, setModePlan] = useState(false);
+  const [commentaires, setCommentaires] = useState([]); // remarques épinglées sur l'aperçu
+  const [remarque, setRemarque] = useState(""); // mode plan : Bingoo! montre son plan avant de toucher au SaaS
   const sauverRetouche = useRef(0);
   const cadreRef = useRef(null), fichierRef = useRef(null), saisieRef = useRef(null);
   // Ce que le membre a consommé : modifications du mois, crédits, part de son IA du mois
@@ -344,8 +346,26 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   const pct = fini ? 100 : Math.min(96, [8, 24, 40, 86, 94][etape] + (etape === 2 && ecrans.length ? (ecrits / ecrans.length) * 44 : 0));
   useEffect(() => { fil.current?.scrollTo({ top: fil.current.scrollHeight, behavior: "smooth" }); });
 
-  // L'aperçu reçoit l'outil choisi (à chaque changement et à chaque rechargement)
-  const pousserOutil = (m = outil) => { try { cadreRef.current?.contentWindow?.postMessage({ type: "bingoo-atelier-mode", mode: m }, "*"); } catch (_) { /* aperçu pas prêt */ } };
+  // L'aperçu reçoit l'outil choisi (à chaque changement et à chaque rechargement), et les remarques épinglées
+  const pousserEpingles = (l = commentaires) => { try { cadreRef.current?.contentWindow?.postMessage({ type: "bingoo-atelier-epingles", liste: l.map((c, i) => ({ n: i + 1, chemin: c.chemin, ecran: c.ecran, texte: c.texte })) }, "*"); } catch (_) { /* aperçu pas prêt */ } };
+  const pousserOutil = (m = outil) => { try { cadreRef.current?.contentWindow?.postMessage({ type: "bingoo-atelier-mode", mode: m }, "*"); } catch (_) { /* aperçu pas prêt */ } pousserEpingles(); };
+  useEffect(() => { if (fini && app?.id) fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "commentaires" }).then((l) => setCommentaires(Array.isArray(l) ? l : []), () => null); }, [fini, app?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { pousserEpingles(); }, [commentaires]); // eslint-disable-line react-hooks/exhaustive-deps
+  const epingler = async () => {
+    const t = remarque.trim(); if (t.length < 2 || !element?.chemin) return;
+    try {
+      const l = await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "commentaires", action: "ajouter", commentaire: { texte: t, chemin: element.chemin, ecran: element.ecran, signe: element.signe, element: element.description } });
+      setCommentaires(l); setRemarque(""); deselectionner();
+    } catch (x) { alert(x.message); }
+  };
+  const retirerRemarques = async (ids) => { try { setCommentaires(await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "commentaires", action: "retirer", ids })); } catch (_) { /* rien */ } };
+  // Toutes les remarques en une seule demande : Bingoo! les traite une par une, puis elles sont décrochées
+  const traiterRemarques = () => {
+    if (!commentaires.length) return;
+    const t = `Traite ces remarques que j'ai épinglées sur la page, une par une :\n${commentaires.map((c, i) => `${i + 1}. Sur ${c.element || "l'élément épinglé"} : ${c.texte}`).join("\n")}`;
+    const ecr = [...new Set(commentaires.map((c) => c.ecran))]; const seul = ecr.length === 1 && !ecr[0].startsWith("_") ? ecr[0] : "";
+    envoyer(t, seul); retirerRemarques(commentaires.map((c) => c.id));
+  };
   useEffect(() => { pousserOutil(); }, [outil, cle]); // eslint-disable-line react-hooks/exhaustive-deps
   const recharger = async () => { const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif").eq("id", app.id).maybeSingle(); if (data) setApp(data); setCle((k) => k + 1); };
   // Messages de l'aperçu : un texte modifié sur place, ou un élément pointé
@@ -656,6 +676,11 @@ export function Chantier({ ws, nav, init, atelier = false }) {
           {/* La zone de saisie */}
           <form onSubmit={(e) => { e.preventDefault(); envoyer(); }} className="shrink-0 border-t border-line p-3">
             <div className={cx("rounded-2xl border bg-white p-2.5 transition", fini ? "border-line focus-within:border-ink-faint focus-within:shadow-[0_8px_30px_-18px_rgba(21,23,42,.4)]" : "border-line opacity-60")}>
+              {commentaires.length > 0 && <div className="mb-2 space-y-1 border-b border-line px-1 pb-2">
+                <div className="flex items-center justify-between"><p className="text-[11.5px] font-semibold uppercase tracking-wider text-ink-faint">Remarques épinglées · {commentaires.length}</p>
+                  <button type="button" onClick={traiterRemarques} disabled={!fini} className="rounded-md bg-[#E8571C] px-2.5 py-1 text-[12px] font-semibold text-white disabled:opacity-40">Faire traiter par Bingoo!</button></div>
+                {commentaires.map((c, i) => <div key={c.id} className="flex items-center gap-2 text-[13px]"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full rounded-bl-sm bg-[#E8571C] text-[11px] font-bold text-white">{i + 1}</span><span className="min-w-0 flex-1 truncate" title={c.element}>{c.texte}</span><button type="button" aria-label="Retirer la remarque" onClick={() => retirerRemarques([c.id])} className="text-ink-faint hover:text-ink">×</button></div>)}
+              </div>}
               {file.length > 0 && <div className="mb-2 space-y-1 border-b border-line px-1 pb-2">
                 <p className="text-[11.5px] font-semibold uppercase tracking-wider text-ink-faint">En attente · {file.length}</p>
                 {file.map((x, i) => <div key={i} className="flex items-center gap-2 text-[13px]"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#F1EFEA] text-[11px] font-bold tabular-nums text-ink-soft">{i + 1}</span><span className="min-w-0 flex-1 truncate">{x.texte}</span><button type="button" aria-label="Retirer de la file" onClick={() => setFile((f) => f.filter((_, k) => k !== i))} className="text-ink-faint hover:text-ink">×</button></div>)}
@@ -706,7 +731,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
               {[["ordi", "Ordinateur"], ["tel", "Téléphone"]].map(([k, l]) => <button key={k} onClick={() => setVue(k)} className={cx("rounded-md px-2.5 py-1", vue === k ? "bg-ink text-white" : "text-ink-soft")}>{l}</button>)}
             </div>
             <div className="flex rounded-lg border border-line bg-white p-0.5 text-[12.5px] font-semibold">
-              {[["texte", "✎ Modifier un texte", "Clique sur un texte de l'aperçu pour le réécrire sur place (gratuit). Astuce : un double-clic sur un texte marche aussi"], ["pointer", "◎ Sélectionner", "Clique sur un élément de l'aperçu : change sa couleur, sa taille, son texte, ou demande à Bingoo!"]].map(([k, l, t]) => <button key={k} title={t} disabled={!fini} onClick={() => { setOutil((o) => (o === k ? null : k)); if (outil === k) deselectionner(); }} className={cx("rounded-md px-2.5 py-1 disabled:opacity-40", outil === k ? "bg-[#E8571C] text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
+              {[["texte", "✎ Modifier un texte", "Clique sur un texte de l'aperçu pour le réécrire sur place (gratuit). Astuce : un double-clic sur un texte marche aussi"], ["pointer", "◎ Sélectionner", "Clique sur un élément de l'aperçu : change sa couleur, sa taille, son texte, ou demande à Bingoo!"], ["commenter", "💬 Commenter", "Épingle une remarque sur un élément ; Bingoo! les traite toutes d'un coup"]].map(([k, l, t]) => <button key={k} title={t} disabled={!fini} onClick={() => { setOutil((o) => (o === k ? null : k)); if (outil === k) deselectionner(); }} className={cx("rounded-md px-2.5 py-1 disabled:opacity-40", outil === k ? "bg-[#E8571C] text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
             </div>
             <div className="relative">
               <button onClick={ouvrirHistorique} disabled={!fini} className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[12.5px] font-semibold text-ink-soft hover:text-ink disabled:opacity-40">Historique</button>
@@ -716,7 +741,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                 {versions.length ? versions.map((v) => <button key={v.version} onClick={() => restaurer(v.version)} disabled={occupe} className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-[12.5px] hover:bg-[#F7F5F1]"><span>Version {v.version}</span><span className="text-ink-faint">{new Date(v.at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span></button>) : <p className="px-2.5 py-2 text-[12.5px] text-ink-faint">Pas encore d'ancienne version.</p>}
               </div>}
             </div>
-            <div className="min-w-0 flex-1 truncate rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] text-ink-faint">{outil === "texte" ? "Clique sur un texte de l'aperçu pour le modifier" : outil === "pointer" ? "Clique sur un élément de l'aperçu pour le sélectionner" : fini ? lien.replace(/^https?:\/\//, "") : "Aperçu en construction…"}</div>
+            <div className="min-w-0 flex-1 truncate rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] text-ink-faint">{outil === "texte" ? "Clique sur un texte de l'aperçu pour le modifier" : outil === "pointer" ? "Clique sur un élément de l'aperçu pour le sélectionner" : outil === "commenter" ? "Clique sur un élément pour y épingler une remarque" : fini ? lien.replace(/^https?:\/\//, "") : "Aperçu en construction…"}</div>
             <button onClick={() => setCle((k) => k + 1)} disabled={!fini} aria-label="Recharger l'aperçu" className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-white text-ink-soft hover:text-ink disabled:opacity-40">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" /></svg>
             </button>
@@ -724,7 +749,13 @@ export function Chantier({ ws, nav, init, atelier = false }) {
           <div className={cx("relative mx-auto min-h-0 w-full flex-1 overflow-hidden rounded-xl border border-line bg-white shadow-[0_30px_80px_-50px_rgba(21,23,42,.5)] transition-[max-width] duration-500", vue === "tel" ? "max-w-[390px]" : "max-w-none")}>
             {fini ? <iframe ref={cadreRef} key={cle} title={`Aperçu de ${nom}`} src={lienApercu} onLoad={() => pousserOutil()} className={cx("absolute inset-0 h-full w-full border-0", outil && "ring-2 ring-inset ring-[#E8571C]")} />
               : specEnDirect(app?.brouillon ?? (app?.statut === "pret" ? app?.spec : null)) ? <EnDirect app={app} etape={etape} /> : <Assemblage nom={nom} couleur={couleur} ecrans={ecrans} ecrits={ecrits} etape={etape} />}
-            {fini && element?.chemin && <BarreSelection element={element} retoucher={retoucher} fermer={deselectionner}
+            {fini && element?.chemin && outil === "commenter" && <div className="absolute left-1/2 top-3 z-20 flex w-[min(560px,calc(100%-24px))] -translate-x-1/2 items-center gap-2 rounded-xl bg-ink/95 p-1.5 shadow-2xl">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#E8571C] text-[12px] font-bold text-white">{commentaires.length + 1}</span>
+              <input autoFocus value={remarque} onChange={(e) => setRemarque(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") epingler(); if (e.key === "Escape") deselectionner(); }} placeholder={`Ta remarque sur ${element.description.slice(0, 40)}…`} className="min-w-0 flex-1 bg-transparent px-1 text-[13.5px] text-white outline-none placeholder:text-white/45" />
+              <button type="button" onClick={epingler} disabled={remarque.trim().length < 2} className="shrink-0 rounded-lg bg-[#E8571C] px-3 py-1.5 text-[12.5px] font-semibold text-white disabled:opacity-40">Épingler</button>
+              <button type="button" onClick={deselectionner} aria-label="Annuler" className="shrink-0 px-2 text-white/70 hover:text-white">×</button>
+            </div>}
+            {fini && element?.chemin && outil !== "commenter" && <BarreSelection element={element} retoucher={retoucher} fermer={deselectionner}
               editer={() => { try { cadreRef.current?.contentWindow?.postMessage({ type: "bingoo-atelier-editer" }, "*"); } catch (_) { /* rien */ } }}
               demander={() => saisieRef.current?.focus()} />}
             {occupe && <div className="absolute inset-x-0 top-0 h-1 overflow-hidden bg-[#ECEAE4]"><div className="h-full w-1/3 animate-[barre_1.2s_ease-in-out_infinite] bg-[#E8571C]" /></div>}

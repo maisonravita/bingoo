@@ -2,6 +2,7 @@
 // → la vidéo joue aussitôt à droite → on la retouche en discutant à gauche → export MP4/WebM dans le navigateur.
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { envoyerLogo, lireLogoEspace, poserLogoEspace } from "../lib/logo";
 import { fn } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { cx } from "../lib/utils";
@@ -75,28 +76,24 @@ export default function Motion() {
   }, [sel?.id, format, export_, lecture, logoImg]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Le logo : réduit dans le navigateur (transparence gardée), sa couleur dominante relevée, puis posé dans la vidéo
-  const memoLogo = () => { try { return JSON.parse(localStorage.getItem("bingoo-motion-logo") ?? "null"); } catch { return null; } };
+  // Le logo de l'espace d'abord, sinon celui gardé dans ce navigateur
+  const [logoEsp, setLogoEsp] = useState(null);
+  useEffect(() => { if (ws?.id) lireLogoEspace(ws).then(setLogoEsp); }, [ws?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const memoLogo = () => { if (logoEsp?.url) return logoEsp; try { return JSON.parse(localStorage.getItem("bingoo-motion-logo") ?? "null"); } catch { return null; } };
   async function poserLogo(v, l) {
     const n = await fn("r/video-logo", { workspace_id: ws.id, video_id: v.id, logo: l.url, couleur: l.couleur });
     setVideos((x) => [n, ...(x ?? [])]); setSel(n); setLecture(true); return n;
   }
   async function choisirLogo(f) {
-    if (!f || !/^image\/(png|jpeg|webp)$/.test(f.type)) { alert("Logo en PNG, JPG ou WebP."); return; }
     setEnvoiLogo(true);
     const n = fil.length; setFil((l) => [...l, { moi: "Mon logo", logo: true, etat: "encours" }]);
     try {
-      const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = URL.createObjectURL(f); });
-      const k = Math.min(1, 600 / Math.max(img.width, img.height)), c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-      const g = c.getContext("2d"); g.drawImage(img, 0, 0, c.width, c.height);
-      // Couleur dominante parmi les pixels colorés (ni blanc, ni noir, ni transparent)
-      const d = g.getImageData(0, 0, c.width, c.height).data, seaux = {};
-      for (let i = 0; i < d.length; i += 16) { const [r, v, b, a] = [d[i], d[i + 1], d[i + 2], d[i + 3]]; const mx = Math.max(r, v, b), mn = Math.min(r, v, b); if (a < 200 || mx - mn < 60 || mx < 50) continue; const cle = `${r >> 4},${v >> 4},${b >> 4}`; (seaux[cle] ??= [0, 0, 0, 0]); seaux[cle][0] += r; seaux[cle][1] += v; seaux[cle][2] += b; seaux[cle][3]++; }
-      const top = Object.values(seaux).sort((a, b) => b[3] - a[3])[0];
-      const couleur = top ? "#" + top.slice(0, 3).map((x) => Math.round(x / top[3]).toString(16).padStart(2, "0")).join("") : null;
-      const r = await fn("r/saas-logo", { workspace_id: ws.id, image: c.toDataURL("image/png") });
-      const l = { url: r.url, couleur }; try { localStorage.setItem("bingoo-motion-logo", JSON.stringify(l)); } catch { /* stockage indisponible */ }
+      const l = await envoyerLogo(ws, f);
+      try { localStorage.setItem("bingoo-motion-logo", JSON.stringify(l)); } catch { /* stockage indisponible */ }
+      // Il devient le logo de tout l'espace (son SaaS ou son site sans logo le reçoit aussi)
+      await poserLogoEspace(ws, l, { appliquer: true }).catch(() => null); setLogoEsp(l);
       if (sel) await poserLogo(sel, l);
-      setFil((x) => x.map((y, k2) => (k2 === n ? { ...y, etat: "ok", texte: sel ? "Ton logo est dans la vidéo : en petit en haut, et en grand à la fin." : "Ton logo est prêt : il sera dans ta vidéo dès qu'elle est créée." } : y)));
+      setFil((x) => x.map((y, k2) => (k2 === n ? { ...y, etat: "ok", texte: (sel ? "Ton logo est dans la vidéo : en petit en haut, et en grand à la fin." : "Ton logo est prêt : il sera dans ta vidéo dès qu'elle est créée.") + " C'est aussi le logo de ton espace : tes prochaines vidéos, ton site et ton SaaS le reprennent." } : y)));
     } catch (e) { setFil((x) => x.map((y, k2) => (k2 === n ? { ...y, etat: "ko", erreur: e.message } : y))); }
     finally { setEnvoiLogo(false); }
   }

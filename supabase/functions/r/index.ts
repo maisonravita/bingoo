@@ -28,6 +28,10 @@ async function autreSaas(ws: { id: string; periode?: string }) {
   return { deja: true, changement: ws.periode === "an" && (changes ?? 0) < 1, ids: autres.map((x) => x.id) };
 }
 const MSG_AUTRE = (solde: number) => `Ton abonnement comprend un SaaS, et le tien est déjà construit. Un autre SaaS coûte ${COUT_CREDITS.saas} crédits (ton premier reste en ligne)${solde < COUT_CREDITS.saas ? ` : il te manque ${COUT_CREDITS.saas - solde} crédits` : ""}.`;
+/** Logo de l'espace (fichier rangé dans le stockage, sans table) : { url, couleur } ou null. */
+async function logoEspace(wsId: string): Promise<{ url: string; couleur: string | null } | null> {
+  try { const { data } = await admin.storage.from("apps").download(`espaces/${wsId}/logo.json`); if (!data) return null; const j = JSON.parse(await data.text()); return typeof j?.url === "string" ? j : null; } catch { return null; }
+}
 // Espace d'un membre connecté, ou n'importe quel espace avec la clé des tâches planifiées (tests et reprises)
 const membreOuCron = async (req: Request, wsId: string) => {
   if (!req.headers.get("x-cron-key")) return await requireMember(req, wsId);
@@ -479,6 +483,26 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     } catch (e) { throw new HttpError(422, String((e as Error)?.message ?? e).slice(0, 220)); }
   },
   // Le logo du membre, envoyé avant la construction (il est posé sur son SaaS ou son site à la construction)
+  // Un seul logo pour tout l'espace (site, SaaS, vidéos) : lu, posé ({ url, couleur } d'un logo déjà envoyé) ou retiré (null)
+  async "espace-logo"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    if (b.logo === undefined) return { logo: await logoEspace(ws.id) };
+    const chemin = `espaces/${ws.id}/logo.json`;
+    if (b.logo === null) { await admin.storage.from("apps").remove([chemin]); return { logo: null }; }
+    await quota(ws.id, "logo", 20);
+    const base = admin.storage.from("apps").getPublicUrl("images/").data.publicUrl;
+    const url = String(b.logo?.url ?? ""), couleur = /^#[0-9a-f]{6}$/i.test(String(b.logo?.couleur ?? "")) ? String(b.logo.couleur) : null;
+    if (!url.startsWith(base) || !/^[\w./:-]+$/.test(url)) throw new HttpError(400, "Logo invalide");
+    const logo = { url, couleur, at: new Date().toISOString() };
+    const { error } = await admin.storage.from("apps").upload(chemin, new Blob([JSON.stringify(logo)], { type: "application/json" }), { upsert: true, contentType: "application/json", cacheControl: "0" });
+    if (error) throw new HttpError(500, `Stockage : ${error.message}`);
+    // Ses SaaS et sites déjà en ligne sans logo le reçoivent aussi
+    if (b.appliquer || b.forcer) {
+      const { data: apps } = await admin.from("saas_apps").select("id, spec, version").eq("workspace_id", ws.id).eq("statut", "pret");
+      for (const a of apps ?? []) if (b.forcer ? (a.spec as any)?.logo !== url : !(a.spec as any)?.logo) await admin.from("saas_apps").update({ spec: { ...(a.spec as any), logo: url }, version: (a.version ?? 0) + 1, maj: new Date().toISOString() }).eq("id", a.id);
+    }
+    return { logo };
+  },
   async "saas-logo"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     await quota(ws.id, "logo", 20);
@@ -565,6 +589,8 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     if (id) await admin.from("saas_apps").update({ statut: "en_cours", brouillon: null, erreur: null, etape: essai2 ? "Démarrage (2e essai)" : "Démarrage", maj: new Date().toISOString() }).eq("id", id);
     else id = (await admin.from("saas_apps").insert({ projet_id: pr.id, workspace_id: ws.id, slug: nouveauSlug(nom), etape: "Démarrage" }).select("id").single()).data!.id;
     await log(ws.id, "construire", `Construction du SaaS ${nom}`);
+    // Logo de l'espace : rangé dans le projet pour que la construction le pose (sauf si le projet a déjà le sien)
+    { const lg = await logoEspace(ws.id); if (lg?.url) await admin.from("saas_projets").update({ data: { ...(pr.data as any), logo_espace: lg.url } }).eq("id", pr.id); }
     const travail = saasConstruire(id!, lancerEcran).catch(async (e) => {
       console.error("construire", e);
       await admin.from("saas_apps").update({ statut: ex?.statut === "pret" ? "pret" : "erreur", erreur: String(e?.message ?? e).slice(0, 300), etape: null }).eq("id", id!);
@@ -890,6 +916,24 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       const r = await saasModifierTexte(app.id, String(b.avant ?? ""), String(b.apres ?? ""), b.ecran ? String(b.ecran) : null);
       if (r.n) await log(ws.id, "texte_app", `Texte modifié : « ${String(b.avant ?? "").slice(0, 40)} »`);
       return r;
+    }
+    // Atelier : remarques épinglées sur des éléments de l'aperçu (rangées à part : elles ne changent pas le SaaS)
+    if (b.quoi === "commentaires") {
+      const chemin = `commentaires/${app.id}.json`;
+      let l: any[] = [];
+      try { const { data } = await admin.storage.from("apps").download(chemin); if (data) l = JSON.parse(await data.text()); } catch { l = []; }
+      if (!Array.isArray(l)) l = [];
+      if (b.action === "ajouter") {
+        await quota(ws.id, "commentaire_app", 200);
+        const c = b.commentaire ?? {}, texte = String(c.texte ?? "").trim().slice(0, 500);
+        if (texte.length < 2) throw new HttpError(400, "Écris ta remarque");
+        l.push({ id: crypto.randomUUID().slice(0, 8), texte, chemin: String(c.chemin ?? "").slice(0, 600), ecran: String(c.ecran ?? "_site").slice(0, 80), signe: String(c.signe ?? "").slice(0, 40), element: String(c.element ?? "").slice(0, 300), at: new Date().toISOString() });
+        l = l.slice(-50);
+      } else if (b.action === "retirer") { const ids = new Set((Array.isArray(b.ids) ? b.ids : [b.id]).map(String)); l = l.filter((x) => !ids.has(x.id)); }
+      else return l;
+      const { error } = await admin.storage.from("apps").upload(chemin, new Blob([JSON.stringify(l)], { type: "application/json" }), { upsert: true, contentType: "application/json", cacheControl: "0" });
+      if (error) throw new HttpError(500, `Stockage : ${error.message}`);
+      return l;
     }
     // Atelier, outil Sélectionner : retouche directe d'un élément (couleur, fond, taille, gras, masqué), gratuite et sans IA
     if (b.quoi === "retouche") {

@@ -20,7 +20,7 @@ function bloc(b, i) {
     case "graphique": return { g: "carte", titre, k: "ligne", donnees: ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((label, j) => ({ label, valeur: [4, 6, 5, 8, 7, 10, 9][j] + (i % 3) })) };
     case "calendrier": return { g: "carte", titre, k: "calendrier", lignes: el.map((x, j) => ({ id: "c" + j, date: jour(j), titre: x })) };
     case "colonnes": return { g: "carte", titre, k: "kanban", colonnes: el.slice(0, 3), lignes: el.slice(0, 3).flatMap((c, j) => [{ id: `k${j}a`, statut: c, titre: `${titre || "Élément"} ${j * 2 + 1}` }, ...(j % 2 ? [] : [{ id: `k${j}b`, statut: c, titre: `${titre || "Élément"} ${j * 2 + 2}` }])]) };
-    case "galerie": return { g: "carte", titre, k: "galerie", lignes: el.map((x, j) => ({ id: "g" + j, ...decoupe(x) })) };
+    case "galerie": return { g: "carte", titre, k: "galerie", lignes: el.map((x, j) => ({ id: "g" + j, ...decoupe(x), image: b.images?.[j]?.url ?? null })) };
     case "chat": return { g: "carte", titre, k: "fil", lignes: el.map((x, j) => ({ id: "f" + j, auteur: j % 2 ? "Camille" : "Client", texte: x })) };
     case "formulaire": return { g: "carte", titre, k: "formulaire", champs: el };
     default: return { g: "carte", titre, k: "liste", lignes: el.map((x, j) => ({ id: "l" + j, ...decoupe(x) })) };
@@ -36,7 +36,7 @@ function Bloc({ b }) {
   if (b.k === "ligne") return h(ui.Ligne, { donnees: b.donnees });
   if (b.k === "calendrier") return h(ui.Calendrier, { lignes: b.lignes, rendu: (l) => l.titre });
   if (b.k === "kanban") return h(ui.Kanban, { colonnes: b.colonnes, lignes: b.lignes, rendu: (l) => l.titre });
-  if (b.k === "galerie") return h(ui.Galerie, { lignes: b.lignes, colonnes: 3 });
+  if (b.k === "galerie") return h(ui.Galerie, { lignes: b.lignes, colonnes: 3, rendu: (l) => ({ titre: l.titre, sous: l.sous, image: l.image }) });
   if (b.k === "fil") return h(ui.Fil, { lignes: b.lignes });
   if (b.k === "formulaire") return h("div", { class: "grid gap-3 sm:grid-cols-2" }, b.champs.map((c) => h(ui.Input, { label: c, value: "", onInput: () => {} })), h("div", null, h(ui.Button, null, "Enregistrer")));
   return h(ui.Liste, { lignes: b.lignes, rendu: (l) => ({ titre: l.titre, sous: l.sous }) });

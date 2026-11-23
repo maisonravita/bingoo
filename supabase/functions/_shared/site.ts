@@ -23,6 +23,7 @@ export async function construireSite(appId: string, p: any, demarrerVerification
   await admin.from("saas_apps").update({ etape: "Écriture des textes du site", maj: new Date().toISOString() }).eq("id", appId);
   const c = await askJson<any>(promptSite(p), { fast: true, maxTokens: 5000 });
   const spec = specSite(c, p);
+  if (!spec.logo && typeof p.logo_espace === "string") spec.logo = p.logo_espace; // logo de l'espace
   if (!spec.ecrans.every((e: any) => e.code)) throw new Error("L'espace gérant du site est introuvable");
   // Système de design (UI UX Pro Max) : catégorie tirée des mots-clés du plan, variante jamais vue chez ce membre ni
   // sur les derniers projets du même secteur ; palette et polices imposées (l'IA ne les choisit plus)

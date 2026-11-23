@@ -46,7 +46,7 @@ C'EST UNE APP MOBILE : elle s'utilise au téléphone, d'une main. 4 à 6 écrans
  "probleme": "le besoin de ces utilisateurs, 1 à 2 phrases",
  "famille": "UNE parmi : gestion, reservation, crm, projets, edition, ia, communaute, apprentissage, perso, automatisation, analyse, contenu",
  "ecrans": 5 à 8 objets { "titre": "2 mots", "role": "une phrase" } : la PREMIÈRE VERSION, bornée à l'essentiel, le premier écran étant l'espace principal,
- "principal": { "titre": "titre de l'écran principal", "blocs": 3 à 5 objets { "type": "kpi|liste|tableau|calendrier|colonnes|formulaire|galerie|graphique|chat|editeur", "titre": "2 à 4 mots", "elements": [3 ou 4 exemples très courts et réalistes] } } (l'écran principal montre d'abord CE QUE L'UTILISATEUR VIENT FAIRE : pour un produit grand public — recettes, cours, sport, communauté, révisions — commence par le contenu (galerie, fil, liste, calendrier), pas par des chiffres ; un bloc kpi seulement si l'écran est vraiment un tableau de bord, et chaque élément kpi commence par un chiffre d'exemple : « 12 cartes à réviser », « 340 € dépensés »),
+ "principal": { "titre": "titre de l'écran principal", "blocs": 3 à 5 objets { "type": "kpi|liste|tableau|calendrier|colonnes|formulaire|galerie|graphique|chat|editeur", "titre": "2 à 4 mots", "elements": [3 ou 4 exemples très courts et réalistes], "photos_en": [seulement pour un bloc galerie : pour chaque élément, 2 ou 3 mots ANGLAIS décrivant une photo réelle de cet élément, ex. "chickpea curry bowl"] } } (l'écran principal montre d'abord CE QUE L'UTILISATEUR VIENT FAIRE : pour un produit grand public — recettes, cours, sport, communauté, révisions — commence par le contenu (galerie, fil, liste, calendrier), pas par des chiffres ; un bloc kpi seulement si l'écran est vraiment un tableau de bord, et chaque élément kpi commence par un chiffre d'exemple : « 12 cartes à réviser », « 340 € dépensés »),
  "plus_tard": [3 à 5 fonctions utiles qui viendront ENSUITE, à demander dans l'atelier, et que Bingoo! SAIT faire (jamais une des limites ci-dessous : pas de SMS, de paiement par carte, de notification sur téléphone, de GPS, de connexion à un autre service)],
  "limites": [0 à 3 objets { "demande": "ce que l'idée demande et que Bingoo! ne sait pas faire", "alternative": "ce qui sera fait à la place" }],
  "mots_cles": [3 à 5 mots-clés en français pour chercher des logiciels proches],
@@ -95,6 +95,7 @@ Rends {"garder": [numéros]} (liste vide si aucun ne convient).`, { fast: true, 
   const proches = gardes.sort((a: any, b: any) => (Number(b.mrr) || 0) - (Number(a.mrr) || 0)).slice(0, 3)
     .map((s: any) => ({ domaine: s.domaine, nom: s.nom, mrr: s.mrr ?? null, description: court(s.description, 180) }));
   const ds = await designsApercu(`${r?.secteur_en ?? ""} ${(r?.mots_cles ?? []).join(" ")}`, wsId);
+  await photosGaleries(apercu);
   return { apercu: { ...apercu, design: ds[0], designs: ds }, proches };
 }
 
@@ -202,6 +203,21 @@ Règles : aucun avis client, aucun chiffre ni année d'expérience inventés. To
   return { apercu: { ...apercu, design: ds[0], designs: ds }, proches: [] };
 }
 
+
+/** Galeries de l'écran principal : une vraie photo libre (Wikimedia Commons, sans IA ni coût) par élément, avec son crédit. */
+async function photosGaleries(apercu: any) {
+  const { photosLibres } = await import("./photos.ts");
+  const blocs = ((apercu?.principal?.blocs ?? []) as any[]).filter((b) => b?.type === "galerie");
+  await Promise.all(blocs.map(async (b) => {
+    const mots: string[] = (Array.isArray(b.photos_en) ? b.photos_en : []).map((x: unknown) => String(x).slice(0, 60));
+    const vues = new Set<string>();
+    b.images = await Promise.all((b.elements ?? []).slice(0, 4).map(async (_: unknown, i: number) => {
+      if (!mots[i]) return null;
+      try { const l = await photosLibres(mots[i], 3, 900); const ph = l.find((x) => !vues.has(x.page)); if (!ph) return null; vues.add(ph.page); return { url: ph.url, auteur: ph.auteur, licence: ph.licence, page: ph.page }; } catch { return null; }
+    }));
+    delete b.photos_en;
+  }));
+}
 
 /** Le système de design de l'aperçu (sans IA) : la maquette le montre, et la construction le reprend tel quel. */
 async function designApercu(motsCles: string, wsId: string) {

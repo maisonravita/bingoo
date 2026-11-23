@@ -275,6 +275,8 @@ ${CONSIGNE_TEXTES_FR}`, { maxTokens: 16000 });
     ...(nature?.espace_principal ? { nature: { espace_principal: String(nature.espace_principal).slice(0, 300), interactions: (nature.interactions ?? []).slice(0, 6).map((x: any) => String(x).slice(0, 160)) } } : {}),
     agenda: s.agenda?.collection && s.agenda?.champ_date ? { collection: String(s.agenda.collection), champ_date: String(s.agenda.champ_date), champ_heure: s.agenda.champ_heure ? String(s.agenda.champ_heure) : null, duree: s.agenda.duree ?? 60, champs_titre: (Array.isArray(s.agenda.champs_titre) ? s.agenda.champs_titre : [s.agenda.champs_titre]).filter(Boolean).slice(0, 2) } : null,
   };
+  // Le logo de l'espace (posé une fois pour tout : site, SaaS, vidéos) : repris si ce projet n'en a pas
+  if (!spec.logo && typeof p.logo_espace === "string") spec.logo = p.logo_espace;
   // La couleur de marque suit la palette du système de design (PDF, image de partage, e-mails)
   if (spec.design?.couleurs?.primary) spec.couleur = spec.design.couleurs.primary;
   if (spec.design?.allure) spec.style = spec.design.allure;

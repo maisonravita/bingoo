@@ -1572,8 +1572,24 @@ function Racine() {
       el.style.fontWeight = c.gras ? "800" : ""; el.style.display = c.cache ? "none" : "";
     }
   };
+  // Remarques épinglées (atelier seulement) : une pastille numérotée sur chaque élément commenté
+  let epingles = [];
+  const calque = document.createElement("div"); calque.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:2147483645"; document.body.appendChild(calque);
+  const dessinerEpingles = () => {
+    calque.innerHTML = "";
+    for (const ep of epingles) {
+      if ((ep.ecran || "_site") !== ecranCourant()) continue;
+      let el = null; try { el = document.querySelector(ep.chemin); } catch (e) { continue; }
+      if (!el) continue; const r = el.getBoundingClientRect(); if (r.bottom < 0 || r.top > innerHeight) continue;
+      const p = document.createElement("div");
+      p.textContent = ep.n; p.title = ep.texte || "";
+      p.style.cssText = "position:fixed;left:" + Math.max(4, r.left - 11) + "px;top:" + Math.max(4, r.top - 11) + "px;width:24px;height:24px;border-radius:12px 12px 12px 2px;background:#E8571C;color:#fff;font:700 12px/24px system-ui;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,.25);border:2px solid #fff";
+      calque.appendChild(p);
+    }
+  };
+  addEventListener("scroll", dessinerEpingles, true); addEventListener("resize", dessinerEpingles);
   let attente = 0;
-  new MutationObserver(() => { clearTimeout(attente); attente = setTimeout(appliquer, 60); }).observe(document.body, { childList: true, subtree: true });
+  new MutationObserver((ms) => { if (ms.every((m) => calque.contains(m.target) || m.target === calque)) return; clearTimeout(attente); attente = setTimeout(() => { appliquer(); dessinerEpingles(); }, 60); }).observe(document.body, { childList: true, subtree: true });
   setTimeout(appliquer, 300);
   const decrireChoisi = (el) => { const cs = getComputedStyle(el); return { type: "bingoo-atelier-element", description: decrire(el), ecran: ecranCourant(), chemin: chemin(el), signe: signe(el), texte: !!cibleTexte(el), couleur: hex(cs.color) || "#111111", fond: hex(cs.backgroundColor) || "#ffffff", retouche: (retouches.find((r) => r.chemin === chemin(el) && (r.ecran || "_site") === ecranCourant()) || {}).css || {} }; };
   addEventListener("message", (e) => {
@@ -1586,10 +1602,11 @@ function Racine() {
       else if (i >= 0) { let el = null; try { el = document.querySelector(d.chemin); } catch (x) {} if (el) { el.style.color = el.style.backgroundColor = el.style.fontSize = el.style.fontWeight = el.style.display = ""; } retouches.splice(i, 1); }
       appliquer(); placer(cadreChoisi, choisi); return;
     }
+    if (d.type === "bingoo-atelier-epingles") { epingles = Array.isArray(d.liste) ? d.liste : []; dessinerEpingles(); return; }
     if (d.type === "bingoo-atelier-editer") { if (choisi) { apresEdition = mode; mode = "texte"; temporaire = false; choisi.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })); } return; }
     if (d.type === "bingoo-atelier-deselect") { choisi = null; placer(cadreChoisi, null); return; }
     if (d.type !== "bingoo-atelier-mode") return;
-    parent = e.origin; atelier = true; mode = d.mode || null; cible = null; montrer(null); if (!mode) { choisi = null; placer(cadreChoisi, null); } document.body.style.cursor = mode ? (mode === "texte" ? "text" : "crosshair") : "";
+    parent = e.origin; atelier = true; mode = d.mode || null; cible = null; montrer(null); if (!mode) { choisi = null; placer(cadreChoisi, null); } document.body.style.cursor = mode ? (mode === "texte" ? "text" : mode === "commenter" ? "cell" : "crosshair") : "";
   });
   addEventListener("mousemove", (e) => { if (!mode) return; const el = mode === "texte" ? cibleTexte(e.target) : e.target; cible = el; montrer(el === choisi ? null : el); }, true);
   addEventListener("scroll", () => { if (mode && cible) montrer(cible); placer(cadreChoisi, choisi); }, true);
@@ -1600,7 +1617,7 @@ function Racine() {
   addEventListener("dblclick", (e) => { if (!atelier || mode) return; const el = cibleTexte(e.target); if (!el) return; e.preventDefault(); e.stopPropagation(); mode = "texte"; temporaire = true; el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })); }, true);
   addEventListener("click", (e) => {
     if (!bloquer(e)) return;
-    if (mode === "pointer") { choisi = e.target; montrer(null); placer(cadreChoisi, choisi); envoyer(decrireChoisi(choisi)); return; }
+    if (mode === "pointer" || mode === "commenter") { choisi = e.target; montrer(null); placer(cadreChoisi, choisi); envoyer(decrireChoisi(choisi)); return; }
     const el = cibleTexte(e.target); if (!el) return;
     const avant = texteDirect(el); const m0 = temporaire ? null : (apresEdition || mode); apresEdition = null; placer(cadreChoisi, null); temporaire = false; mode = null; montrer(null); document.body.style.cursor = "";
     const fin = (garder) => { el.contentEditable = "false"; el.removeEventListener("keydown", touche); el.removeEventListener("blur", sortie); mode = m0; const apres = texteDirect(el); if (garder && apres && apres !== avant) envoyer({ type: "bingoo-atelier-texte", avant, apres, ecran: window.__bingooEcran || "_site" }); else if (!garder) el.innerText = avant; };

@@ -316,6 +316,50 @@ if (CONSTRUIRE === "spec") {
   await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/mon-saas`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(6000);
   console.log((await pm.getByText("Contrôle de sécurité").count()) ? "✓ contrôle de sécurité affiché" : "✗ pas de contrôle de sécurité");
   await pm.screenshot({ path: `${DOSSIER}/mon-saas-visites.png`, fullPage: true });
+} else if (CONSTRUIRE === "quatre") {
+  // Points de départ (accueil), remarques épinglées (atelier), logo de l'espace (Mon SaaS), photos réelles dans l'aperçu d'idée
+  const appel = async (route, corps) => { const r = await fetch(`${SB}/functions/v1/r/${route}`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify(corps) }); const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch {} return { ok: r.ok, j, t: t.slice(0, 200) }; };
+  { const c0 = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p0 = await c0.newPage();
+    await p0.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p0.waitForTimeout(2500);
+    const d = p0.getByText("Ou pars d'un point de départ"); console.log((await d.count()) ? "✓ points de départ affichés" : "✗ pas de points de départ");
+    await d.scrollIntoViewIfNeeded().catch(() => null); await p0.waitForTimeout(1500); await p0.screenshot({ path: `${DOSSIER}/depart-1.png` });
+    await p0.getByText("Site de restaurant").click().catch(() => null); await p0.waitForTimeout(1200);
+    const v = await p0.locator("#idee").inputValue().catch(() => ""); console.log(/restaurant japonais/.test(v) ? "✓ un clic remplit l'idée" : "✗ idée non remplie");
+    await p0.screenshot({ path: `${DOSSIER}/depart-2.png` }); await c0.close(); }
+  const [a] = await q(`select id, slug, version from saas_apps where workspace_id = ${lit(ws)} and statut = 'pret' order by maj desc limit 1`);
+  const v0 = a.version;
+  const { page: pm } = await ouvrir(ws, {});
+  await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(9000);
+  await pm.getByRole("button", { name: /Commenter/ }).click(); await pm.waitForTimeout(600);
+  const bb = await pm.locator('iframe[title^="Aperçu"]').boundingBox();
+  for (const [fx, fy, txt] of [[0.5, 0.3, "Titre trop long, raccourcis-le"], [0.42, 0.58, "Mets ce bouton en vert"]]) {
+    await pm.mouse.move(bb.x + bb.width * fx, bb.y + bb.height * fy); await pm.waitForTimeout(300); await pm.mouse.click(bb.x + bb.width * fx, bb.y + bb.height * fy); await pm.waitForTimeout(900);
+    await pm.locator('input[placeholder^="Ta remarque"]').fill(txt); await pm.getByRole("button", { name: "Épingler" }).click(); await pm.waitForTimeout(1800);
+  }
+  console.log((await pm.getByText(/Remarques épinglées · 2/i).count()) ? "✓ deux remarques épinglées" : "✗ remarques absentes");
+  await pm.screenshot({ path: `${DOSSIER}/remarques-1.png` });
+  await pm.getByRole("button", { name: "Faire traiter par Bingoo!" }).click(); const t0 = Date.now(); await pm.waitForTimeout(3000);
+  await pm.waitForFunction(() => { const t = document.body.innerText; return /Traite ces remarques/.test(t) && !/Bingoo! applique ta demande|Je modifie ton SaaS|Je la teste/.test(t); }, null, { timeout: 900000, polling: 3000 }).catch(() => null); await pm.waitForTimeout(4000);
+  const [y] = await q(`select version from saas_apps where id = ${lit(a.id)}`);
+  console.log(`${y.version > v0 ? "✓" : "✗"} remarques traitées par Bingoo! : v${v0} → v${y.version} (${Math.round((Date.now() - t0) / 1000)} s)`);
+  await pm.screenshot({ path: `${DOSSIER}/remarques-2.png` });
+  // Logo de l'espace depuis Mon SaaS
+  await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/mon-saas`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(6000);
+  await pm.locator('input[type="file"][accept^="image/png"]').first().setInputFiles("public/icon-512.png").catch((e) => console.log("fichier", e.message.slice(0, 80)));
+  await pm.waitForFunction(() => /Posé sur ton SaaS/.test(document.body.innerText), null, { timeout: 60000 }).catch(() => null); await pm.waitForTimeout(1500);
+  const [z] = await q(`select spec->>'logo' logo from saas_apps where id = ${lit(a.id)}`); const le = await appel("espace-logo", { workspace_id: ws });
+  console.log(z.logo && le.j?.logo?.url === z.logo ? "✓ logo de l'espace posé sur le SaaS" : `✗ logo : ${JSON.stringify({ app: z.logo, espace: le.j })}`.slice(0, 200));
+  await pm.screenshot({ path: `${DOSSIER}/logo-espace.png` });
+  await pm.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(5000); await pm.screenshot({ path: `${DOSSIER}/logo-saas.png` });
+  // Remise en état de la démo
+  await appel("saas-app-reglages", { workspace_id: ws, app_id: a.id, quoi: "restaurer", version: v0 }); await appel("espace-logo", { workspace_id: ws, logo: null });
+  // Photos réelles dans l'aperçu d'une idée (espace neuf : limite du jour)
+  const wsI = await creerEspace("Robot photos " + new Date().toISOString().slice(0, 16)); await q(`update workspaces set plan = 'lancer_pro', plan_status = 'active', onboarded = true where id = ${lit(wsI)}`);
+  const { ctx: ci, page: pi } = await ouvrir(wsI, { "bingoo-idee": { texte: "Un site de recettes végétariennes où chacun publie ses plats", type: "saas", at: Date.now() } });
+  await pi.goto(`${SITE}/?c=${Date.now()}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+  await pi.waitForFunction(() => /Construire \S+ \S|Le nom affiché|Son nom/.test(document.body.innerText) && !/étudie ton idée|prépare l'aperçu/i.test(document.body.innerText), null, { timeout: 150000 }).catch(() => null); await pi.waitForTimeout(8000);
+  console.log((await pi.getByText("via Wikimedia Commons").count()) ? "✓ photos réelles dans l'aperçu (crédits affichés)" : "✗ pas de photos dans l'aperçu");
+  await pi.screenshot({ path: `${DOSSIER}/apercu-photos.png`, fullPage: true }); await ci.close();
 } else if (CONSTRUIRE === "atelier-diag") {
   // Diagnostic : la page du membre ouverte sur l'atelier d'un SaaS dont une modification attend son test
   const [a0] = await q(`select a.id, a.slug, a.workspace_id ws, a.version, a.brouillon->'_test' t from saas_apps a where a.slug = ${lit(process.env.DOMAINE || "asso-pilote-6t0r")}`);
@@ -447,7 +491,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
