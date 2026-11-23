@@ -419,6 +419,9 @@ export async function aiGuard() {
     const { data: wp } = await admin.from("workspaces").select("plan").eq("id", ws).maybeSingle();
     if (wp?.plan === "essai") {
       if (!GRATUIT_IA.test(String(ctx.feature ?? ""))) throw new HttpError(402, "Ça fait partie des offres payantes : choisis une offre dans Abonnement pour que Bingoo! s'en occupe.");
+      // Garde-fou contre les visiteurs en série : au-delà de 4 € d'aperçus gratuits dans la journée (toute la plateforme), on demande un compte
+      const { data: jour } = await admin.from("ai_usage").select("cost_eur").eq("feature", "explorer/idee-apercu").gte("at", dayStart()).limit(5000);
+      if ((jour ?? []).reduce((x, r) => x + Number(r.cost_eur ?? 0), 0) >= Number(env("APERCUS_GRATUITS_JOUR_EUR", "4"))) throw new HttpError(403, "Beaucoup de monde aujourd'hui : crée ton compte gratuit pour voir l'aperçu de ton idée.");
       if ((await aiSpent(ws)) + 0.008 > PLANS.essai.ai) throw new HttpError(402, "Tu as utilisé tes aperçus gratuits du mois. Ils reviennent le 1er du mois, ou choisis une offre pour construire tout de suite.");
     }
   }
