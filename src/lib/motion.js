@@ -77,6 +77,12 @@ function plaqueLogo(ctx, cx, cy, hauteur, u, ombre = true, image = true) {
 }
 // Contexte de dessin courant (posé à chaque image)
 let F = "system-ui", C = [79, 70, 229], CV = C, NOIR = true, INK = "#fff", INK2 = (a) => `rgba(255,255,255,${a})`;
+// Quatre allures pour que deux vidéos ne se ressemblent pas : nuit (sombre, capitales grasses), pop (couleur de la marque
+// partout), editorial (crème, titres à empattements, casse normale, sans halo), minimal (blanc pur, sobre, sans halo)
+export const LOOKS = ["nuit", "pop", "editorial", "minimal"];
+let LOOK = "nuit";
+export const policeMotion = (script) => ({ editorial: "Fraunces", minimal: "Plus Jakarta Sans" }[LOOKS.includes(script?.look) ? script.look : "nuit"] ?? "Inter Tight");
+const MAJ = (x) => (LOOK === "nuit" || LOOK === "pop" ? String(x ?? "").toUpperCase() : String(x ?? ""));
 
 // Palette selon le fond de la scène : noir, blanc, ou couleur de la marque (plein écran)
 let MODE = "noir";
@@ -90,6 +96,16 @@ function fond(ctx, W, H, t, u) {
   if (MODE === "couleur") {
     const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, rgba(mix(C, [255, 255, 255], 0.1), 1)); g.addColorStop(1, rgba(mix(C, [0, 0, 0], 0.18), 1)); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
     const px = W * (0.3 + Math.sin(t * 0.3) * 0.2), R = Math.max(W, H) * 0.6, r = ctx.createRadialGradient(px, H * 0.2, 0, px, H * 0.2, R); r.addColorStop(0, "rgba(255,255,255,.18)"); r.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = r; ctx.fillRect(0, 0, W, H);
+  } else if (NOIR && LOOK === "pop") {
+    // Pop : jamais de noir, la couleur de la marque très foncée
+    ctx.fillStyle = rgba(mix(C, [0, 0, 0], 0.72), 1); ctx.fillRect(0, 0, W, H);
+    const g = ctx.createRadialGradient(W * 0.5, H * 0.3, 0, W * 0.5, H * 0.3, Math.max(W, H) * 0.7); g.addColorStop(0, rgba(C, 0.35)); g.addColorStop(1, rgba(C, 0)); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  } else if (!NOIR && LOOK === "editorial") {
+    // Éditorial : papier crème, un filet fin en haut et en bas
+    ctx.fillStyle = "#F4EFE6"; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "rgba(14,15,19,.14)"; ctx.fillRect(W * 0.08, H * 0.07, W * 0.84, Math.max(1, 2 * u)); ctx.fillRect(W * 0.08, H * 0.93, W * 0.84, Math.max(1, 2 * u));
+  } else if (!NOIR && LOOK === "minimal") {
+    ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, W, H);
   } else if (NOIR) {
     ctx.fillStyle = "#050507"; ctx.fillRect(0, 0, W, H);
     const px = W * (0.5 + Math.sin(t * 0.25) * 0.12), py = H * (0.18 + Math.cos(t * 0.2) * 0.05), R = Math.max(W, H) * 0.75;
@@ -189,7 +205,7 @@ const SCENES = {
       rond(ctx, bx, by, w, h, 34 * u); ctx.fillStyle = on ? rgba(CV, 1) : NOIR ? "rgba(255,255,255,.06)" : "#fff"; ctx.fill(); ctx.shadowBlur = 0;
       ctx.strokeStyle = rgba(CV, on ? 1 : 0.55); ctx.lineWidth = 4 * u; ctx.stroke();
       const fg = on ? (MODE === "couleur" ? rgba(C, 1) : lum(CV) > 0.62 ? "#111" : "#fff") : rgba(CV, 1);
-      ctx.fillStyle = fg; ctx.font = `800 ${Math.min(56 * u, w / 5.5)}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(String(x.texte).toUpperCase(), bx + w / 2, by + h / 2);
+      ctx.fillStyle = fg; ctx.font = `800 ${Math.min(56 * u, w / 5.5)}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(MAJ(x.texte), bx + w / 2, by + h / 2);
       ctx.restore();
     });
   },
@@ -198,14 +214,14 @@ const SCENES = {
     const { W, H, u, t, vertical } = s;
     const taille = (vertical ? 96 : 86) * u, larg = W * 0.84;
     ctx.font = `800 ${taille}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    const barre = String(e.barre ?? "").toUpperCase(), y1 = H / 2 - taille * 0.9;
-    if (e.texte_avant) { const av = String(e.texte_avant).toUpperCase(); ctx.save(); ctx.globalAlpha *= eo(prog(t, 0, 0.35)); ctx.font = `800 ${ajuste(ctx, av, taille, larg)}px ${F}`; ctx.fillStyle = INK; ctx.fillText(av, W / 2, y1 - taille * 1.15); ctx.restore(); }
+    const barre = MAJ(e.barre ?? ""), y1 = H / 2 - taille * 0.9;
+    if (e.texte_avant) { const av = MAJ(e.texte_avant); ctx.save(); ctx.globalAlpha *= eo(prog(t, 0, 0.35)); ctx.font = `800 ${ajuste(ctx, av, taille, larg)}px ${F}`; ctx.fillStyle = INK; ctx.fillText(av, W / 2, y1 - taille * 1.15); ctx.restore(); }
     const tb = ajuste(ctx, barre, taille, larg);
     const pb = eo(prog(t, 0.15, 0.55)); ctx.save(); ctx.globalAlpha *= pb; ctx.font = `800 ${tb}px ${F}`; ctx.fillStyle = INK2(0.55); ctx.fillText(barre, W / 2, y1); ctx.restore();
     ctx.font = `800 ${tb}px ${F}`; const wb = Math.min(larg, ctx.measureText(barre).width), pr = eio(prog(t, 0.7, 1.05));
     ctx.save(); ctx.strokeStyle = rgba(CV, 1); ctx.lineWidth = 10 * u; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(W / 2 - wb / 2 - 10 * u, y1 + 4 * u); ctx.lineTo(W / 2 - wb / 2 - 10 * u + (wb + 20 * u) * pr, y1 + 4 * u); ctx.stroke(); ctx.restore();
     // La correction, tapée lettre à lettre
-    const txt = String(e.texte ?? "").toUpperCase(), nb = Math.floor(txt.length * prog(t, 1.15, 1.15 + txt.length * 0.045));
+    const txt = MAJ(e.texte ?? ""), nb = Math.floor(txt.length * prog(t, 1.15, 1.15 + txt.length * 0.045));
     ctx.font = `800 ${taille}px ${F}`; const lignes = coupe(ctx, txt.slice(0, nb), larg);
     lignes.forEach((l, k) => { ctx.fillStyle = rgba(CV, 1); ctx.fillText(l, W / 2, y1 + taille * 1.35 + k * taille * 1.08); });
     if (nb < txt.length && Math.floor(t * 4) % 2 === 0) { const l = lignes.at(-1) ?? ""; ctx.fillStyle = rgba(CV, 1); ctx.fillRect(W / 2 + ctx.measureText(l).width / 2 + 8 * u, y1 + taille * 1.35 + (lignes.length - 1) * taille * 1.08 - taille * 0.4, 8 * u, taille * 0.8); }
@@ -213,11 +229,11 @@ const SCENES = {
   mots(ctx, s, e) {
     const { W, H, u, t, vertical } = s;
     if (e.style === "machine") { // majuscules tapées lettre à lettre, le mot clé en couleur (style « Junior »)
-      const txt = String(e.texte ?? "").toUpperCase(), nb = Math.floor(txt.length * prog(t, 0.05, 0.05 + txt.length * 0.04));
+      const txt = MAJ(e.texte ?? ""), nb = Math.floor(txt.length * prog(t, 0.05, 0.05 + txt.length * 0.04));
       // Le mot le plus long doit tenir sur une ligne
       const long = txt.split(" ").sort((a, b) => b.length - a.length)[0] ?? "", taille = ajuste(ctx, long, (vertical ? 110 : 96) * u, W * 0.84);
       ctx.font = `800 ${taille}px ${F}`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-      const lignes = coupe(ctx, txt, W * 0.84), acc = String(e.accent ?? "").toUpperCase().split(/\s+/).filter(Boolean); let vu = 0;
+      const lignes = coupe(ctx, txt, W * 0.84), acc = MAJ(e.accent ?? "").split(/\s+/).filter(Boolean); let vu = 0;
       lignes.forEach((l, k) => { let x = W / 2 - ctx.measureText(l).width / 2; const y = H / 2 - ((lignes.length - 1) * taille * 1.06) / 2 + k * taille * 1.06;
         for (const m of l.split(" ")) { const reste = Math.max(0, nb - vu), part = m.slice(0, reste); ctx.fillStyle = acc.includes(m.replace(/[.,!?;:]/g, "")) ? rgba(CV, 1) : INK; ctx.fillText(part, x, y); x += ctx.measureText(m + " ").width; vu += m.length + 1; } });
       return;
@@ -344,9 +360,11 @@ const SCENES = {
 export const POLICE_MOTION = "Inter Tight";
 export function dessinerScenes(ctx, W, H, t, script, { logo = null } = {}) {
   LOGO = logo;
-  F = `"${POLICE_MOTION}", "Inter", "Helvetica Neue", Arial, system-ui, sans-serif`;
+  LOOK = LOOKS.includes(script?.look) ? script.look : "nuit";
+  F = `"${policeMotion(script)}", "Inter", "Helvetica Neue", Arial, system-ui, sans-serif`;
   serre(ctx, "-0.01em");
-  C = hexRgb(script?.couleur); palette(script?.fond === "blanc" ? "blanc" : "noir");
+  const FOND = LOOK === "editorial" || LOOK === "minimal" ? "blanc" : LOOK === "pop" ? "noir" : script?.fond === "blanc" ? "blanc" : "noir";
+  C = hexRgb(script?.couleur); palette(FOND);
   // En vertical (téléphone), tout est un peu plus grand : la vidéo se regarde sur un petit écran
   const vertical = H > W * 1.2, u = (Math.min(W, H) / 1080) * (vertical ? 1.42 : 1.22);
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0; if ("filter" in ctx) ctx.filter = "none";
@@ -359,18 +377,24 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null } = {}) {
     const local = t - (a - d), derniere = i === scenes.length - 1;
     const ent = eo(prog(local, 0, 0.45)), sort = derniere ? 0 : eio(prog(local, d - 0.32, d));
     // Fond propre à la scène (couleur pleine, blanc, noir) : il apparaît avec elle
-    const modeScene = ["couleur", "blanc", "noir"].includes(e.fond) ? e.fond : script?.fond === "blanc" ? "blanc" : "noir";
+    // Éditorial et minimal restent clairs (le noir devient le fond de la vidéo), pop remplace le blanc par la couleur
+    let modeScene = ["couleur", "blanc", "noir"].includes(e.fond) ? e.fond : FOND;
+    if ((LOOK === "editorial" || LOOK === "minimal") && modeScene === "noir") modeScene = "blanc";
+    if (LOOK === "pop" && modeScene === "blanc") modeScene = "couleur";
     palette(modeScene);
-    if (modeScene !== (script?.fond === "blanc" ? "blanc" : "noir")) { ctx.save(); ctx.globalAlpha = Math.min(1, ent * 1.6) * (1 - sort); fond(ctx, W, H, t, u); ctx.restore(); }
+    if (modeScene !== FOND) { ctx.save(); ctx.globalAlpha = Math.min(1, ent * 1.6) * (1 - sort); fond(ctx, W, H, t, u); ctx.restore(); }
     ctx.save();
     // Caméra : léger zoom continu ; entrée nette depuis un flou, sortie en zoom avant + flou
     const k = 1 + local / d * 0.035 + (1 - ent) * 0.05 + sort * 0.08;
     ctx.translate(W / 2, H / 2); ctx.scale(k, k); ctx.translate(-W / 2, -H / 2);
     ctx.globalAlpha = Math.min(1, ent * 1.2) * (1 - sort);
     if ("filter" in ctx) ctx.filter = (1 - ent) + sort > 0.02 ? `blur(${((1 - ent) * 16 + sort * 22) * u}px)` : "none";
+    // Éditorial et minimal : aucun halo lumineux (le réglage d'ombre des scènes est ignoré le temps de la scène)
+    const sansHalo = LOOK === "editorial" || LOOK === "minimal";
+    if (sansHalo) try { Object.defineProperty(ctx, "shadowBlur", { configurable: true, get: () => 0, set: () => {} }); } catch { /* contexte figé */ }
     try { SCENES[e.type](ctx, { W, H, u, t: local, d, vertical, nom: script.nom ?? "", lien: script.lien ?? "" }, e); }
     catch (x) { console.warn("scène", e.type, x); }
-    finally { ctx.restore(); }
+    finally { if (sansHalo) try { delete ctx.shadowBlur; } catch { /* rien */ } ctx.restore(); }
     // Vague de couleur qui balaie l'écran à l'entrée de la scène (style Jiwa)
     if (e.transition === "vague" && local < 0.7) {
       const q = eio(prog(local, 0, 0.7)), x = -W * 0.4 + q * W * 1.9;

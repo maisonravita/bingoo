@@ -8,7 +8,7 @@ import { useWs } from "../lib/ws";
 import { cx } from "../lib/utils";
 import { DUREE, FORMATS, dessiner, exporterVideo, graineDe, preparerPolice } from "../lib/videoPub";
 import { AMBIANCES, ecouterMusique } from "../lib/musiqueVideo";
-import { dessinerScenes, dureeTotale } from "../lib/motion";
+import { dessinerScenes, dureeTotale, policeMotion } from "../lib/motion";
 
 const lire = (k) => { try { return JSON.parse(localStorage.getItem(k) ?? "null"); } catch { return null; } };
 const IDEES = ["Ajoute mon logo", "Plus dynamique", "Fond blanc", "Accroche plus forte", "Ajoute un mot géant qui claque", "Mets-la en bleu marine", "Termine par mon site"];
@@ -50,7 +50,7 @@ export default function Motion() {
     if (!script?.logo) { setLogoImg(null); return; }
     const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => setLogoImg(im); im.onerror = () => setLogoImg(null); im.src = script.logo;
   }, [script?.logo]);
-  const police = script?.police ?? "Plus Jakarta Sans";
+  const police = policeMotion(script);
   useEffect(() => { preparerPolice(police); }, [police]);
   // La police des vidéos à scènes : Inter Tight, de 600 à 900 (chargée une fois)
   useEffect(() => {

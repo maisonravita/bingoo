@@ -377,7 +377,7 @@ if (CONSTRUIRE === "spec") {
   const val = await p.locator("#idee").inputValue().catch(() => ""); console.log(/restaurant/.test(val) ? "✓ un clic sur la vitrine remplit l'idée" : `✗ idée non remplie (${val.slice(0, 60)})`);
   await p.screenshot({ path: `${DOSSIER}/vitrine-clic.png` });
   const vv = p.getByText("Des pubs en motion design, faites par Bingoo!"); await vv.scrollIntoViewIfNeeded().catch(() => null); await p.waitForTimeout(3500);
-  const lues = await p.evaluate(() => [...document.querySelectorAll("video[src^='/videos/']")].map((v) => v.currentTime > 0.5 && !v.paused));
+  const lues = await p.evaluate(() => [...document.querySelectorAll("video[poster^='/videos/']")].map((v) => v.currentTime > 0.5 && !v.paused));
   console.log(lues.length === 3 && lues.every(Boolean) ? "✓ trois vidéos Bingoo! qui tournent" : `✗ vidéos : ${JSON.stringify(lues)}`);
   await p.screenshot({ path: `${DOSSIER}/videos-accueil.png` });
   const large = await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 2); console.log(large ? "✗ débordement horizontal" : "✓ pas de débordement horizontal");

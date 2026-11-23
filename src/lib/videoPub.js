@@ -330,8 +330,8 @@ export async function preparerPolice(police = "Plus Jakarta Sans") {
   // La police du SaaS (celle de son application), chargée depuis Google Fonts si besoin
   try {
     const id = `police-video-${police.replace(/\W/g, "")}`;
-    if (police !== "Plus Jakarta Sans" && !document.getElementById(id)) { const l = document.createElement("link"); l.id = id; l.rel = "stylesheet"; l.href = `https://fonts.googleapis.com/css2?family=${police.replace(/ /g, "+")}:wght@600;700;800&display=swap`; document.head.appendChild(l); }
-    await Promise.all(["800", "700", "600"].map((p) => document.fonts.load(`${p} 60px "${police}"`)));
+    if (police !== "Plus Jakarta Sans" && !document.getElementById(id)) { const l = document.createElement("link"); l.id = id; l.rel = "stylesheet"; l.href = `https://fonts.googleapis.com/css2?family=${police.replace(/ /g, "+")}:wght@500;600;700;800;900&display=swap`; document.head.appendChild(l); }
+    await Promise.all(["900", "800", "700", "600"].map((p) => document.fonts.load(`${p} 60px "${police}"`)));
   } catch { /* police de secours */ }
 }
 

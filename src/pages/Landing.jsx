@@ -198,7 +198,7 @@ const VITRINE = [
   ["menagio", "Ménagio", "Entreprises de ménage", "Un outil pour planifier et prouver les passages de mes agents de ménage"],
 ];
 // Vidéos motion design faites par Bingoo! pour de vrais projets (rendues par le moteur vidéo de Bingoo!), lues en boucle
-const VIDEOS_VITRINE = [["foulee", "Foulée", "Pub d'une marque de chaussures"], ["encre", "Encre Noire", "Salon de tatouage"], ["lame", "Lame", "Barbier à Lyon"]];
+const VIDEOS_VITRINE = [["foulee", "Foulée", "Chaussures · style pop"], ["encre", "Encre Noire", "Tatouage · style nuit"], ["lame", "Lame", "Barbier · style éditorial"]];
 function VideosVitrine({ nav }) {
   return (
     <section className="relative left-1/2 w-screen -translate-x-1/2 px-4 pt-10 pb-6 text-left" aria-label="Vidéos créées avec Bingoo!">
@@ -208,7 +208,7 @@ function VideosVitrine({ nav }) {
       <div className="mx-auto mt-7 grid max-w-[900px] grid-cols-3 gap-3 sm:gap-6">
         {VIDEOS_VITRINE.map(([f, nom, quoi]) => (
           <figure key={f} className="overflow-hidden rounded-2xl border border-black/[.08] bg-black shadow-[0_18px_40px_-26px_rgba(20,20,40,.7)]">
-            <video src={`/videos/${f}.mp4`} poster={`/videos/${f}.jpg`} autoPlay muted loop playsInline preload="metadata" className="aspect-[9/16] w-full object-cover" aria-label={`Vidéo ${nom}, créée avec Bingoo!`} />
+            <video poster={`/videos/${f}.jpg`} autoPlay muted loop playsInline preload="metadata" className="aspect-[9/16] w-full object-cover" aria-label={`Vidéo ${nom}, créée avec Bingoo!`}><source src={`/videos/${f}.mp4`} type="video/mp4" /><source src={`/videos/${f}.webm`} type="video/webm" /></video>
             <figcaption className="flex flex-col gap-0.5 bg-white px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"><b className="text-[13.5px] text-[#1E2030]">{nom}</b><span className="truncate text-[12px] text-[#5B6075]">{quoi}</span></figcaption>
           </figure>
         ))}
