@@ -603,7 +603,7 @@ if (CONSTRUIRE === "spec") {
   const e2 = (a.spec.ecrans ?? []).find((e) => !e.public);
   { const v0 = a.version, t0 = Date.now();
     const r = await appel("saas-app-modifier", { workspace_id: ws, app_id: a.id, ecran: e2.id, demande: "Ajoute en haut de cet écran un petit bandeau qui affiche le nombre total d'éléments de la liste principale", images: [], element: null });
-    let x = await attendreFin(a.id);
+    let x = await attendreFin(a.id); console.log(`   modification prête en ${Math.round((Date.now() - t0) / 100) / 10} s`);
     if (x.brouillon?._modif) { await appel("saas-app-reglages", { workspace_id: ws, app_id: a.id, quoi: "brouillon-valider" }); x = await lire(a.id); }
     await ouvrirAtelier();
     // le robot de vérification de l'atelier conclut ensuite (annule si l'écran casse)
