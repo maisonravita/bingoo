@@ -240,7 +240,6 @@ const lisible = (() => {
   const pire = (c, fs) => Math.min(...fs.map((f) => ratio(c, f)));
   let attente = 0;
   const passe = () => {
-    attente = 0;
     const els = document.querySelectorAll("#root *"); let n = 0;
     for (const el of els) {
       if (n > 600) break;
@@ -263,7 +262,17 @@ const lisible = (() => {
       el.style.setProperty("color", "rgb(" + nc.join(",") + ")", "important"); el.dataset.lisible = "1";
     }
   };
-  return () => { if (!attente) attente = setTimeout(passe, 250); };
+  // Un emoji en tête d'un bouton, d'un lien, d'un titre ou d'un élément de liste (« 🚀 Essai ») fait amateur : il est retiré
+  // (les étoiles de notation et les coches restent)
+  const EMO = /^\\s*(?![★☆✓✔])\\p{Extended_Pictographic}[\\uFE0F\\u200D\\p{Extended_Pictographic}]*\\s*/u;
+  const sansEmoji = () => {
+    for (const el of document.querySelectorAll("#root button, #root a, #root h1, #root h2, #root h3, #root h4, #root li, #root label")) {
+      let t = el.firstChild; while (t && t.nodeType === 1 && !t.textContent.trim()) t = t.nextSibling;
+      if (t && t.nodeType === 3 && EMO.test(t.textContent) && t.textContent.replace(EMO, "").trim()) t.textContent = t.textContent.replace(EMO, "");
+    }
+  };
+  const tout = () => { attente = 0; sansEmoji(); passe(); };
+  return () => { if (!attente) attente = setTimeout(tout, 250); };
 })();
 addEventListener("load", () => { lisible(); try { new MutationObserver(lisible).observe(document.getElementById("root"), { childList: true, subtree: true }); } catch (e) {} });
 const bus = { l: {}, on(e, f) { (this.l[e] ??= new Set()).add(f); return () => this.l[e].delete(f); }, emit(e, x) { (this.l[e] ?? []).forEach((f) => f(x)); } };
