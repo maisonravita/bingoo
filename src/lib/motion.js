@@ -581,7 +581,6 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
     if (a > 0.01 && LOGO?.width) { ctx.save(); ctx.globalAlpha = a * 0.95; if ("filter" in ctx) ctx.filter = "none"; const hl = 40 * u, kl = Math.min(LOGO.width / LOGO.height, 3.2); plaqueLogo(ctx, 40 * u + hl * 0.32 + (hl * kl) / 2, 40 * u + hl * 0.82, hl, u); ctx.restore(); }
   }
   // Habillage propre à chaque allure, par-dessus les scènes
-  const tot = dureeTotale(script);
   let iCour = 0, modeCour = FOND; { let de3 = 0; for (let j = 0; j < scenes.length; j++) { const dj = dureeScene(scenes[j]); if (t >= de3) { iCour = j; modeCour = ["couleur", "blanc", "noir"].includes(scenes[j].fond) ? scenes[j].fond : FOND; } de3 += dj; } }
   if ((LOOK === "editorial" || LOOK === "minimal") && modeCour === "noir") modeCour = "blanc";
   if (LOOK === "pop" && modeCour === "blanc") modeCour = "couleur";
@@ -598,13 +597,5 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
     ctx.fillStyle = MODE === "couleur" ? rgba(mix(C, [0, 0, 0], 0.5), 1) : rgba(C, 1); ctx.font = `900 ${40 * u}px ${F}`; ctx.textBaseline = "middle"; ctx.textAlign = "left";
     const mot = `${MAJ(script.nom ?? "")}  ✦  `, lw = ctx.measureText(mot).width || 100; let x0 = -((t * 160 * u) % lw);
     while (x0 < W) { ctx.fillText(mot, x0, yb + hb / 2 + 2 * u); x0 += lw; } ctx.restore();
-  } else if (LOOK === "minimal") {
-    // Des points de progression, un par scène
-    const n = scenes.length, r = 5 * u, g = 18 * u, x0 = W / 2 - ((n - 1) * g) / 2;
-    ctx.save(); for (let j = 0; j < n; j++) { ctx.fillStyle = j === iCour ? rgba(CV, 1) : INK2(0.18); ctx.beginPath(); ctx.arc(x0 + j * g, H * 0.94, j === iCour ? r * 1.3 : r, 0, Math.PI * 2); ctx.fill(); } ctx.restore();
-  }
-  if (LOOK === "nuit") {
-    // Barre de progression très discrète
-    ctx.fillStyle = INK2(0.08); ctx.fillRect(0, H - 6 * u, W, 6 * u); ctx.fillStyle = rgba(CV, 0.9); ctx.fillRect(0, H - 6 * u, W * clamp(t / tot), 6 * u);
   }
 }
