@@ -135,6 +135,36 @@ const REGLES_TASTE_ECRAN = `COMPOSITION DE L'ÉCRAN (gabarit soigné, comme un p
 - Chaque chiffre affiché est calculé sur la même liste que celle affichée à l'écran : un total, un compteur et la liste correspondante sont toujours d'accord.
 - Couleur : la couleur de marque sert au bouton principal et à l'état actif, rien d'autre. Pas de pastille d'icône colorée devant les titres, pas d'emoji dans un outil professionnel.
 - Densité : des lignes aérées (py-3 à py-4), du texte à 14-15 px, les libellés secondaires en gris.`;
+// Retouche rapide : au lieu de réécrire tout l'écran (40 à 90 s), l'IA rend seulement les passages à changer,
+// appliqués tels quels. Si un passage est introuvable ou si le code ne compile plus, on repasse à la réécriture complète.
+const BLOC_PATCH = /<<<<<<< AVANT\n([\s\S]*?)\n=======\n([\s\S]*?)\n>>>>>>> APRES/g;
+export function appliquerPatch(code: string, reponse: string): string | null {
+  const blocs = [...String(reponse ?? "").matchAll(BLOC_PATCH)];
+  if (!blocs.length || blocs.length > 12) return null;
+  let out = code;
+  for (const [, avant, apres] of blocs) {
+    if (!avant.trim()) return null;
+    const i = out.indexOf(avant);
+    if (i < 0 || out.indexOf(avant, i + 1) >= 0) return null; // introuvable ou ambigu
+    out = out.slice(0, i) + apres + out.slice(i + avant.length);
+  }
+  return out === code ? null : out;
+}
+async function retoucheRapide(prompt: string, actuel: string) {
+  const r = await ask(`${prompt}
+
+FORMAT DE RÉPONSE OBLIGATOIRE (retouche rapide) : ne réécris PAS l'écran. Rends seulement les passages à changer, chacun ainsi :
+<<<<<<< AVANT
+(lignes copiées EXACTEMENT du code actuel, assez pour être uniques)
+=======
+(les mêmes lignes, modifiées)
+>>>>>>> APRES
+Autant de blocs que nécessaire (12 au plus), rien d'autre.`, { maxTokens: 4000, system: "Tu es un excellent développeur front-end. Tu modifies du code Preact + htm existant avec des retouches minimales et exactes." });
+  const code = appliquerPatch(actuel, r);
+  if (!code || erreurSyntaxe(code) || !/function\s+Ecran\s*\(/.test(code)) return null;
+  return code;
+}
+
 async function ecrire(spec: any, e: any, demande = "", actuel = "") {
   const consigne = actuel
     ? `Voici le code actuel de l'écran « ${e.titre} » (${e.id}) :\n\`\`\`js\n${actuel}\n\`\`\`\nModification demandée par l'utilisateur : ${demande}\nRéécris l'écran complet avec cette modification, sans rien casser du reste.`
@@ -143,6 +173,12 @@ async function ecrire(spec: any, e: any, demande = "", actuel = "") {
   const guide = FAMILLES[spec.famille]?.guide ?? GENRES_UI[spec.interface] ?? FAMILLES.gestion.guide;
   const genre = !e.public ? `\n\n${guide}${spec.gabarit_app === "taste" ? `\n\n${REGLES_TASTE_ECRAN}` : ""}` : "";
   const prompt = `${DOC}${e.public ? DOC_PUBLIC(e) : ""}${genre}\n\n${contexteSpec(spec)}\n\n${consigne}\n\nRéponds uniquement avec le code dans un bloc \`\`\`js.`;
+  if (actuel) {
+    const promptPatch = `${DOC}${e.public ? DOC_PUBLIC(e) : ""}${genre}\n\n${contexteSpec(spec)}\n\nVoici le code actuel de l'écran « ${e.titre} » (${e.id}) :\n\`\`\`js\n${actuel}\n\`\`\`\nModification demandée par l'utilisateur : ${demande}`;
+    const t0 = Date.now(), rapide = await retoucheRapide(promptPatch, actuel).catch((x) => { console.error("retouche rapide", x); return null; });
+    console.log(rapide ? `retouche rapide en ${Math.round((Date.now() - t0) / 1000)} s` : "retouche rapide impossible : réécriture complète");
+    if (rapide) return { code: rapide, ok: true };
+  }
   let code = extraire(await ask(prompt, { maxTokens: 12000, system: "Tu es un excellent développeur front-end. Tu écris du code Preact + htm propre, robuste et lisible, avec une interface soignée." }));
   let err = erreurSyntaxe(code);
   if (err || !/function\s+Ecran\s*\(/.test(code)) {
