@@ -294,7 +294,7 @@ const SCENES = {
   impact(ctx, s, e) {
     const { W, H, u, t } = s;
     const p = ressort(prog(t, 0, 0.55)); serre(ctx, "-0.05em"); ctx.font = `900 ${380 * u}px ${F}`;
-    const w = ctx.measureText(e.texte).width, k = Math.min(1, (W * 0.9) / Math.max(1, w));
+    const w = ctx.measureText(e.texte).width, k = Math.min(1, (W * 0.78) / Math.max(1, w));
     ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(k * (0.6 + 0.4 * p), k * (0.6 + 0.4 * p)); ctx.globalAlpha *= clamp(p * 1.5);
     ctx.fillStyle = INK; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(e.texte, 0, 10 * u); ctx.restore(); serre(ctx, "-0.01em");
   },
