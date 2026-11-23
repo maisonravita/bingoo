@@ -207,6 +207,9 @@ Règles : aucun avis client, aucun chiffre ni année d'expérience inventés. To
 /** Galeries de l'écran principal : une vraie photo libre (Wikimedia Commons, sans IA ni coût) par élément, avec son crédit. */
 async function photosGaleries(apercu: any) {
   const { photosLibres } = await import("./photos.ts");
+  // Restauration, recettes, plats : aucune photo inventée (des plats qui ne sont pas les siens tromperaient)
+  const { estAlimentaire } = await import("./gen-images.ts");
+  if (estAlimentaire(`${apercu?.pitch ?? ""} ${apercu?.cible ?? ""} ${apercu?.metier ?? ""} ${apercu?.nom ?? ""}`)) return;
   const blocs = ((apercu?.principal?.blocs ?? []) as any[]).filter((b) => b?.type === "galerie");
   await Promise.all(blocs.map(async (b) => {
     const mots: string[] = (Array.isArray(b.photos_en) ? b.photos_en : []).map((x: unknown) => String(x).slice(0, 60));

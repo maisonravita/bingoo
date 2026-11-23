@@ -3,6 +3,9 @@
 // l'atelier ; ses propres photos passent toujours avant. Sans la clé FAL_KEY, la page se fait sans image.
 // Coût noté par image (ai_usage, modèle = l'adresse fal) ; prix par image réglable par le secret FAL_PRIX_USD.
 import { admin } from "./core.ts";
+/** Restauration et métiers de bouche : AUCUNE image inventée (générée ou photo libre). Un plat, une salle ou une vitrine
+ *  qui ne sont pas les siens tromperaient ses clients ; la page attend ses vraies photos (choix de Jean du 23/11). */
+export const estAlimentaire = (t: unknown) => /\b(restaurants?|resto|brasseries?|bistrots?|bistros?|pizzerias?|traiteurs?|boulangeries?|p[aâ]tisseries?|caf[ée]s?|bars?|sushis?|kebabs?|burgers?|cr[eê]peries?|glaciers?|chocolatiers?|[ée]piceries?|food ?trucks?|cantines?|gastronomi\w*|cuisines? (japonaise|italienne|indienne|libanaise|thai|chinoise|fran[cç]aise|du monde)|plats?|recettes?|cuisiniers?|boucheries?|fromageries?|cavistes?|salons? de th[ée]|coffee|bakery|restaurant|food|recipes?|dishes|meals?)\b/i.test(String(t ?? ""));
 import { aiCtx } from "./ai-ctx.ts";
 
 const MODELE = () => Deno.env.get("FAL_MODELE") ?? "fal-ai/flux-2-pro";

@@ -9,7 +9,7 @@ import { ask, askJson } from "./core.ts";
 import { texteDesign } from "./design.ts";
 import { FICHES, typeDeProjet } from "./design-fiches.ts";
 import { MARQUEURS_DONNEES, REGLES_PAGE } from "./gen-regles.ts";
-import { imagesPage } from "./gen-images.ts";
+import { estAlimentaire, imagesPage } from "./gen-images.ts";
 import { controlerSection, nettoyer, remplacerTextePage } from "./gen-nettoyage.ts";
 export { controlerSection, nettoyer, remplacerTextePage };
 
@@ -80,14 +80,16 @@ Choisis la mise en page de chaque section selon la fiche et les plans Taste, san
   const images: PageGeneree["images"] = {};
   (e.photosMembre ?? []).slice(0, 6).forEach((u, i) => { images[`PHOTO_${i + 1}`] = { url: u, prompt: "photo du membre" }; });
   let imagesEur = 0;
-  if (!(e.photosMembre ?? []).length && (plan.images ?? []).length) {
+  const bouche = estAlimentaire(`${e.brief} ${e.metier ?? ""}`);
+  if (bouche) journal.push("Images : restauration, aucune image inventée (la page attend les vraies photos du membre)");
+  if (!bouche && !(e.photosMembre ?? []).length && (plan.images ?? []).length) {
     const r = await imagesPage((plan.images ?? []).slice(0, 3), PLAFOND_EUR - compteur.cout - 0.3).catch((x) => { journal.push(`Images : ${String(x).slice(0, 120)}`); return { images: {}, cout: 0 }; });
     Object.assign(images, r.images); imagesEur = r.cout;
     journal.push(`Images : ${Object.keys(r.images).length} générée(s), ${r.cout.toFixed(3)} €`);
   }
   const jetons = new Set(Object.keys(images));
   imagesVues = images; await signaler();
-  const aide = Object.keys(images).length ? `Images disponibles (utilise exactement ces jetons comme src) : ${Object.entries(images).map(([k, v]) => `${k} (${v.prompt.slice(0, 80)})`).join(" ; ")}` : "Aucune image disponible : visuels typographiques, formes CSS, SVG ou maquettes HTML.";
+  const aide = Object.keys(images).length ? `Images disponibles (utilise exactement ces jetons comme src) : ${Object.entries(images).map(([k, v]) => `${k} (${v.prompt.slice(0, 80)})`).join(" ; ")}` : bouche ? "Aucune image : c'est un restaurant ou un métier de bouche. N'invente JAMAIS de photo de plat, de salle ni de produit (ni image, ni dessin de nourriture) : visuels typographiques et formes CSS, et là où une photo serait utile, un emplacement sobre « Vos photos ici » que le gérant remplira." : "Aucune image disponible : visuels typographiques, formes CSS, SVG ou maquettes HTML.";
 
   // 3. Écriture par lots de sections (le lot 1 écrit aussi le header)
   const lots: Section[][] = [];
