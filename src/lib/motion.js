@@ -160,7 +160,8 @@ function listeAllure(ctx, s, e, courte = false) {
   const large = W > H * 1.2 && !!e.texte, cx = large ? W * 0.7 : W / 2;
   const titreY = H * (vertical ? 0.24 : 0.22);
   if (e.texte) { if (large) motsAnimes(ctx, e.texte, e.accent, W * 0.07, H / 2, { taille: 76 * u, largeur: W * 0.38, t, poids: 800, decale: 0.05, aligne: "gauche" }); else motsAnimes(ctx, e.texte, e.accent, W / 2, titreY, { taille: (vertical ? 68 : 60) * u, largeur: W * 0.84, t, poids: LOOK === "minimal" ? 600 : 700, decale: 0.06 }); }
-  const h = (LOOK === "minimal" ? 96 : 128) * u, y0 = H * 0.5 - ((n - 1) * h) / 2 + (e.texte && !large ? 40 * u : 0);
+  // Paysage : lignes plus serrées et légèrement remontées (le bandeau du bas du style pop ne doit rien cacher)
+  const h = (LOOK === "minimal" ? 96 : 128) * u * (large ? 0.8 : 1), y0 = H * (large ? 0.47 : 0.5) - ((n - 1) * h) / 2 + (e.texte && !large ? 40 * u : 0);
   items.forEach((x, i) => {
     const p = eo(prog(t, 0.3 + i * 0.24, 0.9 + i * 0.24)); if (p <= 0) return;
     const y = y0 + i * h; ctx.save(); ctx.globalAlpha *= p; ctx.textBaseline = "middle";
