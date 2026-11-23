@@ -367,6 +367,16 @@ if (CONSTRUIRE === "spec") {
   console.log(aPhotos === attendu ? `✓ ${nomF} : ${aPhotos ? "photos réelles (crédits affichés)" : "aucune photo inventée"}` : `✗ ${nomF} : photos=${aPhotos}`);
   await pi.screenshot({ path: `${DOSSIER}/${nomF}.png`, fullPage: true }); await ci.close();
   }
+} else if (CONSTRUIRE === "videos-varies") {
+  // Six vidéos créées par Bingoo! pour six métiers : les scénarios sont écrits dans le journal (aucune donnée privée)
+  const appel = async (route, corps) => { const r = await fetch(`${SB}/functions/v1/r/${route}`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify(corps) }); const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch {} return { ok: r.ok, j, t: t.slice(0, 200) }; };
+  const wsV = await creerEspace("Robot vidéos " + new Date().toISOString().slice(0, 16)); await q(`update workspaces set plan = 'lancer_pro', plan_status = 'active', onboarded = true where id = ${lit(wsV)}`);
+  for (const idee of ["Une pub pour ma boulangerie artisanale à Rennes", "Présenter mon application de méditation", "Une pub pour ma salle de boxe à Marseille", "Annoncer l'ouverture de mon cabinet d'avocate", "Une pub pour ma boutique de vêtements vintage", "Présenter mon logiciel de facturation pour artisans"]) {
+    const r = await appel("video-creer", { workspace_id: wsV, texte: idee, format: "vertical" });
+    const sc = r.j?.script ?? null;
+    console.log(r.ok && sc ? `✓ ${idee} → allure ${sc.look ?? "?"}, ${sc.scenes?.length} scènes : ${sc.scenes?.map((x) => x.type).join(" › ")}` : `✗ ${idee} : ${r.t}`);
+    if (sc) console.log("SCRIPT " + JSON.stringify(sc));
+  }
 } else if (CONSTRUIRE === "pages") {
   // Vitrine de l'accueil et pages « Bingoo! ou … » (visiteur)
   const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await c.newPage();
@@ -575,7 +585,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);

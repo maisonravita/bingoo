@@ -148,6 +148,39 @@ function halo(ctx, x, y, rx, ry, a) {
 }
 
 // ---------------------------------------------------------------- Les scènes
+// Listes et pastilles dessinées autrement selon l'allure : éditorial = lignes numérotées et filets fins, minimal = texte
+// seul et un point, pop = blocs pleins penchés façon stickers (la version « nuit » garde les cartes pastel)
+function listeAllure(ctx, s, e, courte = false) {
+  const { W, H, u, t, vertical } = s;
+  const items = (e.items ?? []).slice(0, 4), n = items.length;
+  const titreY = H * (vertical ? 0.24 : 0.22);
+  if (e.texte) motsAnimes(ctx, e.texte, e.accent, W / 2, titreY, { taille: (vertical ? 68 : 60) * u, largeur: W * 0.84, t, poids: LOOK === "minimal" ? 600 : 700, decale: 0.06 });
+  const h = (LOOK === "minimal" ? 96 : 128) * u, y0 = H * 0.5 - ((n - 1) * h) / 2 + (e.texte ? 40 * u : 0);
+  items.forEach((x, i) => {
+    const p = eo(prog(t, 0.3 + i * 0.24, 0.9 + i * 0.24)); if (p <= 0) return;
+    const y = y0 + i * h; ctx.save(); ctx.globalAlpha *= p; ctx.textBaseline = "middle";
+    if (LOOK === "editorial") {
+      const x0 = W * 0.1, x1 = W * 0.9;
+      ctx.fillStyle = INK2(0.22); ctx.fillRect(x0, y + h / 2 - 1 * u, (x1 - x0) * p, Math.max(1, 1.5 * u));
+      ctx.fillStyle = rgba(CV, 1); ctx.font = `italic 600 ${34 * u}px ${F}`; ctx.textAlign = "left"; ctx.fillText(String(i + 1).padStart(2, "0"), x0, y);
+      ctx.fillStyle = INK; ctx.font = `600 ${(courte ? 54 : 46) * u}px ${F}`; ctx.fillText(x.texte, x0 + 90 * u + (1 - p) * 30 * u, y);
+    } else if (LOOK === "minimal") {
+      ctx.fillStyle = rgba(CV, 1); ctx.beginPath(); ctx.arc(W / 2 - ctx.measureText(x.texte).width / 2 - 34 * u, y, 7 * u, 0, Math.PI * 2);
+      ctx.font = `500 ${(courte ? 50 : 42) * u}px ${F}`; ctx.textAlign = "center";
+      const lw = ctx.measureText(x.texte).width; ctx.beginPath(); ctx.arc(W / 2 - lw / 2 - 30 * u, y, 7 * u, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = INK2(0.85); ctx.fillText(x.texte, W / 2 + (1 - p) * 20 * u, y);
+    } else {
+      // Pop : stickers pleins, un sur deux en couleur, penchés
+      ctx.font = `900 ${(courte ? 54 : 46) * u}px ${F}`; ctx.textAlign = "center";
+      const txt = MAJ(x.texte), lw = ctx.measureText(txt).width + 70 * u, bh = h * 0.78, r = ressort(prog(t, 0.3 + i * 0.24, 0.95 + i * 0.24));
+      ctx.translate(W / 2, y); ctx.rotate((i % 2 ? 1 : -1) * 0.05 * r); ctx.scale(0.6 + 0.4 * r, 0.6 + 0.4 * r);
+      rond(ctx, -lw / 2, -bh / 2, lw, bh, 18 * u); ctx.fillStyle = i % 2 ? INK : rgba(MODE === "couleur" ? [255, 255, 255] : C, 1); ctx.fill();
+      ctx.fillStyle = i % 2 ? (MODE === "couleur" ? rgba(C, 1) : "#000") : MODE === "couleur" ? rgba(C, 1) : "#fff"; ctx.fillText(txt, 0, 3 * u);
+    }
+    ctx.restore();
+  });
+}
+
 const SCENES = {
   // Un mot géant qui claque (« tap », « done »)
   impact(ctx, s, e) {
@@ -159,6 +192,7 @@ const SCENES = {
   },
   // Cartes pastel empilées, comme des notifications (style Notion)
   liste(ctx, s, e) {
+    if (LOOK !== "nuit") return listeAllure(ctx, s, e);
     const { W, H, u, t, vertical } = s;
     const items = (e.items ?? []).slice(0, 4), n = items.length, w = Math.min(W * 0.78, 760 * u), h = 130 * u, gap = 26 * u;
     const teintes = [[255, 214, 220], [214, 228, 255], [214, 245, 222], [255, 236, 204]], encres = [[190, 40, 70], [40, 80, 190], [30, 130, 70], [190, 110, 20]];
@@ -250,6 +284,7 @@ const SCENES = {
   // Plus d'objet dessiné : la légende seule, en grand (le visuel vient du logo, des photos ou des captures du membre)
   objet(ctx, s, e) { SCENES.mots(ctx, s, { texte: e.texte || s.nom, accent: e.accent }); },
   pilules(ctx, s, e) {
+    if (LOOK !== "nuit") return listeAllure(ctx, s, { ...e, items: (e.items ?? []).slice(0, 3) }, true);
     const { W, H, u, t, vertical } = s;
     const items = (e.items ?? []).slice(0, 3), n = Math.max(1, items.length), actif = Math.min(n - 1, Math.floor(t / (s.d / n)));
     const ph = (vertical ? 140 : 120) * u, gap = 30 * u, tp = (vertical ? 52 : 44) * u;
@@ -385,10 +420,26 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null } = {}) {
     if (modeScene !== FOND) { ctx.save(); ctx.globalAlpha = Math.min(1, ent * 1.6) * (1 - sort); fond(ctx, W, H, t, u); ctx.restore(); }
     ctx.save();
     // Caméra : léger zoom continu ; entrée nette depuis un flou, sortie en zoom avant + flou
-    const k = 1 + local / d * 0.035 + (1 - ent) * 0.05 + sort * 0.08;
-    ctx.translate(W / 2, H / 2); ctx.scale(k, k); ctx.translate(-W / 2, -H / 2);
-    ctx.globalAlpha = Math.min(1, ent * 1.2) * (1 - sort);
-    if ("filter" in ctx) ctx.filter = (1 - ent) + sort > 0.02 ? `blur(${((1 - ent) * 16 + sort * 22) * u}px)` : "none";
+    // Chaque allure a sa propre façon de bouger (sinon toutes les vidéos se ressemblent)
+    if (LOOK === "pop") {
+      // Pop : la scène monte d'en bas en tournant, rebondit, puis s'envole vers le haut ; pas de flou
+      const r = ressort(prog(local, 0, 0.6)), y = (1 - r) * H * 0.35 - sort * H * 0.45, rot = (1 - r) * (i % 2 ? 0.09 : -0.09) + sort * (i % 2 ? -0.05 : 0.05);
+      ctx.translate(W / 2, H / 2 + y); ctx.rotate(rot); ctx.translate(-W / 2, -H / 2);
+      ctx.globalAlpha = Math.min(1, ent * 2) * (1 - sort * 0.6); if ("filter" in ctx) ctx.filter = "none";
+    } else if (LOOK === "editorial") {
+      // Éditorial : glisse lentement vers le haut et apparaît en fondu, comme on tourne la page ; rien ne zoome
+      const y = (1 - ent) * 46 * u - sort * 30 * u;
+      ctx.translate(0, y); ctx.globalAlpha = ent * (1 - sort); if ("filter" in ctx) ctx.filter = "none";
+    } else if (LOOK === "minimal") {
+      // Minimal : simple fondu, très léger agrandissement, aucun effet
+      const k = 0.985 + ent * 0.015; ctx.translate(W / 2, H / 2); ctx.scale(k, k); ctx.translate(-W / 2, -H / 2);
+      ctx.globalAlpha = ent * (1 - sort); if ("filter" in ctx) ctx.filter = "none";
+    } else {
+      const k = 1 + local / d * 0.035 + (1 - ent) * 0.05 + sort * 0.08;
+      ctx.translate(W / 2, H / 2); ctx.scale(k, k); ctx.translate(-W / 2, -H / 2);
+      ctx.globalAlpha = Math.min(1, ent * 1.2) * (1 - sort);
+      if ("filter" in ctx) ctx.filter = (1 - ent) + sort > 0.02 ? `blur(${((1 - ent) * 16 + sort * 22) * u}px)` : "none";
+    }
     // Éditorial et minimal : aucun halo lumineux (le réglage d'ombre des scènes est ignoré le temps de la scène)
     const sansHalo = LOOK === "editorial" || LOOK === "minimal";
     if (sansHalo) try { Object.defineProperty(ctx, "shadowBlur", { configurable: true, get: () => 0, set: () => {} }); } catch { /* contexte figé */ }
@@ -397,9 +448,22 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null } = {}) {
     finally { if (sansHalo) try { delete ctx.shadowBlur; } catch { /* rien */ } ctx.restore(); }
     // Vague de couleur qui balaie l'écran à l'entrée de la scène (style Jiwa)
     if (e.transition === "vague" && local < 0.7) {
-      const q = eio(prog(local, 0, 0.7)), x = -W * 0.4 + q * W * 1.9;
-      ctx.save(); ctx.fillStyle = rgba(C, 1); ctx.beginPath(); ctx.moveTo(x - W * 0.6, 0); ctx.lineTo(x, 0);
-      ctx.bezierCurveTo(x + W * 0.25, H * 0.3, x - W * 0.25, H * 0.7, x, H); ctx.lineTo(x - W * 0.6, H); ctx.closePath(); ctx.fill(); ctx.restore();
+      const q = eio(prog(local, 0, 0.7));
+      ctx.save(); ctx.fillStyle = rgba(C, 1);
+      if (LOOK === "pop") {
+        // Pop : trois bandes diagonales qui traversent l'écran
+        for (let b = 0; b < 3; b++) { const x = -W * 1.2 + (q * 1.15 - b * 0.08) * W * 2.6; ctx.save(); ctx.translate(x, H / 2); ctx.rotate(-0.5); ctx.fillStyle = b === 1 ? INK2(0.95) : rgba(C, 1); ctx.fillRect(-W * 0.22, -H, W * 0.3, H * 2); ctx.restore(); }
+      } else if (LOOK === "editorial") {
+        // Éditorial : un rideau qui monte, droit, comme une page qui se tourne
+        const h = H * (q < 0.5 ? q * 2 : 2 - q * 2), y0 = q < 0.5 ? H - h : 0; ctx.fillRect(0, y0, W, h);
+      } else if (LOOK === "minimal") {
+        // Minimal : un cercle qui s'ouvre puis se referme au centre
+        const r = Math.max(W, H) * 0.75 * Math.sin(q * Math.PI); ctx.beginPath(); ctx.arc(W / 2, H / 2, r, 0, Math.PI * 2); ctx.fill();
+      } else {
+        const x = -W * 0.4 + q * W * 1.9; ctx.beginPath(); ctx.moveTo(x - W * 0.6, 0); ctx.lineTo(x, 0);
+        ctx.bezierCurveTo(x + W * 0.25, H * 0.3, x - W * 0.25, H * 0.7, x, H); ctx.lineTo(x - W * 0.6, H); ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
     }
   }
   // Son logo en petit, en haut, pendant toute la vidéo (sauf l'aplat et la fin, où il est en grand)
@@ -408,8 +472,31 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null } = {}) {
     for (const e of scenes) { const d = dureeScene(e); if (t >= de2 && t < de2 + d) a = ["aplat", "logo", "impact"].includes(e.type) ? 0 : Math.min(1, (t - de2) / 0.4, (de2 + d - t) / 0.3); de2 += d; }
     if (a > 0.01 && LOGO?.width) { ctx.save(); ctx.globalAlpha = a * 0.95; if ("filter" in ctx) ctx.filter = "none"; const hl = 40 * u, kl = Math.min(LOGO.width / LOGO.height, 3.2); plaqueLogo(ctx, 40 * u + hl * 0.32 + (hl * kl) / 2, 40 * u + hl * 0.82, hl, u); ctx.restore(); }
   }
-  // Barre de progression très discrète
-  const tot = dureeTotale(script); palette(script?.fond === "blanc" ? "blanc" : "noir");
-  ctx.globalAlpha = 1; if ("filter" in ctx) ctx.filter = "none";
-  ctx.fillStyle = INK2(0.08); ctx.fillRect(0, H - 6 * u, W, 6 * u); ctx.fillStyle = rgba(CV, 0.9); ctx.fillRect(0, H - 6 * u, W * clamp(t / tot), 6 * u);
+  // Habillage propre à chaque allure, par-dessus les scènes
+  const tot = dureeTotale(script);
+  let iCour = 0, modeCour = FOND; { let de3 = 0; for (let j = 0; j < scenes.length; j++) { const dj = dureeScene(scenes[j]); if (t >= de3) { iCour = j; modeCour = ["couleur", "blanc", "noir"].includes(scenes[j].fond) ? scenes[j].fond : FOND; } de3 += dj; } }
+  if ((LOOK === "editorial" || LOOK === "minimal") && modeCour === "noir") modeCour = "blanc";
+  if (LOOK === "pop" && modeCour === "blanc") modeCour = "couleur";
+  palette(modeCour); ctx.globalAlpha = 1; if ("filter" in ctx) ctx.filter = "none"; ctx.shadowBlur = 0;
+  const derniere = iCour === scenes.length - 1;
+  if (LOOK === "editorial" && !derniere) {
+    // Numéro de page en haut à gauche, nom de la marque en italique en haut à droite
+    ctx.save(); ctx.fillStyle = INK2(0.7); ctx.textBaseline = "middle"; ctx.font = `600 ${22 * u}px ${F}`; ctx.textAlign = "left";
+    ctx.fillText(`${String(iCour + 1).padStart(2, "0")} — ${String(scenes.length).padStart(2, "0")}`, W * 0.08, H * 0.045);
+    ctx.textAlign = "right"; ctx.font = `italic 600 ${24 * u}px ${F}`; ctx.fillText(script.nom ?? "", W * 0.92, H * 0.045); ctx.restore();
+  } else if (LOOK === "pop" && !derniere) {
+    // Bandeau qui défile en bas avec le nom de la marque
+    const hb = 74 * u, yb = H - hb - 10 * u; ctx.save(); ctx.fillStyle = INK; ctx.fillRect(0, yb, W, hb);
+    ctx.fillStyle = MODE === "couleur" ? rgba(mix(C, [0, 0, 0], 0.5), 1) : rgba(C, 1); ctx.font = `900 ${40 * u}px ${F}`; ctx.textBaseline = "middle"; ctx.textAlign = "left";
+    const mot = `${MAJ(script.nom ?? "")}  ✦  `, lw = ctx.measureText(mot).width || 100; let x0 = -((t * 160 * u) % lw);
+    while (x0 < W) { ctx.fillText(mot, x0, yb + hb / 2 + 2 * u); x0 += lw; } ctx.restore();
+  } else if (LOOK === "minimal") {
+    // Des points de progression, un par scène
+    const n = scenes.length, r = 5 * u, g = 18 * u, x0 = W / 2 - ((n - 1) * g) / 2;
+    ctx.save(); for (let j = 0; j < n; j++) { ctx.fillStyle = j === iCour ? rgba(CV, 1) : INK2(0.18); ctx.beginPath(); ctx.arc(x0 + j * g, H * 0.94, j === iCour ? r * 1.3 : r, 0, Math.PI * 2); ctx.fill(); } ctx.restore();
+  }
+  if (LOOK === "nuit") {
+    // Barre de progression très discrète
+    ctx.fillStyle = INK2(0.08); ctx.fillRect(0, H - 6 * u, W, 6 * u); ctx.fillStyle = rgba(CV, 0.9); ctx.fillRect(0, H - 6 * u, W * clamp(t / tot), 6 * u);
+  }
 }
