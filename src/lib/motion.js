@@ -161,7 +161,7 @@ function listeAllure(ctx, s, e, courte = false) {
   const titreY = H * (vertical ? 0.24 : 0.22);
   if (e.texte) { if (large) motsAnimes(ctx, e.texte, e.accent, W * 0.07, H / 2, { taille: 76 * u, largeur: W * 0.38, t, poids: 800, decale: 0.05, aligne: "gauche" }); else motsAnimes(ctx, e.texte, e.accent, W / 2, titreY, { taille: (vertical ? 68 : 60) * u, largeur: W * 0.84, t, poids: LOOK === "minimal" ? 600 : 700, decale: 0.06 }); }
   // Paysage : lignes plus serrées et légèrement remontées (le bandeau du bas du style pop ne doit rien cacher)
-  const h = (LOOK === "minimal" ? 96 : 128) * u * (large ? 0.8 : 1), y0 = H * (large ? 0.47 : 0.5) - ((n - 1) * h) / 2 + (e.texte && !large ? 40 * u : 0);
+  const h = (LOOK === "minimal" ? 96 : 128) * u * (large ? 0.8 : 1), y0 = H * 0.5 - ((n - 1) * h) / 2 + (e.texte && !large ? 40 * u : 0);
   items.forEach((x, i) => {
     const p = eo(prog(t, 0.3 + i * 0.24, 0.9 + i * 0.24)); if (p <= 0) return;
     const y = y0 + i * h; ctx.save(); ctx.globalAlpha *= p; ctx.textBaseline = "middle";
@@ -581,8 +581,8 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
       const q = eio(prog(local, 0, 0.7));
       ctx.save(); ctx.fillStyle = rgba(C, 1);
       if (LOOK === "pop") {
-        // Pop : trois bandes diagonales qui traversent l'écran
-        for (let b = 0; b < 3; b++) { const x = -W * 1.2 + (q * 1.15 - b * 0.08) * W * 2.6; ctx.save(); ctx.translate(x, H / 2); ctx.rotate(-0.5); ctx.fillStyle = b === 1 ? INK2(0.95) : rgba(C, 1); ctx.fillRect(-W * 0.22, -H, W * 0.3, H * 2); ctx.restore(); }
+        // Pop : trois bandes diagonales qui traversent l'écran, dans la couleur de la marque
+        for (let b = 0; b < 3; b++) { const x = -W * 1.2 + (q * 1.15 - b * 0.08) * W * 2.6; ctx.save(); ctx.translate(x, H / 2); ctx.rotate(-0.5); ctx.fillStyle = b === 1 ? rgba(mix(C, [0, 0, 0], 0.35), 1) : rgba(C, 1); ctx.fillRect(-W * 0.22, -H, W * 0.3, H * 2); ctx.restore(); }
       } else if (LOOK === "editorial") {
         // Éditorial : un rideau qui monte, droit, comme une page qui se tourne
         const h = H * (q < 0.5 ? q * 2 : 2 - q * 2), y0 = q < 0.5 ? H - h : 0; ctx.fillRect(0, y0, W, h);
@@ -613,12 +613,6 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
     ctx.save(); ctx.fillStyle = INK2(0.7); ctx.textBaseline = "middle"; ctx.font = `600 ${22 * u}px ${F}`; ctx.textAlign = "left";
     ctx.fillText(`${String(iCour + 1).padStart(2, "0")} — ${String(scenes.length).padStart(2, "0")}`, W * 0.08, H * 0.045);
     ctx.textAlign = "right"; ctx.font = `italic 600 ${24 * u}px ${F}`; ctx.fillText(script.nom ?? "", W * 0.92, H * 0.045); ctx.restore();
-  } else if (LOOK === "pop" && !derniere) {
-    // Bandeau qui défile en bas avec le nom de la marque
-    const hb = 74 * u, yb = H - hb - 10 * u; ctx.save(); ctx.fillStyle = INK; ctx.fillRect(0, yb, W, hb);
-    ctx.fillStyle = MODE === "couleur" ? rgba(mix(C, [0, 0, 0], 0.5), 1) : rgba(C, 1); ctx.font = `900 ${40 * u}px ${F}`; ctx.textBaseline = "middle"; ctx.textAlign = "left";
-    const mot = `${MAJ(script.nom ?? "")}  ✦  `, lw = ctx.measureText(mot).width || 100; let x0 = -((t * 160 * u) % lw);
-    while (x0 < W) { ctx.fillText(mot, x0, yb + hb / 2 + 2 * u); x0 += lw; } ctx.restore();
   }
   // « Fait avec Bingoo! » en haut à droite, sur toutes les vidéos sauf l'offre Lancer Pro (comme le badge des sites)
   if (filigrane) {
