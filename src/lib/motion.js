@@ -6,6 +6,7 @@
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 const prog = (t, a, b) => clamp((t - a) / (b - a));
 const eo = (x) => 1 - Math.pow(1 - x, 3);
+const eob = (x) => { const c = 1.9; return x <= 0 ? 0 : x >= 1 ? 1 : 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }; // léger dépassement
 const eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 const ressort = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : 1 - Math.cos(x * Math.PI * 2.2) * Math.exp(-x * 5.5));
 const hexRgb = (h) => { const n = parseInt(String(/^#[0-9a-f]{6}$/i.test(h ?? "") ? h : "#4F46E5").slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
@@ -67,12 +68,12 @@ function grain() {
 
 // Le logo du membre, toujours sur une plaque blanche (un logo sombre resterait invisible sur fond noir)
 let LOGO = null;
-function plaqueLogo(ctx, cx, cy, hauteur, u, ombre = true) {
+function plaqueLogo(ctx, cx, cy, hauteur, u, ombre = true, image = true) {
   if (!LOGO?.width) return false;
   const k = LOGO.width / LOGO.height, h = hauteur, w = Math.min(h * k, h * 3.2), ih = Math.min(h, w / k), pad = h * 0.32;
   ctx.save(); if (ombre) { ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = 40 * u; ctx.shadowOffsetY = 10 * u; }
   rond(ctx, cx - w / 2 - pad, cy - h / 2 - pad, w + pad * 2, h + pad * 2, Math.min(h * 0.45, 40 * u)); ctx.fillStyle = "#fff"; ctx.fill(); ctx.restore();
-  ctx.drawImage(LOGO, cx - (ih * k) / 2, cy - ih / 2, ih * k, ih); return true;
+  if (image) ctx.drawImage(LOGO, cx - (ih * k) / 2, cy - ih / 2, ih * k, ih); return true;
 }
 // Contexte de dessin courant (posé à chaque image)
 let F = "system-ui", C = [79, 70, 229], CV = C, NOIR = true, INK = "#fff", INK2 = (a) => `rgba(255,255,255,${a})`;
@@ -303,14 +304,29 @@ const SCENES = {
   logo(ctx, s, e) {
     const { W, H, u, t, vertical } = s;
     const p = eo(prog(t, 0, 1)), T = 150 * u;
-    ctx.save(); if ("filter" in ctx) ctx.filter = p < 0.98 ? `blur(${(1 - p) * 26 * u}px)` : "none"; ctx.globalAlpha *= p;
     const y = H / 2 - (vertical ? 70 : 50) * u;
-    if (LOGO?.width) { // son vrai logo, en grand, puis le nom plus petit
-      ctx.save(); ctx.shadowColor = rgba(CV, 0.7); ctx.shadowBlur = 120 * u; plaqueLogo(ctx, W / 2, y - 60 * u, 150 * u, u, false); ctx.restore();
-      // Un logo qui contient déjà le nom (plus large que haut) : pas de nom répété dessous
-      if (LOGO.width / LOGO.height < 1.6) { ctx.fillStyle = INK; ctx.font = `800 ${(vertical ? 84 : 76) * u}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(s.nom, W / 2, y + 120 * u); }
+    if (LOGO?.width) { // son vrai logo : une onde de la couleur de la marque, la plaque qui rebondit, le logo dévoilé de gauche à droite
+      const cyL = y - 60 * u, onde = prog(t, 0, 0.9);
+      if (onde > 0 && onde < 1) { ctx.save(); ctx.globalAlpha *= (1 - onde) * 0.9; ctx.strokeStyle = rgba(CV, 1); ctx.lineWidth = (1 - onde) * 26 * u; ctx.beginPath(); ctx.arc(W / 2, cyL, eo(onde) * Math.max(W, H) * 0.55, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+      const k = eob(prog(t, 0.05, 0.75)), rev = eo(prog(t, 0.3, 0.95));
+      ctx.save(); ctx.globalAlpha *= Math.min(1, prog(t, 0.05, 0.3) * 1.2);
+      ctx.translate(W / 2, cyL); ctx.scale(0.55 + 0.45 * k, 0.55 + 0.45 * k); ctx.rotate((1 - k) * -0.06); ctx.translate(-W / 2, -cyL);
+      ctx.save(); ctx.shadowColor = rgba(CV, 0.7); ctx.shadowBlur = 120 * u * k;
+      // La plaque d'abord vide, puis le logo qui apparaît derrière un rideau qui glisse
+      const LG = LOGO; plaqueLogo(ctx, W / 2, cyL, 150 * u, u, false, false); ctx.restore();
+      const kk = LG.width / LG.height, h = 150 * u, w = Math.min(h * kk, h * 3.2), ih = Math.min(h, w / kk);
+      ctx.save(); ctx.beginPath(); ctx.rect(W / 2 - (ih * kk) / 2 - 4 * u, cyL - ih / 2 - 4 * u, (ih * kk + 8 * u) * rev, ih + 8 * u); ctx.clip();
+      ctx.drawImage(LG, W / 2 - (ih * kk) / 2, cyL - ih / 2, ih * kk, ih); ctx.restore();
       ctx.restore();
-    } else { // sans logo envoyé : le nom seul, en grand (aucune pastille dessinée)
+      // Un logo qui contient déjà le nom (plus large que haut) : pas de nom répété dessous ; sinon le nom monte lettre par lettre
+      if (LG.width / LG.height < 1.6) {
+        ctx.save(); ctx.fillStyle = INK; ctx.font = `800 ${(vertical ? 84 : 76) * u}px ${F}`; ctx.textBaseline = "middle"; ctx.textAlign = "left";
+        const lettres = [...s.nom], larg = ctx.measureText(s.nom).width; let x = W / 2 - larg / 2;
+        lettres.forEach((c, i) => { const q = eo(prog(t, 0.55 + i * 0.04, 0.95 + i * 0.04)); ctx.save(); ctx.globalAlpha *= q; ctx.fillText(c, x, y + 120 * u + (1 - q) * 40 * u); ctx.restore(); x += ctx.measureText(c).width; });
+        ctx.restore();
+      }
+    } else {
+    ctx.save(); if ("filter" in ctx) ctx.filter = p < 0.98 ? `blur(${(1 - p) * 26 * u}px)` : "none"; ctx.globalAlpha *= p; // sans logo envoyé : le nom seul, en grand (aucune pastille dessinée)
     ctx.shadowColor = rgba(CV, 0.6); ctx.shadowBlur = 60 * u; serre(ctx, "-0.04em");
     ctx.fillStyle = INK; ctx.font = `900 ${ajuste(ctx, s.nom, (vertical ? 150 : 140) * u, W * 0.86, 900)}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(s.nom, W / 2, y + 20 * u); serre(ctx, "-0.01em");
     ctx.restore();

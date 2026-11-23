@@ -257,10 +257,11 @@ if (CONSTRUIRE === "spec") {
   const { page: pm } = await ouvrir(ws, {});
   await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(9000);
   await pm.getByRole("button", { name: /Sélectionner/ }).click(); await pm.waitForTimeout(800);
-  const fr = pm.frameLocator('iframe[title^="Aperçu"]');
   await pm.screenshot({ path: `${DOSSIER}/selection-0.png` });
-  const CIBLE = "h1:visible, h2:visible, h3:visible, p:visible";
-  const titre = fr.locator(CIBLE).first(); await titre.click({ timeout: 30000 }); await pm.waitForTimeout(1200);
+  // Clic réel de souris sur le grand titre de l'aperçu (comme le membre)
+  const bb = await pm.locator('iframe[title^="Aperçu"]').boundingBox();
+  await pm.mouse.move(bb.x + bb.width / 2, bb.y + bb.height * 0.3); await pm.waitForTimeout(400);
+  await pm.mouse.click(bb.x + bb.width / 2, bb.y + bb.height * 0.3); await pm.waitForTimeout(1500);
   const barre = await pm.getByRole("button", { name: "Demander à Bingoo!" }).isVisible().catch(() => false);
   console.log(barre ? "✓ barre de sélection affichée" : "✗ pas de barre de sélection");
   await pm.screenshot({ path: `${DOSSIER}/selection-1.png` });
@@ -271,7 +272,9 @@ if (CONSTRUIRE === "spec") {
   console.log((x.r ?? []).length ? `✓ retouche enregistrée : ${JSON.stringify(x.r.at(-1).css)}` : "✗ retouche non enregistrée");
   // Rechargée : la retouche doit être réappliquée toute seule
   await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(9000);
-  const st = await fr.locator(CIBLE).first().evaluate((el) => { const c = getComputedStyle(el); return { couleur: c.color, taille: c.fontSize, gras: c.fontWeight }; }).catch((e) => ({ err: e.message.slice(0, 80) }));
+  const ch = (x.r ?? []).at(-1)?.chemin ?? "body";
+  const fa = pm.frames().find((f) => f !== pm.mainFrame() && f.url().includes(a.slug)) ?? pm.frames()[1];
+  const st = await fa.evaluate((c) => { const el = document.querySelector(c); if (!el) return { err: "élément introuvable" }; const s = getComputedStyle(el); return { couleur: s.color, taille: s.fontSize, gras: s.fontWeight }; }, ch).catch((e) => ({ err: e.message.slice(0, 80) }));
   console.log(/225, 29, 72/.test(st.couleur ?? "") ? `✓ retouche réappliquée après rechargement ${JSON.stringify(st)}` : `✗ retouche absente après rechargement ${JSON.stringify(st)}`);
   await pm.screenshot({ path: `${DOSSIER}/selection-3.png` });
   // File de demandes : la 2e est écrite pendant que Bingoo! applique la 1re
