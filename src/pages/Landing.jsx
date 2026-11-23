@@ -197,6 +197,27 @@ const VITRINE = [
   ["coupe-mesure", "Coupe Mesure", "Salons de coiffure", "Une app de réservation pour mon salon de coiffure"],
   ["menagio", "Ménagio", "Entreprises de ménage", "Un outil pour planifier et prouver les passages de mes agents de ménage"],
 ];
+// Vidéos motion design faites par Bingoo! pour de vrais projets (rendues par le moteur vidéo de Bingoo!), lues en boucle
+const VIDEOS_VITRINE = [["foulee", "Foulée", "Pub d'une marque de chaussures"], ["encre", "Encre Noire", "Salon de tatouage"], ["lame", "Lame", "Barbier à Lyon"]];
+function VideosVitrine({ nav }) {
+  return (
+    <section className="relative left-1/2 w-screen -translate-x-1/2 px-4 pt-10 pb-6 text-left" aria-label="Vidéos créées avec Bingoo!">
+      <p className="text-center text-[13px] font-semibold uppercase tracking-[.16em] text-[#5B6075]" style={JK}>Et des vidéos aussi</p>
+      <h2 className="mx-auto mt-2 max-w-[760px] text-center text-[24px] sm:text-[32px] font-bold leading-tight text-[#1E2030]" style={JK}>Des pubs en motion design, faites par Bingoo!</h2>
+      <p className="mx-auto mt-2 max-w-[640px] text-center text-[15px] text-[#5B6075]" style={JK}>Une phrase suffit : Bingoo! écrit le scénario, l'anime à tes couleurs, et tu la retouches en discutant.</p>
+      <div className="mx-auto mt-7 grid max-w-[900px] grid-cols-3 gap-3 sm:gap-6">
+        {VIDEOS_VITRINE.map(([f, nom, quoi]) => (
+          <figure key={f} className="overflow-hidden rounded-2xl border border-black/[.08] bg-black shadow-[0_18px_40px_-26px_rgba(20,20,40,.7)]">
+            <video src={`/videos/${f}.mp4`} poster={`/videos/${f}.jpg`} autoPlay muted loop playsInline preload="metadata" className="aspect-[9/16] w-full object-cover" aria-label={`Vidéo ${nom}, créée avec Bingoo!`} />
+            <figcaption className="flex flex-col gap-0.5 bg-white px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"><b className="text-[13.5px] text-[#1E2030]">{nom}</b><span className="truncate text-[12px] text-[#5B6075]">{quoi}</span></figcaption>
+          </figure>
+        ))}
+      </div>
+      <div className="mt-6 text-center"><button type="button" onClick={() => nav?.()} className="rounded-full bg-[#1E2030] px-5 py-2.5 text-[14px] font-semibold text-white hover:brightness-125" style={JK}>Créer ma vidéo →</button></div>
+    </section>
+  );
+}
+
 function Vitrine({ choisir }) {
   const rangee = (l, sens) => (
     <div className="vitrine-rang flex w-max gap-4" style={{ animation: `vitrine ${sens > 0 ? 70 : 80}s linear infinite${sens < 0 ? " reverse" : ""}` }}>
@@ -267,6 +288,7 @@ function IdeeHero({ nav }) {
       {!texte && <div className="mt-3 flex flex-wrap gap-1.5 border-t border-black/[.06] px-1 pt-3">{EXEMPLES_IDEE[type].map((x) => <button key={x} type="button" onClick={() => { setTexte(x); zone.current?.focus(); }} className="rounded-full bg-[#F4F4F1] px-3 py-1.5 text-[13px] text-[#5B6075] hover:bg-[#ECECE7]">{x}</button>)}</div>}
     </form>
     <Vitrine choisir={(t, ty) => { setTexte(t); setChoix(ty); zone.current?.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(() => zone.current?.focus(), 400); }} />
+    <VideosVitrine nav={() => { setChoix("video"); setTexte("Une vidéo pour présenter mon activité"); zone.current?.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(() => zone.current?.focus(), 400); }} />
   </>);
 }
 
