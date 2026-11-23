@@ -36,7 +36,7 @@ function Plateforme({ plat, etat, identifiant, agir, t }) {
         <p className={cx("font-bold", t.fort)}>{titre}</p>
         {derniere && <span className={cx("rounded-full px-2.5 py-1 text-[12px] font-bold", STATUT[derniere.statut]?.[1])}>{STATUT[derniere.statut]?.[0]} · n°{derniere.numero}</span>}
       </div>
-      <p className={cx("mt-1 text-[12.5px]", t.doux)}>Identifiant : <span className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[12.5px] font-semibold" style={{ color: t.sombre ? "#fff" : "#1E2030" }}>{identifiant}</span></p>
+      <p className={cx("mt-1 text-[12.5px]", t.doux)}>Identifiant : <b className="font-mono text-[12.5px]" style={{ color: "inherit" }}>{identifiant}</b></p>
       {derniere?.message && <p className={cx("mt-2 text-[13px]", t.doux)}>{derniere.message}</p>}
       {derniere?.lien && <a href={derniere.lien} className="mt-1 inline-block text-[13px] font-semibold text-[#E8571C] underline underline-offset-2">Télécharger le fichier compilé</a>}
       {cle ? (
