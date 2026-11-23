@@ -322,6 +322,27 @@ if (CONSTRUIRE === "gratuit-ia") {
   const v = await appel("video-creer", { workspace_id: wsG, texte: "Une pub pour ma boulangerie", format: "vertical" }); console.log(!v.ok ? `✓ vidéo IA refusée (${v.status})` : "✗ vidéo créée en gratuit");
   const [d] = await q(`select coalesce(sum(cost_eur), 0)::float c from ai_usage where workspace_id = ${lit(wsG)}`); console.log(d.c <= 0.02 ? `✓ coût IA de ce compte gratuit : ${(d.c * 100).toFixed(2)} centime(s)` : `✗ coût : ${(d.c * 100).toFixed(2)} centimes`);
 }
+if (CONSTRUIRE === "visiteur-apercu") {
+  // Un visiteur sans compte écrit son idée : il voit l'aperçu tout de suite ; le compte n'est demandé qu'à « Construire »
+  for (const [idee, choix] of [["Une app de réservation pour les salons de coiffure à domicile", null], ["Le site de ma boulangerie à Nantes", "Mon site web"]]) {
+    const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await c.newPage();
+    p.on("pageerror", (e) => console.log("   erreur JS :", e.message.slice(0, 160)));
+    const t0 = Date.now();
+    await p.goto(`${SITE}/?c=${t0}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+    await p.locator("#idee").fill(idee); if (choix) await p.getByRole("button", { name: choix }).first().click().catch(() => null);
+    await p.getByRole("button", { name: /Construire mon idée/ }).click().catch(() => null);
+    const btn = p.getByRole("button", { name: /^Construire / }).first();
+    const vu = await btn.waitFor({ timeout: 90000 }).then(() => true).catch(() => false);
+    const compteDemande = await p.getByText(/Crée ton compte|Créer mon compte/).first().isVisible().catch(() => false);
+    console.log(vu ? `✓ aperçu affiché sans compte en ${Math.round((Date.now() - t0) / 1000)} s (${choix ? "site" : "SaaS"})` : "✗ pas d'aperçu sans compte", compteDemande ? "✗ compte demandé avant l'aperçu" : "");
+    await p.screenshot({ path: `${DOSSIER}/visiteur-apercu-${choix ? "site" : "saas"}.png` });
+    await btn.click().catch(() => null); await p.waitForTimeout(1500);
+    const apres = await p.getByText(/compte/i).first().isVisible().catch(() => false);
+    console.log(apres ? "✓ « Construire » demande le compte" : "✗ « Construire » ne demande pas de compte");
+    await p.screenshot({ path: `${DOSSIER}/visiteur-construire-${choix ? "site" : "saas"}.png` });
+    await c.close();
+  }
+}
 if (CONSTRUIRE === "spec") {
   // Exporte la définition d'un SaaS (DOMAINE = son adresse courte) pour le photographier écran par écran hors ligne
   const [x] = await q(`select spec from saas_apps where slug = ${lit(process.env.DOMAINE ?? "")}`);
@@ -663,7 +684,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "gratuit-ia") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
