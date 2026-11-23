@@ -1540,16 +1540,13 @@ function Capture() {
       \${menu.map((e) => html\`<div class=\${cls("flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm mb-1", e.id === E.id ? (fonce ? "bg-white/15 text-white font-semibold" : GAB_TASTE ? "u-actif font-semibold" : "bg-[var(--c)]/10 text-[var(--c)] font-semibold") : fonce ? "text-white/70" : "text-slate-600")}><\${Icone} nom=\${e.icone} class="w-4 h-4"/>\${e.titre}</div>\`)}</aside>
     <main class="flex-1 min-w-0 overflow-hidden p-8">\${ecran}</main></div>\`;
 }
-// Petit autocollant « Built by Bingoo! » (façon « Made in Bolt ») sur les pages publiques : lien vers Bingoo!, fermable
-// par le visiteur. Jamais pendant les tests ni les captures (il gênerait la vérification des chevauchements).
+// Petit autocollant « Built by Bingoo! » (façon « Made in Bolt ») sur les pages publiques : lien vers Bingoo!. Jamais pendant les tests ni les captures (il gênerait la vérification des chevauchements).
+// Toujours affiché sur les pages en ligne : seul le créateur en offre Lancer Pro peut le retirer (sans_badge, vérifié par le serveur)
 function BadgeBingoo() {
-  const [vu, setVu] = useState(() => { try { return sessionStorage.getItem("bingoo-badge") !== "ferme"; } catch (e) { return true; } });
-  if (!vu || B.verif || B.capture || S.sans_badge) return null;
-  const fermer = () => { try { sessionStorage.setItem("bingoo-badge", "ferme"); } catch (e) {} setVu(false); };
+  if (B.verif || B.capture || S.sans_badge) return null;
   return html\`<div style="position:fixed;right:16px;bottom:16px;z-index:2147483000;display:flex;align-items:center;border-radius:12px;background:#fff;box-shadow:0 8px 30px -8px rgba(15,23,42,.35),0 0 0 1px rgba(15,23,42,.08);font:600 13px/1 ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;color:#15161a">
     <a href=\${"https://www.bingoo.fr/?ref=badge&s=" + encodeURIComponent(B.slug ?? "")} target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;padding:8px 12px 8px 8px;color:inherit;text-decoration:none">
       <img src="https://www.bingoo.fr/icon-192.png" alt="" width="24" height="24" style="width:24px;height:24px;border-radius:6px"/><span>Built by <b style="color:#E8571C">Bingoo!</b></span></a>
-    <button onClick=\${fermer} aria-label="Masquer" style="display:grid;place-items:center;width:30px;align-self:stretch;border-left:1px solid rgba(15,23,42,.08);color:#9a9eae;font-size:15px;background:none;cursor:pointer">×</button>
   </div>\`;
 }
 // Connecteurs en un clic (Google Analytics, Google Tag Manager, Meta Pixel, Calendly, Mailchimp) : seulement sur la

@@ -1,6 +1,6 @@
 // Fonction « r » : Bingoo! Radar, Espion et Studio (modules de croissance), séparée pour des mises à jour légères.
 import { HttpError, json, readJson, refuserInvite, wrap } from "../_shared/http.ts";
-import { admin, aiBudget, aiSpent, COUT_CREDITS, limiteMois, limitesDe, utiliseMois, creditsDepenser, creditsRendre, creditsSolde, log, quota, requireMember, setAi, type Prospect, APERCUS_GRATUITS, monthStart } from "../_shared/core.ts";
+import { admin, aiBudget, aiSpent, COUT_CREDITS, limiteMois, limitesDe, utiliseMois, creditsDepenser, creditsRendre, creditsSolde, log, quota, requireMember, setAi, type Prospect, APERCUS_GRATUITS, monthStart, marqueBlanche } from "../_shared/core.ts";
 // Identifiant de l'app sur les stores (bundle iOS = paquet Android) : fr.bingoo.<slug>, lettres et chiffres seulement
 const identifiantStore = (slug: string) => "fr.bingoo." + (String(slug).toLowerCase().replace(/[^a-z0-9]+/g, "").replace(/^[0-9]+/, "") || "app").slice(0, 40);
 import { radarCron, radarGetConfig, radarSetConfig, radarToProspect, scanRadar } from "../_shared/radar.ts";
@@ -1040,6 +1040,16 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     }
     if (b.quoi === "paiement") { await log(ws.id, "app_reglage", "Encaissement de l'application modifié"); return await o.appPaiement(app.id, b); }
     if (b.quoi === "stripe-connect") return await o.stripeConnectLien(app.id, ws.id);
+    // Marque blanche : le nom de domaine et le retrait du badge « Built by Bingoo! » sont dans l'offre Lancer Pro
+    if ((b.quoi === "domaine" && String(b.domaine ?? "").trim()) || b.quoi === "badge") {
+      if (!marqueBlanche(ws as any)) throw new HttpError(402, "Ton nom de domaine et le retrait du badge « Built by Bingoo! » font partie de l'offre Lancer Pro : passe à Lancer Pro dans Abonnement.");
+    }
+    if (b.quoi === "badge") {
+      const { data: a } = await admin.from("saas_apps").select("spec, version").eq("id", app.id).single();
+      await admin.from("saas_apps").update({ spec: { ...(a?.spec as any), sans_badge: b.sans === true }, version: (a?.version ?? 0) + 1, maj: new Date().toISOString() }).eq("id", app.id);
+      await log(ws.id, "app_reglage", b.sans === true ? "Badge Built by Bingoo! retiré" : "Badge Built by Bingoo! remis");
+      return { sans_badge: b.sans === true };
+    }
     if (b.quoi === "domaine") { await log(ws.id, "app_reglage", `Nom de domaine : ${String(b.domaine ?? "retiré").slice(0, 80)}`); return await o.appDomaine(app.id, b.domaine); }
     if (b.quoi === "domaine-verifier") return await o.appDomaineVerifier(app.id);
     if (b.quoi === "croissance") return await o.appCroissance(app.id);

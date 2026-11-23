@@ -270,6 +270,17 @@ if (CONSTRUIRE === "film") {
   fs.writeFileSync(`${DIR}/marques.json`, JSON.stringify(marques, null, 2)); console.log("FILM marques", JSON.stringify(marques));
 }
 if (CONSTRUIRE === "lien-public") {
+  // Marque blanche : le badge est sur la page en ligne (sans bouton pour le fermer) ; domaine et retrait du badge refusés hors Lancer Pro
+  { const appelR = async (corps) => { const r = await fetch(`${SB}/functions/v1/r/saas-app-reglages`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify(corps) }); return r.status; };
+    const [x] = await q(`select a.id, a.slug, a.workspace_id, w.plan from saas_apps a join workspaces w on w.id = a.workspace_id where w.name like 'Robot film%' and a.statut = 'pret' order by a.maj desc limit 1`);
+    const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await c.newPage();
+    await p.goto(`${SITE}/?c=${Date.now()}#/app/${x.slug}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(7000);
+    const fr = p.frames().find((f) => f !== p.mainFrame()) ?? p.mainFrame();
+    const badge = await fr.getByText("Built by").count().catch(() => 0), croix = await fr.getByRole("button", { name: "Masquer" }).count().catch(() => 0);
+    console.log(badge && !croix ? `✓ badge « Built by Bingoo! » affiché, sans bouton pour le fermer (offre ${x.plan})` : `✗ badge : ${badge} trouvé(s), ${croix} bouton(s) fermer`);
+    await p.screenshot({ path: `${DOSSIER}/badge-site.png` }); await c.close();
+    const d = await appelR({ workspace_id: x.workspace_id, app_id: x.id, quoi: "domaine", domaine: "exemple-robot.fr" }); console.log(d === 402 ? "✓ nom de domaine refusé hors Lancer Pro (402)" : `✗ domaine : ${d}`);
+    const b = await appelR({ workspace_id: x.workspace_id, app_id: x.id, quoi: "badge", sans: true }); console.log(b === 402 ? "✓ retrait du badge refusé hors Lancer Pro (402)" : `✗ badge : ${b}`); }
   // Le lien public d'un site fini : vu par un visiteur, puis par son créateur connecté (qui sortait de l'atelier)
   const [a] = await q(`select a.slug, a.workspace_id from saas_apps a join workspaces w on w.id = a.workspace_id where w.name like 'Robot film%' and a.statut = 'pret' order by a.maj desc limit 1`);
   console.log("site :", a?.slug);

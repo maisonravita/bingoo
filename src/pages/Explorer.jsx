@@ -2330,7 +2330,31 @@ function OngletConnecteurs({ app, appel, agir, busy }) {
     </div>
   );
 }
+// Marque blanche (nom de domaine, retrait du badge « Built by Bingoo! ») : l'offre Lancer Pro
+const MARQUE_BLANCHE = ["lancer_pro", "business", "fondateur"];
+const aMarqueBlanche = (ws) => MARQUE_BLANCHE.includes(ws?.plan) && ["active", "trialing", "past_due"].includes(ws?.plan_status);
+function BadgeBingoo({ app, appel, agir, busy, mb }) {
+  const [sans, setSans] = useState(!!app.spec?.sans_badge);
+  return (
+    <div className="mb-5 rounded-xl border border-white/10 p-3.5 max-w-2xl">
+      <p className="text-[14px] font-semibold">Badge « Built by Bingoo! »</p>
+      {mb ? (
+        <label className="mt-2 flex items-center gap-2 text-[13.5px]"><input type="checkbox" checked={sans} disabled={!!busy} onChange={(e) => { const v = e.target.checked; agir("badge", async () => { await appel("badge", { sans: v }); setSans(v); }, v ? "Badge retiré" : "Badge remis"); }} />Retirer le badge de mes pages en ligne</label>
+      ) : (
+        <p className="mt-1 text-[13px] text-white/60">Il s'affiche en bas de tes pages en ligne. Pour le retirer et mettre ton {app.spec?.type === "site" ? "site" : "SaaS"} sur ton propre nom de domaine, passe à l'offre <b className="text-white">Lancer Pro</b>. <a href="#/abonnement?formule=lancer_pro" className="font-semibold text-[#F6A06B] underline underline-offset-2">Voir l'offre</a></p>
+      )}
+    </div>
+  );
+}
 function OngletDomaine({ app, appel, agir, busy }) {
+  const { ws } = useWs();
+  const mb = aMarqueBlanche(ws);
+  return <><BadgeBingoo app={app} appel={appel} agir={agir} busy={busy} mb={mb} />{mb || app.domaine ? <OngletDomaineInterne app={app} appel={appel} agir={agir} busy={busy} /> : (
+    <div className="max-w-xl"><Explication>Ton {app.spec?.type === "site" ? "site" : "SaaS"} sur ton adresse, par exemple monsite.fr : c'est compris dans l'offre Lancer Pro, avec le retrait du badge.</Explication>
+      <a href="#/abonnement?formule=lancer_pro" className="mt-3 inline-block rounded-lg bg-accent px-3.5 py-2 text-[13px] font-bold hover:bg-accent-dark">Passer à Lancer Pro</a></div>
+  )}</>;
+}
+function OngletDomaineInterne({ app, appel, agir, busy }) {
   const [dom, setDom] = useState("");
   const [dns, setDns] = useState(null);
   const [reg, setReg] = useState(null);

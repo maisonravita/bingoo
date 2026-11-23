@@ -12,8 +12,8 @@ import ChoixFormule from "../components/ChoixFormule";
 const eur = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ","));
 const FEATURES = {
   explorer: ["Tes SaaS en tendance débloqués, avec leurs vrais revenus", "Leur visibilité, leur pub et leurs canaux", "Ton plan sur 30 jours", "Ton plan pour tes 10 premiers clients, avec des établissements à contacter", "L'étape du jour chaque matin par e-mail", "Toute la base SaaS et 10 SaaS suivis"],
-  explorer_pro: ["Tout Trouver", "3 SaaS construits par mois, à ton nom (30 modifications)", "En ligne avec ton domaine, branché à ton Stripe", "SaaS et catégories suivis sans limite", "Les SaaS à vendre et à racheter", "1 000 réponses de l'assistant IA de tes SaaS par mois"],
-  lancer_pro: ["Tout Lancer", "100 modifications par mois dans l'atelier (au lieu de 30)", "1 000 réponses de l'assistant IA de ton SaaS par mois", "Tes 10 premiers clients en 7 jours compris"],
+  explorer_pro: ["Tout Trouver", "3 SaaS construits par mois, à ton nom (30 modifications)", "En ligne, branché à ton Stripe", "SaaS et catégories suivis sans limite", "Les SaaS à vendre et à racheter", "1 000 réponses de l'assistant IA de tes SaaS par mois"],
+  lancer_pro: ["Tout Lancer", "Ton nom de domaine, sans le badge « Built by Bingoo! » ni le « Fait avec Bingoo! » des vidéos", "100 modifications par mois dans l'atelier (au lieu de 30)", "1 000 réponses de l'assistant IA de ton SaaS par mois", "Tes 10 premiers clients en 7 jours compris"],
   business: ["Tout Lancer", "10 SaaS construits par mois (100 modifications)", "3 000 réponses de l'assistant IA de tes SaaS par mois", "3 utilisateurs", "Export CSV des listes", "Support prioritaire"],
 };
 const VEILLE = ["explorer", "explorer_pro", "lancer_pro", "business"];

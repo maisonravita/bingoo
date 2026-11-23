@@ -523,7 +523,7 @@ const SCENES = {
 /** Dessine l'image au temps t (secondes) d'une vidéo composée de scènes. */
 // Toujours une linéale très grasse et serrée (comme les pubs de référence), jamais la police à empattements du site
 export const POLICE_MOTION = "Inter Tight";
-export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = null } = {}) {
+export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = null, filigrane = false } = {}) {
   LOGO = logo; ECRANS = ecrans && typeof ecrans === "object" ? ecrans : {}; ECRANS_L = Object.values(ECRANS).filter(Boolean);
   LOOK = LOOKS.includes(script?.look) ? script.look : "nuit";
   F = `"${policeMotion(script)}", "Inter", "Helvetica Neue", Arial, system-ui, sans-serif`;
@@ -619,5 +619,15 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
     ctx.fillStyle = MODE === "couleur" ? rgba(mix(C, [0, 0, 0], 0.5), 1) : rgba(C, 1); ctx.font = `900 ${40 * u}px ${F}`; ctx.textBaseline = "middle"; ctx.textAlign = "left";
     const mot = `${MAJ(script.nom ?? "")}  ✦  `, lw = ctx.measureText(mot).width || 100; let x0 = -((t * 160 * u) % lw);
     while (x0 < W) { ctx.fillText(mot, x0, yb + hb / 2 + 2 * u); x0 += lw; } ctx.restore();
+  }
+  // « Fait avec Bingoo! » en haut à droite, sur toutes les vidéos sauf l'offre Lancer Pro (comme le badge des sites)
+  if (filigrane) {
+    const uu = Math.min(W, H) / 1080, txt = "Fait avec Bingoo!";
+    ctx.save(); ctx.globalAlpha = 0.92; ctx.font = `700 ${26 * uu}px "Plus Jakarta Sans", "Inter", system-ui, sans-serif`; ctx.textBaseline = "middle"; ctx.textAlign = "left";
+    const tw = ctx.measureText(txt).width, ph = 46 * uu, pw = tw + 36 * uu, x = W - pw - 28 * uu, y = 28 * uu;
+    rond(ctx, x, y, pw, ph, ph / 2); ctx.fillStyle = "rgba(255,255,255,.92)"; ctx.fill();
+    ctx.fillStyle = "#1E2030"; ctx.fillText("Fait avec ", x + 18 * uu, y + ph / 2 + 1 * uu);
+    const w1 = ctx.measureText("Fait avec ").width; ctx.fillStyle = "#E8571C"; ctx.fillText("Bingoo!", x + 18 * uu + w1, y + ph / 2 + 1 * uu);
+    ctx.restore();
   }
 }

@@ -17,6 +17,8 @@ const EXEMPLES = ["Une vidéo pour présenter mon salon de barbier à Lyon", "Le
 
 export default function Motion() {
   const { ws } = useWs();
+  // « Fait avec Bingoo! » sur les vidéos, sauf pour l'offre Lancer Pro (marque blanche)
+  const sansFiligrane = ["lancer_pro", "business", "fondateur"].includes(ws?.plan) && ["active", "trialing", "past_due"].includes(ws?.plan_status);
   const nav = useNavigate();
   const [videos, setVideos] = useState(null);
   const [sel, setSel] = useState(null);
@@ -92,7 +94,7 @@ export default function Motion() {
   const opts = { nom: script?.nom ?? "", couleur: script?.couleur ?? "#E8571C", lien: script?.lien ?? "", images: [], style, police, graine };
   // Nouvelles vidéos : suite de scènes (moteur « pub premium ») ; anciennes : gabarit fixe de 21 s
   const scenes = !!script?.scenes?.length, duree = scenes ? dureeTotale(script) : DUREE;
-  const dessinerA = (t) => { const c = canvas.current; if (!c || !script) return; if (scenes) dessinerScenes(c.getContext("2d"), W, H, t, script, { logo: logoImg, ecrans: ecransVideo }); else dessiner(c.getContext("2d"), W, H, t, script, opts); };
+  const dessinerA = (t) => { const c = canvas.current; if (!c || !script) return; if (scenes) dessinerScenes(c.getContext("2d"), W, H, t, script, { logo: logoImg, ecrans: ecransVideo, filigrane: !sansFiligrane }); else dessiner(c.getContext("2d"), W, H, t, script, opts); };
 
   // Lecture en boucle
   useEffect(() => {

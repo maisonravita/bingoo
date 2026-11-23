@@ -63,6 +63,9 @@ export const PLANS: Record<string, { label: string; price: number; factor: numbe
  *  ia = plafond de dépense IA du mois pour l'espace, en euros (constructions comprises). */
 /** Ce que l'offre gratuite peut demander à l'IA : l'aperçu d'une idée et une vidéo par mois (limitée dans la route), rien d'autre. */
 export const GRATUIT_IA = /^(explorer\/idee-apercu|video)$/;
+/** Marque blanche (retirer le badge « Built by Bingoo! », brancher son nom de domaine) : l'offre du dessus seulement. */
+export const MARQUE_BLANCHE = ["lancer_pro", "business", "fondateur"];
+export const marqueBlanche = (ws: { plan?: string | null; plan_status?: string | null } | null | undefined) => !!ws && MARQUE_BLANCHE.includes(ws.plan ?? "") && ["active", "trialing", "past_due"].includes(ws.plan_status ?? "");
 /** Aperçus d'idée offerts chaque mois sur l'offre gratuite. */
 export const APERCUS_GRATUITS = 2;
 export const LIMITES: Record<string, { construire: number; modifier: number; tiktok: number; pareil: number; scripts: number; ia: number }> = {
@@ -108,13 +111,13 @@ export const PERIODES_PAR_PLAN: Record<string, typeof PERIODES> = {
 };
 // Lancer Pro : mêmes durées que Lancer, avec 100 modifications par mois et plus d'IA
 PERIODES_PAR_PLAN.lancer_pro = {
-  mois: { label: "1 mois", mois: 1, parMois: 39.99, inclus: ["Tout ce qu'il y a dans Lancer", "100 modifications par mois dans l'atelier (au lieu de 30)", "1 000 réponses de l'assistant IA de ton SaaS par mois", "Tes 10 premiers clients en 7 jours compris"] },
+  mois: { label: "1 mois", mois: 1, parMois: 39.99, inclus: ["Tout ce qu'il y a dans Lancer", "Ton nom de domaine, et sans le badge « Built by Bingoo! » ni le « Fait avec Bingoo! » des vidéos", "100 modifications par mois dans l'atelier (au lieu de 30)", "1 000 réponses de l'assistant IA de ton SaaS par mois", "Tes 10 premiers clients en 7 jours compris"] },
   trimestre: { label: "3 mois", mois: 3, parMois: 29.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Moins cher chaque mois", "Facturé tous les 3 mois"] },
   an: { label: "12 mois", mois: 12, parMois: 19.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Le prix le plus bas par mois", "Changer de SaaS une fois dans l'année", "Réponse prioritaire par e-mail"] },
 };
 // Site : moins cher qu'un SaaS (pas de données de marché, pas de comptes clients ni d'abonnements à gérer)
 PERIODES_PAR_PLAN.site = {
-  mois: { label: "1 mois", mois: 1, parMois: 9.99, inclus: ["Ton site en ligne, hébergement inclus", "Les demandes de tes clients reçues par e-mail et rangées", "Tes services, tes prix et tes horaires modifiables à tout moment", "Le branchement de ton nom de domaine (le nom lui-même s'achète à part)", "Ton plan pour tes premiers clients du quartier", "30 modifications par mois dans l'atelier"] },
+  mois: { label: "1 mois", mois: 1, parMois: 9.99, inclus: ["Ton site en ligne, hébergement inclus", "Les demandes de tes clients reçues par e-mail et rangées", "Tes services, tes prix et tes horaires modifiables à tout moment", "Ton plan pour tes premiers clients du quartier", "30 modifications par mois dans l'atelier"] },
   an: { label: "12 mois", mois: 12, parMois: 7.99, inclus: ["Tout ce qu'il y a dans 1 mois", "95,88 € facturés une fois par an (2 € de moins chaque mois)", "Réponse prioritaire par e-mail"] },
 };
 /** Formules qui permettent de construire un SaaS (la formule Site ne construit que des sites) */
