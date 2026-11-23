@@ -2536,6 +2536,6 @@ Deno.serve(wrap(async (req) => {
   if (name === "stripe-connect-retour" && req.method === "GET") return await (await import("../_shared/app-owner.ts")).stripeConnectRetour(new URL(req.url));
   if (req.method !== "POST") throw new HttpError(405, "POST attendu");
   // L'aperçu d'une idée et la lecture d'un site (sans IA) sont ouverts aux visiteurs sans compte : le compte vient au moment de construire
-  refuserInvite(req, name, ["saas-chiffres", "saas-bourse-lu", "saas-tendances", "saas-idee-apercu", "site-scan", "video-creer"]);
+  refuserInvite(req, name, ["saas-chiffres", "saas-bourse-lu", "saas-tendances", "saas-idee-apercu", "site-scan", "video-creer", "videos-libres"]);
   return json(await h(req, await readJson(req)));
 }));
