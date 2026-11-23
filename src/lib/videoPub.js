@@ -335,8 +335,76 @@ export async function preparerPolice(police = "Plus Jakarta Sans") {
   } catch { /* police de secours */ }
 }
 
-/** Enregistre la vidéo complète (temps réel), avec la musique choisie ; renvoie { blob, ext }. */
+/** Export image par image (WebCodecs) : chaque image est dessinée à son instant exact, puis encodée en H.264.
+ * Rien ne dépend de la vitesse de l'ordinateur : la vidéo est toujours fluide (30 images par seconde pile).
+ * La musique est rendue hors temps réel (OfflineAudioContext) puis encodée en AAC (ou Opus). */
+async function exporterImageParImage(canvas, dessinerA, onProgres, musique, graine, duree) {
+  const { Muxer, ArrayBufferTarget } = await import("mp4-muxer");
+  const W = canvas.width, H = canvas.height, FPS = 30, N = Math.round(duree * FPS);
+  // H.264 d'abord (lu partout, iPhone compris) ; VP9 si le navigateur n'a pas d'encodeur H.264
+  let codec = null, vmux = "avc";
+  for (const [c, m] of [["avc1.640034", "avc"], ["avc1.640028", "avc"], ["avc1.4d0034", "avc"], ["avc1.42003e", "avc"], ["vp09.00.40.08", "vp9"]]) {
+    const r = await VideoEncoder.isConfigSupported({ codec: c, width: W, height: H, bitrate: 10_000_000, framerate: FPS }).catch(() => null);
+    if (r?.supported) { codec = c; vmux = m; break; }
+  }
+  if (!codec) throw new Error("Aucun encodeur vidéo");
+  // La musique, rendue d'un coup, à la même durée que l'image
+  let son = null;
+  if (musique) {
+    const { jouerMusique } = await import("./musiqueVideo.js");
+    const RATE = 48000, oac = new OfflineAudioContext(2, Math.ceil((duree + 0.2) * RATE), RATE);
+    jouerMusique(oac, oac.destination, musique, duree + 0.2, 0.02, graine);
+    const buf = await oac.startRendering();
+    for (const [c, m] of [["mp4a.40.2", "aac"], ["opus", "opus"]]) {
+      const r = await AudioEncoder.isConfigSupported({ codec: c, sampleRate: RATE, numberOfChannels: 2, bitrate: 160_000 }).catch(() => null);
+      if (r?.supported) { son = { buf, codec: c, mux: m, RATE }; break; }
+    }
+  }
+  const cible = new ArrayBufferTarget();
+  const muxer = new Muxer({ target: cible, fastStart: "in-memory", firstTimestampBehavior: "offset",
+    video: { codec: vmux, width: W, height: H, frameRate: FPS },
+    ...(son ? { audio: { codec: son.mux, sampleRate: son.RATE, numberOfChannels: 2 } } : {}) });
+  let erreur = null;
+  const venc = new VideoEncoder({ output: (ch, meta) => muxer.addVideoChunk(ch, meta), error: (e) => { erreur = e; } });
+  venc.configure({ codec, width: W, height: H, bitrate: 10_000_000, framerate: FPS, latencyMode: "quality" });
+  for (let i = 0; i < N; i++) {
+    if (erreur) throw erreur;
+    dessinerA(i / FPS);
+    const f = new VideoFrame(canvas, { timestamp: Math.round((i * 1e6) / FPS), duration: Math.round(1e6 / FPS) });
+    venc.encode(f, { keyFrame: i % (FPS * 2) === 0 }); f.close();
+    onProgres?.(((i + 1) / N) * (son ? 0.95 : 1));
+    // On laisse respirer la page (barre de progression, encodeur) sans jamais sauter d'image
+    if (venc.encodeQueueSize > 6 || i % 8 === 0) await new Promise((ok) => setTimeout(ok, 0));
+  }
+  await venc.flush(); venc.close();
+  if (son) {
+    const aenc = new AudioEncoder({ output: (ch, meta) => muxer.addAudioChunk(ch, meta), error: (e) => { erreur = e; } });
+    aenc.configure({ codec: son.codec, sampleRate: son.RATE, numberOfChannels: 2, bitrate: 160_000 });
+    const total = Math.min(son.buf.length, Math.round(duree * son.RATE)), PAS = 4800;
+    const g = son.buf.getChannelData(0), d = son.buf.getChannelData(1);
+    for (let k = 0; k < total; k += PAS) {
+      const n = Math.min(PAS, total - k), plan = new Float32Array(n * 2); plan.set(g.subarray(k, k + n), 0); plan.set(d.subarray(k, k + n), n);
+      const ad = new AudioData({ format: "f32-planar", sampleRate: son.RATE, numberOfFrames: n, numberOfChannels: 2, timestamp: Math.round((k * 1e6) / son.RATE), data: plan });
+      aenc.encode(ad); ad.close();
+    }
+    await aenc.flush(); aenc.close(); onProgres?.(1);
+  }
+  if (erreur) throw erreur;
+  muxer.finalize();
+  return { blob: new Blob([cible.buffer], { type: "video/mp4" }), ext: "mp4" };
+}
+
+/** Enregistre la vidéo complète avec la musique choisie ; renvoie { blob, ext }.
+ * Image par image quand le navigateur le permet (fluide sur toutes les machines), sinon en temps réel. */
 export async function exporterVideo(canvas, dessinerA, onProgres, musique = null, graine = 0, duree = DUREE) {
+  if (typeof window !== "undefined" && window.VideoEncoder && window.VideoFrame && (!musique || (window.AudioEncoder && window.OfflineAudioContext))) {
+    try { return await exporterImageParImage(canvas, dessinerA, onProgres, musique, graine, duree); }
+    catch (e) { console.warn("Export image par image impossible, enregistrement en temps réel", e); }
+  }
+  return exporterTempsReel(canvas, dessinerA, onProgres, musique, graine, duree);
+}
+
+async function exporterTempsReel(canvas, dessinerA, onProgres, musique = null, graine = 0, duree = DUREE) {
   const DUREE_V = duree;
   const avecSon = !!musique;
   const types = avecSon
