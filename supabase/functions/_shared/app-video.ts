@@ -125,9 +125,17 @@ Chaque scène peut avoir "fond": "couleur" | "blanc" | "noir" (sinon le fond de 
 const REGLES = `Règles : 8 à 11 scènes, 20 à 30 secondes, rythme de pub TikTok (alterne textes, objets et un aplat ou un impact ; jamais deux « mots » de suite). Commence par une accroche forte (mots, rature ou impact). Finis par logo. Alterne fonds noir, blanc et couleur pour le rythme.
 Français, phrases très courtes, parle au spectateur. Aucun chiffre, avis, prix, résultat ou nombre de clients inventé : seulement ceux que la personne a écrits. Pas d'emoji, pas de vraie personne, pas de marque d'un autre.
 JSON : { "couleur": UNE couleur de marque franche et saturée en hexadécimal, qui colle au métier et se voit sur noir comme sur blanc (ex. rouge vif #E63946 pour un café, bleu électrique #2F5BFF pour une banque, vert franc #16A34A pour un primeur, or #D4A017 pour un barbier) ; jamais de violet par défaut ni de couleur terne,
-"nom": nom de l'entreprise ou du projet s'il est donné, sinon un nom court et crédible, "fond": "noir" (pub premium, nuit, tech, luxe) ou "blanc" (frais, clair, pratique), "lien": adresse web ou @compte SEULEMENT s'il est écrit, sinon "", "secteur_en": 2 à 4 mots-clés anglais du secteur, "scenes": [...] }`;
+"nom": nom de l'entreprise ou du projet s'il est donné, sinon un nom court et crédible (1 à 3 mots), "fond": "noir" (pub premium, nuit, tech, luxe) ou "blanc" (frais, clair, pratique), "lien": adresse web ou @compte SEULEMENT s'il est écrit, sinon "", "secteur_en": 2 à 4 mots-clés anglais du secteur, "scenes": [...] }`;
 
-const court2 = (v: unknown, n: number) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+// Texte raccourci sans couper un mot en deux (« Depuis ton télépho » → « Depuis ton »)
+const court2 = (v: unknown, n: number) => { const t = String(v ?? "").replace(/\s+/g, " ").trim(); if (t.length <= n) return t; const c = t.slice(0, n + 1), i = c.lastIndexOf(" "); return (i > n * 0.4 ? c.slice(0, i) : t.slice(0, n)).replace(/[\s,;:–-]+$/, ""); };
+// Nom de marque : jamais coupé au milieu d'un mot (« Boulangerie artisanale de Re »), ni fini par « de », « à »…
+const nomNet = (v: unknown, n = 28) => {
+  const s = String(v ?? "").replace(/\s+/g, " ").trim(); if (s.length <= n) return s;
+  const m = s.slice(0, n + 1).split(" "); m.pop();
+  while (m.length > 1 && /^(de|du|des|d'|à|a|au|aux|la|le|les|l'|et|en|pour|chez|par|sur)$/i.test(m[m.length - 1])) m.pop();
+  return m.join(" ") || s.slice(0, n);
+};
 function scenesNettes(liste: any[], texteSource: string, titresEcrans: string[] = []): SceneVideo[] {
   const chiffres = new Set((texteSource.match(/\d+(?:[.,]\d+)?/g) ?? []).map((x) => x.replace(",", ".")));
   const ic = (x: unknown) => ICONES.includes(String(x)) ? String(x) : "etincelle";
@@ -192,7 +200,7 @@ Si la demande n'a rien d'une vidéo pour une activité, un produit, un événeme
   // L'allure proposée par l'IA une fois sur deux seulement : sinon elle prend presque toujours « nuit »
   const choisi = String(x?.look ?? "").split(/\s|:/)[0];
   const look = LOOKS_VIDEO[choisi] && Math.random() < 0.5 ? choisi : auHasard(Object.keys(LOOKS_VIDEO).filter((k) => k !== choisi));
-  return { genre: "libre", look, ...(couleurFranche(x?.couleur) ? { couleur: String(x.couleur) } : {}), nom: court2(x?.nom, 28) || "Ma marque", fond: x?.fond === "blanc" ? "blanc" : "noir", lien: lienNet(x?.lien), scenes, secteur_en: court2(x?.secteur_en, 60) };
+  return { genre: "libre", look, ...(couleurFranche(x?.couleur) ? { couleur: String(x.couleur) } : {}), nom: nomNet(x?.nom) || "Ma marque", fond: x?.fond === "blanc" ? "blanc" : "noir", lien: lienNet(x?.lien), scenes, secteur_en: court2(x?.secteur_en, 60) };
 }
 
 export async function videoLibreRetouche(script: ScriptLibre, demande: string, texteSource = "", titresEcrans: string[] = []): Promise<ScriptLibre> {
@@ -207,5 +215,5 @@ Réponds avec le JSON complet : nom, fond, look, lien, couleur, note, scenes.`, 
   const scenes = scenesNettes(x?.scenes, `${texteSource} ${demande} ${JSON.stringify(script.scenes)}`, titresEcrans);
   const couleur = /^#[0-9a-f]{6}$/i.test(String(x?.couleur ?? "")) ? String(x.couleur) : script.couleur;
   const lk = String(x?.look ?? "").split(/\s|:/)[0];
-  return { ...script, ...(LOOKS_VIDEO[lk] ? { look: lk } : {}), nom: court2(x?.nom, 28) || script.nom, fond: x?.fond === "blanc" ? "blanc" : x?.fond === "noir" ? "noir" : script.fond, lien: x?.lien !== undefined ? lienNet(x.lien) || script.lien : script.lien, scenes: scenes.length >= 4 ? scenes : script.scenes, ...(couleur ? { couleur } : {}), ...(court2(x?.note, 200) ? { note: court2(x.note, 200) } : { note: undefined }) };
+  return { ...script, ...(LOOKS_VIDEO[lk] ? { look: lk } : {}), nom: nomNet(x?.nom) || script.nom, fond: x?.fond === "blanc" ? "blanc" : x?.fond === "noir" ? "noir" : script.fond, lien: x?.lien !== undefined ? lienNet(x.lien) || script.lien : script.lien, scenes: scenes.length >= 4 ? scenes : script.scenes, ...(couleur ? { couleur } : {}), ...(court2(x?.note, 200) ? { note: court2(x.note, 200) } : { note: undefined }) };
 }

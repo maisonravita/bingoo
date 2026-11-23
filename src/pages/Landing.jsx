@@ -198,20 +198,44 @@ const VITRINE = [
   ["menagio", "Ménagio", "Entreprises de ménage", "Un outil pour planifier et prouver les passages de mes agents de ménage"],
 ];
 // Vidéos motion design faites par Bingoo! pour de vrais projets (rendues par le moteur vidéo de Bingoo!), lues en boucle
-const VIDEOS_VITRINE = [["foulee", "Foulée", "Chaussures · style pop"], ["encre", "Encre Noire", "Tatouage · style nuit"], ["lame", "Lame", "Barbier · style éditorial"]];
+// Vraies vidéos écrites par Bingoo! (les scénarios viennent du générateur), dans les 4 allures et les 3 formats
+const VIDEOS_VITRINE = [
+  ["kineo", "Kinéo", "Logiciel pour kinés · vidéo produit avec ses vrais écrans"],
+  ["foulee", "Foulée", "Chaussures · style pop"],
+  ["encre", "Encre Noire", "Tatouage · style nuit"],
+  ["lame", "Lame", "Barbier · style éditorial"],
+  ["calme", "Calme", "Appli de méditation · style minimal"],
+  ["fournil", "Boulangerie artisanale", "Boulangerie à Rennes · style pop"],
+  ["boxe", "Marseille Boxing Club", "Salle de boxe · style nuit"],
+  ["avocate", "Cabinet d'avocate", "Ouverture de cabinet · style éditorial"],
+];
+const VIDEOS_FORMATS = [["vintage", "Vintage Atelier", "Boutique vintage · format carré", "aspect-square"], ["factur", "Factur'Artisan", "Logiciel de facturation · format paysage", "aspect-video"]];
+// Une vidéo ne tourne que quand elle est à l'écran (dix vidéos à la fois ralentiraient la page)
+function VideoCarte({ f, nom, quoi, forme = "aspect-[9/16]" }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const v = ref.current; if (!v || typeof IntersectionObserver === "undefined") return;
+    const o = new IntersectionObserver(([e]) => { if (e.isIntersecting) v.play().catch(() => {}); else v.pause(); }, { threshold: 0.25 });
+    o.observe(v); return () => o.disconnect();
+  }, []);
+  return (
+    <figure className="flex flex-col overflow-hidden rounded-2xl border border-black/[.08] bg-black shadow-[0_18px_40px_-26px_rgba(20,20,40,.7)]">
+      <video ref={ref} poster={`/videos/${f}.jpg`} muted loop playsInline preload="none" className={`${forme} w-full object-cover`} aria-label={`Vidéo ${nom}, créée avec Bingoo!`}><source src={`/videos/${f}.mp4`} type="video/mp4" /><source src={`/videos/${f}.webm`} type="video/webm" /></video>
+      <figcaption className="flex flex-1 flex-col gap-0.5 bg-white px-3 py-2.5"><b className="truncate text-[13.5px] text-[#1E2030]">{nom}</b><span className="text-[12px] leading-snug text-[#5B6075]">{quoi}</span></figcaption>
+    </figure>
+  );
+}
 function VideosVitrine({ nav }) {
   return (
     <section className="relative left-1/2 w-screen -translate-x-1/2 px-4 pt-10 pb-6 text-left" aria-label="Vidéos créées avec Bingoo!">
       <p className="text-center text-[13px] font-semibold uppercase tracking-[.16em] text-[#5B6075]" style={JK}>Et des vidéos aussi</p>
       <h2 className="mx-auto mt-2 max-w-[760px] text-center text-[24px] sm:text-[32px] font-bold leading-tight text-[#1E2030]" style={JK}>Des pubs en motion design, faites par Bingoo!</h2>
-      <p className="mx-auto mt-2 max-w-[640px] text-center text-[15px] text-[#5B6075]" style={JK}>Une phrase suffit : Bingoo! écrit le scénario, l'anime à tes couleurs, et tu la retouches en discutant.</p>
-      <div className="mx-auto mt-7 grid max-w-[900px] grid-cols-3 gap-3 sm:gap-6">
-        {VIDEOS_VITRINE.map(([f, nom, quoi], i) => (
-          <figure key={f} className="overflow-hidden rounded-2xl border border-black/[.08] bg-black shadow-[0_18px_40px_-26px_rgba(20,20,40,.7)]">
-            <video onLoadedMetadata={(e) => { e.currentTarget.currentTime = [0, 9, 17][i] ?? 0; }} poster={`/videos/${f}.jpg`} autoPlay muted loop playsInline preload="metadata" className="aspect-[9/16] w-full object-cover" aria-label={`Vidéo ${nom}, créée avec Bingoo!`}><source src={`/videos/${f}.mp4`} type="video/mp4" /><source src={`/videos/${f}.webm`} type="video/webm" /></video>
-            <figcaption className="flex flex-col gap-0.5 bg-white px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"><b className="text-[13.5px] text-[#1E2030]">{nom}</b><span className="truncate text-[12px] text-[#5B6075]">{quoi}</span></figcaption>
-          </figure>
-        ))}
+      <p className="mx-auto mt-2 max-w-[680px] text-center text-[15px] text-[#5B6075]" style={JK}>Une phrase suffit : Bingoo! écrit le scénario, l'anime à tes couleurs, et tu la retouches en discutant. Pub de marque ou vidéo de ton SaaS avec ses vrais écrans, en vertical, carré ou paysage.</p>
+      <div className="mx-auto mt-7 grid max-w-[1100px] grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
+        {VIDEOS_VITRINE.map(([f, nom, quoi]) => <VideoCarte key={f} f={f} nom={nom} quoi={quoi} />)}
+      </div>
+      <div className="mx-auto mt-3 grid max-w-[1100px] grid-cols-1 gap-3 sm:mt-5 sm:grid-cols-[1fr_1.78fr] sm:gap-5">
+        {VIDEOS_FORMATS.map(([f, nom, quoi, forme]) => <VideoCarte key={f} f={f} nom={nom} quoi={quoi} forme={forme} />)}
       </div>
       <div className="mt-6 text-center"><button type="button" onClick={() => nav?.()} className="rounded-full bg-[#1E2030] px-5 py-2.5 text-[14px] font-semibold text-white hover:brightness-125" style={JK}>Créer ma vidéo →</button></div>
     </section>

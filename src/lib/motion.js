@@ -330,13 +330,13 @@ const SCENES = {
         rond(ctx, bx, by, w, h, 40 * u); ctx.fillStyle = on ? rgba(CV, 1) : NOIR ? "rgba(255,255,255,.06)" : "#fff"; ctx.fill(); ctx.shadowBlur = 0;
         ctx.strokeStyle = rgba(CV, on ? 1 : 0.5); ctx.lineWidth = 4 * u; ctx.stroke();
         const fg = on ? (MODE === "couleur" ? rgba(C, 1) : lum(CV) > 0.62 ? "#111" : "#fff") : rgba(CV, 1);
-        ctx.fillStyle = on ? fg : INK; ctx.font = `800 ${62 * u}px ${F}`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(x.texte, bx + 50 * u, by + h / 2 + 3 * u);
+        ctx.fillStyle = on ? fg : INK; ctx.font = `800 ${62 * u}px ${F}`; { const lw = ctx.measureText(x.texte).width, dispo = w - 170 * u; if (lw > dispo) ctx.font = `800 ${Math.max(30 * u, 62 * u * dispo / lw)}px ${F}`; } ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(x.texte, bx + 50 * u, by + h / 2 + 3 * u);
         if (on) { ctx.font = `800 ${56 * u}px ${F}`; ctx.textAlign = "right"; ctx.fillText("✓", bx + w - 50 * u, by + h / 2 + 3 * u); }
         ctx.restore();
       });
       return;
     }
-    const w = Math.min((W * 0.86 - (n - 1) * 30 * u) / n, 360 * u), h = w * 0.6;
+    const w = Math.min((W * 0.86 - (n - 1) * 30 * u) / n, 520 * u), h = Math.min(w * 0.6, 220 * u);
     const tot = n * w + (n - 1) * 30 * u, sel = Math.min(n - 1, 1), choisi = eo(prog(t, 1.4, 1.9));
     if (e.texte) motsAnimes(ctx, e.texte, e.accent, W / 2, H * (vertical ? 0.28 : 0.2), { taille: (vertical ? 74 : 64) * u, largeur: W * 0.84, t, decale: 0.06 });
     items.forEach((x, i) => {
@@ -347,7 +347,7 @@ const SCENES = {
       rond(ctx, bx, by, w, h, 34 * u); ctx.fillStyle = on ? rgba(CV, 1) : NOIR ? "rgba(255,255,255,.06)" : "#fff"; ctx.fill(); ctx.shadowBlur = 0;
       ctx.strokeStyle = rgba(CV, on ? 1 : 0.55); ctx.lineWidth = 4 * u; ctx.stroke();
       const fg = on ? (MODE === "couleur" ? rgba(C, 1) : lum(CV) > 0.62 ? "#111" : "#fff") : rgba(CV, 1);
-      ctx.fillStyle = fg; ctx.font = `800 ${Math.min(56 * u, w / 5.5)}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(MAJ(x.texte), bx + w / 2, by + h / 2);
+      ctx.fillStyle = fg; { const f0 = Math.min(56 * u, w / 5.5); ctx.font = `800 ${f0}px ${F}`; const lw = ctx.measureText(MAJ(x.texte)).width; if (lw > w * 0.84) ctx.font = `800 ${Math.max(20 * u, f0 * w * 0.84 / lw)}px ${F}`; } ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(MAJ(x.texte), bx + w / 2, by + h / 2);
       ctx.restore();
     });
   },
