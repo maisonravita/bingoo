@@ -316,7 +316,7 @@ if (CONSTRUIRE === "spec") {
   await pm.goto(`${SITE}/?c=${Date.now()}#/explorer/mon-saas`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(6000);
   console.log((await pm.getByText("Contrôle de sécurité").count()) ? "✓ contrôle de sécurité affiché" : "✗ pas de contrôle de sécurité");
   await pm.screenshot({ path: `${DOSSIER}/mon-saas-visites.png`, fullPage: true });
-} else if (CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site") {
+} else if (CONSTRUIRE === "quatre" || CONSTRUIRE === "photos") {
   // Points de départ (accueil), remarques épinglées (atelier), logo de l'espace (Mon SaaS), photos réelles dans l'aperçu d'idée
   const appel = async (route, corps) => { const r = await fetch(`${SB}/functions/v1/r/${route}`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify(corps) }); const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch {} return { ok: r.ok, j, t: t.slice(0, 200) }; };
   { const c0 = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p0 = await c0.newPage();
@@ -511,7 +511,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
