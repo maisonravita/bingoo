@@ -367,6 +367,20 @@ if (CONSTRUIRE === "spec") {
   console.log(aPhotos === attendu ? `✓ ${nomF} : ${aPhotos ? "photos réelles (crédits affichés)" : "aucune photo inventée"}` : `✗ ${nomF} : photos=${aPhotos}`);
   await pi.screenshot({ path: `${DOSSIER}/${nomF}.png`, fullPage: true }); await ci.close();
   }
+} else if (CONSTRUIRE === "vitrine") {
+  // Vitrine de l'accueil : les vrais SaaS et sites construits par Bingoo! (espaces du robot), photographiés tels quels
+  const apps = await q(`select a.slug, a.spec->>'nom' nom, coalesce(a.spec->>'type','saas') type from saas_apps a join members m on m.workspace_id = a.workspace_id where m.user_id = ${lit(uid)} and a.statut = 'pret' and jsonb_array_length(coalesce(a.spec->'ecrans','[]')) > 2 order by a.maj desc limit 30`);
+  const vus = new Set(); let n = 0;
+  for (const x of apps) {
+    if (vus.has(x.nom) || n >= 14) continue; vus.add(x.nom);
+    const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await c.newPage();
+    await p.goto(`${SITE}/?c=${Date.now()}#/app/${x.slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p.waitForTimeout(6000);
+    await p.screenshot({ path: `${DOSSIER}/vitrine-${String(++n).padStart(2, "0")}-${x.type}-${x.slug}.jpg`, type: "jpeg", quality: 88 }).catch(() => null);
+    // Et l'intérieur : la démo (compte d'essai rempli d'exemples), si elle existe
+    const demo = p.getByText(/Voir la démo/i).first();
+    if (x.type !== "site" && await demo.count()) { await demo.click().catch(() => null); await p.waitForTimeout(7000); await p.screenshot({ path: `${DOSSIER}/vitrine-${String(n).padStart(2, "0")}-${x.type}-${x.slug}-dedans.jpg`, type: "jpeg", quality: 88 }).catch(() => null); }
+    console.log("✓", x.nom, x.type); await c.close();
+  }
 } else if (CONSTRUIRE === "diag-site") {
   // Diagnostic : l'aperçu d'une idée de site, couleurs calculées du haut de page dans chaque style
   const wsI = await creerEspace("Robot diag " + new Date().toISOString().slice(0, 16)); await q(`update workspaces set plan = 'lancer_pro', plan_status = 'active', onboarded = true where id = ${lit(wsI)}`);
@@ -514,7 +528,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
