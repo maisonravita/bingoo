@@ -2316,7 +2316,7 @@ function OngletConnecteurs({ app, appel, agir, busy }) {
       <div className="mt-4 space-y-3">
         {CONNECTEURS.map(([k, nom, quoi, ex, ou]) => (
           <div key={k} className="rounded-xl border border-white/10 bg-white/[.04] p-3.5">
-            <div className="flex items-center gap-2"><b className="text-[14px]">{nom}</b>{app.spec?.connecteurs?.[k] && <span className="rounded bg-[#15803D]/30 px-1.5 py-0.5 text-[11px] font-bold text-[#86EFAC]">branché</span>}</div>
+            <div className="flex items-center gap-2"><b className="text-[14px]">{nom}</b>{app.spec?.connecteurs?.[k] && <span className="rounded bg-[#15803D] px-1.5 py-0.5 text-[11px] font-bold !text-white">branché</span>}</div>
             <p className="mt-0.5 text-[12.5px] text-white/55">{quoi}</p>
             <input value={v[k] ?? ""} onChange={(e) => setV((x) => ({ ...x, [k]: e.target.value }))} placeholder={ex} className={cx(champSombre, "mt-2")} />
             <p className="mt-1 text-[11.5px] text-white/40">Où le trouver : {ou}</p>
@@ -2324,7 +2324,7 @@ function OngletConnecteurs({ app, appel, agir, busy }) {
         ))}
       </div>
       <div className="mt-4 flex items-center gap-3">
-        <button disabled={!!busy} onClick={() => agir("connecteurs", () => appel("connecteurs", { connecteurs: v }), "Connecteurs enregistrés : ils sont actifs sur ta page en ligne")} className={btnSombre}>Enregistrer</button>
+        <button disabled={!!busy} onClick={() => agir("connecteurs", () => appel("connecteurs", { connecteurs: v }), "Connecteurs enregistrés : ils sont actifs sur ta page en ligne")} className="rounded-xl bg-[#E8571C] px-4 py-2 text-[13.5px] font-semibold !text-white hover:brightness-110 disabled:opacity-50">Enregistrer</button>
         <span className="text-[12.5px] text-white/45">{actifs ? `${actifs} branché${actifs > 1 ? "s" : ""}` : "Aucun branché pour l'instant"}</span>
       </div>
     </div>
