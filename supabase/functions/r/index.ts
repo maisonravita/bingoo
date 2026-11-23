@@ -1,6 +1,6 @@
 // Fonction « r » : Bingoo! Radar, Espion et Studio (modules de croissance), séparée pour des mises à jour légères.
 import { HttpError, json, readJson, refuserInvite, wrap } from "../_shared/http.ts";
-import { admin, aiBudget, aiSpent, COUT_CREDITS, limiteMois, limitesDe, utiliseMois, creditsDepenser, creditsRendre, creditsSolde, log, quota, requireMember, setAi, type Prospect } from "../_shared/core.ts";
+import { admin, aiBudget, aiSpent, COUT_CREDITS, limiteMois, limitesDe, utiliseMois, creditsDepenser, creditsRendre, creditsSolde, log, quota, requireMember, setAi, type Prospect, APERCUS_GRATUITS, monthStart } from "../_shared/core.ts";
 // Identifiant de l'app sur les stores (bundle iOS = paquet Android) : fr.bingoo.<slug>, lettres et chiffres seulement
 const identifiantStore = (slug: string) => "fr.bingoo." + (String(slug).toLowerCase().replace(/[^a-z0-9]+/g, "").replace(/^[0-9]+/, "") || "app").slice(0, 40);
 import { radarCron, radarGetConfig, radarSetConfig, radarToProspect, scanRadar } from "../_shared/radar.ts";
@@ -571,8 +571,14 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   async "saas-idee-apercu"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     await quota(ws.id, "idee_apercu", 12);
+    // Offre gratuite : 3 aperçus par mois, sans images IA (le reste de Bingoo! sans IA reste ouvert)
+    const gratuit = ws.plan === "essai";
+    if (gratuit) {
+      const { count } = await admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).in("kind", ["idee_apercu", "site_apercu"]).gte("created_at", monthStart());
+      if ((count ?? 0) >= APERCUS_GRATUITS) throw new HttpError(402, `Tu as utilisé tes ${APERCUS_GRATUITS} aperçus gratuits du mois. Ils reviennent le 1er du mois, ou choisis une offre pour construire ton idée tout de suite.`);
+    }
     const { ideeApercu } = await import("../_shared/idee.ts");
-    const r = await ideeApercu(ws.id, String(b.texte ?? ""), String(b.type ?? "saas"), Array.isArray(b.reponses) ? b.reponses : []);
+    const r = await ideeApercu(ws.id, String(b.texte ?? ""), String(b.type ?? "saas"), Array.isArray(b.reponses) ? b.reponses : [], { sansImages: gratuit });
     // Mesuré par entrée : idée de SaaS ou idée de site
     const pre = String(b.type ?? "") === "site" ? "site" : "idee";
     if ((r as any).apercu) await log(ws.id, `${pre}_apercu`, `Aperçu d'idée : ${String(b.texte ?? "").slice(0, 120)}`);
@@ -583,6 +589,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   async "saas-lancer-idee"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     if (ws.plan === "explorer") throw new HttpError(402, "« Construire mon idée » est dans la formule Lancer.");
+    if (ws.plan === "essai") throw new HttpError(402, "La construction fait partie des offres payantes : choisis Site ou Lancer dans Abonnement pour que Bingoo! construise ton projet.");
     // La formule Site construit des sites, pas des SaaS
     if (ws.plan === "site" && String(b.type ?? "saas") !== "site") throw new HttpError(402, "Ta formule Site construit des sites web. Pour un SaaS, passe à la formule Lancer.");
     const au = await autreSaas(ws as { id: string; periode?: string });
@@ -609,6 +616,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   async "saas-construire"(req, b) {
     const { ws } = await membreOuCron(req, b.workspace_id);
     if (ws.plan === "explorer") throw new HttpError(402, "« Construire mon SaaS » est dans la formule Lancer.");
+    if (ws.plan === "essai") throw new HttpError(402, "La construction fait partie des offres payantes : choisis Site ou Lancer dans Abonnement pour que Bingoo! construise ton projet.");
     const { data: pr } = await admin.from("saas_projets").select("id, data, statut").eq("id", String(b.projet_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
     if (!pr || pr.statut !== "pret") throw new HttpError(404, "Projet introuvable");
     if (ws.plan === "site" && (pr.data as any)?.idee?.type !== "site") throw new HttpError(402, "Ta formule Site construit des sites web. Pour un SaaS, passe à la formule Lancer.");

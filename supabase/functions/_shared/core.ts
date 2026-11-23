@@ -42,7 +42,8 @@ export function knowledgeOf(ws: { knowledge?: string }) {
 // Grille par quota (business plan du 6 nov. 2026) : quota = prospects contactés par mois (premier e-mail parti, contact trouvé et vérifié).
 // Relances, Radar et Espion restent compris dans la limite IA. credits = recherches vérifiées d'e-mails (comptées seulement si trouvé).
 export const PLANS: Record<string, { label: string; price: number; factor: number; seats: number; credits: number; ai: number; quota: number }> = {
-  essai: { label: "Aperçu gratuit", price: 0, factor: 0.5, seats: 1, credits: 15, ai: 2, quota: 20 },
+  // Gratuit : presque aucune IA (2 centimes par mois au plus) ; tout ce qui ne demande pas d'IA reste ouvert
+  essai: { label: "Aperçu gratuit", price: 0, factor: 0.5, seats: 1, credits: 0, ai: 0.02, quota: 0 },
   // Veille du marché SaaS, sans prospection (pas d'envoi, pas de tâches de prospection de nuit)
   explorer: { label: "Trouver", price: 9.99, factor: 0.5, seats: 1, credits: 0, ai: 1, quota: 0 },
   explorer_pro: { label: "Lancer", price: 24.99, factor: 0.5, seats: 1, credits: 0, ai: 4, quota: 0 },
@@ -60,6 +61,10 @@ export const PLANS: Record<string, { label: string; price: number; factor: numbe
 /** Limites de chaque formule, par mois (le 1er du mois remet tout à zéro). Au-delà : les crédits.
  *  Pensées pour que l'IA d'un abonné coûte toujours moins que son abonnement, même au prix annuel (9,99 €/mois).
  *  ia = plafond de dépense IA du mois pour l'espace, en euros (constructions comprises). */
+/** Ce que l'offre gratuite peut demander à l'IA : l'aperçu d'une idée, rien d'autre. */
+export const GRATUIT_IA = /^explorer\/idee-apercu$/;
+/** Aperçus d'idée offerts chaque mois sur l'offre gratuite. */
+export const APERCUS_GRATUITS = 3;
 export const LIMITES: Record<string, { construire: number; modifier: number; tiktok: number; pareil: number; scripts: number; ia: number }> = {
   explorer: { construire: 0, modifier: 0, tiktok: 0, pareil: 0, scripts: 0, ia: 1 },
   explorer_pro: { construire: 3, modifier: 30, tiktok: 4, pareil: 20, scripts: 4, ia: 4 },
@@ -237,7 +242,7 @@ export async function aiRecord(model: string, u: Usage) {
     searches: u.server_tool_use?.web_search_requests ?? 0, cost_eur: aiCost(model, u),
   }).then(() => null, (e: unknown) => console.error("ai_usage", e));
 }
-const monthStart = () => { const d = new Date(); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString(); };
+export const monthStart = () => { const d = new Date(); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString(); };
 const dayStart = () => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); return d.toISOString(); };
 /** Dépense IA (euros) d'un espace depuis le début du mois, ou de toute la plateforme depuis minuit. */
 export async function aiSpent(wsId: string | null, since = wsId ? monthStart() : dayStart()) {
@@ -408,6 +413,14 @@ export async function aiGuard() {
     const { data } = await admin.from("ai_usage").select("cost_eur").is("workspace_id", null).not("feature", "like", "explorer/%").gte("at", dayStart());
     if ((data ?? []).reduce((a, r) => a + Number(r.cost_eur ?? 0), 0) >= freeCap) throw new HttpError(503, "L'outil gratuit est très demandé aujourd'hui : crée ton compte Bingoo! pour y accéder tout de suite.");
     return;
+  }
+  // Offre gratuite : seuls les aperçus d'idée appellent l'IA, et jamais plus de 2 centimes par mois (vérifié ici, côté serveur)
+  {
+    const { data: wp } = await admin.from("workspaces").select("plan").eq("id", ws).maybeSingle();
+    if (wp?.plan === "essai") {
+      if (!GRATUIT_IA.test(String(ctx.feature ?? ""))) throw new HttpError(402, "Ça fait partie des offres payantes : choisis une offre dans Abonnement pour que Bingoo! s'en occupe.");
+      if ((await aiSpent(ws)) >= PLANS.essai.ai) throw new HttpError(402, "Tu as utilisé tes aperçus gratuits du mois. Ils reviennent le 1er du mois, ou choisis une offre pour construire tout de suite.");
+    }
   }
   if (!ctx.live) {
     // Interrupteur général de l'IA automatique (nuit, tâches de fond) : app_secrets « background_ai » = « off ».

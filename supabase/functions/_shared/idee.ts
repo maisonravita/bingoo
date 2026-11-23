@@ -23,7 +23,7 @@ const motif = (t: string) => INTERDIT.some((re) => re.test(t));
 
 const LIMITES = `Les logiciels construits par Bingoo! envoient de vrais e-mails (tout de suite ou programmés), font des PDF, utilisent l'IA (texte), stockent fichiers et images, ont des comptes utilisateurs, des pages publiques sans compte et un abonnement payé par Stripe. Ils ne savent PAS : envoyer des SMS ou passer des appels, envoyer des notifications sur téléphone, encaisser un paiement par carte dans un écran (paiement des clients de l'utilisateur), suivre une position GPS en direct, faire de la vidéo ou du chat en direct (temps réel), se connecter à un autre service (Google Agenda, réseaux sociaux, banque, logiciel comptable, WhatsApp), publier sur l'App Store.`;
 
-export async function ideeApercu(wsId: string, texte: string, type: string, reponses: { q: string; r: string }[] = []) {
+export async function ideeApercu(wsId: string, texte: string, type: string, reponses: { q: string; r: string }[] = [], { sansImages = false } = {}) {
   const idee = texte.replace(/\s+/g, " ").trim().slice(0, 400);
   if (idee.length < 6) throw new HttpError(400, "Décris ton idée en une phrase au moins");
   const precisions = reponses.filter((x) => x?.q && x?.r).slice(0, 3).map((x) => `${String(x.q).slice(0, 120)} → ${String(x.r).slice(0, 160)}`);
@@ -95,7 +95,8 @@ Rends {"garder": [numéros]} (liste vide si aucun ne convient).`, { fast: true, 
   const proches = gardes.sort((a: any, b: any) => (Number(b.mrr) || 0) - (Number(a.mrr) || 0)).slice(0, 3)
     .map((s: any) => ({ domaine: s.domaine, nom: s.nom, mrr: s.mrr ?? null, description: court(s.description, 180) }));
   const ds = await designsApercu(`${r?.secteur_en ?? ""} ${(r?.mots_cles ?? []).join(" ")}`, wsId);
-  await photosGaleries(apercu);
+  // Offre gratuite : pas d'images IA (elles coûtent plus que l'aperçu lui-même)
+  if (!sansImages) await photosGaleries(apercu);
   return { apercu: { ...apercu, design: ds[0], designs: ds }, proches };
 }
 

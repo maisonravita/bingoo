@@ -308,6 +308,20 @@ if (CONSTRUIRE === "stores") {
   const r4 = await appel("saas-app-stores", { workspace_id: ws, app_id: a.id, plateforme: "ios", quoi: "retirer" });
   const [reste] = await q(`select count(*)::int n from vault.secrets where name like ${lit("stores:" + a.id + "%")}`); console.log(r4.ok && !r4.j?.ios?.cle && reste.n === 0 ? "✓ clé retirée du coffre" : "✗ retrait");
 }
+if (CONSTRUIRE === "gratuit-ia") {
+  // Offre gratuite : 3 aperçus par mois sans images IA, aucune construction, moins de 2 centimes d'IA
+  const appel = async (route, corps) => { const r = await fetch(`${SB}/functions/v1/r/${route}`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify(corps) }); const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch {} return { ok: r.ok, status: r.status, j, t: t.slice(0, 160) }; };
+  const wsG = await creerEspace("Robot gratuit " + new Date().toISOString().slice(0, 16)); await q(`update workspaces set plan = 'essai', plan_status = 'trialing', onboarded = true where id = ${lit(wsG)}`);
+  const idees = ["Une app de réservation pour les coiffeurs à domicile", "Un logiciel de devis pour les plombiers", "Un outil de suivi des stocks pour les fleuristes", "Un planning pour les profs de yoga"];
+  for (let i = 0; i < 4; i++) {
+    const r = await appel("saas-idee-apercu", { workspace_id: wsG, texte: idees[i], type: "saas" });
+    const img = JSON.stringify(r.j ?? {}).includes("\"ia\":true");
+    console.log(i < 3 ? (r.ok && r.j?.apercu ? `✓ aperçu gratuit ${i + 1}/3${img ? " ✗ avec images IA" : ", sans images IA"}` : `✗ aperçu ${i + 1} : ${r.t}`) : (r.status === 402 ? "✓ 4e aperçu refusé (402)" : `✗ 4e aperçu : ${r.status} ${r.t}`));
+  }
+  const c = await appel("saas-construire", { workspace_id: wsG, projet_id: crypto.randomUUID() }); console.log(c.status === 402 ? "✓ construction refusée à l'offre gratuite" : `✗ construction : ${c.status}`);
+  const v = await appel("video-creer", { workspace_id: wsG, texte: "Une pub pour ma boulangerie", format: "vertical" }); console.log(!v.ok ? `✓ vidéo IA refusée (${v.status})` : "✗ vidéo créée en gratuit");
+  const [d] = await q(`select coalesce(sum(cost_eur), 0)::float c from ai_usage where workspace_id = ${lit(wsG)}`); console.log(d.c <= 0.02 ? `✓ coût IA de ce compte gratuit : ${(d.c * 100).toFixed(2)} centime(s)` : `✗ coût : ${(d.c * 100).toFixed(2)} centimes`);
+}
 if (CONSTRUIRE === "spec") {
   // Exporte la définition d'un SaaS (DOMAINE = son adresse courte) pour le photographier écran par écran hors ligne
   const [x] = await q(`select spec from saas_apps where slug = ${lit(process.env.DOMAINE ?? "")}`);
@@ -649,7 +663,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "gratuit-ia") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);

@@ -7,7 +7,7 @@ const eur = (x) => `${Number(x ?? 0).toLocaleString("fr-FR", { minimumFractionDi
 const when = (d) => (d ? new Date(d).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "jamais");
 const PLAN = { essai: "Essai", demarrage: "Démarrage", solo: "Solo", pro: "Pro", equipe: "Équipe", fondateur: "Fondateur" };
 
-const BUDGET = { essai: 4, solo: 6, pro: 14, equipe: 24, fondateur: 15 };
+const BUDGET = { essai: 0.02, solo: 6, pro: 14, equipe: 24, fondateur: 15 };
 const PRICE = { essai: 0, solo: 39, pro: 69, equipe: 109, fondateur: 0 };
 /** Crédit IA du compte Anthropic : ce qui reste, ce qui a été consommé, par jour / fonction / client, et la saisie d'une recharge. */
 // Qualité des constructions : réussite au premier test, essais de correction et coût, par modèle ou par famille.
