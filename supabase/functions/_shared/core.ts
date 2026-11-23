@@ -61,8 +61,8 @@ export const PLANS: Record<string, { label: string; price: number; factor: numbe
 /** Limites de chaque formule, par mois (le 1er du mois remet tout à zéro). Au-delà : les crédits.
  *  Pensées pour que l'IA d'un abonné coûte toujours moins que son abonnement, même au prix annuel (9,99 €/mois).
  *  ia = plafond de dépense IA du mois pour l'espace, en euros (constructions comprises). */
-/** Ce que l'offre gratuite peut demander à l'IA : l'aperçu d'une idée, rien d'autre. */
-export const GRATUIT_IA = /^explorer\/idee-apercu$/;
+/** Ce que l'offre gratuite peut demander à l'IA : l'aperçu d'une idée et une vidéo par mois (limitée dans la route), rien d'autre. */
+export const GRATUIT_IA = /^(explorer\/idee-apercu|video)$/;
 /** Aperçus d'idée offerts chaque mois sur l'offre gratuite. */
 export const APERCUS_GRATUITS = 2;
 export const LIMITES: Record<string, { construire: number; modifier: number; tiktok: number; pareil: number; scripts: number; ia: number }> = {

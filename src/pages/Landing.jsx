@@ -292,12 +292,11 @@ function IdeeHero({ nav, nb }) {
       localStorage.removeItem("bingoo-parcours2");
     } catch { /* stockage indisponible */ }
     // L'aperçu d'abord, sans compte (comme Lovable ou Bolt) : le visiteur voit son projet prendre forme tout de suite.
-    // Le compte n'est demandé qu'au moment de construire. La vidéo (scénario écrit par l'IA) demande un compte avant.
+    // Le compte n'est demandé qu'au moment de construire. La vidéo aussi : la première se crée sans compte.
     const { data } = await supabase.auth.getSession();
     setBusy(false);
     if (data.session && !data.session.user?.is_anonymous) { nav(vers); return; }
-    if (type !== "video") { nav(vers); return; }
-    setCompte(vers);
+    nav(vers);
   };
   if (compte) return <ChantierFlou texte={texte.trim()} genre={url ? "url" : type}><CompteAvant quoi={url ? `Bingoo! va lire ${texte.trim().replace(/^https?:\/\//, "").replace(/\/$/, "")} point par point et construire ta version, à ton nom et avec ton logo.` : `Bingoo! va construire « ${texte.trim().slice(0, 80)}${texte.trim().length > 80 ? "…" : ""} » écran par écran, sous tes yeux.`} onRetour={() => setCompte(null)} onFini={() => nav(compte)} /></ChantierFlou>;
   return (<>

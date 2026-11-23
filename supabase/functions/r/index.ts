@@ -1425,6 +1425,11 @@ Clés JSON : resume (une phrase), etapes (2 à 6 étapes courtes et concrètes, 
     if (texte.length < 8) throw new HttpError(400, "Décris ta vidéo en une phrase : pour quoi, pour qui");
     const format = ["paysage", "carre"].includes(b.format) ? b.format : "vertical";
     await quota(ws.id, "video_libre", 15);
+    // Offre gratuite (visiteur ou compte gratuit) : une vidéo par mois, dans la même enveloppe de 2 centimes que les aperçus
+    if (ws.plan === "essai") {
+      const { count } = await admin.from("saas_videos").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).gte("at", monthStart());
+      if ((count ?? 0) >= 1) throw new HttpError(402, "Tu as déjà ta vidéo gratuite du mois. Pour en créer d'autres et la retoucher, choisis une offre dans Abonnement.");
+    }
     setAi({ ws: ws.id, live: true, feature: "video" });
     const { videoLibre } = await import("../_shared/app-video.ts");
     // Son SaaS ou son site construit par Bingoo! : ses vrais écrans entrent dans la vidéo
@@ -1449,6 +1454,7 @@ Clés JSON : resume (une phrase), etapes (2 à 6 étapes courtes et concrètes, 
   },
   async "video-retouche"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
+    if (ws.plan === "essai") throw new HttpError(402, "Retoucher la vidéo en discutant fait partie des offres payantes : choisis une offre dans Abonnement.");
     const demande = String(b.demande ?? "").trim().slice(0, 400);
     if (demande.length < 3) throw new HttpError(400, "Écris ce que tu veux changer dans la vidéo");
     const { data: v0 } = await admin.from("saas_videos").select("id, format, script, texte").eq("id", String(b.video_id ?? "")).eq("workspace_id", ws.id).is("app_id", null).maybeSingle();
@@ -2530,6 +2536,6 @@ Deno.serve(wrap(async (req) => {
   if (name === "stripe-connect-retour" && req.method === "GET") return await (await import("../_shared/app-owner.ts")).stripeConnectRetour(new URL(req.url));
   if (req.method !== "POST") throw new HttpError(405, "POST attendu");
   // L'aperçu d'une idée et la lecture d'un site (sans IA) sont ouverts aux visiteurs sans compte : le compte vient au moment de construire
-  refuserInvite(req, name, ["saas-chiffres", "saas-bourse-lu", "saas-tendances", "saas-idee-apercu", "site-scan"]);
+  refuserInvite(req, name, ["saas-chiffres", "saas-bourse-lu", "saas-tendances", "saas-idee-apercu", "site-scan", "video-creer"]);
   return json(await h(req, await readJson(req)));
 }));

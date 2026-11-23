@@ -323,6 +323,17 @@ if (CONSTRUIRE === "gratuit-ia") {
   const [d] = await q(`select coalesce(sum(cost_eur), 0)::float c from ai_usage where workspace_id = ${lit(wsG)}`); console.log(d.c <= 0.02 ? `✓ coût IA de ce compte gratuit : ${(d.c * 100).toFixed(2)} centime(s)` : `✗ coût : ${(d.c * 100).toFixed(2)} centimes`);
 }
 if (CONSTRUIRE === "visiteur-apercu") {
+  // La vidéo aussi, sans compte : le studio s'ouvre et la vidéo se joue
+  { const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await c.newPage(); const t0 = Date.now();
+    p.on("pageerror", (e) => console.log("   erreur JS :", e.message.slice(0, 160)));
+    await p.goto(`${SITE}/?c=${t0}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+    await p.locator("#idee").fill("Une pub pour ma boulangerie artisanale à Nantes"); await p.getByRole("button", { name: "Ma vidéo" }).first().click().catch(() => null);
+    await p.getByRole("button", { name: /Construire mon idée/ }).click().catch(() => null);
+    const vu = await p.locator("canvas").first().waitFor({ timeout: 120000 }).then(() => true).catch(() => false);
+    await p.waitForTimeout(6000);
+    const compte = await p.getByRole("heading", { name: /Crée ton compte/ }).first().isVisible().catch(() => false);
+    console.log(vu && !compte ? `✓ vidéo créée sans compte en ${Math.round((Date.now() - t0) / 1000)} s` : `✗ vidéo sans compte (${vu ? "compte demandé" : "pas de vidéo"})`);
+    await p.screenshot({ path: `${DOSSIER}/visiteur-video.png` }); await c.close(); }
   // Un visiteur sans compte écrit son idée : il voit l'aperçu tout de suite ; le compte n'est demandé qu'à « Construire »
   for (const [idee, choix] of [["Une app de réservation pour les salons de coiffure à domicile", null], ["Le site de ma boulangerie à Nantes", "Mon site web"]]) {
     const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await c.newPage();
