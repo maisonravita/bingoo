@@ -1367,18 +1367,20 @@ Clés JSON : resume (une phrase), etapes (2 à 6 étapes courtes et concrètes, 
     setAi({ ws: ws.id, live: true, feature: "video" });
     const { videoLibre } = await import("../_shared/app-video.ts");
     // Son SaaS ou son site construit par Bingoo! : ses vrais écrans entrent dans la vidéo
-    let produit: { id: string; slug: string; titres: string[] } | null = null;
+    let produit: { id: string; slug: string; titres: string[]; nom: string; couleur: string | null } | null = null;
     if (b.app_id) {
       const { data: a } = await admin.from("saas_apps").select("id, slug, spec").eq("id", String(b.app_id)).eq("workspace_id", ws.id).maybeSingle();
       const titres = ((a?.spec as any)?.ecrans ?? []).filter((e: any) => e?.code && e?.titre).map((e: any) => String(e.titre).slice(0, 40)).slice(0, 8);
-      if (a && titres.length) produit = { id: a.id, slug: a.slug, titres };
+      if (a && titres.length) produit = { id: a.id, slug: a.slug, titres, nom: String((a.spec as any)?.nom ?? "").slice(0, 28), couleur: /^#[0-9a-f]{6}$/i.test(String((a.spec as any)?.couleur ?? "")) ? String((a.spec as any).couleur) : null };
     }
     let sc: any;
-    try { sc = await videoLibre(texte, produit?.titres ?? []); } catch (e) { if ((e as any)?.status === 400) throw new HttpError(400, (e as Error).message); throw e; }
+    try { sc = await videoLibre(produit?.nom ? `${texte} (le logiciel s'appelle « ${produit.nom} » : c'est ce nom-là, jamais un autre)` : texte, produit?.titres ?? []); } catch (e) { if ((e as any)?.status === 400) throw new HttpError(400, (e as Error).message); throw e; }
     const { categorieDesign, tirerDesign } = await import("../_shared/design.ts");
     const d: any = tirerDesign(categorieDesign(String(sc.secteur_en ?? "") || texte));
     const { secteur_en: _s, ...script } = sc;
     // La couleur choisie par l'IA pour la pub (franche), sinon celle du système de design du métier
+    // Vidéo de son SaaS : son vrai nom et sa couleur, pas ceux imaginés par l'IA
+    if (produit?.nom) { script.nom = produit.nom; if (produit.couleur) script.couleur = produit.couleur; }
     const final = { ...script, couleur: script.couleur ?? d?.couleurs?.primary ?? "#E8571C", police: d?.polices?.titres ?? "Plus Jakarta Sans", ...(produit ? { produit: { app_id: produit.id, slug: produit.slug } } : {}) };
     const { data: v } = await admin.from("saas_videos").insert({ app_id: null, workspace_id: ws.id, format, script: final, texte }).select("id, format, script, texte, at").single();
     await log(ws.id, "video_libre", `Vidéo : ${texte.slice(0, 80)}`);
