@@ -202,7 +202,7 @@ const VITRINE = [
 // Vraies vidéos écrites par Bingoo! (les scénarios viennent du générateur), dans les 4 allures et les 3 formats
 // [fichier, nom, légende, forme] ; deux bandes qui défilent en sens inverse, comme la vitrine des SaaS
 const VIDEOS_RANGS = [
-  [["kineo", "Kinéo", "Logiciel pour kinés · vidéo produit, vrais écrans"], ["foulee", "Foulée", "Chaussures · style pop"], ["encre", "Encre Noire", "Tatouage · style nuit"], ["vintage", "Vintage Atelier", "Boutique vintage · format carré", "1/1"], ["lame", "Lame", "Barbier · style éditorial"]],
+  [["pointa", "Pointa", "Logiciel pour cabinets · vidéo produit, vrais écrans"], ["foulee", "Foulée", "Chaussures · style pop"], ["encre", "Encre Noire", "Tatouage · style nuit"], ["vintage", "Vintage Atelier", "Boutique vintage · format carré", "1/1"], ["lame", "Lame", "Barbier · style éditorial"]],
   [["calme", "Calme", "Appli de méditation · style minimal"], ["fournil", "Boulangerie artisanale", "Rennes · style pop"], ["factur", "Factur'Artisan", "Logiciel de facturation · format paysage", "16/9"], ["boxe", "Marseille Boxing Club", "Salle de boxe · style nuit"], ["avocate", "Cabinet d'avocate", "Ouverture · style éditorial"]],
 ];
 // Une vidéo ne tourne que quand elle est à l'écran (les bandes en contiennent vingt)
