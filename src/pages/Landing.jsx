@@ -193,6 +193,32 @@ const DEPARTS = [
   ["plombier", "site", "Site d'artisan", "Le site de mon entreprise de plomberie à Lille, dépannage 7j/7"],
   ["langues", "app", "App de révision", "Une app pour réviser le vocabulaire anglais avec des cartes"],
 ];
+// Vitrine : de vrais SaaS construits par Bingoo! (captures de leur page en ligne), qui défilent en continu
+const VITRINE = [["agendo", "Agendo", "Réservation en ligne"], ["tablio", "Tablio", "Restaurant : tables et commandes"], ["velofleet", "VéloFleet", "Location de vélos"], ["cliches", "Clichés", "Photographes de mariage"], ["chantierpro", "ChantierPro", "Suivi de chantiers"], ["asso-pilote", "Asso Pilote", "Associations"], ["coachflow", "Coachflow", "Coachs sportifs"], ["cireze", "Cirèze", "Commandes et stock"], ["coupe-mesure", "Coupe Mesure", "Salons de coiffure"], ["menagio", "Ménagio", "Entreprises de ménage"]];
+function Vitrine() {
+  const rangee = (l, sens) => (
+    <div className="vitrine-rang flex w-max gap-4" style={{ animation: `vitrine ${sens > 0 ? 70 : 80}s linear infinite${sens < 0 ? " reverse" : ""}` }}>
+      {[...l, ...l].map(([img, nom, quoi], i) => (
+        <figure key={img + i} aria-hidden={i >= l.length} className="w-[300px] sm:w-[380px] shrink-0 overflow-hidden rounded-2xl border border-black/[.08] bg-white shadow-[0_14px_34px_-24px_rgba(20,20,40,.55)]">
+          <img src={`/vitrine/${img}.jpg`} alt={`${nom}, construit avec Bingoo!`} loading="lazy" className="aspect-[16/10] w-full object-cover object-top" />
+          <figcaption className="flex items-center justify-between gap-2 px-3.5 py-2.5"><b className="text-[14px] text-[#1E2030]">{nom}</b><span className="truncate text-[12.5px] text-[#5B6075]">{quoi}</span></figcaption>
+        </figure>
+      ))}
+    </div>
+  );
+  return (
+    <section className="relative overflow-hidden py-14" aria-label="SaaS construits avec Bingoo!">
+      <style>{"@keyframes vitrine{from{transform:translateX(0)}to{transform:translateX(-50%)}}@media (prefers-reduced-motion:reduce){.vitrine-rang{animation:none!important}}.vitrine-bande:hover .vitrine-rang{animation-play-state:paused}"}</style>
+      <p className="text-center text-[13px] font-semibold uppercase tracking-[.16em] text-[#5B6075]" style={JK}>Construits avec Bingoo!</p>
+      <h2 className="mx-auto mt-2 max-w-[760px] px-4 text-center text-[28px] sm:text-[38px] font-bold leading-tight text-[#1E2030]" style={JK}>De vrais SaaS, en ligne, pour tous les métiers</h2>
+      <div className="vitrine-bande mt-9 space-y-4 [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]">
+        {rangee(VITRINE.slice(0, 5), 1)}
+        {rangee(VITRINE.slice(5), -1)}
+      </div>
+    </section>
+  );
+}
+
 function PointsDeDepart({ choisir }) {
   return (
     <div className="hero-in mx-auto mt-8 w-full max-w-[980px] text-left" style={{ ...JK, animationDelay: ".24s" }}>
@@ -306,6 +332,7 @@ export default function Landing() {
       </div>
 
       <main className="bg-white">
+        <Vitrine />
         <div className="mx-auto max-w-[1440px] bg-white">
 
         {/* Comment ça marche : 3 étapes, montrées sur une vraie construction (Agendo, construit par le robot de Bingoo!) */}
@@ -440,7 +467,7 @@ export default function Landing() {
         <div className="fx-filet" aria-hidden />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid grid-cols-2 md:grid-cols-3 gap-8 text-[15px]">
           <div><p className="font-bold">Produit</p><ul className="mt-3 space-y-0.5 text-ink-soft [&_a]:inline-block [&_a]:py-1.5 [&_button]:py-1.5">{[["comment", "Comment ça marche"], ["copie", "Un site qui te plaît"], ["idees", "Les SaaS qui marchent"], ["prix", "Prix"]].map(([id, l]) => <li key={id}><a href={`#${id}`} onClick={scrollTo(id)} className="hover:text-ink">{l}</a></li>)}</ul></div>
-          <div><p className="font-bold">Les SaaS</p><ul className="mt-3 space-y-0.5 text-ink-soft [&_a]:inline-block [&_a]:py-1.5 [&_button]:py-1.5"><li><a href="/saas" className="hover:text-ink">Tous les SaaS suivis : prix et alternatives</a></li><li><a href="#faq" onClick={scrollTo("faq")} className="hover:text-ink">Questions fréquentes</a></li><li><a href={`mailto:bingoo@maisonravita.fr?subject=${encodeURIComponent("Corriger ou retirer une fiche")}`} title="Écris-nous depuis une adresse de ton domaine : correction ou retrait sous 72 heures." className="hover:text-ink">Corriger ou retirer une fiche</a></li></ul></div>
+          <div><p className="font-bold">Les SaaS</p><ul className="mt-3 space-y-0.5 text-ink-soft [&_a]:inline-block [&_a]:py-1.5 [&_button]:py-1.5"><li><a href="/comparer/codunk/" className="hover:text-ink">Bingoo! ou Codunk</a></li><li><a href="/comparer/wix/" className="hover:text-ink">Bingoo! ou Wix</a></li><li><a href="/comparer/webflow/" className="hover:text-ink">Bingoo! ou Webflow</a></li><li><a href="/saas" className="hover:text-ink">Tous les SaaS suivis : prix et alternatives</a></li><li><a href="#faq" onClick={scrollTo("faq")} className="hover:text-ink">Questions fréquentes</a></li><li><a href={`mailto:bingoo@maisonravita.fr?subject=${encodeURIComponent("Corriger ou retirer une fiche")}`} title="Écris-nous depuis une adresse de ton domaine : correction ou retrait sous 72 heures." className="hover:text-ink">Corriger ou retirer une fiche</a></li></ul></div>
           <div><p className="font-bold">Compte et légal</p><ul className="mt-3 space-y-0.5 text-ink-soft [&_a]:inline-block [&_a]:py-1.5 [&_button]:py-1.5"><li><button onClick={() => nav("/connexion?mode=login")} className="hover:text-ink">Connexion</button></li><li><button onClick={go} className="hover:text-ink">Créer un compte</button></li>{legalReady && <><li><a href="#/mentions-legales" className="hover:text-ink">Mentions légales</a></li><li><a href="#/confidentialite" className="hover:text-ink">Confidentialité</a></li><li><a href="#/conditions" className="hover:text-ink">Conditions</a></li></>}<li><a href="#/opposition" className="hover:text-ink">Ne plus être contacté</a></li></ul></div>
         </div>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-10 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-8">

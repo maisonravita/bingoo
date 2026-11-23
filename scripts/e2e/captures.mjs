@@ -367,6 +367,18 @@ if (CONSTRUIRE === "spec") {
   console.log(aPhotos === attendu ? `✓ ${nomF} : ${aPhotos ? "photos réelles (crédits affichés)" : "aucune photo inventée"}` : `✗ ${nomF} : photos=${aPhotos}`);
   await pi.screenshot({ path: `${DOSSIER}/${nomF}.png`, fullPage: true }); await ci.close();
   }
+} else if (CONSTRUIRE === "pages") {
+  // Vitrine de l'accueil et pages « Bingoo! ou … » (visiteur)
+  const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await c.newPage();
+  await p.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p.waitForTimeout(2000);
+  const v = p.getByText("De vrais SaaS, en ligne, pour tous les métiers"); await v.scrollIntoViewIfNeeded().catch(() => null); await p.waitForTimeout(2500);
+  console.log((await v.count()) ? "✓ vitrine affichée" : "✗ pas de vitrine"); await p.screenshot({ path: `${DOSSIER}/vitrine-accueil.png` });
+  for (const k of ["codunk", "wix", "webflow"]) {
+    const r = await p.goto(`${SITE}/comparer/${k}/`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p.waitForTimeout(1200);
+    const t = await p.title(); console.log(r?.status() === 200 && /Bingoo! ou/.test(t) ? `✓ /comparer/${k}/ : ${t}` : `✗ /comparer/${k}/ ${r?.status()} ${t}`);
+    await p.screenshot({ path: `${DOSSIER}/comparer-${k}.png`, fullPage: true });
+  }
+  await c.close();
 } else if (CONSTRUIRE === "connecteurs") {
   // Connecteurs : branchés par l'écran Réglages, vus par un visiteur (bandeau cookies, boutons), puis débranchés
   const appel = async (route, corps) => { const r = await fetch(`${SB}/functions/v1/r/${route}`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify(corps) }); const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch {} return { ok: r.ok, j, t: t.slice(0, 200) }; };
@@ -554,7 +566,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);

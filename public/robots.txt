@@ -2,3 +2,4 @@ User-agent: *
 Allow: /
 Sitemap: https://bingoo.fr/sitemap-saas.xml
 Sitemap: https://bingoo.fr/sitemap-apps.xml
+Sitemap: https://bingoo.fr/sitemap-pages.xml
