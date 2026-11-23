@@ -1050,7 +1050,8 @@ function SiteVitrine({ onAuth }) {
     const SOMBRE = NUIT ? "background:radial-gradient(900px 520px at 85% -10%,color-mix(in srgb,var(--ch) 30%,transparent),transparent),linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px) 0 0/80px 80px,linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px) 0 0/80px 80px,color-mix(in srgb,var(--ch) 9%,#0d0c0b)"
       : "background:radial-gradient(900px 560px at 88% -10%,color-mix(in srgb,var(--ch) 22%,transparent),transparent),radial-gradient(700px 420px at -5% 110%,color-mix(in srgb,var(--ch) 12%,transparent),transparent),linear-gradient(rgba(22,20,15,.05) 1px,transparent 1px) 0 0/80px 80px,linear-gradient(90deg,rgba(22,20,15,.05) 1px,transparent 1px) 0 0/80px 80px,color-mix(in srgb,var(--ch) 5%,#fbfaf7)";
     const SOMBRE2 = "background:color-mix(in srgb,var(--ch) 7%,#121110)";
-    const CLAIR = "background:color-mix(in srgb,var(--ch) 4%,#faf8f4)";
+    // Style sombre : toute la page reste sombre (sinon des cartes sombres sur fond clair, texte foncé illisible)
+    const CLAIR = NUIT ? "background:color-mix(in srgb,var(--ch) 7%,#0f0e12)" : "background:color-mix(in srgb,var(--ch) 4%,#faf8f4)";
     const acc = String(S.slogan || S.pitch || S.nom || "");
     const coupe = (() => { const i = Math.max(acc.lastIndexOf(", "), acc.lastIndexOf(" — "), acc.lastIndexOf(" : ")); if (i > 8 && i < acc.length - 6) return [acc.slice(0, i + 1), acc.slice(i + 1).replace(/^[\\s—:]+/, "")]; const m = acc.split(" "); const k = Math.ceil(m.length * 0.55); return m.length > 4 ? [m.slice(0, k).join(" "), m.slice(k).join(" ")] : [acc, ""]; })();
     const Sur = ({ children, clair }) => html\`<p class=\${cls("text-[13px] font-semibold uppercase tracking-[.28em]", clair ? "text-[color-mix(in_srgb,var(--ch)_70%,white)]" : "text-[var(--ch)]")}>\${children}</p>\`;
@@ -1058,7 +1059,8 @@ function SiteVitrine({ onAuth }) {
     const Pill = ({ href, plein, clair, children }) => html\`<a href=\${href} class=\${cls("inline-flex min-h-[54px] items-center justify-center gap-2.5 rounded-full px-8 text-[15px] font-semibold tracking-wide transition", plein ? "bg-[var(--c)] text-white hover:brightness-110" : clair ? "border border-white/25 text-white hover:border-white/60" : "border border-black/15 text-[#16140f] hover:border-black/40")}>\${children}</a>\`;
     const pf = (SITE.points_forts ?? []).slice(0, 3), et = (SITE.etapes ?? []).slice(0, 4);
     const champ = "mt-2 min-h-[52px] w-full rounded-xl border border-white/15 bg-white/[.04] px-4 text-white outline-none placeholder:text-white/30 focus:border-[var(--c)]";
-    return html\`<div class="min-h-screen scroll-smooth text-[#16140f]" style=\${CLAIR}>
+    return html\`<div class=\${NUIT ? "ed-nuit min-h-screen scroll-smooth text-white" : "min-h-screen scroll-smooth text-[#16140f]"} style=\${CLAIR}>
+  \${NUIT && html\`<style>.ed-nuit [class*="text-black"]{color:rgba(255,255,255,.72)!important}.ed-nuit [class~="text-[#16140f]"]{color:#fff!important}.ed-nuit [class*="border-black"]{border-color:rgba(255,255,255,.12)!important}.ed-nuit [class~="bg-white"]{background:color-mix(in srgb,#fff 5%,transparent)!important}.ed-nuit input,.ed-nuit textarea,.ed-nuit select{color:#16140f}</style>\`}
   <div class=\${NUIT ? "text-white" : "text-[#16140f]"} style=\${SOMBRE}>
     <header class=\${cls(W, "flex h-24 items-center justify-between gap-6")}>
       <a href="#" class="flex items-center gap-3"><span class="grid h-11 w-11 place-items-center rounded-full border border-[var(--c)]/60 text-[var(--c)]">\${S.logo ? html\`<img src=\${S.logo} alt="" class="h-6 w-6 object-contain"/>\` : html\`<span class="fh text-lg">\${String(S.nom || "?").trim()[0].toUpperCase()}</span>\`}</span><span class="fh text-[22px] tracking-tight">\${S.nom}</span></a>
