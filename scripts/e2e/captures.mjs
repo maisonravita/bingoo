@@ -338,6 +338,7 @@ if (CONSTRUIRE === "spec") {
   }
   console.log((await pm.getByText(/Remarques épinglées · 2/i).count()) ? "✓ deux remarques épinglées" : "✗ remarques absentes");
   await pm.screenshot({ path: `${DOSSIER}/remarques-1.png` });
+  await pm.waitForFunction(() => !document.querySelector("button[disabled]")?.textContent?.includes("Faire traiter"), null, { timeout: 20000 }).catch(() => null);
   await pm.getByRole("button", { name: "Faire traiter par Bingoo!" }).click(); const t0 = Date.now(); await pm.waitForTimeout(3000);
   await pm.waitForFunction(() => { const t = document.body.innerText; return /Traite ces remarques/.test(t) && !/Bingoo! applique ta demande|Je modifie ton SaaS|Je la teste/.test(t); }, null, { timeout: 900000, polling: 3000 }).catch(() => null); await pm.waitForTimeout(4000);
   const [y] = await q(`select version from saas_apps where id = ${lit(a.id)}`);
@@ -358,6 +359,7 @@ if (CONSTRUIRE === "spec") {
   const { ctx: ci, page: pi } = await ouvrir(wsI, { "bingoo-idee": { texte: "Un site de recettes végétariennes où chacun publie ses plats", type: "saas", at: Date.now() } });
   await pi.goto(`${SITE}/?c=${Date.now()}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
   await pi.waitForFunction(() => /Construire \S+ \S|Le nom affiché|Son nom/.test(document.body.innerText) && !/étudie ton idée|prépare l'aperçu/i.test(document.body.innerText), null, { timeout: 150000 }).catch(() => null); await pi.waitForTimeout(8000);
+  console.log("galeries :", JSON.stringify(await pi.evaluate(() => { try { return (JSON.parse(localStorage.getItem("bingoo-idee"))?.apercu?.principal?.blocs ?? []).filter((b) => b.type === "galerie").map((b) => ({ el: b.elements, img: (b.images ?? []).map((x) => !!x) })); } catch (e) { return e.message; } })).slice(0, 300));
   console.log((await pi.getByText("via Wikimedia Commons").count()) ? "✓ photos réelles dans l'aperçu (crédits affichés)" : "✗ pas de photos dans l'aperçu");
   await pi.screenshot({ path: `${DOSSIER}/apercu-photos.png`, fullPage: true }); await ci.close();
 } else if (CONSTRUIRE === "atelier-diag") {

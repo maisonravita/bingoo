@@ -351,17 +351,21 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   const pousserOutil = (m = outil) => { try { cadreRef.current?.contentWindow?.postMessage({ type: "bingoo-atelier-mode", mode: m }, "*"); } catch (_) { /* aperçu pas prêt */ } pousserEpingles(); };
   useEffect(() => { if (fini && app?.id) fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "commentaires" }).then((l) => setCommentaires(Array.isArray(l) ? l : []), () => null); }, [fini, app?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { pousserEpingles(); }, [commentaires]); // eslint-disable-line react-hooks/exhaustive-deps
-  const epingler = async () => {
+  // Les remarques s'enregistrent une par une (jamais deux écritures en même temps, sinon l'une effacerait l'autre)
+  const chaineRemarques = useRef(Promise.resolve());
+  const [remarqueEnvoi, setRemarqueEnvoi] = useState(0);
+  const enSerie = (f) => { setRemarqueEnvoi((n) => n + 1); const p = chaineRemarques.current.then(f).finally(() => setRemarqueEnvoi((n) => n - 1)); chaineRemarques.current = p.catch(() => null); return p; };
+  const epingler = () => {
     const t = remarque.trim(); if (t.length < 2 || !element?.chemin) return;
-    try {
-      const l = await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "commentaires", action: "ajouter", commentaire: { texte: t, chemin: element.chemin, ecran: element.ecran, signe: element.signe, element: element.description } });
-      setCommentaires(l); setRemarque(""); deselectionner();
-    } catch (x) { alert(x.message); }
+    const c = { texte: t, chemin: element.chemin, ecran: element.ecran, signe: element.signe, element: element.description };
+    // Affichée tout de suite (pastille comprise), enregistrée derrière
+    setCommentaires((l) => [...l, { ...c, id: "tmp" + Date.now() }]); setRemarque(""); deselectionner();
+    enSerie(async () => { try { setCommentaires(await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "commentaires", action: "ajouter", commentaire: c })); } catch (x) { setEchanges((l) => [...l, { moi: "Épingler une remarque", etat: "ko", erreur: x.message }]); } });
   };
-  const retirerRemarques = async (ids) => { try { setCommentaires(await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "commentaires", action: "retirer", ids })); } catch (_) { /* rien */ } };
+  const retirerRemarques = (ids) => enSerie(async () => { try { setCommentaires(await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "commentaires", action: "retirer", ids })); } catch (_) { /* rien */ } });
   // Toutes les remarques en une seule demande : Bingoo! les traite une par une, puis elles sont décrochées
   const traiterRemarques = () => {
-    if (!commentaires.length) return;
+    if (!commentaires.length || remarqueEnvoi > 0) return;
     const t = `Traite ces remarques que j'ai épinglées sur la page, une par une :\n${commentaires.map((c, i) => `${i + 1}. Sur ${c.element || "l'élément épinglé"} : ${c.texte}`).join("\n")}`;
     const ecr = [...new Set(commentaires.map((c) => c.ecran))]; const seul = ecr.length === 1 && !ecr[0].startsWith("_") ? ecr[0] : "";
     envoyer(t, seul); retirerRemarques(commentaires.map((c) => c.id));
@@ -678,7 +682,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
             <div className={cx("rounded-2xl border bg-white p-2.5 transition", fini ? "border-line focus-within:border-ink-faint focus-within:shadow-[0_8px_30px_-18px_rgba(21,23,42,.4)]" : "border-line opacity-60")}>
               {commentaires.length > 0 && <div className="mb-2 space-y-1 border-b border-line px-1 pb-2">
                 <div className="flex items-center justify-between"><p className="text-[11.5px] font-semibold uppercase tracking-wider text-ink-faint">Remarques épinglées · {commentaires.length}</p>
-                  <button type="button" onClick={traiterRemarques} disabled={!fini} className="rounded-md bg-[#E8571C] px-2.5 py-1 text-[12px] font-semibold text-white disabled:opacity-40">Faire traiter par Bingoo!</button></div>
+                  <button type="button" onClick={traiterRemarques} disabled={!fini || remarqueEnvoi > 0} className="rounded-md bg-[#E8571C] px-2.5 py-1 text-[12px] font-semibold text-white disabled:opacity-40">Faire traiter par Bingoo!</button></div>
                 {commentaires.map((c, i) => <div key={c.id} className="flex items-center gap-2 text-[13px]"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full rounded-bl-sm bg-[#E8571C] text-[11px] font-bold text-white">{i + 1}</span><span className="min-w-0 flex-1 truncate" title={c.element}>{c.texte}</span><button type="button" aria-label="Retirer la remarque" onClick={() => retirerRemarques([c.id])} className="text-ink-faint hover:text-ink">×</button></div>)}
               </div>}
               {file.length > 0 && <div className="mb-2 space-y-1 border-b border-line px-1 pb-2">

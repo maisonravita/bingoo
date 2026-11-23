@@ -211,10 +211,11 @@ async function photosGaleries(apercu: any) {
   await Promise.all(blocs.map(async (b) => {
     const mots: string[] = (Array.isArray(b.photos_en) ? b.photos_en : []).map((x: unknown) => String(x).slice(0, 60));
     const vues = new Set<string>();
-    b.images = await Promise.all((b.elements ?? []).slice(0, 4).map(async (_: unknown, i: number) => {
-      if (!mots[i]) return null;
-      try { const l = await photosLibres(mots[i], 3, 900); const ph = l.find((x) => !vues.has(x.page)); if (!ph) return null; vues.add(ph.page); return { url: ph.url, auteur: ph.auteur, licence: ph.licence, page: ph.page }; } catch { return null; }
-    }));
+    // Mots anglais de l'IA d'abord, sinon le titre de l'élément tel quel (Commons connaît aussi le français)
+    const essais = (b.elements ?? []).slice(0, 4).map((x: unknown, i: number) => [mots[i], String(x).split(/\s[·—-]\s|\s:\s/)[0]].filter(Boolean) as string[]);
+    const trouvees = await Promise.all(essais.map(async (qs: string[]) => { for (const q of qs) { try { const l = await photosLibres(q, 3, 800); if (l.length) return l; } catch { /* suivant */ } } return []; }));
+    b.images = trouvees.map((l: any[]) => { const ph = l.find((x) => !vues.has(x.page)); if (!ph) return null; vues.add(ph.page); return { url: ph.url, auteur: ph.auteur, licence: ph.licence, page: ph.page }; });
+    console.log("aperçu photos", JSON.stringify({ essais, trouvees: trouvees.map((l: any[]) => l.length) }).slice(0, 400));
     delete b.photos_en;
   }));
 }
