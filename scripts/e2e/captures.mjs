@@ -165,8 +165,11 @@ if (["1", "site", "app", "saas", "varie"].includes(process.env.IDEE)) {
   // Grand test : dix idées très différentes (grand public, sport, gestion, création, local…), aucune ne doit ressembler à un CRM
   const IDEES_VARIE = [["v-sport", "Une app de course à pied avec défis entre amis et classement de la semaine", "saas"], ["v-recettes", "Un site de recettes végétariennes où chacun publie ses plats", "saas"], ["v-cours", "Une plateforme de cours de guitare en ligne avec suivi des progrès", "saas"], ["v-asso", "Un outil pour gérer les adhérents et les cotisations de mon club de foot", "saas"], ["v-photo", "Le site de mon studio de photographe de mariage à Bordeaux", "site"], ["v-resto", "Le site de mon restaurant japonais à Nantes avec la carte", "site"], ["v-plombier", "Le site de mon entreprise de plomberie à Lille, dépannage 7j/7", "site"], ["v-budget", "Une app pour suivre mon budget du mois et mes dépenses", "app"], ["v-langues", "Une app pour réviser le vocabulaire anglais avec des cartes", "app"], ["v-ia", "Un outil qui écrit les annonces immobilières à partir de quelques infos", "saas"]];
   const LISTE = process.env.IDEE === "varie" ? IDEES_VARIE : process.env.IDEE === "site" ? IDEES_SITE : process.env.IDEE === "saas" ? [...IDEES_SAAS, ["idee-crm", "Un CRM simple pour les agents immobiliers"]] : process.env.IDEE === "app" ? IDEES_APP : [...IDEES_SAAS, ...IDEES_SITE, ...IDEES_APP];
+  // Grand test : un espace neuf (Lancer Pro) pour ne pas dépendre de la limite du jour de l'espace habituel du robot
+  let wsI = ws;
+  if (process.env.IDEE === "varie") { wsI = await creerEspace("Robot idées " + new Date().toISOString().slice(0, 16)); await q(`update workspaces set plan = 'lancer_pro', plan_status = 'active', onboarded = true where id = ${lit(wsI)}`); }
   for (const [nom, texte, type] of LISTE) {
-    const { ctx, page } = await ouvrir(ws, { "bingoo-idee": { texte, type, at: Date.now() } });
+    const { ctx, page } = await ouvrir(wsI, { "bingoo-idee": { texte, type, at: Date.now() } });
     await page.goto(`${SITE}/?c=${Date.now()}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
     const pret = () => page.waitForFunction(() => !/étudie ton idée|prépare l'aperçu/i.test(document.body.innerText) && /Construire \S+ \S|Le nom affiché|précisions|ne peut pas construire|réessaie|Réessayer/i.test(document.querySelector("main")?.innerText ?? document.body.innerText), null, { timeout: 120000 }).catch(() => null);
     await pret(); await page.waitForTimeout(type === "app" ? 1500 : 7000);
