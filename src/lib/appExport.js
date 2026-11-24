@@ -60,15 +60,19 @@ ils n'utilisent que \`useCollection\` et \`db\`.
 `;
 }
 
-export function telechargerCode({ spec, slug, api, lien, paiement }) {
-  const html = appHtml({ spec, slug, api, paiement });
-  const files = {
-    "index.html": strToU8(html),
-    "README.md": strToU8(readme(spec, slug, api, lien)),
-    "donnees/spec.json": strToU8(JSON.stringify({ ...spec, ecrans: (spec.ecrans ?? []).map(({ code, ...e }) => ({ ...e, fichier: code ? `ecrans/${e.id}.js` : null })) }, null, 2)),
-    "donnees/schema.sql": strToU8(schemaSql(spec)),
+/** Les fichiers du projet, en texte : les mêmes pour le téléchargement et pour l'envoi sur GitHub. */
+export function fichiersCode({ spec, slug, api, lien, paiement }) {
+  const f = {
+    "index.html": appHtml({ spec, slug, api, paiement }),
+    "README.md": readme(spec, slug, api, lien),
+    "donnees/spec.json": JSON.stringify({ ...spec, ecrans: (spec.ecrans ?? []).map(({ code, ...e }) => ({ ...e, fichier: code ? `ecrans/${e.id}.js` : null })) }, null, 2),
+    "donnees/schema.sql": schemaSql(spec),
   };
-  for (const e of spec.ecrans ?? []) if (e.code) files[`ecrans/${e.id}.js`] = strToU8(`// Écran « ${e.titre} » : ${e.but ?? ""}\n${e.code}\n`);
+  for (const e of spec.ecrans ?? []) if (e.code) f[`ecrans/${e.id}.js`] = `// Écran « ${e.titre} » : ${e.but ?? ""}\n${e.code}\n`;
+  return f;
+}
+export function telechargerCode({ spec, slug, api, lien, paiement }) {
+  const files = Object.fromEntries(Object.entries(fichiersCode({ spec, slug, api, lien, paiement })).map(([k, v]) => [k, strToU8(v)]));
   const nom = (slug.replace(/-[a-z0-9]{4}$/, "") || "mon-saas");
   const blob = new Blob([zipSync({ [nom]: files })], { type: "application/zip" });
   const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `${nom}.zip` });

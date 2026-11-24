@@ -1705,7 +1705,7 @@ function Construire({ projet }) {
   const [demande, setDemande] = useState("");
   const [envoi, setEnvoi] = useState(false);
   const [voirLigne, setVoirLigne] = useState(false);
-  const charger = () => supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, version, maj, verif, paiement, domaine, domaine_statut, public, jumeau_at, lancement, ab, email_dom, icones, validation").eq("projet_id", projet.id).maybeSingle().then(({ data }) => { setApp(data ?? null); return data; });
+  const charger = () => supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, version, maj, verif, paiement, domaine, domaine_statut, public, jumeau_at, lancement, ab, email_dom, icones, validation, connexions, github").eq("projet_id", projet.id).maybeSingle().then(({ data }) => { setApp(data ?? null); return data; });
   useEffect(() => { charger(); }, [projet.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Construction ou modification en tâche de fond : on interroge la base toutes les 5 secondes
   useEffect(() => {
@@ -2447,6 +2447,42 @@ function OngletConnecteurs({ app, appel, agir, busy }) {
         <button disabled={!!busy} onClick={() => agir("connecteurs", () => appel("connecteurs", { connecteurs: v }), "Connecteurs enregistrés : ils sont actifs sur ta page en ligne")} className="rounded-xl bg-[#E8571C] px-4 py-2 text-[13.5px] font-semibold !text-white hover:brightness-110 disabled:opacity-50">Enregistrer</button>
         <span className="text-[12.5px] text-white/45">{actifs ? `${actifs} branché${actifs > 1 ? "s" : ""}` : "Aucun branché pour l'instant"}</span>
       </div>
+      <ConnexionsSortantes app={app} appel={appel} />
+    </div>
+  );
+}
+// Connexions sortantes : à chaque demande ou fiche, Bingoo! prévient l'adresse donnée par Zapier, Make ou n8n
+const EVENEMENTS_CX = [["demande", "Une demande arrive depuis le site"], ["fiche_creee", "Une fiche est créée dans le logiciel"], ["fiche_modifiee", "Une fiche est modifiée dans le logiciel"]];
+function ConnexionsSortantes({ app, appel }) {
+  const toast = useToast();
+  const site = app.spec?.type === "site";
+  const [liste, setListe] = useState(() => (app.connexions?.liste ?? []).map((w) => ({ id: w.id, url: w.url, evenements: w.evenements, secret: w.secret })));
+  const [url, setUrl] = useState(""), [ev, setEv] = useState(site ? ["demande"] : ["fiche_creee"]), [busy, setBusy] = useState("");
+  const journal = app.connexions?.journal ?? [];
+  const faire = async (k, f) => { setBusy(k); try { return await f(); } catch (x) { toast(x.message, "bad"); } finally { setBusy(""); } };
+  if (app.spec?.type === "outil") return null;
+  return (
+    <div className="mt-8 border-t border-white/10 pt-6">
+      <p className="text-[15px] font-bold">Relier tes autres outils</p>
+      <p className="mt-1 text-[13.5px] text-white/65">À chaque {site ? "demande reçue sur ton site" : "fiche créée ou modifiée"}, Bingoo! prévient l'outil de ton choix. Avec Zapier, Make ou n8n, tu ajoutes alors un rendez-vous dans Google Agenda, tu envoies un message WhatsApp ou tu crées une ligne dans ta comptabilité, sans donner aucune clé à Bingoo!.</p>
+      <p className="mt-2 text-[12.5px] text-white/45">Dans Zapier : crée un Zap qui commence par « Webhooks by Zapier · Catch Hook », et colle ici l'adresse qu'il te donne. Dans Make : module « Webhooks · Custom webhook ».</p>
+      {liste.length > 0 && <ul className="mt-4 space-y-2">{liste.map((w) => (
+        <li key={w.id} className="rounded-xl border border-white/10 bg-white/[.04] p-3.5">
+          <p className="break-all text-[13.5px] font-semibold">{w.url}</p>
+          <p className="mt-0.5 text-[12.5px] text-white/55">{w.evenements.map((e) => EVENEMENTS_CX.find(([k]) => k === e)?.[1] ?? e).join(" · ")}</p>
+          <p className="mt-1 break-all text-[11.5px] text-white/40">Signature : chaque envoi porte l'en-tête X-Bingoo-Signature, calculé avec ce secret : {w.secret}</p>
+          <div className="mt-2 flex gap-2 text-[13px] font-semibold">
+            <button disabled={!!busy} onClick={() => faire("t" + w.id, async () => { const r = await appel("connexion-tester", { id: w.id }); toast(r.recu ? "Envoi d'essai bien reçu par ton outil" : r.code ? `Ton outil a répondu ${r.code} : vérifie l'adresse` : "Adresse injoignable : vérifie-la", r.recu ? undefined : "bad"); })} className="rounded-lg bg-white/10 px-3 py-1.5 !text-white hover:bg-white/15 disabled:opacity-50">{busy === "t" + w.id ? "Envoi…" : "Envoyer un essai"}</button>
+            <button disabled={!!busy} onClick={() => faire("s" + w.id, async () => { const r = await appel("connexion-supprimer", { id: w.id }); setListe(r.liste); })} className="rounded-lg px-3 py-1.5 text-white/60 hover:text-white">Retirer</button>
+          </div>
+        </li>))}</ul>}
+      <div className="mt-4 rounded-xl border border-white/10 bg-white/[.04] p-3.5">
+        <label className="text-[13px] font-semibold" htmlFor="cx-url">Adresse à prévenir</label>
+        <input id="cx-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://hooks.zapier.com/hooks/catch/…" className={cx(champSombre, "mt-1.5")} />
+        <div className="mt-2.5 space-y-1.5">{EVENEMENTS_CX.filter(([k]) => site ? k === "demande" : k !== "demande").map(([k, l]) => <label key={k} className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" checked={ev.includes(k)} onChange={(e) => setEv((x) => e.target.checked ? [...x, k] : x.filter((y) => y !== k))} />{l}</label>)}</div>
+        <button disabled={!!busy || !url.trim() || !ev.length} onClick={() => faire("a", async () => { const r = await appel("connexion-ajouter", { url: url.trim(), evenements: ev }); setListe(r.liste); setUrl(""); toast("Connexion ajoutée : envoie un essai pour vérifier"); })} className="mt-3 rounded-xl bg-[#E8571C] px-4 py-2 text-[13.5px] font-semibold !text-white hover:brightness-110 disabled:opacity-50">{busy === "a" ? "Un instant…" : "Ajouter la connexion"}</button>
+      </div>
+      {journal.length > 0 && <div className="mt-4"><p className="text-[12.5px] font-semibold text-white/60">Derniers envois</p><ul className="mt-1.5 space-y-1 text-[12.5px] text-white/55">{journal.slice(0, 6).map((j, i) => <li key={i}>{new Date(j.at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} · {j.evenement === "essai" ? "essai" : EVENEMENTS_CX.find(([k]) => k === j.evenement)?.[1] ?? j.evenement} · {j.code >= 200 && j.code < 300 ? "reçu" : j.code ? `réponse ${j.code}` : "injoignable"}</li>)}</ul></div>}
     </div>
   );
 }
@@ -2617,13 +2653,43 @@ function OngletMobile({ app }) {
 }
 
 // Le code
-function OngletCode({ app }) {
+function OngletCode({ app, appel, onChange }) {
+  const toast = useToast();
   const pay = app.paiement ?? {};
   const dom = app.domaine_statut === "ok" ? app.domaine : null;
+  const args = { spec: app.spec, slug: app.slug, api: API, lien: lienApp(app.slug, dom), paiement: { actif: !!pay.actif, essai_jours: pay.essai_jours ?? 14 } };
+  const [gh, setGh] = useState(app.github ?? null), [depot, setDepot] = useState(""), [jeton, setJeton] = useState(""), [busy, setBusy] = useState("");
+  const faire = async (k, f) => { setBusy(k); try { await f(); } catch (x) { toast(x.message, "bad"); } finally { setBusy(""); } };
+  const envoyer = () => faire("e", async () => { const { fichiersCode } = await import("../lib/appExport"); const r = await appel("github-envoyer", { fichiers: fichiersCode(args) }); setGh(r.github); toast(r.inchange ? "Rien de nouveau : ton dépôt est déjà à jour" : "Code envoyé sur GitHub"); onChange?.(); });
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4">
-      <Explication>Tout ton SaaS dans un dossier : l'application prête à héberger, le code de chaque écran, tes données et leur schéma PostgreSQL, et un mode d'emploi. Il est à toi.</Explication>
-      <button onClick={async () => { const { telechargerCode } = await import("../lib/appExport"); telechargerCode({ spec: app.spec, slug: app.slug, api: API, lien: lienApp(app.slug, dom), paiement: { actif: !!pay.actif, essai_jours: pay.essai_jours ?? 14 } }); }} className="rounded-xl bg-white text-ink px-5 py-2.5 text-[14px] font-bold hover:bg-white/90">Télécharger le code (.zip)</button>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <Explication>Tout ton projet dans un dossier : l'application prête à héberger, le code de chaque écran, tes données et leur schéma PostgreSQL, et un mode d'emploi. Il est à toi.</Explication>
+        <button onClick={async () => { const { telechargerCode } = await import("../lib/appExport"); telechargerCode(args); }} className="rounded-xl bg-white px-4 py-2 text-[13.5px] font-semibold !text-[#1A1A1A] hover:bg-white/90">Télécharger le code</button>
+      </div>
+      <div className="border-t border-white/10 pt-5">
+        <p className="text-[15px] font-bold">Ton code sur GitHub</p>
+        <p className="mt-1 text-[13.5px] text-white/65">Bingoo! envoie le code de ton projet sur ton dépôt GitHub, un commit à chaque envoi : tu gardes l'historique et tu peux y faire travailler un développeur. L'envoi va de Bingoo! vers GitHub ; ce qui est modifié sur GitHub ne revient pas dans Bingoo!.</p>
+        {gh?.depot ? (
+          <div className="mt-3 rounded-xl border border-white/10 bg-white/[.04] p-3.5">
+            <p className="text-[14px] font-semibold">github.com/{gh.depot} <span className="font-normal text-white/50">· branche {gh.branche}</span></p>
+            {gh.dernier ? <p className="mt-0.5 text-[12.5px] text-white/55">Dernier envoi le {new Date(gh.dernier.at).toLocaleString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })} · <a href={gh.dernier.url} target="_blank" rel="noreferrer" className="underline">voir le commit</a></p> : <p className="mt-0.5 text-[12.5px] text-white/55">Rien d'envoyé pour l'instant.</p>}
+            <div className="mt-2.5 flex gap-2 text-[13px] font-semibold">
+              <button disabled={!!busy} onClick={envoyer} className="rounded-lg bg-[#E8571C] px-3.5 py-1.5 !text-white hover:brightness-110 disabled:opacity-50">{busy === "e" ? "Envoi…" : "Envoyer la version actuelle"}</button>
+              <button disabled={!!busy} onClick={() => faire("d", async () => { await appel("github-debrancher"); setGh(null); })} className="rounded-lg px-3 py-1.5 text-white/60 hover:text-white">Débrancher</button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-3 max-w-xl rounded-xl border border-white/10 bg-white/[.04] p-3.5">
+            <label className="text-[13px] font-semibold" htmlFor="gh-depot">Ton dépôt</label>
+            <input id="gh-depot" value={depot} onChange={(e) => setDepot(e.target.value)} placeholder="ton-compte/mon-projet" className={cx(champSombre, "mt-1.5")} />
+            <label className="mt-3 block text-[13px] font-semibold" htmlFor="gh-jeton">Jeton d'accès à ce dépôt</label>
+            <input id="gh-jeton" type="password" autoComplete="off" value={jeton} onChange={(e) => setJeton(e.target.value)} placeholder="github_pat_…" className={cx(champSombre, "mt-1.5")} />
+            <p className="mt-1.5 text-[12px] text-white/45">Jamais ton mot de passe. Sur GitHub : Settings › Developer settings › Fine-grained tokens › Generate new token, limité à ce seul dépôt, avec le droit « Contents : Read and write ». Bingoo! le range côté serveur et ne l'affiche plus.</p>
+            <button disabled={!!busy || !depot.trim() || !jeton.trim()} onClick={() => faire("b", async () => { const r = await appel("github-brancher", { depot: depot.trim(), jeton: jeton.trim() }); setGh(r.github); setJeton(""); toast("Dépôt branché : tu peux envoyer ton code"); })} className="mt-3 rounded-xl bg-[#E8571C] px-4 py-2 text-[13.5px] font-semibold !text-white hover:brightness-110 disabled:opacity-50">{busy === "b" ? "Vérification…" : "Brancher mon dépôt"}</button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

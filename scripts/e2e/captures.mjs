@@ -501,6 +501,44 @@ if (CONSTRUIRE === "gratuit-ia") {
   const v = await appel("video-creer", { workspace_id: wsG, texte: "Une pub pour ma boulangerie", format: "vertical" }); console.log(!v.ok ? `✓ vidéo IA refusée (${v.status})` : "✗ vidéo créée en gratuit");
   const [d] = await q(`select coalesce(sum(cost_eur), 0)::float c from ai_usage where workspace_id = ${lit(wsG)}`); console.log(d.c <= 0.02 ? `✓ coût IA de ce compte gratuit : ${(d.c * 100).toFixed(2)} centime(s)` : `✗ coût : ${(d.c * 100).toFixed(2)} centimes`);
 }
+if (CONSTRUIRE === "connexions") {
+  // Connexions sortantes, panier et GitHub : ce qui se vérifie sans compte extérieur (aucune clé n'est saisie par le robot)
+  const [a] = await q(`select a.id, a.slug, a.workspace_id from saas_apps a join workspaces w on w.id = a.workspace_id where w.name like 'Robot film%' and a.statut = 'pret' and a.spec->'site'->'page'->'sections' is not null order by a.maj desc limit 1`);
+  const reg = async (corps) => { const r = await fetch(`${SB}/functions/v1/r/saas-app-reglages`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: a.workspace_id, app_id: a.id, ...corps }) }); return { status: r.status, j: await r.json().catch(() => ({})) }; };
+  // Adresses refusées : pas de https, réseau interne, adresse IP
+  for (const u of ["http://exemple.org/x", "https://localhost/x", "https://10.0.0.1/x", "https://www.bingoo.fr/x"]) { const r = await reg({ quoi: "connexion-ajouter", url: u, evenements: ["demande"] }); console.log(`adresse ${u} :`, r.status === 400 ? "✓ refusée" : `✗ acceptée (${r.status})`); }
+  const aj = await reg({ quoi: "connexion-ajouter", url: "https://httpbin.org/post", evenements: ["demande"] });
+  const id = aj.j.liste?.at(-1)?.id;
+  console.log("connexion ajoutée :", aj.status === 200 && id ? "✓" : `✗ ${aj.status} ${JSON.stringify(aj.j).slice(0, 160)}`);
+  const es = await reg({ quoi: "connexion-tester", id });
+  console.log("envoi d'essai :", es.j.recu ? `✓ reçu (réponse ${es.j.code})` : `✗ ${es.status} ${JSON.stringify(es.j).slice(0, 160)}`);
+  // Une vraie demande déposée sur le site, comme un visiteur : la connexion doit être prévenue
+  const dm = await fetch(`${SB}/functions/v1/t/${a.slug}/site-contact`, { method: "POST", headers: { apikey: ANON, "content-type": "application/json" }, body: JSON.stringify({ data: { nom: "Robot connexions", email: "robot-connexions@bingoo.fr", message: "Demande d'essai du robot." } }) });
+  console.log("demande déposée sur le site :", dm.status);
+  await new Promise((ok) => setTimeout(ok, 9000));
+  const [jl] = await q(`select connexions->'journal' j from saas_apps where id = ${lit(a.id)}`);
+  console.log("journal (événement et code seulement) :", JSON.stringify((jl.j ?? []).map((x) => `${x.evenement}:${x.code}`)));
+  console.log("demande réelle transmise :", (jl.j ?? []).some((x) => x.evenement === "demande" && x.code >= 200 && x.code < 300) ? "✓" : "✗");
+  // GitHub : un faux jeton est refusé proprement (aucun vrai jeton n'est saisi ici)
+  const g1 = await reg({ quoi: "github-brancher", depot: "exemple/projet", jeton: "mon-mot-de-passe" });
+  console.log("GitHub, mot de passe à la place du jeton :", g1.status === 400 ? `✓ refusé (« ${String(g1.j.error ?? "").slice(0, 80)} »)` : `✗ ${g1.status}`);
+  const g2 = await reg({ quoi: "github-brancher", depot: "exemple/projet", jeton: "github_pat_" + "A".repeat(40) });
+  console.log("GitHub, jeton inconnu :", g2.status === 400 ? `✓ refusé (« ${String(g2.j.error ?? "").slice(0, 80)} »)` : `✗ ${g2.status}`);
+  // Captures des deux écrans
+  const { ctx: c, page: p } = await ouvrir(a.workspace_id, { "bingoo-guide": "fini" });
+  await p.goto(`${SITE}/?c=${Date.now()}#/explorer/reglages-saas?onglet=connecteurs`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(7000);
+  await p.getByText("Relier tes autres outils").scrollIntoViewIfNeeded().catch(() => console.log("✗ bloc « Relier tes autres outils » absent"));
+  await p.screenshot({ path: `${DOSSIER}/connexions.png`, fullPage: true });
+  await p.goto(`${SITE}/?c=${Date.now()}#/explorer/reglages-saas?onglet=code`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(6000);
+  console.log("bloc GitHub :", (await p.getByText("Ton code sur GitHub").count().catch(() => 0)) ? "✓ affiché" : "✗ absent");
+  await p.screenshot({ path: `${DOSSIER}/github.png`, fullPage: true });
+  await c.close();
+  // Remise en état : connexion retirée, demande d'essai effacée
+  await reg({ quoi: "connexion-supprimer", id });
+  await q(`delete from saas_app_rows where app_id = ${lit(a.id)} and col = 'demandes' and data->>'nom' = 'Robot connexions'`);
+  await q(`update saas_apps set connexions = null where id = ${lit(a.id)}`);
+  console.log("site de test remis en état");
+}
 if (CONSTRUIRE === "brouillon") {
   // Mode brouillon : on l'active, on modifie, les visiteurs gardent l'ancienne version, puis « Publier mes changements »
   const [a] = await q(`select a.id, a.slug, a.workspace_id, a.spec->'design'->'couleurs'->>'primary' prim, a.spec->'design'->'couleurs'->>'on_primary' onp, a.spec->>'couleur' couleur from saas_apps a join workspaces w on w.id = a.workspace_id where w.name like 'Robot film%' and a.statut = 'pret' and a.spec->'site'->'page'->'sections' is not null order by a.maj desc limit 1`);
@@ -942,7 +980,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);

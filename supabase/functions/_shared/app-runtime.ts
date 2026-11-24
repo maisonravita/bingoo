@@ -309,7 +309,7 @@ export async function appFichier(admin: SupabaseClient, slug: string, quoi: stri
 export async function appApi(admin: SupabaseClient, req: Request, slug: string, action: string): Promise<{ status: number; body: unknown }> {
   try {
     if (!/^[a-z0-9-]{3,60}$/.test(slug)) throw new Err(404, "Application introuvable");
-    const { data: app } = await admin.from("saas_apps").select("id, slug, workspace_id, spec, statut, paiement, domaine, domaine_statut, ab, email_dom, emails, validation").eq("slug", slug).maybeSingle();
+    const { data: app } = await admin.from("saas_apps").select("id, slug, workspace_id, spec, statut, paiement, domaine, domaine_statut, ab, email_dom, emails, validation, connexions").eq("slug", slug).maybeSingle();
     // Page de précommande (avant la construction) : seulement la liste d'attente et la précommande
     const enValidation = !!(app as any)?.validation?.actif && !(app?.spec as any)?.ecrans?.length;
     if (!app || (!(app.spec as any)?.ecrans?.length && !enValidation) || ["remplace", "retire"].includes(String(app.statut))) throw new Err(404, "Application introuvable");
@@ -406,18 +406,32 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       const retour = retourOk(String(b.retour ?? ""));
       if (!retour) throw new Err(400, "Adresse de retour invalide");
       const proprio = await proprioSite(admin, app.id);
-      const id = String(b.service ?? "");
-      let svc: any = null;
-      if (proprio && /^[0-9a-f-]{36}$/.test(id)) svc = (await admin.from("saas_app_rows").select("data").eq("app_id", app.id).eq("espace_id", proprio.id).eq("col", "services").eq("id", id).maybeSingle()).data?.data;
-      else if (/^d\d+$/.test(id)) svc = ((sp.demo?.services ?? []) as any[])[Number(id.slice(1))];
-      const prix = Number(svc?.prix);
-      if (!svc || svc.visible === false || !(prix > 0) || prix > 10000) throw new Err(400, "Ce service ne se paie pas en ligne");
+      // Un service seul, ou un panier (20 lignes au plus). Les prix sont toujours relus ici, jamais pris de la page.
+      const demande: { service: string; quantite: number }[] = Array.isArray(b.panier) && b.panier.length
+        ? b.panier.slice(0, 20).map((x: any) => ({ service: String(x?.service ?? ""), quantite: Math.max(1, Math.min(20, Math.round(Number(x?.quantite) || 1))) }))
+        : [{ service: String(b.service ?? ""), quantite: 1 }];
+      const lignes: { titre: string; prix: number; quantite: number }[] = [];
+      for (const l of demande) {
+        let svc: any = null;
+        if (proprio && /^[0-9a-f-]{36}$/.test(l.service)) svc = (await admin.from("saas_app_rows").select("data").eq("app_id", app.id).eq("espace_id", proprio.id).eq("col", "services").eq("id", l.service).maybeSingle()).data?.data;
+        else if (/^d\d+$/.test(l.service)) svc = ((sp.demo?.services ?? []) as any[])[Number(l.service.slice(1))];
+        const prix = Number(svc?.prix);
+        if (!svc || svc.visible === false || !(prix > 0) || prix > 10000 || svc.mois) throw new Err(400, demande.length > 1 ? "Un article du panier ne se paie plus en ligne : retirez-le et réessayez" : "Ce service ne se paie pas en ligne");
+        lignes.push({ titre: String(svc.titre ?? "Service").slice(0, 80), prix, quantite: l.quantite });
+      }
+      const total = lignes.reduce((x, l) => x + l.prix * l.quantite, 0);
+      if (!lignes.length || total > 20000) throw new Err(400, "Ce panier ne se paie pas en ligne : contactez-nous directement");
       const sep = retour.includes("?") ? "&" : "?";
+      const articles: Record<string, string> = {};
+      lignes.forEach((l, i) => {
+        articles[`line_items[${i}][quantity]`] = String(l.quantite);
+        articles[`line_items[${i}][price_data][currency]`] = "eur";
+        articles[`line_items[${i}][price_data][unit_amount]`] = String(Math.round(l.prix * 100));
+        articles[`line_items[${i}][price_data][product_data][name]`] = `${l.titre} · ${String(sp.nom ?? "").slice(0, 40)}`;
+      });
       const sess = await stripe(key, "checkout/sessions", {
-        mode: "payment", locale: "fr", "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "eur",
-        "line_items[0][price_data][unit_amount]": String(Math.round(prix * 100)),
-        "line_items[0][price_data][product_data][name]": `${String(svc.titre ?? "Service").slice(0, 80)} · ${String(sp.nom ?? "").slice(0, 40)}`,
-        "payment_intent_data[metadata][app]": slug, "payment_intent_data[metadata][service]": String(svc.titre ?? "").slice(0, 80),
+        mode: "payment", locale: "fr", ...articles,
+        "payment_intent_data[metadata][app]": slug, "payment_intent_data[metadata][service]": lignes.map((l) => `${l.quantite} × ${l.titre}`).join(", ").slice(0, 480),
         "invoice_creation[enabled]": "true", "phone_number_collection[enabled]": "true",
         success_url: `${retour}${sep}paiement=ok`, cancel_url: retour,
       });
@@ -476,6 +490,7 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       if ((await compterSite(admin, app.id, "demandes", { _ip: ip }, depuis)) >= 5) throw new Err(429, "Trop d'envois depuis cette connexion, réessayez dans une heure");
       if ((await compterSite(admin, app.id, "demandes", {}, depuis)) >= 60) throw new Err(429, "Trop d'envois en ce moment, réessayez dans une heure");
       // Pas encore de gérant : la demande attend, elle sera rattachée à son espace à la création de son accès
+      { const { prevenir } = await import("./connexions.ts"); prevenir(admin, app as any, "demande", Object.fromEntries(Object.entries(demande).filter(([, v]) => v !== ""))); }
       const r = await rangerSite(admin, app.id, proprio, "demandes", { ...Object.fromEntries(Object.entries(demande).filter(([, v]) => v !== "")), statut: "nouvelle", _public: true, _ip: ip });
       const lignes = [`De : ${demande.nom}`, demande.email && `E-mail : ${demande.email}`, demande.telephone && `Téléphone : ${demande.telephone}`, demande.service && `Pour : ${demande.service}`, demande.date_souhaitee && `Date souhaitée : ${demande.date_souhaitee.split("-").reverse().join("/")}`, demande.message && `\n${demande.message}`].filter(Boolean).join("\n");
       try {
@@ -862,6 +877,7 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       if ((count ?? 0) >= LIM.rows) throw new Err(403, "Limite de données atteinte pour cet espace");
       await verifierQuota(admin, app, titulaire, espace, col);
       const { data } = await admin.from("saas_app_rows").insert({ app_id: app.id, user_id: user.id, espace_id: espace, col, data: sansCalcul(propre(b.data)) }).select("id, data, at, maj, espace_id, user_id").single();
+      if ((app as any).connexions?.liste?.length) { const { prevenir } = await import("./connexions.ts"); prevenir(admin, app as any, "fiche_creee", { id: data?.id, ...((data?.data as object) ?? {}) }, col); }
       return { status: 200, body: partagee(col) ? (await auteurs([data]))[0] : ligne(data) };
     }
     if (action === "update") {
@@ -869,6 +885,7 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       const { data: cur } = await rows().eq("col", col).eq("id", String(b.id)).maybeSingle();
       if (!cur) throw new Err(404, "Élément introuvable");
       const { data } = await admin.from("saas_app_rows").update({ data: sansCalcul(propre({ ...(cur.data as object), ...propre(b.data) })), maj: new Date().toISOString() }).eq("id", cur.id).select("id, data, at, maj").single();
+      if ((app as any).connexions?.liste?.length) { const { prevenir } = await import("./connexions.ts"); prevenir(admin, app as any, "fiche_modifiee", { id: data?.id, ...((data?.data as object) ?? {}) }, col); }
       return { status: 200, body: ligne(data) };
     }
     if (action === "remove") {

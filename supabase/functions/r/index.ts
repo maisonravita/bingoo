@@ -1059,6 +1059,80 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       await log(ws.id, "app_reglage", `Connecteurs : ${Object.keys(out).join(", ") || "aucun"}`);
       return { connecteurs: out };
     }
+    // Code sur le dépôt GitHub du membre (sens unique, un commit par envoi). Voir _shared/github.ts
+    if (["github-brancher", "github-debrancher", "github-envoyer"].includes(b.quoi)) {
+      if (ws.plan === "essai") throw new HttpError(402, "L'envoi du code sur GitHub fait partie des offres Site et Lancer");
+      const g = await import("../_shared/github.ts");
+      const dire = (e: unknown) => new HttpError(400, String((e as Error)?.message ?? e).slice(0, 240));
+      if (b.quoi === "github-debrancher") {
+        await admin.from("saas_app_secrets").update({ github_token: null }).eq("app_id", app.id);
+        await admin.from("saas_apps").update({ github: null }).eq("id", app.id);
+        return { github: null };
+      }
+      if (b.quoi === "github-brancher") {
+        const depot = g.depotOk(b.depot), jeton = g.jetonOk(b.jeton);
+        if (!depot) throw new HttpError(400, "Écris le dépôt sous la forme compte/depot (ex. jean/mon-saas)");
+        if (!jeton) throw new HttpError(400, "Ce n'est pas un jeton GitHub : il commence par github_pat_ (jamais ton mot de passe)");
+        let info; try { info = await g.verifierDepot(jeton, depot); } catch (e) { throw dire(e); }
+        await admin.from("saas_app_secrets").upsert({ app_id: app.id, github_token: jeton, maj: new Date().toISOString() }, { onConflict: "app_id" });
+        const github = { depot, branche: info.branche, prive: info.prive, branche_at: new Date().toISOString() };
+        await admin.from("saas_apps").update({ github }).eq("id", app.id);
+        await log(ws.id, "app_reglage", `GitHub branché : ${depot}`);
+        return { github };
+      }
+      await quota(ws.id, "github_envoi", 20);
+      const { data: a } = await admin.from("saas_apps").select("github, version, spec").eq("id", app.id).single();
+      const jeton = (await admin.from("saas_app_secrets").select("github_token").eq("app_id", app.id).maybeSingle()).data?.github_token;
+      const depot = (a?.github as any)?.depot;
+      if (!jeton || !depot) throw new HttpError(400, "Branche d'abord ton dépôt GitHub");
+      // Les fichiers viennent de l'atelier (les mêmes que le téléchargement) : chemins sûrs, texte seulement, taille bornée
+      const fichiers: Record<string, string> = {};
+      let poids = 0;
+      for (const [chemin, contenu] of Object.entries(b.fichiers && typeof b.fichiers === "object" ? b.fichiers : {})) {
+        if (!/^[a-z0-9_][a-z0-9_./-]{0,120}$/i.test(chemin) || chemin.includes("..") || /^\.git(hub)?\//.test(chemin) || typeof contenu !== "string") continue;
+        poids += contenu.length; fichiers[chemin] = contenu;
+        if (Object.keys(fichiers).length >= 80) break;
+      }
+      if (!Object.keys(fichiers).length || poids > 6_000_000) throw new HttpError(400, "Rien à envoyer, ou projet trop lourd pour un envoi");
+      let r; try { r = await g.envoyerCode(jeton, depot, fichiers, `${String((a?.spec as any)?.nom ?? "Projet").slice(0, 60)} · version ${a?.version ?? 1} (Bingoo!)`); } catch (e) { throw dire(e); }
+      const github = { ...((a?.github as any) ?? {}), dernier: { at: new Date().toISOString(), commit: r.commit.slice(0, 12), url: r.url, fichiers: r.fichiers } };
+      await admin.from("saas_apps").update({ github }).eq("id", app.id);
+      await log(ws.id, "app_reglage", `Code envoyé sur GitHub (${r.fichiers} fichiers)`);
+      return { github, inchange: r.fichiers === 0 };
+    }
+    // Connexions sortantes (Zapier, Make, n8n…) : adresses prévenues à chaque demande ou fiche. Voir _shared/connexions.ts
+    if (["connexion-ajouter", "connexion-supprimer", "connexion-tester"].includes(b.quoi)) {
+      if (ws.plan === "essai") throw new HttpError(402, "Les connexions font partie des offres Site et Lancer");
+      const cx = await import("../_shared/connexions.ts");
+      const { data: a } = await admin.from("saas_apps").select("slug, spec, connexions").eq("id", app.id).single();
+      const liste: any[] = Array.isArray((a?.connexions as any)?.liste) ? (a!.connexions as any).liste : [];
+      const vue = (l: any[]) => l.map((w) => ({ id: w.id, url: w.url, evenements: w.evenements, secret: w.secret }));
+      if (b.quoi === "connexion-ajouter") {
+        const url = cx.urlConnexion(b.url);
+        if (!url) throw new HttpError(400, "Colle une adresse qui commence par https:// (celle que te donne Zapier, Make ou n8n)");
+        const evenements = (Array.isArray(b.evenements) ? b.evenements : []).filter((e: string) => e in cx.EVENEMENTS);
+        if (!evenements.length) throw new HttpError(400, "Choisis au moins un événement");
+        if (liste.length >= cx.MAX_CONNEXIONS) throw new HttpError(400, `${cx.MAX_CONNEXIONS} connexions au plus`);
+        const secret = [...crypto.getRandomValues(new Uint8Array(24))].map((x) => x.toString(16).padStart(2, "0")).join("");
+        const nv = [...liste, { id: crypto.randomUUID().slice(0, 8), url, evenements, secret }];
+        await admin.from("saas_apps").update({ connexions: { ...((a?.connexions as any) ?? {}), liste: nv } }).eq("id", app.id);
+        await log(ws.id, "app_reglage", `Connexion ajoutée (${evenements.join(", ")})`);
+        return { liste: vue(nv) };
+      }
+      const w = liste.find((x) => x.id === String(b.id ?? ""));
+      if (!w) throw new HttpError(404, "Connexion introuvable");
+      if (b.quoi === "connexion-supprimer") {
+        const nv = liste.filter((x) => x.id !== w.id);
+        await admin.from("saas_apps").update({ connexions: { ...((a?.connexions as any) ?? {}), liste: nv } }).eq("id", app.id);
+        return { liste: vue(nv) };
+      }
+      // Essai : un envoi d'exemple clairement marqué comme tel, pour vérifier que l'autre outil reçoit bien
+      await quota(ws.id, "connexion_test", 30);
+      const code = await cx.envoyer(w, { evenement: w.evenements[0], essai: true, projet: a!.slug, nom: (a!.spec as any)?.nom ?? "", date: new Date().toISOString(), donnees: { nom: "Essai Bingoo!", message: "Ceci est un envoi d'essai." } });
+      const journal = [{ id: w.id, evenement: "essai", at: new Date().toISOString(), code }, ...((((a?.connexions as any)?.journal) ?? []) as any[])].slice(0, 12);
+      await admin.from("saas_apps").update({ connexions: { ...((a?.connexions as any) ?? {}), journal } }).eq("id", app.id);
+      return { code, recu: code >= 200 && code < 300 };
+    }
     // Atelier : remarques épinglées sur des éléments de l'aperçu (rangées à part : elles ne changent pas le SaaS)
     if (b.quoi === "commentaires") {
       const chemin = `commentaires/${app.id}.json`;

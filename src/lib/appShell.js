@@ -909,6 +909,34 @@ const SITE = S.site ?? {};
 const JOURS_S = ["", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 const heureS = (x) => String(x || "").replace(/^0/, "").replace(":00", " h").replace(":", " h ");
 // Payer un service du site en ligne : même chemin que le paiement des abonnements (Stripe du commerçant)
+// Panier : plusieurs services ou produits payés en une fois (gardé sur l'appareil du visiteur, vidé au retour du paiement)
+const CLE_PANIER = "bingoo-panier:" + (B.slug ?? "");
+let PANIER = (() => { try { if (B.retourPaiement) { localStorage.removeItem(CLE_PANIER); return []; } const v = JSON.parse(localStorage.getItem(CLE_PANIER) ?? "[]"); return Array.isArray(v) ? v.filter((x) => x && x.id && x.q > 0).slice(0, 20) : []; } catch (e) { return []; } })();
+const ecoutesPanier = new Set();
+const poserPanier = (p) => { PANIER = p.filter((x) => x.q > 0).slice(0, 20); try { localStorage.setItem(CLE_PANIER, JSON.stringify(PANIER)); } catch (e) {} ecoutesPanier.forEach((f) => f(PANIER)); };
+const ajouterPanier = (s) => poserPanier(PANIER.some((x) => x.id === s.id) ? PANIER.map((x) => (x.id === s.id ? { ...x, q: Math.min(20, x.q + 1) } : x)) : [...PANIER, { id: s.id, titre: String(s.titre ?? ""), prix: Number(s.prix) || 0, q: 1 }]);
+function Panier() {
+  const [p, setP] = useState(PANIER), [o, setO] = useState(false), [busy, setBusy] = useState(false);
+  useEffect(() => { const f = (x) => { setP(x); if (x.length) setO(true); }; ecoutesPanier.add(f); return () => ecoutesPanier.delete(f); }, []);
+  const n = p.reduce((a, x) => a + x.q, 0), total = p.reduce((a, x) => a + x.q * x.prix, 0);
+  if (!n) return null;
+  const qte = (id, d) => poserPanier(PANIER.map((x) => (x.id === id ? { ...x, q: Math.max(0, Math.min(20, x.q + d)) } : x)));
+  const payer = async () => { setBusy(true); try { allerVers((await call("site-payer", { panier: PANIER.map((x) => ({ service: x.id, quantite: x.q })), retour: RETOUR() })).url); } catch (x) { avertir(x.message); setBusy(false); } };
+  const rond = "width:30px;height:30px;border-radius:999px;border:1px solid rgba(0,0,0,.18);background:#fff;color:#111;font-size:16px;font-weight:700;line-height:1;cursor:pointer";
+  return html\`<div data-bingoo-panier style="position:fixed;left:16px;bottom:16px;z-index:60;font-family:Inter,system-ui,sans-serif">
+    \${o && html\`<div role="dialog" aria-label="Panier" style="position:absolute;left:0;bottom:56px;width:min(360px,calc(100vw - 32px));background:#fff;color:#111;border-radius:16px;box-shadow:0 20px 60px -15px rgba(0,0,0,.35);border:1px solid rgba(0,0,0,.08);padding:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><b style="font-size:16px">Votre panier</b><button type="button" aria-label="Fermer le panier" onClick=\${() => setO(false)} style="border:0;background:none;font-size:20px;line-height:1;cursor:pointer;color:#555">×</button></div>
+      <ul style="list-style:none;margin:0;padding:0;max-height:46vh;overflow:auto">\${p.map((x) => html\`<li key=\${x.id} style="display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid rgba(0,0,0,.08)">
+        <span style="flex:1;min-width:0"><span style="display:block;font-weight:600;font-size:14px">\${x.titre}</span><span style="font-size:13px;color:#555">\${fmt.eur(x.prix)}</span></span>
+        <button type="button" aria-label=\${"Retirer un " + x.titre} onClick=\${() => qte(x.id, -1)} style=\${rond}>−</button><span style="min-width:18px;text-align:center;font-weight:700;font-size:14px">\${x.q}</span><button type="button" aria-label=\${"Ajouter un " + x.titre} onClick=\${() => qte(x.id, 1)} style=\${rond}>+</button>
+      </li>\`)}</ul>
+      <div style="display:flex;justify-content:space-between;font-weight:800;font-size:16px;padding:12px 0 10px;border-top:1px solid rgba(0,0,0,.08)"><span>Total</span><span>\${fmt.eur(total)}</span></div>
+      <button type="button" disabled=\${busy} onClick=\${payer} style="width:100%;min-height:46px;border:0;border-radius:12px;background:var(--p-action,var(--c));color:var(--p-action-ink,#fff);font-weight:700;font-size:15px;cursor:pointer">\${busy ? "Un instant…" : "Payer " + fmt.eur(total)}</button>
+      <p style="margin:8px 0 0;font-size:12px;color:#666;text-align:center">Paiement sécurisé par Stripe.</p>
+    </div>\`}
+    <button type="button" aria-expanded=\${o} onClick=\${() => setO(!o)} style="min-height:46px;padding:0 18px;border:0;border-radius:999px;background:#111;color:#fff;font-weight:700;font-size:14.5px;cursor:pointer;box-shadow:0 10px 30px -10px rgba(0,0,0,.5)">Panier · \${n} · \${fmt.eur(total)}</button>
+  </div>\`;
+}
 const payerService = async (s) => { try { allerVers((await call("site-payer", { service: s.id, retour: RETOUR() })).url); } catch (x) { avertir(x.message); } };
 const plageS = (h) => /^0?0:00$/.test(String(h.debut || "")) && /^(23:59|24:00)$/.test(String(h.fin || "")) ? "24 h/24" : heureS(h.debut) + " – " + heureS(h.fin);
 const prixS = (s) => s.mois && Number(s.prix) === 0 ? "Gratuit" : s.prix == null || s.prix === "" || !(Number(s.prix) > 0) ? (SITE.demande === "reservation" ? "Selon vos dates" : SITE.demande === "rdv" ? "Sur demande" : "Sur devis") : (s.prix_texte ? "À partir de " : "") + fmt.eur(s.prix) + (s.mois ? " par mois" : "");
@@ -942,7 +970,7 @@ function jetonsTaste() {
     + \`.bingoo-form{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))}.bingoo-form .plein{grid-column:1/-1}\`;
 }
 const DonneesSite = {
-  services: ({ d }) => (d.services ?? []).length ? html\`<ul class="rows">\${d.services.map((s) => html\`<li class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 py-4" style="border-top:1px solid color-mix(in srgb,var(--p-ink) 12%,transparent)"><span><span class="t-card font-semibold">\${s.titre}</span>\${s.description && html\`<span class="block muted t-small mt-1">\${s.description}\${s.duree ? " · " + s.duree : ""}</span>\`}</span><span class="flex items-center gap-3"><span class="price font-semibold whitespace-nowrap">\${prixS(s)}</span>\${d.paiement_en_ligne && Number(s.prix) > 0 && !s.mois && html\`<button type="button" class="btn btn--primary" style="min-height:40px;padding:0 14px;font-size:14px" onClick=\${() => payerService(s)}>Payer en ligne</button>\`}</span></li>\`)}</ul>\` : null,
+  services: ({ d }) => (d.services ?? []).length ? html\`<ul class="rows">\${d.services.map((s) => html\`<li class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 py-4" style="border-top:1px solid color-mix(in srgb,var(--p-ink) 12%,transparent)"><span><span class="t-card font-semibold">\${s.titre}</span>\${s.description && html\`<span class="block muted t-small mt-1">\${s.description}\${s.duree ? " · " + s.duree : ""}</span>\`}</span><span class="flex items-center gap-3"><span class="price font-semibold whitespace-nowrap">\${prixS(s)}</span>\${d.paiement_en_ligne && Number(s.prix) > 0 && !s.mois && html\`<button type="button" class="btn btn--primary" style="min-height:40px;padding:0 14px;font-size:14px" onClick=\${() => payerService(s)}>Payer en ligne</button><button type="button" class="btn" style="min-height:40px;padding:0 14px;font-size:14px" aria-label=\${"Ajouter " + s.titre + " au panier"} onClick=\${() => ajouterPanier(s)}>Ajouter au panier</button>\`}</span></li>\`)}</ul>\` : null,
   horaires: ({ d }) => (d.horaires ?? []).length ? html\`<dl class="hours">\${d.horaires.map((h) => html\`<dt>\${JOURS_S[Number(h.jour)] ?? ""}</dt><dd>\${h.ouvert ? plageS(h) + (h.debut2 ? ", " + heureS(h.debut2) + " – " + heureS(h.fin2) : "") : "Fermé"}</dd>\`)}</dl>\` : null,
   adresse: ({ d }) => { const a = d.infos?.adresse || d.infos?.zone; return a ? html\`<p><span class="block">\${a}</span><a class="link inline-flex min-h-11 items-center" href=\${"https://www.openstreetmap.org/search?query=" + encodeURIComponent(a)} target="_blank" rel="noopener">Itinéraire</a></p>\` : null; },
   realisations: ({ d }) => (d.realisations ?? []).filter((r) => r.image).length ? html\`<div class="grid">\${d.realisations.filter((r) => r.image).slice(0, 12).map((r) => html\`<figure class="span-4"><img class="frame__img" src=\${r.image} alt=\${r.titre} loading="lazy" style="aspect-ratio:4/5;object-fit:cover;width:100%"/><figcaption class="t-small muted mt-2">\${r.titre}</figcaption></figure>\`)}</div>\` : null,
@@ -1702,7 +1730,7 @@ function Racine() {
   if (etat) return html\`<\${Appli} user=\${etat.user} etat=\${etat} tour=\${tour} onFinTour=\${finTour} onLogout=\${tour ? finTour : sortir}/>\`;
   if (auth) return html\`<\${Auth} mode=\${auth} onDone=\${ok} onBack=\${() => setAuth(null)}/>\`;
   const pub = S.type === "site" ? html\`<\${SiteVitrine} onAuth=\${ouvrir}/>\` : (SITE.page?.sections ?? []).length ? html\`<\${SitePageGeneree} onAuth=\${ouvrir} saas/>\` : html\`<\${Site} onAuth=\${ouvrir}/>\`;
-  return html\`\${pub}<\${BadgeBingoo}/><\${Connecteurs}/>\`;
+  return html\`\${pub}\${S.type === "site" && html\`<\${Panier}/>\`}<\${BadgeBingoo}/><\${Connecteurs}/>\`;
 }
 // Outils de l'atelier de Bingoo! : dans l'aperçu de l'atelier, le parent active « modifier un texte » ou « pointer un élément »
 {
