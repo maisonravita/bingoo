@@ -895,7 +895,8 @@ function Site({ onAuth }) {
 const SITE = S.site ?? {};
 const JOURS_S = ["", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 const heureS = (x) => String(x || "").replace(/^0/, "").replace(":00", " h").replace(":", " h ");
-const prixS = (s) => s.mois && Number(s.prix) === 0 ? "Gratuit" : s.prix == null || s.prix === "" || !(Number(s.prix) > 0) ? "Sur devis" : (s.prix_texte ? "À partir de " : "") + fmt.eur(s.prix) + (s.mois ? " par mois" : "");
+const plageS = (h) => /^0?0:00$/.test(String(h.debut || "")) && /^(23:59|24:00)$/.test(String(h.fin || "")) ? "24 h/24" : heureS(h.debut) + " – " + heureS(h.fin);
+const prixS = (s) => s.mois && Number(s.prix) === 0 ? "Gratuit" : s.prix == null || s.prix === "" || !(Number(s.prix) > 0) ? (SITE.demande === "reservation" ? "Selon vos dates" : SITE.demande === "rdv" ? "Sur demande" : "Sur devis") : (s.prix_texte ? "À partir de " : "") + fmt.eur(s.prix) + (s.mois ? " par mois" : "");
 const lienTel = (t) => "tel:" + String(t || "").replace(/[^\\d+]/g, "");
 const MOD = SITE.modele ?? "vitrine";
 // ---------------------------------------------------------------- Page écrite par le moteur (spec.site.page, site-gen.ts)
@@ -927,7 +928,7 @@ function jetonsTaste() {
 }
 const DonneesSite = {
   services: ({ d }) => (d.services ?? []).length ? html\`<ul class="rows">\${d.services.map((s) => html\`<li class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 py-4" style="border-top:1px solid color-mix(in srgb,var(--p-ink) 12%,transparent)"><span><span class="t-card font-semibold">\${s.titre}</span>\${s.description && html\`<span class="block muted t-small mt-1">\${s.description}\${s.duree ? " · " + s.duree : ""}</span>\`}</span><span class="price font-semibold whitespace-nowrap">\${prixS(s)}</span></li>\`)}</ul>\` : null,
-  horaires: ({ d }) => (d.horaires ?? []).length ? html\`<dl class="hours">\${d.horaires.map((h) => html\`<dt>\${JOURS_S[Number(h.jour)] ?? ""}</dt><dd>\${h.ouvert ? heureS(h.debut) + " – " + heureS(h.fin) + (h.debut2 ? ", " + heureS(h.debut2) + " – " + heureS(h.fin2) : "") : "Fermé"}</dd>\`)}</dl>\` : null,
+  horaires: ({ d }) => (d.horaires ?? []).length ? html\`<dl class="hours">\${d.horaires.map((h) => html\`<dt>\${JOURS_S[Number(h.jour)] ?? ""}</dt><dd>\${h.ouvert ? plageS(h) + (h.debut2 ? ", " + heureS(h.debut2) + " – " + heureS(h.fin2) : "") : "Fermé"}</dd>\`)}</dl>\` : null,
   adresse: ({ d }) => { const a = d.infos?.adresse || d.infos?.zone; return a ? html\`<p><span class="block">\${a}</span><a class="link inline-flex min-h-11 items-center" href=\${"https://www.openstreetmap.org/search?query=" + encodeURIComponent(a)} target="_blank" rel="noopener">Itinéraire</a></p>\` : null; },
   realisations: ({ d }) => (d.realisations ?? []).filter((r) => r.image).length ? html\`<div class="grid">\${d.realisations.filter((r) => r.image).slice(0, 12).map((r) => html\`<figure class="span-4"><img class="frame__img" src=\${r.image} alt=\${r.titre} loading="lazy" style="aspect-ratio:4/5;object-fit:cover;width:100%"/><figcaption class="t-small muted mt-2">\${r.titre}</figcaption></figure>\`)}</div>\` : null,
   contact: ({ d }) => html\`<\${FormulaireSite} d=\${d}/>\`,
@@ -1014,7 +1015,7 @@ function SiteVitrine({ onAuth }) {
   const cats = [...new Set(realisations.map((r) => r.categorie).filter(Boolean))];
   const auj = ((new Date().getDay() + 6) % 7) + 1;
   const hAuj = horaires.find((h) => Number(h.jour) === auj);
-  const ouvertAuj = hAuj?.ouvert ? "Ouvert aujourd'hui · " + heureS(hAuj.debut) + " – " + heureS(hAuj.fin) : horaires.length ? "Fermé aujourd'hui" : "";
+  const ouvertAuj = hAuj?.ouvert ? "Ouvert aujourd'hui · " + plageS(hAuj) : horaires.length ? "Fermé aujourd'hui" : "";
   const avecDate = SITE.demande === "rdv" || SITE.demande === "reservation";
   const hero = STY.hero ?? "cote";
   const fonce = hero === "sombre" || hero === "degrade";
