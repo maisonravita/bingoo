@@ -20,8 +20,9 @@ async function rpc(fn, body) {
 export function balises(pub, infos, url) {
   const s = pub.spec || {}, site = s.type === "site", st = s.site || {};
   const lieu = st.ville ? ` à ${st.ville}` : "";
-  const titre = (site ? `${s.nom} · ${st.metier || ""}${lieu}` : `${s.nom} · ${s.slogan || s.cible_courte || "logiciel en ligne"}`).replace(/\s+·\s*$/, "").slice(0, 70);
-  const desc = String(s.pitch || s.slogan || "").replace(/\s+/g, " ").slice(0, 158);
+  // Titre et description choisis par le membre dans l'onglet Référencement, sinon ceux déduits du projet
+  const titre = String(s.seo?.titre || (site ? `${s.nom} · ${st.metier || ""}${lieu}` : `${s.nom} · ${s.slogan || s.cible_courte || "logiciel en ligne"}`)).replace(/\s+·\s*$/, "").slice(0, 70);
+  const desc = String(s.seo?.description || s.pitch || s.slogan || "").replace(/\s+/g, " ").slice(0, 158);
   const icone = pub.icone || "";
   // Sans image fournie, l'image de partage est générée aux couleurs de l'app (api/og.js)
   const image = icone || (pub.slug ? `${SITE}/api/og?slug=${encodeURIComponent(pub.slug)}&v=${encodeURIComponent(String(s.nom || "").length + "-" + (s.couleur || "").replace("#", ""))}` : "");

@@ -1000,6 +1000,36 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       await log(ws.id, "app_reglage", b.quoi === "police" ? `Polices : ${String(b.titres).slice(0, 30)} / ${String(b.texte).slice(0, 30)}` : b.quoi === "couleur" ? `Couleur principale : ${String(b.couleur).slice(0, 7)}` : b.quoi === "sections-ordre" ? "Ordre des sections modifié" : "Image remplacée");
       return r;
     }
+    // Référencement : le titre et la description montrés par Google et les réseaux (texte seul, sans IA, gratuit)
+    if (b.quoi === "seo") {
+      const net = (x: unknown, n: number) => String(x ?? "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
+      const { data: a } = await admin.from("saas_apps").select("spec").eq("id", app.id).single();
+      const seo = { titre: net(b.titre, 70), description: net(b.description, 158) };
+      await admin.from("saas_apps").update({ spec: { ...(a!.spec as any), seo }, maj: new Date().toISOString() }).eq("id", app.id);
+      await log(ws.id, "app_reglage", "Référencement : titre et description modifiés");
+      return { seo };
+    }
+    // Mode brouillon : les visiteurs gardent la version publiée pendant que l'atelier modifie ; « publier » met en ligne d'un coup
+    if (["brouillon", "publier", "abandonner"].includes(b.quoi)) {
+      const { data: a } = await admin.from("saas_apps").select("spec, publie, statut").eq("id", app.id).single();
+      if (a?.statut !== "pret") throw new HttpError(409, "Attends la fin de la construction");
+      if (b.quoi === "brouillon") {
+        const actif = b.actif === true;
+        await admin.from("saas_apps").update(actif ? { publie: a.publie ?? a.spec, publie_at: new Date().toISOString() } : { publie: null, publie_at: new Date().toISOString() }).eq("id", app.id);
+        await log(ws.id, "app_reglage", actif ? "Mode brouillon activé" : "Mode brouillon désactivé : tout est en ligne");
+        return { brouillon: actif };
+      }
+      if (!a.publie) throw new HttpError(400, "Le mode brouillon n'est pas activé : tes modifications sont déjà en ligne");
+      if (b.quoi === "publier") {
+        await admin.from("saas_apps").update({ publie: a.spec, publie_at: new Date().toISOString() }).eq("id", app.id);
+        await log(ws.id, "app_reglage", "Modifications publiées");
+        return { publie: true };
+      }
+      // Abandonner : l'atelier revient à la version en ligne
+      await admin.from("saas_apps").update({ spec: a.publie, maj: new Date().toISOString() }).eq("id", app.id);
+      await log(ws.id, "app_reglage", "Brouillon abandonné : retour à la version en ligne");
+      return { abandonne: true };
+    }
     if (b.quoi === "texte") {
       await quota(ws.id, "texte_app", 300);
       const { saasModifierTexte } = await import("../_shared/app-build.ts");

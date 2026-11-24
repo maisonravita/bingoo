@@ -1823,7 +1823,7 @@ function Construire({ projet }) {
 }
 
 // Réglages d'un SaaS construit, par onglets : jumeau, lancement, encaissement, prix testés, e-mails, domaine, monde et bourse, code
-export const ONGLETS_APP = [["croissance", "Croissance"], ["versions", "Versions"], ["ia", "Assistant IA"], ["jumeau", "Jumeau"], ["lancement", "Lancement"], ["blog", "Blog"], ["pages", "Pages"], ["encaisser", "Encaisser"], ["prix", "Prix testés"], ["emails", "E-mails"], ["domaine", "Domaine"], ["connecteurs", "Connecteurs"], ["monde", "Monde et bourse"], ["mobile", "Mobile"], ["code", "Code"]];
+export const ONGLETS_APP = [["croissance", "Croissance"], ["versions", "Versions"], ["ia", "Assistant IA"], ["jumeau", "Jumeau"], ["lancement", "Lancement"], ["blog", "Blog"], ["pages", "Pages"], ["seo", "Référencement"], ["encaisser", "Encaisser"], ["prix", "Prix testés"], ["emails", "E-mails"], ["domaine", "Domaine"], ["connecteurs", "Connecteurs"], ["monde", "Monde et bourse"], ["mobile", "Mobile"], ["code", "Code"]];
 // ---------------------------------------------------------------- Plan de croissance : tes vrais chiffres, les paliers, et ce qui fait grandir le SaaS copié
 const PALIERS = [1000, 10000, 100000];
 const CANAL_ACTION = {
@@ -1965,6 +1965,7 @@ export function ReglagesApp({ app, onChange, projet, initial, nu = false, onglet
         {onglet === "lancement" && <OngletLancement {...props} />}
         {onglet === "blog" && <OngletBlog {...props} />}
         {onglet === "pages" && <OngletPages {...props} />}
+        {onglet === "seo" && <OngletSeo {...props} />}
         {onglet === "encaisser" && <OngletEncaisser {...props} />}
         {onglet === "prix" && <OngletPrix {...props} />}
         {onglet === "emails" && <OngletEmails {...props} />}
@@ -2109,6 +2110,51 @@ function OngletBlog({ app, appel, onChange }) {
 
 // Pages : un site de plusieurs pages. Le membre donne un titre et ce qu'il veut y mettre ; Bingoo! écrit la page dans le
 // style du site et l'ajoute au menu. L'accueil garde l'en-tête et le pied de page, partagés par toutes les pages.
+// ---------------------------------------------------------------- Référencement : ce que Google lira, et ce qui manque
+// Tout est calculé à partir du projet réel (aucune note inventée, aucun chiffre de trafic) : chaque ligne dit quoi faire.
+function OngletSeo({ app, appel, onChange }) {
+  const toast = useToast();
+  const s = app.spec ?? {}, site = s.type === "site", st = s.site ?? {};
+  const auto = { titre: (site ? `${s.nom} · ${st.metier || ""}${st.ville ? ` à ${st.ville}` : ""}` : `${s.nom} · ${s.slogan || s.cible_courte || "logiciel en ligne"}`).replace(/\s+·\s*$/, "").slice(0, 70), description: String(s.pitch || s.slogan || "").replace(/\s+/g, " ").slice(0, 158) };
+  const [titre, setTitre] = useState(s.seo?.titre || auto.titre), [description, setDescription] = useState(s.seo?.description || auto.description), [busy, setBusy] = useState(false);
+  const html = [...(st.page?.sections ?? []), ...(st.pages ?? []).flatMap((p) => p.sections ?? [])].map((x) => x.html ?? "").join("\n");
+  const h1 = (html.match(/<h1[\s>]/gi) ?? []).length, imgs = html.match(/<img\b[^>]*>/gi) ?? [], sansAlt = imgs.filter((x) => !/\balt="[^"]{3,}"/i.test(x)).length;
+  const articles = (app.lancement?.articles ?? []).length, pages = (st.pages ?? []).length;
+  const points = [
+    [titre.length >= 30 && titre.length <= 65, "Le titre fait entre 30 et 65 caractères", `Il en fait ${titre.length}. Trop court, il dit peu ; trop long, Google le coupe.`],
+    [description.length >= 70, "La description fait au moins 70 caractères", `Elle en fait ${description.length}. Dis en une ou deux phrases ce que tu proposes et pour qui.`],
+    ...(site ? [
+      [!!st.ville && titre.toLowerCase().includes(String(st.ville).toLowerCase()), "Ta ville est dans le titre", st.ville ? `Ajoute « ${st.ville} » au titre : on te cherche avec le nom de la ville.` : "Ta ville n'est pas renseignée : donne-la à l'atelier, on te cherche avec le nom de la ville."],
+      ...(html ? [[h1 === 1, "La page a un seul grand titre", h1 === 0 ? "Aucun grand titre trouvé : demande à l'atelier « mets un grand titre en haut de la page »." : `${h1} grands titres trouvés : demande à l'atelier de n'en garder qu'un.`],
+        [sansAlt === 0, "Chaque image a un texte de remplacement", `${sansAlt} image${sansAlt > 1 ? "s" : ""} sur ${imgs.length} sans texte : demande à l'atelier « décris chaque image pour Google ».`]] : []),
+      [pages >= 1, "Au moins une page en plus de l'accueil", "Ajoute une page « À propos » ou « Tarifs » dans l'onglet Pages : plus de pages, plus de recherches où apparaître."],
+    ] : []),
+    [articles >= 3, "Au moins 3 articles de blog", `Tu en as ${articles}. Chaque article répond à une question que tes clients tapent dans Google : onglet Blog.`],
+    [app.domaine_statut === "ok", "Ton propre nom de domaine", "Un nom de domaine à toi inspire confiance et garde ton référencement si tu changes d'outil : rubrique Nom de domaine."],
+  ];
+  const ok = points.filter((p) => p[0]).length;
+  const garder = async () => { setBusy(true); try { await appel("seo", { titre: titre.trim(), description: description.trim() }); toast("Enregistré : Google le lira à son prochain passage"); onChange?.(); } catch (x) { toast(x.message, "bad"); } finally { setBusy(false); } };
+  if (s.type === "outil") return <Explication>Un outil ou un jeu tient en une page : son titre et sa description sont déjà lus par Google. Le suivi détaillé du référencement concerne les sites et les logiciels.</Explication>;
+  return (
+    <div className="space-y-5">
+      <Explication>Ce que Google et les réseaux lisent de ton projet, et ce qui lui manque pour mieux apparaître. Les points sont vérifiés sur ton projet réel. Bingoo! ne connaît pas ton trafic : pour le mesurer, branche Google Analytics dans Connecteurs.</Explication>
+      <div className="rounded-xl border border-black/10 bg-white p-4">
+        <label className="block text-[13px] font-semibold text-[#1A1A1A]" htmlFor="seo-titre">Titre dans Google <span className="font-normal text-[#6B6B6B]">· {titre.length}/70</span></label>
+        <input id="seo-titre" value={titre} maxLength={70} onChange={(e) => setTitre(e.target.value)} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-[15px]" />
+        <label className="mt-3 block text-[13px] font-semibold text-[#1A1A1A]" htmlFor="seo-desc">Description sous le titre <span className="font-normal text-[#6B6B6B]">· {description.length}/158</span></label>
+        <textarea id="seo-desc" value={description} maxLength={158} rows={3} onChange={(e) => setDescription(e.target.value)} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-[15px]" />
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button type="button" onClick={garder} disabled={busy || titre.trim().length < 5} className="rounded-full bg-[#E8571C] px-4 py-2 text-[14px] font-semibold text-white disabled:opacity-50">{busy ? "Un instant…" : "Enregistrer"}</button>
+          <button type="button" onClick={() => { setTitre(auto.titre); setDescription(auto.description); }} className="text-[13px] font-semibold text-[#6B6B6B] underline">Remettre ceux proposés par Bingoo!</button>
+        </div>
+      </div>
+      <div className="rounded-xl border border-black/10 bg-white p-4">
+        <p className="text-[15px] font-bold text-[#1A1A1A]">{ok} point{ok > 1 ? "s" : ""} sur {points.length} en place</p>
+        <ul className="mt-3 space-y-2.5">{points.map(([bon, quoi, aide]) => <li key={quoi} className="flex items-start gap-2.5 text-[14px]"><span aria-hidden className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[12px] font-bold text-white ${bon ? "bg-[#2F7A4D]" : "bg-[#B45309]"}`}>{bon ? "✓" : "!"}</span><span><span className="font-semibold text-[#1A1A1A]">{quoi}</span>{!bon && <span className="block text-[13.5px] text-[#6B6B6B]">{aide}</span>}</span></li>)}</ul>
+      </div>
+    </div>
+  );
+}
 function OngletPages({ app, appel, onChange }) {
   const toast = useToast();
   const moteur = app.spec?.site?.page?.sections?.length > 0;

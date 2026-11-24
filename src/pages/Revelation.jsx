@@ -63,12 +63,26 @@ function CartePublie({ lien, nom, estSite, compact = false }) {
     </div>
   );
 }
-function BoutonPartager({ lien, nom, estSite }) {
-  const [o, setO] = useState(false);
+function BoutonPartager({ lien, nom, estSite, app, action }) {
+  const [o, setO] = useState(false), [busy, setBusy] = useState(false);
+  // Mode brouillon : « publie » est la version que voient les visiteurs ; l'atelier travaille sur « spec »
+  const brouillon = app?.publie != null;
+  const attente = useMemo(() => brouillon && JSON.stringify(app.spec) !== JSON.stringify(app.publie), [brouillon, app?.spec, app?.publie]);
+  const faire = async (corps) => { if (busy) return; setBusy(true); try { await action(corps); } finally { setBusy(false); } };
   return (
-    <div className="relative">
-      <button type="button" onClick={() => setO(!o)} aria-expanded={o} className="rounded-lg bg-[#2F7A4D] px-3 py-1.5 text-[13.5px] font-semibold text-white hover:brightness-110">Publié · Partager</button>
-      {o && <div className="absolute right-0 top-full z-30 mt-2 w-[min(380px,calc(100vw-32px))] rounded-xl bg-white p-1 shadow-2xl"><CartePublie lien={lien} nom={nom} estSite={estSite} compact /></div>}
+    <div className="relative flex items-center gap-2">
+      {brouillon && <button type="button" disabled={!attente || busy} onClick={() => faire({ quoi: "publier" })} className="rounded-lg bg-[#E8571C] px-3 py-1.5 text-[13.5px] font-semibold text-white hover:brightness-110 disabled:opacity-50">{busy ? "Un instant…" : attente ? "Publier mes changements" : "Tout est publié"}</button>}
+      <button type="button" onClick={() => setO(!o)} aria-expanded={o} className="rounded-lg bg-[#2F7A4D] px-3 py-1.5 text-[13.5px] font-semibold text-white hover:brightness-110">{brouillon ? "Partager" : "Publié · Partager"}</button>
+      {o && <div className="absolute right-0 top-full z-30 mt-2 w-[min(380px,calc(100vw-32px))] rounded-xl bg-white p-1 shadow-2xl">
+        <CartePublie lien={lien} nom={nom} estSite={estSite} compact />
+        {action && <div className="border-t border-line p-3 text-ink">
+          <label className="flex cursor-pointer items-start gap-2.5">
+            <input type="checkbox" className="mt-1" checked={brouillon} disabled={busy} onChange={(e) => faire({ quoi: "brouillon", actif: e.target.checked })} />
+            <span><span className="block text-[13.5px] font-semibold">Mode brouillon</span><span className="block text-[12.5px] text-ink-soft">{brouillon ? "Tes visiteurs voient la dernière version publiée. Tes modifications restent ici jusqu'à ce que tu cliques sur « Publier mes changements »." : "Aujourd'hui, chaque modification part en ligne tout de suite. Coche pour travailler tranquillement et publier quand tu es prêt."}</span></span>
+          </label>
+          {attente && <button type="button" disabled={busy} onClick={() => faire({ quoi: "abandonner" })} className="mt-2.5 text-[12.5px] font-semibold text-ink-soft underline">Abandonner mes changements et revenir à la version en ligne</button>}
+        </div>}
+      </div>}
     </div>
   );
 }
@@ -295,7 +309,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   // sans ça, une modification validée restait « en test » pour toujours (le robot de vérification ne démarrait pas)
   useEffect(() => {
     if (!atelier || !c.app?.id) return;
-    supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif").eq("id", c.app.id).maybeSingle().then(({ data }) => { if (data) setApp((x) => ({ ...(x ?? {}), ...data })); });
+    supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif, publie, publie_at").eq("id", c.app.id).maybeSingle().then(({ data }) => { if (data) setApp((x) => ({ ...(x ?? {}), ...data })); });
   }, [atelier, c.app?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [erreur, setErreur] = useState(null);
   const [essai, setEssai] = useState(0);
@@ -384,7 +398,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
         let debutVerif = null;
         for (let i = 0; i < 640 && vivant; i++) {
           await attendre(3000);
-          const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif, maj").eq("projet_id", p.id).maybeSingle();
+          const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif, publie, publie_at, maj").eq("projet_id", p.id).maybeSingle();
           if (!data) continue;
           setApp(data);
           if (/Vérif/i.test(data.etape ?? "")) setEtape(3);
@@ -449,7 +463,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   useEffect(() => { pousserOutil(); }, [outil, cle]); // eslint-disable-line react-hooks/exhaustive-deps
   // Sortie de l'outil Police sans garder : l'essai est retiré de l'aperçu
   useEffect(() => { if (outil !== "police" && (polices || couleurEssai)) { setPolices(null); setCouleurEssai(null); setCle((k) => k + 1); } }, [outil]); // eslint-disable-line react-hooks/exhaustive-deps
-  const recharger = async () => { const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif").eq("id", app.id).maybeSingle(); if (data) setApp(data); setCle((k) => k + 1); };
+  const recharger = async () => { const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif, publie, publie_at").eq("id", app.id).maybeSingle(); if (data) setApp(data); setCle((k) => k + 1); };
   // Messages de l'aperçu : un texte modifié sur place, ou un élément pointé
   useEffect(() => {
     const ecoute = async (e) => {
@@ -589,13 +603,13 @@ export function Chantier({ ws, nav, init, atelier = false }) {
       const r = await fn("r/saas-app-modifier", { workspace_id: ws.id, app_id: app.id, ecran: cibleEcran || "nouveau", demande: t, images: imgs.map((x) => x.url), element: el?.description ?? null });
       for (let i = 0; i < 80; i++) {
         await attendre(3000);
-        const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif").eq("id", app.id).maybeSingle();
+        const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif, publie, publie_at").eq("id", app.id).maybeSingle();
         if (data?.etape) setModifEtape(data.etape);
         if (data && data.statut !== "en_cours") {
           if (data.erreur) throw new Error(data.erreur);
           const fait = data.brouillon?._modif ?? null;
           if (data.brouillon?._modif) await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "brouillon-valider" });
-          const { data: frais } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif").eq("id", app.id).maybeSingle();
+          const { data: frais } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif, publie, publie_at").eq("id", app.id).maybeSingle();
           setApp(frais ?? data); setCle((k) => k + 1);
           maj({ etat: "ok", credit: r?.credit, faits: fait?.faits ?? [], rates: fait?.rates ?? [], versionAvant, publieA: fait ? new Date(Date.now() - 5000).toISOString() : null });
           return;
@@ -611,7 +625,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   useEffect(() => {
     if (!testEnCours || !app?.id) return;
     const t = setInterval(async () => {
-      const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif").eq("id", app.id).maybeSingle();
+      const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif, publie, publie_at").eq("id", app.id).maybeSingle();
       if (!data) return;
       setApp(data);
       // Fin du test : publiée (nouvelle version) ou annulée après publication → l'aperçu se recharge
@@ -693,7 +707,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
         </span>
         <div className="flex-1" />
         {fini && <a href={lien} target="_blank" rel="noreferrer" className="rounded-lg border border-line px-3 py-1.5 text-[13.5px] font-semibold hover:bg-paper">Ouvrir ↗</a>}
-        {fini && <BoutonPartager lien={lien} nom={nom} estSite={estSite} />}
+        {fini && <BoutonPartager lien={lien} nom={nom} estSite={estSite} app={app} action={async (corps) => { try { await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, ...corps }); await recharger(); if (corps.quoi === "abandonner") setCle((k) => k + 1); } catch (x) { setEchanges((l) => [...l, { moi: corps.quoi === "publier" ? "Publier mes changements" : "Mode brouillon", etat: "ko", erreur: x.message }]); } }} />}
         <button onClick={() => { if (!atelier) ecrire(CLE_CHANTIER, null); nav("/explorer/mon-saas"); }} disabled={!fini && !atelier}
           className="rounded-lg bg-ink px-3.5 py-1.5 text-[13.5px] font-semibold text-white hover:bg-ink/85 disabled:opacity-40">{atelier ? "Fermer l'atelier" : "Entrer dans Bingoo!"}</button>
       </header>
