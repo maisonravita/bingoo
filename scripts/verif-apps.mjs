@@ -93,7 +93,7 @@ for (const a of apps) {
       try {
         page = appHtml({ spec: a.spec, slug: a.slug, api: "https://exemple.invalid/api", verif: "public" });
         const ctx = await browser.newContext({ viewport: { width: largeur, height: largeur > 800 ? 800 : 800 }, locale: "fr-FR" }); const p = await ctx.newPage();
-        await p.goto(`http://localhost:${port}/`, { waitUntil: "domcontentloaded", timeout: 60000 }); await p.waitForTimeout(9000);
+        await p.goto(`http://localhost:${port}/`, { waitUntil: "domcontentloaded", timeout: 60000 }); await p.waitForFunction(() => document.querySelector("h1"), null, { timeout: 20000 }).catch(() => null); await p.waitForTimeout(1300);
         fs.mkdirSync("/tmp/vide", { recursive: true }); await p.screenshot({ path: `/tmp/vide/${a.slug}-${largeur}.png`, fullPage: true });
         const d = await p.evaluate(() => {
           const vis = (el) => { const r = el.getBoundingClientRect(), cs = getComputedStyle(el); return r.width > 1 && r.height > 1 && cs.visibility !== "hidden" && cs.display !== "none" && Number(cs.opacity) > 0.05; };
@@ -104,9 +104,11 @@ for (const a of apps) {
           const y0 = best * pas, y1 = (best + max) * pas, mid = (y0 + y1) / 2;
           const dans = [...document.querySelectorAll("body *")].filter((el) => { const r = el.getBoundingClientRect(); return r.top + scrollY <= mid && r.bottom + scrollY >= mid && r.width > 50; }).slice(-8)
             .map((el) => { const cs = getComputedStyle(el); return `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 60)} h=${Math.round(el.getBoundingClientRect().height)} op=${cs.opacity} vis=${cs.visibility} bg=${cs.backgroundImage.slice(0, 40)} img=${el.tagName === "IMG" ? (el.complete && el.naturalWidth ? "ok" : "non chargée") : ""}`; });
-          return { y0, y1, hauteur: document.documentElement.scrollHeight, dans };
+          const imgs = [...document.querySelectorAll("img")].map((im) => `${im.complete && im.naturalWidth ? "chargée" : "NON chargée"} h=${Math.round(im.getBoundingClientRect().height)} ${String(im.getAttribute("src") ?? "").slice(0, 40)}`);
+          const caches = [...document.querySelectorAll("section, [data-enter], [data-reveal]")].filter((el) => Number(getComputedStyle(el).opacity) < 0.05).length;
+          return { y0, y1, hauteur: document.documentElement.scrollHeight, dans, imgs, caches };
         });
-        console.log(`  vide ${largeur}px : bande ${d.y0}-${d.y1} sur ${d.hauteur}`); for (const x of d.dans) console.log("    ·", x);
+        console.log(`  vide ${largeur}px : bande ${d.y0}-${d.y1} sur ${d.hauteur}, sections invisibles : ${d.caches}`); for (const x of d.dans) console.log("    ·", x); for (const x of d.imgs) console.log("    img", x);
         await ctx.close();
       } catch (e) { console.log("  diagnostic vide impossible :", String(e?.message ?? e).slice(0, 120)); }
     }
