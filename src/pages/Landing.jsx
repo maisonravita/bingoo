@@ -27,7 +27,9 @@ const ICONES = {
   pub: ico(<><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z" /><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" /></>),
   verifie: ico(<><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z" /><path d="m9 12 2 2 4-4" /></>),
 };
-const MENU = [["Réalisations", "#realisations"], ["Comment ça marche", "#comment"], ["Un site qui te plaît", "#copie"], ["Pas d'idée ?", "#idees"], ["Prix", "#prix"], ["Questions", "#faq"]];
+// Menu court, comme les concurrents : 4 liens et un menu « Comparer » ; le reste se découvre en descendant la page
+const MENU = [["Réalisations", "#realisations"], ["Comment ça marche", "#comment"], ["Tarifs", "#prix"], ["FAQ", "#faq"]];
+const COMPARER = [["Bingoo! ou Wix", "/comparer/wix/"], ["Bingoo! ou Webflow", "/comparer/webflow/"], ["Bingoo! ou Codunk", "/comparer/codunk/"]];
 
 // Nombre de SaaS suivis dans la base Explorer (vue publique), affiché tel quel
 function useNbSaas() {
@@ -349,11 +351,18 @@ export default function Landing() {
         <div className="mx-auto flex h-[60px] max-w-[1180px] items-center justify-between gap-3 rounded-full bg-[#15171F]/95 pl-5 pr-2 text-white shadow-[0_18px_40px_-22px_rgba(0,0,0,.7)] backdrop-blur border border-white/[.06]">
           <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Bingoo!" className="shrink-0"><Logo height={28} inverse /></button>
           <nav className="hidden lg:flex items-center gap-1 text-[14.5px] font-medium whitespace-nowrap">
-            {MENU.map(([t, href]) => <a key={t} href={href} onClick={scrollTo(href.slice(1))} className="rounded-full px-3.5 py-2 text-white/75 hover:bg-white/10 hover:text-white transition">{t}</a>)}
+            {MENU.slice(0, 3).map(([t, href]) => <a key={t} href={href} onClick={scrollTo(href.slice(1))} className="rounded-full px-3.5 py-2 text-white/75 hover:bg-white/10 hover:text-white transition">{t}</a>)}
+            <div className="group relative">
+              <button type="button" aria-haspopup="true" className="flex items-center gap-1 rounded-full px-3.5 py-2 text-white/75 hover:bg-white/10 hover:text-white transition">Comparer<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden><path d="m6 9 6 6 6-6" /></svg></button>
+              <div className="invisible absolute left-0 top-full pt-2 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+                <div className="w-56 rounded-2xl border border-white/10 bg-[#15171F] p-1.5 shadow-2xl">{COMPARER.map(([t, href]) => <a key={href} href={href} className="block rounded-xl px-3 py-2.5 text-[14px] text-white/80 hover:bg-white/10 hover:text-white">{t}</a>)}</div>
+              </div>
+            </div>
+            {MENU.slice(3).map(([t, href]) => <a key={t} href={href} onClick={scrollTo(href.slice(1))} className="rounded-full px-3.5 py-2 text-white/75 hover:bg-white/10 hover:text-white transition">{t}</a>)}
           </nav>
           <div className="flex items-center gap-1.5 sm:gap-2 text-[14px] sm:text-[15px] font-semibold whitespace-nowrap">
             <button onClick={() => nav("/connexion?mode=login")} className="rounded-full px-3 sm:px-4 py-2.5 text-white/80 hover:text-white hover:bg-white/10 transition">Se connecter</button>
-            <button onClick={go} className="rounded-full bg-white text-[#15171F] px-4 sm:px-5 py-2.5 hover:bg-white/90 transition"><span className="sm:hidden">Commencer</span><span className="hidden sm:inline">Commencer gratuitement</span></button>
+            <button onClick={go} className="rounded-full bg-white text-[#15171F] px-4 sm:px-5 py-2.5 hover:bg-white/90 transition">Commencer</button>
           </div>
         </div>
       </header>
