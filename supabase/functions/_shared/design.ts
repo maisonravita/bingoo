@@ -90,7 +90,7 @@ export function tirerDesign(categorie: string, dejaVues: { categorie?: string; v
   return {
     source: "ui-ux-pro-max", categorie: s.categorie, variante: i, style: v.style, mode: v.mode,
     // Texte courant jamais en chasse fixe (lisibilité) : une police de labeur à la place ; la police à chasse fixe reste pour les titres
-    couleurs: v.couleurs, polices: { titres: titresAvecCaractere(v.polices.titres, `${s.categorie}-${i}-${Math.floor(aleatoire() * 1e6)}`), texte: /mono/i.test(v.polices.texte) ? (/mono/i.test(v.polices.titres) ? "Inter" : "Inter") : v.polices.texte },
+    couleurs: v.couleurs, polices: { titres: titresAvecCaractere(v.polices.titres, `${s.categorie}-${i}-${Math.floor(aleatoire() * 1e6)}`), texte: /mono|thai|arabic|hebrew|devanagari| jp| kr| sc$| tc$|comic|patrick hand|chakra/i.test(v.polices.texte) ? "Inter" : v.polices.texte },
     motif: s.motif.nom, sections: s.motif.sections, eviter: s.eviter,
     ...(v.allure ? { allure: v.allure } : {}),
   };
