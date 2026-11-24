@@ -967,6 +967,8 @@ function SitePageGeneree({ onAuth, saas }) {
     else call("site-info").then(setD, () => setD({ services: S.demo?.services ?? [], horaires: S.demo?.horaires ?? [], infos: (S.demo?.infos ?? [])[0] ?? {} }));
     const l = document.createElement("link"); l.rel = "stylesheet"; l.href = TASTE_CSS; document.head.appendChild(l);
     const st = document.createElement("style"); st.textContent = jetonsTaste(); document.head.appendChild(st);
+    // Premier écran en deux colonnes, sur ordinateur : il occupe tout l'écran, la photo aussi (sinon une bande vide restait dessous)
+    const st2 = document.createElement("style"); st2.textContent = "@media (min-width:1024px){section.hero>.wrap,section.section--hero>.wrap{height:100%!important}section.hero>.wrap>.hero-text.hero-split{height:100%!important;flex:1 1 auto}.hero-split>.hero-visual{height:auto!important;align-self:stretch!important}.hero-split>.hero-copy{align-self:center}}"; document.head.appendChild(st2);
     const r = document.documentElement; r.dataset.radius = r.dataset.radius || "soft"; r.dataset.buttons = r.dataset.buttons || "solid"; r.lang = "fr";
     return () => { l.remove(); st.remove(); };
   }, []);
