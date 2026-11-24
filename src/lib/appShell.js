@@ -1038,18 +1038,18 @@ function SitePageGeneree({ onAuth, saas }) {
     el.querySelectorAll("img[loading=lazy]").forEach((i) => { i.loading = "eager"; });
     // Texte posé sur une photo : la section passe en texte clair, avec un voile sombre derrière les mots (sinon un titre foncé
     // sur une photo voilée de couleur devient illisible)
-    const fondSombre = ((h) => (0.299 * parseInt(h.slice(1, 3), 16) + 0.587 * parseInt(h.slice(3, 5), 16) + 0.114 * parseInt(h.slice(5, 7), 16)) / 255 < 0.4)(/^#[0-9a-f]{6}$/i.test(S.design?.couleurs?.background ?? "") ? S.design.couleurs.background : "#ffffff");
-    // Clarté moyenne des couleurs d'un fond (rgb(...) ou color(srgb ...)), de 0 à 1 ; null si aucune couleur lisible
-    const clarte = (txt) => { const v = []; String(txt).replace(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/g, (_, r, g, b) => { v.push((0.299 * r + 0.587 * g + 0.114 * b) / 255); return ""; }).replace(/color\\(srgb\\s+([\\d.]+)\\s+([\\d.]+)\\s+([\\d.]+)/g, (_, r, g, b) => { v.push(0.299 * r + 0.587 * g + 0.114 * b); return ""; }); return v.length ? v.reduce((a, x) => a + x, 0) / v.length : null; };
+    // Texte posé sur une photo plein cadre : texte blanc, voile noir derrière les mots, et un fond sombre déclaré sous la photo
+    // (le contrôle de lisibilité ne voit pas les images : sans ce fond, il prenait le texte blanc pour illisible et le fonçait).
+    // Le voile écrit par la page est retiré : selon le fond de la section, il devenait clair et délavait la photo.
     el.querySelectorAll("main > section, main > .section").forEach((sec) => {
       const couvre = (n) => getComputedStyle(n).position === "absolute" && n.offsetWidth >= sec.offsetWidth * 0.8 && n.offsetHeight >= sec.offsetHeight * 0.6;
       const img = [...sec.querySelectorAll("img")].find(couvre);
       if (!img) return;
-      // Sur un thème clair, le fond inversé donne le texte clair ; sur un thème sombre, le texte de base est déjà clair
-      sec.classList.remove("ground-brand", "ground-surface"); if (!fondSombre) sec.classList.add("ground-inverse"); else sec.classList.remove("ground-inverse");
-      // Un voile clair ou coloré posé sur la photo délave l'image et rend le texte clair illisible : on le retire
-      [...sec.querySelectorAll("div, span")].filter((n) => n !== img && !n.dataset.bingooVoile && !n.textContent.trim() && !n.querySelector("img") && couvre(n)).forEach((n) => { const cs = getComputedStyle(n), c = clarte(cs.backgroundImage + " " + cs.backgroundColor); if (c != null && c > 0.42) n.style.display = "none"; });
-      if (!sec.querySelector("[data-bingoo-voile]")) { const v = document.createElement("div"); v.dataset.bingooVoile = ""; v.setAttribute("aria-hidden", "true"); v.style.cssText = "position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.52),rgba(0,0,0,.24) 58%,rgba(0,0,0,.06))"; img.insertAdjacentElement("afterend", v); }
+      sec.classList.remove("ground-brand", "ground-surface", "ground-inverse");
+      [...sec.querySelectorAll("div, span")].filter((n) => n !== img && !n.textContent.trim() && !n.querySelector("img") && couvre(n)).forEach((n) => { n.style.display = "none"; });
+      for (const [k, v] of [["--ink", "#ffffff"], ["--muted", "rgba(255,255,255,.84)"], ["--accent", "#ffffff"], ["--accent-ink", "#111111"], ["--action", "#ffffff"], ["--action-ink", "#111111"], ["--line", "rgba(255,255,255,.3)"], ["--line-strong", "rgba(255,255,255,.5)"]]) sec.style.setProperty(k, v);
+      sec.style.backgroundColor = "#17171a"; sec.style.color = "#ffffff";
+      const v = document.createElement("div"); v.dataset.bingooVoile = ""; v.setAttribute("aria-hidden", "true"); v.style.cssText = "position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.6),rgba(0,0,0,.32) 55%,rgba(0,0,0,.1))"; img.insertAdjacentElement("afterend", v);
     });
     // Un grand titre coincé dans un bloc trop étroit (largeur limitée en « ch » sur le parent, calculée sur le petit texte) :
     // on libère le bloc, sinon le titre se casse au milieu des mots
