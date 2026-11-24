@@ -902,7 +902,8 @@ const MOD = SITE.modele ?? "vitrine";
 // Le HTML vient du serveur déjà nettoyé ; on le renettoie ici (aucun script, aucun attribut on*), on pose le CSS du kit Taste
 // le temps de la page publique, puis on monte les données vivantes dans les marqueurs data-bingoo (prestations, horaires,
 // formulaires, adresse, réalisations). Les mentions légales et l'accès gérant sont toujours ajoutés par Bingoo!.
-const TASTE_CSS = "https://bingoo.fr/taste-system.css";
+// Version dans l'adresse : une correction de la feuille arrive tout de suite, sans attendre la fin du cache
+const TASTE_CSS = "https://bingoo.fr/taste-system.css?v=20261124b";
 function nettoyerDom(racine) {
   racine.querySelectorAll("script,iframe,object,embed,form,link,meta,base").forEach((x) => x.remove());
   racine.querySelectorAll("*").forEach((el) => { for (const a of [...el.attributes]) if (/^on/i.test(a.name) || (/^(href|src)$/i.test(a.name) && /^\\s*(javascript|vbscript|data:text)/i.test(a.value))) el.removeAttribute(a.name); });
