@@ -14,8 +14,12 @@ function bruit(ac) {
   return b;
 }
 
-/** Programme la musique sur `sortie` à partir de `debut` (secondes du contexte audio), pour `duree` secondes. */
-export function jouerMusique(ac, sortie, ambiance, duree, debut = ac.currentTime + 0.05, graine = 0) {
+/** Durée d'un temps (secondes) de la musique tirée pour cette graine : les scènes s'y calent. */
+export const tempoMusique = (ambiance, graine = 0) => (AMBIANCES[ambiance] ? 60 / ((ambiance === "douce" ? 88 : ambiance === "tech" ? 112 : 124) + ((graine >>> 8) % 5) - 2) : 0);
+
+/** Programme la musique sur `sortie` à partir de `debut` (secondes du contexte audio), pour `duree` secondes.
+ * `coupes` (facultatif) : changements de scène { t, type, vague } qui reçoivent un son de transition. */
+export function jouerMusique(ac, sortie, ambiance, duree, debut = ac.currentTime + 0.05, graine = 0, coupes = []) {
   // Chaque SaaS a sa musique : tonalité, suite d'accords, motif d'arpège et tempo tirés de sa graine
   const tr = (graine % 7) - 3;
   const SUITES = [[0, 1, 2, 3], [2, 3, 0, 1], [0, 3, 1, 2], [1, 2, 3, 0]], suite = SUITES[(graine >>> 3) % 4];
@@ -52,6 +56,22 @@ export function jouerMusique(ac, sortie, ambiance, duree, debut = ac.currentTime
     s.connect(fl); fl.connect(e); e.connect(master); s.start(t, Math.random() * 0.5); s.stop(t + d + 0.02);
   };
 
+  // Bruitages de transition, synthétisés : souffle qui monte jusqu'à la coupe, coup sourd sur le logo final
+  const sfx = ac.createGain(); sfx.gain.value = ambiance === "douce" ? 0.6 : 1; sfx.connect(master);
+  for (const c of coupes ?? []) {
+    const tc = debut + c.t;
+    if (c.t > 0.1 && tc < fin) {
+      const s = ac.createBufferSource(), bp = ac.createBiquadFilter(), e = ac.createGain(), d = c.vague ? 0.42 : 0.26;
+      s.buffer = B; bp.type = "bandpass"; bp.Q.value = 1.2; bp.frequency.setValueAtTime(500, tc - d); bp.frequency.exponentialRampToValueAtTime(5000, tc);
+      e.gain.setValueAtTime(0.0001, tc - d); e.gain.exponentialRampToValueAtTime(c.vague ? 0.22 : 0.12, tc - 0.02); e.gain.exponentialRampToValueAtTime(0.0001, tc + 0.08);
+      s.connect(bp); bp.connect(e); e.connect(sfx); s.start(tc - d, 0.1); s.stop(tc + 0.1);
+    }
+    if (c.type === "logo" || c.type === "impact") {
+      const o = ac.createOscillator(), e = ac.createGain(); o.frequency.setValueAtTime(110, tc); o.frequency.exponentialRampToValueAtTime(38, tc + 0.4);
+      e.gain.setValueAtTime(0.5, tc); e.gain.exponentialRampToValueAtTime(0.0001, tc + 0.6); o.connect(e); e.connect(sfx); o.start(tc); o.stop(tc + 0.65);
+    }
+  }
+
   for (let m = 0, t0 = debut; t0 < fin; m++, t0 += mesure) {
     const k = suite[m % 4], acc = ACCORDS[k].map((n) => n + tr);
     // Nappe : deux scies désaccordées, filtrées
@@ -82,8 +102,8 @@ export function jouerMusique(ac, sortie, ambiance, duree, debut = ac.currentTime
 }
 
 /** Écoute directe (aperçu) : renvoie une fonction pour arrêter. */
-export function ecouterMusique(ambiance, duree, graine = 0) {
+export function ecouterMusique(ambiance, duree, graine = 0, coupes = []) {
   const ac = new (window.AudioContext || window.webkitAudioContext)();
-  const stop = jouerMusique(ac, ac.destination, ambiance, duree, ac.currentTime + 0.05, graine);
+  const stop = jouerMusique(ac, ac.destination, ambiance, duree, ac.currentTime + 0.05, graine, coupes);
   return () => { stop(); ac.close().catch(() => {}); };
 }

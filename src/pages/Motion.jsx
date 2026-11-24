@@ -1,6 +1,6 @@
 // Vidéo en motion design (produit ouvert à tous, façon Bolt) : une phrase → Bingoo! écrit le scénario et choisit un style
 // → la vidéo joue aussitôt à droite → on la retouche en discutant à gauche → export MP4/WebM dans le navigateur.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { envoyerLogo, lireLogoEspace, poserLogoEspace } from "../lib/logo";
 import { fn, supabase } from "../lib/supabase";
@@ -8,8 +8,8 @@ import AppCadre from "../components/AppCadre";
 import { useWs } from "../lib/ws";
 import { cx } from "../lib/utils";
 import { DUREE, FORMATS, dessiner, exporterVideo, graineDe, preparerPolice } from "../lib/videoPub";
-import { AMBIANCES, ecouterMusique } from "../lib/musiqueVideo";
-import { dessinerScenes, dureeTotale, policeMotion } from "../lib/motion";
+import { AMBIANCES, ecouterMusique, tempoMusique } from "../lib/musiqueVideo";
+import { caleSurTempo, coupesScenes, dessinerScenes, dureeTotale, policeMotion, sousInstants } from "../lib/motion";
 
 const lire = (k) => { try { return JSON.parse(localStorage.getItem(k) ?? "null"); } catch { return null; } };
 const IDEES = ["Ajoute mon logo", "Plus dynamique", "Fond blanc", "Accroche plus forte", "Ajoute un mot géant qui claque", "Mets-la en bleu marine", "Termine par mon site"];
@@ -55,7 +55,8 @@ export default function Motion() {
   useEffect(() => () => ecoute?.(), [ecoute]);
   useEffect(() => { bas.current?.scrollTo({ top: bas.current.scrollHeight, behavior: "smooth" }); }, [fil.length, busy]);
 
-  const script = sel?.script;
+  // Les scènes sont calées sur le tempo de la musique choisie : chaque changement tombe sur un temps
+  const script = useMemo(() => caleSurTempo(sel?.script, musique === "aucune" ? 0 : tempoMusique(musique, graineDe(sel?.script?.nom ?? sel?.id))), [sel?.script, sel?.id, musique]);
   // Le logo de la vidéo, chargé en image autorisée (sinon l'export serait bloqué par le navigateur)
   useEffect(() => {
     if (!script?.logo) { setLogoImg(null); return; }
@@ -103,7 +104,7 @@ export default function Motion() {
     const image = () => { dessinerA(((performance.now() - t0.current) / 1000) % duree); id = requestAnimationFrame(image); };
     id = requestAnimationFrame(image);
     return () => cancelAnimationFrame(id);
-  }, [sel?.id, format, export_, lecture, logoImg, Object.keys(captures).length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sel?.id, format, export_, lecture, logoImg, Object.keys(captures).length, musique]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Le logo : réduit dans le navigateur (transparence gardée), sa couleur dominante relevée, puis posé dans la vidéo
   // Le logo de l'espace d'abord, sinon celui gardé dans ce navigateur
@@ -147,11 +148,11 @@ export default function Motion() {
     } finally { setBusy(false); }
   }
 
-  const ecouter = () => { if (ecoute) { ecoute(); setEcoute(null); return; } if (musique === "aucune") return; const stop = ecouterMusique(musique, duree, graine); setEcoute(() => stop); setTimeout(() => setEcoute(null), duree * 1000); };
+  const ecouter = () => { if (ecoute) { ecoute(); setEcoute(null); return; } if (musique === "aucune") return; const stop = ecouterMusique(musique, duree, graine, scenes ? coupesScenes(script) : []); setEcoute(() => stop); setTimeout(() => setEcoute(null), duree * 1000); };
   const telecharger = async () => {
     setExport(0);
     try {
-      const { blob, ext } = await exporterVideo(canvas.current, dessinerA, setExport, musique === "aucune" ? null : musique, graine, duree);
+      const { blob, ext } = await exporterVideo(canvas.current, dessinerA, setExport, musique === "aucune" ? null : musique, graine, duree, scenes ? { instants: (t) => sousInstants(script, t), coupes: coupesScenes(script) } : {});
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
       a.download = `${String(script?.nom ?? "video").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-")}-${format}.${ext}`; a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);

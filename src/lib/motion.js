@@ -6,9 +6,10 @@
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 const prog = (t, a, b) => clamp((t - a) / (b - a));
 const eo = (x) => 1 - Math.pow(1 - x, 3);
-const eob = (x) => { const c = 1.9; return x <= 0 ? 0 : x >= 1 ? 1 : 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }; // léger dépassement
+const eob = (x) => { const c = 1.25; return x <= 0 ? 0 : x >= 1 ? 1 : 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }; // léger dépassement
 const eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
-const ressort = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : 1 - Math.cos(x * Math.PI * 2.2) * Math.exp(-x * 5.5));
+// Ressort amorti (amortissement 0,75 : à peine 3 % de dépassement, jamais de rebond de dessin animé)
+const ressort = (x) => { if (x <= 0) return 0; if (x >= 1) return 1; const z = 0.75, w = 9, wd = w * Math.sqrt(1 - z * z), k = x; return 1 - Math.exp(-z * w * k) * (Math.cos(wd * k) + (z / Math.sqrt(1 - z * z)) * Math.sin(wd * k)); };
 const hexRgb = (h) => { const n = parseInt(String(/^#[0-9a-f]{6}$/i.test(h ?? "") ? h : "#4F46E5").slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 const mix = (c, d, k) => c.map((v, i) => Math.round(v + (d[i] - v) * k));
@@ -122,7 +123,7 @@ function fond(ctx, W, H, t, u) {
 }
 
 // Mots qui arrivent un par un (flou → net, montée), le mot clé en couleur
-function motsAnimes(ctx, texte, accent, x, y, { taille, largeur, t, poids = 700, decale = 0.11, couleur = INK, aligne = "centre" }) {
+function motsAnimes(ctx, texte, accent, x, y, { taille, largeur, t, poids = 700, decale = 0.07, couleur = INK, aligne = "centre" }) {
   ctx.font = `${poids} ${taille}px ${F}`; ctx.textBaseline = "middle"; ctx.textAlign = "left";
   const gros = taille >= 90; serre(ctx, gros ? "-0.035em" : "-0.01em");
   const lignes = coupe(ctx, texte, largeur), inter = taille * (gros ? 1.02 : 1.15), h = lignes.length * inter, espace = taille * 0.26;
@@ -131,12 +132,14 @@ function motsAnimes(ctx, texte, accent, x, y, { taille, largeur, t, poids = 700,
   lignes.forEach((l, k) => {
     const mots = l.split(" "), w = mots.reduce((a, m) => a + ctx.measureText(m).width, 0) + espace * (mots.length - 1); let cx = aligne === "centre" ? x - w / 2 : x; const cy = y - h / 2 + inter * (k + 0.5);
     for (const m of mots) {
-      const p = eo(prog(t, i * decale, i * decale + 0.5)); const mw = ctx.measureText(m).width + espace;
+      const p = eo(prog(t, i * decale, i * decale + 0.55)); const mw = ctx.measureText(m).width + espace;
       if (p > 0) {
         const estAcc = acc.includes(m.toLowerCase().replace(/[.,!?;:«»"]/g, ""));
-        ctx.save(); ctx.globalAlpha *= p; if ("filter" in ctx) ctx.filter = p < 0.98 ? `blur(${(1 - p) * 10 * (taille / 90)}px)` : "none";
+        // Montée masquée : le mot sort de derrière sa ligne (le texte à lire n'est jamais flouté)
+        ctx.save(); ctx.beginPath(); ctx.rect(cx - taille * 0.1, cy - taille * 0.72, mw + taille * 0.2, taille * 1.44); ctx.clip();
+        ctx.globalAlpha *= Math.min(1, p * 1.6); if ("filter" in ctx) ctx.filter = "none";
         ctx.fillStyle = estAcc ? rgba(CV, 1) : couleur;
-        ctx.fillText(m, cx, cy + (1 - p) * taille * 0.35); ctx.restore();
+        ctx.translate(cx, cy + (1 - p) * taille * 1.05); ctx.rotate((1 - p) * 0.06); ctx.fillText(m, 0, 0); ctx.restore();
       }
       cx += mw; i++;
     }
@@ -522,6 +525,39 @@ const SCENES = {
 
 /** Dessine l'image au temps t (secondes) d'une vidéo composée de scènes. */
 // Toujours une linéale très grasse et serrée (comme les pubs de référence), jamais la police à empattements du site
+// Petit coup de caméra sur chaque temps (+1,2 %, retombe en 0,12 s), comme les films de lancement calés sur la musique
+function pulsation(script, t) { const b = Number(script?.tempo) || 0; if (!b) return 1; const x = t % b; return 1 + 0.012 * Math.exp(-x / 0.12); }
+
+/** Chaque scène dure un nombre entier de temps de la musique : les changements de scène tombent sur la grosse caisse. */
+export function caleSurTempo(script, temps) {
+  if (!temps || !script?.scenes?.length) return script;
+  const scenes = script.scenes.map((s) => { const d = dureeScene(s); let n = Math.max(2, Math.round(d / temps)); while (n * temps > 5 && n > 2) n--; while (n * temps < 1.4) n++; return { ...s, duree: +(n * temps).toFixed(4) }; });
+  return { ...script, scenes, tempo: temps };
+}
+
+/** Débuts et fins de scènes (pour les sons de transition). */
+export function coupesScenes(script) {
+  const out = []; let de = 0;
+  for (const s of (script?.scenes ?? []).filter((x) => SCENES[x?.type])) { out.push({ t: de, type: s.type, vague: s.transition === "vague" }); de += dureeScene(s); }
+  return out;
+}
+
+/** Instants à dessiner pour une image (flou de mouvement à 180°) : plusieurs sous-images pendant les entrées, sorties
+ * et vagues, une seule sinon (le texte posé reste net). Jamais de flou à cheval sur un changement de scène. */
+export function sousInstants(script, t, fps = 30) {
+  let de = 0;
+  for (const s of (script?.scenes ?? []).filter((x) => SCENES[x?.type])) {
+    const d = dureeScene(s), a = de, b = de + d; de = b;
+    if (t < a || t >= b) continue;
+    const local = t - a, bouge = local < 0.6 || local > d - 0.36 || (s.transition === "vague" && local < 0.7);
+    if (!bouge) return [t];
+    const n = 9, ouv = 0.5 / fps, out = [];
+    for (let j = 0; j < n; j++) out.push(clamp(t + (j / (n - 1) - 0.5) * ouv, a + 1e-4, b - 1e-4));
+    return out;
+  }
+  return [t];
+}
+
 export const POLICE_MOTION = "Inter Tight";
 export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = null, filigrane = false } = {}) {
   LOGO = logo; ECRANS = ecrans && typeof ecrans === "object" ? ecrans : {}; ECRANS_L = Object.values(ECRANS).filter(Boolean);
@@ -553,6 +589,7 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
     // Chaque allure a sa propre façon de bouger (sinon toutes les vidéos se ressemblent)
     if (LOOK === "pop") {
       // Pop : la scène monte d'en bas en tournant, rebondit, puis s'envole vers le haut ; pas de flou
+      const pz = pulsation(script, t); ctx.translate(W / 2, H / 2); ctx.scale(pz, pz); ctx.translate(-W / 2, -H / 2);
       const r = ressort(prog(local, 0, 0.6)), y = (1 - r) * H * 0.35 - sort * H * 0.45, rot = (1 - r) * (i % 2 ? 0.09 : -0.09) + sort * (i % 2 ? -0.05 : 0.05);
       ctx.translate(W / 2, H / 2 + y); ctx.rotate(rot); ctx.translate(-W / 2, -H / 2);
       ctx.globalAlpha = Math.min(1, ent * 2) * (1 - sort * 0.6); if ("filter" in ctx) ctx.filter = "none";
@@ -565,7 +602,7 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
       const k = 0.985 + ent * 0.015; ctx.translate(W / 2, H / 2); ctx.scale(k, k); ctx.translate(-W / 2, -H / 2);
       ctx.globalAlpha = ent * (1 - sort); if ("filter" in ctx) ctx.filter = "none";
     } else {
-      const k = 1 + local / d * 0.035 + (1 - ent) * 0.05 + sort * 0.08;
+      const k = (1 + local / d * 0.035 + (1 - ent) * 0.05 + sort * 0.08) * pulsation(script, t);
       ctx.translate(W / 2, H / 2); ctx.scale(k, k); ctx.translate(-W / 2, -H / 2);
       ctx.globalAlpha = Math.min(1, ent * 1.2) * (1 - sort);
       if ("filter" in ctx) ctx.filter = (1 - ent) + sort > 0.02 ? `blur(${((1 - ent) * 16 + sort * 22) * u}px)` : "none";

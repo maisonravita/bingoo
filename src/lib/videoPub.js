@@ -338,7 +338,7 @@ export async function preparerPolice(police = "Plus Jakarta Sans") {
 /** Export image par image (WebCodecs) : chaque image est dessinée à son instant exact, puis encodée en H.264.
  * Rien ne dépend de la vitesse de l'ordinateur : la vidéo est toujours fluide (30 images par seconde pile).
  * La musique est rendue hors temps réel (OfflineAudioContext) puis encodée en AAC (ou Opus). */
-async function exporterImageParImage(canvas, dessinerA, onProgres, musique, graine, duree) {
+async function exporterImageParImage(canvas, dessinerA, onProgres, musique, graine, duree, { instants = null, coupes = [] } = {}) {
   const { Muxer, ArrayBufferTarget } = await import("mp4-muxer");
   const W = canvas.width, H = canvas.height, FPS = 30, N = Math.round(duree * FPS);
   // H.264 d'abord (lu partout, iPhone compris) ; VP9 si le navigateur n'a pas d'encodeur H.264
@@ -353,7 +353,7 @@ async function exporterImageParImage(canvas, dessinerA, onProgres, musique, grai
   if (musique) {
     const { jouerMusique } = await import("./musiqueVideo.js");
     const RATE = 48000, oac = new OfflineAudioContext(2, Math.ceil((duree + 0.2) * RATE), RATE);
-    jouerMusique(oac, oac.destination, musique, duree + 0.2, 0.02, graine);
+    jouerMusique(oac, oac.destination, musique, duree + 0.2, 0.02, graine, coupes);
     const buf = await oac.startRendering();
     for (const [c, m] of [["mp4a.40.2", "aac"], ["opus", "opus"]]) {
       const r = await AudioEncoder.isConfigSupported({ codec: c, sampleRate: RATE, numberOfChannels: 2, bitrate: 160_000 }).catch(() => null);
@@ -367,10 +367,18 @@ async function exporterImageParImage(canvas, dessinerA, onProgres, musique, grai
   let erreur = null;
   const venc = new VideoEncoder({ output: (ch, meta) => muxer.addVideoChunk(ch, meta), error: (e) => { erreur = e; } });
   venc.configure({ codec, width: W, height: H, bitrate: 10_000_000, framerate: FPS, latencyMode: "quality" });
+  let acc = null;
   for (let i = 0; i < N; i++) {
     if (erreur) throw erreur;
-    dessinerA(i / FPS);
-    const f = new VideoFrame(canvas, { timestamp: Math.round((i * 1e6) / FPS), duration: Math.round(1e6 / FPS) });
+    // Flou de mouvement : pendant les mouvements rapides, plusieurs sous-images moyennées (obturateur à 180°)
+    const ts = instants ? instants(i / FPS) : [i / FPS];
+    let src = canvas;
+    if (ts.length > 1) {
+      acc = acc ?? Object.assign(document.createElement("canvas"), { width: W, height: H }); const ac2 = acc.getContext("2d");
+      ts.forEach((tj, j) => { dessinerA(tj); ac2.globalAlpha = 1 / (j + 1); ac2.drawImage(canvas, 0, 0); });
+      ac2.globalAlpha = 1; src = acc;
+    } else dessinerA(ts[0]);
+    const f = new VideoFrame(src, { timestamp: Math.round((i * 1e6) / FPS), duration: Math.round(1e6 / FPS) });
     venc.encode(f, { keyFrame: i % (FPS * 2) === 0 }); f.close();
     onProgres?.(((i + 1) / N) * (son ? 0.95 : 1));
     // On laisse respirer la page (barre de progression, encodeur) sans jamais sauter d'image
@@ -396,9 +404,9 @@ async function exporterImageParImage(canvas, dessinerA, onProgres, musique, grai
 
 /** Enregistre la vidéo complète avec la musique choisie ; renvoie { blob, ext }.
  * Image par image quand le navigateur le permet (fluide sur toutes les machines), sinon en temps réel. */
-export async function exporterVideo(canvas, dessinerA, onProgres, musique = null, graine = 0, duree = DUREE) {
+export async function exporterVideo(canvas, dessinerA, onProgres, musique = null, graine = 0, duree = DUREE, opts = {}) {
   if (typeof window !== "undefined" && window.VideoEncoder && window.VideoFrame && (!musique || (window.AudioEncoder && window.OfflineAudioContext))) {
-    try { return await exporterImageParImage(canvas, dessinerA, onProgres, musique, graine, duree); }
+    try { return await exporterImageParImage(canvas, dessinerA, onProgres, musique, graine, duree, opts); }
     catch (e) { console.warn("Export image par image impossible, enregistrement en temps réel", e); }
   }
   return exporterTempsReel(canvas, dessinerA, onProgres, musique, graine, duree);
