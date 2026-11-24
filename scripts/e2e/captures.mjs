@@ -303,9 +303,12 @@ if (CONSTRUIRE === "galerie") {
       await p.screenshot({ path: `${DOSSIER}/galerie-${slug}-${nom}.png` });
       // La page entière, en descendant pour réveiller les animations au défilement
       const fr = p.frames().find((f) => f !== p.mainFrame()) ?? p.mainFrame();
-      for (let k = 0; k < 30; k++) { await fr.evaluate(() => window.scrollBy(0, 700)).catch(() => null); await p.waitForTimeout(150); }
-      await fr.evaluate(() => window.scrollTo(0, 0)).catch(() => null); await p.waitForTimeout(800);
-      await p.screenshot({ path: `${DOSSIER}/galerie-${slug}-${nom}-page.png`, fullPage: true });
+      // La page est dans un cadre : on la fait défiler écran par écran (8 au plus), chaque écran est photographié
+      const H = await fr.evaluate(() => document.documentElement.scrollHeight).catch(() => vp.height);
+      for (let k = 0, y = 0; k < 8 && y < H; k++, y += vp.height) {
+        await fr.evaluate((yy) => window.scrollTo(0, yy), y).catch(() => null); await p.waitForTimeout(900);
+        await p.screenshot({ path: `${DOSSIER}/galerie-${slug}-${nom}-${k}.png` });
+      }
       console.log(`✓ ${slug} (${nom})`); await c.close();
     }
   }
