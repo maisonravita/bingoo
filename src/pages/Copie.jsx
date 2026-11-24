@@ -15,7 +15,7 @@ const ecrire = (k, v) => { try { v == null ? localStorage.removeItem(k) : localS
 const actif = (ws) => ["active", "trialing", "past_due"].includes(ws?.plan_status);
 const paye = (ws, type) => ws?.plan === "fondateur" || (actif(ws) && (["explorer_pro", "lancer_pro", "business", "solo", "pro"].includes(ws?.plan) || (type === "site" && ws?.plan === "site")));
 const simple = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "");
-const TYPES = [["saas", "Un logiciel (SaaS)"], ["site", "Un site web"], ["app", "Une app mobile"]];
+const TYPES = [["saas", "Un logiciel (SaaS)"], ["site", "Un site web"]];
 const LECTURE = ["J'ouvre la page d'accueil", "Je relève le nom et la description", "Je lis les feuilles de style", "Je repère les couleurs", "Je reconnais les polices", "Je liste les rubriques et les boutons", "Je regarde ce que c'est : logiciel, site ou app"];
 
 const Coche = ({ ok }) => ok

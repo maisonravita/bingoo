@@ -199,7 +199,7 @@ export default function Idee() {
       <h1 className="mt-2 text-[28px] sm:text-[38px] font-black leading-[1.08] tracking-tight" style={HF}>{idee.titre ?? <>« {idee.texte} »</>}</h1>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <span className="text-[13.5px] text-ink-soft">Bingoo! construit :</span>
-        {[["saas", "Un logiciel (SaaS)"], ["site", "Un site web"], ["app", "Une app mobile"]].map(([k, l]) => <button key={k} aria-pressed={(idee.type ?? "saas") === k} disabled={etat === "charge"} onClick={() => { if ((idee.type ?? "saas") === k) return; ecrire("bingoo-idee", { texte: idee.texte, titre: idee.titre, nom: idee.nom, source: idee.source, type: k, at: Date.now() }); window.location.reload(); }} className={cx("rounded-full border px-3 py-1.5 text-[13px] font-semibold transition", (idee.type ?? "saas") === k ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink-faint")}>{l}</button>)}
+        {[["saas", "Un logiciel (SaaS)"], ["site", "Un site web"]].map(([k, l]) => <button key={k} aria-pressed={(idee.type ?? "saas") === k} disabled={etat === "charge"} onClick={() => { if ((idee.type ?? "saas") === k) return; ecrire("bingoo-idee", { texte: idee.texte, titre: idee.titre, nom: idee.nom, source: idee.source, type: k, at: Date.now() }); window.location.reload(); }} className={cx("rounded-full border px-3 py-1.5 text-[13px] font-semibold transition", (idee.type ?? "saas") === k ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink-faint")}>{l}</button>)}
         <button onClick={() => { ecrire("bingoo-idee", null); nav("/accueil"); }} className="ml-1 text-[13.5px] font-semibold text-ink-soft underline-offset-4 hover:underline">Changer d'idée</button>
       </div>
 

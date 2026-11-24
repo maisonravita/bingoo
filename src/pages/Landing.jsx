@@ -52,7 +52,7 @@ function useReveal() {
 /* ---------- La preuve : l'application filmée sur un vrai compte, en 4 onglets ---------- */
 const FAQ = [
   ["Je ne sais pas coder, ça marche quand même ?", "Oui. Tu décris ton idée en une phrase (ou tu colles l'adresse d'un site qui te plaît), et Bingoo! construit tout : les écrans, les comptes de tes clients, les paiements avec ton Stripe, la page de présentation. Tu n'écris pas une ligne de code."],
-  ["Qu'est-ce que Bingoo! peut construire ?", "Un logiciel en ligne (SaaS) avec ses comptes clients et ses abonnements, un site web pour ton activité, ou une app mobile à essayer tout de suite sur ton téléphone. Si une partie de ton idée ne peut pas marcher telle quelle, Bingoo! te le dit avant de construire et propose une autre façon de faire."],
+  ["Qu'est-ce que Bingoo! peut construire ?", "Un logiciel en ligne (SaaS) avec ses comptes clients et ses abonnements, un site web pour ton activité, qui marchent aussi sur téléphone. Les apps mobiles pour l'App Store et Google Play arrivent dans une prochaine version. Si une partie de ton idée ne peut pas marcher telle quelle, Bingoo! te le dit avant de construire et propose une autre façon de faire."],
   ["Je vois quoi avant de payer ?", "Après ton inscription gratuite : l'aperçu de ton idée (son nom, ses écrans, une maquette de l'écran principal) et ce qui sera fait autrement. Tu paies seulement quand tu cliques sur « Construire »."],
   ["Combien ça coûte ?", "Un SaaS ou une app : formule Lancer, 24,99 € par mois sans engagement, ou 19 € par mois à vie pour les 50 premiers membres. Un site web : formule Site, 9,99 € par mois, hébergement compris. Explorer les SaaS et voir l'aperçu de ton idée sont gratuits. Tes clients te paient directement sur ton Stripe : Bingoo! ne prend rien sur tes ventes."],
   ["Ça prend combien de temps ?", "Quelques minutes pour un site, souvent moins d'une heure pour un SaaS : tu regardes Bingoo! écrire chaque écran, le tester comme un vrai client et corriger ce qui ne marche pas. Ensuite tu modifies ce que tu veux dans l'atelier, en une phrase ou d'un double-clic sur un texte."],
@@ -114,7 +114,7 @@ function useEffetsPage() {
 // Le point d'entrée (façon Foundable) : un seul encadré pour l'idée OU l'adresse d'un site qui plaît.
 // Une adresse → Bingoo! lit ce site point par point (sans IA) et fait ta version, même style, ton nom, ton logo.
 // Une idée → Bingoo! la construit écran par écran sous tes yeux. Dans les deux cas : le compte d'abord.
-const TYPES_IDEE = [["saas", "Mon SaaS", "M4 6h16v12H4z M4 10h16"], ["site", "Mon site web", "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M3 12h18 M12 3c3 3.5 3 14.5 0 18 M12 3c-3 3.5-3 14.5 0 18"], ["app", "Mon app mobile", "M8 3h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M11 18h2"], ["video", "Ma vidéo", "M4 5h16v14H4z M10 9l5 3-5 3z"]];
+const TYPES_IDEE = [["saas", "Mon SaaS", "M4 6h16v12H4z M4 10h16"], ["site", "Mon site web", "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M3 12h18 M12 3c3 3.5 3 14.5 0 18 M12 3c-3 3.5-3 14.5 0 18"], ["video", "Ma vidéo", "M4 5h16v14H4z M10 9l5 3-5 3z"]];
 const EXEMPLES_IDEE = { video: ["Une vidéo pour présenter mon salon de barbier", "Le teaser de l'ouverture de ma boulangerie", "Une pub animée pour mon coaching en ligne"], saas: ["Une app de réservation pour les coiffeurs", "Un CRM simple pour les agents immobiliers", "notion.so"], site: ["Le site de mon salon de coiffure à Lyon", "Un site pour mon activité de plombier", "Le site de ma pizzeria avec les réservations"], app: ["Une app pour suivre mes séances de sport", "Une app de recettes de la semaine", "Une app pour gérer mon budget"] };
 const typeDe = (t) => {
   const x = String(t ?? "").toLowerCase();
@@ -272,7 +272,8 @@ const remplirIdee = (texte, genre) => window.dispatchEvent(new CustomEvent("bing
 function IdeeHero({ nav, nb }) {
   const [texte, setTexte] = useState(""), [choix, setChoix] = useState(null), [busy, setBusy] = useState(false), [compte, setCompte] = useState(null);
   // Le genre se lit dans la phrase (« un site… », « une app mobile… ») tant que le membre n'a pas choisi lui-même
-  const type = choix ?? typeDe(texte);
+  // Apps mobiles en V2 : une idée d'« app » est construite comme un logiciel en ligne, qui marche aussi sur téléphone
+  const type = ((t) => (t === "app" ? "saas" : t))(choix ?? typeDe(texte));
   const setType = setChoix;
   const zone = useRef(null);
   const url = estAdresse(texte);
@@ -284,6 +285,7 @@ function IdeeHero({ nav, nb }) {
     e?.preventDefault();
     const t = texte.trim();
     if (t.length < 4) { zone.current?.focus(); return; }
+    if (!/headless/i.test(navigator.userAgent)) compter("idee");
     setBusy(true);
     const vers = url ? "/explorer/copie" : type === "video" ? "/explorer/motion" : "/explorer/idee";
     try {
@@ -321,8 +323,19 @@ function IdeeHero({ nav, nb }) {
   </>);
 }
 
+// Entonnoir sans donnée personnelle : une visite comptée une fois par jour et par navigateur, et chaque idée envoyée
+const compter = (etape) => supabase.rpc("entonnoir_compter", { p_etape: etape }).then(() => {}, () => {});
+function useVisiteComptee() {
+  useEffect(() => {
+    if (/bot|crawl|spider|headless/i.test(navigator.userAgent)) return;
+    const cle = "bingoo-visite-" + new Date().toISOString().slice(0, 10);
+    try { if (localStorage.getItem(cle)) return; localStorage.setItem(cle, "1"); } catch { /* navigation privée : compté quand même */ }
+    compter("visite");
+  }, []);
+}
 export default function Landing() {
   const nav = useNavigate();
+  useVisiteComptee();
   useReveal();
   useEffetsPage();
   const go = () => commencer(nav);
@@ -356,7 +369,7 @@ export default function Landing() {
               <span className="block text-[32px] sm:text-[50px] lg:text-[66px] leading-[1.1] text-[#3A3F55]" style={{ fontWeight: 500, letterSpacing: "-.01em" }}>Donne ton idée.</span>
               <span className="mt-1 block text-[38px] sm:text-[60px] lg:text-[80px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>Bingoo! <span className="fx-texte">la construit.</span></span>
             </h1>
-            <p className="hero-in mx-auto mt-4 sm:mt-7 max-w-[720px] text-[16px] sm:text-[21px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Ton SaaS, ton site ou ton app : Bingoo! le crée écran par écran sous tes yeux, le teste et le met en ligne à ton nom.</p>
+            <p className="hero-in mx-auto mt-4 sm:mt-7 max-w-[720px] text-[16px] sm:text-[21px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Ton site ou ton logiciel en ligne en 5 minutes, à ton nom, avec tes premiers clients. Bingoo! le crée sous tes yeux, le teste et s'occupe du reste.</p>
             <IdeeHero nav={nav} nb={nb} />
             <FilmAuto />
           </div>
@@ -381,7 +394,7 @@ export default function Landing() {
             <ol className="relative mt-12 space-y-16 lg:pl-16">
               <span className="fx-rail hidden lg:block" aria-hidden><span id="fx-rail" style={{ transform: "scaleY(0)" }} /></span>
               {[
-                ["Décris ton idée", "Un logiciel, un site ou une app mobile, en une phrase : « une app de réservation pour les coiffeurs ». Bingoo! te montre tout de suite son nom, ses écrans et une maquette. Si une partie ne peut pas marcher telle quelle, il te le dit avant de construire.", null],
+                ["Décris ton idée", "Un logiciel ou un site, en une phrase : « une app de réservation pour les coiffeurs ». Bingoo! te montre tout de suite son nom, ses écrans et une maquette. Si une partie ne peut pas marcher telle quelle, il te le dit avant de construire.", null],
                 ["Bingoo! le construit sous tes yeux", "Écran par écran, en direct : il écrit chaque écran, le teste comme un vrai client, corrige ce qui ne marche pas. Quelques minutes pour un site, souvent moins d'une heure pour un SaaS.", ["/accueil/construit-en-cours.jpg", "Une vraie construction en cours : la page du site « Coupe Chez Vous » s'affiche pendant que Bingoo! l'écrit."]],
                 ["Il est en ligne, à ton nom", "Ta page de présentation, les comptes de tes clients, l'abonnement branché à ton Stripe. Ensuite tu changes ce que tu veux dans l'atelier : une phrase, ou un double-clic sur un texte.", ["/accueil/construit-fini.jpg", "Le même logiciel, fini et en ligne : sa page de présentation et son intérieur, avec des données d'exemple."]],
               ].map(([h, d, img], i) => (

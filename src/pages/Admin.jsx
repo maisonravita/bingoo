@@ -31,6 +31,27 @@ function AlertesAdmin() {
   );
 }
 
+// Entonnoir : de la visite de l'accueil à l'abonné payant (aucune donnée personnelle, robots et tests exclus)
+function Entonnoir() {
+  const [d, setD] = useState(null), [jours, setJours] = useState(30);
+  useEffect(() => { setD(null); supabase.rpc("admin_entonnoir", { p_jours: jours }).then(({ data }) => setD(data ?? [])); }, [jours]);
+  const max = Math.max(1, ...(d ?? []).map((x) => x.n));
+  return (
+    <Card className="p-5">
+      <div className="flex flex-wrap items-center gap-3"><h2 className="font-bold text-[16px]">Entonnoir</h2><span className="text-[13px] text-ink-soft">De la visite à l'abonné payant · robots et tests exclus</span>
+        <select value={jours} onChange={(e) => setJours(Number(e.target.value))} className="ml-auto rounded-lg border border-line px-2 py-1 text-[13px]">{[7, 30, 90].map((j) => <option key={j} value={j}>{j} jours</option>)}</select></div>
+      {!d ? <p className="mt-3 text-[13px] text-ink-soft">Chargement…</p> : (
+        <ul className="mt-3 space-y-1.5">{d.map((x, i) => (
+          <li key={x.etape} className="grid grid-cols-[200px_1fr_90px] items-center gap-3 text-[13.5px]">
+            <span>{x.etape}</span>
+            <span className="h-3 rounded-full bg-black/[.05]"><span className="block h-3 rounded-full bg-accent" style={{ width: `${Math.max(2, (x.n / max) * 100)}%` }} /></span>
+            <span className="text-right tabular-nums"><b>{x.n}</b>{i > 0 && d[i - 1].n > 0 ? <span className="ml-1 text-ink-soft">{Math.round((x.n / d[i - 1].n) * 100)} %</span> : null}</span>
+          </li>))}</ul>
+      )}
+      <p className="mt-3 text-[12px] text-ink-soft">Les visites et les idées sont comptées depuis le 24 novembre 2026. Les abonnés payants sont ceux dont l'abonnement est actif aujourd'hui : vérifie dans Stripe lesquels paient vraiment.</p>
+    </Card>
+  );
+}
 function MesuresConstruction() {
   const [d, setD] = useState(null), [jours, setJours] = useState(30), [ent, setEnt] = useState(null), [pages, setPages] = useState(null);
   useEffect(() => { setD(null); supabase.rpc("admin_mesures_construction", { p_jours: jours }).then(({ data }) => setD(data ?? [])); supabase.rpc("admin_mesures_entrees", { p_jours: jours }).then(({ data }) => setEnt(data ?? [])); supabase.rpc("admin_mesures_pages", { p_jours: jours }).then(({ data }) => setPages(data ?? [])); }, [jours]);
@@ -282,6 +303,7 @@ export default function Admin() {
 
       <AlertesAdmin />
       <CreditIa />
+      <Entonnoir />
       <MesuresConstruction />
       <AiCosts rows={ai} plans={ws} />
 
