@@ -61,6 +61,20 @@ Tout en français, tutoiement, phrases simples.`, { fast: true, maxTokens: 2500 
   const court = (x: unknown, n: number) => String(x ?? "").replace(/\s+/g, " ").trim().slice(0, n);
   const ecrans = (Array.isArray(r?.ecrans) ? r.ecrans : []).slice(0, 8).map((e: any) => ({ titre: court(e?.titre, 30), role: court(e?.role, 160) })).filter((e: any) => e.titre);
   if (!r?.nom || ecrans.length < 3) throw new HttpError(502, "Bingoo! n'a pas pu préparer l'aperçu, réessaie dans un instant");
+  // Un nom qui ne fait que recopier l'idée (« Boulangerie artisanale Nantes », « Yoga Marseille ») n'est pas un nom de marque :
+  // si chaque mot du nom vient de l'idée, on redemande seulement un nom (petit appel, ~0,1 centime)
+  {
+    const norm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const motsIdee = new Set(norm(`${idee} ${precisions.join(" ")} ${r.metier ?? ""}`).split(/[^a-z0-9]+/).filter((m) => m.length > 2));
+    const motsNom = norm(String(r.nom)).split(/[^a-z0-9]+/).filter((m) => m.length > 2 && !["les", "des", "chez", "and"].includes(m));
+    const ecritDansIdee = norm(idee).includes(norm(String(r.nom)).trim()) && /["«»“”]|\b(chez|nomm|appel|s'appelle)/i.test(idee);
+    if (!ecritDansIdee && motsNom.length && motsNom.every((m) => motsIdee.has(m))) {
+      const n = await askJson<any>(`Idée : « ${idee.slice(0, 400)} ». Métier : ${r.metier ?? ""}.
+Propose UN nom de marque pour ce commerce : original, court (1 à 3 mots), évocateur, facile à retenir et à prononcer en français, qui n'est pas une marque connue et qui ne reprend PAS simplement le métier ni la ville (pas « Boulangerie Nantes », pas « Garage Lille Auto »). Exemples d'esprit : « Le Fournil d'Ernest », « Atelier Volt », « Souffle & Sol ». JSON : { "nom": "…" }`, { fast: true, maxTokens: 60 }).catch(() => null);
+      const nn = court(n?.nom, 40);
+      if (nn && !norm(nn).split(/[^a-z0-9]+/).filter((m) => m.length > 2).every((m) => motsIdee.has(m))) r.nom = nn;
+    }
+  }
   const apercu = {
     nom: court(r.nom, 40), pitch: court(r.pitch, 220), cible: court(r.cible, 90), probleme: court(r.probleme, 300),
     famille: court(r.famille, 20), ecrans,
