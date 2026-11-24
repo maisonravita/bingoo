@@ -397,6 +397,33 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       return { status: 200, body: ligne(r) };
     }
 
+    // ---- Site web : payer un service en ligne (le prix vient de la base, jamais du navigateur ; l'argent va sur le Stripe du commerçant)
+    if (action === "site-payer") {
+      const sp = (app.spec ?? {}) as any;
+      if (sp.type !== "site") throw new Err(404, "Page introuvable");
+      const key = await cleStripe(admin, app.id);
+      if (!key) throw new Err(400, "Le paiement en ligne n'est pas activé sur ce site");
+      const retour = retourOk(String(b.retour ?? ""));
+      if (!retour) throw new Err(400, "Adresse de retour invalide");
+      const proprio = await proprioSite(admin, app.id);
+      const id = String(b.service ?? "");
+      let svc: any = null;
+      if (proprio && /^[0-9a-f-]{36}$/.test(id)) svc = (await admin.from("saas_app_rows").select("data").eq("app_id", app.id).eq("espace_id", proprio.id).eq("col", "services").eq("id", id).maybeSingle()).data?.data;
+      else if (/^d\d+$/.test(id)) svc = ((sp.demo?.services ?? []) as any[])[Number(id.slice(1))];
+      const prix = Number(svc?.prix);
+      if (!svc || svc.visible === false || !(prix > 0) || prix > 10000) throw new Err(400, "Ce service ne se paie pas en ligne");
+      const sep = retour.includes("?") ? "&" : "?";
+      const sess = await stripe(key, "checkout/sessions", {
+        mode: "payment", locale: "fr", "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "eur",
+        "line_items[0][price_data][unit_amount]": String(Math.round(prix * 100)),
+        "line_items[0][price_data][product_data][name]": `${String(svc.titre ?? "Service").slice(0, 80)} · ${String(sp.nom ?? "").slice(0, 40)}`,
+        "payment_intent_data[metadata][app]": slug, "payment_intent_data[metadata][service]": String(svc.titre ?? "").slice(0, 80),
+        "invoice_creation[enabled]": "true", "phone_number_collection[enabled]": "true",
+        success_url: `${retour}${sep}paiement=ok`, cancel_url: retour,
+      });
+      return { status: 200, body: { url: sess.url } };
+    }
+
     // ---- Site web (spec.type « site ») : son contenu vivant (services, horaires, coordonnées) et son formulaire de demande
     if (action === "site-info" || action === "site-contact") {
       const sp = (app.spec ?? {}) as any;
@@ -423,6 +450,8 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
           infos: nettoie((par.infos ?? [])[0] ?? {}),
           realisations: (par.realisations ?? []).filter((x) => x.visible !== false && x.titre).sort((a, b) => (Number(a.ordre) || 0) - (Number(b.ordre) || 0)).slice(0, 40).map(nettoie),
           inscrits,
+          // Paiement en ligne possible : le commerçant a branché sa clé Stripe
+          paiement_en_ligne: !!(await cleStripe(admin, app.id)),
         } };
       }
       // Demande envoyée depuis le site : rangée chez le gérant (ou mise de côté jusqu'à ce qu'il crée son accès), e-mail au gérant
