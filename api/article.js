@@ -28,6 +28,8 @@ function md(t) {
 function page(app, titre, description, canon, corps, ld = null) {
   const c = /^#[0-9a-f]{6}$/i.test(app.couleur || "") ? app.couleur : "#4F46E5";
   const accueil = app.domaine ? `https://${app.domaine}/` : `${SITE}/#/app/${app.slug}`;
+  // Un site : le bouton du commerçant (« Réserver », « Demander un devis ») ; un SaaS : l'essai gratuit
+  const site = app.type === "site", bouton = site ? (app.cta || app.site?.cta || "Me contacter") : "Essai gratuit", bouton2 = site ? bouton : "Essayer gratuitement";
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(titre)}</title><meta name="description" content="${esc(description)}"><link rel="canonical" href="${canon}">
 <meta property="og:title" content="${esc(titre)}"><meta property="og:description" content="${esc(description)}"><meta property="og:type" content="article">
@@ -38,9 +40,9 @@ ${ld ? `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, "\
 h2{font-size:22px;margin:30px 0 8px}h3{font-size:18px;margin:22px 0 6px}p,li{font-size:17px}.r{color:#64748B}a.b{display:inline-block;background:${c};color:#fff;text-decoration:none;font-weight:700;border-radius:12px;padding:12px 18px}
 .cta{margin-top:36px;background:#fff;border:1px solid #E2E8F0;border-radius:18px;padding:22px}.art{display:block;background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:16px;margin:10px 0;text-decoration:none;color:inherit}
 footer{margin-top:40px;color:#94A3B8;font-size:13px}</style></head><body><div class="w">
-<header><a href="${accueil}"><span class="l">${esc(String(app.nom || "S")[0])}</span>${esc(app.nom)}</a><a class="b" href="${accueil}" style="font-size:14px;padding:9px 14px">Essai gratuit</a></header>
+<header><a href="${accueil}"><span class="l">${esc(String(app.nom || "S")[0])}</span>${esc(app.nom)}</a><a class="b" href="${accueil}" style="font-size:14px;padding:9px 14px">${esc(bouton)}</a></header>
 ${corps}
-<div class="cta"><b>${esc(app.nom)}</b><p class="r" style="margin:4px 0 14px">${esc(app.pitch)}</p><a class="b" href="${accueil}">Essayer gratuitement</a></div>
+<div class="cta"><b>${esc(app.nom)}</b><p class="r" style="margin:4px 0 14px">${esc(app.pitch)}</p><a class="b" href="${accueil}">${esc(bouton2)}</a></div>
 <footer>© ${new Date().getFullYear()} ${esc(app.nom)}</footer></div></body></html>`;
 }
 

@@ -1823,7 +1823,7 @@ function Construire({ projet }) {
 }
 
 // Réglages d'un SaaS construit, par onglets : jumeau, lancement, encaissement, prix testés, e-mails, domaine, monde et bourse, code
-export const ONGLETS_APP = [["croissance", "Croissance"], ["versions", "Versions"], ["ia", "Assistant IA"], ["jumeau", "Jumeau"], ["lancement", "Lancement"], ["encaisser", "Encaisser"], ["prix", "Prix testés"], ["emails", "E-mails"], ["domaine", "Domaine"], ["connecteurs", "Connecteurs"], ["monde", "Monde et bourse"], ["mobile", "Mobile"], ["code", "Code"]];
+export const ONGLETS_APP = [["croissance", "Croissance"], ["versions", "Versions"], ["ia", "Assistant IA"], ["jumeau", "Jumeau"], ["lancement", "Lancement"], ["blog", "Blog"], ["encaisser", "Encaisser"], ["prix", "Prix testés"], ["emails", "E-mails"], ["domaine", "Domaine"], ["connecteurs", "Connecteurs"], ["monde", "Monde et bourse"], ["mobile", "Mobile"], ["code", "Code"]];
 // ---------------------------------------------------------------- Plan de croissance : tes vrais chiffres, les paliers, et ce qui fait grandir le SaaS copié
 const PALIERS = [1000, 10000, 100000];
 const CANAL_ACTION = {
@@ -1936,6 +1936,7 @@ export function ReglagesApp({ app, onChange, projet, initial, nu = false, onglet
       {o === "ia" && <OngletIA {...props} />}
       {o === "jumeau" && <OngletJumeau {...props} />}
       {o === "lancement" && <OngletLancement {...props} />}
+      {o === "blog" && <OngletBlog {...props} />}
       {o === "encaisser" && <OngletEncaisser {...props} />}
       {o === "prix" && <OngletPrix {...props} />}
       {o === "emails" && <OngletEmails {...props} />}
@@ -1961,6 +1962,7 @@ export function ReglagesApp({ app, onChange, projet, initial, nu = false, onglet
         {onglet === "ia" && <OngletIA {...props} />}
         {onglet === "jumeau" && <OngletJumeau {...props} />}
         {onglet === "lancement" && <OngletLancement {...props} />}
+        {onglet === "blog" && <OngletBlog {...props} />}
         {onglet === "encaisser" && <OngletEncaisser {...props} />}
         {onglet === "prix" && <OngletPrix {...props} />}
         {onglet === "emails" && <OngletEmails {...props} />}
@@ -2062,6 +2064,45 @@ function kitBase(app, projet) {
       ["bilan", "Jour 30", "Regarde ci-dessus quel canal a amené des inscrits et des abonnés : double-le, coupe le reste."],
     ],
   };
+}
+
+// Blog : le membre écrit ses articles (l'IA rédige à partir d'un sujet, sans rien inventer sur lui), il les relit,
+// les corrige et les supprime ; chaque article est une page lue par Google (/a/<app>/<article>, /blog sur son domaine)
+function OngletBlog({ app, appel, onChange }) {
+  const toast = useToast();
+  const dom = app.domaine_statut === "ok" ? app.domaine : null;
+  const blog = blogApp(app.slug, dom);
+  const [arts, setArts] = useState(app.lancement?.articles ?? []);
+  const [sujet, setSujet] = useState(""), [busy, setBusy] = useState(""), [edit, setEdit] = useState(null);
+  const ecrire = async () => { if (sujet.trim().length < 4) return; setBusy("ecrire"); try { const r = await appel("article-ecrire", { sujet: sujet.trim() }); setArts(r.articles); setSujet(""); toast("Article écrit et en ligne"); onChange?.(); } catch (x) { toast(x.message, "bad"); } finally { setBusy(""); } };
+  const garder = async () => { setBusy("garder"); try { const r = await appel("article-modifier", edit); setArts(r.articles); setEdit(null); toast("Article enregistré"); } catch (x) { toast(x.message, "bad"); } finally { setBusy(""); } };
+  const retirer = async (slug) => { if (!window.confirm("Supprimer cet article ? Il ne sera plus en ligne.")) return; try { const r = await appel("article-supprimer", { slug }); setArts(r.articles); } catch (x) { toast(x.message, "bad"); } };
+  return (
+    <div className="space-y-5">
+      <Explication>Des articles qui répondent aux questions que tes clients tapent dans Google, et qui les amènent vers toi. Donne un sujet, Bingoo! écrit l'article (sans rien inventer sur toi) ; tu le relis et le corriges. Il est en ligne tout de suite.</Explication>
+      <div className="flex flex-wrap gap-2">
+        <input value={sujet} onChange={(e) => setSujet(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") ecrire(); }} placeholder="Sujet : « comment choisir un bouquet de mariage », « que faire quand la chaudière ne démarre plus »…" aria-label="Sujet de l'article" className="min-w-[260px] flex-1 rounded-xl border border-black/10 bg-white px-3 py-2.5 text-[14px] text-[#1A1A1A] outline-none" />
+        <button onClick={ecrire} disabled={busy === "ecrire" || sujet.trim().length < 4} className="rounded-xl bg-[#E8571C] px-4 py-2.5 text-[14px] font-semibold text-white disabled:opacity-40">{busy === "ecrire" ? "Écriture… (30 s environ)" : "Écrire l'article"}</button>
+      </div>
+      {arts.length > 0 && <a href={blog} target="_blank" rel="noreferrer" className="inline-block text-[13.5px] font-semibold underline">Voir le blog en ligne ↗</a>}
+      <div className="space-y-2">
+        {!arts.length && <p className="text-[14px] opacity-70">Pas encore d'article. Commence par la question qu'on te pose le plus souvent.</p>}
+        {arts.map((a) => edit?.slug === a.slug ? (
+          <div key={a.slug} className="space-y-2 rounded-xl border border-black/10 bg-white p-3 text-[#1A1A1A]">
+            <input value={edit.titre} onChange={(e) => setEdit({ ...edit, titre: e.target.value })} aria-label="Titre" className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-[15px] font-semibold" />
+            <input value={edit.resume} onChange={(e) => setEdit({ ...edit, resume: e.target.value })} aria-label="Résumé" className="w-full rounded-lg border border-black/10 px-2.5 py-2 text-[13.5px]" />
+            <textarea value={edit.contenu} onChange={(e) => setEdit({ ...edit, contenu: e.target.value })} rows={14} aria-label="Contenu" className="w-full rounded-lg border border-black/10 px-2.5 py-2 font-mono text-[13px]" />
+            <div className="flex gap-2"><button onClick={garder} disabled={busy === "garder"} className="rounded-lg bg-[#1A1A1A] px-3 py-1.5 text-[13px] font-semibold text-white disabled:opacity-40">Enregistrer</button><button onClick={() => setEdit(null)} className="rounded-lg px-3 py-1.5 text-[13px] font-semibold">Annuler</button></div>
+          </div>
+        ) : (
+          <div key={a.slug} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-black/10 bg-white px-3 py-2.5 text-[#1A1A1A]">
+            <div className="min-w-0 flex-1"><p className="truncate text-[14.5px] font-semibold">{a.titre}</p><p className="truncate text-[12.5px] opacity-60">{a.resume}</p></div>
+            <div className="flex gap-1.5 text-[13px] font-semibold"><a href={`${blog}${a.slug}`} target="_blank" rel="noreferrer" className="rounded-lg px-2.5 py-1.5 hover:bg-black/5">Voir</a><button onClick={() => setEdit({ slug: a.slug, titre: a.titre, resume: a.resume ?? "", contenu: a.contenu ?? "" })} className="rounded-lg px-2.5 py-1.5 hover:bg-black/5">Modifier</button><button onClick={() => retirer(a.slug)} className="rounded-lg px-2.5 py-1.5 text-[#B42318] hover:bg-black/5">Supprimer</button></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function OngletLancement({ app, appel, agir, busy, projet, onChange }) {

@@ -998,7 +998,7 @@ function SitePageGeneree({ onAuth, saas }) {
   }, [d, contenu]);
   return html\`<div class=\${cls("min-h-screen", saas && "pg-saas")} style="background:var(--p-bg);color:var(--p-ink)">
     <div ref=\${ref}></div>
-    <div class="bg-legal"><div class="wrap flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-6 t-small muted"><\${LiensLegaux}/><span class="flex flex-wrap items-center gap-x-6"><button onClick=\${() => onAuth("login")} class="inline-flex min-h-11 items-center hover:underline">\${saas ? "Se connecter" : "Espace gérant"}</button><span>Site créé avec Bingoo!</span></span></div></div>
+    <div class="bg-legal"><div class="wrap flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-6 t-small muted"><span class="flex flex-wrap items-center gap-x-6"><\${LiensLegaux}/>\${(B.articles ?? []).length > 0 && html\`<a href=\${"https://www.bingoo.fr/a/" + B.slug + "/"} target="_top" class="inline-flex min-h-11 items-center hover:underline">Le blog</a>\`}</span><span class="flex flex-wrap items-center gap-x-6"><button onClick=\${() => onAuth("login")} class="inline-flex min-h-11 items-center hover:underline">\${saas ? "Se connecter" : "Espace gérant"}</button><span>Site créé avec Bingoo!</span></span></div></div>
   </div>\`;
 }
 function SiteVitrine({ onAuth }) {
