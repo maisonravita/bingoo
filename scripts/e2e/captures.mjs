@@ -513,7 +513,7 @@ if (CONSTRUIRE === "connexions") {
   const es = await reg({ quoi: "connexion-tester", id });
   console.log("envoi d'essai :", es.j.recu ? `✓ reçu (réponse ${es.j.code})` : `✗ ${es.status} ${JSON.stringify(es.j).slice(0, 160)}`);
   // Une vraie demande déposée sur le site, comme un visiteur : la connexion doit être prévenue
-  const dm = await fetch(`${SB}/functions/v1/t/${a.slug}/site-contact`, { method: "POST", headers: { apikey: ANON, "content-type": "application/json" }, body: JSON.stringify({ data: { nom: "Robot connexions", email: "robot-connexions@bingoo.fr", message: "Demande d'essai du robot." } }) });
+  const dm = await fetch(`${SB}/functions/v1/t/app/${a.slug}/site-contact`, { method: "POST", headers: { apikey: ANON, "content-type": "application/json" }, body: JSON.stringify({ data: { nom: "Robot connexions", email: "robot-connexions@bingoo.fr", message: "Demande d'essai du robot." } }) });
   console.log("demande déposée sur le site :", dm.status);
   await new Promise((ok) => setTimeout(ok, 9000));
   const [jl] = await q(`select connexions->'journal' j from saas_apps where id = ${lit(a.id)}`);
