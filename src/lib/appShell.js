@@ -911,7 +911,7 @@ function nettoyerDom(racine) {
 function jetonsTaste() {
   const c = S.design?.couleurs ?? {}, pol = { titres: S.police_titres || S.police || S.design?.polices?.titres, texte: S.police || S.design?.polices?.texte }, ok = (x) => /^#[0-9a-f]{6}$/i.test(x ?? "") ? x : null;
   const bg = ok(c.background) ?? "#ffffff", fg = ok(c.foreground) ?? "#111111", acc = ok(c.primary) ?? (S.couleur || "#1D4ED8"), onp = ok(c.on_primary) ?? "#ffffff";
-  return \`:root{--p-bg:\${bg};--p-surface:\${ok(c.muted) ?? "#f4f4f4"};--p-ink:\${fg};--p-muted:\${ok(c.muted_foreground) ?? "#5b5b5b"};--p-accent:\${acc};--p-accent-ink:\${onp};--p-action:\${acc};--p-action-ink:\${onp};--p-inv-bg:\${fg};--p-inv-ink:\${bg};\`
+  return \`:root{--p-bg:\${bg};--p-surface:\${ok(c.muted) ?? ok(c.card) ?? (((h) => h && (0.299 * parseInt(h.slice(1, 3), 16) + 0.587 * parseInt(h.slice(3, 5), 16) + 0.114 * parseInt(h.slice(5, 7), 16)) / 255 < 0.4)(ok(c.background)) ? "color-mix(in srgb, var(--p-bg) 88%, #fff)" : "#f4f4f4")};--p-ink:\${fg};--p-muted:\${ok(c.muted_foreground) ?? "#5b5b5b"};--p-accent:\${acc};--p-accent-ink:\${onp};--p-action:\${acc};--p-action-ink:\${onp};--p-inv-bg:\${fg};--p-inv-ink:\${bg};\`
     + \`--font-display:"\${pol.titres ?? "Inter"}",ui-serif,Georgia,serif;--font-text:"\${pol.texte ?? "Inter"}",ui-sans-serif,system-ui,sans-serif}\`
     + \`.bg-legal{border-top:1px solid color-mix(in srgb,var(--p-ink) 14%,transparent)}\`
     // Le contenu fixe la hauteur des sections (règle Taste : jamais de zone vide) ; seul le premier écran garde sa hauteur
@@ -949,7 +949,7 @@ function FormulaireSite({ d, liste }) {
   const L = (lib, cle, type = "text", large) => html\`<label class=\${cls("block text-[15px] font-medium", large && "plein")}>\${lib}<input type=\${type} value=\${f[cle]} onInput=\${(e) => setF({ ...f, [cle]: e.target.value })} class=\${champ} style=\${bord}/></label>\`;
   return html\`<form onSubmit=\${envoyer} class="bingoo-form text-left">
     \${liste ? html\`\${L("Prénom", "prenom")}\${L("E-mail", "email", "email")}\` : html\`\${L("Votre nom", "nom")}\${L("Téléphone", "telephone", "tel")}\${L("E-mail", "email", "email", true)}
-      \${(d.services ?? []).length > 0 && html\`<label class="block text-[15px] font-medium plein">Prestation<select value=\${f.service} onChange=\${(e) => setF({ ...f, service: e.target.value })} class=\${champ} style=\${bord}><option value="">Choisir…</option>\${d.services.map((s) => html\`<option value=\${s.titre}>\${s.titre}</option>\`)}</select></label>\`}
+      \${(d.services ?? []).length > 0 && html\`<label class="block text-[15px] font-medium plein">\${({ reservation: "Votre séjour", devis: "Votre projet", message: "Votre demande" })[SITE.demande] ?? "Prestation"}<select value=\${f.service} onChange=\${(e) => setF({ ...f, service: e.target.value })} class=\${champ} style=\${bord}><option value="">Choisir…</option>\${d.services.map((s) => html\`<option value=\${s.titre}>\${s.titre}</option>\`)}</select></label>\`}
       \${avecDate && L("Date souhaitée", "date_souhaitee", "date", true)}
       <label class="block text-[15px] font-medium plein">Message<textarea rows="4" value=\${f.message} onInput=\${(e) => setF({ ...f, message: e.target.value })} class="mt-1.5 w-full rounded-lg px-3 py-2.5 outline-none" style=\${bord}></textarea></label>\`}
     <input tabindex="-1" autocomplete="off" aria-hidden="true" value=\${f.site_web} onInput=\${(e) => setF({ ...f, site_web: e.target.value })} style="position:absolute;left:-9999px;width:1px;height:1px"/>
@@ -977,6 +977,8 @@ function SitePageGeneree({ onAuth, saas }) {
   useEffect(() => {
     const el = ref.current; if (!el) return;
     el.innerHTML = contenu; nettoyerDom(el);
+    // Une page de site a peu de photos : chargées tout de suite (en différé, certaines restaient des cadres vides)
+    el.querySelectorAll("img[loading=lazy]").forEach((i) => { i.loading = "eager"; });
     // Construction en direct : l'aperçu se place sur la section qui vient d'être écrite
     if (B.ancre) setTimeout(() => el.querySelector("#" + B.ancre)?.scrollIntoView({ block: "start" }), 60);
     // Logo du membre : il remplace la marque dessinée (en-tête et pied de page)

@@ -43,7 +43,7 @@ Rends un objet JSON :
 - lancement : pour un lancement seulement, { quand (« Printemps 2027 », « Bientôt » : seulement ce que l'idée dit, sinon « Bientôt »), offre (un avantage pour les premiers inscrits si l'idée en parle, sinon "") } ; sinon null
 - apropos : { titre (5 mots), texte (3 phrases, à la première personne, sur la façon de travailler) }
 - faq : 4 à 6 objets { q, r } : les vraies questions des clients de ce métier (zone, délais, paiement, annulation…), réponses en 1 à 2 phrases, prudentes
-- horaires : (vide [] pour un portfolio ou un lancement) 7 objets { jour (1 = lundi … 7 = dimanche), ouvert (booléen), debut ("09:00"), fin ("18:30"), debut2 et fin2 (2e plage le même jour, ex. le soir d'un restaurant : "19:30" et "22:00", sinon "") } : CEUX DE L'IDÉE s'ils y sont écrits, exactement, sinon habituels pour ce métier
+- horaires : (vide [] pour un portfolio ou un lancement) 7 objets { jour (1 = lundi … 7 = dimanche), ouvert (booléen), debut ("09:00"), fin ("18:30"), debut2 et fin2 (2e plage le même jour, ex. le soir d'un restaurant : "19:30" et "22:00", sinon "") } : CEUX DE L'IDÉE s'ils y sont écrits, exactement, sinon habituels pour ce métier (un hôtel, un gîte, une chambre d'hôtes, une résidence ou un service d'urgence est ouvert 7 jours sur 7, de "00:00" à "23:59" ; un restaurant a souvent un jour de fermeture et deux services ; une boutique ouvre le samedi)
 - telephone : le numéro SEULEMENT s'il est écrit dans l'idée, sinon ""
 - adresse : l'adresse postale SEULEMENT si elle est écrite dans l'idée (rue, code postal, ville), sinon ""
 - zone : la zone d'intervention ou le quartier si c'est un métier qui se déplace ou si l'idée le dit, sinon ""
@@ -68,9 +68,15 @@ export function specSite(c: any, p: any) {
     prix: (() => { const n = Number(String(x?.prix ?? "").replace(/\s/g, "").replace(",", ".").match(/\d+(\.\d+)?/)?.[0]); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null; })(),
     prix_texte: /partir/i.test(String(x?.prix_texte ?? "") + " " + String(x?.prix ?? "")) ? "à partir de" : "", duree: court(x?.duree, 20), ordre: i + 1, visible: true,
   })).filter((x: any) => x.titre);
-  if (!services.length && modele !== "lancement") services.push({ titre: "Premier rendez-vous", description: "Un premier échange pour comprendre votre besoin.", prix: null, prix_texte: "", duree: "", ordre: 1, visible: true });
+  if (!services.length && modele !== "lancement") {
+    const D0: Record<string, [string, string]> = { reservation: ["Réservation", "Indiquez vos dates et vos souhaits : nous vous confirmons la disponibilité et le tarif."], rdv: ["Premier rendez-vous", "Un premier échange pour comprendre votre besoin."], devis: ["Devis", "Décrivez votre projet : nous vous envoyons un devis détaillé."], message: ["Votre demande", "Dites-nous ce dont vous avez besoin : nous vous répondons rapidement."] };
+    const [t0, d0] = D0[demandeType] ?? D0.message;
+    services.push({ titre: t0, description: d0, prix: null, prix_texte: "", duree: "", ordre: 1, visible: true });
+  }
   const H = liste(c?.horaires);
-  const horaires = [1, 2, 3, 4, 5, 6, 7].map((j) => { const x = H.find((y: any) => Number(y?.jour) === j) ?? {}; const ouvert = x.ouvert === undefined ? j <= 5 : !!x.ouvert; const deux = ouvert && /^\d{1,2}:\d{2}$/.test(String(x.debut2 ?? "")) && /^\d{1,2}:\d{2}$/.test(String(x.fin2 ?? "")); return { jour: j, ouvert, debut: hh(x.debut, "09:00"), fin: hh(x.fin, "18:00"), ...(deux ? { debut2: hh(x.debut2, "19:00"), fin2: hh(x.fin2, "22:00") } : {}) }; });
+  // Hébergement (hôtel, gîte…) : ouvert tous les jours, à toute heure, quoi que l'IA ait proposé
+  const septSurSept = /(h[ôo]tel|g[îi]te|chambres? d.h[ôo]tes|r[ée]sidence|auberge|camping|palace|location saisonni|urgence|d[ée]pannage 24)/i.test(`${metier} ${p?.idee?.texte ?? ""}`);
+  const horaires = [1, 2, 3, 4, 5, 6, 7].map((j) => { const x = septSurSept ? { ouvert: true, debut: "00:00", fin: "23:59" } : H.find((y: any) => Number(y?.jour) === j) ?? {}; const ouvert = septSurSept ? true : x.ouvert === undefined ? j <= 5 : !!x.ouvert; const deux = ouvert && /^\d{1,2}:\d{2}$/.test(String(x.debut2 ?? "")) && /^\d{1,2}:\d{2}$/.test(String(x.fin2 ?? "")); return { jour: j, ouvert, debut: hh(x.debut, "09:00"), fin: hh(x.fin, "18:00"), ...(deux ? { debut2: hh(x.debut2, "19:00"), fin2: hh(x.fin2, "22:00") } : {}) }; });
   // Téléphone et adresse : seulement s'ils sont écrits dans l'idée du membre (vérifié ici, jamais inventés par l'IA)
   const ideeTxt = String(p?.idee?.texte ?? "") + " " + (Array.isArray(p?.idee?.reponses) ? p.idee.reponses.map((x: any) => x?.r ?? "").join(" ") : "");
   const chiffres = (x: unknown) => String(x ?? "").replace(/\D/g, "");

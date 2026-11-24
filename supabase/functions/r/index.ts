@@ -1508,7 +1508,13 @@ Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement,
     if (b.app_id) {
       const { data: a } = await admin.from("saas_apps").select("id, slug, spec").eq("id", String(b.app_id)).eq("workspace_id", ws.id).maybeSingle();
       const titres = ((a?.spec as any)?.ecrans ?? []).filter((e: any) => e?.code && e?.titre).map((e: any) => String(e.titre).slice(0, 40)).slice(0, 8);
-      if (a && titres.length) produit = { id: a.id, slug: a.slug, titres, nom: String((a.spec as any)?.nom ?? "").slice(0, 28), couleur: /^#[0-9a-f]{6}$/i.test(String((a.spec as any)?.couleur ?? "")) ? String((a.spec as any).couleur) : null };
+      // Couleur de la vidéo : celle du SaaS si elle est franche ; une couleur grise ou terne donne une vidéo sans éclat,
+      // on prend alors la plus vive de sa palette (accent, principale, secondaire), sinon un bleu franc
+      const hexOk = (h: unknown) => /^#[0-9a-f]{6}$/i.test(String(h ?? "")) ? String(h) : null;
+      const vive = (h: string | null) => { if (!h) return 0; const n = parseInt(h.slice(1), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, bl = (n & 255) / 255, mx = Math.max(r, g, bl), mn = Math.min(r, g, bl), l = (mx + mn) / 2; return mx === mn ? 0 : (mx - mn) / (1 - Math.abs(2 * l - 1)) * (l > 0.15 && l < 0.85 ? 1 : 0.3); };
+      const sp = a?.spec as any, pal = [hexOk(sp?.couleur), hexOk(sp?.design?.couleurs?.accent), hexOk(sp?.design?.couleurs?.primary), hexOk(sp?.design?.couleurs?.secondary)];
+      const couleurVideo = vive(pal[0]) >= 0.35 ? pal[0] : ([...pal].filter(Boolean).sort((x, y) => vive(y) - vive(x))[0] && vive([...pal].filter(Boolean).sort((x, y) => vive(y) - vive(x))[0]) >= 0.35 ? [...pal].filter(Boolean).sort((x, y) => vive(y) - vive(x))[0] : "#2F5BFF");
+      if (a && titres.length) produit = { id: a.id, slug: a.slug, titres, nom: String(sp?.nom ?? "").slice(0, 28), couleur: couleurVideo };
     }
     let sc: any;
     try { sc = await videoLibre(produit?.nom ? `${texte} (le logiciel s'appelle « ${produit.nom} » : c'est ce nom-là, jamais un autre)` : texte, produit?.titres ?? []); } catch (e) { if ((e as any)?.status === 400) throw new HttpError(400, (e as Error).message); throw e; }

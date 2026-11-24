@@ -85,6 +85,13 @@ export async function pageSurMesure(appId: string, demarrerVerification: (id: st
     });
     spec.site = { ...spec.site, page: g.page };
     spec.gen = { ...g.mesure, at: new Date().toISOString() };
+    // Relecture du sens : la page parle-t-elle bien de CE métier et de CETTE demande ? (corrigée tout de suite sinon)
+    try {
+      const { relireSens } = await import("./site-gen.ts");
+      const brief = [idee.texte, ...(Array.isArray(idee.reponses) ? idee.reponses.map((x: any) => `${x.q} : ${x.r}`) : [])].filter(Boolean).join("\n") || String(spec.pitch ?? "");
+      const rs = await relireSens(spec, brief);
+      if (rs.problemes.length) { spec.gen = { ...spec.gen, relecture: rs }; console.log("relecture du sens", JSON.stringify(rs)); }
+    } catch (x) { console.error("relecture du sens", x); }
   } catch (x) {
     // Gabarit de secours : jamais un site cassé ; la raison est gardée pour « Qualité des constructions »
     spec.gen = { echec: String((x as Error)?.message ?? x).slice(0, 240), at: new Date().toISOString() };

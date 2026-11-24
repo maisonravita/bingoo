@@ -57,7 +57,9 @@ export async function genererPage(e: EntreePage): Promise<{ page: PageGeneree; m
   const typeP = typeDeProjet({ site: true, modele: e.modele, metier: e.metier, idee: e.brief });
   // Haut de gamme (hôtel 5 étoiles, palace, spa, joaillier, « élégant »…) : la mise en page des grandes maisons
   const luxe = /(luxe|luxueu|5 [ée]toiles|cinq [ée]toiles|palace|haut de gamme|prestige|[ée]l[ée]gan|raffin|joaill|boutique-h[ôo]tel)/i.test(`${e.brief} ${e.metier ?? ""}`);
-  const systeme = `${REGLES_PAGE}\n\n## Palette et polices imposées (système de design tiré pour ce membre)\n${texteDesign(e.design)}\n\n## Fiche du type de projet (${typeP})\n${FICHES[typeP] ?? ""}${luxe ? `\n\n${FICHE_LUXE}` : ""}${e.consignes ? `\n\n## Ce projet\n${e.consignes}` : ""}`;
+  // Le vocabulaire du métier, partout (titres, boutons, formulaire) : un hôtel ne parle pas de « prestations » ni de « rendez-vous »
+  const VOCABULAIRE = `## Vocabulaire du métier (obligatoire)\nÉcris avec les mots de CE métier : un hôtel, un gîte ou une chambre d'hôtes parle de séjour, chambres ou suites, arrivée, réservation ; un restaurant de carte, table, service ; un artisan de devis, chantier, intervention ; une association d'adhérents, sorties, activités. N'emploie « prestation », « rendez-vous » ou « sur devis » que si le métier fonctionne vraiment ainsi.`;
+  const systeme = `${REGLES_PAGE}\n\n${VOCABULAIRE}\n\n## Palette et polices imposées (système de design tiré pour ce membre)\n${texteDesign(e.design)}\n\n## Fiche du type de projet (${typeP})\n${FICHES[typeP] ?? ""}${luxe ? `\n\n${FICHE_LUXE}` : ""}${e.consignes ? `\n\n## Ce projet\n${e.consignes}` : ""}`;
   const donnees = JSON.stringify({ nom: e.nom, modele: e.modele, metier: e.metier, ville: e.ville, bouton_principal: e.cta, demande: e.demande,
     services: (e.services ?? []).map((s: any) => ({ titre: s.titre, prix: s.prix, duree: s.duree })), horaires: e.horaires ?? [], coordonnees: e.infos ?? {}, faq: e.faq ?? [],
     photos_du_membre: (e.photosMembre ?? []).length });
@@ -199,4 +201,28 @@ Réécris ${existante ? "cette section" : "la nouvelle section"} en entier : une
     }
   }
   return { faits, rates };
+}
+
+/** Relecture du sens (après la construction) : la page correspond-elle à la demande et au métier ?
+ *  Une IA rapide lit le texte visible et repère jusqu'à 2 incohérences (vocabulaire d'un autre métier, promesse ou horaire
+ *  absurde pour ce métier, partie essentielle de la demande absente) ; les sections concernées sont réécrites. ~1 à 4 centimes. */
+export async function relireSens(spec: any, brief: string): Promise<{ problemes: string[]; faits: string[] }> {
+  const page: PageGeneree | undefined = spec?.site?.page;
+  if (!page?.sections?.length) return { problemes: [], faits: [] };
+  const texte = (h: string) => h.replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const contenu = page.sections.map((s) => `[${s.id}] ${texte(s.html).slice(0, 900)}`).join("\n").slice(0, 7000);
+  const r = await askJson<any>(`Demande du membre : « ${brief.slice(0, 1200)} »
+Métier : ${spec.site?.metier ?? ""}.
+Horaires affichés : ${JSON.stringify(spec.demo?.horaires ?? []).slice(0, 400)}
+Texte de la page, section par section :
+${contenu}
+
+Relis comme le client de ce métier. Repère AU PLUS 2 vraies incohérences, seulement si elles sont nettes : vocabulaire d'un autre métier (« prestation », « rendez-vous », « sur devis » pour un hôtel par exemple), affirmation absurde pour ce métier, ou chose essentielle demandée par le membre absente de la page. Ignore le style et les détails.
+JSON : { "problemes": [ { "section": "l'id entre crochets", "quoi": "le problème en une phrase", "correction": "ce qu'il faut écrire à la place, en une ou deux phrases" } ] } (liste vide si tout est cohérent)`, { fast: true, maxTokens: 700 }).catch(() => null);
+  const ids = new Set(page.sections.map((s) => s.id));
+  const pbs = (Array.isArray(r?.problemes) ? r.problemes : []).filter((p: any) => ids.has(String(p?.section)) && String(p?.section) !== "nav").slice(0, 2);
+  if (!pbs.length) return { problemes: [], faits: [] };
+  // Les sections touchées sont différentes : réécrites en parallèle (temps de construction tenu)
+  const res = await Promise.all(pbs.map((p: any) => retoucherPage(spec, [{ action: "modifier", id: String(p.section), consigne: `Corrige ce défaut de sens : ${String(p.quoi).slice(0, 300)} À la place : ${String(p.correction).slice(0, 400)} Garde tout le reste de la section à l'identique.` }]).catch(() => ({ faits: [], rates: [] }))));
+  return { problemes: pbs.map((p: any) => `${p.section} : ${String(p.quoi).slice(0, 200)}`), faits: res.flatMap((x) => x.faits) };
 }

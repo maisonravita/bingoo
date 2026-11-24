@@ -234,6 +234,11 @@ export default function Idee() {
                 <p className="mt-5 text-[13px] font-bold">{site ? `Ce que Bingoo! construit maintenant (${ap.ecrans.length} parties)` : idee.type === "app" ? `Ce que Bingoo! construit maintenant (${ap.ecrans.length} onglets)` : `Ce que Bingoo! construit maintenant (${ap.ecrans.length} écrans)`}</p>
                 <ol className="mt-2 space-y-1.5">{ap.ecrans.map((e, i) => <li key={e.titre} className="flex gap-2.5 text-[14px]"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-paper text-[11px] font-bold">{i + 1}</span><span><b>{e.titre}</b> <span className="text-ink-soft">— {e.role}</span></span></li>)}</ol>
                 {ap.plus_tard?.length > 0 && <><p className="mt-5 text-[13px] font-bold">Ensuite, dans l'atelier</p><p className="mt-1 text-[13.5px] text-ink-soft">{ap.plus_tard.join(" · ")}</p></>}
+                {site && ap.plutot_logiciel && <div className="mt-5 rounded-xl border border-[#E8571C]/30 bg-[#FFF7F0] p-3.5">
+                  <p className="text-[14px] font-bold text-ink">Ton idée ressemble plutôt à un logiciel</p>
+                  <p className="mt-1 text-[13.5px] text-ink-soft">Des personnes doivent s'y connecter et agir (publier, s'inscrire, réserver avec un compte) : un site vitrine pourra seulement le présenter. Un logiciel le fera vraiment.</p>
+                  <button type="button" onClick={() => { ecrire("bingoo-idee", { texte: idee.texte, titre: idee.titre, nom: idee.nom, source: idee.source, type: "saas", at: Date.now() }); window.location.reload(); }} className="mt-2.5 rounded-full bg-[#E8571C] px-4 py-2 text-[13px] font-semibold text-white">Construire un logiciel à la place</button>
+                </div>}
                 {ap.limites?.length > 0 && <div className="mt-5 rounded-xl bg-[#FFF7F0] p-3"><p className="text-[13px] font-bold text-[var(--p)]">Fait autrement</p><ul className="mt-1 space-y-1">{ap.limites.map((l) => <li key={l.demande} className="text-[13.5px]"><span className="line-through decoration-[#C2410C]/50">{l.demande}</span> → {l.alternative}</li>)}</ul></div>}
               </div>
               {(ap.designs?.length ?? 0) > 1 && <div className="order-first">
