@@ -501,6 +501,40 @@ if (CONSTRUIRE === "gratuit-ia") {
   const v = await appel("video-creer", { workspace_id: wsG, texte: "Une pub pour ma boulangerie", format: "vertical" }); console.log(!v.ok ? `✓ vidéo IA refusée (${v.status})` : "✗ vidéo créée en gratuit");
   const [d] = await q(`select coalesce(sum(cost_eur), 0)::float c from ai_usage where workspace_id = ${lit(wsG)}`); console.log(d.c <= 0.02 ? `✓ coût IA de ce compte gratuit : ${(d.c * 100).toFixed(2)} centime(s)` : `✗ coût : ${(d.c * 100).toFixed(2)} centimes`);
 }
+if (CONSTRUIRE === "style-outil") {
+  // 1. Accueil : une idée d'outil écrite par un visiteur choisit toute seule le raccourci « Un outil ou un jeu »
+  { const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await c.newPage();
+    await p.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+    await p.locator("#idee").fill("Un simulateur de prêt immobilier"); await p.waitForTimeout(1200);
+    console.log("raccourci choisi tout seul :", await p.locator('button[aria-pressed="true"]').first().innerText().catch(() => "?"));
+    await p.locator("#idee").scrollIntoViewIfNeeded().catch(() => null); await p.screenshot({ path: `${DOSSIER}/style-1-raccourcis.png` }); await c.close(); }
+  const [a] = await q(`select a.id, a.slug, a.workspace_id, a.spec->'design'->'couleurs'->>'primary' prim, a.spec->'design'->'couleurs'->>'on_primary' onp, a.spec->>'couleur' couleur from saas_apps a join workspaces w on w.id = a.workspace_id where w.name like 'Robot film%' and a.statut = 'pret' and a.spec->'site'->'page'->'sections' is not null order by a.maj desc limit 1`);
+  console.log("site :", a?.slug, "couleur avant :", a?.prim, a?.couleur);
+  // 2. Aperçu d'une idée de petit outil demandée comme un logiciel : Bingoo! propose de lui-même l'outil
+  { const { ctx: c, page: p } = await ouvrir(a.workspace_id, { "bingoo-guide": "fini", "bingoo-idee": { texte: "Un outil pour calculer le pourboire et partager l'addition entre amis", type: "saas", at: Date.now() } });
+    await p.setViewportSize({ width: 1440, height: 900 });
+    await p.goto(`${SITE}/?c=${Date.now()}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+    await p.getByRole("button", { name: /^Construire / }).first().waitFor({ timeout: 120000 }).catch(() => null); await p.waitForTimeout(1500);
+    const b = p.getByRole("button", { name: /Construire un outil ou un jeu à la place/ });
+    console.log("bandeau « plutôt un outil » :", (await b.count().catch(() => 0)) ? "✓ affiché" : "✗ absent");
+    if (await b.count().catch(() => 0)) await b.first().scrollIntoViewIfNeeded().catch(() => null);
+    await p.screenshot({ path: `${DOSSIER}/style-2-bandeau-outil.png` }); await c.close(); }
+  // 3. Atelier, outil Style : couleur principale essayée en direct, puis gardée (et remise ensuite : c'est un site de test)
+  { const { ctx: c, page: p } = await ouvrir(a.workspace_id, { "bingoo-guide": "fini" });
+    await p.setViewportSize({ width: 1440, height: 900 });
+    await p.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(9000);
+    await p.screenshot({ path: `${DOSSIER}/style-3-atelier-avant.png` });
+    await p.getByRole("button", { name: "Aa Style" }).first().click().catch((e) => console.log("✗ bouton Style", e.message.slice(0, 80))); await p.waitForTimeout(1500);
+    await p.getByRole("button", { name: "Couleur #1D4ED8" }).click().catch((e) => console.log("✗ pastille", e.message.slice(0, 80))); await p.waitForTimeout(2500);
+    await p.screenshot({ path: `${DOSSIER}/style-4-couleur-essai.png` });
+    await p.getByRole("button", { name: /Garder ce style/ }).click().catch((e) => console.log("✗ garder", e.message.slice(0, 80)));
+    await p.waitForTimeout(9000); await p.screenshot({ path: `${DOSSIER}/style-5-couleur-gardee.png` });
+    const [f] = await q(`select spec->'design'->'couleurs'->>'primary' prim, spec->>'couleur' couleur, version from saas_apps where id = ${lit(a.id)}`);
+    console.log("couleur enregistrée :", f.prim, f.couleur, "version", f.version);
+    if (a.prim) await q(`update saas_apps set spec = jsonb_set(jsonb_set(jsonb_set(spec, '{design,couleurs,primary}', to_jsonb(${lit(a.prim)}::text)), '{design,couleurs,on_primary}', to_jsonb(${lit(a.onp ?? "#FFFFFF")}::text)), '{couleur}', to_jsonb(${lit(a.couleur ?? a.prim)}::text)) where id = ${lit(a.id)}`);
+    console.log("couleur d'origine remise");
+    await c.close(); }
+}
 if (CONSTRUIRE === "visiteur-apercu") {
   // La vidéo aussi, sans compte : le studio s'ouvre et la vidéo se joue
   { const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await c.newPage(); const t0 = Date.now();
@@ -876,7 +910,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);

@@ -1670,7 +1670,8 @@ function Connecteurs() {
 function Outil() {
   const E = ECRANS[0];
   if (!E) return html\`<div class="min-h-screen grid place-items-center text-slate-500 p-6 text-center">Cette page est en cours d'écriture. Revenez dans un instant.</div>\`;
-  return html\`<div data-bingoo-outil class="min-h-screen"><\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} user=\${null} params=\${null}/></\${Garde}></div><\${BadgeBingoo}/>\`;
+  // Le badge flotte en bas à droite : une marge en fin de page évite qu'il recouvre la dernière ligne (au téléphone surtout)
+  return html\`\${!S.sans_badge && html\`<style>[data-bingoo-outil]>:first-child::after{content:"";display:block;height:64px}</style>\`}<div data-bingoo-outil class="min-h-screen"><\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} user=\${null} params=\${null}/></\${Garde}></div><\${BadgeBingoo}/>\`;
 }
 function Racine() {
   if (B.capture) return html\`<\${Capture}/>\`;
