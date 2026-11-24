@@ -192,6 +192,7 @@ function ChantierFlou({ texte, genre, children }) {
 // Premiers écrans réels de projets construits par Bingoo! (captures du robot, en visiteur) ; 5e valeur : "site" pour un site vitrine
 export const VITRINE = [
   ["club-randonnee", "Club Randonnée", "Site d'association", "Le site de mon association de randonnée, avec nos sorties", "site"],
+  ["hotel-lumiere", "Hôtel Lumière Lyon", "Site d'hôtel", "Le site de mon hôtel 4 étoiles à Lyon, avec les chambres et la réservation", "site"],
   ["quatre-alignes", "Quatre Alignés", "Jeu contre l'ordinateur", "Un jeu de puissance 4 contre l'ordinateur", "outil"],
   ["rendezo", "Rendezo", "Réservation en ligne", "Un outil de réservation en ligne pour les indépendants, avec rappel la veille"],
   ["tablio", "Tablio", "Restaurant : tables et commandes", "Un outil pour gérer les réservations de tables et les commandes de mon restaurant"],
@@ -271,8 +272,8 @@ function Vitrine({ choisir }) {
       <h2 className="mx-auto mt-2 max-w-[760px] px-4 text-center text-[24px] sm:text-[32px] font-bold leading-tight text-[#1E2030]" style={JK}>De vrais SaaS, sites, outils et jeux, déjà en ligne</h2>
       <p className="mx-auto mt-2 max-w-[640px] px-4 text-center text-[15px] text-[#5B6075]" style={JK}>Clique sur celui qui ressemble à ton projet : Bingoo! part de là et l'adapte à toi.</p>
       <div className="vitrine-bande mt-7 space-y-4 [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]">
-        {rangee(VITRINE.slice(0, 9), 1)}
-        {rangee(VITRINE.slice(9), -1)}
+        {rangee(VITRINE.slice(0, 10), 1)}
+        {rangee(VITRINE.slice(10), -1)}
       </div>
     </section>
   );
