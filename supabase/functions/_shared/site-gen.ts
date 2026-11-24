@@ -43,6 +43,7 @@ const decoupe = (texte: string) => {
 // Ce qui fait « grande maison » : le premier écran est une photo plein cadre, le titre a un fragment en italique doré
 const FICHE_LUXE = `RÈGLES DE PAGE · HAUT DE GAMME (elles passent avant la fiche ci-dessus pour le premier écran) :
 - Premier écran (hero) en PLEIN CADRE : la photo d'en-tête couvre toute la largeur et au moins 92 vh (object-fit: cover), un voile sombre en dégradé vers le bas et vers la gauche pour que le texte reste lisible (contraste 4,5:1), le header transparent par-dessus.
+- Le texte du premier écran est dans un conteneur aligné sur celui du header (max-width 1200px, margin-inline auto, padding-inline clamp(24px, 6vw, 80px)) : jamais collé au bord de l'écran.
 - Au-dessus du titre, une petite ligne en capitales espacées (letter-spacing .25em) : la catégorie et la ville, séparées par « · ».
 - Le titre en police à empattements, grand (clamp(44px, 7vw, 96px)), sur deux lignes : la seconde en italique, dans la couleur principale (le doré s'il y en a), par exemple « L'art de recevoir / à Paris. ».
 - Deux boutons : le principal plein (couleur principale), le second en contour fin.
