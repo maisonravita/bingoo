@@ -25,3 +25,7 @@ jobs:
           SLUG: ${{ github.event.inputs.slug || '' }}
           BLANC: ${{ github.event.inputs.blanc || '0' }}
           DEBUG_TEXTE: ${{ github.event.inputs.debug || '' }}
+      - name: Captures du diagnostic des zones vides
+        if: ${{ github.event.inputs.debug == 'vide' }}
+        uses: actions/upload-artifact@v4
+        with: { name: zones-vides, path: /tmp/vide, retention-days: 1, if-no-files-found: ignore }

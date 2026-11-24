@@ -88,6 +88,28 @@ for (const a of apps) {
       const r = (pub?.resultats ?? []).find((x) => x.id === "_public");
       if (r?.erreur) pbs.push(`à ${largeur} px : ${r.erreur.replace(/^Page publique : /, "")}`);
     }
+    // Diagnostic des zones vides (debug=vide) : capture pleine page et ce qui se trouve dans la plus grande bande vide
+    if (process.env.DEBUG_TEXTE === "vide") for (const largeur of [1280, 390]) {
+      try {
+        page = appHtml({ spec: a.spec, slug: a.slug, api: "https://exemple.invalid/api", verif: "public" });
+        const ctx = await browser.newContext({ viewport: { width: largeur, height: largeur > 800 ? 800 : 800 }, locale: "fr-FR" }); const p = await ctx.newPage();
+        await p.goto(`http://localhost:${port}/`, { waitUntil: "domcontentloaded", timeout: 60000 }); await p.waitForTimeout(9000);
+        fs.mkdirSync("/tmp/vide", { recursive: true }); await p.screenshot({ path: `/tmp/vide/${a.slug}-${largeur}.png`, fullPage: true });
+        const d = await p.evaluate(() => {
+          const vis = (el) => { const r = el.getBoundingClientRect(), cs = getComputedStyle(el); return r.width > 1 && r.height > 1 && cs.visibility !== "hidden" && cs.display !== "none" && Number(cs.opacity) > 0.05; };
+          const pas = 8, occ = new Set(), tous = [...document.querySelectorAll("body *")].filter(vis);
+          for (const el of tous) { if (!el.matches("h1,h2,h3,h4,p,li,a,button,img,svg,input,textarea,select,video,canvas,picture") && ![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && !/url\(/.test(getComputedStyle(el).backgroundImage)) continue; const r = el.getBoundingClientRect(); for (let y = Math.max(0, Math.floor((r.top + scrollY) / pas)); y <= Math.floor((r.bottom + scrollY) / pas); y++) occ.add(y); }
+          const fin = Math.floor(document.documentElement.scrollHeight / pas); let v = 0, max = 0, debut = 0, best = 0;
+          for (let y = 0; y < fin; y++) { if (occ.has(y)) v = 0; else { if (!v) debut = y; v++; if (v > max) { max = v; best = debut; } } }
+          const y0 = best * pas, y1 = (best + max) * pas, mid = (y0 + y1) / 2;
+          const dans = [...document.querySelectorAll("body *")].filter((el) => { const r = el.getBoundingClientRect(); return r.top + scrollY <= mid && r.bottom + scrollY >= mid && r.width > 50; }).slice(-8)
+            .map((el) => { const cs = getComputedStyle(el); return `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 60)} h=${Math.round(el.getBoundingClientRect().height)} op=${cs.opacity} vis=${cs.visibility} bg=${cs.backgroundImage.slice(0, 40)} img=${el.tagName === "IMG" ? (el.complete && el.naturalWidth ? "ok" : "non chargée") : ""}`; });
+          return { y0, y1, hauteur: document.documentElement.scrollHeight, dans };
+        });
+        console.log(`  vide ${largeur}px : bande ${d.y0}-${d.y1} sur ${d.hauteur}`); for (const x of d.dans) console.log("    ·", x);
+        await ctx.close();
+      } catch (e) { console.log("  diagnostic vide impossible :", String(e?.message ?? e).slice(0, 120)); }
+    }
     try {
       const h = await (await fetch(`https://www.bingoo.fr/s/${a.slug}`, { signal: AbortSignal.timeout(20000) })).text();
       const manque = ["og:title", "og:description", "og:image", "description"].filter((n) => !new RegExp(`<meta (?:property|name)="${n}" content="[^"]+"`).test(h));
