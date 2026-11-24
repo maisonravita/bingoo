@@ -1309,6 +1309,36 @@ Clés JSON : resume (une phrase), etapes (2 à 6 étapes courtes et concrètes, 
     return { id: app.id, statut: "en_cours", credit: parCredit };
   },
   // Ce que l'abonné a utilisé ce mois-ci, par rapport à sa formule
+  // Support : réponse immédiate (IA, avec le contexte du compte), puis « Parler à un humain » qui prévient Jean par e-mail
+  async support(req, b) {
+    const { ws, userId } = await requireMember(req, b.workspace_id);
+    const user = (await admin.auth.admin.getUserById(userId).catch(() => null))?.data?.user ?? null;
+    const question = String(b.question ?? "").trim().slice(0, 2000);
+    if (question.length < 3) throw new HttpError(400, "Écris ta question en quelques mots");
+    await quota(ws.id, "support", 40);
+    const { data: apps } = await admin.from("saas_apps").select("slug, statut, erreur, spec->>nom, spec->>type, maj").eq("workspace_id", ws.id).order("maj", { ascending: false }).limit(5);
+    const contexte = `Offre : ${ws.plan ?? "gratuite"}. Crédits : ${await creditsSolde(ws.id)}. Projets : ${(apps ?? []).map((a: any) => `${a.nom ?? a.slug} (${a.type === "site" ? "site" : "SaaS"}, ${a.statut}${a.erreur ? `, erreur : ${String(a.erreur).slice(0, 120)}` : ""})`).join(" ; ") || "aucun"}.`;
+    if (b.humain) {
+      const echange = Array.isArray(b.echange) ? b.echange.slice(-6).map((x: any) => `${x.qui === "moi" ? "Membre" : "Assistant"} : ${String(x.texte ?? "").slice(0, 600)}`).join("\n") : "";
+      await admin.from("feedback").insert({ workspace_id: ws.id, user_id: user?.id ?? null, score: null, would_pay: "", message: question, page: "support-humain" });
+      const { alerteJean } = await import("../_shared/core.ts");
+      await alerteJean(`Support Bingoo! : ${ws.name ?? "un membre"} veut parler à un humain`, `Membre : ${user?.email ?? "?"} (espace ${ws.name ?? ws.id})\n${contexte}\n\nQuestion : ${question}\n\n${echange ? "Échange avec l'assistant :\n" + echange + "\n\n" : ""}Réponds-lui directement par e-mail à ${user?.email ?? "son adresse"}.`);
+      await log(ws.id, "support_humain", `Demande d'aide humaine : ${question.slice(0, 120)}`);
+      return { ok: true };
+    }
+    setAi({ ws: ws.id, live: true, feature: "support" });
+    const { ask } = await import("../_shared/core.ts");
+    const reponse = await ask(`Question du membre : « ${question} »\n\nSon compte : ${contexte}`, { fast: true, maxTokens: 500, cacheSystem: true, system: `Tu es l'assistance de Bingoo! (bingoo.fr), en français, en tutoyant, en 2 à 5 phrases simples, concrètes, sans jargon.
+Bingoo! crée pour des commerçants, artisans et indépendants : des sites (offre Site 9,99 €/mois), des SaaS et apps (offre Lancer 24,99 €/mois, 19 € à vie pour les 50 premiers), des vidéos motion design, et aide à trouver les premiers clients.
+Ce qu'il faut savoir :
+- L'atelier (menu Mon SaaS ou Atelier) : on écrit ce qu'on veut changer, Bingoo! le fait. Gratuit et sans limite : modifier un texte (clic sur le texte), remplacer une image (outil Image), choisir les polices (outil Police), réordonner les sections (outil Sections). Les autres demandes comptent dans les modifications du mois (30 en Lancer et Site, 100 en Lancer Pro), puis 1 crédit chacune.
+- Tu ne paies jamais nos erreurs : un défaut trouvé par le test de Bingoo! est corrigé gratuitement, et une modification annulée dans les 48 h (« Pas ce que tu voulais ? Annule ») est rendue.
+- Crédits : rechargeables dans Abonnement. Vidéo pub : dans Vidéos. Nom de domaine et retrait du badge « Built by Bingoo! » : offre Lancer Pro.
+- Paiements des clients du membre : sur son propre compte Stripe, Bingoo! ne prend aucune commission.
+- Arrêter l'abonnement : Abonnement, en un clic.
+Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement, une facture ou une question sensible : dis-le franchement et propose « Parler à un humain » (réponse par e-mail le jour même). N'invente jamais une fonction ni un prix.` });
+    return { reponse: reponse.trim().slice(0, 1500) };
+  },
   async limites(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     const lim = limitesDe(ws.plan);

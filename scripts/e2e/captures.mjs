@@ -294,6 +294,17 @@ if (CONSTRUIRE === "lien-public") {
     await p.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await etat(p, "createur");
     await p.evaluate((s) => { location.hash = `#/app/${s}`; }, a.slug); await etat(p, "createur-hash"); await c.close(); }
 }
+if (CONSTRUIRE === "support") {
+  // Support : réponse immédiate de l'assistant, puis transmission à un humain (un e-mail de test part vers l'équipe)
+  const [a] = await q(`select a.workspace_id from saas_apps a join workspaces w on w.id = a.workspace_id where w.name like 'Robot film%' and a.statut = 'pret' order by a.maj desc limit 1`);
+  const appel = async (corps) => { const r = await fetch(`${SB}/functions/v1/r/support`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: a.workspace_id, ...corps }) }); return [r.status, await r.json().catch(() => ({}))]; };
+  for (const question of ["Comment je change la photo de mon site ?", "Une modification ne me plaît pas, je l'ai payée pour rien ?", "Je veux être remboursé de mon abonnement"]) {
+    const t0 = Date.now(), [st, j] = await appel({ question });
+    console.log(`${st === 200 ? "✓" : "✗"} « ${question} » en ${Math.round((Date.now() - t0) / 1000)} s : ${String(j.reponse ?? j.error ?? "").replace(/\s+/g, " ").slice(0, 400)}`);
+  }
+  const [st2] = await appel({ question: "[TEST DU ROBOT, rien à faire] Je voudrais parler à quelqu'un", humain: true, echange: [{ qui: "moi", texte: "test" }] });
+  console.log(st2 === 200 ? "✓ transmis à un humain (e-mail de test envoyé à l'équipe)" : `✗ humain : ${st2}`);
+}
 if (CONSTRUIRE === "modif-rendue") {
   // « Tu ne paies jamais nos erreurs » : une modification payée (simulée, sans IA) puis annulée doit être rendue
   const [a] = await q(`select a.id, a.slug, a.workspace_id from saas_apps a join workspaces w on w.id = a.workspace_id where w.name like 'Robot film%' and a.statut = 'pret' order by a.maj desc limit 1`);
@@ -809,7 +820,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);

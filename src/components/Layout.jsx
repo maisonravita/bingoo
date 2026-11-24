@@ -8,6 +8,7 @@ import { cx } from "../lib/utils";
 import { LegalLinks } from "../pages/Legal";
 import Logo from "./Logo";
 import Feedback from "./Feedback";
+import Assistance from "./Assistance";
 
 const ICONS = {
   today: <path d="M4 12h3l3-7 4 14 3-7h3" />,
@@ -373,7 +374,7 @@ export default function Layout({ children }) {
       </div>
     </div>
   );
-  if (loc.pathname.startsWith("/explorer/revelation") || loc.pathname.startsWith("/explorer/atelier")) return <>{extra}{children}{fb && <Feedback onClose={() => setFb(false)} />}</>;
+  if (loc.pathname.startsWith("/explorer/revelation") || loc.pathname.startsWith("/explorer/atelier")) return <>{extra}{children}{fb && <Feedback onClose={() => setFb(false)} />}<Assistance /></>;
   if (!paye || invite) return (
     <div className="min-h-full">
       {extra}
@@ -399,7 +400,7 @@ export default function Layout({ children }) {
         </div>
       </header>
       <main className="min-w-0 pb-16">{children}</main>
-      {fb && <Feedback onClose={() => setFb(false)} />}
+      {fb && <Feedback onClose={() => setFb(false)} />}<Assistance />
     </div>
   );
   return (
@@ -408,7 +409,7 @@ export default function Layout({ children }) {
         {children}
       </AppShell>
       {basMobile}
-      {fb && <Feedback onClose={() => setFb(false)} />}
+      {fb && <Feedback onClose={() => setFb(false)} />}<Assistance />
     </>
   );
 }

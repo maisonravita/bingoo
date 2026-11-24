@@ -62,7 +62,7 @@ export const PLANS: Record<string, { label: string; price: number; factor: numbe
  *  Pensées pour que l'IA d'un abonné coûte toujours moins que son abonnement, même au prix annuel (9,99 €/mois).
  *  ia = plafond de dépense IA du mois pour l'espace, en euros (constructions comprises). */
 /** Ce que l'offre gratuite peut demander à l'IA : l'aperçu d'une idée et une vidéo par mois (limitée dans la route), rien d'autre. */
-export const GRATUIT_IA = /^(explorer\/idee-apercu|video)$/;
+export const GRATUIT_IA = /^(explorer\/idee-apercu|video|support)$/;
 /** Marque blanche (retirer le badge « Built by Bingoo! », brancher son nom de domaine) : l'offre du dessus seulement. */
 export const MARQUE_BLANCHE = ["lancer_pro", "business", "fondateur"];
 export const marqueBlanche = (ws: { plan?: string | null; plan_status?: string | null } | null | undefined) => !!ws && MARQUE_BLANCHE.includes(ws.plan ?? "") && ["active", "trialing", "past_due"].includes(ws.plan_status ?? "");

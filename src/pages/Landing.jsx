@@ -486,7 +486,7 @@ export default function Landing() {
             {/* Notre promesse face aux outils où chaque correction ratée coûte des crédits */}
             <div className="mt-6 flex max-w-[820px] items-start gap-3 rounded-2xl border border-[#2F7A4D]/25 bg-[#EEF7F1] px-5 py-4">
               <span aria-hidden="true" className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#2F7A4D] text-[13px] font-bold text-white">✓</span>
-              <p className="text-[15px] leading-relaxed text-[#1E3A2A]"><b>Tu ne paies jamais nos erreurs.</b> Bingoo! teste tout ce qu'il construit : un défaut trouvé par le test est corrigé gratuitement. Une modification qui ne te convient pas ? Tu l'annules dans les 48 h et elle t'est rendue. Et changer un texte, une photo, une police ou l'ordre de tes sections ne coûte jamais rien.</p>
+              <p className="text-[15px] leading-relaxed text-[#1E3A2A]"><b>Tu ne paies jamais nos erreurs.</b> Bingoo! teste tout ce qu'il construit : un défaut trouvé par le test est corrigé gratuitement. Une modification qui ne te convient pas ? Tu l'annules dans les 48 h et elle t'est rendue. Et changer un texte, une photo, une police ou l'ordre de tes sections ne coûte jamais rien. Une question ? Réponse immédiate dans Bingoo!, et un humain en français le jour même.</p>
             </div>
             <div className="mt-10 grid gap-4 md:grid-cols-3">
               {[

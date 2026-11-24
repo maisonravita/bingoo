@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, PageHead } from "../components/ui";
-import { supabase } from "../lib/supabase";
+import { fn } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { useToast } from "../components/ui";
 
@@ -24,11 +24,10 @@ export default function Aide() {
   const ask = async () => {
     if (q.trim().length < 5) return;
     setBusy(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from("feedback").insert({ workspace_id: ws.id, user_id: user?.id, score: null, would_pay: "", message: q.trim().slice(0, 3000), page: "aide" });
-    setBusy(false);
-    if (error) return toast("Envoi impossible, réessaie dans un instant.", "bad");
-    setQ(""); toast("Question envoyée : on te répond par e-mail.", "good");
+    // Envoyée à l'équipe, qui est prévenue par e-mail tout de suite (avant : rangée sans que personne ne soit prévenu)
+    try { await fn("r/support", { workspace_id: ws.id, question: q.trim().slice(0, 2000), humain: true }); setQ(""); toast("Question envoyée : on te répond par e-mail le jour même.", "good"); }
+    catch (e) { toast(e.message || "Envoi impossible, réessaie dans un instant.", "bad"); }
+    finally { setBusy(false); }
   };
   return (
     <div>
@@ -45,7 +44,7 @@ export default function Aide() {
       </Card>
       <Card className="p-5 mt-5">
         <p className="font-semibold">Tu ne trouves pas ta réponse ?</p>
-        <p className="text-sm text-ink-soft">Pose ta question ici : on te répond par e-mail, à l'adresse de ton compte.</p>
+        <p className="text-sm text-ink-soft">Pose ta question ici : un humain te répond par e-mail le jour même. Pour une réponse immédiate, clique sur « Aide » en bas à droite.</p>
         <textarea value={q} onChange={(e) => setQ(e.target.value)} rows={3} placeholder="Ta question…" className="mt-3 w-full rounded-lg border border-line px-3 py-2.5 bg-white text-sm" />
         <button disabled={busy || q.trim().length < 5} className="mt-2 rounded-full bg-ink text-white px-5 py-2.5 text-sm font-medium disabled:opacity-40" onClick={ask}>{busy ? "Envoi…" : "Envoyer la question"}</button>
       </Card>
