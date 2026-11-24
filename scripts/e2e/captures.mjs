@@ -541,7 +541,7 @@ if (CONSTRUIRE === "visiteur-apercu") {
     p.on("pageerror", (e) => console.log("   erreur JS :", e.message.slice(0, 160)));
     p.on("response", (r) => { if (r.status() === 403) console.log("   refusé au visiteur :", new URL(r.url()).pathname); });
     await p.goto(`${SITE}/?c=${t0}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
-    await p.locator("#idee").fill("Une pub pour ma boulangerie artisanale à Nantes"); await p.getByRole("button", { name: "Ma vidéo" }).first().click().catch(() => null);
+    await p.locator("#idee").fill("Une pub pour ma boulangerie artisanale à Nantes"); await p.getByRole("button", { name: "Vidéo", exact: true }).first().click().catch(() => null);
     await p.getByRole("button", { name: /Construire mon idée/ }).click().catch(() => null);
     const vu = await p.locator("canvas").first().waitFor({ timeout: 120000 }).then(() => true).catch(() => false);
     await p.waitForTimeout(6000);
