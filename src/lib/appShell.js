@@ -955,8 +955,13 @@ function nettoyerDom(racine) {
 function jetonsTaste() {
   const c = S.design?.couleurs ?? {}, pol = { titres: S.police_titres || S.police || S.design?.polices?.titres, texte: S.police || S.design?.polices?.texte }, ok = (x) => /^#[0-9a-f]{6}$/i.test(x ?? "") ? x : null;
   const bg = ok(c.background) ?? "#ffffff", fg = ok(c.foreground) ?? "#111111", acc = ok(c.primary) ?? (S.couleur || "#1D4ED8"), onp = ok(c.on_primary) ?? "#ffffff";
-  return \`:root{--p-bg:\${bg};--p-surface:\${ok(c.muted) ?? ok(c.card) ?? (((h) => h && (0.299 * parseInt(h.slice(1, 3), 16) + 0.587 * parseInt(h.slice(3, 5), 16) + 0.114 * parseInt(h.slice(5, 7), 16)) / 255 < 0.4)(ok(c.background)) ? "color-mix(in srgb, var(--p-bg) 88%, #fff)" : "#f4f4f4")};--p-ink:\${fg};--p-muted:\${ok(c.muted_foreground) ?? "#5b5b5b"};--p-accent:\${acc};--p-accent-ink:\${onp};--p-action:\${acc};--p-action-ink:\${onp};--p-inv-bg:\${fg};--p-inv-ink:\${bg};\`
+  // Encre du texte : presque neutre (noir ou blanc à peine teinté par la marque). La couleur de la marque sert aux aplats, aux
+  // boutons et aux accents, plus au texte courant : une page entière écrite en bleu ou en violet paraît plate et « générée ».
+  const sombreBg = ((h) => (0.299 * parseInt(h.slice(1, 3), 16) + 0.587 * parseInt(h.slice(3, 5), 16) + 0.114 * parseInt(h.slice(5, 7), 16)) / 255 < 0.4)(bg);
+  const encre = sombreBg ? "color-mix(in srgb," + fg + " 30%,#f7f5f0)" : "color-mix(in srgb," + fg + " 20%,#15151a)";
+  return \`:root{--p-bg:\${bg};--p-surface:\${ok(c.muted) ?? ok(c.card) ?? (((h) => h && (0.299 * parseInt(h.slice(1, 3), 16) + 0.587 * parseInt(h.slice(3, 5), 16) + 0.114 * parseInt(h.slice(5, 7), 16)) / 255 < 0.4)(ok(c.background)) ? "color-mix(in srgb, var(--p-bg) 88%, #fff)" : "#f4f4f4")};--p-ink:\${encre};--p-ink-marque:\${fg};--p-muted:color-mix(in srgb,\${encre} 64%,\${bg});--p-accent:\${acc};--p-accent-ink:\${onp};--p-action:\${acc};--p-action-ink:\${onp};--p-inv-bg:\${fg};--p-inv-ink:\${bg};--t-h1:clamp(40px,4.19vw + 23.7px,84px);--t-h2:clamp(30px,2.1vw + 21.8px,52px);--t-lead:19px;\`
     + \`--font-display:"\${pol.titres ?? "Inter"}",ui-serif,Georgia,serif;--font-text:"\${pol.texte ?? "Inter"}",ui-sans-serif,system-ui,sans-serif}\`
+    + \`:root[data-type="place"]{--t-h1:clamp(34px,2.86vw + 22.9px,64px);--t-h2:clamp(26px,1.33vw + 20.8px,40px)}\`
     + \`.bg-legal{border-top:1px solid color-mix(in srgb,var(--p-ink) 14%,transparent)}\`
     // Le contenu fixe la hauteur des sections (règle Taste : jamais de zone vide) ; seul le premier écran garde sa hauteur
     + \`main>:is(section,.section):not(.hero):not(.section--hero),footer.closing{height:auto!important;min-height:0!important}\`
