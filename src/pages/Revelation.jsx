@@ -11,6 +11,9 @@ import Logo from "../components/Logo";
 import AppCadre, { lienApp } from "../components/AppCadre";
 import AppTelephone from "../components/AppTelephone";
 import { indexChoisi } from "../lib/choix";
+// Polices proposées à l'atelier : la liste acceptée par la coque des apps (src/lib/appShell.js, POLICES), titres en premier choix
+const POLICES_TITRES = ["Cormorant Garamond", "Playfair Display", "DM Serif Display", "Fraunces", "Lora", "Merriweather", "Bebas Neue", "Oswald", "Barlow Condensed", "Space Grotesk", "Sora", "Outfit", "Poppins", "Montserrat", "Plus Jakarta Sans", "Archivo", "Urbanist", "Raleway"];
+const POLICES_TEXTE = ["Inter", "DM Sans", "Manrope", "Plus Jakarta Sans", "Work Sans", "Lato", "Open Sans", "Roboto", "Nunito", "Rubik", "Lexend", "Barlow", "Quicksand", "Outfit", "Lora", "Merriweather"];
 
 const HF = { fontFamily: "var(--font-titre)" };
 const CLE_CHOIX = "bingoo-choix";
@@ -37,6 +40,35 @@ function TestAtelier({ x, verif, apercu }) {
   if (!d.annule) return <p className="mt-1.5 ml-8 text-[13px] text-good">{d.avant_publication ? "Testée sur la version d'aperçu : tous les écrans fonctionnent. Elle est en ligne, regarde l'aperçu." : "Testée : tous les écrans fonctionnent. Elle reste en ligne."}</p>;
   const msg = [...(verif.journal ?? [])].reverse().find((j) => j.type === "probleme" && /version d'avant|pas mise en ligne/.test(j.t))?.t;
   return <p className="mt-1.5 ml-8 rounded-lg bg-[#FFF7F0] px-3 py-2 text-[13px] text-[#9A3412]">{msg ?? "Cette modification cassait un écran : elle n'a pas été mise en ligne, et elle t'est rendue."}</p>;
+}
+
+// Panneau de l'outil Police : deux listes (titres, texte), chaque nom écrit dans sa propre police
+function PanneauPolices({ polices, essayer, enregistrer, annuler }) {
+  const [t, setT] = useState(polices?.titres ?? null), [x, setX] = useState(polices?.texte ?? null);
+  useEffect(() => {
+    if (document.getElementById("polices-atelier")) return;
+    const l = document.createElement("link"); l.id = "polices-atelier"; l.rel = "stylesheet";
+    l.href = "https://fonts.googleapis.com/css2?" + [...new Set([...POLICES_TITRES, ...POLICES_TEXTE])].map((p) => "family=" + p.replace(/ /g, "+")).join("&") + "&display=swap";
+    document.head.appendChild(l);
+  }, []);
+  const choisir = (nt, nx) => { setT(nt); setX(nx); if (nt && nx) essayer({ titres: nt, texte: nx }); else if (nt || nx) essayer({ titres: nt ?? nx, texte: nx ?? "Inter" }); };
+  const liste = (titre, l, val, f) => (
+    <div className="min-w-0 flex-1">
+      <p className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wider text-white/60">{titre}</p>
+      <div className="flex max-h-[180px] flex-col gap-0.5 overflow-y-auto pr-1">
+        {l.map((p) => <button key={p} type="button" onClick={() => f(p)} className={cx("rounded-lg px-2.5 py-1.5 text-left text-[16px] text-white", val === p ? "bg-[#E8571C]" : "hover:bg-white/10")} style={{ fontFamily: `"${p}", system-ui` }}>{p}</button>)}
+      </div>
+    </div>
+  );
+  return (
+    <div className="absolute left-1/2 top-3 z-20 w-[min(560px,calc(100%-24px))] -translate-x-1/2 rounded-xl bg-ink/95 p-3 shadow-2xl">
+      <div className="flex gap-3">{liste("Titres", POLICES_TITRES, t, (p) => choisir(p, x ?? "Inter"))}{liste("Texte", POLICES_TEXTE, x, (p) => choisir(t ?? p, p))}</div>
+      <div className="mt-3 flex items-center justify-end gap-2">
+        <button type="button" onClick={annuler} className="rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-white/70 hover:text-white">Annuler</button>
+        <button type="button" onClick={enregistrer} disabled={!polices} className="rounded-lg bg-[#E8571C] px-3 py-1.5 text-[12.5px] font-semibold text-white disabled:opacity-40">Garder ces polices (gratuit)</button>
+      </div>
+    </div>
+  );
 }
 
 export default function Revelation({ paramsDe }) {
@@ -234,7 +266,9 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   const [vue, setVue] = useState("ordi");
   const [cle, setCle] = useState(0);
   // Outils de l'atelier : modifier un texte en cliquant dessus, pointer un élément, joindre des images, revenir en arrière
-  const [outil, setOutil] = useState(null); // null | "texte" | "pointer"
+  const [outil, setOutil] = useState(null); // null | "texte" | "pointer" | "commenter" | "sections" | "image" | "police"
+  const imageVisee = useRef(null), fichierImage = useRef(null);
+  const [polices, setPolices] = useState(null); // { titres, texte } en cours d'essai
   const [element, setElement] = useState(null); // { description, ecran }
   const [jointes, setJointes] = useState([]); // [{ url, nom }]
   const [envoiImage, setEnvoiImage] = useState(false);
@@ -348,7 +382,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
 
   // L'aperçu reçoit l'outil choisi (à chaque changement et à chaque rechargement), et les remarques épinglées
   const pousserEpingles = (l = commentaires) => { try { cadreRef.current?.contentWindow?.postMessage({ type: "bingoo-atelier-epingles", liste: l.map((c, i) => ({ n: i + 1, chemin: c.chemin, ecran: c.ecran, texte: c.texte })) }, "*"); } catch (_) { /* aperçu pas prêt */ } };
-  const pousserOutil = (m = outil) => { try { cadreRef.current?.contentWindow?.postMessage({ type: "bingoo-atelier-mode", mode: m }, "*"); } catch (_) { /* aperçu pas prêt */ } pousserEpingles(); };
+  const pousserOutil = (m = outil) => { try { cadreRef.current?.contentWindow?.postMessage({ type: "bingoo-atelier-mode", mode: m === "police" ? null : m }, "*"); } catch (_) { /* aperçu pas prêt */ } pousserEpingles(); };
   useEffect(() => { if (fini && app?.id) fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "commentaires" }).then((l) => setCommentaires(Array.isArray(l) ? l : []), () => null); }, [fini, app?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { pousserEpingles(); }, [commentaires]); // eslint-disable-line react-hooks/exhaustive-deps
   // Les remarques s'enregistrent une par une (jamais deux écritures en même temps, sinon l'une effacerait l'autre)
@@ -371,6 +405,8 @@ export function Chantier({ ws, nav, init, atelier = false }) {
     envoyer(t, seul); retirerRemarques(commentaires.map((c) => c.id));
   };
   useEffect(() => { pousserOutil(); }, [outil, cle]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Sortie de l'outil Police sans garder : l'essai est retiré de l'aperçu
+  useEffect(() => { if (outil !== "police" && polices) { setPolices(null); setCle((k) => k + 1); } }, [outil]); // eslint-disable-line react-hooks/exhaustive-deps
   const recharger = async () => { const { data } = await supabase.from("saas_apps").select("id, slug, statut, etape, erreur, spec, brouillon, domaine, domaine_statut, version, verif").eq("id", app.id).maybeSingle(); if (data) setApp(data); setCle((k) => k + 1); };
   // Messages de l'aperçu : un texte modifié sur place, ou un élément pointé
   useEffect(() => {
@@ -379,6 +415,14 @@ export function Chantier({ ws, nav, init, atelier = false }) {
       const d = e.data ?? {};
       if (d.type === "bingoo-atelier-pret") { pousserOutil(); return; }
       if (d.type === "bingoo-atelier-element") { setElement({ description: String(d.description ?? "").slice(0, 300), ecran: String(d.ecran ?? ""), chemin: String(d.chemin ?? ""), signe: String(d.signe ?? ""), texte: !!d.texte, couleur: d.couleur, fond: d.fond, retouche: d.retouche ?? {} }); return; }
+      if (d.type === "bingoo-atelier-ordre" && app && Array.isArray(d.ordre)) {
+        const n = echanges.length;
+        setEchanges((l) => [...l, { moi: "Sections réordonnées", etat: "encours" }]);
+        try { await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "sections-ordre", ordre: d.ordre.map(String).slice(0, 40) }); setEchanges((l) => l.map((x, k) => (k === n ? { ...x, etat: "ok", faits: ["ordre des sections enregistré (gratuit)"] } : x))); }
+        catch (x) { setEchanges((l) => l.map((y, k) => (k === n ? { ...y, etat: "ko", erreur: x.message } : y))); setCle((k) => k + 1); }
+        return;
+      }
+      if (d.type === "bingoo-atelier-image" && app && d.src) { imageVisee.current = String(d.src); fichierImage.current?.click(); return; }
       if (d.type === "bingoo-atelier-texte" && app) {
         const avant = String(d.avant ?? ""), apres = String(d.apres ?? "");
         const n = echanges.length, versionAvant = app.version;
@@ -420,6 +464,32 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   };
   const ouvrirHistorique = async () => { if (versions) { setVersions(null); return; } try { setVersions(await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "versions" })); } catch (_) { setVersions([]); } };
 
+  // Outil Image : la photo choisie remplace celle cliquée dans l'aperçu (réduite à 2000 px, sans IA, gratuit)
+  const remplacerImage = async (f) => {
+    const avant = imageVisee.current; imageVisee.current = null;
+    if (!f || !avant || !app) return;
+    if (!/^image\/(png|jpeg|webp)$/.test(f.type)) { alert("Image PNG, JPG ou WebP seulement."); return; }
+    const n = echanges.length;
+    setEchanges((l) => [...l, { moi: `Image remplacée par « ${f.name.slice(0, 40)} »`, etat: "encours" }]);
+    try {
+      const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = URL.createObjectURL(f); });
+      const k = Math.min(1, 2000 / Math.max(img.width, img.height)), c = document.createElement("canvas");
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      const { url } = await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "image", image: c.toDataURL(f.type === "image/png" ? "image/png" : "image/jpeg", 0.88) });
+      await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "image-remplacer", avant, url });
+      setEchanges((l) => l.map((x, k2) => (k2 === n ? { ...x, etat: "ok", faits: ["image remplacée (gratuit)"] } : x)));
+      await recharger(); setCle((k2) => k2 + 1);
+    } catch (x) { setEchanges((l) => l.map((y, k2) => (k2 === n ? { ...y, etat: "ko", erreur: x.message } : y))); }
+  };
+  // Outil Police : essai en direct dans l'aperçu, puis enregistrement (sans IA, gratuit)
+  const essayerPolice = (p) => { setPolices(p); try { cadreRef.current?.contentWindow?.postMessage({ type: "bingoo-atelier-police", ...p }, "*"); } catch (_) { /* aperçu pas prêt */ } };
+  const enregistrerPolice = async () => {
+    if (!polices || !app) return;
+    const n = echanges.length;
+    setEchanges((l) => [...l, { moi: `Polices : ${polices.titres} pour les titres, ${polices.texte} pour le texte`, etat: "encours" }]);
+    try { await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "police", ...polices }); setEchanges((l) => l.map((x, k) => (k === n ? { ...x, etat: "ok", faits: ["polices enregistrées (gratuit)"] } : x))); setPolices(null); setOutil(null); await recharger(); setCle((k) => k + 1); }
+    catch (x) { setEchanges((l) => l.map((y, k) => (k === n ? { ...y, etat: "ko", erreur: x.message } : y))); }
+  };
   // Image jointe : réduite dans le navigateur (1600 px au plus), puis déposée chez Bingoo!
   const joindre = async (fichiers) => {
     for (const f of [...(fichiers ?? [])].slice(0, 4 - jointes.length)) {
@@ -735,7 +805,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
               {[["ordi", "Ordinateur"], ["tel", "Téléphone"]].map(([k, l]) => <button key={k} onClick={() => setVue(k)} className={cx("rounded-md px-2.5 py-1", vue === k ? "bg-ink text-white" : "text-ink-soft")}>{l}</button>)}
             </div>
             <div className="flex rounded-lg border border-line bg-white p-0.5 text-[12.5px] font-semibold">
-              {[["texte", "✎ Modifier un texte", "Clique sur un texte de l'aperçu pour le réécrire sur place (gratuit). Astuce : un double-clic sur un texte marche aussi"], ["pointer", "◎ Sélectionner", "Clique sur un élément de l'aperçu : change sa couleur, sa taille, son texte, ou demande à Bingoo!"], ["commenter", "💬 Commenter", "Épingle une remarque sur un élément ; Bingoo! les traite toutes d'un coup"]].map(([k, l, t]) => <button key={k} title={t} disabled={!fini} onClick={() => { setOutil((o) => (o === k ? null : k)); if (outil === k) deselectionner(); }} className={cx("rounded-md px-2.5 py-1 disabled:opacity-40", outil === k ? "bg-[#E8571C] text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
+              {[["texte", "✎ Modifier un texte", "Clique sur un texte de l'aperçu pour le réécrire sur place (gratuit). Astuce : un double-clic sur un texte marche aussi"], ["pointer", "◎ Sélectionner", "Clique sur un élément de l'aperçu : change sa couleur, sa taille, son texte, ou demande à Bingoo!"], ["commenter", "💬 Commenter", "Épingle une remarque sur un élément ; Bingoo! les traite toutes d'un coup"], ...(app?.spec?.site?.page?.sections?.length > 1 ? [["sections", "⠿ Sections", "Fais glisser les sections de la page pour changer leur ordre (gratuit)"]] : []), ["image", "▣ Image", "Clique sur une image de l'aperçu pour la remplacer par la tienne (gratuit)"], ["police", "Aa Police", "Choisis la police des titres et du texte, avec l'aperçu immédiat (gratuit)"]].map(([k, l, t]) => <button key={k} title={t} disabled={!fini} onClick={() => { setOutil((o) => (o === k ? null : k)); if (outil === k) deselectionner(); }} className={cx("rounded-md px-2.5 py-1 disabled:opacity-40", outil === k ? "bg-[#E8571C] text-white" : "text-ink-soft hover:text-ink")}>{l}</button>)}
             </div>
             <div className="relative">
               <button onClick={ouvrirHistorique} disabled={!fini} className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[12.5px] font-semibold text-ink-soft hover:text-ink disabled:opacity-40">Historique</button>
@@ -745,7 +815,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                 {versions.length ? versions.map((v) => <button key={v.version} onClick={() => restaurer(v.version)} disabled={occupe} className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-[12.5px] hover:bg-[#F7F5F1]"><span>Version {v.version}</span><span className="text-ink-faint">{new Date(v.at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span></button>) : <p className="px-2.5 py-2 text-[12.5px] text-ink-faint">Pas encore d'ancienne version.</p>}
               </div>}
             </div>
-            <div className="min-w-0 flex-1 truncate rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] text-ink-faint">{outil === "texte" ? "Clique sur un texte de l'aperçu pour le modifier" : outil === "pointer" ? "Clique sur un élément de l'aperçu pour le sélectionner" : outil === "commenter" ? "Clique sur un élément pour y épingler une remarque" : fini ? lien.replace(/^https?:\/\//, "") : "Aperçu en construction…"}</div>
+            <div className="min-w-0 flex-1 truncate rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] text-ink-faint">{outil === "texte" ? "Clique sur un texte de l'aperçu pour le modifier" : outil === "pointer" ? "Clique sur un élément de l'aperçu pour le sélectionner" : outil === "commenter" ? "Clique sur un élément pour y épingler une remarque" : outil === "sections" ? "Attrape « ⠿ Glisser » et dépose la section où tu veux (ou ↑ ↓)" : outil === "image" ? "Clique sur une image de l'aperçu pour la remplacer par la tienne" : outil === "police" ? "Choisis une police : l'aperçu change tout de suite" : fini ? lien.replace(/^https?:\/\//, "") : "Aperçu en construction…"}</div>
             <button onClick={() => setCle((k) => k + 1)} disabled={!fini} aria-label="Recharger l'aperçu" className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-white text-ink-soft hover:text-ink disabled:opacity-40">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" /></svg>
             </button>
@@ -753,6 +823,8 @@ export function Chantier({ ws, nav, init, atelier = false }) {
           <div className={cx("relative mx-auto min-h-0 w-full flex-1 overflow-hidden rounded-xl border border-line bg-white shadow-[0_30px_80px_-50px_rgba(21,23,42,.5)] transition-[max-width] duration-500", vue === "tel" ? "max-w-[390px]" : "max-w-none")}>
             {fini ? <iframe ref={cadreRef} key={cle} title={`Aperçu de ${nom}`} src={lienApercu} onLoad={() => pousserOutil()} className={cx("absolute inset-0 h-full w-full border-0", outil && "ring-2 ring-inset ring-[#E8571C]")} />
               : specEnDirect(app?.brouillon ?? (app?.statut === "pret" ? app?.spec : null)) ? <EnDirect app={app} etape={etape} /> : <Assemblage nom={nom} couleur={couleur} ecrans={ecrans} ecrits={ecrits} etape={etape} />}
+            <input ref={fichierImage} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; remplacerImage(f); }} />
+            {fini && outil === "police" && <PanneauPolices polices={polices} essayer={essayerPolice} enregistrer={enregistrerPolice} annuler={() => { setPolices(null); setOutil(null); setCle((k) => k + 1); }} />}
             {fini && element?.chemin && outil === "commenter" && <div className="absolute left-1/2 top-3 z-20 flex w-[min(560px,calc(100%-24px))] -translate-x-1/2 items-center gap-2 rounded-xl bg-ink/95 p-1.5 shadow-2xl">
               <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#E8571C] text-[12px] font-bold text-white">{commentaires.length + 1}</span>
               <input autoFocus value={remarque} onChange={(e) => setRemarque(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") epingler(); if (e.key === "Escape") deselectionner(); }} placeholder={`Ta remarque sur ${element.description.slice(0, 40)}…`} className="min-w-0 flex-1 bg-transparent px-1 text-[13.5px] text-white outline-none placeholder:text-white/45" />

@@ -795,3 +795,37 @@ export async function saasReparerEcran(appId: string, ecranId: string, erreur: s
   await admin.rpc("saas_app_code_set", { p_app: appId, p_id: ecranId, p_code: code });
   return true;
 }
+
+/** Édition directe de l'atelier, sans IA (gratuite) : ordre des sections de la page, image remplacée, polices.
+ *  Chaque changement crée une nouvelle version (l'historique permet de revenir en arrière). */
+export async function saasEditionDirecte(appId: string, b: any) {
+  const { data: app } = await admin.from("saas_apps").select("spec, brouillon, version").eq("id", appId).single();
+  const spec = structuredClone(app?.spec ?? {}) as any;
+  const page = spec.site?.page;
+  if (b.quoi === "sections-ordre") {
+    const L = page?.sections ?? []; const ordre = (Array.isArray(b.ordre) ? b.ordre : []).map(String);
+    if (L.length < 2) throw new Error("Cette page n'a pas de sections à réordonner");
+    const parId = new Map(L.map((s: any) => [String(s.id), s]));
+    if (ordre.length !== new Set(ordre).size || ordre.some((id: string) => !parId.has(id))) throw new Error("Ordre invalide");
+    // Les sections non citées (en-tête, pied de page) gardent leur place relative : en tête si elles y étaient, sinon à la fin
+    const cites = new Set(ordre), reste = L.filter((s: any) => !cites.has(String(s.id)));
+    page.sections = [...reste.filter((s: any) => s.id === "nav"), ...ordre.map((id: string) => parId.get(id)), ...reste.filter((s: any) => s.id !== "nav")];
+  } else if (b.quoi === "image-remplacer") {
+    const avant = String(b.avant ?? ""), url = String(b.url ?? "");
+    if (!/^https:\/\/[a-z0-9]+\.supabase\.co\/storage\/v1\/object\/public\/apps\/images\/[A-Za-z0-9._-]+$/.test(url)) throw new Error("Image invalide");
+    if (avant.length < 4 || !page?.sections?.length) throw new Error("Image introuvable");
+    let n = 0;
+    // L'image peut être écrite dans la page sous son adresse ou sous une étiquette (IMG_1) qui renvoie à page.images
+    for (const [k, v] of Object.entries(page.images ?? {}) as [string, any][]) if (v?.url === avant) { page.images[k] = { ...v, url }; n++; }
+    for (const s of page.sections) if (typeof s.html === "string" && s.html.includes(avant)) { s.html = s.html.split(avant).join(url); n++; }
+    if (!n) throw new Error("Image introuvable dans la page");
+  } else if (b.quoi === "police") {
+    const ok = (p: unknown) => typeof p === "string" && /^[A-Za-z0-9 ]{2,40}$/.test(p);
+    if (!ok(b.titres) || !ok(b.texte)) throw new Error("Police invalide");
+    spec.police_titres = b.titres; spec.police = b.texte;
+  } else throw new Error("Modification inconnue");
+  const br = app?.brouillon as any;
+  const version = (app?.version ?? 0) + 1;
+  await admin.from("saas_apps").update({ spec, ...(br?._modif ? { brouillon: { ...spec, _modif: br._modif } } : {}), version, maj: new Date().toISOString() }).eq("id", appId);
+  return { ok: true, version };
+}

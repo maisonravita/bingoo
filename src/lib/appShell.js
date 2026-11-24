@@ -909,7 +909,7 @@ function nettoyerDom(racine) {
   racine.querySelectorAll("*").forEach((el) => { for (const a of [...el.attributes]) if (/^on/i.test(a.name) || (/^(href|src)$/i.test(a.name) && /^\\s*(javascript|vbscript|data:text)/i.test(a.value))) el.removeAttribute(a.name); });
 }
 function jetonsTaste() {
-  const c = S.design?.couleurs ?? {}, pol = S.design?.polices ?? {}, ok = (x) => /^#[0-9a-f]{6}$/i.test(x ?? "") ? x : null;
+  const c = S.design?.couleurs ?? {}, pol = { titres: S.police_titres || S.police || S.design?.polices?.titres, texte: S.police || S.design?.polices?.texte }, ok = (x) => /^#[0-9a-f]{6}$/i.test(x ?? "") ? x : null;
   const bg = ok(c.background) ?? "#ffffff", fg = ok(c.foreground) ?? "#111111", acc = ok(c.primary) ?? (S.couleur || "#1D4ED8"), onp = ok(c.on_primary) ?? "#ffffff";
   return \`:root{--p-bg:\${bg};--p-surface:\${ok(c.muted) ?? "#f4f4f4"};--p-ink:\${fg};--p-muted:\${ok(c.muted_foreground) ?? "#5b5b5b"};--p-accent:\${acc};--p-accent-ink:\${onp};--p-action:\${acc};--p-action-ink:\${onp};--p-inv-bg:\${fg};--p-inv-ink:\${bg};\`
     + \`--font-display:"\${pol.titres ?? "Inter"}",ui-serif,Georgia,serif;--font-text:"\${pol.texte ?? "Inter"}",ui-sans-serif,system-ui,sans-serif}\`
@@ -973,7 +973,7 @@ function SitePageGeneree({ onAuth, saas }) {
     return () => { l.remove(); st.remove(); };
   }, []);
   // Assemblage : le header, puis les sections dans <main id="top"> (les règles du kit en dépendent), puis la fin (footer.closing)
-  const contenu = useMemo(() => { const L = (P.sections ?? []).map((s) => ({ id: s.id, html: String(s.html).replace(/<\\/?main\\b[^>]*>/gi, "") })); const fin = L.filter((s) => /<footer\\b/i.test(s.html)), nav = L.filter((s) => s.id === "nav"); return [...nav.map((s) => s.html), '<main id="top">', ...L.filter((s) => s.id !== "nav" && !fin.includes(s)).map((s) => s.html), "</main>", ...fin.map((s) => s.html)].join("\\n").replace(/src=("|')(IMG_\\d|PHOTO_\\d)\\1/g, (m, q, k) => P.images?.[k]?.url ? \`src=\${q}\${P.images[k].url}\${q}\` : m); }, []);
+  const contenu = useMemo(() => { const L = (P.sections ?? []).map((s) => ({ id: s.id, html: String(s.html).replace(/<\\/?main\\b[^>]*>/gi, "") })); const fin = L.filter((s) => /<footer\\b/i.test(s.html)), nav = L.filter((s) => s.id === "nav"); return [...nav.map((s) => s.html), '<main id="top">', ...L.filter((s) => s.id !== "nav" && !fin.includes(s)).map((s) => s.html.replace(/<(section|div|article|aside)\\b/i, (m, t) => "<" + t + ' data-bingoo-section="' + String(s.id).replace(/[^a-z0-9_-]/gi, "") + '"')), "</main>", ...fin.map((s) => s.html)].join("\\n").replace(/src=("|')(IMG_\\d|PHOTO_\\d)\\1/g, (m, q, k) => P.images?.[k]?.url ? \`src=\${q}\${P.images[k].url}\${q}\` : m); }, []);
   useEffect(() => {
     const el = ref.current; if (!el) return;
     el.innerHTML = contenu; nettoyerDom(el);
@@ -1724,17 +1724,19 @@ function Racine() {
     if (d.type === "bingoo-atelier-editer") { if (choisi) { apresEdition = mode; mode = "texte"; temporaire = false; choisi.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })); } return; }
     if (d.type === "bingoo-atelier-deselect") { choisi = null; placer(cadreChoisi, null); return; }
     if (d.type !== "bingoo-atelier-mode") return;
-    parent = e.origin; atelier = true; mode = d.mode || null; cible = null; montrer(null); if (!mode) { choisi = null; placer(cadreChoisi, null); } document.body.style.cursor = mode ? (mode === "texte" ? "text" : mode === "commenter" ? "cell" : "crosshair") : "";
+    parent = e.origin; atelier = true; mode = d.mode || null; cible = null; montrer(null); setTimeout(() => window.__bingooPoignees?.dessiner(), 0); if (!mode) { choisi = null; placer(cadreChoisi, null); } document.body.style.cursor = mode ? (mode === "texte" ? "text" : mode === "commenter" ? "cell" : "crosshair") : "";
   });
-  addEventListener("mousemove", (e) => { if (!mode) return; const el = mode === "texte" ? cibleTexte(e.target) : e.target; cible = el; montrer(el === choisi ? null : el); }, true);
+  addEventListener("mousemove", (e) => { if (!mode) return; const el = mode === "texte" ? cibleTexte(e.target) : mode === "image" ? window.__bingooImageSous(e.clientX, e.clientY) : mode === "sections" ? e.target.closest?.("main > [data-bingoo-section]") : e.target; cible = el; montrer(el === choisi ? null : el); }, true);
   addEventListener("scroll", () => { if (mode && cible) montrer(cible); placer(cadreChoisi, choisi); }, true);
   addEventListener("resize", () => placer(cadreChoisi, choisi));
-  const bloquer = (e) => { if (!mode) return false; e.preventDefault(); e.stopPropagation(); return true; };
+  const bloquer = (e) => { if (!mode || window.__bingooPoignees?.contient(e.target)) return false; e.preventDefault(); e.stopPropagation(); return true; };
   addEventListener("mousedown", bloquer, true);
   // Dans l'atelier, un double-clic sur un texte le rend modifiable, même sans choisir l'outil
   addEventListener("dblclick", (e) => { if (!atelier || mode) return; const el = cibleTexte(e.target); if (!el) return; e.preventDefault(); e.stopPropagation(); mode = "texte"; temporaire = true; el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })); }, true);
   addEventListener("click", (e) => {
     if (!bloquer(e)) return;
+    if (mode === "sections") return;
+    if (mode === "image") { const img = window.__bingooImageSous(e.clientX, e.clientY); if (!img) return; choisi = img; montrer(null); placer(cadreChoisi, img); envoyer({ type: "bingoo-atelier-image", src: img.getAttribute("src") || "", description: decrire(img), largeur: img.naturalWidth || 0, hauteur: img.naturalHeight || 0 }); return; }
     if (mode === "pointer" || mode === "commenter") { choisi = e.target; montrer(null); placer(cadreChoisi, choisi); envoyer(decrireChoisi(choisi)); return; }
     const el = cibleTexte(e.target); if (!el) return;
     const avant = texteDirect(el); const m0 = temporaire ? null : (apresEdition || mode); apresEdition = null; placer(cadreChoisi, null); temporaire = false; mode = null; montrer(null); document.body.style.cursor = "";
@@ -1745,6 +1747,58 @@ function Racine() {
     el.contentEditable = "true"; el.focus(); const sel = getSelection(); const rg = document.createRange(); rg.selectNodeContents(el); sel.removeAllRanges(); sel.addRange(rg);
     el.addEventListener("keydown", touche); el.addEventListener("blur", sortie);
   }, true);
+  // ---- Édition directe (sans IA) : glisser les sections, remplacer une image au clic, essayer une police
+  const poignees = document.createElement("div"); poignees.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:2147483646"; document.body.appendChild(poignees);
+  const ligne = document.createElement("div"); ligne.style.cssText = "position:fixed;left:12px;right:12px;height:4px;background:#E8571C;border-radius:2px;display:none;pointer-events:none;z-index:2147483647;box-shadow:0 0 0 3px rgba(232,87,28,.25)"; document.body.appendChild(ligne);
+  const sectionsPage = () => [...document.querySelectorAll("main > [data-bingoo-section]")];
+  let glisse = null;
+  const deplacer = (de, vers) => {
+    const L = sectionsPage(); if (vers < 0 || vers >= L.length || vers === de) { dessinerPoignees(); return; }
+    const el = L[de]; if (vers > de) L[vers].after(el); else L[vers].before(el);
+    el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    envoyer({ type: "bingoo-atelier-ordre", ordre: sectionsPage().map((x) => x.dataset.bingooSection) });
+    setTimeout(dessinerPoignees, 400);
+  };
+  const dessinerPoignees = () => {
+    poignees.innerHTML = ""; if (mode !== "sections" || glisse) return;
+    const L = sectionsPage();
+    L.forEach((el, i) => {
+      const r = el.getBoundingClientRect(); if (r.bottom < 40 || r.top > innerHeight - 40) return;
+      const b = document.createElement("div");
+      b.style.cssText = "position:fixed;left:" + Math.max(8, r.left + 12) + "px;top:" + Math.max(8, r.top + 12) + "px;pointer-events:auto;display:flex;gap:4px;align-items:center;background:#15172A;color:#fff;border-radius:10px;padding:4px;font:600 13px system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.3)";
+      const bouton = (txt, titre, f, off) => { const x = document.createElement("button"); x.type = "button"; x.textContent = txt; x.title = titre; x.setAttribute("aria-label", titre); x.style.cssText = "min-width:32px;height:32px;border:0;border-radius:7px;padding:0 8px;font:inherit;background:" + (off ? "transparent" : "rgba(255,255,255,.14)") + ";color:" + (off ? "rgba(255,255,255,.3)" : "#fff") + ";cursor:" + (off ? "default" : "pointer"); x.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); if (!off) f(); }); return x; };
+      const prise = document.createElement("span"); prise.textContent = "⠿ Glisser"; prise.title = "Maintiens et fais glisser pour déplacer cette section";
+      prise.style.cssText = "padding:0 10px;height:32px;display:inline-flex;align-items:center;cursor:grab;user-select:none;touch-action:none";
+      prise.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); glisse = { el, i }; poignees.innerHTML = ""; document.body.style.cursor = "grabbing"; el.style.outline = "3px solid #E8571C"; el.style.opacity = ".6"; });
+      b.append(prise, bouton("↑", "Monter cette section", () => deplacer(i, i - 1), i === 0), bouton("↓", "Descendre cette section", () => deplacer(i, i + 1), i === L.length - 1));
+      poignees.appendChild(b);
+    });
+  };
+  const rangDepot = (y) => { const L = sectionsPage(); for (let j = 0; j < L.length; j++) { const r = L[j].getBoundingClientRect(); if (y < r.top + r.height / 2) return j; } return L.length; };
+  addEventListener("pointermove", (e) => {
+    if (!glisse) return; e.preventDefault();
+    const L = sectionsPage(), k = rangDepot(e.clientY), y = k < L.length ? L[k].getBoundingClientRect().top : L[L.length - 1].getBoundingClientRect().bottom;
+    Object.assign(ligne.style, { display: "block", top: Math.min(innerHeight - 6, Math.max(2, y - 2)) + "px" });
+    if (e.clientY < 70) scrollBy(0, -22); else if (e.clientY > innerHeight - 70) scrollBy(0, 22);
+  }, true);
+  addEventListener("pointerup", (e) => {
+    if (!glisse) return; const g = glisse; glisse = null; ligne.style.display = "none"; document.body.style.cursor = ""; g.el.style.outline = ""; g.el.style.opacity = "";
+    let k = rangDepot(e.clientY); if (k > g.i) k--; deplacer(g.i, k);
+  }, true);
+  addEventListener("scroll", () => { if (mode === "sections" && !glisse) dessinerPoignees(); }, true);
+  addEventListener("resize", () => { if (mode === "sections") dessinerPoignees(); });
+  window.__bingooPoignees = { dessiner: dessinerPoignees, contient: (x) => poignees.contains(x) };
+  // Image sous le curseur, même recouverte d'un voile (premier écran plein cadre)
+  window.__bingooImageSous = (x, y) => (document.elementsFromPoint(x, y) || []).find((el) => el.tagName === "IMG" && !cadre.contains(el)) || null;
+  // Essai d'une police : appliquée tout de suite dans l'aperçu (l'enregistrement se fait côté Bingoo!)
+  addEventListener("message", (e) => {
+    if (e.source !== window.parent || !permis(e.origin)) return;
+    const d = e.data || {}; if (d.type !== "bingoo-atelier-police") return;
+    const net = (p) => String(p || "").replace(/[^A-Za-z0-9 ]/g, "").slice(0, 40), t = net(d.titres), x = net(d.texte); if (!t || !x) return;
+    for (const [id, f] of [["bingoo-essai-titres", t], ["bingoo-essai-texte", x]]) { let l = document.getElementById(id); if (!l) { l = document.createElement("link"); l.id = id; l.rel = "stylesheet"; document.head.appendChild(l); } l.href = "https://fonts.googleapis.com/css2?family=" + f.split(" ").join("+") + "&display=swap"; }
+    let st = document.getElementById("bingoo-essai-police"); if (!st) { st = document.createElement("style"); st.id = "bingoo-essai-police"; document.head.appendChild(st); }
+    st.textContent = ':root{--font-display:"' + t + '",serif!important;--font-text:"' + x + '",sans-serif!important}body *:not(svg):not(path){font-family:"' + x + '",system-ui,sans-serif!important}body :is(h1,h2,h3,h4,.nav__logo,.t-stat){font-family:"' + t + '",Georgia,serif!important}';
+  });
   if (window.parent !== window) window.parent.postMessage({ type: "bingoo-atelier-pret" }, "*");
 }
 // Liens vers une partie de la page (#contact, #tarifs…) : l'app tourne dans un cadre isolé dont les adresses relatives

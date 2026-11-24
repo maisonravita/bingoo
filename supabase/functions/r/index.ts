@@ -973,6 +973,14 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     if (!app) throw new HttpError(404, "Application introuvable");
     const o = await import("../_shared/app-owner.ts");
     // Atelier : texte modifié en cliquant dessus dans l'aperçu (sans IA, gratuit ; limité par jour contre les abus)
+    // Édition directe (sans IA, gratuite) : glisser les sections, remplacer une image, choisir les polices
+    if (["sections-ordre", "image-remplacer", "police"].includes(b.quoi)) {
+      await quota(ws.id, "edition_directe", 300);
+      const { saasEditionDirecte } = await import("../_shared/app-build.ts");
+      const r = await saasEditionDirecte(app.id, b);
+      await log(ws.id, "app_reglage", b.quoi === "police" ? `Polices : ${String(b.titres).slice(0, 30)} / ${String(b.texte).slice(0, 30)}` : b.quoi === "sections-ordre" ? "Ordre des sections modifié" : "Image remplacée");
+      return r;
+    }
     if (b.quoi === "texte") {
       await quota(ws.id, "texte_app", 300);
       const { saasModifierTexte } = await import("../_shared/app-build.ts");
