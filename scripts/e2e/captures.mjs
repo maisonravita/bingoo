@@ -299,7 +299,7 @@ if (CONSTRUIRE === "modif-rendue") {
   const [a] = await q(`select a.id, a.slug, a.workspace_id from saas_apps a join workspaces w on w.id = a.workspace_id where w.name like 'Robot film%' and a.statut = 'pret' order by a.maj desc limit 1`);
   const [v] = await q(`select min(version) v from saas_app_versions where app_id = ${lit(a.id)}`);
   const debut = new Date(Date.now() - 60000).toISOString();
-  await q(`insert into activity (workspace_id, kind, label) values (${lit(a.workspace_id)}, 'modifier_app', 'Modification (test du robot)')`).catch(async () => q(`insert into activity (workspace_id, kind) values (${lit(a.workspace_id)}, 'modifier_app')`));
+  await q(`insert into activity (workspace_id, kind, summary) values (${lit(a.workspace_id)}, 'modifier_app', 'Modification (test du robot)')`);
   await q(`update saas_apps set paiement_modif = jsonb_build_object('version_avant', ${Number(v.v)}, 'at', ${lit(debut)}) where id = ${lit(a.id)}`);
   const [avant] = await q(`select count(*)::int n from activity where workspace_id = ${lit(a.workspace_id)} and kind = 'modifier_app' and created_at >= date_trunc('month', now())`);
   const r = await fetch(`${SB}/functions/v1/r/saas-app-reglages`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: a.workspace_id, app_id: a.id, quoi: "restaurer", version: Number(v.v) }) });
