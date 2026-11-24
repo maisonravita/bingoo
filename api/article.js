@@ -50,7 +50,8 @@ export default async function handler(req, res) {
   try {
     const u = new URL(req.url, SITE);
     const host = String(req.headers.host || "").replace(/^www\./, "").toLowerCase();
-    const surDomaine = !/maisonravita\.fr$|vercel\.app$|localhost/.test(host);
+    // Les adresses de Bingoo! (bingoo.fr compris) ne sont pas le domaine d'un client (avant : tous les articles en 404 sur bingoo.fr)
+    const surDomaine = !/(^|\.)(bingoo\.fr|maisonravita\.fr|vercel\.app)$|^localhost$|^127\./.test(host);
     const appCle = surDomaine ? host : String(u.searchParams.get("app") || "").replace(/[^a-z0-9-]/g, "");
     const art = String(u.searchParams.get("a") || "").replace(/[^a-z0-9-]/g, "");
     res.setHeader("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400");
