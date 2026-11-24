@@ -4,6 +4,10 @@ import { fn } from "../lib/supabase";
 import { useWs } from "../lib/ws";
 import { cx } from "../lib/utils";
 import { demanderCompte, estInvite } from "../lib/invite";
+import { VITRINE } from "./Landing";
+
+// Réalisations de Bingoo! (les mêmes que le défilé de l'accueil, vraies captures) : on repart de leur idée, à adapter
+const GENRES = { site: "Site web", outil: "Outil ou jeu", saas: "Logiciel" };
 
 // Galerie « Partir d'un modèle » : les modèles faits main de Bingoo! (écrans écrits et testés à l'avance),
 // adaptés au métier du membre. Chaque modèle s'appuie sur un SaaS de référence de la base, qui sert de point de départ
@@ -114,6 +118,9 @@ export default function Modeles() {
   const [ouvert, setOuvert] = useState(null), [img, setImg] = useState({}), [f, setF] = useState(null), [busy, setBusy] = useState(false), [err, setErr] = useState(null);
   useEffect(() => { document.title = "Partir d'un modèle · Bingoo!"; }, []);
 
+  const [genre, setGenre] = useState("tous");
+  // Repartir d'une réalisation : son idée est posée dans l'aperçu, où le membre la modifie avant de construire
+  const reprendre = ([, , , texte, g]) => { ecrire("bingoo-idee", { texte, type: g ?? "saas", at: Date.now() }); ecrire("bingoo-copie", null); nav("/explorer/idee"); };
   const choisir = (m) => { setOuvert(m.id); setF({ metier: "", nom: "", couleur: m.couleur }); setErr(null); };
   const lancer = async (m) => {
     if (estInvite(session) || !ws) { demanderCompte("Crée ton compte gratuit pour lancer ton SaaS à partir de ce modèle."); return; }
@@ -132,9 +139,32 @@ export default function Modeles() {
     <div className="mx-auto max-w-6xl px-4 sm:px-6 pb-20">
       <header className="pt-6 pb-8 max-w-3xl">
         <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#E8571C]">Partir d'un modèle</p>
-        <h1 className="mt-2 text-[34px] sm:text-[42px] font-black leading-[1.05] tracking-tight" style={HF}>Pas d'idée précise ? Pars d'un modèle prêt à l'emploi.</h1>
-        <p className="mt-3 text-[16px] text-ink-soft">Des logiciels complets, écrits et testés à l'avance par Bingoo!. Tu choisis ton métier, ton nom et ta couleur : Bingoo! l'adapte et le met en ligne en quelques minutes. Tu l'ajustes ensuite dans l'atelier.</p>
+        <h1 className="mt-2 text-[34px] sm:text-[42px] font-black leading-[1.05] tracking-tight" style={HF}>Pas d'idée précise ? Pars de ce que Bingoo! a déjà construit.</h1>
+        <p className="mt-3 text-[16px] text-ink-soft">Des logiciels, des sites, des outils et des jeux construits et testés par Bingoo!. Choisis-en un : tu repars de son idée, tu la changes pour ton métier, et Bingoo! construit ta version.</p>
       </header>
+
+      <section className="mb-12">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-[22px] font-black tracking-tight" style={HF}>{VITRINE.length} réalisations à reprendre</h2>
+          <div className="flex flex-wrap gap-1.5">{[["tous", "Tout"], ["saas", "Logiciels"], ["site", "Sites"], ["outil", "Outils et jeux"]].map(([k, l]) => <button key={k} type="button" aria-pressed={genre === k} onClick={() => setGenre(k)} className={cx("rounded-full border px-3 py-1.5 text-[13px] font-semibold", genre === k ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink-faint")}>{l}</button>)}</div>
+        </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {VITRINE.filter((v) => genre === "tous" || (v[4] ?? "saas") === genre).map((v) => (
+            <article key={v[0]} className="overflow-hidden rounded-2xl border border-line bg-white">
+              <img src={`/vitrine/${v[0]}.jpg`} alt={`${v[1]} : ${v[2]}`} loading="lazy" className="block w-full aspect-[16/10] object-cover object-top border-b border-line" />
+              <div className="p-4">
+                <p className="text-[11.5px] font-bold uppercase tracking-wider text-[#E8571C]">{GENRES[v[4] ?? "saas"]}</p>
+                <h3 className="mt-1 text-[17px] font-bold">{v[1]} <span className="font-normal text-ink-soft">· {v[2]}</span></h3>
+                <p className="mt-1 text-[13.5px] text-ink-soft">« {v[3]} »</p>
+                <button type="button" onClick={() => reprendre(v)} className="mt-3 rounded-xl bg-ink px-4 py-2 text-[13.5px] font-bold text-white hover:opacity-90">Partir de celui-ci</button>
+              </div>
+            </article>
+          ))}
+        </div>
+        <p className="mt-3 text-[12.5px] text-ink-faint">Vraies captures de projets construits par Bingoo!. Ta version est reconstruite pour toi à partir de l'idée : elle ne sera pas identique à l'image.</p>
+      </section>
+
+      <h2 className="mb-4 text-[22px] font-black tracking-tight" style={HF}>Modèles de logiciels prêts à l'emploi</h2>
 
       <div className="space-y-8">
         {MODELES.map((m, i) => {

@@ -190,7 +190,7 @@ function ChantierFlou({ texte, genre, children }) {
 
 // Un clic sur un SaaS de la vitrine remplit l'idée (point de départ à adapter)
 // Premiers écrans réels de projets construits par Bingoo! (captures du robot, en visiteur) ; 5e valeur : "site" pour un site vitrine
-const VITRINE = [
+export const VITRINE = [
   ["club-randonnee", "Club Randonnée", "Site d'association", "Le site de mon association de randonnée, avec nos sorties", "site"],
   ["quatre-alignes", "Quatre Alignés", "Jeu contre l'ordinateur", "Un jeu de puissance 4 contre l'ordinateur", "outil"],
   ["rendezo", "Rendezo", "Réservation en ligne", "Un outil de réservation en ligne pour les indépendants, avec rappel la veille"],
