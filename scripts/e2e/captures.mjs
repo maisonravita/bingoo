@@ -294,6 +294,22 @@ if (CONSTRUIRE === "lien-public") {
     await p.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await etat(p, "createur");
     await p.evaluate((s) => { location.hash = `#/app/${s}`; }, a.slug); await etat(p, "createur-hash"); await c.close(); }
 }
+if (CONSTRUIRE === "galerie") {
+  // Galerie : les pages publiques demandées (IDEE = slugs séparés par des virgules), vues par un visiteur, sur ordinateur et sur téléphone
+  for (const slug of String(process.env.IDEE ?? "").split(",").map((x) => x.trim()).filter((x) => /^[a-z0-9-]+$/.test(x)).slice(0, 6)) {
+    for (const [nom, vp, mobile] of [["ordi", { width: 1440, height: 900 }, false], ["tel", { width: 390, height: 844 }, true]]) {
+      const c = await browser.newContext({ viewport: vp, locale: "fr-FR", isMobile: mobile, hasTouch: mobile, deviceScaleFactor: mobile ? 2 : 1 }); const p = await c.newPage();
+      await p.goto(`${SITE}/?c=${Date.now()}#/app/${slug}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(8000);
+      await p.screenshot({ path: `${DOSSIER}/galerie-${slug}-${nom}.png` });
+      // La page entière, en descendant pour réveiller les animations au défilement
+      const fr = p.frames().find((f) => f !== p.mainFrame()) ?? p.mainFrame();
+      for (let k = 0; k < 30; k++) { await fr.evaluate(() => window.scrollBy(0, 700)).catch(() => null); await p.waitForTimeout(150); }
+      await fr.evaluate(() => window.scrollTo(0, 0)).catch(() => null); await p.waitForTimeout(800);
+      await p.screenshot({ path: `${DOSSIER}/galerie-${slug}-${nom}-page.png`, fullPage: true });
+      console.log(`✓ ${slug} (${nom})`); await c.close();
+    }
+  }
+}
 if (CONSTRUIRE === "stores") {
   // Publication sur les stores, sur le SaaS de démo du robot : clés d'essai fabriquées sur place (sans valeur), file d'attente, nettoyage
   const appel = async (route, corps) => { const r = await fetch(`${SB}/functions/v1/r/${route}`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify(corps) }); const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch {} return { ok: r.ok, j, t: t.slice(0, 160) }; };
@@ -708,7 +724,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
