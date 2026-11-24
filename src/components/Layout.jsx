@@ -235,7 +235,9 @@ function AppShell({ ws, list, select, invite, sections, bas, bandeau, extra, men
 }
 
 // Les rubriques : son SaaS d'abord, puis trouver une idée. Le compte (crédits, abonnement, paramètres, aide) est dans le menu du nom, en haut.
-function rubriques(ws, invite) {
+// projet : { type } quand l'espace a un projet construit ou en cours, null sinon. Atelier, clients, vidéo du projet et dossier
+// n'ont rien à montrer sans projet ; un outil ou un jeu n'a pas de clients à démarcher.
+function rubriques(ws, invite, projet) {
   const trouver = [
     { to: "/explorer", label: "Explorer les SaaS et applis", icon: "list", also: ["/explorer/applis", "/explorer/trouver", "/explorer/copier", "/explorer/chiffres", "/explorer/niches", "/explorer/classement", "/explorer/marche", "/explorer/carte", "/explorer/idees", "/explorer/pubs", "/explorer/suivis", "/explorer/bouge", "/explorer/createurs", "/explorer/demande", "/explorer/connecteur"] },
     { to: "/explorer/modeles", label: "Partir d'un modèle", icon: "spark" },
@@ -249,10 +251,10 @@ function rubriques(ws, invite) {
       { titre: "Mon projet", items: [
         { to: "/explorer/mon-saas", label: "Accueil", icon: "today", also: ["/explorer/reglages-saas"] },
         { to: "/explorer/connecteur", label: "Construire avec mon IA", icon: "spark" },
-        { to: "/explorer/atelier", label: "Atelier", icon: "chat" },
-        { to: "/explorer/clients", label: "Premiers clients", icon: "users", also: ["/explorer/methodes"] },
-        { to: "/explorer/video", label: "Vidéo pub et TikTok", icon: "video", also: ["/explorer/tiktok"] },
-        { to: "/explorer/dossier", label: "Mon dossier", icon: "doc", also: ["/explorer/lancer"] },
+        ...(projet ? [{ to: "/explorer/atelier", label: "Atelier", icon: "chat" }] : []),
+        ...(projet && projet.type !== "outil" ? [{ to: "/explorer/clients", label: projet.type === "site" ? "Faire venir des clients" : "Premiers clients", icon: "users", also: ["/explorer/methodes"] }] : []),
+        ...(projet ? [{ to: "/explorer/video", label: "Vidéo pub et TikTok", icon: "video", also: ["/explorer/tiktok"] }] : []),
+        ...(projet && projet.type !== "outil" ? [{ to: "/explorer/dossier", label: "Mon dossier", icon: "doc", also: ["/explorer/lancer"] }] : []),
       ] },
       { titre: "Trouver", items: trouver },
     ],
@@ -280,7 +282,16 @@ export default function Layout({ children }) {
   }, [ws.id]);
   useEffect(() => setMore(false), [loc.pathname]);
   useEffect(() => { supabase.rpc("is_admin").then(({ data }) => setIsAdmin(!!data)); }, []);
-  const { sections, bas } = rubriques(ws, invite);
+  // Le projet de l'espace (le plus récent, hors projets remplacés ou retirés) décide des entrées du menu
+  const [projet, setProjet] = useState(null);
+  useEffect(() => {
+    if (invite || !ws?.id) { setProjet(null); return; }
+    let vivant = true;
+    supabase.from("saas_apps").select("type:spec->>type").eq("workspace_id", ws.id).not("statut", "in", "(remplace,retire,erreur)").order("at", { ascending: false }).limit(1)
+      .then(({ data }) => { if (vivant) setProjet(data?.[0] ? { type: data[0].type || "saas" } : null); });
+    return () => { vivant = false; };
+  }, [ws?.id, invite, loc.pathname === "/explorer/mon-saas"]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { sections, bas } = rubriques(ws, invite, projet);
   const isOn = (n) => loc.pathname === n.to.split("#")[0] || (n.also ?? []).includes(loc.pathname);
 
   // Téléphone : un bouton « 3 traits » qui ouvre le menu (mêmes rubriques que sur ordinateur)
@@ -351,7 +362,7 @@ export default function Layout({ children }) {
   const basMobile = (
     <nav aria-label="Navigation mobile" hidden={invite} className="md:hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
       <div className="grid grid-cols-4">
-        {[["/explorer/mon-saas", "Mon projet", "today"], ["/explorer/connecteur", "Mon IA", "spark"], ["/explorer/clients", "Clients", "users"], ["/explorer", "Explorer", "list"]].map(([to, l, ic]) => (
+        {[["/explorer/mon-saas", "Mon projet", "today"], ["/explorer/connecteur", "Mon IA", "spark"], projet && projet.type !== "outil" ? ["/explorer/clients", "Clients", "users"] : ["/explorer/modeles", "Modèles", "spark"], ["/explorer", "Explorer", "list"]].map(([to, l, ic]) => (
           <NavLink key={to} to={to} end={to === "/explorer"} className={({ isActive }) => cx("relative flex flex-col items-center gap-0.5 py-2.5 text-[11.5px] font-semibold", isActive ? "text-[#E8571C]" : "text-ink-soft")}><Icon name={ic} />{l}</NavLink>
         ))}
       </div>

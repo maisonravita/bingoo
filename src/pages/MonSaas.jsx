@@ -536,6 +536,8 @@ function PlanSite({ m }) {
 // ---------------------------------------------------------------- Premiers clients : le plan jour par jour, à partir du SaaS modèle
 function Clients({ m }) {
   if (m.app?.spec?.type === "site") return <PlanSite m={m} />;
+  // Un outil ou un jeu se partage, il ne se vend pas : pas de plan de démarchage
+  if (m.app?.spec?.type === "outil") return <><Tete titre="Faire connaître ton projet" sous={`${m.nom} s'ouvre directement : il suffit d'envoyer son lien.`} /><Carte><p className="text-[14.5px] text-[#303030]">Un outil ou un jeu n'a pas de clients à démarcher. Partage son lien à tes proches, sur tes réseaux ou dans les groupes où se trouvent ceux qui en ont besoin. Le bouton « Publié · Partager » de l'atelier te donne le lien, WhatsApp et l'e-mail.</p></Carte></>;
   return <ClientsSaas m={m} />;
 }
 function ClientsSaas({ m }) {
