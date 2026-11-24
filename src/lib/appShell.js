@@ -246,6 +246,9 @@ const lisible = (() => {
           // Boutons et liens compris (« Tout voir », « + Plage ») : s'ils changent d'état, la correction est refaite (voir plus bas)
       // Jamais dans un bouton à état (onglet, segment choisi) : sa couleur change avec son état et ne doit pas être figée
       if (!el.firstChild || el.dataset.lisible === "1" || el.closest("svg, select, input, textarea, [role=tab], [aria-pressed], [aria-selected], [aria-current]")) continue;
+      // Un bouton plein (fond de couleur, dégradé) garde ses couleurs : seuls les liens et boutons sans fond sont corrigés
+      const btn = el.closest("a, button, [role=button]");
+      if (btn) { const cb = getComputedStyle(btn), bg = num(cb.backgroundColor); if ((bg && bg[3] > 0.1) || (cb.backgroundImage && cb.backgroundImage !== "none") || /\bbtn\b/.test(btn.className)) continue; }
       let texte = false; for (const k of el.childNodes) if (k.nodeType === 3 && k.textContent.trim().length > 1) { texte = true; break; }
       if (!texte) continue; n++;
       const cs = getComputedStyle(el), c = num(cs.color); if (!c || c[3] < 0.5) continue;
