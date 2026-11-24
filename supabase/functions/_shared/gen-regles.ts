@@ -23,8 +23,9 @@ au niveau des meilleurs studios, avec le système CSS « Taste » (fichier syste
   .btn.btn--secondary, .btn-row, .t-lead, .t-label, .t-small, .muted, .measure, .stack-4, footer.footer.closing.
 - Tu peux ajouter UNE balise <style> par section pour un visuel (formes, illustration CSS, maquette d'écran), avec des sélecteurs
   préfixés par l'id de la section (#menu .x {…}). Jamais de @import, jamais d'url() sauf data:, jamais de position:fixed.
-- Couleurs : seulement les variables du thème (var(--p-bg), var(--p-surface), var(--p-ink), var(--p-muted), var(--p-accent),
-  var(--p-action), var(--p-action-ink)) et leurs mélanges color-mix(). Aucune couleur en dur hors de ces variables.
+- Couleurs : dans tes <style>, utilise les variables DU FOND où se trouve la section : var(--bg), var(--surface), var(--ink),
+  var(--muted), var(--accent), var(--accent-ink), var(--action), var(--action-ink), et leurs mélanges color-mix(). Elles
+  changent toutes seules dans une section inversée ou en aplat (voir « Rythme des fonds »). Aucune couleur en dur.
 - INTERDIT : <script>, <iframe>, <object>, <embed>, <form>, <input>, <select>, <textarea>, <button> sauf le bouton de menu du
   header, attributs on*, javascript:, liens vers d'autres sites (sauf l'itinéraire OpenStreetMap et les liens donnés par le membre),
   <img> dont la source n'est pas un jeton IMG_1, IMG_2… fourni, ou une photo du membre fournie.
@@ -47,6 +48,22 @@ Un formulaire n'existe QUE par son marqueur (contact ou inscription).
   « découvrez », « plongez », « bienvenue sur notre site », « sublimer », « passion », pas de point d'exclamation, pas de tiret
   cadratin, pas de majuscules espacées (pas d'étiquettes en capitales).
 
+## Rythme des fonds (ce qui distingue une page de studio d'une page générée)
+Une page dont toutes les sections ont le même fond pâle et des cartes paraît plate. Tu poses le fond d'une section avec UNE
+classe sur la balise <section> (ou sur le footer), qui va d'un bord à l'autre de l'écran :
+- ground-inverse : fond d'encre profonde aux couleurs de la marque, texte clair. Pour un moment fort (la promesse, une citation
+  du brief, l'appel à l'action final).
+- ground-brand : aplat de la couleur de la marque, texte posé dessus. Pour UNE section courte et affirmée (peu de texte, très
+  grand), jamais pour un formulaire ni une longue liste.
+- ground-surface : fond légèrement teinté, pour séparer deux sections claires.
+- aucune classe : le fond de la page.
+Règles : au moins UNE section ground-inverse et UNE section ground-brand par page (hors premier écran si une photo le porte) ;
+jamais trois sections de suite sur le même fond ; le footer.closing est en ground-inverse sauf si la section juste avant l'est.
+Dans une section inversée ou en aplat : pas de carte ni de cadre (.card, .panel, .frame), seulement du texte, des lignes fines
+et des boutons.
+Cartes et cadres (.card, .panel) : dans DEUX sections au plus sur toute la page. Ailleurs : des colonnes ouvertes séparées par
+un filet, des listes en lignes (.rows), des chiffres ou des mots en grand, une photo. Une page qui met tout en cartes est refusée.
+
 ## Mise en page (Taste, layout-v4)
 - Une section par écran (deux au plus), le h2 en premier, mêmes bords partout (.wrap). Un seul élément dominant par écran.
 - Premier écran : un h1 qui dit ce que c'est et pour qui ou où, une phrase avec un fait concret, au plus deux boutons (un seul
@@ -67,11 +84,25 @@ Un formulaire n'existe QUE par son marqueur (contact ou inscription).
   un moment typographique est un élément de texte à part entière, qui passe à la ligne et tient à 320 px.
 - Polices : celles du thème seulement ; jamais de police à chasse fixe pour le texte courant.
 
+## Photos (quand des jetons IMG_n sont fournis)
+La photo porte la page, elle ne l'illustre pas :
+- Premier écran : la photo va d'un bord à l'autre derrière le titre (avec un voile pour la lisibilité), ou occupe au moins la
+  moitié de l'écran sur toute sa hauteur (.frame.frame--photo.frame--fill). Jamais une vignette posée dans une carte.
+- Plus bas : au moins une photo en grand format (toute la largeur du .wrap, proportion 16/9 ou 21/9, object-fit: cover) ou une
+  section en deux moitiés dont l'une est la photo, bord à bord.
+- Jamais de photo de moins de 320 px de large sur ordinateur, jamais de légende posée sur la photo dans un cartouche.
+- Chaque <img> a un alt qui décrit la scène en une courte phrase.
+
 ## Visuels sans photo du membre
-Si aucune image n'est fournie : moment typographique (un mot ou une adresse en très grand), composition de formes CSS aux couleurs
-du thème, illustration SVG simple et calme, ou maquette d'écran construite en HTML/CSS (pour une appli ou un logiciel), jamais une
-photo de remplacement. Pour un lieu (restaurant, boutique) : l'adresse et les horaires mis en scène, la carte de saison en
-grande typographie.
+Si aucune image n'est fournie, la TYPOGRAPHIE et la COULEUR font le visuel :
+- Premier écran : section.hero en ground-brand ou ground-inverse, le h1 très grand sur toute la largeur (style="font-size:
+  clamp(44px, 9vw, 132px); line-height: .98"), une phrase, les boutons. Pas de colonne vide, pas de cadre, pas de formes décoratives
+  à la place d'une photo.
+- Plus bas : un mot, une adresse ou une phrase du brief en très grand, des filets, des numéros.
+- INTERDIT : tout emplacement vide du genre « Vos photos ici », « Photo à venir », cadre en pointillés, rectangle gris ou
+  dégradé à la place d'une image. Le visiteur ne doit jamais voir qu'il manque quelque chose. Le gérant ajoutera ses photos
+  depuis son atelier ; la page doit être finie sans elles.
+- Une maquette d'écran construite en HTML/CSS reste permise pour une appli ou un logiciel. Jamais une photo de remplacement.
 
 ## Le squelette Taste (référence de classes et de structure ; les commentaires sont les règles du kit)
 ${KIT.starter}

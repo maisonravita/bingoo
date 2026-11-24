@@ -103,7 +103,7 @@ Choisis la mise en page de chaque section selon la fiche et les plans Taste, san
   }
   const jetons = new Set(Object.keys(images));
   imagesVues = images; await signaler();
-  const aide = Object.keys(images).length ? `Images disponibles (utilise exactement ces jetons comme src) : ${Object.entries(images).map(([k, v]) => `${k} (${v.prompt.slice(0, 80)})`).join(" ; ")}` : bouche ? "Aucune image : c'est un restaurant ou un métier de bouche. N'invente JAMAIS de photo de plat, de salle ni de produit (ni image, ni dessin de nourriture) : visuels typographiques et formes CSS, et là où une photo serait utile, un emplacement sobre « Vos photos ici » que le gérant remplira." : "Aucune image disponible : visuels typographiques, formes CSS, SVG ou maquettes HTML.";
+  const aide = Object.keys(images).length ? `Images disponibles (utilise exactement ces jetons comme src) : ${Object.entries(images).map(([k, v]) => `${k} (${v.prompt.slice(0, 80)})`).join(" ; ")}` : bouche ? "Aucune image : c'est un restaurant ou un métier de bouche. N'invente JAMAIS de photo de plat, de salle ni de produit (ni image, ni dessin de nourriture). Suis « Visuels sans photo du membre » : premier écran typographique sur un aplat (ground-brand ou ground-inverse), la carte ou l'adresse en très grand, AUCUN emplacement vide ni cadre « Vos photos ici »." : "Aucune image disponible : suis « Visuels sans photo du membre » (premier écran typographique sur un aplat, aucun emplacement vide).";
 
   // 3. Écriture par lots de sections (le lot 1 écrit aussi le header)
   const lots: Section[][] = [];

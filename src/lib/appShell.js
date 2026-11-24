@@ -959,7 +959,7 @@ function jetonsTaste() {
   // boutons et aux accents, plus au texte courant : une page entière écrite en bleu ou en violet paraît plate et « générée ».
   const sombreBg = ((h) => (0.299 * parseInt(h.slice(1, 3), 16) + 0.587 * parseInt(h.slice(3, 5), 16) + 0.114 * parseInt(h.slice(5, 7), 16)) / 255 < 0.4)(bg);
   const encre = sombreBg ? "color-mix(in srgb," + fg + " 30%,#f7f5f0)" : "color-mix(in srgb," + fg + " 20%,#15151a)";
-  return \`:root{--p-bg:\${bg};--p-surface:\${ok(c.muted) ?? ok(c.card) ?? (((h) => h && (0.299 * parseInt(h.slice(1, 3), 16) + 0.587 * parseInt(h.slice(3, 5), 16) + 0.114 * parseInt(h.slice(5, 7), 16)) / 255 < 0.4)(ok(c.background)) ? "color-mix(in srgb, var(--p-bg) 88%, #fff)" : "#f4f4f4")};--p-ink:\${encre};--p-ink-marque:\${fg};--p-muted:color-mix(in srgb,\${encre} 64%,\${bg});--p-accent:\${acc};--p-accent-ink:\${onp};--p-action:\${acc};--p-action-ink:\${onp};--p-inv-bg:\${fg};--p-inv-ink:\${bg};--t-h1:clamp(40px,4.19vw + 23.7px,84px);--t-h2:clamp(30px,2.1vw + 21.8px,52px);--t-lead:19px;\`
+  return \`:root{--p-bg:\${bg};--p-surface:\${ok(c.muted) ?? ok(c.card) ?? (((h) => h && (0.299 * parseInt(h.slice(1, 3), 16) + 0.587 * parseInt(h.slice(3, 5), 16) + 0.114 * parseInt(h.slice(5, 7), 16)) / 255 < 0.4)(ok(c.background)) ? "color-mix(in srgb, var(--p-bg) 88%, #fff)" : "#f4f4f4")};--p-ink:\${encre};--p-ink-marque:\${fg};--p-muted:color-mix(in srgb,\${encre} 64%,\${bg});--p-accent:\${acc};--p-accent-ink:\${onp};--p-action:\${acc};--p-action-ink:\${onp};--p-inv-bg:\${fg};--p-inv-ink:\${bg};--p-inv-surface:color-mix(in srgb,\${fg} 88%,\${bg});--p-inv-muted:color-mix(in srgb,\${bg} 72%,\${fg});--p-inv-accent:\${bg};--p-inv-accent-ink:\${fg};--p-inv-action:\${bg};--p-inv-action-ink:\${fg};--t-h1:clamp(40px,4.19vw + 23.7px,84px);--t-h2:clamp(30px,2.1vw + 21.8px,52px);--t-lead:19px;\`
     + \`--font-display:"\${pol.titres ?? "Inter"}",ui-serif,Georgia,serif;--font-text:"\${pol.texte ?? "Inter"}",ui-sans-serif,system-ui,sans-serif}\`
     + \`:root[data-type="place"]{--t-h1:clamp(34px,2.86vw + 22.9px,64px);--t-h2:clamp(26px,1.33vw + 20.8px,40px)}\`
     + \`.bg-legal{border-top:1px solid color-mix(in srgb,var(--p-ink) 14%,transparent)}\`
@@ -1017,7 +1017,10 @@ function SitePageGeneree({ onAuth, saas }) {
     const l = document.createElement("link"); l.rel = "stylesheet"; l.href = TASTE_CSS; document.head.appendChild(l);
     const st = document.createElement("style"); st.textContent = jetonsTaste(); document.head.appendChild(st);
     // Premier écran en deux colonnes, sur ordinateur : il occupe tout l'écran, la photo aussi (sinon une bande vide restait dessous)
-    const st2 = document.createElement("style"); st2.textContent = "main :is(section,.section)>:is(.wrap,.container),header>:is(.wrap,.container),footer>:is(.wrap,.container){width:min(100% - 2*var(--gut),var(--container))!important;margin-inline:auto!important}@media (min-width:1024px){section.hero:has(.hero-split),section.section--hero:has(.hero-split){display:flex!important;flex-direction:column}section.hero:has(.hero-split)>.wrap,section.section--hero:has(.hero-split)>.wrap{flex:1 1 auto;height:auto!important;display:flex!important;flex-direction:column}section.hero>.wrap>.hero-text.hero-split{flex:1 1 auto;height:auto!important;align-items:stretch}.hero-split>.hero-visual{height:auto!important;align-self:stretch!important}.hero-split>.hero-copy{align-self:center;justify-content:center}}"; document.head.appendChild(st2);
+    const st2 = document.createElement("style"); st2.textContent = ".bg-rev{opacity:0;transform:translateY(18px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}.bg-rev.bg-in{opacity:1;transform:none}"
+      + ".ground-brand{--bg:var(--p-accent);--surface:color-mix(in srgb,var(--p-accent) 86%,var(--p-accent-ink));--card:color-mix(in srgb,var(--p-accent) 86%,var(--p-accent-ink));--ink:var(--p-accent-ink);--muted:color-mix(in srgb,var(--p-accent-ink) 80%,var(--p-accent));--accent:var(--p-accent-ink);--accent-ink:var(--p-accent);--action:var(--p-accent-ink);--action-ink:var(--p-accent);--line:color-mix(in srgb,var(--p-accent-ink) 22%,transparent);background:var(--bg);color:var(--ink)}"
+      + ".ground-brand :is(h1,h2,h3,p,li,a:not(.btn)),.ground-inverse :is(h1,h2,h3,p,li,a:not(.btn)){color:inherit}"
+      + "main :is(section,.section)>:is(.wrap,.container),header>:is(.wrap,.container),footer>:is(.wrap,.container){width:min(100% - 2*var(--gut),var(--container))!important;margin-inline:auto!important}@media (min-width:1024px){section.hero:has(.hero-split),section.section--hero:has(.hero-split){display:flex!important;flex-direction:column}section.hero:has(.hero-split)>.wrap,section.section--hero:has(.hero-split)>.wrap{flex:1 1 auto;height:auto!important;display:flex!important;flex-direction:column}section.hero>.wrap>.hero-text.hero-split{flex:1 1 auto;height:auto!important;align-items:stretch}.hero-split>.hero-visual{height:auto!important;align-self:stretch!important}.hero-split>.hero-copy{align-self:center;justify-content:center}}"; document.head.appendChild(st2);
     const r = document.documentElement; r.dataset.radius = r.dataset.radius || "soft"; r.dataset.buttons = r.dataset.buttons || "solid"; r.lang = "fr";
     return () => { l.remove(); st.remove(); };
   }, []);
@@ -1030,6 +1033,14 @@ function SitePageGeneree({ onAuth, saas }) {
     el.innerHTML = contenu; nettoyerDom(el);
     // Une page de site a peu de photos : chargées tout de suite (en différé, certaines restaient des cadres vides)
     el.querySelectorAll("img[loading=lazy]").forEach((i) => { i.loading = "eager"; });
+    // Apparitions au défilement : chaque bloc monte doucement en entrant dans l'écran. Jamais pendant la vérification, les
+    // captures, dans l'atelier ni si le visiteur a demandé moins d'animations ; au bout de 8 s tout est visible quoi qu'il arrive.
+    if (!B.verif && !B.capture && !B.apercu && !B.ancre && "IntersectionObserver" in window && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const cibles = [...el.querySelectorAll("main > :is(section, .section):not(:first-child) :is(.wrap, .container) > *, footer :is(.wrap, .container) > *")].slice(0, 140);
+      const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("bg-in"); io.unobserve(e.target); } }), { rootMargin: "0px 0px -6% 0px", threshold: 0.04 });
+      cibles.forEach((c) => { c.classList.add("bg-rev"); c.style.transitionDelay = Math.min(3, [...c.parentElement.children].indexOf(c)) * 80 + "ms"; io.observe(c); });
+      setTimeout(() => { io.disconnect(); cibles.forEach((c) => c.classList.add("bg-in")); }, 8000);
+    }
     // Construction en direct : l'aperçu se place sur la section qui vient d'être écrite
     if (B.ancre) setTimeout(() => el.querySelector("#" + B.ancre)?.scrollIntoView({ block: "start" }), 60);
     // Logo du membre : il remplace la marque dessinée (en-tête et pied de page)
