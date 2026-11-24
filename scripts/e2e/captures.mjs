@@ -204,9 +204,9 @@ if (CONSTRUIRE === "video-produit") {
   await page.waitForTimeout(9000);
   for (let k = 1; k <= 12; k++) { await page.waitForTimeout(2300); await page.locator("canvas").first().screenshot({ path: `${DOSSIER}/produit-${String(k).padStart(2, "0")}.png` }).catch(() => null); }
   // Le vrai fichier vidéo, exporté par le studio comme le ferait le membre
-  const dl = page.waitForEvent("download", { timeout: 240000 }).catch(() => null);
-  await page.getByRole("button", { name: "Télécharger" }).click().catch(() => null);
-  const d = await dl;
+  const dl = page.waitForEvent("download", { timeout: 600000 }).catch(() => null);
+  const te = Date.now(); await page.getByRole("button", { name: "Télécharger" }).click().catch(() => null);
+  const d = await dl; console.log(`Export en ${Math.round((Date.now() - te) / 1000)} s`);
   if (d) { const f = `${DOSSIER}/video-produit-${d.suggestedFilename()}`; await d.saveAs(f).catch(() => null); console.log("✓ Export :", d.suggestedFilename(), fs.existsSync(f) ? fs.statSync(f).size + " octets" : "?"); } else console.log("✗ export");
 } else if (CONSTRUIRE === "motion") {
   const texte = process.env.TEXTE_IDEE || "Une pub pour mon salon de barbier Lame à Lyon, coupe homme 20 €, sur rendez-vous";
