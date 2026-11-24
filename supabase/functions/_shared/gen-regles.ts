@@ -74,6 +74,8 @@ un filet, des listes en lignes (.rows), des chiffres ou des mots en grand, une p
   une mise en page en cartes deux fois au plus.
 - Les éléments cliquables le montrent : bouton, lien souligné .link, carte entière cliquable avec un état au survol.
   La FAQ : toutes les réponses ouvertes (.faq__item avec h3 et p), jamais d'accordéon.
+- Une largeur maximale en « ch » se pose sur le titre ou le paragraphe LUI-MÊME, jamais sur un bloc parent (elle y serait
+  calculée sur le petit texte et casserait le grand titre au milieu des mots). Un h2 garde au moins 12 caractères par ligne.
 - Lignes de 62 caractères au plus (.measure), texte lisible ≥ 16px, rien sous 13px, phrases au ton du métier.
 - Navigation : 3 à 5 mots qui mènent à des ancres (#id) de la page, le bouton principal à droite, et le bouton de menu.
 - La fin de page est un footer.footer.closing (id="contact") : l'appel à l'action, puis le nom et les liens. N'y écris
@@ -90,6 +92,8 @@ La photo porte la page, elle ne l'illustre pas :
   moitié de l'écran sur toute sa hauteur (.frame.frame--photo.frame--fill). Jamais une vignette posée dans une carte.
 - Plus bas : au moins une photo en grand format (toute la largeur du .wrap, proportion 16/9 ou 21/9, object-fit: cover) ou une
   section en deux moitiés dont l'une est la photo, bord à bord.
+- Du texte posé SUR une photo : la section porte la classe ground-inverse (texte clair) et un voile sombre couvre la photo
+  derrière les mots (dégradé noir de 55 % à 10 %, jamais un voile de la couleur de la marque). Aucun texte foncé sur une photo.
 - Jamais de photo de moins de 320 px de large sur ordinateur, jamais de légende posée sur la photo dans un cartouche.
 - Chaque <img> a un alt qui décrit la scène en une courte phrase.
 

@@ -1036,6 +1036,20 @@ function SitePageGeneree({ onAuth, saas }) {
     el.innerHTML = contenu; nettoyerDom(el);
     // Une page de site a peu de photos : chargées tout de suite (en différé, certaines restaient des cadres vides)
     el.querySelectorAll("img[loading=lazy]").forEach((i) => { i.loading = "eager"; });
+    // Texte posé sur une photo : la section passe en texte clair, avec un voile sombre derrière les mots (sinon un titre foncé
+    // sur une photo voilée de couleur devient illisible)
+    el.querySelectorAll("main > section, main > .section").forEach((sec) => {
+      const img = [...sec.querySelectorAll("img")].find((i) => getComputedStyle(i).position === "absolute" && i.offsetWidth >= sec.offsetWidth * 0.8 && i.offsetHeight >= sec.offsetHeight * 0.6);
+      if (!img) return;
+      sec.classList.remove("ground-brand", "ground-surface"); sec.classList.add("ground-inverse");
+      if (!sec.querySelector("[data-bingoo-voile]")) { const v = document.createElement("div"); v.dataset.bingooVoile = ""; v.setAttribute("aria-hidden", "true"); v.style.cssText = "position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.52),rgba(0,0,0,.24) 58%,rgba(0,0,0,.06))"; img.insertAdjacentElement("afterend", v); }
+    });
+    // Un grand titre coincé dans un bloc trop étroit (largeur limitée en « ch » sur le parent, calculée sur le petit texte) :
+    // on libère le bloc, sinon le titre se casse au milieu des mots
+    el.querySelectorAll("h1, h2").forEach((h) => {
+      const fs = parseFloat(getComputedStyle(h).fontSize) || 0; if (!fs) return;
+      for (let n = h.parentElement, k = 0; k < 4 && n && !n.matches(".wrap, .container, section, footer, main"); k++, n = n.parentElement) { const mw = parseFloat(getComputedStyle(n).maxWidth); if (mw && mw < fs * 9) n.style.maxWidth = "none"; }
+    });
     // Apparitions au défilement : chaque bloc monte doucement en entrant dans l'écran. Jamais pendant la vérification, les
     // captures, dans l'atelier ni si le visiteur a demandé moins d'animations ; au bout de 8 s tout est visible quoi qu'il arrive.
     if (!B.verif && !B.capture && !B.apercu && !B.ancre && "IntersectionObserver" in window && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
