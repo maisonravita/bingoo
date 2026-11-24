@@ -243,7 +243,7 @@ if (CONSTRUIRE === "video-produit") {
 if (CONSTRUIRE === "film") {
   const DIR = `${DOSSIER}/film`; fs.mkdirSync(DIR, { recursive: true });
   const video = { recordVideo: { dir: DIR, size: { width: 1440, height: 900 } } };
-  const texte = process.env.TEXTE_IDEE || "Le site de mon salon de coiffure à domicile à Lyon";
+  const texte = process.env.TEXTE_IDEE || (String(process.env.IDEE ?? "").length > 8 ? process.env.IDEE : "Le site de mon salon de coiffure à domicile à Lyon");
   const marques = {}; const t00 = Date.now(); const marque = (k) => { marques[k] = (Date.now() - t00) / 1000; console.log("FILM", k, marques[k]); };
   // A. L'accueil, sans compte : on tape l'idée
   { const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR", ...video }); const p = await c.newPage();
