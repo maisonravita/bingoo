@@ -42,6 +42,37 @@ function TestAtelier({ x, verif, apercu }) {
   return <p className="mt-1.5 ml-8 rounded-lg bg-[#FFF7F0] px-3 py-2 text-[13px] text-[#9A3412]">{msg ?? "Cette modification cassait un écran : elle n'a pas été mise en ligne, et elle t'est rendue."}</p>;
 }
 
+// « C'est publié » : l'adresse en ligne, à copier ou à envoyer (WhatsApp, e-mail). Affichée à la fin de la construction
+// et derrière le bouton « Partager » de l'atelier.
+function CartePublie({ lien, nom, estSite, compact = false }) {
+  const [copie, setCopie] = useState(false);
+  if (!lien) return null;
+  const msg = `${estSite ? "Mon site est en ligne" : "Mon application est en ligne"} : ${nom} ${lien}`;
+  const copier = () => { navigator.clipboard?.writeText(lien).then(() => { setCopie(true); setTimeout(() => setCopie(false), 2000); }, () => window.prompt("Copie ce lien :", lien)); };
+  const b = "rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] font-semibold text-ink hover:border-ink-faint";
+  return (
+    <div className={cx("rounded-xl border border-[#2F7A4D]/25 bg-[#EEF7F1] p-3", compact ? "" : "mt-3")}>
+      <p className="flex items-center gap-2 text-[13px] font-bold text-[#1E3A2A]"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-[#2F7A4D]" />Publié : tout le monde peut l'ouvrir à cette adresse</p>
+      <p className="mt-1.5 truncate rounded-lg bg-white px-2.5 py-1.5 font-mono text-[12.5px] text-ink">{lien.replace(/^https?:\/\//, "")}</p>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        <button type="button" onClick={copier} className={b}>{copie ? "Lien copié ✓" : "Copier le lien"}</button>
+        <a href={`https://wa.me/?text=${encodeURIComponent(msg)}`} target="_blank" rel="noreferrer" className={b}>Envoyer par WhatsApp</a>
+        <a href={`mailto:?subject=${encodeURIComponent(nom)}&body=${encodeURIComponent(msg)}`} className={b}>Envoyer par e-mail</a>
+        <a href={lien} target="_blank" rel="noreferrer" className={b}>Ouvrir ↗</a>
+      </div>
+    </div>
+  );
+}
+function BoutonPartager({ lien, nom, estSite }) {
+  const [o, setO] = useState(false);
+  return (
+    <div className="relative">
+      <button type="button" onClick={() => setO(!o)} aria-expanded={o} className="rounded-lg bg-[#2F7A4D] px-3 py-1.5 text-[13.5px] font-semibold text-white hover:brightness-110">Publié · Partager</button>
+      {o && <div className="absolute right-0 top-full z-30 mt-2 w-[min(380px,calc(100vw-32px))] rounded-xl bg-white p-1 shadow-2xl"><CartePublie lien={lien} nom={nom} estSite={estSite} compact /></div>}
+    </div>
+  );
+}
+
 // Panneau de l'outil Police : deux listes (titres, texte), chaque nom écrit dans sa propre police
 function PanneauPolices({ polices, essayer, enregistrer, annuler }) {
   const [t, setT] = useState(polices?.titres ?? null), [x, setX] = useState(polices?.texte ?? null);
@@ -647,6 +678,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
         </span>
         <div className="flex-1" />
         {fini && <a href={lien} target="_blank" rel="noreferrer" className="rounded-lg border border-line px-3 py-1.5 text-[13.5px] font-semibold hover:bg-paper">Ouvrir ↗</a>}
+        {fini && <BoutonPartager lien={lien} nom={nom} estSite={estSite} />}
         <button onClick={() => { if (!atelier) ecrire(CLE_CHANTIER, null); nav("/explorer/mon-saas"); }} disabled={!fini && !atelier}
           className="rounded-lg bg-ink px-3.5 py-1.5 text-[13.5px] font-semibold text-white hover:bg-ink/85 disabled:opacity-40">{atelier ? "Fermer l'atelier" : "Entrer dans Bingoo!"}</button>
       </header>
@@ -708,6 +740,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
               <Bingoo>
                 {estApp && <div className="mb-3"><p className="mb-2"><b>{nom} est prête.</b> Essaie-la sur ton téléphone :</p><AppTelephone app={app} wsId={ws.id} /></div>}
                 <p>{estSite ? <><b>{nom} est en ligne.</b> C'est ton vrai site, à droite. En bas de page, « Espace gérant » : crée ton accès avec l'adresse e-mail de ton compte, puis vérifie tes prix et ajoute ton téléphone. Les demandes de tes visiteurs t'arrivent par e-mail.</> : <><b>{nom} est en ligne.</b> Essaie-le à droite : crée un compte, ajoute des données, clique partout. C'est ton vrai SaaS.</>}</p>
+                <CartePublie lien={lien} nom={nom} estSite={estSite} />
                 <p className="mt-1.5">Dis-moi ce que tu veux changer, en une phrase.</p>
                 <div className="mt-3 flex flex-wrap gap-1.5">{(estSite ? IDEES_SITE : IDEES_SAAS).map((x) => <button key={x} onClick={() => { setEcran(""); envoyer(x); }} disabled={occupe} className="rounded-full border border-line bg-white px-3 py-1.5 text-[12.5px] font-medium hover:border-ink-faint disabled:opacity-50">{x}</button>)}</div>
               </Bingoo>
