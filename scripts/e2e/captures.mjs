@@ -294,6 +294,21 @@ if (CONSTRUIRE === "lien-public") {
     await p.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await etat(p, "createur");
     await p.evaluate((s) => { location.hash = `#/app/${s}`; }, a.slug); await etat(p, "createur-hash"); await c.close(); }
 }
+if (CONSTRUIRE === "blog") {
+  // Blog d'un site : un article écrit à partir d'un sujet, puis sa page publique (lue par Google)
+  const [a] = await q(`select a.id, a.slug, a.workspace_id from saas_apps a where a.slug = 'fleuriste-rennes-382a'`);
+  const t0 = Date.now();
+  const r = await fetch(`${SB}/functions/v1/r/saas-app-reglages`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: a.workspace_id, app_id: a.id, quoi: "article-ecrire", sujet: "Comment choisir les fleurs d'un bouquet de mariage selon la saison" }) });
+  const j = await r.json().catch(() => ({}));
+  const art = (j.articles ?? [])[0];
+  console.log(r.status === 200 && art ? `✓ article écrit en ${Math.round((Date.now() - t0) / 1000)} s : « ${art.titre} » (${String(art.contenu ?? "").split(/\s+/).length} mots)` : `✗ article : ${r.status} ${JSON.stringify(j).slice(0, 200)}`);
+  if (art) {
+    console.log("début :", String(art.contenu).replace(/\s+/g, " ").slice(0, 600));
+    const c = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: "fr-FR" }); const p = await c.newPage();
+    const u = `${SITE}/a/${a.slug}/${art.slug}`; const rep = await p.goto(u, { waitUntil: "load", timeout: 60000 }).catch(() => null);
+    console.log(`page publique ${u} : ${rep?.status()}`); await p.waitForTimeout(1500); await p.screenshot({ path: `${DOSSIER}/blog-article.png`, fullPage: false }); await c.close();
+  }
+}
 if (CONSTRUIRE === "support-ecran") {
   // La bulle d'aide dans l'appli, et la promesse dans les tarifs de l'accueil
   const [a] = await q(`select a.workspace_id from saas_apps a join workspaces w on w.id = a.workspace_id where w.name like 'Robot film%' and a.statut = 'pret' order by a.maj desc limit 1`);
@@ -837,7 +852,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
