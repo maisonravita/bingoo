@@ -1932,6 +1932,7 @@ export function ReglagesApp({ app, onChange, projet, initial, nu = false, onglet
   if (nu) return (
     <div>
       {o === "croissance" && <OngletCroissance {...props} allerA={() => {}} />}
+      {o === "seo" && <OngletSeo {...props} />}
       {o === "versions" && <OngletVersions {...props} />}
       {o === "ia" && <OngletIA {...props} />}
       {o === "jumeau" && <OngletJumeau {...props} />}

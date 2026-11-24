@@ -20,7 +20,16 @@ export default function PublicApp({ slug, domaine }) {
   useEffect(() => {
     if (ctx.retour || ctx.invite || ctx.precommande) window.history.replaceState(null, "", window.location.href.replace(/[?&](paiement=ok|invite=[a-f0-9]+|precommande=cs_[A-Za-z0-9_]+)/g, ""));
     const q = domaine ? supabase.rpc("saas_app_par_domaine", { p_domaine: domaine }) : supabase.rpc("saas_app_public", { p_slug: slug });
-    q.then(({ data }) => setApp(data ?? null));
+    q.then(async ({ data }) => {
+      // Dans l'aperçu de l'atelier (cadre du même site, membre connecté), le mode brouillon montre le brouillon :
+      // la table n'est lisible que par les membres de l'espace, un visiteur reçoit toujours la version publiée.
+      let dansAtelier = false; try { dansAtelier = window.parent !== window && window.parent.location.origin === window.location.origin && /#\/explorer\//.test(window.parent.location.hash); } catch { dansAtelier = false; }
+      if (data && dansAtelier && !domaine) {
+        const { data: b } = await supabase.from("saas_apps").select("spec, publie").eq("slug", slug).maybeSingle();
+        if (b?.publie && b.spec) data = { ...data, spec: { ...b.spec, sans_badge: data.spec?.sans_badge } };
+      }
+      setApp(data ?? null);
+    });
   }, [slug, domaine]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!app?.spec?.nom) return;
