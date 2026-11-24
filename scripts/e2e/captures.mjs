@@ -294,6 +294,23 @@ if (CONSTRUIRE === "lien-public") {
     await p.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await etat(p, "createur");
     await p.evaluate((s) => { location.hash = `#/app/${s}`; }, a.slug); await etat(p, "createur-hash"); await c.close(); }
 }
+if (CONSTRUIRE === "modif-rendue") {
+  // « Tu ne paies jamais nos erreurs » : une modification payée (simulée, sans IA) puis annulée doit être rendue
+  const [a] = await q(`select a.id, a.slug, a.workspace_id from saas_apps a join workspaces w on w.id = a.workspace_id where w.name like 'Robot film%' and a.statut = 'pret' order by a.maj desc limit 1`);
+  const [v] = await q(`select min(version) v from saas_app_versions where app_id = ${lit(a.id)}`);
+  const debut = new Date(Date.now() - 60000).toISOString();
+  await q(`insert into activity (workspace_id, kind, label) values (${lit(a.workspace_id)}, 'modifier_app', 'Modification (test du robot)')`).catch(async () => q(`insert into activity (workspace_id, kind) values (${lit(a.workspace_id)}, 'modifier_app')`));
+  await q(`update saas_apps set paiement_modif = jsonb_build_object('version_avant', ${Number(v.v)}, 'at', ${lit(debut)}) where id = ${lit(a.id)}`);
+  const [avant] = await q(`select count(*)::int n from activity where workspace_id = ${lit(a.workspace_id)} and kind = 'modifier_app' and created_at >= date_trunc('month', now())`);
+  const r = await fetch(`${SB}/functions/v1/r/saas-app-reglages`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: a.workspace_id, app_id: a.id, quoi: "restaurer", version: Number(v.v) }) });
+  const j = await r.json().catch(() => ({}));
+  const [apres] = await q(`select count(*)::int n from activity where workspace_id = ${lit(a.workspace_id)} and kind = 'modifier_app' and created_at >= date_trunc('month', now())`);
+  console.log(`modifications du mois : ${avant.n} avant, ${apres.n} après ; réponse ${r.status} ${JSON.stringify(j.rendue ?? null)}`);
+  console.log(j.rendue && apres.n === avant.n - 1 ? "✓ modification annulée et rendue" : "✗ pas rendue");
+  // Une 2e annulation de la même modification ne rend plus rien
+  const r2 = await (await fetch(`${SB}/functions/v1/r/saas-app-reglages`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: a.workspace_id, app_id: a.id, quoi: "restaurer", version: Number(v.v) }) })).json().catch(() => ({}));
+  console.log(r2.rendue ? "✗ rendue deux fois" : "✓ pas rendue une deuxième fois");
+}
 if (CONSTRUIRE === "edition-directe") {
   // Les 3 outils d'édition directe de l'atelier, sur le dernier site du robot : sections, image, police
   const [a] = await q(`select a.id, a.slug, a.workspace_id, a.version from saas_apps a join workspaces w on w.id = a.workspace_id where w.name like 'Robot film%' and a.statut = 'pret' and a.spec->'site'->'page'->'sections' is not null order by a.maj desc limit 1`);
@@ -792,7 +809,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
