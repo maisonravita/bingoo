@@ -192,11 +192,13 @@ function ChantierFlou({ texte, genre, children }) {
 // Premiers écrans réels de projets construits par Bingoo! (captures du robot, en visiteur) ; 5e valeur : "site" pour un site vitrine
 const VITRINE = [
   ["club-randonnee", "Club Randonnée", "Site d'association", "Le site de mon association de randonnée, avec nos sorties", "site"],
+  ["quatre-alignes", "Quatre Alignés", "Jeu contre l'ordinateur", "Un jeu de puissance 4 contre l'ordinateur", "outil"],
   ["rendezo", "Rendezo", "Réservation en ligne", "Un outil de réservation en ligne pour les indépendants, avec rappel la veille"],
   ["tablio", "Tablio", "Restaurant : tables et commandes", "Un outil pour gérer les réservations de tables et les commandes de mon restaurant"],
   ["velofleet", "VéloFleet", "Location de vélos", "Un logiciel pour gérer ma flotte de vélos électriques en location"],
   ["chantiex", "Chantiex", "Suivi de chantiers", "Un outil pour suivre mes chantiers de rénovation, avec photos, tâches et budget"],
   ["profmaths", "ProfMaths", "Cours particuliers", "Une plateforme pour trouver un prof de maths près de chez soi"],
+  ["changeo", "Changeo", "Convertisseur de devises", "Un convertisseur de devises simple et beau, avec les taux du jour", "outil"],
   ["facturo", "Facturo", "Devis et factures", "Un outil pour faire mes devis, mes factures et mes relances"],
   ["salon-domicile", "Salon à domicile", "Site de coiffeuse", "Le site de mon salon de coiffure à domicile à Lyon", "site"],
   ["menagio", "Ménagio", "Entreprises de ménage", "Un outil pour planifier et prouver les passages de mes agents de ménage"],
@@ -269,8 +271,8 @@ function Vitrine({ choisir }) {
       <h2 className="mx-auto mt-2 max-w-[760px] px-4 text-center text-[24px] sm:text-[32px] font-bold leading-tight text-[#1E2030]" style={JK}>De vrais SaaS et sites, en ligne, pour tous les métiers</h2>
       <p className="mx-auto mt-2 max-w-[640px] px-4 text-center text-[15px] text-[#5B6075]" style={JK}>Clique sur celui qui ressemble à ton projet : Bingoo! part de là et l'adapte à toi.</p>
       <div className="vitrine-bande mt-7 space-y-4 [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]">
-        {rangee(VITRINE.slice(0, 8), 1)}
-        {rangee(VITRINE.slice(8), -1)}
+        {rangee(VITRINE.slice(0, 9), 1)}
+        {rangee(VITRINE.slice(9), -1)}
       </div>
     </section>
   );
