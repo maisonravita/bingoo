@@ -2118,15 +2118,17 @@ function OngletSeo({ app, appel, onChange }) {
   const s = app.spec ?? {}, site = s.type === "site", st = s.site ?? {};
   const auto = { titre: (site ? `${s.nom} · ${st.metier || ""}${st.ville ? ` à ${st.ville}` : ""}` : `${s.nom} · ${s.slogan || s.cible_courte || "logiciel en ligne"}`).replace(/\s+·\s*$/, "").slice(0, 70), description: String(s.pitch || s.slogan || "").replace(/\s+/g, " ").slice(0, 158) };
   const [titre, setTitre] = useState(s.seo?.titre || auto.titre), [description, setDescription] = useState(s.seo?.description || auto.description), [busy, setBusy] = useState(false);
-  const html = [...(st.page?.sections ?? []), ...(st.pages ?? []).flatMap((p) => p.sections ?? [])].map((x) => x.html ?? "").join("\n");
-  const h1 = (html.match(/<h1[\s>]/gi) ?? []).length, imgs = html.match(/<img\b[^>]*>/gi) ?? [], sansAlt = imgs.filter((x) => !/\balt="[^"]{3,}"/i.test(x)).length;
+  const accueil = (st.page?.sections ?? []).map((x) => x.html ?? "").join("\n");
+  const html = [accueil, ...(st.pages ?? []).flatMap((p) => p.sections ?? []).map((x) => x.html ?? "")].join("\n");
+  // Un grand titre par page : on compte celui de l'accueil (chaque page en plus a le sien, c'est normal)
+  const h1 = (accueil.match(/<h1[\s>]/gi) ?? []).length, imgs = html.match(/<img\b[^>]*>/gi) ?? [], sansAlt = imgs.filter((x) => !/\balt="[^"]{3,}"/i.test(x)).length;
   const articles = (app.lancement?.articles ?? []).length, pages = (st.pages ?? []).length;
   const points = [
     [titre.length >= 30 && titre.length <= 65, "Le titre fait entre 30 et 65 caractères", `Il en fait ${titre.length}. Trop court, il dit peu ; trop long, Google le coupe.`],
     [description.length >= 70, "La description fait au moins 70 caractères", `Elle en fait ${description.length}. Dis en une ou deux phrases ce que tu proposes et pour qui.`],
     ...(site ? [
       [!!st.ville && titre.toLowerCase().includes(String(st.ville).toLowerCase()), "Ta ville est dans le titre", st.ville ? `Ajoute « ${st.ville} » au titre : on te cherche avec le nom de la ville.` : "Ta ville n'est pas renseignée : donne-la à l'atelier, on te cherche avec le nom de la ville."],
-      ...(html ? [[h1 === 1, "La page a un seul grand titre", h1 === 0 ? "Aucun grand titre trouvé : demande à l'atelier « mets un grand titre en haut de la page »." : `${h1} grands titres trouvés : demande à l'atelier de n'en garder qu'un.`],
+      ...(html ? [[h1 === 1, "L'accueil a un seul grand titre", h1 === 0 ? "Aucun grand titre trouvé : demande à l'atelier « mets un grand titre en haut de la page »." : `${h1} grands titres trouvés : demande à l'atelier de n'en garder qu'un.`],
         [sansAlt === 0, "Chaque image a un texte de remplacement", `${sansAlt} image${sansAlt > 1 ? "s" : ""} sur ${imgs.length} sans texte : demande à l'atelier « décris chaque image pour Google ».`]] : []),
       [pages >= 1, "Au moins une page en plus de l'accueil", "Ajoute une page « À propos » ou « Tarifs » dans l'onglet Pages : plus de pages, plus de recherches où apparaître."],
     ] : []),
