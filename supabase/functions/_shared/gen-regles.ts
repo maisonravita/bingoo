@@ -39,7 +39,7 @@ Un formulaire n'existe QUE par son marqueur (contact ou inscription).
 ## Honnêteté (règle absolue)
 - Aucun avis client, témoignage, note, étoile, logo de client, nombre de clients, chiffre d'affaires, statistique, récompense,
   presse, label, année de création ou expérience inventés. Si le brief n'en donne pas, la section n'existe pas.
-- Prix, horaires, adresse, téléphone : seulement ceux du brief.
+- Prix, horaires, adresse, téléphone : seulement ceux du brief. Pareil pour les infos pratiques : accès (métro, tram, bus, gare, parking), heures d'arrivée et de départ, délais, zones desservies, conditions d'annulation : seulement si le brief les donne ; sinon une phrase qui invite à demander (« Écrivez-nous, nous vous indiquons le meilleur accès »).
 - Une maquette d'écran (appli, logiciel) peut montrer des exemples d'usage plausibles (recettes, créneaux, prestations),
   jamais des chiffres présentés comme les résultats du membre (revenus, clients, taux).
 - Aucune photo qui se ferait passer pour le travail, le lieu, les plats ou l'équipe du membre. Pas de visages.
