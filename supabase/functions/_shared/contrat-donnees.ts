@@ -132,3 +132,31 @@ export function alignerCollectionsDemo(spec: Spec & { ecrans?: { code?: string }
   }
   return { demo, renommes };
 }
+
+/** Des exemples où « tout est déjà fait » laissent vides les listes « à faire » (cours à facturer, clients à relancer) :
+ * quand une collection (factures) pointe vers TOUTES les lignes d'une autre (cours, par cours_id), on retire les liens
+ * vers les deux dernières, qui redeviennent « à faire ». Sans IA ; seulement si la collection liée garde 3 lignes ou plus. */
+export function laisserAFaire(spec: Spec & { ecrans?: { code?: string }[] }) {
+  const demo: Record<string, any[]> = JSON.parse(JSON.stringify(spec.demo ?? {}));
+  const retraits: string[] = [];
+  const cle = (r: any) => String(r?.ref ?? r?.id ?? "");
+  for (const [col, rows] of Object.entries(demo)) {
+    if (!Array.isArray(rows) || rows.length < 4) continue;
+    const champs = new Set(rows.flatMap((r) => (r && typeof r === "object" ? Object.keys(r) : [])).filter((k) => /_id$/.test(k)));
+    for (const champ of champs) {
+      for (const [pcol, prows] of Object.entries(demo)) {
+        if (pcol === col || !Array.isArray(prows) || prows.length < 3) continue;
+        const refs = new Set(prows.map(cle).filter(Boolean)); if (refs.size < 3) continue;
+        const vises = new Set(rows.map((r) => String(r?.[champ] ?? "")).filter((v) => refs.has(v)));
+        if (vises.size < Math.max(3, Math.round(rows.length * 0.5)) || [...refs].some((r) => !vises.has(r))) continue; // un parent est déjà « à faire »
+        // Les deux parents les plus récents (dernière date trouvée) perdent leurs lignes liées
+        const date = (r: any) => String(r?.date ?? r?.debut ?? r?.cree_le ?? "");
+        const cibles = new Set([...prows].sort((a, b) => date(b).localeCompare(date(a))).slice(0, 2).map(cle));
+        const reste = rows.filter((r) => !cibles.has(String(r?.[champ] ?? "")));
+        if (reste.length >= 3) { demo[col] = reste; retraits.push(`${col} : ${rows.length - reste.length} ligne(s) liée(s) à ${pcol} retirée(s), pour qu'il reste du travail à faire`); }
+        break;
+      }
+    }
+  }
+  return { demo, retraits };
+}

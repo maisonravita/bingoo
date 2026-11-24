@@ -8,7 +8,7 @@ import { texteDesign } from "./design.ts";
 import { FICHES, FICHE_ECRANS, CONSIGNE_TEXTES_FR } from "./design-fiches.ts";
 import { choisirDesign } from "./site.ts";
 import { couvrirDemo } from "./gen-demo.ts";
-import { alignerCode, alignerCollectionsDemo, couvrirDemo as couvrirStatutsDemo } from "./contrat-donnees.ts";
+import { alignerCode, alignerCollectionsDemo, couvrirDemo as couvrirStatutsDemo, laisserAFaire } from "./contrat-donnees.ts";
 import { admin, ask, askJson } from "./core.ts";
 import { sansIdentite } from "./identite.ts";
 
@@ -756,8 +756,8 @@ export async function demarrerVerification(appId: string, specAvant: any = null)
   // Première cause des ratés relevée : un bloc vide parce que la collection ou le statut lu n'existe pas dans les exemples.
   if (!specAvant && sp.ecrans?.length && sp.demo) {
     try {
-      const c1 = alignerCollectionsDemo(sp); const c2 = couvrirStatutsDemo({ ...sp, demo: c1.demo });
-      if (c1.renommes.length || c2.ajouts.length) { sp.demo = c2.demo; await admin.from("saas_apps").update({ spec: sp }).eq("id", appId); console.log("exemples alignés", [...c1.renommes, ...c2.ajouts].join(" ; ")); }
+      const c1 = alignerCollectionsDemo(sp); const c2 = couvrirStatutsDemo({ ...sp, demo: c1.demo }); const c3 = laisserAFaire({ ...sp, demo: c2.demo });
+      if (c1.renommes.length || c2.ajouts.length || c3.retraits.length) { sp.demo = c3.demo; await admin.from("saas_apps").update({ spec: sp }).eq("id", appId); console.log("exemples alignés", [...c1.renommes, ...c2.ajouts, ...c3.retraits].join(" ; ")); }
     } catch (x) { console.error("alignement exemples", x); }
   }
   // Par où le membre est entré (idée libre, galerie de modèles, exploration des SaaS) : mesuré pour savoir quel parcours pousser
