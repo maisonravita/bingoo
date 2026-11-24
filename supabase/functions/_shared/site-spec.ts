@@ -76,7 +76,8 @@ export function specSite(c: any, p: any) {
   const H = liste(c?.horaires);
   // Hébergement (hôtel, gîte…) : ouvert tous les jours, à toute heure, quoi que l'IA ait proposé
   const septSurSept = /(h[ôo]tel|g[îi]te|chambres? d.h[ôo]tes|r[ée]sidence|auberge|camping|palace|location saisonni|urgence|d[ée]pannage 24)/i.test(`${metier} ${p?.idee?.texte ?? ""}`);
-  const horaires = [1, 2, 3, 4, 5, 6, 7].map((j) => { const x = septSurSept ? { ouvert: true, debut: "00:00", fin: "23:59" } : H.find((y: any) => Number(y?.jour) === j) ?? {}; const ouvert = septSurSept ? true : x.ouvert === undefined ? j <= 5 : !!x.ouvert; const deux = ouvert && /^\d{1,2}:\d{2}$/.test(String(x.debut2 ?? "")) && /^\d{1,2}:\d{2}$/.test(String(x.fin2 ?? "")); return { jour: j, ouvert, debut: hh(x.debut, "09:00"), fin: hh(x.fin, "18:00"), ...(deux ? { debut2: hh(x.debut2, "19:00"), fin2: hh(x.fin2, "22:00") } : {}) }; });
+  // Sans horaires donnés par l'IA : aucun horaire affiché (avant : « lundi–vendredi, fermé le week-end » inventé pour tous)
+  const horaires = !H.length && !septSurSept ? [] : [1, 2, 3, 4, 5, 6, 7].map((j) => { const x = septSurSept ? { ouvert: true, debut: "00:00", fin: "23:59" } : H.find((y: any) => Number(y?.jour) === j) ?? {}; const ouvert = septSurSept ? true : x.ouvert === undefined ? j <= 5 : !!x.ouvert; const deux = ouvert && /^\d{1,2}:\d{2}$/.test(String(x.debut2 ?? "")) && /^\d{1,2}:\d{2}$/.test(String(x.fin2 ?? "")); return { jour: j, ouvert, debut: hh(x.debut, "09:00"), fin: hh(x.fin, "18:00"), ...(deux ? { debut2: hh(x.debut2, "19:00"), fin2: hh(x.fin2, "22:00") } : {}) }; });
   // Téléphone et adresse : seulement s'ils sont écrits dans l'idée du membre (vérifié ici, jamais inventés par l'IA)
   const ideeTxt = String(p?.idee?.texte ?? "") + " " + (Array.isArray(p?.idee?.reponses) ? p.idee.reponses.map((x: any) => x?.r ?? "").join(" ") : "");
   const chiffres = (x: unknown) => String(x ?? "").replace(/\D/g, "");
