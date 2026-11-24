@@ -528,7 +528,7 @@ if (CONSTRUIRE === "brouillon") {
   await q(`update saas_apps set publie = null, spec = jsonb_set(jsonb_set(jsonb_set(spec, '{design,couleurs,primary}', to_jsonb(${lit(a.prim)}::text)), '{design,couleurs,on_primary}', to_jsonb(${lit(a.onp ?? "#FFFFFF")}::text)), '{couleur}', to_jsonb(${lit(a.couleur ?? a.prim)}::text)) where id = ${lit(a.id)}`);
   await etat("Remis en état");
   // Onglet Référencement
-  await p.goto(`${SITE}/?c=${Date.now()}#/explorer/mon-saas/reglages?onglet=seo`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(7000);
+  await p.goto(`${SITE}/?c=${Date.now()}#/explorer/reglages-saas?onglet=seo`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(7000);
   console.log("onglet Référencement :", (await p.getByText(/points? sur \d+ en place/).count().catch(() => 0)) ? "✓ affiché" : "✗ absent", "· URL", p.url().slice(-50));
   await p.screenshot({ path: `${DOSSIER}/referencement.png`, fullPage: true });
   await c.close();
