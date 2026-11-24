@@ -187,17 +187,23 @@ function ChantierFlou({ texte, genre, children }) {
 }
 
 // Un clic sur un SaaS de la vitrine remplit l'idée (point de départ à adapter)
+// Premiers écrans réels de projets construits par Bingoo! (captures du robot, en visiteur) ; 5e valeur : "site" pour un site vitrine
 const VITRINE = [
-  ["agendo", "Agendo", "Réservation en ligne", "Un outil de réservation en ligne pour les indépendants, avec rappel la veille"],
+  ["club-randonnee", "Club Randonnée", "Site d'association", "Le site de mon association de randonnée, avec nos sorties", "site"],
+  ["rendezo", "Rendezo", "Réservation en ligne", "Un outil de réservation en ligne pour les indépendants, avec rappel la veille"],
   ["tablio", "Tablio", "Restaurant : tables et commandes", "Un outil pour gérer les réservations de tables et les commandes de mon restaurant"],
   ["velofleet", "VéloFleet", "Location de vélos", "Un logiciel pour gérer ma flotte de vélos électriques en location"],
-  ["cliches", "Clichés", "Photographes de mariage", "Un outil pour suivre mes couples de mariés, de la demande à la galerie photo"],
-  ["chantierpro", "ChantierPro", "Suivi de chantiers", "Un outil pour suivre mes chantiers, tâche par tâche, avec le budget"],
-  ["asso-pilote", "Asso Pilote", "Associations", "Un outil pour gérer les adhérents et les cotisations de mon association"],
-  ["coachflow", "Coachflow", "Coachs sportifs", "Un outil pour gérer mes clients de coaching sportif, leurs séances et leurs paiements"],
-  ["cireze", "Cirèze", "Commandes et stock", "Un outil pour gérer mes commandes, mon stock et mes clients"],
-  ["coupe-mesure", "Coupe Mesure", "Salons de coiffure", "Une app de réservation pour mon salon de coiffure"],
+  ["chantiex", "Chantiex", "Suivi de chantiers", "Un outil pour suivre mes chantiers de rénovation, avec photos, tâches et budget"],
+  ["profmaths", "ProfMaths", "Cours particuliers", "Une plateforme pour trouver un prof de maths près de chez soi"],
+  ["facturo", "Facturo", "Devis et factures", "Un outil pour faire mes devis, mes factures et mes relances"],
+  ["salon-domicile", "Salon à domicile", "Site de coiffeuse", "Le site de mon salon de coiffure à domicile à Lyon", "site"],
   ["menagio", "Ménagio", "Entreprises de ménage", "Un outil pour planifier et prouver les passages de mes agents de ménage"],
+  ["coachly", "Coachly", "Coachs sportifs", "Un outil pour gérer mes clients de coaching sportif, leurs séances et leurs paiements"],
+  ["coupelune", "Coupelune", "Salons de coiffure", "Une app de réservation pour mon salon de coiffure"],
+  ["plombipro", "PlombiPro", "Artisans plombiers", "Un outil pour mes devis, mon planning et mes factures de plombier"],
+  ["planilo", "Planilo", "Site d'un logiciel", "Le site de présentation de mon logiciel de réservation pour salons", "site"],
+  ["tacheo", "Tachéo", "Sociétés d'entretien", "Un outil pour planifier l'entretien et prouver chaque intervention"],
+  ["avisio", "Avisio", "Retours clients", "Un outil pour recueillir et trier les demandes de mes clients"],
 ];
 // Vidéos motion design faites par Bingoo! pour de vrais projets (rendues par le moteur vidéo de Bingoo!), lues en boucle
 // Vraies vidéos écrites par Bingoo! (les scénarios viennent du générateur), dans les 4 allures et les 3 formats
@@ -246,8 +252,8 @@ function VideosVitrine({ nav }) {
 function Vitrine({ choisir }) {
   const rangee = (l, sens) => (
     <div className="vitrine-rang flex w-max gap-4" style={{ animation: `vitrine ${sens > 0 ? 70 : 80}s linear infinite${sens < 0 ? " reverse" : ""}` }}>
-      {[...l, ...l].map(([img, nom, quoi, idee], i) => (
-        <button type="button" key={img + i} tabIndex={i >= l.length ? -1 : 0} aria-hidden={i >= l.length} onClick={() => choisir?.(idee, "saas")} title={`Partir de ${nom}`} className="group w-[300px] sm:w-[380px] shrink-0 overflow-hidden rounded-2xl border border-black/[.08] bg-white text-left shadow-[0_14px_34px_-24px_rgba(20,20,40,.55)] transition hover:-translate-y-1 hover:shadow-[0_22px_44px_-24px_rgba(20,20,40,.6)]">
+      {[...l, ...l].map(([img, nom, quoi, idee, genre], i) => (
+        <button type="button" key={img + i} tabIndex={i >= l.length ? -1 : 0} aria-hidden={i >= l.length} onClick={() => choisir?.(idee, genre ?? "saas")} title={`Partir de ${nom}`} className="group w-[300px] sm:w-[380px] shrink-0 overflow-hidden rounded-2xl border border-black/[.08] bg-white text-left shadow-[0_14px_34px_-24px_rgba(20,20,40,.55)] transition hover:-translate-y-1 hover:shadow-[0_22px_44px_-24px_rgba(20,20,40,.6)]">
           <img src={`/vitrine/${img}.jpg`} alt={`${nom}, construit avec Bingoo!`} loading="lazy" className="aspect-[16/10] w-full object-cover object-top" />
           <span className="flex items-center justify-between gap-2 px-3.5 py-2.5"><b className="text-[14px] text-[#1E2030]">{nom}</b><span className="truncate text-[12.5px] text-[#5B6075] group-hover:hidden">{quoi}</span><span className="hidden text-[12.5px] font-semibold text-[#E8571C] group-hover:inline">Partir de celui-ci →</span></span>
         </button>
@@ -258,11 +264,11 @@ function Vitrine({ choisir }) {
     <section className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden pt-12 pb-4 text-left" aria-label="SaaS construits avec Bingoo!">
       <style>{"@keyframes vitrine{from{transform:translateX(0)}to{transform:translateX(-50%)}}@media (prefers-reduced-motion:reduce){.vitrine-rang{animation:none!important}}.vitrine-bande:hover .vitrine-rang{animation-play-state:paused}"}</style>
       <p className="text-center text-[13px] font-semibold uppercase tracking-[.16em] text-[#5B6075]" style={JK}>Construits avec Bingoo!</p>
-      <h2 className="mx-auto mt-2 max-w-[760px] px-4 text-center text-[24px] sm:text-[32px] font-bold leading-tight text-[#1E2030]" style={JK}>De vrais SaaS, en ligne, pour tous les métiers</h2>
+      <h2 className="mx-auto mt-2 max-w-[760px] px-4 text-center text-[24px] sm:text-[32px] font-bold leading-tight text-[#1E2030]" style={JK}>De vrais SaaS et sites, en ligne, pour tous les métiers</h2>
       <p className="mx-auto mt-2 max-w-[640px] px-4 text-center text-[15px] text-[#5B6075]" style={JK}>Clique sur celui qui ressemble à ton projet : Bingoo! part de là et l'adapte à toi.</p>
       <div className="vitrine-bande mt-7 space-y-4 [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]">
-        {rangee(VITRINE.slice(0, 5), 1)}
-        {rangee(VITRINE.slice(5), -1)}
+        {rangee(VITRINE.slice(0, 8), 1)}
+        {rangee(VITRINE.slice(8), -1)}
       </div>
     </section>
   );
