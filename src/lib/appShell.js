@@ -1476,7 +1476,14 @@ function Verif() {
   const pub = !E && S.type === "site" && !!S.design && i === ECRANS.length;
   useEffect(() => {
     if (pub) {
-      const t = setTimeout(() => {
+      const t = setTimeout(async () => {
+        // La page est jugée une fois prête, comme la voit un visiteur : photos chargées (6 s au plus), animations d'entrée finies
+        try {
+          const imgs = [...document.querySelectorAll("#verif-zone img")].filter((im) => !im.complete);
+          await Promise.race([Promise.all(imgs.map((im) => new Promise((ok) => { im.addEventListener("load", ok, { once: true }); im.addEventListener("error", ok, { once: true }); }))), new Promise((ok) => setTimeout(ok, 6000))]);
+          for (const an of document.getAnimations?.() ?? []) { try { an.finish(); } catch (x) {} }
+          await new Promise((ok) => setTimeout(ok, 400));
+        } catch (x) {}
         try {
           const pbs = controlesDesign(document.getElementById("verif-zone"), true, lintFr);
           if (pbs.length) { const r0 = res.current[0]; const msg = "Page publique : " + pbs.join(" "); if (r0) { r0.ok = false; r0.erreur = String((r0.erreur ? r0.erreur + " " : "") + msg).slice(0, 700); } else res.current.push({ id: "_public", ok: false, erreur: msg.slice(0, 700) }); }
