@@ -268,6 +268,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   // Outils de l'atelier : modifier un texte en cliquant dessus, pointer un élément, joindre des images, revenir en arrière
   const [outil, setOutil] = useState(null); // null | "texte" | "pointer" | "commenter" | "sections" | "image" | "police"
   const imageVisee = useRef(null), fichierImage = useRef(null);
+  const [imageCible, setImageCible] = useState(null);
   const [polices, setPolices] = useState(null); // { titres, texte } en cours d'essai
   const [element, setElement] = useState(null); // { description, ecran }
   const [jointes, setJointes] = useState([]); // [{ url, nom }]
@@ -422,7 +423,8 @@ export function Chantier({ ws, nav, init, atelier = false }) {
         catch (x) { setEchanges((l) => l.map((y, k) => (k === n ? { ...y, etat: "ko", erreur: x.message } : y))); setCle((k) => k + 1); }
         return;
       }
-      if (d.type === "bingoo-atelier-image" && app && d.src) { imageVisee.current = String(d.src); fichierImage.current?.click(); return; }
+      // Image cliquée : un bandeau propose de choisir la photo (le navigateur n'ouvre le choix de fichier que sur un vrai clic)
+      if (d.type === "bingoo-atelier-image" && app && d.src) { imageVisee.current = String(d.src); setImageCible(String(d.description ?? "cette image").slice(0, 80)); return; }
       if (d.type === "bingoo-atelier-texte" && app) {
         const avant = String(d.avant ?? ""), apres = String(d.apres ?? "");
         const n = echanges.length, versionAvant = app.version;
@@ -824,6 +826,11 @@ export function Chantier({ ws, nav, init, atelier = false }) {
             {fini ? <iframe ref={cadreRef} key={cle} title={`Aperçu de ${nom}`} src={lienApercu} onLoad={() => pousserOutil()} className={cx("absolute inset-0 h-full w-full border-0", outil && "ring-2 ring-inset ring-[#E8571C]")} />
               : specEnDirect(app?.brouillon ?? (app?.statut === "pret" ? app?.spec : null)) ? <EnDirect app={app} etape={etape} /> : <Assemblage nom={nom} couleur={couleur} ecrans={ecrans} ecrits={ecrits} etape={etape} />}
             <input ref={fichierImage} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; remplacerImage(f); }} />
+            {fini && outil === "image" && imageCible && <div className="absolute left-1/2 top-3 z-20 flex w-[min(560px,calc(100%-24px))] -translate-x-1/2 items-center gap-2 rounded-xl bg-ink/95 p-1.5 shadow-2xl">
+              <span className="min-w-0 flex-1 truncate px-2 text-[13px] text-white/80">Remplacer {imageCible}</span>
+              <button type="button" onClick={() => { fichierImage.current?.click(); setImageCible(null); }} className="shrink-0 rounded-lg bg-[#E8571C] px-3 py-1.5 text-[12.5px] font-semibold text-white">Choisir ma photo</button>
+              <button type="button" onClick={() => { setImageCible(null); imageVisee.current = null; }} aria-label="Annuler" className="shrink-0 px-2 text-white/70 hover:text-white">×</button>
+            </div>}
             {fini && outil === "police" && <PanneauPolices polices={polices} essayer={essayerPolice} enregistrer={enregistrerPolice} annuler={() => { setPolices(null); setOutil(null); setCle((k) => k + 1); }} />}
             {fini && element?.chemin && outil === "commenter" && <div className="absolute left-1/2 top-3 z-20 flex w-[min(560px,calc(100%-24px))] -translate-x-1/2 items-center gap-2 rounded-xl bg-ink/95 p-1.5 shadow-2xl">
               <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#E8571C] text-[12px] font-bold text-white">{commentaires.length + 1}</span>

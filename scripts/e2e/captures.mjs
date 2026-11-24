@@ -327,7 +327,9 @@ if (CONSTRUIRE === "edition-directe") {
   const img = cadre().locator("main img").first(); const bi = await img.boundingBox().catch(() => null);
   if (bi) {
     const fc = p.waitForEvent("filechooser", { timeout: 15000 }).catch(() => null);
-    await p.mouse.click(bi.x + bi.width / 2, bi.y + bi.height / 2);
+    await p.mouse.click(bi.x + bi.width / 2, bi.y + bi.height / 2); await p.waitForTimeout(1200);
+    await p.screenshot({ path: `${DOSSIER}/edition-4a-image-choisie.png` });
+    await p.getByRole("button", { name: "Choisir ma photo" }).click().catch((e) => console.log("✗ choisir", e.message.slice(0, 80)));
     const ch = await fc; if (ch) { await ch.setFiles("public/vitrine/tablio.jpg"); console.log("✓ photo choisie"); } else console.log("✗ pas de choix de fichier");
     await p.waitForTimeout(12000); await p.screenshot({ path: `${DOSSIER}/edition-4-image.png` });
   } else console.log("✗ aucune image dans la page");

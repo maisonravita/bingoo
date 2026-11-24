@@ -1765,7 +1765,8 @@ function Racine() {
     L.forEach((el, i) => {
       const r = el.getBoundingClientRect(); if (r.bottom < 40 || r.top > innerHeight - 40) return;
       const b = document.createElement("div");
-      b.style.cssText = "position:fixed;left:" + Math.max(8, r.left + 12) + "px;top:" + Math.max(8, r.top + 12) + "px;pointer-events:auto;display:flex;gap:4px;align-items:center;background:#15172A;color:#fff;border-radius:10px;padding:4px;font:600 13px system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.3)";
+      const haut = (document.querySelector("header.nav, header")?.getBoundingClientRect().bottom || 0) + 10;
+      b.style.cssText = "position:fixed;right:" + Math.max(8, innerWidth - r.right + 12) + "px;top:" + Math.max(haut, r.top + 12) + "px;pointer-events:auto;display:flex;gap:4px;align-items:center;background:#15172A;color:#fff;border-radius:10px;padding:4px;font:600 13px system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.3)";
       const bouton = (txt, titre, f, off) => { const x = document.createElement("button"); x.type = "button"; x.textContent = txt; x.title = titre; x.setAttribute("aria-label", titre); x.style.cssText = "min-width:32px;height:32px;border:0;border-radius:7px;padding:0 8px;font:inherit;background:" + (off ? "transparent" : "rgba(255,255,255,.14)") + ";color:" + (off ? "rgba(255,255,255,.3)" : "#fff") + ";cursor:" + (off ? "default" : "pointer"); x.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); if (!off) f(); }); return x; };
       const prise = document.createElement("span"); prise.textContent = "⠿ Glisser"; prise.title = "Maintiens et fais glisser pour déplacer cette section";
       prise.style.cssText = "padding:0 10px;height:32px;display:inline-flex;align-items:center;cursor:grab;user-select:none;touch-action:none";
