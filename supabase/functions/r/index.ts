@@ -1336,7 +1336,7 @@ Ce qu'il faut savoir :
 - Crédits : rechargeables dans Abonnement. Vidéo pub : dans Vidéos. Nom de domaine et retrait du badge « Built by Bingoo! » : offre Lancer Pro.
 - Paiements des clients du membre : sur son propre compte Stripe, Bingoo! ne prend aucune commission.
 - Arrêter l'abonnement : Abonnement, en un clic.
-Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement, une facture ou une question sensible : dis-le franchement et propose « Parler à un humain » (réponse par e-mail le jour même). N'invente jamais une fonction ni un prix.` });
+Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement, une facture ou une question sensible : dis-le franchement et invite à cliquer sur le bouton « Parler à un humain » sous la conversation (réponse par e-mail le jour même). N'invente jamais une fonction, un prix ni une gratuité : seuls sont gratuits les points listés ci-dessus.` });
     return { reponse: reponse.trim().slice(0, 1500) };
   },
   async limites(req, b) {
