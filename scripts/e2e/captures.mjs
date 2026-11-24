@@ -296,11 +296,14 @@ if (CONSTRUIRE === "lien-public") {
 }
 if (CONSTRUIRE === "galerie") {
   // Galerie : les pages publiques demandées (IDEE = slugs séparés par des virgules), vues par un visiteur, sur ordinateur et sur téléphone
-  for (const slug of String(process.env.IDEE ?? "").split(",").map((x) => x.trim()).filter((x) => /^[a-z0-9-]+$/.test(x)).slice(0, 6)) {
-    for (const [nom, vp, mobile] of [["ordi", { width: 1440, height: 900 }, false], ["tel", { width: 390, height: 844 }, true]]) {
+  const slugs = String(process.env.IDEE ?? "").split(",").map((x) => x.trim()).filter((x) => /^[a-z0-9-]+$/.test(x)).slice(0, 30);
+  const premierEcran = slugs.length > 4; // beaucoup de pages : seulement leur premier écran, sur ordinateur
+  for (const slug of slugs) {
+    for (const [nom, vp, mobile] of premierEcran ? [["ordi", { width: 1440, height: 900 }, false]] : [["ordi", { width: 1440, height: 900 }, false], ["tel", { width: 390, height: 844 }, true]]) {
       const c = await browser.newContext({ viewport: vp, locale: "fr-FR", isMobile: mobile, hasTouch: mobile, deviceScaleFactor: mobile ? 2 : 1 }); const p = await c.newPage();
       await p.goto(`${SITE}/?c=${Date.now()}#/app/${slug}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(8000);
       await p.screenshot({ path: `${DOSSIER}/galerie-${slug}-${nom}.png` });
+      if (premierEcran) { console.log(`✓ ${slug}`); await c.close(); continue; }
       // La page entière, en descendant pour réveiller les animations au défilement
       const fr = p.frames().find((f) => f !== p.mainFrame()) ?? p.mainFrame();
       // La page est dans un cadre : on la fait défiler écran par écran (8 au plus), chaque écran est photographié
