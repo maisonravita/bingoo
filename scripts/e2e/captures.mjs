@@ -302,8 +302,8 @@ if (CONSTRUIRE === "support-ecran") {
   await p.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(8000);
   await p.getByRole("button", { name: "Ouvrir l'aide" }).click().catch((e) => console.log("✗ bulle", e.message.slice(0, 80)));
   await p.getByLabel("Ta question").fill("Comment je change la photo de mon site ?").catch(() => null);
-  await p.getByRole("button", { name: "Envoyer", exact: true }).click().catch(() => null);
-  await p.waitForTimeout(12000); await p.screenshot({ path: `${DOSSIER}/support-bulle.png` }); console.log("✓ bulle");
+  await p.getByLabel("Ta question").press("Enter").catch(() => null);
+  await p.waitForTimeout(14000); await p.screenshot({ path: `${DOSSIER}/support-bulle.png` }); console.log("✓ bulle");
   await c.close();
   const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p2 = await c2.newPage();
   await p2.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p2.waitForTimeout(3000);
