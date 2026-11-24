@@ -243,8 +243,8 @@ const lisible = (() => {
     const els = document.querySelectorAll("#root *"); let n = 0;
     for (const el of els) {
       if (n > 600) break;
-      // Jamais dans un bouton, un lien ou un onglet : leur couleur change avec leur état (choisi, survolé), elle ne doit pas être figée
-      if (!el.firstChild || el.dataset.lisible === "1" || el.closest("svg, button, a, [role=button], [role=tab], [aria-pressed], [aria-selected], select, input, textarea, label")) continue;
+          // Boutons et liens compris (« Tout voir », « + Plage ») : s'ils changent d'état, la correction est refaite (voir plus bas)
+      if (!el.firstChild || el.dataset.lisible === "1" || el.closest("svg, select, input, textarea")) continue;
       let texte = false; for (const k of el.childNodes) if (k.nodeType === 3 && k.textContent.trim().length > 1) { texte = true; break; }
       if (!texte) continue; n++;
       const cs = getComputedStyle(el), c = num(cs.color); if (!c || c[3] < 0.5) continue;
@@ -266,15 +266,29 @@ const lisible = (() => {
   // (les étoiles de notation et les coches restent)
   const EMO = /^\\s*(?![★☆✓✔])\\p{Extended_Pictographic}[\\uFE0F\\u200D\\p{Extended_Pictographic}]*\\s*/u;
   const sansEmoji = () => {
-    for (const el of document.querySelectorAll("#root button, #root a, #root h1, #root h2, #root h3, #root h4, #root li, #root label")) {
-      let t = el.firstChild; while (t && t.nodeType === 1 && !t.textContent.trim()) t = t.nextSibling;
-      if (t && t.nodeType === 3 && EMO.test(t.textContent) && t.textContent.replace(EMO, "").trim()) t.textContent = t.textContent.replace(EMO, "");
+    for (const el of document.querySelectorAll("#root button, #root a, #root h1, #root h2, #root h3, #root h4, #root h5, #root h6, #root li, #root label")) {
+      // Le premier texte, même dans une pastille (<li><span>📋</span> Devis</li>) : l'emoji seul est vidé s'il reste du texte après
+      const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); let t = w.nextNode(); while (t && !t.textContent.trim()) t = w.nextNode();
+      if (!t || !EMO.test(t.textContent)) continue;
+      const reste = t.textContent.replace(EMO, "");
+      if (reste.trim()) t.textContent = reste; else if (el.textContent.replace(t.textContent, "").trim()) t.textContent = "";
     }
   };
   const tout = () => { attente = 0; sansEmoji(); passe(); };
   return () => { if (!attente) attente = setTimeout(tout, 250); };
 })();
-addEventListener("load", () => { lisible(); try { new MutationObserver(lisible).observe(document.getElementById("root"), { childList: true, subtree: true }); } catch (e) {} });
+addEventListener("load", () => {
+  lisible();
+  try {
+    new MutationObserver((ms) => {
+      // Un élément qui change d'état (onglet choisi, bouton actif) perd ses corrections de couleur, puis est relu
+      for (const m of ms) if (m.type === "attributes" && m.target.nodeType === 1) {
+        const ici = m.target.dataset?.lisible === "1" ? [m.target] : []; for (const x of [...ici, ...m.target.querySelectorAll("[data-lisible='1']")]) { x.style.removeProperty("color"); delete x.dataset.lisible; }
+      }
+      lisible();
+    }).observe(document.getElementById("root"), { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "aria-pressed", "aria-selected", "aria-current", "data-state"] });
+  } catch (e) {}
+});
 const bus = { l: {}, on(e, f) { (this.l[e] ??= new Set()).add(f); return () => this.l[e].delete(f); }, emit(e, x) { (this.l[e] ?? []).forEach((f) => f(x)); } };
 const db = {
   list: (col, where) => call("list", { col, where }),

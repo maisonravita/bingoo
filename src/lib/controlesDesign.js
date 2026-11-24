@@ -75,7 +75,7 @@ export function controlesDesign(zone, page = false, lint = null) {
   if (contrastes.length) pbs.push("Contraste trop faible (minimum 4,5:1) : « " + contrastes.slice(0, 2).join(" », « ") + " ».");
 
   // Emoji à la place d'une icône (bouton, lien, titre, élément de liste qui commence par un emoji)
-  const emo = /^\p{Extended_Pictographic}/u;
+  const emo = /^(?![★☆✓✔])\p{Extended_Pictographic}/u; // étoiles de notation et coches : des signes typographiques, pas des emoji
   const emojis = tous.filter((el) => /^(BUTTON|A|H[1-6]|LI|LABEL)$/.test(el.tagName) && emo.test((el.innerText || "").trim()));
   if (emojis.length) pbs.push("Emoji utilisé comme icône (" + emojis.length + ") : « " + court(emojis[0]) + " » ; utiliser une icône SVG.");
 
@@ -136,7 +136,7 @@ export function controlesDesign(zone, page = false, lint = null) {
     }
     // Zone vide : plus de la moitié de la hauteur de l'écran sans rien
     const H = innerHeight, pas = 8, occupe = new Set();
-    for (const el of tous) { if (!el.matches("h1,h2,h3,h4,p,li,a,button,img,svg,input,textarea,select,video,canvas,picture") && ![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue; const r = el.getBoundingClientRect(); for (let y = Math.max(0, Math.floor((r.top + scrollY) / pas)); y <= Math.floor((r.bottom + scrollY) / pas); y++) occupe.add(y); }
+    for (const el of tous) { if (!el.matches("h1,h2,h3,h4,p,li,a,button,img,svg,input,textarea,select,video,canvas,picture") && ![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && !/url\(/.test(getComputedStyle(el).backgroundImage)) continue; // une photo en fond (en-tête plein cadre) n'est pas du vide const r = el.getBoundingClientRect(); for (let y = Math.max(0, Math.floor((r.top + scrollY) / pas)); y <= Math.floor((r.bottom + scrollY) / pas); y++) occupe.add(y); }
     const fin = Math.floor(document.documentElement.scrollHeight / pas); let vide = 0, max = 0;
     for (let y = 0; y < fin; y++) { if (occupe.has(y)) vide = 0; else { vide++; max = Math.max(max, vide); } }
     if (max * pas > 0.5 * H) pbs.push("Zone vide de " + Math.round(max * pas) + " px (plus de la moitié de l'écran).");

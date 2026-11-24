@@ -1326,3 +1326,10 @@ main > .photo-band--hero:first-child > .photo-band__text { padding-top: calc(var
 .stack-4 > * + * { margin-top: var(--s-4); }
 .stack-5 > * + * { margin-top: var(--s-5); }
 .stack-6 > * + * { margin-top: var(--s-6); }
+
+/* Téléphone : un nom long (« Hôtel 5 étoiles Paris ») passe à la ligne au lieu de pousser le bouton de menu hors de l'écran,
+   et un bouton au libellé long revient à la ligne au lieu de dépasser */
+@media (max-width: 639px) {
+  .nav__logo { flex: 1 1 auto; min-width: 0; white-space: normal; line-height: 1.15; font-size: 18px; }
+  .btn { white-space: normal; max-width: 100%; height: auto; min-height: var(--btn-h); text-align: center; }
+}

@@ -172,7 +172,9 @@ async function ecrire(spec: any, e: any, demande = "", actuel = "") {
   const { FAMILLES } = await import("./familles.ts");
   const guide = FAMILLES[spec.famille]?.guide ?? GENRES_UI[spec.interface] ?? FAMILLES.gestion.guide;
   const genre = !e.public ? `\n\n${guide}${spec.gabarit_app === "taste" ? `\n\n${REGLES_TASTE_ECRAN}` : ""}` : "";
-  const prompt = `${DOC}${e.public ? DOC_PUBLIC(e) : ""}${genre}\n\n${contexteSpec(spec)}\n\n${consigne}\n\nRéponds uniquement avec le code dans un bloc \`\`\`js.`;
+  const { consigneFidelite, fidelite } = await import("./fidelite.ts");
+  const exige = actuel ? "" : consigneFidelite(spec, e, FAMILLES);
+  const prompt = `${DOC}${e.public ? DOC_PUBLIC(e) : ""}${genre}\n\n${contexteSpec(spec)}\n\n${consigne}${exige}\n\nRéponds uniquement avec le code dans un bloc \`\`\`js.`;
   if (actuel) {
     const promptPatch = `${DOC}${e.public ? DOC_PUBLIC(e) : ""}${genre}\n\n${contexteSpec(spec)}\n\nVoici le code actuel de l'écran « ${e.titre} » (${e.id}) :\n\`\`\`js\n${actuel}\n\`\`\`\nModification demandée par l'utilisateur : ${demande}`;
     const t0 = Date.now(), rapide = await retoucheRapide(promptPatch, actuel).catch((x) => { console.error("retouche rapide", x); return null; });
@@ -184,6 +186,15 @@ async function ecrire(spec: any, e: any, demande = "", actuel = "") {
   if (err || !/function\s+Ecran\s*\(/.test(code)) {
     code = extraire(await ask(`${prompt}\n\nTa première version ne marchait pas (${err ?? "pas de fonction Ecran"}). Corrige-la :\n\`\`\`js\n${code}\n\`\`\``, { maxTokens: 12000, fast: true }));
     err = erreurSyntaxe(code);
+  }
+  // Même contrôle de fidélité que la vérification : refusé ici, l'écran est corrigé tout de suite plutôt qu'en réparation
+  if (!actuel && !err) {
+    const ecart = fidelite({ ...spec, ecrans: (spec.ecrans ?? []).map((x: any) => (x.id === e.id ? { ...x, code } : x)) }, FAMILLES)[e.id];
+    if (ecart) {
+      console.log("fidélité à corriger dès l'écriture :", e.id);
+      const c2 = extraire(await ask(`${prompt}\n\nTa version ne passe pas le contrôle : ${ecart}\nRéécris l'écran complet :\n\`\`\`js\n${code}\n\`\`\``, { maxTokens: 12000 }));
+      if (!erreurSyntaxe(c2) && /function\s+Ecran\s*\(/.test(c2)) code = c2;
+    }
   }
   return { code, ok: !err && /function\s+Ecran\s*\(/.test(code) };
 }
