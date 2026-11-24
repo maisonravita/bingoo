@@ -107,6 +107,9 @@ for (const a of apps) {
             .map((el) => { const cs = getComputedStyle(el); return `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 60)} h=${Math.round(el.getBoundingClientRect().height)} op=${cs.opacity} vis=${cs.visibility} bg=${cs.backgroundImage.slice(0, 40)} img=${el.tagName === "IMG" ? (el.complete && el.naturalWidth ? "ok" : "non chargée") : ""}`; });
           const imgs = [...document.querySelectorAll("img")].map((im) => `${im.complete && im.naturalWidth ? "chargée" : "NON chargée"} h=${Math.round(im.getBoundingClientRect().height)} ${String(im.getAttribute("src") ?? "").slice(0, 40)}`);
           const caches = [...document.querySelectorAll("section, [data-enter], [data-reveal]")].filter((el) => Number(getComputedStyle(el).opacity) < 0.05).length;
+          const css = (sel) => { const el = document.querySelector(sel); if (!el) return sel + " absent"; const cs = getComputedStyle(el); return `${sel} h=${Math.round(el.getBoundingClientRect().height)} display=${cs.display} align-self=${cs.alignSelf} aspect=${cs.aspectRatio} pos=${cs.position} rows=${cs.gridTemplateRows}`; };
+          let regle = false; try { for (const sh of document.styleSheets) { try { for (const r of sh.cssRules) if (String(r.cssText).includes(".hero-split > .hero-copy")) regle = true; } catch (x) {} } } catch (x) {}
+          dans.push(`règle hero chargée : ${regle}`, css("#hero > .wrap"), css("#hero .hero-text"), css("#hero .hero-copy"), css("#hero .hero-visual"), css("#hero .hero-visual img"));
           return { y0, y1, hauteur: document.documentElement.scrollHeight, dans, imgs, caches };
         });
         console.log(`  vide ${largeur}px : bande ${d.y0}-${d.y1} sur ${d.hauteur}, sections invisibles : ${d.caches}`); for (const x of d.dans) console.log("    ·", x); for (const x of d.imgs) console.log("    img", x);
