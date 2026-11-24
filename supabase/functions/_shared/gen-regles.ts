@@ -64,6 +64,23 @@ et des boutons.
 Cartes et cadres (.card, .panel) : dans DEUX sections au plus sur toute la page. Ailleurs : des colonnes ouvertes séparées par
 un filet, des listes en lignes (.rows), des chiffres ou des mots en grand, une photo. Une page qui met tout en cartes est refusée.
 
+## Densité (une page courte et pleine vaut mieux qu'une page longue qui se répète)
+- Le nombre de sections suit la matière du brief : un brief de quelques lignes donne 4 ou 5 sections, pas 8. Une section qui
+  n'apporte aucune information nouvelle n'existe pas.
+- Jamais deux titres identiques ou presque sur la page. Chaque h2 dit autre chose.
+- Un même fait (un prix, les horaires, l'adresse, le téléphone) apparaît UNE fois dans le corps de la page, et au plus une
+  seconde fois dans le footer.closing. Jamais trois fois. Chaque marqueur de données (services, horaires, adresse) est posé une
+  seule fois sur toute la page.
+- La FAQ n'existe que si le brief permet au moins quatre réponses qui ne sont PAS déjà écrites ailleurs sur la page. Une FAQ
+  qui redonne les horaires, l'adresse ou les prix est refusée. Sa mise en page : le h2 dans une colonne étroite à gauche
+  (span-4), les questions en une seule colonne à droite (span-7 start-6), séparées par des filets, h3 en 20 px au moins.
+- Aucune zone vide : pas de min-height ni de hauteur fixe sur une section hors premier écran, pas de colonne laissée vide à
+  côté d'un texte court. Une section en aplat (ground-brand) tient en un demi-écran : sa phrase en très grand, une ligne, c'est tout.
+- Le footer.closing va à l'essentiel : un h2, une phrase, le téléphone en grand s'il existe, le formulaire à côté, puis une
+  seule ligne avec le nom et les liens. Pas de seconde liste d'horaires si la page les a déjà montrés.
+- Accent : dans le h1 ou UN h2, un fragment de deux à quatre mots peut être en <em> (italique) quand la police de titres est à
+  empattements. Jamais plus d'un par écran.
+
 ## Mise en page (Taste, layout-v4)
 - Une section par écran (deux au plus), le h2 en premier, mêmes bords partout (.wrap). Un seul élément dominant par écran.
 - Premier écran : un h1 qui dit ce que c'est et pour qui ou où, une phrase avec un fait concret, au plus deux boutons (un seul

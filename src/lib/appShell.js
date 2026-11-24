@@ -985,7 +985,7 @@ const DonneesSite = {
 function FormulaireSite({ d, liste }) {
   const [f, setF] = useState({ nom: "", prenom: "", email: "", telephone: "", service: "", date_souhaitee: "", message: "", site_web: "" }), [fait, setFait] = useState(""), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
   const avecDate = SITE.demande === "rdv" || SITE.demande === "reservation", inf = d.infos ?? {};
-  const champ = "mt-1.5 min-h-12 w-full rounded-lg px-3 outline-none", bord = "border:1px solid color-mix(in srgb,var(--p-ink) 25%,transparent);background:var(--p-bg);color:var(--p-ink)";
+  const champ = "mt-1.5 min-h-12 w-full rounded-lg px-3 outline-none", bord = "border:1px solid color-mix(in srgb,var(--ink,var(--p-ink)) 30%,transparent);background:color-mix(in srgb,var(--ink,var(--p-ink)) 7%,transparent);color:var(--ink,var(--p-ink));font-size:16px";
   const envoyer = async (e) => {
     e.preventDefault(); setErr("");
     if (liste ? !f.email.trim() : !f.nom.trim()) { setErr(liste ? "Indiquez votre e-mail." : "Indiquez votre nom."); return; }
@@ -1020,7 +1020,10 @@ function SitePageGeneree({ onAuth, saas }) {
     const st2 = document.createElement("style"); st2.textContent = ".bg-rev{opacity:0;transform:translateY(18px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}.bg-rev.bg-in{opacity:1;transform:none}"
       + ".ground-brand{--bg:var(--p-accent);--surface:color-mix(in srgb,var(--p-accent) 86%,var(--p-accent-ink));--card:color-mix(in srgb,var(--p-accent) 86%,var(--p-accent-ink));--ink:var(--p-accent-ink);--muted:color-mix(in srgb,var(--p-accent-ink) 80%,var(--p-accent));--accent:var(--p-accent-ink);--accent-ink:var(--p-accent);--action:var(--p-accent-ink);--action-ink:var(--p-accent);--line:color-mix(in srgb,var(--p-accent-ink) 22%,transparent);background:var(--bg);color:var(--ink)}"
       + ".ground-brand :is(h1,h2,h3,p,li,a:not(.btn)),.ground-inverse :is(h1,h2,h3,p,li,a:not(.btn)){color:inherit}"
-      + "main>section.hero:is(.ground-brand,.ground-inverse):not(:has(img))>:is(.wrap,.container){justify-content:center}"
+      + "main>section.hero:is(.ground-brand,.ground-inverse):not(:has(img)){display:flex!important;flex-direction:column;justify-content:flex-end;padding-bottom:clamp(40px,6vw,88px)!important}main>section.hero:not(:has(img)) .t-lead{font-size:clamp(19px,1.5vw,24px)}"
+      + "main>section.ground-brand:not(.hero):not(:has(img)) :is(.wrap,.wrap>*){min-height:0!important}"
+      + ".bingoo-form select option{color:#111;background:#fff}.bingoo-form :is(input,select,textarea):focus{border-color:var(--accent,var(--p-accent))!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,var(--p-accent)) 30%,transparent)}.bingoo-form textarea{min-height:132px}"
+      + "main :is(h1,h2) em{font-style:italic;font-weight:inherit}.hours{font-size:16px}"
       + "[data-bingoo-photo] .btn--primary{background:var(--p-accent)!important;color:var(--p-accent-ink)!important;border-color:transparent!important}[data-bingoo-photo] .btn--secondary{background:rgba(0,0,0,.25)!important;color:#fff!important;border-color:rgba(255,255,255,.55)!important}[data-bingoo-photo] :is(h1,h2,h3,p,li,a:not(.btn)){color:#fff!important}"
       + ".field{font-size:14px;gap:8px}.field :is(input,select,textarea){height:52px;padding:0 16px;border-radius:10px;border:1px solid color-mix(in srgb,var(--ink) 30%,transparent);background:color-mix(in srgb,var(--ink) 6%,transparent);color:var(--ink);transition:border-color .2s,box-shadow .2s}"
       + ".field textarea{height:auto;min-height:140px;padding-block:14px}.field :is(input,select,textarea):focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 30%,transparent)}.field select option{color:#111;background:#fff}.field :is(input,textarea)::placeholder{color:color-mix(in srgb,var(--ink) 50%,transparent)}"

@@ -76,7 +76,7 @@ Fais le plan de SA page (JSON seul) :
 { "nav": [{ "mot": "un mot", "ancre": "id-de-section" }] (3 à 5),
   "sections": [{ "id": "id-court-en-minuscules", "role": "hero|offre|lieu|fonctionnement|produit|ecrans|prix|faq|visite|inscription|closing…",
     "idee": "ce que la section dit et pourquoi elle donne envie, en une phrase", "visuel": "le visuel précis de la section (typographie, formes, maquette, photo IMG_n)",
-    "marqueurs": ["services"|"horaires"|"contact"|"inscription"|"adresse"|"realisations"], "image": "IMG_1 ou null" }] (5 à 8, la première "hero", la dernière "closing"),
+    "marqueurs": ["services"|"horaires"|"contact"|"inscription"|"adresse"|"realisations"], "image": "IMG_1 ou null" }] (4 à 8 selon la matière du brief : 4 ou 5 si le brief tient en quelques lignes ; la première "hero", la dernière "closing" ; jamais deux sections sur le même sujet, chaque marqueur une seule fois hors "contact"),
   "images": [{ "id": "IMG_1", "pour": "id de section", "prompt": "prompt anglais détaillé pour un générateur d'images : ambiance, matière, lumière, cadrage ; jamais de personnes reconnaissables, de texte, de logo, ni de plat, produit ou lieu présenté comme celui du membre" }] (0 à 3) }
 Choisis la mise en page de chaque section selon la fiche et les plans Taste, sans deux voisines identiques.`, opts(3000));
   budget();

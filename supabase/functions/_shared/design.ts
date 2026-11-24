@@ -58,13 +58,22 @@ export type DesignChoisi = {
 // Elles sont remplacées automatiquement par une police de titre qui a de l'allure (toutes disponibles de 400 à 800 chez Google).
 const TITRES_NEUTRES = /^(inter|poppins|open sans|roboto|lato|montserrat|arial|helvetica|nunito sans|source sans 3|noto sans)$/i;
 // Polices manuscrites ou décoratives : illisibles en titre d'un logiciel ou d'une page de vente
-const TITRES_DECORATIFS = /^(great vibes|dancing script|pacifico|satisfy|allura|parisienne|sacramento|lobster|caveat|kaushan script|alex brush|tangerine|cookie|courgette|amatic sc|shadows into light|indie flower)$/i;
+const TITRES_DECORATIFS = /^(great vibes|dancing script|pacifico|satisfy|allura|parisienne|sacramento|lobster|caveat|kaushan script|alex brush|tangerine|cookie|courgette|amatic sc|shadows into light|indie flower|syncopate|lexend mega|poiret one|kalam|playfair display sc|share tech mono|orbitron)$/i;
 export const TITRES_CARACTERE = ["Fraunces", "Newsreader", "Playfair Display", "Literata", "Bricolage Grotesque", "Sora", "DM Serif Display"];
 export function titresAvecCaractere(titres: string, graine: string): string {
   const t = String(titres ?? "").trim();
   if (!TITRES_NEUTRES.test(t) && !TITRES_DECORATIFS.test(t)) return titres;
   let h = 0; for (const c of graine) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return TITRES_CARACTERE[h % TITRES_CARACTERE.length];
+}
+// Lieux où l'on reçoit (table, hôtel, beauté, bien-être) : un titre à empattements, comme les maisons du métier ; une police
+// large ou géométrique y donne un air de produit technique. Le tirage reste stable pour un même projet (graine).
+const TITRES_EMPATTEMENTS = ["Fraunces", "Playfair Display", "Newsreader", "Cormorant Garamond", "DM Serif Display", "Lora", "Literata"];
+const LIEU_ACCUEIL = /(restaurant|bistrot|brasserie|caf[ée]|traiteur|boulanger|p[âa]tiss|[ée]picerie|cave|h[ôo]tel|g[îi]te|chambre|maison d'h[ôo]tes|coiff|barbier|esth[ée]t|institut|spa\b|massage|onglerie|fleuriste)/i;
+export function titresPourLieu<T extends { polices: { titres: string; texte: string } }>(d: T, metier: string, graine: string): T {
+  if (!LIEU_ACCUEIL.test(metier ?? "") || /fraunces|playfair|newsreader|garamond|serif|lora|literata|bodoni|crimson|cormorant/i.test(d.polices.titres)) return d;
+  let h = 0; for (const c of graine) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return { ...d, polices: { ...d.polices, titres: TITRES_EMPATTEMENTS[h % TITRES_EMPATTEMENTS.length] } };
 }
 export function tirerDesign(categorie: string, dejaVues: { categorie?: string; variante?: number }[] = [], aleatoire = Math.random): DesignChoisi {
   const s = SYSTEMES[categorie] ?? SYSTEMES["SaaS (General)"];

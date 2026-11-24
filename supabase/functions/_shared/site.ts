@@ -28,7 +28,8 @@ export async function construireSite(appId: string, p: any, demarrerVerification
   // Système de design (UI UX Pro Max) : catégorie tirée des mots-clés du plan, variante jamais vue chez ce membre ni
   // sur les derniers projets du même secteur ; palette et polices imposées (l'IA ne les choisit plus)
   // Le design montré dans l'aperçu de l'idée est celui qui est construit
-  const d = (await import("./design.ts")).designNet(p.idee?.apercu?.design) ?? await choisirDesign(appId, String(c?.secteur_en ?? `${spec.site?.metier ?? ""}`));
+  const d0 = (await import("./design.ts")).designNet(p.idee?.apercu?.design) ?? await choisirDesign(appId, String(c?.secteur_en ?? `${spec.site?.metier ?? ""}`));
+  const d = (await import("./design.ts")).titresPourLieu(d0, `${spec.site?.metier ?? ""} ${p.metier ?? ""}`, String(spec.nom ?? appId));
   spec.design = d;
   spec.couleur = d.couleurs.primary;
   if (d.allure) spec.style = d.allure;
