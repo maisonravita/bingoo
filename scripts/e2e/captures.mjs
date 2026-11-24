@@ -294,6 +294,53 @@ if (CONSTRUIRE === "lien-public") {
     await p.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await etat(p, "createur");
     await p.evaluate((s) => { location.hash = `#/app/${s}`; }, a.slug); await etat(p, "createur-hash"); await c.close(); }
 }
+if (CONSTRUIRE === "edition-directe") {
+  // Les 3 outils d'édition directe de l'atelier, sur le dernier site du robot : sections, image, police
+  const [a] = await q(`select a.id, a.slug, a.workspace_id, a.version from saas_apps a join workspaces w on w.id = a.workspace_id where w.name like 'Robot film%' and a.statut = 'pret' and a.spec->'site'->'page'->'sections' is not null order by a.maj desc limit 1`);
+  console.log("site :", a?.slug, "version", a?.version);
+  const ordreDe = async () => (await q(`select spec->'site'->'page'->'sections' s, spec->>'police_titres' t, spec->>'police' x, version from saas_apps where id = ${lit(a.id)}`))[0];
+  const avant = await ordreDe(); console.log("ordre avant :", (avant.s ?? []).map((x) => x.id).join(" › "));
+  const { ctx: c, page: p } = await ouvrir(a.workspace_id, { "bingoo-guide": "fini" });
+  await p.setViewportSize({ width: 1440, height: 900 });
+  await p.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(9000);
+  const cadre = () => p.frameLocator('iframe[title^="Aperçu"]');
+  const outil = async (nom) => { await p.getByRole("button", { name: nom }).first().click().catch((e) => console.log("✗ bouton", nom, e.message.slice(0, 80))); await p.waitForTimeout(1500); };
+  await p.screenshot({ path: `${DOSSIER}/edition-0-atelier.png` });
+  // 1. Sections : les poignées, puis la 2e section glissée tout en bas
+  await outil("⠿ Sections");
+  await cadre().locator("main").first().evaluate(() => window.scrollTo(0, 0)).catch(() => null);
+  await p.waitForTimeout(800); await p.screenshot({ path: `${DOSSIER}/edition-1-sections.png` });
+  const ifr = await p.locator('iframe[title^="Aperçu"]').boundingBox();
+  const prises = cadre().getByText("⠿ Glisser");
+  console.log("poignées visibles :", await prises.count());
+  const fr = p.frames().find((f) => f.url().includes("/app") || f !== p.mainFrame());
+  // Descendre la 1re section du contenu avec le bouton ↓ (geste simple), puis glisser à la souris
+  await cadre().getByRole("button", { name: "Descendre cette section" }).first().click().catch((e) => console.log("✗ descendre", e.message.slice(0, 80)));
+  await p.waitForTimeout(2500); await p.screenshot({ path: `${DOSSIER}/edition-2-section-deplacee.png` });
+  const b1 = await prises.first().boundingBox().catch(() => null);
+  if (b1 && ifr) { await p.mouse.move(b1.x + 20, b1.y + 10); await p.mouse.down(); for (let k = 1; k <= 12; k++) { await p.mouse.move(b1.x + 20, b1.y + 10 + k * 55); await p.waitForTimeout(60); } await p.screenshot({ path: `${DOSSIER}/edition-3-glisse.png` }); await p.mouse.up(); await p.waitForTimeout(2500); }
+  const apres1 = await ordreDe(); console.log("ordre après :", (apres1.s ?? []).map((x) => x.id).join(" › "), "version", apres1.version);
+  // 2. Image : clic sur la première image, une photo de test choisie
+  await outil("▣ Image");
+  await cadre().locator("main").first().evaluate(() => window.scrollTo(0, 0)).catch(() => null); await p.waitForTimeout(800);
+  const img = cadre().locator("main img").first(); const bi = await img.boundingBox().catch(() => null);
+  if (bi) {
+    const fc = p.waitForEvent("filechooser", { timeout: 15000 }).catch(() => null);
+    await p.mouse.click(bi.x + bi.width / 2, bi.y + bi.height / 2);
+    const ch = await fc; if (ch) { await ch.setFiles("public/vitrine/tablio.jpg"); console.log("✓ photo choisie"); } else console.log("✗ pas de choix de fichier");
+    await p.waitForTimeout(12000); await p.screenshot({ path: `${DOSSIER}/edition-4-image.png` });
+  } else console.log("✗ aucune image dans la page");
+  // 3. Police : essai en direct, capture, puis enregistrement
+  await outil("Aa Police");
+  await p.getByRole("button", { name: "Playfair Display" }).first().click().catch(() => null); await p.waitForTimeout(800);
+  await p.getByRole("button", { name: "Lato" }).first().click().catch(() => null); await p.waitForTimeout(3000);
+  await p.screenshot({ path: `${DOSSIER}/edition-5-police-essai.png` });
+  await p.getByRole("button", { name: /Garder ces polices/ }).click().catch((e) => console.log("✗ garder", e.message.slice(0, 80)));
+  await p.waitForTimeout(9000); await p.screenshot({ path: `${DOSSIER}/edition-6-police-gardee.png` });
+  const fin = await ordreDe(); console.log("polices enregistrées :", fin.t, "/", fin.x, "version", fin.version);
+  console.log("images remplacées :", JSON.stringify(fin.s ?? []).includes("/apps/images/") ? "oui" : "non");
+  await c.close();
+}
 if (CONSTRUIRE === "vitrine-accueil") {
   // La vitrine des réalisations sur la page d'accueil, telle qu'un visiteur la voit (ordinateur puis téléphone)
   for (const [nom, vp, mobile] of [["ordi", { width: 1440, height: 900 }, false], ["tel", { width: 390, height: 844 }, true]]) {
@@ -742,7 +789,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
