@@ -420,6 +420,16 @@ export async function aiGuard() {
   // Offre gratuite : seuls les aperçus d'idée appellent l'IA, et jamais plus de 2 centimes par mois (vérifié ici, côté serveur)
   {
     const { data: wp } = await admin.from("workspaces").select("plan").eq("id", ws).maybeSingle();
+    // Premier outil ou jeu offert : sa construction, sa vérification et quelques retouches, dans une enveloppe de 50 centimes
+    if (wp?.plan === "essai" && /^construire/.test(String(ctx.feature ?? ""))) {
+      const { data: offerts } = await admin.from("saas_apps").select("id, o1:spec->offert, o2:brouillon->offert").eq("workspace_id", ws).limit(3);
+      if (!(offerts ?? []).some((a: any) => a.o1 === true || a.o2 === true)) {
+        // Pas encore d'application : la construction du projet offert démarre juste après (vérifiée par la route)
+        const { count } = await admin.from("saas_projets").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("data->>offert", "true");
+        if (!(count ?? 0)) throw new HttpError(402, "Ça fait partie des offres payantes : choisis une offre dans Abonnement pour que Bingoo! s'en occupe.");
+      }
+      if ((await aiSpent(ws)) > Number(env("OUTIL_OFFERT_EUR", "0.5"))) throw new HttpError(402, "Tu as utilisé tout ce qui était offert avec ton premier projet. Pour continuer à le modifier, choisis une offre dans Abonnement : il reste en ligne.");
+    } else
     if (wp?.plan === "essai") {
       if (!GRATUIT_IA.test(String(ctx.feature ?? ""))) throw new HttpError(402, "Ça fait partie des offres payantes : choisis une offre dans Abonnement pour que Bingoo! s'en occupe.");
       // Garde-fou contre les visiteurs en série : au-delà de 4 € d'aperçus gratuits dans la journée (toute la plateforme), on demande un compte

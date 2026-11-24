@@ -35,6 +35,19 @@ async function logoEspace(wsId: string): Promise<{ url: string; couleur: string 
   try { const { data } = await admin.storage.from("apps").download(`espaces/${wsId}/logo.json`); if (!data) return null; const j = JSON.parse(await data.text()); return typeof j?.url === "string" ? j : null; } catch { return null; }
 }
 // Espace d'un membre connecté, ou n'importe quel espace avec la clé des tâches planifiées (tests et reprises)
+/** Compte gratuit : le PREMIER projet est offert si c'est un outil ou un jeu (quelques centimes d'IA). Un seul par espace,
+ *  jamais s'il a déjà eu un projet, et dans la limite d'un nombre d'outils offerts par jour sur toute la plateforme. */
+async function outilOffert(wsId: string, type: unknown): Promise<boolean> {
+  if (String(type ?? "") !== "outil") return false;
+  const { count } = await admin.from("saas_apps").select("id", { count: "exact", head: true }).eq("workspace_id", wsId);
+  if ((count ?? 0) > 0) return false;
+  const { count: enCours } = await admin.from("saas_projets").select("id", { count: "exact", head: true }).eq("workspace_id", wsId).eq("data->>offert", "true").neq("statut", "erreur");
+  if ((enCours ?? 0) > 0) return false;
+  const jour = new Date(); jour.setUTCHours(0, 0, 0, 0);
+  const { count: duJour } = await admin.from("saas_projets").select("id", { count: "exact", head: true }).eq("data->>offert", "true").gte("at", jour.toISOString());
+  if ((duJour ?? 0) >= Number(Deno.env.get("OUTILS_OFFERTS_JOUR") ?? "40")) throw new HttpError(402, "Beaucoup de monde aujourd'hui : les outils offerts du jour sont tous partis. Reviens demain, ou choisis une offre pour construire tout de suite.");
+  return true;
+}
 const membreOuCron = async (req: Request, wsId: string) => {
   if (!req.headers.get("x-cron-key")) return await requireMember(req, wsId);
   await cron(req);
@@ -591,7 +604,9 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   async "saas-lancer-idee"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
     if (ws.plan === "explorer") throw new HttpError(402, "« Construire mon idée » est dans la formule Lancer.");
-    if (ws.plan === "essai") throw new HttpError(402, "La construction fait partie des offres payantes : choisis Site ou Lancer dans Abonnement pour que Bingoo! construise ton projet.");
+    // Compte gratuit : son premier outil ou jeu est offert ; tout le reste demande une offre
+    const offert = ws.plan === "essai" && await outilOffert(ws.id, b.type);
+    if (ws.plan === "essai" && !offert) throw new HttpError(402, String(b.type ?? "") === "outil" ? "Ton premier outil ou jeu était offert et tu l'as déjà construit. Pour en construire un autre, choisis l'offre Site ou Lancer dans Abonnement." : "Ton premier outil ou jeu est offert. Un site ou un logiciel fait partie des offres payantes : choisis Site ou Lancer dans Abonnement.");
     // La formule Site construit des sites, pas des SaaS
     if (ws.plan === "site" && !["site", "outil"].includes(String(b.type ?? "saas"))) throw new HttpError(402, "Ta formule Site construit des sites web, des outils et des jeux. Pour un SaaS, passe à la formule Lancer.");
     const au = await autreSaas(ws as { id: string; periode?: string });
@@ -606,7 +621,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const nomChoisi = typeof b.nom === "string" && b.nom.trim() ? b.nom.replace(/\s+/g, " ").trim().slice(0, 40) : String(apercu.nom).slice(0, 40);
     const source = (await import("../_shared/copie-site.ts")).sourceNette(b.source);
     const reponses = (Array.isArray(b.reponses) ? b.reponses : []).slice(0, 3).map((x: any) => ({ q: String(x?.q ?? "").slice(0, 140), r: String(x?.r ?? "").slice(0, 160) }));
-    const { data: pj, error } = await admin.from("saas_projets").insert({ workspace_id: ws.id, saas_id: s!.id, statut: "en_cours", data: { entree: String(b.type ?? "") === "site" ? "site" : String(b.type ?? "") === "outil" ? "outil" : "idee", nom_choisi: nomChoisi, idee: { texte, type: String(b.type ?? "saas"), reponses, apercu }, ...(source ? { source } : {}) } }).select("id").single();
+    const { data: pj, error } = await admin.from("saas_projets").insert({ workspace_id: ws.id, saas_id: s!.id, statut: "en_cours", data: { entree: String(b.type ?? "") === "site" ? "site" : String(b.type ?? "") === "outil" ? "outil" : "idee", nom_choisi: nomChoisi, idee: { texte, type: String(b.type ?? "saas"), reponses, apercu }, ...(source ? { source } : {}), ...(offert ? { offert: true } : {}) } }).select("id").single();
     if (error || !pj) throw new HttpError(500, error?.message ?? "Le projet n'a pas été enregistré");
     await log(ws.id, "lancer", `Projet né d'une idée : ${texte.slice(0, 120)}`);
     const travail = saasLancerIdee(ws.id, pj.id).catch(async (e) => { console.error("lancer-idee", e); await admin.from("saas_projets").update({ statut: "erreur", erreur: "La préparation de ton idée a échoué, réessaie." }).eq("id", pj.id); });
@@ -618,8 +633,10 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   async "saas-construire"(req, b) {
     const { ws } = await membreOuCron(req, b.workspace_id);
     if (ws.plan === "explorer") throw new HttpError(402, "« Construire mon SaaS » est dans la formule Lancer.");
-    if (ws.plan === "essai") throw new HttpError(402, "La construction fait partie des offres payantes : choisis Site ou Lancer dans Abonnement pour que Bingoo! construise ton projet.");
     const { data: pr } = await admin.from("saas_projets").select("id, data, statut").eq("id", String(b.projet_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    // Compte gratuit : seul le projet offert (premier outil ou jeu) se construit
+    const offert = ws.plan === "essai" && (pr?.data as any)?.offert === true && (pr?.data as any)?.idee?.type === "outil";
+    if (ws.plan === "essai" && !offert) throw new HttpError(402, "La construction fait partie des offres payantes : choisis Site ou Lancer dans Abonnement pour que Bingoo! construise ton projet.");
     if (!pr || pr.statut !== "pret") throw new HttpError(404, "Projet introuvable");
     if (ws.plan === "site" && !["site", "outil"].includes((pr.data as any)?.idee?.type)) throw new HttpError(402, "Ta formule Site construit des sites web, des outils et des jeux. Pour un SaaS, passe à la formule Lancer.");
     const { data: ex } = await admin.from("saas_apps").select("id, statut, maj, etape").eq("projet_id", pr.id).maybeSingle();
@@ -635,7 +652,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       }
     }
     // Une reprise après échec ne compte pas : le client n'a rien obtenu
-    if (!req.headers.get("x-cron-key") && !parCredits && ex?.statut !== "erreur") { await quota(ws.id, "construire", 3); await quotaMois(ws.id, ws.plan, "construire"); }
+    if (!req.headers.get("x-cron-key") && !parCredits && ex?.statut !== "erreur") { await quota(ws.id, "construire", 3); if (!offert) await quotaMois(ws.id, ws.plan, "construire"); }
     if (parCredits) await creditsDepenser(ws.id, COUT_CREDITS.saas, "Autre SaaS");
     if (remplacer.length) await admin.from("saas_apps").update({ statut: "remplace", public: false }).in("id", remplacer);
     setAi({ ws: ws.id, live: true, feature: "construire" });

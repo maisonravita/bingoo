@@ -39,6 +39,7 @@ export async function construireOutil(appId: string, p: any, lancerEcran: (id: s
     type: "outil", nom: court(p.nom || ap.nom || "Mon outil", 40), pitch: court(ap.pitch, 220), cible: court(ap.cible, 90),
     slogan: court(ap.pitch, 90), couleur: hex(ap.ambiance?.accent, "#F59E0B"),
     outil: { genre, ambiance: { esprit: court(ap.ambiance?.esprit, 120), fond: hex(ap.ambiance?.fond, "#0F172A"), accent: hex(ap.ambiance?.accent, "#F59E0B") }, idee: court(p.idee?.texte, 400), precisions: (p.idee?.reponses ?? []).slice(0, 3).map((x: any) => `${court(x?.q, 120)} → ${court(x?.r, 160)}`) },
+    ...(p.offert === true ? { offert: true } : {}),
     collections: [], demo: {}, formules: [], atouts: [], faq: [],
     ecrans: [{ id: "outil", titre: genre === "jeu" ? "Le jeu" : "L'outil", icone: "etoile", but: court(ap.pitch, 220), fonctions: parties.map((e: any) => `${court(e?.titre, 30)} : ${court(e?.role, 160)}`) }],
   };

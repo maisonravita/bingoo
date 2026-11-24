@@ -944,15 +944,15 @@ if (CONSTRUIRE === "spec") {
     ? { domaine: process.env.DOMAINE || "circle.so", nom: (await q(`select coalesce(nom, split_part(domaine, '.', 1)) nom from saas where domaine = ${lit(process.env.DOMAINE || "circle.so")}`))[0]?.nom ?? "Circle", categorie: (await q(`select coalesce(categorie, '') c from saas where domaine = ${lit(process.env.DOMAINE || "circle.so")}`))[0]?.c || "Communauté" }
     : { domaine: "planity.com", nom: "Planity", categorie: "Commerce et restauration", modele: "reservation", couleur: "#1F3D33", allure: "nature" };
   const ws2 = await creerEspace(`Robot construction ${new Date().toISOString().slice(0, 16)}`);
-  await q(`update workspaces set plan = ${lit(CONSTRUIRE === "site" || CONSTRUIRE === "outil" ? "site" : "lancer_pro")}, plan_status = 'active', onboarded = true where id = ${lit(ws2)}`);
+  await q(`update workspaces set plan = ${lit(CONSTRUIRE === "outil-gratuit" ? "essai" : CONSTRUIRE === "site" || CONSTRUIRE === "outil" ? "site" : "lancer_pro")}, plan_status = ${lit(CONSTRUIRE === "outil-gratuit" ? "trialing" : "active")}, onboarded = true where id = ${lit(ws2)}`);
   const nomVoulu = CONSTRUIRE === "ia" ? ({ "calendly.com": "Rendezo", "invoiceninja.com": "Facturo", "canny.io": "Avisio" }[process.env.DOMAINE ?? ""] ?? "Cerclo") : CONSTRUIRE === "site" ? SITE_IDEE.apercu.nom : "Sublima";
   const TEXTE_IDEE = process.env.TEXTE_IDEE || (process.env.DOMAINE && !/\.[a-z]{2,}$/.test(process.env.DOMAINE) ? process.env.DOMAINE : "") || "j'ai une conciergerie où je veux gérer l'entretien dans des bureaux avec mes équipes";
-  let { ctx, page } = CONSTRUIRE === "idee" || CONSTRUIRE === "outil" ? await ouvrir(ws2, { "bingoo-idee": { texte: TEXTE_IDEE, type: CONSTRUIRE === "outil" ? "outil" : "saas", at: Date.now() } }) : CONSTRUIRE === "copie" ? await ouvrir(ws2, { "bingoo-copie": { url: process.env.DOMAINE || "cal.com", at: Date.now() } }) : await ouvrir(ws2, {
+  let { ctx, page } = CONSTRUIRE === "idee" || ["outil", "outil-gratuit"].includes(CONSTRUIRE) ? await ouvrir(ws2, { "bingoo-idee": { texte: TEXTE_IDEE, type: ["outil", "outil-gratuit"].includes(CONSTRUIRE) ? "outil" : "saas", at: Date.now() } }) : CONSTRUIRE === "copie" ? await ouvrir(ws2, { "bingoo-copie": { url: process.env.DOMAINE || "cal.com", at: Date.now() } }) : await ouvrir(ws2, {
     [`bingoo-reponses-${cible.domaine}`]: { nom: nomVoulu, clients: CONSTRUIRE === "ia" ? (process.env.DOMAINE ? "Indépendants et petites équipes" : "Créateurs de communautés") : "Instituts de beauté", mieux: "", angle: `Nom souhaité, à utiliser tel quel : ${nomVoulu}` },
     "bingoo-chantier": { ...cible, ws: ws2, metier: CONSTRUIRE === "ia" ? "Créateurs de communautés" : "Institut de beauté" },
   });
   const t0 = Date.now();
-  if (CONSTRUIRE === "idee" || CONSTRUIRE === "outil") {
+  if (CONSTRUIRE === "idee" || ["outil", "outil-gratuit"].includes(CONSTRUIRE)) {
     // Le vrai parcours d'un membre : il écrit son idée sur l'accueil (SaaS), voit l'aperçu, clique « Construire … »
     await page.goto(`${SITE}/?c=${t0}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
     const bouton = page.getByRole("button", { name: /^Construire / });
@@ -1034,7 +1034,7 @@ if (CONSTRUIRE === "spec") {
       await c2.close(); console.log("✓", nom);
     }
   }
-  if (CONSTRUIRE === "outil" && a?.slug) {
+  if (["outil", "outil-gratuit"].includes(CONSTRUIRE) && a?.slug) {
     // L'outil ou le jeu tel que l'ouvre un visiteur : pas de compte, on arrive dessus. Puis après quelques vrais clics.
     for (const [nom, vp] of [["outil", { width: 1440, height: 900 }], ["outil-mobile", { width: 390, height: 844 }]]) {
       const c2 = await browser.newContext({ viewport: vp, locale: "fr-FR" }); const p2 = await c2.newPage();

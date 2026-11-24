@@ -130,7 +130,17 @@ function SiteReel({ nom, ap }) {
 
 // Le prix, dit AVANT de construire : ce que ça coûte à ce membre-là (compris dans sa formule, crédits, ou la formule à prendre)
 const euros = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ",")) + " €";
+// Compte gratuit : le premier projet est offert si c'est un outil ou un jeu (le serveur le vérifie de son côté)
+function useOutilOffert(ws, type) {
+  const [ok, setOk] = useState(false);
+  useEffect(() => {
+    if (type !== "outil" || !ws?.id || ws.plan !== "essai") { setOk(false); return; }
+    supabase.from("saas_apps").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).then(({ count }) => setOk((count ?? 0) === 0));
+  }, [ws?.id, ws?.plan, type]);
+  return ok;
+}
 function Prix({ ws, type }) {
+  const offert = useOutilOffert(ws, type);
   const [t, setT] = useState(null), [deja, setDeja] = useState(null);
   useEffect(() => {
     fn("plans").then(setT).catch(() => setT({}));
@@ -142,7 +152,8 @@ function Prix({ ws, type }) {
   const fondateur = t.fondateur?.left > 0 ? t.fondateur.price : null;
   const lancer = fondateur ?? mois("explorer_pro") ?? 24.99;
   let txt;
-  if (paye(ws, site ? "site" : type)) txt = deja ? <>Tu as déjà un {site ? "projet" : "SaaS"} en ligne : celui-ci coûte <b>60 crédits</b>, le premier reste en ligne.</> : <><b>Compris dans ta formule</b> : c'est {outil ? "le projet" : site ? "ton site" : "ton SaaS"} de l'abonnement, sans rien payer de plus.</>;
+  if (offert) txt = <><b>Offert</b> : ton premier outil ou jeu est construit et mis en ligne gratuitement, sans carte bancaire. Pour le modifier en discutant ensuite : formule Site, {euros(mois("site") ?? 9.99)} par mois.</>;
+  else if (paye(ws, site ? "site" : type)) txt = deja ? <>Tu as déjà un {site ? "projet" : "SaaS"} en ligne : celui-ci coûte <b>60 crédits</b>, le premier reste en ligne.</> : <><b>Compris dans ta formule</b> : c'est {outil ? "le projet" : site ? "ton site" : "ton SaaS"} de l'abonnement, sans rien payer de plus.</>;
   else if (!site && ws?.plan === "site" && actif(ws)) txt = <>Ta formule Site construit des sites. Pour {type === "app" ? "une app" : "un SaaS"}, passe à la formule Lancer : <b>{euros(lancer)} par mois</b>.</>;
   else if (site) txt = <>Formule Site : <b>{euros(mois("site") ?? 9.99)}/mois, hébergement inclus</b>, sans engagement{mois("site", "an") ? <> (ou {euros(mois("site", "an"))}/mois en payant l'année)</> : null}. Nom de domaine personnalisé en plus : tu l'achètes où tu veux, on le branche gratuitement.</>;
   else txt = <>Formule Lancer : <b>{euros(lancer)} par mois{fondateur ? ", prix fondateur à vie" : ""}</b>, sans engagement. {type === "app" ? "Ton app" : "Ton SaaS"} est compris dans l'abonnement.</>;
@@ -156,6 +167,7 @@ export default function Idee() {
   useEffect(() => { if (idee?.type === "video") nav("/explorer/motion", { replace: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [etat, setEtat] = useState("charge"), [r, setR] = useState(null), [err, setErr] = useState(null);
   const [reponses, setReponses] = useState([]), [choix, setChoix] = useState({}), [nom, setNom] = useState(""), [busy, setBusy] = useState(false);
+  const offert = useOutilOffert(ws, idee?.type);
   const charger = async (rep = []) => {
     setEtat("charge"); setErr(null);
     try {
@@ -186,7 +198,7 @@ export default function Idee() {
     }
     // Un outil ou un jeu se construit avec la formule Site (la moins chère) comme avec Lancer
     const site = quoi === "idee" && (idee.type === "site" || idee.type === "outil");
-    if (paye(ws, site ? "site" : "saas")) { nav("/explorer/revelation"); return; }
+    if (paye(ws, site ? "site" : "saas") || (quoi === "idee" && offert)) { nav("/explorer/revelation"); return; }
     // Site : sa propre formule, moins chère (9,99 € par mois) ; SaaS : Lancer
     const plan = site ? "site" : "explorer_pro";
     setBusy(true);
@@ -266,7 +278,7 @@ export default function Idee() {
             </div>
             <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-line pt-5">
               <Prix ws={ws} type={idee.type} />
-              <button disabled={busy || nom.trim().length < 2} onClick={() => lancer("idee")} className="rounded-full bg-accent px-7 py-3.5 text-[16px] font-bold text-white shadow-[0_12px_30px_-14px_rgba(226,85,35,.9)] disabled:opacity-50">{busy ? "Un instant…" : `Construire ${nom.trim() || ap.nom}`}</button>
+              <button disabled={busy || nom.trim().length < 2} onClick={() => lancer("idee")} className="rounded-full bg-accent px-7 py-3.5 text-[16px] font-bold text-white shadow-[0_12px_30px_-14px_rgba(226,85,35,.9)] disabled:opacity-50">{busy ? "Un instant…" : offert ? `Construire ${nom.trim() || ap.nom} gratuitement` : `Construire ${nom.trim() || ap.nom}`}</button>
               <p className="text-[13px] text-ink-soft">{site ? <>Bingoo! écrit tes textes, met ton site en ligne et teste ton espace gérant. Tu vérifies ensuite tes prix et tes horaires.</> : outil ? <>Bingoo! l'écrit avec un design fait pour ton idée, l'essaie clic par clic, corrige, puis le met en ligne. Tu le modifies ensuite en discutant.</> : <>Bingoo! le construit, teste chaque écran comme un vrai utilisateur, corrige, puis le met en ligne.{idee.type === "app" ? " Tu l'essaies ensuite sur ton téléphone dans Expo Go (gratuit). La publication sur l'App Store et Google Play arrive bientôt." : ""}</>}</p>
             </div>
           </section>
