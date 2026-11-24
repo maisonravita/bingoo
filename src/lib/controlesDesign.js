@@ -136,7 +136,7 @@ export function controlesDesign(zone, page = false, lint = null) {
     }
     // Zone vide : plus de la moitié de la hauteur de l'écran sans rien
     const H = innerHeight, pas = 8, occupe = new Set();
-    for (const el of tous) { if (!el.matches("h1,h2,h3,h4,p,li,a,button,img,svg,input,textarea,select,video,canvas,picture") && ![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && !/url\(/.test(getComputedStyle(el).backgroundImage)) continue; // une photo en fond (en-tête plein cadre) n'est pas du vide const r = el.getBoundingClientRect(); for (let y = Math.max(0, Math.floor((r.top + scrollY) / pas)); y <= Math.floor((r.bottom + scrollY) / pas); y++) occupe.add(y); }
+    for (const el of tous) { if (!el.matches("h1,h2,h3,h4,p,li,a,button,img,svg,input,textarea,select,video,canvas,picture") && ![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && !/url\(/.test(getComputedStyle(el).backgroundImage)) continue; /* une photo en fond (en-tête plein cadre) n'est pas du vide */ const r = el.getBoundingClientRect(); for (let y = Math.max(0, Math.floor((r.top + scrollY) / pas)); y <= Math.floor((r.bottom + scrollY) / pas); y++) occupe.add(y); }
     const fin = Math.floor(document.documentElement.scrollHeight / pas); let vide = 0, max = 0;
     for (let y = 0; y < fin; y++) { if (occupe.has(y)) vide = 0; else { vide++; max = Math.max(max, vide); } }
     if (max * pas > 0.5 * H) pbs.push("Zone vide de " + Math.round(max * pas) + " px (plus de la moitié de l'écran).");
