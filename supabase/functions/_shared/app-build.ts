@@ -173,10 +173,13 @@ async function ecrire(spec: any, e: any, demande = "", actuel = "") {
   const guide = FAMILLES[spec.famille]?.guide ?? GENRES_UI[spec.interface] ?? FAMILLES.gestion.guide;
   const genre = !e.public ? `\n\n${guide}${spec.gabarit_app === "taste" ? `\n\n${REGLES_TASTE_ECRAN}` : ""}` : "";
   const { consigneFidelite, fidelite } = await import("./fidelite.ts");
-  const exige = actuel ? "" : consigneFidelite(spec, e, FAMILLES);
-  const prompt = `${DOC}${e.public ? DOC_PUBLIC(e) : ""}${genre}\n\n${contexteSpec(spec)}\n\n${consigne}${exige}\n\nRéponds uniquement avec le code dans un bloc \`\`\`js.`;
+  // Outil ou jeu : sa propre notice (page ouverte directement, design libre), sans les règles des logiciels de gestion
+  const outil = spec.type === "outil";
+  const tete = outil ? `${(await import("./outil.ts")).DOC_OUTIL(spec)}\n\nIdée du membre : « ${spec.outil?.idee ?? spec.pitch} »${(spec.outil?.precisions ?? []).length ? ` (${spec.outil.precisions.join(" ; ")})` : ""}` : `${DOC}${e.public ? DOC_PUBLIC(e) : ""}${genre}\n\n${contexteSpec(spec)}`;
+  const exige = actuel || outil ? "" : consigneFidelite(spec, e, FAMILLES);
+  const prompt = `${tete}\n\n${consigne}${exige}\n\nRéponds uniquement avec le code dans un bloc \`\`\`js.`;
   if (actuel) {
-    const promptPatch = `${DOC}${e.public ? DOC_PUBLIC(e) : ""}${genre}\n\n${contexteSpec(spec)}\n\nVoici le code actuel de l'écran « ${e.titre} » (${e.id}) :\n\`\`\`js\n${actuel}\n\`\`\`\nModification demandée par l'utilisateur : ${demande}`;
+    const promptPatch = `${tete}\n\nVoici le code actuel de l'écran « ${e.titre} » (${e.id}) :\n\`\`\`js\n${actuel}\n\`\`\`\nModification demandée par l'utilisateur : ${demande}`;
     const t0 = Date.now(), rapide = await retoucheRapide(promptPatch, actuel).catch((x) => { console.error("retouche rapide", x); return null; });
     console.log(rapide ? `retouche rapide en ${Math.round((Date.now() - t0) / 1000)} s` : "retouche rapide impossible : réécriture complète");
     if (rapide) return { code: rapide, ok: true };
@@ -188,7 +191,7 @@ async function ecrire(spec: any, e: any, demande = "", actuel = "") {
     err = erreurSyntaxe(code);
   }
   // Même contrôle de fidélité que la vérification : refusé ici, l'écran est corrigé tout de suite plutôt qu'en réparation
-  if (!actuel && !err) {
+  if (!actuel && !err && !outil) {
     const ecart = fidelite({ ...spec, ecrans: (spec.ecrans ?? []).map((x: any) => (x.id === e.id ? { ...x, code } : x)) }, FAMILLES)[e.id];
     if (ecart) {
       console.log("fidélité à corriger dès l'écriture :", e.id);
@@ -217,6 +220,8 @@ export async function saasConstruire(appId: string, lancerEcran: (ecranId: strin
   if (typeof p.nom_choisi === "string" && p.nom_choisi.trim()) p.nom = p.nom_choisi.trim().slice(0, 40);
   // Site web (idée de type « site ») : textes écrits par l'IA, espace gérant fait main, puis la vérification habituelle
   if (p.idee?.type === "site") { const { construireSite } = await import("./site.ts"); await construireSite(appId, p, demarrerVerification, lancerEcran); return; }
+  // Outil ou jeu : une page ouverte directement, écrite par le même moteur d'écrans, sans plan de logiciel
+  if (p.idee?.type === "outil") { const { construireOutil } = await import("./outil.ts"); await construireOutil(appId, p, lancerEcran); return; }
   const { data: av } = await admin.from("saas_apps").select("etape").eq("id", appId).single();
   const suffixe = /2e essai/.test(String(av?.etape ?? "")) ? " (2e essai)" : "";
   await etape(appId, `Conception des données et des écrans${suffixe}`);
@@ -435,7 +440,7 @@ export async function saasEcrireEcran(appId: string, ecranId: string) {
   // Contrat de données (sans IA) : champs et valeurs alignés sur les données du SaaS, première cause de blocs vides et de chiffres à 0
   if (r.code) { const ct = alignerCode(r.code, spec); r.code = ct.code; if (ct.corrections.length || ct.alertes.length) console.log("contrat", ecranId, ct.corrections, ct.alertes); }
   const { data: fin } = await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: ecranId, p_code: r.code, p_ok: r.ok });
-  if (fin === "pret") { await verifierPromesses(appId).catch((x) => console.error("promesses", x)); await corrigerAccroche(appId).catch((x) => console.error("accroche", x)); await demarrerVerification(appId).catch((x) => console.error("verification", x)); }
+  if (fin === "pret") { if (spec.type !== "outil") { await verifierPromesses(appId).catch((x) => console.error("promesses", x)); await corrigerAccroche(appId).catch((x) => console.error("accroche", x)); } await demarrerVerification(appId).catch((x) => console.error("verification", x)); }
 }
 
 /** Capacités promises par le site (accroche, atouts, formules) mais qu'aucun écran prévu n'utilise :
@@ -637,7 +642,8 @@ Site : problème « ${spec.probleme ?? ""} » ; atouts ${JSON.stringify((spec.at
 Écrans (dans l'ordre) : ${ecrans0.map((x) => `${x.id} « ${x.titre} »${x.public ? " (page publique)" : ""}`).join(", ")}.
 ${ecranId !== "nouveau" ? `L'utilisateur a désigné l'écran : ${ecranId}.\n` : ""}${element ? `L'utilisateur a POINTÉ cet élément dans l'aperçu, la demande porte sur lui : ${element}\n` : ""}${images.length ? `Images jointes par l'utilisateur (tu les vois, dans cet ordre) : ${images.map((u, i) => `${i + 1}) ${u}`).join(" ; ")}.
 Selon la demande : son logo → reglages.logo = l'adresse ; une image à afficher en haut de la page d'accueil → site.image_accueil = l'adresse (elle remplace les photos d'ambiance) ; retirer les photos d'ambiance (libres de droits) → site.photos_libres = null ; une image à mettre dans un écran → la consigne de cet écran avec l'adresse exacte à utiliser dans une balise img ; une capture d'un modèle à imiter → traduis-la en réglages précis (couleur hexadécimale, police, fond, allure, menu) et en consignes d'écrans détaillées (disposition, éléments, ordre).\n` : ""}Demande : « ${demande} »
-${spec.type === "site" ? `C'EST UN SITE WEB (vitrine d'un professionnel) : page d'accueil avec accroche (reglages.slogan), phrase sous le titre (reglages.pitch), bouton « ${spec.site?.cta ?? ""} », points forts ${JSON.stringify(spec.site?.points_forts ?? [])}, étapes « comment ça se passe » ${JSON.stringify(spec.site?.etapes ?? [])}, à propos ${JSON.stringify(spec.site?.apropos ?? {})}, questions ${JSON.stringify((spec.faq ?? []).slice(0, 6))}. Les services, prix, horaires et coordonnées se modifient par le gérant dans son espace (écrans Services et Horaires et contact) : dis-le dans impossible avec cette alternative si on te le demande. Les écrans listés plus bas sont l'espace gérant.
+${spec.type === "outil" ? `C'EST UN ${spec.outil?.genre === "jeu" ? "JEU" : "OUTIL"} D'UNE SEULE PAGE, ouvert directement sans compte (écran « outil »). Toute demande (apparence, couleurs, règles, fonctions) passe par la consigne de l'écran « outil » dans ecrans, jamais par reglages.style, site ni un nouvel écran. Comptes, classement commun à tous les visiteurs, jeu en ligne à plusieurs appareils, e-mails, paiement : impossible dans une page seule, mets-le dans impossible avec l'alternative la plus proche (scores gardés sur l'appareil, deux joueurs sur le même écran).
+` : ""}${spec.type === "site" ? `C'EST UN SITE WEB (vitrine d'un professionnel) : page d'accueil avec accroche (reglages.slogan), phrase sous le titre (reglages.pitch), bouton « ${spec.site?.cta ?? ""} », points forts ${JSON.stringify(spec.site?.points_forts ?? [])}, étapes « comment ça se passe » ${JSON.stringify(spec.site?.etapes ?? [])}, à propos ${JSON.stringify(spec.site?.apropos ?? {})}, questions ${JSON.stringify((spec.faq ?? []).slice(0, 6))}. Les services, prix, horaires et coordonnées se modifient par le gérant dans son espace (écrans Services et Horaires et contact) : dis-le dans impossible avec cette alternative si on te le demande. Les écrans listés plus bas sont l'espace gérant.
 Pour changer les textes du site, rends aussi site_web : { cta (3 mots), points_forts (liste COMPLÈTE de 3 { titre, texte, icone parmi ${ICONES.join(", ")} }), etapes (liste COMPLÈTE de 3 { titre, texte }), apropos ({ titre, texte }) } — seulement ce qui change. Jamais d'avis client, de chiffre, d'année d'expérience ni de label inventés. Pas de nouvelle section ni de page en plus : un site Bingoo! a ces parties-là.
 ` : ""}${spec.site?.page?.sections?.length ? `LA PAGE DE CE SITE EST ÉCRITE SUR MESURE, en sections : ${spec.site.page.sections.map((x: any) => x.id).join(", ")}. Tout changement de contenu, de mise en page, d'image ou de section de la page passe par page : [{ action ("modifier"|"ajouter"|"supprimer"), id (id de la section), apres (pour ajouter : id de la section qui précède), consigne (précise, avec le texte voulu ; pour une image jointe, dis où la mettre) }] (au plus 4), et PAS par site_web ni ecrans.
 ` : ""}Rends un objet JSON avec SEULEMENT ce que la demande change :
@@ -823,6 +829,13 @@ export async function saasEditionDirecte(appId: string, b: any) {
     const ok = (p: unknown) => typeof p === "string" && /^[A-Za-z0-9 ]{2,40}$/.test(p);
     if (!ok(b.titres) || !ok(b.texte)) throw new Error("Police invalide");
     spec.police_titres = b.titres; spec.police = b.texte;
+  } else if (b.quoi === "couleur") {
+    // Couleur principale de tout le projet (boutons, liens, accents) ; le texte posé dessus reste lisible (clair ou foncé)
+    const c = String(b.couleur ?? "");
+    if (!/^#[0-9a-f]{6}$/i.test(c)) throw new Error("Couleur invalide");
+    const clair = (0.299 * parseInt(c.slice(1, 3), 16) + 0.587 * parseInt(c.slice(3, 5), 16) + 0.114 * parseInt(c.slice(5, 7), 16)) / 255 > 0.62;
+    spec.couleur = c;
+    if (spec.design?.couleurs) spec.design = { ...spec.design, couleurs: { ...spec.design.couleurs, primary: c, on_primary: clair ? "#111111" : "#FFFFFF" } };
   } else throw new Error("Modification inconnue");
   const br = app?.brouillon as any;
   const version = (app?.version ?? 0) + 1;

@@ -20,6 +20,7 @@ const ecrire = (k, v) => { try { v == null ? localStorage.removeItem(k) : localS
 const actif = (ws) => ["active", "trialing", "past_due"].includes(ws?.plan_status);
 // Un SaaS demande Lancer (ou plus) ; un site, la formule Site ou n'importe quelle formule qui construit
 const paye = (ws, type) => ws?.plan === "fondateur" || (actif(ws) && (["explorer_pro", "lancer_pro", "business", "solo", "pro"].includes(ws?.plan) || (type === "site" && ws?.plan === "site")));
+const changerType = (idee, type) => { ecrire("bingoo-idee", { texte: idee.texte, titre: idee.titre, nom: idee.nom, source: idee.source, type, at: Date.now() }); window.location.reload(); };
 const dollars = (n) => Number(n).toLocaleString("fr-FR", { maximumFractionDigits: 0 }) + " $";
 
 // Maquette de la page d'accueil d'un site : en-tête, accroche, bouton, services et prix (tirés de l'aperçu)
@@ -136,12 +137,12 @@ function Prix({ ws, type }) {
     if (ws?.id) supabase.from("saas_apps").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).not("statut", "in", "(remplace,erreur,validation,retire)").then(({ count }) => setDeja((count ?? 0) > 0));
   }, [ws?.id]);
   if (!t) return null;
-  const site = type === "site";
+  const outil = type === "outil", site = type === "site" || outil;
   const mois = (k, per = "mois") => (t.plans ?? []).find((p) => p.key === k)?.periodes?.find((x) => x.key === per)?.parMois;
   const fondateur = t.fondateur?.left > 0 ? t.fondateur.price : null;
   const lancer = fondateur ?? mois("explorer_pro") ?? 24.99;
   let txt;
-  if (paye(ws, type)) txt = deja ? <>Tu as déjà un {site ? "site ou un SaaS" : "SaaS"} en ligne : celui-ci coûte <b>60 crédits</b>, le premier reste en ligne.</> : <><b>Compris dans ta formule</b> : c'est {site ? "ton site" : "ton SaaS"} de l'abonnement, sans rien payer de plus.</>;
+  if (paye(ws, site ? "site" : type)) txt = deja ? <>Tu as déjà un {site ? "projet" : "SaaS"} en ligne : celui-ci coûte <b>60 crédits</b>, le premier reste en ligne.</> : <><b>Compris dans ta formule</b> : c'est {outil ? "le projet" : site ? "ton site" : "ton SaaS"} de l'abonnement, sans rien payer de plus.</>;
   else if (!site && ws?.plan === "site" && actif(ws)) txt = <>Ta formule Site construit des sites. Pour {type === "app" ? "une app" : "un SaaS"}, passe à la formule Lancer : <b>{euros(lancer)} par mois</b>.</>;
   else if (site) txt = <>Formule Site : <b>{euros(mois("site") ?? 9.99)}/mois, hébergement inclus</b>, sans engagement{mois("site", "an") ? <> (ou {euros(mois("site", "an"))}/mois en payant l'année)</> : null}. Nom de domaine personnalisé en plus : tu l'achètes où tu veux, on le branche gratuitement.</>;
   else txt = <>Formule Lancer : <b>{euros(lancer)} par mois{fondateur ? ", prix fondateur à vie" : ""}</b>, sans engagement. {type === "app" ? "Ton app" : "Ton SaaS"} est compris dans l'abonnement.</>;
@@ -183,7 +184,8 @@ export default function Idee() {
       ecrire(`bingoo-reponses-${proche.domaine}`, { nom: "", clients: ap?.cible ?? "", mieux: idee.texte, angle: `Ce que je veux faire mieux : ${idee.texte}` });
       ecrire(CLE_CHANTIER, { domaine: proche.domaine, nom: proche.nom, categorie: "", ws: ws.id });
     }
-    const site = quoi === "idee" && idee.type === "site";
+    // Un outil ou un jeu se construit avec la formule Site (la moins chère) comme avec Lancer
+    const site = quoi === "idee" && (idee.type === "site" || idee.type === "outil");
     if (paye(ws, site ? "site" : "saas")) { nav("/explorer/revelation"); return; }
     // Site : sa propre formule, moins chère (9,99 € par mois) ; SaaS : Lancer
     const plan = site ? "site" : "explorer_pro";
@@ -195,15 +197,15 @@ export default function Idee() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
-      <p className="text-[13px] font-bold uppercase tracking-[.16em] text-accent-dark">Ton idée{idee.type === "app" ? " d'app" : idee.type === "site" ? " de site" : ""}</p>
+      <p className="text-[13px] font-bold uppercase tracking-[.16em] text-accent-dark">Ton idée{idee.type === "app" ? " d'app" : idee.type === "site" ? " de site" : idee.type === "outil" ? " d'outil ou de jeu" : ""}</p>
       <h1 className="mt-2 text-[28px] sm:text-[38px] font-black leading-[1.08] tracking-tight" style={HF}>{idee.titre ?? <>« {idee.texte} »</>}</h1>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <span className="text-[13.5px] text-ink-soft">Bingoo! construit :</span>
-        {[["saas", "Un logiciel (SaaS)"], ["site", "Un site web"]].map(([k, l]) => <button key={k} aria-pressed={(idee.type ?? "saas") === k} disabled={etat === "charge"} onClick={() => { if ((idee.type ?? "saas") === k) return; ecrire("bingoo-idee", { texte: idee.texte, titre: idee.titre, nom: idee.nom, source: idee.source, type: k, at: Date.now() }); window.location.reload(); }} className={cx("rounded-full border px-3 py-1.5 text-[13px] font-semibold transition", (idee.type ?? "saas") === k ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink-faint")}>{l}</button>)}
+        {[["saas", "Un logiciel (SaaS)"], ["site", "Un site web"], ["outil", "Un outil ou un jeu"]].map(([k, l]) => <button key={k} aria-pressed={(idee.type ?? "saas") === k} disabled={etat === "charge"} onClick={() => { if ((idee.type ?? "saas") === k) return; changerType(idee, k); }} className={cx("rounded-full border px-3 py-1.5 text-[13px] font-semibold transition", (idee.type ?? "saas") === k ? "border-ink bg-ink text-white" : "border-line bg-white hover:border-ink-faint")}>{l}</button>)}
         <button onClick={() => { ecrire("bingoo-idee", null); nav("/accueil"); }} className="ml-1 text-[13.5px] font-semibold text-ink-soft underline-offset-4 hover:underline">Changer d'idée</button>
       </div>
 
-      {etat === "charge" && <div className="mt-10 flex items-center gap-3 rounded-2xl border border-line bg-white p-6"><span className="h-5 w-5 animate-spin rounded-full border-2 border-line border-t-accent" /><span className="text-[15px] text-ink-soft">{idee.type === "site" ? "Bingoo! étudie ton idée et prépare l'aperçu de ton site…" : "Bingoo! étudie ton idée et cherche ce qui marche déjà sur ce créneau…"}</span></div>}
+      {etat === "charge" && <div className="mt-10 flex items-center gap-3 rounded-2xl border border-line bg-white p-6"><span className="h-5 w-5 animate-spin rounded-full border-2 border-line border-t-accent" /><span className="text-[15px] text-ink-soft">{idee.type === "outil" ? "Bingoo! étudie ton idée et prépare ce qu'on verra dans la page…" : idee.type === "site" ? "Bingoo! étudie ton idée et prépare l'aperçu de ton site…" : "Bingoo! étudie ton idée et cherche ce qui marche déjà sur ce créneau…"}</span></div>}
       {etat === "erreur" && <div className="mt-10 rounded-2xl border border-bad/30 bg-bad/5 p-6"><p className="font-semibold">{err}</p><button onClick={() => charger(reponses)} className="mt-3 rounded-xl bg-ink px-4 py-2 font-bold text-white">Réessayer</button></div>}
       {etat === "refus" && <div className="mt-10 rounded-2xl border border-bad/30 bg-bad/5 p-6"><p className="text-[17px] font-bold">Bingoo! ne peut pas construire cette idée.</p><p className="mt-1 text-ink-soft">{r.refus}</p><button onClick={() => { ecrire("bingoo-idee", null); nav("/accueil"); }} className="mt-4 rounded-xl bg-ink px-4 py-2 font-bold text-white">Écrire une autre idée</button></div>}
 
@@ -221,7 +223,7 @@ export default function Idee() {
         </div>
       )}
 
-      {etat === "apercu" && r?.apercu && (() => { const ap = r.apercu, site = idee.type === "site"; return (
+      {etat === "apercu" && r?.apercu && (() => { const ap = r.apercu, site = idee.type === "site", outil = idee.type === "outil"; return (
         <>
           <section className="mt-8 rounded-3xl border-2 border-ink bg-white p-5 sm:p-7">
             <p className="text-[12px] font-bold uppercase tracking-[.14em] text-ink-faint">L'aperçu de ta première version</p>
@@ -231,9 +233,24 @@ export default function Idee() {
                 <input id="nom-idee" value={nom} onChange={(e) => setNom(e.target.value.slice(0, 40))} className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-[22px] font-black outline-none focus:border-ink" style={HF} />
                 <p className="mt-3 text-[15px]">{ap.pitch}</p>
                 <p className="mt-1 text-[13.5px] text-ink-soft">Pour : {ap.cible}</p>
-                <p className="mt-5 text-[13px] font-bold">{site ? `Ce que Bingoo! construit maintenant (${ap.ecrans.length} parties)` : idee.type === "app" ? `Ce que Bingoo! construit maintenant (${ap.ecrans.length} onglets)` : `Ce que Bingoo! construit maintenant (${ap.ecrans.length} écrans)`}</p>
+                <p className="mt-5 text-[13px] font-bold">{outil ? "Ce qu'on verra et ce qu'on pourra faire dans la page" : site ? `Ce que Bingoo! construit maintenant (${ap.ecrans.length} parties)` : idee.type === "app" ? `Ce que Bingoo! construit maintenant (${ap.ecrans.length} onglets)` : `Ce que Bingoo! construit maintenant (${ap.ecrans.length} écrans)`}</p>
                 <ol className="mt-2 space-y-1.5">{ap.ecrans.map((e, i) => <li key={e.titre} className="flex gap-2.5 text-[14px]"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-paper text-[11px] font-bold">{i + 1}</span><span><b>{e.titre}</b> <span className="text-ink-soft">— {e.role}</span></span></li>)}</ol>
                 {ap.plus_tard?.length > 0 && <><p className="mt-5 text-[13px] font-bold">Ensuite, dans l'atelier</p><p className="mt-1 text-[13.5px] text-ink-soft">{ap.plus_tard.join(" · ")}</p></>}
+                {!site && !outil && idee.type !== "app" && ap.plutot_outil && <div className="mt-5 rounded-xl border border-[#E8571C]/30 bg-[#FFF7F0] p-3.5">
+                  <p className="text-[14px] font-bold text-ink">Ton idée ressemble plutôt à un outil ou à un jeu</p>
+                  <p className="mt-1 text-[13.5px] text-ink-soft">Un logiciel arrive avec des comptes, une page de vente et des formules d'abonnement. Pour une page qu'on ouvre et qu'on utilise tout de suite, sans compte, choisis l'outil : c'est plus simple et plus rapide.</p>
+                  <button type="button" onClick={() => changerType(idee, "outil")} className="mt-2.5 rounded-full bg-[#E8571C] px-4 py-2 text-[13px] font-semibold text-white">Construire un outil ou un jeu à la place</button>
+                </div>}
+                {outil && ap.plutot_logiciel && <div className="mt-5 rounded-xl border border-[#E8571C]/30 bg-[#FFF7F0] p-3.5">
+                  <p className="text-[14px] font-bold text-ink">Ton idée demande plutôt un logiciel</p>
+                  <p className="mt-1 text-[13.5px] text-ink-soft">Elle a besoin de comptes ou de données gardées en ligne : une page seule ne le fera pas. Un logiciel le fera vraiment.</p>
+                  <button type="button" onClick={() => changerType(idee, "saas")} className="mt-2.5 rounded-full bg-[#E8571C] px-4 py-2 text-[13px] font-semibold text-white">Construire un logiciel à la place</button>
+                </div>}
+                {outil && <div className="mt-5 rounded-xl border border-line bg-paper p-3.5">
+                  <p className="text-[13px] font-bold">Ouvert directement</p>
+                  <p className="mt-1 text-[13.5px] text-ink-soft">Pas de compte, pas de page de vente, pas d'abonnement : on ouvre le lien et on s'en sert. Les scores et les réglages restent sur l'appareil du visiteur.</p>
+                  {ap.ambiance?.esprit && <p className="mt-3 flex flex-wrap items-center gap-2 text-[13.5px]"><span className="h-5 w-5 rounded-full border border-black/10" style={{ background: ap.ambiance.fond }} /><span className="h-5 w-5 rounded-full border border-black/10" style={{ background: ap.ambiance.accent }} /><span><b>Son allure :</b> <span className="text-ink-soft">{ap.ambiance.esprit}</span></span></p>}
+                </div>}
                 {site && ap.plutot_logiciel && <div className="mt-5 rounded-xl border border-[#E8571C]/30 bg-[#FFF7F0] p-3.5">
                   <p className="text-[14px] font-bold text-ink">Ton idée ressemble plutôt à un logiciel</p>
                   <p className="mt-1 text-[13.5px] text-ink-soft">Des personnes doivent s'y connecter et agir (publier, s'inscrire, réserver avec un compte) : un site vitrine pourra seulement le présenter. Un logiciel le fera vraiment.</p>
@@ -245,12 +262,12 @@ export default function Idee() {
                 <p className="mb-2 text-[14px] font-bold">Choisis ton style <span className="font-normal text-ink-faint">· trois vrais rendus de ta page, Bingoo! construit celui que tu choisis</span></p>
                 <div className={cx("grid gap-3", idee.type === "app" ? "grid-cols-3 max-w-[560px]" : "grid-cols-1 sm:grid-cols-3")}>{ap.designs.map((d, i) => <Vignette key={i} n={i} nom={nom || ap.nom} ap={ap} design={d} type={site ? "site" : idee.type === "app" ? "app" : "saas"} choisi={JSON.stringify(d) === JSON.stringify(ap.design)} onClick={() => choisirStyle(i)} />)}</div>
               </div>}
-              <div className="order-first">{site ? <SiteReel nom={nom || ap.nom} ap={ap} /> : idee.type === "app" ? <TelReel nom={nom || ap.nom} ap={ap} /> : <SaasReel nom={nom || ap.nom} ap={ap} />}<p className="mt-2 text-center text-[12px] text-ink-faint">{site ? "Ta future page d'accueil, faite avec le gabarit des sites Bingoo! : fais-la défiler. Tu ajouteras ta photo, tes horaires et ton adresse ensuite." : "Ton écran principal dans la vraie coque de ton SaaS, avec des données d'exemple : la construction écrit chaque écran pour de vrai, avec ces couleurs et ces polices."}</p>{!site && (ap.principal?.blocs ?? []).some((b) => (b.images ?? []).some(Boolean)) && <p className="mt-1 text-center text-[11px] text-ink-faint">Images d'exemple créées par l'IA pour cet aperçu : tu mettras les tiennes.</p>}</div>
+              {!outil && <div className="order-first">{site ? <SiteReel nom={nom || ap.nom} ap={ap} /> : idee.type === "app" ? <TelReel nom={nom || ap.nom} ap={ap} /> : <SaasReel nom={nom || ap.nom} ap={ap} />}<p className="mt-2 text-center text-[12px] text-ink-faint">{site ? "Ta future page d'accueil, faite avec le gabarit des sites Bingoo! : fais-la défiler. Tu ajouteras ta photo, tes horaires et ton adresse ensuite." : "Ton écran principal dans la vraie coque de ton SaaS, avec des données d'exemple : la construction écrit chaque écran pour de vrai, avec ces couleurs et ces polices."}</p>{!site && (ap.principal?.blocs ?? []).some((b) => (b.images ?? []).some(Boolean)) && <p className="mt-1 text-center text-[11px] text-ink-faint">Images d'exemple créées par l'IA pour cet aperçu : tu mettras les tiennes.</p>}</div>}
             </div>
             <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-line pt-5">
               <Prix ws={ws} type={idee.type} />
               <button disabled={busy || nom.trim().length < 2} onClick={() => lancer("idee")} className="rounded-full bg-accent px-7 py-3.5 text-[16px] font-bold text-white shadow-[0_12px_30px_-14px_rgba(226,85,35,.9)] disabled:opacity-50">{busy ? "Un instant…" : `Construire ${nom.trim() || ap.nom}`}</button>
-              <p className="text-[13px] text-ink-soft">{site ? <>Bingoo! écrit tes textes, met ton site en ligne et teste ton espace gérant. Tu vérifies ensuite tes prix et tes horaires.</> : <>Bingoo! le construit, teste chaque écran comme un vrai utilisateur, corrige, puis le met en ligne.{idee.type === "app" ? " Tu l'essaies ensuite sur ton téléphone dans Expo Go (gratuit). La publication sur l'App Store et Google Play arrive bientôt." : ""}</>}</p>
+              <p className="text-[13px] text-ink-soft">{site ? <>Bingoo! écrit tes textes, met ton site en ligne et teste ton espace gérant. Tu vérifies ensuite tes prix et tes horaires.</> : outil ? <>Bingoo! l'écrit avec un design fait pour ton idée, l'essaie clic par clic, corrige, puis le met en ligne. Tu le modifies ensuite en discutant.</> : <>Bingoo! le construit, teste chaque écran comme un vrai utilisateur, corrige, puis le met en ligne.{idee.type === "app" ? " Tu l'essaies ensuite sur ton téléphone dans Expo Go (gratuit). La publication sur l'App Store et Google Play arrive bientôt." : ""}</>}</p>
             </div>
           </section>
 

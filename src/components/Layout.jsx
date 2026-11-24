@@ -374,7 +374,7 @@ export default function Layout({ children }) {
       </div>
     </div>
   );
-  if (loc.pathname.startsWith("/explorer/revelation") || loc.pathname.startsWith("/explorer/atelier")) return <>{extra}{children}{fb && <Feedback onClose={() => setFb(false)} />}<Assistance /></>;
+  if (loc.pathname.startsWith("/explorer/revelation") || loc.pathname.startsWith("/explorer/atelier")) return <>{extra}{children}{fb && <Feedback onClose={() => setFb(false)} />}<Assistance haut /></>;
   if (!paye || invite) return (
     <div className="min-h-full">
       {extra}

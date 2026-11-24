@@ -5,7 +5,7 @@ import { cx } from "../lib/utils";
 
 /** Bulle d'aide, sur toutes les pages : réponse immédiate (l'assistant connaît Bingoo! et le compte),
  *  puis « Parler à un humain », qui prévient l'équipe par e-mail (réponse le jour même). */
-export default function Assistance() {
+export default function Assistance({ haut = false } = {}) {
   const { ws } = useWs();
   const [ouvert, setOuvert] = useState(false);
   const [fil, setFil] = useState([]); // { qui: "moi" | "bingoo" | "humain", texte }
@@ -31,7 +31,7 @@ export default function Assistance() {
   };
   return (
     <>
-      {ouvert && <div className="fixed bottom-20 right-4 z-[60] flex h-[min(520px,calc(100vh-120px))] w-[min(380px,calc(100vw-32px))] flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-[0_30px_80px_-30px_rgba(21,23,42,.45)]">
+      {ouvert && <div className={(haut ? "bottom-[136px]" : "bottom-20") + " fixed right-4 z-[60] flex h-[min(520px,calc(100vh-120px))] w-[min(380px,calc(100vw-32px))] flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-[0_30px_80px_-30px_rgba(21,23,42,.45)]"}>
         <div className="flex items-center justify-between bg-ink px-4 py-3 text-white">
           <div><p className="text-[14px] font-semibold">Une question ?</p><p className="text-[12px] text-white/70">Réponse immédiate, et un humain si besoin.</p></div>
           <button type="button" onClick={() => setOuvert(false)} aria-label="Fermer l'aide" className="grid h-8 w-8 place-items-center rounded-lg text-white/80 hover:bg-white/10">×</button>
@@ -50,7 +50,7 @@ export default function Assistance() {
           <button type="button" onClick={humain} disabled={busy} className="mt-2 w-full rounded-xl border border-line py-2 text-[13px] font-semibold text-ink-soft hover:text-ink disabled:opacity-40">Parler à un humain (réponse par e-mail le jour même)</button>
         </div>
       </div>}
-      <button type="button" onClick={() => setOuvert((o) => !o)} aria-label={ouvert ? "Fermer l'aide" : "Ouvrir l'aide"} className="fixed bottom-4 right-4 z-[60] flex h-12 items-center gap-2 rounded-full bg-ink px-4 text-[14px] font-semibold text-white shadow-lg hover:brightness-125">
+      <button type="button" onClick={() => setOuvert((o) => !o)} aria-label={ouvert ? "Fermer l'aide" : "Ouvrir l'aide"} className={(haut ? "bottom-[72px]" : "bottom-4") + " fixed right-4 z-[60] flex h-12 items-center gap-2 rounded-full bg-ink px-4 text-[14px] font-semibold text-white shadow-lg hover:brightness-125"}>
         <span aria-hidden="true" className="grid h-6 w-6 place-items-center rounded-full bg-white/15 text-[13px]">?</span>{ouvert ? "Fermer" : "Aide"}
       </button>
     </>

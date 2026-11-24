@@ -576,13 +576,13 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     // Offre gratuite : 3 aperçus par mois, sans images IA (le reste de Bingoo! sans IA reste ouvert)
     const gratuit = ws.plan === "essai";
     if (gratuit) {
-      const { count } = await admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).in("kind", ["idee_apercu", "site_apercu"]).gte("created_at", monthStart());
+      const { count } = await admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).in("kind", ["idee_apercu", "site_apercu", "outil_apercu"]).gte("created_at", monthStart());
       if ((count ?? 0) >= APERCUS_GRATUITS) throw new HttpError(402, `Tu as utilisé tes ${APERCUS_GRATUITS} aperçus gratuits du mois. Ils reviennent le 1er du mois, ou choisis une offre pour construire ton idée tout de suite.`);
     }
     const { ideeApercu } = await import("../_shared/idee.ts");
     const r = await ideeApercu(ws.id, String(b.texte ?? ""), String(b.type ?? "saas"), Array.isArray(b.reponses) ? b.reponses : [], { sansImages: gratuit });
     // Mesuré par entrée : idée de SaaS ou idée de site
-    const pre = String(b.type ?? "") === "site" ? "site" : "idee";
+    const pre = String(b.type ?? "") === "site" ? "site" : String(b.type ?? "") === "outil" ? "outil" : "idee";
     if ((r as any).apercu) await log(ws.id, `${pre}_apercu`, `Aperçu d'idée : ${String(b.texte ?? "").slice(0, 120)}`);
     else if ((r as any).refus) await log(ws.id, `${pre}_refus`, `Idée refusée : ${String(b.texte ?? "").slice(0, 160)}`);
     return r;
@@ -593,7 +593,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     if (ws.plan === "explorer") throw new HttpError(402, "« Construire mon idée » est dans la formule Lancer.");
     if (ws.plan === "essai") throw new HttpError(402, "La construction fait partie des offres payantes : choisis Site ou Lancer dans Abonnement pour que Bingoo! construise ton projet.");
     // La formule Site construit des sites, pas des SaaS
-    if (ws.plan === "site" && String(b.type ?? "saas") !== "site") throw new HttpError(402, "Ta formule Site construit des sites web. Pour un SaaS, passe à la formule Lancer.");
+    if (ws.plan === "site" && !["site", "outil"].includes(String(b.type ?? "saas"))) throw new HttpError(402, "Ta formule Site construit des sites web, des outils et des jeux. Pour un SaaS, passe à la formule Lancer.");
     const au = await autreSaas(ws as { id: string; periode?: string });
     if (au.deja && !au.changement) { const solde = await creditsSolde(ws.id); if (solde < COUT_CREDITS.saas) throw new HttpError(402, MSG_AUTRE(solde)); }
     await quota(ws.id, "lancer", 10);
@@ -606,7 +606,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const nomChoisi = typeof b.nom === "string" && b.nom.trim() ? b.nom.replace(/\s+/g, " ").trim().slice(0, 40) : String(apercu.nom).slice(0, 40);
     const source = (await import("../_shared/copie-site.ts")).sourceNette(b.source);
     const reponses = (Array.isArray(b.reponses) ? b.reponses : []).slice(0, 3).map((x: any) => ({ q: String(x?.q ?? "").slice(0, 140), r: String(x?.r ?? "").slice(0, 160) }));
-    const { data: pj, error } = await admin.from("saas_projets").insert({ workspace_id: ws.id, saas_id: s!.id, statut: "en_cours", data: { entree: String(b.type ?? "") === "site" ? "site" : "idee", nom_choisi: nomChoisi, idee: { texte, type: String(b.type ?? "saas"), reponses, apercu }, ...(source ? { source } : {}) } }).select("id").single();
+    const { data: pj, error } = await admin.from("saas_projets").insert({ workspace_id: ws.id, saas_id: s!.id, statut: "en_cours", data: { entree: String(b.type ?? "") === "site" ? "site" : String(b.type ?? "") === "outil" ? "outil" : "idee", nom_choisi: nomChoisi, idee: { texte, type: String(b.type ?? "saas"), reponses, apercu }, ...(source ? { source } : {}) } }).select("id").single();
     if (error || !pj) throw new HttpError(500, error?.message ?? "Le projet n'a pas été enregistré");
     await log(ws.id, "lancer", `Projet né d'une idée : ${texte.slice(0, 120)}`);
     const travail = saasLancerIdee(ws.id, pj.id).catch(async (e) => { console.error("lancer-idee", e); await admin.from("saas_projets").update({ statut: "erreur", erreur: "La préparation de ton idée a échoué, réessaie." }).eq("id", pj.id); });
@@ -621,7 +621,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     if (ws.plan === "essai") throw new HttpError(402, "La construction fait partie des offres payantes : choisis Site ou Lancer dans Abonnement pour que Bingoo! construise ton projet.");
     const { data: pr } = await admin.from("saas_projets").select("id, data, statut").eq("id", String(b.projet_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
     if (!pr || pr.statut !== "pret") throw new HttpError(404, "Projet introuvable");
-    if (ws.plan === "site" && (pr.data as any)?.idee?.type !== "site") throw new HttpError(402, "Ta formule Site construit des sites web. Pour un SaaS, passe à la formule Lancer.");
+    if (ws.plan === "site" && !["site", "outil"].includes((pr.data as any)?.idee?.type)) throw new HttpError(402, "Ta formule Site construit des sites web, des outils et des jeux. Pour un SaaS, passe à la formule Lancer.");
     const { data: ex } = await admin.from("saas_apps").select("id, statut, maj, etape").eq("projet_id", pr.id).maybeSingle();
     if (ex?.statut === "en_cours" && Date.now() - new Date(ex.maj).getTime() < 10 * 60e3) return { id: ex.id, statut: "en_cours" };
     // Un seul SaaS par abonnement (toutes formules) : un autre SaaS = 60 crédits, sauf le changement annuel de la durée 12 mois (il remplace le premier)
@@ -764,9 +764,9 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     }
     if (fini && !atelier) {
       const equipe = restants.filter(parEquipe), membre = restants.filter((r: any) => !parEquipe(r));
-      if (!restants.length) noter(spec.type === "site" ? `Tout est propre : ton espace gérant (${resultats.length} écrans) a été testé et fonctionne. Ton site est prêt.` : `Tout est propre : les ${resultats.length} écrans ont été testés et fonctionnent. Ton SaaS est prêt.`, "ok");
+      if (!restants.length) noter(spec.type === "outil" ? `Tout est propre : ${spec.outil?.genre === "jeu" ? "ton jeu" : "ton outil"} a été ouvert et essayé clic par clic, sans erreur. Il est en ligne.` : spec.type === "site" ? `Tout est propre : ton espace gérant (${resultats.length} écrans) a été testé et fonctionne. Ton site est prêt.` : `Tout est propre : les ${resultats.length} écrans ont été testés et fonctionnent. Ton SaaS est prêt.`, "ok");
       else {
-        if (membre.length) noter(`Je livre ton ${spec.type === "site" ? "site" : "SaaS"}, mais ${membre.length} écran${membre.length > 1 ? "s ne fonctionnent" : " ne fonctionne"} pas encore bien : ${membre.map((r: any) => `« ${titre(r.id)} »`).join(", ")}${budgetAtteint ? " (budget de corrections atteint)" : ` (${ESSAIS} essais sans succès)`}. Un clic sur « Corriger · offert » le relance, sans rien te coûter.`, "reste");
+        if (membre.length) noter(`Je livre ton ${spec.type === "site" ? "site" : spec.type === "outil" ? "projet" : "SaaS"}, mais ${membre.length} écran${membre.length > 1 ? "s ne fonctionnent" : " ne fonctionne"} pas encore bien : ${membre.map((r: any) => `« ${titre(r.id)} »`).join(", ")}${budgetAtteint ? " (budget de corrections atteint)" : ` (${ESSAIS} essais sans succès)`}. Un clic sur « Corriger · offert » le relance, sans rien te coûter.`, "reste");
         if (equipe.length) noter(`${equipe.map((r: any) => `« ${titre(r.id)} »`).join(", ")} : un souci de données que je ne peux pas corriger seul. L'équipe Bingoo! est prévenue et le corrige sous 24 h.`, "reste");
         for (const r of equipe) await admin.from("admin_alertes").insert({ workspace_id: ws.id, app_id: app.id, ecran: r.id, texte: `Écran fait main « ${titre(r.id)} » (${spec.modele ?? "?"}) en échec à la livraison : ${String(r.erreur ?? "").slice(0, 400)}` }).then(() => null, () => null);
       }
@@ -782,6 +782,8 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
             subject: restants.length ? `${nom} est en ligne, avec ${restants.length} écran${restants.length > 1 ? "s" : ""} à corriger` : `${nom} est prêt : testé et en ligne`,
             text: restants.length
               ? `Bonjour,\n\n${nom} est en ligne. Bingoo! a testé chaque écran comme un vrai utilisateur : ${resultats.length - restants.length} sur ${resultats.length} fonctionnent.\n\nÀ corriger : ${restants.map((r: any) => titre(r.id)).join(", ")}.${membre.length ? "\nUn clic sur « Corriger · offert » dans ton atelier relance la correction, sans rien te coûter." : ""}${equipe.length ? "\nL'équipe Bingoo! s'occupe du reste sous 24 h." : ""}\n\nTon SaaS : ${lien}\n\nÀ tout de suite,\nBingoo!`
+              : spec.type === "outil"
+                ? `Bonjour,\n\n${nom} est en ligne. Bingoo! l'a ouvert et essayé clic par clic : tout fonctionne.\n\nSon adresse, à partager telle quelle : https://www.bingoo.fr/s/${app.slug}\n\nPour le modifier, écris ta demande dans ton atelier : ${lien}\n\nÀ tout de suite,\nBingoo!`
               : spec.type === "site"
                 ? `Bonjour,\n\nTon site ${nom} est en ligne. Bingoo! a testé ton espace gérant comme un vrai utilisateur : tout fonctionne.\n\nÀ faire maintenant :\n1. Ouvre ton site (${app.domaine_statut === "ok" && app.domaine ? `https://${app.domaine}/` : `https://www.bingoo.fr/s/${app.slug}`}) et clique sur « Espace gérant » en bas de page pour créer ton accès (avec cette adresse e-mail).\n2. Vérifie tes prix, tes horaires et ajoute ton téléphone : les prix ont été proposés à la construction.\n3. Suis ton plan « Premiers clients » : ${lien.replace("mon-saas", "clients")}\n\nÀ tout de suite,\nBingoo!`
                 : `Bonjour,\n\n${nom} est prêt. Bingoo! a testé les ${resultats.length} écrans comme un vrai utilisateur : tout fonctionne.\n\nTon SaaS : ${lien}\n\nProchaine étape : tes premiers clients, le plan t'attend dans Bingoo!.\n\nÀ tout de suite,\nBingoo!` });
@@ -974,11 +976,11 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     const o = await import("../_shared/app-owner.ts");
     // Atelier : texte modifié en cliquant dessus dans l'aperçu (sans IA, gratuit ; limité par jour contre les abus)
     // Édition directe (sans IA, gratuite) : glisser les sections, remplacer une image, choisir les polices
-    if (["sections-ordre", "image-remplacer", "police"].includes(b.quoi)) {
+    if (["sections-ordre", "image-remplacer", "police", "couleur"].includes(b.quoi)) {
       await quota(ws.id, "edition_directe", 300);
       const { saasEditionDirecte } = await import("../_shared/app-build.ts");
       const r = await saasEditionDirecte(app.id, b);
-      await log(ws.id, "app_reglage", b.quoi === "police" ? `Polices : ${String(b.titres).slice(0, 30)} / ${String(b.texte).slice(0, 30)}` : b.quoi === "sections-ordre" ? "Ordre des sections modifié" : "Image remplacée");
+      await log(ws.id, "app_reglage", b.quoi === "police" ? `Polices : ${String(b.titres).slice(0, 30)} / ${String(b.texte).slice(0, 30)}` : b.quoi === "couleur" ? `Couleur principale : ${String(b.couleur).slice(0, 7)}` : b.quoi === "sections-ordre" ? "Ordre des sections modifié" : "Image remplacée");
       return r;
     }
     if (b.quoi === "texte") {

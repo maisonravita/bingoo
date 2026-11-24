@@ -910,15 +910,15 @@ if (CONSTRUIRE === "spec") {
     ? { domaine: process.env.DOMAINE || "circle.so", nom: (await q(`select coalesce(nom, split_part(domaine, '.', 1)) nom from saas where domaine = ${lit(process.env.DOMAINE || "circle.so")}`))[0]?.nom ?? "Circle", categorie: (await q(`select coalesce(categorie, '') c from saas where domaine = ${lit(process.env.DOMAINE || "circle.so")}`))[0]?.c || "Communauté" }
     : { domaine: "planity.com", nom: "Planity", categorie: "Commerce et restauration", modele: "reservation", couleur: "#1F3D33", allure: "nature" };
   const ws2 = await creerEspace(`Robot construction ${new Date().toISOString().slice(0, 16)}`);
-  await q(`update workspaces set plan = ${lit(CONSTRUIRE === "site" ? "site" : "lancer_pro")}, plan_status = 'active', onboarded = true where id = ${lit(ws2)}`);
+  await q(`update workspaces set plan = ${lit(CONSTRUIRE === "site" || CONSTRUIRE === "outil" ? "site" : "lancer_pro")}, plan_status = 'active', onboarded = true where id = ${lit(ws2)}`);
   const nomVoulu = CONSTRUIRE === "ia" ? ({ "calendly.com": "Rendezo", "invoiceninja.com": "Facturo", "canny.io": "Avisio" }[process.env.DOMAINE ?? ""] ?? "Cerclo") : CONSTRUIRE === "site" ? SITE_IDEE.apercu.nom : "Sublima";
   const TEXTE_IDEE = process.env.TEXTE_IDEE || (process.env.DOMAINE && !/\.[a-z]{2,}$/.test(process.env.DOMAINE) ? process.env.DOMAINE : "") || "j'ai une conciergerie où je veux gérer l'entretien dans des bureaux avec mes équipes";
-  let { ctx, page } = CONSTRUIRE === "idee" ? await ouvrir(ws2, { "bingoo-idee": { texte: TEXTE_IDEE, type: "saas", at: Date.now() } }) : CONSTRUIRE === "copie" ? await ouvrir(ws2, { "bingoo-copie": { url: process.env.DOMAINE || "cal.com", at: Date.now() } }) : await ouvrir(ws2, {
+  let { ctx, page } = CONSTRUIRE === "idee" || CONSTRUIRE === "outil" ? await ouvrir(ws2, { "bingoo-idee": { texte: TEXTE_IDEE, type: CONSTRUIRE === "outil" ? "outil" : "saas", at: Date.now() } }) : CONSTRUIRE === "copie" ? await ouvrir(ws2, { "bingoo-copie": { url: process.env.DOMAINE || "cal.com", at: Date.now() } }) : await ouvrir(ws2, {
     [`bingoo-reponses-${cible.domaine}`]: { nom: nomVoulu, clients: CONSTRUIRE === "ia" ? (process.env.DOMAINE ? "Indépendants et petites équipes" : "Créateurs de communautés") : "Instituts de beauté", mieux: "", angle: `Nom souhaité, à utiliser tel quel : ${nomVoulu}` },
     "bingoo-chantier": { ...cible, ws: ws2, metier: CONSTRUIRE === "ia" ? "Créateurs de communautés" : "Institut de beauté" },
   });
   const t0 = Date.now();
-  if (CONSTRUIRE === "idee") {
+  if (CONSTRUIRE === "idee" || CONSTRUIRE === "outil") {
     // Le vrai parcours d'un membre : il écrit son idée sur l'accueil (SaaS), voit l'aperçu, clique « Construire … »
     await page.goto(`${SITE}/?c=${t0}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
     const bouton = page.getByRole("button", { name: /^Construire / });
@@ -999,6 +999,31 @@ if (CONSTRUIRE === "spec") {
       await p2.screenshot({ path: `${DOSSIER}/${nom}.png`, fullPage: true }).catch(() => null);
       await c2.close(); console.log("✓", nom);
     }
+  }
+  if (CONSTRUIRE === "outil" && a?.slug) {
+    // L'outil ou le jeu tel que l'ouvre un visiteur : pas de compte, on arrive dessus. Puis après quelques vrais clics.
+    for (const [nom, vp] of [["outil", { width: 1440, height: 900 }], ["outil-mobile", { width: 390, height: 844 }]]) {
+      const c2 = await browser.newContext({ viewport: vp, locale: "fr-FR" }); const p2 = await c2.newPage();
+      const erreurs = []; p2.on("pageerror", (e) => erreurs.push(String(e.message).slice(0, 200)));
+      await p2.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+      await p2.waitForTimeout(7000);
+      await p2.screenshot({ path: `${DOSSIER}/${nom}.png` }).catch(() => null);
+      const cadre = p2.frameLocator("iframe").first();
+      const texte = await cadre.locator("body").innerText({ timeout: 8000 }).catch(() => "");
+      console.log(`${nom} · texte :`, texte.replace(/\s+/g, " ").slice(0, 500));
+      console.log(`${nom} · compte ou vente à l'écran :`, /S'inscrire|Créer (un|mon) compte|Essayer gratuitement|par mois|Se connecter/i.test(texte) ? "✗ OUI" : "✓ non");
+      // Quelques gestes d'un visiteur : des cases ou des boutons de l'outil (jamais le badge), puis une saisie si un champ existe
+      const boutons = cadre.locator("[data-bingoo-outil] button:not([disabled])"); const nb = await boutons.count().catch(() => 0);
+      for (const k of [3, 10, 4, 11, 5, 17, 2].filter((x) => x < nb).slice(0, 6)) { await boutons.nth(k).click({ timeout: 3000 }).catch(() => null); await p2.waitForTimeout(700); }
+      const champ = cadre.locator("[data-bingoo-outil] input[type=number], [data-bingoo-outil] input[inputmode], [data-bingoo-outil] input[type=text]").first();
+      if (await champ.count().catch(() => 0)) { await champ.fill("250", { timeout: 3000 }).catch(() => null); await p2.waitForTimeout(1200); }
+      await p2.waitForTimeout(1500);
+      await p2.screenshot({ path: `${DOSSIER}/${nom}-apres-clics.png` }).catch(() => null);
+      console.log(`${nom} · ${nb} boutons · erreurs de page :`, erreurs.length ? erreurs.join(" | ") : "aucune");
+      await c2.close();
+    }
+    const [o] = await q(`select spec->>'type' type, spec->'outil'->>'genre' genre, length(spec->'ecrans'->0->>'code') taille, jsonb_array_length(spec->'ecrans') ecrans from saas_apps where slug = ${lit(a.slug)}`);
+    console.log("Outil construit :", JSON.stringify(o));
   }
   if (CONSTRUIRE === "site" && a?.slug) {
     // Référencement : les balises que lisent Google et les aperçus de partage, sur le lien à partager /s/<site>

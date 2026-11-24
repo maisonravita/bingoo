@@ -278,7 +278,7 @@ const lisible = (() => {
       if (reste.trim()) t.textContent = reste; else if (el.textContent.replace(t.textContent, "").trim()) t.textContent = "";
     }
   };
-  const tout = () => { attente = 0; sansEmoji(); passe(); };
+  const tout = () => { attente = 0; if (S.type !== "outil") sansEmoji(); passe(); };
   return () => { if (!attente) attente = setTimeout(tout, 250); };
 })();
 addEventListener("load", () => {
@@ -607,11 +607,24 @@ const ia = (consigne, o = {}) => call("ia", { consigne, texte: o.texte ?? "", js
 const ctx = { html, h, Fragment, useState, useEffect, useMemo, useRef, useCallback, ui, fmt, db, useCollection, toast, go, Icone, ia, email, annulerEmail, emailsEnvoyes, pdf, lienAgenda };
 const iaPublic = (consigne, o = {}) => call("public-ia", { page: PAGE?.id, espace: PAGE?.espace, consigne, texte: o.texte ?? "", json: !!o.json }).then((r) => r.resultat);
 const ctxPublic = { ...ctx, db: dbPublic, useCollection: mkUseCollection(dbPublic), ia: refuse, email: refuse, annulerEmail: refuse, emailsEnvoyes: refuse, lienAgenda: refuse, go: () => {} };
+// Outil ou jeu (troisième type de projet) : une page ouverte directement, sans compte ni serveur.
+// useMemoire garde scores, historique et réglages dans le navigateur du visiteur (en mémoire seulement si le stockage est refusé).
+const OUTIL = S.type === "outil";
+const MEMO = {};
+const lireMemo = (cle, defaut) => { if (cle in MEMO) return MEMO[cle]; try { const v = localStorage.getItem("bingoo-outil:" + (B.slug ?? "") + ":" + cle); if (v != null) return (MEMO[cle] = JSON.parse(v)); } catch (e) {} return defaut; };
+const useMemoire = (cle, defaut) => {
+  const [v, setV] = useState(() => (B.verif || B.capture ? defaut : lireMemo(String(cle), defaut)));
+  const poser = useCallback((x) => setV((avant) => { const n = typeof x === "function" ? x(avant) : x; MEMO[cle] = n; if (!B.verif && !B.capture) { try { localStorage.setItem("bingoo-outil:" + (B.slug ?? "") + ":" + cle, JSON.stringify(n)); } catch (e) {} } return n; }), [cle]);
+  return [v, poser];
+};
+const horsOutil = () => Promise.reject(new Error("Indisponible dans un outil sans compte"));
+const dbOutil = { list: async () => [], get: async () => null, add: horsOutil, update: horsOutil, remove: horsOutil };
+const ctxOutil = { ...ctx, useMemoire, db: dbOutil, useCollection: mkUseCollection(dbOutil), ia: horsOutil, email: horsOutil, annulerEmail: horsOutil, emailsEnvoyes: horsOutil, lienAgenda: horsOutil, pdf: () => {}, go: () => {} };
 const ECRANS = (S.ecrans ?? []).filter((e) => e.code).map((e) => {
   let Comp;
   try {
-    const f = new Function("ctx", "const {html,h,Fragment,useState,useEffect,useMemo,useRef,useCallback,ui,fmt,db,useCollection,toast,go,Icone,ia,email,annulerEmail,emailsEnvoyes,pdf,lienAgenda,user,params}=ctx;\\n" + e.code + "\\n;return typeof Ecran==='function'?Ecran:null;");
-    Comp = (props) => { const C = useMemo(() => f({ ...(e.public ? { ...ctxPublic, ia: e.ia ? iaPublic : refuse } : ctx), user: e.public ? null : props.user, params: props.params }), [props.params]); return C ? h(C, props) : html\`<\${Casse} titre=\${e.titre}/>\`; };
+    const f = new Function("ctx", "const {html,h,Fragment,useState,useEffect,useMemo,useRef,useCallback,useMemoire,ui,fmt,db,useCollection,toast,go,Icone,ia,email,annulerEmail,emailsEnvoyes,pdf,lienAgenda,user,params}=ctx;\\n" + e.code + "\\n;return typeof Ecran==='function'?Ecran:null;");
+    Comp = (props) => { const C = useMemo(() => f({ ...(OUTIL ? ctxOutil : e.public ? { ...ctxPublic, ia: e.ia ? iaPublic : refuse } : ctx), user: e.public || OUTIL ? null : props.user, params: props.params }), [props.params]); return C ? h(C, props) : html\`<\${Casse} titre=\${e.titre}/>\`; };
   } catch (err) { console.error(e.id, err); Comp = () => html\`<\${Casse} titre=\${e.titre}/>\`; }
   return { ...e, Comp };
 });
@@ -1519,6 +1532,27 @@ function Verif() {
       const txt = document.getElementById("verif-zone")?.innerText ?? "";
       const casse = txt.includes("n'a pas pu être chargé");
       const bizarre = (/\\bNaN\\b|\\bundefined\\b|\\[object Object\\]|Invalid Date/.exec(txt) ?? [])[0];
+      if (OUTIL) {
+        // Les règles des logiciels (blocs remplis, chiffres clés, boutons avec texte) ne valent pas pour un jeu : un plateau a des
+        // cases sans texte. On vérifie ce qui compte ici : la page s'ouvre, elle réagit, et aucun clic ne provoque d'erreur.
+        const z = document.getElementById("verif-zone");
+        const actifs = [...(z?.querySelectorAll("button, input, select, textarea, canvas, [role=button]") ?? [])];
+        let erreur = VERRS[0] ?? (casse ? "L'écran ne se charge pas" : bizarre ? "Le texte affiché contient « " + bizarre + " »" : !actifs.length ? "Rien n'est cliquable : la page doit réagir aux gestes du visiteur (boutons, champs ou plateau de jeu)." : txt.trim().length < 12 && !z.querySelector("canvas") ? "L'écran est presque vide" : null);
+        if (!erreur) {
+          const boutons = actifs.filter((el) => (el.tagName === "BUTTON" || el.getAttribute("role") === "button") && !el.disabled).slice(0, 14);
+          for (const el of boutons) { try { if (el.isConnected) el.click(); } catch (x) { VERRS.push(String(x?.message ?? x)); } await new Promise((ok) => setTimeout(ok, 90)); if (VERRS.length) break; }
+          await new Promise((ok) => setTimeout(ok, 500));
+          const txt2 = document.getElementById("verif-zone")?.innerText ?? "";
+          const biz2 = (/\\bNaN\\b|\\bundefined\\b|\\[object Object\\]|Invalid Date/.exec(txt2) ?? [])[0];
+          if (VERRS.length) erreur = "Un clic provoque une erreur : " + VERRS[0];
+          else if (txt2.includes("n'a pas pu être chargé")) erreur = "Après quelques clics, l'écran plante";
+          else if (biz2) erreur = "Après quelques clics, le texte affiché contient « " + biz2 + " »";
+        }
+        res.current.push({ id: E.id, ok: !erreur, erreur: erreur && String(erreur).slice(0, 700), gestes: true });
+        VERRS.length = 0;
+        setI(i + 1);
+        return;
+      }
       // Avec les données d'exemple, un écran du SaaS doit être rempli : pas de bloc vide, pas de chiffres clés à zéro
       const zone = document.getElementById("verif-zone");
       const titreDe = (el) => { let n = el; for (let k = 0; n && k < 6; k++, n = n.parentElement) { const h = n.querySelector?.("h2, h3"); if (h && n.tagName === "SECTION") return h.textContent.trim(); } return ""; };
@@ -1543,7 +1577,7 @@ function Verif() {
     return () => clearTimeout(t);
   }, [i]);
   if (pub) return html\`<div id="verif-zone"><\${SiteVitrine} onAuth=\${() => {}}/></div>\`;
-  return E ? html\`<div id="verif-zone" class="p-6"><\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} user=\${{ id: "v", nom: "Camille Martin", email: "camille@exemple.fr", role: "admin" }} params=\${null} etat=\${{ acces: true }}/></\${Garde}></div>\` : null;
+  return E ? html\`<div id="verif-zone" class=\${OUTIL ? "" : "p-6"}><\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} user=\${{ id: "v", nom: "Camille Martin", email: "camille@exemple.fr", role: "admin" }} params=\${null} etat=\${{ acces: true }}/></\${Garde}></div>\` : null;
 }
 // Vidéo pub : chaque écran demandé est affiché avec les données d'exemple, photographié, puis envoyé à la page Bingoo!
 function Capture() {
@@ -1575,6 +1609,7 @@ function Capture() {
   if (!E) return null;
   const menu = ECRANS.filter((e) => !e.public).slice(0, 8);
   const ecran = html\`<\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} user=\${{ id: "v", nom: "Camille", email: "camille@exemple.fr", role: "admin" }} params=\${null} etat=\${{ acces: true }} espace="Atelier Exemple"/></\${Garde}>\`;
+  if (OUTIL) return html\`<div id="cap" style="width:1280px;height:800px;overflow:hidden">\${ecran}</div>\`;
   if (E.public) return html\`<div id="cap" style="width:1280px;height:800px;overflow:hidden" class="bg-slate-50 text-slate-900"><div class="max-w-3xl mx-auto px-4 py-10">\${ecran}</div></div>\`;
   // Même allure que le vrai logiciel : menu (clair, teinté, sombre, couleur) et fond (blanc, crème, gris)
   const fonce = !GAB_TASTE && (STY.menu === "sombre" || STY.menu === "couleur");
@@ -1631,9 +1666,16 @@ function Connecteurs() {
       <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end"><button onClick=\${() => choisir("non")} style="border-radius:10px;border:1px solid #cbd5e1;background:#fff;padding:9px 16px;font-weight:600;cursor:pointer">Refuser</button><button onClick=\${() => choisir("oui")} style="border-radius:10px;background:#0f172a;color:#fff;padding:9px 16px;font-weight:600;cursor:pointer">Accepter</button></div>
     </div>\`}\`;
 }
+// Outil ou jeu : la page EST le produit. Ni page de présentation, ni connexion, ni formules.
+function Outil() {
+  const E = ECRANS[0];
+  if (!E) return html\`<div class="min-h-screen grid place-items-center text-slate-500 p-6 text-center">Cette page est en cours d'écriture. Revenez dans un instant.</div>\`;
+  return html\`<div data-bingoo-outil class="min-h-screen"><\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} user=\${null} params=\${null}/></\${Garde}></div><\${BadgeBingoo}/>\`;
+}
 function Racine() {
   if (B.capture) return html\`<\${Capture}/>\`;
   if (B.verif) return html\`<\${Verif}/>\`;
+  if (OUTIL) return html\`<\${Outil}/>\`;
   // Essai local : l'application complète, connectée, avec les données d'exemple (robot mobile, captures sur téléphone)
   if (B.essai) return html\`<\${Appli} user=\${{ id: "v", nom: "Camille Martin", email: "camille@exemple.fr", role: "admin" }} etat=\${{ acces: true }} onLogout=\${() => {}} tour=\${false} onFinTour=\${() => {}}/>\`;
   if (PAGE) return html\`<\${PagePublique}/>\`;
@@ -1814,6 +1856,14 @@ function Racine() {
     for (const [id, f] of [["bingoo-essai-titres", t], ["bingoo-essai-texte", x]]) { let l = document.getElementById(id); if (!l) { l = document.createElement("link"); l.id = id; l.rel = "stylesheet"; document.head.appendChild(l); } l.href = "https://fonts.googleapis.com/css2?family=" + f.split(" ").join("+") + "&display=swap"; }
     let st = document.getElementById("bingoo-essai-police"); if (!st) { st = document.createElement("style"); st.id = "bingoo-essai-police"; document.head.appendChild(st); }
     st.textContent = ':root{--font-display:"' + t + '",serif!important;--font-text:"' + x + '",sans-serif!important}body *:not(svg):not(path){font-family:"' + x + '",system-ui,sans-serif!important}body :is(h1,h2,h3,h4,.nav__logo,.t-stat){font-family:"' + t + '",Georgia,serif!important}';
+  });
+  // Outil Style, couleur principale : essai en direct (boutons, liens, accents), enregistré ensuite par l'atelier
+  addEventListener("message", (e) => {
+    if (e.source !== window.parent || !permis(e.origin)) return;
+    const d = e.data || {}; if (d.type !== "bingoo-atelier-couleur" || !/^#[0-9a-f]{6}$/i.test(d.couleur || "")) return;
+    const c = d.couleur, clair = (0.299 * parseInt(c.slice(1, 3), 16) + 0.587 * parseInt(c.slice(3, 5), 16) + 0.114 * parseInt(c.slice(5, 7), 16)) / 255 > 0.62, sur = clair ? "#111111" : "#ffffff";
+    let st = document.getElementById("bingoo-essai-couleur"); if (!st) { st = document.createElement("style"); st.id = "bingoo-essai-couleur"; document.head.appendChild(st); }
+    st.textContent = ":root{--c:" + c + "!important;--ch:" + c + "!important;--p-accent:" + c + "!important;--p-action:" + c + "!important;--p-accent-ink:" + sur + "!important;--p-action-ink:" + sur + "!important;--ds-onc:" + sur + "!important}";
   });
   if (window.parent !== window) window.parent.postMessage({ type: "bingoo-atelier-pret" }, "*");
 }
