@@ -294,6 +294,23 @@ if (CONSTRUIRE === "lien-public") {
     await p.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await etat(p, "createur");
     await p.evaluate((s) => { location.hash = `#/app/${s}`; }, a.slug); await etat(p, "createur-hash"); await c.close(); }
 }
+if (CONSTRUIRE === "support-ecran") {
+  // La bulle d'aide dans l'appli, et la promesse dans les tarifs de l'accueil
+  const [a] = await q(`select a.workspace_id from saas_apps a join workspaces w on w.id = a.workspace_id where w.name like 'Robot film%' and a.statut = 'pret' order by a.maj desc limit 1`);
+  const { ctx: c, page: p } = await ouvrir(a.workspace_id, { "bingoo-guide": "fini" });
+  await p.setViewportSize({ width: 1440, height: 900 });
+  await p.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(8000);
+  await p.getByRole("button", { name: "Ouvrir l'aide" }).click().catch((e) => console.log("✗ bulle", e.message.slice(0, 80)));
+  await p.getByLabel("Ta question").fill("Comment je change la photo de mon site ?").catch(() => null);
+  await p.getByRole("button", { name: "Envoyer", exact: true }).click().catch(() => null);
+  await p.waitForTimeout(12000); await p.screenshot({ path: `${DOSSIER}/support-bulle.png` }); console.log("✓ bulle");
+  await c.close();
+  const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p2 = await c2.newPage();
+  await p2.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p2.waitForTimeout(3000);
+  await p2.locator("#prix").scrollIntoViewIfNeeded().catch(() => null); await p2.waitForTimeout(2500);
+  await p2.locator("#prix").screenshot({ path: `${DOSSIER}/promesse-tarifs.png` }).catch((e) => console.log("✗ tarifs", e.message.slice(0, 80))); console.log("✓ tarifs");
+  await c2.close();
+}
 if (CONSTRUIRE === "support") {
   // Support : réponse immédiate de l'assistant, puis transmission à un humain (un e-mail de test part vers l'équipe)
   const [a] = await q(`select a.workspace_id from saas_apps a join workspaces w on w.id = a.workspace_id where w.name like 'Robot film%' and a.statut = 'pret' order by a.maj desc limit 1`);
@@ -820,7 +837,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
