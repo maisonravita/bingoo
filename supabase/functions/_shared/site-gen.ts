@@ -255,8 +255,11 @@ Images disponibles (jetons à utiliser tels quels comme src, facultatif) : ${[..
 Format : pour chaque section, une ligne <!--section:ID--> puis son HTML. Rien d'autre.`, { system: systeme, cacheSystem: true, maxTokens: 9000 });
     retenues = decoupe(brut).filter((x) => x.id.startsWith(slug)).slice(0, 4)
       .map((x) => ({ id: x.id, html: nettoyer(x.html, jetons) }))
-      .filter((x) => x.html && !controlerSection(x.id, x.html, faitsConnus).length);
+      // L'en-tête de la page porte son h1 : contrôlé comme un premier écran (ailleurs, un h1 est refusé)
+      .filter((x) => x.html && !controlerSection(x.id.endsWith("-tete") ? "hero" : x.id, x.html, faitsConnus).length);
   }
+  // Toujours un h1 : si l'en-tête n'a pas été retenu, le premier titre de la page le devient
+  if (retenues.length && !retenues.some((x) => /<h1\b/i.test(x.html))) retenues[0].html = retenues[0].html.replace(/<h2\b([^>]*)>([\s\S]*?)<\/h2>/i, "<h1$1>$2</h1>");
   if (retenues.length < 2) throw new Error("La page n'a pas passé les contrôles de qualité, reformule ta demande");
   return { slug, titre: titre.slice(0, 40), sections: retenues };
 }

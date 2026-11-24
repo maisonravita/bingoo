@@ -297,13 +297,13 @@ if (CONSTRUIRE === "lien-public") {
 if (CONSTRUIRE === "pages") {
   // Site de plusieurs pages : une page « À propos » écrite par l'IA, puis ouverte depuis le menu du site (vue visiteur)
   const [a] = await q(`select a.id, a.slug, a.workspace_id, jsonb_array_length(coalesce(a.spec->'site'->'pages','[]')) n from saas_apps a where a.slug = 'salon-gourmand-3130'`);
-  if (!a.n) {
+  if (a.n < 2) {
     const t0 = Date.now();
-    const r = await fetch(`${SB}/functions/v1/r/saas-app-reglages`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: a.workspace_id, app_id: a.id, quoi: "page-ajouter", titre: "À propos", consigne: "Un salon de thé tenu par deux sœurs, Lucie et Anna. Tout est fait maison chaque matin. On aime les recettes simples et les produits de saison." }) });
+    const r = await fetch(`${SB}/functions/v1/r/saas-app-reglages`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: a.workspace_id, app_id: a.id, quoi: "page-ajouter", titre: "Privatisation", consigne: "On peut privatiser le salon pour un anniversaire, un baby shower ou une réunion, jusqu'à 20 personnes. On prépare un buffet de pâtisseries sur mesure." }) });
     const j = await r.json().catch(() => ({}));
     console.log(r.status === 200 ? `✓ page écrite en ${Math.round((Date.now() - t0) / 1000)} s : ${JSON.stringify(j.pages)}` : `✗ page : ${r.status} ${JSON.stringify(j).slice(0, 300)}`);
   }
-  const [v] = await q(`select (select string_agg(x->>'id', ', ') from jsonb_array_elements(spec->'site'->'pages'->0->'sections') x) ids, left(regexp_replace(regexp_replace((select string_agg(x->>'html',' ') from jsonb_array_elements(spec->'site'->'pages'->0->'sections') x), '<style[^<]*</style>', ' ', 'g'), '<[^>]+>', ' ', 'g'), 900) txt from saas_apps where id = ${lit(a.id)}`);
+  const [v] = await q(`select (select string_agg(x->>'id', ', ') from jsonb_array_elements(spec->'site'->'pages'->-1->'sections') x) ids, left(regexp_replace(regexp_replace((select string_agg(x->>'html',' ') from jsonb_array_elements(spec->'site'->'pages'->-1->'sections') x), '<style[^<]*</style>', ' ', 'g'), '<[^>]+>', ' ', 'g'), 900) txt from saas_apps where id = ${lit(a.id)}`);
   console.log("sections :", v.ids); console.log("texte :", String(v.txt ?? "").replace(/\s+/g, " ").slice(0, 800));
   for (const [nom, vp, mobile] of [["ordi", { width: 1440, height: 900 }, false], ["tel", { width: 390, height: 844 }, true]]) {
     const c = await browser.newContext({ viewport: vp, locale: "fr-FR", isMobile: mobile, hasTouch: mobile, deviceScaleFactor: mobile ? 2 : 1 }); const p = await c.newPage();
@@ -311,7 +311,7 @@ if (CONSTRUIRE === "pages") {
     const fr = p.frameLocator("iframe").first();
     if (mobile) await fr.locator(".nav__toggle").click().catch(() => null);
     await p.waitForTimeout(600); await p.screenshot({ path: `${DOSSIER}/pages-${nom}-0-menu.png` });
-    await fr.getByRole("link", { name: "À propos" }).first().click().catch((e) => console.log("✗ lien", e.message.slice(0, 100)));
+    await fr.getByRole("link", { name: "Privatisation" }).first().click().catch((e) => console.log("✗ lien", e.message.slice(0, 100)));
     await p.waitForTimeout(2500); await p.screenshot({ path: `${DOSSIER}/pages-${nom}-1-apropos.png` });
     const h1 = await fr.locator("h1").first().innerText().catch(() => "?"); console.log(`✓ ${nom} : h1 de la page = « ${h1.replace(/\s+/g, " ")} »`);
     if (!mobile) { await p.mouse.wheel(0, 900); await p.waitForTimeout(1200); await p.screenshot({ path: `${DOSSIER}/pages-${nom}-2-suite.png` }); await fr.locator('a[href="#accueil-contact"]').first().click().catch((e) => console.log("✗ bouton contact", e.message.slice(0, 80))); await p.waitForTimeout(2500); await p.screenshot({ path: `${DOSSIER}/pages-${nom}-3-retour-contact.png` }); }
