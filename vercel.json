@@ -115,5 +115,6 @@
       "*": false,
       "main": true
     }
-  }
+  },
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':(exclude)scripts/e2e' ':(exclude)scripts/verif-apps.mjs' ':(exclude)scripts/stores' ':(exclude).github' ':(exclude)supabase' ':(exclude)docs'"
 }
