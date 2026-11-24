@@ -294,6 +294,18 @@ if (CONSTRUIRE === "lien-public") {
     await p.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await etat(p, "createur");
     await p.evaluate((s) => { location.hash = `#/app/${s}`; }, a.slug); await etat(p, "createur-hash"); await c.close(); }
 }
+if (CONSTRUIRE === "vitrine-accueil") {
+  // La vitrine des réalisations sur la page d'accueil, telle qu'un visiteur la voit (ordinateur puis téléphone)
+  for (const [nom, vp, mobile] of [["ordi", { width: 1440, height: 900 }, false], ["tel", { width: 390, height: 844 }, true]]) {
+    const c = await browser.newContext({ viewport: vp, locale: "fr-FR", isMobile: mobile, hasTouch: mobile, deviceScaleFactor: mobile ? 2 : 1 }); const p = await c.newPage();
+    await p.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(4000);
+    const sec = p.locator('section[aria-label="SaaS construits avec Bingoo!"]');
+    await sec.scrollIntoViewIfNeeded().catch(() => null); await p.waitForTimeout(3500);
+    await sec.screenshot({ path: `${DOSSIER}/vitrine-accueil-${nom}.png` }).catch((e) => console.log("✗", e.message));
+    await p.waitForTimeout(6000); await sec.screenshot({ path: `${DOSSIER}/vitrine-accueil-${nom}-b.png` }).catch(() => null);
+    console.log(`✓ vitrine ${nom}`); await c.close();
+  }
+}
 if (CONSTRUIRE === "galerie") {
   // Galerie : les pages publiques demandées (IDEE = slugs séparés par des virgules), vues par un visiteur, sur ordinateur et sur téléphone
   const slugs = String(process.env.IDEE ?? "").split(",").map((x) => x.trim()).filter((x) => /^[a-z0-9-]+$/.test(x)).slice(0, 30);
@@ -730,7 +742,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
