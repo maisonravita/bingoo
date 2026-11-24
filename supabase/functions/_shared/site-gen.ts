@@ -40,12 +40,23 @@ const decoupe = (texte: string) => {
   return out.map((s) => ({ ...s, html: s.html.replace(/^```[a-z]*\s*|```\s*$/g, "").trim() }));
 };
 
+// Ce qui fait « grande maison » : le premier écran est une photo plein cadre, le titre a un fragment en italique doré
+const FICHE_LUXE = `RÈGLES DE PAGE · HAUT DE GAMME (elles passent avant la fiche ci-dessus pour le premier écran) :
+- Premier écran (hero) en PLEIN CADRE : la photo d'en-tête couvre toute la largeur et au moins 92 vh (object-fit: cover), un voile sombre en dégradé vers le bas et vers la gauche pour que le texte reste lisible (contraste 4,5:1), le header transparent par-dessus.
+- Au-dessus du titre, une petite ligne en capitales espacées (letter-spacing .25em) : la catégorie et la ville, séparées par « · ».
+- Le titre en police à empattements, grand (clamp(44px, 7vw, 96px)), sur deux lignes : la seconde en italique, dans la couleur principale (le doré s'il y en a), par exemple « L'art de recevoir / à Paris. ».
+- Deux boutons : le principal plein (couleur principale), le second en contour fin.
+- En bas du premier écran, une rangée de 2 à 4 faits séparés par de fins traits verticaux, en grands chiffres à empattements avec une légende en petites capitales — UNIQUEMENT des faits donnés par le membre (ses étoiles, son quartier, son année d'ouverture, son nombre de suites s'il l'a dit). Aucun chiffre inventé : s'il n'y a pas 2 faits, pas de rangée.
+- Ensuite : beaucoup d'air, des photos larges, des sections sobres alternant fond sombre et fond légèrement plus clair ; aucune carte arrondie criarde, aucune icône colorée.`;
+
 export async function genererPage(e: EntreePage): Promise<{ page: PageGeneree; mesure: MesurePage }> {
   const t0 = Date.now(), journal: string[] = [];
   const compteur: Compteur = { cout: 0, entree: 0, sortie: 0, appels: 0, modeles: {} };
   const store = aiCtx.getStore(); if (store) store.compteur = compteur;
   const typeP = typeDeProjet({ site: true, modele: e.modele, metier: e.metier, idee: e.brief });
-  const systeme = `${REGLES_PAGE}\n\n## Palette et polices imposées (système de design tiré pour ce membre)\n${texteDesign(e.design)}\n\n## Fiche du type de projet (${typeP})\n${FICHES[typeP] ?? ""}${e.consignes ? `\n\n## Ce projet\n${e.consignes}` : ""}`;
+  // Haut de gamme (hôtel 5 étoiles, palace, spa, joaillier, « élégant »…) : la mise en page des grandes maisons
+  const luxe = /(luxe|luxueu|5 [ée]toiles|cinq [ée]toiles|palace|haut de gamme|prestige|[ée]l[ée]gan|raffin|joaill|boutique-h[ôo]tel)/i.test(`${e.brief} ${e.metier ?? ""}`);
+  const systeme = `${REGLES_PAGE}\n\n## Palette et polices imposées (système de design tiré pour ce membre)\n${texteDesign(e.design)}\n\n## Fiche du type de projet (${typeP})\n${FICHES[typeP] ?? ""}${luxe ? `\n\n${FICHE_LUXE}` : ""}${e.consignes ? `\n\n## Ce projet\n${e.consignes}` : ""}`;
   const donnees = JSON.stringify({ nom: e.nom, modele: e.modele, metier: e.metier, ville: e.ville, bouton_principal: e.cta, demande: e.demande,
     services: (e.services ?? []).map((s: any) => ({ titre: s.titre, prix: s.prix, duree: s.duree })), horaires: e.horaires ?? [], coordonnees: e.infos ?? {}, faq: e.faq ?? [],
     photos_du_membre: (e.photosMembre ?? []).length });
