@@ -483,6 +483,11 @@ export default function Landing() {
           <div className="mx-auto max-w-[1180px]">
             <p className="text-[13px] font-semibold uppercase tracking-[.14em] text-accent">Prix</p>
             <h2 className="mt-3 max-w-[820px] text-[34px] sm:text-[48px] leading-[1.06] tracking-[-.03em] text-ink" style={SERIF}>Gratuit pour voir. Tu paies quand tu construis.</h2>
+            {/* Notre promesse face aux outils où chaque correction ratée coûte des crédits */}
+            <div className="mt-6 flex max-w-[820px] items-start gap-3 rounded-2xl border border-[#2F7A4D]/25 bg-[#EEF7F1] px-5 py-4">
+              <span aria-hidden="true" className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#2F7A4D] text-[13px] font-bold text-white">✓</span>
+              <p className="text-[15px] leading-relaxed text-[#1E3A2A]"><b>Tu ne paies jamais nos erreurs.</b> Bingoo! teste tout ce qu'il construit : un défaut trouvé par le test est corrigé gratuitement. Une modification qui ne te convient pas ? Tu l'annules dans les 48 h et elle t'est rendue. Et changer un texte, une photo, une police ou l'ordre de tes sections ne coûte jamais rien.</p>
+            </div>
             <div className="mt-10 grid gap-4 md:grid-cols-3">
               {[
                 ["Gratuit", "0 €", "Pour voir", ["L'aperçu de ton idée : nom, écrans, maquette", "La lecture d'un site qui te plaît", "Les SaaS qui marchent, en aperçu"]],

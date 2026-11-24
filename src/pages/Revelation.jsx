@@ -444,7 +444,12 @@ export function Chantier({ ws, nav, init, atelier = false }) {
   const restaurer = async (version) => {
     if (!app || occupe) return;
     setOccupe(true);
-    try { await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "restaurer", version }); setVersions(null); setEchanges((l) => [...l, { moi: `Revenir à la version ${version}`, etat: "ok", faits: [`version ${version} remise en ligne`] }]); await recharger(); }
+    try {
+      const r = await fn("r/saas-app-reglages", { workspace_id: ws.id, app_id: app.id, quoi: "restaurer", version }); setVersions(null);
+      const rendu = r?.rendue ? [r.rendue.credits ? `${r.rendue.credits} crédit${r.rendue.credits > 1 ? "s" : ""} rendu${r.rendue.credits > 1 ? "s" : ""}` : "", r.rendue.modifications ? `${r.rendue.modifications} modification${r.rendue.modifications > 1 ? "s" : ""} du mois rendue${r.rendue.modifications > 1 ? "s" : ""}` : ""].filter(Boolean).join(", ") : "";
+      setEchanges((l) => [...l, { moi: `Revenir à la version ${version}`, etat: "ok", faits: [`version ${version} remise en ligne`, ...(rendu ? [`${rendu} : tu ne paies jamais un résultat qui ne te convient pas`] : [])] }]);
+      await recharger(); majConso();
+    }
     catch (x) { setEchanges((l) => [...l, { moi: `Revenir à la version ${version}`, etat: "ko", erreur: x.message }]); }
     finally { setOccupe(false); }
   };
@@ -727,7 +732,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                       </div> : <p className="mt-2 text-[12.5px] text-ink-faint">Plan lancé ↓</p>}
                     </div>
                     : x.etat === "encours" ? <p className="flex items-center gap-2.5 text-ink-soft"><Coche ok={false} />Je modifie ton SaaS… (une à deux minutes)</p>
-                    : x.etat === "ok" ? <div><p className="flex items-center gap-2.5"><Coche ok />{x.publieA ? "Modification écrite." : "C'est en ligne, regarde l'aperçu."}{x.credit ? " (1 crédit utilisé)" : ""}</p><TestAtelier x={x} verif={app?.verif} apercu={app?.brouillon} />{x.faits?.length > 0 && <ul className="mt-1.5 ml-8 list-disc text-[13.5px] text-ink-soft">{x.faits.map((f) => <li key={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</li>)}</ul>}{x.rates?.length > 0 && <p className="mt-1 ml-8 text-[13px] text-[#9A3412]">{x.rates.join(" ; ")}</p>}{x.versionAvant && <button onClick={() => restaurer(x.versionAvant)} disabled={occupe} className="mt-1.5 ml-8 text-[12.5px] font-semibold text-ink-soft underline-offset-2 hover:underline disabled:opacity-40">↶ Annuler cette modification</button>}</div>
+                    : x.etat === "ok" ? <div><p className="flex items-center gap-2.5"><Coche ok />{x.publieA ? "Modification écrite." : "C'est en ligne, regarde l'aperçu."}{x.credit ? " (1 crédit utilisé)" : ""}</p><TestAtelier x={x} verif={app?.verif} apercu={app?.brouillon} />{x.faits?.length > 0 && <ul className="mt-1.5 ml-8 list-disc text-[13.5px] text-ink-soft">{x.faits.map((f) => <li key={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</li>)}</ul>}{x.rates?.length > 0 && <p className="mt-1 ml-8 text-[13px] text-[#9A3412]">{x.rates.join(" ; ")}</p>}{x.versionAvant && <button onClick={() => restaurer(x.versionAvant)} disabled={occupe} title="Annuler dans les 48 h : la modification (ou le crédit) t'est rendue" className="mt-1.5 ml-8 text-[12.5px] font-semibold text-ink-soft underline-offset-2 hover:underline disabled:opacity-40">↶ Pas ce que tu voulais ? Annule, elle t'est rendue</button>}</div>
                       : /modifications du mois|Il te faut \d+ crédit/.test(x.erreur ?? "") ? <QuotaAtteint plan={ws?.plan} nav={nav} erreur={x.erreur} />
                       : <p className="text-[#B42318]">{x.erreur}</p>}
                 </Bingoo>
@@ -789,6 +794,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
             </div>
             {/* Seules les vraies limites de l'atelier : les modifications du mois, puis les crédits (l'IA consommée n'a pas à inquiéter le membre) */}
             <div className="mt-1.5 px-1 text-[11.5px] leading-relaxed text-ink-faint">
+              <p className="mb-1 font-semibold text-[#2F7A4D]">Tu ne paies jamais nos erreurs : un défaut trouvé par notre test est corrigé gratuitement, et une modification annulée t'est rendue.</p>
               {conso && <p>
                 Modifications : <b className="text-ink-soft tabular-nums">{conso.mod?.utilise ?? 0} sur {conso.mod?.max ?? 30}</b> ce mois
                 {" · "}Crédits : <b className="text-ink-soft tabular-nums">{conso.credits}</b> <span title="Une fois les modifications du mois utilisées, chaque modification coûte 1 crédit">(1 par modification en plus)</span>

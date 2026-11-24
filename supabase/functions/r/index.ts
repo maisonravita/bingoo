@@ -1071,6 +1071,22 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       const { data: cur } = await admin.from("saas_apps").select("version").eq("id", app.id).single();
       await admin.from("saas_apps").update({ spec: v.spec, brouillon: null, version: (cur?.version ?? 0) + 1, maj: new Date().toISOString() }).eq("id", app.id);
       await log(ws.id, "app_reglage", `Retour à la version ${b.version}`);
+      // Annuler la dernière modification payée (dans les 48 h) : elle est rendue, modification du mois ou crédit (10 par mois au plus)
+      const { data: pm } = await admin.from("saas_apps").select("paiement_modif").eq("id", app.id).single();
+      const p = pm?.paiement_modif as any;
+      if (p && Number(b.version) === Number(p.version_avant) && Date.now() - new Date(p.at).getTime() < 48 * 3600_000) {
+        const { count: deja } = await admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("kind", "modif_rendue").gte("created_at", monthStart());
+        await admin.from("saas_apps").update({ paiement_modif: null }).eq("id", app.id);
+        if ((deja ?? 0) < 10) {
+          const { data: acts } = await admin.from("activity").select("id").eq("workspace_id", ws.id).eq("kind", "modifier_app").gte("created_at", p.at);
+          if (acts?.length) await admin.from("activity").delete().in("id", acts.map((x: any) => x.id));
+          const { data: depenses } = await admin.from("credits").select("delta").eq("workspace_id", ws.id).lt("delta", 0).in("motif", ["Modification en plus", "Écran en plus (atelier)"]).gte("created_at", p.at);
+          const n = -(depenses ?? []).reduce((t: number, x: any) => t + Number(x.delta || 0), 0);
+          if (n > 0) await creditsRendre(ws.id, n, "Modification annulée : crédits rendus");
+          await log(ws.id, "modif_rendue", `Modification annulée et rendue (${acts?.length ?? 0} modification(s), ${n} crédit(s))`);
+          return { ok: true, rendue: { modifications: acts?.length ?? 0, credits: n } };
+        }
+      }
       return { ok: true };
     }
     if (b.quoi === "ia-etat") {
@@ -1264,6 +1280,11 @@ Clés JSON : resume (une phrase), etapes (2 à 6 étapes courtes et concrètes, 
     let creditsEcrans = 0;
     // Une correction gratuite n'est pas comptée dans les modifications du mois (activité d'un autre type)
     await log(ws.id, gratuit ? "corriger_app" : "modifier_app", `${gratuit ? "Correction offerte" : "Modification"} : ${demande.slice(0, 120)}`);
+    // « Tu ne paies jamais nos erreurs » : si le résultat ne convient pas, l'annuler rend la modification (48 h)
+    if (!gratuit && !req.headers.get("x-cron-key")) {
+      const { data: av } = await admin.from("saas_apps").select("version").eq("id", app.id).single();
+      await admin.from("saas_apps").update({ paiement_modif: { version_avant: av?.version ?? 0, at: debutDemande } }).eq("id", app.id);
+    }
     const { saasModifierEcran } = await import("../_shared/app-build.ts");
     await admin.from("saas_apps").update({ statut: "en_cours", etape: "Modification en cours", erreur: null, maj: new Date().toISOString() }).eq("id", app.id);
     // Chaque écran en plus dans la même demande : une modification du mois, sinon 1 crédit (dans la limite de ce que le membre a)
