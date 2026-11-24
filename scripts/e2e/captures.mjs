@@ -303,7 +303,8 @@ if (CONSTRUIRE === "edition-directe") {
   const { ctx: c, page: p } = await ouvrir(a.workspace_id, { "bingoo-guide": "fini" });
   await p.setViewportSize({ width: 1440, height: 900 });
   await p.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(9000);
-  const cadre = () => p.frameLocator('iframe[title^="Aperçu"]');
+  // L'aperçu affiche la page de l'app, qui contient elle-même l'application dans un second cadre
+  const cadre = () => p.frameLocator('iframe[title^="Aperçu"]').frameLocator("iframe").first();
   const outil = async (nom) => { await p.getByRole("button", { name: nom }).first().click().catch((e) => console.log("✗ bouton", nom, e.message.slice(0, 80))); await p.waitForTimeout(1500); };
   await p.screenshot({ path: `${DOSSIER}/edition-0-atelier.png` });
   // 1. Sections : les poignées, puis la 2e section glissée tout en bas
