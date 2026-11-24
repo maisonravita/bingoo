@@ -248,7 +248,7 @@ function rubriques(ws, invite) {
   if (invite) return { sections: [{ items: [{ to: "/explorer/trouver", label: "Trouver mon SaaS", icon: "target" }, { to: "/explorer/modeles", label: "Partir d'un modèle", icon: "spark" }] }], bas: [] };
   return {
     sections: [
-      { titre: "Mon SaaS", items: [
+      { titre: "Mon projet", items: [
         { to: "/explorer/mon-saas", label: "Accueil", icon: "today", also: ["/explorer/reglages-saas"] },
         { to: "/explorer/connecteur", label: "Construire avec mon IA", icon: "spark" },
         { to: "/explorer/atelier", label: "Atelier", icon: "chat" },
@@ -353,7 +353,7 @@ export default function Layout({ children }) {
   const basMobile = (
     <nav aria-label="Navigation mobile" hidden={invite} className="md:hidden fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
       <div className="grid grid-cols-4">
-        {[["/explorer/mon-saas", "Mon SaaS", "today"], ["/explorer/connecteur", "Mon IA", "spark"], ["/explorer/clients", "Clients", "users"], ["/explorer", "Explorer", "list"]].map(([to, l, ic]) => (
+        {[["/explorer/mon-saas", "Mon projet", "today"], ["/explorer/connecteur", "Mon IA", "spark"], ["/explorer/clients", "Clients", "users"], ["/explorer", "Explorer", "list"]].map(([to, l, ic]) => (
           <NavLink key={to} to={to} end={to === "/explorer"} className={({ isActive }) => cx("relative flex flex-col items-center gap-0.5 py-2.5 text-[11.5px] font-semibold", isActive ? "text-[#E8571C]" : "text-ink-soft")}><Icon name={ic} />{l}</NavLink>
         ))}
       </div>

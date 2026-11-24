@@ -12,6 +12,7 @@ import { nomCanal as nomBrut } from "../lib/plan30";
 const nomCanal = (c) => { const n = nomBrut(c) ?? ""; return n.charAt(0).toUpperCase() + n.slice(1); };
 import { angleDe } from "../lib/angle";
 import { ONGLETS_APP, PremiersClients, ReglagesApp } from "./Explorer";
+import { EXEMPLES_IDEE, TYPES_IDEE, typeDe } from "./Landing";
 import { Chantier } from "./Revelation";
 import { charger } from "../lib/charger";
 
@@ -310,15 +311,38 @@ function Identite({ m, charger }) {
   );
 }
 
+// Espace sans projet : on part d'une idée, comme sur la page d'accueil (logiciel, site, outil ou jeu, vidéo).
+// Partir d'un SaaS qui marche déjà et construire avec sa propre IA restent proposés, en second.
 function PasEncore() {
+  const nav = useNavigate();
+  const [texte, setTexte] = useState(""), [choix, setChoix] = useState(null);
+  const type = ((t) => (t === "app" ? "saas" : t))(choix ?? typeDe(texte));
+  const lancer = (e) => {
+    e?.preventDefault();
+    const t = texte.trim();
+    if (t.length < 4) return;
+    try { localStorage.setItem("bingoo-idee", JSON.stringify({ texte: t.slice(0, 300), type, at: Date.now() })); localStorage.removeItem("bingoo-copie"); localStorage.removeItem("bingoo-parcours2"); } catch { /* stockage indisponible */ }
+    nav(type === "video" ? "/explorer/motion" : "/explorer/idee");
+  };
   return (
-    <Carte className="mx-auto mt-10 max-w-lg text-center">
-      <div className="py-6">
-        <h1 className="text-[20px] font-bold">Construis ton premier SaaS</h1>
-        <p className="mt-1 text-[13.5px] text-[#616161]">Pars d'un SaaS qui marche déjà, et lance ta version à la hauteur de tes concurrents.</p>
-        <div className="mt-5 grid gap-2 text-left">
-          <NavLink to="/explorer/connecteur" className="rounded-xl bg-[#303030] px-4 py-3 text-white hover:bg-[#1A1A1A]"><span className="block text-[14px] font-semibold">Construire avec mon IA</span><span className="block text-[12.5px] text-white/75">Ton Claude ou ton ChatGPT construit avec Bingoo!, écran par écran, sans limite.</span></NavLink>
-          <NavLink to="/explorer/trouver" className="rounded-xl border border-[#E3E3E3] px-4 py-3 hover:bg-[#FAFAFA]"><span className="block text-[14px] font-semibold">Bingoo! le construit pour moi</span><span className="block text-[12.5px] text-[#616161]">Pas d'IA à toi ? Choisis un SaaS, Bingoo! construit ta version en quelques minutes.</span></NavLink>
+    <Carte className="mx-auto mt-10 max-w-2xl">
+      <div className="py-4">
+        <h1 className="text-center text-[22px] font-bold">Qu'est-ce qu'on construit ?</h1>
+        <p className="mt-1 text-center text-[14px] text-[#616161]">Décris ton idée en une phrase. Bingoo! te montre l'aperçu, puis le construit, le teste et le met en ligne.</p>
+        <form onSubmit={lancer} className="mt-5 rounded-2xl border border-[#E3E3E3] bg-white p-3">
+          <label htmlFor="idee-espace" className="sr-only">Ton idée</label>
+          <textarea id="idee-espace" value={texte} onChange={(e) => setTexte(e.target.value)} rows={3} maxLength={300} placeholder={type === "site" ? "Un site pour mon salon de coiffure à Lyon" : type === "outil" ? "Un convertisseur de devises" : type === "video" ? "Une vidéo pour présenter mon activité" : "Un logiciel de réservation pour les coiffeurs"}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) lancer(e); }} className="w-full resize-none bg-transparent px-1 text-[16px] outline-none placeholder:text-[#9B9B9B]" />
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {TYPES_IDEE.map(([k, l]) => <button key={k} type="button" aria-pressed={type === k} onClick={() => setChoix(k)} className={cx("rounded-full border px-3 py-1.5 text-[13.5px] font-semibold", type === k ? "border-[#1A1A1A] bg-[#1A1A1A] text-white" : "border-[#E3E3E3] bg-white text-[#303030] hover:bg-[#FAFAFA]")}>{l}</button>)}
+            <button type="submit" disabled={texte.trim().length < 4} className="ml-auto rounded-full bg-[#E8571C] px-4 py-2 text-[14px] font-semibold text-white hover:brightness-110 disabled:opacity-50">Voir l'aperçu →</button>
+          </div>
+          {!texte && <div className="mt-3 flex flex-wrap gap-1.5 border-t border-black/[.06] pt-3">{(EXEMPLES_IDEE[type] ?? []).map((x) => <button key={x} type="button" onClick={() => setTexte(x)} className="rounded-full bg-[#F4F4F4] px-3 py-1.5 text-[13px] text-[#303030] hover:bg-[#ECECEC]">{x}</button>)}</div>}
+        </form>
+        <p className="mt-5 text-[12.5px] font-semibold uppercase tracking-wider text-[#8A8A8A]">Ou autrement</p>
+        <div className="mt-2 grid gap-2 text-left sm:grid-cols-2">
+          <NavLink to="/explorer/trouver" className="rounded-xl border border-[#E3E3E3] px-4 py-3 hover:bg-[#FAFAFA]"><span className="block text-[14px] font-semibold">Partir d'un SaaS qui marche déjà</span><span className="block text-[12.5px] text-[#616161]">Choisis un logiciel qui gagne de l'argent, Bingoo! construit ta version.</span></NavLink>
+          <NavLink to="/explorer/connecteur" className="rounded-xl border border-[#E3E3E3] px-4 py-3 hover:bg-[#FAFAFA]"><span className="block text-[14px] font-semibold">Construire avec mon IA</span><span className="block text-[12.5px] text-[#616161]">Ton Claude ou ton ChatGPT construit avec Bingoo!, écran par écran.</span></NavLink>
         </div>
       </div>
     </Carte>
