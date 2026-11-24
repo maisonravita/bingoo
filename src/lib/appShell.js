@@ -244,7 +244,8 @@ const lisible = (() => {
     for (const el of els) {
       if (n > 600) break;
           // Boutons et liens compris (« Tout voir », « + Plage ») : s'ils changent d'état, la correction est refaite (voir plus bas)
-      if (!el.firstChild || el.dataset.lisible === "1" || el.closest("svg, select, input, textarea")) continue;
+      // Jamais dans un bouton à état (onglet, segment choisi) : sa couleur change avec son état et ne doit pas être figée
+      if (!el.firstChild || el.dataset.lisible === "1" || el.closest("svg, select, input, textarea, [role=tab], [aria-pressed], [aria-selected], [aria-current]")) continue;
       let texte = false; for (const k of el.childNodes) if (k.nodeType === 3 && k.textContent.trim().length > 1) { texte = true; break; }
       if (!texte) continue; n++;
       const cs = getComputedStyle(el), c = num(cs.color); if (!c || c[3] < 0.5) continue;
