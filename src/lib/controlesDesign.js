@@ -138,8 +138,12 @@ export function controlesDesign(zone, page = false, lint = null) {
     const H = innerHeight, pas = 8, occupe = new Set();
     for (const el of tous) { if (!el.matches("h1,h2,h3,h4,p,li,a,button,img,svg,input,textarea,select,video,canvas,picture") && ![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()) && !/url\(/.test(getComputedStyle(el).backgroundImage)) continue; /* une photo en fond (en-tête plein cadre) n'est pas du vide */ const r = el.getBoundingClientRect(); for (let y = Math.max(0, Math.floor((r.top + scrollY) / pas)); y <= Math.floor((r.bottom + scrollY) / pas); y++) occupe.add(y); }
     /* seulement la hauteur de la page contrôlée (pas ce que la vérification ajoute autour) */ const rz = zone.getBoundingClientRect(), debutZ = Math.floor((rz.top + scrollY) / pas), fin = Math.floor((rz.bottom + scrollY) / pas); let vide = 0, max = 0;
-    for (let y = debutZ; y < fin; y++) { if (occupe.has(y)) vide = 0; else { vide++; max = Math.max(max, vide); } }
-    if (max * pas > 0.5 * H) pbs.push("Zone vide de " + Math.round(max * pas) + " px (plus de la moitié de l'écran).");
+    let finVide = 0; for (let y = debutZ; y < fin; y++) { if (occupe.has(y)) vide = 0; else { vide++; if (vide > max) { max = vide; finVide = y; } } }
+    if (max * pas > 0.5 * H) {
+      /* où est le trou : ce qui le précède, pour que la réparation sache quoi resserrer */ const yv = (finVide - max) * pas; let avant = null, avY = -1;
+      for (const el of tous) { const b = el.getBoundingClientRect().bottom + scrollY; if (b <= yv + pas && b > avY && court(el)) { avant = el; avY = b; } }
+      pbs.push("Zone vide de " + Math.round(max * pas) + " px (plus de la moitié de l'écran)" + (avant ? ", juste après « " + court(avant) + " »" : "") + " [écran " + innerWidth + "×" + H + "].");
+    }
   }
 
   // Textes en français (mêmes règles que le plan)
