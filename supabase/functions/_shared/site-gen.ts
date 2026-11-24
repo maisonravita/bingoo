@@ -217,12 +217,12 @@ Horaires affichés : ${JSON.stringify(spec.demo?.horaires ?? []).slice(0, 400)}
 Texte de la page, section par section :
 ${contenu}
 
-Relis comme le client de ce métier. Repère AU PLUS 2 vraies incohérences, seulement si elles sont nettes : vocabulaire d'un autre métier (« prestation », « rendez-vous », « sur devis » pour un hôtel par exemple), affirmation absurde pour ce métier, ou chose essentielle demandée par le membre absente de la page. Ignore le style et les détails.
+Relis comme le client de ce métier. Repère AU PLUS 2 vraies incohérences, seulement si elles sont nettes : vocabulaire d'un autre métier (« prestation », « rendez-vous », « sur devis » pour un hôtel par exemple), affirmation absurde pour ce métier, ou fonction demandée par le membre absente de la page. Ignore le style et les détails. Une information que le membre n'a PAS donnée (adresse, heures d'arrivée, prix, téléphone…) n'est PAS un problème : ne demande JAMAIS de l'ajouter, et la correction ne doit contenir AUCUN fait, chiffre ou horaire absent de la demande.
 JSON : { "problemes": [ { "section": "l'id entre crochets", "quoi": "le problème en une phrase", "correction": "ce qu'il faut écrire à la place, en une ou deux phrases" } ] } (liste vide si tout est cohérent)`, { fast: true, maxTokens: 700 }).catch(() => null);
   const ids = new Set(page.sections.map((s) => s.id));
   const pbs = (Array.isArray(r?.problemes) ? r.problemes : []).filter((p: any) => ids.has(String(p?.section)) && String(p?.section) !== "nav").slice(0, 2);
   if (!pbs.length) return { problemes: [], faits: [] };
   // Les sections touchées sont différentes : réécrites en parallèle (temps de construction tenu)
-  const res = await Promise.all(pbs.map((p: any) => retoucherPage(spec, [{ action: "modifier", id: String(p.section), consigne: `Corrige ce défaut de sens : ${String(p.quoi).slice(0, 300)} À la place : ${String(p.correction).slice(0, 400)} Garde tout le reste de la section à l'identique.` }]).catch(() => ({ faits: [], rates: [] }))));
+  const res = await Promise.all(pbs.map((p: any) => retoucherPage(spec, [{ action: "modifier", id: String(p.section), consigne: `Corrige ce défaut de sens : ${String(p.quoi).slice(0, 300)} À la place : ${String(p.correction).slice(0, 400)} N'ajoute AUCUN fait, chiffre, horaire, adresse ou prix qui ne soit pas dans la demande du membre. Garde tout le reste de la section à l'identique.` }]).catch(() => ({ faits: [], rates: [] }))));
   return { problemes: pbs.map((p: any) => `${p.section} : ${String(p.quoi).slice(0, 200)}`), faits: res.flatMap((x) => x.faits) };
 }
