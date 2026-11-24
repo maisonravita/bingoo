@@ -1126,6 +1126,33 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     if (b.quoi === "ab-resultats") return await o.appAbResultats(app.id);
     if (b.quoi === "lancement-fait") return await o.appLancementFait(app.id, String(b.cle ?? ""), !!b.fait);
     if (b.quoi === "jumeau") { await quota(ws.id, "jumeau", 5); await log(ws.id, "jumeau", "Vérification du jumeau"); setAi({ ws: ws.id, live: true, feature: "construire/jumeau" }); return await o.appJumeau(app.id); }
+    // Sites de plusieurs pages : ajouter une page (écrite par l'IA dans le style du site), la renommer, la supprimer
+    if (["page-ajouter", "page-supprimer", "page-renommer"].includes(b.quoi)) {
+      const { data: a0 } = await admin.from("saas_apps").select("spec, version").eq("id", app.id).single();
+      const spec = structuredClone(a0?.spec ?? {}) as any;
+      if (!spec.site?.page?.sections?.length) throw new HttpError(400, "Les pages supplémentaires sont disponibles sur les sites récents (page écrite par le nouveau moteur)");
+      const pages: any[] = Array.isArray(spec.site.pages) ? spec.site.pages : [];
+      if (b.quoi === "page-ajouter") {
+        const titre = String(b.titre ?? "").replace(/\s+/g, " ").trim().slice(0, 40), consigne = String(b.consigne ?? "").trim().slice(0, 1000);
+        if (titre.length < 2) throw new HttpError(400, "Donne un titre à la page (« À propos », « Tarifs »…)");
+        if (consigne.length < 10) throw new HttpError(400, "Dis en une ou deux phrases ce que la page doit contenir");
+        if (pages.length >= 8) throw new HttpError(400, "8 pages supplémentaires au plus");
+        if (ws.plan === "essai") throw new HttpError(402, "Les pages supplémentaires font partie des offres Site et Lancer");
+        await quota(ws.id, "page_site", 10);
+        setAi({ ws: ws.id, live: true, feature: "construire/page" });
+        const { ecrirePageSite } = await import("../_shared/site-gen.ts");
+        let pg; try { pg = await ecrirePageSite(spec, titre, consigne); } catch (x) { throw new HttpError(502, (x as Error).message); }
+        if (pages.some((x) => x.slug === pg.slug)) pg.slug = `${pg.slug}-${pages.length + 1}`;
+        spec.site.pages = [...pages, pg];
+        await log(ws.id, "page_site", `Page ajoutée : ${titre}`);
+      } else if (b.quoi === "page-renommer") {
+        const titre = String(b.titre ?? "").replace(/\s+/g, " ").trim().slice(0, 40);
+        if (titre.length < 2) throw new HttpError(400, "Titre trop court");
+        spec.site.pages = pages.map((x) => (x.slug === String(b.slug) ? { ...x, titre } : x));
+      } else spec.site.pages = pages.filter((x) => x.slug !== String(b.slug));
+      await admin.from("saas_apps").update({ spec, version: (a0?.version ?? 0) + 1, maj: new Date().toISOString() }).eq("id", app.id);
+      return { pages: spec.site.pages.map((x: any) => ({ slug: x.slug, titre: x.titre })) };
+    }
     // Blog du site ou du SaaS : le membre écrit ses articles (l'IA rédige à partir d'un sujet), lus par Google sur /a/<app>/<article> et /blog
     if (["article-ecrire", "article-modifier", "article-supprimer"].includes(b.quoi)) {
       const { data: a0 } = await admin.from("saas_apps").select("lancement, spec").eq("id", app.id).single();

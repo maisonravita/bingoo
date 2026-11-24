@@ -557,7 +557,7 @@ function Video({ m }) {
 }
 
 // ---------------------------------------------------------------- Réglages du SaaS, rangés comme les paramètres de Shopify
-const SECTIONS = [["encaisser", "Paiements", "stripe"], ["blog", "Blog", null], ["domaine", "Nom de domaine", "domaine"], ["connecteurs", "Connecteurs", null], ["emails", "E-mails", null], ["ia", "Assistant IA", null], ["prix", "Prix testés", null], ["lancement", "Kit de lancement", null], ["croissance", "Croissance", null], ["jumeau", "Nouveautés du modèle", null], ["monde", "Visibilité et revente", null], ["mobile", "Application mobile", null], ["versions", "Versions", null], ["code", "Code source", null]];
+const SECTIONS = [["encaisser", "Paiements", "stripe"], ["blog", "Blog", null], ["pages", "Pages", null], ["domaine", "Nom de domaine", "domaine"], ["connecteurs", "Connecteurs", null], ["emails", "E-mails", null], ["ia", "Assistant IA", null], ["prix", "Prix testés", null], ["lancement", "Kit de lancement", null], ["croissance", "Croissance", null], ["jumeau", "Nouveautés du modèle", null], ["monde", "Visibilité et revente", null], ["mobile", "Application mobile", null], ["versions", "Versions", null], ["code", "Code source", null]];
 function Reglages({ m, charger }) {
   const loc = useLocation();
   const nav = useNavigate();

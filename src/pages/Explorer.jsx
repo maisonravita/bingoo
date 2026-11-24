@@ -1823,7 +1823,7 @@ function Construire({ projet }) {
 }
 
 // Réglages d'un SaaS construit, par onglets : jumeau, lancement, encaissement, prix testés, e-mails, domaine, monde et bourse, code
-export const ONGLETS_APP = [["croissance", "Croissance"], ["versions", "Versions"], ["ia", "Assistant IA"], ["jumeau", "Jumeau"], ["lancement", "Lancement"], ["blog", "Blog"], ["encaisser", "Encaisser"], ["prix", "Prix testés"], ["emails", "E-mails"], ["domaine", "Domaine"], ["connecteurs", "Connecteurs"], ["monde", "Monde et bourse"], ["mobile", "Mobile"], ["code", "Code"]];
+export const ONGLETS_APP = [["croissance", "Croissance"], ["versions", "Versions"], ["ia", "Assistant IA"], ["jumeau", "Jumeau"], ["lancement", "Lancement"], ["blog", "Blog"], ["pages", "Pages"], ["encaisser", "Encaisser"], ["prix", "Prix testés"], ["emails", "E-mails"], ["domaine", "Domaine"], ["connecteurs", "Connecteurs"], ["monde", "Monde et bourse"], ["mobile", "Mobile"], ["code", "Code"]];
 // ---------------------------------------------------------------- Plan de croissance : tes vrais chiffres, les paliers, et ce qui fait grandir le SaaS copié
 const PALIERS = [1000, 10000, 100000];
 const CANAL_ACTION = {
@@ -1937,6 +1937,7 @@ export function ReglagesApp({ app, onChange, projet, initial, nu = false, onglet
       {o === "jumeau" && <OngletJumeau {...props} />}
       {o === "lancement" && <OngletLancement {...props} />}
       {o === "blog" && <OngletBlog {...props} />}
+      {o === "pages" && <OngletPages {...props} />}
       {o === "encaisser" && <OngletEncaisser {...props} />}
       {o === "prix" && <OngletPrix {...props} />}
       {o === "emails" && <OngletEmails {...props} />}
@@ -1963,6 +1964,7 @@ export function ReglagesApp({ app, onChange, projet, initial, nu = false, onglet
         {onglet === "jumeau" && <OngletJumeau {...props} />}
         {onglet === "lancement" && <OngletLancement {...props} />}
         {onglet === "blog" && <OngletBlog {...props} />}
+        {onglet === "pages" && <OngletPages {...props} />}
         {onglet === "encaisser" && <OngletEncaisser {...props} />}
         {onglet === "prix" && <OngletPrix {...props} />}
         {onglet === "emails" && <OngletEmails {...props} />}
@@ -2100,6 +2102,34 @@ function OngletBlog({ app, appel, onChange }) {
             <div className="flex gap-1.5 text-[13px] font-semibold"><a href={`${blog}${a.slug}`} target="_blank" rel="noreferrer" className="rounded-lg px-2.5 py-1.5 hover:bg-black/5">Voir</a><button onClick={() => setEdit({ slug: a.slug, titre: a.titre, resume: a.resume ?? "", contenu: a.contenu ?? "" })} className="rounded-lg px-2.5 py-1.5 hover:bg-black/5">Modifier</button><button onClick={() => retirer(a.slug)} className="rounded-lg px-2.5 py-1.5 text-[#B42318] hover:bg-black/5">Supprimer</button></div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// Pages : un site de plusieurs pages. Le membre donne un titre et ce qu'il veut y mettre ; Bingoo! écrit la page dans le
+// style du site et l'ajoute au menu. L'accueil garde l'en-tête et le pied de page, partagés par toutes les pages.
+function OngletPages({ app, appel, onChange }) {
+  const toast = useToast();
+  const moteur = app.spec?.site?.page?.sections?.length > 0;
+  const [pages, setPages] = useState((app.spec?.site?.pages ?? []).map((x) => ({ slug: x.slug, titre: x.titre })));
+  const [titre, setTitre] = useState(""), [consigne, setConsigne] = useState(""), [busy, setBusy] = useState(false);
+  const IDEES = [["À propos", "Qui je suis, mon parcours et ma façon de travailler"], ["Tarifs", "Mes tarifs et ce qui est compris"], ["Réalisations", "Mes derniers travaux, avec quelques mots sur chacun"], ["Mariages", "Ce que je propose pour les mariages et comment ça se passe"]];
+  const ajouter = async () => { setBusy(true); try { const r = await appel("page-ajouter", { titre: titre.trim(), consigne: consigne.trim() }); setPages(r.pages); setTitre(""); setConsigne(""); toast("Page écrite et ajoutée au menu"); onChange?.(); } catch (x) { toast(x.message, "bad"); } finally { setBusy(false); } };
+  const retirer = async (slug) => { if (!window.confirm("Supprimer cette page ? Elle disparaît du menu.")) return; try { const r = await appel("page-supprimer", { slug }); setPages(r.pages); onChange?.(); } catch (x) { toast(x.message, "bad"); } };
+  if (!moteur) return <Explication>Les pages supplémentaires sont disponibles sur les sites récents. Demande à l'atelier d'ajouter une section à ta page en attendant.</Explication>;
+  return (
+    <div className="space-y-5">
+      <Explication>Ajoute des pages à ton site : « À propos », « Tarifs », « Réalisations »… Donne un titre et dis ce que tu veux y mettre : Bingoo! écrit la page dans le style de ton site (sans rien inventer sur toi) et l'ajoute au menu. 8 pages au plus.</Explication>
+      <div className="flex flex-wrap gap-1.5">{IDEES.map(([t, c]) => <button key={t} type="button" onClick={() => { setTitre(t); setConsigne(c); }} className="rounded-full border border-black/10 bg-white px-3 py-1.5 text-[13px] font-semibold text-[#1A1A1A]">{t}</button>)}</div>
+      <div className="space-y-2">
+        <input value={titre} onChange={(e) => setTitre(e.target.value)} maxLength={40} placeholder="Titre de la page (ex. À propos)" aria-label="Titre de la page" className="w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-[14px] text-[#1A1A1A] outline-none" />
+        <textarea value={consigne} onChange={(e) => setConsigne(e.target.value)} rows={4} maxLength={1000} placeholder="Ce que la page doit contenir. Donne les vrais faits : ton parcours, tes prix, tes diplômes… Bingoo! n'invente rien." aria-label="Contenu voulu" className="w-full rounded-xl border border-black/10 bg-white px-3 py-2.5 text-[14px] text-[#1A1A1A] outline-none" />
+        <button onClick={ajouter} disabled={busy || titre.trim().length < 2 || consigne.trim().length < 10} className="rounded-xl bg-[#E8571C] px-4 py-2.5 text-[14px] font-semibold text-white disabled:opacity-40">{busy ? "Écriture de la page… (1 minute environ)" : "Écrire la page"}</button>
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between rounded-xl border border-black/10 bg-white px-3 py-2.5 text-[#1A1A1A]"><p className="text-[14.5px] font-semibold">Accueil</p><span className="text-[12.5px] opacity-60">page principale</span></div>
+        {pages.map((x) => <div key={x.slug} className="flex items-center justify-between gap-2 rounded-xl border border-black/10 bg-white px-3 py-2.5 text-[#1A1A1A]"><p className="truncate text-[14.5px] font-semibold">{x.titre}</p><button onClick={() => retirer(x.slug)} className="rounded-lg px-2.5 py-1.5 text-[13px] font-semibold text-[#B42318] hover:bg-black/5">Supprimer</button></div>)}
       </div>
     </div>
   );
