@@ -501,6 +501,38 @@ if (CONSTRUIRE === "gratuit-ia") {
   const v = await appel("video-creer", { workspace_id: wsG, texte: "Une pub pour ma boulangerie", format: "vertical" }); console.log(!v.ok ? `✓ vidéo IA refusée (${v.status})` : "✗ vidéo créée en gratuit");
   const [d] = await q(`select coalesce(sum(cost_eur), 0)::float c from ai_usage where workspace_id = ${lit(wsG)}`); console.log(d.c <= 0.02 ? `✓ coût IA de ce compte gratuit : ${(d.c * 100).toFixed(2)} centime(s)` : `✗ coût : ${(d.c * 100).toFixed(2)} centimes`);
 }
+if (CONSTRUIRE === "brouillon") {
+  // Mode brouillon : on l'active, on modifie, les visiteurs gardent l'ancienne version, puis « Publier mes changements »
+  const [a] = await q(`select a.id, a.slug, a.workspace_id, a.spec->'design'->'couleurs'->>'primary' prim, a.spec->'design'->'couleurs'->>'on_primary' onp, a.spec->>'couleur' couleur from saas_apps a join workspaces w on w.id = a.workspace_id where w.name like 'Robot film%' and a.statut = 'pret' and a.spec->'site'->'page'->'sections' is not null order by a.maj desc limit 1`);
+  const etat = async (quand) => { const [e] = await q(`select spec->'design'->'couleurs'->>'primary' atelier, saas_app_public(slug)->'spec'->'design'->'couleurs'->>'primary' visiteurs, publie is not null brouillon from saas_apps where id = ${lit(a.id)}`); console.log(`${quand} · couleur dans l'atelier ${e.atelier} · vue par les visiteurs ${e.visiteurs} · mode brouillon ${e.brouillon ? "oui" : "non"}`); return e; };
+  const { ctx: c, page: p } = await ouvrir(a.workspace_id, { "bingoo-guide": "fini" });
+  await p.goto(`${SITE}/?c=${Date.now()}#/explorer/atelier`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(9000);
+  await etat("Départ");
+  await p.getByRole("button", { name: "Publié · Partager" }).click().catch((e) => console.log("✗ bouton Partager", e.message.slice(0, 80))); await p.waitForTimeout(1000);
+  await p.getByRole("checkbox").first().check().catch((e) => console.log("✗ case brouillon", e.message.slice(0, 80))); await p.waitForTimeout(5000);
+  await p.screenshot({ path: `${DOSSIER}/brouillon-1-active.png` });
+  await p.keyboard.press("Escape"); await p.getByRole("button", { name: "Partager", exact: true }).click().catch(() => null); await p.waitForTimeout(600);
+  await p.getByRole("button", { name: "Aa Style" }).first().click().catch((e) => console.log("✗ Style", e.message.slice(0, 80))); await p.waitForTimeout(1200);
+  await p.getByRole("button", { name: "Couleur #1D4ED8" }).click().catch((e) => console.log("✗ pastille", e.message.slice(0, 80))); await p.waitForTimeout(1500);
+  await p.getByRole("button", { name: /Garder ce style/ }).click().catch((e) => console.log("✗ garder", e.message.slice(0, 80))); await p.waitForTimeout(9000);
+  const e1 = await etat("Après la modification");
+  console.log(e1.atelier !== e1.visiteurs ? "✓ les visiteurs gardent la version publiée" : "✗ la modification est partie en ligne");
+  await p.screenshot({ path: `${DOSSIER}/brouillon-2-a-publier.png` });
+  { const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p2 = await c2.newPage(); await p2.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p2.waitForTimeout(6000); await p2.screenshot({ path: `${DOSSIER}/brouillon-3-visiteur-avant.png` }); await c2.close(); }
+  await p.getByRole("button", { name: "Publier mes changements" }).click().catch((e) => console.log("✗ Publier", e.message.slice(0, 80))); await p.waitForTimeout(6000);
+  const e2 = await etat("Après « Publier »");
+  console.log(e2.atelier === e2.visiteurs ? "✓ publié : les visiteurs voient la nouvelle version" : "✗ pas publié");
+  await p.screenshot({ path: `${DOSSIER}/brouillon-4-publie.png` });
+  { const c2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p2 = await c2.newPage(); await p2.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p2.waitForTimeout(6000); await p2.screenshot({ path: `${DOSSIER}/brouillon-5-visiteur-apres.png` }); await c2.close(); }
+  // Remise en état du site de test : couleur d'origine, mode brouillon éteint
+  await q(`update saas_apps set publie = null, spec = jsonb_set(jsonb_set(jsonb_set(spec, '{design,couleurs,primary}', to_jsonb(${lit(a.prim)}::text)), '{design,couleurs,on_primary}', to_jsonb(${lit(a.onp ?? "#FFFFFF")}::text)), '{couleur}', to_jsonb(${lit(a.couleur ?? a.prim)}::text)) where id = ${lit(a.id)}`);
+  await etat("Remis en état");
+  // Onglet Référencement
+  await p.goto(`${SITE}/?c=${Date.now()}#/explorer/mon-saas/reglages?onglet=seo`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(7000);
+  console.log("onglet Référencement :", (await p.getByText(/points? sur \d+ en place/).count().catch(() => 0)) ? "✓ affiché" : "✗ absent", "· URL", p.url().slice(-50));
+  await p.screenshot({ path: `${DOSSIER}/referencement.png`, fullPage: true });
+  await c.close();
+}
 if (CONSTRUIRE === "style-outil") {
   // 1. Accueil : une idée d'outil écrite par un visiteur choisit toute seule le raccourci « Un outil ou un jeu »
   { const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await c.newPage();
@@ -910,7 +942,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
