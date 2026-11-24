@@ -91,9 +91,10 @@ for (const a of apps) {
     // Diagnostic des zones vides (debug=vide) : capture pleine page et ce qui se trouve dans la plus grande bande vide
     if (process.env.DEBUG_TEXTE === "vide") for (const largeur of [1280, 390]) {
       try {
-        page = appHtml({ spec: a.spec, slug: a.slug, api: "https://exemple.invalid/api", verif: "public" });
-        const ctx = await browser.newContext({ viewport: { width: largeur, height: largeur > 800 ? 800 : 800 }, locale: "fr-FR" }); const p = await ctx.newPage();
-        await p.goto(`http://localhost:${port}/`, { waitUntil: "domcontentloaded", timeout: 60000 }); await p.waitForFunction(() => document.querySelector("h1"), null, { timeout: 20000 }).catch(() => null); await p.waitForTimeout(1300);
+        // La page telle qu'un visiteur la voit (sans le mode vérification, qui passe à la suite au bout de 1,6 s)
+        page = appHtml({ spec: a.spec, slug: a.slug, api: "https://exemple.invalid/api" });
+        const ctx = await browser.newContext({ viewport: { width: largeur, height: 800 }, locale: "fr-FR" }); const p = await ctx.newPage();
+        await p.goto(`http://localhost:${port}/`, { waitUntil: "domcontentloaded", timeout: 60000 }); await p.waitForFunction(() => document.querySelector("h1"), null, { timeout: 20000 }).catch(() => null); await p.waitForTimeout(1600);
         fs.mkdirSync("/tmp/vide", { recursive: true }); await p.screenshot({ path: `/tmp/vide/${a.slug}-${largeur}.png`, fullPage: true });
         const d = await p.evaluate(() => {
           const vis = (el) => { const r = el.getBoundingClientRect(), cs = getComputedStyle(el); return r.width > 1 && r.height > 1 && cs.visibility !== "hidden" && cs.display !== "none" && Number(cs.opacity) > 0.05; };
