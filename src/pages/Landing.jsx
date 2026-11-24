@@ -268,7 +268,7 @@ function Vitrine({ choisir }) {
     <section className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden pt-12 pb-4 text-left" aria-label="SaaS construits avec Bingoo!">
       <style>{"@keyframes vitrine{from{transform:translateX(0)}to{transform:translateX(-50%)}}@media (prefers-reduced-motion:reduce){.vitrine-rang{animation:none!important}}.vitrine-bande:hover .vitrine-rang{animation-play-state:paused}"}</style>
       <p className="text-center text-[13px] font-semibold uppercase tracking-[.16em] text-[#5B6075]" style={JK}>Construits avec Bingoo!</p>
-      <h2 className="mx-auto mt-2 max-w-[760px] px-4 text-center text-[24px] sm:text-[32px] font-bold leading-tight text-[#1E2030]" style={JK}>De vrais SaaS et sites, en ligne, pour tous les métiers</h2>
+      <h2 className="mx-auto mt-2 max-w-[760px] px-4 text-center text-[24px] sm:text-[32px] font-bold leading-tight text-[#1E2030]" style={JK}>De vrais SaaS, sites, outils et jeux, déjà en ligne</h2>
       <p className="mx-auto mt-2 max-w-[640px] px-4 text-center text-[15px] text-[#5B6075]" style={JK}>Clique sur celui qui ressemble à ton projet : Bingoo! part de là et l'adapte à toi.</p>
       <div className="vitrine-bande mt-7 space-y-4 [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]">
         {rangee(VITRINE.slice(0, 9), 1)}
