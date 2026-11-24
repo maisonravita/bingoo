@@ -93,7 +93,7 @@ for (const a of apps) {
       try {
         // La page telle qu'un visiteur la voit (sans le mode vérification, qui passe à la suite au bout de 1,6 s)
         page = appHtml({ spec: a.spec, slug: a.slug, api: "https://exemple.invalid/api" });
-        const ctx = await browser.newContext({ viewport: { width: largeur, height: 800 }, locale: "fr-FR" }); const p = await ctx.newPage();
+        const ctx = await browser.newContext({ viewport: { width: largeur, height: largeur > 800 ? 900 : 800 }, locale: "fr-FR" }); const p = await ctx.newPage();
         await p.goto(`http://localhost:${port}/`, { waitUntil: "domcontentloaded", timeout: 60000 }); await p.waitForFunction(() => document.querySelector("h1"), null, { timeout: 20000 }).catch(() => null); await p.waitForTimeout(1600);
         fs.mkdirSync("/tmp/vide", { recursive: true }); await p.screenshot({ path: `/tmp/vide/${a.slug}-${largeur}.png`, fullPage: true });
         const d = await p.evaluate(() => {
