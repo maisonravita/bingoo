@@ -802,7 +802,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
 
         {/* L'aperçu */}
         <section className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
-          <div className="mb-2.5 flex items-center gap-2">
+          <div className="mb-2.5 flex flex-wrap items-center gap-2">
             <div className="flex rounded-lg border border-line bg-white p-0.5 text-[12.5px] font-semibold">
               {[["ordi", "Ordinateur"], ["tel", "Téléphone"]].map(([k, l]) => <button key={k} onClick={() => setVue(k)} className={cx("rounded-md px-2.5 py-1", vue === k ? "bg-ink text-white" : "text-ink-soft")}>{l}</button>)}
             </div>
@@ -817,7 +817,7 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                 {versions.length ? versions.map((v) => <button key={v.version} onClick={() => restaurer(v.version)} disabled={occupe} className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-[12.5px] hover:bg-[#F7F5F1]"><span>Version {v.version}</span><span className="text-ink-faint">{new Date(v.at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span></button>) : <p className="px-2.5 py-2 text-[12.5px] text-ink-faint">Pas encore d'ancienne version.</p>}
               </div>}
             </div>
-            <div className="min-w-0 flex-1 truncate rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] text-ink-faint">{outil === "texte" ? "Clique sur un texte de l'aperçu pour le modifier" : outil === "pointer" ? "Clique sur un élément de l'aperçu pour le sélectionner" : outil === "commenter" ? "Clique sur un élément pour y épingler une remarque" : outil === "sections" ? "Attrape « ⠿ Glisser » et dépose la section où tu veux (ou ↑ ↓)" : outil === "image" ? "Clique sur une image de l'aperçu pour la remplacer par la tienne" : outil === "police" ? "Choisis une police : l'aperçu change tout de suite" : fini ? lien.replace(/^https?:\/\//, "") : "Aperçu en construction…"}</div>
+            <div className="min-w-[160px] flex-1 truncate rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] text-ink-faint">{outil === "texte" ? "Clique sur un texte de l'aperçu pour le modifier" : outil === "pointer" ? "Clique sur un élément de l'aperçu pour le sélectionner" : outil === "commenter" ? "Clique sur un élément pour y épingler une remarque" : outil === "sections" ? "Attrape « ⠿ Glisser » et dépose la section où tu veux (ou ↑ ↓)" : outil === "image" ? "Clique sur une image de l'aperçu pour la remplacer par la tienne" : outil === "police" ? "Choisis une police : l'aperçu change tout de suite" : fini ? lien.replace(/^https?:\/\//, "") : "Aperçu en construction…"}</div>
             <button onClick={() => setCle((k) => k + 1)} disabled={!fini} aria-label="Recharger l'aperçu" className="grid h-8 w-8 place-items-center rounded-lg border border-line bg-white text-ink-soft hover:text-ink disabled:opacity-40">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" /></svg>
             </button>

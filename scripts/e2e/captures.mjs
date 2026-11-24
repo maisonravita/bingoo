@@ -324,7 +324,7 @@ if (CONSTRUIRE === "edition-directe") {
   // 2. Image : clic sur la première image, une photo de test choisie
   await outil("▣ Image");
   await cadre().locator("main").first().evaluate(() => window.scrollTo(0, 0)).catch(() => null); await p.waitForTimeout(800);
-  const img = cadre().locator("main img").first(); const bi = await img.boundingBox().catch(() => null);
+  const img = cadre().locator("main img").first(); await img.scrollIntoViewIfNeeded().catch(() => null); await p.waitForTimeout(800); const bi = await img.boundingBox().catch(() => null);
   if (bi) {
     const fc = p.waitForEvent("filechooser", { timeout: 15000 }).catch(() => null);
     await p.mouse.click(bi.x + bi.width / 2, bi.y + bi.height / 2); await p.waitForTimeout(1200);
