@@ -535,12 +535,14 @@ if (CONSTRUIRE === "video-images") {
   // dans le dossier de captures (ce sont des images faites par Bingoo!, aucune donnée privée)
   const appel = async (route, corps) => { const r = await fetch(`${SB}/functions/v1/r/${route}`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify(corps) }); const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch { /* texte */ } return { ok: r.ok, j, t: t.slice(0, 200) }; };
   const wsV = await creerEspace("Robot vidéos " + new Date().toISOString().slice(0, 16)); await q(`update workspaces set plan = 'lancer_pro', plan_status = 'active', onboarded = true where id = ${lit(wsV)}`);
-  const idee = /\s/.test(process.env.IDEE ?? "") ? process.env.IDEE : "Une pub pour ma boulangerie artisanale à Rennes : baguettes, croissants et pains au levain, sortis du four chaque matin";
-  const r = await appel("video-creer", { workspace_id: wsV, texte: idee, format: "vertical" });
-  const sc = r.j?.script ?? null, ims = Object.entries(sc?.images ?? {});
-  console.log(r.ok && sc ? `✓ scénario : allure ${sc.look}, ${sc.scenes?.length} scènes : ${sc.scenes?.map((x) => x.type).join(" › ")}` : `✗ ${r.t}`);
-  console.log("images de la vidéo :", ims.length ? `✓ ${ims.length} (${ims.map(([k, v]) => `${k} ${v.source}`).join(", ")})` : "✗ aucune");
-  if (sc) { const fs2 = await import("node:fs"); fs2.writeFileSync(`${DOSSIER}/video-script.json`, JSON.stringify(sc)); for (const [k, v] of ims) { const b = await fetch(v.url).then((x) => x.arrayBuffer()).catch(() => null); if (b) fs2.writeFileSync(`${DOSSIER}/video-${k}.jpg`, Buffer.from(b)); } }
+  const idees = /\s/.test(process.env.IDEE ?? "") ? process.env.IDEE.split("|").map((x) => x.trim()).filter(Boolean).slice(0, 8) : ["Une pub pour ma boulangerie artisanale à Rennes : baguettes, croissants et pains au levain, sortis du four chaque matin"];
+  const fs2 = await import("node:fs");
+  for (const [n, idee] of idees.entries()) {
+    const r = await appel("video-creer", { workspace_id: wsV, texte: idee, format: "vertical" });
+    const sc = r.j?.script ?? null, ims = Object.entries(sc?.images ?? {});
+    console.log(r.ok && sc ? `✓ vidéo ${n + 1} : allure ${sc.look}, ${sc.scenes?.length} scènes : ${sc.scenes?.map((x) => x.type).join(" › ")} ; images ${ims.length}` : `✗ vidéo ${n + 1} : ${r.t}`);
+    if (sc) { fs2.writeFileSync(`${DOSSIER}/video-${n + 1}-script.json`, JSON.stringify(sc)); for (const [k, v] of ims) { const b = await fetch(v.url).then((x) => x.arrayBuffer()).catch(() => null); if (b) fs2.writeFileSync(`${DOSSIER}/video-${n + 1}-${k}.jpg`, Buffer.from(b)); } }
+  }
 }
 if (CONSTRUIRE === "galerie") {
   // Galerie : les pages publiques demandées (IDEE = slugs séparés par des virgules), vues par un visiteur, sur ordinateur et sur téléphone
