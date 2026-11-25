@@ -187,7 +187,7 @@ function scenesNettes(liste: any[], texteSource: string, titresEcrans: string[] 
     else if (type === "barres") out.push({ ...base, texte: t(36), accent: acc });
     else if (type === "pastille") { if (!t(18)) continue; out.push({ ...base, texte: t(18) }); }
     else if (type === "aplat") out.push({ ...base, texte: t(24) });
-    else if (type === "image") { const prompt = String(e?.prompt ?? "").replace(/[<>"\\]/g, "").replace(/\s+/g, " ").trim().slice(0, 220); if (prompt.length < 12) continue; out.push({ ...base, prompt, texte: t(36), accent: court2(e?.accent, 24) } as any); }
+    else if (type === "image") { const prompt = String(e?.prompt ?? "").replace(/[<>"\\]/g, "").replace(/\s+/g, " ").trim().slice(0, 220); if (prompt.length < 12) continue; out.push({ ...base, prompt, texte: t(44), accent: court2(e?.accent, 24) } as any); }
     else if (type === "logo") out.push({ ...base, texte: t(34) });
   }
   // Le logo ferme toujours la vidéo, une seule fois

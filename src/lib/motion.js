@@ -538,10 +538,10 @@ const SCENES = {
     if (e.texte) { const g = ctx.createLinearGradient(0, H * 0.6, 0, H); g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(0.55, "rgba(0,0,0,.62)"); g.addColorStop(1, "rgba(0,0,0,.86)"); ctx.fillStyle = g; ctx.fillRect(0, H * 0.6, W, H * 0.4); }
     ctx.restore();
     if (e.texte) {
-      const largeur = W * (vertical ? 0.84 : 0.6), encre = INK; INK = "#fff";
-      serre(ctx, "-0.035em"); const taille = remplit(ctx, e.texte, (vertical ? 118 : 104) * u, largeur, vertical ? 3 : 2); serre(ctx, "-0.01em");
-      motsAnimes(ctx, e.texte, e.accent, W * 0.08, H * (vertical ? 0.86 : 0.8), { taille, poids: 800, largeur, t: t - 0.3, decale: 0.08, aligne: "gauche" });
-      INK = encre;
+      const largeur = W * (vertical ? 0.84 : 0.6), encre = INK, cv = CV; INK = "#fff"; CV = C.map((v) => Math.round(v + (255 - v) * 0.3));
+      serre(ctx, "-0.035em"); const taille = remplit(ctx, e.texte, (vertical ? 118 : 104) * u, largeur * 0.94, 2); serre(ctx, "-0.01em");
+      motsAnimes(ctx, e.texte, e.accent, W * 0.08, H * (vertical ? 0.85 : 0.8), { taille, poids: 800, largeur, t: t - 0.3, decale: 0.08, aligne: "gauche" });
+      INK = encre; CV = cv;
     }
   },
   logo(ctx, s, e) {
