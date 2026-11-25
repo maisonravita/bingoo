@@ -881,12 +881,19 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       if (!data) throw new Err(404, "Élément introuvable");
       return { status: 200, body: ligne(data) };
     }
+    // Automatisations du logiciel (déclaratives) : jouées côté serveur, dans l'espace de l'utilisateur
+    const autos = async (evenement: "fiche_creee" | "fiche_modifiee", col: string, row: { id: string; data: Record<string, unknown> }, avant?: Record<string, unknown>) => {
+      const { lancerAutos } = await import("./automatisations.ts");
+      return await lancerAutos({ admin, app, evenement, col, row, avant, espace, userId: user.id, limite: LIM.rows,
+        email: async (sujet, texte, cle) => { const { mailAutomatisation } = await import("./app-mails.ts"); await mailAutomatisation(app, slug, titulaire as any, sujet, texte, cle); } });
+    };
     if (action === "add") {
       const col = colOk(b.col);
       const { count } = await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("espace_id", espace);
       if ((count ?? 0) >= LIM.rows) throw new Err(403, "Limite de données atteinte pour cet espace");
       await verifierQuota(admin, app, titulaire, espace, col);
       const { data } = await admin.from("saas_app_rows").insert({ app_id: app.id, user_id: user.id, espace_id: espace, col, data: sansCalcul(propre(b.data)) }).select("id, data, at, maj, espace_id, user_id").single();
+      if (data && ((app.spec as any)?.automatisations ?? []).length) (data as any).data = await autos("fiche_creee", col, data as any);
       if ((app as any).connexions?.liste?.length) { const { prevenir } = await import("./connexions.ts"); prevenir(admin, app as any, "fiche_creee", { id: data?.id, ...((data?.data as object) ?? {}) }, col); }
       return { status: 200, body: partagee(col) ? (await auteurs([data]))[0] : ligne(data) };
     }
@@ -895,6 +902,7 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       const { data: cur } = await rows().eq("col", col).eq("id", String(b.id)).maybeSingle();
       if (!cur) throw new Err(404, "Élément introuvable");
       const { data } = await admin.from("saas_app_rows").update({ data: sansCalcul(propre({ ...(cur.data as object), ...propre(b.data) })), maj: new Date().toISOString() }).eq("id", cur.id).select("id, data, at, maj").single();
+      if (data && ((app.spec as any)?.automatisations ?? []).length) (data as any).data = await autos("fiche_modifiee", col, data as any, cur.data as any);
       if ((app as any).connexions?.liste?.length) { const { prevenir } = await import("./connexions.ts"); prevenir(admin, app as any, "fiche_modifiee", { id: data?.id, ...((data?.data as object) ?? {}) }, col); }
       return { status: 200, body: ligne(data) };
     }

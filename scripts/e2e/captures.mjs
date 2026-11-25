@@ -493,6 +493,43 @@ if (CONSTRUIRE === "rdv-photos") {
   await q(`delete from saas_app_rows where col = 'demandes' and data->>'nom' = 'Robot rendez-vous'`); await q(`delete from saas_app_attente where col = 'demandes' and data->>'nom' = 'Robot rendez-vous'`);
   await c.close(); console.log("sites de test remis en état");
 }
+if (CONSTRUIRE === "automatisations") {
+  // Automatisations d'un logiciel, jouées par le serveur : réglées par le propriétaire, déclenchées par un utilisateur de démonstration
+  const slug = /-/.test(process.env.IDEE ?? "") ? process.env.IDEE : "changeo-5u0t";
+  const [a] = await q(`select id, slug, workspace_id from saas_apps where slug = ${lit(slug)}`);
+  const reg = async (corps) => { const r = await fetch(`${SB}/functions/v1/r/saas-app-reglages`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: a.workspace_id, app_id: a.id, ...corps }) }); return { status: r.status, j: await r.json().catch(() => ({})) }; };
+  const pose = await reg({ quoi: "automatisations", liste: [
+    { nom: "Repérer les grosses conversions", evenement: "fiche_creee", collection: "conversions", si: { champ: "montant", op: ">", valeur: "500" }, alors: [{ type: "modifier", champ: "note", valeur: "Grosse conversion" }] },
+    { nom: "Garder en favori", evenement: "fiche_modifiee", collection: "conversions", si: { champ: "note", op: "=", valeur: "favori" }, alors: [{ type: "creer", collection: "favoris", data: { devise_depart: "{{devise_depart}}", devise_arrivee: "{{devise_arrivee}}", nom_favori: "{{devise_depart}} vers {{devise_arrivee}}" } }] },
+    { nom: "Liste inconnue", evenement: "fiche_creee", collection: "pirates", alors: [{ type: "modifier", champ: "x", valeur: "y" }] },
+  ] });
+  console.log("automatisations enregistrées :", (pose.j.automatisations ?? []).length === 2 ? "✓ 2 gardées, 1 refusée (liste inconnue)" : `✗ ${pose.status} ${JSON.stringify(pose.j).slice(0, 200)}`);
+  const API = `${SB}/functions/v1/t/app/${a.slug}`;
+  const demo = await fetch(`${API}/demo`, { method: "POST", headers: { apikey: ANON, "content-type": "application/json" }, body: "{}" }).then((r) => r.json()).catch(() => ({}));
+  console.log("utilisateur de démonstration :", demo.token ? "✓" : `✗ ${JSON.stringify(demo).slice(0, 160)}`);
+  const app = async (action, corps) => { const r = await fetch(`${API}/${action}`, { method: "POST", headers: { apikey: ANON, "x-app-token": demo.token, "content-type": "application/json" }, body: JSON.stringify(corps) }); return { status: r.status, j: await r.json().catch(() => ({})) }; };
+  const fav = async () => (await app("list", { col: "favoris" })).j;
+  const avant = (await fav()).length ?? 0;
+  const g = await app("add", { col: "conversions", data: { montant: 800, devise_depart: "EUR", devise_arrivee: "USD", note: "" } });
+  console.log("création au-dessus du seuil :", JSON.stringify(g.j).includes("Grosse conversion") ? "✓ note posée par le serveur" : `✗ ${g.status} ${JSON.stringify(g.j).slice(0, 200)}`);
+  const pt = await app("add", { col: "conversions", data: { montant: 100, devise_depart: "EUR", devise_arrivee: "GBP", note: "" } });
+  console.log("création sous le seuil :", !JSON.stringify(pt.j).includes("Grosse conversion") && pt.status === 200 ? "✓ rien" : `✗ ${pt.status}`);
+  const m1 = await app("update", { col: "conversions", id: pt.j.id, data: { note: "favori" } });
+  const apres = await fav();
+  console.log("modification qui remplit la condition :", m1.status === 200 && apres.length === avant + 1 && JSON.stringify(apres).includes("EUR vers GBP") ? "✓ favori créé (« EUR vers GBP »)" : `✗ ${m1.status} ${apres.length}/${avant}`);
+  await app("update", { col: "conversions", id: pt.j.id, data: { montant: 120 } });
+  console.log("nouvelle retouche de la même fiche :", (await fav()).length === avant + 1 ? "✓ pas de second favori" : "✗ doublon");
+  const { ctx: c2, page: p2 } = await ouvrir(a.workspace_id, { "bingoo-guide": "fini" });
+  await p2.goto(`${SITE}/?c=${Date.now()}#/explorer/reglages-saas?onglet=automatisations`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p2.waitForTimeout(7000);
+  console.log("onglet Automatisations :", (await p2.getByText("Repérer les grosses conversions").count().catch(() => 0)) ? "✓ affiché" : "✗ absent");
+  await p2.screenshot({ path: `${DOSSIER}/automatisations.png`, fullPage: true });
+  await p2.getByText("Ajouter une automatisation").click().catch(() => null); await p2.waitForTimeout(800);
+  await p2.screenshot({ path: `${DOSSIER}/automatisations-ajout.png`, fullPage: true }); await c2.close();
+  await reg({ quoi: "automatisations", liste: [] });
+  for (const id of [g.j.id, pt.j.id].filter(Boolean)) await q(`delete from saas_app_rows where id = ${lit(id)}`);
+  await q(`delete from saas_app_rows where app_id = ${lit(a.id)} and col = 'favoris' and data->>'nom_favori' = 'EUR vers GBP'`);
+  console.log("logiciel de test remis en état");
+}
 if (CONSTRUIRE === "galerie") {
   // Galerie : les pages publiques demandées (IDEE = slugs séparés par des virgules), vues par un visiteur, sur ordinateur et sur téléphone
   const slugs = String(process.env.IDEE ?? "").split(",").map((x) => x.trim()).filter((x) => /^[a-z0-9-]+$/.test(x)).slice(0, 30);
@@ -1033,7 +1070,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "automatisations" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);

@@ -1933,6 +1933,7 @@ export function ReglagesApp({ app, onChange, projet, initial, nu = false, onglet
       {o === "croissance" && <OngletCroissance {...props} allerA={() => {}} />}
       {o === "seo" && <OngletSeo {...props} />}
       {o === "photos" && <OngletPhotos {...props} />}
+      {o === "automatisations" && <OngletAutomatisations {...props} />}
       {o === "versions" && <OngletVersions {...props} />}
       {o === "ia" && <OngletIA {...props} />}
       {o === "jumeau" && <OngletJumeau {...props} />}
@@ -1968,6 +1969,7 @@ export function ReglagesApp({ app, onChange, projet, initial, nu = false, onglet
         {onglet === "pages" && <OngletPages {...props} />}
         {onglet === "seo" && <OngletSeo {...props} />}
         {onglet === "photos" && <OngletPhotos {...props} />}
+        {onglet === "automatisations" && <OngletAutomatisations {...props} />}
         {onglet === "encaisser" && <OngletEncaisser {...props} />}
         {onglet === "prix" && <OngletPrix {...props} />}
         {onglet === "emails" && <OngletEmails {...props} />}
@@ -2158,6 +2160,62 @@ function OngletPhotos({ app, appel, onChange }) {
           <input type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden" disabled={busy} onChange={(e) => { ajouter(e.target.files); e.target.value = ""; }} />
         </label>
         <p className="mt-2 text-[13px] text-[#6B6B6B]">{photos.length}/6 photo{photos.length > 1 ? "s" : ""}. Des photos larges et nettes rendent mieux en haut de page.</p>
+      </div>
+    </div>
+  );
+}
+
+// Automatisations d'un logiciel : « quand une fiche est créée ou modifiée dans telle liste, alors… ». Jouées par le serveur.
+const OPS_AUTO = [["=", "est égal à"], ["!=", "est différent de"], ["contient", "contient"], [">", "est supérieur à"], ["<", "est inférieur à"], ["rempli", "est rempli"]];
+function OngletAutomatisations({ app, appel, onChange }) {
+  const toast = useToast();
+  const s = app.spec ?? {}, cols = (s.collections ?? []).filter((c) => c?.nom && (c.champs ?? []).length);
+  const [liste, setListe] = useState(Array.isArray(s.automatisations) ? s.automatisations : []), [busy, setBusy] = useState(false);
+  const vide = { nom: "", evenement: "fiche_creee", collection: cols[0]?.nom ?? "", avecSi: false, champ: "", op: "=", valeur: "", type: "modifier", aChamp: "", aValeur: "", aCol: cols[1]?.nom ?? cols[0]?.nom ?? "", sujet: "", texte: "" };
+  const [f, setF] = useState(vide), [ouvert, setOuvert] = useState(false);
+  if (s.type === "site" || s.type === "outil" || !cols.length) return <Explication>Les automatisations concernent les logiciels qui ont des listes (clients, commandes, rendez-vous…). Un site ou un outil n'en a pas besoin.</Explication>;
+  const lib = (c) => c?.label || c?.nom, champs = (nom) => (cols.find((c) => c.nom === nom)?.champs ?? []), nomChamp = (col, ch) => { const x = champs(col).find((y) => y.nom === ch); return x?.label || String(ch).replace(/_/g, " "); };
+  const garder = async (l, msg) => { setBusy(true); try { const r = await appel("automatisations", { liste: l }); setListe(r.automatisations ?? []); onChange?.(); if (msg) toast(msg); return r.automatisations ?? []; } catch (x) { toast(x.message, "bad"); return null; } finally { setBusy(false); } };
+  const ajouter = async () => {
+    const action = f.type === "modifier" ? { type: "modifier", champ: f.aChamp || champs(f.collection)[0]?.nom, valeur: f.aValeur }
+      : f.type === "creer" ? { type: "creer", collection: f.aCol, data: Object.fromEntries(champs(f.aCol).filter((c) => champs(f.collection).some((x) => x.nom === c.nom)).map((c) => [c.nom, `{{${c.nom}}}`])) }
+      : { type: "email", sujet: f.sujet, texte: f.texte };
+    const nouvelle = { nom: f.nom.trim() || "Automatisation", evenement: f.evenement, collection: f.collection, ...(f.avecSi ? { si: { champ: f.champ || champs(f.collection)[0]?.nom, op: f.op, valeur: f.valeur } } : {}), alors: [action] };
+    const r = await garder([...liste, nouvelle]);
+    if (r && r.length > liste.length) { toast("Automatisation ajoutée"); setF(vide); setOuvert(false); } else if (r) toast("Cette automatisation n'a pas pu être gardée : vérifie les champs choisis.", "bad");
+  };
+  const phrase = (a) => `Quand une fiche est ${a.evenement === "fiche_creee" ? "créée" : "modifiée"} dans « ${lib(cols.find((c) => c.nom === a.collection)) ?? a.collection} »${a.si ? ` et que « ${nomChamp(a.collection, a.si.champ)} » ${OPS_AUTO.find((o) => o[0] === a.si.op)?.[1] ?? a.si.op}${a.si.op === "rempli" ? "" : ` « ${a.si.valeur} »`}` : ""} : ${(a.alors ?? []).map((x) => x.type === "modifier" ? `mettre « ${nomChamp(a.collection, x.champ)} » à « ${x.valeur} »` : x.type === "creer" ? `créer une fiche dans « ${lib(cols.find((c) => c.nom === x.collection)) ?? x.collection} »` : `m'envoyer l'e-mail « ${x.sujet} »`).join(", puis ")}.`;
+  const sel = "mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-[15px]", et = "block text-[13px] font-semibold text-[#1A1A1A]";
+  return (
+    <div className="space-y-5">
+      <Explication>Ce que ton logiciel fait tout seul. Une automatisation part quand une fiche est créée ou modifiée dans une de tes listes : elle peut changer un champ, créer une fiche ailleurs ou t'envoyer un e-mail. Elle tourne sur le serveur, pour chaque utilisateur de ton logiciel, dans son propre espace. Dans un texte, {"{{champ}}"} reprend la valeur de la fiche.</Explication>
+      <div className="rounded-xl border border-black/10 bg-white p-4">
+        {liste.length === 0 && <p className="text-[15px] text-[#6B6B6B]">Aucune automatisation pour l'instant.</p>}
+        <ul className="divide-y divide-black/10">
+          {liste.map((a) => <li key={a.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
+            <div className="min-w-0 flex-1"><p className="text-[15px] font-semibold text-[#1A1A1A]">{a.nom}</p><p className="mt-0.5 text-[14px] text-[#4A4A4A]">{phrase(a)}</p></div>
+            <div className="flex items-center gap-3 text-[13px] font-semibold">
+              <button type="button" disabled={busy} onClick={() => garder(liste.map((x) => x.id === a.id ? { ...x, actif: a.actif === false } : x), a.actif === false ? "Automatisation remise en marche" : "Automatisation mise en pause")} className="underline disabled:opacity-50">{a.actif === false ? "En pause · relancer" : "Active · mettre en pause"}</button>
+              <button type="button" disabled={busy} onClick={() => garder(liste.filter((x) => x.id !== a.id), "Automatisation supprimée")} className="text-[#B42318] disabled:opacity-50">Supprimer</button>
+            </div>
+          </li>)}
+        </ul>
+        {!ouvert && liste.length < 12 && <button type="button" onClick={() => setOuvert(true)} className="mt-3 rounded-full bg-[#E8571C] px-4 py-2 text-[14px] font-semibold text-white">Ajouter une automatisation</button>}
+        {ouvert && <div className="mt-4 grid gap-3 border-t border-black/10 pt-4 sm:grid-cols-2">
+          <label className={`${et} sm:col-span-2`}>Nom<input value={f.nom} maxLength={80} onChange={(e) => setF({ ...f, nom: e.target.value })} placeholder="Facture quand la commande est payée" className={sel} /></label>
+          <label className={et}>Quand une fiche est<select value={f.evenement} onChange={(e) => setF({ ...f, evenement: e.target.value })} className={sel}><option value="fiche_creee">créée</option><option value="fiche_modifiee">modifiée</option></select></label>
+          <label className={et}>Dans la liste<select value={f.collection} onChange={(e) => setF({ ...f, collection: e.target.value, champ: "", aChamp: "" })} className={sel}>{cols.map((c) => <option key={c.nom} value={c.nom}>{lib(c)}</option>)}</select></label>
+          <label className={`${et} flex items-center gap-2 sm:col-span-2`}><input type="checkbox" checked={f.avecSi} onChange={(e) => setF({ ...f, avecSi: e.target.checked })} /> Seulement si une condition est vraie</label>
+          {f.avecSi && <>
+            <label className={et}>Le champ<select value={f.champ} onChange={(e) => setF({ ...f, champ: e.target.value })} className={sel}>{champs(f.collection).map((c) => <option key={c.nom} value={c.nom}>{nomChamp(f.collection, c.nom)}</option>)}</select></label>
+            <div className="grid grid-cols-2 gap-2"><label className={et}>&nbsp;<select value={f.op} onChange={(e) => setF({ ...f, op: e.target.value })} className={sel}>{OPS_AUTO.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>{f.op !== "rempli" && <label className={et}>Valeur<input value={f.valeur} maxLength={120} onChange={(e) => setF({ ...f, valeur: e.target.value })} className={sel} /></label>}</div>
+          </>}
+          <label className={`${et} sm:col-span-2`}>Alors<select value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })} className={sel}><option value="modifier">changer un champ de cette fiche</option>{cols.length > 1 && <option value="creer">créer une fiche dans une autre liste</option>}<option value="email">m'envoyer un e-mail</option></select></label>
+          {f.type === "modifier" && <><label className={et}>Le champ<select value={f.aChamp} onChange={(e) => setF({ ...f, aChamp: e.target.value })} className={sel}>{champs(f.collection).map((c) => <option key={c.nom} value={c.nom}>{nomChamp(f.collection, c.nom)}</option>)}</select></label><label className={et}>Nouvelle valeur<input value={f.aValeur} maxLength={300} onChange={(e) => setF({ ...f, aValeur: e.target.value })} className={sel} /></label></>}
+          {f.type === "creer" && <label className={`${et} sm:col-span-2`}>Dans la liste<select value={f.aCol} onChange={(e) => setF({ ...f, aCol: e.target.value })} className={sel}>{cols.filter((c) => c.nom !== f.collection).map((c) => <option key={c.nom} value={c.nom}>{lib(c)}</option>)}</select><span className="mt-1 block font-normal text-[#6B6B6B]">Les champs qui portent le même nom dans les deux listes sont recopiés.</span></label>}
+          {f.type === "email" && <><label className={`${et} sm:col-span-2`}>Objet<input value={f.sujet} maxLength={120} onChange={(e) => setF({ ...f, sujet: e.target.value })} placeholder="Nouvelle commande de {{client}}" className={sel} /></label><label className={`${et} sm:col-span-2`}>Message<textarea rows={3} value={f.texte} maxLength={1200} onChange={(e) => setF({ ...f, texte: e.target.value })} className={sel} /></label></>}
+          <div className="flex gap-3 sm:col-span-2"><button type="button" disabled={busy || (f.type === "email" && !f.sujet.trim())} onClick={ajouter} className="rounded-full bg-[#E8571C] px-4 py-2 text-[14px] font-semibold text-white disabled:opacity-50">{busy ? "Un instant…" : "Enregistrer"}</button><button type="button" onClick={() => setOuvert(false)} className="text-[13px] font-semibold text-[#6B6B6B] underline">Annuler</button></div>
+        </div>}
       </div>
     </div>
   );

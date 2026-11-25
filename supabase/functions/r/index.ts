@@ -1014,6 +1014,17 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       await log(ws.id, "app_reglage", `Photos du site : ${photos.length}`);
       return { photos };
     }
+    // Automatisations d'un logiciel : la liste complète, validée contre les listes et les champs réels du projet
+    if (b.quoi === "automatisations") {
+      const { nettoyerAutos } = await import("../_shared/automatisations.ts");
+      const { data: a } = await admin.from("saas_apps").select("spec").eq("id", app.id).single();
+      const spec = a!.spec as any;
+      if (spec?.type === "site" || spec?.type === "outil") throw new HttpError(400, "Les automatisations concernent les logiciels");
+      const automatisations = nettoyerAutos(b.liste, spec);
+      await admin.from("saas_apps").update({ spec: { ...spec, automatisations }, maj: new Date().toISOString() }).eq("id", app.id);
+      await log(ws.id, "app_reglage", `Automatisations : ${automatisations.length}`);
+      return { automatisations };
+    }
     if (b.quoi === "seo") {
       const net = (x: unknown, n: number) => String(x ?? "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
       const { data: a } = await admin.from("saas_apps").select("spec").eq("id", app.id).single();

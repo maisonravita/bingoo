@@ -226,6 +226,12 @@ export async function mailRecu(app: any, slug: string, titulaire: { id: string; 
   await envoyerBrut(app, titulaire.email, `Nouveau : ${String(page.titre ?? "page publique").slice(0, 60)}`, `Votre page « ${page.titre} » vient de recevoir un envoi.\n\n${lignes}`, "Ouvrir mon espace", lien(app, slug), `recu-${rowId}`, null, "E-mail envoyé à chaque envoi reçu par tes pages publiques.");
 }
 
+/** Automatisation d'un logiciel : un e-mail au titulaire du compte (jamais à un tiers), une seule fois par fiche et par règle. */
+export async function mailAutomatisation(app: any, slug: string, titulaire: { email: string }, sujet: string, texte: string, cle: string) {
+  if (!titulaire?.email || /@demo\.local$/.test(titulaire.email)) return;
+  await envoyerBrut(app, titulaire.email, sujet, texte, "Ouvrir mon espace", lien(app, slug), cle, null, "E-mail envoyé par une automatisation de ton logiciel.");
+}
+
 /** Site web : une demande vient d'arriver par le formulaire, au gérant (il répond directement à la personne). */
 export async function mailDemandeSite(app: any, slug: string, gerant: { email: string }, rowId: string, lignes: string, nom: string) {
   if (!gerant?.email || /@demo\.local$/.test(gerant.email)) return;
