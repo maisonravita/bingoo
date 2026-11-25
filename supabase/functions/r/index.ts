@@ -1705,6 +1705,19 @@ Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement,
     }
     return res;
   },
+  // Essai des clips animés (un objet qui bouge vraiment) : fermé aux membres tant que Jean n'a pas décidé — seuls les espaces
+  // du robot y ont accès, et seulement quand le secret CLIPS_VIDEO vaut « essai »
+  async "video-clip-essai"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    if (Deno.env.get("CLIPS_VIDEO") !== "essai" || !String(ws.name ?? "").startsWith("Robot ") || ws.plan === "essai") throw new HttpError(403, "Les clips animés ne sont pas encore ouverts");
+    await quota(ws.id, "video_clip", 4);
+    setAi({ ws: ws.id, live: true, feature: "video" });
+    const { imagesPage, clipLancer, clipEtat } = await import("../_shared/gen-images.ts");
+    if (b.etape === "etat") return await clipEtat(String(b.suivi ?? ""), String(b.resultat ?? ""));
+    const im = await imagesPage([{ id: "IMG_1", pour: "video", prompt: String(b.image ?? "").slice(0, 300) }], 0.2, { taille: "portrait_4_3" });
+    const image = im.images.IMG_1?.url; if (!image) throw new HttpError(503, "L'image de départ n'a pas pu être créée");
+    return { image, ...(await clipLancer(image, String(b.mouvement ?? ""))) };
+  },
   // Vidéo motion design libre (sans SaaS) : une phrase → scénario + style ; animée et exportée dans le navigateur
   async "video-creer"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);

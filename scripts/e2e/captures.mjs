@@ -530,6 +530,20 @@ if (CONSTRUIRE === "automatisations") {
   await q(`delete from saas_app_rows where app_id = ${lit(a.id)} and col = 'favoris' and data->>'nom_favori' = 'EUR vers GBP'`);
   console.log("logiciel de test remis en état");
 }
+if (CONSTRUIRE === "video-clip") {
+  // Essai d'un clip animé : une image de départ, puis un clip de 5 s où l'objet bouge ; le journal ne montre que des états
+  const appel = async (corps) => { const r = await fetch(`${SB}/functions/v1/r/video-clip-essai`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify(corps) }); const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch { /* texte */ } return { ok: r.ok, j, t: t.slice(0, 200) }; };
+  const wsC = await creerEspace("Robot clips " + new Date().toISOString().slice(0, 16)); await q(`update workspaces set plan = 'lancer_pro', plan_status = 'active', onboarded = true where id = ${lit(wsC)}`);
+  const [image, mouvement] = /\|/.test(process.env.IDEE ?? "") ? process.env.IDEE.split("|").map((x) => x.trim()) : ["an empty clear drinking glass standing on a plain cream background, studio product shot, soft light", "fresh orange juice is poured from above and the glass slowly fills up to the top"];
+  const l = await appel({ workspace_id: wsC, image, mouvement });
+  console.log(l.ok ? "✓ clip lancé" : `✗ lancement : ${l.t}`);
+  if (l.ok) {
+    const fs2 = await import("node:fs"); const b0 = await fetch(l.j.image).then((x) => x.arrayBuffer()).catch(() => null); if (b0) fs2.writeFileSync(`${DOSSIER}/clip-depart.jpg`, Buffer.from(b0));
+    let fin = null; for (let i = 0; i < 48 && !fin; i++) { await new Promise((r) => setTimeout(r, 10000)); const e = await appel({ workspace_id: wsC, etape: "etat", suivi: l.j.suivi, resultat: l.j.resultat }); if (!e.ok) { fin = { etat: "echec", detail: e.t }; } else if (e.j.etat !== "en_cours") fin = e.j; }
+    console.log(fin?.etat === "pret" ? `✓ clip prêt (${fin.cout?.toFixed(2)} €)` : `✗ clip : ${fin?.etat ?? "trop long"} ${fin?.detail ?? ""}`);
+    if (fin?.url) { const b = await fetch(fin.url).then((x) => x.arrayBuffer()); fs2.writeFileSync(`${DOSSIER}/clip.mp4`, Buffer.from(b)); }
+  }
+}
 if (CONSTRUIRE === "video-images") {
   // Une vidéo avec les images de ce que la personne décrit : le scénario est écrit dans le journal, les images créées sont rangées
   // dans le dossier de captures (ce sont des images faites par Bingoo!, aucune donnée privée)
@@ -1084,7 +1098,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "video-images" || CONSTRUIRE === "automatisations" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "video-images" || CONSTRUIRE === "video-clip" || CONSTRUIRE === "automatisations" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);

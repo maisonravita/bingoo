@@ -45,3 +45,37 @@ export async function imagesPage(demandes: { id: string; pour: string; prompt: s
   }));
   return { images, cout };
 }
+
+// Clips animés (essai du 25/11) : une image de départ devient un clip de 5 s où l'objet bouge vraiment (un verre qui se remplit).
+// La création prend une à trois minutes : on la lance dans la file de fal, puis on revient voir où elle en est.
+export const MODELE_CLIP = () => Deno.env.get("FAL_MODELE_CLIP") ?? "fal-ai/kling-video/v3/pro/image-to-video";
+const PRIX_CLIP_EUR = () => 5 * (Number(Deno.env.get("FAL_PRIX_CLIP_USD_S") ?? "0.112") || 0.112) * (Number(Deno.env.get("USD_EUR") ?? "0.92") || 0.92);
+const FILE_FAL = /^https:\/\/queue\.fal\.run\/[a-z0-9\/._-]+$/i;
+export async function clipLancer(image: string, mouvement: string) {
+  const cle = Deno.env.get("FAL_KEY"); if (!cle) throw new Error("Clé d'images absente");
+  const r = await fetch(`https://queue.fal.run/${MODELE_CLIP()}`, {
+    method: "POST", headers: { authorization: `Key ${cle}`, "content-type": "application/json" },
+    body: JSON.stringify({ prompt: String(mouvement).slice(0, 600) + ". Static camera, plain background, no people, no hands, no text, no logo.", start_image_url: image, duration: "5", generate_audio: false }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!r.ok) throw new Error(`fal ${r.status} : ${(await r.text()).slice(0, 160)}`);
+  const j = await r.json();
+  if (!FILE_FAL.test(j?.status_url ?? "") || !FILE_FAL.test(j?.response_url ?? "")) throw new Error("Réponse inattendue de la file");
+  return { suivi: j.status_url as string, resultat: j.response_url as string };
+}
+export async function clipEtat(suivi: string, resultat: string): Promise<{ etat: "en_cours" | "pret" | "echec"; url?: string; cout?: number; detail?: string }> {
+  const cle = Deno.env.get("FAL_KEY"); if (!cle || !FILE_FAL.test(suivi) || !FILE_FAL.test(resultat)) throw new Error("Suivi de clip invalide");
+  const h = { authorization: `Key ${cle}` };
+  const e = await (await fetch(suivi, { headers: h, signal: AbortSignal.timeout(20_000) })).json();
+  if (e?.status === "IN_QUEUE" || e?.status === "IN_PROGRESS") return { etat: "en_cours" };
+  if (e?.status !== "COMPLETED") return { etat: "echec", detail: String(e?.status ?? e?.detail ?? "").slice(0, 120) };
+  const rr = await fetch(resultat, { headers: h, signal: AbortSignal.timeout(20_000) }); const j = await rr.json();
+  const url = j?.video?.url; if (!url) return { etat: "echec", detail: `${rr.status} ${JSON.stringify(j?.detail ?? "").slice(0, 120)}` };
+  const bin = new Uint8Array(await (await fetch(url, { signal: AbortSignal.timeout(60_000) })).arrayBuffer());
+  const chemin = `gen/${crypto.randomUUID()}.mp4`;
+  const { error } = await admin.storage.from("apps").upload(chemin, bin, { contentType: "video/mp4", cacheControl: "31536000" });
+  if (error) throw new Error(`Stockage : ${error.message}`);
+  const ctx = aiCtx.getStore() ?? {};
+  await admin.from("ai_usage").insert({ workspace_id: ctx.ws ?? null, feature: "video/clip", model: MODELE_CLIP(), input_tokens: 0, output_tokens: 0, searches: 0, cost_eur: PRIX_CLIP_EUR() }).then(() => null, () => null);
+  return { etat: "pret", url: admin.storage.from("apps").getPublicUrl(chemin).data.publicUrl, cout: PRIX_CLIP_EUR() };
+}
