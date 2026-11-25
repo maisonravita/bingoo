@@ -392,7 +392,7 @@ function Accueil({ m, charger }) {
       <Tete icone={<Tuile m={m} />} titre={m.nom}
         sous={<span className="inline-flex flex-wrap items-center gap-x-2"><span className="inline-flex items-center gap-1.5 rounded-full bg-[#CDFEE1] px-2 py-0.5 text-[12px] font-semibold text-[#0C5132]"><span className="h-1.5 w-1.5 rounded-full bg-[#29845A]" />En ligne</span>
           <button onClick={() => navigator.clipboard?.writeText(lien).then(() => { setCopie(true); setTimeout(() => setCopie(false), 1600); })} className="truncate hover:text-[#1A1A1A] hover:underline">{copie ? "Lien copié" : lien.replace(/^https?:\/\//, "")}</button></span>}
-        actions={<><Bouton onClick={() => window.open(lien, "_blank", "noopener")}>Voir mon SaaS</Bouton><Bouton onClick={() => nav("/explorer/connecteur")}>Faire évoluer avec mon IA</Bouton><Bouton principal onClick={() => nav("/explorer/atelier")}>Ouvrir l'atelier</Bouton></>} />
+        actions={<><Bouton onClick={() => window.open(lien, "_blank", "noopener")}>Voir mon projet</Bouton><Bouton onClick={() => nav("/explorer/connecteur")}>Faire évoluer avec mon IA</Bouton><Bouton principal onClick={() => nav("/explorer/atelier")}>Ouvrir l'atelier</Bouton></>} />
 
       <Carte pad={false}>
         <div className="grid grid-cols-2 divide-[#EBEBEB] lg:grid-cols-4 lg:divide-x">
@@ -583,7 +583,7 @@ function Video({ m }) {
 }
 
 // ---------------------------------------------------------------- Réglages du SaaS, rangés comme les paramètres de Shopify
-const SECTIONS = [["encaisser", "Paiements", "stripe"], ["blog", "Blog", null], ["pages", "Pages", null], ["seo", "Référencement", null], ["domaine", "Nom de domaine", "domaine"], ["connecteurs", "Connecteurs", null], ["emails", "E-mails", null], ["ia", "Assistant IA", null], ["prix", "Prix testés", null], ["lancement", "Kit de lancement", null], ["croissance", "Croissance", null], ["jumeau", "Nouveautés du modèle", null], ["monde", "Visibilité et revente", null], ["mobile", "Application mobile", null], ["versions", "Versions", null], ["code", "Code source", null]];
+const SECTIONS = [["encaisser", "Paiements", "stripe"], ["blog", "Blog", null], ["pages", "Pages", null], ["photos", "Photos", null], ["seo", "Référencement", null], ["domaine", "Nom de domaine", "domaine"], ["connecteurs", "Connecteurs", null], ["emails", "E-mails", null], ["ia", "Assistant IA", null], ["prix", "Prix testés", null], ["lancement", "Kit de lancement", null], ["croissance", "Croissance", null], ["jumeau", "Nouveautés du modèle", null], ["monde", "Visibilité et revente", null], ["mobile", "Application mobile", null], ["versions", "Versions", null], ["code", "Code source", null]];
 function Reglages({ m, charger }) {
   const loc = useLocation();
   const nav = useNavigate();
@@ -592,7 +592,7 @@ function Reglages({ m, charger }) {
   const connus = new Set(ONGLETS_APP.map(([k]) => k));
   return (
     <>
-      <Tete titre="Réglages du SaaS" sous={`Les réglages de ${m.nom} : paiements, domaine, e-mails, assistant IA, versions et code.`} />
+      <Tete titre="Réglages du projet" sous={`Les réglages de ${m.nom} : paiements, domaine, e-mails, assistant IA, versions et code.`} />
       <div className="grid gap-4 md:grid-cols-[220px_1fr]">
         <Carte pad={false} className="h-fit">
           <nav className="p-1.5">

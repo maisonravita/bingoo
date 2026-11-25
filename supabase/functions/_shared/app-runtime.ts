@@ -457,13 +457,20 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
         }
         // Page de lancement : le vrai nombre d'inscrits (affiché seulement à partir de 10)
         if (sp.site?.modele === "lancement") { const n = await compterSite(admin, app.id, "inscrits", {}); inscrits = n >= 10 ? n : null; }
+        // Rendez-vous : les créneaux déjà demandés (jour et heure seulement, jamais qui), pour ne pas les proposer deux fois
+        let pris: { date: string; heure: string }[] = [];
+        if (sp.site?.demande === "rdv") {
+          const auj = new Date().toISOString().slice(0, 10);
+          const lus = await Promise.all(["saas_app_rows", "saas_app_attente"].map((t) => admin.from(t).select("data").eq("app_id", app.id).eq("col", "demandes").gte("data->>date_souhaitee", auj).limit(400)));
+          pris = lus.flatMap((r) => (r.data ?? []) as any[]).map((r) => r.data ?? {}).filter((x) => x.heure && !/annul|refus/i.test(String(x.statut ?? ""))).map((x) => ({ date: String(x.date_souhaitee), heure: String(x.heure) }));
+        }
         const nettoie = (x: any) => Object.fromEntries(Object.entries(x).filter(([k]) => !/^_|^ref$|^cree_le$/.test(k)));
         return { status: 200, body: {
           services: (par.services ?? []).filter((x) => x.visible !== false).sort((a, b) => (Number(a.ordre) || 0) - (Number(b.ordre) || 0)).slice(0, 30).map(nettoie),
           horaires: (par.horaires ?? []).sort((a, b) => (Number(a.jour) || 0) - (Number(b.jour) || 0)).slice(0, 7).map(nettoie),
           infos: nettoie((par.infos ?? [])[0] ?? {}),
           realisations: (par.realisations ?? []).filter((x) => x.visible !== false && x.titre).sort((a, b) => (Number(a.ordre) || 0) - (Number(b.ordre) || 0)).slice(0, 40).map(nettoie),
-          inscrits,
+          inscrits, pris,
           // Paiement en ligne possible : le commerçant a branché sa clé Stripe
           paiement_en_ligne: !!(await cleStripe(admin, app.id)),
         } };
@@ -481,10 +488,13 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
         return { status: 200, body: { ok: true } };
       }
       const t = (x: unknown, n: number) => String(x ?? "").replace(/\s+/g, " ").trim().slice(0, n);
-      const demande = { nom: t(d.nom, 80), email: t(d.email, 160).toLowerCase(), telephone: t(d.telephone, 30), service: t(d.service, 80), date_souhaitee: /^\d{4}-\d{2}-\d{2}$/.test(String(d.date_souhaitee ?? "")) ? String(d.date_souhaitee) : "", message: String(d.message ?? "").trim().slice(0, 2000), statut: "nouvelle" };
+      const demande = { nom: t(d.nom, 80), email: t(d.email, 160).toLowerCase(), telephone: t(d.telephone, 30), service: t(d.service, 80), date_souhaitee: /^\d{4}-\d{2}-\d{2}$/.test(String(d.date_souhaitee ?? "")) ? String(d.date_souhaitee) : "", heure: /^([01]\d|2[0-3]):[0-5]\d$/.test(String(d.heure ?? "")) ? String(d.heure) : "", message: String(d.message ?? "").trim().slice(0, 2000), statut: "nouvelle" };
       if (!demande.nom) throw new Err(400, "Indiquez votre nom");
       if (!emailOk(demande.email) && demande.telephone.replace(/\D/g, "").length < 9) throw new Err(400, "Indiquez votre e-mail ou votre téléphone pour qu'on puisse vous répondre");
       if (demande.email && !emailOk(demande.email)) throw new Err(400, "Adresse e-mail invalide");
+      // Rendez-vous : un créneau (jour + heure) n'est donné qu'une fois ; l'heure sans jour n'a pas de sens
+      if (demande.heure && !demande.date_souhaitee) demande.heure = "";
+      if (demande.heure && (await compterSite(admin, app.id, "demandes", { date_souhaitee: demande.date_souhaitee, heure: demande.heure })) > 0) throw new Err(409, "Ce créneau vient d'être pris, choisissez une autre heure");
       const depuis = new Date(Date.now() - 3600e3).toISOString();
       const ip = await sha(`${app.id}:site:${(req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim()}`);
       if ((await compterSite(admin, app.id, "demandes", { _ip: ip }, depuis)) >= 5) throw new Err(429, "Trop d'envois depuis cette connexion, réessayez dans une heure");
@@ -492,7 +502,7 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       // Pas encore de gérant : la demande attend, elle sera rattachée à son espace à la création de son accès
       { const { prevenir } = await import("./connexions.ts"); prevenir(admin, app as any, "demande", Object.fromEntries(Object.entries(demande).filter(([, v]) => v !== ""))); }
       const r = await rangerSite(admin, app.id, proprio, "demandes", { ...Object.fromEntries(Object.entries(demande).filter(([, v]) => v !== "")), statut: "nouvelle", _public: true, _ip: ip });
-      const lignes = [`De : ${demande.nom}`, demande.email && `E-mail : ${demande.email}`, demande.telephone && `Téléphone : ${demande.telephone}`, demande.service && `Pour : ${demande.service}`, demande.date_souhaitee && `Date souhaitée : ${demande.date_souhaitee.split("-").reverse().join("/")}`, demande.message && `\n${demande.message}`].filter(Boolean).join("\n");
+      const lignes = [`De : ${demande.nom}`, demande.email && `E-mail : ${demande.email}`, demande.telephone && `Téléphone : ${demande.telephone}`, demande.service && `Pour : ${demande.service}`, demande.date_souhaitee && `Date souhaitée : ${demande.date_souhaitee.split("-").reverse().join("/")}${demande.heure ? ` à ${demande.heure.replace(":", " h ")}` : ""}`, demande.message && `\n${demande.message}`].filter(Boolean).join("\n");
       try {
         if (proprio) { const { mailDemandeSite } = await import("./app-mails.ts"); await mailDemandeSite(app, slug, proprio, r.id, lignes, demande.nom); }
         else {

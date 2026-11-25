@@ -1932,6 +1932,7 @@ export function ReglagesApp({ app, onChange, projet, initial, nu = false, onglet
     <div>
       {o === "croissance" && <OngletCroissance {...props} allerA={() => {}} />}
       {o === "seo" && <OngletSeo {...props} />}
+      {o === "photos" && <OngletPhotos {...props} />}
       {o === "versions" && <OngletVersions {...props} />}
       {o === "ia" && <OngletIA {...props} />}
       {o === "jumeau" && <OngletJumeau {...props} />}
@@ -1966,6 +1967,7 @@ export function ReglagesApp({ app, onChange, projet, initial, nu = false, onglet
         {onglet === "blog" && <OngletBlog {...props} />}
         {onglet === "pages" && <OngletPages {...props} />}
         {onglet === "seo" && <OngletSeo {...props} />}
+        {onglet === "photos" && <OngletPhotos {...props} />}
         {onglet === "encaisser" && <OngletEncaisser {...props} />}
         {onglet === "prix" && <OngletPrix {...props} />}
         {onglet === "emails" && <OngletEmails {...props} />}
@@ -2112,6 +2114,55 @@ function OngletBlog({ app, appel, onChange }) {
 // style du site et l'ajoute au menu. L'accueil garde l'en-tête et le pied de page, partagés par toutes les pages.
 // ---------------------------------------------------------------- Référencement : ce que Google lira, et ce qui manque
 // Tout est calculé à partir du projet réel (aucune note inventée, aucun chiffre de trafic) : chaque ligne dit quoi faire.
+// Les photos du membre dans sa page de site : la première en fond du haut de page, les autres en bande d'images.
+// Posées sans IA et sans crédit ; les retirer remet la page comme avant. Bingoo! n'ajoute jamais d'image à lui.
+function OngletPhotos({ app, appel, onChange }) {
+  const toast = useToast();
+  const s = app.spec ?? {};
+  const [photos, setPhotos] = useState(Array.isArray(s.site?.photos) ? s.site.photos : []), [busy, setBusy] = useState(false);
+  if (s.type !== "site" || !s.site?.page) return <Explication>Les photos se posent sur la page d'un site construit par Bingoo!. Pour un logiciel ou un outil, joins une image à ta demande dans l'atelier.</Explication>;
+  const garder = async (liste) => { const r = await appel("photos", { photos: liste }); setPhotos(r.photos ?? []); onChange?.(); };
+  const ajouter = async (fichiers) => {
+    const place = 6 - photos.length; if (place <= 0) return;
+    setBusy(true);
+    try {
+      const liste = [...photos];
+      for (const f of [...(fichiers ?? [])].slice(0, place)) {
+        if (!/^image\/(png|jpeg|webp)$/.test(f.type)) { toast("Image PNG, JPG ou WebP seulement.", "bad"); continue; }
+        const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = URL.createObjectURL(f); });
+        const k = Math.min(1, 2000 / Math.max(img.width, img.height)), c = document.createElement("canvas");
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        const r = await appel("image", { image: c.toDataURL("image/jpeg", 0.86) });
+        liste.push(r.url);
+      }
+      await garder(liste); toast("Photos posées sur ta page");
+    } catch (x) { toast(x.message ?? "Photo non envoyée", "bad"); } finally { setBusy(false); }
+  };
+  const retirer = async (u) => { setBusy(true); try { await garder(photos.filter((x) => x !== u)); toast("Photo retirée"); } catch (x) { toast(x.message, "bad"); } finally { setBusy(false); } };
+  const premiere = async (u) => { setBusy(true); try { await garder([u, ...photos.filter((x) => x !== u)]); } catch (x) { toast(x.message, "bad"); } finally { setBusy(false); } };
+  return (
+    <div className="space-y-5">
+      <Explication>Dépose tes vraies photos (6 au plus). La première devient le fond du haut de ta page, les suivantes forment une bande d'images avant la fin. C'est immédiat et sans crédit. Si tu les retires, ta page revient comme avant. Bingoo! n'ajoute jamais d'image à ta place.</Explication>
+      <div className="rounded-xl border border-black/10 bg-white p-4">
+        {photos.length > 0 && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {photos.map((u, i) => <div key={u} className="overflow-hidden rounded-lg border border-black/10">
+            <img src={u} alt={`Photo ${i + 1}`} className="aspect-[4/3] w-full object-cover" />
+            <div className="flex items-center justify-between gap-2 px-3 py-2 text-[13px]">
+              {i === 0 ? <span className="font-semibold text-[#1A1A1A]">Haut de page</span> : <button type="button" disabled={busy} onClick={() => premiere(u)} className="font-semibold text-[#6B6B6B] underline disabled:opacity-50">Mettre en haut</button>}
+              <button type="button" disabled={busy} onClick={() => retirer(u)} className="font-semibold text-[#B42318] disabled:opacity-50">Retirer</button>
+            </div>
+          </div>)}
+        </div>}
+        <label className={`mt-3 inline-flex cursor-pointer items-center rounded-full bg-[#E8571C] px-4 py-2 text-[14px] font-semibold text-white ${busy || photos.length >= 6 ? "pointer-events-none opacity-50" : ""}`}>
+          {busy ? "Un instant…" : photos.length ? "Ajouter des photos" : "Déposer mes photos"}
+          <input type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden" disabled={busy} onChange={(e) => { ajouter(e.target.files); e.target.value = ""; }} />
+        </label>
+        <p className="mt-2 text-[13px] text-[#6B6B6B]">{photos.length}/6 photo{photos.length > 1 ? "s" : ""}. Des photos larges et nettes rendent mieux en haut de page.</p>
+      </div>
+    </div>
+  );
+}
+
 function OngletSeo({ app, appel, onChange }) {
   const toast = useToast();
   const s = app.spec ?? {}, site = s.type === "site", st = s.site ?? {};

@@ -440,6 +440,57 @@ if (CONSTRUIRE === "vitrine-accueil") {
     console.log(`✓ vitrine ${nom}`); await c.close();
   }
 }
+if (CONSTRUIRE === "rdv-photos") {
+  // Photos du membre posées sur sa page (sans IA) et prise de rendez-vous par créneaux, sur deux sites du robot.
+  // Les photos d'essai viennent d'un autre site du robot ; elles sont retirées à la fin, comme le rendez-vous d'essai.
+  const [sP, sR] = String(process.env.IDEE || "le-comptoir-de-lina-0k2d,atelier-meche-2j0d").split(",").map((x) => x.trim());
+  const [a] = await q(`select id, slug, workspace_id from saas_apps where slug = ${lit(sP)}`);
+  const reg = async (corps) => { const r = await fetch(`${SB}/functions/v1/r/saas-app-reglages`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: a.workspace_id, app_id: a.id, ...corps }) }); return { status: r.status, j: await r.json().catch(() => ({})) }; };
+  const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await c.newPage();
+  const voir = async (nom) => { await p.goto(`${SITE}/?c=${Date.now()}#/app/${sP}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(9000); await p.screenshot({ path: `${DOSSIER}/photos-${nom}.png`, fullPage: true }); };
+  await voir("avant");
+  const [src] = await q(`select string_agg(s->>'html', ' ') h from saas_apps x, jsonb_array_elements(x.spec->'site'->'page'->'sections') s where x.slug in ('hotel-lumiere-lyon-144n', 'atelier-meche-2j0d', 'hotel-des-quais-1m24')`);
+  const sources = [...new Set([...String(src?.h ?? "").matchAll(/<img[^>]+src="(https:[^"]+)"/g)].map((m) => m[1]))].slice(0, 4);
+  const posees = [];
+  for (const u of sources) {
+    const data = await p.evaluate(async (u) => { const b = await (await fetch(u)).blob(), im = await createImageBitmap(b), k = Math.min(1, 1600 / Math.max(im.width, im.height)), cv = document.createElement("canvas"); cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k); cv.getContext("2d").drawImage(im, 0, 0, cv.width, cv.height); return cv.toDataURL("image/jpeg", 0.85); }, u).catch(() => null);
+    if (!data) continue;
+    const r = await reg({ quoi: "image", image: data }); if (r.j.url) posees.push(r.j.url); else console.log("✗ dépôt :", r.status);
+  }
+  const po = await reg({ quoi: "photos", photos: posees });
+  console.log("photos posées :", po.status === 200 && (po.j.photos ?? []).length === posees.length && posees.length >= 2 ? `✓ ${posees.length}` : `✗ ${po.status} ${JSON.stringify(po.j).slice(0, 160)}`);
+  const ref = await reg({ quoi: "photos", photos: ["https://exemple.org/x.jpg"] });
+  console.log("adresse d'image étrangère :", (ref.j.photos ?? []).length === 0 ? "✓ écartée" : "✗ acceptée");
+  await reg({ quoi: "photos", photos: posees });
+  await voir("apres");
+  const { ctx: c2, page: p2 } = await ouvrir(a.workspace_id, { "bingoo-guide": "fini" });
+  await p2.goto(`${SITE}/?c=${Date.now()}#/explorer/reglages-saas?onglet=photos`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p2.waitForTimeout(7000);
+  console.log("onglet Photos :", (await p2.getByText("Haut de page").count().catch(() => 0)) ? "✓ affiché" : "✗ absent");
+  await p2.screenshot({ path: `${DOSSIER}/photos-reglages.png`, fullPage: true }); await c2.close();
+  await reg({ quoi: "photos", photos: [] });
+  const [fin] = await q(`select (spec->'site'->'page')::text like '%data-bingoo-membre%' reste, jsonb_array_length(spec->'site'->'page'->'sections') n from saas_apps where id = ${lit(a.id)}`);
+  console.log("photos retirées, page comme avant :", fin.reste === false ? "✓" : "✗");
+  // Rendez-vous par créneaux, comme un visiteur
+  const j = new Date(Date.now() + 8 * 864e5); while (j.getDay() !== 3) j.setDate(j.getDate() + 1);
+  const jour = j.toISOString().slice(0, 10);
+  const ouvrirForm = async () => { await p.goto(`${SITE}/?c=${Date.now()}#/app/${sR}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(9000); await p.locator(".bingoo-form").first().scrollIntoViewIfNeeded(); await p.locator(".bingoo-form input[type=date]").first().fill(jour); await p.waitForTimeout(800); };
+  await ouvrirForm();
+  const nb = await p.locator(".bingoo-creneaux button").count();
+  console.log("créneaux proposés :", nb > 4 ? `✓ ${nb}` : `✗ ${nb}`);
+  await p.locator(".bingoo-creneaux button", { hasText: /^10 h$/ }).first().click();
+  await p.locator(".bingoo-form input").nth(0).fill("Robot rendez-vous"); await p.locator(".bingoo-form input[type=tel]").first().fill("06 00 00 00 00");
+  await p.locator(".bingoo-form").first().screenshot({ path: `${DOSSIER}/rdv-creneaux.png` });
+  await p.locator(".bingoo-form button[type=submit]").first().click(); await p.waitForTimeout(5000);
+  console.log("rendez-vous demandé :", (await p.getByText("Ce créneau vous est gardé").count()) ? "✓" : "✗");
+  await p.screenshot({ path: `${DOSSIER}/rdv-confirme.png` });
+  await ouvrirForm();
+  console.log("créneau repris :", (await p.locator(".bingoo-creneaux button", { hasText: /^10 h$/ }).first().isDisabled().catch(() => false)) ? "✓ barré" : "✗ encore proposé");
+  await p.locator(".bingoo-form").first().screenshot({ path: `${DOSSIER}/rdv-pris.png` });
+  const dbl = await fetch(`${SB}/functions/v1/t/app/${sR}/site-contact`, { method: "POST", headers: { apikey: ANON, "content-type": "application/json" }, body: JSON.stringify({ data: { nom: "Robot rendez-vous", telephone: "06 00 00 00 00", date_souhaitee: jour, heure: "10:00" } }) });
+  console.log("même créneau demandé deux fois :", dbl.status === 409 ? "✓ refusé" : `✗ ${dbl.status}`);
+  await q(`delete from saas_app_rows where col = 'demandes' and data->>'nom' = 'Robot rendez-vous'`); await q(`delete from saas_app_attente where col = 'demandes' and data->>'nom' = 'Robot rendez-vous'`);
+  await c.close(); console.log("sites de test remis en état");
+}
 if (CONSTRUIRE === "galerie") {
   // Galerie : les pages publiques demandées (IDEE = slugs séparés par des virgules), vues par un visiteur, sur ordinateur et sur téléphone
   const slugs = String(process.env.IDEE ?? "").split(",").map((x) => x.trim()).filter((x) => /^[a-z0-9-]+$/.test(x)).slice(0, 30);
@@ -980,7 +1031,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);

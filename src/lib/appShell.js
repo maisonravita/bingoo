@@ -983,15 +983,31 @@ const DonneesSite = {
   inscription: ({ d }) => html\`<\${FormulaireSite} d=\${d} liste/>\`,
 };
 function FormulaireSite({ d, liste }) {
-  const [f, setF] = useState({ nom: "", prenom: "", email: "", telephone: "", service: "", date_souhaitee: "", message: "", site_web: "" }), [fait, setFait] = useState(""), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
+  const [f, setF] = useState({ nom: "", prenom: "", email: "", telephone: "", service: "", date_souhaitee: "", heure: "", message: "", site_web: "" }), [fait, setFait] = useState(""), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
   const avecDate = SITE.demande === "rdv" || SITE.demande === "reservation", inf = d.infos ?? {};
+  // Rendez-vous : de vrais créneaux, tirés des horaires d'ouverture, à la durée de la prestation (30 min par défaut) ;
+  // un créneau déjà demandé n'est plus proposé (le serveur le refuse aussi)
+  const rdv = SITE.demande === "rdv" && (d.horaires ?? []).some((h) => h.ouvert);
+  const mn = (x) => { const m = /^(\\d{1,2}):(\\d{2})$/.exec(String(x || "")); return m ? +m[1] * 60 + +m[2] : null; };
+  const duree = (x) => { const t = String(x || ""), h = /(\\d+)\\s*h/.exec(t), m = /(\\d+)\\s*min/.exec(t) || /h\\s*(\\d{1,2})\\b/.exec(t), n = (h ? +h[1] * 60 : 0) + (m ? +m[1] : 0); return n >= 15 && n <= 240 ? n : 30; };
+  const auj = (() => { const n = new Date(); return n.getFullYear() + "-" + String(n.getMonth() + 1).padStart(2, "0") + "-" + String(n.getDate()).padStart(2, "0"); })();
+  const creneaux = (() => {
+    if (!rdv || !f.date_souhaitee) return [];
+    const j = new Date(f.date_souhaitee + "T12:00:00").getDay() || 7, h = d.horaires.find((x) => Number(x.jour) === j);
+    if (!h || !h.ouvert) return [];
+    const pas = duree(((d.services ?? []).find((x) => x.titre === f.service) || {}).duree), pris = new Set((d.pris ?? []).filter((x) => x.date === f.date_souhaitee).map((x) => x.heure));
+    const n = new Date(), tot = f.date_souhaitee === auj ? n.getHours() * 60 + n.getMinutes() + 60 : -1, out = [];
+    for (const [a, b] of [[h.debut, h.fin], [h.debut2, h.fin2]]) { const A = mn(a), B = mn(b); if (A == null || B == null) continue; for (let t = A; t + pas <= B; t += pas) if (t >= tot) { const hh = String(Math.floor(t / 60)).padStart(2, "0") + ":" + String(t % 60).padStart(2, "0"); out.push({ h: hh, pris: pris.has(hh) }); } }
+    return out;
+  })();
   const champ = "mt-1.5 min-h-12 w-full rounded-lg px-3 outline-none", bord = "border:1px solid color-mix(in srgb,var(--ink,var(--p-ink)) 30%,transparent);background:color-mix(in srgb,var(--ink,var(--p-ink)) 7%,transparent);color:var(--ink,var(--p-ink));font-size:16px";
   const envoyer = async (e) => {
     e.preventDefault(); setErr("");
     if (liste ? !f.email.trim() : !f.nom.trim()) { setErr(liste ? "Indiquez votre e-mail." : "Indiquez votre nom."); return; }
     if (!liste && !f.email.trim() && !f.telephone.trim()) { setErr("Indiquez votre e-mail ou votre téléphone pour qu'on puisse vous répondre."); return; }
+    if (!liste && rdv && f.date_souhaitee && creneaux.some((c) => !c.pris) && !f.heure) { setErr("Choisissez une heure."); return; }
     setBusy(true);
-    try { await call("site-contact", { data: liste ? { prenom: f.prenom, email: f.email, site_web: f.site_web } : f, source: B.source }); setFait(liste ? "Merci, vous êtes sur la liste. Vous serez prévenu à la sortie." : "Merci " + f.nom.split(" ")[0] + ", votre demande est bien envoyée. Réponse très vite."); }
+    try { await call("site-contact", { data: liste ? { prenom: f.prenom, email: f.email, site_web: f.site_web } : f, source: B.source }); setFait(liste ? "Merci, vous êtes sur la liste. Vous serez prévenu à la sortie." : f.heure ? "Merci " + f.nom.split(" ")[0] + ", votre rendez-vous du " + f.date_souhaitee.split("-").reverse().slice(0, 2).join("/") + " à " + heureS(f.heure) + " est demandé. Ce créneau vous est gardé, confirmation très vite." : "Merci " + f.nom.split(" ")[0] + ", votre demande est bien envoyée. Réponse très vite."); }
     catch (x) { setErr(x.message); } finally { setBusy(false); }
   };
   if (fait) return html\`<p class="t-lead" role="status">\${fait}</p>\`;
@@ -999,7 +1015,8 @@ function FormulaireSite({ d, liste }) {
   return html\`<form onSubmit=\${envoyer} class="bingoo-form text-left">
     \${liste ? html\`\${L("Prénom", "prenom")}\${L("E-mail", "email", "email")}\` : html\`\${L("Votre nom", "nom")}\${L("Téléphone", "telephone", "tel")}\${L("E-mail", "email", "email", true)}
       \${(d.services ?? []).length > 0 && html\`<label class="block text-[15px] font-medium plein">\${({ reservation: /h[ôo]tel|g[îi]te|chambre|h[ée]bergement|camping/i.test(SITE.metier || "") ? "Votre séjour" : "Votre réservation", devis: "Votre projet", message: "Votre demande" })[SITE.demande] ?? "Prestation"}<select value=\${f.service} onChange=\${(e) => setF({ ...f, service: e.target.value })} class=\${champ} style=\${bord}><option value="">Choisir…</option>\${d.services.map((s) => html\`<option value=\${s.titre}>\${s.titre}</option>\`)}</select></label>\`}
-      \${avecDate && L("Date souhaitée", "date_souhaitee", "date", true)}
+      \${avecDate && html\`<label class="block text-[15px] font-medium plein">\${rdv ? "Jour du rendez-vous" : "Date souhaitée"}<input type="date" min=\${auj} value=\${f.date_souhaitee} onInput=\${(e) => setF({ ...f, date_souhaitee: e.target.value, heure: "" })} class=\${champ} style=\${bord}/></label>\`}
+      \${rdv && f.date_souhaitee && html\`<div class="plein"><p class="text-[15px] font-medium">Heure</p>\${creneaux.length ? html\`<div class="bingoo-creneaux">\${creneaux.map((c) => html\`<button type="button" disabled=\${c.pris} aria-pressed=\${f.heure === c.h} onClick=\${() => setF({ ...f, heure: c.h })}>\${heureS(c.h)}</button>\`)}</div>\` : html\`<p class="t-small muted" style="margin-top:6px">Fermé ce jour-là : choisissez un autre jour.</p>\`}</div>\`}
       <label class="block text-[15px] font-medium plein">Message<textarea rows="4" value=\${f.message} onInput=\${(e) => setF({ ...f, message: e.target.value })} class="mt-1.5 w-full rounded-lg px-3 py-2.5 outline-none" style=\${bord}></textarea></label>\`}
     <input tabindex="-1" autocomplete="off" aria-hidden="true" value=\${f.site_web} onInput=\${(e) => setF({ ...f, site_web: e.target.value })} style="position:absolute;left:-9999px;width:1px;height:1px"/>
     \${err && html\`<p class="text-sm plein" style="color:#b91c1c">\${err}</p>\`}
@@ -1023,7 +1040,7 @@ function SitePageGeneree({ onAuth, saas }) {
       + "main>section.hero:is(.ground-brand,.ground-inverse):not(:has(img)){display:flex!important;flex-direction:column;justify-content:flex-end;padding-bottom:clamp(40px,6vw,88px)!important}main>section.hero:not(:has(img)) .t-lead{font-size:clamp(19px,1.5vw,24px)}"
       + "main>section.ground-brand:not(.hero):not(:has(img)) :is(.wrap,.wrap>*){min-height:0!important}"
       + ".bingoo-form select option{color:#111;background:#fff}.bingoo-form :is(input,select,textarea):focus{border-color:var(--accent,var(--p-accent))!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,var(--p-accent)) 30%,transparent)}.bingoo-form textarea{min-height:132px}"
-      + "main :is(h1,h2) em{font-style:italic;font-weight:inherit}.hours{font-size:16px}.rows .price{font-family:var(--font-display);font-size:22px;font-weight:500}.rows .t-card{font-size:19px}:is(main,footer) a[href^='tel:']{white-space:nowrap}"
+      + ".bingoo-creneaux{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;margin-top:8px}.bingoo-creneaux button{min-height:44px;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;border:1px solid color-mix(in srgb,var(--ink,var(--p-ink)) 30%,transparent);background:color-mix(in srgb,var(--ink,var(--p-ink)) 7%,transparent);color:var(--ink,var(--p-ink))}.bingoo-creneaux button[aria-pressed=true]{background:var(--ink,var(--p-ink));color:var(--bg,var(--p-bg));border-color:transparent}.bingoo-creneaux button:disabled{opacity:.35;text-decoration:line-through;cursor:not-allowed}section:has(>img[data-bingoo-membre]){position:relative;overflow:hidden;isolation:isolate}section:has(>img[data-bingoo-membre])>:not(img):not([data-bingoo-voile]){position:relative;z-index:2}.pm{display:grid;grid-template-columns:repeat(12,1fr);gap:clamp(8px,1.2vw,16px)}.pm img{width:100%;height:100%;object-fit:cover;aspect-ratio:4/3;grid-column:span 6;border-radius:var(--radius,6px);display:block}.pm-1 img{grid-column:span 12;aspect-ratio:21/9}.pm-3 img{grid-column:span 4;aspect-ratio:3/4}.pm-5 img:nth-child(-n+3){grid-column:span 4}@media (max-width:640px){.pm img,.pm-3 img,.pm-5 img:nth-child(-n+3){grid-column:span 12;aspect-ratio:4/3}}main :is(h1,h2) em{font-style:italic;font-weight:inherit}.hours{font-size:16px}.rows .price{font-family:var(--font-display);font-size:22px;font-weight:500}.rows .t-card{font-size:19px}:is(main,footer) a[href^='tel:']{white-space:nowrap}"
       + "[data-bingoo-photo] .btn--primary{background:var(--p-accent)!important;color:var(--p-accent-ink)!important;border-color:transparent!important}[data-bingoo-photo] .btn--secondary{background:rgba(0,0,0,.25)!important;color:#fff!important;border-color:rgba(255,255,255,.55)!important}[data-bingoo-photo] :is(h1,h2,h3,p,li,a:not(.btn)){color:#fff!important}"
       + ".field{font-size:14px;gap:8px}.field :is(input,select,textarea){height:52px;padding:0 16px;border-radius:10px;border:1px solid color-mix(in srgb,var(--ink) 30%,transparent);background:color-mix(in srgb,var(--ink) 6%,transparent);color:var(--ink);transition:border-color .2s,box-shadow .2s}"
       + ".field textarea{height:auto;min-height:140px;padding-block:14px}.field :is(input,select,textarea):focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 30%,transparent)}.field select option{color:#111;background:#fff}.field :is(input,textarea)::placeholder{color:color-mix(in srgb,var(--ink) 50%,transparent)}"

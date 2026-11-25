@@ -38,7 +38,7 @@ export default function Parametres() {
 
   return (
     <div className="mx-auto max-w-[760px] px-4 py-6 sm:px-6">
-      <Tete titre="Paramètres" sous="Ton compte Bingoo!. Les réglages de ton SaaS (nom, couleurs, paiement, domaine) sont dans Réglages du SaaS." />
+      <Tete titre="Paramètres" sous="Ton compte Bingoo!. Les réglages de ton projet (nom, couleurs, paiement, domaine) sont dans Réglages du projet." />
       <div className="flex flex-col gap-4">
         <Carte titre="Ton espace" sous="Le nom affiché en haut de Bingoo!.">
           <div className="flex gap-2"><input className={CHAMP} value={nom} onChange={(e) => setNom(e.target.value)} maxLength={80} /><Bouton principal disabled={occupe === "nom"} onClick={enregistrerNom}>Enregistrer</Bouton></div>
@@ -52,7 +52,7 @@ export default function Parametres() {
         </Carte>
         <Carte titre="Raccourcis">
           <div className="flex flex-wrap gap-2">
-            <Link to="/explorer/reglages-saas"><Bouton>Réglages du SaaS</Bouton></Link>
+            <Link to="/explorer/reglages-saas"><Bouton>Réglages du projet</Bouton></Link>
             <Link to="/abonnement"><Bouton>Abonnement et crédits</Bouton></Link>
             <Link to="/aide"><Bouton>Aide</Bouton></Link>
           </div>

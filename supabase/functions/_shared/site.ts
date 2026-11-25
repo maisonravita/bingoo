@@ -77,7 +77,7 @@ export async function pageSurMesure(appId: string, demarrerVerification: (id: st
     const g = await genererPage({
       nom: spec.nom, brief: [idee.texte, ...(Array.isArray(idee.reponses) ? idee.reponses.map((x: any) => `${x.q} : ${x.r}`) : [])].filter(Boolean).join("\n") || String(spec.pitch ?? ""),
       modele: spec.site?.modele, metier: spec.site?.metier, ville: spec.site?.ville, cta: spec.site?.cta, demande: spec.site?.demande,
-      design: spec.design, services: spec.demo?.services, horaires: spec.demo?.horaires, infos: (spec.demo?.infos ?? [])[0], faq: spec.faq,
+      design: spec.design, services: spec.demo?.services, horaires: spec.demo?.horaires, infos: (spec.demo?.infos ?? [])[0], faq: spec.faq, photosMembre: Array.isArray(spec.site?.photos) ? spec.site.photos : undefined,
       // Construction en direct : la page en cours est posée dans le brouillon, la page Bingoo! l'affiche section par section
       progres: async (pl) => {
         const n = pl.sections.filter((x) => x.id !== "nav" && x.html).length, tot = pl.sections.filter((x) => x.id !== "nav").length;

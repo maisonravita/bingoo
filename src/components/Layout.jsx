@@ -119,7 +119,7 @@ function MenuCompte({ ws, list, select, credits, invite, isAdmin, onAvis, onClos
         <p className="text-[13px] text-ink-soft">{invite ? "Sans compte" : `Formule ${FORMULE[ws.plan] ?? ws.plan}${(ws.plan === "explorer_pro" || ws.plan === "lancer_pro") && ws.periode ? ` · ${DUREE_F[ws.periode] ?? ""}` : ""}`}</p>
       </div>
       <div className="mt-1.5 py-1">
-        {!invite && <><L to="/explorer/reglages-saas">Réglages du SaaS</L><L to="/reglages">Paramètres</L><L to="/abonnement">Abonnement</L><L to="/abonnement#credits">Acheter des crédits</L>
+        {!invite && <><L to="/explorer/reglages-saas">Réglages du projet</L><L to="/reglages">Paramètres</L><L to="/abonnement">Abonnement</L><L to="/abonnement#credits">Acheter des crédits</L>
           {["business", "fondateur"].includes(ws.plan) && <L to="/equipe">Équipe</L>}{isAdmin && <L to="/admin">Administration</L>}</>}
         <label className="flex items-center justify-between gap-3 rounded-lg px-3 py-1.5 text-[14.5px] hover:bg-paper">Langue
           <select aria-label="Langue du site" value={langueActuelle()} onChange={(e) => choisirLangue(e.target.value)} className="rounded-md border border-line bg-white px-2 py-1 text-[13px]">{LANGUES.map(([code, nom]) => <option key={code} value={code}>{nom}</option>)}</select>
@@ -179,7 +179,7 @@ function AppShell({ ws, list, select, invite, sections, bas, bandeau, extra, men
         <form onSubmit={(e) => { e.preventDefault(); if (q.trim()) { nav(`/explorer/demande?q=${encodeURIComponent(q.trim())}`); setQ(""); recherche.current?.blur(); } }}
           className="mx-auto flex w-full max-w-[560px] items-center gap-2 rounded-lg bg-[#303030] px-3 py-1.5 ring-1 ring-white/10 focus-within:bg-[#3A3A3A] focus-within:ring-white/25">
           <Icon name="search" className="h-4 w-4 text-white/55" />
-          <input ref={recherche} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un SaaS, une idée, une question…" className="min-w-0 flex-1 bg-transparent text-[13.5px] text-white outline-none placeholder:text-white/45" />
+          <input ref={recherche} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un logiciel, une idée, une question…" className="min-w-0 flex-1 bg-transparent text-[13.5px] text-white outline-none placeholder:text-white/45" />
           <kbd className="rounded border border-white/15 px-1.5 text-[11px] text-white/50">⌘ K</kbd>
         </form>
         <div className="flex items-center gap-2">
