@@ -15,7 +15,7 @@ const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 const mix = (c, d, k) => c.map((v, i) => Math.round(v + (d[i] - v) * k));
 const lum = (c) => (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
 
-export const DUREES = { ecran_vitre: 3.2, ecran_zoom: 3.4, ecran_cascade: 3.2, ecran_defile: 3.4, ecran_split: 3, ecran_mur: 3, ecran_curseur: 3.4, ecran_telephone: 3.2, impact: 1.4, liste: 3.2, choix: 3, rature: 2.8, mots: 2.6, objet: 3.2, pilules: 3.2, compteur: 2.8, barres: 3, pastille: 1.8, cartes: 2.8, aplat: 2.2, logo: 3 };
+export const DUREES = { personnage: 3.8, ecran_vitre: 3.2, ecran_zoom: 3.4, ecran_cascade: 3.2, ecran_defile: 3.4, ecran_split: 3, ecran_mur: 3, ecran_curseur: 3.4, ecran_telephone: 3.2, impact: 1.4, liste: 3.2, choix: 3, rature: 2.8, mots: 2.6, objet: 3.2, pilules: 3.2, compteur: 2.8, barres: 3, pastille: 1.8, cartes: 2.8, aplat: 2.2, logo: 3 };
 export const TYPES_SCENES = Object.keys(DUREES);
 export const dureeScene = (s) => clamp(Number(s?.duree) || DUREES[s?.type] || 2.6, 1.4, 5);
 export const dureeTotale = (script) => (script?.scenes ?? []).reduce((a, s) => a + dureeScene(s), 0) || 20;
@@ -38,6 +38,7 @@ const ICONES = {
   musique: "M9 18V5l12-2v13 M9 18a3 3 0 1 1-6 0a3 3 0 1 1 6 0z M21 16a3 3 0 1 1-6 0a3 3 0 1 1 6 0z", camion: "M1 4h14v11H1z M15 8h4l3 3v4h-7z M5.5 18a1.5 1.5 0 1 0 0 .01 M18.5 18a1.5 1.5 0 1 0 0 .01",
 };
 export const NOMS_ICONES = Object.keys(ICONES);
+export const STYLES_PERSONNAGE = ["trait", "neon", "craie"];
 const chemins = {};
 function icone(ctx, nom, x, y, taille, couleur, epaisseur = 2) {
   const d = ICONES[nom] ?? ICONES.etincelle;
@@ -512,6 +513,7 @@ const SCENES = {
     ctx.translate(W / 2, H / 2); ctx.scale(p, p); rond(ctx, -w / 2, -h / 2, w, h, h / 2); ctx.fillStyle = "#fff"; ctx.fill();
     ctx.fillStyle = rgba(mix(C, [0, 0, 0], lum(C) > 0.6 ? 0.55 : 0), 1); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(txt, 0, ta * 0.04); ctx.restore();
   },
+  personnage(ctx, s, e) { scenePersonnage(ctx, s, e); },
   logo(ctx, s, e) {
     const { W, H, u, t, vertical } = s;
     const p = eo(prog(t, 0, 1)), T = 150 * u;
@@ -549,6 +551,71 @@ const SCENES = {
       ctx.fillStyle = INK; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(s.lien, W / 2, y + 323 * u); ctx.restore(); }
   },
 };
+
+// ---------------------------------------------------------------- Personnage animé (scène « personnage »)
+// Un bonhomme articulé vu de profil qui marche dans un décor qui défile, dessiné dans un « style » :
+//   trait  : fil blanc sur noir · neon : croquis lumineux sous un projecteur · craie : tableau d'école
+// Tout est tracé par le moteur (aucune image, aucun personnage de marque). D'autres styles s'ajoutent sur le même squelette.
+const STYLES_PERSO = ["trait", "neon", "craie"];
+// Squelette au temps t : les points des membres, pour un personnage de taille S dont les pieds touchent le sol en (x, sol)
+function squelette(x, sol, S, t) {
+  const ph = t * Math.PI * 2 * 1.35, pas = (k) => Math.sin(ph + k), cuisse = 0.56 * S, tibia = 0.56 * S, tronc = 0.95 * S, bras = 0.4 * S, avant = 0.38 * S;
+  const hanche = { x, y: sol - (cuisse + tibia) * 0.97 - Math.abs(Math.sin(ph)) * 0.035 * S };
+  const jambe = (k) => { const a = pas(k) * 0.48, pli = Math.max(0, Math.cos(ph + k)) * 0.85 + 0.06; const g = { x: hanche.x + Math.sin(a) * cuisse, y: hanche.y + Math.cos(a) * cuisse }; const b = a - pli; const p = { x: g.x + Math.sin(b) * tibia, y: Math.min(sol, g.y + Math.cos(b) * tibia) }; return [hanche, g, p, { x: p.x + 0.17 * S, y: Math.min(sol, p.y + 0.02 * S) }]; };
+  const penche = 0.07, epaule = { x: hanche.x + Math.sin(penche) * tronc, y: hanche.y - Math.cos(penche) * tronc };
+  const brasDe = (k, tient) => { const a = tient ? 0.12 : -pas(k) * 0.42, c = { x: epaule.x + Math.sin(a) * bras, y: epaule.y + Math.cos(a) * bras }; const b = a + (tient ? 1.25 : 0.35 + Math.max(0, pas(k)) * 0.3); return [epaule, c, { x: c.x + Math.sin(b) * avant, y: c.y + Math.cos(b) * avant }]; };
+  const tete = { x: epaule.x + 0.03 * S, y: epaule.y - 0.3 * S, r: 0.2 * S };
+  return { hanche, epaule, tete, jambes: [jambe(0), jambe(Math.PI)], bras: [brasDe(Math.PI, false), brasDe(0, true)] };
+}
+// Tracé d'une ligne brisée, avec la « main » du style (craie : deux passes légèrement décalées)
+function ligne(ctx, pts, style, graine = 0) {
+  const trace = (dx, dy) => { ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p.x + dx, p.y + dy) : ctx.moveTo(p.x + dx, p.y + dy))); ctx.stroke(); };
+  if (style === "craie") { const j = ctx.lineWidth * 0.35, a = Math.sin(graine * 12.9898) * j, b = Math.cos(graine * 78.233) * j; ctx.save(); ctx.globalAlpha *= 0.85; trace(a, b); ctx.globalAlpha *= 0.55; trace(-b, a); ctx.restore(); } else trace(0, 0);
+}
+function cerclePerso(ctx, x, y, r, style, graine = 0) {
+  const n = style === "craie" ? 2 : 1;
+  for (let k = 0; k < n; k++) { ctx.save(); if (k) ctx.globalAlpha *= 0.5; ctx.beginPath(); ctx.arc(x + (k ? Math.sin(graine) * ctx.lineWidth * 0.4 : 0), y, r * (k ? 1.03 : 1), 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+}
+function scenePersonnage(ctx, s, e) {
+  const { W, H, u, t, vertical } = s, style = STYLES_PERSO.includes(e.style) ? e.style : "trait";
+  const encre = style === "neon" ? "#F5B83D" : style === "craie" ? "#F2F4EE" : "#FFFFFF", pale = style === "neon" ? "rgba(245,184,61,.32)" : style === "craie" ? "rgba(242,244,238,.5)" : "rgba(255,255,255,.34)";
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = Math.min(1, t / 0.25); if ("filter" in ctx) ctx.filter = "none"; ctx.shadowBlur = 0;
+  // Fond du style
+  if (style === "craie") {
+    ctx.fillStyle = "#6B4A2E"; ctx.fillRect(0, 0, W, H); const m = Math.min(W, H) * 0.035; ctx.fillStyle = "#2E5E4A"; ctx.fillRect(m, m, W - 2 * m, H - 2 * m);
+    const g = ctx.createRadialGradient(W / 2, H * 0.4, 0, W / 2, H * 0.4, Math.max(W, H) * 0.7); g.addColorStop(0, "rgba(255,255,255,.07)"); g.addColorStop(1, "rgba(0,0,0,.18)"); ctx.fillStyle = g; ctx.fillRect(m, m, W - 2 * m, H - 2 * m);
+  } else { ctx.fillStyle = "#050506"; ctx.fillRect(0, 0, W, H); }
+  const sol = H * (vertical ? 0.8 : 0.82), S = Math.min(W * (vertical ? 0.34 : 0.16), H * 0.21), cx = W * 0.5, ep = Math.max(2.5, (style === "craie" ? 5 : 4) * u);
+  if (style === "neon") { // projecteur : un cône de lumière et un anneau au sol
+    const g = ctx.createLinearGradient(0, 0, 0, sol); g.addColorStop(0, "rgba(245,184,61,.34)"); g.addColorStop(1, "rgba(245,184,61,.03)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(cx - W * 0.03, 0); ctx.lineTo(cx + W * 0.03, 0); ctx.lineTo(cx + S * 1.9, sol); ctx.lineTo(cx - S * 1.9, sol); ctx.closePath(); ctx.fill();
+  }
+  ctx.strokeStyle = pale; ctx.lineWidth = ep * 0.6; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  // Décor qui défile vers la gauche (le personnage marche sur place) : sol en pointillés, cadre avec barres, plante, bureau
+  const v = t * S * 1.5, large = W + S * 2.4, pos = (x0) => ((((x0 - v) % large) + large) % large) - S * 2;
+  ligne(ctx, [{ x: 0, y: sol }, { x: W, y: sol }], style, 1);
+  for (let k = 0; k < 14; k++) { const x = pos(k * large / 14); ligne(ctx, [{ x, y: sol + S * 0.22 }, { x: x + S * 0.12, y: sol + S * 0.22 }], style, k); }
+  { const x = pos(W * 0.3), y = sol - S * 3.1, w = S * 1.5, h = S * 1.05; ligne(ctx, [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }, { x, y }], style, 3); [0.35, 0.6, 0.45, 0.8].forEach((q, i) => ligne(ctx, [{ x: x + w * (0.18 + i * 0.2), y: y + h * 0.88 }, { x: x + w * (0.18 + i * 0.2), y: y + h * (0.88 - q * 0.7) }], style, 4 + i)); }
+  { const x = pos(W * 0.95), b = sol; [-0.5, -0.2, 0.12, 0.42].forEach((a, i) => ligne(ctx, [{ x, y: b }, { x: x + Math.sin(a) * S * 0.9, y: b - Math.cos(a) * S * (0.75 + (i % 2) * 0.25) }], style, 9 + i)); }
+  { const x = pos(W * 1.3), w = S * 1.7, h = S * 0.95; ligne(ctx, [{ x, y: sol }, { x, y: sol - h }, { x: x + w, y: sol - h }, { x: x + w, y: sol }], style, 14); ligne(ctx, [{ x: x + w * 0.25, y: sol - h }, { x: x + w * 0.25, y: sol - h - S * 0.6 }, { x: x + w * 0.8, y: sol - h - S * 0.6 }, { x: x + w * 0.8, y: sol - h }], style, 15); }
+  // Le personnage
+  const k = squelette(cx, sol, S, t);
+  ctx.strokeStyle = encre; ctx.lineWidth = ep;
+  if (style === "neon") { ctx.shadowColor = "rgba(245,184,61,.95)"; ctx.shadowBlur = 22 * u; ctx.beginPath(); ctx.ellipse(cx, sol + S * 0.05, S * 0.95, S * 0.16, 0, 0, Math.PI * 2); ctx.stroke(); }
+  ligne(ctx, k.jambes[1], style, 20); ligne(ctx, k.bras[0], style, 21);
+  ligne(ctx, [k.hanche, k.epaule], style, 22); cerclePerso(ctx, k.tete.x, k.tete.y, k.tete.r, style, 23);
+  ligne(ctx, k.jambes[0], style, 24); ligne(ctx, k.bras[1], style, 25);
+  { const m = k.bras[1][2]; ligne(ctx, [{ x: m.x - S * 0.02, y: m.y + S * 0.03 }, { x: m.x + S * 0.3, y: m.y - S * 0.2 }], style, 26); } // ce qu'il tient : une tablette, de profil
+  ctx.shadowBlur = 0;
+  // La phrase de la scène, dans la « main » du style
+  if (e.texte) {
+    const craie = style === "craie", f = craie ? `"Caveat", "Segoe Print", cursive` : F, taille = (vertical ? (craie ? 110 : 78) : craie ? 84 : 60) * u;
+    ctx.font = `${craie ? 500 : 600} ${taille}px ${f}`; ctx.fillStyle = encre; ctx.textAlign = "center"; ctx.textBaseline = "middle"; if (style === "neon") { ctx.shadowColor = "rgba(245,184,61,.8)"; ctx.shadowBlur = 16 * u; }
+    const lignes = coupe(ctx, e.texte, W * 0.82).slice(0, 3), y0 = H * (vertical ? 0.17 : 0.15) - ((lignes.length - 1) * taille * 1.1) / 2;
+    lignes.forEach((l, i) => { const p = eo(prog(t, 0.25 + i * 0.18, 0.8 + i * 0.18)); ctx.save(); ctx.globalAlpha *= p; ctx.fillText(l, W / 2, y0 + i * taille * 1.1 + (1 - p) * 20 * u); ctx.restore(); });
+  }
+  ctx.restore();
+}
 
 /** Dessine l'image au temps t (secondes) d'une vidéo composée de scènes. */
 // Toujours une linéale très grasse et serrée (comme les pubs de référence), jamais la police à empattements du site
@@ -676,7 +743,7 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
   // scène, et un fil d'avancement en bas. Absent des scènes plein cadre (impact, aplat, fin).
   {
     let de3 = 0, k = -1, a = 0; const tot = scenes.reduce((x, e) => x + dureeScene(e), 0) || 1;
-    scenes.forEach((e, j) => { const d = dureeScene(e); if (t >= de3 && t < de3 + d) { k = j; a = ["aplat", "logo", "impact"].includes(e.type) ? 0 : Math.min(1, (t - de3) / 0.45, (de3 + d - t) / 0.3); } de3 += d; });
+    scenes.forEach((e, j) => { const d = dureeScene(e); if (t >= de3 && t < de3 + d) { k = j; a = ["aplat", "logo", "impact", "personnage"].includes(e.type) ? 0 : Math.min(1, (t - de3) / 0.45, (de3 + d - t) / 0.3); } de3 += d; });
     if (k >= 0 && a > 0.01 && LOOK !== "editorial" && LOOK !== "pop") {
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); if ("filter" in ctx) ctx.filter = "none"; ctx.shadowBlur = 0; ctx.globalAlpha = a;
       const mx = W * 0.07, yh = vertical ? H * 0.062 : H * 0.085, tl = 26 * u;
