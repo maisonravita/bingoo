@@ -50,7 +50,7 @@ function rond(ctx, x, y, w, h, r) {
   ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
 }
 // Lettres serrées pour les gros titres seulement (le petit texte garde son espacement, sinon les mots se collent)
-function serre(ctx, v) { try { ctx.letterSpacing = v; } catch { /* navigateur sans espacement de lettres */ } }
+function serre(ctx, v) { if (LOOK === "pop" && parseFloat(v) <= -0.03) v = "-0.06em"; try { ctx.letterSpacing = v; } catch { /* navigateur sans espacement de lettres */ } }
 // Taille de police pour qu'une ligne tienne dans la largeur
 function ajuste(ctx, texte, taille, largeur, poids = 800) { ctx.font = `${poids} ${taille}px ${F}`; const w = ctx.measureText(texte).width; return w > largeur ? taille * largeur / w : taille; }
 // La plus grande taille pour qu'un texte tienne en « lignes » lignes dans la largeur (les titres remplissent le cadre)
@@ -97,7 +97,7 @@ let LOOK = "nuit";
 let ECRANS = {}, ECRANS_L = [];
 const ecranDe = (titre, i = 0) => { const n = (x) => String(x ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); const k = Object.keys(ECRANS).find((x) => n(x) === n(titre)); return (k && ECRANS[k]) || ECRANS_L[i % Math.max(1, ECRANS_L.length)] || null; };
 export const policeMotion = (script) => ({ editorial: "Fraunces", minimal: "Plus Jakarta Sans" }[LOOKS.includes(script?.look) ? script.look : "nuit"] ?? "Inter Tight");
-const MAJ = (x) => (LOOK === "nuit" || LOOK === "pop" ? String(x ?? "").toUpperCase() : String(x ?? ""));
+const MAJ = (x) => (LOOK === "nuit" ? String(x ?? "").toUpperCase() : String(x ?? ""));
 
 // Palette selon le fond de la scène : noir, blanc, ou couleur de la marque (plein écran)
 let MODE = "noir";
@@ -108,6 +108,7 @@ function palette(mode) {
   INK = NOIR ? "#fff" : "#0E0F13"; INK2 = NOIR ? (a) => `rgba(255,255,255,${a})` : (a) => `rgba(14,15,19,${a})`;
 }
 function fond(ctx, W, H, t, u) {
+  if (LOOK === "pop") { ctx.fillStyle = MODE === "couleur" ? rgba(C, 1) : "#fff"; ctx.fillRect(0, 0, W, H); return; }
   if (MODE === "couleur") {
     const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, rgba(mix(C, [255, 255, 255], 0.1), 1)); g.addColorStop(1, rgba(mix(C, [0, 0, 0], 0.18), 1)); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
     const px = W * (0.3 + Math.sin(t * 0.3) * 0.2), R = Math.max(W, H) * 0.6, r = ctx.createRadialGradient(px, H * 0.2, 0, px, H * 0.2, R); r.addColorStop(0, "rgba(255,255,255,.18)"); r.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = r; ctx.fillRect(0, 0, W, H);
@@ -198,9 +199,11 @@ function listeAllure(ctx, s, e, courte = false) {
       // Paysage : les étiquettes restent dans la moitié droite, sans mordre sur le titre
       if (large) { const lw0 = Math.max(...items.map((z) => ctx.measureText(MAJ(z.texte)).width)) + 70 * u; if (lw0 > W * 0.44) ctx.font = `900 ${(courte ? 54 : 46) * u * ve * (W * 0.44) / lw0}px ${F}`; }
       const txt = MAJ(x.texte), lw = ctx.measureText(txt).width + 70 * u, bh = h * 0.78, r = ressort(prog(t, 0.3 + i * 0.24, 0.95 + i * 0.24));
-      ctx.translate(cx, y); ctx.rotate((i % 2 ? 1 : -1) * 0.05 * r); ctx.scale(0.6 + 0.4 * r, 0.6 + 0.4 * r);
-      rond(ctx, -lw / 2, -bh / 2, lw, bh, 18 * u); ctx.fillStyle = i % 2 ? INK : rgba(MODE === "couleur" ? [255, 255, 255] : C, 1); ctx.fill();
-      ctx.fillStyle = i % 2 ? (MODE === "couleur" ? rgba(C, 1) : "#000") : MODE === "couleur" ? rgba(C, 1) : "#fff"; ctx.fillText(txt, 0, 3 * u);
+      ctx.translate(cx, y + (1 - r) * 60 * u); ctx.globalAlpha *= clamp(r * 1.4);
+      const plein = i % 2 === 0, sc = MODE === "couleur";
+      rond(ctx, -lw / 2, -bh / 2, lw, bh, bh * 0.26); ctx.fillStyle = plein ? (sc ? "#fff" : rgba(C, 1)) : sc ? rgba(C, 1) : "#fff"; ctx.fill();
+      if (!plein) { ctx.strokeStyle = sc ? "#fff" : rgba(C, 1); ctx.lineWidth = Math.max(3, 5 * u); ctx.stroke(); }
+      ctx.fillStyle = plein ? (sc ? rgba(C, 1) : "#fff") : sc ? "#fff" : rgba(C, 1); ctx.fillText(txt, 0, 3 * u);
     }
     ctx.restore();
   });
@@ -469,9 +472,14 @@ const SCENES = {
     const { W, H, u, t } = s;
     const p = ressort(prog(t, 0.05, 0.75)), tp = ajuste(ctx, e.texte, 128 * u, W * 0.64, 800); ctx.font = `800 ${tp}px ${F}`;
     const w = ctx.measureText(e.texte).width + tp * 1.5, h = tp * 2.1;
-    for (let k = 0; k < 2; k++) { const q = prog(t, 0.3 + k * 0.35, 1.3 + k * 0.35); if (q > 0 && q < 1) { ctx.save(); ctx.globalAlpha *= (1 - q) * 0.5; ctx.strokeStyle = rgba(CV, 1); ctx.lineWidth = 4 * u; rond(ctx, W / 2 - w / 2 - q * 90 * u, H / 2 - h / 2 - q * 90 * u, w + q * 180 * u, h + q * 180 * u, (h + q * 180 * u) / 2); ctx.stroke(); ctx.restore(); } }
+    for (let k = 0; k < 2 && LOOK !== "pop"; k++) { const q = prog(t, 0.3 + k * 0.35, 1.3 + k * 0.35); if (q > 0 && q < 1) { ctx.save(); ctx.globalAlpha *= (1 - q) * 0.5; ctx.strokeStyle = rgba(CV, 1); ctx.lineWidth = 4 * u; rond(ctx, W / 2 - w / 2 - q * 90 * u, H / 2 - h / 2 - q * 90 * u, w + q * 180 * u, h + q * 180 * u, (h + q * 180 * u) / 2); ctx.stroke(); ctx.restore(); } }
     ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(p, p);
     const surCouleur = MODE === "couleur";
+    if (LOOK === "pop") {
+      rond(ctx, -w / 2, -h / 2, w, h, h * 0.26); ctx.fillStyle = "#fff"; ctx.fill();
+      if (!surCouleur) { ctx.strokeStyle = rgba(C, 1); ctx.lineWidth = Math.max(3, 6 * u); ctx.stroke(); }
+      ctx.fillStyle = rgba(C, 1); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(e.texte, 0, tp * 0.04); ctx.restore(); return;
+    }
     ctx.shadowColor = surCouleur ? "rgba(0,0,0,.28)" : rgba(C, 0.55); ctx.shadowBlur = 60 * u; ctx.shadowOffsetY = surCouleur ? 18 * u : 0; rond(ctx, -w / 2, -h / 2, w, h, h / 2);
     ctx.fillStyle = surCouleur ? "#fff" : rgba(C, 1); ctx.fill(); ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
     ctx.fillStyle = surCouleur ? rgba(mix(C, [0, 0, 0], lum(C) > 0.5 ? 0.5 : 0.1), 1) : lum(C) > 0.62 ? "#111" : "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(e.texte, 0, tp * 0.04); ctx.restore();
@@ -484,11 +492,12 @@ const SCENES = {
       const p = ressort(prog(t, 0.1 + i * 0.35, 0.9 + i * 0.35)); if (p <= 0) return;
       const off = (items.length - 1 - i) * 26 * u, y = H / 2 - h / 2 + (i - (items.length - 1) / 2) * (s.vertical ? h + 22 * u : h * 0.8);
       ctx.save(); ctx.globalAlpha *= clamp(p); ctx.translate(W / 2, y + h / 2 + (1 - p) * 160 * u); ctx.rotate((i - 1) * 0.04 * (1 - p * 0.6)); ctx.translate(-W / 2, -(y + h / 2));
-      ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = 40 * u; ctx.shadowOffsetY = 14 * u;
+      if (LOOK !== "pop") { ctx.shadowColor = "rgba(0,0,0,.35)"; ctx.shadowBlur = 40 * u; ctx.shadowOffsetY = 14 * u; }
       rond(ctx, W / 2 - w / 2 + off / 2, y, w - off, h, 30 * u);
-      const blanche = MODE === "couleur";
+      const blanche = MODE === "couleur" || LOOK === "pop";
+      if (LOOK === "pop" && MODE !== "couleur") { ctx.fillStyle = "#fff"; ctx.fill(); ctx.strokeStyle = rgba(C, 1); ctx.lineWidth = Math.max(3, 5 * u); ctx.stroke(); }
       if (blanche) ctx.fillStyle = "#fff"; else { const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, rgba(mix(C, [255, 255, 255], 0.1 + i * 0.05), 1)); g.addColorStop(1, rgba(mix(C, [0, 0, 0], 0.15), 1)); ctx.fillStyle = g; } ctx.fill();
-      ctx.shadowColor = "transparent"; ctx.fillStyle = blanche ? rgba(mix(C, [0, 0, 0], lum(C) > 0.5 ? 0.55 : 0.15), 1) : lum(C) > 0.62 ? "#111" : "#fff"; ctx.font = `800 ${ajuste(ctx, x, 68 * u, w - 110 * u, 800)}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(x, W / 2, y + h / 2 + 3 * u);
+      ctx.shadowColor = "transparent"; ctx.fillStyle = LOOK === "pop" ? rgba(C, 1) : blanche ? rgba(mix(C, [0, 0, 0], lum(C) > 0.5 ? 0.55 : 0.15), 1) : lum(C) > 0.62 ? "#111" : "#fff"; ctx.font = `800 ${ajuste(ctx, x, 68 * u, w - 110 * u, 800)}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(x, W / 2, y + h / 2 + 3 * u);
       ctx.restore();
     });
   },
@@ -496,7 +505,7 @@ const SCENES = {
     const { W, H, u, t } = s;
     const r = Math.hypot(W, H) * eio(prog(t, 0, 0.7));
     ctx.save(); ctx.beginPath(); ctx.arc(W / 2, H / 2, r, 0, 7); ctx.clip();
-    const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, rgba(mix(C, [255, 255, 255], 0.12), 1)); g.addColorStop(1, rgba(mix(C, [0, 0, 0], 0.25), 1)); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, rgba(mix(C, [255, 255, 255], 0.12), 1)); g.addColorStop(1, rgba(mix(C, [0, 0, 0], 0.25), 1)); ctx.fillStyle = LOOK === "pop" ? rgba(C, 1) : g; ctx.fillRect(0, 0, W, H);
     const p = ressort(prog(t, 0.45, 1.2)), txt = e.texte || s.nom, ta = ajuste(ctx, txt, 118 * u, W * 0.66, 800); ctx.font = `800 ${ta}px ${F}`;
     if (LOGO?.width) { ctx.translate(W / 2, H / 2); ctx.scale(p, p); plaqueLogo(ctx, 0, 0, 130 * u, u); ctx.restore(); return; }
     const w = ctx.measureText(txt).width + ta * 1.5, h = ta * 2.1;
@@ -528,8 +537,8 @@ const SCENES = {
         ctx.restore();
       }
     } else {
-    ctx.save(); if ("filter" in ctx) ctx.filter = p < 0.98 ? `blur(${(1 - p) * 26 * u}px)` : "none"; ctx.globalAlpha *= p; // sans logo envoyé : le nom seul, en grand (aucune pastille dessinée)
-    ctx.shadowColor = rgba(CV, 0.6); ctx.shadowBlur = 60 * u; serre(ctx, "-0.04em");
+    ctx.save(); if ("filter" in ctx) ctx.filter = p < 0.98 && LOOK !== "pop" ? `blur(${(1 - p) * 26 * u}px)` : "none"; ctx.globalAlpha *= p; // sans logo envoyé : le nom seul, en grand (aucune pastille dessinée)
+    if (LOOK !== "pop") { ctx.shadowColor = rgba(CV, 0.6); ctx.shadowBlur = 60 * u; } serre(ctx, "-0.04em");
     ctx.fillStyle = INK; ctx.font = `900 ${ajuste(ctx, s.nom, (vertical ? 150 : 140) * u, W * 0.86, 900)}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(s.nom, W / 2, y + 20 * u); serre(ctx, "-0.01em");
     ctx.restore();
     }
@@ -576,19 +585,30 @@ export function sousInstants(script, t, fps = 30) {
   return [t];
 }
 
+// Pop : chaque scène est sur blanc ou sur la couleur de la marque, jamais deux fois de suite le même fond ; la fin sur blanc
+function modesPop(scenes) {
+  const m = scenes.map((e) => (e.fond === "blanc" ? "blanc" : "couleur"));
+  for (let j = 1; j < m.length; j++) if (m[j] === m[j - 1]) m[j] = m[j] === "blanc" ? "couleur" : "blanc";
+  if (m.length > 1) { m[m.length - 1] = "blanc"; if (m[m.length - 2] === "blanc") m[m.length - 2] = "couleur"; }
+  return m;
+}
 export const POLICE_MOTION = "Inter Tight";
 export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = null, filigrane = false } = {}) {
   LOGO = logo; ECRANS = ecrans && typeof ecrans === "object" ? ecrans : {}; ECRANS_L = Object.values(ECRANS).filter(Boolean);
   LOOK = LOOKS.includes(script?.look) ? script.look : "nuit";
   F = `"${policeMotion(script)}", "Inter", "Helvetica Neue", Arial, system-ui, sans-serif`;
   serre(ctx, "-0.01em");
-  const FOND = LOOK === "editorial" || LOOK === "minimal" ? "blanc" : LOOK === "pop" ? "noir" : script?.fond === "blanc" ? "blanc" : "noir";
+  const FOND = LOOK === "editorial" || LOOK === "minimal" || LOOK === "pop" ? "blanc" : script?.fond === "blanc" ? "blanc" : "noir";
+  // Pop : graisse moyenne partout (les titres très gras deviennent des linéales serrées, comme une pub de marque)
+  const policeCtx = LOOK === "pop" ? Object.getOwnPropertyDescriptor(Object.getPrototypeOf(ctx), "font") : null;
+  if (policeCtx?.set) try { Object.defineProperty(ctx, "font", { configurable: true, get() { return policeCtx.get.call(this); }, set(v) { policeCtx.set.call(this, String(v).replace(/^(italic )?(\d{3}) /, (m, it, w) => `${it || ""}${Math.min(+w, 600)} `)); } }); } catch { /* contexte figé */ }
   C = hexRgb(script?.couleur); palette(FOND);
   // En vertical (téléphone), tout est un peu plus grand : la vidéo se regarde sur un petit écran
   const vertical = H > W * 1.2, u = (Math.min(W, H) / 1080) * (vertical ? 1.42 : W > H * 1.2 ? 1.62 : 1.4);
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0; if ("filter" in ctx) ctx.filter = "none";
   fond(ctx, W, H, t, u);
   const scenes = (script?.scenes ?? []).filter((x) => SCENES[x?.type]);
+  const MP = LOOK === "pop" ? modesPop(scenes) : null;
   let de = 0;
   for (let i = 0; i < scenes.length; i++) {
     const e = scenes[i], d = dureeScene(e), a = de + d; de = a;
@@ -599,17 +619,18 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
     // Éditorial et minimal restent clairs (le noir devient le fond de la vidéo) ; pop alterne papier clair, couleur pleine et couleur très foncée
     let modeScene = ["couleur", "blanc", "noir"].includes(e.fond) ? e.fond : FOND;
     if ((LOOK === "editorial" || LOOK === "minimal") && modeScene === "noir") modeScene = "blanc";
+    if (MP) modeScene = MP[i];
     palette(modeScene);
-    if (modeScene !== FOND) { ctx.save(); ctx.globalAlpha = Math.min(1, ent * 1.6) * (1 - sort); fond(ctx, W, H, t, u); ctx.restore(); }
+    if (modeScene !== FOND) { ctx.save(); ctx.globalAlpha = MP ? 1 : Math.min(1, ent * 1.6) * (1 - sort); fond(ctx, W, H, t, u); ctx.restore(); }
     ctx.save();
     // Caméra : léger zoom continu ; entrée nette depuis un flou, sortie en zoom avant + flou
     // Chaque allure a sa propre façon de bouger (sinon toutes les vidéos se ressemblent)
     if (LOOK === "pop") {
-      // Pop : la scène monte d'en bas en tournant, rebondit, puis s'envole vers le haut ; pas de flou
+      // Pop : le fond change d'un coup, le contenu monte du bas (vite, puis se pose) et repart par le haut
       const pz = pulsation(script, t); ctx.translate(W / 2, H / 2); ctx.scale(pz, pz); ctx.translate(-W / 2, -H / 2);
-      const r = ressort(prog(local, 0, 0.6)), y = (1 - r) * H * 0.35 - sort * H * 0.45, rot = (1 - r) * (i % 2 ? 0.09 : -0.09) + sort * (i % 2 ? -0.05 : 0.05);
-      ctx.translate(W / 2, H / 2 + y); ctx.rotate(rot); ctx.translate(-W / 2, -H / 2);
-      ctx.globalAlpha = Math.min(1, ent * 2) * (1 - sort * 0.6); if ("filter" in ctx) ctx.filter = "none";
+      const arr = 1 - Math.pow(1 - prog(local, 0, 0.42), 4), dep = derniere ? 0 : Math.pow(prog(local, d - 0.2, d), 3);
+      ctx.translate(0, (1 - arr) * H * 0.55 - dep * H * 0.6);
+      ctx.globalAlpha = 1; if ("filter" in ctx) ctx.filter = "none";
     } else if (LOOK === "editorial") {
       // Éditorial : glisse lentement vers le haut et apparaît en fondu, comme on tourne la page ; rien ne zoome
       const y = (1 - ent) * 46 * u - sort * 30 * u;
@@ -635,8 +656,9 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
       const q = eio(prog(local, 0, 0.7));
       ctx.save(); ctx.fillStyle = rgba(C, 1);
       if (LOOK === "pop") {
-        // Pop : trois bandes diagonales qui traversent l'écran, dans la couleur de la marque
-        for (let b = 0; b < 3; b++) { const x = -W * 1.2 + (q * 1.15 - b * 0.08) * W * 2.6; ctx.save(); ctx.translate(x, H / 2); ctx.rotate(-0.5); ctx.fillStyle = b === 1 ? rgba(mix(C, [0, 0, 0], 0.35), 1) : rgba(C, 1); ctx.fillRect(-W * 0.22, -H, W * 0.3, H * 2); ctx.restore(); }
+        // Pop : un anneau épais part du coin bas gauche et traverse l'écran (blanc sur la couleur, couleur sur le blanc)
+        const R = q * Math.hypot(W, H) * 1.45, ep = Math.max(W, H) * 0.3 * Math.sin(q * Math.PI);
+        if (ep > 1) { ctx.strokeStyle = MODE === "couleur" ? "#fff" : rgba(C, 1); ctx.lineWidth = ep; ctx.beginPath(); ctx.arc(-W * 0.12, H * 1.1, R, 0, Math.PI * 2); ctx.stroke(); }
       } else if (LOOK === "editorial") {
         // Éditorial : un rideau qui monte, droit, comme une page qui se tourne
         const h = H * (q < 0.5 ? q * 2 : 2 - q * 2), y0 = q < 0.5 ? H - h : 0; ctx.fillRect(0, y0, W, h);
@@ -655,12 +677,12 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
   {
     let de3 = 0, k = -1, a = 0; const tot = scenes.reduce((x, e) => x + dureeScene(e), 0) || 1;
     scenes.forEach((e, j) => { const d = dureeScene(e); if (t >= de3 && t < de3 + d) { k = j; a = ["aplat", "logo", "impact"].includes(e.type) ? 0 : Math.min(1, (t - de3) / 0.45, (de3 + d - t) / 0.3); } de3 += d; });
-    if (k >= 0 && a > 0.01 && LOOK !== "editorial") {
+    if (k >= 0 && a > 0.01 && LOOK !== "editorial" && LOOK !== "pop") {
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); if ("filter" in ctx) ctx.filter = "none"; ctx.shadowBlur = 0; ctx.globalAlpha = a;
       const mx = W * 0.07, yh = vertical ? H * 0.062 : H * 0.085, tl = 26 * u;
       ctx.font = `700 ${tl}px ${F}`; ctx.textBaseline = "middle"; serre(ctx, "0.12em"); ctx.fillStyle = INK2(0.72);
       if (!LOGO?.width && script?.nom) { ctx.textAlign = "left"; ctx.fillText(String(script.nom).toUpperCase().slice(0, 28), mx, yh); }
-      ctx.textAlign = "right"; ctx.fillText(`${String(k + 1).padStart(2, "0")} / ${String(scenes.length).padStart(2, "0")}`, W - mx, yh);
+      if (!filigrane) { ctx.textAlign = "right"; ctx.fillText(`${String(k + 1).padStart(2, "0")} / ${String(scenes.length).padStart(2, "0")}`, W - mx, yh); }
       serre(ctx, "-0.01em");
       const yb = vertical ? H * 0.945 : H * 0.93, lw = W - mx * 2, ep = Math.max(2, 3 * u);
       ctx.fillStyle = INK2(0.16); ctx.fillRect(mx, yb, lw, ep); ctx.fillStyle = INK2(0.85); ctx.fillRect(mx, yb, lw * clamp(t / tot), ep);
@@ -676,7 +698,7 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
   // Habillage propre à chaque allure, par-dessus les scènes
   let iCour = 0, modeCour = FOND; { let de3 = 0; for (let j = 0; j < scenes.length; j++) { const dj = dureeScene(scenes[j]); if (t >= de3) { iCour = j; modeCour = ["couleur", "blanc", "noir"].includes(scenes[j].fond) ? scenes[j].fond : FOND; } de3 += dj; } }
   if ((LOOK === "editorial" || LOOK === "minimal") && modeCour === "noir") modeCour = "blanc";
-  if (LOOK === "pop" && modeCour === "blanc") modeCour = "couleur";
+  if (MP) modeCour = MP[iCour];
   palette(modeCour); ctx.globalAlpha = 1; if ("filter" in ctx) ctx.filter = "none"; ctx.shadowBlur = 0;
   const derniere = iCour === scenes.length - 1;
   if (LOOK === "editorial" && !derniere) {
@@ -685,6 +707,7 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
     ctx.fillText(`${String(iCour + 1).padStart(2, "0")} — ${String(scenes.length).padStart(2, "0")}`, W * 0.08, H * 0.045);
     ctx.textAlign = "right"; ctx.font = `italic 600 ${24 * u}px ${F}`; ctx.fillText(script.nom ?? "", W * 0.92, H * 0.045); ctx.restore();
   }
+  if (policeCtx?.set) try { delete ctx.font; } catch { /* rien */ }
   // « Fait avec Bingoo! » en haut à droite, sur toutes les vidéos sauf l'offre Lancer Pro (comme le badge des sites)
   if (filigrane) {
     const uu = Math.min(W, H) / 1080, txt = "Fait avec Bingoo!";
