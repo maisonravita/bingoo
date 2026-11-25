@@ -17,7 +17,7 @@ const GARDE_FOU_APERCU = ", realistic photograph, natural light, no text, no let
 export const MODELE_APERCU = () => Deno.env.get("FAL_MODELE_APERCU") ?? "fal-ai/flux/schnell";
 const PRIX_APERCU_EUR = () => (Number(Deno.env.get("FAL_PRIX_APERCU_USD") ?? "0.003") || 0.003) * (Number(Deno.env.get("USD_EUR") ?? "0.92") || 0.92);
 
-export async function imagesPage(demandes: { id: string; pour: string; prompt: string }[], budgetEur: number, o: { apercu?: boolean } = {}) {
+export async function imagesPage(demandes: { id: string; pour: string; prompt: string }[], budgetEur: number, o: { apercu?: boolean; taille?: string } = {}) {
   const MODELE = o.apercu ? MODELE_APERCU : MODELE_BASE, PRIX_EUR = o.apercu ? PRIX_APERCU_EUR : PRIX_BASE_EUR;
   const cle = Deno.env.get("FAL_KEY");
   const images: Record<string, { url: string; prompt: string }> = {};
@@ -28,7 +28,7 @@ export async function imagesPage(demandes: { id: string; pour: string; prompt: s
     const id = o.apercu || /^IMG_\d$/.test(d.id) ? d.id : `IMG_${Object.keys(images).length + 1}`;
     const r = await fetch(`https://fal.run/${MODELE()}`, {
       method: "POST", headers: { authorization: `Key ${cle}`, "content-type": "application/json" },
-      body: JSON.stringify({ prompt: String(d.prompt).slice(0, 900) + (o.apercu ? GARDE_FOU_APERCU : GARDE_FOU), image_size: o.apercu ? "landscape_4_3" : "landscape_16_9", num_images: 1, enable_safety_checker: true, ...(o.apercu ? { num_inference_steps: 4 } : {}) }),
+      body: JSON.stringify({ prompt: String(d.prompt).slice(0, 900) + (o.apercu ? GARDE_FOU_APERCU : GARDE_FOU), image_size: o.taille ?? (o.apercu ? "landscape_4_3" : "landscape_16_9"), num_images: 1, enable_safety_checker: true, ...(o.apercu ? { num_inference_steps: 4 } : {}) }),
       signal: AbortSignal.timeout(60_000),
     });
     if (!r.ok) throw new Error(`fal ${r.status} : ${(await r.text()).slice(0, 160)}`);

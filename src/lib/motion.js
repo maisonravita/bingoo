@@ -15,7 +15,7 @@ const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 const mix = (c, d, k) => c.map((v, i) => Math.round(v + (d[i] - v) * k));
 const lum = (c) => (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
 
-export const DUREES = { personnage: 3.8, ecran_vitre: 3.2, ecran_zoom: 3.4, ecran_cascade: 3.2, ecran_defile: 3.4, ecran_split: 3, ecran_mur: 3, ecran_curseur: 3.4, ecran_telephone: 3.2, impact: 1.4, liste: 3.2, choix: 3, rature: 2.8, mots: 2.6, objet: 3.2, pilules: 3.2, compteur: 2.8, barres: 3, pastille: 1.8, cartes: 2.8, aplat: 2.2, logo: 3 };
+export const DUREES = { personnage: 3.8, image: 3.2, ecran_vitre: 3.2, ecran_zoom: 3.4, ecran_cascade: 3.2, ecran_defile: 3.4, ecran_split: 3, ecran_mur: 3, ecran_curseur: 3.4, ecran_telephone: 3.2, impact: 1.4, liste: 3.2, choix: 3, rature: 2.8, mots: 2.6, objet: 3.2, pilules: 3.2, compteur: 2.8, barres: 3, pastille: 1.8, cartes: 2.8, aplat: 2.2, logo: 3 };
 export const TYPES_SCENES = Object.keys(DUREES);
 export const dureeScene = (s) => clamp(Number(s?.duree) || DUREES[s?.type] || 2.6, 1.4, 5);
 export const dureeTotale = (script) => (script?.scenes ?? []).reduce((a, s) => a + dureeScene(s), 0) || 20;
@@ -96,6 +96,8 @@ export const LOOKS = ["nuit", "pop", "editorial", "minimal"];
 let LOOK = "nuit";
 // Les vrais écrans du SaaS ou du site du membre (captures de son produit), par titre : { titre: image }
 let ECRANS = {}, ECRANS_L = [];
+// Les images de la vidéo (photos du membre ou images créées pour lui), par identifiant : { IMG_1: image chargée }
+let IMAGES = {};
 const ecranDe = (titre, i = 0) => { const n = (x) => String(x ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); const k = Object.keys(ECRANS).find((x) => n(x) === n(titre)); return (k && ECRANS[k]) || ECRANS_L[i % Math.max(1, ECRANS_L.length)] || null; };
 export const policeMotion = (script) => ({ editorial: "Fraunces", minimal: "Plus Jakarta Sans" }[LOOKS.includes(script?.look) ? script.look : "nuit"] ?? "Inter Tight");
 const MAJ = (x) => (LOOK === "nuit" ? String(x ?? "").toUpperCase() : String(x ?? ""));
@@ -526,6 +528,26 @@ const SCENES = {
     ctx.fillStyle = rgba(mix(C, [0, 0, 0], lum(C) > 0.6 ? 0.55 : 0), 1); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(txt, 0, ta * 0.04); ctx.restore();
   },
   personnage(ctx, s, e) { scenePersonnage(ctx, s, e); },
+  // L'image de ce dont on parle (photo du membre ou image créée), dans un cadre arrondi qui monte, avec sa phrase dessous.
+  // L'image avance doucement dans son cadre ; sans image chargée, la phrase seule.
+  image(ctx, s, e) {
+    const { W, H, u, t, vertical } = s, img = IMAGES[e.image];
+    if (!img?.width) return SCENES.mots(ctx, s, { texte: e.texte || s.nom, accent: e.accent });
+    const p = 1 - Math.pow(1 - prog(t, 0, 0.6), 4), a = vertical ? 1.12 : 0.62;
+    const w = vertical ? W * 0.8 : Math.min(W * 0.4, H * 1.0), h = w * a, x = vertical ? (W - w) / 2 : W * 0.07, y = vertical ? H * 0.13 : (H - h) / 2, r = (LOOK === "minimal" ? 10 : 44) * u;
+    ctx.save(); ctx.translate(0, LOOK === "pop" ? 0 : (1 - p) * 90 * u); ctx.globalAlpha *= Math.min(1, p * 1.5);
+    if (LOOK !== "pop" && LOOK !== "minimal") { ctx.save(); ctx.shadowColor = NOIR ? rgba(C, 0.45) : "rgba(15,20,40,.28)"; ctx.shadowBlur = 80 * u; ctx.shadowOffsetY = 30 * u; rond(ctx, x, y, w, h, r); ctx.fillStyle = "#000"; ctx.fill(); ctx.restore(); }
+    ctx.save(); rond(ctx, x, y, w, h, r); ctx.clip();
+    const k = Math.max(w / img.width, h / img.height) * (1.12 - 0.08 * prog(t, 0, s.d)), iw = img.width * k, ih = img.height * k;
+    ctx.drawImage(img, x + (w - iw) / 2, y + (h - ih) / 2, iw, ih); ctx.restore();
+    if (LOOK === "pop") { rond(ctx, x, y, w, h, r); ctx.strokeStyle = MODE === "couleur" ? "#fff" : rgba(C, 1); ctx.lineWidth = Math.max(4, 8 * u); ctx.stroke(); }
+    ctx.restore();
+    if (e.texte) {
+      const lx = vertical ? W / 2 : x + w + (W - x - w) / 2, ly = vertical ? y + h + (H - y - h) * 0.42 : H / 2, largeur = vertical ? W * 0.84 : W - x - w - W * 0.1;
+      serre(ctx, "-0.035em"); const taille = remplit(ctx, e.texte, (LOOK === "nuit" ? 92 : 124) * u, largeur, vertical ? 2 : 3); serre(ctx, "-0.01em");
+      motsAnimes(ctx, e.texte, e.accent, lx, ly, { taille, poids: 800, largeur, t: t - 0.25, decale: 0.08 });
+    }
+  },
   logo(ctx, s, e) {
     const { W, H, u, t, vertical } = s;
     const p = eo(prog(t, 0, 1)), T = 150 * u;
@@ -672,8 +694,8 @@ function modesPop(scenes) {
   return m;
 }
 export const POLICE_MOTION = "Inter Tight";
-export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = null, filigrane = false } = {}) {
-  LOGO = logo; ECRANS = ecrans && typeof ecrans === "object" ? ecrans : {}; ECRANS_L = Object.values(ECRANS).filter(Boolean);
+export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = null, images = null, filigrane = false } = {}) {
+  LOGO = logo; IMAGES = images && typeof images === "object" ? images : {}; ECRANS = ecrans && typeof ecrans === "object" ? ecrans : {}; ECRANS_L = Object.values(ECRANS).filter(Boolean);
   LOOK = LOOKS.includes(script?.look) ? script.look : "nuit";
   F = `"${policeMotion(script)}", "Inter", "Helvetica Neue", Arial, system-ui, sans-serif`;
   serre(ctx, "-0.01em");

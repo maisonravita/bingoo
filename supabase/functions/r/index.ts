@@ -1733,7 +1733,10 @@ Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement,
       if (a && titres.length) produit = { id: a.id, slug: a.slug, titres, nom: String(sp?.nom ?? "").slice(0, 28), couleur: couleurVideo };
     }
     let sc: any;
-    try { sc = await videoLibre(produit?.nom ? `${texte} (le logiciel s'appelle « ${produit.nom} » : c'est ce nom-là, jamais un autre)` : texte, produit?.titres ?? []); } catch (e) { if ((e as any)?.status === 400) throw new HttpError(400, (e as Error).message); throw e; }
+    // Images : les photos du membre (déposées chez Bingoo!) passent d'abord ; les images créées sont réservées aux offres payantes
+    const prefixeImg = admin.storage.from("apps").getPublicUrl("images/").data.publicUrl;
+    const photosVideo = (Array.isArray(b.photos) ? b.photos : []).map((u: unknown) => String(u ?? "")).filter((u: string) => u.startsWith(prefixeImg) && /\.(jpg|png|webp)$/.test(u) && !/["<>\s]/.test(u)).slice(0, 3);
+    try { sc = await videoLibre(produit?.nom ? `${texte} (le logiciel s'appelle « ${produit.nom} » : c'est ce nom-là, jamais un autre)` : texte, produit?.titres ?? [], { photos: photosVideo, images: !produit && ws.plan !== "essai" }); } catch (e) { if ((e as any)?.status === 400) throw new HttpError(400, (e as Error).message); throw e; }
     const { categorieDesign, tirerDesign } = await import("../_shared/design.ts");
     const d: any = tirerDesign(categorieDesign(String(sc.secteur_en ?? "") || texte));
     const { secteur_en: _s, ...script } = sc;

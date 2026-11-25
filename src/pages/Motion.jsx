@@ -95,7 +95,16 @@ export default function Motion() {
   const opts = { nom: script?.nom ?? "", couleur: script?.couleur ?? "#E8571C", lien: script?.lien ?? "", images: [], style, police, graine };
   // Nouvelles vidéos : suite de scènes (moteur « pub premium ») ; anciennes : gabarit fixe de 21 s
   const scenes = !!script?.scenes?.length, duree = scenes ? dureeTotale(script) : DUREE;
-  const dessinerA = (t) => { const c = canvas.current; if (!c || !script) return; if (scenes) dessinerScenes(c.getContext("2d"), W, H, t, script, { logo: logoImg, ecrans: ecransVideo, filigrane: !sansFiligrane }); else dessiner(c.getContext("2d"), W, H, t, script, opts); };
+  // Les images de la vidéo (photos du membre ou images créées) : chargées une fois, puis dessinées par le moteur
+  const [imagesVideo, setImagesVideo] = useState(null);
+  useEffect(() => {
+    const liste = Object.entries(script?.images ?? {}).filter(([, v]) => /^https:\/\//.test(v?.url ?? "")); let vivant = true;
+    if (!liste.length) { setImagesVideo(null); return; }
+    Promise.all(liste.map(([k, v]) => new Promise((ok) => { const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => ok([k, i]); i.onerror = () => ok(null); i.src = v.url; })))
+      .then((l) => { if (vivant) setImagesVideo(Object.fromEntries(l.filter(Boolean))); });
+    return () => { vivant = false; };
+  }, [sel?.id, JSON.stringify(Object.keys(script?.images ?? {}))]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dessinerA = (t) => { const c = canvas.current; if (!c || !script) return; if (scenes) dessinerScenes(c.getContext("2d"), W, H, t, script, { logo: logoImg, ecrans: ecransVideo, images: imagesVideo, filigrane: !sansFiligrane }); else dessiner(c.getContext("2d"), W, H, t, script, opts); };
 
   // Lecture en boucle
   useEffect(() => {
@@ -104,7 +113,7 @@ export default function Motion() {
     const image = () => { dessinerA(((performance.now() - t0.current) / 1000) % duree); id = requestAnimationFrame(image); };
     id = requestAnimationFrame(image);
     return () => cancelAnimationFrame(id);
-  }, [sel?.id, format, export_, lecture, logoImg, Object.keys(captures).length, musique]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sel?.id, format, export_, lecture, logoImg, imagesVideo, Object.keys(captures).length, musique]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Le logo : réduit dans le navigateur (transparence gardée), sa couleur dominante relevée, puis posé dans la vidéo
   // Le logo de l'espace d'abord, sinon celui gardé dans ce navigateur
