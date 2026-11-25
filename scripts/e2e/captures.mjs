@@ -553,9 +553,13 @@ if (CONSTRUIRE === "video-images") {
   const fs2 = await import("node:fs");
   for (const [n, idee] of idees.entries()) {
     const r = await appel("video-creer", { workspace_id: wsV, texte: idee, format: "vertical" });
-    const sc = r.j?.script ?? null, ims = Object.entries(sc?.images ?? {});
+    let sc = r.j?.script ?? null;
+    // Clips animés : on attend qu'ils soient prêts (ou abandonnés), six minutes au plus
+    for (let i = 0; i < 36 && sc && Object.values(sc.images ?? {}).some((x) => x?.attente); i++) { await new Promise((ok) => setTimeout(ok, 10000)); const e = await appel("video-clips", { workspace_id: wsV, video_id: r.j.id }); if (e.ok && e.j?.script) sc = e.j.script; }
+    const ims = Object.entries(sc?.images ?? {});
+    if (sc) console.log(`clips de la vidéo ${n + 1} : ${ims.filter(([, v]) => v.clip).length} prêts, ${ims.filter(([, v]) => v.attente).length} encore en attente`);
     console.log(r.ok && sc ? `✓ vidéo ${n + 1} : allure ${sc.look}, ${sc.scenes?.length} scènes : ${sc.scenes?.map((x) => x.type).join(" › ")} ; images ${ims.length}` : `✗ vidéo ${n + 1} : ${r.t}`);
-    if (sc) { fs2.writeFileSync(`${DOSSIER}/video-${n + 1}-script.json`, JSON.stringify(sc)); for (const [k, v] of ims) { const b = await fetch(v.url).then((x) => x.arrayBuffer()).catch(() => null); if (b) fs2.writeFileSync(`${DOSSIER}/video-${n + 1}-${k}.jpg`, Buffer.from(b)); } }
+    if (sc) { fs2.writeFileSync(`${DOSSIER}/video-${n + 1}-script.json`, JSON.stringify(sc)); for (const [k, v] of ims) { const b = await fetch(v.url).then((x) => x.arrayBuffer()).catch(() => null); if (b) fs2.writeFileSync(`${DOSSIER}/video-${n + 1}-${k}.jpg`, Buffer.from(b));  if (v.clip) { const c = await fetch(v.clip).then((x) => x.arrayBuffer()).catch(() => null); if (c) fs2.writeFileSync(`${DOSSIER}/video-${n + 1}-${k}.mp4`, Buffer.from(c)); } } }
   }
 }
 if (CONSTRUIRE === "galerie") {

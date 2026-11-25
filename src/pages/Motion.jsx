@@ -104,16 +104,46 @@ export default function Motion() {
       .then((l) => { if (vivant) setImagesVideo(Object.fromEntries(l.filter(Boolean))); });
     return () => { vivant = false; };
   }, [sel?.id, JSON.stringify(Object.keys(script?.images ?? {}))]); // eslint-disable-line react-hooks/exhaustive-deps
-  const dessinerA = (t) => { const c = canvas.current; if (!c || !script) return; if (scenes) dessinerScenes(c.getContext("2d"), W, H, t, script, { logo: logoImg, ecrans: ecransVideo, images: imagesVideo, filigrane: !sansFiligrane }); else dessiner(c.getContext("2d"), W, H, t, script, opts); };
+  // Les clips animés (l'objet bouge vraiment) : tant qu'un clip est en création, on revient voir toutes les 8 s ;
+  // prêt, il remplace l'image fixe de son plan. Chaque clip est une vidéo muette calée sur le temps de son plan.
+  const attenteClips = Object.values(sel?.script?.images ?? {}).some((x) => x?.attente);
+  useEffect(() => {
+    if (!attenteClips || !ws?.id || !sel?.id) return;
+    const id = setInterval(() => fn("r/video-clips", { workspace_id: ws.id, video_id: sel.id }).then((r) => {
+      if (!r?.script) return;
+      setSel((s) => (s?.id === sel.id ? { ...s, script: r.script } : s)); setVideos((l) => (l ?? []).map((v) => (v.id === sel.id ? { ...v, script: r.script } : v)));
+    }, () => null), 8000);
+    return () => clearInterval(id);
+  }, [attenteClips, ws?.id, sel?.id]);
+  const [clipsVideo, setClipsVideo] = useState({});
+  const clesClips = Object.entries(script?.images ?? {}).filter(([, v]) => /^https:\/\//.test(v?.clip ?? "")).map(([k, v]) => `${k}=${v.clip}`).join("|");
+  useEffect(() => {
+    if (!clesClips) { setClipsVideo({}); return; }
+    let vivant = true; const faits = [];
+    clesClips.split("|").forEach((x) => { const [k, url] = [x.slice(0, x.indexOf("=")), x.slice(x.indexOf("=") + 1)]; const v = document.createElement("video"); v.crossOrigin = "anonymous"; v.muted = true; v.playsInline = true; v.preload = "auto"; v.onloadeddata = () => { if (vivant) setClipsVideo((c) => ({ ...c, [k]: v })); }; v.src = url; faits.push(v); });
+    return () => { vivant = false; faits.forEach((v) => { v.pause(); v.removeAttribute("src"); v.load(); }); setClipsVideo({}); };
+  }, [sel?.id, clesClips]);
+  // Où chaque clip doit en être à l'instant t de la vidéo (null : son plan n'est pas à l'écran)
+  const instantClip = (k, t) => { const c = scenes ? coupesScenes(script) : []; const i = (script?.scenes ?? []).findIndex((e) => e.image === k); if (i < 0 || !c[i]) return null; const fin = c[i + 1]?.t ?? duree, l = t - c[i].t; return l >= 0 && t < fin ? l : null; };
+  const calerClips = (t, strict) => Promise.all(Object.entries(clipsVideo).map(([k, v]) => {
+    const l = instantClip(k, t);
+    if (l == null) { if (!v.paused) v.pause(); return null; }
+    const cible = Math.min(l, Math.max(0, (v.duration || 5) - 0.08));
+    if (!strict) { if (Math.abs(v.currentTime - cible) > 0.35) v.currentTime = cible; if (v.paused) v.play().catch(() => null); return null; }
+    v.pause(); if (Math.abs(v.currentTime - cible) < 0.012) return null;
+    return new Promise((ok) => { const fini = () => { v.removeEventListener("seeked", fini); ok(); }; v.addEventListener("seeked", fini); setTimeout(fini, 1500); v.currentTime = cible; });
+  }));
+  const imagesEtClips = useMemo(() => ({ ...(imagesVideo ?? {}), ...clipsVideo }), [imagesVideo, clipsVideo]);
+  const dessinerA = (t) => { const c = canvas.current; if (!c || !script) return; if (scenes) dessinerScenes(c.getContext("2d"), W, H, t, script, { logo: logoImg, ecrans: ecransVideo, images: imagesEtClips, filigrane: !sansFiligrane }); else dessiner(c.getContext("2d"), W, H, t, script, opts); };
 
   // Lecture en boucle
   useEffect(() => {
     if (!script || export_ != null || !lecture) return;
     let id; t0.current = performance.now();
-    const image = () => { dessinerA(((performance.now() - t0.current) / 1000) % duree); id = requestAnimationFrame(image); };
+    const image = () => { const t = ((performance.now() - t0.current) / 1000) % duree; calerClips(t, false); dessinerA(t); id = requestAnimationFrame(image); };
     id = requestAnimationFrame(image);
     return () => cancelAnimationFrame(id);
-  }, [sel?.id, format, export_, lecture, logoImg, imagesVideo, Object.keys(captures).length, musique]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sel?.id, format, export_, lecture, logoImg, imagesVideo, clipsVideo, Object.keys(captures).length, musique]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Le logo : réduit dans le navigateur (transparence gardée), sa couleur dominante relevée, puis posé dans la vidéo
   // Le logo de l'espace d'abord, sinon celui gardé dans ce navigateur
@@ -161,7 +191,7 @@ export default function Motion() {
   const telecharger = async () => {
     setExport(0);
     try {
-      const { blob, ext } = await exporterVideo(canvas.current, dessinerA, setExport, musique === "aucune" ? null : musique, graine, duree, scenes ? { instants: (t) => sousInstants(script, t), coupes: coupesScenes(script) } : {});
+      const { blob, ext } = await exporterVideo(canvas.current, dessinerA, setExport, musique === "aucune" ? null : musique, graine, duree, scenes ? { instants: (t) => sousInstants(script, t), coupes: coupesScenes(script), ...(Object.keys(clipsVideo).length ? { avant: (t) => calerClips(t, true) } : {}) } : {});
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
       a.download = `${String(script?.nom ?? "video").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-")}-${format}.${ext}`; a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
@@ -224,6 +254,7 @@ export default function Motion() {
           {produit && aCapturer.length > 0 && <AppCadre slug={produit.slug} spec={produit.spec} version={produit.version ?? 1} capture={aCapturer} className="fixed -left-[9999px] top-0 w-[1280px] h-[800px] pointer-events-none" />}
           {script ? <canvas ref={canvas} width={W} height={H} className="h-full w-full" /> : <div className="grid h-full w-full place-items-center p-6 text-center text-[13.5px] text-white/45">{busy ? "Bingoo! écrit ta vidéo…" : videos == null ? "Chargement…" : "Ta vidéo apparaîtra ici."}</div>}
           {busy && <div className="absolute inset-x-0 top-0 h-1 overflow-hidden bg-white/10"><div className="h-full w-1/3 animate-[barre_1.2s_ease-in-out_infinite] bg-[#E8571C]" /></div>}
+          {attenteClips && export_ == null && <div className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1.5 text-[12px] font-semibold text-white">Les images s'animent… une à deux minutes</div>}
           {export_ != null && <div className="absolute inset-x-0 bottom-0 bg-black/75 px-4 py-3 text-[12.5px]"><p className="font-semibold">Enregistrement… {Math.round(export_ * 100)} %</p><p className="text-white/55">Garde cet onglet ouvert ({Math.round(duree)} secondes).</p></div>}
         </div>
         {script && <div className="flex flex-wrap items-center justify-center gap-2 text-[13px] font-semibold">

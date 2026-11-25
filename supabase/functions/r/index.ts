@@ -1719,8 +1719,27 @@ Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement,
     return { image, ...(await clipLancer(image, String(b.mouvement ?? ""))) };
   },
   // Vidéo motion design libre (sans SaaS) : une phrase → scénario + style ; animée et exportée dans le navigateur
-  async "video-creer"(req, b) {
+  // Où en sont les clips animés d'une vidéo : ceux qui sont prêts remplacent l'image fixe dans le scénario
+  async "video-clips"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
+    const { data: v } = await admin.from("saas_videos").select("id, script").eq("id", String(b.video_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
+    if (!v) throw new HttpError(404, "Vidéo introuvable");
+    const images = (v.script?.images ?? {}) as Record<string, any>, attente = Object.entries(images).filter(([, x]) => x?.attente);
+    if (!attente.length) return { script: v.script, restants: 0 };
+    setAi({ ws: ws.id, live: true, feature: "video" });
+    const { clipEtat } = await import("../_shared/gen-images.ts");
+    let change = false;
+    for (const [k, x] of attente) {
+      const e = await clipEtat(String(x.attente.suivi), String(x.attente.resultat)).catch((err) => ({ etat: "echec" as const, detail: String(err?.message ?? err) }));
+      if (e.etat === "en_cours") continue;
+      const { attente: _a, ...net } = x; images[k] = e.etat === "pret" ? { ...net, clip: (e as any).url } : net; change = true;
+      if (e.etat === "echec") console.error("clip vidéo :", String((e as any).detail ?? "").slice(0, 160));
+    }
+    if (change) await admin.from("saas_videos").update({ script: { ...v.script, images } }).eq("id", v.id);
+    return { script: { ...v.script, images }, restants: Object.values(images).filter((x: any) => x?.attente).length };
+  },
+  async "video-creer"(req, b) {
+    const { ws, userId } = await requireMember(req, b.workspace_id);
     const texte = String(b.texte ?? "").trim().slice(0, 800);
     if (texte.length < 8) throw new HttpError(400, "Décris ta vidéo en une phrase : pour quoi, pour qui");
     const format = ["paysage", "carre"].includes(b.format) ? b.format : "vertical";
@@ -1749,7 +1768,7 @@ Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement,
     // Images : les photos du membre (déposées chez Bingoo!) passent d'abord ; les images créées sont réservées aux offres payantes
     const prefixeImg = admin.storage.from("apps").getPublicUrl("images/").data.publicUrl;
     const photosVideo = (Array.isArray(b.photos) ? b.photos : []).map((u: unknown) => String(u ?? "")).filter((u: string) => u.startsWith(prefixeImg) && /\.(jpg|png|webp)$/.test(u) && !/["<>\s]/.test(u)).slice(0, 3);
-    try { sc = await videoLibre(produit?.nom ? `${texte} (le logiciel s'appelle « ${produit.nom} » : c'est ce nom-là, jamais un autre)` : texte, produit?.titres ?? [], { photos: photosVideo, images: !produit && ws.plan !== "essai" }); } catch (e) { if ((e as any)?.status === 400) throw new HttpError(400, (e as Error).message); throw e; }
+    try { sc = await videoLibre(produit?.nom ? `${texte} (le logiciel s'appelle « ${produit.nom} » : c'est ce nom-là, jamais un autre)` : texte, produit?.titres ?? [], { photos: photosVideo, images: !produit && ws.plan !== "essai", clips: !produit && ws.plan !== "essai" && Deno.env.get("CLIPS_VIDEO") !== "non" && userId === "ff2e0bc3-a5dd-46c8-80e7-45bf334dd807" /* clips animés : compte robot seulement, en attendant la limite par offre */ }); } catch (e) { if ((e as any)?.status === 400) throw new HttpError(400, (e as Error).message); throw e; }
     const { categorieDesign, tirerDesign } = await import("../_shared/design.ts");
     const d: any = tirerDesign(categorieDesign(String(sc.secteur_en ?? "") || texte));
     const { secteur_en: _s, ...script } = sc;

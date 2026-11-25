@@ -338,7 +338,7 @@ export async function preparerPolice(police = "Plus Jakarta Sans") {
 /** Export image par image (WebCodecs) : chaque image est dessinée à son instant exact, puis encodée en H.264.
  * Rien ne dépend de la vitesse de l'ordinateur : la vidéo est toujours fluide (30 images par seconde pile).
  * La musique est rendue hors temps réel (OfflineAudioContext) puis encodée en AAC (ou Opus). */
-async function exporterImageParImage(canvas, dessinerA, onProgres, musique, graine, duree, { instants = null, coupes = [] } = {}) {
+async function exporterImageParImage(canvas, dessinerA, onProgres, musique, graine, duree, { instants = null, coupes = [], avant = null } = {}) {
   const { Muxer, ArrayBufferTarget } = await import("mp4-muxer");
   const W = canvas.width, H = canvas.height, FPS = 30, N = Math.round(duree * FPS);
   // H.264 d'abord (lu partout, iPhone compris) ; VP9 si le navigateur n'a pas d'encodeur H.264
@@ -369,6 +369,7 @@ async function exporterImageParImage(canvas, dessinerA, onProgres, musique, grai
   venc.configure({ codec, width: W, height: H, bitrate: 10_000_000, framerate: FPS, latencyMode: "quality" });
   let acc = null;
   for (let i = 0; i < N; i++) {
+    if (avant) await avant(i / FPS); // les clips de la vidéo sont calés sur cet instant avant le dessin
     if (erreur) throw erreur;
     // Flou de mouvement : pendant les mouvements rapides, plusieurs sous-images moyennées (obturateur à 180°)
     const ts = instants ? instants(i / FPS) : [i / FPS];
