@@ -219,10 +219,10 @@ export const VITRINE = [
 // Vraies vidéos écrites par Bingoo! (les scénarios viennent du générateur), dans les 4 allures et les 3 formats
 // [fichier, nom, légende, forme] ; deux bandes qui défilent en sens inverse, comme la vitrine des SaaS
 const VIDEOS_RANGS = [
-  [["pointa", "Pointa", "Logiciel pour cabinets · vidéo produit, vrais écrans"], ["foulee", "Foulée", "Chaussures · style pop"], ["encre", "Encre Noire", "Tatouage · style nuit"], ["vintage", "Vintage Atelier", "Boutique vintage · format carré", "1/1"], ["lame", "Lame", "Barbier · style éditorial"]],
-  [["calme", "Calme", "Appli de méditation · style minimal"], ["fournil", "Boulangerie artisanale", "Rennes · style pop"], ["factur", "Factur'Artisan", "Logiciel de facturation · format paysage", "16/9"], ["boxe", "Marseille Boxing Club", "Salle de boxe · style nuit"], ["avocate", "Cabinet d'avocate", "Ouverture · style éditorial"]],
+  [["fournil", "Boulangerie artisanale", "Rennes · avec les images du pain"], ["pointa", "Pointa", "Logiciel pour cabinets · vidéo produit, vrais écrans"], ["petale", "Pétale", "Fleuriste · avec images"], ["foulee", "Foulée", "Chaussures · style pop"], ["terrecuite", "Terre Cuite", "Céramique · style deux tons"], ["encre", "Encre Noire", "Tatouage · style nuit"], ["lameule", "La Meule", "Fromagerie · avec images"], ["vintage", "Vintage Atelier", "Boutique vintage · format carré", "1/1"], ["lame", "Lame", "Barbier · style éditorial"]],
+  [["givre", "Givré", "Glacier · style éditorial, avec images"], ["calme", "Calme", "Appli de méditation · style minimal"], ["brulerie", "Brûlerie Nord", "Torréfacteur · avec images"], ["factur", "Factur'Artisan", "Logiciel de facturation · format paysage", "16/9"], ["maisonlune", "Maison Lune", "Bijoux · style deux tons"], ["boxe", "Marseille Boxing Club", "Salle de boxe · style nuit"], ["avocate", "Cabinet d'avocate", "Ouverture · style éditorial"]],
 ];
-// Une vidéo ne tourne que quand elle est à l'écran (les bandes en contiennent vingt)
+// Une vidéo ne tourne que quand elle est à l'écran (les bandes en contiennent une trentaine)
 function VideoCarte({ f, nom, quoi, forme = "9/16", cachee }) {
   const ref = useRef(null);
   useEffect(() => {
@@ -232,14 +232,14 @@ function VideoCarte({ f, nom, quoi, forme = "9/16", cachee }) {
   }, []);
   return (
     <figure aria-hidden={cachee || undefined} className="shrink-0 overflow-hidden rounded-2xl border border-black/[.08] bg-black shadow-[0_14px_34px_-24px_rgba(20,20,40,.6)]">
-      <video ref={ref} poster={`/videos/${f}.jpg`} muted loop playsInline preload="none" style={{ aspectRatio: forme }} className="block h-[300px] sm:h-[400px] w-auto object-cover" aria-label={cachee ? undefined : `Vidéo ${nom}, créée avec Bingoo!`}><source src={`/videos/${f}.mp4`} type="video/mp4" /><source src={`/videos/${f}.webm`} type="video/webm" /></video>
+      <video ref={ref} poster={`/videos/${f}.jpg?v=2`} muted loop playsInline preload="none" style={{ aspectRatio: forme }} className="block h-[300px] sm:h-[400px] w-auto object-cover" aria-label={cachee ? undefined : `Vidéo ${nom}, créée avec Bingoo!`}><source src={`/videos/${f}.mp4?v=2`} type="video/mp4" /><source src={`/videos/${f}.webm?v=2`} type="video/webm" /></video>
       <figcaption className="flex flex-col gap-0.5 bg-white px-3 py-2"><b className="truncate text-[13.5px] text-[#1E2030]">{nom}</b><span className="truncate text-[12px] text-[#5B6075]">{quoi}</span></figcaption>
     </figure>
   );
 }
 function VideosVitrine({ nav }) {
   const rangee = (l, sens) => (
-    <div className="videos-rang flex w-max gap-4" style={{ animation: `vitrine ${sens > 0 ? 75 : 85}s linear infinite${sens < 0 ? " reverse" : ""}` }}>
+    <div className="videos-rang flex w-max gap-4" style={{ animation: `vitrine ${sens > 0 ? 130 : 115}s linear infinite${sens < 0 ? " reverse" : ""}` }}>
       {[...l, ...l].map(([f, nom, quoi, forme], i) => <VideoCarte key={f + i} f={f} nom={nom} quoi={quoi} forme={forme} cachee={i >= l.length} />)}
     </div>
   );

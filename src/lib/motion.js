@@ -190,7 +190,7 @@ function listeAllure(ctx, s, e, courte = false) {
       const x0 = large ? W * 0.48 : W * 0.1, x1 = large ? W * 0.93 : W * 0.9;
       ctx.fillStyle = INK2(0.22); ctx.fillRect(x0, y + h / 2 - 1 * u, (x1 - x0) * p, Math.max(1, 1.5 * u));
       ctx.fillStyle = rgba(CV, 1); ctx.font = `italic 600 ${34 * u * ve}px ${F}`; ctx.textAlign = "left"; ctx.fillText(String(i + 1).padStart(2, "0"), x0, y);
-      ctx.fillStyle = INK; ctx.font = `600 ${(courte ? 54 : 46) * u * ve}px ${F}`; ctx.fillText(x.texte, x0 + 90 * u * ve + (1 - p) * 30 * u, y);
+      ctx.fillStyle = INK; let tl = (courte ? 54 : 46) * u * ve; ctx.font = `600 ${tl}px ${F}`; const place = x1 - x0 - 90 * u * ve, lt = ctx.measureText(x.texte).width; if (lt > place) { tl *= place / lt; ctx.font = `600 ${tl}px ${F}`; } ctx.fillText(x.texte, x0 + 90 * u * ve + (1 - p) * 30 * u, y);
     } else if (LOOK === "minimal") {
       ctx.fillStyle = rgba(CV, 1);
       ctx.font = `500 ${(courte ? 50 : 42) * u * ve}px ${F}`; ctx.textAlign = "center";
