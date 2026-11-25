@@ -55,16 +55,16 @@ function useReveal() {
 
 /* ---------- La preuve : l'application filmée sur un vrai compte, en 4 onglets ---------- */
 const FAQ = [
-  ["Je ne sais pas coder, ça marche quand même ?", "Oui. Tu décris ton idée en une phrase (ou tu colles l'adresse d'un site qui te plaît), et Bingoo! construit tout. Pour un logiciel : les écrans, les comptes de tes clients, les paiements avec ton Stripe, la page de présentation. Pour un site : tes textes, tes pages, ton formulaire. Tu n'écris pas une ligne de code."],
+  ["Je ne sais pas coder, ça marche quand même ?", "Oui. Tu décris ton idée en une phrase (ou tu colles l'adresse d'un site qui te plaît), et Bingoo! construit tout. Pour un logiciel : les écrans, les comptes de tes clients, les paiements avec ton Stripe, la page de présentation. Pour un site : tes textes, tes pages, tes photos, ton formulaire ou la prise de rendez-vous. Tu n'écris pas une ligne de code."],
   ["Qu'est-ce que Bingoo! peut construire ?", "Quatre choses. Un logiciel en ligne (SaaS) avec ses comptes clients et ses abonnements. Un site web pour ton activité, avec ses pages, son blog et son formulaire. Un outil ou un jeu qu'on ouvre et qu'on utilise tout de suite, sans compte (convertisseur, simulateur, jeu de plateau). Une vidéo en motion design pour le présenter. Tout marche aussi sur téléphone, dans le navigateur. Les apps à publier sur l'App Store et Google Play seront disponibles dans la V2. Si une partie de ton idée ne peut pas marcher telle quelle, Bingoo! te le dit avant de construire et propose une autre façon de faire."],
   ["Je vois quoi avant de payer ?", "Après ton inscription gratuite : l'aperçu de ton idée (son nom, ses écrans, un vrai rendu de l'écran principal) et ce qui sera fait autrement. Ton premier outil ou jeu est même construit et mis en ligne gratuitement, sans carte bancaire. Pour un site ou un logiciel, tu paies seulement quand tu cliques sur « Construire »."],
   ["Combien ça coûte ?", "Ton premier outil ou jeu : offert. Un SaaS : formule Lancer, 24,99 € par mois sans engagement, ou 19 € par mois à vie pour les 50 premiers membres. Un site web, un outil ou un jeu : formule Site, 9,99 € par mois, hébergement compris. Ton nom de domaine et le retrait du badge Bingoo! : offre Lancer Pro, à choisir dans ton abonnement. Explorer les SaaS et voir l'aperçu de ton idée sont gratuits. Tes clients te paient directement sur ton Stripe : Bingoo! ne prend rien sur tes ventes."],
   ["Ça prend combien de temps ?", "Une à deux minutes pour un outil ou un jeu, quelques minutes pour un site ou un SaaS simple, plus longtemps pour un SaaS de nombreux écrans : tu regardes Bingoo! écrire chaque écran, le tester comme un vrai client et corriger ce qui ne marche pas. Ensuite tu modifies ce que tu veux dans l'atelier, en une phrase ou d'un double-clic sur un texte."],
   ["« Un site qui te plaît » : c'est légal ?", "Bingoo! reprend l'ambiance d'un site (ses couleurs, ses polices, l'organisation de ses pages), qui ne se protègent pas. Il ne reprend jamais ses textes, ses images, son nom ni son logo : ta version porte ton nom, ton logo et tes propres textes."],
-  ["Le SaaS est à moi ?", "Oui. Il est à ton nom (et sur ton propre nom de domaine avec l'offre Lancer Pro, proposée dans ton abonnement), et l'argent de tes clients arrive sur ton compte Stripe. Tu peux télécharger son code à tout moment, ou l'envoyer sur ton dépôt GitHub."],
+  ["Mon projet est à moi ?", "Oui. Il est à ton nom (et sur ton propre nom de domaine avec l'offre Lancer Pro, proposée dans ton abonnement), et l'argent de tes clients arrive sur ton compte Stripe. Tu peux télécharger son code à tout moment, ou l'envoyer sur ton dépôt GitHub."],
   ["Bingoo! garantit que ça va marcher ?", "Non, et personne ne peut le garantir. Bingoo! construit un produit qui fonctionne et t'aide ensuite à trouver tes premiers clients ; le reste dépend du marché et de ce que tu fais chaque jour."],
   ["D'où viennent les chiffres des SaaS ?", "Les revenus sont vérifiés directement chez l'outil de paiement des SaaS (Stripe et d'autres), via TrustMRR. Le reste vient de leurs pages publiques. Chaque chiffre a sa source sur la fiche."],
-  ["Et si j'arrête mon abonnement ?", "Tu arrêtes quand tu veux. Ton SaaS est hébergé par Bingoo! tant que tu es abonné : avant d'arrêter, tu télécharges son code (ou tu l'envoies sur ton dépôt GitHub) pour l'héberger ailleurs, et Bingoo! te prévient avant toute mise hors ligne."],
+  ["Et si j'arrête mon abonnement ?", "Tu arrêtes quand tu veux. Ton projet est hébergé par Bingoo! tant que tu es abonné : avant d'arrêter, tu télécharges son code (ou tu l'envoies sur ton dépôt GitHub) pour l'héberger ailleurs, et Bingoo! te prévient avant toute mise hors ligne."],
 ];
 
 
@@ -203,8 +203,6 @@ export const VITRINE = [
   ["petale", "Pétale", "Site de fleuriste", "Le site de ma boutique de fleurs à Rennes, avec les bouquets et la commande", "site"],
   ["maison-farine", "Maison Farine", "Site de boulangerie", "Le site de ma boulangerie artisanale à Lille, avec les horaires et la commande", "site"],
   ["garage-du-port", "Garage du Port", "Site de garage", "Le site de mon garage à Marseille, avec les prestations et la prise de rendez-vous", "site"],
-  ["club-randonnee", "Club Randonnée", "Site d'association", "Le site de mon association de randonnée, avec nos sorties", "site"],
-  ["hotel-lumiere", "Hôtel Lumière Lyon", "Site d'hôtel", "Le site de mon hôtel 4 étoiles à Lyon, avec les chambres et la réservation", "site"],
   ["quatre-alignes", "Quatre Alignés", "Jeu contre l'ordinateur", "Un jeu de puissance 4 contre l'ordinateur", "outil"],
   ["rendezo", "Rendezo", "Réservation en ligne", "Un outil de réservation en ligne pour les indépendants, avec rappel la veille"],
   ["tablio", "Tablio", "Restaurant : tables et commandes", "Un outil pour gérer les réservations de tables et les commandes de mon restaurant"],
@@ -213,12 +211,10 @@ export const VITRINE = [
   ["profmaths", "ProfMaths", "Cours particuliers", "Une plateforme pour trouver un prof de maths près de chez soi"],
   ["changeo", "Changeo", "Convertisseur de devises", "Un convertisseur de devises simple et beau, avec les taux du jour", "outil"],
   ["facturo", "Facturo", "Devis et factures", "Un outil pour faire mes devis, mes factures et mes relances"],
-  ["salon-domicile", "Salon à domicile", "Site de coiffeuse", "Le site de mon salon de coiffure à domicile à Lyon", "site"],
   ["menagio", "Ménagio", "Entreprises de ménage", "Un outil pour planifier et prouver les passages de mes agents de ménage"],
   ["coachly", "Coachly", "Coachs sportifs", "Un outil pour gérer mes clients de coaching sportif, leurs séances et leurs paiements"],
   ["coupelune", "Coupelune", "Salons de coiffure", "Une app de réservation pour mon salon de coiffure"],
   ["plombipro", "PlombiPro", "Artisans plombiers", "Un outil pour mes devis, mon planning et mes factures de plombier"],
-  ["planilo", "Planilo", "Site d'un logiciel", "Le site de présentation de mon logiciel de réservation pour salons", "site"],
   ["tacheo", "Tachéo", "Sociétés d'entretien", "Un outil pour planifier l'entretien et prouver chaque intervention"],
   ["avisio", "Avisio", "Retours clients", "Un outil pour recueillir et trier les demandes de mes clients"],
 ];
@@ -510,23 +506,11 @@ export default function Landing() {
                 </div>)}
               </div>
             </div>
+            <p className="mt-6 max-w-[760px] text-[16px] text-ink-soft"><b className="text-ink">Rien n'est enfermé.</b> Ton projet vit sur ton nom de domaine, l'argent de tes clients arrive sur ton compte Stripe, et son code est à toi : téléchargeable à tout moment, ou envoyé sur ton dépôt GitHub.</p>
           </div>
         </section>
 
         <BingooIA go={go} />
-
-        {/* Ton projet est à toi : code téléchargeable, compatible GitHub (texte seul : pas de logo de marque redessiné) */}
-        <section id="a-toi" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-14 sm:py-20 border-t border-black/[.07]">
-          <div className="mx-auto max-w-[1180px] grid gap-8 lg:grid-cols-[1fr_1.2fr] lg:items-center">
-            <div>
-              <p className="text-[13px] font-semibold uppercase tracking-[.14em] text-accent">Rien n'est enfermé</p>
-              <h2 className="mt-3 text-[34px] sm:text-[48px] leading-[1.06] tracking-[-.03em] text-ink" style={SERIF}>Ton projet est à toi, son code aussi.</h2>
-            </div>
-            <ul className="space-y-3 text-[16px] text-ink-soft">
-              {[["Compatible GitHub", "tu branches ton dépôt et Bingoo! y envoie ton code, un commit à chaque envoi."], ["Code téléchargeable", "tout ton projet dans un dossier, quand tu veux, sans compte ailleurs."], ["Ton nom de domaine, ton Stripe", "ton adresse, et l'argent de tes clients sur ton compte."]].map(([t, x]) => <li key={t} className="flex gap-2.5"><Check className="h-5 w-5 mt-0.5 shrink-0 text-accent" /><span><b className="text-ink">{t}</b> : {x}</span></li>)}
-            </ul>
-          </div>
-        </section>
 
         {/* Prix */}
         <section id="prix" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">

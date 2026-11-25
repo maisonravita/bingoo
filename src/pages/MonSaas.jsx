@@ -31,7 +31,7 @@ function useMonSaas() {
     const a = data?.[0];
     if (!a) { setM(null); return null; }
     const projet = a.saas_projets ? { id: a.saas_projets.id, ...a.saas_projets.data } : null;
-    const r = { app: a, projet, domaine: projet?.inspire?.domaine ?? null, nom: a.spec?.nom ?? projet?.nom ?? "Mon SaaS", couleur: a.spec?.couleur ?? "#E8571C" };
+    const r = { app: a, projet, domaine: projet?.inspire?.domaine ?? null, nom: a.spec?.nom ?? projet?.nom ?? "Mon projet", couleur: a.spec?.couleur ?? "#E8571C" };
     setM(r); return r;
   };
   useEffect(() => { charger(); }, [ws.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -215,7 +215,7 @@ function Legal({ m, charger }) {
     catch (x) { setEtat(x.message); }
   };
   return (
-    <Carte className="mt-4" titre="Tes informations légales" sous="Elles remplissent automatiquement les mentions légales, les conditions générales de vente et la politique de confidentialité de ton SaaS, obligatoires pour encaisser."
+    <Carte className="mt-4" titre="Tes informations légales" sous="Elles remplissent automatiquement les mentions légales, les conditions générales de vente et la politique de confidentialité de ton projet, obligatoires pour encaisser."
       actions={<span className={cx("rounded-full px-2 py-0.5 text-[12px] font-semibold", manque ? "bg-[#FFF1D6] text-[#8A5A00]" : "bg-[#CDFEE1] text-[#0C5132]")}>{manque ? `${manque} à compléter` : "Complet"}</span>}>
       <form onSubmit={enregistrer} className="grid gap-3 sm:grid-cols-2">
         {CHAMPS_LEGAUX.map(([k, l, ph, oblig]) => (
@@ -250,7 +250,7 @@ function Identite({ m, charger }) {
     try { await envoyer("logo", { logo: await reduireLogo(f) }); } catch (x) { setErr(x.message); }
   };
   return (
-    <Carte className="mt-4" titre="Ton identité" sous="Ton logo, ta couleur et le style de ton SaaS. Tes clients le voient tout de suite, sans reconstruire.">
+    <Carte className="mt-4" titre="Ton identité" sous="Ton logo, ta couleur et le style de ton projet. Tes clients le voient tout de suite, sans reconstruire.">
       <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
         <div>
           <p className="text-[12.5px] font-semibold text-[#616161]">Logo</p>
@@ -376,7 +376,7 @@ function Accueil({ m, charger }) {
   }, [m.app.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const etapes = [
-    { k: "ligne", t: "Mettre ton SaaS en ligne", d: `${m.nom} est construit, vérifié et en ligne, avec les comptes de tes clients.`, ok: true },
+    { k: "ligne", t: "Mettre ton projet en ligne", d: `${m.nom} est construit, vérifié et en ligne, avec les comptes de tes clients.`, ok: true },
     { k: "stripe", t: "Encaisser tes clients", d: "Branche ton compte Stripe : l'argent de tes abonnés arrive directement chez toi, sans commission de Bingoo!.", ok: !!m.app.paiement?.actif, to: "/explorer/reglages-saas?onglet=encaisser", cta: "Brancher Stripe" },
     { k: "domaine", t: "Ajouter ton nom de domaine", d: "monsaas.fr au lieu d'une adresse Bingoo! : plus professionnel, et mieux référencé sur Google.", ok: m.app.domaine_statut === "ok", to: "/explorer/reglages-saas?onglet=domaine", cta: "Ajouter un domaine" },
     { k: "video", t: "Créer ta vidéo pub", d: "20 secondes animées à tes couleurs, prêtes pour TikTok, Reels et ta page d'accueil.", ok: videos > 0, to: "/explorer/video", cta: "Créer ma vidéo" },
@@ -416,7 +416,7 @@ function Accueil({ m, charger }) {
       <Carte className="mt-4" pad={false}>
         <div className="px-4 pt-4">
           <h2 className="text-[14px] font-semibold">Guide de lancement</h2>
-          <p className="mt-0.5 text-[13px] text-[#616161]">Les étapes qui transforment ton SaaS en ligne en un SaaS qui encaisse.</p>
+          <p className="mt-0.5 text-[13px] text-[#616161]">Les étapes qui transforment ton projet en ligne en un projet qui encaisse.</p>
           <div className="mt-3 flex items-center gap-3"><span className="text-[12.5px] text-[#616161] tnum">{faites} sur {etapes.length} tâches terminées</span><div className="h-1.5 w-24 overflow-hidden rounded-full bg-[#EBEBEB]"><div className="h-full rounded-full bg-[#303030] transition-all duration-700" style={{ width: `${(faites / etapes.length) * 100}%` }} /></div></div>
         </div>
         <ul className="mt-3 p-2">
@@ -449,7 +449,7 @@ function Accueil({ m, charger }) {
       <Legal m={m} charger={charger} />
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.5fr_1fr]">
-        <Carte titre="Ton SaaS" sous="Ce que voient tes clients" actions={<Bouton onClick={() => window.open(lien, "_blank", "noopener")}>Ouvrir</Bouton>}>
+        <Carte titre="Ton projet" sous="Ce que voient tes clients" actions={<Bouton onClick={() => window.open(lien, "_blank", "noopener")}>Ouvrir</Bouton>}>
           <div className="relative aspect-[16/10] overflow-hidden rounded-lg ring-1 ring-[#EBEBEB]">
             <iframe key={m.app.version} title={`Aperçu de ${m.nom}`} src={lien} tabIndex={-1} className="pointer-events-none absolute left-0 top-0 h-[300%] w-[300%] origin-top-left scale-[.3333] border-0" />
           </div>
@@ -562,7 +562,7 @@ function ClientsSaas({ m }) {
       </Carte>
       {s === undefined ? <div className="py-16 grid place-items-center"><Spinner /></div>
         : s ? <PremiersClients s={s} a={angleDe(s, r)} r={r} app={m.app} />
-          : <Carte><p className="text-[13.5px] text-[#616161]">Le plan se prépare à partir du SaaS modèle : il n'est pas encore disponible pour ton SaaS.</p></Carte>}
+          : <Carte><p className="text-[13.5px] text-[#616161]">Le plan se prépare à partir du SaaS modèle : il n'est pas encore disponible pour ton projet.</p></Carte>}
     </>
   );
 }
@@ -824,7 +824,7 @@ function TikTok({ m }) {
 
       <ScriptsVideo m={m} />
 
-      <Carte className="mt-4" titre="Vidéos qui marchent dans ta niche" sous={t?.niche ? `Ta niche : ${t.niche}. Trouvées sur TikTok et vérifiées une par une : regarde-les, puis fais pareil pour ton SaaS.` : "Trouvées sur TikTok et vérifiées une par une. Regarde-les, puis fais pareil pour ton SaaS."}>
+      <Carte className="mt-4" titre="Vidéos qui marchent dans ta niche" sous={t?.niche ? `Ta niche : ${t.niche}. Trouvées sur TikTok et vérifiées une par une : regarde-les, puis fais pareil pour ton projet.` : "Trouvées sur TikTok et vérifiées une par une. Regarde-les, puis fais pareil pour ton projet."}>
         {!t ? <p className="text-[13.5px] text-[#616161]">Lance l'analyse TikTok pour les voir.</p>
           : !t.videos?.length ? <p className="text-[13.5px] text-[#616161]">Bingoo! n'a pas trouvé de vidéo TikTok qui parle vraiment à tes clients en tant que professionnels (il préfère ne rien te montrer que des vidéos hors sujet). Pars des idées de vidéos ci-dessus et inspire-toi des SaaS qui trouvent leurs clients sur TikTok, plus bas.</p>
             : <VideosTikTok videos={t.videos} m={m} deja={t.pareil} />}
@@ -1058,7 +1058,7 @@ function LogoEspace({ ws, m }) {
   useEffect(() => { lireLogoEspace(ws).then((l) => setLogo(l ?? (m.app?.spec?.logo ? { url: m.app.spec.logo } : null))); }, [ws.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const choisir = async (f) => {
     setEnvoi(true); setMsg("");
-    try { const l = await envoyerLogo(ws, f); await poserLogoEspace(ws, l, { forcer: true }); setLogo(l); setMsg("Posé sur ton SaaS, tes vidéos et tes prochaines constructions."); }
+    try { const l = await envoyerLogo(ws, f); await poserLogoEspace(ws, l, { forcer: true }); setLogo(l); setMsg("Posé sur ton projet, tes vidéos et tes prochaines constructions."); }
     catch (e) { setMsg(e.message); } finally { setEnvoi(false); }
   };
   return (

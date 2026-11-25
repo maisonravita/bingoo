@@ -1189,9 +1189,18 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       const { data: a2 } = await admin.from("saas_apps").select("slug").eq("id", app.id).single();
       const bin = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
       const chemin = `images/${a2?.slug ?? app.id}-${crypto.randomUUID().slice(0, 8)}.${m[1] === "jpeg" ? "jpg" : m[1]}`;
-      const { error } = await admin.storage.from("apps").upload(chemin, bin, { contentType: `image/${m[1]}`, upsert: false, cacheControl: "31536000" });
-      if (error) throw new HttpError(500, `Stockage : ${error.message}`);
-      return { url: admin.storage.from("apps").getPublicUrl(chemin).data.publicUrl };
+      // Le stockage répond parfois par une page d'erreur passagère : on réessaie une fois avant de renoncer
+      let raison = "";
+      for (let essai = 0; essai < 2; essai++) {
+        try {
+          const { error } = await admin.storage.from("apps").upload(chemin, bin, { contentType: `image/${m[1]}`, upsert: true, cacheControl: "31536000" });
+          if (!error) return { url: admin.storage.from("apps").getPublicUrl(chemin).data.publicUrl };
+          raison = error.message;
+        } catch (e) { raison = String((e as any)?.message ?? e); }
+        await new Promise((r) => setTimeout(r, 700));
+      }
+      console.error("stockage image :", raison.slice(0, 120));
+      throw new HttpError(503, "L'image n'a pas pu être enregistrée pour l'instant. Réessaie dans un instant.");
     }
     if (b.quoi === "paiement") { await log(ws.id, "app_reglage", "Encaissement de l'application modifié"); return await o.appPaiement(app.id, b); }
     if (b.quoi === "stripe-connect") return await o.stripeConnectLien(app.id, ws.id);
