@@ -500,20 +500,6 @@ export default function Landing() {
                 </div>)}
               </div>
             </div>
-            <div className="mt-9 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                ["Encaisser", ["Stripe"], "L'argent de tes clients arrive directement sur ton compte."],
-                ["Mesurer et faire de la pub", ["Google Analytics", "Meta Pixel", "Google Tag Manager"], "Tes visiteurs, d'où ils viennent, et le suivi de tes publicités."],
-                ["Rendez-vous et contacts", ["Calendly", "Mailchimp"], "Ton agenda et ta liste d'e-mails, ou les créneaux de rendez-vous intégrés à Bingoo!."],
-                ["Relier tes autres outils", ["Zapier", "Make", "n8n"], "Chaque demande ou fiche est transmise à l'outil de ton choix, et les automatisations de Bingoo! font le reste."],
-                ["Ton code", ["GitHub"], "Ton code envoyé sur ton dépôt, ou téléchargé dans un dossier."],
-                ["Ton IA et ton adresse", ["Claude", "ChatGPT"], "Ton IA construit avec Bingoo!. Et ton projet vit sur ton propre nom de domaine."],
-              ].map(([t, noms, x]) => <div key={t} className="border-t border-black/[.12] pt-4">
-                <p className="text-[13px] font-semibold uppercase tracking-[.08em] text-ink-soft">{t}</p>
-                <p className="mt-2 text-[16px] font-semibold text-ink">{noms.join(" · ")}</p>
-                <p className="mt-2 text-[15px] text-ink-soft">{x}</p>
-              </div>)}
-            </div>
           </div>
         </section>
 
