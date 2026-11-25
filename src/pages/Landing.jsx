@@ -483,21 +483,6 @@ export default function Landing() {
           </div>
         </section>
 
-        <BingooIA go={go} />
-
-        {/* Ton projet est à toi : code téléchargeable, compatible GitHub (texte seul : pas de logo de marque redessiné) */}
-        <section id="a-toi" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-14 sm:py-20 border-t border-black/[.07]">
-          <div className="mx-auto max-w-[1180px] grid gap-8 lg:grid-cols-[1fr_1.2fr] lg:items-center">
-            <div>
-              <p className="text-[13px] font-semibold uppercase tracking-[.14em] text-accent">Rien n'est enfermé</p>
-              <h2 className="mt-3 text-[34px] sm:text-[48px] leading-[1.06] tracking-[-.03em] text-ink" style={SERIF}>Ton projet est à toi, son code aussi.</h2>
-            </div>
-            <ul className="space-y-3 text-[16px] text-ink-soft">
-              {[["Compatible GitHub", "tu branches ton dépôt et Bingoo! y envoie ton code, un commit à chaque envoi."], ["Code téléchargeable", "tout ton projet dans un dossier, quand tu veux, sans compte ailleurs."], ["Ton nom de domaine, ton Stripe", "ton adresse, et l'argent de tes clients sur ton compte."]].map(([t, x]) => <li key={t} className="flex gap-2.5"><Check className="h-5 w-5 mt-0.5 shrink-0 text-accent" /><span><b className="text-ink">{t}</b> : {x}</span></li>)}
-            </ul>
-          </div>
-        </section>
-
         {/* Tout ce qui se branche sur un projet Bingoo! (logos de marque issus de SVGL et Simple Icons). Liste tenue à jour avec les réglages. */}
         <section id="branchements" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-14 sm:py-20 border-t border-black/[.07]">
           <div className="mx-auto max-w-[1180px]">
@@ -529,6 +514,21 @@ export default function Landing() {
                 <p className="mt-2 text-[15px] text-ink-soft">{x}</p>
               </div>)}
             </div>
+          </div>
+        </section>
+
+        <BingooIA go={go} />
+
+        {/* Ton projet est à toi : code téléchargeable, compatible GitHub (texte seul : pas de logo de marque redessiné) */}
+        <section id="a-toi" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-14 sm:py-20 border-t border-black/[.07]">
+          <div className="mx-auto max-w-[1180px] grid gap-8 lg:grid-cols-[1fr_1.2fr] lg:items-center">
+            <div>
+              <p className="text-[13px] font-semibold uppercase tracking-[.14em] text-accent">Rien n'est enfermé</p>
+              <h2 className="mt-3 text-[34px] sm:text-[48px] leading-[1.06] tracking-[-.03em] text-ink" style={SERIF}>Ton projet est à toi, son code aussi.</h2>
+            </div>
+            <ul className="space-y-3 text-[16px] text-ink-soft">
+              {[["Compatible GitHub", "tu branches ton dépôt et Bingoo! y envoie ton code, un commit à chaque envoi."], ["Code téléchargeable", "tout ton projet dans un dossier, quand tu veux, sans compte ailleurs."], ["Ton nom de domaine, ton Stripe", "ton adresse, et l'argent de tes clients sur ton compte."]].map(([t, x]) => <li key={t} className="flex gap-2.5"><Check className="h-5 w-5 mt-0.5 shrink-0 text-accent" /><span><b className="text-ink">{t}</b> : {x}</span></li>)}
+            </ul>
           </div>
         </section>
 
