@@ -59,10 +59,10 @@ const FAQ = [
   ["Combien ça coûte ?", "Ton premier outil ou jeu : offert. Un SaaS : formule Lancer, 24,99 € par mois sans engagement, ou 19 € par mois à vie pour les 50 premiers membres. Un site web, un outil ou un jeu : formule Site, 9,99 € par mois, hébergement compris. Ton nom de domaine et le retrait du badge Bingoo! : offre Lancer Pro, à choisir dans ton abonnement. Explorer les SaaS et voir l'aperçu de ton idée sont gratuits. Tes clients te paient directement sur ton Stripe : Bingoo! ne prend rien sur tes ventes."],
   ["Ça prend combien de temps ?", "Une à deux minutes pour un outil ou un jeu, quelques minutes pour un site ou un SaaS simple, plus longtemps pour un SaaS de nombreux écrans : tu regardes Bingoo! écrire chaque écran, le tester comme un vrai client et corriger ce qui ne marche pas. Ensuite tu modifies ce que tu veux dans l'atelier, en une phrase ou d'un double-clic sur un texte."],
   ["« Un site qui te plaît » : c'est légal ?", "Bingoo! reprend l'ambiance d'un site (ses couleurs, ses polices, l'organisation de ses pages), qui ne se protègent pas. Il ne reprend jamais ses textes, ses images, son nom ni son logo : ta version porte ton nom, ton logo et tes propres textes."],
-  ["Le SaaS est à moi ?", "Oui. Il est à ton nom (et sur ton propre nom de domaine avec l'offre Lancer Pro, proposée dans ton abonnement), et l'argent de tes clients arrive sur ton compte Stripe. Tu peux télécharger son code à tout moment."],
+  ["Le SaaS est à moi ?", "Oui. Il est à ton nom (et sur ton propre nom de domaine avec l'offre Lancer Pro, proposée dans ton abonnement), et l'argent de tes clients arrive sur ton compte Stripe. Tu peux télécharger son code à tout moment, ou l'envoyer sur ton dépôt GitHub."],
   ["Bingoo! garantit que ça va marcher ?", "Non, et personne ne peut le garantir. Bingoo! construit un produit qui fonctionne et t'aide ensuite à trouver tes premiers clients ; le reste dépend du marché et de ce que tu fais chaque jour."],
   ["D'où viennent les chiffres des SaaS ?", "Les revenus sont vérifiés directement chez l'outil de paiement des SaaS (Stripe et d'autres), via TrustMRR. Le reste vient de leurs pages publiques. Chaque chiffre a sa source sur la fiche."],
-  ["Et si j'arrête mon abonnement ?", "Tu arrêtes quand tu veux. Ton SaaS est hébergé par Bingoo! tant que tu es abonné : avant d'arrêter, tu télécharges son code pour l'héberger ailleurs, et Bingoo! te prévient avant toute mise hors ligne."],
+  ["Et si j'arrête mon abonnement ?", "Tu arrêtes quand tu veux. Ton SaaS est hébergé par Bingoo! tant que tu es abonné : avant d'arrêter, tu télécharges son code (ou tu l'envoies sur ton dépôt GitHub) pour l'héberger ailleurs, et Bingoo! te prévient avant toute mise hors ligne."],
 ];
 
 
@@ -482,6 +482,19 @@ export default function Landing() {
         </section>
 
         <BingooIA go={go} />
+
+        {/* Ton projet est à toi : code téléchargeable, compatible GitHub (texte seul : pas de logo de marque redessiné) */}
+        <section id="a-toi" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-14 sm:py-20 border-t border-black/[.07]">
+          <div className="mx-auto max-w-[1180px] grid gap-8 lg:grid-cols-[1fr_1.2fr] lg:items-center">
+            <div>
+              <p className="text-[13px] font-semibold uppercase tracking-[.14em] text-accent">Rien n'est enfermé</p>
+              <h2 className="mt-3 text-[34px] sm:text-[48px] leading-[1.06] tracking-[-.03em] text-ink" style={SERIF}>Ton projet est à toi, son code aussi.</h2>
+            </div>
+            <ul className="space-y-3 text-[16px] text-ink-soft">
+              {[["Compatible GitHub", "tu branches ton dépôt et Bingoo! y envoie ton code, un commit à chaque envoi."], ["Code téléchargeable", "tout ton projet dans un dossier, quand tu veux, sans compte ailleurs."], ["Ton nom de domaine, ton Stripe", "ton adresse, et l'argent de tes clients sur ton compte."]].map(([t, x]) => <li key={t} className="flex gap-2.5"><Check className="h-5 w-5 mt-0.5 shrink-0 text-accent" /><span><b className="text-ink">{t}</b> : {x}</span></li>)}
+            </ul>
+          </div>
+        </section>
 
         {/* Prix */}
         <section id="prix" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
