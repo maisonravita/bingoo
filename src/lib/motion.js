@@ -422,8 +422,8 @@ const SCENES = {
         for (const m of l.split(" ")) { const reste = Math.max(0, nb - vu), part = m.slice(0, reste); ctx.fillStyle = acc.includes(m.replace(/[.,!?;:]/g, "")) ? rgba(CV, 1) : INK; ctx.fillText(part, x, y); x += ctx.measureText(m + " ").width; vu += m.length + 1; } });
       return;
     }
-    const gauche = LOOK !== "minimal" && (s.i ?? 0) % 2 === 1, largeur = W * (vertical ? 0.86 : gauche ? 0.7 : 0.8);
-    serre(ctx, "-0.035em"); const taille = remplit(ctx, e.texte || "", (vertical ? 200 : 150) * u, largeur, vertical ? 5 : 3); serre(ctx, "-0.01em");
+    const gauche = LOOK !== "minimal" && LOOK !== "nuit" && (s.i ?? 0) % 2 === 1, largeur = W * (vertical ? 0.86 : gauche ? 0.7 : 0.8);
+    serre(ctx, "-0.035em"); const taille = remplit(ctx, e.texte || "", (LOOK === "nuit" ? (vertical ? 128 : 104) : vertical ? 200 : 150) * u, largeur, vertical ? 5 : 3); serre(ctx, "-0.01em");
     const r = motsAnimes(ctx, e.texte, e.accent, gauche ? W * 0.07 : W / 2, gauche ? H * (vertical ? 0.6 : 0.5) : H / 2, { taille, poids: 800, largeur, t, decale: 0.1, aligne: gauche ? "gauche" : "centre" });
     if (false && e.trait) { // (retiré : plus de trait dessiné)
       const p = eio(prog(t, 0.25 + r.n * 0.1, 0.9 + r.n * 0.1)), y0 = H / 2 + r.h / 2 + 50 * u, x0 = W * 0.22, x1 = W * 0.78;
@@ -471,11 +471,23 @@ const SCENES = {
   barres(ctx, s, e) { SCENES.mots(ctx, s, { texte: e.texte || s.nom, accent: e.accent }); },
   pastille(ctx, s, e) {
     const { W, H, u, t } = s;
-    const p = ressort(prog(t, 0.05, 0.75)), tp = ajuste(ctx, e.texte, 128 * u, W * 0.64, 800); ctx.font = `800 ${tp}px ${F}`;
+    const p = ressort(prog(t, 0.05, 0.75)), tp = ajuste(ctx, e.texte, (LOOK === "nuit" ? 96 : 128) * u, W * 0.64, 800); ctx.font = `800 ${tp}px ${F}`;
     const w = ctx.measureText(e.texte).width + tp * 1.5, h = tp * 2.1;
-    for (let k = 0; k < 2 && LOOK !== "pop"; k++) { const q = prog(t, 0.3 + k * 0.35, 1.3 + k * 0.35); if (q > 0 && q < 1) { ctx.save(); ctx.globalAlpha *= (1 - q) * 0.5; ctx.strokeStyle = rgba(CV, 1); ctx.lineWidth = 4 * u; rond(ctx, W / 2 - w / 2 - q * 90 * u, H / 2 - h / 2 - q * 90 * u, w + q * 180 * u, h + q * 180 * u, (h + q * 180 * u) / 2); ctx.stroke(); ctx.restore(); } }
+    for (let k = 0; k < 2 && LOOK !== "pop" && LOOK !== "nuit"; k++) { const q = prog(t, 0.3 + k * 0.35, 1.3 + k * 0.35); if (q > 0 && q < 1) { ctx.save(); ctx.globalAlpha *= (1 - q) * 0.5; ctx.strokeStyle = rgba(CV, 1); ctx.lineWidth = 4 * u; rond(ctx, W / 2 - w / 2 - q * 90 * u, H / 2 - h / 2 - q * 90 * u, w + q * 180 * u, h + q * 180 * u, (h + q * 180 * u) / 2); ctx.stroke(); ctx.restore(); } }
     ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(p, p);
     const surCouleur = MODE === "couleur";
+    if (LOOK === "nuit" && !surCouleur) {
+      ctx.restore(); // le mot ne grossit pas : il est là, puis on le sélectionne, puis il devient bouton
+      const ap = eo(prog(t, 0, 0.35)), sel = eo(prog(t, 0.55, 0.85)), plein = eo(prog(t, 1.0, 1.35)), k = 1 + 0.06 * Math.sin(Math.PI * prog(t, 1.0, 1.4));
+      ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(k, k); ctx.globalAlpha *= ap; ctx.font = `700 ${tp}px ${F}`;
+      const lw = w * (0.86 + 0.14 * plein), lh = h * (0.62 + 0.38 * plein);
+      if (sel > 0) {
+        rond(ctx, -lw / 2, -lh / 2, lw * (plein > 0 ? 1 : sel), lh, lh * 0.22 * plein + 4 * u);
+        if (plein > 0) { const g = ctx.createLinearGradient(0, -lh / 2, 0, lh / 2); g.addColorStop(0, rgba(mix(C, [255, 255, 255], 0.16), 1)); g.addColorStop(1, rgba(mix(C, [0, 0, 0], 0.12), 1)); ctx.shadowColor = rgba(C, 0.45 * plein); ctx.shadowBlur = 50 * u * plein; ctx.shadowOffsetY = 16 * u * plein; ctx.fillStyle = g; ctx.globalAlpha *= 0.25 + 0.75 * plein; ctx.fill(); ctx.shadowBlur = 0; ctx.shadowOffsetY = 0; ctx.globalAlpha = ap; }
+        else { ctx.fillStyle = rgba(C, 0.22); ctx.fill(); ctx.strokeStyle = rgba(C, 0.9); ctx.lineWidth = Math.max(2, 2.5 * u); ctx.stroke(); }
+      }
+      ctx.fillStyle = plein > 0.5 ? (lum(C) > 0.62 ? "#111" : "#fff") : INK; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(e.texte, 0, tp * 0.04); ctx.restore(); return;
+    }
     if (LOOK === "pop") {
       rond(ctx, -w / 2, -h / 2, w, h, h * 0.26); ctx.fillStyle = "#fff"; ctx.fill();
       if (!surCouleur) { ctx.strokeStyle = rgba(C, 1); ctx.lineWidth = Math.max(3, 6 * u); ctx.stroke(); }
@@ -739,12 +751,32 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
       ctx.restore();
     }
   }
+  if (LOOK === "nuit") {
+    let de4 = 0;
+    scenes.forEach((e, j) => {
+      const d = dureeScene(e), loc = t - de4; de4 += d;
+      const trace = (n, tete, queue) => {
+        if (tete - queue < 0.004 || ["logo", "aplat", "personnage"].includes(scenes[n]?.type)) return;
+        const sens = n % 2 ? -1 : 1, y0 = H * (0.66 + 0.1 * ((n * 7) % 3 - 1)), P = [[-W * 0.05, y0], [W * 0.3, y0 + sens * H * 0.16], [W * 0.62, y0 - sens * H * 0.22], [W * 1.05, y0 - sens * H * 0.05]];
+        const pt = (q) => { const m = 1 - q; return [m * m * m * P[0][0] + 3 * m * m * q * P[1][0] + 3 * m * q * q * P[2][0] + q * q * q * P[3][0], m * m * m * P[0][1] + 3 * m * m * q * P[1][1] + 3 * m * q * q * P[2][1] + q * q * q * P[3][1]]; };
+        palette(["couleur", "blanc", "noir"].includes(scenes[j].fond) ? scenes[j].fond : FOND);
+        ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; if ("filter" in ctx) ctx.filter = "none"; ctx.shadowBlur = 0;
+        ctx.strokeStyle = rgba(CV, 1); ctx.lineWidth = Math.max(2, 4 * u); ctx.lineCap = "round"; ctx.beginPath();
+        for (let q = queue; q <= tete + 0.0001; q += 0.015) { const [x, y] = pt(Math.min(q, tete)); q === queue ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+        ctx.stroke(); ctx.restore();
+      };
+      if (loc >= 0 && loc < d) {
+        if (j < scenes.length - 1) trace(j, eio(prog(loc, d - 0.85, d - 0.05)), 0);
+        if (j > 0) trace(j - 1, 1, eio(prog(loc, 0, 0.6)));
+      }
+    });
+  }
   // Habillage, comme un générique de marque : le nom en petites capitales en haut (s'il n'y a pas de logo), le numéro de la
   // scène, et un fil d'avancement en bas. Absent des scènes plein cadre (impact, aplat, fin).
   {
     let de3 = 0, k = -1, a = 0; const tot = scenes.reduce((x, e) => x + dureeScene(e), 0) || 1;
     scenes.forEach((e, j) => { const d = dureeScene(e); if (t >= de3 && t < de3 + d) { k = j; a = ["aplat", "logo", "impact", "personnage"].includes(e.type) ? 0 : Math.min(1, (t - de3) / 0.45, (de3 + d - t) / 0.3); } de3 += d; });
-    if (k >= 0 && a > 0.01 && LOOK !== "editorial" && LOOK !== "pop") {
+    if (k >= 0 && a > 0.01 && LOOK === "minimal") {
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); if ("filter" in ctx) ctx.filter = "none"; ctx.shadowBlur = 0; ctx.globalAlpha = a;
       const mx = W * 0.07, yh = vertical ? H * 0.062 : H * 0.085, tl = 26 * u;
       ctx.font = `700 ${tl}px ${F}`; ctx.textBaseline = "middle"; serre(ctx, "0.12em"); ctx.fillStyle = INK2(0.72);
