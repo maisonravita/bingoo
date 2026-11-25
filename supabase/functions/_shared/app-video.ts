@@ -216,6 +216,15 @@ async function poserImages(scenes: any[], photos: string[], creer: boolean, clip
   }
   const sc = scenes.filter((e) => e.type === "image");
   sc.slice(0, 3).forEach((e, i) => { const m = medias[i]; if (!m) return; e.image = `PHOTO_${i + 1}`; images[e.image] = { ...m, source: "membre" }; if (m.clip) e.duree = 4.4; });
+  // Photos du membre animées : la vraie photo devient un clip de 5 s (lent mouvement de caméra, rien d'ajouté ni de changé).
+  // Comme pour les images créées, la vidéo part avec la photo fixe et le clip la remplace quand il est prêt.
+  if (clips) {
+    const { clipLancer } = await import("./gen-images.ts");
+    await Promise.all(sc.slice(0, 3).filter((e) => e.image && images[e.image]?.url && !images[e.image]?.clip).slice(0, 2).map(async (e) => {
+      try { images[e.image].attente = await clipLancer(images[e.image].url, "Slow cinematic camera push-in with gentle natural motion and light. Keep the subject, its shape, colours and every detail exactly as in the photo: do not add, remove or change anything"); e.duree = 4.4; }
+      catch (x) { console.error("clip photo :", String((x as any)?.message ?? x).slice(0, 160)); }
+    }));
+  }
   const reste = sc.slice(0, 3).filter((e) => !e.image);
   if (reste.length && creer) {
     try {

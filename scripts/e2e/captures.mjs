@@ -554,6 +554,13 @@ if (CONSTRUIRE === "video-images") {
   for (const [n, idee] of idees.entries()) {
     // DOMAINE=medias : le membre dépose une photo et une vidéo à lui (ici deux fichiers du dépôt), par le même chemin que la page
     let depot = {};
+    // DOMAINE=photo:<adresse d'une image rangée chez Bingoo!> : le membre dépose cette seule photo (elle sera animée)
+    if ((process.env.DOMAINE ?? "").startsWith(`photo:${SB}/storage/v1/object/public/apps/`)) {
+      const bin = Buffer.from(await fetch(process.env.DOMAINE.slice(6)).then((x) => x.arrayBuffer()));
+      const ph = await appel("video-media", { workspace_id: wsV, quoi: "photo", image: "data:image/jpeg;base64," + bin.toString("base64") });
+      console.log(`dépôt du membre : photo ${ph.ok ? "✓" : "✗ " + ph.t}`);
+      depot = { photos: ph.ok ? [ph.j.url] : [] };
+    }
     if (process.env.DOMAINE === "medias") {
       const ph = await appel("video-media", { workspace_id: wsV, quoi: "photo", image: "data:image/jpeg;base64," + fs2.readFileSync("public/vitrine/atelier-nord.jpg").toString("base64") });
       const vi = await appel("video-media", { workspace_id: wsV, quoi: "video", type: "mp4" });
