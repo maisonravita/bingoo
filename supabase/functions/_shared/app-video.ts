@@ -180,7 +180,7 @@ function scenesNettes(liste: any[], texteSource: string, titresEcrans: string[] 
       const items = (Array.isArray(e?.items) ? e.items : []).slice(0, max).map((x: any) => ({ icone: ic(x?.icone), texte: court2(x?.texte, n) })).filter((x: any) => x.texte);
       if (items.length < 2) continue; out.push({ ...base, items, texte: t(36), accent: acc });
     }
-    else if (type === "cartes") { const items = (Array.isArray(e?.items) ? e.items : []).slice(0, 3).map((x: unknown) => court2(x, 20)).filter(Boolean); if (items.length < 2) continue; out.push({ ...base, items }); }
+    else if (type === "cartes") { const items = (Array.isArray(e?.items) ? e.items : []).slice(0, 3).map((x: any) => court2(typeof x === "string" ? x : x?.texte ?? x?.titre ?? "", 20)).filter((x: string) => x && !/^\[object/.test(x)); if (items.length < 2) continue; out.push({ ...base, items }); }
     else if (type === "compteur") { const v = String(e?.valeur ?? "").replace(/\s/g, "").replace(",", "."); if (!/^\d+(\.\d+)?$/.test(v) || !chiffres.has(v)) continue; out.push({ ...base, valeur: v, suffixe: court2(e?.suffixe, 8), legende: court2(e?.legende, 34) }); }
     else if (type === "barres") out.push({ ...base, texte: t(36), accent: acc });
     else if (type === "pastille") { if (!t(18)) continue; out.push({ ...base, texte: t(18) }); }
