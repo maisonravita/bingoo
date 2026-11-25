@@ -1822,7 +1822,7 @@ function Construire({ projet }) {
 }
 
 // Réglages d'un SaaS construit, par onglets : jumeau, lancement, encaissement, prix testés, e-mails, domaine, monde et bourse, code
-export const ONGLETS_APP = [["croissance", "Croissance"], ["versions", "Versions"], ["ia", "Assistant IA"], ["jumeau", "Jumeau"], ["lancement", "Lancement"], ["blog", "Blog"], ["pages", "Pages"], ["seo", "Référencement"], ["encaisser", "Encaisser"], ["prix", "Prix testés"], ["emails", "E-mails"], ["domaine", "Domaine"], ["connecteurs", "Connecteurs"], ["monde", "Monde et bourse"], ["mobile", "Mobile"], ["code", "Code"]];
+export const ONGLETS_APP = [["croissance", "Croissance"], ["versions", "Versions"], ["ia", "Assistant IA"], ["jumeau", "Jumeau"], ["lancement", "Lancement"], ["blog", "Blog"], ["pages", "Pages"], ["seo", "Référencement"], ["photos", "Photos"], ["automatisations", "Automatisations"], ["encaisser", "Encaisser"], ["prix", "Prix testés"], ["emails", "E-mails"], ["domaine", "Domaine"], ["connecteurs", "Connecteurs"], ["monde", "Monde et bourse"], ["mobile", "Mobile"], ["code", "Code"]];
 // ---------------------------------------------------------------- Plan de croissance : tes vrais chiffres, les paliers, et ce qui fait grandir le SaaS copié
 const PALIERS = [1000, 10000, 100000];
 const CANAL_ACTION = {
