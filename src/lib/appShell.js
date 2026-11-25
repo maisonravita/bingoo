@@ -939,7 +939,7 @@ function Panier() {
 }
 const payerService = async (s) => { try { allerVers((await call("site-payer", { service: s.id, retour: RETOUR() })).url); } catch (x) { avertir(x.message); } };
 const plageS = (h) => /^0?0:00$/.test(String(h.debut || "")) && /^(23:59|24:00)$/.test(String(h.fin || "")) ? "24 h/24" : heureS(h.debut) + " – " + heureS(h.fin);
-const prixS = (s) => s.mois && Number(s.prix) === 0 ? "Gratuit" : s.prix == null || s.prix === "" || !(Number(s.prix) > 0) ? (SITE.demande === "reservation" ? "Selon vos dates" : SITE.demande === "rdv" ? "Sur demande" : "Sur devis") : (s.prix_texte ? "À partir de " : "") + fmt.eur(s.prix) + (s.mois ? " par mois" : "");
+const prixS = (s) => s.mois && Number(s.prix) === 0 ? "Gratuit" : s.prix == null || s.prix === "" || !(Number(s.prix) > 0) ? (SITE.demande === "reservation" ? (/h[ôo]tel|g[îi]te|chambre|h[ée]bergement|camping|location/i.test(SITE.metier || "") ? "Selon vos dates" : "") : SITE.demande === "rdv" ? "Sur demande" : "Sur devis") : (s.prix_texte ? "À partir de " : "") + fmt.eur(s.prix) + (s.mois ? " par mois" : "");
 const lienTel = (t) => "tel:" + String(t || "").replace(/[^\\d+]/g, "");
 const MOD = SITE.modele ?? "vitrine";
 // ---------------------------------------------------------------- Page écrite par le moteur (spec.site.page, site-gen.ts)

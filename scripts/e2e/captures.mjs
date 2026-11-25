@@ -443,7 +443,7 @@ if (CONSTRUIRE === "vitrine-accueil") {
 if (CONSTRUIRE === "rdv-photos") {
   // Photos du membre posées sur sa page (sans IA) et prise de rendez-vous par créneaux, sur deux sites du robot.
   // Les photos d'essai viennent d'un autre site du robot ; elles sont retirées à la fin, comme le rendez-vous d'essai.
-  const [sP, sR] = String(process.env.IDEE || "le-comptoir-de-lina-0k2d,atelier-meche-2j0d").split(",").map((x) => x.trim());
+  const [sP, sR] = String(/-/.test(process.env.IDEE ?? "") ? process.env.IDEE : "le-comptoir-de-lina-0k2d,atelier-meche-2j0d").split(",").map((x) => x.trim());
   const [a] = await q(`select id, slug, workspace_id from saas_apps where slug = ${lit(sP)}`);
   const reg = async (corps) => { const r = await fetch(`${SB}/functions/v1/r/saas-app-reglages`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: a.workspace_id, app_id: a.id, ...corps }) }); return { status: r.status, j: await r.json().catch(() => ({})) }; };
   const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await c.newPage();

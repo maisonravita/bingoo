@@ -74,6 +74,11 @@ un filet, des listes en lignes (.rows), des chiffres ou des mots en grand, une p
 - La FAQ n'existe que si le brief permet au moins quatre réponses qui ne sont PAS déjà écrites ailleurs sur la page. Une FAQ
   qui redonne les horaires, l'adresse ou les prix est refusée. Sa mise en page : le h2 dans une colonne étroite à gauche
   (span-4), les questions en une seule colonne à droite (span-7 start-6), séparées par des filets, h3 en 20 px au moins.
+- Une réponse de FAQ qui revient à « appelez-nous », « contactez-nous » ou « demandez-nous » n'est pas une réponse : cette
+  question est retirée. S'il reste moins de quatre vraies réponses, la section FAQ n'existe pas.
+- Ce qu'un marqueur affiche déjà (la liste des prestations avec leurs prix, les horaires, l'adresse) n'est jamais réécrit à la
+  main dans la même page : pas de liste numérotée des mêmes prestations au-dessus du marqueur services.
+- Un prix du brief s'écrit en grand UNE fois sur la page ; ailleurs, la page n'y revient pas.
 - Aucune zone vide : pas de min-height ni de hauteur fixe sur une section hors premier écran, pas de colonne laissée vide à
   côté d'un texte court. Une section en aplat (ground-brand) tient en un demi-écran : sa phrase en très grand, une ligne, c'est tout.
 - Le footer.closing va à l'essentiel : un h2, une phrase, le téléphone en grand s'il existe, le formulaire à côté, puis une
