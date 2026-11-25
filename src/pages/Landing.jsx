@@ -496,6 +496,29 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* Tout ce qui se branche sur un projet Bingoo! (noms en texte : aucun logo de marque redessiné). Liste tenue à jour avec les réglages. */}
+        <section id="branchements" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-14 sm:py-20 border-t border-black/[.07]">
+          <div className="mx-auto max-w-[1180px]">
+            <p className="text-[13px] font-semibold uppercase tracking-[.14em] text-accent">Branchements</p>
+            <h2 className="mt-3 max-w-[820px] text-[34px] sm:text-[48px] leading-[1.06] tracking-[-.03em] text-ink" style={SERIF}>Ton projet se branche sur tes outils.</h2>
+            <p className="mt-4 max-w-[640px] text-[16px] text-ink-soft">Tu colles un identifiant ou une adresse dans les réglages, Bingoo! fait le reste. Rien à coder.</p>
+            <div className="mt-9 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                ["Encaisser", ["Stripe"], "L'argent de tes clients arrive directement sur ton compte."],
+                ["Mesurer et faire de la pub", ["Google Analytics", "Meta Pixel", "Google Tag Manager"], "Tes visiteurs, d'où ils viennent, et le suivi de tes publicités."],
+                ["Rendez-vous et contacts", ["Calendly", "Mailchimp"], "Ton agenda et ta liste d'e-mails, ou les créneaux de rendez-vous intégrés à Bingoo!."],
+                ["Relier tes autres outils", ["Zapier", "Make", "n8n"], "Chaque demande ou fiche est transmise à l'outil de ton choix, et les automatisations de Bingoo! font le reste."],
+                ["Ton code", ["GitHub"], "Ton code envoyé sur ton dépôt, ou téléchargé dans un dossier."],
+                ["Ton IA et ton adresse", ["Claude", "ChatGPT"], "Ton IA construit avec Bingoo!. Et ton projet vit sur ton propre nom de domaine."],
+              ].map(([t, noms, x]) => <div key={t} className="border-t border-black/[.12] pt-4">
+                <p className="text-[13px] font-semibold uppercase tracking-[.08em] text-ink-soft">{t}</p>
+                <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[22px] leading-tight text-ink" style={SERIF}>{noms.map((n, i) => <span key={n}>{n}{i < noms.length - 1 ? <span className="text-black/25"> ·</span> : null}</span>)}</p>
+                <p className="mt-2 text-[15px] text-ink-soft">{x}</p>
+              </div>)}
+            </div>
+          </div>
+        </section>
+
         {/* Prix */}
         <section id="prix" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
           <div className="mx-auto max-w-[1180px]">
