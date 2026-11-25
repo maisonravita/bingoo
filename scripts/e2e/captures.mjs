@@ -447,10 +447,12 @@ if (CONSTRUIRE === "rdv-photos") {
   const [a] = await q(`select id, slug, workspace_id from saas_apps where slug = ${lit(sP)}`);
   const reg = async (corps) => { const r = await fetch(`${SB}/functions/v1/r/saas-app-reglages`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${session.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: a.workspace_id, app_id: a.id, ...corps }) }); return { status: r.status, j: await r.json().catch(() => ({})) }; };
   const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await c.newPage();
-  const voir = async (nom) => { await p.goto(`${SITE}/?c=${Date.now()}#/app/${sP}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(9000); await p.screenshot({ path: `${DOSSIER}/photos-${nom}.png`, fullPage: true }); };
+  const fr = () => p.frames().find((f) => f !== p.mainFrame()) ?? p.mainFrame();
+  const voir = async (nom) => { await p.goto(`${SITE}/?c=${Date.now()}#/app/${sP}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(9000); await p.screenshot({ path: `${DOSSIER}/photos-${nom}.png` }); if (await fr().locator("#photos-membre").count()) { await fr().locator("#photos-membre").scrollIntoViewIfNeeded(); await fr().evaluate(() => window.scrollBy(0, 200)); await p.waitForTimeout(2500); await p.screenshot({ path: `${DOSSIER}/photos-${nom}-bande.png` }); } };
   await voir("avant");
-  const [src] = await q(`select string_agg(s->>'html', ' ') h from saas_apps x, jsonb_array_elements(x.spec->'site'->'page'->'sections') s where x.slug in ('hotel-lumiere-lyon-144n', 'atelier-meche-2j0d', 'hotel-des-quais-1m24')`);
-  const sources = [...new Set([...String(src?.h ?? "").matchAll(/<img[^>]+src="(https:[^"]+)"/g)].map((m) => m[1]))].slice(0, 4);
+  const src = await q(`select jsonb_path_query(spec->'site'->'page'->'images', '$.*.url') #>> '{}' u from saas_apps where slug in ('hotel-lumiere-lyon-144n', 'atelier-meche-2j0d', 'hotel-des-quais-1m24', 'studio-souffle-5u4p')`);
+  const sources = [...new Set(src.map((x) => x.u).filter((u) => /^https:/.test(u ?? "")))].slice(0, 4);
+  console.log("photos d'essai trouvées :", sources.length);
   const posees = [];
   for (const u of sources) {
     const data = await p.evaluate(async (u) => { const b = await (await fetch(u)).blob(), im = await createImageBitmap(b), k = Math.min(1, 1600 / Math.max(im.width, im.height)), cv = document.createElement("canvas"); cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k); cv.getContext("2d").drawImage(im, 0, 0, cv.width, cv.height); return cv.toDataURL("image/jpeg", 0.85); }, u).catch(() => null);
@@ -473,19 +475,19 @@ if (CONSTRUIRE === "rdv-photos") {
   // Rendez-vous par créneaux, comme un visiteur
   const j = new Date(Date.now() + 8 * 864e5); while (j.getDay() !== 3) j.setDate(j.getDate() + 1);
   const jour = j.toISOString().slice(0, 10);
-  const ouvrirForm = async () => { await p.goto(`${SITE}/?c=${Date.now()}#/app/${sR}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(9000); await p.locator(".bingoo-form").first().scrollIntoViewIfNeeded(); await p.locator(".bingoo-form input[type=date]").first().fill(jour); await p.waitForTimeout(800); };
+  const ouvrirForm = async () => { await p.goto(`${SITE}/?c=${Date.now()}#/app/${sR}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(9000); await fr().locator(".bingoo-form").first().scrollIntoViewIfNeeded(); await fr().locator(".bingoo-form input[type=date]").first().fill(jour); await p.waitForTimeout(800); };
   await ouvrirForm();
-  const nb = await p.locator(".bingoo-creneaux button").count();
+  const nb = await fr().locator(".bingoo-creneaux button").count();
   console.log("créneaux proposés :", nb > 4 ? `✓ ${nb}` : `✗ ${nb}`);
-  await p.locator(".bingoo-creneaux button", { hasText: /^10 h$/ }).first().click();
-  await p.locator(".bingoo-form input").nth(0).fill("Robot rendez-vous"); await p.locator(".bingoo-form input[type=tel]").first().fill("06 00 00 00 00");
-  await p.locator(".bingoo-form").first().screenshot({ path: `${DOSSIER}/rdv-creneaux.png` });
-  await p.locator(".bingoo-form button[type=submit]").first().click(); await p.waitForTimeout(5000);
-  console.log("rendez-vous demandé :", (await p.getByText("Ce créneau vous est gardé").count()) ? "✓" : "✗");
+  await fr().locator(".bingoo-creneaux button", { hasText: /^10 h$/ }).first().click();
+  await fr().locator(".bingoo-form input").nth(0).fill("Robot rendez-vous"); await fr().locator(".bingoo-form input[type=tel]").first().fill("06 00 00 00 00");
+  await p.waitForTimeout(500); await p.screenshot({ path: `${DOSSIER}/rdv-creneaux.png` });
+  await fr().locator(".bingoo-form button[type=submit]").first().click(); await p.waitForTimeout(5000);
+  console.log("rendez-vous demandé :", (await fr().getByText("Ce créneau vous est gardé").count()) ? "✓" : "✗");
   await p.screenshot({ path: `${DOSSIER}/rdv-confirme.png` });
   await ouvrirForm();
-  console.log("créneau repris :", (await p.locator(".bingoo-creneaux button", { hasText: /^10 h$/ }).first().isDisabled().catch(() => false)) ? "✓ barré" : "✗ encore proposé");
-  await p.locator(".bingoo-form").first().screenshot({ path: `${DOSSIER}/rdv-pris.png` });
+  console.log("créneau repris :", (await fr().locator(".bingoo-creneaux button", { hasText: /^10 h$/ }).first().isDisabled().catch(() => false)) ? "✓ barré" : "✗ encore proposé");
+  await p.screenshot({ path: `${DOSSIER}/rdv-pris.png` });
   const dbl = await fetch(`${SB}/functions/v1/t/app/${sR}/site-contact`, { method: "POST", headers: { apikey: ANON, "content-type": "application/json" }, body: JSON.stringify({ data: { nom: "Robot rendez-vous", telephone: "06 00 00 00 00", date_souhaitee: jour, heure: "10:00" } }) });
   console.log("même créneau demandé deux fois :", dbl.status === 409 ? "✓ refusé" : `✗ ${dbl.status}`);
   await q(`delete from saas_app_rows where col = 'demandes' and data->>'nom' = 'Robot rendez-vous'`); await q(`delete from saas_app_attente where col = 'demandes' and data->>'nom' = 'Robot rendez-vous'`);
