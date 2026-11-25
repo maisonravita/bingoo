@@ -528,24 +528,20 @@ const SCENES = {
     ctx.fillStyle = rgba(mix(C, [0, 0, 0], lum(C) > 0.6 ? 0.55 : 0), 1); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(txt, 0, ta * 0.04); ctx.restore();
   },
   personnage(ctx, s, e) { scenePersonnage(ctx, s, e); },
-  // L'image de ce dont on parle (photo du membre ou image créée), dans un cadre arrondi qui monte, avec sa phrase dessous.
-  // L'image avance doucement dans son cadre ; sans image chargée, la phrase seule.
+  // L'image (ou le clip) de ce dont on parle, en plein écran : elle remplit tout le plan et avance doucement,
+  // la phrase se pose dessus en bas, sur un voile sombre. Sans image chargée, la phrase seule.
   image(ctx, s, e) {
-    const { W, H, u, t, vertical } = s, img = IMAGES[e.image];
-    if (!img?.width) return SCENES.mots(ctx, s, { texte: e.texte || s.nom, accent: e.accent });
-    const p = 1 - Math.pow(1 - prog(t, 0, 0.6), 4), a = vertical ? 1.12 : 0.62;
-    const w = vertical ? W * 0.8 : Math.min(W * 0.4, H * 1.0), h = w * a, x = vertical ? (W - w) / 2 : W * 0.07, y = vertical ? H * 0.13 : (H - h) / 2, r = (LOOK === "minimal" ? 10 : 44) * u;
-    ctx.save(); ctx.translate(0, LOOK === "pop" ? 0 : (1 - p) * 90 * u); ctx.globalAlpha *= Math.min(1, p * 1.5);
-    if (LOOK !== "pop" && LOOK !== "minimal") { ctx.save(); ctx.shadowColor = NOIR ? rgba(C, 0.45) : "rgba(15,20,40,.28)"; ctx.shadowBlur = 80 * u; ctx.shadowOffsetY = 30 * u; rond(ctx, x, y, w, h, r); ctx.fillStyle = "#000"; ctx.fill(); ctx.restore(); }
-    ctx.save(); rond(ctx, x, y, w, h, r); ctx.clip();
-    const k = Math.max(w / img.width, h / img.height) * (1.12 - 0.08 * prog(t, 0, s.d)), iw = img.width * k, ih = img.height * k;
-    ctx.drawImage(img, x + (w - iw) / 2, y + (h - ih) / 2, iw, ih); ctx.restore();
-    if (LOOK === "pop") { rond(ctx, x, y, w, h, r); ctx.strokeStyle = MODE === "couleur" ? "#fff" : rgba(C, 1); ctx.lineWidth = Math.max(4, 8 * u); ctx.stroke(); }
+    const { W, H, u, t, vertical } = s, img = IMAGES[e.image], iw0 = img?.videoWidth || img?.width, ih0 = img?.videoHeight || img?.height;
+    if (!iw0) return SCENES.mots(ctx, s, { texte: e.texte || s.nom, accent: e.accent });
+    const k = Math.max(W / iw0, H / ih0) * (1.16 - 0.08 * prog(t, 0, s.d)), iw = iw0 * k, ih = ih0 * k;
+    ctx.save(); ctx.globalAlpha = 1; ctx.drawImage(img, (W - iw) / 2, (H - ih) / 2 - (e.texte && vertical ? Math.min(H * 0.07, (ih - H) / 2) : 0), iw, ih);
+    if (e.texte) { const g = ctx.createLinearGradient(0, H * 0.6, 0, H); g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(0.55, "rgba(0,0,0,.62)"); g.addColorStop(1, "rgba(0,0,0,.86)"); ctx.fillStyle = g; ctx.fillRect(0, H * 0.6, W, H * 0.4); }
     ctx.restore();
     if (e.texte) {
-      const lx = vertical ? W / 2 : x + w + (W - x - w) / 2, ly = vertical ? y + h + (H - y - h) * 0.42 : H / 2, largeur = vertical ? W * 0.84 : W - x - w - W * 0.1;
-      serre(ctx, "-0.035em"); const taille = remplit(ctx, e.texte, (LOOK === "nuit" ? 92 : 124) * u, largeur, vertical ? 2 : 3); serre(ctx, "-0.01em");
-      motsAnimes(ctx, e.texte, e.accent, lx, ly, { taille, poids: 800, largeur, t: t - 0.25, decale: 0.08 });
+      const largeur = W * (vertical ? 0.84 : 0.6), encre = INK; INK = "#fff";
+      serre(ctx, "-0.035em"); const taille = remplit(ctx, e.texte, (vertical ? 118 : 104) * u, largeur, vertical ? 3 : 2); serre(ctx, "-0.01em");
+      motsAnimes(ctx, e.texte, e.accent, W * 0.08, H * (vertical ? 0.86 : 0.8), { taille, poids: 800, largeur, t: t - 0.3, decale: 0.08, aligne: "gauche" });
+      INK = encre;
     }
   },
   logo(ctx, s, e) {

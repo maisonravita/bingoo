@@ -120,7 +120,7 @@ const CATALOGUE = `Scènes possibles (type et champs, textes en français, très
 - pastille { texte (1 à 2 mots) } : un mot dans une pastille de couleur qui pop
 - aplat { texte (le nom ou 1 à 3 mots) } : l'écran se remplit de la couleur de la marque
 - logo { texte (≤ 30 car., l'appel à l'action) } : TOUJOURS la dernière scène
-- image { prompt (EN ANGLAIS, ≤ 200 car. : UN objet ou produit que la personne décrit ou que son métier vend, seul, en gros plan, sur un fond uni et sobre ; ex. « a golden crusty baguette on a plain cream background, studio product shot »), texte (≤ 36 car., la phrase qui va avec), accent } : l'image de ce dont on parle, dans un cadre, avec sa phrase
+- image { prompt (EN ANGLAIS, ≤ 200 car. : UN objet ou produit que la personne décrit ou que son métier vend, seul, bien centré, cadré en hauteur avec de la place vide en bas, sur un fond uni et sobre ; ex. « a golden crusty baguette on a plain cream background, studio product shot »), texte (≤ 36 car., la phrase qui va avec), accent } : l'image de ce dont on parle, en plein écran, avec sa phrase posée dessus
 Images : 2 ou 3 scènes « image » par vidéo, jamais deux de suite, chacune avec un objet DIFFÉRENT. Uniquement des objets et des produits : jamais une personne, un visage, une devanture, une salle, un logo, un écran ni du texte dans l'image. Si l'activité ne se montre pas par un objet (conseil, droit, logiciel), aucune scène « image ».
 Aucune icône ni dessin (le logo du membre est ajouté à part).
 Chaque scène peut avoir "fond": "couleur" | "blanc" | "noir" (sinon le fond de la vidéo) et "transition": "vague" (une vague de couleur balaie l'écran).`;
@@ -213,7 +213,7 @@ async function poserImages(scenes: any[], photos: string[], creer: boolean): Pro
   if (reste.length && creer) {
     try {
       const { imagesPage } = await import("./gen-images.ts");
-      const r = await imagesPage(reste.map((e, i) => ({ id: `IMG_${i + 1}`, pour: "video", prompt: String(e.prompt) })), 0.2, { taille: "square_hd" });
+      const r = await imagesPage(reste.map((e, i) => ({ id: `IMG_${i + 1}`, pour: "video", prompt: String(e.prompt) })), 0.2, { taille: "portrait_16_9" });
       reste.forEach((e, i) => { const im = r.images[`IMG_${i + 1}`]; if (im?.url) { e.image = `IMG_${i + 1}`; images[e.image] = { url: im.url, source: "creee" }; } });
     } catch (x) { console.error("images vidéo :", String((x as any)?.message ?? x).slice(0, 160)); }
   }
