@@ -193,6 +193,16 @@ function ChantierFlou({ texte, genre, children }) {
 // Un clic sur un SaaS de la vitrine remplit l'idée (point de départ à adapter)
 // Premiers écrans réels de projets construits par Bingoo! (captures du robot, en visiteur) ; 5e valeur : "site" pour un site vitrine
 export const VITRINE = [
+  // Sites du nouveau design (novembre 2026), mis en avant
+  ["atelier-nord", "Atelier Nord", "Site d'architecte d'intérieur", "Le site de mon agence d'architecture d'intérieur à Annecy, avec ma méthode et mes réalisations", "site"],
+  ["hotel-des-quais", "Hôtel des Quais", "Site d'hôtel", "Le site de mon hôtel 4 étoiles à Bordeaux, avec les chambres et la réservation", "site"],
+  ["atelier-meche", "Atelier Mèche", "Site de salon de coiffure", "Le site de mon salon de coiffure à Nantes, avec les tarifs et la prise de rendez-vous", "site"],
+  ["comptoir-de-lina", "Le Comptoir de Lina", "Site de restaurant", "Le site de mon bistrot de quartier à Lyon, avec la carte et la réservation", "site"],
+  ["studio-souffle", "Studio Souffle", "Site de studio de yoga", "Le site de mon studio de yoga et pilates à Strasbourg, avec les tarifs et la réservation d'un cours", "site"],
+  ["cabinet-morel", "Cabinet Morel", "Site d'avocate", "Le site de mon cabinet d'avocate en droit du travail à Paris, avec la prise de rendez-vous", "site"],
+  ["petale", "Pétale", "Site de fleuriste", "Le site de ma boutique de fleurs à Rennes, avec les bouquets et la commande", "site"],
+  ["maison-farine", "Maison Farine", "Site de boulangerie", "Le site de ma boulangerie artisanale à Lille, avec les horaires et la commande", "site"],
+  ["garage-du-port", "Garage du Port", "Site de garage", "Le site de mon garage à Marseille, avec les prestations et la prise de rendez-vous", "site"],
   ["club-randonnee", "Club Randonnée", "Site d'association", "Le site de mon association de randonnée, avec nos sorties", "site"],
   ["hotel-lumiere", "Hôtel Lumière Lyon", "Site d'hôtel", "Le site de mon hôtel 4 étoiles à Lyon, avec les chambres et la réservation", "site"],
   ["quatre-alignes", "Quatre Alignés", "Jeu contre l'ordinateur", "Un jeu de puissance 4 contre l'ordinateur", "outil"],
